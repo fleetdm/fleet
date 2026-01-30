@@ -1,4 +1,4 @@
-# ADR-NNNN: Adopt use of error codes in Fleet API error responses
+# ADR-0009: Adopt use of error codes in Fleet API error responses
 
 ## Status
 
