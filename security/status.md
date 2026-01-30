@@ -116,6 +116,14 @@ Following is the vulnerability report of Fleet and its dependencies.
 
 ## `fleetdm/fleetctl` docker image
 
+### [CVE-2026-23517](https://nvd.nist.gov/vuln/detail/CVE-2026-23517)
+- **Author:** @lucasmrod
+- **Status:** `not_affected`
+- **Status notes:** This vulnerability affected fleet, not fleetctl, adding it here to avoid false positives.
+- **Products:**: `fleetctl`,`pkg:golang/github.com/fleetdm/fleet/v4`
+- **Justification:** `component_not_present`
+- **Timestamp:** 2025-01-30 09:25:41
+
 ### [CVE-2025-66516](https://nvd.nist.gov/vuln/detail/CVE-2025-66516)
 - **Author:** @lucasmrod
 - **Status:** `not_affected`
