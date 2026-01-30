@@ -132,6 +132,14 @@ Following is the vulnerability report of Fleet and its dependencies.
 
 ## `fleetdm/fleetctl` docker image
 
+### [CVE-2026-24515](https://nvd.nist.gov/vuln/detail/CVE-2026-24515)
+- **Author:** @lucasmrod
+- **Status:** `not_affected`
+- **Status notes:** fleetctl does not process XML using libexpat1, and when genrating packages the XMLs are defined.
+- **Products:**: `fleetctl`,`pkg:deb/debian/libexpat1`
+- **Justification:** `vulnerable_code_not_in_execute_path`
+- **Timestamp:** 2026-01-03 15:15:53
+
 ### [CVE-2025-69419](https://nvd.nist.gov/vuln/detail/CVE-2025-69419)
 - **Author:** @lucasmrod
 - **Status:** `not_affected`
