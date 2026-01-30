@@ -35,13 +35,33 @@ jobs:
               return;
             }
 
+            // Helper to tag issue as unreleased and leave a comment
+            const tagAsUnreleased = async () => {
+              await github.rest.issues.addLabels({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: issue.number,
+                labels: ['~unreleased-bug']
+              });
+
+              // Post a comment explaining the action
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: issue.number,
+                body: `This issue has been automatically tagged as unreleased. If this is is incorrect, you may replace the label with `~released-bug`. If this is correct, or might be correct, move this bug onto the appropriate product board to get a fix underway.`
+              });
+
+              console.log(`Tagged bug as unreleased`);
+            };
+
             // Parse Fleet version from issue body
             const body = issue.body || '';
             const versionMatch = body.match(/\*\*Fleet version\*\*:\s*(.+)/);
 
             if (!versionMatch || !versionMatch[1]) {
               console.log('No Fleet version found in issue body');
-              // TODO add comment, mark as unreleased
+              await tagAsUnreleased();
               return;
             }
 
@@ -58,7 +78,7 @@ jobs:
                 reportedVersion.toLowerCase().includes('todo') ||
                 reportedVersion.toLowerCase().includes('unknown')) {
               // TODO catch main/RC here too
-              // TODO add comment, mark as unreleased
+              await tagAsUnreleased();
               return;
             }
 
@@ -101,19 +121,4 @@ jobs:
               return;
             }
 
-            await github.rest.issues.addLabels({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              issue_number: issue.number,
-              labels: ['~unreleased-bug']
-            });
-
-            // Post a comment explaining the action
-            await github.rest.issues.createComment({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              issue_number: issue.number,
-              body: `This issue has been automatically tagged as unreleased. If this is is incorrect, you may replace the label with `~released-bug`. If this is correct, or might be correct, move this bug onto the appropriate product board to get a fix underway.`
-            });
-            
-            console.log(`Tagged bug as unreleased`);
+            await tagAsUnreleased();
