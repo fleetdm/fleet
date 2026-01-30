@@ -1,4 +1,4 @@
-# use this to configure out the custom golangci-lint build runs, via the -c flag
+# configuration for running custom golangci-lint build
 version: "2"
 
 issues:
