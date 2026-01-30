@@ -602,7 +602,7 @@ Quickly confirming and reproducing bug reports is a [priority for Fleet](https:/
 
 At this state, the Head of Product Design is responsible for going through the inbox and adding the correct product group label (e.g. `#g-mdm`, `#g-orchestration`, `#g-software`, `#g-security-compliance`). 
 
-Then, it's the product group Product Designer's responsibility to decide if it's a bug, make sure reproduction steps are documented, and update the bug's title to focus on what's fixed now, instead of what was broken before. 
+Then, it's the product group Product Designer's responsibility to decide if it's a bug, make sure reproduction steps are documented, and update the bug's title to focus on the expected behavior instead of what's broken. 
 
 If reproduction steps are missing, add them, ask for more reproduction details from the reporter, or ask the QA team for help with reproduction. The Product Designer has **1 business day** to move the bug to the next step ([needs reproduction](#needs-reproduction) or [reproduced](#reproduced)) or request more information.
 
