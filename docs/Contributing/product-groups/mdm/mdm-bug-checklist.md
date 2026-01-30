@@ -1,6 +1,6 @@
 MDM Bug FAQ/Checklist
 
-This checklist provides a list of questions contributors will commonly ask when attempting to triage and reproduce MDM bugs. Answering as many questions as possible from this checklist when gathering information about new a bug helps speed up the process and helps to avoid losing the context and information
+This checklist provides a list of questions contributors will commonly ask when attempting to triage and reproduce MDM bugs. Answering as many questions as possible from this checklist when gathering information about new a bug helps speed up the process and helps to avoid losing context and information.
 
 1. OS Version of affected hosts  
    1. Windows: Name, edition and version, e.g. Windows 11 Professional 25H2. Build number like 10.0.26200.7462 is appreciated if possible  
