@@ -1,14 +1,14 @@
 {
   "versions": [
     {
-      "version": "8.16.2",
+      "version": "9.0.0",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'net.kovidgoyal.calibre';"
       },
-      "installer_url": "https://download.calibre-ebook.com/8.16.2/calibre-8.16.2.dmg",
+      "installer_url": "https://download.calibre-ebook.com/9.0.0/calibre-9.0.0.dmg",
       "install_script_ref": "41fb296a",
       "uninstall_script_ref": "2ad19a72",
-      "sha256": "c25a527a19b574adc3cf48bea38ca96c6ba722f4c7886e80ab99c560ff6ad35f",
+      "sha256": "4f88f95116bd585fc9747c981cce9ebb50adee97c2c287f1e41f3b3fc5a38bc0",
       "default_categories": [
         "Productivity"
       ]
