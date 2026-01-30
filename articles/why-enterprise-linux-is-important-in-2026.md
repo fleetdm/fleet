@@ -36,7 +36,7 @@ The rise in supply-chain attacks and large-scale malware campaigns has sharpened
 
 Linux users are often among an organization’s most important contributors: developers, engineers, scientists, researchers. Software developers, in particular, are increasingly choosing Linux. Stack Overflow’s 2025 developer survey reported that roughly [28–30% of respondents use Linux](https://survey.stackoverflow.co/2025/technology#most-popular-technologies) as their main operating system for professional work.
 
-A challenge IT teams face is that many of these technically savvy employees have intentionally chosen Linux because it has historically been difficult for organizations to manage. For years, Linux endpoints lived outside IT control, were treated as “special cases” or were left to end users to “secure”. That era is over.
+One challenge IT teams face is that many of these technically savvy employees have intentionally chosen Linux because it has historically been difficult for organizations to manage. For years, Linux endpoints lived outside IT control, were treated as “special cases” or were left to end users to “secure”. That era is over.
 
 As Linux adoption grows, so does its attractiveness to attackers. In 2023, the Icefire ransomware targeted Linux systems and networks, underscoring a new reality: Linux endpoints are no longer obscure or ignored. Unmanaged Linux devices are a liability. Linux must be managed as a first-class platform and held to the same security and compliance standards as macOS and Windows. Failing to do so exposes organizations to malware, configuration drift, and audit failures.
 
