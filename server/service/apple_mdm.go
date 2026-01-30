@@ -3931,20 +3931,24 @@ func (svc *MDMAppleCheckinAndCommandService) maybeUpdateIDeviceEnrollRef(ctx con
 		return false, ctxerr.Wrap(ctx, err, "checking enroll reference")
 	}
 	if hmer == enrollRef {
-		// no change
+		// no change so return early
 		return false, nil
 	}
 
 	level.Info(svc.logger).Log("msg", "updating enroll reference for host", "host_id", host.ID, "host_uuid", host.UUID, "old_enroll_ref", hmer, "new_enroll_ref", enrollRef)
 	didUpdate, err := svc.ds.UpdateMDMAppleHostMDMEnrollRef(ctx, host.ID, enrollRef)
-	switch {
-	case err != nil:
+	if err != nil {
 		return false, ctxerr.Wrap(ctx, err, "updating enroll reference")
-	case !didUpdate:
-		level.Debug(svc.logger).Log("msg", "unexpected enroll reference update no-op", "host_id", host.ID, "host_uuid", host.UUID, "old_enroll_ref", hmer, "new_enroll_ref", enrollRef)
 	}
 
-	// TODO: consider if we also want to clear pending mdm commands to renew enroll profile
+	if !didUpdate {
+		level.Debug(svc.logger).Log("msg", "unexpected enroll reference update no-op", "host_id", host.ID, "host_uuid", host.UUID)
+	}
+
+	// clear SCEP renew refs if any
+	if err := svc.ds.DeactivateMDMAppleHostSCEPRenewCommands(ctx, host.UUID); err != nil {
+		return didUpdate, ctxerr.Wrap(ctx, err, "updating enroll reference: deactivate renew commands")
+	}
 
 	return didUpdate, nil
 }

@@ -1143,6 +1143,8 @@ type GetMDMAppleHostMDMEnrollRefFunc func(ctx context.Context, hostID uint) (str
 
 type UpdateMDMAppleHostMDMEnrollRefFunc func(ctx context.Context, hostID uint, enrollRef string) (bool, error)
 
+type DeactivateMDMAppleHostSCEPRenewCommandsFunc func(ctx context.Context, hostUUID string) error
+
 type ListMDMAppleEnrolledIPhoneIpadDeletedFromFleetFunc func(ctx context.Context, limit int) ([]string, error)
 
 type ReconcileMDMAppleEnrollRefFunc func(ctx context.Context, enrollRef string, machineInfo *fleet.MDMAppleMachineInfo) (string, error)
@@ -3451,6 +3453,9 @@ type DataStore struct {
 
 	UpdateMDMAppleHostMDMEnrollRefFunc        UpdateMDMAppleHostMDMEnrollRefFunc
 	UpdateMDMAppleHostMDMEnrollRefFuncInvoked bool
+
+	DeactivateMDMAppleHostSCEPRenewCommandsFunc        DeactivateMDMAppleHostSCEPRenewCommandsFunc
+	DeactivateMDMAppleHostSCEPRenewCommandsFuncInvoked bool
 
 	ListMDMAppleEnrolledIPhoneIpadDeletedFromFleetFunc        ListMDMAppleEnrolledIPhoneIpadDeletedFromFleetFunc
 	ListMDMAppleEnrolledIPhoneIpadDeletedFromFleetFuncInvoked bool
@@ -8315,6 +8320,13 @@ func (s *DataStore) UpdateMDMAppleHostMDMEnrollRef(ctx context.Context, hostID u
 	s.UpdateMDMAppleHostMDMEnrollRefFuncInvoked = true
 	s.mu.Unlock()
 	return s.UpdateMDMAppleHostMDMEnrollRefFunc(ctx, hostID, enrollRef)
+}
+
+func (s *DataStore) DeactivateMDMAppleHostSCEPRenewCommands(ctx context.Context, hostUUID string) error {
+	s.mu.Lock()
+	s.DeactivateMDMAppleHostSCEPRenewCommandsFuncInvoked = true
+	s.mu.Unlock()
+	return s.DeactivateMDMAppleHostSCEPRenewCommandsFunc(ctx, hostUUID)
 }
 
 func (s *DataStore) ListMDMAppleEnrolledIPhoneIpadDeletedFromFleet(ctx context.Context, limit int) ([]string, error) {
