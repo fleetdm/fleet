@@ -14,7 +14,7 @@ This checklist provides a list of questions contributors will commonly ask when 
 4. Hardware level/platform of affected hosts  
    1. E.g. iPad 10th generation, M4 Macbook Pro  
    2. For Windows and Android, Manufacturer and Model is preferred  
-5. Enrollment method/type of affected host(s) and approximate timeframe hosts were initial enrolled:  
+5. Enrollment method/type of affected host(s) and approximate timeframe hosts were initially enrolled:  
    1. macOS:  
       1. ADE/ABM enrollment \- MDM status: On (company-owned)
          * Host in ADE/ABM but had manual profile installed?  
