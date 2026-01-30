@@ -690,6 +690,10 @@ func (svc *Service) RequirePasswordReset(ctx context.Context, uid uint, require 
 		if err := svc.DeleteSessionsForUser(ctx, user.ID); err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "deleting user sessions")
 		}
+		// Clear all password reset tokens for good measure.
+		if err := svc.ds.DeletePasswordResetRequestsForUser(ctx, user.ID); err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "deleting password reset requests after password change")
+		}
 	}
 
 	return user, nil
