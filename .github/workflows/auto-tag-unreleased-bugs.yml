@@ -72,12 +72,13 @@ jobs:
 
             console.log(`Found reported version: ${reportedVersion}`);
 
-            // Skip if version is empty, placeholder, or unknown
+            // Treat as unreleased if reported version is RC/main/unknown/todo
             if (!reportedVersion ||
                 reportedVersion.trim() === '' ||
                 reportedVersion.toLowerCase().includes('todo') ||
-                reportedVersion.toLowerCase().includes('unknown')) {
-              // TODO catch main/RC here too
+                reportedVersion.toLowerCase().includes('unknown') ||
+                reportedVersion.toLoverCase().includes('main') ||
+                reportedVersion.toLowerCase().includes('rc')) {
               await tagAsUnreleased();
               return;
             }
