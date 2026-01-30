@@ -82,6 +82,10 @@ jobs:
               await tagAsUnreleased();
               return;
             }
+            
+            if (reportedVersion === '4.x') {
+              return; // this is "all 4.x versions" so it's released
+            }
 
             // Fetch most recent 100 releases from the repo; that's realistically enough to match
             // any newly created bug
