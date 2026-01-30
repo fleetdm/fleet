@@ -49,7 +49,7 @@ jobs:
                 owner: context.repo.owner,
                 repo: context.repo.repo,
                 issue_number: issue.number,
-                body: `This issue has been automatically tagged as unreleased. If this is is incorrect, you may replace the label with `~released-bug`. If this is correct, or might be correct, move this bug onto the appropriate product board to get a fix underway.`
+                body: "This issue has been automatically tagged as unreleased. If this is is incorrect, you may replace the label with `~released-bug`. If this is correct, or might be correct, move this bug onto the appropriate product board to get a fix underway."
               });
 
               console.log(`Tagged bug as unreleased`);
