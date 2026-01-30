@@ -1217,7 +1217,7 @@ func (man Manager) addConfigs() {
 	man.addConfigString("server.trusted_proxies", "",
 		"Trusted proxy configuration for client IP extraction: 'none' (RemoteAddr only), a header name (e.g., 'True-Client-IP'), a hop count (e.g., '2'), or comma-separated IP/CIDR ranges")
 	man.addConfigBool("server.gzip_responses", false, "Enable gzip-compressed responses for supported clients")
-	man.addConfigInt64("server.default_max_request_body_size", 1024*1024, "Default maximum size in bytes for request bodies, certain endpoints will have higher limits")
+	man.addConfigInt64("server.default_max_request_body_size", endpointer.MaxRequestBodySize, "Default maximum size in bytes for request bodies, certain endpoints will have higher limits")
 
 	// Hide the sandbox flag as we don't want it to be discoverable for users for now
 	man.hideConfig("server.sandbox_enabled")
