@@ -38,6 +38,7 @@ import {
   INSTALL_DETAILS_STATUS_ICONS,
   getInstallDetailsStatusPredicate,
 } from "../constants";
+import { hasIn } from "lodash";
 
 const baseClass = "software-install-details-modal";
 
@@ -99,11 +100,11 @@ export const StatusMessage = ({
     created_at,
   } = installResult;
 
-  // Treat failed_install / failed_uninstall as installed
-  // when the host still reports installed versions (4.82 #31663)
+  // Treat failed_install/ failed_uninstall with installed versions as installed
+  // as the host still reports installed versions (4.82 #31663)
   const isActuallyInstalled =
-    ["failed_install", "failed_uninstall"].includes(status || "") &&
-    hasInstalledVersions;
+    hasInstalledVersions &&
+    ["failed_install", "failed_uninstall"].includes(status || "");
 
   if (isActuallyInstalled) {
     return (

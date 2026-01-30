@@ -80,11 +80,11 @@ export const getStatusMessage = ({
     displayStatus
   );
 
-  // Treat failed_install / failed_uninstall as installed when Fleet
-  // says failed but the host reports the app as installed (4.82 #31663)
+  // Treat failed_install / failed_uninstall with installed versions as installed
+  // as the host still reports installed versions (4.82 #31663)
   const isActuallyInstalled =
-    ["failed_install", "failed_uninstall"].includes(displayStatus || "") &&
-    hasInstalledVersions;
+    hasInstalledVersions &&
+    ["failed_install", "failed_uninstall"].includes(displayStatus || "");
 
   if (isActuallyInstalled) {
     return (
@@ -425,7 +425,12 @@ export const VppInstallDetailsModal = ({
   // NOTE: Currently no uninstall VPP but added for symmetry with SoftwareInstallDetailsModal
   const excludeInstallDetails =
     hasInstalledVersions &&
-    ["failed_install", "failed_uninstall"].includes(displayStatus);
+    [
+      "failed_install_installed",
+      "failed_uninstall_installed",
+      "failed_install",
+      "failed_uninstall",
+    ].includes(displayStatus || "");
 
   const renderContent = () => {
     if (isLoadingVPPCommandResult) {

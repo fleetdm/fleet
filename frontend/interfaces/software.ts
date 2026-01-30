@@ -571,7 +571,9 @@ export interface IHostSoftware {
 // Error UI statuses
 export const HOST_SOFTWARE_UI_ERROR_STATUSES = [
   "failed_install", // Install attempt failed
+  "failed_install_installed", // Install attempt failed but version still present
   "failed_install_update_available", // Install/update failed; newer installer version available
+  "failed_uninstall_installed", // Uninstall attempt failed but version still present
   "failed_uninstall", // Uninstall attempt failed
   "failed_uninstall_update_available", // Uninstall/update failed; newer installer version available
   "failed_script", // Script package failed to run

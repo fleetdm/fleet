@@ -71,6 +71,21 @@ export const getStatusMessage = ({
 
   const isPendingInstall = displayStatus === "pending_install";
 
+  // Treat failed_install / failed_uninstall with installed versions as installed
+  // as the host still reports installed versions (4.82 #31663)
+  // Note: Currently no uninstall IPA but added for symmetry with SoftwareInstallDetailsModal
+  const isActuallyInstalled =
+    hasInstalledVersions &&
+    ["failed_install", "failed_uninstall"].includes(displayStatus || "");
+
+  if (isActuallyInstalled) {
+    return (
+      <>
+        <b>{appName}</b> is installed.
+      </>
+    );
+  }
+
   // Handles the case where software is installed manually by the user and not through Fleet
   // This IPA software_packages modal matches app_store_app modal and software_packages modal
   // for software installed manually shown with VppInstallDetailsModal and SoftwareInstallDetailsModal
@@ -118,21 +133,6 @@ export const getStatusMessage = ({
         The MDM command (request) to install <b>{appName}</b>
         {!isMyDevicePage && <> on {formattedHost}</>} was acknowledged but the
         installation has not been verified. Please re-attempt this installation.
-      </>
-    );
-  }
-
-  // Treat failed_install / failed_uninstall as installed
-  // when the host still reports installed versions (4.82 #31663)
-  // Note: Currently no uninstall IPA but added for symmetry with SoftwareInstallDetailsModal
-  const isActuallyInstalled =
-    ["failed_install", "failed_uninstall"].includes(displayStatus || "") &&
-    hasInstalledVersions;
-
-  if (isActuallyInstalled) {
-    return (
-      <>
-        <b>{appName}</b> is installed.
       </>
     );
   }

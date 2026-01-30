@@ -49,8 +49,6 @@ interface TooltipArgs {
   lastInstalledAt?: string;
   isAppleAppStoreApp?: boolean;
   isHostOnline?: boolean;
-  /** API statuses */
-  apiStatus?: SoftwareInstallUninstallStatus | null;
 }
 
 export type IStatusDisplayConfig = {
@@ -114,16 +112,24 @@ export const INSTALL_STATUS_DISPLAY_OPTIONS: Record<
   installed: {
     iconName: "success",
     displayText: "Installed", // Opens "Install details" modal
-    tooltip: ({ apiStatus, lastInstalledAt, isSelfService }) => {
-      // Software detected as installed will always show "Installed" along with install details modal but when API status is failed install/uninstall, a tooltip will appear addressing failure 4.82 #31663
-      if (apiStatus === "failed_install") {
-        return failedInstallTooltip({ lastInstalledAt, isSelfService });
-      }
-      if (apiStatus === "failed_uninstall") {
-        return failedUninstallTooltip({ lastInstalledAt, isSelfService });
-      }
-      return undefined;
-    }, // No tooltip for installed state
+    tooltip: () => {
+      return undefined; // No tooltip for installed state
+    },
+  },
+  failed_install_installed: {
+    iconName: "success",
+    displayText: "Installed", // Opens "Install details" modal
+    tooltip: ({ lastInstalledAt, isSelfService }) => {
+      return failedInstallTooltip({ lastInstalledAt, isSelfService });
+    },
+  },
+  // Different from failed_uninstall as currently installed detailsUI overrides failed uninstall details UI
+  failed_uninstall_installed: {
+    iconName: "success",
+    displayText: "Installed", // Opens "Install details" modal
+    tooltip: ({ lastInstalledAt, isSelfService }) => {
+      return failedUninstallTooltip({ lastInstalledAt, isSelfService });
+    },
   },
   recently_updated: {
     iconName: "success",
@@ -549,7 +555,6 @@ const InstallStatusCell = ({
     isAppleAppStoreApp,
     isSelfService,
     isHostOnline,
-    apiStatus: software.status,
   });
 
   return (
