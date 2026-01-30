@@ -5,6 +5,7 @@ import (
 	"context"
 
 	"github.com/docker/go-units"
+	"github.com/fleetdm/fleet/v4/server/platform/endpointer"
 )
 
 // Human formats a byte size into a human-readable string.
@@ -22,9 +23,6 @@ func Human(bytes int64) string {
 
 type key struct{}
 
-// DefaultMaxInstallerSize is the default maximum size allowed for software installers (10 GiB).
-const DefaultMaxInstallerSize int64 = 10 * units.GiB
-
 // NewContext returns a new context with the max installer size value.
 func NewContext(ctx context.Context, maxSize int64) context.Context {
 	return context.WithValue(ctx, key{}, maxSize)
@@ -35,7 +33,7 @@ func NewContext(ctx context.Context, maxSize int64) context.Context {
 func FromContext(ctx context.Context) int64 {
 	v, ok := ctx.Value(key{}).(int64)
 	if !ok {
-		return DefaultMaxInstallerSize
+		return endpointer.MaxSoftwareInstallerSize
 	}
 	return v
 }

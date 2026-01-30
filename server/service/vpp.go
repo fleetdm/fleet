@@ -7,7 +7,6 @@ import (
 	"mime/multipart"
 	"net/http"
 
-	"github.com/docker/go-units"
 	"github.com/fleetdm/fleet/v4/server/authz"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -197,7 +196,7 @@ type uploadVPPTokenRequest struct {
 func (uploadVPPTokenRequest) DecodeRequest(ctx context.Context, r *http.Request) (interface{}, error) {
 	decoded := uploadVPPTokenRequest{}
 
-	err := r.ParseMultipartForm(512 * units.MiB)
+	err := r.ParseMultipartForm(endpointer.MaxMultipartFormSize)
 	if err != nil {
 		return nil, &fleet.BadRequestError{
 			Message:     "failed to parse multipart form",
@@ -264,7 +263,7 @@ type patchVPPTokenRenewRequest struct {
 func (patchVPPTokenRenewRequest) DecodeRequest(ctx context.Context, r *http.Request) (interface{}, error) {
 	decoded := patchVPPTokenRenewRequest{}
 
-	err := r.ParseMultipartForm(512 * units.MiB)
+	err := r.ParseMultipartForm(endpointer.MaxMultipartFormSize)
 	if err != nil {
 		return nil, &fleet.BadRequestError{
 			Message:     "failed to parse multipart form",

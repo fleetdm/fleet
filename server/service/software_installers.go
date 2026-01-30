@@ -13,7 +13,6 @@ import (
 	"net/url"
 	"strconv"
 
-	"github.com/docker/go-units"
 	authzctx "github.com/fleetdm/fleet/v4/server/contexts/authz"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	hostctx "github.com/fleetdm/fleet/v4/server/contexts/host"
@@ -70,7 +69,7 @@ func (updateSoftwareInstallerRequest) DecodeRequest(ctx context.Context, r *http
 	decoded.TitleID = uint(titleID)
 
 	maxInstallerSize := installersize.FromContext(ctx)
-	err = r.ParseMultipartForm(512 * units.MiB)
+	err = r.ParseMultipartForm(endpointer.MaxMultipartFormSize)
 	if err != nil {
 		var mbe *http.MaxBytesError
 		if errors.As(err, &mbe) {
@@ -276,7 +275,7 @@ func (uploadSoftwareInstallerRequest) DecodeRequest(ctx context.Context, r *http
 	decoded := uploadSoftwareInstallerRequest{}
 
 	maxInstallerSize := installersize.FromContext(ctx)
-	err := r.ParseMultipartForm(512 * units.MiB)
+	err := r.ParseMultipartForm(endpointer.MaxMultipartFormSize)
 	if err != nil {
 		var mbe *http.MaxBytesError
 		if errors.As(err, &mbe) {
