@@ -55,7 +55,7 @@ To upload Configuration Profiles to your Fleet instance: go to **Controls > OS S
 
 ### 2. Create a post-install script
 
-To activate a host in the CrowdStrike tenant, a script must be excuted after CrowdStrike Falcon is installed on the host to collect the **Customer ID**. Use this script on macOS with the **Customer ID** string copied from your CrowdStrike tenant above:
+To activate a host in the CrowdStrike tenant, a script must be excuted after CrowdStrike Falcon is installed to collect the **Customer ID**. Use this script on macOS with the **Customer ID** string copied from your CrowdStrike tenant above:
 
 ```
 #!/bin/bash
@@ -86,7 +86,7 @@ fi
 
 ### 1. Create a post-install script
 
-To activate a host in the CrowdStrike tenant, a script must be excuted after CrowdStrike Falcon is installed on the host to collect the **Customer ID**. Use this script on Linux with the **Customer ID** string copied from your CrowdStrike tenant above:
+To activate a host in the CrowdStrike tenant, a script must be excuted after CrowdStrike Falcon is installed to collect the **Customer ID**. Use this script on Linux with the **Customer ID** string copied from your CrowdStrike tenant above:
 
 ```
 #!/bin/bash
@@ -118,7 +118,7 @@ CrowdStrike provides [documentation for additional flags](https://github.com/cro
 
 ### 1. Create a post-install script
 
-To activate a host in the CrowdStrike tenant, a script must be excuted after CrowdStrike Falcon is installed on the host to collect the **Customer ID**. Use this script on Windows with the **Customer ID** string copied from your CrowdStrike tenant above:
+To activate a host in the CrowdStrike tenant, a script must be excuted after CrowdStrike Falcon is installed to collect the **Customer ID**. Use this script on Windows with the **Customer ID** string copied from your CrowdStrike tenant above:
 
 ```
 # Set your Customer ID here
