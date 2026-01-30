@@ -129,6 +129,7 @@ func matchPackageIcons(request []fleet.SoftwareInstallerPayload, response []flee
 	// On the client side, software installer entries can have a URL or a hash or both ...
 	byURL := make(map[string]*fleet.SoftwareInstallerPayload)
 	byHash := make(map[string]*fleet.SoftwareInstallerPayload)
+	bySlug := make(map[string]*fleet.SoftwareInstallerPayload)
 
 	for i := range request {
 		clientSide := &request[i]
@@ -138,6 +139,9 @@ func matchPackageIcons(request []fleet.SoftwareInstallerPayload, response []flee
 		}
 		if clientSide.SHA256 != "" {
 			byHash[clientSide.SHA256] = clientSide
+		}
+		if clientSide.Slug != nil {
+			bySlug[*clientSide.Slug] = clientSide
 		}
 	}
 
@@ -153,6 +157,12 @@ func matchPackageIcons(request []fleet.SoftwareInstallerPayload, response []flee
 
 		// ... Then by URL
 		if clientSide, ok := byURL[serverSide.URL]; ok {
+			serverSide.LocalIconHash = clientSide.IconHash
+			serverSide.LocalIconPath = clientSide.IconPath
+			continue
+		}
+
+		if clientSide, ok := bySlug[serverSide.Slug]; ok {
 			serverSide.LocalIconHash = clientSide.IconHash
 			serverSide.LocalIconPath = clientSide.IconPath
 		}

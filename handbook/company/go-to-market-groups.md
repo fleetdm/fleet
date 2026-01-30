@@ -9,7 +9,7 @@ When communicating with future or current customers, hand-offs [between departme
 
 
 > Use this "🦄 Go-To-Market groups" page to write down philosophies and show how the different pieces of the GTM process fit together.
-> Use the dedicated departmental handbook pages for [🫧 Marketing](https://fleetdm.com/handbook/marketing), 🌐 [IT & Enablement](https://fleetdm.com/handbook/it-and-enablement), [🐋 Sales](https://fleetdm.com/handbook/sales), [🌦️ Customer Success](https://fleetdm.com/handbook/customer-success), and [💸 Finance](https://fleetdm.com/handbook/finance) to keep track of specific responsibilities and recurring rituals designed to be read and used within those departments.
+> Use the dedicated departmental handbook pages for [🫧 Marketing](https://fleetdm.com/handbook/marketing), 🌐 [IT](https://fleetdm.com/handbook/it), [🐋 Sales](https://fleetdm.com/handbook/sales), [🌦️ Customer Success](https://fleetdm.com/handbook/customer-success), and [💸 Finance](https://fleetdm.com/handbook/finance) to keep track of specific responsibilities and recurring rituals designed to be read and used within those departments.
 
 
 ## Current GTM groups
@@ -27,8 +27,8 @@ The goal of the 🦄 Unicorns group is to provide the best possible customer exp
 | Responsibility                    | Human(s)                  |
 |:----------------------------------|:--------------------------|
 | Revenue DRI                       | [Alex Mitchell](https://www.linkedin.com/in/alexandercmitchell/) _([@alexmitchelliii](https://github.com/alexmitchelliii))_
-| Solutions Consultant (SC)         | [Allen Houchins](https://www.linkedin.com/in/allenhouchins/) _([@allenhouchins](https://github.com/allenhouchins))_ <br> [Harrison Ravazzolo](https://www.linkedin.com/in/harrison-ravazzolo/) _([@harrisonravazzolo](https://github.com/harrisonravazzolo))_ <br> [Mitch Francese](https://www.linkedin.com/in/mitchell-francese/) _([@tux234](https://github.com/tux234))_ <br> [Dave Siederer](https://www.linkedin.com/in/siederer/) _([@ds0x](https://github.com/ds0x))_
-| Account Executive (AE)           | [Patricia Ambrus](https://www.linkedin.com/in/pambrus/) _([@ambrusps](https://github.com/ambrusps))_ <br> [Anthony Snyder](https://www.linkedin.com/in/anthonysnyder8/) _([@anthonysnyder8](https://github.com/AnthonySnyder8))_ <br> [Paul Tardif](https://www.linkedin.com/in/paul-t-750833/) _([@phtardif1](https://github.com/phtardif1))_ <br> [Tom Ostertag](https://www.linkedin.com/in/tom-ostertag-77212791/) _([@tomostertag](https://github.com/TomOstertag))_ <br> [Connor Hughes](https://www.linkedin.com/in/connor-hughes444/)_([@MunkiMind](https://github.com/MunkiMind))_ <br> [Kevin Malkin](https://www.linkedin.com/in/kevin-malkin-04247120/) _([@kevinmalkin12](https://github.com/kevinmalkin12))_ <br> [Eric Swenson](https://www.linkedin.com/in/eswenson1/) _([@ericswenson0](https://github.com/ericswenson0))_ <br> [Nick Blee](https://www.linkedin.com/in/nickablee/) _([@NickBlee](https://github.com/NickBlee))_
+| Solutions Consultant (SC)         | [Allen Houchins](https://www.linkedin.com/in/allenhouchins/) _([@allenhouchins](https://github.com/allenhouchins))_ <br> [Harrison Ravazzolo](https://www.linkedin.com/in/harrison-ravazzolo/) _([@harrisonravazzolo](https://github.com/harrisonravazzolo))_ <br> [Mitch Francese](https://www.linkedin.com/in/mitchell-francese/) _([@tux234](https://github.com/tux234))_ <br> [Dave Siederer](https://www.linkedin.com/in/siederer/) _([@ds0x](https://github.com/ds0x))_ <br> [Henry Stamerjohann](https://www.linkedin.com/in/henry-st/) _([@headmin](https://github.com/headmin))_
+| Account Executive (AE)           | [Patricia Ambrus](https://www.linkedin.com/in/pambrus/) _([@ambrusps](https://github.com/ambrusps))_ <br> [Anthony Snyder](https://www.linkedin.com/in/anthonysnyder8/) _([@anthonysnyder8](https://github.com/AnthonySnyder8))_ <br> [Paul Tardif](https://www.linkedin.com/in/paul-t-750833/) _([@phtardif1](https://github.com/phtardif1))_ <br> [Connor Hughes](https://www.linkedin.com/in/connor-hughes444/)_([@MunkiMind](https://github.com/MunkiMind))_ <br> [Kevin Malkin](https://www.linkedin.com/in/kevin-malkin-04247120/) _([@kevinmalkin12](https://github.com/kevinmalkin12))_ <br> [Eric Swenson](https://www.linkedin.com/in/eswenson1/) _([@ericswenson0](https://github.com/ericswenson0))_ <br> [Nick Blee](https://www.linkedin.com/in/nickablee/) _([@NickBlee](https://github.com/NickBlee))_
 | Solutions Specialist              | [Thomas Salomon](https://www.linkedin.com/in/Seedity/) _([@Seedity](https://github.com/Seedity))_ <br> [Andrea Pepper](https://www.linkedin.com/in/lppepper/) _([@lppepper2](https://github.com/lppepper2))_ <br> [Maribell Morales](https://www.linkedin.com/in/maribell-morales-056647139/) _([@maribell-fleetdm](https://github.com/maribell-fleetdm))_
 | Pipeline DRI                      | [Mike McNeil](https://www.linkedin.com/in/mikermcneil) _([@mikermcneil](https://github.com/mikermcneil))_
 | Customer Success DRI              | [Zay Hanlon](https://www.linkedin.com/in/zayhanlon/) _([@zayhanlon](https://github.com/zayhanlon))_
@@ -85,6 +85,7 @@ At Fleet, our GTM strategy consists of:
 - [Processing intent signals](https://fleetdm.com/handbook/company/go-to-market-groups#processing-intent-signals)
 - [Research](https://fleetdm.com/handbook/company/go-to-market-groups#research)
 - [Warm-up actions](https://fleetdm.com/handbook/company/go-to-market-groups#warm-up-actions)
+- [Executive Messaging Framework - Communicating the value of Fleet to the CIO and his direct team](https://docs.google.com/document/d/17u8z_aeZiatOBzcMfRtYewxMWZjRt-UKc0gQftcg7XM/edit?tab=t.0) (private Google doc)
 - [Proof of Value (POV)](https://fleetdm.com/handbook/company/go-to-market-groups#proof-of-value-pov)
 - [Signatures](https://fleetdm.com/handbook/company/go-to-market-groups#signatures)
 
@@ -250,7 +251,7 @@ Once the signature SLA has expired you can [contact Finance](https://fleetdm.com
 
 Use the following steps to send Fleet's vendor collateral to a prospect or customer:
 1. Be sure that there's a signed NDA between Fleet and the requesting organization [saved in Google Drive](https://drive.google.com/drive/folders/1ee6E2wwhUL8F5qTRGUleJ9HeWjSRj5xm?usp=drive_link). If not, [send an NDA](https://fleetdm.com/handbook/sales#send-an-nda).
-2. Navigate to the ["🗃️ Vendor collateral" folder (confidential)](https://drive.google.com/drive/folders/18_Q7Q9Qwu7a8uFyHIS9QZo7iVA0B9YED?usp=drive_link) in Google Drive and to download the neccesary documents.
+2. Navigate to the ["🗃️ Vendor collateral" folder (confidential)](https://drive.google.com/drive/folders/18_Q7Q9Qwu7a8uFyHIS9QZo7iVA0B9YED?usp=drive_link) in Google Drive and to download the neccessary documents.
 
 > 🧑‍🚀 Attention Fleeties:
 >
@@ -259,7 +260,7 @@ Use the following steps to send Fleet's vendor collateral to a prospect or custo
 
 ### Vendor questionnaires 
 
-Occasionally, prospective customers will ask us to complete a questionnaire. In responding to security questionnaires, Fleet endeavors to provide full transparency via our [security policies](https://fleetdm.com/handbook/finance/security#security-policies), [trust](https://trust.fleetdm.com/), and [application security](https://fleetdm.com/handbook/finance/security#application-security) documentation. In addition to this documentation, please refer to [the vendor questionnaires page](https://fleetdm.com/handbook/finance/security#vendor-questionnaires). [Contact the Sales department](https://fleetdm.com/handbook/sales#contact-us) to address any pending questionnaires.
+Occasionally, prospective customers will ask us to complete a questionnaire. In responding to security questionnaires, Fleet endeavors to provide full transparency via our [security policies](https://fleetdm.com/handbook/it/security#security-policies), [trust](https://trust.fleetdm.com/), and [application security](https://fleetdm.com/handbook/it/security#application-security) documentation. In addition to this documentation, please refer to [the vendor questionnaires page](https://fleetdm.com/handbook/it/security#vendor-questionnaires). [Contact the Sales department](https://fleetdm.com/handbook/sales#contact-us) to address any pending questionnaires.
 
 
 

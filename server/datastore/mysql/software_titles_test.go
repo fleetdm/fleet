@@ -37,7 +37,6 @@ func TestSoftwareTitles(t *testing.T) {
 		{"ListSoftwareTitlesAvailableForInstallFilter", testListSoftwareTitlesAvailableForInstallFilter},
 		{"ListSoftwareTitlesOverflow", testListSoftwareTitlesOverflow},
 		{"ListSoftwareTitlesAllTeams", testListSoftwareTitlesAllTeams},
-		{"UploadedSoftwareExists", testUploadedSoftwareExists},
 		{"ListSoftwareTitlesVulnerabilityFilters", testListSoftwareTitlesVulnerabilityFilters},
 		{"UpdateSoftwareTitleName", testUpdateSoftwareTitleName},
 		{"ListSoftwareTitlesDoesnotIncludeDuplicates", testListSoftwareTitlesDoesnotIncludeDuplicates},
@@ -1433,50 +1432,6 @@ func testListSoftwareTitlesAllTeams(t *testing.T, ds *Datastore) {
 	}, names)
 }
 
-func testUploadedSoftwareExists(t *testing.T, ds *Datastore) {
-	ctx := context.Background()
-
-	tm, err := ds.NewTeam(ctx, &fleet.Team{Name: "Team Foo"})
-	require.NoError(t, err)
-	user1 := test.NewUser(t, ds, "Alice", "alice@example.com", true)
-
-	installer1, _, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
-		Title:            "installer1",
-		Source:           "apps",
-		InstallScript:    "echo",
-		Filename:         "installer1.pkg",
-		BundleIdentifier: "com.foo.installer1",
-		UserID:           user1.ID,
-		ValidatedLabels:  &fleet.LabelIdentsWithScope{},
-	})
-	require.NoError(t, err)
-	require.NotZero(t, installer1)
-	installer2, _, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
-		Title:            "installer2",
-		Source:           "apps",
-		InstallScript:    "echo",
-		Filename:         "installer2.pkg",
-		TeamID:           &tm.ID,
-		BundleIdentifier: "com.foo.installer2",
-		UserID:           user1.ID,
-		ValidatedLabels:  &fleet.LabelIdentsWithScope{},
-	})
-	require.NoError(t, err)
-	require.NotZero(t, installer2)
-
-	exists, err := ds.UploadedSoftwareExists(ctx, "com.foo.installer1", nil)
-	require.NoError(t, err)
-	require.True(t, exists)
-
-	exists, err = ds.UploadedSoftwareExists(ctx, "com.foo.installer2", nil)
-	require.NoError(t, err)
-	require.False(t, exists)
-
-	exists, err = ds.UploadedSoftwareExists(ctx, "com.foo.installer2", &tm.ID)
-	require.NoError(t, err)
-	require.True(t, exists)
-}
-
 func testListSoftwareTitlesVulnerabilityFilters(t *testing.T, ds *Datastore) {
 	ctx := context.Background()
 	host := test.NewHost(t, ds, "host", "", "hostkey", "hostuuid", time.Now())
@@ -2229,7 +2184,7 @@ func testSoftwareTitleHostCount(t *testing.T, ds *Datastore) {
 		HostID:                host1.ID,
 		InstallUUID:           hostInstall1,
 		InstallScriptExitCode: ptr.Int(0),
-	})
+	}, nil)
 	require.NoError(t, err)
 
 	_, err = ds.applyChangesForNewSoftwareDB(ctx, host1.ID, []fleet.Software{*updateSw})
@@ -2655,7 +2610,7 @@ func testUpdateAutoUpdateConfig(t *testing.T, ds *Datastore) {
 		AutoUpdateEndTime:   ptr.String(endTime),
 	})
 	require.Error(t, err)
-	require.Contains(t, err.Error(), "invalid auto-update time format")
+	require.Contains(t, err.Error(), "Error parsing start time")
 
 	// Attempt to enable auto-update with invalid end time.
 	startTime = "12:00"
@@ -2666,7 +2621,18 @@ func testUpdateAutoUpdateConfig(t *testing.T, ds *Datastore) {
 		AutoUpdateEndTime:   ptr.String(endTime),
 	})
 	require.Error(t, err)
-	require.Contains(t, err.Error(), "invalid auto-update time format")
+	require.Contains(t, err.Error(), "Error parsing end time")
+
+	// Attempt to enable auto-update with less than an hour between start and end time.
+	startTime = "12:00"
+	endTime = "12:30"
+	err = ds.UpdateSoftwareTitleAutoUpdateConfig(ctx, titleID, *teamID, fleet.SoftwareAutoUpdateConfig{
+		AutoUpdateEnabled:   ptr.Bool(true),
+		AutoUpdateStartTime: ptr.String(startTime),
+		AutoUpdateEndTime:   ptr.String(endTime),
+	})
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "The update window must be at least one hour long")
 
 	// Enable auto-update.
 	startTime = "02:00"
@@ -2687,6 +2653,7 @@ func testUpdateAutoUpdateConfig(t *testing.T, ds *Datastore) {
 	require.Equal(t, endTime, *titleResult.AutoUpdateEndTime)
 
 	// Add valid, disabled auto-update schedule for the other VPP app.
+	// The schedule should be ignored since it's disabled, but it should still be created.
 	err = ds.UpdateSoftwareTitleAutoUpdateConfig(ctx, title2ID, *teamID, fleet.SoftwareAutoUpdateConfig{
 		AutoUpdateEnabled:   ptr.Bool(false),
 		AutoUpdateStartTime: ptr.String(startTime),
@@ -2706,8 +2673,8 @@ func testUpdateAutoUpdateConfig(t *testing.T, ds *Datastore) {
 	require.Equal(t, title2ID, schedules[1].TitleID)
 	require.Equal(t, team1.ID, schedules[1].TeamID)
 	require.False(t, *schedules[1].AutoUpdateEnabled)
-	require.Equal(t, startTime, *schedules[1].AutoUpdateStartTime)
-	require.Equal(t, endTime, *schedules[1].AutoUpdateEndTime)
+	require.Equal(t, "", *schedules[1].AutoUpdateStartTime)
+	require.Equal(t, "", *schedules[1].AutoUpdateEndTime)
 
 	// Filter by enabled only.
 	schedules, err = ds.ListSoftwareAutoUpdateSchedules(ctx, *teamID, "ipados_apps", fleet.SoftwareAutoUpdateScheduleFilter{
@@ -2727,9 +2694,7 @@ func testUpdateAutoUpdateConfig(t *testing.T, ds *Datastore) {
 
 	// Disable auto-update.
 	err = ds.UpdateSoftwareTitleAutoUpdateConfig(ctx, titleID, *teamID, fleet.SoftwareAutoUpdateConfig{
-		AutoUpdateEnabled:   ptr.Bool(false),
-		AutoUpdateStartTime: nil,
-		AutoUpdateEndTime:   nil,
+		AutoUpdateEnabled: ptr.Bool(false),
 	})
 	require.NoError(t, err)
 

@@ -81,6 +81,11 @@ func (e BadRequestError) Internal() string {
 	return ""
 }
 
+// IsClientError implements ErrWithIsClientError.
+func (e BadRequestError) IsClientError() bool {
+	return true
+}
+
 // UserMessageError is an error that wraps another error with a user-friendly message.
 type UserMessageError struct {
 	error
@@ -109,6 +114,13 @@ func (e UserMessageError) StatusCode() int {
 		return e.statusCode
 	}
 	return http.StatusUnprocessableEntity
+}
+
+// IsClientError implements ErrWithIsClientError.
+// Returns true for 4xx status codes, false for 5xx.
+func (e UserMessageError) IsClientError() bool {
+	code := e.StatusCode()
+	return code >= 400 && code < 500
 }
 
 var rxJSONUnknownField = regexp.MustCompile(`^json: unknown field "(.+)"$`)
@@ -196,6 +208,27 @@ func IsForeignKey(err error) bool {
 	return false
 }
 
+// NotFoundError is an interface for errors when a resource cannot be found.
+type NotFoundError interface {
+	error
+	IsNotFound() bool
+}
+
+// IsNotFound returns true if err is a not-found error.
+func IsNotFound(err error) bool {
+	var nfe NotFoundError
+	if errors.As(err, &nfe) {
+		return nfe.IsNotFound()
+	}
+	return false
+}
+
+// AlreadyExistsError is an interface for errors when a resource already exists.
+type AlreadyExistsError interface {
+	error
+	IsExists() bool
+}
+
 // Error is a generic error type with a code and message.
 type Error struct {
 	Code    int    `json:"code,omitempty"`
@@ -245,6 +278,11 @@ func (e AuthFailedError) StatusCode() int {
 	return http.StatusUnauthorized
 }
 
+// IsClientError implements ErrWithIsClientError.
+func (e AuthFailedError) IsClientError() bool {
+	return true
+}
+
 // AuthRequiredError is returned when authentication is required.
 type AuthRequiredError struct {
 	// internal is the reason that should only be logged internally
@@ -271,6 +309,11 @@ func (e AuthRequiredError) Internal() string {
 // StatusCode implements kithttp.StatusCoder.
 func (e AuthRequiredError) StatusCode() int {
 	return http.StatusUnauthorized
+}
+
+// IsClientError implements ErrWithIsClientError.
+func (e AuthRequiredError) IsClientError() bool {
+	return true
 }
 
 // AuthHeaderRequiredError is returned when an authorization header is required.
@@ -303,6 +346,11 @@ func (e AuthHeaderRequiredError) StatusCode() int {
 	return http.StatusUnauthorized
 }
 
+// IsClientError implements ErrWithIsClientError.
+func (e AuthHeaderRequiredError) IsClientError() bool {
+	return true
+}
+
 // ErrPasswordResetRequired is returned when a password reset is required.
 var ErrPasswordResetRequired = &passwordResetRequiredError{}
 
@@ -318,6 +366,11 @@ func (e passwordResetRequiredError) Error() string {
 // StatusCode implements kithttp.StatusCoder.
 func (e passwordResetRequiredError) StatusCode() int {
 	return http.StatusUnauthorized
+}
+
+// IsClientError implements ErrWithIsClientError.
+func (e passwordResetRequiredError) IsClientError() bool {
+	return true
 }
 
 // ForbiddenErrorMessage is the error message that should be returned to

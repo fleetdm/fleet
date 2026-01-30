@@ -137,6 +137,7 @@ import CertificateDetailsModal from "../modals/CertificateDetailsModal";
 import HostHeader from "../cards/HostHeader";
 import InventoryVersionsModal from "../modals/InventoryVersionsModal";
 import UpdateEndUserModal from "../cards/User/components/UpdateEndUserModal";
+import LocationModal from "../modals/LocationModal";
 
 const baseClass = "host-details";
 
@@ -204,6 +205,7 @@ const HostDetailsPage = ({
     filteredHostsPath,
     currentTeam,
     isAnyMaintainerAdminObserverPlus,
+    isMacMdmEnabledAndConfigured,
   } = useContext(AppContext);
   const { renderFlash } = useContext(NotificationContext);
 
@@ -224,6 +226,10 @@ const HostDetailsPage = ({
   const [showUnlockHostModal, setShowUnlockHostModal] = useState(false);
   const [showWipeModal, setShowWipeModal] = useState(false);
   const [showUpdateEndUserModal, setShowUpdateEndUserModal] = useState(false);
+  // Undefined used to return to true after closing the lock modal
+  const [showLocationModal, setShowLocationModal] = useState<
+    boolean | undefined
+  >(false);
 
   // General-use updating state
   const [isUpdating, setIsUpdating] = useState(false);
@@ -569,6 +575,9 @@ const HostDetailsPage = ({
     }
   );
 
+  const canGetMDMCommands =
+    !!isMacMdmEnabledAndConfigured && isAppleDevice(host?.platform);
+
   const {
     data: pastMDMCommands,
     isError: pastMDMCommandsIsError,
@@ -595,13 +604,12 @@ const HostDetailsPage = ({
     },
     {
       ...DEFAULT_USE_QUERY_OPTIONS,
-      enabled: isAppleDevice(host?.platform),
+      enabled: canGetMDMCommands,
       keepPreviousData: true,
       staleTime: ACTIVITY_CARD_DATA_STALE_TIME,
     }
   );
 
-  // request to get the host mdm commands
   const {
     data: upcomingMDMCommands,
     isError: upcomingMDMCommandsIsError,
@@ -628,7 +636,7 @@ const HostDetailsPage = ({
     },
     {
       ...DEFAULT_USE_QUERY_OPTIONS,
-      enabled: isAppleDevice(host?.platform),
+      enabled: canGetMDMCommands,
       keepPreviousData: true,
       staleTime: ACTIVITY_CARD_DATA_STALE_TIME,
     }
@@ -698,6 +706,10 @@ const HostDetailsPage = ({
   const toggleBootstrapPackageModal = useCallback(() => {
     setShowBootstrapPackageModal(!showBootstrapPackageModal);
   }, [showBootstrapPackageModal, setShowBootstrapPackageModal]);
+
+  const toggleLocationModal = useCallback(() => {
+    setShowLocationModal(!showLocationModal);
+  }, [showLocationModal, setShowLocationModal]);
 
   const onCancelPolicyDetailsModal = useCallback(() => {
     setPolicyDetailsModal(!showPolicyDetailsModal);
@@ -1267,7 +1279,14 @@ const HostDetailsPage = ({
               showRefetchSpinner={showRefetchSpinner}
               onRefetchHost={onRefetchHost}
               renderActionsDropdown={renderActionsDropdown}
-              hostMdmDeviceStatus={hostMdmDeviceStatus}
+              // Setting this to "locking" because if a host is "locating", it is also
+              // "locking"; an iOS/iPadOS host isn't "locked" until the location is found.
+              hostMdmDeviceStatus={
+                hostMdmDeviceStatus === "locating"
+                  ? "locking"
+                  : hostMdmDeviceStatus
+              }
+              hostMdmEnrollmentStatus={host.mdm?.enrollment_status || undefined}
             />
           </div>
           <TabNav className={`${baseClass}__tab-nav`}>
@@ -1307,6 +1326,7 @@ const HostDetailsPage = ({
                   osVersionRequirement={getOSVersionRequirementFromMDMConfig(
                     host.platform
                   )}
+                  toggleLocationModal={toggleLocationModal}
                 />
                 <QueriesCard
                   hostId={host.id}
@@ -1375,7 +1395,7 @@ const HostDetailsPage = ({
                       isHostTeamAdmin ||
                       isHostTeamMaintainer
                     }
-                    showMDMCommandsToggle={isAppleDevice(host.platform)}
+                    showMDMCommandsToggle={canGetMDMCommands}
                     showMDMCommands={showMDMCommands}
                     onShowMDMCommands={() => {
                       setActivityPage(0);
@@ -1596,8 +1616,15 @@ const HostDetailsPage = ({
               id={host.id}
               platform={host.platform}
               hostName={host.display_name}
-              onSuccess={() => setHostMdmDeviceState("locking")}
-              onClose={() => setShowLockHostModal(false)}
+              onSuccess={() => {
+                setHostMdmDeviceState("locking");
+                setShowLocationModal(false);
+                setShowLockHostModal(false);
+              }}
+              onClose={() => {
+                setShowLockHostModal(false);
+                showLocationModal === undefined && setShowLocationModal(true);
+              }}
             />
           )}
           {showUnlockHostModal && (
@@ -1649,6 +1676,21 @@ const HostDetailsPage = ({
             onUpdate={onUpdateEndUser}
             isUpdating={isUpdating}
             onExit={() => setShowUpdateEndUserModal(false)}
+          />
+        )}
+        {showLocationModal && (
+          <LocationModal
+            hostGeolocation={host.geolocation}
+            onExit={toggleLocationModal}
+            iosOrIpadosDetails={{
+              isIosOrIpadosHost,
+              hostMdmDeviceStatus,
+            }}
+            onClickLock={() => {
+              setShowLockHostModal(true);
+              setShowLocationModal(undefined);
+            }}
+            detailsUpdatedAt={host.detail_updated_at}
           />
         )}
       </>

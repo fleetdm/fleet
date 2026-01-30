@@ -11,7 +11,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/authz"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
-	"github.com/fleetdm/fleet/v4/server/service/middleware/endpoint_utils"
+	"github.com/fleetdm/fleet/v4/server/platform/endpointer"
 )
 
 //////////////////////////////////////////////////////////////////////////////
@@ -112,11 +112,11 @@ type updateAppStoreAppRequest struct {
 	AutoUpdateEnabled *bool           `json:"auto_update_enabled,omitempty"`
 	// AutoUpdateStartTime is the beginning of the maintenance window for the software title.
 	// This is only applicable when viewing a title in the context of a team.
-	AutoUpdateStartTime *string `json:"auto_update_start_time,omitempty"`
+	AutoUpdateStartTime *string `json:"auto_update_window_start,omitempty"`
 	// AutoUpdateStartTime is the end of the maintenance window for the software title.
 	// If the end time is less than the start time, the window wraps to the next day.
 	// This is only applicable when viewing a title in the context of a team.
-	AutoUpdateEndTime *string `json:"auto_update_end_time,omitempty"`
+	AutoUpdateEndTime *string `json:"auto_update_window_end,omitempty"`
 }
 
 type updateAppStoreAppResponse struct {
@@ -136,6 +136,11 @@ func updateAppStoreAppEndpoint(ctx context.Context, request interface{}, svc fle
 		Categories:       req.Categories,
 		Configuration:    req.Configuration,
 		DisplayName:      req.DisplayName,
+		SoftwareAutoUpdateConfig: fleet.SoftwareAutoUpdateConfig{
+			AutoUpdateEnabled:   req.AutoUpdateEnabled,
+			AutoUpdateStartTime: req.AutoUpdateStartTime,
+			AutoUpdateEndTime:   req.AutoUpdateEndTime,
+		},
 	})
 	if err != nil {
 		return updateAppStoreAppResponse{Err: err}, nil
@@ -276,7 +281,7 @@ func (patchVPPTokenRenewRequest) DecodeRequest(ctx context.Context, r *http.Requ
 
 	decoded.File = r.MultipartForm.File["token"][0]
 
-	id, err := endpoint_utils.UintFromRequest(r, "id")
+	id, err := endpointer.UintFromRequest(r, "id")
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "failed to parse vpp token id")
 	}

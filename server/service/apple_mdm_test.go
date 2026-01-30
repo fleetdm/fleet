@@ -35,6 +35,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
 	"github.com/fleetdm/fleet/v4/server/datastore/redis/redistest"
+	"github.com/fleetdm/fleet/v4/server/dev_mode"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	fleetmdm "github.com/fleetdm/fleet/v4/server/mdm"
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
@@ -5121,7 +5122,7 @@ func TestCheckMDMAppleEnrollmentWithMinimumOSVersion(t *testing.T) {
 		require.NoError(t, err)
 	}))
 	defer gdmf.Close()
-	t.Setenv("FLEET_DEV_GDMF_URL", gdmf.URL)
+	dev_mode.SetOverride("FLEET_DEV_GDMF_URL", gdmf.URL, t)
 
 	latestMacOSVersion := "14.6.1"
 	latestMacOSBuild := "23G93"
@@ -6428,5 +6429,99 @@ func TestIsTimezoneInWindow(t *testing.T) {
 				t.Fatalf("isTimezoneInWindow(%q, %s-%s) = %v, want %v", tt.timezone, tt.start, tt.end, got, tt.wantInWindow)
 			}
 		})
+	}
+}
+
+func TestToValidSemVer(t *testing.T) {
+	testVersions := []struct {
+		rawVersion                           string
+		expectedVersion                      string
+		versionToSemverVersionExpectedToFail bool
+	}{
+		{
+			"25.48.0",
+			"25.48.0",
+			false,
+		},
+		{
+			" 353.0 ", // Meta Horizon like version.
+			"353.0",
+			false,
+		},
+		{
+			"18.14.0",
+			"18.14.0",
+			false,
+		},
+		{
+			"412.0.0",
+			"412.0.0",
+			false,
+		},
+		{
+			"00.001010.01",
+			"0.1010.1",
+			false,
+		},
+		{
+			"6.0.251229",
+			"6.0.251229",
+			false,
+		},
+		{
+			"4.2602.11600",
+			"4.2602.11600",
+			false,
+		},
+		{
+			"144.0.7559.53", // Google Chrome like version.
+			"144.0.7559-53",
+			false,
+		},
+		{
+			"144.0.7559.03", // Google Chrome like version, leading zeros.
+			"144.0.7559-3",
+			false,
+		},
+		{
+			"4.9999999999999999999999999.11600", // Not a valid semantic version, so we leave unchanged.
+			"4.9999999999999999999999999.11600",
+			true,
+		},
+		{
+			"04.0000099999999999999999999999990.011600", // Not a valid semantic version, but we clean it anyway.
+			"4.99999999999999999999999990.11600",
+			true,
+		},
+		{
+			"21.02.3", // YouTube like version.
+			"21.2.3",
+			false,
+		},
+		{
+			"21", // Just major version.
+			"21",
+			false,
+		},
+		{
+			"v2.3.4", // Remove leading v.
+			"2.3.4",
+			false,
+		},
+		{
+			"02.03.04-01",
+			"2.3.4-1",
+			false,
+		},
+	}
+	for _, tc := range testVersions {
+		cleanedVersion := toValidSemVer(tc.rawVersion)
+		require.Equal(t, tc.expectedVersion, cleanedVersion)
+		_, err := fleet.VersionToSemverVersion(cleanedVersion)
+		if !tc.versionToSemverVersionExpectedToFail {
+			require.NoError(t, err, tc.rawVersion)
+		} else {
+			require.Error(t, err, tc.rawVersion)
+		}
 	}
 }

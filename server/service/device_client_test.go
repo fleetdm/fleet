@@ -72,6 +72,49 @@ func TestDeviceClientGetDesktopPayload(t *testing.T) {
 		require.EqualValues(t, 15, *result.FailingPolicies)
 		require.True(t, result.Notifications.NeedsMDMMigration)
 	})
+
+	t.Run("alternative browser URL gets set from server response", func(t *testing.T) {
+		mockRequestDoer.statusCode = http.StatusOK
+		mockRequestDoer.resBody = `{"alternative_browser_host": "gogetit.com:6969"}`
+		_, err := client.DesktopSummary(token)
+		require.NoError(t, err)
+		require.EqualValues(t, "gogetit.com:6969", client.fleetAlternativeBrowserHostFromServer)
+	})
+}
+func TestDeviceClientGetFleetHost(t *testing.T) {
+	testCases := []struct {
+		alternativeBrowserHostFromEnv    string
+		alternativeBrowserHostFromServer string
+		expected                         string
+	}{
+		{
+			alternativeBrowserHostFromEnv:    "",
+			alternativeBrowserHostFromServer: "",
+			expected:                         "",
+		},
+		{
+			alternativeBrowserHostFromEnv:    "https://example.com",
+			alternativeBrowserHostFromServer: "",
+			expected:                         "https://example.com",
+		},
+		{
+			alternativeBrowserHostFromEnv:    "https://example.com",
+			alternativeBrowserHostFromServer: "https://two.example.com",
+			expected:                         "https://two.example.com",
+		},
+		{
+			alternativeBrowserHostFromEnv:    "",
+			alternativeBrowserHostFromServer: "https://two.example.com",
+			expected:                         "https://two.example.com",
+		},
+	}
+
+	for _, tc := range testCases {
+		client, err := NewDeviceClient("", true, "", nil, tc.alternativeBrowserHostFromEnv)
+		require.NoError(t, err)
+		client.fleetAlternativeBrowserHostFromServer = tc.alternativeBrowserHostFromServer
+		require.Equal(t, tc.expected, client.getAlternativeBrowserHostSetting())
+	}
 }
 
 func TestDeviceClientRetryInvalidToken(t *testing.T) {

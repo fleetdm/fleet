@@ -8,6 +8,7 @@ import (
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/ptr"
+	"github.com/fleetdm/fleet/v4/server/test"
 	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
 	"github.com/stretchr/testify/require"
@@ -37,6 +38,9 @@ func TestHostCertificateTemplates(t *testing.T) {
 		{"ListAndroidHostUUIDsWithPendingCertificateTemplatesIncludesRemoval", testListAndroidHostUUIDsWithPendingCertificateTemplatesIncludesRemoval},
 		{"GetAndTransitionCertificateTemplatesToDeliveringIncludesRemoval", testGetAndTransitionCertificateTemplatesToDeliveringIncludesRemoval},
 		{"CertificateTemplateReinstalledAfterTransferBackToOriginalTeam", testCertificateTemplateReinstalledAfterTransferBackToOriginalTeam},
+		{"GetAndroidCertificateTemplatesForRenewal", testGetAndroidCertificateTemplatesForRenewal},
+		{"SetAndroidCertificateTemplatesForRenewal", testSetAndroidCertificateTemplatesForRenewal},
+		{"GetOrCreateFleetChallengeForCertificateTemplate", testGetOrCreateFleetChallengeForCertificateTemplate},
 	}
 
 	for _, c := range cases {
@@ -634,7 +638,13 @@ func testUpsertHostCertificateTemplateStatus(t *testing.T, ds *Datastore) {
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			err := ds.UpsertCertificateStatus(ctx, hostUUID, tc.templateID, fleet.MDMDeliveryStatus(tc.newStatus), tc.detail, tc.operationType)
+			err := ds.UpsertCertificateStatus(ctx, &fleet.CertificateStatusUpdate{
+				HostUUID:              hostUUID,
+				CertificateTemplateID: tc.templateID,
+				Status:                fleet.MDMDeliveryStatus(tc.newStatus),
+				Detail:                tc.detail,
+				OperationType:         tc.operationType,
+			})
 			if tc.expectedErrorMsg == "" {
 				require.NoError(t, err)
 				var result struct {
@@ -856,15 +866,30 @@ func testCertificateTemplateFullStateMachine(t *testing.T, ds *Datastore) {
 		require.EqualValues(t, fleet.CertificateTemplateDelivering, *r.Status)
 	}
 
-	// Step 4: Transition to delivered with challenges
-	challenges := map[uint]string{
-		setup.template.ID: "challenge-abc",
-		templateTwo.ID:    "challenge-xyz",
-	}
-	err = ds.TransitionCertificateTemplatesToDelivered(ctx, "android-host", challenges)
+	// Step 4: Transition to delivered (challenges are created on-demand)
+	err = ds.TransitionCertificateTemplatesToDelivered(ctx, "android-host", []uint{setup.template.ID, templateTwo.ID})
 	require.NoError(t, err)
 
-	// Verify final state
+	// Verify delivered state (no challenges yet)
+	records, err = ds.ListCertificateTemplatesForHosts(ctx, []string{"android-host"})
+	require.NoError(t, err)
+	require.Len(t, records, 2)
+	for _, r := range records {
+		require.NotNil(t, r.Status)
+		require.EqualValues(t, fleet.CertificateTemplateDelivered, *r.Status)
+		require.Nil(t, r.FleetChallenge) // Challenge not created yet
+	}
+
+	// Step 5: Create challenges on-demand (simulating device fetch)
+	challenge1, err := ds.GetOrCreateFleetChallengeForCertificateTemplate(ctx, "android-host", setup.template.ID)
+	require.NoError(t, err)
+	require.NotEmpty(t, challenge1)
+
+	challenge2, err := ds.GetOrCreateFleetChallengeForCertificateTemplate(ctx, "android-host", templateTwo.ID)
+	require.NoError(t, err)
+	require.NotEmpty(t, challenge2)
+
+	// Verify challenges are now set
 	records, err = ds.ListCertificateTemplatesForHosts(ctx, []string{"android-host"})
 	require.NoError(t, err)
 	require.Len(t, records, 2)
@@ -873,9 +898,9 @@ func testCertificateTemplateFullStateMachine(t *testing.T, ds *Datastore) {
 		require.EqualValues(t, fleet.CertificateTemplateDelivered, *r.Status)
 		require.NotNil(t, r.FleetChallenge)
 		if r.CertificateTemplateID == setup.template.ID {
-			require.Equal(t, "challenge-abc", *r.FleetChallenge)
+			require.Equal(t, challenge1, *r.FleetChallenge)
 		} else {
-			require.Equal(t, "challenge-xyz", *r.FleetChallenge)
+			require.Equal(t, challenge2, *r.FleetChallenge)
 		}
 	}
 
@@ -1509,4 +1534,476 @@ func testCertificateTemplateReinstalledAfterTransferBackToOriginalTeam(t *testin
 	require.Equal(t, fleet.CertificateTemplatePending, *certA.Status)
 	require.NotNil(t, certA.UUID, "UUID should be set")
 	require.NotEqual(t, uuidAfterRemove, *certA.UUID, "UUID should change when reinstalled")
+}
+
+func testGetAndroidCertificateTemplatesForRenewal(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	// Create test data
+	team, err := ds.NewTeam(ctx, &fleet.Team{Name: "test team"})
+	require.NoError(t, err)
+
+	ca, err := ds.NewCertificateAuthority(ctx, &fleet.CertificateAuthority{
+		Name: ptr.String("test ca"),
+		Type: string(fleet.CAConfigCustomSCEPProxy),
+		URL:  ptr.String("http://localhost:8080/scep"),
+	})
+	require.NoError(t, err)
+
+	template, err := ds.CreateCertificateTemplate(ctx, &fleet.CertificateTemplate{
+		TeamID:                 team.ID,
+		Name:                   "test template",
+		CertificateAuthorityID: ca.ID,
+		SubjectName:            "CN=test",
+	})
+	require.NoError(t, err)
+
+	now := time.Now().UTC()
+
+	// Table-driven test cases for renewal logic:
+	// - Validity > 30 days: renew 30 days before expiration
+	// - Validity > 2 days and <= 30 days: renew at half validity period before expiration
+	// - Validity <= 2 days: does NOT auto-renew
+	testCases := []struct {
+		name          string
+		validityDays  int // total validity period in days
+		daysToExpiry  int // days until expiration
+		status        fleet.CertificateTemplateStatus
+		operationType fleet.MDMOperationType
+		shouldRenew   bool
+		description   string
+	}{
+		// Validity > 30 days cases
+		{
+			name:          "validity_365d_expires_7d",
+			validityDays:  365,
+			daysToExpiry:  7,
+			status:        fleet.CertificateTemplateVerified,
+			operationType: fleet.MDMOperationTypeInstall,
+			shouldRenew:   true,
+			description:   "1 year cert expiring in 7 days should renew (< 30 day threshold)",
+		},
+		{
+			name:          "validity_365d_expires_29d",
+			validityDays:  365,
+			daysToExpiry:  29,
+			status:        fleet.CertificateTemplateVerified,
+			operationType: fleet.MDMOperationTypeInstall,
+			shouldRenew:   true,
+			description:   "1 year cert expiring in 29 days should renew (< 30 day threshold)",
+		},
+		{
+			name:          "validity_365d_expires_30d",
+			validityDays:  365,
+			daysToExpiry:  30,
+			status:        fleet.CertificateTemplateVerified,
+			operationType: fleet.MDMOperationTypeInstall,
+			shouldRenew:   false,
+			description:   "1 year cert expiring in exactly 30 days should NOT renew (threshold is < 30)",
+		},
+		{
+			name:          "validity_365d_expires_60d",
+			validityDays:  365,
+			daysToExpiry:  60,
+			status:        fleet.CertificateTemplateVerified,
+			operationType: fleet.MDMOperationTypeInstall,
+			shouldRenew:   false,
+			description:   "1 year cert expiring in 60 days should NOT renew",
+		},
+		{
+			name:          "validity_31d_expires_29d",
+			validityDays:  31,
+			daysToExpiry:  29,
+			status:        fleet.CertificateTemplateVerified,
+			operationType: fleet.MDMOperationTypeInstall,
+			shouldRenew:   true,
+			description:   "31 day cert expiring in 29 days should renew (validity > 30, uses 30 day threshold)",
+		},
+
+		// Validity > 2 days and <= 30 days cases (uses half validity threshold)
+		{
+			name:          "validity_30d_expires_14d",
+			validityDays:  30,
+			daysToExpiry:  14,
+			status:        fleet.CertificateTemplateVerified,
+			operationType: fleet.MDMOperationTypeInstall,
+			shouldRenew:   true,
+			description:   "30 day cert expiring in 14 days should renew (< 15 day threshold = half of 30)",
+		},
+		{
+			name:          "validity_30d_expires_16d",
+			validityDays:  30,
+			daysToExpiry:  16,
+			status:        fleet.CertificateTemplateVerified,
+			operationType: fleet.MDMOperationTypeInstall,
+			shouldRenew:   false,
+			description:   "30 day cert expiring in 16 days should NOT renew (> 15 day threshold)",
+		},
+		{
+			name:          "validity_20d_expires_9d",
+			validityDays:  20,
+			daysToExpiry:  9,
+			status:        fleet.CertificateTemplateVerified,
+			operationType: fleet.MDMOperationTypeInstall,
+			shouldRenew:   true,
+			description:   "20 day cert expiring in 9 days should renew (< 10 day threshold = half of 20)",
+		},
+		{
+			name:          "validity_20d_expires_11d",
+			validityDays:  20,
+			daysToExpiry:  11,
+			status:        fleet.CertificateTemplateVerified,
+			operationType: fleet.MDMOperationTypeInstall,
+			shouldRenew:   false,
+			description:   "20 day cert expiring in 11 days should NOT renew (> 10 day threshold)",
+		},
+		{
+			name:          "validity_14d_expires_5d",
+			validityDays:  14,
+			daysToExpiry:  5,
+			status:        fleet.CertificateTemplateVerified,
+			operationType: fleet.MDMOperationTypeInstall,
+			shouldRenew:   true,
+			description:   "14 day cert expiring in 5 days should renew (< 7 day threshold = half of 14)",
+		},
+		{
+			name:          "validity_3d_expires_1d",
+			validityDays:  3,
+			daysToExpiry:  1,
+			status:        fleet.CertificateTemplateVerified,
+			operationType: fleet.MDMOperationTypeInstall,
+			shouldRenew:   true,
+			description:   "3 day cert expiring in 1 day should renew (validity > 2, < 1.5 day threshold)",
+		},
+
+		// Validity <= 2 days cases (should NOT auto-renew)
+		{
+			name:          "validity_2d_expires_1d",
+			validityDays:  2,
+			daysToExpiry:  1,
+			status:        fleet.CertificateTemplateVerified,
+			operationType: fleet.MDMOperationTypeInstall,
+			shouldRenew:   false,
+			description:   "2 day cert should NOT auto-renew (validity <= 2 days)",
+		},
+		{
+			name:          "validity_1d_expires_0d",
+			validityDays:  1,
+			daysToExpiry:  0,
+			status:        fleet.CertificateTemplateVerified,
+			operationType: fleet.MDMOperationTypeInstall,
+			shouldRenew:   false,
+			description:   "1 day cert should NOT auto-renew (validity <= 2 days)",
+		},
+
+		// Wrong status cases
+		{
+			name:          "pending_status",
+			validityDays:  365,
+			daysToExpiry:  7,
+			status:        fleet.CertificateTemplatePending,
+			operationType: fleet.MDMOperationTypeInstall,
+			shouldRenew:   false,
+			description:   "pending status should NOT renew",
+		},
+		{
+			name:          "delivered_status",
+			validityDays:  365,
+			daysToExpiry:  7,
+			status:        fleet.CertificateTemplateDelivered,
+			operationType: fleet.MDMOperationTypeInstall,
+			shouldRenew:   false,
+			description:   "delivered status should NOT renew (only verified)",
+		},
+		{
+			name:          "failed_status",
+			validityDays:  365,
+			daysToExpiry:  7,
+			status:        fleet.CertificateTemplateFailed,
+			operationType: fleet.MDMOperationTypeInstall,
+			shouldRenew:   false,
+			description:   "failed status should NOT renew",
+		},
+
+		// Wrong operation type
+		{
+			name:          "remove_operation",
+			validityDays:  365,
+			daysToExpiry:  7,
+			status:        fleet.CertificateTemplateVerified,
+			operationType: fleet.MDMOperationTypeRemove,
+			shouldRenew:   false,
+			description:   "remove operation should NOT renew",
+		},
+	}
+
+	// Create hosts and insert certificate records for each test case
+	expectedRenewals := make(map[string]bool)
+	for i, tc := range testCases {
+		hostUUID := fmt.Sprintf("host-%s-%d", tc.name, i)
+		_ = test.NewHost(t, ds, fmt.Sprintf("host%d", i), fmt.Sprintf("192.168.1.%d", i+1),
+			fmt.Sprintf("host%d_key", i), hostUUID, now,
+			test.WithPlatform("android"), test.WithTeamID(team.ID))
+
+		notValidBefore := now.Add(-time.Duration(tc.validityDays-tc.daysToExpiry) * 24 * time.Hour)
+		notValidAfter := now.Add(time.Duration(tc.daysToExpiry) * 24 * time.Hour)
+		insertHostCertTemplate(t, ds, hostUUID, template.ID, tc.status, tc.operationType, &notValidBefore, &notValidAfter)
+
+		if tc.shouldRenew {
+			expectedRenewals[hostUUID] = true
+		}
+	}
+
+	// Execute the renewal query
+	results, err := ds.GetAndroidCertificateTemplatesForRenewal(ctx, 100)
+	require.NoError(t, err)
+
+	// Build map of actual renewals
+	actualRenewals := make(map[string]bool)
+	for _, r := range results {
+		actualRenewals[r.HostUUID] = true
+		require.Equal(t, template.ID, r.CertificateTemplateID)
+	}
+
+	// Verify each test case
+	for i, tc := range testCases {
+		hostUUID := fmt.Sprintf("host-%s-%d", tc.name, i)
+		if tc.shouldRenew {
+			require.True(t, actualRenewals[hostUUID], "Test case %q: %s", tc.name, tc.description)
+		} else {
+			require.False(t, actualRenewals[hostUUID], "Test case %q: %s", tc.name, tc.description)
+		}
+	}
+
+	// Verify total count matches expected
+	require.Len(t, results, len(expectedRenewals), "Total renewal count should match expected")
+
+	// Test limit functionality
+	if len(expectedRenewals) > 1 {
+		results, err = ds.GetAndroidCertificateTemplatesForRenewal(ctx, 1)
+		require.NoError(t, err)
+		require.Len(t, results, 1, "Limit should be respected")
+	}
+
+	// Verify results are ordered by not_valid_after ASC (most urgent first)
+	results, err = ds.GetAndroidCertificateTemplatesForRenewal(ctx, 100)
+	require.NoError(t, err)
+	for i := 1; i < len(results); i++ {
+		require.True(t, !results[i].NotValidAfter.Before(results[i-1].NotValidAfter),
+			"Results should be ordered by expiration date ascending")
+	}
+}
+
+// insertHostCertTemplate is a helper to insert a host_certificate_templates record with validity data
+func insertHostCertTemplate(t *testing.T, ds *Datastore, hostUUID string, templateID uint, status fleet.CertificateTemplateStatus, opType fleet.MDMOperationType, notValidBefore, notValidAfter *time.Time) {
+	t.Helper()
+	_, err := ds.writer(t.Context()).ExecContext(
+		t.Context(),
+		`INSERT INTO host_certificate_templates
+			(host_uuid, certificate_template_id, status, operation_type, name, uuid, not_valid_before, not_valid_after)
+		VALUES (?, ?, ?, ?, 'test', UUID_TO_BIN(UUID(), true), ?, ?)`,
+		hostUUID, templateID, status, opType, notValidBefore, notValidAfter,
+	)
+	require.NoError(t, err)
+}
+
+func testSetAndroidCertificateTemplatesForRenewal(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	// Create test team, CA, and certificate template
+	team, err := ds.NewTeam(ctx, &fleet.Team{Name: "test team renewal set"})
+	require.NoError(t, err)
+
+	ca, err := ds.NewCertificateAuthority(ctx, &fleet.CertificateAuthority{
+		Name: ptr.String("test ca renewal set"),
+		Type: string(fleet.CAConfigCustomSCEPProxy),
+		URL:  ptr.String("http://localhost:8080/scep"),
+	})
+	require.NoError(t, err)
+
+	template, err := ds.CreateCertificateTemplate(ctx, &fleet.CertificateTemplate{
+		TeamID:                 team.ID,
+		Name:                   "test template set",
+		CertificateAuthorityID: ca.ID,
+		SubjectName:            "CN=test",
+	})
+	require.NoError(t, err)
+	templateID := template.ID
+
+	// Create test hosts
+	now := time.Now().UTC()
+	host1 := test.NewHost(t, ds, "host1-set", "192.168.1.1", "host1_key_set", uuid.NewString(), now, test.WithPlatform("android"), test.WithTeamID(team.ID))
+	host2 := test.NewHost(t, ds, "host2-set", "192.168.1.2", "host2_key_set", uuid.NewString(), now, test.WithPlatform("android"), test.WithTeamID(team.ID))
+	notValidBefore := now.AddDate(-1, 0, 7)
+	notValidAfter := now.Add(7 * 24 * time.Hour)
+
+	// Insert certificate records
+	insertHostCertTemplate(t, ds, host1.UUID, templateID, fleet.CertificateTemplateVerified, fleet.MDMOperationTypeInstall, &notValidBefore, &notValidAfter)
+	insertHostCertTemplate(t, ds, host2.UUID, templateID, fleet.CertificateTemplateDelivered, fleet.MDMOperationTypeInstall, &notValidBefore, &notValidAfter)
+
+	// Set a fleet_challenge on host1 to verify it gets cleared during renewal
+	_, err = ds.writer(ctx).ExecContext(ctx,
+		`UPDATE host_certificate_templates SET fleet_challenge = 'old-challenge' WHERE host_uuid = ?`,
+		host1.UUID)
+	require.NoError(t, err)
+
+	// Get the original UUIDs
+	var originalUUIDs []struct {
+		HostUUID string `db:"host_uuid"`
+		UUID     string `db:"uuid"`
+	}
+	err = sqlx.SelectContext(ctx, ds.reader(ctx), &originalUUIDs,
+		`SELECT host_uuid, COALESCE(BIN_TO_UUID(uuid, true), '') AS uuid FROM host_certificate_templates WHERE host_uuid IN (?, ?) ORDER BY host_uuid`,
+		host1.UUID, host2.UUID)
+	require.NoError(t, err)
+	require.Len(t, originalUUIDs, 2)
+
+	originalUUID1 := originalUUIDs[0].UUID
+	originalUUID2 := originalUUIDs[1].UUID
+
+	// Set templates for renewal
+	templates := []fleet.HostCertificateTemplateForRenewal{
+		{HostUUID: host1.UUID, CertificateTemplateID: templateID, NotValidAfter: notValidAfter},
+		{HostUUID: host2.UUID, CertificateTemplateID: templateID, NotValidAfter: notValidAfter},
+	}
+	err = ds.SetAndroidCertificateTemplatesForRenewal(ctx, templates)
+	require.NoError(t, err)
+
+	// Verify the records were updated
+	var updatedRecords []struct {
+		HostUUID       string  `db:"host_uuid"`
+		Status         string  `db:"status"`
+		UUID           string  `db:"uuid"`
+		NotValidBefore *string `db:"not_valid_before"`
+		NotValidAfter  *string `db:"not_valid_after"`
+		Serial         *string `db:"serial"`
+		FleetChallenge *string `db:"fleet_challenge"`
+	}
+	err = sqlx.SelectContext(ctx, ds.reader(ctx), &updatedRecords,
+		`SELECT host_uuid, status, COALESCE(BIN_TO_UUID(uuid, true), '') AS uuid, not_valid_before, not_valid_after, serial, fleet_challenge
+		 FROM host_certificate_templates WHERE host_uuid IN (?, ?) ORDER BY host_uuid`,
+		host1.UUID, host2.UUID)
+	require.NoError(t, err)
+	require.Len(t, updatedRecords, 2)
+
+	for _, r := range updatedRecords {
+		// Status should be pending
+		require.Equal(t, string(fleet.CertificateTemplatePending), r.Status, "Status should be updated to pending")
+
+		// UUID should be different (new one generated)
+		if r.HostUUID == host1.UUID {
+			require.NotEqual(t, originalUUID1, r.UUID, "UUID should be regenerated for host1")
+		} else {
+			require.NotEqual(t, originalUUID2, r.UUID, "UUID should be regenerated for host2")
+		}
+
+		// Validity fields should be cleared
+		require.Nil(t, r.NotValidBefore, "not_valid_before should be cleared")
+		require.Nil(t, r.NotValidAfter, "not_valid_after should be cleared")
+		require.Nil(t, r.Serial, "serial should be cleared")
+		// Fleet challenge should be cleared so a new one is generated on next delivery
+		require.Nil(t, r.FleetChallenge, "fleet_challenge should be cleared")
+	}
+
+	// Test empty slice doesn't error
+	err = ds.SetAndroidCertificateTemplatesForRenewal(ctx, []fleet.HostCertificateTemplateForRenewal{})
+	require.NoError(t, err)
+}
+
+func testGetOrCreateFleetChallengeForCertificateTemplate(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	// Create test setup
+	team, err := ds.NewTeam(ctx, &fleet.Team{Name: "test team challenge"})
+	require.NoError(t, err)
+
+	ca, err := ds.NewCertificateAuthority(ctx, &fleet.CertificateAuthority{
+		Name: ptr.String("test ca challenge"),
+		Type: string(fleet.CAConfigCustomSCEPProxy),
+		URL:  ptr.String("http://localhost:8080/scep"),
+	})
+	require.NoError(t, err)
+
+	now := time.Now().UTC()
+	host := test.NewHost(t, ds, "host-challenge", "192.168.1.1", "host_key_challenge", uuid.NewString(), now, test.WithPlatform("android"), test.WithTeamID(team.ID))
+
+	t.Run("returns error for non-existent template", func(t *testing.T) {
+		_, err := ds.GetOrCreateFleetChallengeForCertificateTemplate(ctx, host.UUID, 99999)
+		require.Error(t, err)
+		require.True(t, fleet.IsNotFound(err))
+	})
+
+	t.Run("returns error for non-delivered status", func(t *testing.T) {
+		// Create a separate template for this test
+		pendingTemplate, err := ds.CreateCertificateTemplate(ctx, &fleet.CertificateTemplate{
+			TeamID:                 team.ID,
+			Name:                   "test template pending",
+			CertificateAuthorityID: ca.ID,
+			SubjectName:            "CN=test-pending",
+		})
+		require.NoError(t, err)
+
+		// Insert a pending certificate template
+		_, err = ds.writer(ctx).ExecContext(ctx,
+			`INSERT INTO host_certificate_templates
+				(host_uuid, certificate_template_id, status, operation_type, name, uuid)
+			VALUES (?, ?, ?, ?, 'test', UUID_TO_BIN(UUID(), true))`,
+			host.UUID, pendingTemplate.ID, fleet.CertificateTemplatePending, fleet.MDMOperationTypeInstall)
+		require.NoError(t, err)
+
+		_, err = ds.GetOrCreateFleetChallengeForCertificateTemplate(ctx, host.UUID, pendingTemplate.ID)
+		require.Error(t, err)
+		require.True(t, fleet.IsNotFound(err))
+	})
+
+	t.Run("creates challenge on first call and returns same on subsequent calls", func(t *testing.T) {
+		template, err := ds.CreateCertificateTemplate(ctx, &fleet.CertificateTemplate{
+			TeamID:                 team.ID,
+			Name:                   "test template challenge",
+			CertificateAuthorityID: ca.ID,
+			SubjectName:            "CN=test",
+		})
+		require.NoError(t, err)
+
+		// Insert a delivered certificate template WITHOUT a challenge
+		_, err = ds.writer(ctx).ExecContext(ctx,
+			`INSERT INTO host_certificate_templates
+				(host_uuid, certificate_template_id, status, operation_type, name, uuid, fleet_challenge)
+			VALUES (?, ?, ?, ?, 'test', UUID_TO_BIN(UUID(), true), NULL)`,
+			host.UUID, template.ID, fleet.CertificateTemplateDelivered, fleet.MDMOperationTypeInstall)
+		require.NoError(t, err)
+
+		// First call should create a challenge
+		challenge, err := ds.GetOrCreateFleetChallengeForCertificateTemplate(ctx, host.UUID, template.ID)
+		require.NoError(t, err)
+		require.NotEmpty(t, challenge)
+		require.Len(t, challenge, 32) // Base64 encoded 24 bytes
+
+		// Verify challenge was stored in host_certificate_templates
+		var storedChallenge string
+		err = sqlx.GetContext(ctx, ds.reader(ctx), &storedChallenge,
+			`SELECT fleet_challenge FROM host_certificate_templates WHERE host_uuid = ? AND certificate_template_id = ?`,
+			host.UUID, template.ID)
+		require.NoError(t, err)
+		require.Equal(t, challenge, storedChallenge)
+
+		// Verify challenge was also inserted into challenges table
+		var createdAt time.Time
+		err = sqlx.GetContext(ctx, ds.reader(ctx), &createdAt,
+			`SELECT created_at FROM challenges WHERE challenge = ?`, challenge)
+		require.NoError(t, err)
+		require.WithinDuration(t, time.Now(), createdAt, 5*time.Second)
+
+		// Subsequent call should return the same challenge
+		challenge2, err := ds.GetOrCreateFleetChallengeForCertificateTemplate(ctx, host.UUID, template.ID)
+		require.NoError(t, err)
+		require.Equal(t, challenge, challenge2)
+
+		// Verify only one challenge exists in challenges table
+		var count int
+		err = sqlx.GetContext(ctx, ds.reader(ctx), &count,
+			`SELECT COUNT(*) FROM challenges WHERE challenge = ?`, challenge)
+		require.NoError(t, err)
+		require.Equal(t, 1, count)
+	})
 }

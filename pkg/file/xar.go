@@ -29,11 +29,13 @@ import (
 	"fmt"
 	"io"
 	"path/filepath"
+	"regexp"
 	"slices"
 	"sort"
 	"strings"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"golang.org/x/net/html/charset"
 )
 
 const (
@@ -270,6 +272,7 @@ func decodeXARTOCData(r io.Reader, hdr xarHeader) (xmlXar, error) {
 	// decode the TOC data (in XML inside the zlib-compressed data)
 	decoder := xml.NewDecoder(zr)
 	decoder.Strict = false
+	decoder.CharsetReader = charset.NewReaderLabel
 	if err := decoder.Decode(&root); err != nil {
 		return root, fmt.Errorf("decode xar xml: %w", err)
 	}
@@ -332,6 +335,8 @@ var idTranslations = map[string]string{
 	// This is present in Privileges.pkg/PackageInfo, however, current logic doesn't parse PackageInfo files if Distribution file is present
 	"corp.sap.privileges.pkg": "corp.sap.privileges",
 }
+
+var rxMicrosoftAutoUpdateBundleID = regexp.MustCompile(`^com\.microsoft\.autoupdate\d+$`)
 
 // getDistributionInfo gets the name, bundle identifier and version of a PKG distribution file
 func getDistributionInfo(d *distributionXML) (name string, identifier string, version string, packageIDs []string) {
@@ -396,7 +401,11 @@ func getDistributionInfo(d *distributionXML) (name string, identifier string, ve
 			identifier = bundle.ID
 			name = strings.TrimSuffix(base, ".app")
 			appVersion = bundle.CFBundleShortVersionString
-			break
+
+			// if the found bundle is microsoft auto-update, keep looking for a better match
+			if !rxMicrosoftAutoUpdateBundleID.MatchString(identifier) {
+				break
+			}
 		}
 	}
 
@@ -548,21 +557,32 @@ func parsePackageInfoFile(rawXML []byte) (*InstallerMetadata, error) {
 // getPackageInfo gets the name, bundle identifier and version of a PKG top level PackageInfo file
 func getPackageInfo(p *packageInfoXML) (name string, identifier string, version string, packageIDs []string) {
 	packageIDSet := make(map[string]struct{}, 1)
+	var foundMetadata bool
+
 	for _, bundle := range p.Bundles {
+		// Keep track of all bundle identifiers
+		bundleID := fleet.Preprocess(bundle.ID)
+		if bundleID != "" {
+			packageIDSet[bundleID] = struct{}{}
+		}
+
 		installPath := bundle.Path
 		if p.InstallLocation != "" {
 			installPath = filepath.Join(p.InstallLocation, installPath)
 		}
 		installPath = strings.TrimPrefix(installPath, "/")
 		installPath = strings.TrimPrefix(installPath, "./")
-		if base, isValid := isValidAppFilePath(installPath); isValid {
+		base, isValid := isValidAppFilePath(installPath)
+		if isValid && !foundMetadata {
 			identifier = fleet.Preprocess(bundle.ID)
 			name = base
 			version = fleet.Preprocess(bundle.CFBundleShortVersionString)
 		}
-		bundleID := fleet.Preprocess(bundle.ID)
-		if bundleID != "" {
-			packageIDSet[bundleID] = struct{}{}
+
+		// Stop updating metadata if we found a bundle that
+		// matches the bundle identifier in pkg-info
+		if identifier == p.Identifier {
+			foundMetadata = true
 		}
 	}
 

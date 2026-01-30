@@ -15,9 +15,9 @@ import (
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxdb"
 	"github.com/fleetdm/fleet/v4/server/datastore/filesystem"
-	"github.com/fleetdm/fleet/v4/server/datastore/mysql/common_mysql"
-	"github.com/fleetdm/fleet/v4/server/datastore/mysql/common_mysql/testing_utils"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	common_mysql "github.com/fleetdm/fleet/v4/server/platform/mysql"
+	"github.com/fleetdm/fleet/v4/server/platform/mysql/testing_utils"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/test"
 	"github.com/google/uuid"
@@ -184,7 +184,7 @@ func testListPendingSoftwareInstalls(t *testing.T, ds *Datastore) {
 		HostID:                host2.ID,
 		InstallUUID:           hostInstall4,
 		InstallScriptExitCode: ptr.Int(0),
-	})
+	}, nil)
 	require.NoError(t, err)
 
 	// create a new pending install request on host2 for installerID2
@@ -199,7 +199,7 @@ func testListPendingSoftwareInstalls(t *testing.T, ds *Datastore) {
 		HostID:                    host2.ID,
 		InstallUUID:               hostInstall5,
 		PreInstallConditionOutput: ptr.String(""), // pre-install query did not return results, so install failed
-	})
+	}, nil)
 	require.NoError(t, err)
 
 	installDetailsList1, err := ds.ListPendingSoftwareInstalls(ctx, host1.ID)
@@ -240,7 +240,7 @@ func testListPendingSoftwareInstalls(t *testing.T, ds *Datastore) {
 		HostID:                    host1.ID,
 		InstallUUID:               hostInstall6,
 		PreInstallConditionOutput: ptr.String("output"),
-	})
+	}, nil)
 	require.NoError(t, err)
 
 	exec2, err := ds.GetSoftwareInstallDetails(ctx, hostInstall6)
@@ -405,7 +405,7 @@ func testSoftwareInstallRequests(t *testing.T, ds *Datastore) {
 				HostID:                hostFailedInstall.ID,
 				InstallUUID:           execID,
 				InstallScriptExitCode: ptr.Int(1),
-			})
+			}, nil)
 			require.NoError(t, err)
 
 			// Host with in-house app failed install
@@ -461,7 +461,7 @@ func testSoftwareInstallRequests(t *testing.T, ds *Datastore) {
 				HostID:                hostInstalled.ID,
 				InstallUUID:           execID,
 				InstallScriptExitCode: ptr.Int(0),
-			})
+			}, nil)
 			require.NoError(t, err)
 
 			// host with in-house successful install
@@ -532,7 +532,7 @@ func testSoftwareInstallRequests(t *testing.T, ds *Datastore) {
 				HostID:      hostFailedUninstall.ID,
 				ExecutionID: execID,
 				ExitCode:    1,
-			})
+			}, nil)
 			require.NoError(t, err)
 
 			// Host with successful uninstall
@@ -553,7 +553,7 @@ func testSoftwareInstallRequests(t *testing.T, ds *Datastore) {
 				HostID:      hostUninstalled.ID,
 				ExecutionID: execID,
 				ExitCode:    0,
-			})
+			}, nil)
 			require.NoError(t, err)
 
 			// Uninstall request with unknown host
@@ -870,7 +870,7 @@ func testGetSoftwareInstallResult(t *testing.T, ds *Datastore) {
 				InstallScriptOutput:       tc.installScriptOutput,
 				PostInstallScriptExitCode: tc.postInstallScriptEC,
 				PostInstallScriptOutput:   tc.postInstallScriptOutput,
-			})
+			}, nil)
 			require.NoError(t, err)
 
 			// edit installer to ensure host software install is unaffected
@@ -1281,7 +1281,7 @@ func testBatchSetSoftwareInstallers(t *testing.T, ds *Datastore) {
 		HostID:                host2.ID,
 		InstallUUID:           execID2,
 		InstallScriptExitCode: ptr.Int(0),
-	})
+	}, nil)
 	require.NoError(t, err)
 
 	summary, err := ds.GetSummaryHostSoftwareInstalls(ctx, instDetails1.InstallerID)
@@ -1354,7 +1354,7 @@ func testBatchSetSoftwareInstallers(t *testing.T, ds *Datastore) {
 		HostID:                host2.ID,
 		InstallUUID:           execID2b,
 		InstallScriptExitCode: ptr.Int(1),
-	})
+	}, nil)
 	require.NoError(t, err)
 
 	pendingHost1, err = ds.ListPendingSoftwareInstalls(ctx, host1.ID)
@@ -1874,7 +1874,7 @@ func testBatchSetSoftwareInstallersSetupExperienceSideEffects(t *testing.T, ds *
 		HostID:                host1.ID,
 		InstallUUID:           ins1ExecID,
 		InstallScriptExitCode: ptr.Int(0),
-	})
+	}, nil)
 
 	require.NoError(t, err)
 
@@ -2276,7 +2276,7 @@ func testDeletePendingSoftwareInstallsForPolicy(t *testing.T, ds *Datastore) {
 		HostID:                host2.ID,
 		InstallUUID:           executionID,
 		InstallScriptExitCode: ptr.Int(0),
-	})
+	}, nil)
 	require.NoError(t, err)
 
 	err = ds.deletePendingSoftwareInstallsForPolicy(ctx, &team1.ID, policy1.ID)
@@ -2361,7 +2361,7 @@ func testGetHostLastInstallData(t *testing.T, ds *Datastore) {
 		InstallUUID: installUUID1,
 
 		InstallScriptExitCode: ptr.Int(0),
-	})
+	}, nil)
 	require.NoError(t, err)
 
 	// Last installation should be "installed".
@@ -2413,14 +2413,14 @@ func testGetHostLastInstallData(t *testing.T, ds *Datastore) {
 		InstallUUID: installUUID2,
 
 		InstallScriptExitCode: ptr.Int(0),
-	})
+	}, nil)
 	require.NoError(t, err)
 	_, err = ds.SetHostSoftwareInstallResult(ctx, &fleet.HostSoftwareInstallResultPayload{
 		HostID:      host1.ID,
 		InstallUUID: installUUID3,
 
 		InstallScriptExitCode: ptr.Int(1),
-	})
+	}, nil)
 	require.NoError(t, err)
 
 	// Last installation for installer1.pkg should be "failed".
@@ -3114,7 +3114,7 @@ func testGetDetailsForUninstallFromExecutionID(t *testing.T, ds *Datastore) {
 		HostID:                host.ID,
 		InstallUUID:           req1,
 		InstallScriptExitCode: ptr.Int(0),
-	})
+	}, nil)
 	require.NoError(t, err)
 
 	_, _, err = ds.GetDetailsForUninstallFromExecutionID(ctx, req1)
@@ -3135,7 +3135,7 @@ func testGetDetailsForUninstallFromExecutionID(t *testing.T, ds *Datastore) {
 		HostID:                host.ID,
 		InstallUUID:           req2,
 		InstallScriptExitCode: ptr.Int(0),
-	})
+	}, nil)
 	require.NoError(t, err)
 
 	title, selfService, err = ds.GetDetailsForUninstallFromExecutionID(ctx, req3)

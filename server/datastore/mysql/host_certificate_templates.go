@@ -248,26 +248,23 @@ func (ds *Datastore) DeleteHostCertificateTemplate(ctx context.Context, hostUUID
 	return nil
 }
 
-func (ds *Datastore) UpsertCertificateStatus(
-	ctx context.Context,
-	hostUUID string,
-	certificateTemplateID uint,
-	status fleet.MDMDeliveryStatus,
-	detail *string,
-	operationType fleet.MDMOperationType,
-) error {
+func (ds *Datastore) UpsertCertificateStatus(ctx context.Context, update *fleet.CertificateStatusUpdate) error {
 	// Validate the status.
-	if !status.IsValid() {
-		return ctxerr.Wrap(ctx, fmt.Errorf("Invalid status '%s'", string(status)))
+	if !update.Status.IsValid() {
+		return ctxerr.Wrap(ctx, fmt.Errorf("Invalid status '%s'", string(update.Status)))
 	}
 
 	updateStmt := `
 		UPDATE host_certificate_templates
-		SET status = ?, detail = ?, operation_type = ?
-		WHERE host_uuid = ? AND certificate_template_id = ?`
-
-	// Attempt to update the certificate status for the given host and template.
-	result, err := ds.writer(ctx).ExecContext(ctx, updateStmt, status, detail, operationType, hostUUID, certificateTemplateID)
+		SET 
+			status = :status, 
+			detail = :detail, 
+			operation_type = :operation_type,
+			not_valid_before = :not_valid_before, 
+			not_valid_after = :not_valid_after, 
+			serial = :serial
+		WHERE host_uuid = :host_uuid AND certificate_template_id = :certificate_template_id`
+	result, err := sqlx.NamedExecContext(ctx, ds.writer(ctx), updateStmt, update)
 	if err != nil {
 		return err
 	}
@@ -286,21 +283,49 @@ func (ds *Datastore) UpsertCertificateStatus(
 			ID   uint   `db:"id"`
 			Name string `db:"name"`
 		}
-		err := ds.writer(ctx).GetContext(ctx, &templateInfo, `SELECT id, name FROM certificate_templates WHERE id = ?`, certificateTemplateID)
+		err := ds.writer(ctx).GetContext(ctx, &templateInfo, `SELECT id, name FROM certificate_templates WHERE id = ?`, update.CertificateTemplateID)
 		if err != nil {
 			if errors.Is(err, sql.ErrNoRows) {
 				return ctxerr.Wrap(ctx, notFound("CertificateTemplate").WithMessage(fmt.Sprintf("No certificate template found for template ID '%d'",
-					certificateTemplateID)))
+					update.CertificateTemplateID)))
 			}
 			return ctxerr.Wrap(ctx, err, "could not read certificate template for inserting new record")
 		}
 
 		insertStmt := `
-			INSERT INTO host_certificate_templates (host_uuid, certificate_template_id, status, detail, fleet_challenge, operation_type, name, uuid)
-			VALUES (?, ?, ?, ?, ?, ?, ?, UUID_TO_BIN(UUID(), true))`
-		params := []any{hostUUID, certificateTemplateID, status, detail, "", operationType, templateInfo.Name}
+			INSERT INTO host_certificate_templates (
+				host_uuid, 
+				certificate_template_id, 
+				status, 
+				detail, 
+				fleet_challenge, 
+				operation_type, 
+				name, 
+				uuid, 
+				not_valid_before, 
+				not_valid_after, 
+				serial
+			)
+			VALUES (
+				:host_uuid, 
+				:certificate_template_id, 
+				:status, 
+				:detail, 
+				'', 
+				:operation_type, 
+				:name, 
+				UUID_TO_BIN(UUID(), true), 
+				:not_valid_before, 
+				:not_valid_after, 
+				:serial
+			)`
 
-		if _, err := ds.writer(ctx).ExecContext(ctx, insertStmt, params...); err != nil {
+		insertArgs := struct {
+			*fleet.CertificateStatusUpdate
+			Name string `db:"name"`
+		}{update, templateInfo.Name}
+
+		if _, err := sqlx.NamedExecContext(ctx, ds.writer(ctx), insertStmt, insertArgs); err != nil {
 			return ctxerr.Wrap(ctx, err, "could not insert new host certificate template")
 		}
 	}
@@ -416,50 +441,28 @@ func (ds *Datastore) GetAndTransitionCertificateTemplatesToDelivering(
 	return result, err
 }
 
-// TransitionCertificateTemplatesToDelivered transitions templates from 'delivering' to 'delivered'
-// and sets the fleet_challenge for each template.
-func (ds *Datastore) TransitionCertificateTemplatesToDelivered(
-	ctx context.Context,
-	hostUUID string,
-	challenges map[uint]string, // certificateTemplateID -> challenge
-) error {
-	if len(challenges) == 0 {
+// TransitionCertificateTemplatesToDelivered transitions the specified templates from 'delivering' to 'delivered'.
+// The fleet_challenge is cleared so a fresh one is generated when the device fetches the certificate template via
+// GetOrCreateFleetChallengeForCertificateTemplate.
+func (ds *Datastore) TransitionCertificateTemplatesToDelivered(ctx context.Context, hostUUID string, templateIDs []uint) error {
+	if len(templateIDs) == 0 {
 		return nil
 	}
 
-	// Build UPDATE with CASE for each template's challenge.
-	// This is called once per host, so the CASE size is bounded by templates per host (small).
-	// Using a single UPDATE per host is more efficient than individual updates when processing many hosts.
-	var caseStmt strings.Builder
-	args := make([]any, 0, len(challenges)*3+1) // CASE args + hostUUID + IN args
-	caseStmt.WriteString("CASE certificate_template_id ")
-	for templateID, challenge := range challenges {
-		caseStmt.WriteString("WHEN ? THEN ? ")
-		args = append(args, templateID, challenge)
-	}
-	caseStmt.WriteString("END")
-
-	// Add hostUUID for WHERE clause
-	args = append(args, hostUUID)
-
-	// Build IN clause for template IDs
-	inPlaceholders := make([]string, 0, len(challenges))
-	for templateID := range challenges {
-		inPlaceholders = append(inPlaceholders, "?")
-		args = append(args, templateID)
-	}
-
-	query := fmt.Sprintf(`
+	query, args, err := sqlx.In(fmt.Sprintf(`
 		UPDATE host_certificate_templates
 		SET
 			status = '%s',
-			fleet_challenge = %s,
+			fleet_challenge = NULL,
 			updated_at = NOW()
 		WHERE
 			host_uuid = ? AND
 			status = '%s' AND
-			certificate_template_id IN (%s)
-	`, fleet.CertificateTemplateDelivered, caseStmt.String(), fleet.CertificateTemplateDelivering, strings.Join(inPlaceholders, ","))
+			certificate_template_id IN (?)
+	`, fleet.CertificateTemplateDelivered, fleet.CertificateTemplateDelivering), hostUUID, templateIDs)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "build transition to delivered query")
+	}
 
 	if _, err := ds.writer(ctx).ExecContext(ctx, query, args...); err != nil {
 		return ctxerr.Wrap(ctx, err, "transition to delivered")
@@ -583,4 +586,142 @@ func (ds *Datastore) SetHostCertificateTemplatesToPendingRemoveForHost(
 
 		return nil
 	})
+}
+
+// GetAndroidCertificateTemplatesForRenewal returns certificate templates that are approaching
+// expiration and need to be renewed. Renewal logic:
+// - If validity period > 30 days: renew within 30 days of expiration
+// - If validity period > 2 days and <= 30 days: renew within half the validity period of expiration
+// - If validity period <= 2 days: does NOT auto-renew
+// Only returns certificates with status 'verified' and operation_type 'install'.
+func (ds *Datastore) GetAndroidCertificateTemplatesForRenewal(
+	ctx context.Context,
+	limit int,
+) ([]fleet.HostCertificateTemplateForRenewal, error) {
+	stmt := fmt.Sprintf(`
+		SELECT
+			host_uuid,
+			certificate_template_id,
+			not_valid_after
+		FROM host_certificate_templates
+		WHERE
+			status = '%s'
+			AND operation_type = '%s'
+			AND not_valid_before IS NOT NULL
+			AND not_valid_after IS NOT NULL
+			AND (
+				(DATEDIFF(not_valid_after, not_valid_before) > 30 AND not_valid_after < DATE_ADD(NOW(), INTERVAL 30 DAY))
+				OR
+				(DATEDIFF(not_valid_after, not_valid_before) > 2 AND DATEDIFF(not_valid_after, not_valid_before) <= 30 AND not_valid_after < DATE_ADD(NOW(), INTERVAL DATEDIFF(not_valid_after, not_valid_before)/2 DAY))
+			)
+		ORDER BY not_valid_after ASC
+		LIMIT ?
+	`, fleet.CertificateTemplateVerified, fleet.MDMOperationTypeInstall)
+
+	var results []fleet.HostCertificateTemplateForRenewal
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &results, stmt, limit); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "get android certificate templates for renewal")
+	}
+
+	return results, nil
+}
+
+// SetAndroidCertificateTemplatesForRenewal marks the specified certificate templates for renewal
+// by setting status to 'pending', clearing validity fields and fleet_challenge, and generating a new UUID.
+// The new UUID signals to the Android agent that the certificate needs renewal.
+// The fleet_challenge is cleared so a fresh one is generated when the device fetches the renewed certificate.
+func (ds *Datastore) SetAndroidCertificateTemplatesForRenewal(
+	ctx context.Context,
+	templates []fleet.HostCertificateTemplateForRenewal,
+) error {
+	if len(templates) == 0 {
+		return nil
+	}
+
+	var placeholders strings.Builder
+	args := make([]any, 0, len(templates)*2)
+	for i, t := range templates {
+		if i > 0 {
+			placeholders.WriteString(",")
+		}
+		placeholders.WriteString("(?,?)")
+		args = append(args, t.HostUUID, t.CertificateTemplateID)
+	}
+
+	stmt := fmt.Sprintf(`
+		UPDATE host_certificate_templates
+		SET
+			status = '%s',
+			uuid = UUID_TO_BIN(UUID(), true),
+			not_valid_before = NULL,
+			not_valid_after = NULL,
+			serial = NULL,
+			fleet_challenge = NULL,
+			updated_at = NOW()
+		WHERE (host_uuid, certificate_template_id) IN (%s)
+	`, fleet.CertificateTemplatePending, placeholders.String())
+
+	if _, err := ds.writer(ctx).ExecContext(ctx, stmt, args...); err != nil {
+		return ctxerr.Wrap(ctx, err, "set android certificate templates for renewal")
+	}
+
+	return nil
+}
+
+// GetOrCreateFleetChallengeForCertificateTemplate ensures a fleet challenge exists for the given
+// host and certificate template. If a challenge already exists in host_certificate_templates,
+// it returns it. If not, it creates a new one atomically and stores it in both the challenges
+// table (for validation) and host_certificate_templates (for retrieval).
+// This method only works for templates in 'delivered' status.
+func (ds *Datastore) GetOrCreateFleetChallengeForCertificateTemplate(
+	ctx context.Context,
+	hostUUID string,
+	certificateTemplateID uint,
+) (string, error) {
+	var challenge string
+	err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		// Check if challenge already exists using FOR UPDATE to prevent race conditions
+		var existingChallenge sql.NullString
+		err := sqlx.GetContext(ctx, tx, &existingChallenge, fmt.Sprintf(`
+			SELECT fleet_challenge
+			FROM host_certificate_templates
+			WHERE host_uuid = ? AND certificate_template_id = ? AND status = '%s' AND operation_type = '%s'
+			FOR UPDATE
+		`, fleet.CertificateTemplateDelivered, fleet.MDMOperationTypeInstall), hostUUID, certificateTemplateID)
+		if err != nil {
+			if errors.Is(err, sql.ErrNoRows) {
+				return ctxerr.Wrap(ctx, notFound("HostCertificateTemplate"), "template not found or not in delivered status")
+			}
+			return ctxerr.Wrap(ctx, err, "check existing challenge")
+		}
+
+		// If challenge exists and is non-empty, return it
+		if existingChallenge.Valid && existingChallenge.String != "" {
+			challenge = existingChallenge.String
+			return nil
+		}
+
+		// Create new challenge using the transaction
+		newChal, err := newChallenge(ctx, tx)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "create challenge")
+		}
+
+		// Update host_certificate_templates with the challenge
+		if _, err := tx.ExecContext(ctx, fmt.Sprintf(`
+			UPDATE host_certificate_templates
+			SET fleet_challenge = ?, updated_at = NOW()
+			WHERE host_uuid = ? AND certificate_template_id = ? AND status = '%s' AND operation_type = '%s'
+		`, fleet.CertificateTemplateDelivered, fleet.MDMOperationTypeInstall), newChal, hostUUID, certificateTemplateID); err != nil {
+			return ctxerr.Wrap(ctx, err, "update fleet_challenge in host_certificate_templates")
+		}
+
+		challenge = newChal
+		return nil
+	})
+
+	if err != nil {
+		return "", err
+	}
+	return challenge, nil
 }

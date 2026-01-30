@@ -5,12 +5,12 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"os"
 	"strings"
 	"testing"
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server"
+	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm/android"
@@ -96,6 +96,11 @@ func TestReconcileProfiles(t *testing.T) {
 				DS:         ds,
 				Enterprise: enterprise,
 				Client:     client,
+				AndroidAgentConfig: config.AndroidAgentConfig{
+					Package:       "com.fleetdm.agent",
+					SigningSHA256: "abc123def456",
+				},
+				Logger: kitlog.NewNopLogger(),
 			}
 
 			c.fn(t, ds, client, reconciler)
@@ -899,15 +904,6 @@ func testCertificateTemplates(t *testing.T, ds fleet.Datastore, client *mock.Cli
 		return &androidmanagement.Policy{}, nil
 	}
 
-	oldPackageValue := os.Getenv("FLEET_DEV_ANDROID_AGENT_PACKAGE")
-	oldSHA256Value := os.Getenv("FLEET_DEV_ANDROID_AGENT_SIGNING_SHA256")
-	os.Setenv("FLEET_DEV_ANDROID_AGENT_PACKAGE", "com.fleetdm.agent")
-	os.Setenv("FLEET_DEV_ANDROID_AGENT_SIGNING_SHA256", "abc123def456")
-	defer func() {
-		os.Setenv("FLEET_DEV_ANDROID_AGENT_PACKAGE", oldPackageValue)
-		os.Setenv("FLEET_DEV_ANDROID_AGENT_SIGNING_SHA256", oldSHA256Value)
-	}()
-
 	err = reconciler.reconcileCertificateTemplates(ctx)
 	require.NoError(t, err)
 
@@ -928,12 +924,12 @@ func testCertificateTemplates(t *testing.T, ds fleet.Datastore, client *mock.Cli
 		require.EqualValues(t, fleet.MDMOperationTypeInstall, certTemplate.Operation)
 	}
 
-	// Verify that host_certificate_template records were created with pending status
+	// Verify that host_certificate_template records were created with delivered status
 	var host1CertTemplates []struct {
-		HostUUID              string `db:"host_uuid"`
-		CertificateTemplateID uint   `db:"certificate_template_id"`
-		FleetChallenge        string `db:"fleet_challenge"`
-		Status                string `db:"status"`
+		HostUUID              string  `db:"host_uuid"`
+		CertificateTemplateID uint    `db:"certificate_template_id"`
+		FleetChallenge        *string `db:"fleet_challenge"`
+		Status                string  `db:"status"`
 	}
 	mysql.ExecAdhocSQL(t, ds.(*mysql.Datastore), func(q sqlx.ExtContext) error {
 		query := `
@@ -948,7 +944,8 @@ func testCertificateTemplates(t *testing.T, ds fleet.Datastore, client *mock.Cli
 
 	for _, hct := range host1CertTemplates {
 		require.Equal(t, host1.Host.UUID, hct.HostUUID)
-		require.NotEmpty(t, hct.FleetChallenge)
+		// Challenge is created on-demand when device fetches the certificate, so it's nil here
+		require.Nil(t, hct.FleetChallenge)
 		require.EqualValues(t, fleet.CertificateTemplateDelivered, hct.Status)
 	}
 
@@ -1007,15 +1004,6 @@ func testBuildAndSendFleetAgentConfigForEnrollment(t *testing.T, ds fleet.Datast
 		return &androidmanagement.Policy{}, nil
 	}
 
-	oldPackageValue := os.Getenv("FLEET_DEV_ANDROID_AGENT_PACKAGE")
-	oldSHA256Value := os.Getenv("FLEET_DEV_ANDROID_AGENT_SIGNING_SHA256")
-	os.Setenv("FLEET_DEV_ANDROID_AGENT_PACKAGE", "com.fleetdm.agent")
-	os.Setenv("FLEET_DEV_ANDROID_AGENT_SIGNING_SHA256", "abc123def456")
-	defer func() {
-		os.Setenv("FLEET_DEV_ANDROID_AGENT_PACKAGE", oldPackageValue)
-		os.Setenv("FLEET_DEV_ANDROID_AGENT_SIGNING_SHA256", oldSHA256Value)
-	}()
-
 	// Create service and call BuildAndSendFleetAgentConfig with skipHostsWithoutNewCerts=false
 	// This simulates the enrollment flow from software_worker.go
 	svc := &Service{
@@ -1023,6 +1011,10 @@ func testBuildAndSendFleetAgentConfigForEnrollment(t *testing.T, ds fleet.Datast
 		fleetDS:          ds,
 		ds:               ds.(fleet.AndroidDatastore),
 		androidAPIClient: client,
+		androidAgentConfig: config.AndroidAgentConfig{
+			Package:       "com.fleetdm.agent",
+			SigningSHA256: "abc123def456",
+		},
 	}
 
 	// Call with skipHostsWithoutNewCerts=false (enrollment scenario)
@@ -1190,15 +1182,6 @@ func testCertificateTemplatesIncludesExistingVerified(t *testing.T, ds fleet.Dat
 		capturedPolicies = policies
 		return &androidmanagement.Policy{}, nil
 	}
-
-	oldPackageValue := os.Getenv("FLEET_DEV_ANDROID_AGENT_PACKAGE")
-	oldSHA256Value := os.Getenv("FLEET_DEV_ANDROID_AGENT_SIGNING_SHA256")
-	os.Setenv("FLEET_DEV_ANDROID_AGENT_PACKAGE", "com.fleetdm.agent")
-	os.Setenv("FLEET_DEV_ANDROID_AGENT_SIGNING_SHA256", "abc123def456")
-	defer func() {
-		os.Setenv("FLEET_DEV_ANDROID_AGENT_PACKAGE", oldPackageValue)
-		os.Setenv("FLEET_DEV_ANDROID_AGENT_SIGNING_SHA256", oldSHA256Value)
-	}()
 
 	// Run reconciliation
 	err = reconciler.reconcileCertificateTemplates(ctx)

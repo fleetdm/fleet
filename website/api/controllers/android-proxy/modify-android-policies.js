@@ -24,6 +24,7 @@ module.exports = {
     missingAuthHeader: { description: 'This request was missing an authorization header.', responseType: 'unauthorized'},
     unauthorized: { description: 'Invalid authentication token.', responseType: 'unauthorized'},
     notFound: { description: 'No Android enterprise found for this Fleet server.', responseType: 'notFound'},
+    invalidPolicy: { description: 'Invalid patch policy request', responseType: 'badRequest' },
   },
 
 
@@ -82,11 +83,13 @@ module.exports = {
         updateMask: this.req.param('updateMask') // Pass the update mask to avoid overwriting applications
       });
       return patchPoliciesResponse.data;
-    }).intercept({status: 429}, (err)=>{
+    }).intercept({ status: 429 }, (err) => {
       // If the Android management API returns a 429 response, log an additional warning that will trigger a help-p1 alert.
       sails.log.warn(`p1: Android management API rate limit exceeded!`);
       return new Error(`When attempting to update a policy for an Android enterprise (${androidEnterpriseId}), an error occurred. Error: ${err}`);
-    }).intercept((err)=>{
+    }).intercept({ status: 400 }, (err) => {
+      return {'invalidPolicy': `Attempted to update a policy with an invalid value for an Android enterprise (${androidEnterpriseId}): ${err}`};
+    }).intercept((err) => {
       return new Error(`When attempting to update a policy for an Android enterprise (${androidEnterpriseId}), an error occurred. Error: ${err}`);
     });
 
