@@ -1347,7 +1347,7 @@ List devices known to fleet from Apple Business Manager.
       "platform": "ios",
       "assign_profile_response": "SUCCESS",
       "response_updated_at": "2025-12-04 01:35:27",
-      "profile_uuid": "762C4D36550103CCC53AA212A8D31CDD",\
+      "profile_uuid": "762C4D36550103CCC53AA212A8D31CDD",
       "added_at": "2025-01-01",
       "deleted_at": null,
       "abm_token_id": 1,
