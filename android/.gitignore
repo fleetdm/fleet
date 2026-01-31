@@ -13,6 +13,8 @@
 .externalNativeBuild
 .cxx
 local.properties
+config.properties
+
 
 # Keystore files - never commit these!
 keystore.properties

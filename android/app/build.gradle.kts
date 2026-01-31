@@ -15,6 +15,15 @@ plugins {
 }
 
 // ==================== ANDROID CONFIG ====================
+val localPropsFile = rootProject.file("config.properties")
+val localProps = Properties()
+if (localPropsFile.exists()) {
+    FileInputStream(localPropsFile).use { localProps.load(it) }
+}
+for (k in localProps.stringPropertyNames()) {
+    project.extensions.extraProperties[k] = localProps.getProperty(k)
+}
+
 
 android {
     namespace = "com.fleetdm.agent"
@@ -101,8 +110,13 @@ android {
         debug {
             enableUnitTestCoverage = true
             enableAndroidTestCoverage = true
+            buildConfigField("String", "FLEET_BASE_URL", "\"${project.findProperty("FLEET_BASE_URL") ?: ""}\"")
+            buildConfigField("String", "FLEET_NODE_KEY", "\"${project.findProperty("FLEET_NODE_KEY") ?: ""}\"")
+            buildConfigField("boolean", "FLEET_ALLOW_INSECURE_TLS", "true")
         }
         release {
+            buildConfigField("boolean", "FLEET_ALLOW_INSECURE_TLS", "false")
+
             if (keystorePropertiesFile.exists()) {
                 signingConfig = signingConfigs.getByName("release")
             }
@@ -255,6 +269,9 @@ dependencies {
     implementation(libs.androidx.work.runtime.ktx)
     implementation(libs.amapi.sdk)
     implementation(libs.kotlinx.serialization.json)
+
+    implementation("com.squareup.okhttp3:okhttp:4.12.0")
+
 
     // SCEP (Simple Certificate Enrollment Protocol)
     implementation(libs.jscep)
