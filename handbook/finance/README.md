@@ -513,7 +513,7 @@ Daily, follow the steps in the [🦄⚡️🌐 Go-To-Market strategy doc (confid
 
 ### Grant role-specific license to a team member
 
-Certain new team members, especially in go-to-market (GTM) roles, will need paid access to paid tools like Salesforce and LinkedIn Sales Navigator immediately on their first day with the company. Gong licenses that other departments need may [request them from the Heap of People](https://fleetdm.com/handbook/people#contact-us) who will make sure there is no license redundancy in that department.
+Certain new team members, especially in go-to-market (GTM) roles, will need paid access to paid tools like Salesforce and LinkedIn Sales Navigator immediately on their first day with the company. Gong licenses that other departments need may [request them from the Head of People](https://fleetdm.com/handbook/people#contact-us) who will make sure there is no license redundancy in that department.
 
 
 ### Add a seat to Salesforce
