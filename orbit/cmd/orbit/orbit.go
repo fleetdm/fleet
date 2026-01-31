@@ -1189,12 +1189,23 @@ func main() {
 			}
 		}
 
-		if c.Bool("fleet-desktop") {
+		// Start token rotation if fleet-desktop is enabled OR if token-only mode is enabled.
+		// Token-only mode allows token generation/rotation without launching the UI.
+		fleetDesktopEnabled := c.Bool("fleet-desktop")
+		tokenOnlyModeEnabled := os.Getenv("ORBIT_DEVICE_TOKEN_ONLY_MODE") == "true"
+		log.Info().
+			Bool("fleet-desktop-enabled", fleetDesktopEnabled).
+			Bool("token-only-mode", tokenOnlyModeEnabled).
+			Msg("checking fleet-desktop flag and token-only mode")
+
+		if fleetDesktopEnabled || tokenOnlyModeEnabled {
 			// Ensure that the token rotation checker is started,
 			// so that we have a valid token to launch the
-			// My Device page.
+			// My Device page (or for token-only mode, just to keep the token rotating).
 			stopRotation := trw.StartRotation()
 			defer stopRotation()
+		} else {
+			log.Warn().Msg("fleet-desktop flag is false and token-only mode is not enabled, token rotation will not start")
 		}
 
 		switch runtime.GOOS {
@@ -1835,6 +1846,10 @@ func newDesktopRunner(
 // NOTE(lucas): This logic could be improved to detect if there's a valid session or not first.
 func (d *desktopRunner) Execute() error {
 	defer close(d.executeDoneCh)
+
+	// Note: If we reach this point, ORBIT_FLEET_DESKTOP=true, so we always launch Fleet Desktop.
+	// Token-only mode (ORBIT_DEVICE_TOKEN_ONLY_MODE=true) only prevents launch when
+	// ORBIT_FLEET_DESKTOP=false, which means desktopRunner wouldn't be created in the first place.
 
 	log.Info().Str("path", d.desktopPath).Msg("opening")
 	url, err := url.Parse(d.fleetURL)
