@@ -493,7 +493,7 @@ module.exports.routes = {
     }
   },
 
-  'GET /testimonials': {
+  'GET /customers': {
     action: 'view-testimonials',
     locals: {
       pageTitleForMeta: 'What people are saying',
@@ -635,7 +635,8 @@ module.exports.routes = {
   // ```
   // 'GET /docs/using-fleet/learn-how-to-use-fleet': '/docs/using-fleet/fleet-for-beginners',
   // ```
-  'GET /customer-stories': '/testimonials',
+  'GET /customer-stories': '/customers',
+  'GET /testimonials': '/customers',
   // 'GET /try': '/get-started',
   'GET /docs/deploying/fleet-public-load-testing': '/docs/deploying/load-testing',
   'GET /handbook/customer-experience': '/handbook/customers',

@@ -34,7 +34,7 @@ parasails.registerComponent('logoCarousel', {
   <div purpose="logos" class="mx-auto d-flex flex-column align-items-center">
     <div purpose="logo-carousel-top">
       <div purpose="logo-row" class="d-flex flex-row align-items-center" :class="[isIosThirteen ? 'ios-13-scroll-animation' : isSafariThirteen ? 'safari-13-scroll-animation' : '']">
-        <a href="/testimonials">
+        <a href="/customers">
           <!-- Group three -->
           <img alt="Easygo logo" src="/images/logos/logo-easygo-107x32@2x.png">
           <img alt="Knostic logo" src="/images/logos/logo-knostic-130x32@2x.png">
@@ -81,7 +81,7 @@ parasails.registerComponent('logoCarousel', {
         </a>
       </div>
       <div purpose="logo-row" class="d-flex flex-row align-items-center" :class="[isIosThirteen ? 'ios-13-scroll-animation' : isSafariThirteen ? 'safari-13-scroll-animation' : '']">
-        <a href="/testimonials">
+        <a href="/customers">
           <!-- Group three -->
           <img alt="Easygo logo" src="/images/logos/logo-easygo-107x32@2x.png">
           <img alt="Knostic logo" src="/images/logos/logo-knostic-130x32@2x.png">
@@ -131,7 +131,7 @@ parasails.registerComponent('logoCarousel', {
     </div>
     <div purpose="logo-carousel-bottom" v-if="bottomRowVisible">
       <div purpose="logo-row" class="d-flex flex-row-reverse align-items-center" :class="[isIosThirteen ? 'ios-13-scroll-animation' : isSafariThirteen ? 'safari-13-scroll-animation' : '']" >
-        <a href="/testimonials">
+        <a href="/customers">
 
           <!-- Group two -->
           <img alt="Csiro logo" src="/images/logos/logo-csiro-90x32@2x.png">
@@ -184,7 +184,7 @@ parasails.registerComponent('logoCarousel', {
         </a>
       </div>
       <div purpose="logo-row" class="d-flex flex-row-reverse align-items-center" :class="[isIosThirteen ? 'ios-13-scroll-animation' : isSafariThirteen ? 'safari-13-scroll-animation' : '']">
-        <a href="/testimonials">
+        <a href="/customers">
 
           <!-- Group two -->
           <img alt="Csiro logo" src="/images/logos/logo-csiro-90x32@2x.png">
