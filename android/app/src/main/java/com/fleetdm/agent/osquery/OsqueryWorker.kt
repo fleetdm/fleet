@@ -20,25 +20,37 @@ class OsqueryWorker(
     params: WorkerParameters,
 ) : CoroutineWorker(appContext, params) {
 
+    companion object {
+        private val lock = Any()
+        private var running = false
+    }
+
     override suspend fun doWork(): Result {
-        Log.i("FleetOsquery", "OsqueryWorker doWork start")
+        synchronized(lock) {
+            if (running) {
+                Log.i("FleetOsquery", "OsqueryWorker already running, skipping")
+                return Result.success()
+            }
+            running = true
+        }
 
-        OsqueryTables.registerAll(applicationContext)
+        try {
+            Log.i("FleetOsquery", "OsqueryWorker doWork start")
 
-        return try {
-            FleetDistributedQueryRunner.runOnce(applicationContext)
+            OsqueryTables.registerAll(applicationContext)
+            FleetDistributedQueryRunner.runOnce()
 
             scheduleNext()
-            Result.success()
+            return Result.success()
         } catch (e: IllegalArgumentException) {
             Log.e("FleetOsquery", "OsqueryWorker misconfigured: ${e.message}", e)
-            // Permanent failure: do not reschedule
             return Result.failure()
         } catch (e: Exception) {
             Log.e("FleetOsquery", "OsqueryWorker error", e)
-
             scheduleNext()
-            Result.retry()
+            return Result.retry()
+        } finally {
+            synchronized(lock) { running = false }
         }
     }
 

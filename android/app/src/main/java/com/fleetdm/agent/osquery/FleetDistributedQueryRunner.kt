@@ -37,13 +37,14 @@ object FleetDistributedQueryRunner {
 
     // If true, when we cannot run a query, we still answer it with [] so Fleet stops sending it.
     var clearUnknownQueries: Boolean = true
+    private val warnedUnknownTables = mutableSetOf<String>()
 
     // Dev only: accept self signed TLS certs
     private val client: OkHttpClient =
         if (BuildConfig.FLEET_ALLOW_INSECURE_TLS) unsafeOkHttpClient() else OkHttpClient()
 
 
-    suspend fun runOnce(context: Context) {
+    suspend fun runOnce() {
         val startMs = System.currentTimeMillis()
 
         val readResp = fleetDistributedRead(nodeKey)
@@ -58,28 +59,32 @@ object FleetDistributedQueryRunner {
         for (qName in queryNames) {
             val sql = queriesObj.optString(qName, "")
             if (sql.isBlank()) continue
-            handled++
 
             try {
                 val rows = executeSqlViaTables(sql)
                 resultsToWrite[qName] = rows
+                handled++
             } catch (e: Exception) {
                 val msg = e.message ?: e.javaClass.simpleName
                 Log.w(tag, "Query failed: $qName sql=$sql err=$msg")
 
                 if (clearUnknownQueries) {
                     resultsToWrite[qName] = emptyList()
+                    handled++
                 }
             }
         }
 
+        var wrote = 0
         if (resultsToWrite.isNotEmpty()) {
             fleetDistributedWrite(nodeKey, resultsToWrite)
+            wrote = resultsToWrite.size
         }
-        val tookMs = System.currentTimeMillis() - startMs
-        Log.i(tag, "runOnce handled=$handled wrote=${resultsToWrite.size} tookMs=$tookMs")
 
+        val took = System.currentTimeMillis() - startMs
+        Log.i(tag, "runOnce handled=$handled wrote=$wrote tookMs=$took")
     }
+
 
 
     private suspend fun fleetDistributedRead(nodeKey: String): JSONObject = withContext(Dispatchers.IO) {
