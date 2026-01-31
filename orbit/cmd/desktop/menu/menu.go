@@ -5,11 +5,22 @@ import (
 	"os"
 	"runtime"
 	"strings"
+	"sync"
 	"sync/atomic"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/rs/zerolog/log"
 )
+
+// MaxPendingUpdates is the maximum number of app update items shown in the menu.
+const MaxPendingUpdates = 10
+
+// PendingUpdate represents an app that has an update available for self-service install.
+type PendingUpdate struct {
+	TitleID uint
+	Name    string
+	Version string
+}
 
 // isOpenSUSE detects if the system is running OpenSUSE
 func isOpenSUSE() bool {
@@ -46,12 +57,15 @@ type Item interface {
 
 // Items holds all the menu items for the Fleet Desktop systray
 type Items struct {
-	Version      Item
-	MigrateMDM   Item
-	MyDevice     Item
-	HostOffline  Item
-	SelfService  Item
-	Transparency Item
+	Version       Item
+	MigrateMDM    Item
+	MyDevice      Item
+	HostOffline   Item
+	SelfService   Item
+	UpdatesHeader Item
+	UpdateItems   [MaxPendingUpdates]Item
+	InstallAll    Item
+	Transparency  Item
 }
 
 // Manager handles the state and behavior of the Fleet Desktop menu
@@ -62,6 +76,9 @@ type Manager struct {
 	showMDMMigrator atomic.Bool
 	// Track whether the offline indicator is currently displayed
 	offlineIndicatorDisplayed atomic.Bool
+	// pendingUpdates is the current list of app updates; protected by pendingUpdatesMu
+	pendingUpdates   []PendingUpdate
+	pendingUpdatesMu sync.RWMutex
 }
 
 // NewManager creates a new menu manager with initialized menu items
@@ -91,6 +108,19 @@ func NewManager(version string, factory Factory) *Manager {
 	items.SelfService = factory.AddMenuItem("Self-service", "")
 	items.SelfService.Disable()
 	items.SelfService.Hide()
+
+	// Add updates section (shown when self-service software is available to install)
+	items.UpdatesHeader = factory.AddMenuItem("Updates", "")
+	items.UpdatesHeader.Disable()
+	items.UpdatesHeader.Hide()
+	for i := 0; i < MaxPendingUpdates; i++ {
+		items.UpdateItems[i] = factory.AddMenuItem("", "")
+		items.UpdateItems[i].Disable()
+		items.UpdateItems[i].Hide()
+	}
+	items.InstallAll = factory.AddMenuItem("Install all", "")
+	items.InstallAll.Disable()
+	items.InstallAll.Hide()
 	factory.AddSeparator()
 
 	// Add transparency item
@@ -125,6 +155,7 @@ func (m *Manager) SetConnecting() {
 		m.Items.MigrateMDM.Hide()
 	}
 
+	m.hideUpdatesSection()
 	m.hideOfflineWarning()
 }
 
@@ -165,6 +196,7 @@ func (m *Manager) SetOffline() {
 	m.Items.Transparency.Hide()
 	m.Items.MigrateMDM.Disable()
 	m.Items.MigrateMDM.Hide()
+	m.hideUpdatesSection()
 	m.showOfflineWarning()
 	m.offlineIndicatorDisplayed.Store(true)
 }
@@ -231,4 +263,76 @@ func (m *Manager) showOfflineWarning() {
 // hideOfflineWarning hides the offline warning item
 func (m *Manager) hideOfflineWarning() {
 	m.Items.HostOffline.Hide()
+}
+
+// SetPendingUpdates shows or hides the Updates section based on the list of apps
+// that need an update. When updates is nil (e.g. self-service disabled), the section
+// is hidden. When updates is empty (0 updates), the header "Updates (0)" is shown
+// as a disabled item. When updates is non-empty, the header, per-app items, and
+// "Install all" (if more than one) are shown.
+func (m *Manager) SetPendingUpdates(updates []PendingUpdate) {
+	m.pendingUpdatesMu.Lock()
+	if updates != nil && len(updates) > MaxPendingUpdates {
+		updates = updates[:MaxPendingUpdates]
+	}
+	if updates == nil {
+		m.pendingUpdates = nil
+	} else {
+		m.pendingUpdates = make([]PendingUpdate, len(updates))
+		copy(m.pendingUpdates, updates)
+	}
+	m.pendingUpdatesMu.Unlock()
+
+	if updates == nil {
+		m.hideUpdatesSection()
+		return
+	}
+
+	m.Items.UpdatesHeader.SetTitle(fmt.Sprintf("Updates (%d)", len(updates)))
+	m.Items.UpdatesHeader.Show()
+
+	for i := 0; i < MaxPendingUpdates; i++ {
+		if i < len(updates) {
+			title := updates[i].Name
+			if updates[i].Version != "" {
+				title = fmt.Sprintf("%s (%s) - Install", updates[i].Name, updates[i].Version)
+			} else {
+				title = fmt.Sprintf("%s - Install", updates[i].Name)
+			}
+			m.Items.UpdateItems[i].SetTitle(title)
+			m.Items.UpdateItems[i].Enable()
+			m.Items.UpdateItems[i].Show()
+		} else {
+			m.Items.UpdateItems[i].Hide()
+		}
+	}
+
+	// Only show "Install all" when there is more than one update
+	if len(updates) > 1 {
+		m.Items.InstallAll.SetTitle("Install all")
+		m.Items.InstallAll.Enable()
+		m.Items.InstallAll.Show()
+	} else {
+		m.Items.InstallAll.Hide()
+	}
+}
+
+// GetPendingUpdateTitleID returns the software title ID for the update at index i.
+// It returns (0, false) if the index is out of range.
+func (m *Manager) GetPendingUpdateTitleID(i int) (uint, bool) {
+	m.pendingUpdatesMu.RLock()
+	defer m.pendingUpdatesMu.RUnlock()
+	if i < 0 || i >= len(m.pendingUpdates) {
+		return 0, false
+	}
+	return m.pendingUpdates[i].TitleID, true
+}
+
+// hideUpdatesSection hides the Updates header, all update items, and Install all.
+func (m *Manager) hideUpdatesSection() {
+	m.Items.UpdatesHeader.Hide()
+	for i := 0; i < MaxPendingUpdates; i++ {
+		m.Items.UpdateItems[i].Hide()
+	}
+	m.Items.InstallAll.Hide()
 }

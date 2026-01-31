@@ -103,13 +103,18 @@ func TestManagerWithMockFactory(t *testing.T) {
 		assert.NotNil(t, manager.Items.MyDevice)
 		assert.NotNil(t, manager.Items.HostOffline)
 		assert.NotNil(t, manager.Items.SelfService)
+		assert.NotNil(t, manager.Items.UpdatesHeader)
+		for i := 0; i < MaxPendingUpdates; i++ {
+			assert.NotNil(t, manager.Items.UpdateItems[i])
+		}
+		assert.NotNil(t, manager.Items.InstallAll)
 		assert.NotNil(t, manager.Items.Transparency)
 
 		// Check that correct number of separators were added
 		assert.Equal(t, 2, factory.Separators)
 
-		// Check that correct number of items were created
-		assert.Equal(t, 6, len(factory.Items)) // Version, MigrateMDM, MyDevice, 1x HostOffline, SelfService, Transparency
+		// Check that correct number of items were created (Version, MigrateMDM, MyDevice, HostOffline, SelfService, UpdatesHeader, UpdateItems x10, InstallAll, Transparency)
+		assert.Equal(t, 5+1+MaxPendingUpdates+1+1, len(factory.Items)) // 5 base + UpdatesHeader + 10 update slots + InstallAll + Transparency = 18
 	})
 
 	t.Run("set connecting state", func(t *testing.T) {
@@ -268,5 +273,54 @@ func TestManagerWithMockFactory(t *testing.T) {
 		// Clear offline indicator displayed
 		testManager.SetOfflineIndicatorDisplayed(false)
 		assert.False(t, testManager.IsOfflineIndicatorDisplayed())
+	})
+
+	t.Run("set pending updates", func(t *testing.T) {
+		// Nil updates (e.g. self-service disabled) hides the section
+		manager.SetPendingUpdates(nil)
+		updatesHeader := manager.Items.UpdatesHeader.(*MockMenuItem)
+		assert.False(t, updatesHeader.Visible)
+		installAll := manager.Items.InstallAll.(*MockMenuItem)
+		assert.False(t, installAll.Visible)
+
+		// Empty slice (0 updates) shows "Updates (0)" header, no items or Install all
+		manager.SetPendingUpdates([]PendingUpdate{})
+		assert.True(t, updatesHeader.Visible)
+		assert.Contains(t, updatesHeader.Title, "0")
+		assert.False(t, installAll.Visible)
+
+		// One update shows header and items but not Install all
+		manager.SetPendingUpdates([]PendingUpdate{
+			{TitleID: 1, Name: "App One", Version: "1.0.0"},
+		})
+		assert.True(t, updatesHeader.Visible)
+		assert.False(t, installAll.Visible, "Install all should be hidden when only one update")
+
+		// Two or more updates shows header, items, and Install all
+		updates := []PendingUpdate{
+			{TitleID: 1, Name: "App One", Version: "1.0.0"},
+			{TitleID: 2, Name: "App Two", Version: "2.0.0"},
+		}
+		manager.SetPendingUpdates(updates)
+		assert.True(t, updatesHeader.Visible)
+		assert.Contains(t, updatesHeader.Title, "2")
+		assert.True(t, installAll.Visible)
+		item0 := manager.Items.UpdateItems[0].(*MockMenuItem)
+		item1 := manager.Items.UpdateItems[1].(*MockMenuItem)
+		assert.True(t, item0.Visible)
+		assert.True(t, item1.Visible)
+		assert.Contains(t, item0.Title, "App One")
+		assert.Contains(t, item0.Title, "1.0.0")
+		assert.Contains(t, item1.Title, "App Two")
+
+		// GetPendingUpdateTitleID
+		id, ok := manager.GetPendingUpdateTitleID(0)
+		assert.True(t, ok)
+		assert.Equal(t, uint(1), id)
+		id, ok = manager.GetPendingUpdateTitleID(1)
+		assert.True(t, ok)
+		assert.Equal(t, uint(2), id)
+		_, ok = manager.GetPendingUpdateTitleID(2)
+		assert.False(t, ok)
 	})
 }

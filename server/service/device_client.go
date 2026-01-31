@@ -258,3 +258,37 @@ func (dc *DeviceClient) ReportError(token string, fleetdErr fleet.FleetdError) e
 		retry.WithInterval(15*time.Second),
 	)
 }
+
+// deviceSoftwareResponse matches the API response for GET device/{token}/software
+type deviceSoftwareResponse struct {
+	Software []*fleet.HostSoftwareWithInstaller `json:"software"`
+	Count    int                                `json:"count"`
+	Err      error                              `json:"error,omitempty"`
+}
+
+// DeviceSoftware returns the list of software available to the device. When selfServiceOnly
+// is true, only software available for self-service install is returned.
+func (dc *DeviceClient) DeviceSoftware(token string, selfServiceOnly bool) ([]*fleet.HostSoftwareWithInstaller, error) {
+	verb, path := "GET", "/api/latest/fleet/device/%s/software"
+	query := ""
+	if selfServiceOnly {
+		query = "self_service=1"
+	}
+	var r deviceSoftwareResponse
+	if err := dc.request(verb, path, token, query, nil, &r); err != nil {
+		return nil, err
+	}
+	if r.Err != nil {
+		return nil, r.Err
+	}
+	if r.Software == nil {
+		return []*fleet.HostSoftwareWithInstaller{}, nil
+	}
+	return r.Software, nil
+}
+
+// InstallSoftware triggers a self-service install for the given software title.
+func (dc *DeviceClient) InstallSoftware(token string, softwareTitleID uint) error {
+	verb, path := "POST", "/api/latest/fleet/device/%s/software/install/"+fmt.Sprintf("%d", softwareTitleID)
+	return dc.request(verb, path, token, "", nil, nil)
+}

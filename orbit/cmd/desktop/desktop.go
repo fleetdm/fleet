@@ -38,6 +38,34 @@ import (
 // version is set at compile time via -ldflags
 var version = "unknown"
 
+// softwareNeedsUpdate returns true only when the software has an update available:
+// the host has at least one installed version and the installer (or app store) version
+// is newer. It mirrors the My Device "Updates" section logic and does not require
+// status === "installed" (the API may have status nil or other for inventory-only titles).
+func softwareNeedsUpdate(sw *fleet.HostSoftwareWithInstaller) bool {
+	if len(sw.InstalledVersions) == 0 {
+		return false
+	}
+
+	installerVersion := ""
+	if sw.SoftwarePackage != nil {
+		installerVersion = sw.SoftwarePackage.Version
+	} else if sw.AppStoreApp != nil {
+		installerVersion = sw.AppStoreApp.Version
+	}
+	if installerVersion == "" {
+		return false
+	}
+
+	// Show when at least one installed version is older than the installer (update available)
+	for _, iv := range sw.InstalledVersions {
+		if fleet.CompareVersions(iv.Version, installerVersion) < 0 {
+			return true
+		}
+	}
+	return false
+}
+
 func setupRunners() {
 	var runnerGroup run.Group
 
@@ -378,6 +406,42 @@ func main() {
 				menuManager.SetConnected(&sum.DesktopSummary, false)
 				menuManager.UpdateFailingPolicies(sum.DesktopSummary.FailingPolicies)
 
+				// Fetch self-service software and show only items that need an update in the menu
+				// (match My Device page: exclude already-installed up-to-date software like Chrome)
+				if sum.SelfService != nil && *sum.SelfService {
+					// Show "Updates (0)" immediately so the section is visible before/during fetch
+					menuManager.SetPendingUpdates([]menu.PendingUpdate{})
+					software, err := client.DeviceSoftware(tokenReader.GetCached(), true)
+					if err != nil {
+						log.Debug().Err(err).Msg("fetch device software for menu updates")
+					} else {
+						updates := make([]menu.PendingUpdate, 0, len(software))
+						for _, sw := range software {
+							if !softwareNeedsUpdate(sw) {
+								continue
+							}
+							version := ""
+							if sw.SoftwarePackage != nil {
+								version = sw.SoftwarePackage.Version
+							} else if sw.AppStoreApp != nil {
+								version = sw.AppStoreApp.Version
+							}
+							name := sw.Name
+							if name == "" {
+								name = sw.DisplayName
+							}
+							updates = append(updates, menu.PendingUpdate{
+								TitleID: sw.ID,
+								Name:    name,
+								Version: version,
+							})
+						}
+						menuManager.SetPendingUpdates(updates)
+					}
+				} else {
+					menuManager.SetPendingUpdates(nil)
+				}
+
 				// Check our file to see if we should migrate
 				var migrationType string
 				if runtime.GOOS == "darwin" {
@@ -478,6 +542,19 @@ func main() {
 					// Also refresh the device status by forcing the polling ticker to fire
 					fleetDesktopCheckTrigger.Store(true)
 					pingTicker.Reset(1 * time.Millisecond)
+				case <-menuManager.Items.InstallAll.ClickedCh():
+					token := tokenReader.GetCached()
+					for i := 0; i < menu.MaxPendingUpdates; i++ {
+						id, ok := menuManager.GetPendingUpdateTitleID(i)
+						if !ok {
+							break
+						}
+						if err := client.InstallSoftware(token, id); err != nil {
+							log.Error().Err(err).Uint("title_id", id).Msg("install software (install all)")
+						}
+					}
+					fleetDesktopCheckTrigger.Store(true)
+					pingTicker.Reset(1 * time.Millisecond)
 				case <-menuManager.Items.MigrateMDM.ClickedCh():
 					if offline := offlineWatcher.ShowIfOffline(offlineWatcherCtx); offline {
 						continue
@@ -486,6 +563,96 @@ func main() {
 					if err := mdmMigrator.Show(); err != nil {
 						go reportError(err, nil)
 						log.Error().Err(err).Msg("showing MDM migration dialog on user action")
+					}
+				case <-menuManager.Items.UpdateItems[0].ClickedCh():
+					if id, ok := menuManager.GetPendingUpdateTitleID(0); ok {
+						if err := client.InstallSoftware(tokenReader.GetCached(), id); err != nil {
+							log.Error().Err(err).Uint("title_id", id).Msg("install software")
+						} else {
+							fleetDesktopCheckTrigger.Store(true)
+							pingTicker.Reset(1 * time.Millisecond)
+						}
+					}
+				case <-menuManager.Items.UpdateItems[1].ClickedCh():
+					if id, ok := menuManager.GetPendingUpdateTitleID(1); ok {
+						if err := client.InstallSoftware(tokenReader.GetCached(), id); err != nil {
+							log.Error().Err(err).Uint("title_id", id).Msg("install software")
+						} else {
+							fleetDesktopCheckTrigger.Store(true)
+							pingTicker.Reset(1 * time.Millisecond)
+						}
+					}
+				case <-menuManager.Items.UpdateItems[2].ClickedCh():
+					if id, ok := menuManager.GetPendingUpdateTitleID(2); ok {
+						if err := client.InstallSoftware(tokenReader.GetCached(), id); err != nil {
+							log.Error().Err(err).Uint("title_id", id).Msg("install software")
+						} else {
+							fleetDesktopCheckTrigger.Store(true)
+							pingTicker.Reset(1 * time.Millisecond)
+						}
+					}
+				case <-menuManager.Items.UpdateItems[3].ClickedCh():
+					if id, ok := menuManager.GetPendingUpdateTitleID(3); ok {
+						if err := client.InstallSoftware(tokenReader.GetCached(), id); err != nil {
+							log.Error().Err(err).Uint("title_id", id).Msg("install software")
+						} else {
+							fleetDesktopCheckTrigger.Store(true)
+							pingTicker.Reset(1 * time.Millisecond)
+						}
+					}
+				case <-menuManager.Items.UpdateItems[4].ClickedCh():
+					if id, ok := menuManager.GetPendingUpdateTitleID(4); ok {
+						if err := client.InstallSoftware(tokenReader.GetCached(), id); err != nil {
+							log.Error().Err(err).Uint("title_id", id).Msg("install software")
+						} else {
+							fleetDesktopCheckTrigger.Store(true)
+							pingTicker.Reset(1 * time.Millisecond)
+						}
+					}
+				case <-menuManager.Items.UpdateItems[5].ClickedCh():
+					if id, ok := menuManager.GetPendingUpdateTitleID(5); ok {
+						if err := client.InstallSoftware(tokenReader.GetCached(), id); err != nil {
+							log.Error().Err(err).Uint("title_id", id).Msg("install software")
+						} else {
+							fleetDesktopCheckTrigger.Store(true)
+							pingTicker.Reset(1 * time.Millisecond)
+						}
+					}
+				case <-menuManager.Items.UpdateItems[6].ClickedCh():
+					if id, ok := menuManager.GetPendingUpdateTitleID(6); ok {
+						if err := client.InstallSoftware(tokenReader.GetCached(), id); err != nil {
+							log.Error().Err(err).Uint("title_id", id).Msg("install software")
+						} else {
+							fleetDesktopCheckTrigger.Store(true)
+							pingTicker.Reset(1 * time.Millisecond)
+						}
+					}
+				case <-menuManager.Items.UpdateItems[7].ClickedCh():
+					if id, ok := menuManager.GetPendingUpdateTitleID(7); ok {
+						if err := client.InstallSoftware(tokenReader.GetCached(), id); err != nil {
+							log.Error().Err(err).Uint("title_id", id).Msg("install software")
+						} else {
+							fleetDesktopCheckTrigger.Store(true)
+							pingTicker.Reset(1 * time.Millisecond)
+						}
+					}
+				case <-menuManager.Items.UpdateItems[8].ClickedCh():
+					if id, ok := menuManager.GetPendingUpdateTitleID(8); ok {
+						if err := client.InstallSoftware(tokenReader.GetCached(), id); err != nil {
+							log.Error().Err(err).Uint("title_id", id).Msg("install software")
+						} else {
+							fleetDesktopCheckTrigger.Store(true)
+							pingTicker.Reset(1 * time.Millisecond)
+						}
+					}
+				case <-menuManager.Items.UpdateItems[9].ClickedCh():
+					if id, ok := menuManager.GetPendingUpdateTitleID(9); ok {
+						if err := client.InstallSoftware(tokenReader.GetCached(), id); err != nil {
+							log.Error().Err(err).Uint("title_id", id).Msg("install software")
+						} else {
+							fleetDesktopCheckTrigger.Store(true)
+							pingTicker.Reset(1 * time.Millisecond)
+						}
 					}
 				}
 			}
