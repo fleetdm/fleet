@@ -44,6 +44,7 @@ func TestAndroid(t *testing.T) {
 		{"GetHostMDMAndroidProfiles", testGetHostMDMAndroidProfiles},
 		{"GetAndroidPolicyRequestByUUID", testGetAndroidPolicyRequestByUUID},
 		{"ListHostMDMAndroidProfilesPendingInstallWithVersion", testListHostMDMAndroidProfilesPendingInstallWithVersion},
+		{"ListHostMDMAndroidProfilesFailedDueToNonCompliance", testListHostMDMAndroidProfilesFailedDueToNonCompliance},
 		{"BulkDeleteMDMAndroidHostProfiles", testBulkDeleteMDMAndroidHostProfiles},
 		{"BatchSetMDMAndroidProfiles_Associations", testBatchSetMDMAndroidProfiles_Associations},
 		{"NewAndroidHostWithIdP", testNewAndroidHostWithIdP},
@@ -2620,4 +2621,79 @@ func testHasAndroidAppConfigurationChanged(t *testing.T, ds *Datastore) {
 			require.Equal(t, c.changed, got)
 		})
 	}
+}
+
+func testListHostMDMAndroidProfilesFailedDueToNonCompliance(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	profiles := make([]*fleet.MDMAndroidConfigProfile, 3)
+	for i := range profiles {
+		p := androidProfileForTest(fmt.Sprintf("profile-%d", i))
+		p, err := ds.NewMDMAndroidConfigProfile(ctx, *p)
+		require.NoError(t, err)
+		profiles[i] = p
+	}
+	hostUUID := uuid.NewString()
+
+	clearOutHostMDMAndroidProfilesTable := func() {
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			_, err := q.ExecContext(ctx, "DELETE FROM host_mdm_android_profiles WHERE host_uuid = ?", hostUUID)
+			return err
+		})
+	}
+	policyVersion := ptr.Int(1)
+
+	detailMesageUserAction := `passwordPolicies" setting couldn't apply to a host.
+Reason: USER_ACTION. Other settings are applied.`
+	detailMessageReverifiableSettings := `bluetoothDisabled", and "passwordPolicies" settings couldn't apply to a host.
+Reasons: PENDING, and USER_ACTION. Other settings are applied.`
+	detailMessageMixedSettings := `bluetoothDisabled", "cameraDisabled", and "passwordPolicies" settings couldn't apply to a host.
+Reasons: MANAGEMENT_MODE, API_LEVEL, and USER_ACTION. Other settings are applied.`
+
+	profile1 := fleet.MDMAndroidProfilePayload{
+		HostUUID:                hostUUID,
+		ProfileUUID:             profiles[0].ProfileUUID,
+		ProfileName:             profiles[0].Name,
+		OperationType:           fleet.MDMOperationTypeInstall,
+		Status:                  &fleet.MDMDeliveryFailed,
+		Detail:                  detailMesageUserAction,
+		IncludedInPolicyVersion: policyVersion,
+	}
+
+	profile2 := fleet.MDMAndroidProfilePayload{
+		HostUUID:                hostUUID,
+		ProfileUUID:             profiles[1].ProfileUUID,
+		ProfileName:             profiles[1].Name,
+		OperationType:           fleet.MDMOperationTypeInstall,
+		Status:                  &fleet.MDMDeliveryFailed,
+		Detail:                  detailMessageReverifiableSettings,
+		IncludedInPolicyVersion: policyVersion,
+	}
+
+	profile3 := fleet.MDMAndroidProfilePayload{
+		HostUUID:                hostUUID,
+		ProfileUUID:             profiles[2].ProfileUUID,
+		ProfileName:             profiles[2].Name,
+		OperationType:           fleet.MDMOperationTypeInstall,
+		Status:                  &fleet.MDMDeliveryFailed,
+		Detail:                  detailMessageMixedSettings,
+		IncludedInPolicyVersion: policyVersion,
+	}
+
+	allProfiles := []*fleet.MDMAndroidProfilePayload{
+		&profile1,
+		&profile2,
+		&profile3,
+	}
+	wantedProfiles := []*fleet.MDMAndroidProfilePayload{
+		&profile1,
+		&profile2,
+	}
+
+	defer clearOutHostMDMAndroidProfilesTable()
+	err := ds.BulkUpsertMDMAndroidHostProfiles(ctx, allProfiles)
+	require.NoError(t, err)
+	hostProfiles, err := ds.ListHostMDMAndroidProfilesFailedDueToNonCompliance(ctx, hostUUID, int64(*policyVersion))
+	require.NoError(t, err)
+	require.ElementsMatch(t, hostProfiles, wantedProfiles)
 }

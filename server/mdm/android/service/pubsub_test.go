@@ -243,6 +243,9 @@ func TestStatusReportPolicyValidation(t *testing.T) {
 				installPendingProfile,
 			}, nil
 		}
+		mockDS.ListHostMDMAndroidProfilesFailedDueToNonComplianceFunc = func(ctx context.Context, hostUUID string, version int64) ([]*fleet.MDMAndroidProfilePayload, error) {
+			return nil, nil
+		}
 		mockDS.ListHostMDMAndroidVPPAppsPendingInstallWithVersionFunc = func(ctx context.Context, hostUUID string, version int64) ([]*fleet.HostAndroidVPPSoftwareInstall, error) {
 			return nil, nil
 		}
@@ -323,6 +326,9 @@ func TestStatusReportPolicyValidation(t *testing.T) {
 				installPendingProfile2,
 			}, nil
 		}
+		mockDS.ListHostMDMAndroidProfilesFailedDueToNonComplianceFunc = func(ctx context.Context, hostUUID string, version int64) ([]*fleet.MDMAndroidProfilePayload, error) {
+			return nil, nil
+		}
 		mockDS.ListHostMDMAndroidVPPAppsPendingInstallWithVersionFunc = func(ctx context.Context, hostUUID string, version int64) ([]*fleet.HostAndroidVPPSoftwareInstall, error) {
 			return nil, nil
 		}
@@ -365,6 +371,105 @@ func TestStatusReportPolicyValidation(t *testing.T) {
 		mockDS.BulkDeleteMDMAndroidHostProfilesFuncInvoked = false
 		mockDS.BulkUpsertMDMAndroidHostProfilesFuncInvoked = false
 		mockDS.GetAndroidPolicyRequestByUUIDFuncInvoked = false
+	})
+
+	t.Run("profile failed due to non-compliance but is reverified", func(t *testing.T) {
+		policyVersion := ptr.Int(1)
+
+		policyRequestUUID := uuid.NewString()
+		installPendingProfile1 := &fleet.MDMAndroidProfilePayload{
+			ProfileUUID:             uuid.NewString(),
+			ProfileName:             "a",
+			HostUUID:                androidDevice.UUID,
+			Status:                  &fleet.MDMDeliveryPending,
+			OperationType:           fleet.MDMOperationTypeInstall,
+			IncludedInPolicyVersion: policyVersion,
+			PolicyRequestUUID:       &policyRequestUUID,
+		}
+
+		installPendingProfile2 := &fleet.MDMAndroidProfilePayload{
+			ProfileUUID:             uuid.NewString(),
+			ProfileName:             "b",
+			HostUUID:                androidDevice.UUID,
+			Status:                  &fleet.MDMDeliveryPending,
+			OperationType:           fleet.MDMOperationTypeInstall,
+			IncludedInPolicyVersion: policyVersion,
+			PolicyRequestUUID:       &policyRequestUUID,
+		}
+
+		installPendingProfile3 := &fleet.MDMAndroidProfilePayload{
+			ProfileUUID:             uuid.NewString(),
+			ProfileName:             "c",
+			HostUUID:                androidDevice.UUID,
+			Status:                  &fleet.MDMDeliveryPending,
+			OperationType:           fleet.MDMOperationTypeInstall,
+			IncludedInPolicyVersion: policyVersion,
+			PolicyRequestUUID:       &policyRequestUUID,
+		}
+
+		mockDS.GetAndroidPolicyRequestByUUIDFunc = func(ctx context.Context, id string) (*android.MDMAndroidPolicyRequest, error) {
+			if id == policyRequestUUID {
+				payload, err := json.Marshal(map[string]any{
+					"policy": map[string]any{
+						"DefaultPermissionPolicy": true,
+						"passwordPolicies":        []map[string]any{},
+						"cameraDisabled":          true,
+					},
+					"metadata": map[string]any{
+						"settings_origin": map[string]string{
+							"DefaultPermissionPolicy": installPendingProfile1.ProfileUUID,
+							"passwordPolicies":        installPendingProfile2.ProfileUUID,
+							"cameraDisabled":          installPendingProfile3.ProfileUUID,
+						},
+					},
+				})
+				require.NoError(t, err)
+				return &android.MDMAndroidPolicyRequest{
+					Payload: payload,
+				}, nil
+			}
+
+			return nil, errors.New("something went wrong")
+		}
+
+		mockDS.ListHostMDMAndroidProfilesPendingInstallWithVersionFunc = func(ctx context.Context, hostUUID string, version int64) ([]*fleet.MDMAndroidProfilePayload, error) {
+			return []*fleet.MDMAndroidProfilePayload{
+				installPendingProfile1,
+				installPendingProfile3,
+			}, nil
+		}
+		mockDS.ListHostMDMAndroidProfilesFailedDueToNonComplianceFunc = func(ctx context.Context, hostUUID string, version int64) ([]*fleet.MDMAndroidProfilePayload, error) {
+			return []*fleet.MDMAndroidProfilePayload{
+				installPendingProfile2,
+			}, nil
+		}
+		mockDS.ListHostMDMAndroidVPPAppsPendingInstallWithVersionFunc = func(ctx context.Context, hostUUID string, version int64) ([]*fleet.HostAndroidVPPSoftwareInstall, error) {
+			return nil, nil
+		}
+
+		mockDS.BulkUpsertMDMAndroidHostProfilesFunc = func(ctx context.Context, payload []*fleet.MDMAndroidProfilePayload) error {
+			require.Len(t, payload, 3)
+			for _, profile := range payload {
+				require.Equal(t, fleet.MDMDeliveryVerified, *profile.Status)
+			}
+			return nil
+		}
+		mockDS.BulkDeleteMDMAndroidHostProfilesFunc = func(ctx context.Context, hostUUID string, policyVersionID int64) error {
+			return nil
+		}
+
+		// a profile that previously failed due to USER_ACTION will get reverified
+		enrollmentMessage := createStatusReportMessage(t, androidDevice.UUID, "test", createAndroidDeviceId("test-policy"), policyVersion, []*androidmanagement.NonComplianceDetail{})
+
+		err := svc.ProcessPubSubPush(context.Background(), "value", &enrollmentMessage)
+		require.NoError(t, err)
+
+		require.True(t, mockDS.ListHostMDMAndroidProfilesPendingInstallWithVersionFuncInvoked)
+		require.True(t, mockDS.BulkUpsertMDMAndroidHostProfilesFuncInvoked)
+		require.True(t, mockDS.BulkDeleteMDMAndroidHostProfilesFuncInvoked)
+		mockDS.ListHostMDMAndroidProfilesPendingInstallWithVersionFuncInvoked = false
+		mockDS.BulkDeleteMDMAndroidHostProfilesFuncInvoked = false
+		mockDS.BulkUpsertMDMAndroidHostProfilesFuncInvoked = false
 	})
 }
 
@@ -1151,6 +1256,9 @@ func TestStatusReportAppInstallVerification(t *testing.T) {
 		return nil
 	}
 	mockDS.ListHostMDMAndroidProfilesPendingInstallWithVersionFunc = func(ctx context.Context, hostUUID string, version int64) ([]*fleet.MDMAndroidProfilePayload, error) {
+		return nil, nil
+	}
+	mockDS.ListHostMDMAndroidProfilesFailedDueToNonComplianceFunc = func(ctx context.Context, hostUUID string, version int64) ([]*fleet.MDMAndroidProfilePayload, error) {
 		return nil, nil
 	}
 	mockDS.BulkUpsertMDMAndroidHostProfilesFunc = func(ctx context.Context, payload []*fleet.MDMAndroidProfilePayload) error {
