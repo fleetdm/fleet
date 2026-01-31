@@ -25,6 +25,8 @@ import (
 	"github.com/docker/go-units"
 	"github.com/fleetdm/fleet/v4/server/contexts/installersize"
 	nanodep_client "github.com/fleetdm/fleet/v4/server/mdm/nanodep/client"
+	platform_http "github.com/fleetdm/fleet/v4/server/platform/http"
+
 	"github.com/fleetdm/fleet/v4/server/mdm/nanodep/tokenpki"
 	"github.com/spf13/cast"
 	"github.com/spf13/cobra"
@@ -119,6 +121,7 @@ type ServerConfig struct {
 	MaxInstallerSizeBytes            int64         `yaml:"max_installer_size"`
 	TrustedProxies                   string        `yaml:"trusted_proxies"`
 	GzipResponses                    bool          `yaml:"gzip_responses"`
+	DefaultMaxRequestBodySize        int64         `yaml:"default_max_request_body_size"`
 }
 
 func (s *ServerConfig) DefaultHTTPServer(ctx context.Context, handler http.Handler) *http.Server {
@@ -1211,10 +1214,11 @@ func (man Manager) addConfigs() {
 	man.addConfigDuration("server.vpp_verify_timeout", 10*time.Minute, "Maximum amount of time to wait for VPP app install verification")
 	man.addConfigDuration("server.vpp_verify_request_delay", 5*time.Second, "Delay in between requests to verify VPP app installs")
 	man.addConfigDuration("server.cleanup_dist_targets_age", 24*time.Hour, "Specifies the cleanup age for completed live query distributed targets.")
-	man.addConfigByteSize("server.max_installer_size", installersize.Human(installersize.DefaultMaxInstallerSize), "Maximum size in bytes for software installer uploads (e.g. 10GiB, 500MB, 1G)")
+	man.addConfigByteSize("server.max_installer_size", installersize.Human(platform_http.MaxSoftwareInstallerSize), "Maximum size in bytes for software installer uploads (e.g. 10GiB, 500MB, 1G)")
 	man.addConfigString("server.trusted_proxies", "",
 		"Trusted proxy configuration for client IP extraction: 'none' (RemoteAddr only), a header name (e.g., 'True-Client-IP'), a hop count (e.g., '2'), or comma-separated IP/CIDR ranges")
 	man.addConfigBool("server.gzip_responses", false, "Enable gzip-compressed responses for supported clients")
+	man.addConfigInt64("server.default_max_request_body_size", platform_http.MaxRequestBodySize, "Default maximum size in bytes for request bodies, certain endpoints will have higher limits")
 
 	// Hide the sandbox flag as we don't want it to be discoverable for users for now
 	man.hideConfig("server.sandbox_enabled")
@@ -1686,6 +1690,7 @@ func (man Manager) LoadConfig() FleetConfig {
 			MaxInstallerSizeBytes:            man.getConfigByteSize("server.max_installer_size"),
 			TrustedProxies:                   man.getConfigString("server.trusted_proxies"),
 			GzipResponses:                    man.getConfigBool("server.gzip_responses"),
+			DefaultMaxRequestBodySize:        man.getConfigInt64("server.default_max_request_body_size"),
 		},
 		Auth: AuthConfig{
 			BcryptCost:                  man.getConfigInt("auth.bcrypt_cost"),
@@ -2082,6 +2087,27 @@ func (man Manager) getConfigInt(key string) int {
 	intVal, err := cast.ToIntE(interfaceVal)
 	if err != nil {
 		panic("Unable to cast to int for key " + key + ": " + err.Error())
+	}
+
+	return intVal
+}
+
+// addConfigInt adds a int config to the config options
+func (man Manager) addConfigInt64(key string, defVal int64, usage string) {
+	man.command.PersistentFlags().Int64(flagNameFromConfigKey(key), defVal, getFlagUsage(key, usage))
+	man.viper.BindPFlag(key, man.command.PersistentFlags().Lookup(flagNameFromConfigKey(key))) //nolint:errcheck
+	man.viper.BindEnv(key, envNameFromConfigKey(key))                                          //nolint:errcheck
+
+	// Add default
+	man.addDefault(key, defVal)
+}
+
+// addConfigInt64 adds a int64 config to the config options
+func (man Manager) getConfigInt64(key string) int64 {
+	interfaceVal := man.getInterfaceVal(key)
+	intVal, err := cast.ToInt64E(interfaceVal)
+	if err != nil {
+		panic("Unable to cast to int64 for key " + key + ": " + err.Error())
 	}
 
 	return intVal

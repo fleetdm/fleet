@@ -28,6 +28,18 @@ import (
 	"github.com/gorilla/mux"
 )
 
+// We have to create our own wrapper here as it's not possible to directly access
+// the limited reader inside the ReadCloser inteface.
+// This allows us on specific endpoints to up the limit if needed.
+type LimitedReadCloser struct {
+	*io.LimitedReader
+	Closer io.Closer
+}
+
+func (lrc *LimitedReadCloser) Close() error {
+	return lrc.Closer.Close()
+}
+
 type HandlerRoutesFunc func(r *mux.Router, opts []kithttp.ServerOption)
 
 // ParseTag parses a `url` tag and whether it's optional or not, which is an optional part of the tag
@@ -375,7 +387,11 @@ func MakeDecoder(
 	}
 	if rd, ok := iface.(RequestDecoder); ok {
 		return func(ctx context.Context, r *http.Request) (interface{}, error) {
-			return rd.DecodeRequest(ctx, r)
+			ret, err := rd.DecodeRequest(ctx, r)
+			if err != nil && err == io.ErrUnexpectedEOF {
+				return nil, platform_http.PayloadTooLargeError{}
+			}
+			return ret, err
 		}
 	}
 
@@ -406,6 +422,10 @@ func MakeDecoder(
 				req := v.Interface()
 				err := jsonUnmarshal(body, req)
 				if err != nil {
+					if err == io.ErrUnexpectedEOF {
+						return nil, platform_http.PayloadTooLargeError{}
+					}
+
 					return nil, BadRequestErr("json decoder error", err)
 				}
 				v = reflect.ValueOf(req)
@@ -463,6 +483,9 @@ func MakeDecoder(
 		if isBodyDecoder != nil && isBodyDecoder(v) {
 			err := decodeBody(ctx, r, v, body)
 			if err != nil {
+				if errors.Is(err, io.ErrUnexpectedEOF) {
+					return nil, platform_http.PayloadTooLargeError{}
+				}
 				return nil, err
 			}
 		}
@@ -514,7 +537,7 @@ func WriteBrowserSecurityHeaders(w http.ResponseWriter) {
 
 type CommonEndpointer[H any] struct {
 	EP            Endpointer[H]
-	MakeDecoderFn func(iface any) kithttp.DecodeRequestFunc
+	MakeDecoderFn func(iface any, requestBodyLimit int64) kithttp.DecodeRequestFunc
 	EncodeFn      kithttp.EncodeResponseFunc
 	Opts          []kithttp.ServerOption
 	Router        *mux.Router
@@ -532,6 +555,9 @@ type CommonEndpointer[H any] struct {
 	endingAtVersion   string
 	alternativePaths  []string
 	usePathPrefix     bool
+
+	// The limit of the request body size in bytes, if set to -1 there is no limit.
+	requestBodySizeLimit int64
 }
 
 type Endpointer[H any] interface {
@@ -595,7 +621,13 @@ func (e *CommonEndpointer[H]) makeEndpoint(f H, v interface{}) http.Handler {
 		endp = mw(endp)
 	}
 
-	return newServer(endp, e.MakeDecoderFn(v), e.EncodeFn, e.Opts)
+	// Default to MaxRequestBodySize if no limit is set, this ensures no endpointers are forgot
+	// -1 = no limit, so don't default to anything if that is set, which can only be set with the appropriate SKIP method.
+	if e.requestBodySizeLimit != -1 && (e.requestBodySizeLimit == 0 || e.requestBodySizeLimit < platform_http.MaxRequestBodySize) {
+		// If no value is configured set default, or if the set endpoint value is less than global default use default.
+		e.requestBodySizeLimit = platform_http.MaxRequestBodySize
+	}
+	return newServer(endp, e.MakeDecoderFn(v, e.requestBodySizeLimit), e.EncodeFn, e.Opts)
 }
 
 func newServer(e endpoint.Endpoint, decodeFn kithttp.DecodeRequestFunc, encodeFn kithttp.EncodeResponseFunc,
@@ -648,6 +680,21 @@ func (e *CommonEndpointer[H]) WithCustomMiddlewareAfterAuth(mws ...endpoint.Midd
 func (e *CommonEndpointer[H]) UsePathPrefix() *CommonEndpointer[H] {
 	ae := *e
 	ae.usePathPrefix = true
+	return &ae
+}
+
+func (e *CommonEndpointer[H]) WithRequestBodySizeLimit(limit int64) *CommonEndpointer[H] {
+	ae := *e
+	if limit > 0 {
+		// Only set it when the limit is more than 0
+		ae.requestBodySizeLimit = limit
+	}
+	return &ae
+}
+
+func (e *CommonEndpointer[H]) SkipRequestBodySizeLimit() *CommonEndpointer[H] {
+	ae := *e
+	ae.requestBodySizeLimit = -1
 	return &ae
 }
 

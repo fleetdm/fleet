@@ -750,11 +750,9 @@ func (f *fleetdErrorRequest) deviceAuthToken() string {
 // Since we're directly storing what we get in Redis, limit the request size to
 // 5MB, this combined with the rate limit of this endpoint should be enough to
 // prevent a malicious actor.
-const maxFleetdErrorReportSize int64 = 5 * 1024 * 1024
-
+// body limiting is done at the handler level
 func (f *fleetdErrorRequest) DecodeBody(ctx context.Context, r io.Reader, u url.Values, c []*x509.Certificate) error {
-	limitedReader := io.LimitReader(r, maxFleetdErrorReportSize+1)
-	decoder := json.NewDecoder(limitedReader)
+	decoder := json.NewDecoder(r)
 
 	for {
 		if err := decoder.Decode(&f.FleetdError); err == io.EOF {

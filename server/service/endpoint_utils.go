@@ -21,8 +21,19 @@ import (
 	"github.com/gorilla/mux"
 )
 
-func makeDecoder(iface interface{}) kithttp.DecodeRequestFunc {
-	return eu.MakeDecoder(iface, jsonDecode, parseCustomTags, isBodyDecoder, decodeBody, fleetQueryDecoder)
+func makeDecoder(iface any, requestBodySizeLimit int64) kithttp.DecodeRequestFunc {
+	return func(ctx context.Context, r *http.Request) (request any, err error) {
+		if requestBodySizeLimit != -1 {
+			limitedReader := io.LimitReader(r.Body, requestBodySizeLimit).(*io.LimitedReader)
+
+			r.Body = &eu.LimitedReadCloser{
+				LimitedReader: limitedReader,
+				Closer:        r.Body,
+			}
+		}
+
+		return eu.MakeDecoder(iface, jsonDecode, parseCustomTags, isBodyDecoder, decodeBody, fleetQueryDecoder)(ctx, r)
+	}
 }
 
 // fleetQueryDecoder handles fleet-specific query parameter decoding, such as

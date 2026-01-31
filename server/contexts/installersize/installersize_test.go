@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/docker/go-units"
+	"github.com/fleetdm/fleet/v4/server/platform/http"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -30,7 +31,7 @@ func TestFormatSize(t *testing.T) {
 		{"1024 bytes", 1024, "1KiB"},
 
 		// Default max installer size (10 GiB)
-		{"default max (10 GiB)", DefaultMaxInstallerSize, "10GiB"},
+		{"default max (10 GiB)", http.MaxSoftwareInstallerSize, "10GiB"},
 	}
 
 	for _, tt := range tests {
@@ -43,8 +44,8 @@ func TestFormatSize(t *testing.T) {
 
 func TestDefaultMaxInstallerSize(t *testing.T) {
 	// Verify the default is 10 GiB
-	assert.Equal(t, int64(10*units.GiB), DefaultMaxInstallerSize)
-	assert.Equal(t, "10GiB", Human(DefaultMaxInstallerSize))
+	assert.Equal(t, int64(10*units.GiB), http.MaxSoftwareInstallerSize)
+	assert.Equal(t, "10GiB", Human(http.MaxSoftwareInstallerSize))
 }
 
 func TestFromContextWithValue(t *testing.T) {
@@ -60,7 +61,7 @@ func TestFromContextWithoutValue(t *testing.T) {
 	ctx := context.Background()
 
 	result := FromContext(ctx)
-	assert.Equal(t, DefaultMaxInstallerSize, result)
+	assert.Equal(t, http.MaxSoftwareInstallerSize, result)
 }
 
 func TestNewContextOverwrite(t *testing.T) {
