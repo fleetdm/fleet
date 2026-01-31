@@ -245,7 +245,7 @@ object ApiClient : CertificateApiClient {
                 enrollSecret = credentials.enrollSecret,
                 hardwareUUID = credentials.hardwareUUID,
                 hardwareSerial = credentials.hardwareUUID,
-                computerName = "Sharon's Android",
+                computerName = credentials.computerName,
             ),
             bodySerializer = EnrollRequest.serializer(),
             responseSerializer = EnrollResponse.serializer(),

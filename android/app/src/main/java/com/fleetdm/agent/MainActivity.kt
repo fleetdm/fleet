@@ -116,7 +116,7 @@ class MainActivity : ComponentActivity() {
             ApiClient.setEnrollmentCredentials(
                 enrollSecret = BuildConfig.FLEET_ENROLL_SECRET,
                 hardwareUUID = UUID.randomUUID().toString(),
-                computerName = "Sharon's Android",
+                computerName = "${android.os.Build.MANUFACTURER} ${android.os.Build.MODEL}".trim(),
                 serverUrl = BuildConfig.FLEET_BASE_URL,
             )
 
