@@ -711,6 +711,23 @@ func testUnrecognizedPluginConfig() config.FleetConfig {
 	return c
 }
 
+func testClickHousePluginConfig() config.FleetConfig {
+	c := config.TestConfig()
+	c.Osquery.ResultLogPlugin = "clickhouse"
+	c.Osquery.StatusLogPlugin = "clickhouse"
+	c.Activity.AuditLogPlugin = "clickhouse"
+	c.ClickHouse = config.ClickHouseConfig{
+		Address:     "localhost:9000",
+		Database:    "fleet_logs",
+		Username:    "fleet",
+		Password:    "fleet",
+		StatusTable: "osquery_status_logs",
+		ResultTable: "osquery_result_logs",
+		AuditTable:  "fleet_audit_logs",
+	}
+	return c
+}
+
 func assertBodyContains(t *testing.T, resp *http.Response, expected string) {
 	bodyBytes, err := io.ReadAll(resp.Body)
 	require.Nil(t, err)

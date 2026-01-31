@@ -311,6 +311,48 @@ func TestService_LoggingConfig(t *testing.T) {
 			},
 		},
 		{
+			name:   "test clickhouse config",
+			fields: fields{config: testClickHousePluginConfig()},
+			args:   args{ctx: test.UserContext(context.Background(), test.UserAdmin)},
+			want: &fleet.Logging{
+				Debug: true,
+				Json:  false,
+				Result: fleet.LoggingPlugin{
+					Plugin: "clickhouse",
+					Config: fleet.ClickHouseConfig{
+						Address:     testClickHousePluginConfig().ClickHouse.Address,
+						Database:    testClickHousePluginConfig().ClickHouse.Database,
+						Username:    testClickHousePluginConfig().ClickHouse.Username,
+						StatusTable: testClickHousePluginConfig().ClickHouse.StatusTable,
+						ResultTable: testClickHousePluginConfig().ClickHouse.ResultTable,
+						AuditTable:  testClickHousePluginConfig().ClickHouse.AuditTable,
+					},
+				},
+				Status: fleet.LoggingPlugin{
+					Plugin: "clickhouse",
+					Config: fleet.ClickHouseConfig{
+						Address:     testClickHousePluginConfig().ClickHouse.Address,
+						Database:    testClickHousePluginConfig().ClickHouse.Database,
+						Username:    testClickHousePluginConfig().ClickHouse.Username,
+						StatusTable: testClickHousePluginConfig().ClickHouse.StatusTable,
+						ResultTable: testClickHousePluginConfig().ClickHouse.ResultTable,
+						AuditTable:  testClickHousePluginConfig().ClickHouse.AuditTable,
+					},
+				},
+				Audit: fleet.LoggingPlugin{
+					Plugin: "clickhouse",
+					Config: fleet.ClickHouseConfig{
+						Address:     testClickHousePluginConfig().ClickHouse.Address,
+						Database:    testClickHousePluginConfig().ClickHouse.Database,
+						Username:    testClickHousePluginConfig().ClickHouse.Username,
+						StatusTable: testClickHousePluginConfig().ClickHouse.StatusTable,
+						ResultTable: testClickHousePluginConfig().ClickHouse.ResultTable,
+						AuditTable:  testClickHousePluginConfig().ClickHouse.AuditTable,
+					},
+				},
+			},
+		},
+		{
 			name:    "test unrecognized config",
 			fields:  fields{config: testUnrecognizedPluginConfig()},
 			args:    args{ctx: test.UserContext(context.Background(), test.UserAdmin)},

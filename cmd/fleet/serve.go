@@ -449,6 +449,23 @@ the way that the Fleet server works.
 					JetStream:         config.Nats.JetStream,
 					Timeout:           config.Nats.Timeout,
 				},
+				ClickHouse: logging.ClickHouseConfig{
+					Address:           config.ClickHouse.Address,
+					Database:          config.ClickHouse.Database,
+					Username:          config.ClickHouse.Username,
+					Password:          config.ClickHouse.Password,
+					TLSEnabled:        config.ClickHouse.TLSEnabled,
+					TLSSkipVerify:     config.ClickHouse.TLSSkipVerify,
+					TLSCAFile:         config.ClickHouse.TLSCAFile,
+					TLSClientCertFile: config.ClickHouse.TLSClientCertFile,
+					TLSClientKeyFile:  config.ClickHouse.TLSClientKeyFile,
+					BatchSize:         config.ClickHouse.BatchSize,
+					FlushInterval:     time.Duration(config.ClickHouse.FlushInterval) * time.Second,
+					MaxQueueSize:      config.ClickHouse.MaxQueueSize,
+					MaxRetries:        config.ClickHouse.MaxRetries,
+					RetryBackoff:      time.Duration(config.ClickHouse.RetryBackoff) * time.Second,
+					Compression:       config.ClickHouse.Compression,
+				},
 			}
 
 			// Set specific configuration to osqueryd status logs.
@@ -462,6 +479,7 @@ the way that the Fleet server works.
 			loggingConfig.PubSub.AddAttributes = false // only used by result logs
 			loggingConfig.KafkaREST.Topic = config.KafkaREST.StatusTopic
 			loggingConfig.Nats.Subject = config.Nats.StatusSubject
+			loggingConfig.ClickHouse.TableName = config.ClickHouse.StatusTable
 
 			osquerydStatusLogger, err := logging.NewJSONLogger("status", loggingConfig, logger)
 			if err != nil {
@@ -479,6 +497,7 @@ the way that the Fleet server works.
 			loggingConfig.PubSub.AddAttributes = config.PubSub.AddAttributes
 			loggingConfig.KafkaREST.Topic = config.KafkaREST.ResultTopic
 			loggingConfig.Nats.Subject = config.Nats.ResultSubject
+			loggingConfig.ClickHouse.TableName = config.ClickHouse.ResultTable
 
 			osquerydResultLogger, err := logging.NewJSONLogger("result", loggingConfig, logger)
 			if err != nil {
@@ -497,6 +516,7 @@ the way that the Fleet server works.
 				loggingConfig.PubSub.AddAttributes = false // only used by result logs
 				loggingConfig.KafkaREST.Topic = config.KafkaREST.AuditTopic
 				loggingConfig.Nats.Subject = config.Nats.AuditSubject
+				loggingConfig.ClickHouse.TableName = config.ClickHouse.AuditTable
 
 				auditLogger, err = logging.NewJSONLogger("audit", loggingConfig, logger)
 				if err != nil {
