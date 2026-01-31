@@ -83,9 +83,12 @@ object DebugDestination
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+
         val constraints = Constraints.Builder()
             .setRequiredNetworkType(NetworkType.CONNECTED)
             .build()
+
+        WorkManager.getInstance(applicationContext).cancelUniqueWork("fleetOsqueryLoop")
 
         val first = OneTimeWorkRequestBuilder<OsqueryWorker>()
             .setConstraints(constraints)
