@@ -12,5 +12,5 @@ linters:
   enable:
     - modernize
 
-exclusions:
-  generated: strict
+  exclusions:
+    generated: strict
