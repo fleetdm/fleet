@@ -120,13 +120,14 @@ describe("getUiStatus", () => {
     });
     expect(getUiStatus(sw, true)).toBe("failed_install_update_available");
   });
-
-  it("returns 'failed_install' when failed_install and no update available", () => {
+  // As of 4.81 shows install details modal with installed status if versions still present #31663
+  // Users can hover over installed in InstallStatusCell for more info to see failure logs in host activity
+  it("returns 'failed_install_installed' when failed_install and no update available but there's installed versions", () => {
     const sw = createMockHostSoftware({
       status: "failed_install",
       // version equal to installed version
     });
-    expect(getUiStatus(sw, true)).toBe("failed_install");
+    expect(getUiStatus(sw, true)).toBe("failed_install_installed");
   });
 
   it("returns 'failed_uninstall_update_available' when failed_uninstall and update available", () => {
@@ -136,13 +137,14 @@ describe("getUiStatus", () => {
     });
     expect(getUiStatus(sw, true)).toBe("failed_uninstall_update_available");
   });
-
-  it("returns 'failed_uninstall' when failed_uninstall and no update available", () => {
+  // As of 4.81 shows install details modal with installed status if versions still present #31663
+  // Users can hover over installed in InstallStatusCell for more info to see failure logs in host activity
+  it("returns 'failed_uninstall_installed' when failed_uninstall and no update available but there's installed versions", () => {
     const sw = createMockHostSoftware({
       status: "failed_uninstall",
       // version equal to installed version
     });
-    expect(getUiStatus(sw, true)).toBe("failed_uninstall");
+    expect(getUiStatus(sw, true)).toBe("failed_uninstall_installed");
   });
 
   it("returns 'updating' if pending_install and update is available, host online", () => {
