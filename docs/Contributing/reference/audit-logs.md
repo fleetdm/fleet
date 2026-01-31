@@ -2333,6 +2333,40 @@ This activity contains the following fields:
 }
 ```
 
+## updated_conditional_access_bypass
+
+Generated when conditional access bypass settings are updated.
+
+This activity contains the following field:
+- "bypass_disabled": Whether conditional access bypass was enabled.
+
+#### Example
+
+```json
+{
+  "bypass_disabled": true
+}
+```
+
+## host_bypassed_conditional_access
+
+Generated when a host bypasses conditional access.
+
+This activity contains the following field:
+- "host_display_name": The display name of the host.
+- "host_id": The ID of the bypassed host.
+- "idp_full_name": The end user's full name from Okta.
+
+#### Example
+
+```json
+{
+  "host_display_name": "Anna's MacBook Pro",
+  "host_id": 123,
+  "idp_full_name": "Anna Chao"
+}
+```
+
 
 <meta name="title" value="Audit logs">
 <meta name="pageOrderInSection" value="1400">
