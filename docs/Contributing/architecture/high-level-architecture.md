@@ -30,8 +30,10 @@ At a high level, Fleet consists of:
    - **TUF Server**: Provides secure updates for the agent components
    - **Telemetry**: Optional monitoring via Prometheus, OpenTelemetry, or Elastic APM
    - **External Logging**: Optional integration with external logging systems
+   - **MDM Clients**: Consume APIs exposed by fleet server to configure and control MDM(Mobile Device Management)-enrolled host devices. Generally provided by  vendors like Apple, Microsoft and Google as a component of the Operating System
+   - **Vendor MDM APIs**: Cloud-hosted services like Apple Business Manager and Autopilot provided by OS vendors that assist with optional MDM features such as providing hosts configuration/enrollment information at startup(i.e. before Fleet can directly interact with the device)
 
-The diagrams below illustrate how these components interact and the data flow for different operations like live queries, scheduled queries, and vulnerability management.
+The diagrams below illustrate how these components interact and the data flow for different operations like live queries, scheduled queries, MDM and vulnerability management.
 
 ## Main system components
 
@@ -49,6 +51,7 @@ graph LR;
             desktop[Fleet Desktop];
         end
         desktop_browser["Host details<br>[browser]"];
+        mdm_client["OS MDM Client"]
     end
 
     subgraph Customer Cloud
@@ -77,6 +80,11 @@ graph LR;
         fleetctl[fleetctl CLI]
     end
 
+    subgraph "Vendor MDM APIs (ABM/Autopilot)"
+        vendor_devmgmt_api["Vendor Device Management API"]
+        APNS["APNS<br>(Apple)"]
+    end
+
 
     fleet_release_owner -- "Release Process" --> tuf;
 
@@ -88,6 +96,9 @@ graph LR;
     orbit -- "starts" --> osqueryd
     desktop -- "opens" -->desktop_browser
     desktop_browser -- "My Device API" --> fleet_server;
+    mdm_client -- "MDM Protocol<br>(OS Specific)" --> fleet_server;
+    osqueryd -- "mdm_bridge table<br>(Windows)" --> mdm_client
+    orbit -- "Calls MDM<br>Registration APIs<br>(Windows)"-->mdm_client
 
     heroku -- "Metrics from all customers" --> datadog;
 
@@ -98,6 +109,12 @@ graph LR;
     fleet_server -- "metrics" --> heroku;
     fleet_server -- "fleetdm API" --> fleetdm
     fleet_server -- "queries/log results" --> log;
+
+    fleet_server -- "Automatic enrollment config" --> vendor_devmgmt_api
+    fleet_server -- "Push notifications" --> APNS
+
+    mdm_client -- "Requests config<br>during OS install" --> vendor_devmgmt_api
+    APNS -- "Push notifications" --> mdm_client
 
     Customer == "API" ==> fleet_server;
 
