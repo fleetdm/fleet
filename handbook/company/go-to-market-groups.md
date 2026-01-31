@@ -127,7 +127,6 @@ The goal is not perfect attribution or rigid process. The goal is to:
 	•	understand when a prospect signals readiness for a call
 	•	refine how and when we transition from curiosity to a meeting ask
 
-  https://docs.google.com/spreadsheets/d/1VjJTrldUpJTZTLg0Xz2B9dZ-D8vYZNhGVMSYBxOxqEA/edit?gid=0#gid=0
 
 ### Programs
 
