@@ -997,6 +997,8 @@ func (s *integrationMDMTestSuite) TestSetupExperienceFlowUpdateScript() {
 	t := s.T()
 	ctx := context.Background()
 
+	s.setSkipWorkerJobs(t)
+
 	device, host, tm := s.createTeamDeviceForSetupExperienceWithProfileSoftwareAndScript()
 
 	// enroll the host
