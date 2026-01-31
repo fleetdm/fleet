@@ -77,7 +77,7 @@ module.exports = {
       let authClient = await googleAuth.getClient();
       google.options({ auth: authClient });
       // [?]: https://googleapis.dev/nodejs/googleapis/latest/androidmanagement/classes/Resource$Enterprises$Applications.html#get
-      let getApplicationsResult = await androidmanagement.enterprises.devices.get({
+      let getApplicationsResult = await androidmanagement.enterprises.applications.get({
         name: `enterprises/${androidEnterpriseId}/applications/${applicationId}`,
       });
       return getApplicationsResult.data;
@@ -86,7 +86,7 @@ module.exports = {
       if (errorString.includes('Device is no longer being managed')) {
         return {'deviceNoLongerManaged': 'The device is no longer managed by the Android enterprise.'};
       }
-      return new Error(`When attempting to get an application for an Android enterprise (${androidEnterpriseId}), an error occurred. Error: ${err}`);
+      return new Error(`When attempting to get an application for an Android enterprise (${androidEnterpriseId}), an error occurred. Error: ${require('util').inspect(err)}`);
     });
 
 
