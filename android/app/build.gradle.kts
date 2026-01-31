@@ -112,8 +112,11 @@ android {
             enableAndroidTestCoverage = true
             buildConfigField("String", "FLEET_BASE_URL", "\"${project.findProperty("FLEET_BASE_URL") ?: ""}\"")
             buildConfigField("String", "FLEET_NODE_KEY", "\"${project.findProperty("FLEET_NODE_KEY") ?: ""}\"")
+            buildConfigField("boolean", "FLEET_ALLOW_INSECURE_TLS", "true")
         }
         release {
+            buildConfigField("boolean", "FLEET_ALLOW_INSECURE_TLS", "false")
+
             if (keystorePropertiesFile.exists()) {
                 signingConfig = signingConfigs.getByName("release")
             }

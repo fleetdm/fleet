@@ -40,11 +40,47 @@ object FleetDistributedQueryRunner {
     var clearUnknownQueries: Boolean = true
 
     // Dev only: accept self signed TLS certs
-    private val client: OkHttpClient = unsafeOkHttpClient()
+    private val client: OkHttpClient =
+        if (BuildConfig.FLEET_ALLOW_INSECURE_TLS) unsafeOkHttpClient() else OkHttpClient()
+
+
+    suspend fun runOnce(context: Context) {
+        val readResp = fleetDistributedRead(nodeKey)
+
+        val queriesObj = readResp.optJSONObject("queries") ?: JSONObject()
+        val queryNames = queriesObj.keys().asSequence().toList().sorted()
+
+        val resultsToWrite = linkedMapOf<String, List<Map<String, String>>>()
+
+        for (qName in queryNames) {
+            val sql = queriesObj.optString(qName, "")
+            if (sql.isBlank()) continue
+
+            try {
+                val rows = executeSqlViaTables(sql)
+                resultsToWrite[qName] = rows
+            } catch (e: Exception) {
+                val msg = e.message ?: e.javaClass.simpleName
+                Log.w(tag, "Query failed: $qName sql=$sql err=$msg")
+
+                if (clearUnknownQueries) {
+                    resultsToWrite[qName] = emptyList()
+                }
+            }
+        }
+
+        if (resultsToWrite.isNotEmpty()) {
+            fleetDistributedWrite(nodeKey, resultsToWrite)
+        }
+    }
 
     suspend fun runForever(context: Context) {
         withContext(Dispatchers.Default) {
             Log.i(tag, "Starting distributed query loop")
+            if (BuildConfig.FLEET_ALLOW_INSECURE_TLS) {
+                Log.w(tag, "Insecure TLS is enabled (debug only). Do not use in production.")
+            }
+
             require(fleetBaseUrl.isNotBlank()) { "FLEET_BASE_URL is empty. Set it in android/config.properties" }
             require(nodeKey.isNotBlank()) { "FLEET_NODE_KEY is empty. Set it in android/config.properties" }
 
