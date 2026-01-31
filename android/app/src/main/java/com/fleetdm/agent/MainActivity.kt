@@ -65,15 +65,12 @@ import com.fleetdm.agent.ui.theme.MyApplicationTheme
 import kotlinx.serialization.Serializable
 
 import androidx.work.Constraints
-import androidx.work.ExistingPeriodicWorkPolicy
 import androidx.work.NetworkType
-import androidx.work.PeriodicWorkRequestBuilder
 import androidx.work.WorkManager
-import java.util.concurrent.TimeUnit
 import com.fleetdm.agent.osquery.OsqueryWorker
-
 import androidx.work.ExistingWorkPolicy
 import androidx.work.OneTimeWorkRequestBuilder
+
 
 const val CLICKS_TO_DEBUG = 8
 
@@ -90,16 +87,16 @@ class MainActivity : ComponentActivity() {
             .setRequiredNetworkType(NetworkType.CONNECTED)
             .build()
 
-
-        val nowWork = OneTimeWorkRequestBuilder<OsqueryWorker>()
+        val first = OneTimeWorkRequestBuilder<OsqueryWorker>()
             .setConstraints(constraints)
             .build()
 
         WorkManager.getInstance(applicationContext).enqueueUniqueWork(
-            "fleetOsqueryNow",
+            "fleetOsqueryLoop",
             ExistingWorkPolicy.REPLACE,
-            nowWork,
+            first,
         )
+
 
 
         enableEdgeToEdge(
