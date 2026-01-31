@@ -2,16 +2,15 @@ package com.fleetdm.agent.osquery
 
 import android.content.Context
 import android.util.Log
-import androidx.work.CoroutineWorker
-import androidx.work.WorkerParameters
 import androidx.work.Constraints
+import androidx.work.CoroutineWorker
 import androidx.work.ExistingWorkPolicy
 import androidx.work.NetworkType
 import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.WorkManager
-import java.util.concurrent.TimeUnit
+import androidx.work.WorkerParameters
 import com.fleetdm.agent.BuildConfig
-
+import java.util.concurrent.TimeUnit
 import kotlin.random.Random
 
 
