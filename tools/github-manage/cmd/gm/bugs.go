@@ -167,6 +167,10 @@ func fetchOpenBugs(limit int) ([]BugIssue, error) {
 		return nil, fmt.Errorf("failed to parse JSON response: %v", err)
 	}
 
+	if len(bugs) == limit {
+		return nil, fmt.Errorf("there are at least %d open bugs; choose a larger limit", limit)
+	}
+
 	return bugs, nil
 }
 
