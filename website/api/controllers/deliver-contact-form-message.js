@@ -84,8 +84,8 @@ Fleet Premium subscription details:
       subject = 'New Fleet Premium customer message';
     }
 
-    // If the submitter has a marketing attribution cookie, send the details when creating/updating a contact/account/historical record.
-    let attributionCookieOrUndefined = this.req.cookies.marketingAttribution;
+    // If the submitter has a marketing attribution information set in their cookie, send the details when creating/updating a contact/account/historical record.
+    let attributionDetailsOrUndefined = this.req.session.marketingAttribution;// Will be undefined if this is not set.
     // Note: We're using sails.helpers.flow.build INSIDE of a build helper here so that errors from the Salesforce helpers do not prevent the support email from being sent.
     // This is so we can be sure the website has had time to create/update CRM records before unthread attempts creates them with no parent account record.
     sails.helpers.flow.build(async ()=>{
@@ -97,7 +97,7 @@ Fleet Premium subscription details:
           lastName: lastName,
           contactSource: 'Website - Contact forms',
           description: `Sent a contact form message: ${message}`,
-          marketingAttributionCookie: attributionCookieOrUndefined
+          marketingAttributionInformation: attributionDetailsOrUndefined
         }).intercept((err)=>{
           return new Error(`Could not create/update a contact or account. Full error: ${require('util').inspect(err)}`);
         });
