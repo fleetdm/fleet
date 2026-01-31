@@ -2554,6 +2554,17 @@ func directIngestDiskEncryptionKeyFileDarwin(
 		decryptable = ptr.Bool(false)
 	}
 
+	// Only archive the key if disk encryption is enabled for this host (team / globally)
+	if !IsDiskEncryptionEnabledForHost(ctx, logger, ds, host) {
+		level.Debug(logger).Log(
+			"component", "service",
+			"method", "directIngestDiskEncryptionKeyFileDarwin",
+			"msg", "skipping key archival, disk encryption not enabled for host (team/globally)",
+			"host", host.Hostname,
+		)
+		return nil
+	}
+
 	archived, err := ds.SetOrUpdateHostDiskEncryptionKey(ctx, host, base64Key, "", decryptable)
 	if err != nil {
 		return err
@@ -2616,6 +2627,17 @@ func directIngestDiskEncryptionKeyFileLinesDarwin(
 	base64Key := base64.StdEncoding.EncodeToString(b)
 	if base64Key == "" {
 		decryptable = ptr.Bool(false)
+	}
+
+	// Only archive the key if disk encryption is enabled for this host (team/globally)
+	if !IsDiskEncryptionEnabledForHost(ctx, logger, ds, host) {
+		level.Debug(logger).Log(
+			"component", "service",
+			"method", "directIngestDiskEncryptionKeyFileLinesDarwin",
+			"msg", "skipping key archival, disk encryption not enabled for host team/globally",
+			"host", host.Hostname,
+		)
+		return nil
 	}
 
 	archived, err := ds.SetOrUpdateHostDiskEncryptionKey(ctx, host, base64Key, "", decryptable)
