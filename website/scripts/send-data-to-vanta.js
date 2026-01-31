@@ -158,11 +158,11 @@ module.exports = {
         return;
       }
 
-      // If this is Fleet's Vanta connection, exclude hosts on the "Compliance exclusions" team.
+      // If this is Fleet's Vanta connection, exclude hosts on the "🧪 Testing & QA" team.
       // See https://github.com/fleetdm/fleet/issues/19312 for more information.
       if(vantaConnection.id === 64){
         allHostsOnThisFleetInstance = allHostsOnThisFleetInstance.filter((host)=>{
-          return [275, 274].includes(host.team_id);
+          return [275].includes(host.team_id);
         });
       }
 
