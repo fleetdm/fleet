@@ -1027,7 +1027,10 @@ func TestValidateIdentifier(t *testing.T) {
 		ds.ConsumeChallengeFuncInvoked = false
 	})
 
-	t.Run("Android invalid challenge triggers requeue", func(t *testing.T) {
+	t.Run("Android invalid challenge does not return error", func(t *testing.T) {
+		// For Android profiles, when the challenge is not found (sql.ErrNoRows),
+		// we don't return an error to prevent the device from reporting "failed" status.
+		// This handles duplicate/retry SCEP requests where the first request succeeded.
 		ds := new(mock.DataStore)
 		ds.GetGroupedCertificateAuthoritiesFunc = func(ctx context.Context, includeSecrets bool) (*fleet.GroupedCertificateAuthorities, error) {
 			return &fleet.GroupedCertificateAuthorities{
@@ -1050,21 +1053,17 @@ func TestValidateIdentifier(t *testing.T) {
 		ds.ConsumeChallengeFunc = func(ctx context.Context, challenge string) error {
 			return sql.ErrNoRows // Challenge not found/expired
 		}
-		ds.ResendHostCertificateProfileFunc = func(ctx context.Context, hostUUID, profileUUID string) error {
-			assert.Equal(t, "host-uuid", hostUUID)
-			assert.Equal(t, "g1", profileUUID)
-			return nil
-		}
 		svc := newTestService(ds)
 
 		identifier := makeIdentifier("host-uuid", "g1", "custom_scep_proxy", "invalid-challenge")
-		_, err := svc.validateIdentifier(ctx, identifier, true)
-		require.Error(t, err)
-		assert.Contains(t, err.Error(), "custom scep challenge failed")
+		scepURL, err := svc.validateIdentifier(ctx, identifier, true)
+		// For Android, no error is returned when challenge not found
+		require.NoError(t, err)
+		assert.Equal(t, "https://scep.example.com/scep", scepURL)
 		assert.True(t, ds.ConsumeChallengeFuncInvoked)
-		assert.True(t, ds.ResendHostCertificateProfileFuncInvoked)
+		// ResendHostCertificateProfile is NOT called for Android profiles
+		assert.False(t, ds.ResendHostCertificateProfileFuncInvoked)
 		ds.ConsumeChallengeFuncInvoked = false
-		ds.ResendHostCertificateProfileFuncInvoked = false
 	})
 
 	t.Run("Android datastore error getting templates", func(t *testing.T) {

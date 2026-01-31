@@ -3,6 +3,7 @@ package service
 import (
 	"bytes"
 	"context"
+	"database/sql"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -465,17 +466,24 @@ func (svc *scepProxyService) GetNextCACert(_ context.Context) ([]byte, error) {
 // TODO: Consider refactoring to differentiate between invalid challenge and other errors. As it
 // stands, we're resending the profile in both cases.
 func (svc *scepProxyService) handleFleetChallenge(ctx context.Context, fleetChallenge string, hostUUID string, profileUUID string) error {
-	var errs []error
+	isAndroid := strings.HasPrefix(profileUUID, fleet.MDMAndroidProfileUUIDPrefix)
 
 	if err := svc.ds.ConsumeChallenge(ctx, fleetChallenge); err != nil {
-		errs = append(errs, ctxerr.Wrap(ctx, err, "custom scep proxy: validating challenge"))
+		// For Android profiles, don't return an error when the challenge is not found.
+		// This is likely a duplicate/retry request where the first request already succeeded.
+		// Returning an error would cause the device to report "failed" status, incorrectly
+		// overwriting the "verified" status from the successful first request.
+		if isAndroid && errors.Is(err, sql.ErrNoRows) {
+			return nil
+		}
+
+		// For non-Android profiles, attempt to resend the profile
 		// FIXME: See comment in datastore method regarding how we resend profiles with dynamic content
+		var errs []error
+		errs = append(errs, ctxerr.Wrap(ctx, err, "custom scep proxy: validating challenge"))
 		if err := svc.ds.ResendHostCertificateProfile(ctx, hostUUID, profileUUID); err != nil {
 			errs = append(errs, ctxerr.Wrap(ctx, err, "custom scep proxy: resending host mdm profile"))
 		}
-	}
-
-	if len(errs) > 0 {
 		return ctxerr.Wrap(ctx, errors.Join(errs...), "custom scep proxy: failed to handle fleet challenge")
 	}
 
