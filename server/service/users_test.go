@@ -52,6 +52,14 @@ func TestUserAuth(t *testing.T) {
 		return nil, errors.New("AA")
 	}
 
+	ds.DeletePasswordResetRequestsForUserFunc = func(ctx context.Context, userID uint) error {
+		return nil
+	}
+
+	ds.DestroyAllSessionsForUserFunc = func(ctx context.Context, userID uint) error {
+		return nil
+	}
+
 	userTeamMaintainerID := uint(999)
 	userGlobalMaintainerID := uint(888)
 	var self *fleet.User // to be set by tests
@@ -1704,5 +1712,181 @@ func TestModifyUserLastAdminProtection(t *testing.T) {
 		var argErr *fleet.InvalidArgumentError
 		require.ErrorAs(t, err, &argErr)
 		assert.Contains(t, err.Error(), "cannot demote the last global admin")
+	})
+}
+
+func TestPasswordChangeClearsTokensAndSessions(t *testing.T) {
+	t.Run("ModifyUser with new password clears reset tokens and sessions", func(t *testing.T) {
+		adminUser := newAdminTestUser(nil)
+		err := adminUser.SetPassword(test.GoodPassword, 10, 10)
+		require.NoError(t, err)
+
+		ds, svc, ctx := setupAdminTestContext(t, adminUser)
+
+		ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+			return &fleet.AppConfig{}, nil
+		}
+		ds.UserByIDFunc = func(ctx context.Context, id uint) (*fleet.User, error) {
+			return adminUser, nil
+		}
+		ds.SaveUserFunc = func(ctx context.Context, u *fleet.User) error {
+			return nil
+		}
+		ds.NewActivityFunc = func(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails, details []byte, createdAt time.Time) error {
+			return nil
+		}
+
+		var deletedPasswordResetForUserID uint
+		ds.DeletePasswordResetRequestsForUserFunc = func(ctx context.Context, userID uint) error {
+			deletedPasswordResetForUserID = userID
+			return nil
+		}
+
+		var destroyedSessionsForUserID uint
+		ds.DestroyAllSessionsForUserFunc = func(ctx context.Context, userID uint) error {
+			destroyedSessionsForUserID = userID
+			return nil
+		}
+
+		_, err = svc.ModifyUser(ctx, adminUser.ID, fleet.UserPayload{
+			Password:    ptr.String(test.GoodPassword),
+			NewPassword: ptr.String(test.GoodPassword2),
+		})
+		require.NoError(t, err)
+
+		assert.True(t, ds.DeletePasswordResetRequestsForUserFuncInvoked, "DeletePasswordResetRequestsForUser should be called")
+		assert.Equal(t, adminUser.ID, deletedPasswordResetForUserID, "should delete password reset tokens for the correct user")
+
+		assert.True(t, ds.DestroyAllSessionsForUserFuncInvoked, "DestroyAllSessionsForUser should be called")
+		assert.Equal(t, adminUser.ID, destroyedSessionsForUserID, "should destroy sessions for the correct user")
+	})
+
+	t.Run("ChangePassword clears reset tokens and sessions", func(t *testing.T) {
+		adminUser := newAdminTestUser(nil)
+		err := adminUser.SetPassword(test.GoodPassword, 10, 10)
+		require.NoError(t, err)
+
+		ds, svc, ctx := setupAdminTestContext(t, adminUser)
+
+		ds.SaveUserFunc = func(ctx context.Context, u *fleet.User) error {
+			return nil
+		}
+
+		var deletedPasswordResetForUserID uint
+		ds.DeletePasswordResetRequestsForUserFunc = func(ctx context.Context, userID uint) error {
+			deletedPasswordResetForUserID = userID
+			return nil
+		}
+
+		var destroyedSessionsForUserID uint
+		ds.DestroyAllSessionsForUserFunc = func(ctx context.Context, userID uint) error {
+			destroyedSessionsForUserID = userID
+			return nil
+		}
+
+		err = svc.ChangePassword(ctx, test.GoodPassword, test.GoodPassword2)
+		require.NoError(t, err)
+
+		assert.True(t, ds.DeletePasswordResetRequestsForUserFuncInvoked, "DeletePasswordResetRequestsForUser should be called")
+		assert.Equal(t, adminUser.ID, deletedPasswordResetForUserID, "should delete password reset tokens for the correct user")
+
+		assert.True(t, ds.DestroyAllSessionsForUserFuncInvoked, "DestroyAllSessionsForUser should be called")
+		assert.Equal(t, adminUser.ID, destroyedSessionsForUserID, "should destroy sessions for the correct user")
+	})
+
+	t.Run("ResetPassword clears reset tokens and sessions", func(t *testing.T) {
+		ds := new(mock.Store)
+		svc, ctx := newTestService(t, ds, nil, nil)
+
+		targetUser := &fleet.User{
+			ID:    42,
+			Email: "user@example.com",
+		}
+		err := targetUser.SetPassword(test.GoodPassword, 10, 10)
+		require.NoError(t, err)
+
+		resetToken := "valid-reset-token" // #nosec G101 - test data
+		ds.FindPasswordResetByTokenFunc = func(ctx context.Context, token string) (*fleet.PasswordResetRequest, error) {
+			if token == resetToken {
+				return &fleet.PasswordResetRequest{
+					UserID: targetUser.ID,
+					Token:  token,
+				}, nil
+			}
+			return nil, errors.New("token not found")
+		}
+
+		ds.UserByIDFunc = func(ctx context.Context, id uint) (*fleet.User, error) {
+			if id == targetUser.ID {
+				return targetUser, nil
+			}
+			return nil, errors.New("user not found")
+		}
+
+		ds.SaveUserFunc = func(ctx context.Context, u *fleet.User) error {
+			return nil
+		}
+
+		var deletedPasswordResetForUserID uint
+		ds.DeletePasswordResetRequestsForUserFunc = func(ctx context.Context, userID uint) error {
+			deletedPasswordResetForUserID = userID
+			return nil
+		}
+
+		var destroyedSessionsForUserID uint
+		ds.DestroyAllSessionsForUserFunc = func(ctx context.Context, userID uint) error {
+			destroyedSessionsForUserID = userID
+			return nil
+		}
+
+		err = svc.ResetPassword(ctx, resetToken, test.GoodPassword2)
+		require.NoError(t, err)
+
+		assert.True(t, ds.DeletePasswordResetRequestsForUserFuncInvoked, "DeletePasswordResetRequestsForUser should be called")
+		assert.Equal(t, targetUser.ID, deletedPasswordResetForUserID, "should delete password reset tokens for the correct user")
+
+		assert.True(t, ds.DestroyAllSessionsForUserFuncInvoked, "DestroyAllSessionsForUser should be called")
+		assert.Equal(t, targetUser.ID, destroyedSessionsForUserID, "should destroy sessions for the correct user")
+	})
+
+	t.Run("PerformRequiredPasswordReset clears reset tokens but not sessions", func(t *testing.T) {
+		ds := new(mock.Store)
+		svc, ctx := newTestService(t, ds, nil, nil)
+
+		targetUser := &fleet.User{
+			ID:                       42,
+			Email:                    "user@example.com",
+			AdminForcedPasswordReset: true,
+		}
+		err := targetUser.SetPassword(test.GoodPassword, 10, 10)
+		require.NoError(t, err)
+
+		// CanPerformPasswordReset requires a session to be present.
+		ctx = viewer.NewContext(ctx, viewer.Viewer{
+			User:    targetUser,
+			Session: &fleet.Session{ID: 1, UserID: targetUser.ID},
+		})
+
+		ds.SaveUserFunc = func(ctx context.Context, u *fleet.User) error {
+			return nil
+		}
+
+		var deletedPasswordResetForUserID uint
+		ds.DeletePasswordResetRequestsForUserFunc = func(ctx context.Context, userID uint) error {
+			deletedPasswordResetForUserID = userID
+			return nil
+		}
+
+		ds.DestroyAllSessionsForUserFunc = func(ctx context.Context, userID uint) error {
+			return nil
+		}
+
+		_, err = svc.PerformRequiredPasswordReset(ctx, test.GoodPassword2)
+		require.NoError(t, err)
+
+		assert.True(t, ds.DeletePasswordResetRequestsForUserFuncInvoked, "DeletePasswordResetRequestsForUser should be called")
+		assert.Equal(t, targetUser.ID, deletedPasswordResetForUserID, "should delete password reset tokens for the correct user")
+
+		assert.False(t, ds.DestroyAllSessionsForUserFuncInvoked, "DestroyAllSessionsForUser should NOT be called for required password reset")
 	})
 }
