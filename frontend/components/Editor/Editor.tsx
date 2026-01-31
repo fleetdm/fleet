@@ -4,6 +4,7 @@ import classnames from "classnames";
 import AceEditor from "react-ace";
 import "ace-builds/src-noconflict/mode-sh";
 import "ace-builds/src-noconflict/mode-powershell";
+import "ace-builds/src-noconflict/mode-python";
 import { IAceEditor } from "react-ace/lib/types";
 
 import { stringToClipboard } from "utilities/copy_text";

@@ -118,10 +118,6 @@ const ScriptLibrary = ({ router, teamId, location }: IScriptLibraryProps) => {
     refetchScripts();
   };
 
-  const onUploadScript = () => {
-    refetchScripts();
-  };
-
   const renderScriptsList = () => {
     if (isLoading) {
       return <Spinner />;
