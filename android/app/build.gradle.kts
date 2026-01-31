@@ -33,8 +33,8 @@ android {
         applicationId = "com.fleetdm.agent"
         minSdk = 33
         targetSdk = 36
-        versionCode = 5
-        versionName = "1.0.2"
+        versionCode = 6
+        versionName = "1.1.0"
 
         buildConfigField("String", "INFO_URL", "\"https://fleetdm.com/better\"")
 
@@ -293,6 +293,7 @@ dependencies {
     testImplementation(libs.robolectric)
     testImplementation(libs.kotlinx.coroutines.test)
     testImplementation(libs.json) // For JSON parsing in unit tests
+    testImplementation(libs.okhttp.mockwebserver)
 
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)

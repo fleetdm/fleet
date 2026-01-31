@@ -477,6 +477,7 @@ func (ds *Datastore) CountHostScriptAttempts(ctx context.Context, hostID, script
 		WHERE host_id = ?
 		  AND script_id = ?
 		  AND policy_id = ?
+		  AND canceled = 0
 		  AND (attempt_number > 0 OR attempt_number IS NULL)
 	`, hostID, scriptID, policyID)
 	if err != nil {
@@ -558,6 +559,11 @@ func (ds *Datastore) UpdateScriptContents(ctx context.Context, scriptID uint, sc
 			return ctxerr.Wrap(ctx, err, "canceling upcoming script executions")
 		}
 
+		// When a script is modified reset attempt numbers for policy automations
+		if err := ds.resetScriptPolicyAutomationAttempts(ctx, tx, scriptID); err != nil {
+			return ctxerr.Wrap(ctx, err, "resetting policy automation attempts for script")
+		}
+
 		return nil
 	})
 	if err != nil {
@@ -592,6 +598,26 @@ WHERE
 		if _, err := ds.cancelHostUpcomingActivity(ctx, db, upcomingExecution.HostID, upcomingExecution.ExecutionID); err != nil {
 			return ctxerr.Wrap(ctx, err, "canceling upcoming activity")
 		}
+	}
+
+	// Cancel scripts that were already activated and are in host_script_results but not yet executed
+	const activatedStmt = `UPDATE host_script_results SET canceled = 1 WHERE script_id = ? AND exit_code IS NULL AND canceled = 0`
+	if _, err := db.ExecContext(ctx, activatedStmt, scriptID); err != nil {
+		return ctxerr.Wrap(ctx, err, "canceling activated pending script executions")
+	}
+
+	return nil
+}
+
+// resetScriptPolicyAutomationAttempts resets all attempt numbers for script executions for policy automations
+func (ds *Datastore) resetScriptPolicyAutomationAttempts(ctx context.Context, db sqlx.ExecerContext, scriptID uint) error {
+	_, err := db.ExecContext(ctx, `
+		UPDATE host_script_results
+		SET attempt_number = 0
+		WHERE script_id = ? AND policy_id IS NOT NULL AND (attempt_number > 0 OR attempt_number IS NULL)
+	`, scriptID)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "reset policy automation script attempts")
 	}
 
 	return nil

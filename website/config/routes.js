@@ -596,6 +596,27 @@ module.exports.routes = {
     }
   },
 
+  'GET /gitops-workshop': {
+    action: 'landing-pages/view-gitops-workshop',
+    locals: {
+      pageTitleForMeta: 'GitOps workshops',
+      pageDescriptionForMeta: 'Join Fleet’s GitOps workshop to learn configuration-as-code for managing devices at scale. See every change, undo any error, and repeat every success.',
+    }
+  },
+
+  'GET /compare/:slug': {
+    action: 'landing-pages/view-basic-comparison'
+  },
+
+  'GET /fleet-gitops': {
+    action: 'view-fleet-gitops',
+    locals: {
+      pageTitleForMeta: 'Fleet GitOps',
+      pageDescriptionForMeta: 'See every change, undo any error, repeat every success. Fleet and GitOps work together to optimize your endpoint management strategy.',
+      currentSection: 'platform',
+    }
+  },
+
   //  ╦  ╔═╗╔═╗╔═╗╔═╗╦ ╦  ╦═╗╔═╗╔╦╗╦╦═╗╔═╗╔═╗╔╦╗╔═╗
   //  ║  ║╣ ║ ╦╠═╣║  ╚╦╝  ╠╦╝║╣  ║║║╠╦╝║╣ ║   ║ ╚═╗
   //  ╩═╝╚═╝╚═╝╩ ╩╚═╝ ╩   ╩╚═╚═╝═╩╝╩╩╚═╚═╝╚═╝ ╩ ╚═╝
@@ -996,6 +1017,7 @@ module.exports.routes = {
   'GET /software-catalog/yubico-yubikey-manager': '/software-catalog/yubico-yubikey-manager-darwin',
   'GET /software-catalog/zoom': '/software-catalog/zoom-darwin',
   'GET /software-catalog/vnc-viewer': '/software-catalog/vnc-viewer-darwin',
+  'GET /apps': '/software-catalog',// This is mostly for mikermcneil who keeps trying to type the old url.
 
   //  ╔╦╗╦╔═╗╔═╗  ╦═╗╔═╗╔╦╗╦╦═╗╔═╗╔═╗╔╦╗╔═╗   ┬   ╔╦╗╔═╗╦ ╦╔╗╔╦  ╔═╗╔═╗╔╦╗╔═╗
   //  ║║║║╚═╗║    ╠╦╝║╣  ║║║╠╦╝║╣ ║   ║ ╚═╗  ┌┼─   ║║║ ║║║║║║║║  ║ ║╠═╣ ║║╚═╗
@@ -1042,6 +1064,9 @@ module.exports.routes = {
   'GET /observability': (req, res) => { let originalQueryString = req.url.match(/\?(.+)$/) ? '?' + req.url.match(/\?(.+)$/)[1] : ''; return res.redirect(301, sails.config.custom.baseUrl + '/orchestration' + originalQueryString); },
 
   'GET /jnuc-2025': '/articles/free-migration-from-jamf-to-fleet',
+  'GET /announcements/global-cloud-platform-simplifies-device-management-with-fleet': '/case-study/fastly',
+  'GET /announcements/consolidate-multiple-tools-with-fleet': '/case-study/stripe',
+  'GET /announcements/foursquare-quickly-migrates-to-fleet': '/case-study/foursquare',
 
   // Shortlinks for texting friends, radio ads, etc
   'GET /mdm': '/device-management?utm_content=mdm',// « alias for radio ad
@@ -1160,7 +1185,7 @@ module.exports.routes = {
   'GET /learn-more-about/built-in-variables': '/docs/configuration/yaml-files#variables',
   'GET /learn-more-about/disable-entra-conditional-access': '/guides/entra-conditional-access-integration#disable',
   'GET /learn-more-about/available-fma-versions': 'https://github.com/fleetdm/fleet/tree/main/ee/maintained-apps/outputs',
-  'GET /learn-more-about/connect-microsoft-entra': '/guides/windows-mdm-setup#automatic-enrollment',
+  'GET /learn-more-about/connect-microsoft-entra': '/guides/windows-mdm-setup#step-2-connect-fleet-to-microsoft-entra-id',
   'GET /learn-more-about/macos-configuration-profiles-same-scope': '/guides/custom-os-settings#upgrading-to-4-71-0',
   'GET /learn-more-about/disable-okta-conditional-access': '/guides/okta-conditional-access-integration#disabling-okta-conditional-access',
   'GET /learn-more-about/deploy-self-service-to-ios': '/guides/software-self-service#deploy-self-service-on-ios-and-ipados',
@@ -1263,7 +1288,7 @@ module.exports.routes = {
   '/api/v1/query-generator/get-llm-generated-sql': { action: 'query-generator/get-llm-generated-sql' },
   'POST /api/v1/get-llm-generated-configuration-profile': { action: 'get-llm-generated-configuration-profile', hasSocketFeatures: true },
   'POST /api/v1/deliver-application-submission': { action: 'deliver-application-submission' },
-
+  'POST /api/v1/deliver-gitops-request': { action: 'deliver-gitops-workshop-request' },
 
 
   //  ╔╦╗╦╔═╗╦═╗╔═╗╔═╗╔═╗╔═╗╔╦╗  ╔═╗╦═╗╔═╗═╗ ╦╦ ╦  ╔═╗╔╗╔╔╦╗╔═╗╔═╗╦╔╗╔╔╦╗╔═╗

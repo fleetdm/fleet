@@ -37,7 +37,7 @@ import (
 	"github.com/go-sql-driver/mysql"
 	"github.com/hashicorp/go-multierror"
 	"github.com/jmoiron/sqlx"
-	semconv "go.opentelemetry.io/otel/semconv/v1.26.0"
+	semconv "go.opentelemetry.io/otel/semconv/v1.37.0"
 )
 
 // Compile-time interface check
@@ -348,7 +348,7 @@ var otelTracedDriverName string
 func init() {
 	var err error
 	otelTracedDriverName, err = otelsql.Register("mysql",
-		otelsql.WithAttributes(semconv.DBSystemMySQL),
+		otelsql.WithAttributes(semconv.DBSystemNameMySQL),
 		otelsql.WithSpanOptions(otelsql.SpanOptions{
 			// DisableErrSkip ignores driver.ErrSkip errors which are frequently returned by the MySQL driver
 			// when certain optional methods or paths are not implemented/taken.
