@@ -137,6 +137,7 @@ $shadow-transition-width: 10px;
           display: flex;
           flex-direction: column; // Filters under header name
           min-width: max-content;
+          font-weight: $bold;
 
           span {
             display: flex;
