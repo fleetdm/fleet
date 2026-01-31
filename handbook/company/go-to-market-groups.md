@@ -115,7 +115,7 @@ When you reach out to a prospect or customer, make sure you're the right person:
 
 Our outbound motion for Solution Specialists is intentionally experimental and evolving. Rather than locking into a single script or sequence, we actively test different messaging approaches and learn from real conversations.
 
-This spreadsheet is used to track:
+The [Outbound pivot tracking spreadsheet (confidential)](https://docs.google.com/spreadsheets/d/1VjJTrldUpJTZTLg0Xz2B9dZ-D8vYZNhGVMSYBxOxqEA/edit?gid=0#gid=0) is used to track:
 	•	the initial outreach approach
 	•	how we build toward an ask
 	•	where and how we pivot to a meeting request
