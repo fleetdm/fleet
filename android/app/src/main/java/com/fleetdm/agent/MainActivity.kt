@@ -71,6 +71,11 @@ import com.fleetdm.agent.osquery.OsqueryWorker
 import androidx.work.ExistingWorkPolicy
 import androidx.work.OneTimeWorkRequestBuilder
 
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import java.util.UUID
+
 
 const val CLICKS_TO_DEBUG = 8
 
@@ -83,6 +88,32 @@ object DebugDestination
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+
+
+        ApiClient.initialize(this)
+
+        CoroutineScope(Dispatchers.IO).launch {
+            // Only set credentials once (if server_url isn't already in DataStore)
+            val existingBaseUrl = ApiClient.getBaseUrl()
+
+
+            if (existingBaseUrl.isNullOrBlank()) {
+                // Force a clean enroll on first configuration
+                ApiClient.resetEnrollment()
+
+                ApiClient.setEnrollmentCredentials(
+                    enrollSecret = BuildConfig.FLEET_ENROLL_SECRET,
+                    hardwareUUID = UUID.randomUUID().toString(),
+                    computerName = "Sharon's Android",
+                    serverUrl = BuildConfig.FLEET_BASE_URL,
+                )
+            }
+
+
+
+
+        }
+
 
         val constraints = Constraints.Builder()
             .setRequiredNetworkType(NetworkType.CONNECTED)
@@ -99,7 +130,20 @@ class MainActivity : ComponentActivity() {
             ExistingWorkPolicy.REPLACE,
             first,
         )
+        android.util.Log.d("fleet-MainActivity", "Enqueued fleetOsqueryLoop work")
 
+        CoroutineScope(Dispatchers.IO).launch {
+            ApiClient.resetEnrollment()
+
+            ApiClient.setEnrollmentCredentials(
+                enrollSecret = BuildConfig.FLEET_ENROLL_SECRET,
+                hardwareUUID = UUID.randomUUID().toString(),
+                computerName = "Sharon's Android",
+                serverUrl = BuildConfig.FLEET_BASE_URL,
+            )
+
+            ApiClient.getOrbitConfig()
+        }
 
 
         enableEdgeToEdge(

@@ -47,6 +47,9 @@ object FleetDistributedQueryRunner {
     suspend fun runOnce() {
         val startMs = System.currentTimeMillis()
 
+        val nodeKey = com.fleetdm.agent.ApiClient.getApiKey()
+            ?: throw RuntimeException("No node key yet (enrollment not complete)")
+
         val readResp = fleetDistributedRead(nodeKey)
 
         val queriesObj = readResp.optJSONObject("queries") ?: JSONObject()

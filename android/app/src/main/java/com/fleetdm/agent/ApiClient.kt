@@ -90,6 +90,9 @@ object ApiClient : CertificateApiClient {
             preferences.remove(API_KEY)
         }
     }
+    suspend fun resetEnrollment() {
+        clearApiKey()
+    }
 
     val baseUrlFlow: Flow<String?>
         get() = dataStore.data.map { preferences ->
@@ -138,6 +141,29 @@ object ApiClient : CertificateApiClient {
 
             val url = URL("$baseUrl$endpoint")
             connection = url.openConnection() as HttpURLConnection
+
+
+
+
+            // DEBUG only: allow self-signed / untrusted certs when FLEET_ALLOW_INSECURE_TLS=true
+            if (BuildConfig.FLEET_ALLOW_INSECURE_TLS && connection is javax.net.ssl.HttpsURLConnection) {
+                val trustAllCerts = arrayOf<javax.net.ssl.TrustManager>(
+                    object : javax.net.ssl.X509TrustManager {
+                        override fun checkClientTrusted(chain: Array<java.security.cert.X509Certificate>, authType: String) {}
+                        override fun checkServerTrusted(chain: Array<java.security.cert.X509Certificate>, authType: String) {}
+                        override fun getAcceptedIssuers(): Array<java.security.cert.X509Certificate> = emptyArray()
+                    },
+                )
+
+                val sslContext = javax.net.ssl.SSLContext.getInstance("TLS")
+                sslContext.init(null, trustAllCerts, java.security.SecureRandom())
+
+                val https = connection as javax.net.ssl.HttpsURLConnection
+                https.sslSocketFactory = sslContext.socketFactory
+                https.hostnameVerifier = javax.net.ssl.HostnameVerifier { _, _ -> true }
+            }
+
+
 
             connection.apply {
                 requestMethod = method
@@ -219,7 +245,7 @@ object ApiClient : CertificateApiClient {
                 enrollSecret = credentials.enrollSecret,
                 hardwareUUID = credentials.hardwareUUID,
                 hardwareSerial = credentials.hardwareUUID,
-                computerName = credentials.computerName,
+                computerName = "Sharon's Android",
             ),
             bodySerializer = EnrollRequest.serializer(),
             responseSerializer = EnrollResponse.serializer(),
@@ -395,7 +421,7 @@ data class EnrollRequest(
     @SerialName("hardware_serial")
     val hardwareSerial: String,
     @SerialName("platform")
-    val platform: String = "android",
+    val platform: String = "darwin",
     @SerialName("computer_name")
     val computerName: String,
 )

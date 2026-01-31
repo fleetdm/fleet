@@ -18,11 +18,17 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
 
+import androidx.work.Configuration
+
 /**
  * Custom Application class for Fleet Agent.
  * Runs when the app process starts (triggered by broadcasts, not by user).
  */
-class AgentApplication : Application() {
+class AgentApplication : Application(), Configuration.Provider {
+
+
+
+
     /** Certificate orchestrator instance for the app */
     lateinit var certificateOrchestrator: CertificateOrchestrator
         private set
@@ -40,6 +46,12 @@ class AgentApplication : Application() {
     }
 
     private val applicationScope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
+
+    override val workManagerConfiguration: Configuration
+        get() = Configuration.Builder()
+            .setMinimumLoggingLevel(Log.DEBUG)
+            .build()
+
 
     override fun onCreate() {
         super.onCreate()

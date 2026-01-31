@@ -37,7 +37,9 @@ class OsqueryWorker(
             Log.i("FleetOsquery", "OsqueryWorker doWork start")
 
             OsqueryTables.registerAll(applicationContext)
+            Log.i("FleetOsquery", "About to call FleetDistributedQueryRunner.runOnce()")
             FleetDistributedQueryRunner.runOnce()
+            Log.i("FleetOsquery", "FleetDistributedQueryRunner.runOnce() finished")
 
             scheduleNext()
             return Result.success()

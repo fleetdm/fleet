@@ -112,6 +112,7 @@ android {
             enableAndroidTestCoverage = true
             buildConfigField("String", "FLEET_BASE_URL", "\"${project.findProperty("FLEET_BASE_URL") ?: ""}\"")
             buildConfigField("String", "FLEET_NODE_KEY", "\"${project.findProperty("FLEET_NODE_KEY") ?: ""}\"")
+            buildConfigField("String", "FLEET_ENROLL_SECRET", "\"${project.findProperty("FLEET_ENROLL_SECRET") ?: ""}\"")
             buildConfigField("boolean", "FLEET_ALLOW_INSECURE_TLS", "true")
         }
         release {
