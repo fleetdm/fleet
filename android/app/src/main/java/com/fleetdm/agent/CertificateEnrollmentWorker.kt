@@ -3,6 +3,7 @@ package com.fleetdm.agent
 import android.content.Context
 import android.util.Log
 import androidx.work.CoroutineWorker
+import androidx.work.Data
 import androidx.work.WorkerParameters
 
 /**
@@ -18,7 +19,8 @@ class CertificateEnrollmentWorker(context: Context, workerParams: WorkerParamete
 
     override suspend fun doWork(): Result {
         return try {
-            Log.d(TAG, "Starting certificate enrollment worker (attempt ${runAttemptCount + 1})")
+            val isDebug = inputData.getBoolean(KEY_IS_DEBUG, false)
+            Log.d(TAG, "Starting certificate enrollment worker (attempt ${runAttemptCount + 1}, debug=$isDebug)")
 
             // Get orchestrator from Application
             val orchestrator = AgentApplication.getCertificateOrchestrator(applicationContext)
@@ -33,7 +35,7 @@ class CertificateEnrollmentWorker(context: Context, workerParams: WorkerParamete
                 }
             }
 
-            val hostCertificates = orchestrator.getHostCertificates(applicationContext) ?: emptyList()
+            val hostCertificates = orchestrator.getHostCertificates(applicationContext).orEmpty()
 
             // STEP 1: Cleanup certificates marked for removal and orphaned certificates
             val cleanupResults = orchestrator.cleanupRemovedCertificates(
@@ -59,7 +61,11 @@ class CertificateEnrollmentWorker(context: Context, workerParams: WorkerParamete
             // If no certificates to enroll, we're done
             if (certificatesToInstall.isEmpty()) {
                 Log.d(TAG, "No certificates to enroll")
-                return Result.success()
+                val outputData = Data.Builder()
+                    .putString("status", "No certificates to enroll")
+                    .putInt("cleaned_up", cleanupResults.size)
+                    .build()
+                return Result.success(outputData)
             }
 
             // STEP 3: Enroll new/updated certificates
@@ -74,12 +80,17 @@ class CertificateEnrollmentWorker(context: Context, workerParams: WorkerParamete
             var hasSuccess = false
             var hasTransientFailure = false
             var hasPermanentFailure = false
+            val successfulCerts = mutableListOf<Int>()
+            val transientFailedCerts = mutableListOf<Int>()
+            val permanentFailedCerts = mutableListOf<Int>()
+            var firstErrorMessage: String? = null
 
             results.forEach { (certificateId, result) ->
                 when (result) {
                     is CertificateEnrollmentHandler.EnrollmentResult.Success -> {
                         Log.i(TAG, "Certificate $certificateId enrolled successfully: ${result.alias}")
                         hasSuccess = true
+                        successfulCerts.add(certificateId)
                     }
                     is CertificateEnrollmentHandler.EnrollmentResult.PermanentlyFailed -> {
                         Log.d(TAG, "Certificate $certificateId previously failed permanently: ${result.alias}")
@@ -87,10 +98,15 @@ class CertificateEnrollmentWorker(context: Context, workerParams: WorkerParamete
                     }
                     is CertificateEnrollmentHandler.EnrollmentResult.Failure -> {
                         Log.e(TAG, "Certificate $certificateId enrollment failed: ${result.reason}", result.exception)
+                        if (firstErrorMessage == null) {
+                            firstErrorMessage = result.reason
+                        }
                         if (result.isRetryable) {
                             hasTransientFailure = true
+                            transientFailedCerts.add(certificateId)
                         } else {
                             hasPermanentFailure = true
+                            permanentFailedCerts.add(certificateId)
                         }
                     }
                 }
@@ -99,13 +115,24 @@ class CertificateEnrollmentWorker(context: Context, workerParams: WorkerParamete
             // Return result based on outcomes
             when {
                 hasTransientFailure -> {
-                    if (runAttemptCount >= MAX_RETRY_ATTEMPTS - 1) {
+                    val outputData = Data.Builder()
+                        .putInt("success_count", successfulCerts.size)
+                        .putInt("transient_fail_count", transientFailedCerts.size)
+                        .putString("failed_cert_ids", transientFailedCerts.joinToString(","))
+                        .putString("error", firstErrorMessage ?: "Transient failures")
+                        .build()
+
+                    if (isDebug) {
+                        // Debug runs don't retry - fail immediately for clearer debugging
+                        Log.w(TAG, "Some certificates had transient failures (debug mode - no retry)")
+                        Result.failure(outputData)
+                    } else if (runAttemptCount >= MAX_RETRY_ATTEMPTS - 1) {
                         // Exhausted retries, return success to reset and let periodic schedule take over
                         Log.w(
                             TAG,
                             "Some certificates had transient failures, exhausted $MAX_RETRY_ATTEMPTS retries, will retry in 15 minutes",
                         )
-                        Result.success()
+                        Result.success(outputData)
                     } else {
                         Log.w(
                             TAG,
@@ -118,21 +145,35 @@ class CertificateEnrollmentWorker(context: Context, workerParams: WorkerParamete
                     if (hasSuccess) {
                         Log.w(TAG, "Some certificates succeeded, some failed permanently")
                     }
-                    Result.failure()
+                    val outputData = Data.Builder()
+                        .putInt("success_count", successfulCerts.size)
+                        .putInt("permanent_fail_count", permanentFailedCerts.size)
+                        .putString("failed_cert_ids", permanentFailedCerts.joinToString(","))
+                        .putString("error", firstErrorMessage ?: "Permanent failures")
+                        .build()
+                    Result.failure(outputData)
                 }
                 else -> {
                     Log.i(TAG, "All ${results.size} certificate(s) enrolled successfully")
-                    Result.success()
+                    val outputData = Data.Builder()
+                        .putInt("success_count", successfulCerts.size)
+                        .putString("enrolled_cert_ids", successfulCerts.joinToString(","))
+                        .build()
+                    Result.success(outputData)
                 }
             }
         } catch (e: Exception) {
             Log.e(TAG, "Unexpected error in certificate enrollment", e)
-            Result.failure()
+            val outputData = Data.Builder()
+                .putString("error", "Unexpected error: ${e.message}")
+                .build()
+            Result.failure(outputData)
         }
     }
 
     companion object {
         const val WORK_NAME = "certificate_enrollment"
+        const val KEY_IS_DEBUG = "is_debug"
         private const val TAG = "fleet-CertificateEnrollmentWorker"
         private const val MAX_RETRY_ATTEMPTS = 5
     }
