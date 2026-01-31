@@ -82,6 +82,7 @@ func (svc *Service) ConditionalAccessMicrosoftCreateIntegration(ctx context.Cont
 
 	// Retrieve settings of the integration to get the admin consent URL.
 	getResponse, err := svc.conditionalAccessMicrosoftProxy.Get(ctx, proxyCreateResponse.TenantID, proxyCreateResponse.Secret)
+
 	if err != nil {
 		return "", ctxerr.Wrap(ctx, err, "failed to get the integration settings")
 	}
@@ -133,7 +134,7 @@ func (svc *Service) ConditionalAccessMicrosoftConfirm(ctx context.Context) (conf
 	getResponse, err := svc.conditionalAccessMicrosoftProxy.Get(ctx, integration.TenantID, integration.ProxyServerSecret)
 	if err != nil {
 		level.Error(svc.logger).Log("msg", "failed to get integration settings from proxy", "err", err)
-		return false, "", nil
+		return false, "", &fleet.BadRequestError{Message: "failed to get integration settings from proxy"}
 	}
 
 	if !getResponse.SetupDone {
