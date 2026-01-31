@@ -771,8 +771,6 @@ type BatchSetScriptsFunc func(ctx context.Context, maybeTmID *uint, maybeTmName 
 
 type BatchScriptExecuteFunc func(ctx context.Context, scriptID uint, hostIDs []uint, filters *map[string]any, notBefore *time.Time) (string, error)
 
-type BatchScriptExecutionSummaryFunc func(ctx context.Context, batchExecutionID string) (*fleet.BatchActivity, error)
-
 type BatchScriptExecutionStatusFunc func(ctx context.Context, batchExecutionID string) (*fleet.BatchActivity, error)
 
 type BatchScriptExecutionHostResultsFunc func(ctx context.Context, batchExecutionID string, status fleet.BatchScriptExecutionStatus, opt fleet.ListOptions) ([]fleet.BatchScriptHost, *fleet.PaginationMetadata, uint, error)
@@ -2007,9 +2005,6 @@ type Service struct {
 
 	BatchScriptExecuteFunc        BatchScriptExecuteFunc
 	BatchScriptExecuteFuncInvoked bool
-
-	BatchScriptExecutionSummaryFunc        BatchScriptExecutionSummaryFunc
-	BatchScriptExecutionSummaryFuncInvoked bool
 
 	BatchScriptExecutionStatusFunc        BatchScriptExecutionStatusFunc
 	BatchScriptExecutionStatusFuncInvoked bool
@@ -4803,13 +4798,6 @@ func (s *Service) BatchScriptExecute(ctx context.Context, scriptID uint, hostIDs
 	s.BatchScriptExecuteFuncInvoked = true
 	s.mu.Unlock()
 	return s.BatchScriptExecuteFunc(ctx, scriptID, hostIDs, filters, notBefore)
-}
-
-func (s *Service) BatchScriptExecutionSummary(ctx context.Context, batchExecutionID string) (*fleet.BatchActivity, error) {
-	s.mu.Lock()
-	s.BatchScriptExecutionSummaryFuncInvoked = true
-	s.mu.Unlock()
-	return s.BatchScriptExecutionSummaryFunc(ctx, batchExecutionID)
 }
 
 func (s *Service) BatchScriptExecutionStatus(ctx context.Context, batchExecutionID string) (*fleet.BatchActivity, error) {
