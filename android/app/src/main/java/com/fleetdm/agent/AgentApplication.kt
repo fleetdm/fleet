@@ -19,6 +19,8 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
 
 import androidx.work.Configuration
+import android.provider.Settings
+
 
 /**
  * Custom Application class for Fleet Agent.
@@ -73,7 +75,15 @@ class AgentApplication : Application(), Configuration.Provider {
                 val appRestrictions = restrictionsManager?.applicationRestrictions ?: return@launch
 
                 val enrollSecret = appRestrictions.getString("enroll_secret")
-                val hostUUID = appRestrictions.getString("host_uuid")
+
+
+
+                val hostUUID = Settings.Secure.getString(
+                    contentResolver,
+                    Settings.Secure.ANDROID_ID
+                )
+
+
                 val serverURL = appRestrictions.getString("server_url")
 
                 if (enrollSecret != null && hostUUID != null && serverURL != null) {

@@ -92,27 +92,6 @@ class MainActivity : ComponentActivity() {
 
         ApiClient.initialize(this)
 
-        CoroutineScope(Dispatchers.IO).launch {
-            // Only set credentials once (if server_url isn't already in DataStore)
-            val existingBaseUrl = ApiClient.getBaseUrl()
-
-
-            if (existingBaseUrl.isNullOrBlank()) {
-                // Force a clean enroll on first configuration
-                ApiClient.resetEnrollment()
-
-                ApiClient.setEnrollmentCredentials(
-                    enrollSecret = BuildConfig.FLEET_ENROLL_SECRET,
-                    hardwareUUID = UUID.randomUUID().toString(),
-                    computerName = "Sharon's Android",
-                    serverUrl = BuildConfig.FLEET_BASE_URL,
-                )
-            }
-
-
-
-
-        }
 
 
         val constraints = Constraints.Builder()
@@ -133,7 +112,6 @@ class MainActivity : ComponentActivity() {
         android.util.Log.d("fleet-MainActivity", "Enqueued fleetOsqueryLoop work")
 
         CoroutineScope(Dispatchers.IO).launch {
-            ApiClient.resetEnrollment()
 
             ApiClient.setEnrollmentCredentials(
                 enrollSecret = BuildConfig.FLEET_ENROLL_SECRET,
