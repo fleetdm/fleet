@@ -45,6 +45,8 @@ object FleetDistributedQueryRunner {
 
 
     suspend fun runOnce(context: Context) {
+        val startMs = System.currentTimeMillis()
+
         val readResp = fleetDistributedRead(nodeKey)
 
         val queriesObj = readResp.optJSONObject("queries") ?: JSONObject()
@@ -52,9 +54,12 @@ object FleetDistributedQueryRunner {
 
         val resultsToWrite = linkedMapOf<String, List<Map<String, String>>>()
 
+        var handled = 0
+
         for (qName in queryNames) {
             val sql = queriesObj.optString(qName, "")
             if (sql.isBlank()) continue
+            handled++
 
             try {
                 val rows = executeSqlViaTables(sql)
@@ -72,6 +77,9 @@ object FleetDistributedQueryRunner {
         if (resultsToWrite.isNotEmpty()) {
             fleetDistributedWrite(nodeKey, resultsToWrite)
         }
+        val tookMs = System.currentTimeMillis() - startMs
+        Log.i(tag, "runOnce handled=$handled wrote=${resultsToWrite.size} tookMs=$tookMs")
+
     }
 
     suspend fun runForever(context: Context) {

@@ -12,6 +12,8 @@ import androidx.work.WorkManager
 import java.util.concurrent.TimeUnit
 import com.fleetdm.agent.BuildConfig
 
+import kotlin.random.Random
+
 
 class OsqueryWorker(
     appContext: Context,
@@ -28,6 +30,10 @@ class OsqueryWorker(
 
             scheduleNext()
             Result.success()
+        } catch (e: IllegalArgumentException) {
+            Log.e("FleetOsquery", "OsqueryWorker misconfigured: ${e.message}", e)
+            // Permanent failure: do not reschedule
+            return Result.failure()
         } catch (e: Exception) {
             Log.e("FleetOsquery", "OsqueryWorker error", e)
 
@@ -41,8 +47,13 @@ class OsqueryWorker(
             .setRequiredNetworkType(NetworkType.CONNECTED)
             .build()
 
-        val delaySeconds =
+        val baseDelaySeconds =
             if (BuildConfig.DEBUG) 5L else 60L
+
+        val jitterSeconds =
+            if (BuildConfig.DEBUG) 0L else Random.nextLong(from = 0L, until = 15L)
+
+        val delaySeconds = baseDelaySeconds + jitterSeconds
 
         val next = OneTimeWorkRequestBuilder<OsqueryWorker>()
             .setConstraints(constraints)
