@@ -1,0 +1,12 @@
+name: device_info
+examples: |-
+  Retrieve basic hardware and system information about an Android device.
+  
+  ```
+  SELECT manufacturer, model, serial, android_version FROM device_info;
+  ```
+notes: |-
+ 
+  - This table reports identifying and system level information for the Android device.
+  - Values are provided by the Android operating system and may vary by device manufacturer and OS version.
+  - This information is useful for device inventory, troubleshooting, and differentiating devices with similar configurations.
