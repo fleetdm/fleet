@@ -1,0 +1,12 @@
+name: running_processes
+examples: |-
+  List processes currently running on an Android device.
+  
+  ```
+  SELECT pid, process_name, uid, is_foreground FROM running_processes;
+  ```
+notes: |-
+ 
+  - This table reports processes that are running on the device at query time.
+  - Information is provided by the Android operating system and may be limited by platform permissions and OS version.
+  - This table can be used to inspect active applications, identify unexpected processes, and assist with troubleshooting.
