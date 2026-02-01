@@ -14,7 +14,6 @@
 .cxx
 local.properties
 
-
 # Keystore files - never commit these!
 keystore.properties
 *.keystore
