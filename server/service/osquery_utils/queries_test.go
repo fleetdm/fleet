@@ -416,7 +416,7 @@ func TestGetDetailQueries(t *testing.T) {
 	queriesWithUsersAndSoftware := GetDetailQueries(context.Background(), config.FleetConfig{App: config.AppConfig{EnableScheduledQueryStats: true}}, nil, &fleet.Features{EnableHostUsers: true, EnableSoftwareInventory: true}, Integrations{}, nil)
 	qs = baseQueries
 	qs = append(qs, "users", "users_chrome", "software_macos", "software_linux", "software_windows", "software_vscode_extensions", "software_jetbrains_plugins", "software_linux_fleetd_pacman",
-		"software_chrome", "software_python_packages", "software_python_packages_with_users_dir", "scheduled_query_stats", "software_macos_firefox", "software_macos_codesign", "software_macos_executable_sha256", "software_windows_last_opened_at", "software_deb_last_opened_at", "software_rpm_last_opened_at")
+		"software_chrome", "software_python_packages", "software_python_packages_with_users_dir", "scheduled_query_stats", "software_macos_firefox", "software_macos_codesign", "software_macos_executable_sha256", "software_windows_last_opened_at", "software_deb_last_opened_at", "software_rpm_last_opened_at", "software_windows_acrobat_dc")
 	require.Len(t, queriesWithUsersAndSoftware, len(qs))
 	sortedKeysCompare(t, queriesWithUsersAndSoftware, qs)
 
@@ -3074,6 +3074,39 @@ func TestWindowsLastOpenedAt(t *testing.T) {
 			assert.Equal(t, "1751755087", software["last_opened_at"])
 		}
 	}
+}
+
+func TestWindowsAcrobatDC(t *testing.T) {
+	processFunc := SoftwareOverrideQueries["windows_acrobat_dc"].SoftwareProcessResults
+
+	t.Run("no registry results", func(t *testing.T) {
+		softwareResults := []map[string]string{
+			{"name": "Adobe Acrobat Reader 64-bit"},
+			{"name": "Adobe Acrobat 2017"},
+			{"name": "Acrobat Reader"},
+		}
+
+		got := processFunc(softwareResults, nil)
+		require.Equal(t, softwareResults, got)
+	})
+
+	t.Run("registry results present", func(t *testing.T) {
+		softwareResults := []map[string]string{
+			{"name": "Adobe Acrobat Reader 64-bit"},
+			{"name": "Adobe Acrobat 2017"},
+			{"name": "Acrobat Reader"},
+		}
+
+		registryResults := []map[string]string{{"present": "1"}}
+
+		got := processFunc(softwareResults, registryResults)
+		want := []map[string]string{
+			{"name": "Adobe Acrobat Reader DC 64-bit"},
+			{"name": "Adobe Acrobat DC 2017"},
+			{"name": "Acrobat Reader"},
+		}
+		require.Equal(t, want, got)
+	})
 }
 
 func TestTPMPinSetVerifyIngest(t *testing.T) {
