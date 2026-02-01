@@ -1,15 +1,22 @@
 name: network_interfaces
-examples: |-
-  List network interfaces available on an Android device.
-  
-  ```
-  SELECT name, is_up, mac, mtu FROM network_interfaces;
-  ```
-notes: |-
- 
-  - This table reports network interfaces as provided by the Android device networking stack at query time.
-  - The table includes interface metadata such as link state, hardware address, MTU, and associated IP addresses.
-  - This information can be used for troubleshooting connectivity issues and for basic network inventory.
-
+evented: false
 platforms:
-  - android
+  - chrome
+description: Uses the `chrome.enterprise.networkingAttributes` API to read information about the host's current network.
+columns:
+  - name: mac
+    type: text
+    required: false
+    description: MAC address (only available to extensions force-installed by enterprise policy)
+  - name: ipv4
+    type: text
+    required: false
+    description: IPv4 address (only available to extensions force-installed by enterprise policy)
+  - name: ipv6
+    type: text
+    required: false
+    description: IPv6 address (only available to extensions force-installed by enterprise policy)
+notes: |-
+  - This table is not a core osquery table. This table requires the [fleetd Chrome extension](https://fleetdm.com/docs/using-fleet/chromeos).
+  
+  - Requires that the fleetd extension is force-installed by enterprise policy
