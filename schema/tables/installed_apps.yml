@@ -1,0 +1,12 @@
+name: installed_apps
+examples: |-
+  List applications installed on an Android device.
+  
+  ```
+  SELECT name, package_name, version_name, version_code FROM installed_apps;
+  ```
+notes: |-
+ 
+  - This table reports applications installed on the device at query time.
+  - System applications and user installed applications may both be included, depending on what the Android OS reports to the agent.
+  - This information can be used for software inventory, compliance checks, and to identify unwanted or unauthorized applications.
