@@ -3212,7 +3212,9 @@ func buildConfigProfilesWindowsQuery(
 		return "", false
 	}
 	sb.WriteString("</SyncBody>")
-	return fmt.Sprintf("SELECT raw_mdm_command_output FROM mdm_bridge WHERE mdm_command_input = '%s';", sb.String()), true
+	// Escape single quotes for SQLite by doubling them to prevent SQL injection
+	escapedXML := strings.ReplaceAll(sb.String(), "'", "''")
+	return fmt.Sprintf("SELECT raw_mdm_command_output FROM mdm_bridge WHERE mdm_command_input = '%s';", escapedXML), true
 }
 
 func directIngestWindowsProfiles(
