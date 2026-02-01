@@ -1342,6 +1342,37 @@ FROM chrome_extensions`,
 // Software queries expect specific columns to be present.  Reference the
 // software_{macos|windows|linux} queries for the expected columns.
 var SoftwareOverrideQueries = map[string]DetailQuery{
+	// windows_acrobat_dc checks the Windows registry to determine if "DC" should be appended to the Adobe Acrobat
+	// Reader display name. While Adobe recently rebranded the free version to "Adobe Acrobat (64-bit)" — matching
+	// the naming convention of the paid product — our vulnerability detection engine requires the "DC" postfix for accurate
+	// signature matching.
+	"windows_acrobat_dc": {
+		Description: "Software override query used to determine whether the Adobe Acrobat Reader program name needs to include the DC postfix or not",
+		Platforms:   []string{"windows"},
+		Query:       `SELECT 1 FROM registry WHERE key = 'HKEY_LOCAL_MACHINE\SOFTWARE\Adobe\Adobe Acrobat\DC'`,
+		SoftwareProcessResults: func(softwareResults, registryResults []map[string]string) []map[string]string {
+			if len(registryResults) == 0 {
+				return softwareResults
+			}
+
+			for i, row := range softwareResults {
+				orig := row["name"]
+				lower := strings.ToLower(orig)
+
+				if !strings.HasPrefix(lower, "adobe acrobat") {
+					continue
+				}
+
+				// Replace the 'acrobat' part for 'acrobat DC'
+				if idx := strings.Index(lower, "acrobat"); idx != -1 {
+					splitPoint := idx + len("acrobat")
+					softwareResults[i]["name"] = orig[:splitPoint] + " DC" + orig[splitPoint:]
+				}
+			}
+
+			return softwareResults
+		},
+	},
 	// macos_firefox differentiates between Firefox and Firefox ESR by checking the RemotingName value in the
 	// application.ini file. If the RemotingName is 'firefox-esr', the name is set to 'Firefox ESR.app'.
 	//
