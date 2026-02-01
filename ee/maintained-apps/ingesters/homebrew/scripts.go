@@ -52,7 +52,10 @@ fi`, appPath)
 				// Remove quarantine for zip and dmg-based installs to prevent Gatekeeper from marking the app as damaged
 				// Both formats can preserve quarantine attributes when copying with cp -R
 				if app.InstallerFormat == "zip" || app.InstallerFormat == "dmg" {
-					sb.RemoveQuarantine(fmt.Sprintf("$APPDIR/%s", appPath))
+					fullAppPath := fmt.Sprintf("$APPDIR/%s", appPath)
+					sb.RemoveQuarantine(fullAppPath)
+					// Set ownership to console user:staff (or root:staff during setup) so Gatekeeper doesn't show "damaged"
+					sb.SetOwnership(fullAppPath)
 				}
 			}
 			// Relaunch the app if it was running before installation
@@ -400,6 +403,17 @@ func (s *scriptBuilder) RemoveQuarantine(appPath string) {
 	s.Writef(`sudo spctl --add "%s" 2>/dev/null || true`, appPath)
 	s.Write("# force LaunchServices refresh to recognize the app")
 	s.Writef(`/System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister -f "%s" 2>/dev/null || true`, appPath)
+}
+
+// SetOwnership writes commands to set the app's ownership to the currently logged-in
+// user and staff group (or root:staff when no GUI user, e.g. during setup). Apps
+// installed via sudo cp from zip/dmg end up as root:admin; Gatekeeper can then show
+// "damaged" when the user launches them. Setting ownership to the console user:staff
+// (or root:staff) avoids that.
+func (s *scriptBuilder) SetOwnership(appPath string) {
+	s.Write("# set ownership so the app is runnable by the current user (avoids Gatekeeper \"damaged\" for root-owned apps)")
+	s.Write(`CONSOLE_USER=$(stat -f "%Su" /dev/console 2>/dev/null || echo "")`)
+	s.Writef(`if [ -n "$CONSOLE_USER" ] && [ "$CONSOLE_USER" != "root" ] && ! echo "$CONSOLE_USER" | grep -q '^_'; then sudo chown -R "$CONSOLE_USER:staff" "%[1]s"; else sudo chown -R root:staff "%[1]s"; fi`, appPath)
 }
 
 // RemoveFile writes a command to remove a file or directory with sudo
