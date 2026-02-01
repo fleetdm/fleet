@@ -31,7 +31,7 @@ module.exports = {
 
     let report = await sails.helpers.ai.prompt.with({
       expectJson: true,
-      prompt: 'Respond only with well-formed JSON (without code fences) in this data shape: `{"scene": "…", "choices": {"…": "…"} }`\nIn `scene`, describe 1-2 paragraphs of this scene played by the character Wall-E from the movie (maintaining a sense of childlike wonder and simple language, keeping it short), based on the following cue: \n```\n'+cue+'\n```\n\n'+getRememberThePlotStatement(1)+'\n\nIn the `choices` dictionary, for the keys, use short 2-3 word explanations of a next step of what could happen, and for each value, describe the corresponding cue for a next scene to follow up this one.\n\n'
+      prompt: 'Respond only with well-formed JSON (without code fences) in this data shape: `{"scene": "…", "choices": {"…": "…"} }`\nIn `scene`, describe 1-2 paragraphs of this scene based on the following cue: \n```\n'+cue+'\n```\n\n'+getRememberThePlotStatement(1)+'\n\nIn the `choices` dictionary, for the keys, use short 2-3 word explanations of a next step of what could happen, and for each value, describe the corresponding cue for a next scene to follow up this one.\n\n'
     }).retry();
     let mostRecentPartofScene = report.scene;
     let sceneSoFar = mostRecentPartofScene;
