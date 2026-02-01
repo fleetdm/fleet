@@ -7,6 +7,8 @@ import com.fleetdm.agent.osquery.tables.OsVersionTable
 import com.fleetdm.agent.osquery.tables.OsqueryInfoTable
 import com.fleetdm.agent.osquery.tables.CertificatesTable
 import com.fleetdm.agent.osquery.tables.DeviceInfoTable
+import com.fleetdm.agent.osquery.tables.NetworkInterfacesTable
+
 
 object OsqueryTables {
     fun registerAll(context: android.content.Context) {
@@ -16,6 +18,8 @@ object OsqueryTables {
         TableRegistry.register(OsqueryInfoTable(context))
         TableRegistry.register(CertificatesTable())
         TableRegistry.register(DeviceInfoTable())
+        TableRegistry.register(NetworkInterfacesTable(context))
+
 
     }
 }
