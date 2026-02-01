@@ -1343,7 +1343,7 @@ FROM chrome_extensions`,
 // software_{macos|windows|linux} queries for the expected columns.
 var SoftwareOverrideQueries = map[string]DetailQuery{
 	// windows_acrobat_dc checks the Windows registry to determine if "DC" should be appended to the Adobe Acrobat
-	// Reader display name. While Adobe recently rebranded the free version to "Adobe Acrobat (64-bit)" — matching
+	// product name. While Adobe recently rebranded the free version to "Adobe Acrobat (64-bit)" — matching
 	// the naming convention of the paid product — our vulnerability detection engine requires the "DC" postfix for accurate
 	// signature matching.
 	"windows_acrobat_dc": {
@@ -1363,10 +1363,15 @@ var SoftwareOverrideQueries = map[string]DetailQuery{
 					continue
 				}
 
-				// Replace the 'acrobat' part for 'acrobat DC'
-				if idx := strings.Index(lower, "acrobat"); idx != -1 {
-					splitPoint := idx + len("acrobat")
-					softwareResults[i]["name"] = orig[:splitPoint] + " DC" + orig[splitPoint:]
+				// We need to correctly identify whether the name is in the
+				// form of `... Acrobat Reader ...` or just `... Acrobat ...`
+				options := []string{"reader", "acrobat"}
+				for _, variant := range options {
+					if idx := strings.Index(lower, variant); idx != -1 {
+						splitPoint := idx + len(variant)
+						softwareResults[i]["name"] = orig[:splitPoint] + " DC" + orig[splitPoint:]
+						break
+					}
 				}
 			}
 
