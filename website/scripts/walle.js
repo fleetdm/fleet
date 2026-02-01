@@ -38,10 +38,9 @@ module.exports = {
     console.log('\n\n'+mostRecentPartofScene+'\n\n'+'What will Wall-E choose?\n',report.choices);
 
     let upNext = await sails.helpers.ai.decide('What is the most appropriate and/or interesting next scene from here?\n\n```\n'+report.scene+'\n```\n\n'+getRememberThePlotStatement(1), report.choices);
-    // await sails.helpers.process.executeCommand('say <<\'ASDFGHIJK\'\n'+mostRecentPartofScene+'\nASDFGHIJK\n\n');
+    await sails.helpers.process.executeCommand('say <<\'ASDFGHIJK\'\n'+mostRecentPartofScene+'\nASDFGHIJK\n\n');
     console.log('\n* '+upNext+'\n');
     let nextSceneCue = report.choices[upNext];
-    // await sails.helpers.process.executeCommand('say <<\'ASDFGHIJK\'\n'+nextSceneCue+'\nASDFGHIJK\n\n');
 
 
     for (let i=0; i<n; i++) {
@@ -53,10 +52,12 @@ module.exports = {
       mostRecentPartofScene = report.scene;
       sceneSoFar += '\n\n'+report.scene;
       let upNext = await sails.helpers.ai.decide('What is the most appropriate and/or interesting next scene from here?\n\n```\n'+report.scene+'\n```\n\n'+getRememberThePlotStatement(i+1), report.choices);
-      // await sails.helpers.process.executeCommand('say <<\'ASDFGHIJK\'\n'+mostRecentPartofScene+'\nASDFGHIJK\n\n');
+      await sails.helpers.process.executeCommand('say <<\'ASDFGHIJK\'\n'+mostRecentPartofScene+'\nASDFGHIJK\n\n');
       console.log('\n* '+upNext+'\n');
       nextSceneCue = report.choices[upNext];
-      // await sails.helpers.process.executeCommand('say <<\'ASDFGHIJK\'\n'+nextSceneCue+'\nASDFGHIJK\n\n');
+      await sails.helpers.process.executeCommand('say <<\'ASDFGHIJK\'\nWhat will happen next?\nASDFGHIJK\n\n');
+      await sails.helpers.flow.pause(2000);
+      await sails.helpers.process.executeCommand('say <<\'ASDFGHIJK\'\n'+upNext+'\nASDFGHIJK\n\n');
 
     }//∞
 
