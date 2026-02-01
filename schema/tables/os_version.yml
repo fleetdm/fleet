@@ -1,25 +1,12 @@
 name: os_version
-platforms:
-  - darwin
-  - linux
-  - windows
-  - chrome
 examples: |-
-  See the OS version as well as the CPU architecture in use (X86 vs ARM for
-  example)
-
+  Retrieve operating system version information from an Android device.
+  
   ```
-  SELECT arch, version FROM os_version;
+  SELECT name, version, build FROM os_version;
   ```
-columns:
-  - name: install_date
-    platforms:
-      - windows
-  - name: pid_with_namespace
-    platforms:
-      - linux
-  - name: mount_namespace_id
-    platforms:
-      - linux
 notes: |-
-  - On ChromeOS, this table requires the [fleetd Chrome extension](https://fleetdm.com/docs/using-fleet/chromeos).
+ 
+  - This table reports operating system version details as provided by the Android platform.
+  - Values may vary by device manufacturer and Android release.
+  - This information is useful for inventory, troubleshooting, and ensuring devices meet minimum OS requirements.
