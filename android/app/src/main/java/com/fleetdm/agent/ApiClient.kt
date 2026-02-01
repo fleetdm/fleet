@@ -421,7 +421,7 @@ data class EnrollRequest(
     @SerialName("hardware_serial")
     val hardwareSerial: String,
     @SerialName("platform")
-    val platform: String = "darwin",
+    val platform: String = "android",
     @SerialName("computer_name")
     val computerName: String,
 )

@@ -17,7 +17,10 @@ class OsVersionTable : TablePlugin {
         ColumnDef("patch"),
         ColumnDef("build"),
         ColumnDef("platform"),
+        ColumnDef("arch"),
+        ColumnDef("security_patch"),
     )
+
 
     override suspend fun generate(ctx: TableQueryContext): List<Map<String, String>> {
         val versionName = Build.VERSION.RELEASE ?: ""
@@ -25,8 +28,10 @@ class OsVersionTable : TablePlugin {
 
         val buildId = Build.ID ?: ""
         val platform = "android"
-
         val osName = "Android"
+
+        val arch = Build.SUPPORTED_ABIS.firstOrNull() ?: ""
+        val securityPatch = Build.VERSION.SECURITY_PATCH ?: ""
 
         val (minor, patch) = parseMinorPatch(versionName)
 
@@ -39,9 +44,12 @@ class OsVersionTable : TablePlugin {
                 "patch" to patch,
                 "build" to buildId,
                 "platform" to platform,
+                "arch" to arch,
+                "security_patch" to securityPatch,
             ),
         )
     }
+
 
     private fun parseMinorPatch(version: String): Pair<String, String> {
         // Android version often looks like "14" or "13" or "12.1"
