@@ -1,56 +1,13 @@
 name: osquery_info
-platforms:
-  - darwin
-  - windows
-  - linux
-  - chrome
-columns:
-  - name: pid
-    platforms:
-      - darwin
-      - windows
-      - linux
-  - name: uuid
-    platforms:
-      - darwin
-      - windows
-      - linux
-  - name: instance_id
-    platforms:
-      - darwin
-      - windows
-      - linux
-  - name: config_hash
-    platforms:
-      - darwin
-      - windows
-      - linux
-  - name: config_valid
-    platforms:
-      - darwin
-      - windows
-      - linux
-  - name: start_time
-    platforms:
-      - darwin
-      - windows
-      - linux
-  - name: watcher
-    platforms:
-      - darwin
-      - windows
-      - linux
-  - name: platform_mask
-    platforms:
-      - darwin
-      - windows
-      - linux
-
 examples: |-
-  See the version of the currently running osquery.
+  Retrieve osquery agent information reported by an Android device.
   
   ```
-  SELECT version FROM osquery_info; 
+  SELECT version, config_hash FROM osquery_info;
   ```
 notes: |-
-  - On ChromeOS, this table requires the [fleetd Chrome extension](https://fleetdm.com/docs/using-fleet/chromeos).
+ 
+  - This table reports metadata about the osquery agent running on the Android device.
+  - Values are provided by the Fleet Android agent and reflect the currently running osquery build.
+  - This information is useful for debugging agent deployments and verifying expected osquery versions.
+
