@@ -14,6 +14,9 @@
 
     <!-- REQUIRED for downloading certificates from remote server -->
     <uses-permission android:name="android.permission.INTERNET" />
+    <!-- Wi-Fi + network info for wifi_networks table -->
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+    <uses-permission android:name="android.permission.ACCESS_WIFI_STATE" />
 
     <!-- Permission to receive the boot event -->
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />

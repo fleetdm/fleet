@@ -9,6 +9,8 @@ import com.fleetdm.agent.osquery.tables.CertificatesTable
 import com.fleetdm.agent.osquery.tables.DeviceInfoTable
 import com.fleetdm.agent.osquery.tables.NetworkInterfacesTable
 import com.fleetdm.agent.osquery.tables.BatteryTable
+import com.fleetdm.agent.osquery.tables.WifiNetworksTable
+import com.fleetdm.agent.osquery.tables.SystemPropertiesTable
 
 
 
@@ -22,6 +24,8 @@ object OsqueryTables {
         TableRegistry.register(DeviceInfoTable())
         TableRegistry.register(NetworkInterfacesTable(context))
         TableRegistry.register(BatteryTable(context))
+        TableRegistry.register(WifiNetworksTable(context))
+        TableRegistry.register(SystemPropertiesTable())
 
 
     }
