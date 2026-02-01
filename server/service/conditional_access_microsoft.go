@@ -134,7 +134,7 @@ func (svc *Service) ConditionalAccessMicrosoftConfirm(ctx context.Context) (conf
 	getResponse, err := svc.conditionalAccessMicrosoftProxy.Get(ctx, integration.TenantID, integration.ProxyServerSecret)
 	if err != nil {
 		level.Error(svc.logger).Log("msg", "failed to get integration settings from proxy", "err", err)
-		return false, "", &fleet.BadRequestError{Message: "failed to get integration settings from proxy"}
+		return false, "", nil
 	}
 
 	if !getResponse.SetupDone {

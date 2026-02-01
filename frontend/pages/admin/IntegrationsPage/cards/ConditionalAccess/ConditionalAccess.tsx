@@ -158,7 +158,7 @@ enum EntraPhase {
   ConfirmationError = "confirmation-error",
   AwaitingOAuth = "awaiting-oauth",
   Configured = "configured",
-  ConsentFailed = "consent-failed",
+  ConsentMissing = "consent-missing",
 }
 
 const ConditionalAccess = () => {
@@ -198,7 +198,7 @@ const ConditionalAccess = () => {
           "Successfully verified Microsoft Entra conditional access integration"
         );
       } else {
-        setEntraPhase(EntraPhase.ConsentFailed);
+        setEntraPhase(EntraPhase.ConsentMissing);
         if (
           // IT admin did not complete the consent.
           !setup_error ||
@@ -259,7 +259,7 @@ const ConditionalAccess = () => {
     const finalStates = [
       EntraPhase.AwaitingOAuth, // Don't check config if we're in AwaitingOAuth phase
       EntraPhase.ConfirmationError, // Don't do confirm call if we are in a final error state
-      EntraPhase.ConsentFailed, // Don't do confirm call if after tenant ID provided, something went wrong
+      EntraPhase.ConsentMissing, // Don't do confirm call if after tenant ID provided, something went wrong
     ];
 
     if (finalStates.includes(entraPhase)) {
@@ -356,18 +356,25 @@ const ConditionalAccess = () => {
   };
 
   const renderEntraContent = () => {
-    if (entraPhase === EntraPhase.ConfirmingConfigured) {
-      return (
-        <SectionCard header="Microsoft Entra">
-          <Spinner />
-        </SectionCard>
-      );
-    }
-
     if (entraPhase === EntraPhase.ConfirmationError) {
       return (
         <SectionCard header="Microsoft Entra">
           <DataError />
+        </SectionCard>
+      );
+    }
+
+    if (entraPhase === EntraPhase.ConfirmingConfigured) {
+      return (
+        <SectionCard
+          header="Microsoft Entra"
+          cta={
+            <Button isLoading disabled>
+              Connect
+            </Button>
+          }
+        >
+          Please wait until Microsoft Entra configuration is confirmed.
         </SectionCard>
       );
     }
