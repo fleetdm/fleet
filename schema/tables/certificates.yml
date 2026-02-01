@@ -1,36 +1,12 @@
 name: certificates
-description: "[Certificate
-  authorities](https://en.wikipedia.org/wiki/Certificate_authority) installed in
-  Keychains/ca-bundles."
 examples: |-
-  Replace 1QAZ2WSX with your Apple Developer ID, if you have one. This query
-  will then let you identify Macs that have a copy of your code signing and
-  notarization certificates.
-
+  List certificates installed on an Android device.
+  
   ```
-  SELECT * FROM certificates WHERE common_"name" LIKE '%%1QAZ2SWX%%';
+  SELECT subject, issuer, not_before, not_after FROM certificates;
   ```
-columns:
-  - name: sid
-    platforms:
-      - windows
-  - name: store_location
-    platforms:
-      - windows
-  - name: store
-    platforms:
-      - windows
-  - name: username
-    platforms:
-      - windows
-  - name: store_id
-    platforms:
-      - windows
-  - name: issuer2
-    platforms:
-      - linux
-      - darwin
-  - name: subject2
-    platforms:
-      - linux
-      - darwin
+notes: |-
+ 
+  - This table reports certificates available on the Android device at query time.
+  - Certificates may originate from the system trust store, user installed certificates, or applications.
+  - This information can be used to audit trusted certificate authorities and detect unexpected or unauthorized certificates.
