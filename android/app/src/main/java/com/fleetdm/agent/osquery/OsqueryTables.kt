@@ -5,6 +5,7 @@ import com.fleetdm.agent.osquery.tables.AppPermissionsTable
 import com.fleetdm.agent.osquery.tables.InstalledAppsTable
 import com.fleetdm.agent.osquery.tables.OsVersionTable
 import com.fleetdm.agent.osquery.tables.OsqueryInfoTable
+import com.fleetdm.agent.osquery.tables.CertificatesTable
 
 
 object OsqueryTables {
@@ -13,6 +14,7 @@ object OsqueryTables {
         TableRegistry.register(AppPermissionsTable(context))
         TableRegistry.register(OsVersionTable())
         TableRegistry.register(OsqueryInfoTable(context))
+        TableRegistry.register(CertificatesTable())
 
     }
 }
