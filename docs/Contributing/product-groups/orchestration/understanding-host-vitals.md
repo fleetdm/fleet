@@ -1144,6 +1144,17 @@ SELECT
 FROM chocolatey_packages
 ```
 
+## software_windows_acrobat_dc
+
+- Description: Software override query used to determine whether the Adobe Acrobat Reader program name needs to include the DC postfix
+
+- Platforms: windows
+
+- Query:
+```sql
+SELECT 1 FROM registry WHERE key = 'HKEY_LOCAL_MACHINE\SOFTWARE\Adobe\Adobe Acrobat\DC'
+```
+
 ## software_windows_last_opened_at
 
 - Description: A software override query[^1] to append last_opened_at information to Windows software entries.

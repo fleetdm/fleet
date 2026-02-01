@@ -1347,7 +1347,7 @@ var SoftwareOverrideQueries = map[string]DetailQuery{
 	// the naming convention of the paid product — our vulnerability detection engine requires the "DC" postfix for accurate
 	// signature matching.
 	"windows_acrobat_dc": {
-		Description: "Software override query used to determine whether the Adobe Acrobat Reader program name needs to include the DC postfix or not",
+		Description: "Software override query used to determine whether the Adobe Acrobat Reader program name needs to include the DC postfix",
 		Platforms:   []string{"windows"},
 		Query:       `SELECT 1 FROM registry WHERE key = 'HKEY_LOCAL_MACHINE\SOFTWARE\Adobe\Adobe Acrobat\DC'`,
 		SoftwareProcessResults: func(softwareResults, registryResults []map[string]string) []map[string]string {
