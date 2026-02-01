@@ -27,11 +27,11 @@ module.exports = {
   },
 
 
-  fn: async function ({cue}) {
+  fn: async function ({cue, n}) {
 
     sails.log('Running custom shell script... (`sails run walle`)');
 
-    let n = 3;
+    let wpm = 100;
     let synopsis = await sails.helpers.ai.prompt('Come up with a 1-2 sentence synopsis for a Wall-E themed adventure that will have an intriguing beginning, a climax, and finally a conclusion, which will be over '+n+'-'+n*2+' paragraphs long.  (Remember, the synopsis you are generating is no longer than 1 short paragraph.)').retry();
     sails.log.info('[Raw synopsis] '+synopsis+'\n');
     synopsis = await sails.helpers.ai.satisfy(synopsis, ['just the string literal, not an object', 'no longer than 1 short paragraph']);
@@ -53,7 +53,7 @@ module.exports = {
         sails.log('* '+upNext+'\n');
       },
       async ()=>{
-        await sails.helpers.process.executeCommand('say <<\'ASDFGHIJK\'\n'+mostRecentPartofScene+'\nASDFGHIJK\n\n');
+        await sails.helpers.process.executeCommand('say --rate='+wpm+' <<\'ASDFGHIJK\'\n'+mostRecentPartofScene+'\nASDFGHIJK\n\n');
       }
     ]);
     let nextSceneCue = report.choices[upNext];
@@ -74,15 +74,15 @@ module.exports = {
           sails.log('* '+upNext+'\n');
         },
         async()=>{
-          await sails.helpers.process.executeCommand('say <<\'ASDFGHIJK\'\n'+mostRecentPartofScene+'\nASDFGHIJK\n\n');
+          await sails.helpers.process.executeCommand('say --rate='+wpm+' <<\'ASDFGHIJK\'\n'+mostRecentPartofScene+'\nASDFGHIJK\n\n');
           if (i+1 < n) {
-            await sails.helpers.process.executeCommand('say <<\'ASDFGHIJK\'\nWhat will happen next?\nASDFGHIJK\n\n');
+            await sails.helpers.process.executeCommand('say -v daniel --rate='+wpm+' <<\'ASDFGHIJK\'\nWhat will happen next?\nASDFGHIJK\n\n');
             await sails.helpers.flow.pause(2000);
           }
         }
       ]);
       nextSceneCue = report.choices[upNext];
-      await sails.helpers.process.executeCommand('say <<\'ASDFGHIJK\'\n'+upNext+'\nASDFGHIJK\n\n');
+      await sails.helpers.process.executeCommand('say -v agnes --rate='+wpm+' <<\'ASDFGHIJK\'\n'+upNext+'\nASDFGHIJK\n\n');
 
     }//∞
 
