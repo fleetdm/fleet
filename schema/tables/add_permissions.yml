@@ -1,0 +1,12 @@
+name: add_permissions
+examples: |-
+  Retrieve the permissions granted to applications installed on an Android device.
+  
+  ```
+  SELECT * FROM add_permissions;
+  ```
+notes: |-
+ 
+  - This table reports Android application permissions as granted by the operating system at query time.
+  - Permissions are defined by the application and granted by the user or the system depending on Android version and policy.
+  - This table can be used to audit sensitive permissions such as access to location, camera, microphone, or contacts.
