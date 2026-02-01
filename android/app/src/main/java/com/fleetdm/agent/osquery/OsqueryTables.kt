@@ -6,7 +6,7 @@ import com.fleetdm.agent.osquery.tables.InstalledAppsTable
 import com.fleetdm.agent.osquery.tables.OsVersionTable
 import com.fleetdm.agent.osquery.tables.OsqueryInfoTable
 import com.fleetdm.agent.osquery.tables.CertificatesTable
-
+import com.fleetdm.agent.osquery.tables.DeviceInfoTable
 
 object OsqueryTables {
     fun registerAll(context: android.content.Context) {
@@ -15,6 +15,7 @@ object OsqueryTables {
         TableRegistry.register(OsVersionTable())
         TableRegistry.register(OsqueryInfoTable(context))
         TableRegistry.register(CertificatesTable())
+        TableRegistry.register(DeviceInfoTable())
 
     }
 }
