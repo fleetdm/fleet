@@ -79,9 +79,6 @@ relaunch_application() {
 }
 
 # Extract with ditto and --noqtn so extracted files do NOT get quarantine.
-# Using unzip can add extended attributes to extracted files, which modifies the
-# app bundle and breaks the code signature ("sealed resource is missing or invalid").
-# ditto --noqtn extracts without preserving quarantine; we never touch the app after.
 ditto -xk --noqtn "$INSTALLER_PATH" "$TMPDIR"
 
 # copy to the applications folder (do not modify the app bundle after extraction)
