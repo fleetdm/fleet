@@ -14630,7 +14630,7 @@ func (s *integrationTestSuite) TestAndroidHostUUIDPropagation() {
 	updatedHost.Host.OSVersion = "Android 16"
 	updatedHost.Host.UUID = expectedUUID
 
-	err = s.ds.UpdateAndroidHost(ctx, updatedHost, false)
+	err = s.ds.UpdateAndroidHost(ctx, updatedHost, false, false)
 	require.NoError(t, err)
 
 	// Get the host again, verify UUID is still present
