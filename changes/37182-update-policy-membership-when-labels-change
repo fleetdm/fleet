@@ -1,0 +1,1 @@
+- Fixed issue with hosts incorrectly reporting policy failures after policy label targets changed.
