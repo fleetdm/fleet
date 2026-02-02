@@ -36,7 +36,7 @@ module.exports = {
     if (category === 'articles') {
       // If the category is `/articles` we'll show all articles
       articles = sails.config.builtStaticContent.markdownPages.filter((page)=>{
-        if(_.startsWith(page.htmlId, 'articles') && !_.startsWith(page.url, '/guides') && !_.startsWith(page.url, '/compare')) {
+        if(_.startsWith(page.htmlId, 'articles') && !_.startsWith(page.url, '/guides')) {
           return page;
         }
       });
