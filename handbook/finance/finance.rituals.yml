@@ -192,7 +192,7 @@
   moreInfoUrl: "https://fleetdm.com/handbook/sales#review-salesforce-opportunities"
   dri: "Sampfluger88"
   autoIssue:   
-    labels: [ ":gtm-ops","#g-unicorns" ]
+    labels: [ ":gtm-ops", ":help-gtm-ops" ]
     repo: "confidential"
 - 
   task: "Measure intent signals"

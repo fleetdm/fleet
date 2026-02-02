@@ -150,6 +150,7 @@ const DeviceUserPage = ({
   );
 
   const [showBypassModal, setShowBypassModal] = useState(false);
+  const [bypassSuccessful, setBypassSuccessful] = useState(false);
   const [showBitLockerPINModal, setShowBitLockerPINModal] = useState(false);
   const [showInfoModal, setShowInfoModal] = useState(false);
   const [showEnrollMdmModal, setShowEnrollMdmModal] = useState(false);
@@ -828,6 +829,9 @@ const DeviceUserPage = ({
                     conditionalAccessEnabled={
                       globalConfig?.features?.enable_conditional_access
                     }
+                    conditionalAccessBypassed={
+                      host?.conditional_access_bypassed || bypassSuccessful
+                    }
                   />
                 </TabPanel>
               )}
@@ -969,6 +973,7 @@ const DeviceUserPage = ({
                 "success",
                 "Access has been temporarily restored. You may now attempt to sign in again."
               );
+              setBypassSuccessful(true);
             } catch {
               renderFlash(
                 "error",
