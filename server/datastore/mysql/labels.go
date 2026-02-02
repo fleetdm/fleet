@@ -27,6 +27,7 @@ func (ds *Datastore) SetAsideLabels(ctx context.Context, notOnTeamID *uint, name
 	}
 
 	// Helper function to check if user has a write role on a specific team
+	// TODO HERE!
 	hasWriteRoleOnTeam := func(teamID uint) bool {
 		for _, team := range user.Teams {
 			if team.ID == teamID &&

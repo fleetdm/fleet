@@ -17,6 +17,7 @@ const (
 	RoleObserver     = "observer"
 	RoleObserverPlus = "observer_plus"
 	RoleGitOps       = "gitops"
+	RoleTechnician   = "technician"
 	TeamNameNoTeam   = "No team"
 	TeamNameAllTeams = "All teams"
 )
@@ -475,11 +476,13 @@ var teamRoles = map[string]struct{}{
 	RoleAdmin:        {},
 	RoleObserver:     {},
 	RoleMaintainer:   {},
+	RoleTechnician:   {},
 	RoleObserverPlus: {},
 	RoleGitOps:       {},
 }
 
 var premiumTeamRoles = map[string]struct{}{
+	RoleTechnician:   {},
 	RoleObserverPlus: {},
 	RoleGitOps:       {},
 }
@@ -494,11 +497,13 @@ var globalRoles = map[string]struct{}{
 	RoleObserver:     {},
 	RoleMaintainer:   {},
 	RoleAdmin:        {},
+	RoleTechnician:   {},
 	RoleObserverPlus: {},
 	RoleGitOps:       {},
 }
 
 var premiumGlobalRoles = map[string]struct{}{
+	RoleTechnician:   {},
 	RoleObserverPlus: {},
 	RoleGitOps:       {},
 }

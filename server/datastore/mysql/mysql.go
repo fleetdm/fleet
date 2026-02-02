@@ -866,7 +866,7 @@ func (ds *Datastore) whereFilterHostsByTeams(filter fleet.TeamFilter, hostKey st
 
 	if filter.User.GlobalRole != nil {
 		switch *filter.User.GlobalRole {
-		case fleet.RoleAdmin, fleet.RoleMaintainer, fleet.RoleObserverPlus:
+		case fleet.RoleAdmin, fleet.RoleMaintainer, fleet.RoleTechnician, fleet.RoleObserverPlus:
 			return defaultAllowClause
 		case fleet.RoleObserver:
 			if filter.IncludeObserver {
@@ -884,6 +884,7 @@ func (ds *Datastore) whereFilterHostsByTeams(filter fleet.TeamFilter, hostKey st
 	for _, team := range filter.User.Teams {
 		if team.Role == fleet.RoleAdmin ||
 			team.Role == fleet.RoleMaintainer ||
+			team.Role == fleet.RoleTechnician ||
 			team.Role == fleet.RoleObserverPlus ||
 			(team.Role == fleet.RoleObserver && filter.IncludeObserver) {
 			idStrs = append(idStrs, fmt.Sprint(team.ID))
@@ -942,7 +943,7 @@ func (ds *Datastore) whereFilterGlobalOrTeamIDByTeamsWithSqlFilter(
 
 	if filter.User.GlobalRole != nil {
 		switch *filter.User.GlobalRole {
-		case fleet.RoleAdmin, fleet.RoleMaintainer, fleet.RoleObserverPlus:
+		case fleet.RoleAdmin, fleet.RoleMaintainer, fleet.RoleTechnician, fleet.RoleObserverPlus:
 			return defaultAllowClause
 		case fleet.RoleObserver:
 			if filter.IncludeObserver {
@@ -960,6 +961,7 @@ func (ds *Datastore) whereFilterGlobalOrTeamIDByTeamsWithSqlFilter(
 	for _, team := range filter.User.Teams {
 		if team.Role == fleet.RoleAdmin ||
 			team.Role == fleet.RoleMaintainer ||
+			team.Role == fleet.RoleTechnician ||
 			team.Role == fleet.RoleObserverPlus ||
 			(team.Role == fleet.RoleObserver && filter.IncludeObserver) {
 			idStrs = append(idStrs, fmt.Sprint(team.ID))
@@ -1001,7 +1003,7 @@ func (ds *Datastore) whereFilterTeams(filter fleet.TeamFilter, teamKey string) s
 
 	if filter.User.GlobalRole != nil {
 		switch *filter.User.GlobalRole {
-		case fleet.RoleAdmin, fleet.RoleMaintainer, fleet.RoleGitOps, fleet.RoleObserverPlus:
+		case fleet.RoleAdmin, fleet.RoleMaintainer, fleet.RoleTechnician, fleet.RoleGitOps, fleet.RoleObserverPlus:
 			return "TRUE"
 		case fleet.RoleObserver:
 			if filter.IncludeObserver {
@@ -1018,6 +1020,7 @@ func (ds *Datastore) whereFilterTeams(filter fleet.TeamFilter, teamKey string) s
 	for _, team := range filter.User.Teams {
 		if team.Role == fleet.RoleAdmin ||
 			team.Role == fleet.RoleMaintainer ||
+			team.Role == fleet.RoleTechnician ||
 			team.Role == fleet.RoleGitOps ||
 			team.Role == fleet.RoleObserverPlus ||
 			(team.Role == fleet.RoleObserver && filter.IncludeObserver) {
