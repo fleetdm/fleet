@@ -78,14 +78,11 @@ relaunch_application() {
   fi
 }
 
-# Remove quarantine from the zip only, before extraction. Do NOT run xattr on the
-# extracted app: modifying any file inside the bundle breaks the code signature
-# ("sealed resource is missing or invalid"). Clearing the zip avoids quarantine
-# being applied to extracted files when possible.
-xattr -d com.apple.quarantine "$INSTALLER_PATH" 2>/dev/null || true
-
-# extract contents (zip from desktop.githubusercontent.com)
-unzip "$INSTALLER_PATH" -d "$TMPDIR"
+# Extract with ditto and --noqtn so extracted files do NOT get quarantine.
+# Using unzip can add extended attributes to extracted files, which modifies the
+# app bundle and breaks the code signature ("sealed resource is missing or invalid").
+# ditto --noqtn extracts without preserving quarantine; we never touch the app after.
+ditto -xk --noqtn "$INSTALLER_PATH" "$TMPDIR"
 
 # copy to the applications folder (do not modify the app bundle after extraction)
 quit_and_track_application 'com.github.GitHubClient'
