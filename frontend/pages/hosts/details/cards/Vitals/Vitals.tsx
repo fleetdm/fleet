@@ -449,7 +449,7 @@ const Vitals = ({
           <TooltipWrapperArchLinuxRolling />
         </>
       ) : (
-        version
+        <TooltipTruncatedText value={version} />
       );
       return (
         <DataSet
@@ -471,16 +471,23 @@ const Vitals = ({
       <DataSet
         title="Operating system"
         value={
-          <>
+          <span className={`${baseClass}__os-version`}>
             {!osVersionRequirementMet && (
               <Icon name="error-outline" color="ui-fleet-black-75" />
             )}
             <TooltipWrapper
+              className={`${baseClass}__os-version-tooltip`}
               tipContent={
                 osVersionRequirementMet ? (
-                  "Meets minimum version requirement."
+                  <>
+                    {vitalsData.os_version}
+                    <br />
+                    Meets minimum version requirement.
+                  </>
                 ) : (
                   <>
+                    {vitalsData.os_version}
+                    <br />
                     Does not meet minimum version requirement.
                     <br />
                     Deadline to update: {osVersionRequirement.deadline}
@@ -488,10 +495,13 @@ const Vitals = ({
                 )
               }
             >
-              {vitalsData.os_version}
+              <span className={`${baseClass}__os-version-text`}>
+                {vitalsData.os_version}
+              </span>
             </TooltipWrapper>
-          </>
+          </span>
         }
+        className={`${baseClass}__os-data-set`}
       />
     );
   };
