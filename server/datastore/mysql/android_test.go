@@ -44,7 +44,7 @@ func TestAndroid(t *testing.T) {
 		{"GetHostMDMAndroidProfiles", testGetHostMDMAndroidProfiles},
 		{"GetAndroidPolicyRequestByUUID", testGetAndroidPolicyRequestByUUID},
 		{"ListHostMDMAndroidProfilesPendingInstallWithVersion", testListHostMDMAndroidProfilesPendingInstallWithVersion},
-		{"ListHostMDMAndroidProfilesFailedDueToNonCompliance", testListHostMDMAndroidProfilesFailedDueToNonCompliance},
+		{"ListHostMDMAndroidProfilesToReverify", testListHostMDMAndroidProfilesToReverify},
 		{"BulkDeleteMDMAndroidHostProfiles", testBulkDeleteMDMAndroidHostProfiles},
 		{"BatchSetMDMAndroidProfiles_Associations", testBatchSetMDMAndroidProfiles_Associations},
 		{"NewAndroidHostWithIdP", testNewAndroidHostWithIdP},
@@ -2623,7 +2623,7 @@ func testHasAndroidAppConfigurationChanged(t *testing.T, ds *Datastore) {
 	}
 }
 
-func testListHostMDMAndroidProfilesFailedDueToNonCompliance(t *testing.T, ds *Datastore) {
+func testListHostMDMAndroidProfilesToReverify(t *testing.T, ds *Datastore) {
 	ctx := t.Context()
 
 	profiles := make([]*fleet.MDMAndroidConfigProfile, 3)
@@ -2643,20 +2643,14 @@ func testListHostMDMAndroidProfilesFailedDueToNonCompliance(t *testing.T, ds *Da
 	}
 	policyVersion := ptr.Int(1)
 
-	detailMesageUserAction := `passwordPolicies" setting couldn't apply to a host.
-Reason: USER_ACTION. Other settings are applied.`
-	detailMessageReverifiableSettings := `bluetoothDisabled", and "passwordPolicies" settings couldn't apply to a host.
-Reasons: PENDING, and USER_ACTION. Other settings are applied.`
-	detailMessageMixedSettings := `bluetoothDisabled", "cameraDisabled", and "passwordPolicies" settings couldn't apply to a host.
-Reasons: MANAGEMENT_MODE, API_LEVEL, and USER_ACTION. Other settings are applied.`
-
+	// detail message shouldn't matter since the reverify flag is used
 	profile1 := fleet.MDMAndroidProfilePayload{
 		HostUUID:                hostUUID,
 		ProfileUUID:             profiles[0].ProfileUUID,
 		ProfileName:             profiles[0].Name,
 		OperationType:           fleet.MDMOperationTypeInstall,
 		Status:                  &fleet.MDMDeliveryFailed,
-		Detail:                  detailMesageUserAction,
+		Reverify:                true,
 		IncludedInPolicyVersion: policyVersion,
 	}
 
@@ -2666,7 +2660,7 @@ Reasons: MANAGEMENT_MODE, API_LEVEL, and USER_ACTION. Other settings are applied
 		ProfileName:             profiles[1].Name,
 		OperationType:           fleet.MDMOperationTypeInstall,
 		Status:                  &fleet.MDMDeliveryFailed,
-		Detail:                  detailMessageReverifiableSettings,
+		Reverify:                true,
 		IncludedInPolicyVersion: policyVersion,
 	}
 
@@ -2676,7 +2670,7 @@ Reasons: MANAGEMENT_MODE, API_LEVEL, and USER_ACTION. Other settings are applied
 		ProfileName:             profiles[2].Name,
 		OperationType:           fleet.MDMOperationTypeInstall,
 		Status:                  &fleet.MDMDeliveryFailed,
-		Detail:                  detailMessageMixedSettings,
+		Reverify:                false,
 		IncludedInPolicyVersion: policyVersion,
 	}
 
@@ -2693,7 +2687,7 @@ Reasons: MANAGEMENT_MODE, API_LEVEL, and USER_ACTION. Other settings are applied
 	defer clearOutHostMDMAndroidProfilesTable()
 	err := ds.BulkUpsertMDMAndroidHostProfiles(ctx, allProfiles)
 	require.NoError(t, err)
-	hostProfiles, err := ds.ListHostMDMAndroidProfilesFailedDueToNonCompliance(ctx, hostUUID, int64(*policyVersion))
+	hostProfiles, err := ds.ListHostMDMAndroidProfilesToReverify(ctx, hostUUID, int64(*policyVersion))
 	require.NoError(t, err)
 	require.ElementsMatch(t, hostProfiles, wantedProfiles)
 }

@@ -118,6 +118,7 @@ type MDMAndroidProfilePayload struct {
 	Status                  *MDMDeliveryStatus `db:"status"`
 	OperationType           MDMOperationType   `db:"operation_type"`
 	Detail                  string             `db:"detail"`
+	Reverify                bool               `db:"reverify"`
 	ProfileUUID             string             `db:"profile_uuid"`
 	ProfileName             string             `db:"profile_name"`
 	PolicyRequestUUID       *string            `db:"policy_request_uuid"`

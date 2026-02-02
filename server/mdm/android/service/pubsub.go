@@ -631,7 +631,7 @@ func (svc *Service) verifyDevicePolicy(ctx context.Context, hostUUID string, dev
 		return
 	}
 	// Get profiles that failed due to requiring waiting or user action, that can be verified again
-	failedNonComplianceProfiles, err := svc.ds.ListHostMDMAndroidProfilesFailedDueToNonCompliance(ctx, hostUUID, appliedPolicyVersion)
+	failedNonComplianceProfiles, err := svc.ds.ListHostMDMAndroidProfilesToReverify(ctx, hostUUID, appliedPolicyVersion)
 	if err != nil {
 		level.Error(svc.logger).Log("msg", "error getting failed profiles", "err", err)
 		return
@@ -711,10 +711,12 @@ func (svc *Service) verifyDevicePolicy(ctx context.Context, hostUUID string, dev
 		for _, profile := range pendingInstallProfiles {
 			status := &fleet.MDMDeliveryVerified
 			detail := profile.Detail
+			reverify := false
 
 			if nonCompliance, ok := failedProfileUUIDsWithNonCompliances[profile.ProfileUUID]; ok {
 				status = &fleet.MDMDeliveryFailed
 				detail = buildNonComplianceErrorMessage(nonCompliance)
+				reverify = canProfileBeReverified(nonCompliance)
 			}
 
 			profiles = append(profiles, &fleet.MDMAndroidProfilePayload{
@@ -728,6 +730,7 @@ func (svc *Service) verifyDevicePolicy(ctx context.Context, hostUUID string, dev
 				ProfileName:             profile.ProfileName,
 				PolicyRequestUUID:       profile.PolicyRequestUUID,
 				Detail:                  detail,
+				Reverify:                reverify,
 			})
 		}
 
@@ -921,6 +924,21 @@ func buildNonComplianceErrorMessage(nonCompliance []*androidmanagement.NonCompli
 	failedReasonsString += failedReasons[len(failedReasons)-1]
 
 	return fmt.Sprintf("%s setting%s couldn't apply to a host.\nReason%s: %s. Other settings are applied.", failedSettingsString, pluralModifier, pluralModifier, failedReasonsString)
+}
+
+func canProfileBeReverified(nonCompliance []*androidmanagement.NonComplianceDetail) bool {
+	// Profiles with settings that failed because of the reasons USER_ACTION or PENDING can be
+	// verified again on a status report, they do not indicate anything was wrong with the settings.
+	for _, nc := range nonCompliance {
+		// mark that a profile can be verified again if it previously
+		// failed only due to these reasons and no others.
+		if nc.NonComplianceReason == "USER_ACTION" || nc.NonComplianceReason == "PENDING" {
+			continue
+		} else {
+			return false
+		}
+	}
+	return true
 }
 
 // calculateAndroidStorageMetrics processes Android device memory events and calculates storage metrics.

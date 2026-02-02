@@ -1261,11 +1261,11 @@ func (ds *Datastore) ListHostMDMAndroidProfilesPendingInstallWithVersion(ctx con
 	return profiles, nil
 }
 
-func (ds *Datastore) ListHostMDMAndroidProfilesFailedDueToNonCompliance(ctx context.Context, hostUUID string, policyVersion int64) ([]*fleet.MDMAndroidProfilePayload, error) {
+func (ds *Datastore) ListHostMDMAndroidProfilesToReverify(ctx context.Context, hostUUID string, policyVersion int64) ([]*fleet.MDMAndroidProfilePayload, error) {
 	const stmt = `
-		SELECT profile_uuid, host_uuid, status, operation_type, detail, profile_name, policy_request_uuid, device_request_uuid, request_fail_count, included_in_policy_version
+		SELECT profile_uuid, host_uuid, status, operation_type, detail, reverify, profile_name, policy_request_uuid, device_request_uuid, request_fail_count, included_in_policy_version
 		FROM host_mdm_android_profiles
-		WHERE host_uuid = ? AND included_in_policy_version <= ? AND status = ? AND operation_type = ?
+		WHERE host_uuid = ? AND included_in_policy_version <= ? AND status = ? AND operation_type = ? AND reverify = true
 	`
 
 	var failedProfiles []*fleet.MDMAndroidProfilePayload
@@ -1275,50 +1275,13 @@ func (ds *Datastore) ListHostMDMAndroidProfilesFailedDueToNonCompliance(ctx cont
 	}
 
 	var profiles []*fleet.MDMAndroidProfilePayload
-
-	// Profiles with settings that failed because of the reasons USER_ACTION or PENDING can be verified again
-	// on a status report and do not indicate anything was wrong with the settings. We add a failed profile
-	// to get verified again if it previously failed only due to those reasons and no others.
 	for _, profile := range failedProfiles {
-		ok, err := checkAndroidProfileDetailReasons(ctx, profile.Detail)
-		if err != nil {
-			return nil, ctxerr.Wrap(ctx, err, "listing host MDM Android profiles failed install")
-		}
-		if ok {
+		if profile.Reverify {
 			profiles = append(profiles, profile)
 		}
 	}
 
 	return profiles, nil
-}
-
-func checkAndroidProfileDetailReasons(ctx context.Context, profileDetail string) (bool, error) {
-	// extract reasons from detail since it is stored as a formatted message, assuming
-	// it matches the format in android.Service.buildNonComplianceErrorMessage
-	_, after, ok := strings.Cut(profileDetail, ":")
-	if !ok {
-		return false, ctxerr.New(ctx, "failed to parse profile detail string")
-	}
-	trimmed, _, ok := strings.Cut(after, ".")
-	if !ok {
-		return false, ctxerr.New(ctx, "failed to parse profile detail string")
-	}
-	fields := strings.FieldsFunc(trimmed, func(r rune) bool {
-		return r == ',' || r == ' '
-	})
-	var shouldAppend bool
-
-	for _, f := range fields {
-		switch f {
-		case "and":
-			continue
-		case "USER_ACTION", "PENDING":
-			shouldAppend = true
-		default:
-			return false, nil
-		}
-	}
-	return shouldAppend, nil
 }
 
 func (ds *Datastore) BulkDeleteMDMAndroidHostProfiles(ctx context.Context, hostUUID string, policyVersionId int64) error {
