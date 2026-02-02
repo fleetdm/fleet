@@ -1154,6 +1154,7 @@ func (ds *Datastore) BulkUpsertMDMAndroidHostProfiles(ctx context.Context, paylo
 				status,
 				operation_type,
 				detail,
+				reverify,
 				profile_uuid,
 				profile_name,
 				policy_request_uuid,
@@ -1166,6 +1167,7 @@ func (ds *Datastore) BulkUpsertMDMAndroidHostProfiles(ctx context.Context, paylo
 				status = VALUES(status),
 				operation_type = VALUES(operation_type),
 				detail = VALUES(detail),
+				reverify = VALUES(reverify),
 				profile_name = VALUES(profile_name),
 				policy_request_uuid = VALUES(policy_request_uuid),
 				device_request_uuid = VALUES(device_request_uuid),
@@ -1189,10 +1191,10 @@ func (ds *Datastore) BulkUpsertMDMAndroidHostProfiles(ctx context.Context, paylo
 	}
 
 	generateValueArgs := func(p *fleet.MDMAndroidProfilePayload) (string, []any) {
-		valuePart := "(?, ?, ?, ?, ?, ?, ?, ?, ?, ?),"
+		valuePart := "(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?),"
 		args := []any{
 			p.HostUUID, p.Status, p.OperationType,
-			p.Detail, p.ProfileUUID, p.ProfileName,
+			p.Detail, p.Reverify, p.ProfileUUID, p.ProfileName,
 			p.PolicyRequestUUID, p.DeviceRequestUUID, p.RequestFailCount,
 			p.IncludedInPolicyVersion,
 		}
