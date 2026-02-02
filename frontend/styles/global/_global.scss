@@ -125,6 +125,8 @@ form,
   display: flex;
   flex-direction: column;
   gap: $gap-form-component;
+  white-space: normal;
+  overflow-wrap: break-word; // allow long words to break to avoid overflow
 
   &__label {
     font-size: $x-small;
