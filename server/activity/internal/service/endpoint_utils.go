@@ -40,20 +40,9 @@ func encodeResponse(ctx context.Context, w http.ResponseWriter, response any) er
 
 // makeDecoder creates a decoder for the given request type.
 func makeDecoder(iface any, requestBodySizeLimit int64) kithttp.DecodeRequestFunc {
-	return func(ctx context.Context, r *http.Request) (request any, err error) {
-		if requestBodySizeLimit != -1 {
-			limitedReader := io.LimitReader(r.Body, requestBodySizeLimit).(*io.LimitedReader)
-
-			r.Body = &eu.LimitedReadCloser{
-				LimitedReader: limitedReader,
-				Closer:        r.Body,
-			}
-		}
-
-		return eu.MakeDecoder(iface, func(body io.Reader, req any) error {
-			return json.NewDecoder(body).Decode(req)
-		}, parseCustomTags, nil, nil, nil)(ctx, r)
-	}
+	return eu.MakeDecoder(iface, func(body io.Reader, req any) error {
+		return json.NewDecoder(body).Decode(req)
+	}, parseCustomTags, nil, nil, nil, requestBodySizeLimit)
 }
 
 // parseCustomTags handles custom URL tag values for activity requests.

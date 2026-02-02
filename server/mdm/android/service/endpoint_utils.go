@@ -7,7 +7,6 @@ import (
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm/android"
-	"github.com/fleetdm/fleet/v4/server/platform/endpointer"
 	eu "github.com/fleetdm/fleet/v4/server/platform/endpointer"
 	platform_http "github.com/fleetdm/fleet/v4/server/platform/http"
 	"github.com/fleetdm/fleet/v4/server/service/middleware/auth"
@@ -28,20 +27,9 @@ func encodeResponse(ctx context.Context, w http.ResponseWriter, response interfa
 }
 
 func makeDecoder(iface any, requestBodySizeLimit int64) kithttp.DecodeRequestFunc {
-	return func(ctx context.Context, r *http.Request) (request any, err error) {
-		if requestBodySizeLimit != -1 {
-			limitedReader := io.LimitReader(r.Body, requestBodySizeLimit).(*io.LimitedReader)
-
-			r.Body = &endpointer.LimitedReadCloser{
-				LimitedReader: limitedReader,
-				Closer:        r.Body,
-			}
-		}
-
-		return eu.MakeDecoder(iface, func(body io.Reader, req any) error {
-			return json.UnmarshalRead(body, req)
-		}, nil, nil, nil, nil)(ctx, r)
-	}
+	return eu.MakeDecoder(iface, func(body io.Reader, req any) error {
+		return json.UnmarshalRead(body, req)
+	}, nil, nil, nil, nil, requestBodySizeLimit)
 }
 
 // handlerFunc is the handler function type for Android service endpoints.

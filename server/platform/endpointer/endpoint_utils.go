@@ -371,6 +371,8 @@ type requestValidator interface {
 //
 // The customQueryDecoder parameter allows services to inject domain-specific
 // query parameter decoding logic.
+//
+// If adding a new way to parse/decode the requset, make sure to wrap the body in a limited reader with the maxRequestBodySize
 func MakeDecoder(
 	iface interface{},
 	jsonUnmarshal func(body io.Reader, req any) error,
@@ -378,6 +380,7 @@ func MakeDecoder(
 	isBodyDecoder func(reflect.Value) bool,
 	decodeBody func(ctx context.Context, r *http.Request, v reflect.Value, body io.Reader) error,
 	customQueryDecoder DomainQueryFieldDecoder,
+	maxRequestBodySize int64,
 ) kithttp.DecodeRequestFunc {
 	if iface == nil {
 		return func(ctx context.Context, r *http.Request) (interface{}, error) {
@@ -386,9 +389,17 @@ func MakeDecoder(
 	}
 	if rd, ok := iface.(RequestDecoder); ok {
 		return func(ctx context.Context, r *http.Request) (interface{}, error) {
+			if maxRequestBodySize != -1 {
+				limitedReader := io.LimitReader(r.Body, maxRequestBodySize).(*io.LimitedReader)
+
+				r.Body = &LimitedReadCloser{
+					LimitedReader: limitedReader,
+					Closer:        r.Body,
+				}
+			}
 			ret, err := rd.DecodeRequest(ctx, r)
 			if err != nil && err == io.ErrUnexpectedEOF {
-				return nil, platform_http.PayloadTooLargeError{}
+				return nil, platform_http.PayloadTooLargeError{ContentLength: r.Header.Get("Content-Length")}
 			}
 			return ret, err
 		}
@@ -402,6 +413,15 @@ func MakeDecoder(
 	return func(ctx context.Context, r *http.Request) (interface{}, error) {
 		v := reflect.New(t)
 		nilBody := false
+
+		if maxRequestBodySize != -1 {
+			limitedReader := io.LimitReader(r.Body, maxRequestBodySize).(*io.LimitedReader)
+
+			r.Body = &LimitedReadCloser{
+				LimitedReader: limitedReader,
+				Closer:        r.Body,
+			}
+		}
 
 		buf := bufio.NewReader(r.Body)
 		var body io.Reader = buf
