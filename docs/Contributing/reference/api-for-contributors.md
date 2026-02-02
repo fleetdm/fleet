@@ -1484,6 +1484,8 @@ Get information about a single profile from Apple Business Manager by its UUID.
 
 _Available in Fleet Premium_
 
+`POST /api/v1/fleet/mdm/apple/dep/devices/assign`
+
 Assigns a profile to a list of serial numbers in Apple Business Manager. If abm_token_id is not specified, the devices corresponding to the provided serial numbers must all exist in Fleet and come from the same ABM token.
 
 #### Parameters
@@ -1516,6 +1518,8 @@ Assigns a profile to a list of serial numbers in Apple Business Manager. If abm_
 ### Reset ABM Sync Cursor
 
 _Available in Fleet Premium_
+
+`POST /api/v1/fleet/mdm/apple/dep/reset_cursor`
 
 Resets the sync cursor associated with a particular ABM token.
 
