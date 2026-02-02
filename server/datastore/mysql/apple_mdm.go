@@ -6911,6 +6911,61 @@ WHERE
 	return &res, nil
 }
 
+func (ds *Datastore) GetMDMAppleHostMDMEnrollRef(ctx context.Context, hostID uint) (string, error) {
+	const stmt = `SELECT fleet_enroll_ref FROM host_mdm WHERE host_id = ?`
+	var dest string
+	if err := sqlx.GetContext(ctx, ds.reader(ctx), &dest, stmt, hostID); err != nil {
+		if err == sql.ErrNoRows {
+			return "", ctxerr.Wrap(ctx, notFound("HostMDMEnrollRef").WithID(hostID))
+		}
+		return "", ctxerr.Wrap(ctx, err, "get mdm apple host mdm enroll ref by host id")
+	}
+	return dest, nil
+}
+
+func (ds *Datastore) UpdateMDMAppleHostMDMEnrollRef(ctx context.Context, hostID uint, enrollRef string) (bool, error) {
+	const stmt = `UPDATE host_mdm SET fleet_enroll_ref = ? WHERE host_id = ?`
+	r, err := ds.writer(ctx).ExecContext(ctx, stmt, enrollRef, hostID)
+	if err != nil {
+		return false, ctxerr.Wrap(ctx, err, "update mdm apple host mdm enroll ref by host id")
+	}
+	n, _ := r.RowsAffected()
+
+	return n > 0, nil
+}
+
+func (ds *Datastore) DeactivateMDMAppleHostSCEPRenewCommands(ctx context.Context, hostUUID string) error {
+	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		var cmdUUIDs []string
+
+		selectStmt := `SELECT renew_command_uuid FROM nano_cert_auth_associations WHERE id = ? AND renew_command_uuid IS NOT NULL`
+		if err := sqlx.SelectContext(ctx, tx, &cmdUUIDs, selectStmt, hostUUID); err != nil {
+			return ctxerr.Wrap(ctx, err, "get mdm apple host scep renew commands info")
+		}
+		if len(cmdUUIDs) == 0 {
+			level.Info(ds.logger).Log("msg", "no active scep renew commands to deactivate for host", "host_uuid", hostUUID)
+			return nil
+		}
+
+		level.Info(ds.logger).Log("msg", "deactivating scep renew commands for host", "host_uuid", hostUUID, "command_uuids", fmt.Sprintf("%v", cmdUUIDs))
+
+		clearStmt := `UPDATE nano_cert_auth_associations SET renew_command_uuid = NULL WHERE id = ?`
+		if _, err := tx.ExecContext(ctx, clearStmt, hostUUID); err != nil {
+			return ctxerr.Wrap(ctx, err, "deactivate mdm apple host scep renew commands: clear renew_command_uuid")
+		}
+
+		deactivateStmt, args, err := sqlx.In(`UPDATE nano_enrollment_queue SET active = 0 WHERE id = ? AND command_uuid IN(?)`, hostUUID, cmdUUIDs)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "deactivate mdm apple host scep renew commands: build query")
+		}
+		if _, err := tx.ExecContext(ctx, deactivateStmt, args...); err != nil {
+			return ctxerr.Wrap(ctx, err, "deactivate mdm apple host scep renew commands: deactivate in enrollment queue")
+		}
+
+		return nil
+	})
+}
+
 func (ds *Datastore) ListMDMAppleEnrolledIPhoneIpadDeletedFromFleet(ctx context.Context, limit int) ([]string, error) {
 	const stmt = `
 SELECT

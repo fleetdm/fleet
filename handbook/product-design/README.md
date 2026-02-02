@@ -128,7 +128,7 @@ changing specifications while ensuring that Fleet meets our brand and quality gu
 You'll know it's time for expedited drafting when:
 - The team discovers that a drafted user story is missing crucial information that prevents contributors from continuing the development task.
 - A user story is taking more effort than was originally estimated, and Product Designer (PD) wants to find ways to cut aspects of planned functionality in order to still ship the improvement in the currently scheduled release.
-- A user story on the drafting board won't reach "Ready for spec" by the last estimation session in the current sprint and cannot wait until the next sprint. This can also happen when we decide to bring a user story in mid-sprint.
+- A user story on the drafting board wasn't estimated by the last estimation session in the current sprint and cannot wait until the next sprint. This can also happen when we decide to bring a user story in mid-sprint.
 
 
 What happens during expedited drafting?
