@@ -1675,10 +1675,7 @@ func cleanupPolicyMembershipOnPolicyUpdate(
 		}
 	}
 
-	// Delete memberships for hosts that don't match the label criteria.
-	labelSelectStmt := `
-	SELECT DISTINCT
-	  pm.host_id
+	labelQuery := `
 	FROM
 	  policy_membership pm
 	WHERE
@@ -1705,33 +1702,16 @@ func cleanupPolicyMembershipOnPolicyUpdate(
 	    )
 	  )`
 
+	// Find the impacted host IDs, so we can update their host issues entries.
+	labelSelectStmt := `
+	  SELECT DISTINCT
+	  pm.host_id
+	  ` + labelQuery
+
+	// Delete memberships for hosts that don't match the label criteria.
 	labelDelStmt := `
 	DELETE pm
-	FROM
-	  policy_membership pm
-	WHERE
-	  pm.policy_id = ?
-	  AND NOT (
-	    (
-		  -- If the policy has no include labels, all hosts match this part.
-	      NOT EXISTS (
-	        SELECT 1 FROM policy_labels pl
-	        WHERE pl.policy_id = pm.policy_id AND pl.exclude = 0
-	      )
-		  -- If the policy has include labels, the host must be in at least one of them.
-	      OR EXISTS (
-	        SELECT 1 FROM policy_labels pl
-	        JOIN label_membership lm ON lm.label_id = pl.label_id AND lm.host_id = pm.host_id
-	        WHERE pl.policy_id = pm.policy_id AND pl.exclude = 0
-	      )
-	    )
-	    -- If the policy has exclude labels, the host must not be in any of them.
-	    AND NOT EXISTS (
-	      SELECT 1 FROM policy_labels pl
-	      JOIN label_membership lm ON lm.label_id = pl.label_id AND lm.host_id = pm.host_id
-	      WHERE pl.policy_id = pm.policy_id AND pl.exclude = 1
-	    )
-	  )`
+	` + labelQuery
 
 	var labelHostIDs []uint
 	err := sqlx.SelectContext(ctx, queryerContext, &labelHostIDs, labelSelectStmt, policyID)
