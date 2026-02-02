@@ -81,10 +81,10 @@ relaunch_application() {
 # extract contents (zip from desktop.githubusercontent.com)
 unzip "$INSTALLER_PATH" -d "$TMPDIR"
 
-# Remove quarantine attribute to prevent "The file was downloaded on an unknown date" error.
-# macOS Gatekeeper blocks apps with this attribute; Homebrew Cask does the same (xattr -cr).
+# Remove only the quarantine attribute. Do NOT use xattr -cr (clear all): that can
+# invalidate the app's code signature and cause "damaged and can't be opened".
 if [ -d "$TMPDIR/GitHub Desktop.app" ]; then
-  xattr -cr "$TMPDIR/GitHub Desktop.app"
+  xattr -dr com.apple.quarantine "$TMPDIR/GitHub Desktop.app" 2>/dev/null || true
 fi
 
 # copy to the applications folder
@@ -93,6 +93,10 @@ if [ -d "$APPDIR/GitHub Desktop.app" ]; then
   sudo mv "$APPDIR/GitHub Desktop.app" "$TMPDIR/GitHub Desktop.app.bkp"
 fi
 sudo cp -R "$TMPDIR/GitHub Desktop.app" "$APPDIR"
+
+# Clear quarantine on the installed app (in case copy ran as root and preserved it).
+sudo xattr -dr com.apple.quarantine "$APPDIR/GitHub Desktop.app" 2>/dev/null || true
+
 relaunch_application 'com.github.GitHubClient'
 
 mkdir -p .
