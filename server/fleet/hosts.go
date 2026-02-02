@@ -1195,7 +1195,7 @@ const (
 
 var mdmNameFromServerURLChecks = map[string]string{
 	"kandji":    WellKnownMDMIru,
-	"iru":       WellKnownMDMIru,
+	"iru.com":   WellKnownMDMIru, // inclue top-level domain to disabmiguate from other strings that may contain "iru"
 	"jamf":      WellKnownMDMJamf,
 	"jumpcloud": WellKnownMDMJumpCloud,
 	"airwatch":  WellKnownMDMVMWare,

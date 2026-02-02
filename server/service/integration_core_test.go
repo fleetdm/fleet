@@ -4414,13 +4414,13 @@ func (s *integrationTestSuite) TestGetMacadminsData() {
 	assert.Equal(t, "warning1", macadminsData.Macadmins.MunkiIssues[0].Name)
 
 	// only mdm returns null on munki info
-	require.NoError(t, s.ds.SetOrUpdateMDMData(ctx, hostOnlyMDM.ID, false, true, "https://kandji.io", true, fleet.WellKnownMDMKandji, "", false))
+	require.NoError(t, s.ds.SetOrUpdateMDMData(ctx, hostOnlyMDM.ID, false, true, "https://kandji.io", true, fleet.WellKnownMDMIru, "", false))
 	macadminsData = macadminsDataResponse{}
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/macadmins", hostOnlyMDM.ID), nil, http.StatusOK, &macadminsData)
 	require.NotNil(t, macadminsData.Macadmins)
 	require.NotNil(t, macadminsData.Macadmins.MDM)
 	require.NotNil(t, macadminsData.Macadmins.MDM.Name)
-	assert.Equal(t, fleet.WellKnownMDMKandji, *macadminsData.Macadmins.MDM.Name)
+	assert.Equal(t, fleet.WellKnownMDMIru, *macadminsData.Macadmins.MDM.Name)
 	require.NotNil(t, macadminsData.Macadmins.MDM.ID)
 	assert.NotZero(t, *macadminsData.Macadmins.MDM.ID)
 	require.Nil(t, macadminsData.Macadmins.Munki)
@@ -4487,7 +4487,7 @@ func (s *integrationTestSuite) TestGetMacadminsData() {
 			assert.Equal(t, fleet.UnknownMDMName, sol.Name)
 			assert.Equal(t, 1, sol.HostsCount)
 		case "https://kandji.io":
-			assert.Equal(t, fleet.WellKnownMDMKandji, sol.Name)
+			assert.Equal(t, fleet.WellKnownMDMIru, sol.Name)
 			assert.Equal(t, 1, sol.HostsCount)
 		default:
 			require.Fail(t, "unknown MDM server URL: %s", sol.ServerURL)
