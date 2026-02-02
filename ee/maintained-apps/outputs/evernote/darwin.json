@@ -8,7 +8,7 @@
       "installer_url": "https://mac.desktop.evernote.com/builds/Evernote-latest.dmg",
       "install_script_ref": "c4c66da7",
       "uninstall_script_ref": "7be36873",
-      "sha256": "2cca5bacb3f587032f757c10ece93d284ee1a42a3a71ad80e61f3eeea3fe40f9",
+      "sha256": "no_check",
       "default_categories": [
         "Productivity"
       ]
