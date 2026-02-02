@@ -21,6 +21,7 @@ Reasons: PENDING, and USER_ACTION. Other settings are applied.`
 	var reverify bool
 	err = db.QueryRow(`SELECT reverify FROM host_mdm_android_profiles WHERE host_uuid = 'hostid1'`).Scan(&reverify)
 	require.False(t, reverify)
+	require.NoError(t, err)
 
 	_, err = db.Exec(`UPDATE host_mdm_android_profiles SET reverify = 1 WHERE host_uuid = 'hostid1'`)
 	require.NoError(t, err)

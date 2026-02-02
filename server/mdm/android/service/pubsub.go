@@ -934,9 +934,8 @@ func canProfileBeReverified(nonCompliance []*androidmanagement.NonComplianceDeta
 		// failed only due to these reasons and no others.
 		if nc.NonComplianceReason == "USER_ACTION" || nc.NonComplianceReason == "PENDING" {
 			continue
-		} else {
-			return false
 		}
+		return false
 	}
 	return true
 }
