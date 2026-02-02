@@ -11,6 +11,6 @@
   description: "Once a week, The CRO will paste a screenshot of the progress toward the goal and the actionable next steps from the [🤝❌ Closed (for now) opportunity review (confidential doc)](https://docs.google.com/document/d/12cXSZAervdpAuOImN0Lx0B9n-uYND_tzmPbFr4gMwkU/edit?tab=t.0) in the [help-gtm-ops Slack channel](https://fleetdm.slack.com/archives/C08BTMFTUCR)."
   moreInfoUrl: "https://fleetdm.com/handbook/sales#communicate-gross-new-arr-added"
   dri: "alexmitchelliii"
-  autoIssue: # Enables automation of GitHub issues
-    labels: [":help-gtm-ops"] # label to be applied to issue
+  autoIssue:   # Enables automation of GitHub issues
+    labels: [ ":help-gtm-ops" ] # label to be applied to issue
     repo: "confidential"
