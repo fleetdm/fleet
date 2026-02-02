@@ -3078,35 +3078,41 @@ func TestWindowsLastOpenedAt(t *testing.T) {
 
 func TestWindowsAcrobatDC(t *testing.T) {
 	processFunc := SoftwareOverrideQueries["windows_acrobat_dc"].SoftwareProcessResults
+	softwareResults := []map[string]string{
+		{"name": "Adobe Acrobat Reader 64-bit"},
+		{"name": "Adobe Acrobat 2017"},
+		{"name": "Acrobat Reader"},
+	}
 
-	t.Run("no registry results", func(t *testing.T) {
-		softwareResults := []map[string]string{
-			{"name": "Adobe Acrobat Reader 64-bit"},
-			{"name": "Adobe Acrobat 2017"},
-			{"name": "Acrobat Reader"},
-		}
+	testCases := []struct {
+		name            string
+		registryResults []map[string]string
+		expected        []map[string]string
+	}{
+		{
+			name:            "no registry results",
+			registryResults: nil,
+			expected:        softwareResults,
+		},
+		{
+			name: "registry results",
+			registryResults: []map[string]string{
+				{"present": ""},
+			},
+			expected: []map[string]string{
+				{"name": "Adobe Acrobat Reader DC 64-bit"},
+				{"name": "Adobe Acrobat DC 2017"},
+				{"name": "Acrobat Reader DC"},
+			},
+		},
+	}
 
-		got := processFunc(softwareResults, nil)
-		require.Equal(t, softwareResults, got)
-	})
-
-	t.Run("registry results present", func(t *testing.T) {
-		softwareResults := []map[string]string{
-			{"name": "Adobe Acrobat Reader 64-bit"},
-			{"name": "Adobe Acrobat 2017"},
-			{"name": "Acrobat Reader"},
-		}
-
-		registryResults := []map[string]string{{"present": "1"}}
-
-		got := processFunc(softwareResults, registryResults)
-		want := []map[string]string{
-			{"name": "Adobe Acrobat Reader DC 64-bit"},
-			{"name": "Adobe Acrobat DC 2017"},
-			{"name": "Acrobat Reader"},
-		}
-		require.Equal(t, want, got)
-	})
+	for _, testCase := range testCases {
+		t.Run(testCase.name, func(t *testing.T) {
+			result := processFunc(softwareResults, testCase.registryResults)
+			require.Equal(t, testCase.expected, result)
+		})
+	}
 }
 
 func TestTPMPinSetVerifyIngest(t *testing.T) {

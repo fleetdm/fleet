@@ -1359,7 +1359,7 @@ var SoftwareOverrideQueries = map[string]DetailQuery{
 				orig := row["name"]
 				lower := strings.ToLower(orig)
 
-				if !strings.HasPrefix(lower, "adobe acrobat") {
+				if !strings.HasPrefix(lower, "adobe acrobat") && !strings.HasPrefix(lower, "acrobat reader") {
 					continue
 				}
 
