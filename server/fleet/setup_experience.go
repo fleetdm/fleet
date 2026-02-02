@@ -57,6 +57,11 @@ type SetupExperienceStatusResult struct {
 	// (e.g., "sh_packages", "ps1_packages", "apps", etc.) and is used by the frontend
 	// to determine appropriate UI display (e.g., "Run" vs "Install" verbs).
 	Source *string `json:"source,omitempty" db:"source"`
+
+	// DisplayName and IconURL are populated by ListSetupExperienceResultsByHostUUID and
+	// are only used for display purposes in the UI.
+	DisplayName string `json:"display_name,omitempty" db:"-"`
+	IconURL     string `json:"icon_url,omitempty" db:"-"`
 }
 
 func (s *SetupExperienceStatusResult) IsValid() error {

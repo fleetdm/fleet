@@ -545,6 +545,57 @@ WHERE host_uuid = ?
 	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &results, stmt, hostUUID); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "select setup experience status results by host uuid")
 	}
+
+	titleIDs := make([]uint, 0, len(results))
+	byTitleID := make(map[uint]*fleet.SetupExperienceStatusResult)
+	for _, res := range results {
+		if res.SoftwareTitleID != nil {
+			titleIDs = append(titleIDs, *res.SoftwareTitleID)
+			byTitleID[*res.SoftwareTitleID] = res
+		}
+	}
+
+	// load custom display name and custom icon for the software installers, if any
+	if len(titleIDs) > 0 {
+		// NOTE: as documented in fleet.HostUUIDForSetupExperience, the setup experience "host_uuid"
+		// is NOT always the host.uuid (on Windows and Linux, specifically). So if the host's team is
+		// not found, we simply don't load the icons and display names, anyway we only need those
+		// on macOS currently as it's the only place where the setup experience UI is shown.
+
+		// we need the host's team to load the custom icons and display names
+		const hostTeam = `SELECT team_id FROM hosts WHERE uuid = ? LIMIT 1`
+		var hostTeamID sql.Null[uint]
+		if err := sqlx.GetContext(ctx, ds.reader(ctx), &hostTeamID, hostTeam, hostUUID); err != nil {
+			if errors.Is(err, sql.ErrNoRows) {
+				// host not found, skip loading icons and display names
+				return results, nil
+			}
+			return nil, ctxerr.Wrap(ctx, err, "get host team ID for setup experience results")
+		}
+
+		icons, err := ds.GetSoftwareIconsByTeamAndTitleIds(ctx, hostTeamID.V, titleIDs)
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "get software icons by team and title IDs")
+		}
+
+		displayNames, err := ds.getDisplayNamesByTeamAndTitleIds(ctx, hostTeamID.V, titleIDs)
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "get software display names by team and title IDs")
+		}
+
+		for titleID, icon := range icons {
+			if res := byTitleID[titleID]; res != nil {
+				res.IconURL = icon.IconUrl()
+			}
+		}
+
+		for titleID, name := range displayNames {
+			if res := byTitleID[titleID]; res != nil {
+				res.DisplayName = name
+			}
+		}
+	}
+
 	return results, nil
 }
 
