@@ -2309,7 +2309,7 @@ This activity contains the following fields:
 }
 ```
 
-## modified_enroll_secret
+## edited_enroll_secrets
 
 Generated when an enroll secret is modified (updated, added, or deleted).
 
