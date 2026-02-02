@@ -284,7 +284,6 @@
               I am willing to host a workshop at my company's office
             </label>
           </div>
-          {{cloudError}}
           <cloud-error v-if="cloudError && cloudError === 'invalidEmailDomain'">
             <p>Please enter a valid work email address</p>
           </cloud-error>
