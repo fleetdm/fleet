@@ -223,7 +223,7 @@ func TestStatusReportPolicyValidation(t *testing.T) {
 			},
 		}, nil
 	}
-	mockDS.UpdateAndroidHostFunc = func(ctx context.Context, host *fleet.AndroidHost, fromEnroll bool) error {
+	mockDS.UpdateAndroidHostFunc = func(ctx context.Context, host *fleet.AndroidHost, fromEnroll, companyOwned bool) error {
 		return nil
 	}
 
@@ -417,7 +417,7 @@ func TestUpdateHostEmptyUUIDGetsPopulated(t *testing.T) {
 
 	// Capture what gets sent to UpdateAndroidHost (and thus to the API)
 	var capturedHost *fleet.AndroidHost
-	mockDS.UpdateAndroidHostFunc = func(ctx context.Context, host *fleet.AndroidHost, fromEnroll bool) error {
+	mockDS.UpdateAndroidHostFunc = func(ctx context.Context, host *fleet.AndroidHost, fromEnroll, companyOwned bool) error {
 		capturedHost = host
 		return nil
 	}
@@ -518,7 +518,7 @@ func TestHostPayloadUUIDForFrontend(t *testing.T) {
 
 			// Capture the host payload that would be sent to frontend
 			var hostPayload *fleet.AndroidHost
-			mockDS.UpdateAndroidHostFunc = func(ctx context.Context, host *fleet.AndroidHost, fromEnroll bool) error {
+			mockDS.UpdateAndroidHostFunc = func(ctx context.Context, host *fleet.AndroidHost, fromEnroll, companyOwned bool) error {
 				hostPayload = host
 				return nil
 			}
@@ -601,7 +601,7 @@ func TestUpdateHost(t *testing.T) {
 
 	// verify UUID is set correctly
 	var capturedHost *fleet.AndroidHost
-	mockDS.UpdateAndroidHostFunc = func(ctx context.Context, host *fleet.AndroidHost, fromEnroll bool) error {
+	mockDS.UpdateAndroidHostFunc = func(ctx context.Context, host *fleet.AndroidHost, fromEnroll, companyOwned bool) error {
 		// Validate that the update always updates the label updated at value with a recent one
 		require.Greater(t, host.LabelUpdatedAt, time.Now().Add(-5*time.Second))
 		capturedHost = host
@@ -1147,7 +1147,7 @@ func TestStatusReportAppInstallVerification(t *testing.T) {
 			},
 		}, nil
 	}
-	mockDS.UpdateAndroidHostFunc = func(ctx context.Context, host *fleet.AndroidHost, fromEnroll bool) error {
+	mockDS.UpdateAndroidHostFunc = func(ctx context.Context, host *fleet.AndroidHost, fromEnroll, companyOwned bool) error {
 		return nil
 	}
 	mockDS.ListHostMDMAndroidProfilesPendingInstallWithVersionFunc = func(ctx context.Context, hostUUID string, version int64) ([]*fleet.MDMAndroidProfilePayload, error) {
