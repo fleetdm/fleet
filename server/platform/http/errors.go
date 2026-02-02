@@ -86,10 +86,20 @@ func (e BadRequestError) IsClientError() bool {
 	return true
 }
 
-type PayloadTooLargeError struct{}
+type PayloadTooLargeError struct {
+	ContentLength string
+}
 
 func (e PayloadTooLargeError) Error() string {
-	return "payload too large"
+	return "payload is too large"
+}
+
+func (e PayloadTooLargeError) Internal() string {
+	// This is for us to have an indication of the size we get, might be spoofable, but better than nothing
+	if e.ContentLength != "" {
+		return fmt.Sprintf("Endpoint hit with more than allowed payload size (Content-Length: %s)", e.ContentLength)
+	}
+	return ""
 }
 
 func (e PayloadTooLargeError) StatusCode() int {
