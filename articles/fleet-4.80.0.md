@@ -83,6 +83,6 @@ Visit our [Upgrade guide](https://fleetdm.com/docs/deploying/upgrading-fleet) in
 <meta name="category" value="releases">
 <meta name="authorFullName" value="Noah Talerman">
 <meta name="authorGitHubUsername" value="noahtalerman">
-<meta name="publishedOn" value="2026-01-30">
+<meta name="publishedOn" value="2026-02-02">
 <meta name="articleTitle" value="Fleet 4.80.0 | Schedule app updates for dedicated devices, easier offboarding for personal devices, and more...">
 <meta name="articleImageUrl" value="../website/assets/images/articles/fleet-4.80.0-1600x900@2x.png">
