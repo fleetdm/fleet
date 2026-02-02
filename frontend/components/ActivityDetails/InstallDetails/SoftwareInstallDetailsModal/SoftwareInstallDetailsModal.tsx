@@ -22,6 +22,7 @@ import softwareAPI from "services/entities/software";
 import deviceUserAPI from "services/entities/device_user";
 
 import InventoryVersions from "pages/hosts/details/components/InventoryVersions";
+import { getDisplayedSoftwareName } from "pages/SoftwarePage/helpers";
 
 import Modal from "components/Modal";
 import ModalFooter from "components/ModalFooter";
@@ -374,9 +375,10 @@ export const SoftwareInstallDetailsModal = ({
       <div className={`${baseClass}__modal-content`}>
         <StatusMessage
           installResult={installResultWithHostDisplayName}
-          softwareName={
-            hostSoftware?.display_name || hostSoftware?.name || "Software"
-          } // will always be defined at this point
+          softwareName={getDisplayedSoftwareName(
+            hostSoftware?.name,
+            hostSoftware?.display_name
+          )}
           isMyDevicePage={!!deviceAuthToken}
           contactUrl={contactUrl}
         />
