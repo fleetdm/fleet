@@ -40,7 +40,7 @@ Fleet supports installing a bootstrap package on macOS hosts that automatically 
 
 This enables installing tools like [Puppet](https://www.puppet.com/), [Munki](https://www.munki.org/munki/), or [Chef](https://www.chef.io/products/chef-infra) for configuration management and/or running custom scripts and installing tools like [DEP notify](https://gitlab.com/Mactroll/DEPNotify) to customize the setup experience for your end users.
 
-The bootstrap package and Fleet's agent (fleetd) are also installed during [MDM migration](https://fleetdm.com/guides/mdm-migration) and when the enrollment profile is renewed manually with `sudo profiles renew -type enrollment`. If you [manually install fleetd](#advanced), fleetd won't be installed automatically.
+The bootstrap package and Fleet's agent (fleetd) are also installed during [MDM migration](https://fleetdm.com/guides/mdm-migration) and when the enrollment profile is renewed manually with `sudo profiles renew -type enrollment`. If you [manually install fleetd](#manually-install-fleetd), fleetd won't be installed automatically.
 
 The following are examples of what some organizations deploy using a bootstrap package:
 
@@ -249,6 +249,8 @@ To manage setup experience software and script using Fleet's best practice GitOp
 
 ## Advanced
 
+### Manually install fleetd
+
 > **Experimental feature**. This feature is undergoing rapid improvement, which may result in breaking changes to the API or configuration surface. It is not recommended for use in automated workflows.
 
 By default, Fleet's agent (fleetd) is automatically installed during automatic enrollment (ADE) on macOS hosts. To deploy a custom fleetd agent on macOS hosts that automatically enroll, you can use a bootstrap package.
@@ -265,6 +267,10 @@ How to deploy a custom fleetd:
 4. Once the option to manually install Fleet's agent is checked, instead of using **Install software** and **Run script** options, include your software in the bootstrap package.
 
 If you deploy a custom fleetd, also add the software and scripts you want to install/run during out-of-the-box macOS setup to your bootstrap package. Fleet won't install the software and run the script [configured in setup experience](#software-and-script).
+
+### swiftDialog
+
+Fleet uses [swiftDialog](https://github.com/swiftDialog/swiftDialog) to show end users [software install](#install-software) and [script run](#run-script) status. swiftDialog is only installed on macOS hosts if there is setup experience software or a script. After setup experinece, swiftDialog stays installed.
 
 <meta name="category" value="guides">
 <meta name="authorGitHubUsername" value="noahtalerman">
