@@ -77,6 +77,7 @@ func TestPolicies(t *testing.T) {
 		{"TestPoliciesBySoftwareTitleID", testPoliciesBySoftwareTitleID},
 		{"TestClearAutoInstallPolicyStatusForHost", testClearAutoInstallPolicyStatusForHost},
 		{"PolicyLabels", testPolicyLabels},
+		{"PolicyLabelMembershipCleanup", testPolicyLabelMembershipCleanup},
 		{"DeletePolicyWithSoftwareActivatesNextActivity", testDeletePolicyWithSoftwareActivatesNextActivity},
 		{"DeletePolicyWithScriptActivatesNextActivity", testDeletePolicyWithScriptActivatesNextActivity},
 		{"SimultaneousSavePolicy", testSimultaneousSavePolicy},
@@ -6162,6 +6163,135 @@ func testPolicyLabels(t *testing.T, ds *Datastore) {
 		require.NoError(t, err)
 		assertQueries(t, queries, tc.Policies, tc.Host.Hostname)
 	}
+}
+
+func testPolicyLabelMembershipCleanup(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+	user1 := test.NewUser(t, ds, "Alice", "alice@example.com", true)
+
+	// Create labels
+	label1, err := ds.NewLabel(ctx, &fleet.Label{Name: "cleanup-label1"})
+	require.NoError(t, err)
+	label2, err := ds.NewLabel(ctx, &fleet.Label{Name: "cleanup-label2"})
+	require.NoError(t, err)
+
+	// Create hosts with different label combinations
+	hostNoLabels := test.NewHost(t, ds, "cleanup-host-no-labels", "10.0.0.1", "key1", "uuid1", time.Now())
+	hostLabel1 := test.NewHost(t, ds, "cleanup-host-label1", "10.0.0.2", "key2", "uuid2", time.Now())
+	hostLabel2 := test.NewHost(t, ds, "cleanup-host-label2", "10.0.0.3", "key3", "uuid3", time.Now())
+	hostLabelBoth := test.NewHost(t, ds, "cleanup-host-label-both", "10.0.0.4", "key4", "uuid4", time.Now())
+
+	// Apply labels to hosts
+	require.NoError(t, ds.AddLabelsToHost(ctx, hostLabel1.ID, []uint{label1.ID}))
+	require.NoError(t, ds.AddLabelsToHost(ctx, hostLabel2.ID, []uint{label2.ID}))
+	require.NoError(t, ds.AddLabelsToHost(ctx, hostLabelBoth.ID, []uint{label1.ID, label2.ID}))
+
+	// Create a policy with no label targets (applies to all hosts)
+	policy := newTestPolicy(t, ds, user1, "cleanup test policy", "", nil)
+
+	// Record policy results for all hosts
+	for _, h := range []*fleet.Host{hostNoLabels, hostLabel1, hostLabel2, hostLabelBoth} {
+		err = ds.RecordPolicyQueryExecutions(ctx, h, map[uint]*bool{policy.ID: ptr.Bool(true)}, time.Now(), false)
+		require.NoError(t, err)
+	}
+
+	// Verify all hosts have membership
+	polsByName := map[string]*fleet.Policy{policy.Name: policy}
+	wantHostsByPol := map[string][]uint{
+		policy.Name: {hostNoLabels.ID, hostLabel1.ID, hostLabel2.ID, hostLabelBoth.ID},
+	}
+	assertPolicyMembership(t, ds, polsByName, wantHostsByPol)
+
+	// Update policy to include only label1
+	policy.LabelsIncludeAny = []fleet.LabelIdent{{LabelName: label1.Name}}
+	require.NoError(t, ds.SavePolicy(ctx, policy, false, false))
+
+	// Verify only hosts with label1 still have membership
+	wantHostsByPol[policy.Name] = []uint{hostLabel1.ID, hostLabelBoth.ID}
+	assertPolicyMembership(t, ds, polsByName, wantHostsByPol)
+
+	// Update policy to include both labels (include any means host must have at least one)
+	policy.LabelsIncludeAny = []fleet.LabelIdent{{LabelName: label1.Name}, {LabelName: label2.Name}}
+	require.NoError(t, ds.SavePolicy(ctx, policy, false, false))
+
+	// Since no new memberships were added, only hosts that had membership AND match the criteria remain
+	// hostLabel2 was removed in the previous step, so it won't come back
+	wantHostsByPol[policy.Name] = []uint{hostLabel1.ID, hostLabelBoth.ID}
+	assertPolicyMembership(t, ds, polsByName, wantHostsByPol)
+
+	// Re-record membership for all hosts to test exclude labels
+	for _, h := range []*fleet.Host{hostNoLabels, hostLabel1, hostLabel2, hostLabelBoth} {
+		err = ds.RecordPolicyQueryExecutions(ctx, h, map[uint]*bool{policy.ID: ptr.Bool(true)}, time.Now(), false)
+		require.NoError(t, err)
+	}
+	wantHostsByPol[policy.Name] = []uint{hostNoLabels.ID, hostLabel1.ID, hostLabel2.ID, hostLabelBoth.ID}
+	assertPolicyMembership(t, ds, polsByName, wantHostsByPol)
+
+	// Update policy to exclude label2
+	policy.LabelsIncludeAny = nil
+	policy.LabelsExcludeAny = []fleet.LabelIdent{{LabelName: label2.Name}}
+	require.NoError(t, ds.SavePolicy(ctx, policy, false, false))
+
+	// Verify hosts with label2 are removed (hostLabel2 and hostLabelBoth)
+	wantHostsByPol[policy.Name] = []uint{hostNoLabels.ID, hostLabel1.ID}
+	assertPolicyMembership(t, ds, polsByName, wantHostsByPol)
+
+	// Test ApplyPolicySpecs with label changes
+	// First, re-record membership for all hosts
+	for _, h := range []*fleet.Host{hostNoLabels, hostLabel1, hostLabel2, hostLabelBoth} {
+		err = ds.RecordPolicyQueryExecutions(ctx, h, map[uint]*bool{policy.ID: ptr.Bool(true)}, time.Now(), false)
+		require.NoError(t, err)
+	}
+	wantHostsByPol[policy.Name] = []uint{hostNoLabels.ID, hostLabel1.ID, hostLabel2.ID, hostLabelBoth.ID}
+	assertPolicyMembership(t, ds, polsByName, wantHostsByPol)
+
+	// Apply spec with include label1 only
+	err = ds.ApplyPolicySpecs(ctx, user1.ID, []*fleet.PolicySpec{
+		{
+			Name:             policy.Name,
+			Query:            policy.Query,
+			LabelsIncludeAny: []string{label1.Name},
+		},
+	})
+	require.NoError(t, err)
+
+	// Verify only hosts with label1 remain
+	wantHostsByPol[policy.Name] = []uint{hostLabel1.ID, hostLabelBoth.ID}
+	assertPolicyMembership(t, ds, polsByName, wantHostsByPol)
+
+	// Test combined platform and label cleanup
+	// Create hosts with different platforms
+	hostWinLabel1 := test.NewHost(t, ds, "cleanup-host-win-label1", "10.0.0.5", "key5", "uuid5", time.Now())
+	hostWinLabel1.Platform = "windows"
+	require.NoError(t, ds.UpdateHost(ctx, hostWinLabel1))
+	require.NoError(t, ds.AddLabelsToHost(ctx, hostWinLabel1.ID, []uint{label1.ID}))
+
+	hostMacLabel1 := test.NewHost(t, ds, "cleanup-host-mac-label1", "10.0.0.6", "key6", "uuid6", time.Now())
+	hostMacLabel1.Platform = "darwin"
+	require.NoError(t, ds.UpdateHost(ctx, hostMacLabel1))
+	require.NoError(t, ds.AddLabelsToHost(ctx, hostMacLabel1.ID, []uint{label1.ID}))
+
+	// Create a new policy for platform + label test
+	policy2 := newTestPolicy(t, ds, user1, "cleanup test policy 2", "", nil)
+
+	// Record membership for all hosts with label1
+	for _, h := range []*fleet.Host{hostLabel1, hostLabelBoth, hostWinLabel1, hostMacLabel1} {
+		err = ds.RecordPolicyQueryExecutions(ctx, h, map[uint]*bool{policy2.ID: ptr.Bool(true)}, time.Now(), false)
+		require.NoError(t, err)
+	}
+
+	polsByName[policy2.Name] = policy2
+	wantHostsByPol[policy2.Name] = []uint{hostLabel1.ID, hostLabelBoth.ID, hostWinLabel1.ID, hostMacLabel1.ID}
+	assertPolicyMembership(t, ds, polsByName, wantHostsByPol)
+
+	// Update policy2 to windows platform AND include label1
+	policy2.Platform = "windows"
+	policy2.LabelsIncludeAny = []fleet.LabelIdent{{LabelName: label1.Name}}
+	require.NoError(t, ds.SavePolicy(ctx, policy2, false, false))
+
+	// Only windows hosts with label1 should remain
+	wantHostsByPol[policy2.Name] = []uint{hostWinLabel1.ID}
+	assertPolicyMembership(t, ds, polsByName, wantHostsByPol)
 }
 
 func testDeletePolicyWithSoftwareActivatesNextActivity(t *testing.T, ds *Datastore) {

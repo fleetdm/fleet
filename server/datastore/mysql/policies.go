@@ -1349,12 +1349,12 @@ func (ds *Datastore) ApplyPolicySpecs(ctx context.Context, authorID uint, specs 
 				var lastID int64
 				lastID, _ = res.LastInsertId()
 
-				// If something was actually inserted or updated, perform any necessary cleanup.
+				// Track what kind of cleanup is needed.
+				var (
+					shouldRemoveAllPolicyMemberships bool
+					removePolicyStats                bool
+				)
 				if insertOnDuplicateDidInsertOrUpdate(res) {
-					var (
-						shouldRemoveAllPolicyMemberships bool
-						removePolicyStats                bool
-					)
 					// Figure out if the query, platform, software installer, or VPP app changed.
 					var softwareInstallerID *uint
 					if spec.SoftwareTitleID != nil {
@@ -1383,12 +1383,6 @@ func (ds *Datastore) ApplyPolicySpecs(ctx context.Context, authorID uint, specs 
 						case prev.Platforms != spec.Platform:
 							removePolicyStats = true
 						}
-					}
-					if err = cleanupPolicy(
-						ctx, tx, tx, uint(lastID), spec.Platform, shouldRemoveAllPolicyMemberships, //nolint:gosec // dismiss G115
-						removePolicyStats, ds.logger,
-					); err != nil {
-						return err
 					}
 				}
 
@@ -1427,6 +1421,18 @@ func (ds *Datastore) ApplyPolicySpecs(ctx context.Context, authorID uint, specs 
 				})
 				if err != nil {
 					return ctxerr.Wrap(ctx, err, "exec policies update labels")
+				}
+
+				// Run cleanup after labels are updated so the cleanup function can
+				// query the current label criteria from the database.
+				// Always run cleanup since labels may have changed even if the main policy
+				// fields didn't (the cleanup function is safe to call and will only delete
+				// memberships that don't match current criteria).
+				if err = cleanupPolicy(
+					ctx, tx, tx, uint(lastID), spec.Platform, shouldRemoveAllPolicyMemberships, //nolint:gosec // dismiss G115
+					removePolicyStats, ds.logger,
+				); err != nil {
+					return err
 				}
 
 			}
@@ -1618,58 +1624,129 @@ func cleanupConditionalAccessOnTeamChange(ctx context.Context, tx sqlx.ExtContex
 func cleanupPolicyMembershipOnPolicyUpdate(
 	ctx context.Context, queryerContext sqlx.QueryerContext, db sqlx.ExecerContext, policyID uint, platforms string,
 ) error {
-	if platforms == "" {
-		// all platforms allowed, nothing to clean up
-		return nil
+	var allHostIDs []uint
+
+	// Clean up hosts that don't match the platform criteria
+	if platforms != "" {
+		delStmt := `
+		DELETE
+		  pm
+		FROM
+		  policy_membership pm
+		LEFT JOIN
+		  hosts h
+		ON
+		  pm.host_id = h.id
+		WHERE
+		  pm.policy_id = ? AND
+		  ( h.id IS NULL OR
+			FIND_IN_SET(h.platform, ?) = 0 )`
+
+		selectStmt := `
+		SELECT DISTINCT
+		  h.id
+		FROM
+		  policy_membership pm
+		INNER JOIN
+		  hosts h
+		ON
+		  pm.host_id = h.id
+		WHERE
+		  pm.policy_id = ? AND
+		  FIND_IN_SET(h.platform, ?) = 0`
+
+		var expandedPlatforms []string
+		splitPlatforms := strings.Split(platforms, ",")
+		for _, platform := range splitPlatforms {
+			expandedPlatforms = append(expandedPlatforms, fleet.ExpandPlatform(strings.TrimSpace(platform))...)
+		}
+
+		// Find the impacted host IDs, so we can update their host issues entries
+		var hostIDs []uint
+		err := sqlx.SelectContext(ctx, queryerContext, &hostIDs, selectStmt, policyID, strings.Join(expandedPlatforms, ","))
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "select hosts to cleanup policy membership for platform")
+		}
+		allHostIDs = append(allHostIDs, hostIDs...)
+
+		_, err = db.ExecContext(ctx, delStmt, policyID, strings.Join(expandedPlatforms, ","))
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "cleanup policy membership for platform")
+		}
 	}
 
-	delStmt := `
-	DELETE
-	  pm
-	FROM
-	  policy_membership pm
-	LEFT JOIN
-	  hosts h
-	ON
-	  pm.host_id = h.id
-	WHERE
-	  pm.policy_id = ? AND
-	  ( h.id IS NULL OR
-		FIND_IN_SET(h.platform, ?) = 0 )`
-
-	selectStmt := `
+	// Delete memberships for hosts that don't match the label criteria.
+	labelSelectStmt := `
 	SELECT DISTINCT
-	  h.id
+	  pm.host_id
 	FROM
 	  policy_membership pm
-	INNER JOIN
-	  hosts h
-	ON
-	  pm.host_id = h.id
 	WHERE
-	  pm.policy_id = ? AND
-	  FIND_IN_SET(h.platform, ?) = 0`
+	  pm.policy_id = ?
+	  AND NOT (
+	    (
+ 		  -- If the policy has no include labels, all hosts match this part.
+	      NOT EXISTS (
+	        SELECT 1 FROM policy_labels pl
+	        WHERE pl.policy_id = pm.policy_id AND pl.exclude = 0
+	      )
+		  -- If the policy has include labels, the host must be in at least one of them.
+	      OR EXISTS (
+	        SELECT 1 FROM policy_labels pl
+	        JOIN label_membership lm ON lm.label_id = pl.label_id AND lm.host_id = pm.host_id
+	        WHERE pl.policy_id = pm.policy_id AND pl.exclude = 0
+	      )
+	    )
+	    -- If the policy has exclude labels, the host must not be in any of them.
+	    AND NOT EXISTS (
+	      SELECT 1 FROM policy_labels pl
+	      JOIN label_membership lm ON lm.label_id = pl.label_id AND lm.host_id = pm.host_id
+	      WHERE pl.policy_id = pm.policy_id AND pl.exclude = 1
+	    )
+	  )`
 
-	var expandedPlatforms []string
-	splitPlatforms := strings.Split(platforms, ",")
-	for _, platform := range splitPlatforms {
-		expandedPlatforms = append(expandedPlatforms, fleet.ExpandPlatform(strings.TrimSpace(platform))...)
-	}
+	labelDelStmt := `
+	DELETE pm
+	FROM
+	  policy_membership pm
+	WHERE
+	  pm.policy_id = ?
+	  AND NOT (
+	    (
+		  -- If the policy has no include labels, all hosts match this part.
+	      NOT EXISTS (
+	        SELECT 1 FROM policy_labels pl
+	        WHERE pl.policy_id = pm.policy_id AND pl.exclude = 0
+	      )
+		  -- If the policy has include labels, the host must be in at least one of them.
+	      OR EXISTS (
+	        SELECT 1 FROM policy_labels pl
+	        JOIN label_membership lm ON lm.label_id = pl.label_id AND lm.host_id = pm.host_id
+	        WHERE pl.policy_id = pm.policy_id AND pl.exclude = 0
+	      )
+	    )
+	    -- If the policy has exclude labels, the host must not be in any of them.
+	    AND NOT EXISTS (
+	      SELECT 1 FROM policy_labels pl
+	      JOIN label_membership lm ON lm.label_id = pl.label_id AND lm.host_id = pm.host_id
+	      WHERE pl.policy_id = pm.policy_id AND pl.exclude = 1
+	    )
+	  )`
 
-	// Find the impacted host IDs, so we can update their host issues entries
-	var hostIDs []uint
-	err := sqlx.SelectContext(ctx, queryerContext, &hostIDs, selectStmt, policyID, strings.Join(expandedPlatforms, ","))
+	var labelHostIDs []uint
+	err := sqlx.SelectContext(ctx, queryerContext, &labelHostIDs, labelSelectStmt, policyID)
 	if err != nil {
-		return ctxerr.Wrap(ctx, err, "select hosts to cleanup policy membership")
+		return ctxerr.Wrap(ctx, err, "select hosts to cleanup policy membership for labels")
 	}
+	allHostIDs = append(allHostIDs, labelHostIDs...)
 
-	_, err = db.ExecContext(ctx, delStmt, policyID, strings.Join(expandedPlatforms, ","))
+	_, err = db.ExecContext(ctx, labelDelStmt, policyID)
 	if err != nil {
-		return ctxerr.Wrap(ctx, err, "cleanup policy membership")
+		return ctxerr.Wrap(ctx, err, "cleanup policy membership for labels")
 	}
 
 	// Update host issues entries. This method is rarely called, so performance should not be a concern.
-	if err = updateHostIssuesFailingPolicies(ctx, db, hostIDs); err != nil {
+	if err = updateHostIssuesFailingPolicies(ctx, db, allHostIDs); err != nil {
 		return err
 	}
 
