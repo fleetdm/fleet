@@ -1,2 +1,0 @@
-* Added custom VPP apps to available VPP apps listing
-* Fixed cases where Fleet would show the wrong current VPP app version when app versions varied by platform
