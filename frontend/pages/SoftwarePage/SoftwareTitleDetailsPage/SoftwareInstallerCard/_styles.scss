@@ -3,6 +3,14 @@
   justify-content: space-between;
   align-items: center;
 
+  .table-container__results-count {
+    height: auto;
+
+    > span {
+      line-height: normal;
+    }
+  }
+
   &__actions {
     display: flex;
     align-items: center;
