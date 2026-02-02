@@ -173,9 +173,9 @@ The goal of the website group is to increase and exceed Fleet's product maturity
 
 > The [Slack channel](https://fleetdm.slack.com/archives/C097P4TAPRR), [kanban board](https://github.com/orgs/fleetdm/projects/92), and [GitHub label](https://github.com/fleetdm/fleet/labels?q=%23g-website) for this product group is `#g-website`.
 
-### Engineering operations group
+### Engineering Operations group
 
-The goal of the engineering operations working group is to make changes that promote engineering velocity, quality, and stability. 
+The goal of the Engineering Operations working group is to make changes that promote engineering velocity, quality, and stability. 
 
 | Responsibility                    | Human(s)                  |
 |:----------------------------------|:--------------------------|
@@ -186,9 +186,9 @@ The goal of the engineering operations working group is to make changes that pro
 
 > The [Slack channel](https://fleetdm.slack.com/archives/C0A91KW6Q0G), [kanban board](https://github.com/orgs/fleetdm/projects/103), and [GitHub label](https://github.com/fleetdm/fleet/labels?q=%23g-eng-ops) for this product group is `#g-eng-ops`.
 
-### First impressions group
+### First Impressions group
 
-The goal of the first impressions working group is to make changes to the core Fleet product that improve first impressions of Fleet at workshops, conferences, and demos.
+The goal of the First Impressions working group is to make changes to the core Fleet product that improve first impressions of Fleet at workshops, conferences, and demos.
 
 | Responsibility                    | Human(s)                  |
 |:----------------------------------|:--------------------------|
