@@ -2,222 +2,317 @@
 
 ## Introduction
 
-This guide explains how to enable [Okta Verify](https://help.okta.com/en-us/content/topics/mobile/okta-verify-overview.htm) on Windows using a SCEP client certificate delivered by the Windows **ClientCertificateInstall** CSP and then applied using an **Exec** command. This pattern is useful when your MDM payload cannot send **Add or Replace** nodes together with an **Exec** in one transaction.
+This guide explains how to enable Okta Verify on Windows using a SCEP client certificate delivered by the Windows ClientCertificateInstall CSP. With Fleet's support for Exec commands in configuration profiles, you can now deploy both the SCEP configuration and trigger enrollment in a single configuration profile, eliminating the need for a separate PowerShell script.
 
-You will deploy the SCEP profile first, then call **Enroll** via Exec to request the client certificate.
+## Overview
 
-**Files**
-* [Profile XML](https://github.com/fleetdm/fleet/blob/main/docs/solutions/windows/configuration-profiles/install%20Okta%20attestation%20certificate%20-%20%5BBundle%5D.xml)
-* [Powershell script](https://github.com/fleetdm/fleet/blob/main/docs/solutions/windows/scripts/trigger%20scep%20enrollment.ps1)
+Okta Verify for Windows uses certificate-based authentication to verify device trust. This requires:
 
----
+1. A SCEP (Simple Certificate Enrollment Protocol) server endpoint from Okta
+2. A Windows configuration profile that configures and triggers SCEP enrollment
+3. The certificate to be installed in the User certificate store (not Device)
 
-## Order at a glance
-
-1. Get your CA **thumbprint**, choose **{yourCertName}**, and locate your SCEP **URL** and **Challenge**.  
-2. Create Fleet **secrets** for URL, Challenge, CA thumbprint, and API token.  
-3. Use the Fleet repo XML CSP profile and replace only the required placeholders.  
-4. Deploy the profile to devices.  
-5. Update the **Exec** script to use the same `{yourCertName}` and your secrets, then run it.  
-6. Verify the certificate is installed.  
-7. Plan and automate **renewal**.
-
----
+Fleet now supports Exec commands in configuration profiles, allowing you to deploy both the SCEP configuration and trigger enrollment in a single XML file. The profile uses [Fleet secrets](https://fleetdm.com/guides/secrets-in-scripts-and-configuration-profiles) to inject your Okta SCEP details at deployment time, so no file editing is required.
 
 ## Prerequisites
 
-* Windows devices enrolled to Fleet MDM  
-* Okta SCEP endpoint with a static challenge  
-* Root CA certificate thumbprint for the SCEP issuing CA  
-* Fleet API token stored as a secret  
-* Optional GitOps workflow if you manage Fleet configuration as code
+Before you begin, you'll need to create Fleet secrets for your Okta SCEP configuration. These secrets will be automatically injected into the configuration profile when it's deployed.
 
----
+### Step 1: Gather your Okta SCEP details
 
-## Step 1. Collect your values
+Collect the following from your Okta tenant:
 
-### 1.1 Get the CA thumbprint
+- **SCEP Server URL**: Your Okta SCEP endpoint (e.g., `https://your-tenant.okta.com/scep/v1/...`)
+- **SCEP Challenge**: A static challenge string (avoid special characters like `! @ # $ % ^ & * ( ) _`)
+- **CA Thumbprint**: The SHA-256 thumbprint of your Okta CA certificate
 
-**Windows PowerShell**
-```powershell
-Get-FileHash -Path "C:\Path\To\ca.cer" -Algorithm SHA256 | Select-Object -ExpandProperty Hash
-```
+### Step 2: Get the CA Thumbprint
 
-**macOS or Linux**
+Download your Okta CA certificate and extract the SHA-256 thumbprint:
+
 ```bash
 openssl x509 -in ~/Downloads/ca.cer -noout -fingerprint -sha256
-# Output looks like:
-# SHA256 Fingerprint=E2:18:D7:A7:B0:DF:ED:79:B2:05:73:BA:79:CB:14:B1:FE:EA:D2:7B
-# Remove the colons:
-# E218D7A7B0DFED79B20573BA79CB14B1FEEAD27B
 ```
 
-Use the hex string without colons or spaces in the secret you will create below.
-
-### 1.2 Choose your SCEP node name
-
-Pick a simple value for `{yourCertName}`, for example `OKTA` or `OKTAVERIFY`. You will use this exact value:
-* in the XML profile path `.../SCEP/{yourCertName}/Install/...`  
-* in the Exec path `.../SCEP/{yourCertName}/Install/Enroll`
-
-### 1.3 Get your SCEP URL and Challenge
-
-* `{yourScepUrl}` is your Okta SCEP endpoint.  
-* `{yourScepChallenge}` is your static SCEP challenge. This profile expects **plain text**. Avoid special characters that can break XML or transport. Recommended: letters, numbers, underscore. If your challenge contains characters such as `! @ # $ % ^ & * ( )`, rotate to a simpler value.
-
-**Quick checklist**
-* {yourCertName} chosen  
-* {yourScepUrl} confirmed  
-* {yourScepChallenge} validated (plain text, simple characters)  
-* {yourScepCAThumbprint} ready (no colons, no spaces)
-
----
-
-## Step 2. Create Fleet secrets
-
-Follow Fleet’s guide: https://fleetdm.com/guides/secrets-in-scripts-and-configuration-profiles
-
-Create these secrets in Fleet (Controls → Variables) or via GitOps:
-
-| Secret name | Value you collected |
-|---|---|
-| `FLEET_SECRET_OKTA_SCEP_URL` | `{yourScepUrl}` |
-| `FLEET_SECRET_OKTA_SCEP_CHALLENGE` | `{yourScepChallenge}` (plain text, simple characters) |
-| `FLEET_SECRET_OKTA_CA_THUMBPRINT` | SHA256 thumbprint with no colons, no spaces
-| `FLEET_SECRET_API` | Fleet API token used by the Exec script |
-
-Optional convenience secret:
-* `FLEET_SECRET_OKTA_CERT_NAME` set to `{yourCertName}`
-
-**Security notes**
-* Fleet does not hide the secret in script results. Don't print/echo your secrets to the console output.
-
----
-
-## Step 3. Use Fleet’s XML CSP profile
-
-Source file in the Fleet repo:
+The output will look like:
 ```
-docs/solutions/Windows/configuration-profiles/install Okta attestation certificate - [Bundle].xml
+SHA256 Fingerprint=E2:18:D7:A7:B0:DF:ED:79:B2:05:73:BA:79:CB:14:B1:FE:EA:D2:7B
 ```
 
-Only change the following placeholders:
+Remove the colons to get the format needed for Fleet:
+```
+E218D7A7B0DFED79B20573BA79CB14B1FEEAD27B
+```
 
-* `{yourCertName}` set to the SCEP node name you chose in Step 1.2  
-* `{yourScepUrl}` replaced with `$FLEET_SECRET_OKTA_SCEP_URL`  
-* `{yourScepChallenge}` replaced with `$FLEET_SECRET_OKTA_SCEP_CHALLENGE` (plain text, simple characters)  
-* `{yourScepCAThumbprint}` replaced with `$FLEET_SECRET_OKTA_CA_THUMBPRINT` (no colons, no spaces)
+### Step 3: Create Fleet Secrets
 
-**Important**  
-Use the same `{yourCertName}` in both the profile path and the Exec path. If they differ, the Exec will 404.
+Create four secrets in Fleet (via **Controls** > **Variables** or GitOps). For detailed guidance on using secrets in configuration profiles, see [Fleet's secrets documentation](https://fleetdm.com/guides/secrets-in-scripts-and-configuration-profiles).
 
-### Replace just these lines in the profile
+1. **NODE_NAME**
+   - Value: A simple identifier for your SCEP node
+   - Example: `OKTA` or `OKTAVERIFY`
+   - ⚠️ Use only alphanumeric characters
+
+2. **OKTA_SCEP_URL**
+   - Value: Your full Okta SCEP server URL
+   - Example: `https://your-tenant.okta.com/scep/v1/your-scep-endpoint`
+
+3. **OKTA_SCEP_CHALLENGE**
+   - Value: Your SCEP challenge (plain text, alphanumeric recommended)
+   - ⚠️ Rotate if it contains special characters, especially underscores
+
+4. **OKTA_CA_THUMBPRINT**
+   - Value: Your CA thumbprint (no colons, no spaces)
+   - Example: `E218D7A7B0DFED79B20573BA79CB14B1FEEAD27B`
+
+Fleet will automatically inject these as `$FLEET_SECRET_NODE_NAME`, `$FLEET_SECRET_OKTA_SCEP_URL`, `$FLEET_SECRET_OKTA_SCEP_CHALLENGE`, and `$FLEET_SECRET_OKTA_CA_THUMBPRINT` when the profile is deployed.
+
+## Configuration Profile
+
+Fleet supports deploying Windows configuration profiles with embedded Exec commands. The profile includes:
+
+1. **Add nodes**: Configure all SCEP parameters (URL, Challenge, CA Thumbprint, etc.)
+2. **Exec node**: Trigger the enrollment immediately after configuration
+
+### Profile Structure
+
+The configuration profile uses the Windows ClientCertificateInstall CSP with the following structure:
 
 ```xml
-<!-- SCEP Server URL -->
-<Item>
-  <Target>
-    <LocURI>./Device/Vendor/MSFT/ClientCertificateInstall/SCEP/{yourCertName}/Install/ServerURL</LocURI>
-  </Target>
-  <Meta><Format xmlns="syncml:metinf">chr</Format></Meta>
-  <Data>$FLEET_SECRET_OKTA_SCEP_URL</Data>
-</Item>
-
-<!-- SCEP Challenge (plain text) -->
-<Item>
-  <Target>
-    <LocURI>./Device/Vendor/MSFT/ClientCertificateInstall/SCEP/{yourCertName}/Install/Challenge</LocURI>
-  </Target>
-  <Meta><Format xmlns="syncml:metinf">chr</Format></Meta>
-  <Data>$FLEET_SECRET_OKTA_SCEP_CHALLENGE</Data>
-</Item>
-
-<!-- SCEP CA Thumbprint (no colons) -->
-<Item>
-  <Target>
-    <LocURI>./Device/Vendor/MSFT/ClientCertificateInstall/SCEP/{yourCertName}/Install/CAThumbprint</LocURI>
-  </Target>
-  <Meta><Format xmlns="syncml:metinf">chr</Format></Meta>
-  <Data>$FLEET_SECRET_OKTA_CA_THUMBPRINT</Data>
-</Item>
+<Add>
+  <!-- SCEP configuration nodes -->
+</Add>
+<Exec>
+  <!-- Trigger enrollment -->
+</Exec>
 ```
 
-Keep the other defaults from the file (KeyLength 2048, KeyUsage 160, HashAlgorithm `SHA-1`, SubjectName `CN=$FLEET_VAR_HOST_UUID managementAttestation`, EKUMapping, RetryCount, RetryDelay).
+### Deployment Steps
 
-Deploy the profile to your Windows hosts using Fleet.
+1. **Download the ready-to-use profile** from the Fleet repository:
+   - [install Okta attestation certificate - [Bundle].xml](https://github.com/fleetdm/fleet/blob/main/docs/solutions/windows/configuration-profiles/install%20Okta%20attestation%20certificate%20-%20%5BBundle%5D.xml)
 
----
+2. **No editing required!** The profile is ready to deploy as-is. It uses:
+   - `$FLEET_SECRET_NODE_NAME` for the certificate node name
+   - `$FLEET_SECRET_OKTA_SCEP_URL` for the SCEP server URL
+   - `$FLEET_SECRET_OKTA_SCEP_CHALLENGE` for the SCEP challenge
+   - `$FLEET_SECRET_OKTA_CA_THUMBPRINT` for the CA thumbprint
 
-## Step 4. Update the Exec script and run Enroll
+3. **Deploy the profile** using Fleet:
+   - Navigate to **Controls** > **OS settings** > **Custom settings**
+   - Upload the XML file (no modifications needed)
+   - Assign to the appropriate team or hosts
+   - Fleet will automatically replace the secret variables when deploying to each device
 
-Script location in repo:  
-`docs/solutions/Windows/scripts/trigger-scep-enrollment.ps1`
+### Profile Example
 
-Your Exec must target the same `{yourCertName}` as in the profile. Example path:
+Here's what the key parts of the profile look like:
+
+```xml
+<Add>
+  <Item>
+    <Target>
+      <LocURI>./User/Vendor/MSFT/ClientCertificateInstall/SCEP/$FLEET_SECRET_NODE_NAME</LocURI>
+    </Target>
+    <Meta>
+      <Format xmlns="syncml:metinf">node</Format>
+    </Meta>
+  </Item>
+</Add>
+<!-- Additional Add nodes for RetryCount, RetryDelay, KeyUsage, etc. -->
+<Add>
+  <Item>
+    <Target>
+      <LocURI>./User/Vendor/MSFT/ClientCertificateInstall/SCEP/$FLEET_SECRET_NODE_NAME/Install/ServerURL</LocURI>
+    </Target>
+    <Meta>
+      <Format xmlns="syncml:metinf">chr</Format>
+    </Meta>
+    <Data>$FLEET_SECRET_OKTA_SCEP_URL</Data>
+  </Item>
+</Add>
+<Add>
+  <Item>
+    <Target>
+      <LocURI>./User/Vendor/MSFT/ClientCertificateInstall/SCEP/$FLEET_SECRET_NODE_NAME/Install/Challenge</LocURI>
+    </Target>
+    <Meta>
+      <Format xmlns="syncml:metinf">chr</Format>
+    </Meta>
+    <Data>$FLEET_SECRET_OKTA_SCEP_CHALLENGE</Data>
+  </Item>
+</Add>
+<Add>
+  <Item>
+    <Target>
+      <LocURI>./User/Vendor/MSFT/ClientCertificateInstall/SCEP/$FLEET_SECRET_NODE_NAME/Install/CAThumbprint</LocURI>
+    </Target>
+    <Meta>
+      <Format xmlns="syncml:metinf">chr</Format>
+    </Meta>
+    <Data>$FLEET_SECRET_OKTA_CA_THUMBPRINT</Data>
+  </Item>
+</Add>
+<Exec>
+  <Item>
+    <Target>
+      <LocURI>./User/Vendor/MSFT/ClientCertificateInstall/SCEP/$FLEET_SECRET_NODE_NAME/Install/Enroll</LocURI>
+    </Target>
+  </Item>
+</Exec>
 ```
-./Device/Vendor/MSFT/ClientCertificateInstall/SCEP/{yourCertName}/Install/Enroll
+
+Fleet automatically replaces the `$FLEET_SECRET_*` variables with your actual values when deploying the profile to devices.
+
+## Important Notes
+
+### Fleet Secrets
+
+The profile uses Fleet secrets for all configuration values:
+- `$FLEET_SECRET_NODE_NAME` - Your SCEP certificate node name (e.g., `OKTA`)
+- `$FLEET_SECRET_OKTA_SCEP_URL` - Your SCEP server endpoint
+- `$FLEET_SECRET_OKTA_SCEP_CHALLENGE` - Your SCEP challenge
+- `$FLEET_SECRET_OKTA_CA_THUMBPRINT` - Your CA thumbprint
+
+These are automatically replaced when Fleet deploys the profile to each device. Make sure all four secrets are created in Fleet before deploying the profile.
+
+### User vs. Device Certificate Store
+
+Okta requires the certificate to be installed in the **User** certificate store. The profile uses:
+```xml
+./User/Vendor/MSFT/ClientCertificateInstall/SCEP/...
 ```
 
-Update your PowerShell script to read the API token from the secret, set your node name, and build the correct LocURI.
+If you use `./Device` instead, the device will **not** be marked as managed in Okta.
+
+### SCEP Challenge Requirements
+
+Your SCEP challenge should:
+- Use only alphanumeric characters (letters and numbers)
+- Avoid special characters, especially underscores (`_`), which will break deployment
+- Not require base64 encoding (Fleet handles plain text challenges)
+
+Special characters can cause errors like:
+```
+SCEP: Certificate enroll failed. Result: (The string contains a non-printable character.)
+```
+
+If your current challenge contains special characters, consider rotating to a simpler value.
+
+## Verification
+
+After deploying the profile, verify the certificate installation:
+
+### Check Certificate in User Store
+
+Open PowerShell as the logged-in user (not as administrator) and run:
 
 ```powershell
-# ----- USER SETTINGS -----
-# Add your secrets in Fleet (Controls > Variables) or via GitOps.
-# The variable named "API" becomes FLEET_SECRET_API
-# Full guidance: https://fleetdm.com/guides/secrets-in-scripts-and-configuration-profiles
-
-$NODE_NAME = "OKTA"               # must match {yourCertName} in the XML
-$FLEET_API = "$FLEET_SECRET_API"  # injected by Fleet
-
-$locUri = "./Device/Vendor/MSFT/ClientCertificateInstall/SCEP/$NODE_NAME/Install/Enroll"
-# ...construct and send the Exec command body referencing $locUri...
+Get-ChildItem -Path Cert:\CurrentUser\My | Where-Object {$_.Subject -like "*managementAttestation*"}
 ```
 
-Run the script from Fleet so secrets inject automatically.
+You should see output similar to:
 
----
+```
+Thumbprint                                Subject
+----------                                -------
+A1B2C3D4E5F6G7H8I9J0K1L2M3N4O5P6Q7R8S9T0  CN=<UUID> managementAttestation
+```
 
-## Step 5. Verify enrollment
+### Check Device Management Logs
 
-**PowerShell**
+View enrollment activity in the Windows Event Log:
+
 ```powershell
-Get-ChildItem Cert:\LocalMachine\My |
-  Where-Object { $_.Subject -like "*managementAttestation*" } |
-  Format-List Subject, Thumbprint, NotAfter
+Get-WinEvent -LogName Microsoft-Windows-DeviceManagement-Enterprise-Diagnostics-Provider/Admin -MaxEvents 50
 ```
 
-**GUI**
-* Open `certlm.msc`  
-* Personal > Certificates  
-* Confirm a certificate whose Subject contains `managementAttestation`
+Look for successful enrollment events related to your SCEP node.
 
----
+### Verify in Okta Admin Console
 
-## Step 6. Renewal
-
-* Automated workflow. Use a Fleet query to find certificates expiring within 30 days and trigger the Exec command for those hosts.
-
-Find certs expiring within 30 days:
-```TODO!
-```
-
----
+1. Log in to your Okta Admin Console
+2. Navigate to **Reports** > **System Log**
+3. Filter for device attestation events
+4. Confirm your device appears as managed with the correct certificate
 
 ## Troubleshooting
 
-* Exec returns 404: node name mismatch. Ensure `{yourCertName}` in XML equals `$NODE_NAME` in the script.  
-* Enrollment fails immediately: check `ServerURL`, `CAThumbprint` format, and that the device can reach the SCEP URL.  
-* Challenge rejected: try a simpler plain text challenge, or base64 encode and update the XML `<Data>`.  
-* Nothing in `Cert:\LocalMachine\My`: review Device Management logs  
-  ```powershell
-  Get-WinEvent -LogName Microsoft-Windows-DeviceManagement-Enterprise-Diagnostics-Provider/Admin -MaxEvents 50
-  ```
+### Missing Fleet Secrets
 
----
+**Symptom**: Profile deployment fails or secrets aren't replaced.
 
-<meta name="articleTitle" value="Enable Okta Verify on Windows">
-<meta name="authorFullName" value="Adam Baali">
-<meta name="authorGitHubUsername" value="AdamBaali">
-<meta name="category" value="guides">
-<meta name="publishedOn" value="2026-01-23">
-<meta name="description" value="Enable Okta Verify on Windows using a SCEP configuration profile">
+**Cause**: Fleet secrets haven't been created.
+
+**Solution**: 
+- Verify you've created all four required secrets in Fleet:
+  - `NODE_NAME`
+  - `OKTA_SCEP_URL`
+  - `OKTA_SCEP_CHALLENGE`
+  - `OKTA_CA_THUMBPRINT`
+- Check the secret names match exactly (case-sensitive)
+- Verify the secrets are available to the team/hosts where you're deploying the profile
+
+### Exec Returns 404: Node Name Issue
+
+**Symptom**: The Exec command fails with a 404 error.
+
+**Cause**: The NODE_NAME secret is missing or contains invalid characters.
+
+**Solution**: 
+- Ensure the `NODE_NAME` secret exists in Fleet
+- Use only alphanumeric characters in your node name (e.g., `OKTA`, `OKTAVERIFY`)
+- Avoid special characters and spaces
+
+### Enrollment Fails Immediately
+
+**Possible causes**:
+- Incorrect ServerURL
+- Wrong CAThumbprint format (ensure no colons or spaces)
+- Device cannot reach the SCEP URL (check network/firewall)
+
+**Solution**: Verify your SCEP configuration details and network connectivity.
+
+### Challenge Rejected
+
+**Symptom**: SCEP server rejects the challenge.
+
+**Cause**: Challenge contains special characters or encoding issues.
+
+**Solution**: 
+- Use a simpler plain text challenge (alphanumeric only)
+- Avoid special characters, especially underscores
+- Consider rotating your SCEP challenge in Okta
+
+### Certificate Not in User Store
+
+**Symptom**: Certificate appears in Device store instead of User store, or not at all.
+
+**Cause**: Profile is using `./Device` instead of `./User` in the LocURI.
+
+**Solution**: Ensure all LocURI paths use `./User/Vendor/MSFT/ClientCertificateInstall/SCEP/...`
+
+### Certificate Exists But Device Not Managed
+
+**Symptom**: Certificate is installed but Okta doesn't mark device as managed.
+
+**Cause**: Certificate is in the wrong store (Device instead of User).
+
+**Solution**: Remove the profile, correct the LocURI paths to use `./User`, and redeploy.
+
+## Certificate Renewal
+
+SCEP certificates have expiration dates. Plan for renewal by:
+
+1. **Monitoring expiration**: Use Fleet queries to identify certificates expiring within 30 days:
+
+```sql
+SELECT 
+    common_name,
+    not_valid_after,
+    CAST((julianday(not_valid_after) - julianday('now')) AS INTEGER) as days_until_expiry
+FROM certificates
+WHERE 
+    common_name LIKE '%managementAttestation%'
+    AND CAST((julianday(not_valid_after) - julianday('now')) AS INTEGER) < 30;
+```
