@@ -150,7 +150,7 @@ func SyncEstimateField(issueNumber int, sourceProjectID, targetProjectID int) er
 	}
 
 	// Get the estimate value from the source project using GraphQL
-	sourceEstimate, err := getProjectItemFieldValue(sourceItemID, sourceProjectID, "Estimate")
+	sourceEstimate, err := GetProjectItemFieldValue(sourceItemID, sourceProjectID, "Estimate")
 	if err != nil {
 		return fmt.Errorf("failed to get source estimate: %v", err)
 	}

@@ -115,6 +115,12 @@ type TestAppleMDMClient struct {
 	// scepKey contains the SCEP client private key generated during the
 	// SCEP enrollment process.
 	scepKey *rsa.PrivateKey
+
+	// legacyIDeviceEnrollRef is an optional enroll reference that will be added to the MDMURL after the
+	// client fetches the enrollment profile but prior to attempting SCEP enrollment. Note that this
+	// is not a full simulation of legacy enrollments (especially, as it related to IdP). Rather it
+	// is enough to test certain SCEP renewal scenarios for iOS/IPadOS devices
+	legacyIDeviceEnrollRef string
 }
 
 // TestMDMAppleClientOption allows configuring a TestMDMClient.
@@ -138,6 +144,16 @@ func WithEnrollmentProfileFromDEPUsingPost() TestMDMAppleClientOption {
 func WithOTAIdpUUID(idpUUID string) TestMDMAppleClientOption {
 	return func(c *TestAppleMDMClient) {
 		c.otaIdpUUID = idpUUID
+	}
+}
+
+// Will add the specified reference as a query parameter to the MDMURL after the
+// client fetches the enrollment profile but prior to attempting SCEP enrollment. Note that this
+// is not a full simulation of legacy enrollments (especially, as it relates to IdP). Rather it
+// is enough to test certain SCEP renewal scenarios for iOS/IPadOS devices
+func WithLegacyIDeviceEnrollRef(enrollRef string) TestMDMAppleClientOption {
+	return func(c *TestAppleMDMClient) {
+		c.legacyIDeviceEnrollRef = enrollRef
 	}
 }
 
@@ -312,6 +328,18 @@ func (c *TestAppleMDMClient) Enroll() error {
 			return fmt.Errorf("missing info needed to perform enrollment: %+v", c.EnrollInfo)
 		}
 	}
+
+	if c.legacyIDeviceEnrollRef != "" {
+		parsedMDMURL, err := url.Parse(c.EnrollInfo.MDMURL)
+		if err != nil {
+			return fmt.Errorf("parsing MDM URL: %w", err)
+		}
+		q := parsedMDMURL.Query()
+		q.Set("enroll_reference", c.legacyIDeviceEnrollRef)
+		parsedMDMURL.RawQuery = q.Encode()
+		c.EnrollInfo.MDMURL = parsedMDMURL.String()
+	}
+
 	if err := c.SCEPEnroll(); err != nil {
 		return fmt.Errorf("scep enroll: %w", err)
 	}

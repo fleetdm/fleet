@@ -2622,10 +2622,10 @@ team_settings:
 labels:
   - name: team-one-label-one
     label_membership_type: dynamic
-    query: SELECT 2 
+    query: SELECT 2
   - name: team-one-label-two
     label_membership_type: dynamic
-    query: SELECT 3 
+    query: SELECT 3
 `, teamOneName), 0o644))
 
 	s.assertDryRunOutput(t, fleetctl.RunAppForTest(t, []string{"gitops", "--config", fleetCfg.Name(), "-f", teamOneFile.Name(), "--dry-run"}))
@@ -2655,7 +2655,7 @@ team_settings:
 labels:
   - name: team-one-label-one
     label_membership_type: dynamic
-    query: SELECT 2 
+    query: SELECT 2
 `, teamOneName), 0o644))
 
 	s.assertRealRunOutput(t, fleetctl.RunAppForTest(t, []string{"gitops", "--config", fleetCfg.Name(), "-f", globalFile.Name(), "-f", teamOneFile.Name()}))
@@ -2701,7 +2701,7 @@ team_settings:
 labels:
   - name: team-one-label-two
     label_membership_type: dynamic
-    query: SELECT 3 
+    query: SELECT 3
   - name: global-label-two
     label_membership_type: dynamic
     query: SELECT 1
@@ -2723,7 +2723,7 @@ team_settings:
 labels:
   - name: team-one-label-one
     label_membership_type: dynamic
-    query: SELECT 2 
+    query: SELECT 2
 `, teamTwoName), 0o644))
 
 	s.assertDryRunOutput(t, fleetctl.RunAppForTest(t, []string{"gitops", "--config", fleetCfg.Name(), "-f", globalFile.Name(), "-f", teamOneFile.Name(), "-f", teamTwoFile.Name(), "--dry-run"}))
@@ -3204,4 +3204,130 @@ org_settings:
 			require.Equal(t, testCase.Expected, storedCfg.FleetDesktop.AlternativeBrowserHost)
 		})
 	}
+}
+
+func (s *enterpriseIntegrationGitopsTestSuite) TestSpecialCaseTeamsVPPApps() {
+	t := s.T()
+	ctx := context.Background()
+
+	user := s.createGitOpsUser(t)
+	fleetctlConfig := s.createFleetctlConfig(t, user)
+
+	// Create a global VPP token (location is "Jungle")
+	test.CreateInsertGlobalVPPToken(t, s.DS)
+
+	// Generate team name upfront since we need it in the global template
+	teamName := uuid.NewString()
+
+	// The global template includes VPP token assignment to the team
+	// The location "Jungle" comes from test.CreateInsertGlobalVPPToken
+	globalTemplate :=
+		`agent_options:
+controls:
+org_settings:
+  server_settings:
+    server_url: $FLEET_URL
+  org_info:
+    org_name: Fleet
+  secrets:
+  - secret: foobar
+  mdm:
+    volume_purchasing_program:
+      - location: Jungle
+        teams:
+          - %s
+policies:
+queries:
+`
+
+	teamTemplate := `
+controls:
+software:
+  app_store_apps:
+    - app_store_id: "2"
+      platform: ios
+      self_service: false
+      auto_update_enabled: true
+      auto_update_window_start: "02:00"
+      auto_update_window_end: "06:00"
+    - app_store_id: "2"
+      platform: ipados
+      self_service: false
+      auto_update_enabled: true
+      auto_update_window_start: "03:00"
+      auto_update_window_end: "07:00"
+queries:
+policies:
+agent_options:
+name: %s
+team_settings:
+  %s
+`
+
+	testCases := []struct {
+		specialCase  string
+		teamName     string
+		teamSettings string
+	}{
+		{
+			specialCase:  "All teams",
+			teamName:     teamName,
+			teamSettings: `secrets: [{"secret":"enroll_secret"}]`,
+		},
+		{
+			specialCase: "No team",
+			teamName:    "No team",
+		},
+	}
+	for _, tc := range testCases {
+		t.Run(tc.specialCase, func(t *testing.T) {
+			globalFile, err := os.CreateTemp(t.TempDir(), "*.yml")
+			require.NoError(t, err)
+			globalYAML := fmt.Sprintf(globalTemplate, tc.specialCase)
+			_, err = globalFile.WriteString(globalYAML)
+			require.NoError(t, err)
+			err = globalFile.Close()
+			require.NoError(t, err)
+			teamFile, err := os.CreateTemp(t.TempDir(), "*.yml")
+			require.NoError(t, err)
+			_, err = fmt.Fprintf(teamFile, teamTemplate, tc.teamName, tc.teamSettings)
+			require.NoError(t, err)
+			err = teamFile.Close()
+			require.NoError(t, err)
+
+			teamFileName := teamFile.Name()
+
+			if tc.specialCase == "No team" {
+				noTeamFilePath := filepath.Join(filepath.Dir(teamFile.Name()), "no-team.yml")
+				err = os.Rename(teamFile.Name(), noTeamFilePath)
+				require.NoError(t, err)
+
+				teamFileName = noTeamFilePath
+			}
+
+			t.Setenv("FLEET_URL", s.Server.URL)
+
+			testing_utils.StartAndServeVPPServer(t)
+
+			dryRunOutput := fleetctl.RunAppForTest(t, []string{"gitops", "--config", fleetctlConfig.Name(), "-f", globalFile.Name(), "-f", teamFileName, "--dry-run"})
+			require.Contains(t, dryRunOutput, "gitops dry run succeeded")
+
+			realRunOutput := fleetctl.RunAppForTest(t, []string{"gitops", "--config", fleetctlConfig.Name(), "-f", globalFile.Name(), "-f", teamFileName})
+			require.Contains(t, realRunOutput, "gitops succeeded")
+
+			var teamID uint
+			if tc.specialCase != "No team" {
+				team, err := s.DS.TeamByName(ctx, teamName)
+				require.NoError(t, err)
+				teamID = team.ID
+			}
+
+			// Verify VPP apps were added
+			titles, _, _, err := s.DS.ListSoftwareTitles(ctx, fleet.SoftwareTitleListOptions{AvailableForInstall: true, TeamID: &teamID},
+				fleet.TeamFilter{User: test.UserAdmin})
+			require.NoError(t, err)
+			require.Len(t, titles, 2) // One for iOS, one for iPadOS
+		})
+	}
+
 }

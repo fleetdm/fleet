@@ -14,6 +14,7 @@ import { IPaginatedListHandle } from "components/PaginatedList";
 import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
 import { getPathWithQueryParams } from "utilities/url";
 import { getExtensionFromFileName } from "utilities/file/fileUtils";
+import { getDisplayedSoftwareName } from "pages/SoftwarePage/helpers";
 
 // @ts-ignore
 import Dropdown from "components/forms/fields/Dropdown";
@@ -181,7 +182,9 @@ const InstallSoftwareModal = ({
       const foundTitle = titlesAvailableForInstall?.find(
         (title) => title.id === value
       );
-      return foundTitle ? foundTitle.display_name || foundTitle.name : "";
+      return foundTitle
+        ? getDisplayedSoftwareName(foundTitle.name, foundTitle.display_name)
+        : "";
     };
 
     return {
@@ -202,7 +205,7 @@ const InstallSoftwareModal = ({
         )
         .map((title) => {
           return {
-            label: title.display_name || title.name,
+            label: getDisplayedSoftwareName(title.name, title.display_name),
             value: title.id,
             helpText: generateSoftwareOptionHelpText(title),
           };
@@ -236,7 +239,10 @@ const InstallSoftwareModal = ({
           if (currentSoftware) {
             options = [
               {
-                label: currentSoftware.display_name || currentSoftware.name,
+                label: getDisplayedSoftwareName(
+                  currentSoftware.name,
+                  currentSoftware.display_name
+                ),
                 value: currentSoftware.id,
                 helpText: generateSoftwareOptionHelpText(currentSoftware),
               },
