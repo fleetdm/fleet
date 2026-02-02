@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"maps"
 	"net/http"
 	"net/url"
 	"strings"
@@ -871,14 +872,47 @@ func (svc *Service) ModifyTeamEnrollSecrets(ctx context.Context, teamID uint, se
 		return nil, fleet.NewInvalidArgumentError("secrets", "too many secrets")
 	}
 
+	oldSecrets, err := svc.ds.GetEnrollSecrets(ctx, ptr.Uint(teamID))
+	if err != nil {
+		return nil, err
+	}
+
+	newSecretsValues := make(map[string]struct{}, len(secrets))
+
 	var newSecrets []*fleet.EnrollSecret
 	for _, secret := range secrets {
+		newSecretsValues[secret.Secret] = struct{}{}
+
 		newSecrets = append(newSecrets, &fleet.EnrollSecret{
 			Secret: secret.Secret,
 		})
 	}
 	if err := svc.ds.ApplyEnrollSecrets(ctx, ptr.Uint(teamID), newSecrets); err != nil {
 		return nil, err
+	}
+
+	// Check whether there were any mutations around the provided secrets ... if true, then register
+	// an activity.
+	oldSecretValues := make(map[string]struct{}, len(oldSecrets))
+	for _, s := range oldSecrets {
+		oldSecretValues[s.Secret] = struct{}{}
+	}
+
+	if !maps.Equal(oldSecretValues, newSecretsValues) {
+		activity := fleet.ActivityTypeModifiedEnrollSecret{}
+		if team, err := svc.ds.TeamLite(ctx, teamID); err == nil && team != nil {
+			activity = fleet.ActivityTypeModifiedEnrollSecret{
+				TeamID:   &team.ID,
+				TeamName: &team.Name,
+			}
+		}
+		if err := svc.NewActivity(
+			ctx,
+			authz.UserFromContext(ctx),
+			activity,
+		); err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "creating modified enroll secret activity")
+		}
 	}
 
 	return newSecrets, nil

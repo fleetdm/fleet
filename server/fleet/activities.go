@@ -258,6 +258,8 @@ var ActivityDetailsList = []ActivityDetails{
 	ActivityEditedSetupExperienceSoftware{},
 
 	ActivityTypeEditedHostIdpData{},
+
+	ActivityTypeModifiedEnrollSecret{},
 }
 
 type ActivityDetails interface {
@@ -3321,5 +3323,25 @@ func (a ActivityTypeDeletedCertificate) Documentation() (activity string, detail
   "certificate_name": "WiFi cert",
   "team_id": 123,
   "team_name": "Mobile devices"
+}`
+}
+
+type ActivityTypeModifiedEnrollSecret struct {
+	TeamID   *uint   `json:"team_id"`
+	TeamName *string `json:"team_name"`
+}
+
+func (a ActivityTypeModifiedEnrollSecret) ActivityName() string {
+	return "modified_enroll_secret"
+}
+
+func (a ActivityTypeModifiedEnrollSecret) Documentation() (activity, details, detailsExample string) {
+	return `Generated when an enroll secret is modified (updated, added, or deleted).`,
+		`This activity contains the following fields:
+- "team_id": The ID of the team that the enroll secret applies to, ` + "`null`" + ` if it applies to devices that are not in a team.
+- "team_name": The name of the team that the enroll secret applies to, ` + "`null`" + ` if it applies to devices that are not in a team.Generated when a user edits the Android profiles of a team (or no team) via the fleetctl CLI.`,
+		`{
+  "team_id": 1,
+  "team_name": "Workstations",
 }`
 }

@@ -10,6 +10,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"maps"
 	"net"
 	"net/http"
 	"net/url"
@@ -1767,7 +1768,33 @@ func (svc *Service) ApplyEnrollSecretSpec(ctx context.Context, spec *fleet.Enrol
 		return nil
 	}
 
-	return svc.ds.ApplyEnrollSecrets(ctx, nil, spec.Secrets)
+	oldSecrets, err := svc.ds.GetEnrollSecrets(ctx, nil)
+	if err != nil {
+		return err
+	}
+
+	if err := svc.ds.ApplyEnrollSecrets(ctx, nil, spec.Secrets); err != nil {
+		return err
+	}
+
+	// Check whether there were any mutations around the provided secrets ... if true, then register
+	// an activity.
+	oldSecretValues := make(map[string]struct{}, len(oldSecrets))
+	for _, s := range oldSecrets {
+		oldSecretValues[s.Secret] = struct{}{}
+	}
+	newSecretsValues := make(map[string]struct{}, len(spec.Secrets))
+	for _, s := range spec.Secrets {
+		newSecretsValues[s.Secret] = struct{}{}
+	}
+	if !maps.Equal(oldSecretValues, newSecretsValues) {
+		activity := fleet.ActivityTypeModifiedEnrollSecret{}
+		if err := svc.NewActivity(ctx, authz.UserFromContext(ctx), activity); err != nil {
+			return ctxerr.Wrap(ctx, err, "creating activity for modified enroll secret")
+		}
+	}
+
+	return nil
 }
 
 // //////////////////////////////////////////////////////////////////////////////

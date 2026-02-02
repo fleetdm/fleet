@@ -1522,17 +1522,42 @@ func (s *integrationEnterpriseTestSuite) TestModifyTeamEnrollSecrets() {
 	assert.Equal(t, "testSecret1", team.Secrets[0].Secret)
 	assert.Equal(t, "testSecret2", team.Secrets[1].Secret)
 
+	seenActivitiesIDs := map[uint]struct{}{}
+	activityName := fleet.ActivityTypeModifiedEnrollSecret{}.ActivityName()
+	activityDetails := fmt.Sprintf(`{"team_id": %d, "team_name": "%s"}`, team.ID, team.Name)
+
+	// Check that an activity was created for the new secrets
+	seenActivitiesIDs[s.lastActivityMatches(activityName, activityDetails, 0)] = struct{}{}
+	require.Len(t, seenActivitiesIDs, 1)
+
+	// Posting the same secret shouldn't create a new activity, since we are only interested in mutations
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d/secrets", team.ID), req, http.StatusOK, &resp)
+	seenActivitiesIDs[s.lastActivityMatches(activityName, activityDetails, 0)] = struct{}{}
+	require.Len(t, seenActivitiesIDs, 1)
+
 	// Test delete all enroll secrets
 	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d/secrets", team.ID), json.RawMessage(`{"secrets": []}`), http.StatusOK, &resp)
 	require.Len(t, resp.Secrets, 0)
+
+	// We should see a new activity for the deleted secrets
+	seenActivitiesIDs[s.lastActivityMatches(activityName, activityDetails, 0)] = struct{}{}
+	require.Len(t, seenActivitiesIDs, 2)
 
 	// Test bad requests
 	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d/secrets", team.ID), json.RawMessage(`{"foo": [{"secret": "testSecret3"}]}`), http.StatusUnprocessableEntity, &resp)
 	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d/secrets", team.ID), json.RawMessage(`{}`), http.StatusUnprocessableEntity, &resp)
 
+	// No new activities should be generated
+	seenActivitiesIDs[s.lastActivityMatches(activityName, activityDetails, 0)] = struct{}{}
+	require.Len(t, seenActivitiesIDs, 2)
+
 	// too many secrets
 	secrets := createEnrollSecrets(t, fleet.MaxEnrollSecretsCount+1)
 	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d/secrets", team.ID), json.RawMessage(`{"secrets": `+string(jsonMustMarshal(t, secrets))+`}`), http.StatusUnprocessableEntity, &resp)
+
+	// No new activities should be generated
+	seenActivitiesIDs[s.lastActivityMatches(activityName, activityDetails, 0)] = struct{}{}
+	require.Len(t, seenActivitiesIDs, 2)
 }
 
 func (s *integrationEnterpriseTestSuite) TestAvailableTeams() {
