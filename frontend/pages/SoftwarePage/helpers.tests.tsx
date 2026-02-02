@@ -16,6 +16,7 @@ import {
 import {
   getSelfServiceTooltip,
   getAutomaticInstallPoliciesCount,
+  getDisplayedSoftwareName,
 } from "./helpers";
 
 describe("getSelfServiceTooltip", () => {
@@ -139,5 +140,40 @@ describe("getAutomaticInstallPoliciesCount", () => {
       app_store_app: null,
     });
     expect(getAutomaticInstallPoliciesCount(hostSoftware)).toBe(0);
+  });
+});
+
+describe("getDisplayedSoftwareName", () => {
+  it("returns display_name when provided (custom name wins)", () => {
+    expect(
+      getDisplayedSoftwareName("Microsoft.CompanyPortal", "My Custom Portal")
+    ).toBe("My Custom Portal");
+  });
+
+  it("normalizes a known raw name when display_name is not provided", () => {
+    expect(getDisplayedSoftwareName("Microsoft.CompanyPortal", null)).toBe(
+      "Company Portal"
+    );
+  });
+
+  it("normalizes a known raw name case-insensitively", () => {
+    expect(getDisplayedSoftwareName("microsoft.companyportal", undefined)).toBe(
+      "Company Portal"
+    );
+  });
+
+  it("returns the raw name when it is not in WELL_KNOWN_SOFTWARE_TITLES", () => {
+    expect(getDisplayedSoftwareName("Some Other App", null)).toBe(
+      "Some Other App"
+    );
+  });
+
+  it("returns the raw name when display_name is empty", () => {
+    expect(getDisplayedSoftwareName("Some App", "")).toBe("Some App");
+  });
+
+  it("returns a default when neither name nor display_name is provided", () => {
+    expect(getDisplayedSoftwareName(undefined, undefined)).toBe("Software");
+    expect(getDisplayedSoftwareName(null, null)).toBe("Software");
   });
 });
