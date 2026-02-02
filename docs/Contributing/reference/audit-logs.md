@@ -2311,7 +2311,7 @@ This activity contains the following fields:
 
 ## edited_enroll_secrets
 
-Generated when an enroll secret is modified (updated, added, or deleted).
+Generated when global or team enroll secrets are modified.
 
 This activity contains the following fields:
 - "team_id": The ID of the team that the enroll secret applies to, `null` if it applies to devices that are not in a team.
