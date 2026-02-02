@@ -41,6 +41,23 @@ If you're trying to troubleshoot macOS hosts, you can [run a script](../docs/sol
 6. Grab the logs from `/var/log/orbit/orbit.stderr.log`.
 
 
+## Checking MDM commands
+
+If you suspect something went wrong with an MDM command for a device (such as locking, wiping, installing an app, etc.), you can use the UI or API to view the MDM command results.
+
+For the UI, open the host details page and under **Activity** toggle the switch for **Show MDM commands**.
+
+<img width="717" height="365" alt="Show MDM commands toggle" src="https://github.com/user-attachments/assets/41e7297c-efb4-4355-841e-d46296b99505" />
+
+Hover over the command you'd like to view, and select the **"i"** button.
+
+For the API, use the [List MDM commands](https://fleetdm.com/docs/rest-api/rest-api#list-mdm-commands) endpoint to find the `command_uuid` for the command. Use this UUID with the [Get MDM command results](https://fleetdm.com/docs/rest-api/rest-api#get-mdm-command-results) endpoint. The result of this looks like a random string of characters, but this is because it's base64 encoded. A quick way to decode this is on a Mac is to copy the long string, then decode it in the Terminal:
+
+```bash
+pbpaste | base64 -d
+```
+
+
 ## Server-side logs
 
 Use [fleetctl](https://fleetdm.com/guides/fleetctl) to see server logs.
