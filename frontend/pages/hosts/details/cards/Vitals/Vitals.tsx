@@ -166,7 +166,10 @@ const Vitals = ({
       return (
         <>
           {DeviceIdDataSet}
-          <DataSet title="Hardware model" value={vitalsData.hardware_model} />
+          <DataSet
+            title="Hardware model"
+            value={<TooltipTruncatedText value={vitalsData.hardware_model} />}
+          />
         </>
       );
     }
@@ -177,7 +180,10 @@ const Vitals = ({
       return (
         <>
           {DeviceIdDataSet}
-          <DataSet title="Hardware model" value={vitalsData.hardware_model} />
+          <DataSet
+            title="Hardware model"
+            value={<TooltipTruncatedText value={vitalsData.hardware_model} />}
+          />
         </>
       );
     }
@@ -186,7 +192,10 @@ const Vitals = ({
     // (either Serial number or Enrollment ID).
     return (
       <>
-        <DataSet title="Hardware model" value={vitalsData.hardware_model} />
+        <DataSet
+          title="Hardware model"
+          value={<TooltipTruncatedText value={vitalsData.hardware_model} />}
+        />
         {DeviceIdDataSet}
         <DataSet
           title="Private IP address"

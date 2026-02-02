@@ -7,6 +7,7 @@ import { COLORS } from "styles/var/colors";
 
 import ProgressBar from "components/ProgressBar";
 import TooltipWrapper from "components/TooltipWrapper";
+import TooltipTruncatedText from "components/TooltipTruncatedText";
 import { isLinuxLike } from "interfaces/platform";
 
 const baseClass = "disk-space-indicator";
@@ -91,16 +92,18 @@ const DiskSpaceIndicator = ({
   const copyTootltipContent =
     totalDiskSpaceContent || allPartitionsContent ? (
       <>
+        {`${
+          !inTableCell ? "Available space: " : ""
+        }${gigsDiskSpaceAvailable} GB`}
+        <br />
         {totalDiskSpaceContent}
         {allPartitionsContent}
       </>
     ) : null;
 
-  const renderCopy = () => (
-    <>
-      {gigsDiskSpaceAvailable} GB{!inTableCell && " available"}
-    </>
-  );
+  const copyText = `${gigsDiskSpaceAvailable} GB${
+    !inTableCell ? " available" : ""
+  }`;
 
   return (
     <span className={baseClass}>
@@ -119,13 +122,14 @@ const DiskSpaceIndicator = ({
       )}
       {copyTootltipContent && isLinuxLike(platform) ? (
         <TooltipWrapper
+          className={`${baseClass}__copy-tooltip`}
           tooltipClass="copy-tooltip-content"
           tipContent={copyTootltipContent}
         >
-          {renderCopy()}
+          <span className={`${baseClass}__copy-text`}>{copyText}</span>
         </TooltipWrapper>
       ) : (
-        renderCopy()
+        <TooltipTruncatedText value={copyText} />
       )}
     </span>
   );

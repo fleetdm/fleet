@@ -2,7 +2,34 @@
   display: flex;
   align-items: center;
   gap: $pad-small;
-  white-space: nowrap;
+  min-width: 0; // allow this flex item to shrink within the DataSet <dd>
+
+  // prevent the progress bar from shrinking
+  > :first-child {
+    flex-shrink: 0;
+  }
+
+  // allow TooltipTruncatedText to truncate within flex layout
+  .tooltip-truncated-text {
+    min-width: 0;
+    overflow: hidden;
+  }
+
+  // truncation for Linux copy text inside TooltipWrapper
+  &__copy-tooltip {
+    min-width: 0;
+
+    > .component__tooltip-wrapper__element {
+      overflow: hidden;
+    }
+  }
+
+  &__copy-text {
+    display: block;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
 
   .react-tooltip :not(.copy-tooltip-content) {
     max-width: px-to-rem(160);
