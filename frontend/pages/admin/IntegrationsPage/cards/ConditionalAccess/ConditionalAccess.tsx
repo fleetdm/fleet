@@ -500,7 +500,7 @@ const ConditionalAccess = () => {
           />
         )}
       </div>
-      {(oktaConfigured || entraPhase === EntraPhase.Configured) && (
+      {oktaConfigured && (
         <div className={`${baseClass}__end-user-experience`}>
           <SectionHeader title="End user experience" />
           <form onSubmit={handleSaveBypassSettings}>
