@@ -18,11 +18,12 @@ const generateColumnConfigs = (): ISetupStatusTableConfig[] => [
     accessor: "name",
     disableSortBy: true,
     Cell: (cellProps: ITableCellProps) => {
-      const { name, type, display_name } = cellProps.row.original;
+      const { name, type, display_name, icon_url } = cellProps.row.original;
       if (type === "software_install") {
         return (
           <SetupSoftwareProcessCell
             name={display_name || name || "Unknown software"}
+            url={icon_url}
           />
         );
       }
