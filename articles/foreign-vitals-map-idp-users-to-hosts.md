@@ -288,3 +288,11 @@ To verify that user information is added to a host, go to the host that has an I
 <meta name="articleTitle" value="Foreign vitals: map IdP users to hosts">
 <meta name="articleImageUrl" value="../website/assets/images/articles/add-users-from-idp-cover-img-800x400@2x.png">
 <meta name="category" value="guides">
+
+## Syncing users
+
+When SCIM is configured with your IdP, Fleet automatically deletes a user’s Fleet account when the user is deleted or deactivated in the IdP.
+
+If the user is later reactivated in the IdP, Fleet will automatically recreate the account on the user’s next SSO login, as long as **Create user and sync permissions on login** in **Settings > Integrations > Single sign-on (SSO)** is enabled
+
+No manual intervention is required. This applies only to SSO-authenticated users. API-only and password-authenticated users are not affected.

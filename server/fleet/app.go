@@ -16,6 +16,7 @@ import (
 	"github.com/fleetdm/fleet/v4/pkg/optjson"
 	"github.com/fleetdm/fleet/v4/pkg/rawjson"
 	"github.com/fleetdm/fleet/v4/server/config"
+	"github.com/fleetdm/fleet/v4/server/dev_mode"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 )
 
@@ -288,7 +289,7 @@ func (c *AppConfig) MDMUrl() string {
 //   - https://foo.example.com:8080 -> https://okta.foo.example.com:8080
 //
 // Returns an error if the server URL is not configured or cannot be parsed.
-func (c *AppConfig) ConditionalAccessIdPSSOURL(getenv func(string) string) (string, error) {
+func (c *AppConfig) ConditionalAccessIdPSSOURL(getenv dev_mode.GetEnv) (string, error) {
 	// Check for dev override
 	if devURL := getenv("FLEET_DEV_OKTA_SSO_SERVER_URL"); devURL != "" {
 		return devURL, nil
@@ -1638,7 +1639,9 @@ type DeviceGlobalMDMConfig struct {
 type DeviceFeatures struct {
 	// EnableSoftwareInventory is the setting used by the device's team (or
 	// globally in the AppConfig if the device is not in any team).
-	EnableSoftwareInventory bool `json:"enable_software_inventory"`
+	EnableSoftwareInventory       bool `json:"enable_software_inventory"`
+	EnableConditionalAccess       bool `json:"enable_conditional_access"`
+	EnableConditionalAccessBypass bool `json:"enable_conditional_access_bypass"`
 }
 
 // Version is the authz type used to check access control to the version endpoint.

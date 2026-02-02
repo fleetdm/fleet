@@ -1,6 +1,6 @@
 //go:build darwin
 
-// Package executable_hashes implements an extension osquery table to get information about a macOS file
+// Package executable_hashes implements an extension osquery table to get information about a macOS bundle
 package executable_hashes
 
 import (
@@ -133,36 +133,18 @@ func computeFileSHA256(filePath string) (string, error) {
 }
 
 func getExecutablePath(ctx context.Context, path string) string {
-	if strings.HasSuffix(path, ".app") {
-		// Use defaults to read CFBundleExecutable from Info.plist
-		infoPlistPath := path + "/Contents/Info.plist"
-		output, err := exec.CommandContext(ctx, "/usr/bin/defaults", "read", infoPlistPath, "CFBundleExecutable").Output()
-		if err != nil {
-			// lots of helper .app bundles nested within parent .apps seem to have invalid Info.plists - warn and continue
-			log.Warn().Err(err).Str("path", path).Msg("failed to read CFBundleExecutable from Info.plist, returning empty binary path")
-			return ""
-		}
-
-		executableName := strings.TrimSpace(string(output))
-		if executableName == "" {
-			return ""
-		}
-
-		return filepath.Join(path, "/Contents/MacOS/", executableName)
-	}
-
-	// For non-app paths, check if it's a regular file (binary)
-	info, err := os.Stat(path)
+	infoPlistPath := filepath.Join(path, "/Contents/Info.plist")
+	output, err := exec.CommandContext(ctx, "/usr/bin/defaults", "read", infoPlistPath, "CFBundleExecutable").Output()
 	if err != nil {
-		log.Warn().Err(err).Str("path", path).Msg("couldn't get FileInfo")
+		// lots of helper app bundles nested within parent bundles seem to have invalid Info.plists - warn and continue
+		log.Warn().Err(err).Str("path", path).Msg("failed to read CFBundleExecutable from Info.plist, returning empty binary path")
 		return ""
 	}
 
-	// Only return the path if it's a regular file (not a directory)
-	if info.Mode().IsRegular() {
-		return path
+	executableName := strings.TrimSpace(string(output))
+	if executableName == "" {
+		return ""
 	}
 
-	log.Warn().Str("path", path).Msg("path is not a regular file nor a .app bundle")
-	return ""
+	return filepath.Join(path, "/Contents/MacOS/", executableName)
 }

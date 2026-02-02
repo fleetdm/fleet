@@ -24,7 +24,11 @@ This list (for now) will be in chronological order as assets are created:
 
 | Asset | Date posted | Business purpose 
 |:------------|:------------|:----------------|
-| [Why enterprise Linux is important in 2026](https://fleetdm.com/guides/why-enterprise-linux-is-important-in-2026#basic-article) | 2026-01-21 | Part of a series of articles on enterprise Linux desktop managment |
+| [Why enterprise Linux is important in 2026](https://fleetdm.com/articles/why-enterprise-linux-is-important-in-2026) | 2026-01-21 | Part of a series of articles on enterprise Linux desktop management |
+| [Fleeet vs. Jamf comparison](https://fleetdm.com/compare/jamf) | 2026-01-28 | Part of a series on competior analysis |
+| [Fleet GitOps workshop](https://fleetdm.com/gitops-workshop) | 2026-01-28 | 1-page explainer & FAQ for GitOps workshop | 
+| [Fleet GitOps - The future of device management is declarative](https://fleetdm.com/fleet-gitops) | 2026-01-29 | Fleet GitOps product page |
+| [Fastly gains visibility into all endpoints and critical infrastructure worldwide](https://fleetdm.com/case-study/fastly) | 2026-01-30 | Customer case study: Fastly |
 
 
 ## Responsibilities
@@ -93,9 +97,23 @@ The Head of Marketing is the DRI for deploying Fleet's outward-facing content. T
 
 
 
+### Fleet events
+We sponsor and participate in events so that we can support, connect, engage, and grow the Fleet community. We need to be thoughtful about what events we sponsor or host, and we need to be disciplined in how we run events so we can be efficient and effective.
 
-### Settle event strategy
+There are three phases to running an event at FleetDM,
+- **Phase 1:** Propose, review and approve new events
+- **Phase 2:** Manage and and execute approved events
+- **Phase 3:** Event postgame
 
+#### Phase 1 Propose, review and approve new events
+**Objective:**  To ensure that the organization is aligned with the investment of time and resources to execute an event
+This process is managed through Fleet Issues and is summarized in a detailed tracking spreadsheet.
+
+See the section "Settle event strategy" below for the process.
+
+##### Settle event strategy (approve proposed events)
+
+Anyone at Fleet can propose a future event.
 Fleet's [Content Specialist](https://fleetdm.com/handbook/marketing#team) serves as the project manager for efficiently executing Fleet events. Events are settled in advance to provide ample time for strategy and planning. This includes any event that Fleet pays to attend or sponsor, and even events where Fleet's only involvement is that a Fleetie will give a talk or otherwise represent the brand.
 - Field/sales events and GitOps workshops are settled 1 sprint in advance.
 - Conferences are settled 1 quarter in advance. 
@@ -121,6 +139,35 @@ Here are the [upcoming settled events](https://docs.google.com/spreadsheets/d/1Y
 ```
 
 4. Close all proposed event issues that weren't able to be prioritized with a comment explaining why.
+
+#### Phase 2 Manage and and execute approved events
+**Objective** To efficiently plan, organize,track and complete the tasks in order to excecute an event. This covers everything from once an event is approved to when the event is finished.  From detail planning to promotion, staff assignments to logistics, events can be complicated projects that need focused attention.
+
+Event execution needs to plan and track the detail decisions supporting:
+
+1. **All Event Logistics.** (Location, Venue, Start and End Date/Time, Event Website, Shipping, Staff schedules, costs, and more)
+2. **Speaking sessions:** (Location, time, talk metadata(title, abstract, etc), av requirements, and more)
+3. **Event Pre Promotion:** (landing page, blog, social, email, customers, prospects, etc)
+4. **Lead capture plans and process:** (scanning process, qualifying questions)
+5. **Booth:** Design, messaging, staffing hours and assignments, attire, swag, power, etc.)
+6. **Key vendor relationships:** (Event Organizer, booth builder, site logisitcs, scanning tech, av tech)
+
+This will be managed in a structure central document for each event so that attendees and organizers have a central place to find information and collaborate. 
+
+(Template details TBD)
+
+#### Phase 3 Event postgame
+**Objective** To consistently wrap up an event, gather lessons learned, and ensure the organization follows through with our new relationships.  
+
+After the event there are three important activites that need to be completed.
+
+1. **Update CRM:** The CRM is our single source of truth about our relationships. So, it is critical that all the information from what happened at the event is promptly updated in the CRM.
+2. **Follow up:** When we make new friends and connections at an event, we must be prompt in follow through and connecting with them after the event. The CRM is the main way to prompt the right person at Fleet to reach back out and follow up.
+3. **Post Mortem:** Learn and improve from the previous event. (gather feedback, review lessons learned, and update processes and strategy)
+
+(Template details TBD)
+
+
 
 <!-- TODO Create Article issue template and update this section of the handbook to reflect reality and add corresponding rituals to engineering.rituals.yml
 
@@ -290,8 +337,6 @@ This view displays the website's efficiency by tracking the rate at which users 
 
 <rituals :rituals="rituals['handbook/marketing/marketing.rituals.yml']"></rituals>
 
-
-
 #### Stubs
 The following stubs are included only to make links backward compatible
 
@@ -309,10 +354,6 @@ Please see [handbook/company/communications#events](https://fleetdm.com/handbook
 
 ##### Video
 Please see [handbook/company/communications#video](https://fleetdm.com/handbook/company/communications#video)
-
-
-
-
 
 <meta name="maintainedBy" value="akuthiala">
 <meta name="title" value="🫧 Marketing">

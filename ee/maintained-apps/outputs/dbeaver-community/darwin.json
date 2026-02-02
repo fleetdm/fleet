@@ -1,14 +1,14 @@
 {
   "versions": [
     {
-      "version": "25.3.3",
+      "version": "25.3.4",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'org.jkiss.dbeaver.core.product';"
       },
-      "installer_url": "https://dbeaver.io/files/25.3.3/dbeaver-ce-25.3.3-macos-aarch64.dmg",
+      "installer_url": "https://dbeaver.io/files/25.3.4/dbeaver-ce-25.3.4-macos-aarch64.dmg",
       "install_script_ref": "e6bf6d0a",
       "uninstall_script_ref": "d5f7201c",
-      "sha256": "3b0c1338a1de99040aa4f98c5e8d32cc3d4c36aa8787e10b7965bf3262bd51f0",
+      "sha256": "abf2191d748057b4d1dc48caa31a01d3accb9e112f6fa0394f2c2010af6e2fca",
       "default_categories": [
         "Developer tools"
       ]
