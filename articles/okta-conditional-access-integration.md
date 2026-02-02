@@ -148,7 +148,7 @@ Once disabled on the Okta side, you can delete the conditional access configurat
 
 ## Bypassing conditional access
 
-End users can temporarily bypass conditional access from their **My device** page if their host is failing a policy. When triggered, the bypass allows the user to complete a single login even with failing policies. The bypass is consumed immediately upon successful login and cannot be reused.
+End users can temporarily bypass conditional access from their **My device** page if their host is failing a policy. To trigger a bypass, click a failing policy labeled **Action required**, select **Resolve later**, and confirm in the following modal. The bypass allows the user to complete a single login even with failing policies and is consumed immediately upon successful login.
 
 This feature is enabled by default, but can be disabled by checking the **Disable bypass** checkbox in **Settings** > **Integrations** > **Conditional access**.
 
