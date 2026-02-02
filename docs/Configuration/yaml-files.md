@@ -545,6 +545,7 @@ software:
         path: ../lib/software/zoom-config.json
   fleet_maintained_apps:
     - slug: slack/darwin
+      version: "4.47.65"
       install_script:
         path: ../lib/software/slack-install-script.sh
       uninstall_script:
@@ -628,16 +629,17 @@ When you update an Android app's configuration via GitOps, the app's settings ar
 
 - `fleet_maintained_apps` is a list of Fleet-maintained apps. Provide the `slug` field to include a Fleet-maintained app on a team. To find the `slug`, head to **Software > Add software** and select a Fleet-maintained app, then select **Show details**. You can also see the [list of app slugs on GitHub](https://github.com/fleetdm/fleet/blob/main/ee/maintained-apps/outputs/apps.json).
 
-Currently, Fleet-maintained apps will be updated to the latest version published by Fleet when GitOps runs.
+By default, Fleet-maintained apps will be updated to the latest version published by Fleet when GitOps runs.
 
-The below fields are all optional.
+The fields below are all optional.
 
 - `self_service` specifies whether end users can install from **Fleet Desktop > Self-service**.
 - `pre_install_query.path` is the osquery query Fleet runs before installing the software. Software will be installed only if the [query returns results](https://fleetdm.com/tables).
 - `post_install_script.path` is the script that, if supplied, Fleet will run on hosts after the software installs.
 - `icon.path` is a relative path to the PNG icon that will be displayed in Fleet and on **Fleet Desktop > Self-service** instead of the default icon the icon sourced from Apple. It must be a square PNG with dimensions between 120x120 px and 1024x1024 px. Custom icons will only override the icon for the software title and team where they are added.
+- `⁠version` specifies the app version. Available versions are listed in the Fleet UI under Actions > Edit software. If omitted, Fleet automatically downloads the latest version found in [the app's metadata on GitHub](https://github.com/fleetdm/fleet/tree/main/ee/maintained-apps/outputs). The `version` must be wrapped in quotes (e.g. "147.0.1") so that it is processed as a string.
 
-The below fields are optional, and if omitted will default to values specified in [the app's metadata on GitHub](https://github.com/fleetdm/fleet/tree/main/ee/maintained-apps/outputs).
+If the fields below are omitted, they default to values specified in [the app's metadata on GitHub](https://github.com/fleetdm/fleet/tree/main/ee/maintained-apps/outputs).
 
 - `install_script.path` specifies the command Fleet will run on hosts to install software.
 - `uninstall_script.path` is the script Fleet will run on hosts to uninstall software.
