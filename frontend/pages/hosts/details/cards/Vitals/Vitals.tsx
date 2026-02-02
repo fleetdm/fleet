@@ -328,10 +328,10 @@ const Vitals = ({
 
     const title = isAndroidHost ? (
       <TooltipWrapper tipContent="Includes internal and removable storage (e.g. microSD card).">
-        Disk space
+        Disk space available
       </TooltipWrapper>
     ) : (
-      "Disk space"
+      "Disk space available"
     );
 
     return (

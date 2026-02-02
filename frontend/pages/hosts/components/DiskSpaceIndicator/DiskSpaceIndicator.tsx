@@ -17,7 +17,6 @@ interface IDiskSpaceIndicatorProps {
   gigsTotalDiskSpace?: number;
   gigsAllDiskSpace?: number;
   platform: string;
-  inTableCell?: boolean;
   tooltipPosition?: PlacesType;
 }
 
@@ -27,7 +26,6 @@ const DiskSpaceIndicator = ({
   gigsTotalDiskSpace,
   gigsAllDiskSpace,
   platform,
-  inTableCell = false,
   tooltipPosition = "top",
 }: IDiskSpaceIndicatorProps): JSX.Element => {
   // Check if storage measurement is not supported (sentinel value -1)
@@ -92,18 +90,12 @@ const DiskSpaceIndicator = ({
   const copyTootltipContent =
     totalDiskSpaceContent || allPartitionsContent ? (
       <>
-        {`${
-          !inTableCell ? "Available space: " : ""
-        }${gigsDiskSpaceAvailable} GB`}
-        <br />
         {totalDiskSpaceContent}
         {allPartitionsContent}
       </>
     ) : null;
 
-  const copyText = `${gigsDiskSpaceAvailable} GB${
-    !inTableCell ? " available" : ""
-  }`;
+  const copyText = `${gigsDiskSpaceAvailable} GB`;
 
   return (
     <span className={baseClass}>
