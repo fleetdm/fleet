@@ -28,9 +28,8 @@ import (
 	"github.com/gorilla/mux"
 )
 
-// We have to create our own wrapper here as it's not possible to directly access
-// the limited reader inside the ReadCloser inteface.
-// This allows us on specific endpoints to up the limit if needed.
+// We use our own wrapper here, to preserve the Close method of the original io.ReadCloser
+// But also allows us to modify the limit at a laterp oint.
 type LimitedReadCloser struct {
 	*io.LimitedReader
 	Closer io.Closer
