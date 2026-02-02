@@ -114,14 +114,13 @@ const DiskSpaceIndicator = ({
       )}
       {copyTootltipContent && isLinuxLike(platform) ? (
         <TooltipWrapper
-          className={`${baseClass}__copy-tooltip`}
           tooltipClass="copy-tooltip-content"
           tipContent={copyTootltipContent}
         >
-          <span className={`${baseClass}__copy-text`}>{copyText}</span>
+          {copyText}
         </TooltipWrapper>
       ) : (
-        <TooltipTruncatedText value={copyText} />
+        copyText
       )}
     </span>
   );
