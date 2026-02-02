@@ -78,24 +78,21 @@ relaunch_application() {
   fi
 }
 
+# Remove quarantine from the zip only, before extraction. Do NOT run xattr on the
+# extracted app: modifying any file inside the bundle breaks the code signature
+# ("sealed resource is missing or invalid"). Clearing the zip avoids quarantine
+# being applied to extracted files when possible.
+xattr -d com.apple.quarantine "$INSTALLER_PATH" 2>/dev/null || true
+
 # extract contents (zip from desktop.githubusercontent.com)
 unzip "$INSTALLER_PATH" -d "$TMPDIR"
 
-# Remove only the quarantine attribute. Do NOT use xattr -cr (clear all): that can
-# invalidate the app's code signature and cause "damaged and can't be opened".
-if [ -d "$TMPDIR/GitHub Desktop.app" ]; then
-  xattr -dr com.apple.quarantine "$TMPDIR/GitHub Desktop.app" 2>/dev/null || true
-fi
-
-# copy to the applications folder
+# copy to the applications folder (do not modify the app bundle after extraction)
 quit_and_track_application 'com.github.GitHubClient'
 if [ -d "$APPDIR/GitHub Desktop.app" ]; then
   sudo mv "$APPDIR/GitHub Desktop.app" "$TMPDIR/GitHub Desktop.app.bkp"
 fi
 sudo cp -R "$TMPDIR/GitHub Desktop.app" "$APPDIR"
-
-# Clear quarantine on the installed app (in case copy ran as root and preserved it).
-sudo xattr -dr com.apple.quarantine "$APPDIR/GitHub Desktop.app" 2>/dev/null || true
 
 relaunch_application 'com.github.GitHubClient'
 
