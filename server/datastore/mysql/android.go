@@ -165,7 +165,7 @@ func (ds *Datastore) setTimesToNonZero(host *fleet.AndroidHost) {
 	}
 }
 
-func (ds *Datastore) UpdateAndroidHost(ctx context.Context, host *fleet.AndroidHost, fromEnroll bool) error {
+func (ds *Datastore) UpdateAndroidHost(ctx context.Context, host *fleet.AndroidHost, fromEnroll, companyOwned bool) error {
 	if !host.IsValid() {
 		return ctxerr.New(ctx, "valid Android host is required")
 	}
@@ -218,7 +218,7 @@ func (ds *Datastore) UpdateAndroidHost(ctx context.Context, host *fleet.AndroidH
 
 		if fromEnroll {
 			// update host_mdm to set enrolled back to true
-			if err := upsertAndroidHostMDMInfoDB(ctx, tx, appCfg.ServerSettings.ServerURL, false, true, host.Host.ID); err != nil {
+			if err := upsertAndroidHostMDMInfoDB(ctx, tx, appCfg.ServerSettings.ServerURL, companyOwned, true, host.Host.ID); err != nil {
 				return ctxerr.Wrap(ctx, err, "update Android host MDM info")
 			}
 

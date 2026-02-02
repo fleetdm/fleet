@@ -168,7 +168,7 @@ func testUpdateAndroidHost(t *testing.T, ds *Datastore) {
 	assert.NotZero(t, result.Device.ID)
 
 	// Dummy update
-	err = ds.UpdateAndroidHost(testCtx(), result, false)
+	err = ds.UpdateAndroidHost(testCtx(), result, false, false)
 	require.NoError(t, err)
 
 	host = result
@@ -189,7 +189,7 @@ func testUpdateAndroidHost(t *testing.T, ds *Datastore) {
 	// Make sure host UUID is preserved during update
 	host.Host.UUID = enterpriseSpecificID
 
-	err = ds.UpdateAndroidHost(testCtx(), host, false)
+	err = ds.UpdateAndroidHost(testCtx(), host, false, false)
 	require.NoError(t, err)
 
 	resultLite, err := ds.AndroidHostLite(testCtx(), enterpriseSpecificID)
@@ -215,7 +215,7 @@ func testUpdateAndroidHost(t *testing.T, ds *Datastore) {
 		hostWithEmptyUUID.Host.Hostname = "regression-hostname"
 
 		// This should still work but UUID should be empty
-		err = ds.UpdateAndroidHost(testCtx(), hostWithEmptyUUID, false)
+		err = ds.UpdateAndroidHost(testCtx(), hostWithEmptyUUID, false, false)
 		require.NoError(t, err)
 
 		// UUID is now empty
@@ -228,7 +228,7 @@ func testUpdateAndroidHost(t *testing.T, ds *Datastore) {
 		hostWithUUID.Host.UUID = regressionESID
 		hostWithUUID.Host.Hostname = "fixed-hostname"
 
-		err = ds.UpdateAndroidHost(testCtx(), hostWithUUID, false)
+		err = ds.UpdateAndroidHost(testCtx(), hostWithUUID, false, false)
 		require.NoError(t, err)
 
 		// UUID is restored
@@ -365,7 +365,7 @@ func testAndroidMDMStats(t *testing.T, ds *Datastore) {
 	require.Len(t, solutionsStats, 0)
 
 	// simulate an android host that re-enrolls
-	err = ds.UpdateAndroidHost(testCtx(), androidHost0, true)
+	err = ds.UpdateAndroidHost(testCtx(), androidHost0, true, false)
 	require.NoError(t, err)
 
 	// compute stats
@@ -486,7 +486,7 @@ func testAndroidHostStorageData(t *testing.T, ds *Datastore) {
 	updatedHost.Host.GigsDiskSpaceAvailable = 64.0    // Updated: 20GB + 44GB available
 	updatedHost.Host.PercentDiskSpaceAvailable = 25.0 // Updated: 64/256 * 100
 
-	err = ds.UpdateAndroidHost(testCtx(), updatedHost, false)
+	err = ds.UpdateAndroidHost(testCtx(), updatedHost, false, false)
 	require.NoError(t, err)
 
 	// verify updated host data via host query (includes storage from host_disks)
@@ -2185,7 +2185,7 @@ func testAndroidBYODDetection(t *testing.T, ds *Datastore) {
 
 		// Update the host with a UUID (simulating re-enrollment as BYOD)
 		result.Host.UUID = enterpriseID
-		err = ds.UpdateAndroidHost(ctx, result, true) // fromEnroll = true to trigger MDM info update
+		err = ds.UpdateAndroidHost(ctx, result, true, false) // fromEnroll = true to trigger MDM info update
 		require.NoError(t, err)
 
 		// Now should be marked as personal enrollment
@@ -2481,16 +2481,20 @@ func testAddDeleteAndroidAppWithConfiguration(t *testing.T, ds *Datastore) {
 	// Create android and VPP apps
 	app1, err := ds.InsertVPPAppWithTeam(ctx, &fleet.VPPApp{
 		Name: "android1", BundleIdentifier: "android1",
-		VPPAppTeam: fleet.VPPAppTeam{VPPAppID: fleet.VPPAppID{AdamID: "something_android_app_1", Platform: fleet.AndroidPlatform},
+		VPPAppTeam: fleet.VPPAppTeam{
+			VPPAppID:      fleet.VPPAppID{AdamID: "something_android_app_1", Platform: fleet.AndroidPlatform},
 			Configuration: testConfig,
-		}}, &team1.ID)
+		},
+	}, &team1.ID)
 	require.NoError(t, err)
 
 	app2, err := ds.InsertVPPAppWithTeam(ctx, &fleet.VPPApp{
 		Name: "vpp1", BundleIdentifier: "com.app.vpp1",
-		VPPAppTeam: fleet.VPPAppTeam{VPPAppID: fleet.VPPAppID{AdamID: "adam_vpp_app_forapple_1", Platform: fleet.IOSPlatform},
+		VPPAppTeam: fleet.VPPAppTeam{
+			VPPAppID:      fleet.VPPAppID{AdamID: "adam_vpp_app_forapple_1", Platform: fleet.IOSPlatform},
 			Configuration: json.RawMessage(`{"ManagedConfiguration": {"ios app shouldn't have configuration": true}}`),
-		}}, &team1.ID)
+		},
+	}, &team1.ID)
 	require.NoError(t, err)
 
 	// Get android app without team

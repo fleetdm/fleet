@@ -1551,7 +1551,7 @@ type NewAndroidHostFunc func(ctx context.Context, host *fleet.AndroidHost) (*fle
 
 type SetAndroidEnabledAndConfiguredFunc func(ctx context.Context, configured bool) error
 
-type UpdateAndroidHostFunc func(ctx context.Context, host *fleet.AndroidHost, fromEnroll bool) error
+type UpdateAndroidHostFunc func(ctx context.Context, host *fleet.AndroidHost, fromEnroll, companyOwned bool) error
 
 type BulkUpsertMDMAndroidHostProfilesFunc func(ctx context.Context, payload []*fleet.MDMAndroidProfilePayload) error
 
@@ -9750,11 +9750,11 @@ func (s *DataStore) SetAndroidEnabledAndConfigured(ctx context.Context, configur
 	return s.SetAndroidEnabledAndConfiguredFunc(ctx, configured)
 }
 
-func (s *DataStore) UpdateAndroidHost(ctx context.Context, host *fleet.AndroidHost, fromEnroll bool) error {
+func (s *DataStore) UpdateAndroidHost(ctx context.Context, host *fleet.AndroidHost, fromEnroll, companyOwned bool) error {
 	s.mu.Lock()
 	s.UpdateAndroidHostFuncInvoked = true
 	s.mu.Unlock()
-	return s.UpdateAndroidHostFunc(ctx, host, fromEnroll)
+	return s.UpdateAndroidHostFunc(ctx, host, fromEnroll, companyOwned)
 }
 
 func (s *DataStore) BulkUpsertMDMAndroidHostProfiles(ctx context.Context, payload []*fleet.MDMAndroidProfilePayload) error {

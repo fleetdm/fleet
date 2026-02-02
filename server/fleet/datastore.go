@@ -2698,7 +2698,7 @@ type AndroidDatastore interface {
 	InsertOrReplaceMDMConfigAsset(ctx context.Context, asset MDMConfigAsset) error
 	NewAndroidHost(ctx context.Context, host *AndroidHost) (*AndroidHost, error)
 	SetAndroidEnabledAndConfigured(ctx context.Context, configured bool) error
-	UpdateAndroidHost(ctx context.Context, host *AndroidHost, fromEnroll bool) error
+	UpdateAndroidHost(ctx context.Context, host *AndroidHost, fromEnroll, companyOwned bool) error
 	UserOrDeletedUserByID(ctx context.Context, id uint) (*User, error)
 	VerifyEnrollSecret(ctx context.Context, secret string) (*EnrollSecret, error)
 	GetMDMIdPAccountByUUID(ctx context.Context, uuid string) (*MDMIdPAccount, error)

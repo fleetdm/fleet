@@ -672,7 +672,7 @@ func (s *integrationMDMTestSuite) TestCertificateTemplateUnenrollReenroll() {
 	require.Equal(t, string(fleet.CertificateTemplatePending), *profile.Status)
 
 	// Step: Re-enroll the host (simulates pubsub status report triggering UpdateAndroidHost with fromEnroll=true)
-	err = s.ds.UpdateAndroidHost(ctx, createdAndroidHost, true)
+	err = s.ds.UpdateAndroidHost(ctx, createdAndroidHost, true, false)
 	require.NoError(t, err)
 
 	// Verify host is re-enrolled

@@ -2,7 +2,9 @@ package service
 
 import (
 	"context"
+	"crypto/sha256"
 	"encoding/base64"
+	"encoding/hex"
 	"fmt"
 	"net/http"
 	"strings"
@@ -441,12 +443,11 @@ func (svc *Service) updateHost(ctx context.Context, device *androidmanagement.De
 		}
 		host.DetailUpdatedAt = lastStatusReportTime
 	}
-	host.SetNodeKey(device.HardwareInfo.EnterpriseSpecificId)
-	if device.HardwareInfo.EnterpriseSpecificId != "" {
-		host.Host.UUID = device.HardwareInfo.EnterpriseSpecificId
-	}
 
-	err = svc.ds.UpdateAndroidHost(ctx, host, fromEnroll)
+	setAndroidHostUUID(host, device)
+	companyOwned := device.Ownership == "COMPANY_OWNED"
+
+	err = svc.ds.UpdateAndroidHost(ctx, host, fromEnroll, companyOwned)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "enrolling Android host")
 	}
@@ -477,6 +478,23 @@ func (svc *Service) updateHost(ctx context.Context, device *androidmanagement.De
 
 	// Enrollment activities are intentionally not emitted for Android at this time.
 	return nil
+}
+
+func setAndroidHostUUID(host *fleet.AndroidHost, device *androidmanagement.Device) {
+	if device.HardwareInfo.EnterpriseSpecificId != "" {
+		host.SetNodeKey(device.HardwareInfo.EnterpriseSpecificId)
+		host.Host.UUID = device.HardwareInfo.EnterpriseSpecificId
+	} else {
+		// Fallback to a generated UUID based on device serial and manufacturer
+		generatedUUIDInput := fmt.Sprintf("%s:%s", device.HardwareInfo.Brand, device.HardwareInfo.SerialNumber)
+		sha256Hasher := sha256.New()
+		sha256Hasher.Write([]byte(generatedUUIDInput))
+		hashedUUIDBytes := sha256Hasher.Sum(nil)
+		generatedUUID := hex.EncodeToString(hashedUUIDBytes)
+		host.SetNodeKey(generatedUUID)
+		host.Host.UUID = generatedUUID
+		host.Device.EnterpriseSpecificID = ptr.String(generatedUUID)
+	}
 }
 
 func (svc *Service) addNewHost(ctx context.Context, device *androidmanagement.Device) error {
