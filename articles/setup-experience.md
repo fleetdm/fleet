@@ -135,7 +135,9 @@ Add setup experience software:
 
 3. Press **Save** to save your selection.
 
-To see the end user experience on iOS/iPadOS, check out the [iOS video](https://www.youtube.com/shorts/_XXNGrQPqys) and [iPadOS video](https://www.youtube.com/shorts/IIzo4NyUolM).
+To see the end user experience on iOS/iPadOS, check out the [iOS video](https://www.youtube.com/shorts/_XXNGrQPqys) and [iPadOS video](https://www.youtube.com/shorts/IIzo4NyUolM)
+
+> Currently, if Android software is deleted from **Setup experience > Install software**, it still gets installed when Android hosts enroll. We'll improve this in [#36859](https://github.com/fleetdm/fleet/issues/36859).
 
 ### Retries
 

@@ -1,0 +1,129 @@
+name: Auto-tag unreleased bugs
+
+on:
+  issues:
+    types: [opened]
+
+permissions:
+  contents: read
+
+jobs:
+  tag-unreleased-bug:
+    if: contains(github.event.issue.labels.*.name, 'bug')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      issues: write
+    steps:
+      - name: Harden Runner
+        uses: step-security/harden-runner@20cf305ff2072d973412fa9b1e3a4f227bda3c76 # v2.14.0
+        with:
+          egress-policy: audit
+
+      - name: Check and tag unreleased bug
+        uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea # v7.0.1
+        with:
+          script: |
+            const issue = context.payload.issue;
+            const labels = issue.labels.map(label => label.name);
+
+            const hasReleasedLabel = labels.some(label =>
+              label.includes('~released bug') || label.includes('~unreleased bug')
+            );
+
+            if (hasReleasedLabel) {
+              return;
+            }
+
+            // Helper to tag issue as unreleased and leave a comment
+            const tagAsUnreleased = async () => {
+              await github.rest.issues.addLabels({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: issue.number,
+                labels: ['~unreleased-bug']
+              });
+
+              // Post a comment explaining the action
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: issue.number,
+                body: "This issue has been automatically tagged as unreleased. If this is is incorrect, you may replace the label with `~released-bug`. If this is correct, or might be correct, move this bug onto the appropriate product board to get a fix underway."
+              });
+
+              console.log(`Tagged bug as unreleased`);
+            };
+
+            // Parse Fleet version from issue body
+            const body = issue.body || '';
+            const versionMatch = body.match(/\*\*Fleet version\*\*:\s*(.+)/);
+
+            if (!versionMatch || !versionMatch[1]) {
+              console.log('No Fleet version found in issue body');
+              await tagAsUnreleased();
+              return;
+            }
+
+            // Extract version, removing any HTML comments
+            let reportedVersion = versionMatch[1].trim();
+            // Remove HTML comment if present (e.g., "4.62.0 <!-- comment -->")
+            reportedVersion = reportedVersion.replace(/\s*<!--.*?-->\s*/g, '').trim();
+
+            console.log(`Found reported version: ${reportedVersion}`);
+
+            // Treat as unreleased if reported version is RC/main/unknown/todo
+            if (!reportedVersion ||
+                reportedVersion.trim() === '' ||
+                reportedVersion.toLowerCase().includes('todo') ||
+                reportedVersion.toLowerCase().includes('unknown') ||
+                reportedVersion.toLowerCase().includes('main') ||
+                reportedVersion.toLowerCase().includes('rc')) {
+              await tagAsUnreleased();
+              return;
+            }
+            
+            if (reportedVersion === '4.x') {
+              return; // this is "all 4.x versions" so it's released
+            }
+
+            // Fetch most recent 100 releases from the repo; that's realistically enough to match
+            // any newly created bug
+            const { data: allReleases } = await github.rest.repos.listReleases({
+              owner: "fleetdm",
+              repo: "fleet",
+              per_page: 100,
+              page: 1
+            });
+
+            // Extract version numbers from releases
+            // Fleet releases are tagged as "fleet-v4.X.X" or similar
+            const releasedVersions = allReleases
+              .map(release => {
+                // Try to extract from name
+                const nameMatch = release.name?.match(/(\d+\.\d+\.\d+)/);
+                if (nameMatch) return nameMatch[1];
+
+                return null;
+              })
+              .filter(v => v !== null);
+
+            // Normalize version for comparison
+            // Remove common prefixes/suffixes and extract core version number
+            const normalizeVersion = (version) => {
+              // Extract version number pattern (e.g., "4.62.0" from "v4.62.0" or "4.62.0-123-abc")
+              const match = version.match(/v?(\d+\.\d+\.\d+)/);
+              return match ? match[1] : version;
+            };
+
+            const normalizedReportedVersion = normalizeVersion(reportedVersion);
+
+            // Check if the reported version matches any released version
+            const isReleased = releasedVersions.some(releasedVer => releasedVer === normalizedReportedVersion);
+
+            if (isReleased) {
+              console.log(`Bug is released; leaving as-is`);
+              return;
+            }
+
+            await tagAsUnreleased();
