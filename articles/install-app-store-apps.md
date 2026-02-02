@@ -36,7 +36,7 @@ Go to the **Software page**, select a team, and select the app you want to edit 
 
 To delete the app, select the **Trash icon** next to the app details.
 
-To make the app available in [self-service](https://fleetdm.com/guides/software-self-service) or to edit categories, target scope, or [configuration](#managed-configuration), select **Actions > Edit software**.
+To make the app available in [self-service](https://fleetdm.com/guides/software-self-service) or to edit categories, target scope, or [configuration](#configuration), select **Actions > Edit software**.
 
 To edit the app icon and display name, select **Actions > Edit appearance**. This applies only to software available for install. The changes will appear on the software list and details pages for the team where the app is added, as well as on [self-service](https://fleetdm.com/guides/software-self-service). By default, Fleet uses the name provided by osquery.
 
