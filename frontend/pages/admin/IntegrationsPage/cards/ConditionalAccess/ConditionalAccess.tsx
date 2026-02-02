@@ -161,6 +161,7 @@ enum EntraPhase {
   ConfirmationError = "confirmation-error",
   AwaitingOAuth = "awaiting-oauth",
   Configured = "configured",
+  ConsentMissing = "consent-missing",
 }
 
 const ConditionalAccess = () => {
@@ -206,8 +207,7 @@ const ConditionalAccess = () => {
           "Successfully verified Microsoft Entra conditional access integration"
         );
       } else {
-        setEntraPhase(EntraPhase.NotConfigured);
-
+        setEntraPhase(EntraPhase.ConsentMissing);
         if (
           // IT admin did not complete the consent.
           !setup_error ||
@@ -265,8 +265,13 @@ const ConditionalAccess = () => {
   // Note: entraPhase is intentionally included in the dependency array to allow
   // manual phase overrides (e.g., AwaitingOAuth) to persist until config changes
   useEffect(() => {
-    // Don't check config if we're in AwaitingOAuth phase
-    if (entraPhase === EntraPhase.AwaitingOAuth) {
+    const finalStates = [
+      EntraPhase.AwaitingOAuth, // Don't check config if we're in AwaitingOAuth phase
+      EntraPhase.ConfirmationError, // Don't do confirm call if we are in a final error state
+      EntraPhase.ConsentMissing, // Don't do confirm call if after tenant ID provided, something went wrong
+    ];
+
+    if (finalStates.includes(entraPhase)) {
       return;
     }
 
@@ -396,18 +401,25 @@ const ConditionalAccess = () => {
   };
 
   const renderEntraContent = () => {
-    if (entraPhase === EntraPhase.ConfirmingConfigured) {
-      return (
-        <SectionCard header="Microsoft Entra">
-          <Spinner />
-        </SectionCard>
-      );
-    }
-
     if (entraPhase === EntraPhase.ConfirmationError) {
       return (
         <SectionCard header="Microsoft Entra">
           <DataError />
+        </SectionCard>
+      );
+    }
+
+    if (entraPhase === EntraPhase.ConfirmingConfigured) {
+      return (
+        <SectionCard
+          header="Microsoft Entra"
+          cta={
+            <Button isLoading disabled>
+              Connect
+            </Button>
+          }
+        >
+          Please wait until Microsoft Entra configuration is confirmed.
         </SectionCard>
       );
     }
