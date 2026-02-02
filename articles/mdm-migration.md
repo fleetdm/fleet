@@ -57,7 +57,7 @@ Configuration:
 
 Fleet's agents must have [updates enabled](https://fleetdm.com/guides/fleetd-updates) (default), for the end user migration workflow to work.
 
-Fleet uses [swiftDialog](https://github.com/swiftDialog/swiftDialog) to instruct end users to enroll. swiftDialog is only installed on macOS hosts when the end user migration workflow is enabled. When the workflow is disabled, swiftDialog is uninstalled from all macOS hosts.
+Fleet uses [swiftDialog](https://github.com/swiftDialog/swiftDialog) to instruct end users to enroll. swiftDialog is only installed on macOS hosts when the end user migration workflow starts. When the workflow is disabled, swiftDialog stays installed.
 
 ![Fleet's MDM migration dialog](../website/assets/images/articles/mdm-migration-dialog-494x327@2x.png)
 
