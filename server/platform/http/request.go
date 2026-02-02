@@ -14,7 +14,7 @@ const (
 	MaxBatchScriptSize       int64 = 25 * units.MiB
 	MaxProfileSize           int64 = 1 * units.MiB
 	MaxBatchProfileSize      int64 = 25 * units.MiB
-	MaxEULASize              int64 = 500 * units.MiB
+	MaxEULASize              int64 = 25 * units.MiB
 	MaxMDMCommandSize        int64 = 2 * units.MiB
 	MaxSoftwareInstallerSize int64 = 10 * units.GiB
 	// MaxMultiScriptQuerySize, sets a max size for payloads that take multiple scripts and SQL queries.
