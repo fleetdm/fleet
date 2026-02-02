@@ -159,7 +159,7 @@ describe("SelfService", () => {
     expect(moreText).not.toBeInTheDocument();
   });
 
-  it("renders installed status and 'Install' action button and 'Retry uninstall' dropdown with 'failed_installed' status and installed_versions detected", async () => {
+  it("renders installed status and 'Install' action button and 'Retry uninstall' dropdown with 'failed_uninstall' API status and installed_versions detected", async () => {
     mockServer.use(
       customDeviceSoftwareHandler({
         software: [
