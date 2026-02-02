@@ -146,6 +146,11 @@ To disable conditional access on the Okta side:
 
 Once disabled on the Okta side, you can delete the conditional access configuration on Fleet's side from **Settings** > **Integrations** > **Conditional access** > **Okta** and clicking the delete button.
 
+## Bypassing conditional access
+
+End users can temporarily bypass conditional access from their **My device** page if their host is failing a policy. When triggered, the bypass allows the user to complete a single login even with failing policies. The bypass is consumed immediately upon successful login and cannot be reused.
+
+This feature is enabled by default, but can be disabled by checking the **Disable bypass** checkbox in **Settings** > **Integrations** > **Conditional access**.
 
 <meta name="articleTitle" value="Conditional access: Okta">
 <meta name="authorFullName" value="Rachael Shaw">
