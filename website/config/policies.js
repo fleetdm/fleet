@@ -83,4 +83,8 @@ module.exports.policies = {
   'view-okta-conditional-access-error': true,
   'view-fast-track': true,
   'vpp-proxy/*': true,
+  'deliver-application-submission': true,
+  'landing-pages/*': true,
+  'deliver-gitops-workshop-request': true,
+  'view-fleet-gitops': true,
 };

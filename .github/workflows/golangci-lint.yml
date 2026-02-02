@@ -49,7 +49,7 @@ jobs:
       # flags every single file on windows-latest
       - run: 'git config --global core.autocrlf input'
       - name: Harden Runner
-        uses: step-security/harden-runner@63c24ba6bd7ba022e95695ff85de572c04a18142 # v2.7.0
+        uses: step-security/harden-runner@20cf305ff2072d973412fa9b1e3a4f227bda3c76 # v2.14.0
         with:
           egress-policy: audit
 
@@ -78,6 +78,24 @@ jobs:
         run: |
           go run ./tools/cloner-check/main.go -check
 
+      - name: Ensure all FLEET_DEV_* env var accesses are proxied
+        run: |
+          if grep -R 'os.Getenv("FLEET_DEV' --include="*.go" .; then
+            echo "Error: Found unproxied FLEET_DEV_* env var access. Please proxy via dev_mode.Env()." >&2
+            exit 1
+          else
+            echo "OK: No unproxied FLEET_DEV_* env var accesses found."
+          fi
+
+      - name: Restrict FLEET_DEV_* env var overrides to test code only
+        run: |
+          if grep -R 'SetOverride("FLEET_DEV' --include="*.go" --exclude="*_test.go" --exclude="testing_utils.go" --exclude-dir="mdmtest" .; then
+            echo "Error: Found FLEET_DEV_* overrides in non-test code." >&2
+            exit 1
+          else
+            echo "OK: No FLEET_DEV_* overrides in non-test code."
+          fi
+
   golangci-incremental:
     # Only run on pull requests (needs base branch for incremental comparison)
     if: github.event_name == 'pull_request'
@@ -92,7 +110,7 @@ jobs:
     runs-on: ${{ matrix.os }}
     steps:
       - name: Harden Runner
-        uses: step-security/harden-runner@63c24ba6bd7ba022e95695ff85de572c04a18142 # v2.7.0
+        uses: step-security/harden-runner@20cf305ff2072d973412fa9b1e3a4f227bda3c76 # v2.14.0
         with:
           egress-policy: audit
 

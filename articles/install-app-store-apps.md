@@ -2,39 +2,91 @@
 
 _Available in Fleet Premium_
 
-In Fleet, you can install Apple App Store apps on your macOS, iOS, and iPadOS hosts. To do this, you must first [turn on Apple MDM](https://fleetdm.com/guides/apple-mdm-setup#turn-on-apple-mdm) and Apple's [Volume Purchasing Program (VPP)](https://fleetdm.com/guides/apple-mdm-setup#volume-purchasing-program-vpp).
+In Fleet, you can install Apple App Store apps on your macOS, iOS, and iPadOS hosts, including custom apps.
 
-You can also manage which Google Play Store apps are available for self-serivce in your end user's Android work profiles. Google only allows free Google Play Store apps. [Paid apps aren't supported](https://www.androidenterprise.community/discussions/conversations/distributing-paid-apps/653).
+You can also manage which Google Play Store apps are available for self-service in your end user's Android work profiles. Google only allows free Google Play Store apps. [Paid apps aren't supported](https://www.androidenterprise.community/discussions/conversations/distributing-paid-apps/653).
 
-Currently, Fleet only supports Apple App Store apps from the United States (US) region. If the app is listed on the [Apple App Store](https://apps.apple.com/) and it has `/us` in the URL (e.g. https://apps.apple.com/us/app/slack/id618783545) then it's supported.
+## Add an app
 
-## Add app
+### Apple (VPP)
 
-1. In Fleet, head to the **Software** page and select a team in the teams dropdown.
+> Before using Fleet to manage VPP apps, you must first [turn on Apple MDM](https://fleetdm.com/guides/apple-mdm-setup#turn-on-apple-mdm) and Apple's [Volume Purchasing Program (VPP)](https://fleetdm.com/guides/apple-mdm-setup#volume-purchasing-program-vpp). Once you've completed that setup, you can follow the directions below for each app.
 
-2. Select **Add software > App store** and choose a platform.
+1. Purchase the relevant app through Apple Business Manager (ABM). You must perform this step even if the app is free, or if it is a custom app you own. Learn how in [Apple's documentation](https://support.apple.com/guide/apple-business-manager/select-and-buy-content-axmc21817890/web).
 
-3. To add Apple App Store (VPP) apps to Fleet, you must first purchase them through Apple Business Manager (ABM), even if they are free. Learn how in [Apple's documentation](https://support.apple.com/guide/apple-business-manager/select-and-buy-content-axmc21817890/web).
+2. In Fleet, head to the **Software** page and select a team in the teams dropdown.
 
-4. To add Google Play Store (Android) apps, head to the [Google Play Store](https://play.google.com/store/apps), find the app, and copy the ID at the end of the URL (e.g. "com.android.chrome")
+3. Select **Add software > App store**, then select the app you just purchased.
 
-## Edit or remove app
+> Currently, Fleet only supports Apple App Store apps from the United States (US) region. If the app is listed on the [Apple App Store](https://apps.apple.com/) and it has `/us` in the URL (e.g. https://apps.apple.com/us/app/slack/id618783545) then it's supported.
 
-1. In Fleet, head to the **Software** page and select a team in the teams dropdown.
+### Google Play (Android)
 
-2. Search for the app you want to remove and select the app to head to it's **Software detail**s** page.
+> Before using Fleet to manage Google Play Store apps, you must first [turn on Android MDM](https://fleetdm.com/guides/android-mdm-setup). Once you've completed that setup, you can follow the directions below for each app.
 
-3. To edit the app, on the **Software details** page, select the pencil (edit) icon.
+1. Head to the [Google Play Store](https://play.google.com/store/apps), find the app, and copy the ID at the end of the URL (e.g. "com.android.chrome")
 
-4. To remove the app, on the **Software details** page, select the trash can (delete) icon.
+2. In Fleet, head to the **Software** page and select a team in the teams dropdown.
 
-## Install app
+3. Select **Add software > App store**, choose the Android platform, then enter the application ID.
 
-Apple App Store (VPP) apps can be installed manually on each host's Host details page. For macOS apps, apps can also be installed via self-service on the end user's **Fleet Desktop > My device** page or [automatically via policy automation](https://fleetdm.com/guides/automatic-software-install-in-fleet).
+## Edit or delete the app
 
-Currently, Android apps can only be installed via self-service in the end user's managed Google Play Store (work profile).
+Go to the **Software page**, select a team, and select the app you want to edit or delete.
 
-Currently, Apple App Stpre (VPP) apps can't be uninstalled via Fleet.
+To delete the app, select the **Trash icon** next to the app details.
+
+To make the app available in [self-service](https://fleetdm.com/guides/software-self-service) or to edit categories, target scope, or [configuration](#managed-configuration), select **Actions > Edit software**.
+
+To edit the app icon and display name, select **Actions > Edit appearance**. This applies only to software available for install. The changes will appear on the software list and details pages for the team where the app is added, as well as on [self-service](https://fleetdm.com/guides/software-self-service). By default, Fleet uses the name provided by osquery.
+
+## Install an app
+
+### Apple (VPP)
+
+Apps can be installed manually on each host's **Host details** page. For macOS apps, apps can also be installed via self-service on the end user's **Fleet Desktop > My device** page or [automatically via policy automation](https://fleetdm.com/guides/automatic-software-install-in-fleet).
+
+Currently, Apple App Store (VPP) apps can't be uninstalled via Fleet.
+
+If the install fails with `ErrorCode` 301 and a `LocalizedDescription` of "Invalid Status Code The response has an invalid status code" it may be because the app has a minimum OS version higher than what the targeted host is running.
+
+To find the minimum OS version for the app, visit the [App Store](https://apps.apple.com/), find the app, scroll to the bottom, and look for **Compatibility** under **Information**.
+
+### Google Play (Android)
+
+Android apps can be installed via self-service in the end user's managed Google Play Store (work profile).
+
+#### Configuration
+
+Currently, editing configuration is only supported for Android apps only. And, currently, only the `managedConfiguration` and `workProfileWidgets` options from [ApplicationPolicy - Android Management API](https://developers.google.com/android/management/reference/rest/v1/enterprises.policies#ApplicationPolicy) are supported.
+
+`managedConfiguration` supports any option provided by the app's developer. Each app supports different options. To find the supported options, check the app documentation.
+
+##### Example (GlobalProtect)
+
+This configuration makes it so the end user won't have to type the portal hostname the first time they open GlobalProtect. It also disables "always on VPN," meaning GlobalProtect won’t automatically connect when the host is online. The end user has to tap **Connect**.
+
+```json
+{
+  "managedConfiguration": {
+    "portal": "example.portal.com",
+    "connect_method": "on-demand"
+  }  
+}
+
+```
+
+Options for GlobalProtect can be found in their [documentation](https://docs.paloaltonetworks.com/globalprotect/administration/globalprotect-apps/deploy-the-globalprotect-app-on-mobiles/manage-the-globalprotect-app-using-other-third-party-mdms/configure-the-globalprotect-app-for-android).
+
+##### Example (Google Calendar)
+
+This configuration allows end users to add widgets from the Google Calendar in their work profile to their home screen.
+
+```json
+{
+  "workProfileWidgets": "WORK_PROFILE_WIDGETS_ALLOWED"
+}
+```
 
 ## API and GitOps
 
@@ -46,5 +98,5 @@ To manage App Store apps using Fleet's best practice GitOps, check out the `app_
 <meta name="authorFullName" value="Jahziel Villasana-Espinoza">
 <meta name="authorGitHubUsername" value="jahzielv">
 <meta name="category" value="guides">
-<meta name="publishedOn" value="2025-02-28">
+<meta name="publishedOn" value="2026-01-08">
 <meta name="description" value="This guide will walk you through installing Apple App Store and Google Play Store apps on macOS, iOS, iPadOS, and Android hosts.">

@@ -32,7 +32,7 @@ var (
 	CantDisableDiskEncryptionIfPINRequiredErrMsg = "Couldn't disable disk encryption, you need to disable the BitLocker PIN requirement first."
 	CantEnablePINRequiredIfDiskEncryptionEnabled = "Couldn't enable BitLocker PIN requirement, you must enable disk encryption first."
 	CantResendAppleDeclarationProfilesMessage    = "Can't resend declaration (DDM) profiles. Unlike configuration profiles (.mobileconfig), the host automatically checks in to get the latest DDM profiles."
-	CantAddSoftwareConflictMessage               = "Couldn't add software. %s already has a package or app available for install on the %s team."
+	CantAddSoftwareConflictMessage               = "Couldn't add software. %s already has an installer available for the %s team."
 )
 
 // ErrWithStatusCode is an interface for errors that should set a specific HTTP
@@ -182,6 +182,11 @@ func (e PermissionError) PermissionError() []map[string]string {
 	return forbidden
 }
 
+// IsClientError implements ErrWithIsClientError.
+func (e PermissionError) IsClientError() bool {
+	return true
+}
+
 // OTAForbiddenError is a special kind of forbidden error that intentionally
 // exposes information about the error so it can be shown in iPad/iPhone native
 // dialogs during OTA enrollment.
@@ -212,6 +217,11 @@ func (e OTAForbiddenError) Internal() string {
 	return e.InternalErr.Error()
 }
 
+// IsClientError implements ErrWithIsClientError.
+func (e OTAForbiddenError) IsClientError() bool {
+	return true
+}
+
 // licenseError is returned when the application is not properly licensed.
 type licenseError struct {
 	ErrorWithUUID
@@ -223,6 +233,11 @@ func (e licenseError) Error() string {
 
 func (e licenseError) StatusCode() int {
 	return http.StatusPaymentRequired
+}
+
+// IsClientError implements ErrWithIsClientError.
+func (e licenseError) IsClientError() bool {
+	return true
 }
 
 // MDMNotConfiguredError is used when an MDM endpoint or resource is accessed
@@ -239,6 +254,11 @@ func (e *MDMNotConfiguredError) Error() string {
 	return MDMNotConfiguredMessage
 }
 
+// IsClientError implements ErrWithIsClientError.
+func (e *MDMNotConfiguredError) IsClientError() bool {
+	return true
+}
+
 // WindowsMDMNotConfiguredError is used when an MDM endpoint or resource is accessed
 // without having Windows MDM correctly configured.
 type WindowsMDMNotConfiguredError struct{}
@@ -253,6 +273,11 @@ func (e *WindowsMDMNotConfiguredError) Error() string {
 	return WindowsMDMNotConfiguredMessage
 }
 
+// IsClientError implements ErrWithIsClientError.
+func (e *WindowsMDMNotConfiguredError) IsClientError() bool {
+	return true
+}
+
 // AndroidMDMNotConfiguredError is used when an MDM endpoint or resource is accessed
 // without having Android MDM correctly configured.
 type AndroidMDMNotConfiguredError struct{}
@@ -265,6 +290,11 @@ func (e *AndroidMDMNotConfiguredError) StatusCode() int {
 
 func (e *AndroidMDMNotConfiguredError) Error() string {
 	return AndroidMDMNotConfiguredMessage
+}
+
+// IsClientError implements ErrWithIsClientError.
+func (e *AndroidMDMNotConfiguredError) IsClientError() bool {
+	return true
 }
 
 // NotConfiguredError is a generic "not configured" error that can be used
@@ -433,6 +463,13 @@ func (e OrbitError) StatusCode() int {
 	return e.code
 }
 
+// IsClientError implements ErrWithIsClientError.
+// Returns true for 4xx status codes, false for 5xx.
+func (e OrbitError) IsClientError() bool {
+	code := e.StatusCode()
+	return code >= 400 && code < 500
+}
+
 func NewOrbitIDPAuthRequiredError() *OrbitError {
 	return &OrbitError{
 		Message: "END_USER_AUTH_REQUIRED",
@@ -507,6 +544,11 @@ func (e ConflictError) StatusCode() int {
 
 // IsConflict implements the conflict interface for middleware compatibility
 func (e ConflictError) IsConflict() bool {
+	return true
+}
+
+// IsClientError implements ErrWithIsClientError.
+func (e ConflictError) IsClientError() bool {
 	return true
 }
 

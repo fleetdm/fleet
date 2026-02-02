@@ -34,6 +34,7 @@ export interface IGetSoftwareByIdResponse {
 // check to see if we still need this.
 export interface ISoftware {
   id: number;
+  /** All software names displayed by UI is ran through getDisplayedSoftwareName */
   name: string; // e.g., "Figma.app"
   /** Custom name set per team by admin */
   display_name?: string; // e.g. "Figma for Desktop"
@@ -161,6 +162,7 @@ export const isSoftwarePackage = (
 
 export interface ISoftwareTitle {
   id: number;
+  /** All software names displayed by UI is ran through getDisplayedSoftwareName */
   name: string;
   /** Custom name set per team by admin */
   display_name?: string;
@@ -178,6 +180,7 @@ export interface ISoftwareTitle {
 
 export interface ISoftwareTitleDetails {
   id: number;
+  /** All software names displayed by UI is ran through getDisplayedSoftwareName */
   name: string;
   /** Custom name set per team by admin */
   display_name?: string;
@@ -192,8 +195,8 @@ export interface ISoftwareTitleDetails {
   bundle_identifier?: string;
   versions_count?: number;
   auto_update_enabled?: boolean;
-  auto_update_start_time?: string;
-  auto_update_end_time?: string;
+  auto_update_window_start?: string;
+  auto_update_window_end?: string;
   /** @deprecated Use extension_for instead */
   browser?: string;
 }
@@ -212,6 +215,7 @@ export interface ISoftwareVulnerability {
 
 export interface ISoftwareVersion {
   id: number;
+  /** All software names displayed by UI is ran through getDisplayedSoftwareName */
   name: string; // e.g., "Figma.app"
   /** Custom name set per team by admin */
   display_name?: string; // e.g. "Figma for Desktop"
@@ -545,6 +549,7 @@ export interface IHostAppStoreApp {
 
 export interface IHostSoftware {
   id: number;
+  /** All software names displayed by UI is ran through getDisplayedSoftwareName */
   name: string; // e.g., "mock software.app"
   /** Custom name set per team by admin */
   display_name?: string; // e.g. "Mock Software"

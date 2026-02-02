@@ -1,14 +1,14 @@
 {
   "versions": [
     {
-      "version": "1.28.6",
+      "version": "1.28.10",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.linear';"
       },
-      "installer_url": "https://download.todesktop.com/200315glz2793v6/Linear%201.28.6%20-%20Build%20251002av7g3go28-arm64-mac.zip",
+      "installer_url": "https://download.todesktop.com/200315glz2793v6/Linear%201.28.10%20-%20Build%20260130ifjf6a66q-arm64-mac.zip",
       "install_script_ref": "5d675a4d",
       "uninstall_script_ref": "dfec844c",
-      "sha256": "3989bf97d625424fa15cb5adb9f3e068e31f066cdb17474633005e8ecdc8f054",
+      "sha256": "9e523eebc0687876c1f76246714c4ce98e805de69cba7c2a149da1cb0cfe65d6",
       "default_categories": [
         "Developer tools"
       ]

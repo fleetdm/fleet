@@ -502,7 +502,7 @@ func CheckProfileIsNotSigned(data []byte) error {
 	mc := mobileconfig.Mobileconfig(data)
 	if mc.IsSignedProfile() {
 		return &fleet.BadRequestError{
-			Message: "Couldn't add. Configuration profiles can't be signed. Fleet wil sign the profile for you. Learn more: https://fleetdm.com/learn-more-about/unsigning-configuration-profiles",
+			Message: "Couldn't add. Configuration profiles can't be signed. Fleet will sign the profile for you. Learn more: https://fleetdm.com/learn-more-about/unsigning-configuration-profiles",
 		}
 	}
 	return nil
@@ -967,22 +967,18 @@ func (svc *Service) batchValidateDeclarationLabels(ctx context.Context, labelNam
 		return nil, nil
 	}
 
-	labels, err := svc.ds.LabelIDsByName(ctx, labelNames, fleet.TeamFilter{User: authz.UserFromContext(ctx), TeamID: &teamID})
+	uniqueNames := server.RemoveDuplicatesFromSlice(labelNames)
+
+	labels, err := svc.ds.LabelIDsByName(ctx, uniqueNames, fleet.TeamFilter{User: authz.UserFromContext(ctx), TeamID: &teamID})
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "getting label IDs by name")
 	}
 
-	uniqueNames := make(map[string]bool)
-	for _, entry := range labelNames {
-		if _, value := uniqueNames[entry]; !value {
-			uniqueNames[entry] = true
-		}
-	}
-
 	if len(labels) != len(uniqueNames) {
+		labelError := fleet.NewMissingLabelError(uniqueNames, labels)
 		return nil, &fleet.BadRequestError{
-			Message:     "some or all the labels provided don't exist",
-			InternalErr: fmt.Errorf("names provided: %v", labelNames),
+			InternalErr: labelError,
+			Message:     fmt.Sprintf("Couldn't update. Label %q doesn't exist. Please remove the label from the configuration profile.", labelError.MissingLabelName),
 		}
 	}
 
@@ -1851,7 +1847,7 @@ func mdmAppleAccountEnrollEndpoint(ctx context.Context, request interface{}, svc
 	req := request.(*mdmAppleAccountEnrollRequest)
 	svc.SkipAuth(ctx)
 	deviceProduct := strings.ToLower(req.DeviceInfo.Product)
-	if !(strings.HasPrefix(deviceProduct, "ipad") || strings.HasPrefix(deviceProduct, "iphone")) {
+	if !(strings.HasPrefix(deviceProduct, "ipad") || strings.HasPrefix(deviceProduct, "iphone") || strings.HasPrefix(deviceProduct, "ipod")) {
 		// There is unfortunately no good way to get the client to show this error, they will see a
 		// generic error about a failure to get an enrollment profile.
 		return mdmAppleEnrollResponse{
@@ -3383,10 +3379,10 @@ func (svc *MDMAppleCheckinAndCommandService) Authenticate(r *mdm.Request, m *mdm
 		scepRenewalInProgress = existingDeviceInfo.SCEPRenewalInProgress
 	}
 
-	// iPhones and iPads send ProductName but not Model/ModelName,
+	// iPhones, iPads, and iPods send ProductName but not Model/ModelName,
 	// thus we use this field as the device's Model (which is required on lifecycle stages).
 	platform := "darwin"
-	iPhone := strings.HasPrefix(m.ProductName, "iPhone")
+	iPhone := strings.HasPrefix(m.ProductName, "iPhone") || strings.HasPrefix(m.ProductName, "iPod")
 	iPad := strings.HasPrefix(m.ProductName, "iPad")
 	if iPhone || iPad {
 		m.Model = m.ProductName
@@ -3635,7 +3631,7 @@ func (svc *MDMAppleCheckinAndCommandService) runCommandHandlers(ctx context.Cont
 // [1]: https://developer.apple.com/documentation/devicemanagement/commands_and_queries
 func (svc *MDMAppleCheckinAndCommandService) CommandAndReportResults(r *mdm.Request, cmdResult *mdm.CommandResults) (*mdm.Command, error) {
 	if cmdResult.Status == "Idle" {
-		// NOTE: iPhone/iPad devices that are still enroled in Fleet's MDM but have
+		// NOTE: iPhone/iPod/iPad devices that are still enroled in Fleet's MDM but have
 		// been deleted from Fleet (no host entry) will still send checkin
 		// requests from time to time. Those should be Idle requests without a
 		// CommandUUID. As stated in tickets #22941 and #22391, Fleet iDevices
@@ -3645,7 +3641,7 @@ func (svc *MDMAppleCheckinAndCommandService) CommandAndReportResults(r *mdm.Requ
 			return nil, ctxerr.Wrap(r.Context, err, "lookup enrolled but deleted device info")
 		}
 
-		// only re-create iPhone/iPad devices, macOS are recreated via the fleetd checkin
+		// only re-create iPhone/iPod/iPad devices, macOS are recreated via the fleetd checkin
 		if deletedDevice != nil && (deletedDevice.Platform == "ios" || deletedDevice.Platform == "ipados") {
 			msg, err := mdm.DecodeCheckin([]byte(deletedDevice.Authenticate))
 			if err != nil {
@@ -3737,7 +3733,6 @@ func (svc *MDMAppleCheckinAndCommandService) CommandAndReportResults(r *mdm.Requ
 		}
 
 	case fleet.DisableLostModeCmdName:
-
 		if cmdResult.Status == fleet.MDMAppleStatusAcknowledged ||
 			cmdResult.Status == fleet.MDMAppleStatusError ||
 			cmdResult.Status == fleet.MDMAppleStatusCommandFormatError {
@@ -3909,12 +3904,53 @@ func (svc *MDMAppleCheckinAndCommandService) handleRefetch(r *mdm.Request, cmdRe
 		return svc.handleRefetchCertsResults(ctx, host, cmdResult)
 
 	case strings.HasPrefix(cmdResult.CommandUUID, fleet.RefetchDeviceCommandUUIDPrefix):
+		// for devices added via legacy enrollment flows, we may need to set an enroll reference
+		// we don't expect this info to change often so we're only checking on device info refetches
+		if r.Params != nil {
+			if _, err := svc.maybeUpdateIDeviceEnrollRef(ctx, host, r.Params["enroll_reference"]); err != nil {
+				// TODO: consider if we want to return an error here, for now we just log and continue
+				level.Error(svc.logger).Log("msg", "maybe update enroll reference", "host_uuid", host.UUID, "enroll_reference", r.Params["enroll_reference"], "err", err)
+			}
+		}
 		return svc.handleRefetchDeviceResults(ctx, host, cmdResult)
 
 	default:
 		// This should never happen, but just in case we'll return an error.
 		return nil, ctxerr.New(ctx, fmt.Sprintf("unknown refetch command type %s", cmdResult.CommandUUID))
 	}
+}
+
+func (svc *MDMAppleCheckinAndCommandService) maybeUpdateIDeviceEnrollRef(ctx context.Context, host *fleet.Host, enrollRef string) (bool, error) {
+	if host.Platform != "ios" && host.Platform != "ipados" {
+		// caller should ensure this doesn't happen, but just in case we'll log it and return false
+		level.Debug(svc.logger).Log("msg", "unexpected usage of maybeUpdateIDeviceEnrollRef for non-iOS/non-iPadOS host", "host_id", host.ID, "host_uuid", host.UUID, "platform", host.Platform)
+		return false, nil
+	}
+	hmer, err := svc.ds.GetMDMAppleHostMDMEnrollRef(ctx, host.ID)
+	if err != nil {
+		return false, ctxerr.Wrap(ctx, err, "checking enroll reference")
+	}
+	if hmer == enrollRef {
+		// no change so return early
+		return false, nil
+	}
+
+	level.Info(svc.logger).Log("msg", "updating enroll reference for host", "host_id", host.ID, "host_uuid", host.UUID, "old_enroll_ref", hmer, "new_enroll_ref", enrollRef)
+	didUpdate, err := svc.ds.UpdateMDMAppleHostMDMEnrollRef(ctx, host.ID, enrollRef)
+	if err != nil {
+		return false, ctxerr.Wrap(ctx, err, "updating enroll reference")
+	}
+
+	if !didUpdate {
+		level.Debug(svc.logger).Log("msg", "unexpected enroll reference update no-op", "host_id", host.ID, "host_uuid", host.UUID)
+	}
+
+	// clear SCEP renew refs if any
+	if err := svc.ds.DeactivateMDMAppleHostSCEPRenewCommands(ctx, host.UUID); err != nil {
+		return didUpdate, ctxerr.Wrap(ctx, err, "updating enroll reference: deactivate renew commands")
+	}
+
+	return didUpdate, nil
 }
 
 func (svc *MDMAppleCheckinAndCommandService) handleRefetchAppsResults(ctx context.Context, host *fleet.Host, cmdResult *mdm.CommandResults) (*mdm.Command, error) {
@@ -3956,6 +3992,73 @@ func (svc *MDMAppleCheckinAndCommandService) handleRefetchAppsResults(ctx contex
 	}
 
 	return nil, nil
+}
+
+var versionPattern = regexp.MustCompile(
+	`^v?\s*(\d+(?:\.\d+)*)\s*$`,
+)
+
+// trimLeadingZeros converts "00123" → "123", "000" → "0", "0" → "0"
+func trimLeadingZeros(s string) string {
+	s = strings.TrimLeft(s, "0")
+	if s == "" {
+		return "0"
+	}
+	return s
+}
+
+// toValidSemVer is a best effort transformation to make `version` a valid semantic version.
+// Currently doesn't support fixing versions that have non-numerical pre-release strings (because
+// we haven't seen those in the wild for the apps where this method is used, currently VPP apps).
+func toValidSemVer(version string) string {
+	// Cleanup spaces.
+	version = strings.TrimSpace(version)
+	if version == "" {
+		// Empty version, nothing to clean up.
+		return version
+	}
+
+	versionModified := strings.ReplaceAll(version, "-", ".")
+	matches := versionPattern.FindStringSubmatch(versionModified)
+	if matches == nil {
+		// May not be a valid version string, nothing we can do.
+		return version
+	}
+
+	partsStr := matches[1]
+	parts := strings.Split(partsStr, ".")
+
+	// Clean each numeric part (remove leading zeros)
+	// Leading zeros are not valid in semantic versioning.
+	cleanParts := make([]string, 0, len(parts))
+	for _, p := range parts {
+		clean := trimLeadingZeros(p)
+		cleanParts = append(cleanParts, clean)
+	}
+
+	switch len(cleanParts) {
+	case 1: // major
+		version = cleanParts[0]
+	case 2: // major.minor
+		version = fmt.Sprintf("%s.%s", cleanParts[0], cleanParts[1])
+	case 3: // major.minor.patch
+		version = fmt.Sprintf("%s.%s.%s", cleanParts[0], cleanParts[1], cleanParts[2])
+	case 4: // major.minor.patch.build
+		build := cleanParts[3]
+		if build == "0" {
+			version = fmt.Sprintf("%s.%s.%s", cleanParts[0], cleanParts[1], cleanParts[2])
+		} else {
+			version = fmt.Sprintf("%s.%s.%s-%s", cleanParts[0], cleanParts[1], cleanParts[2], build)
+		}
+	default: // For safety: more than 4 parts, take first 3 + rest as pre-release.
+		version = fmt.Sprintf("%s.%s.%s-%s",
+			cleanParts[0],
+			cleanParts[1],
+			cleanParts[2],
+			strings.Join(cleanParts[3:], "."))
+	}
+
+	return version
 }
 
 func (svc *MDMAppleCheckinAndCommandService) handleScheduledUpdates(
@@ -4085,7 +4188,11 @@ func (svc *MDMAppleCheckinAndCommandService) handleScheduledUpdates(
 	)
 	for _, softwareWithAutoUpdateSchedule := range softwaresWithinUpdateSchedule {
 		// Load software title.
-		softwareTitle, err := svc.ds.SoftwareTitleByID(ctx, softwareWithAutoUpdateSchedule.TitleID, host.TeamID, fleet.TeamFilter{})
+		teamID := host.TeamID
+		if teamID == nil {
+			teamID = ptr.Uint(0)
+		}
+		softwareTitle, err := svc.ds.SoftwareTitleByID(ctx, softwareWithAutoUpdateSchedule.TitleID, teamID, fleet.TeamFilter{})
 		if err != nil {
 			level.Error(logger).Log(
 				"msg", "software title by id",
@@ -4142,6 +4249,7 @@ func (svc *MDMAppleCheckinAndCommandService) handleScheduledUpdates(
 			)
 			continue
 		}
+		installedVersion = toValidSemVer(installedVersion)
 		if installedVersion == "" {
 			// software.Version is empty when !software.Installed, which means the software is installing (see unmarshalAppList).
 			// Here's a sample:
@@ -4168,18 +4276,19 @@ func (svc *MDMAppleCheckinAndCommandService) handleScheduledUpdates(
 			)
 			continue
 		}
-		if _, err := fleet.VersionToSemverVersion(softwareTitle.AppStoreApp.LatestVersion); err != nil {
+		latestVersion := toValidSemVer(softwareTitle.AppStoreApp.LatestVersion)
+		if _, err := fleet.VersionToSemverVersion(latestVersion); err != nil {
 			level.Error(logger).Log(
 				"msg", "invalid latest version",
-				"version", softwareTitle.AppStoreApp.LatestVersion,
+				"version", latestVersion,
 			)
 			continue
 		}
-		if fleet.CompareVersions(softwareTitle.AppStoreApp.LatestVersion, installedVersion) != 1 {
+		if fleet.CompareVersions(latestVersion, installedVersion) != 1 {
 			// Installed version is equal or higher than latest version, so nothing to do here.
 			level.Debug(logger).Log(
 				"msg", "skipping software version",
-				"latest_version", softwareTitle.AppStoreApp.LatestVersion,
+				"latest_version", latestVersion,
 				"installed_version", installedVersion,
 			)
 			continue
@@ -4196,12 +4305,18 @@ func (svc *MDMAppleCheckinAndCommandService) handleScheduledUpdates(
 		"count", len(softwaresWithinUpdateWindowThatNeedUpdate),
 	)
 
-	// 3. Filter out software that already has a pending installation (update).
-	adamIDsPendingInstallForHost, err := svc.ds.MapAdamIDsPendingInstallVerification(ctx, host.ID)
+	// 3. Filter out software that has been issued an install on this host in the last hour.
+	//
+	// The main reason we must do this filtering is because if the target application is currently in use
+	// by the end-user, then the app installation has been acknowledged and verified, but the reported version
+	// by InstalledApplicationList is still the old version until the user closes the app or the device goes to
+	// sleep and the app is closed and reopened automatically.
+	//
+	adamIDsRecentInstallForHost, err := svc.ds.MapAdamIDsRecentInstalls(ctx, host.ID, 3600)
 	if err != nil {
-		return ctxerr.Wrap(ctx, err, "get Adam IDs pending install for host")
+		return ctxerr.Wrap(ctx, err, "get Adam IDs recent installs for host")
 	}
-	var softwaresWithinUpdateScheduleToInstall []*fleet.SoftwareTitle
+	var softwaresWithinUpdateScheduleNoRecentInstalls []fleet.SoftwareAutoUpdateSchedule
 	for _, softwareWithinUpdateSchedule := range softwaresWithinUpdateWindowThatNeedUpdate {
 		softwareTitle, ok := softwareTitles[softwareWithinUpdateSchedule.TitleID]
 		if !ok {
@@ -4212,8 +4327,42 @@ func (svc *MDMAppleCheckinAndCommandService) handleScheduledUpdates(
 			)
 			continue
 		}
+		if _, ok := adamIDsRecentInstallForHost[softwareTitle.AppStoreApp.AdamID]; ok {
+			level.Debug(logger).Log(
+				"msg", "skipping software, recent install for title",
+				"software_title_id", softwareTitle.ID,
+				"adam_id", softwareTitle.AppStoreApp.AdamID,
+			)
+			continue
+		}
+		softwaresWithinUpdateScheduleNoRecentInstalls = append(softwaresWithinUpdateScheduleNoRecentInstalls, softwareWithinUpdateSchedule)
+	}
+	if len(softwaresWithinUpdateScheduleNoRecentInstalls) == 0 {
+		// Nothing else to do.
+		return nil
+	}
+	level.Debug(logger).Log(
+		"msg", "found software with auto update scheduled, with host local time currently in window, that need update, no recent install",
+		"count", len(softwaresWithinUpdateScheduleNoRecentInstalls),
+	)
+
+	// 4. Filter out software that already has a pending installation.
+	adamIDsPendingInstallForHost, err := svc.ds.MapAdamIDsPendingInstallVerification(ctx, host.ID)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "get Adam IDs pending install for host")
+	}
+	var softwaresWithinUpdateScheduleToInstall []*fleet.SoftwareTitle
+	for _, softwareWithinUpdateSchedule := range softwaresWithinUpdateScheduleNoRecentInstalls {
+		softwareTitle, ok := softwareTitles[softwareWithinUpdateSchedule.TitleID]
+		if !ok {
+			// "Should not happen", so we log it just in case.
+			level.Error(logger).Log(
+				"msg", "missing title ID from map",
+				"software_title_id", softwareWithinUpdateSchedule.TitleID,
+			)
+			continue
+		}
 		if _, ok := adamIDsPendingInstallForHost[softwareTitle.AppStoreApp.AdamID]; ok {
-			// Skip this software title because there's already a pending install for this title.
 			level.Debug(logger).Log(
 				"msg", "skipping software, pending install for title",
 				"software_title_id", softwareTitle.ID,
@@ -4228,11 +4377,11 @@ func (svc *MDMAppleCheckinAndCommandService) handleScheduledUpdates(
 		return nil
 	}
 	level.Debug(logger).Log(
-		"msg", "found software with auto update scheduled, with host local time currently in window, that need update, no pending installation",
+		"msg", "found software with auto update scheduled, with host local time currently in window, that need update, no recent install, no pending installation",
 		"count", len(softwaresWithinUpdateScheduleToInstall),
 	)
 
-	// 4. Issue installation of the software titles to update.
+	// 5. Issue installation of the software titles to update.
 	for _, softwareTitle := range softwaresWithinUpdateScheduleToInstall {
 		var bundleIdentifier string
 		if softwareTitle.BundleIdentifier != nil {
@@ -4443,7 +4592,7 @@ func (svc *MDMAppleCheckinAndCommandService) handleRefetchDeviceResults(ctx cont
 		osVersionPrefix string
 		platform        string
 	)
-	if strings.HasPrefix(productName, "iPhone") {
+	if strings.HasPrefix(productName, "iPhone") || strings.HasPrefix(productName, "iPod") {
 		osVersionPrefix = "iOS"
 		platform = "ios"
 	} else { // iPad

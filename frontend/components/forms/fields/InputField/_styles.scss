@@ -53,6 +53,7 @@
 
   &__textarea {
     min-height: 100px;
+    min-width: 100%;
     max-width: 100%;
     display: block;
   }
@@ -92,9 +93,9 @@
   &__copy-wrapper {
     display: flex;
     align-items: center;
-    gap: $pad-xxsmall;
+    gap: $pad-xsmall;
     position: absolute;
-    top: 6px; // vertically center
+    top: 3px; // vertically center
     right: 0;
     margin: 1px 4px;
     background-color: $core-fleet-white;

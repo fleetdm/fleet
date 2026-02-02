@@ -149,9 +149,11 @@ func TestHosts(t *testing.T) {
 		{"UpdateOsqueryIntervals", testUpdateOsqueryIntervals},
 		{"UpdateRefetchRequested", testUpdateRefetchRequested},
 		{"LoadHostByDeviceAuthToken", testHostsLoadHostByDeviceAuthToken},
+		{"GetDeviceAuthToken", testHostsGetDeviceAuthToken},
 		{"SetOrUpdateDeviceAuthToken", testHostsSetOrUpdateDeviceAuthToken},
 		{"OSVersions", testOSVersions},
 		{"DeleteHosts", testHostsDeleteHosts},
+		{"DeleteHostsIdPAccounts", testHostsDeleteHostsIdPAccounts},
 		{"HostIDsByOSVersion", testHostIDsByOSVersion},
 		{"ReplaceHostBatteries", testHostsReplaceHostBatteries},
 		{"ReplaceHostBatteriesDeadlock", testHostsReplaceHostBatteriesDeadlock},
@@ -4202,7 +4204,7 @@ func testHostsListByBatchScriptExecutionStatus(t *testing.T, ds *Datastore) {
 		ExecutionID: host1Upcoming[0].ExecutionID,
 		Output:      "foo",
 		ExitCode:    0,
-	})
+	}, nil)
 	require.NoError(t, err)
 
 	// Simulate that host2 errored out
@@ -4213,7 +4215,7 @@ func testHostsListByBatchScriptExecutionStatus(t *testing.T, ds *Datastore) {
 		ExecutionID: host2Upcoming[0].ExecutionID,
 		Output:      "bar",
 		ExitCode:    1,
-	})
+	}, nil)
 	require.NoError(t, err)
 
 	// Simulate that host3 cancelled the script execution
@@ -5754,7 +5756,8 @@ func testHostsIncludesScheduledQueriesInPackStats(t *testing.T, ds *Datastore) {
 			Data:    ptr.RawMessage(json.RawMessage(`{"foo": "baz"}`)),
 		},
 	}
-	err = ds.OverwriteQueryResultRows(context.Background(), queryResultRow, fleet.DefaultMaxQueryReportRows)
+	rowsAdded, err := ds.OverwriteQueryResultRows(context.Background(), queryResultRow, fleet.DefaultMaxQueryReportRows)
+	require.Equal(t, 2, rowsAdded)
 	require.NoError(t, err)
 
 	hostResult, err = ds.Host(context.Background(), host.ID)
@@ -6051,11 +6054,12 @@ func testHostsPackStatsNoDuplication(t *testing.T, ds *Datastore) {
 	require.Len(t, packStats[0].QueryStats, 1)
 
 	// record query results
-	require.NoError(t, ds.OverwriteQueryResultRows(context.Background(), []*fleet.ScheduledQueryResultRow{{
+	_, err = ds.OverwriteQueryResultRows(context.Background(), []*fleet.ScheduledQueryResultRow{{
 		QueryID: query.ID,
 		HostID:  host.ID,
 		Data:    ptr.RawMessage(json.RawMessage(`{"foo": "bar"}`)),
-	}}, fleet.DefaultMaxQueryReportRows))
+	}}, fleet.DefaultMaxQueryReportRows)
+	require.NoError(t, err)
 
 	// host should still see just one stats entry at this point, despite seeing stats from both queries in the UNION
 	host, err = ds.Host(context.Background(), host.ID)
@@ -8037,6 +8041,66 @@ func testHostsSetOrUpdateDeviceAuthToken(t *testing.T, ds *Datastore) {
 	require.True(t, h2T2.Equal(h2T3))
 }
 
+func testHostsGetDeviceAuthToken(t *testing.T, ds *Datastore) {
+	host, err := ds.NewHost(context.Background(), &fleet.Host{
+		DetailUpdatedAt: time.Now(),
+		LabelUpdatedAt:  time.Now(),
+		PolicyUpdatedAt: time.Now(),
+		SeenTime:        time.Now(),
+		NodeKey:         ptr.String("1"),
+		UUID:            "1",
+		OsqueryHostID:   ptr.String("1"),
+		Hostname:        "foo.local",
+		PrimaryIP:       "192.168.1.1",
+		PrimaryMac:      "30-65-EC-6F-C4-60",
+	})
+	require.NoError(t, err)
+	host2, err := ds.NewHost(context.Background(), &fleet.Host{
+		DetailUpdatedAt: time.Now(),
+		LabelUpdatedAt:  time.Now(),
+		PolicyUpdatedAt: time.Now(),
+		SeenTime:        time.Now(),
+		NodeKey:         ptr.String("2"),
+		UUID:            "2",
+		OsqueryHostID:   ptr.String("2"),
+		Hostname:        "foo.local2",
+		PrimaryIP:       "192.168.1.2",
+		PrimaryMac:      "30-65-EC-6F-C4-61",
+	})
+	require.NoError(t, err)
+
+	token1 := "token1"
+	err = ds.SetOrUpdateDeviceAuthToken(context.Background(), host.ID, token1)
+	require.NoError(t, err)
+
+	token2 := "token2"
+	err = ds.SetOrUpdateDeviceAuthToken(context.Background(), host2.ID, token2)
+	require.NoError(t, err)
+
+	t1, err := ds.GetDeviceAuthToken(context.Background(), host.ID)
+	require.NoError(t, err)
+	require.Equal(t, t1, token1)
+
+	t2, err := ds.GetDeviceAuthToken(context.Background(), host2.ID)
+	require.NoError(t, err)
+	require.Equal(t, t2, token2)
+
+	token2Updated := "token2_updated"
+	err = ds.SetOrUpdateDeviceAuthToken(context.Background(), host2.ID, token2Updated)
+	require.NoError(t, err)
+
+	t1, err = ds.GetDeviceAuthToken(context.Background(), host.ID)
+	require.NoError(t, err)
+	require.Equal(t, t1, token1)
+
+	t2, err = ds.GetDeviceAuthToken(context.Background(), host2.ID)
+	require.NoError(t, err)
+	require.Equal(t, t2, token2Updated)
+
+	_, err = ds.GetDeviceAuthToken(context.Background(), 99)
+	require.Error(t, err)
+}
+
 func testOSVersions(t *testing.T, ds *Datastore) {
 	// empty tables
 	err := ds.UpdateOSVersions(context.Background())
@@ -8308,6 +8372,8 @@ func testOSVersions(t *testing.T, ds *Datastore) {
 }
 
 func testHostsDeleteHosts(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+
 	// Updates hosts and host_seen_times.
 	host, err := ds.NewHost(context.Background(), &fleet.Host{
 		DetailUpdatedAt: time.Now(),
@@ -8321,6 +8387,13 @@ func testHostsDeleteHosts(t *testing.T, ds *Datastore) {
 	})
 	require.NoError(t, err)
 	require.NotNil(t, host)
+
+	// Create a team and assign host
+	team, err := ds.NewTeam(ctx, &fleet.Team{Name: "deletehosts team"})
+	require.NoError(t, err)
+	err = ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&team.ID, []uint{host.ID}))
+	require.NoError(t, err)
+	host.TeamID = &team.ID
 
 	// enroll in Fleet MDM
 	nanoEnroll(t, ds, host, false)
@@ -8492,7 +8565,7 @@ func testHostsDeleteHosts(t *testing.T, ds *Datastore) {
 	_, _, err = ds.SetHostScriptExecutionResult(context.Background(), &fleet.HostScriptResultPayload{
 		HostID:      host.ID,
 		ExecutionID: hsr.ExecutionID,
-	})
+	}, nil)
 	require.NoError(t, err)
 
 	_, err = ds.writer(context.Background()).Exec(`
@@ -8526,7 +8599,7 @@ func testHostsDeleteHosts(t *testing.T, ds *Datastore) {
 	detailsBytes, err := json.Marshal(activity)
 	require.NoError(t, err)
 
-	ctx := context.WithValue(context.Background(), fleet.ActivityWebhookContextKey, true)
+	ctx = context.WithValue(ctx, fleet.ActivityWebhookContextKey, true)
 	err = ds.NewActivity( // automatically creates the host_activities entry
 		ctx,
 		user1,
@@ -8618,6 +8691,7 @@ func testHostsDeleteHosts(t *testing.T, ds *Datastore) {
 	script, err := ds.NewScript(ctx, &fleet.Script{
 		Name:           "script.sh",
 		ScriptContents: "echo hi",
+		TeamID:         &team.ID,
 	})
 	require.NoError(t, err)
 
@@ -8654,6 +8728,56 @@ func testHostsDeleteHosts(t *testing.T, ds *Datastore) {
 		host.ID, inHouseID, uuid.NewString(), fleet.MacOSPlatform)
 	require.NoError(t, err)
 
+	// Seed one VPP app install row directly to verify it gets cleaned up
+	vppData, err := test.CreateVPPTokenData(time.Now().Add(24*time.Hour), "Donkey Kong", "Jungle")
+	require.NoError(t, err)
+	tok, err := ds.InsertVPPToken(ctx, vppData)
+	require.NoError(t, err)
+	_, err = ds.UpdateVPPTokenTeams(ctx, tok.ID, []uint{team.ID})
+	require.NoError(t, err)
+
+	vppApp := &fleet.VPPApp{
+		VPPAppTeam: fleet.VPPAppTeam{
+			SelfService: false,
+			VPPAppID: fleet.VPPAppID{
+				AdamID:   "adam_deletehosts_" + t.Name(),
+				Platform: fleet.MacOSPlatform,
+			},
+		},
+		Name:             "deletehosts_vpp_app",
+		BundleIdentifier: "com.app.deletehosts",
+		LatestVersion:    "1.0.0",
+	}
+	va, err := ds.InsertVPPAppWithTeam(ctx, vppApp, &team.ID)
+	require.NoError(t, err)
+
+	cmdUUID := uuid.NewString()
+
+	// Raw INSERT into host_vpp_software_installs, so we can isolate testing deletion
+	_, err = ds.writer(ctx).Exec(`
+    INSERT INTO host_vpp_software_installs (
+      host_id,
+      adam_id,
+      platform,
+      command_uuid
+    ) VALUES (?, ?, ?, ?)
+  `,
+		host.ID,
+		va.AdamID,
+		va.Platform,
+		cmdUUID,
+	)
+	require.NoError(t, err)
+
+	// Assert the host_vpp_software_installs row exists to delete along with DeleteHost
+	var count int
+	err = ds.writer(ctx).Get(&count,
+		`SELECT COUNT(*) FROM host_vpp_software_installs WHERE host_id = ? AND command_uuid = ?`,
+		host.ID, cmdUUID,
+	)
+	require.NoError(t, err)
+	require.Equal(t, 1, count)
+
 	// Insert into conditional_access_scep_certificates table
 	result, err = ds.writer(context.Background()).Exec(`INSERT INTO conditional_access_scep_serials () VALUES ()`)
 	require.NoError(t, err)
@@ -8667,6 +8791,9 @@ func testHostsDeleteHosts(t *testing.T, ds *Datastore) {
 
 	locData := fleet.HostLocationData{HostID: host.ID, Latitude: 42.42, Longitude: -42.42}
 	err = ds.InsertHostLocationData(ctx, locData)
+	require.NoError(t, err)
+
+	err = ds.ConditionalAccessBypassDevice(ctx, host.ID)
 	require.NoError(t, err)
 
 	// Check there's an entry for the host in all the associated tables.
@@ -11503,7 +11630,7 @@ func testHostsAddToTeamCleansUpTeamQueryResults(t *testing.T, ds *Datastore) {
 		h4Global0Results,
 		h4Query1Results,
 	} {
-		err = ds.OverwriteQueryResultRows(ctx, results, fleet.DefaultMaxQueryReportRows)
+		_, err = ds.OverwriteQueryResultRows(ctx, results, fleet.DefaultMaxQueryReportRows)
 		require.NoError(t, err)
 	}
 
@@ -12449,4 +12576,229 @@ func testHostTimeZone(t *testing.T, ds *Datastore) {
 	require.Len(t, hosts, 1)
 	require.NotNil(t, hosts[0].TimeZone)
 	require.Equal(t, timeZone, *hosts[0].TimeZone)
+}
+
+func testHostsDeleteHostsIdPAccounts(t *testing.T, ds *Datastore) {
+	t.Run("basic platform behavior", func(t *testing.T) {
+		ctx := t.Context()
+
+		windowsHost, err := ds.NewHost(ctx, &fleet.Host{
+			DetailUpdatedAt: time.Now(),
+			LabelUpdatedAt:  time.Now(),
+			PolicyUpdatedAt: time.Now(),
+			SeenTime:        time.Now(),
+			NodeKey:         ptr.String("windows-node-key"),
+			UUID:            "windows-uuid",
+			Hostname:        "windows-host.local",
+			Platform:        "windows",
+		})
+		require.NoError(t, err)
+
+		linuxHost, err := ds.NewHost(ctx, &fleet.Host{
+			DetailUpdatedAt: time.Now(),
+			LabelUpdatedAt:  time.Now(),
+			PolicyUpdatedAt: time.Now(),
+			SeenTime:        time.Now(),
+			NodeKey:         ptr.String("linux-node-key"),
+			UUID:            "linux-uuid",
+			Hostname:        "linux-host.local",
+			Platform:        "ubuntu",
+		})
+		require.NoError(t, err)
+
+		macOSHost, err := ds.NewHost(ctx, &fleet.Host{
+			DetailUpdatedAt: time.Now(),
+			LabelUpdatedAt:  time.Now(),
+			PolicyUpdatedAt: time.Now(),
+			SeenTime:        time.Now(),
+			NodeKey:         ptr.String("macos-node-key"),
+			UUID:            "macos-uuid",
+			Hostname:        "macos-host.local",
+			Platform:        "darwin",
+		})
+		require.NoError(t, err)
+
+		// Create IdP accounts and associate them with hosts
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			_, err := q.ExecContext(ctx, `INSERT INTO mdm_idp_accounts (uuid, username, fullname, email) VALUES
+				('idp-account-1', 'user1', 'User One', 'user1@example.com'),
+				('idp-account-2', 'user2', 'User Two', 'user2@example.com'),
+				('idp-account-3', 'user3', 'User Three', 'user3@example.com')`)
+			return err
+		})
+
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			_, err := q.ExecContext(ctx, `INSERT INTO host_mdm_idp_accounts (host_uuid, account_uuid) VALUES
+				(?, 'idp-account-1'),
+				(?, 'idp-account-2'),
+				(?, 'idp-account-3')`,
+				windowsHost.UUID, linuxHost.UUID, macOSHost.UUID)
+			return err
+		})
+
+		var count int
+		err = ds.writer(ctx).GetContext(ctx, &count, `SELECT COUNT(*) FROM host_mdm_idp_accounts WHERE host_uuid IN (?, ?, ?)`,
+			windowsHost.UUID, linuxHost.UUID, macOSHost.UUID)
+		require.NoError(t, err)
+		require.Equal(t, 3, count, "expected 3 IdP account associations before deletion")
+
+		// Delete the Windows host
+		err = ds.DeleteHost(ctx, windowsHost.ID)
+		require.NoError(t, err)
+
+		// Verify Windows host's IdP account was deleted
+		err = ds.writer(ctx).GetContext(ctx, &count, `SELECT COUNT(*) FROM host_mdm_idp_accounts WHERE host_uuid = ?`, windowsHost.UUID)
+		require.NoError(t, err)
+		require.Equal(t, 0, count, "Windows host IdP account should be deleted")
+
+		// Verify Linux and macOS IdP accounts still exist
+		err = ds.writer(ctx).GetContext(ctx, &count, `SELECT COUNT(*) FROM host_mdm_idp_accounts WHERE host_uuid IN (?, ?)`,
+			linuxHost.UUID, macOSHost.UUID)
+		require.NoError(t, err)
+		require.Equal(t, 2, count, "Linux and macOS IdP accounts should still exist")
+
+		// Delete the Linux host
+		err = ds.DeleteHost(ctx, linuxHost.ID)
+		require.NoError(t, err)
+
+		// Verify Linux host's IdP account was deleted
+		err = ds.writer(ctx).GetContext(ctx, &count, `SELECT COUNT(*) FROM host_mdm_idp_accounts WHERE host_uuid = ?`, linuxHost.UUID)
+		require.NoError(t, err)
+		require.Equal(t, 0, count, "Linux host IdP account should be deleted")
+
+		// Verify macOS IdP account still exists (macOS should NOT have IdP accounts deleted)
+		err = ds.writer(ctx).GetContext(ctx, &count, `SELECT COUNT(*) FROM host_mdm_idp_accounts WHERE host_uuid = ?`, macOSHost.UUID)
+		require.NoError(t, err)
+		require.Equal(t, 1, count, "macOS host IdP account should NOT be deleted")
+
+		err = ds.DeleteHost(ctx, macOSHost.ID)
+		require.NoError(t, err)
+
+		// Verify macOS IdP account still exists after host deletion
+		err = ds.writer(ctx).GetContext(ctx, &count, `SELECT COUNT(*) FROM host_mdm_idp_accounts WHERE host_uuid = ?`, macOSHost.UUID)
+		require.NoError(t, err)
+		require.Equal(t, 1, count, "macOS host IdP account should still exist after host deletion")
+	})
+
+	t.Run("dual-boot scenario with macOS and Windows sharing host UUID - delete Windows first", func(t *testing.T) {
+		ctx := t.Context()
+
+		dualBootUUID := "dual-boot-uuid"
+
+		macOSDualBoot, err := ds.NewHost(ctx, &fleet.Host{
+			DetailUpdatedAt: time.Now(),
+			LabelUpdatedAt:  time.Now(),
+			PolicyUpdatedAt: time.Now(),
+			SeenTime:        time.Now(),
+			NodeKey:         ptr.String("macos-dualboot-node-key"),
+			UUID:            dualBootUUID,
+			Hostname:        "dualboot-macos.local",
+			Platform:        "darwin",
+		})
+		require.NoError(t, err)
+
+		windowsDualBoot, err := ds.NewHost(ctx, &fleet.Host{
+			DetailUpdatedAt: time.Now(),
+			LabelUpdatedAt:  time.Now(),
+			PolicyUpdatedAt: time.Now(),
+			SeenTime:        time.Now(),
+			NodeKey:         ptr.String("windows-dualboot-node-key"),
+			UUID:            dualBootUUID,
+			Hostname:        "dualboot-windows.local",
+			Platform:        "windows",
+		})
+		require.NoError(t, err)
+
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			_, err := q.ExecContext(ctx, `INSERT INTO mdm_idp_accounts (uuid, username, fullname, email) VALUES
+				('idp-dualboot', 'dualboot-user', 'Dual Boot User', 'dualboot@example.com')`)
+			return err
+		})
+
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			_, err := q.ExecContext(ctx, `INSERT INTO host_mdm_idp_accounts (host_uuid, account_uuid) VALUES (?, 'idp-dualboot')`,
+				dualBootUUID)
+			return err
+		})
+
+		var count int
+		err = ds.writer(ctx).GetContext(ctx, &count, `SELECT COUNT(*) FROM host_mdm_idp_accounts WHERE host_uuid = ?`, dualBootUUID)
+		require.NoError(t, err)
+		require.Equal(t, 1, count, "expected 1 IdP account association before deletion")
+
+		err = ds.DeleteHost(ctx, windowsDualBoot.ID)
+		require.NoError(t, err)
+
+		err = ds.writer(ctx).GetContext(ctx, &count, `SELECT COUNT(*) FROM host_mdm_idp_accounts WHERE host_uuid = ?`, dualBootUUID)
+		require.NoError(t, err)
+		require.Equal(t, 1, count, "IdP account should NOT be deleted when another host with same UUID exists")
+
+		err = ds.DeleteHost(ctx, macOSDualBoot.ID)
+		require.NoError(t, err)
+
+		err = ds.writer(ctx).GetContext(ctx, &count, `SELECT COUNT(*) FROM host_mdm_idp_accounts WHERE host_uuid = ?`, dualBootUUID)
+		require.NoError(t, err)
+		require.Equal(t, 1, count, "macOS host IdP account should still exist after deletion")
+	})
+
+	t.Run("dual-boot scenario with macOS and Windows sharing host UUID - delete macOS first", func(t *testing.T) {
+		ctx := t.Context()
+
+		dualBootUUID := "dual-boot-uuid-2"
+
+		macOSDualBoot, err := ds.NewHost(ctx, &fleet.Host{
+			DetailUpdatedAt: time.Now(),
+			LabelUpdatedAt:  time.Now(),
+			PolicyUpdatedAt: time.Now(),
+			SeenTime:        time.Now(),
+			NodeKey:         ptr.String("macos-dualboot-node-key-2"),
+			UUID:            dualBootUUID,
+			Hostname:        "dualboot-macos-2.local",
+			Platform:        "darwin",
+		})
+		require.NoError(t, err)
+
+		windowsDualBoot, err := ds.NewHost(ctx, &fleet.Host{
+			DetailUpdatedAt: time.Now(),
+			LabelUpdatedAt:  time.Now(),
+			PolicyUpdatedAt: time.Now(),
+			SeenTime:        time.Now(),
+			NodeKey:         ptr.String("windows-dualboot-node-key-2"),
+			UUID:            dualBootUUID,
+			Hostname:        "dualboot-windows-2.local",
+			Platform:        "windows",
+		})
+		require.NoError(t, err)
+
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			_, err := q.ExecContext(ctx, `INSERT INTO mdm_idp_accounts (uuid, username, fullname, email) VALUES
+				('idp-dualboot-2', 'dualboot-user-2', 'Dual Boot User 2', 'dualboot2@example.com')`)
+			return err
+		})
+
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			_, err := q.ExecContext(ctx, `INSERT INTO host_mdm_idp_accounts (host_uuid, account_uuid) VALUES (?, 'idp-dualboot-2')`,
+				dualBootUUID)
+			return err
+		})
+
+		var count int
+		err = ds.writer(ctx).GetContext(ctx, &count, `SELECT COUNT(*) FROM host_mdm_idp_accounts WHERE host_uuid = ?`, dualBootUUID)
+		require.NoError(t, err)
+		require.Equal(t, 1, count, "expected 1 IdP account association before deletion")
+
+		err = ds.DeleteHost(ctx, macOSDualBoot.ID)
+		require.NoError(t, err)
+
+		err = ds.writer(ctx).GetContext(ctx, &count, `SELECT COUNT(*) FROM host_mdm_idp_accounts WHERE host_uuid = ?`, dualBootUUID)
+		require.NoError(t, err)
+		require.Equal(t, 1, count, "IdP account should NOT be deleted when Windows host with same UUID still exists")
+
+		err = ds.DeleteHost(ctx, windowsDualBoot.ID)
+		require.NoError(t, err)
+
+		err = ds.writer(ctx).GetContext(ctx, &count, `SELECT COUNT(*) FROM host_mdm_idp_accounts WHERE host_uuid = ?`, dualBootUUID)
+		require.NoError(t, err)
+		require.Equal(t, 0, count, "IdP account should be deleted when Windows host is the last one deleted")
+	})
 }

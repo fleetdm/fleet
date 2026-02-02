@@ -252,7 +252,7 @@ func (svc *Service) BatchAssociateVPPApps(ctx context.Context, teamName string, 
 	var appStoreApps []*fleet.VPPApp
 
 	if len(incomingAppleApps) > 0 {
-		apps, err := getVPPAppsMetadata(ctx, incomingAppleApps, vppToken, svc.getVPPAuthenticator(ctx))
+		apps, err := getVPPAppsMetadata(ctx, incomingAppleApps, vppToken, svc.getVPPConfig(ctx))
 		if err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "refreshing VPP app metadata")
 		}
@@ -462,7 +462,7 @@ func (svc *Service) GetAppStoreApps(ctx context.Context, teamID *uint) ([]*fleet
 		adamIDs = append(adamIDs, a.AdamID)
 	}
 
-	metadata, err := apple_apps.GetMetadata(adamIDs, vppToken, svc.getVPPAuthenticator(ctx))
+	metadata, err := apple_apps.GetMetadata(adamIDs, vppToken, svc.getVPPConfig(ctx))
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "fetching VPP asset metadata")
 	}
@@ -543,7 +543,7 @@ func (svc *Service) AddAppStoreApp(ctx context.Context, teamID *uint, appID flee
 		return 0, ctxerr.Wrap(ctx, err, "validating software labels for adding vpp app")
 	}
 
-	var teamName string
+	teamName := fleet.TeamNameNoTeam
 	if teamID != nil && *teamID != 0 {
 		tm, err := svc.ds.TeamLite(ctx, *teamID)
 		if fleet.IsNotFound(err) {
@@ -628,7 +628,7 @@ func (svc *Service) AddAppStoreApp(ctx context.Context, teamID *uint, appID flee
 
 		asset := assets[0]
 
-		assetMetadata, err := apple_apps.GetMetadata([]string{asset.AdamID}, vppToken, svc.getVPPAuthenticator(ctx))
+		assetMetadata, err := apple_apps.GetMetadata([]string{asset.AdamID}, vppToken, svc.getVPPConfig(ctx))
 		if err != nil {
 			return 0, ctxerr.Wrap(ctx, err, "fetching VPP asset metadata")
 		}
@@ -645,10 +645,9 @@ func (svc *Service) AddAppStoreApp(ctx context.Context, teamID *uint, appID flee
 		}
 
 		if appID.Platform == fleet.MacOSPlatform {
-			// Check if we've already added an installer for this app
-			exists, err := svc.ds.UploadedSoftwareExists(ctx, appFromApple.BundleIdentifier, teamID)
+			exists, err := svc.ds.CheckConflictingInstallerExists(ctx, teamID, appFromApple.BundleIdentifier, string(appID.Platform))
 			if err != nil {
-				return 0, ctxerr.Wrap(ctx, err, "checking existence of VPP app installer")
+				return 0, ctxerr.Wrap(ctx, err, "checking existence of conflicting installer")
 			}
 
 			if exists {
@@ -656,6 +655,19 @@ func (svc *Service) AddAppStoreApp(ctx context.Context, teamID *uint, appID flee
 					Message: fmt.Sprintf(fleet.CantAddSoftwareConflictMessage,
 						assetMD.Attributes.Name, teamName),
 				}, "vpp app conflicts with existing software installer")
+			}
+		} else if appID.Platform == fleet.IOSPlatform || appID.Platform == fleet.IPadOSPlatform {
+			// Check if an in-house app (IPA) with the same bundle identifier already exists
+			exists, err := svc.ds.CheckConflictingInHouseAppExists(ctx, teamID, appFromApple.BundleIdentifier, string(appID.Platform))
+			if err != nil {
+				return 0, ctxerr.Wrap(ctx, err, "checking existence of conflicting installer")
+			}
+
+			if exists {
+				return 0, ctxerr.Wrap(ctx, fleet.ConflictError{
+					Message: fmt.Sprintf(fleet.CantAddSoftwareConflictMessage,
+						assetMD.Attributes.Name, teamName),
+				}, "vpp app conflicts with existing in-house app")
 			}
 		}
 
@@ -734,11 +746,11 @@ func (svc *Service) AddAppStoreApp(ctx context.Context, teamID *uint, appID flee
 	return addedApp.TitleID, nil
 }
 
-func (svc *Service) getVPPAuthenticator(ctx context.Context) apple_apps.Authenticator {
-	return apple_apps.GetAuthenticator(ctx, svc.ds, svc.config.License.Key)
+func (svc *Service) getVPPConfig(ctx context.Context) apple_apps.Config {
+	return apple_apps.Configure(ctx, svc.ds, svc.config.License.Key, svc.config.MDM.AppleConnectJWT)
 }
 
-func getVPPAppsMetadata(ctx context.Context, ids []fleet.VPPAppTeam, vppToken string, vppAuthenticator apple_apps.Authenticator) ([]*fleet.VPPApp, error) {
+func getVPPAppsMetadata(ctx context.Context, ids []fleet.VPPAppTeam, vppToken string, vppConfig apple_apps.Config) ([]*fleet.VPPApp, error) {
 	var apps []*fleet.VPPApp
 
 	// Map of adamID to platform, then to whether it's available as self-service
@@ -779,7 +791,7 @@ func getVPPAppsMetadata(ctx context.Context, ids []fleet.VPPAppTeam, vppToken st
 	for adamID := range adamIDMap {
 		adamIDs = append(adamIDs, adamID)
 	}
-	assetMetadata, err := apple_apps.GetMetadata(adamIDs, vppToken, vppAuthenticator)
+	assetMetadata, err := apple_apps.GetMetadata(adamIDs, vppToken, vppConfig)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "fetching VPP asset metadata")
 	}

@@ -2,12 +2,16 @@ package condaccess
 
 import (
 	"context"
+	"database/sql"
 	"errors"
 	"net/http"
 	"net/http/httptest"
 	"testing"
+	"time"
 
+	"github.com/aws/smithy-go/ptr"
 	"github.com/crewjam/saml"
+	"github.com/fleetdm/fleet/v4/pkg/optjson"
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mock"
@@ -73,7 +77,13 @@ b1ctZeF7HaWwFdTC8GqWI6zzRFn+YA3f/yYibhowuEypPQeSjlI=
 func newTestService() (*idpService, *mock.Store) {
 	ds := new(mock.Store)
 	logger := kitlog.NewNopLogger()
-	return &idpService{ds: ds, logger: logger}, ds
+	return &idpService{ds: ds, logger: logger, certSerialFormat: config.CertSerialFormatHex}, ds
+}
+
+func newTestServiceWithCertFormat(certFormat string) (*idpService, *mock.Store) {
+	ds := new(mock.Store)
+	logger := kitlog.NewNopLogger()
+	return &idpService{ds: ds, logger: logger, certSerialFormat: certFormat}, ds
 }
 
 func mockAppConfigFunc(serverURL string) func(context.Context) (*fleet.AppConfig, error) {
@@ -209,70 +219,142 @@ func TestServeMetadata(t *testing.T) {
 }
 
 func TestParseSerialNumber(t *testing.T) {
-	tests := []struct {
-		name      string
-		input     string
-		expected  uint64
-		expectErr bool
-	}{
-		{
-			name:     "simple hex number",
-			input:    "1A2B3C",
-			expected: 0x1A2B3C,
-		},
-		{
-			name:     "hex with colons",
-			input:    "1A:2B:3C",
-			expected: 0x1A2B3C,
-		},
-		{
-			name:     "hex with spaces",
-			input:    "1A 2B 3C",
-			expected: 0x1A2B3C,
-		},
-		{
-			name:     "mixed colons and spaces",
-			input:    "1A:2B 3C",
-			expected: 0x1A2B3C,
-		},
-		{
-			name:     "large serial number",
-			input:    "DEADBEEF12345678",
-			expected: 0xDEADBEEF12345678,
-		},
-		{
-			name:     "lowercase hex",
-			input:    "abcdef123456",
-			expected: 0xABCDEF123456,
-		},
-		{
-			name:      "invalid hex characters",
-			input:     "GHIJKL",
-			expectErr: true,
-		},
-		{
-			name:      "empty string",
-			input:     "",
-			expectErr: true,
-		},
-		{
-			name:      "overflow uint64",
-			input:     "FFFFFFFFFFFFFFFF1",
-			expectErr: true,
-		},
-	}
+	t.Run("hex format", func(t *testing.T) {
+		tests := []struct {
+			name      string
+			input     string
+			expected  uint64
+			expectErr bool
+		}{
+			{
+				name:     "simple hex number",
+				input:    "1A2B3C",
+				expected: 0x1A2B3C,
+			},
+			{
+				name:     "hex with colons",
+				input:    "1A:2B:3C",
+				expected: 0x1A2B3C,
+			},
+			{
+				name:     "hex with spaces",
+				input:    "1A 2B 3C",
+				expected: 0x1A2B3C,
+			},
+			{
+				name:     "mixed colons and spaces",
+				input:    "1A:2B 3C",
+				expected: 0x1A2B3C,
+			},
+			{
+				name:     "large serial number",
+				input:    "DEADBEEF12345678",
+				expected: 0xDEADBEEF12345678,
+			},
+			{
+				name:     "lowercase hex",
+				input:    "abcdef123456",
+				expected: 0xABCDEF123456,
+			},
+			{
+				name:      "invalid hex characters",
+				input:     "GHIJKL",
+				expectErr: true,
+			},
+			{
+				name:      "empty string",
+				input:     "",
+				expectErr: true,
+			},
+			{
+				name:      "overflow uint64",
+				input:     "FFFFFFFFFFFFFFFF1",
+				expectErr: true,
+			},
+		}
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			result, err := parseSerialNumber(tt.input)
-			if tt.expectErr {
-				require.Error(t, err)
-			} else {
-				require.NoError(t, err)
-				require.Equal(t, tt.expected, result)
-			}
-		})
-	}
+		for _, tt := range tests {
+			t.Run(tt.name, func(t *testing.T) {
+				result, err := parseSerialNumber(tt.input, config.CertSerialFormatHex)
+				if tt.expectErr {
+					require.Error(t, err)
+				} else {
+					require.NoError(t, err)
+					require.Equal(t, tt.expected, result)
+				}
+			})
+		}
+	})
+
+	t.Run("decimal format", func(t *testing.T) {
+		tests := []struct {
+			name      string
+			input     string
+			expected  uint64
+			expectErr bool
+		}{
+			{
+				name:     "simple decimal number",
+				input:    "1234567890",
+				expected: 1234567890,
+			},
+			{
+				name:     "serial number 10",
+				input:    "10",
+				expected: 10,
+			},
+			{
+				name:     "serial number 15",
+				input:    "15",
+				expected: 15,
+			},
+			{
+				name:      "large serial number",
+				input:     "542242443644849078027064623851697342324729218861",
+				expected:  0, // Too large for uint64
+				expectErr: true,
+			},
+			{
+				name:     "max uint64",
+				input:    "18446744073709551615",
+				expected: 18446744073709551615,
+			},
+			{
+				name:      "invalid decimal characters",
+				input:     "12ABC34",
+				expectErr: true,
+			},
+			{
+				name:      "empty string",
+				input:     "",
+				expectErr: true,
+			},
+		}
+
+		for _, tt := range tests {
+			t.Run(tt.name, func(t *testing.T) {
+				result, err := parseSerialNumber(tt.input, config.CertSerialFormatDecimal)
+				if tt.expectErr {
+					require.Error(t, err)
+				} else {
+					require.NoError(t, err)
+					require.Equal(t, tt.expected, result)
+				}
+			})
+		}
+	})
+
+	t.Run("default format is hex", func(t *testing.T) {
+		// When format is empty or unknown, should default to hex
+		result, err := parseSerialNumber("A", "")
+		require.NoError(t, err)
+		require.EqualValues(t, 10, result)
+
+		result, err = parseSerialNumber("A", "unknown")
+		require.NoError(t, err)
+		require.EqualValues(t, 10, result)
+	})
+
 }
 
 func TestServeSSO(t *testing.T) {
@@ -321,19 +403,22 @@ func TestServeSSO(t *testing.T) {
 
 	t.Run("valid certificate with different serial formats", func(t *testing.T) {
 		tests := []struct {
-			name   string
-			serial string
+			name           string
+			serial         string
+			certFormat     string
+			expectedSerial uint64
 		}{
-			{"plain hex", "DEADBEEF"},
-			{"hex with colons", "DE:AD:BE:EF"},
+			{"hex plain", "DEADBEEF", config.CertSerialFormatHex, 0xDEADBEEF},
+			{"hex with colons", "DE:AD:BE:EF", config.CertSerialFormatHex, 0xDEADBEEF},
+			{"decimal", "10", config.CertSerialFormatDecimal, 10},
 		}
 
 		for _, tt := range tests {
 			t.Run(tt.name, func(t *testing.T) {
-				svc, ds := newTestService()
+				svc, ds := newTestServiceWithCertFormat(tt.certFormat)
 
 				ds.GetConditionalAccessCertHostIDBySerialNumberFunc = func(ctx context.Context, serial uint64) (uint, error) {
-					require.Equal(t, uint64(0xDEADBEEF), serial)
+					require.Equal(t, tt.expectedSerial, serial)
 					return 123, nil
 				}
 				ds.AppConfigFunc = mockAppConfigFunc("https://fleet.example.com")
@@ -442,133 +527,236 @@ func TestParseCertAndKeyBytes(t *testing.T) {
 
 func TestDeviceHealthSessionProvider(t *testing.T) {
 	logger := kitlog.NewNopLogger()
+	now := time.Now()
 
-	t.Run("returns session for compliant device", func(t *testing.T) {
-		ds := new(mock.Store)
+	tests := []struct {
+		name   string
+		hostID uint
 
-		ds.HostLiteFunc = func(ctx context.Context, hostID uint) (*fleet.Host, error) {
-			require.Equal(t, uint(123), hostID)
-			teamID := uint(1)
-			return &fleet.Host{ID: 123, TeamID: &teamID}, nil
-		}
+		// Mock return values
+		host    *fleet.Host
+		hostErr error
 
-		ds.GetPoliciesForConditionalAccessFunc = func(ctx context.Context, teamID uint) ([]uint, error) {
-			require.Equal(t, uint(1), teamID)
-			return []uint{10, 20}, nil
-		}
+		caPolicyIDs  []uint
+		hostPolicies []*fleet.HostPolicy
 
-		ds.ListPoliciesForHostFunc = func(ctx context.Context, host *fleet.Host) ([]*fleet.HostPolicy, error) {
-			return []*fleet.HostPolicy{
+		deviceToken    string
+		deviceTokenErr error
+
+		appConfig *fleet.AppConfig // nil = use default with ServerURL
+
+		bypassTime            *time.Time
+		bypassErr             error
+		bypassMustNotBeCalled bool
+
+		samlReq *saml.IdpAuthnRequest
+
+		// Expectations
+		wantSession    bool
+		wantNameID     string
+		wantStatusCode int
+		wantLocation   string
+	}{
+		{
+			name:        "returns session for compliant device",
+			hostID:      123,
+			host:        &fleet.Host{ID: 123, TeamID: ptr.Uint(1)},
+			caPolicyIDs: []uint{10, 20},
+			hostPolicies: []*fleet.HostPolicy{
 				{PolicyData: fleet.PolicyData{ID: 10}, Response: "pass"},
 				{PolicyData: fleet.PolicyData{ID: 20}, Response: "pass"},
 				{PolicyData: fleet.PolicyData{ID: 30}, Response: "fail"}, // Not conditional access
-			}, nil
-		}
-
-		provider := &deviceHealthSessionProvider{ds: ds, logger: logger, hostID: 123}
-
-		req := httptest.NewRequest("POST", idpSSOPath, nil)
-		w := httptest.NewRecorder()
-
-		// Pass nil for SAML request to test fallback behavior
-		session := provider.GetSession(w, req, nil)
-
-		require.NotNil(t, session)
-		// When no NameID is provided in the SAML request, should fall back to host-based identifier
-		require.Equal(t, "host-123", session.NameID)
-	})
-
-	t.Run("uses NameID from SAML request when provided", func(t *testing.T) {
-		ds := new(mock.Store)
-
-		ds.HostLiteFunc = func(ctx context.Context, hostID uint) (*fleet.Host, error) {
-			require.Equal(t, uint(123), hostID)
-			teamID := uint(1)
-			return &fleet.Host{ID: 123, TeamID: &teamID, Platform: "darwin"}, nil
-		}
-
-		ds.GetPoliciesForConditionalAccessFunc = func(ctx context.Context, teamID uint) ([]uint, error) {
-			require.Equal(t, uint(1), teamID)
-			return []uint{10, 20}, nil
-		}
-
-		ds.ListPoliciesForHostFunc = func(ctx context.Context, host *fleet.Host) ([]*fleet.HostPolicy, error) {
-			return []*fleet.HostPolicy{
+			},
+			wantSession:    true,
+			wantNameID:     "host-123",
+			wantStatusCode: http.StatusOK,
+		},
+		{
+			name:        "uses NameID from SAML request when provided",
+			hostID:      123,
+			host:        &fleet.Host{ID: 123, TeamID: ptr.Uint(1), Platform: "darwin"},
+			caPolicyIDs: []uint{10, 20},
+			hostPolicies: []*fleet.HostPolicy{
 				{PolicyData: fleet.PolicyData{ID: 10}, Response: "pass"},
 				{PolicyData: fleet.PolicyData{ID: 20}, Response: "pass"},
-			}, nil
-		}
-
-		provider := &deviceHealthSessionProvider{ds: ds, logger: logger, hostID: 123}
-
-		req := httptest.NewRequest("POST", idpSSOPath, nil)
-		w := httptest.NewRecorder()
-
-		// Create a SAML request with a NameID (simulating what Okta sends)
-		samlReq := &saml.IdpAuthnRequest{
-			Request: saml.AuthnRequest{
-				Subject: &saml.Subject{
-					NameID: &saml.NameID{
-						Value: "user@example.com",
+			},
+			samlReq: &saml.IdpAuthnRequest{
+				Request: saml.AuthnRequest{
+					Subject: &saml.Subject{
+						NameID: &saml.NameID{
+							Value: "user@example.com",
+						},
 					},
 				},
 			},
-		}
-
-		session := provider.GetSession(w, req, samlReq)
-
-		require.NotNil(t, session)
-		// Should use the NameID from the SAML request (what Okta sent)
-		require.Equal(t, "user@example.com", session.NameID)
-	})
-
-	t.Run("redirects to remediate for failing conditional access policies", func(t *testing.T) {
-		ds := new(mock.Store)
-
-		ds.HostLiteFunc = func(ctx context.Context, hostID uint) (*fleet.Host, error) {
-			teamID := uint(1)
-			return &fleet.Host{ID: 456, TeamID: &teamID}, nil
-		}
-
-		ds.GetPoliciesForConditionalAccessFunc = func(ctx context.Context, teamID uint) ([]uint, error) {
-			return []uint{10, 20}, nil
-		}
-
-		ds.ListPoliciesForHostFunc = func(ctx context.Context, host *fleet.Host) ([]*fleet.HostPolicy, error) {
-			return []*fleet.HostPolicy{
+			wantSession:    true,
+			wantNameID:     "user@example.com",
+			wantStatusCode: http.StatusOK,
+		},
+		{
+			name:        "redirects to device policy page for failing CA policies",
+			hostID:      456,
+			host:        &fleet.Host{ID: 456, TeamID: ptr.Uint(1)},
+			caPolicyIDs: []uint{10, 20},
+			hostPolicies: []*fleet.HostPolicy{
 				{PolicyData: fleet.PolicyData{ID: 10}, Response: "fail"},
 				{PolicyData: fleet.PolicyData{ID: 20}, Response: "pass"},
 				{PolicyData: fleet.PolicyData{ID: 30}, Response: "fail"}, // Not conditional access
-			}, nil
-		}
+			},
+			deviceToken:    "abc123",
+			wantStatusCode: http.StatusSeeOther,
+			wantLocation:   "https://example.com/device/abc123/policies",
+		},
+		{
+			name:        "redirects to remediate when no auth token",
+			hostID:      456,
+			host:        &fleet.Host{ID: 456, TeamID: ptr.Uint(1)},
+			caPolicyIDs: []uint{10, 20},
+			hostPolicies: []*fleet.HostPolicy{
+				{PolicyData: fleet.PolicyData{ID: 10}, Response: "fail"},
+				{PolicyData: fleet.PolicyData{ID: 20}, Response: "pass"},
+				{PolicyData: fleet.PolicyData{ID: 30}, Response: "fail"}, // Not conditional access
+			},
+			deviceTokenErr: sql.ErrNoRows,
+			wantStatusCode: http.StatusSeeOther,
+			wantLocation:   remediateURL,
+		},
+		{
+			name:           "returns 500 when HostLite fails",
+			hostID:         789,
+			hostErr:        errors.New("database error"),
+			wantStatusCode: http.StatusInternalServerError,
+		},
+		{
+			name:        "allows device with bypass through",
+			hostID:      456,
+			host:        &fleet.Host{ID: 456, TeamID: ptr.Uint(1)},
+			caPolicyIDs: []uint{10, 20},
+			hostPolicies: []*fleet.HostPolicy{
+				{PolicyData: fleet.PolicyData{ID: 10}, Response: "fail"},
+				{PolicyData: fleet.PolicyData{ID: 20}, Response: "pass"},
+			},
+			deviceToken:    "abc123",
+			bypassTime:     &now,
+			wantSession:    true,
+			wantNameID:     "host-456",
+			wantStatusCode: http.StatusOK,
+		},
+		{
+			name:        "redirects device without bypass",
+			hostID:      456,
+			host:        &fleet.Host{ID: 456, TeamID: ptr.Uint(1)},
+			caPolicyIDs: []uint{10, 20},
+			hostPolicies: []*fleet.HostPolicy{
+				{PolicyData: fleet.PolicyData{ID: 10}, Response: "fail"},
+				{PolicyData: fleet.PolicyData{ID: 20}, Response: "pass"},
+			},
+			deviceToken:    "abc123",
+			wantStatusCode: http.StatusSeeOther,
+			wantLocation:   "https://example.com/device/abc123/policies",
+		},
+		{
+			name:        "redirects when bypass check fails",
+			hostID:      456,
+			host:        &fleet.Host{ID: 456, TeamID: ptr.Uint(1)},
+			caPolicyIDs: []uint{10, 20},
+			hostPolicies: []*fleet.HostPolicy{
+				{PolicyData: fleet.PolicyData{ID: 10}, Response: "fail"},
+				{PolicyData: fleet.PolicyData{ID: 20}, Response: "pass"},
+			},
+			deviceToken:    "abc123",
+			bypassErr:      errors.New("database error"),
+			wantStatusCode: http.StatusSeeOther,
+			wantLocation:   "https://example.com/device/abc123/policies",
+		},
+		{
+			name:        "bypass_disabled redirects without checking bypass",
+			hostID:      456,
+			host:        &fleet.Host{ID: 456, TeamID: ptr.Uint(1)},
+			caPolicyIDs: []uint{10},
+			hostPolicies: []*fleet.HostPolicy{
+				{PolicyData: fleet.PolicyData{ID: 10}, Response: "fail"},
+			},
+			deviceToken: "abc123",
+			appConfig: &fleet.AppConfig{
+				ServerSettings: fleet.ServerSettings{
+					ServerURL: "https://example.com",
+				},
+				ConditionalAccess: &fleet.ConditionalAccessSettings{
+					BypassDisabled: optjson.SetBool(true),
+				},
+			},
+			bypassMustNotBeCalled: true,
+			wantStatusCode:        http.StatusSeeOther,
+			wantLocation:          "https://example.com/device/abc123/policies",
+		},
+	}
 
-		provider := &deviceHealthSessionProvider{ds: ds, logger: logger, hostID: 456}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			ds := new(mock.Store)
 
-		req := httptest.NewRequest("POST", idpSSOPath, nil)
-		w := httptest.NewRecorder()
+			ds.HostLiteFunc = func(ctx context.Context, hostID uint) (*fleet.Host, error) {
+				return tt.host, tt.hostErr
+			}
 
-		session := provider.GetSession(w, req, nil)
+			ds.GetPoliciesForConditionalAccessFunc = func(ctx context.Context, teamID uint) ([]uint, error) {
+				return tt.caPolicyIDs, nil
+			}
 
-		require.Nil(t, session)
-		require.Equal(t, http.StatusSeeOther, w.Code)
-		require.Equal(t, remediateURL, w.Header().Get("Location"))
-	})
+			ds.ListPoliciesForHostFunc = func(ctx context.Context, host *fleet.Host) ([]*fleet.HostPolicy, error) {
+				return tt.hostPolicies, nil
+			}
 
-	t.Run("returns 500 when HostLite fails", func(t *testing.T) {
-		ds := new(mock.Store)
+			ds.GetDeviceAuthTokenFunc = func(ctx context.Context, hostID uint) (string, error) {
+				return tt.deviceToken, tt.deviceTokenErr
+			}
 
-		ds.HostLiteFunc = func(ctx context.Context, hostID uint) (*fleet.Host, error) {
-			return nil, errors.New("database error")
-		}
+			if tt.appConfig != nil {
+				ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+					return tt.appConfig, nil
+				}
+			} else {
+				ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+					return &fleet.AppConfig{
+						ServerSettings: fleet.ServerSettings{
+							ServerURL: "https://example.com",
+						},
+					}, nil
+				}
+			}
 
-		provider := &deviceHealthSessionProvider{ds: ds, logger: logger, hostID: 789}
+			if tt.bypassMustNotBeCalled {
+				ds.ConditionalAccessConsumeBypassFunc = func(ctx context.Context, hostID uint) (*time.Time, error) {
+					t.Fatal("ConditionalAccessConsumeBypass should not be called when bypass is disabled")
+					return nil, nil
+				}
+			} else {
+				ds.ConditionalAccessConsumeBypassFunc = func(ctx context.Context, hostID uint) (*time.Time, error) {
+					return tt.bypassTime, tt.bypassErr
+				}
+			}
 
-		req := httptest.NewRequest("POST", idpSSOPath, nil)
-		w := httptest.NewRecorder()
+			provider := &deviceHealthSessionProvider{ds: ds, logger: logger, hostID: tt.hostID}
 
-		session := provider.GetSession(w, req, nil)
+			req := httptest.NewRequest("POST", idpSSOPath, nil)
+			w := httptest.NewRecorder()
 
-		require.Nil(t, session)
-		require.Equal(t, http.StatusInternalServerError, w.Code)
-	})
+			session := provider.GetSession(w, req, tt.samlReq)
+
+			if tt.wantSession {
+				require.NotNil(t, session)
+				require.Equal(t, tt.wantNameID, session.NameID)
+			} else {
+				require.Nil(t, session)
+			}
+			require.Equal(t, tt.wantStatusCode, w.Code)
+			if tt.wantLocation != "" {
+				require.Equal(t, tt.wantLocation, w.Header().Get("Location"))
+			}
+			if tt.bypassMustNotBeCalled {
+				require.False(t, ds.ConditionalAccessConsumeBypassFuncInvoked)
+			}
+		})
+	}
 }

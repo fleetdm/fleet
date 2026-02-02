@@ -22,6 +22,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxdb"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	hostctx "github.com/fleetdm/fleet/v4/server/contexts/host"
+	"github.com/fleetdm/fleet/v4/server/contexts/installersize"
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/vpp"
@@ -220,6 +221,13 @@ func ValidateSoftwareLabels(ctx context.Context, svc fleet.Service, teamID *uint
 
 	byName, err := svc.BatchValidateLabels(ctx, teamID, names)
 	if err != nil {
+		var missingLabelErr *fleet.MissingLabelError
+		if errors.As(err, &missingLabelErr) {
+			return nil, &fleet.BadRequestError{
+				InternalErr: missingLabelErr,
+				Message:     fmt.Sprintf("Couldn't update. Label %q doesn't exist. Please remove the label from the software.", missingLabelErr.MissingLabelName),
+			}
+		}
 		return nil, err
 	}
 
@@ -1883,6 +1891,11 @@ func (svc *Service) addZipPackageMetadata(ctx context.Context, payload *fleet.Up
 
 const (
 	batchSoftwarePrefix = "software_batch_"
+	// keyExpireTime serves as a timeout for each step of the batch upload process (initial checks, download for
+	// a package from source, upload for a package to object storage) for each package. This timeout is refreshed
+	// at each step. If the timeout is reached, they key expires in Redis and the batch process is considered
+	// abandoned by clients checking in on it.
+	keyExpireTime = 4 * time.Minute
 )
 
 func (svc *Service) BatchSetSoftwareInstallers(
@@ -1965,10 +1978,6 @@ func (svc *Service) BatchSetSoftwareInstallers(
 		}
 	}
 
-	// keyExpireTime is the current maximum time supported for retrieving
-	// the result of a software by batch operation.
-	const keyExpireTime = 24 * time.Hour
-
 	requestUUID := uuid.NewString()
 	if err := svc.keyValueStore.Set(ctx, batchSoftwarePrefix+requestUUID, batchSetProcessing, keyExpireTime); err != nil {
 		return "", ctxerr.Wrapf(ctx, err, "failed to set key as %s", batchSetProcessing)
@@ -2000,6 +2009,14 @@ func (svc *Service) softwareInstallerPayloadFromSlug(ctx context.Context, payloa
 
 	app, err := svc.ds.GetMaintainedAppBySlug(ctx, *slug, teamID)
 	if err != nil {
+		// Return user-friendly message for generic not found error
+		if fleet.IsNotFound(err) {
+			// Must return low-level error in order to be properly handled upstream
+			return fleet.NewUserMessageError(
+				fmt.Errorf("%s isn't a supported Fleet-maintained app. See supported apps: https://fleetdm.com/learn-more-about/supported-fleet-maintained-app-slugs", *slug),
+				http.StatusNotFound,
+			)
+		}
 		return err
 	}
 	_, err = maintained_apps.Hydrate(ctx, app)
@@ -2068,9 +2085,30 @@ func (svc *Service) softwareBatchUpload(
 		}
 	}(time.Now())
 
+	// Periodically refresh the expiration on the batch install process so that, even when downloading/uploading
+	// large installers, we ensure the server doesn't lose track of the batch. This way, the only time a batch times
+	// out is if the server goes offline during running the batch.
+	done := make(chan struct{})
+	go func() {
+		ticker := time.NewTicker(keyExpireTime / 3) // Running keepalive much more often since we don't retry set errors
+		defer ticker.Stop()
+		for {
+			select {
+			// at this point we're done with the batch, at which point the caller will set the job in Redis as complete
+			// with a longer TTL, so we don't need to do anything here
+			case <-done:
+				return
+			case <-ticker.C:
+				_ = svc.keyValueStore.Set(ctx, batchSoftwarePrefix+requestUUID, batchSetProcessing, keyExpireTime)
+			}
+		}
+	}()
+	defer close(done)
+
+	maxInstallerSize := svc.config.Server.MaxInstallerSizeBytes
 	downloadURLFn := func(ctx context.Context, url string) (*http.Response, *fleet.TempFileReader, error) {
 		client := fleethttp.NewClient()
-		client.Transport = fleethttp.NewSizeLimitTransport(fleet.MaxSoftwareInstallerSize)
+		client.Transport = fleethttp.NewSizeLimitTransport(maxInstallerSize)
 
 		req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
 		if err != nil {
@@ -2083,7 +2121,7 @@ func (svc *Service) softwareBatchUpload(
 			if errors.Is(err, fleethttp.ErrMaxSizeExceeded) || errors.As(err, &maxBytesErr) {
 				return nil, nil, fleet.NewInvalidArgumentError(
 					"software.url",
-					fmt.Sprintf("Couldn't edit software. URL (%q). The maximum file size is %d GB", url, fleet.MaxSoftwareInstallerSize/(1000*1024*1024)),
+					fmt.Sprintf("Couldn't edit software. URL (%q). The maximum file size is %s", url, installersize.Human(maxInstallerSize)),
 				)
 			}
 
@@ -2114,7 +2152,7 @@ func (svc *Service) softwareBatchUpload(
 			if errors.Is(err, fleethttp.ErrMaxSizeExceeded) || errors.As(err, &maxBytesErr) {
 				return nil, nil, fleet.NewInvalidArgumentError(
 					"software.url",
-					fmt.Sprintf("Couldn't edit software. URL (%q). The maximum file size is %d GB", url, fleet.MaxSoftwareInstallerSize/(1000*1024*1024)),
+					fmt.Sprintf("Couldn't edit software. URL (%q). The maximum file size is %s", url, installersize.Human(maxInstallerSize)),
 				)
 			}
 			return nil, nil, fmt.Errorf("reading installer %q contents: %w", url, err)

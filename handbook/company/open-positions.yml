@@ -35,32 +35,32 @@
 #       - 🧑‍🔬 Experience working with enterprise customers to help resolve complex technical issues.
 
 
-- jobTitle: 🐋 Enterprise Customer Success Manager
-  department: Customers
-  hiringManagerName: Zay Hanlon
-  hiringManagerGithubUsername: zayhanlon
-  hiringManagerLinkedInUrl: https://www.linkedin.com/in/zayhanlon/
-  onTargetEarnings: '$130,000 - $160,000'
-  responsibilities: |
-      - ⏫ Own post-sales relationships with a portfolio of our customers and be responsible for advocating for their desired outcomes.
-      - 📣 Manage multiple Enterprise customer deployments and escalations simultaneously.
-      - 🌡️ Work as a projcct manager alongside the customer and internal teams to establish an onboarding plan and define success criteria for new customers.
-      - 🪴 Promote product adoption, referencability, and customer advocacy with key customer stakeholders.
-      - 🕴️ Utilize systems and tools to analyze pipeline and opportunity data for renewals and expansions, and keep all information up to date for leadership reporting.
-      - 🚀 Work collaboratively with product and engineering teams to facilitate feature development based on customer asks.
-      - 📈 Proactively engage with customers to identify potential health risk indicators and remove blockers to success and retention.
-      - 💡 Excellent time management, communication and collaboration skills, with the ability to partner with various stakeholders to ensure customer key objectives for migration are top of mind.
-      - 🧪 Extensive experience with Slack, Salesforce, Google Suite, and GitHub.
-  experience: |
-      - 💭 Customer success management background supporting solutions IT/MDM solutions like Fleet, Intune, Workspace One, etc.
-      - 💖 You know how to manage your time and priorities between customer escalations, customer renewals and expansions, and other day-to-day responsibilities.
-      - ✍🏽 You have the ability to effectively influence key stakeholders, from senior executives to day-to-day engineering contacts, and drive Fleet's value with them.
-      - 🧬 You care about delivering an outstanding customer experience and advocating for the customer's needs within Fleet.
-      - 🧑‍🔬 Experience working with Enterprise customers to coordinate resolution of complex technical issues and project manage intricate deployment initiatives.
-      - 🤝 Collaboration: You work best in a team-based environment. You are decisive with the ability to shift gears between thinking and doing. 
-      - 🦉 5+ years of work experience managing relationships with enterprise customers in the device management space. Experience with executing and tracking results tied to customer escalations, customer renewals, and customer expansion opportunities.
-      - 🛠️ You are outgoing, enjoy being customer facing, and have a passion for problem solving while assisting external stakeholders.
-      - ➕ Bonus: Familiarity with osquery, SQLite, GitOps workflows, Terraform, Tines and open source projects. Experience working with IT, SRE, CPE, or SecOps teams.
+#- jobTitle: 🐋 Enterprise Customer Success Manager
+ # department: Customers
+  #hiringManagerName: Zay Hanlon
+  #hiringManagerGithubUsername: zayhanlon
+  #hiringManagerLinkedInUrl: https://www.linkedin.com/in/zayhanlon/
+  #onTargetEarnings: '$130,000 - $160,000'
+  #responsibilities: |
+      #- ⏫ Own post-sales relationships with a portfolio of our customers and be responsible for advocating for their desired outcomes.
+      #- 📣 Manage multiple Enterprise customer deployments and escalations simultaneously.
+      #- 🌡️ Work as a projcct manager alongside the customer and internal teams to establish an onboarding plan and define success criteria for new customers.
+      #- 🪴 Promote product adoption, referencability, and customer advocacy with key customer stakeholders.
+      #- 🕴️ Utilize systems and tools to analyze pipeline and opportunity data for renewals and expansions, and keep all information up to date for leadership reporting.
+      #- 🚀 Work collaboratively with product and engineering teams to facilitate feature development based on customer asks.
+      #- 📈 Proactively engage with customers to identify potential health risk indicators and remove blockers to success and retention.
+      #- 💡 Excellent time management, communication and collaboration skills, with the ability to partner with various stakeholders to ensure customer key objectives for migration are top of mind.
+      #- 🧪 Extensive experience with Slack, Salesforce, Google Suite, and GitHub.
+  #experience: |
+    #  - 💭 Customer success management background supporting solutions IT/MDM solutions like Fleet, Intune, Workspace One, etc.
+    #  - 💖 You know how to manage your time and priorities between customer escalations, customer renewals and expansions, and other day-to-day responsibilities.
+    #  - ✍🏽 You have the ability to effectively influence key stakeholders, from senior executives to day-to-day engineering contacts, and drive Fleet's value with them.
+    #  - 🧬 You care about delivering an outstanding customer experience and advocating for the customer's needs within Fleet.
+    #  - 🧑‍🔬 Experience working with Enterprise customers to coordinate resolution of complex technical issues and project manage intricate deployment initiatives.
+    #  - 🤝 Collaboration: You work best in a team-based environment. You are decisive with the ability to shift gears between thinking and doing. 
+    #  - 🦉 5+ years of work experience managing relationships with enterprise customers in the device management space. Experience with executing and tracking results tied to customer escalations, customer renewals, and customer expansion opportunities.
+    #  - 🛠️ You are outgoing, enjoy being customer facing, and have a passion for problem solving while assisting external stakeholders.
+    #  - ➕ Bonus: Familiarity with osquery, SQLite, GitOps workflows, Terraform, Tines and open source projects. Experience working with IT, SRE, CPE, or SecOps teams.
 
 - jobTitle: 🚀 Software Engineer
   department: Engineering
@@ -153,38 +153,37 @@
    #   - 🧬 You care about delivering an outstanding customer experience and advocating for the customer's needs within Fleet.
    #   - ➕ Bonus: Familiarity with osquery, SQLite, GitOps workflows, Terraform, Tines/Torq, and open source tools. Experience working alongside IT, SRE, CPE, or SecOps teams.
 
-
-# - jobTitle: 🐋 Account Executive
- # department: Sales
- # hiringManagerName: Alex Mitchell
- # hiringManagerLinkedInUrl: https://www.linkedin.com/in/alexandercmitchell/
- # hiringManagerGithubUsername: alexmitchelliii
- # onTargetEarnings: '$200,000 - $350,000'
- # responsibilities: |
-     # - 🖥️ Present and demonstrate the value of Fleet's products, services, and upgrades to help current and future customers find win-win commercial agreements.
-     # - 🎯 Direct and participate in prospecting target companies, identifying key decision makers and influencers, leading when assigned/necessary/appropriate to help anticipate market trends and identify new opportunities for growth.
-     # - 🛩️ Meet current and future customers where they are, literaly. Be proactive about meeting face to face to help understand them as people.
-     # - 🧠 Work with Solutions Consultants to understand where prospects are technically, and remove any blockers to providing value to the organizations that work with Fleet.
-     # - 📈 Use available data to identify opportunities and trends with individual prospects.
-     # - 📣 Actively promote Fleet's product and services on social media and at in-person events and meetups.
-     # - ⏫ Develop and own the relationships with Fleet's current and future customers, working closely with Customer Success to identify opportunities where Fleet can add value inside our current customer base.
-     # - ❔ Follow MEDDPPICC process to qualify and progress opportunities to best help prospects solve problems.
-     # - 🕴️ Utilize systems and tools such as Salesforce to analyze pipeline and opportunity data and keep all information up to date for leadership reporting.
-     # - 🦢 Work with the Product Design, Customer Success, and Engineering teams to facilitate feature development based on customer asks.
-     # - 🤝 Collaborate with the marketing team to help execute and track marketing campaigns, in order to achieve quarterly pipeline and revenue targets.
-     # - 🧑‍🔬 Perform processes as described in the [Sales](https://fleetdm.com/handbook/sales), [Go-To-Market groups](https://fleetdm.com/handbook/company/go-to-market-groups#go-to-market-groups), and other handbook pages.
- # experience: |
-     # - 🦉 5+ years of experience selling to enterprise customers.
-     # - 📣 Have excellent communication and interpersonal skills.
-     # - 🚀 Detail-oriented, highly organized, and able to move quickly to solve complex problems using boring solutions.
-     # - 🧑‍💻 Love technology and can explain how things work in detail.
-     # - 🧪 Experience with Slack, Salesforce, Google Suite, GitHub, and other tools in an all-remote setting.
-     # - ⏩ Thrive in a complex, fast-paced, results-driven environment with the ability to pivot to organizational changes easily.
-     # - 📈 Shift gears between thinking and doing quickly to partner with various teams and stakeholders to drive sales.  
-     # - 💭 You know how to manage your time and priorities between leads, complex sales opportunities, difficult escalations, challenging procurement processes, and other day-to-day responsibilities with the utmost care and organization.
-     # - ✍ You have a strong understanding of the enterprise procurement process and the ability to effectively influence key stakeholders, from senior executives to day-to-day engineering contacts, and discuss the potential ROI of using Fleet to solve real problems in their organization.
-     # - 🧬 You care about delivering an outstanding customer experience and advocating for the customer's needs within Fleet.
-     # - ➕ Bonus: Direct experience with Fleet, MDM, osquery or SQL query writing, and working with Client Platform Engineering, SRE, or Security Engineering teams.
+- jobTitle: 🐋 Account Executive
+  department: Sales
+  hiringManagerName: Chaz MacLaughlin
+  hiringManagerLinkedInUrl: https://www.linkedin.com/in/chazmaclaughlin/
+  hiringManagerGithubUsername: chazmac6
+  onTargetEarnings: '$200,000 - $350,000'
+  responsibilities: |
+      - 🖥️ Present and demonstrate the value of Fleet's products, services, and upgrades to help current and future customers find win-win commercial agreements.
+      - 🎯 Direct and participate in prospecting target companies, identifying key decision makers and influencers, leading when assigned/necessary/appropriate to help anticipate market trends and identify new opportunities for growth.
+      - 🛩️ Meet current and future customers where they are, literaly. Be proactive about meeting face to face to help understand them as people.
+      - 🧠 Work with Solutions Consultants to understand where prospects are technically, and remove any blockers to providing value to the organizations that work with Fleet.
+      - 📈 Use available data to identify opportunities and trends with individual prospects.
+      - 📣 Actively promote Fleet's product and services on social media and at in-person events and meetups.
+      - ⏫ Develop and own the relationships with Fleet's current and future customers, working closely with Customer Success to identify opportunities where Fleet can add value inside our current customer base.
+      - ❔ Follow MEDDPPICC process to qualify and progress opportunities to best help prospects solve problems.
+      - 🕴️ Utilize systems and tools such as Salesforce to analyze pipeline and opportunity data and keep all information up to date for leadership reporting.
+      - 🦢 Work with the Product Design, Customer Success, and Engineering teams to facilitate feature development based on customer asks.
+      - 🤝 Collaborate with the marketing team to help execute and track marketing campaigns, in order to achieve quarterly pipeline and revenue targets.
+      - 🧑‍🔬 Perform processes as described in the [Sales](https://fleetdm.com/handbook/sales), [Go-To-Market groups](https://fleetdm.com/handbook/company/go-to-market-groups#go-to-market-groups), and other handbook pages.
+  experience: |
+      - 🦉 5+ years of experience selling to enterprise customers.
+      - 📣 Have excellent communication and interpersonal skills.
+      - 🚀 Detail-oriented, highly organized, and able to move quickly to solve complex problems using boring solutions.
+      - 🧑‍💻 Love technology and can explain how things work in detail.
+      - 🧪 Experience with Slack, Salesforce, Google Suite, GitHub, and other tools in an all-remote setting.
+      - ⏩ Thrive in a complex, fast-paced, results-driven environment with the ability to pivot to organizational changes easily.
+      - 📈 Shift gears between thinking and doing quickly to partner with various teams and stakeholders to drive sales.  
+      - 💭 You know how to manage your time and priorities between leads, complex sales opportunities, difficult escalations, challenging procurement processes, and other day-to-day responsibilities with the utmost care and organization.
+      - ✍ You have a strong understanding of the enterprise procurement process and the ability to effectively influence key stakeholders, from senior executives to day-to-day engineering contacts, and discuss the potential ROI of using Fleet to solve real problems in their organization.
+      - 🧬 You care about delivering an outstanding customer experience and advocating for the customer's needs within Fleet.
+      - ➕ Bonus: Direct experience with Fleet, MDM, osquery or SQL query writing, and working with Client Platform Engineering, SRE, or Security Engineering teams.
 
 
 
@@ -271,4 +270,27 @@
   #    - 📖 Experience documenting processes and procedures in a clear, concise manner.
   #    - 🚀 Self-motivated and proactive, able to work independently in a fully remote environment.
   #    - ➕ Bonus: Experience with Fleet, osquery, or other open-source IT tools. Familiarity with automation tools and scripting (Bash, PowerShell). Experience working in GitHub, with git, or in a code repository.
+
+  
+- jobTitle: 🚀 Marketing Campaign Manager
+  department: Marketing
+  hiringManagerName: Ashish Kuthiala
+  hiringManagerGithubUsername: akuthiala
+  hiringManagerLinkedInUrl: https://www.linkedin.com/in/ashishkuthiala/
+  onTargetEarnings: '$150,000 - $190,000'
+  responsibilities: |
+      - 📢 Plan and execute integrated marketing campaigns: You will own the strategy and execution of digital campaigns and programs designed to generate high-quality leads and set meetings for the sales team.
+      - 🤝 Partner with Sales: Collaborate closely with the sales organization to ensure campaign alignment with revenue goals, focusing on generating pipeline and driving conversion.
+      - 🎪 Manage in-person events for the campaigns you manage: Lead the charge on Fleet’s presence in the field. This includes planning and executing a range of events, from large-scale industry conferences to focused field events and intimate workshops.
+      - 💻 Orchestrate digital experiences for the campaigns you manage: Run webinars, virtual events, and email nurture programs that engage our community and prospects.
+      - 📊 Measure and optimize for the campaigns you manage: Track the performance of campaigns and events rigorously. You will use data to analyze ROI, report on success metrics (MQLs, SQLs, Meetings Booked), and refine strategies for future initiatives.
+      - 🛠 Content coordination for the campaigns you manage: Work with the content and product marketing teams to ensure we have the right messaging and assets to support your campaigns and events.
+  experience: |
+      - 🦉 Experienced campaigner: 4+ years of experience in B2B marketing, specifically in campaign management or field marketing roles.
+      - 🎯 Results-oriented: You are driven by numbers. You understand how to map marketing activities to sales outcomes (meetings, pipeline, revenue). 
+      - 🎪 Event pro: You have a proven track record of managing logistics and strategy for both third-party conferences and hosted field events.
+      - 📣 Excellent communicator: Strong written and verbal communication skills. You can write compelling copy for emails and landing pages, and you are comfortable coordinating with vendors and internal teams.
+      - 🚀 Detail-criented: You can manage complex projects with many moving parts (like a conference sponsorship) without letting details slip through the cracks.
+      - 🧪 Tool proficient: Experience with marketing automation platforms (e.g., HubSpot, Marketo) and CRMs (Salesforce). Familiarity with tools like GitHub, Slack, and Google Suite is a plus.
+      - ⏩ Adaptable: You thrive in a fast-paced, all-remote environment and can pivot quickly when priorities change.
 

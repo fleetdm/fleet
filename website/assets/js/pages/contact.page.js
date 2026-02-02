@@ -29,8 +29,34 @@ parasails.registerPage('contact', {
       emailAddress: {isEmail: true, required: true},
       firstName: {required: true},
       lastName: {required: true},
-      message: {required: false},
+      message: {required: true},
     },
+    // Application form rules
+    applicationFormRules: {
+      emailAddress: {isEmail: true, required: true},
+      firstName: {required: true},
+      lastName: {required: true},
+      linkedinProfileUrl: {required: true},
+      position: {required: true},
+      location: {required: true},
+      message: {required: true},
+    },
+
+    workshopRequestFormRules: {
+      emailAddress: {isEmail: true, required: true},
+      firstName: {required: true},
+      lastName: {required: true},
+      location: {required: true},
+      numberOfHosts: {required: true},
+      managedPlatforms: {
+        required: true,
+        custom: (selectedPlatforms)=>{
+          return _.keysIn(selectedPlatforms).length > 0 && _.contains(_.values(selectedPlatforms), true);
+        }
+      },
+
+    },
+
     formDataToPrefillForLoggedInUsers: {},
 
     // Server error state for the form
@@ -74,6 +100,13 @@ parasails.registerPage('contact', {
     if (window.location.hash === '#message') {// prefill from URL bar
       this.formToDisplay = 'contact';
     }
+    if (window.location.hash === '#apply') {// prefill from URL bar
+      this.formToDisplay = 'apply';
+    }
+    if (window.location.hash === '#gitops') {// prefill from URL bar
+      this.formToDisplay = 'gitops-workshop-request';
+      this.formData.managedPlatforms = {};
+    }
   },
   mounted: async function() {
     //…
@@ -112,6 +145,20 @@ parasails.registerPage('contact', {
       }
 
       this.goto(report.eventUrl);
+    },
+
+    submittedApplicationForm: async function() {
+      // Show the success message.
+      this.cloudSuccess = true;
+    },
+
+    submittedWorkshopRequestForm: async function() {
+      // Show the success message.
+      this.cloudSuccess = true;
+    },
+
+    clickSelectCustomCheckbox: async function() {
+      await this.forceRender();
     },
 
     clickSwitchForms: function(form) {

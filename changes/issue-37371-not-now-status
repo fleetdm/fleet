@@ -1,0 +1,1 @@
+- handle the NotNow status from the device during DEP setup experience so it does not delay the release of the device

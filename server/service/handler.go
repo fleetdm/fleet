@@ -11,6 +11,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/klauspost/compress/gzhttp"
+
 	eeservice "github.com/fleetdm/fleet/v4/ee/server/service"
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/contexts/publicip"
@@ -104,6 +106,12 @@ func MakeHandler(
 		fn(&eopts)
 	}
 
+	// Create the client IP extraction strategy based on config.
+	ipStrategy, err := endpointer.NewClientIPStrategy(config.Server.TrustedProxies)
+	if err != nil {
+		panic(fmt.Sprintf("invalid server.trusted_proxies configuration: %v", err))
+	}
+
 	fleetAPIOptions := []kithttp.ServerOption{
 		kithttp.ServerBefore(
 			kithttp.PopulateRequestContext, // populate the request context with common fields
@@ -133,7 +141,23 @@ func MakeHandler(
 		}
 	}
 
-	r.Use(publicIP)
+	if config.Server.GzipResponses {
+		r.Use(func(h http.Handler) http.Handler {
+			return gzhttp.GzipHandler(h)
+		})
+	}
+
+	// Add middleware to extract the client IP and set it in the request context.
+	r.Use(func(handler http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			ip := ipStrategy.ClientIP(r.Header, r.RemoteAddr)
+			if ip != "" {
+				r.RemoteAddr = ip
+			}
+			handler.ServeHTTP(w, r.WithContext(publicip.NewContext(r.Context(), ip)))
+		})
+	})
+
 	if eopts.httpSigVerifier != nil {
 		r.Use(eopts.httpSigVerifier)
 	}
@@ -145,16 +169,6 @@ func MakeHandler(
 	addMetrics(r)
 
 	return r
-}
-
-func publicIP(handler http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		ip := endpointer.ExtractIP(r)
-		if ip != "" {
-			r.RemoteAddr = ip
-		}
-		handler.ServeHTTP(w, r.WithContext(publicip.NewContext(r.Context(), ip)))
-	})
 }
 
 // PrometheusMetricsHandler wraps the provided handler with prometheus metrics
@@ -482,8 +496,6 @@ func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetC
 	ue.POST("/api/_version_/fleet/queries/run_by_identifiers", createDistributedQueryCampaignByIdentifierEndpoint, createDistributedQueryCampaignByIdentifierRequest{})
 	// This endpoint is deprecated and maintained for backwards compatibility. This and above endpoint are functionally equivalent
 	ue.POST("/api/_version_/fleet/queries/run_by_names", createDistributedQueryCampaignByIdentifierEndpoint, createDistributedQueryCampaignByIdentifierRequest{})
-
-	ue.GET("/api/_version_/fleet/activities", listActivitiesEndpoint, listActivitiesRequest{})
 
 	ue.GET("/api/_version_/fleet/packs/{id:[0-9]+}/scheduled", getScheduledQueriesInPackEndpoint, getScheduledQueriesInPackRequest{})
 	ue.EndingAtVersion("v1").POST("/api/_version_/fleet/schedule", scheduleQueryEndpoint, scheduleQueryRequest{})
@@ -878,6 +890,7 @@ func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetC
 	de.WithCustomMiddleware(errorLimiter).POST("/api/_version_/fleet/device/{token}/setup_experience/status", getDeviceSetupExperienceStatusEndpoint, getDeviceSetupExperienceStatusRequest{})
 	de.WithCustomMiddleware(errorLimiter).GET("/api/_version_/fleet/device/{token}/software/titles/{software_title_id}/icon", getDeviceSoftwareIconEndpoint, getDeviceSoftwareIconRequest{})
 	de.WithCustomMiddleware(errorLimiter).POST("/api/_version_/fleet/device/{token}/mdm/linux/trigger_escrow", triggerLinuxDiskEncryptionEscrowEndpoint, triggerLinuxDiskEncryptionEscrowRequest{})
+	de.WithCustomMiddleware(errorLimiter).POST("/api/_version_/fleet/device/{token}/bypass_conditional_access", bypassConditionalAccessEndpoint, bypassConditionalAccessRequest{})
 	// Device authenticated, Apple MDM endpoints.
 	demdm := de.WithCustomMiddleware(mdmConfiguredMiddleware.VerifyAppleMDM())
 	demdm.AppendCustomMiddleware(errorLimiter).GET("/api/_version_/fleet/device/{token}/mdm/apple/manual_enrollment_profile", getDeviceMDMManualEnrollProfileEndpoint, getDeviceMDMManualEnrollProfileRequest{})

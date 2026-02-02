@@ -1,0 +1,1 @@
+* Fixed bug where custom icons were ignored for fleet maintained apps in GitOps files.
