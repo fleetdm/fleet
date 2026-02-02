@@ -1,28 +1,28 @@
-# 🦄 Go-To-Market groups
+# 🚂 Go-To-Market operations
 
-This page covers the journey from prospect to customer and details what contributors need to know in order to make changes to the Go-To-Market (GTM) [philosophy](https://fleetdm.com/handbook/company/why-this-way#why-dont-we-sell-like-everyone-else), [strategy](https://fleetdm.com/handbook/company/go-to-market-groups#gtm-strategy), and [actions](https://fleetdm.com/handbook/company/go-to-market-groups#warm-up-actions) at Fleet.
+This page covers the journey from prospect to customer and details what contributors need to know in order to make changes to the Go-To-Market (GTM) [philosophy](https://fleetdm.com/handbook/company/why-this-way#why-dont-we-sell-like-everyone-else), [strategy](https://fleetdm.com/handbook/company/go-to-market-operations#gtm-strategy), and [actions](https://fleetdm.com/handbook/company/go-to-market-operations#warm-up-actions) at Fleet.
 
 
-## Why cross-functional GTM groups?
+## Cross-functional GTM processes
 
 When communicating with future or current customers, hand-offs [between departments](https://fleetdm.com/handbook/company#org-chart), contributors, or external organizations can negatively effect the "Return On Investment" (ROI) for Fleet, our customers, and our friends in the community. Cross-functional GTM groups minimize hand-offs between internal and external stakeholders and maximize iteration and efficiency in the way we engage with the market.
 
 
-> Use this "🦄 Go-To-Market groups" page to write down philosophies and show how the different pieces of the GTM process fit together.
-> Use the dedicated departmental handbook pages for [🫧 Marketing](https://fleetdm.com/handbook/marketing), 🌐 [IT](https://fleetdm.com/handbook/it), [🐋 Sales](https://fleetdm.com/handbook/sales), [🌦️ Customer Success](https://fleetdm.com/handbook/customer-success), and [💸 Finance](https://fleetdm.com/handbook/finance) to keep track of specific responsibilities and recurring rituals designed to be read and used within those departments.
+> Use this "🚂 Go-To-Market operations" page to write down philosophies and show how the different pieces of the GTM process fit together.
+> Use the dedicated departmental handbook pages for [🫧 Marketing](https://fleetdm.com/handbook/marketing), 💻 [IT](https://fleetdm.com/handbook/it), [🐋 Sales](https://fleetdm.com/handbook/sales), [🌦️ Customer Success](https://fleetdm.com/handbook/customer-success), and [💸 Finance](https://fleetdm.com/handbook/finance) to keep track of specific responsibilities and recurring rituals designed to be read and used within those departments.
 
 
-## Current GTM groups
+## Current GTM motions
 
 | GTM group                            | Goal |
 |:-------------------------------------|:------------------------------------|
-| [🦄Unicorns](https://fleetdm.com/handbook/company/go-to-market-groups#unicorns-group)             | Provide the best possible customer experience for organizations with 700+ hosts. 
-| [🌐Buy online](https://fleetdm.com/handbook/company/go-to-market-groups#buy-online-group)         | Provide the best possible customer experience for organizations and contributors with less than 700 hosts that prefer a more self-service experience.
+| [🤝Enterprise](https://fleetdm.com/handbook/company/go-to-market-operations#enterprise)             | Provide the best possible customer experience for organizations with 700+ hosts. 
+| [🌐Buy online](https://fleetdm.com/handbook/company/go-to-market-operations#buy-online)         | Provide the best possible customer experience for organizations and contributors with less than 700 hosts that prefer a more self-service experience.
 
 
-### 🦄 Unicorns group
+### 🤝Enterprise
 
-The goal of the 🦄 Unicorns group is to provide the best possible customer experience for organizations with 700+ hosts.
+The goal of the 🤝Enterprise group is to provide the best possible customer experience for organizations with 700+ hosts.
 
 | Responsibility                    | Human(s)                  |
 |:----------------------------------|:--------------------------|
@@ -35,21 +35,16 @@ The goal of the 🦄 Unicorns group is to provide the best possible customer exp
 | Customer Success Manager (CSM)    | [Jason Lewis](https://www.linkedin.com/in/jlewis0451/) _([@patagonia121](https://github.com/patagonia121))_ <br> [Michael Pinto](https://www.linkedin.com/in/michael-pinto-a06b4515a/) _([@pintomi1989](https://github.com/pintomi1989)_) <br> [Joshua Roskos](https://www.linkedin.com/in/jroskos/) _([@kc9wwh](https://github.com/kc9wwh))_ <br> [Raiven Williams](https://www.linkedin.com/in/raivenwilliams/) _([@bettapizza](https://github.com/bettapizza))_
 | Customer Support Engineer (CSE)       | <sup><sub> _See [Customer_Success](https://fleetdm.com/handbook/customer-success)_
 
-> The [Slack channel](https://fleetdm.slack.com/archives/C08BTMFTUCR), [kanban release board](https://github.com/fleetdm/confidential/issues#workspaces/g-unicorns-67b0e98321bc780010a6e78e/board), and [GitHub label](https://github.com/fleetdm/confidential/labels/%23g-unicorns) for this GTM group is `#g-unicorns`.
+> The [Slack channel](https://fleetdm.slack.com/archives/C08BTMFTUCR), [kanban release board](https://github.com/orgs/fleetdm/projects/81/views/1), and [GitHub label](https://github.com/fleetdm/confidential/labels/%3Ahelp-gtm-ops) for this GTM group is `:help-gtm-ops`.
 
 
-### 🌐 Buy online group
+### 🌐 Buy online
 
 The goal of the 🌐 Buy online group is to provide the best possible customer experience for organizations and contributors with less than 700 hosts that prefer a more self-service experience.
 
 | Responsibility                    | Human(s)                  |
 |:----------------------------------|:--------------------------|
-| Revenue DRI                       | [Sam Pfluger](https://www.linkedin.com/in/sampfluger88/) _([@sampfluger88](https://github.com/sampfluger88))_
-| Pipeline DRI                      | [Mike Thomas](https://www.linkedin.com/in/mike-thomas-52277938) _([@mike-j-thomas](https://github.com/mike-j-thomas))_
-| Customer Success DRI              | [Kathy Satterlee](https://www.linkedin.com/in/ksatter/) _([@ksatter](https://github.com/ksatter))_
-| Customer Support Engineer (CSE)   | [Kathy Satterlee](https://www.linkedin.com/in/ksatter/) _([@ksatter](https://github.com/ksatter))_ <br> [Mason Buettner](https://www.linkedin.com/in/mason-buettner-b72959175/) _([@mason-buettner](https://github.com/mason-buettner))_
-
-> The [Slack channel](https://fleetdm.slack.com/archives/C08C7ML9QKX), [kanban release board](https://github.com/orgs/fleetdm/projects/65), and [GitHub label](https://github.com/fleetdm/fleet/labels/%23g-buy-online) for this GTM group is `#g-buy-online`.
+| DRI                               | [Sam Pfluger](https://www.linkedin.com/in/sampfluger88/) _([@sampfluger88](https://github.com/sampfluger88))_
 
 
 ## Customer support service level objectives (SLOs)
@@ -81,13 +76,13 @@ The goal of the 🌐 Buy online group is to provide the best possible customer e
 ## GTM strategy
 
 At Fleet, our GTM strategy consists of:
-- [Outreach](https://fleetdm.com/handbook/company/go-to-market-groups#gtm-outreach)
-- [Processing intent signals](https://fleetdm.com/handbook/company/go-to-market-groups#processing-intent-signals)
-- [Research](https://fleetdm.com/handbook/company/go-to-market-groups#research)
-- [Warm-up actions](https://fleetdm.com/handbook/company/go-to-market-groups#warm-up-actions)
+- [Outreach](https://fleetdm.com/handbook/company/go-to-market-operations#gtm-outreach)
+- [Processing intent signals](https://fleetdm.com/handbook/company/go-to-market-operations#processing-intent-signals)
+- [Research](https://fleetdm.com/handbook/company/go-to-market-operations#research)
+- [Warm-up actions](https://fleetdm.com/handbook/company/go-to-market-operations#warm-up-actions)
 - [Executive Messaging Framework - Communicating the value of Fleet to the CIO and his direct team](https://docs.google.com/document/d/17u8z_aeZiatOBzcMfRtYewxMWZjRt-UKc0gQftcg7XM/edit?tab=t.0) (private Google doc)
-- [Proof of Value (POV)](https://fleetdm.com/handbook/company/go-to-market-groups#proof-of-value-pov)
-- [Signatures](https://fleetdm.com/handbook/company/go-to-market-groups#signatures)
+- [Proof of Value (POV)](https://fleetdm.com/handbook/company/go-to-market-operations#proof-of-value-pov)
+- [Signatures](https://fleetdm.com/handbook/company/go-to-market-operations#signatures)
 
 
 ### Competition
@@ -97,8 +92,6 @@ We track competitors' capabilities and adjacent (or commonly integrated) product
 <img width="384" alt="image" src="https://github.com/fleetdm/fleet/assets/618009/680adba6-f5b7-4726-b2ea-73d0549a45eb">
 
 > Due to legislation by the U.S. Department of Commerce, we are unable to initiate business with [certain countries and territories including specific U.S. sanction programs.](https://ofac.treasury.gov/sanctions-programs-and-country-information)
-
-
 
 
 ## GTM outreach 
@@ -130,7 +123,7 @@ The goal is not perfect attribution or rigid process. The goal is to:
 
 ### Programs
 
-Fleet's community programs are rooted in several areas created to nurture communication between all current and future Fleet users through [events](https://fleetdm.com/handbook/company/go-to-market-groups#events), community support, [social media](https://fleetdm.com/handbook/company/go-to-market-groups#social-media), [ads](https://fleetdm.com/handbook/company/go-to-market-groups#ads), [video](https://fleetdm.com/handbook/company/go-to-market-groups#video), and articles.
+Fleet's community programs are rooted in several areas created to nurture communication between all current and future Fleet users through [events](https://fleetdm.com/handbook/company/go-to-market-operations#events), community support, [social media](https://fleetdm.com/handbook/company/go-to-market-operations#social-media), [ads](https://fleetdm.com/handbook/company/go-to-market-operations#ads), [video](https://fleetdm.com/handbook/company/go-to-market-operations#video), and articles.
 
 
 #### Social media
@@ -208,7 +201,7 @@ When processing intent signals, prioritize accounts in the following order:
 
 ## Research
 
-ADRs research accounts to ensure there's a practical need Fleet can solve before we attempt to reach out. By doing the groundwork of validating account data and gauging initial intent, we can ensure the organizations that we reach out to [benefit from deeper discussions](https://fleetdm.com/handbook/company/go-to-market-groups#proof-of-value-pov) around making Fleet a practical solution.
+ADRs research accounts to ensure there's a practical need Fleet can solve before we attempt to reach out. By doing the groundwork of validating account data and gauging initial intent, we can ensure the organizations that we reach out to [benefit from deeper discussions](https://fleetdm.com/handbook/company/go-to-market-operations#proof-of-value-pov) around making Fleet a practical solution.
 
 
 ## Warm-up actions
@@ -272,7 +265,7 @@ Use the following steps to send Fleet's vendor collateral to a prospect or custo
 
 > 🧑‍🚀 Attention Fleeties:
 >
-> Can't find what you're looking for in Google Drive? 🧐 Reach out in the [🦄 #g-unicorns Slack channel](https://fleetdm.slack.com/archives/C08BTMFTUCR) for help. Any collateral documents (e.g. SOC2, Pen test, etc.) you send to a prospect or customer should be downloaded from the [🗃️ Vendor collateral folder](https://drive.google.com/drive/folders/18_Q7Q9Qwu7a8uFyHIS9QZo7iVA0B9YED?usp=drive_link) in Google Drive. If it's not in the "🗃️ Vendor collateral folder", it's not ready to be sent out.
+> Can't find what you're looking for in Google Drive? 🧐 Reach out in the [🚂 :help-gtm-ops Slack channel](https://fleetdm.slack.com/archives/C08BTMFTUCR) for help. Any collateral documents (e.g. SOC2, Pen test, etc.) you send to a prospect or customer should be downloaded from the [🗃️ Vendor collateral folder](https://drive.google.com/drive/folders/18_Q7Q9Qwu7a8uFyHIS9QZo7iVA0B9YED?usp=drive_link) in Google Drive. If it's not in the "🗃️ Vendor collateral folder", it's not ready to be sent out.
 
 
 ### Vendor questionnaires 
@@ -282,4 +275,4 @@ Occasionally, prospective customers will ask us to complete a questionnaire. In 
 
 
 <meta name="maintainedBy" value="sampfluger88">
-<meta name="title" value="🦄 Go-To-Market groups">
+<meta name="title" value="🚂 Go-To-Market operations">
