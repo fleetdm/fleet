@@ -134,7 +134,7 @@ Share [these guided instructions](https://fleetdm.com/guides/mdm-migration#how-t
 
 ## Advanced
 
-Fleet uses [Escrow Buddy](https://github.com/macadmins/escrow-buddy) to escrow disk encryption keys from macOS hosts. Escrow buddy is only installed on macOS hosts if they're assigned to a team in Fleet that has disk encryption enforced. If a host is then transferred to a team that doesn't enforce disk encryption, Escrow Buddy stays installed.
+Fleet uses [Escrow Buddy](https://github.com/macadmins/escrow-buddy) to escrow disk encryption keys from macOS hosts. Escrow Buddy is only installed on macOS hosts if they're assigned to a team in Fleet that has disk encryption enforced. If a host is then transferred to a team that doesn't enforce disk encryption, Escrow Buddy stays installed.
 
 <meta name="category" value="guides">
 <meta name="authorGitHubUsername" value="noahtalerman">
