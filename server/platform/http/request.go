@@ -20,4 +20,5 @@ const (
 	// MaxMultiScriptQuerySize, sets a max size for payloads that take multiple scripts and SQL queries.
 	MaxMultiScriptQuerySize int64 = 5 * units.MiB
 	MaxMicrosoftMDMSize     int64 = 2 * units.MiB
+	MaxSpecSize             int64 = 25 * units.MiB
 )

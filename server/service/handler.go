@@ -352,7 +352,7 @@ func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetC
 	ue.WithAltPaths("/api/_version_/fleet/team/{team_id}/policies/delete").
 		POST("/api/_version_/fleet/teams/{team_id}/policies/delete", deleteTeamPoliciesEndpoint, deleteTeamPoliciesRequest{})
 	ue.PATCH("/api/_version_/fleet/teams/{team_id}/policies/{policy_id}", modifyTeamPolicyEndpoint, modifyTeamPolicyRequest{})
-	ue.POST("/api/_version_/fleet/spec/policies", applyPolicySpecsEndpoint, applyPolicySpecsRequest{})
+	ue.WithRequestBodySizeLimit(platform_http.MaxSpecSize).POST("/api/_version_/fleet/spec/policies", applyPolicySpecsEndpoint, applyPolicySpecsRequest{})
 
 	ue.POST("/api/_version_/fleet/certificates", createCertificateTemplateEndpoint, createCertificateTemplateRequest{})
 	ue.GET("/api/_version_/fleet/certificates", listCertificateTemplatesEndpoint, listCertificateTemplatesRequest{})
@@ -369,7 +369,7 @@ func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetC
 	ue.DELETE("/api/_version_/fleet/queries/{name}", deleteQueryEndpoint, deleteQueryRequest{})
 	ue.DELETE("/api/_version_/fleet/queries/id/{id:[0-9]+}", deleteQueryByIDEndpoint, deleteQueryByIDRequest{})
 	ue.POST("/api/_version_/fleet/queries/delete", deleteQueriesEndpoint, deleteQueriesRequest{})
-	ue.POST("/api/_version_/fleet/spec/queries", applyQuerySpecsEndpoint, applyQuerySpecsRequest{})
+	ue.WithRequestBodySizeLimit(platform_http.MaxSpecSize).POST("/api/_version_/fleet/spec/queries", applyQuerySpecsEndpoint, applyQuerySpecsRequest{})
 	ue.GET("/api/_version_/fleet/spec/queries", getQuerySpecsEndpoint, getQuerySpecsRequest{})
 	ue.GET("/api/_version_/fleet/spec/queries/{name}", getQuerySpecEndpoint, getQuerySpecRequest{})
 
@@ -379,7 +379,7 @@ func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetC
 	ue.GET("/api/_version_/fleet/packs", listPacksEndpoint, listPacksRequest{})
 	ue.DELETE("/api/_version_/fleet/packs/{name}", deletePackEndpoint, deletePackRequest{})
 	ue.DELETE("/api/_version_/fleet/packs/id/{id:[0-9]+}", deletePackByIDEndpoint, deletePackByIDRequest{})
-	ue.POST("/api/_version_/fleet/spec/packs", applyPackSpecsEndpoint, applyPackSpecsRequest{})
+	ue.WithRequestBodySizeLimit(platform_http.MaxSpecSize).POST("/api/_version_/fleet/spec/packs", applyPackSpecsEndpoint, applyPackSpecsRequest{})
 	ue.GET("/api/_version_/fleet/spec/packs", getPackSpecsEndpoint, nil)
 	ue.GET("/api/_version_/fleet/spec/packs/{name}", getPackSpecEndpoint, getGenericSpecRequest{})
 
@@ -486,7 +486,7 @@ func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetC
 	ue.GET("/api/_version_/fleet/labels/{id:[0-9]+}/hosts", listHostsInLabelEndpoint, listHostsInLabelRequest{})
 	ue.DELETE("/api/_version_/fleet/labels/{name}", deleteLabelEndpoint, deleteLabelRequest{})
 	ue.DELETE("/api/_version_/fleet/labels/id/{id:[0-9]+}", deleteLabelByIDEndpoint, deleteLabelByIDRequest{})
-	ue.POST("/api/_version_/fleet/spec/labels", applyLabelSpecsEndpoint, applyLabelSpecsRequest{})
+	ue.WithRequestBodySizeLimit(platform_http.MaxSpecSize).POST("/api/_version_/fleet/spec/labels", applyLabelSpecsEndpoint, applyLabelSpecsRequest{})
 	ue.GET("/api/_version_/fleet/spec/labels", getLabelSpecsEndpoint, getLabelSpecsRequest{})
 	ue.GET("/api/_version_/fleet/spec/labels/{name}", getLabelSpecEndpoint, getGenericSpecRequest{})
 
