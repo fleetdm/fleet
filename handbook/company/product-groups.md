@@ -192,7 +192,7 @@ The goal of the First Impressions working group is to make changes to the core F
 
 | Responsibility                    | Human(s)                  |
 |:----------------------------------|:--------------------------|
-| Product Designer                  | [Noah Talerman]([https://www.linkedin.com/in/lukeheath/](https://www.linkedin.com/in/noah-talerman/)) _([@noahtalerman](https://github.com/noahtalerman))_, [Mike McNeil]([https://www.linkedin.com/in/ian-littman/](https://www.linkedin.com/in/mikermcneil/)) _([@mikermcneil](https://github.com/mikermcneil))_
+| Product Designer                  | [Noah Talerman](https://www.linkedin.com/in/noah-talerman/) _([@noahtalerman](https://github.com/noahtalerman))_, [Mike McNeil](https://www.linkedin.com/in/mikermcneil/) _([@mikermcneil](https://github.com/mikermcneil))_
 | Engineering Manager               | [Luke Heath](https://www.linkedin.com/in/lukeheath/) _([@lukeheath](https://github.com/lukeheath))_
 | Quality Assurance                 | [Luke Heath](https://www.linkedin.com/in/lukeheath/) _([@lukeheath](https://github.com/lukeheath))_, [Scott Gress](https://www.linkedin.com/in/scottgress/) _([@sgress454](https://github.com/sgress454))_
 | Software Engineer                 | [Scott Gress](https://www.linkedin.com/in/scottgress/) _([@sgress454](https://github.com/sgress454))_, [Luke Heath](https://www.linkedin.com/in/lukeheath/) _([@lukeheath](https://github.com/lukeheath))_
