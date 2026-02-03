@@ -81,7 +81,7 @@ In the top box, with "Verified," "Verifying," "Pending," and "Failed" statuses, 
 
 ### Verified
 
-> For some Windows configuration profiles, [verification doesn't work](https://github.com/fleetdm/fleet/issues/38833). Fleet will [remove verification](https://github.com/fleetdm/fleet/issues/31921) for Windows profiles in 4.83.
+> For some Windows configuration profiles, [verification doesn't work](https://github.com/fleetdm/fleet/issues/38833). Fleet will [remove verification](https://github.com/fleetdm/fleet/issues/31921) for Windows profiles in 4.83 (coming soon).
 
 Hosts that applied all OS settings. 
 
