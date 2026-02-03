@@ -547,7 +547,7 @@ WHERE host_uuid = ?
 	}
 
 	titleIDs := make([]uint, 0, len(results))
-	byTitleID := make(map[uint]*fleet.SetupExperienceStatusResult)
+	byTitleID := make(map[uint]*fleet.SetupExperienceStatusResult, len(results))
 	for _, res := range results {
 		if res.SoftwareTitleID != nil {
 			titleIDs = append(titleIDs, *res.SoftwareTitleID)
