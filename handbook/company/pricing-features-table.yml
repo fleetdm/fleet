@@ -160,7 +160,7 @@
 #  ╠╦╝║ ║║  ║╣───╠╩╗╠═╣╚═╗║╣  ║║  ╠═╣║  ║  ║╣ ╚═╗╚═╗  ║  ║ ║║║║ ║ ╠╦╝║ ║║  
 #  ╩╚═╚═╝╩═╝╚═╝  ╚═╝╩ ╩╚═╝╚═╝═╩╝  ╩ ╩╚═╝╚═╝╚═╝╚═╝╚═╝  ╚═╝╚═╝╝╚╝ ╩ ╩╚═╚═╝╩═╝
 - industryName: Role-based access control
-  documentationUrl: https://fleetdm.com/docs/using-fleet/manage-access#manage-access
+  documentationUrl: https://fleetdm.com/guides/role-based-access
   productCategories: [Endpoint operations,Device management,Vulnerability management]
   pricingTableCategories: [Configuration]
   usualDepartment: IT
@@ -216,7 +216,7 @@
 #  ║  ╠╦╝║ ║╚═╗╚═╗───╠═╝║  ╠═╣ ║ ╠╣ ║ ║╠╦╝║║║  ║║║ ║║║║║  ╚═╗║ ║╠═╝╠═╝║ ║╠╦╝ ║ 
 #  ╚═╝╩╚═╚═╝╚═╝╚═╝   ╩  ╩═╝╩ ╩ ╩ ╚  ╚═╝╩╚═╩ ╩  ╩ ╩═╩╝╩ ╩  ╚═╝╚═╝╩  ╩  ╚═╝╩╚═ ╩ 
 - industryName: Multi-platform MDM support
-  description: Apple, Windows (x64 and Arm), Linux (amd64 and Arm), and Android (coming soon).
+  description: Apple, Windows (x64 and Arm), Linux (amd64 and Arm), iOS, iPadOS, Android, and ChromeOS.
   documentationUrl: https://fleetdm.com/announcements/debunk-the-cross-platform-myth
   tier: Premium
   jamfProHasFeature: appleOnly
@@ -568,7 +568,7 @@
 #  ╚═╗║╣ ║  ╠╣───╚═╗║╣ ╠╦╝╚╗╔╝║║  ║╣   ╠═╣╠═╝╠═╝║  ║║  ╠═╣ ║ ║║ ║║║║  ║║║║╚═╗ ║ ╠═╣║  ║  ╠═╣ ║ ║║ ║║║║                                   
 #  ╚═╝╚═╝╩═╝╚    ╚═╝╚═╝╩╚═ ╚╝ ╩╚═╝╚═╝  ╩ ╩╩  ╩  ╩═╝╩╚═╝╩ ╩ ╩ ╩╚═╝╝╚╝  ╩╝╚╝╚═╝ ╩ ╩ ╩╩═╝╩═╝╩ ╩ ╩ ╩╚═╝╝╚╝                                   
 - industryName: Self-service application installation
-  description: Allow end users to install apps through Fleet Desktop for macOS, Linux, and Windows.
+  description: Allow end users to install apps through Fleet Desktop for macOS, Linux, Windows, iOS, and iPadOS.
   documentationUrl: https://fleetdm.com/guides/deploy-software-packages
   tier: Premium
   jamfProHasFeature: yes
@@ -657,7 +657,7 @@
 - industryName: Maintenance windows
   friendlyName: Fleet in your calendar
   description: Create a calendar event to auto-remediate failing policies when your end users are free.
-  documentationUrl: https://github.com/fleetdm/fleet/issues/17230
+  documentationUrl: https://fleetdm.com/announcements/fleet-in-your-calendar-introducing-maintenance-windows
   tier: Premium
   jamfProHasFeature: no
   jamfProtectHasFeature: no
@@ -771,7 +771,7 @@
 - industryName: Teams
   friendlyName: Manage different endpoints differently
   documentationUrl: https://fleetdm.com/docs/using-fleet/segment-hosts
-  description: Teams are what Fleet calls baselines, kinda like security groups or images. Every host in a team matches the same baseline, with minor exceptions. This makes it faster and less risky to maintain computers, leading to faster timelines and fewer tickets. #Enroll hosts into device groups ("teams") using different enrollment secrets and/or installers. Set baselines and strategies for hosts in different situations, and move hosts between them via API-driven automations or a simple, delegatable user interface with role-based access.
+  description: Teams are what Fleet calls baselines, similar to security groups or images. Every host in a team matches the same baseline, with minor exceptions. This makes it faster and less risky to maintain computers, leading to faster timelines and fewer tickets. #Enroll hosts into device groups ("teams") using different enrollment secrets and/or installers. Set baselines and strategies for hosts in different situations, and move hosts between them via API-driven automations or a simple, delegatable user interface with role-based access.
   tier: Premium
   jamfProHasFeature: yes
   jamfProtectHasFeature: yes
@@ -1121,8 +1121,8 @@
 #  ╔═╗╦╔╗╔╔═╗╦  ╔═╗  ╔═╗╦╔═╗╔╗╔  ╔═╗╔╗╔
 #  ╚═╗║║║║║ ╦║  ║╣   ╚═╗║║ ╦║║║  ║ ║║║║
 #  ╚═╝╩╝╚╝╚═╝╩═╝╚═╝  ╚═╝╩╚═╝╝╚╝  ╚═╝╝╚╝
-- industryName: Single sign on
-  description: SSO, SAML
+- industryName: Single sign-on (SSO)
+  description: SSO, SAML, 2FA, JIT, etc.
   documentationUrl: https://fleetdm.com/docs/deploy/single-sign-on-sso#single-sign-on-sso
   productCategories: [Endpoint operations,Device management,Vulnerability management]
   pricingTableCategories: [Integrations]
@@ -1135,7 +1135,7 @@
 #   ║║ ║╚═╗ ║───║║║║───║ ║║║║║╣   ╠═╝╠╦╝║ ║╚╗╔╝║╚═╗║║ ║║║║║║║║║ ╦
 #  ╚╝╚═╝╚═╝ ╩   ╩╝╚╝   ╩ ╩╩ ╩╚═╝  ╩  ╩╚═╚═╝ ╚╝ ╩╚═╝╩╚═╝╝╚╝╩╝╚╝╚═╝
 - industryName: Automatic user creation (JIT, SCIM)
-  description: Auto-create and manipulate Fleet users from Okta, etc with just-in-time (JIT) provisioning.
+  description: Auto-create and manipulate Fleet users from your IdP with just-in-time (JIT) provisioning.
   documentationUrl: https://fleetdm.com/docs/deploy/single-sign-on-sso#just-in-time-jit-user-provisioning
   productCategories: [Endpoint operations,Device management,Vulnerability management]
   pricingTableCategories: [Integrations]
@@ -1164,7 +1164,7 @@
   productCategories: [Endpoint operations,Device management,Vulnerability management]
   pricingTableCategories: [Integrations]
   usualDepartment: IT
-  description: Plug Fleet into other frameworks and tools like Tines, Snowflake, Terraform, Chronicle, Jira, Zendesk, etc
+  description: Plug Fleet into other frameworks and tools like Tines, Snowflake, Terraform, Chronicle, Jira, Zendesk, etc.
   moreInfoUrl: https://fleetdm.com/integrations
   tier: Free
   jamfProHasFeature: yes
@@ -1232,7 +1232,7 @@
 #  ║ ║╠═╝║╣ ║║║───╚═╗║ ║║ ║╠╦╝║  ║╣   ║╚═╗╚═╗║ ║║╣    ║ ╠╦╝╠═╣║  ╠╩╗║╣ ╠╦╝  ║ ╦║ ║ ╠═╣║ ║╠╩╗
 #  ╚═╝╩  ╚═╝╝╚╝   ╚═╝╚═╝╚═╝╩╚═╚═╝╚═╝  ╩╚═╝╚═╝╚═╝╚═╝   ╩ ╩╚═╩ ╩╚═╝╩ ╩╚═╝╩╚═  ╚═╝╩ ╩ ╩ ╩╚═╝╚═╝
 - industryName: Open-source issue tracker (GitHub)
-  documentationUrl: https://fleetdm.com/support
+  documentationUrl: https://github.com/fleetdm/fleet/issues
   productCategories: [Endpoint operations,Device management,Vulnerability management]
   pricingTableCategories: [Support]
   tier: Free
