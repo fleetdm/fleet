@@ -216,7 +216,7 @@
 #  ║  ╠╦╝║ ║╚═╗╚═╗───╠═╝║  ╠═╣ ║ ╠╣ ║ ║╠╦╝║║║  ║║║ ║║║║║  ╚═╗║ ║╠═╝╠═╝║ ║╠╦╝ ║ 
 #  ╚═╝╩╚═╚═╝╚═╝╚═╝   ╩  ╩═╝╩ ╩ ╩ ╚  ╚═╝╩╚═╩ ╩  ╩ ╩═╩╝╩ ╩  ╚═╝╚═╝╩  ╩  ╚═╝╩╚═ ╩ 
 - industryName: Multi-platform MDM support
-  description: Apple, Windows (x64 and Arm), Linux (amd64 and Arm), iOS, iPadOS, Android, and ChromeOS.
+  description: Apple, Windows (amd64 and Arm), Linux (amd64 and Arm), iOS, iPadOS, Android, and ChromeOS.
   documentationUrl: https://fleetdm.com/announcements/debunk-the-cross-platform-myth
   tier: Premium
   jamfProHasFeature: appleOnly
