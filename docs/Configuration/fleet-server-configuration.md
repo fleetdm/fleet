@@ -641,7 +641,7 @@ The max request body size, in megabytes, for endpoints that don't implement a hi
 - Config file format:
   ```yaml
   server:
-    default_max-request_body_size: 1
+    default_max_request_body_size: 1
   ```
 
 ### server_tls
