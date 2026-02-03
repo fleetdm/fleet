@@ -61,7 +61,7 @@
   quoteLinkUrl: https://www.linkedin.com/in/danielgrzelak/
   quoteAuthorName: Dan Grzelak
   quoteAuthorProfileImageFilename: testimonial-author-daniel-grzelak-48x48@2x.png
-  quoteAuthorJobTitle: Security Chief of Staff
+  quoteAuthorJobTitle: Former Security Chief of Staff
   productCategories: [Observability, Software management, Device management]
 -
   quote: We can build it exactly the way we want it. Which is just not possible on other platforms.
@@ -77,7 +77,7 @@
   quoteLinkUrl: https://www.linkedin.com/in/eriknicolasgomez/
   quoteAuthorName: Erik Gomez
   quoteAuthorProfileImageFilename: testimonial-author-erik-gomez-48x48@2x.png
-  quoteAuthorJobTitle: Staff Client Platform Engineer
+  quoteAuthorJobTitle: Former Staff Client Platform Engineer
   productCategories: [Observability, Device management, Software management]
 -
   quote: Context is king for device data, and Fleet provides a way to surface that information to our other teams and partners.

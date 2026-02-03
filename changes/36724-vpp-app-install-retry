@@ -1,1 +1,0 @@
--  Fixed an issue where VPP apps would fail with 9610 errors, by implementing a retry mechanism for VPP app installations.
