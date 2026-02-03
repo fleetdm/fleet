@@ -1,0 +1,1 @@
+* fixed an issue where `fleetctl generate-gitops` would panic if the google calendar integration was enabled
