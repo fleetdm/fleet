@@ -126,7 +126,7 @@
       </div>
 
     </div>
-    <div purpose="accordion" class="container-fluid d-flex flex-column justify-content-center align-items-center px-0" v-else>
+    <div purpose="accordion" class="container-fluid d-flex flex-column justify-content-center align-items-center px-0" v-else-if="isDesktopUser">
       <h2 class="text-center">What personal information can Fleet see?</h2>
       <p class="mb-0">Here’s what Fleet can manage on your computer:</p>
       <div purpose="accordion-body" class="mx-auto">
@@ -262,6 +262,70 @@
       </div>
       <p purpose="agents-note">Fleet can't guarantee that other personal data isn't being captured by user activity monitoring or cybersecurity tools like Veriato, CrowdStrike, etc.</p>
     </div>
+
+    <div purpose="accordion" class="container-fluid d-flex flex-column justify-content-center align-items-center px-0" v-else>
+      <h2 class="text-center">What personal information can Fleet see?</h2>
+      <p class="mb-0">Here’s what Fleet can manage on your {{guessedPlatformName}}:</p>
+      <div purpose="accordion-body" class="mx-auto">
+        <div purpose="accordion-item">
+          <p purpose="accordion-header" id="mobile__accordion__header1" style="cursor: pointer;" class="accordion" data-toggle="collapse" data-target="#mobile__accordion__body1" aria-controls="mobile__accordion__body1">
+            On/off status
+            <span class="fa fa-angle-down"></span>
+          </p>
+          <p id="mobile__accordion__body1" class="collapse" aria-labelledby="mobile__accordion__header1">
+            Fleet knows when your device is on or off. This is useful for understanding the state of your device and for troubleshooting should a problem ever arise.
+          </p>
+        </div>
+        <div purpose="accordion-item">
+          <p purpose="accordion-header" id="mobile__accordion__header2" style="cursor: pointer;" class="accordion" data-toggle="collapse" data-target="#mobile__accordion__body2" aria-controls="mobile__accordion__body2">
+            System settings
+            <span class="fa fa-angle-down"></span>
+          </p>
+          <p id="mobile__accordion__body2" class="collapse" aria-labelledby="mobile__accordion__header2">
+            Fleet can enforce settings like password length on your device. This is useful for IT teams to keep your device up to date so you don’t have to.
+          </p>
+        </div>
+        <div purpose="accordion-item">
+          <p purpose="accordion-header" id="mobile__accordion__header3" style="cursor: pointer;" class="accordion" data-toggle="collapse" data-target="#mobile__accordion__body3" aria-controls="mobile__accordion__body3">
+            Wi-Fi settings
+            <span class="fa fa-angle-down"></span>
+          </p>
+          <p id="mobile__accordion__body3" class="collapse" aria-labelledby="mobile__accordion__header3">
+            To help connect you to your corporate Wi-Fi or VPN, Fleet can configure Wi-Fi settings and install certificates on your device.
+          </p>
+        </div>
+        <div purpose="accordion-item">
+          <p purpose="accordion-header" id="mobile__accordion__header4" style="cursor: pointer;" class="accordion" data-toggle="collapse" data-target="#mobile__accordion__body4" aria-controls="mobile__accordion__body4">
+            Remote actions
+            <span class="fa fa-angle-down"></span>
+          </p>
+          <p id="mobile__accordion__body4" class="collapse" aria-labelledby="mobile__accordion__header4">
+            Device actions are helpful for IT teams to troubleshoot your device remotely if you run into any issues. Your device can be restarted, locked or even wiped remotely by your administrator.
+          </p>
+        </div>
+        <div purpose="accordion-item">
+          <p purpose="accordion-header" id="mobile__accordion__header5" style="cursor: pointer;" class="accordion" data-toggle="collapse" data-target="#mobile__accordion__body5" aria-controls="mobile__accordion__body5">
+            Device health & performance
+            <span class="fa fa-angle-down"></span>
+          </p>
+          <p id="mobile__accordion__body5" class="collapse" aria-labelledby="mobile__accordion__header5">
+            Fleet can see details about your device’s hardware. E.g., what processor is used, how much memory is installed, storage capacity, battery health, etc. This allows IT teams to preemptively address device health problems, which can mitigate data loss and reduce disruption to your workflow caused by IT related issues.
+          </p>
+        </div>
+        <div purpose="accordion-item">
+          <p purpose="accordion-header" id="mobile__accordion__header6" style="cursor: pointer;" class="accordion" data-toggle="collapse" data-target="#mobile__accordion__body6" aria-controls="mobile__accordion__body6">
+            Software
+            <span class="fa fa-angle-down"></span>
+          </p>
+          <p id="mobile__accordion__body6" class="collapse" aria-labelledby="mobile__accordion__header6">
+            Fleet can add apps and update software. This enables IT teams to better manage software update schedules, and reduce disruption to your workflow.
+          </p>
+        </div>
+      </div>
+    </div>
+
+
+
     </div>
   </div>
   <div purpose="bottom-gradient">
