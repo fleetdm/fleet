@@ -1491,6 +1491,12 @@ None.
   "mdm": {
     "android_enabled_and_configured": true,
     "windows_enabled_and_configured": true,
+    "windows_entra_tenant_ids": [
+      {
+        "tenant_id": "fec37e96-3615-4e37-8fac-445d5328af3c",
+        "uploaded_at": "2026-02-03:00:00Z"
+      },
+    ],
     "enable_turn_on_windows_mdm_manually": false,
     "enable_disk_encryption": true,
     "windows_require_bitlocker_pin": false,
@@ -1807,6 +1813,9 @@ Modifies the Fleet's configuration with the supplied information.
     "enabled_and_configured": false,
     "android_enabled_and_configured": false,
     "windows_enabled_and_configured": false,
+    "windows_entra_tenant_ids": [
+      "26ac824d-0d5e-4f0c-a202-1c29d5a48e43"
+    ],
     "enable_turn_on_windows_mdm_manually": false,
     "enable_disk_encryption": true,
     "windows_require_bitlocker_pin": false,
@@ -2390,6 +2399,7 @@ When updating conditional access config, all `conditional_access` fields must ei
 | Name                              | Type    | Description   |
 | ---------------------             | ------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | windows_enabled_and_configured    | boolean | Enables Windows MDM support. |
+| windows_entra_tenant_ids          | array | _Available in Fleet Premium._ Add tenants to connect to Fleet, to enable automatic (Autopilot) and manual enrollment by end user (**Settings > Accounts > Access work or school** on Windows). |
 | enable_turn_on_windows_mdm_manually | boolean | _Available in Fleet Premium._ Specifies whether or not to require end users to manually turn on MDM in **Settings > Access work or school**. If `false`, MDM is automatically turned on for all Windows hosts that aren't connected to any MDM solution. |
 | enable_disk_encryption            | boolean | _Available in Fleet Premium._ Hosts that belong to no team will have disk encryption enabled if set to true. |
 | windows_require_bitlocker_pin           | boolean | _Available in Fleet Premium._ End users on Windows hosts that belong to no team will be required to set a BitLocker PIN if set to true. `enable_disk_encryption` must be set to true. When the PIN is set, it's required to unlock Windows host during startup. |
