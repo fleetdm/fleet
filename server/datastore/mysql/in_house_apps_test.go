@@ -8,6 +8,7 @@ import (
 	"testing"
 	"time"
 
+	activity_api "github.com/fleetdm/fleet/v4/server/activity/api"
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/mdm"
@@ -33,6 +34,7 @@ func TestInHouseApps(t *testing.T) {
 		{"EditDeleteInHouseInstallersActivateNextActivity", testEditDeleteInHouseInstallersActivateNextActivity},
 		{"Categories", testInHouseAppsCategories},
 		{"SoftwareTitleDisplayName", testSoftwareTitleDisplayNameInHouse},
+		{"InHouseAppsCancelledOnUnenroll", testInHouseAppsCancelledOnUnenroll},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -1730,4 +1732,99 @@ func testSoftwareTitleDisplayNameInHouse(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	names = getAllDisplayNames()
 	require.Len(t, names, 2)
+}
+
+func testInHouseAppsCancelledOnUnenroll(t *testing.T, ds *Datastore) {
+	ctx := context.WithValue(context.Background(), fleet.ActivityWebhookContextKey, true)
+	test.CreateInsertGlobalVPPToken(t, ds)
+	user := test.NewUser(t, ds, "Alice", "alice@example.com", true)
+
+	// create an mdm enrolled host
+	iosHost, err := ds.NewHost(testCtx(), &fleet.Host{
+		Hostname:       "host1",
+		UUID:           "host1uuid",
+		HardwareSerial: "host1serial",
+		NodeKey:        ptr.String("host1key"),
+		Platform:       string(fleet.IOSPlatform),
+	})
+	require.NoError(t, err)
+	nanoEnroll(t, ds, iosHost, false)
+
+	hosts, err := ds.ListHosts(ctx, fleet.TeamFilter{User: test.UserAdmin}, fleet.HostListOptions{})
+	require.NoError(t, err)
+	require.Len(t, hosts, 1)
+
+	vppApp, err := ds.InsertVPPAppWithTeam(ctx, &fleet.VPPApp{
+		Name: "vpp1", BundleIdentifier: "com.app.vpp1",
+		VPPAppTeam: fleet.VPPAppTeam{VPPAppID: fleet.VPPAppID{AdamID: "adam_vpp_app_1", Platform: fleet.IOSPlatform}},
+	}, nil)
+	require.NoError(t, err)
+
+	payload := fleet.UploadSoftwareInstallerPayload{
+		UserID:           user.ID,
+		BundleIdentifier: "com.foo",
+		Filename:         "foo.ipa",
+		StorageID:        "id1234",
+		Extension:        "ipa",
+		SelfService:      false,
+		ValidatedLabels:  &fleet.LabelIdentsWithScope{},
+	}
+
+	payload2 := payload
+	payload2.BundleIdentifier = "com.bar"
+	payload2.Filename = "bar.ipa"
+	payload2.StorageID = "id5678"
+
+	inHouseAppID, titleID, err := ds.MatchOrCreateSoftwareInstaller(ctx, &payload)
+	require.NoError(t, err)
+	inHouseAppID2, titleID2, err := ds.MatchOrCreateSoftwareInstaller(ctx, &payload2)
+	require.NoError(t, err)
+
+	ipaCmd := createInHouseAppInstallRequest(t, ds, iosHost.ID, inHouseAppID, titleID, user)
+	ipaCmd2 := createInHouseAppInstallRequest(t, ds, iosHost.ID, inHouseAppID2, titleID2, user)
+	vppCmd := createVPPAppInstallRequest(t, ds, iosHost, vppApp.AdamID, user)
+
+	// there should be 3 upcoming activities and 1 pending install
+	checkUpcomingActivities(t, ds, iosHost, ipaCmd, ipaCmd2, vppCmd)
+	summary, err := ds.GetSummaryHostInHouseAppInstalls(ctx, ptr.Uint(0), inHouseAppID)
+	require.NoError(t, err)
+	require.Equal(t, fleet.VPPAppStatusSummary{Installed: 0, Pending: 1, Failed: 0}, *summary)
+
+	// Create activity service for checking past activities
+	activitySvc := NewTestActivityService(t, ds)
+
+	// no past activities yet
+	acts, _, err := activitySvc.ListHostPastActivities(ctx, iosHost.ID, activity_api.ListOptions{})
+	require.NoError(t, err)
+	require.Len(t, acts, 0)
+
+	// turn off MDM for the host
+	users, activitiesToCreate, err := ds.MDMTurnOff(ctx, iosHost.UUID)
+	require.NoError(t, err)
+	for i, act := range activitiesToCreate {
+		// caller's responsibility to create new activities
+		require.NoError(t, ds.NewActivity(ctx, users[i], act, nil, time.Now()))
+	}
+
+	// fleet needs to receive some command result at some
+	// point for it to show up in the install summary
+	createInHouseAppInstallResult(t, ds, iosHost, ipaCmd, "Acknowledged")
+
+	// past activity for the failed install
+	acts, _, err = activitySvc.ListHostPastActivities(ctx, iosHost.ID, activity_api.ListOptions{})
+	require.NoError(t, err)
+	require.Len(t, acts, 2)
+	require.NotNil(t, acts[0].ActorID)
+	require.Equal(t, *acts[0].ActorID, user.ID)
+	require.Equal(t, acts[0].Type, fleet.ActivityTypeInstalledSoftware{}.ActivityName())
+	// limitation of using createInHouseAppInstallResult which creates an activity
+	require.Nil(t, acts[1].ActorID)
+	require.Equal(t, acts[1].Type, fleet.ActivityInstalledAppStoreApp{}.ActivityName())
+
+	// there should be no upcoming activities and 1 failed install
+	checkUpcomingActivities(t, ds, iosHost)
+	summary, err = ds.GetSummaryHostInHouseAppInstalls(ctx, ptr.Uint(0), inHouseAppID)
+	require.NoError(t, err)
+	require.Equal(t, fleet.VPPAppStatusSummary{Installed: 0, Pending: 0, Failed: 1}, *summary)
+
 }

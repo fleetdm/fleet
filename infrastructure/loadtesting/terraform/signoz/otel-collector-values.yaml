@@ -1,12 +1,66 @@
 # OTEL Collector configuration overrides for production stability
-# These settings fix ClickHouse timeout issues by adding proper timeouts,
-# retry logic, and sending queues.
+# Fully explicit config matching dogfood structure
 
 otelCollector:
   # Enable low cardinality exception grouping to reduce exception noise
   lowCardinalityExceptionGrouping: true
 
   config:
+    connectors:
+      signozmeter:
+        metrics_flush_interval: 1h
+        dimensions:
+          - name: service.name
+          - name: deployment.environment
+          - name: host.name
+
+    receivers:
+      otlp:
+        protocols:
+          grpc:
+            endpoint: 0.0.0.0:4317
+            max_recv_msg_size_mib: 16
+          http:
+            endpoint: 0.0.0.0:4318
+      jaeger:
+        protocols:
+          grpc:
+            endpoint: 0.0.0.0:14250
+          thrift_http:
+            endpoint: 0.0.0.0:14268
+
+    processors:
+      batch:
+        send_batch_size: 2000
+        timeout: 5s
+      batch/meter:
+        send_batch_max_size: 25000
+        send_batch_size: 20000
+        timeout: 1s
+      memory_limiter:
+        check_interval: 1s
+        limit_mib: 11264
+        spike_limit_mib: 512
+      signozspanmetrics/delta:
+        metrics_exporter: signozclickhousemetrics
+        latency_histogram_buckets: [100us, 1ms, 2ms, 6ms, 10ms, 50ms, 100ms, 250ms, 500ms, 1000ms, 1400ms, 2000ms, 5s, 10s, 20s, 40s, 60s]
+        dimensions_cache_size: 100000
+        dimensions:
+          - name: service.namespace
+            default: default
+          - name: deployment.environment
+            default: default
+          - name: signoz.collector.id
+        aggregation_temporality: AGGREGATION_TEMPORALITY_DELTA
+
+    extensions:
+      health_check:
+        endpoint: 0.0.0.0:13133
+      zpages:
+        endpoint: localhost:55679
+      pprof:
+        endpoint: localhost:1777
+
     exporters:
       # Logs exporter with balanced queue sizes for throughput and memory
       clickhouselogsexporter:
@@ -20,7 +74,8 @@ otelCollector:
           enabled: true
           num_consumers: 10
           queue_size: 10000
-
+      signozclickhousemetrics:
+        timeout: 45s
       # Traces exporter must handle spans after tail_sampling
       clickhousetraces:
         timeout: 120s
@@ -42,23 +97,30 @@ otelCollector:
           initial_interval: 5s
           max_interval: 30s
           max_elapsed_time: 300s
-
-    processors:
-      # Optimized batch processor to send data more frequently
-      # Smaller batches reduce memory pressure
-      batch:
-        send_batch_size: 2000
-        timeout: 5s
-
-      # Memory limiter to prevent out-of-memory by applying back pressure
-      memory_limiter:
-        check_interval: 1s
-        limit_mib: 11264
-        spike_limit_mib: 512
+      signozclickhousemeter:
+        timeout: 45s
+        sending_queue:
+          enabled: false
 
     service:
+      telemetry:
+        logs:
+          encoding: json
+      extensions: [health_check, zpages, pprof]
       pipelines:
         traces:
-          processors:
-            - memory_limiter
-            - batch
+          receivers: [otlp, jaeger]
+          processors: [memory_limiter, signozspanmetrics/delta, batch]
+          exporters: [clickhousetraces, metadataexporter, signozmeter]
+        metrics:
+          receivers: [otlp]
+          processors: [batch]
+          exporters: [metadataexporter, signozclickhousemetrics, signozmeter]
+        logs:
+          receivers: [otlp]
+          processors: [memory_limiter, batch]
+          exporters: [clickhouselogsexporter, metadataexporter, signozmeter]
+        metrics/meter:
+          receivers: [signozmeter]
+          processors: [batch/meter]
+          exporters: [signozclickhousemeter]

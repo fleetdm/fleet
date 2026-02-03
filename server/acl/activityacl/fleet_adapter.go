@@ -86,7 +86,7 @@ func (a *FleetServiceAdapter) GetHostLite(ctx context.Context, hostID uint) (*ac
 	}, nil
 }
 
-func convertUser(u *fleet.User) *activity.User {
+func convertUser(u *fleet.UserSummary) *activity.User {
 	return &activity.User{
 		ID:       u.ID,
 		Name:     u.Name,

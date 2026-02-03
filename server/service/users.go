@@ -225,7 +225,7 @@ func (svc *Service) ListUsers(ctx context.Context, opt fleet.UserListOptions) ([
 	return svc.ds.ListUsers(ctx, opt)
 }
 
-func (svc *Service) UsersByIDs(ctx context.Context, ids []uint) ([]*fleet.User, error) {
+func (svc *Service) UsersByIDs(ctx context.Context, ids []uint) ([]*fleet.UserSummary, error) {
 	// Authorize read access to users (no specific team context)
 	if err := svc.authz.Authorize(ctx, &fleet.User{}, fleet.ActionRead); err != nil {
 		return nil, err
@@ -515,9 +515,34 @@ func (svc *Service) ModifyUser(ctx context.Context, userID uint, p fleet.UserPay
 		if p.Teams != nil && len(*p.Teams) > 0 {
 			return nil, fleet.NewInvalidArgumentError("teams", "may not be specified with global_role")
 		}
+
+		// Check if demoting from admin - ensure we're not demoting the last one
+		if user.GlobalRole != nil && *user.GlobalRole == fleet.RoleAdmin {
+			if *p.GlobalRole != fleet.RoleAdmin {
+				count, err := svc.ds.CountGlobalAdmins(ctx)
+				if err != nil {
+					return nil, ctxerr.Wrap(ctx, err, "count global admins")
+				}
+				if count <= 1 {
+					return nil, fleet.NewInvalidArgumentError("global_role", "cannot demote the last global admin")
+				}
+			}
+		}
+
 		user.GlobalRole = p.GlobalRole
 		user.Teams = []fleet.UserTeam{}
 	} else if p.Teams != nil {
+		// Check if demoting from admin by assigning teams (which removes global role)
+		if user.GlobalRole != nil && *user.GlobalRole == fleet.RoleAdmin {
+			count, err := svc.ds.CountGlobalAdmins(ctx)
+			if err != nil {
+				return nil, ctxerr.Wrap(ctx, err, "count global admins")
+			}
+			if count <= 1 {
+				return nil, fleet.NewInvalidArgumentError("teams", "cannot demote the last global admin")
+			}
+		}
+
 		if !isAdminOfTheModifiedTeams(currentUser, user.Teams, *p.Teams) {
 			return nil, authz.ForbiddenWithInternal(
 				"cannot modify teams in that way",
@@ -530,7 +555,7 @@ func (svc *Service) ModifyUser(ctx context.Context, userID uint, p fleet.UserPay
 
 	if p.NewPassword != nil {
 		// setNewPassword takes care of calling saveUser
-		err = svc.setNewPassword(ctx, user, *p.NewPassword)
+		err = svc.setNewPassword(ctx, user, *p.NewPassword, true)
 	} else {
 		err = svc.saveUser(ctx, user)
 	}
@@ -570,24 +595,35 @@ func (r deleteUserResponse) Error() error { return r.Err }
 
 func deleteUserEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*deleteUserRequest)
-	err := svc.DeleteUser(ctx, req.ID)
-	if err != nil {
+	if _, err := svc.DeleteUser(ctx, req.ID); err != nil {
 		return deleteUserResponse{Err: err}, nil
 	}
 	return deleteUserResponse{}, nil
 }
 
-func (svc *Service) DeleteUser(ctx context.Context, id uint) error {
+func (svc *Service) DeleteUser(ctx context.Context, id uint) (*fleet.User, error) {
 	user, err := svc.ds.UserByID(ctx, id)
 	if err != nil {
 		setAuthCheckedOnPreAuthErr(ctx)
-		return ctxerr.Wrap(ctx, err)
+		return nil, ctxerr.Wrap(ctx, err)
 	}
 	if err := svc.authz.Authorize(ctx, user, fleet.ActionWrite); err != nil {
-		return err
+		return nil, err
 	}
+
+	// prevent deleting admin if they are the last one
+	if user.GlobalRole != nil && *user.GlobalRole == fleet.RoleAdmin {
+		count, err := svc.ds.CountGlobalAdmins(ctx)
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "count global admins")
+		}
+		if count <= 1 {
+			return nil, fleet.NewInvalidArgumentError("id", "cannot delete the last global admin")
+		}
+	}
+
 	if err := svc.ds.DeleteUser(ctx, id); err != nil {
-		return err
+		return nil, err
 	}
 
 	adminUser := authz.UserFromContext(ctx)
@@ -600,10 +636,10 @@ func (svc *Service) DeleteUser(ctx context.Context, id uint) error {
 			UserEmail: user.Email,
 		},
 	); err != nil {
-		return err
+		return nil, err
 	}
 
-	return nil
+	return user, nil
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -653,6 +689,10 @@ func (svc *Service) RequirePasswordReset(ctx context.Context, uid uint, require 
 		// Clear all of the existing sessions
 		if err := svc.DeleteSessionsForUser(ctx, user.ID); err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "deleting user sessions")
+		}
+		// Clear all password reset tokens for good measure.
+		if err := svc.ds.DeletePasswordResetRequestsForUser(ctx, user.ID); err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "deleting password reset requests after password change")
 		}
 	}
 
@@ -709,7 +749,7 @@ func (svc *Service) ChangePassword(ctx context.Context, oldPass, newPass string)
 		return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("old_password", "old password does not match"))
 	}
 
-	if err := svc.setNewPassword(ctx, vc.User, newPass); err != nil {
+	if err := svc.setNewPassword(ctx, vc.User, newPass, true); err != nil {
 		return ctxerr.Wrap(ctx, err, "setting new password")
 	}
 	return nil
@@ -1022,13 +1062,10 @@ func (svc *Service) PerformRequiredPasswordReset(ctx context.Context, password s
 	}
 
 	user.AdminForcedPasswordReset = false
-	err := svc.setNewPassword(ctx, user, password)
+	err := svc.setNewPassword(ctx, user, password, false)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "setting new password")
 	}
-
-	// Sessions should already have been cleared when the reset was
-	// required
 
 	return user, nil
 }
@@ -1036,7 +1073,7 @@ func (svc *Service) PerformRequiredPasswordReset(ctx context.Context, password s
 // setNewPassword is a helper for changing a user's password. It should be
 // called to set the new password after proper authorization has been
 // performed.
-func (svc *Service) setNewPassword(ctx context.Context, user *fleet.User, password string) error {
+func (svc *Service) setNewPassword(ctx context.Context, user *fleet.User, password string, clearSessions bool) error {
 	err := user.SetPassword(password, svc.config.Auth.SaltKeySize, svc.config.Auth.BcryptCost)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "setting new password")
@@ -1047,6 +1084,18 @@ func (svc *Service) setNewPassword(ctx context.Context, user *fleet.User, passwo
 	err = svc.saveUser(ctx, user)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "saving changed password")
+	}
+
+	// Ensure that any existing links for password resets will no longer work.
+	if err := svc.ds.DeletePasswordResetRequestsForUser(ctx, user.ID); err != nil {
+		return ctxerr.Wrap(ctx, err, "deleting password reset requests after password change")
+	}
+
+	// Force the user to log in again with new password unless explicitly told not to.
+	if clearSessions {
+		if err := svc.ds.DestroyAllSessionsForUser(ctx, user.ID); err != nil {
+			return ctxerr.Wrap(ctx, err, "deleting sessions after password change")
+		}
 	}
 
 	return nil
@@ -1108,20 +1157,9 @@ func (svc *Service) ResetPassword(ctx context.Context, token, password string) e
 	}
 
 	// password requirements are validated as part of `setNewPassword``
-	err = svc.setNewPassword(ctx, user, password)
+	err = svc.setNewPassword(ctx, user, password, true)
 	if err != nil {
 		return fleet.NewInvalidArgumentError("new_password", err.Error())
-	}
-
-	// delete password reset tokens for user
-	if err := svc.ds.DeletePasswordResetRequestsForUser(ctx, user.ID); err != nil {
-		return ctxerr.Wrap(ctx, err, "delete password reset requests")
-	}
-
-	// Clear sessions so that any other browsers will have to log in with
-	// the new password
-	if err := svc.ds.DestroyAllSessionsForUser(ctx, user.ID); err != nil {
-		return ctxerr.Wrap(ctx, err, "delete user sessions")
 	}
 
 	return nil

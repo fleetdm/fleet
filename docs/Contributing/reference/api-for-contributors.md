@@ -4757,6 +4757,16 @@ If `"status"` is `"failed"` then the `"message"` field contains the error messag
       "hash_sha256": "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
       "icon_hash_sha256": "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
       "icon_filename": "firefox-custom-icon.png"
+    },
+    {
+      "team_id": 1,
+      "title_id": 3496,
+      "url": "https://work-desktop-assets.8x8.com/prod-publish/ga/work-arm64-dmg-v8.29.1-3.dmg",
+      "hash_sha256": "c6aa78d0911a0cb504a21bcf8421de703cc7dd07b7388903cf29227ca5955737",
+      "fleet_maintained_app_id": 150,
+      "fleet_maintained_app_slug": "8x8-work/darwin",
+      "icon_hash_sha256": "dad98c7c1b9a5654a45972f2cd7e5c3e536fe5312b0e615291ceb35234eaaa7f",
+      "icon_filename": "custom-icon.png"
     }
   ]
 }
@@ -4791,6 +4801,9 @@ _Available in Fleet Premium._
 | app_store_apps.install_during_setup | boolean  | body  | Specifies whether the VPP app is included in Setup experience.                                                                                                                                                                |
 | app_store_apps.labels_include_any | array   | body  | App will only be available for install on hosts that **have any** of these labels. Only one of either `labels_include_any` or `labels_exclude_any` can be included in the request. |
 | app_store_apps.labels_exclude_any | array   | body  | App will only be available for install on hosts that **don't have any** of these labels. Only one of either `labels_include_any` or `labels_exclude_any` can be included in the request. |
+| app_store_apps.auto_update_enabled | boolean | body | **Optional**. Whether automatic updates are enabled for this iOS/iPadOS VPP app. |
+| app_store_apps.auto_update_window_start | string | body | **Optional**. The start time (in HH:MM format, local time) of the window during which automatic updates can occur. Required if `auto_update_enabled` is `true`. |
+| app_store_apps.auto_update_window_end | string | body | **Optional**. The end time (in HH:MM format, local time) of the window during which automatic updates can occur. Required if `auto_update_enabled` is `true`. |
 
 #### Example
 
@@ -4812,7 +4825,10 @@ _Available in Fleet Premium._
     },
     {
       "app_store_id": "497799835",
-      "self_service": true
+      "self_service": true,
+      "auto_update_enabled": true,
+      "auto_update_window_start": "01:00",
+      "auto_update_window_end": "05:00"
     }
   ]
 }

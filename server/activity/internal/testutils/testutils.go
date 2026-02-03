@@ -3,8 +3,6 @@ package testutils
 
 import (
 	"encoding/json"
-	"path/filepath"
-	"runtime"
 	"testing"
 	"time"
 
@@ -29,10 +27,7 @@ func SetupTestDB(t *testing.T, testNamePrefix string) *TestDB {
 		UniqueTestName: testNamePrefix + "_" + t.Name(),
 	})
 
-	_, thisFile, _, _ := runtime.Caller(0)
-	schemaPath := filepath.Join(filepath.Dir(thisFile), "../../../../server/datastore/mysql/schema.sql")
-	mysql_testing_utils.LoadSchema(t, testName, opts, schemaPath)
-
+	mysql_testing_utils.LoadDefaultSchema(t, testName, opts)
 	config := mysql_testing_utils.MysqlTestConfig(testName)
 	db, err := common_mysql.NewDB(config, &common_mysql.DBOptions{}, "")
 	require.NoError(t, err)

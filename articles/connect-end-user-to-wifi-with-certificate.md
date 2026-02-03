@@ -598,7 +598,6 @@ You can add any other options listed under Device/SCEP in the [Microsoft documen
 </Exec>
 ```
 
-> Currently only device scoped SCEP profiles are supported for Windows devices.
 </details>
 
 ## Custom EST (Enrollment over Secure Transport)
@@ -738,11 +737,13 @@ SELECT 1 FROM certificates WHERE path = '/opt/company/certificate.pem' AND not_v
 
 ## Renewal
 
-Fleet will automatically renew certificates on Apple (macOS, iOS, iPadOS) and Windows hosts 30 days before expiration. If the entire validity period is less than 30 days (e.g. 20 days), Fleet will automatically renew at half the validity period (e.g 10 days). Currently, Fleet does not support automatic renewal for Linux hosts.
+Fleet will automatically renew certificates on Apple (macOS, iOS, iPadOS), Windows, and Android hosts 30 days before expiration. If the entire validity period is less than 30 days (e.g. 20 days), Fleet will automatically renew at half the validity period (e.g. 10 days). Currently, Fleet does not support automatic renewal for Linux hosts.
 
 Automatic renewal is only supported if the validity period is set to 2 days or longer.
 
 If an end user is on vacation (offline for more than 30 days), their certificate might expire, and they'll lose access to Wi-Fi or VPN. To reconnect them, ask your end users to temporarily connect to a different network so that Fleet can deliver a new certificate.
+
+Fleet automatically retries each failed macOS, iOS, iPadOS, and Windows certificate once per host, checking every 30 seconds for certificates to resend. Learn more in the [4.38.0 release article](https://fleetdm.com/releases/fleet-4-38-0#failed-profile-redelivery). Automatic retries for Android is coming soon.
 
 > Currently, for NDES, Smallstep, and custom SCEP CAs, Fleet requires that the ⁠`$FLEET_VAR_SCEP_RENEWAL_ID` variable is in the certificate's OU (Organizational Unit) for automatic renewal to work. For some CAs, including [NDES](https://learn.microsoft.com/en-us/windows-server/identity/ad-ds/plan/active-directory-domain-services-maximum-limits?utm_source=chatgpt.com#:~:text=OU%20names%20can%20only%20be%2064%20characters%20long.), the OU has a maximum length of 64 characters so any characters beyond this limit get truncated, causing the renewal to fail.
 >
@@ -752,9 +753,9 @@ If an end user is on vacation (offline for more than 30 days), their certificate
 
 ## Advanced
 
-### User scoped certificates
+### User-scoped certificates
 
-You can deploy a user scoped certificate on macOS and Windows hosts using a user scoped configuration profile.
+You can deploy a user-scoped certificate on macOS and Windows hosts using a user-scoped configuration profile.
 
 1. Follow the instructions above to connect Fleet to your certificate authority (CA).
 2. Create a certificate [configuration profile](#example-configuration-profiles). For Windows, replace `./Device` with `./User` in all `<LocURI>` elements. For macOS, set `PayloadScope` to `User`.

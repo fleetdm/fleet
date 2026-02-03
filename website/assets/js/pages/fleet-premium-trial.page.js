@@ -32,7 +32,7 @@ parasails.registerPage('fleet-premium-trial', {
       await setTimeout(()=>{
         $('[purpose="command-copy-button"]').removeClass('copied');
       }, 2000);
-      navigator.clipboard.writeText(this.me.fleetPremiumTrialLicenseKey);
+      navigator.clipboard.writeText(this.trialLicenseKey);
     }
   }
 });

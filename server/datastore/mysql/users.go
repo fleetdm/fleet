@@ -26,6 +26,9 @@ const userSelectColumns = `id, created_at, updated_at, password, salt, name, ema
 	admin_forced_password_reset, gravatar_url, position, sso_enabled, global_role,
 	api_only, mfa_enabled, invite_id`
 
+// userSummaryColumns are the columns selected for UserSummary.
+const userSummaryColumns = `id, name, email, gravatar_url, api_only`
+
 // NewUser creates a new user
 func (ds *Datastore) NewUser(ctx context.Context, user *fleet.User) (*fleet.User, error) {
 	if err := fleet.ValidateRole(user.GlobalRole, user.Teams); err != nil {
@@ -158,21 +161,19 @@ func (ds *Datastore) ListUsers(ctx context.Context, opt fleet.UserListOptions) (
 	return users, nil
 }
 
-// UsersByIDs returns users matching the provided IDs.
-// Note: This method does NOT load team memberships. It's currently only used
-// by the activity bounded context for user enrichment, which doesn't need teams.
-func (ds *Datastore) UsersByIDs(ctx context.Context, ids []uint) ([]*fleet.User, error) {
+// UsersByIDs returns user summaries matching the provided IDs.
+func (ds *Datastore) UsersByIDs(ctx context.Context, ids []uint) ([]*fleet.UserSummary, error) {
 	if len(ids) == 0 {
 		return nil, nil
 	}
 
 	query, args, err := sqlx.In(
-		fmt.Sprintf("SELECT %s FROM users WHERE id IN (?)", userSelectColumns), ids)
+		fmt.Sprintf("SELECT %s FROM users WHERE id IN (?)", userSummaryColumns), ids)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "build users by IDs query")
 	}
 
-	var users []*fleet.User
+	var users []*fleet.UserSummary
 	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &users, query, args...); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "select users by IDs")
 	}
@@ -377,6 +378,15 @@ func (ds *Datastore) DeleteUser(ctx context.Context, id uint) error {
 	}
 
 	return ds.deleteEntity(ctx, usersTable, id)
+}
+
+func (ds *Datastore) CountGlobalAdmins(ctx context.Context) (int, error) {
+	var count int
+	err := sqlx.GetContext(ctx, ds.writer(ctx), &count, `SELECT COUNT(*) FROM users WHERE global_role = 'admin'`)
+	if err != nil {
+		return 0, ctxerr.Wrap(ctx, err, "count global admins")
+	}
+	return count, nil
 }
 
 func tableRowsCount(ctx context.Context, db sqlx.QueryerContext, tableName string) (int, error) {
