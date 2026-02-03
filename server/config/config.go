@@ -268,7 +268,8 @@ type LoggingConfig struct {
 	DisableBanner        bool          `yaml:"disable_banner"`
 	ErrorRetentionPeriod time.Duration `yaml:"error_retention_period"`
 	TracingEnabled       bool          `yaml:"tracing_enabled"`
-	// TracingType can either be opentelemetry or elasticapm for whichever type of tracing wanted
+	// TracingType can be set to TracingTypeElasticAPM to send traces to Elastic APM.
+	// By default (empty or any other value), traces are sent to OpenTelemetry (OTEL).
 	TracingType string `yaml:"tracing_type"`
 	// OtelLogsEnabled enables exporting logs to an OpenTelemetry collector.
 	// When enabled, logs are sent to both stderr and the OTLP endpoint.
@@ -669,7 +670,7 @@ type FleetConfig struct {
 }
 
 func (f FleetConfig) OTELEnabled() bool {
-	return f.Logging.TracingEnabled && f.Logging.TracingType == "opentelemetry"
+	return f.Logging.TracingEnabled && f.Logging.TracingType != "elasticapm"
 }
 
 type PartnershipsConfig struct {
@@ -1313,8 +1314,10 @@ func (man Manager) addConfigs() {
 		"Amount of time to keep errors, 0 means no expiration, < 0 means disable storage of errors")
 	man.addConfigBool("logging.tracing_enabled", false,
 		"Enable Tracing, further configured via standard env variables")
-	man.addConfigString("logging.tracing_type", "opentelemetry",
-		"Select the kind of tracing, defaults to opentelemetry, can also be elasticapm")
+	man.addConfigString("logging.tracing_type", "",
+		"Select the kind of tracing, defaults to OpenTelemetry, can also be elasticapm")
+	man.addConfigBool("logging.otel_logs_enabled", false,
+		"Enable exporting logs to an OpenTelemetry collector (requires tracing_enabled)")
 
 	// Email
 	man.addConfigString("email.backend", "", "Provide the email backend type, acceptable values are currently \"ses\" and \"default\" or empty string which will default to SMTP")
@@ -1743,6 +1746,7 @@ func (man Manager) LoadConfig() FleetConfig {
 			ErrorRetentionPeriod: man.getConfigDuration("logging.error_retention_period"),
 			TracingEnabled:       man.getConfigBool("logging.tracing_enabled"),
 			TracingType:          man.getConfigString("logging.tracing_type"),
+			OtelLogsEnabled:      man.getConfigBool("logging.otel_logs_enabled"),
 		},
 		Firehose: FirehoseConfig{
 			Region:           man.getConfigString("firehose.region"),

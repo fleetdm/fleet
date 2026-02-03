@@ -128,7 +128,7 @@ func MakeHandler(
 
 	r := mux.NewRouter()
 	if config.Logging.TracingEnabled {
-		if config.Logging.TracingType == "opentelemetry" {
+		if config.OTELEnabled() {
 			r.Use(otmiddleware.Middleware(
 				"service",
 				otmiddleware.WithSpanNameFormatter(func(route string, r *http.Request) string {

@@ -64,10 +64,10 @@ func NewDB(conf *MysqlConfig, opts *DBOptions, otelDriverName string) (*sqlx.DB,
 	driverName := "mysql"
 
 	if opts.TracingConfig != nil && opts.TracingConfig.TracingEnabled {
-		if opts.TracingConfig.TracingType == "opentelemetry" {
-			driverName = otelDriverName
-		} else {
+		if opts.TracingConfig.TracingType == "elasticapm" {
 			driverName = "apm/mysql"
+		} else {
+			driverName = otelDriverName
 		}
 	}
 	if opts.Interceptor != nil {

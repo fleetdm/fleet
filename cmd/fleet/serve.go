@@ -169,7 +169,7 @@ the way that the Fleet server works.
 			var loggerProvider *otelsdklog.LoggerProvider
 			var tracerProvider *sdktrace.TracerProvider
 			var meterProvider *sdkmetric.MeterProvider
-			if config.Logging.TracingEnabled {
+			if config.OTELEnabled() {
 				// Create shared resource with service identification attributes
 				res, err := resource.Merge(
 					resource.Default(),
