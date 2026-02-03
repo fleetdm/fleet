@@ -250,8 +250,6 @@ software:
   app_store_apps:
     - app_store_id: "361285480" # Keynote
       self_service: true
-    - app_store_id: "490179405" # Okta Verify
-      self_service: true
   fleet_maintained_apps:
     # macOS apps
     - slug: slack/darwin # Slack for macOS
