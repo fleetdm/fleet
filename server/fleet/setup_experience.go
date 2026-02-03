@@ -121,6 +121,17 @@ func (s *SetupExperienceStatusResult) IsForSoftwarePackage() bool {
 	return s.SoftwareInstallerID != nil
 }
 
+func (s *SetupExperienceStatusResult) ForMyDevicePage(token string) {
+	// convert api style iconURL to device token URL
+	if s.IconURL != "" && s.SoftwareTitleID != nil {
+		if SoftwareTitleIconURLRegex.MatchString(s.IconURL) {
+			icon := SoftwareTitleIcon{SoftwareTitleID: *s.SoftwareTitleID}
+			deviceIconURL := icon.IconUrlWithDeviceToken(token)
+			s.IconURL = deviceIconURL
+		}
+	}
+}
+
 type SetupExperienceBootstrapPackageResult struct {
 	Name   string                    `json:"name"`
 	Status MDMBootstrapPackageStatus `json:"status"`
