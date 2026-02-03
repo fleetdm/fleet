@@ -2333,6 +2333,35 @@ This activity contains the following fields:
 }
 ```
 
+## added_microsoft_entra_tenant
+
+Generated when Entra tenant is added.
+
+This activity contains the following fields:
+- "tenant_id": the id of the Entra tenant.
+
+#### Example
+
+```json
+{
+	"tenant_id": ada00076-06f6-459b-8c45-88a843a2271f,
+}
+```
+
+## deleted_microsoft_entra_tenant
+
+Generated when the Entra tenant is deleted.
+
+This activity contains the following fields:
+- "tenant_id": the id of the Entra tenant.
+
+#### Example
+
+```json
+{
+	"tenant_id": ada00076-06f6-459b-8c45-88a843a2271f,
+}
+```
 
 <meta name="title" value="Audit logs">
 <meta name="pageOrderInSection" value="1400">
