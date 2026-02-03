@@ -1,0 +1,1 @@
+- Updated refetch logic for iPhone and iPad to only fetch location data if the host is locked.
