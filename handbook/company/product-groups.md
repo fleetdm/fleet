@@ -37,7 +37,7 @@ At Fleet, [anyone can contribute](https://fleetdm.com/handbook/company#openness)
 |:------------------------------------------------------|:-----------------------------------------------------------------------------------------------------------------------|:---------|
 | [MDM](#mdm-group)                                     | Increase and exceed maturity in the [device management](https://fleetdm.com/device-management) product category.       | 80       |
 | [Software](#software-group)                           | Increase and exceed maturity in the [software management](https://fleetdm.com/software-management) product category.   | 102      |
-| [Orchestration](#orchestration-group)                 | Increase and exceed maturity in the [orchestration](https://fleetdm.com/orchestration) product category.               | 71       |
+| [Orchestration](#orchestration-group)                 | Increase and exceed maturity in the [orchestration](https://fleetdm.com/orchestration) product category.               | 49       |
 | [Security & Compliance](#security-compliance-group)   | Increase and exceed maturity in the security and compliance product category.                                          | 104      |
 
 \* The number of [estimated story points](https://fleetdm.com/handbook/company/communications#estimation-points) this group can take on per-sprint under ideal circumstances, used as a baseline number for planning and prioritizing user stories for drafting. In reality, capacity will vary as engineers are on-call, out-of-office, filling in for other product groups, etc.
@@ -75,7 +75,7 @@ The goal of the software group is to increase and exceed [Fleet's product maturi
 | Product Designer                  | [Marko Lisica](https://www.linkedin.com/in/markolisica/) _([@marko-lisica](https://github.com/marko-lisica))_
 | Engineering Manager               | [George Karr](https://www.linkedin.com/in/george-karr-4977b441/) _([@georgekarrv](https://github.com/georgekarrv))_
 | Tech Lead                         | [Carlo DiCelico](https://www.linkedin.com/in/carlodicelico/) _([@cdcme](https://github.com/cdcme))_
-| Quality Assurance                 | [Reed Haynes](https://www.linkedin.com/in/reed-haynes-633a69a3/) _([@xpkoala](https://github.com/xpkoala))_
+| Quality Assurance                 | [Reed Haynes](https://www.linkedin.com/in/reed-haynes-633a69a3/) _([@xpkoala](https://github.com/xpkoala))_, [Steve Carlin](https://www.linkedin.com/in/sjcarlin/) _([@ravenstencil](https://github.com/Ravenstencil))_
 | Software Engineer                 | [Rachel Perkins](https://www.linkedin.com/in/rachelelysia/) _([@rachelelysia](https://github.com/rachelelysia))_, [Jahziel Villasana-Espinoza](https://www.linkedin.com/in/jahziel-v/) _([@jahzielv](https://github.com/jahzielv))_, [Jonathan Katz](https://www.linkedin.com/in/jonathan-katz-494362237/) _([@jkatz01](https://github.com/jkatz01))_, [Martin Angers](https://www.linkedin.com/in/martin-angers-3210305/) _([@mna](https://github.com/mna))_
 
 **Areas of expertise**:
@@ -99,7 +99,7 @@ The goal of the orchestration group is to increase and exceed [Fleet's product m
 | Engineering Manager               | [Sharon Katz](https://www.linkedin.com/in/sharon-katz-45b1b3a/) _([@sharon-fdm](https://github.com/sharon-fdm))_
 | Tech Lead                         | [Lucas Rodriguez](https://www.linkedin.com/in/lukmr/) _([@lucasmrod](https://github.com/lucasmrod))_
 | Quality Assurance                 | [Reed Haynes](https://www.linkedin.com/in/reed-haynes-633a69a3/) _([@xpkoala](https://github.com/xpkoala))_
-| Software Engineer                 | [Scott Gress](https://www.linkedin.com/in/scottgress/) _([@sgress454](https://github.com/sgress454))_, [Juan Fernandez](https://www.linkedin.com/in/juan-fdz-hawa/) _([@juan-fdz-hawa](https://github.com/juan-fdz-hawa))_, [Nicolás Ulmete](https://www.linkedin.com/in/nicolasulmete/) _([@nulmete](https://github.com/nulmete))_
+| Software Engineer                 | [Juan Fernandez](https://www.linkedin.com/in/juan-fdz-hawa/) _([@juan-fdz-hawa](https://github.com/juan-fdz-hawa))_, [Nicolás Ulmete](https://www.linkedin.com/in/nicolasulmete/) _([@nulmete](https://github.com/nulmete))_
 
 **Areas of expertise**:
 - Fleetd
@@ -168,25 +168,36 @@ The goal of the website group is to increase and exceed Fleet's product maturity
 |:----------------------------------|:--------------------------|
 | Product Designer                  | [Mike Thomas](https://www.linkedin.com/in/mike-thomas-52277938) _([@mike-j-thomas](https://github.com/mike-j-thomas))_
 | Engineering Manager               | [Luke Heath](https://www.linkedin.com/in/lukeheath/) _([@lukeheath](https://github.com/lukeheath))_
-| Product Manager                   | [Eric Shaw](https://www.linkedin.com/in/eric-shaw-1423831a9/) _([@eashaw](https://github.com/eashaw))_
 | Quality Assurance                 | [Eric Shaw](https://www.linkedin.com/in/eric-shaw-1423831a9/) _([@eashaw](https://github.com/eashaw))_
 | Software Engineer                 | [Eric Shaw](https://www.linkedin.com/in/eric-shaw-1423831a9/) _([@eashaw](https://github.com/eashaw))_
 
 > The [Slack channel](https://fleetdm.slack.com/archives/C097P4TAPRR), [kanban board](https://github.com/orgs/fleetdm/projects/92), and [GitHub label](https://github.com/fleetdm/fleet/labels?q=%23g-website) for this product group is `#g-website`.
 
-### Engineering operations group
+### Engineering Operations group
 
-The goal of the Engineering operations working group is to make changes that promote engineering velocity, quality, and stability. 
+The goal of the Engineering Operations working group is to make changes that promote engineering velocity, quality, and stability. 
 
 | Responsibility                    | Human(s)                  |
 |:----------------------------------|:--------------------------|
 | Product Designer                  | [Luke Heath](https://www.linkedin.com/in/lukeheath/) _([@lukeheath](https://github.com/lukeheath))_, [Ian Littman](https://www.linkedin.com/in/ian-littman/) _([@iansltx](https://github.com/iansltx))_
 | Engineering Manager               | [Luke Heath](https://www.linkedin.com/in/lukeheath/) _([@lukeheath](https://github.com/lukeheath))_
-| Product Manager                   | [Luke Heath](https://www.linkedin.com/in/lukeheath/) _([@lukeheath](https://github.com/lukeheath))_
 | Quality Assurance                 | [Luke Heath](https://www.linkedin.com/in/lukeheath/) _([@lukeheath](https://github.com/lukeheath))_, [Ian Littman](https://www.linkedin.com/in/ian-littman/) _([@iansltx](https://github.com/iansltx))_
 | Software Engineer                 | [Ian Littman](https://www.linkedin.com/in/ian-littman/) _([@iansltx](https://github.com/iansltx))_
 
 > The [Slack channel](https://fleetdm.slack.com/archives/C0A91KW6Q0G), [kanban board](https://github.com/orgs/fleetdm/projects/103), and [GitHub label](https://github.com/fleetdm/fleet/labels?q=%23g-eng-ops) for this product group is `#g-eng-ops`.
+
+### First Impressions group
+
+The goal of the First Impressions working group is to make changes to the core Fleet product that improve first impressions of Fleet at workshops, conferences, and demos.
+
+| Responsibility                    | Human(s)                  |
+|:----------------------------------|:--------------------------|
+| Product Designer                  | [Noah Talerman](https://www.linkedin.com/in/noah-talerman/) _([@noahtalerman](https://github.com/noahtalerman))_, [Mike McNeil](https://www.linkedin.com/in/mikermcneil/) _([@mikermcneil](https://github.com/mikermcneil))_
+| Engineering Manager               | [Luke Heath](https://www.linkedin.com/in/lukeheath/) _([@lukeheath](https://github.com/lukeheath))_
+| Quality Assurance                 | [Luke Heath](https://www.linkedin.com/in/lukeheath/) _([@lukeheath](https://github.com/lukeheath))_, [Scott Gress](https://www.linkedin.com/in/scottgress/) _([@sgress454](https://github.com/sgress454))_
+| Software Engineer                 | [Scott Gress](https://www.linkedin.com/in/scottgress/) _([@sgress454](https://github.com/sgress454))_, [Luke Heath](https://www.linkedin.com/in/lukeheath/) _([@lukeheath](https://github.com/lukeheath))_
+
+> The [Slack channel](https://fleetdm.slack.com/archives/C0ACJ8L1FD0), [kanban board](https://github.com/orgs/fleetdm/projects/105/), and [GitHub label](https://github.com/fleetdm/fleet/labels?q=%23g-first-impressions) for this product group is `#g-first-impressions`.
 
 
 <!--
@@ -602,7 +613,9 @@ Quickly confirming and reproducing bug reports is a [priority for Fleet](https:/
 
 At this state, the Head of Product Design is responsible for going through the inbox and adding the correct product group label (e.g. `#g-mdm`, `#g-orchestration`, `#g-software`, `#g-security-compliance`). 
 
-Then, it's the product group Product Designer's responsibility to decide if it's a bug and make sure reproduction steps are documented. If they're missing, add them, ask for more reproduction details from the reporter, or ask the QA team for help with reproduction. The Product Designer has **1 business day** to move the bug to the next step ([needs reproduction](#needs-reproduction) or [reproduced](#reproduced)) or request more information.
+Then, it's the product group Product Designer's responsibility to decide if it's a bug, make sure reproduction steps are documented, and update the bug's title to focus on the expected behavior instead of what's broken. 
+
+If reproduction steps are missing, add them, ask for more reproduction details from the reporter, or ask the QA team for help with reproduction. The Product Designer has **1 business day** to move the bug to the next step ([needs reproduction](#needs-reproduction) or [reproduced](#reproduced)) or request more information.
 
 When more information is needed, it's up to the Product Designer to gather information from the reporter. Reporters are encouraged to provide timely follow-up information for each report. At one week since last communication, the Production Designer will close the issue. Reporters are welcome to re-open the closed issue if more investigation is warranted.
 
@@ -619,7 +632,7 @@ The bug has been confirmed it's a bug but not reproduced.
 
 Take the following action: Add the `:reproduce` label so that the bug is added to the :help-qa board.
 
-At this state, the bug review DRI (QA) is responsible for reproducing the bug and documenting reproduction steps or asking the product group's Produce Designer for more guidance. QA has **1 business day** to move the bug to the [reproduced state](#reproduced) or ask for guidance.
+At this state, the bug review DRI (QA) is responsible for reproducing the bug and documenting reproduction steps or asking the product group's Product Designer for more guidance. QA has **1 business day** to move the bug to the [reproduced state](#reproduced) or ask for guidance.
 
 
 #### Reproduced
@@ -752,7 +765,7 @@ Each product group maintains two engineers assigned to after-hours incident on-c
 
 #### After-hours incident on-call responsibilities
 
-The after-hours incident on-call engineer is responsible for responding within one hour to [P0 incidents](https://fleetdm.com/handbook/company/communications#high-priority-user-stories-and-bugs) occurring outside of business hours and triaging into our [incident response process](https://fleetdm.com/handbook/company/engineering#incident-response-process). 
+The after-hours incident on-call engineer is responsible for responding within one hour to [P0 incidents](https://fleetdm.com/handbook/company/communications#high-priority-user-stories-and-bugs) occurring outside of business hours and triaging into our [incident response process](https://fleetdm.com/handbook/engineering#incident-response-process).
 
 Any mentions that do not meet [P0 criteria](https://fleetdm.com/handbook/company/communications#high-priority-user-stories-and-bugs) or are during business hours should be acknowledged and redirected to business hours on-call.
 

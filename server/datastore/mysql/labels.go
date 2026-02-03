@@ -631,6 +631,9 @@ func (ds *Datastore) NewLabel(ctx context.Context, label *fleet.Label, opts ...f
 
 	id, _ := result.LastInsertId()
 	label.ID = uint(id) //nolint:gosec // dismiss G115
+	now := time.Now().UTC().Truncate(time.Second)
+	label.CreatedAt = now
+	label.UpdatedAt = now
 	return label, nil
 }
 

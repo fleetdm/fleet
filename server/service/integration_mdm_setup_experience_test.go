@@ -13,6 +13,7 @@ import (
 
 	"github.com/fleetdm/fleet/v4/pkg/mdm/mdmtest"
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
+	"github.com/fleetdm/fleet/v4/server/dev_mode"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm/android"
 	android_service "github.com/fleetdm/fleet/v4/server/mdm/android/service"
@@ -744,7 +745,7 @@ func (s *integrationMDMTestSuite) TestSetupExperienceVPPInstallError() {
 	expTime := time.Now().Add(200 * time.Hour).UTC().Round(time.Second)
 	expDate := expTime.Format(fleet.VPPTimeFormat)
 	tokenJSON := fmt.Sprintf(`{"expDate":"%s","token":"%s","orgName":"%s"}`, expDate, token, orgName)
-	t.Setenv("FLEET_DEV_VPP_URL", s.appleVPPConfigSrv.URL)
+	dev_mode.SetOverride("FLEET_DEV_VPP_URL", s.appleVPPConfigSrv.URL, t)
 	var validToken uploadVPPTokenResponse
 	s.uploadDataViaForm("/api/latest/fleet/vpp_tokens", "token", "token.vpptoken", []byte(base64.StdEncoding.EncodeToString([]byte(tokenJSON))), http.StatusAccepted, "", &validToken)
 
@@ -995,6 +996,8 @@ func (s *integrationMDMTestSuite) TestSetupExperienceVPPInstallError() {
 func (s *integrationMDMTestSuite) TestSetupExperienceFlowUpdateScript() {
 	t := s.T()
 	ctx := context.Background()
+
+	s.setSkipWorkerJobs(t)
 
 	device, host, tm := s.createTeamDeviceForSetupExperienceWithProfileSoftwareAndScript()
 
@@ -1863,7 +1866,7 @@ func (s *integrationMDMTestSuite) TestSetupExperienceVPPCRUD() {
 	expTime := time.Now().Add(200 * time.Hour).UTC().Round(time.Second)
 	expDate := expTime.Format(fleet.VPPTimeFormat)
 	tokenJSON := fmt.Sprintf(`{"expDate":"%s","token":"%s","orgName":"%s"}`, expDate, token, orgName)
-	t.Setenv("FLEET_DEV_VPP_URL", s.appleVPPConfigSrv.URL)
+	dev_mode.SetOverride("FLEET_DEV_VPP_URL", s.appleVPPConfigSrv.URL, t)
 	var validToken uploadVPPTokenResponse
 	s.uploadDataViaForm("/api/latest/fleet/vpp_tokens", "token", "token.vpptoken", []byte(base64.StdEncoding.EncodeToString([]byte(tokenJSON))), http.StatusAccepted, "", &validToken)
 
@@ -2090,7 +2093,7 @@ func (s *integrationMDMTestSuite) TestSetupExperienceIOSAndIPadOS() {
 	expTime := time.Now().Add(200 * time.Hour).UTC().Round(time.Second)
 	expDate := expTime.Format(fleet.VPPTimeFormat)
 	tokenJSON := fmt.Sprintf(`{"expDate":"%s","token":"%s","orgName":"%s"}`, expDate, token, orgName)
-	t.Setenv("FLEET_DEV_VPP_URL", s.appleVPPConfigSrv.URL)
+	dev_mode.SetOverride("FLEET_DEV_VPP_URL", s.appleVPPConfigSrv.URL, t)
 	var validToken uploadVPPTokenResponse
 	s.uploadDataViaForm("/api/latest/fleet/vpp_tokens", "token", "token.vpptoken", []byte(base64.StdEncoding.EncodeToString([]byte(tokenJSON))), http.StatusAccepted, "", &validToken)
 
@@ -3009,7 +3012,7 @@ func (s *integrationMDMTestSuite) TestSetupExperienceFlowWithRequiredSoftwareVPP
 	expTime := time.Now().Add(200 * time.Hour).UTC().Round(time.Second)
 	expDate := expTime.Format(fleet.VPPTimeFormat)
 	tokenJSON := fmt.Sprintf(`{"expDate":"%s","token":"%s","orgName":"%s"}`, expDate, token, orgName)
-	t.Setenv("FLEET_DEV_VPP_URL", s.appleVPPConfigSrv.URL)
+	dev_mode.SetOverride("FLEET_DEV_VPP_URL", s.appleVPPConfigSrv.URL, t)
 	var validToken uploadVPPTokenResponse
 	s.uploadDataViaForm("/api/latest/fleet/vpp_tokens", "token", "token.vpptoken", []byte(base64.StdEncoding.EncodeToString([]byte(tokenJSON))), http.StatusAccepted, "", &validToken)
 

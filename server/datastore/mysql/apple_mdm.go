@@ -15,6 +15,7 @@ import (
 	"io"
 	"math"
 	"os"
+	"slices"
 	"strings"
 	"time"
 
@@ -1445,6 +1446,7 @@ type hostToCreateFromMDM struct {
 	// PlatformHint is used to determine hosts.platform, if it:
 	//
 	// - contains "iphone" the platform is "ios"
+	// - contains "ipod" the platform is "ios"
 	// - contains "ipad" the platform is "ipados"
 	// - otherwise the platform is "darwin"
 	PlatformHint string
@@ -1968,10 +1970,16 @@ func (ds *Datastore) MDMTurnOff(ctx context.Context, uuid string) (users []*flee
 
 		// we may need to create corresponding "past" activities for "canceled" VPP
 		// app installs, so we return those to the MDM lifecycle to handle.
-		users, activities, err = ds.markAllPendingVPPInstallsAsFailedForHost(ctx, tx, host.ID, host.Platform)
+		usersVPP, activitiesVPP, err := ds.markAllPendingVPPInstallsAsFailedForHost(ctx, tx, host.ID, host.Platform, softwareTypeVPP)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "marking pending vpp installs as failed for host")
 		}
+		usersInHouse, activitiesInHouse, err := ds.markAllPendingVPPInstallsAsFailedForHost(ctx, tx, host.ID, host.Platform, softwareTypeInHouseApp)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "marking pending in house app installs as failed for host")
+		}
+		users = slices.Concat(users, usersVPP, usersInHouse)
+		activities = slices.Concat(activities, activitiesVPP, activitiesInHouse)
 
 		// NOTE: intentionally keeping disk encryption keys and bootstrap
 		// package information.
@@ -2000,7 +2008,7 @@ func unionSelectDevices(devices []hostToCreateFromMDM) (stmt string, args []inte
 		normalizedHint := strings.ToLower(d.PlatformHint)
 		platform := string(fleet.MacOSPlatform)
 		switch {
-		case strings.Contains(normalizedHint, "iphone"):
+		case strings.Contains(normalizedHint, "iphone"), strings.Contains(normalizedHint, "ipod"):
 			platform = string(fleet.IOSPlatform)
 		case strings.Contains(normalizedHint, "ipad"):
 			platform = string(fleet.IPadOSPlatform)
@@ -4625,6 +4633,7 @@ func (ds *Datastore) updateHostDEPAssignProfileResponses(ctx context.Context, pa
 	var (
 		notAccessible []string
 		failed        []string
+		throttled     []string
 	)
 
 	for serial, status := range payload.Devices {
@@ -4635,6 +4644,8 @@ func (ds *Datastore) updateHostDEPAssignProfileResponses(ctx context.Context, pa
 			notAccessible = append(notAccessible, serial)
 		case string(fleet.DEPAssignProfileResponseFailed):
 			failed = append(failed, serial)
+		case string(fleet.DEPAssignProfileResponseThrottled):
+			throttled = append(throttled, serial)
 		default:
 			// this should never happen unless Apple changes the response format, so we log it for
 			// future debugging
@@ -4653,6 +4664,10 @@ func (ds *Datastore) updateHostDEPAssignProfileResponses(ctx context.Context, pa
 		}
 		if err := updateHostDEPAssignProfileResponses(ctx, tx, ds.logger, payload.ProfileUUID, failed,
 			string(fleet.DEPAssignProfileResponseFailed), abmTokenID); err != nil {
+			return err
+		}
+		if err := updateHostDEPAssignProfileResponses(ctx, tx, ds.logger, payload.ProfileUUID, throttled,
+			string(fleet.DEPAssignProfileResponseThrottled), abmTokenID); err != nil {
 			return err
 		}
 		return nil
@@ -4706,8 +4721,11 @@ WHERE
 	return nil
 }
 
-// depCooldownPeriod is the waiting period following a failed DEP assign profile request for a host.
-const depCooldownPeriod = 1 * time.Hour // TODO: Make this a test config option?
+// depFailedCooldownPeriod is the waiting period following a failed DEP assign profile request for a host.
+const (
+	depFailedCooldownPeriod    = 1 * time.Hour // TODO: Make this a test config option?
+	depThrottledCooldownPeriod = 24 * time.Hour
+)
 
 func (ds *Datastore) ScreenDEPAssignProfileSerialsForCooldown(ctx context.Context, serials []string) (skipSerialsByOrgName map[string][]string, serialsByOrgName map[string][]string, err error) {
 	if len(serials) == 0 {
@@ -4716,7 +4734,8 @@ func (ds *Datastore) ScreenDEPAssignProfileSerialsForCooldown(ctx context.Contex
 
 	stmt := `
 SELECT
-	CASE WHEN assign_profile_response = ? AND (response_updated_at > DATE_SUB(NOW(), INTERVAL ? SECOND) OR retry_job_id != 0) THEN
+	CASE WHEN (assign_profile_response = ? AND (response_updated_at > DATE_SUB(NOW(), INTERVAL ? SECOND) OR retry_job_id != 0)) OR
+	(assign_profile_response = ? AND (response_updated_at > DATE_SUB(NOW(), INTERVAL ? SECOND) OR retry_job_id != 0)) THEN
 		'skip'
 	ELSE
 		'assign'
@@ -4731,7 +4750,7 @@ WHERE
 	h.hardware_serial IN (?)
 `
 
-	stmt, args, err := sqlx.In(stmt, string(fleet.DEPAssignProfileResponseFailed), depCooldownPeriod.Seconds(), serials)
+	stmt, args, err := sqlx.In(stmt, string(fleet.DEPAssignProfileResponseFailed), depFailedCooldownPeriod.Seconds(), string(fleet.DEPAssignProfileResponseThrottled), depThrottledCooldownPeriod.Seconds(), serials)
 	if err != nil {
 		return nil, nil, ctxerr.Wrap(ctx, err, "screen dep serials: prepare statement arguments")
 	}
@@ -4783,10 +4802,14 @@ FROM
 	JOIN hosts h ON h.id = host_id
 	LEFT JOIN jobs j ON j.id = retry_job_id
 WHERE
-	assign_profile_response = ?
+	(assign_profile_response = ?
 	AND(retry_job_id = 0 OR j.state = ?)
 	AND(response_updated_at IS NULL
 		OR response_updated_at <= DATE_SUB(NOW(), INTERVAL ? SECOND))
+) OR (assign_profile_response = ?
+	AND(retry_job_id = 0 OR j.state = ?)
+	AND(response_updated_at IS NULL
+		OR response_updated_at <= DATE_SUB(NOW(), INTERVAL ? SECOND)))
 ORDER BY response_updated_at ASC
 LIMIT ?`
 
@@ -4794,7 +4817,7 @@ LIMIT ?`
 		TeamID         uint   `db:"team_id"`
 		HardwareSerial string `db:"hardware_serial"`
 	}
-	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &rows, stmt, string(fleet.DEPAssignProfileResponseFailed), string(fleet.JobStateFailure), depCooldownPeriod.Seconds(), apple_mdm.DEPSyncLimit); err != nil {
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &rows, stmt, string(fleet.DEPAssignProfileResponseFailed), string(fleet.JobStateFailure), depFailedCooldownPeriod.Seconds(), string(fleet.DEPAssignProfileResponseThrottled), string(fleet.JobStateFailure), depThrottledCooldownPeriod.Seconds(), apple_mdm.DEPSyncLimit); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "get host dep assign profile expired cooldowns")
 	}
 
@@ -6835,7 +6858,7 @@ DELETE FROM upcoming_activities
 		JOIN hosts h ON upcoming_activities.host_id = h.id
 WHERE
 	h.uuid = ? AND
-	upcoming_activities.activity_type IN ('vpp_app_install')
+	upcoming_activities.activity_type IN ('vpp_app_install', 'in_house_app_install')
 `
 	_, err := tx.ExecContext(ctx, deleteUpcomingMDMActivities, hostUUID)
 	if err != nil {
@@ -6886,6 +6909,61 @@ WHERE
 		return nil, ctxerr.Wrap(ctx, err, "get mdm apple enrolled device info")
 	}
 	return &res, nil
+}
+
+func (ds *Datastore) GetMDMAppleHostMDMEnrollRef(ctx context.Context, hostID uint) (string, error) {
+	const stmt = `SELECT fleet_enroll_ref FROM host_mdm WHERE host_id = ?`
+	var dest string
+	if err := sqlx.GetContext(ctx, ds.reader(ctx), &dest, stmt, hostID); err != nil {
+		if err == sql.ErrNoRows {
+			return "", ctxerr.Wrap(ctx, notFound("HostMDMEnrollRef").WithID(hostID))
+		}
+		return "", ctxerr.Wrap(ctx, err, "get mdm apple host mdm enroll ref by host id")
+	}
+	return dest, nil
+}
+
+func (ds *Datastore) UpdateMDMAppleHostMDMEnrollRef(ctx context.Context, hostID uint, enrollRef string) (bool, error) {
+	const stmt = `UPDATE host_mdm SET fleet_enroll_ref = ? WHERE host_id = ?`
+	r, err := ds.writer(ctx).ExecContext(ctx, stmt, enrollRef, hostID)
+	if err != nil {
+		return false, ctxerr.Wrap(ctx, err, "update mdm apple host mdm enroll ref by host id")
+	}
+	n, _ := r.RowsAffected()
+
+	return n > 0, nil
+}
+
+func (ds *Datastore) DeactivateMDMAppleHostSCEPRenewCommands(ctx context.Context, hostUUID string) error {
+	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		var cmdUUIDs []string
+
+		selectStmt := `SELECT renew_command_uuid FROM nano_cert_auth_associations WHERE id = ? AND renew_command_uuid IS NOT NULL`
+		if err := sqlx.SelectContext(ctx, tx, &cmdUUIDs, selectStmt, hostUUID); err != nil {
+			return ctxerr.Wrap(ctx, err, "get mdm apple host scep renew commands info")
+		}
+		if len(cmdUUIDs) == 0 {
+			level.Info(ds.logger).Log("msg", "no active scep renew commands to deactivate for host", "host_uuid", hostUUID)
+			return nil
+		}
+
+		level.Info(ds.logger).Log("msg", "deactivating scep renew commands for host", "host_uuid", hostUUID, "command_uuids", fmt.Sprintf("%v", cmdUUIDs))
+
+		clearStmt := `UPDATE nano_cert_auth_associations SET renew_command_uuid = NULL WHERE id = ?`
+		if _, err := tx.ExecContext(ctx, clearStmt, hostUUID); err != nil {
+			return ctxerr.Wrap(ctx, err, "deactivate mdm apple host scep renew commands: clear renew_command_uuid")
+		}
+
+		deactivateStmt, args, err := sqlx.In(`UPDATE nano_enrollment_queue SET active = 0 WHERE id = ? AND command_uuid IN(?)`, hostUUID, cmdUUIDs)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "deactivate mdm apple host scep renew commands: build query")
+		}
+		if _, err := tx.ExecContext(ctx, deactivateStmt, args...); err != nil {
+			return ctxerr.Wrap(ctx, err, "deactivate mdm apple host scep renew commands: deactivate in enrollment queue")
+		}
+
+		return nil
+	})
 }
 
 func (ds *Datastore) ListMDMAppleEnrolledIPhoneIpadDeletedFromFleet(ctx context.Context, limit int) ([]string, error) {

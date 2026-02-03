@@ -1,4 +1,4 @@
-## Orbit 1.51.0 (Jan 20, 2026)
+## Orbit 1.51.1 (Jan 28, 2026)
 
 * Improved "Fleet Desktop" description in Windows' system tray.
 
@@ -14,7 +14,7 @@
 
 * Updated github.com/shoenig/go-m1cpu to v0.1.7 to fix a build warning on Apple silicon.
 
-* Implemented the `executable_hashes` `fleetd` table, providing easy access to the sha256 hashes of a binary, either passed directly via a PATH clause, or discovered within a .app bundle when the path to the bundle is provided in the WHERE clause.
+* Implemented the `executable_hashes` `fleetd` table, providing easy access to the SHA-256 hash and absolute path of the main executable for macOS app bundles matching the `path` in the query’s WHERE clause. Supports exact matches or multiple bundles via LIKE.
 
 ## Orbit 1.50.2 (Dec 12, 2025)
 

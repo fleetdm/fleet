@@ -718,5 +718,16 @@
     "filter": {
       "target_sw": ["intellij"]
     }
+  },
+  {
+    "software": {
+      "name": ["/(?i)^pgadmin ?4/"],
+      "source": ["programs", "homebrew_packages"]
+    },
+    "filter": {
+      "product": ["pgadmin", "pgadmin_4"],
+      "vendor": ["pgadmin"],
+      "target_sw": ["postgresql"]
+    }
   }
 ]

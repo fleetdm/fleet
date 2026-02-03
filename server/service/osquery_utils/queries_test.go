@@ -1838,6 +1838,14 @@ func TestDirectIngestDiskEncryptionKeyDarwin(t *testing.T) {
 	logger := log.NewNopLogger()
 	host := &fleet.Host{ID: 1}
 
+	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+		return &fleet.AppConfig{
+			MDM: fleet.MDM{
+				EnableDiskEncryption: optjson.SetBool(true),
+			},
+		}, nil
+	}
+
 	var wantKey string
 
 	mockFileLines := func(wantKey string, wantEncrypted string) []map[string]string {

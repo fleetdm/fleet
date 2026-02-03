@@ -192,7 +192,7 @@
   moreInfoUrl: "https://fleetdm.com/handbook/sales#review-salesforce-opportunities"
   dri: "Sampfluger88"
   autoIssue:   
-    labels: [ ":gtm-ops","#g-unicorns" ]
+    labels: [ ":gtm-ops", ":help-gtm-ops" ]
     repo: "confidential"
 - 
   task: "Measure intent signals"
@@ -208,3 +208,9 @@
   description: "Daily, clean up any duplicate accounts."
   moreInfoUrl: "https://fleetdm.com/handbook/marketing#manage-duplicates-in-crm"
   dri: "Sampfluger88"
+- 
+  task: "Prepare board deck"
+  startedOn: "2023-09-25"
+  frequency: "Quarterly"
+  description: "Prepare slide deck for the next board meeting."
+  dri: "rfoo2015"
