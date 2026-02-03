@@ -1,0 +1,5 @@
+- name: Keynote installed
+  description: macOS hosts with Keynote installed
+  query: SELECT 1 FROM apps WHERE name = "Keynote.app" AND version_compare(bundle_short_version, '14.0.0') >= 0 AND version_compare(bundle_short_version, '15.0.0') < 0;
+  label_membership_type: dynamic
+  platform: darwin

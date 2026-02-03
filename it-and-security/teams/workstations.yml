@@ -178,7 +178,7 @@ software:
     - path: ../lib/macos/software/fleet-keynote-theme.yml # Fleet Keynote theme for macOS
       self_service: true
       labels_include_any:
-        - "Keynote installed"
+        - "Keynote 14 installed"
     - path: ../lib/macos/software/company-portal.yml # Company Portal for macOS
       self_service: true
       labels_include_any:
