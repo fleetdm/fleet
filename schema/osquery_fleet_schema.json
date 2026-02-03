@@ -4697,6 +4697,56 @@
     "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/containerd_containers.yml"
   },
   {
+    "name": "containerd_mounts",
+    "platforms": [
+      "linux"
+    ],
+    "description": "Information about containerd container mounts.",
+    "evented": false,
+    "columns": [
+      {
+        "name": "namespace",
+        "type": "text",
+        "required": false,
+        "description": "Namespace of the container."
+      },
+      {
+        "name": "container_id",
+        "type": "text",
+        "required": false,
+        "description": "Container ID."
+      },
+      {
+        "name": "type",
+        "type": "text",
+        "required": false,
+        "description": "Mount type (e.g. bind, tmpfs, proc)."
+      },
+      {
+        "name": "source",
+        "type": "text",
+        "required": false,
+        "description": "Source path on the host."
+      },
+      {
+        "name": "destination",
+        "type": "text",
+        "required": false,
+        "description": "Destination path in the container."
+      },
+      {
+        "name": "options",
+        "type": "text",
+        "required": false,
+        "description": "Mount options (comma-separated)."
+      }
+    ],
+    "examples": "Get all mounts for all containers:\n\n```\nSELECT * FROM containerd_mounts;\n```\n\nGet mounts for a specific container:\n\n```\nSELECT * FROM containerd_mounts WHERE container_id='abc123';\n```\n\nGet all bind mounts:\n\n```\nSELECT * FROM containerd_mounts WHERE type='bind';\n```",
+    "notes": "This table is not a core osquery table. It is included as part of Fleet's agent\n([fleetd](https://fleetdm.com/docs/get-started/anatomy#fleetd)).\n\nThe `containerd_mounts` table is available on Linux systems with containerd installed. It provides\ninformation about the mounts configured for containers managed by containerd.\n\nThis table is useful for systems using containerd as a container runtime, such as those running\nKubernetes. See the `docker_container_mounts` table for information about mounts in Docker containers.",
+    "url": "https://fleetdm.com/tables/containerd_mounts",
+    "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/containerd_mounts.yml"
+  },
+  {
     "name": "corestorage_logical_volume_families",
     "platforms": [
       "darwin"

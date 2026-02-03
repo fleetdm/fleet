@@ -1,11 +1,11 @@
 //go:build linux
-// +build linux
 
 package containerd
 
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	"github.com/containerd/containerd"
 	"github.com/containerd/containerd/namespaces"
@@ -60,24 +60,13 @@ func GenerateMounts(ctx context.Context, queryContext table.QueryContext) ([]map
 			// Iterate through mounts in the spec
 			if spec.Mounts != nil {
 				for _, mount := range spec.Mounts {
-					// Join options into a comma-separated string
-					options := ""
-					if len(mount.Options) > 0 {
-						for i, opt := range mount.Options {
-							if i > 0 {
-								options += ","
-							}
-							options += opt
-						}
-					}
-
 					row := map[string]string{
 						"namespace":    namespace,
 						"container_id": container.ID(),
 						"type":         mount.Type,
 						"source":       mount.Source,
 						"destination":  mount.Destination,
-						"options":      options,
+						"options":      strings.Join(mount.Options, ","),
 					}
 					rows = append(rows, row)
 				}
