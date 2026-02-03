@@ -5,7 +5,6 @@ import (
 	"encoding/base64"
 	"fmt"
 	"net/http"
-	"slices"
 	"strings"
 	"time"
 
@@ -621,29 +620,17 @@ func (svc *Service) verifyDevicePolicy(ctx context.Context, hostUUID string, dev
 
 	level.Debug(svc.logger).Log("msg", "Verifying Android device policy", "host_uuid", hostUUID, "applied_policy_version", appliedPolicyVersion)
 
-	// Get all host_mdm_android_profiles that is pending, and included_in_policy_version <= device.AppliedPolicyVersion.
+	// Get all host_mdm_android_profiles that are pending or failed, and included_in_policy_version <= device.AppliedPolicyVersion.
 	// That way we can either fully verify the profile, or mark as failed if the field it tries to set is not compliant.
 
-	// Get all profiles that are pending install
-	pendingInstallProfiles, err := svc.ds.ListHostMDMAndroidProfilesPendingInstallWithVersion(ctx, hostUUID, appliedPolicyVersion)
+	// Get all profiles that are pending or failed install
+	pendingInstallProfiles, err := svc.ds.ListHostMDMAndroidProfilesPendingOrFailedInstallWithVersion(ctx, hostUUID, appliedPolicyVersion)
 	if err != nil {
 		level.Error(svc.logger).Log("msg", "error getting pending profiles", "err", err)
 		return
 	}
-	// Get profiles that failed due to requiring waiting or user action, that can be verified again
-	failedNonComplianceProfiles, err := svc.ds.ListHostMDMAndroidProfilesToReverify(ctx, hostUUID, appliedPolicyVersion)
-	if err != nil {
-		level.Error(svc.logger).Log("msg", "error getting failed profiles", "err", err)
-		return
-	}
-	pendingInstallProfiles = slices.Concat(pendingInstallProfiles, failedNonComplianceProfiles)
 
-	pendingProfilesUUIDMap := make(map[string]*fleet.MDMAndroidProfilePayload, len(pendingInstallProfiles))
-	for _, profile := range pendingInstallProfiles {
-		pendingProfilesUUIDMap[profile.ProfileUUID] = profile
-	}
-
-	// First case, if nonComplianceDetails is empty, verify all profiles that is pending install, and remove the pending remove ones.
+	// First case, if nonComplianceDetails is empty, verify all profiles that are pending or failed install, and remove the pending remove ones.
 	if len(device.NonComplianceDetails) == 0 {
 		var verifiedProfiles []*fleet.MDMAndroidProfilePayload
 		for _, profile := range pendingInstallProfiles {
@@ -711,12 +698,10 @@ func (svc *Service) verifyDevicePolicy(ctx context.Context, hostUUID string, dev
 		for _, profile := range pendingInstallProfiles {
 			status := &fleet.MDMDeliveryVerified
 			detail := profile.Detail
-			reverify := false
 
 			if nonCompliance, ok := failedProfileUUIDsWithNonCompliances[profile.ProfileUUID]; ok {
 				status = &fleet.MDMDeliveryFailed
 				detail = buildNonComplianceErrorMessage(nonCompliance)
-				reverify = canProfileBeReverified(nonCompliance)
 			}
 
 			profiles = append(profiles, &fleet.MDMAndroidProfilePayload{
@@ -730,7 +715,6 @@ func (svc *Service) verifyDevicePolicy(ctx context.Context, hostUUID string, dev
 				ProfileName:             profile.ProfileName,
 				PolicyRequestUUID:       profile.PolicyRequestUUID,
 				Detail:                  detail,
-				Reverify:                reverify,
 			})
 		}
 
@@ -924,20 +908,6 @@ func buildNonComplianceErrorMessage(nonCompliance []*androidmanagement.NonCompli
 	failedReasonsString += failedReasons[len(failedReasons)-1]
 
 	return fmt.Sprintf("%s setting%s couldn't apply to a host.\nReason%s: %s. Other settings are applied.", failedSettingsString, pluralModifier, pluralModifier, failedReasonsString)
-}
-
-func canProfileBeReverified(nonCompliance []*androidmanagement.NonComplianceDetail) bool {
-	// Profiles with settings that failed because of the reasons USER_ACTION or PENDING can be
-	// verified again on a status report, they do not indicate anything was wrong with the settings.
-	for _, nc := range nonCompliance {
-		// mark that a profile can be verified again if it previously
-		// failed only due to these reasons and no others.
-		if nc.NonComplianceReason == "USER_ACTION" || nc.NonComplianceReason == "PENDING" {
-			continue
-		}
-		return false
-	}
-	return true
 }
 
 // calculateAndroidStorageMetrics processes Android device memory events and calculates storage metrics.

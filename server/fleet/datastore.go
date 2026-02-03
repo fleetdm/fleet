@@ -2699,10 +2699,8 @@ type AndroidDatastore interface {
 	BulkUpsertMDMAndroidHostProfiles(ctx context.Context, payload []*MDMAndroidProfilePayload) error
 	// BulkDeleteMDMAndroidHostProfiles bulk removes records from the host's profile, that is pending or failed remove and less than or equals to the policy version.
 	BulkDeleteMDMAndroidHostProfiles(ctx context.Context, hostUUID string, policyVersionID int64) error
-	// ListHostMDMAndroidProfilesPendingInstallWithVersion returns a list of all android profiles that are pending install, and where version is less than or equals to the policyVersion.
-	ListHostMDMAndroidProfilesPendingInstallWithVersion(ctx context.Context, hostUUID string, policyVersion int64) ([]*MDMAndroidProfilePayload, error)
-	// ListHostMDMAndroidProfilesFailedToReverify returns a list of all android profiles that failed due to a reason that can be fixed on a new status report and where version is less than or equals to the policyVersion.
-	ListHostMDMAndroidProfilesToReverify(ctx context.Context, hostUUID string, policyVersion int64) ([]*MDMAndroidProfilePayload, error)
+	// ListHostMDMAndroidProfilesPendingOrFailedInstallWithVersion returns a list of all android profiles that are pending install, and where version is less than or equals to the policyVersion.
+	ListHostMDMAndroidProfilesPendingOrFailedInstallWithVersion(ctx context.Context, hostUUID string, policyVersion int64) ([]*MDMAndroidProfilePayload, error)
 	GetAndroidPolicyRequestByUUID(ctx context.Context, requestUUID string) (*android.MDMAndroidPolicyRequest, error)
 	// UpdateHostSoftware updates the software list of a host.
 	// The update consists of deleting existing entries that are not in the given `software`

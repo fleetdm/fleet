@@ -238,13 +238,10 @@ func TestStatusReportPolicyValidation(t *testing.T) {
 			OperationType:           fleet.MDMOperationTypeInstall,
 			IncludedInPolicyVersion: policyVersion,
 		}
-		mockDS.ListHostMDMAndroidProfilesPendingInstallWithVersionFunc = func(ctx context.Context, hostUUID string, version int64) ([]*fleet.MDMAndroidProfilePayload, error) {
+		mockDS.ListHostMDMAndroidProfilesPendingOrFailedInstallWithVersionFunc = func(ctx context.Context, hostUUID string, version int64) ([]*fleet.MDMAndroidProfilePayload, error) {
 			return []*fleet.MDMAndroidProfilePayload{
 				installPendingProfile,
 			}, nil
-		}
-		mockDS.ListHostMDMAndroidProfilesToReverifyFunc = func(ctx context.Context, hostUUID string, version int64) ([]*fleet.MDMAndroidProfilePayload, error) {
-			return nil, nil
 		}
 		mockDS.ListHostMDMAndroidVPPAppsPendingInstallWithVersionFunc = func(ctx context.Context, hostUUID string, version int64) ([]*fleet.HostAndroidVPPSoftwareInstall, error) {
 			return nil, nil
@@ -264,11 +261,11 @@ func TestStatusReportPolicyValidation(t *testing.T) {
 		err := svc.ProcessPubSubPush(context.Background(), "value", &enrollmentMessage)
 		require.NoError(t, err)
 
-		require.True(t, mockDS.ListHostMDMAndroidProfilesPendingInstallWithVersionFuncInvoked)
+		require.True(t, mockDS.ListHostMDMAndroidProfilesPendingOrFailedInstallWithVersionFuncInvoked)
 		require.False(t, mockDS.GetAndroidPolicyRequestByUUIDFuncInvoked)
 		require.True(t, mockDS.BulkUpsertMDMAndroidHostProfilesFuncInvoked)
 		require.True(t, mockDS.BulkDeleteMDMAndroidHostProfilesFuncInvoked)
-		mockDS.ListHostMDMAndroidProfilesPendingInstallWithVersionFuncInvoked = false
+		mockDS.ListHostMDMAndroidProfilesPendingOrFailedInstallWithVersionFuncInvoked = false
 		mockDS.BulkDeleteMDMAndroidHostProfilesFuncInvoked = false
 		mockDS.BulkUpsertMDMAndroidHostProfilesFuncInvoked = false
 	})
@@ -320,14 +317,11 @@ func TestStatusReportPolicyValidation(t *testing.T) {
 			return nil, errors.New("something went wrong")
 		}
 
-		mockDS.ListHostMDMAndroidProfilesPendingInstallWithVersionFunc = func(ctx context.Context, hostUUID string, version int64) ([]*fleet.MDMAndroidProfilePayload, error) {
+		mockDS.ListHostMDMAndroidProfilesPendingOrFailedInstallWithVersionFunc = func(ctx context.Context, hostUUID string, version int64) ([]*fleet.MDMAndroidProfilePayload, error) {
 			return []*fleet.MDMAndroidProfilePayload{
 				installPendingProfile1,
 				installPendingProfile2,
 			}, nil
-		}
-		mockDS.ListHostMDMAndroidProfilesToReverifyFunc = func(ctx context.Context, hostUUID string, version int64) ([]*fleet.MDMAndroidProfilePayload, error) {
-			return nil, nil
 		}
 		mockDS.ListHostMDMAndroidVPPAppsPendingInstallWithVersionFunc = func(ctx context.Context, hostUUID string, version int64) ([]*fleet.HostAndroidVPPSoftwareInstall, error) {
 			return nil, nil
@@ -364,10 +358,10 @@ func TestStatusReportPolicyValidation(t *testing.T) {
 		require.NoError(t, err)
 
 		require.True(t, mockDS.GetAndroidPolicyRequestByUUIDFuncInvoked)
-		require.True(t, mockDS.ListHostMDMAndroidProfilesPendingInstallWithVersionFuncInvoked)
+		require.True(t, mockDS.ListHostMDMAndroidProfilesPendingOrFailedInstallWithVersionFuncInvoked)
 		require.True(t, mockDS.BulkUpsertMDMAndroidHostProfilesFuncInvoked)
 		require.True(t, mockDS.BulkDeleteMDMAndroidHostProfilesFuncInvoked)
-		mockDS.ListHostMDMAndroidProfilesPendingInstallWithVersionFuncInvoked = false
+		mockDS.ListHostMDMAndroidProfilesPendingOrFailedInstallWithVersionFuncInvoked = false
 		mockDS.BulkDeleteMDMAndroidHostProfilesFuncInvoked = false
 		mockDS.BulkUpsertMDMAndroidHostProfilesFuncInvoked = false
 		mockDS.GetAndroidPolicyRequestByUUIDFuncInvoked = false
@@ -432,15 +426,11 @@ func TestStatusReportPolicyValidation(t *testing.T) {
 			return nil, errors.New("something went wrong")
 		}
 
-		mockDS.ListHostMDMAndroidProfilesPendingInstallWithVersionFunc = func(ctx context.Context, hostUUID string, version int64) ([]*fleet.MDMAndroidProfilePayload, error) {
+		mockDS.ListHostMDMAndroidProfilesPendingOrFailedInstallWithVersionFunc = func(ctx context.Context, hostUUID string, version int64) ([]*fleet.MDMAndroidProfilePayload, error) {
 			return []*fleet.MDMAndroidProfilePayload{
 				installPendingProfile1,
-				installPendingProfile3,
-			}, nil
-		}
-		mockDS.ListHostMDMAndroidProfilesToReverifyFunc = func(ctx context.Context, hostUUID string, version int64) ([]*fleet.MDMAndroidProfilePayload, error) {
-			return []*fleet.MDMAndroidProfilePayload{
 				installPendingProfile2,
+				installPendingProfile3,
 			}, nil
 		}
 		mockDS.ListHostMDMAndroidVPPAppsPendingInstallWithVersionFunc = func(ctx context.Context, hostUUID string, version int64) ([]*fleet.HostAndroidVPPSoftwareInstall, error) {
@@ -476,10 +466,10 @@ func TestStatusReportPolicyValidation(t *testing.T) {
 		err := svc.ProcessPubSubPush(context.Background(), "value", &enrollmentMessage)
 		require.NoError(t, err)
 
-		require.True(t, mockDS.ListHostMDMAndroidProfilesPendingInstallWithVersionFuncInvoked)
+		require.True(t, mockDS.ListHostMDMAndroidProfilesPendingOrFailedInstallWithVersionFuncInvoked)
 		require.True(t, mockDS.BulkUpsertMDMAndroidHostProfilesFuncInvoked)
 		require.True(t, mockDS.BulkDeleteMDMAndroidHostProfilesFuncInvoked)
-		mockDS.ListHostMDMAndroidProfilesPendingInstallWithVersionFuncInvoked = false
+		mockDS.ListHostMDMAndroidProfilesPendingOrFailedInstallWithVersionFuncInvoked = false
 		mockDS.BulkDeleteMDMAndroidHostProfilesFuncInvoked = false
 		mockDS.BulkUpsertMDMAndroidHostProfilesFuncInvoked = false
 
@@ -491,7 +481,7 @@ func TestStatusReportPolicyValidation(t *testing.T) {
 		err = svc.ProcessPubSubPush(context.Background(), "value", &enrollmentMessage)
 		require.NoError(t, err)
 
-		require.True(t, mockDS.ListHostMDMAndroidProfilesPendingInstallWithVersionFuncInvoked)
+		require.True(t, mockDS.ListHostMDMAndroidProfilesPendingOrFailedInstallWithVersionFuncInvoked)
 		require.True(t, mockDS.BulkUpsertMDMAndroidHostProfilesFuncInvoked)
 		require.True(t, mockDS.BulkDeleteMDMAndroidHostProfilesFuncInvoked)
 	})
@@ -1254,63 +1244,6 @@ func TestBuildNonComplianceErrorMessage(t *testing.T) {
 		})
 	}
 }
-func TestCanProfileBeReverified(t *testing.T) {
-	testCases := []struct {
-		name          string
-		nonCompliance []*androidmanagement.NonComplianceDetail
-		canReverify   bool
-	}{
-		{
-			name: "single reverifiable non-compliance detail",
-			nonCompliance: []*androidmanagement.NonComplianceDetail{
-				{
-					SettingName:         "passwordPolicies",
-					NonComplianceReason: "USER_ACTION",
-				},
-			},
-			canReverify: true,
-		},
-		{
-			name: "two reverifiable non-compliance details",
-			nonCompliance: []*androidmanagement.NonComplianceDetail{
-				{
-					SettingName:         "passwordPolicies",
-					NonComplianceReason: "USER_ACTION",
-				},
-				{
-					SettingName:         "cameraDisabled",
-					NonComplianceReason: "PENDING",
-				},
-			},
-			canReverify: true,
-		},
-		{
-			name: "one reverifiable two not non-compliance details",
-			nonCompliance: []*androidmanagement.NonComplianceDetail{
-				{
-					SettingName:         "bluetoothDisabled",
-					NonComplianceReason: "MANAGEMENT_MODE",
-				},
-				{
-					SettingName:         "passwordPolicies",
-					NonComplianceReason: "USER_ACTION",
-				},
-				{
-					SettingName:         "cameraDisabled",
-					NonComplianceReason: "API_LEVEL",
-				},
-			},
-			canReverify: false,
-		},
-	}
-
-	for _, tc := range testCases {
-		t.Run(tc.name, func(t *testing.T) {
-			reverify := canProfileBeReverified(tc.nonCompliance)
-			require.Equal(t, tc.canReverify, reverify)
-		})
-	}
-}
 
 func TestStatusReportAppInstallVerification(t *testing.T) {
 	svc, mockDS := createAndroidService(t)
@@ -1336,10 +1269,7 @@ func TestStatusReportAppInstallVerification(t *testing.T) {
 	mockDS.UpdateAndroidHostFunc = func(ctx context.Context, host *fleet.AndroidHost, fromEnroll bool) error {
 		return nil
 	}
-	mockDS.ListHostMDMAndroidProfilesPendingInstallWithVersionFunc = func(ctx context.Context, hostUUID string, version int64) ([]*fleet.MDMAndroidProfilePayload, error) {
-		return nil, nil
-	}
-	mockDS.ListHostMDMAndroidProfilesToReverifyFunc = func(ctx context.Context, hostUUID string, version int64) ([]*fleet.MDMAndroidProfilePayload, error) {
+	mockDS.ListHostMDMAndroidProfilesPendingOrFailedInstallWithVersionFunc = func(ctx context.Context, hostUUID string, version int64) ([]*fleet.MDMAndroidProfilePayload, error) {
 		return nil, nil
 	}
 	mockDS.BulkUpsertMDMAndroidHostProfilesFunc = func(ctx context.Context, payload []*fleet.MDMAndroidProfilePayload) error {
