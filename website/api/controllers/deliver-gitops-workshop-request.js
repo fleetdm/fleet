@@ -33,7 +33,7 @@ module.exports = {
 
 
     let emailDomain = emailAddress.split('@')[1];
-    if(_.includes(sails.config.custom.bannedEmailDomainsForContactFormSubmissions, emailDomain.toLowerCase())){
+    if(_.includes(sails.config.custom.bannedEmailDomainsForWebsiteSubmissions, emailDomain.toLowerCase())){
       throw 'invalidEmailDomain';
     }
 
