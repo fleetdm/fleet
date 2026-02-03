@@ -2,10 +2,13 @@ package service
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
+	"net/http"
 	"time"
 
+	carvestorectx "github.com/fleetdm/fleet/v4/server/contexts/carvestore"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	hostctx "github.com/fleetdm/fleet/v4/server/contexts/host"
 	"github.com/fleetdm/fleet/v4/server/contexts/logging"
@@ -255,6 +258,101 @@ type carveBlockResponse struct {
 }
 
 func (r carveBlockResponse) Error() error { return r.Err }
+
+func (r carveBlockRequest) DecodeRequest(ctx context.Context, req *http.Request) (any, error) {
+	carveStore := carvestorectx.FromContext(ctx)
+	if carveStore == nil {
+		return nil, ctxerr.New(ctx, "missing carve store from context")
+	}
+
+	decoder := json.NewDecoder(req.Body)
+
+	newAuthRequiredError := func(err error) error {
+		return ctxerr.Wrap(ctx, fleet.NewAuthFailedError(err.Error()), "authentication error")
+	}
+
+	// 1. Must start with {
+	if t, err := decoder.Token(); err != nil {
+		return nil, newAuthRequiredError(fmt.Errorf("expected object start: %w", err))
+	} else if delim, ok := t.(json.Delim); !ok || delim != '{' {
+		return nil, newAuthRequiredError(fmt.Errorf("expected '{', got %v", t))
+	}
+
+	// 2. Parse field by field.
+	var (
+		blockID   int64
+		sessionID string
+		requestID string
+		data      []byte
+
+		authenticated bool
+	)
+	for decoder.More() {
+		t, err := decoder.Token()
+		if err != nil {
+			return nil, newAuthRequiredError(fmt.Errorf("reading field name: %w", err))
+		}
+		fieldName, ok := t.(string)
+		if !ok {
+			return nil, newAuthRequiredError(fmt.Errorf("expected string field name, got %T: %v", t, t))
+		}
+		switch fieldName {
+		case "block_id":
+			if err := decoder.Decode(&blockID); err != nil {
+				return nil, newAuthRequiredError(fmt.Errorf("invalid block_id: %w", err))
+			}
+		case "session_id":
+			if err := decoder.Decode(&sessionID); err != nil {
+				return nil, newAuthRequiredError(fmt.Errorf("invalid session_id: %w", err))
+			}
+		case "request_id":
+			if err := decoder.Decode(&requestID); err != nil {
+				return nil, newAuthRequiredError(fmt.Errorf("invalid request_id: %w", err))
+			}
+
+			if sessionID == "" {
+				return nil, newAuthRequiredError(errors.New("missing session_id"))
+			}
+			carve, err := carveStore.CarveBySessionId(ctx, sessionID)
+			if err != nil {
+				return nil, newAuthRequiredError(fmt.Errorf("carve by session ID: %w", err))
+			}
+			if requestID != carve.RequestId {
+				return nil, newAuthRequiredError(errors.New("request_id does not match session"))
+			}
+			authenticated = true
+		case "data":
+			if !authenticated {
+				return nil, newAuthRequiredError(errors.New("unauthenticated data"))
+			}
+			// Request is authenticated, thus we proceed to parse "data" field.
+			if err := decoder.Decode(&data); err != nil {
+				return nil, ctxerr.Wrap(ctx, err, "invalid data")
+			}
+		default:
+			// If a new field is added to the API we'll need to account for it here.
+			return nil, newAuthRequiredError(fmt.Errorf("unexpected field: %q", fieldName))
+		}
+	}
+
+	if !authenticated {
+		return nil, newAuthRequiredError(errors.New("unauthenticated request"))
+	}
+
+	// 3. Expect closing }
+	if t, err := decoder.Token(); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "expected object end")
+	} else if delim, ok := t.(json.Delim); !ok || delim != '}' {
+		return nil, ctxerr.Errorf(ctx, "expected '}', got %v", t)
+	}
+
+	return &carveBlockRequest{
+		BlockId:   blockID,
+		SessionId: sessionID,
+		RequestId: requestID,
+		Data:      data,
+	}, nil
+}
 
 func carveBlockEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*carveBlockRequest)
