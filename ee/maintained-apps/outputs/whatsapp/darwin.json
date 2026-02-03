@@ -1,7 +1,7 @@
 {
   "versions": [
     {
-      "version": "26.4.18",
+      "version": "26.5.17",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'net.whatsapp.WhatsApp';"
       },
