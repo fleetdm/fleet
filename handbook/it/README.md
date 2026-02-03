@@ -9,6 +9,8 @@ This page details processes specific to working [with](#contact-us) and [within]
 |:----------------------------------------|:----------------------------------------------------------------------|
 | Head of IT & Solutions Consulting                 | [Allen Houchins](https://www.linkedin.com/in/allenhouchins/) _([@allenhouchins](https://github.com/allenhouchins))_
 | Solutions Consultant (SC)               | <sup><sub> _See [🦄 Go-To-Market groups](https://fleetdm.com/handbook/company/go-to-market-groups#current-gtm-groups)_
+| IT Support Administrator             | [Andrea Pepper](https://www.linkedin.com/in/lppepper/) _([@lppepper2](https://github.com/lppepper2))_ 
+
 
 
 ## Contact us

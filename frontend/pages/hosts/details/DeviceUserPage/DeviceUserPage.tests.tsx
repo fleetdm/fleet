@@ -9,6 +9,8 @@ import createMockLicense from "__mocks__/licenseMock";
 
 import { IGetSetupExperienceStatusesResponse } from "services/entities/device_user";
 
+import { IHostPolicy } from "interfaces/policy";
+
 import {
   customDeviceHandler,
   defaultDeviceCertificatesHandler,
@@ -17,6 +19,7 @@ import {
   emptySetupExperienceHandler,
 } from "test/handlers/device-handler";
 import DeviceUserPage from "./DeviceUserPage";
+import PolicyDetailsModal from "../cards/Policies/HostPoliciesTable/PolicyDetailsModal";
 
 const mockRouter = createMockRouter();
 
@@ -312,7 +315,11 @@ describe("Device User Page", () => {
         {
           host,
           global_config: {
-            features: { enable_software_inventory: true },
+            features: {
+              enable_software_inventory: true,
+              enable_conditional_access: false,
+              enable_conditional_access_bypass: false,
+            },
             mdm: {
               enabled_and_configured: true,
               require_all_software_macos: true,
@@ -359,7 +366,11 @@ describe("Device User Page", () => {
         {
           host,
           global_config: {
-            features: { enable_software_inventory: true },
+            features: {
+              enable_software_inventory: true,
+              enable_conditional_access: false,
+              enable_conditional_access_bypass: false,
+            },
             mdm: {
               enabled_and_configured: true,
               require_all_software_macos: true,
@@ -440,7 +451,11 @@ describe("Device User Page", () => {
             enabled_and_configured: true,
             require_all_software_macos: false,
           },
-          features: { enable_software_inventory: true },
+          features: {
+            enable_software_inventory: true,
+            enable_conditional_access: false,
+            enable_conditional_access_bypass: false,
+          },
         },
       });
 
@@ -460,7 +475,11 @@ describe("Device User Page", () => {
             enabled_and_configured: true,
             require_all_software_macos: false,
           },
-          features: { enable_software_inventory: true },
+          features: {
+            enable_software_inventory: true,
+            enable_conditional_access: false,
+            enable_conditional_access_bypass: false,
+          },
         },
       });
 
@@ -480,7 +499,11 @@ describe("Device User Page", () => {
             enabled_and_configured: false,
             require_all_software_macos: false,
           },
-          features: { enable_software_inventory: true },
+          features: {
+            enable_software_inventory: true,
+            enable_conditional_access: false,
+            enable_conditional_access_bypass: false,
+          },
         },
       });
 
@@ -501,12 +524,104 @@ describe("Device User Page", () => {
             enabled_and_configured: true,
             require_all_software_macos: false,
           },
-          features: { enable_software_inventory: true },
+          features: {
+            enable_software_inventory: true,
+            enable_conditional_access: false,
+            enable_conditional_access_bypass: false,
+          },
         },
       });
 
       const btn = screen.queryByRole("button", { name: "Turn on MDM" });
       expect(btn).toBeNull();
+    });
+  });
+
+  describe("Conditional access feature flags", () => {
+    // Test PolicyDetailsModal directly to verify the onResolveLater behavior
+    // which is controlled by enable_conditional_access and enable_conditional_access_bypass flags
+    const createFailingConditionalAccessPolicy = (): IHostPolicy => ({
+      id: 1,
+      name: "Test Policy",
+      query: "SELECT 1",
+      description: "Test description",
+      author_id: 1,
+      author_name: "Test Author",
+      author_email: "test@example.com",
+      resolution: "Fix the issue",
+      platform: "darwin",
+      team_id: null,
+      created_at: "2022-01-01T12:00:00Z",
+      updated_at: "2022-01-02T12:00:00Z",
+      critical: false,
+      calendar_events_enabled: false,
+      conditional_access_enabled: true,
+      response: "fail",
+    });
+
+    it("shows 'Resolve later' button when onResolveLater is provided and policy is failing conditional access", () => {
+      createCustomRenderer({})(
+        <PolicyDetailsModal
+          onCancel={jest.fn()}
+          policy={createFailingConditionalAccessPolicy()}
+          onResolveLater={jest.fn()}
+        />
+      );
+
+      expect(
+        screen.getByRole("button", { name: "Resolve later" })
+      ).toBeInTheDocument();
+    });
+
+    it("does not show 'Resolve later' button when onResolveLater is not provided", () => {
+      createCustomRenderer({})(
+        <PolicyDetailsModal
+          onCancel={jest.fn()}
+          policy={createFailingConditionalAccessPolicy()}
+        />
+      );
+
+      expect(
+        screen.queryByRole("button", { name: "Resolve later" })
+      ).not.toBeInTheDocument();
+    });
+
+    it("does not show 'Resolve later' button when policy is passing", () => {
+      const passingPolicy = {
+        ...createFailingConditionalAccessPolicy(),
+        response: "pass" as const,
+      };
+
+      createCustomRenderer({})(
+        <PolicyDetailsModal
+          onCancel={jest.fn()}
+          policy={passingPolicy}
+          onResolveLater={jest.fn()}
+        />
+      );
+
+      expect(
+        screen.queryByRole("button", { name: "Resolve later" })
+      ).not.toBeInTheDocument();
+    });
+
+    it("does not show 'Resolve later' button when policy does not have conditional_access_enabled", () => {
+      const nonConditionalPolicy = {
+        ...createFailingConditionalAccessPolicy(),
+        conditional_access_enabled: false,
+      };
+
+      createCustomRenderer({})(
+        <PolicyDetailsModal
+          onCancel={jest.fn()}
+          policy={nonConditionalPolicy}
+          onResolveLater={jest.fn()}
+        />
+      );
+
+      expect(
+        screen.queryByRole("button", { name: "Resolve later" })
+      ).not.toBeInTheDocument();
     });
   });
 });

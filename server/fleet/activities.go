@@ -3081,10 +3081,6 @@ func (a ActivityTypeHostBypassedConditionalAccess) ActivityName() string {
 	return "host_bypassed_conditional_access"
 }
 
-func (a ActivityTypeHostBypassedConditionalAccess) HostIDs() []uint {
-	return []uint{a.HostID}
-}
-
 func (a ActivityTypeHostBypassedConditionalAccess) Documentation() (activity string, details string, detailsExample string) {
 	return `Generated when a host bypasses conditional access.`,
 		`This activity contains the following fields:

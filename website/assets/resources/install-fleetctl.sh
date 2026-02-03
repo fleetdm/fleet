@@ -27,16 +27,11 @@ version_gt() {
 # Determine operating system (Linux or MacOS)
 OS="$(uname -s)"
 
-# Determine architecture (x86_64 or arm64)
-ARCH="$(uname -m)"
-# Standardize x86_64 to amd64
-if [[ $ARCH != "arm64" &&
-      $ARCH != "aarch64" &&
-      $ARCH != "aarch64_be" &&
-      $ARCH != "armv8b" &&
-      $ARCH != "armv8l"
-    ]];
+# Determine architecture (amd64 or arm64)
+if uname -m | grep -qE '^(arm|aarch64)';
 then
+  ARCH="arm64";
+else
   ARCH="amd64";
 fi
 

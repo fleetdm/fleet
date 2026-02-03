@@ -34,6 +34,7 @@ export interface IGetSoftwareByIdResponse {
 // check to see if we still need this.
 export interface ISoftware {
   id: number;
+  /** All software names displayed by UI is ran through getDisplayedSoftwareName */
   name: string; // e.g., "Figma.app"
   /** Custom name set per team by admin */
   display_name?: string; // e.g. "Figma for Desktop"
@@ -161,6 +162,7 @@ export const isSoftwarePackage = (
 
 export interface ISoftwareTitle {
   id: number;
+  /** All software names displayed by UI is ran through getDisplayedSoftwareName */
   name: string;
   /** Custom name set per team by admin */
   display_name?: string;
@@ -178,6 +180,7 @@ export interface ISoftwareTitle {
 
 export interface ISoftwareTitleDetails {
   id: number;
+  /** All software names displayed by UI is ran through getDisplayedSoftwareName */
   name: string;
   /** Custom name set per team by admin */
   display_name?: string;
@@ -212,6 +215,7 @@ export interface ISoftwareVulnerability {
 
 export interface ISoftwareVersion {
   id: number;
+  /** All software names displayed by UI is ran through getDisplayedSoftwareName */
   name: string; // e.g., "Figma.app"
   /** Custom name set per team by admin */
   display_name?: string; // e.g. "Figma for Desktop"
@@ -545,6 +549,7 @@ export interface IHostAppStoreApp {
 
 export interface IHostSoftware {
   id: number;
+  /** All software names displayed by UI is ran through getDisplayedSoftwareName */
   name: string; // e.g., "mock software.app"
   /** Custom name set per team by admin */
   display_name?: string; // e.g. "Mock Software"
@@ -571,7 +576,9 @@ export interface IHostSoftware {
 // Error UI statuses
 export const HOST_SOFTWARE_UI_ERROR_STATUSES = [
   "failed_install", // Install attempt failed
+  "failed_install_installed", // Install attempt failed but version still present
   "failed_install_update_available", // Install/update failed; newer installer version available
+  "failed_uninstall_installed", // Uninstall attempt failed but version still present
   "failed_uninstall", // Uninstall attempt failed
   "failed_uninstall_update_available", // Uninstall/update failed; newer installer version available
   "failed_script", // Script package failed to run

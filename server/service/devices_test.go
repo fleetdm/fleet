@@ -418,6 +418,25 @@ func TestGetFleetDesktopSummary(t *testing.T) {
 				},
 			},
 			{
+				name: "throttled ADE assignment status",
+				host: &fleet.Host{
+					DEPAssignedToFleet: ptr.Bool(true),
+					OsqueryHostID:      ptr.String("test"),
+				},
+				hostMDM: &fleet.HostMDM{
+					IsServer:               false,
+					InstalledFromDep:       true,
+					Enrolled:               true,
+					Name:                   fleet.WellKnownMDMIntune,
+					DEPProfileAssignStatus: ptr.String(string(fleet.DEPAssignProfileResponseThrottled)),
+				},
+				err: nil,
+				out: fleet.DesktopNotifications{
+					NeedsMDMMigration:      false,
+					RenewEnrollmentProfile: false,
+				},
+			},
+			{
 				name: "not accessible ADE assignment status",
 				host: &fleet.Host{
 					DEPAssignedToFleet: ptr.Bool(true),
