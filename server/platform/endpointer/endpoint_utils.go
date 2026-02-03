@@ -399,7 +399,7 @@ func MakeDecoder(
 			}
 			ret, err := rd.DecodeRequest(ctx, r)
 			if err != nil && err == io.ErrUnexpectedEOF {
-				return nil, platform_http.PayloadTooLargeError{ContentLength: r.Header.Get("Content-Length")}
+				return nil, platform_http.PayloadTooLargeError{ContentLength: r.Header.Get("Content-Length"), MaxRequestSize: maxRequestBodySize}
 			}
 			return ret, err
 		}
@@ -442,7 +442,7 @@ func MakeDecoder(
 				err := jsonUnmarshal(body, req)
 				if err != nil {
 					if err == io.ErrUnexpectedEOF {
-						return nil, platform_http.PayloadTooLargeError{ContentLength: r.Header.Get("Content-Length")}
+						return nil, platform_http.PayloadTooLargeError{ContentLength: r.Header.Get("Content-Length"), MaxRequestSize: maxRequestBodySize}
 					}
 
 					return nil, BadRequestErr("json decoder error", err)
@@ -503,7 +503,7 @@ func MakeDecoder(
 			err := decodeBody(ctx, r, v, body)
 			if err != nil {
 				if errors.Is(err, io.ErrUnexpectedEOF) {
-					return nil, platform_http.PayloadTooLargeError{ContentLength: r.Header.Get("Content-Length")}
+					return nil, platform_http.PayloadTooLargeError{ContentLength: r.Header.Get("Content-Length"), MaxRequestSize: maxRequestBodySize}
 				}
 				return nil, err
 			}

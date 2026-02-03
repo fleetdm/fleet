@@ -7,8 +7,10 @@ import (
 	"net/http"
 	"reflect"
 	"regexp"
+	"strconv"
 	"strings"
 
+	"github.com/docker/go-units"
 	"github.com/google/uuid"
 )
 
@@ -87,19 +89,27 @@ func (e BadRequestError) IsClientError() bool {
 }
 
 type PayloadTooLargeError struct {
-	ContentLength string
+	ContentLength  string
+	MaxRequestSize int64
 }
 
 func (e PayloadTooLargeError) Error() string {
-	return "payload is too large"
+	return fmt.Sprintf("Request exceeds the max size limit of %s", units.HumanSize(float64(e.MaxRequestSize)))
 }
 
 func (e PayloadTooLargeError) Internal() string {
 	// This is for us to have an indication of the size we get, might be spoofable, but better than nothing
+	msg := fmt.Sprintf("Request exceeds the max size limit of %s", units.HumanSize(float64(e.MaxRequestSize)))
 	if e.ContentLength != "" {
-		return fmt.Sprintf("Endpoint hit with more than allowed payload size (Content-Length: %s)", e.ContentLength)
+		size := e.ContentLength
+		contentLengthAsNumber, err := strconv.ParseFloat(e.ContentLength, 64)
+		if err == nil {
+			// We don't care if we failed to parse the number, only if we were successful
+			size = units.HumanSize(contentLengthAsNumber)
+		}
+		msg += fmt.Sprintf(", Incoming Content-Length: %s", size)
 	}
-	return ""
+	return msg
 }
 
 func (e PayloadTooLargeError) StatusCode() int {
