@@ -1,0 +1,2 @@
+* Disallowed use of FLEET_DEV_* environment variables unless `--dev` is passed when serving Fleet.
+* Allowed overriding individual configuration variables for MySQL and object storage when `--dev` is passed when serving Fleet.

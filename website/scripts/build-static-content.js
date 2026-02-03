@@ -350,8 +350,9 @@ module.exports = {
               .split(/\//).map((fileOrFolderName) => fileOrFolderName.toLowerCase().replace(/\s+/g, '-')).join('/')
             );
 
-            // If this page is in the docs/contributing/ folder, skip it.
-            if(sectionRepoPath === 'docs/' && _.startsWith(pageUnextensionedUnwhitespacedLowercasedRelPath, 'contributing/')){
+            // Only build markdown pages from the Get started, Configuration, Deploy, and REST API subfolders.
+            let subfolderName = pageRelSourcePath.split('/')[0];
+            if(sectionRepoPath === 'docs/' && !['Get started', 'Deploy', 'REST API', 'Configuration'].includes(subfolderName)){
               continue;
             }
             // Skip pages in folders starting with an underscore character.
@@ -651,7 +652,7 @@ module.exports = {
                   throw new Error(`Failed compiling markdown content: An article page is missing a category meta tag (<meta name="category" value="guides">) at "${path.join(topLvlRepoPath, pageSourcePath)}".  To resolve, add a meta tag with the category of the article`);
                 } else {
                   // Throwing an error if the article has an invalid category.
-                  let validArticleCategories = ['deploy', 'articles', 'security', 'engineering', 'success stories', 'announcements', 'guides', 'releases', 'podcasts', 'report', 'case study' ];
+                  let validArticleCategories = ['deploy', 'articles', 'security', 'engineering', 'success stories', 'announcements', 'guides', 'releases', 'podcasts', 'report', 'case study', 'comparison' ];
                   if(!validArticleCategories.includes(embeddedMetadata.category)) {
                     throw new Error(`Failed compiling markdown content: An article page has an invalid category meta tag (<meta name="category" value="${embeddedMetadata.category}">) at "${path.join(topLvlRepoPath, pageSourcePath)}". To resolve, change the meta tag to a valid category, one of: ${validArticleCategories}`);
                   }
@@ -737,13 +738,30 @@ module.exports = {
                     }
                   }
                 }
-                // For article pages, we'll attach the category to the `rootRelativeUrlPath`.
-                // If the article is categorized as 'product' we'll replace the category with 'use-cases', or if it is categorized as 'success story' we'll replace it with 'device-management'
-                rootRelativeUrlPath = (
-                  '/' +
-                  (encodeURIComponent(embeddedMetadata.category === 'success stories' ? 'success-stories' : embeddedMetadata.category === 'security' ? 'securing' : embeddedMetadata.category === 'case study' ? 'case-study' : embeddedMetadata.category)) + '/' +
-                  (pageUnextensionedUnwhitespacedLowercasedRelPath.split(/\//).map((fileOrFolderName) => encodeURIComponent(fileOrFolderName.replace(/^[0-9]+[\-]+/,'').replace(/\./g, '-'))).join('/'))
-                );
+                // If this is a comparison article, we will require a different set of meta tags and will determine the URL of the page using the articleSlugInCategory meta tag.
+                if(embeddedMetadata.category === 'comparison') {
+                  if(!embeddedMetadata.articleSubtitle){
+                    throw new Error(`Failed compiling markdown content: A comparison article is missing a "articleSubtitle" meta tag at ${path.join(topLvlRepoPath, pageSourcePath)}. To resolve, add a articleSubtitle meta tag and try running this script again.`);
+                  }
+
+                  if(!embeddedMetadata.articleSlugInCategory){
+                    throw new Error(`Failed compiling markdown content: A comparison article is missing a "articleSlugInCategory" meta tag at ${path.join(topLvlRepoPath, pageSourcePath)}. To resolve, add a articleSlugInCategory meta tag and try running this script again.`);
+                  }
+
+                  if(!embeddedMetadata.introductionTextBlockOne){
+                    throw new Error(`Failed compiling markdown content: A comparison article is missing a "introductionTextBlockOne" meta tag at ${path.join(topLvlRepoPath, pageSourcePath)}. To resolve, add a introductionTextBlockOne meta tag and try running this script again.`);
+                  }
+                  rootRelativeUrlPath = ('/' +(encodeURIComponent('compare') + '/' + encodeURIComponent(embeddedMetadata.articleSlugInCategory)));
+                } else {
+
+                  // For article pages, we'll attach the category to the `rootRelativeUrlPath`.
+                  // If the article is categorized as 'product' we'll replace the category with 'use-cases', or if it is categorized as 'success story' we'll replace it with 'device-management'
+                  rootRelativeUrlPath = (
+                    '/' +
+                    (encodeURIComponent(embeddedMetadata.category === 'success stories' ? 'success-stories' : embeddedMetadata.category === 'security' ? 'securing' : embeddedMetadata.category === 'case study' ? 'case-study' : embeddedMetadata.category)) + '/' +
+                    (pageUnextensionedUnwhitespacedLowercasedRelPath.split(/\//).map((fileOrFolderName) => encodeURIComponent(fileOrFolderName.replace(/^[0-9]+[\-]+/,'').replace(/\./g, '-'))).join('/'))
+                  );
+                }
               }
 
               // Assert uniqueness of URL paths.

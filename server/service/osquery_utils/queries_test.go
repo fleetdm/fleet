@@ -416,7 +416,7 @@ func TestGetDetailQueries(t *testing.T) {
 	queriesWithUsersAndSoftware := GetDetailQueries(context.Background(), config.FleetConfig{App: config.AppConfig{EnableScheduledQueryStats: true}}, nil, &fleet.Features{EnableHostUsers: true, EnableSoftwareInventory: true}, Integrations{}, nil)
 	qs = baseQueries
 	qs = append(qs, "users", "users_chrome", "software_macos", "software_linux", "software_windows", "software_vscode_extensions", "software_jetbrains_plugins", "software_linux_fleetd_pacman",
-		"software_chrome", "software_python_packages", "software_python_packages_with_users_dir", "scheduled_query_stats", "software_macos_firefox", "software_macos_codesign", "software_windows_last_opened_at", "software_deb_last_opened_at", "software_rpm_last_opened_at")
+		"software_chrome", "software_python_packages", "software_python_packages_with_users_dir", "scheduled_query_stats", "software_macos_firefox", "software_macos_codesign", "software_macos_executable_sha256", "software_windows_last_opened_at", "software_deb_last_opened_at", "software_rpm_last_opened_at")
 	require.Len(t, queriesWithUsersAndSoftware, len(qs))
 	sortedKeysCompare(t, queriesWithUsersAndSoftware, qs)
 
@@ -1534,7 +1534,7 @@ func TestDirectIngestSoftware(t *testing.T) {
 			require.True(t, ds.UpdateHostSoftwareFuncInvoked)
 
 			require.Len(t, calledWith, 1)
-			require.Contains(t, strings.Join(maps.Keys(calledWith), " "), fmt.Sprintf("%s%s%s%s%s%s", data[1]["installed_path"], fleet.SoftwareFieldSeparator, "", fleet.SoftwareFieldSeparator, fleet.SoftwareFieldSeparator, data[1]["name"]))
+			require.Contains(t, strings.Join(maps.Keys(calledWith), " "), fmt.Sprintf("%s%s%s%s%s%s%s%s%s%s%s", data[1]["installed_path"], fleet.SoftwareFieldSeparator, "", fleet.SoftwareFieldSeparator, "", fleet.SoftwareFieldSeparator, "", fleet.SoftwareFieldSeparator, "", fleet.SoftwareFieldSeparator, data[1]["name"]))
 
 			ds.UpdateHostSoftwareInstalledPathsFuncInvoked = false
 		})
@@ -1595,9 +1595,12 @@ func TestDirectIngestSoftware(t *testing.T) {
 				"source":            "apps",
 				"bundle_identifier": "com.bundle.com",
 				"vendor":            "EvilCorp",
+
 				"installed_path":    "/Applications/Software1.app",
 				"team_identifier":   "corp1",
 				"cdhash_sha256":     "1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef",
+				"executable_sha256": "abcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890",
+				"executable_path":   "/Applications/Software1.app/Contents/MacOS/Software1",
 			},
 			{
 				"name":              "Software 2",
@@ -1605,8 +1608,9 @@ func TestDirectIngestSoftware(t *testing.T) {
 				"source":            "apps",
 				"bundle_identifier": "coms.widgets.com",
 				"vendor":            "widgets",
-				"team_identifier":   "corp2",
-				"installed_path":    "/Applications/Software2.app",
+
+				"team_identifier": "corp2",
+				"installed_path":  "/Applications/Software2.app",
 			},
 		}
 		var dataAsSoftware []fleet.Software
@@ -1628,23 +1632,32 @@ func TestDirectIngestSoftware(t *testing.T) {
 			require.Len(t, sPaths, 2)
 			require.Contains(t, sPaths,
 				fmt.Sprintf(
-					"%s%s%s%s%s%s%s",
+					"%s%s%s%s%s%s%s%s%s%s%s",
 					data[0]["installed_path"],
 					fleet.SoftwareFieldSeparator,
 					data[0]["team_identifier"],
 					fleet.SoftwareFieldSeparator,
 					data[0]["cdhash_sha256"],
 					fleet.SoftwareFieldSeparator,
+					data[0]["executable_sha256"],
+					fleet.SoftwareFieldSeparator,
+					data[0]["executable_path"],
+					fleet.SoftwareFieldSeparator,
 					dataAsSoftware[0].ToUniqueStr(),
 				),
 			)
 			require.Contains(t, sPaths,
 				fmt.Sprintf(
-					"%s%s%s%s%s%s",
+					"%s%s%s%s%s%s%s%s%s%s%s",
 					data[1]["installed_path"],
 					fleet.SoftwareFieldSeparator,
 					data[1]["team_identifier"],
 					fleet.SoftwareFieldSeparator,
+					"",
+					fleet.SoftwareFieldSeparator,
+					"",
+					fleet.SoftwareFieldSeparator,
+					"",
 					fleet.SoftwareFieldSeparator,
 					dataAsSoftware[1].ToUniqueStr(),
 				),
@@ -1824,6 +1837,14 @@ func TestDirectIngestDiskEncryptionKeyDarwin(t *testing.T) {
 	ctx := context.Background()
 	logger := log.NewNopLogger()
 	host := &fleet.Host{ID: 1}
+
+	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+		return &fleet.AppConfig{
+			MDM: fleet.MDM{
+				EnableDiskEncryption: optjson.SetBool(true),
+			},
+		}, nil
+	}
 
 	var wantKey string
 

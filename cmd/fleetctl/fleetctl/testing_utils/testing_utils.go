@@ -16,9 +16,11 @@ import (
 	"testing"
 	"time"
 
+	"github.com/docker/go-units"
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/datastore/cached_mysql"
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
+	"github.com/fleetdm/fleet/v4/server/dev_mode"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/vpp"
@@ -139,6 +141,9 @@ func RunServerWithMockedDS(t *testing.T, opts ...*service.TestServerOpts) (*http
 	ds.ListHostDeviceMappingFunc = func(ctx context.Context, id uint) ([]*fleet.HostDeviceMapping, error) {
 		return nil, nil
 	}
+	ds.ConditionalAccessBypassedAtFunc = func(ctx context.Context, hostID uint) (*time.Time, error) {
+		return nil, nil
+	}
 	ds.GetGroupedCertificateAuthoritiesFunc = func(ctx context.Context, includeSecrets bool) (*fleet.GroupedCertificateAuthorities, error) {
 		return &fleet.GroupedCertificateAuthorities{}, nil
 	}
@@ -206,7 +211,7 @@ func StartSoftwareInstallerServer(t *testing.T) {
 				case strings.Contains(r.URL.Path, "toolarge"):
 					w.Header().Set("Content-Type", "application/vnd.debian.binary-package")
 					var sz int
-					for sz < 3000*1024*1024 {
+					for sz < 513*units.MiB {
 						n, _ := w.Write(b)
 						sz += n
 					}
@@ -642,7 +647,7 @@ func StartVPPApplyServer(t *testing.T, config *AppleVPPConfigSrvConf) {
 		_, _ = w.Write(resp)
 	}))
 
-	t.Setenv("FLEET_DEV_VPP_URL", srv.URL)
+	dev_mode.SetOverride("FLEET_DEV_VPP_URL", srv.URL, t)
 	t.Cleanup(srv.Close)
 }
 
@@ -668,7 +673,7 @@ func StartAndServeVPPServer(t *testing.T) {
 	// Set up the VPP proxy metadata server using the new format
 	// This replaces the old iTunes API format
 	vppProxySrv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.Header.Get("Authorization") != "Bearer test-bearer-token" {
+		if r.Header.Get("Authorization") != "Bearer test-bearer-token" || r.Header.Get("vpp-token") == "" {
 			w.WriteHeader(401)
 			_, _ = w.Write([]byte(`{"error": "unauthorized"}`))
 			return
@@ -747,8 +752,8 @@ func StartAndServeVPPServer(t *testing.T) {
 
 	t.Cleanup(vppProxySrv.Close)
 	t.Cleanup(vppProxyAuthSrv.Close)
-	t.Setenv("FLEET_DEV_STOKEN_AUTHENTICATED_APPS_URL", vppProxySrv.URL)
-	t.Setenv("FLEET_DEV_VPP_PROXY_AUTH_URL", vppProxyAuthSrv.URL)
+	dev_mode.SetOverride("FLEET_DEV_STOKEN_AUTHENTICATED_APPS_URL", vppProxySrv.URL, t)
+	dev_mode.SetOverride("FLEET_DEV_VPP_PROXY_AUTH_URL", vppProxyAuthSrv.URL, t)
 }
 
 type MockPusher struct{}

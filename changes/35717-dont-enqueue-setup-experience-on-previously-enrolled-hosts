@@ -1,0 +1,1 @@
+- Added logic to skip setup experience for hosts that were enrolled > 1 day ago.

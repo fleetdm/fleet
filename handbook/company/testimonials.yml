@@ -99,7 +99,7 @@
   quote: Having the freedom to take full advantage of the product is one of the reasons why I always support open-source products with a commercially-backed company, like Fleet.
   quoteImageFilename: social-proof-logo-lyft-47x32@2x.png
   quoteLinkUrl: https://www.linkedin.com/posts/nwaisman_movingtofleet-activity-7156319785981509632-bk_W
-  quoteAuthorName: Nico Waisman
+  quoteAuthorName: nico waisman # Note: this name is lowercased here so we can display only one Nico Waisman quote on the testimonials page (which does not filter quotes by product category) (The name will be capitalized via CSS)  
   quoteAuthorProfileImageFilename: testimonial-author-nico-waisman-48x48@2x.png
   quoteAuthorJobTitle: CISO of Lyft
   productCategories: [Device management] # « explanation: https://github.com/fleetdm/fleet/blob/f412b1f02fb6d6f36bdc0776252fff72fc0fc2ea/website/views/pages/device-management.ejs#L32
@@ -182,7 +182,7 @@
   productCategories: [Observability]
 -
   quote: I don't want one bad actor to brick my fleet, I want them to make a pull request first. Thanks for making our lives easier. We got a pat on the back for making the migration so easy! 
-  quoteAuthorName: Matt Carr
+  quoteAuthorName: matt carr # Note: this name is lowercased here so we can display only one Matt Carr quote on the testimonials page (which does not filter quotes by product category) (The name will be capitalized via CSS)  
   quoteAuthorJobTitle: CPE manager
   quoteAuthorProfileImageFilename: testimonial-author-matt-carr-48x48@2x.png
   quoteLinkUrl: https://www.linkedin.com/in/mathewcarr/
@@ -296,4 +296,12 @@
   quoteAuthorName: Fiona Skelton
   quoteAuthorJobTitle: Senior Technology Specialist
   quoteAuthorProfileImageFilename: testimonial-author-fiona-skelton-100x100@2x.jpeg
+  productCategories: [Device management]
+-
+  quote: Fleet enabled us to consolidate our patchwork of endpoint tools with a single platform, eliminating complexity and cutting licensing costs. The shift to GitOps has modernized our operations giving us the agility and change control we needed giving leadership real-time confidence in device health and compliance. The result is a more efficient, secure environment where IT can move faster on strategic projects instead of firefighting or maintaining multiple legacy systems.
+  quoteAuthorName: Dan Jackson
+  quoteAuthorJobTitle: Sr Manager Systems Engineering
+  quoteAuthorProfileImageFilename: testimonial-author-dan-jackson-48x48.png
+  quoteLinkUrl: https://www.linkedin.com/in/mrdanieljackson/
+  quoteImageFilename: social-proof-logo-fastly-83x32@2x.png
   productCategories: [Device management]
