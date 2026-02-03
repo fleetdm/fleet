@@ -39,6 +39,8 @@ type ListUsersFunc func(ctx context.Context, opt fleet.UserListOptions) (users [
 
 type UsersByIDsFunc func(ctx context.Context, ids []uint) ([]*fleet.UserSummary, error)
 
+type GetHostLiteFunc func(ctx context.Context, id uint) (host *fleet.Host, err error)
+
 type GetTransparencyURLFunc func(ctx context.Context) (string, error)
 
 type AuthenticateOrbitHostFunc func(ctx context.Context, nodeKey string) (host *fleet.Host, debug bool, err error)
@@ -218,8 +220,6 @@ type StreamHostsFunc func(ctx context.Context, opt fleet.HostListOptions) (hostI
 type ListHostsFunc func(ctx context.Context, opt fleet.HostListOptions) (hosts []*fleet.Host, err error)
 
 type GetHostFunc func(ctx context.Context, id uint, opts fleet.HostDetailOptions) (host *fleet.HostDetail, err error)
-
-type GetHostLiteFunc func(ctx context.Context, id uint) (host *fleet.Host, err error)
 
 type GetHostHealthFunc func(ctx context.Context, id uint) (hostHealth *fleet.HostHealth, err error)
 
@@ -908,6 +908,9 @@ type Service struct {
 	UsersByIDsFunc        UsersByIDsFunc
 	UsersByIDsFuncInvoked bool
 
+	GetHostLiteFunc        GetHostLiteFunc
+	GetHostLiteFuncInvoked bool
+
 	GetTransparencyURLFunc        GetTransparencyURLFunc
 	GetTransparencyURLFuncInvoked bool
 
@@ -1177,9 +1180,6 @@ type Service struct {
 
 	GetHostFunc        GetHostFunc
 	GetHostFuncInvoked bool
-
-	GetHostLiteFunc        GetHostLiteFunc
-	GetHostLiteFuncInvoked bool
 
 	GetHostHealthFunc        GetHostHealthFunc
 	GetHostHealthFuncInvoked bool
@@ -2238,6 +2238,13 @@ func (s *Service) UsersByIDs(ctx context.Context, ids []uint) ([]*fleet.UserSumm
 	return s.UsersByIDsFunc(ctx, ids)
 }
 
+func (s *Service) GetHostLite(ctx context.Context, id uint) (host *fleet.Host, err error) {
+	s.mu.Lock()
+	s.GetHostLiteFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetHostLiteFunc(ctx, id)
+}
+
 func (s *Service) GetTransparencyURL(ctx context.Context) (string, error) {
 	s.mu.Lock()
 	s.GetTransparencyURLFuncInvoked = true
@@ -2866,13 +2873,6 @@ func (s *Service) GetHost(ctx context.Context, id uint, opts fleet.HostDetailOpt
 	s.GetHostFuncInvoked = true
 	s.mu.Unlock()
 	return s.GetHostFunc(ctx, id, opts)
-}
-
-func (s *Service) GetHostLite(ctx context.Context, id uint) (host *fleet.Host, err error) {
-	s.mu.Lock()
-	s.GetHostLiteFuncInvoked = true
-	s.mu.Unlock()
-	return s.GetHostLiteFunc(ctx, id)
 }
 
 func (s *Service) GetHostHealth(ctx context.Context, id uint) (hostHealth *fleet.HostHealth, err error) {
