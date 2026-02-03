@@ -764,11 +764,12 @@ func (cmd *GenerateGitopsCommand) generateIntegrations(filePath string, integrat
 	if !cmd.CLI.Bool("insecure") {
 		if googleCalendar, ok := result["google_calendar"]; ok && googleCalendar != nil {
 			for _, intg := range googleCalendar.([]interface{}) {
-				if apiKeyJson, ok := intg.(map[string]interface{})["api_key_json"]; ok {
-					apiKeyJson.(map[string]interface{})["private_key"] = cmd.AddComment(filePath, "TODO: Add your Google Calendar API key JSON here")
+				intgMap := intg.(map[string]interface{})
+				if _, ok := intgMap["api_key_json"]; ok {
+					intgMap["api_key_json"] = cmd.AddComment(filePath, "TODO: Add your Google Calendar API key JSON here")
 					cmd.Messages.SecretWarnings = append(cmd.Messages.SecretWarnings, SecretWarning{
 						Filename: "default.yml",
-						Key:      "integrations.google_calendar.api_key_json.private_key",
+						Key:      "integrations.google_calendar.api_key_json",
 					})
 				}
 			}
