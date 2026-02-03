@@ -4425,13 +4425,13 @@ func (s *integrationTestSuite) TestGetMacadminsData() {
 	assert.Equal(t, "warning1", macadminsData.Macadmins.MunkiIssues[0].Name)
 
 	// only mdm returns null on munki info
-	require.NoError(t, s.ds.SetOrUpdateMDMData(ctx, hostOnlyMDM.ID, false, true, "https://kandji.io", true, fleet.WellKnownMDMKandji, "", false))
+	require.NoError(t, s.ds.SetOrUpdateMDMData(ctx, hostOnlyMDM.ID, false, true, "https://kandji.io", true, fleet.WellKnownMDMIru, "", false))
 	macadminsData = macadminsDataResponse{}
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/macadmins", hostOnlyMDM.ID), nil, http.StatusOK, &macadminsData)
 	require.NotNil(t, macadminsData.Macadmins)
 	require.NotNil(t, macadminsData.Macadmins.MDM)
 	require.NotNil(t, macadminsData.Macadmins.MDM.Name)
-	assert.Equal(t, fleet.WellKnownMDMKandji, *macadminsData.Macadmins.MDM.Name)
+	assert.Equal(t, fleet.WellKnownMDMIru, *macadminsData.Macadmins.MDM.Name)
 	require.NotNil(t, macadminsData.Macadmins.MDM.ID)
 	assert.NotZero(t, *macadminsData.Macadmins.MDM.ID)
 	require.Nil(t, macadminsData.Macadmins.Munki)
@@ -4498,7 +4498,7 @@ func (s *integrationTestSuite) TestGetMacadminsData() {
 			assert.Equal(t, fleet.UnknownMDMName, sol.Name)
 			assert.Equal(t, 1, sol.HostsCount)
 		case "https://kandji.io":
-			assert.Equal(t, fleet.WellKnownMDMKandji, sol.Name)
+			assert.Equal(t, fleet.WellKnownMDMIru, sol.Name)
 			assert.Equal(t, 1, sol.HostsCount)
 		default:
 			require.Fail(t, "unknown MDM server URL: %s", sol.ServerURL)
@@ -9420,18 +9420,30 @@ func (s *integrationTestSuite) TestChangePassword() {
 		{"password123$", "password123$", http.StatusUnprocessableEntity},
 		// wrong old pw
 		{"passgord123$", "Password$321", http.StatusUnprocessableEntity},
+
+		// change back to original password for cleanup
+		{"Password$321", startPwd, http.StatusOK},
 	}
 
-	runTestCases := func(name string) {
+	runTestCases := func(name, userEmail string) {
+		currentPwd := startPwd
 		for _, tc := range testCases {
 			t.Run(name, func(t *testing.T) {
 				var changePwResp changePasswordResponse
 				s.DoJSON("POST", endpoint, changePasswordRequest{OldPassword: tc.oldPw, NewPassword: tc.newPw}, tc.expectedStatus, &changePwResp)
+				// After a successful password change, the session is invalidated, so we need to re-authenticate
+				if tc.expectedStatus == http.StatusOK {
+					currentPwd = tc.newPw
+					s.token = s.getTestToken(userEmail, currentPwd)
+				}
 			})
 		}
 	}
 
-	runTestCases("test change passwords as admin")
+	adminEmail := "admin1@example.com"
+	// Clear the cached admin token so it will be refreshed after password changes
+	s.cachedAdminToken = ""
+	runTestCases("test change passwords as admin", adminEmail)
 
 	// create a new user
 	testUserEmail := "changepwd@example.com"
@@ -9446,13 +9458,13 @@ func (s *integrationTestSuite) TestChangePassword() {
 	s.DoJSON("POST", "/api/latest/fleet/users/admin", params, http.StatusOK, &createResp)
 	require.NotZero(t, createResp.User.ID)
 
-	// schedule cleanup with admin user's token before changing it
-	oldToken := s.token
-	t.Cleanup(func() { s.token = oldToken })
+	// Clear the cached admin token again and schedule cleanup to restore it
+	s.cachedAdminToken = ""
+	t.Cleanup(func() { s.token = s.getTestAdminToken() })
 
 	// login and run the change password tests as the user
 	s.token = s.getTestToken(testUserEmail, startPwd)
-	runTestCases("test change passwords as user")
+	runTestCases("test change passwords as user", testUserEmail)
 }
 
 func (s *integrationTestSuite) TestPasswordReset() {

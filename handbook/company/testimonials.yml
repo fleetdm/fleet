@@ -61,7 +61,7 @@
   quoteLinkUrl: https://www.linkedin.com/in/danielgrzelak/
   quoteAuthorName: Dan Grzelak
   quoteAuthorProfileImageFilename: testimonial-author-daniel-grzelak-48x48@2x.png
-  quoteAuthorJobTitle: Security Chief of Staff
+  quoteAuthorJobTitle: Former Security Chief of Staff
   productCategories: [Observability, Software management, Device management]
 -
   quote: We can build it exactly the way we want it. Which is just not possible on other platforms.
@@ -77,7 +77,7 @@
   quoteLinkUrl: https://www.linkedin.com/in/eriknicolasgomez/
   quoteAuthorName: Erik Gomez
   quoteAuthorProfileImageFilename: testimonial-author-erik-gomez-48x48@2x.png
-  quoteAuthorJobTitle: Staff Client Platform Engineer
+  quoteAuthorJobTitle: Former Staff Client Platform Engineer
   productCategories: [Observability, Device management, Software management]
 -
   quote: Context is king for device data, and Fleet provides a way to surface that information to our other teams and partners.
@@ -99,7 +99,7 @@
   quote: Having the freedom to take full advantage of the product is one of the reasons why I always support open-source products with a commercially-backed company, like Fleet.
   quoteImageFilename: social-proof-logo-lyft-47x32@2x.png
   quoteLinkUrl: https://www.linkedin.com/posts/nwaisman_movingtofleet-activity-7156319785981509632-bk_W
-  quoteAuthorName: Nico Waisman
+  quoteAuthorName: nico waisman # Note: this name is lowercased here so we can display only one Nico Waisman quote on the testimonials page (which does not filter quotes by product category) (The name will be capitalized via CSS)  
   quoteAuthorProfileImageFilename: testimonial-author-nico-waisman-48x48@2x.png
   quoteAuthorJobTitle: CISO of Lyft
   productCategories: [Device management] # « explanation: https://github.com/fleetdm/fleet/blob/f412b1f02fb6d6f36bdc0776252fff72fc0fc2ea/website/views/pages/device-management.ejs#L32
@@ -182,7 +182,7 @@
   productCategories: [Observability]
 -
   quote: I don't want one bad actor to brick my fleet, I want them to make a pull request first. Thanks for making our lives easier. We got a pat on the back for making the migration so easy! 
-  quoteAuthorName: Matt Carr
+  quoteAuthorName: matt carr # Note: this name is lowercased here so we can display only one Matt Carr quote on the testimonials page (which does not filter quotes by product category) (The name will be capitalized via CSS)  
   quoteAuthorJobTitle: CPE manager
   quoteAuthorProfileImageFilename: testimonial-author-matt-carr-48x48@2x.png
   quoteLinkUrl: https://www.linkedin.com/in/mathewcarr/

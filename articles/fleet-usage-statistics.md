@@ -44,9 +44,30 @@ Below is the JSON payload that is sent to Fleet Device Management Inc:
   "maintenanceWindowsConfigured": true,
   "numHostsFleetDesktopEnabled": 999,
   "hostsEnrolledByOperatingSystem": {
+    "android": [
+      {
+        "version": "Android 15",
+        "numEnrolled": 999
+      },
+      ...
+    ],
     "darwin": [
       {
         "version": "macOS 12.3.1",
+        "numEnrolled": 999
+      },
+      ...
+    ],
+    "ios": [
+      {
+        "version": "iOS 26.0.1",
+        "numEnrolled": 999
+      },
+      ...
+    ],
+    "ipados": [
+      {
+        "version": "iPadOS 26.1",
         "numEnrolled": 999
       },
       ...
