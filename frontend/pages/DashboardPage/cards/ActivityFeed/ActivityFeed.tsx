@@ -34,6 +34,7 @@ import SoftwareUninstallDetailsModal, {
   ISWUninstallDetailsParentState,
 } from "components/ActivityDetails/InstallDetails/SoftwareUninstallDetailsModal/SoftwareUninstallDetailsModal";
 import { IShowActivityDetailsData } from "components/ActivityItem/ActivityItem";
+import { getDisplayedSoftwareName } from "pages/SoftwarePage/helpers";
 
 import GlobalActivityItem from "./GlobalActivityItem";
 import ActivityAutomationDetailsModal from "./components/ActivityAutomationDetailsModal";
@@ -251,8 +252,10 @@ const ActivityFeed = ({
       case ActivityType.UninstalledSoftware:
         setPackageUninstallDetails({
           ...details,
-          softwareName:
-            details?.software_display_name || details?.software_title || "",
+          softwareName: getDisplayedSoftwareName(
+            details?.software_title,
+            details?.software_display_name
+          ),
           uninstallStatus: resolveUninstallStatus(details?.status),
           scriptExecutionId: details?.script_execution_id || "",
           hostDisplayName: details?.host_display_name,
@@ -384,10 +387,10 @@ const ActivityFeed = ({
       {ipaPackageInstallDetails && (
         <SoftwareIpaInstallDetailsModal
           details={{
-            appName:
-              ipaPackageInstallDetails.software_display_name ||
-              ipaPackageInstallDetails.software_title ||
-              "",
+            appName: getDisplayedSoftwareName(
+              ipaPackageInstallDetails.software_title,
+              ipaPackageInstallDetails.software_display_name
+            ),
             fleetInstallStatus: (ipaPackageInstallDetails.status ||
               "pending_install") as SoftwareInstallUninstallStatus,
             hostDisplayName: ipaPackageInstallDetails.host_display_name || "",
@@ -406,10 +409,10 @@ const ActivityFeed = ({
       {vppInstallDetails && (
         <VppInstallDetailsModal
           details={{
-            appName:
-              vppInstallDetails.software_display_name ||
-              vppInstallDetails.software_title ||
-              "",
+            appName: getDisplayedSoftwareName(
+              vppInstallDetails.software_title,
+              vppInstallDetails.software_display_name
+            ),
             fleetInstallStatus: (vppInstallDetails.status ||
               "pending_install") as SoftwareInstallUninstallStatus,
             hostDisplayName: vppInstallDetails.host_display_name || "",

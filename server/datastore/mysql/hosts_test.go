@@ -1546,7 +1546,7 @@ func testHostsListMDM(t *testing.T, ds *Datastore) {
 	const simpleMDM, kandji, unknown = "https://simplemdm.com", "https://kandji.io", "https://url.com"
 	err = ds.SetOrUpdateMDMData(ctx, hostIDs[0], false, true, simpleMDM, true, fleet.WellKnownMDMSimpleMDM, "", false) // enrollment: automatic
 	require.NoError(t, err)
-	err = ds.SetOrUpdateMDMData(ctx, hostIDs[1], false, true, kandji, true, fleet.WellKnownMDMKandji, "", false) // enrollment: automatic
+	err = ds.SetOrUpdateMDMData(ctx, hostIDs[1], false, true, kandji, true, fleet.WellKnownMDMIru, "", false) // enrollment: automatic
 	require.NoError(t, err)
 	err = ds.SetOrUpdateMDMData(ctx, hostIDs[2], false, true, unknown, false, fleet.UnknownMDMName, "", false) // enrollment: manual
 	require.NoError(t, err)
@@ -1559,7 +1559,7 @@ func testHostsListMDM(t *testing.T, ds *Datastore) {
 	})
 	var kandjiID uint
 	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
-		return sqlx.GetContext(ctx, q, &kandjiID, `SELECT id FROM mobile_device_management_solutions WHERE name = ? AND server_url = ?`, fleet.WellKnownMDMKandji, kandji)
+		return sqlx.GetContext(ctx, q, &kandjiID, `SELECT id FROM mobile_device_management_solutions WHERE name = ? AND server_url = ?`, fleet.WellKnownMDMIru, kandji)
 	})
 
 	filter := fleet.TeamFilter{User: test.UserAdmin}
@@ -1597,7 +1597,7 @@ func testHostsListMDM(t *testing.T, ds *Datastore) {
 	hosts = listHostsCheckCount(t, ds, filter, fleet.HostListOptions{MDMIDFilter: &simpleMDMID, MDMNameFilter: ptr.String(fleet.WellKnownMDMSimpleMDM), MDMEnrollmentStatusFilter: fleet.MDMEnrollStatusEnrolled}, 1)
 	assert.Equal(t, 1, len(hosts))
 
-	hosts = listHostsCheckCount(t, ds, filter, fleet.HostListOptions{MDMNameFilter: ptr.String(fleet.WellKnownMDMKandji)}, 1)
+	hosts = listHostsCheckCount(t, ds, filter, fleet.HostListOptions{MDMNameFilter: ptr.String(fleet.WellKnownMDMIru)}, 1)
 	assert.Equal(t, 1, len(hosts))
 
 	hosts = listHostsCheckCount(t, ds, filter, fleet.HostListOptions{MDMNameFilter: ptr.String(fleet.WellKnownMDMFleet), MDMEnrollmentStatusFilter: fleet.MDMEnrollStatusPending}, 1)
@@ -7196,7 +7196,7 @@ func testHostMDMAndMunki(t *testing.T, ds *Datastore) {
 	assert.Equal(t, fleet.UnknownMDMName, hmdm.Name)
 	assert.False(t, hmdm.IsPersonalEnrollment)
 
-	require.NoError(t, ds.SetOrUpdateMDMData(context.Background(), 455, false, true, "https://kandji.io", true, fleet.WellKnownMDMKandji, "", false)) // kandji mdm name
+	require.NoError(t, ds.SetOrUpdateMDMData(context.Background(), 455, false, true, "https://kandji.io", true, fleet.WellKnownMDMIru, "", false)) // kandji mdm name
 	require.NoError(t, ds.SetOrUpdateMDMData(context.Background(), 432, false, false, "url3", true, "", "", true))
 
 	hmdm, err = ds.GetHostMDM(context.Background(), 432)
@@ -7218,13 +7218,13 @@ func testHostMDMAndMunki(t *testing.T, ds *Datastore) {
 	require.NotNil(t, hmdm.MDMID)
 	assert.NotZero(t, *hmdm.MDMID)
 	kandjiID1 := *hmdm.MDMID
-	assert.Equal(t, fleet.WellKnownMDMKandji, hmdm.Name)
+	assert.Equal(t, fleet.WellKnownMDMIru, hmdm.Name)
 
 	// get mdm solution
 	mdmSol, err := ds.GetMDMSolution(context.Background(), kandjiID1)
 	require.NoError(t, err)
 	require.Equal(t, "https://kandji.io", mdmSol.ServerURL)
-	require.Equal(t, fleet.WellKnownMDMKandji, mdmSol.Name)
+	require.Equal(t, fleet.WellKnownMDMIru, mdmSol.Name)
 
 	// get unknown mdm solution
 	_, err = ds.GetMDMSolution(context.Background(), kandjiID1+1000)
@@ -7257,7 +7257,7 @@ func testHostMDMAndMunki(t *testing.T, ds *Datastore) {
 
 	// switch to a different Kandji server URL, will have a different MDM ID as
 	// even though this is another Kandji, the URL is different.
-	require.NoError(t, ds.SetOrUpdateMDMData(context.Background(), 455, false, true, "https://kandji.io/2", false, fleet.WellKnownMDMKandji, "", false))
+	require.NoError(t, ds.SetOrUpdateMDMData(context.Background(), 455, false, true, "https://kandji.io/2", false, fleet.WellKnownMDMIru, "", false))
 
 	hmdm, err = ds.GetHostMDM(context.Background(), 455)
 	require.NoError(t, err)
@@ -7267,7 +7267,7 @@ func testHostMDMAndMunki(t *testing.T, ds *Datastore) {
 	require.NotNil(t, hmdm.MDMID)
 	assert.NotZero(t, *hmdm.MDMID)
 	assert.NotEqual(t, kandjiID1, *hmdm.MDMID)
-	assert.Equal(t, fleet.WellKnownMDMKandji, hmdm.Name)
+	assert.Equal(t, fleet.WellKnownMDMIru, hmdm.Name)
 }
 
 func testMunkiIssuesBatchSize(t *testing.T, ds *Datastore) {
@@ -7391,6 +7391,15 @@ func testAggregatedHostMDMAndMunki(t *testing.T, ds *Datastore) {
 	require.Len(t, solutions, 0)
 	require.NotZero(t, updatedAt)
 
+	// helper for asserting MDM solutions
+	mapSolutionsByURL := func(solutions []fleet.AggregatedMDMSolutions) map[string]fleet.AggregatedMDMSolutions {
+		m := make(map[string]fleet.AggregatedMDMSolutions)
+		for _, sol := range solutions {
+			m[sol.ServerURL] = sol
+		}
+		return m
+	}
+
 	// So now we try with data
 	require.NoError(t, ds.SetOrUpdateMunkiInfo(context.Background(), 123, "1.2.3", []string{"a", "b"}, []string{"c"}))
 	require.NoError(t, ds.SetOrUpdateMunkiInfo(context.Background(), 999, "9.0", []string{"a"}, nil))
@@ -7447,8 +7456,8 @@ func testAggregatedHostMDMAndMunki(t *testing.T, ds *Datastore) {
 	require.NoError(t, ds.SetOrUpdateMDMData(context.Background(), 123, false, true, "url", false, "", "", false))                                           // manual enrollment
 	require.NoError(t, ds.SetOrUpdateMDMData(context.Background(), 124, false, true, "url", false, "", "", false))                                           // manual enrollment
 	require.NoError(t, ds.SetOrUpdateMDMData(context.Background(), 455, false, true, "https://simplemdm.com", true, fleet.WellKnownMDMSimpleMDM, "", false)) // automatic enrollment
-	require.NoError(t, ds.SetOrUpdateMDMData(context.Background(), 999, false, false, "https://kandji.io", false, fleet.WellKnownMDMKandji, "", false))      // unenrolled
-	require.NoError(t, ds.SetOrUpdateMDMData(context.Background(), 875, false, false, "https://kandji.io", true, fleet.WellKnownMDMKandji, "", false))       // pending enrollment
+	require.NoError(t, ds.SetOrUpdateMDMData(context.Background(), 999, false, false, "https://kandji.io", false, fleet.WellKnownMDMIru, "", false))         // unenrolled
+	require.NoError(t, ds.SetOrUpdateMDMData(context.Background(), 875, false, false, "https://iru.com", true, fleet.WellKnownMDMIru, "", false))            // pending enrollment
 	require.NoError(t, ds.SetOrUpdateMDMData(context.Background(), 1337, false, false, "https://fleetdm.com", true, fleet.WellKnownMDMFleet, "", false))     // pending enrollment
 	require.NoError(t, ds.SetOrUpdateMDMData(context.Background(), 31337, false, true, "https://fleetdm.com", false, fleet.WellKnownMDMFleet, "", true))     // Personal enrollment
 
@@ -7465,7 +7474,7 @@ func testAggregatedHostMDMAndMunki(t *testing.T, ds *Datastore) {
 
 	solutions, _, err = ds.AggregatedMDMSolutions(context.Background(), nil, "")
 	require.NoError(t, err)
-	require.Len(t, solutions, 4) // 4 different urls
+	require.Len(t, solutions, 5) // 5 different urls
 	for _, sol := range solutions {
 		switch sol.ServerURL {
 		case "url":
@@ -7475,8 +7484,11 @@ func testAggregatedHostMDMAndMunki(t *testing.T, ds *Datastore) {
 			assert.Equal(t, 1, sol.HostsCount)
 			assert.Equal(t, fleet.WellKnownMDMSimpleMDM, sol.Name)
 		case "https://kandji.io":
-			assert.Equal(t, 2, sol.HostsCount)
-			assert.Equal(t, fleet.WellKnownMDMKandji, sol.Name)
+			assert.Equal(t, 1, sol.HostsCount)
+			assert.Equal(t, fleet.WellKnownMDMIru, sol.Name)
+		case "https://iru.com":
+			assert.Equal(t, 1, sol.HostsCount)
+			assert.Equal(t, fleet.WellKnownMDMIru, sol.Name)
 		case "https://fleetdm.com":
 			assert.Equal(t, 2, sol.HostsCount)
 			assert.Equal(t, fleet.WellKnownMDMFleet, sol.Name)
@@ -7587,22 +7599,23 @@ func testAggregatedHostMDMAndMunki(t *testing.T, ds *Datastore) {
 	solutions, updatedAt, err = ds.AggregatedMDMSolutions(context.Background(), nil, "")
 	require.True(t, updatedAt.After(firstUpdatedAt))
 	require.NoError(t, err)
-	require.Len(t, solutions, 5)
+	require.Len(t, solutions, 6)
+	byURL := mapSolutionsByURL(solutions)
 	// Check the new MDM solution used by the iOS/iPadOS
-	assert.Equal(t, "https://fleet.example.com", solutions[4].ServerURL)
-	assert.Equal(t, fleet.WellKnownMDMFleet, solutions[4].Name)
-	assert.Equal(t, 3, solutions[4].HostsCount)
-
+	assert.Equal(t, "https://fleet.example.com", byURL["https://fleet.example.com"].ServerURL)
+	assert.Equal(t, fleet.WellKnownMDMFleet, byURL["https://fleet.example.com"].Name)
+	assert.Equal(t, 3, byURL["https://fleet.example.com"].HostsCount)
 	solutions, updatedAt, err = ds.AggregatedMDMSolutions(context.Background(), &team1.ID, "")
 	require.True(t, updatedAt.After(firstUpdatedAt))
 	require.NoError(t, err)
 	require.Len(t, solutions, 2)
-	assert.Equal(t, "https://simplemdm.com", solutions[0].ServerURL)
-	assert.Equal(t, fleet.WellKnownMDMSimpleMDM, solutions[0].Name)
-	assert.Equal(t, 1, solutions[0].HostsCount)
-	assert.Equal(t, "https://fleet.example.com", solutions[1].ServerURL)
-	assert.Equal(t, fleet.WellKnownMDMFleet, solutions[1].Name)
-	assert.Equal(t, 2, solutions[1].HostsCount)
+	byURL = mapSolutionsByURL(solutions)
+	assert.Equal(t, "https://simplemdm.com", byURL["https://simplemdm.com"].ServerURL)
+	assert.Equal(t, fleet.WellKnownMDMSimpleMDM, byURL["https://simplemdm.com"].Name)
+	assert.Equal(t, 1, byURL["https://simplemdm.com"].HostsCount)
+	assert.Equal(t, "https://fleet.example.com", byURL["https://fleet.example.com"].ServerURL)
+	assert.Equal(t, fleet.WellKnownMDMFleet, byURL["https://fleet.example.com"].Name)
+	assert.Equal(t, 2, byURL["https://fleet.example.com"].HostsCount)
 
 	status, _, err = ds.AggregatedMDMStatus(context.Background(), &team1.ID, "darwin")
 	require.NoError(t, err)

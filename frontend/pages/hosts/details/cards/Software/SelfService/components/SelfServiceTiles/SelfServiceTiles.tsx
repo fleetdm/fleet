@@ -9,6 +9,7 @@ import CustomLink from "components/CustomLink";
 import SoftwareIcon from "pages/SoftwarePage/components/icons/SoftwareIcon";
 import TooltipTruncatedText from "components/TooltipTruncatedText";
 import Spinner from "components/Spinner";
+import { getDisplayedSoftwareName } from "pages/SoftwarePage/helpers";
 import TileActionStatus from "../TileActionStatus";
 
 const baseClass = "self-service-tiles-list";
@@ -69,7 +70,10 @@ const SelfServiceTiles = ({
               <div className={`${tileBaseClass}__item-name`}>
                 <TooltipTruncatedText
                   isMobileView
-                  value={software.display_name || software.name}
+                  value={getDisplayedSoftwareName(
+                    software.name,
+                    software.display_name
+                  )}
                 />
               </div>
               <div className={`${tileBaseClass}__item-version`}>

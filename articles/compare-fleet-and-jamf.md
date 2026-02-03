@@ -93,6 +93,6 @@ Implementation and migration timelines vary based on fleet size and organization
 <meta name="articleSlugInCategory" value="jamf"> 
 <meta name="introductionTextBlockOne" value="Organizations managing Apple devices face a choice: pick one of a number of available Apple device management solutions, or, a solution with cross-platform capabilities."> 
 <meta name="introductionTextBlockTwo" value="This guide compares and contrasts the capabilities of Fleet with Jamf Pro, highlighting deployment approaches and buying decision criteria."> 
-<meta name="category" value="compare">
+<meta name="category" value="comparison">
 <meta name="publishedOn" value="2026-01-27">
 <meta name="description" value="This guide compares and contrasts the capabilities of Fleet with Jamf Pro, highlighting deployment approaches and buying decision criteria.">

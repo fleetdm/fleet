@@ -11,6 +11,7 @@ import (
 	"strconv"
 	"strings"
 	"time"
+	"unicode"
 
 	"github.com/doug-martin/goqu/v9"
 	_ "github.com/doug-martin/goqu/v9/dialect/mysql"
@@ -722,10 +723,6 @@ func (ds *Datastore) getIncomingSoftwareChecksumsToExistingTitles(
 	// Get titles for software with bundle_identifier
 	existingBundleIDsToUpdate := make(map[string]fleet.Software)
 	if len(argsWithBundleIdentifier) > 0 {
-		// no-op code change
-		// TODO(jacob) - this var name is shadowing the one in the outer scope. Is this successfully
-		// adding titles-by-checksum for software with bundle ids?
-		incomingChecksumsToTitleSummaries = make(map[string]fleet.SoftwareTitleSummary, len(newSoftwareChecksums))
 		stmtBundleIdentifier := `SELECT id, name, source, extension_for, bundle_identifier FROM software_titles WHERE bundle_identifier IN (?)`
 		stmtBundleIdentifier, argsWithBundleIdentifier, err := sqlx.In(stmtBundleIdentifier, argsWithBundleIdentifier)
 		if err != nil {
@@ -760,15 +757,33 @@ func BundleIdentifierOrName(bundleIdentifier, name string) string {
 	return name
 }
 
-// UniqueSoftwareTitleStr creates a unique string representation of the software title.
-// Returns lowercase to ensure case-insensitive matching, since MySQL uses case-insensitive
-// collation (utf8mb4_unicode_ci) but Go map lookups are case-sensitive.
-func UniqueSoftwareTitleStr(values ...string) string {
-	lowered := make([]string, len(values))
-	for i, v := range values {
-		lowered[i] = strings.ToLower(v)
+// normalizeForCollation strips Unicode characters that MySQL's utf8mb4_unicode_ci collation
+// ignores during comparison. This includes format characters (category Cf) like RTL/LTR marks
+// and zero-width characters, as well as control characters (category Cc). This ensures that
+// Go's map lookups behave consistently with MySQL's collation-based matching.
+func normalizeForCollation(s string) string {
+	var result strings.Builder
+	result.Grow(len(s))
+	for _, r := range s {
+		// Skip format characters (Cf) and control characters (Cc)
+		// These have zero primary weight in Unicode collation and are ignored by MySQL
+		if !unicode.Is(unicode.Cf, r) && !unicode.Is(unicode.Cc, r) {
+			result.WriteRune(r)
+		}
 	}
-	return strings.Join(lowered, fleet.SoftwareFieldSeparator)
+	return result.String()
+}
+
+// UniqueSoftwareTitleStr creates a unique string representation of the software title.
+// Returns lowercase and normalized to ensure matching that is consistent with MySQL's
+// utf8mb4_unicode_ci collation, which is case-insensitive and ignores certain Unicode
+// control/format characters.
+func UniqueSoftwareTitleStr(values ...string) string {
+	normalized := make([]string, len(values))
+	for i, v := range values {
+		normalized[i] = strings.ToLower(normalizeForCollation(v))
+	}
+	return strings.Join(normalized, fleet.SoftwareFieldSeparator)
 }
 
 // delete host_software that is in current map, but not in incoming map.
@@ -963,7 +978,8 @@ func (ds *Datastore) preInsertSoftwareInventory(
 						bundleID = *title.BundleIdentifier
 					}
 					key := titleKey{
-						name:         strings.ToLower(title.Name), // lowercase for case-insensitive dedup matching MySQL collation
+						// adjust for matching MySQL collation
+						name:         strings.ToLower(normalizeForCollation(title.Name)),
 						source:       title.Source,
 						extensionFor: title.ExtensionFor,
 						bundleID:     bundleID,
@@ -991,9 +1007,9 @@ func (ds *Datastore) preInsertSoftwareInventory(
 
 				// Retrieve the IDs for the titles we just inserted (or that already existed)
 				var retrievedTitleSummaries []fleet.SoftwareTitleSummary
-				// TODO - include UpgradeCode in the below WHERE (these args) for additional specificity?
 				titlePlaceholders := strings.TrimSuffix(strings.Repeat("(?,?,?,?),", len(uniqueTitlesToInsert)), ",")
 				queryArgs := make([]interface{}, 0, len(uniqueTitlesToInsert)*4)
+				var upgradeCodes []string
 				for tk := range uniqueTitlesToInsert {
 					title := uniqueTitlesToInsert[tk]
 					bundleID := ""
@@ -1006,11 +1022,25 @@ func (ds *Datastore) preInsertSoftwareInventory(
 						firstArg = bundleID
 					}
 					queryArgs = append(queryArgs, firstArg, title.Source, title.ExtensionFor, bundleID)
+
+					// Collect non-empty upgrade_codes for Windows programs
+					if title.UpgradeCode != nil && *title.UpgradeCode != "" && title.Source == "programs" {
+						upgradeCodes = append(upgradeCodes, *title.UpgradeCode)
+					}
 				}
 
+				// Build query that matches by (name/bundle_identifier, source, extension_for) OR by upgrade_code.
 				stmt := fmt.Sprintf(`SELECT id, name, source, extension_for, bundle_identifier, upgrade_code, application_id
 					FROM software_titles
 					WHERE (COALESCE(bundle_identifier, name), source, extension_for, COALESCE(bundle_identifier, '')) IN (%s)`, titlePlaceholders)
+
+				if len(upgradeCodes) > 0 {
+					ucPlaceholders := strings.TrimSuffix(strings.Repeat("?,", len(upgradeCodes)), ",")
+					stmt += fmt.Sprintf(` OR (upgrade_code IN (%s) AND source = 'programs')`, ucPlaceholders)
+					for _, uc := range upgradeCodes {
+						queryArgs = append(queryArgs, uc)
+					}
+				}
 
 				if err := sqlx.SelectContext(ctx, tx, &retrievedTitleSummaries, stmt, queryArgs...); err != nil {
 					return ctxerr.Wrap(ctx, err, "select software titles")
@@ -1022,20 +1052,39 @@ func (ds *Datastore) preInsertSoftwareInventory(
 					if titleSummary.BundleIdentifier != nil {
 						bundleID = *titleSummary.BundleIdentifier
 					}
+					var titleSummaryUpgradeCode string
+					if titleSummary.UpgradeCode != nil {
+						titleSummaryUpgradeCode = *titleSummary.UpgradeCode
+					}
 					for checksum, title := range newTitlesNeeded {
 						var titleBundleID string
 						if title.BundleIdentifier != nil {
 							titleBundleID = *title.BundleIdentifier
 						}
+						var titleUpgradeCode string
+						if title.UpgradeCode != nil {
+							titleUpgradeCode = *title.UpgradeCode
+						}
 						// For apps with bundle_identifier, match by bundle_identifier (since we may have picked a different name)
+						// For Windows programs with upgrade_code, match by upgrade_code (names may differ between versions)
 						// For others, match by name (case-insensitive to match MySQL collation)
-						nameMatches := strings.EqualFold(titleSummary.Name, title.Name)
-						// TODO - similarly match if UpgradeCodes match?
+						// We normalize names by trimming whitespace and stripping Unicode format/control characters
+						// to match MySQL's utf8mb4_unicode_ci collation behavior.
+						nameMatches := strings.EqualFold(normalizeForCollation(strings.TrimSpace(titleSummary.Name)), normalizeForCollation(strings.TrimSpace(title.Name)))
 						if bundleID != "" && titleBundleID != "" {
 							// Both have bundle_identifier - match by bundle_identifier instead of name
 							nameMatches = true
 						}
-						if nameMatches && titleSummary.Source == title.Source && titleSummary.ExtensionFor == title.ExtensionFor && bundleID == titleBundleID {
+						if titleUpgradeCode != "" && titleSummaryUpgradeCode != "" && titleUpgradeCode == titleSummaryUpgradeCode {
+							// Both have non-empty upgrade_code and they match: consider it a match
+							// This handles the case where different versions of Windows software have
+							// different names (e.g., "7-Zip 24.08 (x64)" vs "7-Zip 24.09 (x64 edition)") but share the same upgrade_code
+							nameMatches = true
+						}
+						// Use case-insensitive comparison for bundle_identifier to match MySQL's collation and Apple's specification
+						// that bundle IDs are case-insensitive (https://developer.apple.com/help/glossary/bundle-id/)
+						if nameMatches && titleSummary.Source == title.Source && titleSummary.ExtensionFor == title.ExtensionFor && strings.EqualFold(bundleID,
+							titleBundleID) {
 							titleIDsByChecksum[checksum] = titleSummary.ID
 							// Don't break here - multiple checksums can map to the same title
 							// (e.g., when software has same truncated name but different versions (very rare))

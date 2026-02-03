@@ -34,6 +34,7 @@ import SoftwareInstallDetailsModal from "components/ActivityDetails/InstallDetai
 import SoftwareIpaInstallDetailsModal from "components/ActivityDetails/InstallDetails/SoftwareIpaInstallDetailsModal";
 import SoftwareScriptDetailsModal from "components/ActivityDetails/InstallDetails/SoftwareScriptDetailsModal";
 import { VppInstallDetailsModal } from "components/ActivityDetails/InstallDetails/VppInstallDetailsModal/VppInstallDetailsModal";
+import { getDisplayedSoftwareName } from "pages/SoftwarePage/helpers";
 
 import UpdatesCard from "./components/UpdatesCard/UpdatesCard";
 import SelfServiceCard from "./SelfServiceCard/SelfServiceCard";
@@ -743,9 +744,10 @@ const SoftwareSelfService = ({
           details={{
             hostDisplayName,
             fleetInstallStatus: selectedHostSWIpaInstallDetails.status,
-            appName:
-              selectedHostSWIpaInstallDetails.display_name ||
+            appName: getDisplayedSoftwareName(
               selectedHostSWIpaInstallDetails.name,
+              selectedHostSWIpaInstallDetails.display_name
+            ),
             commandUuid:
               selectedHostSWIpaInstallDetails.software_package?.last_install
                 ?.install_uuid, // slightly redundant, see explanation in `SoftwareInstallDetailsModal
@@ -776,9 +778,10 @@ const SoftwareSelfService = ({
           details={{
             fleetInstallStatus: selectedVPPInstallDetails.status,
             hostDisplayName,
-            appName:
-              selectedVPPInstallDetails.display_name ||
+            appName: getDisplayedSoftwareName(
               selectedVPPInstallDetails.name,
+              selectedVPPInstallDetails.display_name
+            ),
             commandUuid: selectedVPPInstallDetails.commandUuid,
           }}
           hostSoftware={selectedVPPInstallDetails}
