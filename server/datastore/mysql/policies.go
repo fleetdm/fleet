@@ -1656,8 +1656,7 @@ func cleanupPolicyMembershipOnPolicyUpdate(
 		  FIND_IN_SET(h.platform, ?) = 0`
 
 		var expandedPlatforms []string
-		splitPlatforms := strings.Split(platforms, ",")
-		for _, platform := range splitPlatforms {
+		for platform := range strings.SplitSeq(platforms, ",") {
 			expandedPlatforms = append(expandedPlatforms, fleet.ExpandPlatform(strings.TrimSpace(platform))...)
 		}
 
