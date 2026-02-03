@@ -1,109 +1,438 @@
 <div id="login" v-cloak>
-<!--   <div purpose="announcement-banner">
-    <animated-arrow-button arrow-color="white" text-color="white" href="/articles/free-migration-from-jamf-to-fleet">Free Jamf to Fleet MDM migration service</animated-arrow-button>
-  </div> -->
-  <div purpose="page-container" class="container">
-    <div purpose="page-heading">
-      <h1>Welcome to Fleet</h1>
-      <p class="mb-0">We just need a few details in order to get started.</p>
+  <div purpose="fleet-ui-background">
+    <div purpose="g-header">
+      <div purpose="g-header-left">
+      <div purpose="g-header-logo">
+      <img alt="fleet-logo" src="/images/logo-brandmark-140x140@2x.png">
+      </div>
+      <div purpose="g-header-links">
+        <div purpose="g-link"></div>
+        <div purpose="g-link"></div>
+        <div purpose="g-link"></div>
+        <div purpose="g-link"></div>
+        <div purpose="g-link"></div>
+      </div>
+      </div>
+      <div purpose="g-header-right">
+        <div purpose="g-header-avatar">
+          <img src="/images/permanent/icon-avatar-default-gray-transparent-64x64@2x.png">
+        </div>
+        <div purpose="g-header-chevron">
+          <img class="d-flex" style="width: 16px; height: 16px;" src="/images/chevron-down-16x16@2x.png" alt="a small chevron pointing downwards">
+        </div>
+      </div>
     </div>
-    <div purpose="form-container" class="d-flex flex-lg-row flex-column justify-content-between align-items-start">
-      <div purpose="login-form" class="mx-auto mx-lg-0">
-        <div purpose="customer-portal-form"  class="card card-body mb-5">
-          <div purpose="register-link" v-if="showCustomerLogin">
-            <a :href="registerSlug">Create an account</a>
+    <div purpose="g-content">
+      <div purpose="g-page-header">
+        <div></div>
+      </div>
+      <div purpose="g-team-select">
+        <div purpose="g-label">
+        </div>
+        <div purpose="g-select">
+          <div purpose="g-label"></div>
+            <img class="d-flex" style="width: 16px; height: 16px;" src="/images/chevron-down-16x16@2x.png" alt="a small chevron pointing downwards">
+        </div>
+      </div>
+      <div purpose="g-platforms">
+        <div purpose="g-platform">
+          <div purpose="g-icon"></div>
+          <div>
+            <div purpose="g-label"></div>
+            <div purpose="g-bottom-label"></div>
           </div>
-          <ajax-form class="customers-login" action="login" :syncing.sync="syncing" :cloud-error.sync="cloudError" :form-data="formData" :form-rules="formRules" :form-errors.sync="formErrors" @submitted="submittedForm()">
+        </div>
+        <div purpose="g-platform">
+          <div purpose="g-icon"></div>
+          <div>
+            <div purpose="g-label"></div>
+            <div purpose="g-bottom-label"></div>
+          </div>
+        </div>
+        <div purpose="g-platform">
+          <div purpose="g-icon"></div>
+          <div>
+            <div purpose="g-label"></div>
+            <div purpose="g-bottom-label"></div>
+          </div>
+        </div>
+        <div purpose="g-platform">
+          <div purpose="g-icon"></div>
+          <div>
+            <div purpose="g-label"></div>
+            <div purpose="g-bottom-label"></div>
+          </div>
+        </div>
+        <div purpose="g-platform">
+          <div purpose="g-icon"></div>
+          <div>
+            <div purpose="g-label"></div>
+            <div purpose="g-bottom-label"></div>
+          </div>
+        </div>
+        <div purpose="g-platform">
+          <div purpose="g-icon"></div>
+          <div>
+            <div purpose="g-label"></div>
+            <div purpose="g-bottom-label"></div>
+          </div>
+        </div>
+        <div purpose="g-platform">
+          <div purpose="g-icon"></div>
+          <div>
+            <div purpose="g-label"></div>
+            <div purpose="g-bottom-label"></div>
+          </div>
+        </div>
+      </div>
+
+      <div purpose="g-details">
+        <div purpose="g-table">
+          <div purpose="g-table-headings">
+            <div purpose="g-labels">
+              <div purpose="g-label-25"></div>
+              <div purpose="g-label-10"></div>
+            </div>
+            <div purpose="g-link"></div>
+          </div>
+          <div purpose="g-table-links">
+            <div purpose="g-label-25"></div>
+            <div purpose="g-label-10"></div>
+          </div>
+          <div purpose="g-table-body">
+            <div purpose="g-th">
+              <div purpose="g-td"><div purpose="g-label-25"></div></div>
+              <div purpose="g-td"><div purpose="g-label-25"></div></div>
+              <div purpose="g-td"><div purpose="g-label-25"></div></div>
+            </div>
+            <div purpose="g-tr">
+              <div purpose="g-td"><div purpose="g-label-10"></div></div>
+              <div purpose="g-td"><div purpose="g-label-10"></div></div>
+              <div purpose="g-td"><div purpose="g-label-10"></div></div>
+            </div>
+            <div purpose="g-tr">
+              <div purpose="g-td"><div purpose="g-label-10"></div></div>
+              <div purpose="g-td"><div purpose="g-label-10"></div></div>
+              <div purpose="g-td"><div purpose="g-label-10"></div></div>
+            </div>
+            <div purpose="g-tr">
+              <div purpose="g-td"><div purpose="g-label-10"></div></div>
+              <div purpose="g-td"><div purpose="g-label-10"></div></div>
+              <div purpose="g-td"><div purpose="g-label-10"></div></div>
+            </div>
+            <div purpose="g-tr">
+              <div purpose="g-td"><div purpose="g-label-10"></div></div>
+              <div purpose="g-td"><div purpose="g-label-10"></div></div>
+              <div purpose="g-td"><div purpose="g-label-10"></div></div>
+            </div>
+            <div purpose="g-tr">
+              <div purpose="g-td"><div purpose="g-label-10"></div></div>
+              <div purpose="g-td"><div purpose="g-label-10"></div></div>
+              <div purpose="g-td"><div purpose="g-label-10"></div></div>
+            </div>
+            <div purpose="g-tr">
+              <div purpose="g-td"><div purpose="g-label-10"></div></div>
+              <div purpose="g-td"><div purpose="g-label-10"></div></div>
+              <div purpose="g-td"><div purpose="g-label-10"></div></div>
+            </div>
+            <div purpose="g-tr">
+              <div purpose="g-td"><div purpose="g-label-10"></div></div>
+              <div purpose="g-td"><div purpose="g-label-10"></div></div>
+              <div purpose="g-td"><div purpose="g-label-10"></div></div>
+            </div>
+            <div purpose="g-tr">
+              <div purpose="g-td"><div purpose="g-label-10"></div></div>
+              <div purpose="g-td"><div purpose="g-label-10"></div></div>
+              <div purpose="g-td"><div purpose="g-label-10"></div></div>
+            </div>
+            <div purpose="g-tr">
+              <div purpose="g-td"><div purpose="g-label-10"></div></div>
+              <div purpose="g-td"><div purpose="g-label-10"></div></div>
+              <div purpose="g-td"><div purpose="g-label-10"></div></div>
+            </div>
+
+          </div>
+          <div purpose="g-table-pagination">
+            <div purpose="pagination-button">
+              <img class="d-flex" style="width: 6px; height: 10px;" src="/images/icon-chevron-fleet-black-50-10x17@2x.png" alt="a small chevron pointing downwards">
+              <div purpose="g-label-10"></div>
+            </div>
+
+
+            <div purpose="pagination-button">
+              <div purpose="g-label-25"></div>
+              <img class="d-flex" style="width: 6px; height: 10px;" src="/images/icon-chevron-fleet-black-50-10x17@2x.png" alt="a small chevron pointing downwards">
+            </div>
+          </div>
+        </div>
+        <div purpose="g-log">
+          <div purpose="g-log-header">
+            <div purpose="g-label-25"></div>
+          </div>
+          <div purpose="g-log-body">
+            <div purpose="left-column">
+              <div purpose="g-log-box"></div>
+              <div purpose="g-log-box"></div>
+              <div purpose="g-log-box"></div>
+              <div purpose="g-log-box"></div>
+              <div purpose="g-log-box"></div>
+              <div purpose="g-log-box"></div>
+              <div purpose="g-log-box"></div>
+            </div>
+            <div purpose="right-column">
+              <div purpose="g-log-item">
+                <div purpose="first-line">
+                  <div purpose="g-label-25"></div>
+                  <div purpose="g-label-10"></div>
+                  <div purpose="g-label-25"></div>
+                  <div purpose="g-label-10"></div>
+                </div>
+                <div purpose="second-line">
+                  <div purpose="g-label-10"></div>
+                </div>
+              </div>
+
+              <div purpose="g-log-item">
+                <div purpose="first-line">
+                  <div purpose="g-label-25"></div>
+                  <div purpose="g-label-10"></div>
+                  <div purpose="g-label-25"></div>
+                  <div purpose="g-label-10"></div>
+                </div>
+                <div purpose="second-line">
+                  <div purpose="g-label-10"></div>
+                </div>
+              </div>
+              <div purpose="g-log-item">
+                <div purpose="first-line">
+                  <div purpose="g-label-25"></div>
+                  <div purpose="g-label-10"></div>
+                  <div purpose="g-label-25"></div>
+                  <div purpose="g-label-10"></div>
+                </div>
+                <div purpose="second-line">
+                  <div purpose="g-label-10"></div>
+                </div>
+              </div>
+              <div purpose="g-log-item">
+                <div purpose="first-line">
+                  <div purpose="g-label-25"></div>
+                  <div purpose="g-label-10"></div>
+                  <div purpose="g-label-25"></div>
+                  <div purpose="g-label-10"></div>
+                </div>
+                <div purpose="second-line">
+                  <div purpose="g-label-10"></div>
+                </div>
+              </div>
+              <div purpose="g-log-item">
+                <div purpose="first-line">
+                  <div purpose="g-label-25"></div>
+                  <div purpose="g-label-10"></div>
+                  <div purpose="g-label-25"></div>
+                  <div purpose="g-label-10"></div>
+                </div>
+                <div purpose="second-line">
+                  <div purpose="g-label-10"></div>
+                </div>
+              </div>
+              <div purpose="g-log-item">
+                <div purpose="first-line">
+                  <div purpose="g-label-25"></div>
+                  <div purpose="g-label-10"></div>
+                  <div purpose="g-label-25"></div>
+                  <div purpose="g-label-10"></div>
+                </div>
+                <div purpose="second-line">
+                  <div purpose="g-label-10"></div>
+                </div>
+              </div>
+              <div purpose="g-log-item">
+                <div purpose="first-line">
+                  <div purpose="g-label-25"></div>
+                  <div purpose="g-label-10"></div>
+                  <div purpose="g-label-25"></div>
+                  <div purpose="g-label-10"></div>
+                </div>
+                <div purpose="second-line">
+                  <div purpose="g-label-10"></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div purpose="g-hosts-table">
+        <div purpose="g-table">
+          <div purpose="g-table-headings">
+            <div purpose="g-labels">
+              <div purpose="g-label-25"></div>
+              <div purpose="g-label-10"></div>
+            </div>
+          </div>
+          <div purpose="g-table-subheadings">
+            <div purpose="g-labels">
+              <div purpose="g-label-10"></div>
+              <div purpose="g-label-10"></div>
+            </div>
+          </div>
+          <div purpose="g-table-links">
+            <div purpose="g-label-25"></div>
+            <div purpose="g-label-10"></div>
+          </div>
+          <div purpose="g-table-body">
+            <div purpose="g-th">
+              <div purpose="g-td"><div purpose="g-label-25"></div></div>
+              <div purpose="g-td"><div purpose="g-label-25"></div></div>
+            </div>
+            <div purpose="g-tr">
+              <div purpose="g-td"><div purpose="g-label-10"></div></div>
+              <div purpose="g-td"><div purpose="g-label-10"></div></div>
+            </div>
+            <div purpose="g-tr">
+              <div purpose="g-td"><div purpose="g-label-10"></div></div>
+              <div purpose="g-td"><div purpose="g-label-10"></div></div>
+            </div>
+            <div purpose="g-tr">
+              <div purpose="g-td"><div purpose="g-label-10"></div></div>
+              <div purpose="g-td"><div purpose="g-label-10"></div></div>
+            </div>
+            <div purpose="g-tr">
+              <div purpose="g-td"><div purpose="g-label-10"></div></div>
+              <div purpose="g-td"><div purpose="g-label-10"></div></div>
+            </div>
+            <div purpose="g-tr">
+              <div purpose="g-td"><div purpose="g-label-10"></div></div>
+              <div purpose="g-td"><div purpose="g-label-10"></div></div>
+            </div>
+            <div purpose="g-tr">
+              <div purpose="g-td"><div purpose="g-label-10"></div></div>
+              <div purpose="g-td"><div purpose="g-label-10"></div></div>
+            </div>
+            <div purpose="g-tr">
+              <div purpose="g-td"><div purpose="g-label-10"></div></div>
+              <div purpose="g-td"><div purpose="g-label-10"></div></div>
+            </div>
+            <div purpose="g-tr">
+              <div purpose="g-td"><div purpose="g-label-10"></div></div>
+              <div purpose="g-td"><div purpose="g-label-10"></div></div>
+            </div>
+            <div purpose="g-tr">
+              <div purpose="g-td"><div purpose="g-label-10"></div></div>
+              <div purpose="g-td"><div purpose="g-label-10"></div></div>
+            </div>
+
+          </div>
+          <div purpose="g-table-pagination">
+            <div purpose="pagination-button">
+              <img class="d-flex" style="width: 6px; height: 10px;" src="/images/icon-chevron-fleet-black-50-10x17@2x.png" alt="a small chevron pointing downwards">
+              <div purpose="g-label-10"></div>
+            </div>
+
+
+            <div purpose="pagination-button">
+              <div purpose="g-label-25"></div>
+              <img class="d-flex" style="width: 6px; height: 10px;" src="/images/icon-chevron-fleet-black-50-10x17@2x.png" alt="a small chevron pointing downwards">
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+   <div purpose="page-container" class="container">
+    <div class="d-flex" id="signupmodal" tabindex="-1" role="dialog">
+      <div class="petticoat"></div>
+      <div class="modal-dialog custom-width position-relative" role="document" purpose="modal-dialog" >
+        <div class="modal-content" purpose="modal-content" >
+          <button type="button" class="position-absolute" data-dismiss="modal" data-target="#signupmodal" aria-label="Close" purpose="modal-close-button" @click="clickGoBack()">&times;</button>
+          <div purpose="signup-modal">
+            <div purpose="modal-logo">
+              <img alt="Fleet logo" src="/images/logo-brandmark-32x32@2x.png">
+            </div>
+          <h3 class="mb-0">Welcome to Fleet</h3>
+          <p class="mb-0">We just need a few details in order to get started.</p>
+          <div purpose="form-switch" class="d-flex flex-column">
+            <label purpose="form-option" class="form-control" :class="[formToDisplay === 'login' ? 'selected' : '']">
+              <input type="radio" v-model.trim="formToDisplay" value="login" @selected="switchForm('login')">
+              <span purpose="custom-radio"><span purpose="custom-radio-selected"></span></span>
+              I have an account
+            </label>
+            <label purpose="form-option" class="form-control" :class="[formToDisplay === 'signup' ? 'selected' : '']">
+              <input type="radio" v-model.trim="formToDisplay" value="signup" @selected="switchForm('signup')">
+              <span purpose="custom-radio"><span purpose="custom-radio-selected"></span></span>
+              I don't have an account
+            </label>
+          </div>
+          <ajax-form action="signup" purpose="modal-form" class="self-service-register" :syncing.sync="syncing" :cloud-error.sync="cloudError" :form-errors.sync="signupFormErrors" :form-data="signupFormData" :form-rules="signupFormRules" @submitted="submittedSignupForm()" v-if="formToDisplay === 'signup'">
             <div class="form-group">
-              <label for="email">Email</label>
-              <input tabindex="1" type="email" class="form-control" :class="[formErrors.emailAddress ? 'is-invalid' : '']" v-model.trim="formData.emailAddress" autocomplete="email" focus-first>
-              <div class="invalid-feedback" v-if="formErrors.emailAddress">Please provide a valid email address.</div>
+              <label purpose="modal-form-label" for="email-address">Work email *</label>
+              <input tabindex="1" purpose="modal-form-input" class="form-control" id="email-address"  :class="[signupFormErrors.emailAddress ? 'is-invalid' : '']" v-model.trim="signupFormData.emailAddress" @input="typeClearOneFormError('emailAddress')">
+              <div class="invalid-feedback" v-if="signupFormErrors.emailAddress" focus-first>This doesn’t appear to be a valid email address</div>
             </div>
             <div class="form-group">
-              <label for="password">Password</label>
-              <input tabindex="2" type="password" class="form-control" :class="[formErrors.password ? 'is-invalid' : '']" v-model.trim="formData.password" autocomplete="current-password">
-              <div class="invalid-feedback" v-if="formErrors.password">Please enter your password.</div>
+              <label purpose="modal-form-label" for="password">Choose a password *</label>
+              <input tabindex="2" purpose="modal-form-input" class="form-control" id="password" type="password"  :class="[signupFormErrors.password ? 'is-invalid' : '']" v-model.trim="signupFormData.password" autocomplete="new-password" @input="typeClearOneFormError('password')">
+              <div class="invalid-feedback" v-if="signupFormErrors.password === 'minLength'">Password too short.</div>
+              <div class="invalid-feedback" v-if="signupFormErrors.password === 'maxLength'">Password too long.</div>
+              <div class="invalid-feedback" v-if="signupFormErrors.password === 'custom'">Password does not meet requirements.</div>
+              <div class="invalid-feedback" v-if="signupFormErrors.password === 'required'">Please enter a password.</div>
+              <p purpose="modal-form-note" class="mt-2">Passwords must be 12-48 characters, with at least 1 number (e.g. 0 - 9) and 1 symbol (e.g. &*#).</p>
             </div>
-            <cloud-error v-if="cloudError === 'noUser'">The email address provided doesn't match an existing account. Create an account <a href="/customers/register">here</a>.</cloud-error>
+            <div class="row">
+              <div class="col-12 col-sm-6 pr-sm-2">
+                <div class="form-group">
+                  <label purpose="modal-form-label" for="first-name">First name *</label>
+                  <input tabindex="4" purpose="modal-form-input" class="form-control" id="first-name" type="text"  :class="[signupFormErrors.firstName ? 'is-invalid' : '']" v-model.trim="signupFormData.firstName" autocomplete="first-name" @input="typeClearOneFormError('firstName')">
+                  <div class="invalid-feedback" v-if="signupFormErrors.firstName">Please enter your first name.</div>
+                </div>
+              </div>
+              <div class="col-12 col-sm-6 pl-sm-2">
+                <div class="form-group">
+                  <label purpose="modal-form-label" for="last-name">Last name *</label>
+                  <input tabindex="5" purpose="modal-form-input" class="form-control" id="last-name" type="text"  :class="[signupFormErrors.lastName ? 'is-invalid' : '']" v-model.trim="signupFormData.lastName" autocomplete="last-name" @input="typeClearOneFormError('lastName')">
+                  <div class="invalid-feedback" v-if="signupFormErrors.lastName">Please enter your last name.</div>
+                </div>
+              </div>
+            </div>
+            <cloud-error v-if="cloudError==='emailAlreadyInUse'">
+              This email is already linked to a Fleet account.<br> Please <a purpose="modal-form-link" @click="formToDisplay = 'login'">sign in</a> with your email and password.
+            </cloud-error>
+            <cloud-error v-if="cloudError === 'invalidEmailDomain'">
+                Please enter your work or school email address.
+            </cloud-error>
+            <blockquote purpose="tip" v-if="cloudError === 'invalidEmailDomain'">
+              <img src="/images/icon-info-16x16@2x.png" alt="An icon indicating that this section has important information">
+              <div class="d-block">
+                <p>Don’t have a work email? Try a local demo of <a purpose="modal-form-link" href="/try-fleet">Fleet Free</a> instead.</p>
+              </div>
+            </blockquote>
+            <cloud-error purpose="cloud-error" v-if="cloudError && !['emailAlreadyInUse', 'invalidEmailDomain'].includes(cloudError)"></cloud-error>
+            <p purpose="modal-form-note">By signing up you agree to our <a purpose="modal-form-link" href="/legal/privacy">privacy policy</a> and <a purpose="modal-form-link" href="/terms">terms of service</a>.</p>
+            <ajax-button tabindex="6" purpose="modal-form-submit-button" spinner="true" type="submit" :syncing="syncing" class="btn btn-block btn-lg btn-primary mt-4" v-if="!cloudError">Agree and continue</ajax-button>
+            <ajax-button tabindex="7" purpose="modal-form-submit-button" type="button" :syncing="syncing" class="btn btn-block btn-lg btn-primary mt-4" v-if="cloudError" @click="clickResetForm()">Try again</ajax-button>
+          </ajax-form>
+          <ajax-form class="w-100" action="login" purpose="modal-form"  :syncing.sync="syncing" :cloud-error.sync="cloudError" :form-data="loginFormData" :form-rules="loginFormRules" :form-errors.sync="loginFormErrors" @submitted="submittedLoginForm()" v-else>
+            <div class="form-group">
+              <label purpose="modal-form-label" for="email">Email</label>
+              <input tabindex="1" type="email" purpose="modal-form-input" class="form-control" :class="[loginFormErrors.emailAddress ? 'is-invalid' : '']" v-model.trim="loginFormData.emailAddress" autocomplete="email" focus-first>
+              <div class="invalid-feedback" v-if="loginFormErrors.emailAddress">Please provide a valid email address.</div>
+            </div>
+            <div class="form-group">
+              <label purpose="modal-form-label" for="password">Password</label>
+              <input tabindex="2" type="password" purpose="modal-form-input" class="form-control" :class="[loginFormErrors.password ? 'is-invalid' : '']" v-model.trim="loginFormData.password" autocomplete="current-password">
+              <div class="invalid-feedback" v-if="loginFormErrors.password">Please enter your password.</div>
+            </div>
+            <cloud-error v-if="cloudError === 'noUser'">The email address provided doesn't match an existing account. Create an account <a purpose="modal-form-link" @click="formToDisplay = 'signup'">here</a>.</cloud-error>
             <cloud-error v-else-if="cloudError === 'badCombo'">Something’s not quite right with your email or password.</cloud-error>
             <cloud-error v-else-if="cloudError"></cloud-error>
             <div class="pb-3">
-              <ajax-button tabindex="3" :syncing="syncing" spinner="true" purpose="submit-button" class="btn-primary mt-4 btn-lg btn-block">Sign in</ajax-button>
+              <ajax-button tabindex="3" :syncing="syncing" spinner="true" purpose="modal-form-submit-button" class="btn-primary mt-4 btn-lg btn-block">Sign in</ajax-button>
             </div>
+            <span purpose="modal-form-note" class="text-center"><a purpose="modal-form-link" href="/customers/forgot-password">Forgot your password?</a></span>
           </ajax-form>
-          <span class="text-center small"><a href="/customers/forgot-password">Forgot your password?</a></span>
-        </div>
-      </div>
-      <div purpose="quote-and-logos" class="mx-auto mx-lg-0">
-        <% if (['it-misc'].includes(primaryBuyingSituation)) { %>
-          <div purpose="quote">
-            <img alt="an opening quotation mark" style="width:20px; margin-bottom: 16px;" src="/images/icon-quote-21x17@2x.png">
-            <p purpose="quote-text">
-              Mad props to how easy making a deploy pkg of the agent was. I wish everyone made stuff that easy.
-            </p>
-            <div purpose="quote-author-info" class="d-flex flex-row align-items-center">
-              <div purpose="profile-picture">
-                <img alt="Wes Whetstone" src="/images/testimonial-author-wes-whetstone-48x48@2x.png">
-              </div>
-              <div class="d-flex flex-column align-self-top">
-                <p purpose="name" class="font-weight-bold m-0">Wes Whetstone</p>
-                <p purpose="job-title" class="m-0">Staff CPE</p>
-              </div>
-            </div>
           </div>
-        <% } else if (['security-misc'].includes(primaryBuyingSituation)) { %>
-          <div purpose="quote">
-            <img alt="an opening quotation mark" style="width:20px; margin-bottom: 16px;" src="/images/icon-quote-21x17@2x.png">
-            <p purpose="quote-text">
-              Something I really appreciate about working with you guys is that it doesn't feel like I'm talking to a vendor. It actually feels like I'm talking to my team, and I really appreciate it.
-            </p>
-            <div purpose="quote-author-info" class="d-flex flex-row align-items-center">
-              <div purpose="profile-picture">
-                <img alt="Chandra Majumdar" src="/images/testimonial-author-chandra-majumdar-48x48@2x.png">
-              </div>
-              <div class="d-flex flex-column align-self-top">
-                <p purpose="name" class="font-weight-bold m-0">Chandra Majumdar</p>
-                <p purpose="job-title" class="m-0">Partner - Cyber and Strategic Risk</p>
-              </div>
-            </div>
-          </div>
-        <% } else if (['security-vm'].includes(primaryBuyingSituation)) { %>
-          <div purpose="quote">
-            <img alt="an opening quotation mark" style="width:20px; margin-bottom: 16px;" src="/images/icon-quote-21x17@2x.png">
-            <p purpose="quote-text">
-              The visibility down into the assets covered by the agent is phenomenal. Fleet has become the central source for a lot of things.
-            </p>
-            <div purpose="quote-author-info" class="d-flex flex-row align-items-center">
-              <div purpose="profile-picture">
-                <img alt="Andre Shields" src="/images/testimonial-author-andre-shields-48x48@2x.png">
-              </div>
-              <div class="d-flex flex-column align-self-top">
-                <p purpose="name" class="font-weight-bold m-0">Andre Shields</p>
-                <p purpose="job-title" class="m-0">Staff Cybersecurity Engineer, Vulnerability Management</p>
-              </div>
-            </div>
-          </div>
-          <% } else { %>
-          <div purpose="quote">
-            <img alt="an opening quotation mark" style="width:20px; margin-bottom: 16px;" src="/images/icon-quote-21x17@2x.png">
-            <p purpose="quote-text">
-              We've been using Fleet for a few years at Stripe and we couldn't be happier. The fact that it's also open-source made it easy for us to try it out, customise it to our needs, and seamlessly integrate it into our existing environment.
-            </p>
-            <div purpose="quote-author-info" class="d-flex flex-row align-items-center">
-              <div purpose="profile-picture">
-                <img alt="Scott MacVicar" style="border-radius: 50%" src="/images/testimonial-author-scott-macvicar-100x100@2x.png">
-              </div>
-              <div class="d-flex flex-column align-self-top">
-                <p purpose="name" class="font-weight-bold m-0">Scott MacVicar</p>
-                <p purpose="job-title" class="m-0">Head of Developer Infrastructure &amp; Corporate Technology</p>
-              </div>
-            </div>
-          </div>
-        <% } %>
-        <div purpose="logos" class="flex-column flex-wrap align-items-center w-100">
-          <logo-carousel></logo-carousel>
-        </div>
-      </div>
+        </div><!-- /.modal-content -->
+      </div> <!-- /.modal-dialog -->
     </div>
   </div>
 </div>
