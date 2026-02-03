@@ -36,7 +36,7 @@ Variables are global, meaning they can be used in scripts and profiles across al
       WORKSTATIONS_ENROLL_SECRET: ${{ secrets.WORKSTATIONS_ENROLL_SECRET }}
 ```
 
-### Scripts and profiles
+### Scripts and configuration profiles
 
 When GitOps runs, it looks for variables in scripts and profiles, extracts the variable's values from GitHub or GitLab, and uploads them to Fleet.
 
