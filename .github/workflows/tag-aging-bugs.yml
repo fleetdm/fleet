@@ -149,7 +149,7 @@ jobs:
               for (const issue of agingBugs) {
                 const createdDate = new Date(issue.created_at);
 
-                // Skip if older than aging threshold or newer than aging threshold
+                // Skip if newer than aging threshold
                 if (createdDate > agingBugDate) {
                   page = Infinity; // Signal to stop pagination
                   break;
@@ -160,6 +160,7 @@ jobs:
                 const hasOldBugLabel = labels.includes('~old bug');
 
                 // Only tag if it doesn't have either label
+                // (hasOldBugLabel check handles issues that became old since last run)
                 if (!hasAgingBugLabel && !hasOldBugLabel) {
                   agingBugsProcessed++;
                   console.log(`Issue #${issue.number}: Created ${createdDate.toISOString()}`);
