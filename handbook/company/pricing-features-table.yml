@@ -448,7 +448,7 @@
 #  ║╣ ║║║╠╣ ║ ║╠╦╝║  ║╣   ║ ║╚═╗  ╚═╗║╣  ║  ║ ║║║║║ ╦╚═╗
 #  ╚═╝╝╚╝╚  ╚═╝╩╚═╚═╝╚═╝  ╚═╝╚═╝  ╚═╝╚═╝ ╩  ╩ ╩╝╚╝╚═╝╚═╝
 - industryName: Enforce OS settings
-  description: Using configuration profiles, enforce OS settings like security restrictions, screen lock, Wi-Fi, and more on macOS, iOS, iPadOS, Windows, and Android (coming soon) devices. Using scripts, enforce OS settings on Linux devices.
+  description: Using configuration profiles, enforce OS settings like security restrictions, screen lock, Wi-Fi, and more on macOS, iOS, iPadOS, Windows, and Android devices. Using scripts, enforce OS settings on Linux devices.
   documentationUrl: https://fleetdm.com/docs/using-fleet/mdm-custom-os-settings
   usualDepartment: IT
   tier: Free
@@ -672,9 +672,9 @@
   description: Secure your devices with remote lock and wipe commands if lost or stolen.
   documentationUrl: https://fleetdm.com/guides/lock-wipe-hosts
   waysToUse:
-    - description: High-level remote lock for macOS, Windows, Linux, and Android (coming soon).
+    - description: High-level remote lock for macOS, Windows, Linux, and Android.
       moreInfoUrl: https://github.com/fleetdm/fleet/issues/9949
-    - description: High-level remote wipe for macOS, Windows, Linux, iOS/iPadOS, and Android (coming soon).
+    - description: High-level remote wipe for macOS, Windows, Linux, iOS/iPadOS, and Android.
       moreInfoUrl: https://github.com/fleetdm/fleet/issues/9951
   tier: Premium
   jamfProHasFeature: appleOnly
