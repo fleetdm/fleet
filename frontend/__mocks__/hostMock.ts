@@ -115,6 +115,7 @@ const DEFAULT_HOST_MOCK: IHost = {
   policies: [],
   device_mapping: [],
   end_users: [],
+  conditional_access_bypassed: false,
 };
 
 const createMockHost = (overrides?: Partial<IHost>): IHost => {

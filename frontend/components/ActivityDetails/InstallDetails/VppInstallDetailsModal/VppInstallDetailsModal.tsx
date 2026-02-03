@@ -80,6 +80,20 @@ export const getStatusMessage = ({
     displayStatus
   );
 
+  // Treat failed_install / failed_uninstall with installed versions as installed
+  // as the host still reports installed versions (4.82 #31663)
+  const isActuallyInstalled =
+    hasInstalledVersions &&
+    ["failed_install", "failed_uninstall"].includes(displayStatus || "");
+
+  if (isActuallyInstalled) {
+    return (
+      <>
+        <b>{appName}</b> is installed.
+      </>
+    );
+  }
+
   // Handles the case where software is installed manually by the user and not through Fleet
   // This app_store_app modal matches software_packages installed manually shown with SoftwareInstallDetailsModal
   if (displayStatus === "installed" && !commandUpdatedAt) {
@@ -403,6 +417,21 @@ export const VppInstallDetailsModal = ({
     );
   };
 
+  const hasInstalledVersions =
+    (vppCommandResult?.results_metadata?.software_installed as boolean) ??
+    !!hostSoftware?.installed_versions?.length;
+
+  // Hide failed details if host shows installed versions (4.82 #31663)
+  // NOTE: Currently no uninstall VPP but added for symmetry with SoftwareInstallDetailsModal
+  const excludeInstallDetails =
+    hasInstalledVersions &&
+    [
+      "failed_install_installed",
+      "failed_uninstall_installed",
+      "failed_install",
+      "failed_uninstall",
+    ].includes(displayStatus || "");
+
   const renderContent = () => {
     if (isLoadingVPPCommandResult) {
       return <Spinner />;
@@ -442,6 +471,7 @@ export const VppInstallDetailsModal = ({
         {hostSoftware && !excludeVersions && renderInventoryVersionsSection()}
         {!isPendingInstall &&
           isInstalledByFleet &&
+          !excludeInstallDetails &&
           renderInstallDetailsSection()}
       </div>
     );
