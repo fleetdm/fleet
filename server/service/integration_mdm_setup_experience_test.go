@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"os"
 	"strings"
 	"testing"
 	"time"
@@ -3338,6 +3339,132 @@ func (s *integrationMDMTestSuite) TestSetupExperienceGetPutSoftware() {
 func (s *integrationMDMTestSuite) TestSetupExperienceMacOSCustomDisplayNameIcon() {
 	t := s.T()
 	s.setSkipWorkerJobs(t)
+
+	device, host, tm := s.createTeamDeviceForSetupExperienceWithProfileSoftwareAndScript()
+	token := "token_test_setup"
+	createDeviceTokenForHost(t, s.ds, host.ID, token)
+
+	// get the created setup experience software title id
+	var setupExpSw getSetupExperienceSoftwareResponse
+	s.DoJSON("GET", "/api/v1/fleet/setup_experience/software", getSetupExperienceSoftwareRequest{Platforms: "macos"}, http.StatusOK, &setupExpSw, "team_id", fmt.Sprint(tm.ID))
+	require.Len(t, setupExpSw.SoftwareTitles, 1)
+	dummyTitleID := setupExpSw.SoftwareTitles[0].ID
+
+	// add an additional macOS software to install during setup experience
+	installer := &fleet.UploadSoftwareInstallerPayload{
+		InstallScript: "install",
+		Filename:      "EchoApp.pkg",
+		Title:         "EchoApp",
+		TeamID:        &tm.ID,
+	}
+	s.uploadSoftwareInstaller(t, installer, http.StatusOK, "")
+	echoTitleID := getSoftwareTitleID(t, s.ds, installer.Title, "apps")
+	var swInstallResp putSetupExperienceSoftwareResponse
+	s.DoJSON("PUT", "/api/v1/fleet/setup_experience/software", putSetupExperienceSoftwareRequest{TeamID: tm.ID, TitleIDs: []uint{echoTitleID, dummyTitleID}}, http.StatusOK, &swInstallResp)
+
+	// set a custom icon and custom display name for that app
+	s.updateSoftwareInstaller(t, &fleet.UpdateSoftwareInstallerPayload{
+		TitleID:     echoTitleID,
+		TeamID:      &tm.ID,
+		DisplayName: ptr.String("My Custom EchoApp"),
+	}, http.StatusOK, "")
+
+	iconBytes, err := os.ReadFile("testdata/icons/valid-icon.png")
+	require.NoError(t, err)
+	body, headers := generateMultipartRequest(t, "icon", "icon.png", iconBytes, s.token, nil)
+	s.DoRawWithHeaders("PUT", fmt.Sprintf("/api/latest/fleet/software/titles/%d/icon?team_id=%d", echoTitleID, tm.ID),
+		body.Bytes(), http.StatusOK, headers)
+
+	// enroll the host
+	depURLToken := loadEnrollmentProfileDEPToken(t, s.ds)
+	mdmDevice := mdmtest.NewTestMDMClientAppleDEP(s.server.URL, depURLToken)
+	mdmDevice.SerialNumber = device.SerialNumber
+	err = mdmDevice.Enroll()
+	require.NoError(t, err)
+
+	// run the worker to process the DEP enroll request
+	s.runWorker()
+	// run the worker to assign configuration profiles
+	s.awaitTriggerProfileSchedule(t)
+
+	var cmds []*micromdm.CommandPayload
+	cmd, err := mdmDevice.Idle()
+	require.NoError(t, err)
+	for cmd != nil {
+		var fullCmd micromdm.CommandPayload
+		require.NoError(t, plist.Unmarshal(cmd.Raw, &fullCmd))
+
+		cmds = append(cmds, &fullCmd)
+		cmd, err = mdmDevice.Acknowledge(cmd.CommandUUID)
+		require.NoError(t, err)
+	}
+
+	// expected commands: install fleetd (install enterprise), install profiles
+	// (custom one, fleetd configuration, fleet CA root)
+	require.Len(t, cmds, 4)
+
+	// simulate fleetd being installed and the host being orbit-enrolled now
+	host.OsqueryHostID = ptr.String(mdmDevice.UUID)
+	host.UUID = mdmDevice.UUID
+	orbitKey := setOrbitEnrollment(t, host, s.ds)
+	host.OrbitNodeKey = &orbitKey
+
+	// call the /status endpoint, the 2 software and script should be pending
+	var statusResp getOrbitSetupExperienceStatusResponse
+	s.DoJSON("POST", "/api/fleet/orbit/setup_experience/status", json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q}`, *host.OrbitNodeKey)), http.StatusOK, &statusResp)
+	require.Nil(t, statusResp.Results.BootstrapPackage)         // no bootstrap package involved
+	require.Nil(t, statusResp.Results.AccountConfiguration)     // no SSO involved
+	require.Len(t, statusResp.Results.ConfigurationProfiles, 3) // fleetd config, root CA, custom profile
+
+	// the 2 software and script are pending
+	require.NotNil(t, statusResp.Results.Script)
+	require.Equal(t, "script.sh", statusResp.Results.Script.Name)
+	require.Equal(t, fleet.SetupExperienceStatusPending, statusResp.Results.Script.Status)
+	require.Len(t, statusResp.Results.Software, 2)
+	require.Equal(t, "DummyApp", statusResp.Results.Software[0].Name)
+	require.Empty(t, statusResp.Results.Software[0].DisplayName)
+	require.Equal(t, fleet.SetupExperienceStatusPending, statusResp.Results.Software[0].Status)
+	require.NotNil(t, statusResp.Results.Software[0].SoftwareTitleID)
+	require.Equal(t, dummyTitleID, *statusResp.Results.Software[0].SoftwareTitleID)
+	require.Empty(t, statusResp.Results.Software[0].IconURL)
+	require.Equal(t, "EchoApp", statusResp.Results.Software[1].Name)
+	require.Equal(t, "My Custom EchoApp", statusResp.Results.Software[1].DisplayName)
+	require.Equal(t, fleet.SetupExperienceStatusPending, statusResp.Results.Software[1].Status)
+	require.NotNil(t, statusResp.Results.Software[1].SoftwareTitleID)
+	require.Equal(t, echoTitleID, *statusResp.Results.Software[1].SoftwareTitleID)
+	require.NotEmpty(t, statusResp.Results.Software[1].IconURL)
+
+	// since this was the call for the orbit endpoint, and not the device-authenticated
+	// one, the URL was not transformed for device-authenticated
+	require.NotContains(t, statusResp.Results.Software[1].IconURL, "/device/")
+
+	// requesting the setup experience status via the device-authenticated endpoint
+	// returns the custom icon URL ready to be called via device-auth.
+	var deviceResp getDeviceSetupExperienceStatusResponse
+	res := s.DoRawNoAuth("POST", "/api/latest/fleet/device/"+token+"/setup_experience/status", json.RawMessage{}, http.StatusOK)
+	require.NoError(t, json.NewDecoder(res.Body).Decode(&deviceResp))
+	require.NoError(t, res.Body.Close())
+	require.NoError(t, deviceResp.Err)
+
+	// the software is now running (because previous call to /status kickstarted the process), and script is pending
+	require.Len(t, deviceResp.Results.Scripts, 1)
+	require.Equal(t, "script.sh", deviceResp.Results.Scripts[0].Name)
+	require.Equal(t, fleet.SetupExperienceStatusPending, deviceResp.Results.Scripts[0].Status)
+	require.Len(t, deviceResp.Results.Software, 2)
+	require.Equal(t, "DummyApp", deviceResp.Results.Software[0].Name)
+	require.Empty(t, deviceResp.Results.Software[0].DisplayName)
+	require.Equal(t, fleet.SetupExperienceStatusRunning, deviceResp.Results.Software[0].Status)
+	require.NotNil(t, deviceResp.Results.Software[0].SoftwareTitleID)
+	require.Equal(t, dummyTitleID, *deviceResp.Results.Software[0].SoftwareTitleID)
+	require.Empty(t, deviceResp.Results.Software[0].IconURL)
+	require.Equal(t, "EchoApp", deviceResp.Results.Software[1].Name)
+	require.Equal(t, "My Custom EchoApp", deviceResp.Results.Software[1].DisplayName)
+	require.Equal(t, fleet.SetupExperienceStatusRunning, deviceResp.Results.Software[1].Status)
+	require.NotNil(t, deviceResp.Results.Software[1].SoftwareTitleID)
+	require.Equal(t, echoTitleID, *deviceResp.Results.Software[1].SoftwareTitleID)
+	require.NotEmpty(t, deviceResp.Results.Software[1].IconURL)
+
+	require.Contains(t, deviceResp.Results.Software[1].IconURL, "/device/"+token)
 }
 
 func (s *integrationMDMTestSuite) TestSetupExperienceAndroid() {
