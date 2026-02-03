@@ -30,7 +30,7 @@ The Head of Product Design (HPD) and a former IT admin review the new customer/p
 
 Only requests that meet the [criteria for prioritization](https://fleetdm.com/handbook/company/product-groups#criteria-for-prioritization) are unpacked. If a request doesn't meet the criteria, the HPD leaves the "Unpacked" checkbox in the feature request issue unchecked and removes the request from the drafting board.
 
-If a customer/prospect request is missing a Gong snippet or requires additional information to understand the "why", the Head of Product Design will @ mention the relevant Customer Success Manager (CSM), assign them, and move the request to the [🌦️ :help-customers](https://github.com/orgs/fleetdm/projects/79/views/1) board.
+If a customer/prospect request is missing a Gong snippet or requires additional information to understand the "why", the Head of Product Design will @ mention the relevant Customer Success Manager (CSM), assign them, and move the request to the [🌦️ :help-customers](https://github.com/orgs/fleetdm/projects/79) board.
 
 
 ### Unpacking the how
