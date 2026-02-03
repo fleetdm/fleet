@@ -9,6 +9,7 @@ import labelsAPI, {
   IGetLabelResponse,
 } from "services/entities/labels";
 import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
+import { getErrorReason } from "interfaces/errors";
 import { ILabel } from "interfaces/label";
 import { IHost } from "interfaces/host";
 import { NotificationContext } from "context/notification";
@@ -98,8 +99,19 @@ const EditLabelPage = ({ routeParams, router }: IEditLabelPageProps) => {
     try {
       await labelsAPI.update(labelId, formData);
       renderFlash("success", "Label updated successfully.");
-    } catch {
-      renderFlash("error", "Couldn't edit label. Please try again.");
+    } catch (error) {
+      const status = (error as { status: number }).status;
+      let errorMessage = "Couldn't edit label. Please try again.";
+      if (status === 409) {
+        errorMessage =
+          "Couldn't edit label: A label with this name already exists.";
+      } else if (status === 422) {
+        const reason = getErrorReason(error);
+        if (reason) {
+          errorMessage = `Couldn't edit label: ${reason}. Please try again.`;
+        }
+      }
+      renderFlash("error", errorMessage);
     }
   };
 
