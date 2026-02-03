@@ -5,12 +5,9 @@
   var me;
   var isHomepage;
   var currentSection;
-  var showHeaderCTA;
   var hideHeaderLinks;// Hides the header navigation links.
   var hideFooterLinks;// Hides footer links, reduces the height of the footer to 60px;
   var showAdminLinks;// Shows links to admin pages to admin users.
-  var hideGetStartedButton;// Hides the 'Get started' button in the website's navigation header.
-  var hideStartCTA;
   var showConfigurationProfileLayout;
   // Applies personalization for who people come from ads, so that the website makes more sense for them:
   var primaryBuyingSituation;
@@ -369,11 +366,9 @@
                       </div>
                     <%}%>
                   </div>
-                  <%if(!hideGetStartedButton){%>
                   <div purpose="mobile-nav-cta" class="d-flex flex-row align-items-center">
 
                     <a purpose="glass-header-btn" class="align-items-center d-flex" href="/contact" no-underline>Get a demo</a>
-                    <%if(_.has(me, 'id')) {%>
                       <a purpose="layout-animated-arrow-button" class="start-cta-continue-button" href="/try" no-underline>
                         Try it yourself
                         <svg purpose="animated-arrow" xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 12 12">
@@ -382,17 +377,7 @@
                         </svg>
                       </a>
                     </div>
-                    <% } else {%>
-                      <a purpose="layout-animated-arrow-button" class="start-cta-continue-button" data-toggle="modal" data-target="#signupmodal" no-underline>
-                        Try it yourself
-                        <svg purpose="animated-arrow" xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 12 12">
-                          <path purpose="arrow-line" d="M1 6H9" stroke-width="2" stroke-linecap="round"/>
-                          <path purpose="chevron" d="M1.35712 1L5.64283 6L1.35712 11" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                        </svg>
-                      </a>
-                    </div>
-                    <% }%>
-                  <% }%>
+                  </div>
                 </div>
               </div>
               <%/* Desktop Navigation bar */%>
@@ -593,29 +578,14 @@
 
                   </div>
                 </div>
-
-                <% if(_.has(me, 'id')) {%>
-                  <%if(!hideGetStartedButton){%>
-                    <a purpose="layout-animated-arrow-button" class="start-cta-continue-button" href="/try" no-underline>
-                      Try it yourself
-                      <svg purpose="animated-arrow" xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 12 12">
-                        <path purpose="arrow-line" d="M1 6H9" stroke-width="2" stroke-linecap="round"/>
-                        <path purpose="chevron" d="M1.35712 1L5.64283 6L1.35712 11" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                      </svg>
-                    </a>
-                    <a purpose="glass-header-btn" class="align-items-center d-flex" href="/contact" no-underline>Get a demo</a>
-                  <% }%>
-                  <a purpose="log-out-button" href="/logout" class="justify-content-end text-decoration-none">Log out</a>
-                <% } else if(!hideGetStartedButton) {%>
-                  <a purpose="layout-animated-arrow-button" class="start-cta-continue-button" data-toggle="modal" data-target="#signupmodal" no-underline>
-                    Try it yourself
-                    <svg purpose="animated-arrow" xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 12 12">
-                      <path purpose="arrow-line" d="M1 6H9" stroke-width="2" stroke-linecap="round"/>
-                      <path purpose="chevron" d="M1.35712 1L5.64283 6L1.35712 11" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                    </svg>
-                  </a>
-                  <a purpose="glass-header-btn" class="align-items-center d-flex" href="/contact" no-underline>Get a demo</a>
-                <% }%>
+                <a purpose="layout-animated-arrow-button" class="start-cta-continue-button" href="/try" no-underline>
+                  Try it yourself
+                  <svg purpose="animated-arrow" xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 12 12">
+                    <path purpose="arrow-line" d="M1 6H9" stroke-width="2" stroke-linecap="round"/>
+                    <path purpose="chevron" d="M1.35712 1L5.64283 6L1.35712 11" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                  </svg>
+                </a>
+                <a purpose="glass-header-btn" class="align-items-center d-flex" href="/contact" no-underline>Get a demo</a>
               </div>
             </div>
           <% } else {%>
