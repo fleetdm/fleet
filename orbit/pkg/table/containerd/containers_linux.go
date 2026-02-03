@@ -1,7 +1,7 @@
 //go:build linux
 // +build linux
 
-package containerd_containers
+package containerd
 
 import (
 	"context"
@@ -15,8 +15,8 @@ import (
 	"github.com/rs/zerolog/log"
 )
 
-// Columns is the schema of the table.
-func Columns() []table.ColumnDefinition {
+// ContainersColumns is the schema of the containerd_containers table.
+func ContainersColumns() []table.ColumnDefinition {
 	return []table.ColumnDefinition{
 		table.TextColumn("namespace"),
 		table.TextColumn("id"),
@@ -30,9 +30,9 @@ func Columns() []table.ColumnDefinition {
 	}
 }
 
-// Generate is called to return the results for the table at query time.
+// GenerateContainers is called to return the results for the containerd_containers table at query time.
 // Constraints for generating can be retrieved from the queryContext.
-func Generate(ctx context.Context, queryContext table.QueryContext) ([]map[string]string, error) {
+func GenerateContainers(ctx context.Context, queryContext table.QueryContext) ([]map[string]string, error) {
 	client, err := containerd.New("/run/containerd/containerd.sock")
 	if err != nil {
 		return nil, fmt.Errorf("Failed to connect to containerd: %v", err)
