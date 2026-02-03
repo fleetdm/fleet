@@ -187,7 +187,7 @@ func (r *profileReconciler) sendHostProfiles(
 
 		var detail string
 		if googleErr != "" {
-			detail = fmt.Sprintf("Google returned error: %s. Please re-add the profile and try again.", googleErr)
+			detail = fmt.Sprintf("Couldn't apply profile. Google returned error: %s. Please re-add the profile and try again.", googleErr)
 		} else {
 			detail = "Couldn't apply profile. Google returned error. Please re-add the profile and try again."
 		}
