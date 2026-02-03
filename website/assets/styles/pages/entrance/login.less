@@ -2,7 +2,7 @@
   // min-height: 1200px;
   [purpose='fleet-ui-background'] {
     opacity: 1;
-    min-height: 1200px;
+    // min-height: 1200px;
     background: linear-gradient(0deg, #FFF 87.44%, #EFF6FA 100%);
     height: 100vh;
     width: 100vw;
@@ -128,7 +128,7 @@
 
     [purpose='g-platforms'] {
       display: grid;
-      grid-template-columns: repeat(7, 1fr);
+      grid-template-columns: repeat(6, 1fr);
       grid-template-rows: auto;
       align-items: stretch;
       gap: var(--pad-medium, 16px);
@@ -141,8 +141,8 @@
         flex-direction: column;
         justify-content: center;
         align-items: center;
+        min-width: 0px;
         gap: var(--spacing-2, 16px);
-        // flex: 0 0 250px;
         border-radius: var(--m, 16px);
         border: 1px solid var(--UI-Fleet-Black-10, #E2E4EA);
         background: var(--Core-White, #FFF);
@@ -185,6 +185,7 @@
       flex-direction: row;
       width: 100%;
       gap: 24px;
+      flex-wrap: wrap;
       [purpose='g-table'] {
         display: flex;
         padding: 32px;
@@ -726,15 +727,24 @@
   [purpose='signup-modal'] {
     display: flex;
     max-width: 600px;
-
     flex-direction: column;
     gap: 24px;
+    [purpose='logo-row'] {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      [purpose='close-button'] {
+        position: relative;
+        top: -10px;
+        right: -10px;
+      }
+      [purpose='modal-logo'] {
+       img {
+         width: 32px;
+         height: auto;
+       }
+      }
 
-    [purpose='modal-logo'] {
-     img {
-       width: 32px;
-       height: auto;
-     }
     }
     [purpose='form-switch'] {
      [purpose='form-option'] {
@@ -915,6 +925,7 @@
     [purpose='signup-form'] {
       max-width: 528px;
     }
+
     [purpose='quote-and-logos'] {
       max-width: 528px;
       margin-top: 48px;
@@ -933,14 +944,27 @@
       padding: 64px 32px;
     }
 
+
+
+  }
+
+  @media (max-width: 768px) {
+    [purpose='customer-portal-form'] {
+      max-width: unset;
+    }
     [purpose='signup-modal'] {
       margin: auto;
       width: 100%;
+    }
+    [purpose='page-container'] {
+      padding: 0px;
     }
     [purpose='modal-dialog'] {
       z-index: 100;
       position: relative;
       max-width: 100%;
+      width: 100%;
+      margin: 0;
       [purpose='modal-content'] {
         box-shadow: none;
         margin-top: 48px;
@@ -949,20 +973,22 @@
         padding: 48px;
         border: none;
         [purpose='modal-close-button'] {
-          top: -25px;
-          right: 25px;
+                top: -128px;
+                right: -8px;
         }
       }
     }
-    [purpose='ghost-ui'] {
-      display: none;
-    }
 
-  }
-
-  @media (max-width: 768px) {
-    [purpose='customer-portal-form'] {
-      max-width: unset;
+    [purpose='fleet-ui-background'] {
+      &::after {// veil over fake elements.
+        content: ' ';
+        position: absolute;
+        top: 0px;
+        background: #FFF;
+        height: 100vh;
+        width: 100vw;
+        backdrop-filter: unset;
+      }
     }
     [purpose='login-form'] {
       width: 100%;
@@ -980,9 +1006,7 @@
       padding-left: 0px;
       padding-right: 0px;
     }
-    [purpose='page-container'] {
-      padding: 48px 24px;
-    }
+
     [purpose='register-link'] {
       margin-bottom: 12px;
     }
@@ -1011,9 +1035,9 @@
       max-width: 100%;
       [purpose='modal-content'] {
         box-shadow: none;
-        margin-top: 48px;
         width: 100%;
         max-width: 100%;
+        margin-top: 0px;
         padding: 24px;
         border: none;
       }

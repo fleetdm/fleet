@@ -3,8 +3,39 @@ parasails.registerPage('login', {
   //  ║║║║║ ║ ║╠═╣║    ╚═╗ ║ ╠═╣ ║ ║╣
   //  ╩╝╚╝╩ ╩ ╩╩ ╩╩═╝  ╚═╝ ╩ ╩ ╩ ╩ ╚═╝
   data: {
-    // Main syncing/loading state for this page.
+
+
+    formToDisplay: 'signup',
+    // Shared by forms
     syncing: false,
+    cloudError: undefined,
+    // Signup form
+    signupFormData: {},
+    signupFormErrors: {},
+    signupFormRules: {
+      firstName: {required: true},
+      lastName: {required: true},
+      emailAddress: {required: true, isEmail: true},
+      password: {
+        required: true,
+        minLength: 12,
+        maxLength: 48,
+        custom: (value)=>{
+          return value.match(/^(?=.*\d)(?=.*[^A-Za-z0-9]).{12,48}$/);
+        }
+      },
+    },
+    // Login form
+    loginFormData: {},
+    loginFormErrors: {},
+    loginFormRules: {
+      emailAddress: {required: true, isEmail: true},
+      password: {required: true},
+    },
+
+
+    // Main syncing/loading state for this page.
+    // syncing: false,
 
     // Form data
     formData: {
@@ -23,7 +54,7 @@ parasails.registerPage('login', {
     },
 
     // Server error state for the form
-    cloudError: '',
+    // cloudError: '',
     showCustomerLogin: true,
     // For redirecting users coming from the "Get your license" link to the license dispenser.
     registerSlug: '/register',
@@ -65,7 +96,40 @@ parasails.registerPage('login', {
   //  ║║║║ ║ ║╣ ╠╦╝╠═╣║   ║ ║║ ║║║║╚═╗
   //  ╩╝╚╝ ╩ ╚═╝╩╚═╩ ╩╚═╝ ╩ ╩╚═╝╝╚╝╚═╝
   methods: {
+    switchForm(form) {
+      this.formToDisplay = form;
+    },
 
+    clickResetForm: async function() {
+      this.cloudError = '';
+      this.signupFormErrors = {};
+      await this.forceRender();
+    },
+
+    typeClearOneFormError: async function(field) {
+      if(this.signupFormErrors[field]){
+        this.signupFormErrors = _.omit(this.signupFormErrors, field);
+      }
+    },
+    submittedSignupForm: async function(){
+      this.syncing = true;
+      // Track a "key event" in Google Analytics.
+      // > Naming convention:  (like sails config)
+      // > "Website - Sign up" becomes "fleet_website__sign_up"  (double-underscore representing hierarchy)
+      if(window.gtag !== undefined){
+        window.gtag('event','fleet_website__sign_up');
+      }
+
+      // Track a "conversion" in LinkedIn Campaign Manager.
+      if(window.lintrk !== undefined) {
+        window.lintrk('track', { conversion_id: 18587097 });// eslint-disable-line camelcase
+      }
+      this.goto('/try');
+    },
+    submittedLoginForm: async function() {
+      this.syncing = true;
+      this.goto('/try');
+    },
     submittedForm: async function() {
       // Redirect to the /start page on success.
       // > (Note that we re-enable the syncing state here.  This is on purpose--
@@ -73,6 +137,14 @@ parasails.registerPage('login', {
       this.syncing = true;
       this.goto(this.pageToRedirectToAfterLogin);
     },
+
+    clickGoBack: function () {
+      if(window.navigation && window.navigation.canGoBack){
+        window.navigation.back();
+      } else {
+        this.goto('/');
+      }
+    }
 
   }
 });

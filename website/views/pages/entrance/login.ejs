@@ -77,13 +77,6 @@
             <div purpose="g-bottom-label"></div>
           </div>
         </div>
-        <div purpose="g-platform">
-          <div purpose="g-icon"></div>
-          <div>
-            <div purpose="g-label"></div>
-            <div purpose="g-bottom-label"></div>
-          </div>
-        </div>
       </div>
 
       <div purpose="g-details">
@@ -344,10 +337,14 @@
       <div class="petticoat"></div>
       <div class="modal-dialog custom-width position-relative" role="document" purpose="modal-dialog" >
         <div class="modal-content" purpose="modal-content" >
-          <button type="button" class="position-absolute" data-dismiss="modal" data-target="#signupmodal" aria-label="Close" purpose="modal-close-button" @click="clickGoBack()">&times;</button>
           <div purpose="signup-modal">
-            <div purpose="modal-logo">
-              <img alt="Fleet logo" src="/images/logo-brandmark-32x32@2x.png">
+            <div purpose="logo-row">
+              <div purpose="modal-logo">
+                <img alt="Fleet logo" src="/images/logo-brandmark-32x32@2x.png">
+              </div>
+              <div purpose="close-button">
+                <button type="button" data-dismiss="modal" data-target="#signupmodal" aria-label="Close" purpose="modal-close-button" @click="clickGoBack()">&times;</button>
+              </div>
             </div>
           <h3 class="mb-0">Welcome to Fleet</h3>
           <p class="mb-0">We just need a few details in order to get started.</p>
@@ -431,8 +428,8 @@
             <span purpose="modal-form-note" class="text-center"><a purpose="modal-form-link" href="/customers/forgot-password">Forgot your password?</a></span>
           </ajax-form>
           </div>
-        </div><!-- /.modal-content -->
-      </div> <!-- /.modal-dialog -->
+        </div>
+      </div>
     </div>
   </div>
 </div>
