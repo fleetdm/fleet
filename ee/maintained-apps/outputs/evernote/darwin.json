@@ -1,7 +1,7 @@
 {
   "versions": [
     {
-      "version": "latest",
+      "version": "11.1.2",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.evernote.Evernote';"
       },
