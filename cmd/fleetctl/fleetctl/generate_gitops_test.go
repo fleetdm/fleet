@@ -923,7 +923,7 @@ func TestGenerateOrgSettingsMaskedGoogleCalendarApiKey(t *testing.T) {
 		Client:       fleetClient,
 		CLI:          cli.NewContext(&cli.App{}, nil, nil),
 		Messages:     Messages{},
-		FilesToWrite: make(map[string]interface{}),
+		FilesToWrite: make(map[string]any),
 		AppConfig:    appConfig,
 	}
 
@@ -937,13 +937,13 @@ func TestGenerateOrgSettingsMaskedGoogleCalendarApiKey(t *testing.T) {
 	require.NoError(t, err)
 
 	// Verify api_key_json was replaced with a comment placeholder (not "********")
-	var orgSettings map[string]interface{}
+	var orgSettings map[string]any
 	err = yaml.Unmarshal(b, &orgSettings)
 	require.NoError(t, err)
 
-	integrations := orgSettings["integrations"].(map[string]interface{})
-	googleCalendar := integrations["google_calendar"].([]interface{})
-	intg := googleCalendar[0].(map[string]interface{})
+	integrations := orgSettings["integrations"].(map[string]any)
+	googleCalendar := integrations["google_calendar"].([]any)
+	intg := googleCalendar[0].(map[string]any)
 	apiKeyJson := intg["api_key_json"]
 
 	// Should be a comment placeholder string, not "********" or a map

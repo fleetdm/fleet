@@ -764,7 +764,7 @@ func (cmd *GenerateGitopsCommand) generateIntegrations(filePath string, integrat
 	if !cmd.CLI.Bool("insecure") {
 		if googleCalendar, ok := result["google_calendar"]; ok && googleCalendar != nil {
 			for _, intg := range googleCalendar.([]interface{}) {
-				intgMap := intg.(map[string]interface{})
+				intgMap := intg.(map[string]any)
 				if _, ok := intgMap["api_key_json"]; ok {
 					intgMap["api_key_json"] = cmd.AddComment(filePath, "TODO: Add your Google Calendar API key JSON here")
 					cmd.Messages.SecretWarnings = append(cmd.Messages.SecretWarnings, SecretWarning{
