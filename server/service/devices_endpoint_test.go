@@ -93,6 +93,9 @@ func TestGetDeviceHostEndpointScrubbing(t *testing.T) {
 	ds.ListHostDeviceMappingFunc = func(ctx context.Context, id uint) ([]*fleet.HostDeviceMapping, error) {
 		return nil, nil
 	}
+	ds.ConditionalAccessBypassedAtFunc = func(ctx context.Context, hostID uint) (*time.Time, error) {
+		return nil, nil
+	}
 
 	// Inject host into context
 	ctx = host.NewContext(ctx, h)
@@ -219,6 +222,9 @@ func TestGetDeviceHostEndpointNoScrubbingForMacOS(t *testing.T) {
 		return nil, nil
 	}
 	ds.ListHostDeviceMappingFunc = func(ctx context.Context, id uint) ([]*fleet.HostDeviceMapping, error) {
+		return nil, nil
+	}
+	ds.ConditionalAccessBypassedAtFunc = func(ctx context.Context, hostID uint) (*time.Time, error) {
 		return nil, nil
 	}
 
@@ -365,6 +371,9 @@ func TestGetDeviceHostEndpointConditionalAccessBypass(t *testing.T) {
 				return nil, nil
 			}
 			ds.ListHostDeviceMappingFunc = func(ctx context.Context, id uint) ([]*fleet.HostDeviceMapping, error) {
+				return nil, nil
+			}
+			ds.ConditionalAccessBypassedAtFunc = func(ctx context.Context, hostID uint) (*time.Time, error) {
 				return nil, nil
 			}
 
