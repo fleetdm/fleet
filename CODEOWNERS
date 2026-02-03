@@ -66,7 +66,7 @@ go.mod @fleetdm/go
 # (see website/config/custom.js for DRIs of other paths not listed here)
 ##############################################################################################
 /docs                                                   @rachaelshaw
-/docs/solutions                                         @ddribeiro @lukeheath
+/docs/solutions                                         @ddribeiro
 /docs/Configuration                                     @rachaelshaw
 /docs/Contributing                                      @lukeheath @georgekarrv @sharon-fdm # « Contributing guidelines
 /docs/Contributing/product-groups/orchestration/understanding-host-vitals.md @sharon-fdm @sgress454 @getvictor # software ingestion is security & compliance
@@ -84,9 +84,9 @@ go.mod @fleetdm/go
 ################################################################################################
 
 # MDM
-/docs/Contributing/architecture/mdm                     @georgekarrv @JordanMontgomery @lukeheath
-/docs/Contributing/product-groups/mdm                   @georgekarrv @JordanMontgomery @lukeheath
-/docs/Contributing/research/mdm                         @georgekarrv @JordanMontgomery @lukeheath
+/docs/Contributing/architecture/mdm                     @georgekarrv @JordanMontgomery
+/docs/Contributing/product-groups/mdm                   @georgekarrv @JordanMontgomery
+/docs/Contributing/research/mdm                         @georgekarrv @JordanMontgomery
 
 # Orchestration
 /docs/Contributing/architecture/orchestration           @sharon-fdm @sgress454
@@ -114,23 +114,23 @@ go.mod @fleetdm/go
 #
 # (see website/config/custom.js for DRIs of other paths not listed here)
 ##############################################################################################
-/handbook/README.md                                             @mikermcneil
-/handbook/company/README.md                                     @mikermcneil
-/handbook/company/why-this-way.md                               @mikermcneil
-/handbook/company/communications.md                             @sampfluger88
-/handbook/company/leadership.md                                 @sampfluger88
-/handbook/company/open-positions.yml                            @ireedy @sampfluger88
+#/handbook/README.md                                            Covered in custom.js
+#/handbook/company/README.md                                    Covered in custom.js
+#/handbook/company/why-this-way.md                              Covered in custom.js
+#/handbook/company/communications.md                            Covered in custom.js
+#/handbook/company/leadership.md                                Covered in custom.js
+/handbook/company/open-positions.yml                            @ireedy
 #/handbook/company/product-groups.md                            Covered in custom.js
-/handbook/company/go-to-market-groups.md                        @sampfluger88
-/handbook/finance/security.md                   			    @allenhouchins @sampfluger88
-/handbook/finance/README.md                                     @sampfluger88
-/handbook/finance/finance.rituals.yml                           @sampfluger88
-/handbook/people                    			        	    @sampfluger88
-/handbook/it-and-enablement                             	    @sampfluger88
-/handbook/customer-success                                    	@sampfluger88
-/handbook/marketing                                            	@sampfluger88
-/handbook/sales                                             	@sampfluger88
-/handbook/ceo                                                   @sampfluger88
+#/handbook/company/go-to-market-operations.md                       Covered in custom.js
+#/handbook/finance/README.md                                    Covered in custom.js
+#/handbook/finance/finance.rituals.yml                          Covered in custom.js
+#/handbook/people                    			        	            Covered in custom.js
+#/handbook/it                             	                    Covered in custom.js
+#/handbook/it/security.md                   			              Covered in custom.js
+#/handbook/customer-success                                    	Covered in custom.js
+#/handbook/marketing                                            Covered in custom.js
+#/handbook/sales                                                Covered in custom.js
+#/handbook/ceo                                                  Covered in custom.js
 #/handbook/product-design                                     	Covered in custom.js
 #/handbook/engineering                                     	    Covered in custom.js
 
@@ -158,7 +158,6 @@ go.mod @fleetdm/go
 ##############################################################################################
 # 🚀 GitHub workflows
 ##############################################################################################
-/.github @lukeheath
-/.github/workflows/ @georgekarrv @sharon-fdm @lukeheath @lucasmrod @getvictor 
+/.github/workflows/ @georgekarrv @sharon-fdm @lukeheath @lucasmrod @getvictor
 # ℹ️ But wait, there's more!
 # See the comments up top to learn where else DRIs and maintainers are configured.

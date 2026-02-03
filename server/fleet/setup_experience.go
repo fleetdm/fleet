@@ -57,6 +57,11 @@ type SetupExperienceStatusResult struct {
 	// (e.g., "sh_packages", "ps1_packages", "apps", etc.) and is used by the frontend
 	// to determine appropriate UI display (e.g., "Run" vs "Install" verbs).
 	Source *string `json:"source,omitempty" db:"source"`
+
+	// DisplayName and IconURL are populated by ListSetupExperienceResultsByHostUUID and
+	// are only used for display purposes in the UI.
+	DisplayName string `json:"display_name,omitempty" db:"-"`
+	IconURL     string `json:"icon_url,omitempty" db:"-"`
 }
 
 func (s *SetupExperienceStatusResult) IsValid() error {
@@ -114,6 +119,17 @@ func (s *SetupExperienceStatusResult) IsForSoftware() bool {
 // IsForSoftwarePackage indicates if this result is for a setup experience software installer step.
 func (s *SetupExperienceStatusResult) IsForSoftwarePackage() bool {
 	return s.SoftwareInstallerID != nil
+}
+
+func (s *SetupExperienceStatusResult) ForMyDevicePage(token string) {
+	// convert api style iconURL to device token URL
+	if s.IconURL != "" && s.SoftwareTitleID != nil {
+		if SoftwareTitleIconURLRegex.MatchString(s.IconURL) {
+			icon := SoftwareTitleIcon{SoftwareTitleID: *s.SoftwareTitleID}
+			deviceIconURL := icon.IconUrlWithDeviceToken(token)
+			s.IconURL = deviceIconURL
+		}
+	}
 }
 
 type SetupExperienceBootstrapPackageResult struct {
@@ -237,4 +253,13 @@ type SetupExperienceCount struct {
 	Installers uint `db:"installers"`
 	Scripts    uint `db:"scripts"`
 	VPP        uint `db:"vpp"`
+}
+
+var SetupExperienceSupportedPlatforms = []string{
+	"macos",
+	"ios",
+	"ipados",
+	"windows",
+	"linux",
+	"android",
 }

@@ -1,14 +1,14 @@
 {
   "versions": [
     {
-      "version": "1.2.80.354.gc3785978",
+      "version": "1.2.82.428.g0ac8be2b",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name = 'Spotify' AND publisher = 'Spotify AB';"
       },
-      "installer_url": "https://upgrade.scdn.co/upgrade/client/win32-x86_64/spotify_installer-1.2.80.354.gc3785978-1005.exe",
+      "installer_url": "https://upgrade.scdn.co/upgrade/client/win32-x86_64/spotify_installer-1.2.82.428.g0ac8be2b-1220.exe",
       "install_script_ref": "7e4727ac",
       "uninstall_script_ref": "48d55e3d",
-      "sha256": "d4335c752d2ff303edafeaf3108a09f926d9234d6eb36bf97a94073723328f87",
+      "sha256": "62c56d76a94e0fd11f86699274ecd53b8153fadd2a4551bec86f22a0251d927b",
       "default_categories": [
         "Productivity"
       ]

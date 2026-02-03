@@ -147,6 +147,13 @@ allow {
   action == [read, write, write_role, change_password][_]
 }
 
+# Global observers, observer_plus, and maintainers can read users.
+allow {
+  object.type == "user"
+  subject.global_role == [observer, observer_plus, maintainer][_]
+  action == read
+}
+
 # Team admins can perform all operations on the team users (except changing their password).
 allow {
   object.type == "user"
@@ -362,7 +369,7 @@ allow {
 # Team admins, maintainers, observer_plus, observers and gitops can read global labels.
 allow {
   object.type == "label"
-  is_null(object.team_id)
+  any([is_null(object.team_id), object.team_id == 0]) # allow specifying team ID 0 for listing exclusively global labels
   # If role is admin, maintainer, observer_plus or observer on any team.
   team_role(subject, subject.teams[_].id) == [admin, maintainer, observer_plus, observer, gitops][_]
   action == read

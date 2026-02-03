@@ -35,8 +35,10 @@ import DataSet from "components/DataSet";
 import CardHeader from "components/CardHeader";
 import TooltipWrapperArchLinuxRolling from "components/TooltipWrapperArchLinuxRolling";
 import Icon from "components/Icon/Icon";
+import Button from "components/buttons/Button";
 
 import DiskSpaceIndicator from "pages/hosts/components/DiskSpaceIndicator";
+import { getCityCountryLocation } from "../../modals/LocationModal/LocationModal";
 
 interface IVitalsProps {
   vitalsData: { [key: string]: any };
@@ -44,6 +46,7 @@ interface IVitalsProps {
   mdm?: IHostMdmData;
   osVersionRequirement?: IAppleDeviceUpdates;
   className?: string;
+  toggleLocationModal?: () => void;
 }
 
 const baseClass = "vitals-card";
@@ -111,6 +114,7 @@ const Vitals = ({
   mdm,
   osVersionRequirement,
   className,
+  toggleLocationModal,
 }: IVitalsProps) => {
   const isIosOrIpadosHost = isIPadOrIPhone(vitalsData.platform);
   const isAndroidHost = isAndroid(vitalsData.platform);
@@ -162,7 +166,10 @@ const Vitals = ({
       return (
         <>
           {DeviceIdDataSet}
-          <DataSet title="Hardware model" value={vitalsData.hardware_model} />
+          <DataSet
+            title="Hardware model"
+            value={<TooltipTruncatedText value={vitalsData.hardware_model} />}
+          />
         </>
       );
     }
@@ -173,7 +180,10 @@ const Vitals = ({
       return (
         <>
           {DeviceIdDataSet}
-          <DataSet title="Hardware model" value={vitalsData.hardware_model} />
+          <DataSet
+            title="Hardware model"
+            value={<TooltipTruncatedText value={vitalsData.hardware_model} />}
+          />
         </>
       );
     }
@@ -182,7 +192,10 @@ const Vitals = ({
     // (either Serial number or Enrollment ID).
     return (
       <>
-        <DataSet title="Hardware model" value={vitalsData.hardware_model} />
+        <DataSet
+          title="Hardware model"
+          value={<TooltipTruncatedText value={vitalsData.hardware_model} />}
+        />
         {DeviceIdDataSet}
         <DataSet
           title="Private IP address"
@@ -240,17 +253,38 @@ const Vitals = ({
     );
   };
 
+  const renderTimezone = () => {
+    if (!isIosOrIpadosHost || !vitalsData?.timezone) {
+      return null;
+    }
+    return (
+      <DataSet
+        title="Timezone"
+        value={
+          <TooltipTruncatedText
+            value={vitalsData.timezone || DEFAULT_EMPTY_CELL_VALUE}
+          />
+        }
+      />
+    );
+  };
+
   const renderGeolocation = () => {
     const geolocation = vitalsData.geolocation;
 
-    if (!geolocation) {
+    const isAdeIDevice =
+      isIosOrIpadosHost && mdm?.enrollment_status === "On (automatic)";
+
+    if (!isAdeIDevice && !geolocation) {
       return null;
     }
 
-    const location = [geolocation?.city_name, geolocation?.country_iso]
-      .filter(Boolean)
-      .join(", ");
-    return <DataSet title="Location" value={location} />;
+    const geoLocationButton = (
+      <Button variant="text-link" onClick={toggleLocationModal}>
+        {isAdeIDevice ? "Show location" : getCityCountryLocation(geolocation)}
+      </Button>
+    );
+    return <DataSet title="Location" value={geoLocationButton} />;
   };
 
   const renderBattery = () => {
@@ -294,10 +328,10 @@ const Vitals = ({
 
     const title = isAndroidHost ? (
       <TooltipWrapper tipContent="Includes internal and removable storage (e.g. microSD card).">
-        Disk space
+        Disk space available
       </TooltipWrapper>
     ) : (
-      "Disk space"
+      "Disk space available"
     );
 
     return (
@@ -415,7 +449,7 @@ const Vitals = ({
           <TooltipWrapperArchLinuxRolling />
         </>
       ) : (
-        version
+        <TooltipTruncatedText value={version} />
       );
       return (
         <DataSet
@@ -437,16 +471,23 @@ const Vitals = ({
       <DataSet
         title="Operating system"
         value={
-          <>
+          <span className={`${baseClass}__os-version`}>
             {!osVersionRequirementMet && (
               <Icon name="error-outline" color="ui-fleet-black-75" />
             )}
             <TooltipWrapper
+              className={`${baseClass}__os-version-tooltip`}
               tipContent={
                 osVersionRequirementMet ? (
-                  "Meets minimum version requirement."
+                  <>
+                    {vitalsData.os_version}
+                    <br />
+                    Meets minimum version requirement.
+                  </>
                 ) : (
                   <>
+                    {vitalsData.os_version}
+                    <br />
                     Does not meet minimum version requirement.
                     <br />
                     Deadline to update: {osVersionRequirement.deadline}
@@ -454,10 +495,13 @@ const Vitals = ({
                 )
               }
             >
-              {vitalsData.os_version}
+              <span className={`${baseClass}__os-version-text`}>
+                {vitalsData.os_version}
+              </span>
             </TooltipWrapper>
-          </>
+          </span>
         }
+        className={`${baseClass}__os-data-set`}
       />
     );
   };
@@ -507,6 +551,7 @@ const Vitals = ({
         {renderOperatingSystemSummary()}
         {renderMunkiData()}
         {renderMdmData()}
+        {renderTimezone()}
         {renderGeolocation()}
       </div>
     </Card>

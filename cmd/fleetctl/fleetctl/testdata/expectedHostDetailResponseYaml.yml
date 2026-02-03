@@ -4,6 +4,7 @@ spec:
   build: ""
   code_name: ""
   computer_name: test_host
+  conditional_access_bypassed: false
   config_tls_refresh: 0
   cpu_brand: ""
   cpu_logical_cores: 0
@@ -99,6 +100,7 @@ spec:
   status: offline
   team_id: null
   team_name: null
+  timezone: null
   updated_at: "0001-01-01T00:00:00Z"
   uptime: 0
   uuid: ""

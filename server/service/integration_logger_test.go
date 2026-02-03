@@ -133,7 +133,7 @@ func (s *integrationLoggerTestSuite) TestLoggerLogin() {
 			expectedStatus: http.StatusUnauthorized,
 			expectedLogs: []logEntry{
 				{"email", testUsers["admin1"].Email},
-				{"level", "error"},
+				{"level", "info"},
 				{"internal", "invalid password"},
 			},
 		},
@@ -142,7 +142,7 @@ func (s *integrationLoggerTestSuite) TestLoggerLogin() {
 			expectedStatus: http.StatusUnauthorized,
 			expectedLogs: []logEntry{
 				{"email", "h4x0r@3x4mp13.c0m"},
-				{"level", "error"},
+				{"level", "info"},
 				{"internal", "user not found"},
 			},
 		},
@@ -310,7 +310,7 @@ func (s *integrationLoggerTestSuite) TestEnrollOsqueryLogsErrors() {
 	require.Len(t, parts, 1)
 	logData := make(map[string]json.RawMessage)
 	require.NoError(t, json.Unmarshal([]byte(parts[0]), &logData))
-	assert.Equal(t, `"error"`, string(logData["level"]))
+	assert.Equal(t, `"info"`, string(logData["level"]))
 	assert.Contains(t, string(logData["err"]), `"enroll failed:`)
 	assert.Contains(t, string(logData["err"]), `no matching secret found`)
 }
@@ -371,7 +371,7 @@ func (s *integrationLoggerTestSuite) TestWindowsMDMEnrollEmptyBinarySecurityToke
 	host := createOrbitEnrolledHost(t, "windows", "", s.ds)
 	mdmDevice := mdmtest.NewTestMDMClientWindowsEmptyBinarySecurityToken(s.server.URL, *host.OrbitNodeKey)
 	err = mdmDevice.Enroll()
-	require.NoError(t, err)
+	require.Error(t, err)
 
 	t.Log(s.buf.String())
 
@@ -394,12 +394,11 @@ func (s *integrationLoggerTestSuite) TestWindowsMDMEnrollEmptyBinarySecurityToke
 			require.Equal(t, "info", m["level"])
 			require.Equal(t, "binarySecurityToken is empty", m["soap_fault"])
 		case microsoft_mdm.MDE2EnrollPath:
-			require.Equal(t, "info", m["level"])
-			require.Equal(t, "binarySecurityToken is empty", m["soap_fault"])
-			foundEnroll = true
+			foundEnroll = false
 		}
 	}
 	require.True(t, foundDiscovery)
 	require.True(t, foundPolicy)
-	require.True(t, foundEnroll)
+	// Will not enroll due to soap fault on prior request
+	require.False(t, foundEnroll)
 }

@@ -4,5 +4,6 @@
   "token": "github",
   "installer_format": "zip",
   "slug": "github/darwin",
-  "default_categories": ["Developer tools"]
+  "default_categories": ["Developer tools"],
+  "install_script_path": "ee/maintained-apps/inputs/homebrew/scripts/github-desktop-install.sh"
 }

@@ -1,14 +1,14 @@
 {
   "versions": [
     {
-      "version": "2.48.250",
+      "version": "2.49.257",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name = 'Box' AND publisher = 'Box, Inc.';"
       },
-      "installer_url": "https://e3.boxcdn.net/desktop/releases/win/BoxDrive-2.48.250.msi",
+      "installer_url": "https://e3.boxcdn.net/desktop/releases/win/BoxDrive-2.49.257.msi",
       "install_script_ref": "8959087b",
       "uninstall_script_ref": "3aca97ff",
-      "sha256": "96c9631470d3f7eccd3de8ee4ee3b0c8d19adfe3e29ed4e2f9e040f1c7ad8faf",
+      "sha256": "e7bd2ba4dfe31247f5988710bfdef6c63b67ee3f05bc964a11b8cf1b056c4c39",
       "default_categories": [
         "Productivity"
       ],

@@ -7,12 +7,15 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"net/http"
+	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
 
 	"github.com/fleetdm/fleet/v4/pkg/optjson"
+	"github.com/fleetdm/fleet/v4/server/dev_mode"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/ghodss/yaml"
@@ -20,6 +23,8 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/urfave/cli/v2"
+
+	ma "github.com/fleetdm/fleet/v4/ee/maintained-apps"
 )
 
 type MockClient struct {
@@ -275,6 +280,26 @@ func (MockClient) ListSoftwareTitles(query string) ([]fleet.SoftwareTitleListRes
 				},
 				HashSHA256: ptr.String("app-setup-experience-hash"),
 			},
+			{
+				ID:   7,
+				Name: "My iOS Auto Update App",
+				AppStoreApp: &fleet.SoftwarePackageOrApp{
+					AppStoreID: "com.example.ios-auto-update",
+					Platform:   string(fleet.IOSPlatform),
+				},
+				HashSHA256: ptr.String("ios-auto-update-hash"),
+			},
+			{
+				ID:         8,
+				Name:       "My FMA",
+				HashSHA256: ptr.String("fma-package-hash"),
+				SoftwarePackage: &fleet.SoftwarePackageOrApp{
+					Name:                 "my-fma.pkg",
+					Platform:             "darwin",
+					Version:              "1",
+					FleetMaintainedAppID: ptr.Uint(1),
+				},
+			},
 		}, nil
 	case "available_for_install=1&team_id=0":
 		return []fleet.SoftwareTitleListResult{}, nil
@@ -421,6 +446,46 @@ func (MockClient) GetSoftwareTitleByID(ID uint, teamID *uint) (*fleet.SoftwareTi
 			},
 			IconUrl: ptr.String("/api/icon3.png"),
 		}, nil
+	case 7:
+		if *teamID != 1 {
+			return nil, errors.New("team ID mismatch")
+		}
+		return &fleet.SoftwareTitle{
+			ID: 7,
+			AppStoreApp: &fleet.VPPAppStoreApp{
+				VPPAppID:    fleet.VPPAppID{AdamID: "com.example.ios-auto-update", Platform: fleet.IOSPlatform},
+				SelfService: false,
+			},
+			IconUrl: ptr.String("/api/icon4.png"),
+			SoftwareAutoUpdateConfig: fleet.SoftwareAutoUpdateConfig{
+				AutoUpdateEnabled:   ptr.Bool(true),
+				AutoUpdateStartTime: ptr.String("01:00"),
+				AutoUpdateEndTime:   ptr.String("03:00"),
+			},
+		}, nil
+	case 8:
+		return &fleet.SoftwareTitle{
+			ID: 8,
+			SoftwarePackage: &fleet.SoftwareInstaller{
+				LabelsIncludeAny: []fleet.SoftwareScopeLabel{{
+					LabelName: "Label A",
+				}, {
+					LabelName: "Label B",
+				}},
+				PreInstallQuery:      "SELECT * FROM pre_install_query",
+				InstallScript:        "install",
+				PostInstallScript:    "postinstall",
+				UninstallScript:      "uninstall",
+				SelfService:          true,
+				Platform:             "darwin",
+				URL:                  "https://example.com/download/my-software.pkg",
+				Categories:           []string{"Browsers"},
+				BundleIdentifier:     "com.my.fma",
+				FleetMaintainedAppID: ptr.Uint(1),
+			},
+			IconUrl:          ptr.String("/api/icon1.png"),
+			BundleIdentifier: ptr.String("com.my.fma"),
+		}, nil
 	default:
 		return nil, errors.New("software title not found")
 	}
@@ -497,6 +562,15 @@ func (MockClient) GetSetupExperienceSoftware(platform string, teamID uint) ([]fl
 					InstallDuringSetup: ptr.Bool(true),
 				},
 				HashSHA256: ptr.String("app-setup-experience-hash"),
+			},
+			{
+				ID:   8,
+				Name: "My FMA",
+				SoftwarePackage: &fleet.SoftwarePackageOrApp{
+					InstallDuringSetup: ptr.Bool(true),
+					Name:               "my-fma.pkg",
+					Platform:           "darwin",
+				},
 			},
 		}, nil
 	}
@@ -676,7 +750,47 @@ func compareDirs(t *testing.T, sourceDir, targetDir string) {
 	}
 }
 
+func configureFMAManifestServer(t *testing.T) {
+	manifestServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if strings.Contains(r.URL.Path, "apps.json") {
+			data := json.RawMessage(`{"version": 2, "apps": [{"name": "My FMA", "slug": "fma1/darwin", "platform": "darwin", "unique_identifier": "com.my.fma"}]}`)
+			err := json.NewEncoder(w).Encode(data)
+			require.NoError(t, err)
+			return
+		}
+
+		slug := strings.TrimPrefix(strings.TrimSuffix(r.URL.Path, ".json"), "/")
+
+		var versions []*ma.FMAManifestApp
+		versions = append(versions, &ma.FMAManifestApp{
+			Version: "1",
+			Queries: ma.FMAQueries{
+				Exists: "SELECT 1 FROM osquery_info;",
+			},
+			InstallScriptRef:   "install_ref",
+			UninstallScriptRef: "uninstall_ref",
+
+			DefaultCategories: []string{"Productivity"},
+			Slug:              slug,
+		})
+
+		manifest := ma.FMAManifestFile{
+			Versions: versions,
+			Refs: map[string]string{
+				"install_ref":   "install",
+				"uninstall_ref": "uninstall",
+			},
+		}
+
+		err := json.NewEncoder(w).Encode(manifest)
+		require.NoError(t, err)
+	}))
+	t.Cleanup(manifestServer.Close)
+	dev_mode.SetOverride("FLEET_DEV_MAINTAINED_APPS_BASE_URL", manifestServer.URL, t)
+}
+
 func TestGenerateGitops(t *testing.T) {
+	configureFMAManifestServer(t)
 	fleetClient := &MockClient{}
 	action := createGenerateGitopsAction(fleetClient)
 	buf := new(bytes.Buffer)
@@ -703,6 +817,7 @@ func TestGenerateGitops(t *testing.T) {
 }
 
 func TestGenerateGitopsWithoutMDM(t *testing.T) {
+	configureFMAManifestServer(t)
 	fleetClient := &MockClient{WithoutMDM: true}
 	action := createGenerateGitopsAction(fleetClient)
 	buf := new(bytes.Buffer)
@@ -820,6 +935,65 @@ func TestGeneratedOrgSettingsNoSSO(t *testing.T) {
 	require.NoError(t, err)
 	err = yaml.Unmarshal(b, &orgSettings)
 	require.NoError(t, err)
+}
+
+func TestGenerateSoftwareAutoUpdateSchedule(t *testing.T) {
+	configureFMAManifestServer(t)
+	fleetClient := &MockClient{}
+	cmd := &GenerateGitopsCommand{
+		Client:       fleetClient,
+		CLI:          cli.NewContext(&cli.App{}, nil, nil),
+		Messages:     Messages{},
+		FilesToWrite: make(map[string]any),
+		SoftwareList: make(map[uint]Software),
+		ScriptList:   make(map[uint]string),
+	}
+	appConfig, err := fleetClient.GetAppConfig()
+	require.NoError(t, err)
+	cmd.AppConfig = appConfig
+
+	// prepare FilesToWrite entry like Run() would
+	cmd.FilesToWrite["teams/test.yml"] = map[string]any{}
+
+	// generate software for team 1
+	res, err := cmd.generateSoftware("teams/test.yml", 1, "team-a", false)
+	require.NoError(t, err)
+	require.NotNil(t, res)
+
+	apps, ok := res["app_store_apps"]
+	require.True(t, ok, "expected app_store_apps in result")
+	appsList, ok := apps.([]map[string]any)
+	if !ok {
+		// yaml/unmarshal may produce []interface{}
+		rawList, ok := apps.([]any)
+		require.True(t, ok, "unexpected app_store_apps type")
+		appsList = make([]map[string]any, 0, len(rawList))
+		for _, v := range rawList {
+			m, ok := v.(map[string]any)
+			require.True(t, ok)
+			appsList = append(appsList, m)
+		}
+	}
+
+	var found bool
+	for _, a := range appsList {
+		if a["app_store_id"] == "com.example.ios-auto-update" {
+			found = true
+			// auto update keys should be present
+			val, ok := a["auto_update_enabled"]
+			require.True(t, ok)
+			assert.Equal(t, true, val)
+
+			start, ok := a["auto_update_window_start"]
+			require.True(t, ok)
+			assert.Equal(t, "01:00", start)
+
+			end, ok := a["auto_update_window_end"]
+			require.True(t, ok)
+			assert.Equal(t, "03:00", end)
+		}
+	}
+	require.True(t, found, "did not find iOS auto-update app in generated software")
 }
 
 func TestGeneratedOrgSettingsOktaConditionalAccessNotIncluded(t *testing.T) {
@@ -1152,6 +1326,7 @@ func TestGenerateControls(t *testing.T) {
 }
 
 func TestGenerateSoftware(t *testing.T) {
+	configureFMAManifestServer(t)
 	// Get the test app config.
 	fleetClient := &MockClient{}
 	appConfig, err := fleetClient.GetAppConfig()
@@ -1170,7 +1345,7 @@ func TestGenerateSoftware(t *testing.T) {
 	softwareRaw, err := cmd.generateSoftware("team.yml", 1, "some-team", false)
 	require.NoError(t, err)
 	require.NotNil(t, softwareRaw)
-	var software map[string]interface{}
+	var software map[string]any
 	b, err := yaml.Marshal(softwareRaw)
 	require.NoError(t, err)
 	fmt.Println("software raw:\n", string(b)) // Debugging line
@@ -1180,7 +1355,7 @@ func TestGenerateSoftware(t *testing.T) {
 	// Get the expected org settings YAML.
 	b, err = os.ReadFile("./testdata/generateGitops/expectedTeamSoftware.yaml")
 	require.NoError(t, err)
-	var expectedSoftware map[string]interface{}
+	var expectedSoftware map[string]any
 	err = yaml.Unmarshal(b, &expectedSoftware)
 	require.NoError(t, err)
 
@@ -1206,7 +1381,21 @@ func TestGenerateSoftware(t *testing.T) {
 	}
 
 	if fileContents, ok := cmd.FilesToWrite["lib/some-team/queries/my-software-package-darwin-preinstallquery.yml"]; ok {
-		require.Equal(t, []map[string]interface{}{{
+		require.Equal(t, []map[string]any{{
+			"query": "SELECT * FROM pre_install_query",
+		}}, fileContents)
+	} else {
+		t.Fatalf("Expected file not found")
+	}
+
+	if fileContents, ok := cmd.FilesToWrite["lib/some-team/scripts/my-fma-darwin-postinstall"]; ok {
+		require.Equal(t, "postinstall", fileContents)
+	} else {
+		t.Fatalf("Expected file not found")
+	}
+
+	if fileContents, ok := cmd.FilesToWrite["lib/some-team/queries/my-fma-darwin-preinstallquery.yml"]; ok {
+		require.Equal(t, []map[string]any{{
 			"query": "SELECT * FROM pre_install_query",
 		}}, fileContents)
 	} else {
@@ -1644,6 +1833,7 @@ func TestGenerateControlsAndMDMWithoutMDMEnabledAndConfigured(t *testing.T) {
 }
 
 func TestSillyTeamNames(t *testing.T) {
+	configureFMAManifestServer(t)
 	sillyTeamNames := map[string]string{
 		"🫆": "🫆.yml",
 		"🪾": "🪾.yml",

@@ -35,6 +35,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
 	"github.com/fleetdm/fleet/v4/server/datastore/redis/redistest"
+	"github.com/fleetdm/fleet/v4/server/dev_mode"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	fleetmdm "github.com/fleetdm/fleet/v4/server/mdm"
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
@@ -941,6 +942,9 @@ func TestHostDetailsMDMProfiles(t *testing.T) {
 	ds.ListHostDeviceMappingFunc = func(ctx context.Context, id uint) ([]*fleet.HostDeviceMapping, error) {
 		return nil, nil
 	}
+	ds.ConditionalAccessBypassedAtFunc = func(ctx context.Context, hostID uint) (*time.Time, error) {
+		return nil, nil
+	}
 	ds.GetHostIssuesLastUpdatedFunc = func(ctx context.Context, hostId uint) (time.Time, error) {
 		return time.Time{}, nil
 	}
@@ -952,6 +956,9 @@ func TestHostDetailsMDMProfiles(t *testing.T) {
 	}
 	ds.IsHostDiskEncryptionKeyArchivedFunc = func(ctx context.Context, hostID uint) (bool, error) {
 		return false, nil
+	}
+	ds.ConditionalAccessBypassedAtFunc = func(ctx context.Context, hostID uint) (*time.Time, error) {
+		return nil, nil
 	}
 
 	expectedNilSlice := []fleet.HostMDMAppleProfile(nil)
@@ -1901,7 +1908,7 @@ func TestMDMCommandAndReportResultsProfileHandling(t *testing.T) {
 	for i, c := range cases {
 		t.Run(fmt.Sprintf("%s%s-%d", c.requestType, c.status, i), func(t *testing.T) {
 			ds := new(mock.Store)
-			svc := MDMAppleCheckinAndCommandService{ds: ds}
+			svc := MDMAppleCheckinAndCommandService{ds: ds, logger: kitlog.NewNopLogger()}
 			ds.GetMDMAppleCommandRequestTypeFunc = func(ctx context.Context, targetCmd string) (string, error) {
 				require.Equal(t, commandUUID, targetCmd)
 				return c.requestType, nil
@@ -2693,8 +2700,9 @@ func TestMDMAppleReconcileAppleProfiles(t *testing.T) {
 	contents2 := []byte("test-content-2")
 	contents4 := []byte("test-content-4")
 	contents5 := []byte("test-contents-5")
+	contents7 := []byte("test-contents-7")
 
-	p1, p2, p3, p4, p5, p6 := "a"+uuid.NewString(), "a"+uuid.NewString(), "a"+uuid.NewString(), "a"+uuid.NewString(), "a"+uuid.NewString(), "a"+uuid.NewString()
+	p1, p2, p3, p4, p5, p6, p7 := "a"+uuid.NewString(), "a"+uuid.NewString(), "a"+uuid.NewString(), "a"+uuid.NewString(), "a"+uuid.NewString(), "a"+uuid.NewString(), "a"+uuid.NewString()
 	baseProfilesToInstall := []*fleet.MDMAppleProfilePayload{
 		{ProfileUUID: p1, ProfileIdentifier: "com.add.profile", HostUUID: hostUUID1, Scope: fleet.PayloadScopeSystem},
 		{ProfileUUID: p2, ProfileIdentifier: "com.add.profile.two", HostUUID: hostUUID1, Scope: fleet.PayloadScopeSystem},
@@ -2702,6 +2710,8 @@ func TestMDMAppleReconcileAppleProfiles(t *testing.T) {
 		{ProfileUUID: p4, ProfileIdentifier: "com.add.profile.four", HostUUID: hostUUID2, Scope: fleet.PayloadScopeSystem},
 		{ProfileUUID: p5, ProfileIdentifier: "com.add.profile.five", HostUUID: hostUUID1, Scope: fleet.PayloadScopeUser},
 		{ProfileUUID: p5, ProfileIdentifier: "com.add.profile.five", HostUUID: hostUUID2, Scope: fleet.PayloadScopeUser},
+		{ProfileUUID: p7, ProfileIdentifier: "com.add.profile.seven", HostUUID: hostUUID1, Scope: fleet.PayloadScopeUser},
+		{ProfileUUID: p7, ProfileIdentifier: "com.add.profile.seven", HostUUID: hostUUID2, Scope: fleet.PayloadScopeUser, HostPlatform: "ios"},
 	}
 	baseProfilesToRemove := []*fleet.MDMAppleProfilePayload{
 		{ProfileUUID: p3, ProfileIdentifier: "com.remove.profile", HostUUID: hostUUID1, Scope: fleet.PayloadScopeSystem},
@@ -2714,13 +2724,14 @@ func TestMDMAppleReconcileAppleProfiles(t *testing.T) {
 	}
 
 	ds.GetMDMAppleProfilesContentsFunc = func(ctx context.Context, profileUUIDs []string) (map[string]mobileconfig.Mobileconfig, error) {
-		require.ElementsMatch(t, []string{p1, p2, p4, p5}, profileUUIDs)
+		require.ElementsMatch(t, []string{p1, p2, p4, p5, p7}, profileUUIDs)
 		// only those profiles that are to be installed
 		return map[string]mobileconfig.Mobileconfig{
 			p1: contents1,
 			p2: contents2,
 			p4: contents4,
 			p5: contents5,
+			p7: contents7,
 		}, nil
 	}
 
@@ -2762,19 +2773,19 @@ func TestMDMAppleReconcileAppleProfiles(t *testing.T) {
 			require.NoError(t, plist.Unmarshal(cmd.Raw, &fullCmd))
 			// the p7 library doesn't support concurrent calls to Parse
 			mu.Lock()
-			p7, err := pkcs7.Parse(fullCmd.Command.InstallProfile.Payload)
+			pk7, err := pkcs7.Parse(fullCmd.Command.InstallProfile.Payload)
 			mu.Unlock()
 			require.NoError(t, err)
 
-			if !bytes.Equal(p7.Content, expectedContents1) && !bytes.Equal(p7.Content, contents2) &&
-				!bytes.Equal(p7.Content, contents4) && !bytes.Equal(p7.Content, contents5) {
+			if !bytes.Equal(pk7.Content, expectedContents1) && !bytes.Equal(pk7.Content, contents2) &&
+				!bytes.Equal(pk7.Content, contents4) && !bytes.Equal(pk7.Content, contents5) && !bytes.Equal(pk7.Content, contents7) {
 				require.Failf(t, "profile contents don't match", "expected to contain %s, %s or %s but got %s",
-					expectedContents1, contents2, contents4, p7.Content)
+					expectedContents1, contents2, contents4, pk7.Content)
 			}
 
 			// may be called for a single host or both
 			if len(id) == 2 {
-				if bytes.Equal(p7.Content, contents5) {
+				if bytes.Equal(pk7.Content, contents5) || bytes.Equal(pk7.Content, contents7) {
 					require.ElementsMatch(t, []string{hostUUID1UserEnrollment, hostUUID2}, id)
 				} else {
 					require.ElementsMatch(t, []string{hostUUID1, hostUUID2}, id)
@@ -2855,7 +2866,7 @@ func TestMDMAppleReconcileAppleProfiles(t *testing.T) {
 			copies[i] = &copyp
 
 			// Host with no user enrollment, so install fails
-			if p.HostUUID == hostUUID2 && p.ProfileUUID == p5 {
+			if p.HostUUID == hostUUID2 && (p.ProfileUUID == p5 || p.ProfileUUID == p7) {
 				continue
 			}
 
@@ -2957,6 +2968,23 @@ func TestMDMAppleReconcileAppleProfiles(t *testing.T) {
 			},
 			// Note that host2 has no user enrollment so the profile is not marked for removal
 			// from it
+			{
+				ProfileUUID:       p7,
+				ProfileIdentifier: "com.add.profile.seven",
+				HostUUID:          hostUUID1,
+				OperationType:     fleet.MDMOperationTypeInstall,
+				Status:            &fleet.MDMDeliveryPending,
+				Scope:             fleet.PayloadScopeUser,
+			},
+			{
+				ProfileUUID:       p7,
+				ProfileIdentifier: "com.add.profile.seven",
+				HostUUID:          hostUUID2,
+				OperationType:     fleet.MDMOperationTypeInstall,
+				Status:            &fleet.MDMDeliveryFailed,
+				Detail:            "This setting couldn't be enforced because the user channel isn't available on iOS and iPadOS hosts.",
+				Scope:             fleet.PayloadScopeUser,
+			},
 		}, copies)
 		return nil
 	}
@@ -3057,7 +3085,7 @@ func TestMDMAppleReconcileAppleProfiles(t *testing.T) {
 		failedCheck = func(payload []*fleet.MDMAppleBulkUpsertHostProfilePayload) {
 			failedCount++
 
-			require.Len(t, payload, 5) // the 5 install ops
+			require.Len(t, payload, 6) // the 6 install ops
 			require.ElementsMatch(t, []*fleet.MDMAppleBulkUpsertHostProfilePayload{
 				{
 					ProfileUUID:       p1,
@@ -3096,6 +3124,15 @@ func TestMDMAppleReconcileAppleProfiles(t *testing.T) {
 				{
 					ProfileUUID:       p5,
 					ProfileIdentifier: "com.add.profile.five",
+					HostUUID:          hostUUID1,
+					OperationType:     fleet.MDMOperationTypeInstall,
+					Status:            nil,
+					CommandUUID:       "",
+					Scope:             fleet.PayloadScopeUser,
+				},
+				{
+					ProfileUUID:       p7,
+					ProfileIdentifier: "com.add.profile.seven",
 					HostUUID:          hostUUID1,
 					OperationType:     fleet.MDMOperationTypeInstall,
 					Status:            nil,
@@ -3145,7 +3182,7 @@ func TestMDMAppleReconcileAppleProfiles(t *testing.T) {
 			copies[i] = &copyp
 
 			// Host with no user enrollment, so install fails
-			if p.HostUUID == hostUUID2 && p.ProfileUUID == p5 {
+			if p.HostUUID == hostUUID2 && (p.ProfileUUID == p5 || p.ProfileUUID == p7) {
 				continue
 			}
 
@@ -3216,6 +3253,23 @@ func TestMDMAppleReconcileAppleProfiles(t *testing.T) {
 				OperationType:     fleet.MDMOperationTypeInstall,
 				Status:            &fleet.MDMDeliveryFailed,
 				Detail:            "This setting couldn't be enforced because the user channel doesn't exist for this host. Currently, Fleet creates the user channel for hosts that automatically enroll.",
+				Scope:             fleet.PayloadScopeUser,
+			},
+			{
+				ProfileUUID:       p7,
+				ProfileIdentifier: "com.add.profile.seven",
+				HostUUID:          hostUUID1,
+				OperationType:     fleet.MDMOperationTypeInstall,
+				Status:            &fleet.MDMDeliveryPending,
+				Scope:             fleet.PayloadScopeUser,
+			},
+			{
+				ProfileUUID:       p7,
+				ProfileIdentifier: "com.add.profile.seven",
+				HostUUID:          hostUUID2,
+				OperationType:     fleet.MDMOperationTypeInstall,
+				Status:            &fleet.MDMDeliveryFailed,
+				Detail:            "This setting couldn't be enforced because the user channel isn't available on iOS and iPadOS hosts.",
 				Scope:             fleet.PayloadScopeUser,
 			},
 		}, copies)
@@ -3329,22 +3383,25 @@ func TestMDMAppleReconcileAppleProfiles(t *testing.T) {
 		originalContents2 := contents2
 		originalContents4 := contents4
 		originalContents5 := contents5
+		originalContents7 := contents7
 		contents1 = []byte(badContents)
 		contents2 = []byte(badContents)
 		contents4 = []byte(badContents)
 		contents5 = []byte(badContents)
+		contents7 = []byte(badContents)
 		t.Cleanup(func() {
 			contents1 = originalContents1
 			contents2 = originalContents2
 			contents4 = originalContents4
 			contents5 = originalContents5
+			contents7 = originalContents7
 		})
 
 		profilesToInstall, _, _ := ds.ListMDMAppleProfilesToInstallAndRemoveFunc(ctx)
 		hostUUIDs = make([]string, 0, len(profilesToInstall))
 		for _, p := range profilesToInstall {
 			// This host will error before this point - should not be updated by the variable failure
-			if p.HostUUID == hostUUID2 && p.ProfileUUID == p5 {
+			if p.HostUUID == hostUUID2 && (p.ProfileUUID == p5 || p.ProfileUUID == p7) {
 				continue
 			}
 			hostUUIDs = append(hostUUIDs, p.HostUUID)
@@ -3353,7 +3410,7 @@ func TestMDMAppleReconcileAppleProfiles(t *testing.T) {
 		err := ReconcileAppleProfiles(ctx, ds, cmdr, kitlog.NewNopLogger())
 		require.NoError(t, err)
 		assert.Empty(t, hostUUIDs, "all host+profile combinations should be updated")
-		require.Equal(t, 4, failedCount, "number of profiles with bad content")
+		require.Equal(t, 5, failedCount, "number of profiles with bad content")
 		// checkAndReset(t, true, &ds.GetAllCertificateAuthoritiesFuncInvoked)
 		checkAndReset(t, true, &ds.ListMDMAppleProfilesToInstallAndRemoveFuncInvoked)
 		checkAndReset(t, true, &ds.GetMDMAppleProfilesContentsFuncInvoked)
@@ -5071,7 +5128,7 @@ func TestCheckMDMAppleEnrollmentWithMinimumOSVersion(t *testing.T) {
 		require.NoError(t, err)
 	}))
 	defer gdmf.Close()
-	t.Setenv("FLEET_DEV_GDMF_URL", gdmf.URL)
+	dev_mode.SetOverride("FLEET_DEV_GDMF_URL", gdmf.URL, t)
 
 	latestMacOSVersion := "14.6.1"
 	latestMacOSBuild := "23G93"
@@ -5368,7 +5425,6 @@ func TestCheckMDMAppleEnrollmentWithMinimumOSVersion(t *testing.T) {
 					require.Nil(t, sur)
 				}
 			})
-
 		})
 	}
 
@@ -6250,4 +6306,228 @@ var customProfileValidationMobileconfig string
 
 func customProfileForValidation(value string) string {
 	return fmt.Sprintf(customProfileValidationMobileconfig, value)
+}
+
+func TestParseHHMM(t *testing.T) {
+	tests := []struct {
+		input    string
+		wantHour int
+		wantMin  int
+		wantErr  bool
+	}{
+		{"00:00", 0, 0, false},
+		{"09:30", 9, 30, false},
+		{"23:59", 23, 59, false},
+		{"12:05", 12, 5, false},
+		{"invalid", 0, 0, true},
+		{"12", 0, 0, true},
+		{"12:60", 0, 0, true},
+		{"24:00", 0, 0, true},
+		{"-01:00", 0, 0, true},
+		{"12:xx", 0, 0, true},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.input, func(t *testing.T) {
+			h, m, err := parseHHMM(tt.input)
+			if (err != nil) != tt.wantErr {
+				t.Fatalf("parseHHMM(%q) error = %v, wantErr %v", tt.input, err, tt.wantErr)
+			}
+			if err == nil && (h != tt.wantHour || m != tt.wantMin) {
+				t.Fatalf("parseHHMM(%q) = %d:%d, want %02d:%02d", tt.input, h, m, tt.wantHour, tt.wantMin)
+			}
+		})
+	}
+}
+
+func TestGetCurrentLocalTimeInHostTimeZone(t *testing.T) {
+	// Save original and restore after test
+	originalMock := nowFunc
+	defer func() { nowFunc = originalMock }()
+
+	// Fix "now" to a known UTC time: 2026-01-02 14:30:00 UTC
+	fixedNow := time.Date(2026, 1, 2, 14, 30, 0, 0, time.UTC)
+	nowFunc = func() time.Time {
+		return fixedNow
+	}
+
+	tests := []struct {
+		name     string
+		timezone string
+		wantHour int
+		wantMin  int
+		wantErr  bool
+	}{
+		{"UTC", "UTC", 14, 30, false},
+		{"New York", "America/New_York", 9, 30, false},       // EST = UTC-5
+		{"Los Angeles", "America/Los_Angeles", 6, 30, false}, // PST = UTC-8
+		{"London", "Europe/London", 14, 30, false},           // GMT in winter
+		{"Tokyo", "Asia/Tokyo", 23, 30, false},               // JST = UTC+9
+		{"Invalid TZ", "Invalid/Timezone", 0, 0, true},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := getCurrentLocalTimeInHostTimeZone(context.Background(), tt.timezone)
+			if (err != nil) != tt.wantErr {
+				t.Fatalf("getCurrentLocalTimeInHostTimeZone(%q) error = %v, wantErr %v", tt.timezone, err, tt.wantErr)
+			}
+			if err == nil {
+				if got.Hour() != tt.wantHour || got.Minute() != tt.wantMin {
+					t.Fatalf("getCurrentLocalTimeInHostTimeZone(%q) = %02d:%02d, want %02d:%02d",
+						tt.timezone, got.Hour(), got.Minute(), tt.wantHour, tt.wantMin)
+				}
+			}
+		})
+	}
+}
+
+func TestIsTimezoneInWindow(t *testing.T) {
+	// Save original and restore after test
+	originalMock := nowFunc
+	defer func() { nowFunc = originalMock }()
+
+	// Helper to set a fixed UTC time, which will be converted to local time
+	setMockUTCNow := func(year, month, day, hour, min_ int) {
+		nowFunc = func() time.Time {
+			return time.Date(year, time.Month(month), day, hour, min_, 0, 0, time.UTC)
+		}
+	}
+
+	tests := []struct {
+		name         string
+		mockUTCHour  int
+		mockUTCMin   int
+		timezone     string
+		start        string
+		end          string
+		wantInWindow bool
+		wantErr      bool
+	}{
+		// Normal window (no midnight cross)
+		{name: "normal inside", mockUTCHour: 14, mockUTCMin: 0, timezone: "America/New_York", start: "08:00", end: "17:00", wantInWindow: true, wantErr: false},  // 09:00 EST
+		{name: "normal before", mockUTCHour: 12, mockUTCMin: 0, timezone: "America/New_York", start: "09:00", end: "17:00", wantInWindow: false, wantErr: false}, // 07:00 EST
+		{name: "normal at start", mockUTCHour: 14, mockUTCMin: 0, timezone: "America/New_York", start: "09:00", end: "17:00", wantInWindow: true, wantErr: false},
+		{name: "normal at end", mockUTCHour: 22, mockUTCMin: 0, timezone: "America/New_York", start: "09:00", end: "17:00", wantInWindow: true, wantErr: false}, // 17:00 EST
+
+		// Midnight-crossing window
+		{name: "too early", mockUTCHour: 4, mockUTCMin: 0, timezone: "America/Los_Angeles", start: "22:00", end: "06:00", wantInWindow: false, wantErr: false},              // 20:00 PST
+		{name: "crossing late night", mockUTCHour: 7, mockUTCMin: 0, timezone: "America/Los_Angeles", start: "22:00", end: "06:00", wantInWindow: true, wantErr: false},     // 23:00 PST
+		{name: "crossing early morning", mockUTCHour: 12, mockUTCMin: 0, timezone: "America/Los_Angeles", start: "22:00", end: "06:00", wantInWindow: true, wantErr: false}, // 04:00 PST
+		{name: "crossing outside", mockUTCHour: 16, mockUTCMin: 0, timezone: "America/Los_Angeles", start: "22:00", end: "06:00", wantInWindow: false, wantErr: false},      // 08:00 PST
+
+		// Edge cases
+		{name: "full day", mockUTCHour: 12, mockUTCMin: 0, timezone: "UTC", start: "00:00", end: "23:59", wantInWindow: true, wantErr: false},
+		{name: "single minute", mockUTCHour: 10, mockUTCMin: 5, timezone: "UTC", start: "10:05", end: "10:05", wantInWindow: true, wantErr: false},
+		{name: "invalid start", mockUTCHour: 12, mockUTCMin: 0, timezone: "UTC", start: "25:00", end: "17:00", wantInWindow: false, wantErr: true},
+		{name: "invalid timezone", mockUTCHour: 12, mockUTCMin: 0, timezone: "Invalid/TZ", start: "09:00", end: "17:00", wantInWindow: false, wantErr: true},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			setMockUTCNow(2026, 1, 2, tt.mockUTCHour, tt.mockUTCMin)
+
+			got, err := isTimezoneInWindow(context.Background(), tt.timezone, tt.start, tt.end)
+			if (err != nil) != tt.wantErr {
+				t.Fatalf("isTimezoneInWindow(%q, %s-%s) error = %v, wantErr %v", tt.timezone, tt.start, tt.end, err, tt.wantErr)
+			}
+			if got != tt.wantInWindow {
+				t.Fatalf("isTimezoneInWindow(%q, %s-%s) = %v, want %v", tt.timezone, tt.start, tt.end, got, tt.wantInWindow)
+			}
+		})
+	}
+}
+
+func TestToValidSemVer(t *testing.T) {
+	testVersions := []struct {
+		rawVersion                           string
+		expectedVersion                      string
+		versionToSemverVersionExpectedToFail bool
+	}{
+		{
+			"25.48.0",
+			"25.48.0",
+			false,
+		},
+		{
+			" 353.0 ", // Meta Horizon like version.
+			"353.0",
+			false,
+		},
+		{
+			"18.14.0",
+			"18.14.0",
+			false,
+		},
+		{
+			"412.0.0",
+			"412.0.0",
+			false,
+		},
+		{
+			"00.001010.01",
+			"0.1010.1",
+			false,
+		},
+		{
+			"6.0.251229",
+			"6.0.251229",
+			false,
+		},
+		{
+			"4.2602.11600",
+			"4.2602.11600",
+			false,
+		},
+		{
+			"144.0.7559.53", // Google Chrome like version.
+			"144.0.7559-53",
+			false,
+		},
+		{
+			"144.0.7559.03", // Google Chrome like version, leading zeros.
+			"144.0.7559-3",
+			false,
+		},
+		{
+			"4.9999999999999999999999999.11600", // Not a valid semantic version, so we leave unchanged.
+			"4.9999999999999999999999999.11600",
+			true,
+		},
+		{
+			"04.0000099999999999999999999999990.011600", // Not a valid semantic version, but we clean it anyway.
+			"4.99999999999999999999999990.11600",
+			true,
+		},
+		{
+			"21.02.3", // YouTube like version.
+			"21.2.3",
+			false,
+		},
+		{
+			"21", // Just major version.
+			"21",
+			false,
+		},
+		{
+			"v2.3.4", // Remove leading v.
+			"2.3.4",
+			false,
+		},
+		{
+			"02.03.04-01",
+			"2.3.4-1",
+			false,
+		},
+	}
+	for _, tc := range testVersions {
+		cleanedVersion := toValidSemVer(tc.rawVersion)
+		require.Equal(t, tc.expectedVersion, cleanedVersion)
+		_, err := fleet.VersionToSemverVersion(cleanedVersion)
+		if !tc.versionToSemverVersionExpectedToFail {
+			require.NoError(t, err, tc.rawVersion)
+		} else {
+			require.Error(t, err, tc.rawVersion)
+		}
+	}
 }
