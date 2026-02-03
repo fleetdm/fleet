@@ -6867,7 +6867,7 @@ kind: policy
 spec:
   platform: windows
   name: CIS - Ensure 'User Account Control Use Admin Approval Mode' is set to 'Enabled'
-  query: SELECT 1 FROM registry WHERE path = 'HKEY_LOCAL_MACHINE\Microsoft\Windows\CurrentVersion\Policies\System\FilterAdministratorToken AND data = '1';
+  query: SELECT 1 FROM registry WHERE path = 'HKEY_LOCAL_MACHINE\Microsoft\Windows\CurrentVersion\Policies\System\FilterAdministratorToken' AND data = '1';
   purpose: Informational
   tags: framework:CISv8.1, benchmark:win11, level:1, platform:windows, category:security, requirement:standard, critical:false, control:user-account-control-use-admin-approval-mode-is-enabled, cis_safeguard_ids:CIS49.32
   description: 'This policy setting controls the behavior of Admin Approval Mode for the built-in
