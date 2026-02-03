@@ -6,6 +6,7 @@ import (
 	"context"
 
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/containerd_containers"
+	"github.com/fleetdm/fleet/v4/orbit/pkg/table/containerd_mounts"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/crowdstrike/falcon_kernel_check"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/crowdstrike/falconctl"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/cryptsetup"
@@ -27,6 +28,7 @@ func PlatformTables(opts PluginOpts) ([]osquery.OsqueryPlugin, error) {
 		dataflattentable.TablePluginExec(log.Logger, "nftables", dataflattentable.JsonType, []string{"nft", "-jat", "list", "ruleset"}, dataflattentable.WithBinDirs("/usr/bin", "/usr/sbin")), // -j (json) -a (show object handles) -t (terse, omit set contents)
 		table.NewPlugin("dconf_read", dconf_read.Columns(), dconf_read.Generate),
 		table.NewPlugin("containerd_containers", containerd_containers.Columns(), containerd_containers.Generate),
+		table.NewPlugin("containerd_mounts", containerd_mounts.Columns(), containerd_mounts.Generate),
 		table.NewPlugin(fleetd_pacman_packages.TableName, fleetd_pacman_packages.Columns(), fleetd_pacman_packages.Generate),
 		table.NewPlugin("crowdstrike_falcon", crowdstrike_falcon.CrowdstrikeFalconColumns(),
 			func(ctx context.Context, queryContext table.QueryContext) ([]map[string]string, error) {
