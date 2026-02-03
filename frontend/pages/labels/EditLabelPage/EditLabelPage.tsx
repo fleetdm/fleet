@@ -103,7 +103,8 @@ const EditLabelPage = ({ routeParams, router }: IEditLabelPageProps) => {
       const status = (error as { status: number }).status;
       let errorMessage = "Couldn't edit label. Please try again.";
       if (status === 409) {
-        errorMessage = "A label with this name already exists.";
+        errorMessage =
+          "Couldn't edit label: A label with this name already exists.";
       } else if (status === 422) {
         const reason = getErrorReason(error);
         if (reason) {
