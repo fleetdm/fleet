@@ -270,6 +270,9 @@ type LoggingConfig struct {
 	TracingEnabled       bool          `yaml:"tracing_enabled"`
 	// TracingType can either be opentelemetry or elasticapm for whichever type of tracing wanted
 	TracingType string `yaml:"tracing_type"`
+	// OtelLogsEnabled enables exporting logs to an OpenTelemetry collector.
+	// When enabled, logs are sent to both stderr and the OTLP endpoint.
+	OtelLogsEnabled bool `yaml:"otel_logs_enabled"`
 }
 
 // ActivityConfig defines configs related to activities.

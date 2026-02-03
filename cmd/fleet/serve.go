@@ -94,9 +94,11 @@ import (
 	_ "go.elastic.co/apm/module/apmsql/v2"
 	_ "go.elastic.co/apm/module/apmsql/v2/mysql"
 	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/exporters/otlp/otlplog/otlploggrpc"
 	"go.opentelemetry.io/otel/exporters/otlp/otlpmetric/otlpmetricgrpc"
 	"go.opentelemetry.io/otel/exporters/otlp/otlptrace"
 	"go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc"
+	otelsdklog "go.opentelemetry.io/otel/sdk/log"
 	sdkmetric "go.opentelemetry.io/otel/sdk/metric"
 	"go.opentelemetry.io/otel/sdk/resource"
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
@@ -155,30 +157,20 @@ the way that the Fleet server works.
 				fleet.WriteExpiredLicenseBanner(os.Stderr)
 			}
 
-			logger := initLogger(config)
-
-			if dev_mode.IsEnabled {
-				createTestBuckets(&config, logger)
+			// Validate OTEL server options
+			if config.Logging.OtelLogsEnabled && !config.Logging.TracingEnabled {
+				initFatal(
+					errors.New("logging.otel_logs_enabled requires logging.tracing_enabled to be true"),
+					"OTEL logs require tracing for trace correlation",
+				)
 			}
 
-			// Init tracing and metrics
+			// Init OTEL providers (traces, metrics, logs)
+			var loggerProvider *otelsdklog.LoggerProvider
 			var tracerProvider *sdktrace.TracerProvider
 			var meterProvider *sdkmetric.MeterProvider
 			if config.Logging.TracingEnabled {
-				ctx := context.Background()
-				client := otlptracegrpc.NewClient(
-					// Enable gzip compression to reduce message size
-					otlptracegrpc.WithCompressor("gzip"),
-				)
-				otlpTraceExporter, err := otlptrace.New(ctx, client)
-				if err != nil {
-					initFatal(err, "Failed to initialize tracing")
-				}
-				// Configure batch span processor with smaller batch size to avoid exceeding message size limits (4MB default limit)
-				batchSpanProcessor := sdktrace.NewBatchSpanProcessor(otlpTraceExporter,
-					sdktrace.WithMaxExportBatchSize(256), // Reduce from default 512 to 256
-				)
-				// Create resource with service identification attributes
+				// Create shared resource with service identification attributes
 				res, err := resource.Merge(
 					resource.Default(),
 					resource.NewWithAttributes(
@@ -190,14 +182,26 @@ the way that the Fleet server works.
 				if err != nil {
 					initFatal(err, "Failed to create OTEL resource")
 				}
+
+				// Initialize OTEL traces
+				otlpTraceExporter, err := otlptrace.New(context.Background(), otlptracegrpc.NewClient(
+					otlptracegrpc.WithCompressor("gzip"),
+				))
+				if err != nil {
+					initFatal(err, "Failed to initialize OTEL trace exporter")
+				}
+				// Configure batch span processor with smaller batch size to avoid exceeding message size limits (4MB default limit)
+				batchSpanProcessor := sdktrace.NewBatchSpanProcessor(otlpTraceExporter,
+					sdktrace.WithMaxExportBatchSize(256), // Reduce from default 512 to 256
+				)
 				tracerProvider = sdktrace.NewTracerProvider(
 					sdktrace.WithResource(res),
 					sdktrace.WithSpanProcessor(batchSpanProcessor),
 				)
 				otel.SetTracerProvider(tracerProvider)
 
-				// Initialize OTEL metrics exporter
-				metricExporter, err := otlpmetricgrpc.New(ctx,
+				// Initialize OTEL metrics
+				metricExporter, err := otlpmetricgrpc.New(context.Background(),
 					otlpmetricgrpc.WithCompressor("gzip"),
 				)
 				if err != nil {
@@ -208,6 +212,26 @@ the way that the Fleet server works.
 					sdkmetric.WithReader(sdkmetric.NewPeriodicReader(metricExporter)),
 				)
 				otel.SetMeterProvider(meterProvider)
+
+				// Initialize OTEL logs
+				if config.Logging.OtelLogsEnabled {
+					logExporter, err := otlploggrpc.New(context.Background(),
+						otlploggrpc.WithCompressor("gzip"),
+					)
+					if err != nil {
+						initFatal(err, "Failed to initialize OTEL log exporter")
+					}
+					loggerProvider = otelsdklog.NewLoggerProvider(
+						otelsdklog.WithResource(res),
+						otelsdklog.WithProcessor(otelsdklog.NewBatchProcessor(logExporter)),
+					)
+				}
+			}
+
+			logger := initLogger(config, loggerProvider)
+
+			if dev_mode.IsEnabled {
+				createTestBuckets(&config, logger)
 			}
 
 			allowedHostIdentifiers := map[string]bool{
@@ -1697,6 +1721,11 @@ the way that the Fleet server works.
 					if meterProvider != nil {
 						if err := meterProvider.Shutdown(ctx); err != nil {
 							level.Error(logger).Log("msg", "failed to shutdown OTEL meter provider", "err", err)
+						}
+					}
+					if loggerProvider != nil {
+						if err := loggerProvider.Shutdown(ctx); err != nil {
+							level.Error(logger).Log("msg", "failed to shutdown OTEL logger provider", "err", err)
 						}
 					}
 					return srv.Shutdown(ctx)

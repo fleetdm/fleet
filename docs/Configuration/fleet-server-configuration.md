@@ -1309,6 +1309,25 @@ and a negative value to disable storage of errors in Redis.
     error_retention_period: 1h
   ```
 
+### logging_otel_logs_enabled
+
+Enables exporting logs to an OpenTelemetry collector in addition to stderr output.
+When enabled, logs are sent to the OTLP endpoint configured via the standard
+`OTEL_EXPORTER_OTLP_ENDPOINT` environment variable. Logs are automatically
+correlated with traces via `trace_id` and `span_id` attributes.
+
+> **Note:** This option requires `logging_tracing_enabled` to be set to `true`.
+> Fleet will fail to start if `otel_logs_enabled` is `true` but `tracing_enabled` is `false`.
+
+- Default value: `false`
+- Environment variable: `FLEET_LOGGING_OTEL_LOGS_ENABLED`
+- Config file format:
+  ```yaml
+  logging:
+    tracing_enabled: true
+    otel_logs_enabled: true
+  ```
+
 ## Filesystem
 
 ### filesystem_status_log_file

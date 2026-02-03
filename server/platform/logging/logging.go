@@ -11,6 +11,8 @@ import (
 	"strings"
 	"time"
 
+	"go.opentelemetry.io/contrib/bridges/otelslog"
+	otellog "go.opentelemetry.io/otel/log"
 	"go.opentelemetry.io/otel/trace"
 )
 
@@ -23,6 +25,12 @@ type Options struct {
 	// TracingEnabled enables OpenTelemetry trace correlation.
 	// When enabled, trace_id and span_id are automatically injected into logs.
 	TracingEnabled bool
+	// OtelLogsEnabled enables exporting logs to an OpenTelemetry collector.
+	// When enabled, logs are sent to both the primary handler (stderr) and OTEL.
+	OtelLogsEnabled bool
+	// LoggerProvider is the OpenTelemetry LoggerProvider for log export.
+	// Required when OtelLogsEnabled is true.
+	LoggerProvider otellog.LoggerProvider
 }
 
 // NewSlogLogger creates a new slog.Logger with the given options.
@@ -57,7 +65,13 @@ func NewSlogLogger(opts Options) *slog.Logger {
 
 	// If tracing is enabled, wrap with handler that injects trace context
 	if opts.TracingEnabled {
-		handler = NewOtelHandler(handler)
+		handler = NewOtelTracingHandler(handler)
+	}
+
+	// If OTEL logs export is enabled, add otelslog handler for sending logs to collector
+	if opts.OtelLogsEnabled && opts.LoggerProvider != nil {
+		otelHandler := otelslog.NewHandler("fleet", otelslog.WithLoggerProvider(opts.LoggerProvider))
+		handler = NewMultiHandler(handler, otelHandler)
 	}
 
 	return slog.New(handler)
@@ -91,25 +105,25 @@ func replaceAttr(groups []string, a slog.Attr) slog.Attr {
 	return a
 }
 
-// OtelHandler wraps a slog.Handler to inject OpenTelemetry trace context
+// OtelTracingHandler wraps a slog.Handler to inject OpenTelemetry trace context
 // (trace_id and span_id) into log records when a span is active in the context.
-type OtelHandler struct {
+type OtelTracingHandler struct {
 	base slog.Handler
 }
 
-// NewOtelHandler creates a new handler that wraps the base handler
+// NewOtelTracingHandler creates a new handler that wraps the base handler
 // and injects trace context into log records.
-func NewOtelHandler(base slog.Handler) *OtelHandler {
-	return &OtelHandler{base: base}
+func NewOtelTracingHandler(base slog.Handler) *OtelTracingHandler {
+	return &OtelTracingHandler{base: base}
 }
 
 // Enabled reports whether the handler handles records at the given level.
-func (h *OtelHandler) Enabled(ctx context.Context, level slog.Level) bool {
+func (h *OtelTracingHandler) Enabled(ctx context.Context, level slog.Level) bool {
 	return h.base.Enabled(ctx, level)
 }
 
 // Handle processes the record, adding trace context if available.
-func (h *OtelHandler) Handle(ctx context.Context, r slog.Record) error {
+func (h *OtelTracingHandler) Handle(ctx context.Context, r slog.Record) error {
 	// Extract span context from the context
 	spanCtx := trace.SpanContextFromContext(ctx)
 	if spanCtx.IsValid() {
@@ -123,14 +137,14 @@ func (h *OtelHandler) Handle(ctx context.Context, r slog.Record) error {
 }
 
 // WithAttrs returns a new handler with the given attributes added.
-func (h *OtelHandler) WithAttrs(attrs []slog.Attr) slog.Handler {
-	return &OtelHandler{base: h.base.WithAttrs(attrs)}
+func (h *OtelTracingHandler) WithAttrs(attrs []slog.Attr) slog.Handler {
+	return &OtelTracingHandler{base: h.base.WithAttrs(attrs)}
 }
 
 // WithGroup returns a new handler with the given group name.
-func (h *OtelHandler) WithGroup(name string) slog.Handler {
-	return &OtelHandler{base: h.base.WithGroup(name)}
+func (h *OtelTracingHandler) WithGroup(name string) slog.Handler {
+	return &OtelTracingHandler{base: h.base.WithGroup(name)}
 }
 
-// Ensure OtelHandler implements slog.Handler at compile time.
-var _ slog.Handler = (*OtelHandler)(nil)
+// Ensure OtelTracingHandler implements slog.Handler at compile time.
+var _ slog.Handler = (*OtelTracingHandler)(nil)
