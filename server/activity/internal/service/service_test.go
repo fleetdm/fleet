@@ -472,7 +472,7 @@ func TestStreamActivities(t *testing.T) {
 		svc := NewService(&mockAuthorizer{}, ds, &mockUserProvider{}, &mockHostProvider{}, log.NewNopLogger())
 
 		var auditLogger mockJSONLogger
-		err := svc.StreamActivities(ctx, &auditLogger, 100)
+		err := svc.StreamActivities(ctx, &auditLogger)
 
 		require.NoError(t, err)
 		assert.Len(t, auditLogger.logs, 3)
@@ -503,7 +503,7 @@ func TestStreamActivities(t *testing.T) {
 
 		// Logger fails after first activity
 		auditLogger := mockJSONLogger{failAfter: 1}
-		err := svc.StreamActivities(ctx, &auditLogger, 100)
+		err := svc.StreamActivities(ctx, &auditLogger)
 
 		require.Error(t, err)
 		require.ErrorIs(t, err, errStreamFailed)
@@ -526,45 +526,12 @@ func TestStreamActivities(t *testing.T) {
 
 		// Logger that fails immediately
 		immediateFailLogger := &immediateFailJSONLogger{}
-		err := svc.StreamActivities(ctx, immediateFailLogger, 100)
+		err := svc.StreamActivities(ctx, immediateFailLogger)
 
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "stream first activity")
 		// Nothing should be marked as streamed since first activity failed
 		assert.Empty(t, ds.streamedIDs)
-	})
-
-	t.Run("bigger than batch requires pagination", func(t *testing.T) {
-		t.Parallel()
-		ctx := t.Context()
-		batchSize := uint(2)
-
-		// Create 5 activities that will require 3 pages
-		allActivities := []*api.Activity{
-			newTestActivity(1, "user1", 1, "action1", `{}`),
-			newTestActivity(2, "user2", 2, "action2", `{}`),
-			newTestActivity(3, "user3", 3, "action3", `{}`),
-			newTestActivity(4, "user4", 4, "action4", `{}`),
-			newTestActivity(5, "user5", 5, "action5", `{}`),
-		}
-
-		ds := &mockStreamingDatastore{
-			activitiesByPage: map[uint][]*api.Activity{
-				0: allActivities[:2],  // First batch: activities 1, 2
-				1: allActivities[2:4], // Second batch: activities 3, 4
-				2: allActivities[4:],  // Third batch: activity 5
-			},
-		}
-		svc := NewService(&mockAuthorizer{}, ds, &mockUserProvider{}, &mockHostProvider{}, log.NewNopLogger())
-
-		var auditLogger mockJSONLogger
-		err := svc.StreamActivities(ctx, &auditLogger, batchSize)
-
-		require.NoError(t, err)
-		assert.Len(t, auditLogger.logs, 5)
-		assert.Equal(t, []uint{1, 2, 3, 4, 5}, ds.streamedIDs)
-		assert.Equal(t, 3, ds.listCallCount, "should have called ListActivities 3 times")
-		assert.Equal(t, 3, ds.markCallCount, "should have called MarkActivitiesAsStreamed 3 times")
 	})
 
 	t.Run("empty activity list returns early", func(t *testing.T) {
@@ -575,7 +542,7 @@ func TestStreamActivities(t *testing.T) {
 		svc := NewService(&mockAuthorizer{}, ds, &mockUserProvider{}, &mockHostProvider{}, log.NewNopLogger())
 
 		var auditLogger mockJSONLogger
-		err := svc.StreamActivities(ctx, &auditLogger, 100)
+		err := svc.StreamActivities(ctx, &auditLogger)
 
 		require.NoError(t, err)
 		assert.Empty(t, auditLogger.logs)
@@ -592,7 +559,7 @@ func TestStreamActivities(t *testing.T) {
 		svc := NewService(&mockAuthorizer{}, ds, &mockUserProvider{}, &mockHostProvider{}, log.NewNopLogger())
 
 		var auditLogger mockJSONLogger
-		err := svc.StreamActivities(ctx, &auditLogger, 100)
+		err := svc.StreamActivities(ctx, &auditLogger)
 
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "database error")
@@ -613,7 +580,7 @@ func TestStreamActivities(t *testing.T) {
 		svc := NewService(&mockAuthorizer{}, ds, &mockUserProvider{}, &mockHostProvider{}, log.NewNopLogger())
 
 		var auditLogger mockJSONLogger
-		err := svc.StreamActivities(ctx, &auditLogger, 100)
+		err := svc.StreamActivities(ctx, &auditLogger)
 
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "mark error")

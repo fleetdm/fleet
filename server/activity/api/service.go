@@ -36,6 +36,5 @@ type MarkActivitiesAsStreamedService interface {
 type StreamActivitiesService interface {
 	// StreamActivities streams unstreamed activities to the provided audit logger.
 	// The systemCtx should be a context with system-level authorization (no user context).
-	// batchSize controls how many activities are fetched per batch.
-	StreamActivities(systemCtx context.Context, auditLogger JSONLogger, batchSize uint) error
+	StreamActivities(systemCtx context.Context, auditLogger JSONLogger) error
 }

@@ -133,6 +133,6 @@ func (m *mockService) MarkActivitiesAsStreamed(_ context.Context, _ []uint) erro
 	panic("mockService.MarkActivitiesAsStreamed should not be called in validation tests")
 }
 
-func (m *mockService) StreamActivities(_ context.Context, _ api.JSONLogger, _ uint) error {
+func (m *mockService) StreamActivities(_ context.Context, _ api.JSONLogger) error {
 	panic("mockService.StreamActivities should not be called in validation tests")
 }

@@ -1507,15 +1507,12 @@ func newActivitiesStreamingSchedule(
 			func(ctx context.Context) error {
 				// Use system context for authorization since cron jobs don't have a user context
 				systemCtx := viewer.NewSystemContext(ctx)
-				return activitySvc.StreamActivities(systemCtx, auditLogger, ActivitiesToStreamBatchCount)
+				return activitySvc.StreamActivities(systemCtx, auditLogger)
 			},
 		),
 	)
 	return s, nil
 }
-
-// ActivitiesToStreamBatchCount is the number of activities to stream per batch.
-var ActivitiesToStreamBatchCount uint = 500
 
 func newHostVitalsLabelMembershipSchedule(
 	ctx context.Context,

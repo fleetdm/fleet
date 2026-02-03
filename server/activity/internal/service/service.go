@@ -17,6 +17,9 @@ import (
 	"github.com/hashicorp/go-multierror"
 )
 
+// streamBatchSize is the number of activities to fetch per batch when streaming.
+const streamBatchSize uint = 500
+
 // Service is the activity bounded context service implementation.
 type Service struct {
 	authz  platform_authz.Authorizer
@@ -163,15 +166,14 @@ func (s *Service) enrichWithUserData(ctx context.Context, activities []*api.Acti
 
 // StreamActivities streams unstreamed activities to the provided audit logger.
 // The systemCtx should be a context with system-level authorization (no user context).
-// batchSize controls how many activities are fetched per batch.
-func (s *Service) StreamActivities(systemCtx context.Context, auditLogger api.JSONLogger, batchSize uint) error {
+func (s *Service) StreamActivities(systemCtx context.Context, auditLogger api.JSONLogger) error {
 	page := uint(0)
 	for {
 		// (1) Get batch of activities that haven't been streamed.
 		activitiesToStream, _, err := s.ListActivities(systemCtx, api.ListOptions{
 			OrderKey:       "id",
 			OrderDirection: api.OrderAscending,
-			PerPage:        batchSize,
+			PerPage:        streamBatchSize,
 			Page:           page,
 			Streamed:       ptrBool(false),
 		})
@@ -219,7 +221,7 @@ func (s *Service) StreamActivities(systemCtx context.Context, auditLogger api.JS
 			return multiErr
 		}
 
-		if len(activitiesToStream) < int(batchSize) { //nolint:gosec // dismiss G115
+		if len(activitiesToStream) < int(streamBatchSize) { //nolint:gosec // dismiss G115
 			return nil
 		}
 		page++
