@@ -66,17 +66,17 @@ Replace:
 
 ## Instructions
 
-### Step 1: Deploy user scope profile
+### Step 1: Download IdP signature certificate from Fleet
+
+1. In Fleet, go to **Settings** > **Integrations** > **Conditional access** > **Okta** and click **Connect**.
+2. In the modal, go to **Identity provider (IdP) signature certificate**. Click **Download certificate**.
+
+### Step 2: Deploy user scope profile
 
 1. In Fleet, go to **Settings** > **Integrations** > **Conditional access** > **Okta** and click **Connect**.
 2. In the modal, find the read-only **User scope profile**.
 3. Copy the profile to a new `.mobileconfig` file and save.
 4. Follow the instructions in the [Custom OS settings](https://fleetdm.com/guides/custom-os-settings) guide to deploy the profile to the hosts where you want conditional access to apply.
-
-### Step 2: Download IdP signature certificate from Fleet
-
-1. In Fleet, go to **Settings** > **Integrations** > **Conditional access** > **Okta** and click **Connect**.
-2. In the modal, go to **Identity provider (IdP) signature certificate**. Click **Download certificate**.
 
 ### Step 3: Create IdP in Okta
 
@@ -91,7 +91,6 @@ Replace:
    - **Destination**: `https://okta.fleet.example.com/api/fleet/conditional_access/idp/sso` (note the `okta.` prefix)
 7. For **IdP Signature Certificate**, upload the IdP signature certificate downloaded from Fleet.
 8. Click **Finish**.
-9. Back in **Security** > **Identity Providers**, select **Actions** for the Fleet identity provider and choose **Download certificate**.
 
 ### Step 4: Configure Okta settings in Fleet
 
@@ -101,7 +100,8 @@ Once you've created the identity provider in Okta, click on the Fleet identity p
 2. Copy the **IdP ID** from Okta to the **IdP ID** field.
 3. Copy the **Assertion Consumer Service URL** from Okta to the **Assertion consumer service URL** field.
 4. Copy the **Audience URI** from Okta to the **Audience URI** field.
-5. For **Okta certificate**, upload the certificate downloaded from Okta in Step 3.
+5. In the Okta Admin Console, go to **Security** > **Identity Providers**, select **Actions** for the Fleet identity provider and choose **Download certificate**.
+6. In Fleet, for **Okta certificate**, upload the certificate downloaded from Okta.
 
 ### Step 5: Add Fleet IdP authenticator in Okta
 
