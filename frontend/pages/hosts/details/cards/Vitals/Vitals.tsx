@@ -166,7 +166,10 @@ const Vitals = ({
       return (
         <>
           {DeviceIdDataSet}
-          <DataSet title="Hardware model" value={vitalsData.hardware_model} />
+          <DataSet
+            title="Hardware model"
+            value={<TooltipTruncatedText value={vitalsData.hardware_model} />}
+          />
         </>
       );
     }
@@ -177,7 +180,10 @@ const Vitals = ({
       return (
         <>
           {DeviceIdDataSet}
-          <DataSet title="Hardware model" value={vitalsData.hardware_model} />
+          <DataSet
+            title="Hardware model"
+            value={<TooltipTruncatedText value={vitalsData.hardware_model} />}
+          />
         </>
       );
     }
@@ -186,7 +192,10 @@ const Vitals = ({
     // (either Serial number or Enrollment ID).
     return (
       <>
-        <DataSet title="Hardware model" value={vitalsData.hardware_model} />
+        <DataSet
+          title="Hardware model"
+          value={<TooltipTruncatedText value={vitalsData.hardware_model} />}
+        />
         {DeviceIdDataSet}
         <DataSet
           title="Private IP address"
@@ -319,10 +328,10 @@ const Vitals = ({
 
     const title = isAndroidHost ? (
       <TooltipWrapper tipContent="Includes internal and removable storage (e.g. microSD card).">
-        Disk space
+        Disk space available
       </TooltipWrapper>
     ) : (
-      "Disk space"
+      "Disk space available"
     );
 
     return (
@@ -440,7 +449,7 @@ const Vitals = ({
           <TooltipWrapperArchLinuxRolling />
         </>
       ) : (
-        version
+        <TooltipTruncatedText value={version} />
       );
       return (
         <DataSet
@@ -462,16 +471,23 @@ const Vitals = ({
       <DataSet
         title="Operating system"
         value={
-          <>
+          <span className={`${baseClass}__os-version`}>
             {!osVersionRequirementMet && (
               <Icon name="error-outline" color="ui-fleet-black-75" />
             )}
             <TooltipWrapper
+              className={`${baseClass}__os-version-tooltip`}
               tipContent={
                 osVersionRequirementMet ? (
-                  "Meets minimum version requirement."
+                  <>
+                    {vitalsData.os_version}
+                    <br />
+                    Meets minimum version requirement.
+                  </>
                 ) : (
                   <>
+                    {vitalsData.os_version}
+                    <br />
                     Does not meet minimum version requirement.
                     <br />
                     Deadline to update: {osVersionRequirement.deadline}
@@ -479,10 +495,13 @@ const Vitals = ({
                 )
               }
             >
-              {vitalsData.os_version}
+              <span className={`${baseClass}__os-version-text`}>
+                {vitalsData.os_version}
+              </span>
             </TooltipWrapper>
-          </>
+          </span>
         }
+        className={`${baseClass}__os-data-set`}
       />
     );
   };
