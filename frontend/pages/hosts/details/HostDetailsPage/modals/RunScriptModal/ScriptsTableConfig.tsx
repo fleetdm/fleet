@@ -106,7 +106,10 @@ export const generateTableColumnConfigs = (
             onClick={onClickScriptName}
             variant="inverse"
           >
-            <TooltipTruncatedTextCell value={cellProps.row.original.name} />
+            <TooltipTruncatedTextCell
+              value={cellProps.row.original.name}
+              classes="w400"
+            />
           </Button>
         );
       },
