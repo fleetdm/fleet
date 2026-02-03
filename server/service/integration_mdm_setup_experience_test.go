@@ -3335,6 +3335,11 @@ func (s *integrationMDMTestSuite) TestSetupExperienceGetPutSoftware() {
 	}, http.StatusOK, &putSetupSoftware)
 }
 
+func (s *integrationMDMTestSuite) TestSetupExperienceMacOSCustomDisplayNameIcon() {
+	t := s.T()
+	s.setSkipWorkerJobs(t)
+}
+
 func (s *integrationMDMTestSuite) TestSetupExperienceAndroid() {
 	t := s.T()
 	ctx := t.Context()
