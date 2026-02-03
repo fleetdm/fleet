@@ -172,6 +172,11 @@
     border-radius: 16px;
     border: 1px solid #E2E4EA;
     background: #FFF;
+    &:hover {
+      text-decoration: none;
+      cursor: pointer;
+      box-shadow: 0px 4px 16px rgba(0, 0, 0, 0.1);
+    }
     a {
       justify-self: flex-end;
     }
@@ -268,6 +273,11 @@
     margin-bottom: 24px;
     box-shadow: none;
     text-decoration: none;
+    &:hover {
+      text-decoration: none;
+      cursor: pointer;
+      box-shadow: 0px 4px 16px rgba(0, 0, 0, 0.1);
+    }
     [purpose='logo'] {
       img {
         max-height: 32px;
@@ -602,8 +612,8 @@
     padding: 32px 24px;
   }
   [purpose='carousel-body'] {
-    min-height: 826px;// height of largest slide at 320px
-    justify-content: flex-start;
+    min-height: 809px;// height of largest slide at 320px
+    justify-content: flex-end;
   }
 
   [purpose='testimonials-container'] {
@@ -652,5 +662,11 @@
     }
   }
 
+ }
+ @media (max-width: 375px) {
+  [purpose='carousel-body'] {
+    min-height: 848px;// height of largest slide at 320px
+    justify-content: flex-end;
+  }
  }
 }
