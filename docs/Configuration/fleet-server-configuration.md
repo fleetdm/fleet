@@ -632,6 +632,18 @@ The TLS key to use when terminating TLS.
     key: /tmp/fleet.key
   ```
 
+### server_default_max_request_body_size
+
+The max request body size, in megabytes, for endpoints that don't implement a higher size.
+
+- Default value: 1
+- Environment variable: `FLEET_SERVER_MAX_REQUEST_BODY_SIZE`
+- Config file format:
+  ```yaml
+  server:
+    default_max-request_body_size: 1
+  ```
+
 ### server_tls
 
 Whether or not the server should be served over TLS.
