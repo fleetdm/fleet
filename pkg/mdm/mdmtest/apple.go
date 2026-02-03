@@ -147,7 +147,7 @@ func WithOTAIdpUUID(idpUUID string) TestMDMAppleClientOption {
 	}
 }
 
-// Will added the specified reference as a query parameter to the MDMURL after the
+// Will add the specified reference as a query parameter to the MDMURL after the
 // client fetches the enrollment profile but prior to attempting SCEP enrollment. Note that this
 // is not a full simulation of legacy enrollments (especially, as it relates to IdP). Rather it
 // is enough to test certain SCEP renewal scenarios for iOS/IPadOS devices

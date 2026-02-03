@@ -1,0 +1,2 @@
+- Truncated long strings (Operating system and Hardware model) in Host details > Vitals.
+- Renamed "Disk space" to "Disk space available" in Host details > Vitals.
