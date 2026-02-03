@@ -1,0 +1,2 @@
+- Fixed Android enrollment to associate hosts with SCIM users, populating full name, groups, and department in host       
+  vitals.
