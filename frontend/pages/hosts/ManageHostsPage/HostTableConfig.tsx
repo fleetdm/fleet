@@ -285,6 +285,7 @@ const allHostTableHeaders: IHostTableColumnConfig[] = [
         isSortedDesc={cellProps.column.isSortedDesc}
       />
     ),
+    accessor: "gigs_disk_space_available",
     id: "gigs_disk_space_available",
     Cell: (cellProps: IHostTableNumberCellProps) => {
       const {
@@ -299,7 +300,6 @@ const allHostTableHeaders: IHostTableColumnConfig[] = [
       }
       return (
         <DiskSpaceIndicator
-          inTableCell
           gigsDiskSpaceAvailable={gigs_disk_space_available}
           percentDiskSpaceAvailable={percent_disk_space_available}
           gigsTotalDiskSpace={gigs_total_disk_space}

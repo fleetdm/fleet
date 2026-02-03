@@ -2,6 +2,8 @@
 
 Fleet supports triggering automations across [activities](#activity-automations), [policies](#policy-automations), [queries](#query-automations), [vulnerabilities](#vulnerability-automations), and [host status](#host-status-automations).
 
+You can configure Fleet to automatically [install software](https://fleetdm.com/guides/automatic-software-install-in-fleet), [run scripts](https://fleetdm.com/guides/policy-automation-run-script), trigger or send query results to webhooks, create tickets, and reserve time in your end users' calendars ([maintenance windows](https://fleetdm.com/announcements/fleet-in-your-calendar-introducing-maintenance-windows)).
+
 ## Activity automations
 
 Activity automations are triggered when an activity happens in Fleet (queries, scripts, logins, etc). See our [Audit logs documentation](https://fleetdm.com/docs/using-fleet/audit-logs) for a list of all activity types.
@@ -10,7 +12,11 @@ You can automatically send activites to a webhook URL or a [log destination](htt
 
 ## Policy automations
 
-Policy automations are triggered if a policy fails on a host.
+Policy automations are triggered if a policy fails on a host. 
+
+Policies run every 1 hour ([configurable](https://fleetdm.com/docs/configuration/fleet-server-configuration#osquery-policy-update-interval)) and run in ascending order by policy ID after the ID is turned into a string ("100" runs before "53", which runs before "7"). 
+
+Automations are fired for scheduled policy runs. Running a live policy doesn't trigger automations.
 
 ### Calendar
 

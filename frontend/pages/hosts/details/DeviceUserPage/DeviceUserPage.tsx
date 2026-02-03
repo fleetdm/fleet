@@ -97,6 +97,7 @@ import { REFETCH_HOST_DETAILS_POLLING_INTERVAL } from "../HostDetailsPage/HostDe
 
 import SettingUpYourDevice from "./components/SettingUpYourDevice";
 import InfoButton from "./components/InfoButton";
+import BypassModal from "./BypassModal";
 
 const baseClass = "device-user";
 
@@ -148,6 +149,8 @@ const DeviceUserPage = ({
     NotificationContext
   );
 
+  const [showBypassModal, setShowBypassModal] = useState(false);
+  const [bypassSuccessful, setBypassSuccessful] = useState(false);
   const [showBitLockerPINModal, setShowBitLockerPINModal] = useState(false);
   const [showInfoModal, setShowInfoModal] = useState(false);
   const [showEnrollMdmModal, setShowEnrollMdmModal] = useState(false);
@@ -433,6 +436,14 @@ const DeviceUserPage = ({
       select: (data) => data.enroll_url,
     }
   );
+
+  const { bypassConditionalAccess } = deviceUserAPI;
+
+  const [isLoadingBypass, setIsLoadingBypass] = useState(false);
+
+  const toggleShowBypassModal = useCallback(() => {
+    setShowBypassModal(!showBypassModal);
+  }, [showBypassModal, setShowBypassModal]);
 
   const toggleInfoModal = useCallback(() => {
     setShowInfoModal(!showInfoModal);
@@ -815,6 +826,12 @@ const DeviceUserPage = ({
                     togglePolicyDetailsModal={togglePolicyDetailsModal}
                     hostPlatform={host?.platform || ""}
                     router={router}
+                    conditionalAccessEnabled={
+                      globalConfig?.features?.enable_conditional_access
+                    }
+                    conditionalAccessBypassed={
+                      host?.conditional_access_bypassed || bypassSuccessful
+                    }
                   />
                 </TabPanel>
               )}
@@ -833,6 +850,15 @@ const DeviceUserPage = ({
           <PolicyDetailsModal
             onCancel={onCancelPolicyDetailsModal}
             policy={selectedPolicy}
+            onResolveLater={
+              globalConfig?.features?.enable_conditional_access &&
+              globalConfig.features?.enable_conditional_access_bypass
+                ? () => {
+                    onCancelPolicyDetailsModal();
+                    setShowBypassModal(true);
+                  }
+                : undefined
+            }
           />
         )}
         {!!host && showOSSettingsModal && (
@@ -936,6 +962,31 @@ const DeviceUserPage = ({
         <div className={coreWrapperClassnames}>{renderDeviceUserPage()}</div>
       )}
       {showInfoModal && <InfoModal onCancel={toggleInfoModal} />}
+      {showBypassModal && (
+        <BypassModal
+          onCancel={toggleShowBypassModal}
+          onResolveLater={async () => {
+            setIsLoadingBypass(true);
+            try {
+              await bypassConditionalAccess(deviceAuthToken);
+              renderFlash(
+                "success",
+                "Access has been temporarily restored. You may now attempt to sign in again."
+              );
+              setBypassSuccessful(true);
+            } catch {
+              renderFlash(
+                "error",
+                `Couldn't restore access. Please click "Refetch" and try again.`
+              );
+            } finally {
+              setIsLoadingBypass(false);
+              setShowBypassModal(false);
+            }
+          }}
+          isLoading={isLoadingBypass}
+        />
+      )}
     </div>
   );
 };

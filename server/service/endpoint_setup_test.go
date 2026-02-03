@@ -502,18 +502,6 @@ func TestApplyStarterLibraryWithMockClient(t *testing.T) {
 	teamName := team1["name"].(string)
 	require.NotEmpty(t, teamName, "Team name should not be empty")
 
-	// Verify the scripts
-	scripts, ok := team1["scripts"].([]interface{})
-	require.True(t, ok, "Team should have scripts")
-	require.Len(t, scripts, 3, "Team should have 3 scripts")
-
-	// Verify that script references were rewritten to point to the temporary directory
-	for _, v := range scripts {
-		path := v.(string)
-		assert.Contains(t, path, os.TempDir(), "Script path should contain the temporary directory")
-		assert.True(t, filepath.IsAbs(path), "Script path should be absolute")
-	}
-
 	// Verify that the starter library URL was requested
 	assert.Contains(t, mockRT.calls, starterLibraryURL, "The starter library URL should have been requested")
 }

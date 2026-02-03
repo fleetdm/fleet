@@ -1,14 +1,14 @@
 {
   "versions": [
     {
-      "version": "16.0.2",
+      "version": "16.0.3",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.SweetScape.010Editor';"
       },
-      "installer_url": "https://download.sweetscape.com/010EditorMacARM64Installer16.0.2.dmg",
+      "installer_url": "https://download.sweetscape.com/010EditorMacARM64Installer16.0.3.dmg",
       "install_script_ref": "57c6cdce",
       "uninstall_script_ref": "552c3bbe",
-      "sha256": "82d7d3abf7bf0474b1902bff420fe8f0d6a86a8f88f1fcca3a6181d4f5cf4b02",
+      "sha256": "0a66ad414546247a62db76f90b76deb4be9890fdfe80e03da7ec5f51bb0ac62d",
       "default_categories": [
         "Developer tools"
       ]

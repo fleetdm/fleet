@@ -30,23 +30,37 @@ You can also manage which Google Play Store apps are available for self-service 
 
 3. Select **Add software > App store**, choose the Android platform, then enter the application ID.
 
-## Edit or remove an app
+## Edit or delete the app
 
 1. In Fleet, head to the **Software** page and select a team in the teams dropdown.
 
 2. Search for the app you want to remove and select the app to head to its **Software details** page.
 
-3. To edit the app's name or icon, click the Actions button and select **Edit appearance**.
+3. To edit the app icon and display name, select **Actions > Edit appearance**.
 
-4. To configure the app's self-service categories or change which hosts can install the app, click the Actions button and select **Edit software**.
+4. To configure the app's self-service categories or change which hosts can install the app, select **Actions > Edit software**.
 
 5. To remove the app, click the trash can (delete) icon above the table of installed, pending, and failed hosts.
+
+## Configure automatic updates for an app (iOS / iPadOS only)
+
+1. In Fleet, head to the **Software** page and select a team in the teams dropdown.
+
+2. Search for the app you want to configure and select the app to head to its **Software details** page.
+
+3. Click the **Actions** button and select **Schedule auto updates**.
+
+4. In the modal dialog that opens, click **Enable auto updates** and configure an update window of at least one hour. You may also choose to limit which hosts receive auto-updates using the Target configuration (this configuration will also affect which hosts can install the app themselves via the self-service feature).
 
 ## Install an app
 
 ### Apple (VPP)
 
 Apps can be installed manually on each host's **Host details** page. For macOS apps, apps can also be installed via self-service on the end user's **Fleet Desktop > My device** page or [automatically via policy automation](https://fleetdm.com/guides/automatic-software-install-in-fleet).
+
+> If the install fails with `ErrorCode` 301 and a `LocalizedDescription` of "Invalid Status Code The response has an invalid status code" it may be because the app has a minimum OS version higher than what the targeted host is running.
+> 
+> To find the minimum OS version for the app, visit the [App Store](https://apps.apple.com/), find the app, scroll to the bottom, and look for **Compatibility** under **Information**.
 
 Currently, Apple App Store (VPP) apps can't be uninstalled via Fleet.
 
@@ -56,17 +70,38 @@ Currently, Apple App Store (VPP) apps can't be uninstalled via Fleet.
 
 Android apps can be installed via self-service in the end user's managed Google Play Store (work profile).
 
-## Schedule app updates
 
-Currently, Fleet only supportes schedule app updates for iOS/iPadOS Apple App Store (VPP) apps.
+#### Configuration
 
-1. In Fleet, head to the **Software** page and select a team in the teams dropdown.
+Currently, editing configuration is only supported for Android apps only. And, currently, only the `managedConfiguration` and `workProfileWidgets` options from [ApplicationPolicy - Android Management API](https://developers.google.com/android/management/reference/rest/v1/enterprises.policies#ApplicationPolicy) are supported.
 
-2. Search for the app you want to configure and select the app to head to its **Software details** page.
+`managedConfiguration` supports any option provided by the app's developer. Each app supports different options. To find the supported options, check the app documentation.
 
-3. Click the **Actions** button and select **Schedule auto updates**.
+##### Example (GlobalProtect)
 
-4. In the modal dialog that opens, click **Enable auto updates** and configure an update window of at least one hour. You may also choose to limit which hosts receive auto-updates using the Target configuration (this configuration will also affect which hosts can install the app themselves via the self-service feature).
+This configuration makes it so the end user won't have to type the portal hostname the first time they open GlobalProtect. It also disables "always on VPN," meaning GlobalProtect won’t automatically connect when the host is online. The end user has to tap **Connect**.
+
+```json
+{
+  "managedConfiguration": {
+    "portal": "example.portal.com",
+    "connect_method": "on-demand"
+  }  
+}
+
+```
+
+Options for GlobalProtect can be found in their [documentation](https://docs.paloaltonetworks.com/globalprotect/administration/globalprotect-apps/deploy-the-globalprotect-app-on-mobiles/manage-the-globalprotect-app-using-other-third-party-mdms/configure-the-globalprotect-app-for-android).
+
+##### Example (Google Calendar)
+
+This configuration allows end users to add widgets from the Google Calendar in their work profile to their home screen.
+
+```json
+{
+  "workProfileWidgets": "WORK_PROFILE_WIDGETS_ALLOWED"
+}
+```
 
 ## API and GitOps
 

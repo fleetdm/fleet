@@ -553,28 +553,8 @@ const ManagePolicyPage = ({
     try {
       setIsUpdatingPolicies(true);
 
-      const changedPolicies = formData.filter((formPolicy) => {
-        const prevPolicyState = policiesAvailableToAutomate.find(
-          (policy) => policy.id === formPolicy.id
-        );
-
-        const turnedOff =
-          prevPolicyState?.install_software !== undefined &&
-          formPolicy.installSoftwareEnabled === false;
-
-        const turnedOn =
-          prevPolicyState?.install_software === undefined &&
-          formPolicy.installSoftwareEnabled === true;
-
-        const updatedSwId =
-          prevPolicyState?.install_software?.software_title_id !== undefined &&
-          formPolicy.swIdToInstall !==
-            prevPolicyState?.install_software?.software_title_id;
-
-        return turnedOff || turnedOn || updatedSwId;
-      });
-
-      if (!changedPolicies.length) {
+      // Truly dirty items previously detected in InstallSoftwareModal
+      if (!formData.length) {
         renderFlash("success", "No changes detected.");
         return;
       }
@@ -583,7 +563,7 @@ const ManagePolicyPage = ({
       const results: PromiseSettledResult<any>[] = [];
 
       // Use reduce to execute promises sequentially
-      await changedPolicies.reduce(async (previousPromise, changedPolicy) => {
+      await formData.reduce(async (previousPromise, changedPolicy) => {
         await previousPromise;
         try {
           const result = await teamPoliciesAPI.update(changedPolicy.id, {
@@ -647,27 +627,8 @@ const ManagePolicyPage = ({
     try {
       setIsUpdatingPolicies(true);
 
-      const changedPolicies = formData.filter((formPolicy) => {
-        const prevPolicyState = policiesAvailableToAutomate.find(
-          (policy) => policy.id === formPolicy.id
-        );
-
-        const turnedOff =
-          prevPolicyState?.run_script !== undefined &&
-          formPolicy.scriptIdToRun === null;
-
-        const turnedOn =
-          prevPolicyState?.run_script === undefined &&
-          formPolicy.scriptIdToRun !== null;
-
-        const updatedScriptId =
-          prevPolicyState?.run_script?.id !== undefined &&
-          formPolicy.scriptIdToRun !== prevPolicyState?.run_script?.id;
-
-        return turnedOff || turnedOn || updatedScriptId;
-      });
-
-      if (!changedPolicies.length) {
+      // Truly dirty items previously detected in PolicyRunScriptModal
+      if (!formData.length) {
         renderFlash("success", "No changes detected.");
         return;
       }
@@ -1338,6 +1299,7 @@ const ManagePolicyPage = ({
         {renderMainTable()}
         {automationsConfig && showOtherWorkflowsModal && (
           <OtherWorkflowsModal
+            router={router}
             automationsConfig={automationsConfig}
             availableIntegrations={
               // Although TypeScript thinks globalConfig could be undefined here, in practice it will always be present for users with canManageAutomations/canAddOrDeletePolicies permissions.

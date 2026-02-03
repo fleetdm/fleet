@@ -388,7 +388,9 @@ By saying "configuration profile," Fleet has one, cross-platform name for a feat
 
 ## Why not mention the CEO in Slack threads?
 
-Everyone else who works at Fleet is expected to read (and reply or acknowledge with an emoji reaction) every time they're mentioned in Slack, even deep inside long threads.
+> UPDATE: Thanks to the addition of some recent executive hires, the CEO is currently able to keep up with threads again.
+
+<!-- Everyone else who works at Fleet is expected to read (and reply or acknowledge with an emoji reaction) every time they're mentioned in Slack, even deep inside long threads.
 
 Now that the company has grown, the CEO gets mentioned in threads [too often](https://docs.google.com/document/d/1vK-Dy2BVrw7doYUzabOPyCiN4RfolWFgOKMm23l91s0/edit) to keep up with thread replies, even for threads he participates in.
 
@@ -410,7 +412,14 @@ Keep in mind I am often in meetings all day, and may not be able to reply prompt
 When in doubt, you can look at my calendar and join whatever meeting I'm in.  If none of that works, and there is an emergency where you need my immediate attention, get help from Mike's [Executive Assistant](https://fleetdm.com/handbook/ceo#team).
 Thank you so much!" 🙇
 </blockquote> 
+-->
 
+## Why "multi-platform" instead of "cross-platform"?
+
+The device management industry has long suffered under the "cross platform" myth: that everything can be normalized and work exactly the same, whether you're running macOS, Windows, Linux, iOS, or Android.
+
+While Fleet aims to normalize across platforms where possible, there are inevitably times you need to go deeper.  In Fleet, rather than pretend that the world is truly "cross-platform", by using the phrase "multi-platform", we can communicate how Fleet supports the best in breed functionality for each platform, all the way down to the bare metal.
+  
 
 #### Stubs
 

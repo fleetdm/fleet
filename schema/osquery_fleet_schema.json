@@ -10634,6 +10634,37 @@
     "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/event_taps.yml"
   },
   {
+    "name": "executable_hashes",
+    "platforms": [
+      "darwin"
+    ],
+    "description": "Calculates the sha256 hash of a macOS application executable.",
+    "columns": [
+      {
+        "name": "path",
+        "type": "text",
+        "required": true,
+        "description": "Path is the absolute path to the app folder."
+      },
+      {
+        "name": "executable_path",
+        "type": "text",
+        "required": false,
+        "description": "Path of the executable for this app."
+      },
+      {
+        "name": "executable_sha256",
+        "type": "text",
+        "required": false,
+        "description": "Calculated hex-encoded SHA256 of the executable of this app."
+      }
+    ],
+    "notes": "This table is not a core osquery table. It is included as part of Fleet's agent ([fleetd](https://fleetdm.com/docs/get-started/anatomy#fleetd)).",
+    "evented": false,
+    "url": "https://fleetdm.com/tables/executable_hashes",
+    "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/executable_hashes.yml"
+  },
+  {
     "name": "extended_attributes",
     "description": "Returns the extended attributes for files (similar to Windows ADS).",
     "url": "https://fleetdm.com/tables/extended_attributes",
@@ -17187,7 +17218,8 @@
     "platforms": [
       "windows"
     ],
-    "description": "Allows querying MDM enrolled devices using \"get\" commands.",
+    "description": "Allows querying MDM enrolled devices using \"get\" commands. Currently, only supports commands that target the device scope. Head to the [Windows configuration profiles (CSPs) documentation](https://learn.microsoft.com/en-us/windows/client-management/mdm/policy-configuration-service-provider) to verify that the setting support the device scope.",
+    "examples": "Identify Macs that are DEP capable but have not been enrolled to MDM.\n\n```\nSELECT raw_mdm_command_output FROM mdm_bridge WHERE mdm_command_input = '<SyncBody><Get><CmdID>1</CmdID><Item><Target><LocURI>./Device/Vendor/MSFT/Policy/Result/System/AllowTelemetry</LocURI></Target></Item></Get></SyncBody>';\n```",
     "columns": [
       {
         "name": "enrollment_status",

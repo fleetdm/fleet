@@ -12,7 +12,7 @@ macOS setup features require [connecting Fleet to Apple Business Manager (ABM)](
 
 ## End user authentication
 
-You can enforce end user authentication during automatic enrollment (ADE) for Apple (macOS, iOS, iPadOS) hosts and manual enrollment for personal (BYOD) iOS, iPadOS, and Android hosts. End user authentication is also supported on [Windows and Linux](https://fleetdm.com/guides/windows-linux-setup-experience).
+You can enforce end user authentication during automatic enrollment (ADE) for Apple (macOS, iOS, iPadOS) hosts and manual enrollment for personal (BYOD) iOS, iPadOS, and Android hosts. End user authentication is also supported on [Windows and Linux](https://fleetdm.com/guides/windows-linux-setup-experience). End users can use passkeys, such as YubiKeys, with macOS hosts during the authentication process.
 
 1. Create a new SAML app in your IdP. In your new app, use `https://<your_fleet_url>/api/v1/fleet/mdm/sso/callback` for the SSO URL. If this URL is set incorrectly, end users won't be able to enroll. On iOS hosts, they'll see a "This screen size is not supported yet" error message.
 
@@ -20,11 +20,11 @@ You can enforce end user authentication during automatic enrollment (ADE) for Ap
    to populate and lock the macOS local account **Account Name**. For example, a
    "johndoe@example.com" email will turn into a "johndoe" account name.
 
-> **NOTE**  If the host is restarted during the mdm enrollment process, there may be an issue with populating the macOS local account creation screen. The fields are not guaranteed to be populated with the user's IDP email and username.
+> If the host is restarted during automatic enrollment (DEP), the macOS local account fields won't be populated with the user's IDP email and username.
 
 3. Make sure your end users' full names are set to one of the following attributes (depends on IdP): `name`, `displayname`, `cn`, `urn:oid:2.5.4.3`, or `http://schemas.xmlsoap.org/ws/2005/05/identity/claims/name`. Fleet will automatically populate and lock the macOS local account **Full Name** with any of these.
 
-4. In Fleet, configure your IdP by heading to **Settings > Integrations > Mobile device management (MDM) > End user authentication**. Then, enable end user authentication by heading to **Controls > Setup experience > End user authentication**. Alternatively, you can use [Fleet's GitOps workflow](https://github.com/fleetdm/fleet-gitops) to configure your IdP integration and enable end user authentication.
+4. In Fleet, configure your IdP by heading to **Settings > Integrations > Single sign-on (SSO) > End users**. Then, enable end user authentication by heading to **Controls > Setup experience > End user authentication**. Alternatively, you can use [Fleet's GitOps workflow](https://github.com/fleetdm/fleet-gitops) to configure your IdP integration and enable end user authentication.
 
 > If you've already configured [single sign-on
 > (SSO)](https://fleetdm.com/docs/deploy/single-sign-on-sso) in Fleet, you still want to create a
@@ -125,7 +125,7 @@ To sign the package we need a valid Developer ID Installer certificate:
 
 ## Install software
 
-You can install software during first time macOS, iOS, iPadOS and [Windows and Linux setup](https://fleetdm.com/guides/windows-linux-setup-experience). Android support is coming soon.
+You can install software during first time macOS, iOS, iPadOS, Android, and [Windows and Linux setup](https://fleetdm.com/guides/windows-linux-setup-experience).
 
 Currently, for macOS hosts, software is only installed on hosts that automatically enroll to Fleet via Apple Business Manager (ABM). For iOS and iPadOS hosts, software is only installed on hosts that enroll via ABM and hosts that manually enroll via the `/enroll` link (profile-based device enrollment).
 
@@ -134,9 +134,12 @@ Add setup experience software:
 1. Click on the **Controls** tab in the main navigation bar,  then **Setup experience** > **4. Install software**.
 
 2. Click **Add software**, then select or search for the software you want installed during the setup experience.
+
 3. Press **Save** to save your selection.
 
-To see the end user experience on iOS/iPadOS, check out the [iOS video](https://www.youtube.com/shorts/_XXNGrQPqys) and [iPadOS video](https://www.youtube.com/shorts/IIzo4NyUolM).
+To see the end user experience on iOS/iPadOS, check out the [iOS video](https://www.youtube.com/shorts/_XXNGrQPqys) and [iPadOS video](https://www.youtube.com/shorts/IIzo4NyUolM)
+
+> Currently, if Android software is deleted from **Setup experience > Install software**, it still gets installed when Android hosts enroll. We'll improve this in [#36859](https://github.com/fleetdm/fleet/issues/36859).
 
 ### Retries
 
@@ -149,7 +152,9 @@ Retries only happen for custom packages and Fleet-maintained apps. For App Store
 For macOS hosts, you can configure the setup experience to stop if any software item fails to install:
 
 1. In **Controls > Setup experience > Install software > macOS**, select **Show advanced options**.
+
 2. Check the **Cancel setup if software install fails** checkbox.
+
 3. Select **Save**. 
 
 When this feature is enabled, any failed software will immediately end the setup experience and display a screen similar to this one, allowing the user to view details of the failure for troubleshooting purposes:
@@ -166,9 +171,11 @@ To configure a script to run during setup experience:
 
 To replace the Fleet logo with your organization's logo:
 
-1. Go to **Settings** > **Organization settings** > **Organization info**
-2. Add URLs to your logos in the **Organization avatar URL (for dark backgrounds)** and **Organization avatar URL (for light backgrounds)** fields
-3. Press **Save**
+1. Go to **Settings** > **Organization settings** > **Organization info**.
+
+2. Add URLs to your logos in the **Organization avatar URL (for dark backgrounds)** and **Organization avatar URL (for light backgrounds)** fields.
+
+3. Press **Save**.
  
 > See [configuration documentation](https://fleetdm.com/docs/configuration/yaml-files#org-info) for recommended logo sizes.
 
@@ -190,9 +197,11 @@ In Fleet, you can customize the Setup Assistant by using an automatic enrollment
 
 To customize the Setup Assistant, we will do the following steps:
 
-1. Create an automatic enrollment profile
-2. Upload the profile to Fleet
-3. Test the custom Setup Assistant
+1. Create an automatic enrollment profile.
+
+2. Upload the profile to Fleet.
+
+3. Test the custom Setup Assistant.
 
 > [Automatic enrollment profile delivery can take up to ten minutes](https://github.com/fleetdm/fleet/issues/27854#issuecomment-2811275551).
 

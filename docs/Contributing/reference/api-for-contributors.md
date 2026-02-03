@@ -2,7 +2,7 @@
 
 Don't use these API endpoints. Please use the [public Fleet REST API documentation](https://fleetdm.com/docs/using-fleet/rest-api) instead.
 
-These API endpoints in this document are only used when contributing to Fleet. They're for the Fleet UI, Fleet Desktop, and `fleetctl` clients and frequently change to reflect current functionality. 
+These API endpoints in this document are only used when contributing to Fleet. They're for the Fleet UI, Fleet Desktop, and `fleetctl` clients and frequently change to reflect current functionality.
 
 - [Authentication](#authentication)
 - [Packs](#packs)
@@ -3777,7 +3777,7 @@ Redirects to the transparency URL.
 
 #### Download device's MDM manual enrollment profile
 
-Returns the URL to open to provide installation instructions and allow a user to download a manual enrollment profile 
+Returns the URL to open to provide installation instructions and allow a user to download a manual enrollment profile
 for a device. A user may be required to complete SSO authenticaton if configured on the team before being presented
 with the download option.
 
@@ -3883,7 +3883,9 @@ _Available in Fleet Premium_
       {
         "name": "slack.deb",
         "status": "pending",
-        "software_title_id": 3008
+        "software_title_id": 3008,
+        "display_name": "My Slack",
+        "icon_url": "/api/latest/fleet/device/7d940b6e-130a-493b-b58a-2b6e9f9f8bfc/software/titles/3008/icon"
       }
     ]
   }
@@ -4021,7 +4023,9 @@ Notifies the server about an agent error, resulting in two outcomes:
             {
                 "name": "Evernote",
                 "status": "success",
-                "software_title_id": 1313
+                "software_title_id": 1313,
+                "display_name": "My Evernote",
+                "icon_url": "/api/latest/fleet/software/titles/1313/icon?team_id=0"
             }
         ],
         "configuration_profiles": [
@@ -4757,6 +4761,16 @@ If `"status"` is `"failed"` then the `"message"` field contains the error messag
       "hash_sha256": "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
       "icon_hash_sha256": "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
       "icon_filename": "firefox-custom-icon.png"
+    },
+    {
+      "team_id": 1,
+      "title_id": 3496,
+      "url": "https://work-desktop-assets.8x8.com/prod-publish/ga/work-arm64-dmg-v8.29.1-3.dmg",
+      "hash_sha256": "c6aa78d0911a0cb504a21bcf8421de703cc7dd07b7388903cf29227ca5955737",
+      "fleet_maintained_app_id": 150,
+      "fleet_maintained_app_slug": "8x8-work/darwin",
+      "icon_hash_sha256": "dad98c7c1b9a5654a45972f2cd7e5c3e536fe5312b0e615291ceb35234eaaa7f",
+      "icon_filename": "custom-icon.png"
     }
   ]
 }
