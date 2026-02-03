@@ -3,5 +3,11 @@
 }
 
 .fma-status-select {
-  width: 230px;
+  width: max-content;
+  display: flex;
+  align-items: center;
+
+  .form-field {
+    align-items: end;
+  }
 }

@@ -1,6 +1,7 @@
 import React, { useMemo } from "react";
 import { SingleValue } from "react-select-5";
 
+import Slider from "components/forms/fields/Slider/Slider";
 import DropdownWrapper, {
   CustomOptionType,
 } from "components/forms/fields/DropdownWrapper/DropdownWrapper";
@@ -9,7 +10,7 @@ const statusBaseClass = "fma-status-select";
 const platformBaseClass = "fma-platform-select";
 
 export type FmaPlatformValue = "all" | "macos" | "windows";
-export type FmaStatusValue = "all" | "added" | "available";
+export type FmaStatusValue = "all" | "available";
 
 interface IFmaPlatformFilterProps {
   value: FmaPlatformValue;
@@ -75,46 +76,19 @@ export const FmaStatusFilter = ({
   onChange,
   className,
 }: IFmaStatusFilterProps) => {
-  const options = useMemo<CustomOptionType[]>(() => {
-    return [
-      {
-        value: "all",
-        label: "All apps",
-        helpText: "Show apps regardless of status",
-        isDisabled: false,
-      },
-      {
-        value: "added",
-        label: "Added apps",
-        helpText: "Apps already added to this team",
-        isDisabled: false,
-      },
-      {
-        value: "available",
-        label: "Available apps",
-        helpText: "Apps available to add to this team",
-        isDisabled: false,
-      },
-    ];
-  }, []);
-
-  const handleChange = (newValue: SingleValue<CustomOptionType>) => {
-    if (!newValue) return;
-    onChange(newValue.value as FmaStatusValue);
+  const handleChange = () => {
+    onChange(value === "all" ? ("available" as FmaStatusValue) : "all");
   };
+
+  const enabled = value === "available";
 
   return (
     <div className={`${statusBaseClass} ${className || ""}`}>
-      <DropdownWrapper
-        name="fma-status-filter"
-        options={options}
-        value={value}
+      <Slider
         onChange={handleChange}
-        variant="table-filter"
-        isSearchable={false}
-        placeholder="Filter by status"
-        className={statusBaseClass}
-        iconName="filter-alt"
+        value={enabled}
+        inactiveText="Hide added apps"
+        activeText="Hide added apps"
       />
     </div>
   );

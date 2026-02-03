@@ -194,9 +194,6 @@ const FleetMaintainedAppsTable = ({
     (data && combineAppsByPlatform(data.fleet_maintained_apps ?? [])) ?? [];
 
   const filteredApps = combinedAppsByPlatform.filter((app) => {
-    const macAdded = !!app.macos?.software_title_id;
-    const winAdded = !!app.windows?.software_title_id;
-
     const macAvailable = !!app.macos && !app.macos.software_title_id;
     const winAvailable = !!app.windows && !app.windows.software_title_id;
 
@@ -207,12 +204,6 @@ const FleetMaintainedAppsTable = ({
     // status filter
     if (status === "all") {
       return true;
-    }
-
-    if (status === "added") {
-      if (platform === "macos") return macAdded;
-      if (platform === "windows") return winAdded;
-      return macAdded || winAdded;
     }
 
     if (status === "available") {
@@ -277,16 +268,16 @@ const FleetMaintainedAppsTable = ({
   };
 
   const renderCustomControls = () => (
-    <div className={`${baseClass}__filter-dropdowns`}>
-      <FmaPlatformFilter
-        value={platform}
-        onChange={handleFmaPlatformDropdownChange}
-        className={`${baseClass}__platform-filter`}
-      />
+    <div className={`${baseClass}__filters`}>
       <FmaStatusFilter
         value={status}
         onChange={handleFmaStatusDropdownChange}
         className={`${baseClass}__status-filter`}
+      />
+      <FmaPlatformFilter
+        value={platform}
+        onChange={handleFmaPlatformDropdownChange}
+        className={`${baseClass}__platform-filter`}
       />
     </div>
   );
