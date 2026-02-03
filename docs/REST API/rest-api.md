@@ -1494,7 +1494,6 @@ None.
     "windows_entra_tenant_ids": [
       {
         "tenant_id": "fec37e96-3615-4e37-8fac-445d5328af3c",
-        "uploaded_at": "2026-02-03:00:00Z"
       },
     ],
     "enable_turn_on_windows_mdm_manually": false,
