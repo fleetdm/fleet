@@ -14,6 +14,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm/android"
 	"github.com/fleetdm/fleet/v4/server/ptr"
+	"github.com/fleetdm/fleet/v4/server/service/contract"
 	"github.com/fleetdm/fleet/v4/server/worker"
 	"github.com/go-kit/log"
 	"github.com/google/uuid"
@@ -1235,4 +1236,143 @@ func (s *integrationMDMTestSuite) TestCertificateTemplateRenewal() {
 			}
 		})
 	}
+}
+
+func (s *integrationMDMTestSuite) TestCertificateTemplateAuthorizationForTeamUsers() {
+	t := s.T()
+	ctx := context.Background()
+
+	// Create a team
+	teamName := t.Name() + "-team"
+	var createTeamResp teamResponse
+	s.DoJSON("POST", "/api/latest/fleet/teams", createTeamRequest{
+		TeamPayload: fleet.TeamPayload{
+			Name: ptr.String(teamName),
+		},
+	}, http.StatusOK, &createTeamResp)
+	teamID := createTeamResp.Team.ID
+
+	// Create a team admin user
+	teamAdminEmail := "team-admin@example.com"
+	teamAdminPassword := "password123#"
+	var createUserResp createUserResponse
+	s.DoJSON("POST", "/api/latest/fleet/users/admin", createUserRequest{
+		UserPayload: fleet.UserPayload{
+			Name:       ptr.String("Team Admin"),
+			Email:      &teamAdminEmail,
+			Password:   &teamAdminPassword,
+			GlobalRole: nil,
+			Teams: &[]fleet.UserTeam{
+				{
+					Team: fleet.Team{ID: teamID},
+					Role: fleet.RoleAdmin,
+				},
+			},
+		},
+	}, http.StatusOK, &createUserResp)
+	require.NotZero(t, createUserResp.User.ID)
+
+	// Create a certificate authority
+	ca, err := s.ds.NewCertificateAuthority(ctx, &fleet.CertificateAuthority{
+		Type:      string(fleet.CATypeCustomSCEPProxy),
+		Name:      ptr.String(t.Name() + "-CA"),
+		URL:       ptr.String("http://localhost:8080/scep"),
+		Challenge: ptr.String("test-challenge"),
+	})
+	require.NoError(t, err)
+	caID := ca.ID
+
+	// Login as team admin
+	var loginResp loginResponse
+	s.DoJSON("POST", "/api/latest/fleet/login", contract.LoginRequest{
+		Email:    teamAdminEmail,
+		Password: teamAdminPassword,
+	}, http.StatusOK, &loginResp)
+	teamAdminToken := loginResp.Token
+
+	// Store original token
+	originalToken := s.token
+	defer func() { s.token = originalToken }()
+
+	// Switch to team admin token
+	s.token = teamAdminToken
+
+	t.Run("team admin can list 'no team' certificates", func(t *testing.T) {
+		s.token = originalToken
+		certTemplateNoTeamName := strings.ReplaceAll(t.Name(), "/", "-") + "-NoTeam-Cert"
+		var createResp createCertificateTemplateResponse
+		s.DoJSON("POST", "/api/latest/fleet/certificates", createCertificateTemplateRequest{
+			Name:                   certTemplateNoTeamName,
+			TeamID:                 0,
+			CertificateAuthorityId: caID,
+			SubjectName:            "CN=$FLEET_VAR_HOST_HARDWARE_SERIAL",
+		}, http.StatusOK, &createResp)
+		require.NotZero(t, createResp.ID)
+		noTeamCertID := createResp.ID
+
+		// Switch back to team admin
+		s.token = teamAdminToken
+
+		// Team admin should be able to list "No team" certificates
+		var listResp listCertificateTemplatesResponse
+		s.DoJSON("GET", "/api/latest/fleet/certificates?team_id=0", nil, http.StatusOK, &listResp)
+		require.Len(t, listResp.Certificates, 1)
+		require.Equal(t, noTeamCertID, listResp.Certificates[0].ID)
+		require.Equal(t, certTemplateNoTeamName, listResp.Certificates[0].Name)
+	})
+
+	t.Run("team admin can list own team certificates", func(t *testing.T) {
+		// Create a certificate template for the team using global admin
+		s.token = originalToken
+		certTemplateTeamName := strings.ReplaceAll(t.Name(), "/", "-") + "-Team-Cert"
+		var createResp createCertificateTemplateResponse
+		s.DoJSON("POST", "/api/latest/fleet/certificates", createCertificateTemplateRequest{
+			Name:                   certTemplateTeamName,
+			TeamID:                 teamID,
+			CertificateAuthorityId: caID,
+			SubjectName:            "CN=$FLEET_VAR_HOST_UUID",
+		}, http.StatusOK, &createResp)
+		require.NotZero(t, createResp.ID)
+		teamCertID := createResp.ID
+
+		// Switch back to team admin
+		s.token = teamAdminToken
+
+		var listResp listCertificateTemplatesResponse
+		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/certificates?team_id=%d", teamID), nil, http.StatusOK, &listResp)
+		require.Len(t, listResp.Certificates, 1)
+		require.Equal(t, teamCertID, listResp.Certificates[0].ID)
+		require.Equal(t, certTemplateTeamName, listResp.Certificates[0].Name)
+	})
+
+	// Team admin should not be able to list certificates for a different team
+	t.Run("team admin cannot list other team certificates", func(t *testing.T) {
+		// Create another team
+		s.token = originalToken
+		otherTeamName := t.Name() + "-other-team"
+		var createTeamResp teamResponse
+		s.DoJSON("POST", "/api/latest/fleet/teams", createTeamRequest{
+			TeamPayload: fleet.TeamPayload{
+				Name: ptr.String(otherTeamName),
+			},
+		}, http.StatusOK, &createTeamResp)
+		otherTeamID := createTeamResp.Team.ID
+
+		// Create a certificate template for the other team
+		certTemplateOtherTeamName := strings.ReplaceAll(t.Name(), "/", "-") + "-OtherTeam-Cert"
+		var createResp createCertificateTemplateResponse
+		s.DoJSON("POST", "/api/latest/fleet/certificates", createCertificateTemplateRequest{
+			Name:                   certTemplateOtherTeamName,
+			TeamID:                 otherTeamID,
+			CertificateAuthorityId: caID,
+			SubjectName:            "CN=$FLEET_VAR_HOST_HARDWARE_SERIAL",
+		}, http.StatusOK, &createResp)
+		require.NotZero(t, createResp.ID)
+
+		// Switch back to team admin
+		s.token = teamAdminToken
+
+		// Team admin should get 403 forbidden when trying to list other team's certificates
+		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/certificates?team_id=%d", otherTeamID), nil, http.StatusForbidden, &listCertificateTemplatesResponse{})
+	})
 }
