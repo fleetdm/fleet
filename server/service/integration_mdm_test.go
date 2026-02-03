@@ -12294,6 +12294,11 @@ func (s *integrationMDMTestSuite) TestRefetchIOSIPadOS() {
 	host, mdmClient := s.createAppleMobileHostThenEnrollMDM("ios")
 	require.NoError(t, s.ds.SetOrUpdateMDMData(context.Background(), host.ID, false, true, "https://foo.com", true, "", "", false))
 
+	s.enableABM(t.Name())
+	abmTok, err := s.ds.GetABMTokenByOrgName(t.Context(), t.Name())
+	require.NoError(t, err)
+	s.Require().NoError(s.ds.UpsertMDMAppleHostDEPAssignments(t.Context(), []fleet.Host{*host}, abmTok.ID, nil))
+
 	// Refetch host
 	_ = s.Do("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/refetch", host.ID), nil, http.StatusOK)
 	const commandsSentPerRefetch = 3
