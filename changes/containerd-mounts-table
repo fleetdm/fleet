@@ -1,0 +1,1 @@
+* Added `containerd_mounts` table on Linux to query container mount information from containerd.
