@@ -621,7 +621,7 @@ The bug has been confirmed it's a bug but not reproduced.
 
 Take the following action: Add the `:reproduce` label so that the bug is added to the :help-qa board.
 
-At this state, the bug review DRI (QA) is responsible for reproducing the bug and documenting reproduction steps or asking the product group's Produce Designer for more guidance. QA has **1 business day** to move the bug to the [reproduced state](#reproduced) or ask for guidance.
+At this state, the bug review DRI (QA) is responsible for reproducing the bug and documenting reproduction steps or asking the product group's Product Designer for more guidance. QA has **1 business day** to move the bug to the [reproduced state](#reproduced) or ask for guidance.
 
 
 #### Reproduced

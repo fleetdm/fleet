@@ -197,6 +197,8 @@ X-Client-Cert-Issuer: CN=My CA
 
 If you use a certificate not signed by your CA (or no certificate), the handshake should fail (client is rejected).
 
+> **Note for Okta conditional access:** Caddy sends the certificate serial number in **decimal** format (as shown above), while AWS ALB sends it in **hexadecimal** format. If you're using this Caddy setup with Okta conditional access, you must configure Fleet to parse the serial number in decimal format by setting [`conditional_access.cert_serial_format`](https://fleetdm.com/docs/configuration/fleet-server-configuration#conditional-access) to `decimal`.
+
 ---
 
 ## Step 7: Verify & troubleshoot

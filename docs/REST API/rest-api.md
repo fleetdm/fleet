@@ -1473,7 +1473,8 @@ None.
     "okta_idp_id": "0ogmbinlfy9hvGs7cx492",
     "okta_assertion_consumer_service_url": "https://example.okta.com/sso/saml2/0ogmbinlfy9hvGs7cx492",
     "okta_audience_uri": "https://www.okta.com/saml2/service-provider/asdhjlksoewpoasn",
-    "okta_certificate": "-----BEGIN CERTIFICATE-----\nMIIC...\n-----END CERTIFICATE-----"
+    "okta_certificate": "-----BEGIN CERTIFICATE-----\nMIIC...\n-----END CERTIFICATE-----",
+    "bypass_disabled": false
   },
   "host_expiry_settings": {
     "host_expiry_enabled": false,
@@ -1784,7 +1785,8 @@ Modifies the Fleet's configuration with the supplied information.
     "okta_idp_id": "0ogmbinlfy9hvGs7cx492",
     "okta_assertion_consumer_service_url": "https://example.okta.com/sso/saml2/0ogmbinlfy9hvGs7cx492",
     "okta_audience_uri": "https://www.okta.com/saml2/service-provider/asdhjlksoewpoasn",
-    "okta_certificate": "-----BEGIN CERTIFICATE-----\nMIIC...\n-----END CERTIFICATE-----"
+    "okta_certificate": "-----BEGIN CERTIFICATE-----\nMIIC...\n-----END CERTIFICATE-----",
+    "bypass_disabled": false
   },
   "host_expiry_settings": {
     "host_expiry_enabled": false,
@@ -1894,7 +1896,8 @@ Modifies the Fleet's configuration with the supplied information.
     "databases_path": ""
   },
   "fleet_desktop": {
-    "transparency_url": "https://fleetdm.com/better"
+    "transparency_url": "https://fleetdm.com/better",
+    "alternative_browser_host": "fleet-desktop.example.com"
   },
   "gitops": {
     "gitops_mode_enabled": false,
@@ -2144,6 +2147,7 @@ _Available in Fleet Premium._
 | Name                              | Type    | Description   |
 | ---------------------             | ------- | -------------------------------------------------------------------------------- |
 | transparency_url                  | string  | The URL used to display transparency information to users of Fleet Desktop.      |
+| alternative_browser_host          | string  | The hostname used to navigate Fleet Desktop traffic through.                     |
 
 <br/>
 
@@ -2152,7 +2156,8 @@ _Available in Fleet Premium._
 ```json
 {
   "fleet_desktop": {
-    "transparency_url": "https://fleetdm.com/better"
+    "transparency_url": "https://fleetdm.com/better",
+    "alternative_browser_host": "fleet-desktop.example.com"
   }
 }
 ```
@@ -2368,6 +2373,7 @@ _Available in Fleet Premium._
 | okta_assertion_consumer_service_url | string  | The assertion consumer service URL found in Okta after creating an IdP in **Security** > **Identity Providers** > **SAML 2.0 IdP**      |
 | okta_audience_uri                   | string  | The audience URI found in Okta after creating an IdP in **Security** > **Identity Providers** > **SAML 2.0 IdP**      |
 | okta_certificate                    | string  | The certificate provided by Okta during the **Set Up Authenticator** workflow      |
+| bypass_disabled                    | boolean  | Whether to allow end users the option to bypass conditional access blocking for a single login attempt. (Default: `false`.)|
 
 When updating conditional access config, all `conditional_access` fields must either be empty or included in the request.
 
@@ -2379,7 +2385,8 @@ When updating conditional access config, all `conditional_access` fields must ei
     "okta_idp_id": "0ogmbinlfy9hvGs7cx492",
     "okta_assertion_consumer_service_url": "https://example.okta.com/sso/saml2/0ogmbinlfy9hvGs7cx492",
     "okta_audience_uri": "https://www.okta.com/saml2/service-provider/asdhjlksoewpoasn",
-    "okta_certificate": "-----BEGIN CERTIFICATE-----\nMIIC...\n-----END CERTIFICATE-----"
+    "okta_certificate": "-----BEGIN CERTIFICATE-----\nMIIC...\n-----END CERTIFICATE-----",
+    "bypass_disabled": false
   }
 }
 ```
@@ -2868,6 +2875,8 @@ None.
 - [Remove labels from host](#remove-labels-from-host)
 - [Run live query on host (ad hoc)](#run-live-query-on-host-ad-hoc)
 - [Run live query on host by identifier (ad hoc)](#run-live-query-on-host-by-identifier-ad-hoc)
+- [Bypass host's conditional access](#bypass-hosts-conditional-access)
+
 
 #### About host timestamps
 
@@ -3990,6 +3999,7 @@ X-Client-Cert-Serial: <fleet_identity_scep_cert_serial>
     "display_text": "Annas-MacBook-Pro.local",
     "self_service": true,
     "org_logo_url": "https://example.com/logo.jpg",
+    "conditional_access_bypassed": false,
     "license": {
       "tier": "free",
       "expiration": "2031-01-01T00:00:00Z"
@@ -5462,6 +5472,28 @@ The live query will stop if the targeted host is offline, or if the query times 
 ```
 
 Note that if the host is online and the query times out, this endpoint will return an error and `rows` will be `null`. If the host is offline, no error will be returned, and `rows` will be `null`.
+
+
+## Bypass host's conditional access
+
+Grant a blocked host access for a single login. Requires Okta conditional access configured with bypass enabled.
+
+`POST /api/v1/fleet/device/:token/bypass_conditional_access`
+
+#### Parameters
+
+| Name        | Type   | In   | Description                                                                                                                                                                                                                                  |
+| ----------- | ------ | ---- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| token        | string | path | **Required.** The host's [device authentication token](https://fleetdm.com/guides/fleet-desktop#secure-fleet-desktop). |
+
+
+#### Example 
+
+`POST /api/v1/fleet/device/abcdef012456789/bypass_conditional_access`
+
+#### Default response 
+
+`Status: 200` 
 
 ---
 
@@ -9823,6 +9855,8 @@ Get a list of all software.
 | max_cvss_score | integer | query | _Available in Fleet Premium_. Filters to only include software with vulnerabilities that have a CVSS version 3.x base score lower than what's specified.   |
 | exploit | boolean | query | _Available in Fleet Premium_. If `true`, filters to only include software with vulnerabilities that have been actively exploited in the wild (`cisa_known_exploit: true`). Default is `false`.  |
 | platform | string | query | Filters software titles available for install by platforms. `team_id` must be specified to filter by platform. Options are: `"macos"` (alias of `"darwin"`), `"darwin"` `"windows"`, `"linux"`, `"chrome"`, `"ios"`, `"ipados"`. To show titles from multiple platforms, separate the platforms with commas (e.g. `?platform=darwin,windows`). |
+| hash_sha256 | string | query | Filters to only include custom software packages (uploaded installers) with the specified SHA-256 hash. `team_id` must be specified to filter by hash. This allows checking if a specific package already exists before uploading. |
+| package_name | string | query | Filters to only include custom software packages (uploaded installers) with the specified package filename. `team_id` must be specified to filter by package name. This allows checking if a specific package already exists before uploading. |
 | exclude_fleet_maintained_apps | boolean | query | If `true` or `1`, Fleet maintained apps will not be included in the list of `software_titles`. Default is `false` |
 
 

@@ -1189,6 +1189,7 @@ module.exports.routes = {
   'GET /learn-more-about/connect-microsoft-entra': '/guides/windows-mdm-setup#step-2-connect-fleet-to-microsoft-entra-id',
   'GET /learn-more-about/macos-configuration-profiles-same-scope': '/guides/custom-os-settings#upgrading-to-4-71-0',
   'GET /learn-more-about/disable-okta-conditional-access': '/guides/okta-conditional-access-integration#disabling-okta-conditional-access',
+  'GET /learn-more-about/alternative-browser-host': '/guides/enroll-hosts#alternative-browser-host',
   'GET /learn-more-about/deploy-self-service-to-ios': '/guides/software-self-service#deploy-self-service-on-ios-and-ipados',
 
   // Sitemap

@@ -792,6 +792,32 @@ Optionally, if you're using a third-party to manage AWS resources, this is the A
     private_key_sts_external_id: your_unique_id
   ```
 
+### server_max_installer_size
+
+Maximum size for software installer uploads. Accepts human-readable size values with suffixes like `K`, `M`, `G`, `T` (binary, e.g., `10GiB` = 10 * 1024³ bytes) or `KB`, `MB`, `GB`, `TB` (decimal, e.g., `10GB` = 10 * 1000³ bytes). Plain numbers are interpreted as bytes.
+
+- Default value: `10GiB`
+- Environment variable: `FLEET_SERVER_MAX_INSTALLER_SIZE`
+- Config file format:
+  ```yaml
+  server:
+    max_installer_size: 10GiB
+  ```
+  
+### server_gzip_responses
+
+If enabled, the server will return gzip-compressed responses for HTTP requests to clients that indicate support. Client support is determined by the presence of `gzip` in an `Accept-Encoding` request header.
+
+Enable this to significantly reduce the outbound bandwidth from the Fleet server at a small expense to CPU utilization on the server.
+
+- Default value: false
+- Environment variable: `FLEET_SERVER_GZIP_RESPONSES`
+- Config file format:
+  ```yaml
+  server:
+    gzip_responses: true
+  ```
+
 ## Auth
 
 ### auth_sso_session_validity_period
@@ -3224,6 +3250,39 @@ The best practice is to set this to 3x the number of new employees (end users) t
   ```yaml
   mdm:
     sso_rate_limit_per_minute: 200
+  ```
+
+### mdm.apple_vpp_app_metadata_api_bearer_token
+
+By default, Fleet retrieves [Apple App Store (VPP) metadata](https://developer.apple.com/documentation/devicemanagement/get-your-apps-metadata) from Apple using an API token from Fleet's Apple Developer account. This API token is hosted on fleetdm.com.
+
+If you have an [Apple Developer account that is enabled as an MDM vendor](https://developer.apple.com/help/account/service-configurations/apps-and-books-for-organizations), you can optionally configure Fleet with your own API token. This way, Fleet can directly communicate with Apple.
+
+- Default value: none
+- Environment variable: `FLEET_MDM_APPLE_VPP_APP_METADATA_API_BEARER_TOKEN`
+- Config file format:
+  ```yaml
+  mdm:
+    apple_vpp_app_metadata_api_bearer_token: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ92eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6Ikp
+
+## Conditional access
+
+### conditional_access_cert_serial_format
+
+Specifies the format for parsing certificate serial numbers from the `X-Client-Cert-Serial` header during Okta conditional access authentication.
+
+Different load balancers/reverse proxies send certificate serial numbers in different formats:
+- AWS ALB sends serial numbers in **hexadecimal** format (e.g., `A` for serial 10)
+- Caddy sends serial numbers in **decimal** format (e.g., `10` for serial 10)
+
+This configuration allows Fleet to correctly parse the serial number regardless of the proxy being used.
+
+- Default value: `hex`
+- Environment variable: `FLEET_CONDITIONAL_ACCESS_CERT_SERIAL_FORMAT`
+- Config file format:
+  ```yaml
+  conditional_access:
+    cert_serial_format: decimal
   ```
 
 ## Partnerships

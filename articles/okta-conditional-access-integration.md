@@ -56,6 +56,8 @@ okta.fleet.example.com {
 }
 ```
 
+> **Important:** Caddy sends the certificate serial number in decimal format, while AWS ALB sends it in hexadecimal format. When using Caddy, you must configure Fleet to parse the serial number in decimal format by setting [`conditional_access.cert_serial_format`](https://fleetdm.com/docs/configuration/fleet-server-configuration#conditional-access) to `decimal`.
+
 Replace:
 - `okta.fleet.example.com` with your mTLS subdomain
 - `/etc/caddy/fleet-scep-ca.crt` with the path to your SCEP CA certificate
@@ -75,7 +77,6 @@ Replace:
 
 1. In Fleet, go to **Settings** > **Integrations** > **Conditional access** > **Okta** and click **Connect**.
 2. In the modal, go to **Identity provider (IdP) signature certificate**. Click **Download certificate**.
-3. Rename certificate extention from `.cer` to `.crt` if needed.
 
 ### Step 3: Create IdP in Okta
 
