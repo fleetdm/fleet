@@ -36,9 +36,9 @@ You can also manage which Google Play Store apps are available for self-service 
 
 2. Search for the app you want to remove and select the app to head to its **Software details** page.
 
-3. To edit the app icon and display name, select **Actions > Edit appearance**. This applies only to software available for install. The changes will appear on the software list and details pages for the team where the app is added, as well as on [self-service](https://fleetdm.com/guides/software-self-service). By default, Fleet uses the name provided by osquery.
+3. To edit the app icon and display name, select **Actions > Edit appearance**.
 
-4. To make the app available in [self-service](https://fleetdm.com/guides/software-self-service) or to edit categories, target scope, or [configuration](#configuration), select **Actions > Edit software**.
+4. To configure the app's self-service categories or change which hosts can install the app, select **Actions > Edit software**.
 
 5. To remove the app, click the trash can (delete) icon above the table of installed, pending, and failed hosts.
 
@@ -69,6 +69,7 @@ Currently, Apple App Store (VPP) apps can't be uninstalled via Fleet.
 ### Google Play (Android)
 
 Android apps can be installed via self-service in the end user's managed Google Play Store (work profile).
+
 
 #### Configuration
 

@@ -2332,6 +2332,47 @@ func TestHostEncryptionKey(t *testing.T) {
 		require.NoError(t, err)
 		require.Equal(t, passphrase, key.DecryptedValue)
 	})
+
+	t.Run("decryption failure returns user message error", func(t *testing.T) {
+		ds := new(mock.Store)
+		ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+			return &fleet.AppConfig{MDM: fleet.MDM{EnabledAndConfigured: true}}, nil
+		}
+		svc, ctx := newTestServiceWithConfig(t, ds, fleetCfg, nil, nil)
+		ctx = test.UserContext(ctx, test.UserAdmin)
+
+		ds.HostLiteFunc = func(ctx context.Context, id uint) (*fleet.Host, error) {
+			return &fleet.Host{ID: 1, Platform: "darwin"}, nil
+		}
+
+		// Return a key encrypted with a different certificate (i.e., simulate rotated certs)
+		ds.GetHostDiskEncryptionKeyFunc = func(ctx context.Context, id uint) (*fleet.HostDiskEncryptionKey, error) {
+			return &fleet.HostDiskEncryptionKey{
+				Base64Encrypted: "invalidEncryptedKey",
+				Decryptable:     ptr.Bool(true),
+			}, nil
+		}
+		ds.GetHostArchivedDiskEncryptionKeyFunc = func(ctx context.Context, host *fleet.Host) (*fleet.HostArchivedDiskEncryptionKey, error) {
+			return &fleet.HostArchivedDiskEncryptionKey{
+				Base64Encrypted: "invalidArchivedKey",
+			}, nil
+		}
+		ds.GetAllMDMConfigAssetsByNameFunc = func(ctx context.Context, assetNames []fleet.MDMAssetName,
+			_ sqlx.QueryerContext,
+		) (map[fleet.MDMAssetName]fleet.MDMConfigAsset, error) {
+			return map[fleet.MDMAssetName]fleet.MDMConfigAsset{
+				fleet.MDMAssetCACert: {Name: fleet.MDMAssetCACert, Value: testCertPEM},
+				fleet.MDMAssetCAKey:  {Name: fleet.MDMAssetCAKey, Value: testKeyPEM},
+			}, nil
+		}
+
+		_, err := svc.HostEncryptionKey(ctx, 1)
+		require.Error(t, err)
+
+		var ume *fleet.UserMessageError
+		require.True(t, errors.As(err, &ume))
+		require.Contains(t, ume.Error(), "Couldn't decrypt the disk encryption key")
+	})
 }
 
 // Fragile test: This test is fragile because of the large reliance on Datastore mocks. Consider refactoring test/logic or removing the test. It may be slowing us down more than helping us.

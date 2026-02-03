@@ -373,7 +373,7 @@ Anyone in the product group can initiate an air guitar session.
 
 2. If the air guitar is prioritized, it's assigned to a Product Designer who brings it through the [drafting process](https://fleetdm.com/handbook/company/product-groups#drafting). However, keep in mind that these are conceptual and may or may not proceed to engineering.
 
-3. When the wireframes are approved, assign the requester to the issue, at-mention them to let them know that the wireframes are ready, remove the `:product` label, and add the appropriate label(s) to move the issue to the requester's board (`:help-customers` for CSMs and `#g-unicorns` for AEs). The requester (CSM or AE) will then bring the wireframes to a call with the customer or prospect to collect feedback. It's up to the requester to record feedback and add Gong snippets to the issue.
+3. When the wireframes are approved, assign the requester to the issue, at-mention them to let them know that the wireframes are ready, remove the `:product` label, and add the appropriate label(s) to move the issue to the requester's board (`:help-customers` for CSMs and `:help-gtm-ops` for AEs). The requester (CSM or AE) will then bring the wireframes to a call with the customer or prospect to collect feedback. It's up to the requester to record feedback and add Gong snippets to the issue.
 
 4. After feedback has been added to the issue, the requester adds the `:product` label and assigns the issue to the Head of Product Design to determine an outcome:
 
@@ -999,6 +999,8 @@ Our scrum boards are exclusively composed of four types of scrum items:
 3. **Timeboxes**: Tasks that are specified to complete within a pre-defined amount of time are marked with the `~timebox` label. Timeboxes are research or investigation tasks necessary to move a prioritized user story forward, sometimes called "spikes" in scrum methodology. We use the term "timebox" because it better communicates its purpose. Timeboxes are always assigned to exactly one user story.
 
 4. **Bugs**: Representing errors or flaws that result in incorrect or unexpected outcomes, bugs are marked with the `bug` label. Like user stories and sub-tasks, bugs are documented, prioritized, and addressed during a sprint.
+
+5. **Quick wins**: These are small copy or UX improvements that aren't quite bugs but they're so small that they're worthwhile. Once approved at design review, quick wins skip user story review and go straight to the current sprint.
 
 > Our sprint boards do not accommodate any other type of ticket. By strictly adhering to these four types of scrum items, we maintain an organized and focused workflow that consistently adds value for our users.
 

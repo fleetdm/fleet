@@ -17,7 +17,7 @@ This handbook page details processes specific to working [with](#contact-us) and
   - Please **use issue comments and GitHub mentions** to communicate follow-ups or answer questions related to your request.
   - Any Fleet team member can [view the kanban board](https://github.com/orgs/fleetdm/projects/80) for this department, including pending tasks and the status of new requests.
 
-> To **make a request** of the GTM Ops team, [create an issue](https://github.com/fleetdm/confidential/issues/new?assignees=&labels=%3Agtm-ops&projects=&template=1-custom-request.md&title=) and a team member will get back to you within one business day (If urgent, mention [Sam Pfluger](https://fleetdm.slack.com/team/U05CS07KASK) in the [#g-unicorns](https://fleetdm.slack.com/archives/C08BTMFTUCR) Slack channel).
+> To **make a request** of the GTM Ops team, [create an issue](https://github.com/fleetdm/confidential/issues/new?assignees=&labels=%3Ahelp-gtm-ops&projects=&template=1-custom-request.md&title=) and a team member will get back to you within one business day (If urgent, mention [Sam Pfluger](https://fleetdm.slack.com/team/U05CS07KASK) in the [:help-gtm-ops](https://fleetdm.slack.com/archives/C08BTMFTUCR) Slack channel).
 >  - Any Fleet team member can [view the kanban board](https://github.com/orgs/fleetdm/projects/100/views/1) for this department, including pending tasks and the status of new requests.
 >  - Please **use issue comments and GitHub mentions** to communicate follow-ups or answer questions related to your request. 
 

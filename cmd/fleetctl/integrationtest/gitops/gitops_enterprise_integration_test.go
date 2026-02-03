@@ -312,7 +312,7 @@ team_settings:
 
 	// Check that all the teams exist
 	teamsJSON := fleetctl.RunAppForTest(t, []string{"get", "teams", "--config", fleetctlConfig.Name(), "--json"})
-	assert.Equal(t, 3, strings.Count(teamsJSON, "team_id"))
+	assert.Equal(t, 6, strings.Count(teamsJSON, "team_id"))
 
 	// Real run with all the files, and delete other teams
 	args = []string{"gitops", "--config", fleetctlConfig.Name(), "--delete-other-teams", "-f", globalFile}
@@ -323,7 +323,7 @@ team_settings:
 
 	// Check that only the right teams exist
 	teamsJSON = fleetctl.RunAppForTest(t, []string{"get", "teams", "--config", fleetctlConfig.Name(), "--json"})
-	assert.Equal(t, 2, strings.Count(teamsJSON, "team_id"))
+	assert.Equal(t, 5, strings.Count(teamsJSON, "team_id"))
 	assert.NotContains(t, teamsJSON, deletedTeamName)
 
 	// Real run with one file at a time
@@ -3183,7 +3183,6 @@ org_settings:
 
 	for _, testCase := range testCases {
 		t.Run(testCase.Name, func(t *testing.T) {
-
 			globalCfgFile, err := os.CreateTemp(t.TempDir(), "*.yml")
 			require.NoError(t, err)
 
@@ -3221,8 +3220,7 @@ func (s *enterpriseIntegrationGitopsTestSuite) TestSpecialCaseTeamsVPPApps() {
 
 	// The global template includes VPP token assignment to the team
 	// The location "Jungle" comes from test.CreateInsertGlobalVPPToken
-	globalTemplate :=
-		`agent_options:
+	globalTemplate := `agent_options:
 controls:
 org_settings:
   server_settings:
@@ -3329,5 +3327,4 @@ team_settings:
 			require.Len(t, titles, 2) // One for iOS, one for iPadOS
 		})
 	}
-
 }
