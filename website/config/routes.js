@@ -17,7 +17,6 @@ module.exports.routes = {
     action: 'view-homepage-or-redirect',
     locals: {
       isHomepage: true,
-      showHeaderCTA: true,
     }
   },
 
@@ -284,7 +283,6 @@ module.exports.routes = {
     skipAssets: false,
     action: 'docs/view-basic-documentation',// Meta title and description set in view action
     locals: {
-      hideStartCTA: true,
       currentSection: 'documentation',
     }
   },// handles /docs and /docs/foo/bar
@@ -302,25 +300,14 @@ module.exports.routes = {
     locals: {
       hideHeaderLinks: true,
       hideFooterLinks: true,
-      hideStartCTA: true,
       pageTitleForMeta: 'Get Fleet Premium',
       pageDescriptionForMeta: 'Generate your quote and start using Fleet Premium today.',
-    }
-  },
-  'GET /register': {
-    action: 'entrance/view-signup',
-    locals: {
-      hideFooterLinks: true,
-      hideStartCTA: true,
-      pageTitleForMeta: 'Sign up',
-      pageDescriptionForMeta: 'Sign up for a Fleet account.',
     }
   },
   'GET /login': {
     action: 'entrance/view-login',
     locals: {
-      hideFooterLinks: true,
-      hideStartCTA: true,
+      showConfigurationProfileLayout: true,
       pageTitleForMeta: 'Log in',
       pageDescriptionForMeta: 'Log in to Fleet.',
     }
@@ -330,7 +317,6 @@ module.exports.routes = {
     locals: {
       hideHeaderLinks: true,
       hideFooterLinks: true,
-      hideStartCTA: true,
       pageTitleForMeta: 'Customer dashboard',
       pageDescriptionForMeta: 'View and edit information about your Fleet Premium license.',
     }
@@ -341,7 +327,6 @@ module.exports.routes = {
     locals: {
       hideHeaderLinks: true,
       hideFooterLinks: true,
-      hideStartCTA: true,
       pageTitleForMeta: 'Forgot password',
       pageDescriptionForMeta: 'Recover the password for your Fleet customer account.',
     }
@@ -351,7 +336,6 @@ module.exports.routes = {
     locals: {
       hideHeaderLinks: true,
       hideFooterLinks: true,
-      hideStartCTA: true,
       pageTitleForMeta: 'New password',
       pageDescriptionForMeta: 'Change the password for your Fleet customer account.',
     }
@@ -370,7 +354,6 @@ module.exports.routes = {
     locals: {
       hideFooterLinks: true,
       showAdminLinks: true,
-      hideStartCTA: true,
     },
   },
 
@@ -380,7 +363,6 @@ module.exports.routes = {
     locals: {
       hideFooterLinks: true,
       showAdminLinks: true,
-      hideStartCTA: true,
     },
   },
 
@@ -389,7 +371,6 @@ module.exports.routes = {
     locals: {
       hideFooterLinks: true,
       showAdminLinks: true,
-      hideStartCTA: true,
     },
   },
 
@@ -405,7 +386,6 @@ module.exports.routes = {
     locals: {
       hideFooterLinks: true,
       showAdminLinks: true,
-      hideStartCTA: true,
     }
   },
 
@@ -463,23 +443,11 @@ module.exports.routes = {
     }
   },
 
-  'GET /start': {
-    action: 'view-start',
-    locals: {
-      hideFooterLinks: true,
-      hideGetStartedButton: true,
-      hideStartCTA: true,
-      pageTitleForMeta: 'Start',
-      pageDescriptionForMeta: 'Get Started with Fleet. Spin up a local demo or get your Premium license key.',
-    }
-  },
-
   'GET /better': {
     action: 'view-transparency',
     locals: {
       pageDescriptionForMeta: 'Discover how Fleet simplifies IT and security, prioritizing privacy, transparency, and trust for end users.',
       pageTitleForMeta: 'Better with Fleet',
-      hideStartCTA: true,
     }
   },
 
@@ -489,7 +457,6 @@ module.exports.routes = {
       pageTitleForMeta: 'Deal registration',
       pageDescriptionForMeta: 'Register an opportunity with a potential customer.',
       hideFooterLinks: true,
-      hideStartCTA: true,
     }
   },
 
@@ -543,7 +510,6 @@ module.exports.routes = {
     action: 'view-configuration-builder',
     locals: {
       showConfigurationProfileLayout: true,
-      hideStartCTA: true,
     }
   },
 
@@ -551,7 +517,6 @@ module.exports.routes = {
     action: 'microsoft-proxy/view-remediate',
     locals: {
       showConfigurationProfileLayout: true,
-      hideStartCTA: true,
     }
   },
 
@@ -559,7 +524,6 @@ module.exports.routes = {
     action: 'microsoft-proxy/view-turn-on-mdm',
     locals: {
       showConfigurationProfileLayout: true,
-      hideStartCTA: true,
     }
   },
 
@@ -567,14 +531,12 @@ module.exports.routes = {
     action: 'view-fleet-premium-trial-or-redirect',
     locals: {
       showConfigurationProfileLayout: true,
-      hideStartCTA: true,
     }
   },
 
   'GET /okta-conditional-access-error': {
     action: 'view-okta-conditional-access-error',
     locals: {
-      hideStartCTA: true,
       showConfigurationProfileLayout: true,
     }
   },
@@ -590,7 +552,6 @@ module.exports.routes = {
   'GET /fast-track': {
     action: 'view-fast-track',
     locals: {
-      hideStartCTA: true,
       pageTitleForMeta: 'Fleet Fast-track',
       pageDescriptionForMeta: 'Fast-track helps your team enroll devices, set up workflows, and validate configurations with Fleet experts, to get Fleet ready for production.'
     }
@@ -755,9 +716,10 @@ module.exports.routes = {
   'GET /example-windows-profile': 'https://github.com/fleetdm/fleet-gitops/blob/860dcf2609e2b25a6d6becf8006a7118a19cd615/lib/windows-screenlock.xml',// « resuable link for OS settings doc page
   'GET /docs/using-fleet/mdm-custom-macos-settings': '/docs/using-fleet/mdm-custom-os-settings',
   'GET /customers/login': '/login',
-  'GET /customers/register': '/register',
+  'GET /customers/register': '/login',
   'GET /try-fleet/login': '/login',
-  'GET /try-fleet/register': '/register',
+  'GET /try-fleet/register': '/login',
+  'GET /register': '/login',
   'GET /customers/new-license': '/new-license',
   'GET /try-fleet/fleetctl-preview': '/try-fleet',
   'GET /upgrade': '/pricing',
