@@ -7,7 +7,7 @@
         <p purpose="hero-text">Pick from a curated software catalog or upload your own custom packages. Configure custom installation scripts if you need or let Fleet do it for you.</p>
         <div purpose="button-row" class="d-flex justify-content-start">
           <a class="btn btn-primary" purpose="contact-button" href="/contact">Get a demo</a>
-          <signup-button :is-logged-in="!! this.me"></signup-button>
+          <animated-arrow-button href="/try">Try it yourself</animated-arrow-button>
         </div>
       </div>
       <div purpose="hero-slides">
@@ -220,12 +220,12 @@
       <h2>Manage software consistently</h2>
       <div purpose="button-row" class="d-flex justify-content-center align-items-center mx-auto">
         <a class="btn btn-primary" purpose="contact-button" href="/contact">Get a demo</a>
-        <signup-button :is-logged-in="!! this.me"></signup-button>
+        <animated-arrow-button href="/try">Try it yourself</animated-arrow-button>
       </div>
     </div>
   </div>
   <%/* Cloud city banner */%>
   <parallax-city></parallax-city>
-  <signup-modal></signup-modal>
+
 </div>
 <%- /* Expose server-rendered data as window.SAILS_LOCALS :: */ exposeLocalsToBrowser() %>
