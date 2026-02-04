@@ -325,6 +325,8 @@ If assistance is needed for research or solutioning by a CSA, create an issue on
 
 Select any template, but clear all of the information and labels, and add the `:help-customers` label. This will automatically add the task to the `:help-customers` project board, with the status of `New requests`.
 
+Add as much context and detail as possible. If applicable, add information on the priority and deadline for the task.
+
 During the next standup meeting, the Manager of Customer Support and Solutions Architecture will triage the task.
 
 
