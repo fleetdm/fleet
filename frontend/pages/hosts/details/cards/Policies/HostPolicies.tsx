@@ -62,6 +62,38 @@ const Policies = ({
     [router]
   );
 
+  const renderBanner = () => {
+    if (conditionalAccessBypassed) {
+      return (
+        <InfoBanner color="grey" borderRadius="xlarge">
+          <IconStatusMessage
+            iconName="clock"
+            iconColor="ui-fleet-black-50"
+            message={
+              <span>
+                <strong>Access restored for next Okta login</strong>
+                <br />
+                To fully restore access, click on the policies marked
+                &apos;Action required&apos; and follow the resolution steps.
+                Once resolved, click &apos;Refetch&apos; to check status.
+              </span>
+            }
+          />
+        </InfoBanner>
+      );
+    }
+    if (failingResponses?.length > 0) {
+      return (
+        <PolicyFailingCount
+          policyList={policies}
+          deviceUser={deviceUser}
+          conditionalAccessEnabled={conditionalAccessEnabled}
+        />
+      );
+    }
+    return null;
+  };
+
   const renderHostPolicies = () => {
     if (hostPlatform === "ios" || hostPlatform === "ipados") {
       return (
@@ -114,29 +146,7 @@ const Policies = ({
 
     return (
       <>
-        {failingResponses?.length > 0 && !conditionalAccessBypassed ? (
-          <PolicyFailingCount
-            policyList={policies}
-            deviceUser={deviceUser}
-            conditionalAccessEnabled={conditionalAccessEnabled}
-          />
-        ) : (
-          <InfoBanner color="grey" borderRadius="xlarge">
-            <IconStatusMessage
-              iconName="clock"
-              iconColor="ui-fleet-black-50"
-              message={
-                <span>
-                  <strong>Access restored for next Okta login</strong>
-                  <br />
-                  {`To fully restore access, click on the policies marked "Action
-                  required" and follow the resolution steps. Once resolved,
-                  click "Refetch" to check status.`}
-                </span>
-              }
-            />
-          </InfoBanner>
-        )}
+        {renderBanner()}
         <TableContainer
           columnConfigs={tableHeaders}
           data={generatePolicyDataSet(policies, !!conditionalAccessEnabled)}
