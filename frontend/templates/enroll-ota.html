@@ -147,16 +147,23 @@
     </style>
   </head>
   <body>
-    <!-- unsupported platform content -->
+
+    <!-- unsupported platform content, not macos, ios, ipados, or android -->
     <template id="unsupported-template">
+      <section class="main-content">
       <h1>How to enroll your device to Fleet</h1>
       <p class="page-description">
-        To enroll your Mac, iPhone, iPad, or Android device, please open this
+        To enroll your Mac, please open this
         page on your device.
       </p>
+      </section>
+      <section class="mobile-enroll-content">
+        <p>Trying to enroll your corporate mobile device?</p>
+        <div>QR CODE</div>
+      </section>
     </template>
 
-    <!-- android content -->
+    <!-- android content when not fully managed-->
     <template id="android-template">
       <h1>How to enroll your Android device to Fleet</h1>
       <div class="android-content">
@@ -164,6 +171,42 @@
         <a class="enroll-link" href="" target="_blank">Enroll</a>
         <p>Already finished? You can close this tab.</p>
       </div>
+    </template>
+
+    <!-- android content when fully managed -->
+    <template id="android-fully-managed-template">
+      <h1>How to enroll your Android device to Fleet</h1>
+      <ol>
+        <li>
+          <p>
+            <span>1.</span>
+            <span>
+              Turn on your new device or <a target="_blank" ref="https://support.google.com/android/answer/6088915?hl=en">factory reset it</a>
+            </span>
+          </p>
+        </li>
+        <li>
+          <p>
+            <span>2.</span>
+            <span>On the very first screen, tap the screen six times in a blank area.</span>
+          </p>
+        </li>
+        <li>
+          <p>
+            <span>3.</span>
+            <span>Scan QR code below with the QR reader that shows up.</span>
+            <div>QR CODE</div>
+          </p>
+        </li>
+        <li>
+          <p>
+            <span>4.</span>
+            <span>Connect to Wi-Fi and follow the instructions on the screen.
+            </span>
+          </p>
+        </li>
+      </ol>
+      <p>Already finished? Refresh the page to enroll another device.</p>
     </template>
 
     <!-- ios, ipados content -->
@@ -202,7 +245,7 @@
           <p>
             <span>3.</span>
             <span>Tap <b>Install</b>. You'll see a few warnings, which is expected.
-            Tap <b>Install</b> again when prompted.</span>
+     jk       Tap <b>Install</b> again when prompted.</span>
           </p>
           <div class="install-profile-container">
             <img class="install-profile-img" src="" alt="select install" />
@@ -218,53 +261,59 @@
       </ol>
     </template>
 
-    <!-- ios, ipados content -->
+    <!-- macos content -->
     <template id="macos-template">
-      <h1>Turn on MDM</h1>
-      <ol>
-        <li>
-          <p>
-            <span>1.</span>
-            <span> 
-              Tap the button below to download the Fleet profile. Double click on it.
-              You'll see a warning, which is expected.
-            </span>
-          </p>
-          <a class="download-link" href="{{.EnrollURL}}">Download</a>
-        </li>
-        <li>
-          <p>
-            <span>2.</span>
-            <span>
-              Go to the Apple menu in the top left corner of your screen. Select
-              <b>System Settings</b>.
-            </span>
-          </p>
-        </li>
-        <li>
-          <p>
-            <span>3.</span>
-            <span>
-              Go to <b>Profile Downloaded</b>. Double-click the
-              <b>[Organization name] enrollment</b> profile.
-            </span>
-          </p>
-        </li>
-        <li>
-          <p>
-            <span>4.</span>
-            <span>Select <b>Install</b>. Enter your password.</span>
-          </p>
-        </li>
-        <li>
-          <p>
-            <span>5.</span>
-            <span>Go back to your <b>My device</b> page. Select
-              <b>Refetch</b> to tell your organization that MDM is on.
-            </span>
-          </p>
-        </li>
-      </ol>
+      <section class="main-content">
+        <h1>How to turn on MDM on your Mac</h1>
+        <ol>
+          <li>
+            <p>
+              <span>1.</span>
+              <span> 
+                Tap the button below to download the Fleet profile. Double click on it.
+                You'll see a warning, which is expected.
+              </span>
+            </p>
+            <a class="download-link" href="{{.EnrollURL}}">Download</a>
+          </li>
+          <li>
+            <p>
+              <span>2.</span>
+              <span>
+                Go to the Apple menu in the top left corner of your screen. Select
+                <b>System Settings</b>.
+              </span>
+            </p>
+          </li>
+          <li>
+            <p>
+              <span>3.</span>
+              <span>
+                Go to <b>Profile Downloaded</b>. Double-click the
+                <b>[Organization name] enrollment</b> profile.
+              </span>
+            </p>
+          </li>
+          <li>
+            <p>
+              <span>4.</span>
+              <span>Select <b>Install</b>. Enter your password.</span>
+            </p>
+          </li>
+          <li>
+            <p>
+              <span>5.</span>
+              <span>Go back to your <b>My device</b> page. Select
+                <b>Refetch</b> to tell your organization that MDM is on.
+              </span>
+            </p>
+          </li>
+        </ol>
+      </section>
+      <section class="mobile-enroll-message">
+        <p>Trying to enroll your corporate mobile device?</p>
+        <div>QR CODE</div>
+      </section>
     </template>
 
     <!-- Error content -->
@@ -296,6 +345,9 @@
     <!-- container for the dynamic content -->
     <section id="main-content"></section>
 
+    <!-- using qrcode library to generate QR codes -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcode/1.5.1/qrcode.min.js" integrity="sha512-PEhlWBZBrQL7flpJPY8lXx8tIN7HWX912GzGhFTDqA3iWFrakVH3lVHomCoU9BhfKzgxfEk6EG2C3xej+9srOQ==" crossorigin="anonymous" referrerpolicy="no-referrer" defer></script>
+
     <script>
       const ANDROID_GET_TOKEN_URL =
         "{{.URLPrefix}}/api/v1/fleet/android_enterprise/enrollment_token";
@@ -303,6 +355,8 @@
       const ANDROID_MDM_ENABLED = "{{.AndroidMDMEnabled}}" === "true";
       const MAC_MDM_ENABLED = "{{.MacMDMEnabled}}" == "true";
       const ERROR_MESSAGE = "{{.ErrorMessage}}";
+      const isFullyManaged = new URLSearchParams(window.location.search).has("fully_managed", true);
+
 
       const getPlatform = () => {
         const userAgent = navigator.userAgent;
@@ -419,14 +473,6 @@
 
       // here we render the page content
       document.addEventListener("DOMContentLoaded", async function () {
-        const platform = getPlatform();
-
-        // quick exit if platform is unsupported
-        if (platform === "unsupported") {
-          renderContent("unsupported-template");
-          return;
-        }
-
         // if there is an error message, render it
         if (ERROR_MESSAGE) {
           // format of error message is expected to use colon as separator character, e.g., "An error occurred. : Failed to parse original URL."
@@ -435,12 +481,25 @@
           return;
         }
 
-        // check if the enroll secret is valid.
+        // check if there is an enrollment secret
         if (!getEnrollmentSecret()) {
           renderError(
             "This URL is invalid.",
-            "Enroll secret is invalid. Please contact your IT admin."
+            "Enroll secret is missing. Please contact your IT admin."
           );
+          return;
+        }
+
+        if (isFullyManaged) {
+          renderContent("android-fully-managed-template");
+          return;
+        }
+
+        const platform = getPlatform();
+
+        // render unsupported platform content. Unsupported means not macos, ios, ipad, or android
+        if (platform === "unsupported") {
+          renderContent("unsupported-template");
           return;
         }
 
