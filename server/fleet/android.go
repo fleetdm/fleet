@@ -124,6 +124,7 @@ type MDMAndroidProfilePayload struct {
 	DeviceRequestUUID       *string            `db:"device_request_uuid"`
 	RequestFailCount        int                `db:"request_fail_count"`
 	IncludedInPolicyVersion *int               `db:"included_in_policy_version"`
+	LastErrorDetails        string             `db:"last_error_details"`
 }
 
 // HostMDMAndroidProfile represents the status of an MDM profile for a Android host.
