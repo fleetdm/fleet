@@ -1801,12 +1801,6 @@ func (svc *Service) NewMDMAndroidConfigProfile(ctx context.Context, teamID uint,
 		}
 		return nil, ctxerr.Wrap(ctx, err)
 	}
-	// TODO(JK): this will set all profiles to null, only the reconcile profiles job will actually
-	// set these to pending. In apple profiles there is no need to wait for the job to set the
-	// status to pending and additional fields.
-	// --- It might not even do the same to macOS as for iOS/iPadOS. <- nevermind, it exlcudes macOS ONLY profiles
-	// It looks like for apple (macos only?) the logic that would happen in ReconcileProfiles for android
-	// happens in bulkSetPendingMDMAppleHostProfilesDB
 	if _, err := svc.ds.BulkSetPendingMDMHostProfiles(ctx, nil, nil, []string{newCP.ProfileUUID}, nil); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "bulk set pending host profiles")
 	}
