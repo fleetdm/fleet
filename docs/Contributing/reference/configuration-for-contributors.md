@@ -198,7 +198,7 @@ Key that allows the Fleet server to communicate to the Microsoft compliance part
 
 > Experimental feature. This feature will be removed when Fleet adds the ability to add custom OS update and FileVault profiles via Fleet's UI, API, and YAML.
 
-This configuration option is not production ready. It hasn't been tested by Fleet. There will be conflicts between custom OS updates / FileVault configuration profiles and the profiles Fleet for these features under-the-hood.
+This configuration option is not production ready. It hasn't been tested by Fleet. There will be conflicts between custom OS updates / FileVault configuration profiles and the profiles Fleet uses for these features under-the-hood.
 
 If set to `true`, Fleet allows users to add the [SoftwareUpdateEnforcementSpecific declaration (DDM)](https://developer.apple.com/documentation/devicemanagement/softwareupdateenforcementspecific) profile, [FDEFileVault](https://developer.apple.com/documentation/devicemanagement/fdefilevault), [FDEFileVaultOptions](https://developer.apple.com/documentation/devicemanagement/fdefilevaultoptions), [FDERecoveryKeyEscrow](https://developer.apple.com/documentation/devicemanagement/fderecoverykeyescrow), and [/Vendor/MSFT/Policy/Config/Update/](https://learn.microsoft.com/en-us/windows/client-management/mdm/policy-csp-update) configuration profiles.
 
