@@ -63,6 +63,9 @@ const Policies = ({
   );
 
   const renderBanner = () => {
+    if (!failingResponses?.length) {
+      return null;
+    }
     if (conditionalAccessBypassed) {
       return (
         <InfoBanner color="grey" borderRadius="xlarge">
@@ -82,16 +85,13 @@ const Policies = ({
         </InfoBanner>
       );
     }
-    if (failingResponses?.length > 0) {
-      return (
-        <PolicyFailingCount
-          policyList={policies}
-          deviceUser={deviceUser}
-          conditionalAccessEnabled={conditionalAccessEnabled}
-        />
-      );
-    }
-    return null;
+    return (
+      <PolicyFailingCount
+        policyList={policies}
+        deviceUser={deviceUser}
+        conditionalAccessEnabled={conditionalAccessEnabled}
+      />
+    );
   };
 
   const renderHostPolicies = () => {
