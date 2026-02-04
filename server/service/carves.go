@@ -2,10 +2,13 @@ package service
 
 import (
 	"context"
-	"encoding/json"
+	"encoding/base64"
 	"errors"
 	"fmt"
+	"io"
 	"net/http"
+	"strconv"
+	"strings"
 	"time"
 
 	carvestorectx "github.com/fleetdm/fleet/v4/server/contexts/carvestore"
@@ -265,86 +268,125 @@ func (r carveBlockRequest) DecodeRequest(ctx context.Context, req *http.Request)
 		return nil, ctxerr.New(ctx, "missing carve store from context")
 	}
 
-	decoder := json.NewDecoder(req.Body)
-
 	newAuthRequiredError := func(err error) error {
 		return ctxerr.Wrap(ctx, fleet.NewAuthFailedError(err.Error()), "authentication error")
 	}
 
+	readUntil := func(maxToRead int, endChar byte) (string, error) {
+		var s strings.Builder
+		endCharFound := false
+		for i := 0; i <= maxToRead+1; i++ {
+			character := make([]byte, 1)
+			if _, err := req.Body.Read(character); err != nil {
+				return "", fmt.Errorf("failed to read block_id character: %w", err)
+			}
+			if character[0] == endChar {
+				endCharFound = true
+				break
+			}
+			s.Write(character)
+		}
+		if !endCharFound {
+			return "", fmt.Errorf(`end character not found: %q`, s.String())
+		}
+		return s.String(), nil
+	}
+
 	// 1. Must start with {
-	if t, err := decoder.Token(); err != nil {
-		return nil, newAuthRequiredError(fmt.Errorf("expected object start: %w", err))
-	} else if delim, ok := t.(json.Delim); !ok || delim != '{' {
-		return nil, newAuthRequiredError(fmt.Errorf("expected '{', got %v", t))
+	delimiter := make([]byte, 1)
+	if _, err := req.Body.Read(delimiter); err != nil {
+		return nil, newAuthRequiredError(fmt.Errorf("failed to read object start: %w", err))
+	}
+	if string(delimiter) != "{" {
+		return nil, newAuthRequiredError(fmt.Errorf("expected '{', got %v", delimiter))
+	}
+	// Must continue with "block_id".
+	blockIDKey := make([]byte, 11)
+	if _, err := req.Body.Read(blockIDKey); err != nil {
+		return nil, newAuthRequiredError(fmt.Errorf(`failed to read "block_id" key: %w`, err))
+	}
+	if string(blockIDKey) != `"block_id":` {
+		return nil, newAuthRequiredError(fmt.Errorf(`expected "block_id":, got %v`, blockIDKey))
+	}
+	// Must continue with a number.
+	const maxNumberOfDigits = 19
+	blockIDStr, err := readUntil(maxNumberOfDigits, ',')
+	if err != nil {
+		return nil, newAuthRequiredError(fmt.Errorf(`invalid "block_id" field: %w`, err))
+	}
+	blockID, err := strconv.ParseInt(blockIDStr, 10, 64)
+	if err != nil {
+		return nil, newAuthRequiredError(fmt.Errorf(`invalid "block_id" format: %w`, err))
+	}
+	// Must continue with "session_id":".
+	sessionIDKey := make([]byte, 14)
+	if _, err := req.Body.Read(sessionIDKey); err != nil {
+		return nil, newAuthRequiredError(fmt.Errorf(`failed to read "session_id" key: %w`, err))
+	}
+	if string(sessionIDKey) != `"session_id":"` {
+		return nil, newAuthRequiredError(fmt.Errorf(`expected "session_id":", got %v`, sessionIDKey))
+	}
+	// Must continue with a string.
+	const maxSizeSessionID = 255
+	sessionID, err := readUntil(maxSizeSessionID, '"')
+	if err != nil {
+		return nil, newAuthRequiredError(fmt.Errorf(`invalid "session_id" field: %w`, err))
+	}
+	if sessionID == "" {
+		return nil, newAuthRequiredError(errors.New("empty session_id"))
+	}
+	// Must continue with ,"request_id":".
+	requestIDKey := make([]byte, 15)
+	if _, err := req.Body.Read(requestIDKey); err != nil {
+		return nil, newAuthRequiredError(fmt.Errorf(`failed to read "request_id" key: %w`, err))
+	}
+	if string(requestIDKey) != `,"request_id":"` {
+		return nil, newAuthRequiredError(fmt.Errorf(`expected ,"request_id":", got %v`, requestIDKey))
+	}
+	// Must continue with a string.
+	const maxSizeRequestID = 64
+	requestID, err := readUntil(maxSizeRequestID, '"')
+	if err != nil {
+		return nil, newAuthRequiredError(fmt.Errorf(`invalid "request_id" field: %w`, err))
+	}
+	if sessionID == "" {
+		return nil, newAuthRequiredError(errors.New("empty request_id"))
 	}
 
-	// 2. Parse field by field.
-	var (
-		blockID   int64
-		sessionID string
-		requestID string
-		data      []byte
-
-		authenticated bool
-	)
-	for decoder.More() {
-		t, err := decoder.Token()
-		if err != nil {
-			return nil, newAuthRequiredError(fmt.Errorf("reading field name: %w", err))
-		}
-		fieldName, ok := t.(string)
-		if !ok {
-			return nil, newAuthRequiredError(fmt.Errorf("expected string field name, got %T: %v", t, t))
-		}
-		switch fieldName {
-		case "block_id":
-			if err := decoder.Decode(&blockID); err != nil {
-				return nil, newAuthRequiredError(fmt.Errorf("invalid block_id: %w", err))
-			}
-		case "session_id":
-			if err := decoder.Decode(&sessionID); err != nil {
-				return nil, newAuthRequiredError(fmt.Errorf("invalid session_id: %w", err))
-			}
-		case "request_id":
-			if err := decoder.Decode(&requestID); err != nil {
-				return nil, newAuthRequiredError(fmt.Errorf("invalid request_id: %w", err))
-			}
-
-			if sessionID == "" {
-				return nil, newAuthRequiredError(errors.New("missing session_id"))
-			}
-			carve, err := carveStore.CarveBySessionId(ctx, sessionID)
-			if err != nil {
-				return nil, newAuthRequiredError(fmt.Errorf("carve by session ID: %w", err))
-			}
-			if requestID != carve.RequestId {
-				return nil, newAuthRequiredError(errors.New("request_id does not match session"))
-			}
-			authenticated = true
-		case "data":
-			if !authenticated {
-				return nil, newAuthRequiredError(errors.New("unauthenticated data"))
-			}
-			// Request is authenticated, thus we proceed to parse "data" field.
-			if err := decoder.Decode(&data); err != nil {
-				return nil, ctxerr.Wrap(ctx, err, "invalid data")
-			}
-		default:
-			// If a new field is added to the API we'll need to account for it here.
-			return nil, newAuthRequiredError(fmt.Errorf("unexpected field: %q", fieldName))
-		}
+	// Perform authentication before continuing with the parse of the "data" field.
+	carve, err := carveStore.CarveBySessionId(ctx, sessionID)
+	if err != nil {
+		return nil, newAuthRequiredError(fmt.Errorf("carve by session ID: %w", err))
+	}
+	if requestID != carve.RequestId {
+		return nil, newAuthRequiredError(errors.New("request_id does not match session"))
 	}
 
-	if !authenticated {
-		return nil, newAuthRequiredError(errors.New("unauthenticated request"))
+	// At this point the request is authenticated.
+
+	// Must continue with ,"data":".
+	dataKey := make([]byte, 9)
+	if _, err := req.Body.Read(dataKey); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, `failed to read "data" key`)
+	}
+	if string(dataKey) != `,"data":"` {
+		return nil, ctxerr.New(ctx, fmt.Sprintf(`expected ,"data":", got %v`, requestIDKey))
 	}
 
-	// 3. Expect closing }
-	if t, err := decoder.Token(); err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "expected object end")
-	} else if delim, ok := t.(json.Delim); !ok || delim != '}' {
-		return nil, ctxerr.Errorf(ctx, "expected '}', got %v", t)
+	// Must continue with a string with the base64 encoded data.
+	encodedData, err := io.ReadAll(req.Body)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, `read "data" field`)
 	}
+	// Skip ending `"}`
+	encodedData = encodedData[:len(encodedData)-2]
+	data := make([]byte, base64.RawStdEncoding.DecodedLen(len(encodedData)))
+	n, err := base64.StdEncoding.Decode(data, encodedData)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "base64 decode block data")
+	}
+	data = data[:n]
+	fmt.Printf("WTF: %d, %s, %s, %d", blockID, sessionID, requestID, len(data))
 
 	return &carveBlockRequest{
 		BlockId:   blockID,
