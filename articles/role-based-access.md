@@ -106,7 +106,7 @@ GitOps is an API-only and write-only role that can be used on CI/CD pipelines.
 | Lock, unlock, and wipe hosts\*                                                                                                             |          |            | ✅         | ✅    |         |
 | Turn off MDM                                                                                                                               |          |            | ✅         | ✅    |         |
 | Configure Microsoft Entra conditional access integration                                                                                   |          |            |           | ✅    |       |
-| View custom variables             | ✅       | ✅         | ✅         | ✅    |         |
+| View [custom variables](https://fleetdm.com/docs/rest-api/rest-api#list-custom-variables)             | ✅       | ✅         | ✅         | ✅    |         |
 | Create, edit, and delete custom variables  | ✅       | ✅         | ✅         | ✅    |         |
 
 
