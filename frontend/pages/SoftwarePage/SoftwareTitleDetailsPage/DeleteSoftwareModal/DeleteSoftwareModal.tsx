@@ -26,8 +26,7 @@ const getPlatformMessage = (isAppStoreApp: boolean, isAndroidApp: boolean) => {
   if (isAndroidApp) {
     return (
       <p>
-        Currently, software won&apos;t be deleted from self-service (managed
-        Google Play) and won&apos;t be uninstalled from the hosts.
+        Software <strong>will be uninstalled</strong> from hosts.
       </p>
     );
   }
