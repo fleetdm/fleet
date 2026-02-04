@@ -288,10 +288,13 @@ module.exports = {
         sails.log.warn(`When retrieving enrichment information about a user's organization (LinkedIn page ID: ${matchingLinkedinCompanyPageId}) the Coresignal API responded with an error: `, err);
         return undefined;
       });
-      if (matchingCompanyPageInfo && matchingCompanyPageInfo.website) {
-        let parsedCompanyEmailDomain = require('url').parse(matchingCompanyPageInfo.website);
-        // If a company's website does not include the protocol (https://), url.parse will return null as the hostname, if this happens, we'll use the href value returned instead.
-        let emailDomain = parsedCompanyEmailDomain.hostname ? parsedCompanyEmailDomain.hostname.replace(sails.config.custom.RX_PROTOCOL_AND_COMMON_SUBDOMAINS,'') : parsedCompanyEmailDomain.href.replace(sails.config.custom.RX_PROTOCOL_AND_COMMON_SUBDOMAINS,'');
+      if (matchingCompanyPageInfo) {
+        let emailDomain;
+        if(matchingCompanyPageInfo.website) {
+          let parsedCompanyEmailDomain = require('url').parse(matchingCompanyPageInfo.website);
+          // If a company's website does not include the protocol (https://), url.parse will return null as the hostname, if this happens, we'll use the href value returned instead.
+          emailDomain = parsedCompanyEmailDomain.hostname ? parsedCompanyEmailDomain.hostname.replace(sails.config.custom.RX_PROTOCOL_AND_COMMON_SUBDOMAINS,'') : parsedCompanyEmailDomain.href.replace(sails.config.custom.RX_PROTOCOL_AND_COMMON_SUBDOMAINS,'');
+        }
         employer = {
           organization: matchingCompanyPageInfo.name,
           numberOfEmployees: matchingCompanyPageInfo.employees_count,
