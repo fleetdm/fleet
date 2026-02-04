@@ -5,7 +5,6 @@ import android.util.Log
 import androidx.work.CoroutineWorker
 import androidx.work.WorkerParameters
 import kotlinx.coroutines.sync.Mutex
-import kotlinx.coroutines.sync.withLock
 
 /**
  * WorkManager worker that handles certificate enrollment operations in the background.
@@ -19,9 +18,15 @@ import kotlinx.coroutines.sync.withLock
 class CertificateEnrollmentWorker(context: Context, workerParams: WorkerParameters) : CoroutineWorker(context, workerParams) {
 
     override suspend fun doWork(): Result {
-        // Use mutex to prevent concurrent enrollment runs (periodic + one-time work are tracked separately)
-        return enrollmentMutex.withLock {
+        // Skip if another enrollment is already running (periodic + one-time work are tracked separately)
+        if (!enrollmentMutex.tryLock()) {
+            Log.d(TAG, "Skipping enrollment, another run is already in progress")
+            return Result.success()
+        }
+        return try {
             doEnrollment()
+        } finally {
+            enrollmentMutex.unlock()
         }
     }
 
