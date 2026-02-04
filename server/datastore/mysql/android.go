@@ -1062,10 +1062,13 @@ func (ds *Datastore) ListMDMAndroidProfilesToSend(ctx context.Context) ([]*fleet
 		ds.profile_uuid,
 		ds.name as profile_name,
 		ds.host_uuid,
-		COALESCE(hmap.request_fail_count, 0) as request_fail_count
+		COALESCE(hmap.request_fail_count, 0) as request_fail_count,
+		COALESCE(apr.error_details, '') as last_error_details
 	FROM ( %s ) ds
 		LEFT OUTER JOIN host_mdm_android_profiles hmap
 			ON hmap.host_uuid = ds.host_uuid AND hmap.profile_uuid = ds.profile_uuid
+		LEFT OUTER JOIN android_policy_requests apr
+			ON apr.request_uuid = hmap.policy_request_uuid
 `, fmt.Sprintf(androidApplicableProfilesQuery, "h.uuid IN (?)", "h.uuid IN (?)", "h.uuid IN (?)", "h.uuid IN (?)"))
 
 		query, args, err := sqlx.In(listToInstallProfilesStmt, hostUUIDs, hostUUIDs, hostUUIDs, hostUUIDs)
@@ -1081,10 +1084,13 @@ func (ds *Datastore) ListMDMAndroidProfilesToSend(ctx context.Context) ([]*fleet
 		hmap.profile_uuid,
 		hmap.profile_name,
 		hmap.host_uuid,
-		hmap.request_fail_count
+		hmap.request_fail_count,
+		COALESCE(apr.error_details, '') as last_error_details
 	FROM ( %s ) ds
 		RIGHT OUTER JOIN host_mdm_android_profiles hmap
 			ON hmap.host_uuid = ds.host_uuid AND hmap.profile_uuid = ds.profile_uuid
+		LEFT OUTER JOIN android_policy_requests apr
+			ON apr.request_uuid = hmap.policy_request_uuid
 	WHERE
 		hmap.host_uuid IN (?) AND
 		ds.host_uuid IS NULL
