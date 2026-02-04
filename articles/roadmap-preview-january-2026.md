@@ -16,7 +16,7 @@ In the next 3 months, Fleet will ship...
 - 👨‍💻 More macOS and Windows Fleet-maintained apps
 - 🎯 Patch policies: Fleet auto-fills minimum version
 - 🪟 Removals for Windows configuration profiles
-- ⬇️ Upload Fleet installers to the server for end users to download for enrollment
+- ⬇️ Upload signed installers for end users to download from an enrollment page
 
 Big opportunities that Fleet is building towards in the near future (next 180 days):
 
