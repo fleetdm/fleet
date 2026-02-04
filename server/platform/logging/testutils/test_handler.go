@@ -14,18 +14,18 @@ type TestHandler struct {
 	// mu and records are pointers so they're shared across WithAttrs/WithGroup calls.
 	// This mirrors how real handlers share their output destination (io.Writer)
 	// while maintaining independent configuration (attrs, groups).
-	mu      *sync.Mutex
-	records *[]slog.Record
-	attrs   []slog.Attr
-	group   string
+	mu       *sync.Mutex
+	records  *[]slog.Record
+	attrs    []slog.Attr
+	group    string
 	minLevel slog.Level
 }
 
 // NewTestHandler creates a new TestHandler that accepts all log levels.
 func NewTestHandler() *TestHandler {
 	return &TestHandler{
-		mu:      &sync.Mutex{},
-		records: &[]slog.Record{},
+		mu:       &sync.Mutex{},
+		records:  &[]slog.Record{},
 		minLevel: slog.LevelDebug,
 	}
 }
@@ -71,10 +71,10 @@ func (h *TestHandler) WithAttrs(attrs []slog.Attr) slog.Handler {
 	h.mu.Lock()
 	defer h.mu.Unlock()
 	return &TestHandler{
-		mu:      h.mu,
-		records: h.records,
-		attrs:   slices.Concat(h.attrs, attrs),
-		group:   h.group,
+		mu:       h.mu,
+		records:  h.records,
+		attrs:    slices.Concat(h.attrs, attrs),
+		group:    h.group,
 		minLevel: h.minLevel,
 	}
 }
@@ -84,10 +84,10 @@ func (h *TestHandler) WithGroup(name string) slog.Handler {
 	h.mu.Lock()
 	defer h.mu.Unlock()
 	return &TestHandler{
-		mu:      h.mu,
-		records: h.records,
-		attrs:   h.attrs,
-		group:   name,
+		mu:       h.mu,
+		records:  h.records,
+		attrs:    h.attrs,
+		group:    name,
 		minLevel: h.minLevel,
 	}
 }
