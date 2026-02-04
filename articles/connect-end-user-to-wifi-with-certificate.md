@@ -761,6 +761,8 @@ You can deploy a user-scoped certificate on macOS and Windows hosts using a user
 2. Create a certificate [configuration profile](#example-configuration-profiles). For Windows, replace `./Device` with `./User` in all `<LocURI>` elements. For macOS, set `PayloadScope` to `User`.
 3. In Fleet, navigate to **Controls > OS settings > Custom settings** and upload the configuration profile you created.
 
+For macOS hosts, user-scoped certificates only work if the `login` keychain appears under **Default Keychains**. If the `login` keychain is in a different spot like **Custom Keychains**, the best practice is to erase the Mac.
+
 ### Editing ceritificate configuration profiles on Apple (macOS, iOS, iPadOS) hosts
 
 When you edit a certificate configuration profile for Apple hosts, via GitOps, a new certificate will be added to each hosts' Keychain and the old certificate will be removed. It takes a couple minutes for the old certificate to be removed.
