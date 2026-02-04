@@ -10,12 +10,12 @@ type key int
 
 const carveStoreKey key = 0
 
-func NewContext(ctx context.Context, svc fleet.CarveStore) context.Context {
+func NewContext(ctx context.Context, svc fleet.CarveBySessionIder) context.Context {
 	return context.WithValue(ctx, carveStoreKey, svc)
 }
 
-func FromContext(ctx context.Context) fleet.CarveStore {
-	svc, ok := ctx.Value(carveStoreKey).(fleet.CarveStore)
+func FromContext(ctx context.Context) fleet.CarveBySessionIder {
+	svc, ok := ctx.Value(carveStoreKey).(fleet.CarveBySessionIder)
 	if !ok {
 		return nil
 	}
