@@ -2333,23 +2333,22 @@ This activity contains the following fields:
 }
 ```
 
-## modified_enroll_secret
+## edited_enroll_secrets
 
-Generated when an enroll secret is modified (updated, added, or deleted).
+Generated when global or team enroll secrets are modified.
 
 This activity contains the following fields:
 - "team_id": The ID of the team that the enroll secret applies to, `null` if it applies to devices that are not in a team.
-- "team_name": The name of the team that the enroll secret applies to, `null` if it applies to devices that are not in a team.Generated when a user edits the Android profiles of a team (or no team) via the fleetctl CLI.
-
+- "team_name": The name of the team that the enroll secret applies to, `null` if it applies to devices that are not in a team.
+ 
 #### Example
 
 ```json
 {
   "team_id": 1,
-  "team_name": "Workstations",
+  "team_name": "Workstations"
 }
 ```
-
 
 <meta name="title" value="Audit logs">
 <meta name="pageOrderInSection" value="1400">

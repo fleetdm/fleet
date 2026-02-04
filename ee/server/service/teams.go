@@ -899,7 +899,7 @@ func (svc *Service) ModifyTeamEnrollSecrets(ctx context.Context, teamID uint, se
 	}
 
 	if !maps.Equal(oldSecretValues, newSecretsValues) {
-		activity := fleet.ActivityTypeModifiedEnrollSecret{}
+		activity := fleet.ActivityTypeEditedEnrollSecrets{}
 		team, err := svc.ds.TeamLite(ctx, teamID)
 
 		if err != nil {
@@ -910,7 +910,7 @@ func (svc *Service) ModifyTeamEnrollSecrets(ctx context.Context, teamID uint, se
 			)
 		}
 		if team != nil {
-			activity = fleet.ActivityTypeModifiedEnrollSecret{
+			activity = fleet.ActivityTypeEditedEnrollSecrets{
 				TeamID:   &team.ID,
 				TeamName: &team.Name,
 			}

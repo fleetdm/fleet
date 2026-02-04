@@ -1719,7 +1719,7 @@ const TAGGED_TEMPLATES = {
       </>
     );
   },
-  modifiedEnrollSecret: (activity: IActivity, isPremiumTier: boolean) => {
+  editedEnrollSecrets: (activity: IActivity, isPremiumTier: boolean) => {
     let { team_name } = activity.details || {};
     if (isPremiumTier && !team_name) {
       team_name = "No Team";
@@ -2112,8 +2112,8 @@ const getDetail = (activity: IActivity, isPremiumTier: boolean) => {
     case ActivityType.DeletedCertificate: {
       return TAGGED_TEMPLATES.deletedCert(activity);
     }
-    case ActivityType.ModifiedEnrollSecret: {
-      return TAGGED_TEMPLATES.modifiedEnrollSecret(activity, isPremiumTier);
+    case ActivityType.EditedEnrollSecrets: {
+      return TAGGED_TEMPLATES.editedEnrollSecrets(activity, isPremiumTier);
     }
     default: {
       return TAGGED_TEMPLATES.defaultActivityTemplate(activity);

@@ -7776,7 +7776,7 @@ func (s *integrationTestSuite) TestAppConfig() {
 	assert.Empty(t, specResp.Spec.Secrets)
 
 	seenActivitiesIDs := map[uint]struct{}{}
-	activityName := fleet.ActivityTypeModifiedEnrollSecret{}.ActivityName()
+	activityName := fleet.ActivityTypeEditedEnrollSecrets{}.ActivityName()
 
 	// apply spec, one secret
 	var applyResp applyEnrollSecretSpecResponse

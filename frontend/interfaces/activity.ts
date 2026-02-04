@@ -154,7 +154,7 @@ export enum ActivityType {
   EditedHostIdpData = "edited_host_idp_data",
   AddedCertificate = "added_certificate",
   DeletedCertificate = "deleted_certificate",
-  ModifiedEnrollSecret = "modified_enroll_secret",
+  EditedEnrollSecrets = "edited_enroll_secrets",
 }
 
 /** This is a subset of ActivityType that are shown only for the host past activities */
@@ -436,5 +436,5 @@ export const ACTIVITY_TYPE_TO_FILTER_LABEL: Record<ActivityType, string> = {
   [ActivityType.EditedHostIdpData]: "Edited host identity provider (IdP) data",
   [ActivityType.AddedCertificate]: "Added certificate",
   [ActivityType.DeletedCertificate]: "Deleted certificate",
-  [ActivityType.ModifiedEnrollSecret]: "Modified enroll secret",
+  [ActivityType.EditedEnrollSecrets]: "Modified enroll secret",
 };

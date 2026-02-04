@@ -1523,7 +1523,7 @@ func (s *integrationEnterpriseTestSuite) TestModifyTeamEnrollSecrets() {
 	assert.Equal(t, "testSecret2", team.Secrets[1].Secret)
 
 	seenActivitiesIDs := map[uint]struct{}{}
-	activityName := fleet.ActivityTypeModifiedEnrollSecret{}.ActivityName()
+	activityName := fleet.ActivityTypeEditedEnrollSecrets{}.ActivityName()
 	activityDetails := fmt.Sprintf(`{"team_id": %d, "team_name": "%s"}`, team.ID, team.Name)
 
 	// Check that an activity was created for the new secrets
