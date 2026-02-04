@@ -263,6 +263,16 @@ type carveBlockResponse struct {
 
 func (r carveBlockResponse) Error() error { return r.Err }
 
+// DecodeRequest for the /api/v1/osquery/carve/block endpoint performs raw JSON parsing
+// to prevent DoS attacks on this unauthenticated endpoint.
+// Carve block requests are authenticated by their "session_id" and "request_id".
+// The osquery API sends the "session_id" and "request_id" in the JSON object in the body that
+// also includes the "data" field with the actual "block". If Fleet parses the full JSON to extract
+// the "session_id" and "request_id" then attackers could DoS Fleet by sending big JSON documents.
+// To prevent such an attack, we rely on the stability of the osquery carve endpoints (they have been
+// stable for many years) and parse the body field by field. The "session_id" and "request_id" always
+// come before the "data" field; thus Fleet will extract "session_id" and "request_id", perform authentication
+// and if the credentials are valid parse and decode the "data" field.
 func (r carveBlockRequest) DecodeRequest(ctx context.Context, req *http.Request) (any, error) {
 	carveStore := carvestorectx.FromContext(ctx)
 	if carveStore == nil {
@@ -270,6 +280,7 @@ func (r carveBlockRequest) DecodeRequest(ctx context.Context, req *http.Request)
 	}
 
 	newAuthRequiredError := func(err error) error {
+		// We don't want to return details to clients.
 		return ctxerr.Wrap(ctx, fleet.NewAuthFailedError(err.Error()), "authentication error")
 	}
 
@@ -299,17 +310,17 @@ func (r carveBlockRequest) DecodeRequest(ctx context.Context, req *http.Request)
 		return nil, newAuthRequiredError(fmt.Errorf("failed to read object start: %w", err))
 	}
 	if string(delimiter) != "{" {
-		return nil, newAuthRequiredError(fmt.Errorf("expected '{', got %v", delimiter))
+		return nil, newAuthRequiredError(fmt.Errorf("expected '{', got %q", string(delimiter)))
 	}
-	// Must continue with "block_id":.
+	// 2. Must continue with "block_id":.
 	blockIDKey := make([]byte, 11)
 	if _, err := req.Body.Read(blockIDKey); err != nil {
 		return nil, newAuthRequiredError(fmt.Errorf(`failed to read "block_id" key: %w`, err))
 	}
 	if string(blockIDKey) != `"block_id":` {
-		return nil, newAuthRequiredError(fmt.Errorf(`expected "block_id":, got %v`, blockIDKey))
+		return nil, newAuthRequiredError(fmt.Errorf(`expected "block_id":, got %q`, string(blockIDKey)))
 	}
-	// Must continue with a number.
+	// 3. Must continue with a number.
 	const maxNumberOfDigits = 19
 	blockIDStr, err := readUntil(maxNumberOfDigits, ',')
 	if err != nil {
@@ -319,16 +330,16 @@ func (r carveBlockRequest) DecodeRequest(ctx context.Context, req *http.Request)
 	if err != nil {
 		return nil, newAuthRequiredError(fmt.Errorf(`invalid "block_id" format: %w`, err))
 	}
-	// Must continue with "session_id":".
+	// 4. Must continue with "session_id":".
 	sessionIDKey := make([]byte, 14)
 	if _, err := req.Body.Read(sessionIDKey); err != nil {
 		return nil, newAuthRequiredError(fmt.Errorf(`failed to read "session_id" key: %w`, err))
 	}
 	if string(sessionIDKey) != `"session_id":"` {
-		return nil, newAuthRequiredError(fmt.Errorf(`expected "session_id":", got %v`, sessionIDKey))
+		return nil, newAuthRequiredError(fmt.Errorf(`expected "session_id":", got %q`, string(sessionIDKey)))
 	}
-	// Must continue with a string.
-	const maxSizeSessionID = 255
+	// 5. Must continue with a string (up to 255 chars).
+	const maxSizeSessionID = 255 // defined in DB
 	sessionID, err := readUntil(maxSizeSessionID, '"')
 	if err != nil {
 		return nil, newAuthRequiredError(fmt.Errorf(`invalid "session_id" field: %w`, err))
@@ -336,16 +347,16 @@ func (r carveBlockRequest) DecodeRequest(ctx context.Context, req *http.Request)
 	if sessionID == "" {
 		return nil, newAuthRequiredError(errors.New("empty session_id"))
 	}
-	// Must continue with ,"request_id":".
+	// 6. Must continue with ,"request_id":".
 	requestIDKey := make([]byte, 15)
 	if _, err := req.Body.Read(requestIDKey); err != nil {
 		return nil, newAuthRequiredError(fmt.Errorf(`failed to read "request_id" key: %w`, err))
 	}
 	if string(requestIDKey) != `,"request_id":"` {
-		return nil, newAuthRequiredError(fmt.Errorf(`expected ,"request_id":", got %v`, requestIDKey))
+		return nil, newAuthRequiredError(fmt.Errorf(`expected ,"request_id":", got %q`, string(requestIDKey)))
 	}
-	// Must continue with a string.
-	const maxSizeRequestID = 64
+	// 7. Must continue with a string (up to 64 chars).
+	const maxSizeRequestID = 64 // defined in DB.
 	requestID, err := readUntil(maxSizeRequestID, '"')
 	if err != nil {
 		return nil, newAuthRequiredError(fmt.Errorf(`invalid "request_id" field: %w`, err))
@@ -355,7 +366,7 @@ func (r carveBlockRequest) DecodeRequest(ctx context.Context, req *http.Request)
 	}
 
 	//
-	// Perform authentication before continuing with the read and parse of the "data" field.
+	// 8. Perform authentication before continuing with the read and parse of the "data" field.
 	//
 
 	carve, err := carveStore.CarveBySessionId(ctx, sessionID)
@@ -367,7 +378,7 @@ func (r carveBlockRequest) DecodeRequest(ctx context.Context, req *http.Request)
 	}
 
 	//
-	// At this point the request is authenticated.
+	// 9. At this point the request is authenticated.
 	//
 
 	// Must continue with ,"data":".
@@ -379,7 +390,7 @@ func (r carveBlockRequest) DecodeRequest(ctx context.Context, req *http.Request)
 		return nil, ctxerr.New(ctx, fmt.Sprintf(`expected ,"data":", got %s`, dataKey))
 	}
 
-	// Must continue with a string with the base64 encoded data.
+	// 10. Must continue with a string with the base64 encoded data.
 	encodedData, err := io.ReadAll(req.Body)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, `read "data" field`)
@@ -390,9 +401,9 @@ func (r carveBlockRequest) DecodeRequest(ctx context.Context, req *http.Request)
 	if ending := string(encodedData[len(encodedData)-2:]); ending != `"}` {
 		return nil, ctxerr.New(ctx, fmt.Sprintf(`invalid "data" ending: %s`, ending))
 	}
-	// Skip ending `"}`
+	// 11. Skip ending `"}`
 	encodedData = encodedData[:len(encodedData)-2]
-	// Decode the base64-encoded field.
+	// 12. Decode the base64-encoded field.
 	data := make([]byte, base64.RawStdEncoding.DecodedLen(len(encodedData)))
 	n, err := base64.StdEncoding.Decode(data, encodedData)
 	if err != nil {
