@@ -105,6 +105,10 @@ func newGlobalPolicy(ctx context.Context, db sqlx.ExtContext, authorID *uint, ar
 	}
 	policyID := uint(lastIdInt64) //nolint:gosec // dismiss G115
 
+	if args.ConditionalAccessBypassEnabled == nil {
+		*args.ConditionalAccessBypassEnabled = true
+	}
+
 	dummyPolicy := &fleet.Policy{
 		PolicyData: fleet.PolicyData{
 			ID: policyID,
@@ -1041,6 +1045,10 @@ func newTeamPolicy(ctx context.Context, db sqlx.ExtContext, teamID uint, authorI
 	// We must normalize the name for full Unicode support (Unicode equivalence).
 	nameUnicode := norm.NFC.String(args.Name)
 
+	if args.ConditionalAccessBypassEnabled == nil {
+		*args.ConditionalAccessBypassEnabled = true
+	}
+
 	if err := assertTeamMatches(ctx, db, teamID, args.SoftwareInstallerID, args.ScriptID, args.VPPAppsTeamsID); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "create team policy")
 	}
@@ -1050,12 +1058,13 @@ func newTeamPolicy(ctx context.Context, db sqlx.ExtContext, teamID uint, authorI
 			`INSERT INTO policies (
 				name, query, description, team_id, resolution, author_id,
 				platforms, critical, calendar_events_enabled, software_installer_id,
-				script_id, vpp_apps_teams_id, conditional_access_enabled, checksum
+				script_id, vpp_apps_teams_id, conditional_access_enabled, conditional_access_bypass_enabled, checksum
 			) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, %s)`,
 			policiesChecksumComputedColumn(),
 		),
 		nameUnicode, args.Query, args.Description, teamID, args.Resolution, authorID, args.Platform, args.Critical,
-		args.CalendarEventsEnabled, args.SoftwareInstallerID, args.ScriptID, args.VPPAppsTeamsID, args.ConditionalAccessEnabled,
+		args.CalendarEventsEnabled, args.SoftwareInstallerID, args.ScriptID, args.VPPAppsTeamsID,
+		args.ConditionalAccessEnabled, args.ConditionalAccessBypassEnabled,
 	)
 	switch {
 	case err == nil:

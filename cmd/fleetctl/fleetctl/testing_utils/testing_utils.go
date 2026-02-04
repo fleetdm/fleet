@@ -79,13 +79,14 @@ func RunServerWithMockedDS(t *testing.T, opts ...*service.TestServerOpts) (*http
 	ds.NewGlobalPolicyFunc = func(ctx context.Context, authorID *uint, args fleet.PolicyPayload) (*fleet.Policy, error) {
 		return &fleet.Policy{
 			PolicyData: fleet.PolicyData{
-				Name:        args.Name,
-				Query:       args.Query,
-				Critical:    args.Critical,
-				Platform:    args.Platform,
-				Description: args.Description,
-				Resolution:  &args.Resolution,
-				AuthorID:    authorID,
+				Name:                           args.Name,
+				Query:                          args.Query,
+				Critical:                       args.Critical,
+				Platform:                       args.Platform,
+				Description:                    args.Description,
+				Resolution:                     &args.Resolution,
+				AuthorID:                       authorID,
+				ConditionalAccessBypassEnabled: true,
 			},
 		}, nil
 	}

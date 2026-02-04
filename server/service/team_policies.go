@@ -34,7 +34,7 @@ type teamPolicyRequest struct {
 	LabelsIncludeAny               []string `json:"labels_include_any"`
 	LabelsExcludeAny               []string `json:"labels_exclude_any"`
 	ConditionalAccessEnabled       bool     `json:"conditional_access_enabled"`
-	ConditionalAccessBypassEnabled bool     `json:"conditional_access_bypass_enabled"`
+	ConditionalAccessBypassEnabled *bool    `json:"conditional_access_bypass_enabled"`
 }
 
 type teamPolicyResponse struct {
