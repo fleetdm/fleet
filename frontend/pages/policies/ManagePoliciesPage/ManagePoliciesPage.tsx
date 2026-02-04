@@ -6,7 +6,7 @@ import PATHS from "router/paths";
 import { isEqual } from "lodash";
 
 import { getNextLocationPath, wait } from "utilities/helpers";
-import { TEAM_LBL } from "utilities/constants";
+import { TEAM_LBL, TEAMS_LBL } from "utilities/constants";
 
 import { AppContext } from "context/app";
 import { PolicyContext } from "context/policy";
@@ -1211,7 +1211,7 @@ const ManagePolicyPage = ({
           <div className={`${baseClass}__header__tooltip`}>
             To manage automations add a policy to this {TEAM_LBL}.
             <br />
-            For inherited policies select &ldquo;All teams&rdquo;.
+            For inherited policies select &ldquo;All {TEAMS_LBL}&rdquo;.
           </div>
         ) : (
           <div className={`${baseClass}__header__tooltip`}>
@@ -1267,8 +1267,7 @@ const ManagePolicyPage = ({
     teamsDropdownHelpText = "Detect device health issues for all hosts.";
   } else {
     // a team is selected
-    teamsDropdownHelpText =
-      `Detect device health issues for all hosts assigned to this ${TEAM_LBL}.`;
+    teamsDropdownHelpText = `Detect device health issues for all hosts assigned to this ${TEAM_LBL}.`;
   }
   return (
     <MainContent className={baseClass}>

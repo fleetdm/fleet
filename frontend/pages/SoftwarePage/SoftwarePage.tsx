@@ -20,7 +20,7 @@ import {
   getPathWithQueryParams,
 } from "utilities/url";
 import { getNextLocationPath } from "utilities/helpers";
-import { TEAM_LBL } from "utilities/constants";
+import { TEAM_LBL, TEAMS_LBL } from "utilities/constants";
 
 import Button from "components/buttons/Button";
 import MainContent from "components/MainContent";
@@ -342,7 +342,7 @@ const SoftwarePage = ({ children, router, location }: ISoftwarePageProps) => {
             underline={false}
             tipContent={
               <div className={`${baseClass}__header__tooltip`}>
-                Select &ldquo;All teams&rdquo; to manage automations.
+                Select &ldquo;All {TEAMS_LBL}&rdquo; to manage automations.
               </div>
             }
             disableTooltip={isAllTeamsSelected || isPrimoMode}
