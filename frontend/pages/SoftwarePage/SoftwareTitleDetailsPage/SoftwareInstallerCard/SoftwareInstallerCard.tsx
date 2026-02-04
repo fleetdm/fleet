@@ -327,7 +327,7 @@ const SoftwareInstallerCard = ({
             />
           )}
         </div>
-        {gitOpsModeEnabled && isCustomPackage && (
+        {gitOpsModeEnabled && (isCustomPackage || isFleetMaintainedApp) && (
           <div className={`${baseClass}__row-2`}>
             <div className={`${baseClass}__yaml-button-wrapper`}>
               <Button onClick={onToggleViewYaml}>View YAML</Button>
@@ -367,7 +367,7 @@ const SoftwareInstallerCard = ({
           isAndroidApp={isAndroidPlayStoreApp}
         />
       )}
-      {showViewYamlModal && isCustomPackage && (
+      {showViewYamlModal && (isCustomPackage || isFleetMaintainedApp) && (
         <ViewYamlModal
           softwareTitleName={softwareTitleName}
           softwareTitleId={softwareId}
