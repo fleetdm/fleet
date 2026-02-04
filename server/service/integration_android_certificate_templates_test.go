@@ -1262,10 +1262,11 @@ func (s *integrationMDMTestSuite) TestCertificateTemplateAuthorizationForTeamUse
 	var createUserResp createUserResponse
 	s.DoJSON("POST", "/api/latest/fleet/users/admin", createUserRequest{
 		UserPayload: fleet.UserPayload{
-			Name:       ptr.String("Team Admin"),
-			Email:      &teamAdminEmail,
-			Password:   &teamAdminPassword,
-			GlobalRole: nil,
+			Name:                     ptr.String("Team Admin"),
+			Email:                    &teamAdminEmail,
+			Password:                 &teamAdminPassword,
+			GlobalRole:               nil,
+			AdminForcedPasswordReset: ptr.Bool(false),
 			Teams: &[]fleet.UserTeam{
 				{
 					Team: fleet.Team{ID: teamID},
