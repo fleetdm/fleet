@@ -900,18 +900,34 @@ func (svc *Service) ModifyTeamEnrollSecrets(ctx context.Context, teamID uint, se
 
 	if !maps.Equal(oldSecretValues, newSecretsValues) {
 		activity := fleet.ActivityTypeModifiedEnrollSecret{}
-		if team, err := svc.ds.TeamLite(ctx, teamID); err == nil && team != nil {
+		team, err := svc.ds.TeamLite(ctx, teamID)
+
+		if err != nil {
+			level.Error(svc.logger).Log(
+				"err", err,
+				"teamID", teamID,
+				"msg", "error while fetching team for modified enroll secret activity",
+			)
+		}
+		if team != nil {
 			activity = fleet.ActivityTypeModifiedEnrollSecret{
 				TeamID:   &team.ID,
 				TeamName: &team.Name,
 			}
+		} else {
+			level.Error(svc.logger).Log(
+				"teamID", teamID,
+				"msg", "team not found for modified enroll secret activity",
+			)
 		}
+
 		if err := svc.NewActivity(
 			ctx,
 			authz.UserFromContext(ctx),
 			activity,
 		); err != nil {
-			return nil, ctxerr.Wrap(ctx, err, "creating modified enroll secret activity")
+			errMsg := fmt.Sprintf("creating modified enroll secret activity for team %d", teamID)
+			return nil, ctxerr.Wrap(ctx, err, errMsg)
 		}
 	}
 
