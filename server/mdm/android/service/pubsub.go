@@ -371,7 +371,8 @@ func (svc *Service) enrollHost(ctx context.Context, device *androidmanagement.De
 }
 
 func (svc *Service) getExistingHost(ctx context.Context, device *androidmanagement.Device) (*fleet.AndroidHost, error) {
-	host, err := svc.getHostIfPresent(ctx, device.HardwareInfo.EnterpriseSpecificId)
+	hostKey := getAndroidHostKey(device)
+	host, err := svc.getHostIfPresent(ctx, hostKey)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "getting Android host if present")
 	}
@@ -480,10 +481,9 @@ func (svc *Service) updateHost(ctx context.Context, device *androidmanagement.De
 	return nil
 }
 
-func setAndroidHostUUID(host *fleet.AndroidHost, device *androidmanagement.Device) {
+func getAndroidHostKey(device *androidmanagement.Device) string {
 	if device.HardwareInfo.EnterpriseSpecificId != "" {
-		host.SetNodeKey(device.HardwareInfo.EnterpriseSpecificId)
-		host.Host.UUID = device.HardwareInfo.EnterpriseSpecificId
+		return device.HardwareInfo.EnterpriseSpecificId
 	} else {
 		// Fallback to a generated UUID based on device serial and manufacturer
 		generatedUUIDInput := fmt.Sprintf("%s:%s", device.HardwareInfo.Brand, device.HardwareInfo.SerialNumber)
@@ -491,10 +491,15 @@ func setAndroidHostUUID(host *fleet.AndroidHost, device *androidmanagement.Devic
 		sha256Hasher.Write([]byte(generatedUUIDInput))
 		hashedUUIDBytes := sha256Hasher.Sum(nil)
 		generatedUUID := hex.EncodeToString(hashedUUIDBytes)
-		host.SetNodeKey(generatedUUID)
-		host.Host.UUID = generatedUUID
-		host.Device.EnterpriseSpecificID = ptr.String(generatedUUID)
+		return generatedUUID
 	}
+}
+
+func setAndroidHostUUID(host *fleet.AndroidHost, device *androidmanagement.Device) {
+	uuidKey := getAndroidHostKey(device)
+	host.SetNodeKey(uuidKey)
+	host.Host.UUID = uuidKey
+	host.Device.EnterpriseSpecificID = ptr.String(uuidKey)
 }
 
 func (svc *Service) addNewHost(ctx context.Context, device *androidmanagement.Device) error {
@@ -534,12 +539,12 @@ func (svc *Service) addNewHost(ctx context.Context, device *androidmanagement.De
 			HardwareVendor:            device.HardwareInfo.Brand,
 			LabelUpdatedAt:            time.Now(),
 			DetailUpdatedAt:           time.Time{},
-			UUID:                      device.HardwareInfo.EnterpriseSpecificId,
 		},
 		Device: &android.Device{
 			DeviceID: deviceID,
 		},
 	}
+	setAndroidHostUUID(host, device)
 	if device.AppliedPolicyName != "" {
 		policy, err := svc.getPolicyID(ctx, device)
 		if err != nil {
@@ -555,7 +560,6 @@ func (svc *Service) addNewHost(ctx context.Context, device *androidmanagement.De
 		}
 		host.Device.LastPolicySyncTime = ptr.Time(policySyncTime)
 	}
-	host.SetNodeKey(device.HardwareInfo.EnterpriseSpecificId)
 	fleetHost, err := svc.ds.NewAndroidHost(ctx, host)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "enrolling Android host")

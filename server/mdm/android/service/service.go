@@ -503,6 +503,7 @@ func (enrollmentTokenRequest) DecodeRequest(ctx context.Context, r *http.Request
 		return &enrollmentTokenRequest{
 			EnrollSecret: enrollSecret,
 			IdpUUID:      "",
+			FullyManaged: fullyManaged,
 		}, nil
 	}
 
@@ -540,7 +541,6 @@ func (svc *Service) CreateEnrollmentToken(ctx context.Context, enrollSecret, idp
 	// Authorization is done by VerifyEnrollSecret below.
 	// We call SkipAuthorization here to avoid explicitly calling it when errors occur.
 	svc.authz.SkipAuthorization(ctx)
-
 	_, err := svc.checkIfAndroidNotConfigured(ctx, http.StatusConflict)
 	if err != nil {
 		return nil, err
