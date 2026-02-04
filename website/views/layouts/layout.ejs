@@ -584,6 +584,9 @@
                   </svg>
                 </a>
                 <a purpose="glass-header-btn" class="align-items-center d-flex" href="/contact" no-underline>Get a demo</a>
+                <% if(_.has(me, 'id')) {%>
+                  <a purpose="log-out-button" href="/logout" class="justify-content-end text-decoration-none">Log out</a>
+                <% } %>
               </div>
             </div>
           <% } else {%>
