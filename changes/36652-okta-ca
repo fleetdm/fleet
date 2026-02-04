@@ -1,1 +1,0 @@
-Updated NDES SCEP proxy to auto-detect response encoding, enabling compatibility with Okta CA and other UTF-8-based CAs.

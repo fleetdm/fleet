@@ -320,6 +320,7 @@ The `controls` section allows you to configure scripts and device management (MD
 
 - `scripts` is a list of paths to macOS, Windows, or Linux scripts.
 - `windows_enabled_and_configured` specifies whether or not to turn on Windows MDM features (default: `false`). Can only be configured for all teams (`default.yml`).
+- `windows_entra_tenant_ids` is a list of Microsoft Entra tenant IDs to enable automatic (Autopilot) and manual enrollment by end users (**Settings** > **Accounts** > **Access work or school** on Windows). Can only be configured for all teams (`default.yml`). Find your **Tenant ID**, on [**Microsoft Entra ID** > **Home**](https://entra.microsoft.com/#home).
 - `enable_turn_on_windows_mdm_manually` specifies whether or not to require end users to manually turn on MDM in **Settings > Access work or school** (default: `false`). If `false`, MDM is automatically turned on for all Windows hosts that aren't connected to any MDM solution. Can only be configured for all teams (`default.yml`).
 - `windows_migration_enabled` specifies whether or not to automatically migrate Windows hosts connected to another MDM solution. If `false`, MDM is only turned on after hosts are unenrolled from your old MDM solution. `enable_turn_on_windows_mdm_manually` must be set to `false`. (default: `false`). Can only be configured for all teams (`default.yml`).
 - `enable_disk_encryption` specifies whether or not to enforce disk encryption on macOS, Windows, and Linux hosts (default: `false`).
@@ -334,6 +335,8 @@ controls:
     - path: ../lib/windows-script.ps1
     - path: ../lib/linux-script.sh
   windows_enabled_and_configured: true
+  windows_entra_tenant_ids:
+    - 4e342a0d-ec1a-4353-bdeb-785542e0a8fb
   enable_turn_on_windows_mdm_manually: false # Available in Fleet Premium
   windows_migration_enabled: true # Available in Fleet Premium
   enable_disk_encryption: true # Available in Fleet Premium
@@ -442,7 +445,7 @@ In Fleet Premium, you can use reserved variables beginning with `$FLEET_VAR_`. F
 | `$FLEET_VAR_HOST_END_USER_IDP_GROUPS`              | macOS, iOS, iPadOS, Windows | Comma separated IdP groups that host belongs to. When these change, Fleet will automatically resend the profile. |
 | `$FLEET_VAR_HOST_END_USER_IDP_DEPARTMENT`          | macOS, iOS, iPadOS, Windows | Host's IdP department. When this changes, Fleet will automatically resend the profile. |
 | `$FLEET_VAR_HOST_UUID`                             | macOS, iOS, iPadOS, Windows | Host's hardware UUID. |
-| `$FLEET_VAR_HOST_HARDWARE_SERIAL`                  | macOS, iOS, iPadOS | Host's hardware serial number. |
+| `$FLEET_VAR_HOST_HARDWARE_SERIAL`                  | macOS, iOS, iPadOS, Windows | Host's hardware serial number. |
 | `$FLEET_VAR_HOST_PLATFORM`                         | macOS, iOS, iPadOS, Windows | Host's platform. Values are `"macos"`, `"ios"`, `"ipados"`, and `"windows"`. |
 | `$FLEET_VAR_CUSTOM_SCEP_CHALLENGE_<CA_NAME>`       | macOS, iOS, iPadOS, Windows | Fleet-managed one-time challenge password used during SCEP certificate configuration profile deployment. `<CA_NAME>` should be replaced with name of the certificate authority configured in [custom_scep_proxy](#custom-scep-proxy). |
 | `$FLEET_VAR_CUSTOM_SCEP_PROXY_URL_<CA_NAME>`       | macOS, iOS, iPadOS, Windows | Fleet-managed SCEP proxy endpoint URL used during SCEP certificate configuration profile deployment. |
@@ -538,9 +541,13 @@ software:
       categories:
         - Communication
       setup_experience: true
+      auto_update_enabled: true
+      auto_update_window_start: "00:00"
+      auto_update_window_end: "04:00"
     - app_store_id: "us.zoom.videomeetings"
       platform: android
       self_service: true
+      setup_experience: true
       configuration:
         path: ../lib/software/zoom-config.json
   fleet_maintained_apps:
@@ -553,13 +560,13 @@ software:
       post_install_script:
         path: ../lib/software/slack-config-script.sh
       self_service: true
+      setup_experience: true
       labels_include_any:
         - Design
         - Sales
       categories:
         - Communication
         - Productivity
-      setup_experience: true
 ```
 
 #### self_service, labels, categories, and setup_experience

@@ -1491,6 +1491,11 @@ None.
   "mdm": {
     "android_enabled_and_configured": true,
     "windows_enabled_and_configured": true,
+    "windows_entra_tenant_ids": [
+      {
+        "tenant_id": "fec37e96-3615-4e37-8fac-445d5328af3c",
+      },
+    ],
     "enable_turn_on_windows_mdm_manually": false,
     "enable_disk_encryption": true,
     "windows_require_bitlocker_pin": false,
@@ -1807,6 +1812,9 @@ Modifies the Fleet's configuration with the supplied information.
     "enabled_and_configured": false,
     "android_enabled_and_configured": false,
     "windows_enabled_and_configured": false,
+    "windows_entra_tenant_ids": [
+      "26ac824d-0d5e-4f0c-a202-1c29d5a48e43"
+    ],
     "enable_turn_on_windows_mdm_manually": false,
     "enable_disk_encryption": true,
     "windows_require_bitlocker_pin": false,
@@ -2390,6 +2398,7 @@ When updating conditional access config, all `conditional_access` fields must ei
 | Name                              | Type    | Description   |
 | ---------------------             | ------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | windows_enabled_and_configured    | boolean | Enables Windows MDM support. |
+| windows_entra_tenant_ids          | array | _Available in Fleet Premium._ IDs of Microsoft Entra tenants to connect to Fleet, to enable automatic (Autopilot) and manual enrollment by end users (**Settings** > **Accounts** > **Access work or school** on Windows). Find your **Tenant ID**, on [**Microsoft Entra ID** > **Home**](https://entra.microsoft.com/#home). |
 | enable_turn_on_windows_mdm_manually | boolean | _Available in Fleet Premium._ Specifies whether or not to require end users to manually turn on MDM in **Settings > Access work or school**. If `false`, MDM is automatically turned on for all Windows hosts that aren't connected to any MDM solution. |
 | enable_disk_encryption            | boolean | _Available in Fleet Premium._ Hosts that belong to no team will have disk encryption enabled if set to true. |
 | windows_require_bitlocker_pin           | boolean | _Available in Fleet Premium._ End users on Windows hosts that belong to no team will be required to set a BitLocker PIN if set to true. `enable_disk_encryption` must be set to true. When the PIN is set, it's required to unlock Windows host during startup. |
@@ -2937,6 +2946,7 @@ the `software` table.
 | populate_policies     | boolean | query | If `true`, the response will include policy data for each host, including Fleet-maintained policies. |
 | populate_users     | boolean | query | If `true`, the response will include user data for each host. |
 | populate_labels     | boolean | query | If `true`, the response will include labels for each host. |
+| include_device_status     | boolean | query | If `true`, the response will include lock and wipe status (`mdm.device_status`) and `mdm.pending_action` information for each host. |
 | profile_uuid | string | query |  **Requires `profile_status`**. The UUID of the profile to download. |
 | profile_status | string | query | **Requires `profile_uuid`**. Valid options are 'verified', 'verifying', 'pending', or 'failed'. |
 
@@ -2958,9 +2968,12 @@ If `munki_issue_id` is specified, an additional top-level key `munki_issue` is r
 
 If `after` is being used with `created_at` or `updated_at`, the table must be specified in `order_key`. Those columns become `h.created_at` and `h.updated_at`.
 
+If `include_device_status` is set to `true`, `device_status` and `pending_action` are included in the MDM information for each host. `device_status` indicates the current lock/wipe state of the device with possible values: `unlocked`, `locked`, `locking`, `unlocking`, `wiped`, `wiping`. `pending_action` indicates if a lock, unlock, or wipe command is pending with possible values: `lock`, `unlock`, `wipe`, or an empty string (no pending action).
+
+
 #### Example
 
-`GET /api/v1/fleet/hosts?page=0&per_page=100&order_key=hostname&query=2ce&populate_software=true&populate_policies=true&populate_users=true&populate_labels=true`
+`GET /api/v1/fleet/hosts?page=0&per_page=100&order_key=hostname&query=2ce&populate_software=true&populate_policies=true&populate_users=true&populate_labels=true&include_device_status=true`
 
 ##### Request query parameters
 
@@ -3010,6 +3023,7 @@ If `after` is being used with `created_at` or `updated_at`, the table must be sp
       "hardware_version": "",
       "hardware_serial": "C0124FXASD6G",
       "computer_name": "Anna's MacBook Pro",
+      "timezone": null,
       "display_name": "Anna's MacBook Pro",
       "public_ip": "123.45.678.910",
       "primary_ip": "192.12.345.678",
@@ -3071,7 +3085,9 @@ If `after` is being used with `created_at` or `updated_at`, the table must be sp
         "enrollment_status": "Pending",
         "dep_profile_error": true,
         "name": "Fleet",
-        "server_url": "https://example.fleetdm.com/mdm/apple/mdm"
+        "server_url": "https://example.fleetdm.com/mdm/apple/mdm",
+        "device_status": "unlocked",
+        "pending_action": ""
       },
       "software": [
         {
@@ -3453,6 +3469,7 @@ Returns the information of the specified host.
     "hardware_version": "",
     "hardware_serial": "C0124FXASD6G",
     "computer_name": "Anna's MacBook Pro",
+    "timezone": null,
     "display_name": "Anna's MacBook Pro",
     "public_ip": "123.45.678.910",
     "primary_ip": "172.27.0.6",
@@ -3744,6 +3761,7 @@ If `hostname` is specified when there is more than one host with the same hostna
     "hardware_version": "",
     "hardware_serial": "",
     "computer_name": "23cfc9caacf0",
+    "timezone": null,
     "public_ip": "",
     "primary_ip": "172.27.0.6",
     "primary_mac": "02:42:ac:1b:00:06",
@@ -3971,6 +3989,7 @@ X-Client-Cert-Serial: <fleet_identity_scep_cert_serial>
     "hardware_version": "",
     "hardware_serial": "",
     "computer_name": "Anna's MacBook Pro",
+    "timezone": null,
     "display_name": "Anna's MacBook Pro",
     "public_ip": "123.45.678.910",
     "primary_ip": "192.12.345.678",
@@ -5917,6 +5936,7 @@ If `mdm_id`, `mdm_name`, `mdm_enrollment_status`, `os_settings`, or `os_settings
       "hardware_version": "",
       "hardware_serial": "",
       "computer_name": "e2e7f8d8983d",
+      "timezone": null,
       "display_name": "e2e7f8d8983d",
       "primary_ip": "172.20.0.2",
       "primary_mac": "02:42:ac:14:00:02",
@@ -8448,9 +8468,7 @@ Only one of `labels_include_any` or `labels_exclude_any` can be specified. If ne
 
 ### Reset policy automations
 
-Resets [automation](https://fleetdm.com/docs/using-fleet/automations#policy-automations) status for *all* hosts failing the specified policies. On the next automation run, any failing host will be considered newly failing.
-
-Currently, this API endpoint only resets ticket and webhook automations.
+Resets [webhook and ticket policy automations](https://fleetdm.com/docs/using-fleet/automations#webhooks-and-tickets) status for *all* hosts failing the specified policies. On the next automation run, any failing host will be considered newly failing.
 
 `POST /api/v1/fleet/automations/reset`
 
@@ -10279,6 +10297,9 @@ Returns information about the specified software. By default, `versions` are sor
     "display_name": "",
     "bundle_identifier": "com.apple.logic10",
     "software_package": null,
+    "auto_update_enabled": true,
+    "auto_update_window_start": "00:00",
+    "auto_update_window_end": "02:00",
     "app_store_app": {
       "name": "Logic Pro",
       "categories": [],
@@ -10313,6 +10334,8 @@ Returns information about the specified software. By default, `versions` are sor
   }
 }
 ```
+
+`auto_update_enabled`, `auto_update_window_start` and `auto_update_window_end` will only be returned for iOS/iPadOS apps, and only when a `team_id` is specified in the request.
 
 #### Example (Play Store app)
 
@@ -10991,6 +11014,9 @@ Modify an Apple App Store (VPP) or a Google Play app's options.
 | display_name    | string  | body | Optional override for the default `name`. |
 | self_service | boolean | body | **Required if platform is Android**. Currently supported for macOS and Android apps. Specifies whether the app shows up in self-service and is available for install by the end user. For macOS shows up on **Fleet Desktop > My device** page, and for Android in **Play Store** app in end user's work profile.  |
 | categories | array | body | Zero or more of the [supported categories](https://fleetdm.com/docs/configuration/yaml-files#supported-software-categories), used to group self-service software on your end users' **Fleet Desktop > My device** page. Software with no categories will be still be shown under **All**. |
+| auto_update_enabled | boolean | body | Whether to enable automatic updates for iOS/iPadOS App Store (VPP) apps. |
+| auto_update_window_start | string | body | Update window start time (local time of the device) when automatic updates will take place for iOS/iPadOS App Store (VPP) apps, formatted as HH:MM. Required if `auto_update_enabled` is `true`. |
+| auto_update_window_end | string | body | Update window end time (local time of the device) when automatic updates will take place for iOS/iPadOS App Store (VPP) apps, formatted as HH:MM. Required if `auto_update_enabled` is `true`. |
 | labels_include_any        | array     | body | Target hosts that have any label, specified by label name, in the array. |
 | labels_exclude_any | array | body | Target hosts that don't have any label, specified by label name, in the array. |
 | configuration | object | body | The Android Play Store app's managed configuration in JSON format. Currently only supported for Android. |
@@ -11585,6 +11611,7 @@ The returned lists are filtered based on the hosts the requesting user has acces
         "hardware_version": "",
         "hardware_serial": "",
         "computer_name": "7a2f41482833",
+        "timezone": null,
         "display_name": "7a2f41482833",
         "primary_ip": "172.20.0.3",
         "primary_mac": "02:42:ac:14:00:03",
@@ -11625,6 +11652,7 @@ The returned lists are filtered based on the hosts the requesting user has acces
         "hardware_version": "",
         "hardware_serial": "",
         "computer_name": "78c96e72746c",
+        "timezone": null,
         "display_name": "78c96e72746c",
         "primary_ip": "172.20.0.7",
         "primary_mac": "02:42:ac:14:00:07",
