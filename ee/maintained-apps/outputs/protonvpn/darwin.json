@@ -1,14 +1,14 @@
 {
   "versions": [
     {
-      "version": "6.2.0",
+      "version": "6.3.0",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'ch.protonvpn.mac';"
       },
-      "installer_url": "https://vpn.protondownload.com/download/macos/6.2.0/ProtonVPN_mac_v6.2.0.dmg",
+      "installer_url": "https://vpn.protondownload.com/download/macos/6.3.0/ProtonVPN_mac_v6.3.0.dmg",
       "install_script_ref": "de9bb4fb",
       "uninstall_script_ref": "967af45b",
-      "sha256": "3bc7447ffba3d1d8007b50ff1081be842be0d2ed9a3c95dde8e2aa2a6d14a001",
+      "sha256": "dcfafa310161b750de91eb7641663b181c7e7740ee65392359d68ddc6cb7493b",
       "default_categories": [
         "Productivity"
       ]
