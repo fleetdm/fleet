@@ -838,6 +838,14 @@ func (svc *Service) deleteVPPApp(ctx context.Context, teamID *uint, meta *fleet.
 		}
 	}
 
+	// TODO(mna): if this is an android app, call somethig like this to remove the self-service app from the managed Google Play store:
+	if meta.Platform == fleet.AndroidPlatform {
+		// err = worker.QueueMakeAndroidAppAvailableJob(ctx, svc.ds, svc.logger, appToWrite.AdamID, insertedApp.AppTeamID, enterprise.Name(), androidConfigChanged)
+		// if err != nil {
+		// 	return nil, nil, ctxerr.Wrap(ctx, err, "enqueuing job to make android app available")
+		// }
+	}
+
 	return nil
 }
 
