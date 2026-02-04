@@ -39,7 +39,7 @@ class BootReceiver : BroadcastReceiver() {
                 WorkManager.getInstance(it)
                     .enqueueUniqueWork(
                         CertificateEnrollmentWorker.WORK_NAME,
-                        ExistingWorkPolicy.KEEP, // Use same name as periodic worker to prevent concurrent runs
+                        ExistingWorkPolicy.REPLACE, // Cancel any pending work and run fresh
                         workRequest,
                     )
 
