@@ -138,7 +138,7 @@ func (s *integrationMDMTestSuite) createEnrolledAndroidHost(t *testing.T, ctx co
 			AppliedPolicyID:      ptr.String("1"),
 		},
 	}
-	androidHostInput.SetNodeKey(enterpriseID)
+	androidHostInput.SetNodeKey("android/" + hostUUID)
 	createdAndroidHost, err := s.ds.NewAndroidHost(ctx, androidHostInput)
 	require.NoError(t, err)
 
