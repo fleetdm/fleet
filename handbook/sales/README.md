@@ -173,5 +173,5 @@ Please see [handbook/company/communications#customer-support-service-level-objec
 Please see [handbook/sales#create-a-customer-agreement](https://fleetdm.com/handbook/sales#create-a-customer-agreement) for all sections above.
 
 
-<meta name="maintainedBy" value="alexmitchelliii">
+<meta name="maintainedBy" value="chazmac6">
 <meta name="title" value="🐋 Sales">

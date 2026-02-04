@@ -581,9 +581,6 @@ func (s *SCEPConfigService) ValidateSmallstepChallengeURL(ctx context.Context, c
 func (s *SCEPConfigService) GetSmallstepSCEPChallenge(ctx context.Context, ca fleet.SmallstepSCEPProxyCA) (string, error) {
 	// Get the challenge from Smallstep
 	client := fleethttp.NewClient(fleethttp.WithTimeout(30 * time.Second))
-	client.Transport = ntlmssp.Negotiator{
-		RoundTripper: fleethttp.NewTransport(),
-	}
 	var reqBody bytes.Buffer
 	if err := json.NewEncoder(&reqBody).Encode(fleet.SmallstepChallengeRequestBody{
 		Webhook: fleet.SmallstepChallengeWebhook{
