@@ -1218,7 +1218,7 @@ func (man Manager) addConfigs() {
 	man.addConfigString("server.trusted_proxies", "",
 		"Trusted proxy configuration for client IP extraction: 'none' (RemoteAddr only), a header name (e.g., 'True-Client-IP'), a hop count (e.g., '2'), or comma-separated IP/CIDR ranges")
 	man.addConfigBool("server.gzip_responses", false, "Enable gzip-compressed responses for supported clients")
-	man.addConfigInt64("server.default_max_request_body_size", platform_http.MaxRequestBodySize, "Default maximum size in bytes for request bodies, certain endpoints will have higher limits")
+	man.addConfigByteSize("server.default_max_request_body_size", installersize.Human(platform_http.MaxRequestBodySize), "Default maximum size in bytes for request bodies, certain endpoints will have higher limits (e.g. 10MiB, 500KB, 1G)")
 
 	// Hide the sandbox flag as we don't want it to be discoverable for users for now
 	man.hideConfig("server.sandbox_enabled")
@@ -1690,7 +1690,7 @@ func (man Manager) LoadConfig() FleetConfig {
 			MaxInstallerSizeBytes:            man.getConfigByteSize("server.max_installer_size"),
 			TrustedProxies:                   man.getConfigString("server.trusted_proxies"),
 			GzipResponses:                    man.getConfigBool("server.gzip_responses"),
-			DefaultMaxRequestBodySize:        man.getConfigInt64("server.default_max_request_body_size"),
+			DefaultMaxRequestBodySize:        man.getConfigByteSize("server.default_max_request_body_size"),
 		},
 		Auth: AuthConfig{
 			BcryptCost:                  man.getConfigInt("auth.bcrypt_cost"),
