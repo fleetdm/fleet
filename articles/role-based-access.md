@@ -179,8 +179,6 @@ Users with access to multiple teams can be assigned different roles for each tea
 | Edit/upload saved scripts                                                                                                        |               |                | ✅              | ✅         |             |
 | View script details by host                                                                                                      | ✅            | ✅             | ✅              | ✅         |             |
 | Lock, unlock, and wipe hosts                                                                                                     |               |                | ✅              | ✅         |             |
-| Turn off MDM                                                                                                                     |               |                | ✅              | ✅         |             |
-
 
 \* Applies only to [Fleet REST API](https://fleetdm.com/docs/using-fleet/rest-api)
 
