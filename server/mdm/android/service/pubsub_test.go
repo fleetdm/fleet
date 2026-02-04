@@ -459,7 +459,7 @@ func TestStatusReportPolicyValidation(t *testing.T) {
 			return nil
 		}
 
-		// a profile that previously failed due to USER_ACTION will fail but have the reverify flag set
+		// the two pending profiles will be set to verified, and the non-compliant profile will be set to failed
 		enrollmentMessage := createStatusReportMessage(t, androidDevice.UUID, "test", createAndroidDeviceId("test-policy"), policyVersion,
 			[]*androidmanagement.NonComplianceDetail{{SettingName: "passwordPolicies", NonComplianceReason: "USER_ACTION"}})
 
@@ -473,7 +473,7 @@ func TestStatusReportPolicyValidation(t *testing.T) {
 		mockDS.BulkDeleteMDMAndroidHostProfilesFuncInvoked = false
 		mockDS.BulkUpsertMDMAndroidHostProfilesFuncInvoked = false
 
-		// when that setting no longer has the non compliance reason in the status report it should be verified
+		// the failed profile will now be verified because it is no longer in non compliance details
 		enrollmentMessage = createStatusReportMessage(t, androidDevice.UUID, "test", createAndroidDeviceId("test-policy"), policyVersion,
 			[]*androidmanagement.NonComplianceDetail{})
 		wantedReason2 = fleet.MDMDeliveryVerified
