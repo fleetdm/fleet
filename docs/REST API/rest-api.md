@@ -27,6 +27,8 @@ Use the Fleet APIs to automate Fleet.
 
 This page includes a list of available resources and their API routes.
 
+Unless otherwise specified, endpoints that accept a request body limit its size to the configured `FLEET_SERVER_DEFAULT_MAX_REQUEST_BODY_SIZE` (default 1MB).
+
 ## Authentication
 
 - [Retrieve your API token](#retrieve-your-api-token)
@@ -6312,6 +6314,8 @@ For declaration (DDM) profiles, hosts with new, updated, or removed profiles are
 
 For requests with 100+ profiles, requests will take 5+ seconds.
 
+> This endpoint accepts a maximum request body size of 25MB.
+
 `POST /api/v1/fleet/configuration_profiles/batch`
 
 #### Parameters
@@ -6770,6 +6774,8 @@ Upload a bootstrap package that will be automatically installed during DEP setup
 
 > You need to send a request of type `multipart/form-data`.
 
+> This endpoint accepts a maximum request body size of 10GB.
+
 `POST /api/v1/fleet/bootstrap`
 
 #### Parameters
@@ -6968,6 +6974,8 @@ _Available in Fleet Premium_
 Upload an EULA that will be shown during the DEP flow.
 
 > You need to send a request of type `multipart/form-data`.
+
+> This endpoint accepts a maximum request body size of 25MB.
 
 `POST /api/v1/fleet/setup_experience/eula`
 
@@ -7331,6 +7339,8 @@ Delete a script that will automatically run during macOS setup.
 > `POST /api/v1/fleet/mdm/apple/enqueue` API endpoint is deprecated as of Fleet 4.40. It is maintained for backward compatibility. Please use the new API endpoint below. [Archived documentation](https://github.com/fleetdm/fleet/blob/fleet-v4.39.0/docs/REST%20API/rest-api.md#run-custom-mdm-command) is available for the deprecated endpoint.
 
 This endpoint tells Fleet to run a custom MDM command on the targeted macOS, iOS, iPadOS, or Windows hosts the next time they come online.
+
+> This endpoint accepts a maximum request body size of 2MB.
 
 `POST /api/v1/fleet/commands/run`
 
@@ -10634,6 +10644,8 @@ Add a package (.pkg, .msi, .exe, .deb, .rpm, .tar.gz, .ipa) to install on Apple 
 
 > You need to send a request of type `multipart/form-data`.
 
+> This endpoint accepts a maximum request body size of 10GB.
+
 `POST /api/v1/fleet/software/package`
 
 #### Parameters
@@ -10719,6 +10731,8 @@ _Available in Fleet Premium._
 Update a package to install on macOS, Windows, Linux, iOS, or iPadOS hosts.
 
 > You need to send a request of type `multipart/form-data`.
+
+> This endpoint accepts a maximum request body size of 10GB.
 
 `PATCH /api/v1/fleet/software/titles/:id/package`
 
