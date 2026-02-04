@@ -31,7 +31,7 @@ func (v *SoftwareWorker) Name() string {
 }
 
 const (
-	makeAndroidAppsAvailableForHostTask     SoftwareWorkerTask = "make_android_apps_available_for_host"
+	makeAndroidAppsAvailableForHostTask     SoftwareWorkerTask = "make_android_apps_available_for_host" // deprecated
 	makeAndroidAppAvailableTask             SoftwareWorkerTask = "make_android_app_available"
 	runAndroidSetupExperienceTask           SoftwareWorkerTask = "run_android_setup_experience"
 	bulkSetAndroidAppsAvailableForHostTask  SoftwareWorkerTask = "bulk_set_android_apps_available_for_host"
