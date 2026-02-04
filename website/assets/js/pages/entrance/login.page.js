@@ -3,7 +3,8 @@ parasails.registerPage('login', {
   //  ║║║║║ ║ ║╠═╣║    ╚═╗ ║ ╠═╣ ║ ║╣
   //  ╩╝╚╝╩ ╩ ╩╩ ╩╩═╝  ╚═╝ ╩ ╩ ╩ ╩ ╚═╝
   data: {
-    formToDisplay: 'signup',
+    // Default to the login form
+    formToDisplay: 'login',
     // Shared by forms
     // Main syncing/loading state for this page.
     syncing: false,
@@ -51,8 +52,12 @@ parasails.registerPage('login', {
   //  ╩═╝╩╚  ╚═╝╚═╝ ╩ ╚═╝╩═╝╚═╝
   beforeMount: function() {
     if(window.location.hash){
+      if(window.location.hash === '#register') {
+        // IF a user was sent here by a /register redirect, show the signup form.
+        this.formToDisplay = 'signup';
+        window.location.hash = '';
       // If we're redirecting this user to the license dispenser after they log in, modify the link to the /register page and the pageToRedirectToAfterLogin.
-      if(window.location.hash === '#purchaseLicense'){
+      } else if(window.location.hash === '#purchaseLicense'){
         this.pageToRedirectToAfterFormSubmission = '/new-license';
         window.location.hash = '';
       // If we're redirecting this user to the contact form after they log in, modify the link to the /register page and the pageToRedirectToAfterFormSubmission.

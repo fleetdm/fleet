@@ -716,10 +716,9 @@ module.exports.routes = {
   'GET /example-windows-profile': 'https://github.com/fleetdm/fleet-gitops/blob/860dcf2609e2b25a6d6becf8006a7118a19cd615/lib/windows-screenlock.xml',// « resuable link for OS settings doc page
   'GET /docs/using-fleet/mdm-custom-macos-settings': '/docs/using-fleet/mdm-custom-os-settings',
   'GET /customers/login': '/login',
-  'GET /customers/register': '/login',
+  'GET /customers/register': '/register',
   'GET /try-fleet/login': '/login',
-  'GET /try-fleet/register': '/login',
-  'GET /register': '/login',
+  'GET /try-fleet/register': '/register',
   'GET /customers/new-license': '/new-license',
   'GET /try-fleet/fleetctl-preview': '/try-fleet',
   'GET /upgrade': '/pricing',
@@ -982,7 +981,7 @@ module.exports.routes = {
   'GET /software-catalog/zoom': '/software-catalog/zoom-darwin',
   'GET /software-catalog/vnc-viewer': '/software-catalog/vnc-viewer-darwin',
   'GET /apps': '/software-catalog',// This is mostly for mikermcneil who keeps trying to type the old url.
-
+  'GET /register': '/login#register',
   //  ╔╦╗╦╔═╗╔═╗  ╦═╗╔═╗╔╦╗╦╦═╗╔═╗╔═╗╔╦╗╔═╗   ┬   ╔╦╗╔═╗╦ ╦╔╗╔╦  ╔═╗╔═╗╔╦╗╔═╗
   //  ║║║║╚═╗║    ╠╦╝║╣  ║║║╠╦╝║╣ ║   ║ ╚═╗  ┌┼─   ║║║ ║║║║║║║║  ║ ║╠═╣ ║║╚═╗
   //  ╩ ╩╩╚═╝╚═╝  ╩╚═╚═╝═╩╝╩╩╚═╚═╝╚═╝ ╩ ╚═╝  └┘   ═╩╝╚═╝╚╩╝╝╚╝╩═╝╚═╝╩ ╩═╩╝╚═╝
