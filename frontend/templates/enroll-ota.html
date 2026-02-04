@@ -117,7 +117,25 @@
       #main-content {
         margin: 0 auto;
         padding: 48px 24px;
-        max-width: 800px;
+        max-width: 1000px;
+      }
+    
+      .content-with-sidebar {
+        display: flex;
+        justify-content: space-between;
+        gap: 64px;
+      }
+  
+      .qr-container {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 24px;
+        background-color: #F9FAFC;
+        padding: 24px;
+        border: 1px solid #E2E4EA;
+        border-radius: 8px;
+        max-width: 256px;
       }
 
       .device-enroll-message {
@@ -150,17 +168,21 @@
 
     <!-- unsupported platform content, not macos, ios, ipados, or android -->
     <template id="unsupported-template">
-      <section class="main-content">
-      <h1>How to enroll your device to Fleet</h1>
-      <p class="page-description">
-        To enroll your Mac, please open this
-        page on your device.
-      </p>
-      </section>
-      <section class="mobile-enroll-content">
-        <p>Trying to enroll your corporate mobile device?</p>
-        <div>QR CODE</div>
-      </section>
+      <div class="content-with-sidebar">
+        <section class="device-instructions-content">
+          <h1>How to enroll your device to Fleet</h1>
+          <p class="page-description">
+            To enroll your Mac, please open this
+            page on your device.
+          </p>
+        </section>
+        <section class="mobile-enroll-sidebar">
+          <div class="qr-container">
+            <p>Trying to enroll your corporate mobile device?</p>
+            <div class>QR CODE</div>
+          </div>
+        </section>
+      </div>
     </template>
 
     <!-- android content when not fully managed-->
@@ -263,57 +285,61 @@
 
     <!-- macos content -->
     <template id="macos-template">
-      <section class="main-content">
-        <h1>How to turn on MDM on your Mac</h1>
-        <ol>
-          <li>
-            <p>
-              <span>1.</span>
-              <span> 
-                Tap the button below to download the Fleet profile. Double click on it.
-                You'll see a warning, which is expected.
-              </span>
-            </p>
-            <a class="download-link" href="{{.EnrollURL}}">Download</a>
-          </li>
-          <li>
-            <p>
-              <span>2.</span>
-              <span>
-                Go to the Apple menu in the top left corner of your screen. Select
-                <b>System Settings</b>.
-              </span>
-            </p>
-          </li>
-          <li>
-            <p>
-              <span>3.</span>
-              <span>
-                Go to <b>Profile Downloaded</b>. Double-click the
-                <b>[Organization name] enrollment</b> profile.
-              </span>
-            </p>
-          </li>
-          <li>
-            <p>
-              <span>4.</span>
-              <span>Select <b>Install</b>. Enter your password.</span>
-            </p>
-          </li>
-          <li>
-            <p>
-              <span>5.</span>
-              <span>Go back to your <b>My device</b> page. Select
-                <b>Refetch</b> to tell your organization that MDM is on.
-              </span>
-            </p>
-          </li>
-        </ol>
-      </section>
-      <section class="mobile-enroll-message">
-        <p>Trying to enroll your corporate mobile device?</p>
-        <div>QR CODE</div>
-      </section>
+      <div class="content-with-sidebar">
+        <section class="device-instructions-content">
+          <h1>How to turn on MDM on your Mac</h1>
+          <ol>
+            <li>
+              <p>
+                <span>1.</span>
+                <span> 
+                  Tap the button below to download the Fleet profile. Double click on it.
+                  You'll see a warning, which is expected.
+                </span>
+              </p>
+              <a class="download-link" href="{{.EnrollURL}}">Download</a>
+            </li>
+            <li>
+              <p>
+                <span>2.</span>
+                <span>
+                  Go to the Apple menu in the top left corner of your screen. Select
+                  <b>System Settings</b>.
+                </span>
+              </p>
+            </li>
+            <li>
+              <p>
+                <span>3.</span>
+                <span>
+                  Go to <b>Profile Downloaded</b>. Double-click the
+                  <b>[Organization name] enrollment</b> profile.
+                </span>
+              </p>
+            </li>
+            <li>
+              <p>
+                <span>4.</span>
+                <span>Select <b>Install</b>. Enter your password.</span>
+              </p>
+            </li>
+            <li>
+              <p>
+                <span>5.</span>
+                <span>Go back to your <b>My device</b> page. Select
+                  <b>Refetch</b> to tell your organization that MDM is on.
+                </span>
+              </p>
+            </li>
+          </ol>
+        </section>
+        <section class="mobile-enroll-sidebar">
+          <div class="qr-container">
+            <p>Trying to enroll your corporate mobile device?</p>
+            <canvas class="qr-code"></canvas>
+          </div>
+        </section>
+      </div>
     </template>
 
     <!-- Error content -->
@@ -383,6 +409,12 @@
           default:
             return "unsupported";
         }
+      };
+
+      const renderQRCode = (text, canvas) => {
+        QRCode.toCanvas(canvas, text, { width: 208, margin: 0, color: {dark: "#515774", light: "#F9FAFC"}}, function (error) {
+          if (error) console.error(error);
+        });
       };
 
       const getTemplateIdFromPlatform = (platform) => {
@@ -500,6 +532,7 @@
         // render unsupported platform content. Unsupported means not macos, ios, ipad, or android
         if (platform === "unsupported") {
           renderContent("unsupported-template");
+          renderQRCode(window.location.href, document.querySelector(".qr-code"));
           return;
         }
 
@@ -542,6 +575,7 @@
             return;
           }
           renderContent(templateId);
+          renderQRCode(window.location.href, document.querySelector(".qr-code"));
         }
 
         // handle rendering for ios and ipad
