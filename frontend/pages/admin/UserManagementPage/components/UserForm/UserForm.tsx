@@ -1,4 +1,11 @@
-import React, { FormEvent, useState, useEffect, useContext } from "react";
+import React, {
+  FormEvent,
+  useState,
+  useEffect,
+  useContext,
+  useRef,
+} from "react";
+import { upperFirst } from "lodash";
 import { Link } from "react-router";
 import PATHS from "router/paths";
 
@@ -324,7 +331,10 @@ const UserForm = ({
     // separate from `validate` function as it uses `renderFlash` hook, incompatible with pure
     // `validate` function
     if (!formData.global_role && !formData.teams.length) {
-      renderFlash("error", `Please select at least one ${TEAM_LBL} for this user.`);
+      renderFlash(
+        "error",
+        `Please select at least one ${TEAM_LBL} for this user.`
+      );
       return;
     }
     const errs = validate(
@@ -379,10 +389,10 @@ const UserForm = ({
     return (
       <div>
         <p>
-          <strong>You have no teams.</strong>
+          <strong>You have no {TEAMS_LBL}.</strong>
         </p>
         <p>
-          Expecting to see teams? Try again in a few seconds as the system
+          Expecting to see {TEAMS_LBL}? Try again in a few seconds as the system
           catches up or&nbsp;
           <Link
             className={`${baseClass}__create-team-link`}
@@ -705,7 +715,7 @@ const UserForm = ({
   const renderPremiumRoleOptions = () => (
     <>
       <div className="form-field team-field">
-        <div className="form-field__label">Team</div>
+        <div className="form-field__label">{upperFirst(TEAM_LBL)}</div>
         {isModifiedByGlobalAdmin ? (
           renderGlobalAdminOptions()
         ) : (

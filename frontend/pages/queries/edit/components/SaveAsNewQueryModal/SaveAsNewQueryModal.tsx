@@ -30,6 +30,7 @@ import Button from "components/buttons/Button";
 import InputField from "components/forms/fields/InputField";
 import TeamsDropdown from "components/TeamsDropdown";
 import { useTeamIdParam } from "hooks/useTeamIdParam";
+import { upperFirst } from "lodash";
 
 const baseClass = "save-as-new-query-modal";
 
@@ -175,7 +176,9 @@ const SaveAsNewQueryModal = ({
       if (reason.includes("already exists")) {
         let teamText;
         if (teamId !== APP_CONTEXT_ALL_TEAMS_ID) {
-          teamText = teamName ? `the ${teamName} ${TEAM_LBL}` : `this ${TEAM_LBL}`;
+          teamText = teamName
+            ? `the ${teamName} ${TEAM_LBL}`
+            : `this ${TEAM_LBL}`;
         } else {
           teamText = `all ${TEAMS_LBL}`;
         }
@@ -205,7 +208,7 @@ const SaveAsNewQueryModal = ({
         />
         {isPremiumTier && (userTeams?.length || 0) > 1 && (
           <div className="form-field">
-            <div className="form-field__label">Team</div>
+            <div className="form-field__label">{upperFirst(TEAM_LBL)}</div>
             <TeamsDropdown
               asFormField
               currentUserTeams={userTeams || []}
