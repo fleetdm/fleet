@@ -317,7 +317,17 @@ When a user requests that we delete all data we have stored about them, their da
         2. Search for the user's email address
         3. Select the user's Stripe customer record
         4. Click the "Actions" dropdown in the upper right corner of the customer profile page and select delete.
- 
+
+
+### Create a task for a CSA
+
+If assistance is needed for research or solutioning by a CSA, create an issue on GitHub for tracking. Use our [regular repo](https://github.com/fleetdm/fleet/issues/new/choose) if it doesn't contain private information. Otherwise, use our [confidential repo](https://github.com/fleetdm/confidential/issues/new/choose).
+
+Select any template, but clear all of the information and labels, and add the `:help-customers` label. This will automatically add the task to the `:help-customers` project board, with the status of `New requests`.
+
+During the next standup meeting, the Manager of Customer Support and Solutions Architecture will triage the task.
+
+
 ## Rituals
 
 <rituals :rituals="rituals['handbook/customer-success/customer-success.rituals.yml']"></rituals>
