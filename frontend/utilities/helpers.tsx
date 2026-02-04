@@ -10,6 +10,7 @@ import {
   trimEnd,
   union,
   uniqueId,
+  upperFirst,
 } from "lodash";
 import md5 from "js-md5";
 import {
@@ -53,6 +54,8 @@ import {
   INITIAL_FLEET_DATE,
   PLATFORM_LABEL_DISPLAY_TYPES,
   isPlatformLabelNameFromAPI,
+  TEAM_LBL,
+  TEAMS_LBL,
 } from "utilities/constants";
 import { IDropdownOption } from "interfaces/dropdownOption";
 import CustomLink from "components/CustomLink";
@@ -490,26 +493,26 @@ export const generateTeam = (
   if (globalRole === null) {
     if (teams.length === 0) {
       // no global role and no teams
-      return "No team";
+      return `No ${TEAM_LBL}`;
     } else if (teams.length === 1) {
       // no global role and only one team
       return teams[0].name;
     }
-    return `${teams.length} teams`; // no global role and multiple teams
+    return `${teams.length} ${TEAMS_LBL}`; // no global role and multiple teams
   }
 
   if (teams.length === 0) {
     // global role and no teams
     return "Global";
   }
-  return `${teams.length + 1} teams`; // global role and one or more teams
+  return `${teams.length + 1} ${TEAMS_LBL}`; // global role and one or more teams
 };
 
 export const greyCell = (roleOrTeamText: string): boolean => {
-  const GREYED_TEXT = ["Global", "Unassigned", "Various", "No team", "Unknown"];
+  const GREYED_TEXT = ["Global", "Unassigned", "Various", `No ${TEAM_LBL}`, "Unknown"];
 
   return (
-    GREYED_TEXT.includes(roleOrTeamText) || roleOrTeamText.includes(" teams")
+    GREYED_TEXT.includes(roleOrTeamText) || roleOrTeamText.includes(` ${TEAMS_LBL}`)
   );
 };
 
@@ -607,7 +610,7 @@ export const internationalNumberFormat = (number: number): string => {
 
 export const hostTeamName = (teamName: string | null): string => {
   if (!teamName) {
-    return "No team";
+    return `No ${TEAM_LBL}`;
   }
 
   return teamName;

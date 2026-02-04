@@ -7,6 +7,7 @@ import {
 import enrollSecretInterface, { IEnrollSecret } from "./enroll_secret";
 import { ITeamIntegrations } from "./integration";
 import { UserRole } from "./user";
+import { TEAM_LBL, TEAMS_LBL } from "utilities/constants";
 
 export default PropTypes.shape({
   id: PropTypes.number.isRequired,
@@ -130,14 +131,14 @@ export const API_ALL_TEAMS_ID = undefined;
 export const APP_CONTEXT_ALL_TEAMS_ID = -1;
 export const APP_CONTEXT_ALL_TEAMS_SUMMARY: ITeamSummary = {
   id: APP_CONTEXT_ALL_TEAMS_ID,
-  name: "All teams",
+  name: `All ${TEAMS_LBL}`,
 } as const;
 
 export const API_NO_TEAM_ID = 0;
 export const APP_CONTEXT_NO_TEAM_ID = 0;
 export const APP_CONTEXT_NO_TEAM_SUMMARY: ITeamSummary = {
   id: APP_CONTEXT_NO_TEAM_ID,
-  name: "No team",
+  name: `No ${TEAM_LBL}`,
 } as const;
 
 export const isAnyTeamSelected = (currentTeamId?: number) =>

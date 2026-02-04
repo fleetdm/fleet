@@ -16,7 +16,7 @@ import { NotificationContext } from "context/notification";
 import { addTeamIdCriteria, IScript } from "interfaces/script";
 import { getErrorReason } from "interfaces/errors";
 
-import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
+import { DEFAULT_USE_QUERY_OPTIONS, TEAM_LBL } from "utilities/constants";
 
 import Modal from "components/Modal";
 
@@ -220,7 +220,7 @@ const RunScriptBatchModal = ({
     if (!scripts.length) {
       return (
         <EmptyTable
-          header="No scripts available for this team"
+          header={`No scripts available for this ${TEAM_LBL}`}
           info={
             <>
               You can add saved scripts{" "}

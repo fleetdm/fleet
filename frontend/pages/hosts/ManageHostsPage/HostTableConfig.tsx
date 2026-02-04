@@ -2,6 +2,7 @@
 // disable this rule as it was throwing an error in Header and Cell component
 // definitions for the selection row for some reason when we dont really need it.
 import React from "react";
+import { upperFirst } from "lodash";
 import { CellProps, Column } from "react-table";
 import ReactTooltip from "react-tooltip";
 
@@ -41,7 +42,7 @@ import {
   INumberCellProps,
 } from "interfaces/datatable_config";
 import PATHS from "router/paths";
-import { DEFAULT_EMPTY_CELL_VALUE } from "utilities/constants";
+import { DEFAULT_EMPTY_CELL_VALUE, TEAM_LBL } from "utilities/constants";
 import getHostStatusTooltipText from "../helpers";
 
 type IHostTableColumnConfig = Column<IHost> & {
@@ -197,9 +198,12 @@ const allHostTableHeaders: IHostTableColumnConfig[] = [
     ),
   },
   {
-    title: "Team",
+    title: upperFirst(TEAM_LBL),
     Header: (cellProps: IHostTableHeaderProps) => (
-      <HeaderCell value="Team" isSortedDesc={cellProps.column.isSortedDesc} />
+      <HeaderCell
+        value={upperFirst(TEAM_LBL)}
+        isSortedDesc={cellProps.column.isSortedDesc}
+      />
     ),
     accessor: "team_name",
     id: "team_name",

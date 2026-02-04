@@ -16,6 +16,8 @@ import { getErrorReason } from "interfaces/errors";
 import {
   INVALID_PLATFORMS_FLASH_MESSAGE,
   INVALID_PLATFORMS_REASON,
+  TEAM_LBL,
+  TEAMS_LBL,
 } from "utilities/constants";
 import {
   API_ALL_TEAMS_ID,
@@ -172,9 +174,9 @@ const SaveAsNewQueryModal = ({
       if (reason.includes("already exists")) {
         let teamText;
         if (teamId !== APP_CONTEXT_ALL_TEAMS_ID) {
-          teamText = teamName ? `the ${teamName} team` : "this team";
+          teamText = teamName ? `the ${teamName} ${TEAM_LBL}` : `this ${TEAM_LBL}`;
         } else {
-          teamText = "all teams";
+          teamText = `all ${TEAMS_LBL}`;
         }
         errFlash = `A query called "${queryName}" already exists for ${teamText}.`;
       } else if (reason.includes(INVALID_PLATFORMS_REASON)) {

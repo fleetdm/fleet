@@ -1,9 +1,11 @@
 import React from "react";
+import { upperFirst } from "lodash";
 
 import Button from "components/buttons/Button";
 import EmptyTable from "components/EmptyTable";
 import CustomLink from "components/CustomLink";
 import TooltipWrapper from "components/TooltipWrapper";
+import { TEAM_LBL, TEAMS_LBL } from "utilities/constants";
 
 const EmptyTeamsTable = ({
   className,
@@ -21,7 +23,7 @@ const EmptyTeamsTable = ({
       onClick={onActionButtonClick}
       className={`${className}__create-button`}
     >
-      Create team
+      Create {TEAM_LBL}
     </Button>
   );
   const primaryButton = disabledPrimaryActionTooltip ? (
@@ -41,7 +43,7 @@ const EmptyTeamsTable = ({
   return (
     <EmptyTable
       graphicName="empty-teams"
-      header="Set up team permissions"
+      header={`Set up ${TEAM_LBL} permissions`}
       info="Keep your organization organized and efficient by ensuring every user has the correct access to the right hosts."
       additionalInfo={
         <>
@@ -49,7 +51,7 @@ const EmptyTeamsTable = ({
           Want to learn more?&nbsp;
           <CustomLink
             url="https://fleetdm.com/docs/using-fleet/teams"
-            text="Read about teams"
+            text={`Read about ${TEAMS_LBL}`}
             newTab
           />
         </>

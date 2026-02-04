@@ -15,6 +15,7 @@ import labelsAPI, { getCustomLabels } from "services/entities/labels";
 import {
   DEFAULT_USE_QUERY_OPTIONS,
   LEARN_MORE_ABOUT_BASE_LINK,
+  TEAM_LBL,
 } from "utilities/constants";
 
 import EmptyTable from "components/EmptyTable";
@@ -55,8 +56,8 @@ interface IAddTeamToVppMessage {
 
 const AddTeamToVppMessage = ({ onEditVpp }: IAddTeamToVppMessage) => (
   <EmptyTable
-    header="This team isn't added to Volume Purchasing Program (VPP)"
-    info="To add App Store apps, first add this team to VPP."
+    header={`This ${TEAM_LBL} isn't added to Volume Purchasing Program (VPP)`}
+    info={`To add App Store apps, first add this ${TEAM_LBL} to VPP.`}
     primaryButton={<Button onClick={onEditVpp}> Edit VPP</Button>}
   />
 );
@@ -74,7 +75,7 @@ const NoVppAppsMessage = () => (
         newTab
       />
       .<br />
-      App Store apps that are already added to this team are not listed.
+      App Store apps that are already added to this {TEAM_LBL} are not listed.
     </p>
   </div>
 );

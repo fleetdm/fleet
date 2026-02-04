@@ -3,7 +3,7 @@ import React, { useContext } from "react";
 import { AppContext } from "context/app";
 import { NotificationContext } from "context/notification";
 
-import { LEARN_MORE_ABOUT_BASE_LINK } from "utilities/constants";
+import { LEARN_MORE_ABOUT_BASE_LINK, TEAM_LBL } from "utilities/constants";
 import { getExtensionFromFileName } from "utilities/file/fileUtils";
 import FileSaver from "file-saver";
 import { ISoftwarePackage, SCRIPT_PACKAGE_SOURCES } from "interfaces/software";
@@ -210,7 +210,7 @@ const ViewYamlModal = ({
             <CustomLink url={repositoryUrl} text="repository" newTab />.
           </p>
         )}
-        <p>Make sure you reference the package YAML from your team YAML.</p>
+        <p>Make sure you reference the package YAML from your {TEAM_LBL} YAML.</p>
         <div className={`${baseClass}__form-fields`}>
           <InputField
             enableCopy

@@ -79,6 +79,7 @@ import {
   HOSTS_SEARCH_BOX_TOOLTIP,
   MAX_SCRIPT_BATCH_TARGETS,
   PolicyResponse,
+  TEAM_LBL,
 } from "utilities/constants";
 import { getNextLocationPath } from "utilities/helpers";
 
@@ -1752,7 +1753,7 @@ const ManageHostsPage = ({
         </>
       );
     } else if (isAllTeamsSelected && isPremiumTier) {
-      disableRunScriptBatchTooltipContent = "Select a team to run a script";
+      disableRunScriptBatchTooltipContent = `Select a ${TEAM_LBL} to run a script`;
     } else if (isAllMatchingHostsSelected) {
       if (runScriptBatchFilterNotSupported) {
         disableRunScriptBatchTooltipContent =

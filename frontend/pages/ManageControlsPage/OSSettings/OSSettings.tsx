@@ -5,6 +5,7 @@ import { useQuery } from "react-query";
 import { AppContext } from "context/app";
 import SideNav from "pages/admin/components/SideNav";
 import { API_NO_TEAM_ID, APP_CONTEXT_NO_TEAM_ID } from "interfaces/team";
+import { TEAM_LBL } from "utilities/constants";
 import mdmAPI from "services/entities/mdm";
 
 import OS_SETTINGS_NAV_ITEMS from "./OSSettingsNavItems";
@@ -61,7 +62,7 @@ const OSSettings = ({
   return (
     <div className={baseClass}>
       <p className={`${baseClass}__description`}>
-        Remotely enforce OS settings on hosts assigned to this team.
+        Remotely enforce OS settings on hosts assigned to this {TEAM_LBL}.
       </p>
       <ProfileStatusAggregate
         isLoading={isLoadingAggregateProfileStatus}

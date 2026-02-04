@@ -2,6 +2,7 @@ import React from "react";
 
 import { ITeam } from "interfaces/team";
 import { IEnrollSecret } from "interfaces/enroll_secret";
+import { TEAM_LBL } from "utilities/constants";
 
 import Card from "components/Card";
 import EmptyTable from "components/EmptyTable";
@@ -38,7 +39,7 @@ const EnrollSecretModal = ({
 }: IEnrollSecretModal): JSX.Element => {
   const teamInfo =
     selectedTeamId <= 0
-      ? { name: "No team", secrets: globalSecrets }
+      ? { name: `No ${TEAM_LBL}`, secrets: globalSecrets }
       : teams.find((team) => team.id === selectedTeamId);
 
   const addNewSecretClick = () => {

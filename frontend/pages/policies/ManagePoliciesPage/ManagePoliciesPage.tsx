@@ -6,6 +6,7 @@ import PATHS from "router/paths";
 import { isEqual } from "lodash";
 
 import { getNextLocationPath, wait } from "utilities/helpers";
+import { TEAM_LBL } from "utilities/constants";
 
 import { AppContext } from "context/app";
 import { PolicyContext } from "context/policy";
@@ -1103,28 +1104,28 @@ const ManagePolicyPage = ({
     } else if (isAllTeamsSelected) {
       disabledInstallTooltipContent = (
         <>
-          Select a team to manage
+          Select a {TEAM_LBL} to manage
           <br />
           install software automation.
         </>
       );
       disabledCalendarTooltipContent = (
         <>
-          Select a team to manage
+          Select a {TEAM_LBL} to manage
           <br />
           calendar events.
         </>
       );
       disabledRunScriptTooltipContent = (
         <>
-          Select a team to manage
+          Select a {TEAM_LBL} to manage
           <br />
           run script automation.
         </>
       );
       disabledConditionalAccessTooltipContent = (
         <>
-          Select a team to manage
+          Select a {TEAM_LBL} to manage
           <br />
           conditional access.
         </>
@@ -1208,7 +1209,7 @@ const ManagePolicyPage = ({
         currentTeamId !== APP_CONTEXT_ALL_TEAMS_ID &&
         !globalConfigFromContext?.partnerships?.enable_primo ? (
           <div className={`${baseClass}__header__tooltip`}>
-            To manage automations add a policy to this team.
+            To manage automations add a policy to this {TEAM_LBL}.
             <br />
             For inherited policies select &ldquo;All teams&rdquo;.
           </div>
@@ -1260,14 +1261,14 @@ const ManagePolicyPage = ({
     teamsDropdownHelpText = `Detect device health issues${
       globalConfigFromContext?.partnerships?.enable_primo
         ? ""
-        : " for hosts that are not on a team"
+        : ` for hosts that are not on a ${TEAM_LBL}`
     }.`;
   } else if (teamIdForApi === API_ALL_TEAMS_ID) {
     teamsDropdownHelpText = "Detect device health issues for all hosts.";
   } else {
     // a team is selected
     teamsDropdownHelpText =
-      "Detect device health issues for all hosts assigned to this team.";
+      `Detect device health issues for all hosts assigned to this ${TEAM_LBL}.`;
   }
   return (
     <MainContent className={baseClass}>

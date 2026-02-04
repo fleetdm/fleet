@@ -1,4 +1,5 @@
 import React, { useState, useCallback, useContext } from "react";
+import { upperFirst } from "lodash";
 import { useQuery } from "react-query";
 import { useErrorHandler } from "react-error-boundary";
 import { InjectedRouter } from "react-router";
@@ -21,6 +22,7 @@ import teamsAPI, {
 import usersAPI, { IGetMeResponse } from "services/entities/users";
 import formatErrorResponse from "utilities/format_error_response";
 import sortUtils from "utilities/sort";
+import { TEAM_LBL, TEAMS_LBL } from "utilities/constants";
 
 import ActionButtons from "components/buttons/ActionButtons/ActionButtons";
 import Spinner from "components/Spinner";
@@ -300,9 +302,9 @@ const TeamDetailsWrapper = ({
     try {
       await teamsAPI.destroy(teamIdForApi);
       router.push(PATHS.ADMIN_TEAMS);
-      renderFlash("success", "Team removed");
+      renderFlash("success", `${upperFirst(TEAM_LBL)} removed`);
     } catch (response) {
-      renderFlash("error", "Something went wrong removing the team");
+      renderFlash("error", `Something went wrong removing the ${TEAM_LBL}`);
       console.error(response);
     } finally {
       toggleDeleteTeamModal();
@@ -327,7 +329,7 @@ const TeamDetailsWrapper = ({
         await teamsAPI.update(updatedAttrs, teamIdForApi);
         renderFlash(
           "success",
-          `Successfully updated team name to ${updatedAttrs?.name}`
+          `Successfully updated ${TEAM_LBL} name to ${updatedAttrs?.name}`
         );
         setBackendValidators({});
         refetchTeams();
@@ -338,18 +340,21 @@ const TeamDetailsWrapper = ({
         const errorObject = formatErrorResponse(response);
         if (errorObject.base.includes("Duplicate")) {
           setBackendValidators({
-            name: "A team with this name already exists",
+            name: `A ${TEAM_LBL} with this name already exists`,
           });
         } else if (errorObject.base.includes("all teams")) {
           setBackendValidators({
-            name: `"All teams" is a reserved team name. Please try another name.`,
+            name: `"All ${TEAMS_LBL}" is a reserved ${TEAM_LBL} name. Please try another name.`,
           });
         } else if (errorObject.base.includes("no team")) {
           setBackendValidators({
-            name: `"No team" is a reserved team name. Please try another name.`,
+            name: `"No ${TEAM_LBL}" is a reserved ${TEAM_LBL} name. Please try another name.`,
           });
         } else {
-          renderFlash("error", "Could not create team. Please try again.");
+          renderFlash(
+            "error",
+            `Could not create ${TEAM_LBL}. Please try again.`
+          );
         }
       } finally {
         setIsUpdatingTeams(false);
@@ -391,7 +396,10 @@ const TeamDetailsWrapper = ({
       <>
         {isGlobalAdmin ? (
           <div className={`${baseClass}__header-links`}>
-            <BackButton text="Back to teams" path={PATHS.ADMIN_TEAMS} />
+            <BackButton
+              text={`Back to ${TEAMS_LBL}`}
+              path={PATHS.ADMIN_TEAMS}
+            />
           </div>
         ) : (
           <></>
@@ -433,7 +441,7 @@ const TeamDetailsWrapper = ({
               },
               {
                 type: "secondary",
-                label: "Rename team",
+                label: `Rename ${TEAM_LBL}`,
                 buttonVariant: "inverse",
                 iconName: "pencil",
                 onClick: toggleRenameTeamModal,
@@ -441,7 +449,7 @@ const TeamDetailsWrapper = ({
               },
               {
                 type: "secondary",
-                label: "Delete team",
+                label: `Delete ${TEAM_LBL}`,
                 buttonVariant: "inverse",
                 iconName: "trash",
                 hideAction: !isGlobalAdmin,

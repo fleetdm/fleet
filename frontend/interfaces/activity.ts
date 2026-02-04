@@ -1,3 +1,4 @@
+import { TEAMS_LBL, TEAM_LBL } from "utilities/constants";
 import { ILabelSoftwareTitle } from "./label";
 import { Platform } from "./platform";
 import { IPolicy } from "./policy";
@@ -289,7 +290,7 @@ export const ACTIVITY_TYPE_TO_FILTER_LABEL: Record<ActivityType, string> = {
   applied_spec_pack: "GitOps: edited packs",
   applied_spec_policy: "GitOps: edited policies",
   applied_spec_saved_query: "GitOps: edited queries",
-  applied_spec_team: "GitOps: edited teams",
+  applied_spec_team: `GitOps: edited ${TEAMS_LBL}`,
   applied_spec_software: "GitOps: edited software",
   canceled_install_app_store_app:
     "Canceled activity: install App Store (VPP) app",
@@ -298,13 +299,13 @@ export const ACTIVITY_TYPE_TO_FILTER_LABEL: Record<ActivityType, string> = {
   canceled_uninstall_software: "Canceled activity: uninstall software",
   changed_macos_setup_assistant: "Edited macOS automatic enrollment profile",
   changed_user_global_role: "Edited user's role: global",
-  changed_user_team_role: "Edited user's role: team",
+  changed_user_team_role: `Edited user's role: ${TEAM_LBL}`,
   created_declaration_profile: "Added declaration (DDM) profile",
   created_macos_profile: "Added configuration profile: Apple",
   created_pack: "Created pack",
   created_policy: "Created policy",
   created_saved_query: "Added query",
-  created_team: "Added team",
+  created_team: `Added ${TEAM_LBL}`,
   created_user: "Added user",
   created_windows_profile: "Added configuration profile: Windows",
   deleted_app_store_app: "Deleted App Store app", // Includes VPP and Android Playstore apps
@@ -322,10 +323,10 @@ export const ACTIVITY_TYPE_TO_FILTER_LABEL: Record<ActivityType, string> = {
   deleted_saved_query: "Deleted query",
   deleted_script: "Deleted script",
   deleted_software: "Deleted software",
-  deleted_team: "Deleted team",
+  deleted_team: `Deleted ${TEAM_LBL}`,
   deleted_user: "Deleted user",
   deleted_user_global_role: "Deleted user's role: global",
-  deleted_user_team_role: "Deleted user's role: team",
+  deleted_user_team_role: `Deleted user's role: ${TEAM_LBL}`,
   deleted_windows_profile: "Deleted configuration profile: Windows",
   disabled_activity_automations: "Disabled activity automations",
   disabled_android_mdm: "Turned off Android MDM",

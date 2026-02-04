@@ -31,6 +31,7 @@ import {
   MIN_OSQUERY_VERSION_OPTIONS,
   LOGGING_TYPE_OPTIONS,
   DEFAULT_USE_QUERY_OPTIONS,
+  TEAM_LBL,
 } from "utilities/constants";
 import { getPathWithQueryParams } from "utilities/url";
 
@@ -573,13 +574,13 @@ const EditQueryForm = ({
       if (isEditing) {
         return (
           <p>
-            Editing query for <strong>{currentTeamName}</strong> team.
+            Editing query for <strong>{currentTeamName}</strong> {TEAM_LBL}.
           </p>
         );
       }
       return (
         <p>
-          Creating a new query for <strong>{currentTeamName}</strong> team.
+          Creating a new query for <strong>{currentTeamName}</strong> {TEAM_LBL}.
         </p>
       );
     }

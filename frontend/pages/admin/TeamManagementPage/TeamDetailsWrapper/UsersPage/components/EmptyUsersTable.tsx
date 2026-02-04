@@ -5,6 +5,7 @@ import EmptyTable from "components/EmptyTable";
 import CustomLink from "components/CustomLink";
 import PATHS from "router/paths";
 import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
+import { TEAM_LBL } from "utilities/constants";
 
 interface IEmptyUsersTableProps {
   className: string;
@@ -19,7 +20,7 @@ interface IEmptyUsersTableProps {
 const infoLink = (
   <>
     <CustomLink url={PATHS.ADMIN_USERS} text="Global users" /> can still access
-    this team.
+    this {TEAM_LBL}.
   </>
 );
 
@@ -78,7 +79,7 @@ const EmptyMembersTable = ({
   return (
     <EmptyTable
       graphicName="empty-users"
-      header="No users on this team"
+      header={`No users on this ${TEAM_LBL}`}
       info={infoLink}
       primaryButton={
         <GitOpsModeTooltipWrapper
