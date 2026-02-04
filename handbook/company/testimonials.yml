@@ -312,3 +312,10 @@
   quoteLinkUrl: https://www.linkedin.com/in/johnonolan/
   quoteAuthorProfileImageFilename: testimonial-author-john-o'nolan-100x100@2x.png
   productCategories: [Device management]
+-
+  # quote: Whereas with our previous mdm, we would send in a ticket, we'd maybe get one reply asking us to do something we've already told them we've done. It would take 24 hours before we get our next reply. And, like, 24 hours in between every single message. Whereas now with Fleet I just post something in our joint Slack channel and within minutes I will get a reply and we can have a proper conversation about it. I think the big thing is their support is huge. So I think just that that's the biggest thing. That's the biggest selling point, I think. Being this used to be what was known for, I love seeing us take that away from them.
+  # quoteAuthorName: Adam Anklewicz
+  # quoteAuthorJobTitle: Manager, IT Endpoint Engineering
+  # quoteLinkUrl: https://www.linkedin.com/in/ankle/
+  # quoteAuthorProfileImageFilename: 
+  # productCategories: [Device management]
