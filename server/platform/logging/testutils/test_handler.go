@@ -14,35 +14,23 @@ type TestHandler struct {
 	// mu and records are pointers so they're shared across WithAttrs/WithGroup calls.
 	// This mirrors how real handlers share their output destination (io.Writer)
 	// while maintaining independent configuration (attrs, groups).
-	mu       *sync.Mutex
-	records  *[]slog.Record
-	attrs    []slog.Attr
-	group    string
-	minLevel slog.Level
+	mu      *sync.Mutex
+	records *[]slog.Record
+	attrs   []slog.Attr
+	group   string
 }
 
-// NewTestHandler creates a new TestHandler that accepts all log levels.
+// NewTestHandler creates a new TestHandler.
 func NewTestHandler() *TestHandler {
 	return &TestHandler{
-		mu:       &sync.Mutex{},
-		records:  &[]slog.Record{},
-		minLevel: slog.LevelDebug,
+		mu:      &sync.Mutex{},
+		records: &[]slog.Record{},
 	}
 }
 
-// NewTestHandlerWithLevel creates a new TestHandler that only accepts
-// logs at or above the specified level.
-func NewTestHandlerWithLevel(level slog.Level) *TestHandler {
-	return &TestHandler{
-		mu:       &sync.Mutex{},
-		records:  &[]slog.Record{},
-		minLevel: level,
-	}
-}
-
-// Enabled returns true if the level is at or above the handler's minimum level.
-func (h *TestHandler) Enabled(_ context.Context, level slog.Level) bool {
-	return level >= h.minLevel
+// Enabled returns true for all levels.
+func (h *TestHandler) Enabled(context.Context, slog.Level) bool {
+	return true
 }
 
 // Handle captures the record for later inspection.
@@ -71,11 +59,10 @@ func (h *TestHandler) WithAttrs(attrs []slog.Attr) slog.Handler {
 	h.mu.Lock()
 	defer h.mu.Unlock()
 	return &TestHandler{
-		mu:       h.mu,
-		records:  h.records,
-		attrs:    slices.Concat(h.attrs, attrs),
-		group:    h.group,
-		minLevel: h.minLevel,
+		mu:      h.mu,
+		records: h.records,
+		attrs:   slices.Concat(h.attrs, attrs),
+		group:   h.group,
 	}
 }
 
@@ -84,11 +71,10 @@ func (h *TestHandler) WithGroup(name string) slog.Handler {
 	h.mu.Lock()
 	defer h.mu.Unlock()
 	return &TestHandler{
-		mu:       h.mu,
-		records:  h.records,
-		attrs:    h.attrs,
-		group:    name,
-		minLevel: h.minLevel,
+		mu:      h.mu,
+		records: h.records,
+		attrs:   h.attrs,
+		group:   name,
 	}
 }
 
