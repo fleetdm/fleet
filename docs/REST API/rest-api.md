@@ -27,7 +27,7 @@ Use the Fleet APIs to automate Fleet.
 
 This page includes a list of available resources and their API routes.
 
-Unless otherwise specified, endpoints that accept a request body limit its size to 1MB.
+Unless otherwise specified, endpoints that accept a request body limit its size to the configured `FLEET_SERVER_DEFAULT_MAX_REQUEST_BODY_SIZE` (default 1MB).
 
 ## Authentication
 
