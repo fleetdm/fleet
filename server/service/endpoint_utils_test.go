@@ -11,6 +11,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/fleetdm/fleet/v4/server/contexts/installersize"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mock"
 	"github.com/fleetdm/fleet/v4/server/platform/endpointer"
@@ -31,7 +32,7 @@ func TestUniversalDecoderIDs(t *testing.T) {
 		ID1        uint `url:"some-id"`
 		OptionalID uint `url:"some-other-id,optional"`
 	}
-	decoder := makeDecoder(universalStruct{}, platform_http.MaxSoftwareInstallerSize)
+	decoder := makeDecoder(universalStruct{}, installersize.MaxSoftwareInstallerSize)
 
 	req := httptest.NewRequest("POST", "/target", nil)
 	req = mux.SetURLVars(req, map[string]string{"some-id": "999"})
@@ -55,7 +56,7 @@ func TestUniversalDecoderIDsAndJSON(t *testing.T) {
 		ID1        uint   `url:"some-id"`
 		SomeString string `json:"some_string"`
 	}
-	decoder := makeDecoder(universalStruct{}, platform_http.MaxSoftwareInstallerSize)
+	decoder := makeDecoder(universalStruct{}, installersize.MaxSoftwareInstallerSize)
 
 	body := `{"some_string": "hello"}`
 	req := httptest.NewRequest("POST", "/target", strings.NewReader(body))
@@ -78,7 +79,7 @@ func TestUniversalDecoderIDsAndJSONEmbedded(t *testing.T) {
 		ID1 uint `url:"some-id"`
 		EmbeddedJSON
 	}
-	decoder := makeDecoder(UniversalStruct{}, platform_http.MaxSoftwareInstallerSize)
+	decoder := makeDecoder(UniversalStruct{}, installersize.MaxSoftwareInstallerSize)
 
 	body := `{"some_string": "hello"}`
 	req := httptest.NewRequest("POST", "/target", strings.NewReader(body))
@@ -99,7 +100,7 @@ func TestUniversalDecoderIDsAndListOptions(t *testing.T) {
 		Opts       fleet.ListOptions `url:"list_options"`
 		SomeString string            `json:"some_string"`
 	}
-	decoder := makeDecoder(universalStruct{}, platform_http.MaxSoftwareInstallerSize)
+	decoder := makeDecoder(universalStruct{}, installersize.MaxSoftwareInstallerSize)
 
 	body := `{"some_string": "bye"}`
 	req := httptest.NewRequest("POST", "/target?per_page=77&page=4", strings.NewReader(body))
@@ -125,7 +126,7 @@ func TestUniversalDecoderHandlersEmbeddedAndNot(t *testing.T) {
 		Opts fleet.ListOptions `url:"list_options"`
 		EmbeddedJSON
 	}
-	decoder := makeDecoder(universalStruct{}, platform_http.MaxSoftwareInstallerSize)
+	decoder := makeDecoder(universalStruct{}, installersize.MaxSoftwareInstallerSize)
 
 	body := `{"some_string": "o/"}`
 	req := httptest.NewRequest("POST", "/target?per_page=77&page=4", strings.NewReader(body))
@@ -147,7 +148,7 @@ func TestUniversalDecoderListOptions(t *testing.T) {
 		ID1  uint              `url:"some-id"`
 		Opts fleet.ListOptions `url:"list_options"`
 	}
-	decoder := makeDecoder(universalStruct{}, platform_http.MaxSoftwareInstallerSize)
+	decoder := makeDecoder(universalStruct{}, installersize.MaxSoftwareInstallerSize)
 
 	req := httptest.NewRequest("POST", "/target", nil)
 	req = mux.SetURLVars(req, map[string]string{"some-id": "123"})
@@ -162,7 +163,7 @@ func TestUniversalDecoderOptionalQueryParams(t *testing.T) {
 	type universalStruct struct {
 		ID1 *uint `query:"some_id,optional"`
 	}
-	decoder := makeDecoder(universalStruct{}, platform_http.MaxSoftwareInstallerSize)
+	decoder := makeDecoder(universalStruct{}, installersize.MaxSoftwareInstallerSize)
 
 	req := httptest.NewRequest("POST", "/target", nil)
 
@@ -188,7 +189,7 @@ func TestUniversalDecoderOptionalQueryParamString(t *testing.T) {
 	type universalStruct struct {
 		ID1 *string `query:"some_val,optional"`
 	}
-	decoder := makeDecoder(universalStruct{}, platform_http.MaxSoftwareInstallerSize)
+	decoder := makeDecoder(universalStruct{}, installersize.MaxSoftwareInstallerSize)
 
 	req := httptest.NewRequest("POST", "/target", nil)
 
@@ -214,7 +215,7 @@ func TestUniversalDecoderOptionalQueryParamNotPtr(t *testing.T) {
 	type universalStruct struct {
 		ID1 string `query:"some_val,optional"`
 	}
-	decoder := makeDecoder(universalStruct{}, platform_http.MaxSoftwareInstallerSize)
+	decoder := makeDecoder(universalStruct{}, installersize.MaxSoftwareInstallerSize)
 
 	req := httptest.NewRequest("POST", "/target", nil)
 
@@ -240,7 +241,7 @@ func TestUniversalDecoderQueryAndListPlayNice(t *testing.T) {
 		ID1  *uint             `query:"some_id"`
 		Opts fleet.ListOptions `url:"list_options"`
 	}
-	decoder := makeDecoder(universalStruct{}, platform_http.MaxSoftwareInstallerSize)
+	decoder := makeDecoder(universalStruct{}, installersize.MaxSoftwareInstallerSize)
 
 	req := httptest.NewRequest("POST", "/target?per_page=77&page=4&some_id=444", nil)
 

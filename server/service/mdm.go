@@ -249,8 +249,6 @@ type createMDMEULARequest struct {
 	DryRun bool `query:"dry_run,optional"` // if true, apply validation but do not save changes
 }
 
-// TODO: We parse the whole body before running svc.authz.Authorize.
-// An authenticated but unauthorized user could abuse this.
 func (createMDMEULARequest) DecodeRequest(ctx context.Context, r *http.Request) (interface{}, error) {
 	err := r.ParseMultipartForm(platform_http.MaxMultipartFormSize)
 	if err != nil {
@@ -269,10 +267,7 @@ func (createMDMEULARequest) DecodeRequest(ctx context.Context, r *http.Request) 
 
 	eula := r.MultipartForm.File["eula"][0]
 
-	// We didn't force a limit before, so we're generous with 500MiB
-	// We store this directly in the DB so high file sizes is not advised.
-	// TODO: Revise if this is acceptable, or smaller is good enough.
-	if eula.Size > platform_http.MaxEULASize {
+	if eula.Size > fleet.MaxEULASize {
 		return nil, &fleet.BadRequestError{
 			Message: "Uploaded EULA exceeds maximum allowed size of 500 MiB",
 		}
@@ -1596,7 +1591,7 @@ func (newMDMConfigProfileRequest) DecodeRequest(ctx context.Context, r *http.Req
 	}
 	decoded.Profile = fhs[0]
 
-	if decoded.Profile.Size > platform_http.MaxProfileSize {
+	if decoded.Profile.Size > fleet.MaxProfileSize {
 		return nil, fleet.NewInvalidArgumentError("mdm", "maximum configuration profile file size is 1 MB")
 	}
 
