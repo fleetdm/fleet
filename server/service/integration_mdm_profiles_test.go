@@ -8725,18 +8725,15 @@ func (s *integrationMDMTestSuite) TestHostMDMAndroidProfilesStatus() {
 	res := s.DoRawWithHeaders("POST", "/api/latest/fleet/configuration_profiles", body.Bytes(), http.StatusOK, headers)
 	require.NotNil(t, res)
 
-	// profiles should get to pending even before the cron job s.awaitTriggerAndroidProfileSchedule(t)
-
+	// profiles should be added with NULL status even before the cron job (s.awaitTriggerAndroidProfileSchedule(t))
 	var profiles []fleet.HostMDMAndroidProfile
 	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 		err := sqlx.SelectContext(ctx, q, &profiles, "SELECT host_uuid, status, operation_type FROM host_mdm_android_profiles")
 		require.NoError(t, err)
-		mysql.DumpTable(t, q, "mdm_android_configuration_profiles")
-		mysql.DumpTable(t, q, "host_mdm_android_profiles")
 		return nil
 	})
 
 	require.Len(t, profiles, 2)
-	require.Equal(t, profiles[0].Status, nil)
-	require.Equal(t, profiles[1].Status, nil)
+	require.Nil(t, profiles[0].Status)
+	require.Nil(t, profiles[1].Status)
 }
