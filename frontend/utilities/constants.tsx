@@ -1,3 +1,5 @@
+import { upperFirst } from "lodash";
+
 import URL_PREFIX from "router/url_prefix";
 import { DisplayPlatform, Platform } from "interfaces/platform";
 import { ISchedulableQuery } from "interfaces/schedulable_query";
@@ -9,6 +11,22 @@ import { IHost } from "interfaces/host";
 
 const { origin } = global.window.location;
 export const BASE_URL = `${origin}${URL_PREFIX}/api`;
+
+const getTeamLabelsFromUrl = () => {
+  if (typeof window !== "undefined") {
+    const params = new URLSearchParams(window.location.search);
+    return {
+      team: params.get("team_label") || "fleet",
+      teams: params.get("teams_label") || "fleets",
+    };
+  }
+  return { team: "fleet", teams: "fleets" };
+};
+
+const teamLabels = getTeamLabelsFromUrl();
+
+export const TEAM_LBL = teamLabels.team;
+export const TEAMS_LBL = teamLabels.teams;
 
 export const UNCHANGED_PASSWORD_API_RESPONSE = "********";
 
@@ -396,7 +414,9 @@ export const BATTERY_TOOLTIP: Record<string, string | React.ReactNode> = {
   ),
 };
 
-export const PRIMO_TOOLTIP = "Teams are disabled while using Primo";
+export const PRIMO_TOOLTIP = `${upperFirst(
+  TEAMS_LBL
+)} are disabled while using Primo`;
 
 /** Must pass agent options config as empty object */
 export const EMPTY_AGENT_OPTIONS = {

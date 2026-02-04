@@ -6,6 +6,7 @@ import Select, {
   OptionProps,
   StylesConfig,
 } from "react-select-5";
+import { upperFirst } from "lodash";
 
 import { COLORS } from "styles/var/colors";
 import { PADDING } from "styles/var/padding";
@@ -19,6 +20,7 @@ import {
   ITeamSummary,
   APP_CONTEXT_NO_TEAM_SUMMARY,
 } from "interfaces/team";
+import { TEAMS_LBL } from "utilities/constants";
 
 import Icon from "components/Icon";
 
@@ -282,7 +284,7 @@ const TeamsDropdown = ({
     <div className={dropdownWrapperClasses}>
       <Select<INumberDropdownOption, false>
         options={teamOptions}
-        placeholder="All teams"
+        placeholder={`All ${TEAMS_LBL}`}
         onChange={(newValue) => {
           if (newValue) {
             onChange(newValue.value);
@@ -291,7 +293,7 @@ const TeamsDropdown = ({
         }}
         isDisabled={isDisabled}
         isSearchable
-        noOptionsMessage={() => "No matching teams"}
+        noOptionsMessage={() => `No matching ${TEAMS_LBL}`}
         styles={customStyles}
         components={{
           DropdownIndicator: CustomDropdownIndicator,

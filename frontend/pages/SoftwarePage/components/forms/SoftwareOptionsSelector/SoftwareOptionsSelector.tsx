@@ -4,7 +4,7 @@ import classnames from "classnames";
 import Checkbox from "components/forms/fields/Checkbox";
 import InfoBanner from "components/InfoBanner";
 import CustomLink from "components/CustomLink";
-import { LEARN_MORE_ABOUT_BASE_LINK } from "utilities/constants";
+import { LEARN_MORE_ABOUT_BASE_LINK, TEAM_LBL } from "utilities/constants";
 
 import paths from "router/paths";
 import { getSelfServiceTooltip } from "pages/SoftwarePage/helpers";
@@ -224,7 +224,7 @@ const SoftwareOptionsSelector = ({
         <InfoBanner color="yellow">
           Installing software over existing installations might cause issues.
           Fleet&apos;s policy may not detect these existing installations.
-          Please create a test team in Fleet to verify a smooth installation.{" "}
+          Please create a test {TEAM_LBL} in Fleet to verify a smooth installation.{" "}
           <CustomLink
             url={`${LEARN_MORE_ABOUT_BASE_LINK}/query-templates-for-automatic-software-install`}
             text="Learn more"

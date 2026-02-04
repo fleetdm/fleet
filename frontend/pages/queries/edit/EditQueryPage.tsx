@@ -18,6 +18,8 @@ import {
   DOCUMENT_TITLE_SUFFIX,
   INVALID_PLATFORMS_FLASH_MESSAGE,
   INVALID_PLATFORMS_REASON,
+  TEAM_LBL,
+  TEAMS_LBL,
 } from "utilities/constants";
 import configAPI from "services/entities/config";
 import queryAPI from "services/entities/queries";
@@ -276,8 +278,8 @@ const EditQueryPage = ({
         if (getErrorReason(createError).includes("already exists")) {
           const teamErrorText =
             teamNameForQuery && apiTeamIdForQuery !== 0
-              ? `the ${teamNameForQuery} team`
-              : "all teams";
+              ? `the ${teamNameForQuery} ${TEAM_LBL}`
+              : `all ${TEAMS_LBL}`;
           setBackendValidators({
             name: `A query with that name already exists for ${teamErrorText}.`,
           });

@@ -1,6 +1,8 @@
 import React from "react";
+import { upperFirst } from "lodash";
 import { CellProps, Column } from "react-table";
 
+import { TEAM_LBL, TEAMS_LBL } from "utilities/constants";
 import { IMdmAbmToken, IMdmVppToken } from "interfaces/mdm";
 import { IHeaderProps, IStringCellProps } from "interfaces/datatable_config";
 import { IDropdownOption } from "interfaces/dropdownOption";
@@ -22,7 +24,7 @@ type ITeamsCellProps = CellProps<IMdmVppToken, IMdmVppToken["teams"]>;
 type ITableHeaderProps = IHeaderProps<IMdmVppToken>;
 
 const DEFAULT_ACTION_OPTIONS: IDropdownOption[] = [
-  { value: "editTeams", label: "Edit teams", disabled: false },
+  { value: "editTeams", label: `Edit ${TEAMS_LBL}`, disabled: false },
   { value: "renew", label: "Renew", disabled: false },
   { value: "delete", label: "Delete", disabled: false },
 ];
@@ -108,7 +110,7 @@ export const generateTableConfig = (
 
     {
       accessor: "teams",
-      Header: "Teams",
+      Header: upperFirst(TEAMS_LBL),
       disableSortBy: true,
       Cell: (cellProps: ITeamsCellProps) => (
         <TeamsCell teams={cellProps.cell.value} className="vpp-teams-cell" />

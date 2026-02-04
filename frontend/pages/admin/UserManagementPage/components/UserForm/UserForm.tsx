@@ -2,7 +2,7 @@ import React, { FormEvent, useState, useEffect, useContext } from "react";
 import { Link } from "react-router";
 import PATHS from "router/paths";
 
-import { PRIMO_TOOLTIP } from "utilities/constants";
+import { PRIMO_TOOLTIP, TEAM_LBL, TEAMS_LBL } from "utilities/constants";
 
 import { NotificationContext } from "context/notification";
 import { AppContext } from "context/app";
@@ -324,7 +324,7 @@ const UserForm = ({
     // separate from `validate` function as it uses `renderFlash` hook, incompatible with pure
     // `validate` function
     if (!formData.global_role && !formData.teams.length) {
-      renderFlash("error", `Please select at least one team for this user.`);
+      renderFlash("error", `Please select at least one ${TEAM_LBL} for this user.`);
       return;
     }
     const errs = validate(
@@ -388,7 +388,7 @@ const UserForm = ({
             className={`${baseClass}__create-team-link`}
             to={PATHS.ADMIN_TEAMS}
           >
-            create a team
+            create a {TEAM_LBL}
           </Link>
           .
         </p>
@@ -437,8 +437,8 @@ const UserForm = ({
 
   if (!isPremiumTier && !isGlobalUser) {
     console.log(
-      `Note: Fleet Free UI does not have teams options.\n
-        User ${formData.name} is already assigned to a team and cannot be reassigned without access to Fleet Premium UI.`
+      `Note: Fleet Free UI does not have ${TEAMS_LBL} options.\n
+        User ${formData.name} is already assigned to a ${TEAM_LBL} and cannot be reassigned without access to Fleet Premium UI.`
     );
   }
 

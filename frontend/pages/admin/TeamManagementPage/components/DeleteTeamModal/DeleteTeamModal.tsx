@@ -2,6 +2,7 @@ import React from "react";
 
 import Modal from "components/Modal";
 import Button from "components/buttons/Button";
+import { TEAM_LBL, TEAMS_LBL } from "utilities/constants";
 
 const baseClass = "delete-team-modal";
 
@@ -20,7 +21,7 @@ const DeleteTeamModal = ({
 }: IDeleteTeamModalProps): JSX.Element => {
   return (
     <Modal
-      title="Delete team"
+      title={`Delete ${TEAM_LBL}`}
       onExit={onCancel}
       onEnter={onSubmit}
       className={baseClass}
@@ -31,7 +32,7 @@ const DeleteTeamModal = ({
           <span className={`${baseClass}__name`}>{name}</span> from Fleet.
         </p>
         <p>
-          Users on this team who are not assigned to other teams will lose
+          Users on this {TEAM_LBL} who are not assigned to other {TEAMS_LBL} will lose
           access to Fleet.
         </p>
         <p className={`${baseClass}__warning`}>This action cannot be undone.</p>

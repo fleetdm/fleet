@@ -3,7 +3,7 @@ import { useQuery } from "react-query";
 import { omit } from "lodash";
 
 import paths from "router/paths";
-import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
+import { DEFAULT_USE_QUERY_OPTIONS, TEAM_LBL } from "utilities/constants";
 import { getPathWithQueryParams } from "utilities/url";
 
 import scriptsAPI, {
@@ -137,7 +137,7 @@ const PolicyRunScriptModal = ({
               })}
               text="Controls &gt; Scripts"
             />{" "}
-            to add scripts to this team.
+            to add scripts to this {TEAM_LBL}.
           </div>
         </div>
       );

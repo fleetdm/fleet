@@ -1,10 +1,12 @@
 import React, { useCallback, useContext, useMemo, useState } from "react";
+import { upperFirst } from "lodash";
 
 import { AppContext } from "context/app";
 import { NotificationContext } from "context/notification";
 
 import { IMdmVppToken } from "interfaces/mdm";
 import { APP_CONTEXT_ALL_TEAMS_ID, ITeamSummary } from "interfaces/team";
+import { TEAM_LBL, TEAMS_LBL } from "utilities/constants";
 
 import mdmAppleAPI from "services/entities/mdm_apple";
 
@@ -241,18 +243,18 @@ const EditTeamsVppModal = ({
   return (
     <Modal
       className={baseClass}
-      title="Edit teams"
+      title={`Edit ${TEAMS_LBL}`}
       onExit={onCancel}
       width="large"
       isContentDisabled={isSaving}
     >
       <>
         <p>
-          Edit teams for <b>{currentToken.org_name}</b>.
+          Edit {TEAMS_LBL} for <b>{currentToken.org_name}</b>.
         </p>
         <p>
-          If you delete a team, App Store apps will be deleted from that team.
-          Installed apps won&apos;t be uninstalled from hosts.
+          If you delete a {TEAM_LBL}, App Store apps will be deleted from that{" "}
+          {TEAM_LBL}. Installed apps won&apos;t be uninstalled from hosts.
         </p>
         <form onSubmit={onSave} className={baseClass} autoComplete="off">
           <TooltipWrapper
@@ -261,9 +263,9 @@ const EditTeamsVppModal = ({
             showArrow
             tipContent={
               <div className={`${baseClass}__tooltip--all-teams`}>
-                You can&apos;t choose teams because you already have a VPP token
-                assigned to all teams. First, edit teams for that VPP token to
-                choose teams here.
+                You can&apos;t choose {TEAMS_LBL} because you already have a VPP
+                token assigned to all {TEAMS_LBL}. First, edit {TEAMS_LBL} for
+                that VPP token to choose {TEAMS_LBL} here.
               </div>
             }
             disableTooltip={!isDropdownDisabled}
@@ -272,9 +274,9 @@ const EditTeamsVppModal = ({
               options={options}
               multi
               onChange={onChange}
-              placeholder="Search teams"
+              placeholder={`Search ${TEAMS_LBL}`}
               value={selectedValue}
-              label="Teams"
+              label={upperFirst(TEAMS_LBL)}
               className={`${baseClass}__vpp-dropdown`}
               wrapperClassName={`${baseClass}__form-field--vpp-teams ${
                 isDropdownDisabled ? `${baseClass}__form-field--disabled` : ""
@@ -282,12 +284,13 @@ const EditTeamsVppModal = ({
               tooltip={
                 isDropdownDisabled ? undefined : (
                   <>
-                    Each team can have only one VPP token. Teams that already
-                    have a VPP token won&apos;t show up here.
+                    Each {TEAM_LBL} can have only one VPP token.{" "}
+                    {upperFirst(TEAMS_LBL)} that already have a VPP token
+                    won&apos;t show up here.
                   </>
                 )
               }
-              helpText="App Store apps in this VPP token’s Apple Business Manager (ABM) will only be available to install on hosts in these teams."
+              helpText={`App Store apps in this VPP token's Apple Business Manager (ABM) will only be available to install on hosts in these ${TEAMS_LBL}.`}
               disabled={isDropdownDisabled}
             />
           </TooltipWrapper>

@@ -1,4 +1,5 @@
 import React, { useCallback, useState } from "react";
+import { upperFirst } from "lodash";
 import { Link } from "react-router";
 import PATHS from "router/paths";
 import Modal from "components/Modal";
@@ -7,6 +8,7 @@ import Button from "components/buttons/Button";
 // @ts-ignore
 import Dropdown from "components/forms/fields/Dropdown";
 import { ITeam, ITeamSummary } from "interfaces/team";
+import { TEAM_LBL } from "utilities/constants";
 
 interface ITransferHostModal {
   isGlobalAdmin: boolean;
@@ -28,7 +30,7 @@ const baseClass = "transfer-host-modal";
 
 const NO_TEAM_OPTION = {
   value: "no-team",
-  label: "No team",
+  label: `No ${TEAM_LBL}`,
 };
 
 const TransferHostModal = ({
@@ -84,18 +86,18 @@ const TransferHostModal = ({
             value={selectedTeam && selectedTeam.id}
             options={createTeamDropdownOptions()}
             onChange={onChangeSelectTeam}
-            placeholder="Select a team"
+            placeholder={`Select a ${TEAM_LBL}`}
             searchable
             autoFocus
           />
           {isGlobalAdmin ? (
             <p>
-              Team not here?{" "}
+              {upperFirst(TEAM_LBL)} not here?{" "}
               <Link
                 to={PATHS.ADMIN_TEAMS}
                 className={`${baseClass}__team-link`}
               >
-                Create a team
+                Create a {TEAM_LBL}
               </Link>
             </p>
           ) : null}

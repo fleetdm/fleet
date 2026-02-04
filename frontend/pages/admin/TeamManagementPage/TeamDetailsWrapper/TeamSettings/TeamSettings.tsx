@@ -10,6 +10,7 @@ import {
   DEFAULT_USE_QUERY_OPTIONS,
   HOST_STATUS_WEBHOOK_HOST_PERCENTAGE_DROPDOWN_OPTIONS,
   HOST_STATUS_WEBHOOK_WINDOW_DROPDOWN_OPTIONS,
+  TEAM_LBL,
 } from "utilities/constants";
 
 import { IApiError } from "interfaces/errors";
@@ -266,7 +267,7 @@ const TeamSettings = ({ location, router }: ITeamSubnavProps) => {
         .catch((errorResponse: { data: IApiError }) => {
           renderFlash(
             "error",
-            `Could not update team settings. ${errorResponse.data.errors[0].reason}`
+            `Could not update ${TEAM_LBL} settings. ${errorResponse.data.errors[0].reason}`
           );
         })
         .finally(() => {
@@ -297,7 +298,7 @@ const TeamSettings = ({ location, router }: ITeamSubnavProps) => {
           onChange={onInputChange}
           parseTarget
           value={formData.teamHostStatusWebhookEnabled}
-          helpText="This will trigger webhooks specific to this team, separate from the global host status webhook."
+          helpText={`This will trigger webhooks specific to this ${TEAM_LBL}, separate from the global host status webhook.`}
           labelTooltipContent="Send an alert if a portion of your hosts go offline."
           disabled={gitopsModeEnabled}
         >

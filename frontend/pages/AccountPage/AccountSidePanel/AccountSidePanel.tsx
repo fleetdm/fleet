@@ -1,4 +1,5 @@
 import React, { useContext, useEffect, useState } from "react";
+import { upperFirst } from "lodash";
 
 import { IUser } from "interfaces/user";
 import { IVersionData } from "interfaces/version";
@@ -18,6 +19,7 @@ import {
   greyCell,
   readableDate,
 } from "utilities/helpers";
+import { TEAMS_LBL } from "utilities/constants";
 
 interface IAccountSidePanelProps {
   currentUser: IUser;
@@ -77,7 +79,7 @@ const AccountSidePanel = ({
       </div>
       {isPremiumTier && (
         <DataSet
-          title="Teams"
+          title={upperFirst(TEAMS_LBL)}
           value={
             <span
               className={`${
