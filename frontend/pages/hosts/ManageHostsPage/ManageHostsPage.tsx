@@ -80,6 +80,7 @@ import {
   MAX_SCRIPT_BATCH_TARGETS,
   PolicyResponse,
   TEAM_LBL,
+  TEAMS_LBL,
 } from "utilities/constants";
 import { getNextLocationPath } from "utilities/helpers";
 
@@ -1343,7 +1344,7 @@ const ManageHostsPage = ({
 
       const successMessage =
         teamId === null
-          ? `Hosts successfully removed from teams.`
+          ? `Hosts successfully removed from ${TEAMS_LBL}.`
           : `Hosts successfully transferred to  ${transferTeam.name}.`;
 
       renderFlash("success", successMessage);

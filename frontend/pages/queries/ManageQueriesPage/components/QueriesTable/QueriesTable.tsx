@@ -3,6 +3,7 @@ import React, { useContext, useCallback, useMemo } from "react";
 import { InjectedRouter } from "react-router";
 import { Row } from "react-table";
 import { SingleValue } from "react-select-5";
+import { TEAM_LBL, TEAMS_LBL } from "utilities/constants";
 
 import PATHS from "router/paths";
 import { AppContext } from "context/app";
@@ -182,9 +183,9 @@ const QueriesTable = ({
       currentTeamId === null ||
       currentTeamId === APP_CONTEXT_ALL_TEAMS_ID
     ) {
-      emptyParams.header += " that apply to all teams";
+      emptyParams.header += ` that apply to all ${TEAMS_LBL}`;
     } else {
-      emptyParams.header += " that apply to this team";
+      emptyParams.header += ` that apply to this ${TEAM_LBL}`;
     }
   }
 

@@ -1,5 +1,6 @@
 import React, { useContext } from "react";
 import { AppContext } from "context/app";
+import { TEAM_LBL, TEAMS_LBL } from "utilities/constants";
 
 import { IPolicyStats } from "interfaces/policy";
 import { ITeamSummary, APP_CONTEXT_ALL_TEAMS_ID } from "interfaces/team";
@@ -70,9 +71,9 @@ const PoliciesTable = ({
       currentTeam?.id === null ||
       currentTeam?.id === APP_CONTEXT_ALL_TEAMS_ID
     ) {
-      emptyState.header += " that apply to all teams";
+      emptyState.header += ` that apply to all ${TEAMS_LBL}`;
     } else {
-      emptyState.header += " that apply to this team";
+      emptyState.header += ` that apply to this ${TEAM_LBL}`;
     }
   }
 
