@@ -22,7 +22,7 @@ Fleet provides comprehensive device management across the entire computing lifec
 
 ---
 
-## Computing lifecycle stages
+## Device Management lifecycle stages
 
 ### Enroll
 
