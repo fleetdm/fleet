@@ -55,6 +55,7 @@ module.exports = {
 
     require('assert')(sails.config.custom.iqSecret);// FUTURE: Rename this config
     require('assert')(sails.config.custom.RX_PROTOCOL_AND_COMMON_SUBDOMAINS);
+    require('assert')(sails.config.custom.bannedEmailDomainsForWebsiteSubmissions);
 
     sails.log.verbose('Enriching from…', emailAddress,linkedinUrl,firstName,lastName,organization);
 
@@ -75,6 +76,11 @@ module.exports = {
       }
     }//ﬁ
 
+
+    // If this helper is running for a user who signed up wth a personal email address before we added the work email requirement, Set emailDomain to undefined to remove it from the search criteria.
+    if(sails.config.custom.bannedEmailDomainsForWebsiteSubmissions.includes(emailDomain)){
+      emailDomain = undefined;
+    }
 
     // If no linkedin URL was provided for the person, then also do a website+name+orgName search
     // vs contacts to try and locate the person's linkedin URL.
@@ -282,7 +288,7 @@ module.exports = {
         sails.log.warn(`When retrieving enrichment information about a user's organization (LinkedIn page ID: ${matchingLinkedinCompanyPageId}) the Coresignal API responded with an error: `, err);
         return undefined;
       });
-      if (matchingCompanyPageInfo) {
+      if (matchingCompanyPageInfo && matchingCompanyPageInfo.website) {
         let parsedCompanyEmailDomain = require('url').parse(matchingCompanyPageInfo.website);
         // If a company's website does not include the protocol (https://), url.parse will return null as the hostname, if this happens, we'll use the href value returned instead.
         let emailDomain = parsedCompanyEmailDomain.hostname ? parsedCompanyEmailDomain.hostname.replace(sails.config.custom.RX_PROTOCOL_AND_COMMON_SUBDOMAINS,'') : parsedCompanyEmailDomain.href.replace(sails.config.custom.RX_PROTOCOL_AND_COMMON_SUBDOMAINS,'');
