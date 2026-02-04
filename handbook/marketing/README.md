@@ -10,6 +10,9 @@ This handbook page details processes specific to working [with](#contact-us) and
 | Content Specialist                 | [Irena Reedy](https://www.linkedin.com/in/irena-reedy-520ab9354/) _([@irenareedy](https://github.com/irenareedy))_
 | Head of Demand Generation                  | [John Jeremiah](https://www.linkedin.com/in/johnjeremiah/) _([@johnjeremiah](https://github.com/johnjeremiah))_
 | Product Education Manager     | [Brock Walters](https://www.linkedin.com/in/brock-walters-247a2990/) _([@nonpunctual](https://github.com/nonpunctual))_
+| Analyst Relations     | [Preston Death](https://www.linkedin.com/in/preston-death/) _([@pfd76](https://github.com/pfd76))_
+| Social Media Strategy and Management    | [Thomas Basgil Jr.](https://www.linkedin.com/in/tombasgil/) _([@tombasgil](https://github.com/tombasgil))_
+
 
 ## Contact us
 
@@ -29,6 +32,7 @@ This list (for now) will be in chronological order as assets are created:
 | [Fleet GitOps workshop](https://fleetdm.com/gitops-workshop) | 2026-01-28 | 1-page explainer & FAQ for GitOps workshop | 
 | [Fleet GitOps - The future of device management is declarative](https://fleetdm.com/fleet-gitops) | 2026-01-29 | Fleet GitOps product page |
 | [Fastly gains visibility into all endpoints and critical infrastructure worldwide](https://fleetdm.com/case-study/fastly) | 2026-01-30 | Customer case study: Fastly |
+| [Customers page](https://fleetdm.com/customers) | 2026-02-01 | Customer testimonials & logos |
 
 
 ## Responsibilities

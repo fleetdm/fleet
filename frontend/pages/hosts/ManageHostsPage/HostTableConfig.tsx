@@ -300,7 +300,6 @@ const allHostTableHeaders: IHostTableColumnConfig[] = [
       }
       return (
         <DiskSpaceIndicator
-          inTableCell
           gigsDiskSpaceAvailable={gigs_disk_space_available}
           percentDiskSpaceAvailable={percent_disk_space_available}
           gigsTotalDiskSpace={gigs_total_disk_space}

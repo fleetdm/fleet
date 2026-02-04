@@ -8,10 +8,10 @@ type CertificateRequestSpec struct {
 }
 
 type CertificateTemplate struct {
-	Name                   string
-	TeamID                 uint
-	CertificateAuthorityID uint
-	SubjectName            string
+	Name                   string `json:"name"`
+	TeamID                 uint   `json:"team_id"`
+	CertificateAuthorityID uint   `json:"certificate_authority_id"`
+	SubjectName            string `json:"subject_name"`
 }
 
 func (c *CertificateTemplate) AuthzType() string {

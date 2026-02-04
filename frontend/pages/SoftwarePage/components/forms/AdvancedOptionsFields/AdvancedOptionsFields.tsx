@@ -113,4 +113,5 @@ const AdvancedOptionsFields = ({
   );
 };
 
-export default AdvancedOptionsFields;
+// Memoize to avoid unnecessary re-renders of heavy editor components
+export default React.memo(AdvancedOptionsFields);

@@ -440,7 +440,7 @@ In Fleet Premium, you can use reserved variables beginning with `$FLEET_VAR_`. F
 | `$FLEET_VAR_HOST_END_USER_IDP_GROUPS`              | macOS, iOS, iPadOS, Windows | Comma separated IdP groups that host belongs to. When these change, Fleet will automatically resend the profile. |
 | `$FLEET_VAR_HOST_END_USER_IDP_DEPARTMENT`          | macOS, iOS, iPadOS, Windows | Host's IdP department. When this changes, Fleet will automatically resend the profile. |
 | `$FLEET_VAR_HOST_UUID`                             | macOS, iOS, iPadOS, Windows | Host's hardware UUID. |
-| `$FLEET_VAR_HOST_HARDWARE_SERIAL`                  | macOS, iOS, iPadOS | Host's hardware serial number. |
+| `$FLEET_VAR_HOST_HARDWARE_SERIAL`                  | macOS, iOS, iPadOS, Windows | Host's hardware serial number. |
 | `$FLEET_VAR_HOST_PLATFORM`                         | macOS, iOS, iPadOS, Windows | Host's platform. Values are `"macos"`, `"ios"`, `"ipados"`, and `"windows"`. |
 | `$FLEET_VAR_CUSTOM_SCEP_CHALLENGE_<CA_NAME>`       | macOS, iOS, iPadOS, Windows | Fleet-managed one-time challenge password used during SCEP certificate configuration profile deployment. `<CA_NAME>` should be replaced with name of the certificate authority configured in [custom_scep_proxy](#custom-scep-proxy). |
 | `$FLEET_VAR_CUSTOM_SCEP_PROXY_URL_<CA_NAME>`       | macOS, iOS, iPadOS, Windows | Fleet-managed SCEP proxy endpoint URL used during SCEP certificate configuration profile deployment. |
@@ -536,9 +536,13 @@ software:
       categories:
         - Communication
       setup_experience: true
+      auto_update_enabled: true
+      auto_update_window_start: "00:00"
+      auto_update_window_end: "04:00"
     - app_store_id: "us.zoom.videomeetings"
       platform: android
       self_service: true
+      setup_experience: true
       configuration:
         path: ../lib/software/zoom-config.json
   fleet_maintained_apps:
@@ -550,13 +554,13 @@ software:
       post_install_script:
         path: ../lib/software/slack-config-script.sh
       self_service: true
+      setup_experience: true
       labels_include_any:
         - Design
         - Sales
       categories:
         - Communication
         - Productivity
-      setup_experience: true
 ```
 
 #### self_service, labels, categories, and setup_experience
