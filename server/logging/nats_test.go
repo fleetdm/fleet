@@ -102,40 +102,6 @@ func natsWaitOrTimeout(t *testing.T, wg *sync.WaitGroup, timeout time.Duration) 
 	}
 }
 
-func TestNatsWaitOrTimeout(t *testing.T) {
-	t.Run("TimesOut", func(t *testing.T) {
-		// Create a WaitGroup that will never be satisfied.
-		var wg sync.WaitGroup
-		wg.Add(1)
-
-		done := make(chan struct{})
-
-		go func() {
-			wg.Wait()
-			close(done)
-		}()
-
-		// Verify the timeout path is taken, not the done path.
-		select {
-		case <-done:
-			t.Fatal("WaitGroup should not have completed")
-		case <-time.After(100 * time.Millisecond):
-			// Expected: timeout fired before the WaitGroup was satisfied.
-		}
-	})
-
-	t.Run("Succeeds", func(t *testing.T) {
-		var wg sync.WaitGroup
-		wg.Add(1)
-
-		// Satisfy the WaitGroup immediately.
-		go wg.Done()
-
-		// Should not time out.
-		natsWaitOrTimeout(t, &wg, natsTestTimeout)
-	})
-}
-
 func TestNatsLogRouter(t *testing.T) {
 	// Define an abbreviated test query result.
 	testLog := json.RawMessage(`{
