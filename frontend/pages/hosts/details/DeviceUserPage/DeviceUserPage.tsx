@@ -828,6 +828,9 @@ const DeviceUserPage = ({
                     conditionalAccessEnabled={
                       globalConfig?.features?.enable_conditional_access
                     }
+                    conditionalAccessBypassed={
+                      host?.conditional_access_bypassed
+                    }
                   />
                 </TabPanel>
               )}
@@ -928,7 +931,7 @@ const DeviceUserPage = ({
               <div className="site-nav-item__logo-wrapper">
                 <div className="site-nav-item__logo">
                   {isLoadingHost ? (
-                    <Spinner />
+                    <Spinner includeContainer={false} centered={false} />
                   ) : (
                     <OrgLogoIcon className="logo" src={orgLogoURL} />
                   )}
@@ -969,6 +972,7 @@ const DeviceUserPage = ({
                 "success",
                 "Access has been temporarily restored. You may now attempt to sign in again."
               );
+              refetchHostDetails();
             } catch {
               renderFlash(
                 "error",

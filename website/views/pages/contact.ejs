@@ -213,7 +213,7 @@
             </div>
           </div>
           <div class="form-group">
-            <label for="gitops-email-address">Email</label>
+            <label for="gitops-email-address">Work email</label>
             <input class="form-control" id="gitops-email-address" name="email-address" type="email" :class="[formErrors.emailAddress ? 'is-invalid' : cloudError && cloudError === 'invalidEmailDomain' ? 'is-invalid' : '']" v-model.trim="formData.emailAddress" autocomplete="email" >
             <div class="invalid-feedback" v-if="formErrors.emailAddress">Please enter a valid email address</div>
           </div>
@@ -284,7 +284,6 @@
               I am willing to host a workshop at my company's office
             </label>
           </div>
-          {{cloudError}}
           <cloud-error v-if="cloudError && cloudError === 'invalidEmailDomain'">
             <p>Please enter a valid work email address</p>
           </cloud-error>

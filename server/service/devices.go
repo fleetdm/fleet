@@ -1073,13 +1073,22 @@ type getDeviceSetupExperienceStatusResponse struct {
 func (r getDeviceSetupExperienceStatusResponse) Error() error { return r.Err }
 
 func getDeviceSetupExperienceStatusEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
-	if _, ok := request.(*getDeviceSetupExperienceStatusRequest); !ok {
+	req, ok := request.(*getDeviceSetupExperienceStatusRequest)
+	if !ok {
 		return nil, fmt.Errorf("internal error: invalid request type: %T", request)
 	}
 	results, err := svc.GetDeviceSetupExperienceStatus(ctx)
 	if err != nil {
 		return &getDeviceSetupExperienceStatusResponse{Err: err}, nil
 	}
+
+	// only software can have custom icons, so no need to iterate over Scripts
+	for _, r := range results.Software {
+		// mutate SetupExperienceStatusResult records for my device page
+		// (same approach used for HostSoftwareWithInstaller)
+		r.ForMyDevicePage(req.Token)
+	}
+
 	return &getDeviceSetupExperienceStatusResponse{Results: results}, nil
 }
 

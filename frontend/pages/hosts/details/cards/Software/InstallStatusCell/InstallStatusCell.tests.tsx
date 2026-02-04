@@ -440,7 +440,7 @@ describe("InstallStatusCell - component", () => {
     });
   });
 
-  it("renders 'Failed' for failed_install_update_available", async () => {
+  it("renders 'Update available' with failure tooltip for failed_install_update_available", async () => {
     const { user } = renderWithSetup(
       <InstallStatusCell
         software={{
@@ -458,16 +458,19 @@ describe("InstallStatusCell - component", () => {
         onShowVPPInstallDetails={noop}
       />
     );
-    expect(screen.getByRole("button", { name: /Failed/i })).toBeInTheDocument();
-    expect(screen.getByTestId("error-icon")).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: /Update available/i })
+    ).toBeInTheDocument();
+    expect(screen.getByTestId("error-outline-icon")).toBeInTheDocument();
 
-    await user.hover(screen.getByText("Failed"));
+    // Still see failure message in tooltip
+    await user.hover(screen.getByText("Update available"));
     await waitFor(() => {
       expect(screen.getByText(/failed to install/i)).toBeInTheDocument();
     });
   });
 
-  it("renders 'Failed (uninstall)' for failed_uninstall_update_available", async () => {
+  it("renders 'Update available' with failed uninstall tooltip for failed_uninstall_update_available", async () => {
     const { user } = renderWithSetup(
       <InstallStatusCell
         software={{
@@ -491,11 +494,11 @@ describe("InstallStatusCell - component", () => {
       />
     );
     expect(
-      screen.getByRole("button", { name: /Failed \(uninstall\)/i })
+      screen.getByRole("button", { name: /Update available/i })
     ).toBeInTheDocument();
-    expect(screen.getByTestId("error-icon")).toBeInTheDocument();
+    expect(screen.getByTestId("error-outline-icon")).toBeInTheDocument();
 
-    await user.hover(screen.getByText("Failed (uninstall)"));
+    await user.hover(screen.getByText("Update available"));
     await waitFor(() => {
       expect(screen.getByText(/to uninstall again/i)).toBeInTheDocument();
     });
