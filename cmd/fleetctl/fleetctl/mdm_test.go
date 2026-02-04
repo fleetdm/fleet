@@ -272,6 +272,9 @@ func TestMDMRunCommand(t *testing.T) {
 			ds.GetHostDEPAssignmentFunc = func(ctx context.Context, hostID uint) (*fleet.HostDEPAssignment, error) {
 				return &fleet.HostDEPAssignment{}, nil
 			}
+			ds.ConditionalAccessBypassedAtFunc = func(ctx context.Context, hostID uint) (*time.Time, error) {
+				return nil, nil
+			}
 
 			enqueuer.EnqueueCommandFunc = func(ctx context.Context, id []string, cmd *mdm.CommandWithSubtype) (map[string]error, error) {
 				return map[string]error{}, nil

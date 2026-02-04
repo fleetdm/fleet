@@ -3180,7 +3180,7 @@ func (s *integrationEnterpriseTestSuite) assertAppleOSUpdatesDeclaration(teamID 
 	require.NoError(t, err)
 
 	require.Contains(t, string(decl.RawJSON), fmt.Sprintf(`"TargetOSVersion": "%s"`, expected.MinimumVersion.Value))
-	require.Contains(t, string(decl.RawJSON), fmt.Sprintf(`"TargetLocalDateTime": "%sT12:00:00"`, expected.Deadline.Value))
+	require.Contains(t, string(decl.RawJSON), fmt.Sprintf(`"TargetLocalDateTime": "%sT19:00:00"`, expected.Deadline.Value))
 }
 
 func (s *integrationEnterpriseTestSuite) TestAppleOSUpdatesTeamConfig() {
@@ -23869,6 +23869,76 @@ FqU+KJOed6qlzj7qy+u5l6CQeajLGdjUxFlFyw==
 				"bypass_disabled": false
 			}
 		}`), http.StatusOK, &acResp)
+	})
+
+	t.Run("ConditionalAccessBypassedAt does not consume bypass", func(t *testing.T) {
+		token := fmt.Sprintf("bypassed-at-%s", uuid.New().String())
+		host := createHostAndDeviceToken(t, s.ds, token)
+
+		bypassedAtBefore, err := s.ds.ConditionalAccessBypassedAt(ctx, host.ID)
+		require.NoError(t, err)
+		require.Nil(t, bypassedAtBefore)
+
+		var bypassResp bypassConditionalAccessResponse
+		s.DoJSON("POST", fmt.Sprintf("/api/v1/fleet/device/%s/bypass_conditional_access", token),
+			nil, http.StatusOK, &bypassResp)
+		require.Nil(t, bypassResp.Err)
+
+		bypassedAtAfter, err := s.ds.ConditionalAccessBypassedAt(ctx, host.ID)
+		require.NoError(t, err)
+		require.NotNil(t, bypassedAtAfter)
+
+		bypassedAtAgain, err := s.ds.ConditionalAccessBypassedAt(ctx, host.ID)
+		require.NoError(t, err)
+		require.NotNil(t, bypassedAtAgain)
+		require.Equal(t, *bypassedAtAfter, *bypassedAtAgain)
+
+		consumedBypass, err := s.ds.ConditionalAccessConsumeBypass(ctx, host.ID)
+		require.NoError(t, err)
+		require.NotNil(t, consumedBypass)
+		require.Equal(t, *bypassedAtAfter, *consumedBypass)
+
+		bypassedAtAfterConsume, err := s.ds.ConditionalAccessBypassedAt(ctx, host.ID)
+		require.NoError(t, err)
+		require.Nil(t, bypassedAtAfterConsume)
+	})
+
+	t.Run("device host endpoint returns correct bypass state", func(t *testing.T) {
+		token := fmt.Sprintf("device-endpoint-bypass-%s", uuid.New().String())
+		host := createHostAndDeviceToken(t, s.ds, token)
+
+		getDeviceHostResp := getDeviceHostResponse{}
+		res := s.DoRawNoAuth("GET", "/api/latest/fleet/device/"+token, nil, http.StatusOK)
+		err := json.NewDecoder(res.Body).Decode(&getDeviceHostResp)
+		require.NoError(t, err)
+		require.NoError(t, res.Body.Close())
+		require.NoError(t, getDeviceHostResp.Err)
+		require.Equal(t, host.ID, getDeviceHostResp.Host.ID)
+		require.False(t, getDeviceHostResp.Host.ConditionalAccessBypassed)
+
+		var bypassResp bypassConditionalAccessResponse
+		s.DoJSON("POST", fmt.Sprintf("/api/v1/fleet/device/%s/bypass_conditional_access", token),
+			nil, http.StatusOK, &bypassResp)
+		require.Nil(t, bypassResp.Err)
+
+		getDeviceHostResp = getDeviceHostResponse{}
+		res = s.DoRawNoAuth("GET", "/api/latest/fleet/device/"+token, nil, http.StatusOK)
+		err = json.NewDecoder(res.Body).Decode(&getDeviceHostResp)
+		require.NoError(t, err)
+		require.NoError(t, res.Body.Close())
+		require.NoError(t, getDeviceHostResp.Err)
+		require.True(t, getDeviceHostResp.Host.ConditionalAccessBypassed)
+
+		_, err = s.ds.ConditionalAccessConsumeBypass(ctx, host.ID)
+		require.NoError(t, err)
+
+		getDeviceHostResp = getDeviceHostResponse{}
+		res = s.DoRawNoAuth("GET", "/api/latest/fleet/device/"+token, nil, http.StatusOK)
+		err = json.NewDecoder(res.Body).Decode(&getDeviceHostResp)
+		require.NoError(t, err)
+		require.NoError(t, res.Body.Close())
+		require.NoError(t, getDeviceHostResp.Err)
+		require.False(t, getDeviceHostResp.Host.ConditionalAccessBypassed)
 	})
 }
 

@@ -9,14 +9,14 @@ This handbook page details processes specific to working [with](#contact-us) and
 |:--------------------------------------|:------------------------------------------------------------------------------------------|
 | SVP of Gobal Sales                    | [Chaz MacLaughlin](https://www.linkedin.com/in/chazmaclaughlin/) _([@chazmac6](https://github.com/chazmac6))_
 | Channel Manager, North America        | [Eric Comeau](https://www.linkedin.com/in/escomeau/) _([@escomeau](https://github.com/escomeau))_
-| Account Executive (AE)                | <sup><sub> _See [🦄 Go-To-Market groups](https://fleetdm.com/handbook/company/go-to-market-groups#current-gtm-groups)
-| Solutions Specialist                  | <sup><sub> _See [🦄 Go-To-Market groups](https://fleetdm.com/handbook/company/go-to-market-groups#current-gtm-groups)
+| Account Executive (AE)                | <sup><sub> _See [🚂 Go-To-Market operations](https://fleetdm.com/handbook/company/go-to-market-operations#current-gtm-motions)
+| Solutions Specialist                  | <sup><sub> _See [🚂 Go-To-Market operations](https://fleetdm.com/handbook/company/go-to-market-operations#current-gtm-motions)
 
 
 ## Contact us
 
-- To **make a request** of this department, [create an issue](https://github.com/fleetdm/confidential/issues/new?assignees=&labels=%23g-sales&projects=&template=1-custom-request.md&title=Request%3A+_______________________) and a team member will get back to you within one business day. (If urgent, mention a [team member](#team) in the [#g-sales](https://fleetdm.slack.com/archives/C030A767HQV) Slack channel.)
-  - Any Fleet team member can [view the kanban board](https://github.com/orgs/fleetdm/projects/74) for this department, including pending tasks and the status of new requests.
+- To **make a request** of this department, [create an issue](https://github.com/fleetdm/confidential/issues/new?assignees=&labels=%3Ahelp-gtm-ops&projects=&template=1-custom-request.md&title=Request%3A+_______________________) and a team member will get back to you within one business day. (If urgent, mention a [team member](#team) in the [help-sales](https://fleetdm.slack.com/archives/C030A767HQV) Slack channel.)
+  - Any Fleet team member can [view the kanban board](https://github.com/orgs/fleetdm/projects/81) for this department, including pending tasks and the status of new requests.
   - Please **use issue comments and GitHub mentions** to communicate follow-ups or answer questions related to your request.
 
 
@@ -29,7 +29,7 @@ The Sales department is directly responsible for attaining the revenue goals of 
 
 Use the following steps to add an account to Salesforce if one doesn't exist already:
 1. Obtain the company name, website, and LinkedIn company url of the account you would like to create and search Salesforce to be sure a duplicate, parent, or child account doesn't already exist. 
-2. If the account already exists, reach out to the [GTM Systems Architect](https://fleetdm.com/handbook/finance#team) in the [#g-unicorns Slack channel](https://fleetdm.slack.com/archives/C08BTMFTUCR) with the account data and request the account be created and/or added to your patch.
+2. If the account already exists, reach out to the [Head of GTM Architecture](https://fleetdm.com/handbook/finance#team) in the [:help-gtm-ops Slack channel](https://fleetdm.slack.com/archives/C08BTMFTUCR) with the account data and request the account be created and/or added to your patch.
 
 
 ### Respond to a customer feature comparison request
@@ -81,7 +81,7 @@ Once a week, during the "🤝❌ Closed (for now) opportunity review" meeting, t
 1. Before the meeting, the [GTM Systems Architect](https://fleetdm.com/handbook/finance#team) will copy the goal from the gross new ARR goal from ["OCV GOH: Fleet" doc (confidential document)](https://docs.google.com/document/d/17VK0_pRrFGTqKCRfppIjUgfjdL012Ssirks8Jxk4SE4/edit?tab=t.0) and add it to the [🤝❌ Closed (for now) opportunity review (confidential doc)](https://docs.google.com/document/d/12cXSZAervdpAuOImN0Lx0B9n-uYND_tzmPbFr4gMwkU/edit?tab=t.0). 
 2. Before the meeting, the Executive Assistant will take a screenshot of the [Ω Open ops (Next 45 days) oppty list](https://fleetdm.lightning.force.com/lightning/o/Opportunity/list?filterName=Open_ops_Next_45_days) that includes the next 5+ deals set to close based on "Close date" and add it to the doc. 
 3. Using the ["Ω ∆ARR won + open pipeline (current Q)" Salesforce report](https://fleetdm.lightning.force.com/lightning/r/Report/00OUG0000019LuH2AU/view) (and adjusting the filters if needed), the Executive Assistant will calculate the progress toward the goal and "Amount left to close" and add it to the doc. 
-4. The CRO will paste a screenshot of the progress toward the goal and the actionable next steps from the [🤝❌ Closed (for now) opportunity review (confidential doc)](https://docs.google.com/document/d/12cXSZAervdpAuOImN0Lx0B9n-uYND_tzmPbFr4gMwkU/edit?tab=t.0) in the [#g-unicorns Slack channel](https://fleetdm.slack.com/archives/C08BTMFTUCR). 
+4. The CRO will paste a screenshot of the progress toward the goal and the actionable next steps from the [🤝❌ Closed (for now) opportunity review (confidential doc)](https://docs.google.com/document/d/12cXSZAervdpAuOImN0Lx0B9n-uYND_tzmPbFr4gMwkU/edit?tab=t.0) in the [:help-gtm-ops Slack channel](https://fleetdm.slack.com/archives/C08BTMFTUCR). 
 
 
 ### Send a reseller subscription quote
@@ -117,7 +117,7 @@ In order to be transparent, Fleet sends order forms within 30 days of opportunit
 Fleet uses "Non-Disclosure Agreements" (NDAs) to protect the company and the companies we collaborate with. Always offer to send Fleet's NDA and, whenever possible, default to using the company's version. To send an NDA to a customer, follow these steps: 
 1. If a customer has no objections to using Fleet's NDA, route the NDA to them for signature using the "🙊 NDA (Non-disclosure agreement)" template in [DocuSign](https://apps.docusign.com/send/home). If a customer would like to review the NDA first, download a .docx of [Fleet's NDA](https://docs.google.com/document/d/1gQCrF3silBFG9dJgyCvpmLa6hPhX_T4V7pL3XAwgqEU/edit?usp=sharing) and send it to the customer.
 2. If the customer has no objections, route the NDA using the template in DocuSign (do not upload and use the copy you emailed to the customer).
-3. If the customer "redlines" (i.e. wants to change) the NDA, follow the [contract review process](https://fleetdm.com/handbook/company/go-to-market-groups#getting-a-contract-reviewed) so that Finance can look over any proposed changes and provide guidance on how to proceed.
+3. If the customer "redlines" (i.e. wants to change) the NDA, follow the [contract review process](https://fleetdm.com/handbook/company/go-to-market-operations#getting-a-contract-reviewed) so that Finance can look over any proposed changes and provide guidance on how to proceed.
 
 
 ### Close a new customer deal
@@ -164,7 +164,7 @@ The following stubs are included only to make links backward compatible.
 ##### Fleet Premium
 ##### Fleet Free
 ##### Emergency (P0) request communications
-Please see [handbook/company/communications#customer-support-service-level-objectives-slos](https://fleetdm.com/handbook/company/go-to-market-groups#customer-support-service-level-objectives-slos) for all sections above.
+Please see [handbook/company/communications#customer-support-service-level-objectives-slos](https://fleetdm.com/handbook/company/go-to-market-operations#customer-support-service-level-objectives-slos) for all sections above.
 ##### Submit a customer contract for legal review
 ##### Standard terms
 ##### Non-standard NDAs

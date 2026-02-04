@@ -1480,7 +1480,12 @@ func (svc *Service) RefetchHost(ctx context.Context, id uint) error {
 			return ctxerr.Wrap(ctx, err, "refetch host: get host DEP assignment")
 		}
 
-		if adeData.IsDEPAssignedToFleet() {
+		lwStatus, err := svc.ds.GetHostLockWipeStatus(ctx, host)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "refetch host: get host location data")
+		}
+
+		if adeData.IsDEPAssignedToFleet() && lwStatus.IsLocked() {
 			err = svc.mdmAppleCommander.DeviceLocation(ctx, []string{host.UUID}, cmdUUID)
 			if err != nil {
 				return ctxerr.Wrap(ctx, err, "refetch host: get location with MDM")
@@ -1750,15 +1755,22 @@ func (svc *Service) getHostDetails(ctx context.Context, host *fleet.Host, opts f
 		return nil, ctxerr.Wrap(ctx, err, "get end users for host")
 	}
 
+	conditionalAccessBypassedAt, err := svc.ds.ConditionalAccessBypassedAt(ctx, host.ID)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "get conditional access bypass status")
+	}
+	conditionalAccessBypassed := conditionalAccessBypassedAt != nil
+
 	return &fleet.HostDetail{
-		Host:               *host,
-		Labels:             labels,
-		Packs:              packs,
-		Batteries:          &bats,
-		MaintenanceWindow:  nextMw,
-		EndUsers:           endUsers,
-		LastMDMEnrolledAt:  mdmLastEnrollment,
-		LastMDMCheckedInAt: mdmLastCheckedIn,
+		Host:                      *host,
+		Labels:                    labels,
+		Packs:                     packs,
+		Batteries:                 &bats,
+		MaintenanceWindow:         nextMw,
+		EndUsers:                  endUsers,
+		LastMDMEnrolledAt:         mdmLastEnrollment,
+		LastMDMCheckedInAt:        mdmLastCheckedIn,
+		ConditionalAccessBypassed: conditionalAccessBypassed,
 	}, nil
 }
 
@@ -3032,7 +3044,14 @@ func (svc *Service) getHostDiskEncryptionKey(ctx context.Context, host *fleet.Ho
 	}
 
 	if key == nil || key.DecryptedValue == "" {
-		// If we couldn't decrypt any key, return an error.
+		if len(decryptErrs) > 0 {
+			// Decryption failed, likely due to rotated MDM certificates
+			return nil, ctxerr.Wrap(ctx, fleet.NewUserMessageError(
+				errors.New("Couldn't decrypt the disk encryption key. The decryption certificate and key are invalid because MDM has been turned off."),
+				http.StatusUnprocessableEntity,
+			), "host encryption key decryption failed")
+		}
+		// No key found at all
 		return nil, ctxerr.Wrap(ctx, newNotFoundError(), "host encryption key")
 	}
 

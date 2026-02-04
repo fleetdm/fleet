@@ -118,62 +118,62 @@
       <div purpose="page-body">
       <div purpose="case-study-cards">
 
-        <div class="card" purpose="article-card">
+        <div purpose="article-card" @click="goto('/announcements/deputy-achieves-compliance-and-clarity-with-fleet')">
           <img alt="Deputy logo"  src="/images/logos/logo-deputy-color-120x32@2x.png">
           <p>Deputy achieved compliance and clarity with Fleet — keeping shift work in sync.</p>
           <a href="/announcements/deputy-achieves-compliance-and-clarity-with-fleet">Read their story</a>
         </div>
-        <div class="card" purpose="article-card">
+        <div purpose="article-card" @click="goto('/case-study/foursquare')">
           <img alt="Foursquare logo" src="/images/foursquare-logo-212x40@2x.png">
           <p>Foursquare cut costs and gained 114% ROI with Fleet.</p>
           <a href="/case-study/foursquare">Read their story</a>
         </div>
-        <div class="card" purpose="article-card">
+        <div purpose="article-card" @click="goto('/case-study/fastly')">
           <img alt="Fastly logo" src="/images/fastly-logo-104x40@2x.png">
           <p>Fastly gains visibility into all endpoints and critical infrastructure around the world.</p>
           <a href="/case-study/fastly">Read their story</a>
         </div>
-        <div class="card" purpose="article-card">
+        <div purpose="article-card" @click="goto('/case-study/faire')">
           <img alt="Faire logo" src="/images/faire-logo-192x40@2x.png">
           <p>Fastly gains visibility into all endpoints and critical infrastructure around the world.</p>
           <a href="/case-study/faire">Read their story</a>
         </div>
-        <div class="card" purpose="article-card">
+        <div purpose="article-card" @click="goto('/case-study/stripe')">
           <img alt="Stripe logo" src="/images/stripe-logo-96x40@2x.png">
           <p>Fastly gains visibility into all endpoints and critical infrastructure around the world.</p>
           <a href="/case-study/stripe">Read their story</a>
         </div>
-        <div class="card" purpose="article-card">
+        <div purpose="article-card" @click="goto('/announcements/worldwide-security-and-authentication-platform-chooses-fleet-for-linux')">
           <p><strong>Security and authentication platform</strong></p>
           <p>Worldwide security and authentication platform chooses Fleet for Linux management.</p>
           <a href="/announcements/worldwide-security-and-authentication-platform-chooses-fleet-for-linux">Read their story</a>
         </div>
-        <div class="card" purpose="article-card">
+        <div purpose="article-card" @click="goto('/announcements/large-gaming-company-enhances-server-observability-with-fleet')">
           <p><strong>Online gaming platform</strong></p>
           <p>Large gaming company enhances server observability with Fleet.</p>
           <a href="/announcements/large-gaming-company-enhances-server-observability-with-fleet">Read their story</a>
         </div>
-        <div class="card" purpose="article-card">
+        <div purpose="article-card" @click="goto('/announcements/vehicle-manufacturer-transitions-to-fleet-for-endpoint-security')">
           <p><strong>Electric vehicle manufacturer</strong></p>
           <p>Vehicle manufacturer transitions to Fleet for endpoint security.</p>
           <a href="/announcements/vehicle-manufacturer-transitions-to-fleet-for-endpoint-security">Read their story</a>
         </div>
-        <div class="card" purpose="article-card">
+        <div purpose="article-card" @click="goto('/announcements/global-social-media-platform-switches-to-fleet')">
           <p><strong>Global social media platform</strong></p>
           <p>Global social media platform migrates to Fleet.</p>
           <a href="/announcements/global-social-media-platform-switches-to-fleet">Read their story</a>
         </div>
-        <div class="card" purpose="article-card">
+        <div purpose="article-card" @click="goto('/announcements/interactive-entertainment-company-adopts-fleet-for-mdm')">
           <p><strong>Interactive entertainment company</strong></p>
           <p>Leading interactive entertainment company adopts Fleet for MDM.</p>
           <a href="/announcements/interactive-entertainment-company-adopts-fleet-for-mdm">Read their story</a>
         </div>
-        <div class="card" purpose="article-card">
+        <div purpose="article-card" @click="goto('/announcements/cloud-based-data-leader-choosed-fleet-for-orchestration')">
           <p><strong>Cloud data platform</strong></p>
           <p>Cloud-based data leader chooses Fleet for orchestration.</p>
           <a href="/announcements/cloud-based-data-leader-choosed-fleet-for-orchestration">Read their story</a>
         </div>
-        <div class="card" purpose="article-card">
+        <div purpose="article-card" @click="goto('/announcements/fintech-company-migrates-to-fleet')">
           <p><strong>Financial services company</strong></p>
           <p>Financial services company migrates to Fleet for MDM and next-gen change management</p>
           <a href="/announcements/fintech-company-migrates-to-fleet">Read their story</a>
@@ -197,7 +197,7 @@
       <div>
         <div purpose="testimonials-container" class="card-columns">
           <% for(let testimonial of testimonials) {%>
-            <a href="<%- testimonial.quoteLinkUrl%>" target="_blank" purpose="testimonial-card" class="card" no-icon>
+            <a href="<%- testimonial.quoteLinkUrl%>" target="_blank" purpose="testimonial-card" no-icon>
               <% if(testimonial.quoteImageFilename){ %>
                 <div purpose="logo" class="mb-4">
                   <img alt="logo" height="<%- testimonial.imageHeight%>"  src="/images/<%- testimonial.quoteImageFilename %>"/>

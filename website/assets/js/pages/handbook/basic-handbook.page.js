@@ -69,7 +69,8 @@ parasails.registerPage('basic-handbook', {
 
     // If this is the handbook landing page, we'll generate the page links using the `linksForHandbookIndex` array that each handbook page has
     if(this.isHandbookLandingPage) {
-      let handbookPages = [];
+      let handbookPagesInTheCompanyFolder = [];
+      let topLevelDepartmentPages = [];
       for (let page of this.markdownPages) {
         if(
           _.startsWith(page.url, '/handbook/company')// Only add links for pages in the handbook/company/ folder
@@ -86,11 +87,27 @@ parasails.registerPage('basic-handbook', {
             url: page.url,
             pageLinks: page.linksForHandbookIndex,
           };
-          handbookPages.push(handbookPage);
+          handbookPagesInTheCompanyFolder.push(handbookPage);
+        } else if(
+          _.startsWith(page.url, '/handbook/')// Only add links to handbook pages
+          && !_.startsWith(page.url, '/handbook/company')// Exclude links to handbook/company pages.
+          && page.url.split('/').length === 3// Only include top-level department pages.
+        ) {
+          let pageTitle = page.title;
+          if(this.hideEmojisOnPage){
+            pageTitle = pageTitle.replace(this.regexToMatchEmoji, '');
+          }
+          let handbookPage = {
+            pageTitle: pageTitle,
+            url: page.url,
+            pageLinks: page.linksForHandbookIndex,
+          };
+          topLevelDepartmentPages.push(handbookPage);
         }
       }
       // Sorting the handbook pages alphabetically by the pages url
-      this.handbookIndexLinks = _.sortBy(handbookPages, 'url');
+      this.handbookIndexLinks = _.sortBy(handbookPagesInTheCompanyFolder, 'url');
+      topLevelDepartmentPages = _.sortBy(topLevelDepartmentPages, 'url');
       // Sorting the company page to the top of the list, and the handbook page to the bottom
       this.handbookIndexLinks.sort((a)=>{
         if(_.endsWith(a.pageTitle, 'Company')) {
@@ -99,6 +116,8 @@ parasails.registerPage('basic-handbook', {
           return 0;
         }
       });
+      // After the handbook/company links are sorted, add the top level department pages to the list of links
+      this.handbookIndexLinks = this.handbookIndexLinks.concat(topLevelDepartmentPages);
     }
 
     this.subtopics = (() => {

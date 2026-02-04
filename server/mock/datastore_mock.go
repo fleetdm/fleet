@@ -649,6 +649,8 @@ type ConditionalAccessConsumeBypassFunc func(ctx context.Context, hostID uint) (
 
 type ConditionalAccessClearBypassesFunc func(ctx context.Context) error
 
+type ConditionalAccessBypassedAtFunc func(ctx context.Context, hostID uint) (*time.Time, error)
+
 type AsyncBatchInsertPolicyMembershipFunc func(ctx context.Context, batch []fleet.PolicyMembershipResult) error
 
 type AsyncBatchUpdatePolicyTimestampFunc func(ctx context.Context, ids []uint, ts time.Time) error
@@ -2712,6 +2714,9 @@ type DataStore struct {
 
 	ConditionalAccessClearBypassesFunc        ConditionalAccessClearBypassesFunc
 	ConditionalAccessClearBypassesFuncInvoked bool
+
+	ConditionalAccessBypassedAtFunc        ConditionalAccessBypassedAtFunc
+	ConditionalAccessBypassedAtFuncInvoked bool
 
 	AsyncBatchInsertPolicyMembershipFunc        AsyncBatchInsertPolicyMembershipFunc
 	AsyncBatchInsertPolicyMembershipFuncInvoked bool
@@ -6591,6 +6596,13 @@ func (s *DataStore) ConditionalAccessClearBypasses(ctx context.Context) error {
 	s.ConditionalAccessClearBypassesFuncInvoked = true
 	s.mu.Unlock()
 	return s.ConditionalAccessClearBypassesFunc(ctx)
+}
+
+func (s *DataStore) ConditionalAccessBypassedAt(ctx context.Context, hostID uint) (*time.Time, error) {
+	s.mu.Lock()
+	s.ConditionalAccessBypassedAtFuncInvoked = true
+	s.mu.Unlock()
+	return s.ConditionalAccessBypassedAtFunc(ctx, hostID)
 }
 
 func (s *DataStore) AsyncBatchInsertPolicyMembership(ctx context.Context, batch []fleet.PolicyMembershipResult) error {

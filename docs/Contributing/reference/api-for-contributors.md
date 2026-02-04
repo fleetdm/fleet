@@ -2,7 +2,7 @@
 
 Don't use these API endpoints. Please use the [public Fleet REST API documentation](https://fleetdm.com/docs/using-fleet/rest-api) instead.
 
-These API endpoints in this document are only used when contributing to Fleet. They're for the Fleet UI, Fleet Desktop, and `fleetctl` clients and frequently change to reflect current functionality. 
+These API endpoints in this document are only used when contributing to Fleet. They're for the Fleet UI, Fleet Desktop, and `fleetctl` clients and frequently change to reflect current functionality.
 
 - [Authentication](#authentication)
 - [Packs](#packs)
@@ -3777,7 +3777,7 @@ Redirects to the transparency URL.
 
 #### Download device's MDM manual enrollment profile
 
-Returns the URL to open to provide installation instructions and allow a user to download a manual enrollment profile 
+Returns the URL to open to provide installation instructions and allow a user to download a manual enrollment profile
 for a device. A user may be required to complete SSO authenticaton if configured on the team before being presented
 with the download option.
 
@@ -3883,7 +3883,9 @@ _Available in Fleet Premium_
       {
         "name": "slack.deb",
         "status": "pending",
-        "software_title_id": 3008
+        "software_title_id": 3008,
+        "display_name": "My Slack",
+        "icon_url": "/api/latest/fleet/device/7d940b6e-130a-493b-b58a-2b6e9f9f8bfc/software/titles/3008/icon"
       }
     ]
   }
@@ -4021,7 +4023,9 @@ Notifies the server about an agent error, resulting in two outcomes:
             {
                 "name": "Evernote",
                 "status": "success",
-                "software_title_id": 1313
+                "software_title_id": 1313,
+                "display_name": "My Evernote",
+                "icon_url": "/api/latest/fleet/software/titles/1313/icon?team_id=0"
             }
         ],
         "configuration_profiles": [
@@ -4801,6 +4805,9 @@ _Available in Fleet Premium._
 | app_store_apps.install_during_setup | boolean  | body  | Specifies whether the VPP app is included in Setup experience.                                                                                                                                                                |
 | app_store_apps.labels_include_any | array   | body  | App will only be available for install on hosts that **have any** of these labels. Only one of either `labels_include_any` or `labels_exclude_any` can be included in the request. |
 | app_store_apps.labels_exclude_any | array   | body  | App will only be available for install on hosts that **don't have any** of these labels. Only one of either `labels_include_any` or `labels_exclude_any` can be included in the request. |
+| app_store_apps.auto_update_enabled | boolean | body | **Optional**. Whether automatic updates are enabled for this iOS/iPadOS VPP app. |
+| app_store_apps.auto_update_window_start | string | body | **Optional**. The start time (in HH:MM format, local time) of the window during which automatic updates can occur. Required if `auto_update_enabled` is `true`. |
+| app_store_apps.auto_update_window_end | string | body | **Optional**. The end time (in HH:MM format, local time) of the window during which automatic updates can occur. Required if `auto_update_enabled` is `true`. |
 
 #### Example
 
@@ -4822,7 +4829,10 @@ _Available in Fleet Premium._
     },
     {
       "app_store_id": "497799835",
-      "self_service": true
+      "self_service": true,
+      "auto_update_enabled": true,
+      "auto_update_window_start": "01:00",
+      "auto_update_window_end": "05:00"
     }
   ]
 }
