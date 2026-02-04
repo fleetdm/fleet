@@ -2340,15 +2340,17 @@ Generated when global or team enroll secrets are modified.
 This activity contains the following fields:
 - "team_id": The ID of the team that the enroll secret applies to, `null` if it applies to devices that are not in a team.
 - "team_name": The name of the team that the enroll secret applies to, `null` if it applies to devices that are not in a team.
- 
+		This activity contains the following fields:
+
 #### Example
 
 ```json
 {
   "team_id": 1,
-  "team_name": "Workstations"
+  "team_name": "Workstations",
 }
 ```
+
 
 <meta name="title" value="Audit logs">
 <meta name="pageOrderInSection" value="1400">
