@@ -183,7 +183,7 @@ Users with access to multiple teams can be assigned different roles for each tea
 | View script details by host                                                                                                      | ✅            | ✅             | ✅              | ✅         |             |
 | Lock, unlock, and wipe hosts                                                                                                     |               |                | ✅              | ✅         |             |
 | Turn off MDM                                                                                                                     |               |                | ✅              | ✅         |             |
-| View custom variables   | ✅            | ✅             | ✅               | ✅         |         |
+| View [custom variables](https://fleetdm.com/docs/rest-api/rest-api#list-custom-variables)   | ✅            | ✅             | ✅               | ✅         |         |
 
 
 \* Applies only to [Fleet REST API](https://fleetdm.com/docs/using-fleet/rest-api)
