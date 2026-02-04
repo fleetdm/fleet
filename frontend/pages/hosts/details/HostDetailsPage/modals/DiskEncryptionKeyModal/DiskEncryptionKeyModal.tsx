@@ -1,6 +1,7 @@
 import React from "react";
 import { useQuery } from "react-query";
 
+import { getErrorReason } from "interfaces/errors";
 import { IHostEncrpytionKeyResponse } from "interfaces/host";
 import hostAPI from "services/entities/hosts";
 
@@ -50,7 +51,9 @@ const DiskEncryptionKeyModal = ({
       className={baseClass}
     >
       {encryptionKeyError ? (
-        <DataError />
+        <DataError
+          description={getErrorReason(encryptionKeyError) || undefined}
+        />
       ) : (
         <>
           <InputFieldHiddenContent value={encryptionKey ?? ""} />
