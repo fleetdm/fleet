@@ -1040,7 +1040,7 @@ func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetC
 	// For some reason osquery does not provide a node key with the block data.
 	// Instead the carve session ID should be verified in the service method.
 	// Since []byte slices is encoded as base64 in JSON, increase the limit to 1.5x
-	ne.WithRequestBodySizeLimit(int64(256*units.MiB*1.5)).WithAltPaths("/api/v1/osquery/carve/block").
+	ne.SkipRequestBodySizeLimit().WithAltPaths("/api/v1/osquery/carve/block").
 		POST("/api/osquery/carve/block", carveBlockEndpoint, carveBlockRequest{})
 
 	ne.GET("/api/_version_/fleet/software/titles/{title_id:[0-9]+}/package/token/{token}", downloadSoftwareInstallerEndpoint,
