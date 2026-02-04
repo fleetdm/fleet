@@ -38,8 +38,8 @@ class BootReceiver : BroadcastReceiver() {
 
                 WorkManager.getInstance(it)
                     .enqueueUniqueWork(
-                        CertificateEnrollmentWorker.WORK_NAME,
-                        ExistingWorkPolicy.REPLACE, // Cancel any pending work and run fresh
+                        "${CertificateEnrollmentWorker.WORK_NAME}_boot",
+                        ExistingWorkPolicy.REPLACE, // Run fresh enrollment on boot
                         workRequest,
                     )
 
