@@ -321,13 +321,11 @@ When a user requests that we delete all data we have stored about them, their da
 
 ### Create a task for a CSA
 
-If assistance is needed for research or solutioning by a CSA, create an issue on GitHub for tracking. Use our [regular repo](https://github.com/fleetdm/fleet/issues/new/choose) if it doesn't contain private information. Otherwise, use our [confidential repo](https://github.com/fleetdm/confidential/issues/new/choose).
+If assistance is needed for research or solutioning by a CSA, create an issue using the [CSA task template](github.com/fleetdm/fleet/issues/new?template=csa-task.md) for tracking.
 
-Select any template, but clear all of the information and labels, and add the `:help-customers` label. This will automatically add the task to the `:help-customers` project board, with the status of `New requests`.
+**Ensure all private data is scrubbed and customer code names are used.**
 
-Add as much context and detail as possible. If applicable, add information on the priority and deadline for the task.
-
-During the next standup meeting, the Manager of Customer Support and Solutions Architecture will triage the task.
+This will automatically be added to the `:help-customers` project board, with the status of `New requests`. During the next standup meeting, the Manager of Customer Support and Solutions Architecture will triage the task.
 
 
 ## Rituals
