@@ -1238,6 +1238,10 @@ func (s *integrationMDMTestSuite) TestCertificateTemplateRenewal() {
 	}
 }
 
+// TestCertificateTemplateAuthorizationForTeamUsers tests authorization for certificate templates with team-level users.
+// This test covers the bug fix where team admins/maintainers/gitops can read certificate templates for their own teams.
+// The bug was that CertificateTemplate struct was missing JSON tags, causing TeamID to serialize as "TeamID"
+// instead of "team_id", which prevented the OPA policy from matching correctly.
 func (s *integrationMDMTestSuite) TestCertificateTemplateAuthorizationForTeamUsers() {
 	t := s.T()
 	ctx := context.Background()
@@ -1297,30 +1301,7 @@ func (s *integrationMDMTestSuite) TestCertificateTemplateAuthorizationForTeamUse
 	// Switch to team admin token
 	s.token = teamAdminToken
 
-	t.Run("team admin can list 'no team' certificates", func(t *testing.T) {
-		s.token = originalToken
-		certTemplateNoTeamName := strings.ReplaceAll(t.Name(), "/", "-") + "-NoTeam-Cert"
-		var createResp createCertificateTemplateResponse
-		s.DoJSON("POST", "/api/latest/fleet/certificates", createCertificateTemplateRequest{
-			Name:                   certTemplateNoTeamName,
-			TeamID:                 0,
-			CertificateAuthorityId: caID,
-			SubjectName:            "CN=$FLEET_VAR_HOST_HARDWARE_SERIAL",
-		}, http.StatusOK, &createResp)
-		require.NotZero(t, createResp.ID)
-		noTeamCertID := createResp.ID
-
-		// Switch back to team admin
-		s.token = teamAdminToken
-
-		// Team admin should be able to list "No team" certificates
-		var listResp listCertificateTemplatesResponse
-		s.DoJSON("GET", "/api/latest/fleet/certificates?team_id=0", nil, http.StatusOK, &listResp)
-		require.Len(t, listResp.Certificates, 1)
-		require.Equal(t, noTeamCertID, listResp.Certificates[0].ID)
-		require.Equal(t, certTemplateNoTeamName, listResp.Certificates[0].Name)
-	})
-
+	// Team admin should be able to list certificate templates for their own team
 	t.Run("team admin can list own team certificates", func(t *testing.T) {
 		// Create a certificate template for the team using global admin
 		s.token = originalToken

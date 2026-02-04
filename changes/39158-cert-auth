@@ -1,2 +1,1 @@
 * Fixed bug where certificate template parameters where not serialized
-* Added "no team" special case for certifcate template policies
