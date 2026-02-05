@@ -623,6 +623,7 @@ export const isSoftwareInProgressStatus = (
 export const HOST_SOFTWARE_UI_SUCCESS_STATUSES = [
   "installed", // Present in inventory; no newer fleet installer version (tarballs: successful install only)
   "uninstalled", // Not present in inventory (tarballs: successful uninstall or never installed)
+  // NOTE: Recently statuses cannot apply to tarballs as we cannot detect inventory
   "recently_updated", // Update applied (installer newer than inventory), but inventory not yet refreshed
   "recently_installed", // Install applied (installer NOT newer than inventory), but inventory not yet refreshed
   "recently_uninstalled", // Uninstall applied, but inventory not yet refreshed

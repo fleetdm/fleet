@@ -7,6 +7,7 @@ import {
   IHostSoftware,
   IHostSoftwareUiStatus,
   IHostSoftwareWithUiStatus,
+  NO_VERSION_OR_HOST_DATA_SOURCES,
   SCRIPT_PACKAGE_SOURCES,
 } from "interfaces/software";
 import { IconNames } from "components/icons";
@@ -194,6 +195,11 @@ export const getUiStatus = (
   const lastUninstallDate = getLastUninstall(software)?.uninstalled_at;
   const installerVersion = getInstallerVersion(software);
   const isScriptPackage = SCRIPT_PACKAGE_SOURCES.includes(source);
+  // Scripts and tarballs do not report inventory, so skip inventory-based checks such as recently_installed/recently_uninstalled
+  // This will turn the ui_status to 'installed' or 'uninstalled' directly after install/uninstall of script/tarball packages succeeds
+  const willNotRetrieveInventory = NO_VERSION_OR_HOST_DATA_SOURCES.includes(
+    source
+  );
   /** True if a recent user-initiated action (install/uninstall) was detected for this software */
   const recentUserActionDetected =
     recentlyUpdatedIds && recentlyUpdatedIds.has(software.id);
@@ -269,7 +275,12 @@ export const getUiStatus = (
   }
 
   // Recently_uninstalled check comes BEFORE update_available
-  if (status === null && lastUninstallDate && hostSoftwareUpdatedAt) {
+  if (
+    status === null &&
+    lastUninstallDate &&
+    hostSoftwareUpdatedAt &&
+    willNotRetrieveInventory
+  ) {
     const newerDate = getNewerDate(hostSoftwareUpdatedAt, lastUninstallDate);
     if (newerDate === lastUninstallDate || recentUserActionDetected) {
       return "recently_uninstalled";
@@ -297,7 +308,7 @@ export const getUiStatus = (
 
   // 6. Recently installed (not an update)
   if (status === "installed") {
-    if (lastInstallDate && hostSoftwareUpdatedAt) {
+    if (lastInstallDate && hostSoftwareUpdatedAt && !willNotRetrieveInventory) {
       const newerDate = getNewerDate(hostSoftwareUpdatedAt, lastInstallDate);
       if (newerDate === lastInstallDate || recentUserActionDetected) {
         return "recently_installed";
