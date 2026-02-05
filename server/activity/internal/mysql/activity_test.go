@@ -387,20 +387,20 @@ func testListHostPastActivities(t *testing.T, env *testEnv) {
 	userID := env.InsertUser(t, "user1", "user1@example.com")
 	hostID := env.InsertHost(t, "h1.local", nil)
 
-	// Create activities linked to host
-	details := map[string]any{"host_id": float64(hostID), "script_name": "script_1.sh", "async": true}
-	env.InsertHostActivity(t, hostID, env.InsertActivity(t, ptr.Uint(userID), "ran_script", details))
-	env.InsertHostActivity(t, hostID, env.InsertActivity(t, ptr.Uint(userID), "ran_script", map[string]any{"host_id": float64(hostID), "async": false}))
+	// Create activities linked to host with different types
+	env.InsertHostActivity(t, hostID, env.InsertActivity(t, ptr.Uint(userID), "ran_script", map[string]any{"host_id": float64(hostID)}))
+	env.InsertHostActivity(t, hostID, env.InsertActivity(t, ptr.Uint(userID), "installed_software", map[string]any{"host_id": float64(hostID)}))
 
 	cases := []struct {
-		name     string
-		opts     types.ListOptions
-		wantLen  int
-		wantMeta *activityapi.PaginationMetadata
+		name      string
+		opts      types.ListOptions
+		wantLen   int
+		wantMeta  *activityapi.PaginationMetadata
+		wantTypes []string
 	}{
-		{"first page", listOpts(withPerPage(1), withPage(0), withMetadata()), 1, &activityapi.PaginationMetadata{HasNextResults: true, HasPreviousResults: false}},
-		{"second page", listOpts(withPerPage(1), withPage(1), withMetadata()), 1, &activityapi.PaginationMetadata{HasNextResults: false, HasPreviousResults: true}},
-		{"all activities", listOpts(withPerPage(2), withPage(0), withMetadata()), 2, &activityapi.PaginationMetadata{HasNextResults: false, HasPreviousResults: false}},
+		{"first page", listOpts(withPerPage(1), withPage(0), withMetadata()), 1, &activityapi.PaginationMetadata{HasNextResults: true, HasPreviousResults: false}, []string{"ran_script"}},
+		{"second page", listOpts(withPerPage(1), withPage(1), withMetadata()), 1, &activityapi.PaginationMetadata{HasNextResults: false, HasPreviousResults: true}, []string{"installed_software"}},
+		{"all activities", listOpts(withPerPage(2), withPage(0), withMetadata()), 2, &activityapi.PaginationMetadata{HasNextResults: false, HasPreviousResults: false}, []string{"ran_script", "installed_software"}},
 	}
 
 	for _, tc := range cases {
@@ -410,11 +410,11 @@ func testListHostPastActivities(t *testing.T, env *testEnv) {
 			require.Len(t, acts, tc.wantLen)
 			require.Equal(t, tc.wantMeta, meta)
 
-			// Verify fields
-			for _, a := range acts {
+			// Verify fields and activity types
+			for i, a := range acts {
 				require.Equal(t, "user1@example.com", *a.ActorEmail)
 				require.Equal(t, "user1", *a.ActorFullName)
-				require.Equal(t, "ran_script", a.Type)
+				require.Equal(t, tc.wantTypes[i], a.Type)
 				require.Equal(t, userID, *a.ActorID)
 				require.NotNil(t, a.Details)
 			}
