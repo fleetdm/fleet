@@ -38,7 +38,7 @@ Prompt injections can also be indirect, meaning, an autonomous agent may encount
 
 ## Can device management help?
 
-In the next article in this series, we will investigate the ways in which threat hunting and device management in Fleet can help to secure the use of OpenClaw or detect it to prevent its use.  
+In the next article in this series, we will investigate the ways in which threat hunting and device management with Fleet can help to secure the use of OpenClaw or detect it to prevent its use.  
 
 <meta name="articleTitle" value="OpenClaw: Open for work?">
 <meta name="authorFullName" value="Brock Walters">
