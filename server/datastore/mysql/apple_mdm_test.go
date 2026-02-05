@@ -10,6 +10,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"reflect"
 	"sort"
 	"strings"
 	"testing"
@@ -59,6 +60,7 @@ func TestMDMApple(t *testing.T) {
 		{"TestGetMDMAppleProfilesContents", testGetMDMAppleProfilesContents},
 		{"TestAggregateMacOSSettingsStatusWithFileVault", testAggregateMacOSSettingsStatusWithFileVault},
 		{"TestMDMAppleHostsProfilesStatus", testMDMAppleHostsProfilesStatus},
+		{"TestMDMAppleHostsDiskEncryption", testMDMAppleHostsDiskEncryption},
 		{"TestMDMAppleIdPAccount", testMDMAppleIdPAccount},
 		{"TestIgnoreMDMClientError", testDoNotIgnoreMDMClientError},
 		{"TestDeleteMDMAppleProfilesForHost", testDeleteMDMAppleProfilesForHost},
@@ -9739,4 +9741,38 @@ func testGetDEPAssignProfileExpiredCooldowns(t *testing.T, ds *Datastore) {
 	}
 	require.Len(t, allSerials, apple_mdm.DEPSyncLimit, "limit process cooldowns to sync limit")
 	require.LessOrEqual(t, len(allSerials), 1000, "never go above 1000 devices as per Apple's recommendations")
+}
+
+// TODO(JK): um
+func testMDMAppleHostsDiskEncryption(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	team, err := ds.NewTeam(ctx, &fleet.Team{Name: "test team"})
+	require.NoError(t, err)
+
+	// make a function that checks summary and list hosts
+
+	checkDiskEncryptionHostsAndSummary := func(status fleet.DiskEncryptionStatus, teamID *uint, expectedCount int) bool {
+		gotHosts, err := ds.ListHosts(ctx, fleet.TeamFilter{User: &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}}, fleet.HostListOptions{OSSettingsDiskEncryptionFilter: status, TeamFilter: &team.ID})
+		assert.NoError(t, err)
+		gotSummary, err := ds.GetMDMAppleFileVaultSummary(ctx, teamID)
+		assert.NoError(t, err)
+
+		// get field from specific field in gotSummary
+		um := reflect.TypeFor[fleet.MDMAppleFileVaultSummary]()
+		var theUm uint64
+		for i := 0; i < um.NumField(); i++ {
+			if value, ok := um.Field(i).Tag.Lookup("db"); ok {
+				if value == string(status) {
+					values := reflect.ValueOf(*gotSummary)
+					theUm = values.Field(i).Uint()
+					break
+				}
+			}
+		}
+
+		return assert.Len(t, gotHosts, expectedCount) && assert.Equal(t, int(theUm), expectedCount)
+	}
+
+	fmt.Println(checkDiskEncryptionHostsAndSummary(fleet.DiskEncryptionFailed, &team.ID, 0))
 }
