@@ -729,5 +729,15 @@
       "vendor": ["pgadmin"],
       "target_sw": ["postgresql"]
     }
+  },
+  {
+    "software": {
+      "name": ["Acrobat Reader"],
+      "source": ["apps"],
+      "bundle_identifier": ["com.adobe.Reader"]
+    },
+    "filter": {
+      "product": ["acrobat_reader_dc"]
+    }
   }
 ]
