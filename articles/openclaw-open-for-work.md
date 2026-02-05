@@ -10,7 +10,7 @@ OpenClaw integrates out-of-the-box with WhatsApp, Telegram, Discord, and iMessag
 
 Linking capabilities together with systems like Apple Shortcuts and similar tools has been possible for years, but users had to build the connections and rules themselves. That is no longer necessary. 
 
-Other benfits:
+Other benefits:
 
 - OpenClaw is open-source
 - OpenClaw can run on a computer the end user controls
