@@ -245,6 +245,7 @@ the account verification message.)`,
         firstName: firstName,
         lastName: lastName,
         contactSource: 'Website - Sign up',
+        description: `Signed up for a fleetdm.com account and was given a 30-day ${fleetPremiumTrialType}`,
         psychologicalStageChangeReason,
         marketingAttributionCookie: attributionCookieOrUndefined
       });
@@ -258,7 +259,7 @@ the account verification message.)`,
         salesforceAccountId: recordIds.salesforceAccountId,
         salesforceContactId: recordIds.salesforceContactId,
         eventType: 'Intent signal',
-        intentSignal: 'Signed up for a Fleetdm.com account',
+        intentSignal: 'Signed up for a fleetdm.com account',
       }).intercept((err)=>{
         return new Error(`Could not create an historical event. Full error: ${require('util').inspect(err)}`);
       });
