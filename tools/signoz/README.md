@@ -70,12 +70,6 @@ export OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:4317
 For faster feedback during development, you can reduce the batch processing delays on the Fleet side:
 
 ```bash
-# Tracing and logging
-export FLEET_LOGGING_TRACING_ENABLED=true
-export FLEET_LOGGING_OTEL_LOGS_ENABLED=true
-export OTEL_SERVICE_NAME=fleet
-export OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:4317
-
 # Batch span processor delay (default 5000ms)
 export OTEL_BSP_SCHEDULE_DELAY=1000
 
