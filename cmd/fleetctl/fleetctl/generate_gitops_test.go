@@ -324,7 +324,8 @@ func (MockClient) GetPolicies(teamID *uint) ([]*fleet.Policy, error) {
 					}, {
 						LabelName: "Label B",
 					}},
-					ConditionalAccessEnabled: true,
+					ConditionalAccessEnabled:       true,
+					ConditionalAccessBypassEnabled: true,
 				},
 				InstallSoftware: &fleet.PolicySoftwareTitle{
 					SoftwareTitleID: 1,
@@ -335,13 +336,14 @@ func (MockClient) GetPolicies(teamID *uint) ([]*fleet.Policy, error) {
 	return []*fleet.Policy{
 		{
 			PolicyData: fleet.PolicyData{
-				ID:                       1,
-				Name:                     "Team Policy",
-				Query:                    "SELECT * FROM team_policy WHERE id = 1",
-				Resolution:               ptr.String("Do a team thing"),
-				Description:              "This is a team policy",
-				Platform:                 "linux,windows",
-				ConditionalAccessEnabled: true,
+				ID:                             1,
+				Name:                           "Team Policy",
+				Query:                          "SELECT * FROM team_policy WHERE id = 1",
+				Resolution:                     ptr.String("Do a team thing"),
+				Description:                    "This is a team policy",
+				Platform:                       "linux,windows",
+				ConditionalAccessEnabled:       true,
+				ConditionalAccessBypassEnabled: true,
 			},
 			RunScript: &fleet.PolicyScript{
 				ID: 1,
