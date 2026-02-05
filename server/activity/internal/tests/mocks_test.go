@@ -73,3 +73,16 @@ func (m *mockHostProvider) GetHostLite(ctx context.Context, hostID uint) (*activ
 	}
 	return nil, nil
 }
+
+// mockDataProviders combines user and host providers for testing.
+type mockDataProviders struct {
+	*mockUserProvider
+	*mockHostProvider
+}
+
+func newMockDataProviders() *mockDataProviders {
+	return &mockDataProviders{
+		mockUserProvider: newMockUserProvider(),
+		mockHostProvider: newMockHostProvider(),
+	}
+}

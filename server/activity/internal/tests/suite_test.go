@@ -20,10 +20,9 @@ import (
 // integrationTestSuite holds all dependencies for integration tests.
 type integrationTestSuite struct {
 	*testutils.TestDB
-	ds           *mysql.Datastore
-	server       *httptest.Server
-	userProvider *mockUserProvider
-	hostProvider *mockHostProvider
+	ds        *mysql.Datastore
+	server    *httptest.Server
+	providers *mockDataProviders
 }
 
 // setupIntegrationTest creates a new test suite with a real database and HTTP server.
@@ -35,11 +34,10 @@ func setupIntegrationTest(t *testing.T) *integrationTestSuite {
 
 	// Create mocks
 	authorizer := &mockAuthorizer{}
-	userProvider := newMockUserProvider()
-	hostProvider := newMockHostProvider()
+	providers := newMockDataProviders()
 
 	// Create service
-	svc := service.NewService(authorizer, ds, userProvider, hostProvider, tdb.Logger)
+	svc := service.NewService(authorizer, ds, providers, tdb.Logger)
 
 	// Create router with routes
 	router := mux.NewRouter()
@@ -55,11 +53,10 @@ func setupIntegrationTest(t *testing.T) *integrationTestSuite {
 	})
 
 	return &integrationTestSuite{
-		TestDB:       tdb,
-		ds:           ds,
-		server:       server,
-		userProvider: userProvider,
-		hostProvider: hostProvider,
+		TestDB:    tdb,
+		ds:        ds,
+		server:    server,
+		providers: providers,
 	}
 }
 
@@ -75,7 +72,7 @@ func (s *integrationTestSuite) insertUser(t *testing.T, name, email string) uint
 	userID := s.TestDB.InsertUser(t, name, email)
 
 	// Also add to mock user provider for enrichment
-	s.userProvider.AddUser(&activity.User{
+	s.providers.mockUserProvider.AddUser(&activity.User{
 		ID:    userID,
 		Name:  name,
 		Email: email,
@@ -108,7 +105,7 @@ func (s *integrationTestSuite) insertHost(t *testing.T, hostname string, teamID 
 	hostID := s.TestDB.InsertHost(t, hostname, teamID)
 
 	// Also add to mock host provider for authorization checks
-	s.hostProvider.AddHost(&activity.Host{
+	s.providers.mockHostProvider.AddHost(&activity.Host{
 		ID:     hostID,
 		TeamID: teamID,
 	})

@@ -1045,6 +1045,12 @@ func (t *testingHostProvider) GetHostLite(ctx context.Context, hostID uint) (*ac
 	}, nil
 }
 
+// testingDataProviders combines user and host providers for testing.
+type testingDataProviders struct {
+	*testingUserProvider
+	*testingHostProvider
+}
+
 // NewTestActivityService creates an activity service. This allows tests to call the activity bounded context API.
 // User data is fetched from the same database to support tests that verify user info in activities.
 func NewTestActivityService(t testing.TB, ds *Datastore) activity_api.Service {
@@ -1055,12 +1061,14 @@ func NewTestActivityService(t testing.TB, ds *Datastore) activity_api.Service {
 	require.True(t, ok, "ds.replica should be *sqlx.DB in tests")
 	dbConns := &common_mysql.DBConnections{Primary: ds.primary, Replica: replica}
 
-	// Create providers that read from the datastore directly
-	userProvider := &testingUserProvider{ds: ds}
-	hostProvider := &testingHostProvider{ds: ds}
+	// Create combined provider that reads from the datastore directly
+	providers := &testingDataProviders{
+		testingUserProvider: &testingUserProvider{ds: ds},
+		testingHostProvider: &testingHostProvider{ds: ds},
+	}
 
 	// Create service via bootstrap (the public API for creating the bounded context)
-	svc, _ := activity_bootstrap.New(dbConns, &testingAuthorizer{}, userProvider, hostProvider, log.NewNopLogger())
+	svc, _ := activity_bootstrap.New(dbConns, &testingAuthorizer{}, providers, log.NewNopLogger())
 	return svc
 }
 

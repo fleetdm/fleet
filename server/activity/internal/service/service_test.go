@@ -85,13 +85,18 @@ func (m *mockHostProvider) GetHostLite(ctx context.Context, hostID uint) (*activ
 	return m.host, m.err
 }
 
+// mockDataProviders combines user and host providers for testing.
+type mockDataProviders struct {
+	*mockUserProvider
+	*mockHostProvider
+}
+
 // testSetup holds test dependencies with pre-configured mocks
 type testSetup struct {
-	svc   *Service
-	authz *mockAuthorizer
-	ds    *mockDatastore
-	users *mockUserProvider
-	hosts *mockHostProvider
+	svc       *Service
+	authz     *mockAuthorizer
+	ds        *mockDatastore
+	providers *mockDataProviders
 }
 
 // setupTest creates a service with default working mocks.
@@ -100,13 +105,15 @@ func setupTest(opts ...func(*testSetup)) *testSetup {
 	ts := &testSetup{
 		authz: &mockAuthorizer{},
 		ds:    &mockDatastore{},
-		users: &mockUserProvider{},
-		hosts: &mockHostProvider{},
+		providers: &mockDataProviders{
+			mockUserProvider: &mockUserProvider{},
+			mockHostProvider: &mockHostProvider{},
+		},
 	}
 	for _, opt := range opts {
 		opt(ts)
 	}
-	ts.svc = NewService(ts.authz, ts.ds, ts.users, ts.hosts, log.NewNopLogger())
+	ts.svc = NewService(ts.authz, ts.ds, ts.providers, log.NewNopLogger())
 	return ts
 }
 
@@ -129,19 +136,19 @@ func withDatastoreError(err error) func(*testSetup) {
 }
 
 func withUsers(users []*activity.User) func(*testSetup) {
-	return func(ts *testSetup) { ts.users.users = users }
+	return func(ts *testSetup) { ts.providers.mockUserProvider.users = users }
 }
 
 func withUsersByIDsError(err error) func(*testSetup) {
-	return func(ts *testSetup) { ts.users.listUsersErr = err }
+	return func(ts *testSetup) { ts.providers.mockUserProvider.listUsersErr = err }
 }
 
 func withSearchUserIDs(ids []uint) func(*testSetup) {
-	return func(ts *testSetup) { ts.users.searchUserIDs = ids }
+	return func(ts *testSetup) { ts.providers.mockUserProvider.searchUserIDs = ids }
 }
 
 func withSearchError(err error) func(*testSetup) {
-	return func(ts *testSetup) { ts.users.searchErr = err }
+	return func(ts *testSetup) { ts.providers.mockUserProvider.searchErr = err }
 }
 
 func TestListActivitiesBasic(t *testing.T) {
@@ -190,7 +197,7 @@ func TestListActivitiesWithUserEnrichment(t *testing.T) {
 	assert.Nil(t, meta)
 
 	// Verify user IDs were passed to UsersByIDs
-	assert.ElementsMatch(t, []uint{johnUser.ID, janeUser.ID}, ts.users.lastIDs)
+	assert.ElementsMatch(t, []uint{johnUser.ID, janeUser.ID}, ts.providers.mockUserProvider.lastIDs)
 
 	// Verify activity 1 was enriched with John's data
 	assert.Equal(t, johnUser.Email, *activities[0].ActorEmail)
@@ -245,7 +252,7 @@ func TestListActivitiesWithMatchQuery(t *testing.T) {
 	assert.Nil(t, meta, "metadata not configured in test setup")
 
 	// Verify FindUserIDs was called with the query
-	assert.Equal(t, "john", ts.users.lastQuery)
+	assert.Equal(t, "john", ts.providers.mockUserProvider.lastQuery)
 
 	// Verify all matching user IDs were passed to datastore (even those without activities)
 	assert.ElementsMatch(t, []uint{100, 200, 300}, ts.ds.lastOpt.MatchingUserIDs)
@@ -271,7 +278,7 @@ func TestListActivitiesWithMatchQueryNoMatchingUsers(t *testing.T) {
 	assert.Nil(t, meta)
 
 	// Verify FindUserIDs was called
-	assert.Equal(t, "nonexistent", ts.users.lastQuery)
+	assert.Equal(t, "nonexistent", ts.providers.mockUserProvider.lastQuery)
 
 	// Empty slice should be passed to datastore (not nil)
 	assert.NotNil(t, ts.ds.lastOpt.MatchingUserIDs)
@@ -298,7 +305,7 @@ func TestListActivitiesWithDuplicateUserIDs(t *testing.T) {
 	assert.Nil(t, meta)
 
 	// UsersByIDs should only be called with unique IDs (deduplication)
-	assert.Equal(t, []uint{johnUser.ID}, ts.users.lastIDs)
+	assert.Equal(t, []uint{johnUser.ID}, ts.providers.mockUserProvider.lastIDs)
 
 	// All activities should be enriched with John's data
 	for i, a := range activities {
@@ -469,7 +476,7 @@ func TestStreamActivities(t *testing.T) {
 		}
 
 		ds := &mockStreamingDatastore{activities: activities}
-		svc := NewService(&mockAuthorizer{}, ds, &mockUserProvider{}, &mockHostProvider{}, log.NewNopLogger())
+		svc := NewService(&mockAuthorizer{}, ds, &mockDataProviders{mockUserProvider: &mockUserProvider{}, mockHostProvider: &mockHostProvider{}}, log.NewNopLogger())
 
 		var auditLogger mockJSONLogger
 		err := svc.StreamActivities(ctx, &auditLogger)
@@ -499,7 +506,7 @@ func TestStreamActivities(t *testing.T) {
 		}
 
 		ds := &mockStreamingDatastore{activities: activities}
-		svc := NewService(&mockAuthorizer{}, ds, &mockUserProvider{}, &mockHostProvider{}, log.NewNopLogger())
+		svc := NewService(&mockAuthorizer{}, ds, &mockDataProviders{mockUserProvider: &mockUserProvider{}, mockHostProvider: &mockHostProvider{}}, log.NewNopLogger())
 
 		// Logger fails after first activity
 		auditLogger := mockJSONLogger{failAfter: 1}
@@ -522,7 +529,7 @@ func TestStreamActivities(t *testing.T) {
 		}
 
 		ds := &mockStreamingDatastore{activities: activities}
-		svc := NewService(&mockAuthorizer{}, ds, &mockUserProvider{}, &mockHostProvider{}, log.NewNopLogger())
+		svc := NewService(&mockAuthorizer{}, ds, &mockDataProviders{mockUserProvider: &mockUserProvider{}, mockHostProvider: &mockHostProvider{}}, log.NewNopLogger())
 
 		// Logger that fails immediately
 		immediateFailLogger := &immediateFailJSONLogger{}
@@ -539,7 +546,7 @@ func TestStreamActivities(t *testing.T) {
 		ctx := t.Context()
 
 		ds := &mockStreamingDatastore{activities: []*api.Activity{}}
-		svc := NewService(&mockAuthorizer{}, ds, &mockUserProvider{}, &mockHostProvider{}, log.NewNopLogger())
+		svc := NewService(&mockAuthorizer{}, ds, &mockDataProviders{mockUserProvider: &mockUserProvider{}, mockHostProvider: &mockHostProvider{}}, log.NewNopLogger())
 
 		var auditLogger mockJSONLogger
 		err := svc.StreamActivities(ctx, &auditLogger)
@@ -556,7 +563,7 @@ func TestStreamActivities(t *testing.T) {
 		ctx := t.Context()
 
 		ds := &mockStreamingDatastore{listErr: errors.New("database error")}
-		svc := NewService(&mockAuthorizer{}, ds, &mockUserProvider{}, &mockHostProvider{}, log.NewNopLogger())
+		svc := NewService(&mockAuthorizer{}, ds, &mockDataProviders{mockUserProvider: &mockUserProvider{}, mockHostProvider: &mockHostProvider{}}, log.NewNopLogger())
 
 		var auditLogger mockJSONLogger
 		err := svc.StreamActivities(ctx, &auditLogger)
@@ -577,7 +584,7 @@ func TestStreamActivities(t *testing.T) {
 			activities: activities,
 			markErr:    errors.New("mark error"),
 		}
-		svc := NewService(&mockAuthorizer{}, ds, &mockUserProvider{}, &mockHostProvider{}, log.NewNopLogger())
+		svc := NewService(&mockAuthorizer{}, ds, &mockDataProviders{mockUserProvider: &mockUserProvider{}, mockHostProvider: &mockHostProvider{}}, log.NewNopLogger())
 
 		var auditLogger mockJSONLogger
 		err := svc.StreamActivities(ctx, &auditLogger)

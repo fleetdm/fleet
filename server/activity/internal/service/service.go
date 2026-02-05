@@ -22,21 +22,19 @@ const streamBatchSize uint = 500
 
 // Service is the activity bounded context service implementation.
 type Service struct {
-	authz  platform_authz.Authorizer
-	store  types.Datastore
-	users  activity.UserProvider
-	hosts  activity.HostProvider
-	logger kitlog.Logger
+	authz     platform_authz.Authorizer
+	store     types.Datastore
+	providers activity.DataProviders
+	logger    kitlog.Logger
 }
 
 // NewService creates a new activity service.
-func NewService(authz platform_authz.Authorizer, store types.Datastore, users activity.UserProvider, hosts activity.HostProvider, logger kitlog.Logger) *Service {
+func NewService(authz platform_authz.Authorizer, store types.Datastore, providers activity.DataProviders, logger kitlog.Logger) *Service {
 	return &Service{
-		authz:  authz,
-		store:  store,
-		users:  users,
-		hosts:  hosts,
-		logger: logger,
+		authz:     authz,
+		store:     store,
+		providers: providers,
+		logger:    logger,
 	}
 }
 
@@ -59,7 +57,7 @@ func (s *Service) ListActivities(ctx context.Context, opt api.ListOptions) ([]*a
 
 	// If searching, also search users table to get matching user IDs.
 	if opt.MatchQuery != "" {
-		userIDs, err := s.users.FindUserIDs(ctx, opt.MatchQuery)
+		userIDs, err := s.providers.FindUserIDs(ctx, opt.MatchQuery)
 		if err != nil {
 			return nil, nil, ctxerr.Wrap(ctx, err, "failed to search users for activity query")
 		}
@@ -95,7 +93,7 @@ func (s *Service) ListHostPastActivities(ctx context.Context, hostID uint, opt a
 	}
 
 	// Fetch host to get team_id for authorization
-	host, err := s.hosts.GetHostLite(ctx, hostID)
+	host, err := s.providers.GetHostLite(ctx, hostID)
 	if err != nil {
 		return nil, nil, ctxerr.Wrap(ctx, err, "get host")
 	}
@@ -142,7 +140,7 @@ func (s *Service) enrichWithUserData(ctx context.Context, activities []*api.Acti
 		return nil
 	}
 
-	users, err := s.users.UsersByIDs(ctx, slices.Collect(maps.Keys(lookup)))
+	users, err := s.providers.UsersByIDs(ctx, slices.Collect(maps.Keys(lookup)))
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "list users for activity enrichment")
 	}

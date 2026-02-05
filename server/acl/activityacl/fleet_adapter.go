@@ -16,13 +16,12 @@ import (
 // FleetServiceAdapter provides access to Fleet service methods
 // for data that the activity bounded context doesn't own.
 type FleetServiceAdapter struct {
-	userSvc fleet.UserLookupService
-	hostSvc fleet.HostLookupService
+	svc fleet.LookupService
 }
 
 // NewFleetServiceAdapter creates a new adapter for the Fleet service.
-func NewFleetServiceAdapter(userSvc fleet.UserLookupService, hostSvc fleet.HostLookupService) *FleetServiceAdapter {
-	return &FleetServiceAdapter{userSvc: userSvc, hostSvc: hostSvc}
+func NewFleetServiceAdapter(svc fleet.LookupService) *FleetServiceAdapter {
+	return &FleetServiceAdapter{svc: svc}
 }
 
 // Ensure FleetServiceAdapter implements activity.UserProvider and activity.HostProvider
@@ -38,7 +37,7 @@ func (a *FleetServiceAdapter) UsersByIDs(ctx context.Context, ids []uint) ([]*ac
 	}
 
 	// Fetch only the requested users by their IDs
-	users, err := a.userSvc.UsersByIDs(ctx, ids)
+	users, err := a.svc.UsersByIDs(ctx, ids)
 	if err != nil {
 		return nil, err
 	}
@@ -58,7 +57,7 @@ func (a *FleetServiceAdapter) FindUserIDs(ctx context.Context, query string) ([]
 	}
 
 	// Search users via Fleet service with the query
-	users, err := a.userSvc.ListUsers(ctx, fleet.UserListOptions{
+	users, err := a.svc.ListUsers(ctx, fleet.UserListOptions{
 		ListOptions: fleet.ListOptions{
 			MatchQuery: query,
 		},
@@ -76,7 +75,7 @@ func (a *FleetServiceAdapter) FindUserIDs(ctx context.Context, query string) ([]
 
 // GetHostLite fetches minimal host information for authorization.
 func (a *FleetServiceAdapter) GetHostLite(ctx context.Context, hostID uint) (*activity.Host, error) {
-	host, err := a.hostSvc.GetHostLite(ctx, hostID)
+	host, err := a.svc.GetHostLite(ctx, hostID)
 	if err != nil {
 		return nil, err
 	}

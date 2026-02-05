@@ -89,6 +89,13 @@ type HostLookupService interface {
 	GetHostLite(ctx context.Context, id uint) (host *Host, err error)
 }
 
+// LookupService combines UserLookupService and HostLookupService for components
+// that need both user and host lookup capabilities.
+type LookupService interface {
+	UserLookupService
+	HostLookupService
+}
+
 type Service interface {
 	OsqueryService
 	UserLookupService

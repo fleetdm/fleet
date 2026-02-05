@@ -1722,11 +1722,10 @@ func createActivityBoundedContext(svc fleet.Service, dbConns *common_mysql.DBCon
 		initFatal(err, "initializing activity authorizer")
 	}
 	activityAuthorizer := authz.NewAuthorizerAdapter(legacyAuthorizer)
-	activityACLAdapter := activityacl.NewFleetServiceAdapter(svc, svc)
+	activityACLAdapter := activityacl.NewFleetServiceAdapter(svc)
 	activitySvc, activityRoutesFn := activity_bootstrap.New(
 		dbConns,
 		activityAuthorizer,
-		activityACLAdapter,
 		activityACLAdapter,
 		logger,
 	)
