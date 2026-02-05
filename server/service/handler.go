@@ -36,8 +36,8 @@ import (
 	"github.com/fleetdm/fleet/v4/server/service/middleware/mdmconfigured"
 	"github.com/fleetdm/fleet/v4/server/service/middleware/otel"
 
-  "github.com/docker/go-units"
-  kithttp "github.com/go-kit/kit/transport/http"
+	"github.com/docker/go-units"
+	kithttp "github.com/go-kit/kit/transport/http"
 	kitlog "github.com/go-kit/log"
 	"github.com/go-kit/log/level"
 	"github.com/gorilla/mux"
