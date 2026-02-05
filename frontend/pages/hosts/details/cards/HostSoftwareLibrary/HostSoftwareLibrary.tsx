@@ -179,6 +179,7 @@ const HostSoftwareLibrary = ({
     }));
   }, [hostSoftwareLibraryRes, isHostOnline, softwareUpdatedAt]);
 
+  console.log("enhancedSoftware in HostSoftwareLibrary:", enhancedSoftware);
   const pendingSoftwareSetRef = useRef<Set<string>>(new Set()); // Track for polling
   const pollingTimeoutIdRef = useRef<NodeJS.Timeout | null>(null);
   const isAwaitingHostDetailsPolling = useRef(isHostDetailsPolling);

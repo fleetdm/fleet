@@ -197,7 +197,7 @@ export const getUiStatus = (
   const isScriptPackage = SCRIPT_PACKAGE_SOURCES.includes(source);
   // Scripts and tarballs do not report inventory, so skip inventory-based checks such as recently_installed/recently_uninstalled
   // This will turn the ui_status to 'installed' or 'uninstalled' directly after install/uninstall of script/tarball packages succeeds
-  const willNotRetrieveInventory = NO_VERSION_OR_HOST_DATA_SOURCES.includes(
+  const incompatibleWithInventory = NO_VERSION_OR_HOST_DATA_SOURCES.includes(
     source
   );
   /** True if a recent user-initiated action (install/uninstall) was detected for this software */
@@ -279,7 +279,7 @@ export const getUiStatus = (
     status === null &&
     lastUninstallDate &&
     hostSoftwareUpdatedAt &&
-    willNotRetrieveInventory
+    !incompatibleWithInventory // Skip recently installed UI status as we are not waiting for inventory updates
   ) {
     const newerDate = getNewerDate(hostSoftwareUpdatedAt, lastUninstallDate);
     if (newerDate === lastUninstallDate || recentUserActionDetected) {
@@ -308,7 +308,11 @@ export const getUiStatus = (
 
   // 6. Recently installed (not an update)
   if (status === "installed") {
-    if (lastInstallDate && hostSoftwareUpdatedAt && !willNotRetrieveInventory) {
+    if (
+      lastInstallDate &&
+      hostSoftwareUpdatedAt &&
+      !incompatibleWithInventory // Skip recently installed UI status as we are not waiting for inventory updates
+    ) {
       const newerDate = getNewerDate(hostSoftwareUpdatedAt, lastInstallDate);
       if (newerDate === lastInstallDate || recentUserActionDetected) {
         return "recently_installed";
