@@ -856,8 +856,6 @@ func TestUpdateHost(t *testing.T) {
 		require.Equal(t, enterpriseSpecificID, capturedHost.Host.UUID, "UUID should be set from device data")
 	})
 
-	// TODO I don't understand this test. Existing devices w/o enterprise specific ID break fleet. I don't think
-	// real customers should have any
 	t.Run("Company-owned device update should update the host", func(t *testing.T) {
 		// Reset the mock invocation flag
 		mockDS.UpdateAndroidHostFuncInvoked = false
