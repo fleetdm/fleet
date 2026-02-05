@@ -776,7 +776,8 @@ type SoftwarePackageSpec struct {
 	Icon               TeamSpecSoftwareAsset `json:"icon"`
 
 	// FMA
-	Slug *string `json:"slug"`
+	Slug    *string `json:"slug"`
+	Version string  `json:"version"` // TODO(JK): fine that it's not a pointer? Rename to MaintainedAppVersion? FMAVersion?
 
 	// ReferencedYamlPath is the resolved path of the file used to fill the
 	// software package. Only present after parsing a GitOps file on the fleetctl
@@ -817,6 +818,7 @@ func resolveApplyRelativePath(baseDir string, path string) string {
 
 type MaintainedAppSpec struct {
 	Slug               string                `json:"slug"`
+	Version            string                `json:"version"`
 	SelfService        bool                  `json:"self_service"`
 	PreInstallQuery    TeamSpecSoftwareAsset `json:"pre_install_query"`
 	InstallScript      TeamSpecSoftwareAsset `json:"install_script"`
@@ -832,6 +834,7 @@ type MaintainedAppSpec struct {
 func (spec MaintainedAppSpec) ToSoftwarePackageSpec() SoftwarePackageSpec {
 	return SoftwarePackageSpec{
 		Slug:               &spec.Slug,
+		Version:            spec.Version,
 		PreInstallQuery:    spec.PreInstallQuery,
 		InstallScript:      spec.InstallScript,
 		PostInstallScript:  spec.PostInstallScript,

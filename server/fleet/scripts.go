@@ -441,8 +441,9 @@ type SoftwareInstallerPayload struct {
 	Categories      []string `json:"categories"`
 	DisplayName     string   `json:"display_name"`
 	// This is to support FMAs
-	Slug          *string        `json:"slug"`
-	MaintainedApp *MaintainedApp `json:"-"`
+	Slug                  *string        `json:"slug"`
+	MaintainedApp         *MaintainedApp `json:"-"`
+	FMAVersionPlaceholder string         `json:"fmaplaceholder"` // TODO(JK): this needs to be in the json so it can be sent to the batch request
 
 	IconPath string `json:"-"`
 	IconHash string `json:"-"`

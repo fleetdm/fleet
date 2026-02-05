@@ -1336,6 +1336,9 @@ func parseSoftware(top map[string]json.RawMessage, result *GitOps, baseDir strin
 			continue
 		}
 
+		fmt.Println("---------------- ummmmmmmmmm -------------------")
+		fmt.Println(maintainedAppSpec)
+
 		maintainedAppSpec = maintainedAppSpec.ResolveSoftwarePackagePaths(baseDir)
 
 		// handle secrets

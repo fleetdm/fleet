@@ -1931,6 +1931,7 @@ func (svc *Service) BatchSetSoftwareInstallers(
 
 	// Verify payloads first, to prevent starting the download+upload process if the data is invalid.
 	for _, payload := range payloads {
+		fmt.Println("--- payload ---")
 		if payload.Slug != nil && *payload.Slug != "" {
 			err := svc.softwareInstallerPayloadFromSlug(ctx, payload, teamID)
 			if err != nil {
@@ -2005,6 +2006,14 @@ func (svc *Service) softwareInstallerPayloadFromSlug(ctx context.Context, payloa
 	slug := payload.Slug
 	if slug == nil || *slug == "" {
 		return nil
+	}
+
+	// if a specific version is specific, check if it exists in (TODO) whatever the cache is
+	// and use that instead
+	if payload.FMAVersionPlaceholder != "" {
+		// TODO(JK): validate version
+		// future changes will want to check this version against the cache of available ones
+		fmt.Println("hello!!!!!  _______________________________________ version: ", payload.FMAVersionPlaceholder)
 	}
 
 	app, err := svc.ds.GetMaintainedAppBySlug(ctx, *slug, teamID)
