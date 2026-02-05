@@ -1,14 +1,14 @@
 {
   "versions": [
     {
-      "version": "11.8.0",
+      "version": "11.9.0",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.axosoft.gitkraken';"
       },
-      "installer_url": "https://api.gitkraken.dev/releases/production/darwin/arm64/11.8.0/GitKraken-v11.8.0.zip",
+      "installer_url": "https://api.gitkraken.dev/releases/production/darwin/arm64/11.9.0/GitKraken-v11.9.0.zip",
       "install_script_ref": "67fc05b4",
       "uninstall_script_ref": "6b25814c",
-      "sha256": "28979b4cfd09e87dda1444ebfcfb17ee6a6fc66a6d1a2887ee731b706d1bbad5",
+      "sha256": "1147c8d09a067b8436fe75afae38341912fc4ce1f25fe9919e1121b041d0558c",
       "default_categories": [
         "Developer tools"
       ]
