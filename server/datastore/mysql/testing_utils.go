@@ -25,7 +25,7 @@ import (
 	"time"
 
 	"github.com/WatchBeam/clock"
-	"github.com/fleetdm/fleet/v4/server/activity"
+	"github.com/fleetdm/fleet/v4/server/acl/activityacl"
 	activity_api "github.com/fleetdm/fleet/v4/server/activity/api"
 	activity_bootstrap "github.com/fleetdm/fleet/v4/server/activity/bootstrap"
 	"github.com/fleetdm/fleet/v4/server/config"
@@ -983,72 +983,24 @@ func (t *testingAuthorizer) Authorize(_ context.Context, _ platform_authz.AuthzT
 	return nil
 }
 
-// testingUserProvider adapts mysql.Datastore to activity.UserProvider interface.
-type testingUserProvider struct {
+// testingLookupService adapts mysql.Datastore to fleet.LookupService interface.
+// This allows tests to use the real activityacl.FleetServiceAdapter instead of
+// duplicating the conversion logic.
+type testingLookupService struct {
 	ds *Datastore
 }
 
-func (t *testingUserProvider) UsersByIDs(ctx context.Context, ids []uint) ([]*activity.User, error) {
-	if len(ids) == 0 {
-		return nil, nil
-	}
-	users, err := t.ds.UsersByIDs(ctx, ids)
-	if err != nil {
-		return nil, err
-	}
-	result := make([]*activity.User, 0, len(users))
-	for _, u := range users {
-		result = append(result, &activity.User{
-			ID:       u.ID,
-			Name:     u.Name,
-			Email:    u.Email,
-			Gravatar: u.GravatarURL,
-			APIOnly:  u.APIOnly,
-		})
-	}
-	return result, nil
+func (t *testingLookupService) ListUsers(ctx context.Context, opt fleet.UserListOptions) ([]*fleet.User, error) {
+	return t.ds.ListUsers(ctx, opt)
 }
 
-func (t *testingUserProvider) FindUserIDs(ctx context.Context, query string) ([]uint, error) {
-	if query == "" {
-		return nil, nil
-	}
-	users, err := t.ds.ListUsers(ctx, fleet.UserListOptions{
-		ListOptions: fleet.ListOptions{
-			MatchQuery: query,
-		},
-	})
-	if err != nil {
-		return nil, err
-	}
-	ids := make([]uint, 0, len(users))
-	for _, u := range users {
-		ids = append(ids, u.ID)
-	}
-	return ids, nil
+func (t *testingLookupService) UsersByIDs(ctx context.Context, ids []uint) ([]*fleet.UserSummary, error) {
+	return t.ds.UsersByIDs(ctx, ids)
 }
 
-// testingHostProvider adapts mysql.Datastore to activity.HostProvider interface.
-// Datastore has HostLite, but HostProvider interface expects GetHostLite.
-type testingHostProvider struct {
-	ds *Datastore
-}
-
-func (t *testingHostProvider) GetHostLite(ctx context.Context, hostID uint) (*activity.Host, error) {
-	host, err := t.ds.HostLite(ctx, hostID)
-	if err != nil {
-		return nil, err
-	}
-	return &activity.Host{
-		ID:     host.ID,
-		TeamID: host.TeamID,
-	}, nil
-}
-
-// testingDataProviders combines user and host providers for testing.
-type testingDataProviders struct {
-	*testingUserProvider
-	*testingHostProvider
+// GetHostLite adapts Datastore.HostLite to the LookupService interface.
+func (t *testingLookupService) GetHostLite(ctx context.Context, id uint) (*fleet.Host, error) {
+	return t.ds.HostLite(ctx, id)
 }
 
 // NewTestActivityService creates an activity service. This allows tests to call the activity bounded context API.
@@ -1061,11 +1013,9 @@ func NewTestActivityService(t testing.TB, ds *Datastore) activity_api.Service {
 	require.True(t, ok, "ds.replica should be *sqlx.DB in tests")
 	dbConns := &common_mysql.DBConnections{Primary: ds.primary, Replica: replica}
 
-	// Create combined provider that reads from the datastore directly
-	providers := &testingDataProviders{
-		testingUserProvider: &testingUserProvider{ds: ds},
-		testingHostProvider: &testingHostProvider{ds: ds},
-	}
+	// Use the real ACL adapter with a testing lookup service
+	lookupSvc := &testingLookupService{ds: ds}
+	providers := activityacl.NewFleetServiceAdapter(lookupSvc)
 
 	// Create service via bootstrap (the public API for creating the bounded context)
 	svc, _ := activity_bootstrap.New(dbConns, &testingAuthorizer{}, providers, log.NewNopLogger())
