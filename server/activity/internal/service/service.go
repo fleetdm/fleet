@@ -12,8 +12,8 @@ import (
 	"github.com/fleetdm/fleet/v4/server/activity/internal/types"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	platform_authz "github.com/fleetdm/fleet/v4/server/platform/authz"
+	"github.com/fleetdm/fleet/v4/server/ptr"
 	kitlog "github.com/go-kit/log"
-	"github.com/go-kit/log/level"
 	"github.com/hashicorp/go-multierror"
 )
 
@@ -77,17 +77,9 @@ func (s *Service) ListActivities(ctx context.Context, opt api.ListOptions) ([]*a
 	return activities, meta, nil
 }
 
-// MarkActivitiesAsStreamed marks the given activities as streamed.
-// This is called by the cron job after successfully streaming activities to the audit logger.
-// No authorization required as this is an internal operation.
-func (s *Service) MarkActivitiesAsStreamed(ctx context.Context, activityIDs []uint) error {
-	return s.store.MarkActivitiesAsStreamed(ctx, activityIDs)
-}
-
 // ListHostPastActivities returns past activities for a specific host.
 func (s *Service) ListHostPastActivities(ctx context.Context, hostID uint, opt api.ListOptions) ([]*api.Activity, *api.PaginationMetadata, error) {
-	// First ensure the user has access to list hosts, then check the specific
-	// host once team_id is loaded.
+	// First ensure the user has access to list hosts, then check the specific host once team_id is loaded.
 	if err := s.authz.Authorize(ctx, &activity.Host{}, platform_authz.ActionList); err != nil {
 		return nil, nil, err
 	}
@@ -116,11 +108,7 @@ func (s *Service) ListHostPastActivities(ctx context.Context, hostID uint, opt a
 
 	// Enrich activities with user data via ACL
 	if err := s.enrichWithUserData(ctx, activities); err != nil {
-		if platform_authz.IsForbidden(err) {
-			level.Debug(s.logger).Log("msg", "user enrichment forbidden, proceeding without enrichment", "err", err)
-		} else {
-			return nil, nil, ctxerr.Wrap(ctx, err, "failed to enrich activities with user data")
-		}
+		return nil, nil, ctxerr.Wrap(ctx, err, "enrich activities with user data")
 	}
 
 	return activities, meta, nil
@@ -173,7 +161,7 @@ func (s *Service) StreamActivities(systemCtx context.Context, auditLogger api.JS
 			OrderDirection: api.OrderAscending,
 			PerPage:        streamBatchSize,
 			Page:           page,
-			Streamed:       ptrBool(false),
+			Streamed:       ptr.Bool(false),
 		})
 		if err != nil {
 			return ctxerr.Wrap(systemCtx, err, "list activities")
@@ -210,7 +198,7 @@ func (s *Service) StreamActivities(systemCtx context.Context, auditLogger api.JS
 		s.logger.Log("streamed-events", len(streamedIDs))
 
 		// (3) Mark the streamed activities as streamed.
-		if err := s.MarkActivitiesAsStreamed(systemCtx, streamedIDs); err != nil {
+		if err := s.store.MarkActivitiesAsStreamed(systemCtx, streamedIDs); err != nil {
 			multiErr = multierror.Append(multiErr, ctxerr.Wrap(systemCtx, err, "mark activities as streamed"))
 		}
 
@@ -224,9 +212,4 @@ func (s *Service) StreamActivities(systemCtx context.Context, auditLogger api.JS
 		}
 		page++
 	}
-}
-
-// ptrBool returns a pointer to the given bool value.
-func ptrBool(b bool) *bool {
-	return &b
 }

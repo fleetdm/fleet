@@ -7,6 +7,5 @@ package api
 type Service interface {
 	ListActivitiesService
 	ListHostPastActivitiesService
-	MarkActivitiesAsStreamedService
 	StreamActivitiesService
 }

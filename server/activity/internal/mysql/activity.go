@@ -16,7 +16,6 @@ import (
 	"github.com/go-kit/log/level"
 	"github.com/jmoiron/sqlx"
 	"go.opentelemetry.io/otel"
-	"go.opentelemetry.io/otel/trace"
 )
 
 // tracer is an OTEL tracer. It has no-op behavior when OTEL is not enabled.
@@ -43,8 +42,7 @@ var _ types.Datastore = (*Datastore)(nil)
 
 // ListActivities returns a slice of activities performed across the organization.
 func (ds *Datastore) ListActivities(ctx context.Context, opt types.ListOptions) ([]*api.Activity, *api.PaginationMetadata, error) {
-	ctx, span := tracer.Start(ctx, "activity.mysql.ListActivities",
-		trace.WithSpanKind(trace.SpanKindInternal))
+	ctx, span := tracer.Start(ctx, "activity.mysql.ListActivities")
 	defer span.End()
 
 	activitiesQ := `
@@ -141,8 +139,7 @@ func (ds *Datastore) MarkActivitiesAsStreamed(ctx context.Context, activityIDs [
 		return nil
 	}
 
-	ctx, span := tracer.Start(ctx, "activity.mysql.MarkActivitiesAsStreamed",
-		trace.WithSpanKind(trace.SpanKindInternal))
+	ctx, span := tracer.Start(ctx, "activity.mysql.MarkActivitiesAsStreamed")
 	defer span.End()
 
 	stmt := `UPDATE activities SET streamed = true WHERE id IN (?);`
@@ -158,8 +155,7 @@ func (ds *Datastore) MarkActivitiesAsStreamed(ctx context.Context, activityIDs [
 
 // ListHostPastActivities returns past activities for a specific host.
 func (ds *Datastore) ListHostPastActivities(ctx context.Context, hostID uint, opt types.ListOptions) ([]*api.Activity, *api.PaginationMetadata, error) {
-	ctx, span := tracer.Start(ctx, "activity.mysql.ListHostPastActivities",
-		trace.WithSpanKind(trace.SpanKindInternal))
+	ctx, span := tracer.Start(ctx, "activity.mysql.ListHostPastActivities")
 	defer span.End()
 
 	const listStmt = `
