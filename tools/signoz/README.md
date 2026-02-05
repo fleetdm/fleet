@@ -60,7 +60,7 @@ export FLEET_LOGGING_OTEL_LOGS_ENABLED=true
 export OTEL_SERVICE_NAME=fleet
 export OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:4317
 
-./build/fleet serve --dev
+./build/fleet serve
 ```
 
 > **Note:** All log levels (including debug) are always sent to SigNoz regardless of the `--logging_debug` flag. That flag only controls stderr output.
@@ -84,10 +84,9 @@ export OTEL_BLRP_EXPORT_TIMEOUT=1000
 export OTEL_BLRP_SCHEDULE_DELAY=500
 export OTEL_BLRP_MAX_EXPORT_BATCH_SIZE=1
 
-./build/fleet serve --dev
+./build/fleet serve
 ```
 
 ## Using SigNoz
 
 After starting Fleet with the above configuration, you should start seeing traces, logs, and metrics in SigNoz UI at http://localhost:8085.
-
