@@ -10,7 +10,10 @@ import (
 
 type key int
 
-const tokenKey key = 0
+const (
+	tokenKey       key = 0
+	tokenDelimiter     = " "
+)
 
 // Token is the concrete type that represents Fleet session tokens
 type Token string
@@ -19,14 +22,17 @@ type Token string
 // from an HTTP request if present.
 func FromHTTPRequest(r *http.Request) Token {
 	headers := r.Header.Get("Authorization")
-	headerParts := strings.Split(headers, " ")
-	if len(headerParts) > 0 && strings.ToUpper(headerParts[0]) == "BEARER" {
-		if len(headerParts) == 2 {
-			return Token(headerParts[1])
+	headerParts, ok := splitToken(headers)
+
+	// If the Authorization header is present and properly formatted, return the token.
+	if ok && strings.ToUpper(headerParts[0]) == "BEARER" {
+		if headerParts[1] == "" {
+			// Empty "BEARER" value in header, return empty token
+			return ""
 		}
-		// This indicates "no token". We don't want to read the request-body here.
-		return ""
+		return Token(headerParts[1])
 	}
+	// If the Authorization header is not present, try to extract the token from the form data.
 	if err := r.ParseForm(); err != nil {
 		return ""
 	}
@@ -45,4 +51,22 @@ func NewContext(ctx context.Context, token Token) context.Context {
 func FromContext(ctx context.Context) (Token, bool) {
 	token, ok := ctx.Value(tokenKey).(Token)
 	return token, ok
+}
+
+func splitToken(token string) ([]string, bool) {
+	parts := make([]string, 2)
+	tokenType, remain, found := strings.Cut(token, tokenDelimiter)
+	if !found {
+		return nil, false
+	}
+	parts[0] = tokenType
+	// Ensure the token value is the last part of the string and there are no more
+	// delimiters. This avoids an issue where malicious input could contain additional delimiters
+	// causing unecessary overhead parsing tokens.
+	tokenVal, _, unexpectedDelimeterFound := strings.Cut(remain, tokenDelimiter)
+	if unexpectedDelimeterFound {
+		return nil, false
+	}
+	parts[1] = tokenVal
+	return parts, true
 }
