@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"maps"
 	"slices"
+	"strconv"
 
 	"github.com/fleetdm/fleet/v4/server/activity"
 	"github.com/fleetdm/fleet/v4/server/activity/api"
@@ -152,15 +153,23 @@ func (s *Service) enrichWithUserData(ctx context.Context, activities []*api.Acti
 
 // StreamActivities streams unstreamed activities to the provided audit logger.
 // The systemCtx should be a context with system-level authorization (no user context).
+//
+// This function uses cursor-based pagination (using activity ID) instead of offset-based
+// pagination to handle two scenarios correctly:
+//   - Replication lag: The replica may still show activities as unstreamed after they've been
+//     marked as streamed on the primary. Cursor-based pagination skips past already-processed
+//     IDs regardless of the replica's streamed status.
+//   - Result set changes: As activities are marked as streamed, the result set shrinks.
+//     Offset-based pagination would skip items, but cursor-based pagination doesn't.
 func (s *Service) StreamActivities(systemCtx context.Context, auditLogger api.JSONLogger) error {
-	page := uint(0)
+	var afterID uint
 	for {
-		// (1) Get batch of activities that haven't been streamed.
+		// (1) Get batch of activities that haven't been streamed, starting after the last processed ID.
 		activitiesToStream, _, err := s.ListActivities(systemCtx, api.ListOptions{
 			OrderKey:       "id",
 			OrderDirection: api.OrderAscending,
 			PerPage:        streamBatchSize,
-			Page:           page,
+			After:          idCursor(afterID),
 			Streamed:       ptr.Bool(false),
 		})
 		if err != nil {
@@ -179,20 +188,21 @@ func (s *Service) StreamActivities(systemCtx context.Context, auditLogger api.JS
 		// one auditLogger.Write call) to know which ones succeeded/failed,
 		// and also because this method happens asynchronously,
 		// so we don't need real-time performance.
-		for _, activity := range activitiesToStream {
-			b, err := json.Marshal(activity)
+		for _, act := range activitiesToStream {
+			b, err := json.Marshal(act)
 			if err != nil {
 				return ctxerr.Wrap(systemCtx, err, "marshal activity")
 			}
 			if err := auditLogger.Write(systemCtx, []json.RawMessage{json.RawMessage(b)}); err != nil {
 				if len(streamedIDs) == 0 {
-					return ctxerr.Wrapf(systemCtx, err, "stream first activity: %d", activity.ID)
+					return ctxerr.Wrapf(systemCtx, err, "stream first activity: %d", act.ID)
 				}
-				multiErr = multierror.Append(multiErr, ctxerr.Wrapf(systemCtx, err, "stream activity: %d", activity.ID))
+				multiErr = multierror.Append(multiErr, ctxerr.Wrapf(systemCtx, err, "stream activity: %d", act.ID))
 				// We stop streaming upon the first error (will retry on next cron iteration)
 				break
 			}
-			streamedIDs = append(streamedIDs, activity.ID)
+			streamedIDs = append(streamedIDs, act.ID)
+			afterID = act.ID
 		}
 
 		s.logger.Log("streamed-events", len(streamedIDs))
@@ -210,6 +220,14 @@ func (s *Service) StreamActivities(systemCtx context.Context, auditLogger api.JS
 		if len(activitiesToStream) < int(streamBatchSize) { //nolint:gosec // dismiss G115
 			return nil
 		}
-		page++
 	}
+}
+
+// idCursor converts an activity ID to a cursor string for pagination.
+// Returns empty string for ID 0 (start from beginning).
+func idCursor(id uint) string {
+	if id == 0 {
+		return ""
+	}
+	return strconv.FormatUint(uint64(id), 10)
 }

@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"strconv"
 	"testing"
 
 	"github.com/fleetdm/fleet/v4/server/activity"
@@ -418,13 +419,12 @@ func (j *mockJSONLogger) Write(ctx context.Context, logs []json.RawMessage) erro
 
 // mockStreamingDatastore extends mockDatastore with streaming-specific behavior.
 type mockStreamingDatastore struct {
-	activities       []*api.Activity
-	streamedIDs      []uint
-	listErr          error
-	markErr          error
-	listCallCount    int
-	markCallCount    int
-	activitiesByPage map[uint][]*api.Activity // page -> activities for that page
+	activities    []*api.Activity
+	streamedIDs   []uint
+	listErr       error
+	markErr       error
+	listCallCount int
+	markCallCount int
 }
 
 func (m *mockStreamingDatastore) ListActivities(ctx context.Context, opt types.ListOptions) ([]*api.Activity, *api.PaginationMetadata, error) {
@@ -432,10 +432,26 @@ func (m *mockStreamingDatastore) ListActivities(ctx context.Context, opt types.L
 	if m.listErr != nil {
 		return nil, nil, m.listErr
 	}
-	if m.activitiesByPage != nil {
-		return m.activitiesByPage[opt.Page], nil, nil
+
+	// Filter activities based on cursor (After) - simulates WHERE id > afterID
+	var filtered []*api.Activity
+	var afterID uint
+	if opt.After != "" {
+		id, _ := strconv.ParseUint(opt.After, 10, 64)
+		afterID = uint(id)
 	}
-	return m.activities, nil, nil
+	for _, a := range m.activities {
+		if a.ID > afterID {
+			filtered = append(filtered, a)
+		}
+	}
+
+	// Apply per_page limit
+	if opt.PerPage > 0 && uint(len(filtered)) > opt.PerPage {
+		filtered = filtered[:opt.PerPage]
+	}
+
+	return filtered, nil, nil
 }
 
 func (m *mockStreamingDatastore) ListHostPastActivities(ctx context.Context, hostID uint, opt types.ListOptions) ([]*api.Activity, *api.PaginationMetadata, error) {
@@ -590,21 +606,16 @@ func TestStreamActivities(t *testing.T) {
 	t.Run("bigger than batch", func(t *testing.T) {
 		t.Parallel()
 
-		// Create activities that span 3 pages: 2 full batches + 1 extra item
+		// Create activities that span 3 batches: 2 full batches + 1 extra item
+		// IDs start from 1 (not 0) because cursor pagination uses id > afterID
 		totalActivities := int(streamBatchSize)*2 + 1
 		allActivities := make([]*api.Activity, totalActivities)
 		for i := range allActivities {
-			allActivities[i] = newTestActivity(uint(i), "user", uint(i), "action", `{}`) //nolint:gosec // dismiss G115
+			allActivities[i] = newTestActivity(uint(i+1), "user", uint(i+1), "action", `{}`) //nolint:gosec // dismiss G115
 		}
 
-		// Set up pagination: return different slices based on page
-		ds := &mockStreamingDatastore{
-			activitiesByPage: map[uint][]*api.Activity{
-				0: allActivities[:streamBatchSize],
-				1: allActivities[streamBatchSize : streamBatchSize*2],
-				2: allActivities[streamBatchSize*2:],
-			},
-		}
+		// The mock now uses cursor-based filtering (id > afterID)
+		ds := &mockStreamingDatastore{activities: allActivities}
 		svc := newStreamingService(ds)
 
 		var auditLogger mockJSONLogger
@@ -616,10 +627,10 @@ func TestStreamActivities(t *testing.T) {
 		// All activities should have been marked as streamed (3 calls, one per batch)
 		assert.Equal(t, 3, ds.markCallCount)
 		assert.Equal(t, 3, ds.listCallCount)
-		// Verify all IDs were marked as streamed
+		// Verify all IDs were marked as streamed (IDs 1 to totalActivities)
 		expectedIDs := make([]uint, totalActivities)
 		for i := range expectedIDs {
-			expectedIDs[i] = uint(i) //nolint:gosec // dismiss G115
+			expectedIDs[i] = uint(i + 1) //nolint:gosec // dismiss G115
 		}
 		assert.Equal(t, expectedIDs, ds.streamedIDs)
 	})
