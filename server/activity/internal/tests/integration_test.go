@@ -201,10 +201,9 @@ func testListHostPastActivities(t *testing.T, s *integrationTestSuite) {
 		assert.Equal(t, "ran_script", result.Activities[0].Type)
 	})
 
-	t.Run("returns empty list for non-existent host", func(t *testing.T) {
-		result, statusCode := s.getHostPastActivities(t, 99999, "per_page=100")
-		assert.Equal(t, http.StatusOK, statusCode)
-		assert.Len(t, result.Activities, 0)
+	t.Run("returns 404 for non-existent host", func(t *testing.T) {
+		_, statusCode := s.getHostPastActivities(t, 99999, "per_page=100")
+		assert.Equal(t, http.StatusNotFound, statusCode)
 	})
 
 	t.Run("pagination", func(t *testing.T) {

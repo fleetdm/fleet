@@ -7,6 +7,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/activity"
 	authz_ctx "github.com/fleetdm/fleet/v4/server/contexts/authz"
 	platform_authz "github.com/fleetdm/fleet/v4/server/platform/authz"
+	platform_mysql "github.com/fleetdm/fleet/v4/server/platform/mysql"
 )
 
 // Mock implementations for dependencies outside the bounded context
@@ -71,7 +72,7 @@ func (m *mockHostProvider) GetHostLite(ctx context.Context, hostID uint) (*activ
 	if h, ok := m.hosts[hostID]; ok {
 		return h, nil
 	}
-	return nil, nil
+	return nil, platform_mysql.NotFound("Host").WithID(hostID)
 }
 
 // mockDataProviders combines user and host providers for testing.
