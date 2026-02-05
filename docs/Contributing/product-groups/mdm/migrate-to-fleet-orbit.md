@@ -2,6 +2,10 @@
 
 We provide a way to MDM migrate devices enrolled via other MDM solutions to Fleet using Fleet Desktop (Orbit). 
 
+## Relevant code pieces
+- [mdm_migration_darwin.go](../../../../orbit/pkg/useraction/mdm_migration_darwin.go) handles the Orbit side showing the migration dialogs and unenrollment checking logic.
+- [migrate_mdm endpoint](https://github.com/fleetdm/fleet/blob/main/ee/server/service/devices.go#L22-L98) handles the Fleet server side of the migration request and triggering the unenrollment webhook.
+
 ## Prerequisites for the option to show
 - The device must have Fleet Desktop (Orbit) installed, and be Orbit enrolled into Fleet.
 - The device must be enrolled in an MDM solution that is not Fleet.
