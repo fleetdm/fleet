@@ -24,7 +24,6 @@ func TestIntegration(t *testing.T) {
 		{"ListActivitiesFilters", testListActivitiesFilters},
 		{"ListActivitiesUserEnrichment", testListActivitiesUserEnrichment},
 		{"ListHostPastActivities", testListHostPastActivities},
-		{"ListHostPastActivitiesPagination", testListHostPastActivitiesPagination},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -185,53 +184,54 @@ func testListHostPastActivities(t *testing.T, s *integrationTestSuite) {
 	s.InsertHostActivity(t, hostA, actB)
 	s.InsertHostActivity(t, hostB, actC)
 
-	// List activities for host A
-	result, statusCode := s.getHostPastActivities(t, hostA, "per_page=100")
-	assert.Equal(t, http.StatusOK, statusCode)
-	assert.Len(t, result.Activities, 2)
-	assert.NotNil(t, result.Meta)
+	t.Run("returns activities for specific host", func(t *testing.T) {
+		result, statusCode := s.getHostPastActivities(t, hostA, "per_page=100")
+		assert.Equal(t, http.StatusOK, statusCode)
+		assert.Len(t, result.Activities, 2)
+		assert.NotNil(t, result.Meta)
 
-	// Verify order (newest first by default)
-	assert.Equal(t, "installed_software", result.Activities[0].Type)
-	assert.Equal(t, "ran_script", result.Activities[1].Type)
+		// Verify order (newest first by default)
+		assert.Equal(t, "installed_software", result.Activities[0].Type)
+		assert.Equal(t, "ran_script", result.Activities[1].Type)
 
-	// List activities for host B
-	result, statusCode = s.getHostPastActivities(t, hostB, "per_page=100")
-	assert.Equal(t, http.StatusOK, statusCode)
-	assert.Len(t, result.Activities, 1)
-	assert.Equal(t, "ran_script", result.Activities[0].Type)
+		// Host B should only have its own activity
+		result, statusCode = s.getHostPastActivities(t, hostB, "per_page=100")
+		assert.Equal(t, http.StatusOK, statusCode)
+		assert.Len(t, result.Activities, 1)
+		assert.Equal(t, "ran_script", result.Activities[0].Type)
+	})
 
-	// List activities for non-existent host (should return empty list)
-	result, statusCode = s.getHostPastActivities(t, 99999, "per_page=100")
-	assert.Equal(t, http.StatusOK, statusCode)
-	assert.Len(t, result.Activities, 0)
-}
+	t.Run("returns empty list for non-existent host", func(t *testing.T) {
+		result, statusCode := s.getHostPastActivities(t, 99999, "per_page=100")
+		assert.Equal(t, http.StatusOK, statusCode)
+		assert.Len(t, result.Activities, 0)
+	})
 
-func testListHostPastActivitiesPagination(t *testing.T, s *integrationTestSuite) {
-	userID := s.insertUser(t, "admin", "admin@example.com")
-	host := s.insertHost(t, "host.example.com", nil)
+	t.Run("pagination", func(t *testing.T) {
+		host := s.insertHost(t, "pagination-host.example.com", nil)
 
-	// Insert 5 activities for the host
-	for i := range 5 {
-		actID := s.InsertActivity(t, ptr.Uint(userID), "test_activity", map[string]any{"index": i})
-		s.InsertHostActivity(t, host, actID)
-	}
+		// Insert 5 activities for the host
+		for i := range 5 {
+			actID := s.InsertActivity(t, ptr.Uint(userID), "test_activity", map[string]any{"index": i})
+			s.InsertHostActivity(t, host, actID)
+		}
 
-	// First page
-	result, _ := s.getHostPastActivities(t, host, "per_page=2")
-	assert.Len(t, result.Activities, 2)
-	assert.True(t, result.Meta.HasNextResults)
-	assert.False(t, result.Meta.HasPreviousResults)
+		// First page
+		result, _ := s.getHostPastActivities(t, host, "per_page=2")
+		assert.Len(t, result.Activities, 2)
+		assert.True(t, result.Meta.HasNextResults)
+		assert.False(t, result.Meta.HasPreviousResults)
 
-	// Second page
-	result, _ = s.getHostPastActivities(t, host, "per_page=2&page=1")
-	assert.Len(t, result.Activities, 2)
-	assert.True(t, result.Meta.HasNextResults)
-	assert.True(t, result.Meta.HasPreviousResults)
+		// Second page
+		result, _ = s.getHostPastActivities(t, host, "per_page=2&page=1")
+		assert.Len(t, result.Activities, 2)
+		assert.True(t, result.Meta.HasNextResults)
+		assert.True(t, result.Meta.HasPreviousResults)
 
-	// Last page
-	result, _ = s.getHostPastActivities(t, host, "per_page=2&page=2")
-	assert.Len(t, result.Activities, 1)
-	assert.False(t, result.Meta.HasNextResults)
-	assert.True(t, result.Meta.HasPreviousResults)
+		// Last page
+		result, _ = s.getHostPastActivities(t, host, "per_page=2&page=2")
+		assert.Len(t, result.Activities, 1)
+		assert.False(t, result.Meta.HasNextResults)
+		assert.True(t, result.Meta.HasPreviousResults)
+	})
 }
