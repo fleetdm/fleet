@@ -50,7 +50,7 @@ module.exports = {
         psychologicalStageChangeReason = this.req.session.adAttributionString;
       }
     }
-    let attributionCookieOrUndefined = this.req.cookies.marketingAttribution;
+    let attributionDetailsOrUndefined = this.req.session.marketingAttribution;// Will be undefined if this is not set.
 
     sails.helpers.flow.build(async()=>{
       let recordIds = await sails.helpers.salesforce.updateOrCreateContactAndAccount.with({
@@ -59,7 +59,7 @@ module.exports = {
         description: `Subscribed to the Fleet newsletter`,
         psychologicalStage: '3 - Intrigued',
         psychologicalStageChangeReason,
-        marketingAttributionCookie: attributionCookieOrUndefined,
+        marketingAttributionInformation: attributionDetailsOrUndefined,
       });
 
       await sails.helpers.salesforce.createHistoricalEvent.with({
