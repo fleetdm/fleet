@@ -173,21 +173,11 @@ func (ds *Datastore) ListHostPastActivities(ctx context.Context, hostID uint, op
 		JOIN activities a
 			ON ha.activity_id = a.id
 	WHERE
-		ha.host_id = ?
-	ORDER BY a.created_at DESC
-	`
-
-	// Calculate pagination
-	perPage := opt.PerPage
-	if perPage == 0 {
-		perPage = 20 // default per page
-	}
+		ha.host_id = ?`
 
 	args := []any{hostID}
 
-	// Add pagination (request one extra to determine if there are more results)
-	stmt := listStmt + " LIMIT ? OFFSET ?"
-	args = append(args, perPage+1, opt.Page*perPage)
+	stmt, args := platform_mysql.AppendListOptionsWithParams(listStmt, args, &opt)
 
 	var activities []*api.Activity
 	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &activities, stmt, args...); err != nil {
@@ -197,7 +187,7 @@ func (ds *Datastore) ListHostPastActivities(ctx context.Context, hostID uint, op
 	var metaData *api.PaginationMetadata
 	if opt.IncludeMetadata {
 		metaData = &api.PaginationMetadata{HasPreviousResults: opt.Page > 0}
-		if len(activities) > int(perPage) { //nolint:gosec // dismiss G115
+		if uint(len(activities)) > opt.PerPage { //nolint:gosec // dismiss G115
 			metaData.HasNextResults = true
 			activities = activities[:len(activities)-1]
 		}

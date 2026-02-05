@@ -35,10 +35,7 @@ func apiVersions() []string {
 func listActivitiesEndpoint(ctx context.Context, request any, svc api.Service) platform_http.Errorer {
 	req := request.(*api_http.ListActivitiesRequest)
 
-	opt := req.ListOptions // Access the embedded api.ListOptions
-	fillListOptions(&opt)
-
-	activities, meta, err := svc.ListActivities(ctx, opt)
+	activities, meta, err := svc.ListActivities(ctx, req.ListOptions)
 	if err != nil {
 		return api_http.ListActivitiesResponse{Err: err}
 	}
@@ -53,10 +50,7 @@ func listActivitiesEndpoint(ctx context.Context, request any, svc api.Service) p
 func listHostPastActivitiesEndpoint(ctx context.Context, request any, svc api.Service) platform_http.Errorer {
 	req := request.(*api_http.ListHostPastActivitiesRequest)
 
-	opt := req.ListOptions
-	fillHostPastActivitiesListOptions(&opt)
-
-	activities, meta, err := svc.ListHostPastActivities(ctx, req.HostID, opt)
+	activities, meta, err := svc.ListHostPastActivities(ctx, req.HostID, req.ListOptions)
 	if err != nil {
 		return api_http.ListHostPastActivitiesResponse{Err: err}
 	}
@@ -64,32 +58,5 @@ func listHostPastActivitiesEndpoint(ctx context.Context, request any, svc api.Se
 	return api_http.ListHostPastActivitiesResponse{
 		Meta:       meta,
 		Activities: activities,
-	}
-}
-
-// fillHostPastActivitiesListOptions sets default values for host past activities list options.
-func fillHostPastActivitiesListOptions(opt *api.ListOptions) {
-	if opt.PerPage == 0 {
-		opt.PerPage = defaultPerPage
-	}
-}
-
-// fillListOptions sets default values for list options.
-// Note: IncludeMetadata is set internally by the service layer.
-func fillListOptions(opt *api.ListOptions) {
-	// Default ordering by created_at descending (newest first) if not specified
-	if opt.OrderKey == "" {
-		opt.OrderKey = "created_at"
-		opt.OrderDirection = api.OrderDescending
-	}
-	// Default PerPage based on whether pagination was requested
-	if opt.PerPage == 0 {
-		if opt.Page == 0 {
-			// No pagination requested - return all results (legacy behavior)
-			opt.PerPage = unlimitedPerPage
-		} else {
-			// Page specified without per_page - use sensible default
-			opt.PerPage = defaultPerPage
-		}
 	}
 }

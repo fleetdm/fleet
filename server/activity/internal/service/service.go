@@ -21,6 +21,26 @@ import (
 // streamBatchSize is the number of activities to fetch per batch when streaming.
 const streamBatchSize uint = 500
 
+// applyListOptionsDefaults sets sensible defaults for list options.
+// This ensures consistent behavior whether the service is called via HTTP or directly.
+func applyListOptionsDefaults(opt *api.ListOptions, defaultOrderKey string) {
+	// Default ordering (newest first) if not specified
+	if opt.OrderKey == "" {
+		opt.OrderKey = defaultOrderKey
+		opt.OrderDirection = api.OrderDescending
+	}
+	// Default PerPage based on whether pagination was requested
+	if opt.PerPage == 0 {
+		if opt.Page == 0 {
+			// No pagination requested - return all results (legacy behavior)
+			opt.PerPage = unlimitedPerPage
+		} else {
+			// Page specified without per_page - use sensible default
+			opt.PerPage = defaultPerPage
+		}
+	}
+}
+
 // Service is the activity bounded context service implementation.
 type Service struct {
 	authz     platform_authz.Authorizer
@@ -44,16 +64,16 @@ var _ api.Service = (*Service)(nil)
 
 // ListActivities returns a slice of activities for the whole organization.
 func (s *Service) ListActivities(ctx context.Context, opt api.ListOptions) ([]*api.Activity, *api.PaginationMetadata, error) {
+	if err := s.authz.Authorize(ctx, &api.Activity{}, platform_authz.ActionRead); err != nil {
+		return nil, nil, err
+	}
+
+	applyListOptionsDefaults(&opt, "created_at")
 	// Convert public options to internal options (which include internal fields)
 	// Don't include metadata for cursor-based pagination (when After is set)
 	internalOpt := types.ListOptions{
 		ListOptions:     opt,
 		IncludeMetadata: opt.After == "",
-	}
-
-	// Authorization check
-	if err := s.authz.Authorize(ctx, &api.Activity{}, platform_authz.ActionRead); err != nil {
-		return nil, nil, err
 	}
 
 	// If searching, also search users table to get matching user IDs.
@@ -96,6 +116,7 @@ func (s *Service) ListHostPastActivities(ctx context.Context, hostID uint, opt a
 		return nil, nil, err
 	}
 
+	applyListOptionsDefaults(&opt, "a.created_at")
 	// Convert public options to internal options
 	internalOpt := types.ListOptions{
 		ListOptions:     opt,
