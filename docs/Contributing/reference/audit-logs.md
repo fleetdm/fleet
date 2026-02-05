@@ -757,23 +757,6 @@ This activity contains the following fields:
 }
 ```
 
-## read_host_disk_encryption_key
-
-Generated when a user reads the disk encryption key for a host.
-
-This activity contains the following fields:
-- "host_id": ID of the host.
-- "host_display_name": Display name of the host.
-
-#### Example
-
-```json
-{
-  "host_id": 1,
-  "host_display_name": "Anna's MacBook Pro"
-}
-```
-
 ## created_macos_profile
 
 Generated when a user adds a new macOS profile to a team (or no team).
@@ -868,6 +851,40 @@ This activity contains the following fields:
   "name": "dep_profile.json",
   "team_id": 123,
   "team_name": "Workstations"
+}
+```
+
+## read_host_disk_encryption_key
+
+Generated when a user reads the disk encryption key for a host.
+
+This activity contains the following fields:
+- "host_id": ID of the host.
+- "host_display_name": Display name of the host.
+
+#### Example
+
+```json
+{
+  "host_id": 1,
+  "host_display_name": "Anna's MacBook Pro"
+}
+```
+
+## escrowed_disk_encryption_key
+
+Generated when a disk encryption key is escrowed.
+
+This activity contains the following fields:
+- "host_id": ID of the host.
+- "host_display_name": Display name of the host.
+
+#### Example
+
+```json
+{
+	"host_id": 123,
+	"host_display_name": "PWNED-VM-123"
 }
 ```
 
@@ -2244,23 +2261,6 @@ This activity contains the following field:
 }
 ```
 
-## escrowed_disk_encryption_key
-
-Generated when a disk encryption key is escrowed.
-
-This activity contains the following fields:
-- "host_id": ID of the host.
-- "host_display_name": Display name of the host.
-
-#### Example
-
-```json
-{
-	"host_id": 123,
-	"host_display_name": "PWNED-VM-123"
-}
-```
-
 ## created_custom_variable
 
 Generated when custom variable is added.
@@ -2330,6 +2330,91 @@ This activity contains the following fields:
 	"host_id": 1,
 	"host_display_name": "Anna's MacBook Pro",
 	"host_idp_username": "anna.chao@example.com"
+}
+```
+
+## read_host_recovery_lock_password
+
+Generated when a user reads the Recovery Lock password for a host.
+
+This activity contains the following fields:
+- "host_id": ID of the host.
+- "host_display_name": Display name of the host.
+
+#### Example
+
+```json
+{
+  "host_id": 1,
+  "host_display_name": "Anna's MacBook Pro"
+}
+```
+
+## rotated_host_recovery_lock_password
+
+Generated when a user rotates the Recovery Lock password for a host.
+
+This activity contains the following fields:
+- "host_id": ID of the host.
+- "host_display_name": Display name of the host.
+
+#### Example
+
+```json
+{
+  "host_id": 1,
+  "host_display_name": "Anna's MacBook Pro"
+}
+```
+
+## escrowed_recovery_lock_password
+
+Generated when a Recovery Lock password is escrowed.
+
+This activity contains the following fields:
+- "host_id": ID of the host.
+- "host_display_name": Display name of the host.
+
+#### Example
+
+```json
+{
+	"host_id": 123,
+	"host_display_name": "Anna's MacBook Pro"
+}
+```
+
+## enabled_recovery_lock_password
+
+Generated when a user turns on Recovery Lock password for a team (or no team).
+
+This activity contains the following fields:
+- "team_id": The ID of the team that Recovery Lock password applies to, `null` if it applies to devices that are not in a team.
+- "team_name": The name of the team that Recovery Lock password applies to, `null` if it applies to devices that are not in a team.
+
+#### Example
+
+```json
+{
+  "team_id": 123,
+  "team_name": "Workstations"
+}
+```
+
+## disabled_recovery_lock_password
+
+Generated when a user turns off Recovery Lock password for a team (or no team).
+
+This activity contains the following fields:
+- "team_id": The ID of the team that Recovery Lock password applies to, `null` if it applies to devices that are not in a team.
+- "team_name": The name of the team that Recovery Lock password applies to, `null` if it applies to devices that are not in a team.
+
+#### Example
+
+```json
+{
+  "team_id": 123,
+  "team_name": "Workstations"
 }
 ```
 
