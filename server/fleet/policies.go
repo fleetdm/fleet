@@ -411,7 +411,7 @@ type PolicySpec struct {
 	// bypased by end users.
 	//
 	// Only applies to team policies.
-	ConditionalAccessBypassEnabled bool `json:"conditional_access_bypass_enabled"`
+	ConditionalAccessBypassEnabled *bool `json:"conditional_access_bypass_enabled"`
 }
 
 // PolicySoftwareTitle contains software title data for policies.

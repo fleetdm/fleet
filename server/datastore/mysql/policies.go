@@ -1053,7 +1053,7 @@ func newTeamPolicy(ctx context.Context, db sqlx.ExtContext, teamID uint, authorI
 		return nil, ctxerr.Wrap(ctx, err, "create team policy")
 	}
 
-	if args.ConditionalAccessBypassEnabled != nil {
+	if args.ConditionalAccessBypassEnabled == nil {
 		args.ConditionalAccessBypassEnabled = ptr.Bool(true)
 	}
 
@@ -1349,6 +1349,10 @@ func (ds *Datastore) ApplyPolicySpecs(ctx context.Context, authorID uint, specs 
 				scriptID := spec.ScriptID
 				if spec.ScriptID != nil && *spec.ScriptID == 0 {
 					scriptID = nil
+				}
+
+				if spec.ConditionalAccessBypassEnabled == nil {
+					spec.ConditionalAccessBypassEnabled = ptr.Bool(true)
 				}
 
 				res, err := tx.ExecContext(
