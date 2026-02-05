@@ -2,7 +2,7 @@
  * Route Mappings
  * (sails.config.routes)
  *
- * Your routes tell Sails what to do each time it receives a request.
+ * Your routes tell the website what to do each time it receives a request.
  *
  * For more information on configuring custom routes, check out:
  * https://sailsjs.com/anatomy/config/routes-js
@@ -744,6 +744,7 @@ module.exports.routes = {
   'GET /handbook/communications': '/handbook/company/communications',
   'GET /handbook/leadership': '/handbook/company/leadership',
   'GET /handbook/product-groups': '/handbook/company/product-groups',
+  'GET /handbook/company/go-to-market-groups': '/handbook/company/go-to-market-operations',
   'GET /handbook/company/customer-solutions-architect': '/handbook/company/open-positions/customer-solutions-architect',
   'GET /handbook/company/software-engineer': '/handbook/company/open-positions/software-engineer',
   'GET /handbook/company/software-engineer-windows-go': '/handbook/company/open-positions/software-engineer-windows-go',
@@ -1188,8 +1189,10 @@ module.exports.routes = {
   'GET /learn-more-about/available-fma-versions': 'https://github.com/fleetdm/fleet/tree/main/ee/maintained-apps/outputs',
   'GET /learn-more-about/connect-microsoft-entra': '/guides/windows-mdm-setup#step-2-connect-fleet-to-microsoft-entra-id',
   'GET /learn-more-about/macos-configuration-profiles-same-scope': '/guides/custom-os-settings#upgrading-to-4-71-0',
+  'GET /learn-more-about/configuration-profiles-user-channel': '/guides/custom-os-settings#upgrading-to-4-71-0',
   'GET /learn-more-about/disable-okta-conditional-access': '/guides/okta-conditional-access-integration#disabling-okta-conditional-access',
   'GET /learn-more-about/deploy-self-service-to-ios': '/guides/software-self-service#deploy-self-service-on-ios-and-ipados',
+  'GET /learn-more-about/microsoft-entra-tenant-id': 'https://entra.microsoft.com/#home',
 
   // Sitemap
   // =============================================================================================================
