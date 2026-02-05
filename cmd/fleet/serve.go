@@ -52,7 +52,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/errorstore"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/health"
-	"github.com/fleetdm/fleet/v4/server/launcher"
 	"github.com/fleetdm/fleet/v4/server/live_query"
 	"github.com/fleetdm/fleet/v4/server/logging"
 	"github.com/fleetdm/fleet/v4/server/mail"
@@ -101,7 +100,6 @@ import (
 	"go.opentelemetry.io/otel/sdk/resource"
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
 	semconv "go.opentelemetry.io/otel/semconv/v1.37.0"
-	"google.golang.org/grpc"
 	_ "google.golang.org/grpc/encoding/gzip" // Because we use gzip compression for OTLP
 )
 
@@ -1370,9 +1368,6 @@ the way that the Fleet server works.
 
 			}
 
-			// Instantiate a gRPC service to handle launcher requests.
-			launcher := launcher.New(svc, logger, grpc.NewServer(), healthCheckers)
-
 			rootMux := http.NewServeMux()
 			rootMux.Handle("/healthz", service.PrometheusMetricsHandler("healthz", otelmw.WrapHandler(health.Handler(httpLogger, healthCheckers), "/healthz", config)))
 			rootMux.Handle("/version", service.PrometheusMetricsHandler("version", otelmw.WrapHandler(version.Handler(), "/version", config)))
@@ -1652,11 +1647,9 @@ the way that the Fleet server works.
 			liveQueryRestPeriod += 10 * time.Second
 
 			// Create the handler based on whether tracing should be there
-			var handler http.Handler
+			var handler http.Handler = rootMux
 			if config.Logging.TracingEnabled && config.Logging.TracingType == "elasticapm" {
-				handler = launcher.Handler(apmhttp.Wrap(rootMux))
-			} else {
-				handler = launcher.Handler(rootMux)
+				handler = apmhttp.Wrap(rootMux)
 			}
 
 			srv := config.Server.DefaultHTTPServer(ctx, handler)
@@ -1687,7 +1680,6 @@ the way that the Fleet server works.
 				errs <- func() error {
 					cancelFunc()
 					cleanupCronStatsOnShutdown(ctx, ds, logger, instanceID)
-					launcher.GracefulStop()
 					// Flush any pending OTEL data before shutting down
 					if tracerProvider != nil {
 						if err := tracerProvider.Shutdown(ctx); err != nil {
