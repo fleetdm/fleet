@@ -25,7 +25,7 @@ This handbook page details processes specific to working [with](#contact-us) and
 
 This list (for now) will be in roughly chronological order as assets are created.
 
-| Asset | Last updated&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; | Use for 
+| Asset | Last&nbsp;updated&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; | Use for 
 |:------------|:------------|:----------------|
 | [The GitOps idea](https://fleetdm.com/articles/the-gitops-idea) | 2026-02-04 | Blog explaining what is GitOps |
 | [Customers page](https://fleetdm.com/customers) | 2026-02-01 | Customer testimonials & logos |
