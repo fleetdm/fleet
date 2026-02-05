@@ -214,7 +214,7 @@ export const createTooltipContent = (
   repoURL?: string,
   disabledFieldsForGitOps?: boolean
 ) => {
-  if (disabledFieldsForGitOps) {
+  if (disabledFieldsForGitOps && repoURL) {
     return getGitOpsModeTipContent(repoURL);
   }
   const messages = Object.values(formValidation)
