@@ -22,6 +22,11 @@ This handbook page details processes specific to working [with](#contact-us) and
 >  - Please **use issue comments and GitHub mentions** to communicate follow-ups or answer questions related to your request. 
 
 
+## Trademarks
+
+The Finance department maintains the documentation of [Fleet's existing trademarks and trademark applications](https://docs.google.com/spreadsheets/d/1HfEwf0FtkvaKsGzebJsHQie8c646KsGz/edit?usp=sharing&ouid=113668214024041155485&rtpof=true&sd=true). 
+
+
 ## Responsibilities
 
 The Finance department is directly responsible for accounts receivable including invoicing, accounts payable including commision calculations, compliance, expense reporting including Brex memos and maintaining accurate spend projections in "🧮The numbers", sales taxes, payroll taxes, corporate income/franchise taxes, financial operations including bank accounts and cash flow management, Zapier flows, as well as the internal tooling, automation, and technology behind Fleet's Go-To-Market (GTM) systems. 
@@ -530,9 +535,6 @@ Here are the steps we take to grant appropriate Salesforce licenses to a new hir
     - Add the “Inbox with Einstein Activity Capture” permission set and save.
     - Navigate to the ["Einstein Activity Capture Settings"](https://fleetdm.lightning.force.com/lightning/setup/ActivitySyncEngineSettingsMain/home) and click the "Configurations" tab.
     - Select "Edit", under "User and Profile Assignments" move the new user's name from "Available" to "Selected", scroll all the way down and click save.
-
-### Trademarks
-A report of Fleet's existing trademarks and trademark applications can be found [here](https://docs.google.com/spreadsheets/d/1HfEwf0FtkvaKsGzebJsHQie8c646KsGz/edit?usp=sharing&ouid=113668214024041155485&rtpof=true&sd=true).
 
 
 ## Rituals
