@@ -1,11 +1,11 @@
-name: 📱🏢 Employee-issued mobile devices
-team_settings:
+name: 📱🔐 Personal mobile devices
+fleet_settings:
   features:
   host_expiry_settings:
     host_expiry_enabled: false
     host_expiry_window: 0
   secrets:
-    - secret: $DOGFOOD_COMPANY_OWNED_MOBILE_DEVICES_ENROLL_SECRET
+    - secret: $DOGFOOD_PERSONAL_MOBILE_DEVICES_ENROLL_SECRET
   integrations:
     google_calendar:
       enable_calendar_events: false
@@ -19,29 +19,22 @@ controls:
     minimum_version: "18.5"
   macos_settings:
     custom_settings:
-      - path: ../lib/ios/configuration-profiles/lock-screen-message.mobileconfig
       - path: ../lib/ios/declaration-profiles/Passcode settings.json
-      - path: ../lib/ios/declaration-profiles/Software Update settings.json
       - path: ../lib/ios/configuration-profiles/self-service.mobileconfig
   macos_setup:
     enable_end_user_authentication: true
   scripts:
 policies:
-queries:
+reports:
 software:
   app_store_apps:
-    - app_store_id: "618783545" # Slack
-      setup_experience: true
+    - app_store_id: '618783545' # Slack
       self_service: true
-    - app_store_id: "546505307" # Zoom
-      setup_experience: true
+    - app_store_id: '546505307' # Zoom
       self_service: true
-    - app_store_id: "842842640" # Google Docs
-      setup_experience: true
+    - app_store_id: '842842640' # Google Docs
       self_service: true
-    - app_store_id: "842849113" # Google Sheets
-      setup_experience: true
+    - app_store_id: '842849113' # Google Sheets
       self_service: true
-    - app_store_id: "507874739" # Google Drive
-      setup_experience: true
+    - app_store_id: '507874739' # Google Drive
       self_service: true

@@ -1,5 +1,5 @@
 name: "☁️ IT servers"
-team_settings:
+fleet_settings:
   features:
     enable_host_users: true
     enable_software_inventory: true
@@ -28,5 +28,5 @@ controls:
     grace_period_days: null
   scripts:
 policies:
-queries:
+reports:
 software:

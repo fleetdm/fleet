@@ -1,5 +1,5 @@
 name: "🧪 Testing & QA"
-team_settings:
+fleet_settings:
   features:
     enable_host_users: true
     enable_software_inventory: true
@@ -48,7 +48,7 @@ policies:
   - path: ../lib/macos/policies/enrollment-profile-up-to-date.yml
   # Linux policies
   - path: ../lib/linux/policies/check-fleet-desktop-extension-enabled.yml
-queries:
+reports:
 software:
   packages:
     # Linux apps
