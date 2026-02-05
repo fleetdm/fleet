@@ -58,10 +58,6 @@
         border-bottom: 1px solid #e2e4ea;
       }
 
-      h1 {
-        margin-bottom: 8px;
-      }
-
       p {
         font-size: 14px;
       }
@@ -72,6 +68,7 @@
         gap: 48px;
         list-style: none;
         padding: 0;
+        margin: 0;
       }
 
       li {
@@ -118,6 +115,12 @@
         margin: 0 auto;
         padding: 48px 24px;
         max-width: 1000px;
+      }
+
+      .device-instructions-content {
+        display: flex;
+        flex-direction: column;
+        gap: 48px;
       }
 
       .content-with-sidebar {
@@ -168,6 +171,10 @@
       }
 
       @media screen and (max-width: 430px) {
+        .device-instructions-content {
+          gap: 24px;
+        }
+
         .enroll-link {
           width: 100%;
         }
@@ -195,114 +202,120 @@
 
     <!-- android content when not fully managed-->
     <template id="android-template">
-      <h1>How to enroll your Android device to Fleet</h1>
-      <div class="android-content">
-        <p>Select <b>Enroll</b> and follow the steps.</p>
-        <a class="enroll-link" href="" target="_blank">Enroll</a>
-        <p>Already finished? You can close this tab.</p>
-      </div>
+      <section class="device-instructions-content">
+        <h1>How to enroll your Android device to Fleet</h1>
+        <div class="android-content">
+          <p>Select <b>Enroll</b> and follow the steps.</p>
+          <a class="enroll-link" href="" target="_blank">Enroll</a>
+          <p>Already finished? You can close this tab.</p>
+        </div>
+      </section>
     </template>
 
     <!-- content when full managed is enabled. This will show for any platform, despite the copy referencing Android -->
     <template id="fully-managed-template">
-      <h1>How to enroll your Android device to Fleet</h1>
-      <ol class="fully-managed-instructions">
-        <li>
-          <p>
-            <span>1.</span>
-            <span>
-              Turn on your new device or
-              <a
-                target="_blank"
-                ref="https://support.google.com/android/answer/6088915?hl=en"
-                >factory reset it</a
+      <section class="device-instructions-content">
+        <h1>How to enroll your Android device to Fleet</h1>
+        <ol class="fully-managed-instructions">
+          <li>
+            <p>
+              <span>1.</span>
+              <span>
+                Turn on your new device or
+                <a
+                  target="_blank"
+                  ref="https://support.google.com/android/answer/6088915?hl=en"
+                  >factory reset it</a
+                >
+              </span>
+            </p>
+          </li>
+          <li>
+            <p>
+              <span>2.</span>
+              <span
+                >On the very first screen, tap the screen six times in a blank
+                area.</span
               >
-            </span>
-          </p>
-        </li>
-        <li>
-          <p>
-            <span>2.</span>
-            <span
-              >On the very first screen, tap the screen six times in a blank
-              area.</span
-            >
-          </p>
-        </li>
-        <li>
-          <p>
-            <span>3.</span>
-            <span>Scan QR code below with the QR reader that shows up.</span>
-          </p>
-          <div class="qr-container">
-            <canvas class="qr-code"></canvas>
-          </div>
-        </li>
-        <li>
-          <p>
-            <span>4.</span>
-            <span
-              >Connect to Wi-Fi and follow the instructions on the screen.
-            </span>
-          </p>
-        </li>
-      </ol>
-      <p>Already finished? Refresh the page to enroll another device.</p>
+            </p>
+          </li>
+          <li>
+            <p>
+              <span>3.</span>
+              <span>Scan QR code below with the QR reader that shows up.</span>
+            </p>
+            <div class="qr-container">
+              <canvas class="qr-code"></canvas>
+            </div>
+          </li>
+          <li>
+            <p>
+              <span>4.</span>
+              <span
+                >Connect to Wi-Fi and follow the instructions on the screen.
+              </span>
+            </p>
+          </li>
+        </ol>
+        <p>Already finished? Refresh the page to enroll another device.</p>
+      </section>
     </template>
 
     <!-- ios, ipados content -->
     <template id="ios-ipad-template">
-      <h1>
-        How to enroll your
-        <span data-attribute="dynamic-device-type">iPhone or iPad</span> to
-        Fleet
-      </h1>
-      <ol>
-        <li>
-          <p>
-            <span>1.</span>
-            <span>
-              Tap the button below to download the Fleet profile. When prompted,
-              tap <b>Allow</b>.
-            </span>
-          </p>
-          <a class="download-link" href="{{.EnrollURL}}">Download</a>
-        </li>
-        <li>
-          <p>
-            <span>2.</span>
-            <span> Go to <b>Settings > Profile Downloaded</b>. </span>
-          </p>
-          <div class="profile-downloaded-container">
-            <img
-              class="profile-downloaded-img"
-              src=""
-              alt="select profile downloaded in settings"
-            />
-          </div>
-        </li>
-        <li>
-          <p>
-            <span>3.</span>
-            <span
-              >Tap <b>Install</b>. You'll see a few warnings, which is expected.
-              jk Tap <b>Install</b> again when prompted.</span
-            >
-          </p>
-          <div class="install-profile-container">
-            <img class="install-profile-img" src="" alt="select install" />
-          </div>
-        </li>
-        <li>
-          <p>
-            <span>4.</span>
-            <span
-              >When you see the <b>Remote Management</b> screen, tap
-              <b>Trust</b> to finish.</span
-            >
-          </p>
-        </li>
-      </ol>
+      <section class="device-instructions-content">
+        <h1>
+          How to enroll your
+          <span data-attribute="dynamic-device-type">iPhone or iPad</span> to
+          Fleet
+        </h1>
+        <ol>
+          <li>
+            <p>
+              <span>1.</span>
+              <span>
+                Tap the button below to download the Fleet profile. When
+                prompted, tap <b>Allow</b>.
+              </span>
+            </p>
+            <a class="download-link" href="{{.EnrollURL}}">Download</a>
+          </li>
+          <li>
+            <p>
+              <span>2.</span>
+              <span> Go to <b>Settings > Profile Downloaded</b>. </span>
+            </p>
+            <div class="profile-downloaded-container">
+              <img
+                class="profile-downloaded-img"
+                src=""
+                alt="select profile downloaded in settings"
+              />
+            </div>
+          </li>
+          <li>
+            <p>
+              <span>3.</span>
+              <span
+                >Tap <b>Install</b>. You'll see a few warnings, which is
+                expected. jk Tap <b>Install</b> again when prompted.</span
+              >
+            </p>
+            <div class="install-profile-container">
+              <img class="install-profile-img" src="" alt="select install" />
+            </div>
+          </li>
+          <li>
+            <p>
+              <span>4.</span>
+              <span
+                >When you see the <b>Remote Management</b> screen, tap
+                <b>Trust</b> to finish.</span
+              >
+            </p>
+          </li>
+        </ol>
+      </section>
     </template>
 
     <!-- macos content -->
@@ -451,15 +464,16 @@
        * https://github.com/soldair/node-qrcode?tab=readme-ov-file#options-9
        */
       const renderQRCode = (text, element, options) => {
+        let QROptions = {
+          width: 208,
+          margin: 0,
+          color: { dark: "#515774", light: "#F9FAFC" },
+        };
+
         if (options) {
-          options = {
-            width: 208,
-            margin: 0,
-            color: { dark: "#515774", light: "#F9FAFC" },
-            ...options,
-          };
+          QROptions = { ...QROptions, ...options };
         }
-        QRCode.toCanvas(element, text, options, function (error) {
+        QRCode.toCanvas(element, text, QROptions, function (error) {
           if (error) console.error("problem with rendering QR code", error);
         });
       };
