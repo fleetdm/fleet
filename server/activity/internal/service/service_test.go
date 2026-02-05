@@ -465,10 +465,12 @@ func newTestActivity(id uint, actorName string, actorID uint, actType, details s
 func TestStreamActivities(t *testing.T) {
 	t.Parallel()
 
+	newStreamingService := func(ds *mockStreamingDatastore) *Service {
+		return NewService(&mockAuthorizer{}, ds, &mockDataProviders{mockUserProvider: &mockUserProvider{}, mockHostProvider: &mockHostProvider{}}, log.NewNopLogger())
+	}
+
 	t.Run("basic streaming", func(t *testing.T) {
 		t.Parallel()
-		ctx := t.Context()
-
 		activities := []*api.Activity{
 			newTestActivity(1, "user1", 7, "action1", `{"key1":"val1"}`),
 			newTestActivity(2, "user2", 8, "action2", `{"key2":"val2"}`),
@@ -476,10 +478,10 @@ func TestStreamActivities(t *testing.T) {
 		}
 
 		ds := &mockStreamingDatastore{activities: activities}
-		svc := NewService(&mockAuthorizer{}, ds, &mockDataProviders{mockUserProvider: &mockUserProvider{}, mockHostProvider: &mockHostProvider{}}, log.NewNopLogger())
+		svc := newStreamingService(ds)
 
 		var auditLogger mockJSONLogger
-		err := svc.StreamActivities(ctx, &auditLogger)
+		err := svc.StreamActivities(t.Context(), &auditLogger)
 
 		require.NoError(t, err)
 		assert.Len(t, auditLogger.logs, 3)
@@ -497,8 +499,6 @@ func TestStreamActivities(t *testing.T) {
 
 	t.Run("fail to stream an activity", func(t *testing.T) {
 		t.Parallel()
-		ctx := t.Context()
-
 		activities := []*api.Activity{
 			newTestActivity(1, "user1", 7, "action1", `{"key1":"val1"}`),
 			newTestActivity(2, "user2", 8, "action2", `{"key2":"val2"}`),
@@ -506,11 +506,11 @@ func TestStreamActivities(t *testing.T) {
 		}
 
 		ds := &mockStreamingDatastore{activities: activities}
-		svc := NewService(&mockAuthorizer{}, ds, &mockDataProviders{mockUserProvider: &mockUserProvider{}, mockHostProvider: &mockHostProvider{}}, log.NewNopLogger())
+		svc := newStreamingService(ds)
 
 		// Logger fails after first activity
 		auditLogger := mockJSONLogger{failAfter: 1}
-		err := svc.StreamActivities(ctx, &auditLogger)
+		err := svc.StreamActivities(t.Context(), &auditLogger)
 
 		require.Error(t, err)
 		require.ErrorIs(t, err, errStreamFailed)
@@ -522,18 +522,16 @@ func TestStreamActivities(t *testing.T) {
 
 	t.Run("fail to stream first activity", func(t *testing.T) {
 		t.Parallel()
-		ctx := t.Context()
-
 		activities := []*api.Activity{
 			newTestActivity(1, "user1", 7, "action1", `{"key1":"val1"}`),
 		}
 
 		ds := &mockStreamingDatastore{activities: activities}
-		svc := NewService(&mockAuthorizer{}, ds, &mockDataProviders{mockUserProvider: &mockUserProvider{}, mockHostProvider: &mockHostProvider{}}, log.NewNopLogger())
+		svc := newStreamingService(ds)
 
 		// Logger that fails immediately
 		immediateFailLogger := &immediateFailJSONLogger{}
-		err := svc.StreamActivities(ctx, immediateFailLogger)
+		err := svc.StreamActivities(t.Context(), immediateFailLogger)
 
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "stream first activity")
@@ -543,13 +541,11 @@ func TestStreamActivities(t *testing.T) {
 
 	t.Run("empty activity list returns early", func(t *testing.T) {
 		t.Parallel()
-		ctx := t.Context()
-
 		ds := &mockStreamingDatastore{activities: []*api.Activity{}}
-		svc := NewService(&mockAuthorizer{}, ds, &mockDataProviders{mockUserProvider: &mockUserProvider{}, mockHostProvider: &mockHostProvider{}}, log.NewNopLogger())
+		svc := newStreamingService(ds)
 
 		var auditLogger mockJSONLogger
-		err := svc.StreamActivities(ctx, &auditLogger)
+		err := svc.StreamActivities(t.Context(), &auditLogger)
 
 		require.NoError(t, err)
 		assert.Empty(t, auditLogger.logs)
@@ -560,13 +556,11 @@ func TestStreamActivities(t *testing.T) {
 
 	t.Run("list activities error", func(t *testing.T) {
 		t.Parallel()
-		ctx := t.Context()
-
 		ds := &mockStreamingDatastore{listErr: errors.New("database error")}
-		svc := NewService(&mockAuthorizer{}, ds, &mockDataProviders{mockUserProvider: &mockUserProvider{}, mockHostProvider: &mockHostProvider{}}, log.NewNopLogger())
+		svc := newStreamingService(ds)
 
 		var auditLogger mockJSONLogger
-		err := svc.StreamActivities(ctx, &auditLogger)
+		err := svc.StreamActivities(t.Context(), &auditLogger)
 
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "database error")
@@ -574,8 +568,6 @@ func TestStreamActivities(t *testing.T) {
 
 	t.Run("mark streamed error is included in multierror", func(t *testing.T) {
 		t.Parallel()
-		ctx := t.Context()
-
 		activities := []*api.Activity{
 			newTestActivity(1, "user1", 7, "action1", `{}`),
 		}
@@ -584,15 +576,52 @@ func TestStreamActivities(t *testing.T) {
 			activities: activities,
 			markErr:    errors.New("mark error"),
 		}
-		svc := NewService(&mockAuthorizer{}, ds, &mockDataProviders{mockUserProvider: &mockUserProvider{}, mockHostProvider: &mockHostProvider{}}, log.NewNopLogger())
+		svc := newStreamingService(ds)
 
 		var auditLogger mockJSONLogger
-		err := svc.StreamActivities(ctx, &auditLogger)
+		err := svc.StreamActivities(t.Context(), &auditLogger)
 
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "mark error")
 		// Activity was still logged even though marking failed
 		assert.Len(t, auditLogger.logs, 1)
+	})
+
+	t.Run("bigger than batch", func(t *testing.T) {
+		t.Parallel()
+
+		// Create activities that span 3 pages: 2 full batches + 1 extra item
+		totalActivities := int(streamBatchSize)*2 + 1
+		allActivities := make([]*api.Activity, totalActivities)
+		for i := range allActivities {
+			allActivities[i] = newTestActivity(uint(i), "user", uint(i), "action", `{}`) //nolint:gosec // dismiss G115
+		}
+
+		// Set up pagination: return different slices based on page
+		ds := &mockStreamingDatastore{
+			activitiesByPage: map[uint][]*api.Activity{
+				0: allActivities[:streamBatchSize],
+				1: allActivities[streamBatchSize : streamBatchSize*2],
+				2: allActivities[streamBatchSize*2:],
+			},
+		}
+		svc := newStreamingService(ds)
+
+		var auditLogger mockJSONLogger
+		err := svc.StreamActivities(t.Context(), &auditLogger)
+
+		require.NoError(t, err)
+		// All activities should have been logged
+		assert.Len(t, auditLogger.logs, totalActivities)
+		// All activities should have been marked as streamed (3 calls, one per batch)
+		assert.Equal(t, 3, ds.markCallCount)
+		assert.Equal(t, 3, ds.listCallCount)
+		// Verify all IDs were marked as streamed
+		expectedIDs := make([]uint, totalActivities)
+		for i := range expectedIDs {
+			expectedIDs[i] = uint(i) //nolint:gosec // dismiss G115
+		}
+		assert.Equal(t, expectedIDs, ds.streamedIDs)
 	})
 }
 
