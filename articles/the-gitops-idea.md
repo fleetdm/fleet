@@ -1,12 +1,5 @@
 # The GitOps Idea
 
-GitOps is a set of practices for managing systems using version control and automation. It provides a consistent way to declare, review, and apply changes across complex systems.
-
-GitOps is sometimes associated only with git itself or treated as a specific product. In reality, it refers to a set of practices rather than a single tool:
-
-- It goes beyond simply using git
-- It is not a stand-alone product
-
 GitOps is a term coined by software technology practitioners and analysts as a way of describing a set of tools and working principles. Applying them results in powerful automation workflows that offer a way to keep version-controlled configuration files in sync for declaring the state of an entity, like:
 
 - A software code base
@@ -14,6 +7,8 @@ GitOps is a term coined by software technology practitioners and analysts as a w
 - A web application
 
 or really any technology construct that can be modified with commands, an advanced programming interface ([API](https://en.wikipedia.org/wiki/API)) or [configuration-as-code](https://www.computer.org/publications/tech-news/trends/configuration-as-code-guide).
+
+Though GitOps is obviously associated with git, it goes beyond simply using git alone. It's also not a stand-alone product for sale. GitOps is an idea.
 
 ## GitOps components
 
