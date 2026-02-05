@@ -36,6 +36,10 @@ type CarveStore interface {
 	CleanupCarves(ctx context.Context, now time.Time) (expired int, err error)
 }
 
+type CarveBySessionIder interface {
+	CarveBySessionId(ctx context.Context, sessionId string) (*CarveMetadata, error)
+}
+
 // InstallerStore is used to communicate to a blob storage containing pre-built
 // fleet-osquery installers. This was originally implemented to support the
 // Fleet Sandbox and is not expected to be used outside of this:
