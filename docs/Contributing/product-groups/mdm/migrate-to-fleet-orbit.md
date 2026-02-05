@@ -11,6 +11,8 @@ We provide a way to MDM migrate devices enrolled via other MDM solutions to Flee
 - The device must be enrolled in an MDM solution that is not Fleet.
 - Fleet server needs to see and recognize the device being MDM enrolled elsewhere.
 
+> If the device is ADE enrolled, it requires the device to be assigned to Fleet in ABM.
+
 ## Migration flow
 1. User initiates migration on their device via Fleet Desktop (Orbit)
 2. Fleet Desktop (Orbit) checks the locally placed file [`mdm_migration.txt`](https://github.com/fleetdm/fleet/blob/main/orbit/cmd/desktop/desktop.go#L710-L715) value, to determine what kind of previous MDM enrollment was done.
