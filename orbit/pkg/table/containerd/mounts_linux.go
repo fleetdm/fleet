@@ -30,14 +30,14 @@ func MountsColumns() []table.ColumnDefinition {
 func GenerateMounts(ctx context.Context, queryContext table.QueryContext) ([]map[string]string, error) {
 	client, err := containerd.New("/run/containerd/containerd.sock")
 	if err != nil {
-		return nil, fmt.Errorf("Failed to connect to containerd: %v", err)
+		return nil, fmt.Errorf("Failed to connect to containerd: w", err)
 	}
 	defer client.Close()
 
 	// Get all namespaces so we can iterate over them
 	namespacesList, err := client.NamespaceService().List(ctx)
 	if err != nil {
-		return nil, fmt.Errorf("Failed to list namespaces: %v", err)
+		return nil, fmt.Errorf("Failed to list namespaces: %w", err)
 	}
 
 	rows := []map[string]string{}
@@ -46,14 +46,14 @@ func GenerateMounts(ctx context.Context, queryContext table.QueryContext) ([]map
 
 		containers, err := client.Containers(nsCtx)
 		if err != nil {
-			return nil, fmt.Errorf("Failed to list containers: %v", err)
+			return nil, fmt.Errorf("Failed to list containers: %w", err)
 		}
 
 		for _, container := range containers {
 			// Get the container's spec to access mount information
 			spec, err := container.Spec(nsCtx)
 			if err != nil {
-				log.Printf("Failed to get spec for container %s: %v", container.ID(), err)
+				log.Printf("Failed to get spec for container %s: %w", container.ID(), err)
 				continue
 			}
 
