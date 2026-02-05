@@ -1062,10 +1062,13 @@ func (ds *Datastore) ListMDMAndroidProfilesToSend(ctx context.Context) ([]*fleet
 		ds.profile_uuid,
 		ds.name as profile_name,
 		ds.host_uuid,
-		COALESCE(hmap.request_fail_count, 0) as request_fail_count
+		COALESCE(hmap.request_fail_count, 0) as request_fail_count,
+		COALESCE(apr.error_details, '') as last_error_details
 	FROM ( %s ) ds
 		LEFT OUTER JOIN host_mdm_android_profiles hmap
 			ON hmap.host_uuid = ds.host_uuid AND hmap.profile_uuid = ds.profile_uuid
+		LEFT OUTER JOIN android_policy_requests apr
+			ON apr.request_uuid = hmap.policy_request_uuid
 `, fmt.Sprintf(androidApplicableProfilesQuery, "h.uuid IN (?)", "h.uuid IN (?)", "h.uuid IN (?)", "h.uuid IN (?)"))
 
 		query, args, err := sqlx.In(listToInstallProfilesStmt, hostUUIDs, hostUUIDs, hostUUIDs, hostUUIDs)
@@ -1081,10 +1084,13 @@ func (ds *Datastore) ListMDMAndroidProfilesToSend(ctx context.Context) ([]*fleet
 		hmap.profile_uuid,
 		hmap.profile_name,
 		hmap.host_uuid,
-		hmap.request_fail_count
+		hmap.request_fail_count,
+		COALESCE(apr.error_details, '') as last_error_details
 	FROM ( %s ) ds
 		RIGHT OUTER JOIN host_mdm_android_profiles hmap
 			ON hmap.host_uuid = ds.host_uuid AND hmap.profile_uuid = ds.profile_uuid
+		LEFT OUTER JOIN android_policy_requests apr
+			ON apr.request_uuid = hmap.policy_request_uuid
 	WHERE
 		hmap.host_uuid IN (?) AND
 		ds.host_uuid IS NULL
@@ -1245,15 +1251,20 @@ host_uuid = ? AND NOT (operation_type = '%s' AND COALESCE(status, '%s') IN('%s',
 	return profiles, nil
 }
 
-func (ds *Datastore) ListHostMDMAndroidProfilesPendingInstallWithVersion(ctx context.Context, hostUUID string, policyVersion int64) ([]*fleet.MDMAndroidProfilePayload, error) {
-	const stmt = `
+func (ds *Datastore) ListHostMDMAndroidProfilesPendingOrFailedInstallWithVersion(ctx context.Context, hostUUID string, policyVersion int64) ([]*fleet.MDMAndroidProfilePayload, error) {
+	stmt := `
 		SELECT profile_uuid, host_uuid, status, operation_type, detail, profile_name, policy_request_uuid, device_request_uuid, request_fail_count, included_in_policy_version
 		FROM host_mdm_android_profiles
-		WHERE host_uuid = ? AND included_in_policy_version <= ? AND status = ? AND operation_type = ?
+		WHERE host_uuid = ? AND included_in_policy_version <= ? AND operation_type = ? AND status IN (?)
 	`
 
+	stmt, args, err := sqlx.In(stmt, hostUUID, policyVersion, fleet.MDMOperationTypeInstall, []fleet.MDMDeliveryStatus{fleet.MDMDeliveryPending, fleet.MDMDeliveryFailed})
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "building query to get pending host MDM Android profiles")
+	}
+
 	var profiles []*fleet.MDMAndroidProfilePayload
-	err := sqlx.SelectContext(ctx, ds.reader(ctx), &profiles, stmt, hostUUID, policyVersion, fleet.MDMDeliveryPending, fleet.MDMOperationTypeInstall)
+	err = sqlx.SelectContext(ctx, ds.reader(ctx), &profiles, stmt, args...)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "listing host MDM Android profiles pending install")
 	}

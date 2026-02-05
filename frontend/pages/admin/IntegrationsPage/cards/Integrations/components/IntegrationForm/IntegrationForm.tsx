@@ -89,7 +89,7 @@ const IntegrationForm = ({
     let error = null;
 
     if (url && !validUrl({ url, protocols: ["https"] })) {
-      error = `${url} is not a valid HTTPS URL`;
+      error = "URL is not a valid HTTPS URL";
     }
 
     setUrlError(error);

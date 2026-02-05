@@ -1,7 +1,10 @@
 .app-wrap {
-  .site-nav {
-    height: 50px;
+  .site-nav-left {
+    .loading-spinner {
+      margin-left: $pad-small; // Logo loading spinner not flushed left of page
+    }
   }
+
   .site-nav-better-link {
     margin-right: 20px;
     width: 120px;

@@ -845,6 +845,8 @@ type Datastore interface {
 	ConditionalAccessConsumeBypass(ctx context.Context, hostID uint) (*time.Time, error)
 	// ConditionalAccessClearBypasses clears all conditional access bypasses from the database
 	ConditionalAccessClearBypasses(ctx context.Context) error
+	// ConditionalAccessBypassedAt returns the time the bypass was enabled for a host, or nil if no bypass exists
+	ConditionalAccessBypassedAt(ctx context.Context, hostID uint) (*time.Time, error)
 
 	// Methods used for async processing of host policy query results.
 	AsyncBatchInsertPolicyMembership(ctx context.Context, batch []PolicyMembershipResult) error
@@ -1673,6 +1675,18 @@ type Datastore interface {
 	// device that is still enrolled in Fleet MDM but the corresponding host has
 	// been deleted from Fleet.
 	GetMDMAppleEnrolledDeviceDeletedFromFleet(ctx context.Context, hostUUID string) (*MDMAppleEnrolledDeviceInfo, error)
+
+	// GetMDMAppleHostMDMEnrollRef returns the host mdm enrollment reference for
+	// the given host ID.
+	GetMDMAppleHostMDMEnrollRef(ctx context.Context, hostID uint) (string, error)
+	// UpdateMDMAppleHostMDMEnrollRef updates the host mdm enrollment reference for
+	// the given host ID. It returns a boolean indicating whether any row was
+	// affected.
+	UpdateMDMAppleHostMDMEnrollRef(ctx context.Context, hostID uint, enrollRef string) (bool, error)
+	// DeactivateMDMAppleHostSCEPRenewCommands deactivates any pending SCEP renew
+	// commands for the given host UUID in the nano_enrollment_queue. It also clears all renew
+	// command uuid associated in nano_cert_auth_assocations for that host.
+	DeactivateMDMAppleHostSCEPRenewCommands(ctx context.Context, hostUUID string) error
 
 	// ListMDMAppleEnrolledIphoneIpadDeletedFromFleet returns a list of nano
 	// device IDs (host UUIDs) of iPhone and iPad that are enrolled in Fleet MDM
@@ -2699,8 +2713,8 @@ type AndroidDatastore interface {
 	BulkUpsertMDMAndroidHostProfiles(ctx context.Context, payload []*MDMAndroidProfilePayload) error
 	// BulkDeleteMDMAndroidHostProfiles bulk removes records from the host's profile, that is pending or failed remove and less than or equals to the policy version.
 	BulkDeleteMDMAndroidHostProfiles(ctx context.Context, hostUUID string, policyVersionID int64) error
-	// ListHostMDMAndroidProfilesPendingInstallWithVersion returns a list of all android profiles that are pending install, and where version is less than or equals to the policyVersion.
-	ListHostMDMAndroidProfilesPendingInstallWithVersion(ctx context.Context, hostUUID string, policyVersion int64) ([]*MDMAndroidProfilePayload, error)
+	// ListHostMDMAndroidProfilesPendingOrFailedInstallWithVersion returns a list of all android profiles that are pending or failed install, and where version is less than or equals to the policyVersion.
+	ListHostMDMAndroidProfilesPendingOrFailedInstallWithVersion(ctx context.Context, hostUUID string, policyVersion int64) ([]*MDMAndroidProfilePayload, error)
 	GetAndroidPolicyRequestByUUID(ctx context.Context, requestUUID string) (*android.MDMAndroidPolicyRequest, error)
 	// UpdateHostSoftware updates the software list of a host.
 	// The update consists of deleting existing entries that are not in the given `software`

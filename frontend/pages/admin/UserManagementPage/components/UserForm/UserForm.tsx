@@ -106,7 +106,7 @@ const validate = (
   if (!validatePresence(email)) {
     newErrors.email = "Email field must be completed";
   } else if (!validEmail(email)) {
-    newErrors.email = `${email} is not a valid email`;
+    newErrors.email = "Email is not a valid email";
   }
 
   const isNewAdminCreatedUserWithoutSSO =

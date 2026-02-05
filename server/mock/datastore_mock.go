@@ -649,6 +649,8 @@ type ConditionalAccessConsumeBypassFunc func(ctx context.Context, hostID uint) (
 
 type ConditionalAccessClearBypassesFunc func(ctx context.Context) error
 
+type ConditionalAccessBypassedAtFunc func(ctx context.Context, hostID uint) (*time.Time, error)
+
 type AsyncBatchInsertPolicyMembershipFunc func(ctx context.Context, batch []fleet.PolicyMembershipResult) error
 
 type AsyncBatchUpdatePolicyTimestampFunc func(ctx context.Context, ids []uint, ts time.Time) error
@@ -1139,6 +1141,12 @@ type ClearMDMUpcomingActivitiesDBFunc func(ctx context.Context, tx sqlx.ExtConte
 
 type GetMDMAppleEnrolledDeviceDeletedFromFleetFunc func(ctx context.Context, hostUUID string) (*fleet.MDMAppleEnrolledDeviceInfo, error)
 
+type GetMDMAppleHostMDMEnrollRefFunc func(ctx context.Context, hostID uint) (string, error)
+
+type UpdateMDMAppleHostMDMEnrollRefFunc func(ctx context.Context, hostID uint, enrollRef string) (bool, error)
+
+type DeactivateMDMAppleHostSCEPRenewCommandsFunc func(ctx context.Context, hostUUID string) error
+
 type ListMDMAppleEnrolledIPhoneIpadDeletedFromFleetFunc func(ctx context.Context, limit int) ([]string, error)
 
 type ReconcileMDMAppleEnrollRefFunc func(ctx context.Context, enrollRef string, machineInfo *fleet.MDMAppleMachineInfo) (string, error)
@@ -1551,7 +1559,7 @@ type BulkUpsertMDMAndroidHostProfilesFunc func(ctx context.Context, payload []*f
 
 type BulkDeleteMDMAndroidHostProfilesFunc func(ctx context.Context, hostUUID string, policyVersionID int64) error
 
-type ListHostMDMAndroidProfilesPendingInstallWithVersionFunc func(ctx context.Context, hostUUID string, policyVersion int64) ([]*fleet.MDMAndroidProfilePayload, error)
+type ListHostMDMAndroidProfilesPendingOrFailedInstallWithVersionFunc func(ctx context.Context, hostUUID string, policyVersion int64) ([]*fleet.MDMAndroidProfilePayload, error)
 
 type GetAndroidPolicyRequestByUUIDFunc func(ctx context.Context, requestUUID string) (*android.MDMAndroidPolicyRequest, error)
 
@@ -2707,6 +2715,9 @@ type DataStore struct {
 	ConditionalAccessClearBypassesFunc        ConditionalAccessClearBypassesFunc
 	ConditionalAccessClearBypassesFuncInvoked bool
 
+	ConditionalAccessBypassedAtFunc        ConditionalAccessBypassedAtFunc
+	ConditionalAccessBypassedAtFuncInvoked bool
+
 	AsyncBatchInsertPolicyMembershipFunc        AsyncBatchInsertPolicyMembershipFunc
 	AsyncBatchInsertPolicyMembershipFuncInvoked bool
 
@@ -3442,6 +3453,15 @@ type DataStore struct {
 	GetMDMAppleEnrolledDeviceDeletedFromFleetFunc        GetMDMAppleEnrolledDeviceDeletedFromFleetFunc
 	GetMDMAppleEnrolledDeviceDeletedFromFleetFuncInvoked bool
 
+	GetMDMAppleHostMDMEnrollRefFunc        GetMDMAppleHostMDMEnrollRefFunc
+	GetMDMAppleHostMDMEnrollRefFuncInvoked bool
+
+	UpdateMDMAppleHostMDMEnrollRefFunc        UpdateMDMAppleHostMDMEnrollRefFunc
+	UpdateMDMAppleHostMDMEnrollRefFuncInvoked bool
+
+	DeactivateMDMAppleHostSCEPRenewCommandsFunc        DeactivateMDMAppleHostSCEPRenewCommandsFunc
+	DeactivateMDMAppleHostSCEPRenewCommandsFuncInvoked bool
+
 	ListMDMAppleEnrolledIPhoneIpadDeletedFromFleetFunc        ListMDMAppleEnrolledIPhoneIpadDeletedFromFleetFunc
 	ListMDMAppleEnrolledIPhoneIpadDeletedFromFleetFuncInvoked bool
 
@@ -4060,8 +4080,8 @@ type DataStore struct {
 	BulkDeleteMDMAndroidHostProfilesFunc        BulkDeleteMDMAndroidHostProfilesFunc
 	BulkDeleteMDMAndroidHostProfilesFuncInvoked bool
 
-	ListHostMDMAndroidProfilesPendingInstallWithVersionFunc        ListHostMDMAndroidProfilesPendingInstallWithVersionFunc
-	ListHostMDMAndroidProfilesPendingInstallWithVersionFuncInvoked bool
+	ListHostMDMAndroidProfilesPendingOrFailedInstallWithVersionFunc        ListHostMDMAndroidProfilesPendingOrFailedInstallWithVersionFunc
+	ListHostMDMAndroidProfilesPendingOrFailedInstallWithVersionFuncInvoked bool
 
 	GetAndroidPolicyRequestByUUIDFunc        GetAndroidPolicyRequestByUUIDFunc
 	GetAndroidPolicyRequestByUUIDFuncInvoked bool
@@ -6578,6 +6598,13 @@ func (s *DataStore) ConditionalAccessClearBypasses(ctx context.Context) error {
 	return s.ConditionalAccessClearBypassesFunc(ctx)
 }
 
+func (s *DataStore) ConditionalAccessBypassedAt(ctx context.Context, hostID uint) (*time.Time, error) {
+	s.mu.Lock()
+	s.ConditionalAccessBypassedAtFuncInvoked = true
+	s.mu.Unlock()
+	return s.ConditionalAccessBypassedAtFunc(ctx, hostID)
+}
+
 func (s *DataStore) AsyncBatchInsertPolicyMembership(ctx context.Context, batch []fleet.PolicyMembershipResult) error {
 	s.mu.Lock()
 	s.AsyncBatchInsertPolicyMembershipFuncInvoked = true
@@ -8293,6 +8320,27 @@ func (s *DataStore) GetMDMAppleEnrolledDeviceDeletedFromFleet(ctx context.Contex
 	return s.GetMDMAppleEnrolledDeviceDeletedFromFleetFunc(ctx, hostUUID)
 }
 
+func (s *DataStore) GetMDMAppleHostMDMEnrollRef(ctx context.Context, hostID uint) (string, error) {
+	s.mu.Lock()
+	s.GetMDMAppleHostMDMEnrollRefFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetMDMAppleHostMDMEnrollRefFunc(ctx, hostID)
+}
+
+func (s *DataStore) UpdateMDMAppleHostMDMEnrollRef(ctx context.Context, hostID uint, enrollRef string) (bool, error) {
+	s.mu.Lock()
+	s.UpdateMDMAppleHostMDMEnrollRefFuncInvoked = true
+	s.mu.Unlock()
+	return s.UpdateMDMAppleHostMDMEnrollRefFunc(ctx, hostID, enrollRef)
+}
+
+func (s *DataStore) DeactivateMDMAppleHostSCEPRenewCommands(ctx context.Context, hostUUID string) error {
+	s.mu.Lock()
+	s.DeactivateMDMAppleHostSCEPRenewCommandsFuncInvoked = true
+	s.mu.Unlock()
+	return s.DeactivateMDMAppleHostSCEPRenewCommandsFunc(ctx, hostUUID)
+}
+
 func (s *DataStore) ListMDMAppleEnrolledIPhoneIpadDeletedFromFleet(ctx context.Context, limit int) ([]string, error) {
 	s.mu.Lock()
 	s.ListMDMAppleEnrolledIPhoneIpadDeletedFromFleetFuncInvoked = true
@@ -9735,11 +9783,11 @@ func (s *DataStore) BulkDeleteMDMAndroidHostProfiles(ctx context.Context, hostUU
 	return s.BulkDeleteMDMAndroidHostProfilesFunc(ctx, hostUUID, policyVersionID)
 }
 
-func (s *DataStore) ListHostMDMAndroidProfilesPendingInstallWithVersion(ctx context.Context, hostUUID string, policyVersion int64) ([]*fleet.MDMAndroidProfilePayload, error) {
+func (s *DataStore) ListHostMDMAndroidProfilesPendingOrFailedInstallWithVersion(ctx context.Context, hostUUID string, policyVersion int64) ([]*fleet.MDMAndroidProfilePayload, error) {
 	s.mu.Lock()
-	s.ListHostMDMAndroidProfilesPendingInstallWithVersionFuncInvoked = true
+	s.ListHostMDMAndroidProfilesPendingOrFailedInstallWithVersionFuncInvoked = true
 	s.mu.Unlock()
-	return s.ListHostMDMAndroidProfilesPendingInstallWithVersionFunc(ctx, hostUUID, policyVersion)
+	return s.ListHostMDMAndroidProfilesPendingOrFailedInstallWithVersionFunc(ctx, hostUUID, policyVersion)
 }
 
 func (s *DataStore) GetAndroidPolicyRequestByUUID(ctx context.Context, requestUUID string) (*android.MDMAndroidPolicyRequest, error) {

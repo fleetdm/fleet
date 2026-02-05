@@ -40,12 +40,15 @@ interface IDataColumn {
   sortType?: string;
 }
 
-const getPolicyStatus = (policy: IHostPolicy): PolicyStatus | null => {
+const getPolicyStatus = (
+  policy: IHostPolicy,
+  conditionalAccessEnabled: boolean
+): PolicyStatus | null => {
   if (policy.response === "pass") {
     return "pass";
   }
   if (policy.response === "fail") {
-    if (policy.conditional_access_enabled) {
+    if (policy.conditional_access_enabled && conditionalAccessEnabled) {
       return "actionRequired";
     }
     return "fail";
@@ -137,11 +140,12 @@ const generatePolicyTableHeaders = (currentTeamId?: number): IDataColumn[] => {
 };
 
 const generatePolicyDataSet = (
-  policies: IHostPolicy[]
+  policies: IHostPolicy[],
+  conditionalAccessEnabled: boolean
 ): IEnhancedHostPolicy[] => {
   return policies.map((policy) => ({
     ...policy,
-    status: getPolicyStatus(policy),
+    status: getPolicyStatus(policy, conditionalAccessEnabled),
   }));
 };
 

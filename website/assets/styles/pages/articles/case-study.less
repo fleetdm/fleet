@@ -163,6 +163,13 @@
     width: 343px;
     font-size: 14px;
   }
+  [purpose='heading-and-link'] {
+    display: flex;
+    flex-direction: row;
+    justify-content: space-between;
+    align-items: center;
+    padding-top: 16px;
+  }
 
   [purpose='sidebar-link'] {
     margin-bottom: 12px;
@@ -188,7 +195,6 @@
   [purpose='edit-link'] {
     padding-top: 24px;
     padding-bottom: 16px;
-    margin-top: 24px;
     border-top: 1px solid #E2E4EA;
     a {
       text-decoration: none;
@@ -215,13 +221,18 @@
       font-style: normal;
     }
   }
+  [purpose='sidebar-links'] {
+    display: flex;
+    flex-direction: column;
+    gap: 24px;
+    h4 {
+      margin-bottom: 0px;
+    }
+  }
   [purpose='case-study-links'] {
     display: flex;
     flex-direction: column;
     gap: 4px;
-    h4 {
-      padding-top: 16px;// "More Customer stories" link
-    }
   }
   [purpose='case-study-link'] {
     display: flex;
@@ -752,6 +763,9 @@
       padding-top: 32px;
       border-top: 1px solid #E2E4EA;
       margin-bottom: 32px;
+    }
+    [purpose='heading-and-link'] {
+      padding-top: 0px;
     }
     [purpose='article-content'] {
       img {

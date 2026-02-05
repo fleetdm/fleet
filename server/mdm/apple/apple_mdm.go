@@ -783,7 +783,7 @@ func (d *DEPService) processDeviceResponse(
 	for _, newDevice := range addedDevicesSlice {
 		var teamID *uint
 		switch newDevice.DeviceFamily {
-		case "iPhone":
+		case "iPhone", "iPod":
 			teamID = iosTeamID
 		case "iPad":
 			teamID = ipadTeamID
@@ -950,7 +950,7 @@ func (d *DEPService) getProfileUUIDForTeam(ctx context.Context, tmID *uint, abmT
 
 // logCountsForResults tries to aggregate the result types and log the counts.
 func logCountsForResults(deviceResults map[string]string) (out []interface{}) {
-	results := map[string]int{"success": 0, "not_accessible": 0, "failed": 0, "other": 0}
+	results := map[string]int{"success": 0, "not_accessible": 0, "failed": 0, "throttled": 0, "other": 0}
 	for _, result := range deviceResults {
 		l := strings.ToLower(result)
 		if _, ok := results[l]; !ok {

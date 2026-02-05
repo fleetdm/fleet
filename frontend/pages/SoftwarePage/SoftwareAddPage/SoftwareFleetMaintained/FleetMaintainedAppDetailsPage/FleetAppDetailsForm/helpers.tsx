@@ -1,5 +1,4 @@
-// @ts-ignore
-import validateQuery from "components/forms/validators/validate_query";
+import { validateQuery } from "components/forms/validators/validate_query";
 
 import {
   IFleetMaintainedAppFormData,
@@ -25,12 +24,26 @@ const FORM_VALIDATION_CONFIG: Record<
       {
         name: "invalidQuery",
         isValid: (formData) => {
-          const query = formData.preInstallQuery;
-          return (
-            query === undefined || query === "" || validateQuery(query).valid
-          );
+          const query = formData.preInstallQuery ?? "";
+
+          if (query.trim() === "") {
+            // Empty is allowed
+            return true;
+          }
+
+          const { valid } = validateQuery(query);
+          return valid;
         },
-        message: (formData) => validateQuery(formData.preInstallQuery).error,
+        message: (formData) => {
+          const query = formData.preInstallQuery ?? "";
+
+          if (query.trim() === "") {
+            return "";
+          }
+
+          const { error } = validateQuery(query);
+          return error ?? "Invalid query";
+        },
       },
     ],
   },
@@ -70,24 +83,25 @@ export const generateFormValidation = (
     isValid: true,
   };
 
-  Object.keys(FORM_VALIDATION_CONFIG).forEach((key) => {
-    const objKey = key as IFormValidationKey;
-    const failedValidation = FORM_VALIDATION_CONFIG[objKey].validations.find(
-      (validation) => !validation.isValid(formData)
-    );
+  (Object.keys(FORM_VALIDATION_CONFIG) as IFormValidationKey[]).forEach(
+    (objKey) => {
+      const failedValidation = FORM_VALIDATION_CONFIG[objKey].validations.find(
+        (validation) => !validation.isValid(formData)
+      );
 
-    if (!failedValidation) {
-      formValidation[objKey] = {
-        isValid: true,
-      };
-    } else {
-      formValidation.isValid = false;
-      formValidation[objKey] = {
-        isValid: false,
-        message: getErrorMessage(formData, failedValidation.message),
-      };
+      if (!failedValidation) {
+        formValidation[objKey] = {
+          isValid: true,
+        };
+      } else {
+        formValidation.isValid = false;
+        formValidation[objKey] = {
+          isValid: false,
+          message: getErrorMessage(formData, failedValidation.message),
+        };
+      }
     }
-  });
+  );
 
   return formValidation;
 };
