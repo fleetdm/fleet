@@ -30,7 +30,7 @@ The biggest potential risk given how OpenClaw works is [prompt injection](https:
 
 Shared computing systems from the time of Unix in the 1970's until now have always had built-in protections and layers of security. Many of the original ideas created to keep operating systems secure (e.g., the [sudo](https://www.sudo.ws/) command) still work well.
 
-OpenClaw's capabilities run with an unprecedented level of autonomy at the user level, no human interaction required. Know-how, skill and experience are not necessary to operate OpenClaw, just a text message.
+But, OpenClaw's capabilities run with an unprecedented level of autonomy at the user level, no human interaction required. Know-how, skill and experience are not necessary to operate OpenClaw, just a text message.
 
 The danger of prompt injection is that if someone other than the intended end user can send text messages to an OpenClaw agent. even with its "intelligence", the system has virtually no ability to discern an order coming from you versus an order from someone pretending to be "you". 
 
