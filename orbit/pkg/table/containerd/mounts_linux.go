@@ -53,7 +53,7 @@ func GenerateMounts(ctx context.Context, queryContext table.QueryContext) ([]map
 			// Get the container's spec to access mount information
 			spec, err := container.Spec(nsCtx)
 			if err != nil {
-				log.Printf("Failed to get spec for container %s: %w", container.ID(), err)
+				log.Printf("Failed to get spec for container %s: %v", container.ID(), err)
 				continue
 			}
 
