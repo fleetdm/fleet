@@ -1480,7 +1480,12 @@ func (svc *Service) RefetchHost(ctx context.Context, id uint) error {
 			return ctxerr.Wrap(ctx, err, "refetch host: get host DEP assignment")
 		}
 
-		if adeData.IsDEPAssignedToFleet() {
+		lwStatus, err := svc.ds.GetHostLockWipeStatus(ctx, host)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "refetch host: get host location data")
+		}
+
+		if adeData.IsDEPAssignedToFleet() && lwStatus.IsLocked() {
 			err = svc.mdmAppleCommander.DeviceLocation(ctx, []string{host.UUID}, cmdUUID)
 			if err != nil {
 				return ctxerr.Wrap(ctx, err, "refetch host: get location with MDM")

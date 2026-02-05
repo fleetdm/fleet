@@ -1555,7 +1555,7 @@ type BulkUpsertMDMAndroidHostProfilesFunc func(ctx context.Context, payload []*f
 
 type BulkDeleteMDMAndroidHostProfilesFunc func(ctx context.Context, hostUUID string, policyVersionID int64) error
 
-type ListHostMDMAndroidProfilesPendingInstallWithVersionFunc func(ctx context.Context, hostUUID string, policyVersion int64) ([]*fleet.MDMAndroidProfilePayload, error)
+type ListHostMDMAndroidProfilesPendingOrFailedInstallWithVersionFunc func(ctx context.Context, hostUUID string, policyVersion int64) ([]*fleet.MDMAndroidProfilePayload, error)
 
 type GetAndroidPolicyRequestByUUIDFunc func(ctx context.Context, requestUUID string) (*android.MDMAndroidPolicyRequest, error)
 
@@ -4070,8 +4070,8 @@ type DataStore struct {
 	BulkDeleteMDMAndroidHostProfilesFunc        BulkDeleteMDMAndroidHostProfilesFunc
 	BulkDeleteMDMAndroidHostProfilesFuncInvoked bool
 
-	ListHostMDMAndroidProfilesPendingInstallWithVersionFunc        ListHostMDMAndroidProfilesPendingInstallWithVersionFunc
-	ListHostMDMAndroidProfilesPendingInstallWithVersionFuncInvoked bool
+	ListHostMDMAndroidProfilesPendingOrFailedInstallWithVersionFunc        ListHostMDMAndroidProfilesPendingOrFailedInstallWithVersionFunc
+	ListHostMDMAndroidProfilesPendingOrFailedInstallWithVersionFuncInvoked bool
 
 	GetAndroidPolicyRequestByUUIDFunc        GetAndroidPolicyRequestByUUIDFunc
 	GetAndroidPolicyRequestByUUIDFuncInvoked bool
@@ -9759,11 +9759,11 @@ func (s *DataStore) BulkDeleteMDMAndroidHostProfiles(ctx context.Context, hostUU
 	return s.BulkDeleteMDMAndroidHostProfilesFunc(ctx, hostUUID, policyVersionID)
 }
 
-func (s *DataStore) ListHostMDMAndroidProfilesPendingInstallWithVersion(ctx context.Context, hostUUID string, policyVersion int64) ([]*fleet.MDMAndroidProfilePayload, error) {
+func (s *DataStore) ListHostMDMAndroidProfilesPendingOrFailedInstallWithVersion(ctx context.Context, hostUUID string, policyVersion int64) ([]*fleet.MDMAndroidProfilePayload, error) {
 	s.mu.Lock()
-	s.ListHostMDMAndroidProfilesPendingInstallWithVersionFuncInvoked = true
+	s.ListHostMDMAndroidProfilesPendingOrFailedInstallWithVersionFuncInvoked = true
 	s.mu.Unlock()
-	return s.ListHostMDMAndroidProfilesPendingInstallWithVersionFunc(ctx, hostUUID, policyVersion)
+	return s.ListHostMDMAndroidProfilesPendingOrFailedInstallWithVersionFunc(ctx, hostUUID, policyVersion)
 }
 
 func (s *DataStore) GetAndroidPolicyRequestByUUID(ctx context.Context, requestUUID string) (*android.MDMAndroidPolicyRequest, error) {
