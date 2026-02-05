@@ -23,9 +23,11 @@ type Token string
 func FromHTTPRequest(r *http.Request) Token {
 	headers := r.Header.Get("Authorization")
 	headerParts, ok := splitToken(headers)
-
+	if !ok {
+		return ""
+	}
 	// If the Authorization header is present and properly formatted, return the token.
-	if ok && strings.ToUpper(headerParts[0]) == "BEARER" {
+	if strings.ToUpper(headerParts[0]) == "BEARER" {
 		if headerParts[1] == "" {
 			// Empty "BEARER" value in header, return empty token
 			return ""
