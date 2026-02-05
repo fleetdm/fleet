@@ -2,7 +2,7 @@
 
 The amount of recent chatter about [OpenClaw](https://openclaw.im/) seems to be highlighting a [cultural inflection point](https://www.jakequist.com/thoughts/openclaw-is-what-apple-intelligence-should-have-been). The moment seems similar to the point at which everyone switched off AOL and on to the regular old internet. The point at which everyone suddenly had an iPod. The point at which everyone suddenly had a Gmail account. 
 
-THis may be the point at which useful AI technology has finally become attainable for people who would not consider themselves technology savvy. Powerful, connected, practical. Easy to set up, use and understand. 
+This may be the point at which useful AI technology has finally become attainable for people who would not consider themselves technology savvy. Powerful, connected, practical. Easy to set up, use and understand. 
 
 ## How OpenClaw works
 
