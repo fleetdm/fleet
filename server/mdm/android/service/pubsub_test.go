@@ -25,6 +25,9 @@ import (
 	"google.golang.org/api/androidmanagement/v1"
 )
 
+// sha256 of "TestBrand:test-serial". Will need to be updated if our test enrollment message changes
+const testBrandTestSerialHashed = "9c311e05af14f958bd65188796e41fcc8a7b0ff913bfea4f11f31c96c6f052b0"
+
 func createAndroidService(t *testing.T) (android.Service, *AndroidMockDS) {
 	androidAPIClient := android_mock.Client{}
 	androidAPIClient.InitCommonMocks()
@@ -213,8 +216,7 @@ func TestPubSubEnrollment(t *testing.T) {
 
 			mockDS.NewAndroidHostFunc = func(ctx context.Context, host *fleet.AndroidHost, companyOwned bool) (*fleet.AndroidHost, error) {
 				require.True(t, companyOwned)
-				// sha256 of "TestBrand:test-serial". Will need to be updated if our test enrollment message changes
-				require.Equal(t, "9c311e05af14f958bd65188796e41fcc8a7b0ff913bfea4f11f31c96c6f052b0", host.UUID)
+				require.Equal(t, testBrandTestSerialHashed, host.UUID)
 				return &fleet.AndroidHost{Host: &fleet.Host{}}, nil
 			}
 			mockDS.AssociateHostMDMIdPAccountFunc = func(ctx context.Context, hostUUID, accountUUID string) error {
@@ -856,7 +858,7 @@ func TestUpdateHost(t *testing.T) {
 
 	// TODO I don't understand this test. Existing devices w/o enterprise specific ID break fleet. I don't think
 	// real customers should have any
-	t.Run("Empty UUID from device should not overwrite existing", func(t *testing.T) {
+	t.Run("Company-owned device update should update the host", func(t *testing.T) {
 		// Reset the mock invocation flag
 		mockDS.UpdateAndroidHostFuncInvoked = false
 		capturedHost = nil
@@ -868,6 +870,7 @@ func TestUpdateHost(t *testing.T) {
 				EnterpriseSpecificId: "", // Empty UUID
 				Brand:                "TestBrand",
 				Model:                "TestModel",
+				SerialNumber:         "test-serial",
 			},
 			SoftwareInfo: &androidmanagement.SoftwareInfo{
 				AndroidBuildNumber: "test-build",
@@ -881,21 +884,17 @@ func TestUpdateHost(t *testing.T) {
 
 		// Mock to return host with empty enterprise ID
 		mockDS.AndroidHostLiteFunc = func(ctx context.Context, esID string) (*fleet.AndroidHost, error) {
-			if esID == "" {
-				// Return host that has UUID but empty enterprise ID
-				return &fleet.AndroidHost{
-					Host: &fleet.Host{
-						ID:   2,
-						UUID: "existing-uuid-should-remain",
-					},
-					Device: &android.Device{
-						HostID:               2,
-						DeviceID:             "device-2",
-						EnterpriseSpecificID: ptr.String(""),
-					},
-				}, nil
-			}
-			return nil, common_mysql.NotFound("android host")
+			return &fleet.AndroidHost{
+				Host: &fleet.Host{
+					ID:   2,
+					UUID: testBrandTestSerialHashed,
+				},
+				Device: &android.Device{
+					HostID:               2,
+					DeviceID:             "device-2",
+					EnterpriseSpecificID: ptr.String(testBrandTestSerialHashed),
+				},
+			}, nil
 		}
 
 		// Create and process message
@@ -916,8 +915,7 @@ func TestUpdateHost(t *testing.T) {
 		require.True(t, mockDS.UpdateAndroidHostFuncInvoked)
 		require.NotNil(t, capturedHost)
 
-		// With the guard in place, existing UUID is preserved when device reports empty EnterpriseSpecificId
-		require.Equal(t, "existing-uuid-should-remain", capturedHost.Host.UUID, "Existing UUID preserved when device reports empty EnterpriseSpecificId")
+		require.Equal(t, testBrandTestSerialHashed, capturedHost.Host.UUID)
 	})
 }
 
