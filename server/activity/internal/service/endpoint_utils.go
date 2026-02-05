@@ -125,9 +125,10 @@ type endpointer struct {
 	svc api.Service
 }
 
-func (e *endpointer) CallHandlerFunc(f handlerFunc, ctx context.Context, 
+func (e *endpointer) CallHandlerFunc(f handlerFunc, ctx context.Context,
 	request any,
-	svc any) (platform_http.Errorer, error) {
+	svc any,
+) (platform_http.Errorer, error) {
 	return f(ctx, request, svc.(api.Service)), nil
 }
 
@@ -136,7 +137,8 @@ func (e *endpointer) Service() any {
 }
 
 func newUserAuthenticatedEndpointer(svc api.Service, authMiddleware endpoint.Middleware, opts []kithttp.ServerOption, r *mux.Router,
-	versions ...string) *eu.CommonEndpointer[handlerFunc] {
+	versions ...string,
+) *eu.CommonEndpointer[handlerFunc] {
 	return &eu.CommonEndpointer[handlerFunc]{
 		EP: &endpointer{
 			svc: svc,
