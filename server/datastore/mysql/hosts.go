@@ -1853,7 +1853,7 @@ func (ds *Datastore) filterHostsByOSSettingsDiskEncryptionStatus(sql string, opt
 		if diskEncryptionConfig.Enabled {
 			whereWindows = ds.whereBitLockerStatus(fleet.DiskEncryptionActionRequired, diskEncryptionConfig.BitLockerPINRequired)
 		}
-		subqueryMacOS, subqueryParams = subqueryFileVaultVerifying()
+		subqueryMacOS, subqueryParams = subqueryFileVaultActionRequired()
 
 	case fleet.DiskEncryptionEnforcing:
 		if diskEncryptionConfig.Enabled {
