@@ -27,9 +27,7 @@ This list (for now) will be in roughly chronological order as assets are created
 
 | Asset | Last updated | Use for 
 |:------------|:------------|:----------------|
-
-
-| [The GitOps idea](https://fleetdm.com/articles/the-gitops-idea) | 2026-02-04 | Blog explaining what is GitOps|
+| [The GitOps idea](https://fleetdm.com/articles/the-gitops-idea) | 2026-02-04 | Blog explaining what is GitOps |
 | [Customers page](https://fleetdm.com/customers) | 2026-02-01 | Customer testimonials & logos |
 | [Fastly gains visibility into all endpoints and critical infrastructure worldwide](https://fleetdm.com/case-study/fastly) | 2026-01-30 | Customer case study: Fastly |
 | [Fleet GitOps - The future of device management is declarative](https://fleetdm.com/fleet-gitops) | 2026-01-29 | Fleet GitOps product page |
@@ -37,8 +35,7 @@ This list (for now) will be in roughly chronological order as assets are created
 | [Fleet vs. Jamf comparison](https://fleetdm.com/compare/jamf) | 2026-01-28 | Part of a series on competior analysis |
 | [Redefining endpoint management at scale: Fleet’s momentum in the 2026 Gartner reports](https://fleetdm.com/announcements/redefining-endpoint-management-at-scale) | 2026-01-23 | Fleet Gartner Magic Quadrant recognition |
 | [Why enterprise Linux is important in 2026](https://fleetdm.com/articles/why-enterprise-linux-is-important-in-2026) | 2026-01-21 | Part of a series of articles on enterprise Linux desktop management |
-| [Detect Log4j with osquery (and Fleet)](https://fleetdm.com/securing/detect-log4j-with-osquery-and-fleet) | 2021-12-15 | Example of how to leverage the flexibility of Fleet and osquery for quick response|
-
+| [Detect Log4j with osquery and Fleet](https://fleetdm.com/securing/detect-log4j-with-osquery-and-fleet) | 2021-12-15 | Example of how to leverage the flexibility of Fleet and osquery for quick response |
 
 
 ## Responsibilities
