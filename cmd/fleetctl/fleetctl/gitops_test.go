@@ -780,6 +780,7 @@ controls:
   macos_updates:
     deadline: "2025-10-10"
     minimum_version: "18.0"
+    update_new_hosts: false
   ios_updates:
     deadline: "2024-10-10"
     minimum_version: "18.0"
@@ -838,8 +839,9 @@ software:
 
 	assert.Equal(t, "2025-10-10", savedTeam.Config.MDM.MacOSUpdates.Deadline.Value)
 	assert.Equal(t, "18.0", savedTeam.Config.MDM.MacOSUpdates.MinimumVersion.Value)
-	// To keep things backwards compatible if MinimumVersion & Deadline are set, then UpdateNewHosts should be set to true
-	assert.Equal(t, optjson.SetBool(true), savedTeam.Config.MDM.MacOSUpdates.UpdateNewHosts)
+
+	// Ensure the default value (if deadline and minimum_version are set) can be overriden with explicit setting
+	assert.Equal(t, optjson.SetBool(false), savedTeam.Config.MDM.MacOSUpdates.UpdateNewHosts)
 
 	// The previous run created the team, so let's rerun with an existing team
 	_ = RunAppForTest(t, []string{"gitops", "-f", tmpFile.Name()})

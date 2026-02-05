@@ -20,7 +20,7 @@ The "[¶ 🗣 E-Group weekly [no shadows]](https://docs.google.com/document/d/13
 
 ### Strategy
 
-You can read background about how Fleet reached its positioning and product strategy in ["🎐 Why Fleet?" (private Google doc)](https://docs.google.com/document/d/1E0VU4AcB6UTVRd4JKD45Saxh9Gz-mkO3LnGSTBDLEZo/edit#). You can read about Fleet's Go-To-Market (GTM) strategy on our [Go-To-Market groups page](https://fleetdm.com/handbook/company/go-to-market-groups).
+You can read background about how Fleet reached its positioning and product strategy in ["🎐 Why Fleet?" (private Google doc)](https://docs.google.com/document/d/1E0VU4AcB6UTVRd4JKD45Saxh9Gz-mkO3LnGSTBDLEZo/edit#). You can read about Fleet's Go-To-Market (GTM) strategy on our [Go-To-Market ops page](https://fleetdm.com/handbook/company/go-to-market-operations).
 
 You can read the [Fleet ideal customer profile (ICP) and core personas doc (confidential)](https://docs.google.com/document/d/1ffsPCS6KGrHQFF7EgRLz1z2mOvtZwMSGyfDezOuOUwc/edit?tab=t.0#heading=h.xbsablobgthj) to understand how we identify our prospects.
 
@@ -43,7 +43,7 @@ Security policies are best when they're alive, in context of how an organization
 Fleet is successful because of our customers and community, and those relationships are built on [trust](https://fleetdm.com/trust).
 
 > **Compliance**
-> Community members can request compliance documentation (e.g. Fleet's SOC2 Type 2 report) at https://fleetdm.com/trust. In its current form, our SOC 2 report is intended to be shared only with parties who have signed a non-disclosure agreement (NDA) with Fleet. Internal stakeholders can [download approved documents](https://fleetdm.com/handbook/company/go-to-market-groups#fleets-vendor-collateral) from Google Drive.
+> Community members can request compliance documentation (e.g. Fleet's SOC2 Type 2 report) at https://fleetdm.com/trust. In its current form, our SOC 2 report is intended to be shared only with parties who have signed a non-disclosure agreement (NDA) with Fleet. Internal stakeholders can [download approved documents](https://fleetdm.com/handbook/company/go-to-market-operations#fleets-vendor-collateral) from Google Drive.
 
 
 ## Directly responsible individuals (DRIs)
@@ -783,7 +783,7 @@ The following stubs are included only to make links backward compatible.
 Please see 📖[handbook/company/communications#competition](https://fleetdm.com/handbook/company/communications#new-fleeties).
 
 ##### Customer support service level agreements (SLAs)
-Please see 📖[handbook/company/go-to-market-groups#customer-support-service-level-objectives-slos](https://fleetdm.com/handbook/company/go-to-market-groups#customer-support-service-level-objectives-slos).
+Please see 📖[handbook/company/go-to-market-operations#customer-support-service-level-objectives-slos](https://fleetdm.com/handbook/company/go-to-market-operations#customer-support-service-level-objectives-slos).
 
 For below, please see 📖[handbook/company/communications#scheduling-a-meeting](https://fleetdm.com/handbook/company/communications#scheduling-a-meeting).
 ##### Internal meetings

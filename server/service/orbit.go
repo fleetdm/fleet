@@ -21,6 +21,7 @@ import (
 	microsoft_mdm "github.com/fleetdm/fleet/v4/server/mdm/microsoft"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/service/contract"
+	"github.com/fleetdm/fleet/v4/server/service/osquery_utils"
 	"github.com/fleetdm/fleet/v4/server/worker"
 	"github.com/go-kit/log/level"
 )
@@ -1171,6 +1172,15 @@ func (svc *Service) SetOrUpdateDiskEncryptionKey(ctx context.Context, encryption
 		return badRequest("host is not enrolled with fleet")
 	}
 
+	// Only archive the key if disk encryption is enabled for this host (team/globally)
+	if !osquery_utils.IsDiskEncryptionEnabledForHost(ctx, svc.logger, svc.ds, host) {
+		level.Debug(svc.logger).Log(
+			"msg", "skipping key archival, disk encryption not enabled for host team/globally",
+			"host_id", host.ID,
+		)
+		return nil
+	}
+
 	var (
 		encryptedEncryptionKey string
 		decryptable            *bool
@@ -1268,6 +1278,15 @@ func (svc *Service) EscrowLUKSData(ctx context.Context, passphrase string, salt 
 
 	if clientError != "" {
 		return svc.ds.ReportEscrowError(ctx, host.ID, clientError)
+	}
+
+	// Only archive the key if disk encryption is enabled for this host (team/globally)
+	if !osquery_utils.IsDiskEncryptionEnabledForHost(ctx, svc.logger, svc.ds, host) {
+		level.Debug(svc.logger).Log(
+			"msg", "skipping LUKS key archival, disk encryption not enabled for host team/globally",
+			"host_id", host.ID,
+		)
+		return nil
 	}
 
 	encryptedPassphrase, encryptedSalt, validatedKeySlot, err := svc.validateAndEncrypt(ctx, passphrase, salt, keySlot)

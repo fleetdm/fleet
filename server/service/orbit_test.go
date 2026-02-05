@@ -182,7 +182,11 @@ func TestOrbitLUKSDataSave(t *testing.T) {
 		ctx = test.HostContext(ctx, host)
 
 		ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
-			return &fleet.AppConfig{}, nil
+			return &fleet.AppConfig{
+				MDM: fleet.MDM{
+					EnableDiskEncryption: optjson.SetBool(true),
+				},
+			}, nil
 		}
 
 		ds.NewActivityFunc = func(
@@ -266,6 +270,15 @@ func TestOrbitLUKSDataSave(t *testing.T) {
 			OsqueryHostID: ptr.String("test"),
 			ID:            1,
 		}
+
+		ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+			return &fleet.AppConfig{
+				MDM: fleet.MDM{
+					EnableDiskEncryption: optjson.SetBool(true),
+				},
+			}, nil
+		}
+
 		expectedErrorMessage := "internal error: missing server private key"
 		ds.ReportEscrowErrorFunc = func(ctx context.Context, hostID uint, err string) error {
 			require.Equal(t, expectedErrorMessage, err)
