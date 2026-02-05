@@ -1331,7 +1331,7 @@ func (ds *Datastore) ApplyPolicySpecs(ctx context.Context, authorID uint, specs 
 			vpp_apps_teams_id = VALUES(vpp_apps_teams_id),
 			script_id = VALUES(script_id),
 			conditional_access_enabled = VALUES(conditional_access_enabled),
-			conditional_access_bypass_enabled = VALUES(conditional_access_bypass_enabled),
+			conditional_access_bypass_enabled = VALUES(conditional_access_bypass_enabled)
 		`, policiesChecksumComputedColumn(),
 		)
 		for teamID, teamPolicySpecs := range teamIDToPolicies {
