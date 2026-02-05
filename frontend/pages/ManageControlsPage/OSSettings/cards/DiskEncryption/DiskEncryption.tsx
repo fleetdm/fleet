@@ -219,7 +219,7 @@ const DiskEncryption = ({
               </Checkbox>
               <p>
                 If turned on, hosts&apos; disk encryption keys will be stored in
-                Fleet{" "}
+                Fleet.{" "}
                 <CustomLink
                   text="Learn more"
                   url={`${LEARN_MORE_ABOUT_BASE_LINK}/mdm-disk-encryption`}
