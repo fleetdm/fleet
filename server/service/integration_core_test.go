@@ -9234,7 +9234,7 @@ func (s *integrationTestSuite) TestCarve() {
 		SessionId: sid + "zz",
 		RequestId: "??",
 		Data:      []byte("p1."),
-	}, http.StatusNotFound, &blockResp)
+	}, http.StatusUnauthorized, &blockResp)
 
 	// sending a block with valid session id but invalid request id
 	s.DoJSON("POST", "/api/osquery/carve/block", carveBlockRequest{
@@ -9242,7 +9242,7 @@ func (s *integrationTestSuite) TestCarve() {
 		SessionId: sid,
 		RequestId: "??",
 		Data:      []byte("p1."),
-	}, http.StatusInternalServerError, &blockResp) // TODO: should be 400, see #4406
+	}, http.StatusUnauthorized, &blockResp)
 
 	checkCarveError := func(id uint, err string) {
 		var getResp getCarveResponse
@@ -9317,6 +9317,61 @@ func (s *integrationTestSuite) TestCarve() {
 		Data:      []byte("p4."),
 	}, http.StatusBadRequest, &blockResp)
 	checkCarveError(1, "block_id exceeds expected max (2): 3")
+}
+
+func (s *integrationTestSuite) TestCarveUnauthenticated() {
+	t := s.T()
+
+	verifyAuthError := func(t *testing.T, res *http.Response) {
+		var errs validationErrResp
+		err := json.NewDecoder(res.Body).Decode(&errs)
+		require.NoError(t, err)
+		res.Body.Close()
+		assert.Equal(t, "Authentication failed", errs.Message)
+		require.Len(t, errs.Errors, 1)
+		assert.Equal(t, "Authentication failed", errs.Errors[0].Reason)
+	}
+
+	// Sending invalid format for data on purpose on purpose to check that the error is a HTTP 401 error
+	// vs a decoding/parsing error (this way we check it never gets to parse "data").
+	for _, tc := range []struct {
+		testName       string
+		rawJSONRequest string
+	}{
+		{
+			testName:       "empty-json",
+			rawJSONRequest: `{}`,
+		},
+		{
+			testName: "with-spaces", // osquery does not send spaces in the JSON
+			rawJSONRequest: `{
+				"block_id":   1,
+				"request_id": "invalid",
+				"data":      9999999999
+			}`,
+		},
+		{
+			testName:       "without-session-id",
+			rawJSONRequest: `{"block_id":1,"request_id":"invalid","data":9999999999}`,
+		},
+		{
+			testName:       "invalid-session-id-format",
+			rawJSONRequest: `{"block_id":1,"session_id":2,"request_id": "invalid","data":9999999999}`,
+		},
+		{
+			testName:       "invalid-session-id",
+			rawJSONRequest: `{"block_id":1,"session_id":"invalid","request_id":"invalid","data":9999999999}`,
+		},
+		{
+			testName:       "invalid-JSON",
+			rawJSONRequest: `{"block_ASDASDASDASDASDASDASDASDASDASDASDASDASD":1}`,
+		},
+	} {
+		t.Run(tc.testName, func(t *testing.T) {
+			res := s.DoRaw("POST", "/api/osquery/carve/block", []byte(tc.rawJSONRequest), http.StatusUnauthorized)
+			verifyAuthError(t, res)
+		})
+	}
 }
 
 func (s *integrationTestSuite) TestLogLoginAttempts() {
@@ -15645,7 +15700,4 @@ func (s *integrationTestSuite) TestDeleteCertificateTemplateSpec() {
 		require.Equal(t, string(fleet.CertificateTemplatePending), *profile.Status, "%s profile status should be pending after deletion", tc.hostName)
 		require.Equal(t, fleet.MDMOperationTypeRemove, profile.OperationType, "%s profile operation_type should be remove after deletion", tc.hostName)
 	}
-}
-
-func (s *integrationTestSuite) TestDevieStatusMappingForHostsEndpoints() {
 }
