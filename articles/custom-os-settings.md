@@ -151,6 +151,8 @@ On Android hosts, a broken profile will remove the enforcement of the OS setting
 
 macOS, iOS, and iPadOS profiles installed manually by the end user aren't managed by Fleet. They're not visible and can't be removed from the host via Fleet. Additionally, if a backup is migrated to a new host using [Apple's Migration Assistant](https://support.apple.com/en-us/102613) and it contains configuration profiles, those profiles aren't managed.
 
+Migration Assistant also backs up the enrollment profile. After the backup, it no longer has a valid private key, which stops communication with the server. Fleet still indicates that MDM is turned on for the host. If this occurs, remove the enrollment profile and turn MDM on again via **Fleet Desktop > My device**.
+
 To manually remove unmanaged profiles, ask the end user to go to **System Settings > General > Device Management**, select the profile, and select the **- (minus)** button at the bottom of the list.
 
 <meta name="category" value="guides">
