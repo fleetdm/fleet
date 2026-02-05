@@ -49,7 +49,7 @@
       <cloud-error purpose="cloud-error" v-else-if="cloudError === 'invalidLicense'">
         This integration is only available for Fleet Premium customers.
       </cloud-error>
-      <cloud-error purpose="cloud-error" v-else-if="cloudError === 'invalidResponseFromFleetInstance'">
+      <cloud-error purpose="cloud-error" v-else-if="['requestToFleetInstanceForbidden', 'invalidResponseFromFleetInstance'].includes(cloudError)">
         An error occured when verifying the configuration of the Fleet instance. Please check to make sure that the provided URL is correct and try resubmitting.
       </cloud-error>
       <cloud-error purpose="cloud-error" v-else-if="cloudError"></cloud-error>

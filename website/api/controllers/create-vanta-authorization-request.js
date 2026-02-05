@@ -47,6 +47,10 @@ module.exports = {
     },
     invalidToken: {
       description: 'The provided token for the api-only user could not be used to authorize requests from fleetdm.com',
+      statusCode: 401,
+    },
+    requestToFleetInstanceForbidden: {
+      description: 'The user\'s Fleet instance returned a "403 Forbidden" response',
       statusCode: 403,
     },
     invalidLicense: {
@@ -107,8 +111,9 @@ module.exports = {
     let responseFromFleetInstance = await sails.helpers.http.get(inputs.fleetInstanceUrl+'/api/v1/fleet/me',{},{'Authorization': 'Bearer ' +inputs.fleetApiKey})
     .intercept('requestFailed', 'fleetInstanceNotResponding')
     .intercept({raw: {statusCode: 401}}, 'invalidToken')
+    .intercept({raw: {statusCode: 403}}, 'requestToFleetInstanceForbidden')
     .intercept((error)=>{
-      return new Error(`When sending a request to a Fleet instance's /me endpoint to verify that a token meets the requirements for a Vanta connection, an error occurred: ${error}`);
+      return new Error(`When sending a request to a user's (${inputs.emailAddress}) Fleet instance's (${inputs.fleetInstanceUrl}) /me endpoint to verify that a token meets the requirements for a Vanta connection, an error occurred: ${error}`);
     });
 
     // Throw an error if the response from the Fleet instance's /me API endpoint does not contain a user.
@@ -131,8 +136,9 @@ module.exports = {
     let configResponse = await sails.helpers.http.get(inputs.fleetInstanceUrl+'/api/v1/fleet/config', {}, {'Authorization': 'Bearer ' +inputs.fleetApiKey})
     .intercept('requestFailed','fleetInstanceNotResponding')
     .intercept({raw: {statusCode: 401}}, 'invalidToken')
+    .intercept({raw: {statusCode: 403}}, 'requestToFleetInstanceForbidden')
     .intercept((error)=>{
-      return new Error(`When sending a request to a Fleet instance's /config API endpoint for a Vanta connection, an error occurred: ${error}`);
+      return new Error(`When sending a request to a user's (email: ${inputs.emailAddress}) Fleet instance's (${inputs.fleetInstanceUrl}) /config API endpoint for a Vanta connection, an error occurred: ${error}`);
     });
 
 
