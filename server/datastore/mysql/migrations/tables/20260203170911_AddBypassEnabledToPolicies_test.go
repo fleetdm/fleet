@@ -11,9 +11,9 @@ func TestUp_20260203170911(t *testing.T) {
 	db := applyUpToPrev(t)
 
 	_, err := db.Exec(`
-		INSERT INTO policies (name, description, query) VALUES
-			('test1', 'desc', 'SELECT 1'),
-			('test2', 'desc', 'SELECT 1')
+		INSERT INTO policies (name, description, query, checksum) VALUES
+			('test1', 'desc', 'SELECT 1', 'c1'),
+			('test2', 'desc', 'SELECT 1', 'c2')
 	`)
 	require.NoError(t, err)
 
@@ -23,15 +23,15 @@ func TestUp_20260203170911(t *testing.T) {
 	// Existing policies should have the new column set to true after migration
 	// New policies should default to true when no value defined
 	_, err = db.Exec(`
-		INSERT INTO policies (name, description, query) VALUES
-			('test3', 'desc', 'SELECT 1'),
+		INSERT INTO policies (name, description, query, checksum) VALUES
+			('test3', 'desc', 'SELECT 1', 'c3'),
 	`)
 	require.NoError(t, err)
 
 	// Only new policies with explicit false should be set to false
 	_, err = db.Exec(`
-		INSERT INTO policies (name, description, query, conditional_access_bypass_enabled) VALUES
-			('test4', 'desc', SELECT 1', false),
+		INSERT INTO policies (name, description, query, conditional_access_bypass_enabled, checksum) VALUES
+			('test4', 'desc', SELECT 1', false, 'c4'),
 	`)
 	require.NoError(t, err)
 
