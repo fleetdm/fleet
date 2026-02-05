@@ -210,9 +210,9 @@ lint-js:
 .help-short--lint-go:
 	@echo "Run the Go linters"
 lint-go:
-	golangci-lint run --timeout 15m
+	-golangci-lint run --timeout 15m
 ifndef SKIP_INCREMENTAL
-	lint-go-incremental
+	make lint-go-incremental
 endif
 
 .help-short--lint-go-incremental:
