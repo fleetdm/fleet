@@ -1650,12 +1650,7 @@ func testHostsListMDMAndroid(t *testing.T, ds *Datastore) {
 	test.AddBuiltinLabels(t, ds)
 
 	// Helper to create Android hosts with specific UUID configurations
-	createAndroidHostForTest := func(t *testing.T, name string, withUUID bool) *fleet.Host {
-		uuid := ""
-		if withUUID {
-			uuid = fmt.Sprintf("enterprise-id-%s", name)
-		}
-
+	createAndroidHostForTest := func(t *testing.T, name string, companyOwned bool) *fleet.Host {
 		androidHost := &fleet.AndroidHost{
 			Host: &fleet.Host{
 				Hostname:       fmt.Sprintf("%s.android.local", name),
@@ -1664,38 +1659,43 @@ func testHostsListMDMAndroid(t *testing.T, ds *Datastore) {
 				OSVersion:      "Android 14",
 				Build:          "test-build",
 				Memory:         8192,
-				HardwareSerial: fmt.Sprintf("serial-%s", name),
 				CPUType:        "arm64",
 				HardwareModel:  "Pixel",
 				HardwareVendor: "Google",
-				UUID:           uuid,
 			},
 			Device: &android.Device{
 				DeviceID:             fmt.Sprintf("device-%s", name),
-				EnterpriseSpecificID: ptr.String(name),
 				AppliedPolicyID:      ptr.String("1"),
 				AppliedPolicyVersion: ptr.Int64(1),
 				LastPolicySyncTime:   ptr.Time(time.Now().UTC().Truncate(time.Millisecond)),
 			},
 		}
-		androidHost.SetNodeKey(name)
+		if companyOwned {
+			androidHost.UUID = "uuid-" + name
+			androidHost.Device.EnterpriseSpecificID = &androidHost.UUID
+			// Company owned devices have a real serial - others just use the enterprise ID attribute
+			androidHost.Host.HardwareSerial = "serial-" + name
+		} else {
+			androidHost.Device.EnterpriseSpecificID = ptr.String("enterprise-id-" + name)
+			androidHost.Host.HardwareSerial = *androidHost.Device.EnterpriseSpecificID
+			androidHost.UUID = *androidHost.Device.EnterpriseSpecificID
+		}
+		androidHost.SetNodeKey(*androidHost.Device.EnterpriseSpecificID)
 
-		result, err := ds.NewAndroidHost(ctx, androidHost, false)
+		result, err := ds.NewAndroidHost(ctx, androidHost, companyOwned)
 		require.NoError(t, err)
 		return result.Host
 	}
 
-	// Create Android hosts with personal enrollment (BYOD - non-empty UUID)
-	_ = createAndroidHostForTest(t, "android-personal-1", true)
-	_ = createAndroidHostForTest(t, "android-personal-2", true)
+	// Create Android hosts with personal enrollment (BYOD)
+	_ = createAndroidHostForTest(t, "android-personal-1", false)
+	_ = createAndroidHostForTest(t, "android-personal-2", false)
 
-	// Create Android hosts without personal enrollment (company-owned - empty UUID)
-	_ = createAndroidHostForTest(t, "android-company-1", false)
-	_ = createAndroidHostForTest(t, "android-company-2", false)
+	// Create Android hosts without personal enrollment (company-owned)
+	_ = createAndroidHostForTest(t, "android-company-1", true)
+	_ = createAndroidHostForTest(t, "android-company-2", true)
 
 	// Android hosts are automatically enrolled in MDM when created with NewAndroidHost
-	// Personal hosts get is_personal_enrollment = 1 based on UUID
-	// Company hosts get is_personal_enrollment = 0 based on empty UUID
 
 	// Create a non-Android host to ensure Android platform filtering works
 	darwinHost, err := ds.NewHost(ctx, &fleet.Host{
@@ -1732,7 +1732,7 @@ func testHostsListMDMAndroid(t *testing.T, ds *Datastore) {
 	assert.Equal(t, 2, androidPersonalCount, "Should have exactly 2 Android personal hosts")
 
 	// Test filtering by manual enrollment - should return Android company hosts
-	hosts = listHostsCheckCount(t, ds, filter, fleet.HostListOptions{MDMEnrollmentStatusFilter: fleet.MDMEnrollStatusManual}, 2)
+	hosts = listHostsCheckCount(t, ds, filter, fleet.HostListOptions{MDMEnrollmentStatusFilter: fleet.MDMEnrollStatusAutomatic}, 2)
 	require.Len(t, hosts, 2, "Should have 2 Android company hosts (manual enrollment)")
 	for _, h := range hosts {
 		assert.Equal(t, "android", h.Platform, "All manual enrollment hosts should be Android")

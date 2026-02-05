@@ -449,7 +449,7 @@ func upsertAndroidHostMDMInfoDB(ctx context.Context, tx sqlx.ExtContext, serverU
 		}
 	}
 
-	args := []interface{}{}
+	args := []any{}
 	parts := []string{}
 	args = append(args, enrolled, serverURL, companyOwned, mdmID, false, !companyOwned, hostID)
 	parts = append(parts, "(?, ?, ?, ?, ?, ?, ?)")

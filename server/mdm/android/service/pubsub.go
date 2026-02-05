@@ -485,15 +485,18 @@ func (svc *Service) updateHost(ctx context.Context, device *androidmanagement.De
 func getAndroidHostKey(device *androidmanagement.Device) string {
 	if device.HardwareInfo.EnterpriseSpecificId != "" {
 		return device.HardwareInfo.EnterpriseSpecificId
-	} else {
-		// Fallback to a generated UUID based on device serial and manufacturer
-		generatedUUIDInput := fmt.Sprintf("%s:%s", device.HardwareInfo.Brand, device.HardwareInfo.SerialNumber)
-		sha256Hasher := sha256.New()
-		sha256Hasher.Write([]byte(generatedUUIDInput))
-		hashedUUIDBytes := sha256Hasher.Sum(nil)
-		generatedUUID := hex.EncodeToString(hashedUUIDBytes)
-		return generatedUUID
 	}
+	// Fallback to a generated UUID based on device serial and manufacturer. This will happen on
+	// devices enrolled with work profiles prior to Android 12 or company-owned devices, both of
+	// which report serials. Both enterpriseSpecificId and our generated UUID are stable across
+	// unenroll/re-enroll cycles for the same device + Android Enterprise, though if a new enterprise
+	// is created the EnterpriseSpecificID will change
+	generatedUUIDInput := fmt.Sprintf("%s:%s", device.HardwareInfo.Brand, device.HardwareInfo.SerialNumber)
+	sha256Hasher := sha256.New()
+	sha256Hasher.Write([]byte(generatedUUIDInput))
+	hashedUUIDBytes := sha256Hasher.Sum(nil)
+	generatedUUID := hex.EncodeToString(hashedUUIDBytes)
+	return generatedUUID
 }
 
 func setAndroidHostUUID(host *fleet.AndroidHost, device *androidmanagement.Device) {
