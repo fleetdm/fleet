@@ -23,7 +23,7 @@ This handbook page details processes specific to working [with](#contact-us) and
 
 ## Marketing assets
 
-This list (for now) will be in chronological order as assets are created:
+This list (for now) will be in roughly chronological order as assets are created:
 
 | Asset | Date posted | Business purpose 
 |:------------|:------------|:----------------|
@@ -33,6 +33,7 @@ This list (for now) will be in chronological order as assets are created:
 | [Fleet GitOps - The future of device management is declarative](https://fleetdm.com/fleet-gitops) | 2026-01-29 | Fleet GitOps product page |
 | [Fastly gains visibility into all endpoints and critical infrastructure worldwide](https://fleetdm.com/case-study/fastly) | 2026-01-30 | Customer case study: Fastly |
 | [Customers page](https://fleetdm.com/customers) | 2026-02-01 | Customer testimonials & logos |
+| [Redefining endpoint management at scale: Fleet’s momentum in the 2026 Gartner reports](https://fleetdm.com/announcements/redefining-endpoint-management-at-scale) | 2026-01-23 | Fleet Gartner Magic Quadrant recognition |
 
 
 ## Responsibilities
