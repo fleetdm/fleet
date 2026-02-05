@@ -436,5 +436,5 @@ export const ACTIVITY_TYPE_TO_FILTER_LABEL: Record<ActivityType, string> = {
   [ActivityType.EditedHostIdpData]: "Edited host identity provider (IdP) data",
   [ActivityType.AddedCertificate]: "Added certificate",
   [ActivityType.DeletedCertificate]: "Deleted certificate",
-  [ActivityType.EditedEnrollSecrets]: "Modified enroll secret",
+  [ActivityType.EditedEnrollSecrets]: "Edited enroll secrets",
 };

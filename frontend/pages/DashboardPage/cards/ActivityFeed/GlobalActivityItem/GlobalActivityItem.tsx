@@ -1732,7 +1732,7 @@ const TAGGED_TEMPLATES = {
     ) : (
       <></>
     );
-    return <>modified an enroll secret{postFix}.</>;
+    return <>edited enroll secret{postFix}.</>;
   },
 };
 

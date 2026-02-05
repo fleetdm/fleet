@@ -906,7 +906,7 @@ func (svc *Service) ModifyTeamEnrollSecrets(ctx context.Context, teamID uint, se
 			level.Error(svc.logger).Log(
 				"err", err,
 				"teamID", teamID,
-				"msg", "error while fetching team for modified enroll secret activity",
+				"msg", "error while fetching team for edited enroll secret activity",
 			)
 		}
 		if team != nil {
@@ -917,7 +917,7 @@ func (svc *Service) ModifyTeamEnrollSecrets(ctx context.Context, teamID uint, se
 		} else {
 			level.Error(svc.logger).Log(
 				"teamID", teamID,
-				"msg", "team not found for modified enroll secret activity",
+				"msg", "team not found for edited enroll secret activity",
 			)
 		}
 
@@ -926,7 +926,7 @@ func (svc *Service) ModifyTeamEnrollSecrets(ctx context.Context, teamID uint, se
 			authz.UserFromContext(ctx),
 			activity,
 		); err != nil {
-			errMsg := fmt.Sprintf("creating modified enroll secret activity for team %d", teamID)
+			errMsg := fmt.Sprintf("creating edited enroll secret activity for team %d", teamID)
 			return nil, ctxerr.Wrap(ctx, err, errMsg)
 		}
 	}

@@ -1790,7 +1790,7 @@ func (svc *Service) ApplyEnrollSecretSpec(ctx context.Context, spec *fleet.Enrol
 	if !maps.Equal(oldSecretValues, newSecretsValues) {
 		activity := fleet.ActivityTypeEditedEnrollSecrets{}
 		if err := svc.NewActivity(ctx, authz.UserFromContext(ctx), activity); err != nil {
-			return ctxerr.Wrap(ctx, err, "creating activity for modified enroll secret")
+			return ctxerr.Wrap(ctx, err, "creating activity for edited enroll secret")
 		}
 	}
 
