@@ -1810,6 +1810,7 @@ Modifies the Fleet's configuration with the supplied information.
     "enable_turn_on_windows_mdm_manually": false,
     "enable_disk_encryption": true,
     "windows_require_bitlocker_pin": false,
+    "enable_recovery_lock_password": true,
     "macos_updates": {
       "minimum_version": "12.3.1",
       "deadline": "2022-01-01",
@@ -2392,6 +2393,7 @@ When updating conditional access config, all `conditional_access` fields must ei
 | enable_turn_on_windows_mdm_manually | boolean | _Available in Fleet Premium._ Specifies whether or not to require end users to manually turn on MDM in **Settings > Access work or school**. If `false`, MDM is automatically turned on for all Windows hosts that aren't connected to any MDM solution. |
 | enable_disk_encryption            | boolean | _Available in Fleet Premium._ Hosts that belong to no team will have disk encryption enabled if set to true. |
 | windows_require_bitlocker_pin           | boolean | _Available in Fleet Premium._ End users on Windows hosts that belong to no team will be required to set a BitLocker PIN if set to true. `enable_disk_encryption` must be set to true. When the PIN is set, it's required to unlock Windows host during startup. |
+| enable_recovery_lock_password     | boolean | _Available in Fleet Premium._ Hosts that belong to no team will have Recovery Lock password enabled if set to true. |
 | macos_updates         | object  | See [`mdm.macos_updates`](#mdm-macos-updates). |
 | ios_updates         | object  | See [`mdm.ios_updates`](#mdm-ios-updates). |
 | ipados_updates         | object  | See [`mdm.ipados_updates`](#mdm-ipados-updates). |
@@ -2527,6 +2529,7 @@ _Available in Fleet Premium._
     "enable_turn_on_windows_mdm_manually": false,
     "enable_disk_encryption": true,
     "windows_require_bitlocker_pin": false,
+    "enable_recovery_lock_password": true,
     "macos_updates": {
       "minimum_version": "12.3.1",
       "deadline": "2022-01-01",
@@ -2857,6 +2860,7 @@ None.
 - [Get host's software](#get-hosts-software)
 - [Get hosts report in CSV](#get-hosts-report-in-csv)
 - [Get host's disk encryption key](#get-hosts-disk-encryption-key)
+- [Get host's Recovery Lock password](#get-hosts-recovery-lock-password)
 - [Get host's certificates](#get-hosts-certificates)
 - [Lock host](#lock-host)
 - [Unlock host](#unlock-host)
@@ -2932,6 +2936,7 @@ the `software` table.
 | bootstrap_package       | string | query | _Available in Fleet Premium_. Filters the hosts by the status of the MDM bootstrap package on the host. Valid options are 'installed', 'pending', or 'failed'. |
 | os_settings          | string  | query | Filters the hosts by the status of the operating system settings applied to the hosts. Valid options are 'verified', 'verifying', 'pending', or 'failed'. **Note: If this filter is used in Fleet Premium without a team ID filter, the results include only hosts that are not assigned to any team.** |
 | os_settings_disk_encryption | string | query | Filters the hosts by disk encryption status. Valid options are 'verified', 'verifying', 'action_required', 'enforcing', 'failed', or 'removing_enforcement'.  **Note: If this filter is used in Fleet Premium without a team ID filter, the results include only hosts that are not assigned to any team.** |
+| os_settings_recovery_lock_password | string | query | Filters the hosts by Recovery Lock password status. Valid options are 'verified', 'verifying', 'action_required', 'enforcing', 'failed', or 'removing_enforcement'.  **Note: If this filter is used in Fleet Premium without a team ID filter, the results include only hosts that are not assigned to any team.** |
 | populate_software     | string | query | If `false` (or omitted), omits installed software details for each host. If `"without_vulnerability_details"`, include a list of installed software for each host, including which CVEs apply to the installed software versions. `true` adds vulnerability description, CVSS score, and other details when using Fleet Premium. See notes below on performance. |
 | populate_policies     | boolean | query | If `true`, the response will include policy data for each host, including Fleet-maintained policies. |
 | populate_users     | boolean | query | If `true`, the response will include user data for each host. |
@@ -3231,6 +3236,7 @@ Response payload with the `munki_issue_id` filter provided:
 | bootstrap_package       | string | query | _Available in Fleet Premium_. Filters the hosts by the status of the MDM bootstrap package on the host. Valid options are 'installed', 'pending', or 'failed'. **Note: If this filter is used in Fleet Premium without a team ID filter, the results include only hosts that are not assigned to any team.** |
 | os_settings          | string  | query | Filters the hosts by the status of the operating system settings applied to the hosts. Valid options are 'verified', 'verifying', 'pending', or 'failed'. **Note: If this filter is used in Fleet Premium without a team ID filter, the results include only hosts that are not assigned to any team.** |
 | os_settings_disk_encryption | string | query | Filters the hosts by disk encryption status. Valid options are 'verified', 'verifying', 'action_required', 'enforcing', 'failed', or 'removing_enforcement'.  **Note: If this filter is used in Fleet Premium without a team ID filter, the results include only hosts that are not assigned to any team.** |
+| os_settings_recovery_lock_password | string | query | Filters the hosts by Recovery Lock password status. Valid options are 'verified', 'verifying', 'action_required', 'enforcing', 'failed', or 'removing_enforcement'.  **Note: If this filter is used in Fleet Premium without a team ID filter, the results include only hosts that are not assigned to any team.** |
 
 If `additional_info_filters` is not specified, no `additional` information will be returned.
 
@@ -4929,6 +4935,39 @@ The host will only return a key if its disk encryption status is "Verified." Get
 }
 ```
 
+### Get host's Recovery Lock password
+
+Retrieves the Recovery Lock password for a host.
+
+The host will only return a password if its Recovery Lock password status is "Verified." Get hosts' Recovery Lock password statuses using the [List hosts endpoint](#list-hosts) and `os_settings_recovery_lock_password` parameter.
+
+`GET /api/v1/fleet/hosts/:id/recovery_lock_password`
+
+#### Parameters
+
+| Name | Type    | In   | Description                                                            |
+| ---- | ------- | ---- | ---------------------------------------------------------------------- |
+| id   | integer | path | **Required** The id of the host to get the Recovery Lock password for. |
+
+
+#### Example
+
+`GET /api/v1/fleet/hosts/8/recovery_lock_password`
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "host_id": 8,
+  "recovery_lock_password": {
+    "password": "test-123",
+    "updated_at": "2026-02-01T05:31:43Z"
+  }
+}
+```
+
 ### Get host's certificates
 
 Available for macOS, iOS, iPadOS, and Windows hosts only. Requires Fleet's MDM to be [enabled and configured](https://fleetdm.com/docs/using-fleet/mdm-setup).
@@ -5883,6 +5922,7 @@ Returns a list of the hosts that belong to the specified label.
 | bootstrap_package       | string | query | _Available in Fleet Premium_. Filters the hosts by the status of the MDM bootstrap package on the host. Valid options are 'installed', 'pending', or 'failed'. **Note: If this filter is used in Fleet Premium without a team ID filter, the results include only hosts that are not assigned to any team.** |
 | os_settings          | string  | query | Filters the hosts by the status of the operating system settings applied to the hosts. Valid options are 'verified', 'verifying', 'pending', or 'failed'. **Note: If this filter is used in Fleet Premium without a team ID filter, the results include only hosts that are not assigned to any team.** |
 | os_settings_disk_encryption | string | query | Filters the hosts by disk encryption status. Valid options are 'verified', 'verifying', 'action_required', 'enforcing', 'failed', or 'removing_enforcement'.  **Note: If this filter is used in Fleet Premium without a team ID filter, the results include only hosts that are not assigned to any team.** |
+| os_settings_recovery_lock_password | string | query | Filters the hosts by Recovery Lock password status. Valid options are 'verified', 'verifying', 'action_required', 'enforcing', 'failed', or 'removing_enforcement'.  **Note: If this filter is used in Fleet Premium without a team ID filter, the results include only hosts that are not assigned to any team.** |
 
 If `mdm_id`, `mdm_name`, `mdm_enrollment_status`, `os_settings`, or `os_settings_disk_encryption` is specified, then Windows Servers are excluded from the results.
 
@@ -6004,6 +6044,8 @@ Deletes the label specified by ID.
 - [Batch-update custom OS settings (configuration profiles)](#batch-update-custom-os-settings-configuration-profiles)
 - [Update disk encryption](#update-disk-encryption)
 - [Get disk encryption status](#get-disk-encryption-status)
+- [Update Recovery Lock password](#update-recovery-lock-password)
+- [Get Recovery Lock password status](#get-recovery-lock-password-status)
 - [Get OS settings (configuration profiles) status](#get-os-settings-configuration-profiles-status)
 - [Get OS setting (configuration profile) status](#get-os-setting-configuration-profile-status)
 - [Resend custom OS setting (configuration profile)](#resend-custom-os-setting-configuration-profile)
@@ -6449,15 +6491,70 @@ The summary can optionally be filtered by team ID.
 }
 ```
 
+### Update Recovery Lock password
+
+> The `PATCH /api/v1/fleet/mdm/apple/settings` API endpoint is deprecated as of Fleet 4.45. It is maintained for backward compatibility. Please use the new API endpoint below. You can view [archived docuementation for the deprecated endpoint](https://github.com/iansltx/fleet/blob/d1791518a43c9d290192dbf992bcea290c8158a3/docs/REST%20API/rest-api.md#update-disk-encryption-enforcement).
+
+_Available in Fleet Premium_
+
+`POST /api/v1/fleet/recovery_lock_password`
+
+#### Parameters
+
+| Name                          | Type    | In    | Description                                                                                        |
+| ----------------------------- | ------  | ----  | --------------------------------------------------------------------------------------             |
+| team_id                       | integer | body  | The team ID to apply the settings to. Settings applied to hosts in no team if absent.              |
+| enable_recovery_lock_password | boolean | body  | Whether Recovery Lock password should be enforced on devices that belong to the team (or no team). |
+
+#### Example
+
+`POST /api/v1/fleet/recovery_lock_password`
+
+##### Default response
+
+`204`
+
+### Get Recovery Lock password status
+_Available in Fleet Premium_
+
+Get aggregate status counts of Recovery Lock passwords enforced on macOS hosts.
+
+The summary can optionally be filtered by team ID.
+
+`GET /api/v1/fleet/recovery_lock_password`
+
+#### Parameters
+
+| Name                      | Type   | In    | Description                                                               |
+| ------------------------- | ------ | ----- | ------------------------------------------------------------------------- |
+| team_id                   | string | query | _Available in Fleet Premium_. The team ID to filter the summary.           |
+
+#### Example
+
+`GET /api/v1/fleet/recovery_lock_password`
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "verified": {"macos": 123},
+  "verifying": {"macos": 123},
+  "action_required": {"macos": 123},
+  "enforcing": {"macos": 123},
+  "failed": {"macos": 123},
+  "removing_enforcement": {"macos": 123}
+}
+```
 
 ### Get OS settings (configuration profiles) status
 
 > [Get macOS settings statistics](https://github.com/fleetdm/fleet/blob/fleet-v4.40.0/docs/REST%20API/rest-api.md#get-macos-settings-statistics) (`GET /api/v1/fleet/mdm/apple/profiles/summary`) API endpoint is deprecated as of Fleet 4.41. It is maintained for backwards compatibility. Please use the below API endpoint instead.
 
-Get aggregate status counts of all OS settings (configuration profiles and disk encryption) enforced on hosts.
+Get aggregate status counts of all OS settings (configuration profiles, Recovery Lock passwords, and disk encryption) enforced on hosts.
 
-For Fleet Premium users, the counts can
-optionally be filtered by `team_id`. If no `team_id` is specified, team profiles are excluded from the results (i.e., only profiles that are associated with "No team" are listed).
+For Fleet Premium users, the counts can optionally be filtered by `team_id`. If no `team_id` is specified, team profiles are excluded from the results (i.e., only profiles that are associated with "No team" are listed).
 
 `GET /api/v1/fleet/configuration_profiles/summary`
 
