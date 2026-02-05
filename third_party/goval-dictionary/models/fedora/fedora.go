@@ -18,7 +18,7 @@ func ConvertToModel(data *Updates) (defs []models.Definition) {
 			continue
 		}
 
-		cves := []models.Cve{}
+		cves := make([]models.Cve, 0, len(update.CVEIDs))
 		for _, cveID := range update.CVEIDs {
 			cves = append(cves, models.Cve{
 				CveID: cveID,
@@ -26,7 +26,7 @@ func ConvertToModel(data *Updates) (defs []models.Definition) {
 			})
 		}
 
-		packs := []models.Package{}
+		packs := make([]models.Package, 0, len(update.Packages))
 		for _, pack := range update.Packages {
 			packs = append(packs, models.Package{
 				Name:            pack.Name,
@@ -36,7 +36,7 @@ func ConvertToModel(data *Updates) (defs []models.Definition) {
 			})
 		}
 
-		refs := []models.Reference{}
+		refs := make([]models.Reference, 0, len(update.References))
 		bs := []models.Bugzilla{}
 		for _, ref := range update.References {
 			refs = append(refs, models.Reference{

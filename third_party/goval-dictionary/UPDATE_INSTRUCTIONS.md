@@ -1,15 +1,15 @@
+# Update Instructions for goval-dictionary
+
 These are instructions for pulling in the latest changes from the upstream version of this library.
 The `UPSTREAM_COMMIT` file tracks the upstream version that we last synced with.
 
 _Notes:_
+
 - Update `/path/to/fleet` below to your fleet repo location
 
 ## Fleet-specific changes
 
-The following changes have been made on top of upstream:
-- **RHEL arch support**: Modified `models/redhat/redhat.go` and `models/redhat/redhat_test.go`
-  to extract architecture information from OVAL definitions, enabling proper vulnerability
-  matching by CPU architecture.
+No changes have been made yet to the upstream goval-dictionary code.
 
 ## Update process
 
@@ -57,9 +57,8 @@ rm -rf ~/goval-dictionary-merge
 After updating, verify the changes work correctly:
 
 ```bash
-cd "$FLEET_REPO"
-go test ./server/vulnerabilities/goval_dictionary/...
-go test ./third_party/goval-dictionary/models/redhat/...
+cd "$FLEET_REPO"/third_party/goval-dictionary
+make test
 ```
 
 ## Removal

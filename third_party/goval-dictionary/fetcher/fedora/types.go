@@ -109,7 +109,7 @@ func (r Rpm) NewPackageFromRpm() (models.Package, error) {
 // If Filename is the same, all other information is considered to be the same
 func uniquePackages(pkgs []models.Package) []models.Package {
 	tmp := make(map[string]models.Package)
-	ret := []models.Package{}
+	ret := make([]models.Package, 0, len(pkgs))
 	for _, pkg := range pkgs {
 		tmp[pkg.Filename] = pkg
 	}

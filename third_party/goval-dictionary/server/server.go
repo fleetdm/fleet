@@ -1,12 +1,16 @@
 package server
 
 import (
+	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 	"net/url"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
+	"time"
 
 	"github.com/inconshreveable/log15"
 	"github.com/labstack/echo/v4"
@@ -23,7 +27,7 @@ func Start(logToFile bool, logDir string, driver db.DB) error {
 	e.Debug = viper.GetBool("debug")
 
 	// Middleware
-	e.Use(middleware.LoggerWithConfig(middleware.LoggerConfig{Output: os.Stderr}))
+	e.Use(middleware.RequestLoggerWithConfig(newRequestLoggerConfig(os.Stderr)))
 	e.Use(middleware.Recover())
 
 	// setup access logger
@@ -34,7 +38,7 @@ func Start(logToFile bool, logDir string, driver db.DB) error {
 			return xerrors.Errorf("Failed to open a log file. err: %w", err)
 		}
 		defer f.Close()
-		e.Use(middleware.LoggerWithConfig(middleware.LoggerConfig{Output: f}))
+		e.Use(middleware.RequestLoggerWithConfig(newRequestLoggerConfig(f)))
 	}
 
 	// Routes
@@ -51,6 +55,64 @@ func Start(logToFile bool, logDir string, driver db.DB) error {
 	bindURL := fmt.Sprintf("%s:%s", viper.GetString("bind"), viper.GetString("port"))
 	log15.Info("Listening...", "URL", bindURL)
 	return e.Start(bindURL)
+}
+
+func newRequestLoggerConfig(writer io.Writer) middleware.RequestLoggerConfig {
+	return middleware.RequestLoggerConfig{
+		LogLatency:       true,
+		LogRemoteIP:      true,
+		LogHost:          true,
+		LogMethod:        true,
+		LogURI:           true,
+		LogRequestID:     true,
+		LogUserAgent:     true,
+		LogStatus:        true,
+		LogError:         true,
+		LogContentLength: true,
+		LogResponseSize:  true,
+
+		LogValuesFunc: func(_ echo.Context, v middleware.RequestLoggerValues) error {
+			type logFormat struct {
+				Time         string `json:"time"`
+				ID           string `json:"id"`
+				RemoteIP     string `json:"remote_ip"`
+				Host         string `json:"host"`
+				Method       string `json:"method"`
+				URI          string `json:"uri"`
+				UserAgent    string `json:"user_agent"`
+				Status       int    `json:"status"`
+				Error        string `json:"error"`
+				Latency      int64  `json:"latency"`
+				LatencyHuman string `json:"latency_human"`
+				BytesIn      int64  `json:"bytes_in"`
+				BytesOut     int64  `json:"bytes_out"`
+			}
+
+			return json.NewEncoder(writer).Encode(logFormat{
+				Time:      v.StartTime.Format(time.RFC3339Nano),
+				ID:        v.RequestID,
+				RemoteIP:  v.RemoteIP,
+				Host:      v.Host,
+				Method:    v.Method,
+				URI:       v.URI,
+				UserAgent: v.UserAgent,
+				Status:    v.Status,
+				Error: func() string {
+					if v.Error != nil {
+						return v.Error.Error()
+					}
+					return ""
+				}(),
+				Latency:      v.Latency.Nanoseconds(),
+				LatencyHuman: v.Latency.String(),
+				BytesIn: func() int64 {
+					i, _ := strconv.ParseInt(v.ContentLength, 10, 64)
+					return i
+				}(),
+				BytesOut: v.ResponseSize,
+			})
+		},
+	}
 }
 
 // Handler

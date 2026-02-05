@@ -98,7 +98,7 @@ func parseDefinitions(ovalDefs []Definition, tests map[string]dpkgInfoTest) []mo
 		}
 
 		cves := []models.Cve{}
-		rs := []models.Reference{}
+		rs := make([]models.Reference, 0, len(d.References))
 		for _, r := range d.References {
 			if r.Source == "CVE" {
 				cves = append(cves, models.Cve{

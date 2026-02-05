@@ -130,7 +130,7 @@ func parseDefinitions(xmlName string, ovalDefs Definitions, tests map[string]rpm
 			}
 		}
 
-		references := []models.Reference{}
+		references := make([]models.Reference, 0, len(d.References))
 		for _, r := range d.References {
 			references = append(references, models.Reference{
 				Source: r.Source,
@@ -139,14 +139,14 @@ func parseDefinitions(xmlName string, ovalDefs Definitions, tests map[string]rpm
 			})
 		}
 
-		cpes := []models.Cpe{}
+		cpes := make([]models.Cpe, 0, len(d.Advisory.AffectedCPEList))
 		for _, cpe := range d.Advisory.AffectedCPEList {
 			cpes = append(cpes, models.Cpe{
 				Cpe: cpe,
 			})
 		}
 
-		bugzillas := []models.Bugzilla{}
+		bugzillas := make([]models.Bugzilla, 0, len(d.Advisory.Bugzillas))
 		for _, b := range d.Advisory.Bugzillas {
 			bugzillas = append(bugzillas, models.Bugzilla{
 				URL:   b.URL,
@@ -197,9 +197,9 @@ func parseDefinitions(xmlName string, ovalDefs Definitions, tests map[string]rpm
 
 func collectSUSEPacks(xmlName string, cri Criteria, tests map[string]rpmInfoTest) []distroPackage {
 	if strings.Contains(xmlName, "opensuse.12") {
-		verPkgs := []distroPackage{}
 		v := strings.TrimSuffix(strings.TrimPrefix(xmlName, "opensuse."), ".xml")
 		_, pkgs := walkCriterion(cri, []string{}, []models.Package{}, tests)
+		verPkgs := make([]distroPackage, 0, len(pkgs))
 		for _, pkg := range pkgs {
 			verPkgs = append(verPkgs, distroPackage{
 				osVer: v,

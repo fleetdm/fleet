@@ -22,7 +22,7 @@ func ConvertToModel(root *Root) (defs map[string][]models.Definition) {
 			continue
 		}
 
-		cves := []models.Cve{}
+		cves := make([]models.Cve, 0, len(ovaldef.Advisory.Cves))
 		for _, c := range ovaldef.Advisory.Cves {
 			cves = append(cves, models.Cve{
 				CveID: c.CveID,
@@ -30,7 +30,7 @@ func ConvertToModel(root *Root) (defs map[string][]models.Definition) {
 			})
 		}
 
-		rs := []models.Reference{}
+		rs := make([]models.Reference, 0, len(ovaldef.References))
 		for _, r := range ovaldef.References {
 			rs = append(rs, models.Reference{
 				Source: r.Source,
