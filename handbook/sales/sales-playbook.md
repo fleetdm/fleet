@@ -17,4 +17,4 @@ Owning a parent account does not automatically grant ownership of its subsidiari
 
 
 <meta name="maintainedBy" value="chazmac6">
-<meta name="title" value="🐋 Sales">
+<meta name="title" value="🧑‍🏫 Sales playbook">
