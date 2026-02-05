@@ -9076,7 +9076,7 @@ func (s *integrationMDMTestSuite) TestRunMDMCommands() {
 		HostUUIDs: []string{enrolledWindows.UUID},
 	}, http.StatusUnprocessableEntity)
 	errMsg := extractServerErrorText(res.Body)
-	require.Contains(t, errMsg, "You can run only <Exec> command type")
+	require.Contains(t, errMsg, "You can run only <Exec> or <Delete> command type")
 
 	// macOS only, invalid command
 	res = s.Do("POST", "/api/latest/fleet/commands/run", &runMDMCommandRequest{
