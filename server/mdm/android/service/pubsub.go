@@ -349,7 +349,6 @@ func (svc *Service) enrollHost(ctx context.Context, device *androidmanagement.De
 	// inserts the host_mdm, and TurnOffMDM deletes it.
 
 	var enrollmentTokenRequest enrollmentTokenRequest
-	fmt.Printf("Enrollment token data: %s\n", device.EnrollmentTokenData)
 	err = json.Unmarshal([]byte(device.EnrollmentTokenData), &enrollmentTokenRequest)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "unmarshalling enrollment token data")
