@@ -1775,14 +1775,6 @@ func testListHostMDMAndroidProfilesPendingInstallWithVersion(t *testing.T, ds *D
 		err := ds.BulkUpsertMDMAndroidHostProfiles(ctx, []*fleet.MDMAndroidProfilePayload{
 			{
 				HostUUID:                hostUUID,
-				ProfileUUID:             profiles[0].ProfileUUID,
-				ProfileName:             profiles[0].Name,
-				OperationType:           fleet.MDMOperationTypeInstall,
-				Status:                  &fleet.MDMDeliveryFailed,
-				IncludedInPolicyVersion: policyVersion,
-			},
-			{
-				HostUUID:                hostUUID,
 				ProfileUUID:             profiles[1].ProfileUUID,
 				ProfileName:             profiles[1].Name,
 				OperationType:           fleet.MDMOperationTypeInstall,
@@ -1801,7 +1793,7 @@ func testListHostMDMAndroidProfilesPendingInstallWithVersion(t *testing.T, ds *D
 		require.NoError(t, err)
 		t.Cleanup(clearOutHostMDMAndroidProfilesTable)
 
-		hostProfiles, err := ds.ListHostMDMAndroidProfilesPendingInstallWithVersion(ctx, hostUUID, int64(*policyVersion))
+		hostProfiles, err := ds.ListHostMDMAndroidProfilesPendingOrFailedInstallWithVersion(ctx, hostUUID, int64(*policyVersion))
 		require.NoError(t, err)
 		require.Len(t, hostProfiles, 0)
 	})
@@ -1822,7 +1814,7 @@ func testListHostMDMAndroidProfilesPendingInstallWithVersion(t *testing.T, ds *D
 		require.NoError(t, err)
 		t.Cleanup(clearOutHostMDMAndroidProfilesTable)
 
-		hostProfiles, err := ds.ListHostMDMAndroidProfilesPendingInstallWithVersion(ctx, hostUUID, int64(*policyVersion-1))
+		hostProfiles, err := ds.ListHostMDMAndroidProfilesPendingOrFailedInstallWithVersion(ctx, hostUUID, int64(*policyVersion-1))
 		require.NoError(t, err)
 		require.Len(t, hostProfiles, 0)
 	})
@@ -1843,7 +1835,7 @@ func testListHostMDMAndroidProfilesPendingInstallWithVersion(t *testing.T, ds *D
 		require.NoError(t, err)
 		t.Cleanup(clearOutHostMDMAndroidProfilesTable)
 
-		hostProfiles, err := ds.ListHostMDMAndroidProfilesPendingInstallWithVersion(ctx, hostUUID, int64(*policyVersion))
+		hostProfiles, err := ds.ListHostMDMAndroidProfilesPendingOrFailedInstallWithVersion(ctx, hostUUID, int64(*policyVersion))
 		require.NoError(t, err)
 		require.Len(t, hostProfiles, 0)
 	})
@@ -1864,7 +1856,7 @@ func testListHostMDMAndroidProfilesPendingInstallWithVersion(t *testing.T, ds *D
 		require.NoError(t, err)
 		t.Cleanup(clearOutHostMDMAndroidProfilesTable)
 
-		hostProfiles, err := ds.ListHostMDMAndroidProfilesPendingInstallWithVersion(ctx, hostUUID, int64(*policyVersion))
+		hostProfiles, err := ds.ListHostMDMAndroidProfilesPendingOrFailedInstallWithVersion(ctx, hostUUID, int64(*policyVersion))
 		require.NoError(t, err)
 		require.Len(t, hostProfiles, 1)
 		require.Equal(t, &fleet.MDMDeliveryPending, hostProfiles[0].Status)

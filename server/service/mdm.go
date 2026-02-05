@@ -1808,6 +1808,9 @@ func (svc *Service) NewMDMAndroidConfigProfile(ctx context.Context, teamID uint,
 		}
 		return nil, ctxerr.Wrap(ctx, err)
 	}
+	if _, err := svc.ds.BulkSetPendingMDMHostProfiles(ctx, nil, nil, []string{newCP.ProfileUUID}, nil); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "bulk set pending host profiles")
+	}
 
 	var (
 		actTeamID   *uint
