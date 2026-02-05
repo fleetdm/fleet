@@ -38,13 +38,13 @@ Variables are global, meaning they can be used in scripts and profiles across al
 
 ### Scripts and configuration profiles
 
-When GitOps runs, it looks for variables in scripts and profiles, extracts the variable's values from GitHub or GitLab, and uploads them to Fleet.
+During a GitOps run, Fleet scans scripts and profiles for variables, pulls their values from GitHub or GitLab, and uploads them to Fleet.
 
-Profiles with variables are not validated during a GitOps dry run because the required variables may not exist or may be incorrect in the Fleet database. As a result, these profiles have a higher chance of failing during a non-dry run. The best practice is to test the script or profile by adding it to Fleet via the UI first.
+Profiles with variables aren’t validated during a GitOps dry run because the variables may be missing or incorrect in Fleet. This means they’re more likely to fail during a real run. Best practice: test the script or profile by adding it to Fleet via the UI first.
 
-If a variable's value changes, the profile will be resent to hosts.
+Some variables trigger a profile resend when their value changes. See which variables support this in the [YAML reference docs](https://fleetdm.com/docs/configuration/yaml-files#variables).
 
-If the variable is a secret (ex. API token), you can mask the variable by using the `FLEET_SECRET_` prefix. This way, when the profile is downloaded via the Fleet UI or API, the variable is masked as `FLEET_SECRET_`.
+If a variable is a secret (for example, an API token), prefix it with FLEET_SECRET_. This masks the value when viewed or downloaded from the Fleet UI or API. If a secret’s value changes, the profile is resent to hosts.
 
 Variables aren't removed on GitOps runs. To remove a variable, delete it on the `Controls` > `Variables` page.
 
