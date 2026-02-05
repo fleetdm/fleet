@@ -147,7 +147,8 @@ func TestPubSubEnrollment(t *testing.T) {
 				}, nil
 			}
 
-			mockDS.NewAndroidHostFunc = func(ctx context.Context, host *fleet.AndroidHost) (*fleet.AndroidHost, error) {
+			mockDS.NewAndroidHostFunc = func(ctx context.Context, host *fleet.AndroidHost, companyOwned bool) (*fleet.AndroidHost, error) {
+				require.False(t, companyOwned)
 				return &fleet.AndroidHost{Host: &fleet.Host{}}, nil
 			}
 
@@ -176,7 +177,8 @@ func TestPubSubEnrollment(t *testing.T) {
 				}, nil
 			}
 
-			mockDS.NewAndroidHostFunc = func(ctx context.Context, host *fleet.AndroidHost) (*fleet.AndroidHost, error) {
+			mockDS.NewAndroidHostFunc = func(ctx context.Context, host *fleet.AndroidHost, companyOwned bool) (*fleet.AndroidHost, error) {
+				require.False(t, companyOwned)
 				return &fleet.AndroidHost{Host: &fleet.Host{}}, nil
 			}
 			mockDS.AssociateHostMDMIdPAccountFunc = func(ctx context.Context, hostUUID, accountUUID string) error {
@@ -192,6 +194,43 @@ func TestPubSubEnrollment(t *testing.T) {
 			enrollmentMessage := createEnrollmentMessage(t, androidmanagement.Device{
 				Name:                createAndroidDeviceId("test-android"),
 				EnrollmentTokenData: string(enrollTokenData),
+			})
+			err = svc.ProcessPubSubPush(context.Background(), "value", enrollmentMessage)
+			require.NoError(t, err)
+
+			require.True(t, mockDS.AssociateHostMDMIdPAccountFuncInvoked)
+			require.True(t, mockDS.NewAndroidHostFuncInvoked)
+		})
+
+		t.Run("creates device as company-owned if specified in enrollment message", func(t *testing.T) {
+			mockDS.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+				return &fleet.AppConfig{
+					MDM: fleet.MDM{
+						AndroidEnabledAndConfigured: true,
+					},
+				}, nil
+			}
+
+			mockDS.NewAndroidHostFunc = func(ctx context.Context, host *fleet.AndroidHost, companyOwned bool) (*fleet.AndroidHost, error) {
+				require.True(t, companyOwned)
+				// sha256 of "TestBrand:test-serial". Will need to be updated if our test enrollment message changes
+				require.Equal(t, "9c311e05af14f958bd65188796e41fcc8a7b0ff913bfea4f11f31c96c6f052b0", host.UUID)
+				return &fleet.AndroidHost{Host: &fleet.Host{}}, nil
+			}
+			mockDS.AssociateHostMDMIdPAccountFunc = func(ctx context.Context, hostUUID, accountUUID string) error {
+				return nil
+			}
+
+			enrollmentToken := enrollmentTokenRequest{
+				EnrollSecret: "global",
+				IdpUUID:      "mock-id",
+			}
+			enrollTokenData, err := json.Marshal(enrollmentToken)
+			require.NoError(t, err)
+			enrollmentMessage := createEnrollmentMessage(t, androidmanagement.Device{
+				Name:                createAndroidDeviceId("test-android"),
+				EnrollmentTokenData: string(enrollTokenData),
+				Ownership:           "COMPANY_OWNED",
 			})
 			err = svc.ProcessPubSubPush(context.Background(), "value", enrollmentMessage)
 			require.NoError(t, err)
@@ -696,6 +735,8 @@ func TestUpdateHost(t *testing.T) {
 		require.Equal(t, enterpriseSpecificID, capturedHost.Host.UUID, "UUID should be set from device data")
 	})
 
+	// TODO I don't understand this test. Existing devices w/o enterprise specific ID break fleet. I don't think
+	// real customers should have any
 	t.Run("Empty UUID from device should not overwrite existing", func(t *testing.T) {
 		// Reset the mock invocation flag
 		mockDS.UpdateAndroidHostFuncInvoked = false
@@ -779,7 +820,7 @@ func TestAndroidStorageExtraction(t *testing.T) {
 	}
 
 	var createdHost *fleet.AndroidHost
-	mockDS.NewAndroidHostFunc = func(ctx context.Context, host *fleet.AndroidHost) (*fleet.AndroidHost, error) {
+	mockDS.NewAndroidHostFunc = func(ctx context.Context, host *fleet.AndroidHost, companyOwned bool) (*fleet.AndroidHost, error) {
 		createdHost = host
 		return host, nil
 	}
@@ -856,11 +897,19 @@ func TestAndroidStorageExtraction(t *testing.T) {
 
 func createEnrollmentMessage(t *testing.T, deviceInfo androidmanagement.Device) *android.PubSubMessage {
 	deviceInfo.HardwareInfo = &androidmanagement.HardwareInfo{
-		EnterpriseSpecificId: strings.ToUpper(uuid.New().String()),
-		Brand:                "TestBrand",
-		Model:                "TestModel",
-		SerialNumber:         "test-serial",
-		Hardware:             "test-hardware",
+		Brand:    "TestBrand",
+		Model:    "TestModel",
+		Hardware: "test-hardware",
+	}
+	// default to personally owned for tests if not specified
+	if deviceInfo.Ownership == "" {
+		deviceInfo.Ownership = "PERSONALLY_OWNED"
+	}
+	if deviceInfo.Ownership == "COMPANY_OWNED" {
+		deviceInfo.HardwareInfo.SerialNumber = "test-serial"
+	}
+	if deviceInfo.Ownership == "PERSONALLY_OWNED" {
+		deviceInfo.HardwareInfo.EnterpriseSpecificId = strings.ToUpper(uuid.New().String())
 	}
 	deviceInfo.SoftwareInfo = &androidmanagement.SoftwareInfo{
 		AndroidBuildNumber: "test-build",

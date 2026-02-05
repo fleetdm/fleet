@@ -74,7 +74,7 @@ func testNewAndroidHost(t *testing.T, ds *Datastore) {
 	const enterpriseSpecificID = "enterprise_specific_id"
 	host := createAndroidHost(enterpriseSpecificID)
 
-	result, err := ds.NewAndroidHost(testCtx(), host)
+	result, err := ds.NewAndroidHost(testCtx(), host, false)
 	require.NoError(t, err)
 	assert.NotZero(t, result.Host.ID)
 	assert.NotZero(t, result.Device.ID)
@@ -102,7 +102,7 @@ func testNewAndroidHost(t *testing.T, ds *Datastore) {
 
 	// Inserting the same host again should be fine.
 	// This may occur when 2 Fleet servers received the same host information via pubsub.
-	resultCopy, err := ds.NewAndroidHost(testCtx(), host)
+	resultCopy, err := ds.NewAndroidHost(testCtx(), host, false)
 	require.NoError(t, err)
 	assert.Equal(t, result.Host.ID, resultCopy.Host.ID)
 	assert.Equal(t, result.Device.ID, resultCopy.Device.ID)
@@ -116,7 +116,7 @@ func testNewAndroidHost(t *testing.T, ds *Datastore) {
 	host2 := createAndroidHost(enterpriseSpecificID2)
 
 	// still passes, but no label membership was recorded
-	result, err = ds.NewAndroidHost(testCtx(), host2)
+	result, err = ds.NewAndroidHost(testCtx(), host2, false)
 	require.NoError(t, err)
 
 	lbls, err = ds.ListLabelsForHost(testCtx(), result.Host.ID)
@@ -162,7 +162,7 @@ func testUpdateAndroidHost(t *testing.T, ds *Datastore) {
 	const enterpriseSpecificID = "es_id_update"
 	host := createAndroidHost(enterpriseSpecificID)
 
-	result, err := ds.NewAndroidHost(testCtx(), host)
+	result, err := ds.NewAndroidHost(testCtx(), host, false)
 	require.NoError(t, err)
 	assert.NotZero(t, result.Host.ID)
 	assert.NotZero(t, result.Device.ID)
@@ -205,7 +205,7 @@ func testUpdateAndroidHost(t *testing.T, ds *Datastore) {
 	t.Run("Empty UUID regression test", func(t *testing.T) {
 		const regressionESID = "regression-uuid-test"
 		regressionHost := createAndroidHost(regressionESID)
-		createdHost, err := ds.NewAndroidHost(testCtx(), regressionHost)
+		createdHost, err := ds.NewAndroidHost(testCtx(), regressionHost, false)
 		require.NoError(t, err)
 		require.Equal(t, regressionESID, createdHost.Host.UUID)
 
@@ -255,7 +255,7 @@ func testAndroidMDMStats(t *testing.T, ds *Datastore) {
 	var androidHost0 *fleet.AndroidHost
 	for i := range hosts {
 		host := createAndroidHost(uuid.NewString())
-		result, err := ds.NewAndroidHost(testCtx(), host)
+		result, err := ds.NewAndroidHost(testCtx(), host, false)
 		require.NoError(t, err)
 		hosts[i] = result.Host
 
@@ -465,7 +465,7 @@ func testAndroidHostStorageData(t *testing.T, ds *Datastore) {
 	host.SetNodeKey(enterpriseSpecificID)
 
 	// NewAndroidHost with storage data
-	result, err := ds.NewAndroidHost(testCtx(), host)
+	result, err := ds.NewAndroidHost(testCtx(), host, false)
 	require.NoError(t, err)
 	require.NotZero(t, result.Host.ID)
 
@@ -751,7 +751,7 @@ func testMDMAndroidProfilesSummary(t *testing.T, ds *Datastore) {
 	var hosts []*fleet.Host
 	for i := 0; i < 5; i++ {
 		androidHost := createAndroidHost(fmt.Sprintf("enterprise-id-%d", i))
-		newHost, err := ds.NewAndroidHost(ctx, androidHost)
+		newHost, err := ds.NewAndroidHost(ctx, androidHost, false)
 		require.NoError(t, err)
 		require.NotNil(t, newHost)
 		hosts = append(hosts, newHost.Host)
@@ -792,7 +792,7 @@ func testMDMAndroidProfilesSummary(t *testing.T, ds *Datastore) {
 		// add some other android hosts that won't be be assigned any profiles
 		for i := 0; i < 5; i++ {
 			androidHost := createAndroidHost(fmt.Sprintf("enterprise-id-other-%d", i))
-			newHost, err := ds.NewAndroidHost(ctx, androidHost)
+			newHost, err := ds.NewAndroidHost(ctx, androidHost, false)
 			require.NoError(t, err)
 			require.NotNil(t, newHost)
 		}
@@ -889,7 +889,7 @@ func testGetHostMDMAndroidProfiles(t *testing.T, ds *Datastore) {
 
 	// Create a host
 	host := createAndroidHost("host-mdm-profiles-test")
-	newHost, err := ds.NewAndroidHost(ctx, host)
+	newHost, err := ds.NewAndroidHost(ctx, host, false)
 	require.NoError(t, err)
 	require.NotNil(t, newHost)
 
@@ -1079,7 +1079,7 @@ func testListMDMAndroidProfilesToSend(t *testing.T, ds *Datastore) {
 	hosts := make([]*fleet.Host, 2)
 	for i := range hosts {
 		androidHost := createAndroidHost(fmt.Sprintf("enterprise-id-%d", i))
-		newHost, err := ds.NewAndroidHost(ctx, androidHost)
+		newHost, err := ds.NewAndroidHost(ctx, androidHost, false)
 		require.NoError(t, err)
 		hosts[i] = newHost.Host
 	}
@@ -1277,7 +1277,7 @@ func testListMDMAndroidProfilesToSend(t *testing.T, ds *Datastore) {
 
 	// add another host in team
 	androidHost := createAndroidHost(fmt.Sprintf("enterprise-id-%d", 2))
-	newHost, err := ds.NewAndroidHost(ctx, androidHost)
+	newHost, err := ds.NewAndroidHost(ctx, androidHost, false)
 	require.NoError(t, err)
 	hosts = append(hosts, newHost.Host)
 	err = ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&tm.ID, []uint{hosts[2].ID}))
@@ -1378,7 +1378,7 @@ func testListMDMAndroidProfilesToSendWithExcludeAny(t *testing.T, ds *Datastore)
 	hosts := make([]*fleet.Host, 2)
 	for i := range hosts {
 		androidHost := createAndroidHost(fmt.Sprintf("enterprise-id-%d", i))
-		newHost, err := ds.NewAndroidHost(ctx, androidHost)
+		newHost, err := ds.NewAndroidHost(ctx, androidHost, false)
 		require.NoError(t, err)
 		hosts[i] = newHost.Host
 	}
@@ -1591,7 +1591,7 @@ func testBulkUpsertMDMAndroidHostProfilesN(t *testing.T, ds *Datastore, batchSiz
 	hosts := make([]*fleet.Host, 3)
 	for i := range hosts {
 		androidHost := createAndroidHost(fmt.Sprintf("enterprise-id-%d", i))
-		newHost, err := ds.NewAndroidHost(ctx, androidHost)
+		newHost, err := ds.NewAndroidHost(ctx, androidHost, false)
 		require.NoError(t, err)
 		hosts[i] = newHost.Host
 		if i == len(hosts)-1 {
@@ -2076,7 +2076,7 @@ func testNewAndroidHostWithIdP(t *testing.T, ds *Datastore) {
 	host := createAndroidHost(enterpriseSpecificID)
 	host.Host.UUID = "test-host-uuid" // Use a specific UUID for testing
 
-	result, err := ds.NewAndroidHost(ctx, host)
+	result, err := ds.NewAndroidHost(ctx, host, false)
 	require.NoError(t, err)
 	require.NotZero(t, result.Host.ID)
 
@@ -2131,7 +2131,7 @@ func testAndroidBYODDetection(t *testing.T, ds *Datastore) {
 		require.NotEmpty(t, host.Host.UUID)
 		require.Equal(t, enterpriseID, host.Host.UUID)
 
-		result, err := ds.NewAndroidHost(ctx, host)
+		result, err := ds.NewAndroidHost(ctx, host, false)
 		require.NoError(t, err)
 		require.NotZero(t, result.Host.ID)
 
@@ -2145,13 +2145,13 @@ func testAndroidBYODDetection(t *testing.T, ds *Datastore) {
 	})
 
 	// Test 2: Android host without UUID (company-owned device)
-	t.Run("company enrollment without UUID", func(t *testing.T) {
+	t.Run("company enrollment", func(t *testing.T) {
 		const enterpriseID = "test-enterprise-id-company"
 		host := createAndroidHost(enterpriseID)
 		// Override UUID to be empty to simulate company-owned device
 		host.Host.UUID = ""
 
-		result, err := ds.NewAndroidHost(ctx, host)
+		result, err := ds.NewAndroidHost(ctx, host, true)
 		require.NoError(t, err)
 		require.NotZero(t, result.Host.ID)
 
@@ -2161,7 +2161,7 @@ func testAndroidBYODDetection(t *testing.T, ds *Datastore) {
 			`SELECT is_personal_enrollment FROM host_mdm WHERE host_id = ?`,
 			result.Host.ID)
 		require.NoError(t, err)
-		assert.False(t, isPersonalEnrollment, "Company device without UUID should have is_personal_enrollment = 0")
+		assert.False(t, isPersonalEnrollment, "Company device  should have is_personal_enrollment = 0")
 	})
 
 	// Test 3: Verify update path also sets personal enrollment correctly
@@ -2171,7 +2171,7 @@ func testAndroidBYODDetection(t *testing.T, ds *Datastore) {
 		host := createAndroidHost(enterpriseID)
 		host.Host.UUID = ""
 
-		result, err := ds.NewAndroidHost(ctx, host)
+		result, err := ds.NewAndroidHost(ctx, host, true)
 		require.NoError(t, err)
 		require.NotZero(t, result.Host.ID)
 
@@ -2208,7 +2208,7 @@ func testSetAndroidHostUnenrolled(t *testing.T, ds *Datastore) {
 	// Create an Android host (this also upserts an enrolled host_mdm row)
 	esid := "enterprise-" + uuid.NewString()
 	h := createAndroidHost(esid)
-	res, err := ds.NewAndroidHost(testCtx(), h)
+	res, err := ds.NewAndroidHost(testCtx(), h, false)
 	require.NoError(t, err)
 
 	// Sanity check initial host_mdm values
@@ -2276,7 +2276,7 @@ func testBulkSetAndroidHostsUnenrolled(t *testing.T, ds *Datastore) {
 	for i := 0; i < 5; i++ {
 		esid := "enterprise-" + uuid.NewString()
 		h := createAndroidHost(esid)
-		res, err := ds.NewAndroidHost(testCtx(), h)
+		res, err := ds.NewAndroidHost(testCtx(), h, false)
 		require.NoError(t, err)
 
 		upsertAndroidHostProfileStatus(t, ds, res.Host.UUID, "profile-1", &fleet.MDMDeliveryPending)

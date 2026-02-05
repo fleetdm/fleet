@@ -853,7 +853,7 @@ func testHostListOptionsTeamFilter(t *testing.T, ds *Datastore) {
 	// Add a couple of Android hosts(creation path is slightly different)
 	for i := 0; i < 2; i++ {
 		androidHost := createAndroidHost(fmt.Sprintf("enterprise-id-%d", i))
-		newHost, err := ds.NewAndroidHost(context.Background(), androidHost)
+		newHost, err := ds.NewAndroidHost(context.Background(), androidHost, false)
 		require.NoError(t, err)
 		require.NotNil(t, newHost)
 		hosts = append(hosts, newHost.Host)
@@ -1020,7 +1020,7 @@ func testHostListAndroidHostsOSSettings(t *testing.T, ds *Datastore) {
 	hosts := []*fleet.Host{}
 	for i := 0; i < 2; i++ {
 		androidHost := createAndroidHost(fmt.Sprintf("enterprise-id-%d", i))
-		newHost, err := ds.NewAndroidHost(context.Background(), androidHost)
+		newHost, err := ds.NewAndroidHost(context.Background(), androidHost, false)
 		require.NoError(t, err)
 		require.NotNil(t, newHost)
 		hosts = append(hosts, newHost.Host)
@@ -1063,7 +1063,7 @@ func testHostListAndroidCertificateTemplatesOSSettings(t *testing.T, ds *Datasto
 
 	// Create an Android host
 	androidHost := createAndroidHost("enterprise-id-cert-test")
-	newHost, err := ds.NewAndroidHost(t.Context(), androidHost)
+	newHost, err := ds.NewAndroidHost(t.Context(), androidHost, false)
 	require.NoError(t, err)
 	require.NotNil(t, newHost)
 
@@ -1680,7 +1680,7 @@ func testHostsListMDMAndroid(t *testing.T, ds *Datastore) {
 		}
 		androidHost.SetNodeKey(name)
 
-		result, err := ds.NewAndroidHost(ctx, androidHost)
+		result, err := ds.NewAndroidHost(ctx, androidHost, false)
 		require.NoError(t, err)
 		return result.Host
 	}

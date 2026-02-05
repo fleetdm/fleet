@@ -138,7 +138,7 @@ func (s *integrationMDMTestSuite) createEnrolledAndroidHost(t *testing.T, ctx co
 		},
 	}
 	androidHostInput.SetNodeKey(enterpriseID)
-	createdAndroidHost, err := s.ds.NewAndroidHost(ctx, androidHostInput)
+	createdAndroidHost, err := s.ds.NewAndroidHost(ctx, androidHostInput, false)
 	require.NoError(t, err)
 
 	host := createdAndroidHost.Host
@@ -206,7 +206,7 @@ func (s *integrationMDMTestSuite) TestCertificateTemplateLifecycle() {
 		},
 	}
 	androidHostInput.SetNodeKey(enterpriseID)
-	createdAndroidHost, err := s.ds.NewAndroidHost(ctx, androidHostInput)
+	createdAndroidHost, err := s.ds.NewAndroidHost(ctx, androidHostInput, false)
 	require.NoError(t, err)
 
 	host := createdAndroidHost.Host
@@ -386,7 +386,7 @@ func (s *integrationMDMTestSuite) TestCertificateTemplateSpecEndpointAndAMAPIFai
 		},
 	}
 	androidHostInput.SetNodeKey(enterpriseID)
-	createdAndroidHost, err := s.ds.NewAndroidHost(ctx, androidHostInput)
+	createdAndroidHost, err := s.ds.NewAndroidHost(ctx, androidHostInput, false)
 	require.NoError(t, err)
 
 	host := createdAndroidHost.Host
@@ -499,7 +499,7 @@ func (s *integrationMDMTestSuite) TestCertificateTemplateNoTeamWithIDPVariable()
 		},
 	}
 	androidHostInput.SetNodeKey(enterpriseID)
-	createdAndroidHost, err := s.ds.NewAndroidHost(ctx, androidHostInput)
+	createdAndroidHost, err := s.ds.NewAndroidHost(ctx, androidHostInput, false)
 	require.NoError(t, err)
 
 	host := createdAndroidHost.Host
@@ -610,7 +610,7 @@ func (s *integrationMDMTestSuite) TestCertificateTemplateUnenrollReenroll() {
 		},
 	}
 	androidHostInput.SetNodeKey(enterpriseID)
-	createdAndroidHost, err := s.ds.NewAndroidHost(ctx, androidHostInput)
+	createdAndroidHost, err := s.ds.NewAndroidHost(ctx, androidHostInput, false)
 	require.NoError(t, err)
 
 	host := createdAndroidHost.Host
