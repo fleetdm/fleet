@@ -30,7 +30,7 @@ func MountsColumns() []table.ColumnDefinition {
 func GenerateMounts(ctx context.Context, queryContext table.QueryContext) ([]map[string]string, error) {
 	client, err := containerd.New("/run/containerd/containerd.sock")
 	if err != nil {
-		return nil, fmt.Errorf("Failed to connect to containerd: w", err)
+		return nil, fmt.Errorf("Failed to connect to containerd: %w", err)
 	}
 	defer client.Close()
 
