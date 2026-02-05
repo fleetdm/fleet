@@ -106,7 +106,7 @@ func newGlobalPolicy(ctx context.Context, db sqlx.ExtContext, authorID *uint, ar
 	policyID := uint(lastIdInt64) //nolint:gosec // dismiss G115
 
 	if args.ConditionalAccessBypassEnabled == nil {
-		*args.ConditionalAccessBypassEnabled = true
+		args.ConditionalAccessBypassEnabled = ptr.Bool(true)
 	}
 
 	dummyPolicy := &fleet.Policy{
@@ -1046,11 +1046,15 @@ func newTeamPolicy(ctx context.Context, db sqlx.ExtContext, teamID uint, authorI
 	nameUnicode := norm.NFC.String(args.Name)
 
 	if args.ConditionalAccessBypassEnabled == nil {
-		*args.ConditionalAccessBypassEnabled = true
+		args.ConditionalAccessBypassEnabled = ptr.Bool(true)
 	}
 
 	if err := assertTeamMatches(ctx, db, teamID, args.SoftwareInstallerID, args.ScriptID, args.VPPAppsTeamsID); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "create team policy")
+	}
+
+	if args.ConditionalAccessBypassEnabled != nil {
+		args.ConditionalAccessBypassEnabled = ptr.Bool(true)
 	}
 
 	res, err := db.ExecContext(ctx,
