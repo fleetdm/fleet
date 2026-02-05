@@ -224,7 +224,7 @@
                 Turn on your new device or
                 <a
                   target="_blank"
-                  ref="https://support.google.com/android/answer/6088915?hl=en"
+                  href="https://support.google.com/android/answer/6088915?hl=en"
                   >factory reset it</a
                 >
               </span>
@@ -460,7 +460,8 @@
        * Renders a QR code for the given text into the specified element.
        * @param {string} text - The text to encode in the QR code.
        * @param {HTMLElement} element - The HTML element where the QR code will be rendered.
-       * @param {Object} [options] - Optional configuration for the QR code (e.g., width, margin, color). this info can be found here:
+       * @param {Object} [options] - Optional configuration for the QR code (e.g., width, margin,
+       * color). valid options can be found here:
        * https://github.com/soldair/node-qrcode?tab=readme-ov-file#options-9
        */
       const renderQRCode = (text, element, options) => {
@@ -544,20 +545,23 @@
         return urlParams.get("enroll_secret");
       };
 
-      const getEnrollmentToken = async () => {
+      const getEnrollmentToken = async (fullyManaged) => {
         const enrollSecret = getEnrollmentSecret();
 
-        const response = await fetch(
-          `${ANDROID_GET_TOKEN_URL}?enroll_secret=${encodeURIComponent(
-            enrollSecret
-          )}`,
-          {
-            method: "GET",
-            headers: {
-              "Content-Type": "application/json",
-            },
-          }
-        );
+        const url = `${ANDROID_GET_TOKEN_URL}?enroll_secret=${encodeURIComponent(
+          enrollSecret
+        )}`;
+
+        if (fullyManaged) {
+          url.concat("&fully_managed=true");
+        }
+
+        const response = await fetch(url, {
+          method: "GET",
+          headers: {
+            "Content-Type": "application/json",
+          },
+        });
         if (!response.ok) {
           throw new Error("Failed to get enrollment token");
         }
@@ -584,12 +588,24 @@
         }
 
         if (isFullyManaged) {
-          renderContent("fully-managed-template");
-          renderQRCode(
-            window.location.href,
-            document.querySelector(".qr-code"),
-            { width: 245, color: { dark: "#515774", light: "#fff" } }
-          );
+          try {
+            const data = await getEnrollmentToken(true);
+            renderContent("fully-managed-template");
+            if (!data.android_enrollment_qrcode) {
+              throw new Error("Failed to get QR code");
+            }
+            renderQRCode(
+              data.android_enrollment_qrcode,
+              document.querySelector(".qr-code"),
+              { width: 245, color: { dark: "#515774", light: "#fff" } }
+            );
+          } catch (error) {
+            renderError(
+              "Couldn't get Android enrollment token.",
+              "Please refresh the page. If the issue continues, contact your IT admin."
+            );
+            return;
+          }
           return;
         }
 
