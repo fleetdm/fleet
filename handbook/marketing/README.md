@@ -23,7 +23,7 @@ This handbook page details processes specific to working [with](#contact-us) and
 
 ## Marketing assets
 
-This list (for now) will be in roughly chronological order as assets are created:
+This list (for now) will be in roughly chronological order as assets are created.
 
 | Asset | Last updated | Use for 
 |:------------|:------------|:----------------|
