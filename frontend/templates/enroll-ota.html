@@ -587,7 +587,17 @@
           return;
         }
 
+        const platform = getPlatform();
+
         if (isFullyManaged) {
+          if (platform === "android" && !ANDROID_MDM_ENABLED) {
+            renderError(
+              "Android MDM is turned off.",
+              "To enroll your Android device please contact your IT admin."
+            );
+            return;
+          }
+
           try {
             const data = await getEnrollmentToken(true);
             renderContent("fully-managed-template");
@@ -608,8 +618,6 @@
           }
           return;
         }
-
-        const platform = getPlatform();
 
         // render unsupported platform content. Unsupported means not macos, ios, ipad, or android
         if (platform === "unsupported") {
