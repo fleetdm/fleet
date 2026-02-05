@@ -2420,16 +2420,22 @@ func (s *integrationTestSuite) TestInvites() {
 	require.Len(t, verify.Teams, 1)
 	assert.Equal(t, team.ID, verify.Teams[0].ID)
 
+	// Try to create an user with an email different that the one associated with the invite
 	var createFromInviteResp createUserResponse
-	s.DoJSON("POST", "/api/latest/fleet/users", fleet.UserPayload{
+	userPayload := fleet.UserPayload{
 		Name:        ptr.String("Full Name"),
 		Password:    ptr.String(test.GoodPassword),
 		Email:       ptr.String("a@b.c"),
 		InviteToken: ptr.String(validInviteToken),
-	}, http.StatusOK, &createFromInviteResp)
+	}
+	s.DoJSON("POST", "/api/latest/fleet/users", userPayload, http.StatusUnprocessableEntity, &createFromInviteResp)
+
+	// Adjust email and try again, this should be OK
+	userPayload.Email = ptr.String(verify.Email)
+	s.DoJSON("POST", "/api/latest/fleet/users", userPayload, http.StatusOK, &createFromInviteResp)
 
 	// Check that user is associated with unique invite ID
-	user, err := s.ds.UserByEmail(context.Background(), "a@b.c")
+	user, err := s.ds.UserByEmail(context.Background(), verify.Email)
 	require.NoError(t, err)
 	require.Equal(t, inv.ID, *user.InviteID)
 
@@ -2454,7 +2460,7 @@ func (s *integrationTestSuite) TestInvites() {
 	s.DoJSON("POST", "/api/latest/fleet/users", fleet.UserPayload{
 		Name:        ptr.String("Full Name"),
 		Password:    ptr.String(test.GoodPassword),
-		Email:       ptr.String("a@b.c"),
+		Email:       ptr.String(inv.Email),
 		InviteToken: ptr.String(deletedInviteToken),
 	}, http.StatusNotFound, &createFromInviteResp)
 }
