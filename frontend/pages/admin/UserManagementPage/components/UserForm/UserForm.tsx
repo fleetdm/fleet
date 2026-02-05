@@ -414,8 +414,8 @@ const UserForm = ({
             <>
               <InfoBanner className={`${baseClass}__user-permissions-info`}>
                 <p>
-                  Users can manage or observe team-specific users, entities, and
-                  settings in Fleet.
+                  Users can manage or observe {TEAM_LBL}-specific users,
+                  entities, and settings in Fleet.
                 </p>
                 <CustomLink
                   url="https://fleetdm.com/docs/using-fleet/permissions#team-member-permissions"
@@ -676,7 +676,7 @@ const UserForm = ({
           />
           <Radio
             className={`${baseClass}__radio-input`}
-            label="Assign team(s)"
+            label={`Assign to ${TEAM_LBL}(s)`}
             id="assign-teams"
             checked={!isGlobalUser}
             value={UserTeamType.AssignTeams}
@@ -700,7 +700,7 @@ const UserForm = ({
         />
         <Radio
           className={`${baseClass}__radio-input`}
-          label="Assign team(s)"
+          label={`Assign to ${TEAM_LBL}(s)`}
           id="assign-teams"
           checked={!isGlobalUser}
           value={UserTeamType.AssignTeams}
@@ -715,7 +715,7 @@ const UserForm = ({
   const renderPremiumRoleOptions = () => (
     <>
       <div className="form-field team-field">
-        <div className="form-field__label">{upperFirst(TEAM_LBL)}</div>
+        <div className="form-field__label">Permissions</div>
         {isModifiedByGlobalAdmin ? (
           renderGlobalAdminOptions()
         ) : (
