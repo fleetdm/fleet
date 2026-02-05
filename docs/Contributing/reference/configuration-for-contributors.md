@@ -210,6 +210,36 @@ If set to `true`, Fleet allows users to add the [SoftwareUpdateEnforcementSpecif
     enable_custom_os_updates_and_filevault: true
   ```
 
+### logging.tracing_enabled
+
+Enables OpenTelemetry tracing and metrics export. When enabled, traces and metrics are sent to the OTLP endpoint configured via the standard `OTEL_EXPORTER_OTLP_ENDPOINT` environment variable.
+
+By default, OpenTelemetry is used. Set `tracing_type` to `elasticapm` only if you want to use Elastic APM instead.
+
+- Default value: `false`
+- Environment variable: `FLEET_LOGGING_TRACING_ENABLED`
+- Config file format:
+  ```yaml
+  logging:
+    tracing_enabled: true
+    # tracing_type: elasticapm  # Only set if using Elastic APM instead of OpenTelemetry
+  ```
+
+### logging.otel_logs_enabled
+
+Enables exporting logs to an OpenTelemetry collector in addition to stderr output. When enabled, logs are sent to the OTLP endpoint configured via the standard `OTEL_EXPORTER_OTLP_ENDPOINT` environment variable. Logs are automatically correlated with traces via `trace_id` and `span_id` attributes.
+
+> **Note:** This option requires `logging.tracing_enabled` to be set to `true`. Fleet will fail to start if `otel_logs_enabled` is `true` but `tracing_enabled` is `false`.
+
+- Default value: `false`
+- Environment variable: `FLEET_LOGGING_OTEL_LOGS_ENABLED`
+- Config file format:
+  ```yaml
+  logging:
+    tracing_enabled: true
+    otel_logs_enabled: true
+  ```
+
 ### FLEET_ENABLE_POST_CLIENT_DEBUG_ERRORS
 
 Use this environment variable to allow `fleetd` to report errors to the server using the [endpoint to report an agent error](./API-for-contributors.md#report-an-agent-error). `fleetd` agents will always report vital errors to Fleet.
