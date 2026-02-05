@@ -37,6 +37,8 @@ func TestListActivities(t *testing.T) {
 		{"Ordering", testListActivitiesOrdering},
 		{"CursorPagination", testListActivitiesCursorPagination},
 		{"HostOnlyExcluded", testListActivitiesHostOnlyExcluded},
+		{"HostPastActivities", testListHostPastActivities},
+		{"MarkActivitiesAsStreamed", testMarkActivitiesAsStreamed},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -378,4 +380,63 @@ func withOrder(key string, dir activityapi.OrderDirection) listOptsFunc {
 
 func withAfter(cursor string) listOptsFunc {
 	return func(o *types.ListOptions) { o.After = cursor }
+}
+
+func testListHostPastActivities(t *testing.T, env *testEnv) {
+	ctx := t.Context()
+	userID := env.InsertUser(t, "user1", "user1@example.com")
+	hostID := env.InsertHost(t, "h1.local", nil)
+
+	// Create activities linked to host
+	details := map[string]any{"host_id": float64(hostID), "script_name": "script_1.sh", "async": true}
+	env.InsertHostActivity(t, hostID, env.InsertActivity(t, ptr.Uint(userID), "ran_script", details))
+	env.InsertHostActivity(t, hostID, env.InsertActivity(t, ptr.Uint(userID), "ran_script", map[string]any{"host_id": float64(hostID), "async": false}))
+
+	cases := []struct {
+		name     string
+		opts     types.ListOptions
+		wantLen  int
+		wantMeta *activityapi.PaginationMetadata
+	}{
+		{"first page", listOpts(withPerPage(1), withPage(0), withMetadata()), 1, &activityapi.PaginationMetadata{HasNextResults: true, HasPreviousResults: false}},
+		{"second page", listOpts(withPerPage(1), withPage(1), withMetadata()), 1, &activityapi.PaginationMetadata{HasNextResults: false, HasPreviousResults: true}},
+		{"all activities", listOpts(withPerPage(2), withPage(0), withMetadata()), 2, &activityapi.PaginationMetadata{HasNextResults: false, HasPreviousResults: false}},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			acts, meta, err := env.ds.ListHostPastActivities(ctx, hostID, tc.opts)
+			require.NoError(t, err)
+			require.Len(t, acts, tc.wantLen)
+			require.Equal(t, tc.wantMeta, meta)
+
+			// Verify fields
+			for _, a := range acts {
+				require.Equal(t, "user1@example.com", *a.ActorEmail)
+				require.Equal(t, "user1", *a.ActorFullName)
+				require.Equal(t, "ran_script", a.Type)
+				require.Equal(t, userID, *a.ActorID)
+				require.NotNil(t, a.Details)
+			}
+		})
+	}
+}
+
+func testMarkActivitiesAsStreamed(t *testing.T, env *testEnv) {
+	ctx := t.Context()
+	userID := env.InsertUser(t, "testuser", "test@example.com")
+
+	actA := env.InsertActivity(t, ptr.Uint(userID), "activity_a", map[string]any{})
+	actB := env.InsertActivity(t, ptr.Uint(userID), "activity_b", map[string]any{})
+
+	err := env.ds.MarkActivitiesAsStreamed(ctx, []uint{actA, actB})
+	require.NoError(t, err)
+
+	// Verify marked as streamed
+	activities, meta, err := env.ds.ListActivities(ctx, listOpts(withStreamed(ptr.Bool(true)), withMetadata()))
+	require.NoError(t, err)
+	assert.Len(t, activities, 2)
+	require.NotNil(t, meta)
+	assert.False(t, meta.HasNextResults)
+	assert.False(t, meta.HasPreviousResults)
 }
