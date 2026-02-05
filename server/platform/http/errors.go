@@ -94,7 +94,7 @@ type PayloadTooLargeError struct {
 }
 
 func (e PayloadTooLargeError) Error() string {
-	return fmt.Sprintf("Request exceeds the max size limit of %s", units.HumanSize(float64(e.MaxRequestSize)))
+	return fmt.Sprintf("Request exceeds the max size limit of %s. Configure the limit: https://fleetdm.com/docs/configuration/fleet-server-configuration#server-default-max-request-body-size", units.HumanSize(float64(e.MaxRequestSize)))
 }
 
 func (e PayloadTooLargeError) Internal() string {
