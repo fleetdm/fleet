@@ -27,19 +27,19 @@ Before deploying Desktop MFA, ensure you meet these requirements:
 
 | Requirement | Details |
 |------------|---------|
-| **Okta edition** | Workforce Identity Cloud with Desktop MFA capability enabled |
+| **Okta edition** | Okta Identity Engine with Okta Device Access |
 | **Desktop MFA application** | Created in Okta Admin Console |
 | **OAuth credentials** | Client ID and Client Secret from Desktop MFA app |
 | **Okta Verify version** | Latest version with Desktop MFA support |
 
-Contact your Okta account representative if you need to purchase the Desktop MFA license for your organization.
+Contact your Okta account representative if you need to purchase Okta Device Access for your organization.
 
 ### Fleet requirements
 
 | Requirement | Details |
 |------------|---------|
 | **Fleet secrets** | Three secret variables configured for OAuth credentials |
-| **Maintained app** | Okta Verify installer uploaded as Fleet software |
+| **Application added** | Okta Verify installer uploaded as Fleet software |
 | **PowerShell scripts** | Install and policy scripts deployed via Fleet |
 | **Policy monitoring** | osquery policy for compliance verification |
 
@@ -64,13 +64,14 @@ Configure these secrets in your Fleet server:
 Configure the Desktop MFA application in your Okta Admin Console:
 
 1. Sign in to your Okta org as a super admin
-2. Navigate to **Applications** → **Browse App Catalog**
-3. Search for **Desktop MFA** and click **Add integration**
-4. On the **General** tab, set the application label
-5. On the **Sign on** tab, copy the **Client ID** (you'll need this for Fleet secrets)
-6. On the **Sign on** tab, generate and copy the **Client Secret**
-7. On the **Assignments** tab, assign the app to users or groups who will use Desktop MFA
-8. Click **Save**
+2. Go to **Settings** → **Account**. Under **Embedded widget sign-in support**, ensure that the **Interaction Code** checkbox is selected.
+3. Navigate to **Applications** → **Browse App Catalog**
+4. Search for **Desktop MFA** and click **Add integration**
+5. On the **General** tab, set the application label
+6. On the **Sign on** tab, copy the **Client ID** (you'll need this for Fleet secrets)
+7. On the **Sign on** tab, generate and copy the **Client Secret**
+8. On the **Assignments** tab, assign the app to users or groups who will use Desktop MFA
+9. Click **Save**
 
 Download the Okta Verify installer from the Admin Console at **Settings** → **Downloads**. Don't download from the Microsoft Store, as that version lacks MDM integration features.
 
