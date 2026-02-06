@@ -1731,6 +1731,13 @@
       "description": "Yubico Authenticator is an application for generating TOTP and HOTP codes."
     },
     {
+      "name": "Yubico Authenticator",
+      "slug": "yubico-authenticator/windows",
+      "platform": "windows",
+      "unique_identifier": "Yubico Authenticator",
+      "description": "Yubico Authenticator is an application for generating TOTP and HOTP codes."
+    },
+    {
       "name": "Yubikey Manager",
       "slug": "yubico-yubikey-manager/darwin",
       "platform": "darwin",
