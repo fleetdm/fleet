@@ -182,6 +182,9 @@ func TestPubSubEnrollment(t *testing.T) {
 			mockDS.AssociateHostMDMIdPAccountFunc = func(ctx context.Context, hostUUID, accountUUID string) error {
 				return nil
 			}
+			mockDS.MaybeAssociateHostWithScimUserFunc = func(ctx context.Context, hostID uint) error {
+				return nil
+			}
 
 			enrollmentToken := enrollmentTokenRequest{
 				EnrollSecret: "global",
@@ -193,11 +196,61 @@ func TestPubSubEnrollment(t *testing.T) {
 				Name:                createAndroidDeviceId("test-android"),
 				EnrollmentTokenData: string(enrollTokenData),
 			})
-			err = svc.ProcessPubSubPush(context.Background(), "value", enrollmentMessage)
+			err = svc.ProcessPubSubPush(t.Context(), "value", enrollmentMessage)
 			require.NoError(t, err)
 
 			require.True(t, mockDS.AssociateHostMDMIdPAccountFuncInvoked)
 			require.True(t, mockDS.NewAndroidHostFuncInvoked)
+			require.True(t, mockDS.MaybeAssociateHostWithScimUserFuncInvoked)
+		})
+
+		t.Run("associates scim user with correct host ID after idp association", func(t *testing.T) {
+			mockDS.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+				return &fleet.AppConfig{
+					MDM: fleet.MDM{
+						AndroidEnabledAndConfigured: true,
+					},
+				}, nil
+			}
+
+			expectedHostID := uint(42)
+			mockDS.NewAndroidHostFunc = func(ctx context.Context, host *fleet.AndroidHost) (*fleet.AndroidHost, error) {
+				return &fleet.AndroidHost{Host: &fleet.Host{ID: expectedHostID}}, nil
+			}
+
+			var capturedIdpHostUUID, capturedIdpAcctUUID string
+			mockDS.AssociateHostMDMIdPAccountFunc = func(ctx context.Context, hostUUID, accountUUID string) error {
+				capturedIdpHostUUID = hostUUID
+				capturedIdpAcctUUID = accountUUID
+				return nil
+			}
+
+			var capturedScimHostID uint
+			mockDS.MaybeAssociateHostWithScimUserFunc = func(ctx context.Context, hostID uint) error {
+				capturedScimHostID = hostID
+				return nil
+			}
+
+			idpUUID := "test-idp-uuid"
+			enrollmentToken := enrollmentTokenRequest{
+				EnrollSecret: "global",
+				IdpUUID:      idpUUID,
+			}
+			enrollTokenData, err := json.Marshal(enrollmentToken)
+			require.NoError(t, err)
+			enrollmentMessage := createEnrollmentMessage(t, androidmanagement.Device{
+				Name:                createAndroidDeviceId("test-android-scim"),
+				EnrollmentTokenData: string(enrollTokenData),
+			})
+			err = svc.ProcessPubSubPush(t.Context(), "value", enrollmentMessage)
+			require.NoError(t, err)
+
+			require.True(t, mockDS.AssociateHostMDMIdPAccountFuncInvoked)
+			require.NotEmpty(t, capturedIdpHostUUID)
+			require.Equal(t, idpUUID, capturedIdpAcctUUID)
+
+			require.True(t, mockDS.MaybeAssociateHostWithScimUserFuncInvoked)
+			require.Equal(t, expectedHostID, capturedScimHostID)
 		})
 	})
 }

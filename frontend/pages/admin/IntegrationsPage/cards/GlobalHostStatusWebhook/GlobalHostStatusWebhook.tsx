@@ -81,7 +81,7 @@ const GlobalHostStatusWebhook = ({
       if (!destination_url) {
         errors.destination_url = "Destination URL must be present";
       } else if (!validUrl({ url: destination_url })) {
-        errors.destination_url = `${destination_url} is not a valid URL`;
+        errors.destination_url = "Destination URL is not a valid URL";
       }
     }
 
