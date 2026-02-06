@@ -977,13 +977,46 @@ func testHostListOptionsTeamFilter(t *testing.T, ds *Datastore) {
 			Checksum:          test.MakeTestBytes(), // 16 bytes
 			Scope:             fleet.PayloadScopeSystem,
 		},
+		{
+			ProfileUUID:       profUUID,
+			ProfileIdentifier: mobileconfig.FleetFileVaultPayloadIdentifier,
+			HostUUID:          hosts[19].UUID, // hosts[19] is assgined to no team
+			CommandUUID:       "command-uuid-4",
+			OperationType:     fleet.MDMOperationTypeInstall,
+			Status:            &fleet.MDMDeliveryVerifying, // will set ActionRequired
+			Checksum:          test.MakeTestBytes(),        // 16 bytes
+			Scope:             fleet.PayloadScopeSystem,
+		},
+		{
+			ProfileUUID:       profUUID,
+			ProfileIdentifier: mobileconfig.FleetFileVaultPayloadIdentifier,
+			HostUUID:          hosts[15].UUID, // hosts[15] is assgined to team 2
+			CommandUUID:       "command-uuid-5",
+			OperationType:     fleet.MDMOperationTypeInstall,
+			Status:            &fleet.MDMDeliveryVerifying, // will set ActionRequired
+			Checksum:          test.MakeTestBytes(),        // 16 bytes
+			Scope:             fleet.PayloadScopeSystem,
+		},
+		{
+			ProfileUUID:       profUUID,
+			ProfileIdentifier: mobileconfig.FleetFileVaultPayloadIdentifier,
+			HostUUID:          hosts[16].UUID, // hosts[16] is assgined to team 2
+			CommandUUID:       "command-uuid-6",
+			OperationType:     fleet.MDMOperationTypeInstall,
+			Status:            &fleet.MDMDeliveryVerified, // will set ActionRequired
+			Checksum:          test.MakeTestBytes(),       // 16 bytes
+			Scope:             fleet.PayloadScopeSystem,
+		},
 	}))
-	listHostsCheckCount(t, ds, userFilter, fleet.HostListOptions{TeamFilter: &team1.ID, OSSettingsDiskEncryptionFilter: fleet.DiskEncryptionEnforcing}, 0) // hosts[10]
-	listHostsCheckCount(t, ds, userFilter, fleet.HostListOptions{TeamFilter: &team2.ID, OSSettingsDiskEncryptionFilter: fleet.DiskEncryptionEnforcing}, 0) // wrong team
+	listHostsCheckCount(t, ds, userFilter, fleet.HostListOptions{TeamFilter: &team1.ID, OSSettingsDiskEncryptionFilter: fleet.DiskEncryptionEnforcing}, 0)      // hosts[10]
+	listHostsCheckCount(t, ds, userFilter, fleet.HostListOptions{TeamFilter: &team2.ID, OSSettingsDiskEncryptionFilter: fleet.DiskEncryptionEnforcing}, 0)      // hosts[16]
+	listHostsCheckCount(t, ds, userFilter, fleet.HostListOptions{TeamFilter: &team2.ID, OSSettingsDiskEncryptionFilter: fleet.DiskEncryptionActionRequired}, 2) // hosts[15], hosts[16]
 	// os settings filter does not support "all teams" so teamIDFilterNil acts the same as teamIDFilterZero
 	listHostsCheckCount(t, ds, userFilter, fleet.HostListOptions{TeamFilter: teamIDFilterZero, OSSettingsDiskEncryptionFilter: fleet.DiskEncryptionEnforcing}, 1) // hosts[18]
 	listHostsCheckCount(t, ds, userFilter, fleet.HostListOptions{TeamFilter: teamIDFilterNil, OSSettingsDiskEncryptionFilter: fleet.DiskEncryptionEnforcing}, 1)  // hosts[18]
 	listHostsCheckCount(t, ds, userFilter, fleet.HostListOptions{OSSettingsDiskEncryptionFilter: fleet.DiskEncryptionEnforcing}, 1)                               // hosts[18]
+
+	listHostsCheckCount(t, ds, userFilter, fleet.HostListOptions{TeamFilter: teamIDFilterZero, OSSettingsDiskEncryptionFilter: fleet.DiskEncryptionActionRequired}, 4) // hosts[3, 4, 5, 19]
 
 	// move linux hosts to team 1 (un-escrows keys)
 	require.NoError(t, ds.AddHostsToTeam(context.Background(), fleet.NewAddHostsToTeamParams(&team1.ID, []uint{hosts[1].ID, hosts[2].ID, hosts[3].ID, hosts[4].ID, hosts[5].ID})))
