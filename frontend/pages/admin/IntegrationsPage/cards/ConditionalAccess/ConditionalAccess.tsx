@@ -393,9 +393,22 @@ const ConditionalAccess = () => {
           )
         }
       >
-        {oktaConfigured
-          ? "Okta conditional access configured"
-          : "Connect Okta to enable conditional access."}
+        {oktaConfigured ? (
+          <>
+            <TooltipWrapper
+              tipContent={
+                <>
+                  <b>IdP ID:</b> {config?.conditional_access?.okta_idp_id}
+                </>
+              }
+            >
+              Okta
+            </TooltipWrapper>{" "}
+            conditional access connected.
+          </>
+        ) : (
+          "Connect Okta to enable conditional access."
+        )}
       </SectionCard>
     );
   };
