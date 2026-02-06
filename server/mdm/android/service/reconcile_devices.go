@@ -3,13 +3,132 @@ package service
 import (
 	"context"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/mdm/android"
 	kitlog "github.com/go-kit/log"
 	"github.com/go-kit/log/level"
 )
+
+// Note: The androidmgmt package is used by the newAMAPIClient function defined elsewhere in this package
+
+// ReconcileOrphanedAndroidDevices finds devices that exist in Google AMAPI but not in Fleet
+// and directly enrolls them. This handles the case where a host was deleted from Fleet but
+// the device is still enrolled in AMAPI.
+func ReconcileOrphanedAndroidDevices(ctx context.Context, ds fleet.Datastore, logger kitlog.Logger, licenseKey string, androidSvc android.Service) error {
+	appConfig, err := ds.AppConfig(ctx)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "get app config")
+	}
+	if !appConfig.MDM.AndroidEnabledAndConfigured {
+		return nil
+	}
+
+	enterprise, err := ds.GetEnterprise(ctx)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "get android enterprise")
+	}
+
+	client := newAMAPIClient(ctx, logger, licenseKey)
+
+	// Best-effort set authentication secret for proxy client usage (no-op for Google client).
+	if assets, err := ds.GetAllMDMConfigAssetsByName(ctx, []fleet.MDMAssetName{fleet.MDMAssetAndroidFleetServerSecret}, nil); err == nil {
+		if asset, ok := assets[fleet.MDMAssetAndroidFleetServerSecret]; ok && len(asset.Value) > 0 {
+			_ = client.SetAuthenticationSecret(string(asset.Value))
+		}
+	}
+
+	// Get all devices Fleet knows about and build a set of device IDs
+	fleetDevices, err := ds.ListAndroidEnrolledDevicesForReconcile(ctx)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "list enrolled android devices")
+	}
+	fleetDeviceIDs := make(map[string]struct{}, len(fleetDevices))
+	for _, dev := range fleetDevices {
+		if dev != nil && dev.DeviceID != "" {
+			fleetDeviceIDs[dev.DeviceID] = struct{}{}
+		}
+	}
+
+	// List all devices from AMAPI and find orphans (in AMAPI but not in Fleet)
+	checked := 0
+	patched := 0
+	pageToken := ""
+	for {
+		resp, err := client.EnterprisesDevicesListPartial(ctx, enterprise.Name(), pageToken)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "listing android devices from AMAPI")
+		}
+
+		for _, dev := range resp.Devices {
+			checked++
+			// Extract device ID from name (format: enterprises/{id}/devices/{deviceId})
+			parts := splitDeviceName(dev.Name)
+			if parts.deviceID == "" {
+				level.Debug(logger).Log("msg", "skipping device with invalid name", "device.name", dev.Name)
+				continue
+			}
+
+			if _, exists := fleetDeviceIDs[parts.deviceID]; exists {
+				// Device exists in Fleet, no action needed
+				continue
+			}
+
+			// Device is orphaned (in AMAPI but not in Fleet), directly enroll it
+			level.Debug(logger).Log("msg", "found orphaned android device, directly enrolling",
+				"device.name", dev.Name, "device.id", parts.deviceID)
+
+			// Fetch full device info for enrollment
+			fullDevice, getErr := client.EnterprisesDevicesGet(ctx, dev.Name)
+			if getErr != nil {
+				level.Error(logger).Log("msg", "failed to get orphaned android device", "device.name", dev.Name, "err", getErr)
+				continue
+			}
+
+			// Directly enroll the device using the Service's enrollment logic
+			enrollErr := androidSvc.EnrollOrphanedDevice(ctx, fullDevice)
+			if enrollErr != nil {
+				level.Error(logger).Log("msg", "failed to enroll orphaned android device", "device.name", dev.Name, "err", enrollErr)
+				continue
+			}
+			level.Info(logger).Log("msg", "successfully enrolled orphaned android device",
+				"device.name", dev.Name,
+				"device.id", parts.deviceID,
+				"enterprise_specific_id", fullDevice.HardwareInfo.EnterpriseSpecificId,
+			)
+			patched++
+		}
+
+		if resp.NextPageToken == "" {
+			break
+		}
+		pageToken = resp.NextPageToken
+	}
+
+	level.Debug(logger).Log("msg", "android orphaned device reconcile complete", "checked", checked, "patched", patched)
+	return nil
+}
+
+type deviceNameParts struct {
+	enterpriseID string
+	deviceID     string
+}
+
+func splitDeviceName(name string) deviceNameParts {
+	// Format: enterprises/{enterpriseId}/devices/{deviceId}
+	parts := make(map[string]string)
+	tokens := strings.Split(name, "/")
+	for i := 0; i+1 < len(tokens); i += 2 {
+		parts[tokens[i]] = tokens[i+1]
+	}
+	return deviceNameParts{
+		enterpriseID: parts["enterprises"],
+		deviceID:     parts["devices"],
+	}
+}
 
 // ReconcileAndroidDevices polls AMAPI for devices that Fleet still considers enrolled
 // and flips them to unenrolled if Google reports them missing (404).

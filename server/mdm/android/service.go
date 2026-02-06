@@ -44,6 +44,10 @@ type Service interface {
 	// and if so, verifies it still exists in Google API. If it doesn't exist, performs cleanup.
 	// Returns fleet.IsNotFound error if enterprise was deleted, nil if no enterprise exists or verification passed.
 	VerifyExistingEnterpriseIfAny(ctx context.Context) error
+
+	// EnrollOrphanedDevice enrolls a device that exists in AMAPI but not in Fleet.
+	// This is used by the orphaned device reconciliation cron job.
+	EnrollOrphanedDevice(ctx context.Context, device *androidmanagement.Device) error
 }
 
 // /////////////////////////////////////////////

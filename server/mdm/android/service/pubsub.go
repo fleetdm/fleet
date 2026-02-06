@@ -208,9 +208,11 @@ func (svc *Service) handlePubSubStatusReport(ctx context.Context, token string, 
 			"device.enterpriseSpecificId", device.HardwareInfo.EnterpriseSpecificId)
 		err = svc.enrollHost(ctx, &device)
 		if err != nil {
-			level.Debug(svc.logger).Log("msg", "Error re-enrolling Android host", "data", rawData)
+			level.Debug(svc.logger).Log("msg", "Error re-enrolling Android host", "err", err, "device.name", device.Name)
 			return ctxerr.Wrap(ctx, err, "re-enrolling deleted Android host")
 		}
+		// enrollHost already created the host and set it up, so we're done
+		return nil
 	}
 	err = svc.updateHost(ctx, &device, host, false)
 	if err != nil {
@@ -517,7 +519,15 @@ func (svc *Service) addNewHost(ctx context.Context, device *androidmanagement.De
 
 	enrollSecret, err := svc.ds.VerifyEnrollSecret(ctx, enrollmentTokenRequest.EnrollSecret)
 	if err != nil {
-		return ctxerr.Wrap(ctx, err, "verifying enroll secret")
+		if fleet.IsNotFound(err) {
+			// Orphaned device: the original enroll secret was deleted.
+			// Allow re-enrollment with no team assignment.
+			level.Info(svc.logger).Log("msg", "Enroll secret not found for orphaned Android device, enrolling with no team",
+				"device.name", device.Name, "device.enterpriseSpecificId", device.HardwareInfo.EnterpriseSpecificId)
+			enrollSecret = nil
+		} else {
+			return ctxerr.Wrap(ctx, err, "verifying enroll secret")
+		}
 	}
 
 	deviceID, err := svc.getDeviceID(ctx, device)
@@ -607,6 +617,13 @@ func (svc *Service) addNewHost(ctx context.Context, device *androidmanagement.De
 	}
 
 	return nil
+}
+
+// EnrollOrphanedDevice enrolls a device that exists in AMAPI but not in Fleet.
+// This is used by the orphaned device reconciliation cron job.
+func (svc *Service) EnrollOrphanedDevice(ctx context.Context, device *androidmanagement.Device) error {
+	svc.authz.SkipAuthorization(ctx)
+	return svc.enrollHost(ctx, device)
 }
 
 func (svc *Service) getComputerName(device *androidmanagement.Device) string {

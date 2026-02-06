@@ -1904,13 +1904,15 @@ func newBatchActivitiesSchedule(
 }
 
 // newAndroidMDMDeviceReconcilerSchedule periodically reconciles Android device existence
-// with Google AMAPI and flips hosts to unenrolled if missing.
+// with Google AMAPI and flips hosts to unenrolled if missing. It also re-enrolls orphaned
+// devices (devices in AMAPI but not in Fleet).
 func newAndroidMDMDeviceReconcilerSchedule(
 	ctx context.Context,
 	instanceID string,
 	ds fleet.Datastore,
 	logger kitlog.Logger,
 	licenseKey string,
+	androidSvc android.Service,
 ) (*schedule.Schedule, error) {
 	const (
 		name            = string(fleet.CronMDMAndroidDeviceReconciler)
@@ -1923,6 +1925,9 @@ func newAndroidMDMDeviceReconcilerSchedule(
 		schedule.WithLogger(logger),
 		schedule.WithJob("reconcile_android_devices", func(ctx context.Context) error {
 			return android_svc.ReconcileAndroidDevices(ctx, ds, logger, licenseKey)
+		}),
+		schedule.WithJob("reconcile_orphaned_android_devices", func(ctx context.Context) error {
+			return android_svc.ReconcileOrphanedAndroidDevices(ctx, ds, logger, licenseKey, androidSvc)
 		}),
 	)
 
