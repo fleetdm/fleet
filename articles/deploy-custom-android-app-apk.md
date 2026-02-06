@@ -2,7 +2,7 @@
 
 _Available in Fleet Premium_
 
-In Fleet, you can deploy your own custom Android apps (APK) to your organization's Android hosts. This is useful for distributing internal apps that aren't available on the public Google Play Store.
+In Fleet, you can deploy your own custom Android apps ([APK](https://w.wiki/9bMs)) to your organization's Android hosts. This is useful for distributing internal apps that aren't available on the public Google Play Store.
 
 To deploy custom Android apps, you'll publish them as private apps in the Google Play Console, making them available only to your organization through Android Enterprise.
 
