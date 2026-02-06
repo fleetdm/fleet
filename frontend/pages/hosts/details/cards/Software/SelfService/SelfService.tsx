@@ -17,6 +17,7 @@ import {
   IHostSoftware,
   IDeviceSoftwareWithUiStatus,
   IVPPHostSoftware,
+  NO_VERSION_OR_HOST_DATA_SOURCES,
 } from "interfaces/software";
 
 import deviceApi, {
@@ -345,10 +346,27 @@ const SoftwareSelfService = ({
             return next;
           });
 
-          // Some pending installs finished during the last refresh
+          // Some pending installs/uninstalls finished during the last refresh
           // Trigger an additional refetch to ensure UI status is up-to-date
           // If already refetching, queue another refetch
-          refetchHostDetails();
+
+          // Only trigger refetch for pending installs/uninstalls whose sources appear in software inventory
+          const shouldRefetchHostDetails = response.software.some(
+            (software) => {
+              const isCompleted = completedAppIds.includes(String(software.id));
+              if (!isCompleted) return false;
+
+              const isInventoryDetectableSource = !NO_VERSION_OR_HOST_DATA_SOURCES.includes(
+                software.source
+              );
+
+              return isInventoryDetectableSource;
+            }
+          );
+
+          if (shouldRefetchHostDetails) {
+            refetchHostDetails();
+          }
         }
 
         // Compare new set with the previous set

@@ -296,6 +296,13 @@ export const INSTALLABLE_SOURCE_PLATFORM_CONVERSION = {
 
 export const SCRIPT_PACKAGE_SOURCES = ["sh_packages", "ps1_packages"];
 
+/** Sources that don't map cleanly to versions or hosts in software inventory.
+ * UI behavior for these sources:
+ * - Never shows “Update available” (no version to compare against the package version).
+ * - Skips refetching host details after install/uninstall (no inventory entry to detect).
+ * - Skips showing a host count (hosts cannot be mapped to the package).
+ * - Skips showing a versions table (versions cannot be mapped to the package).
+ * - Skips linking to “View all hosts” (hosts cannot be mapped to the package). */
 export const NO_VERSION_OR_HOST_DATA_SOURCES = [
   "tgz_packages",
   ...SCRIPT_PACKAGE_SOURCES,

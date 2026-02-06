@@ -195,9 +195,9 @@ export const getUiStatus = (
   const lastUninstallDate = getLastUninstall(software)?.uninstalled_at;
   const installerVersion = getInstallerVersion(software);
   const isScriptPackage = SCRIPT_PACKAGE_SOURCES.includes(source);
-  // Scripts and tarballs do not report inventory, so skip inventory-based checks such as recently_installed/recently_uninstalled
-  // This will turn the ui_status to 'installed' or 'uninstalled' directly after install/uninstall of script/tarball packages succeeds
-  const incompatibleWithInventory = NO_VERSION_OR_HOST_DATA_SOURCES.includes(
+  // Scripts and tarballs do not map to software inventory, so we will skip inventory-based checks such as recently_installed/recently_uninstalled
+  // This guard allows the switch to 'installed' or 'uninstalled' immediately after a script/tarball action succeeds.
+  const isInventoryDetectableSource = !NO_VERSION_OR_HOST_DATA_SOURCES.includes(
     source
   );
   /** True if a recent user-initiated action (install/uninstall) was detected for this software */
@@ -279,7 +279,7 @@ export const getUiStatus = (
     status === null &&
     lastUninstallDate &&
     hostSoftwareUpdatedAt &&
-    !incompatibleWithInventory // Skip recently installed UI status as we are not waiting for inventory updates
+    isInventoryDetectableSource // Only wait for inventory updates for sources that appear in software inventory
   ) {
     const newerDate = getNewerDate(hostSoftwareUpdatedAt, lastUninstallDate);
     if (newerDate === lastUninstallDate || recentUserActionDetected) {
@@ -311,7 +311,7 @@ export const getUiStatus = (
     if (
       lastInstallDate &&
       hostSoftwareUpdatedAt &&
-      !incompatibleWithInventory // Skip recently installed UI status as we are not waiting for inventory updates
+      isInventoryDetectableSource // Only wait for inventory updates for sources that appear in software inventory
     ) {
       const newerDate = getNewerDate(hostSoftwareUpdatedAt, lastInstallDate);
       if (newerDate === lastInstallDate || recentUserActionDetected) {
