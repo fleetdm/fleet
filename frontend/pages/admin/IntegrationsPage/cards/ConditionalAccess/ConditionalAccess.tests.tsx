@@ -337,12 +337,18 @@ BAYTAkFVMRMwEQYDVQQIDApTb21lLVN0YXRlMSEwHwYDVQQKDBhJbnRlcm5ldCBX
         },
       });
 
-      render(<ConditionalAccess />);
+      const { user } = render(<ConditionalAccess />);
 
-      expect(screen.getByText(/Okta/)).toBeInTheDocument();
+      const oktaCopy = screen.getByText(/Okta/);
+      expect(oktaCopy).toBeInTheDocument();
       expect(
         screen.getByText(/conditional access connected/)
       ).toBeInTheDocument();
+
+      await user.hover(oktaCopy);
+      await waitFor(() => {
+        expect(screen.getByText(TEST_OKTA_IDP_ID)).toBeInTheDocument();
+      });
     });
 
     it("Shows both providers as configured when both are set up", async () => {
@@ -368,10 +374,23 @@ BAYTAkFVMRMwEQYDVQQIDApTb21lLVN0YXRlMSEwHwYDVQQKDBhJbnRlcm5ldCBX
         },
       });
 
-      render(<ConditionalAccess />);
+      const { user } = render(<ConditionalAccess />);
 
-      expect(screen.getByText(/Microsoft Entra/)).toBeInTheDocument();
-      expect(screen.getByText(/Okta/)).toBeInTheDocument();
+      const entraCopy = screen.getByText(/Microsoft Entra/);
+      expect(entraCopy).toBeInTheDocument();
+
+      await user.hover(entraCopy);
+      await waitFor(() => {
+        expect(screen.getByText(TEST_TENANT_ID)).toBeInTheDocument();
+      });
+
+      const oktaCopy = screen.getByText(/Okta/);
+      expect(oktaCopy).toBeInTheDocument();
+      await user.hover(oktaCopy);
+      await waitFor(() => {
+        expect(screen.getByText(TEST_OKTA_IDP_ID)).toBeInTheDocument();
+      });
+
       expect(
         screen.queryAllByText(/conditional access connected/)
       ).toHaveLength(2);
@@ -402,11 +421,16 @@ BAYTAkFVMRMwEQYDVQQIDApTb21lLVN0YXRlMSEwHwYDVQQKDBhJbnRlcm5ldCBX
 
       const { user } = render(<ConditionalAccess />);
 
-      // Should show configured state
-      expect(screen.getByText(/Okta/)).toBeInTheDocument();
+      const oktaCopy = screen.getByText(/Okta/);
+      expect(oktaCopy).toBeInTheDocument();
       expect(
         screen.getByText(/conditional access connected/)
       ).toBeInTheDocument();
+
+      await user.hover(oktaCopy);
+      await waitFor(() => {
+        expect(screen.getByText(TEST_OKTA_IDP_ID)).toBeInTheDocument();
+      });
 
       // Click Delete button (first one is for Okta)
       const deleteButton = screen.getAllByText("Delete")[0];
