@@ -10,6 +10,12 @@ macOS setup features require [connecting Fleet to Apple Business Manager (ABM)](
 
 > If a host is marked with a [migration deadline](https://support.apple.com/en-bh/guide/apple-business-manager/axm3a49a769d/web#axmf524b36d9) in Apple Business Manager, Fleet treats it as already set up. This means Fleet won’t install setup experience software, run scripts, or install bootstrap packages on that host.
 
+Below is the end user experience for macOS. Checkout these separate videos for [iOS](TODO) and [iPadOS](TODO).
+
+<div purpose="embedded-content">
+   <iframe src="TODO" frameborder="0" allowfullscreen></iframe>
+</div>
+
 ## End user authentication
 
 You can enforce end user authentication during automatic enrollment (ADE) for Apple (macOS, iOS, iPadOS) hosts and manual enrollment for personal (BYOD) iOS, iPadOS, and Android hosts. End user authentication is also supported on [Windows and Linux](https://fleetdm.com/guides/windows-linux-setup-experience). End users can use passkeys, such as YubiKeys, with macOS hosts during the authentication process.
