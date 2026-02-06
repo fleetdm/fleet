@@ -139,7 +139,7 @@ func (s *integrationMDMTestSuite) createEnrolledAndroidHost(t *testing.T, ctx co
 		},
 	}
 	androidHostInput.SetNodeKey("android/" + hostUUID)
-	createdAndroidHost, err := s.ds.NewAndroidHost(ctx, androidHostInput)
+	createdAndroidHost, err := s.ds.NewAndroidHost(ctx, androidHostInput, false)
 	require.NoError(t, err)
 
 	host := createdAndroidHost.Host
@@ -207,7 +207,7 @@ func (s *integrationMDMTestSuite) TestCertificateTemplateLifecycle() {
 		},
 	}
 	androidHostInput.SetNodeKey(enterpriseID)
-	createdAndroidHost, err := s.ds.NewAndroidHost(ctx, androidHostInput)
+	createdAndroidHost, err := s.ds.NewAndroidHost(ctx, androidHostInput, false)
 	require.NoError(t, err)
 
 	host := createdAndroidHost.Host
@@ -387,7 +387,7 @@ func (s *integrationMDMTestSuite) TestCertificateTemplateSpecEndpointAndAMAPIFai
 		},
 	}
 	androidHostInput.SetNodeKey(enterpriseID)
-	createdAndroidHost, err := s.ds.NewAndroidHost(ctx, androidHostInput)
+	createdAndroidHost, err := s.ds.NewAndroidHost(ctx, androidHostInput, false)
 	require.NoError(t, err)
 
 	host := createdAndroidHost.Host
@@ -500,7 +500,7 @@ func (s *integrationMDMTestSuite) TestCertificateTemplateNoTeamWithIDPVariable()
 		},
 	}
 	androidHostInput.SetNodeKey(enterpriseID)
-	createdAndroidHost, err := s.ds.NewAndroidHost(ctx, androidHostInput)
+	createdAndroidHost, err := s.ds.NewAndroidHost(ctx, androidHostInput, false)
 	require.NoError(t, err)
 
 	host := createdAndroidHost.Host
@@ -611,7 +611,7 @@ func (s *integrationMDMTestSuite) TestCertificateTemplateUnenrollReenroll() {
 		},
 	}
 	androidHostInput.SetNodeKey(enterpriseID)
-	createdAndroidHost, err := s.ds.NewAndroidHost(ctx, androidHostInput)
+	createdAndroidHost, err := s.ds.NewAndroidHost(ctx, androidHostInput, false)
 	require.NoError(t, err)
 
 	host := createdAndroidHost.Host
@@ -673,7 +673,7 @@ func (s *integrationMDMTestSuite) TestCertificateTemplateUnenrollReenroll() {
 	require.Equal(t, string(fleet.CertificateTemplatePending), *profile.Status)
 
 	// Step: Re-enroll the host (simulates pubsub status report triggering UpdateAndroidHost with fromEnroll=true)
-	err = s.ds.UpdateAndroidHost(ctx, createdAndroidHost, true)
+	err = s.ds.UpdateAndroidHost(ctx, createdAndroidHost, true, false)
 	require.NoError(t, err)
 
 	// Verify host is re-enrolled

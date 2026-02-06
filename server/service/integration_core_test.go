@@ -2420,16 +2420,22 @@ func (s *integrationTestSuite) TestInvites() {
 	require.Len(t, verify.Teams, 1)
 	assert.Equal(t, team.ID, verify.Teams[0].ID)
 
+	// Try to create an user with an email different that the one associated with the invite
 	var createFromInviteResp createUserResponse
-	s.DoJSON("POST", "/api/latest/fleet/users", fleet.UserPayload{
+	userPayload := fleet.UserPayload{
 		Name:        ptr.String("Full Name"),
 		Password:    ptr.String(test.GoodPassword),
 		Email:       ptr.String("a@b.c"),
 		InviteToken: ptr.String(validInviteToken),
-	}, http.StatusOK, &createFromInviteResp)
+	}
+	s.DoJSON("POST", "/api/latest/fleet/users", userPayload, http.StatusUnprocessableEntity, &createFromInviteResp)
+
+	// Adjust email and try again, this should be OK
+	userPayload.Email = ptr.String(verify.Email)
+	s.DoJSON("POST", "/api/latest/fleet/users", userPayload, http.StatusOK, &createFromInviteResp)
 
 	// Check that user is associated with unique invite ID
-	user, err := s.ds.UserByEmail(context.Background(), "a@b.c")
+	user, err := s.ds.UserByEmail(context.Background(), verify.Email)
 	require.NoError(t, err)
 	require.Equal(t, inv.ID, *user.InviteID)
 
@@ -2454,7 +2460,7 @@ func (s *integrationTestSuite) TestInvites() {
 	s.DoJSON("POST", "/api/latest/fleet/users", fleet.UserPayload{
 		Name:        ptr.String("Full Name"),
 		Password:    ptr.String(test.GoodPassword),
-		Email:       ptr.String("a@b.c"),
+		Email:       ptr.String(inv.Email),
 		InviteToken: ptr.String(deletedInviteToken),
 	}, http.StatusNotFound, &createFromInviteResp)
 }
@@ -9234,7 +9240,7 @@ func (s *integrationTestSuite) TestCarve() {
 		SessionId: sid + "zz",
 		RequestId: "??",
 		Data:      []byte("p1."),
-	}, http.StatusNotFound, &blockResp)
+	}, http.StatusUnauthorized, &blockResp)
 
 	// sending a block with valid session id but invalid request id
 	s.DoJSON("POST", "/api/osquery/carve/block", carveBlockRequest{
@@ -9242,7 +9248,7 @@ func (s *integrationTestSuite) TestCarve() {
 		SessionId: sid,
 		RequestId: "??",
 		Data:      []byte("p1."),
-	}, http.StatusInternalServerError, &blockResp) // TODO: should be 400, see #4406
+	}, http.StatusUnauthorized, &blockResp)
 
 	checkCarveError := func(id uint, err string) {
 		var getResp getCarveResponse
@@ -9317,6 +9323,61 @@ func (s *integrationTestSuite) TestCarve() {
 		Data:      []byte("p4."),
 	}, http.StatusBadRequest, &blockResp)
 	checkCarveError(1, "block_id exceeds expected max (2): 3")
+}
+
+func (s *integrationTestSuite) TestCarveUnauthenticated() {
+	t := s.T()
+
+	verifyAuthError := func(t *testing.T, res *http.Response) {
+		var errs validationErrResp
+		err := json.NewDecoder(res.Body).Decode(&errs)
+		require.NoError(t, err)
+		res.Body.Close()
+		assert.Equal(t, "Authentication failed", errs.Message)
+		require.Len(t, errs.Errors, 1)
+		assert.Equal(t, "Authentication failed", errs.Errors[0].Reason)
+	}
+
+	// Sending invalid format for data on purpose on purpose to check that the error is a HTTP 401 error
+	// vs a decoding/parsing error (this way we check it never gets to parse "data").
+	for _, tc := range []struct {
+		testName       string
+		rawJSONRequest string
+	}{
+		{
+			testName:       "empty-json",
+			rawJSONRequest: `{}`,
+		},
+		{
+			testName: "with-spaces", // osquery does not send spaces in the JSON
+			rawJSONRequest: `{
+				"block_id":   1,
+				"request_id": "invalid",
+				"data":      9999999999
+			}`,
+		},
+		{
+			testName:       "without-session-id",
+			rawJSONRequest: `{"block_id":1,"request_id":"invalid","data":9999999999}`,
+		},
+		{
+			testName:       "invalid-session-id-format",
+			rawJSONRequest: `{"block_id":1,"session_id":2,"request_id": "invalid","data":9999999999}`,
+		},
+		{
+			testName:       "invalid-session-id",
+			rawJSONRequest: `{"block_id":1,"session_id":"invalid","request_id":"invalid","data":9999999999}`,
+		},
+		{
+			testName:       "invalid-JSON",
+			rawJSONRequest: `{"block_ASDASDASDASDASDASDASDASDASDASDASDASDASD":1}`,
+		},
+	} {
+		t.Run(tc.testName, func(t *testing.T) {
+			res := s.DoRaw("POST", "/api/osquery/carve/block", []byte(tc.rawJSONRequest), http.StatusUnauthorized)
+			verifyAuthError(t, res)
+		})
+	}
 }
 
 func (s *integrationTestSuite) TestLogLoginAttempts() {
@@ -14624,7 +14685,7 @@ func (s *integrationTestSuite) TestAndroidHostUUIDPropagation() {
 	host.SetNodeKey(expectedUUID)
 
 	// Create Android host
-	androidHost, err := s.ds.NewAndroidHost(ctx, host)
+	androidHost, err := s.ds.NewAndroidHost(ctx, host, false)
 	require.NoError(t, err)
 	require.NotZero(t, androidHost.Host.ID)
 
@@ -14642,7 +14703,7 @@ func (s *integrationTestSuite) TestAndroidHostUUIDPropagation() {
 	updatedHost.Host.OSVersion = "Android 16"
 	updatedHost.Host.UUID = expectedUUID
 
-	err = s.ds.UpdateAndroidHost(ctx, updatedHost, false)
+	err = s.ds.UpdateAndroidHost(ctx, updatedHost, false, false)
 	require.NoError(t, err)
 
 	// Get the host again, verify UUID is still present
@@ -14795,7 +14856,7 @@ func createAndroidHosts(t *testing.T, ds *mysql.Datastore, count int, teamID *ui
 			},
 		}
 		host.SetNodeKey(*host.Device.EnterpriseSpecificID)
-		ahost, err := ds.NewAndroidHost(context.Background(), host)
+		ahost, err := ds.NewAndroidHost(context.Background(), host, false)
 		require.NoError(t, err)
 		ids = append(ids, ahost.Host.ID)
 	}
@@ -14826,7 +14887,7 @@ func createAndroidHostWithStorage(t *testing.T, ds *mysql.Datastore, teamID *uin
 		},
 	}
 	host.SetNodeKey(*host.Device.EnterpriseSpecificID)
-	ahost, err := ds.NewAndroidHost(context.Background(), host)
+	ahost, err := ds.NewAndroidHost(context.Background(), host, false)
 	require.NoError(t, err)
 	return ahost.Host.ID
 }
@@ -15645,7 +15706,4 @@ func (s *integrationTestSuite) TestDeleteCertificateTemplateSpec() {
 		require.Equal(t, string(fleet.CertificateTemplatePending), *profile.Status, "%s profile status should be pending after deletion", tc.hostName)
 		require.Equal(t, fleet.MDMOperationTypeRemove, profile.OperationType, "%s profile operation_type should be remove after deletion", tc.hostName)
 	}
-}
-
-func (s *integrationTestSuite) TestDevieStatusMappingForHostsEndpoints() {
 }

@@ -44,12 +44,12 @@ func New(
 
 // Handler will route gRPC traffic to the gRPC server, other http traffic
 // will be routed to normal http handler functions.
-func (hgprc *Handler) Handler(next http.Handler) http.Handler {
+func (hgrpc *Handler) Handler(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.ProtoMajor == 2 && strings.Contains(r.Header.Get("Content-Type"), "application/grpc") {
 			ctx := r.Context()
 			ctx = kithttp.PopulateRequestContext(ctx, r)
-			hgprc.ServeHTTP(w, r.WithContext(ctx))
+			hgrpc.ServeHTTP(w, r.WithContext(ctx))
 		} else {
 			next.ServeHTTP(w, r)
 		}
