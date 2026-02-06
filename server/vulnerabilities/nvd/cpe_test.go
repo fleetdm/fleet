@@ -51,6 +51,11 @@ func TestCPEFromSoftware(t *testing.T) {
 	// Does not error on Unicode Names
 	_, err = CPEFromSoftware(log.NewNopLogger(), db, &fleet.Software{Name: "Девушка Фонарём", Version: "1.2.3", BundleIdentifier: "vendor", Source: "apps"}, nil, reCache)
 	require.NoError(t, err)
+
+	// Does not error on names that sanitize to empty (e.g. only special characters)
+	_, err = CPEFromSoftware(log.NewNopLogger(), db, &fleet.Software{Name: "[", Version: "1.2.3", BundleIdentifier: "vendor", Source: "apps"}, nil,
+		reCache)
+	require.NoError(t, err)
 }
 
 func TestCPETranslations(t *testing.T) {
@@ -2426,6 +2431,34 @@ func TestMutateSoftware(t *testing.T) {
 				Name:    "integrative-modeling-platform",
 				Version: "2.20.0",
 				Source:  "homebrew_packages",
+			},
+		},
+		{
+			name: "ninxsoft Mist (macOS installer download tool)",
+			s: &fleet.Software{
+				Name:             "Mist",
+				Version:          "0.30",
+				Source:           "apps",
+				BundleIdentifier: "com.ninxsoft.mist",
+			},
+			sanitized: &fleet.Software{
+				Name:             "ninxsoft-mist",
+				Version:          "0.30",
+				Source:           "apps",
+				BundleIdentifier: "com.ninxsoft.mist",
+			},
+		},
+		{
+			name: "7-Zip on Windows with four-part MSI version",
+			s: &fleet.Software{
+				Name:    "7-Zip 24.09 (x64)",
+				Version: "24.09.00.0",
+				Source:  "programs",
+			},
+			sanitized: &fleet.Software{
+				Name:    "7-Zip 24.09 (x64)",
+				Version: "24.09",
+				Source:  "programs",
 			},
 		},
 	} {

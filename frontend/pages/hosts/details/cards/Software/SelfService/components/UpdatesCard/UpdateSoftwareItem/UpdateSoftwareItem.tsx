@@ -19,6 +19,7 @@ import SoftwareIcon from "pages/SoftwarePage/components/icons/SoftwareIcon";
 import TooltipTruncatedText from "components/TooltipTruncatedText";
 import Spinner from "components/Spinner";
 import TooltipWrapper from "components/TooltipWrapper";
+import { getDisplayedSoftwareName } from "pages/SoftwarePage/helpers";
 
 import { HostInstallerActionButton } from "../../../../../HostSoftwareLibrary/HostInstallerActionCell/HostInstallerActionCell";
 import {
@@ -75,7 +76,10 @@ const InstallerInfo = ({ software }: IInstallerInfoProps) => {
       <div className={`${baseClass}__item-name-version`}>
         <div className={`${baseClass}__item-name`}>
           <TooltipTruncatedText
-            value={display_name || name || installerPackage?.name}
+            value={
+              getDisplayedSoftwareName(name, display_name) ||
+              installerPackage?.name
+            }
           />
         </div>
         <div className={`${baseClass}__item-version`}>

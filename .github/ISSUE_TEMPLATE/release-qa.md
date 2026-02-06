@@ -3,7 +3,7 @@ name:  Release QA
 about: Checklist of required tests prior to release
 title: 'Release QA:'
 labels: '#g-mdm,#g-orchestration,#g-software,#g-security-compliance,:release'
-assignees: 'xpkoala,andreykizimenko'
+assignees: 'xpkoala,andreykizimenko,chrstphr84,Brajim20,Ravenstencil'
 
 ---
 
@@ -47,7 +47,8 @@ Smoke tests are limited to core functionality and serve as a pre-release final r
 2. run `fleetctl preview` with no tag for latest stable
 3. create a host/query to later confirm upgrade with
 4. STOP fleet-preview-server instances in containers/apps on Docker
-5. run `fleetctl preview` with appropriate testing tag </td><td>All previously created hosts/queries are verified to still exist</td><td>pass/fail</td></tr>
+5. run `fleetctl preview` with appropriate testing tag
+6. Navigate through all new UI flows and confirm dashboard, hosts, controls, queries, policies, and settings pages are working as expected. </td><td>All previously created hosts/queries are verified to still exist</td><td>pass/fail</td></tr>
 <tr><td>Login flow</td><td>
 
 1. navigate to the login page and attempt to login with both valid and invalid credentials to verify some combination of expected results.

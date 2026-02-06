@@ -1342,6 +1342,42 @@ FROM chrome_extensions`,
 // Software queries expect specific columns to be present.  Reference the
 // software_{macos|windows|linux} queries for the expected columns.
 var SoftwareOverrideQueries = map[string]DetailQuery{
+	// windows_acrobat_dc checks the Windows registry to determine if "DC" should be appended to the Adobe Acrobat
+	// product name. While Adobe recently rebranded the free version to "Adobe Acrobat (64-bit)" — matching
+	// the naming convention of the paid product — our vulnerability detection engine requires the "DC" postfix for accurate
+	// signature matching.
+	"windows_acrobat_dc": {
+		Description: "Software override query used to determine whether the Adobe Acrobat Reader program name needs to include the DC postfix",
+		Platforms:   []string{"windows"},
+		Query:       `SELECT 1 FROM registry WHERE key = 'HKEY_LOCAL_MACHINE\SOFTWARE\Adobe\Adobe Acrobat\DC'`,
+		SoftwareProcessResults: func(softwareResults, registryResults []map[string]string) []map[string]string {
+			if len(registryResults) == 0 {
+				return softwareResults
+			}
+
+			for i, row := range softwareResults {
+				orig := row["name"]
+				lower := strings.ToLower(orig)
+
+				if !strings.HasPrefix(lower, "adobe acrobat") && !strings.HasPrefix(lower, "acrobat reader") {
+					continue
+				}
+
+				// We need to correctly identify whether the name is in the
+				// form of `... Acrobat Reader ...` or just `... Acrobat ...`
+				options := []string{"reader", "acrobat"}
+				for _, variant := range options {
+					if idx := strings.Index(lower, variant); idx != -1 {
+						splitPoint := idx + len(variant)
+						softwareResults[i]["name"] = orig[:splitPoint] + " DC" + orig[splitPoint:]
+						break
+					}
+				}
+			}
+
+			return softwareResults
+		},
+	},
 	// macos_firefox differentiates between Firefox and Firefox ESR by checking the RemotingName value in the
 	// application.ini file. If the RemotingName is 'firefox-esr', the name is set to 'Firefox ESR.app'.
 	//
@@ -2554,6 +2590,17 @@ func directIngestDiskEncryptionKeyFileDarwin(
 		decryptable = ptr.Bool(false)
 	}
 
+	// Only archive the key if disk encryption is enabled for this host (team / globally)
+	if !IsDiskEncryptionEnabledForHost(ctx, logger, ds, host) {
+		level.Debug(logger).Log(
+			"component", "service",
+			"method", "directIngestDiskEncryptionKeyFileDarwin",
+			"msg", "skipping key archival, disk encryption not enabled for host (team/globally)",
+			"host", host.Hostname,
+		)
+		return nil
+	}
+
 	archived, err := ds.SetOrUpdateHostDiskEncryptionKey(ctx, host, base64Key, "", decryptable)
 	if err != nil {
 		return err
@@ -2616,6 +2663,17 @@ func directIngestDiskEncryptionKeyFileLinesDarwin(
 	base64Key := base64.StdEncoding.EncodeToString(b)
 	if base64Key == "" {
 		decryptable = ptr.Bool(false)
+	}
+
+	// Only archive the key if disk encryption is enabled for this host (team/globally)
+	if !IsDiskEncryptionEnabledForHost(ctx, logger, ds, host) {
+		level.Debug(logger).Log(
+			"component", "service",
+			"method", "directIngestDiskEncryptionKeyFileLinesDarwin",
+			"msg", "skipping key archival, disk encryption not enabled for host team/globally",
+			"host", host.Hostname,
+		)
+		return nil
 	}
 
 	archived, err := ds.SetOrUpdateHostDiskEncryptionKey(ctx, host, base64Key, "", decryptable)

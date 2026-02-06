@@ -145,11 +145,11 @@ In the Google Admin console:
   - For Windows hosts, download the [turn off MDM script](https://github.com/fleetdm/fleet/blob/main/it-and-security/lib/windows/scripts/turn-off-mdm.ps1), add it to the host's team on the **Scripts** page in Fleet, and run the script via **Actions > Run script** on the host's details page. 
   - For iOS/iPadOS and Android hosts, select **Actions > Unenroll**.
 
-3. Next, for macOS, Windows, and Linux hosts [uninstall fleetd](https://fleetdm.com/guides/how-to-uninstall-fleetd). 
+3. [Uninstall fleetd](https://fleetdm.com/guides/how-to-uninstall-fleetd) for macOS, Windows, and Linux hosts. 
 
-4. Last, select **Actions > Delete** to delete the host from Fleet.
+4. Select **Actions > Delete** to delete the host from Fleet. Deleting the host will cancel any pending commands, script runs, or software installs.
 
-> If an end user wants to switch their workstation's operating system (e.g. Windows to Linux), before they switch, delete the host from Fleet. Then, re-enroll the host.
+> If an end user wants to switch their workstation's operating system (e.g., Windows to Linux), delete the host from Fleet before they switch. Then, re-enroll the host.
 
 ## Debugging
 

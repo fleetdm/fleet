@@ -30,7 +30,10 @@ import SoftwareIcon from "pages/SoftwarePage/components/icons/SoftwareIcon";
 import TableCount from "components/TableContainer/TableCount";
 import Spinner from "components/Spinner";
 
-import { isSafeImagePreviewUrl } from "pages/SoftwarePage/helpers";
+import {
+  getDisplayedSoftwareName,
+  isSafeImagePreviewUrl,
+} from "pages/SoftwarePage/helpers";
 import SoftwareDetailsSummary from "pages/SoftwarePage/components/cards/SoftwareDetailsSummary/SoftwareDetailsSummary";
 import { BasicSoftwareTable } from "pages/SoftwarePage/components/modals/CategoriesEndUserExperienceModal/CategoriesEndUserExperienceModal";
 import SelfServicePreview from "pages/SoftwarePage/components/cards/SelfServicePreview";
@@ -553,6 +556,8 @@ const EditIconModal = ({
     />
   );
 
+  const defaultDisplayName = getDisplayedSoftwareName(previewInfo.titleName);
+
   const renderForm = () => (
     <>
       <InputField
@@ -564,7 +569,7 @@ const EditIconModal = ({
         helpText={
           <>
             Optional. If left blank, Fleet will use{" "}
-            <strong>{previewInfo.titleName}</strong>.
+            <strong>{defaultDisplayName}</strong>.
           </>
         }
         autofocus

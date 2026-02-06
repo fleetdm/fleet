@@ -604,7 +604,10 @@ const HostsFilterBlock = ({
     );
   };
 
-  const showSelectedLabel = selectedLabel && selectedLabel.type !== "all";
+  const showSelectedLabel =
+    selectedLabel &&
+    selectedLabel.type !== "all" &&
+    selectedLabel.type !== "platform";
 
   if (
     showSelectedLabel ||

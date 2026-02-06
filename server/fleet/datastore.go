@@ -36,6 +36,10 @@ type CarveStore interface {
 	CleanupCarves(ctx context.Context, now time.Time) (expired int, err error)
 }
 
+type CarveBySessionIder interface {
+	CarveBySessionId(ctx context.Context, sessionId string) (*CarveMetadata, error)
+}
+
 // InstallerStore is used to communicate to a blob storage containing pre-built
 // fleet-osquery installers. This was originally implemented to support the
 // Fleet Sandbox and is not expected to be used outside of this:
@@ -44,6 +48,12 @@ type InstallerStore interface {
 	Get(ctx context.Context, installer Installer) (io.ReadCloser, int64, error)
 	Put(ctx context.Context, installer Installer) (string, error)
 	Exists(ctx context.Context, installer Installer) (bool, error)
+}
+
+// CleanupExcessQueryResultRowsOptions configures the behavior of CleanupExcessQueryResultRows.
+type CleanupExcessQueryResultRowsOptions struct {
+	// BatchSize is the number of rows to delete per batch. Defaults to 500 if not set.
+	BatchSize int
 }
 
 // Datastore combines all the interfaces in the Fleet DAL
@@ -556,11 +566,16 @@ type Datastore interface {
 	QueryResultRowsForHost(ctx context.Context, queryID, hostID uint) ([]*ScheduledQueryResultRow, error)
 	ResultCountForQuery(ctx context.Context, queryID uint) (int, error)
 	ResultCountForQueryAndHost(ctx context.Context, queryID, hostID uint) (int, error)
-	OverwriteQueryResultRows(ctx context.Context, rows []*ScheduledQueryResultRow, maxQueryReportRows int) error
+	OverwriteQueryResultRows(ctx context.Context, rows []*ScheduledQueryResultRow, maxQueryReportRows int) (int, error)
 	// CleanupDiscardedQueryResults deletes all query results for queries with DiscardData enabled.
 	// Used in cleanups_then_aggregation cron to cleanup rows that were inserted immediately
 	// after DiscardData was set to true due to query caching.
 	CleanupDiscardedQueryResults(ctx context.Context) error
+	// CleanupExcessQueryResultRows deletes query result rows that exceed the maximum allowed per query.
+	// It keeps the most recent rows (by id, which correlates with insert order) up to the limit.
+	// Deletes are batched to avoid large binlogs and long lock times. This runs as a cron job.
+	// Returns a map of query IDs to their current row count after cleanup (for syncing Redis counters).
+	CleanupExcessQueryResultRows(ctx context.Context, maxQueryReportRows int, opts ...CleanupExcessQueryResultRowsOptions) (map[uint]int, error)
 
 	///////////////////////////////////////////////////////////////////////////////
 	// TeamStore
@@ -834,6 +849,8 @@ type Datastore interface {
 	ConditionalAccessConsumeBypass(ctx context.Context, hostID uint) (*time.Time, error)
 	// ConditionalAccessClearBypasses clears all conditional access bypasses from the database
 	ConditionalAccessClearBypasses(ctx context.Context) error
+	// ConditionalAccessBypassedAt returns the time the bypass was enabled for a host, or nil if no bypass exists
+	ConditionalAccessBypassedAt(ctx context.Context, hostID uint) (*time.Time, error)
 
 	// Methods used for async processing of host policy query results.
 	AsyncBatchInsertPolicyMembership(ctx context.Context, batch []PolicyMembershipResult) error
@@ -1662,6 +1679,18 @@ type Datastore interface {
 	// device that is still enrolled in Fleet MDM but the corresponding host has
 	// been deleted from Fleet.
 	GetMDMAppleEnrolledDeviceDeletedFromFleet(ctx context.Context, hostUUID string) (*MDMAppleEnrolledDeviceInfo, error)
+
+	// GetMDMAppleHostMDMEnrollRef returns the host mdm enrollment reference for
+	// the given host ID.
+	GetMDMAppleHostMDMEnrollRef(ctx context.Context, hostID uint) (string, error)
+	// UpdateMDMAppleHostMDMEnrollRef updates the host mdm enrollment reference for
+	// the given host ID. It returns a boolean indicating whether any row was
+	// affected.
+	UpdateMDMAppleHostMDMEnrollRef(ctx context.Context, hostID uint, enrollRef string) (bool, error)
+	// DeactivateMDMAppleHostSCEPRenewCommands deactivates any pending SCEP renew
+	// commands for the given host UUID in the nano_enrollment_queue. It also clears all renew
+	// command uuid associated in nano_cert_auth_assocations for that host.
+	DeactivateMDMAppleHostSCEPRenewCommands(ctx context.Context, hostUUID string) error
 
 	// ListMDMAppleEnrolledIphoneIpadDeletedFromFleet returns a list of nano
 	// device IDs (host UUIDs) of iPhone and iPad that are enrolled in Fleet MDM
@@ -2601,9 +2630,8 @@ type Datastore interface {
 	// If there are no pending certificate templates, then nothing is returned.
 	GetAndTransitionCertificateTemplatesToDelivering(ctx context.Context, hostUUID string) (*HostCertificateTemplatesForDelivery, error)
 
-	// TransitionCertificateTemplatesToDelivered transitions templates from 'delivering' to 'delivered'
-	// and sets the fleet_challenge for each template.
-	TransitionCertificateTemplatesToDelivered(ctx context.Context, hostUUID string, challenges map[uint]string) error
+	// TransitionCertificateTemplatesToDelivered transitions the specified templates from 'delivering' to 'delivered'.
+	TransitionCertificateTemplatesToDelivered(ctx context.Context, hostUUID string, templateIDs []uint) error
 
 	// RevertHostCertificateTemplatesToPending reverts specific host certificate templates from 'delivering' back to 'pending'.
 	RevertHostCertificateTemplatesToPending(ctx context.Context, hostUUID string, certificateTemplateIDs []uint) error
@@ -2629,6 +2657,11 @@ type Datastore interface {
 	// The new UUID signals to the Android agent that the certificate needs renewal.
 	SetAndroidCertificateTemplatesForRenewal(ctx context.Context, templates []HostCertificateTemplateForRenewal) error
 
+	// GetOrCreateFleetChallengeForCertificateTemplate ensures a fleet challenge exists for the given
+	// host and certificate template. If a challenge already exists, it returns it. If not, it creates
+	// a new one atomically. Only works for templates in 'delivered' status and with operation_type 'install'.
+	GetOrCreateFleetChallengeForCertificateTemplate(ctx context.Context, hostUUID string, certificateTemplateID uint) (string, error)
+
 	// GetCurrentTime gets the current time from the database
 	GetCurrentTime(ctx context.Context) (time.Time, error)
 
@@ -2651,6 +2684,11 @@ type Datastore interface {
 	// RetryVPPInstall retries a single VPP install that failed for the host.
 	// It makes sure to queue a new nano command and update the command_uuid in the host_vpp_software_installs table, as well as the execution ID for the activity.
 	RetryVPPInstall(ctx context.Context, vppInstall *HostVPPSoftwareInstallLite) error
+
+	// MDMWindowsUpdateEnrolledDeviceCredentials updates the credentials hash for the enrolled Windows device.
+	MDMWindowsUpdateEnrolledDeviceCredentials(ctx context.Context, deviceId string, credentialsHash []byte) error
+	// MDMWindowsAcknowledgeEnrolledDeviceCredentials marks the enrolled Windows device credentials as acknowledged.
+	MDMWindowsAcknowledgeEnrolledDeviceCredentials(ctx context.Context, deviceId string) error
 }
 
 type AndroidDatastore interface {
@@ -2679,8 +2717,8 @@ type AndroidDatastore interface {
 	BulkUpsertMDMAndroidHostProfiles(ctx context.Context, payload []*MDMAndroidProfilePayload) error
 	// BulkDeleteMDMAndroidHostProfiles bulk removes records from the host's profile, that is pending or failed remove and less than or equals to the policy version.
 	BulkDeleteMDMAndroidHostProfiles(ctx context.Context, hostUUID string, policyVersionID int64) error
-	// ListHostMDMAndroidProfilesPendingInstallWithVersion returns a list of all android profiles that are pending install, and where version is less than or equals to the policyVersion.
-	ListHostMDMAndroidProfilesPendingInstallWithVersion(ctx context.Context, hostUUID string, policyVersion int64) ([]*MDMAndroidProfilePayload, error)
+	// ListHostMDMAndroidProfilesPendingOrFailedInstallWithVersion returns a list of all android profiles that are pending or failed install, and where version is less than or equals to the policyVersion.
+	ListHostMDMAndroidProfilesPendingOrFailedInstallWithVersion(ctx context.Context, hostUUID string, policyVersion int64) ([]*MDMAndroidProfilePayload, error)
 	GetAndroidPolicyRequestByUUID(ctx context.Context, requestUUID string) (*android.MDMAndroidPolicyRequest, error)
 	// UpdateHostSoftware updates the software list of a host.
 	// The update consists of deleting existing entries that are not in the given `software`

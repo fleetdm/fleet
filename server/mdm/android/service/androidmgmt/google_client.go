@@ -12,6 +12,7 @@ import (
 
 	"cloud.google.com/go/pubsub"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
+	"github.com/fleetdm/fleet/v4/server/dev_mode"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm/android"
 	"github.com/go-json-experiment/json"
@@ -35,7 +36,7 @@ type GoogleClient struct {
 // Compile-time check to ensure that ProxyClient implements Client.
 var _ Client = &GoogleClient{}
 
-func NewGoogleClient(ctx context.Context, logger kitlog.Logger, getenv func(string) string) Client {
+func NewGoogleClient(ctx context.Context, logger kitlog.Logger, getenv dev_mode.GetEnv) Client {
 	androidServiceCredentials := getenv("FLEET_DEV_ANDROID_GOOGLE_SERVICE_CREDENTIALS")
 	if androidServiceCredentials == "" {
 		return nil
@@ -306,11 +307,15 @@ func (g *GoogleClient) EnterpriseDelete(ctx context.Context, enterpriseName stri
 }
 
 func (g *GoogleClient) EnterprisesList(ctx context.Context, serverURL string) ([]*androidmanagement.Enterprise, error) {
-	resp, err := g.mgmt.Enterprises.List().ProjectId(g.androidProjectID).Context(ctx).Do()
+	var enterprises []*androidmanagement.Enterprise
+	err := g.mgmt.Enterprises.List().ProjectId(g.androidProjectID).Context(ctx).Pages(ctx, func(page *androidmanagement.ListEnterprisesResponse) error {
+		enterprises = append(enterprises, page.Enterprises...)
+		return nil
+	})
 	if err != nil {
 		return nil, fmt.Errorf("listing enterprises: %w", err)
 	}
-	return resp.Enterprises, nil
+	return enterprises, nil
 }
 
 // SetAuthenticationSecret is not used by GoogleClient because this client gets its secret from env var.

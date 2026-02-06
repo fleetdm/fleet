@@ -367,6 +367,9 @@ Fleet records the last 10,000 characters to prevent downtime.
 		ds.IsHostDiskEncryptionKeyArchivedFunc = func(ctx context.Context, hostID uint) (bool, error) {
 			return false, nil
 		}
+		ds.ConditionalAccessBypassedAtFunc = func(ctx context.Context, hostID uint) (*time.Time, error) {
+			return nil, nil
+		}
 		if c.name == "disabled scripts globally" {
 			ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 				return &fleet.AppConfig{ServerSettings: fleet.ServerSettings{ScriptsDisabled: true}}, nil

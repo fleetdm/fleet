@@ -20,6 +20,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/license"
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
+	"github.com/fleetdm/fleet/v4/server/dev_mode"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm"
 	"github.com/fleetdm/fleet/v4/server/mdm/android"
@@ -1132,6 +1133,43 @@ func newFrequentCleanupsSchedule(
 	return s, nil
 }
 
+func newQueryResultsCleanupSchedule(
+	ctx context.Context,
+	instanceID string,
+	ds fleet.Datastore,
+	liveQueryStore fleet.LiveQueryStore,
+	logger kitlog.Logger,
+) (*schedule.Schedule, error) {
+	const (
+		name            = string(fleet.CronQueryResultsCleanup)
+		defaultInterval = 1 * time.Minute
+	)
+	s := schedule.New(
+		ctx, name, instanceID, defaultInterval, ds, ds,
+		schedule.WithLogger(kitlog.With(logger, "cron", name)),
+		schedule.WithJob("cleanup_excess_query_results", func(ctx context.Context) error {
+			appConfig, err := ds.AppConfig(ctx)
+			if err != nil {
+				return err
+			}
+			maxRows := appConfig.ServerSettings.GetQueryReportCap()
+			queryCounts, err := ds.CleanupExcessQueryResultRows(ctx, maxRows)
+			if err != nil {
+				return err
+			}
+			// Sync Redis counters to actual database row counts
+			for queryID, count := range queryCounts {
+				if err := liveQueryStore.SetQueryResultsCount(queryID, count); err != nil {
+					level.Warn(logger).Log("msg", "failed to set query results count in redis", "query_id", queryID, "err", err)
+				}
+			}
+			return nil
+		}),
+	)
+
+	return s, nil
+}
+
 func verifyDiskEncryptionKeys(
 	ctx context.Context,
 	logger kitlog.Logger,
@@ -1415,7 +1453,7 @@ func newMDMAPNsPusher(
 	const name = string(fleet.CronAppleMDMAPNsPusher)
 
 	interval := 1 * time.Minute
-	if intervalEnv := os.Getenv("FLEET_DEV_CUSTOM_APNS_PUSHER_INTERVAL"); intervalEnv != "" {
+	if intervalEnv := dev_mode.Env("FLEET_DEV_CUSTOM_APNS_PUSHER_INTERVAL"); intervalEnv != "" {
 		var err error
 		interval, err = time.ParseDuration(intervalEnv)
 		if err != nil {
@@ -1762,7 +1800,7 @@ func newRefreshVPPAppVersionsSchedule(
 	instanceID string,
 	ds fleet.Datastore,
 	logger kitlog.Logger,
-	vppAuth apple_apps.Authenticator,
+	vppAppsConfig apple_apps.Config,
 ) (*schedule.Schedule, error) {
 	const (
 		name            = string(fleet.CronRefreshVPPAppVersions)
@@ -1774,7 +1812,7 @@ func newRefreshVPPAppVersionsSchedule(
 		ctx, name, instanceID, defaultInterval, ds, ds,
 		schedule.WithLogger(logger),
 		schedule.WithJob("refresh_vpp_app_version", func(ctx context.Context) error {
-			return vpp.RefreshVersions(ctx, ds, vppAuth)
+			return vpp.RefreshVersions(ctx, ds, vppAppsConfig)
 		}),
 	)
 

@@ -2,7 +2,7 @@
   task: "🦢📊 Product design sprint review" # 2024-03-06 TODO: Link to responsibility or corresponding "how to" info e.g. https://fleetdm.com/handbook/company/product-groups#making-changes
   startedOn: "2024-03-07" 
   frequency: "Triweekly" 
-  description: "1. For all stories that are not estimated, remove their milestone and add their respective customer requests to the feature fest board. 2. For stories that we're no longer working on, remove them from the drafting board, remove them from the release planning board, and notify stakeholders. 3. Prepare the '🎁 Feature fest' board." 
+  description: "1. For all stories, targeted for the next sprint, that are not estimated, remove their milestone and add their respective customer requests to the feature fest board. 2. For stories that we're no longer working on, remove them from the drafting board, remove them from the release planning board, and notify stakeholders. 3. Prepare the '🎁 Feature fest' board." 
   moreInfoUrl:  
   dri: "noahtalerman" 
 -
@@ -110,7 +110,7 @@
 -
   task: "📝 Understanding our competitor(s)"
   startedOn: "2026-01-26" 
-  frequency: "Triweekly" 
+  frequency: "Weekly" 
   description: "For each user story in the current design sprint, find a solution using our competitor(s) tools. Discuss how this solution affects how we're thinking about the Fleet solution. For each story, do we just want to be as good as our competitor(s)? Better?"
   moreInfoUrl:
   dri: "noahtalerman"

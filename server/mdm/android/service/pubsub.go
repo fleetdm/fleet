@@ -549,6 +549,9 @@ func (svc *Service) addNewHost(ctx context.Context, device *androidmanagement.De
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "associating host with idp account")
 		}
+		if err := svc.fleetDS.MaybeAssociateHostWithScimUser(ctx, fleetHost.Host.ID); err != nil {
+			return ctxerr.Wrap(ctx, err, "associating android host with scim user")
+		}
 	}
 
 	// Create pending certificate templates for this newly enrolled host.
@@ -620,21 +623,17 @@ func (svc *Service) verifyDevicePolicy(ctx context.Context, hostUUID string, dev
 
 	level.Debug(svc.logger).Log("msg", "Verifying Android device policy", "host_uuid", hostUUID, "applied_policy_version", appliedPolicyVersion)
 
-	// Get all host_mdm_android_profiles that is pending, and included_in_policy_version <= device.AppliedPolicyVersion.
+	// Get all host_mdm_android_profiles that are pending or failed, and included_in_policy_version <= device.AppliedPolicyVersion.
 	// That way we can either fully verify the profile, or mark as failed if the field it tries to set is not compliant.
 
-	// Get all profiles that are pending install
-	pendingInstallProfiles, err := svc.ds.ListHostMDMAndroidProfilesPendingInstallWithVersion(ctx, hostUUID, appliedPolicyVersion)
+	// Get all profiles that are pending or failed install
+	pendingInstallProfiles, err := svc.ds.ListHostMDMAndroidProfilesPendingOrFailedInstallWithVersion(ctx, hostUUID, appliedPolicyVersion)
 	if err != nil {
 		level.Error(svc.logger).Log("msg", "error getting pending profiles", "err", err)
 		return
 	}
-	pendingProfilesUUIDMap := make(map[string]*fleet.MDMAndroidProfilePayload, len(pendingInstallProfiles))
-	for _, profile := range pendingInstallProfiles {
-		pendingProfilesUUIDMap[profile.ProfileUUID] = profile
-	}
 
-	// First case, if nonComplianceDetails is empty, verify all profiles that is pending install, and remove the pending remove ones.
+	// First case, if nonComplianceDetails is empty, verify all profiles that are pending or failed install, and remove the pending remove ones.
 	if len(device.NonComplianceDetails) == 0 {
 		var verifiedProfiles []*fleet.MDMAndroidProfilePayload
 		for _, profile := range pendingInstallProfiles {

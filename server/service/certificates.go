@@ -258,6 +258,18 @@ func (svc *Service) GetDeviceCertificateTemplate(ctx context.Context, id uint) (
 	}
 	certificate.SubjectName = subjectName
 
+	// On-demand challenge creation for delivered status.
+	// If FleetChallenge is nil or empty, create one now (the challenge TTL starts from this moment).
+	if certificate.Status == fleet.CertificateTemplateDelivered {
+		if certificate.FleetChallenge == nil || *certificate.FleetChallenge == "" {
+			challenge, err := svc.ds.GetOrCreateFleetChallengeForCertificateTemplate(ctx, host.UUID, id)
+			if err != nil {
+				return nil, ctxerr.Wrap(ctx, err, "create fleet challenge on-demand")
+			}
+			certificate.FleetChallenge = &challenge
+		}
+	}
+
 	return certificate, nil
 }
 

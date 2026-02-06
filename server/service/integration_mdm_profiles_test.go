@@ -6017,6 +6017,7 @@ func (s *integrationMDMTestSuite) TestHostMDMProfilesExcludeLabels() {
 func (s *integrationMDMTestSuite) TestMDMProfilesIncludeAnyLabels() {
 	t := s.T()
 	ctx := context.Background()
+	s.setSkipWorkerJobs(t)
 
 	triggerReconcileProfiles := func() {
 		s.awaitTriggerProfileSchedule(t)
@@ -8689,4 +8690,50 @@ func (s *integrationMDMTestSuite) TestWindowsProfileRetry() {
 		require.NoError(t, err)
 		require.Len(t, cmds, 1) // only ack returned
 	})
+}
+
+func (s *integrationMDMTestSuite) TestHostMDMAndroidProfilesStatus() {
+	t := s.T()
+	ctx := context.Background()
+	s.setSkipWorkerJobs(t)
+
+	testTeam, err := s.ds.NewTeam(ctx, &fleet.Team{Name: "TestTeam"})
+	require.NoError(t, err)
+
+	// Ensure MDM is turned on
+	appConfig, err := s.ds.AppConfig(ctx)
+	require.NoError(t, err)
+	appConfig.MDM.AndroidEnabledAndConfigured = true
+	err = s.ds.SaveAppConfig(ctx, appConfig)
+	require.NoError(t, err)
+	enterpriseID := s.enableAndroidMDM(t)
+
+	s.createEnrolledAndroidHost(t, ctx, enterpriseID, &testTeam.ID, "host-1")
+	s.createEnrolledAndroidHost(t, ctx, enterpriseID, &testTeam.ID, "host-2")
+
+	var hosts listHostsResponse
+	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &hosts)
+	assert.Len(t, hosts.Hosts, 2)
+
+	bytes := []byte(`{
+  "removeUserDisabled": false
+}`)
+
+	fields := make(map[string][]string)
+	fields["team_id"] = []string{fmt.Sprintf("%d", testTeam.ID)}
+	body, headers := generateNewProfileMultipartRequest(t, "remove-user-disabled.json", bytes, s.token, fields)
+	res := s.DoRawWithHeaders("POST", "/api/latest/fleet/configuration_profiles", body.Bytes(), http.StatusOK, headers)
+	require.NotNil(t, res)
+
+	// profiles should be added with NULL status even before the cron job (s.awaitTriggerAndroidProfileSchedule(t))
+	var profiles []fleet.HostMDMAndroidProfile
+	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		err := sqlx.SelectContext(ctx, q, &profiles, "SELECT host_uuid, status, operation_type FROM host_mdm_android_profiles")
+		require.NoError(t, err)
+		return nil
+	})
+
+	require.Len(t, profiles, 2)
+	require.Nil(t, profiles[0].Status)
+	require.Nil(t, profiles[1].Status)
 }

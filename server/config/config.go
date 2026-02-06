@@ -25,6 +25,8 @@ import (
 	"github.com/docker/go-units"
 	"github.com/fleetdm/fleet/v4/server/contexts/installersize"
 	nanodep_client "github.com/fleetdm/fleet/v4/server/mdm/nanodep/client"
+	platform_http "github.com/fleetdm/fleet/v4/server/platform/http"
+
 	"github.com/fleetdm/fleet/v4/server/mdm/nanodep/tokenpki"
 	"github.com/spf13/cast"
 	"github.com/spf13/cobra"
@@ -118,6 +120,8 @@ type ServerConfig struct {
 	CleanupDistTargetsAge            time.Duration `yaml:"cleanup_dist_targets_age"`
 	MaxInstallerSizeBytes            int64         `yaml:"max_installer_size"`
 	TrustedProxies                   string        `yaml:"trusted_proxies"`
+	GzipResponses                    bool          `yaml:"gzip_responses"`
+	DefaultMaxRequestBodySize        int64         `yaml:"default_max_request_body_size"`
 }
 
 func (s *ServerConfig) DefaultHTTPServer(ctx context.Context, handler http.Handler) *http.Server {
@@ -765,6 +769,9 @@ type MDMConfig struct {
 	// AppleSCEPSignerAllowRenewalDays are the allowable renewal days for
 	// certificates.
 	AppleSCEPSignerAllowRenewalDays int `yaml:"apple_scep_signer_allow_renewal_days"`
+	// AppleConnectJWT is the Apple Connect JWT used to access VPP app metadata.
+	// If supplied, Fleet will contact the Apple API directly rather than checking the Fleet proxy
+	AppleConnectJWT string `yaml:"apple_vpp_app_metadata_api_bearer_token"`
 
 	// WindowsWSTEPIdentityCert is the path to the certificate used to sign
 	// WSTEP responses.
@@ -1207,9 +1214,11 @@ func (man Manager) addConfigs() {
 	man.addConfigDuration("server.vpp_verify_timeout", 10*time.Minute, "Maximum amount of time to wait for VPP app install verification")
 	man.addConfigDuration("server.vpp_verify_request_delay", 5*time.Second, "Delay in between requests to verify VPP app installs")
 	man.addConfigDuration("server.cleanup_dist_targets_age", 24*time.Hour, "Specifies the cleanup age for completed live query distributed targets.")
-	man.addConfigByteSize("server.max_installer_size", installersize.Human(installersize.DefaultMaxInstallerSize), "Maximum size in bytes for software installer uploads (e.g. 10GiB, 500MB, 1G)")
+	man.addConfigByteSize("server.max_installer_size", installersize.Human(installersize.MaxSoftwareInstallerSize), "Maximum size in bytes for software installer uploads (e.g. 10GiB, 500MB, 1G)")
 	man.addConfigString("server.trusted_proxies", "",
 		"Trusted proxy configuration for client IP extraction: 'none' (RemoteAddr only), a header name (e.g., 'True-Client-IP'), a hop count (e.g., '2'), or comma-separated IP/CIDR ranges")
+	man.addConfigBool("server.gzip_responses", false, "Enable gzip-compressed responses for supported clients")
+	man.addConfigByteSize("server.default_max_request_body_size", installersize.Human(platform_http.MaxRequestBodySize), "Default maximum size in bytes for request bodies, certain endpoints will have higher limits (e.g. 10MiB, 500KB, 1G)")
 
 	// Hide the sandbox flag as we don't want it to be discoverable for users for now
 	man.hideConfig("server.sandbox_enabled")
@@ -1557,6 +1566,7 @@ func (man Manager) addConfigs() {
 	man.addConfigBool("mdm.apple_enable", false, "Enable MDM Apple functionality")
 	man.addConfigInt("mdm.apple_scep_signer_validity_days", 365, "Days signed client certificates will be valid")
 	man.addConfigInt("mdm.apple_scep_signer_allow_renewal_days", 14, "Allowable renewal days for client certificates")
+	man.addConfigString("mdm.apple_vpp_app_metadata_api_bearer_token", "", "Apple Connect JWT, used for accessing VPP app metadata directly from Apple")
 	man.addConfigString("mdm.apple_scep_challenge", "", "SCEP static challenge for enrollment")
 	man.addConfigDuration("mdm.apple_dep_sync_periodicity", 1*time.Minute, "How much time to wait for DEP profile assignment")
 	man.addConfigString("mdm.windows_wstep_identity_cert", "", "Microsoft WSTEP PEM-encoded certificate path")
@@ -1679,6 +1689,8 @@ func (man Manager) LoadConfig() FleetConfig {
 			CleanupDistTargetsAge:            man.getConfigDuration("server.cleanup_dist_targets_age"),
 			MaxInstallerSizeBytes:            man.getConfigByteSize("server.max_installer_size"),
 			TrustedProxies:                   man.getConfigString("server.trusted_proxies"),
+			GzipResponses:                    man.getConfigBool("server.gzip_responses"),
+			DefaultMaxRequestBodySize:        man.getConfigByteSize("server.default_max_request_body_size"),
 		},
 		Auth: AuthConfig{
 			BcryptCost:                  man.getConfigInt("auth.bcrypt_cost"),
@@ -1873,6 +1885,7 @@ func (man Manager) LoadConfig() FleetConfig {
 			AppleBMKeyBytes:                   man.getConfigString("mdm.apple_bm_key_bytes"),
 			AppleEnable:                       man.getConfigBool("mdm.apple_enable"),
 			AppleSCEPSignerValidityDays:       man.getConfigInt("mdm.apple_scep_signer_validity_days"),
+			AppleConnectJWT:                   man.getConfigString("mdm.apple_vpp_app_metadata_api_bearer_token"),
 			AppleSCEPSignerAllowRenewalDays:   man.getConfigInt("mdm.apple_scep_signer_allow_renewal_days"),
 			AppleSCEPChallenge:                man.getConfigString("mdm.apple_scep_challenge"),
 			AppleDEPSyncPeriodicity:           man.getConfigDuration("mdm.apple_dep_sync_periodicity"),

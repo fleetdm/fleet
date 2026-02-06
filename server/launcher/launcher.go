@@ -110,9 +110,11 @@ func (svc *launcherWrapper) PublishLogs(ctx context.Context, nodeKey string, log
 		err = svc.tls.SubmitResultLogs(newCtx, results)
 		return "", "", false, ctxerr.Wrap(ctx, err, "submit result logs from launcher")
 	default:
-		// We have a logTypeAgent which is not there in the osquery-go enum.
-		// See https://github.com/kolide/launcher/issues/183
-		panic(fmt.Sprintf("%s log type not implemented", logType))
+		return "", "", false, ctxerr.Wrap(ctx,
+			&fleet.BadRequestError{Message: fmt.Sprintf("log type %q not implemented", logType)},
+			"unsupported log type",
+		)
+
 	}
 }
 

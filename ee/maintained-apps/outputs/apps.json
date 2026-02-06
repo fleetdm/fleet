@@ -422,6 +422,13 @@
       "description": "Cloudflare WARP enhances internet safety and performance by encrypting your data and optimizing connections for privacy."
     },
     {
+      "name": "Connect Fonts",
+      "slug": "connect-fonts/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.extensis.SuitcaseFusion",
+      "description": "Connect Fonts is an app that manages fonts and digital assets."
+    },
+    {
       "name": "CotEditor",
       "slug": "coteditor/darwin",
       "platform": "darwin",
@@ -1721,6 +1728,13 @@
       "slug": "yubico-authenticator/darwin",
       "platform": "darwin",
       "unique_identifier": "com.yubico.yubioath",
+      "description": "Yubico Authenticator is an application for generating TOTP and HOTP codes."
+    },
+    {
+      "name": "Yubico Authenticator",
+      "slug": "yubico-authenticator/windows",
+      "platform": "windows",
+      "unique_identifier": "Yubico Authenticator",
       "description": "Yubico Authenticator is an application for generating TOTP and HOTP codes."
     },
     {

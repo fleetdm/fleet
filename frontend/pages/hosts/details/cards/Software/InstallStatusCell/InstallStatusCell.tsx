@@ -20,6 +20,7 @@ import Spinner from "components/Spinner";
 import TooltipWrapper from "components/TooltipWrapper";
 import Button from "components/buttons/Button";
 import { ISWUninstallDetailsParentState } from "components/ActivityDetails/InstallDetails/SoftwareUninstallDetailsModal/SoftwareUninstallDetailsModal";
+import { getDisplayedSoftwareName } from "pages/SoftwarePage/helpers";
 import {
   getLastInstall,
   getLastUninstall,
@@ -68,6 +69,39 @@ export const RECENT_SUCCESS_ACTION_MESSAGE = (
 ) =>
   `Fleet successfully ${action} software and is fetching latest software inventory.`;
 
+const failedInstallTooltip: IStatusDisplayConfig["tooltip"] = ({
+  lastInstalledAt = null,
+  isSelfService,
+}) => (
+  <>
+    Software failed to install
+    {lastInstalledAt ? ` (${dateAgo(lastInstalledAt)})` : ""}.{" "}
+    {isSelfService ? (
+      <>
+        Select <b>Retry</b> to install again, or contact your IT department.
+      </>
+    ) : (
+      !lastInstalledAt && (
+        <>
+          Select <b>Details &gt; Activity</b> to view errors.
+        </>
+      )
+    )}
+  </>
+);
+
+const failedUninstallTooltip: IStatusDisplayConfig["tooltip"] = ({
+  lastInstalledAt = null,
+  isSelfService,
+}) => (
+  <>
+    Software failed to uninstall
+    {lastInstalledAt ? ` (${dateAgo(lastInstalledAt)})` : ""}. Select{" "}
+    <b>Retry</b> to uninstall again
+    {isSelfService && ", or contact your IT department"}.
+  </>
+);
+
 // Similar to SelfServiceTableConfig STATUS_CONFIG
 export const INSTALL_STATUS_DISPLAY_OPTIONS: Record<
   Exclude<
@@ -78,8 +112,25 @@ export const INSTALL_STATUS_DISPLAY_OPTIONS: Record<
 > = {
   installed: {
     iconName: "success",
-    displayText: "Installed",
-    tooltip: () => undefined, // No tooltip for installed state
+    displayText: "Installed", // Opens "Install details" modal
+    tooltip: () => {
+      return undefined; // No tooltip for installed state
+    },
+  },
+  failed_install_installed: {
+    iconName: "success",
+    displayText: "Installed", // Opens "Install details" modal
+    tooltip: ({ lastInstalledAt, isSelfService }) => {
+      return failedInstallTooltip({ lastInstalledAt, isSelfService });
+    },
+  },
+  // Different from failed_uninstall as currently installed detailsUI overrides failed uninstall details UI
+  failed_uninstall_installed: {
+    iconName: "success",
+    displayText: "Installed", // Opens "Install details" modal
+    tooltip: ({ lastInstalledAt, isSelfService }) => {
+      return failedUninstallTooltip({ lastInstalledAt, isSelfService });
+    },
   },
   recently_updated: {
     iconName: "success",
@@ -156,35 +207,12 @@ export const INSTALL_STATUS_DISPLAY_OPTIONS: Record<
   failed_install: {
     iconName: "error",
     displayText: "Failed",
-    tooltip: ({ lastInstalledAt = null, isSelfService }) => (
-      <>
-        Software failed to install
-        {lastInstalledAt ? ` (${dateAgo(lastInstalledAt)})` : ""}.{" "}
-        {isSelfService ? (
-          <>
-            Select <b>Retry</b> to install again, or contact your IT department.
-          </>
-        ) : (
-          !lastInstalledAt && (
-            <>
-              Select <b>Details &gt; Activity</b> to view errors.
-            </>
-          )
-        )}
-      </>
-    ),
+    tooltip: failedInstallTooltip,
   },
   failed_uninstall: {
     iconName: "error",
     displayText: "Failed (uninstall)",
-    tooltip: ({ lastInstalledAt = null, isSelfService }) => (
-      <>
-        Software failed to uninstall
-        {lastInstalledAt ? ` (${dateAgo(lastInstalledAt)})` : ""}. Select{" "}
-        <b>Retry</b> to uninstall again
-        {isSelfService && ", or contact your IT department"}.
-      </>
-    ),
+    tooltip: failedUninstallTooltip,
   },
   pending_update: {
     iconName: "pending-outline",
@@ -229,59 +257,16 @@ export const INSTALL_STATUS_DISPLAY_OPTIONS: Record<
       ),
   },
   failed_install_update_available: {
-    iconName: "error",
-    displayText: "Failed",
-    tooltip: ({ isSelfService, isHostOnline, lastInstalledAt }) =>
-      isSelfService || isHostOnline ? (
-        <>
-          Software failed to install
-          {lastInstalledAt ? ` (${dateAgo(lastInstalledAt)})` : ""}.{" "}
-          {isSelfService ? (
-            <>
-              Select <b>Retry</b> to install again, or contact your IT
-              department.
-            </>
-          ) : (
-            <>
-              Select <b>Details &gt; Activity</b> to view errors.
-            </>
-          )}
-        </>
-      ) : (
-        <>
-          Software failed to install
-          {lastInstalledAt ? ` (${dateAgo(lastInstalledAt)})` : ""}.{" "}
-          {isSelfService ? (
-            <>
-              Select <b>Retry</b> to install again, or contact your IT
-              department.
-            </>
-          ) : (
-            <>
-              Select <b>Details &gt; Activity</b> to view errors.
-            </>
-          )}
-        </>
-      ),
+    iconName: "error-outline", // Match update available icon and not failed install icon
+    displayText: "Update available", // Shows "Update available" modal instead of "Failed" modal as of 4.82 #31663
+    // Tooltip indicates failure info in host activity logs
+    tooltip: failedInstallTooltip,
   },
   failed_uninstall_update_available: {
-    iconName: "error",
-    displayText: "Failed (uninstall)",
-    tooltip: ({ isSelfService, isHostOnline, lastInstalledAt }) =>
-      isSelfService || isHostOnline ? (
-        <>
-          Software failed to uninstall
-          {lastInstalledAt ? ` (${dateAgo(lastInstalledAt)})` : ""}. Select{" "}
-          <b>Retry</b> to uninstall again
-          {isSelfService && ", or contact your IT department"}.
-        </>
-      ) : (
-        <>
-          {lastInstalledAt ? ` (${dateAgo(lastInstalledAt)})` : ""}. Select{" "}
-          <b>Retry</b> to uninstall again
-          {isSelfService && ", or contact your IT department"}.
-        </>
-      ),
+    iconName: "error-outline", // Match update available icon and not failed uninstall icon
+    displayText: "Update available", // Shows "Update available" modal instead of "Failed (uninstall)" modal as of 4.82 #31663
+    // Tooltip indicates failure info in host activity logs
+    tooltip: failedUninstallTooltip,
   },
   // Script package statuses
   ran_script: {
@@ -473,7 +458,10 @@ const InstallStatusCell = ({
     if (lastUninstall) {
       if ("script_execution_id" in lastUninstall) {
         onShowUninstallDetails({
-          softwareName: software.display_name || software.name || "",
+          softwareName: getDisplayedSoftwareName(
+            software.name,
+            software.display_name
+          ),
           softwarePackageName,
           uninstallStatus: (software.status ||
             "pending_uninstall") as SoftwareUninstallStatus,

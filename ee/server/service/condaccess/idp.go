@@ -18,6 +18,7 @@ import (
 	"github.com/crewjam/saml"
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
+	"github.com/fleetdm/fleet/v4/server/dev_mode"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/service/middleware/log"
 	"github.com/fleetdm/fleet/v4/server/service/middleware/otel"
@@ -591,7 +592,7 @@ func (s *idpService) buildSSOServerURL(ctx context.Context) (string, error) {
 	}
 
 	// Use the AppConfig method to build the SSO URL
-	ssoURL, err := appConfig.ConditionalAccessIdPSSOURL(os.Getenv)
+	ssoURL, err := appConfig.ConditionalAccessIdPSSOURL(dev_mode.Env)
 	if err != nil {
 		return "", ctxerr.Wrap(ctx, err, "build conditional access SSO URL")
 	}

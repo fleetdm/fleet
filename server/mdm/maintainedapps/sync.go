@@ -7,12 +7,12 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"os"
 	"time"
 
 	ma "github.com/fleetdm/fleet/v4/ee/maintained-apps"
 	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
+	"github.com/fleetdm/fleet/v4/server/dev_mode"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	kitlog "github.com/go-kit/log"
 )
@@ -45,7 +45,7 @@ func Refresh(ctx context.Context, ds fleet.Datastore, logger kitlog.Logger) erro
 func FetchAppsList(ctx context.Context) (*AppsList, error) {
 	httpClient := fleethttp.NewClient(fleethttp.WithTimeout(10 * time.Second))
 	baseURL := fmaOutputsBase
-	if baseFromEnvVar := os.Getenv("FLEET_DEV_MAINTAINED_APPS_BASE_URL"); baseFromEnvVar != "" {
+	if baseFromEnvVar := dev_mode.Env("FLEET_DEV_MAINTAINED_APPS_BASE_URL"); baseFromEnvVar != "" {
 		baseURL = baseFromEnvVar
 	}
 
@@ -119,7 +119,7 @@ func upsertMaintainedApps(ctx context.Context, appsList *AppsList, ds fleet.Data
 func Hydrate(ctx context.Context, app *fleet.MaintainedApp) (*fleet.MaintainedApp, error) {
 	httpClient := fleethttp.NewClient(fleethttp.WithTimeout(10 * time.Second))
 	baseURL := fmaOutputsBase
-	if baseFromEnvVar := os.Getenv("FLEET_DEV_MAINTAINED_APPS_BASE_URL"); baseFromEnvVar != "" {
+	if baseFromEnvVar := dev_mode.Env("FLEET_DEV_MAINTAINED_APPS_BASE_URL"); baseFromEnvVar != "" {
 		baseURL = baseFromEnvVar
 	}
 

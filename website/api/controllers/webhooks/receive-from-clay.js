@@ -24,7 +24,9 @@ module.exports = {
     },
     linkedinUrl: {
       type: 'string',
-      required: true,
+    },
+    emailAddress: {
+      type: 'string',
     },
     contactSource: {
       type: 'string',
@@ -90,7 +92,7 @@ module.exports = {
   },
 
 
-  fn: async function ({webhookSecret, firstName, lastName, linkedinUrl, contactSource, jobTitle, intentSignal, historicalContent, historicalContentUrl, relatedCampaign}) {
+  fn: async function ({webhookSecret, firstName, lastName, linkedinUrl, contactSource, jobTitle, intentSignal, historicalContent, historicalContentUrl, relatedCampaign, emailAddress}) {
 
 
     if (!sails.config.custom.clayWebhookSecret) {
@@ -106,6 +108,7 @@ module.exports = {
       firstName,
       lastName,
       linkedinUrl,
+      emailAddress,
       contactSource,
       jobTitle,
     })
@@ -123,7 +126,10 @@ module.exports = {
       throw 'couldNotCreateActivity';
     }
 
-    let trimmedLinkedinUrl = linkedinUrl.replace(sails.config.custom.RX_PROTOCOL_AND_COMMON_SUBDOMAINS, '');
+    let trimmedLinkedinUrl;
+    if(linkedinUrl) {
+      trimmedLinkedinUrl = linkedinUrl.replace(sails.config.custom.RX_PROTOCOL_AND_COMMON_SUBDOMAINS, '');
+    }
 
     // Create the new Fleet website page view record.
     let newHistoricalRecordId = await sails.helpers.salesforce.createHistoricalEvent.with({
