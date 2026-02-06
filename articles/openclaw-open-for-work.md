@@ -1,12 +1,12 @@
 # OpenClaw: Open for work?
 
-The amount of recent chatter about [OpenClaw](https://openclaw.im/) seems to be highlighting a [cultural inflection point](https://www.jakequist.com/thoughts/openclaw-is-what-apple-intelligence-should-have-been). The moment seems similar to the point at which everyone switched off AOL and on to the regular old internet. The point at which everyone suddenly had an iPod. The point at which everyone suddenly had a Gmail account. 
+The amount of recent chatter about [OpenClaw](https://openclaw.im/) seems to be highlighting a [cultural inflection point](https://www.jakequist.com/thoughts/openclaw-is-what-apple-intelligence-should-have-been). Like the point at which everyone switched off AOL and on to the regular old internet. The point at which everyone suddenly had an iPod. The point at which everyone had a Gmail account. 
 
 This may be the point at which useful AI technology has finally become attainable for people who would not consider themselves technology-savvy. Powerful, connected, practical. Easy to set up, use and understand. 
 
 ## How OpenClaw works
 
-OpenClaw integrates out-of-the-box with WhatsApp, Telegram, Discord, and iMessage. Users talk to their OpenClaw agent via chat. That's not new. What is new is how easy it is to integrate OpenClaw with systems that have never been easy to connect before using only chat (or pictures or audio) as input for AI agents and skills.
+OpenClaw integrates out-of-the-box with [WhatsApp](https://www.whatsapp.com/), [Telegram](https://telegram.org/), [Discord](https://discord.com/), and Apple's [iMessage](https://support.apple.com/guide/iphone/about-imessage-iph4e9799206/ios). Users talk to their OpenClaw agent via chat. That's not new. What is new is how easy it is to integrate OpenClaw with systems that have never been easy to connect before using only chat (or pictures or audio) as input for AI agents and skills.
 
 Linking capabilities together with systems like Apple Shortcuts and similar tools has been possible for years, but users had to build the connections and rules themselves. That is no longer necessary. 
 
