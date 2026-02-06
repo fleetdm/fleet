@@ -787,13 +787,16 @@ func appendOrderByToSelect(ds *goqu.SelectDataset, opts fleet.ListOptions) *goqu
 	if opts.OrderKey != "" {
 		ordersKeys := strings.Split(opts.OrderKey, ",")
 		for _, key := range ordersKeys {
-			ident := goqu.I(key)
+			sanitized := common_mysql.SanitizeColumn(key)
+			if sanitized == "" {
+				continue
+			}
 
 			var orderedExpr exp.OrderedExpression
 			if opts.OrderDirection == fleet.OrderDescending {
-				orderedExpr = ident.Desc()
+				orderedExpr = goqu.L(sanitized).Desc()
 			} else {
-				orderedExpr = ident.Asc()
+				orderedExpr = goqu.L(sanitized).Asc()
 			}
 
 			ds = ds.OrderAppend(orderedExpr)

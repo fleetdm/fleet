@@ -18,6 +18,8 @@ import (
 
 	"github.com/fleetdm/fleet/v4/server"
 	"github.com/fleetdm/fleet/v4/server/authz"
+	platform_http "github.com/fleetdm/fleet/v4/server/platform/http"
+
 	authzctx "github.com/fleetdm/fleet/v4/server/contexts/authz"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	hostctx "github.com/fleetdm/fleet/v4/server/contexts/host"
@@ -1480,7 +1482,12 @@ func (svc *Service) RefetchHost(ctx context.Context, id uint) error {
 			return ctxerr.Wrap(ctx, err, "refetch host: get host DEP assignment")
 		}
 
-		if adeData.IsDEPAssignedToFleet() {
+		lwStatus, err := svc.ds.GetHostLockWipeStatus(ctx, host)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "refetch host: get host location data")
+		}
+
+		if adeData.IsDEPAssignedToFleet() && lwStatus.IsLocked() {
 			err = svc.mdmAppleCommander.DeviceLocation(ctx, []string{host.UUID}, cmdUUID)
 			if err != nil {
 				return ctxerr.Wrap(ctx, err, "refetch host: get location with MDM")
@@ -3395,7 +3402,7 @@ func (r getHostSoftwareRequest) DecodeRequest(ctx context.Context, req *http.Req
 		fleet.HostSoftwareTitleListOptions
 	}
 
-	defaultDecoder := makeDecoder(defaultDecodeRequest{})
+	defaultDecoder := makeDecoder(defaultDecodeRequest{}, platform_http.MaxRequestBodySize)
 	decoded, err := defaultDecoder(ctx, req)
 	if err != nil {
 		return nil, err

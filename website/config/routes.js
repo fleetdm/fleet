@@ -2,7 +2,7 @@
  * Route Mappings
  * (sails.config.routes)
  *
- * Your routes tell Sails what to do each time it receives a request.
+ * Your routes tell the website what to do each time it receives a request.
  *
  * For more information on configuring custom routes, check out:
  * https://sailsjs.com/anatomy/config/routes-js
@@ -1192,6 +1192,7 @@ module.exports.routes = {
   'GET /learn-more-about/configuration-profiles-user-channel': '/guides/custom-os-settings#upgrading-to-4-71-0',
   'GET /learn-more-about/disable-okta-conditional-access': '/guides/okta-conditional-access-integration#disabling-okta-conditional-access',
   'GET /learn-more-about/deploy-self-service-to-ios': '/guides/software-self-service#deploy-self-service-on-ios-and-ipados',
+  'GET /learn-more-about/microsoft-entra-tenant-id': 'https://entra.microsoft.com/#home',
 
   // Sitemap
   // =============================================================================================================

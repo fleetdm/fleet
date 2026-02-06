@@ -94,8 +94,7 @@ GitOps is an API-only and write-only role that can be used on CI/CD pipelines.
 | Create, edit, resend and delete configuration profiles for Apple (macOS/iOS/iPadOS), Windows, and Android hosts                            |          |            | ✅         | ✅    | ✅      |
 | Execute MDM commands on macOS and Windows hosts\**                                                                                         |          |            | ✅         | ✅    | ✅      |
 | View results of MDM commands executed on macOS and Windows hosts\**                                                                        | ✅       | ✅         | ✅         | ✅    |         |
-| Edit [OS settings](https://fleetdm.com/docs/rest-api/rest-api#os-settings)                                                               |          |            | ✅          | ✅    | ✅      |
-| View all [OS settings](https://fleetdm.com/docs/rest-api/rest-api#os-settings)                                                           |          |            | ✅          | ✅    | ✅      |
+| View and edit [OS settings](https://fleetdm.com/docs/rest-api/rest-api#os-settings)                                                               |          |            | ✅          | ✅    | ✅      |
 | Edit [setup experience](https://fleetdm.com/guides/setup-experience)\*                                                                                         |          |            | ✅             | ✅    | ✅          |
 | Add and edit identity provider for end user authentication, end user license agreement (EULA), and end user migration workflow\*                                                                                         |          |            |              | ✅    |         |
 | Add and edit certificate authorities (CA)\*                                                                        |          |            |            | ✅    | ✅      |
@@ -104,8 +103,11 @@ GitOps is an API-only and write-only role that can be used on CI/CD pipelines.
 | View saved scripts\*                                                                                                                       | ✅       | ✅         | ✅         | ✅    |         |
 | Edit/upload saved scripts\*                                                                                                                |          |            | ✅         | ✅    | ✅      |
 | Lock, unlock, and wipe hosts\*                                                                                                             |          |            | ✅         | ✅    |         |
-| Turn off MDM                                                                                                                               |          |            | ✅         | ✅    |         |
+| Turn off MDM for specific hosts                                                                                                                               |          |            | ✅         | ✅    |         |
 | Configure Microsoft Entra conditional access integration                                                                                   |          |            |           | ✅    |       |
+| View [custom variables](https://fleetdm.com/docs/rest-api/rest-api#list-custom-variables)             | ✅       | ✅         | ✅         | ✅    |         |
+| Create, edit, and delete custom variables  | ✅       | ✅         | ✅         | ✅    |         |
+
 
 \* Applies only to Fleet Premium
 
@@ -172,15 +174,15 @@ Users with access to multiple teams can be assigned different roles for each tea
 | Create, edit, resend and delete configuration profiles for Apple (macOS/iOS/iPadOS), Windows, and Android hosts                  |               |                | ✅              | ✅         | ✅          |
 | Execute MDM commands on macOS and Windows hosts*                                                                                 |               |                | ✅              | ✅         |             |
 | View results of MDM commands executed on macOS and Windows hosts*                                                                | ✅            | ✅             | ✅              | ✅         |             |
-| Edit [team OS settings](https://fleetdm.com/docs/rest-api/rest-api#os-settings)                                                |               |                | ✅               | ✅         | ✅          |
+| View and edit [OS settings](https://fleetdm.com/docs/rest-api/rest-api#os-settings)                                                |               |                | ✅               | ✅         | ✅          |
 | Edit [setup experience](https://fleetdm.com/guides/setup-experience)\*                                                                                         |          |            | ✅             | ✅    | ✅          |
 | Schedule and run scripts on hosts                                                                                                               |               |                | ✅              | ✅         |             |
 | View saved scripts                                                                                                               | ✅            | ✅             | ✅              | ✅         |             |
 | Edit/upload saved scripts                                                                                                        |               |                | ✅              | ✅         |             |
 | View script details by host                                                                                                      | ✅            | ✅             | ✅              | ✅         |             |
 | Lock, unlock, and wipe hosts                                                                                                     |               |                | ✅              | ✅         |             |
-| Turn off MDM                                                                                                                     |               |                | ✅              | ✅         |             |
-
+| Turn off MDM for specific hosts                                                                                                                               |          |            | ✅         | ✅    |         |                                                                                                                  |               |                | ✅              | ✅         |             |
+| View [custom variables](https://fleetdm.com/docs/rest-api/rest-api#list-custom-variables)   | ✅            | ✅             | ✅               | ✅         |         |
 
 \* Applies only to [Fleet REST API](https://fleetdm.com/docs/using-fleet/rest-api)
 
