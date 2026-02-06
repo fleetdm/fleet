@@ -2951,18 +2951,7 @@ func (s *integrationMDMTestSuite) TestMDMAppleDiskEncryptionAggregate() {
 	// 10 new hosts
 	var hosts []*fleet.Host
 	for i := 0; i < 10; i++ {
-		h, err := s.ds.NewHost(ctx, &fleet.Host{
-			DetailUpdatedAt: time.Now(),
-			LabelUpdatedAt:  time.Now(),
-			PolicyUpdatedAt: time.Now(),
-			SeenTime:        time.Now().Add(-1 * time.Minute),
-			OsqueryHostID:   ptr.String(fmt.Sprintf("%s-%d", t.Name(), i)),
-			NodeKey:         ptr.String(fmt.Sprintf("%s-%d", t.Name(), i)),
-			UUID:            fmt.Sprintf("%d-%s", i, uuid.New().String()),
-			Hostname:        fmt.Sprintf("%sfoo.local", t.Name()),
-			Platform:        "darwin",
-		})
-		require.NoError(t, err)
+		h, _ := createHostThenEnrollMDM(s.ds, s.server.URL, t)
 		hosts = append(hosts, h)
 	}
 
