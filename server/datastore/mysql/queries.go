@@ -638,7 +638,7 @@ func query(ctx context.Context, db sqlx.QueryerContext, id uint) (*fleet.Query, 
 // ListQueries returns a list of queries with sort order and results limit
 // determined by passed in fleet.ListOptions, count of total queries returned without limits, and
 // pagination metadata
-func (ds *Datastore) ListQueries(ctx context.Context, opt fleet.ListQueryOptions) ([]*fleet.Query, int, int, *fleet.PaginationMetadata, error) {
+func (ds *Datastore) ListQueries(ctx context.Context, opt fleet.ListQueryOptions) (queries []*fleet.Query, total int, inherited int, metadata *fleet.PaginationMetadata, err error) {
 	getQueriesStmt := `
 		SELECT
 			q.id,
@@ -717,8 +717,8 @@ func (ds *Datastore) ListQueries(ctx context.Context, opt fleet.ListQueryOptions
 	getQueriesStmt, args = appendListOptionsWithCursorToSQL(getQueriesStmt, args, &opt.ListOptions)
 
 	dbReader := ds.reader(ctx)
-	queries := []*fleet.Query{}
-	if err := sqlx.SelectContext(ctx, dbReader, &queries, getQueriesStmt, args...); err != nil {
+	queries = []*fleet.Query{}
+	if err = sqlx.SelectContext(ctx, dbReader, &queries, getQueriesStmt, args...); err != nil {
 		return nil, 0, 0, nil, ctxerr.Wrap(ctx, err, "listing queries")
 	}
 
@@ -727,30 +727,29 @@ func (ds *Datastore) ListQueries(ctx context.Context, opt fleet.ListQueryOptions
 		Total     int `db:"total"`
 		Inherited int `db:"inherited"`
 	}
-	if err := sqlx.GetContext(ctx, dbReader, &counts, getQueriesCountStmt, args...); err != nil {
+	if err = sqlx.GetContext(ctx, dbReader, &counts, getQueriesCountStmt, args...); err != nil {
 		return nil, 0, 0, nil, ctxerr.Wrap(ctx, err, "get queries count")
 	}
 
-	if err := ds.loadPacksForQueries(ctx, queries); err != nil {
+	if err = ds.loadPacksForQueries(ctx, queries); err != nil {
 		return nil, 0, 0, nil, ctxerr.Wrap(ctx, err, "loading packs for queries")
 	}
 
-	if err := ds.loadLabelsForQueries(ctx, queries); err != nil {
+	if err = ds.loadLabelsForQueries(ctx, queries); err != nil {
 		return nil, 0, 0, nil, ctxerr.Wrap(ctx, err, "loading labels for queries")
 	}
 
-	var meta *fleet.PaginationMetadata
 	if opt.ListOptions.IncludeMetadata {
-		meta = &fleet.PaginationMetadata{HasPreviousResults: opt.ListOptions.Page > 0}
+		metadata = &fleet.PaginationMetadata{HasPreviousResults: opt.ListOptions.Page > 0}
 		// `appendListOptionsWithCursorToSQL` used above to build the query statement will cause this
 		// discrepancy
 		if len(queries) > int(opt.ListOptions.PerPage) { //nolint:gosec // dismiss G115
-			meta.HasNextResults = true
+			metadata.HasNextResults = true
 			queries = queries[:len(queries)-1]
 		}
 	}
 
-	return queries, counts.Total, counts.Inherited, meta, nil
+	return queries, counts.Total, counts.Inherited, metadata, nil
 }
 
 // loadPacksForQueries loads the user packs (aka 2017 packs) associated with the provided queries.

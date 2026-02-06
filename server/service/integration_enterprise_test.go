@@ -1489,12 +1489,16 @@ func (s *integrationEnterpriseTestSuite) TestTeamQueries() {
 	s.DoJSON("GET", "/api/latest/fleet/queries", nil, http.StatusOK, &listQueriesResp, "team_id", fmt.Sprint(team1.ID))
 	require.Len(t, listQueriesResp.Queries, 1)
 	assert.Equal(t, "team1", listQueriesResp.Queries[0].Name)
+	assert.Equal(t, 1, listQueriesResp.Count)
+	assert.Equal(t, 0, listQueriesResp.InheritedQueryCount)
 
 	// list merged team queries
 	s.DoJSON("GET", "/api/latest/fleet/queries", nil, http.StatusOK, &listQueriesResp, "team_id", fmt.Sprint(team1.ID), "merge_inherited", "true", "order_key", "team_id", "order_direction", "desc")
 	require.Len(t, listQueriesResp.Queries, 2)
 	assert.Equal(t, "team1", listQueriesResp.Queries[0].Name)
 	assert.Equal(t, "global1", listQueriesResp.Queries[1].Name)
+	assert.Equal(t, 2, listQueriesResp.Count)
+	assert.Equal(t, 1, listQueriesResp.InheritedQueryCount)
 }
 
 func (s *integrationEnterpriseTestSuite) TestModifyTeamEnrollSecrets() {
@@ -4627,7 +4631,7 @@ func (s *integrationEnterpriseTestSuite) TestInvitedUserMFA() {
 
 	// create valid invite
 	createInviteReq := createInviteRequest{InvitePayload: fleet.InvitePayload{
-		Email:      ptr.String("some email"),
+		Email:      ptr.String("some@email.com"),
 		Name:       ptr.String("some name"),
 		GlobalRole: null.StringFrom(fleet.RoleAdmin),
 		MFAEnabled: ptr.Bool(true),
@@ -4645,19 +4649,18 @@ func (s *integrationEnterpriseTestSuite) TestInvitedUserMFA() {
 	// response's json, must get it from the db
 	inv, err := s.ds.Invite(context.Background(), validInvite.ID)
 	require.NoError(t, err)
-	validInviteToken := inv.Token
 
 	// verify the token with valid invite
 	var verifyInvResp verifyInviteResponse
-	s.DoJSON("GET", "/api/latest/fleet/invites/"+validInviteToken, nil, http.StatusOK, &verifyInvResp)
+	s.DoJSON("GET", "/api/latest/fleet/invites/"+inv.Token, nil, http.StatusOK, &verifyInvResp)
 	require.Equal(t, validInvite.ID, verifyInvResp.Invite.ID)
 
 	var createFromInviteResp createUserResponse
 	s.DoJSON("POST", "/api/latest/fleet/users", fleet.UserPayload{
 		Name:        ptr.String("Full Name"),
 		Password:    ptr.String(test.GoodPassword),
-		Email:       ptr.String("a@b.c"),
-		InviteToken: ptr.String(validInviteToken),
+		Email:       ptr.String(inv.Email),
+		InviteToken: ptr.String(inv.Token),
 	}, http.StatusOK, &createFromInviteResp)
 	require.True(t, createFromInviteResp.User.MFAEnabled)
 

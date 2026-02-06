@@ -166,7 +166,7 @@ const OtherWorkflowsModal = ({
         if (!destinationUrl) {
           newErrors.url = "Please add a destination URL";
         } else if (!validUrl({ url: destinationUrl })) {
-          newErrors.url = `${destinationUrl} is not a valid URL`;
+          newErrors.url = "Destination URL is not a valid URL";
         } else {
           delete newErrors.url;
         }

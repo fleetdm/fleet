@@ -2420,16 +2420,22 @@ func (s *integrationTestSuite) TestInvites() {
 	require.Len(t, verify.Teams, 1)
 	assert.Equal(t, team.ID, verify.Teams[0].ID)
 
+	// Try to create an user with an email different that the one associated with the invite
 	var createFromInviteResp createUserResponse
-	s.DoJSON("POST", "/api/latest/fleet/users", fleet.UserPayload{
+	userPayload := fleet.UserPayload{
 		Name:        ptr.String("Full Name"),
 		Password:    ptr.String(test.GoodPassword),
 		Email:       ptr.String("a@b.c"),
 		InviteToken: ptr.String(validInviteToken),
-	}, http.StatusOK, &createFromInviteResp)
+	}
+	s.DoJSON("POST", "/api/latest/fleet/users", userPayload, http.StatusUnprocessableEntity, &createFromInviteResp)
+
+	// Adjust email and try again, this should be OK
+	userPayload.Email = ptr.String(verify.Email)
+	s.DoJSON("POST", "/api/latest/fleet/users", userPayload, http.StatusOK, &createFromInviteResp)
 
 	// Check that user is associated with unique invite ID
-	user, err := s.ds.UserByEmail(context.Background(), "a@b.c")
+	user, err := s.ds.UserByEmail(context.Background(), verify.Email)
 	require.NoError(t, err)
 	require.Equal(t, inv.ID, *user.InviteID)
 
@@ -2454,7 +2460,7 @@ func (s *integrationTestSuite) TestInvites() {
 	s.DoJSON("POST", "/api/latest/fleet/users", fleet.UserPayload{
 		Name:        ptr.String("Full Name"),
 		Password:    ptr.String(test.GoodPassword),
-		Email:       ptr.String("a@b.c"),
+		Email:       ptr.String(inv.Email),
 		InviteToken: ptr.String(deletedInviteToken),
 	}, http.StatusNotFound, &createFromInviteResp)
 }
@@ -3648,7 +3654,8 @@ func (s *integrationTestSuite) TestScheduledQueries() {
 	var listQryResp listQueriesResponse
 	s.DoJSON("GET", "/api/latest/fleet/queries", nil, http.StatusOK, &listQryResp)
 	assert.Len(t, listQryResp.Queries, 0)
-	assert.Equal(t, listQryResp.Count, 0)
+	assert.Equal(t, 0, listQryResp.Count)
+	assert.Equal(t, 0, listQryResp.InheritedQueryCount)
 
 	// create a query
 	var createQueryResp createQueryResponse
@@ -3663,6 +3670,8 @@ func (s *integrationTestSuite) TestScheduledQueries() {
 	s.DoJSON("GET", "/api/latest/fleet/queries", nil, http.StatusOK, &listQryResp)
 	require.Len(t, listQryResp.Queries, 1)
 	assert.Equal(t, query.Name, listQryResp.Queries[0].Name)
+	assert.Equal(t, 1, listQryResp.Count)
+	assert.Equal(t, 0, listQryResp.InheritedQueryCount)
 
 	// listing with matching name returns that query
 	s.DoJSON("GET", "/api/latest/fleet/queries", nil, http.StatusOK, &listQryResp, "query", query.Name)
@@ -3686,7 +3695,8 @@ func (s *integrationTestSuite) TestScheduledQueries() {
 	// next page returns nothing, count and meta are correct
 	s.DoJSON("GET", "/api/latest/fleet/queries", nil, http.StatusOK, &listQryResp, "per_page", "2", "page", "1")
 	require.Len(t, listQryResp.Queries, 0)
-	require.Equal(t, listQryResp.Count, 1)
+	require.Equal(t, 1, listQryResp.Count)
+	require.Equal(t, 0, listQryResp.InheritedQueryCount)
 	require.True(t, listQryResp.Meta.HasPreviousResults)
 	require.False(t, listQryResp.Meta.HasNextResults)
 
@@ -9238,7 +9248,7 @@ func (s *integrationTestSuite) TestCarve() {
 		SessionId: sid + "zz",
 		RequestId: "??",
 		Data:      []byte("p1."),
-	}, http.StatusNotFound, &blockResp)
+	}, http.StatusUnauthorized, &blockResp)
 
 	// sending a block with valid session id but invalid request id
 	s.DoJSON("POST", "/api/osquery/carve/block", carveBlockRequest{
@@ -9246,7 +9256,7 @@ func (s *integrationTestSuite) TestCarve() {
 		SessionId: sid,
 		RequestId: "??",
 		Data:      []byte("p1."),
-	}, http.StatusInternalServerError, &blockResp) // TODO: should be 400, see #4406
+	}, http.StatusUnauthorized, &blockResp)
 
 	checkCarveError := func(id uint, err string) {
 		var getResp getCarveResponse
@@ -9321,6 +9331,61 @@ func (s *integrationTestSuite) TestCarve() {
 		Data:      []byte("p4."),
 	}, http.StatusBadRequest, &blockResp)
 	checkCarveError(1, "block_id exceeds expected max (2): 3")
+}
+
+func (s *integrationTestSuite) TestCarveUnauthenticated() {
+	t := s.T()
+
+	verifyAuthError := func(t *testing.T, res *http.Response) {
+		var errs validationErrResp
+		err := json.NewDecoder(res.Body).Decode(&errs)
+		require.NoError(t, err)
+		res.Body.Close()
+		assert.Equal(t, "Authentication failed", errs.Message)
+		require.Len(t, errs.Errors, 1)
+		assert.Equal(t, "Authentication failed", errs.Errors[0].Reason)
+	}
+
+	// Sending invalid format for data on purpose on purpose to check that the error is a HTTP 401 error
+	// vs a decoding/parsing error (this way we check it never gets to parse "data").
+	for _, tc := range []struct {
+		testName       string
+		rawJSONRequest string
+	}{
+		{
+			testName:       "empty-json",
+			rawJSONRequest: `{}`,
+		},
+		{
+			testName: "with-spaces", // osquery does not send spaces in the JSON
+			rawJSONRequest: `{
+				"block_id":   1,
+				"request_id": "invalid",
+				"data":      9999999999
+			}`,
+		},
+		{
+			testName:       "without-session-id",
+			rawJSONRequest: `{"block_id":1,"request_id":"invalid","data":9999999999}`,
+		},
+		{
+			testName:       "invalid-session-id-format",
+			rawJSONRequest: `{"block_id":1,"session_id":2,"request_id": "invalid","data":9999999999}`,
+		},
+		{
+			testName:       "invalid-session-id",
+			rawJSONRequest: `{"block_id":1,"session_id":"invalid","request_id":"invalid","data":9999999999}`,
+		},
+		{
+			testName:       "invalid-JSON",
+			rawJSONRequest: `{"block_ASDASDASDASDASDASDASDASDASDASDASDASDASD":1}`,
+		},
+	} {
+		t.Run(tc.testName, func(t *testing.T) {
+			res := s.DoRaw("POST", "/api/osquery/carve/block", []byte(tc.rawJSONRequest), http.StatusUnauthorized)
+			verifyAuthError(t, res)
+		})
+	}
 }
 
 func (s *integrationTestSuite) TestLogLoginAttempts() {
@@ -15649,7 +15714,4 @@ func (s *integrationTestSuite) TestDeleteCertificateTemplateSpec() {
 		require.Equal(t, string(fleet.CertificateTemplatePending), *profile.Status, "%s profile status should be pending after deletion", tc.hostName)
 		require.Equal(t, fleet.MDMOperationTypeRemove, profile.OperationType, "%s profile operation_type should be remove after deletion", tc.hostName)
 	}
-}
-
-func (s *integrationTestSuite) TestDevieStatusMappingForHostsEndpoints() {
 }
