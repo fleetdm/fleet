@@ -41,8 +41,9 @@ const DeleteHostModal = ({
 
   const hostText = () => {
     if (selectedHostIds) {
-      return `${selectedHostIds.length}${isAllMatchingHostsSelected ? "+" : ""
-        } ${pluralizeHost()}`;
+      return `${selectedHostIds.length}${
+        isAllMatchingHostsSelected ? "+" : ""
+      } ${pluralizeHost()}`;
     }
     return hostName;
   };
