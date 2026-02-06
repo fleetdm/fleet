@@ -217,10 +217,11 @@ endif
 
 .help-short--lint-go-incremental:
 	@echo "Run the incremental Go linters"
-lint-go-incremental:
-	golangci-lint custom
+lint-go-incremental: custom-gcl
 	./custom-gcl run -c .golangci-incremental.yml --new-from-merge-base=origin/main --timeout 15m ./...
-	rm ./custom-gcl
+
+custom-gcl:
+	golangci-lint custom
 
 .help-short--lint:
 	@echo "Run linters"
