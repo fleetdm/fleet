@@ -2,7 +2,7 @@
 
 The amount of recent chatter about [OpenClaw](https://openclaw.im/) seems to be highlighting a [cultural inflection point](https://www.jakequist.com/thoughts/openclaw-is-what-apple-intelligence-should-have-been). The moment seems similar to the point at which everyone switched off AOL and on to the regular old internet. The point at which everyone suddenly had an iPod. The point at which everyone suddenly had a Gmail account. 
 
-This may be the point at which useful AI technology has finally become attainable for people who would not consider themselves technology savvy. Powerful, connected, practical. Easy to set up, use and understand. 
+This may be the point at which useful AI technology has finally become attainable for people who would not consider themselves technology-savvy. Powerful, connected, practical. Easy to set up, use and understand. 
 
 ## How OpenClaw works
 
@@ -10,11 +10,12 @@ OpenClaw integrates out-of-the-box with WhatsApp, Telegram, Discord, and iMessag
 
 Linking capabilities together with systems like Apple Shortcuts and similar tools has been possible for years, but users had to build the connections and rules themselves. That is no longer necessary. 
 
-Other benefits:
+Other OpenClaw benefits:
 
-- OpenClaw is open-source
-- OpenClaw can run on a computer that the end user controls
-- There is no need to access a corporate web app portal or third-party corporate app 
+- OpenClaw is open-source.
+- OpenClaw can run on a computer that the end user controls.
+- There is no need to access a corporate web app portal or third-party corporate app to use it.
+- The documentation includes hundreds of pre-built, easy-to-load skills that integrate the agent into 1000's of possible workflows
 
 ## What are the risks of OpenClaw? 
 
@@ -24,17 +25,17 @@ Simply put, OpenClaw is intended to run as root on the computer where it's insta
 
 It is this extensible integration capability and the authority OpenClaw users grant to the agent (access to authenticate "as you" via two-factor authentication (2FA), access to bank accounts, medical records, contacts, calendars, email, etc.) that gives the system its power. It can basically do anything an end user can by stringing together multiple apps & human intelligence. It just doesn't need a human to be involved. This is thrilling from a technology perspective (which is why everyone is talking about it) and daunting from a security perspective.
 
-## Prompt injection
+### Prompt injection
 
 The biggest potential risk given how OpenClaw works is [prompt injection](https://www.ibm.com/think/topics/prompt-injection). 
 
 Shared computing systems from the time of Unix in the 1970s until now have always had built-in protections and layers of security. Many of the original ideas created to keep operating systems secure (e.g., the [sudo](https://www.sudo.ws/) command) still work well.
 
-But, OpenClaw's capabilities run with an unprecedented level of autonomy at the user level, no human interaction required. Know-how, skill, and experience are not necessary to operate OpenClaw, just a text message.
+But, OpenClaw's capabilities run with an unprecedented level of autonomy, in the user space user, with root privilege (if given). No human interaction, know-how, skill, or experience is required - just a text message.
 
-The danger of prompt injection is that if someone other than the intended end user can send text messages to an OpenClaw agent, even with its "intelligence", the system has virtually no ability to discern an order coming from you versus an order from someone pretending to be "you". 
+The real danger of prompt injection is that if someone other than the intended user can send text messages to an OpenClaw agent, even with its "intelligence", the system has virtually no ability to discern an order coming from you versus an order from someone pretending to be "you". 
 
-Prompt injections can also be indirect, meaning an autonomous agent may encounter a hidden command or script on a website it was instructed to navigate, or in a malicious email attachment.
+Prompt injections can also be indirect, meaning an autonomous agent may encounter a hidden command or script on a website it was instructed to navigate, or in a malicious email attachment, without recognizing a problem.
 
 ## Can device management help?
 
