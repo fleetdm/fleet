@@ -122,6 +122,20 @@ const InstallerDetailsWidget = ({
 
       let versionInfo = <span>{version}</span>;
 
+      if (isFma) {
+        versionInfo = (
+          <TooltipWrapper
+            tipContent={
+              <span>
+                You can change the version in <strong>Actions &gt; Edit</strong>{" "}
+                software.
+              </span>
+            }
+          >
+            <span>{version} (latest)</span>
+          </TooltipWrapper>
+        );
+      }
       if (installerType === "app-store") {
         versionInfo = (
           <TooltipWrapper tipContent={<span>Updated every hour.</span>}>

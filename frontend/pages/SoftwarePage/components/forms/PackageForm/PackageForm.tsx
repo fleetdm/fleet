@@ -202,16 +202,19 @@ const PackageForm = ({
     setFormValidation(generateFormValidation(newData));
   };
 
-  const onToggleAutomaticInstallCheckbox = useCallback(
-    (value: boolean) => {
-      const newData = { ...formData, automaticInstall: value };
+  const onToggleAutomaticInstall = useCallback(
+    (value?: boolean) => {
+      const newData = {
+        ...formData,
+        automaticInstall: !formData.automaticInstall,
+      };
       setFormData(newData);
     },
     [formData]
   );
 
-  const onToggleSelfServiceCheckbox = (value: boolean) => {
-    const newData = { ...formData, selfService: value };
+  const onToggleSelfService = () => {
+    const newData = { ...formData, selfService: !formData.selfService };
     setFormData(newData);
     setFormValidation(generateFormValidation(newData));
   };
@@ -291,7 +294,7 @@ const PackageForm = ({
       (isExePackage || isTarballPackage || isScriptPackage || isIpaPackage) &&
       formData.automaticInstall
     ) {
-      onToggleAutomaticInstallCheckbox(false);
+      onToggleAutomaticInstall(false);
     }
   }, [
     formData.automaticInstall,
@@ -299,7 +302,7 @@ const PackageForm = ({
     isTarballPackage,
     isScriptPackage,
     isIpaPackage,
-    onToggleAutomaticInstallCheckbox,
+    onToggleAutomaticInstall,
   ]);
 
   // Show advanced options when a package is selected that's not a script or ipa
@@ -308,6 +311,42 @@ const PackageForm = ({
 
   // GitOps mode hides SoftwareOptionsSelector and TargetLabelSelector
   const showOptionsTargetsSelectors = !gitOpsModeEnabled;
+
+  const renderSoftwareOptionsSelector = () => (
+    <SoftwareOptionsSelector
+      formData={formData}
+      onToggleAutomaticInstall={onToggleAutomaticInstall}
+      onToggleSelfService={onToggleSelfService}
+      onSelectCategory={onSelectCategory}
+      isCustomPackage
+      isEditingSoftware={isEditingSoftware}
+      isExePackage={isExePackage}
+      isTarballPackage={isTarballPackage}
+      isScriptPackage={isScriptPackage}
+      isIpaPackage={isIpaPackage}
+      onClickPreviewEndUserExperience={() =>
+        onClickPreviewEndUserExperience(isIpaPackage)
+      }
+    />
+  );
+
+  const renderTargetLabelSelector = () => (
+    <TargetLabelSelector
+      selectedTargetType={formData.targetType}
+      selectedCustomTarget={formData.customTarget}
+      selectedLabels={formData.labelTargets}
+      customTargetOptions={CUSTOM_TARGET_OPTIONS}
+      className={`${baseClass}__target`}
+      onSelectTargetType={onSelectTargetType}
+      onSelectCustomTarget={onSelectCustomTarget}
+      onSelectLabel={onSelectLabel}
+      labels={labels || []}
+      dropdownHelpText={
+        formData.targetType === "Custom" &&
+        generateHelpText(formData.automaticInstall, formData.customTarget)
+      }
+    />
+  );
 
   return (
     <div className={classNames}>
@@ -340,49 +379,26 @@ const PackageForm = ({
         >
           {showOptionsTargetsSelectors && (
             <div className={`${baseClass}__form-frame`}>
-              <Card
-                paddingSize="medium"
-                borderRadiusSize={isEditingSoftware ? "medium" : "large"}
-              >
-                <SoftwareOptionsSelector
-                  formData={formData}
-                  onToggleAutomaticInstall={onToggleAutomaticInstallCheckbox}
-                  onToggleSelfService={onToggleSelfServiceCheckbox}
-                  onSelectCategory={onSelectCategory}
-                  isCustomPackage
-                  isEditingSoftware={isEditingSoftware}
-                  isExePackage={isExePackage}
-                  isTarballPackage={isTarballPackage}
-                  isScriptPackage={isScriptPackage}
-                  isIpaPackage={isIpaPackage}
-                  onClickPreviewEndUserExperience={() =>
-                    onClickPreviewEndUserExperience(isIpaPackage)
-                  }
-                />
-              </Card>
-              <Card
-                paddingSize="medium"
-                borderRadiusSize={isEditingSoftware ? "medium" : "large"}
-              >
-                <TargetLabelSelector
-                  selectedTargetType={formData.targetType}
-                  selectedCustomTarget={formData.customTarget}
-                  selectedLabels={formData.labelTargets}
-                  customTargetOptions={CUSTOM_TARGET_OPTIONS}
-                  className={`${baseClass}__target`}
-                  onSelectTargetType={onSelectTargetType}
-                  onSelectCustomTarget={onSelectCustomTarget}
-                  onSelectLabel={onSelectLabel}
-                  labels={labels || []}
-                  dropdownHelpText={
-                    formData.targetType === "Custom" &&
-                    generateHelpText(
-                      formData.automaticInstall,
-                      formData.customTarget
-                    )
-                  }
-                />
-              </Card>
+              {isEditingSoftware ? (
+                renderSoftwareOptionsSelector()
+              ) : (
+                <Card
+                  paddingSize="medium"
+                  borderRadiusSize={isEditingSoftware ? "medium" : "large"}
+                >
+                  {renderSoftwareOptionsSelector()}
+                </Card>
+              )}
+              {isEditingSoftware ? (
+                renderTargetLabelSelector()
+              ) : (
+                <Card
+                  paddingSize="medium"
+                  borderRadiusSize={isEditingSoftware ? "medium" : "large"}
+                >
+                  {renderTargetLabelSelector()}
+                </Card>
+              )}
             </div>
           )}
         </div>
