@@ -64,12 +64,12 @@ the acknowledgment of the `InstallApplication` command. Fleet attempts to verify
 ```mermaid
 sequenceDiagram
     autonumber
-    subgraph Installation
+        Note over Fleet,Host: Installation
         Fleet->>+Host: InstallApplicationCommand
         Host-->>-Fleet: Acknowledged
-    end
+
+        Note over Fleet,Host: Verification
     
-    subgraph Verification
         Fleet->>+Fleet: Start timeout
     
         loop Verification loop
@@ -80,8 +80,8 @@ sequenceDiagram
                 Fleet->>+Fleet: Move status to "Installed"
             option app not in list, timeout:
                 Fleet->>+Fleet: Move status to "Failed"
-            end
         end
+    end
 ```
 
 ## Installation flow
