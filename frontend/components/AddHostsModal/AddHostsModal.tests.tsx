@@ -142,9 +142,7 @@ describe("AddHostsModal", () => {
     );
 
     await user.click(screen.getByRole("tab", { name: "Android" }));
-    expect(
-      screen.queryByText(/Send this to your end users:/i)
-    ).toBeInTheDocument();
+    expect(screen.queryByText(/Enrollment instructions:/i)).toBeInTheDocument();
   });
 
   it("renders installer with secret", async () => {
