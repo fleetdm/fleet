@@ -19,4 +19,3 @@ Software automation in Fleet enable organizations automatically install or updat
 ## Related resources
 
 - [Software Product Group Documentation](../../product-groups/software/) - Documentation for the Software product group
-- [Software Development Guides](../../guides/software/) - Guides for Software development

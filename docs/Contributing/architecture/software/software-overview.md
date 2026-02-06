@@ -67,4 +67,3 @@ The Software architecture integrates with the following components:
 ## Related resources
 
 - [Software Product Group Documentation](../../product-groups/software/) - Documentation for the Software product group
-- [Software Development Guides](../../guides/software/) - Guides for Software development

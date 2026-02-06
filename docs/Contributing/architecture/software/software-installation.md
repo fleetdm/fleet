@@ -122,4 +122,3 @@ graph TD
 ## Related resources
 
 - [Software product group documentation](../../product-groups/software/) - Documentation for the Software product group
-- [Software development guides](../../guides/software/) - Guides for Software development
