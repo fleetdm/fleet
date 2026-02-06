@@ -9802,6 +9802,7 @@ func testMDMAppleHostsDiskEncryption(t *testing.T, ds *Datastore) {
 	nanoEnrollUserDeviceAndSetHostMDMData(t, ds, hostEnrolled)
 
 	FVProfile, err := ds.NewMDMAppleConfigProfile(ctx, *generateAppleCP(fleetmdm.FleetFileVaultProfileName, mobileconfig.FleetFileVaultPayloadIdentifier, team.ID), nil)
+	require.NoError(t, err)
 
 	upsertHostCPs(
 		[]*fleet.Host{hostUnenrolled},
