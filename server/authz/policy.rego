@@ -16,6 +16,7 @@ write := "write"
 create := "create" # only for labels right now
 write_host_label := "write_host_label"
 cancel_host_activity := "cancel_host_activity"
+resend := "resend" # only for profiles, and to a single host
 
 # User specific actions
 write_role := "write_role"
@@ -290,10 +291,10 @@ allow {
 	action == write
 }
 
-# Global admin, maintainers and gitops can write labels to hosts.
+# Global admin, maintainers, technicians, and gitops can write labels to hosts.
 allow {
 	object.type == "host"
-	subject.global_role == [admin, maintainer, gitops][_]
+	subject.global_role == [admin, maintainer, technician, gitops][_]
 	action == write_host_label
 }
 
@@ -327,10 +328,10 @@ allow {
 	action == write
 }
 
-# Team admins, maintainers and gitops can write labels to hosts of their own team.
+# Team admins, maintainers, technicians, and gitops can write labels to hosts of their own team.
 allow {
 	object.type == "host"
-	team_role(subject, object.team_id) == [admin, maintainer, gitops][_]
+	team_role(subject, object.team_id) == [admin, maintainer, technician, gitops][_]
 	action == write_host_label
 }
 
@@ -376,35 +377,35 @@ allow {
   action == read
 }
 
-# Global admins, maintainers and gitops can write labels
+# Global admins, maintainers, technicians, and gitops can write labels
 allow {
   object.type == "label"
-  subject.global_role == [admin, maintainer, gitops][_]
+  subject.global_role == [admin, maintainer, technician, gitops][_]
   action == write
 }
 
-# Global admins, maintainers and gitops can create labels
+# Global admins, maintainers, technicians, and gitops can create labels
 allow {
   object.type == "label"
-  subject.global_role == [admin, maintainer, gitops][_]
+  subject.global_role == [admin, maintainer, technician, gitops][_]
   action == create
 }
 
-# Team admins, maintainers, and gitops can create global labels
+# Team admins, maintainers, technicians, and gitops can create global labels
 allow {
   object.type == "label"
   is_null(object.team_id)
-  team_role(subject, subject.teams[_].id) == [admin, maintainer, gitops][_]
+  team_role(subject, subject.teams[_].id) == [admin, maintainer, technician, gitops][_]
   action == create
 }
 
-# Team admins, maintainers, and gitops can write global labels they created
+# Team admins, maintainers, technicians, and gitops can write global labels they created
 allow {
   object.type == "label"
   is_null(object.team_id)
   not is_null(object.author_id)
   object.author_id = subject.id
-  team_role(subject, subject.teams[_].id) == [admin, maintainer, gitops][_]
+  team_role(subject, subject.teams[_].id) == [admin, maintainer, technician, gitops][_]
   action == write
 }
 
@@ -416,19 +417,19 @@ allow {
   action == read
 }
 
-# Team admins, maintainers, and gitops can write labels on their team
+# Team admins, maintainers, technicians, and gitops can write labels on their team
 allow {
   object.type == "label"
   not is_null(object.team_id)
-  team_role(subject, object.team_id) == [admin, maintainer, gitops][_]
+  team_role(subject, object.team_id) == [admin, maintainer, technician, gitops][_]
   action == write
 }
 
-# Team admins, maintainers, and gitops can create labels on their team
+# Team admins, maintainers, technicians, and gitops can create labels on their team
 allow {
   object.type == "label"
   not is_null(object.team_id)
-  team_role(subject, object.team_id) == [admin, maintainer, gitops][_]
+  team_role(subject, object.team_id) == [admin, maintainer, technician, gitops][_]
   action == create
 }
 
@@ -745,10 +746,10 @@ allow {
   action == read
 }
 
-# Global admins and maintainers can read any installable entity (software installer or VPP app)
+# Global admins, maintainers, and technicians can read any installable entity (software installer or VPP app)
 allow {
   object.type == "installable_entity"
-  subject.global_role == [admin, maintainer][_]
+  subject.global_role == [admin, maintainer, technician][_]
   action == read
 }
 
@@ -759,11 +760,11 @@ allow {
   action == write
 }
 
-# Team admins and maintainers can read any installable entity (software installer or VPP app) in their teams.
+# Team admins, maintainers, and technicians can read any installable entity (software installer or VPP app) in their teams.
 allow {
   not is_null(object.team_id)
   object.type == "installable_entity"
-  team_role(subject, object.team_id) == [admin, maintainer][_]
+  team_role(subject, object.team_id) == [admin, maintainer, technician][_]
   action == read
 }
 
@@ -779,23 +780,22 @@ allow {
 # Host software installs
 ##
 
-# Global admins and maintainers can write (install/uninstall) software on hosts (not
+# Global admins, maintainers, and technicians can write (install/uninstall) software on hosts (not
 # gitops as this is not something that relates to fleetctl apply).
 allow {
   object.type == "host_software_installer_result"
-  subject.global_role == [admin, maintainer][_]
+  subject.global_role == [admin, maintainer, technician][_]
   action == write
 }
 
-# Team admin and maintainers can write (install/uninstall) software on hosts for their
+# Team admin, maintainers, and technicians can write (install/uninstall) software on hosts for their
 # teams (not gitops as this is not something that relates to fleetctl apply).
 allow {
   object.type == "host_software_installer_result"
   not is_null(object.host_team_id)
-  team_role(subject, object.host_team_id) == [admin, maintainer][_]
+  team_role(subject, object.host_team_id) == [admin, maintainer, technician][_]
   action == write
 }
-
 
 # Global admins, maintainers, technicians, observers and observer_plus can read software install results on hosts
 # (not gitops as this is not something that relates to fleetctl apply).
@@ -814,25 +814,56 @@ allow {
   action == read
 }
 
-
 ##
 # Apple and Windows MDM
 ##
 
-# Global admins, maintainers and gitops can read and write MDM config profiles.
+# Global admins, maintainers, and gitops can write MDM config profiles.
 allow {
   object.type == "mdm_config_profile"
   subject.global_role == [admin, maintainer, gitops][_]
-  action == [read, write][_]
+  action == write
 }
 
-# Team admins, maintainers and gitops can read and write MDM config profiles on their teams.
+# Global admins, maintainers, technicians, and gitops can read MDM config profiles.
+allow {
+  object.type == "mdm_config_profile"
+  subject.global_role == [admin, maintainer, technician, gitops][_]
+  action == read
+}
+
+# Global admins, maintainers, and technicians can resend MDM config profiles.
+allow {
+  object.type == "mdm_config_profile"
+  subject.global_role == [admin, maintainer, technician][_]
+  action == resend
+}
+
+# Team admins, maintainers and gitops can write MDM config profiles on their teams.
 allow {
   not is_null(object.team_id)
   object.team_id != 0
   object.type == "mdm_config_profile"
   team_role(subject, object.team_id) == [admin, maintainer, gitops][_]
-  action == [read, write][_]
+  action == write
+}
+
+# Team admins, maintainers, technicians and gitops can read MDM config profiles on their teams.
+allow {
+  not is_null(object.team_id)
+  object.team_id != 0
+  object.type == "mdm_config_profile"
+  team_role(subject, object.team_id) == [admin, maintainer, technician, gitops][_]
+  action == read
+}
+
+# Team admins, maintainers, and technicians can resend MDM config profiles on their teams.
+allow {
+  not is_null(object.team_id)
+  object.team_id != 0
+  object.type == "mdm_config_profile"
+  team_role(subject, object.team_id) == [admin, maintainer, technician][_]
+  action == resend
 }
 
 # Global admins can read, write, and list MDM apple information.
