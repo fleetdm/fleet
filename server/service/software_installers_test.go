@@ -313,7 +313,7 @@ func TestValidateSoftwareLabels(t *testing.T) {
 				nil,
 				nil,
 				"",
-				"some or all the labels provided don't exist",
+				`Couldn't update. Label "qux" doesn't exist. Please remove the label from the software`,
 			},
 			{
 				"duplicate label",
@@ -339,7 +339,7 @@ func TestValidateSoftwareLabels(t *testing.T) {
 				[]string{""},
 				nil,
 				"",
-				"some or all the labels provided don't exist",
+				`Couldn't update. Label "" doesn't exist. Please remove the label from the software`,
 			},
 		}
 		for _, tt := range testCases {

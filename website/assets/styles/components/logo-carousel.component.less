@@ -4,40 +4,31 @@
  *
  * App-wide styles for our ajax buttons.
  */
+@animation-duration: 180s;
 
 [parasails-component='logo-carousel'] {
   margin-bottom: 80px;
   padding-left: 0px;
   padding-right: 0px;
+
   a {
     justify-content: center;
     display: flex;
     align-items: center;
   }
-  [purpose='logo-carousel'] {
+
+  [purpose='logo-carousel-bottom'], [purpose='logo-carousel-top'] {
     justify-content: center;
     display: flex;
     align-items: center;
     position: relative;
     width: 100%;
     overflow: hidden;
-    [purpose='logo-row'] {
-      white-space: nowrap;
-      animation: scroll-horizontal 80s linear infinite;
-      -webkit-transform-style: preserve-3d;
-      -webkit-backface-visibility: hidden;
-      &.safari-13-scroll-animation {
-        animation: scroll-horizontal-safari-13 80s linear infinite;
-      }
-      &.ios-13-scroll-animation {
-        animation: scroll-horizontal-ios-13 80s linear infinite;
-      }
-    }
     img {
       vertical-align: middle;
       height: 32px;
-      margin-right: 64px;
-      margin-left: 6px;
+      margin-right: 40px;
+      margin-left: 4px;
       -webkit-transform-style: preserve-3d;
       -webkit-backface-visibility: hidden;
     }
@@ -58,6 +49,37 @@
       bottom: 0px;
       animation: none;
       background: linear-gradient(90deg, rgba(255, 255, 255, 0.00) 0%, #FFF 100%);
+    }
+  }
+
+  [purpose='logo-carousel-top'] {
+
+    [purpose='logo-row'] {
+      white-space: nowrap;
+      animation: scroll-horizontal @animation-duration linear infinite;
+      -webkit-transform-style: preserve-3d;
+      -webkit-backface-visibility: hidden;
+      &.safari-13-scroll-animation {
+        animation: scroll-horizontal-safari-13 @animation-duration linear infinite;
+      }
+      &.ios-13-scroll-animation {
+        animation: scroll-horizontal-ios-13 @animation-duration linear infinite;
+      }
+    }
+  }
+  [purpose='logo-carousel-bottom'] {
+    margin-top: 32px;
+    [purpose='logo-row'] {
+      white-space: nowrap;
+      animation: scroll-horizontal-reverse @animation-duration linear infinite;
+      -webkit-transform-style: preserve-3d;
+      -webkit-backface-visibility: hidden;
+      &.safari-13-scroll-animation {
+        animation: scroll-horizontal-reverse-safari-13 @animation-duration linear infinite;
+      }
+      &.ios-13-scroll-animation {
+        animation: scroll-horizontal-reverse-ios-13 @animation-duration linear infinite;
+      }
     }
   }
 
@@ -91,6 +113,30 @@
     }
     100% {
       transform: translateX(-132%);
+    }
+  }
+  @keyframes scroll-horizontal-reverse {
+    0% {
+      transform: translateX(-50%);
+    }
+    100% {
+      transform: translateX(50%);
+    }
+  }
+  @keyframes scroll-horizontal-reverse-safari-13 {
+    0% {
+      transform: translateX(-50%);
+    }
+    100% {
+      transform: translateX(50%);
+    }
+  }
+  @keyframes scroll-horizontal-reverse-ios-13 {
+    0% {
+      transform: translateX(-132%);
+    }
+    100% {
+      transform: translateX(130%);
     }
   }
 }

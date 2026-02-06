@@ -1,0 +1,1 @@
+- Fixed an issue where enabling manual agent installation for macOS devices would incorrectly block the addition of setup experience software titles for all platforms.

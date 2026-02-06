@@ -72,9 +72,9 @@ func NewGoogleCalendar(config *GoogleCalendarConfig) *GoogleCalendar {
 	switch {
 	case config.API != nil:
 		// Use the provided API.
-	case config.IntegrationConfig.ApiKey[fleet.GoogleCalendarEmail] == loadEmail:
+	case config.IntegrationConfig.ApiKey.Values[fleet.GoogleCalendarEmail] == loadEmail:
 		config.API = &GoogleCalendarLoadAPI{Logger: config.Logger}
-	case config.IntegrationConfig.ApiKey[fleet.GoogleCalendarEmail] == MockEmail:
+	case config.IntegrationConfig.ApiKey.Values[fleet.GoogleCalendarEmail] == MockEmail:
 		config.API = &GoogleCalendarMockAPI{config.Logger}
 	default:
 		config.API = &GoogleCalendarLowLevelAPI{logger: config.Logger}
@@ -283,8 +283,8 @@ func (lowLevelAPI *GoogleCalendarLowLevelAPI) withRetry(fn func() (any, error)) 
 func (c *GoogleCalendar) Configure(userEmail string) error {
 	adjustedUserEmail := adjustEmail(userEmail)
 	err := c.config.API.Configure(
-		c.config.Context, c.config.IntegrationConfig.ApiKey[fleet.GoogleCalendarEmail],
-		c.config.IntegrationConfig.ApiKey[fleet.GoogleCalendarPrivateKey], adjustedUserEmail,
+		c.config.Context, c.config.IntegrationConfig.ApiKey.Values[fleet.GoogleCalendarEmail],
+		c.config.IntegrationConfig.ApiKey.Values[fleet.GoogleCalendarPrivateKey], adjustedUserEmail,
 		c.config.ServerURL,
 	)
 	if err != nil {

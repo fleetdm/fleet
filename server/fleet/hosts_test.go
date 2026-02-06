@@ -298,6 +298,15 @@ func TestIsEligibleForDEPMigration(t *testing.T) {
 			expectedManual:          false,
 		},
 		{
+			name:                    "Not eligible - DEP assigned and DEP profile throttled",
+			osqueryHostID:           ptr.String("some-id"),
+			depAssignedToFleet:      ptr.Bool(true),
+			depProfileResponse:      DEPAssignProfileResponseThrottled,
+			enrolledInThirdPartyMDM: true,
+			expected:                false,
+			expectedManual:          false,
+		},
+		{
 			name:                    "Not eligible - DEP assigned but not response yet",
 			osqueryHostID:           ptr.String("some-id"),
 			depAssignedToFleet:      ptr.Bool(true),

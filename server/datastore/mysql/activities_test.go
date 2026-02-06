@@ -5,12 +5,12 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
-	"sort"
 	"strings"
 	"testing"
 	"time"
 
 	"github.com/fleetdm/fleet/v4/pkg/scripts"
+	activity_api "github.com/fleetdm/fleet/v4/server/activity/api"
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/mdm"
@@ -32,9 +32,7 @@ func TestActivity(t *testing.T) {
 	}{
 		{"UsernameChange", testActivityUsernameChange},
 		{"New", testActivityNew},
-		{"ListActivitiesStreamed", testListActivitiesStreamed},
 		{"EmptyUser", testActivityEmptyUser},
-		{"PaginationMetadata", testActivityPaginationMetadata},
 		{"ListHostUpcomingActivities", testListHostUpcomingActivities},
 		{"ListHostPastActivities", testListHostPastActivities},
 		{"CleanupActivitiesAndAssociatedData", testCleanupActivitiesAndAssociatedData},
@@ -50,7 +48,6 @@ func TestActivity(t *testing.T) {
 		{"ActivateRegularPackageInstall", testActivateRegularPackageInstall},
 		{"ActivateDeletedInstallerShowsPlaceholder", testActivateDeletedInstallerShowsPlaceholder},
 		{"ActivateScriptPackageUninstallWithCorruptPayload", testActivateScriptPackageUninstallWithCorruptPayload},
-		{"ActivitySearchAndFiltering", testActivitySearchAndFiltering},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -87,6 +84,8 @@ func (d dummyActivity) HostIDs() []uint {
 }
 
 func testActivityUsernameChange(t *testing.T, ds *Datastore) {
+	activitySvc := NewTestActivityService(t, ds)
+
 	u := &fleet.User{
 		Password:    []byte("asd"),
 		Name:        "fullname",
@@ -117,8 +116,7 @@ func testActivityUsernameChange(t *testing.T, ds *Datastore) {
 		),
 	)
 
-	activities, _, err := ds.ListActivities(context.Background(), fleet.ListActivitiesOptions{})
-	require.NoError(t, err)
+	activities := ListActivitiesAPI(t, context.Background(), activitySvc, activity_api.ListOptions{})
 	assert.Len(t, activities, 2)
 	assert.Equal(t, "fullname", *activities[0].ActorFullName)
 
@@ -126,8 +124,7 @@ func testActivityUsernameChange(t *testing.T, ds *Datastore) {
 	err = ds.SaveUser(context.Background(), u)
 	require.NoError(t, err)
 
-	activities, _, err = ds.ListActivities(context.Background(), fleet.ListActivitiesOptions{})
-	require.NoError(t, err)
+	activities = ListActivitiesAPI(t, context.Background(), activitySvc, activity_api.ListOptions{})
 	assert.Len(t, activities, 2)
 	assert.Equal(t, "newname", *activities[0].ActorFullName)
 	assert.Equal(t, "http://asd.com", *activities[0].ActorGravatar)
@@ -137,14 +134,15 @@ func testActivityUsernameChange(t *testing.T, ds *Datastore) {
 	err = ds.DeleteUser(context.Background(), u.ID)
 	require.NoError(t, err)
 
-	activities, _, err = ds.ListActivities(context.Background(), fleet.ListActivitiesOptions{})
-	require.NoError(t, err)
+	activities = ListActivitiesAPI(t, context.Background(), activitySvc, activity_api.ListOptions{})
 	assert.Len(t, activities, 2)
 	assert.Equal(t, "fullname", *activities[0].ActorFullName)
 	assert.Nil(t, activities[0].ActorGravatar)
 }
 
 func testActivityNew(t *testing.T, ds *Datastore) {
+	activitySvc := NewTestActivityService(t, ds)
+
 	u := &fleet.User{
 		Password:   []byte("asd"),
 		Name:       "fullname",
@@ -183,114 +181,35 @@ func testActivityNew(t *testing.T, ds *Datastore) {
 		),
 	)
 
-	opt := fleet.ListActivitiesOptions{
-		ListOptions: fleet.ListOptions{
-			Page:    0,
-			PerPage: 1,
-		},
+	opt := activity_api.ListOptions{
+		Page:    0,
+		PerPage: 1,
 	}
-	activities, _, err := ds.ListActivities(context.Background(), opt)
-	require.NoError(t, err)
+	activities := ListActivitiesAPI(t, context.Background(), activitySvc, opt)
 	assert.Len(t, activities, 1)
 	assert.Equal(t, "fullname", *activities[0].ActorFullName)
 	assert.Equal(t, "test1", activities[0].Type)
 
-	opt = fleet.ListActivitiesOptions{
-		ListOptions: fleet.ListOptions{
-			Page:    1,
-			PerPage: 1,
-		},
+	opt = activity_api.ListOptions{
+		Page:    1,
+		PerPage: 1,
 	}
-	activities, _, err = ds.ListActivities(context.Background(), opt)
-	require.NoError(t, err)
+	activities = ListActivitiesAPI(t, context.Background(), activitySvc, opt)
 	assert.Len(t, activities, 1)
 	assert.Equal(t, "fullname", *activities[0].ActorFullName)
 	assert.Equal(t, "test2", activities[0].Type)
 
-	opt = fleet.ListActivitiesOptions{
-		ListOptions: fleet.ListOptions{
-			Page:    0,
-			PerPage: 10,
-		},
+	opt = activity_api.ListOptions{
+		Page:    0,
+		PerPage: 10,
 	}
-	activities, _, err = ds.ListActivities(context.Background(), opt)
-	require.NoError(t, err)
+	activities = ListActivitiesAPI(t, context.Background(), activitySvc, opt)
 	assert.Len(t, activities, 2)
 }
 
-func testListActivitiesStreamed(t *testing.T, ds *Datastore) {
-	u := &fleet.User{
-		Password:   []byte("asd"),
-		Name:       "fullname",
-		Email:      "email@asd.com",
-		GlobalRole: ptr.String(fleet.RoleObserver),
-	}
-	_, err := ds.NewUser(context.Background(), u)
-	require.Nil(t, err)
-
-	timestamp := time.Now()
-	ctx := context.WithValue(context.Background(), fleet.ActivityWebhookContextKey, true)
-	require.NoError(
-		t, ds.NewActivity(
-			ctx, u, dummyActivity{
-				name:    "test1",
-				details: map[string]interface{}{"detail": 1, "sometext": "aaa"},
-			}, nil, timestamp,
-		),
-	)
-	require.NoError(
-		t, ds.NewActivity(
-			ctx, u, dummyActivity{
-				name:    "test2",
-				details: map[string]interface{}{"detail": 2},
-			}, nil, timestamp,
-		),
-	)
-	require.NoError(
-		t, ds.NewActivity(
-			ctx, u, dummyActivity{
-				name:    "test3",
-				details: map[string]interface{}{"detail": 3},
-			}, nil, timestamp,
-		),
-	)
-
-	activities, _, err := ds.ListActivities(context.Background(), fleet.ListActivitiesOptions{})
-	require.NoError(t, err)
-	assert.Len(t, activities, 3)
-
-	sort.Slice(activities, func(i, j int) bool {
-		return activities[i].ID < activities[j].ID
-	})
-
-	err = ds.MarkActivitiesAsStreamed(context.Background(), []uint{activities[0].ID})
-	require.NoError(t, err)
-
-	// Reload activities (with streamed field updated).
-	activities, _, err = ds.ListActivities(context.Background(), fleet.ListActivitiesOptions{})
-	require.NoError(t, err)
-	assert.Len(t, activities, 3)
-	sort.Slice(activities, func(i, j int) bool {
-		return activities[i].ID < activities[j].ID
-	})
-
-	nonStreamed, _, err := ds.ListActivities(context.Background(), fleet.ListActivitiesOptions{
-		Streamed: ptr.Bool(false),
-	})
-	require.NoError(t, err)
-	assert.Len(t, nonStreamed, 2)
-	require.Equal(t, nonStreamed[0], activities[1])
-	require.Equal(t, nonStreamed[1], activities[2])
-
-	streamed, _, err := ds.ListActivities(context.Background(), fleet.ListActivitiesOptions{
-		Streamed: ptr.Bool(true),
-	})
-	require.NoError(t, err)
-	assert.Len(t, streamed, 1)
-	require.Equal(t, streamed[0], activities[0])
-}
-
 func testActivityEmptyUser(t *testing.T, ds *Datastore) {
+	activitySvc := NewTestActivityService(t, ds)
+
 	timestamp := time.Now()
 	ctx := context.WithValue(context.Background(), fleet.ActivityWebhookContextKey, true)
 	require.NoError(
@@ -318,84 +237,9 @@ func testActivityEmptyUser(t *testing.T, ds *Datastore) {
 		),
 	)
 
-	activities, _, err := ds.ListActivities(context.Background(), fleet.ListActivitiesOptions{})
-	require.NoError(t, err)
+	activities := ListActivitiesAPI(t, context.Background(), activitySvc, activity_api.ListOptions{})
 	assert.Len(t, activities, 2)
 	assert.Equal(t, "Fleet", *activities[1].ActorFullName)
-}
-
-func testActivityPaginationMetadata(t *testing.T, ds *Datastore) {
-	timestamp := time.Now()
-	ctx := context.WithValue(context.Background(), fleet.ActivityWebhookContextKey, true)
-	for i := 0; i < 3; i++ {
-		require.NoError(
-			t, ds.NewActivity(
-				ctx, nil, dummyActivity{
-					name:    fmt.Sprintf("test-%d", i),
-					details: map[string]interface{}{},
-				}, nil, timestamp,
-			),
-		)
-	}
-
-	cases := []struct {
-		name  string
-		opts  fleet.ListOptions
-		count int
-		meta  *fleet.PaginationMetadata
-	}{
-		{
-			"default options",
-			fleet.ListOptions{PerPage: 0},
-			3,
-			&fleet.PaginationMetadata{},
-		},
-		{
-			"per page 2",
-			fleet.ListOptions{PerPage: 2},
-			2,
-			&fleet.PaginationMetadata{HasNextResults: true},
-		},
-		{
-			"per page 2 - page 1",
-			fleet.ListOptions{PerPage: 2, Page: 1},
-			1,
-			&fleet.PaginationMetadata{HasPreviousResults: true},
-		},
-		{
-			"per page 3",
-			fleet.ListOptions{PerPage: 3},
-			3,
-			&fleet.PaginationMetadata{},
-		},
-		{
-			`after "0" - orderKey "a.id"`,
-			fleet.ListOptions{After: "0", OrderKey: "a.id"},
-			3,
-			nil,
-		},
-		{
-			"per page 4",
-			fleet.ListOptions{PerPage: 4},
-			3,
-			&fleet.PaginationMetadata{},
-		},
-	}
-
-	for _, c := range cases {
-		t.Run(c.name, func(t *testing.T) {
-			activities, metadata, err := ds.ListActivities(context.Background(), fleet.ListActivitiesOptions{ListOptions: c.opts})
-			require.NoError(t, err)
-			assert.Len(t, activities, c.count)
-			if c.meta == nil {
-				assert.Nil(t, metadata)
-			} else {
-				require.NotNil(t, metadata)
-				assert.Equal(t, c.meta.HasNextResults, metadata.HasNextResults)
-				assert.Equal(t, c.meta.HasPreviousResults, metadata.HasPreviousResults)
-			}
-		})
-	}
 }
 
 func testListHostUpcomingActivities(t *testing.T, ds *Datastore) {
@@ -833,47 +677,41 @@ func testListHostPastActivities(t *testing.T, ds *Datastore) {
 	cases := []struct {
 		name    string
 		expActs []dummyActivity
-		opts    fleet.ListActivitiesOptions
+		opts    fleet.ListOptions
 		expMeta *fleet.PaginationMetadata
 	}{
 		{
 			name:    "fetch page one",
 			expActs: []dummyActivity{activities[0]},
 			expMeta: &fleet.PaginationMetadata{HasNextResults: true, HasPreviousResults: false},
-			opts: fleet.ListActivitiesOptions{
-				ListOptions: fleet.ListOptions{
-					Page:    0,
-					PerPage: 1,
-				},
+			opts: fleet.ListOptions{
+				Page:    0,
+				PerPage: 1,
 			},
 		},
 		{
 			name:    "fetch page two",
 			expActs: []dummyActivity{activities[1]},
 			expMeta: &fleet.PaginationMetadata{HasNextResults: false, HasPreviousResults: true},
-			opts: fleet.ListActivitiesOptions{
-				ListOptions: fleet.ListOptions{
-					Page:    1,
-					PerPage: 1,
-				},
+			opts: fleet.ListOptions{
+				Page:    1,
+				PerPage: 1,
 			},
 		},
 		{
 			name:    "fetch all activities",
 			expActs: activities,
 			expMeta: &fleet.PaginationMetadata{HasNextResults: false, HasPreviousResults: false},
-			opts: fleet.ListActivitiesOptions{
-				ListOptions: fleet.ListOptions{
-					Page:    0,
-					PerPage: 2,
-				},
+			opts: fleet.ListOptions{
+				Page:    0,
+				PerPage: 2,
 			},
 		},
 	}
 
 	for _, c := range cases {
-		c.opts.ListOptions.IncludeMetadata = true
-		acts, meta, err := ds.ListHostPastActivities(ctx, h1.ID, c.opts.ListOptions)
+		c.opts.IncludeMetadata = true
+		acts, meta, err := ds.ListHostPastActivities(ctx, h1.ID, c.opts)
 		require.NoError(t, err)
 		require.Len(t, acts, len(c.expActs))
 		require.Equal(t, c.expMeta, meta)
@@ -894,6 +732,7 @@ func testListHostPastActivities(t *testing.T, ds *Datastore) {
 }
 
 func testCleanupActivitiesAndAssociatedData(t *testing.T, ds *Datastore) {
+	activitySvc := NewTestActivityService(t, ds)
 	ctx := context.Background()
 	user1 := &fleet.User{
 		Password:   []byte("p4ssw0rd.123"),
@@ -968,8 +807,7 @@ func testCleanupActivitiesAndAssociatedData(t *testing.T, ds *Datastore) {
 	err = ds.CleanupActivitiesAndAssociatedData(ctx, maxCount, 1)
 	require.NoError(t, err)
 
-	activities, _, err := ds.ListActivities(ctx, fleet.ListActivitiesOptions{})
-	require.NoError(t, err)
+	activities := ListActivitiesAPI(t, ctx, activitySvc, activity_api.ListOptions{})
 	require.Len(t, activities, 4)
 	nonExpiredActivityID := activities[0].ID
 	expiredActivityID := activities[1].ID
@@ -999,8 +837,7 @@ func testCleanupActivitiesAndAssociatedData(t *testing.T, ds *Datastore) {
 	err = ds.CleanupActivitiesAndAssociatedData(ctx, maxCount, 1)
 	require.NoError(t, err)
 
-	activities, _, err = ds.ListActivities(ctx, fleet.ListActivitiesOptions{})
-	require.NoError(t, err)
+	activities = ListActivitiesAPI(t, ctx, activitySvc, activity_api.ListOptions{})
 	require.Len(t, activities, 3)
 	require.Equal(t, nonExpiredActivityID, activities[0].ID)
 	require.Equal(t, nonExpiredHostActivityID, activities[1].ID)
@@ -1022,6 +859,7 @@ func testCleanupActivitiesAndAssociatedData(t *testing.T, ds *Datastore) {
 }
 
 func testCleanupActivitiesAndAssociatedDataBatch(t *testing.T, ds *Datastore) {
+	activitySvc := NewTestActivityService(t, ds)
 	ctx := context.Background()
 	user1 := &fleet.User{
 		Password:   []byte("p4ssw0rd.123"),
@@ -1067,8 +905,7 @@ func testCleanupActivitiesAndAssociatedDataBatch(t *testing.T, ds *Datastore) {
 	err = ds.CleanupActivitiesAndAssociatedData(ctx, maxCount, 1)
 	require.NoError(t, err)
 
-	activities, _, err := ds.ListActivities(ctx, fleet.ListActivitiesOptions{})
-	require.NoError(t, err)
+	activities := ListActivitiesAPI(t, ctx, activitySvc, activity_api.ListOptions{})
 	require.Len(t, activities, 1500)
 	var queriesLen int
 	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
@@ -1093,8 +930,7 @@ func testCleanupActivitiesAndAssociatedDataBatch(t *testing.T, ds *Datastore) {
 	err = ds.CleanupActivitiesAndAssociatedData(ctx, maxCount, 1)
 	require.NoError(t, err)
 
-	activities, _, err = ds.ListActivities(ctx, fleet.ListActivitiesOptions{})
-	require.NoError(t, err)
+	activities = ListActivitiesAPI(t, ctx, activitySvc, activity_api.ListOptions{})
 	require.Len(t, activities, 1000)
 	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
 		return sqlx.GetContext(ctx, q, &queriesLen, `SELECT COUNT(*) FROM queries WHERE NOT saved;`)
@@ -1104,8 +940,7 @@ func testCleanupActivitiesAndAssociatedDataBatch(t *testing.T, ds *Datastore) {
 	err = ds.CleanupActivitiesAndAssociatedData(ctx, maxCount, 1)
 	require.NoError(t, err)
 
-	activities, _, err = ds.ListActivities(ctx, fleet.ListActivitiesOptions{})
-	require.NoError(t, err)
+	activities = ListActivitiesAPI(t, ctx, activitySvc, activity_api.ListOptions{})
 	require.Len(t, activities, 500)
 	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
 		return sqlx.GetContext(ctx, q, &queriesLen, `SELECT COUNT(*) FROM queries WHERE NOT saved;`)
@@ -1115,8 +950,7 @@ func testCleanupActivitiesAndAssociatedDataBatch(t *testing.T, ds *Datastore) {
 	err = ds.CleanupActivitiesAndAssociatedData(ctx, maxCount, 1)
 	require.NoError(t, err)
 
-	activities, _, err = ds.ListActivities(ctx, fleet.ListActivitiesOptions{})
-	require.NoError(t, err)
+	activities = ListActivitiesAPI(t, ctx, activitySvc, activity_api.ListOptions{})
 	require.Len(t, activities, 250)
 	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
 		return sqlx.GetContext(ctx, q, &queriesLen, `SELECT COUNT(*) FROM queries WHERE NOT saved;`)
@@ -1126,8 +960,7 @@ func testCleanupActivitiesAndAssociatedDataBatch(t *testing.T, ds *Datastore) {
 	err = ds.CleanupActivitiesAndAssociatedData(ctx, maxCount, 1)
 	require.NoError(t, err)
 
-	activities, _, err = ds.ListActivities(ctx, fleet.ListActivitiesOptions{})
-	require.NoError(t, err)
+	activities = ListActivitiesAPI(t, ctx, activitySvc, activity_api.ListOptions{})
 	require.Len(t, activities, 250)
 	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
 		return sqlx.GetContext(ctx, q, &queriesLen, `SELECT COUNT(*) FROM queries WHERE NOT saved;`)
@@ -2655,159 +2488,4 @@ func testActivateScriptPackageUninstallWithCorruptPayload(t *testing.T, ds *Data
 	require.NotNil(t, result.SoftwareTitleID)
 	require.Equal(t, uint(titleID), *result.SoftwareTitleID) //nolint:gosec // dismiss G115
 	require.Equal(t, "Test Uninstall Script", result.SoftwareTitleName)
-}
-
-func testActivitySearchAndFiltering(t *testing.T, ds *Datastore) {
-	timestamp := time.Now().UTC().Truncate(time.Second)
-	ctx := t.Context()
-	ctx = context.WithValue(ctx, fleet.ActivityWebhookContextKey, true)
-	u := test.NewUser(t, ds, "user1", "email-user1@example.com", true)
-
-	// Create a single activity
-	err := ds.NewActivity(ctx, u, fleet.ActivityTypeEditedScript{
-		TeamID:   nil,
-		TeamName: ptr.String("No Team"),
-	}, nil, timestamp)
-	require.NoError(t, err)
-
-	// Search by type
-
-	// First no match on type
-	activities, _, err := ds.ListActivities(ctx, fleet.ListActivitiesOptions{
-		ActivityType: "mdm_enrolled",
-	})
-	require.NoError(t, err)
-	require.Len(t, activities, 0)
-
-	// Now search for our type
-	activities, _, err = ds.ListActivities(ctx, fleet.ListActivitiesOptions{
-		ActivityType: "edited_script",
-	})
-	require.NoError(t, err)
-	require.Len(t, activities, 1)
-	require.Equal(t, "edited_script", activities[0].Type)
-
-	// Search by user
-	// We update the user in the users table, so we can verify search on both tables
-	u.Name = "newname"
-	u.Email = "email-newname@example.com"
-	err = ds.SaveUser(ctx, u)
-	require.NoError(t, err)
-
-	// First no match on user
-	activities, _, err = ds.ListActivities(ctx, fleet.ListActivitiesOptions{
-		ListOptions: fleet.ListOptions{
-			MatchQuery: "nomatch",
-		},
-	})
-	require.NoError(t, err)
-	require.Len(t, activities, 0)
-
-	// Match on activity user_name
-	activities, _, err = ds.ListActivities(ctx, fleet.ListActivitiesOptions{
-		ListOptions: fleet.ListOptions{
-			MatchQuery: "user1",
-		},
-	})
-	require.NoError(t, err)
-	require.Len(t, activities, 1)
-	require.Equal(t, "newname", *activities[0].ActorFullName) // We get the updated user info, but we can still search the old activity record columns
-
-	// Match on activity user_email
-	activities, _, err = ds.ListActivities(ctx, fleet.ListActivitiesOptions{
-		ListOptions: fleet.ListOptions{
-			MatchQuery: "email-u",
-		},
-	})
-	require.NoError(t, err)
-	require.Len(t, activities, 1)
-	require.Equal(t, "newname", *activities[0].ActorFullName) // We get the updated user info, but we can still search the old activity record columns
-
-	// Match on updated user name
-	activities, _, err = ds.ListActivities(ctx, fleet.ListActivitiesOptions{
-		ListOptions: fleet.ListOptions{
-			MatchQuery: "newname",
-		},
-	})
-	require.NoError(t, err)
-	require.Len(t, activities, 1)
-	require.Equal(t, "newname", *activities[0].ActorFullName)
-	// Match on updated user email
-	activities, _, err = ds.ListActivities(ctx, fleet.ListActivitiesOptions{
-		ListOptions: fleet.ListOptions{
-			MatchQuery: "email-newname",
-		},
-	})
-	require.NoError(t, err)
-	require.Len(t, activities, 1)
-	require.Equal(t, "newname", *activities[0].ActorFullName)
-
-	// Search by date range
-	// Create activities on different dates
-	dates := []time.Time{
-		timestamp.Add(-48 * time.Hour),
-		timestamp.Add(-24 * time.Hour),
-		timestamp,
-		timestamp.Add(24 * time.Hour),
-	}
-	for _, dt := range dates {
-		err = ds.NewActivity(ctx, u, fleet.ActivityTypeEditedScript{
-			TeamID:   nil,
-			TeamName: ptr.String("No Team"),
-		}, nil, dt)
-		require.NoError(t, err)
-	}
-
-	// From 36 hours ago to now (should get 2 activities)
-	activities, _, err = ds.ListActivities(ctx, fleet.ListActivitiesOptions{
-		StartCreatedAt: timestamp.Add(-36 * time.Hour).UTC().String(),
-	})
-	require.NoError(t, err)
-	require.Len(t, activities, 3) // includes the first activity created
-
-	// From 72 hours ago to 24 hours ago (should get 2 activities)
-	activities, _, err = ds.ListActivities(ctx, fleet.ListActivitiesOptions{
-		StartCreatedAt: timestamp.Add(-72 * time.Hour).UTC().String(),
-		EndCreatedAt:   timestamp.Add(-24 * time.Hour).UTC().String(),
-	})
-	require.NoError(t, err)
-	require.Len(t, activities, 2)
-
-	// From now to 48 hours in the future (should get 3 activities)
-	activities, _, err = ds.ListActivities(ctx, fleet.ListActivitiesOptions{
-		StartCreatedAt: timestamp.UTC().String(),
-		EndCreatedAt:   timestamp.Add(48 * time.Hour).UTC().String(),
-	})
-	require.NoError(t, err)
-	require.Len(t, activities, 3) // includes the first activity created
-
-	// Now we combine all 3 search types, should get all 5 activities
-	activities, _, err = ds.ListActivities(ctx, fleet.ListActivitiesOptions{
-		ActivityType:   "edited_script",
-		StartCreatedAt: timestamp.Add(-72 * time.Hour).UTC().String(),
-		EndCreatedAt:   timestamp.Add(48 * time.Hour).UTC().String(),
-		ListOptions: fleet.ListOptions{
-			MatchQuery: "newname",
-		},
-	})
-	require.NoError(t, err)
-	require.Len(t, activities, 5)
-
-	// Now we retry with all 3 search types, but with no matches
-	activities, _, err = ds.ListActivities(ctx, fleet.ListActivitiesOptions{
-		ActivityType:   "mdm_enrolled",
-		StartCreatedAt: timestamp.Add(-72 * time.Hour).UTC().String(),
-		EndCreatedAt:   timestamp.Add(48 * time.Hour).UTC().String(),
-		ListOptions: fleet.ListOptions{
-			MatchQuery: "nomatch",
-		},
-	})
-	require.NoError(t, err)
-	require.Len(t, activities, 0)
-
-	// Try with non valid timestamp
-	_, _, err = ds.ListActivities(ctx, fleet.ListActivitiesOptions{
-		StartCreatedAt: "not-a-timestamp",
-	})
-	require.NoError(t, err)
 }

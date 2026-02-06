@@ -1,4 +1,4 @@
-name: 📱🏢 Company-owned mobile devices
+name: 📱🏢 Employee-issued mobile devices
 team_settings:
   features:
   host_expiry_settings:
@@ -30,18 +30,20 @@ policies:
 queries:
 software:
   app_store_apps:
-    - app_store_id: '618783545' # Slack
+    - app_store_id: "618783545" # Slack
       setup_experience: true
       self_service: true
-    - app_store_id: '546505307' # Zoom
+    - app_store_id: "546505307" # Zoom
       setup_experience: true
       self_service: true
-    - app_store_id: '842842640' # Google Docs
+    - app_store_id: "842842640" # Google Docs
       setup_experience: true
       self_service: true
-    - app_store_id: '842849113' # Google Sheets
+    - app_store_id: "842849113" # Google Sheets
       setup_experience: true
       self_service: true
-    - app_store_id: '507874739' # Google Drive
+    - app_store_id: "507874739" # Google Drive
       setup_experience: true
+      self_service: true
+    - app_store_id: "490179405" # Okta Verify
       self_service: true

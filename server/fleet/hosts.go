@@ -889,6 +889,8 @@ type HostDetail struct {
 
 	LastMDMEnrolledAt  *time.Time `json:"last_mdm_enrolled_at"`
 	LastMDMCheckedInAt *time.Time `json:"last_mdm_checked_in_at"`
+
+	ConditionalAccessBypassed bool `json:"conditional_access_bypassed"`
 }
 
 type HostEndUser struct {
@@ -1063,6 +1065,10 @@ func IsApplePlatform(hostPlatform string) bool {
 	return hostPlatform == "darwin" || hostPlatform == "ios" || hostPlatform == "ipados"
 }
 
+func IsMacOSPlatform(hostPlatform string) bool {
+	return hostPlatform == "darwin"
+}
+
 // Return true if the platform is either iOS or iPadOS
 func IsAppleMobilePlatform(hostPlatform string) bool {
 	return hostPlatform == "ios" || hostPlatform == "ipados"
@@ -1183,7 +1189,7 @@ type HostMunkiIssue struct {
 // the mobile_device_management_solutions table.
 const (
 	UnknownMDMName        = ""
-	WellKnownMDMKandji    = "Kandji"
+	WellKnownMDMIru       = "Iru"
 	WellKnownMDMJamf      = "Jamf"
 	WellKnownMDMJumpCloud = "JumpCloud"
 	WellKnownMDMVMWare    = "VMware Workspace ONE"
@@ -1194,7 +1200,8 @@ const (
 )
 
 var mdmNameFromServerURLChecks = map[string]string{
-	"kandji":    WellKnownMDMKandji,
+	"kandji":    WellKnownMDMIru,
+	"iru.com":   WellKnownMDMIru, // inclue top-level domain to disabmiguate from other strings that may contain "iru"
 	"jamf":      WellKnownMDMJamf,
 	"jumpcloud": WellKnownMDMJumpCloud,
 	"airwatch":  WellKnownMDMVMWare,
@@ -1465,8 +1472,12 @@ type HostSoftwareInstalledPath struct {
 	// TeamIdentifier (not to be confused with Fleet's team IDs) is the Apple's "Team ID" (aka "Developer ID"
 	// or "Signing ID") of signed applications, see https://developer.apple.com/help/account/manage-your-team/locate-your-team-id.
 	TeamIdentifier string `db:"team_identifier"`
-	// A SHA256 hash of the executable file of the software.
+	// CDHashSHA256 is the SHA256 hash of the code directory of the software bundle as reported on macOS by `codesign --display --verbose=3`. See https://developer.apple.com/documentation/endpointsecurity/es_process_t/cdhash
+	CDHashSHA256 *string `db:"cdhash_sha256"`
+	// ExecutableSHA256 is the SHA256 hash of the executable located at ExecutablePath
 	ExecutableSHA256 *string `db:"executable_sha256"`
+	// ExecutablePath is the path to the executable of the software bundle
+	ExecutablePath *string `db:"executable_path"`
 }
 
 // HostMacOSProfile represents a macOS profile installed on a host as reported by the macos_profiles
@@ -1578,6 +1589,22 @@ func NewAddHostsToTeamParams(teamID *uint, hostIDs []uint) *AddHostsToTeamParams
 func (params *AddHostsToTeamParams) WithBatchSize(batchSize uint) *AddHostsToTeamParams {
 	params.BatchSize = batchSize
 	return params
+}
+
+func GetEndUserIdpFullName(ctx context.Context, ds Datastore, hostID uint) (string, error) {
+	endUsers, err := GetEndUsers(ctx, ds, hostID)
+	if err != nil {
+		return "", fmt.Errorf("getting host end user idp name: %w", err)
+	}
+
+	// There can be multiple end users, but should only be a single idp user
+	for _, eu := range endUsers {
+		if eu.IdpFullName != "" {
+			return eu.IdpFullName, nil
+		}
+	}
+
+	return "", nil
 }
 
 func GetEndUsers(ctx context.Context, ds Datastore, hostID uint) ([]HostEndUser, error) {

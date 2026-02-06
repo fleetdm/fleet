@@ -120,6 +120,44 @@ GROUP BY
 	return &title, nil
 }
 
+// SoftwareTitleNameForHostFilter returns the name and display_name
+// of a software title by ID without applying team-scoped inventory auth.
+// This intentionally allows callers to discover the title name and display_name
+// even if the title is not present on their team.
+//
+// Only use this for host list filters and similar UX helpers where
+// exposing the existence of a title is acceptable. Not for endpoints
+// that return team-scoped inventory data.
+func (ds *Datastore) SoftwareTitleNameForHostFilter(
+	ctx context.Context,
+	id uint,
+) (name, displayName string, err error) {
+	const stmt = `
+    SELECT
+	    name,
+		display_name
+	FROM software_titles
+		LEFT JOIN software_title_display_names ON software_titles.id = software_title_display_names.software_title_id
+   	WHERE software_titles.id = ?
+  `
+	var results struct {
+		Name        string  `db:"name"`
+		DisplayName *string `db:"display_name"`
+	}
+	if err := sqlx.GetContext(ctx, ds.reader(ctx), &results, stmt, id); err != nil {
+		if err == sql.ErrNoRows {
+			return "", "", notFound("SoftwareTitle").WithID(id)
+		}
+		return "", "", ctxerr.Wrap(ctx, err, "get software title name for host filter")
+	}
+
+	if displayName := ptr.ValOrZero(results.DisplayName); displayName != "" {
+		return "", displayName, nil
+	}
+
+	return results.Name, "", nil
+}
+
 func (ds *Datastore) UpdateSoftwareTitleName(ctx context.Context, titleID uint, name string) error {
 	if _, err := ds.writer(ctx).ExecContext(ctx, "UPDATE software_titles SET name = ? WHERE id = ? AND bundle_identifier != ''", name, titleID); err != nil {
 		return ctxerr.Wrap(ctx, err, "update software title name")
@@ -159,7 +197,12 @@ func (ds *Datastore) ListSoftwareTitles(
 			// software is supported on a per team basis, so we require both
 			return nil, 0, nil, fleet.NewInvalidArgumentError("query", fleet.FilterTitlesByPlatformNeedsTeamIdErrMsg)
 		}
-
+		if opt.HashSHA256 != "" {
+			return nil, 0, nil, fleet.NewInvalidArgumentError("query", "hash_sha256 can only be provided with team_id")
+		}
+		if opt.PackageName != "" {
+			return nil, 0, nil, fleet.NewInvalidArgumentError("query", "package_name can only be provided with team_id")
+		}
 	}
 
 	dbReader := ds.reader(ctx)
@@ -506,6 +549,12 @@ WHERE
 		  {{$postfix := printf " AND (si.platform IN (%s) OR vap.platform IN (%[1]s) OR iha.platform IN (%[1]s))" (placeholders $.Platform)}}
 		  {{$additionalWhere = printf "%s %s" $additionalWhere $postfix}}
 		{{end}}
+		{{if and (hasTeamID $) $.HashSHA256}}
+		  {{$additionalWhere = printf "%s AND si.storage_id = ?" $additionalWhere}}
+		{{end}}
+		{{if and (hasTeamID $) $.PackageName}}
+		  {{$additionalWhere = printf "%s AND si.filename = ?" $additionalWhere}}
+		{{end}}
 		{{$additionalWhere}}
 	{{end}}
 	-- If teamID is set, defaults to "a software installer, in-house app or VPP app exists", and see next condition.
@@ -579,6 +628,14 @@ GROUP BY
 		for _, platform := range platforms {
 			args = append(args, platform)
 		}
+	}
+
+	if opt.HashSHA256 != "" {
+		args = append(args, opt.HashSHA256)
+	}
+
+	if opt.PackageName != "" {
+		args = append(args, opt.PackageName)
 	}
 
 	t, err := template.New("stm").Funcs(map[string]any{

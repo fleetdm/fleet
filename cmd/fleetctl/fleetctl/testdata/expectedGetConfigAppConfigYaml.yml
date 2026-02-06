@@ -4,6 +4,7 @@ kind: config
 spec:
   fleet_desktop:
     transparency_url: https://fleetdm.com/transparency
+    alternative_browser_host: ""
   host_expiry_settings:
     host_expiry_enabled: false
     host_expiry_window: 0
@@ -17,6 +18,7 @@ spec:
     okta_assertion_consumer_service_url: null
     okta_audience_uri: null
     okta_certificate: null
+    bypass_disabled: null
   features:
     enable_host_users: true
     enable_software_inventory: false

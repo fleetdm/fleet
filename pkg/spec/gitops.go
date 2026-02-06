@@ -230,6 +230,12 @@ func (spec SoftwarePackage) HydrateToPackageLevel(packageLevel fleet.SoftwarePac
 	packageLevel.InstallDuringSetup = spec.InstallDuringSetup
 	packageLevel.SelfService = spec.SelfService
 
+	// This will only override display name set at path: path/to/software.yml level
+	// if display_name is specified at the team level yml
+	if spec.DisplayName != "" {
+		packageLevel.DisplayName = spec.DisplayName
+	}
+
 	return packageLevel, nil
 }
 

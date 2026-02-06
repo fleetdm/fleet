@@ -713,8 +713,8 @@ apiVersion: v1
 kind: policy
 spec:
   platform: windows
-  name: 'CIS - Ensure ''Configure RPC connection settings: Use authentication for outgoing RPC connections'' is set to ''Enabled: Default'''
-  query: SELECT 1 FROM registry WHERE path = 'HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows NT\Rpc\EnableAuthEpResolution' AND data = '1';
+  name: CIS - Ensure 'Configure RPC connection settings - Use authentication for outgoing RPC connections' is set to 'Enabled to Default'
+  query: SELECT 1 FROM registry WHERE path = 'HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows NT\Rpc\RpcAuthentication' AND data = '1';
   purpose: Informational
   tags: framework:CISv8.1, benchmark:win11, level:1, platform:windows, category:configuration, requirement:standard, critical:false, control:configure-rpc-connection-settings-use-authentication-for-outgoing-rpc-connections-is-enabled-default, cis_safeguard_ids:CIS4.7.4
   description: 'This policy setting controls which protocol and protocol settings to use for outgoing
@@ -1407,7 +1407,7 @@ kind: policy
 spec:
   platform: windows
   name: CIS - Ensure 'Configure Offer Remote Assistance' is set to 'Disabled'
-  query: SELECT 1 FROM mdm_bridge WHERE mdm_command_input = '<SyncBody><Get><CmdID>1</CmdID><Item><Target><LocURI>./Device/Vendor/MSFT/Policy/Result/RemoteAssistance/SolicitedRemoteAssistance</LocURI></Target></Item></Get></SyncBody>' AND mdm_command_output LIKE '%Disabled%';
+  query: SELECT 1 FROM registry WHERE path = 'HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows NT\Terminal Services\fAllowUnsolicited' AND data = '0';
   purpose: Informational
   tags: framework:CISv8.1, benchmark:win11, level:1, platform:windows, category:remote, requirement:standard, critical:false, control:configure-offer-remote-assistance-is-disabled, cis_safeguard_ids:CIS4.10.30.1
   description: 'This policy setting allows you to turn on or turn off Offer (Unsolicited) Remote
@@ -1880,61 +1880,20 @@ apiVersion: v1
 kind: policy
 spec:
   platform: windows
-  name: CIS - Ensure 'Control Event Log behavior when the log file reaches its maximum size' is set to 'Disabled'
-  query: SELECT 1 FROM registry WHERE path = 'HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\EventLog\Security\Retention' AND data = '0';
+  name: CIS - Ensure Application 'Control Event Log behavior when the log file reaches its maximum size' is set to 'Disabled'
+  query: SELECT 1 FROM registry WHERE path = 'HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\EventLog\Application\Retention' AND data = '0';
   purpose: Informational
-  tags: framework:CISv8.1, benchmark:win11, level:1, platform:windows, category:configuration, requirement:standard, critical:false, control:control-event-log-behavior-when-the-log-file-reaches-its-maximum-size-is-disabled, cis_safeguard_ids:CIS4.11.15.1.1;CIS4.11.15.2.1;CIS4.11.15.3.1;CIS4.11.15.4.1
-  description: '[4.11.15.1.1]
-
-    This policy setting controls Event Log behavior when the log file reaches its maximum
-
-    size.
+  tags: framework:CISv8.1, benchmark:win11, level:1, platform:windows, category:configuration, requirement:standard, critical:false, control:control-event-log-behavior-when-the-log-file-reaches-its-maximum-size-is-disabled, cis_safeguard_ids:CIS4.11.15.1.1
+  description: '
+    This policy setting controls Event Log behavior when the log file reaches its maximumsize.
 
     The recommended state for this setting is: Disabled.
 
     Note: Old events may or may not be retained according to the Backup log automatically
 
     when full policy setting.
-
-
-    [4.11.15.2.1]
-
-    This policy setting controls Event Log behavior when the log file reaches its maximum
-
-    size.
-
-    The recommended state for this setting is: Disabled.
-
-    Note: Old events may or may not be retained according to the Backup log automatically
-
-    when full policy setting.
-
-
-    [4.11.15.3.1]
-
-    This policy setting controls Event Log behavior when the log file reaches its maximum
-
-    size.
-
-    The recommended state for this setting is: Disabled.
-
-    Note: Old events may or may not be retained according to the Backup log automatically
-
-    when full policy setting.
-
-
-    [4.11.15.4.1]
-
-    This policy setting controls Event Log behavior when the log file reaches its maximum
-
-    size.
-
-    The recommended state for this setting is: Disabled.
-
-    Note: Old events may or may not be retained according to the Backup log automatically
-
-    when full policy setting.'
-  resolution: '[4.11.15.1.1]
+    '
+  resolution: '
 
     To establish the recommended configuration via configuration profiles, set the following
 
@@ -1942,77 +1901,102 @@ spec:
 
     Administrative Templates\Windows Components\Event Log
 
-    Service\Application\Control Event Log behavior when the log file reaches its
-
-    maximum size
-
-
-    [4.11.15.2.1]
-
-    To establish the recommended configuration via configuration profiles, set the following
-
-    Settings Catalog path to Disabled.
-
-    Administrative Templates\Windows Components\Event Log
-
-    Service\Security\Control Event Log behavior when the log file reaches its
-
-    maximum size
-
-
-    [4.11.15.3.1]
-
-    To establish the recommended configuration via configuration profiles, set the following
-
-    Settings Catalog path to Disabled.
-
-    Administrative Templates\Windows Components\Event Log Service\Setup\Control
-
-    Event Log behavior when the log file reaches its maximum size
-
-
-    [4.11.15.4.1]
-
-    To establish the recommended configuration via configuration profiles, set the following
-
-    Settings Catalog path to Disabled.
-
-    Administrative Templates\Windows Components\Event Log Service\System\Control
-
-    Event Log behavior when the log file reaches its maximum size'
+    Service\Application\Control Event Log behavior when the log file reaches its maximum size
+    '
 ---
 apiVersion: v1
 kind: policy
 spec:
   platform: windows
-  name: 'CIS - Ensure ''Specify the maximum log file size (KB)'' is set to ''Enabled: 32,768 or greater'''
+  name: CIS - Ensure Security 'Control Event Log behavior when the log file reaches its maximum size' is set to 'Disabled'
+  query: SELECT 1 FROM registry WHERE path = 'HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\EventLog\Security\Retention' AND data = '0';
+  purpose: Informational
+  tags: framework:CISv8.1, benchmark:win11, level:1, platform:windows, category:configuration, requirement:standard, critical:false, control:control-event-log-behavior-when-the-log-file-reaches-its-maximum-size-is-disabled, cis_safeguard_ids:CIS4.11.15.2.1
+  description: '
+    This policy setting controls Event Log behavior when the log file reaches its maximumsize.
+
+    The recommended state for this setting is: Disabled.
+
+    Note: Old events may or may not be retained according to the Backup log automatically
+
+    when full policy setting.
+    '
+  resolution: '
+
+    To establish the recommended configuration via configuration profiles, set the following
+
+    Settings Catalog path to Disabled.
+
+    Administrative Templates\Windows Components\Event Log
+
+    Service\Security\Control Event Log behavior when the log file reaches its maximum size
+    '
+---
+apiVersion: v1
+kind: policy
+spec:
+  platform: windows
+  name: CIS - Ensure Event Log Setup 'Control Event Log behavior when the log file reaches its maximum size' is set to 'Disabled'
+  query: SELECT 1 FROM registry WHERE path = 'HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\EventLog\Setup\Retention' AND data = '0';
+  purpose: Informational
+  tags: framework:CISv8.1, benchmark:win11, level:1, platform:windows, category:configuration, requirement:standard, critical:false, control:control-event-log-behavior-when-the-log-file-reaches-its-maximum-size-is-disabled, cis_safeguard_ids:CIS4.11.15.3.1
+  description: '
+    This policy setting controls Event Log behavior when the log file reaches its maximumsize.
+
+    The recommended state for this setting is: Disabled.
+
+    Note: Old events may or may not be retained according to the Backup log automatically
+
+    when full policy setting.
+    '
+  resolution: '
+
+    To establish the recommended configuration via configuration profiles, set the following
+
+    Settings Catalog path to Disabled.
+
+    Administrative Templates\Windows Components\Event Log
+
+    Service\Setup\Control Event Log behavior when the log file reaches its maximum size
+    '
+---
+apiVersion: v1
+kind: policy
+spec:
+  platform: windows
+  name: CIS - Ensure System 'Control Event Log behavior when the log file reaches its maximum size' is set to 'Disabled'
+  query: SELECT 1 FROM registry WHERE path = 'HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\EventLog\System\Retention' AND data = '0';
+  purpose: Informational
+  tags: framework:CISv8.1, benchmark:win11, level:1, platform:windows, category:configuration, requirement:standard, critical:false, control:control-event-log-behavior-when-the-log-file-reaches-its-maximum-size-is-disabled, cis_safeguard_ids:CIS4.11.15.4.1
+  description: '
+    This policy setting controls Event Log behavior when the log file reaches its maximumsize.
+
+    The recommended state for this setting is: Disabled.
+
+    Note: Old events may or may not be retained according to the Backup log automatically
+
+    when full policy setting.
+    '
+  resolution: '
+
+    To establish the recommended configuration via configuration profiles, set the following
+
+    Settings Catalog path to Disabled.
+
+    Administrative Templates\Windows Components\Event Log
+
+    Service\System\Control Event Log behavior when the log file reaches its maximum size
+    '
+---
+apiVersion: v1
+kind: policy
+spec:
+  platform: windows
+  name: CIS - Ensure Application 'Specify the maximum log file size (KB) is set to Enabled and 32,768 or greater'
   query: SELECT 1 FROM registry WHERE path = 'HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\EventLog\Application\MaxSize' AND CAST(data AS INTEGER) >= 32768;
   purpose: Informational
-  tags: framework:CISv8.1, benchmark:win11, level:1, platform:windows, category:configuration, requirement:standard, critical:false, control:specify-the-maximum-log-file-size-kb-is-enabled-32768-or-greater, cis_safeguard_ids:CIS4.11.15.1.2;CIS4.11.15.3.2;CIS4.11.15.4.2
-  description: '[4.11.15.1.2]
-
-    This policy setting specifies the maximum size of the log file in kilobytes. The maximum
-
-    log file size can be configured between 1 megabyte (1,024 kilobytes) and 4 terabytes
-
-    (4,194,240 kilobytes) in kilobyte increments.
-
-    The recommended state for this setting is: Enabled: 32,768 or greater.
-
-
-    [4.11.15.3.2]
-
-    This policy setting specifies the maximum size of the log file in kilobytes. The maximum
-
-    log file size can be configured between 1 megabyte (1,024 kilobytes) and 4 terabytes
-
-    (4,194,240 kilobytes) in kilobyte increments.
-
-    The recommended state for this setting is: Enabled: 32,768 or greater.
-
-
-    [4.11.15.4.2]
-
+  tags: framework:CISv8.1, benchmark:win11, level:1, platform:windows, category:configuration, requirement:standard, critical:false, control:specify-the-maximum-log-file-size-kb-is-enabled-32768-or-greater, cis_safeguard_ids:CIS4.11.15.1.2
+  description: '
     This policy setting specifies the maximum size of the log file in kilobytes. The maximum
 
     log file size can be configured between 1 megabyte (1,024 kilobytes) and 4 terabytes
@@ -2020,7 +2004,8 @@ spec:
     (4,194,240 kilobytes) in kilobyte increments.
 
     The recommended state for this setting is: Enabled: 32,768 or greater.'
-  resolution: '[4.11.15.1.2]
+  
+  resolution: '
 
     To establish the recommended configuration via configuration profiles, set the following
 
@@ -2028,29 +2013,61 @@ spec:
 
     Administrative Templates\Windows Components\Event Log
 
-    Service\Application\Specify the maximum log file size (KB)
+    Service\Application\Specify the maximum log file size (KB).'
+---
+apiVersion: v1
+kind: policy
+spec:
+  platform: windows
+  name: CIS - Ensure Setup 'Specify the maximum log file size (KB) is set to Enabled and 32,768 or greater'
+  query: SELECT 1 FROM registry WHERE path = 'HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\EventLog\Setup\MaxSize' AND CAST(data AS INTEGER) >= 32768;
+  purpose: Informational
+  tags: framework:CISv8.1, benchmark:win11, level:1, platform:windows, category:configuration, requirement:standard, critical:false, control:specify-the-maximum-log-file-size-kb-is-enabled-32768-or-greater, cis_safeguard_ids:CIS4.11.15.3.2
+  description: '
+    This policy setting specifies the maximum size of the log file in kilobytes. The maximum
 
+    log file size can be configured between 1 megabyte (1,024 kilobytes) and 4 terabytes
 
-    [4.11.15.3.2]
+    (4,194,240 kilobytes) in kilobyte increments.
+
+    The recommended state for this setting is: Enabled: 32,768 or greater.'
+  
+  resolution: '
 
     To establish the recommended configuration via configuration profiles, set the following
 
     Settings Catalog path to Enabled: 32,768 or greater.
 
-    Administrative Templates\Windows Components\Event Log Service\Setup\Specify
+    Administrative Templates\Windows Components\Event Log
 
-    the maximum log file size (KB)
+    Service\Setup\Specify the maximum log file size (KB).'
+---
+apiVersion: v1
+kind: policy
+spec:
+  platform: windows
+  name: CIS - Ensure System 'Specify the maximum log file size (KB) is set to Enabled and 32,768 or greater'
+  query: SELECT 1 FROM registry WHERE path = 'HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\EventLog\System\MaxSize' AND CAST(data AS INTEGER) >= 32768;
+  purpose: Informational
+  tags: framework:CISv8.1, benchmark:win11, level:1, platform:windows, category:configuration, requirement:standard, critical:false, control:specify-the-maximum-log-file-size-kb-is-enabled-32768-or-greater, cis_safeguard_ids:CIS4.11.15.4.2
+  description: '
+    This policy setting specifies the maximum size of the log file in kilobytes. The maximum
 
+    log file size can be configured between 1 megabyte (1,024 kilobytes) and 4 terabytes
 
-    [4.11.15.4.2]
+    (4,194,240 kilobytes) in kilobyte increments.
+
+    The recommended state for this setting is: Enabled: 32,768 or greater.'
+  
+  resolution: '
 
     To establish the recommended configuration via configuration profiles, set the following
 
     Settings Catalog path to Enabled: 32,768 or greater.
 
-    Administrative Templates\Windows Components\Event Log Service\System\Specify
+    Administrative Templates\Windows Components\Event Log
 
-    the maximum log file size (KB)'
+    Service\System\Specify the maximum log file size (KB).'
 ---
 apiVersion: v1
 kind: policy
@@ -2552,11 +2569,11 @@ apiVersion: v1
 kind: policy
 spec:
   platform: windows
-  name: CIS - Ensure 'Allow Basic authentication' is set to 'Disabled'
-  query: SELECT 1 FROM registry WHERE path = 'HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\WinRM\Service\AllowBasic' AND data = '0';
+  name: CIS - Ensure Client 'Allow Basic authentication is set to Disabled'
+  query: SELECT 1 FROM registry WHERE path = 'HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\WinRM\Client\AllowBasic' AND data = '0';
   purpose: Informational
-  tags: framework:CISv8.1, benchmark:win11, level:1, platform:windows, category:configuration, requirement:standard, critical:false, control:allow-basic-authentication-is-disabled, cis_safeguard_ids:CIS4.11.55.1.1;CIS4.11.55.2.1
-  description: '[4.11.55.1.1]
+  tags: framework:CISv8.1, benchmark:win11, level:1, platform:windows, category:configuration, requirement:standard, critical:false, control:allow-basic-authentication-is-disabled, cis_safeguard_ids:CIS4.11.55.1.1
+  description: '
 
     This policy setting allows you to manage whether the Windows Remote Management
 
@@ -2570,17 +2587,8 @@ spec:
 
     Exchange Online uses Basic authentication over HTTPS, and so the Exchange Online
 
-    authentication traffic will still be safely encrypted.
-
-
-    [4.11.55.2.1]
-
-    This policy setting allows you to manage whether the Windows Remote Management
-
-    (WinRM) service accepts Basic authentication from a remote client.
-
-    The recommended state for this setting is: Disabled.'
-  resolution: '[4.11.55.1.1]
+    authentication traffic will still be safely encrypted.'
+  resolution: '
 
     To establish the recommended configuration via configuration profiles, set the following
 
@@ -2588,10 +2596,24 @@ spec:
 
     Administrative Templates\Windows Components\Windows Remote Management
 
-    (WinRM)\WinRM Client\Allow Basic authentication
+    (WinRM)\WinRM Client\Allow Basic authentication'
+---
+apiVersion: v1
+kind: policy
+spec:
+  platform: windows
+  name: CIS - Ensure Service 'Allow Basic authentication is set to Disabled'
+  query: SELECT 1 FROM registry WHERE path = 'HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\WinRM\Service\AllowBasic' AND data = '0';
+  purpose: Informational
+  tags: framework:CISv8.1, benchmark:win11, level:1, platform:windows, category:configuration, requirement:standard, critical:false, control:allow-basic-authentication-is-disabled, cis_safeguard_ids:CIS4.11.55.2.1
+  description: '
+    This policy setting allows you to manage whether the Windows Remote Management
 
+    (WinRM) service accepts Basic authentication from a remote client.
 
-    [4.11.55.2.1]
+    The recommended state for this setting is: Disabled.'
+
+  resolution: '
 
     To establish the recommended configuration via configuration profiles, set the following
 
@@ -2605,27 +2627,19 @@ apiVersion: v1
 kind: policy
 spec:
   platform: windows
-  name: CIS - Ensure 'Allow unencrypted traffic' is set to 'Disabled'
-  query: SELECT 1 FROM registry WHERE path = 'HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\WinRM\Service\AllowUnencryptedTraffic' AND data = '0';
+  name: CIS - Ensure Client 'Allow unencrypted traffic' is set to 'Disabled'
+  query: SELECT 1 FROM registry WHERE path = 'HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\WinRM\Client\AllowUnencryptedTraffic' AND data = '0';
   purpose: Informational
-  tags: framework:CISv8.1, benchmark:win11, level:1, platform:windows, category:configuration, requirement:standard, critical:false, control:allow-unencrypted-traffic-is-disabled, cis_safeguard_ids:CIS4.11.55.1.2;CIS4.11.55.2.3
-  description: '[4.11.55.1.2]
+  tags: framework:CISv8.1, benchmark:win11, level:1, platform:windows, category:configuration, requirement:standard, critical:false, control:allow-unencrypted-traffic-is-disabled, cis_safeguard_ids:CIS4.11.55.1.2
+  description: '
 
     This policy setting allows you to manage whether the Windows Remote Management
 
     (WinRM) client sends and receives unencrypted messages over the network.
 
-    The recommended state for this setting is: Disabled.
-
-
-    [4.11.55.2.3]
-
-    This policy setting allows you to manage whether the Windows Remote Management
-
-    (WinRM) service sends and receives unencrypted messages over the network.
-
     The recommended state for this setting is: Disabled.'
-  resolution: '[4.11.55.1.2]
+
+  resolution: '
 
     To establish the recommended configuration via configuration profiles, set the following
 
@@ -2633,10 +2647,25 @@ spec:
 
     Administrative Templates\Windows Components\Windows Remote Management
 
-    (WinRM)\WinRM Client\Allow unencrypted traffic
+    (WinRM)\WinRM Client\Allow unencrypted traffic'
+---
+apiVersion: v1
+kind: policy
+spec:
+  platform: windows
+  name: CIS - Ensure Service 'Allow unencrypted traffic' is set to 'Disabled'
+  query: SELECT 1 FROM registry WHERE path = 'HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\WinRM\Service\AllowUnencryptedTraffic' AND data = '0';
+  purpose: Informational
+  tags: framework:CISv8.1, benchmark:win11, level:1, platform:windows, category:configuration, requirement:standard, critical:false, control:allow-unencrypted-traffic-is-disabled, cis_safeguard_ids:CIS4.11.55.2.3
+  description: '
 
+    This policy setting allows you to manage whether the Windows Remote Management
 
-    [4.11.55.2.3]
+    (WinRM) service sends and receives unencrypted messages over the network.
+
+    The recommended state for this setting is: Disabled.'
+
+  resolution: '
 
     To establish the recommended configuration via configuration profiles, set the following
 
@@ -5544,8 +5573,8 @@ apiVersion: v1
 kind: policy
 spec:
   platform: windows
-  name: 'CIS - Ensure ''Enable Domain Network Firewall: Disable Inbound Notifications'' is set to ''True'''
-  query: SELECT 1 FROM registry WHERE path = 'HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Services\SharedAccess\Parameters\FirewallPolicy\DomainProfile\EnableFirewall' AND data = '1';
+  name: CIS - Ensure 'Enable Domain Network Firewall Disable Inbound Notifications' is set to 'True' 
+  query: SELECT 1 FROM registry WHERE path = 'HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Services\SharedAccess\Parameters\FirewallPolicy\Mdm\DomainProfile\DisableNotifications' AND data = '1';
   purpose: Informational
   tags: framework:CISv8.1, benchmark:win11, level:1, platform:windows, category:configuration, requirement:standard, critical:false, control:enable-domain-network-firewall-disable-inbound-notifications-is-true, cis_safeguard_ids:CIS38.3
   description: 'Select this option to have Windows Firewall with Advanced Security display notifications
@@ -5571,7 +5600,7 @@ apiVersion: v1
 kind: policy
 spec:
   platform: windows
-  name: 'CIS - Ensure ''Enable Domain Network Firewall: Enable Log Dropped Packets'' is set to ''Yes: Enable Logging Of Dropped Packets'''
+  name: CIS - Ensure 'Enable Domain Network Firewall Enable Log Dropped Packets' is set to 'Yes'. Enable Logging Of Dropped Packets
   query: SELECT 1 FROM mdm_bridge WHERE mdm_command_input = '<SyncBody><Get><CmdID>1</CmdID><Item><Target><LocURI>./Device/Vendor/MSFT/Firewall/MdmStore/DomainProfile/EnableLogDroppedPackets</LocURI></Target></Item></Get></SyncBody>' AND mdm_command_output = 'true';
   purpose: Informational
   tags: framework:CISv8.1, benchmark:win11, level:1, platform:windows, category:configuration, requirement:standard, critical:false, control:enable-domain-network-firewall-enable-log-dropped-packets-is-yes-enable-logging-of-dropped-packets, cis_safeguard_ids:CIS38.4
@@ -5592,8 +5621,8 @@ apiVersion: v1
 kind: policy
 spec:
   platform: windows
-  name: 'CIS - Ensure ''Enable Domain Network Firewall: Enable Log Success Connections'' is set to ''Enable Logging Of Successful Connections'''
-  query: SELECT 1 FROM registry WHERE path = 'HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Services\SharedAccess\Parameters\FirewallPolicy\DomainProfile\EnableFirewall' AND data = '1';
+  name: CIS - Ensure 'Enable Domain Network Firewall Enable Log Success Connections' is set to 'Enable Logging Of Successful Connections'
+  query: SELECT 1 FROM registry WHERE path = 'HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Services\SharedAccess\Parameters\FirewallPolicy\Mdm\DomainProfile\Logging\LogSuccessfulConnections' AND data = '1';
   purpose: Informational
   tags: framework:CISv8.1, benchmark:win11, level:1, platform:windows, category:configuration, requirement:standard, critical:false, control:enable-domain-network-firewall-enable-log-success-connections-is-enable-logging-of-successful-connections, cis_safeguard_ids:CIS38.5
   description: 'Use this option to log when Windows Firewall with Advanced Security allows an
@@ -5701,8 +5730,8 @@ apiVersion: v1
 kind: policy
 spec:
   platform: windows
-  name: 'CIS - Ensure ''Enable Private Network Firewall: Disable Inbound Notifications'' is set to ''True'''
-  query: SELECT 1 FROM registry WHERE path = 'HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Services\SharedAccess\Parameters\FirewallPolicy\StandardProfile\EnableFirewall' AND data = '1';
+  name: CIS - Ensure 'Enable Private Network Firewall Disable Inbound Notifications' is set to 'True'
+  query: SELECT 1 FROM registry WHERE path = 'HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Services\SharedAccess\Parameters\FirewallPolicy\Mdm\StandardProfile\DisableNotifications' AND data = '1';
   purpose: Informational
   tags: framework:CISv8.1, benchmark:win11, level:1, platform:windows, category:configuration, requirement:standard, critical:false, control:enable-private-network-firewall-disable-inbound-notifications-is-true, cis_safeguard_ids:CIS38.10
   description: 'Select this option to have Windows Firewall with Advanced Security display notifications
@@ -5728,8 +5757,8 @@ apiVersion: v1
 kind: policy
 spec:
   platform: windows
-  name: 'CIS - Ensure ''Enable Private Network Firewall: Enable Log Success Connections'' is set to ''Enable Logging Of Successful Connections'''
-  query: SELECT 1 FROM registry WHERE path = 'HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Services\SharedAccess\Parameters\FirewallPolicy\StandardProfile\EnableFirewall' AND data = '1';
+  name: CIS - Ensure 'Enable Private Network Firewall Enable Log Success Connections' is set to 'Enable Logging Of Successful Connections'
+  query: SELECT 1 FROM registry WHERE path = 'HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Services\SharedAccess\Parameters\FirewallPolicy\Mdm\StandardProfile\Logging\LogSuccessfulConnections' AND data = '1';
   purpose: Informational
   tags: framework:CISv8.1, benchmark:win11, level:1, platform:windows, category:configuration, requirement:standard, critical:false, control:enable-private-network-firewall-enable-log-success-connections-is-enable-logging-of-successful-connections, cis_safeguard_ids:CIS38.11
   description: 'Use this option to log when Windows Firewall with Advanced Security allows an
@@ -5906,8 +5935,8 @@ apiVersion: v1
 kind: policy
 spec:
   platform: windows
-  name: 'CIS - Ensure ''Enable Public Network Firewall: Disable Inbound Notifications'' is set to ''True'''
-  query: SELECT 1 FROM registry WHERE path = 'HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Services\SharedAccess\Parameters\FirewallPolicy\PublicProfile\EnableFirewall' AND data = '1';
+  name: CIS - Ensure 'Enable Public Network Firewall Disable Inbound Notifications' is set to 'True' 
+  query: SELECT 1 FROM registry WHERE path = 'HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Services\SharedAccess\Parameters\FirewallPolicy\Mdm\PublicProfile\DisableNotifications' AND data = '1';
   purpose: Informational
   tags: framework:CISv8.1, benchmark:win11, level:1, platform:windows, category:configuration, requirement:standard, critical:false, control:enable-public-network-firewall-disable-inbound-notifications-is-true, cis_safeguard_ids:CIS38.19
   description: 'Select this option to have Windows Firewall with Advanced Security display notifications
@@ -5925,7 +5954,7 @@ apiVersion: v1
 kind: policy
 spec:
   platform: windows
-  name: 'CIS - Ensure ''Enable Public Network Firewall: Enable Log Dropped Packets'' is set to ''Yes: Enable Logging Of Dropped Packets'''
+  name: CIS - Ensure 'Enable Public Network Firewall Enable Log Dropped Packets' is set to 'Enable Logging Of Dropped Packets'
   query: SELECT 1 FROM mdm_bridge WHERE mdm_command_input = '<SyncBody><Get><CmdID>1</CmdID><Item><Target><LocURI>./Device/Vendor/MSFT/Firewall/MdmStore/PublicProfile/EnableLogDroppedPackets</LocURI></Target></Item></Get></SyncBody>' AND mdm_command_output = 'true';
   purpose: Informational
   tags: framework:CISv8.1, benchmark:win11, level:1, platform:windows, category:configuration, requirement:standard, critical:false, control:enable-public-network-firewall-enable-log-dropped-packets-is-yes-enable-logging-of-dropped-packets, cis_safeguard_ids:CIS38.20
@@ -5946,8 +5975,8 @@ apiVersion: v1
 kind: policy
 spec:
   platform: windows
-  name: 'CIS - Ensure ''Enable Public Network Firewall: Enable Log Success Connections'' is set to ''Enable Logging Of Successful Connections'''
-  query: SELECT 1 FROM registry WHERE path = 'HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Services\SharedAccess\Parameters\FirewallPolicy\PublicProfile\EnableFirewall' AND data = '1';
+  name: CIS - Ensure 'Enable Public Network Firewall Enable Log Success Connections' is set to 'Enable Logging Of Successful Connections'
+  query: SELECT 1 FROM registry WHERE path = 'HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Services\SharedAccess\Parameters\FirewallPolicy\Mdm\PublicProfile\Logging\LogSuccessfulConnections' AND data = '1';
   purpose: Informational
   tags: framework:CISv8.1, benchmark:win11, level:1, platform:windows, category:configuration, requirement:standard, critical:false, control:enable-public-network-firewall-enable-log-success-connections-is-enable-logging-of-successful-connections, cis_safeguard_ids:CIS38.21
   description: 'Use this option to log when Windows Firewall with Advanced Security allows an
@@ -6837,8 +6866,8 @@ apiVersion: v1
 kind: policy
 spec:
   platform: windows
-  name: 'CIS - Ensure ''User Account Control: Use Admin Approval Mode'' is set to ''Enabled'''
-  query: SELECT 1 FROM registry WHERE path = 'HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System\EnableLUA' AND data = '1';
+  name: CIS - Ensure 'User Account Control Use Admin Approval Mode' is set to 'Enabled'
+  query: SELECT 1 FROM registry WHERE path = 'HKEY_LOCAL_MACHINE\Microsoft\Windows\CurrentVersion\Policies\System\FilterAdministratorToken AND data = '1';
   purpose: Informational
   tags: framework:CISv8.1, benchmark:win11, level:1, platform:windows, category:security, requirement:standard, critical:false, control:user-account-control-use-admin-approval-mode-is-enabled, cis_safeguard_ids:CIS49.32
   description: 'This policy setting controls the behavior of Admin Approval Mode for the built-in
@@ -6877,7 +6906,7 @@ apiVersion: v1
 kind: policy
 spec:
   platform: windows
-  name: 'CIS - Ensure ''User Account Control: Run all administrators in Admin Approval Mode'' is set to ''Enabled'''
+  name: CIS - Ensure 'User Account Control Run all administrators in Admin Approval Mode' is set to 'Enabled'
   query: SELECT 1 FROM registry WHERE path = 'HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System\EnableLUA' AND data = '1';
   purpose: Informational
   tags: framework:CISv8.1, benchmark:win11, level:1, platform:windows, category:configuration, requirement:standard, critical:false, control:user-account-control-run-all-administrators-in-admin-approval-mode-is-enabled, cis_safeguard_ids:CIS49.34
@@ -10596,28 +10625,6 @@ spec:
     3. Set Post Authentication Reset Delay to Configured: 8 (or fewer
 
     hours, but not 0).'
----
-apiVersion: v1
-kind: policy
-spec:
-  name: 'CIS - Ensure ''Prevent installation of devices using drivers that match these device setup classes: Prevent installation of devices using drivers for these device setup'' is set to ''IEEE 1394 device setup classes'''
-  platform: windows
-  description: 'Policy checks the configuration for: CIS - Ensure ''Prevent installation of devices using drivers that match these device setup classes: Prevent installation of devices using drivers for these device setup'' is set to ''IEEE 1394 device setup classes''. Expected state per CIS Intune benchmark: IEEE 1394 device setup classes.'
-  resolution: "Automatic method: To establish the recommended configuration via configuration profiles, set the following \nSettings Catalog path to Enabled, and add {d48179be-ec20-11d1-b6b8-\n00c04fa372a7}, {7ebefbc0-3200-11d2-b4c2-00a0C9697d07}, {c06ff265-ae09-\n48f0-812c-16753d7cba83}, and {6bdd1fc1-810f-11d0-bec7-08002be2092f} to the \ndevice setup classes list. \nAdministrative Templates\\System\\Device Installation\\Device Installation \nRestrictions\\Prevent installation of devices using drivers that match these \ndevice setup classes"
-  query: SELECT 1 WHERE EXISTS (SELECT 1 FROM mdm_bridge WHERE mdm_command_input = '<SyncBody><Get><CmdID>1</CmdID><Item><Target><LocURI>./Device/Vendor/MSFT/Policy/Result/DeviceInstallation/PreventInstallationOfMatchingDeviceSetupClasses</LocURI></Target></Item></Get></SyncBody>' AND mdm_command_output LIKE '%6bdd1fc1-810f-11d0-bec7-08002be2092f%') OR EXISTS (SELECT 1 FROM registry WHERE path LIKE 'HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\DeviceInstall\Restrictions\DenyDeviceClasses\%' AND data LIKE '%d48179be-ec20-11d1-b6b8-00c04fa372a7%');
-  tags: framework:CISv8.1, benchmark:win11, level:1, platform:windows, category:security, requirement:standard, critical:false, control:prevent-installation-of-devices-using-drivers-that
-  purpose: Enforcement
----
-apiVersion: v1
-kind: policy
-spec:
-  name: 'CIS - Ensure ''Windows Firewall: Public: Settings: Apply local connection security rules'' is set to ''No'''
-  platform: windows
-  description: 'Policy checks the configuration for: CIS - Ensure ''Windows Firewall: Public: Settings: Apply local connection security rules'' is set to ''No''. Expected state per CIS Intune benchmark: No.'
-  resolution: "Automatic method: To establish the recommended configuration via configuration profiles, set the following \nSettings Catalog path to True (recommended): \nFirewall\\Enable Public Network Firewall"
-  query: SELECT 1 FROM mdm_bridge WHERE mdm_command_input = '<SyncBody><Get><CmdID>1</CmdID><Item><Target><LocURI>./Vendor/MSFT/Firewall/MdmStore/PublicProfile/AllowLocalIpsecPolicyMerge</LocURI></Target></Item></Get></SyncBody>' AND mdm_command_output = 'false';
-  tags: framework:CISv8.1, benchmark:win11, level:1, platform:windows, category:security, requirement:standard, critical:false, control:windows-firewall-public-settings-apply-local-conne
-  purpose: Enforcement
 ---
 apiVersion: v1
 kind: policy

@@ -13,7 +13,6 @@ import (
 	"fmt"
 	"math/big"
 	"net/http"
-	"os"
 	"strconv"
 	"strings"
 
@@ -21,6 +20,7 @@ import (
 	"github.com/fleetdm/fleet/v4/ee/server/service/hostidentity/types"
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
+	"github.com/fleetdm/fleet/v4/server/dev_mode"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm/assets"
 	scepdepot "github.com/fleetdm/fleet/v4/server/mdm/scep/depot"
@@ -54,7 +54,7 @@ func (e *RateLimitError) StatusCode() int { return http.StatusTooManyRequests }
 // It checks for FLEET_DEV_HOST_IDENTITY_CERT_VALIDITY_DAYS environment variable
 // and falls back to scepValidityDays if not set or invalid.
 func getCertValidityDays() int {
-	if envValue := os.Getenv("FLEET_DEV_HOST_IDENTITY_CERT_VALIDITY_DAYS"); envValue != "" {
+	if envValue := dev_mode.Env("FLEET_DEV_HOST_IDENTITY_CERT_VALIDITY_DAYS"); envValue != "" {
 		if days, err := strconv.Atoi(envValue); err == nil && days > 0 {
 			return days
 		}

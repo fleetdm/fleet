@@ -21,6 +21,7 @@ import (
 	microsoft_mdm "github.com/fleetdm/fleet/v4/server/mdm/microsoft"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/service/contract"
+	"github.com/fleetdm/fleet/v4/server/service/osquery_utils"
 	"github.com/fleetdm/fleet/v4/server/worker"
 	"github.com/go-kit/log/level"
 )
@@ -196,17 +197,26 @@ func (svc *Service) EnrollOrbit(ctx context.Context, hostInfo fleet.OrbitHostInf
 			return "", fleet.OrbitError{Message: "failed to get IdP account: " + err.Error()}
 		}
 		if idpAccount == nil {
-			// If the Orbit client doesn't support end user auth, complain loudly and let the host enroll.
-			mp, ok := capabilities.FromContext(ctx)
-			//nolint:gocritic // ignore ifElseChain
-			if !ok {
-				level.Error(svc.logger).Log("msg", "!!! ERR_ALLOWING_UNAUTHENTICATED: host is not authenticated, but fleet could not determine whether orbit supports end-user authentication. proceeding with enrollment. !!! ", "host_uuid", hostInfo.HardwareUUID)
-			} else if !mp.Has(fleet.CapabilityEndUserAuth) {
-				// Quieting this error until https://github.com/fleetdm/fleet/issues/37134 has a proper fix.
-				level.Debug(svc.logger).Log("msg", "!!! ERR_ALLOWING_UNAUTHENTICATED: host is not authenticated, but connected with an orbit version that does not support end user authentication. proceeding with enrollment. !!! ", "host_uuid", hostInfo.HardwareUUID)
-			} else {
-				// Otherwise report the unauthenticated host and let Orbit handle it (e.g. by prompting the user to authenticate).
-				return "", fleet.NewOrbitIDPAuthRequiredError()
+			// Get the host platform.
+			h := fleet.Host{
+				Platform:     hostInfo.Platform,
+				PlatformLike: hostInfo.PlatformLike,
+			}
+			platform := h.FleetPlatform()
+			// Orbit enrollment is only gated by end user auth for Linux and Windows hosts.
+			// For macOS hosts the MDM enrollment process handles end user auth.
+			if platform == "linux" || platform == "windows" {
+				// If the Orbit client doesn't support end user auth, complain loudly and let the host enroll.
+				mp, ok := capabilities.FromContext(ctx)
+				//nolint:gocritic // ignore ifElseChain
+				if !ok {
+					level.Error(svc.logger).Log("msg", "!!! ERR_ALLOWING_UNAUTHENTICATED: host is not authenticated, but fleet could not determine whether orbit supports end-user authentication. proceeding with enrollment. !!! ", "host_uuid", hostInfo.HardwareUUID)
+				} else if !mp.Has(fleet.CapabilityEndUserAuth) {
+					level.Warn(svc.logger).Log("msg", "!!! ERR_ALLOWING_UNAUTHENTICATED: host is not authenticated, but connected with an orbit version that does not support end user authentication. proceeding with enrollment. !!! ", "host_uuid", hostInfo.HardwareUUID)
+				} else {
+					// Otherwise report the unauthenticated host and let Orbit handle it (e.g. by prompting the user to authenticate).
+					return "", fleet.NewOrbitIDPAuthRequiredError()
+				}
 			}
 		}
 	}
@@ -1162,6 +1172,15 @@ func (svc *Service) SetOrUpdateDiskEncryptionKey(ctx context.Context, encryption
 		return badRequest("host is not enrolled with fleet")
 	}
 
+	// Only archive the key if disk encryption is enabled for this host (team/globally)
+	if !osquery_utils.IsDiskEncryptionEnabledForHost(ctx, svc.logger, svc.ds, host) {
+		level.Debug(svc.logger).Log(
+			"msg", "skipping key archival, disk encryption not enabled for host team/globally",
+			"host_id", host.ID,
+		)
+		return nil
+	}
+
 	var (
 		encryptedEncryptionKey string
 		decryptable            *bool
@@ -1259,6 +1278,15 @@ func (svc *Service) EscrowLUKSData(ctx context.Context, passphrase string, salt 
 
 	if clientError != "" {
 		return svc.ds.ReportEscrowError(ctx, host.ID, clientError)
+	}
+
+	// Only archive the key if disk encryption is enabled for this host (team/globally)
+	if !osquery_utils.IsDiskEncryptionEnabledForHost(ctx, svc.logger, svc.ds, host) {
+		level.Debug(svc.logger).Log(
+			"msg", "skipping LUKS key archival, disk encryption not enabled for host team/globally",
+			"host_id", host.ID,
+		)
+		return nil
 	}
 
 	encryptedPassphrase, encryptedSalt, validatedKeySlot, err := svc.validateAndEncrypt(ctx, passphrase, salt, keySlot)

@@ -1,1 +1,0 @@
-- Aligned Android MDM unenrollment endpoint with the already existing endpoint, `DELETE /api/latest/fleet/hosts/{id}/mdm`, for consistency across MDM platforms.

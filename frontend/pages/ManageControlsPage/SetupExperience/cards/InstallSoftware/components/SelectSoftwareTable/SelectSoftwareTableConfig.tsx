@@ -96,18 +96,20 @@ const generateTableConfig = (
         }
 
         const title = cellProps.row.original;
-        let versionFoRender = title.software_package?.version;
+        let displayedVersion =
+          title.software_package?.version || title.app_store_app?.version;
+
         if (platform === "linux") {
           const packageTypeCopy = getSetupExperienceLinuxPackageCopy(
             title.source
           );
           if (packageTypeCopy) {
-            versionFoRender = (
-              versionFoRender ?? DEFAULT_EMPTY_CELL_VALUE
+            displayedVersion = (
+              displayedVersion ?? DEFAULT_EMPTY_CELL_VALUE
             ).concat(` (.${packageTypeCopy})`);
           }
         }
-        return <TextCell value={versionFoRender} />;
+        return <TextCell value={displayedVersion} />;
       },
       sortType: "caseInsensitive",
     },

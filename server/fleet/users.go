@@ -12,6 +12,15 @@ import (
 	"golang.org/x/crypto/bcrypt"
 )
 
+// UserSummary contains the minimal user fields.
+type UserSummary struct {
+	ID          uint   `db:"id"`
+	Name        string `db:"name"`
+	Email       string `db:"email"`
+	GravatarURL string `db:"gravatar_url"`
+	APIOnly     bool   `db:"api_only"`
+}
+
 // User is the model struct that represents a Fleet user.
 type User struct {
 	UpdateCreateTimestamps

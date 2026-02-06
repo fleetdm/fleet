@@ -85,6 +85,12 @@ object ApiClient : CertificateApiClient {
         }
     }
 
+    private suspend fun clearApiKey() {
+        dataStore.edit { preferences ->
+            preferences.remove(API_KEY)
+        }
+    }
+
     val baseUrlFlow: Flow<String?>
         get() = dataStore.data.map { preferences ->
             preferences[SERVER_URL_KEY]
@@ -170,6 +176,8 @@ object ApiClient : CertificateApiClient {
             if (responseCode in 200..299) {
                 val parsed = json.decodeFromString(string = response, deserializer = responseSerializer)
                 Result.success(parsed)
+            } else if (responseCode == 401) {
+                Result.failure(UnauthorizedException(response))
             } else {
                 Result.failure(Exception("HTTP $responseCode: $response"))
             }
@@ -178,6 +186,27 @@ object ApiClient : CertificateApiClient {
         } finally {
             connection?.disconnect()
         }
+    }
+
+    /**
+     * Exception thrown when the server returns HTTP 401 Unauthorized.
+     * This typically indicates the node key has been invalidated (e.g., host was deleted).
+     */
+    class UnauthorizedException(message: String) : Exception("HTTP 401: $message")
+
+    /**
+     * Executes a request block with automatic re-enrollment on 401 Unauthorized.
+     * If the block returns a 401 failure, clears the stored node key and retries once.
+     * On retry, the block is called fresh so it will get a new node key via enrollment.
+     */
+    private suspend fun <T> withReenrollOnUnauthorized(block: suspend () -> Result<T>): Result<T> {
+        val result = block()
+        if (result.isFailure && result.exceptionOrNull() is UnauthorizedException) {
+            Log.d(TAG, "Received 401, clearing node key and retrying with re-enrollment")
+            clearApiKey()
+            return block()
+        }
+        return result
     }
 
     suspend fun enroll(): Result<EnrollResponse> {
@@ -206,14 +235,14 @@ object ApiClient : CertificateApiClient {
         return resp
     }
 
-    suspend fun getOrbitConfig(): Result<OrbitConfig> {
+    suspend fun getOrbitConfig(): Result<OrbitConfig> = withReenrollOnUnauthorized {
         val nodeKeyResult = getNodeKeyOrEnroll()
 
         val orbitNodeKey = nodeKeyResult.getOrElse { error ->
-            return Result.failure(error)
+            return@withReenrollOnUnauthorized Result.failure(error)
         }
 
-        return makeRequest(
+        makeRequest(
             endpoint = "/api/fleet/orbit/config",
             method = "POST",
             body = GetConfigRequest(orbitNodeKey = orbitNodeKey),
@@ -232,15 +261,16 @@ object ApiClient : CertificateApiClient {
         }
     }
 
-    override suspend fun getCertificateTemplate(certificateId: Int): Result<CertificateTemplateResult> {
+    override suspend fun getCertificateTemplate(certificateId: Int): Result<CertificateTemplateResult> = withReenrollOnUnauthorized {
         val nodeKeyResult = getNodeKeyOrEnroll()
         val orbitNodeKey = nodeKeyResult.getOrElse { error ->
-            return Result.failure(error)
+            return@withReenrollOnUnauthorized Result.failure(error)
         }
 
-        val credentials = getEnrollmentCredentials() ?: return Result.failure(Exception("enroll credentials not set"))
+        val credentials = getEnrollmentCredentials()
+            ?: return@withReenrollOnUnauthorized Result.failure(Exception("enroll credentials not set"))
 
-        return makeRequest(
+        makeRequest(
             endpoint = "/api/fleetd/certificates/$certificateId",
             method = "GET",
             body = GetCertificateTemplateRequest(orbitNodeKey = orbitNodeKey),
@@ -271,34 +301,36 @@ object ApiClient : CertificateApiClient {
         notAfter: Date?,
         notBefore: Date?,
         serialNumber: BigInteger?,
-    ): Result<Unit> = makeRequest(
-        endpoint = "/api/fleetd/certificates/$certificateId/status",
-        method = "PUT",
-        body = UpdateCertificateStatusRequest(
-            status = status,
-            operationType = operationType,
-            detail = detail,
-            notAfter = notAfter?.toISO8601String(),
-            notBefore = notBefore?.toISO8601String(),
-            serialNumber = serialNumber?.toString(),
-        ),
-        bodySerializer = UpdateCertificateStatusRequest.serializer(),
-        responseSerializer = UpdateCertificateStatusResponse.serializer(),
-    ).fold(
-        onSuccess = { response ->
-            if (response.error != null) {
-                Log.e(TAG, "failed to update certificate status $certificateId: ${response.error}")
-                Result.failure(Exception(response.error))
-            } else {
-                Log.i(TAG, "successfully updated certificate status for $certificateId to $status")
-                Result.success(Unit)
-            }
-        },
-        onFailure = { throwable ->
-            Log.e(TAG, "failed to update certificate status $certificateId: ${throwable.message}")
-            Result.failure(throwable)
-        },
-    )
+    ): Result<Unit> = withReenrollOnUnauthorized {
+        makeRequest(
+            endpoint = "/api/fleetd/certificates/$certificateId/status",
+            method = "PUT",
+            body = UpdateCertificateStatusRequest(
+                status = status,
+                operationType = operationType,
+                detail = detail,
+                notAfter = notAfter?.toISO8601String(),
+                notBefore = notBefore?.toISO8601String(),
+                serialNumber = serialNumber?.toString(),
+            ),
+            bodySerializer = UpdateCertificateStatusRequest.serializer(),
+            responseSerializer = UpdateCertificateStatusResponse.serializer(),
+        ).fold(
+            onSuccess = { response ->
+                if (response.error != null) {
+                    Log.e(TAG, "failed to update certificate status $certificateId: ${response.error}")
+                    Result.failure(Exception(response.error))
+                } else {
+                    Log.i(TAG, "successfully updated certificate status for $certificateId to $status")
+                    Result.success(Unit)
+                }
+            },
+            onFailure = { throwable ->
+                Log.e(TAG, "failed to update certificate status $certificateId: ${throwable.message}")
+                Result.failure(throwable)
+            },
+        )
+    }
 
     private suspend fun getEnrollmentCredentials(): EnrollmentCredentials? {
         val prefs = dataStore.data.first()

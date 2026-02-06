@@ -113,12 +113,12 @@ export const SoftwareActionButtons = ({
   };
 
   return (
-    <div className={`${baseClass}__actions`}>
+    <div className={`${baseClass}__actions-wrapper`}>
       {options.map((option) => {
         const ButtonContent = (
           <Button
             key={option.value}
-            className={`btn btn-link ${baseClass}__action-btn`}
+            className={`${baseClass}__action-btn`}
             disabled={option.disabled}
             onClick={() =>
               actionHandlers[option.value as keyof typeof actionHandlers]?.()
@@ -315,19 +315,17 @@ const SoftwareInstallerCard = ({
               )}
             </div>
           </div>
-          <div className={`${baseClass}__actions-wrapper`}>
-            {showActions && (
-              <SoftwareActionButtons
-                installerType={installerType}
-                onDownloadClick={onDownloadClick}
-                onDeleteClick={onDeleteClick}
-                gitOpsModeEnabled={gitOpsModeEnabled}
-                repoURL={repoURL}
-                isFMA={isFleetMaintainedApp}
-                isAndroidPlayStoreApp={isAndroidPlayStoreApp}
-              />
-            )}
-          </div>
+          {showActions && (
+            <SoftwareActionButtons
+              installerType={installerType}
+              onDownloadClick={onDownloadClick}
+              onDeleteClick={onDeleteClick}
+              gitOpsModeEnabled={gitOpsModeEnabled}
+              repoURL={repoURL}
+              isFMA={isFleetMaintainedApp}
+              isAndroidPlayStoreApp={isAndroidPlayStoreApp}
+            />
+          )}
         </div>
         {gitOpsModeEnabled && isCustomPackage && (
           <div className={`${baseClass}__row-2`}>
@@ -360,11 +358,13 @@ const SoftwareInstallerCard = ({
         <DeleteSoftwareModal
           gitOpsModeEnabled={gitOpsModeEnabled}
           softwareId={softwareId}
-          softwareDisplayName={softwareDisplayName}
-          softwareTitleName={softwareTitleName}
           teamId={teamId}
           onExit={() => setShowDeleteModal(false)}
           onSuccess={onDeleteSuccess}
+          isAppStoreApp={
+            installerType === "app-store" && !isAndroidPlayStoreApp
+          }
+          isAndroidApp={isAndroidPlayStoreApp}
         />
       )}
       {showViewYamlModal && isCustomPackage && (

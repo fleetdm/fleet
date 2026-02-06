@@ -22,6 +22,11 @@ type ActivityWebhookPayload struct {
 // ActivityWebhookContextKey is the context key to indicate that the activity webhook has been processed before saving the activity.
 const ActivityWebhookContextKey = ContextKey("ActivityWebhook")
 
+// ActivityAutomationAuthor is the name used for the actor when an activity
+// is performed by Fleet automation (cron jobs, system operations, etc.)
+// rather than by a human user.
+const ActivityAutomationAuthor = "Fleet"
+
 type Activity struct {
 	CreateTimestamp
 
@@ -840,13 +845,18 @@ func (a ActivityTypeCreatedUser) Documentation() (activity string, details strin
 }
 
 type ActivityTypeDeletedUser struct {
-	UserID    uint   `json:"user_id"`
-	UserName  string `json:"user_name"`
-	UserEmail string `json:"user_email"`
+	UserID               uint   `json:"user_id"`
+	UserName             string `json:"user_name"`
+	UserEmail            string `json:"user_email"`
+	FromScimUserDeletion bool   `json:"-"`
 }
 
 func (a ActivityTypeDeletedUser) ActivityName() string {
 	return "deleted_user"
+}
+
+func (a ActivityTypeDeletedUser) WasFromAutomation() bool {
+	return a.FromScimUserDeletion
 }
 
 func (a ActivityTypeDeletedUser) Documentation() (activity string, details string, detailsExample string) {
@@ -2314,8 +2324,8 @@ func (a ActivityAddedAppStoreApp) Documentation() (activity string, details stri
 	return "Generated when an App Store app is added to Fleet.", `This activity contains the following fields:
 - "software_title": Name of the App Store app.
 - "software_title_id": ID of the added software title.
-- "app_store_id": ID of the app on the Apple App Store.
-- "platform": Platform of the app (` + "`darwin`, `ios`, or `ipados`" + `).
+- "app_store_id": ID of the app on the Apple App Store or Google Play.
+- "platform": Platform of the app (` + "`android`, `darwin`, `ios`, or `ipados`" + `).
 - "self_service": App installation can be initiated by device owner.
 - "team_name": Name of the team to which this App Store app was added, or ` + "`null`" + ` if it was added to no team.
 - "team_id": ID of the team to which this App Store app was added, or ` + "`null`" + `if it was added to no team.
@@ -2359,8 +2369,8 @@ func (a ActivityDeletedAppStoreApp) ActivityName() string {
 func (a ActivityDeletedAppStoreApp) Documentation() (activity string, details string, detailsExample string) {
 	return "Generated when an App Store app is deleted from Fleet.", `This activity contains the following fields:
 - "software_title": Name of the App Store app.
-- "app_store_id": ID of the app on the Apple App Store.
-- "platform": Platform of the app (` + "`darwin`, `ios`, or `ipados`" + `).
+- "app_store_id": ID of the app on the Apple App Store or Google Play.
+- "platform": Platform of the app (` + "`android`, `darwin`, `ios`, or `ipados`" + `).
 - "team_name": Name of the team from which this App Store app was deleted, or ` + "`null`" + ` if it was deleted from no team.
 - "team_id": ID of the team from which this App Store app was deleted, or ` + "`null`" + `if it was deleted from no team.
 - "labels_include_any": Target hosts that have any label in the array.
@@ -2429,7 +2439,7 @@ func (a ActivityInstalledAppStoreApp) Documentation() (string, string, string) {
 - "self_service": App installation was initiated by device owner.
 - "host_display_name": Display name of the host.
 - "software_title": Name of the App Store app.
-- "app_store_id": ID of the app on the Apple App Store.
+- "app_store_id": ID of the app on the Apple App Store or Google Play.
 - "status": Status of the App Store app installation.
 - "command_uuid": UUID of the MDM command used to install the app.
 - "policy_id": ID of the policy whose failure triggered the install. Null if no associated policy.
@@ -2471,8 +2481,8 @@ func (a ActivityEditedAppStoreApp) Documentation() (activity string, details str
 	return "Generated when an App Store app is updated in Fleet.", `This activity contains the following fields:
 - "software_title": Name of the App Store app.
 - "software_title_id": ID of the updated app's software title.
-- "app_store_id": ID of the app on the Apple App Store.
-- "platform": Platform of the app (` + "`darwin`, `ios`, or `ipados`" + `).
+- "app_store_id": ID of the app on the Apple App Store or Google Play.
+- "platform": Platform of the app (` + "`android`, `darwin`, `ios`, or `ipados`" + `).
 - "self_service": App installation can be initiated by device owner.
 - "team_name": Name of the team on which this App Store app was updated, or ` + "`null`" + ` if it was updated on no team.
 - "team_id": ID of the team on which this App Store app was updated, or ` + "`null`" + `if it was updated on no team.
@@ -3042,6 +3052,44 @@ func (a ActivityTypeDisabledConditionalAccessAutomations) Documentation() (strin
 - "team_name": The name of the team (empty for "No team").`, `{
   "team_id": 5,
   "team_name": "Workstations"
+}`
+}
+
+type ActivityTypeUpdateConditionalAccessBypass struct {
+	BypassDisabled bool `json:"bypass_disabled"`
+}
+
+func (a ActivityTypeUpdateConditionalAccessBypass) ActivityName() string {
+	return "update_conditional_access_bypass"
+}
+
+func (a ActivityTypeUpdateConditionalAccessBypass) Documentation() (activity string, details string, detailsExample string) {
+	return `Generated when conditional access bypass settings are updated.`,
+		`This activity contains the following field:
+- "bypass_disabled": Whether conditional access bypass was disabled.`, `{
+	"bypass_disabled": true,
+}`
+}
+
+type ActivityTypeHostBypassedConditionalAccess struct {
+	HostID          uint   `json:"host_id"`
+	HostDisplayName string `json:"host_display_name"`
+	IdPFullName     string `json:"idp_full_name"`
+}
+
+func (a ActivityTypeHostBypassedConditionalAccess) ActivityName() string {
+	return "host_bypassed_conditional_access"
+}
+
+func (a ActivityTypeHostBypassedConditionalAccess) Documentation() (activity string, details string, detailsExample string) {
+	return `Generated when a host bypasses conditional access.`,
+		`This activity contains the following fields:
+- "host_display_name": The display name of the bypassed host.
+- "host_id": ID of the host.
+- "idp_full_name": The end user's full name from Okta.`, `{
+	"host_display_name": "Anna's Macbook Pro",
+	"host_id": 123,
+	"idp_full_name": "Anna Chao"
 }`
 }
 

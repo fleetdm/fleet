@@ -1,7 +1,5 @@
 # Software self-service
 
-![Software self-service](../website/assets/images/articles/software-self-service-1335x757@2x.png)
-
 _Available in Fleet Premium_
 
 Fleet’s self-service software lets end users update and install approved apps from a curated list on the **Fleet Desktop > Self-service** page. This reduces overhead for IT and keeps teams productive. This guide covers how to add, install, and update self-service software in Fleet.
@@ -54,6 +52,7 @@ On your Mac, open [iMazing Profile Editor](https://imazing.com/profile-editor). 
 You can also download the configuration profile (`.mobileconfig`) and change values in code editor. If you want to change the icon, use iMazing Profile Editor and follow the steps above.
 
 Download example Web Clip profile from [our repository](https://github.com/fleetdm/fleet/tree/main/docs/solutions/ios-ipados/configuration-profiles/fleet-self-service.mobileconfig).
+
 ## IT admin experience
 
 How to view, update, install, or uninstall self-service software:
@@ -64,6 +63,10 @@ How to view, update, install, or uninstall self-service software:
 4. To update, install, or uninstall, select **Update**, **Install**, or **Uninstall**.
 
 **Update** appears for [eligible updates](#how-updates-work), regardless of whether the app is set to self-service.
+
+Currently, for Apple App Store (VPP) apps, if Apple host is running an app version that can’t be updated because the latest App Store version requires a newer OS version, Fleet always shows “Update available.” The update then always fails, since the latest app version is incompatible with the host’s OS.
+
+To find the minimum OS version for the app, visit the [App Store](https://apps.apple.com/), find the app, scroll to the bottom, and look for **Compatibility** under **Information**.
 
 Tips:
 

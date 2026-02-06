@@ -46,6 +46,9 @@ func (e *Forbidden) StatusCode() int {
 	return http.StatusForbidden
 }
 
+// Forbidden implements platform_authz.Forbidden interface.
+func (e *Forbidden) Forbidden() {}
+
 // Internal allows the internal error message to be logged.
 func (e *Forbidden) Internal() string {
 	return e.internal

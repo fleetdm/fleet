@@ -70,14 +70,12 @@ parasails.registerPage('query-generator', {
       this.generatedQueries = response.result;
       if(response.result.macOSQuery) {
         this.selectedTab = 'macos';
-      } else if(!response.result.macOSQuery){
+      } else if(!response.result.macOSQuery && response.result.windowsQuery){
         this.selectedTab = 'windows';
-      } else if(!response.result.windowsQuery){
+      } else if(!response.result.windowsQuery && response.result.linuxQuery){
         this.selectedTab = 'linux';
-      } else if(!response.result.linuxQuery) {
+      } else if(!response.result.linuxQuery && response.result.chromeOSQuery) {
         this.selectedTab = 'chromeos';
-      } else if(!response.result.chromeOSQuery) {
-        this.selectedTab = 'macos';
       }
       this.syncing = false;
       this.showGeneratedQuery = true;

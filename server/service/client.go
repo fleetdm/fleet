@@ -2196,9 +2196,9 @@ func (c *Client) DoGitOps(
 			macOSUpdates["deadline"] = ""
 		}
 
-		// To keep things backward compatible, if a minimum_version and deadline are both set,
-		// then we also set update_new_hosts
-		if macOSUpdates["minimum_version"] != "" && macOSUpdates["deadline"] != "" {
+		// To keep things backward compatible, if a minimum_version and deadline are both set but the user hasn't set update_new_hosts,
+		// then we default update_new_hosts to true
+		if macOSUpdates["minimum_version"] != "" && macOSUpdates["deadline"] != "" && macOSUpdates["update_new_hosts"] == nil {
 			macOSUpdates["update_new_hosts"] = true
 		}
 
@@ -2524,43 +2524,44 @@ func (c *Client) doGitOpsNoTeamSetupAndSoftware(
 
 	var appsPayload []fleet.VPPBatchPayload
 	appsByAppID := make(map[string]fleet.TeamSpecAppStoreApp, len(config.Software.AppStoreApps))
-	for _, vppApp := range config.Software.AppStoreApps {
-		if vppApp != nil {
+	for _, appStoreApp := range config.Software.AppStoreApps {
+		if appStoreApp != nil {
 			// can be referenced by macos_setup.software
-			appsByAppID[vppApp.AppStoreID] = *vppApp
+			appsByAppID[appStoreApp.AppStoreID] = *appStoreApp
 
-			_, installDuringSetup := noTeamSoftwareMacOSSetup[fleet.MacOSSetupSoftware{AppStoreID: vppApp.AppStoreID}]
-			if vppApp.InstallDuringSetup.Valid {
+			_, installDuringSetup := noTeamSoftwareMacOSSetup[fleet.MacOSSetupSoftware{AppStoreID: appStoreApp.AppStoreID}]
+			if appStoreApp.InstallDuringSetup.Valid {
 				if len(noTeamSoftwareMacOSSetup) > 0 {
 					return nil, nil, errConflictingVPPSetupExperienceDeclarations
 				}
-				installDuringSetup = vppApp.InstallDuringSetup.Value
+				installDuringSetup = appStoreApp.InstallDuringSetup.Value
 			}
 
-			iconHash, err := getIconHashIfValid(vppApp.Icon.Path)
+			iconHash, err := getIconHashIfValid(appStoreApp.Icon.Path)
 			if err != nil {
-				return nil, nil, fmt.Errorf("Couldn't edit app store app (%s). Invalid custom icon file %s: %w", vppApp.AppStoreID, vppApp.Icon.Path, err)
+				return nil, nil, fmt.Errorf("Couldn't edit app store app (%s). Invalid custom icon file %s: %w", appStoreApp.AppStoreID, appStoreApp.Icon.Path, err)
 			}
 
 			var androidConfig json.RawMessage
-			if vppApp.Platform == string(fleet.AndroidPlatform) {
-				androidConfig, err = getAndroidAppConfig(vppApp.Configuration.Path)
+			if appStoreApp.Platform == string(fleet.AndroidPlatform) {
+				androidConfig, err = getAndroidAppConfig(appStoreApp.Configuration.Path)
 				if err != nil {
-					return nil, nil, fmt.Errorf("Couldn't edit app store app (%s). Reading configuration %s: %w", vppApp.AppStoreID, vppApp.Configuration.Path, err)
+					return nil, nil, fmt.Errorf("Couldn't edit app store app (%s). Reading configuration %s: %w", appStoreApp.AppStoreID, appStoreApp.Configuration.Path, err)
 				}
 			}
 
 			payload := fleet.VPPBatchPayload{
-				AppStoreID:          vppApp.AppStoreID,
-				SelfService:         vppApp.SelfService,
+				AppStoreID:          appStoreApp.AppStoreID,
+				SelfService:         appStoreApp.SelfService,
 				InstallDuringSetup:  &installDuringSetup,
-				DisplayName:         vppApp.DisplayName,
-				IconPath:            vppApp.Icon.Path,
+				DisplayName:         appStoreApp.DisplayName,
+				IconPath:            appStoreApp.Icon.Path,
 				IconHash:            iconHash,
-				Platform:            fleet.InstallableDevicePlatform(vppApp.Platform),
-				AutoUpdateEnabled:   vppApp.AutoUpdateEnabled,
-				AutoUpdateStartTime: vppApp.AutoUpdateStartTime,
-				AutoUpdateEndTime:   vppApp.AutoUpdateEndTime,
+				Platform:            fleet.InstallableDevicePlatform(appStoreApp.Platform),
+				AutoUpdateEnabled:   appStoreApp.AutoUpdateEnabled,
+				AutoUpdateStartTime: appStoreApp.AutoUpdateStartTime,
+				AutoUpdateEndTime:   appStoreApp.AutoUpdateEndTime,
+				Categories:          appStoreApp.Categories,
 			}
 			if androidConfig != nil {
 				payload.Configuration = androidConfig

@@ -1,1 +1,0 @@
-- Updated the refresh_vpp_app_versions cron job to only attempt to refresh versions for Apple app store apps.

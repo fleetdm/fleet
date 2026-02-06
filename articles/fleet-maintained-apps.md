@@ -55,7 +55,7 @@ Fleet will run the uninstall script configured for the software title. For macOS
 
 The uninstallation process is also visible in the  **Activities** section on the **Details** tab of this **Host Details** page.
 
-## Update the app
+## Update app
 
 To get the latest version of a Fleet-maintained app,
 

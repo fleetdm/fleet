@@ -1,14 +1,14 @@
 {
   "versions": [
     {
-      "version": "7.0.0",
+      "version": "7.3.1",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'notion.id';"
       },
-      "installer_url": "https://desktop-release.notion-static.com/Notion-7.0.0-arm64.dmg",
+      "installer_url": "https://desktop-release.notion-static.com/Notion-7.3.1-arm64.dmg",
       "install_script_ref": "2c56ecc2",
       "uninstall_script_ref": "21cd1000",
-      "sha256": "1e579cc9224b1121e0f3b4fdf18b24acd86a0563dfc0378343daff49cd1b1940",
+      "sha256": "b1f26b90143ece61b6b137e06cc6ee87eb8a3a563edcba06c43c292cae07a2e4",
       "default_categories": [
         "Productivity"
       ]

@@ -133,7 +133,7 @@ func (s *integrationLoggerTestSuite) TestLoggerLogin() {
 			expectedStatus: http.StatusUnauthorized,
 			expectedLogs: []logEntry{
 				{"email", testUsers["admin1"].Email},
-				{"level", "error"},
+				{"level", "info"},
 				{"internal", "invalid password"},
 			},
 		},
@@ -142,7 +142,7 @@ func (s *integrationLoggerTestSuite) TestLoggerLogin() {
 			expectedStatus: http.StatusUnauthorized,
 			expectedLogs: []logEntry{
 				{"email", "h4x0r@3x4mp13.c0m"},
-				{"level", "error"},
+				{"level", "info"},
 				{"internal", "user not found"},
 			},
 		},
@@ -310,7 +310,7 @@ func (s *integrationLoggerTestSuite) TestEnrollOsqueryLogsErrors() {
 	require.Len(t, parts, 1)
 	logData := make(map[string]json.RawMessage)
 	require.NoError(t, json.Unmarshal([]byte(parts[0]), &logData))
-	assert.Equal(t, `"error"`, string(logData["level"]))
+	assert.Equal(t, `"info"`, string(logData["level"]))
 	assert.Contains(t, string(logData["err"]), `"enroll failed:`)
 	assert.Contains(t, string(logData["err"]), `no matching secret found`)
 }

@@ -373,7 +373,7 @@ describe("Disk space field visibility", () => {
 
     render(<Vitals vitalsData={mockHost} />);
 
-    expect(screen.queryByText("Disk space")).not.toBeInTheDocument();
+    expect(screen.queryByText("Disk space available")).not.toBeInTheDocument();
   });
 
   it("shows disk space field for zero storage (disk full)", () => {
@@ -385,7 +385,7 @@ describe("Disk space field visibility", () => {
 
     render(<Vitals vitalsData={mockHost} />);
 
-    expect(screen.getByText("Disk space")).toBeInTheDocument();
+    expect(screen.getByText("Disk space available")).toBeInTheDocument();
   });
 
   it("renders disk space normally for positive values", () => {
@@ -397,7 +397,7 @@ describe("Disk space field visibility", () => {
 
     render(<Vitals vitalsData={mockHost} />);
 
-    expect(screen.getByText("Disk space")).toBeInTheDocument();
+    expect(screen.getByText("Disk space available")).toBeInTheDocument();
   });
 
   it("handles other negative values as not supported", () => {
@@ -409,6 +409,6 @@ describe("Disk space field visibility", () => {
 
     render(<Vitals vitalsData={mockHost} />);
 
-    expect(screen.queryByText("Disk space")).not.toBeInTheDocument();
+    expect(screen.queryByText("Disk space available")).not.toBeInTheDocument();
   });
 });

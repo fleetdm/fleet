@@ -8,7 +8,6 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
-	"os"
 	"strings"
 	"time"
 
@@ -19,6 +18,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
+	"github.com/fleetdm/fleet/v4/server/dev_mode"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm/android"
 	"github.com/fleetdm/fleet/v4/server/mdm/android/service/androidmgmt"
@@ -110,10 +110,11 @@ func NewServiceWithClient(
 
 func newAMAPIClient(ctx context.Context, logger kitlog.Logger, licenseKey string) androidmgmt.Client {
 	var client androidmgmt.Client
-	if os.Getenv("FLEET_DEV_ANDROID_GOOGLE_CLIENT") == "1" || strings.ToUpper(os.Getenv("FLEET_DEV_ANDROID_GOOGLE_CLIENT")) == "ON" {
-		client = androidmgmt.NewGoogleClient(ctx, logger, os.Getenv)
+	getEnv := dev_mode.Env
+	if getEnv("FLEET_DEV_ANDROID_GOOGLE_CLIENT") == "1" || strings.ToUpper(getEnv("FLEET_DEV_ANDROID_GOOGLE_CLIENT")) == "ON" {
+		client = androidmgmt.NewGoogleClient(ctx, logger, getEnv)
 	} else {
-		client = androidmgmt.NewProxyClient(ctx, logger, licenseKey, os.Getenv)
+		client = androidmgmt.NewProxyClient(ctx, logger, licenseKey, getEnv)
 	}
 	return client
 }
@@ -477,6 +478,7 @@ func (svc *Service) DeleteEnterprise(ctx context.Context) error {
 
 type enrollmentTokenRequest struct {
 	EnrollSecret string `query:"enroll_secret"`
+	FullyManaged bool   `query:"fully_managed"`
 	IdpUUID      string // The UUID of the mdm_idp_account that was used if any, can be empty, will be taken from cookies
 }
 
@@ -490,11 +492,18 @@ func (enrollmentTokenRequest) DecodeRequest(ctx context.Context, r *http.Request
 
 	byodIdpCookie, err := r.Cookie(mdm.BYODIdpCookieName)
 
+	fullyManaged := false
+	fullyManagedParam := r.URL.Query().Get("fully_managed")
+	if fullyManagedParam == "true" || fullyManagedParam == "1" {
+		fullyManaged = true
+	}
+
 	if err == http.ErrNoCookie {
 		// We do not fail here if no cookie is found, we validate later down the line if it's required
 		return &enrollmentTokenRequest{
 			EnrollSecret: enrollSecret,
 			IdpUUID:      "",
+			FullyManaged: fullyManaged,
 		}, nil
 	}
 
@@ -515,24 +524,24 @@ func (enrollmentTokenRequest) DecodeRequest(ctx context.Context, r *http.Request
 	return &enrollmentTokenRequest{
 		EnrollSecret: enrollSecret,
 		IdpUUID:      byodIdpCookie.Value,
+		FullyManaged: fullyManaged,
 	}, nil
 }
 
 func enrollmentTokenEndpoint(ctx context.Context, request interface{}, svc android.Service) fleet.Errorer {
 	req := request.(*enrollmentTokenRequest)
-	token, err := svc.CreateEnrollmentToken(ctx, req.EnrollSecret, req.IdpUUID)
+	token, err := svc.CreateEnrollmentToken(ctx, req.EnrollSecret, req.IdpUUID, req.FullyManaged)
 	if err != nil {
 		return android.DefaultResponse{Err: err}
 	}
 	return android.EnrollmentTokenResponse{EnrollmentToken: token}
 }
 
-func (svc *Service) CreateEnrollmentToken(ctx context.Context, enrollSecret, idpUUID string) (*android.EnrollmentToken, error) {
+func (svc *Service) CreateEnrollmentToken(ctx context.Context, enrollSecret, idpUUID string, fullyManaged bool) (*android.EnrollmentToken, error) {
 	// Authorization is done by VerifyEnrollSecret below.
 	// We call SkipAuthorization here to avoid explicitly calling it when errors occur.
 	svc.authz.SkipAuthorization(ctx)
-
-	_, err := svc.checkIfAndroidNotConfigured(ctx)
+	_, err := svc.checkIfAndroidNotConfigured(ctx, http.StatusConflict)
 	if err != nil {
 		return nil, err
 	}
@@ -587,11 +596,16 @@ func (svc *Service) CreateEnrollmentToken(ctx context.Context, enrollSecret, idp
 		return nil, ctxerr.Wrap(ctx, err, "marshalling enrollment token request")
 	}
 
+	personalUsageSetting := "PERSONAL_USAGE_ALLOWED"
+	if fullyManaged {
+		personalUsageSetting = "PERSONAL_USAGE_DISALLOWED"
+	}
+
 	token := &androidmanagement.EnrollmentToken{
 		// Default duration is 1 hour
 
 		AdditionalData:     string(enrollmentTokenRequest),
-		AllowPersonalUsage: "PERSONAL_USAGE_ALLOWED",
+		AllowPersonalUsage: personalUsageSetting,
 		PolicyName:         fmt.Sprintf("%s/policies/%d", enterprise.Name(), android.DefaultAndroidPolicyID),
 		OneTimeOnly:        true,
 	}
@@ -601,12 +615,13 @@ func (svc *Service) CreateEnrollmentToken(ctx context.Context, enrollSecret, idp
 	}
 
 	return &android.EnrollmentToken{
-		EnrollmentToken: token.Value,
-		EnrollmentURL:   "https://enterprise.google.com/android/enroll?et=" + token.Value,
+		EnrollmentToken:  token.Value,
+		EnrollmentURL:    "https://enterprise.google.com/android/enroll?et=" + token.Value,
+		EnrollmentQRCode: token.QrCode,
 	}, nil
 }
 
-func (svc *Service) checkIfAndroidNotConfigured(ctx context.Context) (*fleet.AppConfig, error) {
+func (svc *Service) checkIfAndroidNotConfigured(ctx context.Context, statusOfError int) (*fleet.AppConfig, error) {
 	// This call uses cached_mysql implementation, so it's safe to call it multiple times
 	appConfig, err := svc.ds.AppConfig(ctx)
 	if err != nil {
@@ -614,7 +629,7 @@ func (svc *Service) checkIfAndroidNotConfigured(ctx context.Context) (*fleet.App
 	}
 	if !appConfig.MDM.AndroidEnabledAndConfigured {
 		return nil, fleet.NewInvalidArgumentError("android",
-			"Android MDM is NOT configured").WithStatus(http.StatusConflict)
+			"Android MDM is NOT configured").WithStatus(statusOfError)
 	}
 	return appConfig, nil
 }
@@ -1315,21 +1330,8 @@ func (svc *Service) BuildAndSendFleetAgentConfig(ctx context.Context, enterprise
 			continue
 		}
 
-		// Step 3: AMAPI succeeded - generate challenges for each newly delivering template
-		// Note: Android app may try to fetch the certificate, but status is still delivering and no challenge is generated yet.
-		// The app will retry until status turns to delivered.
-		challenges := make(map[uint]string)
-		for _, templateID := range certTemplates.DeliveringTemplateIDs {
-			challenge, err := svc.fleetDS.NewChallenge(ctx)
-			if err != nil {
-				level.Error(svc.logger).Log("msg", "failed to generate challenge", "host_uuid", hostUUID, "template_id", templateID, "err", err)
-				return ctxerr.Wrapf(ctx, err, "generate challenge for %s", hostUUID)
-			}
-			challenges[templateID] = challenge
-		}
-
-		// Step 4: Transition delivering → delivered with challenges
-		if err := svc.fleetDS.TransitionCertificateTemplatesToDelivered(ctx, hostUUID, challenges); err != nil {
+		// Step 3: Transition delivering → delivered
+		if err := svc.fleetDS.TransitionCertificateTemplatesToDelivered(ctx, hostUUID, certTemplates.DeliveringTemplateIDs); err != nil {
 			level.Error(svc.logger).Log("msg", "failed to transition to delivered", "host_uuid", hostUUID, "err", err)
 			return ctxerr.Wrap(ctx, err, "transition certificate templates to delivered")
 		}

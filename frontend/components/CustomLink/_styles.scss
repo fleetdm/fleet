@@ -40,7 +40,8 @@
     color: inherit; // Overrides fleet blue link color with parent color
   }
 
-  &--tooltip-link {
+  &--tooltip-link,
+  &--flash-message-link {
     font-size: inherit; // Overrides link default font size with parent tooltip font size
     @include animated-bottom-border($core-fleet-white, $ui-off-white);
 
@@ -58,6 +59,14 @@
 
       .external-link-icon__arrow {
         stroke: $tooltip-bg;
+      }
+    }
+  }
+
+  &--flash-message-link {
+    &:hover {
+      .external-link-icon__arrow {
+        stroke: $core-vibrant-red;
       }
     }
   }

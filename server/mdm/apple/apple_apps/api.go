@@ -8,7 +8,6 @@ import (
 	"io"
 	"net/http"
 	"net/url"
-	"os"
 	"strconv"
 	"strings"
 	"time"
@@ -16,6 +15,7 @@ import (
 	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
 	"github.com/fleetdm/fleet/v4/pkg/retry"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
+	"github.com/fleetdm/fleet/v4/server/dev_mode"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 )
 
@@ -64,9 +64,23 @@ type metadataResp struct {
 	Data []Metadata `json:"data"`
 }
 
-// Authenticator returns a bearer token for the VPP metadata service (proxied or direct), or an error if once can't be
+const appleHostAndScheme = "https://api.ent.apple.com"
+
+// authenticator returns a bearer token for the VPP metadata service (proxied or direct), or an error if once can't be
 // retrieved. If forceRenew is true, bypasses the database bearer token cache if it would've otherwise been used.
-type Authenticator func(forceRenew bool) (string, error)
+type authenticator func(forceRenew bool) (string, error)
+
+type Config struct {
+	baseURL       string
+	authenticator authenticator
+}
+
+func StubbedConfig() Config {
+	return Config{
+		baseURL:       getBaseURL(false),
+		authenticator: func(forceRenew bool) (string, error) { return "", nil },
+	}
+}
 
 // client is a package-level client (similar to http.DefaultClient) so it can
 // be reused instead of created as needed, as the internal Transport typically
@@ -74,27 +88,17 @@ type Authenticator func(forceRenew bool) (string, error)
 // use.
 var client = fleethttp.NewClient(fleethttp.WithTimeout(10 * time.Second))
 
-func GetMetadata(adamIDs []string, vppToken string, getBearerToken Authenticator) (map[string]Metadata, error) {
-	baseURL := getBaseURL()
-	reqURL, err := url.Parse(baseURL)
+func GetMetadata(adamIDs []string, vppToken string, config Config) (map[string]Metadata, error) {
+	req, err := buildMetadataRequest(config.baseURL, adamIDs, vppToken)
 	if err != nil {
-		return nil, fmt.Errorf("parsing base VPP app details URL: %w", err)
-	}
-
-	query := reqURL.Query()
-	query.Add("ids", strings.Join(adamIDs, ","))
-	reqURL.RawQuery = query.Encode()
-
-	req, err := http.NewRequest(http.MethodGet, reqURL.String(), nil)
-	if err != nil {
-		return nil, fmt.Errorf("creating request to VPP app details endpoint: %w", err)
+		return nil, err
 	}
 
 	// small max attempts count because in many cases we're calling this from a UI that does
 	// client-side retries on top of this
 	var bodyResp metadataResp
 	if err = retry.Do(
-		func() error { return do(req, vppToken, getBearerToken, false, &bodyResp) },
+		func() error { return do(req, config.authenticator, false, &bodyResp) },
 		retry.WithInterval(time.Second),
 		retry.WithBackoffMultiplier(2),
 		retry.WithMaxAttempts(3),
@@ -119,14 +123,36 @@ func GetMetadata(adamIDs []string, vppToken string, getBearerToken Authenticator
 	return metadata, nil
 }
 
-func do(req *http.Request, vppToken string, getBearerToken Authenticator, forceRenew bool, dest *metadataResp) error {
+func buildMetadataRequest(baseURL string, adamIDs []string, vppToken string) (*http.Request, error) {
+	reqURL, err := url.Parse(baseURL)
+	if err != nil {
+		return nil, fmt.Errorf("parsing base VPP app details URL: %w", err)
+	}
+
+	query := reqURL.Query()
+	query.Add("ids", strings.Join(adamIDs, ","))
+	reqURL.RawQuery = query.Encode()
+
+	req, err := http.NewRequest(http.MethodGet, reqURL.String(), nil)
+	if err != nil {
+		return nil, fmt.Errorf("creating request to VPP app details endpoint: %w", err)
+	}
+	if strings.HasPrefix(baseURL, appleHostAndScheme) { // Apple requires providing the token as a cookie
+		req.Header.Set("Cookie", fmt.Sprintf("itvt=%s", vppToken))
+	} else { // Fleet proxy requires providing the token as a header
+		req.Header.Set("vpp-token", vppToken)
+	}
+
+	return req, nil
+}
+
+func do(req *http.Request, getBearerToken authenticator, forceRenew bool, dest *metadataResp) error {
 	bearerToken, err := getBearerToken(forceRenew)
 	if err != nil {
 		return fmt.Errorf("authenticating to VPP app details endpoint: %w", err)
 	}
 
 	req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", bearerToken))
-	req.Header.Set("Cookie", fmt.Sprintf("itvt=%s", vppToken))
 
 	resp, err := client.Do(req)
 	if err != nil {
@@ -146,7 +172,7 @@ func do(req *http.Request, vppToken string, getBearerToken Authenticator, forceR
 		}
 
 		if resp.StatusCode == http.StatusUnauthorized && !forceRenew {
-			return do(req, vppToken, getBearerToken, true, dest)
+			return do(req, getBearerToken, true, dest)
 		} else if resp.StatusCode >= http.StatusTooManyRequests && resp.Header.Get("Retry-After") != "" {
 			retryAfter := resp.Header.Get("Retry-After")
 			seconds, err := strconv.ParseInt(retryAfter, 10, 0)
@@ -157,7 +183,7 @@ func do(req *http.Request, vppToken string, getBearerToken Authenticator, forceR
 			ticker := time.NewTicker(time.Duration(seconds) * time.Second)
 			defer ticker.Stop()
 			<-ticker.C
-			return do(req, vppToken, getBearerToken, false, dest)
+			return do(req, getBearerToken, false, dest)
 		}
 
 		return fmt.Errorf("calling VPP app details endpoint failed with status %d: %s", resp.StatusCode, string(limitedBody))
@@ -227,17 +253,21 @@ func ToVPPApps(app Metadata) map[fleet.InstallableDevicePlatform]fleet.VPPApp {
 	return platforms
 }
 
-func getBaseURL() string {
+func getBaseURL(bearerTokenSupplied bool) string {
 	region := "us"
-	if os.Getenv("FLEET_DEV_VPP_REGION") != "" {
-		region = os.Getenv("FLEET_DEV_VPP_REGION")
+	if dev_mode.Env("FLEET_DEV_VPP_REGION") != "" {
+		region = dev_mode.Env("FLEET_DEV_VPP_REGION")
 	}
-	if os.Getenv("FLEET_DEV_STOKEN_AUTHENTICATED_APPS_URL") == "apple" {
-		return fmt.Sprintf("https://api.ent.apple.com/v1/catalog/%s/stoken-authenticated-apps?platform=iphone&additionalPlatforms=ipad,mac&extend[apps]=latestVersionInfo", region)
+
+	urlFromEnvVar := dev_mode.Env("FLEET_DEV_STOKEN_AUTHENTICATED_APPS_URL")
+	if urlFromEnvVar != "" && urlFromEnvVar != "apple" {
+		return dev_mode.Env("FLEET_DEV_STOKEN_AUTHENTICATED_APPS_URL")
 	}
-	if os.Getenv("FLEET_DEV_STOKEN_AUTHENTICATED_APPS_URL") != "" {
-		return os.Getenv("FLEET_DEV_STOKEN_AUTHENTICATED_APPS_URL")
+	// if a bearer token is supplied and we don't have an explicit further override, use Apple's endpoint directly
+	if urlFromEnvVar == "apple" || bearerTokenSupplied {
+		return fmt.Sprintf(appleHostAndScheme+"/v1/catalog/%s/stoken-authenticated-apps?platform=iphone&additionalPlatforms=ipad,mac&extend[apps]=latestVersionInfo", region)
 	}
+
 	return fmt.Sprintf("https://fleetdm.com/api/vpp/v1/metadata/%s?platform=iphone&additionalPlatforms=ipad,mac&extend[apps]=latestVersionInfo", region)
 }
 
@@ -250,12 +280,21 @@ type DataStore interface {
 	fleet.AccessesMDMConfigAssets
 }
 
-func GetAuthenticator(ctx context.Context, ds DataStore, licenseKey string) Authenticator {
-	token := os.Getenv("FLEET_DEV_VPP_METADATA_BEARER_TOKEN")
+func Configure(ctx context.Context, ds DataStore, licenseKey string, token string) Config {
 	if token != "" {
-		return func(bool) (string, error) { return token, nil }
+		return Config{
+			authenticator: func(forceRenew bool) (string, error) { return token, nil },
+			baseURL:       getBaseURL(true),
+		}
 	}
 
+	return Config{
+		authenticator: getAuthenticator(ctx, ds, licenseKey),
+		baseURL:       getBaseURL(false),
+	}
+}
+
+func getAuthenticator(ctx context.Context, ds DataStore, licenseKey string) authenticator {
 	return func(forceRenew bool) (string, error) {
 		const key = fleet.MDMAssetVPPProxyBearerToken
 		if !forceRenew {
@@ -266,7 +305,7 @@ func GetAuthenticator(ctx context.Context, ds DataStore, licenseKey string) Auth
 			}
 		}
 
-		authUrl := os.Getenv("FLEET_DEV_VPP_PROXY_AUTH_URL")
+		authUrl := dev_mode.Env("FLEET_DEV_VPP_PROXY_AUTH_URL")
 		if authUrl == "" {
 			authUrl = "https://fleetdm.com/api/vpp/v1/auth"
 		}
@@ -277,8 +316,9 @@ func GetAuthenticator(ctx context.Context, ds DataStore, licenseKey string) Auth
 		}
 
 		body, err := json.Marshal(struct {
-			ServerURL string `json:"fleetServerUrl"`
-		}{appConfig.ServerSettings.ServerURL})
+			ServerURL  string `json:"fleetServerUrl"`
+			LicenseKey string `json:"fleetLicenseKey"`
+		}{appConfig.ServerSettings.ServerURL, licenseKey})
 		if err != nil {
 			return "", ctxerr.Wrap(ctx, err, "encoding authentication request for VPP metadata service")
 		}
@@ -289,7 +329,7 @@ func GetAuthenticator(ctx context.Context, ds DataStore, licenseKey string) Auth
 		}
 
 		var authResponse authResp
-		if err = doAuth(req, licenseKey, &authResponse); err != nil {
+		if err = doAuth(req, &authResponse); err != nil {
 			return "", ctxerr.Wrap(ctx, err, "authenticating to VPP metadata service")
 		}
 
@@ -307,9 +347,7 @@ func GetAuthenticator(ctx context.Context, ds DataStore, licenseKey string) Auth
 	}
 }
 
-func doAuth(req *http.Request, licenseKey string, dest *authResp) error {
-	req.Header.Add("Authorization", fmt.Sprintf("Bearer %s", licenseKey))
-
+func doAuth(req *http.Request, dest *authResp) error {
 	resp, err := client.Do(req)
 	if err != nil {
 		return fmt.Errorf("authenticating to VPP metadata service: %w", err)

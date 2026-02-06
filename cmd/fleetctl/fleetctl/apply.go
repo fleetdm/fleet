@@ -20,7 +20,7 @@ func applyCommand() *cli.Command {
 	)
 	return &cli.Command{
 		Name:      "apply",
-		Usage:     "Apply files to declaratively manage osquery configurations",
+		Usage:     "Use for one-off imports and backwards compatibility GitOps",
 		UsageText: `fleetctl apply [options]`,
 		Flags: []cli.Flag{
 			&cli.StringFlag{

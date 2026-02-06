@@ -263,6 +263,15 @@ func appExists(ctx context.Context, logger kitlog.Logger, appName, uniqueAppIden
 				}
 			}
 
+			// WhatsApp: Homebrew sometimes reports a newer version than what's actually available.
+			// If version doesn't match but app is installed, fall back to existence-only validation.
+			if uniqueAppIdentifier == "net.whatsapp.WhatsApp" {
+				if !checkVersionMatch(appVersion, result.Version, result.BundledVersion) {
+					level.Info(logger).Log("msg", "WhatsApp detected - version mismatch but app is installed, falling back to existence-only validation")
+					return true, nil
+				}
+			}
+
 			// Check various version matching strategies
 			if checkVersionMatch(appVersion, result.Version, result.BundledVersion) {
 				return true, nil

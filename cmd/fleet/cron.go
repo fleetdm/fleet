@@ -14,10 +14,13 @@ import (
 	eeservice "github.com/fleetdm/fleet/v4/ee/server/service"
 	eewebhooks "github.com/fleetdm/fleet/v4/ee/server/webhooks"
 	"github.com/fleetdm/fleet/v4/server"
+	activity_api "github.com/fleetdm/fleet/v4/server/activity/api"
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/contexts/license"
+	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
+	"github.com/fleetdm/fleet/v4/server/dev_mode"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm"
 	"github.com/fleetdm/fleet/v4/server/mdm/android"
@@ -1130,6 +1133,43 @@ func newFrequentCleanupsSchedule(
 	return s, nil
 }
 
+func newQueryResultsCleanupSchedule(
+	ctx context.Context,
+	instanceID string,
+	ds fleet.Datastore,
+	liveQueryStore fleet.LiveQueryStore,
+	logger kitlog.Logger,
+) (*schedule.Schedule, error) {
+	const (
+		name            = string(fleet.CronQueryResultsCleanup)
+		defaultInterval = 1 * time.Minute
+	)
+	s := schedule.New(
+		ctx, name, instanceID, defaultInterval, ds, ds,
+		schedule.WithLogger(kitlog.With(logger, "cron", name)),
+		schedule.WithJob("cleanup_excess_query_results", func(ctx context.Context) error {
+			appConfig, err := ds.AppConfig(ctx)
+			if err != nil {
+				return err
+			}
+			maxRows := appConfig.ServerSettings.GetQueryReportCap()
+			queryCounts, err := ds.CleanupExcessQueryResultRows(ctx, maxRows)
+			if err != nil {
+				return err
+			}
+			// Sync Redis counters to actual database row counts
+			for queryID, count := range queryCounts {
+				if err := liveQueryStore.SetQueryResultsCount(queryID, count); err != nil {
+					level.Warn(logger).Log("msg", "failed to set query results count in redis", "query_id", queryID, "err", err)
+				}
+			}
+			return nil
+		}),
+	)
+
+	return s, nil
+}
+
 func verifyDiskEncryptionKeys(
 	ctx context.Context,
 	logger kitlog.Logger,
@@ -1413,7 +1453,7 @@ func newMDMAPNsPusher(
 	const name = string(fleet.CronAppleMDMAPNsPusher)
 
 	interval := 1 * time.Minute
-	if intervalEnv := os.Getenv("FLEET_DEV_CUSTOM_APNS_PUSHER_INTERVAL"); intervalEnv != "" {
+	if intervalEnv := dev_mode.Env("FLEET_DEV_CUSTOM_APNS_PUSHER_INTERVAL"); intervalEnv != "" {
 		var err error
 		interval, err = time.ParseDuration(intervalEnv)
 		if err != nil {
@@ -1452,6 +1492,7 @@ func cleanupCronStatsOnShutdown(ctx context.Context, ds fleet.Datastore, logger 
 func newActivitiesStreamingSchedule(
 	ctx context.Context,
 	instanceID string,
+	activitySvc activity_api.ListActivitiesService,
 	ds fleet.Datastore,
 	logger kitlog.Logger,
 	auditLogger fleet.JSONLogger,
@@ -1467,7 +1508,7 @@ func newActivitiesStreamingSchedule(
 		schedule.WithJob(
 			"cron_activities_streaming",
 			func(ctx context.Context) error {
-				return cronActivitiesStreaming(ctx, ds, logger, auditLogger)
+				return cronActivitiesStreaming(ctx, activitySvc, ds, logger, auditLogger)
 			},
 		),
 	)
@@ -1478,21 +1519,23 @@ var ActivitiesToStreamBatchCount uint = 500
 
 func cronActivitiesStreaming(
 	ctx context.Context,
+	activitySvc activity_api.ListActivitiesService,
 	ds fleet.Datastore,
 	logger kitlog.Logger,
 	auditLogger fleet.JSONLogger,
 ) error {
+	// Use system context for authorization since cron jobs don't have a user context
+	ctx = viewer.NewSystemContext(ctx)
+
 	page := uint(0)
 	for {
 		// (1) Get batch of activities that haven't been streamed.
-		activitiesToStream, _, err := ds.ListActivities(ctx, fleet.ListActivitiesOptions{
-			ListOptions: fleet.ListOptions{
-				OrderKey:       "id",
-				OrderDirection: fleet.OrderAscending,
-				PerPage:        ActivitiesToStreamBatchCount,
-				Page:           page,
-			},
-			Streamed: ptr.Bool(false),
+		activitiesToStream, _, err := activitySvc.ListActivities(ctx, activity_api.ListOptions{
+			OrderKey:       "id",
+			OrderDirection: activity_api.OrderAscending,
+			PerPage:        ActivitiesToStreamBatchCount,
+			Page:           page,
+			Streamed:       ptr.Bool(false),
 		})
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "list activities")
@@ -1757,7 +1800,7 @@ func newRefreshVPPAppVersionsSchedule(
 	instanceID string,
 	ds fleet.Datastore,
 	logger kitlog.Logger,
-	vppAuth apple_apps.Authenticator,
+	vppAppsConfig apple_apps.Config,
 ) (*schedule.Schedule, error) {
 	const (
 		name            = string(fleet.CronRefreshVPPAppVersions)
@@ -1769,7 +1812,7 @@ func newRefreshVPPAppVersionsSchedule(
 		ctx, name, instanceID, defaultInterval, ds, ds,
 		schedule.WithLogger(logger),
 		schedule.WithJob("refresh_vpp_app_version", func(ctx context.Context) error {
-			return vpp.RefreshVersions(ctx, ds, vppAuth)
+			return vpp.RefreshVersions(ctx, ds, vppAppsConfig)
 		}),
 	)
 
