@@ -248,6 +248,7 @@ func (s *enterpriseIntegrationGitopsTestSuite) TestFleetGitops() {
 	t.Setenv("FLEET_GLOBAL_ENROLL_SECRET", "global_enroll_secret")
 	t.Setenv("FLEET_WORKSTATIONS_ENROLL_SECRET", "workstations_enroll_secret")
 	t.Setenv("FLEET_WORKSTATIONS_CANARY_ENROLL_SECRET", "workstations_canary_enroll_secret")
+	t.Setenv("FLEET_DEDICATED_DEVICES_ENROLL_SECRET", "dedicated_devices_enroll_secret")
 	globalFile := path.Join(repoDir, "default.yml")
 	teamsDir := path.Join(repoDir, "teams")
 	teamFiles, err := os.ReadDir(teamsDir)
