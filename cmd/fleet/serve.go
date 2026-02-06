@@ -56,6 +56,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/live_query"
 	"github.com/fleetdm/fleet/v4/server/logging"
 	"github.com/fleetdm/fleet/v4/server/mail"
+	"github.com/fleetdm/fleet/v4/server/mdm/acme"
 	android_service "github.com/fleetdm/fleet/v4/server/mdm/android/service"
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/apple_apps"
@@ -1378,7 +1379,12 @@ the way that the Fleet server works.
 			rootMux.Handle("/version", service.PrometheusMetricsHandler("version", otelmw.WrapHandler(version.Handler(), "/version", config)))
 			rootMux.Handle("/assets/", service.PrometheusMetricsHandler("static_assets", otelmw.WrapHandlerDynamic(service.ServeStaticAssets("/assets/"), config)))
 
+			var acmeService acme.Service
 			if len(config.Server.PrivateKey) > 0 {
+				acmeService, err = acme.StartNewService(ctx, ds, kitlog.With(logger, "component", "acme_service"))
+				if err != nil {
+					initFatal(err, "setup ACME service")
+				}
 				commander := apple_mdm.NewMDMAppleCommander(mdmStorage, mdmPushService)
 				ddmService := service.NewMDMAppleDDMService(ds, logger)
 				vppInstaller := svc.(fleet.AppleMDMVPPInstaller)
@@ -1420,6 +1426,7 @@ the way that the Fleet server works.
 							"Your server already has stored a SCEP challenge. Fleet will ignore this value provided via environment variables when this happens.")
 					}
 				}
+
 				if err := service.RegisterAppleMDMProtocolServices(
 					rootMux,
 					config.MDM,
@@ -1429,6 +1436,7 @@ the way that the Fleet server works.
 					mdmCheckinAndCommandService,
 					ddmService,
 					commander,
+					acmeService,
 					appCfg.ServerSettings.ServerURL,
 					config,
 				); err != nil {
@@ -1698,6 +1706,9 @@ the way that the Fleet server works.
 						if err := meterProvider.Shutdown(ctx); err != nil {
 							level.Error(logger).Log("msg", "failed to shutdown OTEL meter provider", "err", err)
 						}
+					}
+					if err := acmeService.Stop(); err != nil {
+						level.Error(logger).Log("msg", "failed to stop ACME service", "err", err)
 					}
 					return srv.Shutdown(ctx)
 				}()

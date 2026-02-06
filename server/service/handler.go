@@ -18,8 +18,10 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/publicip"
 	"github.com/fleetdm/fleet/v4/server/datastore/redis"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/mdm/acme"
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
 	mdmcrypto "github.com/fleetdm/fleet/v4/server/mdm/crypto"
+	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/certverify"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/cryptoutil"
 	httpmdm "github.com/fleetdm/fleet/v4/server/mdm/nanomdm/http/mdm"
 	nanomdm_service "github.com/fleetdm/fleet/v4/server/mdm/nanomdm/service"
@@ -1179,13 +1181,14 @@ func RegisterAppleMDMProtocolServices(
 	checkinAndCommandService nanomdm_service.CheckinAndCommandService,
 	ddmService nanomdm_service.DeclarativeManagement,
 	profileService nanomdm_service.ProfileService,
+	acmeService acme.Service,
 	serverURLPrefix string,
 	fleetConfig config.FleetConfig,
 ) error {
 	if err := registerSCEP(mux, scepConfig, scepStorage, mdmStorage, logger, fleetConfig); err != nil {
 		return fmt.Errorf("scep: %w", err)
 	}
-	if err := registerMDM(mux, mdmStorage, checkinAndCommandService, ddmService, profileService, logger, fleetConfig); err != nil {
+	if err := registerMDM(mux, mdmStorage, checkinAndCommandService, ddmService, profileService, acmeService, logger, fleetConfig); err != nil {
 		return fmt.Errorf("mdm: %w", err)
 	}
 	if err := registerMDMServiceDiscovery(mux, logger, serverURLPrefix, fleetConfig); err != nil {
@@ -1312,10 +1315,12 @@ func registerMDM(
 	checkinAndCommandService nanomdm_service.CheckinAndCommandService,
 	ddmService nanomdm_service.DeclarativeManagement,
 	profileService nanomdm_service.ProfileService,
+	acmeService acme.Service,
 	logger kitlog.Logger,
 	fleetConfig config.FleetConfig,
 ) error {
-	certVerifier := mdmcrypto.NewSCEPVerifier(mdmStorage)
+	certVerifier := certverify.NewFallbackVerifier(mdmcrypto.NewSCEPVerifier(mdmStorage), acmeService)
+
 	mdmLogger := NewNanoMDMLogger(kitlog.With(logger, "component", "http-mdm-apple-mdm"))
 
 	// As usual, handlers are applied from bottom to top:
