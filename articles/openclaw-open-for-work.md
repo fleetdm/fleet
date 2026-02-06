@@ -42,7 +42,7 @@ The next article in this series will explore how threat hunting and device manag
 
 <meta name="articleTitle" value="OpenClaw: Open for work?">
 <meta name="authorFullName" value="Brock Walters">
-<meta name="authorGitHubUsername" value="nonpounctual">
+<meta name="authorGitHubUsername" value="nonpunctual">
 <meta name="category" value="articles">
 <meta name="publishedOn" value="2026-02-04">
 <meta name="description" value="An overview of OpenClaw, how it works, and the security risks of running autonomous AI agents on user devices.">
