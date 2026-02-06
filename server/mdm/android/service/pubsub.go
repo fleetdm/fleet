@@ -549,6 +549,9 @@ func (svc *Service) addNewHost(ctx context.Context, device *androidmanagement.De
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "associating host with idp account")
 		}
+		if err := svc.fleetDS.MaybeAssociateHostWithScimUser(ctx, fleetHost.Host.ID); err != nil {
+			return ctxerr.Wrap(ctx, err, "associating android host with scim user")
+		}
 	}
 
 	// Create pending certificate templates for this newly enrolled host.
