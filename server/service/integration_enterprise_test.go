@@ -5870,6 +5870,179 @@ func (s *integrationEnterpriseTestSuite) TestTeamPolicyCreateReadPatch() {
 	require.Equal(s.T(), listPol.Policies[1], getPol2.Policy)
 }
 
+func (s *integrationEnterpriseTestSuite) TestPolicySpecConditionalAccessBypassEnabled() {
+	t := s.T()
+
+	type reapply struct {
+		bypass   *bool
+		expected bool
+	}
+
+	cases := []struct {
+		name           string
+		team           string // empty = global policy
+		createBypass   *bool
+		expectedCreate bool
+		reapply        *reapply
+	}{
+		{
+			name:           "team default nil",
+			team:           "team",
+			createBypass:   nil,
+			expectedCreate: true,
+		},
+		{
+			name:           "team explicit false",
+			team:           "team",
+			createBypass:   ptr.Bool(false),
+			expectedCreate: false,
+		},
+		{
+			name:           "team explicit true",
+			team:           "team",
+			createBypass:   ptr.Bool(true),
+			expectedCreate: true,
+		},
+		{
+			name:           "reapply false to true",
+			team:           "team",
+			createBypass:   ptr.Bool(false),
+			expectedCreate: false,
+			reapply:        &reapply{bypass: ptr.Bool(true), expected: true},
+		},
+		{
+			name:           "reapply true to false",
+			team:           "team",
+			createBypass:   nil,
+			expectedCreate: true,
+			reapply:        &reapply{bypass: ptr.Bool(false), expected: false},
+		},
+		{
+			name:           "global default",
+			team:           "",
+			createBypass:   nil,
+			expectedCreate: true,
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			teamName := tc.team
+			if teamName != "" {
+				teamName = t.Name() // use unique team name per subtest
+				_, err := s.ds.NewTeam(t.Context(), &fleet.Team{
+					Name: teamName,
+				})
+				require.NoError(t, err)
+			}
+
+			policyName := t.Name() + " policy"
+			spec := &fleet.PolicySpec{
+				Name:                          policyName,
+				Query:                         "SELECT 1",
+				Team:                          teamName,
+				ConditionalAccessBypassEnabled: tc.createBypass,
+			}
+
+			applyResp := applyPolicySpecsResponse{}
+			s.DoJSON("POST", "/api/latest/fleet/spec/policies",
+				applyPolicySpecsRequest{Specs: []*fleet.PolicySpec{spec}},
+				http.StatusOK, &applyResp,
+			)
+
+			// Read back and find the policy by name.
+			var bypassValue bool
+			if teamName != "" {
+				listResp := listTeamPoliciesResponse{}
+				// Look up the team to get its ID.
+				teams, err := s.ds.TeamsSummary(t.Context())
+				require.NoError(t, err)
+				var teamID uint
+				for _, tm := range teams {
+					if tm.Name == teamName {
+						teamID = tm.ID
+						break
+					}
+				}
+				require.NotZero(t, teamID, "team %s not found", teamName)
+
+				s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/teams/%d/policies", teamID),
+					nil, http.StatusOK, &listResp,
+				)
+				var found *fleet.Policy
+				for _, p := range listResp.Policies {
+					if p.Name == policyName {
+						found = p
+						break
+					}
+				}
+				require.NotNil(t, found, "policy %s not found", policyName)
+				bypassValue = found.ConditionalAccessBypassEnabled
+			} else {
+				listResp := listGlobalPoliciesResponse{}
+				s.DoJSON("GET", "/api/latest/fleet/policies", nil, http.StatusOK, &listResp)
+				var found *fleet.Policy
+				for _, p := range listResp.Policies {
+					if p.Name == policyName {
+						found = p
+						break
+					}
+				}
+				require.NotNil(t, found, "policy %s not found", policyName)
+				bypassValue = found.ConditionalAccessBypassEnabled
+			}
+			require.Equal(t, tc.expectedCreate, bypassValue, "after initial apply")
+
+			// Reapply with updated bypass value if specified.
+			if tc.reapply != nil {
+				spec.ConditionalAccessBypassEnabled = tc.reapply.bypass
+				reapplyResp := applyPolicySpecsResponse{}
+				s.DoJSON("POST", "/api/latest/fleet/spec/policies",
+					applyPolicySpecsRequest{Specs: []*fleet.PolicySpec{spec}},
+					http.StatusOK, &reapplyResp,
+				)
+
+				if teamName != "" {
+					listResp := listTeamPoliciesResponse{}
+					teams, err := s.ds.TeamsSummary(t.Context())
+					require.NoError(t, err)
+					var teamID uint
+					for _, tm := range teams {
+						if tm.Name == teamName {
+							teamID = tm.ID
+							break
+						}
+					}
+					s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/teams/%d/policies", teamID),
+						nil, http.StatusOK, &listResp,
+					)
+					var found *fleet.Policy
+					for _, p := range listResp.Policies {
+						if p.Name == policyName {
+							found = p
+							break
+						}
+					}
+					require.NotNil(t, found, "policy %s not found after reapply", policyName)
+					require.Equal(t, tc.reapply.expected, found.ConditionalAccessBypassEnabled, "after reapply")
+				} else {
+					listResp := listGlobalPoliciesResponse{}
+					s.DoJSON("GET", "/api/latest/fleet/policies", nil, http.StatusOK, &listResp)
+					var found *fleet.Policy
+					for _, p := range listResp.Policies {
+						if p.Name == policyName {
+							found = p
+							break
+						}
+					}
+					require.NotNil(t, found, "policy %s not found after reapply", policyName)
+					require.Equal(t, tc.reapply.expected, found.ConditionalAccessBypassEnabled, "after reapply")
+				}
+			}
+		})
+	}
+}
+
 func (s *integrationEnterpriseTestSuite) TestResetAutomation() {
 	ctx := context.Background()
 
