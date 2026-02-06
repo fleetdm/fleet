@@ -24,14 +24,14 @@ func TestUp_20260203170911(t *testing.T) {
 	// New policies should default to true when no value defined
 	_, err = db.Exec(`
 		INSERT INTO policies (name, description, query, checksum) VALUES
-			('test3', 'desc', 'SELECT 1', 'c3'),
+			('test3', 'desc', 'SELECT 1', 'c3')
 	`)
 	require.NoError(t, err)
 
 	// Only new policies with explicit false should be set to false
 	_, err = db.Exec(`
 		INSERT INTO policies (name, description, query, conditional_access_bypass_enabled, checksum) VALUES
-			('test4', 'desc', SELECT 1', false, 'c4'),
+			('test4', 'desc', SELECT 1', false, 'c4')
 	`)
 	require.NoError(t, err)
 
