@@ -9782,14 +9782,11 @@ func testGetDEPAssignProfileExpiredCooldowns(t *testing.T, ds *Datastore) {
 	require.LessOrEqual(t, len(allSerials), 1000, "never go above 1000 devices as per Apple's recommendations")
 }
 
-// TODO(JK): um
 func testMDMAppleHostsDiskEncryption(t *testing.T, ds *Datastore) {
 	ctx := t.Context()
 
 	team, err := ds.NewTeam(ctx, &fleet.Team{Name: "test team"})
 	require.NoError(t, err)
-
-	// make a function that checks summary and list hosts
 
 	hostCountEncryptionStatus := func(status fleet.DiskEncryptionStatus, teamID *uint) int {
 		gotHosts, err := ds.ListHosts(ctx,
@@ -9801,6 +9798,8 @@ func testMDMAppleHostsDiskEncryption(t *testing.T, ds *Datastore) {
 	}
 
 	hostUnenrolled := test.NewHost(t, ds, "host-unenrolled", "", "key-1", "uuid-1", time.Now())
+	hostEnrolled := test.NewHost(t, ds, "host-enrolled", "", "key-2", "uuid-2", time.Now())
+	nanoEnrollUserDeviceAndSetHostMDMData(t, ds, hostEnrolled)
 
 	FVProfile, err := ds.NewMDMAppleConfigProfile(ctx, *generateAppleCP(fleetmdm.FleetFileVaultProfileName, mobileconfig.FleetFileVaultPayloadIdentifier, team.ID), nil)
 
@@ -9818,10 +9817,35 @@ func testMDMAppleHostsDiskEncryption(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.NotNil(t, fvProfileSummary)
 	require.Equal(t, uint(0), fvProfileSummary.Verifying)
-	require.Equal(t, uint(0), fvProfileSummary.Verified)
-	require.Equal(t, uint(0), fvProfileSummary.ActionRequired)
-	require.Equal(t, uint(0), fvProfileSummary.Enforcing)
-	require.Equal(t, uint(0), fvProfileSummary.Failed)
-	require.Equal(t, uint(0), fvProfileSummary.RemovingEnforcement)
 	require.Equal(t, 0, hostCountEncryptionStatus(fleet.DiskEncryptionVerifying, nil))
+
+	upsertHostCPs(
+		[]*fleet.Host{hostEnrolled},
+		[]*fleet.MDMAppleConfigProfile{FVProfile},
+		fleet.MDMOperationTypeInstall,
+		&fleet.MDMDeliveryVerifying,
+		ctx, ds, t,
+	)
+	oneMinuteAfterThreshold = time.Now().Add(+1 * time.Minute)
+	createDiskEncryptionRecord(ctx, ds, t, hostEnrolled, "key-2", true, oneMinuteAfterThreshold)
+
+	fvProfileSummary, err = ds.GetMDMAppleFileVaultSummary(ctx, nil)
+	require.NoError(t, err)
+	require.NotNil(t, fvProfileSummary)
+	require.Equal(t, uint(1), fvProfileSummary.Verifying)
+	require.Equal(t, 1, hostCountEncryptionStatus(fleet.DiskEncryptionVerifying, nil))
+
+	upsertHostCPs(
+		[]*fleet.Host{hostEnrolled},
+		[]*fleet.MDMAppleConfigProfile{FVProfile},
+		fleet.MDMOperationTypeInstall,
+		&fleet.MDMDeliveryPending,
+		ctx, ds, t,
+	)
+
+	fvProfileSummary, err = ds.GetMDMAppleFileVaultSummary(ctx, nil)
+	require.NoError(t, err)
+	require.NotNil(t, fvProfileSummary)
+	require.Equal(t, uint(1), fvProfileSummary.Enforcing)
+	require.Equal(t, 1, hostCountEncryptionStatus(fleet.DiskEncryptionEnforcing, nil))
 }
