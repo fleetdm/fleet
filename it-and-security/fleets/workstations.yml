@@ -1,5 +1,5 @@
 name: $DOGFOOD_APPLE_BM_DEFAULT_FLEET # f.k.a. $DOGFOOD_APPLE_BM_DEFAULT_TEAM
-fleet_settings:
+settings:
   webhook_settings:
     failing_policies_webhook:
       destination_url: $DOGFOOD_FAILING_POLICIES_WEBHOOK_URL
