@@ -151,4 +151,4 @@ If you can't access the web interface:
 <meta name="authorGitHubUsername" value="kitzy">
 <meta name="category" value="guides">
 <meta name="publishedOn" value="2026-02-06">
-<meta name="description" value="Migrate your Fleet server to a new deployment with this step-by-step guide. Includes database migration, DNS configuration, and host reconnection tips.">
+<meta name="description" value="Migrate your Fleet server to a new deployment with this step-by-step guide.">
