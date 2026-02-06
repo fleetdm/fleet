@@ -219,7 +219,7 @@ func TestPubSubEnrollment(t *testing.T) {
 			}
 
 			expectedHostID := uint(42)
-			mockDS.NewAndroidHostFunc = func(ctx context.Context, host *fleet.AndroidHost) (*fleet.AndroidHost, error) {
+			mockDS.NewAndroidHostFunc = func(ctx context.Context, host *fleet.AndroidHost, companyOwned bool) (*fleet.AndroidHost, error) {
 				return &fleet.AndroidHost{Host: &fleet.Host{ID: expectedHostID}}, nil
 			}
 
