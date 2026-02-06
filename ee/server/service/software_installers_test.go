@@ -740,5 +740,6 @@ func TestInstallShScriptOnWindowsFails(t *testing.T) {
 
 	var bre *fleet.BadRequestError
 	require.ErrorAs(t, err, &bre, "error should be BadRequestError")
+	require.NotNil(t, bre)
 	require.Contains(t, bre.Message, "can be installed only on linux hosts")
 }
