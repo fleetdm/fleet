@@ -36,8 +36,61 @@ This list (for now) will be in roughly chronological order as assets are created
 | [Redefining endpoint management at scale: Fleet’s momentum in the 2026 Gartner reports](https://fleetdm.com/announcements/redefining-endpoint-management-at-scale) | 2026-01-23 | Fleet Gartner Magic Quadrant recognition |
 | [Why enterprise Linux is important in 2026](https://fleetdm.com/articles/why-enterprise-linux-is-important-in-2026) | 2026-01-21 | Part of a series of articles on enterprise Linux desktop management |
 | [Deploy CrowdStrike with Fleet](https://fleetdm.com/guides/deploying-crowdstrike-with-fleet#basic-article) | 2025-11-05 | This guide covers how to deploy CrowdStrike Falcon on macOS, Linux and Windows using Fleet |
+| [Safe Enough to Switch](https://docs.google.com/document/d/1JsHEzUru2KKs6h7SKYEI6OjunwrRWmeUDTOtl57Shv4/edit?tab=t.0#heading=h.17iy1zaasfs7) | 2025-09-15 | A 1-pager providing an overview of Fleet’s maturity |
+| [Deploying Puppet with Fleet](https://www.linkedin.com/feed/update/urn:li:activity:7364294459569696784/) | 2025-08-26 | Showing how Fleet can control Puppet for settings and that we do device management, and Puppet controls settings |
+| [Fleet vs. Jamf terminology](https://docs.google.com/document/d/1RKojfpUMUiITPce5O7znYmxdQR9U6f5sVnVzQpPpp8Y/edit?tab=t.0#heading=h.2gzpleeudtbf) | 2025-09-09 | Comparison of Jamf and Fleet terms and functions |
+|  |  |  |
+| [Faire \- customer migration blog](https://craft.faire.com/using-observability-to-reduce-chaos-in-an-mdm-migration-20a0056a48e7) | 2025-08-12 | Demonstrating simplicity of customer migrations, written by happy customer |
+| [How to preview Fleet and osquery](https://www.youtube.com/watch?v=rVxSgvKjrWo) | 2022-08-12 | Help people get started w/ Fleet (in this case before buying) |
 | [What are Fleet policies?](https://fleetdm.com/securing/what-are-fleet-policies#basic-article) | 2022-05-20 | Overview of Fleet policies |
 | [Detect Log4j with osquery and Fleet](https://fleetdm.com/securing/detect-log4j-with-osquery-and-fleet) | 2021-12-15 | Example of how to leverage the flexibility of Fleet and osquery for quick response |
+| [Queries/create a query](https://fleetdm.com/guides/queries#create-a-query) |  | Explaining what Queries are and how to create them |
+| [Death to Extension Attributes](https://github.com/allenhouchins/death-to-extension-attributes) |  | Demonstrating to Jamf users how simple Fleet queries are compared to Jamf Extension Attributes. |
+| [Overview deck](https://docs.google.com/presentation/d/1kPcn3Ht-74D5Ta9ARcE-Ofby-E0TC7hZ2yTuwiK_eKk/edit?usp=sharing) |  |  |
+| [Understanding objections and when we see them](https://docs.google.com/document/d/1UFjHaIBdoSGDiqNqwgxRdwRz9Wn9SqP7h-g2OM8Runk/edit) |  | Understanding objections and when they’ll come up |
+| [Sales one-pager](https://docs.google.com/document/d/15nVnn2dalLnyJgfX3o-96jvFAzZPS9vrTaNo_lYNick/edit?usp=sharing) |  | Introduction to Fleet; best for printing and folding |
+| [Fleet for IT product brochure](https://docs.google.com/document/d/1d_53iYU6O-uzaXnzjlXXGwByGRmpz3VMG6kWT6hMCkU/edit?usp=sharing) |  | Early marketing/sales cycle learning \- for “One pager” or “Overview” requests |
+| [Fleet for Security product brochure](https://docs.google.com/document/d/18ocTpuQlwd8RwZA-KsqzEmQkAEvKvV8LngeFbkJdFj4/edit?usp=sharing) |  | Early marketing/sales cycle learning \- for “One pager” or “Overview” requests |
+| [Fleet capabilities one-pager](https://docs.google.com/document/d/15nVnn2dalLnyJgfX3o-96jvFAzZPS9vrTaNo_lYNick/edit?tab=t.0) |  | High level overview of what Fleet does |
+| [Customer use cases](https://docs.google.com/document/d/1zz74xL12KB2Re-I06Ongg7giZ2obZAQdTFV_FdlULws/edit?usp=sharing) |  | Outbound, discussion/presentation |
+| [Log4j blog post](https://fleetdm.com/securing/detect-log4j-with-osquery-and-fleet) |  | Example of how to leverage the flexibility of Fleet and osquery for quick response |
+| [GitHub value deck](https://docs.google.com/presentation/d/1lYOdJiCNFuMUB-6MZ3ZtYC5iYM9ZZrV7YR6ShM9WcCY/edit?usp=sharing) |  |  |
+| [Intro to Fleet](https://www.youtube.com/watch?v=rVxSgvKjrWo), product demo |  |  |
+| Reports— [SODM](https://fleetdm.com/reports/state-of-device-management)  |  | Grow authority |
+| [2023 IBM study](https://drive.google.com/file/d/1YUfXnbOQ93S0gttwf3qoW7F4bN7-Egci/view?usp=drive_link) on cost of a Breach |  |  |
+| [Why Fleet; MDM questions](https://docs.google.com/document/d/1dujnNVZAKp4h8ruYnVf7JGltVJXfOCZeqKn9HKoAkC8/edit?usp=sharing) |  |  |
+| [Swag typeform](https://kqphpqst851.typeform.com/to/ZfA3sOu0?typeform-source=fleetdm.com) |  | Build goodwill |
+| [Trends in cyber blog post](https://ventureinsecurity.net/p/the-rise-of-security-engineering) |  | Where Fleet fits in to today’s security engineering world which needs more flexibility in its technical solutions |
+| [Red Hat post](https://www.redhat.com/sysadmin/fleetdm-get-started) about Fleet |  | How Fleet makes osquery better, and how to get started (technical instructions) |
+| [Keyboard crunch](https://keyboardcrunch.com/posts/FleetDM/) 3rd party overview of Fleet |  | Another 3rd party overview of Fleet  |
+| [MDM UI dashboard](https://drive.google.com/drive/folders/1fjwbl_XmrCi1HtehFFGdKA0AYhy9AIpC) |  | Showing the UI of the MDM Dashboard (Windows) |
+| [The rise of security engineering and how it is changing the cybersecurity of tomorrow](https://ventureinsecurity.net/p/the-rise-of-security-engineering) |  | An in-depth look at one of the trends defining the future of security  |
+| [Vulnerability dashboard](https://dash.fleetdm.com/login) |  | Example of product extensibility |
+| Recorded demo of [vulnerability management dashboard](https://play.goconsensus.com/s3130001d) |  | Good to use in VM buying scenario, even with non-coding elves/christmas trees |
+| Tom Larkin, [Snowflake blog post](https://fleetdm.com/guides/delivering-data-to-snowflake-from-fleet-and-osquery) On Tom’s own blog, [1st post](https://t-lark.github.io/posts/snowflake-osquery-fleet-magic/) [2nd post](https://t-lark.github.io/posts/osquery-data-in-snowflake/) |  | When someone doesn’t want to replace their MDM, but wants Fleet for Endpoint Ops |
+| [Osquery overview](https://fleetdm.com/guides/osquery-a-tool-to-easily-ask-questions-about-operating-systems) on Fleet blog |  |  |
+| [Gusto case study](https://docs.google.com/document/d/1zw-Q3mqCX8j6AEXAk_7c2MTd0NUXOW1wQYTdhEUJWIU/edit?usp=sharing) |  | Middle to end of sales cycle to help justify spend |
+| [macOS / Windows device management roadmap](https://docs.google.com/presentation/d/1pCADKXo8-iiuEn_eQAx9LrKWP8_81fO-ObO8O0wQ1WA/edit#slide=id.g246739d8889_2_0) |  | Prospect wants to see what we do with MDM |
+| [A configurable & transparent alternative to Rapid7](https://jarod.ngrok.dev/imagine/rapid-7-alternative) |  |  |
+| [ROI Spreadsheet](https://docs.google.com/spreadsheets/d/14Cfj77ynOB6z4pmb9DD7HNRGo0kcKJuEIifgnz-YO50/edit?usp=sharing) |  |  |
+| [9to5mac article: Latest scripting features](https://9to5mac.com/2023/10/17/fleet-releases-open-source-cross-platform-scripting-based-on-osquery/) |  |  |
+| [Computer World article from MDM release](https://www.computerworld.com/article/3692916/fleet-announces-open-source-cross-platform-mdm-solution.html) |  |  |
+| MITRE ATT\&CK framework osquery [query library](https://github.com/teoseller/osquery-attck/blob/master/README.md) |  |  |
+| [IR Article 1](https://fleetdm.com/securing/osquery-as-a-threat-hunting-platform) |  | When nurturing or educating how IR teams use Fleet |
+| [IR Article 2](https://fleetdm.com/securing/how-osquery-can-help-cyber-responders) |  | When nurturing or educating how IR teams use Fleet |
+| [Fleet vs MDM and EDR](https://docs.google.com/presentation/d/1xb0OvkCta262v73_-kvSjjuJlxTsbUtMVGIKeFG4CZ4/edit?usp=sharing) |  | When a prospect wants to know what Fleet does in addition to their MDM and EDR solutions |
+| [Fleet VM architecture video](https://www.youtube.com/watch?v=X9cQP60kD3c) |  | Show how VM works-good for IT, VM and security teams |
+| [Product roadmap](https://docs.google.com/document/d/16si8Nkh0F25opUMpZYm6XwU8LEhGd7H4eOzPKFz8jGw/edit?usp=sharing) |  |  |
+| [Targeting with predicates in Declarative Device Management](https://www.youtube.com/watch?v=Ul2q_RdDZCc) |  | IT teams interested in MDM that bring up DDM in requirements (or if they’re using WS1) |
+| [https://t-lark.github.io/posts/using-custom-mdm-payloads-for-fleet-labels/](https://t-lark.github.io/posts/using-custom-mdm-payloads-for-fleet-labels/) |  | Using Custom MDM Payloads for FleetDM Labels |
+| [Battle card - WS1](https://docs.google.com/document/d/1dV9zooPnCnHa0UfZqXKWAi6Zmye2jfqRIr_UnX70Sq4/edit) |  | WS1 Battle Card |
+| [Competitive Matrix - Jamf & Intune](https://docs.google.com/spreadsheets/d/1-DcJ9kPd8Pm1ExuMTynO2owrix37ddkDseuXMtgLevQ/edit?gid=0#gid=0)File |  | Competitive Matrix Jamf & Intune |
+| [Charles from Roblox talking about Fleet’s performance and scale](https://www.linkedin.com/posts/zacharywasserman_charles-zaffery-rolled-out-fleet-device-management-activity-7196618547131793409-vLSE?utm_source=share&utm_medium=member_desktop) |  | Customer proof point of scale and performance |
+| [Performance measuring with OTEL](https://docs.google.com/document/d/1nUVZP3JBLgcLDhBUV_YvIqsFreg9QDARxby-TWEia-A/edit?usp=sharing) |  | Summary of discussion with Fastly about how they measure |
+| [Example internal pitch deck from Nutanix](https://docs.google.com/presentation/d/1VsPqYG-IbWsDPds7F0yo-gih5xR1ISKj/edit?usp=sharing&ouid=101039358388338051104&rtpof=true&sd=true) |  | Nutanix champions genericized their internal deck and shared with Fleet to reuse |
+| [2025 - Gartner IT Symposium Updated (1).pdf](https://drive.google.com/file/d/1HK1QXA2kOCeOoOG1E0-tk7-xwBhQ2QMa/view?usp=sharing) |  | Executive summary of value / outcomes from GitOps |
+| [Linux endpoint management for Enterprise IT](https://www.linkedin.com/events/7361776596396957696/) (lead by Kadar Anwar and Cisco) |  | Workstation Linux MDM (not servers/observability) |
+| [Translating Jamf Pro terminology & capabilities](https://fleetdm.com/guides/translating-jamf-pro-terminology#basic-article) |  |  |
 
 
 ## Responsibilities
