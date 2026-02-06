@@ -674,7 +674,7 @@ TOKEN="<End-user-OAuth-IdP-token>"
 CLIENT_ID="<OAuth-IdP-client-ID>"
 ```
 
-Enforcing IdP validation using `idp_oauth_url` and `idp_token` is optional. If enforced, the CSR must include exactly 1 email which matches the IdP username and must include a UPN attribute which is either a prefix of the IdP username or the username itself (i.e. if the IdP username is "bob@example.com", the UPN may be "bob" or "bob@example.com").
+Enforcing IdP validation using `idp_oauth_url` and `idp_token` is optional. If enforced, the CSR must include exactly 1 email which matches the IdP username and must include a UPN attribute which is either a prefix of the IdP username or the username itself (i.e., if the IdP username is "bob@example.com", the UPN may be "bob" or "bob@example.com").
 
 ### Step 4: Create a custom policy
 
