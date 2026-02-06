@@ -618,9 +618,9 @@ func (s *SCEPConfigService) GetSmallstepSCEPChallenge(ctx context.Context, ca fl
 	if resp.StatusCode != http.StatusOK {
 		reader := io.LimitReader(resp.Body, units.MiB*2)
 		if b, err := io.ReadAll(reader); err == nil {
-			level.Debug(s.logger).Log("msg", "failed to get Smallstep SCEP challenge", "ca_type", fleet.CATypeSmallstep, "raw_response", string(b), "request_duration", endRequestTime.Sub(startRequestTime).Seconds())
+			level.Debug(s.logger).Log("msg", "failed to get Smallstep SCEP challenge", "status_code", resp.StatusCode, "status", resp.Status, "ca_type", fleet.CATypeSmallstep, "raw_response", string(b), "request_duration", endRequestTime.Sub(startRequestTime).Seconds())
 		} else {
-			level.Debug(s.logger).Log("msg", "failed to get Smallstep SCEP challenge and failed to read response body", "ca_type", fleet.CATypeSmallstep, "read_error", err.Error(), "request_duration", endRequestTime.Sub(startRequestTime).Seconds())
+			level.Debug(s.logger).Log("msg", "failed to get Smallstep SCEP challenge and failed to read response body", "status_code", resp.StatusCode, "status", resp.Status, "ca_type", fleet.CATypeSmallstep, "read_error", err.Error(), "request_duration", endRequestTime.Sub(startRequestTime).Seconds())
 		}
 		return "", ctxerr.Wrap(ctx, fmt.Errorf("status code %d", resp.StatusCode), "getting Smallstep SCEP challenge")
 	}
