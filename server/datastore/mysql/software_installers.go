@@ -2768,7 +2768,9 @@ func (ds *Datastore) HasSelfServiceSoftwareInstallers(ctx context.Context, hostP
 		WHERE EXISTS (
 			SELECT 1
 			FROM software_installers
-			WHERE self_service = 1 AND platform = ? AND global_or_team_id = ?
+			WHERE self_service = 1
+			  AND (platform = ? OR (extension = 'sh' AND platform = 'linux' AND ? = 'darwin'))
+			  AND global_or_team_id = ?
 		) OR EXISTS (
 			SELECT 1
 			FROM vpp_apps_teams
@@ -2778,7 +2780,7 @@ func (ds *Datastore) HasSelfServiceSoftwareInstallers(ctx context.Context, hostP
 	if hostTeamID != nil {
 		globalOrTeamID = *hostTeamID
 	}
-	args := []interface{}{hostPlatform, globalOrTeamID, hostPlatform, globalOrTeamID}
+	args := []interface{}{hostPlatform, hostPlatform, globalOrTeamID, hostPlatform, globalOrTeamID}
 	var hasInstallers bool
 	err := sqlx.GetContext(ctx, ds.reader(ctx), &hasInstallers, stmt, args...)
 	if err != nil && !errors.Is(err, sql.ErrNoRows) {
