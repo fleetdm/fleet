@@ -28,6 +28,7 @@ describe("getInstallSoftwareErrorMessage", () => {
       critical: false,
       calendar_events_enabled: false,
       conditional_access_enabled: false,
+      conditional_access_bypass_enabled: false,
     },
     {
       swIdToInstall: 456,
@@ -49,6 +50,7 @@ describe("getInstallSoftwareErrorMessage", () => {
       critical: false,
       calendar_events_enabled: false,
       conditional_access_enabled: false,
+      conditional_access_bypass_enabled: false,
     },
   ];
 
@@ -160,6 +162,7 @@ describe("getRunScriptErrorMessage", () => {
       critical: false,
       calendar_events_enabled: false,
       conditional_access_enabled: false,
+      conditional_access_bypass_enabled: false,
     },
     {
       scriptIdToRun: 456,
@@ -181,6 +184,7 @@ describe("getRunScriptErrorMessage", () => {
       critical: false,
       calendar_events_enabled: false,
       conditional_access_enabled: false,
+      conditional_access_bypass_enabled: false,
     },
   ];
 
