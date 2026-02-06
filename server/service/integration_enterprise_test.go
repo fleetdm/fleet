@@ -5777,7 +5777,7 @@ func (s *integrationEnterpriseTestSuite) TestGlobalPolicyCreateReadPatch() {
 }
 
 func (s *integrationEnterpriseTestSuite) TestTeamPolicyCreateReadPatch() {
-	fields := []string{"Query", "Name", "Description", "Resolution", "Platform", "Critical", "CalendarEventsEnabled"}
+	fields := []string{"Query", "Name", "Description", "Resolution", "Platform", "Critical", "CalendarEventsEnabled", "ConditionalAccessBypassEnabled"}
 
 	team1, err := s.ds.NewTeam(context.Background(), &fleet.Team{
 		ID:          42,
@@ -5788,26 +5788,28 @@ func (s *integrationEnterpriseTestSuite) TestTeamPolicyCreateReadPatch() {
 
 	createPol1 := &teamPolicyResponse{}
 	createPol1Req := &teamPolicyRequest{
-		Query:                 "query",
-		Name:                  "name1",
-		Description:           "description",
-		Resolution:            "resolution",
-		Platform:              "linux",
-		Critical:              true,
-		CalendarEventsEnabled: true,
+		Query:                          "query",
+		Name:                           "name1",
+		Description:                    "description",
+		Resolution:                     "resolution",
+		Platform:                       "linux",
+		Critical:                       true,
+		CalendarEventsEnabled:          true,
+		ConditionalAccessBypassEnabled: ptr.Bool(false),
 	}
 	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/teams/%d/policies", team1.ID), createPol1Req, http.StatusOK, &createPol1)
 	allEqual(s.T(), createPol1Req, createPol1.Policy, fields...)
 
 	createPol2 := &teamPolicyResponse{}
 	createPol2Req := &teamPolicyRequest{
-		Query:                 "query",
-		Name:                  "name2",
-		Description:           "description",
-		Resolution:            "resolution",
-		Platform:              "linux",
-		Critical:              false,
-		CalendarEventsEnabled: false,
+		Query:                          "query",
+		Name:                           "name2",
+		Description:                    "description",
+		Resolution:                     "resolution",
+		Platform:                       "linux",
+		Critical:                       false,
+		CalendarEventsEnabled:          false,
+		ConditionalAccessBypassEnabled: ptr.Bool(true),
 	}
 	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/teams/%d/policies", team1.ID), createPol2Req, http.StatusOK, &createPol2)
 	allEqual(s.T(), createPol2Req, createPol2.Policy, fields...)
@@ -5823,13 +5825,14 @@ func (s *integrationEnterpriseTestSuite) TestTeamPolicyCreateReadPatch() {
 
 	patchPol1Req := &modifyTeamPolicyRequest{
 		ModifyPolicyPayload: fleet.ModifyPolicyPayload{
-			Name:                  ptr.String("newName1"),
-			Query:                 ptr.String("newQuery"),
-			Description:           ptr.String("newDescription"),
-			Resolution:            ptr.String("newResolution"),
-			Platform:              ptr.String("windows"),
-			Critical:              ptr.Bool(false),
-			CalendarEventsEnabled: ptr.Bool(false),
+			Name:                           ptr.String("newName1"),
+			Query:                          ptr.String("newQuery"),
+			Description:                    ptr.String("newDescription"),
+			Resolution:                     ptr.String("newResolution"),
+			Platform:                       ptr.String("windows"),
+			Critical:                       ptr.Bool(false),
+			CalendarEventsEnabled:          ptr.Bool(false),
+			ConditionalAccessBypassEnabled: ptr.Bool(true),
 		},
 	}
 	patchPol1 := &modifyTeamPolicyResponse{}
@@ -5838,13 +5841,14 @@ func (s *integrationEnterpriseTestSuite) TestTeamPolicyCreateReadPatch() {
 
 	patchPol2Req := &modifyTeamPolicyRequest{
 		ModifyPolicyPayload: fleet.ModifyPolicyPayload{
-			Name:                  ptr.String("newName2"),
-			Query:                 ptr.String("newQuery"),
-			Description:           ptr.String("newDescription"),
-			Resolution:            ptr.String("newResolution"),
-			Platform:              ptr.String("windows"),
-			Critical:              ptr.Bool(true),
-			CalendarEventsEnabled: ptr.Bool(true),
+			Name:                           ptr.String("newName2"),
+			Query:                          ptr.String("newQuery"),
+			Description:                    ptr.String("newDescription"),
+			Resolution:                     ptr.String("newResolution"),
+			Platform:                       ptr.String("windows"),
+			Critical:                       ptr.Bool(true),
+			CalendarEventsEnabled:          ptr.Bool(true),
+			ConditionalAccessBypassEnabled: ptr.Bool(false),
 		},
 	}
 	patchPol2 := &modifyTeamPolicyResponse{}
