@@ -1,0 +1,1 @@
+* Harden app_sso_platform table command execution to prevent command injection.

@@ -104,9 +104,7 @@ org_settings:
   integrations:
     conditional_access_enabled: true
     google_calendar:
-    - api_key_json:
-        owl: hoot
-        private_key: # TODO: Add your Google Calendar API key JSON here
+    - api_key_json: # TODO: Add your Google Calendar API key JSON here
       domain: fleetdm.com
     jira:
     - api_token: # TODO: Add your Jira API token here
