@@ -299,7 +299,7 @@ export const SCRIPT_PACKAGE_SOURCES = ["sh_packages", "ps1_packages"];
 /** Sources that don't map cleanly to versions or hosts in software inventory.
  * UI behavior for these sources:
  * - Never shows “Update available” (no version to compare against the package version).
- * - Skips refetching host details after install/uninstall (no inventory entry to detect).
+ * - Skips showing recently updated and waiting for inventory  UI status/tooltip after successful install/uninstall (no inventory entry to await)
  * - Skips showing a host count (hosts cannot be mapped to the package).
  * - Skips showing a versions table (versions cannot be mapped to the package).
  * - Skips linking to “View all hosts” (hosts cannot be mapped to the package). */

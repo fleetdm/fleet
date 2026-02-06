@@ -180,7 +180,6 @@ const HostSoftwareLibrary = ({
     }));
   }, [hostSoftwareLibraryRes, isHostOnline, softwareUpdatedAt]);
 
-  console.log("enhancedSoftware in HostSoftwareLibrary:", enhancedSoftware);
   const pendingSoftwareSetRef = useRef<Set<string>>(new Set()); // Track for polling
   const pollingTimeoutIdRef = useRef<NodeJS.Timeout | null>(null);
   const isAwaitingHostDetailsPolling = useRef(isHostDetailsPolling);
@@ -253,25 +252,10 @@ const HostSoftwareLibrary = ({
         );
 
         if (completedIds.length > 0) {
-          // Only refetch host details for inventory‑detectable sources
-          const shouldRefetchHostDetails = response.software.some(
-            (software) => {
-              const isCompleted = completedIds.includes(String(software.id));
-              if (!isCompleted) return false;
-
-              const isInventoryDetectableSource = !NO_VERSION_OR_HOST_DATA_SOURCES.includes(
-                software.source
-              );
-
-              return isInventoryDetectableSource;
-            }
-          );
-
-          if (shouldRefetchHostDetails) {
-            // To update the software library information of newly installed/uninstalled
-            // software that appears in software inventory
-            refetchHostDetails();
-          }
+          // Refetch host details to:
+          // - Update the software library version information of newly installed/uninstalled software of inventory‑detectable sources only
+          // - Update the software inventory of any changes to software detected by software inventory
+          refetchHostDetails();
         }
 
         // Compare new set with the previous set

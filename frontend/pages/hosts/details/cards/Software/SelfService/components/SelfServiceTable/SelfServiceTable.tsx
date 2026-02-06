@@ -45,8 +45,6 @@ const SelfServiceTable = ({
   const initialSortDirection = queryParams.order_direction || "asc";
   const initialSortPage = queryParams.page || 0;
 
-  console.log("enhancedSoftware in SelfServiceTable:", enhancedSoftware);
-
   return (
     <div className={`${baseClass}__table`}>
       <CategoriesMenu

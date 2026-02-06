@@ -350,23 +350,10 @@ const SoftwareSelfService = ({
           // Trigger an additional refetch to ensure UI status is up-to-date
           // If already refetching, queue another refetch
 
-          // Only trigger refetch for pending installs/uninstalls whose sources appear in software inventory
-          const shouldRefetchHostDetails = response.software.some(
-            (software) => {
-              const isCompleted = completedAppIds.includes(String(software.id));
-              if (!isCompleted) return false;
-
-              const isInventoryDetectableSource = !NO_VERSION_OR_HOST_DATA_SOURCES.includes(
-                software.source
-              );
-
-              return isInventoryDetectableSource;
-            }
-          );
-
-          if (shouldRefetchHostDetails) {
-            refetchHostDetails();
-          }
+          // Refetch host details to:
+          // - Update the software library version information of newly installed/uninstalled software of inventory‑detectable sources only
+          // - Update the software inventory of any changes to software detected by software inventory
+          refetchHostDetails();
         }
 
         // Compare new set with the previous set

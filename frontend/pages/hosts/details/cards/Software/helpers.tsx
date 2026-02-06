@@ -195,8 +195,9 @@ export const getUiStatus = (
   const lastUninstallDate = getLastUninstall(software)?.uninstalled_at;
   const installerVersion = getInstallerVersion(software);
   const isScriptPackage = SCRIPT_PACKAGE_SOURCES.includes(source);
-  // Scripts and tarballs do not map to software inventory, so we will skip inventory-based checks such as recently_installed/recently_uninstalled
-  // This guard allows the switch to 'installed' or 'uninstalled' immediately after a script/tarball action succeeds.
+  // Some sources (e.g. tarballs, scripts) do not map to software inventory, so we will always skip
+  // inventory-based checks (e.g. recently_installed/recently_uninstalled) for these software sources
+  // This guard allows the switch to 'installed' or 'uninstalled' immediately after a tarball action succeeds.
   const isInventoryDetectableSource = !NO_VERSION_OR_HOST_DATA_SOURCES.includes(
     source
   );
@@ -212,6 +213,9 @@ export const getUiStatus = (
     if (status === "pending_install") {
       return isHostOnline ? "running_script" : "pending_script";
     }
+    // We never show recently installed/updated or waiting for inventory for script packages
+    // Since version won't be retreived from inventory, we are not waiting on a refetch
+    // UI status immediately changes to "Ran" status after a successful install
     if (status === "installed") {
       return "ran_script";
     }
