@@ -65,3 +65,11 @@ Create the name of the service account to use
 {{- default "default" .Values.serviceAccount.name }}
 {{- end }}
 {{- end }}
+
+{{- define "fleet.truststoreCAs.enabled" -}}
+{{- if and .Values.fleet.truststoreCAs.enabled (or .Values.fleet.truststoreCAs.configMaps .Values.fleet.truststoreCAs.secrets) -}}
+true
+{{- else -}}
+false
+{{- end -}}
+{{- end -}}
