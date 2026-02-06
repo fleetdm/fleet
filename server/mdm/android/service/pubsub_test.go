@@ -232,7 +232,7 @@ func TestPubSubEnrollment(t *testing.T) {
 			enrollmentMessage := createEnrollmentMessage(t, androidmanagement.Device{
 				Name:                createAndroidDeviceId("test-android"),
 				EnrollmentTokenData: string(enrollTokenData),
-				Ownership:           "COMPANY_OWNED",
+				Ownership:           DeviceOwnershipCompanyOwned,
 			})
 			err = svc.ProcessPubSubPush(context.Background(), "value", enrollmentMessage)
 			require.NoError(t, err)
@@ -1018,13 +1018,14 @@ func createEnrollmentMessage(t *testing.T, deviceInfo androidmanagement.Device) 
 	}
 	// default to personally owned for tests if not specified
 	if deviceInfo.Ownership == "" {
-		deviceInfo.Ownership = "PERSONALLY_OWNED"
+		deviceInfo.Ownership = DeviceOwnershipPersonallyOwned
 	}
-	if deviceInfo.Ownership == "COMPANY_OWNED" {
+	if deviceInfo.Ownership == DeviceOwnershipCompanyOwned {
 		deviceInfo.HardwareInfo.SerialNumber = "test-serial"
 	}
-	if deviceInfo.Ownership == "PERSONALLY_OWNED" {
+	if deviceInfo.Ownership == DeviceOwnershipPersonallyOwned {
 		deviceInfo.HardwareInfo.EnterpriseSpecificId = strings.ToUpper(uuid.New().String())
+		deviceInfo.HardwareInfo.SerialNumber = deviceInfo.HardwareInfo.EnterpriseSpecificId
 	}
 	deviceInfo.SoftwareInfo = &androidmanagement.SoftwareInfo{
 		AndroidBuildNumber: "test-build",

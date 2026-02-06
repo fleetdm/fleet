@@ -1337,11 +1337,12 @@ func messageWithAndroidIdentifiers(t *testing.T, notificationType android.Notifi
 		Hardware: "test-hardware",
 	}
 	if enterpriseSpecificID != "" {
-		deviceInfo.Ownership = "PERSONALLY_OWNED"
+		deviceInfo.Ownership = android_service.DeviceOwnershipPersonallyOwned
 		deviceInfo.HardwareInfo.EnterpriseSpecificId = enterpriseSpecificID
+		deviceInfo.HardwareInfo.SerialNumber = enterpriseSpecificID
 	}
 	if serialNumber != "" {
-		deviceInfo.Ownership = "COMPANY_OWNED"
+		deviceInfo.Ownership = android_service.DeviceOwnershipCompanyOwned
 		deviceInfo.HardwareInfo.SerialNumber = serialNumber
 	}
 	deviceInfo.SoftwareInfo = &androidmanagement.SoftwareInfo{

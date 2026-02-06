@@ -22,6 +22,11 @@ import (
 	"google.golang.org/api/androidmanagement/v1"
 )
 
+const (
+	DeviceOwnershipCompanyOwned    = "COMPANY_OWNED"
+	DeviceOwnershipPersonallyOwned = "PERSONALLY_OWNED"
+)
+
 type PubSubPushRequest struct {
 	Token                 string `query:"token"`
 	android.PubSubMessage `json:"message"`
@@ -446,7 +451,7 @@ func (svc *Service) updateHost(ctx context.Context, device *androidmanagement.De
 	}
 
 	setAndroidHostUUID(host, device)
-	companyOwned := device.Ownership == "COMPANY_OWNED"
+	companyOwned := device.Ownership == DeviceOwnershipCompanyOwned
 
 	err = svc.ds.UpdateAndroidHost(ctx, host, fromEnroll, companyOwned)
 	if err != nil {
@@ -491,10 +496,8 @@ func getAndroidHostKey(device *androidmanagement.Device) string {
 	// unenroll/re-enroll cycles for the same device + Android Enterprise, though if a new enterprise
 	// is created the EnterpriseSpecificID will change
 	generatedUUIDInput := fmt.Sprintf("%s:%s", device.HardwareInfo.Brand, device.HardwareInfo.SerialNumber)
-	sha256Hasher := sha256.New()
-	sha256Hasher.Write([]byte(generatedUUIDInput))
-	hashedUUIDBytes := sha256Hasher.Sum(nil)
-	generatedUUID := hex.EncodeToString(hashedUUIDBytes)
+	hashedUUIDBytes := sha256.Sum256([]byte(generatedUUIDInput))
+	generatedUUID := hex.EncodeToString(hashedUUIDBytes[:])
 	return generatedUUID
 }
 
@@ -563,7 +566,9 @@ func (svc *Service) addNewHost(ctx context.Context, device *androidmanagement.De
 		}
 		host.Device.LastPolicySyncTime = ptr.Time(policySyncTime)
 	}
-	fleetHost, err := svc.ds.NewAndroidHost(ctx, host, device.Ownership == "COMPANY_OWNED")
+	companyOwned := device.Ownership == DeviceOwnershipCompanyOwned
+
+	fleetHost, err := svc.ds.NewAndroidHost(ctx, host, companyOwned)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "enrolling Android host")
 	}

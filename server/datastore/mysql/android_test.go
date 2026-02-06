@@ -2140,8 +2140,6 @@ func testAndroidBYODDetection(t *testing.T, ds *Datastore) {
 	t.Run("company enrollment", func(t *testing.T) {
 		const enterpriseID = "test-enterprise-id-company"
 		host := createAndroidHost(enterpriseID)
-		// Override UUID to be empty to simulate company-owned device
-		host.Host.UUID = ""
 
 		result, err := ds.NewAndroidHost(ctx, host, true)
 		require.NoError(t, err)

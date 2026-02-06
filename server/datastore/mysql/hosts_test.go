@@ -1731,11 +1731,11 @@ func testHostsListMDMAndroid(t *testing.T, ds *Datastore) {
 	}
 	assert.Equal(t, 2, androidPersonalCount, "Should have exactly 2 Android personal hosts")
 
-	// Test filtering by manual enrollment - should return Android company hosts
+	// Test filtering by automatic enrollment - should return Android company hosts
 	hosts = listHostsCheckCount(t, ds, filter, fleet.HostListOptions{MDMEnrollmentStatusFilter: fleet.MDMEnrollStatusAutomatic}, 2)
-	require.Len(t, hosts, 2, "Should have 2 Android company hosts (manual enrollment)")
+	require.Len(t, hosts, 2, "Should have 2 Android company hosts (automatic enrollment)")
 	for _, h := range hosts {
-		assert.Equal(t, "android", h.Platform, "All manual enrollment hosts should be Android")
+		assert.Equal(t, "android", h.Platform, "All automatic enrollment hosts should be Android")
 		assert.Contains(t, []string{"android-company-1.android.local", "android-company-2.android.local"}, h.Hostname)
 	}
 
