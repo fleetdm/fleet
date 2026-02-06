@@ -525,9 +525,8 @@ const ConditionalAccess = () => {
               <TooltipWrapper
                 tipContent={
                   <>
-                    When enabled, end users will have the option to bypass Okta
-                    conditional access if they are unable to resolve failing
-                    policies.{" "}
+                    When enabled, disables the per-policy setting to allow
+                    bypassing Okta conditional access.{" "}
                     <em>
                       (Default: <strong>Off</strong>)
                     </em>
