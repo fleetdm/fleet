@@ -2780,7 +2780,7 @@ func (ds *Datastore) HasSelfServiceSoftwareInstallers(ctx context.Context, hostP
 	if hostTeamID != nil {
 		globalOrTeamID = *hostTeamID
 	}
-	args := []interface{}{hostPlatform, hostPlatform, globalOrTeamID, hostPlatform, globalOrTeamID}
+	args := []any{hostPlatform, hostPlatform, globalOrTeamID, hostPlatform, globalOrTeamID}
 	var hasInstallers bool
 	err := sqlx.GetContext(ctx, ds.reader(ctx), &hasInstallers, stmt, args...)
 	if err != nil && !errors.Is(err, sql.ErrNoRows) {
