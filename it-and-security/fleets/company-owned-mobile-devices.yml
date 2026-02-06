@@ -1,5 +1,5 @@
 name: 📱🏢 Employee-issued mobile devices
-fleet_settings:
+settings:
   features:
   host_expiry_settings:
     host_expiry_enabled: false
