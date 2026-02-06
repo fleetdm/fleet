@@ -187,6 +187,7 @@ The log file name is `fleet-desktop.log`.
 - [Generating fleetd for Windows using local WiX toolset](#generating-fleetd-for-windows-using-local-wix-toolset)
 - [Config-less fleetd agent deployment](#config-less-fleetd-agent-deployment)
 - [Experimental features](#experimental-features)
+- [macOS Migration Assistant](#macos-migration-assistant)
 
 ### Supported osquery versions
 
@@ -488,6 +489,12 @@ but can result in a large volume of error logs. In fleetd v1.15.1, we added an e
  
 Applying the environmental variable `"FLEETD_SILENCE_ENROLL_ERROR"=1` on a host will silence fleetd enrollment errors if a `--fleet-url` is not present.
 This variable is read at launch and will require a restart of the Orbit service if it is not set before installing `fleetd` v1.15.1.
+
+### macOS Migration Assistant
+
+When transferring data with [Apple's Migration Assistant](https://support.apple.com/en-us/102613), first [turn MDM off, unenroll the Mac, and delete it from Fleet](#unenroll). Next, use Migration Assistant to transfer data and then re-enroll the Mac and turn MDM back on.
+
+If you don't unenroll and delete the Mac first, you'll get duplicate host records in Fleet.
 
 <meta name="category" value="guides">
 <meta name="authorGitHubUsername" value="noahtalerman">
