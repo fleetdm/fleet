@@ -40,7 +40,7 @@ const ScriptLibrary = ({ router, teamId, location }: IScriptLibraryProps) => {
     ? parseInt(location.query.page, 10)
     : DEFAULT_PAGE;
 
-  const { isPremiumTier } = useContext(AppContext);
+  const { isPremiumTier, isTeamTechnician } = useContext(AppContext);
   const [showDeleteScriptModal, setShowDeleteScriptModal] = useState(false);
   const [showEditScriptModal, setShowEditScriptModal] = useState(false);
   const [showAddScriptModal, setShowAddScriptModal] = useState(false);
@@ -144,13 +144,14 @@ const ScriptLibrary = ({ router, teamId, location }: IScriptLibraryProps) => {
         <UploadList
           keyAttribute="id"
           listItems={scripts || []}
-          HeadingComponent={headingComponent}
+          HeadingComponent={isTeamTechnician ? undefined : headingComponent}
           ListItemComponent={({ listItem }) => (
             <ScriptListItem
               script={listItem}
               onDelete={onClickDelete}
               onClickScript={onClickScript}
               onEdit={onEditScript}
+              isTeamTechnician={isTeamTechnician}
             />
           )}
         />
@@ -181,9 +182,14 @@ const ScriptLibrary = ({ router, teamId, location }: IScriptLibraryProps) => {
       <SectionHeader title="Library" alignLeftHeaderVertically />
       {config.server_settings.scripts_disabled && renderScriptsDisabledBanner()}
       {renderScriptsList()}
-      {!isLoading && currentPage === 0 && !scripts?.length && (
-        <ScriptUploader onButtonClick={() => setShowAddScriptModal(true)} />
-      )}
+      {!isLoading &&
+        currentPage === 0 &&
+        !scripts?.length &&
+        (isTeamTechnician ? (
+          <p>No scripts uploaded.</p>
+        ) : (
+          <ScriptUploader onButtonClick={() => setShowAddScriptModal(true)} />
+        ))}
       {showDeleteScriptModal && selectedScript.current && (
         <DeleteScriptModal
           scriptName={selectedScript.current?.name}

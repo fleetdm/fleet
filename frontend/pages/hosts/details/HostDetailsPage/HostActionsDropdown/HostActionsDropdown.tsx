@@ -53,6 +53,10 @@ const HostActionsDropdown = ({
     currentUser,
     hostTeamId
   );
+  const isTeamTechnician = permissions.isTeamTechnician(
+    currentUser,
+    hostTeamId
+  );
   const isTeamObserver = permissions.isTeamObserver(currentUser, hostTeamId);
   const isGlobalObserver = permissions.isGlobalObserver(currentUser);
 
@@ -64,6 +68,7 @@ const HostActionsDropdown = ({
     isGlobalObserver,
     isTeamAdmin,
     isTeamMaintainer,
+    isTeamTechnician,
     isTeamObserver,
     isHostOnline: hostStatus === "online",
     isEnrolledInMdm: isEnrolledInMdm(hostMdmEnrollmentStatus),

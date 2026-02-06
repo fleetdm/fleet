@@ -79,6 +79,7 @@ interface IHostActionConfigOptions {
   isGlobalObserver: boolean;
   isTeamAdmin: boolean;
   isTeamMaintainer: boolean;
+  isTeamTechnician: boolean;
   isTeamObserver: boolean;
   isHostOnline: boolean;
   isEnrolledInMdm: boolean;
@@ -283,11 +284,16 @@ const canRunScript = ({
   isGlobalMaintainer,
   isTeamAdmin,
   isTeamMaintainer,
+  isTeamTechnician,
 }: IHostActionConfigOptions) => {
   // Scripts globally disabled, shown as disabled by modifyOptions
 
   return (
-    (isGlobalAdmin || isGlobalMaintainer || isTeamAdmin || isTeamMaintainer) &&
+    (isGlobalAdmin ||
+      isGlobalMaintainer ||
+      isTeamAdmin ||
+      isTeamMaintainer ||
+      isTeamTechnician) &&
     isScriptSupportedPlatform(hostPlatform)
   );
 };

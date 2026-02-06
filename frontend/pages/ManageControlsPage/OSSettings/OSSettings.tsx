@@ -1,4 +1,4 @@
-import React, { useContext } from "react";
+import React, { useContext, useMemo } from "react";
 import { InjectedRouter, Params } from "react-router/lib/Router";
 import { useQuery } from "react-query";
 
@@ -28,7 +28,7 @@ const OSSettings = ({
   params,
 }: IOSSettingsProps) => {
   const { section } = params;
-  const { currentTeam } = useContext(AppContext);
+  const { currentTeam, isTeamTechnician } = useContext(AppContext);
 
   // TODO: consider using useTeamIdParam hook here instead in the future
   const teamId =
@@ -50,10 +50,19 @@ const OSSettings = ({
     }
   );
 
-  const DEFAULT_SETTINGS_SECTION = OS_SETTINGS_NAV_ITEMS[0];
+  const filteredNavItems = useMemo(() => {
+    if (isTeamTechnician) {
+      return OS_SETTINGS_NAV_ITEMS.filter(
+        (item) => item.title !== "Certificates"
+      );
+    }
+    return OS_SETTINGS_NAV_ITEMS;
+  }, [isTeamTechnician]);
+
+  const DEFAULT_SETTINGS_SECTION = filteredNavItems[0];
 
   const currentFormSection =
-    OS_SETTINGS_NAV_ITEMS.find((item) => item.urlSection === section) ??
+    filteredNavItems.find((item) => item.urlSection === section) ??
     DEFAULT_SETTINGS_SECTION;
 
   const CurrentCard = currentFormSection.Card;
@@ -71,7 +80,7 @@ const OSSettings = ({
       />
       <SideNav
         className={`${baseClass}__side-nav`}
-        navItems={OS_SETTINGS_NAV_ITEMS.map((navItem) => ({
+        navItems={filteredNavItems.map((navItem) => ({
           ...navItem,
           path: navItem.path.concat(queryString),
         }))}

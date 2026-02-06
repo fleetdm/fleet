@@ -118,6 +118,7 @@ const SiteTopNav = ({
     isGlobalAdmin,
     isGlobalMaintainer,
     isAnyTeamMaintainer,
+    isAnyTeamTechnician,
     isNoAccess,
   } = useContext(AppContext);
 
@@ -231,7 +232,8 @@ const SiteTopNav = ({
     isAnyTeamAdmin,
     isAnyTeamMaintainer,
     isGlobalMaintainer,
-    isNoAccess
+    isNoAccess,
+    isAnyTeamTechnician
   );
 
   const renderNavItems = () => {

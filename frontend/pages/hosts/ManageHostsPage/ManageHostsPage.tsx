@@ -186,6 +186,7 @@ const ManageHostsPage = ({
     isRouteOk,
     isTeamAdmin,
     isTeamMaintainer,
+    isTeamTechnician,
     isTeamMaintainerOrTeamAdmin,
     teamIdForApi,
     userTeams,
@@ -398,7 +399,11 @@ const ManageHostsPage = ({
     isGlobalAdmin || isGlobalMaintainer || isTeamAdmin || isTeamMaintainer;
   const canEnrollGlobalHosts = isGlobalAdmin || isGlobalMaintainer;
   const canAddNewLabels =
-    (isGlobalAdmin || isGlobalMaintainer || isTeamAdmin || isTeamMaintainer) ??
+    (isGlobalAdmin ||
+      isGlobalMaintainer ||
+      isTeamAdmin ||
+      isTeamMaintainer ||
+      isTeamTechnician) ??
     false;
   const canRunScriptBatch =
     isGlobalAdmin || isGlobalMaintainer || isTeamAdmin || isTeamMaintainer;

@@ -131,6 +131,7 @@ const HostSoftwareLibrary = ({
     isGlobalMaintainer,
     isTeamAdmin,
     isTeamMaintainer,
+    isTeamTechnician,
   } = useContext(AppContext);
 
   const isUnsupported = isAndroid(platform); // no Android software
@@ -447,7 +448,11 @@ const HostSoftwareLibrary = ({
   ]);
 
   const hasSWWriteRole = Boolean(
-    isGlobalAdmin || isGlobalMaintainer || isTeamAdmin || isTeamMaintainer
+    isGlobalAdmin ||
+      isGlobalMaintainer ||
+      isTeamAdmin ||
+      isTeamMaintainer ||
+      isTeamTechnician
   );
 
   // 4.77 Currently Android apps can only be installed via self-service by end user

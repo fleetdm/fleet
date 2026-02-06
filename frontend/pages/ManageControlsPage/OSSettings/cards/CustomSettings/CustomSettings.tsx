@@ -46,7 +46,7 @@ const CustomSettings = ({
   onMutation,
 }: ICustomSettingsProps) => {
   const { renderFlash } = useContext(NotificationContext);
-  const { config, isPremiumTier } = useContext(AppContext);
+  const { config, isPremiumTier, isTeamTechnician } = useContext(AppContext);
 
   const mdmEnabled =
     config?.mdm.enabled_and_configured ||
@@ -163,6 +163,9 @@ const CustomSettings = ({
     }
 
     if (!profiles?.length) {
+      if (isTeamTechnician) {
+        return <p>No configuration profiles have been added.</p>;
+      }
       return <AddProfileCard setShowModal={setShowAddProfileModal} />;
     }
 
@@ -173,7 +176,11 @@ const CustomSettings = ({
           listItems={profiles}
           HeadingComponent={() => (
             <UploadListHeading
-              onClickAdd={() => setShowAddProfileModal(true)}
+              onClickAdd={
+                isTeamTechnician
+                  ? undefined
+                  : () => setShowAddProfileModal(true)
+              }
               entityName="Configuration profile"
               createEntityText="Add profile"
             />
@@ -185,6 +192,7 @@ const CustomSettings = ({
               setProfileLabelsModalData={setProfileLabelsModalData}
               onClickInfo={onClickInfo}
               onClickDelete={onClickDelete}
+              isTeamTechnician={isTeamTechnician}
             />
           )}
         />
@@ -213,11 +221,13 @@ const CustomSettings = ({
         variant="right-panel"
         content={
           <>
-            Create and upload configuration profiles to apply custom settings.{" "}
+            {isTeamTechnician
+              ? "View configuration profiles that apply custom settings."
+              : "Create and upload configuration profiles to apply custom settings."}{" "}
             <CustomLink
               newTab
-              text="Learn how"
-              url="https://fleetdm.com/learn-more-about/custom-os-settings"
+              text="Learn more"
+              url="https://fleetdm.com/guides/custom-os-settings"
             />
           </>
         }

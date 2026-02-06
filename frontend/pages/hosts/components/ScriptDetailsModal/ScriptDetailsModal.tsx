@@ -86,7 +86,24 @@ const ScriptDetailsModal = ({
     }
   };
 
-  const { currentUser } = useContext(AppContext);
+  const {
+    currentUser,
+    isGlobalTechnician,
+    isAnyTeamTechnician,
+    isGlobalAdmin,
+    isAnyTeamAdmin,
+    isGlobalMaintainer,
+    isAnyTeamMaintainer,
+  } = useContext(AppContext);
+
+  const canRunScripts =
+    isGlobalAdmin ||
+    isAnyTeamAdmin ||
+    isGlobalMaintainer ||
+    isAnyTeamMaintainer ||
+    isGlobalTechnician ||
+    isAnyTeamTechnician;
+
   const { renderFlash } = useContext(NotificationContext);
 
   // handle multiple possibilities for `selectedScriptDetails`
@@ -263,16 +280,20 @@ const ScriptDetailsModal = ({
               })}
             />{" "}
             page and select a host.
-            <br />
-            To run the script across multiple hosts, add a policy automation on
-            the{" "}
-            <CustomLink
-              text="Policies"
-              url={getPathWithQueryParams(paths.MANAGE_POLICIES, {
-                team_id: teamIdForApi,
-              })}
-            />{" "}
-            page.
+            {canRunScripts && (
+              <>
+                <br />
+                To run the script across multiple hosts, add a policy automation
+                on the{" "}
+                <CustomLink
+                  text="Policies"
+                  url={getPathWithQueryParams(paths.MANAGE_POLICIES, {
+                    team_id: teamIdForApi,
+                  })}
+                />{" "}
+                page.
+              </>
+            )}
           </div>
         )}
       </div>
