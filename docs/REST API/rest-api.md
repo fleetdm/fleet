@@ -11223,15 +11223,17 @@ _Available in Fleet Premium._
 
 Creates web app (web clip). This endpoint returns the application ID that can be used to [add an Android app](##add-app-store-app) to Fleet.
 
+> You need to send a request of type `multipart/form-data`.
+
 `POST /api/v1/fleet/software/web_apps`
 
 #### Parameters
 
 | Name | Type | In | Description |
 | ---- | ---- | -- | ----------- |
-| title   | string | body | **Required.** The ID of the Apple App Store app or Google Play app. |
-| url       | string | body | **Required**. The team ID. Adds app from the store to the specified team.  |
-| icon | string | body | The platform of the app (`darwin`, `ios`, `ipados`, or `android`). Default is `darwin`. |
+| title   | string | body | **Required.** It is displayed to the end user under the app icon. |
+| url     | string | body | **Required**. The URL of the web app. What end user sees when opens this app.  |
+| icon    | file | body | The app icon. The icon must be a PNG file and square, with dimensions of at least 512 x 512px. |
 
 
 #### Example
@@ -11240,12 +11242,10 @@ Creates web app (web clip). This endpoint returns the application ID that can be
 
 ##### Request body
 
-```json
-{
-  "title": "497799835",
-  "url": "",
-  "icon": ""
-}
+```http
+title="Acme web app"
+url="https://app.acme.com"
+profile="app-icon-512x512.png"
 ```
 
 ##### Default response
