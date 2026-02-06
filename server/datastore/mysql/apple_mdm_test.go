@@ -3185,12 +3185,6 @@ func TestMDMAppleFileVaultSummary(t *testing.T) {
 	require.Equal(t, uint(0), allProfilesSummary.Failed)
 	require.Equal(t, uint(1), allProfilesSummary.Verifying)
 	require.Equal(t, uint(0), allProfilesSummary.Verified)
-	// ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
-	// 	DumpTable(t, q, "host_mdm_apple_profiles")
-	// 	DumpTable(t, q, "host_disk_encryption_keys")
-	// 	DumpTable(t, q, "host_mdm")
-	// 	return nil
-	// })
 
 	// enforcing status
 	enforcingHost := hosts[2]
