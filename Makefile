@@ -212,7 +212,7 @@ lint-js:
 lint-go:
 	-golangci-lint run --timeout 15m
 ifndef SKIP_INCREMENTAL
-	make lint-go-incremental
+	$(MAKE) lint-go-incremental
 endif
 
 .help-short--lint-go-incremental:
