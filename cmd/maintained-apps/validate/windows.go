@@ -25,7 +25,22 @@ func postApplicationInstall(_ kitlog.Logger, _ string) error {
 	return nil
 }
 
-func appExists(ctx context.Context, logger kitlog.Logger, appName, _, appVersion, appPath string) (bool, error) {
+// normalizeVersion normalizes version strings for comparison
+// Handles cases like "11.2.1495.0" vs "11.2.1495" by padding with zeros
+func normalizeVersion(version string) string {
+	parts := strings.Split(version, ".")
+	// Ensure we have at least 4 parts (Major.Minor.Build.Revision)
+	for len(parts) < 4 {
+		parts = append(parts, "0")
+	}
+	// Trim to 4 parts max
+	if len(parts) > 4 {
+		parts = parts[:4]
+	}
+	return strings.Join(parts, ".")
+}
+
+func appExists(ctx context.Context, logger kitlog.Logger, appName, uniqueIdentifier, appVersion, appPath string) (bool, error) {
 	execTimeout, cancel := context.WithTimeout(ctx, 30*time.Second)
 	defer cancel()
 
@@ -91,6 +106,62 @@ func appExists(ctx context.Context, logger kitlog.Logger, appName, _, appVersion
 			// Check if found version starts with expected version (handles suffixes like ".0")
 			// This handles cases where the app version is "3.5.4.0" but expected is "3.5.4"
 			if strings.HasPrefix(result.Version, appVersion+".") {
+				return true, nil
+			}
+			// Check if expected version starts with found version (handles cases where osquery reports shorter version)
+			// This handles cases where expected is "6.4.0" but osquery reports "6.4"
+			if strings.HasPrefix(appVersion, result.Version+".") {
+				return true, nil
+			}
+		}
+	}
+
+	// For AppX packages, check if the package is provisioned
+	// Provisioned packages don't show up in the programs table until a user logs in
+	// Since unique_identifier should match DisplayName, use it for exact match
+	if uniqueIdentifier == "" {
+		return false, nil
+	}
+
+	// Search by DisplayName using exact match (unique_identifier should match DisplayName)
+	provisionedQuery := fmt.Sprintf(`Get-AppxProvisionedPackage -Online | Where-Object { $_.DisplayName -eq '%s' } | Select-Object -First 1 | ConvertTo-Json -Depth 5`, uniqueIdentifier)
+	cmd = exec.CommandContext(execTimeout, "powershell", "-NoProfile", "-NonInteractive", "-Command", provisionedQuery)
+	output, err = cmd.CombinedOutput()
+	if err != nil {
+		return false, nil
+	}
+
+	if len(output) > 0 {
+		outputStr := strings.TrimSpace(string(output))
+		// Handle case where PowerShell returns an empty array []
+		if outputStr == "[]" || outputStr == "null" {
+			return false, nil
+		}
+
+		var provisioned struct {
+			DisplayName string `json:"DisplayName"`
+			PackageName string `json:"PackageName"`
+			Version     string `json:"Version"` // Version is a string like "11.2.1495.0"
+		}
+		if err := json.Unmarshal([]byte(outputStr), &provisioned); err != nil {
+			return false, nil
+		}
+
+		if provisioned.DisplayName != "" || provisioned.PackageName != "" {
+			provisionedVersion := provisioned.Version
+			level.Info(logger).Log("msg", fmt.Sprintf("Found provisioned AppX package: '%s', Version: %s", provisioned.DisplayName, provisionedVersion))
+
+			// Normalize both versions for comparison
+			normalizedProvisioned := normalizeVersion(provisionedVersion)
+			normalizedExpected := normalizeVersion(appVersion)
+
+			// Check if version matches (exact or prefix match)
+			if normalizedProvisioned == normalizedExpected ||
+				strings.HasPrefix(normalizedProvisioned, normalizedExpected+".") ||
+				strings.HasPrefix(normalizedExpected, normalizedProvisioned+".") ||
+				provisionedVersion == appVersion ||
+				strings.HasPrefix(provisionedVersion, appVersion+".") ||
+				strings.HasPrefix(appVersion, provisionedVersion+".") {
 				return true, nil
 			}
 		}

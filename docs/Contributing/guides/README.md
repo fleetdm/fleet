@@ -27,11 +27,3 @@ This directory contains guides for common development tasks in Fleet.
 
 - [SCIM Integration](integrations/scim-integration.md) - Guide for integrating Fleet with SCIM
 - [Digicert Integration](integrations/digicert-integration.md) - Guide for integrating Fleet with Digicert
-
-## Product group guides
-
-Each product group has its own set of guides:
-
-- [MDM Guides](mdm/README.md) - Guides for MDM development
-- [Orchestration Guides](orchestration/README.md) - Guides for Orchestration development
-- [Software Guides](software/README.md) - Guides for Software development

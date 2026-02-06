@@ -1,14 +1,14 @@
 {
   "versions": [
     {
-      "version": "6.3.6",
+      "version": "6.4.2",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name = 'Telegram Desktop' AND publisher = 'Telegram FZ-LLC';"
       },
-      "installer_url": "https://td.telegram.org/tx64/tsetup-x64.6.3.6.exe",
+      "installer_url": "https://td.telegram.org/tx64/tsetup-x64.6.4.2.exe",
       "install_script_ref": "0b88a95e",
       "uninstall_script_ref": "42311f1b",
-      "sha256": "4f5d71cb54f21aae3b7e03781ccd838c3870ab4566084e0e3f35884b6666fa52",
+      "sha256": "e092ffc4cb63c80b9b36ffe3dc68ac232a93737e0e1b998f8f660dd542c3ee7e",
       "default_categories": [
         "Communication"
       ]

@@ -3,6 +3,7 @@ import { screen, waitFor } from "@testing-library/react";
 import { createCustomRenderer } from "test/test-utils";
 import createMockQuery from "__mocks__/queryMock";
 import createMockUser from "__mocks__/userMock";
+import createMockTeam from "__mocks__/teamMock";
 import createMockConfig from "__mocks__/configMock";
 import userEvent from "@testing-library/user-event";
 import { http, HttpResponse } from "msw";
@@ -221,6 +222,7 @@ describe("SaveNewQueryModal", () => {
       context: {
         app: {
           currentUser: createMockUser(),
+          currentTeam: createMockTeam(),
           isGlobalObserver: false,
           isGlobalAdmin: true,
           isGlobalMaintainer: false,

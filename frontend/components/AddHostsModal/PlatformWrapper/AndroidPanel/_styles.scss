@@ -1,3 +1,6 @@
 .android-panel {
-
+  &__enroll-link input {
+    font-family: "SourceCodePro", $monospace;
+    color: $core-fleet-blue;
+  }
 }

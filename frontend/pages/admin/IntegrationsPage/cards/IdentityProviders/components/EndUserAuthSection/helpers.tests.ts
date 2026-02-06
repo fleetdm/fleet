@@ -131,7 +131,7 @@ describe("IdPSection helpers", () => {
           metadata_url: "metadataUrl",
         })
       ).toEqual({
-        metadata_url: "metadataUrl is not a valid URL.",
+        metadata_url: "Metadata URL is not a valid URL.",
       });
 
       expect(

@@ -9,6 +9,7 @@ import { HumanTimeDiffWithFleetLaunchCutoff } from "components/HumanTimeDiffWith
 import { DEFAULT_EMPTY_CELL_VALUE } from "utilities/constants";
 import { useCheckTruncatedElement } from "hooks/useCheckTruncatedElement";
 import TooltipWrapper from "components/TooltipWrapper";
+import { MdmEnrollmentStatus } from "interfaces/mdm";
 
 import { HostMdmDeviceStatusUIState } from "../../helpers";
 import { DEVICE_STATUS_TAGS, REFETCH_TOOLTIP_MESSAGES } from "./helpers";
@@ -73,6 +74,7 @@ interface IHostSummaryProps {
   renderActionsDropdown: () => JSX.Element | null;
   deviceUser?: boolean;
   hostMdmDeviceStatus?: HostMdmDeviceStatusUIState;
+  hostMdmEnrollmentStatus?: MdmEnrollmentStatus;
 }
 
 const HostHeader = ({
@@ -82,6 +84,7 @@ const HostHeader = ({
   renderActionsDropdown,
   deviceUser,
   hostMdmDeviceStatus,
+  hostMdmEnrollmentStatus,
 }: IHostSummaryProps) => {
   const { platform } = summaryData;
 
@@ -120,7 +123,9 @@ const HostHeader = ({
       // eslint-disable-next-line
       if (
         hostMdmDeviceStatus === undefined ||
-        hostMdmDeviceStatus === "unlocked"
+        hostMdmDeviceStatus === "unlocked" ||
+        (hostMdmDeviceStatus === "locked" &&
+          hostMdmEnrollmentStatus === "On (automatic)")
       ) {
         isDisabled = false;
         tooltip = null;
@@ -165,6 +170,7 @@ const HostHeader = ({
           position="top"
           underline={false}
           showArrow
+          className={`${baseClass}__device-status-tag-wrapper`}
         >
           <span className={classNames}>{tag.title}</span>
         </TooltipWrapper>

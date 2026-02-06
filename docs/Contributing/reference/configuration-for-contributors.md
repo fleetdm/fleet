@@ -1,6 +1,6 @@
 # Configuration for contributors
 
-Don't use these Fleet server configuration options. For Fleet server configuraiton, please use the public [Fleet server configuration documentation](https://fleetdm.com/docs/configuration/fleet-server-configuration) instead. For YAML, please use the [public GitOps documentation](https://fleetdm.com/docs/configuration/yaml-files) instead.
+Don't use these Fleet server configuration options. For Fleet server configuration, please use the public [Fleet server configuration documentation](https://fleetdm.com/docs/configuration/fleet-server-configuration) instead. For YAML, please use the [public GitOps documentation](https://fleetdm.com/docs/configuration/yaml-files) instead.
 
 These options in this document are only used when contributing to Fleet. They frequently change to reflect current functionality.
 
@@ -198,7 +198,7 @@ Key that allows the Fleet server to communicate to the Microsoft compliance part
 
 > Experimental feature. This feature will be removed when Fleet adds the ability to add custom OS update and FileVault profiles via Fleet's UI, API, and YAML.
 
-This configuration option is not production ready. There will be conflicts between custom OS updates / FileVault configuration profiles and the profiles Fleet for these features under-the-hood. This haven't been tested by Fleet.
+This configuration option is not production ready. It hasn't been tested by Fleet. There will be conflicts between custom OS updates / FileVault configuration profiles and the profiles Fleet uses for these features under-the-hood.
 
 If set to `true`, Fleet allows users to add the [SoftwareUpdateEnforcementSpecific declaration (DDM)](https://developer.apple.com/documentation/devicemanagement/softwareupdateenforcementspecific) profile, [FDEFileVault](https://developer.apple.com/documentation/devicemanagement/fdefilevault), [FDEFileVaultOptions](https://developer.apple.com/documentation/devicemanagement/fdefilevaultoptions), [FDERecoveryKeyEscrow](https://developer.apple.com/documentation/devicemanagement/fderecoverykeyescrow), and [/Vendor/MSFT/Policy/Config/Update/](https://learn.microsoft.com/en-us/windows/client-management/mdm/policy-csp-update) configuration profiles.
 
@@ -208,6 +208,36 @@ If set to `true`, Fleet allows users to add the [SoftwareUpdateEnforcementSpecif
   ```yaml
   mdm:
     enable_custom_os_updates_and_filevault: true
+  ```
+
+### logging.tracing_enabled
+
+Enables OpenTelemetry tracing and metrics export. When enabled, traces and metrics are sent to the OTLP endpoint configured via the standard `OTEL_EXPORTER_OTLP_ENDPOINT` environment variable.
+
+By default, OpenTelemetry is used. Set `tracing_type` to `elasticapm` only if you want to use Elastic APM instead.
+
+- Default value: `false`
+- Environment variable: `FLEET_LOGGING_TRACING_ENABLED`
+- Config file format:
+  ```yaml
+  logging:
+    tracing_enabled: true
+    # tracing_type: elasticapm  # Only set if using Elastic APM instead of OpenTelemetry
+  ```
+
+### logging.otel_logs_enabled
+
+Enables exporting logs to an OpenTelemetry collector in addition to stderr output. When enabled, logs are sent to the OTLP endpoint configured via the standard `OTEL_EXPORTER_OTLP_ENDPOINT` environment variable. Logs are automatically correlated with traces via `trace_id` and `span_id` attributes.
+
+> **Note:** This option requires `logging.tracing_enabled` to be set to `true`. Fleet will fail to start if `otel_logs_enabled` is `true` but `tracing_enabled` is `false`.
+
+- Default value: `false`
+- Environment variable: `FLEET_LOGGING_OTEL_LOGS_ENABLED`
+- Config file format:
+  ```yaml
+  logging:
+    tracing_enabled: true
+    otel_logs_enabled: true
   ```
 
 ### FLEET_ENABLE_POST_CLIENT_DEBUG_ERRORS

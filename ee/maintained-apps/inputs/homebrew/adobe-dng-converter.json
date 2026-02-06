@@ -1,0 +1,8 @@
+{
+  "name": "Adobe DNG Converter",
+  "unique_identifier": "com.adobe.DNGConverter",
+  "token": "adobe-dng-converter",
+  "installer_format": "dmg",
+  "slug": "adobe-dng-converter/darwin",
+  "default_categories": ["Productivity"]
+}

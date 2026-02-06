@@ -35,7 +35,7 @@ const ApplePushCertSetup = ({
         const msg = getErrorReason(e);
         if (
           msg.toLowerCase().includes("invalid certificate") ||
-          msg.toLowerCase().includes("required private key")
+          msg.toLowerCase().includes("download the certificate signing request")
         ) {
           renderFlash("error", msg);
         } else {

@@ -4,12 +4,13 @@ import (
 	"os"
 	"testing"
 
+	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	android_mock "github.com/fleetdm/fleet/v4/server/mdm/android/mock"
 	android_service "github.com/fleetdm/fleet/v4/server/mdm/android/service"
+	"github.com/fleetdm/fleet/v4/server/platform/endpointer"
 	"github.com/fleetdm/fleet/v4/server/service"
 	"github.com/fleetdm/fleet/v4/server/service/integrationtest"
-	"github.com/fleetdm/fleet/v4/server/service/middleware/endpoint_utils"
 	"github.com/fleetdm/fleet/v4/server/service/modules/activities"
 	"github.com/go-kit/log"
 	"github.com/stretchr/testify/require"
@@ -33,6 +34,10 @@ func SetUpSuite(t *testing.T, uniqueTestName string) *Suite {
 		"test-private-key",
 		ds,
 		activityModule,
+		config.AndroidAgentConfig{
+			Package:       "com.fleetdm.agent",
+			SigningSHA256: "abc123def456",
+		},
 	)
 	require.NoError(t, err)
 	androidSvc.(*android_service.Service).AllowLocalhostServerURL = true
@@ -43,7 +48,7 @@ func SetUpSuite(t *testing.T, uniqueTestName string) *Suite {
 		FleetConfig:   &fleetCfg,
 		Pool:          redisPool,
 		Logger:        logger,
-		FeatureRoutes: []endpoint_utils.HandlerRoutesFunc{android_service.GetRoutes(fleetSvc, androidSvc)},
+		FeatureRoutes: []endpointer.HandlerRoutesFunc{android_service.GetRoutes(fleetSvc, androidSvc)},
 	})
 
 	s := &Suite{

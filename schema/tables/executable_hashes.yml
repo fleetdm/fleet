@@ -1,0 +1,19 @@
+name: executable_hashes
+platforms:
+  - darwin
+description: Calculates the sha256 hash of a macOS application executable.
+columns:
+  - name: path
+    type: text
+    required: true
+    description: Path is the absolute path to the app folder.
+  - name: executable_path
+    type: text
+    required: false
+    description: Path of the executable for this app.
+  - name: executable_sha256
+    type: text
+    required: false
+    description: Calculated hex-encoded SHA256 of the executable of this app.
+notes: This table is not a core osquery table. It is included as part of Fleet's agent ([fleetd](https://fleetdm.com/docs/get-started/anatomy#fleetd)).
+evented: false

@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/license"
+	"github.com/fleetdm/fleet/v4/server/dev_mode"
 
 	"github.com/WatchBeam/clock"
 	"github.com/fleetdm/fleet/v4/server/config"
@@ -19,7 +20,6 @@ import (
 )
 
 var (
-	dev               bool
 	devLicense        bool
 	devExpiredLicense bool
 	lockDuration      time.Duration
@@ -36,14 +36,14 @@ will disable it on the server allowing the user configure their own 'cron' mecha
 by an exit code of zero.`,
 		RunE: func(cmd *cobra.Command, args []string) (err error) {
 			cfg := configManager.LoadConfig()
-			if dev {
+			if dev_mode.IsEnabled {
 				applyDevFlags(&cfg)
 			}
 
 			logger := initLogger(cfg)
 			logger = kitlog.With(logger, fleet.CronVulnerabilities)
 
-			licenseInfo, err := initLicense(cfg, devLicense, devExpiredLicense)
+			licenseInfo, err := initLicense(&cfg, devLicense, devExpiredLicense)
 			if err != nil {
 				return err
 			}
@@ -123,7 +123,7 @@ by an exit code of zero.`,
 			return
 		},
 	}
-	vulnProcessingCmd.PersistentFlags().BoolVar(&dev, "dev", false, "Enable developer options")
+	vulnProcessingCmd.PersistentFlags().BoolVar(&dev_mode.IsEnabled, "dev", false, "Enable developer options")
 	vulnProcessingCmd.PersistentFlags().BoolVar(&devLicense, "dev_license", false, "Enable development license")
 	vulnProcessingCmd.PersistentFlags().BoolVar(&devExpiredLicense, "dev_expired_license", false, "Enable expired development license")
 	vulnProcessingCmd.PersistentFlags().DurationVar(

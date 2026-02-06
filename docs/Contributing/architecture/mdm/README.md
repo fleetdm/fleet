@@ -18,4 +18,3 @@ Fleet's MDM architecture is designed to manage devices across different platform
 ## Related resources
 
 - [MDM Product Group Documentation](../../product-groups/mdm/) - Documentation for the MDM product group
-- [MDM Development Guides](../../guides/mdm/) - Guides for MDM development

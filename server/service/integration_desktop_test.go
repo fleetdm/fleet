@@ -13,6 +13,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/datastore/redis"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/ptr"
+
 	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
 	"github.com/stretchr/testify/assert"
@@ -318,7 +319,7 @@ func (s *integrationTestSuite) TestErrorReporting() {
 	res.Body.Close()
 
 	data := make(map[string]interface{})
-	for i := int64(0); i < (maxFleetdErrorReportSize+1024)/20; i++ {
+	for i := range (fleet.MaxFleetdErrorReportSize + 1024) / 20 {
 		key := fmt.Sprintf("key%d", i)
 		value := fmt.Sprintf("value%d", i)
 		data[key] = value
@@ -521,4 +522,31 @@ func (s *integrationEnterpriseTestSuite) TestRateLimitOfDesktopEndpoints() {
 	s.DoRawNoAuth("HEAD", "/api/latest/fleet/device/invalid_token/ping", nil, http.StatusUnauthorized).Body.Close()
 	// A new failing request is not banned.
 	s.DoRawNoAuth("GET", "/api/latest/fleet/device/invalid_token/desktop", nil, http.StatusUnauthorized).Body.Close()
+}
+
+func (s *integrationEnterpriseTestSuite) TestAlternativeBrowserHostSetting() {
+	t := s.T()
+
+	token := "valid_token"
+	createHostAndDeviceToken(s.T(), s.ds, token)
+
+	acResp := appConfigResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/config", nil, http.StatusOK, &acResp)
+	require.NotNil(t, acResp)
+
+	getDesktopResp := fleetDesktopResponse{}
+	res := s.DoRawNoAuth("GET", "/api/latest/fleet/device/"+token+"/desktop", nil, http.StatusOK)
+	require.NoError(t, json.NewDecoder(res.Body).Decode(&getDesktopResp))
+	require.NoError(t, res.Body.Close())
+	require.Equal(t, acResp.FleetDesktop.AlternativeBrowserHost, getDesktopResp.AlternativeBrowserHost)
+
+	acResp = appConfigResponse{}
+	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{"fleet_desktop": {"alternative_browser_host":"althost"}}`), http.StatusOK, &acResp)
+	require.NotNil(t, acResp)
+
+	getDesktopResp = fleetDesktopResponse{}
+	res = s.DoRawNoAuth("GET", "/api/latest/fleet/device/"+token+"/desktop", nil, http.StatusOK)
+	require.NoError(t, json.NewDecoder(res.Body).Decode(&getDesktopResp))
+	require.NoError(t, res.Body.Close())
+	require.Equal(t, "althost", getDesktopResp.AlternativeBrowserHost)
 }

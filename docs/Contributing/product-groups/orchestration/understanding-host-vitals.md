@@ -84,13 +84,7 @@ SELECT 1 FROM osquery_registry WHERE active = true AND registry = 'table' AND na
 
 - Query:
 ```sql
-SELECT device_id, user_principal_name, 1 AS priority FROM app_sso_platform WHERE extension_identifier = 'com.microsoft.CompanyPortalMac.ssoextension' AND realm = 'KERBEROS.MICROSOFTONLINE.COM'
-	UNION ALL
-	SELECT device_id, user_principal_name, 2 AS priority FROM (
-		SELECT common_name AS device_id FROM certificates WHERE issuer LIKE '/DC=net+DC=windows+CN=MS-Organization-Access+OU%' ORDER BY not_valid_before DESC LIMIT 1)
-		CROSS JOIN
-		(SELECT label as user_principal_name FROM keychain_items WHERE account = 'com.microsoft.workplacejoin.registeredUserPrincipalName' LIMIT 1)
-	ORDER BY priority ASC;
+SELECT * FROM app_sso_platform WHERE extension_identifier = 'com.microsoft.CompanyPortalMac.ssoextension' AND realm = 'KERBEROS.MICROSOFTONLINE.COM';
 ```
 
 ## disk_encryption_darwin
@@ -916,6 +910,24 @@ SELECT c.*
 		JOIN codesign c ON a.path = c.path
 ```
 
+## software_macos_executable_sha256
+
+- Description: A software override query[^1] to append the sha256 hash of app bundle executables to macOS software entries. Requires `fleetd`
+
+- Platforms: darwin
+
+- Discovery query:
+```sql
+SELECT 1 FROM osquery_registry WHERE active = true AND registry = 'table' AND name = 'executable_hashes'
+```
+
+- Query:
+```sql
+SELECT eh.*
+		FROM apps a
+		JOIN executable_hashes eh ON a.path = eh.path
+```
+
 ## software_macos_firefox
 
 - Description: A software override query[^1] to differentiate between Firefox and Firefox ESR on macOS. Requires `fleetd`
@@ -1130,6 +1142,17 @@ SELECT
   path AS installed_path,
   '' as upgrade_code
 FROM chocolatey_packages
+```
+
+## software_windows_acrobat_dc
+
+- Description: Software override query used to determine whether the Adobe Acrobat Reader program name needs to include the DC postfix
+
+- Platforms: windows
+
+- Query:
+```sql
+SELECT 1 FROM registry WHERE key = 'HKEY_LOCAL_MACHINE\SOFTWARE\Adobe\Adobe Acrobat\DC'
 ```
 
 ## software_windows_last_opened_at

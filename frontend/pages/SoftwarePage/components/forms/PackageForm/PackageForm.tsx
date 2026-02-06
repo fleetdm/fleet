@@ -25,7 +25,6 @@ import {
   getTargetType,
 } from "pages/SoftwarePage/helpers";
 import TargetLabelSelector from "components/TargetLabelSelector";
-import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
 import Card from "components/Card";
 import SoftwareOptionsSelector from "pages/SoftwarePage/components/forms/SoftwareOptionsSelector";
 
@@ -84,7 +83,7 @@ interface IPackageFormProps {
   defaultPostInstallScript?: string;
   defaultUninstallScript?: string;
   defaultSelfService?: boolean;
-  defaultCategories?: SoftwareCategory[];
+  defaultCategories?: SoftwareCategory[] | null;
   className?: string;
   /** Indicates that this PackageForm deals with an entity that can be managed by GitOps, and so should be disabled when gitops mode is enabled */
   gitopsCompatible?: boolean;
@@ -112,8 +111,8 @@ const PackageForm = ({
   gitopsCompatible = false,
 }: IPackageFormProps) => {
   const { renderFlash } = useContext(NotificationContext);
-  const gitOpsModeEnabled = useContext(AppContext).config?.gitops
-    .gitops_mode_enabled;
+  const { gitops_mode_enabled: gitOpsModeEnabled, repository_url: repoURL } =
+    useContext(AppContext).config?.gitops || {};
 
   const initialFormData: IPackageFormData = {
     software: defaultSoftware || null,
@@ -266,8 +265,13 @@ const PackageForm = ({
     setFormValidation(generateFormValidation(newData));
   };
 
-  const isSubmitDisabled = !formValidation.isValid;
-  const submitTooltipContent = createTooltipContent(formValidation);
+  const disableFieldsForGitOps = gitopsCompatible && gitOpsModeEnabled;
+  const isSubmitDisabled = !formValidation.isValid || disableFieldsForGitOps;
+  const submitTooltipContent = createTooltipContent(
+    formValidation,
+    repoURL,
+    disableFieldsForGitOps
+  );
 
   const classNames = classnames(baseClass, className);
 
@@ -322,7 +326,7 @@ const PackageForm = ({
               ? getFileDetails(formData.software, true)
               : undefined
           }
-          gitopsCompatible={false}
+          gitopsCompatible={gitopsCompatible}
           gitOpsModeEnabled={gitOpsModeEnabled}
         />
         <div
@@ -398,6 +402,8 @@ const PackageForm = ({
             onChangeInstallScript={onChangeInstallScript}
             onChangePostInstallScript={onChangePostInstallScript}
             onChangeUninstallScript={onChangeUninstallScript}
+            gitopsCompatible={gitopsCompatible}
+            gitOpsModeEnabled={gitOpsModeEnabled}
           />
         )}
         <div className={`${baseClass}__action-buttons`}>

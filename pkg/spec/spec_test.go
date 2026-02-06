@@ -195,6 +195,12 @@ func TestExpandEnv(t *testing.T) {
 			"$fleet_var_test", // Should not be replaced
 			nil,
 		},
+		{
+			map[string]string{"custom_secret": "test&123"},
+			"<Add>$custom_secret</Add>",
+			"<Add>test&amp;123</Add>",
+			nil,
+		},
 	} {
 		// save the current env before clearing it.
 		testutils.SaveEnv(t)
@@ -227,6 +233,7 @@ func TestLookupEnvSecrets(t *testing.T) {
 			map[string]string{},
 			checkMultiErrors(t, "environment variable \"FLEET_SECRET_foo\" not set"),
 		},
+		{map[string]string{"FLEET_SECRET_foo": "test&123"}, `<Add>$FLEET_SECRET_foo</Add>`, map[string]string{"FLEET_SECRET_foo": "test&amp;123"}, nil},
 	} {
 		// save the current env before clearing it.
 		testutils.SaveEnv(t)
@@ -250,6 +257,7 @@ func TestExpandEnvBytesIncludingSecrets(t *testing.T) {
 	t.Setenv("FLEET_SECRET_API_KEY", "secret123")
 	t.Setenv("NORMAL_VAR", "normalvalue")
 	t.Setenv("FLEET_VAR_HOST", "hostname")
+	t.Setenv("FLEET_SECRET_XML", "secret&123")
 
 	input := []byte(`API Key: $FLEET_SECRET_API_KEY
 Normal: $NORMAL_VAR  
@@ -273,6 +281,13 @@ Missing: $FLEET_SECRET_MISSING`
 	assert.NotContains(t, string(result), "$FLEET_SECRET_API_KEY")
 	// Verify that missing secrets are left as-is
 	assert.Contains(t, string(result), "$FLEET_SECRET_MISSING")
+
+	xmlInput := []byte(`<Add>$FLEET_SECRET_XML</Add>`)
+	xmlResult, err := ExpandEnvBytesIncludingSecrets(xmlInput)
+	require.NoError(t, err)
+
+	expectedXML := `<Add>secret&amp;123</Add>`
+	assert.Equal(t, expectedXML, string(xmlResult))
 }
 
 func TestGetExclusionZones(t *testing.T) {

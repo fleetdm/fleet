@@ -13,6 +13,7 @@ import input.subject
 read := "read"
 list := "list"
 write := "write"
+create := "create" # only for labels right now
 write_host_label := "write_host_label"
 cancel_host_activity := "cancel_host_activity"
 
@@ -144,6 +145,13 @@ allow {
   object.type == "user"
   subject.global_role == admin
   action == [read, write, write_role, change_password][_]
+}
+
+# Global observers, observer_plus, and maintainers can read users.
+allow {
+  object.type == "user"
+  subject.global_role == [observer, observer_plus, maintainer][_]
+  action == read
 }
 
 # Team admins can perform all operations on the team users (except changing their password).
@@ -358,12 +366,13 @@ allow {
   action == read
 }
 
-# Team admins, maintainers, observer_plus, observers and gitops can read labels.
+# Team admins, maintainers, observer_plus, observers and gitops can read global labels.
 allow {
-	object.type == "label"
+  object.type == "label"
+  any([is_null(object.team_id), object.team_id == 0]) # allow specifying team ID 0 for listing exclusively global labels
   # If role is admin, maintainer, observer_plus or observer on any team.
   team_role(subject, subject.teams[_].id) == [admin, maintainer, observer_plus, observer, gitops][_]
-	action == read
+  action == read
 }
 
 # Global admins, maintainers and gitops can write labels
@@ -373,15 +382,54 @@ allow {
   action == write
 }
 
-
-# Team admins and maintainers can write labels
+# Global admins, maintainers and gitops can create labels
 allow {
   object.type == "label"
-  # If role is admin, maintainer or gitops on any team.
-  team_role(subject, subject.teams[_].id) == [admin, maintainer][_]
+  subject.global_role == [admin, maintainer, gitops][_]
+  action == create
+}
+
+# Team admins, maintainers, and gitops can create global labels
+allow {
+  object.type == "label"
+  is_null(object.team_id)
+  team_role(subject, subject.teams[_].id) == [admin, maintainer, gitops][_]
+  action == create
+}
+
+# Team admins, maintainers, and gitops can write global labels they created
+allow {
+  object.type == "label"
+  is_null(object.team_id)
+  not is_null(object.author_id)
+  object.author_id = subject.id
+  team_role(subject, subject.teams[_].id) == [admin, maintainer, gitops][_]
   action == write
 }
 
+# Team users can read labels on their team
+allow {
+  object.type == "label"
+  not is_null(object.team_id)
+  team_role(subject, object.team_id) == [admin, maintainer, gitops, observer_plus, observer][_]
+  action == read
+}
+
+# Team admins, maintainers, and gitops can write labels on their team
+allow {
+  object.type == "label"
+  not is_null(object.team_id)
+  team_role(subject, object.team_id) == [admin, maintainer, gitops][_]
+  action == write
+}
+
+# Team admins, maintainers, and gitops can create labels on their team
+allow {
+  object.type == "label"
+  not is_null(object.team_id)
+  team_role(subject, object.team_id) == [admin, maintainer, gitops][_]
+  action == create
+}
 
 ##
 # Queries

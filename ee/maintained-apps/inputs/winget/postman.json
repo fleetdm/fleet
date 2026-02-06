@@ -1,0 +1,12 @@
+{
+  "name": "Postman",
+  "slug": "postman/windows",
+  "package_identifier": "Postman.Postman",
+  "unique_identifier": "Postman x64 11.75.4",
+  "installer_arch": "x64",
+  "installer_type": "exe",
+  "installer_scope": "user",
+  "default_categories": ["Developer tools"],
+  "install_script_path": "ee/maintained-apps/inputs/winget/scripts/postman_install.ps1",
+  "uninstall_script_path": "ee/maintained-apps/inputs/winget/scripts/postman_uninstall.ps1"
+}

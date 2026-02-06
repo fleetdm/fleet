@@ -18,7 +18,7 @@ controls:
   macos_updates:
     deadline: "2024-12-31"
     minimum_version: "15.1"
-    update_new_hosts:
+    update_new_hosts: true
   scripts:
   - path: ../lib/no-team/scripts/Script Z.ps1
   windows_enabled_and_configured: true

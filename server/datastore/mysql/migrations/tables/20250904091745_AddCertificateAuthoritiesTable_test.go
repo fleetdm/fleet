@@ -83,9 +83,9 @@ func TestUp_20250904091745(t *testing.T) {
 	integrations.GoogleCalendar = []*fleet.GoogleCalendarIntegration{
 		{
 			Domain: "example.com",
-			ApiKey: map[string]string{
+			ApiKey: fleet.GoogleCalendarApiKey{Values: map[string]string{
 				"fleet": "test",
-			},
+			}},
 		},
 	}
 

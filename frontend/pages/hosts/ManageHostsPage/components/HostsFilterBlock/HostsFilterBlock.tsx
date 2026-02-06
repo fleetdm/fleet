@@ -75,7 +75,11 @@ interface IHostsFilterBlockProps {
     vulnerability?: string;
     munkiIssueId?: number;
     osVersions?: IOperatingSystemVersion[];
-    softwareDetails: { name: string; version?: string } | null;
+    softwareDetails: {
+      name: string;
+      display_name?: string;
+      version?: string;
+    } | null;
     mdmSolutionDetails: IMdmSolution | null;
     osSettingsStatus?: MdmProfileStatus;
     diskEncryptionStatus?: DiskEncryptionStatus;
@@ -331,8 +335,8 @@ const HostsFilterBlock = ({
   const renderSoftwareFilterBlock = (additionalClearParams?: string[]) => {
     if (!softwareDetails) return null;
 
-    const { name, version } = softwareDetails;
-    let label = name;
+    const { name, display_name, version } = softwareDetails;
+    let label = display_name || name;
     if (version) {
       label += ` ${version}`;
     }
@@ -600,7 +604,10 @@ const HostsFilterBlock = ({
     );
   };
 
-  const showSelectedLabel = selectedLabel && selectedLabel.type !== "all";
+  const showSelectedLabel =
+    selectedLabel &&
+    selectedLabel.type !== "all" &&
+    selectedLabel.type !== "platform";
 
   if (
     showSelectedLabel ||

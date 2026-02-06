@@ -41,7 +41,7 @@ func (s *integrationSSOTestSuite) SetupSuite() {
 	s.withDS.SetupSuite("integrationSSOTestSuite")
 
 	pool := redistest.SetupRedis(s.T(), "zz", false, false, false)
-	opts := &TestServerOpts{Pool: pool}
+	opts := &TestServerOpts{Pool: pool, DBConns: s.dbConns}
 	if os.Getenv("FLEET_INTEGRATION_TESTS_DISABLE_LOG") != "" {
 		opts.Logger = kitlog.NewNopLogger()
 	}

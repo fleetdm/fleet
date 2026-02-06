@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"flag"
 	"fmt"
 	"io"
 	"net/http"
@@ -31,6 +32,32 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
+
+// updateGolden is a flag to update golden files instead of comparing against them.
+// Usage: go test -update ./cmd/fleetctl/fleetctl/... -run TestGetHosts
+var updateGolden = flag.Bool("update", false, "update golden files")
+
+// updateGoldenFile writes content to the golden file if -update flag is set.
+// JSON files are pretty-printed before writing.
+// Returns true if the file was updated (test should skip comparison).
+func updateGoldenFile(t *testing.T, goldenFile string, content string) bool {
+	if !*updateGolden {
+		return false
+	}
+	output := content
+	if filepath.Ext(goldenFile) == ".json" {
+		var parsed any
+		if err := json.Unmarshal([]byte(content), &parsed); err == nil {
+			if pretty, err := json.MarshalIndent(parsed, "", "  "); err == nil {
+				output = string(pretty) + "\n"
+			}
+		}
+	}
+	err := os.WriteFile(filepath.Join("testdata", goldenFile), []byte(output), 0644)
+	require.NoError(t, err)
+	t.Logf("Updated golden file: %s", goldenFile)
+	return true
+}
 
 var userRoleList = []*fleet.User{
 	{
@@ -356,6 +383,9 @@ func TestGetHosts(t *testing.T) {
 	ds.LoadHostSoftwareFunc = func(ctx context.Context, host *fleet.Host, includeCVEScores bool) error {
 		return nil
 	}
+	ds.GetHostsLockWipeStatusBatchFunc = func(ctx context.Context, hosts []*fleet.Host) (map[uint]*fleet.HostLockWipeStatus, error) {
+		return make(map[uint]*fleet.HostLockWipeStatus), nil
+	}
 	ds.ListLabelsForHostFunc = func(ctx context.Context, hid uint) ([]*fleet.Label, error) {
 		return make([]*fleet.Label, 0), nil
 	}
@@ -366,6 +396,9 @@ func TestGetHosts(t *testing.T) {
 		return nil, nil
 	}
 	ds.ListUpcomingHostMaintenanceWindowsFunc = func(ctx context.Context, hid uint) ([]*fleet.HostMaintenanceWindow, error) {
+		return nil, nil
+	}
+	ds.ConditionalAccessBypassedAtFunc = func(ctx context.Context, hostID uint) (*time.Time, error) {
 		return nil, nil
 	}
 	defaultPolicyQuery := "select 1 from osquery_info where start_time > 1;"
@@ -490,10 +523,14 @@ func TestGetHosts(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(fmt.Sprintf("%s - %s", tt.name, tt.goldenFile), func(t *testing.T) {
+			actualOutput := RunAppForTest(t, tt.args)
+			if updateGoldenFile(t, tt.goldenFile, actualOutput) {
+				return
+			}
 			expected, err := os.ReadFile(filepath.Join("testdata", tt.goldenFile))
 			require.NoError(t, err)
 			expectedResults := tt.scanner(string(expected))
-			actualResult := tt.scanner(RunAppForTest(t, tt.args))
+			actualResult := tt.scanner(actualOutput)
 			require.Equal(t, len(expectedResults), len(actualResult))
 			for i := range expectedResults {
 				require.Equal(t, tt.prettifier(t, expectedResults[i]), tt.prettifier(t, actualResult[i]))
@@ -566,6 +603,9 @@ func TestGetHostsMDM(t *testing.T) {
 	ds.ListPoliciesForHostFunc = func(ctx context.Context, host *fleet.Host) ([]*fleet.HostPolicy, error) {
 		return nil, nil
 	}
+	ds.GetHostsLockWipeStatusBatchFunc = func(ctx context.Context, hosts []*fleet.Host) (map[uint]*fleet.HostLockWipeStatus, error) {
+		return make(map[uint]*fleet.HostLockWipeStatus), nil
+	}
 
 	tests := []struct {
 		name       string
@@ -600,15 +640,23 @@ func TestGetHostsMDM(t *testing.T) {
 			}
 
 			if tt.goldenFile != "" {
-				expected, err := os.ReadFile(filepath.Join("testdata", tt.goldenFile))
-				require.NoError(t, err)
 				if ext := filepath.Ext(tt.goldenFile); ext == ".json" {
 					// the output of --json is not a json array, but a list of
 					// newline-separated json objects. fix that for the assertion,
 					// turning it into a JSON array.
 					actual := "[" + strings.ReplaceAll(got.String(), "}\n{", "},{") + "]"
+					if updateGoldenFile(t, tt.goldenFile, actual) {
+						return
+					}
+					expected, err := os.ReadFile(filepath.Join("testdata", tt.goldenFile))
+					require.NoError(t, err)
 					require.JSONEq(t, string(expected), actual)
 				} else {
+					if updateGoldenFile(t, tt.goldenFile, got.String()) {
+						return
+					}
+					expected, err := os.ReadFile(filepath.Join("testdata", tt.goldenFile))
+					require.NoError(t, err)
 					require.YAMLEq(t, string(expected), got.String())
 				}
 			}
@@ -918,7 +966,11 @@ func TestGetSoftwareVersions(t *testing.T) {
 	}
 	foo002 := fleet.Software{Name: "foo", Version: "0.0.2", Source: "chrome_extensions", ExtensionID: "xyz", ExtensionFor: "edge"}
 	foo003 := fleet.Software{Name: "foo", Version: "0.0.3", Source: "chrome_extensions", GenerateCPE: "someothercpewithoutvulns", ExtensionFor: "chrome"}
-	bar003 := fleet.Software{Name: "bar", Version: "0.0.3", Source: "deb_packages", BundleIdentifier: "bundle"}
+	barLastOpenedAt := time.Date(2022, 1, 1, 0, 0, 0, 0, time.UTC)
+	bar003 := fleet.Software{
+		Name: "bar", Version: "0.0.3", Source: "deb_packages", BundleIdentifier: "bundle",
+		LastOpenedAt: &barLastOpenedAt,
+	}
 
 	var gotTeamID *uint
 
@@ -985,6 +1037,7 @@ spec:
 - bundle_identifier: bundle
   generated_cpe: ""
   id: 0
+  last_opened_at: "2022-01-01T00:00:00Z"
   name: bar
   source: deb_packages
   browser: ""
@@ -1054,7 +1107,8 @@ spec:
       "browser": "",
 	  "extension_for": "",
       "generated_cpe": "",
-      "vulnerabilities": null
+      "vulnerabilities": null,
+      "last_opened_at": "2022-01-01T00:00:00Z"
     }
   ]
 }
@@ -1072,7 +1126,7 @@ spec:
 func TestGetLabels(t *testing.T) {
 	_, ds := testing_utils.RunServerWithMockedDS(t)
 
-	ds.GetLabelSpecsFunc = func(ctx context.Context) ([]*fleet.LabelSpec, error) {
+	ds.GetLabelSpecsFunc = func(ctx context.Context, filter fleet.TeamFilter) ([]*fleet.LabelSpec, error) {
 		return []*fleet.LabelSpec{
 			{
 				ID:          32,
@@ -1110,6 +1164,7 @@ spec:
   name: label1
   platform: windows
   query: select 1;
+  team_id: null
 ---
 apiVersion: v1
 kind: label
@@ -1121,9 +1176,10 @@ spec:
   name: label2
   platform: linux
   query: select 42;
+  team_id: null
 `
-	expectedJson := `{"kind":"label","apiVersion":"v1","spec":{"id":32,"name":"label1","description":"some description","query":"select 1;","platform":"windows","label_membership_type":"dynamic","hosts":null}}
-{"kind":"label","apiVersion":"v1","spec":{"id":33,"name":"label2","description":"some other description","query":"select 42;","platform":"linux","label_membership_type":"dynamic","hosts":null}}
+	expectedJson := `{"kind":"label","apiVersion":"v1","spec":{"id":32,"name":"label1","description":"some description","query":"select 1;","platform":"windows","label_membership_type":"dynamic","hosts":null,"team_id":null}}
+{"kind":"label","apiVersion":"v1","spec":{"id":33,"name":"label2","description":"some other description","query":"select 42;","platform":"linux","label_membership_type":"dynamic","hosts":null,"team_id":null}}
 `
 
 	assert.Equal(t, expected, RunAppForTest(t, []string{"get", "labels"}))
@@ -1134,7 +1190,7 @@ spec:
 func TestGetLabel(t *testing.T) {
 	_, ds := testing_utils.RunServerWithMockedDS(t)
 
-	ds.GetLabelSpecFunc = func(ctx context.Context, name string) (*fleet.LabelSpec, error) {
+	ds.GetLabelSpecFunc = func(ctx context.Context, filter fleet.TeamFilter, name string) (*fleet.LabelSpec, error) {
 		if name != "label1" {
 			return nil, nil
 		}
@@ -1158,8 +1214,9 @@ spec:
   name: label1
   platform: windows
   query: select 1;
+  team_id: null
 `
-	expectedJson := `{"kind":"label","apiVersion":"v1","spec":{"id":32,"name":"label1","description":"some description","query":"select 1;","platform":"windows","label_membership_type":"dynamic","hosts":null}}
+	expectedJson := `{"kind":"label","apiVersion":"v1","spec":{"id":32,"name":"label1","description":"some description","query":"select 1;","platform":"windows","label_membership_type":"dynamic","hosts":null,"team_id":null}}
 `
 
 	assert.Equal(t, expectedYaml, RunAppForTest(t, []string{"get", "label", "label1"}))
@@ -2464,14 +2521,20 @@ func TestGetTeamsYAMLAndApply(t *testing.T) {
 	) (updates fleet.MDMProfilesUpdates, err error) {
 		return fleet.MDMProfilesUpdates{}, nil
 	}
+	ds.SetOrUpdateMDMWindowsConfigProfileFunc = func(ctx context.Context, cp fleet.MDMWindowsConfigProfile) error {
+		return nil
+	}
+	ds.DeleteMDMWindowsConfigProfileByTeamAndNameFunc = func(ctx context.Context, teamID *uint, profileName string) error {
+		return nil
+	}
 	ds.BatchSetScriptsFunc = func(ctx context.Context, tmID *uint, scripts []*fleet.Script) ([]fleet.ScriptResponse, error) {
 		return []fleet.ScriptResponse{}, nil
 	}
 	ds.DeleteMDMAppleDeclarationByNameFunc = func(ctx context.Context, teamID *uint, name string) error {
 		return nil
 	}
-	ds.LabelIDsByNameFunc = func(ctx context.Context, labels []string) (map[string]uint, error) {
-		require.ElementsMatch(t, labels, []string{fleet.BuiltinLabelMacOS14Plus})
+	ds.LabelIDsByNameFunc = func(ctx context.Context, names []string, filter fleet.TeamFilter) (map[string]uint, error) {
+		require.ElementsMatch(t, names, []string{fleet.BuiltinLabelMacOS14Plus})
 		return map[string]uint{fleet.BuiltinLabelMacOS14Plus: 1}, nil
 	}
 	ds.SetOrUpdateMDMAppleDeclarationFunc = func(ctx context.Context, declaration *fleet.MDMAppleDeclaration) (*fleet.MDMAppleDeclaration, error) {
@@ -2593,7 +2656,19 @@ func TestGetMDMCommandResults(t *testing.T) {
 			{ID: 2, UUID: uuids[1], Hostname: "host2"},
 		}, nil
 	}
-	ds.GetMDMAppleCommandResultsFunc = func(ctx context.Context, commandUUID string) ([]*fleet.MDMCommandResult, error) {
+	ds.GetHostMDMIdentifiersFunc = func(ctx context.Context, identifer string, teamFilter fleet.TeamFilter) ([]*fleet.HostMDMIdentifiers, error) {
+		return []*fleet.HostMDMIdentifiers{
+			{
+				UUID:           "device1",
+				HardwareSerial: "C02XXXXXXX1",
+				Hostname:       "host1",
+				ID:             1,
+				TeamID:         ptr.Uint(1),
+				Platform:       "darwin",
+			},
+		}, nil
+	}
+	ds.GetMDMAppleCommandResultsFunc = func(ctx context.Context, commandUUID string, hostUUID string) ([]*fleet.MDMCommandResult, error) {
 		switch commandUUID {
 		case "empty-cmd":
 			return nil, nil
@@ -2622,7 +2697,7 @@ func TestGetMDMCommandResults(t *testing.T) {
 			}, nil
 		}
 	}
-	ds.GetMDMWindowsCommandResultsFunc = func(ctx context.Context, commandUUID string) ([]*fleet.MDMCommandResult, error) {
+	ds.GetMDMWindowsCommandResultsFunc = func(ctx context.Context, commandUUID string, hostUUID string) ([]*fleet.MDMCommandResult, error) {
 		switch commandUUID {
 		case "empty-cmd":
 			return nil, nil
@@ -3000,6 +3075,66 @@ RESULTS:
 		ds.GetMDMWindowsCommandResultsFuncInvoked = false
 		require.False(t, ds.GetMDMAppleCommandResultsFuncInvoked)
 	})
+
+	t.Run("host specific results", func(t *testing.T) {
+		expectedOutput := strings.TrimSpace(`
+ID:
+valid-cmd
+
+TIME:
+2023-04-04T15:29:00Z
+
+TYPE:
+test
+
+STATUS:
+Acknowledged
+
+HOSTNAME:
+host1
+
+PAYLOAD:
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+  <dict>
+    <key>Command</key>
+    <dict>
+      <key>ManagedOnly</key>
+      <false/>
+      <key>RequestType</key>
+      <string>ProfileList</string>
+    </dict>
+    <key>CommandUUID</key>
+    <string>0001_ProfileList</string>
+  </dict>
+</plist>
+
+
+RESULTS:
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+  <dict>
+    <key>CommandUUID</key>
+    <string>6d7cb698-8d93-45a3-b544-71aef37d42e8</string>
+    <key>Status</key>
+    <string>Acknowledged</string>
+    <key>UDID</key>
+    <string>419D46EC-06E6-557C-AD52-601BA0667730</string>
+  </dict>
+</plist>`)
+
+		platform = "darwin"
+		buf, err := RunAppNoChecks([]string{"get", "mdm-command-results", "--id", "valid-cmd", "--host", "device1"})
+		require.NoError(t, err)
+		require.Contains(t, buf.String(), expectedOutput)
+		require.True(t, ds.GetMDMCommandPlatformFuncInvoked)
+		ds.GetMDMCommandPlatformFuncInvoked = false
+		require.False(t, ds.GetMDMWindowsCommandResultsFuncInvoked)
+		require.True(t, ds.GetMDMAppleCommandResultsFuncInvoked)
+		ds.GetMDMAppleCommandResultsFuncInvoked = false
+	})
 }
 
 func TestGetMDMCommands(t *testing.T) {
@@ -3008,18 +3143,26 @@ func TestGetMDMCommands(t *testing.T) {
 	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 		return &fleet.AppConfig{MDM: fleet.MDM{EnabledAndConfigured: true}}, nil
 	}
+	ds.HostLiteByIdentifierFunc = func(ctx context.Context, identifier string) (*fleet.HostLite, error) {
+		fmt.Println("Called", identifier)
+		if identifier == "foo" || identifier == "h1" {
+			return &fleet.HostLite{ID: 1, UUID: "h1", Hostname: "host1"}, nil
+		}
+		return nil, errors.New(fleet.HostIdentiferNotFound)
+	}
+
 	var empty bool
 	var listErr error
 	var noHostErr error
 	var expectIdentifier bool
 	var expectRequestType bool
-	ds.ListMDMCommandsFunc = func(ctx context.Context, tmFilter fleet.TeamFilter, listOpts *fleet.MDMCommandListOptions) ([]*fleet.MDMCommand, error) {
+	ds.ListMDMCommandsFunc = func(ctx context.Context, tmFilter fleet.TeamFilter, listOpts *fleet.MDMCommandListOptions) ([]*fleet.MDMCommand, *int64, *fleet.PaginationMetadata, error) {
 		if empty || listErr != nil {
-			return nil, listErr
+			return nil, nil, nil, listErr
 		}
 
 		if noHostErr != nil {
-			return nil, errors.New(fleet.HostIdentiferNotFound)
+			return nil, nil, nil, errors.New(fleet.HostIdentiferNotFound)
 		}
 
 		if expectIdentifier {
@@ -3029,7 +3172,7 @@ func TestGetMDMCommands(t *testing.T) {
 		if expectRequestType {
 			require.NotEmpty(t, listOpts.Filters.RequestType)
 		}
-
+		fmt.Println("Returning commands")
 		return []*fleet.MDMCommand{
 			{
 				HostUUID:    "h1",
@@ -3055,7 +3198,7 @@ func TestGetMDMCommands(t *testing.T) {
 				Status:      "200",
 				Hostname:    "host2",
 			},
-		}, nil
+		}, nil, nil, nil
 	}
 
 	listErr = io.ErrUnexpectedEOF
@@ -3123,6 +3266,20 @@ The list of 3 most recent commands:
 	_, err = RunAppNoChecks([]string{"get", "mdm-commands", "--host", "foo"})
 	require.Error(t, err)
 	require.ErrorContains(t, err, fleet.HostIdentiferNotFound)
+
+	// Empty results when using host identifier
+	listErr = nil
+	empty = true
+	expectIdentifier = true
+	noHostErr = nil
+	buf, err = RunAppNoChecks([]string{"get", "mdm-commands", "--host", "foo"})
+	require.NoError(t, err)
+	require.Contains(t, buf.String(), "No MDM commands have been run on this host.")
+
+	// Command status no host
+	_, err = RunAppNoChecks([]string{"get", "mdm-commands", "--command_status", "ran"})
+	require.Error(t, err)
+	require.ErrorContains(t, err, `"host_identifier" must be specified when filtering by "command_status"`)
 }
 
 func TestUserIsObserver(t *testing.T) {

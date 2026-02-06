@@ -31,7 +31,6 @@ import VulnerabilitiesCell from "pages/SoftwarePage/components/tables/Vulnerabil
 import VersionCell from "pages/SoftwarePage/components/tables/VersionCell";
 import { getVulnerabilities } from "pages/SoftwarePage/SoftwareTitles/SoftwareTable/helpers";
 import { getAutomaticInstallPoliciesCount } from "pages/SoftwarePage/helpers";
-import { sourcesWithLastOpenedTime } from "pages/hosts/details/components/InventoryVersions/InventoryVersions";
 
 type ISoftwareTableConfig = Column<IHostSoftware>;
 type ITableHeaderProps = IHeaderProps<IHostSoftware>;
@@ -156,36 +155,53 @@ export const generateSoftwareTableHeaders = ({
       id: "Last opened",
       disableSortBy: true,
       accessor: (originalRow) => {
-        // Extract all last_opened_at values, filter out null/undefined, and ensure valid dates
-        const dateStrings = (originalRow.installed_versions || [])
+        const versions = originalRow.installed_versions || [];
+
+        const isSupported = versions.some(
+          (v) => v.last_opened_at !== undefined
+        );
+
+        // Extract all last_opened_at values that are actual dates (not empty strings)
+        const dateStrings = versions
           .map((v) => v.last_opened_at)
           .filter(
-            (date): date is string => !!date && !isNaN(new Date(date).getTime())
+            (date): date is string =>
+              date !== undefined &&
+              date !== "" &&
+              !isNaN(new Date(date).getTime())
           );
 
-        if (dateStrings.length === 0) return null;
+        // If we have actual dates, return the most recent one
+        if (dateStrings.length > 0) {
+          return dateStrings.reduce((a, b) =>
+            new Date(a).getTime() > new Date(b).getTime() ? a : b
+          );
+        }
 
-        // Find the most recent date string by comparing their Date values
-        return dateStrings.reduce((a, b) =>
-          new Date(a).getTime() > new Date(b).getTime() ? a : b
-        ); // cellProps.cell.value = mostRecent;
+        // If source supports last_opened_at, return empty string to indicate "Never"
+        // Otherwise return undefined to indicate "Not supported"
+        return isSupported ? "" : undefined;
       },
       Cell: (cellProps: ITableStringCellProps) => {
-        if (cellProps.cell.value) {
+        const lastOpenedAt = cellProps.cell.value;
+
+        // If we have a non-empty string value, display it
+        if (lastOpenedAt && lastOpenedAt !== "") {
           return (
             <TextCell
-              value={
-                <HumanTimeDiffWithDateTip timeString={cellProps.cell.value} />
-              }
+              value={<HumanTimeDiffWithDateTip timeString={lastOpenedAt} />}
             />
           );
         }
 
-        return sourcesWithLastOpenedTime.has(cellProps.row.original.source) ? (
-          <TextCell value="Never" />
-        ) : (
-          <TextCell value="Not supported" grey />
-        );
+        // If last_opened_at is an empty string, it means the software supports
+        // the field but hasn't been opened
+        if (lastOpenedAt === "") {
+          return <TextCell value="Never" />;
+        }
+
+        // If last_opened_at is undefined/missing, it's not supported
+        return <TextCell value="Not supported" grey />;
       },
     },
     {

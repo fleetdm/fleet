@@ -16,6 +16,7 @@ import (
 	"github.com/fleetdm/fleet/v4/pkg/optjson"
 	"github.com/fleetdm/fleet/v4/pkg/rawjson"
 	"github.com/fleetdm/fleet/v4/server/config"
+	"github.com/fleetdm/fleet/v4/server/dev_mode"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 )
 
@@ -99,6 +100,7 @@ type ConditionalAccessSettings struct {
 	OktaAssertionConsumerServiceURL optjson.String `json:"okta_assertion_consumer_service_url"`
 	OktaAudienceURI                 optjson.String `json:"okta_audience_uri"`
 	OktaCertificate                 optjson.String `json:"okta_certificate"`
+	BypassDisabled                  optjson.Bool   `json:"bypass_disabled"`
 }
 
 // OktaConfigured returns true if all Okta conditional access fields are configured.
@@ -111,6 +113,10 @@ func (c *ConditionalAccessSettings) OktaConfigured() bool {
 		c.OktaAssertionConsumerServiceURL.Valid && c.OktaAssertionConsumerServiceURL.Value != "" &&
 		c.OktaAudienceURI.Valid && c.OktaAudienceURI.Value != "" &&
 		c.OktaCertificate.Valid && c.OktaCertificate.Value != ""
+}
+
+func (c *ConditionalAccessSettings) BypassEnabled() bool {
+	return !c.BypassDisabled.Valid || !c.BypassDisabled.Value
 }
 
 // SMTPSettings is part of the AppConfig which defines the wire representation
@@ -283,7 +289,7 @@ func (c *AppConfig) MDMUrl() string {
 //   - https://foo.example.com:8080 -> https://okta.foo.example.com:8080
 //
 // Returns an error if the server URL is not configured or cannot be parsed.
-func (c *AppConfig) ConditionalAccessIdPSSOURL(getenv func(string) string) (string, error) {
+func (c *AppConfig) ConditionalAccessIdPSSOURL(getenv dev_mode.GetEnv) (string, error) {
 	// Check for dev override
 	if devURL := getenv("FLEET_DEV_OKTA_SSO_SERVER_URL"); devURL != "" {
 		return devURL, nil
@@ -685,6 +691,9 @@ func (c *AppConfig) Obfuscate() {
 	for _, zdIntegration := range c.Integrations.Zendesk {
 		zdIntegration.APIToken = MaskedPassword
 	}
+	for _, gcIntegration := range c.Integrations.GoogleCalendar {
+		gcIntegration.ApiKey.SetMasked()
+	}
 	// // TODO(hca): confirm that we're properly masking credentials in the new endpoints
 	// if c.Integrations.NDESSCEPProxy.Valid {
 	// 	c.Integrations.NDESSCEPProxy.Value.Password = MaskedPassword
@@ -771,8 +780,10 @@ func (c *AppConfig) Copy() *AppConfig {
 		for i, g := range c.Integrations.GoogleCalendar {
 			gCal := *g
 			clone.Integrations.GoogleCalendar[i] = &gCal
-			clone.Integrations.GoogleCalendar[i].ApiKey = make(map[string]string, len(g.ApiKey))
-			maps.Copy(clone.Integrations.GoogleCalendar[i].ApiKey, g.ApiKey)
+			if len(g.ApiKey.Values) > 0 {
+				clone.Integrations.GoogleCalendar[i].ApiKey.Values = make(map[string]string, len(g.ApiKey.Values))
+				maps.Copy(clone.Integrations.GoogleCalendar[i].ApiKey.Values, g.ApiKey.Values)
+			}
 		}
 	}
 	// // TODO(hca): do we want to cache the new grouped CAs datastore method?
@@ -1228,6 +1239,9 @@ func (f *Features) Copy() *Features {
 type FleetDesktopSettings struct {
 	// TransparencyURL is the URL used for the “About Fleet” link in the Fleet Desktop menu.
 	TransparencyURL string `json:"transparency_url"`
+	// AlternativeBrowserHost if set, Fleet Desktop will use this to open any links;
+	// this is used in scenarios where we want Fleet Desktop traffic to use a custom proxy, for security reasons.
+	AlternativeBrowserHost string `json:"alternative_browser_host"`
 }
 
 // DefaultTransparencyURL is the default URL used for the “About Fleet” link in the Fleet Desktop menu.
@@ -1284,6 +1298,27 @@ func (l ListOptions) UsesCursorPagination() bool {
 	return l.After != "" && l.OrderKey != ""
 }
 
+// DefaultPerPage is the default limit for list queries when no limit is specified.
+const DefaultPerPage = 1000000
+
+// Interface methods for common_mysql.ListOptions
+
+func (l ListOptions) GetPage() uint { return l.Page }
+func (l ListOptions) GetPerPage() uint {
+	if l.PerPage == 0 {
+		return DefaultPerPage
+	}
+	return l.PerPage
+}
+func (l ListOptions) GetOrderKey() string          { return l.OrderKey }
+func (l ListOptions) IsDescending() bool           { return l.OrderDirection == OrderDescending }
+func (l ListOptions) GetCursorValue() string       { return l.After }
+func (l ListOptions) WantsPaginationInfo() bool    { return l.IncludeMetadata }
+func (l ListOptions) GetSecondaryOrderKey() string { return l.TestSecondaryOrderKey }
+func (l ListOptions) IsSecondaryDescending() bool {
+	return l.TestSecondaryOrderDirection == OrderDescending
+}
+
 type ListQueryOptions struct {
 	ListOptions
 
@@ -1298,16 +1333,6 @@ type ListQueryOptions struct {
 	// Return queries that are scheduled to run on this platform. One of "macos",
 	// "windows", or "linux"
 	Platform *string
-}
-
-type ListActivitiesOptions struct {
-	ListOptions
-	ActivityType string `query:"activity_type,optional"`
-	// StartCreatedAt filters activities created after this ISO string.
-	StartCreatedAt string `query:"start_created_at,optional"`
-	// EndCreatedAt filters activities created before this ISO string.
-	EndCreatedAt string `query:"end_created_at,optional"`
-	Streamed     *bool
 }
 
 // ApplySpecOptions are the options available when applying a YAML or JSON spec.
@@ -1476,6 +1501,24 @@ func (l *LicenseInfo) IsAllowDisableTelemetry() bool {
 	return !l.IsPremium() || l.AllowDisableTelemetry
 }
 
+// Tier returns the license tier.
+// This method implements license.LicenseChecker.
+func (l *LicenseInfo) GetTier() string {
+	return l.Tier
+}
+
+// Organization returns the name of the licensed organization.
+// This method implements license.LicenseChecker.
+func (l *LicenseInfo) GetOrganization() string {
+	return l.Organization
+}
+
+// DeviceCount returns the number of licensed devices.
+// This method implements license.LicenseChecker.
+func (l *LicenseInfo) GetDeviceCount() int {
+	return l.DeviceCount
+}
+
 const (
 	HeaderLicenseKey          = "X-Fleet-License"
 	HeaderLicenseValueExpired = "Expired"
@@ -1569,6 +1612,14 @@ type KafkaRESTConfig struct {
 	ProxyHost   string `json:"proxyhost"`
 }
 
+// NatsConfig shadows config.NatsConfig only exposing a subset of fields
+type NatsConfig struct {
+	Server        string `json:"server"`
+	StatusSubject string `json:"status_subject"`
+	ResultSubject string `json:"result_subject"`
+	AuditSubject  string `json:"audit_subject"`
+}
+
 // DeviceGlobalConfig is a subset of AppConfig with information used by the
 // device endpoints
 type DeviceGlobalConfig struct {
@@ -1588,7 +1639,9 @@ type DeviceGlobalMDMConfig struct {
 type DeviceFeatures struct {
 	// EnableSoftwareInventory is the setting used by the device's team (or
 	// globally in the AppConfig if the device is not in any team).
-	EnableSoftwareInventory bool `json:"enable_software_inventory"`
+	EnableSoftwareInventory       bool `json:"enable_software_inventory"`
+	EnableConditionalAccess       bool `json:"enable_conditional_access"`
+	EnableConditionalAccessBypass bool `json:"enable_conditional_access_bypass"`
 }
 
 // Version is the authz type used to check access control to the version endpoint.

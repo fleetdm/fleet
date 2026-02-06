@@ -1,9 +1,11 @@
 import React from "react";
 
-import { ACTIVITY_DISPLAY_NAME_MAP, ActivityType } from "interfaces/activity";
+import {
+  ACTIVITY_TYPE_TO_FILTER_LABEL,
+  ActivityType,
+} from "interfaces/activity";
 
 import SearchField from "components/forms/fields/SearchField";
-import ActionsDropdown from "components/ActionsDropdown";
 import DropdownWrapper from "components/forms/fields/DropdownWrapper";
 
 import ActivityTypeDropdown from "../ActivityTypeDropdown";
@@ -26,7 +28,7 @@ const TYPE_FILTER_OPTIONS: { label: string; value: string }[] = Object.values(
   ActivityType
 )
   .map((type) => ({
-    label: ACTIVITY_DISPLAY_NAME_MAP[type],
+    label: ACTIVITY_TYPE_TO_FILTER_LABEL[type],
     value: type,
   }))
   .sort((a, b) => a.label.localeCompare(b.label));

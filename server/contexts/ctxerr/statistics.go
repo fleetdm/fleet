@@ -3,8 +3,6 @@ package ctxerr
 import (
 	"context"
 	"encoding/json"
-
-	"github.com/fleetdm/fleet/v4/server/fleet"
 )
 
 type ErrorAgg struct {
@@ -63,12 +61,21 @@ out:
 	return stack[:stackIdx]
 }
 
+// vitalErrorData represents the structure of vital fleetd error data.
+type vitalErrorData struct {
+	ErrorSource         string         `json:"error_source"`
+	ErrorSourceVersion  string         `json:"error_source_version"`
+	ErrorMessage        string         `json:"error_message"`
+	ErrorAdditionalInfo map[string]any `json:"error_additional_info"`
+	Vital               bool           `json:"vital"`
+}
+
 func getVitalMetadata(chain []fleetErrorJSON) json.RawMessage {
 	for _, e := range chain {
 		if len(e.Data) > 0 {
 			// Currently, only vital fleetd errors contain metadata.
 			// Note: vital errors should not contain any sensitive info
-			var fleetdErr fleet.FleetdError
+			var fleetdErr vitalErrorData
 			var err error
 			if err = json.Unmarshal(e.Data, &fleetdErr); err != nil || !fleetdErr.Vital {
 				continue

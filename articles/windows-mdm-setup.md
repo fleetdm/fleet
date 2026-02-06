@@ -53,9 +53,11 @@ With Windows MDM turned on, enroll a Windows host to Fleet by installing [Fleet'
 
 To automatically enroll Windows workstations when they’re first unboxed and set up by your end users, we will connect Fleet to Microsoft Entra ID.
 
-After you connect Fleet to Microsoft Entra ID, you can customize the Windows setup experience with [Windows Autopilot](https://learn.microsoft.com/en-us/autopilot/windows-autopilot).
+Connecting Fleet to Entra also enables end users to manually turn on MDM via the [Settings > Access work or school workflow](https://support.microsoft.com/en-us/account-billing/join-your-work-device-to-your-work-or-school-network-ef4d6adb-5095-4e51-829e-5457430f3973#:~:text=If%20you%27ve%20had%20your%20device%20for%20a%20while%20and%20it%27s%20already%20been%20set%20up%2C%20you%20can%20follow%20these%20steps%20to%20join%20your%20device%20to%20the%20network.). Fleet will collect the email and store it as the IdP [username](https://fleetdm.com/guides/foreign-vitals-map-idp-users-to-hosts). If a different email is used during the [setup experience](https://fleetdm.com/guides/setup-experience#end-user-authentication), it won't override the one used in **Settings > Access work or school**.
 
-In order to connect Fleet to Microsoft Entra ID, the IT admin (you) needs a Microsoft Enterprise Mobility + Security E3 license. Each end user who automatically enrolls needs at least a [Microsoft Entra P1 license](https://www.microsoft.com/en-us/security/business/microsoft-entra-pricing). If they already have an [E3 or E5 license](https://www.microsoft.com/en-us/microsoft-365/enterprise/microsoft365-plans-and-pricing) then you're good to go.
+After you connect Fleet to Entra, you can customize the Windows setup experience with [Windows Autopilot](https://learn.microsoft.com/en-us/autopilot/windows-autopilot).
+
+In order to connect Fleet to Entra, the IT admin (you) needs a Microsoft Enterprise Mobility + Security E3 license. Each end user who automatically enrolls or manually turns on MDM needs at least a [Microsoft Entra P1 license](https://www.microsoft.com/en-us/security/business/microsoft-entra-pricing). If they already have an [E3 or E5 license](https://www.microsoft.com/en-us/microsoft-365/enterprise/microsoft365-plans-and-pricing) then you're good to go.
 
 ### Step 1: Buy Microsoft licenses
 
@@ -81,7 +83,34 @@ In order to connect Fleet to Microsoft Entra ID, the IT admin (you) needs a Micr
 
 ### Step 2: Connect Fleet to Microsoft Entra ID
 
-For instructions on how to connect Fleet to Microsoft Entra ID, in the Fleet UI, select the avatar on the right side of the top navigation and select **Settings > Integrations > Mobile device management (MDM)**. Then, next to **Windows automatic enrollment** select **Details**.
+The end user will see Microsoft's default initial setup. You can further simplify the initial device setup with Autopilot, which is similar to Apple's Automated Device Enrollment (DEP).
+
+Some Intune/Entra deployments enable automatic enrollment into Intune. Check to ensure **Automatic Enrollment** is not enabled, or your devices will not appear in Fleet.
+
+In your Intune settings, select **Devices**, and under **Device onbarding**, open the **Enrollment** submenu. Select **Automatic Enrollment** and ensure both **MDM user scope** and **Windows Information Protection (WIP) user scope** are set to **None**.
+
+1. [Sign in to Azure portal](https://fleetdm.com/sign-in-to/microsoft-automatic-enrollment-tool).
+2. At the top of the page, search "Domain names" and select **Domain names**. Select **+ Add custom domain**, type your Fleet URL (e.g. fleet.acme.com), and select **Add domain**.
+3. Use the information presented in Azure AD to create a new TXT/MX record with your domain registrar, then select **Verify**. If you're a managed-cloud customer, please reach out to Fleet to create a TXT/MX record for you.
+4. At the top of the page, search for "Mobility" and select **Mobility (MDM and WIP)**.
+5. Select **+ Add application**, then select **+ Create your own application**.
+6. Enter "Fleet" as the name of your application and select **Create**.
+7. Set MDM user scope to **All**, then in the Fleet UI head to **Settings** > **Integrations** > **MDM** > **Windows Enrollment** and copy the URLs on the **Microsoft Entra** page (`/settings/integrations/automatic-enrollment/windows`). Paste them in Azure AD, and select **Save**.
+8. While on this same page, select the **Custom MDM application settings** link.
+9. Click on the **Application ID URI** which will bring you to the **Expose an API** submenu with an edit button next to the text box.
+10. Replace with your Fleet URL (e.g. fleet.acme.com) and select **Save**.
+11. Select **API permissions** from the sidebar, then select **+ Add a permission**.
+12.  Select **Microsoft Graph**, then select **Delegated permissions**, and select **Group > Group.Read.All** and **Group > Group.ReadWrite.All** and **Add permissions**.
+13. Again select **+ Add a permission** and then **Microsoft Graph** and **Application permissions**, select the following:
+    + Device > Device.Read.All
+    + Device > Device.ReadWrite.All
+    + Directory > Directory.Read.All
+    + Group > Group.Read.All
+    + User > User.Read.All
+14. Select **Add permissions**.
+15. Select **Grant admin consent for [your tenant name]**, and confirm.
+
+Now you're ready to automatically enroll Windows hosts to Fleet.
 
 ### Step 3: Test automatic enrollment
 

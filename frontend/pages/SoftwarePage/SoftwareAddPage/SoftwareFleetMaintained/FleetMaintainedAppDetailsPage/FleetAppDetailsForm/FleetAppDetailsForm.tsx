@@ -70,7 +70,7 @@ export interface IFormValidation {
 
 interface IFleetAppDetailsFormProps {
   labels: ILabelSummary[] | null;
-  categories?: SoftwareCategory[];
+  categories?: SoftwareCategory[] | null;
   name: string;
   defaultInstallScript: string;
   defaultPostInstallScript: string;
@@ -107,7 +107,7 @@ const FleetAppDetailsForm = ({
   const [formData, setFormData] = useState<IFleetMaintainedAppFormData>({
     selfService: false,
     automaticInstall: false,
-    preInstallQuery: undefined,
+    preInstallQuery: "",
     installScript: defaultInstallScript,
     postInstallScript: defaultPostInstallScript,
     uninstallScript: defaultUninstallScript,
@@ -213,7 +213,12 @@ const FleetAppDetailsForm = ({
     ? "form-fields--disabled"
     : "";
   const isSoftwareAlreadyAdded = !!softwareTitleId;
-  const isSubmitDisabled = !formValidation.isValid || isSoftwareAlreadyAdded;
+  const isSubmitDisabled = isSoftwareAlreadyAdded; // Allows saving invalid SQL
+
+  // Define errors separately so AdvancedOptionsFields can memoize effectively
+  const errors = {
+    preInstallQuery: formValidation.preInstallQuery?.message,
+  };
 
   return (
     <form className={`${baseClass}`} onSubmit={onSubmitForm}>
@@ -266,9 +271,7 @@ const FleetAppDetailsForm = ({
             installScriptHelpText="Use the $INSTALLER_PATH variable to point to the installer. Currently, shell scripts are supported."
             postInstallScriptHelpText="Currently, shell scripts are supported."
             uninstallScriptHelpText="Currently, shell scripts are supported."
-            errors={{
-              preInstallQuery: formValidation.preInstallQuery?.message,
-            }}
+            errors={errors}
             preInstallQuery={formData.preInstallQuery}
             installScript={formData.installScript}
             postInstallScript={formData.postInstallScript}

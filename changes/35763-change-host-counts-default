@@ -1,1 +1,0 @@
-- Made returning host_count optional in the "List Labels" API, to improve performance.

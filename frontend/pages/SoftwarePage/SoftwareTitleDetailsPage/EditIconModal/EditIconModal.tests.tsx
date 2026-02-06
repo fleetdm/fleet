@@ -5,6 +5,7 @@ import {
   createMockSoftwarePackage,
   createMockSoftwareTitle,
 } from "__mocks__/softwareMock";
+import { InstallerType } from "interfaces/software";
 import softwareAPI from "services/entities/software";
 import EditIconModal from "./EditIconModal";
 
@@ -18,7 +19,7 @@ const MOCK_PROPS = {
   refetchSoftwareTitle: jest.fn(),
   iconUploadedAt: "2025-09-03T12:00:00Z",
   setIconUploadedAt: jest.fn(),
-  installerType: "package" as "package" | "vpp",
+  installerType: "package" as InstallerType,
   previewInfo: {
     type: "apps",
     versions: software.versions?.length,
@@ -35,7 +36,7 @@ describe("EditIconModal", () => {
     const render = createCustomRenderer({ withBackendMock: true });
     render(<EditIconModal {...MOCK_PROPS} />);
 
-    expect(screen.getByText(/edit software/i)).toBeInTheDocument();
+    expect(screen.getByText(/edit appearance/i)).toBeInTheDocument();
     expect(screen.getByText("Choose file")).toBeInTheDocument();
     expect(screen.getByText("Preview")).toBeInTheDocument();
     expect(screen.getByText("Fleet")).toBeInTheDocument();

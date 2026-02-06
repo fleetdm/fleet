@@ -71,12 +71,12 @@ const generateTableHeaders = (): IDataColumn[] => {
           {cellProps.cell.value.length ? (
             <>
               <Icon name="success" />
-              <span className="status-header-text">Yes</span>
+              <span className="status-header-text">Pass</span>
             </>
           ) : (
             <>
               <Icon name="error" />
-              <span className="status-header-text">No</span>
+              <span className="status-header-text">Fail</span>
             </>
           )}
         </>

@@ -1,6 +1,25 @@
+/** Button universal styling:
+- Border radius: 4px
+- Darken on hover
+- Darker on active
+- Outline on focus with no offset or "jump"
+- Lighten on disabled
+*/
+
 $base-class: "button";
 
-@mixin button-focus-outline($offset: 2px) {
+@mixin button-focus-outline() {
+  &::after {
+    content: "";
+    width: 100%;
+    height: 100%;
+    position: absolute;
+    border: 1px solid $core-focused-outline;
+    border-radius: $border-radius;
+  }
+}
+
+@mixin unstyled-button-focus-outline($offset: 1px) {
   outline-color: $core-focused-outline;
   outline-offset: $offset;
   outline-style: solid;
@@ -22,10 +41,16 @@ $base-class: "button";
 // Size small buttons (with and without background colors)
 @mixin button-pad-4px-8px {
   padding: $pad-xsmall $pad-small;
-  height: 24px;
+  height: 28px;
 }
 
-@mixin button-variant($color, $hover: null, $active: null, $inverse: false) {
+@mixin button-variant(
+  $color,
+  $hover: null,
+  $active: null,
+  $inverse: false,
+  $unstyled: false
+) {
   background-color: $color;
 
   @if $inverse {
@@ -36,27 +61,27 @@ $base-class: "button";
     }
 
     &:hover {
-      background-color: rgba($core-fleet-black, 0.05);
+      background-color: $ui-fleet-black-5;
 
       &:active {
-        background-color: $ui-fleet-black-5;
+        background-color: $ui-fleet-black-5-down;
       }
     }
 
     &:focus-visible {
-      // need a slightly larger focus outline to accomodate the :after content box
-      // that correctly displays the border. We chose this approach as adding a
-      // border to the button caused the button to jump around on the screen
-      // when it was added and removed.
-      @include button-focus-outline($offset: 3px);
-      &::after {
-        content: "";
-        width: 100%;
-        height: 100%;
-        position: absolute;
-        border: 1px solid $core-focused-outline;
-        border-radius: 6px;
+      @include button-focus-outline();
+    }
+  } @else if $unstyled {
+    &:hover:not(.button--disabled) {
+      background-color: $hover;
+
+      &:active {
+        background-color: $active;
       }
+    }
+
+    &:focus-visible {
+      @include unstyled-button-focus-outline();
     }
   } @else {
     &:hover:not(.button--disabled) {
@@ -74,7 +99,6 @@ $base-class: "button";
 }
 
 .#{$base-class} {
-  @include button-variant($core-fleet-green);
   @include button-pad-8px-16px;
   transition: color 150ms ease-in-out, background 150ms ease-in-out,
     top 50ms ease-in-out, box-shadow 50ms ease-in-out, border 50ms ease-in-out;
@@ -84,7 +108,7 @@ $base-class: "button";
   flex-direction: row;
   justify-content: center;
   align-items: center;
-  border-radius: 6px;
+  border-radius: $border-radius;
   font-size: $x-small;
   font-family: "Inter", sans-serif;
   font-weight: $bold;
@@ -261,20 +285,12 @@ $base-class: "button";
 
     &:focus-visible {
       @include button-focus-outline();
-
-      &::after {
-        content: "";
-        width: 100%;
-        height: 100%;
-        position: absolute;
-        border: 1px solid $ui-fleet-black-75;
-        border-radius: 6px;
-      }
     }
 
     &:hover,
     &:focus {
       color: $ui-fleet-black-75-over;
+      background-color: $ui-fleet-black-5;
 
       svg {
         path {
@@ -284,6 +300,7 @@ $base-class: "button";
 
       &:active {
         color: $ui-fleet-black-75-down;
+        background-color: $ui-fleet-black-5-down;
 
         svg {
           path {
@@ -348,15 +365,6 @@ $base-class: "button";
 
     &:focus-visible {
       @include button-focus-outline();
-
-      &::after {
-        content: "";
-        width: 100%;
-        height: 100%;
-        position: absolute;
-        border: 1px solid $ui-fleet-black-75;
-        border-radius: 6px;
-      }
     }
 
     &:hover,
@@ -417,6 +425,11 @@ $base-class: "button";
       $inverse: true
     );
     background-color: transparent;
+    width: 36px; // Matches Figma design for icon-only buttons
+
+    &__small {
+      width: 28px; // Matches Figma design for small icon-only buttons
+    }
   }
 
   &--inverse {
@@ -451,7 +464,7 @@ $base-class: "button";
   }
 
   &--unstyled {
-    @include button-variant(transparent);
+    @include button-variant(transparent, null, null, false, $unstyled: true);
     border: 0;
     box-shadow: none;
     color: $core-fleet-black;
@@ -469,7 +482,7 @@ $base-class: "button";
   }
 
   &--unstyled-modal-query {
-    @include button-variant(transparent);
+    @include button-variant(transparent, null, null, false, $unstyled: true);
     border: 0;
     box-shadow: none;
     color: $core-fleet-black;

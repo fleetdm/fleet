@@ -283,7 +283,7 @@ func (c *Client) deleteMacOSSetupAssistant(teamID *uint) error {
 func (c *Client) MDMListCommands(opts fleet.MDMCommandListOptions) ([]*fleet.MDMCommand, error) {
 	const defaultCommandsPerPage = 20
 
-	verb, path := http.MethodGet, "/api/latest/fleet/mdm/commands"
+	verb, path := http.MethodGet, "/api/latest/fleet/commands"
 
 	query := url.Values{}
 	query.Set("per_page", fmt.Sprint(defaultCommandsPerPage))
@@ -291,6 +291,15 @@ func (c *Client) MDMListCommands(opts fleet.MDMCommandListOptions) ([]*fleet.MDM
 	query.Set("order_direction", "desc")
 	query.Set("host_identifier", opts.Filters.HostIdentifier)
 	query.Set("request_type", opts.Filters.RequestType)
+
+	var statuses []string
+	if len(opts.Filters.CommandStatuses) > 0 {
+		statuses = make([]string, 0, len(opts.Filters.CommandStatuses))
+		for _, s := range opts.Filters.CommandStatuses {
+			statuses = append(statuses, string(s))
+		}
+	}
+	query.Set("command_status", strings.Join(statuses, ","))
 
 	var responseBody listMDMCommandsResponse
 	err := c.authenticatedRequestWithQuery(nil, verb, path, &responseBody, query.Encode())
@@ -301,11 +310,12 @@ func (c *Client) MDMListCommands(opts fleet.MDMCommandListOptions) ([]*fleet.MDM
 	return responseBody.Results, nil
 }
 
-func (c *Client) MDMGetCommandResults(commandUUID string) ([]*fleet.MDMCommandResult, error) {
-	verb, path := http.MethodGet, "/api/latest/fleet/mdm/commandresults"
+func (c *Client) MDMGetCommandResults(commandUUID, hostIdentifier string) ([]*fleet.MDMCommandResult, error) {
+	verb, path := http.MethodGet, "/api/latest/fleet/commands/results"
 
 	query := url.Values{}
 	query.Set("command_uuid", commandUUID)
+	query.Set("host_identifier", hostIdentifier)
 
 	var responseBody getMDMCommandResultsResponse
 	err := c.authenticatedRequestWithQuery(nil, verb, path, &responseBody, query.Encode())

@@ -16,6 +16,7 @@ interface ILinkWithContextProps {
     names: string[];
   };
   className?: string;
+  disabled?: boolean;
 }
 
 const LinkWithContext = ({
@@ -24,6 +25,7 @@ const LinkWithContext = ({
   to,
   withParams,
   className,
+  disabled = false,
 }: ILinkWithContextProps): JSX.Element => {
   const classNames = classnames(baseClass, className);
 
@@ -32,6 +34,11 @@ const LinkWithContext = ({
     const newParams = pick(currentQueryParams, withParams.names);
     queryString = buildQueryStringFromParams(newParams);
   }
+
+  if (disabled) {
+    return <span className={classNames}>{children}</span>;
+  }
+
   return (
     <Link
       className={classNames}

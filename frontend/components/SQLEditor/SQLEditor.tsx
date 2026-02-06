@@ -19,6 +19,10 @@ import {
   sqlKeyWords,
 } from "utilities/sql_tools";
 
+import { stringToClipboard } from "utilities/copy_text";
+import Button from "components/buttons/Button";
+import Icon from "components/Icon";
+
 import "./mode";
 import "./theme";
 
@@ -45,6 +49,7 @@ export interface ISQLEditorProps {
   onChange?: (value: string) => void;
   handleSubmit?: () => void;
   disabled?: boolean;
+  enableCopy?: boolean;
 }
 
 const baseClass = "sql-editor";
@@ -71,12 +76,28 @@ const SQLEditor = ({
   onChange,
   handleSubmit = noop,
   disabled = false,
+  /** Combine with readOnly to remove ability to select text */
+  enableCopy = false,
 }: ISQLEditorProps): JSX.Element => {
   const editorRef = useRef<ReactAce>(null);
+  const [copied, setCopied] = React.useState(false);
+
+  /** Keeps label actions clickable and removes all mouse/keyboard access/hover states of editor */
+  const isReadonlyCopy = _readOnly && enableCopy && !disabled;
+
   const wrapperClass = classnames(className, wrapperClassName, baseClass, {
     [`${baseClass}__wrapper--error`]: !!error,
     [`${baseClass}__wrapper--disabled`]: disabled,
+    // This is for read only that has a copy button so we disallow selecting the text
+    [`${baseClass}__wrapper--readonly-copy`]: !!isReadonlyCopy,
   });
+
+  const onClickCopy = () => {
+    stringToClipboard(value || "").then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    });
+  };
 
   const fixHotkeys = (editor: IAceEditor) => {
     editor.commands.removeCommand("gotoline");
@@ -219,6 +240,25 @@ const SQLEditor = ({
       readOnly: true,
     });
 
+    if (isReadonlyCopy) {
+      // keep Ace read-only and remove any selection
+      editor.setOption("readOnly", true);
+      editor.selection.on("changeSelection", () => {
+        editor.clearSelection();
+      });
+
+      // make the internal textarea unfocusable via keyboard
+      const textarea = editor.textInput?.getElement?.();
+      if (textarea) {
+        textarea.setAttribute("tabindex", "-1");
+      }
+
+      // if something still manages to focus it, immediately blur
+      editor.on("focus", () => {
+        editor.blur();
+      });
+    }
+
     onLoad && onLoad(editor);
   };
 
@@ -237,23 +277,44 @@ const SQLEditor = ({
   };
 
   const renderLabel = useCallback(() => {
-    const labelText = error || label;
-    const labelClassName = classnames(`${baseClass}__label`, {
-      [`${baseClass}__label--error`]: !!error,
-      [`${baseClass}__label--with-action`]: !!labelActionComponent,
-    });
-
     if (!label) {
       return <></>;
     }
 
+    const labelText = error || label;
+
+    const labelClassName = classnames(`${baseClass}__label`, {
+      [`${baseClass}__label--error`]: !!error,
+      [`${baseClass}__label--with-action`]:
+        !!labelActionComponent || enableCopy,
+    });
+
     return (
       <div className={labelClassName}>
-        {labelText}
-        {labelActionComponent}
+        <span className={`${baseClass}__label-text`}>{labelText}</span>
+        <div className={`${baseClass}__label-actions`}>
+          {labelActionComponent}
+          {enableCopy && (
+            <div className={`${baseClass}__copy-wrapper`}>
+              {copied && (
+                <span className={`${baseClass}__copied-confirmation`}>
+                  Copied!
+                </span>
+              )}
+              <Button
+                variant="text-icon"
+                onClick={onClickCopy}
+                size="small"
+                iconStroke
+              >
+                Copy <Icon name="copy" />
+              </Button>
+            </div>
+          )}
+        </div>
       </div>
     );
-  }, [error, label, labelActionComponent]);
+  }, [error, label, labelActionComponent, enableCopy, copied]);
 
   const renderHelpText = () => {
     if (helpText) {

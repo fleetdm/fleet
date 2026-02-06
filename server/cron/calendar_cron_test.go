@@ -234,9 +234,9 @@ func TestCalendarEventsMultipleHosts(t *testing.T) {
 				GoogleCalendar: []*fleet.GoogleCalendarIntegration{
 					{
 						Domain: "example.com",
-						ApiKey: map[string]string{
+						ApiKey: fleet.GoogleCalendarApiKey{Values: map[string]string{
 							fleet.GoogleCalendarEmail: "calendar-mock@example.com",
-						},
+						}},
 					},
 				},
 			},
@@ -420,9 +420,9 @@ func TestCalendarEvents1KHosts(t *testing.T) {
 				GoogleCalendar: []*fleet.GoogleCalendarIntegration{
 					{
 						Domain: "example.com",
-						ApiKey: map[string]string{
+						ApiKey: fleet.GoogleCalendarApiKey{Values: map[string]string{
 							fleet.GoogleCalendarEmail: "calendar-mock@example.com",
-						},
+						}},
 					},
 				},
 			},
@@ -753,9 +753,9 @@ func TestEventBody(t *testing.T) {
 				GoogleCalendar: []*fleet.GoogleCalendarIntegration{
 					{
 						Domain: "example.com",
-						ApiKey: map[string]string{
+						ApiKey: fleet.GoogleCalendarApiKey{Values: map[string]string{
 							fleet.GoogleCalendarEmail: "calendar-mock@example.com",
-						},
+						}},
 					},
 				},
 			},

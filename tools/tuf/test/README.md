@@ -42,7 +42,6 @@ GENERATE_PKG_TAR_ZST=1 \
 GENERATE_PKG_TAR_ZST_ARM64=1 \
 ENROLL_SECRET=6/EzU/+jPkxfTamWnRv1+IJsO4T9Etju \
 FLEET_DESKTOP=1 \
-USE_FLEET_SERVER_CERTIFICATE=1 \
 DEBUG=1 \
 ./tools/tuf/test/main.sh
 ```
@@ -182,7 +181,6 @@ If you decide that you want to run your local fleet server with the `--server_tl
 
 ```
 + INSECURE=1 \
-- USE_FLEET_SERVER_CERTIFICATE=1 \
 
 + PKG_FLEET_URL=http://localhost:8080 \
 - PKG_FLEET_URL=https://localhost:8080 \

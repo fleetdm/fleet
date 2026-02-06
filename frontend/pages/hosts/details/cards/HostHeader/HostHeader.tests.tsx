@@ -134,7 +134,7 @@ describe("HostHeader", () => {
       />
     );
 
-    await user.hover(screen.getByText("LOCKED"));
+    await user.hover(screen.getByText("Locked"));
 
     expect(await screen.findByText(/Host is locked/i)).toBeInTheDocument();
   });

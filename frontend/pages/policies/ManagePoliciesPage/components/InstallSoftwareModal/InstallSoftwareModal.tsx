@@ -14,6 +14,7 @@ import { IPaginatedListHandle } from "components/PaginatedList";
 import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
 import { getPathWithQueryParams } from "utilities/url";
 import { getExtensionFromFileName } from "utilities/file/fileUtils";
+import { getDisplayedSoftwareName } from "pages/SoftwarePage/helpers";
 
 // @ts-ignore
 import Dropdown from "components/forms/fields/Dropdown";
@@ -83,6 +84,35 @@ const generateSoftwareOptionHelpText = (title: IEnhancedSoftwareTitle) => {
   return `${platformString}${versionString}`;
 };
 
+// Get the original software-id state from original API call
+export const getOriginalSoftwareState = (policy: IFormPolicy) => {
+  const originalSwId = policy.install_software?.software_title_id ?? null;
+
+  const originallyEnabled = originalSwId !== null;
+
+  return { originallyEnabled, originalSwId };
+};
+
+// If a policy row as edited in the form, compute the current UI state.
+export const getCurrentSoftwareState = (policy: IFormPolicy) => {
+  const nowEnabled = !!policy.installSoftwareEnabled;
+  const nowSwId = policy.swIdToInstall ?? null;
+  return { nowEnabled, nowSwId };
+};
+
+export const getTrulyDirtyInstallSoftwareItems = (dirtyItems: IFormPolicy[]) =>
+  dirtyItems.filter((item) => {
+    const { originallyEnabled, originalSwId } = getOriginalSoftwareState(item);
+    const { nowEnabled, nowSwId } = getCurrentSoftwareState(item);
+
+    const turnedOn = !originallyEnabled && nowEnabled;
+    const turnedOff = originallyEnabled && !nowEnabled;
+    const swChanged =
+      originallyEnabled && nowEnabled && nowSwId !== originalSwId;
+
+    return turnedOn || turnedOff || swChanged;
+  });
+
 const InstallSoftwareModal = ({
   onExit,
   onSubmit,
@@ -136,9 +166,11 @@ const InstallSoftwareModal = ({
   );
 
   const onUpdateInstallSoftware = useCallback(() => {
-    if (paginatedListRef.current) {
-      onSubmit(paginatedListRef.current.getDirtyItems());
-    }
+    if (!paginatedListRef.current) return;
+
+    const dirtyItems = paginatedListRef.current.getDirtyItems();
+    const trulyDirtyItems = getTrulyDirtyInstallSoftwareItems(dirtyItems);
+    onSubmit(trulyDirtyItems);
   }, [onSubmit]);
 
   const onSelectPolicySoftware = (
@@ -150,7 +182,9 @@ const InstallSoftwareModal = ({
       const foundTitle = titlesAvailableForInstall?.find(
         (title) => title.id === value
       );
-      return foundTitle ? foundTitle.display_name || foundTitle.name : "";
+      return foundTitle
+        ? getDisplayedSoftwareName(foundTitle.name, foundTitle.display_name)
+        : "";
     };
 
     return {
@@ -171,7 +205,7 @@ const InstallSoftwareModal = ({
         )
         .map((title) => {
           return {
-            label: title.display_name || title.name,
+            label: getDisplayedSoftwareName(title.name, title.display_name),
             value: title.id,
             helpText: generateSoftwareOptionHelpText(title),
           };
@@ -205,7 +239,10 @@ const InstallSoftwareModal = ({
           if (currentSoftware) {
             options = [
               {
-                label: currentSoftware.display_name || currentSoftware.name,
+                label: getDisplayedSoftwareName(
+                  currentSoftware.name,
+                  currentSoftware.display_name
+                ),
                 value: currentSoftware.id,
                 helpText: generateSoftwareOptionHelpText(currentSoftware),
               },

@@ -33,6 +33,7 @@ module.exports = {
     success: { description: 'Android devices list was successfully retrieved.' },
     missingAuthHeader: { description: 'This request was missing an authorization header.', responseType: 'unauthorized'},
     missingOriginHeader: { description: 'The request was missing an Origin header', responseType: 'badRequest'},
+    notFound: { description: 'No Android enterprise found for this Fleet server.', responseType: 'notFound' },
     unauthorized: { description: 'Invalid authentication token.', responseType: 'unauthorized'},
   },
 

@@ -14,16 +14,27 @@ import (
 // It is used to ensure that packages do not depend on each other in a way that increases coupling and maintainability.
 // Based on https://github.com/matthewmcnew/archtest
 type PackageTest struct {
-	t            TestingT
+	t TestingT
+
 	pkgs         []string
 	includeRegex *regexp.Regexp
-	ignorePkgs   map[string]struct{}
-	ignoreXTests map[string]struct{}
-	withTests    bool
+	rootPkgs     map[string]struct{} // expanded root packages for WithTests check
+
+	withTests            bool
+	withTestsRecursively bool
+
+	ignorePkgs            map[string]struct{}
+	ignoreRecursivelyPkgs map[string]struct{}
+	ignoreXTests          map[string]struct{}
+
+	forbiddenPkgs []string
 }
 
+// ModuleName is the module name for the fleet project.
+const ModuleName = "github.com/fleetdm/fleet/v4"
+
 // PackageTest will ignore dependency on this package.
-const thisPackage = "github.com/fleetdm/fleet/v4/server/archtest"
+const thisPackage = ModuleName + "/server/archtest"
 
 type TestingT interface {
 	Errorf(format string, args ...any)
@@ -40,12 +51,15 @@ func (pt *PackageTest) OnlyInclude(regex *regexp.Regexp) *PackageTest {
 	return pt
 }
 
-func (pt *PackageTest) IgnorePackages(pkgs ...string) *PackageTest {
-	if pt.ignorePkgs == nil {
-		pt.ignorePkgs = make(map[string]struct{}, len(pkgs))
+// IgnoreRecursively ignores packages completely - they are not checked AND their
+// transitive dependencies are not traversed. Use this when you want to exclude
+// an entire dependency tree from the analysis.
+func (pt *PackageTest) IgnoreRecursively(pkgs ...string) *PackageTest {
+	if pt.ignoreRecursivelyPkgs == nil {
+		pt.ignoreRecursivelyPkgs = make(map[string]struct{}, len(pkgs))
 	}
 	for _, p := range pt.expandPackages(pkgs) {
-		pt.ignorePkgs[p] = struct{}{}
+		pt.ignoreRecursivelyPkgs[p] = struct{}{}
 	}
 	return pt
 }
@@ -64,14 +78,49 @@ func (pt *PackageTest) IgnoreXTests(pkgs ...string) *PackageTest {
 	return pt
 }
 
+// IgnoreDeps ignores packages in the ShouldNotDependOn check, but still
+// traverses their transitive dependencies. Use this when you want to allow
+// a specific package but still verify what it imports.
+func (pt *PackageTest) IgnoreDeps(pkgs ...string) *PackageTest {
+	if pt.ignorePkgs == nil {
+		pt.ignorePkgs = make(map[string]struct{}, len(pkgs))
+	}
+	for _, p := range pt.expandPackages(pkgs) {
+		pt.ignorePkgs[p] = struct{}{}
+	}
+	return pt
+}
+
+// WithTests includes test imports only from the specified root packages.
+// Use this when you want to check test dependencies of your packages but not
+// the test dependencies of their transitive dependencies.
 func (pt *PackageTest) WithTests() *PackageTest {
 	pt.withTests = true
 	return pt
 }
 
-func (pt *PackageTest) ShouldNotDependOn(pkgs ...string) {
-	expandedPackages := pt.expandPackages(pkgs)
+// WithTestsRecursively includes test imports from all packages in the dependency tree.
+// Use this when you want to check test dependencies of all packages, including
+// transitive dependencies.
+func (pt *PackageTest) WithTestsRecursively() *PackageTest {
+	pt.withTestsRecursively = true
+	return pt
+}
+
+// ShouldNotDependOn specifies which packages are forbidden dependencies.
+// Call Check() to run the test.
+func (pt *PackageTest) ShouldNotDependOn(pkgs ...string) *PackageTest {
+	pt.forbiddenPkgs = append(pt.forbiddenPkgs, pkgs...)
+	return pt
+}
+
+// Check runs the dependency check and reports any violations.
+func (pt *PackageTest) Check() {
+	expandedPackages := pt.expandPackages(pt.forbiddenPkgs)
 	for dep := range pt.findDependencies(pt.pkgs) {
+		if _, ignored := pt.ignorePkgs[dep.name]; ignored {
+			continue
+		}
 		if dep.isDependencyOn(expandedPackages) {
 			pt.t.Errorf("Error: package dependency not allowed. Dependency chain:\n%s", dep)
 		}
@@ -115,13 +164,22 @@ func (pd packageDependency) asXTest() *packageDependency {
 	return &pd
 }
 
-func (pt PackageTest) findDependencies(pkgs []string) <-chan *packageDependency {
+func (pt *PackageTest) findDependencies(pkgs []string) <-chan *packageDependency {
 	c := make(chan *packageDependency)
 	go func() {
 		defer close(c)
 
+		// Expand and store root packages for WithTests check
+		expandedRoots := pt.expandPackages(pkgs)
+		if pt.withTests {
+			pt.rootPkgs = make(map[string]struct{}, len(expandedRoots))
+			for _, p := range expandedRoots {
+				pt.rootPkgs[p] = struct{}{}
+			}
+		}
+
 		importCache := map[string]struct{}{}
-		for _, p := range pt.expandPackages(pkgs) {
+		for _, p := range expandedRoots {
 			pt.read(c, &packageDependency{name: p, parent: nil}, importCache)
 		}
 	}()
@@ -156,7 +214,11 @@ func (pt *PackageTest) read(pChan chan<- *packageDependency, topDependency *pack
 			queue.PushBack(&packageDependency{name: importPath, parent: dep})
 		}
 
-		if pt.withTests {
+		// Determine if we should include test imports for this package
+		_, isRootPkg := pt.rootPkgs[dep.name]
+		includeTests := pt.withTestsRecursively || (pt.withTests && isRootPkg)
+
+		if includeTests {
 			for _, i := range pkg.TestImports {
 				queue.PushBack(&packageDependency{name: i, parent: dep})
 			}
@@ -177,7 +239,7 @@ func (pt *PackageTest) skip(cache map[string]struct{}, dep *packageDependency) b
 		return true
 	}
 
-	if _, ignore := pt.ignorePkgs[dep.name]; ignore || dep.name == "C" || dep.name == thisPackage {
+	if _, ignored := pt.ignoreRecursivelyPkgs[dep.name]; ignored || dep.name == "C" || dep.name == thisPackage {
 		return true
 	}
 

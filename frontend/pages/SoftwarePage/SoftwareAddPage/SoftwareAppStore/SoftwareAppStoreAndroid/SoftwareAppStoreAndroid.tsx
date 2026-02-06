@@ -106,6 +106,7 @@ const SoftwareAppStoreAndroid = ({
         />
         {showPreviewEndUserExperience && (
           <CategoriesEndUserExperienceModal
+            source="android_apps"
             onCancel={onClickPreviewEndUserExperience}
           />
         )}

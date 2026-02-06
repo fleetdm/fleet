@@ -276,6 +276,11 @@ type HostScriptResult struct {
 	// Canceled indicates if that script execution request was canceled by a
 	// user.
 	Canceled bool `json:"-" db:"canceled"`
+
+	// AttemptNumber tracks which retry attempt this is for policy automation executions.
+	// nil = not triggered by a policy failure
+	// 1,2,3 attempt, 3 being max retries
+	AttemptNumber *int `json:"attempt_number,omitempty" db:"attempt_number"`
 }
 
 func (hsr HostScriptResult) AuthzType() string {
@@ -473,6 +478,8 @@ type HostLockWipeStatus struct {
 
 	// Linux uses a script for Wipe
 	WipeScript *HostScriptResult
+
+	LocationPending bool
 }
 
 // ScriptResponse is the response type used when applying scripts by batch.
@@ -508,14 +515,17 @@ func (s HostLockWipeStatus) DeviceStatus() DeviceStatus {
 type PendingDeviceAction string
 
 const (
-	PendingActionLock   PendingDeviceAction = "lock"
-	PendingActionUnlock PendingDeviceAction = "unlock"
-	PendingActionWipe   PendingDeviceAction = "wipe"
-	PendingActionNone   PendingDeviceAction = ""
+	PendingActionLock     PendingDeviceAction = "lock"
+	PendingActionUnlock   PendingDeviceAction = "unlock"
+	PendingActionWipe     PendingDeviceAction = "wipe"
+	PendingActionLocation PendingDeviceAction = "location"
+	PendingActionNone     PendingDeviceAction = ""
 )
 
 func (s HostLockWipeStatus) PendingAction() PendingDeviceAction {
 	switch {
+	case s.LocationPending:
+		return PendingActionLocation
 	case s.IsPendingLock():
 		return PendingActionLock
 	case s.IsPendingUnlock():
@@ -564,11 +574,17 @@ func (s HostLockWipeStatus) IsLocked() bool {
 	// this state is regardless of pending unlock/wipe (it reports whether the
 	// host is locked *now*).
 
-	if s.HostFleetPlatform == "darwin" || s.HostFleetPlatform == "ios" || s.HostFleetPlatform == "ipados" {
+	if s.HostFleetPlatform == "darwin" {
 		// locked if an MDM command was sent and succeeded
 		return s.LockMDMCommand != nil && s.LockMDMCommandResult != nil &&
 			s.LockMDMCommandResult.Status == MDMAppleStatusAcknowledged
 	}
+
+	if s.HostFleetPlatform == "ios" || s.HostFleetPlatform == "ipados" {
+		return s.LockMDMCommand != nil && s.LockMDMCommandResult != nil &&
+			s.LockMDMCommandResult.Status == MDMAppleStatusAcknowledged && !s.LocationPending
+	}
+
 	// locked if a script was sent and succeeded
 	return s.LockScript != nil && s.LockScript.ExitCode != nil &&
 		*s.LockScript.ExitCode == 0

@@ -8,7 +8,6 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
-	"os"
 	"strings"
 	"time"
 
@@ -16,8 +15,10 @@ import (
 	shared_mdm "github.com/fleetdm/fleet/v4/pkg/mdm"
 	"github.com/fleetdm/fleet/v4/server"
 	"github.com/fleetdm/fleet/v4/server/authz"
+	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
+	"github.com/fleetdm/fleet/v4/server/dev_mode"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm/android"
 	"github.com/fleetdm/fleet/v4/server/mdm/android/service/androidmgmt"
@@ -45,6 +46,9 @@ type Service struct {
 	activityModule   activities.ActivityModule
 	serverPrivateKey string
 
+	// Android agent configuration
+	androidAgentConfig config.AndroidAgentConfig
+
 	// SignupSSEInterval can be overwritten in tests.
 	SignupSSEInterval time.Duration
 	// AllowLocalhostServerURL is set during tests.
@@ -59,9 +63,10 @@ func NewService(
 	serverPrivateKey string,
 	fleetDS fleet.Datastore,
 	activityModule activities.ActivityModule,
+	androidAgentConfig config.AndroidAgentConfig,
 ) (android.Service, error) {
 	client := newAMAPIClient(ctx, logger, licenseKey)
-	return NewServiceWithClient(logger, ds, client, serverPrivateKey, fleetDS, activityModule)
+	return NewServiceWithClient(logger, ds, client, serverPrivateKey, fleetDS, activityModule, androidAgentConfig)
 }
 
 func NewServiceWithClient(
@@ -71,6 +76,7 @@ func NewServiceWithClient(
 	serverPrivateKey string,
 	fleetDS fleet.Datastore,
 	activityModule activities.ActivityModule,
+	androidAgentConfig config.AndroidAgentConfig,
 ) (android.Service, error) {
 	authorizer, err := authz.NewAuthorizer()
 	if err != nil {
@@ -78,14 +84,15 @@ func NewServiceWithClient(
 	}
 
 	svc := &Service{
-		logger:            logger,
-		authz:             authorizer,
-		ds:                ds,
-		androidAPIClient:  client,
-		serverPrivateKey:  serverPrivateKey,
-		SignupSSEInterval: DefaultSignupSSEInterval,
-		fleetDS:           fleetDS,
-		activityModule:    activityModule,
+		logger:             logger,
+		authz:              authorizer,
+		ds:                 ds,
+		androidAPIClient:   client,
+		serverPrivateKey:   serverPrivateKey,
+		SignupSSEInterval:  DefaultSignupSSEInterval,
+		fleetDS:            fleetDS,
+		activityModule:     activityModule,
+		androidAgentConfig: androidAgentConfig,
 	}
 
 	// OK to use background context here because this function is only called during server bootstrap
@@ -103,10 +110,11 @@ func NewServiceWithClient(
 
 func newAMAPIClient(ctx context.Context, logger kitlog.Logger, licenseKey string) androidmgmt.Client {
 	var client androidmgmt.Client
-	if os.Getenv("FLEET_DEV_ANDROID_GOOGLE_CLIENT") == "1" || strings.ToUpper(os.Getenv("FLEET_DEV_ANDROID_GOOGLE_CLIENT")) == "ON" {
-		client = androidmgmt.NewGoogleClient(ctx, logger, os.Getenv)
+	getEnv := dev_mode.Env
+	if getEnv("FLEET_DEV_ANDROID_GOOGLE_CLIENT") == "1" || strings.ToUpper(getEnv("FLEET_DEV_ANDROID_GOOGLE_CLIENT")) == "ON" {
+		client = androidmgmt.NewGoogleClient(ctx, logger, getEnv)
 	} else {
-		client = androidmgmt.NewProxyClient(ctx, logger, licenseKey, os.Getenv)
+		client = androidmgmt.NewProxyClient(ctx, logger, licenseKey, getEnv)
 	}
 	return client
 }
@@ -470,6 +478,7 @@ func (svc *Service) DeleteEnterprise(ctx context.Context) error {
 
 type enrollmentTokenRequest struct {
 	EnrollSecret string `query:"enroll_secret"`
+	FullyManaged bool   `query:"fully_managed"`
 	IdpUUID      string // The UUID of the mdm_idp_account that was used if any, can be empty, will be taken from cookies
 }
 
@@ -483,11 +492,18 @@ func (enrollmentTokenRequest) DecodeRequest(ctx context.Context, r *http.Request
 
 	byodIdpCookie, err := r.Cookie(mdm.BYODIdpCookieName)
 
+	fullyManaged := false
+	fullyManagedParam := r.URL.Query().Get("fully_managed")
+	if fullyManagedParam == "true" || fullyManagedParam == "1" {
+		fullyManaged = true
+	}
+
 	if err == http.ErrNoCookie {
 		// We do not fail here if no cookie is found, we validate later down the line if it's required
 		return &enrollmentTokenRequest{
 			EnrollSecret: enrollSecret,
 			IdpUUID:      "",
+			FullyManaged: fullyManaged,
 		}, nil
 	}
 
@@ -508,24 +524,24 @@ func (enrollmentTokenRequest) DecodeRequest(ctx context.Context, r *http.Request
 	return &enrollmentTokenRequest{
 		EnrollSecret: enrollSecret,
 		IdpUUID:      byodIdpCookie.Value,
+		FullyManaged: fullyManaged,
 	}, nil
 }
 
 func enrollmentTokenEndpoint(ctx context.Context, request interface{}, svc android.Service) fleet.Errorer {
 	req := request.(*enrollmentTokenRequest)
-	token, err := svc.CreateEnrollmentToken(ctx, req.EnrollSecret, req.IdpUUID)
+	token, err := svc.CreateEnrollmentToken(ctx, req.EnrollSecret, req.IdpUUID, req.FullyManaged)
 	if err != nil {
 		return android.DefaultResponse{Err: err}
 	}
 	return android.EnrollmentTokenResponse{EnrollmentToken: token}
 }
 
-func (svc *Service) CreateEnrollmentToken(ctx context.Context, enrollSecret, idpUUID string) (*android.EnrollmentToken, error) {
+func (svc *Service) CreateEnrollmentToken(ctx context.Context, enrollSecret, idpUUID string, fullyManaged bool) (*android.EnrollmentToken, error) {
 	// Authorization is done by VerifyEnrollSecret below.
 	// We call SkipAuthorization here to avoid explicitly calling it when errors occur.
 	svc.authz.SkipAuthorization(ctx)
-
-	_, err := svc.checkIfAndroidNotConfigured(ctx)
+	_, err := svc.checkIfAndroidNotConfigured(ctx, http.StatusConflict)
 	if err != nil {
 		return nil, err
 	}
@@ -580,11 +596,16 @@ func (svc *Service) CreateEnrollmentToken(ctx context.Context, enrollSecret, idp
 		return nil, ctxerr.Wrap(ctx, err, "marshalling enrollment token request")
 	}
 
+	personalUsageSetting := "PERSONAL_USAGE_ALLOWED"
+	if fullyManaged {
+		personalUsageSetting = "PERSONAL_USAGE_DISALLOWED"
+	}
+
 	token := &androidmanagement.EnrollmentToken{
 		// Default duration is 1 hour
 
 		AdditionalData:     string(enrollmentTokenRequest),
-		AllowPersonalUsage: "PERSONAL_USAGE_ALLOWED",
+		AllowPersonalUsage: personalUsageSetting,
 		PolicyName:         fmt.Sprintf("%s/policies/%d", enterprise.Name(), android.DefaultAndroidPolicyID),
 		OneTimeOnly:        true,
 	}
@@ -594,12 +615,13 @@ func (svc *Service) CreateEnrollmentToken(ctx context.Context, enrollSecret, idp
 	}
 
 	return &android.EnrollmentToken{
-		EnrollmentToken: token.Value,
-		EnrollmentURL:   "https://enterprise.google.com/android/enroll?et=" + token.Value,
+		EnrollmentToken:  token.Value,
+		EnrollmentURL:    "https://enterprise.google.com/android/enroll?et=" + token.Value,
+		EnrollmentQRCode: token.QrCode,
 	}, nil
 }
 
-func (svc *Service) checkIfAndroidNotConfigured(ctx context.Context) (*fleet.AppConfig, error) {
+func (svc *Service) checkIfAndroidNotConfigured(ctx context.Context, statusOfError int) (*fleet.AppConfig, error) {
 	// This call uses cached_mysql implementation, so it's safe to call it multiple times
 	appConfig, err := svc.ds.AppConfig(ctx)
 	if err != nil {
@@ -607,7 +629,7 @@ func (svc *Service) checkIfAndroidNotConfigured(ctx context.Context) (*fleet.App
 	}
 	if !appConfig.MDM.AndroidEnabledAndConfigured {
 		return nil, fleet.NewInvalidArgumentError("android",
-			"Android MDM is NOT configured").WithStatus(http.StatusConflict)
+			"Android MDM is NOT configured").WithStatus(statusOfError)
 	}
 	return appConfig, nil
 }
@@ -800,35 +822,32 @@ func (svc *Service) cleanupDeletedEnterprise(ctx context.Context, enterprise *an
 	}
 }
 
-// Admin-initiated Android unenroll
-// Request decoder for POST /api/_version_/fleet/hosts/{id}/mdm/unenroll
-type androidHostUnenrollRequest struct {
-	HostID uint `url:"id"`
-}
-
-func unenrollAndroidHostEndpoint(ctx context.Context, request interface{}, svc android.Service) fleet.Errorer {
-	req := request.(*androidHostUnenrollRequest)
-	err := svc.UnenrollAndroidHost(ctx, req.HostID)
-	return android.DefaultResponse{Err: err}
-}
-
-// UnenrollAndroidHost calls AMAPI to delete the device (work profile) and emits an activity.
+// UnenrollAndroidHost calls AMAPI to delete the device (work profile).
 // The actual MDM status flip to Off is performed when Pub/Sub sends DELETED for the device.
 func (svc *Service) UnenrollAndroidHost(ctx context.Context, hostID uint) error {
-	// Load host and authorize based on team
-	h, err := svc.fleetDS.HostLite(ctx, hostID)
+	if err := svc.authz.Authorize(ctx, &fleet.Host{}, fleet.ActionList); err != nil {
+		return err
+	}
+
+	host, err := svc.fleetDS.HostLite(ctx, hostID)
 	if err != nil {
-		return err
+		return ctxerr.Wrap(ctx, err, "getting host for android unenrollment")
 	}
-	if err := svc.authz.Authorize(ctx, h, fleet.ActionWrite); err != nil {
-		return err
+
+	if !fleet.IsAndroidPlatform(host.Platform) {
+		level.Debug(svc.logger).Log("msg", "Skipping Android unenrollment for non-Android host", "host_id", host.ID, "platform", host.Platform)
+		return nil // no-op for non-Android hosts
 	}
-	if strings.ToLower(h.Platform) != "android" {
-		return &fleet.BadRequestError{Message: "host is not an android device"}
+
+	// Check authorization again based on host info for team-based permissions.
+	if err := svc.authz.Authorize(ctx, fleet.MDMCommandAuthz{
+		TeamID: host.TeamID,
+	}, fleet.ActionWrite); err != nil {
+		return err
 	}
 
 	// Resolve Android device and enterprise
-	ah, err := svc.ds.AndroidHostLiteByHostUUID(ctx, h.UUID)
+	ah, err := svc.ds.AndroidHostLiteByHostUUID(ctx, host.UUID)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "getting android host by uuid")
 	}
@@ -851,16 +870,6 @@ func (svc *Service) UnenrollAndroidHost(ctx context.Context, hostID uint) error 
 		return ctxerr.Wrap(ctx, err, "amapi delete device")
 	}
 
-	// Emit activity: admin told Fleet to unenroll
-	displayName := fleet.HostDisplayName(h.ComputerName, h.Hostname, h.HardwareModel, h.HardwareSerial)
-	if err := svc.activityModule.NewActivity(ctx, authz.UserFromContext(ctx), fleet.ActivityTypeMDMUnenrolled{
-		HostSerial:       h.HardwareSerial,
-		HostDisplayName:  displayName,
-		InstalledFromDEP: false,
-		Platform:         "android",
-	}); err != nil {
-		return ctxerr.Wrap(ctx, err, "create android unenroll activity")
-	}
 	return nil
 }
 
@@ -894,53 +903,135 @@ func (svc *Service) AddAppsToAndroidPolicy(ctx context.Context, enterpriseName s
 	return hostToPolicyRequest, errors.Join(errs...)
 }
 
-// AddFleetAgentToAndroidPolicy adds the Fleet Agent to the Android policy for the given enterprise.
+// getFleetAgentPackageInfo returns the Fleet agent package name and SHA256 fingerprint.
+// Returns empty strings if the package is not configured.
+func (svc *Service) getFleetAgentPackageInfo() (packageName, sha256Fingerprint string) {
+	return svc.androidAgentConfig.Package, svc.androidAgentConfig.SigningSHA256
+}
+
+// buildFleetAgentAppPolicy builds an ApplicationPolicy for the Fleet agent from the given managed configuration.
+func buildFleetAgentAppPolicy(packageName, sha256Fingerprint string, managedConfig android.AgentManagedConfiguration) (*androidmanagement.ApplicationPolicy, error) {
+	managedConfigJSON, err := json.Marshal(managedConfig)
+	if err != nil {
+		return nil, err
+	}
+
+	return &androidmanagement.ApplicationPolicy{
+		PackageName:             packageName,
+		InstallType:             "FORCE_INSTALLED",
+		DefaultPermissionPolicy: "GRANT",
+		DelegatedScopes:         []string{"CERT_INSTALL"},
+		ManagedConfiguration:    managedConfigJSON,
+		SigningKeyCerts: []*androidmanagement.ApplicationSigningKeyCert{
+			{
+				SigningKeyCertFingerprintSha256: sha256Fingerprint,
+			},
+		},
+		Roles: []*androidmanagement.Role{
+			{
+				RoleType: "COMPANION_APP",
+			},
+		},
+		AutoUpdateMode: "AUTO_UPDATE_HIGH_PRIORITY",
+	}, nil
+}
+
+// AddFleetAgentToAndroidPolicy adds the Fleet agent to the Android policy for the given enterprise.
 // hostConfigs maps host UUIDs to managed configurations for the Fleet Agent.
 // The UUID is BOTH the hostUUID and the policyID. We assume that the host UUID is the same as the policy ID.
 func (svc *Service) AddFleetAgentToAndroidPolicy(ctx context.Context, enterpriseName string,
 	hostConfigs map[string]android.AgentManagedConfiguration,
 ) error {
+	packageName, sha256Fingerprint := svc.getFleetAgentPackageInfo()
+	if packageName == "" {
+		return nil
+	}
+
 	var errs []error
-	if packageName := os.Getenv("FLEET_DEV_ANDROID_AGENT_PACKAGE"); packageName != "" {
-		sha256Fingerprint := os.Getenv("FLEET_DEV_ANDROID_AGENT_SIGNING_SHA256")
-		if sha256Fingerprint == "" {
-			return ctxerr.New(ctx, "FLEET_DEV_ANDROID_AGENT_SIGNING_SHA256 must be set when FLEET_DEV_ANDROID_AGENT_PACKAGE is set")
+	for uuid, managedConfig := range hostConfigs {
+		policyName := fmt.Sprintf("%s/policies/%s", enterpriseName, uuid)
+
+		fleetAgentApp, err := buildFleetAgentAppPolicy(packageName, sha256Fingerprint, managedConfig)
+		if err != nil {
+			errs = append(errs, ctxerr.Wrapf(ctx, err, "build fleet agent app policy for host %s", uuid))
+			continue
 		}
-		for uuid, managedConfig := range hostConfigs {
-			policyName := fmt.Sprintf("%s/policies/%s", enterpriseName, uuid)
 
-			// Marshal managed configuration to JSON
-			managedConfigJSON, err := json.Marshal(managedConfig)
-			if err != nil {
-				errs = append(errs, ctxerr.Wrapf(ctx, err, "marshal managed configuration for host %s", uuid))
-				continue
-			}
-
-			fleetAgentApp := &androidmanagement.ApplicationPolicy{
-				PackageName:             packageName,
-				InstallType:             "FORCE_INSTALLED",
-				DefaultPermissionPolicy: "GRANT",
-				DelegatedScopes:         []string{"CERT_INSTALL"},
-				ManagedConfiguration:    managedConfigJSON,
-				SigningKeyCerts: []*androidmanagement.ApplicationSigningKeyCert{
-					{
-						SigningKeyCertFingerprintSha256: sha256Fingerprint,
-					},
-				},
-				Roles: []*androidmanagement.Role{
-					{
-						RoleType: "COMPANION_APP",
-					},
-				},
-			}
-			_, err = svc.androidAPIClient.EnterprisesPoliciesModifyPolicyApplications(ctx, policyName,
-				[]*androidmanagement.ApplicationPolicy{fleetAgentApp})
-			if err != nil {
-				errs = append(errs, ctxerr.Wrapf(ctx, err, "google api: modify fleet agent application for host %s", uuid))
-			}
+		_, err = svc.androidAPIClient.EnterprisesPoliciesModifyPolicyApplications(ctx, policyName,
+			[]*androidmanagement.ApplicationPolicy{fleetAgentApp})
+		if err != nil {
+			errs = append(errs, ctxerr.Wrapf(ctx, err, "google api: modify fleet agent application for host %s", uuid))
 		}
 	}
 	return errors.Join(errs...)
+}
+
+// BuildFleetAgentApplicationPolicy builds the ApplicationPolicy for the Fleet agent for the given host.
+func (svc *Service) BuildFleetAgentApplicationPolicy(ctx context.Context, hostUUID string) (*androidmanagement.ApplicationPolicy, error) {
+	packageName, sha256Fingerprint := svc.getFleetAgentPackageInfo()
+	if packageName == "" {
+		return nil, nil
+	}
+
+	// Build the managed configuration for this host
+	managedConfig, err := svc.buildAgentManagedConfig(ctx, hostUUID)
+	if err != nil {
+		return nil, err
+	}
+
+	return buildFleetAgentAppPolicy(packageName, sha256Fingerprint, *managedConfig)
+}
+
+// buildAgentManagedConfig builds the AgentManagedConfiguration for the given host.
+// This includes the server URL, enroll secret, and certificate template IDs.
+func (svc *Service) buildAgentManagedConfig(ctx context.Context, hostUUID string) (*android.AgentManagedConfiguration, error) {
+	appConfig, err := svc.fleetDS.AppConfig(ctx)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "get app config")
+	}
+
+	androidHost, err := svc.ds.AndroidHostLiteByHostUUID(ctx, hostUUID)
+	if err != nil {
+		return nil, ctxerr.Wrapf(ctx, err, "get android host %s", hostUUID)
+	}
+
+	enrollSecrets, err := svc.fleetDS.GetEnrollSecrets(ctx, androidHost.Host.TeamID)
+	if err != nil {
+		return nil, ctxerr.Wrapf(ctx, err, "get enroll secrets for team %v", androidHost.Host.TeamID)
+	}
+	if len(enrollSecrets) == 0 {
+		return nil, ctxerr.Errorf(ctx, "no enroll secrets found for team %v", androidHost.Host.TeamID)
+	}
+
+	// Get certificate templates for the host (all templates, regardless of status)
+	certTemplates, err := svc.fleetDS.ListCertificateTemplatesForHosts(ctx, []string{hostUUID})
+	if err != nil {
+		return nil, ctxerr.Wrapf(ctx, err, "get certificate templates for host %s", hostUUID)
+	}
+
+	var certificateTemplateIDs []android.AgentCertificateTemplate
+	for _, ct := range certTemplates {
+		template := android.AgentCertificateTemplate{
+			ID: ct.CertificateTemplateID,
+		}
+		if ct.Status != nil {
+			template.Status = string(*ct.Status)
+		}
+		if ct.OperationType != nil {
+			template.Operation = string(*ct.OperationType)
+		}
+		if ct.UUID != nil {
+			template.UUID = *ct.UUID
+		}
+		certificateTemplateIDs = append(certificateTemplateIDs, template)
+	}
+
+	return &android.AgentManagedConfiguration{
+		ServerURL:              appConfig.ServerSettings.ServerURL,
+		HostUUID:               hostUUID,
+		EnrollSecret:           enrollSecrets[0].Secret,
+		CertificateTemplateIDs: certificateTemplateIDs,
+	}, nil
 }
 
 func (svc *Service) EnableAppReportsOnDefaultPolicy(ctx context.Context) error {
@@ -1059,6 +1150,10 @@ func (svc *Service) MigrateToPerDevicePolicy(ctx context.Context) error {
 
 	enterprise, err := svc.ds.GetEnterprise(ctx)
 	if err != nil {
+		if fleet.IsNotFound(err) {
+			// Android MDM is not on, so no-op
+			return nil
+		}
 		return err
 	}
 
@@ -1118,14 +1213,10 @@ func (svc *Service) MigrateToPerDevicePolicy(ctx context.Context) error {
 // BuildAndSendFleetAgentConfig builds the complete AgentManagedConfiguration for the given hosts
 // (including certificate templates) and sends it to the Android Management API.
 //
-// This function uses an "insert first" approach to avoid race conditions:
-// 1. Fetches all certificate templates for the given hosts
-// 2. For hosts with new certificates: inserts them first, then calls the API
-// 3. If the API call fails, performs a compensating delete of the inserted records
-// 4. For hosts without new certificates: calls the API directly (unless skipHostsWithoutNewCerts is true)
-//
-// This ensures that once a certificate template record exists in the database,
-// any concurrent process will see it as Pending.
+// This function uses a state machine approach with the following states:
+// - pending: Record exists, waiting for cron to process
+// - delivering: Cron is actively sending to AMAPI
+// - delivered: AMAPI confirmed receipt
 func (svc *Service) BuildAndSendFleetAgentConfig(ctx context.Context, enterpriseName string, hostUUIDs []string, skipHostsWithoutNewCerts bool) error {
 	if len(hostUUIDs) == 0 {
 		return nil
@@ -1159,42 +1250,8 @@ func (svc *Service) BuildAndSendFleetAgentConfig(ctx context.Context, enterprise
 		return secrets, nil
 	}
 
-	// Get all certificate templates for the hosts
-	allTemplates, err := svc.fleetDS.ListCertificateTemplatesForHosts(ctx, hostUUIDs)
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "list certificate templates for hosts")
-	}
-
-	// Group templates by host UUID and track new ones that need challenges
-	templatesByHost := make(map[string][]fleet.CertificateTemplateForHost)
-	newCertsByHost := make(map[string][]fleet.HostCertificateTemplate)
-
-	for i := range allTemplates {
-		template := &allTemplates[i]
-
-		// If no existing record (FleetChallenge is nil), generate a new challenge
-		if template.FleetChallenge == nil {
-			challenge, err := svc.fleetDS.NewChallenge(ctx)
-			if err != nil {
-				return ctxerr.Wrap(ctx, err, "generate fleet challenge")
-			}
-			// Update the template with the challenge for building the config
-			allTemplates[i].FleetChallenge = &challenge
-
-			newCertsByHost[template.HostUUID] = append(newCertsByHost[template.HostUUID], fleet.HostCertificateTemplate{
-				HostUUID:              template.HostUUID,
-				CertificateTemplateID: template.CertificateTemplateID,
-				FleetChallenge:        challenge,
-				Status:                fleet.MDMDeliveryPending,
-				OperationType:         fleet.MDMOperationTypeInstall,
-			})
-		}
-
-		templatesByHost[template.HostUUID] = append(templatesByHost[template.HostUUID], allTemplates[i])
-	}
-
-	// Helper to build config for a single host
-	buildHostConfig := func(hostUUID string) (*android.AgentManagedConfiguration, error) {
+	// Helper to build config for a single host using pre-fetched certificate templates
+	buildHostConfig := func(hostUUID string, templates []fleet.HostCertificateTemplateForDelivery) (*android.AgentManagedConfiguration, error) {
 		androidHost, err := svc.ds.AndroidHostLiteByHostUUID(ctx, hostUUID)
 		if err != nil {
 			return nil, ctxerr.Wrapf(ctx, err, "get android host %s", hostUUID)
@@ -1208,11 +1265,13 @@ func (svc *Service) BuildAndSendFleetAgentConfig(ctx context.Context, enterprise
 			return nil, ctxerr.Errorf(ctx, "no enroll secrets found for team %v", androidHost.Host.TeamID)
 		}
 
-		// Build certificate template IDs list
 		var certificateTemplateIDs []android.AgentCertificateTemplate
-		for _, tmpl := range templatesByHost[hostUUID] {
+		for _, ct := range templates {
 			certificateTemplateIDs = append(certificateTemplateIDs, android.AgentCertificateTemplate{
-				ID: tmpl.CertificateTemplateID,
+				ID:        ct.CertificateTemplateID,
+				Status:    string(ct.Status),
+				Operation: string(ct.OperationType),
+				UUID:      ct.UUID,
 			})
 		}
 
@@ -1224,59 +1283,57 @@ func (svc *Service) BuildAndSendFleetAgentConfig(ctx context.Context, enterprise
 		}, nil
 	}
 
-	// Step 1: Insert all new certificate templates for all hosts at once
-	// This ensures they're visible to any concurrent process immediately
-	var allNewCerts []fleet.HostCertificateTemplate
-	for _, certs := range newCertsByHost {
-		allNewCerts = append(allNewCerts, certs...)
-	}
-
-	if len(allNewCerts) > 0 {
-		if err := svc.fleetDS.BulkInsertHostCertificateTemplates(ctx, allNewCerts); err != nil {
-			// This could fail if another process already inserted the same records (very rare race condition)
-			// In which case, we'll let the other process handle these hosts
-			return ctxerr.Wrap(ctx, err, "bulk insert host certificate templates")
-		}
-	}
-
-	// Step 2: For each host with new certs, send updated Agent config. On failure, delete that host's certs so we can retry later.
-	for hostUUID, newCerts := range newCertsByHost {
-		config, err := buildHostConfig(hostUUID)
+	for _, hostUUID := range hostUUIDs {
+		// Step 1: Get all install templates and transition pending → delivering (atomically)
+		// This prevents concurrent cron runs from processing the same templates
+		certTemplates, err := svc.fleetDS.GetAndTransitionCertificateTemplatesToDelivering(ctx, hostUUID)
 		if err != nil {
-			level.Error(svc.logger).Log("msg", "failed to build host config", "host_uuid", hostUUID, "err", err)
-			if delErr := svc.fleetDS.DeleteHostCertificateTemplates(ctx, newCerts); delErr != nil {
-				level.Error(svc.logger).Log("msg", "failed to delete host certificate templates after config build failure", "host_uuid", hostUUID, "err", delErr)
+			level.Error(svc.logger).Log("msg", "failed to get and transition to delivering", "host_uuid", hostUUID, "err", err)
+			return ctxerr.Wrapf(ctx, err, "get and transition certificate templates to delivering for host %s", hostUUID)
+		}
+
+		if len(certTemplates.DeliveringTemplateIDs) == 0 {
+			// No pending templates for this host (another process got them, or none exist)
+			if skipHostsWithoutNewCerts {
+				continue
+			}
+			// Send config without new certificates (needed for new host enrollment)
+			// There should be no other certificates either, but including them just in case.
+			config, err := buildHostConfig(hostUUID, certTemplates.Templates)
+			if err != nil {
+				level.Error(svc.logger).Log("msg", "failed to build host config without certs", "host_uuid", hostUUID, "err", err)
+				return ctxerr.Wrapf(ctx, err, "build host config without certs for host %s", hostUUID)
+			}
+			hostConfigs := map[string]android.AgentManagedConfiguration{hostUUID: *config}
+			if err := svc.AddFleetAgentToAndroidPolicy(ctx, enterpriseName, hostConfigs); err != nil {
+				level.Error(svc.logger).Log("msg", "failed to send AMAPI config without certs", "host_uuid", hostUUID, "err", err)
+				// Not a critical failure. We will retry installing Fleet Agent when certificates are added to the host's team
 			}
 			continue
 		}
 
+		// Step 2: Build and send config to AMAPI with ALL certificate templates
+		config, err := buildHostConfig(hostUUID, certTemplates.Templates)
+		if err != nil {
+			level.Error(svc.logger).Log("msg", "failed to build host config", "host_uuid", hostUUID, "err", err)
+			return ctxerr.Wrapf(ctx, err, "build host config for %s", hostUUID)
+		}
+
 		hostConfigs := map[string]android.AgentManagedConfiguration{hostUUID: *config}
 		if err := svc.AddFleetAgentToAndroidPolicy(ctx, enterpriseName, hostConfigs); err != nil {
-			// On failure, perform compensating delete for this host only
-			level.Error(svc.logger).Log("msg", "failed to send fleet agent config to API", "host_uuid", hostUUID, "err", err)
-			if delErr := svc.fleetDS.DeleteHostCertificateTemplates(ctx, newCerts); delErr != nil {
-				level.Error(svc.logger).Log("msg", "failed to delete host certificate templates after API failure", "host_uuid", hostUUID, "err", delErr)
+			// AMAPI call failed, revert to pending for retry later
+			level.Error(svc.logger).Log("msg", "failed to send to AMAPI", "host_uuid", hostUUID, "err", err)
+			if revertErr := svc.fleetDS.RevertHostCertificateTemplatesToPending(ctx, hostUUID, certTemplates.DeliveringTemplateIDs); revertErr != nil {
+				level.Error(svc.logger).Log("msg", "failed to revert to pending after AMAPI failure", "host_uuid", hostUUID, "err", revertErr)
+				return ctxerr.Wrapf(ctx, revertErr, "revert certificate templates to pending after AMAPI failure for host %s", hostUUID)
 			}
+			continue
 		}
-	}
 
-	// Step 3: Process hosts without new certificates (unless skipHostsWithoutNewCerts is true)
-	if !skipHostsWithoutNewCerts {
-		for _, hostUUID := range hostUUIDs {
-			if _, hasNewCerts := newCertsByHost[hostUUID]; hasNewCerts {
-				continue // Already processed above
-			}
-
-			config, err := buildHostConfig(hostUUID)
-			if err != nil {
-				level.Error(svc.logger).Log("msg", "failed to build host config", "host_uuid", hostUUID, "err", err)
-				continue
-			}
-
-			hostConfigs := map[string]android.AgentManagedConfiguration{hostUUID: *config}
-			if err := svc.AddFleetAgentToAndroidPolicy(ctx, enterpriseName, hostConfigs); err != nil {
-				level.Error(svc.logger).Log("msg", "failed to send fleet agent config to API", "host_uuid", hostUUID, "err", err)
-			}
+		// Step 3: Transition delivering → delivered
+		if err := svc.fleetDS.TransitionCertificateTemplatesToDelivered(ctx, hostUUID, certTemplates.DeliveringTemplateIDs); err != nil {
+			level.Error(svc.logger).Log("msg", "failed to transition to delivered", "host_uuid", hostUUID, "err", err)
+			return ctxerr.Wrap(ctx, err, "transition certificate templates to delivered")
 		}
 	}
 

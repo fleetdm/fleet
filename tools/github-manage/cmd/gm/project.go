@@ -31,9 +31,9 @@ var projectCmd = &cobra.Command{
 }
 
 func init() {
-	projectCmd.Flags().IntP("limit", "l", 100, "Maximum number of items to fetch")
+	projectCmd.Flags().IntP("limit", "l", 300, "Maximum number of items to fetch")
 	estimatedCmd.Flags().IntP("limit", "l", 500, "Maximum number of items to fetch from drafting project")
-	sprintCmd.Flags().IntP("limit", "l", 100, "Maximum number of items to fetch")
+	sprintCmd.Flags().IntP("limit", "l", 300, "Maximum number of items to fetch")
 	sprintCmd.Flags().BoolP("previous", "p", false, "Show previous sprint instead of current")
 }
 

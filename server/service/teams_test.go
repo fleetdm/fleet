@@ -79,6 +79,14 @@ func TestTeamAuth(t *testing.T) {
 		return nil, &notFoundError{}
 	}
 
+	ds.GetCertificateTemplatesByTeamIDFunc = func(ctx context.Context, teamID uint, opts fleet.ListOptions) ([]*fleet.CertificateTemplateResponseSummary, *fleet.PaginationMetadata, error) {
+		return []*fleet.CertificateTemplateResponseSummary{}, nil, nil
+	}
+
+	ds.SetHostCertificateTemplatesToPendingRemoveFunc = func(ctx context.Context, teamID uint) error {
+		return nil
+	}
+
 	testCases := []struct {
 		name                       string
 		user                       *fleet.User

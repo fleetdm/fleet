@@ -6,7 +6,7 @@ import { IconNames } from "components/icons";
 import { HOST_APPLE_PLATFORMS, Platform } from "./platform";
 import vulnerabilityInterface from "./vulnerability";
 import { ILabelSoftwareTitle } from "./label";
-import { IMdmCommandResult } from "./mdm";
+import { ICommandResult } from "./command";
 
 export default PropTypes.shape({
   type: PropTypes.string,
@@ -34,6 +34,7 @@ export interface IGetSoftwareByIdResponse {
 // check to see if we still need this.
 export interface ISoftware {
   id: number;
+  /** All software names displayed by UI is ran through getDisplayedSoftwareName */
   name: string; // e.g., "Figma.app"
   /** Custom name set per team by admin */
   display_name?: string; // e.g. "Figma for Desktop"
@@ -70,11 +71,14 @@ export interface ISoftwareInstallPolicy {
   name: string;
 }
 
+// Match allowedCategories in cmd/maintained-apps/main.go
 export type SoftwareCategory =
   | "Browsers"
   | "Communication"
   | "Developer tools"
-  | "Productivity";
+  | "Productivity"
+  | "Security"
+  | "Utilities";
 
 export interface ISoftwarePackageStatus {
   installed: number;
@@ -112,15 +116,10 @@ export interface ISoftwarePackage {
   install_during_setup?: boolean;
   labels_include_any: ILabelSoftwareTitle[] | null;
   labels_exclude_any: ILabelSoftwareTitle[] | null;
-  categories?: SoftwareCategory[];
+  categories?: SoftwareCategory[] | null;
   fleet_maintained_app_id?: number | null;
   hash_sha256?: string | null;
 }
-
-export const isSoftwarePackage = (
-  data: ISoftwarePackage | IAppStoreApp
-): data is ISoftwarePackage =>
-  (data as ISoftwarePackage).install_script !== undefined;
 
 export interface IAppStoreApp {
   name: string;
@@ -146,11 +145,24 @@ export interface IAppStoreApp {
   version?: string;
   labels_include_any: ILabelSoftwareTitle[] | null;
   labels_exclude_any: ILabelSoftwareTitle[] | null;
-  categories?: SoftwareCategory[];
+  categories?: SoftwareCategory[] | null;
+  configuration?: string;
 }
+
+/**
+ * package: includes FMA, custom packages, and are defined under software_package
+ * app-store: includes VPP, Google Play Store apps and are defined under app_store_app
+ */
+export type InstallerType = "package" | "app-store";
+
+export const isSoftwarePackage = (
+  data: ISoftwarePackage | IAppStoreApp
+): data is ISoftwarePackage =>
+  (data as ISoftwarePackage).install_script !== undefined;
 
 export interface ISoftwareTitle {
   id: number;
+  /** All software names displayed by UI is ran through getDisplayedSoftwareName */
   name: string;
   /** Custom name set per team by admin */
   display_name?: string;
@@ -168,6 +180,7 @@ export interface ISoftwareTitle {
 
 export interface ISoftwareTitleDetails {
   id: number;
+  /** All software names displayed by UI is ran through getDisplayedSoftwareName */
   name: string;
   /** Custom name set per team by admin */
   display_name?: string;
@@ -181,6 +194,9 @@ export interface ISoftwareTitleDetails {
   counts_updated_at?: string;
   bundle_identifier?: string;
   versions_count?: number;
+  auto_update_enabled?: boolean;
+  auto_update_window_start?: string;
+  auto_update_window_end?: string;
   /** @deprecated Use extension_for instead */
   browser?: string;
 }
@@ -199,6 +215,7 @@ export interface ISoftwareVulnerability {
 
 export interface ISoftwareVersion {
   id: number;
+  /** All software names displayed by UI is ran through getDisplayedSoftwareName */
   name: string; // e.g., "Figma.app"
   /** Custom name set per team by admin */
   display_name?: string; // e.g. "Figma for Desktop"
@@ -471,7 +488,7 @@ export interface ISoftwareInstallResults {
 
 /** For Software .ipa installs, we use the install results API to return MDM command results */
 export interface ISoftwareIpaInstallResults {
-  results: IMdmCommandResult;
+  results: ICommandResult;
 }
 
 // ISoftwareInstallerType defines the supported installer types for
@@ -501,7 +518,7 @@ export interface ISoftwareLastUninstall {
 export interface ISoftwareInstallVersion {
   version: string;
   bundle_identifier: string;
-  last_opened_at: string | null;
+  last_opened_at?: string;
   vulnerabilities: string[] | null;
   installed_paths: string[];
   signature_information?: SignatureInformation[];
@@ -514,7 +531,7 @@ export interface IHostSoftwarePackage {
   version: string;
   last_install: ISoftwareLastInstall | null;
   last_uninstall: ISoftwareLastUninstall | null;
-  categories?: SoftwareCategory[];
+  categories?: SoftwareCategory[] | null;
   automatic_install_policies?: ISoftwareInstallPolicy[] | null;
   platform?: Platform;
 }
@@ -526,12 +543,13 @@ export interface IHostAppStoreApp {
   icon_url: string;
   version: string;
   last_install: IAppLastInstall | null;
-  categories?: SoftwareCategory[];
+  categories?: SoftwareCategory[] | null;
   automatic_install_policies?: ISoftwareInstallPolicy[] | null;
 }
 
 export interface IHostSoftware {
   id: number;
+  /** All software names displayed by UI is ran through getDisplayedSoftwareName */
   name: string; // e.g., "mock software.app"
   /** Custom name set per team by admin */
   display_name?: string; // e.g. "Mock Software"
@@ -558,7 +576,9 @@ export interface IHostSoftware {
 // Error UI statuses
 export const HOST_SOFTWARE_UI_ERROR_STATUSES = [
   "failed_install", // Install attempt failed
+  "failed_install_installed", // Install attempt failed but version still present
   "failed_install_update_available", // Install/update failed; newer installer version available
+  "failed_uninstall_installed", // Uninstall attempt failed but version still present
   "failed_uninstall", // Uninstall attempt failed
   "failed_uninstall_update_available", // Uninstall/update failed; newer installer version available
   "failed_script", // Script package failed to run
@@ -762,6 +782,9 @@ export const hasHostSoftwareAppLastInstall = (
 export const isIpadOrIphoneSoftwareSource = (source: string) =>
   ["ios_apps", "ipados_apps"].includes(source);
 
+export const isIpadOrIphoneSoftware = (platform: string) =>
+  ["ios", "ipados"].includes(platform);
+
 export const isAndroidSoftwareSource = (source: string) =>
   source === "android_apps";
 
@@ -795,7 +818,7 @@ export interface IFleetMaintainedAppDetails {
   url: string;
   slug: string;
   software_title_id?: number; // null unless the team already has the software added (as a Fleet-maintained app, App Store (app), or custom package)
-  categories: SoftwareCategory[];
+  categories: SoftwareCategory[] | null;
 }
 
 export const ROLLING_ARCH_LINUX_NAMES = [

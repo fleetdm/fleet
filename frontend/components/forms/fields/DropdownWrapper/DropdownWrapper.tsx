@@ -42,7 +42,7 @@ const CustomOption = (props: CustomOptionProps) => {
   const { data, ...rest } = props;
 
   const optionContent = (
-    <div className={`${baseClass}__option`}>
+    <div className={`${baseClass}__option`} data-testid="dropdown-option">
       {data.label}
       {data.helpText && (
         <span className={`${baseClass}__help-text`}>{data.helpText}</span>
@@ -124,6 +124,7 @@ export interface IDropdownWrapper {
   /** This makes the menu fit all text without wrapping,
    * aligning right to fit text on screen */
   nowrapMenu?: boolean;
+  customNoOptionsMessage?: string;
 }
 
 const getOptionBackgroundColor = (
@@ -441,6 +442,7 @@ const DropdownWrapper = ({
   onMenuOpen,
   variant,
   nowrapMenu,
+  customNoOptionsMessage,
 }: IDropdownWrapper) => {
   const wrapperClassNames = classnames(baseClass, className, {
     [`${baseClass}__table-filter`]: variant === "table-filter",
@@ -521,7 +523,7 @@ const DropdownWrapper = ({
         value={getCurrentValue()}
         onChange={handleChange}
         isDisabled={isDisabled}
-        noOptionsMessage={() => "No results found"}
+        noOptionsMessage={() => customNoOptionsMessage ?? "No results found"}
         tabIndex={isDisabled ? -1 : 0} // Ensures disabled dropdown has no keyboard accessibility
         placeholder={placeholder}
         onMenuOpen={onMenuOpen}

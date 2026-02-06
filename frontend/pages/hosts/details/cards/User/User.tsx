@@ -1,6 +1,5 @@
 import React from "react";
 import classnames from "classnames";
-import { noop } from "lodash";
 
 import { IHostEndUser } from "interfaces/host";
 

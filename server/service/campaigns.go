@@ -210,7 +210,7 @@ func (svc *Service) NewDistributedQueryCampaignByIdentifiers(ctx context.Context
 	if err := svc.authz.Authorize(ctx, &fleet.Label{}, fleet.ActionRead); err != nil {
 		return nil, err
 	}
-	labelMap, err := svc.ds.LabelIDsByName(ctx, labels)
+	labelMap, err := svc.ds.LabelIDsByName(ctx, labels, fleet.TeamFilter{User: vc.User})
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "finding label IDs")
 	}

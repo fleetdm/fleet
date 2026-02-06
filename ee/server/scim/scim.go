@@ -182,7 +182,7 @@ func RegisterSCIM(
 					Required: false,
 				},
 			},
-			Handler: NewUserHandler(ds, scimLogger),
+			Handler: NewUserHandler(ds, svc, scimLogger),
 		},
 		{
 			ID:          optional.NewString("Group"),

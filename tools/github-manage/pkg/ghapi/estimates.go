@@ -9,9 +9,9 @@ import (
 )
 
 // DefaultEstimateSourceProjects returns the default set of projects to scan for estimates
-// when syncing to Roadmap: drafting and product group projects.
+// when syncing to Releases: drafting and product group projects.
 func DefaultEstimateSourceProjects() []int {
-	// unique list; ignore roadmap itself (87) as a source
+	// unique list; ignore releases itself (87) as a source
 	return []int{Aliases["draft"], Aliases["mdm"], Aliases["g-software"], Aliases["g-orchestration"], Aliases["g-security-compliance"]}
 }
 
@@ -22,7 +22,7 @@ func GetEstimateFromProject(issueNumber int, projectID int) (int, bool, error) {
 	if err != nil {
 		return 0, false, err
 	}
-	val, err := getProjectItemFieldValue(itemID, projectID, "Estimate")
+	val, err := GetProjectItemFieldValue(itemID, projectID, "Estimate")
 	if err != nil {
 		return 0, false, err
 	}
@@ -60,7 +60,7 @@ func GetEstimateForIssueAcrossProjects(issueNumber int, projects []int) (int, in
 		if e != nil {
 			continue
 		}
-		val, e := getProjectItemFieldValue(itemID, pid, "Estimate")
+		val, e := GetProjectItemFieldValue(itemID, pid, "Estimate")
 		if e != nil || val == "" || val == "0" {
 			continue
 		}
@@ -124,7 +124,7 @@ func IssueInSprint(issueNumber int, sprintTitle string, projects []int) (bool, i
 		if err != nil {
 			continue
 		}
-		title, err := getProjectItemFieldValue(itemID, pid, "Sprint")
+		title, err := GetProjectItemFieldValue(itemID, pid, "Sprint")
 		if err != nil || strings.TrimSpace(title) == "" {
 			continue
 		}
@@ -227,12 +227,14 @@ func getIssueEstimatesAcrossProjects(issueNumber int) (map[int]int, error) {
 				Issue struct {
 					ProjectItems struct {
 						Nodes []struct {
-							Project struct{ Number int `json:"number"` } `json:"project"`
-							FieldValues struct{
-								Nodes []struct{
-									Typename string  `json:"__typename"`
+							Project struct {
+								Number int `json:"number"`
+							} `json:"project"`
+							FieldValues struct {
+								Nodes []struct {
+									Typename string   `json:"__typename"`
 									Number   *float64 `json:"number,omitempty"`
-									Field    struct{
+									Field    struct {
 										Name string `json:"name"`
 									} `json:"field"`
 								} `json:"nodes"`

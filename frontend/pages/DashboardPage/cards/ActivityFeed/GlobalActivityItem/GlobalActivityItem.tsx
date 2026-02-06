@@ -449,7 +449,7 @@ const TAGGED_TEMPLATES = {
 
     return (
       <>
-        enabled OS updates for all new {applePlatform} hosts on {teamSection}.
+        enabled OS updates for all new {applePlatform} hosts on {teamSection}.{" "}
         {applePlatform} hosts will upgrade to the lastest version when they
         enroll.
       </>
@@ -595,6 +595,20 @@ const TAGGED_TEMPLATES = {
       <>
         {" "}
         edited configuration profiles for{" "}
+        {getProfileMessageSuffix(
+          isPremiumTier,
+          "android",
+          activity.details?.team_name
+        )}{" "}
+        via fleetctl.
+      </>
+    );
+  },
+  editedAndroidCertificate: (activity: IActivity, isPremiumTier: boolean) => {
+    return (
+      <>
+        {" "}
+        edited certificate templates for{" "}
         {getProfileMessageSuffix(
           isPremiumTier,
           "android",
@@ -1365,6 +1379,19 @@ const TAGGED_TEMPLATES = {
   deletedConditionalAccessOkta: () => (
     <> deleted Okta conditional access configuration.</>
   ),
+  hostBypassedConditionalAccess: (activity: IActivity) => {
+    const idpFullName = activity.details?.idp_full_name;
+    const hostDisplayName = activity.details?.host_display_name;
+    return (
+      <>
+        <strong>{idpFullName}</strong> temporarily bypassed conditional access
+        for <strong>{hostDisplayName}</strong>.
+      </>
+    );
+  },
+  updatedConditionalAccessBypass: () => (
+    <> edited conditional access end user experience.</>
+  ),
   enabledConditionalAccessAutomations: (activity: IActivity) => {
     const teamName = activity.details?.team_name;
     return (
@@ -1658,6 +1685,40 @@ const TAGGED_TEMPLATES = {
       </>
     );
   },
+  createdCert: (activity: IActivity) => {
+    const { name, team_name } = activity.details || {};
+    const teamText = team_name ? (
+      <>
+        assigned to the <b>{team_name}</b>
+      </>
+    ) : (
+      <>with no</>
+    );
+
+    return (
+      <>
+        added certificate {name ? <b>{name} </b> : ""}to Android hosts{" "}
+        {teamText} team.
+      </>
+    );
+  },
+  deletedCert: (activity: IActivity) => {
+    const { name, team_name } = activity.details || {};
+    const teamText = team_name ? (
+      <>
+        assigned to the <b>{team_name}</b>
+      </>
+    ) : (
+      <>with no</>
+    );
+
+    return (
+      <>
+        deleted certificate {name ? <b>{name} </b> : ""}from Android hosts{" "}
+        {teamText} team.
+      </>
+    );
+  },
 };
 
 const getDetail = (activity: IActivity, isPremiumTier: boolean) => {
@@ -1757,6 +1818,9 @@ const getDetail = (activity: IActivity, isPremiumTier: boolean) => {
     }
     case ActivityType.EditedAndroidProfile: {
       return TAGGED_TEMPLATES.editedAndroidProfile(activity, isPremiumTier);
+    }
+    case ActivityType.EditedAndroidCertificate: {
+      return TAGGED_TEMPLATES.editedAndroidCertificate(activity, isPremiumTier);
     }
     case ActivityType.AddedNdesScepProxy: {
       return TAGGED_TEMPLATES.addedCertificateAuthority("NDES");
@@ -1972,8 +2036,14 @@ const getDetail = (activity: IActivity, isPremiumTier: boolean) => {
     case ActivityType.DeletedConditionalAccessOkta: {
       return TAGGED_TEMPLATES.deletedConditionalAccessOkta();
     }
+    case ActivityType.UpdatedConditionalAccessBypass: {
+      return TAGGED_TEMPLATES.updatedConditionalAccessBypass();
+    }
     case ActivityType.EnabledConditionalAccessAutomations: {
       return TAGGED_TEMPLATES.enabledConditionalAccessAutomations(activity);
+    }
+    case ActivityType.HostBypassedConditionalAccess: {
+      return TAGGED_TEMPLATES.hostBypassedConditionalAccess(activity);
     }
     case ActivityType.DisabledConditionalAccessAutomations: {
       return TAGGED_TEMPLATES.disabledConditionalAccessAutomations(activity);
@@ -2020,6 +2090,12 @@ const getDetail = (activity: IActivity, isPremiumTier: boolean) => {
     }
     case ActivityType.EditedHostIdpData: {
       return TAGGED_TEMPLATES.editedHostIdpData(activity);
+    }
+    case ActivityType.AddedCertificate: {
+      return TAGGED_TEMPLATES.createdCert(activity);
+    }
+    case ActivityType.DeletedCertificate: {
+      return TAGGED_TEMPLATES.deletedCert(activity);
     }
     default: {
       return TAGGED_TEMPLATES.defaultActivityTemplate(activity);
