@@ -27,7 +27,7 @@ This list (for now) will be in roughly chronological order as assets are created
 
 | Asset | Last updated | Use for 
 |:------------|:------------|:----------------|
-| [The GitOps idea](https://fleetdm.com/articles/the-gitops-idea) | 202/02/04 | Blog explaining what is GitOps |
+| [The GitOps idea](https://fleetdm.com/articles/the-gitops-idea) | 2026/02/04 | Blog explaining what is GitOps |
 | [Customers page](https://fleetdm.com/customers) | 2026/02/01 | Customer testimonials & logos |
 | [Fastly gains visibility into all endpoints and critical infrastructure worldwide](https://fleetdm.com/case-study/fastly) | 2026/01/30 | Customer case study: Fastly |
 | [Fleet GitOps - The future of device management is declarative](https://fleetdm.com/fleet-gitops) | 2026/01/29 | Fleet GitOps product page |
