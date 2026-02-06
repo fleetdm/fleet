@@ -43,10 +43,6 @@ App store apps are software that is installed directly from an external app stor
 the Apple App Store (via [VPP](https://developer.apple.com/documentation/devicemanagement/managing-apps-and-books-through-web-services-legacy) apps (for macOS, iOS, and iPadOS hosts)) 
 and the Google Play Store (for Android hosts).
 
-## Architecture overview
-
-## Key components
-
 ## Architecture diagrams
 
 ### VPP app install and verification
