@@ -447,9 +447,23 @@ const ConditionalAccess = () => {
       entraCta = <Button onClick={toggleEntraModal}>Connect</Button>;
     }
 
-    let entraContent: string;
+    let entraContent: React.ReactNode;
     if (entraIsConfigured) {
-      entraContent = "Microsoft Entra conditional access configured";
+      entraContent = (
+        <>
+          <TooltipWrapper
+            tipContent={
+              <>
+                <b>Tenant ID:</b>
+                {entraTenantId}
+              </>
+            }
+          >
+            Microsoft Entra
+          </TooltipWrapper>{" "}
+          conditional access connected
+        </>
+      );
     } else if (entraIsAwaitingOAuth) {
       entraContent =
         "To complete your integration, follow the instructions in the other tab, then refresh this page to verify.";
