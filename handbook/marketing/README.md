@@ -27,15 +27,17 @@ This list (for now) will be in roughly chronological order as assets are created
 
 | Asset | Last updated | Use for 
 |:------------|:------------|:----------------|
-| [The GitOps idea](https://fleetdm.com/articles/the-gitops-idea) | 2026/02/04 | Blog explaining what is GitOps |
-| [Customers page](https://fleetdm.com/customers) | 2026/02/01 | Customer testimonials & logos |
-| [Fastly gains visibility into all endpoints and critical infrastructure worldwide](https://fleetdm.com/case-study/fastly) | 2026/01/30 | Customer case study: Fastly |
-| [Fleet GitOps - The future of device management is declarative](https://fleetdm.com/fleet-gitops) | 2026/01/29 | Fleet GitOps product page |
-| [Fleet GitOps workshop](https://fleetdm.com/gitops-workshop) | 2026/01/28 | 1-page explainer & FAQ for GitOps workshop | 
-| [Fleet vs. Jamf comparison](https://fleetdm.com/compare/jamf) | 2026/01/28 | Part of a series on competior analysis |
-| [Redefining endpoint management at scale: Fleet’s momentum in the 2026 Gartner reports](https://fleetdm.com/announcements/redefining-endpoint-management-at-scale) | 2026/01/23 | Fleet Gartner Magic Quadrant recognition |
-| [Why enterprise Linux is important in 2026](https://fleetdm.com/articles/why-enterprise-linux-is-important-in-2026) | 2026/01/21 | Part of a series of articles on enterprise Linux desktop management |
-| [Detect Log4j with osquery and Fleet](https://fleetdm.com/securing/detect-log4j-with-osquery-and-fleet) | 2021/12/15 | Example of how to leverage the flexibility of Fleet and osquery for quick response |
+| [The GitOps idea](https://fleetdm.com/articles/the-gitops-idea) | 2026-02-04 | Blog explaining what is GitOps |
+| [Customers page](https://fleetdm.com/customers) | 2026-02-01 | Customer testimonials & logos |
+| [Fastly gains visibility into all endpoints and critical infrastructure worldwide](https://fleetdm.com/case-study/fastly) | 2026-01-30 | Customer case study: Fastly |
+| [Fleet GitOps - The future of device management is declarative](https://fleetdm.com/fleet-gitops) | 2026-01-29 | Fleet GitOps product page |
+| [Fleet GitOps workshop](https://fleetdm.com/gitops-workshop) | 2026-01-28 | 1-page explainer & FAQ for GitOps workshop | 
+| [Fleet vs. Jamf comparison](https://fleetdm.com/compare/jamf) | 2026-01-28 | Part of a series on competior analysis |
+| [Redefining endpoint management at scale: Fleet’s momentum in the 2026 Gartner reports](https://fleetdm.com/announcements/redefining-endpoint-management-at-scale) | 2026-01-23 | Fleet Gartner Magic Quadrant recognition |
+| [Why enterprise Linux is important in 2026](https://fleetdm.com/articles/why-enterprise-linux-is-important-in-2026) | 2026-01-21 | Part of a series of articles on enterprise Linux desktop management |
+| [Deploy CrowdStrike with Fleet](https://fleetdm.com/guides/deploying-crowdstrike-with-fleet#basic-article) | 2025-11-05 | This guide covers how to deploy CrowdStrike Falcon on macOS, Linux and Windows using Fleet |
+| [What are Fleet policies?](https://fleetdm.com/securing/what-are-fleet-policies#basic-article) | 2022-05-20 | Overview of Fleet policies |
+| [Detect Log4j with osquery and Fleet](https://fleetdm.com/securing/detect-log4j-with-osquery-and-fleet) | 2021-12-15 | Example of how to leverage the flexibility of Fleet and osquery for quick response |
 
 
 ## Responsibilities
@@ -121,17 +123,25 @@ See the section "Settle event strategy" below for the process.
 ##### Settle event strategy (approve proposed events)
 
 Anyone at Fleet can propose a future event.
-Fleet's [Content Specialist](https://fleetdm.com/handbook/marketing#team) serves as the project manager for efficiently executing Fleet events. Events are settled in advance to provide ample time for strategy and planning. This includes any event that Fleet pays to attend or sponsor, and even events where Fleet's only involvement is that a Fleetie will give a talk or otherwise represent the brand.
+Fleet's [Head of DemandGen](https://fleetdm.com/handbook/marketing#team) serves as the project manager for managing the event approval process. Events are settled in advance to provide ample time for strategy and planning. This includes any event that Fleet pays to attend or sponsor. 
+
 - Field/sales events and GitOps workshops are settled 1 sprint in advance.
 - Conferences are settled 1 quarter in advance. 
 
 Once events have been settled for a particular time frame, i.e, decided in a previous event strategy session, Fleet does not make changes except in extreme circumstances.
 
-1. Add all upcoming proposed and approved events to the ["🫧 Proposed events (not yet settled)" tab](https://docs.google.com/spreadsheets/d/1YQXAX2Q_WnGkAwMYjMbQpV3nbCj7gOBbv7Y0u4twxzQ/edit?gid=1411322737#gid=1411322737) of the 🎪 Events spreadsheet (confidential doc). Propose the events that Fleet will attend and the strategy for those events, including:
+1. Add all upcoming proposed in issues using the template (Prepare event: EVENT_NAME - CITY - YYYY-MM-DD). Approval is tracked and recorded in the ["🫧 Proposed events (not yet settled)" tab](https://docs.google.com/spreadsheets/d/1YQXAX2Q_WnGkAwMYjMbQpV3nbCj7gOBbv7Y0u4twxzQ/edit?gid=1411322737#gid=1411322737) of the 🎪 Events spreadsheet (confidential doc). 
+2. Proposed events will include the following information:
+  - Event Priority (Scale 1 - 10) where 1 is a top priority
+  - Event Name
+  - Event Location
+  - Event DRI
+  - Event Dates
+  - Type of Event
+  - Theme
+  - Event Registration
   - Who from Fleet will attend?
-  - The training plan for Fleet attendees.
   - Which talk proposal will Fleet submit?
-  - All event materials, including printouts, banners, swag given out, and even the clothing worn by Fleeties.
   - Estimated budget, including sponsorship or airfare, and lodging for attendees.
 2. Set up and attend a 30m meeting with the CMO, Head of Demand Generation, Head of GTM Architecture, and Manager of Training and Enablement.
   - First, during this meeting, Marketing will decide which field/sales events and GitOps workshops Fleet will execute in the **following sprint**.
@@ -161,7 +171,7 @@ Event execution needs to plan and track the detail decisions supporting:
 
 This will be managed in a structure central document for each event so that attendees and organizers have a central place to find information and collaborate. 
 
-(Template details TBD)
+[Planning Doc/Tracking Template](https://docs.google.com/document/d/1Td1XtFClRlOMDuoojXUkJvU8f6MUEjsBacMVRqEJbQQ/edit?tab=t.uych0uenb12p#heading=h.qhf7mkrao68w0
 
 #### Phase 3 Event postgame
 **Objective** To consistently wrap up an event, gather lessons learned, and ensure the organization follows through with our new relationships.  
