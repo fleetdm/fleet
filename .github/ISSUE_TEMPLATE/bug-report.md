@@ -17,8 +17,6 @@ assignees: ''
 | ----------- | ----------- |
 |    |                   |
 
-**Affected host(s): operating system**: <!-- e.g. -->
-
 <hr/>
 
 ### 💥  Actual behavior
