@@ -492,10 +492,9 @@ This variable is read at launch and will require a restart of the Orbit service 
 
 ### macOS Migration Assistant
 
-When transferring data from the old host to the new one using [Apple's Migration Assistant](https://support.apple.com/en-us/102613), follow these steps:
-1. Follow [instructions](#unenroll) to turn MDM off and unenroll the host. 
-2. Transfer the data to the new host.
-3. Enroll the host and turn MDM back on.
+When transferring data with [Apple's Migration Assistant](https://support.apple.com/en-us/102613), first [turn MDM off, unenroll the Mac, and delete it from Fleet](#unenroll). Next, use Migration Assistant to transfer data and then re-enroll the Mac and turn MDM back on.
+
+If you don't unenroll and delete the Mac first, you'll get duplicate host records in Fleet.
 
 <meta name="category" value="guides">
 <meta name="authorGitHubUsername" value="noahtalerman">
