@@ -111,15 +111,30 @@ jobs:
             // Normalize version for comparison
             // Remove common prefixes/suffixes and extract core version number
             const normalizeVersion = (version) => {
-              // Extract version number pattern (e.g., "4.62.0" from "v4.62.0" or "4.62.0-123-abc")
-              const match = version.match(/v?(\d+\.\d+\.\d+)/);
-              return match ? match[1] : version;
+              // First try to extract x.y.z pattern
+              let match = version.match(/v?(\d+\.\d+\.\d+)/);
+              if (match) return match[1];
+              
+              // If no patch version, try x.y pattern and add .0
+              match = version.match(/v?(\d+\.\d+)(?!\.\d)/);
+              if (match) return match[1] + '.0';
+              
+              return version;
             };
 
-            const normalizedReportedVersion = normalizeVersion(reportedVersion);
-
-            // Check if the reported version matches any released version
-            const isReleased = releasedVersions.some(releasedVer => releasedVer === normalizedReportedVersion);
+            // Split version string on "&" to handle multiple versions (e.g., "4.60 & 4.61")
+            const reportedVersions = reportedVersion.split('&').map(v => v.trim());
+            
+            // Check if ANY of the reported versions matches any released version
+            let isReleased = false;
+            for (const version of reportedVersions) {
+              const normalizedVersion = normalizeVersion(version);
+              if (releasedVersions.some(releasedVer => releasedVer === normalizedVersion)) {
+                console.log(`Found released version: ${normalizedVersion}`);
+                isReleased = true;
+                break;
+              }
+            }
 
             if (isReleased) {
               console.log(`Bug is released; leaving as-is`);
