@@ -11215,6 +11215,49 @@ Add the `X-Fleet-Scripts-Encoded: base64` header line to parse `install_script`,
 }
 ```
 
+### Create Android web app
+
+> **Experimental feature**. This feature is undergoing rapid improvement, which may result in breaking changes to the API or configuration surface. It is not recommended for use in automated workflows.
+
+_Available in Fleet Premium._
+
+Creates web app (web clip). This endpoint returns the application ID that can be used to [add an Android app](##add-app-store-app) to Fleet.
+
+`POST /api/v1/fleet/software/web_apps`
+
+#### Parameters
+
+| Name | Type | In | Description |
+| ---- | ---- | -- | ----------- |
+| title   | string | body | **Required.** The ID of the Apple App Store app or Google Play app. |
+| url       | string | body | **Required**. The team ID. Adds app from the store to the specified team.  |
+| icon | string | body | The platform of the app (`darwin`, `ios`, `ipados`, or `android`). Default is `darwin`. |
+
+
+#### Example
+
+`POST /api/v1/fleet/software/web_apps`
+
+##### Request body
+
+```json
+{
+  "title": "497799835",
+  "url": "",
+  "icon": ""
+}
+```
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "app_store_id": "com.google.enterprise.webapp.x1c41e22ab611cb98"
+}
+```
+
 ### Download software
 
 > **Experimental feature**. This feature is undergoing rapid improvement, which may result in breaking changes to the API or configuration surface. It is not recommended for use in automated workflows.
