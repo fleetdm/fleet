@@ -15,4 +15,9 @@ columns:
     description: JSON representation of the YAML content.
 notes: This table is not a core osquery table. It is included as part of Fleet's agent ([fleetd](https://fleetdm.com/docs/get-started/anatomy#fleetd)).
 evented: false
+examples: |-
+  Parse Kubernetes YAML configuartion files.
 
+  ```
+  SELECT json FROM yaml_to_json WHERE yaml = (SELECT contents FROM file_contents WHERE path = 'codecov.yml');
+  ```
