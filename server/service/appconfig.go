@@ -799,6 +799,38 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 		return nil, err
 	}
 
+	addedEntraTenantIDs := make([]string, 0)
+	removedEntraTenantIDs := make([]string, 0)
+	oldTenantIDSet := make(map[string]struct{})
+	newTenantIDSet := make(map[string]struct{})
+
+	for _, tenantID := range oldAppConfig.MDM.WindowsEntraTenantIDs.Value {
+		oldTenantIDSet[tenantID] = struct{}{}
+	}
+	for _, tenantID := range appConfig.MDM.WindowsEntraTenantIDs.Value {
+		newTenantIDSet[tenantID] = struct{}{}
+		if _, found := oldTenantIDSet[tenantID]; !found {
+			addedEntraTenantIDs = append(addedEntraTenantIDs, tenantID)
+		}
+	}
+	for _, tenantID := range oldAppConfig.MDM.WindowsEntraTenantIDs.Value {
+		if _, found := newTenantIDSet[tenantID]; !found {
+			removedEntraTenantIDs = append(removedEntraTenantIDs, tenantID)
+		}
+	}
+	for _, tenantID := range addedEntraTenantIDs {
+		act := fleet.ActivityTypeAddedMicrosoftEntraTenant{TenantID: tenantID}
+		if err := svc.NewActivity(ctx, authz.UserFromContext(ctx), act); err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "create activity for added Microsoft Entra tenant")
+		}
+	}
+	for _, tenantID := range removedEntraTenantIDs {
+		act := fleet.ActivityTypeDeletedMicrosoftEntraTenant{TenantID: tenantID}
+		if err := svc.NewActivity(ctx, authz.UserFromContext(ctx), act); err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "create activity for deleted Microsoft Entra tenant")
+		}
+	}
+
 	// only create activities when config change has been persisted
 
 	switch {
@@ -1276,6 +1308,9 @@ func (svc *Service) validateMDM(
 	if mdm.EnableTurnOnWindowsMDMManually && !lic.IsPremium() {
 		invalid.Append("enable_turn_on_windows_mdm_manually", ErrMissingLicense.Error())
 	}
+	if len(mdm.WindowsEntraTenantIDs.Value) > 0 && !lic.IsPremium() {
+		invalid.Append("windows_entra_tenant_ids", ErrMissingLicense.Error())
+	}
 
 	// we want to use `oldMdm` here as this boolean is set by the fleet
 	// server at startup and can't be modified by the user
@@ -1468,6 +1503,10 @@ func (svc *Service) validateMDM(
 
 	if !mdm.WindowsEnabledAndConfigured && mdm.EnableTurnOnWindowsMDMManually {
 		invalid.Append("mdm.enable_turn_on_windows_mdm_manually", "Couldn't enable Turn on Windows MDM Manually, Windows MDM is not enabled.")
+	}
+
+	if !mdm.WindowsEnabledAndConfigured && len(mdm.WindowsEntraTenantIDs.Value) > 0 {
+		invalid.Append("mdm.windows_entra_tenant_ids", ErrMissingLicense.Error())
 	}
 
 	if mdm.WindowsMigrationEnabled && mdm.EnableTurnOnWindowsMDMManually {
