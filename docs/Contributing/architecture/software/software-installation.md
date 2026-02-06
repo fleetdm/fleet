@@ -13,13 +13,23 @@ interactions specific to the Software Installation functionality.
 ### Software types
 
 Fleet supports 3 different types of installable software: custom packages, Fleet-maintained apps,
-and VPP apps.
+and app store apps.
 
 #### Custom packages
 
 Custom packages are software packages whose installer is uploaded directly to Fleet by an admin.
 
-Fleet supports `.pkg`, `.msi`, `.exe`, `.deb.`, and `.rpm` installers for custom packages.
+Fleet supports the following installer files as custom packages
+
+| Installer file extension      | Supported platform(s) |
+| ----------- | ----------- |
+| .pkg   | macOS                  |
+| .ipa   | iOS, iPadOS            |
+| .msi   | Windows                |
+| .exe   | Windows                |
+| .deb   | Debian-based Linux     |
+| .rpm   | RHEL-based Linux       |
+
 
 #### Fleet-maintained apps
 
@@ -27,21 +37,25 @@ Fleet-maintained apps are software that Fleet curates. Fleet sources installers 
 install and uninstall scripts for Fleet-maintained apps, so that admins can add them to their
 software library with just a few clicks.
 
-#### VPP apps
+#### App store apps
 
-VPP apps are apps that can be added using Apple's Volume Purchasing Program functionality. These
-apps are only for Apple devices (macOS, iOS, and iPadOS) and are managed using the Apple MDM protocol.
+App store apps are software that is installed directly from an external app store. Fleet currently supports
+the Apple App Store (via [VPP](https://developer.apple.com/documentation/devicemanagement/managing-apps-and-books-through-web-services-legacy) apps (for macOS, iOS, and iPadOS hosts)) 
+and the Google Play Store (for Android hosts).
 
 ## Architecture overview
 
 ## Key components
 
-## Architecture diagram
+## Architecture diagrams
 
-### VPP app install verification
+### VPP app install and verification
 
-Fleet verifies VPP app installs by sending a series of `InstalledApplicationList` MDM commands after
-the acknowledgment of the `InstallApplication` command. It attempts to verify until either
+VPP apps are installed using the Apple MDM protocol. When an install is triggered, Fleet sends an `InstallApplication` command
+to the host.
+
+To verify that the install was successful, Fleet sends a series of `InstalledApplicationList` MDM commands after
+the acknowledgment of the `InstallApplication` command. Fleet attempts to verify until either
 - the app shows up in the `InstalledApplicationList` response as installed, or
 - the verification timeout (defaults to 10m, configurable via the `FLEET_SERVER_VPP_VERIFY_TIMEOUT`
   env var).
@@ -50,21 +64,24 @@ the acknowledgment of the `InstallApplication` command. It attempts to verify un
 ```mermaid
 sequenceDiagram
     autonumber
-    Fleet->>+Host: InstallApplicationCommand
-    Host-->>-Fleet: Acknowledged
-
-    Fleet->>+Fleet: Start timeout
-
-    loop Verification loop
-        Fleet->>+Host: InstalledApplicationListCommand
-        Host-->>-Fleet: Acknowledged<br/>[list of apps]
-        critical Check app status
-        option app in list, installed, exit:
-            Fleet->>+Fleet: Move status to "Installed"
-        option app not in list, timeout:
-            Fleet->>+Fleet: Move status to "Failed"
-        end
+    subgraph Installation
+        Fleet->>+Host: InstallApplicationCommand
+        Host-->>-Fleet: Acknowledged
     end
+    
+    subgraph Verification
+        Fleet->>+Fleet: Start timeout
+    
+        loop Verification loop
+            Fleet->>+Host: InstalledApplicationListCommand
+            Host-->>-Fleet: Acknowledged<br/>[list of apps]
+            critical Check app status
+            option app in list, installed, exit:
+                Fleet->>+Fleet: Move status to "Installed"
+            option app not in list, timeout:
+                Fleet->>+Fleet: Move status to "Failed"
+            end
+        end
 ```
 
 ## Installation flow
@@ -105,18 +122,6 @@ graph TD
         M -- No --> K
     end
 ```
-
-## Platform-specific implementations
-
-### macOS
-
-### Windows
-
-### Linux
-
-### iOS/iPadOS 
-
-### Android
 
 ## Related resources
 
