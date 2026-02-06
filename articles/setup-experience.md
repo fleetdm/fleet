@@ -10,10 +10,10 @@ macOS setup features require [connecting Fleet to Apple Business Manager (ABM)](
 
 > If a host is marked with a [migration deadline](https://support.apple.com/en-bh/guide/apple-business-manager/axm3a49a769d/web#axmf524b36d9) in Apple Business Manager, Fleet treats it as already set up. This means Fleet won’t install setup experience software, run scripts, or install bootstrap packages on that host.
 
-Below is the end user experience for macOS. Checkout the separate videos for [iOS](TODO), [iPadOS](TODO), [Windows](TODO), and [Linux](TODO).
+Below is the end user experience for macOS. Checkout the separate videos for [iOS](https://www.youtube.com/embed/bPtr3Qgp1JY?si=UGWgLd1N8dGQU8sg) and [iPadOS](https://www.youtube.com/embed/sK3ZR2iItJY?si=xtbwDOW-NOgHIQT-).
 
 <div purpose="embedded-content">
-   <iframe src="TODO" frameborder="0" allowfullscreen></iframe>
+   <iframe src="https://www.youtube.com/embed/BU0Q_8cQXuw?si=2N6abC9y1mEpFlzI" frameborder="0" allowfullscreen></iframe>
 </div>
 
 ## End user authentication
