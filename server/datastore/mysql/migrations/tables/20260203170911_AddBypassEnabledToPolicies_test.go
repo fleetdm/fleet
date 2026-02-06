@@ -31,7 +31,7 @@ func TestUp_20260203170911(t *testing.T) {
 	// Only new policies with explicit false should be set to false
 	_, err = db.Exec(`
 		INSERT INTO policies (name, description, query, conditional_access_bypass_enabled, checksum) VALUES
-			('test4', 'desc', SELECT 1', false, 'c4')
+			('test4', 'desc', 'SELECT 1', false, 'c4')
 	`)
 	require.NoError(t, err)
 
