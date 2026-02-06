@@ -120,6 +120,10 @@ jobs:
         elif [[ "${{ matrix.suite }}" == "scripts" ]]; then
           echo "CI_TEST_PKG=${{ matrix.suite }}" >> $GITHUB_ENV
           echo "NEED_ZSH=1" >> $GITHUB_ENV
+        elif [[ "${{ matrix.suite }}" == "fleetctl" && ${{ github.event_name != 'schedule' }}  ]]; then
+          echo "CI_TEST_PKG=${{ matrix.suite }}" >> $GITHUB_ENV
+          echo "NEED_DOCKER=1" >> $GITHUB_ENV
+          echo "RUN_TESTS_ARG=-skip '^(TestIntegrationsEnterpriseGitops/TestFleetGitops)'" >> $GITHUB_ENV
         else
           echo "CI_TEST_PKG=${{ matrix.suite }}" >> $GITHUB_ENV
           echo "NEED_DOCKER=1" >> $GITHUB_ENV
