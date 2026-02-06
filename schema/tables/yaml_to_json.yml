@@ -19,5 +19,5 @@ examples: |-
   Parse Kubernetes YAML configuartion files.
 
   ```
-  SELECT json FROM yaml_to_json WHERE yaml = (SELECT contents FROM file_contents WHERE path = 'codecov.yml');
+  SELECT json FROM yaml_to_json WHERE yaml = (SELECT contents FROM file_contents WHERE path = 'deployment.yaml');
   ```
