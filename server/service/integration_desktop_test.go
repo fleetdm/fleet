@@ -13,6 +13,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/datastore/redis"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/ptr"
+
 	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
 	"github.com/stretchr/testify/assert"
@@ -318,7 +319,7 @@ func (s *integrationTestSuite) TestErrorReporting() {
 	res.Body.Close()
 
 	data := make(map[string]interface{})
-	for i := int64(0); i < (maxFleetdErrorReportSize+1024)/20; i++ {
+	for i := range (fleet.MaxFleetdErrorReportSize + 1024) / 20 {
 		key := fmt.Sprintf("key%d", i)
 		value := fmt.Sprintf("value%d", i)
 		data[key] = value
