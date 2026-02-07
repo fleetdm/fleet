@@ -983,7 +983,7 @@ func (t *testingAuthorizer) Authorize(_ context.Context, _ platform_authz.AuthzT
 	return nil
 }
 
-// testingLookupService adapts mysql.Datastore to fleet.LookupService interface.
+// testingLookupService adapts mysql.Datastore to fleet.ActivityLookupService interface.
 // This allows tests to use the real activityacl.FleetServiceAdapter instead of
 // duplicating the conversion logic.
 type testingLookupService struct {
@@ -1003,6 +1003,18 @@ func (t *testingLookupService) GetHostLite(ctx context.Context, id uint) (*fleet
 	return t.ds.HostLite(ctx, id)
 }
 
+func (t *testingLookupService) GetActivitiesWebhookSettings(ctx context.Context) (fleet.ActivitiesWebhookSettings, error) {
+	appConfig, err := t.ds.AppConfig(ctx)
+	if err != nil {
+		return fleet.ActivitiesWebhookSettings{}, err
+	}
+	return appConfig.WebhookSettings.ActivitiesWebhook, nil
+}
+
+func (t *testingLookupService) ActivateNextUpcomingActivityForHost(ctx context.Context, hostID uint, fromCompletedExecID string) error {
+	return t.ds.ActivateNextUpcomingActivityForHost(ctx, hostID, fromCompletedExecID)
+}
+
 // NewTestActivityService creates an activity service. This allows tests to call the activity bounded context API.
 // User data is fetched from the same database to support tests that verify user info in activities.
 func NewTestActivityService(t testing.TB, ds *Datastore) activity_api.Service {
@@ -1015,7 +1027,7 @@ func NewTestActivityService(t testing.TB, ds *Datastore) activity_api.Service {
 
 	// Use the real ACL adapter with a testing lookup service
 	lookupSvc := &testingLookupService{ds: ds}
-	aclAdapter := activityacl.NewFleetServiceAdapter(lookupSvc, ds)
+	aclAdapter := activityacl.NewFleetServiceAdapter(lookupSvc)
 
 	// Create service via bootstrap (the public API for creating the bounded context)
 	svc, _ := activity_bootstrap.New(dbConns, &testingAuthorizer{}, aclAdapter, aclAdapter, aclAdapter, aclAdapter, aclAdapter, log.NewNopLogger())

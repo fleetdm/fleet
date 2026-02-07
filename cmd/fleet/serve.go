@@ -981,7 +981,7 @@ the way that the Fleet server works.
 			level.Info(logger).Log("instanceID", instanceID)
 
 			// Bootstrap activity bounded context (needed for cron schedules and HTTP routes)
-			activitySvc, activityRoutes := createActivityBoundedContext(svc, ds, dbConns, logger)
+			activitySvc, activityRoutes := createActivityBoundedContext(svc, dbConns, logger)
 			// Inject the activity bounded context into the main service
 			svc.SetActivityService(activitySvc)
 
@@ -1718,13 +1718,13 @@ the way that the Fleet server works.
 	return serveCmd
 }
 
-func createActivityBoundedContext(svc fleet.Service, ds fleet.Datastore, dbConns *common_mysql.DBConnections, logger kitlog.Logger) (activity_api.Service, endpointer.HandlerRoutesFunc) {
+func createActivityBoundedContext(svc fleet.Service, dbConns *common_mysql.DBConnections, logger kitlog.Logger) (activity_api.Service, endpointer.HandlerRoutesFunc) {
 	legacyAuthorizer, err := authz.NewAuthorizer()
 	if err != nil {
 		initFatal(err, "initializing activity authorizer")
 	}
 	activityAuthorizer := authz.NewAuthorizerAdapter(legacyAuthorizer)
-	activityACLAdapter := activityacl.NewFleetServiceAdapter(svc, ds)
+	activityACLAdapter := activityacl.NewFleetServiceAdapter(svc)
 	activitySvc, activityRoutesFn := activity_bootstrap.New(
 		dbConns,
 		activityAuthorizer,

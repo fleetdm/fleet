@@ -17,13 +17,12 @@ import (
 // FleetServiceAdapter provides access to Fleet service methods
 // for data that the activity bounded context doesn't own.
 type FleetServiceAdapter struct {
-	svc fleet.LookupService
-	ds  fleet.Datastore
+	svc fleet.ActivityLookupService
 }
 
 // NewFleetServiceAdapter creates a new adapter for the Fleet service.
-func NewFleetServiceAdapter(svc fleet.LookupService, ds fleet.Datastore) *FleetServiceAdapter {
-	return &FleetServiceAdapter{svc: svc, ds: ds}
+func NewFleetServiceAdapter(svc fleet.ActivityLookupService) *FleetServiceAdapter {
+	return &FleetServiceAdapter{svc: svc}
 }
 
 // Ensure FleetServiceAdapter implements the required interfaces
@@ -103,20 +102,19 @@ func convertUser(u *fleet.UserSummary) *activity.User {
 
 // GetActivitiesWebhookConfig returns the webhook configuration for activities.
 func (a *FleetServiceAdapter) GetActivitiesWebhookConfig(ctx context.Context) (*activity.ActivitiesWebhookSettings, error) {
-	appConfig, err := a.ds.AppConfig(ctx)
+	settings, err := a.svc.GetActivitiesWebhookSettings(ctx)
 	if err != nil {
 		return nil, err
 	}
 	return &activity.ActivitiesWebhookSettings{
-		Enable:         appConfig.WebhookSettings.ActivitiesWebhook.Enable,
-		DestinationURL: appConfig.WebhookSettings.ActivitiesWebhook.DestinationURL,
+		Enable:         settings.Enable,
+		DestinationURL: settings.DestinationURL,
 	}, nil
 }
 
 // ActivateNextUpcomingActivity activates the next upcoming activity in the queue.
-// This delegates to the legacy datastore's activateNextUpcomingActivity method.
 func (a *FleetServiceAdapter) ActivateNextUpcomingActivity(ctx context.Context, hostID uint, fromCompletedExecID string) error {
-	return a.ds.ActivateNextUpcomingActivityForHost(ctx, hostID, fromCompletedExecID)
+	return a.svc.ActivateNextUpcomingActivityForHost(ctx, hostID, fromCompletedExecID)
 }
 
 // SendWebhookPayload sends a JSON payload to the given URL using the server's HTTP utility.

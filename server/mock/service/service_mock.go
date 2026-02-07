@@ -387,6 +387,10 @@ type ApplyTeamSpecsFunc func(ctx context.Context, specs []*fleet.TeamSpec, apply
 
 type SetActivityServiceFunc func(activitySvc any)
 
+type GetActivitiesWebhookSettingsFunc func(ctx context.Context) (fleet.ActivitiesWebhookSettings, error)
+
+type ActivateNextUpcomingActivityForHostFunc func(ctx context.Context, hostID uint, fromCompletedExecID string) error
+
 type NewActivityFunc func(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails) error
 
 type ListHostUpcomingActivitiesFunc func(ctx context.Context, hostID uint, opt fleet.ListOptions) ([]*fleet.UpcomingActivity, *fleet.PaginationMetadata, error)
@@ -1431,6 +1435,12 @@ type Service struct {
 
 	SetActivityServiceFunc        SetActivityServiceFunc
 	SetActivityServiceFuncInvoked bool
+
+	GetActivitiesWebhookSettingsFunc        GetActivitiesWebhookSettingsFunc
+	GetActivitiesWebhookSettingsFuncInvoked bool
+
+	ActivateNextUpcomingActivityForHostFunc        ActivateNextUpcomingActivityForHostFunc
+	ActivateNextUpcomingActivityForHostFuncInvoked bool
 
 	NewActivityFunc        NewActivityFunc
 	NewActivityFuncInvoked bool
@@ -3458,7 +3468,23 @@ func (s *Service) SetActivityService(activitySvc any) {
 	s.mu.Lock()
 	s.SetActivityServiceFuncInvoked = true
 	s.mu.Unlock()
-	s.SetActivityServiceFunc(activitySvc)
+	if s.SetActivityServiceFunc != nil {
+		s.SetActivityServiceFunc(activitySvc)
+	}
+}
+
+func (s *Service) GetActivitiesWebhookSettings(ctx context.Context) (fleet.ActivitiesWebhookSettings, error) {
+	s.mu.Lock()
+	s.GetActivitiesWebhookSettingsFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetActivitiesWebhookSettingsFunc(ctx)
+}
+
+func (s *Service) ActivateNextUpcomingActivityForHost(ctx context.Context, hostID uint, fromCompletedExecID string) error {
+	s.mu.Lock()
+	s.ActivateNextUpcomingActivityForHostFuncInvoked = true
+	s.mu.Unlock()
+	return s.ActivateNextUpcomingActivityForHostFunc(ctx, hostID, fromCompletedExecID)
 }
 
 func (s *Service) NewActivity(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails) error {

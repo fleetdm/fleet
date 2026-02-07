@@ -33,6 +33,18 @@ type listActivitiesResponse struct {
 
 func (r listActivitiesResponse) Error() error { return r.Err }
 
+func (svc *Service) GetActivitiesWebhookSettings(ctx context.Context) (fleet.ActivitiesWebhookSettings, error) {
+	appConfig, err := svc.ds.AppConfig(ctx)
+	if err != nil {
+		return fleet.ActivitiesWebhookSettings{}, ctxerr.Wrap(ctx, err, "get app config for activities webhook")
+	}
+	return appConfig.WebhookSettings.ActivitiesWebhook, nil
+}
+
+func (svc *Service) ActivateNextUpcomingActivityForHost(ctx context.Context, hostID uint, fromCompletedExecID string) error {
+	return svc.ds.ActivateNextUpcomingActivityForHost(ctx, hostID, fromCompletedExecID)
+}
+
 func (svc *Service) NewActivity(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails) error {
 	if svc.activitySvc != nil {
 		var apiUser *activity_api.User
