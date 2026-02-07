@@ -18,9 +18,9 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mock"
 	scep_mock "github.com/fleetdm/fleet/v4/server/mock/scep"
+	"github.com/fleetdm/fleet/v4/server/platform/logging"
 	common_mysql "github.com/fleetdm/fleet/v4/server/platform/mysql"
 	"github.com/fleetdm/fleet/v4/server/ptr"
-	"github.com/go-kit/log"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -200,7 +200,7 @@ func TestCreatingCertificateAuthorities(t *testing.T) {
 		require.NoError(t, err)
 
 		svc := &Service{
-			logger:          log.NewLogfmtLogger(os.Stdout),
+			logger:          logging.NewLogfmtLogger(os.Stdout),
 			ds:              ds,
 			authz:           authorizer,
 			digiCertService: digicert.NewService(),
@@ -1195,7 +1195,7 @@ func TestUpdatingCertificateAuthorities(t *testing.T) {
 		require.NoError(t, err)
 
 		svc := &Service{
-			logger:          log.NewLogfmtLogger(os.Stdout),
+			logger:          logging.NewLogfmtLogger(os.Stdout),
 			ds:              ds,
 			authz:           authorizer,
 			digiCertService: digicert.NewService(),

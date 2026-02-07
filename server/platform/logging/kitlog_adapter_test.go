@@ -17,7 +17,7 @@ func newTestAdapter(t *testing.T) (*testutils.TestHandler, kitlog.Logger) {
 	t.Helper()
 	handler := testutils.NewTestHandler()
 	slogLogger := slog.New(handler)
-	return handler, NewKitlogAdapter(slogLogger)
+	return handler, NewLogger(slogLogger)
 }
 
 func TestKitlogAdapter(t *testing.T) {
@@ -42,8 +42,8 @@ func TestKitlogAdapter(t *testing.T) {
 		t.Parallel()
 		handler, adapter := newTestAdapter(t)
 
-		kitlogAdapter, ok := adapter.(*KitlogAdapter)
-		require.True(t, ok, "adapter should be *KitlogAdapter")
+		kitlogAdapter, ok := adapter.(*Logger)
+		require.True(t, ok, "adapter should be *Logger")
 
 		contextLogger := kitlogAdapter.With("component", "test-component")
 		err := contextLogger.Log("msg", "message with context")

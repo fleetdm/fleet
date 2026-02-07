@@ -14,7 +14,7 @@ import (
 	"github.com/fleetdm/fleet/v4/ee/server/calendar"
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/fleet"
-	kitlog "github.com/go-kit/log"
+	"github.com/fleetdm/fleet/v4/server/platform/logging"
 	"github.com/go-kit/log/level"
 )
 
@@ -57,18 +57,18 @@ type PolicyLiteWithMeta struct {
 	mu  sync.Mutex
 }
 
-func CreateUserCalendarFromConfig(ctx context.Context, config *Config, logger kitlog.Logger) fleet.UserCalendar {
+func CreateUserCalendarFromConfig(ctx context.Context, config *Config, logger *logging.Logger) fleet.UserCalendar {
 	googleCalendarConfig := calendar.GoogleCalendarConfig{
 		Context:           ctx,
 		IntegrationConfig: &config.GoogleCalendarIntegration,
 		ServerURL:         config.ServerURL,
-		Logger:            kitlog.With(logger, "component", "google_calendar"),
+		Logger:            logger.With("component", "google_calendar"),
 	}
 	return calendar.NewGoogleCalendar(&googleCalendarConfig)
 }
 
 func GenerateCalendarEventBody(ctx context.Context, ds fleet.Datastore, orgName string, host fleet.HostPolicyMembershipData,
-	policyIDtoPolicy *sync.Map, conflict bool, logger kitlog.Logger,
+	policyIDtoPolicy *sync.Map, conflict bool, logger *logging.Logger,
 ) (body string, tag string) {
 	description, resolution, tag := getCalendarEventDescriptionAndResolution(ctx, ds, orgName, host, policyIDtoPolicy, logger)
 
@@ -89,7 +89,7 @@ Please leave your device on and connected to power.
 }
 
 func getCalendarEventDescriptionAndResolution(ctx context.Context, ds fleet.Datastore, orgName string, host fleet.HostPolicyMembershipData,
-	policyIDtoPolicy *sync.Map, logger kitlog.Logger,
+	policyIDtoPolicy *sync.Map, logger *logging.Logger,
 ) (description string, resolution string, tag string) {
 	getDefaultDescription := func() string {
 		return fmt.Sprintf(`%s %s`, orgName, fleet.CalendarDefaultDescription)

@@ -31,6 +31,7 @@ import (
 	"github.com/fleetdm/fleet/v4/pkg/optjson"
 	"github.com/fleetdm/fleet/v4/server"
 	platform_http "github.com/fleetdm/fleet/v4/server/platform/http"
+	platformlogging "github.com/fleetdm/fleet/v4/server/platform/logging"
 
 	"github.com/fleetdm/fleet/v4/server/authz"
 	"github.com/fleetdm/fleet/v4/server/config"
@@ -57,7 +58,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/platform/endpointer"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/variables"
-	kitlog "github.com/go-kit/log"
 	"github.com/go-kit/log/level"
 	"github.com/google/uuid"
 	"github.com/micromdm/plist"
@@ -3321,7 +3321,7 @@ func (svc *Service) MDMAppleDisableFileVaultAndEscrow(ctx context.Context, teamI
 
 type MDMAppleCheckinAndCommandService struct {
 	ds              fleet.Datastore
-	logger          kitlog.Logger
+	logger          *platformlogging.Logger
 	commander       *apple_mdm.MDMAppleCommander
 	vppInstaller    fleet.AppleMDMVPPInstaller
 	mdmLifecycle    *mdmlifecycle.HostLifecycle
@@ -3335,7 +3335,7 @@ func NewMDMAppleCheckinAndCommandService(
 	commander *apple_mdm.MDMAppleCommander,
 	vppInstaller fleet.AppleMDMVPPInstaller,
 	isPremium bool,
-	logger kitlog.Logger,
+	logger *platformlogging.Logger,
 	keyValueStore fleet.KeyValueStore,
 ) *MDMAppleCheckinAndCommandService {
 	mdmLifecycle := mdmlifecycle.New(ds, logger, newActivity)
@@ -4065,7 +4065,7 @@ func (svc *MDMAppleCheckinAndCommandService) handleScheduledUpdates(
 	host *fleet.Host,
 	softwares []fleet.Software,
 ) error {
-	logger := kitlog.With(svc.logger,
+	logger := svc.logger.With(
 		"method", "handle_scheduled_updates",
 		"host_id", host.ID,
 	)
@@ -4144,7 +4144,7 @@ func (svc *MDMAppleCheckinAndCommandService) handleScheduledUpdates(
 	// 1. Filter out software that is not within the configured update window in the host timezone.
 	var softwaresWithinUpdateSchedule []fleet.SoftwareAutoUpdateSchedule
 	for _, softwareWithAutoUpdateSchedule := range softwaresWithAutoUpdateSchedule {
-		logger := kitlog.With(logger,
+		logger := logger.With(
 			"software_title_id", softwareWithAutoUpdateSchedule.TitleID,
 			"team_id", softwareWithAutoUpdateSchedule.TeamID,
 			"update_window_start", softwareWithAutoUpdateSchedule.AutoUpdateStartTime,
@@ -4201,7 +4201,7 @@ func (svc *MDMAppleCheckinAndCommandService) handleScheduledUpdates(
 			)
 			continue
 		}
-		logger := kitlog.With(logger,
+		logger := logger.With(
 			"name", softwareTitle.Name,
 			"bundle_identifier", softwareTitle.BundleIdentifier,
 			"source", softwareTitle.Source,
@@ -4386,7 +4386,7 @@ func (svc *MDMAppleCheckinAndCommandService) handleScheduledUpdates(
 		if softwareTitle.BundleIdentifier != nil {
 			bundleIdentifier = *softwareTitle.BundleIdentifier
 		}
-		logger := kitlog.With(logger,
+		logger := logger.With(
 			"software_title_id", softwareTitle.ID,
 			"team_id", host.TeamID,
 			"adam_id", softwareTitle.AppStoreApp.AdamID,
@@ -4728,7 +4728,7 @@ func mdmAppleDeliveryStatusFromCommandStatus(cmdStatus string) *fleet.MDMDeliver
 // This profile will be installed to all hosts in the team (or "no team",) but it
 // will only be used by hosts that have a fleetd installation without an enroll
 // secret and fleet URL (mainly DEP enrolled hosts).
-func ensureFleetProfiles(ctx context.Context, ds fleet.Datastore, logger kitlog.Logger, signingCertDER []byte) error {
+func ensureFleetProfiles(ctx context.Context, ds fleet.Datastore, logger *platformlogging.Logger, signingCertDER []byte) error {
 	appCfg, err := ds.AppConfig(ctx)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "fetching app config")
@@ -4810,7 +4810,7 @@ func SendPushesToPendingDevices(
 	ctx context.Context,
 	ds fleet.Datastore,
 	commander *apple_mdm.MDMAppleCommander,
-	logger kitlog.Logger,
+	logger *platformlogging.Logger,
 ) error {
 	enrollmentIDs, err := ds.GetEnrollmentIDsWithPendingMDMAppleCommands(ctx)
 	if err != nil {
@@ -4839,7 +4839,7 @@ func ReconcileAppleDeclarations(
 	ctx context.Context,
 	ds fleet.Datastore,
 	commander *apple_mdm.MDMAppleCommander,
-	logger kitlog.Logger,
+	logger *platformlogging.Logger,
 ) error {
 	appConfig, err := ds.AppConfig(ctx)
 	if err != nil {
@@ -4909,7 +4909,7 @@ func ReconcileAppleProfiles(
 	ctx context.Context,
 	ds fleet.Datastore,
 	commander *apple_mdm.MDMAppleCommander,
-	logger kitlog.Logger,
+	logger *platformlogging.Logger,
 ) error {
 	appConfig, err := ds.AppConfig(ctx)
 	if err != nil {
@@ -5343,7 +5343,7 @@ func ReconcileAppleProfiles(
 }
 
 func findProfilesWithSecrets(
-	logger kitlog.Logger,
+	logger *platformlogging.Logger,
 	installTargets map[string]*cmdTarget,
 	profileContents map[string]mobileconfig.Mobileconfig,
 ) (map[string]struct{}, error) {
@@ -5369,7 +5369,7 @@ func preprocessProfileContents(
 	ds fleet.Datastore,
 	scepConfig fleet.SCEPConfigService,
 	digiCertService fleet.DigiCertService,
-	logger kitlog.Logger,
+	logger *platformlogging.Logger,
 	targets map[string]*cmdTarget,
 	profileContents map[string]mobileconfig.Mobileconfig,
 	hostProfilesToInstallMap map[hostProfileUUID]*fleet.MDMAppleBulkUpsertHostProfilePayload,
@@ -6114,7 +6114,7 @@ const maxCertsRenewalPerRun = 100
 
 func RenewSCEPCertificates(
 	ctx context.Context,
-	logger kitlog.Logger,
+	logger *platformlogging.Logger,
 	ds fleet.Datastore,
 	config *config.FleetConfig,
 	commander *apple_mdm.MDMAppleCommander,
@@ -6299,7 +6299,7 @@ func renewSCEPWithProfile(
 	ctx context.Context,
 	ds fleet.Datastore,
 	commander *apple_mdm.MDMAppleCommander,
-	logger kitlog.Logger,
+	logger *platformlogging.Logger,
 	assocs []fleet.SCEPIdentityAssociation,
 	profile []byte,
 ) error {
@@ -6337,10 +6337,10 @@ func renewSCEPWithProfile(
 // [1]: https://developer.apple.com/documentation/devicemanagement/declarative_management_checkin
 type MDMAppleDDMService struct {
 	ds     fleet.Datastore
-	logger kitlog.Logger
+	logger *platformlogging.Logger
 }
 
-func NewMDMAppleDDMService(ds fleet.Datastore, logger kitlog.Logger) *MDMAppleDDMService {
+func NewMDMAppleDDMService(ds fleet.Datastore, logger *platformlogging.Logger) *MDMAppleDDMService {
 	return &MDMAppleDDMService{
 		ds:     ds,
 		logger: logger,
@@ -7267,7 +7267,8 @@ func (svc *Service) MDMAppleProcessOTAEnrollment(
 
 // EnsureMDMAppleServiceDiscovery checks if the service discovery URL is set up correctly with Apple
 // and assigns it if necessary.
-func EnsureMDMAppleServiceDiscovery(ctx context.Context, ds fleet.Datastore, depStorage storage.AllDEPStorage, logger kitlog.Logger, urlPrefix string) error {
+func EnsureMDMAppleServiceDiscovery(ctx context.Context, ds fleet.Datastore, depStorage storage.AllDEPStorage, logger *platformlogging.Logger,
+	urlPrefix string) error {
 	depSvc := apple_mdm.NewDEPService(ds, depStorage, logger)
 
 	ac, err := ds.AppConfig(ctx)

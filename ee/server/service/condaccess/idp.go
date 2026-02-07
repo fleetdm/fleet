@@ -20,6 +20,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/dev_mode"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/platform/logging"
 	"github.com/fleetdm/fleet/v4/server/service/middleware/log"
 	"github.com/fleetdm/fleet/v4/server/service/middleware/otel"
 	kitlog "github.com/go-kit/log"
@@ -61,7 +62,7 @@ func (e *notFoundError) IsNotFound() bool {
 // idpService implements the Okta conditional access IdP functionality.
 type idpService struct {
 	ds               fleet.Datastore
-	logger           kitlog.Logger
+	logger           *logging.Logger
 	certSerialFormat string
 }
 
@@ -69,7 +70,7 @@ type idpService struct {
 func RegisterIdP(
 	mux *http.ServeMux,
 	ds fleet.Datastore,
-	logger kitlog.Logger,
+	logger *logging.Logger,
 	fleetConfig *config.FleetConfig,
 ) error {
 	if fleetConfig == nil {
@@ -78,7 +79,7 @@ func RegisterIdP(
 
 	svc := &idpService{
 		ds:               ds,
-		logger:           kitlog.With(logger, "component", "conditional-access-idp"),
+		logger:           logger.With("component", "conditional-access-idp"),
 		certSerialFormat: fleetConfig.ConditionalAccess.CertSerialFormat,
 	}
 
@@ -565,7 +566,7 @@ func (s *idpService) buildIdentityProvider(ctx context.Context, serverURL string
 	ssoURL = ssoURL.JoinPath(idpSSOPath)
 
 	// Create kitlog adapter for SAML library
-	samlLogger := &kitlogAdapter{logger: kitlog.With(s.logger, "component", "saml-idp")}
+	samlLogger := &kitlogAdapter{logger: s.logger.With("component", "saml-idp")}
 
 	// Build IdentityProvider
 	// Note: SessionProvider is set dynamically in serveSSO based on the authenticated device

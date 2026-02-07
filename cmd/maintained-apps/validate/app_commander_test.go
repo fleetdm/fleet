@@ -8,7 +8,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	kitlog "github.com/go-kit/log"
+	"github.com/fleetdm/fleet/v4/server/platform/logging"
 	"github.com/stretchr/testify/require"
 )
 
@@ -105,11 +105,11 @@ func TestExpectToChangeFileSystem(t *testing.T) {
 			defer os.RemoveAll(installationSearchDirectory)
 
 			cfg := &Config{
-				logger:                      kitlog.NewNopLogger(),
+				logger:                      logging.NewNopLogger(),
 				installationSearchDirectory: installationSearchDirectory,
 			}
 
-			ac = AppCommander{cfg: cfg, appLogger: kitlog.NewNopLogger()}
+			ac = AppCommander{cfg: cfg, appLogger: logging.NewNopLogger()}
 			tc.before()
 			tc.testFunc(t)
 		})

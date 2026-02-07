@@ -12,7 +12,7 @@ import (
 
 	"github.com/fleetdm/fleet/v4/pkg/file"
 	"github.com/fleetdm/fleet/v4/server/fleet"
-	kitlog "github.com/go-kit/log"
+	"github.com/fleetdm/fleet/v4/server/platform/logging"
 	"github.com/go-kit/log/level"
 )
 
@@ -25,7 +25,7 @@ type AppCommander struct {
 	UninstallScript  string
 	InstallScript    string
 	cfg              *Config
-	appLogger        kitlog.Logger
+	appLogger        *logging.Logger
 }
 
 func (ac *AppCommander) isFrozen() (bool, error) {

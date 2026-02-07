@@ -25,6 +25,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mdm/assets"
 	scepdepot "github.com/fleetdm/fleet/v4/server/mdm/scep/depot"
 	scepserver "github.com/fleetdm/fleet/v4/server/mdm/scep/server"
+	"github.com/fleetdm/fleet/v4/server/platform/logging"
 	"github.com/fleetdm/fleet/v4/server/service/middleware/otel"
 	"github.com/go-kit/kit/log"
 	kitlog "github.com/go-kit/log"
@@ -67,7 +68,7 @@ func RegisterSCEP(
 	mux *http.ServeMux,
 	scepStorage scepdepot.Depot,
 	ds fleet.Datastore,
-	logger kitlog.Logger,
+	logger *logging.Logger,
 	fleetConfig *config.FleetConfig,
 ) error {
 	if fleetConfig == nil {
@@ -87,10 +88,10 @@ func RegisterSCEP(
 	scepService := NewSCEPService(
 		ds,
 		signer,
-		kitlog.With(logger, "component", "host-id-scep"),
+		logger.With("component", "host-id-scep"),
 	)
 
-	scepLogger := kitlog.With(logger, "component", "http-host-id-scep")
+	scepLogger := logger.With("component", "http-host-id-scep")
 	e := scepserver.MakeServerEndpoints(scepService)
 	e.GetEndpoint = scepserver.EndpointLoggingMiddleware(scepLogger)(e.GetEndpoint)
 	e.PostEndpoint = scepserver.EndpointLoggingMiddleware(scepLogger)(e.PostEndpoint)

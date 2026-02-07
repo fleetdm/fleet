@@ -14,14 +14,14 @@ import (
 
 	"github.com/fleetdm/fleet/v4/orbit/pkg/constant"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/platform/logging"
 	queries "github.com/fleetdm/fleet/v4/server/service/osquery_utils"
-	kitlog "github.com/go-kit/log"
 	"github.com/go-kit/log/level"
 )
 
 var preInstalled = []string{}
 
-func postApplicationInstall(_ kitlog.Logger, _ string) error {
+func postApplicationInstall(_ *logging.Logger, _ string) error {
 	return nil
 }
 
@@ -40,7 +40,7 @@ func normalizeVersion(version string) string {
 	return strings.Join(parts, ".")
 }
 
-func appExists(ctx context.Context, logger kitlog.Logger, appName, uniqueIdentifier, appVersion, appPath string) (bool, error) {
+func appExists(ctx context.Context, logger *logging.Logger, appName, uniqueIdentifier, appVersion, appPath string) (bool, error) {
 	execTimeout, cancel := context.WithTimeout(ctx, 30*time.Second)
 	defer cancel()
 

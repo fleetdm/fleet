@@ -17,9 +17,9 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mock"
+	"github.com/fleetdm/fleet/v4/server/platform/logging"
 	common_mysql "github.com/fleetdm/fleet/v4/server/platform/mysql"
 	"github.com/fleetdm/fleet/v4/server/ptr"
-	"github.com/go-kit/log"
 	"github.com/stretchr/testify/require"
 )
 
@@ -150,7 +150,7 @@ func TestRequestCertificate(t *testing.T) {
 		authorizer, err := authz.NewAuthorizer()
 		require.NoError(t, err)
 
-		logger := log.NewLogfmtLogger(os.Stdout)
+		logger := logging.NewLogfmtLogger(os.Stdout)
 		svc := &Service{
 			logger: logger,
 			ds:     ds,

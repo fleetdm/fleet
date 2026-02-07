@@ -14,7 +14,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
 	"github.com/fleetdm/fleet/v4/server/fleet"
-	kitlog "github.com/go-kit/log"
+	"github.com/fleetdm/fleet/v4/server/platform/logging"
 	"github.com/go-kit/log/level"
 	"github.com/spf13/cobra"
 )
@@ -40,8 +40,7 @@ by an exit code of zero.`,
 				applyDevFlags(&cfg)
 			}
 
-			logger := initLogger(cfg, nil)
-			logger = kitlog.With(logger, fleet.CronVulnerabilities)
+			logger := initLogger(cfg, nil).With("cron", fleet.CronVulnerabilities)
 
 			licenseInfo, err := initLicense(&cfg, devLicense, devExpiredLicense)
 			if err != nil {
@@ -136,7 +135,7 @@ by an exit code of zero.`,
 	return vulnProcessingCmd
 }
 
-func configureVulnPath(vulnConfig config.VulnerabilitiesConfig, appConfig *fleet.AppConfig, logger kitlog.Logger) (vulnPath string) {
+func configureVulnPath(vulnConfig config.VulnerabilitiesConfig, appConfig *fleet.AppConfig, logger *logging.Logger) (vulnPath string) {
 	switch {
 	case vulnConfig.DatabasesPath != "" && appConfig != nil && appConfig.VulnerabilitySettings.DatabasesPath != "":
 		vulnPath = vulnConfig.DatabasesPath
@@ -159,7 +158,7 @@ type NamedVulnFunc struct {
 	VulnFunc func(ctx context.Context) error
 }
 
-func getVulnFuncs(ds fleet.Datastore, logger kitlog.Logger, config *config.VulnerabilitiesConfig) []NamedVulnFunc {
+func getVulnFuncs(ds fleet.Datastore, logger *logging.Logger, config *config.VulnerabilitiesConfig) []NamedVulnFunc {
 	vulnFuncs := []NamedVulnFunc{
 		{
 			Name: "cron_vulnerabilities",

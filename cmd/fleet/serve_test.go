@@ -25,12 +25,10 @@ import (
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanodep/tokenpki"
 	"github.com/fleetdm/fleet/v4/server/mock"
+	"github.com/fleetdm/fleet/v4/server/platform/logging"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/service"
 	"github.com/fleetdm/fleet/v4/server/service/schedule"
-	"github.com/go-kit/log"
-	kitlog "github.com/go-kit/log"
-	"github.com/go-kit/log/level"
 	"github.com/jmoiron/sqlx"
 	"github.com/smallstep/pkcs7"
 	"github.com/stretchr/testify/assert"
@@ -297,7 +295,7 @@ func TestAutomationsSchedule(t *testing.T) {
 	defer cancelFunc()
 
 	failingPoliciesSet := service.NewMemFailingPolicySet()
-	s, err := newAutomationsSchedule(ctx, "test_instance", ds, kitlog.NewNopLogger(), 5*time.Minute, failingPoliciesSet)
+	s, err := newAutomationsSchedule(ctx, "test_instance", ds, logging.NewNopLogger(), 5*time.Minute, failingPoliciesSet)
 	require.NoError(t, err)
 	s.Start()
 
@@ -356,7 +354,7 @@ func TestCronVulnerabilitiesCreatesDatabasesPath(t *testing.T) {
 	// Use schedule to test that the schedule does indeed call cronVulnerabilities.
 	ctx = license.NewContext(ctx, &fleet.LicenseInfo{Tier: fleet.TierPremium})
 	ctx, cancel := context.WithCancel(ctx)
-	lg := kitlog.NewJSONLogger(os.Stdout)
+	lg := logging.NewNopLogger()
 
 	go func() {
 		defer func() {
@@ -417,8 +415,7 @@ func (f *softwareIterator) Close() error { return nil }
 func TestScanVulnerabilities(t *testing.T) {
 	nettest.Run(t)
 
-	logger := kitlog.NewNopLogger()
-	logger = level.NewFilter(logger, level.AllowDebug())
+	logger := logging.NewNopLogger()
 
 	ctx := context.Background()
 
@@ -601,8 +598,7 @@ func TestScanVulnerabilities(t *testing.T) {
 }
 
 func TestUpdateVulnHostCounts(t *testing.T) {
-	logger := kitlog.NewNopLogger()
-	logger = level.NewFilter(logger, level.AllowDebug())
+	logger := logging.NewNopLogger()
 
 	ctx := context.Background()
 
@@ -646,8 +642,7 @@ func TestUpdateVulnHostCounts(t *testing.T) {
 }
 
 func TestScanVulnerabilitiesMkdirFailsIfVulnPathIsFile(t *testing.T) {
-	logger := kitlog.NewNopLogger()
-	logger = level.NewFilter(logger, level.AllowDebug())
+	logger := logging.NewNopLogger()
 
 	ctx, cancelFunc := context.WithCancel(context.Background())
 	defer cancelFunc()
@@ -723,7 +718,7 @@ func TestCronVulnerabilitiesSkipMkdirIfDisabled(t *testing.T) {
 	// Use schedule to test that the schedule does indeed call cronVulnerabilities.
 	ctx = license.NewContext(ctx, &fleet.LicenseInfo{Tier: fleet.TierPremium})
 	ctx, cancel := context.WithCancel(ctx)
-	s, err := newVulnerabilitiesSchedule(ctx, "test_instance", ds, kitlog.NewNopLogger(), &config)
+	s, err := newVulnerabilitiesSchedule(ctx, "test_instance", ds, logging.NewNopLogger(), &config)
 	require.NoError(t, err)
 	s.Start()
 	t.Cleanup(func() {
@@ -807,7 +802,7 @@ func TestAutomationsScheduleLockDuration(t *testing.T) {
 	ctx, cancelFunc := context.WithCancel(context.Background())
 	defer cancelFunc()
 
-	s, err := newAutomationsSchedule(ctx, "test_instance", ds, kitlog.NewNopLogger(), 1*time.Second, service.NewMemFailingPolicySet())
+	s, err := newAutomationsSchedule(ctx, "test_instance", ds, logging.NewNopLogger(), 1*time.Second, service.NewMemFailingPolicySet())
 	require.NoError(t, err)
 	s.Start()
 
@@ -873,7 +868,7 @@ func TestAutomationsScheduleIntervalChange(t *testing.T) {
 	ctx, cancelFunc := context.WithCancel(context.Background())
 	defer cancelFunc()
 
-	s, err := newAutomationsSchedule(ctx, "test_instance", ds, kitlog.NewNopLogger(), 200*time.Millisecond, service.NewMemFailingPolicySet())
+	s, err := newAutomationsSchedule(ctx, "test_instance", ds, logging.NewNopLogger(), 200*time.Millisecond, service.NewMemFailingPolicySet())
 	require.NoError(t, err)
 	s.Start()
 
@@ -1066,7 +1061,7 @@ func TestCronActivitiesStreaming(t *testing.T) {
 		}
 
 		var auditLogger jsonLogger
-		err := cronActivitiesStreaming(context.Background(), activitySvc, ds, log.NewNopLogger(), &auditLogger)
+		err := cronActivitiesStreaming(context.Background(), activitySvc, ds, logging.NewNopLogger(), &auditLogger)
 		require.NoError(t, err)
 		require.Len(t, auditLogger.logs, 3)
 		for i, m := range auditLogger.logs {
@@ -1090,7 +1085,7 @@ func TestCronActivitiesStreaming(t *testing.T) {
 		}
 
 		auditLogger := jsonLogger{failAfter: 1}
-		err := cronActivitiesStreaming(context.Background(), activitySvc, ds, log.NewNopLogger(), &auditLogger)
+		err := cronActivitiesStreaming(context.Background(), activitySvc, ds, logging.NewNopLogger(), &auditLogger)
 		require.Error(t, err)
 		require.ErrorIs(t, err, errStreamFailed)
 		require.Len(t, auditLogger.logs, 1)
@@ -1150,7 +1145,7 @@ func TestCronActivitiesStreaming(t *testing.T) {
 		}
 
 		var auditLogger jsonLogger
-		err := cronActivitiesStreaming(context.Background(), activitySvc, ds, log.NewNopLogger(), &auditLogger)
+		err := cronActivitiesStreaming(context.Background(), activitySvc, ds, logging.NewNopLogger(), &auditLogger)
 		require.NoError(t, err)
 		require.Len(t, auditLogger.logs, int(ActivitiesToStreamBatchCount)*2+1) //nolint:gosec // dismiss G115
 		require.Equal(t, 3, call)
@@ -1177,7 +1172,7 @@ func (j *jsonLogger) Write(ctx context.Context, logs []json.RawMessage) error {
 func TestVerifyDiskEncryptionKeysJob(t *testing.T) {
 	ds := new(mock.Store)
 	ctx := context.Background()
-	logger := log.NewNopLogger()
+	logger := logging.NewNopLogger()
 
 	testCert, testKey, err := apple_mdm.NewSCEPCACertKey()
 	require.NoError(t, err)

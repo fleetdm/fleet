@@ -3,13 +3,13 @@ package condaccess
 import (
 	"fmt"
 
-	kitlog "github.com/go-kit/log"
+	"github.com/fleetdm/fleet/v4/server/platform/logging"
 	"github.com/go-kit/log/level"
 )
 
 // kitlogAdapter adapts kitlog.Logger to saml logger.Interface
 type kitlogAdapter struct {
-	logger kitlog.Logger
+	logger *logging.Logger
 }
 
 func (k *kitlogAdapter) Printf(format string, v ...interface{}) {

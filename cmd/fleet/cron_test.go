@@ -18,9 +18,8 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mdm/nanodep/godep"
 	"github.com/fleetdm/fleet/v4/server/mock"
 	mdmmock "github.com/fleetdm/fleet/v4/server/mock/mdm"
+	"github.com/fleetdm/fleet/v4/server/platform/logging"
 	"github.com/fleetdm/fleet/v4/server/test"
-	"github.com/go-kit/log"
-	kitlog "github.com/go-kit/log"
 )
 
 func TestNewAppleMDMProfileManagerWithoutConfig(t *testing.T) {
@@ -28,7 +27,7 @@ func TestNewAppleMDMProfileManagerWithoutConfig(t *testing.T) {
 	mdmStorage := &mdmmock.MDMAppleStore{}
 	ds := new(mock.Store)
 	cmdr := apple_mdm.NewMDMAppleCommander(mdmStorage, nil)
-	logger := kitlog.NewNopLogger()
+	logger := logging.NewNopLogger()
 
 	sch, err := newAppleMDMProfileManagerSchedule(ctx, "foo", ds, cmdr, logger)
 	require.NotNil(t, sch)
@@ -38,7 +37,7 @@ func TestNewAppleMDMProfileManagerWithoutConfig(t *testing.T) {
 func TestNewWindowsMDMProfileManagerWithoutConfig(t *testing.T) {
 	ctx := context.Background()
 	ds := new(mock.Store)
-	logger := kitlog.NewNopLogger()
+	logger := logging.NewNopLogger()
 
 	sch, err := newWindowsMDMProfileManagerSchedule(ctx, "foo", ds, logger)
 	require.NotNil(t, sch)
@@ -89,7 +88,7 @@ func TestMigrateABMTokenDuringDEPCronJob(t *testing.T) {
 	err = depStorage.StoreConfig(ctx, apple_mdm.UnsavedABMTokenOrgName, &nanodep_client.Config{BaseURL: srv.URL})
 	require.NoError(t, err)
 
-	logger := log.NewNopLogger()
+	logger := logging.NewNopLogger()
 	syncFn := appleMDMDEPSyncerJob(ds, depStorage, logger)
 	err = syncFn(ctx)
 	require.NoError(t, err)

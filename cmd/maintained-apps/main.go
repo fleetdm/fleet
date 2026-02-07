@@ -16,7 +16,7 @@ import (
 	"github.com/fleetdm/fleet/v4/ee/maintained-apps/ingesters/winget"
 	"github.com/fleetdm/fleet/v4/pkg/file"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
-	kitlog "github.com/go-kit/log"
+	"github.com/fleetdm/fleet/v4/server/platform/logging"
 	"github.com/go-kit/log/level"
 )
 
@@ -25,13 +25,10 @@ func main() {
 	debugPtr := flag.Bool("debug", false, "enable debug logging")
 	flag.Parse()
 	ctx := context.Background()
-	logger := kitlog.NewJSONLogger(os.Stderr)
-	lvl := level.AllowInfo()
-	if *debugPtr {
-		lvl = level.AllowDebug()
-	}
-	logger = level.NewFilter(logger, lvl)
-	logger = kitlog.With(logger, "ts", kitlog.DefaultTimestampUTC)
+	logger := logging.NewLogger(logging.NewSlogLogger(logging.Options{
+		JSON:  true,
+		Debug: *debugPtr,
+	}))
 
 	level.Info(logger).Log("msg", "starting maintained app ingestion")
 

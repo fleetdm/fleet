@@ -10,8 +10,8 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mdm/android"
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanodep/storage"
+	"github.com/fleetdm/fleet/v4/server/platform/logging"
 	"github.com/fleetdm/fleet/v4/server/sso"
-	kitlog "github.com/go-kit/log"
 )
 
 // Service wraps a free Service and implements additional premium functionality on top of it.
@@ -19,7 +19,7 @@ type Service struct {
 	fleet.Service
 
 	ds                     fleet.Datastore
-	logger                 kitlog.Logger
+	logger                 *logging.Logger
 	config                 config.FleetConfig
 	clock                  clock.Clock
 	authz                  *authz.Authorizer
@@ -42,7 +42,7 @@ type Service struct {
 func NewService(
 	svc fleet.Service,
 	ds fleet.Datastore,
-	logger kitlog.Logger,
+	logger *logging.Logger,
 	config config.FleetConfig,
 	mailService fleet.MailService,
 	c clock.Clock,
