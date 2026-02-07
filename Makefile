@@ -11,23 +11,13 @@ BRANCH = $(shell git rev-parse --abbrev-ref HEAD)
 # 2. X.Y.Z-anything → X.Y.Z+YYMMDDhhmm
 # 3. Otherwise fall back to git describe
 ifndef VERSION
-# Check for rc-minor-fleet-vX.Y.Z or rc-patch-fleet-vX.Y.Z pattern
-RC_VERSION_BASE := $(shell echo "$(BRANCH)" | sed -E -n 's/^rc-(minor|patch)-fleet-v([0-9]+\.[0-9]+\.[0-9]+).*/\2/p')
-ifneq ($(RC_VERSION_BASE),)
-UTC_TIMESTAMP := $(shell date -u +"%y%m%d%H%M")
-VERSION := $(RC_VERSION_BASE)-rc.$(UTC_TIMESTAMP)
-else
-# Check for X.Y.Z-anything pattern
-BRANCH_VERSION_BASE := $(shell echo "$(BRANCH)" | sed -E -n 's/^([0-9]+\.[0-9]+\.[0-9]+)[-+].*/\1/p')
-ifneq ($(BRANCH_VERSION_BASE),)
-UTC_TIMESTAMP := $(shell date -u +"%y%m%d%H%M")
-VERSION := $(BRANCH_VERSION_BASE)+$(UTC_TIMESTAMP)
-else
+VERSION := $(shell echo "$(BRANCH)" | sed -E -n "s/^rc-(minor|patch)-fleet-v([0-9]+\.[0-9]+\.[0-9]+).*/\2-rc.$$(date -u +'%y%m%d%H%M')/p")
+ifeq ($(VERSION),)
+VERSION := $(shell echo "$(BRANCH)" | sed -E -n "s/^([0-9]+\.[0-9]+\.[0-9]+)[-+].*/\1+$$(date -u +'%y%m%d%H%M')/p")
+endif
+ifeq ($(VERSION),)
 VERSION := $(shell git describe --tags --always --dirty)
 endif
-endif
-else
-# VERSION was explicitly provided, use it as-is
 endif
 REVISION = $(shell git rev-parse HEAD)
 REVSHORT = $(shell git rev-parse --short HEAD)
