@@ -1,0 +1,27 @@
+project_name: goval-dictionary
+release:
+  github:
+    owner: vulsio
+    name: goval-dictionary
+env:
+  - CGO_ENABLED=0
+builds:
+- id: goval-dictionary
+  goos:
+    - linux
+    - windows
+    - darwin
+  goarch:
+    - amd64
+    - arm64
+  main: .
+  ldflags: -s -w -X github.com/vulsio/goval-dictionary/config.Version={{.Version}} -X github.com/vulsio/goval-dictionary/config.Revision={{.Commit}}
+  binary: goval-dictionary
+archives:
+- name_template: '{{ .Binary }}_{{.Version}}_{{ .Os }}_{{ .Arch }}{{ if .Arm }}v{{ .Arm }}{{ end }}'
+  format: tar.gz
+  files:
+  - LICENSE
+  - README*
+snapshot:
+  name_template: SNAPSHOT-{{ .Commit }}
