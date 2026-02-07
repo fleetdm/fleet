@@ -294,8 +294,8 @@ func GetIssuesCreatedSinceWithLabel(repo string, sinceDate string, labelName str
 	page := 1
 	perPage := 100
 	sinceTimestamp := sinceDate + "T00:00:00Z"
-	foundOldIssue := false
 
+listLoop:
 	for {
 		command := fmt.Sprintf("gh api repos/%s/issues -X GET -f state=all -f per_page=%d -f page=%d -f sort=created -f direction=desc", repo, perPage, page)
 		results, err := RunCommandAndReturnOutput(command)
@@ -319,32 +319,27 @@ func GetIssuesCreatedSinceWithLabel(repo string, sinceDate string, labelName str
 				continue
 			}
 
-			// Filter by creation date - only include issues after our cutoff
-			if apiIssue.CreatedAt >= sinceTimestamp {
-				issue := Issue{
-					Number:    apiIssue.Number,
-					Title:     apiIssue.Title,
-					State:     apiIssue.State,
-					CreatedAt: apiIssue.CreatedAt,
-					UpdatedAt: apiIssue.UpdatedAt,
-					Body:      apiIssue.Body,
-					Author:    Author{Login: apiIssue.User.Login},
-				}
-				for _, label := range apiIssue.Labels {
-					issue.Labels = append(issue.Labels, Label{Name: label.Name})
-				}
-				allIssues = append(allIssues, issue)
-			} else {
-				// Found an issue before our cutoff
-				// Since we're sorted by created desc, subsequent issues in this page and all later pages will also be too old
-				foundOldIssue = true
+			// Since we're sorted by created desc, remaining issues in this page and all later pages will also be too old
+			if apiIssue.CreatedAt < sinceTimestamp {
+				break listLoop
 			}
+
+			issue := Issue{
+				Number:    apiIssue.Number,
+				Title:     apiIssue.Title,
+				State:     apiIssue.State,
+				CreatedAt: apiIssue.CreatedAt,
+				UpdatedAt: apiIssue.UpdatedAt,
+				Body:      apiIssue.Body,
+				Author:    Author{Login: apiIssue.User.Login},
+			}
+			for _, label := range apiIssue.Labels {
+				issue.Labels = append(issue.Labels, Label{Name: label.Name})
+			}
+			allIssues = append(allIssues, issue)
 		}
 
-		// Stop conditions:
-		// 1. We got fewer than perPage results (no more pages)
-		// 2. We found at least one issue that's too old (and we're sorted by created desc)
-		if len(apiIssues) < perPage || foundOldIssue {
+		if len(apiIssues) < perPage { // no more pages
 			break
 		}
 
