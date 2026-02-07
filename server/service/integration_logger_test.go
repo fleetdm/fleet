@@ -205,9 +205,9 @@ func (s *integrationLoggerTestSuite) TestOsqueryEndpointsLogErrors() {
 		attrs := testutils.RecordAttrs(&records[i])
 		if attrs["err"] != nil {
 			foundErrRecord = true
-			assert.Contains(t, fmt.Sprint(attrs["err"]), `invalid character '}' looking for beginning of value`)
 			assert.Equal(t, slog.LevelInfo, records[i].Level)
 			assert.Equal(t, "/api/osquery/log", attrs["path"])
+			assert.Contains(t, fmt.Sprint(attrs["internal"]), `invalid character '}' looking for beginning of value`)
 			assert.Equal(t, jsn.UUID, attrs["uuid"])
 			assert.Contains(t, attrs, "took")
 			break
