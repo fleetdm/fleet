@@ -12,6 +12,7 @@ Before starting the migration, take time to prepare:
 - **Lower your DNS TTL.** Check the TTL (Time To Live) on your Fleet DNS record. If it's set to a high value (like 24 hours), lower it to 5 minutes at least 24-48 hours before the migration. This ensures the DNS change propagates quickly to all hosts. You can raise it back after the migration is stable.
 - **Check version compatibility.** Your new Fleet instance should run the same version of Fleet. Don't try to upgrade and migrate at the same time.
 - **Gather your configuration.** You'll need to recreate your Fleet server configuration on the new instance. This includes environment variables, TLS certificates, and any custom settings.
+- **Save your `FLEET_SERVER_PRIVATE_KEY`.** This is **critical** - you must use the exact same `FLEET_SERVER_PRIVATE_KEY` value on the new instance. This key encrypts sensitive data in your database (passwords, API keys, MDM credentials). Without the same key, Fleet cannot decrypt this data and features like MDM, integrations, and automations will fail. Find this value in your current Fleet configuration (environment variables, config file, or AWS Secrets Manager).
 
 
 ## Stop the Fleet server
@@ -47,6 +48,7 @@ On your new server or deployment:
 3. Install and configure Redis
 4. Configure your TLS certificates
 5. Set up your Fleet server configuration (environment variables, config file, or command-line flags)
+6. **Configure `FLEET_SERVER_PRIVATE_KEY` with the exact same value from your original instance.** This is critical - without this key, Fleet cannot decrypt sensitive data stored in the database.
 
 Don't start Fleet yet - you'll import the database first.
 
@@ -112,7 +114,7 @@ Once the migration is stable and all hosts have reconnected, you can raise your 
 
 **Redis doesn't need migration.** Redis stores ephemeral data (live query results, short-term caches), so you don't need to migrate Redis data. The new instance can start with a fresh Redis.
 
-**Secrets are in the database.** Your API tokens, enroll secrets, and other configuration are stored in MySQL, so they'll carry over automatically.
+**Secrets are in the database.** Your API tokens, enroll secrets, and other configuration are stored in MySQL, so they'll carry over automatically. However, sensitive data is encrypted using `FLEET_SERVER_PRIVATE_KEY`, so you must use the same key on the new instance to decrypt this data.
 
 **Consider using MySQL replication.** If you're using MySQL replication, you can set up a replica on the new deployment before migrating. When you're ready, promote the replica to primary and point Fleet to it. This can significantly reduce downtime.
 
@@ -145,6 +147,14 @@ If you can't access the web interface:
 - Verify Fleet is running (`systemctl status fleet` or check Docker container status)
 - Check that your TLS certificates are configured correctly
 - Review firewall rules to ensure port 8080 (or your configured port) is accessible
+
+**MDM features or integrations not working**
+
+If MDM enrollment fails, automations don't work, or you see decryption errors in the logs:
+
+- Verify you're using the exact same `FLEET_SERVER_PRIVATE_KEY` from your original Fleet server
+- Check the Fleet server logs for encryption/decryption errors
+- Without the correct key, Fleet cannot decrypt sensitive data like MDM credentials, integration API keys, or automation secrets
 
 <meta name="articleTitle" value="Migrate Fleet server to a new deployment">
 <meta name="authorFullName" value="Kitzy">
