@@ -1,5 +1,5 @@
 name: 📱🔐 Personal mobile devices
-team_settings:
+settings:
   features:
   host_expiry_settings:
     host_expiry_enabled: false
@@ -25,7 +25,7 @@ controls:
     enable_end_user_authentication: true
   scripts:
 policies:
-queries:
+reports:
 software:
   app_store_apps:
     - app_store_id: "618783545" # Slack
