@@ -245,7 +245,7 @@ Output {{- if .ExecTimeout }} before timeout {{- end }}:
 
 func validateScriptPath(path string) error {
 	extension := filepath.Ext(path)
-	if extension == ".sh" || extension == ".ps1" {
+	if extension == ".sh" || extension == ".ps1" || extension == ".py" {
 		return nil
 	}
 	return errors.New(fleet.RunScriptInvalidTypeErrMsg)
