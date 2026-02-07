@@ -86,7 +86,7 @@ func writeOrDone(ctx context.Context, ch chan<- interface{}, item interface{}) b
 // connection over the provided channel. This effectively allows a select
 // statement to run on conn.Receive() (by selecting on outChan that is
 // passed into this function)
-func receiveMessages(ctx context.Context, conn *redigo.PubSubConn, outChan chan<- interface{}, logger *logging.Logger) {
+func receiveMessages(ctx context.Context, conn *redigo.PubSubConn, outChan chan<- any, logger *logging.Logger) {
 	defer close(outChan)
 
 	for {
