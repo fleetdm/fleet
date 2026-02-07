@@ -2851,13 +2851,17 @@ func (ds *Datastore) RenewMDMManagedCertificates(ctx context.Context) error {
 			limit -= len(hostCertsToRenew)
 			totalHostCertsToRenew += len(hostCertsToRenew)
 
+			allHostAndProfileIdsToRenew := make([]string, len(hostCertsToRenew))
 			for _, hostCertToRenew := range hostCertsToRenew {
 				hostProfileClause += `(host_uuid = ? AND profile_uuid = ?) OR `
 				values = append(values, hostCertToRenew.HostUUID, hostCertToRenew.ProfileUUID)
+
+				allHostAndProfileIdsToRenew = append(allHostAndProfileIdsToRenew, hostCertToRenew.HostUUID+":"+hostCertToRenew.ProfileUUID)
 			}
 			hostProfileClause = strings.TrimSuffix(hostProfileClause, " OR ")
 
 			level.Info(ds.logger).Log("msg", "Renewing MDM managed certificates", "len", len(hostCertsToRenew), "type", hostCertType, "platform", hostPlatform)
+			level.Debug(ds.logger).Log("msg", "Host and profile IDs for certificates to renew", "host_profile_ids", allHostAndProfileIdsToRenew)
 			err = ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
 				_, err := tx.ExecContext(ctx, updateQuery+hostProfileClause+")", values...)
 				if err != nil {
