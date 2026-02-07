@@ -10,6 +10,8 @@ This guide provides instructions for migrating devices from your current MDM sol
 - Fleet is connected to Apple Push Notification service (APNs) and Apple Business Manager (ABM). [See macOS MDM setup](https://fleetdm.com/guides/macos-mdm-setup)
 - For the end-user workflow: A service is required that can receive a webhook to send an unenroll request to the existing MDM server. See [this example](https://victoronsoftware.com/posts/webhook-flow-with-tines/) using Fleet webhooks with Tines.
 
+> **Important:** Apple MDM enrollment relies on a Safari-based system web view. If Safari is blocked or restricted, enrollment can fail.
+
 ## Migrate hosts
 
 To migrate hosts, we will do the following steps:
@@ -41,7 +43,9 @@ The end user migration workflow allows the user to kick off migration by unenrol
 
 End user experience:
 
-- After a host is unenrolled from your current MDM solution, eventually (within two hours) the end user will be prompted with Apple's **Remote Management** full-screen popup if the host is assigned to Fleet in ABM.
+- After a host is unenrolled from your current MDM solution, the end user is prompted with Apple’s Remote Management full-screen pop-up, typically within two hours, if the host is assigned to Fleet in ABM.
+
+> **Note:** After Fleet begins prompting end users to enroll, it will continue to prompt them every few minutes.
 <img width="1400" alt="macOS Remote Management popup" src="https://github.com/user-attachments/assets/084946a5-1658-4d8c-852d-3cf5f5d58655">
 - If the host is not assigned to Fleet in ABM (manual enrollment), the end user will be given the option to download the MDM enrollment profile on their **My device page**.
 <img width="1600" alt="Fleet icon in menu bar" src="https://raw.githubusercontent.com/fleetdm/fleet/main/website/assets/images/articles/fleet-desktop-says-hello-world-cover-1600x900@2x.jpg">
@@ -64,6 +68,8 @@ Fleet uses [swiftDialog](https://github.com/swiftDialog/swiftDialog) to instruct
 End user experience:
 
 - To watch an animation of the end user experience during the migration workflow, head to **Settings > Integrations > MDM** in the Fleet UI, and scroll down to the **End user migration workflow** section.
+
+> **Note:** After Fleet begins prompting end users to enroll, it will continue to prompt them every few minutes.
 
 Configuration:
 
