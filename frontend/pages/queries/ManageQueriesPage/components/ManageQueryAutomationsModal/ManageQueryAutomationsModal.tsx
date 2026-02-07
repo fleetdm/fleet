@@ -1,9 +1,11 @@
-import React, { useState, useEffect, useContext } from "react";
+import React, { useState, useEffect, useContext, useMemo } from "react";
+import { useQuery } from "react-query";
 
 import { AppContext } from "context/app";
 
-import { ISchedulableQuery } from "interfaces/schedulable_query";
+import { IQueryKeyQueriesLoadAll } from "interfaces/schedulable_query";
 import { LogDestination } from "interfaces/config";
+import queriesAPI, { IQueriesResponse } from "services/entities/queries";
 
 import Modal from "components/Modal";
 import Button from "components/buttons/Button";
@@ -14,14 +16,18 @@ import LogDestinationIndicator from "components/LogDestinationIndicator/LogDesti
 import TooltipTruncatedText from "components/TooltipTruncatedText";
 import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
 
+export interface IQueryAutomationsSubmitData {
+  newAutomatedQueryIds: number[];
+  previousAutomatedQueryIds: number[];
+}
+
 interface IManageQueryAutomationsModalProps {
   isUpdatingAutomations: boolean;
-  onSubmit: (formData: any) => void; // TODO
+  onSubmit: (formData: IQueryAutomationsSubmitData) => void;
   onCancel: () => void;
   isShowingPreviewDataModal: boolean;
   togglePreviewDataModal: () => void;
-  availableQueries?: ISchedulableQuery[];
-  automatedQueryIds: number[];
+  teamId?: number;
   logDestination: LogDestination;
   webhookDestination?: string;
   filesystemDestination?: string;
@@ -34,18 +40,81 @@ interface ICheckedQuery {
   interval: number;
 }
 
-const useCheckboxListStateManagement = (
-  allQueries: ISchedulableQuery[],
-  automatedQueryIds: number[] | undefined
-) => {
-  const [queryItems, setQueryItems] = useState<ICheckedQuery[]>(() => {
-    return allQueries.map(({ name, id, interval }) => ({
-      name,
-      id,
-      isChecked: !!automatedQueryIds?.includes(id),
-      interval,
-    }));
-  });
+const baseClass = "manage-query-automations-modal";
+
+const ManageQueryAutomationsModal = ({
+  isUpdatingAutomations,
+  onSubmit,
+  onCancel,
+  isShowingPreviewDataModal,
+  togglePreviewDataModal,
+  teamId,
+  logDestination,
+  webhookDestination,
+  filesystemDestination,
+}: IManageQueryAutomationsModalProps): JSX.Element => {
+  const gitOpsModeEnabled = useContext(AppContext).config?.gitops
+    .gitops_mode_enabled;
+
+  // Fetch team-scoped queries (mergeInherited: false) so we only show
+  // queries that belong to this team, not inherited global queries.
+  const { data: queriesResponse } = useQuery<
+    IQueriesResponse,
+    Error,
+    IQueriesResponse,
+    IQueryKeyQueriesLoadAll[]
+  >(
+    [
+      {
+        scope: "queries",
+        teamId,
+        orderKey: "name",
+        orderDirection: "asc" as const,
+        mergeInherited: false,
+      },
+    ],
+    ({ queryKey }) => queriesAPI.loadAll(queryKey[0]),
+    {
+      refetchOnWindowFocus: false,
+    }
+  );
+
+  const availableQueries = useMemo(() => queriesResponse?.queries ?? [], [
+    queriesResponse,
+  ]);
+
+  const automatedQueryIds = useMemo(
+    () =>
+      availableQueries
+        .filter((query) => query.automations_enabled)
+        .map((query) => query.id),
+    [availableQueries]
+  );
+
+  // Client side sort queries alphabetically
+  const sortedAvailableQueries = useMemo(
+    () =>
+      [...availableQueries].sort((a, b) =>
+        a.name.toLowerCase().localeCompare(b.name.toLowerCase())
+      ),
+    [availableQueries]
+  );
+
+  const [queryItems, setQueryItems] = useState<ICheckedQuery[]>([]);
+
+  // Sync queryItems when the async fetch completes.
+  useEffect(() => {
+    if (sortedAvailableQueries.length > 0) {
+      setQueryItems(
+        sortedAvailableQueries.map(({ name, id, interval }) => ({
+          name,
+          id,
+          isChecked: !!automatedQueryIds?.includes(id),
+          interval,
+        }))
+      );
+    }
+  }, [sortedAvailableQueries, automatedQueryIds]);
 
   const updateQueryItems = (queryId: number) => {
     setQueryItems((prevItems) =>
@@ -55,40 +124,6 @@ const useCheckboxListStateManagement = (
     );
   };
 
-  return { queryItems, updateQueryItems };
-};
-
-const baseClass = "manage-query-automations-modal";
-
-const ManageQueryAutomationsModal = ({
-  isUpdatingAutomations,
-  automatedQueryIds,
-  onSubmit,
-  onCancel,
-  isShowingPreviewDataModal,
-  togglePreviewDataModal,
-  availableQueries,
-  logDestination,
-  webhookDestination,
-  filesystemDestination,
-}: IManageQueryAutomationsModalProps): JSX.Element => {
-  // TODO: Error handling, if any
-  // const [errors, setErrors] = useState<{ [key: string]: string }>({});
-
-  const gitOpsModeEnabled = useContext(AppContext).config?.gitops
-    .gitops_mode_enabled;
-
-  // Client side sort queries alphabetically
-  const sortedAvailableQueries =
-    availableQueries?.sort((a, b) =>
-      a.name.toLowerCase().localeCompare(b.name.toLowerCase())
-    ) || [];
-
-  const { queryItems, updateQueryItems } = useCheckboxListStateManagement(
-    sortedAvailableQueries,
-    automatedQueryIds || []
-  );
-
   const onSubmitQueryAutomations = (
     evt: React.MouseEvent<HTMLFormElement> | KeyboardEvent
   ) => {
@@ -97,14 +132,22 @@ const ManageQueryAutomationsModal = ({
     const newQueryIds: number[] = [];
     queryItems?.forEach((p) => p.isChecked && newQueryIds.push(p.id));
 
-    onSubmit(newQueryIds);
+    onSubmit({
+      newAutomatedQueryIds: newQueryIds,
+      previousAutomatedQueryIds: automatedQueryIds,
+    });
   };
 
   useEffect(() => {
     const listener = (event: KeyboardEvent) => {
       if (event.code === "Enter" || event.code === "NumpadEnter") {
         event.preventDefault();
-        onSubmit(event);
+        onSubmit({
+          newAutomatedQueryIds: queryItems
+            .filter((p) => p.isChecked)
+            .map((p) => p.id),
+          previousAutomatedQueryIds: automatedQueryIds,
+        });
       }
     };
     document.addEventListener("keydown", listener);
@@ -127,7 +170,7 @@ const ManageQueryAutomationsModal = ({
           Linux hosts to a log destination. Data is sent according to a
           query&apos;s interval.
         </div>
-        {availableQueries?.length ? (
+        {availableQueries.length ? (
           <div className={`${baseClass}__select form-field`}>
             <div className="form-field__label">
               Choose which queries will send data:

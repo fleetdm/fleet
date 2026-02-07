@@ -638,7 +638,7 @@ func query(ctx context.Context, db sqlx.QueryerContext, id uint) (*fleet.Query, 
 // ListQueries returns a list of queries with sort order and results limit
 // determined by passed in fleet.ListOptions, count of total queries returned without limits, and
 // pagination metadata
-func (ds *Datastore) ListQueries(ctx context.Context, opt fleet.ListQueryOptions) ([]*fleet.Query, int, *fleet.PaginationMetadata, error) {
+func (ds *Datastore) ListQueries(ctx context.Context, opt fleet.ListQueryOptions) (queries []*fleet.Query, total int, inherited int, metadata *fleet.PaginationMetadata, err error) {
 	getQueriesStmt := `
 		SELECT
 			q.id,
@@ -704,42 +704,52 @@ func (ds *Datastore) ListQueries(ctx context.Context, opt fleet.ListQueryOptions
 	getQueriesStmt += whereClauses
 
 	// build the count statement before adding pagination constraints
-	getQueriesCountStmt := fmt.Sprintf("SELECT COUNT(DISTINCT id) FROM (%s) AS s", getQueriesStmt)
+	var getQueriesCountStmt string
+	if opt.TeamID != nil && opt.MergeInherited {
+		getQueriesCountStmt = fmt.Sprintf(
+			`SELECT COUNT(DISTINCT id) AS total, COUNT(DISTINCT CASE WHEN team_id IS NULL THEN id END) AS inherited FROM (%s) AS s`,
+			getQueriesStmt,
+		)
+	} else {
+		getQueriesCountStmt = fmt.Sprintf("SELECT COUNT(DISTINCT id) AS total, 0 AS inherited FROM (%s) AS s", getQueriesStmt)
+	}
 
 	getQueriesStmt, args = appendListOptionsWithCursorToSQL(getQueriesStmt, args, &opt.ListOptions)
 
 	dbReader := ds.reader(ctx)
-	queries := []*fleet.Query{}
-	if err := sqlx.SelectContext(ctx, dbReader, &queries, getQueriesStmt, args...); err != nil {
-		return nil, 0, nil, ctxerr.Wrap(ctx, err, "listing queries")
+	queries = []*fleet.Query{}
+	if err = sqlx.SelectContext(ctx, dbReader, &queries, getQueriesStmt, args...); err != nil {
+		return nil, 0, 0, nil, ctxerr.Wrap(ctx, err, "listing queries")
 	}
 
 	// perform a second query to grab the count
-	var count int
-	if err := sqlx.GetContext(ctx, dbReader, &count, getQueriesCountStmt, args...); err != nil {
-		return nil, 0, nil, ctxerr.Wrap(ctx, err, "get queries count")
+	var counts struct {
+		Total     int `db:"total"`
+		Inherited int `db:"inherited"`
+	}
+	if err = sqlx.GetContext(ctx, dbReader, &counts, getQueriesCountStmt, args...); err != nil {
+		return nil, 0, 0, nil, ctxerr.Wrap(ctx, err, "get queries count")
 	}
 
-	if err := ds.loadPacksForQueries(ctx, queries); err != nil {
-		return nil, 0, nil, ctxerr.Wrap(ctx, err, "loading packs for queries")
+	if err = ds.loadPacksForQueries(ctx, queries); err != nil {
+		return nil, 0, 0, nil, ctxerr.Wrap(ctx, err, "loading packs for queries")
 	}
 
-	if err := ds.loadLabelsForQueries(ctx, queries); err != nil {
-		return nil, 0, nil, ctxerr.Wrap(ctx, err, "loading labels for queries")
+	if err = ds.loadLabelsForQueries(ctx, queries); err != nil {
+		return nil, 0, 0, nil, ctxerr.Wrap(ctx, err, "loading labels for queries")
 	}
 
-	var meta *fleet.PaginationMetadata
 	if opt.ListOptions.IncludeMetadata {
-		meta = &fleet.PaginationMetadata{HasPreviousResults: opt.ListOptions.Page > 0}
+		metadata = &fleet.PaginationMetadata{HasPreviousResults: opt.ListOptions.Page > 0}
 		// `appendListOptionsWithCursorToSQL` used above to build the query statement will cause this
 		// discrepancy
 		if len(queries) > int(opt.ListOptions.PerPage) { //nolint:gosec // dismiss G115
-			meta.HasNextResults = true
+			metadata.HasNextResults = true
 			queries = queries[:len(queries)-1]
 		}
 	}
 
-	return queries, count, meta, nil
+	return queries, counts.Total, counts.Inherited, metadata, nil
 }
 
 // loadPacksForQueries loads the user packs (aka 2017 packs) associated with the provided queries.

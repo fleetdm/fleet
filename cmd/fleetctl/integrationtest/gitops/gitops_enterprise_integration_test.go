@@ -2829,7 +2829,7 @@ team_settings:
 		require.NoError(t, err)
 		require.NotNil(t, team)
 
-		queries, _, _, err := s.DS.ListQueries(ctx, fleet.ListQueryOptions{TeamID: &team.ID})
+		queries, _, _, _, err := s.DS.ListQueries(ctx, fleet.ListQueryOptions{TeamID: &team.ID})
 		require.NoError(t, err)
 		require.Len(t, queries, 1)
 		require.Equal(t, fmt.Sprintf("query-%d", i), queries[0].Name)
@@ -2876,7 +2876,7 @@ team_settings:
 		require.NoError(t, err)
 		require.NotNil(t, team)
 
-		queries, _, _, err := s.DS.ListQueries(ctx, fleet.ListQueryOptions{TeamID: &team.ID})
+		queries, _, _, _, err := s.DS.ListQueries(ctx, fleet.ListQueryOptions{TeamID: &team.ID})
 		require.NoError(t, err)
 		require.Len(t, queries, 1)
 		require.Equal(t, fmt.Sprintf("query-%d", i), queries[0].Name)
