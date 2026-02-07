@@ -50,7 +50,7 @@ You can also manage which Google Play Store apps are available for self-service 
 
 3. Click the **Actions** button and select **Schedule auto updates**.
 
-4. In the modal dialog that opens, click **Enable auto updates** and configure an update window of at least one hour. You may also choose to limit which hosts receive auto-updates using the Target configuration (this configuration will also affect which hosts can install the app themselves via the self-service feature).
+4. In the modal dialog that opens, click **Enable auto updates** and configure an update window of at least one hour. You may also choose to limit which hosts receive auto-updates using the **Target** option (this configuration will also affect which end users can install the app themselves via the self-service feature).
 
 ## Install an app
 
