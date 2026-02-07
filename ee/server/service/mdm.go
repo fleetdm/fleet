@@ -212,6 +212,11 @@ func (svc *Service) updateAppConfigMDMAppleSetup(ctx context.Context, payload fl
 		}
 	}
 
+	if payload.LockPrimaryAccountInfo != nil && ac.MDM.MacOSSetup.LockPrimaryAccountInfo != *payload.LockPrimaryAccountInfo {
+		ac.MDM.MacOSSetup.LockPrimaryAccountInfo = *payload.LockPrimaryAccountInfo
+		didUpdate = true
+	}
+
 	if payload.RequireAllSoftware != nil && ac.MDM.MacOSSetup.RequireAllSoftware != *payload.RequireAllSoftware {
 		ac.MDM.MacOSSetup.RequireAllSoftware = *payload.RequireAllSoftware
 		didUpdate = true
