@@ -21,8 +21,8 @@ func hasLabel(issue ghapi.Issue, labelName string) bool {
 	return false
 }
 
-var issuesWithLabelCmd = &cobra.Command{
-	Use:   "issues-with-label [label]",
+var issuesWithHistoricalLabelCmd = &cobra.Command{
+	Use:   "issues-with-historical-label [label]",
 	Short: "Find issues created since a date that had a specific label at any point",
 	Long:  "Finds all issues created since a given date that had a given label at any point (not just currently).",
 	Args:  cobra.ExactArgs(1),
@@ -48,7 +48,7 @@ var issuesWithLabelCmd = &cobra.Command{
 			fmt.Fprintf(os.Stderr, "Starting search for issues created since %s that had label '%s' at any point...\n", since, label)
 			fmt.Fprintf(os.Stderr, "Using %d concurrent workers\n\n", concurrency)
 		} else {
-			fmt.Fprintf(os.Stderr, "Searching for issues created since %s that had label '%s' at any point...\n\n", since, label)
+			fmt.Fprintf(os.Stderr, "Searching for issues created since %s that had label '%s' at any point", since, label)
 		}
 
 		issues, err := ghapi.GetIssuesCreatedSinceWithLabel(since, label, verbose, concurrency)
@@ -78,7 +78,7 @@ var issuesWithLabelCmd = &cobra.Command{
 }
 
 func init() {
-	issuesWithLabelCmd.Flags().StringP("since", "s", "", "Date to search from (format: YYYY-MM-DD)")
-	issuesWithLabelCmd.Flags().BoolP("verbose", "v", false, "Show verbose output as issues are pulled and evaluated")
-	issuesWithLabelCmd.Flags().IntP("concurrency", "c", 10, "Number of concurrent workers for timeline requests")
+	issuesWithHistoricalLabelCmd.Flags().StringP("since", "s", "", "Oldest issue creation date (format: YYYY-MM-DD)")
+	issuesWithHistoricalLabelCmd.Flags().BoolP("verbose", "v", false, "Show verbose output as issues are pulled and evaluated")
+	issuesWithHistoricalLabelCmd.Flags().IntP("concurrency", "c", 10, "Number of concurrent workers for per-issue requests (issue lists are always retrieved one page at a time)")
 }
