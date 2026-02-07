@@ -262,7 +262,6 @@ go run ./tools/run-scripts -scripts-disabled -content 'echo "Test"'
 | `mdm/migration/micromdm/` | MicroMDM migration tools | See [mdm/migration/micromdm/README.md](mdm/migration/micromdm/README.md) |
 | `mdm/migration/simplemdm/` | SimpleMDM migration tools | `go run ./tools/mdm/migration/simplemdm` |
 | `mdm/windows/bitlocker/` | BitLocker key management | Go utilities for BitLocker |
-| `mdm/windows/poc-mdm-server/` | PoC Windows MDM server | See [mdm/windows/poc-mdm-server/README.md](mdm/windows/poc-mdm-server/README.md) |
 | `mdm/windows/programmatic-enrollment/` | Windows MDM enrollment | `go run ./tools/mdm/windows/programmatic-enrollment` |
 | `windows-mdm-enroll/` | Windows MDM enrollment | Enrollment utilities for Windows |
 | **Other Utilities** | | |

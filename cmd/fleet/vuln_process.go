@@ -40,7 +40,7 @@ by an exit code of zero.`,
 				applyDevFlags(&cfg)
 			}
 
-			logger := initLogger(cfg).With("cron", fleet.CronVulnerabilities)
+			logger := initLogger(cfg, nil).With("cron", fleet.CronVulnerabilities)
 
 			licenseInfo, err := initLicense(&cfg, devLicense, devExpiredLicense)
 			if err != nil {
