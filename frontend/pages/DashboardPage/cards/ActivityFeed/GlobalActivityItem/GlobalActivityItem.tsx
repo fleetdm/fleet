@@ -450,7 +450,7 @@ const TAGGED_TEMPLATES = {
     return (
       <>
         enabled OS updates for all new {applePlatform} hosts on {teamSection}.{" "}
-        {applePlatform} hosts will upgrade to the lastest version when they
+        {applePlatform} hosts will upgrade to the latest version when they
         enroll.
       </>
     );
