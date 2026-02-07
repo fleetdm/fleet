@@ -17,8 +17,8 @@ func TestParseWindowsMDMCommand(t *testing.T) {
 		wantErr string
 	}{
 		{"not xml", "zzz", SyncMLCmd{}, "The payload isn't valid XML"},
-		{"multi Exec top-level", `<Exec></Exec><Exec></Exec>`, SyncMLCmd{}, "You can run only a single <Exec> command"},
-		{"not Exec", `<Get></Get>`, SyncMLCmd{}, "You can run only <Exec> command type"},
+		{"multi Exec top-level", `<Exec></Exec><Exec></Exec>`, SyncMLCmd{}, "You can run only a single <Exec> or <Delete> command"},
+		{"not Exec or Delete", `<Get></Get>`, SyncMLCmd{}, "You can run only <Exec> or <Delete> command type"},
 		{"valid Exec", `<Exec><Item><Target><LocURI>./test</LocURI></Target></Item></Exec>`, SyncMLCmd{
 			XMLName: xml.Name{Local: "Exec"},
 			Items: []CmdItem{
@@ -50,7 +50,41 @@ func TestParseWindowsMDMCommand(t *testing.T) {
 						<LocURI>./test2</LocURI>
 					</Target>
 				</Item>
-			</Exec>`, SyncMLCmd{}, "You can run only a single <Exec> command"},
+			</Exec>`, SyncMLCmd{}, "You can run only a single <Exec> or <Delete> command"},
+		{"valid Delete", `<Delete><Item><Target><LocURI>./test</LocURI></Target></Item></Delete>`, SyncMLCmd{
+			XMLName: xml.Name{Local: "Delete"},
+			Items: []CmdItem{
+				{Target: ptr.String("./test")},
+			},
+		}, ""},
+		{"valid Delete with spaces", `
+			<Delete>
+				<Item>
+					<Target>
+						<LocURI>./test</LocURI>
+					</Target>
+				</Item>
+			</Delete>`, SyncMLCmd{
+			XMLName: xml.Name{Local: "Delete"},
+			Items: []CmdItem{
+				{Target: ptr.String("./test")},
+			},
+		}, ""},
+		{"Delete with multiple Items", `
+			<Delete>
+				<Item>
+					<Target>
+						<LocURI>./test</LocURI>
+					</Target>
+				</Item>
+				<Item>
+					<Target>
+						<LocURI>./test2</LocURI>
+					</Target>
+				</Item>
+			</Delete>`, SyncMLCmd{}, "You can run only a single <Exec> or <Delete> command"},
+		{"multi Delete top-level", `<Delete></Delete><Delete></Delete>`, SyncMLCmd{}, "You can run only a single <Exec> or <Delete> command"},
+		{"mixed Exec and Delete top-level", `<Exec><Item><Target><LocURI>./test</LocURI></Target></Item></Exec><Delete><Item><Target><LocURI>./test2</LocURI></Target></Item></Delete>`, SyncMLCmd{}, "You can run only a single <Exec> or <Delete> command"},
 	}
 	for _, c := range cases {
 		t.Run(c.desc, func(t *testing.T) {

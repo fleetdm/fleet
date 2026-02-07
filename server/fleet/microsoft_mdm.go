@@ -1042,9 +1042,9 @@ type ChallengeMeta struct {
 }
 
 // ParseWindowsMDMCommand parses the raw XML as a single Windows MDM command.
-// A single <Exec> command is accepted as input.
+// A single <Exec> or <Delete> command is accepted as input.
 func ParseWindowsMDMCommand(rawXMLCmd []byte) (*SyncMLCmd, error) {
-	// a command must have the <Exec> element as top-level
+	// a command must have the <Exec> or <Delete> element as top-level
 	var cmdMsg SyncMLCmd
 	dec := xml.NewDecoder(bytes.NewReader(bytes.TrimSpace(rawXMLCmd)))
 	if err := dec.Decode(&cmdMsg); err != nil {
@@ -1053,14 +1053,14 @@ func ParseWindowsMDMCommand(rawXMLCmd []byte) (*SyncMLCmd, error) {
 
 	// check if there were multiple top-level elements provided
 	if _, err := dec.Token(); err != io.EOF {
-		return nil, errors.New("You can run only a single <Exec> command.")
+		return nil, errors.New("You can run only a single <Exec> or <Delete> command.")
 	}
 
-	if cmdMsg.XMLName.Local != CmdExec {
-		return nil, errors.New("You can run only <Exec> command type.")
+	if cmdMsg.XMLName.Local != CmdExec && cmdMsg.XMLName.Local != CmdDelete {
+		return nil, errors.New("You can run only <Exec> or <Delete> command type.")
 	}
 	if len(cmdMsg.Items) != 1 {
-		return nil, errors.New("You can run only a single <Exec> command.")
+		return nil, errors.New("You can run only a single <Exec> or <Delete> command.")
 	}
 	return &cmdMsg, nil
 }

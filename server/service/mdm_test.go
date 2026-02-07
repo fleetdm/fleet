@@ -883,8 +883,8 @@ func TestEnqueueWindowsMDMCommand(t *testing.T) {
 	}{
 		{"invalid xml", false, `!!$$`, "The payload isn't valid XML", ""},
 		{"empty xml", false, ``, "The payload isn't valid XML", ""},
-		{"unrelated xml", false, `<Unrelated></Unrelated>`, "You can run only <Exec> command type", ""},
-		{"no command Exec", false, `<Exec></Exec>`, "You can run only a single <Exec> command", ""},
+		{"unrelated xml", false, `<Unrelated></Unrelated>`, "You can run only <Exec> or <Delete> command type", ""},
+		{"no command Exec", false, `<Exec></Exec>`, "You can run only a single <Exec> or <Delete> command", ""},
 		{"non-exec command", false, `
 			<Get>
 				<CmdID>1</CmdID>
@@ -893,7 +893,7 @@ func TestEnqueueWindowsMDMCommand(t *testing.T) {
 						<LocURI>./DevDetail/SwV</LocURI>
 					</Target>
 				</Item>
-			</Get>`, "You can run only <Exec> command type", ""},
+			</Get>`, "You can run only <Exec> or <Delete> command type", ""},
 		{"multi-exec command", false, `
 			<Exec>
 				<CmdID>1</CmdID>
@@ -907,7 +907,7 @@ func TestEnqueueWindowsMDMCommand(t *testing.T) {
 						<LocURI>./DevDetail/SwV2</LocURI>
 					</Target>
 				</Item>
-			</Exec>`, "You can run only a single <Exec> command", ""},
+			</Exec>`, "You can run only a single <Exec> or <Delete> command", ""},
 		{"premium command, non premium license", false, `
 			<Exec>
 				<CmdID>1</CmdID>
@@ -951,7 +951,47 @@ func TestEnqueueWindowsMDMCommand(t *testing.T) {
 						<LocURI>./FooBar2</LocURI>
 					</Target>
 				</Item>
-			</Exec>`, "You can run only a single <Exec> command", ""},
+			</Exec>`, "You can run only a single <Exec> or <Delete> command", ""},
+		{"valid Delete command", false, `
+			<Delete>
+				<CmdID>1</CmdID>
+				<Item>
+					<Target>
+						<LocURI>./Device/Vendor/MSFT/Policy/Config/SomePolicy</LocURI>
+					</Target>
+				</Item>
+			</Delete>`, "", "./Device/Vendor/MSFT/Policy/Config/SomePolicy"},
+		{"Delete with multiple Items", false, `
+			<Delete>
+				<CmdID>1</CmdID>
+				<Item>
+					<Target>
+						<LocURI>./Device/Vendor/MSFT/Policy/Config/Policy1</LocURI>
+					</Target>
+				</Item>
+				<Item>
+					<Target>
+						<LocURI>./Device/Vendor/MSFT/Policy/Config/Policy2</LocURI>
+					</Target>
+				</Item>
+			</Delete>`, "You can run only a single <Exec> or <Delete> command", ""},
+		{"multi top-level Deletes", false, `
+			<Delete>
+				<CmdID>1</CmdID>
+				<Item>
+					<Target>
+						<LocURI>./Policy1</LocURI>
+					</Target>
+				</Item>
+			</Delete>
+			<Delete>
+				<CmdID>2</CmdID>
+				<Item>
+					<Target>
+						<LocURI>./Policy2</LocURI>
+					</Target>
+				</Item>
+			</Delete>`, "You can run only a single <Exec> or <Delete> command", ""},
 	}
 
 	for _, c := range cases {
