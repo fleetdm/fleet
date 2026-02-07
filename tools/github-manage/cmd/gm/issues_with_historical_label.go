@@ -45,9 +45,6 @@ var issuesWithHistoricalLabelCmd = &cobra.Command{
 		}
 
 		repo, _ := cmd.Flags().GetString("repo")
-		if repo == "" {
-			repo = "fleetdm/fleet"
-		}
 
 		if verbose {
 			fmt.Fprintf(os.Stderr, "Starting search for issues created since %s that had label '%s' at any point...\n", since, label)
