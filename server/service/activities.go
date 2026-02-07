@@ -10,6 +10,7 @@ import (
 
 	"github.com/cenkalti/backoff/v4"
 	"github.com/fleetdm/fleet/v4/server"
+	activity_api "github.com/fleetdm/fleet/v4/server/activity/api"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	kithttp "github.com/go-kit/kit/transport/http"
 	kitlog "github.com/go-kit/log"
@@ -32,8 +33,29 @@ type listActivitiesResponse struct {
 
 func (r listActivitiesResponse) Error() error { return r.Err }
 
+func (svc *Service) GetActivitiesWebhookSettings(ctx context.Context) (fleet.ActivitiesWebhookSettings, error) {
+	appConfig, err := svc.ds.AppConfig(ctx)
+	if err != nil {
+		return fleet.ActivitiesWebhookSettings{}, ctxerr.Wrap(ctx, err, "get app config for activities webhook")
+	}
+	return appConfig.WebhookSettings.ActivitiesWebhook, nil
+}
+
+func (svc *Service) ActivateNextUpcomingActivityForHost(ctx context.Context, hostID uint, fromCompletedExecID string) error {
+	return svc.ds.ActivateNextUpcomingActivityForHost(ctx, hostID, fromCompletedExecID)
+}
+
 func (svc *Service) NewActivity(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails) error {
-	return newActivity(ctx, user, activity, svc.ds, svc.logger)
+	var apiUser *activity_api.User
+	if user != nil {
+		apiUser = &activity_api.User{
+			ID:      user.ID,
+			Name:    user.Name,
+			Email:   user.Email,
+			Deleted: user.Deleted,
+		}
+	}
+	return svc.activitySvc.NewActivity(ctx, apiUser, activity)
 }
 
 func newActivity(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails, ds fleet.Datastore, logger kitlog.Logger) error {

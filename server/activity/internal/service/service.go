@@ -50,7 +50,12 @@ type Service struct {
 }
 
 // NewService creates a new activity service.
-func NewService(authz platform_authz.Authorizer, store types.Datastore, providers activity.DataProviders, logger kitlog.Logger) *Service {
+func NewService(
+	authz platform_authz.Authorizer,
+	store types.Datastore,
+	providers activity.DataProviders,
+	logger kitlog.Logger,
+) *Service {
 	return &Service{
 		authz:     authz,
 		store:     store,

@@ -1047,6 +1047,13 @@ func (ds *Datastore) UnblockHostsUpcomingActivityQueue(ctx context.Context, maxH
 	return len(blockedHostIDs), ds.activateNextUpcomingActivityForBatchOfHosts(ctx, blockedHostIDs)
 }
 
+// ActivateNextUpcomingActivityForHost activates the next upcoming activity for the given host.
+// fromCompletedExecID is the execution ID of the activity that just completed (if any).
+func (ds *Datastore) ActivateNextUpcomingActivityForHost(ctx context.Context, hostID uint, fromCompletedExecID string) error {
+	_, err := ds.activateNextUpcomingActivity(ctx, ds.writer(ctx), hostID, fromCompletedExecID)
+	return err
+}
+
 func (ds *Datastore) activateNextUpcomingActivityForBatchOfHosts(ctx context.Context, hostIDs []uint) error {
 	const maxHostIDsPerBatch = 500
 

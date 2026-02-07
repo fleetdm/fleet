@@ -21,7 +21,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/service/middleware/auth"
 	"github.com/fleetdm/fleet/v4/server/service/middleware/log"
-	"github.com/fleetdm/fleet/v4/server/service/modules/activities"
 	kithttp "github.com/go-kit/kit/transport/http"
 	kitlog "github.com/go-kit/log"
 	"github.com/gorilla/mux"
@@ -89,6 +88,13 @@ func (ds *AndroidDSWithMock) SetAndroidHostUnenrolled(ctx context.Context, hostI
 	return ds.Datastore.SetAndroidHostUnenrolled(ctx, hostID)
 }
 
+// noopActivityModule implements activities.ActivityModule with a no-op for tests.
+type noopActivityModule struct{}
+
+func (n *noopActivityModule) NewActivity(_ context.Context, _ *fleet.User, _ fleet.ActivityDetails) error {
+	return nil
+}
+
 type WithServer struct {
 	suite.Suite
 	Svc      android.Service
@@ -112,7 +118,7 @@ func (ts *WithServer) SetupSuite(t *testing.T, dbName string) {
 	ts.createCommonProxyMocks(t)
 
 	logger := kitlog.NewLogfmtLogger(os.Stdout)
-	activityModule := activities.NewActivityModule(&ts.DS.DataStore, logger)
+	activityModule := &noopActivityModule{}
 	svc, err := service.NewServiceWithClient(logger, &ts.DS, &ts.AndroidAPIClient, "test-private-key", ts.DS.Datastore, activityModule, config.AndroidAgentConfig{})
 	require.NoError(t, err)
 	ts.Svc = svc

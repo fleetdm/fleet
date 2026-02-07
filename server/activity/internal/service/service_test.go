@@ -6,6 +6,7 @@ import (
 	"errors"
 	"strconv"
 	"testing"
+	"time"
 
 	"github.com/fleetdm/fleet/v4/server/activity"
 	"github.com/fleetdm/fleet/v4/server/activity/api"
@@ -58,6 +59,10 @@ func (m *mockDatastore) MarkActivitiesAsStreamed(ctx context.Context, activityID
 	return nil
 }
 
+func (m *mockDatastore) NewActivity(ctx context.Context, user *api.User, activity api.ActivityDetails, details []byte, createdAt time.Time) error {
+	return nil
+}
+
 type mockUserProvider struct {
 	users         []*activity.User
 	listUsersErr  error
@@ -86,11 +91,29 @@ func (m *mockHostProvider) GetHostLite(ctx context.Context, hostID uint) (*activ
 	return m.host, m.err
 }
 
-// mockDataProviders combines user and host providers for testing.
+// mockDataProviders combines all provider interfaces for testing.
 type mockDataProviders struct {
 	*mockUserProvider
 	*mockHostProvider
+	webhookConfig *activity.ActivitiesWebhookSettings
+	webhookErr    error
 }
+
+func (m *mockDataProviders) GetActivitiesWebhookConfig(ctx context.Context) (*activity.ActivitiesWebhookSettings, error) {
+	return m.webhookConfig, m.webhookErr
+}
+
+func (m *mockDataProviders) ActivateNextUpcomingActivity(ctx context.Context, hostID uint, fromCompletedExecID string) error {
+	return nil
+}
+
+func (m *mockDataProviders) SendWebhookPayload(ctx context.Context, url string, payload any) error {
+	return nil
+}
+
+func (m *mockDataProviders) MaskSecretURLParams(rawURL string) string { return rawURL }
+
+func (m *mockDataProviders) MaskURLError(err error) error { return err }
 
 // testSetup holds test dependencies with pre-configured mocks
 type testSetup struct {
@@ -465,6 +488,10 @@ func (m *mockStreamingDatastore) MarkActivitiesAsStreamed(ctx context.Context, a
 	}
 	m.streamedIDs = append(m.streamedIDs, activityIDs...)
 	return nil
+}
+
+func (m *mockStreamingDatastore) NewActivity(ctx context.Context, user *api.User, activity api.ActivityDetails, details []byte, createdAt time.Time) error {
+	panic("not implemented")
 }
 
 func newTestActivity(id uint, actorName string, actorID uint, actType, details string) *api.Activity {

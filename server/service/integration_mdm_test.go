@@ -81,7 +81,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/service/contract"
 	"github.com/fleetdm/fleet/v4/server/service/integrationtest/scep_server"
 	"github.com/fleetdm/fleet/v4/server/service/mock"
-	"github.com/fleetdm/fleet/v4/server/service/modules/activities"
 	"github.com/fleetdm/fleet/v4/server/service/osquery_utils"
 	"github.com/fleetdm/fleet/v4/server/service/schedule"
 	"github.com/fleetdm/fleet/v4/server/test"
@@ -98,6 +97,13 @@ import (
 	"github.com/stretchr/testify/suite"
 	"software.sslmate.com/src/go-pkcs12"
 )
+
+// noopActivityModule implements activities.ActivityModule with a no-op for tests.
+type noopActivityModule struct{}
+
+func (n *noopActivityModule) NewActivity(_ context.Context, _ *fleet.User, _ fleet.ActivityDetails) error {
+	return nil
+}
 
 func TestIntegrationsMDM(t *testing.T) {
 	testingSuite := new(integrationMDMTestSuite)
@@ -218,7 +224,7 @@ func (s *integrationMDMTestSuite) SetupSuite() {
 		wlog = kitlog.NewNopLogger()
 	}
 
-	activityModule := activities.NewActivityModule(s.ds, wlog)
+	activityModule := &noopActivityModule{}
 	androidMockClient := &android_mock.Client{}
 	androidMockClient.SetAuthenticationSecretFunc = func(secret string) error {
 		return nil
