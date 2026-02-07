@@ -1,3 +1,33 @@
+## Fleet 4.80.1 (Feb 06, 2026)
+
+### Bug fixes
+
+- Optimizing certificate template batch delete auth
+- Updated refetch logic for iPhone and iPad to only fetch location data if the host is locked.
+- Fleet UI: Allow users to scroll through disabled yml fields
+- Fleet UI: Update icon buttons for consistency
+- Fleet UI: Fixed broken disk space sort header on hosts table
+- Fleet UI: Fixed hover color of links in error flash messages
+- Fleet UI: Clarify what happens to pending software installs when deleting VPP apps
+- fixed an issue where `fleetctl generate-gitops` would panic if the google calendar integration was enabled
+- Fixed false positive for CVE-2023-41036 for macvim
+- the google calendar intergration api key json is now obfuscated in GET requests 
+- Fixed a UI bug where the host list was being pushed down when viewing with a platform filter.
+- Fixed false negative CVE for 7-Zip installed with MSI installer.
+- fixed libtiff false positive vulnerability
+- Fixed CVE false positives for Microsoft 365 companion apps by targeting Microsoft 365 better
+- Fixed a bug where certain iOS/iPadOS devices (enrolled prior to Fleet v4.68.0) are unable renew their
+  enrollment profiles because of mismatched server URLs (specifically, this bug occurs if the URL in
+  the original enrollment profile contains an `enroll_reference` query parameter).
+- Added the FLEET_SERVER_TRUSTED_PROXIES configuration.
+Updated lock modal for iPad hosts to display iPad screenshot in the end user experience section
+Fixed false negative CVE for pgAdmin 4.
+- Fixed git & gitk cve attributions due to mismatch between homebrew packaging and nvd feed attribution
+- Fixed false positives for Safari CVE-2023-28205
+- Fixed styling issues with long script names.
+- Show error reason when trying to create or edit a label that conflicts with a built-in label name
+- Fixed bug where certificate template parameters where not serialized
+
 ## Fleet 4.80.0 (Feb 2, 2026)
 
 ### IT Admins
@@ -53,12 +83,6 @@ Refactored common_mysql package to support bounded contexts inside Fleet codebas
 - Fixed an issue where newly-enrolled hosts would sometimes not be linked to SCIM user data.
 - Fixed FMA create form to allow input fields to work properly as only edit was working correctly.
 - Fixed Android certificate enrollment failures caused by SCEP challenge expiration when devices were offline.
-
-## Fleet 4.79.1 (Jan 19, 2026)
-
-### Bug fixes
-
-- Fixed bug in host activity card UI where activities related to MDM commands should be hidden when Apple MDM features are turned off in Fleet.
 
 ## Fleet 4.79.1 (Jan 19, 2026)
 
@@ -137,7 +161,7 @@ Refactored common_mysql package to support bounded contexts inside Fleet codebas
 
 - Added additional validation to URL parameter for MS MDM auth endpoint
 
-## Fleet 4.78.1 (Jan 06, 2026)
+## Fleet 4.78.1 (Jan 05, 2026)
 
 ### Bug fixes
 
