@@ -169,11 +169,11 @@ func NewNopLogger() *Logger {
 // NewLogfmtLogger creates a *Logger that outputs text-formatted logs to the given writer.
 // This is a drop-in replacement for kitlog.NewLogfmtLogger().
 func NewLogfmtLogger(output io.Writer) *Logger {
-	return NewLogger(NewSlogLogger(Options{Output: output}))
+	return NewLogger(NewSlogLogger(Options{Output: output, Debug: true}))
 }
 
 // NewJSONLogger creates a *Logger that outputs JSON-formatted logs to the given writer.
 // This is a drop-in replacement for kitlog.NewJSONLogger().
 func NewJSONLogger(output io.Writer) *Logger {
-	return NewLogger(NewSlogLogger(Options{Output: output, JSON: true}))
+	return NewLogger(NewSlogLogger(Options{Output: output, JSON: true, Debug: true}))
 }
