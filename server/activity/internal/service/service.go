@@ -43,13 +43,14 @@ func applyListOptionsDefaults(opt *api.ListOptions, defaultOrderKey string) {
 
 // Service is the activity bounded context service implementation.
 type Service struct {
-	authz          platform_authz.Authorizer
-	store          types.Datastore
-	providers      activity.DataProviders
-	configProvider api.AppConfigProvider
-	webhookSender  api.WebhookSender
-	urlMasker      api.URLMasker
-	logger         kitlog.Logger
+	authz             platform_authz.Authorizer
+	store             types.Datastore
+	providers         activity.DataProviders
+	configProvider    activity.AppConfigProvider
+	upcomingActivator activity.UpcomingActivityActivator
+	webhookSender     activity.WebhookSender
+	urlMasker         activity.URLMasker
+	logger            kitlog.Logger
 }
 
 // NewService creates a new activity service.
@@ -57,19 +58,21 @@ func NewService(
 	authz platform_authz.Authorizer,
 	store types.Datastore,
 	providers activity.DataProviders,
-	configProvider api.AppConfigProvider,
-	webhookSender api.WebhookSender,
-	urlMasker api.URLMasker,
+	configProvider activity.AppConfigProvider,
+	upcomingActivator activity.UpcomingActivityActivator,
+	webhookSender activity.WebhookSender,
+	urlMasker activity.URLMasker,
 	logger kitlog.Logger,
 ) *Service {
 	return &Service{
-		authz:          authz,
-		store:          store,
-		providers:      providers,
-		configProvider: configProvider,
-		webhookSender:  webhookSender,
-		urlMasker:      urlMasker,
-		logger:         logger,
+		authz:             authz,
+		store:             store,
+		providers:         providers,
+		configProvider:    configProvider,
+		upcomingActivator: upcomingActivator,
+		webhookSender:     webhookSender,
+		urlMasker:         urlMasker,
+		logger:            logger,
 	}
 }
 

@@ -73,18 +73,6 @@ func (ds *Datastore) NewActivity(
 		cols = append(cols, "user_email")
 	}
 
-	// Handle ActivityActivator - if the activity should activate the next upcoming activity,
-	// call the provider to do so. This is done before the transaction to avoid holding the
-	// transaction open during potentially slow operations.
-	if aa, ok := activity.(api.ActivityActivator); ok && aa.MustActivateNextUpcomingActivity() {
-		hostID, cmdUUID := aa.ActivateNextUpcomingActivityArgs()
-		if ds.upcomingActivator != nil {
-			if err := ds.upcomingActivator.ActivateNextUpcomingActivity(ctx, hostID, cmdUUID); err != nil {
-				return ctxerr.Wrap(ctx, err, "activate next activity from VPP app install")
-			}
-		}
-	}
-
 	return platform_mysql.WithRetryTxx(ctx, ds.primary, func(tx sqlx.ExtContext) error {
 		const insertActStmt = `INSERT INTO activities (%s) VALUES (%s)`
 		sqlStmt := fmt.Sprintf(insertActStmt, strings.Join(cols, ","), strings.Repeat("?,", len(cols)-1)+"?")

@@ -5,7 +5,6 @@ import (
 	"strings"
 
 	"github.com/fleetdm/fleet/v4/server/activity"
-	"github.com/fleetdm/fleet/v4/server/activity/api"
 	authz_ctx "github.com/fleetdm/fleet/v4/server/contexts/authz"
 	platform_authz "github.com/fleetdm/fleet/v4/server/platform/authz"
 	platform_mysql "github.com/fleetdm/fleet/v4/server/platform/mysql"
@@ -89,16 +88,9 @@ func newMockDataProviders() *mockDataProviders {
 	}
 }
 
-// mockConfigProvider implements api.AppConfigProvider for testing.
+// mockConfigProvider implements activity.AppConfigProvider for testing.
 type mockConfigProvider struct{}
 
-func (m *mockConfigProvider) GetActivitiesWebhookConfig(ctx context.Context) (*api.ActivitiesWebhookSettings, error) {
-	return &api.ActivitiesWebhookSettings{Enable: false}, nil
-}
-
-// mockUpcomingActivator implements api.UpcomingActivityActivator for testing.
-type mockUpcomingActivator struct{}
-
-func (m *mockUpcomingActivator) ActivateNextUpcomingActivity(ctx context.Context, hostID uint, fromCompletedExecID string) error {
-	return nil
+func (m *mockConfigProvider) GetActivitiesWebhookConfig(ctx context.Context) (*activity.ActivitiesWebhookSettings, error) {
+	return &activity.ActivitiesWebhookSettings{Enable: false}, nil
 }

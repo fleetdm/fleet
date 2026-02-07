@@ -33,6 +33,18 @@ func (s *Service) NewActivity(ctx context.Context, user *api.User, activity api.
 		s.fireActivityWebhook(user, activity, detailsBytes, timestamp, webhookConfig.DestinationURL)
 	}
 
+	// Activate the next upcoming activity if requested by the activity type.
+	// This is done before storing to avoid holding a DB transaction open during
+	// potentially slow operations.
+	if aa, ok := activity.(api.ActivityActivator); ok && aa.MustActivateNextUpcomingActivity() {
+		hostID, cmdUUID := aa.ActivateNextUpcomingActivityArgs()
+		if s.upcomingActivator != nil {
+			if err := s.upcomingActivator.ActivateNextUpcomingActivity(ctx, hostID, cmdUUID); err != nil {
+				return ctxerr.Wrap(ctx, err, "activate next upcoming activity")
+			}
+		}
+	}
+
 	// Mark context as webhook processed
 	ctx = context.WithValue(ctx, api.ActivityWebhookContextKey, true)
 

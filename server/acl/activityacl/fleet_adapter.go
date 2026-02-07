@@ -11,7 +11,6 @@ import (
 
 	"github.com/fleetdm/fleet/v4/server"
 	"github.com/fleetdm/fleet/v4/server/activity"
-	"github.com/fleetdm/fleet/v4/server/activity/api"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 )
 
@@ -29,12 +28,12 @@ func NewFleetServiceAdapter(svc fleet.LookupService, ds fleet.Datastore) *FleetS
 
 // Ensure FleetServiceAdapter implements the required interfaces
 var (
-	_ activity.UserProvider         = (*FleetServiceAdapter)(nil)
-	_ activity.HostProvider         = (*FleetServiceAdapter)(nil)
-	_ api.AppConfigProvider         = (*FleetServiceAdapter)(nil)
-	_ api.UpcomingActivityActivator = (*FleetServiceAdapter)(nil)
-	_ api.WebhookSender             = (*FleetServiceAdapter)(nil)
-	_ api.URLMasker                 = (*FleetServiceAdapter)(nil)
+	_ activity.UserProvider              = (*FleetServiceAdapter)(nil)
+	_ activity.HostProvider              = (*FleetServiceAdapter)(nil)
+	_ activity.AppConfigProvider         = (*FleetServiceAdapter)(nil)
+	_ activity.UpcomingActivityActivator = (*FleetServiceAdapter)(nil)
+	_ activity.WebhookSender             = (*FleetServiceAdapter)(nil)
+	_ activity.URLMasker                 = (*FleetServiceAdapter)(nil)
 )
 
 // UsersByIDs fetches users by their IDs from the Fleet service.
@@ -103,12 +102,12 @@ func convertUser(u *fleet.UserSummary) *activity.User {
 }
 
 // GetActivitiesWebhookConfig returns the webhook configuration for activities.
-func (a *FleetServiceAdapter) GetActivitiesWebhookConfig(ctx context.Context) (*api.ActivitiesWebhookSettings, error) {
+func (a *FleetServiceAdapter) GetActivitiesWebhookConfig(ctx context.Context) (*activity.ActivitiesWebhookSettings, error) {
 	appConfig, err := a.ds.AppConfig(ctx)
 	if err != nil {
 		return nil, err
 	}
-	return &api.ActivitiesWebhookSettings{
+	return &activity.ActivitiesWebhookSettings{
 		Enable:         appConfig.WebhookSettings.ActivitiesWebhook.Enable,
 		DestinationURL: appConfig.WebhookSettings.ActivitiesWebhook.DestinationURL,
 	}, nil

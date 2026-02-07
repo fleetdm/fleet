@@ -99,11 +99,11 @@ type mockDataProviders struct {
 
 // mockConfigProvider implements api.AppConfigProvider for testing.
 type mockConfigProvider struct {
-	webhookConfig *api.ActivitiesWebhookSettings
+	webhookConfig *activity.ActivitiesWebhookSettings
 	err           error
 }
 
-func (m *mockConfigProvider) GetActivitiesWebhookConfig(ctx context.Context) (*api.ActivitiesWebhookSettings, error) {
+func (m *mockConfigProvider) GetActivitiesWebhookConfig(ctx context.Context) (*activity.ActivitiesWebhookSettings, error) {
 	return m.webhookConfig, m.err
 }
 
@@ -131,7 +131,7 @@ func setupTest(opts ...func(*testSetup)) *testSetup {
 	for _, opt := range opts {
 		opt(ts)
 	}
-	ts.svc = NewService(ts.authz, ts.ds, ts.providers, ts.configProvider, nil, nil, log.NewNopLogger())
+	ts.svc = NewService(ts.authz, ts.ds, ts.providers, ts.configProvider, nil, nil, nil, log.NewNopLogger())
 	return ts
 }
 
@@ -503,7 +503,7 @@ func TestStreamActivities(t *testing.T) {
 	t.Parallel()
 
 	newStreamingService := func(ds *mockStreamingDatastore) *Service {
-		return NewService(&mockAuthorizer{}, ds, &mockDataProviders{mockUserProvider: &mockUserProvider{}, mockHostProvider: &mockHostProvider{}}, &mockConfigProvider{}, nil, nil, log.NewNopLogger())
+		return NewService(&mockAuthorizer{}, ds, &mockDataProviders{mockUserProvider: &mockUserProvider{}, mockHostProvider: &mockHostProvider{}}, &mockConfigProvider{}, nil, nil, nil, log.NewNopLogger())
 	}
 
 	t.Run("basic streaming", func(t *testing.T) {
