@@ -33,6 +33,7 @@ const ManageLabelsPage = ({ router }: IManageLabelsPageProps): JSX.Element => {
     isGlobalAdmin,
     isGlobalMaintainer,
     isAnyTeamMaintainerOrTeamAdmin,
+    isAnyTeamTechnician,
   } = useContext(AppContext);
   const { renderFlash } = useContext(NotificationContext);
   const [labelToDelete, setLabelToDelete] = useState<ILabel | null>(null);
@@ -89,7 +90,10 @@ const ManageLabelsPage = ({ router }: IManageLabelsPageProps): JSX.Element => {
   );
 
   const canAddLabel =
-    isGlobalAdmin || isGlobalMaintainer || isAnyTeamMaintainerOrTeamAdmin;
+    isGlobalAdmin ||
+    isGlobalMaintainer ||
+    isAnyTeamMaintainerOrTeamAdmin ||
+    isAnyTeamTechnician;
 
   const renderTable = useCallback(() => {
     if (isLoading || !currentUser || !labels) {

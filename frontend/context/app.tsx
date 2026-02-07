@@ -164,6 +164,9 @@ type InitialStateType = {
   isTeamMaintainerOrTeamAdmin?: boolean;
   isAnyTeamAdmin?: boolean;
   isTeamAdmin?: boolean;
+  isTeamTechnician?: boolean;
+  isAnyTeamTechnician?: boolean;
+  isGlobalTechnician?: boolean;
   isOnlyObserver?: boolean;
   isObserverPlus?: boolean;
   isNoAccess?: boolean;
@@ -235,6 +238,9 @@ export const initialState = {
   isTeamMaintainerOrTeamAdmin: undefined,
   isAnyTeamAdmin: undefined,
   isTeamAdmin: undefined,
+  isTeamTechnician: undefined,
+  isAnyTeamTechnician: undefined,
+  isGlobalTechnician: undefined,
   isOnlyObserver: undefined,
   isObserverPlus: undefined,
   isNoAccess: undefined,
@@ -304,6 +310,7 @@ const setPermissions = (
     isGlobalAdmin: permissions.isGlobalAdmin(user),
     isGlobalMaintainer: permissions.isGlobalMaintainer(user),
     isGlobalObserver: permissions.isGlobalObserver(user),
+    isGlobalTechnician: permissions.isGlobalTechnician(user),
     isOnGlobalTeam: permissions.isOnGlobalTeam(user),
     isAnyTeamObserverPlus: permissions.isAnyTeamObserverPlus(user),
     isAnyTeamMaintainer: permissions.isAnyTeamMaintainer(user),
@@ -314,6 +321,8 @@ const setPermissions = (
     isTeamObserver: permissions.isTeamObserver(user, teamId),
     isTeamMaintainer: permissions.isTeamMaintainer(user, teamId),
     isTeamAdmin: permissions.isTeamAdmin(user, teamId),
+    isTeamTechnician: permissions.isTeamTechnician(user, teamId),
+    isAnyTeamTechnician: permissions.isAnyTeamTechnician(user),
     isTeamMaintainerOrTeamAdmin: permissions.isTeamMaintainerOrTeamAdmin(
       user,
       teamId
@@ -519,6 +528,9 @@ const AppProvider = ({ children }: Props): JSX.Element => {
       isTeamObserver: state.isTeamObserver,
       isTeamMaintainer: state.isTeamMaintainer,
       isTeamAdmin: state.isTeamAdmin,
+      isTeamTechnician: state.isTeamTechnician,
+      isAnyTeamTechnician: state.isAnyTeamTechnician,
+      isGlobalTechnician: state.isGlobalTechnician,
       isTeamMaintainerOrTeamAdmin: state.isTeamMaintainerOrTeamAdmin,
       isAnyTeamAdmin: state.isAnyTeamAdmin,
       isOnlyObserver: state.isOnlyObserver,
@@ -637,6 +649,9 @@ const AppProvider = ({ children }: Props): JSX.Element => {
       state.isPremiumTier,
       state.isSandboxMode,
       state.isTeamAdmin,
+      state.isTeamTechnician,
+      state.isAnyTeamTechnician,
+      state.isGlobalTechnician,
       state.isTeamMaintainer,
       state.isTeamMaintainerOrTeamAdmin,
       state.isTeamObserver,

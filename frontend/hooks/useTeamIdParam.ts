@@ -473,6 +473,9 @@ export const useTeamIdParam = ({
     isTeamMaintainer:
       !!currentTeam?.id &&
       permissions.isTeamMaintainer(currentUser, currentTeam.id),
+    isTeamTechnician:
+      !!currentTeam?.id &&
+      permissions.isTeamTechnician(currentUser, currentTeam.id),
     isTeamMaintainerOrTeamAdmin:
       !!currentTeam?.id &&
       permissions.isTeamMaintainerOrTeamAdmin(currentUser, currentTeam.id),

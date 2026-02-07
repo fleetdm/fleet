@@ -92,6 +92,7 @@ const ManageControlsPage = ({
     isPremiumTier,
     isGlobalAdmin,
     isTeamAdmin,
+    isTeamTechnician,
   } = useContext(AppContext);
 
   const {
@@ -109,19 +110,23 @@ const ManageControlsPage = ({
       maintainer: true,
       observer: false,
       observer_plus: false,
-      technician: false,
+      technician: true,
     },
   });
 
   const permittedControlsSubNav = useMemo(() => {
     let renderedSubNav = controlsSubNav;
-    if (!isGlobalAdmin && !isTeamAdmin) {
+    if (isTeamTechnician) {
+      renderedSubNav = controlsSubNav.filter((navItem) => {
+        return navItem.name === "OS settings" || navItem.name === "Scripts";
+      });
+    } else if (!isGlobalAdmin && !isTeamAdmin) {
       renderedSubNav = controlsSubNav.filter((navItem) => {
         return navItem.name !== "OS updates";
       });
     }
     return renderedSubNav;
-  }, [isGlobalAdmin, isTeamAdmin]);
+  }, [isGlobalAdmin, isTeamAdmin, isTeamTechnician]);
 
   const navigateToNav = useCallback(
     (i: number): void => {
