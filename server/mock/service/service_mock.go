@@ -385,6 +385,8 @@ type ModifyTeamEnrollSecretsFunc func(ctx context.Context, teamID uint, secrets 
 
 type ApplyTeamSpecsFunc func(ctx context.Context, specs []*fleet.TeamSpec, applyOpts fleet.ApplyTeamSpecOptions) (map[string]uint, error)
 
+type SetActivityServiceFunc func(activitySvc any)
+
 type NewActivityFunc func(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails) error
 
 type ListHostUpcomingActivitiesFunc func(ctx context.Context, hostID uint, opt fleet.ListOptions) ([]*fleet.UpcomingActivity, *fleet.PaginationMetadata, error)
@@ -876,8 +878,6 @@ type BatchApplyCertificateAuthoritiesFunc func(ctx context.Context, groupedCAs f
 type GetGroupedCertificateAuthoritiesFunc func(ctx context.Context, includeSecrets bool) (*fleet.GroupedCertificateAuthorities, error)
 
 type UnenrollMDMFunc func(ctx context.Context, hostID uint) error
-
-type SetActivityServiceFunc func(activitySvc any)
 
 type Service struct {
 	EnrollOsqueryFunc        EnrollOsqueryFunc
@@ -1428,6 +1428,9 @@ type Service struct {
 
 	ApplyTeamSpecsFunc        ApplyTeamSpecsFunc
 	ApplyTeamSpecsFuncInvoked bool
+
+	SetActivityServiceFunc        SetActivityServiceFunc
+	SetActivityServiceFuncInvoked bool
 
 	NewActivityFunc        NewActivityFunc
 	NewActivityFuncInvoked bool
@@ -2166,9 +2169,6 @@ type Service struct {
 
 	UnenrollMDMFunc        UnenrollMDMFunc
 	UnenrollMDMFuncInvoked bool
-
-	SetActivityServiceFunc        SetActivityServiceFunc
-	SetActivityServiceFuncInvoked bool
 
 	mu sync.Mutex
 }
@@ -3452,6 +3452,13 @@ func (s *Service) ApplyTeamSpecs(ctx context.Context, specs []*fleet.TeamSpec, a
 	s.ApplyTeamSpecsFuncInvoked = true
 	s.mu.Unlock()
 	return s.ApplyTeamSpecsFunc(ctx, specs, applyOpts)
+}
+
+func (s *Service) SetActivityService(activitySvc any) {
+	s.mu.Lock()
+	s.SetActivityServiceFuncInvoked = true
+	s.mu.Unlock()
+	s.SetActivityServiceFunc(activitySvc)
 }
 
 func (s *Service) NewActivity(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails) error {
@@ -5174,13 +5181,4 @@ func (s *Service) UnenrollMDM(ctx context.Context, hostID uint) error {
 	s.UnenrollMDMFuncInvoked = true
 	s.mu.Unlock()
 	return s.UnenrollMDMFunc(ctx, hostID)
-}
-
-func (s *Service) SetActivityService(activitySvc any) {
-	s.mu.Lock()
-	s.SetActivityServiceFuncInvoked = true
-	s.mu.Unlock()
-	if s.SetActivityServiceFunc != nil {
-		s.SetActivityServiceFunc(activitySvc)
-	}
 }
