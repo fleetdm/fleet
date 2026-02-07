@@ -63,6 +63,7 @@ linters:
       exclude-functions:
         # Logging
         - "(github.com/go-kit/log.Logger).Log"
+        - "(*github.com/fleetdm/fleet/v4/server/platform/logging.Logger).Log"
         # fmt package
         - fmt.Fprint
         - fmt.Fprintf
