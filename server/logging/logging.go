@@ -99,6 +99,7 @@ type Config struct {
 	PubSub     PubSubConfig
 	KafkaREST  KafkaRESTConfig
 	Nats       NatsConfig
+	ClickHouse ClickHouseConfig
 }
 
 func NewJSONLogger(name string, config Config, logger log.Logger) (fleet.JSONLogger, error) {
@@ -218,6 +219,34 @@ func NewJSONLogger(name string, config Config, logger log.Logger) (fleet.JSONLog
 		)
 		if err != nil {
 			return nil, fmt.Errorf("create nats %s logger: %w", name, err)
+		}
+		return fleet.JSONLogger(writer), nil
+	case "clickhouse":
+		writer, err := NewClickHouseLogWriter(
+			config.ClickHouse.Address,
+			config.ClickHouse.Database,
+			config.ClickHouse.Username,
+			config.ClickHouse.Password,
+			config.ClickHouse.TableName,
+			config.ClickHouse.StatusTableName,
+			config.ClickHouse.ResultTableName,
+			config.ClickHouse.AuditTableName,
+			config.ClickHouse.Compression,
+			config.ClickHouse.TLSEnabled,
+			config.ClickHouse.TLSSkipVerify,
+			config.ClickHouse.TLSCAFile,
+			config.ClickHouse.TLSClientCertFile,
+			config.ClickHouse.TLSClientKeyFile,
+			config.ClickHouse.BatchSize,
+			config.ClickHouse.FlushInterval,
+			config.ClickHouse.MaxQueueSize,
+			config.ClickHouse.MaxRetries,
+			config.ClickHouse.RetryBackoff,
+			name,
+			logger,
+		)
+		if err != nil {
+			return nil, fmt.Errorf("create clickhouse %s logger: %w", name, err)
 		}
 		return fleet.JSONLogger(writer), nil
 	default:
