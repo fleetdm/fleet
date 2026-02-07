@@ -289,17 +289,15 @@ func GetIssuesCreatedSinceWithLabel(sinceDate string, labelName string, verbose 
 	}
 
 	// Fetch issues with manual pagination, stopping when we hit issues created before the target date
-	// We use updated_at filter (since param) to reduce results, then filter by created_at
+	// Don't use 'since' param - it filters by updated_at, not created_at
 	var allIssues []Issue
 	page := 1
 	perPage := 100
 	sinceTimestamp := sinceDate + "T00:00:00Z"
+	foundOldIssue := false
 
 	for {
-		command := fmt.Sprintf("gh api repos/fleetdm/fleet/issues -X GET -f since=%s -f state=all -f per_page=%d -f page=%d -f sort=created -f direction=desc", sinceTimestamp, perPage, page)
-		if verbose {
-			fmt.Fprintf(os.Stderr, "Running command: %s\n", command)
-		}
+		command := fmt.Sprintf("gh api repos/fleetdm/fleet/issues -X GET -f state=all -f per_page=%d -f page=%d -f sort=created -f direction=desc", perPage, page)
 		results, err := RunCommandAndReturnOutput(command)
 		if err != nil {
 			return nil, err
@@ -311,57 +309,57 @@ func GetIssuesCreatedSinceWithLabel(sinceDate string, labelName string, verbose 
 			return nil, err
 		}
 
+		// Print progress for this page
+		fmt.Fprint(os.Stderr, ".")
+
 		// Process this batch
-		batchCount := 0
 		for _, apiIssue := range apiIssues {
 			// Skip pull requests
 			if apiIssue.PullRequest != nil {
 				continue
 			}
 
-			// Filter by creation date - stop if we've gone past our target date
-			if apiIssue.CreatedAt < sinceTimestamp {
-				// Since we're sorted by created desc, all subsequent issues will also be too old
-				break
+			// Filter by creation date - only include issues after our cutoff
+			if apiIssue.CreatedAt >= sinceTimestamp {
+				issue := Issue{
+					Number:    apiIssue.Number,
+					Title:     apiIssue.Title,
+					State:     apiIssue.State,
+					CreatedAt: apiIssue.CreatedAt,
+					UpdatedAt: apiIssue.UpdatedAt,
+					Body:      apiIssue.Body,
+					Author:    Author{Login: apiIssue.User.Login},
+				}
+				for _, label := range apiIssue.Labels {
+					issue.Labels = append(issue.Labels, Label{Name: label.Name})
+				}
+				allIssues = append(allIssues, issue)
+			} else {
+				// Found an issue before our cutoff
+				// Since we're sorted by created desc, subsequent issues in this page and all later pages will also be too old
+				foundOldIssue = true
 			}
-
-			issue := Issue{
-				Number:    apiIssue.Number,
-				Title:     apiIssue.Title,
-				State:     apiIssue.State,
-				CreatedAt: apiIssue.CreatedAt,
-				UpdatedAt: apiIssue.UpdatedAt,
-				Body:      apiIssue.Body,
-				Author:    Author{Login: apiIssue.User.Login},
-			}
-			for _, label := range apiIssue.Labels {
-				issue.Labels = append(issue.Labels, Label{Name: label.Name})
-			}
-			allIssues = append(allIssues, issue)
-			batchCount++
 		}
 
 		// Stop conditions:
 		// 1. We got fewer than perPage results (no more pages)
-		// 2. All issues in this batch were too old
-		// 3. The last issue was too old (we hit the break condition above)
-		if len(apiIssues) < perPage {
-			break
-		}
-		if batchCount == 0 && len(apiIssues) > 0 {
-			// All issues in this batch were too old
+		// 2. We found at least one issue that's too old (and we're sorted by created desc)
+		if len(apiIssues) < perPage || foundOldIssue {
 			break
 		}
 
 		page++
 	}
 
+	// Newline after page dots
+	fmt.Fprintln(os.Stderr, "")
+
 	issues := allIssues
 
 	if verbose {
 		fmt.Fprintf(os.Stderr, "Found %d issues created since %s. Evaluating each for label '%s'...\n\n", len(issues), sinceDate, labelName)
 	} else {
-		fmt.Fprintf(os.Stderr, "Evaluating %d issues for label '%s'...", len(issues), labelName)
+		fmt.Fprintf(os.Stderr, "Fetched %d issues. Evaluating for label '%s'...", len(issues), labelName)
 	}
 
 	// Use a semaphore to limit concurrent goroutines
