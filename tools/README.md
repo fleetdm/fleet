@@ -242,6 +242,7 @@ go run ./tools/run-scripts -scripts-disabled -content 'echo "Test"'
 | `percona/` | Percona testing | Percona MySQL testing configs - See [percona/test/README.md](percona/test/README.md) |
 | `sentry-self-hosted/` | Self-hosted Sentry | See [sentry-self-hosted/README.md](sentry-self-hosted/README.md) |
 | `smtp4dev/` | Local SMTP testing | SMTP4Dev server with TLS certs for email testing |
+| `signoz/` | SigNoz for traces, metrics, and logs | See [signoz/README.md](signoz/README.md) |
 | `telemetry/` | Jaeger + Prometheus for tracing | `docker compose up` - See [telemetry/README.md](telemetry/README.md) |
 | `terraform/` | Terraform provider for Fleet teams | `make install && make apply` - See [terraform/README.md](terraform/README.md) |
 | **MDM Tools** | | |

@@ -229,6 +229,8 @@ By default, OpenTelemetry is used. Set `tracing_type` to `elasticapm` only if yo
 
 Enables exporting logs to an OpenTelemetry collector in addition to stderr output. When enabled, logs are sent to the OTLP endpoint configured via the standard `OTEL_EXPORTER_OTLP_ENDPOINT` environment variable. Logs are automatically correlated with traces via `trace_id` and `span_id` attributes.
 
+> **Note:** All log levels, including debug, are always sent to the OpenTelemetry collector regardless of the `logging.debug` setting. The `logging.debug` flag only controls what appears in stderr output.
+
 > **Note:** This option requires `logging.tracing_enabled` to be set to `true`. Fleet will fail to start if `otel_logs_enabled` is `true` but `tracing_enabled` is `false`.
 
 - Default value: `false`
