@@ -5,6 +5,11 @@ package ghapi
 import (
 	"encoding/json"
 	"fmt"
+	"os"
+	"strings"
+	"sync"
+
+	"fleetdm/gm/pkg/logger"
 )
 
 // ParseJSONtoIssues converts JSON data to a slice of Issue structs.
@@ -206,4 +211,215 @@ func SetIssueStatus(issueNumber int, projectID int, status string) error {
 	}
 
 	return nil
+}
+
+// IssueEvent represents a single event in an issue's timeline.
+type IssueEvent struct {
+	Event     string `json:"event"`
+	Label     Label  `json:"label,omitempty"`
+	CreatedAt string `json:"created_at"`
+}
+
+// GetIssueTimeline fetches the timeline/events for a specific issue.
+func GetIssueTimeline(issueNumber int, verbose bool) ([]IssueEvent, error) {
+	command := fmt.Sprintf("gh api repos/fleetdm/fleet/issues/%d/timeline --paginate", issueNumber)
+	if verbose {
+		fmt.Fprintf(os.Stderr, "  [Timeline #%d] %s\n", issueNumber, command)
+	}
+	results, err := RunCommandAndReturnOutput(command)
+	if err != nil {
+		return nil, err
+	}
+
+	var events []IssueEvent
+	err = json.Unmarshal(results, &events)
+	if err != nil {
+		return nil, err
+	}
+	return events, nil
+}
+
+// IssueHadLabel checks if an issue ever had a specific label (even if removed).
+func IssueHadLabel(issueNumber int, labelName string, verbose bool) (bool, error) {
+	events, err := GetIssueTimeline(issueNumber, verbose)
+	if err != nil {
+		return false, err
+	}
+
+	for _, event := range events {
+		if event.Event == "labeled" && strings.EqualFold(event.Label.Name, labelName) {
+			return true, nil
+		}
+	}
+	return false, nil
+}
+
+// APIIssue represents the JSON structure returned by the GitHub REST API.
+type APIIssue struct {
+	Number      int              `json:"number"`
+	Title       string           `json:"title"`
+	State       string           `json:"state"`
+	CreatedAt   string           `json:"created_at"`
+	UpdatedAt   string           `json:"updated_at"`
+	Body        string           `json:"body"`
+	User        APIUser          `json:"user"`
+	Labels      []APILabel       `json:"labels"`
+	PullRequest *PullRequestInfo `json:"pull_request,omitempty"` // If present, this is a PR not an issue
+}
+
+// PullRequestInfo is used to detect if an item is a PR (issues don't have this field).
+type PullRequestInfo struct {
+	URL string `json:"url"`
+}
+
+// APIUser represents the author in the GitHub REST API response.
+type APIUser struct {
+	Login string `json:"login"`
+}
+
+// APILabel represents a label in the GitHub REST API response.
+type APILabel struct {
+	Name string `json:"name"`
+}
+
+// GetIssuesCreatedSinceWithLabel finds issues created since a given date that had a specific label at any point.
+func GetIssuesCreatedSinceWithLabel(sinceDate string, labelName string, verbose bool, concurrency int) ([]Issue, error) {
+	if verbose {
+		fmt.Fprintf(os.Stderr, "Fetching issues created since %s...\n", sinceDate)
+	}
+
+	// Fetch issues with manual pagination, stopping when we hit issues created before the target date
+	// We use updated_at filter (since param) to reduce results, then filter by created_at
+	var allIssues []Issue
+	page := 1
+	perPage := 100
+	sinceTimestamp := sinceDate + "T00:00:00Z"
+
+	for {
+		command := fmt.Sprintf("gh api repos/fleetdm/fleet/issues -X GET -f since=%s -f state=all -f per_page=%d -f page=%d -f sort=created -f direction=desc", sinceTimestamp, perPage, page)
+		if verbose {
+			fmt.Fprintf(os.Stderr, "Running command: %s\n", command)
+		}
+		results, err := RunCommandAndReturnOutput(command)
+		if err != nil {
+			return nil, err
+		}
+
+		var apiIssues []APIIssue
+		err = json.Unmarshal(results, &apiIssues)
+		if err != nil {
+			return nil, err
+		}
+
+		// Process this batch
+		batchCount := 0
+		for _, apiIssue := range apiIssues {
+			// Skip pull requests
+			if apiIssue.PullRequest != nil {
+				continue
+			}
+
+			// Filter by creation date - stop if we've gone past our target date
+			if apiIssue.CreatedAt < sinceTimestamp {
+				// Since we're sorted by created desc, all subsequent issues will also be too old
+				break
+			}
+
+			issue := Issue{
+				Number:    apiIssue.Number,
+				Title:     apiIssue.Title,
+				State:     apiIssue.State,
+				CreatedAt: apiIssue.CreatedAt,
+				UpdatedAt: apiIssue.UpdatedAt,
+				Body:      apiIssue.Body,
+				Author:    Author{Login: apiIssue.User.Login},
+			}
+			for _, label := range apiIssue.Labels {
+				issue.Labels = append(issue.Labels, Label{Name: label.Name})
+			}
+			allIssues = append(allIssues, issue)
+			batchCount++
+		}
+
+		// Stop conditions:
+		// 1. We got fewer than perPage results (no more pages)
+		// 2. All issues in this batch were too old
+		// 3. The last issue was too old (we hit the break condition above)
+		if len(apiIssues) < perPage {
+			break
+		}
+		if batchCount == 0 && len(apiIssues) > 0 {
+			// All issues in this batch were too old
+			break
+		}
+
+		page++
+	}
+
+	issues := allIssues
+
+	if verbose {
+		fmt.Fprintf(os.Stderr, "Found %d issues created since %s. Evaluating each for label '%s'...\n\n", len(issues), sinceDate, labelName)
+	} else {
+		fmt.Fprintf(os.Stderr, "Evaluating %d issues for label '%s'...", len(issues), labelName)
+	}
+
+	// Use a semaphore to limit concurrent goroutines
+	semaphore := make(chan struct{}, concurrency)
+	var wg sync.WaitGroup
+	var mu sync.Mutex
+	var filteredIssues []Issue
+
+	for i, issue := range issues {
+		wg.Add(1)
+		go func(idx int, iss Issue) {
+			defer wg.Done()
+
+			// Acquire semaphore
+			semaphore <- struct{}{}
+			defer func() { <-semaphore }()
+
+			if verbose {
+				mu.Lock()
+				fmt.Fprintf(os.Stderr, "[%d/%d] Checking issue #%d: %s...", idx+1, len(issues), iss.Number, iss.Title)
+				mu.Unlock()
+			}
+
+			hadLabel, err := IssueHadLabel(iss.Number, labelName, verbose)
+			if err != nil {
+				if verbose {
+					mu.Lock()
+					fmt.Fprintf(os.Stderr, " ERROR\n")
+					mu.Unlock()
+				}
+				logger.Errorf("Error checking timeline for issue #%d: %v", iss.Number, err)
+				return
+			}
+
+			mu.Lock()
+			if hadLabel {
+				if verbose {
+					fmt.Fprintf(os.Stderr, " MATCH\n")
+				}
+				filteredIssues = append(filteredIssues, iss)
+			} else if verbose {
+				fmt.Fprintf(os.Stderr, " no label\n")
+			}
+			// Print progress dot in non-verbose mode
+			if !verbose {
+				fmt.Fprint(os.Stderr, ".")
+			}
+			mu.Unlock()
+		}(i, issue)
+	}
+
+	wg.Wait()
+
+	if verbose {
+		fmt.Fprintf(os.Stderr, "\nCompleted evaluation. %d of %d issues had label '%s' at some point.\n\n", len(filteredIssues), len(issues), labelName)
+	} else {
+		fmt.Fprintf(os.Stderr, " done\n")
+	}
+
+	return filteredIssues, nil
 }
