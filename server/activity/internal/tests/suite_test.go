@@ -30,14 +30,15 @@ func setupIntegrationTest(t *testing.T) *integrationTestSuite {
 	t.Helper()
 
 	tdb := testutils.SetupTestDB(t, "activity_integration")
-	ds := mysql.NewDatastore(tdb.Conns(), tdb.Logger)
+	ds := mysql.NewDatastore(tdb.Conns(), tdb.Logger, &mockUpcomingActivator{})
 
 	// Create mocks
 	authorizer := &mockAuthorizer{}
 	providers := newMockDataProviders()
+	configProvider := &mockConfigProvider{}
 
 	// Create service
-	svc := service.NewService(authorizer, ds, providers, tdb.Logger)
+	svc := service.NewService(authorizer, ds, providers, configProvider, nil, nil, tdb.Logger)
 
 	// Create router with routes
 	router := mux.NewRouter()

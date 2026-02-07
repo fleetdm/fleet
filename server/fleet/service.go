@@ -631,6 +631,10 @@ type Service interface {
 	// /////////////////////////////////////////////////////////////////////////////
 	// ActivitiesService
 
+	// SetActivityService sets the activity bounded context service for creating activities.
+	// This should be called after service creation to inject the activity service dependency.
+	SetActivityService(activitySvc any)
+
 	// NewActivity creates the given activity on the datastore.
 	//
 	// What we call "Activities" are administrative operations,

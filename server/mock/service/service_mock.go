@@ -877,6 +877,8 @@ type GetGroupedCertificateAuthoritiesFunc func(ctx context.Context, includeSecre
 
 type UnenrollMDMFunc func(ctx context.Context, hostID uint) error
 
+type SetActivityServiceFunc func(activitySvc any)
+
 type Service struct {
 	EnrollOsqueryFunc        EnrollOsqueryFunc
 	EnrollOsqueryFuncInvoked bool
@@ -2164,6 +2166,9 @@ type Service struct {
 
 	UnenrollMDMFunc        UnenrollMDMFunc
 	UnenrollMDMFuncInvoked bool
+
+	SetActivityServiceFunc        SetActivityServiceFunc
+	SetActivityServiceFuncInvoked bool
 
 	mu sync.Mutex
 }
@@ -5169,4 +5174,13 @@ func (s *Service) UnenrollMDM(ctx context.Context, hostID uint) error {
 	s.UnenrollMDMFuncInvoked = true
 	s.mu.Unlock()
 	return s.UnenrollMDMFunc(ctx, hostID)
+}
+
+func (s *Service) SetActivityService(activitySvc any) {
+	s.mu.Lock()
+	s.SetActivityServiceFuncInvoked = true
+	s.mu.Unlock()
+	if s.SetActivityServiceFunc != nil {
+		s.SetActivityServiceFunc(activitySvc)
+	}
 }

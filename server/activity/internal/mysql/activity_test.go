@@ -1,6 +1,7 @@
 package mysql
 
 import (
+	"context"
 	"fmt"
 	"testing"
 	"time"
@@ -19,9 +20,16 @@ type testEnv struct {
 	ds *Datastore
 }
 
+// mockUpcomingActivator is a no-op implementation for testing.
+type mockUpcomingActivator struct{}
+
+func (m *mockUpcomingActivator) ActivateNextUpcomingActivity(ctx context.Context, hostID uint, fromCompletedExecID string) error {
+	return nil
+}
+
 func TestListActivities(t *testing.T) {
 	tdb := testutils.SetupTestDB(t, "activity_mysql")
-	ds := NewDatastore(tdb.Conns(), tdb.Logger)
+	ds := NewDatastore(tdb.Conns(), tdb.Logger, &mockUpcomingActivator{})
 	env := &testEnv{TestDB: tdb, ds: ds}
 
 	cases := []struct {

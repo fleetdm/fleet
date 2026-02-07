@@ -6,6 +6,7 @@ import (
 	"errors"
 	"strconv"
 	"testing"
+	"time"
 
 	"github.com/fleetdm/fleet/v4/server/activity"
 	"github.com/fleetdm/fleet/v4/server/activity/api"
@@ -58,6 +59,10 @@ func (m *mockDatastore) MarkActivitiesAsStreamed(ctx context.Context, activityID
 	return nil
 }
 
+func (m *mockDatastore) NewActivity(ctx context.Context, user *api.User, activity api.ActivityDetails, details []byte, createdAt time.Time) error {
+	return nil
+}
+
 type mockUserProvider struct {
 	users         []*activity.User
 	listUsersErr  error
@@ -92,12 +97,23 @@ type mockDataProviders struct {
 	*mockHostProvider
 }
 
+// mockConfigProvider implements api.AppConfigProvider for testing.
+type mockConfigProvider struct {
+	webhookConfig *api.ActivitiesWebhookSettings
+	err           error
+}
+
+func (m *mockConfigProvider) GetActivitiesWebhookConfig(ctx context.Context) (*api.ActivitiesWebhookSettings, error) {
+	return m.webhookConfig, m.err
+}
+
 // testSetup holds test dependencies with pre-configured mocks
 type testSetup struct {
-	svc       *Service
-	authz     *mockAuthorizer
-	ds        *mockDatastore
-	providers *mockDataProviders
+	svc            *Service
+	authz          *mockAuthorizer
+	ds             *mockDatastore
+	providers      *mockDataProviders
+	configProvider *mockConfigProvider
 }
 
 // setupTest creates a service with default working mocks.
@@ -110,11 +126,12 @@ func setupTest(opts ...func(*testSetup)) *testSetup {
 			mockUserProvider: &mockUserProvider{},
 			mockHostProvider: &mockHostProvider{},
 		},
+		configProvider: &mockConfigProvider{},
 	}
 	for _, opt := range opts {
 		opt(ts)
 	}
-	ts.svc = NewService(ts.authz, ts.ds, ts.providers, log.NewNopLogger())
+	ts.svc = NewService(ts.authz, ts.ds, ts.providers, ts.configProvider, nil, nil, log.NewNopLogger())
 	return ts
 }
 
@@ -467,6 +484,10 @@ func (m *mockStreamingDatastore) MarkActivitiesAsStreamed(ctx context.Context, a
 	return nil
 }
 
+func (m *mockStreamingDatastore) NewActivity(ctx context.Context, user *api.User, activity api.ActivityDetails, details []byte, createdAt time.Time) error {
+	panic("not implemented")
+}
+
 func newTestActivity(id uint, actorName string, actorID uint, actType, details string) *api.Activity {
 	jsonDetails := json.RawMessage(details)
 	return &api.Activity{
@@ -482,7 +503,7 @@ func TestStreamActivities(t *testing.T) {
 	t.Parallel()
 
 	newStreamingService := func(ds *mockStreamingDatastore) *Service {
-		return NewService(&mockAuthorizer{}, ds, &mockDataProviders{mockUserProvider: &mockUserProvider{}, mockHostProvider: &mockHostProvider{}}, log.NewNopLogger())
+		return NewService(&mockAuthorizer{}, ds, &mockDataProviders{mockUserProvider: &mockUserProvider{}, mockHostProvider: &mockHostProvider{}}, &mockConfigProvider{}, nil, nil, log.NewNopLogger())
 	}
 
 	t.Run("basic streaming", func(t *testing.T) {

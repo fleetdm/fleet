@@ -23,14 +23,15 @@ var tracer = otel.Tracer("github.com/fleetdm/fleet/v4/server/activity/internal/m
 
 // Datastore is the MySQL implementation of the activity datastore.
 type Datastore struct {
-	primary *sqlx.DB
-	replica *sqlx.DB
-	logger  kitlog.Logger
+	primary           *sqlx.DB
+	replica           *sqlx.DB
+	logger            kitlog.Logger
+	upcomingActivator api.UpcomingActivityActivator
 }
 
 // NewDatastore creates a new MySQL datastore for activities.
-func NewDatastore(conns *platform_mysql.DBConnections, logger kitlog.Logger) *Datastore {
-	return &Datastore{primary: conns.Primary, replica: conns.Replica, logger: logger}
+func NewDatastore(conns *platform_mysql.DBConnections, logger kitlog.Logger, upcomingActivator api.UpcomingActivityActivator) *Datastore {
+	return &Datastore{primary: conns.Primary, replica: conns.Replica, logger: logger, upcomingActivator: upcomingActivator}
 }
 
 func (ds *Datastore) reader(ctx context.Context) *sqlx.DB {

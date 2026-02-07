@@ -1015,10 +1015,10 @@ func NewTestActivityService(t testing.TB, ds *Datastore) activity_api.Service {
 
 	// Use the real ACL adapter with a testing lookup service
 	lookupSvc := &testingLookupService{ds: ds}
-	providers := activityacl.NewFleetServiceAdapter(lookupSvc)
+	aclAdapter := activityacl.NewFleetServiceAdapter(lookupSvc, ds)
 
 	// Create service via bootstrap (the public API for creating the bounded context)
-	svc, _ := activity_bootstrap.New(dbConns, &testingAuthorizer{}, providers, log.NewNopLogger())
+	svc, _ := activity_bootstrap.New(dbConns, &testingAuthorizer{}, aclAdapter, aclAdapter, aclAdapter, aclAdapter, aclAdapter, log.NewNopLogger())
 	return svc
 }
 

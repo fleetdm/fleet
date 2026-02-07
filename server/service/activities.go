@@ -10,6 +10,7 @@ import (
 
 	"github.com/cenkalti/backoff/v4"
 	"github.com/fleetdm/fleet/v4/server"
+	activity_api "github.com/fleetdm/fleet/v4/server/activity/api"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	kithttp "github.com/go-kit/kit/transport/http"
 	kitlog "github.com/go-kit/log"
@@ -33,6 +34,18 @@ type listActivitiesResponse struct {
 func (r listActivitiesResponse) Error() error { return r.Err }
 
 func (svc *Service) NewActivity(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails) error {
+	if svc.activitySvc != nil {
+		var apiUser *activity_api.User
+		if user != nil {
+			apiUser = &activity_api.User{
+				ID:      user.ID,
+				Name:    user.Name,
+				Email:   user.Email,
+				Deleted: user.Deleted,
+			}
+		}
+		return svc.activitySvc.NewActivity(ctx, apiUser, activity)
+	}
 	return newActivity(ctx, user, activity, svc.ds, svc.logger)
 }
 
