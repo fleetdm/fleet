@@ -3042,18 +3042,22 @@ func (s *integrationTestSuite) TestTeamPoliciesProprietary() {
 	tpCountResp := countTeamPoliciesResponse{}
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/teams/%d/policies/count", team1.ID), nil, http.StatusOK, &tpCountResp)
 	assert.Equal(t, 1, tpCountResp.Count)
+	assert.Equal(t, 0, tpCountResp.InheritedPolicyCount)
 
 	tpCountResp = countTeamPoliciesResponse{}
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/teams/%d/policies/count", team1.ID), nil, http.StatusOK, &tpCountResp, "query", tpNameNew)
 	assert.Equal(t, 1, tpCountResp.Count)
+	assert.Equal(t, 0, tpCountResp.InheritedPolicyCount)
 
 	tpCountResp = countTeamPoliciesResponse{}
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/teams/%d/policies/count", team1.ID), nil, http.StatusOK, &tpCountResp, "query", " "+tpNameNew+" ")
 	assert.Equal(t, 1, tpCountResp.Count)
+	assert.Equal(t, 0, tpCountResp.InheritedPolicyCount)
 
 	tpCountResp = countTeamPoliciesResponse{}
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/teams/%d/policies/count", team1.ID), nil, http.StatusOK, &tpCountResp, "query", " nomatch")
 	assert.Equal(t, 0, tpCountResp.Count)
+	assert.Equal(t, 0, tpCountResp.InheritedPolicyCount)
 
 	listHostsURL := fmt.Sprintf("/api/latest/fleet/hosts?policy_id=%d", policiesResponse.Policies[0].ID)
 	listHostsResp := listHostsResponse{}
