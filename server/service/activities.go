@@ -46,19 +46,16 @@ func (svc *Service) ActivateNextUpcomingActivityForHost(ctx context.Context, hos
 }
 
 func (svc *Service) NewActivity(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails) error {
-	if svc.activitySvc != nil {
-		var apiUser *activity_api.User
-		if user != nil {
-			apiUser = &activity_api.User{
-				ID:      user.ID,
-				Name:    user.Name,
-				Email:   user.Email,
-				Deleted: user.Deleted,
-			}
+	var apiUser *activity_api.User
+	if user != nil {
+		apiUser = &activity_api.User{
+			ID:      user.ID,
+			Name:    user.Name,
+			Email:   user.Email,
+			Deleted: user.Deleted,
 		}
-		return svc.activitySvc.NewActivity(ctx, apiUser, activity)
 	}
-	return newActivity(ctx, user, activity, svc.ds, svc.logger)
+	return svc.activitySvc.NewActivity(ctx, apiUser, activity)
 }
 
 func newActivity(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails, ds fleet.Datastore, logger kitlog.Logger) error {
