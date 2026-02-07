@@ -15,9 +15,9 @@ import FileSaver from "file-saver";
 
 import scriptsAPI, {
   IScriptBatchSummaryQueryKey,
-  IScriptBatchSummaryV1,
-  ScriptBatchHostCountV1,
+  IScriptBatchSummary,
 } from "services/entities/scripts";
+import { ScriptBatchHostStatus } from "interfaces/script";
 import enrollSecretsAPI from "services/entities/enroll_secret";
 import usersAPI from "services/entities/users";
 import labelsAPI, { ILabelsResponse } from "services/entities/labels";
@@ -309,7 +309,7 @@ const ManageHostsPage = ({
     queryParams?.[HOSTS_QUERY_PARAMS.SCRIPT_BATCH_EXECUTION_ID];
   /** This actually represents HOST statuses, not the status of a batch script execution overall.
    * Consider renaming this to `scriptBatchHostStatus` */
-  const scriptBatchExecutionStatus: ScriptBatchHostCountV1 =
+  const scriptBatchExecutionStatus: ScriptBatchHostStatus =
     queryParams?.[HOSTS_QUERY_PARAMS.SCRIPT_BATCH_EXECUTION_STATUS] ??
     (scriptBatchExecutionId ? "ran" : undefined);
 
@@ -475,9 +475,9 @@ const ManageHostsPage = ({
     isLoading: isLoadingScriptBatchSummary,
     isError: isErrorScriptBatchSummary,
   } = useQuery<
-    IScriptBatchSummaryV1,
+    IScriptBatchSummary,
     Error,
-    IScriptBatchSummaryV1,
+    IScriptBatchSummary,
     IScriptBatchSummaryQueryKey[]
   >(
     [
@@ -487,7 +487,7 @@ const ManageHostsPage = ({
       },
     ],
     ({ queryKey: [{ batch_execution_id }] }) =>
-      scriptsAPI.getRunScriptBatchSummaryV1({ batch_execution_id }),
+      scriptsAPI.getRunScriptBatchSummary({ batch_execution_id }),
     {
       enabled: !!scriptBatchExecutionId && isRouteOk,
       ...DEFAULT_USE_QUERY_OPTIONS,
@@ -925,7 +925,7 @@ const ManageHostsPage = ({
   };
 
   const handleChangeScriptBatchStatusFilter = (
-    newStatus: ScriptBatchHostCountV1
+    newStatus: ScriptBatchHostStatus
   ) => {
     router.replace(
       getNextLocationPath({
