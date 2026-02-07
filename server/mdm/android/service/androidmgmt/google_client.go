@@ -377,3 +377,18 @@ func (g *GoogleClient) EnterprisesPoliciesModifyPolicyApplications(ctx context.C
 	}
 	return ret.Policy, nil
 }
+
+func (g *GoogleClient) EnterprisesPoliciesRemovePolicyApplications(ctx context.Context, policyName string, packageNames []string) (*androidmanagement.Policy, error) {
+	req := androidmanagement.RemovePolicyApplicationsRequest{
+		PackageNames: packageNames,
+	}
+	ret, err := g.mgmt.Enterprises.Policies.RemovePolicyApplications(policyName, &req).Context(ctx).Do()
+	switch {
+	case googleapi.IsNotModified(err):
+		g.logger.Log("msg", "Android application policy not modified", "policy_name", policyName)
+		return nil, err
+	case err != nil:
+		return nil, ctxerr.Wrapf(ctx, err, "removing packages from application policy %s", policyName)
+	}
+	return ret.Policy, nil
+}

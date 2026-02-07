@@ -341,3 +341,21 @@ func (p *ProxyClient) EnterprisesPoliciesModifyPolicyApplications(ctx context.Co
 	}
 	return ret.Policy, nil
 }
+
+func (p *ProxyClient) EnterprisesPoliciesRemovePolicyApplications(ctx context.Context, policyName string, packageNames []string) (*androidmanagement.Policy, error) {
+	req := androidmanagement.RemovePolicyApplicationsRequest{
+		PackageNames: packageNames,
+	}
+
+	call := p.mgmt.Enterprises.Policies.RemovePolicyApplications(policyName, &req).Context(ctx)
+	call.Header().Set("Authorization", "Bearer "+p.fleetServerSecret)
+	ret, err := call.Do()
+	switch {
+	case googleapi.IsNotModified(err):
+		p.logger.Log("msg", "Android application policy not modified", "policy_name", policyName)
+		return nil, err
+	case err != nil:
+		return nil, ctxerr.Wrapf(ctx, err, "removing packages from application policy %s", policyName)
+	}
+	return ret.Policy, nil
+}

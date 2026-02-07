@@ -64,6 +64,8 @@ type Client interface {
 	EnterprisesApplications(ctx context.Context, enterpriseName, packageName string) (*androidmanagement.Application, error)
 
 	EnterprisesPoliciesModifyPolicyApplications(ctx context.Context, policyName string, appPolicies []*androidmanagement.ApplicationPolicy) (*androidmanagement.Policy, error)
+
+	EnterprisesPoliciesRemovePolicyApplications(ctx context.Context, policyName string, packageNames []string) (*androidmanagement.Policy, error)
 }
 
 type EnterprisesCreateRequest struct {
