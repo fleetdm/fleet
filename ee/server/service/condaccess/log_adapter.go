@@ -7,7 +7,7 @@ import (
 	"github.com/go-kit/log/level"
 )
 
-// kitlogAdapter adapts kitlog.Logger to saml logger.Interface
+// kitlogAdapter adapts to saml logger.Interface
 type kitlogAdapter struct {
 	logger *logging.Logger
 }

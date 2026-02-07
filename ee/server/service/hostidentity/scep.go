@@ -28,7 +28,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/platform/logging"
 	"github.com/fleetdm/fleet/v4/server/service/middleware/otel"
 	"github.com/go-kit/kit/log"
-	kitlog "github.com/go-kit/log"
 	"github.com/go-kit/log/level"
 	"github.com/smallstep/scep"
 )
@@ -141,7 +140,7 @@ func hasRenewalExtension(csr *x509.CertificateRequest) bool {
 }
 
 // renewalMiddleware handles certificate renewal with proof-of-possession
-func renewalMiddleware(ds fleet.Datastore, logger kitlog.Logger, next scepserver.CSRSignerContext) scepserver.CSRSignerContextFunc {
+func renewalMiddleware(ds fleet.Datastore, logger *logging.Logger, next scepserver.CSRSignerContext) scepserver.CSRSignerContextFunc {
 	return func(ctx context.Context, m *scep.CSRReqMessage) (*x509.Certificate, error) {
 		// Check if this is a renewal request
 		var renewalData types.RenewalData
