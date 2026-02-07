@@ -17,10 +17,9 @@ import (
 	"github.com/fleetdm/fleet/v4/server/datastore/redis/redistest"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	microsoft_mdm "github.com/fleetdm/fleet/v4/server/mdm/microsoft"
+	"github.com/fleetdm/fleet/v4/server/platform/logging"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/service/contract"
-	"github.com/go-kit/log"
-	"github.com/go-kit/log/level"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
@@ -43,8 +42,7 @@ func (s *integrationLoggerTestSuite) SetupSuite() {
 	s.withDS.SetupSuite("integrationLoggerTestSuite")
 
 	s.buf = new(bytes.Buffer)
-	logger := log.NewJSONLogger(s.buf)
-	logger = level.NewFilter(logger, level.AllowDebug())
+	logger := logging.NewJSONLogger(s.buf)
 	redisPool := redistest.SetupRedis(s.T(), "zz", false, false, false)
 
 	users, server := RunServerForTestsWithDS(s.T(), s.ds, &TestServerOpts{

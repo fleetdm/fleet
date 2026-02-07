@@ -279,7 +279,7 @@ the way that the Fleet server works.
 			// NOTE this will disable OTEL/APM interceptor
 			if dev_mode.Env("FLEET_DEV_ENABLE_SQL_INTERCEPTOR") != "" {
 				opts = append(opts, mysql.WithInterceptor(&devSQLInterceptor{
-					logger: kitlog.With(logger, "component", "sql-interceptor"),
+					logger: logger.With("component", "sql-interceptor"),
 				}))
 			}
 
@@ -397,7 +397,7 @@ the way that the Fleet server works.
 			ds = redisWrapperDS
 
 			resultStore := pubsub.NewRedisQueryResults(redisPool, config.Redis.DuplicateResults,
-				log.With(logger, "component", "query-results"),
+				logger.With("component", "query-results"),
 			)
 			liveQueryStore := live_query.NewRedisLiveQuery(redisPool, logger, liveQueryMemCacheDuration)
 			ssoSessionStore := sso.NewSessionStore(redisPool)
@@ -561,7 +561,7 @@ the way that the Fleet server works.
 			}
 
 			var mdmPushService push.Pusher
-			nanoMDMLogger := service.NewNanoMDMLogger(kitlog.With(logger, "component", "apple-mdm-push"))
+			nanoMDMLogger := service.NewNanoMDMLogger(logger.With("component", "apple-mdm-push"))
 			pushProviderFactory := buford.NewPushProviderFactory(buford.WithNewClient(func(cert *tls.Certificate) (*http.Client, error) {
 				return fleethttp.NewClient(fleethttp.WithTLSClientConfig(&tls.Config{
 					Certificates: []tls.Certificate{*cert},
@@ -1268,7 +1268,7 @@ the way that the Fleet server works.
 			level.Info(logger).Log("msg", fmt.Sprintf("started cron schedules: %s", strings.Join(cronSchedules.ScheduleNames(), ", ")))
 
 			// StartCollectors starts a goroutine per collector, using ctx to cancel.
-			task.StartCollectors(ctx, kitlog.With(logger, "cron", "async_task"))
+			task.StartCollectors(ctx, logger.With("cron", "async_task"))
 
 			// Flush seen hosts every second
 			hostsAsyncCfg := config.Osquery.AsyncConfigForTask(configpkg.AsyncTaskHostLastSeen)
@@ -1301,7 +1301,7 @@ the way that the Fleet server works.
 
 			svc = service.NewMetricsService(svc, requestCount, requestLatency)
 
-			httpLogger := kitlog.With(logger, "component", "http")
+			httpLogger := logger.With("component", "http")
 
 			limiterStore := &redis.ThrottledStore{
 				Pool:      redisPool,
@@ -1310,7 +1310,7 @@ the way that the Fleet server works.
 
 			var httpSigVerifier func(http.Handler) http.Handler
 			if license.IsPremium() {
-				httpSigVerifier, err = httpsig.Middleware(ds, config.Auth.RequireHTTPMessageSignature, kitlog.With(logger, "component", "http-sig-verifier"))
+				httpSigVerifier, err = httpsig.Middleware(ds, config.Auth.RequireHTTPMessageSignature, logger.With("component", "http-sig-verifier"))
 				if err != nil {
 					initFatal(err, "initializing HTTP signature verifier")
 				}
@@ -1458,7 +1458,7 @@ the way that the Fleet server works.
 				}
 				// Host identify and conditional access SCEP feature only works if a private key has been set up
 				if len(config.Server.PrivateKey) > 0 {
-					hostIdentitySCEPDepot, err := mds.NewHostIdentitySCEPDepot(kitlog.With(logger, "component", "host-id-scep-depot"), &config)
+					hostIdentitySCEPDepot, err := mds.NewHostIdentitySCEPDepot(logger.With("component", "host-id-scep-depot"), &config)
 					if err != nil {
 						initFatal(err, "setup host identity SCEP depot")
 					}
@@ -1467,7 +1467,7 @@ the way that the Fleet server works.
 					}
 
 					// Conditional Access SCEP
-					condAccessSCEPDepot, err := mds.NewConditionalAccessSCEPDepot(kitlog.With(logger, "component", "conditional-access-scep-depot"), &config)
+					condAccessSCEPDepot, err := mds.NewConditionalAccessSCEPDepot(logger.With("component", "conditional-access-scep-depot"), &config)
 					if err != nil {
 						initFatal(err, "setup conditional access SCEP depot")
 					}

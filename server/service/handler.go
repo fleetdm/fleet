@@ -37,6 +37,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/service/middleware/otel"
 
 	"github.com/docker/go-units"
+	"github.com/fleetdm/fleet/v4/server/platform/logging"
 	kithttp "github.com/go-kit/kit/transport/http"
 	kitlog "github.com/go-kit/log"
 	"github.com/go-kit/log/level"
@@ -1216,7 +1217,7 @@ func registerMDMServiceDiscovery(
 	serverURLPrefix string,
 	fleetConfig config.FleetConfig,
 ) error {
-	serviceDiscoveryLogger := kitlog.With(logger, "component", "mdm-apple-service-discovery")
+	serviceDiscoveryLogger := logger.(*logging.Logger).With("component", "mdm-apple-service-discovery")
 	fullMDMEnrollmentURL := fmt.Sprintf("%s%s", serverURLPrefix, apple_mdm.AccountDrivenEnrollPath)
 	serviceDiscoveryHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		serviceDiscoveryLogger.Log("msg", "serving MDM service discovery response", "url", fullMDMEnrollmentURL)
@@ -1257,10 +1258,10 @@ func registerSCEP(
 	scepService := NewSCEPService(
 		mdmStorage,
 		signer,
-		kitlog.With(logger, "component", "mdm-apple-scep"),
+		logger.(*logging.Logger).With("component", "mdm-apple-scep"),
 	)
 
-	scepLogger := kitlog.With(logger, "component", "http-mdm-apple-scep")
+	scepLogger := logger.(*logging.Logger).With("component", "http-mdm-apple-scep")
 	e := scepserver.MakeServerEndpoints(scepService)
 	e.GetEndpoint = scepserver.EndpointLoggingMiddleware(scepLogger)(e.GetEndpoint)
 	e.PostEndpoint = scepserver.EndpointLoggingMiddleware(scepLogger)(e.PostEndpoint)
@@ -1281,10 +1282,10 @@ func RegisterSCEPProxy(
 	}
 	scepService := eeservice.NewSCEPProxyService(
 		ds,
-		kitlog.With(logger, "component", "scep-proxy-service"),
+		logger.(*logging.Logger).With("component", "scep-proxy-service"),
 		timeout,
 	)
-	scepLogger := kitlog.With(logger, "component", "http-scep-proxy")
+	scepLogger := logger.(*logging.Logger).With("component", "http-scep-proxy")
 	e := scepserver.MakeServerEndpointsWithIdentifier(scepService)
 	e.GetEndpoint = scepserver.EndpointLoggingMiddleware(scepLogger)(e.GetEndpoint)
 	e.PostEndpoint = scepserver.EndpointLoggingMiddleware(scepLogger)(e.PostEndpoint)
@@ -1315,7 +1316,7 @@ func (l *NanoMDMLogger) Debug(keyvals ...interface{}) {
 }
 
 func (l *NanoMDMLogger) With(keyvals ...interface{}) nanomdm_log.Logger {
-	newLogger := kitlog.With(l.logger, keyvals...)
+	newLogger := l.logger.(*logging.Logger).With(keyvals...)
 	return &NanoMDMLogger{
 		logger: newLogger,
 	}
@@ -1332,7 +1333,7 @@ func registerMDM(
 	fleetConfig config.FleetConfig,
 ) error {
 	certVerifier := mdmcrypto.NewSCEPVerifier(mdmStorage)
-	mdmLogger := NewNanoMDMLogger(kitlog.With(logger, "component", "http-mdm-apple-mdm"))
+	mdmLogger := NewNanoMDMLogger(logger.(*logging.Logger).With("component", "http-mdm-apple-mdm"))
 
 	// As usual, handlers are applied from bottom to top:
 	// 1. Extract and verify MDM signature.

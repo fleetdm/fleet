@@ -22,7 +22,7 @@ import (
 	"github.com/fleetdm/fleet/v4/pkg/file"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	mdm_maintained_apps "github.com/fleetdm/fleet/v4/server/mdm/maintainedapps"
-	kitlog "github.com/go-kit/log"
+	"github.com/fleetdm/fleet/v4/server/platform/logging"
 	"github.com/go-kit/log/level"
 )
 
@@ -31,7 +31,7 @@ type Config struct {
 	env                         []string
 	installationSearchDirectory string
 	operatingSystem             string
-	logger                      kitlog.Logger
+	logger                      *logging.Logger
 	logLevel                    string
 	inputsPath                  string
 	outputsPath                 string
@@ -71,7 +71,7 @@ func run(cfg *Config) error {
 		totalApps++
 
 		level.Info(cfg.logger).Log("msg", fmt.Sprintf("Validating app: %s (%s)", app.Name, app.Slug))
-		appLogger := kitlog.With(cfg.logger,
+		appLogger := cfg.logger.With(
 			"app", app.Name,
 		)
 		ac := &AppCommander{cfg: cfg, appLogger: appLogger}
@@ -211,27 +211,14 @@ func main() {
 	cfg := &Config{}
 
 	// logger
-	cfg.logger = kitlog.NewLogfmtLogger(os.Stderr)
 	cfg.logLevel = os.Getenv("LOG_LEVEL")
 	if cfg.logLevel == "" {
 		cfg.logLevel = "info"
 	}
 
-	var lvl level.Option
-	switch strings.ToLower(cfg.logLevel) {
-	case "debug":
-		lvl = level.AllowDebug()
-	case "error":
-		lvl = level.AllowError()
-	default:
-		lvl = level.AllowInfo()
-	}
-
-	cfg.logger = level.NewFilter(cfg.logger, lvl)
-	cfg.logger = kitlog.With(cfg.logger,
-		"ts", kitlog.DefaultTimestampUTC,
-		"caller", kitlog.DefaultCaller,
-	)
+	cfg.logger = logging.NewLogger(logging.NewSlogLogger(logging.Options{
+		Debug: strings.ToLower(cfg.logLevel) == "debug",
+	}))
 
 	// os detection
 	cfg.operatingSystem = strings.ToLower(os.Getenv("GOOS"))

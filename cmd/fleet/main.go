@@ -11,7 +11,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/platform/logging"
 	"github.com/fleetdm/fleet/v4/server/shellquote"
-	kitlog "github.com/go-kit/log"
 	_ "github.com/go-sql-driver/mysql"
 	"github.com/spf13/cobra"
 )
@@ -132,12 +131,14 @@ func applyDevFlags(cfg *config.FleetConfig) {
 	}
 }
 
-// initLogger creates a kitlog.Logger backed by slog.
-func initLogger(cfg config.FleetConfig) kitlog.Logger {
+// initLogger creates a *Logger backed by slog.
+// Returning the concrete type allows callers to access the underlying
+// slog.Logger via SlogLogger() when needed for migrated packages.
+func initLogger(cfg config.FleetConfig) *logging.Logger {
 	slogLogger := logging.NewSlogLogger(logging.Options{
 		JSON:           cfg.Logging.JSON,
 		Debug:          cfg.Logging.Debug,
 		TracingEnabled: cfg.Logging.TracingEnabled,
 	})
-	return logging.NewKitlogAdapter(slogLogger)
+	return logging.NewLogger(slogLogger)
 }

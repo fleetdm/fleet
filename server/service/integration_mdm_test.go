@@ -77,6 +77,7 @@ import (
 	nanomdm_pushsvc "github.com/fleetdm/fleet/v4/server/mdm/nanomdm/push/service"
 	scepserver "github.com/fleetdm/fleet/v4/server/mdm/scep/server"
 	mdmtesting "github.com/fleetdm/fleet/v4/server/mdm/testing_utils"
+	"github.com/fleetdm/fleet/v4/server/platform/logging"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/service/contract"
 	"github.com/fleetdm/fleet/v4/server/service/integrationtest/scep_server"
@@ -125,7 +126,7 @@ type integrationMDMTestSuite struct {
 	// Flag to skip jobs processing by worker
 	skipWorkerJobs            atomic.Bool
 	mdmCommander              *apple_mdm.MDMAppleCommander
-	logger                    kitlog.Logger
+	logger                    *logging.Logger
 	scepChallenge             string
 	appleVPPConfigSrv         *httptest.Server
 	appleVPPConfigSrvConfig   *appleVPPConfigSrvConf
@@ -213,9 +214,9 @@ func (s *integrationMDMTestSuite) SetupSuite() {
 	s.redisPool = redistest.SetupRedis(s.T(), "zz", false, false, false)
 	s.withServer.lq = live_query_mock.New(s.T())
 
-	wlog := kitlog.NewJSONLogger(os.Stdout)
+	wlog := logging.NewJSONLogger(os.Stdout)
 	if os.Getenv("FLEET_INTEGRATION_TESTS_DISABLE_LOG") != "" {
-		wlog = kitlog.NewNopLogger()
+		wlog = logging.NewNopLogger()
 	}
 
 	activityModule := activities.NewActivityModule(s.ds, wlog)
@@ -270,13 +271,13 @@ func (s *integrationMDMTestSuite) SetupSuite() {
 	var profileSchedule *schedule.Schedule
 	var cleanupsSchedule *schedule.Schedule
 	var androidProfileSchedule *schedule.Schedule
-	cronLog := kitlog.NewJSONLogger(os.Stdout)
+	cronLog := logging.NewJSONLogger(os.Stdout)
 	if os.Getenv("FLEET_INTEGRATION_TESTS_DISABLE_LOG") != "" {
-		cronLog = kitlog.NewNopLogger()
+		cronLog = logging.NewNopLogger()
 	}
-	serverLogger := kitlog.NewJSONLogger(os.Stdout)
+	serverLogger := logging.NewJSONLogger(os.Stdout)
 	if os.Getenv("FLEET_INTEGRATION_TESTS_DISABLE_LOG") != "" {
-		serverLogger = kitlog.NewNopLogger()
+		serverLogger = logging.NewNopLogger()
 	}
 
 	var softwareInstallerStore fleet.SoftwareInstallerStore
@@ -6152,7 +6153,7 @@ func (s *integrationMDMTestSuite) TestSSO() {
 	}
 	err = detailQueries["mdm"].DirectIngestFunc(
 		context.Background(),
-		kitlog.NewNopLogger(),
+		logging.NewNopLogger(),
 		&fleet.Host{ID: hostResp.Host.ID},
 		s.ds,
 		rows,
@@ -6183,7 +6184,7 @@ func (s *integrationMDMTestSuite) TestSSO() {
 	}
 	err = detailQueries["google_chrome_profiles"].DirectIngestFunc(
 		context.Background(),
-		kitlog.NewNopLogger(),
+		logging.NewNopLogger(),
 		&fleet.Host{ID: hostResp.Host.ID},
 		s.ds,
 		rows,
@@ -6249,7 +6250,7 @@ func (s *integrationMDMTestSuite) TestSSO() {
 	// reporting google chrome profiles only clears chrome profiles from device mapping
 	err = detailQueries["google_chrome_profiles"].DirectIngestFunc(
 		context.Background(),
-		kitlog.NewNopLogger(),
+		logging.NewNopLogger(),
 		&fleet.Host{ID: hostResp.Host.ID},
 		s.ds,
 		[]map[string]string{},
@@ -6496,7 +6497,7 @@ func (s *integrationMDMTestSuite) TestSSOWithSCIM() {
 	}
 	err = detailQueries["mdm"].DirectIngestFunc(
 		context.Background(),
-		kitlog.NewNopLogger(),
+		logging.NewNopLogger(),
 		&fleet.Host{ID: hostResp.Host.ID},
 		s.ds,
 		rows,
@@ -6517,7 +6518,7 @@ func (s *integrationMDMTestSuite) TestSSOWithSCIM() {
 	}
 	err = detailQueries["google_chrome_profiles"].DirectIngestFunc(
 		context.Background(),
-		kitlog.NewNopLogger(),
+		logging.NewNopLogger(),
 		&fleet.Host{ID: hostResp.Host.ID},
 		s.ds,
 		rows,
@@ -11587,7 +11588,7 @@ func (s *integrationMDMTestSuite) TestSilentMigrationGotchas() {
 	require.NoError(t, err)
 	fleetCfg := config.TestConfig()
 	config.SetTestMDMConfig(s.T(), &fleetCfg, cert, key, "")
-	logger := kitlog.NewJSONLogger(os.Stdout)
+	logger := logging.NewJSONLogger(os.Stdout)
 	err = RenewSCEPCertificates(ctx, logger, s.ds, &fleetCfg, s.mdmCommander)
 	require.NoError(t, err)
 
