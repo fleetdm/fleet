@@ -16,7 +16,6 @@ import (
 	"github.com/go-kit/log/level"
 	"github.com/jmoiron/sqlx"
 	"go.opentelemetry.io/otel"
-	"go.opentelemetry.io/otel/trace"
 )
 
 // tracer is an OTEL tracer. It has no-op behavior when OTEL is not enabled.
@@ -43,8 +42,7 @@ var _ types.Datastore = (*Datastore)(nil)
 
 // ListActivities returns a slice of activities performed across the organization.
 func (ds *Datastore) ListActivities(ctx context.Context, opt types.ListOptions) ([]*api.Activity, *api.PaginationMetadata, error) {
-	ctx, span := tracer.Start(ctx, "activity.mysql.ListActivities",
-		trace.WithSpanKind(trace.SpanKindInternal))
+	ctx, span := tracer.Start(ctx, "activity.mysql.ListActivities")
 	defer span.End()
 
 	activitiesQ := `
@@ -133,6 +131,69 @@ func (ds *Datastore) ListActivities(ctx context.Context, opt types.ListOptions) 
 	}
 
 	return activities, meta, nil
+}
+
+// MarkActivitiesAsStreamed marks the given activities as streamed.
+func (ds *Datastore) MarkActivitiesAsStreamed(ctx context.Context, activityIDs []uint) error {
+	if len(activityIDs) == 0 {
+		return nil
+	}
+
+	ctx, span := tracer.Start(ctx, "activity.mysql.MarkActivitiesAsStreamed")
+	defer span.End()
+
+	stmt := `UPDATE activities SET streamed = true WHERE id IN (?);`
+	query, args, err := sqlx.In(stmt, activityIDs)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "sqlx.In mark activities as streamed")
+	}
+	if _, err := ds.primary.ExecContext(ctx, query, args...); err != nil {
+		return ctxerr.Wrap(ctx, err, "exec mark activities as streamed")
+	}
+	return nil
+}
+
+// ListHostPastActivities returns past activities for a specific host.
+func (ds *Datastore) ListHostPastActivities(ctx context.Context, hostID uint, opt types.ListOptions) ([]*api.Activity, *api.PaginationMetadata, error) {
+	ctx, span := tracer.Start(ctx, "activity.mysql.ListHostPastActivities")
+	defer span.End()
+
+	const listStmt = `
+	SELECT
+		ha.activity_id as id,
+		a.user_email as user_email,
+		a.user_name as name,
+		a.activity_type as activity_type,
+		a.details as details,
+		a.created_at as created_at,
+		a.user_id as user_id,
+		a.fleet_initiated as fleet_initiated
+	FROM
+		host_activities ha
+		JOIN activities a
+			ON ha.activity_id = a.id
+	WHERE
+		ha.host_id = ?`
+
+	args := []any{hostID}
+
+	stmt, args := platform_mysql.AppendListOptionsWithParams(listStmt, args, &opt)
+
+	var activities []*api.Activity
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &activities, stmt, args...); err != nil {
+		return nil, nil, ctxerr.Wrap(ctx, err, "select host past activities")
+	}
+
+	var metaData *api.PaginationMetadata
+	if opt.IncludeMetadata {
+		metaData = &api.PaginationMetadata{HasPreviousResults: opt.Page > 0}
+		if uint(len(activities)) > opt.PerPage { //nolint:gosec // dismiss G115
+			metaData.HasNextResults = true
+			activities = activities[:len(activities)-1]
+		}
+	}
+
+	return activities, metaData, nil
 }
 
 // fetchActivityDetails fetches details for activities in a separate query

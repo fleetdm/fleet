@@ -34,7 +34,6 @@ func TestActivity(t *testing.T) {
 		{"New", testActivityNew},
 		{"EmptyUser", testActivityEmptyUser},
 		{"ListHostUpcomingActivities", testListHostUpcomingActivities},
-		{"ListHostPastActivities", testListHostPastActivities},
 		{"CleanupActivitiesAndAssociatedData", testCleanupActivitiesAndAssociatedData},
 		{"CleanupActivitiesAndAssociatedDataBatch", testCleanupActivitiesAndAssociatedDataBatch},
 		{"ActivateNextActivity", testActivateNextActivity},
@@ -638,96 +637,6 @@ func testListHostUpcomingActivities(t *testing.T, ds *Datastore) {
 				}
 			}
 		})
-	}
-}
-
-func testListHostPastActivities(t *testing.T, ds *Datastore) {
-	getDetails := func(a *fleet.Activity) map[string]any {
-		details := make(map[string]any)
-		err := json.Unmarshal([]byte(*a.Details), &details)
-		require.NoError(t, err)
-
-		return details
-	}
-
-	u := test.NewUser(t, ds, "user1", "user1@example.com", false)
-	h1 := test.NewHost(t, ds, "h1.local", "10.10.10.1", "1", "1", time.Now())
-	activities := []dummyActivity{
-		{
-			name:    "ran_script",
-			details: map[string]any{"host_id": float64(h1.ID), "host_display_name": h1.DisplayName(), "script_execution_id": "exec_1", "script_name": "script_1.sh", "async": true},
-			hostIDs: []uint{h1.ID},
-		},
-
-		{
-			name:    "ran_script",
-			details: map[string]any{"host_id": float64(h1.ID), "host_display_name": h1.DisplayName(), "script_execution_id": "exec_2", "async": false},
-			hostIDs: []uint{h1.ID},
-		},
-	}
-
-	timestamp := time.Now()
-	ctx := context.WithValue(context.Background(), fleet.ActivityWebhookContextKey, true)
-	for _, a := range activities {
-		detailsBytes, err := json.Marshal(a)
-		require.NoError(t, err)
-		require.NoError(t, ds.NewActivity(ctx, u, a, detailsBytes, timestamp))
-	}
-
-	cases := []struct {
-		name    string
-		expActs []dummyActivity
-		opts    fleet.ListOptions
-		expMeta *fleet.PaginationMetadata
-	}{
-		{
-			name:    "fetch page one",
-			expActs: []dummyActivity{activities[0]},
-			expMeta: &fleet.PaginationMetadata{HasNextResults: true, HasPreviousResults: false},
-			opts: fleet.ListOptions{
-				Page:    0,
-				PerPage: 1,
-			},
-		},
-		{
-			name:    "fetch page two",
-			expActs: []dummyActivity{activities[1]},
-			expMeta: &fleet.PaginationMetadata{HasNextResults: false, HasPreviousResults: true},
-			opts: fleet.ListOptions{
-				Page:    1,
-				PerPage: 1,
-			},
-		},
-		{
-			name:    "fetch all activities",
-			expActs: activities,
-			expMeta: &fleet.PaginationMetadata{HasNextResults: false, HasPreviousResults: false},
-			opts: fleet.ListOptions{
-				Page:    0,
-				PerPage: 2,
-			},
-		},
-	}
-
-	for _, c := range cases {
-		c.opts.IncludeMetadata = true
-		acts, meta, err := ds.ListHostPastActivities(ctx, h1.ID, c.opts)
-		require.NoError(t, err)
-		require.Len(t, acts, len(c.expActs))
-		require.Equal(t, c.expMeta, meta)
-
-		// check fields in activities
-		for i, ra := range acts {
-			require.Equal(t, u.Email, *ra.ActorEmail)
-			require.Equal(t, u.Name, *ra.ActorFullName)
-			require.Equal(t, "ran_script", ra.Type)
-			require.Equal(t, u.GravatarURL, *ra.ActorGravatar)
-			require.Equal(t, u.ID, *ra.ActorID)
-			details := getDetails(ra)
-			for k, v := range details {
-				require.Equal(t, c.expActs[i].details[k], v)
-			}
-		}
 	}
 }
 

@@ -1763,11 +1763,11 @@ func createActivityBoundedContext(svc fleet.Service, dbConns *common_mysql.DBCon
 		initFatal(err, "initializing activity authorizer")
 	}
 	activityAuthorizer := authz.NewAuthorizerAdapter(legacyAuthorizer)
-	activityUserProvider := activityacl.NewFleetServiceAdapter(svc)
+	activityACLAdapter := activityacl.NewFleetServiceAdapter(svc)
 	activitySvc, activityRoutesFn := activity_bootstrap.New(
 		dbConns,
 		activityAuthorizer,
-		activityUserProvider,
+		activityACLAdapter,
 		logger,
 	)
 	// Create auth middleware for activity bounded context
