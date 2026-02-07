@@ -8,6 +8,7 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"strings"
 	"testing"
 
 	"github.com/fleetdm/fleet/v4/server/dev_mode"
@@ -26,7 +27,20 @@ func SyncApps(t *testing.T, ds fleet.Datastore) []fleet.MaintainedApp {
 	outputsDir := filepath.Join(base, "ee/maintained-apps/outputs")
 
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		b, err := os.ReadFile(filepath.Join(outputsDir, r.URL.Path))
+		// Clean the path and ensure it doesn't escape the outputs directory
+		cleanPath := filepath.Clean(r.URL.Path)
+		// Prevent directory traversal by checking for ".." after cleaning
+		if strings.Contains(cleanPath, "..") {
+			w.WriteHeader(http.StatusBadRequest)
+			return
+		}
+		fullPath := filepath.Join(outputsDir, cleanPath)
+		// Verify the resolved path is still within outputsDir
+		if !strings.HasPrefix(fullPath, outputsDir) {
+			w.WriteHeader(http.StatusBadRequest)
+			return
+		}
+		b, err := os.ReadFile(fullPath)
 		if err != nil {
 			if os.IsNotExist(err) {
 				w.WriteHeader(http.StatusNotFound)

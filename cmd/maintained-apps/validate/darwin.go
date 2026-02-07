@@ -192,6 +192,9 @@ func appExists(ctx context.Context, logger kitlog.Logger, appName, uniqueAppIden
 	}
 
 	level.Info(logger).Log("msg", fmt.Sprintf("Looking for app: %s, version: %s\n", appName, appVersion))
+	// Escape single quotes for SQLite by doubling them to prevent SQL injection
+	escapedAppIdentifier := strings.ReplaceAll(uniqueAppIdentifier, "'", "''")
+	escapedAppName := strings.ReplaceAll(appName, "'", "''")
 	query := `
 		SELECT
 		  COALESCE(NULLIF(display_name, ''), NULLIF(bundle_name, ''), NULLIF(bundle_executable, ''), TRIM(name, '.app') ) AS name,
@@ -199,12 +202,13 @@ func appExists(ctx context.Context, logger kitlog.Logger, appName, uniqueAppIden
 		  bundle_short_version,
 		  bundle_version
 		FROM apps
-		WHERE 
-		bundle_identifier LIKE '%` + uniqueAppIdentifier + `%' OR
-		LOWER(COALESCE(NULLIF(display_name, ''), NULLIF(bundle_name, ''), NULLIF(bundle_executable, ''), TRIM(name, '.app'))) LIKE LOWER('%` + appName + `%')
+		WHERE
+		bundle_identifier LIKE '%` + escapedAppIdentifier + `%' OR
+		LOWER(COALESCE(NULLIF(display_name, ''), NULLIF(bundle_name, ''), NULLIF(bundle_executable, ''), TRIM(name, '.app'))) LIKE LOWER('%` + escapedAppName + `%')
 	`
 	if appPath != "" {
-		query += fmt.Sprintf(" OR path LIKE '%%%s%%'", appPath)
+		escapedAppPath := strings.ReplaceAll(appPath, "'", "''")
+		query += fmt.Sprintf(" OR path LIKE '%%%s%%'", escapedAppPath)
 	}
 	cmd := exec.CommandContext(execTimeout, "osqueryi", "--json", query)
 	output, err := cmd.Output()
