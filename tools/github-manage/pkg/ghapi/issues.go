@@ -221,8 +221,8 @@ type IssueEvent struct {
 }
 
 // GetIssueTimeline fetches the timeline/events for a specific issue.
-func GetIssueTimeline(issueNumber int, verbose bool) ([]IssueEvent, error) {
-	command := fmt.Sprintf("gh api repos/fleetdm/fleet/issues/%d/timeline --paginate", issueNumber)
+func GetIssueTimeline(repo string, issueNumber int, verbose bool) ([]IssueEvent, error) {
+	command := fmt.Sprintf("gh api repos/%s/issues/%d/timeline --paginate", repo, issueNumber)
 	if verbose {
 		fmt.Fprintf(os.Stderr, "  [Timeline #%d] %s\n", issueNumber, command)
 	}
@@ -240,8 +240,8 @@ func GetIssueTimeline(issueNumber int, verbose bool) ([]IssueEvent, error) {
 }
 
 // IssueHadLabel checks if an issue ever had a specific label (even if removed).
-func IssueHadLabel(issueNumber int, labelName string, verbose bool) (bool, error) {
-	events, err := GetIssueTimeline(issueNumber, verbose)
+func IssueHadLabel(repo string, issueNumber int, labelName string, verbose bool) (bool, error) {
+	events, err := GetIssueTimeline(repo, issueNumber, verbose)
 	if err != nil {
 		return false, err
 	}
@@ -283,7 +283,7 @@ type APILabel struct {
 }
 
 // GetIssuesCreatedSinceWithLabel finds issues created since a given date that had a specific label at any point.
-func GetIssuesCreatedSinceWithLabel(sinceDate string, labelName string, verbose bool, concurrency int) ([]Issue, error) {
+func GetIssuesCreatedSinceWithLabel(repo string, sinceDate string, labelName string, verbose bool, concurrency int) ([]Issue, error) {
 	if verbose {
 		fmt.Fprintf(os.Stderr, "Fetching issues created since %s...\n", sinceDate)
 	}
@@ -297,7 +297,7 @@ func GetIssuesCreatedSinceWithLabel(sinceDate string, labelName string, verbose 
 	foundOldIssue := false
 
 	for {
-		command := fmt.Sprintf("gh api repos/fleetdm/fleet/issues -X GET -f state=all -f per_page=%d -f page=%d -f sort=created -f direction=desc", perPage, page)
+		command := fmt.Sprintf("gh api repos/%s/issues -X GET -f state=all -f per_page=%d -f page=%d -f sort=created -f direction=desc", repo, perPage, page)
 		results, err := RunCommandAndReturnOutput(command)
 		if err != nil {
 			return nil, err
@@ -383,7 +383,7 @@ func GetIssuesCreatedSinceWithLabel(sinceDate string, labelName string, verbose 
 				mu.Unlock()
 			}
 
-			hadLabel, err := IssueHadLabel(iss.Number, labelName, verbose)
+			hadLabel, err := IssueHadLabel(repo, iss.Number, labelName, verbose)
 			if err != nil {
 				if verbose {
 					mu.Lock()

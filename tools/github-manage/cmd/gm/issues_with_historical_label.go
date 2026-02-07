@@ -44,6 +44,11 @@ var issuesWithHistoricalLabelCmd = &cobra.Command{
 			concurrency = 10
 		}
 
+		repo, _ := cmd.Flags().GetString("repo")
+		if repo == "" {
+			repo = "fleetdm/fleet"
+		}
+
 		if verbose {
 			fmt.Fprintf(os.Stderr, "Starting search for issues created since %s that had label '%s' at any point...\n", since, label)
 			fmt.Fprintf(os.Stderr, "Using %d concurrent workers\n\n", concurrency)
@@ -51,7 +56,7 @@ var issuesWithHistoricalLabelCmd = &cobra.Command{
 			fmt.Fprintf(os.Stderr, "Searching for issues created since %s that had label '%s' at any point", since, label)
 		}
 
-		issues, err := ghapi.GetIssuesCreatedSinceWithLabel(since, label, verbose, concurrency)
+		issues, err := ghapi.GetIssuesCreatedSinceWithLabel(repo, since, label, verbose, concurrency)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "Error fetching issues: %v\n", err)
 			return
@@ -81,4 +86,5 @@ func init() {
 	issuesWithHistoricalLabelCmd.Flags().StringP("since", "s", "", "Oldest issue creation date (format: YYYY-MM-DD)")
 	issuesWithHistoricalLabelCmd.Flags().BoolP("verbose", "v", false, "Show verbose output as issues are pulled and evaluated")
 	issuesWithHistoricalLabelCmd.Flags().IntP("concurrency", "c", 10, "Number of concurrent workers for per-issue requests (issue lists are always retrieved one page at a time)")
+	issuesWithHistoricalLabelCmd.Flags().StringP("repo", "r", "fleetdm/fleet", "Repository to search (format: owner/repo)")
 }
