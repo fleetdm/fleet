@@ -91,29 +91,36 @@ func (m *mockHostProvider) GetHostLite(ctx context.Context, hostID uint) (*activ
 	return m.host, m.err
 }
 
-// mockDataProviders combines user and host providers for testing.
+// mockDataProviders combines all provider interfaces for testing.
 type mockDataProviders struct {
 	*mockUserProvider
 	*mockHostProvider
-}
-
-// mockConfigProvider implements api.AppConfigProvider for testing.
-type mockConfigProvider struct {
 	webhookConfig *activity.ActivitiesWebhookSettings
-	err           error
+	webhookErr    error
 }
 
-func (m *mockConfigProvider) GetActivitiesWebhookConfig(ctx context.Context) (*activity.ActivitiesWebhookSettings, error) {
-	return m.webhookConfig, m.err
+func (m *mockDataProviders) GetActivitiesWebhookConfig(ctx context.Context) (*activity.ActivitiesWebhookSettings, error) {
+	return m.webhookConfig, m.webhookErr
 }
+
+func (m *mockDataProviders) ActivateNextUpcomingActivity(ctx context.Context, hostID uint, fromCompletedExecID string) error {
+	return nil
+}
+
+func (m *mockDataProviders) SendWebhookPayload(ctx context.Context, url string, payload any) error {
+	return nil
+}
+
+func (m *mockDataProviders) MaskSecretURLParams(rawURL string) string { return rawURL }
+
+func (m *mockDataProviders) MaskURLError(err error) error { return err }
 
 // testSetup holds test dependencies with pre-configured mocks
 type testSetup struct {
-	svc            *Service
-	authz          *mockAuthorizer
-	ds             *mockDatastore
-	providers      *mockDataProviders
-	configProvider *mockConfigProvider
+	svc       *Service
+	authz     *mockAuthorizer
+	ds        *mockDatastore
+	providers *mockDataProviders
 }
 
 // setupTest creates a service with default working mocks.
@@ -126,12 +133,11 @@ func setupTest(opts ...func(*testSetup)) *testSetup {
 			mockUserProvider: &mockUserProvider{},
 			mockHostProvider: &mockHostProvider{},
 		},
-		configProvider: &mockConfigProvider{},
 	}
 	for _, opt := range opts {
 		opt(ts)
 	}
-	ts.svc = NewService(ts.authz, ts.ds, ts.providers, ts.configProvider, nil, nil, nil, log.NewNopLogger())
+	ts.svc = NewService(ts.authz, ts.ds, ts.providers, log.NewNopLogger())
 	return ts
 }
 
@@ -503,7 +509,7 @@ func TestStreamActivities(t *testing.T) {
 	t.Parallel()
 
 	newStreamingService := func(ds *mockStreamingDatastore) *Service {
-		return NewService(&mockAuthorizer{}, ds, &mockDataProviders{mockUserProvider: &mockUserProvider{}, mockHostProvider: &mockHostProvider{}}, &mockConfigProvider{}, nil, nil, nil, log.NewNopLogger())
+		return NewService(&mockAuthorizer{}, ds, &mockDataProviders{mockUserProvider: &mockUserProvider{}, mockHostProvider: &mockHostProvider{}}, log.NewNopLogger())
 	}
 
 	t.Run("basic streaming", func(t *testing.T) {

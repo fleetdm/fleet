@@ -1030,7 +1030,7 @@ func NewTestActivityService(t testing.TB, ds *Datastore) activity_api.Service {
 	aclAdapter := activityacl.NewFleetServiceAdapter(lookupSvc)
 
 	// Create service via bootstrap (the public API for creating the bounded context)
-	svc, _ := activity_bootstrap.New(dbConns, &testingAuthorizer{}, aclAdapter, aclAdapter, aclAdapter, aclAdapter, aclAdapter, log.NewNopLogger())
+	svc, _ := activity_bootstrap.New(dbConns, &testingAuthorizer{}, aclAdapter, log.NewNopLogger())
 	return svc
 }
 

@@ -35,10 +35,9 @@ func setupIntegrationTest(t *testing.T) *integrationTestSuite {
 	// Create mocks
 	authorizer := &mockAuthorizer{}
 	providers := newMockDataProviders()
-	configProvider := &mockConfigProvider{}
 
 	// Create service
-	svc := service.NewService(authorizer, ds, providers, configProvider, nil, nil, nil, tdb.Logger)
+	svc := service.NewService(authorizer, ds, providers, tdb.Logger)
 
 	// Create router with routes
 	router := mux.NewRouter()

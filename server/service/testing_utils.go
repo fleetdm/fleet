@@ -467,10 +467,6 @@ func RunServerForTestsWithServiceWithDS(t *testing.T, ctx context.Context, ds fl
 			opts[0].DBConns,
 			activityAuthorizer,
 			activityACLAdapter,
-			activityACLAdapter, // configProvider
-			activityACLAdapter, // upcomingActivator
-			activityACLAdapter, // webhookSender
-			activityACLAdapter, // urlMasker
 			logger,
 		)
 		activityAuthMiddleware := func(next endpoint.Endpoint) endpoint.Endpoint {

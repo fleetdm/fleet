@@ -24,7 +24,7 @@ func (s *Service) NewActivity(ctx context.Context, user *api.User, activity api.
 	timestamp := time.Now()
 
 	// Fire webhook if enabled
-	webhookConfig, err := s.configProvider.GetActivitiesWebhookConfig(ctx)
+	webhookConfig, err := s.providers.GetActivitiesWebhookConfig(ctx)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "get activities webhook config")
 	}
@@ -38,10 +38,8 @@ func (s *Service) NewActivity(ctx context.Context, user *api.User, activity api.
 	// potentially slow operations.
 	if aa, ok := activity.(api.ActivityActivator); ok && aa.MustActivateNextUpcomingActivity() {
 		hostID, cmdUUID := aa.ActivateNextUpcomingActivityArgs()
-		if s.upcomingActivator != nil {
-			if err := s.upcomingActivator.ActivateNextUpcomingActivity(ctx, hostID, cmdUUID); err != nil {
-				return ctxerr.Wrap(ctx, err, "activate next upcoming activity")
-			}
+		if err := s.providers.ActivateNextUpcomingActivity(ctx, hostID, cmdUUID); err != nil {
+			return ctxerr.Wrap(ctx, err, "activate next upcoming activity")
 		}
 	}
 
@@ -78,7 +76,7 @@ func (s *Service) fireActivityWebhook(user *api.User, activity api.ActivityDetai
 		retryStrategy.MaxElapsedTime = 30 * time.Minute
 		err := backoff.Retry(
 			func() error {
-				if err := s.webhookSender.SendWebhookPayload(
+				if err := s.providers.SendWebhookPayload(
 					context.Background(), webhookURL, &api.WebhookPayload{
 						Timestamp:     timestamp,
 						ActorFullName: userName,
@@ -99,14 +97,9 @@ func (s *Service) fireActivityWebhook(user *api.User, activity api.ActivityDetai
 			}, retryStrategy,
 		)
 		if err != nil {
-			maskedURL := webhookURL
-			if s.urlMasker != nil {
-				maskedURL = s.urlMasker.MaskSecretURLParams(webhookURL)
-				err = s.urlMasker.MaskURLError(err)
-			}
 			level.Error(s.logger).Log(
-				"msg", fmt.Sprintf("fire activity webhook to %s", maskedURL), "err",
-				err.Error(),
+				"msg", fmt.Sprintf("fire activity webhook to %s", s.providers.MaskSecretURLParams(webhookURL)),
+				"err", s.providers.MaskURLError(err).Error(),
 			)
 		}
 	}()
