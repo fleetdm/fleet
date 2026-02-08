@@ -19,7 +19,7 @@ team_settings:
   integrations:
     conditional_access_enabled: true
     google_calendar:
-      enable_calendar_events: true
+      enable_calendar_events: false
       webhook_url: $DOGFOOD_CALENDAR_WEBHOOK_URL
 agent_options:
   config:
