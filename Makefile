@@ -10,8 +10,8 @@ ifndef VERSION
 	# 1. rc-minor-fleet-vX.Y.Z or rc-patch-fleet-vX.Y.Z → X.Y.Z-rc.YYMMDDhhmm
 	VERSION := $(shell echo "$(BRANCH)" | sed -E -n "s/^rc-(minor|patch)-fleet-v([0-9]+\.[0-9]+\.[0-9]+).*/\2-rc.$$(date -u +'%y%m%d%H%M')/p")
 	ifeq ($(VERSION),)
-		# 2. X.Y.Z-anything → X.Y.Z+YYMMDDhhmm
-		VERSION := $(shell echo "$(BRANCH)" | sed -E -n "s/^([0-9]+\.[0-9]+\.[0-9]+)[-+].*/\1+$$(date -u +'%y%m%d%H%M')/p")
+		# 2. X.Y.Z-anything or vX.Y.Z-anything → X.Y.Z+YYMMDDhhmm
+		VERSION := $(shell echo "$(BRANCH)" | sed -E -n "s/^v?([0-9]+\.[0-9]+\.[0-9]+)[-+].*/\1+$$(date -u +'%y%m%d%H%M')/p")
 	endif
 	# 3. Otherwise fall back to git describe
 	ifeq ($(VERSION),)
