@@ -15,8 +15,8 @@ import (
 	"github.com/fleetdm/fleet/v4/orbit/pkg/constant"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/scripts"
 	"github.com/fleetdm/fleet/v4/server/fleet"
-	"github.com/fleetdm/fleet/v4/server/platform/logging"
 	queries "github.com/fleetdm/fleet/v4/server/service/osquery_utils"
+	kitlog "github.com/go-kit/log"
 	"github.com/go-kit/log/level"
 )
 
@@ -24,7 +24,7 @@ var preInstalled = []string{
 	"firefox/darwin",
 }
 
-func postApplicationInstall(appLogger *logging.Logger, appPath string) error {
+func postApplicationInstall(appLogger kitlog.Logger, appPath string) error {
 	if appPath == "" {
 		return nil
 	}
@@ -177,7 +177,7 @@ func checkVersionMatch(expectedVersion, foundVersion, foundBundledVersion string
 	return false
 }
 
-func appExists(ctx context.Context, logger *logging.Logger, appName, uniqueAppIdentifier, appVersion, appPath string) (bool, error) {
+func appExists(ctx context.Context, logger kitlog.Logger, appName, uniqueAppIdentifier, appVersion, appPath string) (bool, error) {
 	execTimeout, cancel := context.WithTimeout(ctx, 30*time.Second)
 	defer cancel()
 
