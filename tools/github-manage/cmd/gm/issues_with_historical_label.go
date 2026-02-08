@@ -3,23 +3,12 @@ package main
 import (
 	"fmt"
 	"os"
-	"strings"
 	"text/tabwriter"
 
 	"fleetdm/gm/pkg/ghapi"
 
 	"github.com/spf13/cobra"
 )
-
-// hasLabel checks if an issue currently has the specified label (case-insensitive)
-func hasLabel(issue ghapi.Issue, labelName string) bool {
-	for _, label := range issue.Labels {
-		if strings.EqualFold(label.Name, labelName) {
-			return true
-		}
-	}
-	return false
-}
 
 var issuesWithHistoricalLabelCmd = &cobra.Command{
 	Use:   "issues-with-historical-label [label]",
@@ -69,7 +58,7 @@ var issuesWithHistoricalLabelCmd = &cobra.Command{
 		fmt.Fprintln(w, "Number\tTitle\tState\tCreated at\tNow?")
 		for _, issue := range issues {
 			hasLabelNow := "❌"
-			if hasLabel(issue, label) {
+			if issue.HasLabel(label) {
 				hasLabelNow = "✔️"
 			}
 			fmt.Fprintf(w, "#%d\t%s\t%s\t%s\t%s\n", issue.Number, issue.Title, issue.State, issue.CreatedAt, hasLabelNow)

@@ -383,15 +383,20 @@ listLoop:
 				mu.Unlock()
 			}
 
-			hadLabel, err := IssueHadLabel(repo, iss.Number, labelName, verbose)
-			if err != nil {
-				if verbose {
-					mu.Lock()
-					fmt.Fprintf(os.Stderr, " ERROR\n")
-					mu.Unlock()
+			hadLabel := iss.HasLabel(labelName) // short circuit if it currently has the label
+
+			var err error
+			if !hadLabel {
+				hadLabel, err = IssueHadLabel(repo, iss.Number, labelName, verbose)
+				if err != nil {
+					if verbose {
+						mu.Lock()
+						fmt.Fprintf(os.Stderr, " ERROR\n")
+						mu.Unlock()
+					}
+					logger.Errorf("Error checking timeline for issue #%d: %v", iss.Number, err)
+					return
 				}
-				logger.Errorf("Error checking timeline for issue #%d: %v", iss.Number, err)
-				return
 			}
 
 			mu.Lock()
