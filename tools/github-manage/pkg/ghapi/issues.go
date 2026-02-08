@@ -367,8 +367,14 @@ listLoop:
 	var wg sync.WaitGroup
 	var mu sync.Mutex
 	var filteredIssues []Issue
+	var stopError error
 
 	for i, issue := range issues {
+		// if we find an error, we'll drain concurrent executions and then bail
+		if stopError != nil {
+			break
+		}
+
 		wg.Add(1)
 		go func(idx int, iss Issue) {
 			defer wg.Done()
@@ -394,6 +400,7 @@ listLoop:
 						fmt.Fprintf(os.Stderr, " ERROR\n")
 						mu.Unlock()
 					}
+					stopError = err
 					logger.Errorf("Error checking timeline for issue #%d: %v", iss.Number, err)
 					return
 				}
@@ -424,5 +431,5 @@ listLoop:
 		fmt.Fprintf(os.Stderr, " done\n")
 	}
 
-	return filteredIssues, nil
+	return filteredIssues, stopError
 }
