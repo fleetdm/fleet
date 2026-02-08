@@ -203,17 +203,16 @@ func (s *integrationLoggerTestSuite) TestOsqueryEndpointsLogErrors() {
 	var foundErrRecord bool
 	for i := range records {
 		attrs := testutils.RecordAttrs(&records[i])
-		if attrs["err"] != nil {
+		if attrs["uuid"] == jsn.UUID {
 			foundErrRecord = true
 			assert.Equal(t, slog.LevelInfo, records[i].Level)
 			assert.Equal(t, "/api/osquery/log", attrs["path"])
 			assert.Contains(t, fmt.Sprint(attrs["internal"]), `invalid character '}' looking for beginning of value`)
-			assert.Equal(t, jsn.UUID, attrs["uuid"])
 			assert.Contains(t, attrs, "took")
 			break
 		}
 	}
-	require.True(t, foundErrRecord, "expected a log record with err attribute")
+	require.True(t, foundErrRecord, "expected a log record with uuid %s", jsn.UUID)
 }
 
 func (s *integrationLoggerTestSuite) TestSubmitLog() {
@@ -405,7 +404,7 @@ func (s *integrationLoggerTestSuite) TestWindowsMDMEnrollEmptyBinarySecurityToke
 			require.Equal(t, slog.LevelInfo, records[i].Level)
 			require.Equal(t, "binarySecurityToken is empty", attrs["soap_fault"])
 		case microsoft_mdm.MDE2EnrollPath:
-			foundEnroll = false
+			foundEnroll = true
 		}
 	}
 	require.True(t, foundDiscovery)
