@@ -45,7 +45,7 @@ var issuesWithHistoricalLabelCmd = &cobra.Command{
 		}
 
 		repo, _ := cmd.Flags().GetString("repo")
-		skipTimelineAbove, _ := cmd.Flags().GetInt("skip-timeline-above")
+		olderThan, _ := cmd.Flags().GetInt("older-than")
 
 		if verbose {
 			fmt.Fprintf(os.Stderr, "Starting search for issues created since %s that had label '%s' at any point...\n", since, label)
@@ -54,7 +54,7 @@ var issuesWithHistoricalLabelCmd = &cobra.Command{
 			fmt.Fprintf(os.Stderr, "Searching for issues created since %s that had label '%s' at any point", since, label)
 		}
 
-		issues, err := ghapi.GetIssuesCreatedSinceWithLabel(repo, since, label, verbose, concurrency, skipTimelineAbove)
+		issues, err := ghapi.GetIssuesCreatedSinceWithLabel(repo, since, label, verbose, concurrency, olderThan)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "Error fetching issues: %v\n", err)
 			return
@@ -85,5 +85,5 @@ func init() {
 	issuesWithHistoricalLabelCmd.Flags().BoolP("verbose", "v", false, "Show verbose output as issues are pulled and evaluated")
 	issuesWithHistoricalLabelCmd.Flags().IntP("concurrency", "c", 10, "Number of concurrent workers for per-issue requests (issue lists are always retrieved one page at a time)")
 	issuesWithHistoricalLabelCmd.Flags().StringP("repo", "r", "fleetdm/fleet", "Repository to search (format: owner/repo)")
-	issuesWithHistoricalLabelCmd.Flags().Int("skip-timeline-above", 0, "Skip pulling timeline information for issues with number >= this value (0 = disabled)")
+	issuesWithHistoricalLabelCmd.Flags().Int("older-than", 0, "Only pull issues with an ID less than this (for e.g. continuing after being rate-limited)")
 }

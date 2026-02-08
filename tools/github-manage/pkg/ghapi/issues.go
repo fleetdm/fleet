@@ -283,7 +283,7 @@ type APILabel struct {
 }
 
 // GetIssuesCreatedSinceWithLabel finds issues created since a given date that had a specific label at any point.
-func GetIssuesCreatedSinceWithLabel(repo string, sinceDate string, labelName string, verbose bool, concurrency int, skipTimelineAbove int) ([]Issue, error) {
+func GetIssuesCreatedSinceWithLabel(repo string, sinceDate string, labelName string, verbose bool, concurrency int, olderThan int) ([]Issue, error) {
 	if verbose {
 		fmt.Fprintf(os.Stderr, "Fetching issues created since %s...\n", sinceDate)
 	}
@@ -322,6 +322,11 @@ listLoop:
 			// Since we're sorted by created desc, remaining issues in this page and all later pages will also be too old
 			if apiIssue.CreatedAt < sinceTimestamp {
 				break listLoop
+			}
+
+			// Don't add issues outside olderThan to the queue to pull timelines
+			if olderThan > 0 && apiIssue.Number >= olderThan {
+				continue
 			}
 
 			issue := Issue{
@@ -376,18 +381,6 @@ listLoop:
 				mu.Lock()
 				fmt.Fprintf(os.Stderr, "[%d/%d] Checking issue #%d: %s...", idx+1, len(issues), iss.Number, iss.Title)
 				mu.Unlock()
-			}
-
-			// Skip timeline check if issue number >= skipTimelineAbove
-			if skipTimelineAbove > 0 && iss.Number >= skipTimelineAbove {
-				mu.Lock()
-				if verbose {
-					fmt.Fprintf(os.Stderr, " SKIPPED (above threshold)\n")
-				} else {
-					fmt.Fprint(os.Stderr, ".")
-				}
-				mu.Unlock()
-				return
 			}
 
 			hadLabel, err := IssueHadLabel(repo, iss.Number, labelName, verbose)
