@@ -40,9 +40,9 @@ linters:
         - pattern: "^println$"
           msg: "use structured logging instead of built-in println"
         # slog: forbid non-context methods
-        - pattern: "^slog\\.(Debug|Info|Warn|Error)$"
+        - pattern: "^slog\\.(Debug|Info|Warn|Error)"
           pkg: "^log/slog$"
-          msg: "use DebugContext/InfoContext/WarnContext/ErrorContext instead"
+          msg: "Don't use the default logger. Use a specific *slog.Logger instance."
         - pattern: "slog\\.Logger\\.(Debug|Info|Warn|Error)$"
           msg: "use DebugContext/InfoContext/WarnContext/ErrorContext instead"
       analyze-types: true
