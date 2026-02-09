@@ -583,8 +583,6 @@ type CleanupHostOperatingSystemsFunc func(ctx context.Context) error
 
 type MDMTurnOffFunc func(ctx context.Context, uuid string) (users []*fleet.User, activities []fleet.ActivityDetails, err error)
 
-type NewActivityFunc func(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails, details []byte, createdAt time.Time) error
-
 type ListHostUpcomingActivitiesFunc func(ctx context.Context, hostID uint, opt fleet.ListOptions) ([]*fleet.UpcomingActivity, *fleet.PaginationMetadata, error)
 
 type CancelHostUpcomingActivityFunc func(ctx context.Context, hostID uint, executionID string) (fleet.ActivityDetails, error)
@@ -2613,9 +2611,6 @@ type DataStore struct {
 
 	MDMTurnOffFunc        MDMTurnOffFunc
 	MDMTurnOffFuncInvoked bool
-
-	NewActivityFunc        NewActivityFunc
-	NewActivityFuncInvoked bool
 
 	ListHostUpcomingActivitiesFunc        ListHostUpcomingActivitiesFunc
 	ListHostUpcomingActivitiesFuncInvoked bool
@@ -6360,13 +6355,6 @@ func (s *DataStore) MDMTurnOff(ctx context.Context, uuid string) (users []*fleet
 	s.MDMTurnOffFuncInvoked = true
 	s.mu.Unlock()
 	return s.MDMTurnOffFunc(ctx, uuid)
-}
-
-func (s *DataStore) NewActivity(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails, details []byte, createdAt time.Time) error {
-	s.mu.Lock()
-	s.NewActivityFuncInvoked = true
-	s.mu.Unlock()
-	return s.NewActivityFunc(ctx, user, activity, details, createdAt)
 }
 
 func (s *DataStore) ListHostUpcomingActivities(ctx context.Context, hostID uint, opt fleet.ListOptions) ([]*fleet.UpcomingActivity, *fleet.PaginationMetadata, error) {

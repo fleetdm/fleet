@@ -3,7 +3,6 @@ package service
 import (
 	"context"
 	"fmt"
-	"time"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -14,7 +13,7 @@ import (
 // ReconcileAndroidDevices polls AMAPI for devices that Fleet still considers enrolled
 // and flips them to unenrolled if Google reports them missing (404).
 // This complements (does not replace) Pub/Sub DELETED handling.
-func ReconcileAndroidDevices(ctx context.Context, ds fleet.Datastore, logger kitlog.Logger, licenseKey string) error {
+func ReconcileAndroidDevices(ctx context.Context, ds fleet.Datastore, logger kitlog.Logger, licenseKey string, newActivityFn func(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails) error) error {
 	appConfig, err := ds.AppConfig(ctx)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "get app config")
@@ -89,12 +88,12 @@ func ReconcileAndroidDevices(ctx context.Context, ds fleet.Datastore, logger kit
 				displayName = hosts[0].DisplayName()
 				serial = hosts[0].HardwareSerial
 			}
-			if aerr := ds.NewActivity(ctx, nil, fleet.ActivityTypeMDMUnenrolled{
+			if aerr := newActivityFn(ctx, nil, fleet.ActivityTypeMDMUnenrolled{
 				HostSerial:       serial,
 				HostDisplayName:  displayName,
 				InstalledFromDEP: false,
 				Platform:         "android",
-			}, nil, time.Now()); aerr != nil {
+			}); aerr != nil {
 				level.Debug(logger).Log("msg", "failed to create mdm_unenrolled activity during android reconcile", "host_id", dev.HostID, "err", aerr)
 			}
 			unenrolled++

@@ -7,6 +7,7 @@ import (
 	"testing"
 	"time"
 
+	activity_api "github.com/fleetdm/fleet/v4/server/activity/api"
 	authz_ctx "github.com/fleetdm/fleet/v4/server/contexts/authz"
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -26,11 +27,6 @@ func TestTeamAuth(t *testing.T) {
 	}
 	ds.NewTeamFunc = func(ctx context.Context, team *fleet.Team) (*fleet.Team, error) {
 		return &fleet.Team{}, nil
-	}
-	ds.NewActivityFunc = func(
-		ctx context.Context, user *fleet.User, activity fleet.ActivityDetails, details []byte, createdAt time.Time,
-	) error {
-		return nil
 	}
 	ds.TeamLiteFunc = func(ctx context.Context, tid uint) (*fleet.TeamLite, error) {
 		return &fleet.TeamLite{}, nil
@@ -214,7 +210,8 @@ func TestTeamAuth(t *testing.T) {
 func TestApplyTeamSpecs(t *testing.T) {
 	ds := new(mock.Store)
 	license := &fleet.LicenseInfo{Tier: fleet.TierPremium, Expiration: time.Now().Add(24 * time.Hour)}
-	svc, ctx := newTestService(t, ds, nil, nil, &TestServerOpts{License: license, SkipCreateTestUsers: true})
+	opts := &TestServerOpts{License: license, SkipCreateTestUsers: true}
+	svc, ctx := newTestService(t, ds, nil, nil, opts)
 	user := &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}
 	ctx = viewer.NewContext(ctx, viewer.Viewer{User: user})
 	baseFeatures := fleet.Features{
@@ -293,9 +290,7 @@ func TestApplyTeamSpecs(t *testing.T) {
 					return team, nil
 				}
 
-				ds.NewActivityFunc = func(
-					ctx context.Context, user *fleet.User, activity fleet.ActivityDetails, details []byte, createdAt time.Time,
-				) error {
+				opts.ActivityMock.NewActivityFunc = func(_ context.Context, _ *activity_api.User, activity activity_api.ActivityDetails) error {
 					act := activity.(fleet.ActivityTypeAppliedSpecTeam)
 					require.Len(t, act.Teams, 1)
 					return nil
@@ -379,9 +374,7 @@ func TestApplyTeamSpecs(t *testing.T) {
 					return &fleet.Team{ID: 123}, nil
 				}
 
-				ds.NewActivityFunc = func(
-					ctx context.Context, user *fleet.User, activity fleet.ActivityDetails, details []byte, createdAt time.Time,
-				) error {
+				opts.ActivityMock.NewActivityFunc = func(_ context.Context, _ *activity_api.User, activity activity_api.ActivityDetails) error {
 					act := activity.(fleet.ActivityTypeAppliedSpecTeam)
 					require.Len(t, act.Teams, 1)
 					return nil
@@ -412,12 +405,6 @@ func TestApplyTeamSpecEnrollSecretForNewTeams(t *testing.T) {
 
 	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 		return &fleet.AppConfig{}, nil
-	}
-
-	ds.NewActivityFunc = func(
-		ctx context.Context, user *fleet.User, activity fleet.ActivityDetails, details []byte, createdAt time.Time,
-	) error {
-		return nil
 	}
 
 	t.Run("creates enroll secret when not included for a new team spec", func(t *testing.T) {

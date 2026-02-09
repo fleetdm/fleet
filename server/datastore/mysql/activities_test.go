@@ -96,22 +96,22 @@ func testActivityUsernameChange(t *testing.T, ds *Datastore) {
 	_, err := ds.NewUser(context.Background(), u)
 	require.NoError(t, err)
 
-	timestamp := time.Now()
-	ctx := context.WithValue(context.Background(), fleet.ActivityWebhookContextKey, true)
+	apiUser := &activity_api.User{ID: u.ID, Name: u.Name, Email: u.Email}
+	ctx := context.Background()
 	require.NoError(
-		t, ds.NewActivity(
-			ctx, u, dummyActivity{
+		t, activitySvc.NewActivity(
+			ctx, apiUser, dummyActivity{
 				name:    "test1",
 				details: map[string]interface{}{"detail": 1, "sometext": "aaa"},
-			}, nil, timestamp,
+			},
 		),
 	)
 	require.NoError(
-		t, ds.NewActivity(
-			ctx, u, dummyActivity{
+		t, activitySvc.NewActivity(
+			ctx, apiUser, dummyActivity{
 				name:    "test2",
 				details: map[string]interface{}{"detail": 2},
-			}, nil, timestamp,
+			},
 		),
 	)
 
@@ -150,33 +150,23 @@ func testActivityNew(t *testing.T, ds *Datastore) {
 	}
 	_, err := ds.NewUser(context.Background(), u)
 	require.Nil(t, err)
-	timestamp := time.Now()
 
-	activity := dummyActivity{
-		name:    "test0",
-		details: map[string]interface{}{"detail": 1, "sometext": "aaa"},
-	}
-	// If we don't set the ActivityWebhookContextKey context value, the activity will not be created
-	assert.Error(t, ds.NewActivity(context.Background(), u, activity, nil, timestamp))
-	// If we set the context value to the wrong thing, the activity will not be created
-	ctx := context.WithValue(context.Background(), fleet.ActivityWebhookContextKey, "bozo")
-	assert.Error(t, ds.NewActivity(ctx, u, activity, nil, timestamp))
-
-	ctx = context.WithValue(context.Background(), fleet.ActivityWebhookContextKey, true)
+	apiUser := &activity_api.User{ID: u.ID, Name: u.Name, Email: u.Email}
+	ctx := context.Background()
 	require.NoError(
-		t, ds.NewActivity(
-			ctx, u, dummyActivity{
+		t, activitySvc.NewActivity(
+			ctx, apiUser, dummyActivity{
 				name:    "test1",
 				details: map[string]interface{}{"detail": 1, "sometext": "aaa"},
-			}, nil, timestamp,
+			},
 		),
 	)
 	require.NoError(
-		t, ds.NewActivity(
-			ctx, u, dummyActivity{
+		t, activitySvc.NewActivity(
+			ctx, apiUser, dummyActivity{
 				name:    "test2",
 				details: map[string]interface{}{"detail": 2},
-			}, nil, timestamp,
+			},
 		),
 	)
 
@@ -209,19 +199,18 @@ func testActivityNew(t *testing.T, ds *Datastore) {
 func testActivityEmptyUser(t *testing.T, ds *Datastore) {
 	activitySvc := NewTestActivityService(t, ds)
 
-	timestamp := time.Now()
-	ctx := context.WithValue(context.Background(), fleet.ActivityWebhookContextKey, true)
+	ctx := context.Background()
 	require.NoError(
-		t, ds.NewActivity(
+		t, activitySvc.NewActivity(
 			ctx, nil, dummyActivity{
 				name:    "test1",
 				details: map[string]interface{}{"detail": 1, "sometext": "aaa"},
-			}, nil, timestamp,
+			},
 		),
 	)
 
 	require.NoError(
-		t, ds.NewActivity(
+		t, activitySvc.NewActivity(
 			ctx, nil, fleet.ActivityInstalledAppStoreApp{
 				HostID:          1,
 				HostDisplayName: "A Host",
@@ -232,7 +221,7 @@ func testActivityEmptyUser(t *testing.T, ds *Datastore) {
 				SelfService:     false,
 				PolicyID:        ptr.Uint(1),
 				PolicyName:      ptr.String("Sample Policy"),
-			}, nil, timestamp,
+			},
 		),
 	)
 
@@ -682,33 +671,28 @@ func testCleanupActivitiesAndAssociatedData(t *testing.T, ds *Datastore) {
 		Type:                       fleet.TargetHost,
 	})
 	require.NoError(t, err)
-	timestamp := time.Now()
-	ctx = context.WithValue(context.Background(), fleet.ActivityWebhookContextKey, true)
-	err = ds.NewActivity(ctx, user1, dummyActivity{
+	apiUser := &activity_api.User{ID: user1.ID, Name: user1.Name, Email: user1.Email}
+	err = activitySvc.NewActivity(ctx, apiUser, dummyActivity{
 		name:    "other activity",
 		details: map[string]interface{}{"detail": 0, "foo": "zoo"},
-	}, nil, timestamp,
-	)
+	})
 	require.NoError(t, err)
-	err = ds.NewActivity(ctx, user1, dummyActivity{
+	err = activitySvc.NewActivity(ctx, apiUser, dummyActivity{
 		name:    "live query",
 		details: map[string]interface{}{"detail": 1, "foo": "bar"},
-	}, nil, timestamp,
-	)
+	})
 	require.NoError(t, err)
-	err = ds.NewActivity(ctx, user1, dummyActivity{
+	err = activitySvc.NewActivity(ctx, apiUser, dummyActivity{
 		name:    "some host activity",
 		details: map[string]interface{}{"detail": 0, "foo": "zoo"},
 		hostIDs: []uint{1},
-	}, nil, timestamp,
-	)
+	})
 	require.NoError(t, err)
-	err = ds.NewActivity(ctx, user1, dummyActivity{
+	err = activitySvc.NewActivity(ctx, apiUser, dummyActivity{
 		name:    "some host activity 2",
 		details: map[string]interface{}{"detail": 0, "foo": "bar"},
 		hostIDs: []uint{2},
-	}, nil, timestamp,
-	)
+	})
 	require.NoError(t, err)
 
 	// Nothing is deleted, as the activities and associated data is recent.
@@ -878,8 +862,8 @@ func testCleanupActivitiesAndAssociatedDataBatch(t *testing.T, ds *Datastore) {
 }
 
 func testActivateNextActivity(t *testing.T, ds *Datastore) {
+	activitySvc := NewTestActivityService(t, ds)
 	ctx := context.Background()
-	ctx = context.WithValue(ctx, fleet.ActivityWebhookContextKey, true)
 
 	test.CreateInsertGlobalVPPToken(t, ds)
 
@@ -1064,11 +1048,11 @@ func testActivateNextActivity(t *testing.T, ds *Datastore) {
 	err = nanoDB.StoreCommandReport(nanoCtx, cmdRes)
 	require.NoError(t, err)
 
-	err = ds.NewActivity(ctx, nil, fleet.ActivityInstalledAppStoreApp{
+	err = activitySvc.NewActivity(ctx, nil, fleet.ActivityInstalledAppStoreApp{
 		HostID:      h1.ID,
 		AppStoreID:  vppApp1.VPPAppTeam.AdamID,
 		CommandUUID: vpp1_1,
-	}, []byte(`{}`), time.Now())
+	})
 	require.NoError(t, err)
 
 	appleCmdRes, err := ds.GetMDMAppleCommandResults(ctx, vpp1_1, "")
@@ -1145,11 +1129,11 @@ func testActivateNextActivity(t *testing.T, ds *Datastore) {
 	err = nanoDB.StoreCommandReport(nanoCtx, cmdRes)
 	require.NoError(t, err)
 
-	err = ds.NewActivity(ctx, nil, fleet.ActivityInstalledAppStoreApp{
+	err = activitySvc.NewActivity(ctx, nil, fleet.ActivityInstalledAppStoreApp{
 		HostID:      h1.ID,
 		AppStoreID:  vppApp2.VPPAppTeam.AdamID,
 		CommandUUID: vpp1_2,
-	}, []byte(`{}`), time.Now())
+	})
 	require.NoError(t, err)
 
 	appleCmdRes, err = ds.GetMDMAppleCommandResults(ctx, vpp1_2, "")
@@ -1248,12 +1232,12 @@ func testActivateNextActivity(t *testing.T, ds *Datastore) {
 	err = nanoDB.StoreCommandReport(nanoCtx, cmdRes)
 	require.NoError(t, err)
 
-	err = ds.NewActivity(ctx, nil, fleet.ActivityInstalledAppStoreApp{
+	err = activitySvc.NewActivity(ctx, nil, fleet.ActivityInstalledAppStoreApp{
 		HostID:      hIOS.ID,
 		AppStoreID:  vppApp1IOS.VPPAppTeam.AdamID,
 		CommandUUID: vpp1_1_ios,
 		Status:      "Error", // using a failure because otherwise it requires verification to activate next
-	}, []byte(`{}`), time.Now())
+	})
 	require.NoError(t, err)
 
 	// the in-house app is now activated
@@ -1291,11 +1275,11 @@ func testActivateNextActivity(t *testing.T, ds *Datastore) {
 	err = nanoDB.StoreCommandReport(nanoCtx, cmdRes)
 	require.NoError(t, err)
 
-	err = ds.NewActivity(ctx, nil, &fleet.ActivityTypeInstalledSoftware{
+	err = activitySvc.NewActivity(ctx, nil, &fleet.ActivityTypeInstalledSoftware{
 		HostID:      hIOS.ID,
 		CommandUUID: ihaCmd,
 		Status:      "Error", // using a failure because otherwise it requires verification to activate next
-	}, []byte(`{}`), time.Now())
+	})
 	require.NoError(t, err)
 
 	pendingActs, _, err = ds.ListHostUpcomingActivities(ctx, hIOS.ID, fleet.ListOptions{})
@@ -1323,11 +1307,11 @@ func testActivateNextActivity(t *testing.T, ds *Datastore) {
 	err = nanoDB.StoreCommandReport(nanoCtx, cmdRes)
 	require.NoError(t, err)
 
-	err = ds.NewActivity(ctx, nil, &fleet.ActivityTypeInstalledSoftware{
+	err = activitySvc.NewActivity(ctx, nil, &fleet.ActivityTypeInstalledSoftware{
 		HostID:      hIOS.ID,
 		CommandUUID: vpp1_1_ios,
 		Status:      string(fleet.SoftwareInstalled),
-	}, []byte(`{}`), time.Now())
+	})
 	require.NoError(t, err)
 
 	// both are still upcoming...
@@ -1355,11 +1339,11 @@ func testActivateNextActivity(t *testing.T, ds *Datastore) {
 	err = nanoDB.StoreCommandReport(nanoCtx, cmdRes)
 	require.NoError(t, err)
 
-	err = ds.NewActivity(ctx, nil, &fleet.ActivityTypeInstalledSoftware{
+	err = activitySvc.NewActivity(ctx, nil, &fleet.ActivityTypeInstalledSoftware{
 		HostID:      hIOS.ID,
 		CommandUUID: ihaCmd,
 		Status:      string(fleet.SoftwareInstalled),
-	}, []byte(`{}`), time.Now())
+	})
 	require.NoError(t, err)
 
 	pendingActs, _, err = ds.ListHostUpcomingActivities(ctx, hIOS.ID, fleet.ListOptions{})
@@ -1377,8 +1361,8 @@ func testActivateNextActivity(t *testing.T, ds *Datastore) {
 }
 
 func testActivateItselfOnEmptyQueue(t *testing.T, ds *Datastore) {
+	activitySvc := NewTestActivityService(t, ds)
 	ctx := context.Background()
-	ctx = context.WithValue(ctx, fleet.ActivityWebhookContextKey, true)
 	test.CreateInsertGlobalVPPToken(t, ds)
 
 	h1 := test.NewHost(t, ds, "h1.local", "10.10.10.1", "1", "1", time.Now())
@@ -1464,11 +1448,11 @@ func testActivateItselfOnEmptyQueue(t *testing.T, ds *Datastore) {
 	}
 	err = nanoDB.StoreCommandReport(nanoCtx, cmdRes)
 	require.NoError(t, err)
-	err = ds.NewActivity(ctx, nil, fleet.ActivityInstalledAppStoreApp{
+	err = activitySvc.NewActivity(ctx, nil, fleet.ActivityInstalledAppStoreApp{
 		HostID:      h1.ID,
 		AppStoreID:  vppApp1.VPPAppTeam.AdamID,
 		CommandUUID: vpp1_1,
-	}, []byte(`{}`), time.Now())
+	})
 	require.NoError(t, err)
 
 	// the upcoming queue should be empty, each result having emptied the list
@@ -1479,6 +1463,14 @@ func testActivateItselfOnEmptyQueue(t *testing.T, ds *Datastore) {
 }
 
 func testCancelNonActivatedUpcomingActivity(t *testing.T, ds *Datastore) {
+	activitySvc := NewTestActivityService(t, ds)
+	newActivityFn := func(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails) error {
+		var apiUser *activity_api.User
+		if user != nil {
+			apiUser = &activity_api.User{ID: user.ID, Name: user.Name, Email: user.Email}
+		}
+		return activitySvc.NewActivity(ctx, apiUser, activity)
+	}
 	ctx := context.Background()
 	test.CreateInsertGlobalVPPToken(t, ds)
 
@@ -1580,7 +1572,7 @@ func testCancelNonActivatedUpcomingActivity(t *testing.T, ds *Datastore) {
 				exec2 := test.CreateHostScriptUpcomingActivity(t, ds, host)
 				exec3 := test.CreateHostSoftwareInstallUpcomingActivity(t, ds, host, u)
 				t.Cleanup(func() {
-					test.SetHostVPPAppInstallResult(t, ds, nanoDB, host, exec1, adamID, "Acknowledged")
+					test.SetHostVPPAppInstallResult(t, ds, nanoDB, host, exec1, adamID, "Acknowledged", newActivityFn)
 					test.SetHostSoftwareInstallResult(t, ds, host, exec3, 0)
 				})
 				return []string{exec1, exec2, exec3}
@@ -1609,7 +1601,7 @@ func testCancelNonActivatedUpcomingActivity(t *testing.T, ds *Datastore) {
 				exec1, adamID := test.CreateHostVPPAppInstallUpcomingActivity(t, ds, hostIOS)
 				exec2 := test.CreateHostInHouseAppInstallUpcomingActivity(t, ds, hostIOS, u)
 				t.Cleanup(func() {
-					test.SetHostVPPAppInstallResult(t, ds, nanoDB, host, exec1, adamID, "Acknowledged")
+					test.SetHostVPPAppInstallResult(t, ds, nanoDB, host, exec1, adamID, "Acknowledged", newActivityFn)
 				})
 				return []string{exec1, exec2}
 			},
@@ -1645,6 +1637,14 @@ func testCancelNonActivatedUpcomingActivity(t *testing.T, ds *Datastore) {
 }
 
 func testCancelActivatedUpcomingActivity(t *testing.T, ds *Datastore) {
+	activitySvc := NewTestActivityService(t, ds)
+	newActivityFn := func(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails) error {
+		var apiUser *activity_api.User
+		if user != nil {
+			apiUser = &activity_api.User{ID: user.ID, Name: user.Name, Email: user.Email}
+		}
+		return activitySvc.NewActivity(ctx, apiUser, activity)
+	}
 	ctx := context.Background()
 	test.CreateInsertGlobalVPPToken(t, ds)
 
@@ -1707,7 +1707,7 @@ func testCancelActivatedUpcomingActivity(t *testing.T, ds *Datastore) {
 				exec1 := test.CreateHostSoftwareUninstallUpcomingActivity(t, ds, host, u)
 				exec2, adamID := test.CreateHostVPPAppInstallUpcomingActivity(t, ds, host)
 				t.Cleanup(func() {
-					test.SetHostVPPAppInstallResult(t, ds, nanoDB, host, exec2, adamID, "Acknowledged")
+					test.SetHostVPPAppInstallResult(t, ds, nanoDB, host, exec2, adamID, "Acknowledged", newActivityFn)
 				})
 				return []string{exec1, exec2}
 			},
@@ -1761,7 +1761,7 @@ func testCancelActivatedUpcomingActivity(t *testing.T, ds *Datastore) {
 				exec1, _ := test.CreateHostVPPAppInstallUpcomingActivity(t, ds, host)
 				exec2, adamID := test.CreateHostVPPAppInstallUpcomingActivity(t, ds, host)
 				t.Cleanup(func() {
-					test.SetHostVPPAppInstallResult(t, ds, nanoDB, host, exec2, adamID, "Acknowledged")
+					test.SetHostVPPAppInstallResult(t, ds, nanoDB, host, exec2, adamID, "Acknowledged", newActivityFn)
 				})
 				return []string{exec1, exec2}
 			},
@@ -1773,7 +1773,7 @@ func testCancelActivatedUpcomingActivity(t *testing.T, ds *Datastore) {
 				exec1 := test.CreateHostInHouseAppInstallUpcomingActivity(t, ds, hostIOS, u)
 				exec2, adamID := test.CreateHostVPPAppInstallUpcomingActivity(t, ds, hostIOS)
 				t.Cleanup(func() {
-					test.SetHostVPPAppInstallResult(t, ds, nanoDB, hostIOS, exec2, adamID, "Acknowledged")
+					test.SetHostVPPAppInstallResult(t, ds, nanoDB, hostIOS, exec2, adamID, "Acknowledged", newActivityFn)
 				})
 				return []string{exec1, exec2}
 			},
@@ -1785,7 +1785,7 @@ func testCancelActivatedUpcomingActivity(t *testing.T, ds *Datastore) {
 				exec1 := test.CreateHostInHouseAppInstallUpcomingActivity(t, ds, hostIOS, u)
 				exec2 := test.CreateHostInHouseAppInstallUpcomingActivity(t, ds, hostIOS, u)
 				t.Cleanup(func() {
-					test.SetHostInHouseAppInstallResult(t, ds, nanoDB, hostIOS, exec2, "Acknowledged")
+					test.SetHostInHouseAppInstallResult(t, ds, nanoDB, hostIOS, exec2, "Acknowledged", newActivityFn)
 				})
 				return []string{exec1, exec2}
 			},
@@ -1850,6 +1850,14 @@ func testCancelActivatedUpcomingActivity(t *testing.T, ds *Datastore) {
 }
 
 func testSetResultAfterCancelUpcomingActivity(t *testing.T, ds *Datastore) {
+	activitySvc := NewTestActivityService(t, ds)
+	newActivityFn := func(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails) error {
+		var apiUser *activity_api.User
+		if user != nil {
+			apiUser = &activity_api.User{ID: user.ID, Name: user.Name, Email: user.Email}
+		}
+		return activitySvc.NewActivity(ctx, apiUser, activity)
+	}
 	ctx := context.Background()
 	test.CreateInsertGlobalVPPToken(t, ds)
 
@@ -1881,7 +1889,7 @@ func testSetResultAfterCancelUpcomingActivity(t *testing.T, ds *Datastore) {
 	exec, adamID := test.CreateHostVPPAppInstallUpcomingActivity(t, ds, host)
 	_, err = ds.CancelHostUpcomingActivity(ctx, host.ID, exec)
 	require.NoError(t, err)
-	test.SetHostVPPAppInstallResult(t, ds, nanoDB, host, exec, adamID, "Acknowledged")
+	test.SetHostVPPAppInstallResult(t, ds, nanoDB, host, exec, adamID, "Acknowledged", newActivityFn)
 }
 
 func testGetHostUpcomingActivityMeta(t *testing.T, ds *Datastore) {

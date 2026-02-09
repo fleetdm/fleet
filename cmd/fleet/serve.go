@@ -1169,6 +1169,7 @@ the way that the Fleet server works.
 					ds,
 					logger,
 					config.License.Key,
+					svc.NewActivity,
 				)
 			}); err != nil {
 				initFatal(err, "failed to register mdm_android_device_reconciler schedule")

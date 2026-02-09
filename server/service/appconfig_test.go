@@ -14,7 +14,6 @@ import (
 	"os"
 	"strings"
 	"testing"
-	"time"
 
 	"github.com/fleetdm/fleet/v4/pkg/optjson"
 	"github.com/fleetdm/fleet/v4/server/config"
@@ -1459,11 +1458,6 @@ func TestModifyAppConfigSMTPSSOAgentOptions(t *testing.T) {
 	}
 	ds.SaveAppConfigFunc = func(ctx context.Context, conf *fleet.AppConfig) error {
 		*dsAppConfig = *conf
-		return nil
-	}
-	ds.NewActivityFunc = func(
-		ctx context.Context, user *fleet.User, activity fleet.ActivityDetails, details []byte, createdAt time.Time,
-	) error {
 		return nil
 	}
 	ds.SaveABMTokenFunc = func(ctx context.Context, tok *fleet.ABMToken) error {

@@ -10,17 +10,19 @@ import (
 	"os"
 	"strings"
 	"testing"
-	"time"
 
 	"github.com/fleetdm/fleet/v4/cmd/fleetctl/fleetctl/testing_utils"
+	activity_api "github.com/fleetdm/fleet/v4/server/activity/api"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/service"
 	"github.com/fleetdm/fleet/v4/server/test"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
 func TestUserDelete(t *testing.T) {
-	_, ds := testing_utils.RunServerWithMockedDS(t)
+	opts := &service.TestServerOpts{}
+	_, ds := testing_utils.RunServerWithMockedDS(t, opts)
 
 	ds.UserByEmailFunc = func(ctx context.Context, email string) (*fleet.User, error) {
 		return &fleet.User{
@@ -41,9 +43,7 @@ func TestUserDelete(t *testing.T) {
 		deletedUser = id
 		return nil
 	}
-	ds.NewActivityFunc = func(
-		ctx context.Context, user *fleet.User, activity fleet.ActivityDetails, details []byte, createdAt time.Time,
-	) error {
+	opts.ActivityMock.NewActivityFunc = func(_ context.Context, _ *activity_api.User, activity activity_api.ActivityDetails) error {
 		assert.Equal(t, fleet.ActivityTypeDeletedUser{}.ActivityName(), activity.ActivityName())
 		return nil
 	}
@@ -62,11 +62,6 @@ func TestUserCreateForcePasswordReset(t *testing.T) {
 
 	ds.InviteByEmailFunc = func(ctx context.Context, email string) (*fleet.Invite, error) {
 		return nil, &notFoundError{}
-	}
-	ds.NewActivityFunc = func(
-		ctx context.Context, user *fleet.User, activity fleet.ActivityDetails, details []byte, createdAt time.Time,
-	) error {
-		return nil
 	}
 	ds.UserByEmailFunc = func(ctx context.Context, email string) (*fleet.User, error) {
 		if email == "bar@example.com" {
@@ -160,11 +155,6 @@ func TestCreateBulkUsers(t *testing.T) {
 	ds.InviteByEmailFunc = func(ctx context.Context, email string) (*fleet.Invite, error) {
 		return nil, nil
 	}
-	ds.NewActivityFunc = func(
-		ctx context.Context, user *fleet.User, activity fleet.ActivityDetails, details []byte, createdAt time.Time,
-	) error {
-		return nil
-	}
 	ds.TeamsSummaryFunc = func(ctx context.Context) ([]*fleet.TeamSummary, error) {
 		team1 := &fleet.TeamSummary{
 			ID: 1,
@@ -193,11 +183,6 @@ func TestCreateBulkUsers(t *testing.T) {
 
 func TestDeleteBulkUsers(t *testing.T) {
 	_, ds := testing_utils.RunServerWithMockedDS(t)
-	ds.NewActivityFunc = func(
-		ctx context.Context, user *fleet.User, activity fleet.ActivityDetails, details []byte, createdAt time.Time,
-	) error {
-		return nil
-	}
 	csvFilePath := writeTmpCsv(t,
 		`Email
 	user11@example.com
