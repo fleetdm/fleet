@@ -3,10 +3,7 @@ import { useQuery } from "react-query";
 
 import { AppContext } from "context/app";
 
-import {
-  IQueryKeyQueriesLoadAll,
-  ISchedulableQuery,
-} from "interfaces/schedulable_query";
+import { IQueryKeyQueriesLoadAll } from "interfaces/schedulable_query";
 import { LogDestination } from "interfaces/config";
 import queriesAPI, { IQueriesResponse } from "services/entities/queries";
 
@@ -42,30 +39,6 @@ interface ICheckedQuery {
   isChecked: boolean;
   interval: number;
 }
-
-const useCheckboxListStateManagement = (
-  allQueries: ISchedulableQuery[],
-  automatedQueryIds: number[] | undefined
-) => {
-  const [queryItems, setQueryItems] = useState<ICheckedQuery[]>(() => {
-    return allQueries.map(({ name, id, interval }) => ({
-      name,
-      id,
-      isChecked: !!automatedQueryIds?.includes(id),
-      interval,
-    }));
-  });
-
-  const updateQueryItems = (queryId: number) => {
-    setQueryItems((prevItems) =>
-      prevItems.map((query) =>
-        query.id !== queryId ? query : { ...query, isChecked: !query.isChecked }
-      )
-    );
-  };
-
-  return { queryItems, setQueryItems, updateQueryItems };
-};
 
 const baseClass = "manage-query-automations-modal";
 
@@ -127,26 +100,29 @@ const ManageQueryAutomationsModal = ({
     [availableQueries]
   );
 
-  const {
-    queryItems,
-    setQueryItems,
-    updateQueryItems,
-  } = useCheckboxListStateManagement(sortedAvailableQueries, automatedQueryIds);
+  const [queryItems, setQueryItems] = useState<ICheckedQuery[]>([]);
 
-  // Sync queryItems when the async fetch completes (the useState initializer
-  // only runs once on mount, when availableQueries is still empty).
+  // Sync queryItems when the async fetch completes.
   useEffect(() => {
     if (sortedAvailableQueries.length > 0) {
       setQueryItems(
         sortedAvailableQueries.map(({ name, id, interval }) => ({
           name,
           id,
-          isChecked: automatedQueryIds.includes(id),
+          isChecked: !!automatedQueryIds?.includes(id),
           interval,
         }))
       );
     }
-  }, [sortedAvailableQueries, automatedQueryIds, setQueryItems]);
+  }, [sortedAvailableQueries, automatedQueryIds]);
+
+  const updateQueryItems = (queryId: number) => {
+    setQueryItems((prevItems) =>
+      prevItems.map((query) =>
+        query.id !== queryId ? query : { ...query, isChecked: !query.isChecked }
+      )
+    );
+  };
 
   const onSubmitQueryAutomations = (
     evt: React.MouseEvent<HTMLFormElement> | KeyboardEvent
