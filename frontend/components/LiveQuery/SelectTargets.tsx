@@ -23,7 +23,7 @@ import targetsAPI, {
 } from "services/entities/targets";
 import teamsAPI, { ILoadTeamsResponse } from "services/entities/teams";
 import { formatSelectedTargetsForApi } from "utilities/helpers";
-import { upperFirst } from "lodash";
+import { capitalize } from "lodash";
 import permissions from "utilities/permissions";
 
 import PageError from "components/DataError";
@@ -414,7 +414,7 @@ const SelectTargets = ({
 
     return (
       <>
-        {entityType && <h3>{upperFirst(displayType)}</h3>}
+        {entityType && <h3>{capitalize(displayType)}</h3>}
         {isSearchEnabled && (
           <>
             <SearchField
