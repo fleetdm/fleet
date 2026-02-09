@@ -27,12 +27,12 @@ func (ds *Datastore) SetAsideLabels(ctx context.Context, notOnTeamID *uint, name
 	}
 
 	// Helper function to check if user has a write role on a specific team
-	// TODO HERE!
 	hasWriteRoleOnTeam := func(teamID uint) bool {
 		for _, team := range user.Teams {
 			if team.ID == teamID &&
 				(team.Role == fleet.RoleAdmin ||
 					team.Role == fleet.RoleMaintainer ||
+					team.Role == fleet.RoleTechnician ||
 					team.Role == fleet.RoleGitOps) {
 				return true
 			}
@@ -47,6 +47,7 @@ func (ds *Datastore) SetAsideLabels(ctx context.Context, notOnTeamID *uint, name
 		}
 		return *user.GlobalRole == fleet.RoleAdmin ||
 			*user.GlobalRole == fleet.RoleMaintainer ||
+			*user.GlobalRole == fleet.RoleTechnician ||
 			*user.GlobalRole == fleet.RoleGitOps
 	}
 
@@ -83,6 +84,7 @@ func (ds *Datastore) SetAsideLabels(ctx context.Context, notOnTeamID *uint, name
 		for _, team := range user.Teams {
 			if team.Role == fleet.RoleAdmin ||
 				team.Role == fleet.RoleMaintainer ||
+				team.Role == fleet.RoleTechnician ||
 				team.Role == fleet.RoleGitOps {
 				return true
 			}
