@@ -11,12 +11,12 @@ To manage custom packages via GitOps, please see the [`packages`](https://fleetd
 > For script packages (`.sh` and `.ps1` files), the `install_script`, `uninstall_script`, `post_install_script`, and `pre_install_query` fields are not supported and will be ignored. The script file's contents become the install script. Learn more in the [deploy software guide](https://fleetdm.com/guides/deploy-software-packages#script-packages).
 
 If you want to use Fleet to host custom packages instead of a third-party package hosting tool (ex. [Artifactory](https://jfrog.com/artifactory/)), first turn GitOps mode on in **Settings > Integration > Change management**
-1. Navigate to **Software** and select a team. Then select **Add Software > Custom package**
-2. Select a team and choose a file to upload and select **Add software**
+1. Navigate to **Software** and select a fleet. Then select **Add Software > Custom package**
+2. Select a fleet and choose a file to upload and select **Add software**
 3. A modal will appear with YAML instructions.
     1. Create a YAML file with the suggested filename and populate it with the contents below.
     2. Save this file to your repository.
-    3. Make sure that the package YAML is referenced from your team YAML.
+    3. Make sure that the package YAML is referenced from your fleet YAML.
     4. Download the additional queries and scripts that are linked in the modal and add them to your repository. Make sure to use the paths listed in the contents area above.
 
 ## App store apps
