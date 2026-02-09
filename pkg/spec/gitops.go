@@ -155,6 +155,7 @@ type GitOpsControls struct {
 	WindowsEnabledAndConfigured    interface{} `json:"windows_enabled_and_configured"`
 	WindowsMigrationEnabled        interface{} `json:"windows_migration_enabled"`
 	EnableTurnOnWindowsMDMManually interface{} `json:"enable_turn_on_windows_mdm_manually"`
+	WindowsEntraTenantIDs          interface{} `json:"windows_entra_tenant_ids"`
 
 	AndroidEnabledAndConfigured interface{} `json:"android_enabled_and_configured"`
 	AndroidSettings             interface{} `json:"android_settings"`

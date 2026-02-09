@@ -426,6 +426,11 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 		appConfig.MDM.WindowsMigrationEnabled = false
 	}
 
+	if oldAppConfig.MDM.WindowsEnabledAndConfigured != appConfig.MDM.WindowsEnabledAndConfigured &&
+		!appConfig.MDM.WindowsEnabledAndConfigured && len(newAppConfig.MDM.WindowsEntraTenantIDs.Value) == 0 {
+		appConfig.MDM.WindowsEntraTenantIDs.Value = []string{}
+	}
+
 	// EnableDiskEncryption is an optjson.Bool field in order to support the
 	// legacy field under "mdm.macos_settings". If the field provided to the
 	// PATCH endpoint is set but invalid (that is, "enable_disk_encryption":
@@ -1506,7 +1511,17 @@ func (svc *Service) validateMDM(
 	}
 
 	if !mdm.WindowsEnabledAndConfigured && len(mdm.WindowsEntraTenantIDs.Value) > 0 {
-		invalid.Append("mdm.windows_entra_tenant_ids", ErrMissingLicense.Error())
+		invalid.Append("mdm.windows_entra_tenant_ids", "Couldn't set Windows Entra tenant IDs, Windows MDM is not enabled.")
+	}
+
+	// validate Windows Entra tenant IDs are in the correct format (GUIDs). We can't use the standard UUID parser here
+	// as Azure tenants should be in the 8-4-4-4-12 format but the usual UUID parser will allow certain non-standard
+	// forms
+	guidRegex := regexp.MustCompile("^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$")
+	for _, tenantID := range mdm.WindowsEntraTenantIDs.Value {
+		if !guidRegex.MatchString(tenantID) {
+			invalid.Append("mdm.windows_entra_tenant_ids", fmt.Sprintf("Invalid Entra tenant ID: %s", tenantID))
+		}
 	}
 
 	if mdm.WindowsMigrationEnabled && mdm.EnableTurnOnWindowsMDMManually {
