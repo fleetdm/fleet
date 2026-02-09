@@ -543,9 +543,6 @@ func (ds *Datastore) SetTeamVPPApps(ctx context.Context, teamID *uint, incomingA
 			}
 		}
 
-		// TODO(mna): for android apps, we need to enqueue the worker job to remove the self-service
-		// apps from the managed Google Play store of the affected hosts.
-
 		return nil
 	})
 
