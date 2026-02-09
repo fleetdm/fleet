@@ -100,7 +100,7 @@ done
 
 3. The converted YAML is written to standard out in the Terminal. Copy/paste the CIS policies you wish to use into your own YAML file and run Fleet GitOps.
 
-If you're using `fleetctl apply`, you can apply the policies to a specific team use the `--policies-team` flag:
+If you're using `fleetctl apply`, you can apply the policies to a specific fleet use the `--policies-team` flag:
 ```sh
 fleetctl apply --policies-team "Workstations" -f cis-policy-queries.yml
 ```

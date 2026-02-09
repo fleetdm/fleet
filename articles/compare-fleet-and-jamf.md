@@ -30,13 +30,13 @@ Fleet and Jamf serve different strategic purposes based on fleet composition and
 
 Both Fleet and Jamf Pro support Apple Business / School Manager integration for zero-touch deployment (typically meaning that devices ship directly to end users and enroll via an automated process on first boot.)
 
-Both solutions also provide options for deploying MDM enrollment profiles via supervision and settings that prevent end users from removing management and MDM Configuration Profiles without authorization, giving organizations strong enforcement controls to match requirements and comply with standards.
+Both solutions also provide options for deploying MDM enrollment profiles via supervision and settings that prevent end users from removing management and MDM configuration profiles without authorization, giving organizations strong enforcement controls to match requirements and comply with standards.
 
 ### Configuration management
 
-Jamf allows admins to create Smart or Static groups as the mechanism for controlling the scope of management automations and Configuration Profile delivery. Jamf includes Configuration Profile templates for building profiles to deliver common settings.
+Jamf allows admins to create Smart or Static groups as the mechanism for controlling the scope of management automations and configuration profile delivery. Jamf includes configuration profile templates for building profiles to deliver common settings.
 
-Fleet directs Apple device admins to iMazing Profile Creator for building Configuration Profiles. Fleet uses Teams and Labels to assign and deliver Configuration Profiles to devices. Labels can be manual (e.g., arbitrary assignment by serial number), dynamic (based on device state assessed via osquery) or set via "Host vitals" (i.e., using server-side attributes of a device like IdP group membership.) Validation of Configuration Profile delivery is obtained separately from MDM via osquery for complete assurance of device state.
+Fleet directs Apple device admins to iMazing Profile Creator for building configuration profiles. Fleet uses fleets and labels to assign and deliver configuration profiles to devices. Labels can be manual (e.g., arbitrary assignment by serial number), dynamic (based on device state assessed via osquery) or set via "Host vitals" (i.e., using server-side attributes of a device like IdP group membership.) Validation of configuration profile delivery is obtained separately from MDM via osquery for complete assurance of device state.
 
 ### Software management
 
@@ -72,7 +72,7 @@ Specialized MDM solutions focus on one device ecosystem. Cross-platform MDM solu
 
 #### Can cross-platform device management solutions manage Apple devices as effectively as Apple-specialized platforms?
 
-Fleet is an Apple-oriented device management solution. Though it is cross-platform, Fleet provides management capabilities at parity with solutions like Jamf for most use cases including zero-touch, automated enrollment through Apple Business or School Manager, delivery of MDM Configuration Profiles, MDM commands, Declarative Device Management support, software management, script execution and strict control over scoping management objects to the right devices.
+Fleet is an Apple-oriented device management solution. Though it is cross-platform, Fleet provides management capabilities at parity with solutions like Jamf for most use cases including zero-touch, automated enrollment through Apple Business or School Manager, delivery of MDM configuration profiles, MDM commands, Declarative Device Management support, software management, script execution and strict control over scoping management objects to the right devices.
 
 #### What should I consider when comparing MDM costs?
 

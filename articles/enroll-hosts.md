@@ -14,14 +14,14 @@ To learn how to enroll Chromebooks, see the [Enroll Chromebooks guide](#enroll-c
 
 To manually enroll macOS, Windows, or Linux hosts, generate Fleet's agent (fleetd) through Fleet UI:
 
-1. Go to the **Hosts** page, select the team you want your host(s) to enroll to, and select **Add hosts**.
+1. Go to the **Hosts** page, select the fleet you want your host(s) to enroll to, and select **Add hosts**.
 2. Select the tab for your desired platform (e.g. **macOS**).
 3. Copy the command to generate fleetd and run the command with [fleetctl](https://fleetdm.com/docs/using-fleet/fleetctl-cli) installed.
 4. Install fleetd on your host(s) to enroll it to Fleet.
 
 To manually enroll iOS, iPadOS, or Android hosts, follow the steps below:
 
-1. Go to the **Hosts** page, select the team you want your host(s) to enroll to, and select **Add hosts**.
+1. Go to the **Hosts** page, select the fleet you want your host(s) to enroll to, and select **Add hosts**.
 2. Select the tab for your desired platform (e.g. **iOS**).
 3. Copy the enrollment link from the UI and share it with your end users.
 4. When your end users visit the link and follow the steps provided on the enrollment page, their host will be enrolled.

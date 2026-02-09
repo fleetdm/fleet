@@ -13,8 +13,8 @@ By enrolling BYOD iPhones and iPads in Fleet, IT admins can manage software inst
 
 * **Step 1: Navigate to the manage hosts page**
     * Click “Hosts” in the top navigation bar
-* **Step 2: Choose the team**
-    * Select the desired [team](https://fleetdm.com/guides/teams) from the menu at the top of the screen
+* **Step 2: Choose the fleet**
+    * Select the desired [fleet](https://fleetdm.com/guides/fleets) from the menu at the top of the screen
 * **Step 3: Get a link to share with your end users**
     * Click on “Add hosts.”
     * In the modal, select the **iOS & iPadOS** tab.
@@ -23,7 +23,7 @@ By enrolling BYOD iPhones and iPads in Fleet, IT admins can manage software inst
     * Share the link with your end users using an introductory email or message.
     * The link provides instructions to guide users through downloading and installing Fleet’s enrollment profile.
 
-> Each team has a unique URL that includes the team's enrollment secret. This enrollment secret ensures that devices are assigned to the correct team during enrollment. When an incorrect enroll secret is provided, users can still download the enrollment profile, but the enrollment itself will fail (403 error).
+> Each fleet has a unique URL that includes the fleet's enrollment secret. This enrollment secret ensures that devices are assigned to the correct fleet during enrollment. When an incorrect enroll secret is provided, users can still download the enrollment profile, but the enrollment itself will fail (403 error).
 
 ## Profile-based vs. account-driven enrollment
 

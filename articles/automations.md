@@ -51,7 +51,7 @@ Results from scheduled queries can be written to an arbitrary external webhook o
 First, follow the [configuration docs](https://fleetdm.com/docs/deploying/configuration#webhook).
 Then in the UI:
 
-1. Navigate to the **Queries** page, select the relevant team, and click **Manage automations**
+1. Navigate to the **Queries** page, select the relevant fleet, and click **Manage automations**
 2. In the modal that opens, confirm that you see "Log destination: Webhook", and when you hover over
    "Webhook", you see "Each time a query runs, the data is sent via webhook to:
    [target_result_url]"

@@ -14,7 +14,7 @@ Current supported software deployment formats:
 > If you check the "Automatic install" box when adding software, you do not have to create your own policy, so you can skip the remaining steps of this process.
 
 > Script packages (`.sh` and `.ps1` files) do not support automatic install.
-2. **Add a policy**: In Fleet, add a policy that failure to pass will trigger the required installation. Go the **Policies** tab, select a team, then press the **Add policy** button. Next, click **Create your own policy**, enter your policy SQL, click **Save**, fill in remaining details in the Save modal, then and click **Save** again.
+2. **Add a policy**: In Fleet, add a policy that failure to pass will trigger the required installation. Go the **Policies** tab, select a fleet, then press the **Add policy** button. Next, click **Create your own policy**, enter your policy SQL, click **Save**, fill in remaining details in the Save modal, then and click **Save** again.
 
 ```sql
 SELECT 1 FROM apps WHERE bundle_identifier = 'com.adobe.Reader' AND version_compare(bundle_short_version, '23.001.20687') >= 0;
@@ -76,11 +76,10 @@ SELECT 1 FROM programs WHERE name = '<SOFTWARE_TITLE_NAME>' AND version_compare(
 SELECT 1 FROM deb_packages WHERE name = '<SOFTWARE_TITLE_NAME>' AND version_compare(version, '<SOFTWARE_PACKAGE_VERSION>') >= 0;
 ```
 
-If your team has both Ubuntu and RHEL-based hosts then you should use the following template for the policy queries:
+If your fleet has both Ubuntu and RHEL-based hosts then you should use the following template for the policy queries:
 ```sql
 SELECT 1 WHERE EXISTS (
    -- This will mark the policies as successful on non-Debian-based hosts.
-   -- This is only required if Debian-based and RPM-based hosts share a team.
    SELECT 1 WHERE (SELECT COUNT(*) FROM deb_packages) = 0
 ) OR EXISTS (
    SELECT 1 FROM deb_packages WHERE name = '<SOFTWARE_TITLE_NAME>' AND version_compare(version, '<SOFTWARE_PACKAGE_VERSION>') >= 0
@@ -93,11 +92,10 @@ SELECT 1 WHERE EXISTS (
 SELECT 1 FROM rpm_packages WHERE name = '<SOFTWARE_TITLE_NAME>' AND version_compare(version, '<SOFTWARE_PACKAGE_VERSION>') >= 0;
 ```
 
-If your team has both Ubuntu and RHEL-based hosts then you should use the following template for the policy queries:
+If your fleet has both Ubuntu and RHEL-based hosts then you should use the following template for the policy queries:
 ```sql
 SELECT 1 WHERE EXISTS (
    -- This will mark the policies as successful on non-RPM-based hosts.
-   -- This is only required if Debian-based and RPM-based hosts share a team.
    SELECT 1 WHERE (SELECT COUNT(*) FROM rpm_packages) = 0
 ) OR EXISTS (
    SELECT 1 FROM rpm_packages WHERE name = '<SOFTWARE_TITLE_NAME>' AND version_compare(version, 'SOFTWARE_PACKAGE_VERSION') >= 0

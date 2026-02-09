@@ -71,14 +71,14 @@ SELECT * FROM yara WHERE path="/bin/ls" AND sigurl='https://example.fleetdm.com/
 This works for both live and saved queries. Each time osquery runs the query, an authenticated HTTP
 request will be made to the Fleet server requesting the referenced rule(s).
 
-## Targeting rules with teams (Fleet Premium)
+## Targeting rules with fleets (Fleet Premium)
 
 It is often desirable to run different sets of YARA rules on different devices within the
-organization. To achieve this, target the _queries_ to the desired team.
+organization. To achieve this, target the _queries_ to the desired fleet.
 
 For example, with `rule1.yar` and `rule2.yar` configured in the `org_settings`:
 
-1. Ensure the agent options are configured for "No team" and/or the desired teams.
+1. Ensure the agent options are configured for "Unassigned" and/or the desired fleets.
 
 2. Target queries to the appropriate team, referencing the desired rules. For example, target a
    query referencing `rule1.yar` to the "Workstations" team and a query referencing `rule2.yar` to

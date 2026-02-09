@@ -50,7 +50,7 @@ You could also consider configuring the utility to ignore extraneous data to min
 There is always risk of data loss. Both osquery and the utilities limit the disk usage and processor usage, which results in data loss during periods of high system load. Osquery will log when it's dropping events due to high load, though this will not detect when events are dropped by the utility. To address the risk of data loss, you could schedule queries to run more frequently or allocate more resources to osquery or the utility. Of course, this comes at a cost and requires tuning to balance risk and reward.
 
 ### Test for impact
-Getting the right setup that balances performance, data volume, and data usefulness for the evented tables requires some trial and error. The best way is to try things out on a progressively larger set of machines. We recommend setting up a canary team on Fleet to test different combinations of configurations.
+Getting the right setup that balances performance, data volume, and data usefulness for the evented tables requires some trial and error. The best way is to try things out on a progressively larger set of machines. We recommend using labels to test different combinations of configurations.
 
 The `osquery_schedule` table will list all scheduled queries and recent information about their memory usage and execution time. Note that these do not have visibility into the utility. For lower-level visibility, use the OS-native profilers. 
 

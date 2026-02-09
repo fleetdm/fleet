@@ -39,7 +39,7 @@ You can mitigate this risk if you're currently using multiple solutions for mana
 ## Help is on the way
 
 - Use zero-touch deployment methods like **Apple ADE** and **Microsoft Autopilot**  
-- Create as many **Teams** as you need for each security baseline in your organization  
+- Create as many fleets as you need for each security baseline in your organization  
 - Deploy and automatically patch software on all platforms with no additional integrations  
 - Track vulnerability, compliance, and remediation — all in one place  
 - Send lock and wipe commands to Apple, Linux, or Windows devices  

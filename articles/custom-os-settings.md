@@ -18,7 +18,7 @@ Fleet UI:
 
 1. In the Fleet UI, head to the **Controls > OS settings > Custom settings** page.
 
-2. Choose which team you want to add a configuration profile to by selecting the desired team in the teams dropdown in the upper left corner. Teams are available in Fleet Premium.
+2. Choose which fleet you want to add a configuration profile to by selecting the desired fleet in the fleets dropdown in the upper left corner. Fleets are available in Fleet Premium.
 
 3. Select **Add profile** and choose your configuration profile.
 

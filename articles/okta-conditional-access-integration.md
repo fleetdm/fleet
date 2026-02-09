@@ -127,7 +127,7 @@ Create an authentication policy rule that requires Fleet verification for macOS 
 
 ### Step 7: Configure conditional access policies in Fleet
 
-Once Okta is configured in settings, head to **Policies**. Select the team that you want to enable conditional access for.
+Once Okta is configured in settings, head to **Policies**. Select the fleet that you want to enable conditional access for.
 
 1. Go to **Manage automations** > **Conditional access** and enable conditional access.
 2. Select the policies you want to block login via Okta.
