@@ -110,9 +110,10 @@ type Datastore interface {
 	// Query returns the query associated with the provided ID. Associated packs should also be loaded.
 	Query(ctx context.Context, id uint) (*Query, error)
 	// ListQueries returns a list of queries filtered with the provided sorting and pagination
-	// options, a count of total queries on all pages, and pagination metadata. Associated packs should also
-	// be loaded.
-	ListQueries(ctx context.Context, opt ListQueryOptions) ([]*Query, int, *PaginationMetadata, error)
+	// options, a count of total queries on all pages, a count of inherited (global) queries, and
+	// pagination metadata. Associated packs should also be loaded.
+	// The inherited count is only computed when TeamID is set and MergeInherited is true; otherwise it is 0.
+	ListQueries(ctx context.Context, opt ListQueryOptions) ([]*Query, int, int, *PaginationMetadata, error)
 	// ListScheduledQueriesForAgents returns a list of scheduled queries (without stats) for the
 	// given teamID and hostID. If teamID is nil, then scheduled queries for the 'global' team are returned.
 	ListScheduledQueriesForAgents(ctx context.Context, teamID *uint, hostID *uint, queryReportsDisabled bool) ([]*Query, error)

@@ -63,7 +63,7 @@ Fleet uses [swiftDialog](https://github.com/swiftDialog/swiftDialog) to instruct
 
 End user experience:
 
-- To watch an animation of the end user experience during the migration workflow, head to **Settings > Integrations > Mobile device management (MDM)** in the Fleet UI, and scroll down to the **End user migration workflow** section.
+- To watch an animation of the end user experience during the migration workflow, head to **Settings > Integrations > MDM** in the Fleet UI, and scroll down to the **End user migration workflow** section.
 
 Configuration:
 
@@ -72,7 +72,7 @@ Configuration:
 - After configuring the end user workflow, instruct your end users to select the Fleet icon in their menu bar, select **Migrate to Fleet** and follow the on-screen instructions to migrate to Fleet.
 
 Fleet UI:
-1. Select the avatar on the right side of the top navigation and select **Settings > Integrations > Mobile device management (MDM)**.
+1. Select the avatar on the right side of the top navigation and select **Settings > Integrations > MDM**.
 2. Scroll down to the **End user migration workflow** section and select the toggle to enable the workflow.
 3. Under **Mode**, choose a mode, enter the webhook URL for your automation tool (e.g., Tines) under **Webhook URL**, and select **Save**.
 4. During the end user migration workflow, an end user's device will have its selected system theme (light or dark) applied. If your logo is not easy to see on both light and dark backgrounds, you can optionally set a logo for each theme:
