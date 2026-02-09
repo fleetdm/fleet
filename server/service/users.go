@@ -176,6 +176,14 @@ func (svc *Service) CreateUserFromInvite(ctx context.Context, p fleet.UserPayloa
 		return nil, err
 	}
 
+	var payloadEmail string
+	if p.Email != nil {
+		payloadEmail = *p.Email
+	}
+	if invite.Email != payloadEmail {
+		return nil, fleet.NewInvalidArgumentError("invite_token", "Invite Token does not match Email Address.")
+	}
+
 	// set the payload role property based on an existing invite.
 	p.GlobalRole = invite.GlobalRole.Ptr()
 	p.Teams = &invite.Teams

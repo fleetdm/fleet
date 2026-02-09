@@ -752,7 +752,7 @@ func createAndroidHostInTeam(t *testing.T, ds fleet.Datastore, suffixID int, tea
 		},
 	}
 	host.SetNodeKey(*host.Device.EnterpriseSpecificID)
-	_, err := ds.NewAndroidHost(context.Background(), host)
+	_, err := ds.NewAndroidHost(context.Background(), host, false)
 	require.NoError(t, err)
 
 	return host

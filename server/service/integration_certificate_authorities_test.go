@@ -1598,6 +1598,11 @@ func (s *integrationMDMTestSuite) TestSCEPChallengeExpirationRetriesSmallStep() 
 	challengeCounter := atomic.Int64{}
 	challengeValue := atomic.Value{}
 	challengeServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// Verify that the request includes Authorization header with Basic auth
+		authHeader := r.Header.Get("Authorization")
+		require.NotEmpty(t, authHeader, "Authorization header should be present")
+		require.Contains(t, authHeader, "Basic ", "Authorization header should use Basic auth")
+
 		challengeCounter.Add(1)
 		newChallengeValue := uuid.New().String()
 		challengeValue.Store(newChallengeValue)
