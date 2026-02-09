@@ -157,7 +157,8 @@ queries:
   - path: ../lib/macos/queries/collect-santa-denied-logs.yml
 software:
   packages:
-    - path: ../lib/macos/software/mozilla-firefox.yml # Mozilla Firefox for MacOS (universal)
+    # macOS apps
+    - path: ../lib/macos/software/mozilla-firefox.yml # Mozilla Firefox for macOS (universal)
       self_service: true
       categories:
         - Browsers
@@ -187,6 +188,11 @@ software:
       self_service: false
     - path: ../lib/macos/software/nudge-assets.yml # Nudge assets for macOS
       self_service: false
+    - path: ../lib/macos/software/fleet-desktop.yml # Fleet Desktop for macOS
+      self_service: true
+      categories:
+        - Utilities
+    # Linux apps
     - path: ../lib/linux/software/zoom-deb.yml # Zoom for Ubuntu
       display_name: "Zoom"
       self_service: true
@@ -221,6 +227,7 @@ software:
         - Communication
       labels_include_any:
         - "RPM-based Linux hosts"
+    # Windows apps
     # Commenting out until #25407 is implemented
     # - path: ../lib/windows/software/zoom-arm.yml # Zoom for Windows (ARM)
     #  self_service: true
