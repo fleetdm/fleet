@@ -38,7 +38,7 @@ config:
       - /Users/wxs/sigs/bar.sig
       sig_group_2:
       - /Users/wxs/sigs/baz.sig
-command_line_flags: # requires Fleet's agent (fleetd)
+command_line_flags:
   verbose: true
   disable_watchdog: false
   disable_tables: chrome_extensions
