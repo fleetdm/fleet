@@ -55,6 +55,9 @@ func (svc *Service) AuthenticateHost(ctx context.Context, nodeKey string) (*flee
 		// OK
 	case fleet.IsNotFound(err):
 		return nil, false, newOsqueryErrorWithInvalidNode("authentication error: invalid node key")
+	case errors.Is(err, context.Canceled):
+		// Most likely client disconnected, so we treat this as a client error.
+		return nil, false, err
 	default:
 		return nil, false, newOsqueryError("authentication error: " + err.Error())
 	}

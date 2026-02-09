@@ -519,6 +519,25 @@ func TestAuthenticateHostFailure(t *testing.T) {
 	require.NotNil(t, err)
 }
 
+func TestAuthenticateHostContextCanceled(t *testing.T) {
+	ds := new(mock.Store)
+	svc, ctx := newTestService(t, ds, nil, nil)
+
+	ds.LoadHostByNodeKeyFunc = func(ctx context.Context, nodeKey string) (*fleet.Host, error) {
+		return nil, context.Canceled
+	}
+
+	_, _, err := svc.AuthenticateHost(ctx, "test")
+	require.Error(t, err)
+	// The error must preserve context.Canceled in the chain so that
+	// downstream error handling (e.g. ctxerr.isClientError) correctly
+	// classifies it as a client error instead of recording it as an
+	// OTEL exception.
+	require.ErrorIs(t, err, context.Canceled)
+	var osqueryErr *OsqueryError
+	require.False(t, errors.As(err, &osqueryErr), "context.Canceled should not be wrapped in OsqueryError")
+}
+
 type testJSONLogger struct {
 	logs []json.RawMessage
 }
