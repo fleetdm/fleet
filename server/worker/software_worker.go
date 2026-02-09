@@ -187,8 +187,6 @@ func (v *SoftwareWorker) makeAndroidAppUnavailable(ctx context.Context, applicat
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "add app store app: add app to android policy")
 	}
-	// TODO(mna): anything to do to update the status? Or will it just get marked as removed when
-	// it is reported as removed?
 	return nil
 }
 
