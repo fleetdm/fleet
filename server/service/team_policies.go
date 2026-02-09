@@ -196,6 +196,13 @@ func (svc *Service) newTeamPolicyPayloadToPolicyPayload(ctx context.Context, tea
 	if err != nil {
 		return fleet.PolicyPayload{}, err
 	}
+
+	// Only false when explicitly set
+	conditionalAccessBypassEnabled := true
+	if p.ConditionalAccessBypassEnabled != nil {
+		conditionalAccessBypassEnabled = *p.ConditionalAccessBypassEnabled
+	}
+
 	return fleet.PolicyPayload{
 		QueryID:                        p.QueryID,
 		Name:                           p.Name,
@@ -211,7 +218,7 @@ func (svc *Service) newTeamPolicyPayloadToPolicyPayload(ctx context.Context, tea
 		LabelsIncludeAny:               p.LabelsIncludeAny,
 		LabelsExcludeAny:               p.LabelsExcludeAny,
 		ConditionalAccessEnabled:       p.ConditionalAccessEnabled,
-		ConditionalAccessBypassEnabled: p.ConditionalAccessBypassEnabled,
+		ConditionalAccessBypassEnabled: conditionalAccessBypassEnabled,
 	}, nil
 }
 
