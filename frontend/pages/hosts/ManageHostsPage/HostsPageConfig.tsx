@@ -69,13 +69,13 @@ export const hostSelectStatuses = [
     disabled: false,
     label: "Online hosts",
     value: "online",
-    helpText: "Hosts that will respond to a live query.",
+    helpText: "Hosts that will respond to a live report.",
   },
   {
     disabled: false,
     label: "Offline hosts",
     value: "offline",
-    helpText: "Hosts that won’t respond to a live query.",
+    helpText: "Hosts that won't respond to a live report.",
   },
   {
     disabled: false,

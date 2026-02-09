@@ -215,8 +215,8 @@ const allHostTableHeaders: IHostTableColumnConfig[] = [
         <TooltipWrapper
           tipContent={
             <>
-              Online hosts will respond to a live query. Offline hosts
-              won&apos;t respond to a live query because they may be shut down,
+              Online hosts will respond to a live report. Offline hosts
+              won&apos;t respond to a live report because they may be shut down,
               asleep, or not connected to the internet.
             </>
           }

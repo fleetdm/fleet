@@ -122,10 +122,10 @@ const TAGGED_TEMPLATES = {
 
     const queryNameCopy = queryName ? (
       <>
-        the <b>{queryName}</b> query
+        the <b>{queryName}</b> report
       </>
     ) : (
-      <>a live query</>
+      <>a live report</>
     );
 
     const impactCopy =
@@ -156,8 +156,8 @@ const TAGGED_TEMPLATES = {
   editQueryCtlActivityTemplate: (activity: IActivity) => {
     const count = activity.details?.specs?.length;
     return typeof count === "undefined" || count === 1
-      ? "edited a query using fleetctl."
-      : "edited queries using fleetctl.";
+      ? "edited a report using fleetctl."
+      : "edited reports using fleetctl.";
   },
   editSoftwareCtlActivityTemplate: () => {
     return "edited software using fleetctl.";
@@ -266,15 +266,15 @@ const TAGGED_TEMPLATES = {
       // should only be possible for premium tier, but check anyway
       return (
         <>
-          was assigned the <b>{role}</b> role{isPremiumTier && " for all teams"}
-          .
+          was assigned the <b>{role}</b> role
+          {isPremiumTier && " for all fleets"}.
         </>
       );
     }
     return (
       <>
         changed <b>{user_email}</b> to <b>{activity.details?.role}</b>
-        {isPremiumTier && " for all teams"}.
+        {isPremiumTier && " for all fleets"}.
       </>
     );
   },
@@ -283,7 +283,7 @@ const TAGGED_TEMPLATES = {
       <>
         removed <b>{activity.details?.user_email}</b> as{" "}
         <b>{activity.details?.role}</b>
-        {isPremiumTier && " for all teams"}.
+        {isPremiumTier && " for all fleets"}.
       </>
     );
   },
@@ -1062,7 +1062,7 @@ const TAGGED_TEMPLATES = {
     return (
       <>
         {" "}
-        deleted multiple queries
+        deleted multiple reports
         {teamText}.
       </>
     );

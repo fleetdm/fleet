@@ -378,7 +378,7 @@ const EditQueryForm = ({
     if (savedQueryMode && !lastEditedQueryName) {
       return setErrors({
         ...errors,
-        name: "Query name must be present",
+        name: "Report name must be present",
       });
     }
 
@@ -512,7 +512,7 @@ const EditQueryForm = ({
       );
     }
 
-    return <h1 className={`${baseClass}__query-name no-hover`}>New query</h1>;
+    return <h1 className={`${baseClass}__query-name no-hover`}>New report</h1>;
   };
 
   const editDescription = () => {
@@ -573,21 +573,21 @@ const EditQueryForm = ({
       if (isEditing) {
         return (
           <p>
-            Editing query for <strong>{currentTeamName}</strong> fleet.
+            Editing report for <strong>{currentTeamName}</strong> fleet.
           </p>
         );
       }
       return (
         <p>
-          Creating a new query for <strong>{currentTeamName}</strong> fleet.
+          Creating a new report for <strong>{currentTeamName}</strong> fleet.
         </p>
       );
     }
 
     if (isEditing) {
-      return <p>Editing global query.</p>;
+      return <p>Editing global report.</p>;
     }
-    return <p>Creating a new global query.</p>;
+    return <p>Creating a new global report.</p>;
   };
 
   // Observers and observer+ of existing query
@@ -635,7 +635,7 @@ const EditQueryForm = ({
         <div className={`button-wrap ${baseClass}__button-wrap--new-query`}>
           <TooltipWrapper
             className="live-query-button-tooltip"
-            tipContent="Live queries are disabled in organization settings"
+            tipContent="Live reports are disabled in organization settings"
             disableTooltip={!disabledLiveQuery}
             position="top"
             showArrow
@@ -653,7 +653,7 @@ const EditQueryForm = ({
               }}
               disabled={disabledLiveQuery}
             >
-              Live query <Icon name="run" />
+              Live report <Icon name="run" />
             </Button>
           </TooltipWrapper>
         </div>
@@ -760,7 +760,7 @@ const EditQueryForm = ({
                 value={lastEditedQueryFrequency}
                 label="Interval"
                 wrapperClassName={`${baseClass}__form-field form-field--frequency`}
-                helpText="This is how often your query collects data."
+                helpText="This is how often your report collects data."
               />
               <Slider
                 onChange={() =>
@@ -777,7 +777,7 @@ const EditQueryForm = ({
                         tipContent={
                           <>
                             Automations and reporting will be paused <br />
-                            for this query until an interval is set.
+                            for this report until an interval is set.
                           </>
                         }
                         position="right"
@@ -817,7 +817,7 @@ const EditQueryForm = ({
                 onChange={(value: boolean) =>
                   setLastEditedQueryObserverCanRun(value)
                 }
-                helpText="Users with the observer role will be able to run this query on hosts where they have access."
+                helpText="Users with the observer role will be able to run this report on hosts where they have access."
               >
                 Observers can run
               </Checkbox>
@@ -832,7 +832,7 @@ const EditQueryForm = ({
                   labels={labels || []}
                   customHelpText={
                     <span className="form-field__help-text">
-                      Query will target hosts that <b>have any</b> of these
+                      Report will target hosts that <b>have any</b> of these
                       labels:
                     </span>
                   }
@@ -917,7 +917,7 @@ const EditQueryForm = ({
             )}
             <TooltipWrapper
               className="live-query-button-tooltip"
-              tipContent="Live queries are disabled in organization settings"
+              tipContent="Live reports are disabled in organization settings"
               disableTooltip={!disabledLiveQuery}
               position="top"
               showArrow
@@ -948,7 +948,7 @@ const EditQueryForm = ({
                 }}
                 disabled={disabledLiveQuery}
               >
-                Live query <Icon name="run" />
+                Live report <Icon name="run" />
               </Button>
             </TooltipWrapper>
           </div>

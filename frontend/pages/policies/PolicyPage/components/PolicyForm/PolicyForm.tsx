@@ -835,7 +835,7 @@ const PolicyForm = ({
               data-html
             >
               {disabledLiveQuery ? (
-                <>Live queries are disabled in organization settings</>
+                <>Live reports are disabled in organization settings</>
               ) : (
                 <>
                   Select the platforms this <br />

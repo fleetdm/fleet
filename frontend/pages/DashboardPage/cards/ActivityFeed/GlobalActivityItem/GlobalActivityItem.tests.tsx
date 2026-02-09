@@ -51,7 +51,7 @@ describe("Activity Feed", () => {
     const activity = createMockActivity({ type: ActivityType.LiveQuery });
     render(<GlobalActivityItem activity={activity} isPremiumTier />);
 
-    expect(screen.getByText("ran a live query .")).toBeInTheDocument();
+    expect(screen.getByText("ran a live report .")).toBeInTheDocument();
   });
 
   it("renders a live_query type activity with host count details", () => {
@@ -64,7 +64,7 @@ describe("Activity Feed", () => {
     render(<GlobalActivityItem activity={activity} isPremiumTier />);
 
     expect(
-      screen.getByText("ran a live query on 10 hosts.")
+      screen.getByText("ran a live report on 10 hosts.")
     ).toBeInTheDocument();
   });
 
@@ -156,7 +156,7 @@ describe("Activity Feed", () => {
     render(<GlobalActivityItem activity={activity} isPremiumTier />);
 
     expect(
-      screen.getByText("edited a query using fleetctl.")
+      screen.getByText("edited a report using fleetctl.")
     ).toBeInTheDocument();
   });
 
@@ -168,7 +168,7 @@ describe("Activity Feed", () => {
     render(<GlobalActivityItem activity={activity} isPremiumTier />);
 
     expect(
-      screen.getByText("edited queries using fleetctl.")
+      screen.getByText("edited reports using fleetctl.")
     ).toBeInTheDocument();
   });
 
@@ -1321,7 +1321,7 @@ describe("Activity Feed", () => {
     render(<GlobalActivityItem activity={activity} isPremiumTier />);
 
     expect(
-      screen.getByText("deleted multiple queries", { exact: false })
+      screen.getByText("deleted multiple reports", { exact: false })
     ).toBeInTheDocument();
   });
   // test for wipe activity

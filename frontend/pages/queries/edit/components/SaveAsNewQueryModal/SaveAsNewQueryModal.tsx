@@ -159,7 +159,7 @@ const SaveAsNewQueryModal = ({
     try {
       const { query: newQuery } = await queryAPI.create(createBody);
       setIsSaving(false);
-      renderFlash("success", `Successfully added query ${newQuery.name}.`);
+      renderFlash("success", `Successfully added report ${newQuery.name}.`);
       router.push(
         getPathWithQueryParams(PATHS.QUERY_DETAILS(newQuery.id), {
           team_id: newQuery.team_id,
@@ -167,7 +167,7 @@ const SaveAsNewQueryModal = ({
         })
       );
     } catch (createError: unknown) {
-      let errFlash = "Could not create query. Please try again.";
+      let errFlash = "Could not create report. Please try again.";
       const reason = getErrorReason(createError);
       if (reason.includes("already exists")) {
         let teamText;
@@ -176,7 +176,7 @@ const SaveAsNewQueryModal = ({
         } else {
           teamText = "all fleets";
         }
-        errFlash = `A query called "${queryName}" already exists for ${teamText}.`;
+        errFlash = `A report called "${queryName}" already exists for ${teamText}.`;
       } else if (reason.includes(INVALID_PLATFORMS_REASON)) {
         errFlash = INVALID_PLATFORMS_FLASH_MESSAGE;
       }

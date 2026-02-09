@@ -26,7 +26,7 @@ interface IQueryReportProps {
 }
 
 const baseClass = "query-report";
-const CSV_TITLE = "Query";
+const CSV_TITLE = "Report";
 
 const flattenResults = (results: IQueryReportResultRow[]) => {
   return results.map((result: IQueryReportResultRow) => {
@@ -109,7 +109,7 @@ const QueryReport = ({
                 Fleet has retained a sample of early results for reference.
                 Reporting is paused until existing data is deleted. <br />
                 <br />
-                You can reset this report by updating the query&apos;s SQL, or
+                You can reset this report by updating the report&apos;s SQL, or
                 by temporarily enabling the <b>discard data</b> setting and
                 disabling it again.
               </>
@@ -137,7 +137,7 @@ const QueryReport = ({
                 className={baseClass}
                 graphicName="empty-software"
                 header="Nothing to report yet"
-                info="This query has returned no data so far."
+                info="This report has returned no data so far."
               />
             );
           }}

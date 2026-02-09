@@ -235,7 +235,7 @@ const ManageQueriesPage = ({
       }
       renderFlash(
         "success",
-        `Successfully deleted ${bulk ? "queries" : "query"}.`
+        `Successfully deleted ${bulk ? "reports" : "report"}.`
       );
       setResetSelectedRows(true);
       refetchQueries();
@@ -243,7 +243,7 @@ const ManageQueriesPage = ({
       renderFlash(
         "error",
         `There was an error deleting your ${
-          bulk ? "queries" : "query"
+          bulk ? "reports" : "report"
         }. Please try again later.`
       );
     } finally {
@@ -267,7 +267,7 @@ const ManageQueriesPage = ({
         return <h1>{userTeams[0].name}</h1>;
       }
     }
-    return <h1>Queries</h1>;
+    return <h1>Reports</h1>;
   };
 
   const renderQueriesTable = () => {
@@ -329,13 +329,13 @@ const ManageQueriesPage = ({
 
       try {
         await Promise.all(updateAutomatedQueries).then(() => {
-          renderFlash("success", `Successfully updated query automations.`);
+          renderFlash("success", `Successfully updated report automations.`);
           refetchQueries();
         });
       } catch (errorResponse) {
         renderFlash(
           "error",
-          `There was an error updating your query automations. Please try again later.`
+          `There was an error updating your report automations. Please try again later.`
         );
       } finally {
         toggleManageAutomationsModal();
@@ -423,8 +423,8 @@ const ManageQueriesPage = ({
                     <TooltipWrapper
                       tipContent={
                         isAnyTeamSelected && (queriesResponse?.count ?? 0) > 0
-                          ? 'To manage automations add a query to this team. For inherited queries select "All teams".'
-                          : "To manage automations add a query."
+                          ? 'To manage automations add a report to this team. For inherited reports select "All teams".'
+                          : "To manage automations add a report."
                       }
                       underline={false}
                       position="top"
@@ -444,7 +444,7 @@ const ManageQueriesPage = ({
                     className={`${baseClass}__create-button`}
                     onClick={onCreateQueryClick}
                   >
-                    {isObserverPlus ? "Live query" : "Add query"}
+                    {isObserverPlus ? "Live report" : "Add report"}
                   </Button>
                 )}
               </div>

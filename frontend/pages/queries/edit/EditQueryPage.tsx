@@ -251,7 +251,7 @@ const EditQueryPage = ({
     const storedQueryTitleCopy = storedQuery?.name
       ? `Editing ${storedQuery.name} | `
       : "";
-    document.title = `${storedQueryTitleCopy}Queries | ${DOCUMENT_TITLE_SUFFIX}`;
+    document.title = `${storedQueryTitleCopy}Reports | ${DOCUMENT_TITLE_SUFFIX}`;
     // }
   }, [location.pathname, storedQuery?.name]);
 
@@ -270,7 +270,7 @@ const EditQueryPage = ({
             host_id: hostId,
           })
         );
-        renderFlash("success", "Query created!");
+        renderFlash("success", "Report created!");
         setBackendValidators({});
       } catch (createError: any) {
         if (getErrorReason(createError).includes("already exists")) {
@@ -279,12 +279,12 @@ const EditQueryPage = ({
               ? `the ${teamNameForQuery} fleet`
               : "all fleets";
           setBackendValidators({
-            name: `A query with that name already exists for ${teamErrorText}.`,
+            name: `A report with that name already exists for ${teamErrorText}.`,
           });
         } else {
           renderFlash(
             "error",
-            "Something went wrong creating your query. Please try again."
+            "Something went wrong creating your report. Please try again."
           );
           setBackendValidators({});
         }
@@ -316,19 +316,19 @@ const EditQueryPage = ({
 
     try {
       await queryAPI.update(queryId, updatedQuery);
-      renderFlash("success", "Query updated!");
+      renderFlash("success", "Report updated!");
       refetchStoredQuery(); // Required to compare recently saved query to a subsequent save to the query
     } catch (updateError: any) {
       console.error(updateError);
       const reason = getErrorReason(updateError);
       if (reason.includes("Duplicate")) {
-        renderFlash("error", "A query with this name already exists.");
+        renderFlash("error", "A report with this name already exists.");
       } else if (reason.includes(INVALID_PLATFORMS_REASON)) {
         renderFlash("error", INVALID_PLATFORMS_FLASH_MESSAGE);
       } else {
         renderFlash(
           "error",
-          "Something went wrong updating your query. Please try again."
+          "Something went wrong updating your report. Please try again."
         );
       }
     }
@@ -358,7 +358,7 @@ const EditQueryPage = ({
 
     return (
       <InfoBanner color="yellow">
-        Fleet is unable to run a live query. Refresh the page or log in again.
+        Fleet is unable to run a live report. Refresh the page or log in again.
         If this keeps happening please{" "}
         <CustomLink
           url="https://github.com/fleetdm/fleet/issues/new/choose"
@@ -400,7 +400,7 @@ const EditQueryPage = ({
       return "Back to host details";
     }
 
-    return "Back to queries";
+    return "Back to reports";
   };
 
   const showSidebar =
