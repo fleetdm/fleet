@@ -781,7 +781,7 @@ allow {
 ##
 
 # Global admins, maintainers, and technicians can write (install/uninstall) software on hosts (not
-# gitops as this is not something that relates to fleetctl apply).
+# gitops as this is not something that relates to fleetctl gitops).
 allow {
   object.type == "host_software_installer_result"
   subject.global_role == [admin, maintainer, technician][_]
@@ -789,7 +789,7 @@ allow {
 }
 
 # Team admin, maintainers, and technicians can write (install/uninstall) software on hosts for their
-# teams (not gitops as this is not something that relates to fleetctl apply).
+# teams (not gitops as this is not something that relates to fleetctl gitops).
 allow {
   object.type == "host_software_installer_result"
   not is_null(object.host_team_id)
@@ -798,7 +798,7 @@ allow {
 }
 
 # Global admins, maintainers, technicians, observers and observer_plus can read software install results on hosts
-# (not gitops as this is not something that relates to fleetctl apply).
+# (not gitops as this is not something that relates to fleetctl gitops).
 allow {
   object.type == "host_software_installer_result"
   subject.global_role == [admin, maintainer, technician, observer, observer_plus][_]
@@ -806,7 +806,7 @@ allow {
 }
 
 # Team admin, maintainer, technician, observer and observer_plus can read software install results on hosts for their teams
-# (not gitops as this is not something that relates to fleetctl apply).
+# (not gitops as this is not something that relates to fleetctl gitops).
 allow {
   object.type == "host_software_installer_result"
   not is_null(object.host_team_id)
@@ -815,7 +815,8 @@ allow {
 }
 
 ##
-# Apple and Windows MDM
+# Apple, Windows, and Android configuration profiles.
+# (Linux uses synthetic profiles to display disk encryption.)
 ##
 
 # Global admins, maintainers, and gitops can write MDM config profiles.
@@ -865,6 +866,10 @@ allow {
   team_role(subject, object.team_id) == [admin, maintainer, technician][_]
   action == resend
 }
+
+##
+# Apple MDM
+##
 
 # Global admins can read, write, and list MDM apple information.
 allow {
@@ -1073,30 +1078,31 @@ allow {
 }
 
 ##
-# Host Script Result (script execution and output)
+# Single host script result (script execution and output)
 ##
 
-# Global admins and maintainers can write (execute) scripts (not
-# gitops as this is not something that relates to fleetctl apply).
+# Global admins, maintainers, and technicians can write (execute) scripts (not
+# gitops as this is not something that relates to fleetctl gitops).
 allow {
   object.type == "host_script_result"
-  subject.global_role == [admin, maintainer][_]
+  subject.global_role == [admin, maintainer, technician][_]
   action == write
 }
 
-# Global admins, maintainers, technicians, observer_plus and observers can read script results, including software uninstall results.
+# Global admins, maintainers, technicians, observer_plus and observers can read script results,
+# including software uninstall results.
 allow {
   object.type == "host_script_result"
   subject.global_role == [admin, maintainer, technician, observer, observer_plus][_]
   action == read
 }
 
-# Team admin and maintainers can write (execute) scripts for their
-# teams (not gitops as this is not something that relates to fleetctl apply).
+# Team admin, maintainers, and technicians can write (execute) scripts for their
+# teams (not gitops as this is not something that relates to fleetctl gitops).
 allow {
   object.type == "host_script_result"
   not is_null(object.team_id)
-  team_role(subject, object.team_id) == [admin, maintainer][_]
+  team_role(subject, object.team_id) == [admin, maintainer, technician][_]
   action == write
 }
 
