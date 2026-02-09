@@ -16,7 +16,6 @@ import {
   formatScriptNameForActivityItem,
   getPerformanceImpactDescription,
 } from "utilities/helpers";
-import { TEAM_LBL, TEAMS_LBL } from "utilities/constants";
 
 import ActivityItem from "components/ActivityItem";
 import { ShowActivityDetailsHandler } from "components/ActivityItem/ActivityItem";
@@ -69,12 +68,10 @@ const getProfileMessageSuffix = (
   if (isPremiumTier) {
     messageSuffix = teamName ? (
       <>
-        {platformDisplayName} hosts assigned to the <b>{teamName}</b> {TEAM_LBL}
+        {platformDisplayName} hosts assigned to the <b>{teamName}</b> fleet
       </>
     ) : (
-      <>
-        {platformDisplayName} hosts with no {TEAM_LBL}
-      </>
+      <>{platformDisplayName} hosts with no fleet</>
     );
   }
   return messageSuffix;
@@ -84,10 +81,10 @@ const getDiskEncryptionMessageSuffix = (teamName?: string | null) => {
   return teamName ? (
     <>
       {" "}
-      assigned to the <b>{teamName}</b> {TEAM_LBL}
+      assigned to the <b>{teamName}</b> fleet
     </>
   ) : (
-    <>with no {TEAM_LBL}</>
+    <>with no fleet</>
   );
 };
 
@@ -99,10 +96,10 @@ const getMacOSSetupAssistantMessage = (
   const suffix = teamName ? (
     <>
       {" "}
-      that automatically enroll to the <b>{teamName}</b> {TEAM_LBL}
+      that automatically enroll to the <b>{teamName}</b> fleet
     </>
   ) : (
-    <>that automatically enroll to no {TEAM_LBL}</>
+    <>that automatically enroll to no fleet</>
   );
 
   return (
@@ -169,11 +166,11 @@ const TAGGED_TEMPLATES = {
     const count = activity.details?.teams?.length;
     return count === 1 && activity.details?.teams ? (
       <>
-        edited the <b>{activity.details?.teams[0].name}</b> {TEAM_LBL} using
+        edited the <b>{activity.details?.teams[0].name}</b> fleet using
         fleetctl.
       </>
     ) : (
-      `edited multiple ${TEAMS_LBL} using fleetctl.`
+      `edited multiple fleets using fleetctl.`
     );
   },
   editAgentOptions: (activity: IActivity) => {
@@ -181,7 +178,7 @@ const TAGGED_TEMPLATES = {
       "edited agent options."
     ) : (
       <>
-        edited agent options on <b>{activity.details?.team_name}</b> {TEAM_LBL}.
+        edited agent options on <b>{activity.details?.team_name}</b> fleet.
       </>
     );
   },
@@ -306,7 +303,7 @@ const TAGGED_TEMPLATES = {
       );
     return (
       <>
-        {varText} for the <b>{team_name}</b> {TEAM_LBL}.
+        {varText} for the <b>{team_name}</b> fleet.
       </>
     );
   },
@@ -314,7 +311,7 @@ const TAGGED_TEMPLATES = {
     return (
       <>
         removed <b>{activity.details?.user_email}</b> from the{" "}
-        <b>{activity.details?.team_name}</b> {TEAM_LBL}.
+        <b>{activity.details?.team_name}</b> fleet.
       </>
     );
   },
@@ -425,10 +422,10 @@ const TAGGED_TEMPLATES = {
 
     const teamSection = activity.details?.team_id ? (
       <>
-        the <b>{activity.details.team_name}</b> {TEAM_LBL}
+        the <b>{activity.details.team_name}</b> fleet
       </>
     ) : (
-      <>no {TEAM_LBL}</>
+      <>no fleet</>
     );
 
     return (
@@ -445,10 +442,10 @@ const TAGGED_TEMPLATES = {
   ) => {
     const teamSection = activity.details?.team_id ? (
       <>
-        the <b>{activity.details.team_name}</b> {TEAM_LBL}
+        the <b>{activity.details.team_name}</b> fleet
       </>
     ) : (
-      <>no {TEAM_LBL}</>
+      <>no fleet</>
     );
 
     return (
@@ -466,10 +463,10 @@ const TAGGED_TEMPLATES = {
   ) => {
     const teamSection = activity.details?.team_id ? (
       <>
-        the <b>{activity.details.team_name}</b> {TEAM_LBL}
+        the <b>{activity.details.team_name}</b> fleet
       </>
     ) : (
-      <>no {TEAM_LBL}</>
+      <>no fleet</>
     );
 
     return (
@@ -765,10 +762,10 @@ const TAGGED_TEMPLATES = {
         for macOS hosts that automatically enroll to{" "}
         {activity.details?.team_name ? (
           <>
-            the <b>{activity.details.team_name}</b> {TEAM_LBL}
+            the <b>{activity.details.team_name}</b> fleet
           </>
         ) : (
-          `no ${TEAM_LBL}`
+          `no fleet`
         )}
         .
       </>
@@ -790,10 +787,10 @@ const TAGGED_TEMPLATES = {
         for macOS hosts that automatically enroll to{" "}
         {activity.details?.team_name ? (
           <>
-            the <b>{activity.details.team_name}</b> {TEAM_LBL}
+            the <b>{activity.details.team_name}</b> fleet
           </>
         ) : (
-          `no ${TEAM_LBL}`
+          `no fleet`
         )}
         .
       </>
@@ -807,10 +804,10 @@ const TAGGED_TEMPLATES = {
         hosts that automatically enroll to{" "}
         {activity.details?.team_name ? (
           <>
-            the <b>{activity.details.team_name}</b> {TEAM_LBL}
+            the <b>{activity.details.team_name}</b> fleet
           </>
         ) : (
-          `no ${TEAM_LBL}`
+          `no fleet`
         )}
         .
       </>
@@ -824,10 +821,10 @@ const TAGGED_TEMPLATES = {
         Android hosts that automatically enroll to{" "}
         {activity.details?.team_name ? (
           <>
-            the <b>{activity.details.team_name}</b> {TEAM_LBL}
+            the <b>{activity.details.team_name}</b> fleet
           </>
         ) : (
-          `no ${TEAM_LBL}`
+          `no fleet`
         )}
         .
       </>
@@ -840,17 +837,16 @@ const TAGGED_TEMPLATES = {
       return (
         <>
           {" "}
-          transferred host <b>{hostNames[0]}</b> to{" "}
-          {teamName ? `${TEAM_LBL} ` : ""}
-          <b>{teamName || `no ${TEAM_LBL}`}</b>.
+          transferred host <b>{hostNames[0]}</b> to {teamName ? `fleet ` : ""}
+          <b>{teamName || `no fleet`}</b>.
         </>
       );
     }
     return (
       <>
         {" "}
-        transferred {hostNames.length} hosts to {teamName ? `${TEAM_LBL} ` : ""}
-        <b>{teamName || `no ${TEAM_LBL}`}</b>.
+        transferred {hostNames.length} hosts to {teamName ? `fleet ` : ""}
+        <b>{teamName || `no fleet`}</b>.
       </>
     );
   },
@@ -953,10 +949,10 @@ const TAGGED_TEMPLATES = {
         to{" "}
         {activity.details?.team_name ? (
           <>
-            the <b>{activity.details.team_name}</b> {TEAM_LBL}
+            the <b>{activity.details.team_name}</b> fleet
           </>
         ) : (
-          `no ${TEAM_LBL}`
+          `no fleet`
         )}
         .
       </>
@@ -978,10 +974,10 @@ const TAGGED_TEMPLATES = {
         for{" "}
         {activity.details?.team_name ? (
           <>
-            the <b>{activity.details.team_name}</b> {TEAM_LBL}
+            the <b>{activity.details.team_name}</b> fleet
           </>
         ) : (
-          `no ${TEAM_LBL}`
+          `no fleet`
         )}
         .
       </>
@@ -1003,10 +999,10 @@ const TAGGED_TEMPLATES = {
         from{" "}
         {activity.details?.team_name ? (
           <>
-            the <b>{activity.details.team_name}</b> {TEAM_LBL}
+            the <b>{activity.details.team_name}</b> fleet
           </>
         ) : (
-          `no ${TEAM_LBL}`
+          `no fleet`
         )}
         .
       </>
@@ -1019,10 +1015,10 @@ const TAGGED_TEMPLATES = {
         edited scripts for{" "}
         {activity.details?.team_name ? (
           <>
-            the <b>{activity.details.team_name}</b> {TEAM_LBL}
+            the <b>{activity.details.team_name}</b> fleet
           </>
         ) : (
-          `no ${TEAM_LBL}`
+          `no fleet`
         )}{" "}
         via fleetctl.
       </>
@@ -1040,10 +1036,10 @@ const TAGGED_TEMPLATES = {
         ) on hosts assigned to{" "}
         {activity.details?.team_name ? (
           <>
-            the <b>{activity.details.team_name}</b> {TEAM_LBL}
+            the <b>{activity.details.team_name}</b> fleet
           </>
         ) : (
-          `no ${TEAM_LBL}`
+          `no fleet`
         )}
         .
       </>
@@ -1057,7 +1053,7 @@ const TAGGED_TEMPLATES = {
       teamText = (
         <>
           {" "}
-          on the <b>{activity.details.team_name}</b> {TEAM_LBL}
+          on the <b>{activity.details.team_name}</b> fleet
         </>
       );
     } else {
@@ -1180,10 +1176,10 @@ const TAGGED_TEMPLATES = {
         added <b>{activity.details?.software_package}</b> to{" "}
         {activity.details?.team_name ? (
           <>
-            the <b>{activity.details?.team_name}</b> {TEAM_LBL}.
+            the <b>{activity.details?.team_name}</b> fleet.
           </>
         ) : (
-          `no ${TEAM_LBL}.`
+          `no fleet.`
         )}
       </>
     );
@@ -1195,10 +1191,10 @@ const TAGGED_TEMPLATES = {
         edited <b>{activity.details?.software_package}</b> on{" "}
         {activity.details?.team_name ? (
           <>
-            the <b>{activity.details?.team_name}</b> {TEAM_LBL}.
+            the <b>{activity.details?.team_name}</b> fleet.
           </>
         ) : (
-          `no ${TEAM_LBL}.`
+          `no fleet.`
         )}
       </>
     );
@@ -1210,10 +1206,10 @@ const TAGGED_TEMPLATES = {
         deleted <b>{activity.details?.software_package}</b> from{" "}
         {activity.details?.team_name ? (
           <>
-            the <b>{activity.details?.team_name}</b> {TEAM_LBL}.
+            the <b>{activity.details?.team_name}</b> fleet.
           </>
         ) : (
-          `no ${TEAM_LBL}.`
+          `no fleet.`
         )}
       </>
     );
@@ -1313,10 +1309,10 @@ const TAGGED_TEMPLATES = {
         {activity.details?.team_name ? (
           <>
             {" "}
-            the <b>{activity.details?.team_name}</b> {TEAM_LBL}.
+            the <b>{activity.details?.team_name}</b> fleet.
           </>
         ) : (
-          `no ${TEAM_LBL}.`
+          `no fleet.`
         )}
       </>
     );
@@ -1332,10 +1328,10 @@ const TAGGED_TEMPLATES = {
         {activity.details?.team_name ? (
           <>
             {" "}
-            the <b>{activity.details?.team_name}</b> {TEAM_LBL}.
+            the <b>{activity.details?.team_name}</b> fleet.
           </>
         ) : (
-          `no ${TEAM_LBL}.`
+          `no fleet.`
         )}
       </>
     );
@@ -1351,10 +1347,10 @@ const TAGGED_TEMPLATES = {
         {activity.details?.team_name ? (
           <>
             {" "}
-            the <b>{activity.details?.team_name}</b> {TEAM_LBL}.
+            the <b>{activity.details?.team_name}</b> fleet.
           </>
         ) : (
-          `no ${TEAM_LBL}.`
+          `no fleet.`
         )}
       </>
     );
@@ -1406,10 +1402,10 @@ const TAGGED_TEMPLATES = {
         {teamName ? (
           <>
             {" "}
-            the <b>{teamName}</b> {TEAM_LBL}
+            the <b>{teamName}</b> fleet
           </>
         ) : (
-          `no ${TEAM_LBL}`
+          `no fleet`
         )}
         .
       </>
@@ -1424,10 +1420,10 @@ const TAGGED_TEMPLATES = {
         {teamName ? (
           <>
             {" "}
-            the <b>{teamName}</b> {TEAM_LBL}
+            the <b>{teamName}</b> fleet
           </>
         ) : (
-          `no ${TEAM_LBL}`
+          `no fleet`
         )}
         .
       </>
@@ -1472,7 +1468,7 @@ const TAGGED_TEMPLATES = {
       teamText = (
         <>
           {" "}
-          on the <b>{activity.details.team_name}</b> {TEAM_LBL}
+          on the <b>{activity.details.team_name}</b> fleet
         </>
       );
     } else {
@@ -1494,7 +1490,7 @@ const TAGGED_TEMPLATES = {
       teamText = (
         <>
           {" "}
-          on the <b>{activity.details.team_name}</b> {TEAM_LBL}
+          on the <b>{activity.details.team_name}</b> fleet
         </>
       );
     } else {
@@ -1516,7 +1512,7 @@ const TAGGED_TEMPLATES = {
       teamText = (
         <>
           {" "}
-          on the <b>{activity.details.team_name}</b> {TEAM_LBL}
+          on the <b>{activity.details.team_name}</b> fleet
         </>
       );
     } else {
@@ -1538,14 +1534,14 @@ const TAGGED_TEMPLATES = {
       teamText = (
         <>
           {" "}
-          for <b>No {upperFirst(TEAM_LBL)}</b>
+          for <b>No Fleet</b>
         </>
       );
     } else if (activity.details?.team_name) {
       teamText = (
         <>
           {" "}
-          on the <b>{activity.details.team_name}</b> {TEAM_LBL}
+          on the <b>{activity.details.team_name}</b> fleet
         </>
       );
     } else {
@@ -1568,14 +1564,14 @@ const TAGGED_TEMPLATES = {
       teamText = (
         <>
           {" "}
-          for <b>No {upperFirst(TEAM_LBL)}</b>
+          for <b>No Fleet</b>
         </>
       );
     } else if (activity.details?.team_name) {
       teamText = (
         <>
           {" "}
-          on the <b>{activity.details.team_name}</b> {TEAM_LBL}
+          on the <b>{activity.details.team_name}</b> fleet
         </>
       );
     } else {
@@ -1598,14 +1594,14 @@ const TAGGED_TEMPLATES = {
       teamText = (
         <>
           {" "}
-          for <b>No {upperFirst(TEAM_LBL)}</b>
+          for <b>No Fleet</b>
         </>
       );
     } else if (activity.details?.team_name) {
       teamText = (
         <>
           {" "}
-          on the <b>{activity.details.team_name}</b> {TEAM_LBL}
+          on the <b>{activity.details.team_name}</b> fleet
         </>
       );
     } else {
@@ -1669,10 +1665,10 @@ const TAGGED_TEMPLATES = {
         {" "}
         edited setup experience software for {platformText} hosts that enroll to{" "}
         {team_id === API_NO_TEAM_ID ? (
-          `no ${TEAM_LBL}`
+          `no fleet`
         ) : (
           <>
-            the <b>{team_name}</b> {TEAM_LBL}
+            the <b>{team_name}</b> fleet
           </>
         )}
         .
@@ -1703,7 +1699,7 @@ const TAGGED_TEMPLATES = {
     return (
       <>
         added certificate {name ? <b>{name} </b> : ""}to Android hosts{" "}
-        {teamText} {TEAM_LBL}.
+        {teamText} fleet.
       </>
     );
   },
@@ -1720,7 +1716,7 @@ const TAGGED_TEMPLATES = {
     return (
       <>
         deleted certificate {name ? <b>{name} </b> : ""}from Android hosts{" "}
-        {teamText} {TEAM_LBL}.
+        {teamText} fleet.
       </>
     );
   },

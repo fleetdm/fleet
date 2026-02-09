@@ -1,12 +1,10 @@
 import React, { useCallback, useContext, useMemo, useState } from "react";
-import { upperFirst } from "lodash";
 
 import { AppContext } from "context/app";
 import { NotificationContext } from "context/notification";
 
 import { IMdmVppToken } from "interfaces/mdm";
 import { APP_CONTEXT_ALL_TEAMS_ID, ITeamSummary } from "interfaces/team";
-import { TEAM_LBL, TEAMS_LBL } from "utilities/constants";
 
 import mdmAppleAPI from "services/entities/mdm_apple";
 
@@ -243,18 +241,18 @@ const EditTeamsVppModal = ({
   return (
     <Modal
       className={baseClass}
-      title={`Edit ${TEAMS_LBL}`}
+      title={`Edit fleets`}
       onExit={onCancel}
       width="large"
       isContentDisabled={isSaving}
     >
       <>
         <p>
-          Edit {TEAMS_LBL} for <b>{currentToken.org_name}</b>.
+          Edit fleets for <b>{currentToken.org_name}</b>.
         </p>
         <p>
-          If you delete a {TEAM_LBL}, App Store apps will be deleted from that{" "}
-          {TEAM_LBL}. Installed apps won&apos;t be uninstalled from hosts.
+          If you delete a fleet, App Store apps will be deleted from that fleet.
+          Installed apps won&apos;t be uninstalled from hosts.
         </p>
         <form onSubmit={onSave} className={baseClass} autoComplete="off">
           <TooltipWrapper
@@ -263,9 +261,9 @@ const EditTeamsVppModal = ({
             showArrow
             tipContent={
               <div className={`${baseClass}__tooltip--all-teams`}>
-                You can&apos;t choose {TEAMS_LBL} because you already have a VPP
-                token assigned to all {TEAMS_LBL}. First, edit {TEAMS_LBL} for
-                that VPP token to choose {TEAMS_LBL} here.
+                You can&apos;t choose fleets because you already have a VPP
+                token assigned to all fleets. First, edit fleets for that VPP
+                token to choose fleets here.
               </div>
             }
             disableTooltip={!isDropdownDisabled}
@@ -274,9 +272,9 @@ const EditTeamsVppModal = ({
               options={options}
               multi
               onChange={onChange}
-              placeholder={`Search ${TEAMS_LBL}`}
+              placeholder={`Search fleets`}
               value={selectedValue}
-              label={upperFirst(TEAMS_LBL)}
+              label="Fleets"
               className={`${baseClass}__vpp-dropdown`}
               wrapperClassName={`${baseClass}__form-field--vpp-teams ${
                 isDropdownDisabled ? `${baseClass}__form-field--disabled` : ""
@@ -284,13 +282,12 @@ const EditTeamsVppModal = ({
               tooltip={
                 isDropdownDisabled ? undefined : (
                   <>
-                    Each {TEAM_LBL} can have only one VPP token.{" "}
-                    {upperFirst(TEAMS_LBL)} that already have a VPP token
-                    won&apos;t show up here.
+                    Each fleet can have only one VPP token. Fleets that already
+                    have a VPP token won&apos;t show up here.
                   </>
                 )
               }
-              helpText={`App Store apps in this VPP token's Apple Business Manager (ABM) will only be available to install on hosts in these ${TEAMS_LBL}.`}
+              helpText={`App Store apps in this VPP token's Apple Business Manager (ABM) will only be available to install on hosts in these fleets.`}
               disabled={isDropdownDisabled}
             />
           </TooltipWrapper>

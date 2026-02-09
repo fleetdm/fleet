@@ -2,7 +2,6 @@ import React, { useCallback, useState } from "react";
 
 import { INewTeamUser, INewTeamUsersBody, ITeam } from "interfaces/team";
 import endpoints from "utilities/endpoints";
-import { TEAM_LBL } from "utilities/constants";
 import Modal from "components/Modal";
 import Button from "components/buttons/Button";
 import AutocompleteDropdown from "pages/admin/TeamManagementPage/TeamDetailsWrapper/UsersPage/components/AutocompleteDropdown";
@@ -48,7 +47,7 @@ const AddUsersModal = ({
       <form className={`${baseClass}__form`}>
         <div className="form-field">
           <label className="form-field__label" htmlFor="user-autocomplete">
-            Grant users access to this {TEAM_LBL}
+            Grant users access to this fleet
           </label>
           <AutocompleteDropdown
             team={team}

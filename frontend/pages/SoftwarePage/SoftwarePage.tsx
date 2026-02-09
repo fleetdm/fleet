@@ -20,7 +20,6 @@ import {
   getPathWithQueryParams,
 } from "utilities/url";
 import { getNextLocationPath } from "utilities/helpers";
-import { TEAM_LBL, TEAMS_LBL } from "utilities/constants";
 
 import Button from "components/buttons/Button";
 import MainContent from "components/MainContent";
@@ -342,7 +341,7 @@ const SoftwarePage = ({ children, router, location }: ISoftwarePageProps) => {
             underline={false}
             tipContent={
               <div className={`${baseClass}__header__tooltip`}>
-                Select &ldquo;All {TEAMS_LBL}&rdquo; to manage automations.
+                Select &ldquo;All fleets&rdquo; to manage automations.
               </div>
             }
             disableTooltip={isAllTeamsSelected || isPrimoMode}
@@ -367,7 +366,7 @@ const SoftwarePage = ({ children, router, location }: ISoftwarePageProps) => {
             tipContent={
               <div className={`${baseClass}__header__tooltip`}>
                 {isPremiumTier
-                  ? `Select a ${TEAM_LBL} to add software.`
+                  ? `Select a fleet to add software.`
                   : "This feature is included in Fleet Premium."}
               </div>
             }
@@ -387,7 +386,7 @@ const SoftwarePage = ({ children, router, location }: ISoftwarePageProps) => {
   const renderHeaderDescription = () => {
     let suffix;
     if (!isPrimoMode) {
-      suffix = isAllTeamsSelected ? " for all hosts" : ` on this ${TEAM_LBL}`;
+      suffix = isAllTeamsSelected ? " for all hosts" : ` on this fleet`;
     }
     return (
       <>

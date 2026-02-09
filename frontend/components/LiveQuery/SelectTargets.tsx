@@ -23,8 +23,7 @@ import targetsAPI, {
 } from "services/entities/targets";
 import teamsAPI, { ILoadTeamsResponse } from "services/entities/teams";
 import { formatSelectedTargetsForApi } from "utilities/helpers";
-import { TEAM_LBL, TEAMS_LBL } from "utilities/constants";
-import { capitalize, upperFirst } from "lodash";
+import { upperFirst } from "lodash";
 import permissions from "utilities/permissions";
 
 import PageError from "components/DataError";
@@ -363,7 +362,7 @@ const SelectTargets = ({
     entityList: ISelectLabel[] | ISelectTeam[]
   ): JSX.Element => {
     const isTeamsSection = entityType === "teams";
-    const displayType = isTeamsSection ? TEAMS_LBL : entityType;
+    const displayType = isTeamsSection ? "fleets" : entityType;
     const isSearchEnabled = isTeamsSection || entityType === "labels";
     const searchTerm = (
       (isTeamsSection ? searchTextTeams : searchTextLabels) || ""
@@ -572,7 +571,7 @@ const SelectTargets = ({
         {!!teams?.length &&
           (isOnGlobalTeam
             ? renderTargetEntitySection("teams", [
-                { id: 0, name: `No ${TEAM_LBL}` },
+                { id: 0, name: `No fleet` },
                 ...teams,
               ])
             : renderTargetEntitySection("teams", filterTeamObserverTeams()))}

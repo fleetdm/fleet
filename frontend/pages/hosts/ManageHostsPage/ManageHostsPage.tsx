@@ -79,8 +79,6 @@ import {
   HOSTS_SEARCH_BOX_TOOLTIP,
   MAX_SCRIPT_BATCH_TARGETS,
   PolicyResponse,
-  TEAM_LBL,
-  TEAMS_LBL,
 } from "utilities/constants";
 import { getNextLocationPath } from "utilities/helpers";
 
@@ -1344,7 +1342,7 @@ const ManageHostsPage = ({
 
       const successMessage =
         teamId === null
-          ? `Hosts successfully removed from ${TEAMS_LBL}.`
+          ? `Hosts successfully removed from fleets.`
           : `Hosts successfully transferred to  ${transferTeam.name}.`;
 
       renderFlash("success", successMessage);
@@ -1754,7 +1752,7 @@ const ManageHostsPage = ({
         </>
       );
     } else if (isAllTeamsSelected && isPremiumTier) {
-      disableRunScriptBatchTooltipContent = `Select a ${TEAM_LBL} to run a script`;
+      disableRunScriptBatchTooltipContent = `Select a fleet to run a script`;
     } else if (isAllMatchingHostsSelected) {
       if (runScriptBatchFilterNotSupported) {
         disableRunScriptBatchTooltipContent =

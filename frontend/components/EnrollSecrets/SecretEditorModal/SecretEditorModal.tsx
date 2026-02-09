@@ -2,7 +2,6 @@ import React, { useState } from "react";
 
 import { ITeam } from "interfaces/team";
 import { IEnrollSecret } from "interfaces/enroll_secret";
-import { TEAM_LBL } from "utilities/constants";
 
 import Modal from "components/Modal";
 import Button from "components/buttons/Button";
@@ -50,7 +49,7 @@ const SecretEditorModal = ({
     }
 
     if (selectedTeam === 0) {
-      return { name: `No ${TEAM_LBL}` };
+      return { name: `No fleet` };
     }
     return teams.find((team) => team.id === selectedTeam);
   };

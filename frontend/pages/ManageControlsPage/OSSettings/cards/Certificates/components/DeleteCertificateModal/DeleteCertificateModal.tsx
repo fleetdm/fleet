@@ -2,7 +2,6 @@ import React, { useContext, useState } from "react";
 
 import certAPI, { ICertificate } from "services/entities/certificates";
 import { NotificationContext } from "context/notification";
-import { TEAM_LBL } from "utilities/constants";
 
 import Button from "components/buttons/Button";
 import Modal from "components/Modal";
@@ -44,7 +43,7 @@ const DeleteCertificateModal = ({
       <>
         <p>
           This action will remove the <b>{name}</b> certificate from all hosts
-          assigned to this {TEAM_LBL}.
+          assigned to this fleet.
         </p>
         <div className="modal-cta-wrap">
           <Button

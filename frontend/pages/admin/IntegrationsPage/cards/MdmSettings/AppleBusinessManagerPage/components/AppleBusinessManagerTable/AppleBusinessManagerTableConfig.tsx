@@ -1,11 +1,9 @@
 import React from "react";
 import { CellProps, Column } from "react-table";
-import { upperFirst } from "lodash";
 
 import { IMdmAbmToken } from "interfaces/mdm";
 import { IHeaderProps, IStringCellProps } from "interfaces/datatable_config";
 import { IDropdownOption } from "interfaces/dropdownOption";
-import { TEAM_LBL, TEAMS_LBL } from "utilities/constants";
 
 import HeaderCell from "components/TableContainer/DataTable/HeaderCell";
 import ActionsDropdown from "components/ActionsDropdown";
@@ -24,7 +22,7 @@ type IRenewDateCellProps = CellProps<IMdmAbmToken, IMdmAbmToken["renew_date"]>;
 type ITableHeaderProps = IHeaderProps<IMdmAbmToken>;
 
 const DEFAULT_ACTION_OPTIONS: IDropdownOption[] = [
-  { value: "editTeams", label: `Edit ${TEAMS_LBL}`, disabled: false },
+  { value: "editTeams", label: `Edit fleets`, disabled: false },
   { value: "renew", label: "Renew", disabled: false },
   { value: "delete", label: "Delete", disabled: false },
 ];
@@ -98,12 +96,12 @@ export const generateTableConfig = (
           <TooltipWrapper
             tipContent={
               <>
-                macOS hosts are automatically added to this {TEAM_LBL} in Fleet when
+                macOS hosts are automatically added to this fleet in Fleet when
                 they appear in Apple Business Manager.
               </>
             }
           >
-            macOS {TEAM_LBL}
+            macOS fleet
           </TooltipWrapper>
         );
         return <HeaderCell value={titleWithToolTip} disableSortBy />;
@@ -121,12 +119,12 @@ export const generateTableConfig = (
           <TooltipWrapper
             tipContent={
               <>
-                iOS hosts are automatically added to this {TEAM_LBL} in Fleet when
+                iOS hosts are automatically added to this fleet in Fleet when
                 they appear in Apple Business Manager.
               </>
             }
           >
-            iOS {TEAM_LBL}
+            iOS fleet
           </TooltipWrapper>
         );
         return <HeaderCell value={titleWithToolTip} disableSortBy />;
@@ -144,12 +142,12 @@ export const generateTableConfig = (
           <TooltipWrapper
             tipContent={
               <>
-                iPadOS hosts are automatically added to this {TEAM_LBL} in Fleet when
+                iPadOS hosts are automatically added to this fleet in Fleet when
                 they appear in Apple Business Manager.
               </>
             }
           >
-            iPadOS {TEAM_LBL}
+            iPadOS fleet
           </TooltipWrapper>
         );
         return <HeaderCell value={titleWithToolTip} disableSortBy />;

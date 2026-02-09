@@ -55,7 +55,6 @@ import {
   HOST_VITALS_DATA,
   HOST_OSQUERY_DATA,
   DEFAULT_USE_QUERY_OPTIONS,
-  TEAMS_LBL,
 } from "utilities/constants";
 import { getPathWithQueryParams } from "utilities/url";
 
@@ -906,7 +905,7 @@ const HostDetailsPage = ({
 
       const successMessage =
         teamId === null
-          ? `Host successfully removed from ${TEAMS_LBL}.`
+          ? `Host successfully removed from fleets.`
           : `Host successfully transferred to  ${team.name}.`;
 
       renderFlash("success", successMessage);

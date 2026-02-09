@@ -42,7 +42,7 @@ import {
   INumberCellProps,
 } from "interfaces/datatable_config";
 import PATHS from "router/paths";
-import { DEFAULT_EMPTY_CELL_VALUE, TEAM_LBL } from "utilities/constants";
+import { DEFAULT_EMPTY_CELL_VALUE } from "utilities/constants";
 import getHostStatusTooltipText from "../helpers";
 
 type IHostTableColumnConfig = Column<IHost> & {
@@ -198,12 +198,9 @@ const allHostTableHeaders: IHostTableColumnConfig[] = [
     ),
   },
   {
-    title: upperFirst(TEAM_LBL),
+    title: "Fleet",
     Header: (cellProps: IHostTableHeaderProps) => (
-      <HeaderCell
-        value={upperFirst(TEAM_LBL)}
-        isSortedDesc={cellProps.column.isSortedDesc}
-      />
+      <HeaderCell value="Fleet" isSortedDesc={cellProps.column.isSortedDesc} />
     ),
     accessor: "team_name",
     id: "team_name",

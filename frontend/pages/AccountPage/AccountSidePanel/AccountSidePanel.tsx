@@ -19,7 +19,6 @@ import {
   greyCell,
   readableDate,
 } from "utilities/helpers";
-import { TEAMS_LBL } from "utilities/constants";
 
 interface IAccountSidePanelProps {
   currentUser: IUser;
@@ -79,7 +78,7 @@ const AccountSidePanel = ({
       </div>
       {isPremiumTier && (
         <DataSet
-          title={upperFirst(TEAMS_LBL)}
+          title="Fleets"
           value={
             <span
               className={`${

@@ -5,11 +5,10 @@ import React, {
   useContext,
   useRef,
 } from "react";
-import { upperFirst } from "lodash";
 import { Link } from "react-router";
 import PATHS from "router/paths";
 
-import { PRIMO_TOOLTIP, TEAM_LBL, TEAMS_LBL } from "utilities/constants";
+import { PRIMO_TOOLTIP } from "utilities/constants";
 
 import { NotificationContext } from "context/notification";
 import { AppContext } from "context/app";
@@ -362,10 +361,7 @@ const UserForm = ({
     // separate from `validate` function as it uses `renderFlash` hook, incompatible with pure
     // `validate` function
     if (!formData.global_role && !formData.teams.length) {
-      renderFlash(
-        "error",
-        `Please select at least one ${TEAM_LBL} for this user.`
-      );
+      renderFlash("error", `Please select at least one fleet for this user.`);
       return;
     }
     const errs = validate(
@@ -421,16 +417,16 @@ const UserForm = ({
     return (
       <div>
         <p>
-          <strong>You have no {TEAMS_LBL}.</strong>
+          <strong>You have no fleets.</strong>
         </p>
         <p>
-          Expecting to see {TEAMS_LBL}? Try again in a few seconds as the system
+          Expecting to see fleets? Try again in a few seconds as the system
           catches up or&nbsp;
           <Link
             className={`${baseClass}__create-team-link`}
             to={PATHS.ADMIN_TEAMS}
           >
-            create a {TEAM_LBL}
+            create a fleet
           </Link>
           .
         </p>
@@ -446,8 +442,8 @@ const UserForm = ({
             <>
               <InfoBanner className={`${baseClass}__user-permissions-info`}>
                 <p>
-                  Users can manage or observe {TEAM_LBL}-specific users,
-                  entities, and settings in Fleet.
+                  Users can manage or observe fleet-specific users, entities,
+                  and settings in Fleet.
                 </p>
                 <CustomLink
                   url="https://fleetdm.com/docs/using-fleet/permissions#team-member-permissions"
@@ -481,8 +477,8 @@ const UserForm = ({
 
   if (!isPremiumTier && !isGlobalUser) {
     console.log(
-      `Note: Fleet Free UI does not have ${TEAMS_LBL} options.\n
-        User ${formData.name} is already assigned to a ${TEAM_LBL} and cannot be reassigned without access to Fleet Premium UI.`
+      `Note: Fleet Free UI does not have fleets options.\n
+        User ${formData.name} is already assigned to a fleet and cannot be reassigned without access to Fleet Premium UI.`
     );
   }
 
@@ -710,7 +706,7 @@ const UserForm = ({
           />
           <Radio
             className={`${baseClass}__radio-input`}
-            label={`Assign to ${TEAM_LBL}(s)`}
+            label={`Assign to fleet(s)`}
             id="assign-teams"
             checked={!isGlobalUser}
             value={UserTeamType.AssignTeams}
@@ -734,7 +730,7 @@ const UserForm = ({
         />
         <Radio
           className={`${baseClass}__radio-input`}
-          label={`Assign to ${TEAM_LBL}(s)`}
+          label={`Assign to fleet(s)`}
           id="assign-teams"
           checked={!isGlobalUser}
           value={UserTeamType.AssignTeams}

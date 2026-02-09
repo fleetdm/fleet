@@ -13,7 +13,6 @@ import PATHS from "router/paths";
 import usersAPI from "services/entities/users";
 import inviteAPI from "services/entities/invites";
 import teamsAPI, { ILoadTeamsResponse } from "services/entities/teams";
-import { TEAM_LBL } from "utilities/constants";
 
 import TableContainer from "components/TableContainer";
 import TableDataError from "components/DataError";
@@ -391,7 +390,7 @@ const UsersPage = ({ location, router }: ITeamSubnavProps): JSX.Element => {
       <PageDescription
         content={
           <>
-            Manage users with access to this {TEAM_LBL}.{" "}
+            Manage users with access to this fleet.{" "}
             {isGlobalAdmin && (
               <Link to={PATHS.ADMIN_USERS}>
                 Manage users with global access here

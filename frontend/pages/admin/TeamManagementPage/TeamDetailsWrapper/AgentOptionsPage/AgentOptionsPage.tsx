@@ -3,7 +3,7 @@ import { useQuery } from "react-query";
 import { useErrorHandler } from "react-error-boundary";
 import yaml from "js-yaml";
 import { constructErrorString, agentOptionsToYaml } from "utilities/yaml";
-import { EMPTY_AGENT_OPTIONS, TEAM_LBL } from "utilities/constants";
+import { EMPTY_AGENT_OPTIONS } from "utilities/constants";
 
 import { NotificationContext } from "context/notification";
 import { AppContext } from "context/app";
@@ -111,7 +111,7 @@ const AgentOptionsPage = ({
       .then(() => {
         renderFlash(
           "success",
-          `Successfully updated ${teamName} ${TEAM_LBL} agent options.`
+          `Successfully updated ${teamName} fleet agent options.`
         );
         refetchTeamOptions();
       })
@@ -125,7 +125,7 @@ const AgentOptionsPage = ({
         renderFlash(
           "error",
           <>
-            Couldn&apos;t update {teamName} {TEAM_LBL} agent options:
+            Couldn&apos;t update {teamName} fleet agent options:
             {reason}
             {agentOptionsInvalid && (
               <>

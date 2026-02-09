@@ -1,7 +1,6 @@
 import React from "react";
 
 import { IBootstrapPackageMetadata } from "interfaces/mdm";
-import { TEAM_LBL } from "utilities/constants";
 
 import CustomLink from "components/CustomLink";
 import UploadList from "pages/ManageControlsPage/components/UploadList";
@@ -27,7 +26,7 @@ const UploadedPackageView = ({
       <BootstrapPackageTable currentTeamId={currentTeamId} />
       <p>
         This package is automatically installed on macOS hosts that
-        automatically enroll to this {TEAM_LBL}. Delete the package to upload a new
+        automatically enroll to this fleet. Delete the package to upload a new
         one.{" "}
         <CustomLink
           url="https://fleetdm.com/learn-more-about/setup-experience/bootstrap-package"

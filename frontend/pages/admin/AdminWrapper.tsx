@@ -1,11 +1,9 @@
 import React, { useContext } from "react";
-import { upperFirst } from "lodash";
 
 import { Tab, Tabs, TabList } from "react-tabs";
 import { InjectedRouter } from "react-router";
 import PATHS from "router/paths";
 import { AppContext } from "context/app";
-import { TEAMS_LBL } from "utilities/constants";
 
 import TabNav from "components/TabNav";
 import MainContent from "components/MainContent";
@@ -51,7 +49,7 @@ const AdminWrapper = ({
       exclude: isSandboxMode,
     },
     {
-      name: upperFirst(TEAMS_LBL),
+      name: "Fleets",
       pathname: PATHS.ADMIN_TEAMS,
       exclude: !isPremiumTier,
     },

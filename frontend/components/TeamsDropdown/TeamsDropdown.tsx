@@ -20,7 +20,6 @@ import {
   ITeamSummary,
   APP_CONTEXT_NO_TEAM_SUMMARY,
 } from "interfaces/team";
-import { TEAMS_LBL } from "utilities/constants";
 
 import Icon from "components/Icon";
 
@@ -284,7 +283,7 @@ const TeamsDropdown = ({
     <div className={dropdownWrapperClasses}>
       <Select<INumberDropdownOption, false>
         options={teamOptions}
-        placeholder={`All ${TEAMS_LBL}`}
+        placeholder={`All fleets`}
         onChange={(newValue) => {
           if (newValue) {
             onChange(newValue.value);
@@ -293,7 +292,7 @@ const TeamsDropdown = ({
         }}
         isDisabled={isDisabled}
         isSearchable
-        noOptionsMessage={() => `No matching ${TEAMS_LBL}`}
+        noOptionsMessage={() => `No matching fleets`}
         styles={customStyles}
         components={{
           DropdownIndicator: CustomDropdownIndicator,

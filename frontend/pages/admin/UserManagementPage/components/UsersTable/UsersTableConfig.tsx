@@ -1,5 +1,4 @@
 import React from "react";
-import { upperFirst } from "lodash";
 
 import HeaderCell from "components/TableContainer/DataTable/HeaderCell/HeaderCell";
 import StatusIndicator from "components/StatusIndicator";
@@ -10,7 +9,7 @@ import { IInvite } from "interfaces/invite";
 import { IUser, UserRole } from "interfaces/user";
 import { IDropdownOption } from "interfaces/dropdownOption";
 import { generateRole, generateTeam, greyCell } from "utilities/helpers";
-import { DEFAULT_EMPTY_CELL_VALUE, TEAMS_LBL } from "utilities/constants";
+import { DEFAULT_EMPTY_CELL_VALUE } from "utilities/constants";
 import { renderApiUserIndicator } from "pages/admin/TeamManagementPage/TeamDetailsWrapper/UsersPage/UsersPageTableConfig";
 import ActionsDropdown from "../../../../../components/ActionsDropdown";
 
@@ -182,9 +181,9 @@ const generateTableHeaders = (
   // Add Teams column for premium tier
   if (isPremiumTier) {
     tableHeaders.splice(2, 0, {
-      title: upperFirst(TEAMS_LBL),
-      Header: upperFirst(TEAMS_LBL),
-      accessor: TEAMS_LBL,
+      title: "Fleets",
+      Header: "Fleets",
+      accessor: "fleets",
       disableSortBy: true,
       Cell: (cellProps: ICellProps) => (
         <TextCell value={cellProps.cell.value} />

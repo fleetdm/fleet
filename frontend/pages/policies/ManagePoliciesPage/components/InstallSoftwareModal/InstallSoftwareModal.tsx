@@ -11,7 +11,7 @@ import softwareAPI, {
 } from "services/entities/software";
 import { IPaginatedListHandle } from "components/PaginatedList";
 
-import { DEFAULT_USE_QUERY_OPTIONS, TEAM_LBL } from "utilities/constants";
+import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
 import { getPathWithQueryParams } from "utilities/url";
 import { getExtensionFromFileName } from "utilities/file/fileUtils";
 import { getDisplayedSoftwareName } from "pages/SoftwarePage/helpers";
@@ -276,7 +276,7 @@ const InstallSoftwareModal = ({
               })}
               text="Software"
             />{" "}
-            to add software to this {TEAM_LBL}.
+            to add software to this fleet.
           </div>
         </div>
       );

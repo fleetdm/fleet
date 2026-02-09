@@ -16,8 +16,6 @@ import { getErrorReason } from "interfaces/errors";
 import {
   INVALID_PLATFORMS_FLASH_MESSAGE,
   INVALID_PLATFORMS_REASON,
-  TEAM_LBL,
-  TEAMS_LBL,
 } from "utilities/constants";
 import {
   API_ALL_TEAMS_ID,
@@ -175,11 +173,9 @@ const SaveAsNewQueryModal = ({
       if (reason.includes("already exists")) {
         let teamText;
         if (teamId !== APP_CONTEXT_ALL_TEAMS_ID) {
-          teamText = teamName
-            ? `the ${teamName} ${TEAM_LBL}`
-            : `this ${TEAM_LBL}`;
+          teamText = teamName ? `the ${teamName} fleet` : `this fleet`;
         } else {
-          teamText = `all ${TEAMS_LBL}`;
+          teamText = `all fleets`;
         }
         errFlash = `A query called "${queryName}" already exists for ${teamText}.`;
       } else if (reason.includes(INVALID_PLATFORMS_REASON)) {
@@ -207,7 +203,7 @@ const SaveAsNewQueryModal = ({
         />
         {isPremiumTier && (userTeams?.length || 0) > 1 && (
           <div className="form-field">
-            <div className="form-field__label">{upperFirst(TEAM_LBL)}</div>
+            <div className="form-field__label">Fleet</div>
             <TeamsDropdown
               asFormField
               currentUserTeams={userTeams || []}
