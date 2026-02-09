@@ -1276,7 +1276,7 @@ func buildSoftwarePackagesPayload(specs []fleet.SoftwarePackageSpec, installDuri
 
 		if si.Slug != nil {
 			softwarePayloads[i].Slug = si.Slug
-			softwarePayloads[i].FMAVersionPlaceholder = si.Version
+			softwarePayloads[i].RollbackVersion = si.Version
 		}
 	}
 

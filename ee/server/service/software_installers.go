@@ -2007,7 +2007,7 @@ func (svc *Service) softwareInstallerPayloadFromSlug(ctx context.Context, payloa
 		return nil
 	}
 
-	if payload.FMAVersionPlaceholder != "" {
+	if payload.RollbackVersion != "" {
 		// TODO(JK): validate version
 	}
 
