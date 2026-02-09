@@ -4547,7 +4547,8 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 				software_titles st
 			LEFT OUTER JOIN
 				-- filter out software that is not available for install on the host's platform
-				software_installers si ON st.id = si.title_id AND si.platform = :host_compatible_platforms AND si.extension NOT IN (:incompatible_extensions) AND si.global_or_team_id = :global_or_team_id
+				-- .sh packages are available for both linux and darwin hosts
+				software_installers si ON st.id = si.title_id AND (si.platform = :host_compatible_platforms OR (si.extension = 'sh' AND si.platform = 'linux' AND :host_compatible_platforms = 'darwin')) AND si.extension NOT IN (:incompatible_extensions) AND si.global_or_team_id = :global_or_team_id
 			LEFT OUTER JOIN
 				-- include VPP apps only if the host is on a supported platform
 				vpp_apps vap ON st.id = vap.title_id AND :host_platform IN (:vpp_apps_platforms)
