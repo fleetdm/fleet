@@ -387,7 +387,7 @@ const ManageQueriesPage = ({
 
   let dropdownHelpText: string;
   if (isAnyTeamSelected) {
-    dropdownHelpText = "Gather data about all hosts assigned to this team.";
+    dropdownHelpText = "Gather data about all hosts assigned to this fleet.";
   } else if (config?.partnerships?.enable_primo) {
     dropdownHelpText = "Gather data about your hosts.";
   } else {
@@ -423,7 +423,7 @@ const ManageQueriesPage = ({
                     <TooltipWrapper
                       tipContent={
                         isAnyTeamSelected && (queriesResponse?.count ?? 0) > 0
-                          ? 'To manage automations add a report to this team. For inherited reports select "All teams".'
+                          ? 'To manage automations add a report to this fleet. For inherited reports select "All fleets".'
                           : "To manage automations add a report."
                       }
                       underline={false}

@@ -113,7 +113,7 @@ export const getOptions = (
   pendingTeamIds: string[]
 ) => {
   const allTeamsOption = {
-    label: "All teams",
+    label: "All fleets",
     value: APP_CONTEXT_ALL_TEAMS_ID,
   };
 
