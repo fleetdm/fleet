@@ -49,8 +49,4 @@ require (
 	// relic - XAR file parsing (pkg/file/xar.go)
 	// Copied: April 2023
 	github.com/sassoftware/relic v7.2.1+incompatible
-
-	// poc-mdm-server - Windows MDM demo (tools/mdm/windows/poc-mdm-server/)
-	// Forked from oscartbeaumont/windows_mdm
-	github.com/oscartbeaumont/windows_mdm v0.0.0-20210615145659-e52e28e50db7
 )

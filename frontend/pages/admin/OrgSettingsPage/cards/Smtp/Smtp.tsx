@@ -62,7 +62,7 @@ const validateFormData = (newData: ISmtpConfigFormData) => {
     if (!smtpSenderAddress) {
       errors.sender_address = "SMTP sender address must be present";
     } else if (!validEmail(smtpSenderAddress)) {
-      errors.sender_address = `${smtpSenderAddress} is not a valid email`;
+      errors.sender_address = "SMTP sender address is not a valid email";
     }
 
     if (!smtpServer) {
@@ -87,7 +87,7 @@ const validateFormData = (newData: ISmtpConfigFormData) => {
   } else if (smtpSenderAddress && !validEmail(smtpSenderAddress)) {
     // validations for valid submissions even when smtp not enabled, i.e., updating what will be
     // used once it IS enabled
-    errors.sender_address = `${smtpSenderAddress} is not a valid email`;
+    errors.sender_address = "SMTP sender address is not a valid email";
   }
 
   return errors;
