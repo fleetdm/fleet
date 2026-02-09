@@ -21,7 +21,6 @@ import (
 	"time"
 
 	"github.com/VividCortex/mysqlerr"
-	"github.com/docker/go-units"
 	"github.com/fleetdm/fleet/v4/pkg/certificate"
 	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
 	"github.com/fleetdm/fleet/v4/server"
@@ -34,6 +33,8 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/logging"
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	platform_http "github.com/fleetdm/fleet/v4/server/platform/http"
+
 	"github.com/fleetdm/fleet/v4/server/mdm"
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/mobileconfig"
@@ -248,10 +249,8 @@ type createMDMEULARequest struct {
 	DryRun bool `query:"dry_run,optional"` // if true, apply validation but do not save changes
 }
 
-// TODO: We parse the whole body before running svc.authz.Authorize.
-// An authenticated but unauthorized user could abuse this.
 func (createMDMEULARequest) DecodeRequest(ctx context.Context, r *http.Request) (interface{}, error) {
-	err := r.ParseMultipartForm(512 * units.MiB)
+	err := r.ParseMultipartForm(platform_http.MaxMultipartFormSize)
 	if err != nil {
 		return nil, &fleet.BadRequestError{
 			Message:     "failed to parse multipart form",
@@ -266,12 +265,20 @@ func (createMDMEULARequest) DecodeRequest(ctx context.Context, r *http.Request) 
 		}
 	}
 
+	eula := r.MultipartForm.File["eula"][0]
+
+	if eula.Size > fleet.MaxEULASize {
+		return nil, &fleet.BadRequestError{
+			Message: "Uploaded EULA exceeds maximum allowed size of 500 MiB",
+		}
+	}
+
 	dryRun := false
 	if v := r.URL.Query().Get("dry_run"); v != "" {
 		dryRun, _ = strconv.ParseBool(v)
 	}
 	return &createMDMEULARequest{
-		EULA:   r.MultipartForm.File["eula"][0],
+		EULA:   eula,
 		DryRun: dryRun,
 	}, nil
 }
@@ -1556,7 +1563,7 @@ type newMDMConfigProfileRequest struct {
 func (newMDMConfigProfileRequest) DecodeRequest(ctx context.Context, r *http.Request) (interface{}, error) {
 	decoded := newMDMConfigProfileRequest{}
 
-	err := r.ParseMultipartForm(512 * units.MiB)
+	err := r.ParseMultipartForm(platform_http.MaxMultipartFormSize)
 	if err != nil {
 		return nil, &fleet.BadRequestError{
 			Message:     "failed to parse multipart form",
@@ -1584,7 +1591,7 @@ func (newMDMConfigProfileRequest) DecodeRequest(ctx context.Context, r *http.Req
 	}
 	decoded.Profile = fhs[0]
 
-	if decoded.Profile.Size > 1024*1024 {
+	if decoded.Profile.Size > fleet.MaxProfileSize {
 		return nil, fleet.NewInvalidArgumentError("mdm", "maximum configuration profile file size is 1 MB")
 	}
 
@@ -1800,6 +1807,9 @@ func (svc *Service) NewMDMAndroidConfigProfile(ctx context.Context, teamID uint,
 				WithStatus(http.StatusConflict)
 		}
 		return nil, ctxerr.Wrap(ctx, err)
+	}
+	if _, err := svc.ds.BulkSetPendingMDMHostProfiles(ctx, nil, nil, []string{newCP.ProfileUUID}, nil); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "bulk set pending host profiles")
 	}
 
 	var (
@@ -3096,7 +3106,7 @@ type uploadMDMAppleAPNSCertRequest struct {
 
 func (uploadMDMAppleAPNSCertRequest) DecodeRequest(ctx context.Context, r *http.Request) (interface{}, error) {
 	decoded := uploadMDMAppleAPNSCertRequest{}
-	err := r.ParseMultipartForm(512 * units.MiB)
+	err := r.ParseMultipartForm(platform_http.MaxMultipartFormSize)
 	if err != nil {
 		return nil, &fleet.BadRequestError{
 			Message:     "failed to parse multipart form",

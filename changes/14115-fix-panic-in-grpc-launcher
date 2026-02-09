@@ -1,0 +1,1 @@
+* Fixed panic in gRPC launcher API handler.

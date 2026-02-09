@@ -81,11 +81,13 @@ In the top box, with "Verified," "Verifying," "Pending," and "Failed" statuses, 
 
 ### Verified
 
+> For some Windows configuration profiles, [verification doesn't work](https://github.com/fleetdm/fleet/issues/38833). Fleet will [remove verification](https://github.com/fleetdm/fleet/issues/31921) for Windows profiles in 4.83 (coming soon).
+
 Hosts that applied all OS settings. 
 
 For macOS configuration profiles and device-scoped Windows profiles, Fleet verified by running an osquery query. It can take up to 1 hour ([configurable](https://fleetdm.com/docs/configuration/fleet-server-configuration#osquery-detail-update-interval)) for these profiles to move from "Verifying" to "Verified".
 
-macOS declarations profiles are verified with a [DDM StatusReport](https://developer.apple.com/documentation/devicemanagement/statusreport)).
+macOS declarations profiles are verified with a [DDM StatusReport](https://developer.apple.com/documentation/devicemanagement/statusreport).
 
 User-scoped Windows profiles are "Verified" after Fleet gets a [200 response](https://learn.microsoft.com/en-us/windows/client-management/oma-dm-protocol-support#syncml-response-status-codes) from the Windows MDM protocol.
 
@@ -147,7 +149,9 @@ On Android hosts, a broken profile will remove the enforcement of the OS setting
 
 ## Unmanaged profiles
 
-macOS, iOS, and iPadOS profiles installed manually by the end user aren't managed by Fleet. They're not visible and can't be removed from the host via Fleet. Additionally, if a backup is migrated to a new host using [Apple's Migration Assistant](https://support.apple.com/en-us/102613) and it contains configuration profiles, those profiles aren't managed.
+macOS, iOS, and iPadOS profiles installed manually by the end user aren't managed by Fleet. They're not visible and can't be removed from the host via Fleet. 
+
+If a backup is migrated to a new host using [Apple’s Migration Assistant](https://support.apple.com/en-us/102613) and includes configuration profiles, those profiles aren’t managed. Migration Assistant also restores the enrollment profile, but without a valid private key, which breaks communication with Fleet. Fleet still shows MDM as turned on. If this happens, the end user will have to manually turn MDM off and back on.
 
 To manually remove unmanaged profiles, ask the end user to go to **System Settings > General > Device Management**, select the profile, and select the **- (minus)** button at the bottom of the list.
 

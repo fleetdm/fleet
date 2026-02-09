@@ -248,6 +248,10 @@ func (s *enterpriseIntegrationGitopsTestSuite) TestFleetGitops() {
 	t.Setenv("FLEET_GLOBAL_ENROLL_SECRET", "global_enroll_secret")
 	t.Setenv("FLEET_WORKSTATIONS_ENROLL_SECRET", "workstations_enroll_secret")
 	t.Setenv("FLEET_WORKSTATIONS_CANARY_ENROLL_SECRET", "workstations_canary_enroll_secret")
+	t.Setenv("FLEET_PERSONAL_MOBILE_DEVICES_ENROLL_SECRET", "personal_mobile_devices_enroll_secret")
+	t.Setenv("FLEET_DEDICATED_DEVICES_ENROLL_SECRET", "dedicated_devices_enroll_secret")
+	t.Setenv("FLEET_EMPLOYEE_ISSUED_MOBILE_DEVICES_ENROLL_SECRET", "employee_issued_mobile_devices_enroll_secret")
+	t.Setenv("FLEET_IT_SERVERS_ENROLL_SECRET", "it_servers_enroll_secret")
 	globalFile := path.Join(repoDir, "default.yml")
 	teamsDir := path.Join(repoDir, "teams")
 	teamFiles, err := os.ReadDir(teamsDir)
@@ -312,7 +316,7 @@ team_settings:
 
 	// Check that all the teams exist
 	teamsJSON := fleetctl.RunAppForTest(t, []string{"get", "teams", "--config", fleetctlConfig.Name(), "--json"})
-	assert.Equal(t, 3, strings.Count(teamsJSON, "team_id"))
+	assert.Equal(t, 6, strings.Count(teamsJSON, "team_id"))
 
 	// Real run with all the files, and delete other teams
 	args = []string{"gitops", "--config", fleetctlConfig.Name(), "--delete-other-teams", "-f", globalFile}
@@ -323,7 +327,7 @@ team_settings:
 
 	// Check that only the right teams exist
 	teamsJSON = fleetctl.RunAppForTest(t, []string{"get", "teams", "--config", fleetctlConfig.Name(), "--json"})
-	assert.Equal(t, 2, strings.Count(teamsJSON, "team_id"))
+	assert.Equal(t, 5, strings.Count(teamsJSON, "team_id"))
 	assert.NotContains(t, teamsJSON, deletedTeamName)
 
 	// Real run with one file at a time
@@ -3183,7 +3187,6 @@ org_settings:
 
 	for _, testCase := range testCases {
 		t.Run(testCase.Name, func(t *testing.T) {
-
 			globalCfgFile, err := os.CreateTemp(t.TempDir(), "*.yml")
 			require.NoError(t, err)
 
@@ -3221,8 +3224,7 @@ func (s *enterpriseIntegrationGitopsTestSuite) TestSpecialCaseTeamsVPPApps() {
 
 	// The global template includes VPP token assignment to the team
 	// The location "Jungle" comes from test.CreateInsertGlobalVPPToken
-	globalTemplate :=
-		`agent_options:
+	globalTemplate := `agent_options:
 controls:
 org_settings:
   server_settings:
@@ -3329,5 +3331,4 @@ team_settings:
 			require.Len(t, titles, 2) // One for iOS, one for iPadOS
 		})
 	}
-
 }
