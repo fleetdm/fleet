@@ -311,10 +311,6 @@ func (svc *Service) BatchAssociateVPPApps(ctx context.Context, teamName string, 
 		}
 	}
 
-	// TODO(mna): this is where we batch-set the VPP apps for a team, possibly deleting some
-	// apps, in which case we must trigger the worker job to remove the self-service app from
-	// android hosts. Maybe similar to policiesToUpdate in the call to worker.QueueBulkSetAndroidAppsAvailableForHost
-	// below?
 	setupExperienceChanged, err := svc.ds.SetTeamVPPApps(ctx, teamID, allPlatformApps, appStoreIDToTitleID)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
@@ -389,10 +385,6 @@ func (svc *Service) BatchAssociateVPPApps(ctx context.Context, teamName string, 
 
 	if err := svc.ds.DeleteIconsAssociatedWithTitlesWithoutInstallers(ctx, tmID); err != nil {
 		return nil, err // returned error already includes context that we could include here
-	}
-
-	if len(allPlatformApps) == 0 {
-		return []fleet.VPPAppResponse{}, nil
 	}
 
 	addedApps, err := svc.ds.GetVPPApps(ctx, teamID)
