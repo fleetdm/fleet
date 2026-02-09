@@ -98,6 +98,7 @@ import UnauthenticatedRoutes from "./components/UnauthenticatedRoutes";
 import AuthGlobalAdminMaintainerRoutes from "./components/AuthGlobalAdminMaintainerRoutes";
 import AuthAnyMaintainerAnyAdminRoutes from "./components/AuthAnyMaintainerAnyAdminRoutes";
 import AuthAnyMaintainerAdminObserverPlusRoutes from "./components/AuthAnyMaintainerAdminObserverPlusRoutes";
+import AuthAnyMaintainerAdminTechnicianRoutes from "./components/AuthAnyMaintainerAdminTechnicianRoutes/AuthAnyMaintainerAdminTechnicianRoutes";
 import PremiumRoutes from "./components/PremiumRoutes";
 import ExcludeInSandboxRoutes from "./components/ExcludeInSandboxRoutes";
 
@@ -287,7 +288,10 @@ const routes = (
             />
           </Route>
           <Route component={ExcludeInSandboxRoutes}>
-            <Route path="controls" component={AuthAnyMaintainerAnyAdminRoutes}>
+            <Route
+              path="controls"
+              component={AuthAnyMaintainerAdminTechnicianRoutes}
+            >
               <IndexRedirect to="os-updates" />
               <Route component={ManageControlsPage}>
                 <Route path="os-updates" component={OSUpdates} />
