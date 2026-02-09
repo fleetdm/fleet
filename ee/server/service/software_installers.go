@@ -822,7 +822,7 @@ func (svc *Service) deleteVPPApp(ctx context.Context, teamID *uint, meta *fleet.
 
 	// if this is an android app, remove the self-service app from the managed Google Play store
 	// and uninstall it from the hosts.
-	if meta.Platform == fleet.AndroidPlatform {
+	if meta.Platform == fleet.AndroidPlatform && len(androidHostsUUIDToPolicyID) > 0 {
 		enterprise, err := svc.ds.GetEnterprise(ctx)
 		if err != nil {
 			return &fleet.BadRequestError{Message: "Android MDM is not enabled", InternalErr: err}

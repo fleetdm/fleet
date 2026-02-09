@@ -904,7 +904,27 @@ func (svc *Service) AddAppsToAndroidPolicy(ctx context.Context, enterpriseName s
 }
 
 func (svc *Service) RemoveAppsFromAndroidPolicy(ctx context.Context, enterpriseName string, packageNames []string, hostUUIDs map[string]string) (map[string]*android.MDMAndroidPolicyRequest, error) {
-	panic("unimplemented")
+	var errs []error
+	hostToPolicyRequest := make(map[string]*android.MDMAndroidPolicyRequest, len(hostUUIDs))
+	for uuid, policyID := range hostUUIDs {
+		policyName := fmt.Sprintf("%s/policies/%s", enterpriseName, policyID)
+		policyRequest, err := newAndroidPolicyRemoveApplicationsRequest(policyID, policyName, packageNames)
+		if err != nil {
+			return nil, ctxerr.Wrapf(ctx, err, "prepare policy request %s", policyName)
+		}
+
+		policy, apiErr := svc.androidAPIClient.EnterprisesPoliciesRemovePolicyApplications(ctx, policyName, packageNames)
+		if _, err := recordAndroidRequestResult(ctx, svc.fleetDS, policyRequest, policy, nil, apiErr); err != nil {
+			return nil, ctxerr.Wrapf(ctx, err, "save android policy request for host %s", uuid)
+		}
+
+		if apiErr != nil {
+			errs = append(errs, ctxerr.Wrapf(ctx, apiErr, "google api: remove policy applications for host %s", uuid))
+		}
+		hostToPolicyRequest[uuid] = policyRequest
+	}
+
+	return hostToPolicyRequest, errors.Join(errs...)
 }
 
 // getFleetAgentPackageInfo returns the Fleet agent package name and SHA256 fingerprint.
