@@ -83,8 +83,10 @@ func (e BadRequestError) Internal() string {
 	return ""
 }
 
-func (e BadRequestError) Unwrap() error {
-	return e.InternalErr
+// We implement the second type of Unwrap that returns an error array, which still works for errors.Is/As, but is not supported in errors.Unwrap
+// This allows us to check the error chain, but not log the most inner error in the HTTP response.
+func (e BadRequestError) Unwrap() []error {
+	return []error{e.InternalErr}
 }
 
 // IsClientError implements ErrWithIsClientError.
