@@ -83,6 +83,10 @@ func (e BadRequestError) Internal() string {
 	return ""
 }
 
+func (e BadRequestError) Unwrap() error {
+	return e.InternalErr
+}
+
 // IsClientError implements ErrWithIsClientError.
 func (e BadRequestError) IsClientError() bool {
 	return true
