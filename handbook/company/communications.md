@@ -217,6 +217,11 @@ Fleet uses skip-level 1:1 meetings as a recurring pulse check to encourage [valu
 > Please do not add events to the CEO's calendar, *even if the CEO asks you to*. Instead, [get scheduling help from the Executive Assistant](https://fleetdm.com/handbook/company/leadership#schedule-time-with-the-ceo)).
 
 
+## Shadowing meetings
+
+Calendars at Fleet are public for all Fleeties, and anyone can join any meeting that doesn't say `[no shadows]`. The invitees for a recurring calendar event are those who are mandatory for the meeting. If you are interested in joining a call, add yourself to a particular instance of the meeting.
+
+
 ## Email relays
 
 There are [several special email addresses](https://docs.google.com/document/d/1tE-NpNfw1icmU2MjYuBRib0VWBPVAdmq4NiCrpuI0F0/edit#) that automatically relay messages to the appropriate people in Fleet. Each email address meets a minimum response time ("Min RT"), expressed in business hours/days, and has a dedicated, directly responsible individual (DRI) who is responsible for reading and replying to emails sent to that address.
