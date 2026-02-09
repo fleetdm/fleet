@@ -49,7 +49,7 @@ const SecretEditorModal = ({
     }
 
     if (selectedTeam === 0) {
-      return { name: `No fleet` };
+      return { name: "No fleet" };
     }
     return teams.find((team) => team.id === selectedTeam);
   };

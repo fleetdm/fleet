@@ -38,7 +38,7 @@ const EnrollSecretModal = ({
 }: IEnrollSecretModal): JSX.Element => {
   const teamInfo =
     selectedTeamId <= 0
-      ? { name: `No fleet`, secrets: globalSecrets }
+      ? { name: "No fleet", secrets: globalSecrets }
       : teams.find((team) => team.id === selectedTeamId);
 
   const addNewSecretClick = () => {

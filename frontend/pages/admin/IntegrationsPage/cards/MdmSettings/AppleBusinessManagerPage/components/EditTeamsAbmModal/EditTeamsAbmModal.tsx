@@ -127,7 +127,7 @@ const EditTeamsAbmModal = ({
   return (
     <Modal
       className={baseClass}
-      title={`Edit fleets`}
+      title="Edit fleets"
       onExit={onCancel}
       width="large"
       isContentDisabled={isSaving}
@@ -144,7 +144,7 @@ const EditTeamsAbmModal = ({
               setSelectedTeamNames((prev) => ({ ...prev, macos_team: value }));
             }}
             value={selectedTeamNames.macos_team}
-            label={`macOS fleet`}
+            label="macOS fleet"
             wrapperClassName={`${baseClass}__form-field form-field--macos`}
             tooltip={
               <>
@@ -160,7 +160,7 @@ const EditTeamsAbmModal = ({
               setSelectedTeamNames((prev) => ({ ...prev, ios_team: value }));
             }}
             value={selectedTeamNames.ios_team}
-            label={`iOS fleet`}
+            label="iOS fleet"
             wrapperClassName={`${baseClass}__form-field form-field--ios`}
             tooltip={
               <>
@@ -176,7 +176,7 @@ const EditTeamsAbmModal = ({
               setSelectedTeamNames((prev) => ({ ...prev, ipados_team: value }))
             }
             value={selectedTeamNames.ipados_team}
-            label={`iPadOS fleet`}
+            label="iPadOS fleet"
             wrapperClassName={`${baseClass}__form-field form-field--ipados`}
             tooltip={
               <>

@@ -241,7 +241,7 @@ const EditTeamsVppModal = ({
   return (
     <Modal
       className={baseClass}
-      title={`Edit fleets`}
+      title="Edit fleets"
       onExit={onCancel}
       width="large"
       isContentDisabled={isSaving}
@@ -272,7 +272,7 @@ const EditTeamsVppModal = ({
               options={options}
               multi
               onChange={onChange}
-              placeholder={`Search fleets`}
+              placeholder="Search fleets"
               value={selectedValue}
               label="Fleets"
               className={`${baseClass}__vpp-dropdown`}
@@ -287,7 +287,7 @@ const EditTeamsVppModal = ({
                   </>
                 )
               }
-              helpText={`App Store apps in this VPP token's Apple Business Manager (ABM) will only be available to install on hosts in these fleets.`}
+              helpText="App Store apps in this VPP token's Apple Business Manager (ABM) will only be available to install on hosts in these fleets."
               disabled={isDropdownDisabled}
             />
           </TooltipWrapper>

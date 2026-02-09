@@ -121,7 +121,7 @@ const TeamManagementPage = (): JSX.Element => {
         .catch((createError: { data: IApiError }) => {
           if (createError.data.errors[0].reason.includes("Duplicate")) {
             setBackendValidators({
-              name: `A fleet with this name already exists`,
+              name: "A fleet with this name already exists",
             });
           } else if (createError.data.errors[0].reason.includes("All teams")) {
             setBackendValidators({
@@ -132,7 +132,7 @@ const TeamManagementPage = (): JSX.Element => {
               name: `"No fleet" is a reserved fleet name. Please try another name.`,
             });
           } else {
-            renderFlash("error", `Could not create fleet. Please try again.`);
+            renderFlash("error", "Could not create fleet. Please try again.");
             toggleCreateTeamModal();
           }
         })
@@ -198,7 +198,7 @@ const TeamManagementPage = (): JSX.Element => {
             console.error(updateError);
             if (updateError.data.errors[0].reason.includes("Duplicate")) {
               setBackendValidators({
-                name: `A fleet with this name already exists`,
+                name: "A fleet with this name already exists",
               });
             } else if (
               updateError.data.errors[0].reason.includes("all teams")
@@ -288,7 +288,7 @@ const TeamManagementPage = (): JSX.Element => {
             defaultSortDirection="asc"
             actionButton={{
               name: "create team",
-              buttonText: `Create fleet`,
+              buttonText: "Create fleet",
               variant: "default",
               onClick: toggleCreateTeamModal,
               hideButton: teams && teams.length === 0,

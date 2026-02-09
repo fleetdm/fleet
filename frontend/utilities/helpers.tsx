@@ -491,7 +491,7 @@ export const generateTeam = (
   if (globalRole === null) {
     if (teams.length === 0) {
       // no global role and no teams
-      return `No fleet`;
+      return "No fleet";
     } else if (teams.length === 1) {
       // no global role and only one team
       return teams[0].name;
@@ -511,12 +511,12 @@ export const greyCell = (roleOrTeamText: string): boolean => {
     "Global",
     "Unassigned",
     "Various",
-    `No fleet`,
+    "No fleet",
     "Unknown",
   ];
 
   return (
-    GREYED_TEXT.includes(roleOrTeamText) || roleOrTeamText.includes(` fleets`)
+    GREYED_TEXT.includes(roleOrTeamText) || roleOrTeamText.includes(" fleets")
   );
 };
 
@@ -614,7 +614,7 @@ export const internationalNumberFormat = (number: number): string => {
 
 export const hostTeamName = (teamName: string | null): string => {
   if (!teamName) {
-    return `No fleet`;
+    return "No fleet";
   }
 
   return teamName;

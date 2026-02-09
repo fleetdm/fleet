@@ -28,7 +28,6 @@ import Button from "components/buttons/Button";
 import InputField from "components/forms/fields/InputField";
 import TeamsDropdown from "components/TeamsDropdown";
 import { useTeamIdParam } from "hooks/useTeamIdParam";
-import { upperFirst } from "lodash";
 
 const baseClass = "save-as-new-query-modal";
 
@@ -173,9 +172,9 @@ const SaveAsNewQueryModal = ({
       if (reason.includes("already exists")) {
         let teamText;
         if (teamId !== APP_CONTEXT_ALL_TEAMS_ID) {
-          teamText = teamName ? `the ${teamName} fleet` : `this fleet`;
+          teamText = teamName ? `the ${teamName} fleet` : "this fleet";
         } else {
-          teamText = `all fleets`;
+          teamText = "all fleets";
         }
         errFlash = `A query called "${queryName}" already exists for ${teamText}.`;
       } else if (reason.includes(INVALID_PLATFORMS_REASON)) {

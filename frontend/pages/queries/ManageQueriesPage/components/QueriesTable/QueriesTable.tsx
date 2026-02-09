@@ -182,9 +182,9 @@ const QueriesTable = ({
       currentTeamId === null ||
       currentTeamId === APP_CONTEXT_ALL_TEAMS_ID
     ) {
-      emptyParams.header += ` that apply to all fleets`;
+      emptyParams.header += " that apply to all fleets";
     } else {
-      emptyParams.header += ` that apply to this fleet`;
+      emptyParams.header += " that apply to this fleet";
     }
   }
 

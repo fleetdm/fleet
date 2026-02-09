@@ -283,7 +283,7 @@ const TeamsDropdown = ({
     <div className={dropdownWrapperClasses}>
       <Select<INumberDropdownOption, false>
         options={teamOptions}
-        placeholder={`All fleets`}
+        placeholder="All fleets"
         onChange={(newValue) => {
           if (newValue) {
             onChange(newValue.value);
@@ -292,7 +292,7 @@ const TeamsDropdown = ({
         }}
         isDisabled={isDisabled}
         isSearchable
-        noOptionsMessage={() => `No matching fleets`}
+        noOptionsMessage={() => "No matching fleets"}
         styles={customStyles}
         components={{
           DropdownIndicator: CustomDropdownIndicator,

@@ -220,7 +220,7 @@ const RunScriptBatchModal = ({
     if (!scripts.length) {
       return (
         <EmptyTable
-          header={`No scripts available for this fleet`}
+          header="No scripts available for this fleet"
           info={
             <>
               You can add saved scripts{" "}

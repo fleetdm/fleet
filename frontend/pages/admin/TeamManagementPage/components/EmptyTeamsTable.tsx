@@ -41,7 +41,7 @@ const EmptyTeamsTable = ({
   return (
     <EmptyTable
       graphicName="empty-teams"
-      header={`Set up fleet permissions`}
+      header="Set up fleet permissions"
       info="Keep your organization organized and efficient by ensuring every user has the correct access to the right hosts."
       additionalInfo={
         <>
@@ -49,7 +49,7 @@ const EmptyTeamsTable = ({
           Want to learn more?&nbsp;
           <CustomLink
             url="https://fleetdm.com/docs/using-fleet/teams"
-            text={`Read about fleets`}
+            text="Read about fleets"
             newTab
           />
         </>

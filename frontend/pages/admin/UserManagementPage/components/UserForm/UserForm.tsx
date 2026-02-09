@@ -706,7 +706,7 @@ const UserForm = ({
           />
           <Radio
             className={`${baseClass}__radio-input`}
-            label={`Assign to fleet(s)`}
+            label="Assign to fleet(s)"
             id="assign-teams"
             checked={!isGlobalUser}
             value={UserTeamType.AssignTeams}
