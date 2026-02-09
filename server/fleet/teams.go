@@ -540,6 +540,20 @@ func ValidateRole(globalRole *string, teamUsers []UserTeam) error {
 	return nil
 }
 
+func PremiumRolesPresent(globalRole *string, teamRoles []UserTeam) bool {
+	if globalRole != nil {
+		if _, ok := premiumGlobalRoles[*globalRole]; ok {
+			return true
+		}
+	}
+	for _, teamRole := range teamRoles {
+		if _, ok := premiumTeamRoles[teamRole.Role]; ok {
+			return true
+		}
+	}
+	return false
+}
+
 // ValidateUserRoles verifies the roles to be applied to a new or existing user.
 //
 // Argument createNew sets whether the user is being created (true) or is being modified (false).
