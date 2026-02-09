@@ -22,7 +22,6 @@ import teamsAPI, {
 import usersAPI, { IGetMeResponse } from "services/entities/users";
 import formatErrorResponse from "utilities/format_error_response";
 import sortUtils from "utilities/sort";
-import { TEAM_LBL, TEAMS_LBL } from "utilities/constants";
 
 import ActionButtons from "components/buttons/ActionButtons/ActionButtons";
 import Spinner from "components/Spinner";
@@ -303,9 +302,9 @@ const TeamDetailsWrapper = ({
     try {
       await teamsAPI.destroy(teamIdForApi);
       router.push(PATHS.ADMIN_TEAMS);
-      renderFlash("success", `${upperFirst(TEAM_LBL)} removed`);
+      renderFlash("success", `Fleet removed`);
     } catch (response) {
-      renderFlash("error", `Something went wrong removing the ${TEAM_LBL}`);
+      renderFlash("error", `Something went wrong removing the fleet`);
       console.error(response);
     } finally {
       toggleDeleteTeamModal();
@@ -330,7 +329,7 @@ const TeamDetailsWrapper = ({
         await teamsAPI.update(updatedAttrs, teamIdForApi);
         renderFlash(
           "success",
-          `Successfully updated ${TEAM_LBL} name to ${updatedAttrs?.name}`
+          `Successfully updated fleet name to ${updatedAttrs?.name}`
         );
         setBackendValidators({});
         refetchTeams();
@@ -341,21 +340,18 @@ const TeamDetailsWrapper = ({
         const errorObject = formatErrorResponse(response);
         if (errorObject.base.includes("Duplicate")) {
           setBackendValidators({
-            name: `A ${TEAM_LBL} with this name already exists`,
+            name: `A fleet with this name already exists`,
           });
         } else if (errorObject.base.includes("all teams")) {
           setBackendValidators({
-            name: `"All ${TEAMS_LBL}" is a reserved ${TEAM_LBL} name. Please try another name.`,
+            name: `"All fleets" is a reserved fleet name. Please try another name.`,
           });
         } else if (errorObject.base.includes("no team")) {
           setBackendValidators({
-            name: `"No ${TEAM_LBL}" is a reserved ${TEAM_LBL} name. Please try another name.`,
+            name: `"No fleet" is a reserved fleet name. Please try another name.`,
           });
         } else {
-          renderFlash(
-            "error",
-            `Could not create ${TEAM_LBL}. Please try again.`
-          );
+          renderFlash("error", `Could not create fleet. Please try again.`);
         }
       } finally {
         setIsUpdatingTeams(false);
@@ -397,10 +393,7 @@ const TeamDetailsWrapper = ({
       <>
         {isGlobalAdmin ? (
           <div className={`${baseClass}__header-links`}>
-            <BackButton
-              text={`Back to ${TEAMS_LBL}`}
-              path={PATHS.ADMIN_TEAMS}
-            />
+            <BackButton text={`Back to fleets`} path={PATHS.ADMIN_TEAMS} />
           </div>
         ) : (
           <></>
@@ -442,7 +435,7 @@ const TeamDetailsWrapper = ({
               },
               {
                 type: "secondary",
-                label: `Rename ${TEAM_LBL}`,
+                label: `Rename fleet`,
                 buttonVariant: "inverse",
                 iconName: "pencil",
                 onClick: toggleRenameTeamModal,
@@ -450,7 +443,7 @@ const TeamDetailsWrapper = ({
               },
               {
                 type: "secondary",
-                label: `Delete ${TEAM_LBL}`,
+                label: `Delete fleet`,
                 buttonVariant: "inverse",
                 iconName: "trash",
                 hideAction: !isGlobalAdmin,

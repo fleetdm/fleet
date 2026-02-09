@@ -1,8 +1,6 @@
 import React, { useState, useCallback, useEffect } from "react";
-import { upperFirst } from "lodash";
 
 import { ITeamFormData } from "services/entities/teams";
-import { TEAM_LBL } from "utilities/constants";
 
 import Modal from "components/Modal";
 // @ts-ignore
@@ -49,7 +47,7 @@ const RenameTeamModal = ({
   };
 
   return (
-    <Modal title={`Rename ${TEAM_LBL}`} onExit={onCancel} className={baseClass}>
+    <Modal title={`Rename fleet`} onExit={onCancel} className={baseClass}>
       <form
         className={`${baseClass}__form`}
         onSubmit={onFormSubmit}
@@ -62,8 +60,8 @@ const RenameTeamModal = ({
           onBlur={() => {
             setName(name.trim());
           }}
-          label={`${upperFirst(TEAM_LBL)} name`}
-          placeholder={`${upperFirst(TEAM_LBL)} name`}
+          label="Fleet name"
+          placeholder="Fleet name"
           value={name}
           error={errors.name}
           ignore1password

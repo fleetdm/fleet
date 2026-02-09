@@ -4,7 +4,6 @@ import { AppContext } from "context/app";
 
 import Modal from "components/Modal";
 import Button from "components/buttons/Button";
-import { TEAM_LBL } from "utilities/constants";
 
 const baseClass = "rerun-script-modal";
 
@@ -19,7 +18,7 @@ const generateMessageSuffix = (isPremiumTier?: boolean, teamId?: number) => {
   if (!isPremiumTier) {
     return "";
   }
-  return teamId ? ` assigned to this ${TEAM_LBL}` : ` with no ${TEAM_LBL}`;
+  return teamId ? ` assigned to this fleet` : ` with no fleet`;
 };
 
 const RerunScriptModal = ({

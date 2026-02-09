@@ -1,8 +1,6 @@
 import React, { useState, useCallback, useEffect } from "react";
-import { upperFirst } from "lodash";
 
 import { ITeamFormData } from "services/entities/teams";
-import { TEAM_LBL } from "utilities/constants";
 
 import Modal from "components/Modal";
 import Button from "components/buttons/Button";
@@ -53,7 +51,7 @@ const CreateTeamModal = ({
   );
 
   return (
-    <Modal title={`Create ${TEAM_LBL}`} onExit={onCancel} className={baseClass}>
+    <Modal title={`Create fleet`} onExit={onCancel} className={baseClass}>
       <form
         className={`${baseClass}__form`}
         onSubmit={onFormSubmit}
@@ -66,14 +64,14 @@ const CreateTeamModal = ({
           onBlur={() => {
             setName(name.trim());
           }}
-          label={`${upperFirst(TEAM_LBL)} name`}
+          label="Fleet name"
           placeholder="Workstations"
           value={name}
           error={errors.name}
           ignore1password
         />
         <InfoBanner className={`${baseClass}__sandbox-info`}>
-          To organize your hosts, create a {TEAM_LBL}, like
+          To organize your hosts, create a fleet, like
           &ldquo;Workstations,&rdquo; &ldquo;Servers,&rdquo; or &ldquo;Servers
           (canary)&rdquo;.
         </InfoBanner>

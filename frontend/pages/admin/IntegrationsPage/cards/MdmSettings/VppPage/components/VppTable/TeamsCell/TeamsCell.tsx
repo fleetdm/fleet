@@ -2,7 +2,6 @@ import React from "react";
 import classnames from "classnames";
 
 import { ITokenTeam } from "interfaces/mdm";
-import { TEAMS_LBL } from "utilities/constants";
 
 import TextCell from "components/TableContainer/DataTable/TextCell";
 import { uniqueId } from "lodash";
@@ -18,7 +17,7 @@ const generateCell = (teams: ITokenTeam[] | null) => {
   }
 
   if (teams.length === 0) {
-    return <TextCell value={`All ${TEAMS_LBL}`} />;
+    return <TextCell value={`All fleets`} />;
   }
 
   let text = "";
@@ -27,7 +26,7 @@ const generateCell = (teams: ITokenTeam[] | null) => {
     italicize = false;
     text = teams[0].name;
   } else {
-    text = `${teams.length} ${TEAMS_LBL}`;
+    text = `${teams.length} fleets`;
   }
 
   return <TextCell value={text} italic={italicize} />;
@@ -84,7 +83,7 @@ const TeamsCell = ({ teams, className }: ITeamsCellProps) => {
   }
 
   if (teams.length === 0) {
-    return <TextCell value={`All ${TEAMS_LBL}`} />;
+    return <TextCell value={`All fleets`} />;
   }
 
   if (teams.length === 1) {

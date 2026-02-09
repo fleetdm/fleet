@@ -23,7 +23,7 @@ import DataSet from "components/DataSet";
 import StatusIndicator from "components/StatusIndicator";
 import IssuesIndicator from "pages/hosts/components/IssuesIndicator";
 
-import { DATE_FNS_FORMAT_STRINGS, TEAM_LBL } from "utilities/constants";
+import { DATE_FNS_FORMAT_STRINGS } from "utilities/constants";
 
 import OSSettingsIndicator from "./OSSettingsIndicator";
 import BootstrapPackageIndicator from "./BootstrapPackageIndicator/BootstrapPackageIndicator";
@@ -91,7 +91,7 @@ const HostSummary = ({
         summaryData.team_name !== "---" ? (
           `${summaryData.team_name}`
         ) : (
-          <span className="no-team">No {TEAM_LBL}</span>
+          <span className="no-team">No fleet</span>
         )
       }
     />

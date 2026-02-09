@@ -2,8 +2,7 @@ import React, { useState, useCallback, useContext, useMemo } from "react";
 import { useQuery } from "react-query";
 import { useErrorHandler } from "react-error-boundary";
 
-import { PRIMO_TOOLTIP, TEAM_LBL, TEAMS_LBL } from "utilities/constants";
-import { upperFirst } from "lodash";
+import { PRIMO_TOOLTIP } from "utilities/constants";
 import { getGitOpsModeTipContent } from "utilities/helpers";
 
 import { NotificationContext } from "context/notification";
@@ -122,21 +121,18 @@ const TeamManagementPage = (): JSX.Element => {
         .catch((createError: { data: IApiError }) => {
           if (createError.data.errors[0].reason.includes("Duplicate")) {
             setBackendValidators({
-              name: `A ${TEAM_LBL} with this name already exists`,
+              name: `A fleet with this name already exists`,
             });
           } else if (createError.data.errors[0].reason.includes("All teams")) {
             setBackendValidators({
-              name: `"All ${TEAMS_LBL}" is a reserved ${TEAM_LBL} name. Please try another name.`,
+              name: `"All fleets" is a reserved fleet name. Please try another name.`,
             });
           } else if (createError.data.errors[0].reason.includes("No team")) {
             setBackendValidators({
-              name: `"No ${TEAM_LBL}" is a reserved ${TEAM_LBL} name. Please try another name.`,
+              name: `"No fleet" is a reserved fleet name. Please try another name.`,
             });
           } else {
-            renderFlash(
-              "error",
-              `Could not create ${TEAM_LBL}. Please try again.`
-            );
+            renderFlash("error", `Could not create fleet. Please try again.`);
             toggleCreateTeamModal();
           }
         })
@@ -192,7 +188,7 @@ const TeamManagementPage = (): JSX.Element => {
           .then(() => {
             renderFlash(
               "success",
-              `Successfully updated ${TEAM_LBL} name to ${formData.name}.`
+              `Successfully updated fleet name to ${formData.name}.`
             );
             setBackendValidators({});
             toggleRenameTeamModal();
@@ -202,17 +198,17 @@ const TeamManagementPage = (): JSX.Element => {
             console.error(updateError);
             if (updateError.data.errors[0].reason.includes("Duplicate")) {
               setBackendValidators({
-                name: `A ${TEAM_LBL} with this name already exists`,
+                name: `A fleet with this name already exists`,
               });
             } else if (
               updateError.data.errors[0].reason.includes("all teams")
             ) {
               setBackendValidators({
-                name: `"All ${TEAMS_LBL}" is a reserved ${TEAM_LBL} name.`,
+                name: `"All fleets" is a reserved fleet name.`,
               });
             } else if (updateError.data.errors[0].reason.includes("no team")) {
               setBackendValidators({
-                name: `"No ${TEAM_LBL}" is a reserved ${TEAM_LBL} name. Please try another name.`,
+                name: `"No fleet" is a reserved fleet name. Please try another name.`,
               });
             } else {
               renderFlash(
@@ -292,13 +288,13 @@ const TeamManagementPage = (): JSX.Element => {
             defaultSortDirection="asc"
             actionButton={{
               name: "create team",
-              buttonText: `Create ${TEAM_LBL}`,
+              buttonText: `Create fleet`,
               variant: "default",
               onClick: toggleCreateTeamModal,
               hideButton: teams && teams.length === 0,
               disabledTooltipContent: disabledPrimaryActionTooltip,
             }}
-            resultsTitle={TEAMS_LBL}
+            resultsTitle="fleets"
             emptyComponent={() => (
               <EmptyTeamsTable
                 className={noTeamsClass}

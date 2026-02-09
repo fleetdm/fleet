@@ -1,9 +1,8 @@
 import React, { useState, useEffect } from "react";
-import { upperFirst } from "lodash";
 import yaml from "js-yaml";
 import paths from "router/paths";
 import { constructErrorString, agentOptionsToYaml } from "utilities/yaml";
-import { EMPTY_AGENT_OPTIONS, TEAM_LBL, TEAMS_LBL } from "utilities/constants";
+import { EMPTY_AGENT_OPTIONS } from "utilities/constants";
 
 import SettingsSection from "pages/admin/components/SettingsSection";
 import PageDescription from "components/PageDescription";
@@ -102,13 +101,10 @@ const Agents = ({
         {isPremiumTier ? (
           <InfoBanner>
             <div>
-              These options are not applied to hosts on a {TEAM_LBL}. To update
-              agent options for hosts on a {TEAM_LBL}, head to the&nbsp;
-              <CustomLink
-                url={ADMIN_TEAMS}
-                text={`${upperFirst(TEAMS_LBL)} page`}
-              />
-              &nbsp;and select a {TEAM_LBL}.
+              These options are not applied to hosts on a fleet. To update agent
+              options for hosts on a fleet, head to the&nbsp;
+              <CustomLink url={ADMIN_TEAMS} text="Fleets page" />
+              &nbsp;and select a fleet.
             </div>
           </InfoBanner>
         ) : (
@@ -116,7 +112,7 @@ const Agents = ({
             Want some hosts to have different options?&nbsp;
             <CustomLink
               url="https://fleetdm.com/docs/using-fleet/teams"
-              text={`Learn more about ${TEAMS_LBL}`}
+              text={`Learn more about fleets`}
               newTab
               variant="banner-link"
             />

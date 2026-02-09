@@ -3,8 +3,6 @@ import React from "react";
 import Modal from "components/Modal";
 import Button from "components/buttons/Button";
 
-import { TEAM_LBL } from "utilities/constants";
-
 const baseClass = "remove-user-modal";
 
 interface IDeleteTeamModalProps {
@@ -36,7 +34,7 @@ const RemoveUserModal = ({
           <span className={`${baseClass}__team-name`}>{teamName}</span>.
         </p>
         <p>
-          If {userName} is not assigned to any other {TEAM_LBL}, they will lose
+          If {userName} is not assigned to any other fleet, they will lose
           access to Fleet.
         </p>
         <div className="modal-cta-wrap">
