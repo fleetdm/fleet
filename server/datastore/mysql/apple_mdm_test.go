@@ -59,6 +59,7 @@ func TestMDMApple(t *testing.T) {
 		{"TestGetMDMAppleProfilesContents", testGetMDMAppleProfilesContents},
 		{"TestAggregateMacOSSettingsStatusWithFileVault", testAggregateMacOSSettingsStatusWithFileVault},
 		{"TestMDMAppleHostsProfilesStatus", testMDMAppleHostsProfilesStatus},
+		{"TestMDMAppleHostsDiskEncryption", testMDMAppleHostsDiskEncryption},
 		{"TestMDMAppleIdPAccount", testMDMAppleIdPAccount},
 		{"TestIgnoreMDMClientError", testDoNotIgnoreMDMClientError},
 		{"TestDeleteMDMAppleProfilesForHost", testDeleteMDMAppleProfilesForHost},
@@ -3105,7 +3106,17 @@ func TestMDMAppleFileVaultSummary(t *testing.T) {
 	for i := 0; i < 7; i++ {
 		h := test.NewHost(t, ds, fmt.Sprintf("foo.local.%d", i), "1.1.1.1",
 			fmt.Sprintf("%d", i), fmt.Sprintf("%d", i), time.Now())
+		nanoEnrollUserDeviceAndSetHostMDMData(t, ds, h)
 		hosts = append(hosts, h)
+	}
+
+	hostCountEncryptionStatus := func(status fleet.DiskEncryptionStatus, teamID *uint) int {
+		gotHosts, err := ds.ListHosts(ctx,
+			fleet.TeamFilter{User: &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}},
+			fleet.HostListOptions{OSSettingsDiskEncryptionFilter: status, TeamFilter: teamID},
+		)
+		require.NoError(t, err)
+		return len(gotHosts)
 	}
 
 	// no teams tests =====
@@ -3133,6 +3144,7 @@ func TestMDMAppleFileVaultSummary(t *testing.T) {
 	require.Equal(t, uint(0), fvProfileSummary.Enforcing)
 	require.Equal(t, uint(0), fvProfileSummary.Failed)
 	require.Equal(t, uint(0), fvProfileSummary.RemovingEnforcement)
+	require.Equal(t, 1, hostCountEncryptionStatus(fleet.DiskEncryptionVerifying, nil))
 
 	allProfilesSummary, err := ds.GetMDMAppleProfilesSummary(ctx, nil)
 	require.NoError(t, err)
@@ -3141,6 +3153,7 @@ func TestMDMAppleFileVaultSummary(t *testing.T) {
 	require.Equal(t, uint(0), allProfilesSummary.Failed)
 	require.Equal(t, uint(1), allProfilesSummary.Verifying)
 	require.Equal(t, uint(0), allProfilesSummary.Verified)
+	require.Equal(t, 1, hostCountEncryptionStatus(fleet.DiskEncryptionVerifying, nil))
 
 	// action required status
 	requiredActionHost := hosts[1]
@@ -3162,6 +3175,8 @@ func TestMDMAppleFileVaultSummary(t *testing.T) {
 	require.Equal(t, uint(0), fvProfileSummary.Enforcing)
 	require.Equal(t, uint(0), fvProfileSummary.Failed)
 	require.Equal(t, uint(0), fvProfileSummary.RemovingEnforcement)
+	require.Equal(t, 1, hostCountEncryptionStatus(fleet.DiskEncryptionVerifying, nil))
+	require.Equal(t, 1, hostCountEncryptionStatus(fleet.DiskEncryptionActionRequired, nil))
 
 	allProfilesSummary, err = ds.GetMDMAppleProfilesSummary(ctx, nil)
 	require.NoError(t, err)
@@ -3191,6 +3206,9 @@ func TestMDMAppleFileVaultSummary(t *testing.T) {
 	require.Equal(t, uint(1), fvProfileSummary.Enforcing)
 	require.Equal(t, uint(0), fvProfileSummary.Failed)
 	require.Equal(t, uint(0), fvProfileSummary.RemovingEnforcement)
+	require.Equal(t, 1, hostCountEncryptionStatus(fleet.DiskEncryptionVerifying, nil))
+	require.Equal(t, 1, hostCountEncryptionStatus(fleet.DiskEncryptionActionRequired, nil))
+	require.Equal(t, 1, hostCountEncryptionStatus(fleet.DiskEncryptionEnforcing, nil))
 
 	allProfilesSummary, err = ds.GetMDMAppleProfilesSummary(ctx, nil)
 	require.NoError(t, err)
@@ -3217,6 +3235,9 @@ func TestMDMAppleFileVaultSummary(t *testing.T) {
 	require.Equal(t, uint(1), fvProfileSummary.Enforcing)
 	require.Equal(t, uint(0), fvProfileSummary.Failed)
 	require.Equal(t, uint(0), fvProfileSummary.RemovingEnforcement)
+	require.Equal(t, 1, hostCountEncryptionStatus(fleet.DiskEncryptionVerifying, nil))
+	require.Equal(t, 1, hostCountEncryptionStatus(fleet.DiskEncryptionActionRequired, nil))
+	require.Equal(t, 1, hostCountEncryptionStatus(fleet.DiskEncryptionEnforcing, nil))
 
 	allProfilesSummary, err = ds.GetMDMAppleProfilesSummary(ctx, nil)
 	require.NoError(t, err)
@@ -3245,6 +3266,9 @@ func TestMDMAppleFileVaultSummary(t *testing.T) {
 	require.Equal(t, uint(1), fvProfileSummary.Enforcing)
 	require.Equal(t, uint(0), fvProfileSummary.Failed)
 	require.Equal(t, uint(0), fvProfileSummary.RemovingEnforcement)
+	require.Equal(t, 1, hostCountEncryptionStatus(fleet.DiskEncryptionVerifying, nil))
+	require.Equal(t, 1, hostCountEncryptionStatus(fleet.DiskEncryptionActionRequired, nil))
+	require.Equal(t, 1, hostCountEncryptionStatus(fleet.DiskEncryptionEnforcing, nil))
 
 	allProfilesSummary, err = ds.GetMDMAppleProfilesSummary(ctx, nil)
 	require.NoError(t, err)
@@ -3267,6 +3291,10 @@ func TestMDMAppleFileVaultSummary(t *testing.T) {
 	require.Equal(t, uint(1), fvProfileSummary.Enforcing)
 	require.Equal(t, uint(1), fvProfileSummary.Failed)
 	require.Equal(t, uint(0), fvProfileSummary.RemovingEnforcement)
+	require.Equal(t, 1, hostCountEncryptionStatus(fleet.DiskEncryptionVerifying, nil))
+	require.Equal(t, 1, hostCountEncryptionStatus(fleet.DiskEncryptionActionRequired, nil))
+	require.Equal(t, 1, hostCountEncryptionStatus(fleet.DiskEncryptionEnforcing, nil))
+	require.Equal(t, 1, hostCountEncryptionStatus(fleet.DiskEncryptionFailed, nil))
 
 	allProfilesSummary, err = ds.GetMDMAppleProfilesSummary(ctx, nil)
 	require.NoError(t, err)
@@ -3289,6 +3317,11 @@ func TestMDMAppleFileVaultSummary(t *testing.T) {
 	require.Equal(t, uint(1), fvProfileSummary.Enforcing)
 	require.Equal(t, uint(1), fvProfileSummary.Failed)
 	require.Equal(t, uint(1), fvProfileSummary.RemovingEnforcement)
+	require.Equal(t, 1, hostCountEncryptionStatus(fleet.DiskEncryptionVerifying, nil))
+	require.Equal(t, 1, hostCountEncryptionStatus(fleet.DiskEncryptionActionRequired, nil))
+	require.Equal(t, 1, hostCountEncryptionStatus(fleet.DiskEncryptionEnforcing, nil))
+	require.Equal(t, 1, hostCountEncryptionStatus(fleet.DiskEncryptionFailed, nil))
+	require.Equal(t, 1, hostCountEncryptionStatus(fleet.DiskEncryptionRemovingEnforcement, nil))
 
 	allProfilesSummary, err = ds.GetMDMAppleProfilesSummary(ctx, nil)
 	require.NoError(t, err)
@@ -3319,6 +3352,7 @@ func TestMDMAppleFileVaultSummary(t *testing.T) {
 	require.Equal(t, uint(0), fvProfileSummary.Enforcing)
 	require.Equal(t, uint(0), fvProfileSummary.Failed)
 	require.Equal(t, uint(0), fvProfileSummary.RemovingEnforcement)
+	require.Equal(t, 1, hostCountEncryptionStatus(fleet.DiskEncryptionVerifying, &tm.ID))
 
 	allProfilesSummary, err = ds.GetMDMAppleProfilesSummary(ctx, &tm.ID)
 	require.NoError(t, err)
@@ -3345,6 +3379,7 @@ func TestMDMAppleFileVaultSummary(t *testing.T) {
 	require.Equal(t, uint(0), fvProfileSummary.Enforcing)
 	require.Equal(t, uint(0), fvProfileSummary.Failed)
 	require.Equal(t, uint(0), fvProfileSummary.RemovingEnforcement)
+	require.Equal(t, 1, hostCountEncryptionStatus(fleet.DiskEncryptionVerified, &tm.ID))
 
 	allProfilesSummary, err = ds.GetMDMAppleProfilesSummary(ctx, &tm.ID)
 	require.NoError(t, err)
@@ -9739,4 +9774,73 @@ func testGetDEPAssignProfileExpiredCooldowns(t *testing.T, ds *Datastore) {
 	}
 	require.Len(t, allSerials, apple_mdm.DEPSyncLimit, "limit process cooldowns to sync limit")
 	require.LessOrEqual(t, len(allSerials), 1000, "never go above 1000 devices as per Apple's recommendations")
+}
+
+func testMDMAppleHostsDiskEncryption(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	team, err := ds.NewTeam(ctx, &fleet.Team{Name: "test team"})
+	require.NoError(t, err)
+
+	hostCountEncryptionStatus := func(status fleet.DiskEncryptionStatus, teamID *uint) int {
+		gotHosts, err := ds.ListHosts(ctx,
+			fleet.TeamFilter{User: &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}},
+			fleet.HostListOptions{OSSettingsDiskEncryptionFilter: status, TeamFilter: teamID},
+		)
+		require.NoError(t, err)
+		return len(gotHosts)
+	}
+
+	hostUnenrolled := test.NewHost(t, ds, "host-unenrolled", "", "key-1", "uuid-1", time.Now())
+	hostEnrolled := test.NewHost(t, ds, "host-enrolled", "", "key-2", "uuid-2", time.Now())
+	nanoEnrollUserDeviceAndSetHostMDMData(t, ds, hostEnrolled)
+
+	FVProfile, err := ds.NewMDMAppleConfigProfile(ctx, *generateAppleCP(fleetmdm.FleetFileVaultProfileName, mobileconfig.FleetFileVaultPayloadIdentifier, team.ID), nil)
+	require.NoError(t, err)
+
+	upsertHostCPs(
+		[]*fleet.Host{hostUnenrolled},
+		[]*fleet.MDMAppleConfigProfile{FVProfile},
+		fleet.MDMOperationTypeInstall,
+		&fleet.MDMDeliveryVerifying,
+		ctx, ds, t,
+	)
+	oneMinuteAfterThreshold := time.Now().Add(+1 * time.Minute)
+	createDiskEncryptionRecord(ctx, ds, t, hostUnenrolled, "key-1", true, oneMinuteAfterThreshold)
+
+	fvProfileSummary, err := ds.GetMDMAppleFileVaultSummary(ctx, nil)
+	require.NoError(t, err)
+	require.NotNil(t, fvProfileSummary)
+	require.Equal(t, uint(0), fvProfileSummary.Verifying)
+	require.Equal(t, 0, hostCountEncryptionStatus(fleet.DiskEncryptionVerifying, nil))
+
+	upsertHostCPs(
+		[]*fleet.Host{hostEnrolled},
+		[]*fleet.MDMAppleConfigProfile{FVProfile},
+		fleet.MDMOperationTypeInstall,
+		&fleet.MDMDeliveryVerifying,
+		ctx, ds, t,
+	)
+	oneMinuteAfterThreshold = time.Now().Add(+1 * time.Minute)
+	createDiskEncryptionRecord(ctx, ds, t, hostEnrolled, "key-2", true, oneMinuteAfterThreshold)
+
+	fvProfileSummary, err = ds.GetMDMAppleFileVaultSummary(ctx, nil)
+	require.NoError(t, err)
+	require.NotNil(t, fvProfileSummary)
+	require.Equal(t, uint(1), fvProfileSummary.Verifying)
+	require.Equal(t, 1, hostCountEncryptionStatus(fleet.DiskEncryptionVerifying, nil))
+
+	upsertHostCPs(
+		[]*fleet.Host{hostEnrolled},
+		[]*fleet.MDMAppleConfigProfile{FVProfile},
+		fleet.MDMOperationTypeInstall,
+		&fleet.MDMDeliveryPending,
+		ctx, ds, t,
+	)
+
+	fvProfileSummary, err = ds.GetMDMAppleFileVaultSummary(ctx, nil)
+	require.NoError(t, err)
+	require.NotNil(t, fvProfileSummary)
+	require.Equal(t, uint(1), fvProfileSummary.Enforcing)
+	require.Equal(t, 1, hostCountEncryptionStatus(fleet.DiskEncryptionEnforcing, nil))
 }
