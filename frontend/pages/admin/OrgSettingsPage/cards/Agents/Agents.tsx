@@ -112,7 +112,7 @@ const Agents = ({
             Want some hosts to have different options?&nbsp;
             <CustomLink
               url="https://fleetdm.com/docs/using-fleet/teams"
-              text={`Learn more about fleets`}
+              text="Learn more about fleets"
               newTab
               variant="banner-link"
             />

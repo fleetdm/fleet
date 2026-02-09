@@ -51,7 +51,7 @@ const CreateTeamModal = ({
   );
 
   return (
-    <Modal title={`Create fleet`} onExit={onCancel} className={baseClass}>
+    <Modal title="Create fleet" onExit={onCancel} className={baseClass}>
       <form
         className={`${baseClass}__form`}
         onSubmit={onFormSubmit}

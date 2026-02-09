@@ -35,7 +35,7 @@ const RemoveUserModal = ({
         </p>
         <p>
           If {userName} is not assigned to any other fleet, they will lose
-          access to Fleet.
+          access.
         </p>
         <div className="modal-cta-wrap">
           <Button

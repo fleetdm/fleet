@@ -277,7 +277,7 @@ const EditQueryPage = ({
           const teamErrorText =
             teamNameForQuery && apiTeamIdForQuery !== 0
               ? `the ${teamNameForQuery} fleet`
-              : `all fleets`;
+              : "all fleets";
           setBackendValidators({
             name: `A query with that name already exists for ${teamErrorText}.`,
           });

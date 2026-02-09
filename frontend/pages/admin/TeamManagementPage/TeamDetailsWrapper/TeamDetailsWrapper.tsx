@@ -302,9 +302,9 @@ const TeamDetailsWrapper = ({
     try {
       await teamsAPI.destroy(teamIdForApi);
       router.push(PATHS.ADMIN_TEAMS);
-      renderFlash("success", `Fleet removed`);
+      renderFlash("success", "Fleet removed");
     } catch (response) {
-      renderFlash("error", `Something went wrong removing the fleet`);
+      renderFlash("error", "Something went wrong removing the fleet");
       console.error(response);
     } finally {
       toggleDeleteTeamModal();
@@ -351,7 +351,7 @@ const TeamDetailsWrapper = ({
             name: `"No fleet" is a reserved fleet name. Please try another name.`,
           });
         } else {
-          renderFlash("error", `Could not create fleet. Please try again.`);
+          renderFlash("error", "Could not create fleet. Please try again.");
         }
       } finally {
         setIsUpdatingTeams(false);
@@ -393,7 +393,7 @@ const TeamDetailsWrapper = ({
       <>
         {isGlobalAdmin ? (
           <div className={`${baseClass}__header-links`}>
-            <BackButton text={`Back to fleets`} path={PATHS.ADMIN_TEAMS} />
+            <BackButton text="Back to fleets" path={PATHS.ADMIN_TEAMS} />
           </div>
         ) : (
           <></>
@@ -435,7 +435,7 @@ const TeamDetailsWrapper = ({
               },
               {
                 type: "secondary",
-                label: `Rename fleet`,
+                label: "Rename fleet",
                 buttonVariant: "inverse",
                 iconName: "pencil",
                 onClick: toggleRenameTeamModal,
@@ -443,7 +443,7 @@ const TeamDetailsWrapper = ({
               },
               {
                 type: "secondary",
-                label: `Delete fleet`,
+                label: "Delete fleet",
                 buttonVariant: "inverse",
                 iconName: "trash",
                 hideAction: !isGlobalAdmin,

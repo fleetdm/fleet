@@ -366,7 +366,7 @@ const SoftwarePage = ({ children, router, location }: ISoftwarePageProps) => {
             tipContent={
               <div className={`${baseClass}__header__tooltip`}>
                 {isPremiumTier
-                  ? `Select a fleet to add software.`
+                  ? "Select a fleet to add software."
                   : "This feature is included in Fleet Premium."}
               </div>
             }
@@ -386,7 +386,7 @@ const SoftwarePage = ({ children, router, location }: ISoftwarePageProps) => {
   const renderHeaderDescription = () => {
     let suffix;
     if (!isPrimoMode) {
-      suffix = isAllTeamsSelected ? " for all hosts" : ` on this fleet`;
+      suffix = isAllTeamsSelected ? " for all hosts" : " on this fleet";
     }
     return (
       <>

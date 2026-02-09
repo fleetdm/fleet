@@ -28,7 +28,7 @@ const baseClass = "transfer-host-modal";
 
 const NO_TEAM_OPTION = {
   value: "no-team",
-  label: `No fleet`,
+  label: "No fleet",
 };
 
 const TransferHostModal = ({
@@ -84,7 +84,7 @@ const TransferHostModal = ({
             value={selectedTeam && selectedTeam.id}
             options={createTeamDropdownOptions()}
             onChange={onChangeSelectTeam}
-            placeholder={`Select a fleet`}
+            placeholder="Select a fleet"
             searchable
             autoFocus
           />

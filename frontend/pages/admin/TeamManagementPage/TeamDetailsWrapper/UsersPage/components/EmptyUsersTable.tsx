@@ -78,7 +78,7 @@ const EmptyMembersTable = ({
   return (
     <EmptyTable
       graphicName="empty-users"
-      header={`No users on this fleet`}
+      header="No users on this fleet"
       info={infoLink}
       primaryButton={
         <GitOpsModeTooltipWrapper
