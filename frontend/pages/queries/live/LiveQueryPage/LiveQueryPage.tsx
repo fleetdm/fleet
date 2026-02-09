@@ -152,11 +152,11 @@ const RunQueryPage = ({
 
   // Updates title that shows up on browser tabs
   useEffect(() => {
-    // e.g., Run Discover TLS certificates | Queries | Fleet
+    // e.g., Run Discover TLS certificates | Reports | Fleet
     if (storedQuery?.name) {
-      document.title = `Run ${storedQuery.name} | Queries | ${DOCUMENT_TITLE_SUFFIX}`;
+      document.title = `Run ${storedQuery.name} | Reports | ${DOCUMENT_TITLE_SUFFIX}`;
     } else {
-      document.title = `Queries | ${DOCUMENT_TITLE_SUFFIX}`;
+      document.title = `Reports | ${DOCUMENT_TITLE_SUFFIX}`;
     }
   }, [location.pathname, storedQuery?.name]);
 

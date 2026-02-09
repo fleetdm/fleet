@@ -471,7 +471,7 @@ export const INVALID_PLATFORMS_REASON =
   "query payload verification: query's platform must be a comma-separated list of 'darwin', 'linux', 'windows', and/or 'chrome' in a single string";
 
 export const INVALID_PLATFORMS_FLASH_MESSAGE =
-  "Couldn't save query. Please update platforms and try again.";
+  "Couldn't save report. Please update platforms and try again.";
 
 export const DATE_FNS_FORMAT_STRINGS = {
   dateAtTime: "E, MMM d 'at' p",

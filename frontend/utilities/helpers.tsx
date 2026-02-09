@@ -706,28 +706,28 @@ export const getPerformanceImpactIndicatorTooltip = (
     case PerformanceImpactIndicatorValue.MINIMAL:
       return (
         <>
-          Running this query very frequently has little to no <br /> impact on
+          Running this report very frequently has little to no <br /> impact on
           your device&apos;s performance.
         </>
       );
     case PerformanceImpactIndicatorValue.CONSIDERABLE:
       return (
         <>
-          Running this query frequently can have a noticeable <br />
+          Running this report frequently can have a noticeable <br />
           impact on your device&apos;s performance.
         </>
       );
     case PerformanceImpactIndicatorValue.EXCESSIVE:
       return (
         <>
-          Running this query, even infrequently, can have a <br />
+          Running this report, even infrequently, can have a <br />
           significant impact on your device&apos;s performance.
         </>
       );
     case PerformanceImpactIndicatorValue.DENYLISTED:
       return (
         <>
-          This query has been <br /> stopped from running <br /> because of
+          This report has been <br /> stopped from running <br /> because of
           excessive <br /> resource consumption.
         </>
       );
@@ -736,7 +736,7 @@ export const getPerformanceImpactIndicatorTooltip = (
         <>
           Performance impact will be available when{" "}
           {isHostSpecific ? "the" : "this"} <br />
-          query runs{isHostSpecific && " on this host"}.
+          report runs{isHostSpecific && " on this host"}.
         </>
       );
     default:

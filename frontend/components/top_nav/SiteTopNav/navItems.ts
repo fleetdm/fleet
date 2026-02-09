@@ -83,7 +83,7 @@ export default (
       withParams: { type: "query", names: ["team_id"] },
     },
     {
-      name: "Queries",
+      name: "Reports",
       location: {
         regex: new RegExp(`^${URL_PREFIX}/queries/`),
         pathname: PATHS.MANAGE_QUERIES,

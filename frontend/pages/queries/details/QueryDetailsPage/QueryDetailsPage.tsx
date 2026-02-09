@@ -222,9 +222,9 @@ const QueryDetailsPage = ({
   useEffect(() => {
     // e.g., Discover TLS certificates | Queries | Fleet
     if (storedQuery?.name) {
-      document.title = `${storedQuery.name} | Queries | ${DOCUMENT_TITLE_SUFFIX}`;
+      document.title = `${storedQuery.name} | Reports | ${DOCUMENT_TITLE_SUFFIX}`;
     } else {
-      document.title = `Queries | ${DOCUMENT_TITLE_SUFFIX}`;
+      document.title = `Reports | ${DOCUMENT_TITLE_SUFFIX}`;
     }
   }, [location.pathname, storedQuery?.name]);
 
@@ -271,7 +271,7 @@ const QueryDetailsPage = ({
       <>
         <div className={`${baseClass}__header-links`}>
           <BackButton
-            text={hostId ? "Back to host details" : "Back to queries"}
+            text={hostId ? "Back to host details" : "Back to reports"}
             path={backPath()}
           />
         </div>
@@ -318,7 +318,7 @@ const QueryDetailsPage = ({
                         }}
                         disabled={isLiveQueryDisabled}
                       >
-                        Live query <Icon name="run" />
+                        Live report <Icon name="run" />
                       </Button>
                     </div>
                     <ReactTooltip
@@ -329,7 +329,7 @@ const QueryDetailsPage = ({
                       id="live-query-button"
                       data-html
                     >
-                      Live queries are disabled in organization settings
+                      Live reports are disabled in organization settings
                     </ReactTooltip>
                   </div>
                 )}
@@ -346,7 +346,7 @@ const QueryDetailsPage = ({
                     }}
                     className={`${baseClass}__manage-automations button`}
                   >
-                    Edit query
+                    Edit report
                   </Button>
                 )}
               </div>
@@ -360,11 +360,11 @@ const QueryDetailsPage = ({
                 <TooltipWrapper
                   tipContent={
                     <>
-                      Query automations let you send data to your log <br />
+                      Report automations let you send data to your log <br />
                       destination on a schedule. When automations are <b>
                         on
                       </b>, <br />
-                      data is sent according to a query&apos;s interval.
+                      data is sent according to a report&apos;s interval.
                     </>
                   }
                 >
@@ -398,7 +398,7 @@ const QueryDetailsPage = ({
       cta={<CustomLink url={SUPPORT_LINK} text="Get help" newTab />}
     >
       <div>
-        <b>Report clipped.</b> A sample of this query&apos;s results is included
+        <b>Report clipped.</b> A sample of this report&apos;s results is included
         below.
         {
           // Exclude below message for global and team observers/observer+s

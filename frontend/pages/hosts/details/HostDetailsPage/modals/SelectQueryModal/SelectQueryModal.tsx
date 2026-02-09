@@ -140,13 +140,13 @@ const SelectQueryModal = ({
   const renderDescription = (): JSX.Element => {
     return (
       <div className={`${baseClass}__description`}>
-        Choose a query to run on this host
+        Choose a report to run on this host
         {(!isOnlyObserver || isObserverPlus || isHostsTeamObserverPlus) && (
           <>
             {" "}
             or{" "}
             <Button variant="text-link" onClick={onQueryHostCustom}>
-              create your own query
+              create your own report
             </Button>
           </>
         )}
@@ -163,9 +163,9 @@ const SelectQueryModal = ({
     if (!queriesFilter && queriesCount === 0) {
       return (
         <div className={`${baseClass}__no-queries`}>
-          <span className="info__header">You have no saved queries.</span>
+          <span className="info__header">You have no saved reports.</span>
           <span className="info__data">
-            Expecting to see queries? Try again in a few seconds as the system
+            Expecting to see reports? Try again in a few seconds as the system
             catches up.
           </span>
         </div>
@@ -197,7 +197,7 @@ const SelectQueryModal = ({
           <InputFieldWithIcon
             name="query-filter"
             onChange={onFilterQueries}
-            placeholder="Filter queries"
+            placeholder="Filter reports"
             value={queriesFilter}
             autofocus
             iconSvg="search"
@@ -215,7 +215,7 @@ const SelectQueryModal = ({
             <InputFieldWithIcon
               name="query-filter"
               onChange={onFilterQueries}
-              placeholder="Filter queries"
+              placeholder="Filter reports"
               value={queriesFilter}
               autofocus
               iconSvg="search"
@@ -224,10 +224,10 @@ const SelectQueryModal = ({
           </div>
           <div className={`${baseClass}__no-queries`}>
             <span className="info__header">
-              No queries match the current search criteria.
+              No reports match the current search criteria.
             </span>
             <span className="info__data">
-              Expecting to see queries? Try again in a few seconds as the system
+              Expecting to see reports? Try again in a few seconds as the system
               catches up.
             </span>
           </div>
@@ -239,7 +239,7 @@ const SelectQueryModal = ({
 
   return (
     <Modal
-      title="Select a query"
+      title="Select a report"
       onExit={onCancel}
       onEnter={onCancel}
       className={baseClass}
