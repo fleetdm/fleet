@@ -903,6 +903,10 @@ func (svc *Service) AddAppsToAndroidPolicy(ctx context.Context, enterpriseName s
 	return hostToPolicyRequest, errors.Join(errs...)
 }
 
+func (svc *Service) RemoveAppsFromAndroidPolicy(ctx context.Context, enterpriseName string, packageNames []string, hostUUIDs map[string]string) (map[string]*android.MDMAndroidPolicyRequest, error) {
+	panic("unimplemented")
+}
+
 // getFleetAgentPackageInfo returns the Fleet agent package name and SHA256 fingerprint.
 // Returns empty strings if the package is not configured.
 func (svc *Service) getFleetAgentPackageInfo() (packageName, sha256Fingerprint string) {

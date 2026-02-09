@@ -30,6 +30,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/mdm"
 	common_mysql "github.com/fleetdm/fleet/v4/server/platform/mysql"
 	"github.com/fleetdm/fleet/v4/server/ptr"
+	"github.com/fleetdm/fleet/v4/server/worker"
 	"github.com/go-kit/log"
 	kitlog "github.com/go-kit/log"
 	"github.com/go-kit/log/level"
@@ -803,8 +804,33 @@ func (svc *Service) deleteVPPApp(ctx context.Context, teamID *uint, meta *fleet.
 		return fleet.ErrNoContext
 	}
 
+	var androidHostsUUIDToPolicyID map[string]string
+	if meta.Platform == fleet.AndroidPlatform {
+		// if this is an Android app we're deleting, collect the host uuids that should have it removed
+		// (as we uninstall Android apps on delete). We can't do this in the worker as it will be too late,
+		// the vpp_apps_teams entry will have been deleted.
+		hosts, err := svc.ds.GetIncludedHostUUIDMapForAppStoreApp(ctx, meta.VPPAppsTeamsID)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "delete app store app: getting android hosts in scope")
+		}
+		androidHostsUUIDToPolicyID = hosts
+	}
+
 	if err := svc.ds.DeleteVPPAppFromTeam(ctx, teamID, meta.VPPAppID); err != nil {
 		return ctxerr.Wrap(ctx, err, "deleting VPP app")
+	}
+
+	// if this is an android app, remove the self-service app from the managed Google Play store
+	// and uninstall it from the hosts.
+	if meta.Platform == fleet.AndroidPlatform {
+		enterprise, err := svc.ds.GetEnterprise(ctx)
+		if err != nil {
+			return &fleet.BadRequestError{Message: "Android MDM is not enabled", InternalErr: err}
+		}
+		err = worker.QueueMakeAndroidAppUnavailableJob(ctx, svc.ds, svc.logger, meta.VPPAppID.AdamID, androidHostsUUIDToPolicyID, enterprise.Name())
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "enqueuing job to make android app unavailable")
+		}
 	}
 
 	var teamName *string
@@ -836,14 +862,6 @@ func (svc *Service) deleteVPPApp(ctx context.Context, teamID *uint, meta *fleet.
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, fmt.Sprintf("failed to delete unused software icons for team %d", *teamID))
 		}
-	}
-
-	// TODO(mna): if this is an android app, call somethig like this to remove the self-service app from the managed Google Play store:
-	if meta.Platform == fleet.AndroidPlatform {
-		// err = worker.QueueMakeAndroidAppAvailableJob(ctx, svc.ds, svc.logger, appToWrite.AdamID, insertedApp.AppTeamID, enterprise.Name(), androidConfigChanged)
-		// if err != nil {
-		// 	return nil, nil, ctxerr.Wrap(ctx, err, "enqueuing job to make android app available")
-		// }
 	}
 
 	return nil
