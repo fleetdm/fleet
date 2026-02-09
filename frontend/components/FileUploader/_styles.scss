@@ -7,7 +7,10 @@
   border: 1px solid $ui-fleet-black-10;
   padding: $pad-xlarge $pad-large;
   font-size: $x-small;
-  text-align: center;
+
+  &:not(.file-uploader__file-preview) {
+    text-align: center;
+  }
 
   .content-wrapper {
     @include content-wrapper();

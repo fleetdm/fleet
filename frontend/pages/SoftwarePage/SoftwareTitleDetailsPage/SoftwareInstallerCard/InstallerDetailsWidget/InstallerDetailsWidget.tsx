@@ -66,6 +66,7 @@ interface IInstallerDetailsWidgetProps {
   version?: string | null;
   sha256?: string | null;
   isFma: boolean;
+  isLatestFmaVersion?: boolean;
   isScriptPackage: boolean;
   androidPlayStoreId?: string;
   customDetails?: string;
@@ -79,6 +80,7 @@ const InstallerDetailsWidget = ({
   sha256,
   version,
   isFma,
+  isLatestFmaVersion = false,
   isScriptPackage,
   androidPlayStoreId,
   customDetails,
@@ -132,7 +134,9 @@ const InstallerDetailsWidget = ({
               </span>
             }
           >
-            <span>{version} (latest)</span>
+            <span>
+              {version} {isLatestFmaVersion ? "(latest)" : ""}
+            </span>
           </TooltipWrapper>
         );
       }

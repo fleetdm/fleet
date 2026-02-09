@@ -30,11 +30,13 @@ import SoftwareOptionsSelector from "pages/SoftwarePage/components/forms/Softwar
 
 import PackageAdvancedOptions from "../PackageAdvancedOptions";
 import { createTooltipContent, generateFormValidation } from "./helpers";
+import PackageVersionSelector from "../PackageVersionSelector";
 
 export const baseClass = "package-form";
 
 export interface IPackageFormData {
   software: File | null;
+  version?: string;
   preInstallQuery?: string;
   installScript: string;
   postInstallScript?: string;
@@ -77,6 +79,7 @@ interface IPackageFormProps {
   onClickShowSchema?: () => void;
   onClickPreviewEndUserExperience: (isIosOrIpadosApp: boolean) => void;
   isEditingSoftware?: boolean;
+  isFleetMaintainedApp?: boolean;
   defaultSoftware?: any; // TODO
   defaultInstallScript?: string;
   defaultPreInstallQuery?: string;
@@ -100,6 +103,7 @@ const PackageForm = ({
   onSubmit,
   onClickPreviewEndUserExperience,
   isEditingSoftware = false,
+  isFleetMaintainedApp = false,
   defaultSoftware,
   defaultInstallScript,
   defaultPreInstallQuery,
@@ -116,6 +120,8 @@ const PackageForm = ({
 
   const initialFormData: IPackageFormData = {
     software: defaultSoftware || null,
+    version: "4.14.0",
+    // version: defaultSoftware?.version || "",
     installScript: defaultInstallScript || "",
     preInstallQuery: defaultPreInstallQuery || "",
     postInstallScript: defaultPostInstallScript || "",
@@ -268,6 +274,17 @@ const PackageForm = ({
     setFormValidation(generateFormValidation(newData));
   };
 
+  const onSelectVersion = (version: string) => {
+    // For now we can only update version in GitOps
+    // Selection is currently disabled in the UI
+    const newData = {
+      ...formData,
+      version,
+    };
+    setFormData(newData);
+    setFormValidation(generateFormValidation(newData));
+  };
+
   const disableFieldsForGitOps = gitopsCompatible && gitOpsModeEnabled;
   const isSubmitDisabled = !formValidation.isValid || disableFieldsForGitOps;
   const submitTooltipContent = createTooltipContent(
@@ -348,11 +365,39 @@ const PackageForm = ({
     />
   );
 
+  const renderCustomEditor = () => {
+    if (isEditingSoftware && !isFleetMaintainedApp) {
+      return null;
+    }
+
+    const fakeVersions = [
+      { id: 1, version: defaultSoftware.version },
+      { id: 2, version: "4.14.0" },
+    ];
+
+    const versions = fakeVersions.map((v) => {
+      return {
+        label: `${v.version}${v.id === 1 ? " (latest)" : ""}`,
+        value: v.version,
+      };
+    });
+
+    return (
+      <PackageVersionSelector
+        selectedVersion={formData.version || versions[1].value}
+        versions={versions}
+        onSelectVersion={onSelectVersion}
+        className={`${baseClass}__version-selector`}
+      />
+    );
+  };
+
   return (
     <div className={classNames}>
       <form className={`${baseClass}__form`} onSubmit={onFormSubmit}>
         <FileUploader
           canEdit={canEditFile}
+          customEditor={renderCustomEditor}
           graphicName="file-pkg"
           accept={ACCEPTED_EXTENSIONS}
           message={renderFileTypeMessage()}
