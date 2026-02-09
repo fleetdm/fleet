@@ -8,6 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"net"
 	"net/http"
 	"os"
 	"reflect"
@@ -536,6 +537,33 @@ func TestAuthenticateHostContextCanceled(t *testing.T) {
 	require.ErrorIs(t, err, context.Canceled)
 	var osqueryErr *OsqueryError
 	require.False(t, errors.As(err, &osqueryErr), "context.Canceled should not be wrapped in OsqueryError")
+}
+
+func TestSubmitDistributedQueryResultsDecodeBodyDeadlineExceeded(t *testing.T) {
+	deadlineErr := &net.OpError{
+		Op:  "read",
+		Net: "tcp",
+		Err: os.ErrDeadlineExceeded,
+	}
+	failingReader := &errorReader{err: deadlineErr}
+
+	shim := &submitDistributedQueryResultsRequestShim{}
+	err := shim.DecodeBody(t.Context(), failingReader, nil, nil)
+	require.Error(t, err)
+
+	var osqueryErr *OsqueryError
+	require.True(t, errors.As(err, &osqueryErr), "expected OsqueryError wrapping deadline exceeded")
+	require.True(t, osqueryErr.IsClientError(), "deadline exceeded during body read should be a client error")
+	require.Equal(t, http.StatusRequestTimeout, osqueryErr.StatusCode)
+}
+
+// errorReader is an io.Reader that returns the given error on Read.
+type errorReader struct {
+	err error
+}
+
+func (r *errorReader) Read([]byte) (int, error) {
+	return 0, r.err
 }
 
 type testJSONLogger struct {
