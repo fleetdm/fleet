@@ -14,6 +14,7 @@ import (
 	kitlog "github.com/go-kit/log"
 	_ "github.com/go-sql-driver/mysql"
 	"github.com/spf13/cobra"
+	otelsdklog "go.opentelemetry.io/otel/sdk/log"
 )
 
 func init() {
@@ -133,11 +134,13 @@ func applyDevFlags(cfg *config.FleetConfig) {
 }
 
 // initLogger creates a kitlog.Logger backed by slog.
-func initLogger(cfg config.FleetConfig) kitlog.Logger {
+func initLogger(cfg config.FleetConfig, loggerProvider *otelsdklog.LoggerProvider) kitlog.Logger {
 	slogLogger := logging.NewSlogLogger(logging.Options{
-		JSON:           cfg.Logging.JSON,
-		Debug:          cfg.Logging.Debug,
-		TracingEnabled: cfg.Logging.TracingEnabled,
+		JSON:            cfg.Logging.JSON,
+		Debug:           cfg.Logging.Debug,
+		TracingEnabled:  cfg.Logging.TracingEnabled,
+		OtelLogsEnabled: cfg.Logging.OtelLogsEnabled,
+		LoggerProvider:  loggerProvider,
 	})
 	return logging.NewKitlogAdapter(slogLogger)
 }
