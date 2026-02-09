@@ -77,6 +77,7 @@ interface IHostActionConfigOptions {
   isGlobalAdmin: boolean;
   isGlobalMaintainer: boolean;
   isGlobalObserver: boolean;
+  isGlobalTechnician: boolean;
   isTeamAdmin: boolean;
   isTeamMaintainer: boolean;
   isTeamTechnician: boolean;
@@ -282,6 +283,7 @@ const canRunScript = ({
   hostPlatform,
   isGlobalAdmin,
   isGlobalMaintainer,
+  isGlobalTechnician,
   isTeamAdmin,
   isTeamMaintainer,
   isTeamTechnician,
@@ -291,6 +293,7 @@ const canRunScript = ({
   return (
     (isGlobalAdmin ||
       isGlobalMaintainer ||
+      isGlobalTechnician ||
       isTeamAdmin ||
       isTeamMaintainer ||
       isTeamTechnician) &&

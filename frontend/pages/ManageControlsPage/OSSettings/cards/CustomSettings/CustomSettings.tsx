@@ -50,10 +50,10 @@ const CustomSettings = ({
     config,
     isPremiumTier,
     isGlobalTechnician,
-    isAnyTeamTechnician,
+    isTeamTechnician,
   } = useContext(AppContext);
 
-  const isTechnician = isGlobalTechnician || isAnyTeamTechnician;
+  const isTechnician = isGlobalTechnician || isTeamTechnician;
 
   const mdmEnabled =
     config?.mdm.enabled_and_configured ||

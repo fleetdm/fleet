@@ -200,6 +200,7 @@ const HostDetailsPage = ({
     currentUser,
     isGlobalAdmin = false,
     isGlobalMaintainer,
+    isGlobalTechnician,
     isTeamMaintainerOrTeamAdmin,
     isPremiumTier = false,
     isOnlyObserver,
@@ -1133,6 +1134,7 @@ const HostDetailsPage = ({
     (isMacOSHost || isWindowsHost) &&
     (isGlobalAdmin ||
       isGlobalMaintainer ||
+      isGlobalTechnician ||
       isHostTeamAdmin ||
       isHostTeamMaintainer ||
       isHostTeamTechnician);

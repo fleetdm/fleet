@@ -158,6 +158,7 @@ const ManageHostsPage = ({
     filteredHostsPath,
     isGlobalAdmin,
     isGlobalMaintainer,
+    isGlobalTechnician,
     isOnGlobalTeam,
     isOnlyObserver,
     isPremiumTier,
@@ -401,6 +402,7 @@ const ManageHostsPage = ({
   const canAddNewLabels =
     (isGlobalAdmin ||
       isGlobalMaintainer ||
+      isGlobalTechnician ||
       isTeamAdmin ||
       isTeamMaintainer ||
       isTeamTechnician) ??

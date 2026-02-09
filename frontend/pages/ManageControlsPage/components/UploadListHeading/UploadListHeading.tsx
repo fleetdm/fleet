@@ -21,27 +21,25 @@ const UploadListHeading = ({
   return (
     <div className={baseClass}>
       <span className={`${baseClass}__upload-name-heading`}>{entityName}</span>
-      {onClickAdd && createEntityText && (
-        <span className={`${baseClass}__actions-heading`}>
-          <GitOpsModeTooltipWrapper
-            position="left"
-            renderChildren={(disableChildren) => (
-              <Button
-                disabled={disableChildren}
-                variant="brand-inverse-icon"
-                className={`${baseClass}__add-button`}
-                onClick={onClickAdd}
-                iconStroke
-              >
-                <>
-                  <Icon name="plus" color="core-fleet-green" />
-                  {createEntityText}
-                </>
-              </Button>
-            )}
-          />
-        </span>
-      )}
+      <span className={`${baseClass}__actions-heading`}>
+        <GitOpsModeTooltipWrapper
+          position="left"
+          renderChildren={(disableChildren) => (
+            <Button
+              disabled={disableChildren}
+              variant="brand-inverse-icon"
+              className={`${baseClass}__add-button`}
+              onClick={onClickAdd}
+              iconStroke
+            >
+              <>
+                <Icon name="plus" color="core-fleet-green" />
+                {createEntityText}
+              </>
+            </Button>
+          )}
+        />
+      </span>
     </div>
   );
 };
