@@ -17,11 +17,6 @@ config:
     distributed_tls_max_attempts: 3
     logger_tls_endpoint: /api/osquery/log
     logger_tls_period: 10
-  command_line_flags: # requires Fleet's agent (fleetd)
-    verbose: true
-    disable_watchdog: false
-    disable_tables: chrome_extensions
-    logger_path: /path/to/logger
   decorators:
     load:
       - "SELECT version FROM osquery_info"
@@ -43,6 +38,11 @@ config:
       - /Users/wxs/sigs/bar.sig
       sig_group_2:
       - /Users/wxs/sigs/baz.sig
+command_line_flags: # requires Fleet's agent (fleetd)
+  verbose: true
+  disable_watchdog: false
+  disable_tables: chrome_extensions
+  logger_path: /path/to/logger
 ```
 
 ### options and command_line_flags
