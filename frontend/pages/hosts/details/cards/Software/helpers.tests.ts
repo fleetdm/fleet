@@ -59,8 +59,19 @@ describe("compareVersions", () => {
     expect(compareVersions("v2.0.0", "v1.0.0")).toBe(1);
   });
 
-  it("treats build metadata as equal (if supported)", () => {
+  it("treats build metadata as equal", () => {
     expect(compareVersions("1.0.0+20130313144700", "1.0.0")).toBe(0);
+    expect(compareVersions("1.0.0+exp.sha.5114f85", "1.0.0+21AF26D3")).toBe(0);
+  });
+
+  it("treats build metadata as equal even with prerelease", () => {
+    expect(compareVersions("1.0.0-alpha+001", "1.0.0-alpha+exp.sha")).toBe(0);
+  });
+
+  it("orders prerelease regardless of build metadata", () => {
+    // same core, prerelease different, builds ignored
+    expect(compareVersions("1.0.0-alpha+001", "1.0.0-beta+exp.sha")).toBe(-1);
+    expect(compareVersions("1.0.0-rc+build.1", "1.0.0+build.2")).toBe(-1);
   });
 
   it("is case-insensitive for pre-release tags", () => {
@@ -73,8 +84,31 @@ describe("compareVersions", () => {
     expect(compareVersions("01.1.0", "1.1.0")).toBe(0);
   });
 
-  it("compares build number in parentheses", () => {
-    expect(compareVersions("6.1.11 (39163)", "6.1.11 (30000)")).toBe(1);
+  // Parenthesized build metadata cases
+  it("treats parenthesized build number as metadata (same core)", () => {
+    expect(compareVersions("8.0 (build 6300)", "8.0")).toBe(0);
+    expect(compareVersions("8.0 (build 6300)", "8.0 (build 7000)")).toBe(0);
+  });
+
+  it("compares different core versions ignoring parenthesized build", () => {
+    expect(compareVersions("8.1 (build 6300)", "8.0")).toBe(1);
+    expect(compareVersions("8.0", "8.1 (build 6300)")).toBe(-1);
+    expect(compareVersions("6.1.12 (39163)", "6.1.11 (30000)")).toBe(1);
+  });
+
+  it("handles mixed +build and parenthesized build metadata", () => {
+    expect(compareVersions("1.0.0+20130313144700", "1.0.0 (build 1234)")).toBe(
+      0
+    );
+    expect(
+      compareVersions("2.3.4-beta+exp.sha", "2.3.4-beta (build 9999)")
+    ).toBe(0);
+  });
+
+  it("handles unexpected parenthesis content as build metadata suffix", () => {
+    // ignore any trailing `(build ...)` suffix
+    expect(compareVersions("1.2.3 (Build 5)", "1.2.3")).toBe(0);
+    expect(compareVersions("1.2.3 (build foo-bar)", "1.2.3")).toBe(0);
   });
 });
 
@@ -86,13 +120,14 @@ describe("getUiStatus", () => {
     });
     expect(getUiStatus(sw, true)).toBe("failed_install_update_available");
   });
-
-  it("returns 'failed_install' when failed_install and no update available", () => {
+  // As of 4.81 shows install details modal with installed status if versions still present #31663
+  // Users can hover over installed in InstallStatusCell for more info to see failure logs in host activity
+  it("returns 'failed_install_installed' when failed_install and no update available but there's installed versions", () => {
     const sw = createMockHostSoftware({
       status: "failed_install",
       // version equal to installed version
     });
-    expect(getUiStatus(sw, true)).toBe("failed_install");
+    expect(getUiStatus(sw, true)).toBe("failed_install_installed");
   });
 
   it("returns 'failed_uninstall_update_available' when failed_uninstall and update available", () => {
@@ -102,13 +137,14 @@ describe("getUiStatus", () => {
     });
     expect(getUiStatus(sw, true)).toBe("failed_uninstall_update_available");
   });
-
-  it("returns 'failed_uninstall' when failed_uninstall and no update available", () => {
+  // As of 4.81 shows install details modal with installed status if versions still present #31663
+  // Users can hover over installed in InstallStatusCell for more info to see failure logs in host activity
+  it("returns 'failed_uninstall_installed' when failed_uninstall and no update available but there's installed versions", () => {
     const sw = createMockHostSoftware({
       status: "failed_uninstall",
       // version equal to installed version
     });
-    expect(getUiStatus(sw, true)).toBe("failed_uninstall");
+    expect(getUiStatus(sw, true)).toBe("failed_uninstall_installed");
   });
 
   it("returns 'updating' if pending_install and update is available, host online", () => {
@@ -406,7 +442,7 @@ describe("getSoftwareSubheader", () => {
       isMyDevicePage: true,
     });
     expect(result).toBe(
-      "Software installed on your device. Built-in apps (e.g. Calculator) aren't included."
+      "Software installed by Fleet. Built-in apps (e.g. Calculator) and apps installed by the end user aren't included."
     );
   });
 
@@ -417,7 +453,7 @@ describe("getSoftwareSubheader", () => {
       isMyDevicePage: false,
     });
     expect(result).toBe(
-      "Software installed on this host. Built-in apps (e.g. Calculator) aren't included."
+      "Software installed by Fleet. Built-in apps (e.g. Calculator) and apps installed by the end user aren't included."
     );
   });
 

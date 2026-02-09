@@ -182,8 +182,8 @@ const PolicyResults = ({
     return (
       <div className={`${baseClass}__results-table-container`}>
         <InfoBanner>
-          Hosts that responded with results are marked <strong>Yes</strong>.
-          Hosts that responded with no results are marked <strong>No</strong>.
+          Hosts that responded with results are marked <strong>Pass</strong>.
+          Hosts that responded with no results are marked <strong>Fail</strong>.
         </InfoBanner>
         <div className={`${baseClass}__results-table-header`}>
           <span className={`${baseClass}__results-meta`}>

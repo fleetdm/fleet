@@ -46,6 +46,7 @@ type HostOptions struct {
 	Host                    *fleet.Host
 	HasSetupExperienceItems bool
 	SCEPRenewalInProgress   bool
+	FromMDMMigration        bool
 }
 
 // HostLifecycle manages MDM host lifecycle actions
@@ -251,6 +252,7 @@ func (t *HostLifecycle) turnOnApple(ctx context.Context, opts HostOptions) error
 			tmID,
 			opts.EnrollReference,
 			!opts.HasSetupExperienceItems || opts.Platform != "darwin",
+			opts.FromMDMMigration,
 		)
 		return ctxerr.Wrap(ctx, err, "queue DEP post-enroll task")
 	}
@@ -267,6 +269,7 @@ func (t *HostLifecycle) turnOnApple(ctx context.Context, opts HostOptions) error
 			opts.Platform,
 			tmID,
 			opts.EnrollReference,
+			false,
 			false,
 		); err != nil {
 			return ctxerr.Wrap(ctx, err, "queue manual post-enroll task")

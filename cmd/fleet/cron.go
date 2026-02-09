@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"net/url"
@@ -14,21 +13,24 @@ import (
 	eeservice "github.com/fleetdm/fleet/v4/ee/server/service"
 	eewebhooks "github.com/fleetdm/fleet/v4/ee/server/webhooks"
 	"github.com/fleetdm/fleet/v4/server"
+	activity_api "github.com/fleetdm/fleet/v4/server/activity/api"
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/contexts/license"
+	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
+	"github.com/fleetdm/fleet/v4/server/dev_mode"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm"
 	"github.com/fleetdm/fleet/v4/server/mdm/android"
 	android_svc "github.com/fleetdm/fleet/v4/server/mdm/android/service"
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
+	"github.com/fleetdm/fleet/v4/server/mdm/apple/apple_apps"
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/vpp"
 	"github.com/fleetdm/fleet/v4/server/mdm/assets"
 	maintained_apps "github.com/fleetdm/fleet/v4/server/mdm/maintainedapps"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanodep/godep"
 	"github.com/fleetdm/fleet/v4/server/policies"
-	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/service"
 	"github.com/fleetdm/fleet/v4/server/service/externalsvc"
 	"github.com/fleetdm/fleet/v4/server/service/schedule"
@@ -43,7 +45,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/worker"
 	kitlog "github.com/go-kit/log"
 	"github.com/go-kit/log/level"
-	"github.com/hashicorp/go-multierror"
 )
 
 func errHandler(ctx context.Context, logger kitlog.Logger, msg string, err error) {
@@ -989,6 +990,9 @@ func newCleanupsAndAggregationSchedule(
 		schedule.WithJob("renew_host_mdm_managed_certificates", func(ctx context.Context) error {
 			return ds.RenewMDMManagedCertificates(ctx)
 		}),
+		schedule.WithJob("renew_android_certificate_templates", func(ctx context.Context) error {
+			return android_svc.RenewCertificateTemplates(ctx, ds, logger)
+		}),
 		schedule.WithJob("query_results_cleanup", func(ctx context.Context) error {
 			config, err := ds.AppConfig(ctx)
 			if err != nil {
@@ -1120,6 +1124,43 @@ func newFrequentCleanupsSchedule(
 			}
 			err = lq.CleanupInactiveQueries(ctx, completed)
 			return err
+		}),
+	)
+
+	return s, nil
+}
+
+func newQueryResultsCleanupSchedule(
+	ctx context.Context,
+	instanceID string,
+	ds fleet.Datastore,
+	liveQueryStore fleet.LiveQueryStore,
+	logger kitlog.Logger,
+) (*schedule.Schedule, error) {
+	const (
+		name            = string(fleet.CronQueryResultsCleanup)
+		defaultInterval = 1 * time.Minute
+	)
+	s := schedule.New(
+		ctx, name, instanceID, defaultInterval, ds, ds,
+		schedule.WithLogger(kitlog.With(logger, "cron", name)),
+		schedule.WithJob("cleanup_excess_query_results", func(ctx context.Context) error {
+			appConfig, err := ds.AppConfig(ctx)
+			if err != nil {
+				return err
+			}
+			maxRows := appConfig.ServerSettings.GetQueryReportCap()
+			queryCounts, err := ds.CleanupExcessQueryResultRows(ctx, maxRows)
+			if err != nil {
+				return err
+			}
+			// Sync Redis counters to actual database row counts
+			for queryID, count := range queryCounts {
+				if err := liveQueryStore.SetQueryResultsCount(queryID, count); err != nil {
+					level.Warn(logger).Log("msg", "failed to set query results count in redis", "query_id", queryID, "err", err)
+				}
+			}
+			return nil
 		}),
 	)
 
@@ -1359,6 +1400,7 @@ func newAndroidMDMProfileManagerSchedule(
 	ds fleet.Datastore,
 	logger kitlog.Logger,
 	licenseKey string,
+	androidAgentConfig config.AndroidAgentConfig,
 ) (*schedule.Schedule, error) {
 	const (
 		name            = string(fleet.CronMDMAndroidProfileManager)
@@ -1370,7 +1412,7 @@ func newAndroidMDMProfileManagerSchedule(
 		ctx, name, instanceID, defaultInterval, ds, ds,
 		schedule.WithLogger(logger),
 		schedule.WithJob("manage_android_profiles", func(ctx context.Context) error {
-			return android_svc.ReconcileProfiles(ctx, ds, logger, licenseKey)
+			return android_svc.ReconcileProfiles(ctx, ds, logger, licenseKey, androidAgentConfig)
 		}),
 	)
 
@@ -1408,7 +1450,7 @@ func newMDMAPNsPusher(
 	const name = string(fleet.CronAppleMDMAPNsPusher)
 
 	interval := 1 * time.Minute
-	if intervalEnv := os.Getenv("FLEET_DEV_CUSTOM_APNS_PUSHER_INTERVAL"); intervalEnv != "" {
+	if intervalEnv := dev_mode.Env("FLEET_DEV_CUSTOM_APNS_PUSHER_INTERVAL"); intervalEnv != "" {
 		var err error
 		interval, err = time.ParseDuration(intervalEnv)
 		if err != nil {
@@ -1447,9 +1489,10 @@ func cleanupCronStatsOnShutdown(ctx context.Context, ds fleet.Datastore, logger 
 func newActivitiesStreamingSchedule(
 	ctx context.Context,
 	instanceID string,
+	activitySvc activity_api.Service,
 	ds fleet.Datastore,
 	logger kitlog.Logger,
-	auditLogger fleet.JSONLogger,
+	auditLogger activity_api.JSONLogger,
 ) (*schedule.Schedule, error) {
 	const (
 		name     = string(fleet.CronActivitiesStreaming)
@@ -1462,82 +1505,13 @@ func newActivitiesStreamingSchedule(
 		schedule.WithJob(
 			"cron_activities_streaming",
 			func(ctx context.Context) error {
-				return cronActivitiesStreaming(ctx, ds, logger, auditLogger)
+				// Use system context for authorization since cron jobs don't have a user context
+				systemCtx := viewer.NewSystemContext(ctx)
+				return activitySvc.StreamActivities(systemCtx, auditLogger)
 			},
 		),
 	)
 	return s, nil
-}
-
-var ActivitiesToStreamBatchCount uint = 500
-
-func cronActivitiesStreaming(
-	ctx context.Context,
-	ds fleet.Datastore,
-	logger kitlog.Logger,
-	auditLogger fleet.JSONLogger,
-) error {
-	page := uint(0)
-	for {
-		// (1) Get batch of activities that haven't been streamed.
-		activitiesToStream, _, err := ds.ListActivities(ctx, fleet.ListActivitiesOptions{
-			ListOptions: fleet.ListOptions{
-				OrderKey:       "id",
-				OrderDirection: fleet.OrderAscending,
-				PerPage:        ActivitiesToStreamBatchCount,
-				Page:           page,
-			},
-			Streamed: ptr.Bool(false),
-		})
-		if err != nil {
-			return ctxerr.Wrap(ctx, err, "list activities")
-		}
-		if len(activitiesToStream) == 0 {
-			return nil
-		}
-
-		// (2) Stream the activities.
-		var (
-			streamedIDs []uint
-			multiErr    error
-		)
-		// We stream one activity at a time (instead of writing them all with
-		// one auditLogger.Write call) to know which ones succeeded/failed,
-		// and also because this method happens asynchronously,
-		// so we don't need real-time performance.
-		for _, activity := range activitiesToStream {
-			b, err := json.Marshal(activity)
-			if err != nil {
-				return ctxerr.Wrap(ctx, err, "marshal activity")
-			}
-			if err := auditLogger.Write(ctx, []json.RawMessage{json.RawMessage(b)}); err != nil {
-				if len(streamedIDs) == 0 {
-					return ctxerr.Wrapf(ctx, err, "stream first activity: %d", activity.ID)
-				}
-				multiErr = multierror.Append(multiErr, ctxerr.Wrapf(ctx, err, "stream activity: %d", activity.ID))
-				// We stop streaming upon the first error (will retry on next cron iteration)
-				break
-			}
-			streamedIDs = append(streamedIDs, activity.ID)
-		}
-
-		logger.Log("streamed-events", len(streamedIDs))
-
-		// (3) Mark the streamed activities as streamed.
-		if err := ds.MarkActivitiesAsStreamed(ctx, streamedIDs); err != nil {
-			multiErr = multierror.Append(multiErr, ctxerr.Wrap(ctx, err, "mark activities as streamed"))
-		}
-
-		// If there was an error while streaming or updating activities, return.
-		if multiErr != nil {
-			return multiErr
-		}
-
-		if len(activitiesToStream) < int(ActivitiesToStreamBatchCount) { //nolint:gosec // dismiss G115
-			return nil
-		}
-		page += 1
-	}
 }
 
 func newHostVitalsLabelMembershipSchedule(
@@ -1572,7 +1546,7 @@ func cronHostVitalsLabelMembership(
 	// so we'll filter them later.
 	labels, err := ds.ListLabels(ctx, fleet.TeamFilter{}, fleet.ListOptions{
 		PerPage: 0, // No limit.
-	})
+	}, false)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "list labels")
 	}
@@ -1752,6 +1726,7 @@ func newRefreshVPPAppVersionsSchedule(
 	instanceID string,
 	ds fleet.Datastore,
 	logger kitlog.Logger,
+	vppAppsConfig apple_apps.Config,
 ) (*schedule.Schedule, error) {
 	const (
 		name            = string(fleet.CronRefreshVPPAppVersions)
@@ -1763,7 +1738,7 @@ func newRefreshVPPAppVersionsSchedule(
 		ctx, name, instanceID, defaultInterval, ds, ds,
 		schedule.WithLogger(logger),
 		schedule.WithJob("refresh_vpp_app_version", func(ctx context.Context) error {
-			return vpp.RefreshVersions(ctx, ds)
+			return vpp.RefreshVersions(ctx, ds, vppAppsConfig)
 		}),
 	)
 

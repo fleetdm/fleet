@@ -4,11 +4,49 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"regexp"
+	"strings"
+	"time"
 
+	"github.com/fleetdm/fleet/v4/server/authz"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	hostctx "github.com/fleetdm/fleet/v4/server/contexts/host"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/go-kit/kit/log/level"
 )
+
+// Certificate template name validation constants
+const (
+	maxCertificateTemplateNameLength = 255
+)
+
+// certificateTemplateNameRegex allows only letters, numbers, spaces, dashes, and underscores
+var certificateTemplateNameRegex = regexp.MustCompile(`^[a-zA-Z0-9 \-_]+$`)
+
+func validateCertificateTemplateSubjectName(subjectName string) error {
+	if strings.TrimSpace(subjectName) == "" {
+		return &fleet.BadRequestError{Message: "Certificate template subject name is required."}
+	}
+	return nil
+}
+
+// validateCertificateTemplateName validates the certificate template name.
+// Returns a BadRequestError if validation fails.
+func validateCertificateTemplateName(name string) error {
+	if strings.TrimSpace(name) == "" {
+		return &fleet.BadRequestError{Message: "Certificate template name is required."}
+	}
+
+	if len(name) > maxCertificateTemplateNameLength {
+		return &fleet.BadRequestError{Message: fmt.Sprintf("Certificate template name is too long. Maximum is %d characters.", maxCertificateTemplateNameLength)}
+	}
+
+	if !certificateTemplateNameRegex.MatchString(name) {
+		return &fleet.BadRequestError{Message: "Invalid certificate template name. Only letters, numbers, spaces, dashes, and underscores are allowed."}
+	}
+
+	return nil
+}
 
 type createCertificateTemplateRequest struct {
 	Name                   string `json:"name"`
@@ -45,6 +83,15 @@ func (svc *Service) CreateCertificateTemplate(ctx context.Context, name string, 
 		return nil, err
 	}
 
+	// Validate certificate template name
+	if err := validateCertificateTemplateName(name); err != nil {
+		return nil, err
+	}
+
+	if err := validateCertificateTemplateSubjectName(subjectName); err != nil {
+		return nil, err
+	}
+
 	if err := validateCertificateTemplateFleetVariables(subjectName); err != nil {
 		return nil, &fleet.BadRequestError{Message: err.Error()}
 	}
@@ -74,6 +121,27 @@ func (svc *Service) CreateCertificateTemplate(ctx context.Context, name string, 
 	// Create pending certificate template records for all enrolled Android hosts in the team
 	if _, err := svc.ds.CreatePendingCertificateTemplatesForExistingHosts(ctx, savedTemplate.ID, teamID); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "creating pending certificate templates for existing hosts")
+	}
+
+	activity := fleet.ActivityTypeAddedCertificate{
+		Name: name,
+	}
+	if teamID != 0 {
+		team, err := svc.ds.TeamLite(ctx, teamID)
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "getting team")
+		}
+		if team != nil {
+			activity.TeamID = &team.ID
+			activity.TeamName = &team.Name
+		}
+	}
+	if err := svc.NewActivity(
+		ctx,
+		authz.UserFromContext(ctx),
+		activity,
+	); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "creating activity for new certificate template")
 	}
 
 	return savedTemplate, nil
@@ -176,19 +244,31 @@ func (svc *Service) GetDeviceCertificateTemplate(ctx context.Context, id uint) (
 	if err != nil {
 		// If the certificate variables cannot be replaced, mark the certificate as failed.
 		errorMsg := fmt.Sprintf("Could not replace certificate variables: %s", err.Error())
-		if err := svc.ds.UpsertCertificateStatus(
-			ctx,
-			host.UUID,
-			certificate.ID,
-			fleet.MDMDeliveryFailed,
-			&errorMsg,
-		); err != nil {
+		if err := svc.ds.UpsertCertificateStatus(ctx, &fleet.CertificateStatusUpdate{
+			HostUUID:              host.UUID,
+			CertificateTemplateID: certificate.ID,
+			Status:                fleet.MDMDeliveryFailed,
+			Detail:                &errorMsg,
+			OperationType:         fleet.MDMOperationTypeInstall,
+		}); err != nil {
 			return nil, err
 		}
 		certificate.Status = fleet.CertificateTemplateFailed
 		return certificate, nil
 	}
 	certificate.SubjectName = subjectName
+
+	// On-demand challenge creation for delivered status.
+	// If FleetChallenge is nil or empty, create one now (the challenge TTL starts from this moment).
+	if certificate.Status == fleet.CertificateTemplateDelivered {
+		if certificate.FleetChallenge == nil || *certificate.FleetChallenge == "" {
+			challenge, err := svc.ds.GetOrCreateFleetChallengeForCertificateTemplate(ctx, host.UUID, id)
+			if err != nil {
+				return nil, ctxerr.Wrap(ctx, err, "create fleet challenge on-demand")
+			}
+			certificate.FleetChallenge = &challenge
+		}
+	}
 
 	return certificate, nil
 }
@@ -248,14 +328,43 @@ func deleteCertificateTemplateEndpoint(ctx context.Context, request interface{},
 func (svc *Service) DeleteCertificateTemplate(ctx context.Context, certificateTemplateID uint) error {
 	certificate, err := svc.ds.GetCertificateTemplateById(ctx, certificateTemplateID)
 	if err != nil {
-		return err
+		return ctxerr.Wrap(ctx, err, "getting certificate template")
 	}
 
 	if err := svc.authz.Authorize(ctx, &fleet.CertificateTemplate{TeamID: certificate.TeamID}, fleet.ActionWrite); err != nil {
-		return err
+		return ctxerr.Wrap(ctx, err, "authorizing user for certificate template deletion")
 	}
 
-	return svc.ds.DeleteCertificateTemplate(ctx, certificateTemplateID)
+	if err := svc.ds.DeleteCertificateTemplate(ctx, certificateTemplateID); err != nil {
+		return ctxerr.Wrap(ctx, err, "deleting certificate template")
+	}
+
+	if err := svc.ds.SetHostCertificateTemplatesToPendingRemove(ctx, certificateTemplateID); err != nil {
+		return ctxerr.Wrap(ctx, err, "setting host certificate templates to pending remove")
+	}
+
+	activity := fleet.ActivityTypeDeletedCertificate{
+		Name: certificate.Name,
+	}
+	if certificate.TeamID != 0 {
+		team, err := svc.ds.TeamLite(ctx, certificate.TeamID)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "getting team")
+		}
+		if team != nil {
+			activity.TeamID = &team.ID
+			activity.TeamName = &team.Name
+		}
+	}
+	if err := svc.NewActivity(
+		ctx,
+		authz.UserFromContext(ctx),
+		activity,
+	); err != nil {
+		return ctxerr.Wrap(ctx, err, "creating activity for deleting certificate template")
+	}
+
+	return nil
 }
 
 type applyCertificateTemplateSpecsRequest struct {
@@ -334,6 +443,15 @@ func (svc *Service) ApplyCertificateTemplateSpecs(ctx context.Context, specs []*
 
 	var certificates []*fleet.CertificateTemplate
 	for _, spec := range specs {
+		// Validate certificate template name
+		if err := validateCertificateTemplateName(spec.Name); err != nil {
+			return err
+		}
+
+		if err := validateCertificateTemplateSubjectName(spec.SubjectName); err != nil {
+			return &fleet.BadRequestError{Message: fmt.Sprintf("%s (certificate %s)", err.Error(), spec.Name)}
+		}
+
 		// Get the CA to validate its existence and type.
 		ca, ok := casByID[spec.CertificateAuthorityId]
 		if !ok {
@@ -341,7 +459,7 @@ func (svc *Service) ApplyCertificateTemplateSpecs(ctx context.Context, specs []*
 		}
 
 		if ca.Type != string(fleet.CATypeCustomSCEPProxy) {
-			return &fleet.BadRequestError{Message: fmt.Sprintf("Ccertificate `%s`: Currently, only the custom_scep_proxy certificate authority is supported.", spec.Name)}
+			return &fleet.BadRequestError{Message: fmt.Sprintf("Certificate `%s`: Currently, only the custom_scep_proxy certificate authority is supported.", spec.Name)}
 		}
 
 		// Validate Fleet variables in subject name
@@ -361,7 +479,8 @@ func (svc *Service) ApplyCertificateTemplateSpecs(ctx context.Context, specs []*
 		certificates = append(certificates, cert)
 	}
 
-	if err := svc.ds.BatchUpsertCertificateTemplates(ctx, certificates); err != nil {
+	teamsModified, err := svc.ds.BatchUpsertCertificateTemplates(ctx, certificates)
+	if err != nil {
 		return err
 	}
 
@@ -375,6 +494,28 @@ func (svc *Service) ApplyCertificateTemplateSpecs(ctx context.Context, specs []*
 		// Safe to call even for existing templates (it will be a no-op for hosts that already have records)
 		if _, err := svc.ds.CreatePendingCertificateTemplatesForExistingHosts(ctx, tmpl.ID, cert.TeamID); err != nil {
 			return ctxerr.Wrap(ctx, err, "creating pending certificate templates for existing hosts")
+		}
+	}
+
+	// Only create activity for teams that actually had certificates affected
+	for _, teamID := range teamsModified {
+		var tmID *uint
+		var tmName *string
+		if teamID != 0 {
+			team, err := svc.ds.TeamLite(ctx, teamID)
+			if err != nil {
+				return ctxerr.Wrap(ctx, err, "getting team for activity")
+			}
+			tmID = &team.ID
+			tmName = &team.Name
+		}
+
+		if err := svc.NewActivity(
+			ctx, authz.UserFromContext(ctx), &fleet.ActivityTypeEditedAndroidCertificate{
+				TeamID:   tmID,
+				TeamName: tmName,
+			}); err != nil {
+			return ctxerr.Wrap(ctx, err, "logging activity for edited android certificate")
 		}
 	}
 
@@ -402,18 +543,79 @@ func deleteCertificateTemplateSpecsEndpoint(ctx context.Context, request interfa
 }
 
 func (svc *Service) DeleteCertificateTemplateSpecs(ctx context.Context, certificateTemplateIDs []uint, teamID uint) error {
+	// Authorize team
 	if err := svc.authz.Authorize(ctx, &fleet.CertificateTemplate{TeamID: teamID}, fleet.ActionWrite); err != nil {
 		return err
 	}
-	return svc.ds.BatchDeleteCertificateTemplates(ctx, certificateTemplateIDs)
+	// Authorize all ids are on team
+	certificateTemplates, err := svc.ds.GetCertificateTemplatesByIdsAndTeam(ctx, certificateTemplateIDs, teamID)
+	if err != nil {
+		return err
+	}
+	uniqueIDs := make(map[uint]struct{}, len(certificateTemplateIDs))
+	for _, id := range certificateTemplateIDs {
+		uniqueIDs[id] = struct{}{}
+	}
+	if len(uniqueIDs) != len(certificateTemplates) {
+		return authz.ForbiddenWithInternal(
+			"can only delete templates from team parameter",
+			authz.UserFromContext(ctx),
+			&fleet.CertificateTemplate{TeamID: teamID},
+			fleet.ActionWrite,
+		)
+	}
+
+	deletedRows, err := svc.ds.BatchDeleteCertificateTemplates(ctx, certificateTemplateIDs)
+	if err != nil {
+		return err
+	}
+
+	if !deletedRows {
+		return nil
+	}
+
+	// Delete or mark the certificate templates as pending removal for all android hosts
+	for _, certificateTemplateID := range certificateTemplateIDs {
+		if err := svc.ds.SetHostCertificateTemplatesToPendingRemove(ctx, certificateTemplateID); err != nil {
+			return ctxerr.Wrap(ctx, err, "setting host certificate templates to pending remove")
+		}
+	}
+
+	// Only create activity if rows were actually deleted
+	var tmID *uint
+	var tmName *string
+	if teamID != 0 {
+		team, err := svc.ds.TeamLite(ctx, teamID)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "getting team for activity")
+		}
+		tmID = &team.ID
+		tmName = &team.Name
+	}
+
+	if err := svc.NewActivity(
+		ctx, authz.UserFromContext(ctx), &fleet.ActivityTypeEditedAndroidCertificate{
+			TeamID:   tmID,
+			TeamName: tmName,
+		}); err != nil {
+		return ctxerr.Wrap(ctx, err, "logging activity for edited android certificate")
+	}
+
+	return nil
 }
 
 type updateCertificateStatusRequest struct {
 	CertificateTemplateID uint   `url:"id"`
 	Status                string `json:"status"`
+	// OperationType is optional and defaults to "install" if not provided.
+	OperationType *string `json:"operation_type,omitempty"`
 	// Detail provides additional information about the status change.
 	// For example, it can be used to provide a reason for a failed status change.
 	Detail *string `json:"detail,omitempty"`
+	// Certificate validity fields - reported by device after successful enrollment
+	NotValidBefore *time.Time `json:"not_valid_before,omitempty"`
+	NotValidAfter  *time.Time `json:"not_valid_after,omitempty"`
+	Serial         *string    `json:"serial,omitempty"`
 }
 
 type updateCertificateStatusResponse struct {
@@ -428,7 +630,21 @@ func updateCertificateStatusEndpoint(ctx context.Context, request interface{}, s
 		return nil, errors.New("invalid request")
 	}
 
-	err := svc.UpdateCertificateStatus(ctx, req.CertificateTemplateID, fleet.MDMDeliveryStatus(req.Status), req.Detail)
+	// Default operation_type to "install" if not provided.
+	opType := fleet.MDMOperationTypeInstall
+	if req.OperationType != nil && *req.OperationType != "" {
+		opType = fleet.MDMOperationType(*req.OperationType)
+	}
+
+	err := svc.UpdateCertificateStatus(ctx, &fleet.CertificateStatusUpdate{
+		CertificateTemplateID: req.CertificateTemplateID,
+		Status:                fleet.MDMDeliveryStatus(req.Status),
+		Detail:                req.Detail,
+		OperationType:         opType,
+		NotValidBefore:        req.NotValidBefore,
+		NotValidAfter:         req.NotValidAfter,
+		Serial:                req.Serial,
+	})
 	if err != nil {
 		return updateCertificateStatusResponse{Err: err}, nil
 	}
@@ -436,25 +652,49 @@ func updateCertificateStatusEndpoint(ctx context.Context, request interface{}, s
 	return updateCertificateStatusResponse{}, nil
 }
 
-func (svc *Service) UpdateCertificateStatus(
-	ctx context.Context,
-	certificateTemplateID uint,
-	status fleet.MDMDeliveryStatus,
-	detail *string,
-) error {
+func (svc *Service) UpdateCertificateStatus(ctx context.Context, update *fleet.CertificateStatusUpdate) error {
 	// this is not a user-authenticated endpoint
 	svc.authz.SkipAuthorization(ctx)
 
 	host, ok := hostctx.FromContext(ctx)
 	if !ok {
-		err := ctxerr.Wrap(ctx, fleet.NewAuthRequiredError("internal error: missing host from request context"))
-		return err
+		return ctxerr.Wrap(ctx, fleet.NewAuthRequiredError("internal error: missing host from request context"))
 	}
 
 	// Validate the status.
-	if !status.IsValid() {
-		return fleet.NewInvalidArgumentError("status", string(status))
+	if !update.Status.IsValid() {
+		return fleet.NewInvalidArgumentError("status", string(update.Status))
 	}
 
-	return svc.ds.UpsertCertificateStatus(ctx, host.UUID, certificateTemplateID, status, detail)
+	if !update.OperationType.IsValid() {
+		return fleet.NewInvalidArgumentError("operation_type", string(update.OperationType))
+	}
+
+	// Use GetHostCertificateTemplateRecord to query the host_certificate_templates table directly,
+	// allowing status updates even when the parent certificate_template has been deleted.
+	record, err := svc.ds.GetHostCertificateTemplateRecord(ctx, host.UUID, update.CertificateTemplateID)
+	if err != nil {
+		return err
+	}
+
+	if record.OperationType != update.OperationType {
+		level.Info(svc.logger).Log("msg", "ignoring certificate status update for different operation type", "host_uuid", host.UUID, "certificate_template_id", update.CertificateTemplateID, "current_operation_type", record.OperationType, "new_operation_type", update.OperationType)
+		return nil
+	}
+
+	// If operation_type is "remove" and status is "verified", delete the host_certificate_template row.
+	// This allows deletions even when there are race conditions or status sync issues
+	// (e.g., device reports removal before server transitions status).
+	if update.OperationType == fleet.MDMOperationTypeRemove && update.Status == fleet.MDMDeliveryVerified {
+		return svc.ds.DeleteHostCertificateTemplate(ctx, host.UUID, update.CertificateTemplateID)
+	}
+
+	if record.Status != fleet.CertificateTemplateDelivered {
+		level.Info(svc.logger).Log("msg", "ignoring certificate status update for non-delivered certificate", "host_uuid", host.UUID, "certificate_template_id", update.CertificateTemplateID, "current_status", record.Status, "new_status", update.Status)
+		return nil
+	}
+
+	// Fill in HostUUID from context
+	update.HostUUID = host.UUID
+	return svc.ds.UpsertCertificateStatus(ctx, update)
 }

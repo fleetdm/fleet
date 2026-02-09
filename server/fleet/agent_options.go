@@ -7,6 +7,8 @@ import (
 	"errors"
 	"fmt"
 	"strings"
+
+	"github.com/fleetdm/fleet/v4/server/ptr"
 )
 
 //go:generate go run ../../tools/osquery-agent-options agent_options_generated.go
@@ -67,7 +69,7 @@ func SuggestAgentOptionsCorrection(err error) error {
 // Options payload. It ensures that all fields are known and have valid values.
 // The validation always uses the most recent Osquery version that is available
 // at the time of the Fleet release.
-func ValidateJSONAgentOptions(ctx context.Context, ds Datastore, rawJSON json.RawMessage, isPremium bool) error {
+func ValidateJSONAgentOptions(ctx context.Context, ds Datastore, rawJSON json.RawMessage, isPremium bool, teamID uint) error {
 	var opts AgentOptions
 	if err := JSONStrictDecode(bytes.NewReader(rawJSON), &opts); err != nil {
 		return err
@@ -132,7 +134,7 @@ func ValidateJSONAgentOptions(ctx context.Context, ds Datastore, rawJSON json.Ra
 	}
 
 	if len(opts.Extensions) > 0 {
-		if err := validateJSONAgentOptionsExtensions(ctx, ds, opts.Extensions, isPremium); err != nil {
+		if err := validateJSONAgentOptionsExtensions(ctx, ds, opts.Extensions, isPremium, teamID); err != nil {
 			return err
 		}
 	}
@@ -156,23 +158,28 @@ func checkEmptyFields(prefix string, data json.RawMessage) error {
 	return nil
 }
 
-func validateJSONAgentOptionsExtensions(ctx context.Context, ds Datastore, optsExtensions json.RawMessage, isPremium bool) error {
+func validateJSONAgentOptionsExtensions(ctx context.Context, ds Datastore, optsExtensions json.RawMessage, isPremium bool, teamID uint) error {
 	var extensions map[string]ExtensionInfo
 	if err := json.Unmarshal(optsExtensions, &extensions); err != nil {
 		return fmt.Errorf("unmarshal extensions: %w", err)
 	}
+
+	// any user able to make it past auth checks elsewhere to modify agent options can see labels for the associated
+	// team; this filter is strictly to filter out mismatched team labels
+	teamFilter := TeamFilter{TeamID: &teamID, User: &User{GlobalRole: ptr.String(RoleAdmin)}}
+
 	for _, extensionInfo := range extensions {
 		if !isPremium && len(extensionInfo.Labels) != 0 {
 			// Setting labels settings in the extensions config is premium only.
 			return ErrMissingLicense
 		}
 		for _, labelName := range extensionInfo.Labels {
-			switch _, err := ds.GetLabelSpec(ctx, labelName); {
+			switch _, err := ds.GetLabelSpec(ctx, teamFilter, labelName); {
 			case err == nil:
 				// OK
 			case IsNotFound(err):
 				// Label does not exist, fail the request.
-				return fmt.Errorf("Label %q does not exist", labelName)
+				return fmt.Errorf("Label %q does not exist, or cannot be used on this team", labelName)
 			default:
 				return fmt.Errorf("get label by name: %w", err)
 			}

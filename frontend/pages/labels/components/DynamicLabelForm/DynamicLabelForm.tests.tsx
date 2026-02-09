@@ -8,7 +8,7 @@ import DynamicLabelForm from "./DynamicLabelForm";
 
 describe("DynamicLabelForm", () => {
   it("should render the Fleet Ace and Select Platform input", () => {
-    render(<DynamicLabelForm onSave={noop} onCancel={noop} />);
+    render(<DynamicLabelForm onSave={noop} onCancel={noop} teamName={null} />);
 
     expect(screen.getByText("Query")).toBeInTheDocument();
     expect(screen.getByText("All platforms")).toBeInTheDocument();
@@ -28,6 +28,7 @@ describe("DynamicLabelForm", () => {
         onCancel={noop}
         defaultQuery={query}
         defaultPlatform={platform}
+        teamName={null}
       />
     );
 

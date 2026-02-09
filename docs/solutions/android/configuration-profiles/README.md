@@ -1,2 +1,2 @@
-- `modifyAccountsDisabled.json`: disables adding work accounts
-- `accountTypesWithManagementDisabled.json`: disables adding Google work accounts specifically
+- `disable-camera.json` uses `cameraDisabled`, which is deprecated. We should
+  change this profile to use `cameraAccess` instead, and test to verify.

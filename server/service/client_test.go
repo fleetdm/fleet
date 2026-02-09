@@ -1042,7 +1042,7 @@ func TestGitOpsErrors(t *testing.T) {
 			require.NoError(t, err)
 			config.OrgSettings["secrets"] = []*fleet.EnrollSecret{}
 			settings := fleet.IconGitOpsSettings{ConcurrentUpdates: 1, ConcurrentUploads: 1}
-			_, _, err = client.DoGitOps(ctx, config, "/filename", nil, false, nil, nil, nil, nil, nil, &settings)
+			_, err = client.DoGitOps(ctx, config, "/filename", nil, false, nil, nil, nil, nil, nil, &settings)
 			assert.ErrorContains(t, err, tt.wantErr)
 		})
 	}

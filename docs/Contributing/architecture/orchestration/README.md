@@ -18,4 +18,3 @@ Fleet's Orchestration architecture is designed to manage and query devices at sc
 ## Related resources
 
 - [Orchestration Product Group Documentation](../../product-groups/orchestration/) - Documentation for the Orchestration product group
-- [Orchestration Development Guides](../../guides/orchestration/) - Guides for Orchestration development

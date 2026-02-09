@@ -46,7 +46,7 @@ const EditConfigurationModal = ({
   refetchSoftwareTitle,
   onExit,
 }: EditConfigurationModal) => {
-  const { renderFlash, renderMultiFlash } = useContext(NotificationContext);
+  const { renderFlash } = useContext(NotificationContext);
 
   const [isUpdatingConfiguration, setIsUpdatingConfiguration] = useState(false);
   const [canSaveForm, setCanSaveForm] = useState(true);
@@ -123,7 +123,7 @@ const EditConfigurationModal = ({
         <CustomLink
           newTab
           text="Learn more"
-          url={`${LEARN_MORE_ABOUT_BASE_LINK}/ui-gitops-mode`}
+          url={`${LEARN_MORE_ABOUT_BASE_LINK}/android-software-managed-configuration`}
         />
       </div>
     );

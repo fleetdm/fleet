@@ -401,8 +401,8 @@ func TestQueryAuth(t *testing.T) {
 	ds.DeleteQueriesFunc = func(ctx context.Context, ids []uint) (uint, error) {
 		return 0, nil
 	}
-	ds.ListQueriesFunc = func(ctx context.Context, opts fleet.ListQueryOptions) ([]*fleet.Query, int, *fleet.PaginationMetadata, error) {
-		return nil, 0, nil, nil
+	ds.ListQueriesFunc = func(ctx context.Context, opts fleet.ListQueryOptions) ([]*fleet.Query, int, int, *fleet.PaginationMetadata, error) {
+		return nil, 0, 0, nil, nil
 	}
 	ds.ApplyQueriesFunc = func(ctx context.Context, authID uint, queries []*fleet.Query, queriesToDiscardResults map[uint]struct{}) error {
 		return nil
@@ -648,7 +648,7 @@ func TestQueryAuth(t *testing.T) {
 			_, err = svc.QueryReportIsClipped(ctx, tt.qid, fleet.DefaultMaxQueryReportRows)
 			checkAuthErr(t, tt.shouldFailRead, err)
 
-			_, _, _, err = svc.ListQueries(ctx, fleet.ListOptions{}, query.TeamID, nil, false, nil)
+			_, _, _, _, err = svc.ListQueries(ctx, fleet.ListOptions{}, query.TeamID, nil, false, nil)
 			checkAuthErr(t, tt.shouldFailRead, err)
 
 			teamName := ""
@@ -804,7 +804,7 @@ func TestInheritedQueryReportTeamPermissions(t *testing.T) {
 			Data:        ptr.RawMessage([]byte(`{"model": "USB Keyboard", "vendor": "Apple Inc."}`)),
 		},
 	}
-	err = ds.OverwriteQueryResultRows(ctx, host2Row, fleet.DefaultMaxQueryReportRows)
+	_, err = ds.OverwriteQueryResultRows(ctx, host2Row, fleet.DefaultMaxQueryReportRows)
 	require.NoError(t, err)
 	host1Row := []*fleet.ScheduledQueryResultRow{
 		{
@@ -814,7 +814,7 @@ func TestInheritedQueryReportTeamPermissions(t *testing.T) {
 			Data:        ptr.RawMessage([]byte(`{"model": "USB Mouse", "vendor": "Apple Inc."}`)),
 		},
 	}
-	err = ds.OverwriteQueryResultRows(ctx, host1Row, fleet.DefaultMaxQueryReportRows)
+	_, err = ds.OverwriteQueryResultRows(ctx, host1Row, fleet.DefaultMaxQueryReportRows)
 	require.NoError(t, err)
 
 	team2Admin := &fleet.User{
@@ -978,7 +978,8 @@ func TestApplyQuerySpec(t *testing.T) {
 	ds.ApplyQueriesFunc = func(ctx context.Context, authID uint, queries []*fleet.Query, queriesToDiscardResults map[uint]struct{}) error {
 		return nil
 	}
-	ds.LabelsByNameFunc = func(ctx context.Context, names []string) (map[string]*fleet.Label, error) {
+	ds.LabelsByNameFunc = func(ctx context.Context, names []string, filter fleet.TeamFilter) (map[string]*fleet.Label, error) {
+		require.NotNil(t, filter.User)
 		labels := make(map[string]*fleet.Label, len(names))
 		for _, name := range names {
 			if name == "foo" {

@@ -7,12 +7,30 @@ import (
 	"sync"
 	"time"
 
-	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
-	"github.com/fleetdm/fleet/v4/server/fleet"
+	platform_http "github.com/fleetdm/fleet/v4/server/platform/http"
 	kithttp "github.com/go-kit/kit/transport/http"
 	kitlog "github.com/go-kit/log"
 	"github.com/go-kit/log/level"
 )
+
+// UserEmailer provides the user's email for logging purposes.
+type UserEmailer interface {
+	Email() string
+}
+
+type userEmailerKey struct{}
+
+// WithUserEmailer returns a context with the UserEmailer stored for logging.
+// This should be called by authentication middleware after the user is identified.
+func WithUserEmailer(ctx context.Context, emailer UserEmailer) context.Context {
+	return context.WithValue(ctx, userEmailerKey{}, emailer)
+}
+
+// UserEmailerFromContext retrieves the UserEmailer from the context.
+func UserEmailerFromContext(ctx context.Context) (UserEmailer, bool) {
+	v, ok := ctx.Value(userEmailerKey{}).(UserEmailer)
+	return v, ok
+}
 
 type key int
 
@@ -138,9 +156,8 @@ func (l *LoggingContext) Log(ctx context.Context, logger kitlog.Logger) {
 
 	if !l.SkipUser {
 		loggedInUser := "unauthenticated"
-		vc, ok := viewer.FromContext(ctx)
-		if ok {
-			loggedInUser = vc.Email()
+		if emailer, ok := UserEmailerFromContext(ctx); ok {
+			loggedInUser = emailer.Email()
 		}
 		keyvals = append(keyvals, "user", loggedInUser)
 	}
@@ -168,7 +185,7 @@ func (l *LoggingContext) Log(ctx context.Context, logger kitlog.Logger) {
 		)
 		separator := " || "
 		for _, err := range l.Errs {
-			var ewi fleet.ErrWithInternal
+			var ewi platform_http.ErrWithInternal
 			if errors.As(err, &ewi) {
 				if internalErrs == "" {
 					internalErrs = ewi.Internal()
@@ -182,7 +199,7 @@ func (l *LoggingContext) Log(ctx context.Context, logger kitlog.Logger) {
 					errs += separator + err.Error()
 				}
 			}
-			var ewuuid fleet.ErrorUUIDer
+			var ewuuid platform_http.ErrorUUIDer
 			if errors.As(err, &ewuuid) {
 				if uuid := ewuuid.UUID(); uuid != "" {
 					uuids = append(uuids, uuid)
@@ -209,7 +226,7 @@ func (l *LoggingContext) setLevelError() bool {
 	}
 
 	if len(l.Errs) == 1 {
-		var ew fleet.ErrWithIsClientError
+		var ew platform_http.ErrWithIsClientError
 		if errors.As(l.Errs[0], &ew) && ew.IsClientError() {
 			return false
 		}

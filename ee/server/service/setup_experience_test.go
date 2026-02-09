@@ -296,4 +296,15 @@ func TestSetupExperienceSetWithManualAgentInstall(t *testing.T) {
 
 	err = svc.SetSetupExperienceSoftware(ctx, "darwin", 1, []uint{})
 	require.NoError(t, err)
+
+	t.Run("should not block for non darwin hosts", func(t *testing.T) {
+		for _, platform := range fleet.SetupExperienceSupportedPlatforms {
+			if platform == "darwin" {
+				continue
+			}
+
+			err := svc.SetSetupExperienceSoftware(ctx, platform, 0, []uint{1, 2})
+			require.NoError(t, err)
+		}
+	})
 }

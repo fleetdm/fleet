@@ -214,7 +214,7 @@ func (m *model) HandleHotkeys(msg tea.Msg) (tea.Model, tea.Cmd) {
 					m.cursor = 0
 					m.adjustViewForCursor()
 				}
-			case "q", "ctrl+c":
+			case "ctrl+c":
 				return m, tea.Quit
 			default:
 				// Add character to filter
@@ -227,6 +227,8 @@ func (m *model) HandleHotkeys(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 		case WorkflowSelection:
 			switch msg.String() {
+			case "q", "ctrl+c":
+				return m, tea.Quit
 			case "j", "down":
 				if m.workflowCursor < len(WorkflowTypeValues)-1 {
 					m.workflowCursor++
@@ -261,6 +263,8 @@ func (m *model) HandleHotkeys(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 		case LabelInput:
 			switch msg.String() {
+			case "ctrl+c":
+				return m, tea.Quit
 			case "enter":
 				if m.labelInput != "" {
 					return m, m.executeWorkflow()
@@ -280,6 +284,8 @@ func (m *model) HandleHotkeys(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 		case ProjectInput:
 			switch msg.String() {
+			case "ctrl+c":
+				return m, tea.Quit
 			case "enter":
 				if m.projectInput != "" {
 					return m, m.executeWorkflow()

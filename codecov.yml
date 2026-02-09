@@ -22,6 +22,9 @@ flag_management:
     - name: frontend
       paths:
         - frontend/
+    - name: android
+      paths:
+        - android/
 
 ignore:
   - "server/mock"

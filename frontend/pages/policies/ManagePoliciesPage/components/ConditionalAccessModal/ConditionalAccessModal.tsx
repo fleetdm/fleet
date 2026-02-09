@@ -30,6 +30,7 @@ interface IConditionalAccessModal {
   isUpdating: boolean;
   gitOpsModeEnabled?: boolean;
   teamId: number;
+  providerText: string;
 }
 
 const ConditionalAccessModal = ({
@@ -40,6 +41,7 @@ const ConditionalAccessModal = ({
   isUpdating,
   gitOpsModeEnabled = false,
   teamId,
+  providerText,
 }: IConditionalAccessModal) => {
   const [formData, setFormData] = useState<IConditionalAccessFormData>({
     enabled,
@@ -130,7 +132,7 @@ const ConditionalAccessModal = ({
   const renderNotConfigured = () => (
     <>
       To block single sign-on from hosts failing policies, you must first
-      connect Fleet to Microsoft Entra.
+      connect Fleet to {providerText}.
       <br />
       <br />
       This can be configured in <b>Settings</b> &gt; <b>Integrations</b> &gt;{" "}

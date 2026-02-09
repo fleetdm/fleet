@@ -19,6 +19,7 @@ linters:
   default: none
   enable:
     - depguard
+    - forbidigo
     - gosec
     - gocritic
     - nilnesserr
@@ -32,12 +33,40 @@ linters:
     - errcheck
     - staticcheck
   settings:
+    forbidigo:
+      forbid:
+        - pattern: "^print$"
+          msg: "use structured logging instead of built-in print"
+        - pattern: "^println$"
+          msg: "use structured logging instead of built-in println"
+        # slog: forbid non-context methods
+        - pattern: "^slog\\.(Debug|Info|Warn|Error)"
+          pkg: "^log/slog$"
+          msg: "Don't use the default logger. Use a specific *slog.Logger instance."
+        - pattern: "slog\\.Logger\\.(Debug|Info|Warn|Error)$"
+          msg: "use DebugContext/InfoContext/WarnContext/ErrorContext instead"
+      analyze-types: true
+
     depguard:
       rules:
         main:
           deny:
             - pkg: github.com/pkg/errors
               desc: "use ctxerr if a context.Context is available or stdlib errors.New / fmt.Errorf with the %w verb"
+            - pkg: github.com/valyala/fastjson
+              desc: |
+                Unanswered issue opened 3 years ago: https://github.com/valyala/fastjson/issues/88).
+                For a safe use of their fastjson, you really have to call Validate* first and then Parse*,
+                otherwise it accepts a lot of invalid JSON strings.
+                There was a PR to address this, but it's still open and uncommented by the owner:
+                https://github.com/valyala/fastjson/pull/68.
+            - pkg: github.com/valyala/fasttemplate
+              desc: |
+                Unanswered issue opened 3 years ago: https://github.com/valyala/fastjson/issues/88).
+                For a safe use of their fastjson, you really have to call Validate* first and then Parse*,
+                otherwise it accepts a lot of invalid JSON strings.
+                There was a PR to address this, but it's still open and uncommented by the owner:
+                https://github.com/valyala/fastjson/pull/68.
     govet:
       enable:
         - nilness
@@ -204,6 +233,13 @@ linters:
       - path: server/datastore/mysql/migrations/[^/]+/[^/]+\.go
         linters:
           - depguard
+      # Legacy CLI tools that use slog without context
+      - path: cmd/cpe/generate.go
+        linters:
+          - forbidigo
+      - path: tools/mdm/migration/micromdm/main.go
+        linters:
+          - forbidigo
       # cmd gosec exclusions https://github.com/fleetdm/fleet/issues/4451
       - path: cmd/osquery-perf/agent.go
         linters:

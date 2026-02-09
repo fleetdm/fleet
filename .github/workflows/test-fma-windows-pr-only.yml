@@ -33,6 +33,11 @@ jobs:
     runs-on: windows-latest
 
     steps:
+      - name: Harden Runner
+        uses: step-security/harden-runner@20cf305ff2072d973412fa9b1e3a4f227bda3c76 # v2.14.0
+        with:
+          egress-policy: audit
+
       - name: Checkout Fleet
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
@@ -73,7 +78,9 @@ jobs:
       - name: Check if there are changes
         id: check-changes
         run: |
-          if ("${{ steps.detect-changed.outputs.HAS_CHANGES }}" -eq "true") {
+          # Default to no changes if detection step failed or didn't set output
+          $hasChanges = "${{ steps.detect-changed.outputs.HAS_CHANGES }}"
+          if ($hasChanges -eq "true") {
             "has_changes=true" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
             Write-Host "Changed apps detected: ${{ steps.detect-changed.outputs.CHANGED_APPS }}"
           } else {
@@ -181,7 +188,7 @@ jobs:
             if ($uninstallEntry) {
               $found = $true
               Write-Host "Found 7-Zip uninstall entry: $($uninstallEntry.DisplayName)"
-              
+
               # Try to get uninstall string
               $uninstallString = if ($uninstallEntry.QuietUninstallString) {
                 $uninstallEntry.QuietUninstallString

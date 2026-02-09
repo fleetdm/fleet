@@ -12,10 +12,7 @@ import {
 } from "interfaces/software";
 import { NotificationContext } from "context/notification";
 import { AppContext } from "context/app";
-import softwareAPI, {
-  MAX_FILE_SIZE_BYTES,
-  MAX_FILE_SIZE_MB,
-} from "services/entities/software";
+import softwareAPI from "services/entities/software";
 import labelsAPI, { getCustomLabels } from "services/entities/labels";
 
 import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
@@ -54,10 +51,13 @@ interface IEditSoftwareModalProps {
   installerType: InstallerType;
   router: InjectedRouter;
   openViewYamlModal: () => void;
+  isFleetMaintainedApp?: boolean;
   isIosOrIpadosApp?: boolean;
+  gitOpsModeEnabled?: boolean;
   name: string;
   displayName: string;
   source?: string;
+  iconUrl?: string | null;
 }
 
 const EditSoftwareModal = ({
@@ -69,15 +69,23 @@ const EditSoftwareModal = ({
   installerType,
   router,
   openViewYamlModal,
+  isFleetMaintainedApp = false,
   isIosOrIpadosApp = false,
   name,
   displayName,
   source,
+  iconUrl = undefined,
 }: IEditSoftwareModalProps) => {
   const { renderFlash } = useContext(NotificationContext);
   const { config } = useContext(AppContext);
 
   const gitOpsModeEnabled = config?.gitops.gitops_mode_enabled || false;
+  // Viewing an FMA in GitOps mode only allows viewing options, not editing
+  const isGitOpsCompatible = gitOpsModeEnabled && isFleetMaintainedApp;
+
+  const formClassNames = classnames(`${baseClass}__package-form`, {
+    [`${baseClass}__package-form--disabled`]: isGitOpsCompatible,
+  });
 
   const [editSoftwareModalClasses, setEditSoftwareModalClasses] = useState(
     baseClass
@@ -117,10 +125,11 @@ const EditSoftwareModal = ({
     categories: [],
   });
   const [uploadProgress, setUploadProgress] = useState(0);
+  const [showFileProgressModal, setShowFileProgressModal] = useState(false);
 
   const { data: labels } = useQuery<ILabelSummary[], Error>(
     ["custom_labels"],
-    () => labelsAPI.summary().then((res) => getCustomLabels(res.labels)),
+    () => labelsAPI.summary(teamId).then((res) => getCustomLabels(res.labels)),
     {
       ...DEFAULT_USE_QUERY_OPTIONS,
     }
@@ -144,7 +153,14 @@ const EditSoftwareModal = ({
     isUpdatingSoftware,
   ]);
 
+  /* 1. Delays showing the file progress modal until isUpdatingSoftware
+   * has been true for 3 seconds to prevent flashing modal on quick uploads
+   * 2. Prevents page unload during the upload
+   * 3. Cleans both up when uploading stops or the component unmounts */
   useEffect(() => {
+    // Timer for delayed modal
+    let timeoutId: ReturnType<typeof setTimeout> | undefined;
+
     const beforeUnloadHandler = (e: BeforeUnloadEvent) => {
       e.preventDefault();
       // Next line with e.returnValue is included for legacy support
@@ -152,18 +168,34 @@ const EditSoftwareModal = ({
       e.returnValue = true;
     };
 
-    // set up event listener to prevent user from leaving page while uploading
     if (isUpdatingSoftware) {
+      // only show modal if still uploading after 3 seconds
+      timeoutId = setTimeout(() => {
+        setShowFileProgressModal(true);
+      }, 3000);
+
+      // Prevents user from leaving page while uploading
       addEventListener("beforeunload", beforeUnloadHandler);
     } else {
-      removeEventListener("beforeunload", beforeUnloadHandler);
+      // upload finished: hide modal and reset
+      setShowFileProgressModal(false);
     }
 
-    // clean up event listener and timeout on component unmount
+    // Cleanup that runs when isUpdatingSoftware changes or component unmounts
     return () => {
+      if (timeoutId) {
+        clearTimeout(timeoutId);
+      }
       removeEventListener("beforeunload", beforeUnloadHandler);
     };
   }, [isUpdatingSoftware]);
+
+  // Close confirm modal when file progress modal opens
+  useEffect(() => {
+    if (showFileProgressModal) {
+      setShowConfirmSaveChangesModal(false);
+    }
+  }, [showFileProgressModal]);
 
   const toggleConfirmSaveChangesModal = () => {
     setShowConfirmSaveChangesModal(!showConfirmSaveChangesModal);
@@ -176,15 +208,6 @@ const EditSoftwareModal = ({
   // Edit package API call
   const onEditPackage = async (formData: IEditPackageFormData) => {
     setIsUpdatingSoftware(true);
-
-    if (formData.software && formData.software.size > MAX_FILE_SIZE_BYTES) {
-      renderFlash(
-        "error",
-        `Couldn't edit software. The maximum file size is ${MAX_FILE_SIZE_MB} MB.`
-      );
-      setIsUpdatingSoftware(false);
-      return;
-    }
 
     try {
       await softwareAPI.editSoftwarePackage({
@@ -328,7 +351,7 @@ const EditSoftwareModal = ({
       return (
         <PackageForm
           labels={labels || []}
-          className={`${baseClass}__package-form`}
+          className={formClassNames}
           isEditingSoftware
           onCancel={onExit}
           onSubmit={onClickSavePackage}
@@ -340,6 +363,7 @@ const EditSoftwareModal = ({
           defaultUninstallScript={softwarePackage.uninstall_script}
           defaultSelfService={softwarePackage.self_service}
           defaultCategories={softwarePackage.categories}
+          gitopsCompatible={isGitOpsCompatible}
         />
       );
     }
@@ -360,9 +384,7 @@ const EditSoftwareModal = ({
     <>
       <Modal
         className={editSoftwareModalClasses}
-        title={
-          isSoftwarePackage(softwareInstaller) ? "Edit package" : "Edit app"
-        }
+        title="Edit software"
         onExit={onExit}
         width="large"
       >
@@ -374,6 +396,7 @@ const EditSoftwareModal = ({
           softwareInstallerName={softwareInstaller?.name}
           installerType={installerType}
           onSaveChanges={onClickConfirmChanges}
+          isLoading={isUpdatingSoftware}
         />
       )}
       {showPreviewEndUserExperienceModal && (
@@ -381,12 +404,17 @@ const EditSoftwareModal = ({
           name={name}
           displayName={displayName}
           source={source}
-          iconUrl={softwareInstaller.icon_url || undefined}
+          iconUrl={iconUrl} // Must be software title icon url not installer icon url
           onCancel={togglePreviewEndUserExperienceModal}
           isIosOrIpadosApp={isIosOrIpadosApp}
+          mobileVersion={
+            ("latest_version" in softwareInstaller &&
+              softwareInstaller.latest_version) ||
+            softwareInstaller.version
+          }
         />
       )}
-      {!!pendingPackageUpdates.software && isUpdatingSoftware && (
+      {!!pendingPackageUpdates.software && showFileProgressModal && (
         <FileProgressModal
           fileDetails={getFileDetails(pendingPackageUpdates.software, true)}
           fileProgress={uploadProgress}

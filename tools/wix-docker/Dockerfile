@@ -1,4 +1,4 @@
-FROM debian:bookworm-slim@sha256:2424c1850714a4d94666ec928e24d86de958646737b1d113f5b2207be44d37d8
+FROM debian:bookworm-slim@sha256:56ff6d36d4eb3db13a741b342ec466f121480b5edded42e4b7ee850ce7a418ee
 
 RUN true \
     && dpkg --add-architecture i386 \
@@ -10,6 +10,7 @@ RUN true \
     wget \
     unzip \
     osslsigncode \
+    && apt upgrade -y \
     && mkdir /wix \
     && rm -rf /var/lib/apt/lists/*
 

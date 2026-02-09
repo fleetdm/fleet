@@ -12,9 +12,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/docker/go-units"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	platform_http "github.com/fleetdm/fleet/v4/server/platform/http"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 )
 
@@ -53,13 +53,14 @@ func (svc *Service) SetSetupExperienceSoftware(ctx context.Context, platform str
 }
 
 type getSetupExperienceSoftwareRequest struct {
-	Platform string `query:"platform,optional"`
+	// Platforms can be a comma separated list
+	Platforms string `query:"platform,optional"`
 	fleet.ListOptions
 	TeamID uint `query:"team_id"`
 }
 
 func (r *getSetupExperienceSoftwareRequest) ValidateRequest() error {
-	return validateSetupExperiencePlatform(r.Platform)
+	return validateSetupExperiencePlatform(r.Platforms)
 }
 
 type getSetupExperienceSoftwareResponse struct {
@@ -73,7 +74,7 @@ func (r getSetupExperienceSoftwareResponse) Error() error { return r.Err }
 
 func getSetupExperienceSoftware(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*getSetupExperienceSoftwareRequest)
-	platform := transformPlatformForSetupExperience(req.Platform)
+	platform := transformPlatformListForSetupExperience(req.Platforms)
 	titles, count, meta, err := svc.ListSetupExperienceSoftware(ctx, platform, req.TeamID, req.ListOptions)
 	if err != nil {
 		return &getSetupExperienceSoftwareResponse{Err: err}, nil
@@ -137,7 +138,7 @@ type setSetupExperienceScriptRequest struct {
 func (setSetupExperienceScriptRequest) DecodeRequest(ctx context.Context, r *http.Request) (interface{}, error) {
 	var decoded setSetupExperienceScriptRequest
 
-	err := r.ParseMultipartForm(512 * units.MiB) // same in-memory size as for other multipart requests we have
+	err := r.ParseMultipartForm(platform_http.MaxMultipartFormSize)
 	if err != nil {
 		return nil, &fleet.BadRequestError{
 			Message:     "failed to parse multipart form",
@@ -375,20 +376,13 @@ func maybeUpdateSetupExperienceStatus(ctx context.Context, ds fleet.Datastore, r
 	return updated, err
 }
 
-var setupExperienceSupportedPlatforms = []string{
-	"macos",
-	"ios",
-	"ipados",
-	"windows",
-	"linux",
-	"android",
-}
-
-func validateSetupExperiencePlatform(platform string) error {
-	if platform != "" && !slices.Contains(setupExperienceSupportedPlatforms, platform) {
-		quotedPlatforms := strings.Join(setupExperienceSupportedPlatforms, "\", \"")
-		quotedPlatforms = fmt.Sprintf("\"%s\"", quotedPlatforms)
-		return badRequestf("platform %q unsupported, platform must be one of %s", platform, quotedPlatforms)
+func validateSetupExperiencePlatform(platforms string) error {
+	for platform := range strings.SplitSeq(platforms, ",") {
+		if platform != "" && !slices.Contains(fleet.SetupExperienceSupportedPlatforms, platform) {
+			quotedPlatforms := strings.Join(fleet.SetupExperienceSupportedPlatforms, "\", \"")
+			quotedPlatforms = fmt.Sprintf("\"%s\"", quotedPlatforms)
+			return badRequestf("platform %q unsupported, platform must be one of %s", platform, quotedPlatforms)
+		}
 	}
 	return nil
 }
@@ -398,4 +392,11 @@ func transformPlatformForSetupExperience(platform string) string {
 		return "darwin"
 	}
 	return platform
+}
+
+func transformPlatformListForSetupExperience(platforms string) string {
+	if platforms == "" {
+		return "darwin"
+	}
+	return strings.ReplaceAll(platforms, "macos", "darwin")
 }

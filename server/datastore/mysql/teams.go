@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"strings"
+	"time"
 
 	"golang.org/x/text/unicode/norm"
 
@@ -27,7 +28,7 @@ func (ds *Datastore) NewTeam(ctx context.Context, team *fleet.Team) (*fleet.Team
 		query := `
     INSERT INTO teams (
       name,
-	  filename,
+      filename,
       description,
       config
     ) VALUES (?, ?, ?, ?)
@@ -46,6 +47,7 @@ func (ds *Datastore) NewTeam(ctx context.Context, team *fleet.Team) (*fleet.Team
 
 		id, _ := result.LastInsertId()
 		team.ID = uint(id) //nolint:gosec // dismiss G115
+		team.CreatedAt = time.Now().UTC().Truncate(time.Second)
 
 		return saveTeamSecretsDB(ctx, tx, team)
 	})
@@ -132,6 +134,7 @@ var teamRefs = []string{
 	"mdm_windows_configuration_profiles",
 	"mdm_apple_declarations",
 	"mdm_android_configuration_profiles",
+	"certificate_templates",
 	"software_title_icons",
 	"software_title_display_names",
 }

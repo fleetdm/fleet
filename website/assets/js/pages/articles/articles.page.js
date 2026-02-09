@@ -51,7 +51,7 @@ parasails.registerPage('articles', {
         this.categoryDescription = '';
         break;
       case 'articles':
-        this.articleCategory = 'Articles';
+        this.articleCategory = 'Blog';
         this.categoryDescription = 'Read the latest articles from the Fleet team and community.';
         break;
     }

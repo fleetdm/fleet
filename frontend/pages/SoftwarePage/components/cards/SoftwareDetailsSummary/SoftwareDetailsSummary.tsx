@@ -32,11 +32,17 @@ import TooltipWrapperArchLinuxRolling from "components/TooltipWrapperArchLinuxRo
 import SoftwareIcon from "../../icons/SoftwareIcon";
 import OSIcon from "../../icons/OSIcon";
 
+const ACTION_EDIT_APPEARANCE = "edit_appearance";
+const ACTION_EDIT_SOFTWARE = "edit_software";
+const ACTION_EDIT_CONFIGURATION = "edit_configuration";
+const ACTION_EDIT_AUTO_UPDATE_CONFIGURATION = "edit_auto_update_configuration";
+
 const buildActionOptions = (
   gitOpsModeEnabled: boolean | undefined,
   repoURL: string | undefined,
   source: string | undefined,
-  androidSoftwareAvailableForInstall: boolean
+  androidSoftwareAvailableForInstall: boolean,
+  canConfigureAutoUpdate: boolean
 ): CustomOptionType[] => {
   let disableEditAppearanceTooltipContent: TooltipContent | undefined;
   let disableEditSoftwareTooltipContent: TooltipContent | undefined;
@@ -57,24 +63,36 @@ const buildActionOptions = (
   const options: CustomOptionType[] = [
     {
       label: "Edit appearance",
-      value: "edit_appearance",
+      value: ACTION_EDIT_APPEARANCE,
       isDisabled: !!disableEditAppearanceTooltipContent,
       tooltipContent: disableEditAppearanceTooltipContent,
     },
-    {
-      label: "Edit software",
-      value: "edit_software",
-      isDisabled: !!disableEditSoftwareTooltipContent,
-      tooltipContent: disableEditSoftwareTooltipContent,
-    },
   ];
 
+  // Hides edit software option only for Android installers, as they are currently non-editable
+  if (!androidSoftwareAvailableForInstall) {
+    options.push({
+      label: "Edit software",
+      value: ACTION_EDIT_SOFTWARE,
+      isDisabled: !!disableEditSoftwareTooltipContent,
+      tooltipContent: disableEditSoftwareTooltipContent,
+    });
+  }
+
+  // Show edit configuration option only for Android installers
   if (androidSoftwareAvailableForInstall) {
     options.push({
       label: "Edit configuration",
-      value: "edit_configuration",
+      value: ACTION_EDIT_CONFIGURATION,
       isDisabled: !!disabledEditConfigurationTooltipContent,
       tooltipContent: disabledEditConfigurationTooltipContent,
+    });
+  }
+
+  if (canConfigureAutoUpdate) {
+    options.push({
+      label: "Schedule auto updates",
+      value: ACTION_EDIT_AUTO_UPDATE_CONFIGURATION,
     });
   }
 
@@ -112,6 +130,7 @@ interface ISoftwareDetailsSummaryProps {
   /** Displays an edit CTA to edit the software's icon
    * Should only be defined for team view of an installable software */
   onClickEditConfiguration?: () => void;
+  onClickEditAutoUpdateConfig?: () => void;
   iconPreviewUrl?: string | null;
   /** timestamp of when icon was last uploaded, used to force refresh of cached icon */
   iconUploadedAt?: string;
@@ -132,6 +151,7 @@ const SoftwareDetailsSummary = ({
   onClickEditAppearance,
   onClickEditSoftware,
   onClickEditConfiguration,
+  onClickEditAutoUpdateConfig,
   iconPreviewUrl,
   iconUploadedAt,
 }: ISoftwareDetailsSummaryProps) => {
@@ -145,14 +165,17 @@ const SoftwareDetailsSummary = ({
 
   const onSelectSoftwareAction = (option: SingleValue<CustomOptionType>) => {
     switch (option?.value) {
-      case "edit_appearance":
+      case ACTION_EDIT_APPEARANCE:
         onClickEditAppearance && onClickEditAppearance();
         break;
-      case "edit_software":
+      case ACTION_EDIT_SOFTWARE:
         onClickEditSoftware && onClickEditSoftware();
         break;
-      case "edit_configuration":
+      case ACTION_EDIT_CONFIGURATION:
         onClickEditConfiguration && onClickEditConfiguration();
+        break;
+      case ACTION_EDIT_AUTO_UPDATE_CONFIGURATION:
+        onClickEditAutoUpdateConfig && onClickEditAutoUpdateConfig();
         break;
       default:
     }
@@ -192,7 +215,8 @@ const SoftwareDetailsSummary = ({
     gitOpsModeEnabled,
     repoURL,
     source,
-    !!onClickEditConfiguration
+    !!onClickEditConfiguration,
+    !!onClickEditAutoUpdateConfig
   );
 
   return (
@@ -205,7 +229,7 @@ const SoftwareDetailsSummary = ({
         )}
         <dl className={`${baseClass}__info`}>
           <div className={`${baseClass}__title-actions`}>
-            <h1>
+            <h1 aria-label="software display name">
               {isRollingArch ? (
                 // wrap a tooltip around the "rolling" suffix
                 <>

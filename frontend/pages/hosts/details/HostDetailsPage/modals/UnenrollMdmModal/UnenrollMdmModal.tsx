@@ -40,11 +40,7 @@ const UnenrollMdmModal = ({
   const submitUnenrollMdm = async () => {
     setRequestState("unenrolling");
     try {
-      if (isAndroid(hostPlatform)) {
-        await mdmAPI.unenrollAndroidHostFromMdm(hostId, 5000);
-      } else {
-        await mdmAPI.unenrollHostFromMdm(hostId, 5000);
-      }
+      await mdmAPI.unenrollHostFromMdm(hostId, 5000);
       const successMessage =
         isIPadOrIPhone(hostPlatform) || isAndroid(hostPlatform) ? (
           <>
@@ -107,7 +103,7 @@ const UnenrollMdmModal = ({
     if (isIPadOrIPhone(hostPlatform)) {
       return (
         <>
-          <p>Settings configured by Fleet will be removed.</p>
+          <p>Settings and apps added by Fleet will be removed.</p>
           {generateIosOrIpadosDescription()}
         </>
       );

@@ -55,9 +55,8 @@ describe("EditLabelPage", () => {
 
     expect(queryLabel).toBeInTheDocument();
     expect(platformLabel).toBeInTheDocument();
-    expect(screen.getByText(/Label queries are immutable/)).toBeInTheDocument();
     expect(
-      screen.getByText(/Label platforms are immutable/)
+      screen.getByText(/Label queries and platforms are immutable/)
     ).toBeInTheDocument();
   });
 

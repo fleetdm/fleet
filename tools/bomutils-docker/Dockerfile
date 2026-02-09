@@ -1,4 +1,4 @@
-FROM debian:bookworm-slim@sha256:2424c1850714a4d94666ec928e24d86de958646737b1d113f5b2207be44d37d8 AS builder
+FROM debian:bookworm-slim@sha256:56ff6d36d4eb3db13a741b342ec466f121480b5edded42e4b7ee850ce7a418ee AS builder
 
 RUN apt-get update
 RUN apt-get install -y build-essential autoconf libxml2-dev libssl-dev zlib1g-dev curl git
@@ -20,7 +20,7 @@ RUN curl -L https://github.com/mackyle/xar/archive/refs/tags/xar-1.6.1.tar.gz > 
 COPY patch.txt .
 RUN cd xar-xar-1.6.1/xar && patch < ../../patch.txt && autoconf && ./configure && make && make install
 
-FROM debian:bookworm-slim@sha256:2424c1850714a4d94666ec928e24d86de958646737b1d113f5b2207be44d37d8
+FROM debian:bookworm-slim@sha256:56ff6d36d4eb3db13a741b342ec466f121480b5edded42e4b7ee850ce7a418ee
 
 RUN apt-get update && dpkg --add-architecture i386 && apt-get upgrade -y && apt-get install -y --no-install-recommends libxml2 ca-certificates && rm -rf /var/lib/apt/lists/*
 COPY --from=builder /usr/bin /usr/bin/

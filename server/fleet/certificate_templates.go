@@ -8,10 +8,10 @@ type CertificateRequestSpec struct {
 }
 
 type CertificateTemplate struct {
-	Name                   string
-	TeamID                 uint
-	CertificateAuthorityID uint
-	SubjectName            string
+	Name                   string `json:"name"`
+	TeamID                 uint   `json:"team_id"`
+	CertificateAuthorityID uint   `json:"certificate_authority_id"`
+	SubjectName            string `json:"subject_name"`
 }
 
 func (c *CertificateTemplate) AuthzType() string {
@@ -39,6 +39,7 @@ type CertificateTemplateResponse struct {
 type CertificateTemplateResponseForHost struct {
 	CertificateTemplateResponse
 	Status                 CertificateTemplateStatus `json:"status" db:"status"`
+	UUID                   string                    `json:"uuid" db:"uuid"`
 	SCEPChallenge          *string                   `json:"scep_challenge" db:"scep_challenge"`
 	FleetChallenge         *string                   `json:"fleet_challenge" db:"fleet_challenge"`
 	SCEPChallengeEncrypted []byte                    `json:"-" db:"scep_challenge_encrypted"`
@@ -66,4 +67,24 @@ func CertificateTemplateStatusToMDMDeliveryStatus(s CertificateTemplateStatus) M
 		// All in-progress states (pending, delivering, delivered) map to MDMDeliveryPending
 		return MDMDeliveryPending
 	}
+}
+
+// HostCertificateTemplateForDelivery represents a certificate template being prepared
+// for delivery to a host, including its current status and operation type.
+type HostCertificateTemplateForDelivery struct {
+	CertificateTemplateID uint
+	Status                CertificateTemplateStatus
+	OperationType         MDMOperationType
+	UUID                  string
+}
+
+// HostCertificateTemplatesForDelivery contains the result of preparing certificate templates
+// for delivery to a host.
+type HostCertificateTemplatesForDelivery struct {
+	// DeliveringTemplateIDs are the certificate template IDs that were transitioned
+	// from pending to delivering status in this operation. Used for challenge generation.
+	DeliveringTemplateIDs []uint
+	// Templates contains all certificate templates with their current status and operation.
+	// Pending templates will show as delivering (their post-transition status).
+	Templates []HostCertificateTemplateForDelivery
 }

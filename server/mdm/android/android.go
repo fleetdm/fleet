@@ -38,8 +38,9 @@ type EnterpriseDetails struct {
 }
 
 type EnrollmentToken struct {
-	EnrollmentToken string `json:"android_enrollment_token"`
-	EnrollmentURL   string `json:"android_enrollment_url"`
+	EnrollmentToken  string `json:"android_enrollment_token"`
+	EnrollmentURL    string `json:"android_enrollment_url"`
+	EnrollmentQRCode string `json:"android_enrollment_qr_code"`
 }
 
 type Device struct {
@@ -60,7 +61,10 @@ type AgentManagedConfiguration struct {
 }
 
 type AgentCertificateTemplate struct {
-	ID uint `json:"id"`
+	ID        uint   `json:"id"`
+	Status    string `json:"status"`
+	Operation string `json:"operation"`
+	UUID      string `json:"uuid"`
 }
 
 // MDMAndroidPolicyRequest represents a request made to the Android Management
@@ -76,3 +80,5 @@ type MDMAndroidPolicyRequest struct {
 	AppliedPolicyVersion sql.Null[int64]  `db:"applied_policy_version"`
 	PolicyVersion        sql.Null[int64]  `db:"policy_version"`
 }
+
+const AppStatusAvailable = "AVAILABLE"

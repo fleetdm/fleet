@@ -9,6 +9,8 @@ const (
 	ActionWrite = "write"
 	// ActionWriteHostLabel refers to writing labels on hosts.
 	ActionWriteHostLabel = "write_host_label"
+	// ActionCreate refers to creating an entity when permissions differ from standard writes (e.g. global labels)
+	ActionCreate = "create"
 	// ActionCancelHostActivity refers to canceling an upcoming activity on a host.
 	ActionCancelHostActivity = "cancel_host_activity"
 

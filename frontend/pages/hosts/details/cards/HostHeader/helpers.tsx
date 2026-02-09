@@ -21,7 +21,40 @@ type DeviceStatusTagConfig = Record<
 
 export const DEVICE_STATUS_TAGS: DeviceStatusTagConfig = {
   locked: {
-    title: "LOCKED",
+    title: "Locked",
+    tagType: "warning",
+    generateTooltip: (platform) => {
+      if (isIPadOrIPhone(platform)) {
+        return (
+          <>
+            Host is locked. The end user can&apos;t use the host until
+            <br />
+            unlocked. To unlock select <b>Actions &gt; Unlock</b>.
+          </>
+        );
+      } else if (isMacOS(platform)) {
+        return (
+          <>
+            Host is locked. The end user can&apos;t use the host until
+            <br />
+            the six-digit PIN has been entered. To view pin select
+            <br />
+            <b>Actions &gt; Unlock</b>.
+          </>
+        );
+      }
+      return (
+        <>
+          Host is locked. The end user can&apos;t use the host until
+          <br />
+          unlocked. To unlock select <b>Actions &gt; Unlock</b>.
+        </>
+      );
+    },
+  },
+  /** When device_status is "locked" and pending_action is "location", still show "Locked" tag */
+  locating: {
+    title: "Locked",
     tagType: "warning",
     generateTooltip: (platform) => {
       if (isIPadOrIPhone(platform)) {
@@ -53,24 +86,22 @@ export const DEVICE_STATUS_TAGS: DeviceStatusTagConfig = {
     },
   },
   unlocking: {
-    title: "UNLOCK PENDING",
+    title: "Unlock pending",
     tagType: "warning",
     generateTooltip: () =>
       "Host will unlock when it comes online.  If the host is online, it will unlock the next time it checks in to Fleet.",
   },
+  /** "locking" also includes device_status is "unlocked" and pending_action is "location" as
+   * that combination is a part of the locking process */
   locking: {
-    title: "LOCK PENDING",
+    title: "Lock pending",
     tagType: "warning",
     generateTooltip: () => (
-      <>
-        Host will lock when it comes online. If the host is
-        <br />
-        online, it will lock the next time it checks in to Fleet.
-      </>
+      <>Host will lock the next time it checks in to Fleet.</>
     ),
   },
   wiped: {
-    title: "WIPED",
+    title: "Wiped",
     tagType: "error",
     generateTooltip: (platform) =>
       isMacOS(platform)
@@ -78,7 +109,7 @@ export const DEVICE_STATUS_TAGS: DeviceStatusTagConfig = {
         : "Host is wiped.",
   },
   wiping: {
-    title: "WIPE PENDING",
+    title: "Wipe pending",
     tagType: "error",
     generateTooltip: () =>
       "Host will wipe when it comes online. If the host is online, it will wipe the next time it checks in to Fleet.",
@@ -106,6 +137,12 @@ export const REFETCH_TOOLTIP_MESSAGES: Record<
     </>
   ),
   locked: (
+    <>
+      You can&apos;t fetch data from <br /> a locked host.
+    </>
+  ),
+  // Same as locked
+  locating: (
     <>
       You can&apos;t fetch data from <br /> a locked host.
     </>

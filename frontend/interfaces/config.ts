@@ -96,16 +96,24 @@ export interface IDeviceGlobalConfig {
     enabled_and_configured: boolean;
     require_all_software_macos: boolean | null;
   };
-  features: Pick<IConfigFeatures, "enable_software_inventory">;
+  features: Pick<
+    IConfigFeatures,
+    | "enable_software_inventory"
+    | "enable_conditional_access"
+    | "enable_conditional_access_bypass"
+  >;
 }
 
 export interface IFleetDesktopSettings {
   transparency_url: string;
+  alternative_browser_host: string;
 }
 
 export interface IConfigFeatures {
   enable_host_users: boolean;
   enable_software_inventory: boolean;
+  enable_conditional_access: boolean;
+  enable_conditional_access_bypass: boolean;
 }
 
 export interface IConfigServerSettings {
@@ -166,6 +174,8 @@ export interface IConfig {
     okta_assertion_consumer_service_url: string;
     okta_audience_uri: string;
     okta_certificate: string;
+    // Bypass setting
+    bypass_disabled?: boolean;
   };
   host_expiry_settings: {
     host_expiry_enabled: boolean;
@@ -229,7 +239,8 @@ export type LogDestination =
   | "kinesis"
   | "lambda"
   | "pubsub"
-  | "kafta"
+  | "kafka"
+  | "nats"
   | "stdout"
   | "webhook"
   | "";
@@ -272,3 +283,35 @@ export interface IGitOpsModeConfig {
   gitops_mode_enabled: boolean;
   repository_url: string;
 }
+
+/** Check if Okta conditional access is configured (all 4 fields must be present) */
+export const isOktaConditionalAccessConfigured = (
+  config: IConfig | null | undefined
+): boolean => {
+  const ca = config?.conditional_access;
+  return !!(
+    ca?.okta_idp_id &&
+    ca?.okta_assertion_consumer_service_url &&
+    ca?.okta_audience_uri &&
+    ca?.okta_certificate
+  );
+};
+
+/** Check if Microsoft Entra conditional access is configured */
+export const isEntraConditionalAccessConfigured = (
+  config: IConfig | null | undefined
+): boolean => {
+  return (
+    config?.conditional_access?.microsoft_entra_connection_configured ?? false
+  );
+};
+
+/** Check if any conditional access provider is configured (Okta or Entra) */
+export const isConditionalAccessConfigured = (
+  config: IConfig | null | undefined
+): boolean => {
+  return (
+    isOktaConditionalAccessConfigured(config) ||
+    isEntraConditionalAccessConfigured(config)
+  );
+};

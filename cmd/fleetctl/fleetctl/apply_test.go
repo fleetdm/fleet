@@ -196,9 +196,9 @@ func TestApplyTeamSpecs(t *testing.T) {
 		return nil
 	}
 
-	ds.LabelIDsByNameFunc = func(ctx context.Context, labels []string) (map[string]uint, error) {
-		require.Len(t, labels, 1)
-		switch labels[0] {
+	ds.LabelIDsByNameFunc = func(ctx context.Context, names []string, filter fleet.TeamFilter) (map[string]uint, error) {
+		require.Len(t, names, 1)
+		switch names[0] {
 		case fleet.BuiltinLabelMacOS14Plus:
 			return map[string]uint{fleet.BuiltinLabelMacOS14Plus: 1}, nil
 		case fleet.BuiltinLabelIOS:
@@ -657,8 +657,8 @@ func TestApplyAppConfig(t *testing.T) {
 		return fleet.MDMProfilesUpdates{}, nil
 	}
 
-	ds.LabelIDsByNameFunc = func(ctx context.Context, labels []string) (map[string]uint, error) {
-		require.ElementsMatch(t, labels, []string{fleet.BuiltinLabelMacOS14Plus})
+	ds.LabelIDsByNameFunc = func(ctx context.Context, names []string, filter fleet.TeamFilter) (map[string]uint, error) {
+		require.ElementsMatch(t, names, []string{fleet.BuiltinLabelMacOS14Plus})
 		return map[string]uint{fleet.BuiltinLabelMacOS14Plus: 1}, nil
 	}
 
@@ -1349,9 +1349,12 @@ func TestApplyAsGitOps(t *testing.T) {
 	ds.DeleteMDMWindowsConfigProfileByTeamAndNameFunc = func(ctx context.Context, teamID *uint, profileName string) error {
 		return nil
 	}
-	ds.LabelIDsByNameFunc = func(ctx context.Context, labels []string) (map[string]uint, error) {
-		require.ElementsMatch(t, labels, []string{fleet.BuiltinLabelMacOS14Plus})
+	ds.LabelIDsByNameFunc = func(ctx context.Context, names []string, filter fleet.TeamFilter) (map[string]uint, error) {
+		require.ElementsMatch(t, names, []string{fleet.BuiltinLabelMacOS14Plus})
 		return map[string]uint{fleet.BuiltinLabelMacOS14Plus: 1}, nil
+	}
+	ds.SetAsideLabelsFunc = func(ctx context.Context, notOnTeamID *uint, names []string, user fleet.User) error {
+		return nil
 	}
 	ds.SetOrUpdateMDMAppleDeclarationFunc = func(ctx context.Context, declaration *fleet.MDMAppleDeclaration) (*fleet.MDMAppleDeclaration, error) {
 		declaration.DeclarationUUID = uuid.NewString()
@@ -1777,6 +1780,9 @@ func TestApplyLabels(t *testing.T) {
 	_, ds := testing_utils.RunServerWithMockedDS(t)
 
 	var appliedLabels []*fleet.LabelSpec
+	ds.SetAsideLabelsFunc = func(ctx context.Context, notOnTeamID *uint, names []string, user fleet.User) error {
+		return nil
+	}
 	ds.ApplyLabelSpecsWithAuthorFunc = func(ctx context.Context, specs []*fleet.LabelSpec, authorId *uint) error {
 		appliedLabels = specs
 		return nil
@@ -1831,7 +1837,7 @@ func TestApplyLabels(t *testing.T) {
 		LabelType:           fleet.LabelTypeBuiltIn,
 		LabelMembershipType: fleet.LabelMembershipTypeDynamic,
 	}
-	ds.LabelsByNameFunc = func(ctx context.Context, names []string) (map[string]*fleet.Label, error) {
+	ds.LabelsByNameFunc = func(ctx context.Context, names []string, filter fleet.TeamFilter) (map[string]*fleet.Label, error) {
 		assert.ElementsMatch(t, []string{fleet.BuiltinLabelNameUbuntuLinux}, names)
 		return map[string]*fleet.Label{
 			fleet.BuiltinLabelNameUbuntuLinux: ubuntuLabel,

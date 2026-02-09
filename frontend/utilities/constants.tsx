@@ -10,6 +10,8 @@ import { IHost } from "interfaces/host";
 const { origin } = global.window.location;
 export const BASE_URL = `${origin}${URL_PREFIX}/api`;
 
+export const UNCHANGED_PASSWORD_API_RESPONSE = "********";
+
 export enum PolicyResponse {
   PASSING = "passing",
   FAILING = "failing",
@@ -88,6 +90,7 @@ export const MAX_OSQUERY_SCHEDULED_QUERY_INTERVAL = 604800;
 
 export const MIN_OSQUERY_VERSION_OPTIONS = [
   { label: "All", value: "" },
+  { label: "5.21.0 +", value: "5.21.0" },
   { label: "5.20.0 +", value: "5.20.0" },
   { label: "5.19.0 +", value: "5.19.0" },
   { label: "5.18.1 +", value: "5.18.1" },
@@ -408,25 +411,15 @@ export const HOST_SUMMARY_DATA: (keyof IHost)[] = [
   "id",
   "status",
   "issues",
-  "memory",
-  "cpu_type",
   "platform",
-  "os_version",
-  "osquery_version",
-  "orbit_version",
-  "fleet_desktop_version",
   "detail_updated_at",
-  "percent_disk_space_available",
-  "gigs_disk_space_available",
-  "gigs_total_disk_space",
-  "gigs_all_disk_space",
   "team_name",
-  "disk_encryption_enabled",
   "display_name", // Not rendered on my device page
   "maintenance_window", // Not rendered on my device page
+  "os_version",
 ];
 
-export const HOST_ABOUT_DATA = [
+export const HOST_VITALS_DATA = [
   "seen_time",
   "uptime",
   "last_enrolled_at",
@@ -440,6 +433,18 @@ export const HOST_ABOUT_DATA = [
   "last_restarted_at",
   "platform",
   "uuid",
+  "gigs_disk_space_available",
+  "percent_disk_space_available",
+  "gigs_total_disk_space",
+  "gigs_all_disk_space",
+  "disk_encryption_enabled",
+  "osquery_version",
+  "orbit_version",
+  "fleet_desktop_version",
+  "memory",
+  "cpu_type",
+  "os_version",
+  "timezone",
 ];
 
 export const HOST_OSQUERY_DATA = [

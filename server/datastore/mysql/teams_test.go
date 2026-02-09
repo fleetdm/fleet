@@ -328,7 +328,7 @@ func testTeamsGetSetDelete(t *testing.T, ds *Datastore) {
 			require.NoError(t, ds.DeletePack(context.Background(), newP.Name))
 
 			// Check team label is gone.
-			labels, err := ds.LabelsByName(context.Background(), []string{teamLabel.Name})
+			labels, err := ds.LabelsByName(context.Background(), []string{teamLabel.Name}, fleet.TeamFilter{})
 			require.NoError(t, err)
 			require.Empty(t, labels)
 

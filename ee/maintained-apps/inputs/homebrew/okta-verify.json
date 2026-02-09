@@ -1,0 +1,8 @@
+{
+  "name": "Okta Verify",
+  "slug": "okta-verify/darwin",
+  "unique_identifier": "com.okta.mobile",
+  "token": "okta-verify",
+  "installer_format": "pkg",
+  "default_categories": ["Communication"]
+}

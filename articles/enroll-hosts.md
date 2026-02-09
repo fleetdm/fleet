@@ -138,17 +138,39 @@ In the Google Admin console:
 
 ### Unenroll
 
-You can unenroll a macOS, Windows, or Linux host from Fleet (iOS, iPadOS, and Android hosts coming soon).
-
 1. Determine if your host has MDM features turned on by looking at the **MDM status** on the host's **Host details** page. 
 
-2. For macOS hosts with MDM turned on, select **Actions > Turn off MDM** to turn MDM off. For Windows hosts with MDM turned on, follow the [instructions for turning off MDM](https://fleetdm.com/guides/windows-mdm-setup#turn-off-windows-mdm). For iOS, iPadOS hosts with MDM turned on, select **Actions > Turn off MDM**.
+2. If MDM is turned on, for macOS, Windows, iOS/iPadOS, and Android hosts:
+  - For macOS hosts, select **Actions > Turn off MDM** on the host's details page to turn MDM off. 
+  - For Windows hosts, download the [turn off MDM script](https://github.com/fleetdm/fleet/blob/main/it-and-security/lib/windows/scripts/turn-off-mdm.ps1), add it to the host's team on the **Scripts** page in Fleet, and run the script via **Actions > Run script** on the host's details page. 
+  - For iOS/iPadOS and Android hosts, select **Actions > Unenroll**.
 
-4. For macOS, Windows, and Linux hosts [uninstall fleetd](https://fleetdm.com/guides/how-to-uninstall-fleetd). 
+3. [Uninstall fleetd](https://fleetdm.com/guides/how-to-uninstall-fleetd) for macOS, Windows, and Linux hosts. 
 
-5. Select **Actions > Delete** to delete the host from Fleet.
+4. Select **Actions > Delete** to delete the host from Fleet. Deleting the host will cancel any pending commands, script runs, or software installs.
 
-> If an end user wants to switch their workstation's operating system (e.g. Windows to Linux), before they switch, delete the host from Fleet. Then, re-enroll the host.
+> If an end user wants to switch their workstation's operating system (e.g., Windows to Linux), delete the host from Fleet before they switch. Then, re-enroll the host.
+
+## Debugging
+
+If you're running into issues when enrolling hosts, the best practice is to look for errors in the fleetd logs. Fleetd will send stdout/stderr logs to the following directories:
+
+  - macOS: `/private/var/log/orbit/orbit.std{out|err}.log`.
+  - Windows: `C:\Windows\system32\config\systemprofile\AppData\Local\FleetDM\Orbit\Logs\orbit-osquery.log` (the log file is rotated).
+  - Linux: Orbit and osqueryd stdout/stderr output is sent to syslog (`/var/log/syslog` on Debian systems, `/var/log/messages` on CentOS, and `journalctl -u orbit` on Fedora).
+
+If the `logger_path` agent configuration is set to `filesystem`, fleetd will send osquery's "result" and "status" logs to the following directories:
+  - Windows: `C:\Program Files\Orbit\osquery_log`
+  - macOS: `/opt/orbit/osquery_log`
+  - Linux: `/opt/orbit/osquery_log`
+
+The Fleet Desktop log files can be found in the following directories depending on the platform:
+
+  - Linux: `$XDG_STATE_HOME/Fleet or $HOME/.local/state/Fleet`
+  - macOS: `$HOME/Library/Logs/Fleet`
+  - Windows: `%LocalAppData%/Fleet`
+
+The log file name is `fleet-desktop.log`.
 
 ## Advanced
 
@@ -161,11 +183,11 @@ You can unenroll a macOS, Windows, or Linux host from Fleet (iOS, iPadOS, and An
 - [Using host identity certificates](#using-host-identity-certificates)
 - [Specifying update channels](#specifying-update-channels)
 - [Testing osquery queries locally](#testing-osquery-queries-locally)
-- [Finding fleetd logs](#finding-fleetd-logs)
 - [Using system keystore for enroll secret](#using-system-keystore-for-enroll-secret)
 - [Generating fleetd for Windows using local WiX toolset](#generating-fleetd-for-windows-using-local-wix-toolset)
 - [Config-less fleetd agent deployment](#config-less-fleetd-agent-deployment)
 - [Experimental features](#experimental-features)
+- [macOS Migration Assistant](#macos-migration-assistant)
 
 ### Supported osquery versions
 
@@ -419,27 +441,6 @@ Fleet comes packaged with `osqueryi` which is a tool for testing osquery queries
 
 With fleetd installed on your host, run `orbit osqueryi` or `orbit shell` to open the `osqueryi`.
 
-### Finding fleetd logs
-
-Fleetd will send stdout/stderr logs to the following directories:
-
-  - macOS: `/private/var/log/orbit/orbit.std{out|err}.log`.
-  - Windows: `C:\Windows\system32\config\systemprofile\AppData\Local\FleetDM\Orbit\Logs\orbit-osquery.log` (the log file is rotated).
-  - Linux: Orbit and osqueryd stdout/stderr output is sent to syslog (`/var/log/syslog` on Debian systems, `/var/log/messages` on CentOS, and `journalctl -u orbit` on Fedora).
-
-If the `logger_path` agent configuration is set to `filesystem`, fleetd will send osquery's "result" and "status" logs to the following directories:
-  - Windows: `C:\Program Files\Orbit\osquery_log`
-  - macOS: `/opt/orbit/osquery_log`
-  - Linux: `/opt/orbit/osquery_log`
-
-The Fleet Desktop log files can be found in the following directories depending on the platform:
-
-  - Linux: `$XDG_STATE_HOME/Fleet or $HOME/.local/state/Fleet`
-  - macOS: `$HOME/Library/Logs/Fleet`
-  - Windows: `%LocalAppData%/Fleet`
-
-The log file name is `fleet-desktop.log`.
-
 ### Using system keystore for enroll secret
 
 On macOS and Windows, fleetd will add the enroll secret to the system keystore (Keychain on macOS, Credential Manager on Windows) on launch. Subsequent launches will retrieve the enroll secret from the keystore.
@@ -458,12 +459,11 @@ use local installations of the 3 WiX v3 binaries used by this command (`heat.exe
 so:
   1. Download the [WiX v3 binaries](https://github.com/wixtoolset/wix3/releases/download/wix3112rtm/wix311-binaries.zip), then unzip the downloaded file.
   2. Find the absolute filepath of the directory containing your local WiX v3 binaries. This will be wherever you saved the unzipped package contents.
-  3. Run `fleetctl package`, and pass the absolute path above as the string argument to the
-     `--local-wix-dir` flag. For example:
-     ```
-      fleetctl package --type msi --fleet-url=[YOUR FLEET URL] --enroll-secret=[YOUR ENROLL SECRET] --local-wix-dir "\Users\me\AppData\Local\Temp\wix311-binaries"
-     ```
-     If the provided path doesn't contain all 3 binaries, the command will fail.
+  3. As Administrator, run `fleetctl package` and pass the absolute path above as the string argument to the `--local-wix-dir` flag. (If the provided path doesn't contain all 3 binaries, the command will fail.) For example:
+
+```powershell
+fleetctl package --type msi --fleet-url=[YOUR FLEET URL] --enroll-secret=[YOUR ENROLL SECRET] --local-wix-dir "\Users\me\AppData\Local\Temp\wix311-binaries"
+```
 
 >**Note:** Creating a fleetd agent for Windows (.msi) on macOS also requires Wine. We've built a [Wine installation script](https://fleetdm.com/install-wine) to help you get it.
 
@@ -488,6 +488,12 @@ but can result in a large volume of error logs. In fleetd v1.15.1, we added an e
  
 Applying the environmental variable `"FLEETD_SILENCE_ENROLL_ERROR"=1` on a host will silence fleetd enrollment errors if a `--fleet-url` is not present.
 This variable is read at launch and will require a restart of the Orbit service if it is not set before installing `fleetd` v1.15.1.
+
+### macOS Migration Assistant
+
+When transferring data with [Apple's Migration Assistant](https://support.apple.com/en-us/102613), first [turn MDM off, unenroll the Mac, and delete it from Fleet](#unenroll). Next, use Migration Assistant to transfer data and then re-enroll the Mac and turn MDM back on.
+
+If you don't unenroll and delete the Mac first, you'll get duplicate host records in Fleet.
 
 <meta name="category" value="guides">
 <meta name="authorGitHubUsername" value="noahtalerman">

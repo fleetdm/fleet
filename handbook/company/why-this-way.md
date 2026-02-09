@@ -272,7 +272,7 @@ Fixing small inconsistencies quickly is worth it. When we tolerate and overlook 
 
 ## Why t-shirt size customer promises before committing? 
 
-[Customer promises](https://fleetdm.com/handbook/company/product-groups#new-customer-promise-s) are one of the ways we collaborate with our customers to improve Fleet. We [t-shirt size](https://fleetdm.com/handbook/company/product-groups#t-shirt-sizing-capacity-planning) all customer promises and place them on our product roadmap before committing to them. This allows us to make sure there is available product design and engineering capacity to deliver the promise before we commit to a delivery date.
+[Customer promises](https://fleetdm.com/handbook/company/product-groups#new-customer-promise-s) are one of the ways we collaborate with our customers to improve Fleet. We [t-shirt size](https://fleetdm.com/handbook/company/product-groups#t-shirt-sizing-capacity-planning) all customer promises and place them on our [release planning project](https://github.com/orgs/fleetdm/projects/87) before committing to them. This allows us to make sure there is available product design and engineering capacity to deliver the promise before we commit to a delivery date.
 
 
 ## Why make it obvious when stuff breaks?
@@ -313,7 +313,6 @@ For example, here is the [philosophy behind Fleet's bug report template](https:/
 Many companies encourage salespeople to ["spray and pray"](https://www.linkedin.com/posts/amstech_the-rampant-abuse-of-linkedin-connections-activity-7178412289413246978-Ci0I?utm_source=share&utm_medium=member_ios) email blasts, and to do whatever it takes to close deals.  This can sometimes be temporarily effective.  But Fleet takes a [🟠 longer-term](https://fleetdm.com/handbook/company#ownership) approach:
 - **No spam.**  Fleet is deliberate and thoughtful in the way we do outreach, whether that's for community-building, education, or [🧊 conversation-starting](https://docs.google.com/document/d/1IbucpsZZ0qbJQRPRtm9e2kMcSBDTXjixAMVOWyTu_pA/edit?tab=t.0).
 - **Be a helper.**  We focus on [🔴 being helpers](https://fleetdm.com/handbook/company#empathy).  Always be depositing value.  This is how we create a virtuous cycle. (That doesn't mean sharing a random article; it means genuinely hearing, doing whatever it takes to fully understand, and offering only advice or links that we would actually want.)  We are genuinely curious and desperate to help, because creating real value for people is the way we win.
-- **Engineers first.** We always talk to engineers first, and learn how it's going.  Security and IT engineers are the people closest to the work, and the people best positioned to know what their organizations need.
 - **Fewer words.  Fewer pings.**  People are busy.  We don't waste their time.  Avoid dumping work on prospect's plates at all costs.  Light touches, no asks.  Every notification from Fleet is a ping they have to deal with.  We don't overload people with words and links.  We [🟢 keep things simple](https://fleetdm.com/handbook/company#results) and [write briefly](http://www.paulgraham.com/writing44.html).
 - **Community-first.**  We go to conferences.  We write docs.  We are participants, not sponsors.  We don't write spammy articles and landing pages. We want people who choose Fleet to be successful, whether they are paying customers or not.  We are not pushy.  We are only as commercial as we have to be to help people out.
 - **Be genuine.**  No puffery. No impressive-sounding words.  We are [🟣 open and outsider friendly](https://fleetdm.com/handbook/company#openness).  We expand acronyms, and insist on using simple language that lets everyone understand and contribute.  We help the people we work with grow in their careers and learn from each other.  We are sincere, curious, and [🔵 fair to competitors](https://fleetdm.com/handbook/company#objectivity).
@@ -389,7 +388,9 @@ By saying "configuration profile," Fleet has one, cross-platform name for a feat
 
 ## Why not mention the CEO in Slack threads?
 
-Everyone else who works at Fleet is expected to read (and reply or acknowledge with an emoji reaction) every time they're mentioned in Slack, even deep inside long threads.
+> UPDATE: Thanks to the addition of some recent executive hires, the CEO is currently able to keep up with threads again.
+
+<!-- Everyone else who works at Fleet is expected to read (and reply or acknowledge with an emoji reaction) every time they're mentioned in Slack, even deep inside long threads.
 
 Now that the company has grown, the CEO gets mentioned in threads [too often](https://docs.google.com/document/d/1vK-Dy2BVrw7doYUzabOPyCiN4RfolWFgOKMm23l91s0/edit) to keep up with thread replies, even for threads he participates in.
 
@@ -411,7 +412,14 @@ Keep in mind I am often in meetings all day, and may not be able to reply prompt
 When in doubt, you can look at my calendar and join whatever meeting I'm in.  If none of that works, and there is an emergency where you need my immediate attention, get help from Mike's [Executive Assistant](https://fleetdm.com/handbook/ceo#team).
 Thank you so much!" 🙇
 </blockquote> 
+-->
 
+## Why "multi-platform" instead of "cross-platform"?
+
+The device management industry has long suffered under the "cross platform" myth: that everything can be normalized and work exactly the same, whether you're running macOS, Windows, Linux, iOS, or Android.
+
+While Fleet aims to normalize across platforms where possible, there are inevitably times you need to go deeper.  In Fleet, rather than pretend that the world is truly "cross-platform", by using the phrase "multi-platform", we can communicate how Fleet supports the best in breed functionality for each platform, all the way down to the bare metal.
+  
 
 #### Stubs
 

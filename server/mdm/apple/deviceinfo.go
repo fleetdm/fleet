@@ -36,9 +36,9 @@ import (
 	"encoding/base64"
 	"errors"
 	"fmt"
-	"os"
 	"strings"
 
+	"github.com/fleetdm/fleet/v4/server/dev_mode"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/rootcert"
 	"github.com/micromdm/plist"
@@ -171,7 +171,7 @@ func ParseMachineInfoFromPKCS7(buf []byte, verify bool) (*fleet.MDMAppleMachineI
 //
 // NOTE: most of this code was taken from micromdm.
 func VerifyFromAppleIphoneDeviceCA(c *x509.Certificate) error {
-	if os.Getenv("FLEET_DEV_MDM_APPLE_DISABLE_DEVICE_INFO_CERT_VERIFY") == "1" {
+	if dev_mode.Env("FLEET_DEV_MDM_APPLE_DISABLE_DEVICE_INFO_CERT_VERIFY") == "1" {
 		return nil
 	}
 

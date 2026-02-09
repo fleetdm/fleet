@@ -1,0 +1,1 @@
+- Fixed a bug where installing Xcode via VPP apps on macOS resulted in a failure due to not being able to verify the install.

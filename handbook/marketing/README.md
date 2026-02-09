@@ -2,7 +2,6 @@
 
 This handbook page details processes specific to working [with](#contact-us) and [within](#responsibilities) this department.
 
-
 ## Team
 
 | Role                               | Contributor(s)
@@ -10,19 +9,93 @@ This handbook page details processes specific to working [with](#contact-us) and
 | Chief  Marketing Officer          | [Ashish Kuthiala](https://www.linkedin.com/in/ashishkuthiala) _([@akuthiala](https://github.com/akuthiala))_
 | Content Specialist                 | [Irena Reedy](https://www.linkedin.com/in/irena-reedy-520ab9354/) _([@irenareedy](https://github.com/irenareedy))_
 | Head of Demand Generation                  | [John Jeremiah](https://www.linkedin.com/in/johnjeremiah/) _([@johnjeremiah](https://github.com/johnjeremiah))_
+| Product Education Manager     | [Brock Walters](https://www.linkedin.com/in/brock-walters-247a2990/) _([@nonpunctual](https://github.com/nonpunctual))_
+| Analyst Relations     | [Preston Death](https://www.linkedin.com/in/preston-death/) _([@pfd76](https://github.com/pfd76))_
+| Social Media Strategy and Management    | [Thomas Basgil Jr.](https://www.linkedin.com/in/tombasgil/) _([@tombasgil](https://github.com/tombasgil))_
+
 
 ## Contact us
 
-- To **make a request** of the Marketing department, [create an issue](https://github.com/fleetdm/confidential/issues/new?assignees=&labels=%3Ahelp-marketing&projects=&template=1-custom-request.md&title=Request%3A+_______________________) and a team member will get back to you within one business day (if urgent, at-mention a [team member](#team) in the [:help-marketing](https://fleetdm.slack.com/archives/C01ALP02RB5) Slack channel).
+- To **make a request** of the Marketing department, [create an issue](https://github.com/fleetdm/confidential/issues/new?assignees=&labels=%3Ahelp-marketing&projects=&template=1-custom-request.md&title=Request%3A+_______________________) and a team member will get back to you within one business day. (If urgent, at-mention a [team member](#team) in the [:help-marketing](https://fleetdm.slack.com/archives/C01ALP02RB5) Slack channel.)
   - Please use **issue comments and GitHub mentions** to communicate follow-ups or answer questions related to your request.
   - Any Fleet team member can [view the kanban board](https://github.com/orgs/fleetdm/projects/94) for this department, including pending tasks and the status of new requests.
 
-> To **make a request** related to **product marketing**, **brand**, **press**, **brandfronts**, **pitchfronts**, **featurefronts**, **ideal customer profiles (ICPs)**, **personas**, or **targeting** [create an issue](https://github.com/fleetdm/confidential/issues/new?assignees=&labels=%3Ahelp-it-and-enablement&projects=&template=1-custom-request.md&title=Product%20marketing%20request%3A+_______________________) (If urgent, at-mention the [CEO](https://fleetdm.com/handbook/ceo#team) in the [#help-leadership](https://fleetdm.slack.com/archives/C0600L1TTPY) Slack channel).
+
+## Marketing assets
+
+This list is in chronological order as assets are created.
+
+| Asset | Last updated | Use for 
+|:------------|:------------|:----------------|
+| [The GitOps idea](https://fleetdm.com/articles/the-gitops-idea) | 2026-02-04 | Blog explaining what is GitOps |
+| [Customers page](https://fleetdm.com/customers) | 2026-02-01 | Customer testimonials & logos |
+| [Fastly gains visibility into all endpoints and critical infrastructure worldwide](https://fleetdm.com/case-study/fastly) | 2026-01-30 | Customer case study: Fastly |
+| [Fleet GitOps - The future of device management is declarative](https://fleetdm.com/fleet-gitops) | 2026-01-29 | Fleet GitOps product page |
+| [Fleet GitOps workshop](https://fleetdm.com/gitops-workshop) | 2026-01-28 | 1-page explainer & FAQ for GitOps workshop | 
+| [Fleet vs. Jamf comparison](https://fleetdm.com/compare/jamf) | 2026-01-28 | Part of a series on competior analysis |
+| [Redefining endpoint management at scale: Fleet’s momentum in the 2026 Gartner reports](https://fleetdm.com/announcements/redefining-endpoint-management-at-scale) | 2026-01-23 | Fleet Gartner Magic Quadrant recognition |
+| [Why enterprise Linux is important in 2026](https://fleetdm.com/articles/why-enterprise-linux-is-important-in-2026) | 2026-01-21 | Part of a series of articles on enterprise Linux desktop management |
+| [Deploy CrowdStrike with Fleet](https://fleetdm.com/guides/deploying-crowdstrike-with-fleet#basic-article) | 2025-11-05 | This guide covers how to deploy CrowdStrike Falcon on macOS, Linux and Windows using Fleet |
+| [Safe Enough to Switch](https://docs.google.com/document/d/1JsHEzUru2KKs6h7SKYEI6OjunwrRWmeUDTOtl57Shv4/edit?tab=t.0#heading=h.17iy1zaasfs7) | 2025-09-15 | A 1-pager providing an overview of Fleet’s maturity |
+| [Deploying Puppet with Fleet](https://www.linkedin.com/feed/update/urn:li:activity:7364294459569696784/) | 2025-08-26 | Showing how Fleet can control Puppet for settings and that we do device management, and Puppet controls settings |
+| [Fleet vs. Jamf terminology](https://docs.google.com/document/d/1RKojfpUMUiITPce5O7znYmxdQR9U6f5sVnVzQpPpp8Y/edit?tab=t.0#heading=h.2gzpleeudtbf) | 2025-09-09 | Comparison of Jamf and Fleet terms and functions |
+|  |  |  |
+| [Faire \- customer migration blog](https://craft.faire.com/using-observability-to-reduce-chaos-in-an-mdm-migration-20a0056a48e7) | 2025-08-12 | Demonstrating simplicity of customer migrations, written by happy customer |
+| [How to preview Fleet and osquery](https://www.youtube.com/watch?v=rVxSgvKjrWo) | 2022-08-12 | Help people get started w/ Fleet (in this case before buying) |
+| [What are Fleet policies?](https://fleetdm.com/securing/what-are-fleet-policies#basic-article) | 2022-05-20 | Overview of Fleet policies |
+| [Detect Log4j with osquery and Fleet](https://fleetdm.com/securing/detect-log4j-with-osquery-and-fleet) | 2021-12-15 | Example of how to leverage the flexibility of Fleet and osquery for quick response |
+| [Queries/create a query](https://fleetdm.com/guides/queries#create-a-query) |  | Explaining what Queries are and how to create them |
+| [Death to Extension Attributes](https://github.com/allenhouchins/death-to-extension-attributes) |  | Demonstrating to Jamf users how simple Fleet queries are compared to Jamf Extension Attributes. |
+| [Overview deck](https://docs.google.com/presentation/d/1kPcn3Ht-74D5Ta9ARcE-Ofby-E0TC7hZ2yTuwiK_eKk/edit?usp=sharing) |  |  |
+| [Understanding objections and when we see them](https://docs.google.com/document/d/1UFjHaIBdoSGDiqNqwgxRdwRz9Wn9SqP7h-g2OM8Runk/edit) |  | Understanding objections and when they’ll come up |
+| [Sales one-pager](https://docs.google.com/document/d/15nVnn2dalLnyJgfX3o-96jvFAzZPS9vrTaNo_lYNick/edit?usp=sharing) |  | Introduction to Fleet; best for printing and folding |
+| [Fleet for IT product brochure](https://docs.google.com/document/d/1d_53iYU6O-uzaXnzjlXXGwByGRmpz3VMG6kWT6hMCkU/edit?usp=sharing) |  | Early marketing/sales cycle learning \- for “One pager” or “Overview” requests |
+| [Fleet for Security product brochure](https://docs.google.com/document/d/18ocTpuQlwd8RwZA-KsqzEmQkAEvKvV8LngeFbkJdFj4/edit?usp=sharing) |  | Early marketing/sales cycle learning \- for “One pager” or “Overview” requests |
+| [Fleet capabilities one-pager](https://docs.google.com/document/d/15nVnn2dalLnyJgfX3o-96jvFAzZPS9vrTaNo_lYNick/edit?tab=t.0) |  | High level overview of what Fleet does |
+| [Customer use cases](https://docs.google.com/document/d/1zz74xL12KB2Re-I06Ongg7giZ2obZAQdTFV_FdlULws/edit?usp=sharing) |  | Outbound, discussion/presentation |
+| [Log4j blog post](https://fleetdm.com/securing/detect-log4j-with-osquery-and-fleet) |  | Example of how to leverage the flexibility of Fleet and osquery for quick response |
+| [GitHub value deck](https://docs.google.com/presentation/d/1lYOdJiCNFuMUB-6MZ3ZtYC5iYM9ZZrV7YR6ShM9WcCY/edit?usp=sharing) |  |  |
+| [Intro to Fleet](https://www.youtube.com/watch?v=rVxSgvKjrWo), product demo |  |  |
+| Reports— [SODM](https://fleetdm.com/reports/state-of-device-management)  |  | Grow authority |
+| [2023 IBM study](https://drive.google.com/file/d/1YUfXnbOQ93S0gttwf3qoW7F4bN7-Egci/view?usp=drive_link) on cost of a Breach |  |  |
+| [Why Fleet; MDM questions](https://docs.google.com/document/d/1dujnNVZAKp4h8ruYnVf7JGltVJXfOCZeqKn9HKoAkC8/edit?usp=sharing) |  |  |
+| [Swag typeform](https://kqphpqst851.typeform.com/to/ZfA3sOu0?typeform-source=fleetdm.com) |  | Build goodwill |
+| [Trends in cyber blog post](https://ventureinsecurity.net/p/the-rise-of-security-engineering) |  | Where Fleet fits in to today’s security engineering world which needs more flexibility in its technical solutions |
+| [Red Hat post](https://www.redhat.com/sysadmin/fleetdm-get-started) about Fleet |  | How Fleet makes osquery better, and how to get started (technical instructions) |
+| [Keyboard crunch](https://keyboardcrunch.com/posts/FleetDM/) 3rd party overview of Fleet |  | Another 3rd party overview of Fleet  |
+| [MDM UI dashboard](https://drive.google.com/drive/folders/1fjwbl_XmrCi1HtehFFGdKA0AYhy9AIpC) |  | Showing the UI of the MDM Dashboard (Windows) |
+| [The rise of security engineering and how it is changing the cybersecurity of tomorrow](https://ventureinsecurity.net/p/the-rise-of-security-engineering) |  | An in-depth look at one of the trends defining the future of security  |
+| [Vulnerability dashboard](https://dash.fleetdm.com/login) |  | Example of product extensibility |
+| Recorded demo of [vulnerability management dashboard](https://play.goconsensus.com/s3130001d) |  | Good to use in VM buying scenario, even with non-coding elves/christmas trees |
+| Tom Larkin, [Snowflake blog post](https://fleetdm.com/guides/delivering-data-to-snowflake-from-fleet-and-osquery) On Tom’s own blog, [1st post](https://t-lark.github.io/posts/snowflake-osquery-fleet-magic/) [2nd post](https://t-lark.github.io/posts/osquery-data-in-snowflake/) |  | When someone doesn’t want to replace their MDM, but wants Fleet for Endpoint Ops |
+| [Osquery overview](https://fleetdm.com/guides/osquery-a-tool-to-easily-ask-questions-about-operating-systems) on Fleet blog |  |  |
+| [Gusto case study](https://docs.google.com/document/d/1zw-Q3mqCX8j6AEXAk_7c2MTd0NUXOW1wQYTdhEUJWIU/edit?usp=sharing) |  | Middle to end of sales cycle to help justify spend |
+| [macOS / Windows device management roadmap](https://docs.google.com/presentation/d/1pCADKXo8-iiuEn_eQAx9LrKWP8_81fO-ObO8O0wQ1WA/edit#slide=id.g246739d8889_2_0) |  | Prospect wants to see what we do with MDM |
+| [A configurable & transparent alternative to Rapid7](https://jarod.ngrok.dev/imagine/rapid-7-alternative) |  |  |
+| [ROI Spreadsheet](https://docs.google.com/spreadsheets/d/14Cfj77ynOB6z4pmb9DD7HNRGo0kcKJuEIifgnz-YO50/edit?usp=sharing) |  |  |
+| [9to5mac article: Latest scripting features](https://9to5mac.com/2023/10/17/fleet-releases-open-source-cross-platform-scripting-based-on-osquery/) |  |  |
+| [Computer World article from MDM release](https://www.computerworld.com/article/3692916/fleet-announces-open-source-cross-platform-mdm-solution.html) |  |  |
+| MITRE ATT\&CK framework osquery [query library](https://github.com/teoseller/osquery-attck/blob/master/README.md) |  |  |
+| [IR Article 1](https://fleetdm.com/securing/osquery-as-a-threat-hunting-platform) |  | When nurturing or educating how IR teams use Fleet |
+| [IR Article 2](https://fleetdm.com/securing/how-osquery-can-help-cyber-responders) |  | When nurturing or educating how IR teams use Fleet |
+| [Fleet vs MDM and EDR](https://docs.google.com/presentation/d/1xb0OvkCta262v73_-kvSjjuJlxTsbUtMVGIKeFG4CZ4/edit?usp=sharing) |  | When a prospect wants to know what Fleet does in addition to their MDM and EDR solutions |
+| [Fleet VM architecture video](https://www.youtube.com/watch?v=X9cQP60kD3c) |  | Show how VM works-good for IT, VM and security teams |
+| [Product roadmap](https://docs.google.com/document/d/16si8Nkh0F25opUMpZYm6XwU8LEhGd7H4eOzPKFz8jGw/edit?usp=sharing) |  |  |
+| [Targeting with predicates in Declarative Device Management](https://www.youtube.com/watch?v=Ul2q_RdDZCc) |  | IT teams interested in MDM that bring up DDM in requirements (or if they’re using WS1) |
+| [https://t-lark.github.io/posts/using-custom-mdm-payloads-for-fleet-labels/](https://t-lark.github.io/posts/using-custom-mdm-payloads-for-fleet-labels/) |  | Using Custom MDM Payloads for FleetDM Labels |
+| [Battle card - WS1](https://docs.google.com/document/d/1dV9zooPnCnHa0UfZqXKWAi6Zmye2jfqRIr_UnX70Sq4/edit) |  | WS1 Battle Card |
+| [Competitive Matrix - Jamf & Intune](https://docs.google.com/spreadsheets/d/1-DcJ9kPd8Pm1ExuMTynO2owrix37ddkDseuXMtgLevQ/edit?gid=0#gid=0)File |  | Competitive Matrix Jamf & Intune |
+| [Charles from Roblox talking about Fleet’s performance and scale](https://www.linkedin.com/posts/zacharywasserman_charles-zaffery-rolled-out-fleet-device-management-activity-7196618547131793409-vLSE?utm_source=share&utm_medium=member_desktop) |  | Customer proof point of scale and performance |
+| [Performance measuring with OTEL](https://docs.google.com/document/d/1nUVZP3JBLgcLDhBUV_YvIqsFreg9QDARxby-TWEia-A/edit?usp=sharing) |  | Summary of discussion with Fastly about how they measure |
+| [Example internal pitch deck from Nutanix](https://docs.google.com/presentation/d/1VsPqYG-IbWsDPds7F0yo-gih5xR1ISKj/edit?usp=sharing&ouid=101039358388338051104&rtpof=true&sd=true) |  | Nutanix champions genericized their internal deck and shared with Fleet to reuse |
+| [2025 - Gartner IT Symposium Updated (1).pdf](https://drive.google.com/file/d/1HK1QXA2kOCeOoOG1E0-tk7-xwBhQ2QMa/view?usp=sharing) |  | Executive summary of value / outcomes from GitOps |
+| [Linux endpoint management for Enterprise IT](https://www.linkedin.com/events/7361776596396957696/) (lead by Kadar Anwar and Cisco) |  | Workstation Linux MDM (not servers/observability) |
+| [Translating Jamf Pro terminology & capabilities](https://fleetdm.com/guides/translating-jamf-pro-terminology#basic-article) |  |  |
 
 
 ## Responsibilities
 
-The Marketing department is directly responsible for achieving revenue pipeline targets, increasing awareness and interest in the open-source project, and nurturing the Fleet community through participation in video, sponsored events, and other [programs](https://fleetdm.com/handbook/company/communications#programs).
+The Marketing department is directly responsible for achieving revenue pipeline targets, increasing awareness and interest in the open-source project, customer training curriculums, prospect enablement, and nurturing the Fleet community through participation in video, sponsored events, and other [programs](https://fleetdm.com/handbook/company/communications#programs).
 
 
 ### Organize work in GitHub issues with marketing labels
@@ -44,6 +117,11 @@ In the Marketing department, we're using the following issue labels to organize 
 ### Prepare "Let's get you set up!" meeting notes
 
 Before each group call, copy the attendees from the "Lets get you set up! (group office hours)" calendar event and paste them into the correct section of the ["Let's get you set up!" meeting notes](https://docs.google.com/document/d/1rlvueDlTqiz0cyH426nVL6LXpv9MWDUtXW6YiMT3oK8/edit?tab=t.0#heading=h.l967l3n9mjnd), be sure to use the format listed in the doc.
+
+
+### Create UTM link
+
+Use the [Fleet UTM builder](https://docs.google.com/spreadsheets/d/1SO7-WIJSMPjEg89tskBIJmNj59xNySt0D-EjLg61IW8/edit?gid=0#gid=0) to create and record a UTM link needed for marketing campaigns
 
 
 ### Refresh event calendar
@@ -85,28 +163,86 @@ The Head of Marketing is the DRI for deploying Fleet's outward-facing content. T
 2. Attend a 30m meeting with Fleet's Client Platform Engineer & Community Advocate, CTO, and CEO to review and settle the proposed content.
 
 
-### Settle event strategy
 
- Fleet's [Head of Marketing](https://fleetdm.com/handbook/marketing#team) is the DRI for executing Fleet events efficiently, on-brand, and on-strategy within Fleet's event budget. Events are settled significantly in advance to provide ample time for strategy and planning.  
+### Fleet events
+We sponsor and participate in events so that we can support, connect, engage, and grow the Fleet community. We need to be thoughtful about what events we sponsor or host, and we need to be disciplined in how we run events so we can be efficient and effective.
 
-1. Using the [event strategy workbook](https://docs.google.com/spreadsheets/d/1YQXAX2Q_WnGkAwMYjMbQpV3nbCj7gOBbv7Y0u4twxzQ/edit#gid=1411322737), propose the events that Fleet will attend in the next 6 months, and the strategy for those events, including:
-  - Target buying situation of the audience.
-  - Who from Fleet will attend.
-  - The training plan for Fleet attendees.
-  - Which talk proposal Fleet will submit.
-  - All event materials, including printouts, banners, swag given out, and even the clothing worn by fleeties.
+There are three phases to running an event at FleetDM,
+- **Phase 1:** Propose, review and approve new events
+- **Phase 2:** Manage and and execute approved events
+- **Phase 3:** Event postgame
+
+#### Phase 1 Propose, review and approve new events
+**Objective:**  To ensure that the organization is aligned with the investment of time and resources to execute an event
+This process is managed through Fleet Issues and is summarized in a detailed tracking spreadsheet.
+
+See the section "Settle event strategy" below for the process.
+
+##### Settle event strategy (approve proposed events)
+
+Anyone at Fleet can propose a future event.
+Fleet's [Head of DemandGen](https://fleetdm.com/handbook/marketing#team) serves as the project manager for managing the event approval process. Events are settled in advance to provide ample time for strategy and planning. This includes any event that Fleet pays to attend or sponsor. 
+
+- Field/sales events and GitOps workshops are settled 1 sprint in advance.
+- Conferences are settled 1 quarter in advance. 
+
+Once events have been settled for a particular time frame, i.e, decided in a previous event strategy session, Fleet does not make changes except in extreme circumstances.
+
+1. Add all upcoming proposed in issues using the template (Prepare event: EVENT_NAME - CITY - YYYY-MM-DD). Approval is tracked and recorded in the ["🫧 Proposed events (not yet settled)" tab](https://docs.google.com/spreadsheets/d/1YQXAX2Q_WnGkAwMYjMbQpV3nbCj7gOBbv7Y0u4twxzQ/edit?gid=1411322737#gid=1411322737) of the 🎪 Events spreadsheet (confidential doc). 
+2. Proposed events will include the following information:
+  - Event Priority (Scale 1 - 10) where 1 is a top priority
+  - Event Name
+  - Event Location
+  - Event DRI
+  - Event Dates
+  - Type of Event
+  - Theme
+  - Event Registration
+  - Who from Fleet will attend?
+  - Which talk proposal will Fleet submit?
   - Estimated budget, including sponsorship or airfare, and lodging for attendees.
-2. Set up and attend a 30m meeting with the Head of Marketing, Head of Finance and Manager of Training and Enablement.
-  - First during this meeting, the Head of Marketing proposes an event issue for each of the **_current quarter's_** events to get input and any new information or changes from Fleet's CEO. (Events for the current quarter were already decided in a previous event strategy session, so Fleet does not make changes except in extreme circumstances.)
-  - Next, decide which events in the **_following quarter_** the company will invest time or money into.  This includes any event that Fleet pays to send someone to or to sponsor, and even events where Fleet's only involvement is that a fleetie will be giving a talk or otherwise representing the brand.
-  - Finally, qualify or disqualify any newly-entered event ideas by either verifying and setting the buying situation, or removing the event idea from the spreadsheet.
+2. Set up and attend a 30m meeting with the CMO, Head of Demand Generation, Head of GTM Architecture, and Manager of Training and Enablement.
+  - First, during this meeting, Marketing will decide which field/sales events and GitOps workshops Fleet will execute in the **following sprint**.
+  - Next, Marketing will decide which conferences in the **following quarter** the company will invest time or money into. 
+3. After the meeting, the Content Specialist will communicate the settled events by
+  - Moving all settled events to the "All 🎪 Official (planned & settled events)" tab of the 🎪 Events spreadsheet (confidential doc).
+  - Using the following template, post a message in the [#oooh-events Slack channel](https://fleetdm.slack.com/archives/C054TGK0H7X).
+
+```
+:fleet-swan: Hi all!
+Here are the [upcoming settled events](https://docs.google.com/spreadsheets/d/1YQXAX2Q_WnGkAwMYjMbQpV3nbCj7gOBbv7Y0u4twxzQ/edit?gid=692710204#gid=692710204) where you can find :fleet:Fleet!
+```
+
+4. Close all proposed event issues that weren't able to be prioritized with a comment explaining why.
+
+#### Phase 2 Manage and and execute approved events
+**Objective** To efficiently plan, organize,track and complete the tasks in order to excecute an event. This covers everything from once an event is approved to when the event is finished.  From detail planning to promotion, staff assignments to logistics, events can be complicated projects that need focused attention.
+
+Event execution needs to plan and track the detail decisions supporting:
+
+1. **All Event Logistics.** (Location, Venue, Start and End Date/Time, Event Website, Shipping, Staff schedules, costs, and more)
+2. **Speaking sessions:** (Location, time, talk metadata(title, abstract, etc), av requirements, and more)
+3. **Event Pre Promotion:** (landing page, blog, social, email, customers, prospects, etc)
+4. **Lead capture plans and process:** (scanning process, qualifying questions)
+5. **Booth:** Design, messaging, staffing hours and assignments, attire, swag, power, etc.)
+6. **Key vendor relationships:** (Event Organizer, booth builder, site logisitcs, scanning tech, av tech)
+
+This will be managed in a structure central document for each event so that attendees and organizers have a central place to find information and collaborate. 
+
+[Planning Doc/Tracking Template](https://docs.google.com/document/d/1Td1XtFClRlOMDuoojXUkJvU8f6MUEjsBacMVRqEJbQQ/edit?tab=t.uych0uenb12p#heading=h.qhf7mkrao68w0
+
+#### Phase 3 Event postgame
+**Objective** To consistently wrap up an event, gather lessons learned, and ensure the organization follows through with our new relationships.  
+
+After the event there are three important activites that need to be completed.
+
+1. **Update CRM:** The CRM is our single source of truth about our relationships. So, it is critical that all the information from what happened at the event is promptly updated in the CRM.
+2. **Follow up:** When we make new friends and connections at an event, we must be prompt in follow through and connecting with them after the event. The CRM is the main way to prompt the right person at Fleet to reach back out and follow up.
+3. **Post Mortem:** Learn and improve from the previous event. (gather feedback, review lessons learned, and update processes and strategy)
+
+(Template details TBD)
 
 
-### Book an event
-
-Fleet's Head of Marketing is responsible for booking events that Fleet has chosen to attend and/or sponsor. To book an event, complete the steps in each event issue. Contact the [🫧 Head of Marketing](https://fleetdm.com/handbook/marketing#team) as needed with any questions or blockers to booking an event.
-
-> Note: The Marketing department [settles all event strategy](https://fleetdm.com/handbook/marketing#settle-event-strategy) prior to booking an event. 
 
 <!-- TODO Create Article issue template and update this section of the handbook to reflect reality and add corresponding rituals to engineering.rituals.yml
 
@@ -276,8 +412,6 @@ This view displays the website's efficiency by tracking the rate at which users 
 
 <rituals :rituals="rituals['handbook/marketing/marketing.rituals.yml']"></rituals>
 
-
-
 #### Stubs
 The following stubs are included only to make links backward compatible
 
@@ -295,10 +429,6 @@ Please see [handbook/company/communications#events](https://fleetdm.com/handbook
 
 ##### Video
 Please see [handbook/company/communications#video](https://fleetdm.com/handbook/company/communications#video)
-
-
-
-
 
 <meta name="maintainedBy" value="akuthiala">
 <meta name="title" value="🫧 Marketing">

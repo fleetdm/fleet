@@ -1,5 +1,5 @@
 import React from "react";
-import { screen, waitFor } from "@testing-library/react";
+import { screen } from "@testing-library/react";
 import { createCustomRenderer } from "test/test-utils";
 
 import createMockUser from "__mocks__/userMock";
@@ -56,150 +56,8 @@ describe("Host Summary section", () => {
     });
   });
 
-  describe("Disk encryption data", () => {
-    it("renders 'On' for macOS when enabled", () => {
-      const render = createCustomRenderer({
-        context: {
-          app: {
-            isPremiumTier: true,
-            isGlobalAdmin: true,
-            currentUser: createMockUser(),
-          },
-        },
-      });
-      const summaryData = createMockHostSummary({
-        platform: "darwin",
-        disk_encryption_enabled: true,
-      });
-      render(<HostSummary summaryData={summaryData} />);
-      expect(screen.getByText("Disk encryption")).toBeInTheDocument();
-      expect(screen.getByText("On")).toBeInTheDocument();
-    });
-
-    it("renders 'Off' for Windows when disabled", () => {
-      const render = createCustomRenderer({
-        context: {
-          app: {
-            isPremiumTier: true,
-            isGlobalAdmin: true,
-            currentUser: createMockUser(),
-          },
-        },
-      });
-      const summaryData = createMockHostSummary({
-        platform: "windows",
-        disk_encryption_enabled: false,
-      });
-      render(<HostSummary summaryData={summaryData} />);
-      expect(screen.getByText("Disk encryption")).toBeInTheDocument();
-      expect(screen.getByText("Off")).toBeInTheDocument();
-    });
-
-    it("renders Chromebook message for Chrome platform", () => {
-      const render = createCustomRenderer({
-        context: {
-          app: {
-            isPremiumTier: true,
-            isGlobalAdmin: true,
-            currentUser: createMockUser(),
-          },
-        },
-      });
-      const summaryData = createMockHostSummary({ platform: "chrome" });
-      render(<HostSummary summaryData={summaryData} />);
-      expect(screen.getByText("Always on")).toBeInTheDocument();
-    });
-  });
-
-  describe("Agent data", () => {
-    it("with all info present, render Agent header with orbit_version and tooltip with all 3 data points", async () => {
-      const render = createCustomRenderer({
-        context: {
-          app: {
-            isPremiumTier: true,
-            isGlobalAdmin: true,
-            currentUser: createMockUser(),
-          },
-        },
-      });
-      const summaryData = createMockHostSummary();
-      const orbitVersion = summaryData.orbit_version as string;
-      const osqueryVersion = summaryData.osquery_version as string;
-      const fleetdVersion = summaryData.fleet_desktop_version as string;
-
-      const { user } = render(<HostSummary summaryData={summaryData} />);
-
-      expect(screen.getByText("Agent")).toBeInTheDocument();
-
-      await user.hover(screen.getByText(new RegExp(orbitVersion, "i")));
-
-      await waitFor(() => {
-        expect(
-          screen.getByText(new RegExp(osqueryVersion, "i"))
-        ).toBeInTheDocument();
-        expect(
-          screen.getByText(new RegExp(fleetdVersion, "i"))
-        ).toBeInTheDocument();
-      });
-    });
-
-    it("omit fleet desktop from tooltip if no fleet desktop version", async () => {
-      const render = createCustomRenderer({
-        context: {
-          app: {
-            isPremiumTier: true,
-            isGlobalAdmin: true,
-            currentUser: createMockUser(),
-          },
-        },
-      });
-      const summaryData = createMockHostSummary({
-        fleet_desktop_version: null,
-      });
-      const orbitVersion = summaryData.orbit_version as string;
-      const osqueryVersion = summaryData.osquery_version as string;
-
-      const { user } = render(<HostSummary summaryData={summaryData} />);
-
-      expect(screen.getByText("Agent")).toBeInTheDocument();
-
-      await user.hover(screen.getByText(new RegExp(orbitVersion, "i")));
-
-      await waitFor(() => {
-        expect(
-          screen.getByText(new RegExp(osqueryVersion, "i"))
-        ).toBeInTheDocument();
-        expect(screen.queryByText(/Fleet desktop:/i)).not.toBeInTheDocument();
-      });
-    });
-
-    it("for Chromebooks, render Agent header with osquery_version that is the fleetd chrome version and no tooltip", async () => {
-      const render = createCustomRenderer({
-        context: {
-          app: {
-            isPremiumTier: true,
-            isGlobalAdmin: true,
-            currentUser: createMockUser(),
-          },
-        },
-      });
-      const summaryData = createMockHostSummary({
-        platform: "chrome",
-        osquery_version: "fleetd-chrome 1.2.0",
-      });
-
-      const fleetdChromeVersion = summaryData.osquery_version as string;
-
-      const { user } = render(<HostSummary summaryData={summaryData} />);
-
-      expect(screen.getByText("Agent")).toBeInTheDocument();
-      await user.hover(screen.getByText(new RegExp(fleetdChromeVersion, "i")));
-      expect(screen.queryByText("Osquery")).not.toBeInTheDocument();
-    });
-  });
-
   describe("iOS and iPadOS data", () => {
-    it("for iOS, renders Team, Disk space, and Operating system data only", async () => {
+    it("for iOS, renders Team data only", async () => {
       const render = createCustomRenderer({
         context: {
           app: {
@@ -218,28 +76,14 @@ describe("Host Summary section", () => {
       });
 
       const teamName = summaryData.team_name as string;
-      const diskSpaceAvailable = summaryData.gigs_disk_space_available as string;
-      const osVersion = summaryData.os_version as string;
 
       render(<HostSummary summaryData={summaryData} isPremiumTier />);
 
       expect(screen.getByText("Team").nextElementSibling).toHaveTextContent(
         teamName
       );
-      expect(
-        screen.getByText("Disk space").nextElementSibling
-      ).toHaveTextContent(`${diskSpaceAvailable} GB available`);
-      expect(
-        screen.getByText("Operating system").nextElementSibling
-      ).toHaveTextContent(osVersion);
-
-      expect(screen.queryByText("Status")).not.toBeInTheDocument();
-      expect(screen.queryByText("Memory")).not.toBeInTheDocument();
-      expect(screen.queryByText("Processor type")).not.toBeInTheDocument();
-      expect(screen.queryByText("Agent")).not.toBeInTheDocument();
-      expect(screen.queryByText("Osquery")).not.toBeInTheDocument();
     });
-    it("for iPadOS, renders Team, Disk space, and Operating system data only", async () => {
+    it("for iPadOS, renders Team data only", async () => {
       const render = createCustomRenderer({
         context: {
           app: {
@@ -258,26 +102,12 @@ describe("Host Summary section", () => {
       });
 
       const teamName = summaryData.team_name as string;
-      const diskSpaceAvailable = summaryData.gigs_disk_space_available as string;
-      const osVersion = summaryData.os_version as string;
 
       render(<HostSummary summaryData={summaryData} isPremiumTier />);
 
       expect(screen.getByText("Team").nextElementSibling).toHaveTextContent(
         teamName
       );
-      expect(
-        screen.getByText("Disk space").nextElementSibling
-      ).toHaveTextContent(`${diskSpaceAvailable} GB available`);
-      expect(
-        screen.getByText("Operating system").nextElementSibling
-      ).toHaveTextContent(osVersion);
-
-      expect(screen.queryByText("Status")).not.toBeInTheDocument();
-      expect(screen.queryByText("Memory")).not.toBeInTheDocument();
-      expect(screen.queryByText("Processor type")).not.toBeInTheDocument();
-      expect(screen.queryByText("Agent")).not.toBeInTheDocument();
-      expect(screen.queryByText("Osquery")).not.toBeInTheDocument();
     });
   });
 
@@ -332,100 +162,6 @@ describe("Host Summary section", () => {
         />
       );
       expect(screen.getByText("Bootstrap package")).toBeInTheDocument();
-    });
-  });
-
-  describe("Disk space field visibility", () => {
-    it("hides disk space field when storage measurement is not supported (sentinel value -1)", () => {
-      const render = createCustomRenderer({
-        context: {
-          app: {
-            isPremiumTier: false,
-            isGlobalAdmin: true,
-            currentUser: createMockUser(),
-          },
-        },
-      });
-
-      const summaryData = createMockHostSummary({
-        gigs_disk_space_available: -1,
-        percent_disk_space_available: 0,
-        platform: "android",
-      });
-
-      render(<HostSummary summaryData={summaryData} />);
-
-      // Disk space field should not be rendered at all
-      expect(screen.queryByText("Disk space")).not.toBeInTheDocument();
-    });
-
-    it("shows disk space field for zero storage (disk full)", () => {
-      const render = createCustomRenderer({
-        context: {
-          app: {
-            isPremiumTier: false,
-            isGlobalAdmin: true,
-            currentUser: createMockUser(),
-          },
-        },
-      });
-
-      const summaryData = createMockHostSummary({
-        gigs_disk_space_available: 0,
-        percent_disk_space_available: 0,
-        platform: "android",
-      });
-
-      render(<HostSummary summaryData={summaryData} />);
-
-      // Disk space field should be rendered
-      expect(screen.getByText("Disk space")).toBeInTheDocument();
-    });
-
-    it("renders disk space normally for positive values", () => {
-      const render = createCustomRenderer({
-        context: {
-          app: {
-            isPremiumTier: false,
-            isGlobalAdmin: true,
-            currentUser: createMockUser(),
-          },
-        },
-      });
-
-      const summaryData = createMockHostSummary({
-        gigs_disk_space_available: 25.5,
-        percent_disk_space_available: 50,
-        platform: "darwin",
-      });
-
-      render(<HostSummary summaryData={summaryData} />);
-
-      // Disk space field should be rendered with the value
-      expect(screen.getByText("Disk space")).toBeInTheDocument();
-    });
-
-    it("handles other negative values as not supported", () => {
-      const render = createCustomRenderer({
-        context: {
-          app: {
-            isPremiumTier: false,
-            isGlobalAdmin: true,
-            currentUser: createMockUser(),
-          },
-        },
-      });
-
-      const summaryData = createMockHostSummary({
-        gigs_disk_space_available: -10,
-        percent_disk_space_available: 0,
-        platform: "android",
-      });
-
-      render(<HostSummary summaryData={summaryData} />);
-
-      // Disk space field should not be rendered for any negative value
-      expect(screen.queryByText("Disk space")).not.toBeInTheDocument();
     });
   });
 });

@@ -1,0 +1,1 @@
+Improved OpenTelemetry tracing: added proper shutdown to flush pending spans, and added service name/version resource attributes for better trace identification.

@@ -178,7 +178,10 @@ const FleetMaintainedAppDetailsPage = ({
     isError: isErrorLabels,
   } = useQuery<ILabelSummary[], Error>(
     ["custom_labels"],
-    () => labelsAPI.summary().then((res) => getCustomLabels(res.labels)),
+    () =>
+      labelsAPI
+        .summary(parseInt(teamId || "0", 10))
+        .then((res) => getCustomLabels(res.labels)),
 
     {
       ...DEFAULT_USE_QUERY_OPTIONS,

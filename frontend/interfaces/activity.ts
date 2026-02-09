@@ -79,6 +79,7 @@ export enum ActivityType {
   CreatedAndroidProfile = "created_android_profile",
   DeletedAndroidProfile = "deleted_android_profile",
   EditedAndroidProfile = "edited_android_profile",
+  EditedAndroidCertificate = "edited_android_certificate",
   // Note: Both "enabled_disk_encryption" and "enabled_macos_disk_encryption" display the same
   // message. The latter is deprecated in the API but it is retained here for backwards compatibility.
   EnabledDiskEncryption = "enabled_disk_encryption",
@@ -141,6 +142,8 @@ export enum ActivityType {
   DeletedMSEntraConditionalAccess = "deleted_conditional_access_integration_microsoft",
   AddedConditionalAccessOkta = "added_conditional_access_okta",
   DeletedConditionalAccessOkta = "deleted_conditional_access_okta",
+  HostBypassedConditionalAccess = "host_bypassed_conditional_access",
+  UpdatedConditionalAccessBypass = "update_conditional_access_bypass",
   // enable/disable above feature for a team
   EnabledConditionalAccessAutomations = "enabled_conditional_access_automations",
   DisabledConditionalAccessAutomations = "disabled_conditional_access_automations",
@@ -149,8 +152,9 @@ export enum ActivityType {
   DeletedCustomVariable = "deleted_custom_variable",
   EditedSetupExperienceSoftware = "edited_setup_experience_software",
   EditedHostIdpData = "edited_host_idp_data",
-  CreatedCertificate = "created_certificate",
+  AddedCertificate = "added_certificate",
   DeletedCertificate = "deleted_certificate",
+  EditedEnrollSecrets = "edited_enroll_secrets",
 }
 
 /** This is a subset of ActivityType that are shown only for the host past activities */
@@ -179,7 +183,7 @@ export type IHostUpcomingActivityType =
 
 export interface IActivity {
   created_at: string;
-  id: number;
+  id: number | string;
   actor_full_name: string;
   actor_id: number;
   actor_gravatar: string;
@@ -211,6 +215,7 @@ export interface IActivityDetails {
   bootstrap_package_name?: string;
   batch_execution_id?: string;
   command_uuid?: string;
+  host_uuid?: string;
   deadline_days?: number;
   deadline?: string;
   email?: string;
@@ -269,6 +274,7 @@ export interface IActivityDetails {
   webhook_url?: string;
   custom_variable_name?: string;
   host_idp_username?: string;
+  idp_full_name?: string;
 }
 
 // maps activity types to their corresponding label to use when filtering activites via the dropdown
@@ -416,12 +422,19 @@ export const ACTIVITY_TYPE_TO_FILTER_LABEL: Record<ActivityType, string> = {
     "Deleted configuration profile: Android",
   [ActivityType.EditedAndroidProfile]:
     "GitOps: edited configuration profiles: Android",
+  [ActivityType.EditedAndroidCertificate]:
+    "GitOps: edited certificate templates: Android",
   [ActivityType.AddedConditionalAccessOkta]: "Added conditional access: Okta",
+  [ActivityType.HostBypassedConditionalAccess]:
+    "Host bypassed conditional access",
+  [ActivityType.UpdatedConditionalAccessBypass]:
+    "Updated conditional access experience",
   [ActivityType.DeletedConditionalAccessOkta]:
     "Deleted conditional access: Okta",
   [ActivityType.EditedSetupExperienceSoftware]:
     "Edited setup experience software",
   [ActivityType.EditedHostIdpData]: "Edited host identity provider (IdP) data",
-  [ActivityType.CreatedCertificate]: "Created certificate",
+  [ActivityType.AddedCertificate]: "Added certificate",
   [ActivityType.DeletedCertificate]: "Deleted certificate",
+  [ActivityType.EditedEnrollSecrets]: "Edited enroll secrets",
 };

@@ -99,6 +99,7 @@ func setupMockDatastorePremiumService(t testing.TB) (*mock.Store, *eeservice.Ser
 		nil,
 		nil,
 		nil,
+		nil,
 	)
 	if err != nil {
 		panic(err)
@@ -229,7 +230,7 @@ func TestGetOrCreatePreassignTeam(t *testing.T) {
 		ds.GetMDMAppleSetupAssistantFunc = func(ctx context.Context, teamID *uint) (*fleet.MDMAppleSetupAssistant, error) {
 			return nil, errors.New("not implemented")
 		}
-		ds.LabelIDsByNameFunc = func(ctx context.Context, names []string) (map[string]uint, error) {
+		ds.LabelIDsByNameFunc = func(ctx context.Context, names []string, filter fleet.TeamFilter) (map[string]uint, error) {
 			require.Len(t, names, 1)
 			require.ElementsMatch(t, names, []string{fleet.BuiltinLabelMacOS14Plus})
 			return map[string]uint{names[0]: 1}, nil

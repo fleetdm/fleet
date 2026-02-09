@@ -43,6 +43,7 @@ interface ITargetChooserProps {
   onSelect: (val: string) => void;
   disableOptions?: boolean;
   title: string | null;
+  subTitle?: string;
 }
 
 const TargetChooser = ({
@@ -50,10 +51,12 @@ const TargetChooser = ({
   onSelect,
   disableOptions = false,
   title,
+  subTitle,
 }: ITargetChooserProps) => {
   return (
     <div className="form-field">
       {title && <div className="form-field__label">{title}</div>}
+      {subTitle && <div className="form-field__subtitle">{subTitle}</div>}
       <Radio
         className={`${baseClass}__radio-input`}
         label="All hosts"
@@ -182,6 +185,7 @@ interface ITargetLabelSelectorProps {
   disableOptions?: boolean;
   title?: string;
   suppressTitle?: boolean;
+  subTitle?: string;
 }
 
 const TargetLabelSelector = ({
@@ -200,6 +204,7 @@ const TargetLabelSelector = ({
   onSelectLabel,
   disableOptions = false,
   title = "Target",
+  subTitle,
   suppressTitle = false,
 }: ITargetLabelSelectorProps) => {
   const classNames = classnames(baseClass, className, "form");
@@ -211,6 +216,7 @@ const TargetLabelSelector = ({
         onSelect={onSelectTargetType}
         disableOptions={disableOptions}
         title={suppressTitle ? null : title}
+        subTitle={subTitle}
       />
       {selectedTargetType === "Custom" && (
         <LabelChooser

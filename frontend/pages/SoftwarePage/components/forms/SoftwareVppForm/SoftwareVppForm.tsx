@@ -5,7 +5,7 @@ import { AppContext } from "context/app";
 
 import { ILabelSummary } from "interfaces/label";
 import { PLATFORM_DISPLAY_NAMES } from "interfaces/platform";
-import { IAppStoreApp } from "interfaces/software";
+import { IAppStoreApp, isIpadOrIphoneSoftware } from "interfaces/software";
 import { IVppApp } from "services/entities/mdm_apple";
 
 import Card from "components/Card";
@@ -154,7 +154,7 @@ const SoftwareVppForm = ({
   );
 
   const [formValidation, setFormValidation] = useState<IFormValidation>({
-    isValid: !!softwareVppForEdit, // Disables submit before VPP to add is selected
+    isValid: false, // Disables submit before VPP to add is selected and before edit VPP is edited
   });
 
   const onFormSubmit = (evt: React.FormEvent<HTMLFormElement>) => {
@@ -184,6 +184,7 @@ const SoftwareVppForm = ({
   const onToggleSelfServiceCheckbox = (value: boolean) => {
     const newData = { ...formData, selfService: value };
     setFormData(newData);
+    setFormValidation(generateFormValidation(newData));
   };
 
   const onSelectCategory = ({
@@ -217,6 +218,7 @@ const SoftwareVppForm = ({
   const onToggleAutomaticInstall = (value: boolean) => {
     const newData = { ...formData, automaticInstall: value };
     setFormData(newData);
+    setFormValidation(generateFormValidation(newData));
   };
 
   const onSelectTargetType = (value: string) => {
@@ -228,6 +230,7 @@ const SoftwareVppForm = ({
   const onSelectCustomTargetOption = (value: string) => {
     const newData = { ...formData, customTarget: value };
     setFormData(newData);
+    setFormValidation(generateFormValidation(newData));
   };
 
   const onSelectLabel = ({ name, value }: { name: string; value: boolean }) => {
@@ -244,6 +247,7 @@ const SoftwareVppForm = ({
   const renderContent = () => {
     // Edit VPP form
     if (softwareVppForEdit) {
+      const isAppleMobile = isIpadOrIphoneSoftware(softwareVppForEdit.platform);
       return (
         <div className={`${baseClass}__form-fields`}>
           <FileDetails
@@ -264,10 +268,7 @@ const SoftwareVppForm = ({
                 onSelectCategory={onSelectCategory}
                 isEditingSoftware
                 onClickPreviewEndUserExperience={() =>
-                  onClickPreviewEndUserExperience(
-                    softwareVppForEdit.platform === "ios" ||
-                      softwareVppForEdit.platform === "ipados"
-                  )
+                  onClickPreviewEndUserExperience(isAppleMobile)
                 }
               />
             </Card>
@@ -284,6 +285,11 @@ const SoftwareVppForm = ({
                 labels={labels || []}
                 dropdownHelpText={
                   generateHelpText(false, formData.customTarget) // maps to !automaticInstall help text
+                }
+                subTitle={
+                  isAppleMobile
+                    ? "Changing this will also apply to targets for auto-updates."
+                    : ""
                 }
               />
             </Card>
@@ -321,8 +327,7 @@ const SoftwareVppForm = ({
                 onSelectCategory={onSelectCategory}
                 onClickPreviewEndUserExperience={() =>
                   onClickPreviewEndUserExperience(
-                    formData.selectedApp?.platform === "ios" ||
-                      formData.selectedApp?.platform === "ipados"
+                    isIpadOrIphoneSoftware(formData.selectedApp?.platform || "")
                   )
                 }
               />

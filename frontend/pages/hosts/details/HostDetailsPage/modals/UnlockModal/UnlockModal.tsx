@@ -130,7 +130,7 @@ const UnlockModal = ({
   };
 
   return (
-    <Modal className={baseClass} title="Unlock host" onExit={onClose}>
+    <Modal className={baseClass} title="Unlock" onExit={onClose}>
       <>
         <div className={`${baseClass}__modal-content`}>
           {renderModalContent()}

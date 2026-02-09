@@ -166,7 +166,8 @@ const SelectTargets = ({
     isLoading: isLoadingLabels,
   } = useQuery<ILabelsSummaryResponse, Error, ILabelSummary[]>(
     ["labelsSummary"],
-    labelsAPI.summary,
+    // labels API automatically filters to global/team labels user has access to, so no need for additional params
+    () => labelsAPI.summary(),
     {
       select: (data) => data.labels,
       staleTime: STALE_TIME, // TODO: confirm

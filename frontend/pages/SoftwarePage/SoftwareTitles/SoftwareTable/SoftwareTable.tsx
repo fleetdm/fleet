@@ -134,11 +134,14 @@ const SoftwareTable = ({
         page: changedParam === "pageIndex" ? newTableQuery.pageIndex : 0,
         ...buildSoftwareVulnFiltersQueryParams(vulnFilters),
       };
-      if (softwareFilter === "installableSoftware") {
-        newQueryParam.available_for_install = true.toString();
-      }
-      if (softwareFilter === "selfServiceSoftware") {
-        newQueryParam.self_service = true.toString();
+      // Only include these filters when not on “All teams”
+      if (teamId !== undefined) {
+        if (softwareFilter === "installableSoftware") {
+          newQueryParam.available_for_install = "true";
+        }
+        if (softwareFilter === "selfServiceSoftware") {
+          newQueryParam.self_service = "true";
+        }
       }
 
       return newQueryParam;
@@ -153,11 +156,8 @@ const SoftwareTable = ({
       // reset the page index to 0 if any other param has changed.
       const changedParam = determineQueryParamChange(newTableQuery);
 
-      // if nothing has changed, don't update the route. this can happen when
-      // this handler is called on the inital render. Can also happen when
-      // the filter dropdown is changed. That is handled on the onChange handler
-      // for the dropdown.
-      if (changedParam === "") return;
+      // Note: There may be no changedParam on initial render, but we still may need
+      // to strip unwanted params with generateNewQueryParams so do NOT early return
 
       const newRoute = getNextLocationPath({
         pathPrefix: currentPath,
@@ -367,7 +367,8 @@ const SoftwareTable = ({
         // additionalQueries serves as a trigger for the useDeepEffect hook
         // to fire onQueryChange for events happening outside of
         // the TableContainer.
-        // additionalQueries={softwareFilter}
+        // This is necessary to remove unwanted query params from the URL
+        additionalQueries={softwareFilter}
         customControl={showFilterHeaders ? renderCustomControls : undefined}
         customFiltersButton={
           showFilterHeaders ? renderCustomFiltersButton : undefined

@@ -2,7 +2,6 @@ import {
   IBootstrapPackageAggregate,
   IBootstrapPackageMetadata,
   IHostMdmProfile,
-  IMdmCommandResult,
   IMdmProfile,
   IMdmSSOReponse,
   MdmProfileStatus,
@@ -81,10 +80,6 @@ export interface IMDMAppleEnrollmentProfileParams {
   deviceinfo?: string;
 }
 
-export interface IGetMdmCommandResultsResponse {
-  results: IMdmCommandResult[];
-}
-
 export interface IGetSetupExperienceScriptResponse {
   id: number;
   team_id: number | null; // The API return null for no team in this case.
@@ -107,19 +102,14 @@ export type IGetBootstrapPackageSummaryResponse = IBootstrapPackageAggregate;
 
 const mdmService = {
   unenrollHostFromMdm: (hostId: number, timeout?: number) => {
-    const { HOST_MDM_UNENROLL } = endpoints;
+    const { HOST_MDM } = endpoints;
     return sendRequest(
-      "PATCH",
-      HOST_MDM_UNENROLL(hostId),
+      "DELETE",
+      HOST_MDM(hostId),
       undefined,
       undefined,
       timeout
     );
-  },
-  // Android-specific: admin-initiated unenroll uses POST /api/_version_/fleet/hosts/{id}/mdm/unenroll
-  unenrollAndroidHostFromMdm: (hostId: number, timeout?: number) => {
-    const path = `${endpoints.HOST_MDM(hostId)}/unenroll`;
-    return sendRequest("POST", path, undefined, undefined, timeout);
   },
   requestCSR: () => {
     const { MDM_REQUEST_CSR } = endpoints;
@@ -356,14 +346,6 @@ const mdmService = {
       { team_id: teamId }
     )}`;
     return sendRequest("DELETE", path);
-  },
-
-  getCommandResults: (
-    command_uuid: string
-  ): Promise<IGetMdmCommandResultsResponse> => {
-    const { COMMANDS_RESULTS: MDM_COMMANDS_RESULTS } = endpoints;
-    const url = `${MDM_COMMANDS_RESULTS}?command_uuid=${command_uuid}`;
-    return sendRequest("GET", url);
   },
 
   downloadManualEnrollmentProfile: (token: string) => {

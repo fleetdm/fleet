@@ -2,7 +2,7 @@ import React from "react";
 import { Column } from "react-table";
 
 import { IStringCellProps } from "interfaces/datatable_config";
-import { IHostMdmData } from "interfaces/host";
+import { HostAndroidCertStatus, IHostMdmData } from "interfaces/host";
 import {
   FLEET_FILEVAULT_PROFILE_DISPLAY_NAME,
   IHostMdmProfile,
@@ -12,6 +12,7 @@ import {
   MdmProfileStatus,
 } from "interfaces/mdm";
 import { isDDMProfile } from "services/entities/mdm";
+import { isIPadOrIPhone } from "interfaces/platform";
 
 import OSSettingsNameCell from "./OSSettingsNameCell";
 import OSSettingStatusCell from "./OSSettingStatusCell";
@@ -37,7 +38,8 @@ export type INonDDMProfileStatus = MdmProfileStatus | "action_required";
 
 export type OsSettingsTableStatusValue =
   | MdmDDMProfileStatus
-  | INonDDMProfileStatus;
+  | INonDDMProfileStatus
+  | HostAndroidCertStatus;
 
 const generateTableConfig = (
   canResendProfiles: boolean,
@@ -50,10 +52,16 @@ const generateTableConfig = (
       disableSortBy: true,
       accessor: "name",
       Cell: (cellProps: ITableStringCellProps) => {
+        let scope = cellProps.row.original.scope;
+
+        if (isIPadOrIPhone(cellProps.row.original.platform)) {
+          scope = null; // Don't show user-scoped icon for iOS/iPadOS profiles, since we don't support user channels.
+        }
+
         return (
           <OSSettingsNameCell
             profileName={cellProps.cell.value}
-            scope={cellProps.row.original.scope}
+            scope={scope}
             managedAccount={cellProps.row.original.managed_local_account}
           />
         );

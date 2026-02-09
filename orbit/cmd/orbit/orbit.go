@@ -924,7 +924,7 @@ func main() {
 			}
 
 			options = append(options,
-				osquery.WithFlags(osquery.FleetFlags(parsedURL)),
+				osquery.WithFlags(osquery.FleetFlags(updateRunner.OsqueryVersion, parsedURL)),
 				osquery.WithFlags([]string{"--tls_server_certs", certPath}),
 			)
 		} else if fleetURL != "https://" {
@@ -938,7 +938,7 @@ func main() {
 			}
 
 			options = append(options,
-				osquery.WithFlags(osquery.FleetFlags(parsedURL)),
+				osquery.WithFlags(osquery.FleetFlags(updateRunner.OsqueryVersion, parsedURL)),
 			)
 
 			if certPath = c.String("fleet-certificate"); certPath != "" {
@@ -1090,7 +1090,7 @@ func main() {
 			hostIdentityCertificatePath = hostIdentityCredentials.CertificatePath
 
 			options = append(options,
-				osquery.WithFlags(osquery.FleetFlags(proxy.ParsedURL)),
+				osquery.WithFlags(osquery.FleetFlags(updateRunner.OsqueryVersion, proxy.ParsedURL)),
 
 				// This is overriding the previous set of --tls_server_certs in osquery.FleetFlags above.
 				osquery.WithFlags([]string{"--tls_server_certs", proxy.CertificatePath}),

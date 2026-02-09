@@ -16,7 +16,30 @@ object KeystoreManager {
     private const val GCM_TAG_LENGTH = 128
     private const val IV_SEPARATOR = "]"
 
+    // Test mode uses in-memory key instead of Android Keystore
+    private var testMode = false
+    private var testKey: SecretKey? = null
+
+    /**
+     * Enables test mode which uses an in-memory key instead of Android Keystore.
+     * This allows unit tests to run without Android's hardware-backed keystore.
+     */
+    fun enableTestMode() {
+        testMode = true
+        testKey = KeyGenerator.getInstance("AES").apply {
+            init(256)
+        }.generateKey()
+    }
+
+    fun disableTestMode() {
+        testMode = false
+        testKey = null
+    }
+
     private fun getOrCreateKey(): SecretKey {
+        if (testMode) {
+            return testKey ?: error("Test mode enabled but no test key available")
+        }
         val keyStore = KeyStore.getInstance(ANDROID_KEYSTORE).apply {
             load(null)
         }
@@ -41,7 +64,8 @@ object KeystoreManager {
             return keyGenerator.generateKey()
         }
 
-        return keyStore.getKey(KEY_ALIAS, null) as SecretKey
+        return keyStore.getKey(KEY_ALIAS, null) as? SecretKey
+            ?: error("Key $KEY_ALIAS exists but could not be retrieved")
     }
 
     fun encrypt(plaintext: String): String {

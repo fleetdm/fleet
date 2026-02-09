@@ -15,7 +15,7 @@ type Service interface {
 	EnterpriseSignupSSE(ctx context.Context) (chan string, error)
 
 	// CreateEnrollmentToken creates an enrollment token for a new Android device.
-	CreateEnrollmentToken(ctx context.Context, enrollSecret, idpUUID string) (*EnrollmentToken, error)
+	CreateEnrollmentToken(ctx context.Context, enrollSecret, idpUUID string, fullyManaged bool) (*EnrollmentToken, error)
 	ProcessPubSubPush(ctx context.Context, token string, message *PubSubMessage) error
 
 	// UnenrollAndroidHost triggers unenrollment (work profile removal) for the given Android host ID.
@@ -28,6 +28,7 @@ type Service interface {
 	// not additive/PATCH semantics.
 	SetAppsForAndroidPolicy(ctx context.Context, enterpriseName string, appPolicies []*androidmanagement.ApplicationPolicy, hostUUIDs map[string]string) error
 	AddFleetAgentToAndroidPolicy(ctx context.Context, enterpriseName string, hostConfigs map[string]AgentManagedConfiguration) error
+	BuildFleetAgentApplicationPolicy(ctx context.Context, hostUUID string) (*androidmanagement.ApplicationPolicy, error)
 	// BuildAndSendFleetAgentConfig builds the complete AgentManagedConfiguration for the given hosts
 	// (including certificate templates) and sends it to the Android Management API.
 	// This is the centralized function that should be used by all callers to avoid race conditions.

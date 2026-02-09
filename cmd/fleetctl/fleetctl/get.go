@@ -673,6 +673,11 @@ func getLabelsCommand() *cli.Command {
 			configFlag(),
 			contextFlag(),
 			debugFlag(),
+			&cli.UintFlag{
+				Name:  teamFlagName,
+				Usage: "Return labels specific to this team ID; default global labels only when viewing multiple labels",
+				Value: 0,
+			},
 		},
 		Action: func(c *cli.Context) error {
 			client, err := clientFromCLI(c)
@@ -682,9 +687,9 @@ func getLabelsCommand() *cli.Command {
 
 			name := c.Args().First()
 
-			// if name wasn't provided, list all labels
+			// if name wasn't provided, list all labels, either globally or on a team
 			if name == "" {
-				labels, err := client.GetLabels()
+				labels, err := client.GetLabels(c.Uint(teamFlagName))
 				if err != nil {
 					return fmt.Errorf("could not list labels: %w", err)
 				}
@@ -717,6 +722,8 @@ func getLabelsCommand() *cli.Command {
 				printTable(c, columns, data)
 
 				return nil
+			} else if c.Uint(teamFlagName) != 0 {
+				return errors.New("cannot provide both a team ID and a label name")
 			}
 
 			// Label name was specified

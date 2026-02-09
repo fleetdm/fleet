@@ -1,6 +1,8 @@
 .certificate-details-modal {
   &__content {
     @include vertical-card-layout;
+    max-height: 600px;
+    overflow-y: auto;
   }
 
   h3 {

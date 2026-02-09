@@ -1,7 +1,5 @@
 # Software self-service
 
-![Software self-service](../website/assets/images/articles/software-self-service-1335x757@2x.png)
-
 _Available in Fleet Premium_
 
 Fleet’s self-service software lets end users update and install approved apps from a curated list on the **Fleet Desktop > Self-service** page. This reduces overhead for IT and keeps teams productive. This guide covers how to add, install, and update self-service software in Fleet.
@@ -14,6 +12,8 @@ Fleet’s self-service software lets end users update and install approved apps 
 4. Pick a [Fleet-maintained app](https://fleetdm.com/guides/fleet-maintained-apps), [app store app](https://fleetdm.com/guides/install-app-store-apps#add-the-app-to-fleet), or upload a [custom package](https://fleetdm.com/guides/deploy-software-packages).
 5. Check **Self-service** to make it available for self-service as soon as it's added.
 
+> Script packages (`.sh` and `.ps1` files) are useful for self-service configuration tasks like connecting to a VPN or configuring printers. Learn more in the [deploy software guide](https://fleetdm.com/guides/deploy-software-packages#script-packages).
+
 You can also add the software and later make it available in self-service:
 
 1. Select the team to which you added the software from the dropdown in the upper left corner of the page.
@@ -23,6 +23,35 @@ You can also add the software and later make it available in self-service:
 5. Select the **Save** button.
 
 If a software item isn't made available in self-service, end users will not see it in **Fleet Desktop > Self-service**. IT admins can still install, update, and uninstall the software from Fleet.
+
+## Deploy self-service on iOS and iPadOS
+
+Install this configuration profile to add the self-service web app to the home screen on iPhone and iPad.
+
+
+### Create the self-service configuration profile
+
+On your Mac, open [iMazing Profile Editor](https://imazing.com/profile-editor). Create a new profile and add a **Web Clip** payload with these settings:
+
+#### Under the General tab
+
+- **Name:** Friendly name like "iOS self-service".
+- **Identifier and UUID:** You can use default values.
+
+#### Under the Web Clip tab
+
+- **Label:** Type "Self-service". This name will display as the app name on the home screen.
+- **URL:** `<your_server_url>/device/$FLEET_VAR_HOST_UUID/self-service`
+- **Removable:** Uncheck it.
+- **Icon:** Upload a square icon that will be displayed as the app icon on the home screen.
+- **Full Screen:** Check this field.
+- **Target Application Bundle Identifier:** Select **Choose...**, type "safari" in the search box, and select **Safari - com.apple.mobilesafari**.
+
+#### Download configuration profile
+
+You can also download the configuration profile (`.mobileconfig`) and change values in code editor. If you want to change the icon, use iMazing Profile Editor and follow the steps above.
+
+Download example Web Clip profile from [our repository](https://github.com/fleetdm/fleet/tree/main/docs/solutions/ios-ipados/configuration-profiles/fleet-self-service.mobileconfig).
 
 ## IT admin experience
 
@@ -35,6 +64,10 @@ How to view, update, install, or uninstall self-service software:
 
 **Update** appears for [eligible updates](#how-updates-work), regardless of whether the app is set to self-service.
 
+Currently, for Apple App Store (VPP) apps, if Apple host is running an app version that can’t be updated because the latest App Store version requires a newer OS version, Fleet always shows “Update available.” The update then always fails, since the latest app version is incompatible with the host’s OS.
+
+To find the minimum OS version for the app, visit the [App Store](https://apps.apple.com/), find the app, scroll to the bottom, and look for **Compatibility** under **Information**.
+
 Tips:
 
 - Use the **Software > Library** table to quickly identify and action pending updates.
@@ -45,8 +78,15 @@ Tips:
 
 How to update, install, or uninstall self-service software:
 
-1. Find the Fleet icon in your menu bar and select **Self-service.** This will open your default web browser to the list of self-service software available to update, install, or uninstall.
-2. If updates are available, end users can update one or all available self-service software. They can also view update progress and error details directly.
+**macOS and Windows:**
+
+Find the Fleet icon in your menu bar (macOS) or system tray (Windows) and select **Self-service.** This will open your default web browser to the list of self-service software available to update, install, or uninstall.
+
+**iOS and iPadOS:**
+
+Tap the **Self-service** icon on your home screen. This opens the self-service software catalog where you can install apps.
+
+If updates are available, end users can update one or all available self-service software. They can also view update progress and error details directly.
 
 ## API
 
