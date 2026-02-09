@@ -10,7 +10,7 @@ Here's what you can configure, and in what order each happen, to your Windows an
 
 2. [Install software](#install-software) including [app store apps](https://fleetdm.com/guides/install-app-store-apps), [custom packages](https://fleetdm.com/guides/deploy-software-packages) (e.g. a bootstrap package), and [Fleet-maintained apps](https://fleetdm.com/guides/fleet-maintained-apps).
 
-Below is the end user experience for Linux. Checkout the separate video for [Windows](TODO).
+Below is the end user experience for Linux. Check out the separate video for [Windows](TODO).
 
 <div purpose="embedded-content">
    <iframe src="TODO" frameborder="0" allowfullscreen></iframe>
