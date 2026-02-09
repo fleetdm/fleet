@@ -668,9 +668,7 @@ func TestInstallShScriptOnDarwin(t *testing.T) {
 	}
 
 	// Capture that install request was inserted
-	insertCalled := false
 	ds.InsertSoftwareInstallRequestFunc = func(ctx context.Context, hostID uint, softwareInstallerID uint, opts fleet.HostSoftwareInstallOptions) (string, error) {
-		insertCalled = true
 		return "install-uuid", nil
 	}
 
@@ -682,7 +680,7 @@ func TestInstallShScriptOnDarwin(t *testing.T) {
 	// Install .sh on darwin should succeed (not return BadRequestError)
 	err := svc.InstallSoftwareTitle(ctx, 1, 100)
 	require.NoError(t, err, ".sh install on darwin should succeed")
-	require.True(t, insertCalled, "install request should be created")
+	require.True(t, ds.InsertSoftwareInstallRequestFuncInvoked, "install request should be created")
 }
 
 // TestInstallShScriptOnWindowsFails tests that .sh scripts can't be installed on Windows hosts.
