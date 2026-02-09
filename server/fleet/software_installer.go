@@ -777,7 +777,7 @@ type SoftwarePackageSpec struct {
 
 	// FMA
 	Slug    *string `json:"slug"`
-	Version string  `json:"version"` // TODO(JK): fine that it's not a pointer? Rename to MaintainedAppVersion? FMAVersion?
+	Version string  `json:"version"`
 
 	// ReferencedYamlPath is the resolved path of the file used to fill the
 	// software package. Only present after parsing a GitOps file on the fleetctl

@@ -443,7 +443,7 @@ type SoftwareInstallerPayload struct {
 	// This is to support FMAs
 	Slug                  *string        `json:"slug"`
 	MaintainedApp         *MaintainedApp `json:"-"`
-	FMAVersionPlaceholder string         `json:"fmaplaceholder"` // TODO(JK): this needs to be in the json so it can be sent to the batch request
+	FMAVersionPlaceholder string         `json:"fmaplaceholder"`
 
 	IconPath string `json:"-"`
 	IconHash string `json:"-"`
