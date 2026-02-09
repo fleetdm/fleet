@@ -252,7 +252,7 @@ const TeamManagementPage = (): JSX.Element => {
       return <></>;
     }
 
-    return <TableCount name="teams" count={teams?.length} />;
+    return <TableCount name="fleets" count={teams?.length} />;
   }, [teams]);
 
   const disabledPrimaryActionTooltip = (() => {
