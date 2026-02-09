@@ -60,7 +60,7 @@ type PolicyPayload struct {
 	// bypased by end users.
 	//
 	// Only applies to team policies.
-	ConditionalAccessBypassEnabled *bool
+	ConditionalAccessBypassEnabled bool
 }
 
 // NewTeamPolicyPayload holds data for team policy creation.
