@@ -101,7 +101,7 @@ export const isTeamTechnician = (
   return userTeamRole === "technician";
 };
 
-const isAnyTeamTechnician = (user: IUser): boolean => {
+export const isAnyTeamTechnician = (user: IUser): boolean => {
   if (!isOnGlobalTeam(user)) {
     return user.teams.some((team) => team?.role === "technician");
   }

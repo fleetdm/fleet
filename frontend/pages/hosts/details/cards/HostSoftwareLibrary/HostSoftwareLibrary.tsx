@@ -23,6 +23,7 @@ import {
 import { HostPlatform, isIPadOrIPhone, isAndroid } from "interfaces/platform";
 
 import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
+import permissions from "utilities/permissions";
 import { getPathWithQueryParams } from "utilities/url";
 
 import { NotificationContext } from "context/notification";
@@ -131,7 +132,7 @@ const HostSoftwareLibrary = ({
     isGlobalMaintainer,
     isTeamAdmin,
     isTeamMaintainer,
-    isTeamTechnician,
+    currentUser,
   } = useContext(AppContext);
 
   const isUnsupported = isAndroid(platform); // no Android software
@@ -452,7 +453,7 @@ const HostSoftwareLibrary = ({
       isGlobalMaintainer ||
       isTeamAdmin ||
       isTeamMaintainer ||
-      isTeamTechnician
+      permissions.isTeamTechnician(currentUser, hostTeamId)
   );
 
   // 4.77 Currently Android apps can only be installed via self-service by end user

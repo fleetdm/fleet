@@ -165,7 +165,7 @@ const ManagePolicyPage = ({
       maintainer: true,
       observer: true,
       observer_plus: true,
-      technician: false,
+      technician: true,
     },
   });
 
@@ -284,7 +284,6 @@ const ManagePolicyPage = ({
 
   const {
     data: globalPoliciesCount,
-
     isFetching: isFetchingGlobalCount,
     refetch: refetchGlobalPoliciesCount,
   } = useQuery<IPoliciesCountResponse, Error, number, IPoliciesCountQueryKey[]>(
