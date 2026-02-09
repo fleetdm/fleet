@@ -2008,7 +2008,7 @@ func (svc *Service) softwareInstallerPayloadFromSlug(ctx context.Context, payloa
 	}
 
 	if payload.RollbackVersion != "" {
-		// TODO(JK): validate version
+		// TODO: check that version is available for rollback
 	}
 
 	app, err := svc.ds.GetMaintainedAppBySlug(ctx, *slug, teamID)
