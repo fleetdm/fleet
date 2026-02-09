@@ -1,6 +1,6 @@
 # Fleet troubleshooting for IT admins
 
-Lorem ipsum...
+It would be great if computers always performed flawlessly, but sometimes errors occur. When things go wrong, digging into logs is one of the first steps to resolving an issue.
 
 
 ## Finding fleetd logs
@@ -70,5 +70,5 @@ fleetctl debug errors
 <meta name="category" value="guides">
 <meta name="authorFullName" value="Steven Palmesano">
 <meta name="authorGitHubUsername" value="spalmesano0">
-<meta name="publishedOn" value="2026-01-08">
+<meta name="publishedOn" value="2026-02-09">
 <meta name="articleTitle" value="Fleet troubleshooting for IT admins">
