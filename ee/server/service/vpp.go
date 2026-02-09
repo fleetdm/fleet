@@ -264,7 +264,7 @@ func (svc *Service) BatchAssociateVPPApps(ctx context.Context, teamName string, 
 	}
 
 	enterprise, err := svc.ds.GetEnterprise(ctx)
-	if err != nil {
+	if err != nil && !fleet.IsNotFound(err) {
 		return nil, &fleet.BadRequestError{Message: "Android MDM is not enabled", InternalErr: err}
 	}
 
@@ -287,6 +287,10 @@ func (svc *Service) BatchAssociateVPPApps(ctx context.Context, teamName string, 
 			}
 		}
 	} else {
+		if enterprise == nil {
+			return nil, &fleet.BadRequestError{Message: "Android MDM is not enabled", InternalErr: err}
+		}
+
 		for _, a := range incomingAndroidApps {
 			androidApp, err := svc.androidModule.EnterprisesApplications(ctx, enterprise.Name(), a.AdamID)
 			if err != nil {
