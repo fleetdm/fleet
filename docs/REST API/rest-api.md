@@ -3695,7 +3695,9 @@ Returns the information of the specified host.
 
 Returns the information of the host specified using the `hostname`, `uuid`, or `hardware_serial` as an identifier.
 
-If `hostname` is specified when there is more than one host with the same hostname, the endpoint returns the first matching host. In Fleet, hostnames are fully qualified domain names (FQDNs). `hostname` (e.g. johns-macbook-air.local) is not the same as `display_name` (e.g. John's MacBook Air).
+If `hostname` is specified when there is more than one host with the same hostname, the endpoint returns the first matching host. 
+
+> In Fleet, hostnames are fully qualified domain names (FQDNs). `hostname` (e.g. johns-macbook-air.local) is **not** the same as `display_name` (e.g. John's MacBook Air).
 
 `GET /api/v1/fleet/hosts/identifier/:identifier`
 

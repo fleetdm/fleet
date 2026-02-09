@@ -984,6 +984,84 @@ func testSoftwareList(t *testing.T, ds *Datastore) {
 			}
 		}
 	})
+
+	t.Run("SQL injection prevention in OrderKey", func(t *testing.T) {
+		maliciousPayloads := []string{
+			"name;DROP TABLE software--",
+			"name+SLEEP(2)+name",
+			"name` UNION SELECT * FROM users--",
+			"name`+SLEEP(2)+`name",
+			"`name` UNION SELECT password FROM users WHERE `name",
+			"name' OR '1'='1",
+		}
+
+		for _, payload := range maliciousPayloads {
+			opts := fleet.SoftwareListOptions{
+				ListOptions: fleet.ListOptions{
+					OrderKey: payload,
+				},
+				IncludeCVEScores: true,
+			}
+
+			_, _, err := ds.ListSoftware(context.Background(), opts)
+			require.Error(t, err, "SQL injection payload should result in column error: %s", payload)
+			require.Contains(t, err.Error(), "Unknown column", "Expected column error for payload: %s", payload)
+		}
+	})
+
+	t.Run("validate ORDER BY", func(t *testing.T) {
+		opts := fleet.SoftwareListOptions{
+			ListOptions: fleet.ListOptions{
+				OrderKey:       "name",
+				OrderDirection: fleet.OrderAscending,
+			},
+			IncludeCVEScores: true,
+		}
+		software, _, err := ds.ListSoftware(context.Background(), opts)
+		require.NoError(t, err)
+		require.Len(t, software, 5)
+
+		// ordered by name ascending
+		require.Equal(t, "bar", software[0].Name)
+		require.Equal(t, "baz", software[1].Name)
+		require.Equal(t, "foo", software[2].Name)
+		require.Equal(t, "foo", software[3].Name)
+		require.Equal(t, "foo", software[4].Name)
+
+		opts.ListOptions.OrderDirection = fleet.OrderDescending
+		software, _, err = ds.ListSoftware(context.Background(), opts)
+		require.NoError(t, err)
+		require.Len(t, software, 5)
+
+		// ordered by name descending
+		require.Equal(t, "foo", software[0].Name)
+		require.Equal(t, "foo", software[1].Name)
+		require.Equal(t, "foo", software[2].Name)
+		require.Equal(t, "baz", software[3].Name)
+		require.Equal(t, "bar", software[4].Name)
+
+		opts = fleet.SoftwareListOptions{
+			ListOptions: fleet.ListOptions{
+				OrderKey:       "name,version",
+				OrderDirection: fleet.OrderAscending,
+			},
+			IncludeCVEScores: true,
+		}
+		software, _, err = ds.ListSoftware(context.Background(), opts)
+		require.NoError(t, err)
+		require.Len(t, software, 5)
+
+		require.Equal(t, "bar", software[0].Name)
+		require.Equal(t, "0.0.3", software[0].Version)
+		require.Equal(t, "baz", software[1].Name)
+		require.Equal(t, "0.0.1", software[1].Version)
+		for i := 2; i < 5; i++ {
+			require.Equal(t, "foo", software[i].Name)
+		}
+		require.Equal(t, "0.0.1", software[2].Version)
+		require.Equal(t, "0.0.3", software[3].Version)
+		require.Equal(t, "v0.0.2", software[4].Version)
+	})
 }
 
 func listSoftwareCheckCount(t *testing.T, ds *Datastore, expectedListCount int, expectedFullCount int, opts fleet.SoftwareListOptions, returnSorted bool) []fleet.Software {
@@ -6303,8 +6381,8 @@ func testListHostSoftwareInstallThenTransferTeam(t *testing.T, ds *Datastore) {
 		require.Nil(t, sw[1].AppStoreApp)
 		require.Nil(t, sw[1].SoftwarePackage)
 	}
-
 }
+
 func testListHostSoftwareFailInstallThenTransferTeam(t *testing.T, ds *Datastore) {
 	ctx := context.Background()
 	user := test.NewUser(t, ds, "user1", "user1@example.com", false)

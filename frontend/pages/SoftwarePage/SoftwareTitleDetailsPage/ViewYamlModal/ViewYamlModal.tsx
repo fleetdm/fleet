@@ -6,7 +6,7 @@ import { NotificationContext } from "context/notification";
 import { LEARN_MORE_ABOUT_BASE_LINK } from "utilities/constants";
 import { getExtensionFromFileName } from "utilities/file/fileUtils";
 import FileSaver from "file-saver";
-import { ISoftwarePackage, SCRIPT_PACKAGE_SOURCES } from "interfaces/software";
+import { ISoftwarePackage } from "interfaces/software";
 import softwareAPI from "services/entities/software";
 
 import Modal from "components/Modal";

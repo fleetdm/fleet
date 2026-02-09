@@ -1645,6 +1645,7 @@ const HostDetailsPage = ({
             <WipeModal
               id={host.id}
               hostName={host.display_name}
+              isWindowsHost={isWindowsHost}
               onSuccess={() => setHostMdmDeviceState("wiping")}
               onClose={() => setShowWipeModal(false)}
             />

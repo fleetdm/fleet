@@ -101,7 +101,7 @@ type DeleteQueriesFunc func(ctx context.Context, ids []uint) (uint, error)
 
 type QueryFunc func(ctx context.Context, id uint) (*fleet.Query, error)
 
-type ListQueriesFunc func(ctx context.Context, opt fleet.ListQueryOptions) ([]*fleet.Query, int, *fleet.PaginationMetadata, error)
+type ListQueriesFunc func(ctx context.Context, opt fleet.ListQueryOptions) ([]*fleet.Query, int, int, *fleet.PaginationMetadata, error)
 
 type ListScheduledQueriesForAgentsFunc func(ctx context.Context, teamID *uint, hostID *uint, queryReportsDisabled bool) ([]*fleet.Query, error)
 
@@ -1549,17 +1549,17 @@ type BulkSetAndroidHostsUnenrolledFunc func(ctx context.Context) error
 
 type SetAndroidHostUnenrolledFunc func(ctx context.Context, hostID uint) (bool, error)
 
-type NewAndroidHostFunc func(ctx context.Context, host *fleet.AndroidHost) (*fleet.AndroidHost, error)
+type NewAndroidHostFunc func(ctx context.Context, host *fleet.AndroidHost, companyOwned bool) (*fleet.AndroidHost, error)
 
 type SetAndroidEnabledAndConfiguredFunc func(ctx context.Context, configured bool) error
 
-type UpdateAndroidHostFunc func(ctx context.Context, host *fleet.AndroidHost, fromEnroll bool) error
+type UpdateAndroidHostFunc func(ctx context.Context, host *fleet.AndroidHost, fromEnroll bool, companyOwned bool) error
 
 type BulkUpsertMDMAndroidHostProfilesFunc func(ctx context.Context, payload []*fleet.MDMAndroidProfilePayload) error
 
 type BulkDeleteMDMAndroidHostProfilesFunc func(ctx context.Context, hostUUID string, policyVersionID int64) error
 
-type ListHostMDMAndroidProfilesPendingInstallWithVersionFunc func(ctx context.Context, hostUUID string, policyVersion int64) ([]*fleet.MDMAndroidProfilePayload, error)
+type ListHostMDMAndroidProfilesPendingOrFailedInstallWithVersionFunc func(ctx context.Context, hostUUID string, policyVersion int64) ([]*fleet.MDMAndroidProfilePayload, error)
 
 type GetAndroidPolicyRequestByUUIDFunc func(ctx context.Context, requestUUID string) (*android.MDMAndroidPolicyRequest, error)
 
@@ -4080,8 +4080,8 @@ type DataStore struct {
 	BulkDeleteMDMAndroidHostProfilesFunc        BulkDeleteMDMAndroidHostProfilesFunc
 	BulkDeleteMDMAndroidHostProfilesFuncInvoked bool
 
-	ListHostMDMAndroidProfilesPendingInstallWithVersionFunc        ListHostMDMAndroidProfilesPendingInstallWithVersionFunc
-	ListHostMDMAndroidProfilesPendingInstallWithVersionFuncInvoked bool
+	ListHostMDMAndroidProfilesPendingOrFailedInstallWithVersionFunc        ListHostMDMAndroidProfilesPendingOrFailedInstallWithVersionFunc
+	ListHostMDMAndroidProfilesPendingOrFailedInstallWithVersionFuncInvoked bool
 
 	GetAndroidPolicyRequestByUUIDFunc        GetAndroidPolicyRequestByUUIDFunc
 	GetAndroidPolicyRequestByUUIDFuncInvoked bool
@@ -4680,7 +4680,7 @@ func (s *DataStore) Query(ctx context.Context, id uint) (*fleet.Query, error) {
 	return s.QueryFunc(ctx, id)
 }
 
-func (s *DataStore) ListQueries(ctx context.Context, opt fleet.ListQueryOptions) ([]*fleet.Query, int, *fleet.PaginationMetadata, error) {
+func (s *DataStore) ListQueries(ctx context.Context, opt fleet.ListQueryOptions) ([]*fleet.Query, int, int, *fleet.PaginationMetadata, error) {
 	s.mu.Lock()
 	s.ListQueriesFuncInvoked = true
 	s.mu.Unlock()
@@ -9748,11 +9748,11 @@ func (s *DataStore) SetAndroidHostUnenrolled(ctx context.Context, hostID uint) (
 	return s.SetAndroidHostUnenrolledFunc(ctx, hostID)
 }
 
-func (s *DataStore) NewAndroidHost(ctx context.Context, host *fleet.AndroidHost) (*fleet.AndroidHost, error) {
+func (s *DataStore) NewAndroidHost(ctx context.Context, host *fleet.AndroidHost, companyOwned bool) (*fleet.AndroidHost, error) {
 	s.mu.Lock()
 	s.NewAndroidHostFuncInvoked = true
 	s.mu.Unlock()
-	return s.NewAndroidHostFunc(ctx, host)
+	return s.NewAndroidHostFunc(ctx, host, companyOwned)
 }
 
 func (s *DataStore) SetAndroidEnabledAndConfigured(ctx context.Context, configured bool) error {
@@ -9762,11 +9762,11 @@ func (s *DataStore) SetAndroidEnabledAndConfigured(ctx context.Context, configur
 	return s.SetAndroidEnabledAndConfiguredFunc(ctx, configured)
 }
 
-func (s *DataStore) UpdateAndroidHost(ctx context.Context, host *fleet.AndroidHost, fromEnroll bool) error {
+func (s *DataStore) UpdateAndroidHost(ctx context.Context, host *fleet.AndroidHost, fromEnroll bool, companyOwned bool) error {
 	s.mu.Lock()
 	s.UpdateAndroidHostFuncInvoked = true
 	s.mu.Unlock()
-	return s.UpdateAndroidHostFunc(ctx, host, fromEnroll)
+	return s.UpdateAndroidHostFunc(ctx, host, fromEnroll, companyOwned)
 }
 
 func (s *DataStore) BulkUpsertMDMAndroidHostProfiles(ctx context.Context, payload []*fleet.MDMAndroidProfilePayload) error {
@@ -9783,11 +9783,11 @@ func (s *DataStore) BulkDeleteMDMAndroidHostProfiles(ctx context.Context, hostUU
 	return s.BulkDeleteMDMAndroidHostProfilesFunc(ctx, hostUUID, policyVersionID)
 }
 
-func (s *DataStore) ListHostMDMAndroidProfilesPendingInstallWithVersion(ctx context.Context, hostUUID string, policyVersion int64) ([]*fleet.MDMAndroidProfilePayload, error) {
+func (s *DataStore) ListHostMDMAndroidProfilesPendingOrFailedInstallWithVersion(ctx context.Context, hostUUID string, policyVersion int64) ([]*fleet.MDMAndroidProfilePayload, error) {
 	s.mu.Lock()
-	s.ListHostMDMAndroidProfilesPendingInstallWithVersionFuncInvoked = true
+	s.ListHostMDMAndroidProfilesPendingOrFailedInstallWithVersionFuncInvoked = true
 	s.mu.Unlock()
-	return s.ListHostMDMAndroidProfilesPendingInstallWithVersionFunc(ctx, hostUUID, policyVersion)
+	return s.ListHostMDMAndroidProfilesPendingOrFailedInstallWithVersionFunc(ctx, hostUUID, policyVersion)
 }
 
 func (s *DataStore) GetAndroidPolicyRequestByUUID(ctx context.Context, requestUUID string) (*android.MDMAndroidPolicyRequest, error) {

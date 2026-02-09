@@ -9,11 +9,12 @@ import (
 
 	"github.com/briandowns/spinner"
 	"github.com/fleetdm/fleet/v4/server/config"
+	"github.com/fleetdm/fleet/v4/server/platform/logging"
 	"github.com/fleetdm/fleet/v4/server/shellquote"
 	kitlog "github.com/go-kit/log"
-	"github.com/go-kit/log/level"
 	_ "github.com/go-sql-driver/mysql"
 	"github.com/spf13/cobra"
+	otelsdklog "go.opentelemetry.io/otel/sdk/log"
 )
 
 func init() {
@@ -132,21 +133,14 @@ func applyDevFlags(cfg *config.FleetConfig) {
 	}
 }
 
-func initLogger(cfg config.FleetConfig) kitlog.Logger {
-	var logger kitlog.Logger
-	{
-		output := os.Stderr
-		if cfg.Logging.JSON {
-			logger = kitlog.NewJSONLogger(output)
-		} else {
-			logger = kitlog.NewLogfmtLogger(output)
-		}
-		if cfg.Logging.Debug {
-			logger = level.NewFilter(logger, level.AllowDebug())
-		} else {
-			logger = level.NewFilter(logger, level.AllowInfo())
-		}
-		logger = kitlog.With(logger, "ts", kitlog.DefaultTimestampUTC)
-	}
-	return logger
+// initLogger creates a kitlog.Logger backed by slog.
+func initLogger(cfg config.FleetConfig, loggerProvider *otelsdklog.LoggerProvider) kitlog.Logger {
+	slogLogger := logging.NewSlogLogger(logging.Options{
+		JSON:            cfg.Logging.JSON,
+		Debug:           cfg.Logging.Debug,
+		TracingEnabled:  cfg.Logging.TracingEnabled,
+		OtelLogsEnabled: cfg.Logging.OtelLogsEnabled,
+		LoggerProvider:  loggerProvider,
+	})
+	return logging.NewKitlogAdapter(slogLogger)
 }

@@ -52,9 +52,7 @@ host_expiry_settings:
 integrations:
   conditional_access_enabled: true
   google_calendar:
-    - api_key_json:
-        owl: hoot
-        private_key: ___GITOPS_COMMENT_0___
+    - api_key_json: ___GITOPS_COMMENT_0___
       domain: fleetdm.com
   jira:
     - api_token: ___GITOPS_COMMENT_1___

@@ -1,14 +1,14 @@
 {
   "versions": [
     {
-      "version": "1.11.5",
+      "version": "1.11.7",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'md.obsidian';"
       },
-      "installer_url": "https://github.com/obsidianmd/obsidian-releases/releases/download/v1.11.5/Obsidian-1.11.5.dmg",
+      "installer_url": "https://github.com/obsidianmd/obsidian-releases/releases/download/v1.11.7/Obsidian-1.11.7.dmg",
       "install_script_ref": "0303141d",
       "uninstall_script_ref": "b982bfc2",
-      "sha256": "e68af1e056dfeedf3b74f0b89473b6d39b672d9e7386da7128638802f6bd2bf4",
+      "sha256": "4d113dca636da5ca7b8046eeb927c9c6f6035cb0d5373fa8e3e4523721d98261",
       "default_categories": [
         "Productivity"
       ]
