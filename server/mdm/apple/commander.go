@@ -324,7 +324,11 @@ func (svc *MDMAppleCommander) InstallEnterpriseApplicationWithEmbeddedManifest(
 	return svc.EnqueueCommand(ctx, hostUUIDs, string(raw))
 }
 
-func (svc *MDMAppleCommander) AccountConfiguration(ctx context.Context, hostUUIDs []string, uuid, fullName, userName string) error {
+func (svc *MDMAppleCommander) AccountConfiguration(ctx context.Context, hostUUIDs []string, uuid, fullName, userName string, lockPrimaryAccountInfo bool) error {
+	lockValue := "false"
+	if lockPrimaryAccountInfo {
+		lockValue = "true"
+	}
 	raw := fmt.Sprintf(`<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
@@ -336,7 +340,7 @@ func (svc *MDMAppleCommander) AccountConfiguration(ctx context.Context, hostUUID
       <key>PrimaryAccountUserName</key>
       <string>%s</string>
       <key>LockPrimaryAccountInfo</key>
-      <true />
+      <%s />
       <key>RequestType</key>
       <string>AccountConfiguration</string>
     </dict>
@@ -344,7 +348,7 @@ func (svc *MDMAppleCommander) AccountConfiguration(ctx context.Context, hostUUID
     <key>CommandUUID</key>
     <string>%s</string>
   </dict>
-</plist>`, fullName, userName, uuid)
+</plist>`, fullName, userName, lockValue, uuid)
 
 	return svc.EnqueueCommand(ctx, hostUUIDs, raw)
 }
