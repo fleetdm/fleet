@@ -28,6 +28,7 @@ export default (
   isAnyTeamMaintainer = false,
   isGlobalMaintainer = false,
   isNoAccess = false,
+  isGlobalTechnician = false,
   isAnyTeamTechnician = false
 ): INavItem[] => {
   if (!user) {
@@ -66,6 +67,7 @@ export default (
         isAnyTeamMaintainer ||
         isGlobalAdmin ||
         isAnyTeamAdmin ||
+        isGlobalTechnician ||
         isAnyTeamTechnician
       ),
       alwaysToPathname: true,

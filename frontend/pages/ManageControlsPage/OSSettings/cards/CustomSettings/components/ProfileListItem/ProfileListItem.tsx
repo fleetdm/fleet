@@ -95,7 +95,7 @@ interface IProfileListItemProps {
   setProfileLabelsModalData: React.Dispatch<
     React.SetStateAction<IMdmProfile | null>
   >;
-  isTeamTechnician?: boolean;
+  isTechnician?: boolean;
 }
 
 const ProfileListItem = ({
@@ -104,7 +104,7 @@ const ProfileListItem = ({
   onClickInfo,
   onClickDelete,
   setProfileLabelsModalData,
-  isTeamTechnician,
+  isTechnician,
 }: IProfileListItemProps) => {
   const {
     updated_at,
@@ -182,7 +182,7 @@ const ProfileListItem = ({
           >
             <Icon name="download" />
           </Button>
-          {!isTeamTechnician && (
+          {!isTechnician && (
             <GitOpsModeTooltipWrapper
               renderChildren={(disableChildren) => (
                 <Button

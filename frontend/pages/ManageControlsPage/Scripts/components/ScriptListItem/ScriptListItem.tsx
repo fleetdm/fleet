@@ -20,7 +20,7 @@ interface IScriptListItemProps {
   onDelete: (script: IScript) => void;
   onClickScript: (script: IScript) => void;
   onEdit: (script: IScript) => void;
-  isTeamTechnician?: boolean;
+  isTechnician?: boolean;
 }
 
 // TODO - useful to have a 'platform' field from API, for use elsewhere in app as well?
@@ -80,7 +80,7 @@ const ScriptListItem = ({
   onDelete,
   onClickScript,
   onEdit,
-  isTeamTechnician,
+  isTechnician,
 }: IScriptListItemProps) => {
   const { renderFlash } = useContext(NotificationContext);
 
@@ -148,7 +148,7 @@ const ScriptListItem = ({
           createdAt={script.created_at}
         />
       }
-      actions={isTeamTechnician ? undefined : actions}
+      actions={isTechnician ? undefined : actions}
       onClick={() => onClickScript(script)}
     />
   );

@@ -93,6 +93,7 @@ const ManageControlsPage = ({
     isGlobalAdmin,
     isTeamAdmin,
     isTeamTechnician,
+    isGlobalTechnician,
   } = useContext(AppContext);
 
   const {
@@ -116,7 +117,7 @@ const ManageControlsPage = ({
 
   const permittedControlsSubNav = useMemo(() => {
     let renderedSubNav = controlsSubNav;
-    if (isTeamTechnician) {
+    if (isTeamTechnician || isGlobalTechnician) {
       renderedSubNav = controlsSubNav.filter((navItem) => {
         return navItem.name === "OS settings" || navItem.name === "Scripts";
       });
@@ -126,7 +127,7 @@ const ManageControlsPage = ({
       });
     }
     return renderedSubNav;
-  }, [isGlobalAdmin, isTeamAdmin, isTeamTechnician]);
+  }, [isGlobalAdmin, isTeamAdmin, isTeamTechnician, isGlobalTechnician]);
 
   const navigateToNav = useCallback(
     (i: number): void => {

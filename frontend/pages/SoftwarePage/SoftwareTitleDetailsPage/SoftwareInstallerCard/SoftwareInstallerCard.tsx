@@ -53,7 +53,7 @@ interface IActionsDropdownProps {
   repoURL?: string;
   isFMA?: boolean;
   isAndroidPlayStoreApp?: boolean;
-  hideDelete?: boolean;
+  isTechnician?: boolean;
 }
 
 export const SoftwareActionButtons = ({
@@ -64,7 +64,7 @@ export const SoftwareActionButtons = ({
   repoURL,
   isFMA,
   isAndroidPlayStoreApp,
-  hideDelete,
+  isTechnician,
 }: IActionsDropdownProps) => {
   let options = [...SOFTWARE_PACKAGE_ACTION_OPTIONS];
 
@@ -108,7 +108,7 @@ export const SoftwareActionButtons = ({
     });
   }
 
-  if (hideDelete) {
+  if (isTechnician) {
     options = options.filter((option) => option.value !== "delete");
   }
 
@@ -222,6 +222,7 @@ const SoftwareInstallerCard = ({
     isGlobalMaintainer,
     isTeamAdmin,
     isTeamMaintainer,
+    isGlobalTechnician,
     isTeamTechnician,
   } = useContext(AppContext);
 
@@ -264,6 +265,7 @@ const SoftwareInstallerCard = ({
     isGlobalMaintainer ||
     isTeamAdmin ||
     isTeamMaintainer ||
+    isGlobalTechnician ||
     isTeamTechnician;
 
   return (
@@ -335,7 +337,7 @@ const SoftwareInstallerCard = ({
               repoURL={repoURL}
               isFMA={isFleetMaintainedApp}
               isAndroidPlayStoreApp={isAndroidPlayStoreApp}
-              hideDelete={isTeamTechnician}
+              isTechnician={isGlobalTechnician || isTeamTechnician}
             />
           )}
         </div>

@@ -46,7 +46,14 @@ const CustomSettings = ({
   onMutation,
 }: ICustomSettingsProps) => {
   const { renderFlash } = useContext(NotificationContext);
-  const { config, isPremiumTier, isTeamTechnician } = useContext(AppContext);
+  const {
+    config,
+    isPremiumTier,
+    isGlobalTechnician,
+    isAnyTeamTechnician,
+  } = useContext(AppContext);
+
+  const isTechnician = isGlobalTechnician || isAnyTeamTechnician;
 
   const mdmEnabled =
     config?.mdm.enabled_and_configured ||
@@ -163,7 +170,7 @@ const CustomSettings = ({
     }
 
     if (!profiles?.length) {
-      if (isTeamTechnician) {
+      if (isTechnician) {
         return <p>No configuration profiles have been added.</p>;
       }
       return <AddProfileCard setShowModal={setShowAddProfileModal} />;
@@ -177,9 +184,7 @@ const CustomSettings = ({
           HeadingComponent={() => (
             <UploadListHeading
               onClickAdd={
-                isTeamTechnician
-                  ? undefined
-                  : () => setShowAddProfileModal(true)
+                isTechnician ? undefined : () => setShowAddProfileModal(true)
               }
               entityName="Configuration profile"
               createEntityText="Add profile"
@@ -192,7 +197,7 @@ const CustomSettings = ({
               setProfileLabelsModalData={setProfileLabelsModalData}
               onClickInfo={onClickInfo}
               onClickDelete={onClickDelete}
-              isTeamTechnician={isTeamTechnician}
+              isTechnician={isTechnician}
             />
           )}
         />
@@ -221,7 +226,7 @@ const CustomSettings = ({
         variant="right-panel"
         content={
           <>
-            {isTeamTechnician
+            {isTechnician
               ? "View configuration profiles that apply custom settings."
               : "Create and upload configuration profiles to apply custom settings."}{" "}
             <CustomLink

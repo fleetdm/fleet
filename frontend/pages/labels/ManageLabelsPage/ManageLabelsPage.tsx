@@ -33,6 +33,7 @@ const ManageLabelsPage = ({ router }: IManageLabelsPageProps): JSX.Element => {
     isGlobalAdmin,
     isGlobalMaintainer,
     isAnyTeamMaintainerOrTeamAdmin,
+    isGlobalTechnician,
     isAnyTeamTechnician,
   } = useContext(AppContext);
   const { renderFlash } = useContext(NotificationContext);
@@ -93,6 +94,7 @@ const ManageLabelsPage = ({ router }: IManageLabelsPageProps): JSX.Element => {
     isGlobalAdmin ||
     isGlobalMaintainer ||
     isAnyTeamMaintainerOrTeamAdmin ||
+    isGlobalTechnician ||
     isAnyTeamTechnician;
 
   const renderTable = useCallback(() => {

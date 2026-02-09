@@ -24,7 +24,7 @@ type IScriptsCardProps = IScriptLibraryProps | IScriptBatchProgressProps;
 const useScriptNavItems = (
   teamId: number | undefined
 ): ISideNavItem<IScriptsCardProps>[] => {
-  const { isTeamTechnician } = useContext(AppContext);
+  const { isGlobalTechnician, isTeamTechnician } = useContext(AppContext);
 
   return useMemo(() => {
     const items: ISideNavItem<IScriptsCardProps>[] = [
@@ -36,7 +36,7 @@ const useScriptNavItems = (
       },
     ];
 
-    if (!isTeamTechnician) {
+    if (!isTeamTechnician && !isGlobalTechnician) {
       items.push({
         title: "Batch progress",
         urlSection: "progress",
@@ -46,7 +46,7 @@ const useScriptNavItems = (
     }
 
     return items;
-  }, [teamId, isTeamTechnician]);
+  }, [teamId, isTeamTechnician, isGlobalTechnician]);
 };
 
 export default useScriptNavItems;

@@ -40,7 +40,12 @@ const ScriptLibrary = ({ router, teamId, location }: IScriptLibraryProps) => {
     ? parseInt(location.query.page, 10)
     : DEFAULT_PAGE;
 
-  const { isPremiumTier, isTeamTechnician } = useContext(AppContext);
+  const { isPremiumTier, isGlobalTechnician, isTeamTechnician } = useContext(
+    AppContext
+  );
+
+  const isTechnician = isGlobalTechnician || isTeamTechnician;
+
   const [showDeleteScriptModal, setShowDeleteScriptModal] = useState(false);
   const [showEditScriptModal, setShowEditScriptModal] = useState(false);
   const [showAddScriptModal, setShowAddScriptModal] = useState(false);
@@ -118,10 +123,6 @@ const ScriptLibrary = ({ router, teamId, location }: IScriptLibraryProps) => {
     refetchScripts();
   };
 
-  const onUploadScript = () => {
-    refetchScripts();
-  };
-
   const renderScriptsList = () => {
     if (isLoading) {
       return <Spinner />;
@@ -144,14 +145,14 @@ const ScriptLibrary = ({ router, teamId, location }: IScriptLibraryProps) => {
         <UploadList
           keyAttribute="id"
           listItems={scripts || []}
-          HeadingComponent={isTeamTechnician ? undefined : headingComponent}
+          HeadingComponent={isTechnician ? undefined : headingComponent}
           ListItemComponent={({ listItem }) => (
             <ScriptListItem
               script={listItem}
               onDelete={onClickDelete}
               onClickScript={onClickScript}
               onEdit={onEditScript}
-              isTeamTechnician={isTeamTechnician}
+              isTechnician={isTechnician}
             />
           )}
         />
@@ -185,7 +186,7 @@ const ScriptLibrary = ({ router, teamId, location }: IScriptLibraryProps) => {
       {!isLoading &&
         currentPage === 0 &&
         !scripts?.length &&
-        (isTeamTechnician ? (
+        (isTechnician ? (
           <p>No scripts uploaded.</p>
         ) : (
           <ScriptUploader onButtonClick={() => setShowAddScriptModal(true)} />
