@@ -431,6 +431,9 @@ func (svc *Service) BatchAssociateVPPApps(ctx context.Context, teamName string, 
 		}
 	}
 
+	if len(addedApps) == 0 {
+		return []fleet.VPPAppResponse{}, nil
+	}
 	return addedApps, nil
 }
 
