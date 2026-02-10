@@ -8735,7 +8735,6 @@ func (s *integrationMDMTestSuite) TestHostMDMAndroidProfilesStatus() {
 	require.Nil(t, profiles[0].Status)
 	require.Nil(t, profiles[1].Status)
 
-	// TODO(JK): test pubsub
 	overrideProfile1 := []byte(`{
   "maximumTimeToLock": "1"
 }`)
