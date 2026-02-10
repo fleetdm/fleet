@@ -60,7 +60,7 @@ type PolicyPayload struct {
 	// bypased by end users.
 	//
 	// Only applies to team policies.
-	ConditionalAccessBypassEnabled bool
+	ConditionalAccessBypassEnabled *bool
 }
 
 // NewTeamPolicyPayload holds data for team policy creation.
@@ -289,7 +289,7 @@ type PolicyData struct {
 	// bypased by end users.
 	//
 	// Only applies to team policies.
-	ConditionalAccessBypassEnabled bool `json:"conditional_access_bypass_enabled" db:"conditional_access_bypass_enabled"`
+	ConditionalAccessBypassEnabled *bool `json:"conditional_access_bypass_enabled" db:"conditional_access_bypass_enabled"`
 
 	UpdateCreateTimestamps
 }

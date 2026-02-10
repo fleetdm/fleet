@@ -46,16 +46,15 @@ func (r globalPolicyResponse) Error() error { return r.Err }
 func globalPolicyEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*globalPolicyRequest)
 	resp, err := svc.NewGlobalPolicy(ctx, fleet.PolicyPayload{
-		QueryID:                        req.QueryID,
-		Query:                          req.Query,
-		Name:                           req.Name,
-		Description:                    req.Description,
-		Resolution:                     req.Resolution,
-		Platform:                       req.Platform,
-		Critical:                       req.Critical,
-		LabelsIncludeAny:               req.LabelsIncludeAny,
-		LabelsExcludeAny:               req.LabelsExcludeAny,
-		ConditionalAccessBypassEnabled: true,
+		QueryID:          req.QueryID,
+		Query:            req.Query,
+		Name:             req.Name,
+		Description:      req.Description,
+		Resolution:       req.Resolution,
+		Platform:         req.Platform,
+		Critical:         req.Critical,
+		LabelsIncludeAny: req.LabelsIncludeAny,
+		LabelsExcludeAny: req.LabelsExcludeAny,
 	})
 	if err != nil {
 		return globalPolicyResponse{Err: err}, nil

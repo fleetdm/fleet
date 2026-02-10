@@ -335,6 +335,11 @@ func savePolicy(ctx context.Context, db sqlx.ExtContext, logger kitlog.Logger, p
 		}
 	}
 
+	// Defaults to true if not present
+	if p.ConditionalAccessBypassEnabled == nil {
+		p.ConditionalAccessBypassEnabled = ptr.Bool(true)
+	}
+
 	// We must normalize the name for full Unicode support (Unicode equivalence).
 	p.Name = norm.NFC.String(p.Name)
 	updateStmt := `
@@ -347,7 +352,11 @@ func savePolicy(ctx context.Context, db sqlx.ExtContext, logger kitlog.Logger, p
 		WHERE id = ?
 	`
 	result, err := db.ExecContext(
-		ctx, updateStmt, p.Name, p.Query, p.Description, p.Resolution, p.Platform, p.Critical, p.CalendarEventsEnabled, p.SoftwareInstallerID, p.ScriptID, p.VPPAppsTeamsID, p.ConditionalAccessEnabled, p.ConditionalAccessBypassEnabled, p.ID,
+		ctx, updateStmt, p.Name, p.Query, p.Description, p.Resolution,
+		p.Platform, p.Critical, p.CalendarEventsEnabled,
+		p.SoftwareInstallerID, p.ScriptID, p.VPPAppsTeamsID,
+		p.ConditionalAccessEnabled, p.ConditionalAccessBypassEnabled,
+		p.ID,
 	)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "updating policy")
@@ -1043,6 +1052,10 @@ func newTeamPolicy(ctx context.Context, db sqlx.ExtContext, teamID uint, authorI
 
 	if err := assertTeamMatches(ctx, db, teamID, args.SoftwareInstallerID, args.ScriptID, args.VPPAppsTeamsID); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "create team policy")
+	}
+
+	if args.ConditionalAccessBypassEnabled == nil {
+		args.ConditionalAccessBypassEnabled = ptr.Bool(true)
 	}
 
 	res, err := db.ExecContext(ctx,

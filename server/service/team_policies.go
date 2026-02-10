@@ -197,12 +197,6 @@ func (svc *Service) newTeamPolicyPayloadToPolicyPayload(ctx context.Context, tea
 		return fleet.PolicyPayload{}, err
 	}
 
-	// Only false when explicitly set
-	conditionalAccessBypassEnabled := true
-	if p.ConditionalAccessBypassEnabled != nil {
-		conditionalAccessBypassEnabled = *p.ConditionalAccessBypassEnabled
-	}
-
 	return fleet.PolicyPayload{
 		QueryID:                        p.QueryID,
 		Name:                           p.Name,
@@ -218,7 +212,7 @@ func (svc *Service) newTeamPolicyPayloadToPolicyPayload(ctx context.Context, tea
 		LabelsIncludeAny:               p.LabelsIncludeAny,
 		LabelsExcludeAny:               p.LabelsExcludeAny,
 		ConditionalAccessEnabled:       p.ConditionalAccessEnabled,
-		ConditionalAccessBypassEnabled: conditionalAccessBypassEnabled,
+		ConditionalAccessBypassEnabled: p.ConditionalAccessBypassEnabled,
 	}, nil
 }
 
@@ -631,7 +625,7 @@ func (svc *Service) modifyPolicy(ctx context.Context, teamID *uint, id uint, p f
 		policy.ConditionalAccessEnabled = *p.ConditionalAccessEnabled
 	}
 	if p.ConditionalAccessBypassEnabled != nil {
-		policy.ConditionalAccessBypassEnabled = *p.ConditionalAccessBypassEnabled
+		policy.ConditionalAccessBypassEnabled = p.ConditionalAccessBypassEnabled
 	}
 	if removeStats {
 		policy.FailingHostCount = 0
