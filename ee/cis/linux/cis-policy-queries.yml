@@ -6108,8 +6108,14 @@ spec:
   #   - PASS: query returns 1 row
   #   - FAIL: query returns 0 rows
   query: |
-    SELECT 1 WHERE 0;
-  purpose: Manual Validation Required
+    SELECT 1
+    WHERE EXISTS (
+      SELECT 1 FROM file_lines
+      WHERE (path='/etc/rsyslog.conf' OR path LIKE '/etc/rsyslog.d/%.conf')
+        AND line NOT LIKE '#%'
+        AND (line LIKE '%@@%' OR line LIKE '% @%' OR line LIKE '%@%')
+    );
+purpose: Manual Validation Required
   tags: compliance, CIS, CIS_Ubuntu_22_04
   contributors: sharon-fdm
 ---
