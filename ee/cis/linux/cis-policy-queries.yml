@@ -20,53 +20,37 @@ spec:
   #   - PASS: query returns 1 row.
   #   - FAIL: query returns 0 rows.
   query: |
-    WITH
-      loaded AS (
-        SELECT 1 FROM kernel_modules WHERE name IN ('cramfs') LIMIT 1
-      ),
-      module_present AS (
-        SELECT 1
-        FROM glob
-        WHERE pattern IN (
-          '/lib/modules/*/kernel/**/cramfs.ko',
-          '/lib/modules/*/kernel/**/cramfs.ko.*',
-          '/usr/lib/modules/*/kernel/**/cramfs.ko',
-          '/usr/lib/modules/*/kernel/**/cramfs.ko.*',
-          '/lib/modules/*/kernel/**/cramfs.ko',
-          '/lib/modules/*/kernel/**/cramfs.ko.*',
-          '/usr/lib/modules/*/kernel/**/cramfs.ko',
-          '/usr/lib/modules/*/kernel/**/cramfs.ko.*'
-        )
-        LIMIT 1
-      ),
-      blacklisted AS (
-        SELECT 1 FROM file_lines
-        WHERE (path LIKE '/etc/modprobe.d/%.conf' OR path LIKE '/lib/modprobe.d/%.conf' OR path LIKE '/usr/lib/modprobe.d/%.conf' OR path LIKE '/run/modprobe.d/%.conf')
-          AND (
-            line = 'blacklist cramfs'
-            OR line LIKE 'blacklist cramfs %'
-            OR line = 'blacklist cramfs'
-            OR line LIKE 'blacklist cramfs %'
-          )
-        LIMIT 1
-      ),
-      install_blocked AS (
-        SELECT 1 FROM file_lines
-        WHERE (path LIKE '/etc/modprobe.d/%.conf' OR path LIKE '/lib/modprobe.d/%.conf' OR path LIKE '/usr/lib/modprobe.d/%.conf' OR path LIKE '/run/modprobe.d/%.conf')
-          AND (
-            line = 'install cramfs /bin/false'
-            OR line = 'install cramfs /bin/true'
-            OR line = 'install cramfs /bin/false'
-            OR line = 'install cramfs /bin/true'
-          )
-        LIMIT 1
-      )
-    SELECT 1
-    WHERE NOT EXISTS (SELECT 1 FROM loaded)
+ WITH
+  loaded AS (
+    SELECT 1 FROM kernel_modules WHERE name IN ('cramfs') LIMIT 1
+  ),
+  blacklisted AS (
+    SELECT 1 FROM file_lines
+    WHERE (path LIKE '/etc/modprobe.d/%.conf'
+        OR path LIKE '/lib/modprobe.d/%.conf'
+        OR path LIKE '/usr/lib/modprobe.d/%.conf'
+        OR path LIKE '/run/modprobe.d/%.conf')
+      AND line LIKE 'blacklist cramfs%'
+      AND line NOT LIKE '#%'
+    LIMIT 1
+  ),
+  install_blocked AS (
+    SELECT 1 FROM file_lines
+    WHERE (path LIKE '/etc/modprobe.d/%.conf'
+        OR path LIKE '/lib/modprobe.d/%.conf'
+        OR path LIKE '/usr/lib/modprobe.d/%.conf'
+        OR path LIKE '/run/modprobe.d/%.conf')
       AND (
-        NOT EXISTS (SELECT 1 FROM module_present)
-        OR (EXISTS (SELECT 1 FROM blacklisted) AND EXISTS (SELECT 1 FROM install_blocked))
-      );
+        line LIKE 'install cramfs /bin/false%'
+        OR line LIKE 'install cramfs /bin/true%'
+      )
+      AND line NOT LIKE '#%'
+    LIMIT 1
+  )
+SELECT 1
+WHERE NOT EXISTS (SELECT 1 FROM loaded)
+  AND EXISTS (SELECT 1 FROM blacklisted)
+  AND EXISTS (SELECT 1 FROM install_blocked);
   purpose: Informational
   tags: compliance, CIS, CIS_Ubuntu_22_04
   contributors: sharon-fdm
