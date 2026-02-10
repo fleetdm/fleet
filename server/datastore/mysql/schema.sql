@@ -1837,11 +1837,12 @@ CREATE TABLE `nano_command_results` (
   PRIMARY KEY (`id`,`command_uuid`),
   KEY `command_uuid` (`command_uuid`),
   KEY `status` (`status`),
+  KEY `idx_ncr_lookup` (`id`,`command_uuid`,`status`),
   CONSTRAINT `nano_command_results_ibfk_1` FOREIGN KEY (`id`) REFERENCES `nano_enrollments` (`id`) ON DELETE CASCADE ON UPDATE CASCADE,
   CONSTRAINT `nano_command_results_ibfk_2` FOREIGN KEY (`command_uuid`) REFERENCES `nano_commands` (`command_uuid`) ON DELETE CASCADE ON UPDATE CASCADE,
   CONSTRAINT `nano_command_results_chk_1` CHECK ((`status` <> _utf8mb4'')),
   CONSTRAINT `nano_command_results_chk_2` CHECK ((substr(`result`,1,5) = _utf8mb4'<?xml'))
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) /*!50100 TABLESPACE `innodb_system` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
@@ -1922,6 +1923,7 @@ CREATE TABLE `nano_enrollment_queue` (
   PRIMARY KEY (`id`,`command_uuid`),
   KEY `command_uuid` (`command_uuid`),
   KEY `priority` (`priority` DESC,`created_at`),
+  KEY `idx_neq_filter` (`active`,`priority`,`created_at`),
   CONSTRAINT `nano_enrollment_queue_ibfk_1` FOREIGN KEY (`id`) REFERENCES `nano_enrollments` (`id`) ON DELETE CASCADE ON UPDATE CASCADE,
   CONSTRAINT `nano_enrollment_queue_ibfk_2` FOREIGN KEY (`command_uuid`) REFERENCES `nano_commands` (`command_uuid`) ON DELETE CASCADE ON UPDATE CASCADE
 ) /*!50100 TABLESPACE `innodb_system` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
