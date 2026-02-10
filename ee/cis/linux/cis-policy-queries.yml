@@ -1,0 +1,3832 @@
+
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS Ubuntu 22.04 - 1.1.1.1 Ensure cramfs kernel module is not available
+  platforms: linux
+  platform: linux
+  description: CIS 1.1.1.1. Ensure cramfs kernel module is not available (disabled/not loadable and not loaded).
+  resolution: |
+    Unload and disable cramfs:
+      sudo modprobe -r cramfs 2>/dev/null || true
+      sudo rmmod cramfs 2>/dev/null || true
+
+    Create /etc/modprobe.d/60-cramfs.conf with:
+      install cramfs /bin/false
+      blacklist cramfs
+  # Validation (run on the Ubuntu 22.04 machine you want to audit):
+  # - PASS expectation: policy query returns a row (1).
+  # - FAIL case A (loaded): in a disposable VM, try `sudo modprobe cramfs` (if available). Re-run policy; it should fail (no row).
+  # - FAIL case B (loadable): remove/rename the modprobe.d file that contains "install cramfs /bin/false" and "blacklist cramfs", then re-run; it should fail.
+  query: |
+    WITH
+      loaded AS (
+        SELECT 1 FROM kernel_modules WHERE name = 'cramfs' LIMIT 1
+      ),
+      module_files AS (
+        SELECT 1
+        FROM file
+        WHERE path LIKE '/lib/modules/%/kernel/fs/cramfs/%'
+           OR path LIKE '/usr/lib/modules/%/kernel/fs/cramfs/%'
+        LIMIT 1
+      ),
+      blacklisted AS (
+        SELECT 1
+        FROM file_lines
+        WHERE (
+          path LIKE '/etc/modprobe.d/%.conf'
+          OR path LIKE '/lib/modprobe.d/%.conf'
+          OR path LIKE '/usr/lib/modprobe.d/%.conf'
+          OR path LIKE '/run/modprobe.d/%.conf'
+        )
+        AND (line = 'blacklist cramfs' OR line LIKE 'blacklist cramfs %')
+        LIMIT 1
+      ),
+      install_blocked AS (
+        SELECT 1
+        FROM file_lines
+        WHERE (
+          path LIKE '/etc/modprobe.d/%.conf'
+          OR path LIKE '/lib/modprobe.d/%.conf'
+          OR path LIKE '/usr/lib/modprobe.d/%.conf'
+          OR path LIKE '/run/modprobe.d/%.conf'
+        )
+        AND (line = 'install cramfs /bin/false' OR line = 'install cramfs /bin/true')
+        LIMIT 1
+      )
+    SELECT 1
+    WHERE NOT EXISTS (SELECT 1 FROM loaded)
+      AND (
+        NOT EXISTS (SELECT 1 FROM module_files)
+        OR (EXISTS (SELECT 1 FROM blacklisted) AND EXISTS (SELECT 1 FROM install_blocked))
+      );
+  purpose: Informational
+  tags: compliance, CIS, CIS_Ubuntu_22_04, CIS_Level1
+  contributors: sharon-fdm
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS Ubuntu 22.04 - 1.1.1.2 Ensure freevxfs kernel module is not available
+  platforms: linux
+  platform: linux
+  description: CIS 1.1.1.2. Ensure freevxfs kernel module is not available (disabled/not loadable and not loaded).
+  resolution: |
+    Unload and disable freevxfs:
+      sudo modprobe -r freevxfs 2>/dev/null || true
+      sudo rmmod freevxfs 2>/dev/null || true
+
+    Create /etc/modprobe.d/60-freevxfs.conf with:
+      install freevxfs /bin/false
+      blacklist freevxfs
+  # Validation (run on the Ubuntu 22.04 machine you want to audit):
+  # - PASS: query returns a row (1).
+  # - FAIL (loaded): in a disposable VM, try `sudo modprobe freevxfs` (if available) then re-run; should fail.
+  # - FAIL (config removed): remove the modprobe.d lines for freevxfs; if the module exists on disk, the policy should fail.
+  query: |
+    WITH
+      loaded AS (
+        SELECT 1 FROM kernel_modules WHERE name = 'freevxfs' LIMIT 1
+      ),
+      module_files AS (
+        SELECT 1
+        FROM file
+        WHERE path LIKE '/lib/modules/%/kernel/fs/freevxfs/%'
+           OR path LIKE '/usr/lib/modules/%/kernel/fs/freevxfs/%'
+        LIMIT 1
+      ),
+      blacklisted AS (
+        SELECT 1
+        FROM file_lines
+        WHERE (
+          path LIKE '/etc/modprobe.d/%.conf'
+          OR path LIKE '/lib/modprobe.d/%.conf'
+          OR path LIKE '/usr/lib/modprobe.d/%.conf'
+          OR path LIKE '/run/modprobe.d/%.conf'
+        )
+        AND (line = 'blacklist freevxfs' OR line LIKE 'blacklist freevxfs %')
+        LIMIT 1
+      ),
+      install_blocked AS (
+        SELECT 1
+        FROM file_lines
+        WHERE (
+          path LIKE '/etc/modprobe.d/%.conf'
+          OR path LIKE '/lib/modprobe.d/%.conf'
+          OR path LIKE '/usr/lib/modprobe.d/%.conf'
+          OR path LIKE '/run/modprobe.d/%.conf'
+        )
+        AND (line = 'install freevxfs /bin/false' OR line = 'install freevxfs /bin/true')
+        LIMIT 1
+      )
+    SELECT 1
+    WHERE NOT EXISTS (SELECT 1 FROM loaded)
+      AND (
+        NOT EXISTS (SELECT 1 FROM module_files)
+        OR (EXISTS (SELECT 1 FROM blacklisted) AND EXISTS (SELECT 1 FROM install_blocked))
+      );
+  purpose: Informational
+  tags: compliance, CIS, CIS_Ubuntu_22_04, CIS_Level1
+  contributors: sharon-fdm
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS Ubuntu 22.04 - 1.1.1.3 Ensure hfs kernel module is not available
+  platforms: linux
+  platform: linux
+  description: CIS 1.1.1.3. Ensure hfs kernel module is not available (disabled/not loadable and not loaded).
+  resolution: |
+    Unload and disable hfs:
+      sudo modprobe -r hfs 2>/dev/null || true
+      sudo rmmod hfs 2>/dev/null || true
+
+    Create /etc/modprobe.d/60-hfs.conf with:
+      install hfs /bin/false
+      blacklist hfs
+  # Validation:
+  # - Run on the Ubuntu host you are auditing.
+  # - PASS: returns 1.
+  # - FAIL: if `sudo modprobe hfs` succeeds (disposable VM), policy should fail until you add blacklist+install rule and unload it.
+  query: |
+    WITH
+      loaded AS (
+        SELECT 1 FROM kernel_modules WHERE name = 'hfs' LIMIT 1
+      ),
+      module_files AS (
+        SELECT 1
+        FROM file
+        WHERE path LIKE '/lib/modules/%/kernel/fs/hfs/%'
+           OR path LIKE '/usr/lib/modules/%/kernel/fs/hfs/%'
+        LIMIT 1
+      ),
+      blacklisted AS (
+        SELECT 1
+        FROM file_lines
+        WHERE (
+          path LIKE '/etc/modprobe.d/%.conf'
+          OR path LIKE '/lib/modprobe.d/%.conf'
+          OR path LIKE '/usr/lib/modprobe.d/%.conf'
+          OR path LIKE '/run/modprobe.d/%.conf'
+        )
+        AND (line = 'blacklist hfs' OR line LIKE 'blacklist hfs %')
+        LIMIT 1
+      ),
+      install_blocked AS (
+        SELECT 1
+        FROM file_lines
+        WHERE (
+          path LIKE '/etc/modprobe.d/%.conf'
+          OR path LIKE '/lib/modprobe.d/%.conf'
+          OR path LIKE '/usr/lib/modprobe.d/%.conf'
+          OR path LIKE '/run/modprobe.d/%.conf'
+        )
+        AND (line = 'install hfs /bin/false' OR line = 'install hfs /bin/true')
+        LIMIT 1
+      )
+    SELECT 1
+    WHERE NOT EXISTS (SELECT 1 FROM loaded)
+      AND (
+        NOT EXISTS (SELECT 1 FROM module_files)
+        OR (EXISTS (SELECT 1 FROM blacklisted) AND EXISTS (SELECT 1 FROM install_blocked))
+      );
+  purpose: Informational
+  tags: compliance, CIS, CIS_Ubuntu_22_04, CIS_Level1
+  contributors: sharon-fdm
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS Ubuntu 22.04 - 1.1.1.4 Ensure hfsplus kernel module is not available
+  platforms: linux
+  platform: linux
+  description: CIS 1.1.1.4. Ensure hfsplus kernel module is not available (disabled/not loadable and not loaded).
+  resolution: |
+    Unload and disable hfsplus:
+      sudo modprobe -r hfsplus 2>/dev/null || true
+      sudo rmmod hfsplus 2>/dev/null || true
+
+    Create /etc/modprobe.d/60-hfsplus.conf with:
+      install hfsplus /bin/false
+      blacklist hfsplus
+  # Validation:
+  # - Run on the audited Ubuntu host.
+  # - PASS: returns 1.
+  # - FAIL: if hfsplus is loaded or loadable (no blacklist/install rule) and module exists on disk.
+  query: |
+    WITH
+      loaded AS (
+        SELECT 1 FROM kernel_modules WHERE name = 'hfsplus' LIMIT 1
+      ),
+      module_files AS (
+        SELECT 1
+        FROM file
+        WHERE path LIKE '/lib/modules/%/kernel/fs/hfsplus/%'
+           OR path LIKE '/usr/lib/modules/%/kernel/fs/hfsplus/%'
+        LIMIT 1
+      ),
+      blacklisted AS (
+        SELECT 1
+        FROM file_lines
+        WHERE (
+          path LIKE '/etc/modprobe.d/%.conf'
+          OR path LIKE '/lib/modprobe.d/%.conf'
+          OR path LIKE '/usr/lib/modprobe.d/%.conf'
+          OR path LIKE '/run/modprobe.d/%.conf'
+        )
+        AND (line = 'blacklist hfsplus' OR line LIKE 'blacklist hfsplus %')
+        LIMIT 1
+      ),
+      install_blocked AS (
+        SELECT 1
+        FROM file_lines
+        WHERE (
+          path LIKE '/etc/modprobe.d/%.conf'
+          OR path LIKE '/lib/modprobe.d/%.conf'
+          OR path LIKE '/usr/lib/modprobe.d/%.conf'
+          OR path LIKE '/run/modprobe.d/%.conf'
+        )
+        AND (line = 'install hfsplus /bin/false' OR line = 'install hfsplus /bin/true')
+        LIMIT 1
+      )
+    SELECT 1
+    WHERE NOT EXISTS (SELECT 1 FROM loaded)
+      AND (
+        NOT EXISTS (SELECT 1 FROM module_files)
+        OR (EXISTS (SELECT 1 FROM blacklisted) AND EXISTS (SELECT 1 FROM install_blocked))
+      );
+  purpose: Informational
+  tags: compliance, CIS, CIS_Ubuntu_22_04, CIS_Level1
+  contributors: sharon-fdm
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS Ubuntu 22.04 - 1.1.1.5 Ensure jffs2 kernel module is not available
+  platforms: linux
+  platform: linux
+  description: CIS 1.1.1.5. Ensure jffs2 kernel module is not available (disabled/not loadable and not loaded).
+  resolution: |
+    Unload and disable jffs2:
+      sudo modprobe -r jffs2 2>/dev/null || true
+      sudo rmmod jffs2 2>/dev/null || true
+
+    Create /etc/modprobe.d/60-jffs2.conf with:
+      install jffs2 /bin/false
+      blacklist jffs2
+  # Validation:
+  # - Run on the audited Ubuntu host.
+  # - PASS: returns 1.
+  # - FAIL: in a disposable VM, `sudo modprobe jffs2` (if available) then re-run; should fail until disabled and unloaded.
+  query: |
+    WITH
+      loaded AS (
+        SELECT 1 FROM kernel_modules WHERE name = 'jffs2' LIMIT 1
+      ),
+      module_files AS (
+        SELECT 1
+        FROM file
+        WHERE path LIKE '/lib/modules/%/kernel/fs/jffs2/%'
+           OR path LIKE '/usr/lib/modules/%/kernel/fs/jffs2/%'
+        LIMIT 1
+      ),
+      blacklisted AS (
+        SELECT 1
+        FROM file_lines
+        WHERE (
+          path LIKE '/etc/modprobe.d/%.conf'
+          OR path LIKE '/lib/modprobe.d/%.conf'
+          OR path LIKE '/usr/lib/modprobe.d/%.conf'
+          OR path LIKE '/run/modprobe.d/%.conf'
+        )
+        AND (line = 'blacklist jffs2' OR line LIKE 'blacklist jffs2 %')
+        LIMIT 1
+      ),
+      install_blocked AS (
+        SELECT 1
+        FROM file_lines
+        WHERE (
+          path LIKE '/etc/modprobe.d/%.conf'
+          OR path LIKE '/lib/modprobe.d/%.conf'
+          OR path LIKE '/usr/lib/modprobe.d/%.conf'
+          OR path LIKE '/run/modprobe.d/%.conf'
+        )
+        AND (line = 'install jffs2 /bin/false' OR line = 'install jffs2 /bin/true')
+        LIMIT 1
+      )
+    SELECT 1
+    WHERE NOT EXISTS (SELECT 1 FROM loaded)
+      AND (
+        NOT EXISTS (SELECT 1 FROM module_files)
+        OR (EXISTS (SELECT 1 FROM blacklisted) AND EXISTS (SELECT 1 FROM install_blocked))
+      );
+  purpose: Informational
+  tags: compliance, CIS, CIS_Ubuntu_22_04, CIS_Level1
+  contributors: sharon-fdm
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS Ubuntu 22.04 - 1.1.1.6 Ensure overlay kernel module is not available
+  platforms: linux
+  platform: linux
+  description: CIS 1.1.1.6. Ensure overlay kernel module is not available (disabled/not loadable and not loaded).
+  resolution: |
+    NOTE: overlay is required for many container runtimes and modern workloads.
+    Only disable it if your organization has confirmed it is not needed.
+
+    Unload and disable overlay:
+      sudo modprobe -r overlay 2>/dev/null || true
+      sudo rmmod overlay 2>/dev/null || true
+
+    Create /etc/modprobe.d/60-overlay.conf with:
+      install overlay /bin/false
+      blacklist overlay
+  # Validation:
+  # - Run on the audited Ubuntu host.
+  # - PASS: returns 1.
+  # - FAIL: if overlay is loaded (common on container hosts). You can validate failure on a container host without changing anything.
+  query: |
+    WITH
+      loaded AS (
+        SELECT 1 FROM kernel_modules WHERE name = 'overlay' LIMIT 1
+      ),
+      module_files AS (
+        SELECT 1
+        FROM file
+        WHERE path LIKE '/lib/modules/%/kernel/fs/overlayfs/%'
+           OR path LIKE '/usr/lib/modules/%/kernel/fs/overlayfs/%'
+           OR path LIKE '/lib/modules/%/kernel/fs/overlay/%'
+           OR path LIKE '/usr/lib/modules/%/kernel/fs/overlay/%'
+        LIMIT 1
+      ),
+      blacklisted AS (
+        SELECT 1
+        FROM file_lines
+        WHERE (
+          path LIKE '/etc/modprobe.d/%.conf'
+          OR path LIKE '/lib/modprobe.d/%.conf'
+          OR path LIKE '/usr/lib/modprobe.d/%.conf'
+          OR path LIKE '/run/modprobe.d/%.conf'
+        )
+        AND (line = 'blacklist overlay' OR line LIKE 'blacklist overlay %')
+        LIMIT 1
+      ),
+      install_blocked AS (
+        SELECT 1
+        FROM file_lines
+        WHERE (
+          path LIKE '/etc/modprobe.d/%.conf'
+          OR path LIKE '/lib/modprobe.d/%.conf'
+          OR path LIKE '/usr/lib/modprobe.d/%.conf'
+          OR path LIKE '/run/modprobe.d/%.conf'
+        )
+        AND (line = 'install overlay /bin/false' OR line = 'install overlay /bin/true')
+        LIMIT 1
+      )
+    SELECT 1
+    WHERE NOT EXISTS (SELECT 1 FROM loaded)
+      AND (
+        NOT EXISTS (SELECT 1 FROM module_files)
+        OR (EXISTS (SELECT 1 FROM blacklisted) AND EXISTS (SELECT 1 FROM install_blocked))
+      );
+  purpose: Informational
+  tags: compliance, CIS, CIS_Ubuntu_22_04, CIS_Level1
+  contributors: sharon-fdm
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS Ubuntu 22.04 - 1.1.1.7 Ensure squashfs kernel module is not available
+  platforms: linux
+  platform: linux
+  description: CIS 1.1.1.7. Ensure squashfs kernel module is not available (disabled/not loadable and not loaded).
+  resolution: |
+    NOTE: squashfs may be used by snap packages (snapd) on Ubuntu.
+    Only disable it if your organization has confirmed it is not needed.
+
+    Unload and disable squashfs:
+      sudo modprobe -r squashfs 2>/dev/null || true
+      sudo rmmod squashfs 2>/dev/null || true
+
+    Create /etc/modprobe.d/60-squashfs.conf with:
+      install squashfs /bin/false
+      blacklist squashfs
+  # Validation:
+  # - Run on the audited Ubuntu host.
+  # - PASS: returns 1.
+  # - FAIL: on many Ubuntu desktops/servers with snap, squashfs may be loaded; policy will fail without changes.
+  query: |
+    WITH
+      loaded AS (
+        SELECT 1 FROM kernel_modules WHERE name = 'squashfs' LIMIT 1
+      ),
+      module_files AS (
+        SELECT 1
+        FROM file
+        WHERE path LIKE '/lib/modules/%/kernel/fs/squashfs/%'
+           OR path LIKE '/usr/lib/modules/%/kernel/fs/squashfs/%'
+        LIMIT 1
+      ),
+      blacklisted AS (
+        SELECT 1
+        FROM file_lines
+        WHERE (
+          path LIKE '/etc/modprobe.d/%.conf'
+          OR path LIKE '/lib/modprobe.d/%.conf'
+          OR path LIKE '/usr/lib/modprobe.d/%.conf'
+          OR path LIKE '/run/modprobe.d/%.conf'
+        )
+        AND (line = 'blacklist squashfs' OR line LIKE 'blacklist squashfs %')
+        LIMIT 1
+      ),
+      install_blocked AS (
+        SELECT 1
+        FROM file_lines
+        WHERE (
+          path LIKE '/etc/modprobe.d/%.conf'
+          OR path LIKE '/lib/modprobe.d/%.conf'
+          OR path LIKE '/usr/lib/modprobe.d/%.conf'
+          OR path LIKE '/run/modprobe.d/%.conf'
+        )
+        AND (line = 'install squashfs /bin/false' OR line = 'install squashfs /bin/true')
+        LIMIT 1
+      )
+    SELECT 1
+    WHERE NOT EXISTS (SELECT 1 FROM loaded)
+      AND (
+        NOT EXISTS (SELECT 1 FROM module_files)
+        OR (EXISTS (SELECT 1 FROM blacklisted) AND EXISTS (SELECT 1 FROM install_blocked))
+      );
+  purpose: Informational
+  tags: compliance, CIS, CIS_Ubuntu_22_04, CIS_Level1
+  contributors: sharon-fdm
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS Ubuntu 22.04 - 1.1.1.8 Ensure udf kernel module is not available
+  platforms: linux
+  platform: linux
+  description: CIS 1.1.1.8. Ensure udf kernel module is not available (disabled/not loadable and not loaded).
+  resolution: |
+    Unload and disable udf:
+      sudo modprobe -r udf 2>/dev/null || true
+      sudo rmmod udf 2>/dev/null || true
+
+    Create /etc/modprobe.d/60-udf.conf with:
+      install udf /bin/false
+      blacklist udf
+  # Validation:
+  # - Run on the audited Ubuntu host.
+  # - PASS: returns 1.
+  # - FAIL: if udf is loaded (e.g., after mounting UDF media) or if the modprobe deny rules are removed while module exists on disk.
+  query: |
+    WITH
+      loaded AS (
+        SELECT 1 FROM kernel_modules WHERE name = 'udf' LIMIT 1
+      ),
+      module_files AS (
+        SELECT 1
+        FROM file
+        WHERE path LIKE '/lib/modules/%/kernel/fs/udf/%'
+           OR path LIKE '/usr/lib/modules/%/kernel/fs/udf/%'
+        LIMIT 1
+      ),
+      blacklisted AS (
+        SELECT 1
+        FROM file_lines
+        WHERE (
+          path LIKE '/etc/modprobe.d/%.conf'
+          OR path LIKE '/lib/modprobe.d/%.conf'
+          OR path LIKE '/usr/lib/modprobe.d/%.conf'
+          OR path LIKE '/run/modprobe.d/%.conf'
+        )
+        AND (line = 'blacklist udf' OR line LIKE 'blacklist udf %')
+        LIMIT 1
+      ),
+      install_blocked AS (
+        SELECT 1
+        FROM file_lines
+        WHERE (
+          path LIKE '/etc/modprobe.d/%.conf'
+          OR path LIKE '/lib/modprobe.d/%.conf'
+          OR path LIKE '/usr/lib/modprobe.d/%.conf'
+          OR path LIKE '/run/modprobe.d/%.conf'
+        )
+        AND (line = 'install udf /bin/false' OR line = 'install udf /bin/true')
+        LIMIT 1
+      )
+    SELECT 1
+    WHERE NOT EXISTS (SELECT 1 FROM loaded)
+      AND (
+        NOT EXISTS (SELECT 1 FROM module_files)
+        OR (EXISTS (SELECT 1 FROM blacklisted) AND EXISTS (SELECT 1 FROM install_blocked))
+      );
+  purpose: Informational
+  tags: compliance, CIS, CIS_Ubuntu_22_04, CIS_Level1
+  contributors: sharon-fdm
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS Ubuntu 22.04 - 1.1.1.9 Ensure usb-storage kernel module is not available
+  platforms: linux
+  platform: linux
+  description: CIS 1.1.1.9. Ensure usb-storage kernel module is not available (disabled/not loadable and not loaded).
+  resolution: |
+    Disabling usb-storage prevents mounting USB mass storage devices.
+
+    Unload and disable usb-storage:
+      sudo modprobe -r usb-storage 2>/dev/null || true
+      sudo rmmod usb-storage 2>/dev/null || true
+
+    Create /etc/modprobe.d/60-usb-storage.conf with:
+      install usb-storage /bin/false
+      blacklist usb-storage
+  # Validation:
+  # - Run on the audited Ubuntu host.
+  # - PASS: returns 1.
+  # - FAIL: if you plug in a USB mass storage device and the module loads, policy will fail.
+  #   (Safest test is in a lab VM/host where you can attach a USB disk.)
+  query: |
+    WITH
+      loaded AS (
+        SELECT 1 FROM kernel_modules WHERE name = 'usb-storage' LIMIT 1
+      ),
+      module_files AS (
+        SELECT 1
+        FROM file
+        WHERE path LIKE '/lib/modules/%/kernel/drivers/usb/storage/%'
+           OR path LIKE '/usr/lib/modules/%/kernel/drivers/usb/storage/%'
+        LIMIT 1
+      ),
+      blacklisted AS (
+        SELECT 1
+        FROM file_lines
+        WHERE (
+          path LIKE '/etc/modprobe.d/%.conf'
+          OR path LIKE '/lib/modprobe.d/%.conf'
+          OR path LIKE '/usr/lib/modprobe.d/%.conf'
+          OR path LIKE '/run/modprobe.d/%.conf'
+        )
+        AND (line = 'blacklist usb-storage' OR line LIKE 'blacklist usb-storage %')
+        LIMIT 1
+      ),
+      install_blocked AS (
+        SELECT 1
+        FROM file_lines
+        WHERE (
+          path LIKE '/etc/modprobe.d/%.conf'
+          OR path LIKE '/lib/modprobe.d/%.conf'
+          OR path LIKE '/usr/lib/modprobe.d/%.conf'
+          OR path LIKE '/run/modprobe.d/%.conf'
+        )
+        AND (line = 'install usb-storage /bin/false' OR line = 'install usb-storage /bin/true')
+        LIMIT 1
+      )
+    SELECT 1
+    WHERE NOT EXISTS (SELECT 1 FROM loaded)
+      AND (
+        NOT EXISTS (SELECT 1 FROM module_files)
+        OR (EXISTS (SELECT 1 FROM blacklisted) AND EXISTS (SELECT 1 FROM install_blocked))
+      );
+  purpose: Informational
+  tags: compliance, CIS, CIS_Ubuntu_22_04, CIS_Level1
+  contributors: sharon-fdm
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS Ubuntu 22.04 - 1.1.2.3.1 Ensure separate partition exists for /home
+  platforms: linux
+  platform: linux
+  description: CIS 1.1.2.3.1. Ensure a separate partition exists for /home.
+  resolution: |
+    Create a dedicated partition or logical volume for /home and mount it via /etc/fstab.
+
+    After configuration:
+      sudo mount -a
+  # Validation:
+  # - Run on the audited Ubuntu host.
+  # - PASS: /home appears as a mount point (query returns 1).
+  # - FAIL: if /home is just a directory on / with no dedicated mount.
+  # - Quick manual check: `mount | grep ' on /home '`
+  query: |
+    SELECT 1
+    WHERE EXISTS (
+      SELECT 1 FROM mounts WHERE path = '/home'
+    );
+  purpose: Informational
+  tags: compliance, CIS, CIS_Ubuntu_22_04, CIS_Level1
+  contributors: sharon-fdm
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS Ubuntu 22.04 - 1.1.2.3.2 Ensure nodev option set on /home partition
+  platforms: linux
+  platform: linux
+  description: CIS 1.1.2.3.2. Ensure the nodev mount option is set on /home.
+  resolution: |
+    Add nodev to the /home mount options in /etc/fstab.
+
+    Apply with:
+      sudo mount -o remount /home
+  # Validation:
+  # - PASS: /home mount exists and includes nodev.
+  # - FAIL: /home exists but nodev is missing.
+  query: |
+    WITH home AS (
+      SELECT flags FROM mounts WHERE path = '/home' LIMIT 1
+    )
+    SELECT 1
+    WHERE EXISTS (SELECT 1 FROM home)
+      AND EXISTS (
+        SELECT 1 FROM home
+        WHERE
+          flags = 'nodev'
+          OR flags LIKE 'nodev,%'
+          OR flags LIKE '%,nodev'
+          OR flags LIKE '%,nodev,%'
+      );
+  purpose: Informational
+  tags: compliance, CIS, CIS_Ubuntu_22_04, CIS_Level1
+  contributors: sharon-fdm
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS Ubuntu 22.04 - 1.1.2.3.3 Ensure nosuid option set on /home partition
+  platforms: linux
+  platform: linux
+  description: CIS 1.1.2.3.3. Ensure the nosuid mount option is set on /home.
+  resolution: |
+    Add nosuid to the /home mount options in /etc/fstab.
+
+    Apply with:
+      sudo mount -o remount /home
+  # Validation:
+  # - PASS: /home mount exists and includes nosuid.
+  # - FAIL: /home exists but nosuid is missing.
+  query: |
+    WITH home AS (
+      SELECT flags FROM mounts WHERE path = '/home' LIMIT 1
+    )
+    SELECT 1
+    WHERE EXISTS (SELECT 1 FROM home)
+      AND EXISTS (
+        SELECT 1 FROM home
+        WHERE
+          flags = 'nosuid'
+          OR flags LIKE 'nosuid,%'
+          OR flags LIKE '%,nosuid'
+          OR flags LIKE '%,nosuid,%'
+      );
+  purpose: Informational
+  tags: compliance, CIS, CIS_Ubuntu_22_04, CIS_Level1
+  contributors: sharon-fdm
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS Ubuntu 22.04 - 1.1.2.4.1 Ensure separate partition exists for /var
+  platforms: linux
+  platform: linux
+  description: CIS 1.1.2.4.1. Ensure a separate partition exists for /var.
+  resolution: |
+    Create a dedicated partition or logical volume for /var and mount it via /etc/fstab.
+
+    Apply with:
+      sudo mount -a
+  # Validation:
+  # - PASS: /var is a separate mount.
+  # - FAIL: /var resides on the root filesystem.
+  query: |
+    SELECT 1
+    WHERE EXISTS (
+      SELECT 1 FROM mounts WHERE path = '/var'
+    );
+  purpose: Informational
+  tags: compliance, CIS, CIS_Ubuntu_22_04, CIS_Level1
+  contributors: sharon-fdm
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS Ubuntu 22.04 - 1.1.2.4.2 Ensure nodev option set on /var partition
+  platforms: linux
+  platform: linux
+  description: CIS 1.1.2.4.2. Ensure the nodev mount option is set on /var.
+  resolution: |
+    Add nodev to the /var mount options in /etc/fstab.
+
+    Apply with:
+      sudo mount -o remount /var
+  # Validation:
+  # - PASS: /var exists and includes nodev.
+  # - FAIL: /var exists but nodev is missing.
+  query: |
+    WITH var AS (
+      SELECT flags FROM mounts WHERE path = '/var' LIMIT 1
+    )
+    SELECT 1
+    WHERE EXISTS (SELECT 1 FROM var)
+      AND EXISTS (
+        SELECT 1 FROM var
+        WHERE
+          flags = 'nodev'
+          OR flags LIKE 'nodev,%'
+          OR flags LIKE '%,nodev'
+          OR flags LIKE '%,nodev,%'
+      );
+  purpose: Informational
+  tags: compliance, CIS, CIS_Ubuntu_22_04, CIS_Level1
+  contributors: sharon-fdm
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS Ubuntu 22.04 - 1.1.2.4.3 Ensure nosuid option set on /var partition
+  platforms: linux
+  platform: linux
+  description: CIS 1.1.2.4.3. Ensure the nosuid mount option is set on /var.
+  resolution: |
+    Add nosuid to the /var mount options in /etc/fstab.
+
+    Apply with:
+      sudo mount -o remount /var
+  # Validation:
+  # - PASS: /var exists and includes nosuid.
+  # - FAIL: /var exists but nosuid is missing.
+  query: |
+    WITH var AS (
+      SELECT flags FROM mounts WHERE path = '/var' LIMIT 1
+    )
+    SELECT 1
+    WHERE EXISTS (SELECT 1 FROM var)
+      AND EXISTS (
+        SELECT 1 FROM var
+        WHERE
+          flags = 'nosuid'
+          OR flags LIKE 'nosuid,%'
+          OR flags LIKE '%,nosuid'
+          OR flags LIKE '%,nosuid,%'
+      );
+  purpose: Informational
+  tags: compliance, CIS, CIS_Ubuntu_22_04, CIS_Level1
+  contributors: sharon-fdm
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS Ubuntu 22.04 - 1.1.2.5.1 Ensure separate partition exists for /var/tmp
+  platforms: linux
+  platform: linux
+  description: CIS 1.1.2.5.1. Ensure a separate partition exists for /var/tmp.
+  resolution: |
+    Create a dedicated partition or logical volume for /var/tmp and mount it via /etc/fstab.
+
+    Apply with:
+      sudo mount -a
+  # Validation:
+  # - PASS: /var/tmp is a dedicated mount.
+  # - FAIL: if /var/tmp is just a directory under /var.
+  query: |
+    SELECT 1
+    WHERE EXISTS (
+      SELECT 1 FROM mounts WHERE path = '/var/tmp'
+    );
+  purpose: Informational
+  tags: compliance, CIS, CIS_Ubuntu_22_04, CIS_Level1
+  contributors: sharon-fdm
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS Ubuntu 22.04 - 1.1.2.5.2 Ensure nodev option set on /var/tmp partition
+  platforms: linux
+  platform: linux
+  description: CIS 1.1.2.5.2. Ensure the nodev mount option is set on /var/tmp.
+  resolution: |
+    Add nodev to the /var/tmp mount options in /etc/fstab.
+
+    Apply with:
+      sudo mount -o remount /var/tmp
+  # Validation:
+  # - PASS: /var/tmp exists and includes nodev.
+  # - FAIL: /var/tmp exists but nodev is missing.
+  query: |
+    WITH vtmp AS (
+      SELECT flags FROM mounts WHERE path = '/var/tmp' LIMIT 1
+    )
+    SELECT 1
+    WHERE EXISTS (SELECT 1 FROM vtmp)
+      AND EXISTS (
+        SELECT 1 FROM vtmp
+        WHERE
+          flags = 'nodev'
+          OR flags LIKE 'nodev,%'
+          OR flags LIKE '%,nodev'
+          OR flags LIKE '%,nodev,%'
+      );
+  purpose: Informational
+  tags: compliance, CIS, CIS_Ubuntu_22_04, CIS_Level1
+  contributors: sharon-fdm
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS Ubuntu 22.04 - 1.1.2.5.3 Ensure nosuid option set on /var/tmp partition
+  platforms: linux
+  platform: linux
+  description: CIS 1.1.2.5.3. Ensure the nosuid mount option is set on /var/tmp.
+  resolution: |
+    Add nosuid to the /var/tmp mount options in /etc/fstab.
+
+    Apply with:
+      sudo mount -o remount /var/tmp
+  # Validation:
+  # - PASS: /var/tmp exists and includes nosuid.
+  # - FAIL: /var/tmp exists but nosuid is missing.
+  query: |
+    WITH vtmp AS (
+      SELECT flags FROM mounts WHERE path = '/var/tmp' LIMIT 1
+    )
+    SELECT 1
+    WHERE EXISTS (SELECT 1 FROM vtmp)
+      AND EXISTS (
+        SELECT 1 FROM vtmp
+        WHERE
+          flags = 'nosuid'
+          OR flags LIKE 'nosuid,%'
+          OR flags LIKE '%,nosuid'
+          OR flags LIKE '%,nosuid,%'
+      );
+  purpose: Informational
+  tags: compliance, CIS, CIS_Ubuntu_22_04, CIS_Level1
+  contributors: sharon-fdm
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS Ubuntu 22.04 - 1.1.2.5.4 Ensure noexec option set on /var/tmp partition
+  platforms: linux
+  platform: linux
+  description: CIS 1.1.2.5.4. Ensure the noexec mount option is set on /var/tmp.
+  resolution: |
+    Add noexec to the /var/tmp mount options in /etc/fstab.
+
+    Apply with:
+      sudo mount -o remount /var/tmp
+  # Validation:
+  # - PASS: /var/tmp exists and includes noexec.
+  # - FAIL: /var/tmp exists but noexec is missing.
+  query: |
+    WITH vtmp AS (
+      SELECT flags FROM mounts WHERE path = '/var/tmp' LIMIT 1
+    )
+    SELECT 1
+    WHERE EXISTS (SELECT 1 FROM vtmp)
+      AND EXISTS (
+        SELECT 1 FROM vtmp
+        WHERE
+          flags = 'noexec'
+          OR flags LIKE 'noexec,%'
+          OR flags LIKE '%,noexec'
+          OR flags LIKE '%,noexec,%'
+      );
+  purpose: Informational
+  tags: compliance, CIS, CIS_Ubuntu_22_04, CIS_Level1
+  contributors: sharon-fdm
+---
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS Ubuntu 22.04 - 1.1.2.6.1 Ensure separate partition exists for /var/log
+  platforms: linux
+  platform: linux
+  description: CIS 1.1.2.6.1. Ensure a separate partition exists for /var/log.
+  resolution: |
+    Create a dedicated partition/LV for /var/log and mount it via /etc/fstab.
+
+    Apply with:
+      sudo mount -a
+  # Validation (run on the Ubuntu 22.04 host you are auditing):
+  # - PASS: /var/log appears as a mount point (query returns 1).
+  # - FAIL: /var/log is only a directory on / or /var (no separate mount), query returns no rows.
+  # - Quick check: `mount | grep ' on /var/log '`
+  query: |
+    SELECT 1
+    WHERE EXISTS (
+      SELECT 1 FROM mounts WHERE path = '/var/log'
+    );
+  purpose: Informational
+  tags: compliance, CIS, CIS_Ubuntu_22_04, CIS_Level1
+  contributors: sharon-fdm
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS Ubuntu 22.04 - 1.1.2.6.2 Ensure nodev option set on /var/log partition
+  platforms: linux
+  platform: linux
+  description: CIS 1.1.2.6.2. Ensure the nodev mount option is set on /var/log.
+  resolution: |
+    Add nodev to the /var/log mount options in /etc/fstab.
+
+    Apply with:
+      sudo mount -o remount /var/log
+  # Validation:
+  # - PASS: /var/log mount exists and includes nodev.
+  # - FAIL: /var/log mount exists but nodev is missing.
+  query: |
+    WITH vlog AS (
+      SELECT flags FROM mounts WHERE path = '/var/log' LIMIT 1
+    )
+    SELECT 1
+    WHERE EXISTS (SELECT 1 FROM vlog)
+      AND EXISTS (
+        SELECT 1 FROM vlog
+        WHERE
+          flags = 'nodev'
+          OR flags LIKE 'nodev,%'
+          OR flags LIKE '%,nodev'
+          OR flags LIKE '%,nodev,%'
+      );
+  purpose: Informational
+  tags: compliance, CIS, CIS_Ubuntu_22_04, CIS_Level1
+  contributors: sharon-fdm
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS Ubuntu 22.04 - 1.1.2.6.3 Ensure nosuid option set on /var/log partition
+  platforms: linux
+  platform: linux
+  description: CIS 1.1.2.6.3. Ensure the nosuid mount option is set on /var/log.
+  resolution: |
+    Add nosuid to the /var/log mount options in /etc/fstab.
+
+    Apply with:
+      sudo mount -o remount /var/log
+  # Validation:
+  # - PASS: /var/log mount exists and includes nosuid.
+  # - FAIL: /var/log mount exists but nosuid is missing.
+  query: |
+    WITH vlog AS (
+      SELECT flags FROM mounts WHERE path = '/var/log' LIMIT 1
+    )
+    SELECT 1
+    WHERE EXISTS (SELECT 1 FROM vlog)
+      AND EXISTS (
+        SELECT 1 FROM vlog
+        WHERE
+          flags = 'nosuid'
+          OR flags LIKE 'nosuid,%'
+          OR flags LIKE '%,nosuid'
+          OR flags LIKE '%,nosuid,%'
+      );
+  purpose: Informational
+  tags: compliance, CIS, CIS_Ubuntu_22_04, CIS_Level1
+  contributors: sharon-fdm
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS Ubuntu 22.04 - 1.1.2.6.4 Ensure noexec option set on /var/log partition
+  platforms: linux
+  platform: linux
+  description: CIS 1.1.2.6.4. Ensure the noexec mount option is set on /var/log.
+  resolution: |
+    Add noexec to the /var/log mount options in /etc/fstab.
+
+    Apply with:
+      sudo mount -o remount /var/log
+  # Validation:
+  # - PASS: /var/log mount exists and includes noexec.
+  # - FAIL: /var/log mount exists but noexec is missing.
+  query: |
+    WITH vlog AS (
+      SELECT flags FROM mounts WHERE path = '/var/log' LIMIT 1
+    )
+    SELECT 1
+    WHERE EXISTS (SELECT 1 FROM vlog)
+      AND EXISTS (
+        SELECT 1 FROM vlog
+        WHERE
+          flags = 'noexec'
+          OR flags LIKE 'noexec,%'
+          OR flags LIKE '%,noexec'
+          OR flags LIKE '%,noexec,%'
+      );
+  purpose: Informational
+  tags: compliance, CIS, CIS_Ubuntu_22_04, CIS_Level1
+  contributors: sharon-fdm
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS Ubuntu 22.04 - 1.1.2.7.1 Ensure separate partition exists for /var/log/audit
+  platforms: linux
+  platform: linux
+  description: CIS 1.1.2.7.1. Ensure a separate partition exists for /var/log/audit.
+  resolution: |
+    Create a dedicated partition/LV for /var/log/audit and mount it via /etc/fstab.
+
+    Apply with:
+      sudo mount -a
+  # Validation:
+  # - PASS: /var/log/audit appears as a mount point.
+  # - FAIL: /var/log/audit is not a separate mount (directory only).
+  # - Quick check: `mount | grep ' on /var/log/audit '`
+  query: |
+    SELECT 1
+    WHERE EXISTS (
+      SELECT 1 FROM mounts WHERE path = '/var/log/audit'
+    );
+  purpose: Informational
+  tags: compliance, CIS, CIS_Ubuntu_22_04, CIS_Level1
+  contributors: sharon-fdm
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS Ubuntu 22.04 - 1.1.2.7.2 Ensure nodev option set on /var/log/audit partition
+  platforms: linux
+  platform: linux
+  description: CIS 1.1.2.7.2. Ensure the nodev mount option is set on /var/log/audit.
+  resolution: |
+    Add nodev to the /var/log/audit mount options in /etc/fstab.
+
+    Apply with:
+      sudo mount -o remount /var/log/audit
+  # Validation:
+  # - PASS: /var/log/audit mount exists and includes nodev.
+  # - FAIL: /var/log/audit mount exists but nodev is missing.
+  query: |
+    WITH audit AS (
+      SELECT flags FROM mounts WHERE path = '/var/log/audit' LIMIT 1
+    )
+    SELECT 1
+    WHERE EXISTS (SELECT 1 FROM audit)
+      AND EXISTS (
+        SELECT 1 FROM audit
+        WHERE
+          flags = 'nodev'
+          OR flags LIKE 'nodev,%'
+          OR flags LIKE '%,nodev'
+          OR flags LIKE '%,nodev,%'
+      );
+  purpose: Informational
+  tags: compliance, CIS, CIS_Ubuntu_22_04, CIS_Level1
+  contributors: sharon-fdm
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS Ubuntu 22.04 - 1.1.2.7.3 Ensure nosuid option set on /var/log/audit partition
+  platforms: linux
+  platform: linux
+  description: CIS 1.1.2.7.3. Ensure the nosuid mount option is set on /var/log/audit.
+  resolution: |
+    Add nosuid to the /var/log/audit mount options in /etc/fstab.
+
+    Apply with:
+      sudo mount -o remount /var/log/audit
+  # Validation:
+  # - PASS: /var/log/audit mount exists and includes nosuid.
+  # - FAIL: /var/log/audit mount exists but nosuid is missing.
+  query: |
+    WITH audit AS (
+      SELECT flags FROM mounts WHERE path = '/var/log/audit' LIMIT 1
+    )
+    SELECT 1
+    WHERE EXISTS (SELECT 1 FROM audit)
+      AND EXISTS (
+        SELECT 1 FROM audit
+        WHERE
+          flags = 'nosuid'
+          OR flags LIKE 'nosuid,%'
+          OR flags LIKE '%,nosuid'
+          OR flags LIKE '%,nosuid,%'
+      );
+  purpose: Informational
+  tags: compliance, CIS, CIS_Ubuntu_22_04, CIS_Level1
+  contributors: sharon-fdm
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS Ubuntu 22.04 - 1.1.2.7.4 Ensure noexec option set on /var/log/audit partition
+  platforms: linux
+  platform: linux
+  description: CIS 1.1.2.7.4. Ensure the noexec mount option is set on /var/log/audit.
+  resolution: |
+    Add noexec to the /var/log/audit mount options in /etc/fstab.
+
+    Apply with:
+      sudo mount -o remount /var/log/audit
+  # Validation:
+  # - PASS: /var/log/audit mount exists and includes noexec.
+  # - FAIL: /var/log/audit mount exists but noexec is missing.
+  query: |
+    WITH audit AS (
+      SELECT flags FROM mounts WHERE path = '/var/log/audit' LIMIT 1
+    )
+    SELECT 1
+    WHERE EXISTS (SELECT 1 FROM audit)
+      AND EXISTS (
+        SELECT 1 FROM audit
+        WHERE
+          flags = 'noexec'
+          OR flags LIKE 'noexec,%'
+          OR flags LIKE '%,noexec'
+          OR flags LIKE '%,noexec,%'
+      );
+  purpose: Informational
+  tags: compliance, CIS, CIS_Ubuntu_22_04, CIS_Level1
+  contributors: sharon-fdm
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS Ubuntu 22.04 - 1.2.1.1 Ensure GPG keys are configured (Manual)
+  platforms: linux
+  platform: linux
+  description: CIS 1.2.1.1 (Manual). Ensure package manager GPG keys are configured and trusted appropriately.
+  resolution: |
+    Review APT keyrings and ensure only approved signing keys are trusted for your configured repositories.
+
+    Common places:
+      - /etc/apt/trusted.gpg
+      - /etc/apt/trusted.gpg.d/
+      - /usr/share/keyrings/
+    Review sources and keyring usage in:
+      - /etc/apt/sources.list
+      - /etc/apt/sources.list.d/*.list
+  # Validation:
+  # - This CIS item is manual: it requires validating that keys are correct for your organization.
+  # - PASS (manual): you have an approved list of signing keys and every configured repo references the correct key.
+  # - FAIL (manual): unknown/unapproved keys are trusted, or repos are configured without proper signature verification.
+  query: |
+    SELECT 1 WHERE 0;
+  purpose: Manual Validation Required
+  tags: compliance, CIS, CIS_Ubuntu_22_04, CIS_Level1
+  contributors: sharon-fdm
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS Ubuntu 22.04 - 1.2.1.2 Ensure package manager repositories are configured (Manual)
+  platforms: linux
+  platform: linux
+  description: CIS 1.2.1.2 (Manual). Ensure APT repositories are configured per your organization policy.
+  resolution: |
+    Review configured repositories and ensure they are approved, minimal, and use signed packages.
+
+    Files to review:
+      - /etc/apt/sources.list
+      - /etc/apt/sources.list.d/*.list
+    Ensure:
+      - only approved repos are present
+      - repos use HTTPS where applicable
+      - appropriate suites/components are used
+      - keyring usage is correct
+  # Validation:
+  # - This CIS item is manual: it’s about organizational policy and approved repos.
+  # - PASS (manual): all repos are approved and correctly configured.
+  # - FAIL (manual): unapproved repos exist or repo configuration is inconsistent with policy.
+  query: |
+    SELECT 1 WHERE 0;
+  purpose: Manual Validation Required
+  tags: compliance, CIS, CIS_Ubuntu_22_04, CIS_Level1
+  contributors: sharon-fdm
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS Ubuntu 22.04 - 1.2.2.1 Ensure updates, patches, and additional security software are installed (Manual)
+  platforms: linux
+  platform: linux
+  description: CIS 1.2.2.1 (Manual). Ensure updates/patches are applied and required security software is installed per policy.
+  resolution: |
+    Establish and follow a patching process (e.g., unattended-upgrades or managed updates).
+    Ensure required security tooling is installed per your organization (EDR, vulnerability scanner, etc.).
+
+    Typical checks:
+      - Confirm updates are regularly applied (apt history / unattended-upgrades logs).
+      - Confirm no critical updates are pending.
+  # Validation:
+  # - Manual: compliance depends on your patch policy and change windows.
+  # - PASS (manual): patch level meets your requirements and security tooling is present.
+  # - FAIL (manual): hosts are behind on updates beyond policy or missing required tooling.
+  query: |
+    SELECT 1 WHERE 0;
+  purpose: Manual Validation Required
+  tags: compliance, CIS, CIS_Ubuntu_22_04, CIS_Level1
+  contributors: sharon-fdm
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS Ubuntu 22.04 - 1.3.1.1 Ensure the apparmor packages are installed
+  platforms: linux
+  platform: linux
+  description: CIS 1.3.1.1. Ensure AppArmor packages are installed.
+  resolution: |
+    Install AppArmor packages:
+      sudo apt-get update
+      sudo apt-get install -y apparmor apparmor-utils
+
+    Note: Some minimal images may not include apparmor-utils; install it if you need management tools.
+  # Validation (run on the audited Ubuntu host):
+  # - PASS: deb_packages contains apparmor (and ideally apparmor-utils).
+  # - FAIL: apparmor package is missing.
+  query: |
+    SELECT 1
+    WHERE EXISTS (SELECT 1 FROM deb_packages WHERE name = 'apparmor')
+      AND EXISTS (SELECT 1 FROM deb_packages WHERE name = 'apparmor-utils');
+  purpose: Informational
+  tags: compliance, CIS, CIS_Ubuntu_22_04, CIS_Level1
+  contributors: sharon-fdm
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS Ubuntu 22.04 - 1.3.1.2 Ensure AppArmor is enabled
+  platforms: linux
+  platform: linux
+  description: CIS 1.3.1.2. Ensure AppArmor is enabled.
+  resolution: |
+    Ensure AppArmor is enabled at boot and running:
+      - Confirm GRUB includes security=apparmor and apparmor=1 (as appropriate)
+      - Ensure AppArmor service is enabled and running:
+          sudo systemctl enable --now apparmor
+
+    Reboot may be required after changing boot parameters.
+  # Validation:
+  # - Run on the audited Ubuntu host.
+  # - PASS: /sys/module/apparmor/parameters/enabled exists and indicates enabled.
+  # - FAIL: file missing or indicates disabled.
+  # - Quick manual check: `cat /sys/module/apparmor/parameters/enabled` should be "Y".
+  query: |
+    SELECT 1
+    WHERE EXISTS (
+      SELECT 1 FROM file WHERE path = '/sys/module/apparmor/parameters/enabled'
+    )
+    AND EXISTS (
+      SELECT 1 FROM file_lines
+      WHERE path = '/sys/module/apparmor/parameters/enabled'
+        AND (line = 'Y' OR line = 'y' OR line = '1')
+    );
+  purpose: Informational
+  tags: compliance, CIS, CIS_Ubuntu_22_04, CIS_Level1
+  contributors: sharon-fdm
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS Ubuntu 22.04 - 1.3.1.3 Ensure all AppArmor Profiles are not disabled
+  platforms: linux
+  platform: linux
+  description: CIS 1.3.1.3. Ensure no AppArmor profiles are disabled (commonly via /etc/apparmor.d/disable/*).
+  resolution: |
+    Re-enable any disabled AppArmor profiles.
+
+    Common disabling mechanism:
+      - symlinks/files under /etc/apparmor.d/disable/
+
+    Remediate by removing entries under /etc/apparmor.d/disable/ (if appropriate) and reloading profiles:
+      sudo apparmor_parser -r /etc/apparmor.d/<profile>
+      or
+      sudo systemctl reload apparmor
+  # Validation:
+  # - PASS: /etc/apparmor.d/disable/ contains no entries (query returns 1).
+  # - FAIL: any file/symlink exists under /etc/apparmor.d/disable/.
+  query: |
+    SELECT 1
+    WHERE NOT EXISTS (
+      SELECT 1 FROM glob WHERE pattern = '/etc/apparmor.d/disable/*'
+    );
+  purpose: Informational
+  tags: compliance, CIS, CIS_Ubuntu_22_04, CIS_Level1
+  contributors: sharon-fdm
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS Ubuntu 22.04 - 1.3.1.4 Ensure all AppArmor Profiles are enforcing
+  platforms: linux
+  platform: linux
+  description: CIS 1.3.1.4. Ensure all loaded AppArmor profiles are in enforce mode (not complain).
+  resolution: |
+    Set any profiles in complain mode to enforce:
+      sudo aa-enforce /etc/apparmor.d/<profile>
+
+    To see current status:
+      sudo aa-status
+  # Validation:
+  # - PASS: kernel AppArmor profiles list exists AND contains no "(complain)" entries.
+  # - FAIL: any line in /sys/kernel/security/apparmor/profiles includes "(complain)".
+  # - Quick manual check: `sudo aa-status` should report "0 profiles are in complain mode."
+  query: |
+    SELECT 1
+    WHERE EXISTS (
+      SELECT 1 FROM file WHERE path = '/sys/kernel/security/apparmor/profiles'
+    )
+    AND EXISTS (
+      SELECT 1 FROM file_lines WHERE path = '/sys/kernel/security/apparmor/profiles'
+    )
+    AND NOT EXISTS (
+      SELECT 1 FROM file_lines
+      WHERE path = '/sys/kernel/security/apparmor/profiles'
+        AND line LIKE '%(complain)%'
+    );
+  purpose: Informational
+  tags: compliance, CIS, CIS_Ubuntu_22_04, CIS_Level1
+  contributors: sharon-fdm
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS Ubuntu 22.04 - 1.4.1 Ensure bootloader password is set
+  platforms: linux
+  platform: linux
+  description: CIS 1.4.1. Ensure a GRUB bootloader password is set.
+  resolution: |
+    Configure a GRUB superuser and password hash.
+
+    Typical approach:
+      1. Generate a PBKDF2 hash:
+         grub-mkpasswd-pbkdf2
+      2. Add to a GRUB config snippet (commonly /etc/grub.d/01_users or /etc/grub.d/40_custom):
+         set superusers="<user>"
+         password_pbkdf2 <user> <hash>
+      3. Update GRUB:
+         sudo update-grub
+  # Validation:
+  # - Run on the audited Ubuntu host.
+  # - PASS: grub.cfg contains a password_pbkdf2 line (and typically a superusers setting).
+  # - FAIL: no password_pbkdf2 present.
+  # - Quick manual check: `sudo grep -R "password_pbkdf2" /boot/grub/grub.cfg`
+  query: |
+    SELECT 1
+    WHERE EXISTS (
+      SELECT 1 FROM file_lines
+      WHERE path = '/boot/grub/grub.cfg'
+        AND (line LIKE 'password_pbkdf2 %' OR line LIKE ' password_pbkdf2 %')
+    )
+    AND EXISTS (
+      SELECT 1 FROM file_lines
+      WHERE path = '/boot/grub/grub.cfg'
+        AND (line LIKE 'set superusers=%' OR line LIKE ' set superusers=%')
+    );
+  purpose: Informational
+  tags: compliance, CIS, CIS_Ubuntu_22_04, CIS_Level1
+  contributors: sharon-fdm
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS Ubuntu 22.04 - 1.4.2 Ensure access to bootloader config is configured
+  platforms: linux
+  platform: linux
+  description: CIS 1.4.2. Ensure permissions/ownership on GRUB config prevent unauthorized read/modify.
+  resolution: |
+    Ensure /boot/grub/grub.cfg is owned by root and not group/world writable.
+
+    Example remediation:
+      sudo chown root:root /boot/grub/grub.cfg
+      sudo chmod 600 /boot/grub/grub.cfg
+  # Validation:
+  # - PASS: /boot/grub/grub.cfg is owned by root:root AND mode is one of the accepted secure values.
+  # - FAIL: incorrect owner/group or overly permissive mode.
+  # - Quick manual check: `stat -c "%U %G %a %n" /boot/grub/grub.cfg`
+  query: |
+    SELECT 1
+    WHERE EXISTS (
+      SELECT 1 FROM file
+      WHERE path = '/boot/grub/grub.cfg'
+        AND uid = 0
+        AND gid = 0
+        AND (
+          mode = '0400'
+          OR mode = '0440'
+          OR mode = '0600'
+          OR mode = '0640'
+        )
+    );
+  purpose: Informational
+  tags: compliance, CIS, CIS_Ubuntu_22_04, CIS_Level1
+  contributors: sharon-fdm
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS Ubuntu 22.04 - 1.5.1 Ensure randomize_va_space is configured
+  platforms: linux
+  platform: linux
+  description: CIS 1.5.1. Ensure kernel.randomize_va_space is set to 2 (full ASLR).
+  resolution: |
+    Set kernel.randomize_va_space to 2.
+
+    Runtime:
+      sudo sysctl -w kernel.randomize_va_space=2
+
+    Persistent (example):
+      echo "kernel.randomize_va_space = 2" | sudo tee /etc/sysctl.d/60-kernel-randomize-va-space.conf
+      sudo sysctl --system
+  # Validation:
+  # - PASS: sysctl value equals 2.
+  # - FAIL: value is 0 or 1.
+  # - Quick check: `sysctl kernel.randomize_va_space`
+  query: |
+    SELECT 1
+    WHERE EXISTS (
+      SELECT 1 FROM sysctl
+      WHERE name = 'kernel.randomize_va_space'
+        AND value = '2'
+    );
+  purpose: Informational
+  tags: compliance, CIS, CIS_Ubuntu_22_04, CIS_Level1
+  contributors: sharon-fdm
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS Ubuntu 22.04 - 1.5.2 Ensure ptrace_scope is configured
+  platforms: linux
+  platform: linux
+  description: CIS 1.5.2. Ensure kernel.yama.ptrace_scope is set to 1 or higher.
+  resolution: |
+    Set kernel.yama.ptrace_scope to 1 (or stricter per your policy).
+
+    Runtime:
+      sudo sysctl -w kernel.yama.ptrace_scope=1
+
+    Persistent (example):
+      echo "kernel.yama.ptrace_scope = 1" | sudo tee /etc/sysctl.d/60-kernel-yama-ptrace-scope.conf
+      sudo sysctl --system
+  # Validation:
+  # - PASS: ptrace_scope is >= 1.
+  # - FAIL: ptrace_scope is 0.
+  # - Quick check: `sysctl kernel.yama.ptrace_scope`
+  query: |
+    SELECT 1
+    WHERE EXISTS (
+      SELECT 1 FROM sysctl
+      WHERE name = 'kernel.yama.ptrace_scope'
+        AND CAST(value AS INTEGER) >= 1
+    );
+  purpose: Informational
+  tags: compliance, CIS, CIS_Ubuntu_22_04, CIS_Level1
+  contributors: sharon-fdm
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS Ubuntu 22.04 - 1.5.5 Ensure prelink is not installed
+  platforms: linux
+  platform: linux
+  description: CIS 1.5.5. Ensure the prelink package is not installed.
+  resolution: |
+    Remove prelink if installed:
+      sudo apt-get remove -y prelink
+      sudo apt-get purge -y prelink
+  # Validation:
+  # - PASS: deb_packages has no "prelink" entry.
+  # - FAIL: deb_packages contains prelink.
+  # - Quick check: `dpkg -l | grep -i prelink`
+  query: |
+    SELECT 1
+    WHERE NOT EXISTS (
+      SELECT 1 FROM deb_packages WHERE name = 'prelink'
+    );
+  purpose: Informational
+  tags: compliance, CIS, CIS_Ubuntu_22_04, CIS_Level1
+  contributors: sharon-fdm
+---
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS Ubuntu 22.04 - 1.5.6 Ensure Automatic Error Reporting is configured (Automated)  ................................
+  platforms: linux
+  platform: linux
+  description: Ensure Automatic Error Reporting is configured (Automated)  ................................
+  resolution: |
+    Disable Apport (Automatic Error Reporting): set enabled=0 in /etc/default/apport and stop/mask apport.service.
+  # Validation:
+  # - Run on the Ubuntu 22.04 host you are auditing.
+  # - PASS: query returns 1 row.
+  # - FAIL: query returns no rows.
+  # - Quick checks:
+  #   - /etc/default/apport has enabled=0
+  #   - apport.service is not active
+  query: |
+    SELECT 1
+    WHERE (
+      NOT EXISTS (SELECT 1 FROM deb_packages WHERE name = 'apport')
+      OR EXISTS (
+        SELECT 1 FROM file_lines
+        WHERE path = '/etc/default/apport'
+          AND line LIKE 'enabled=0%'
+          AND line NOT LIKE '#%'
+      )
+    )
+    AND NOT EXISTS (
+      SELECT 1 FROM systemd_units
+      WHERE name = 'apport.service'
+        AND active_state = 'active'
+    );
+  purpose: Informational
+  tags: compliance, CIS, CIS_Ubuntu_22_04
+  contributors: sharon-fdm
+
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS Ubuntu 22.04 - 1.6.1 Ensure /etc/motd is configured (Automated)  ................................ ................................
+  platforms: linux
+  platform: linux
+  description: Ensure /etc/motd is configured (Automated)  ................................ ................................
+  resolution: |
+    Configure /etc/motd per your policy and avoid leaking OS details via escape sequences.
+  # Validation:
+  # - Run on the Ubuntu 22.04 host you are auditing.
+  # - PASS: query returns 1 row.
+  # - FAIL: query returns no rows.
+  # - Quick check: inspect /etc/motd for \\v, \\r, \\m, \\s tokens.
+  query: |
+    SELECT 1
+    WHERE EXISTS (SELECT 1 FROM file WHERE path = '/etc/motd')
+      AND NOT EXISTS (
+        SELECT 1 FROM file_lines
+        WHERE path = '/etc/motd'
+          AND (line LIKE '%\\v%' OR line LIKE '%\\r%' OR line LIKE '%\\m%' OR line LIKE '%\\s%')
+      );
+  purpose: Informational
+  tags: compliance, CIS, CIS_Ubuntu_22_04
+  contributors: sharon-fdm
+
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS Ubuntu 22.04 - 1.6.2 Ensure /etc/issue is configured (Automated)  ................................ ................................
+  platforms: linux
+  platform: linux
+  description: Ensure /etc/issue is configured (Automated)  ................................ ................................
+  resolution: |
+    Configure /etc/issue per your policy and avoid leaking OS details via escape sequences.
+  # Validation:
+  # - Run on the Ubuntu 22.04 host you are auditing.
+  # - PASS: query returns 1 row.
+  # - FAIL: query returns no rows.
+  # - Quick check: inspect /etc/issue for \\v, \\r, \\m, \\s tokens.
+  query: |
+    SELECT 1
+    WHERE EXISTS (SELECT 1 FROM file WHERE path = '/etc/issue')
+      AND NOT EXISTS (
+        SELECT 1 FROM file_lines
+        WHERE path = '/etc/issue'
+          AND (line LIKE '%\\v%' OR line LIKE '%\\r%' OR line LIKE '%\\m%' OR line LIKE '%\\s%')
+      );
+  purpose: Informational
+  tags: compliance, CIS, CIS_Ubuntu_22_04
+  contributors: sharon-fdm
+
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS Ubuntu 22.04 - 1.6.3 Ensure /etc/issue.net is configured (Automated)  ................................
+  platforms: linux
+  platform: linux
+  description: Ensure /etc/issue.net is configured (Automated)  ................................
+  resolution: |
+    Configure /etc/issue.net per your policy and avoid leaking OS details via escape sequences.
+  # Validation:
+  # - Run on the Ubuntu 22.04 host you are auditing.
+  # - PASS: query returns 1 row.
+  # - FAIL: query returns no rows.
+  # - Quick check: inspect /etc/issue.net for \\v, \\r, \\m, \\s tokens.
+  query: |
+    SELECT 1
+    WHERE EXISTS (SELECT 1 FROM file WHERE path = '/etc/issue.net')
+      AND NOT EXISTS (
+        SELECT 1 FROM file_lines
+        WHERE path = '/etc/issue.net'
+          AND (line LIKE '%\\v%' OR line LIKE '%\\r%' OR line LIKE '%\\m%' OR line LIKE '%\\s%')
+      );
+  purpose: Informational
+  tags: compliance, CIS, CIS_Ubuntu_22_04
+  contributors: sharon-fdm
+
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS Ubuntu 22.04 - 1.6.4 Ensure access to /etc/motd is configured (Automated)  ................................
+  platforms: linux
+  platform: linux
+  description: Ensure access to /etc/motd is configured (Automated)  ................................
+  resolution: |
+    Ensure /etc/motd is owned by root:root and has restrictive permissions.
+  # Validation:
+  # - Run on the Ubuntu 22.04 host you are auditing.
+  # - PASS: query returns 1 row.
+  # - FAIL: query returns no rows.
+  query: |
+    SELECT 1 WHERE EXISTS (SELECT 1 FROM file WHERE path = '/etc/motd' AND uid = 0 AND gid = 0 AND (mode = '0400' OR mode = '0440' OR mode = '0444' OR mode = '0600' OR mode = '0640' OR mode = '0644'));
+  purpose: Informational
+  tags: compliance, CIS, CIS_Ubuntu_22_04
+  contributors: sharon-fdm
+
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS Ubuntu 22.04 - 1.6.5 Ensure access to /etc/issue is configured (Automated) ................................
+  platforms: linux
+  platform: linux
+  description: Ensure access to /etc/issue is configured (Automated) ................................
+  resolution: |
+    Ensure /etc/issue is owned by root:root and has restrictive permissions.
+  # Validation:
+  # - Run on the Ubuntu 22.04 host you are auditing.
+  # - PASS: query returns 1 row.
+  # - FAIL: query returns no rows.
+  query: |
+    SELECT 1 WHERE EXISTS (SELECT 1 FROM file WHERE path = '/etc/issue' AND uid = 0 AND gid = 0 AND (mode = '0400' OR mode = '0440' OR mode = '0444' OR mode = '0600' OR mode = '0640' OR mode = '0644'));
+  purpose: Informational
+  tags: compliance, CIS, CIS_Ubuntu_22_04
+  contributors: sharon-fdm
+
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS Ubuntu 22.04 - 1.6.6 Ensure access to /etc/issue.net is configured (Automated)  ................................
+  platforms: linux
+  platform: linux
+  description: Ensure access to /etc/issue.net is configured (Automated)  ................................
+  resolution: |
+    Ensure /etc/issue.net is owned by root:root and has restrictive permissions.
+  # Validation:
+  # - Run on the Ubuntu 22.04 host you are auditing.
+  # - PASS: query returns 1 row.
+  # - FAIL: query returns no rows.
+  query: |
+    SELECT 1 WHERE EXISTS (SELECT 1 FROM file WHERE path = '/etc/issue.net' AND uid = 0 AND gid = 0 AND (mode = '0400' OR mode = '0440' OR mode = '0444' OR mode = '0600' OR mode = '0640' OR mode = '0644'));
+  purpose: Informational
+  tags: compliance, CIS, CIS_Ubuntu_22_04
+  contributors: sharon-fdm
+
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS Ubuntu 22.04 - 1.7.1 Ensure GDM is removed (Automated)  ................................ ................................
+  platforms: linux
+  platform: linux
+  description: Ensure GDM is removed (Automated)  ................................ ................................
+  resolution: |
+    Remove GDM (gnome display manager) if not required.
+  # Validation:
+  # - Run on the Ubuntu 22.04 host you are auditing.
+  # - PASS: query returns 1 row.
+  # - FAIL: query returns no rows.
+  # - PASS: gdm3 package is not installed.
+  query: |
+    SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM deb_packages WHERE name = 'gdm3');
+  purpose: Informational
+  tags: compliance, CIS, CIS_Ubuntu_22_04
+  contributors: sharon-fdm
+
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS Ubuntu 22.04 - 1.7.2 Ensure GDM login banner is configured (Automated)  ................................
+  platforms: linux
+  platform: linux
+  description: Ensure GDM login banner is configured (Automated)  ................................
+  resolution: |
+    Configure a GDM login banner (dconf) per CIS.
+  # Validation:
+  # - Run on the Ubuntu 22.04 host you are auditing.
+  # - PASS: query returns 1 row.
+  # - FAIL: query returns no rows.
+  query: |
+    SELECT 1
+    WHERE EXISTS (
+      SELECT 1 FROM file_lines
+      WHERE path LIKE '/etc/dconf/db/%'
+        AND line LIKE '%banner-message-enable=true%'
+    )
+    AND EXISTS (
+      SELECT 1 FROM file_lines
+      WHERE path LIKE '/etc/dconf/db/%'
+        AND line LIKE '%banner-message-text=%'
+        AND line NOT LIKE '%banner-message-text=%""%'
+    );
+  purpose: Informational
+  tags: compliance, CIS, CIS_Ubuntu_22_04
+  contributors: sharon-fdm
+
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS Ubuntu 22.04 - 1.7.3 Ensure GDM disable -user-list option is enabled (Automated)  ................................
+  platforms: linux
+  platform: linux
+  description: Ensure GDM disable -user-list option is enabled (Automated)  ................................
+  resolution: |
+    Enable GDM disable-user-list (dconf).
+  # Validation:
+  # - Run on the Ubuntu 22.04 host you are auditing.
+  # - PASS: query returns 1 row.
+  # - FAIL: query returns no rows.
+  query: |
+    SELECT 1
+    WHERE EXISTS (
+      SELECT 1 FROM file_lines
+      WHERE path LIKE '/etc/dconf/db/%'
+        AND line LIKE '%disable-user-list=true%'
+    );
+  purpose: Informational
+  tags: compliance, CIS, CIS_Ubuntu_22_04
+  contributors: sharon-fdm
+
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS Ubuntu 22.04 - 1.7.4 Ensure GDM screen locks when the user is idle (Automated)  ................................
+  platforms: linux
+  platform: linux
+  description: Ensure GDM screen locks when the user is idle (Automated)  ................................
+  resolution: |
+    Configure idle-delay and lock-delay to lock screen when idle (dconf).
+  # Validation:
+  # - Run on the Ubuntu 22.04 host you are auditing.
+  # - PASS: query returns 1 row.
+  # - FAIL: query returns no rows.
+  query: |
+    SELECT 1
+    WHERE EXISTS (
+      SELECT 1 FROM file_lines
+      WHERE path LIKE '/etc/dconf/db/%'
+        AND (line LIKE '%idle-delay=%' OR line LIKE '%lock-delay=%')
+    );
+  purpose: Informational
+  tags: compliance, CIS, CIS_Ubuntu_22_04
+  contributors: sharon-fdm
+
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS Ubuntu 22.04 - 1.7.5 Ensure GDM screen locks cannot be overridden (Automated)  ................................
+  platforms: linux
+  platform: linux
+  description: Ensure GDM screen locks cannot be overridden (Automated)  ................................
+  resolution: |
+    Lock the screen lock settings so users cannot override (dconf locks).
+  # Validation:
+  # - Run on the Ubuntu 22.04 host you are auditing.
+  # - PASS: query returns 1 row.
+  # - FAIL: query returns no rows.
+  query: |
+    SELECT 1
+    WHERE EXISTS (
+      SELECT 1 FROM file_lines
+      WHERE path LIKE '/etc/dconf/db/%/locks/%'
+        AND (line LIKE '%idle-delay%' OR line LIKE '%lock-delay%')
+    );
+  purpose: Informational
+  tags: compliance, CIS, CIS_Ubuntu_22_04
+  contributors: sharon-fdm
+
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS Ubuntu 22.04 - 1.7.6 Ensure GDM automatic mounting of removable media is disabled (Automated)
+  platforms: linux
+  platform: linux
+  description: Ensure GDM automatic mounting of removable media is disabled (Automated)
+  resolution: |
+    Disable automount and automount-open for removable media in GDM (dconf).
+  # Validation:
+  # - Run on the Ubuntu 22.04 host you are auditing.
+  # - PASS: query returns 1 row.
+  # - FAIL: query returns no rows.
+  query: |
+    SELECT 1
+    WHERE EXISTS (
+      SELECT 1 FROM file_lines
+      WHERE path LIKE '/etc/dconf/db/%'
+        AND line LIKE '%automount=false%'
+    )
+    AND EXISTS (
+      SELECT 1 FROM file_lines
+      WHERE path LIKE '/etc/dconf/db/%'
+        AND line LIKE '%automount-open=false%'
+    );
+  purpose: Informational
+  tags: compliance, CIS, CIS_Ubuntu_22_04
+  contributors: sharon-fdm
+
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS Ubuntu 22.04 - 1.7.7 Ensure GDM disabling automatic mounting of removable media is not overridden
+  platforms: linux
+  platform: linux
+  description: Ensure GDM disabling automatic mounting of removable media is not overridden
+  resolution: |
+    Lock automount settings so they cannot be overridden (dconf locks).
+  # Validation:
+  # - Run on the Ubuntu 22.04 host you are auditing.
+  # - PASS: query returns 1 row.
+  # - FAIL: query returns no rows.
+  query: |
+    SELECT 1
+    WHERE EXISTS (
+      SELECT 1 FROM file_lines
+      WHERE path LIKE '/etc/dconf/db/%/locks/%'
+        AND line LIKE '%automount=false%'
+    )
+    AND EXISTS (
+      SELECT 1 FROM file_lines
+      WHERE path LIKE '/etc/dconf/db/%/locks/%'
+        AND line LIKE '%automount-open=false%'
+    );
+  purpose: Informational
+  tags: compliance, CIS, CIS_Ubuntu_22_04
+  contributors: sharon-fdm
+
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS Ubuntu 22.04 - 1.7.8 Ensure GDM autorun -never is enabled (Automated)  ................................
+  platforms: linux
+  platform: linux
+  description: Ensure GDM autorun -never is enabled (Automated)  ................................
+  resolution: |
+    Enable autorun-never in GDM (dconf).
+  # Validation:
+  # - Run on the Ubuntu 22.04 host you are auditing.
+  # - PASS: query returns 1 row.
+  # - FAIL: query returns no rows.
+  query: |
+    SELECT 1
+    WHERE EXISTS (
+      SELECT 1 FROM file_lines
+      WHERE path LIKE '/etc/dconf/db/%'
+        AND line LIKE '%autorun-never=true%'
+    );
+  purpose: Informational
+  tags: compliance, CIS, CIS_Ubuntu_22_04
+  contributors: sharon-fdm
+
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS Ubuntu 22.04 - 1.7.9 Ensure GDM autorun -never is not overridden (Automated)  ................................
+  platforms: linux
+  platform: linux
+  description: Ensure GDM autorun -never is not overridden (Automated)  ................................
+  resolution: |
+    Lock autorun-never so it cannot be overridden (dconf locks).
+  # Validation:
+  # - Run on the Ubuntu 22.04 host you are auditing.
+  # - PASS: query returns 1 row.
+  # - FAIL: query returns no rows.
+  query: |
+    SELECT 1
+    WHERE EXISTS (
+      SELECT 1 FROM file_lines
+      WHERE path LIKE '/etc/dconf/db/%/locks/%'
+        AND line LIKE '%autorun-never=true%'
+    );
+  purpose: Informational
+  tags: compliance, CIS, CIS_Ubuntu_22_04
+  contributors: sharon-fdm
+
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS Ubuntu 22.04 - 1.7.10 Ensure XDMCP is not enabled (Automated)  ................................
+  platforms: linux
+  platform: linux
+  description: Ensure XDMCP is not enabled (Automated)  ................................
+  resolution: |
+    Ensure XDMCP is not enabled (GDM).
+  # Validation:
+  # - Run on the Ubuntu 22.04 host you are auditing.
+  # - PASS: query returns 1 row.
+  # - FAIL: query returns no rows.
+  query: |
+    SELECT 1
+    WHERE EXISTS (SELECT 1 FROM file WHERE path = '/etc/gdm3/custom.conf')
+      AND NOT EXISTS (
+        SELECT 1 FROM file_lines
+        WHERE path = '/etc/gdm3/custom.conf'
+          AND line LIKE '%Enable=true%'
+          AND line NOT LIKE '#%'
+      );
+  purpose: Informational
+  tags: compliance, CIS, CIS_Ubuntu_22_04
+  contributors: sharon-fdm
+
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS Ubuntu 22.04 - 1.7.11 Ensure Xwayland is configured (Automated)  ................................
+  platforms: linux
+  platform: linux
+  description: Ensure Xwayland is configured (Automated)  ................................
+  resolution: |
+    Ensure Xwayland is configured/disabled per CIS.
+  # Validation:
+  # - Run on the Ubuntu 22.04 host you are auditing.
+  # - PASS: query returns 1 row.
+  # - FAIL: query returns no rows.
+  query: |
+    SELECT 1
+    WHERE NOT EXISTS (
+      SELECT 1 FROM file_lines
+      WHERE path LIKE '/etc/gdm3/%'
+        AND line LIKE '%XwaylandEnable=true%'
+        AND line NOT LIKE '#%'
+    );
+  purpose: Informational
+  tags: compliance, CIS, CIS_Ubuntu_22_04
+  contributors: sharon-fdm
+
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS Ubuntu 22.04 - 2.1.1 Ensure autofs services are not in use (Automated)  ................................
+  platforms: linux
+  platform: linux
+  description: Ensure autofs services are not in use (Automated)  ................................
+  resolution: |
+    Remove or disable the service if not required for this system's role.
+  # Validation:
+  # - Run on the Ubuntu 22.04 host you are auditing.
+  # - PASS: query returns 1 row.
+  # - FAIL: query returns no rows.
+  # - PASS: none of these services are active: autofs.service
+  query: |
+    SELECT 1
+    WHERE NOT EXISTS (
+      SELECT 1 FROM systemd_units
+      WHERE name IN ('autofs.service')
+        AND active_state = 'active'
+    );
+  purpose: Informational
+  tags: compliance, CIS, CIS_Ubuntu_22_04
+  contributors: sharon-fdm
+
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS Ubuntu 22.04 - 2.1.2 Ensure avahi daemon services are not in use (Automated)  ................................
+  platforms: linux
+  platform: linux
+  description: Ensure avahi daemon services are not in use (Automated)  ................................
+  resolution: |
+    Remove or disable the service if not required for this system's role.
+  # Validation:
+  # - Run on the Ubuntu 22.04 host you are auditing.
+  # - PASS: query returns 1 row.
+  # - FAIL: query returns no rows.
+  # - PASS: none of these services are active: avahi-daemon.service
+  query: |
+    SELECT 1
+    WHERE NOT EXISTS (
+      SELECT 1 FROM systemd_units
+      WHERE name IN ('avahi-daemon.service')
+        AND active_state = 'active'
+    );
+  purpose: Informational
+  tags: compliance, CIS, CIS_Ubuntu_22_04
+  contributors: sharon-fdm
+
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS Ubuntu 22.04 - 2.1.3 Ensure dhcp server services are not in use (Automated) ................................
+  platforms: linux
+  platform: linux
+  description: Ensure dhcp server services are not in use (Automated) ................................
+  resolution: |
+    Remove or disable the service if not required for this system's role.
+  # Validation:
+  # - Run on the Ubuntu 22.04 host you are auditing.
+  # - PASS: query returns 1 row.
+  # - FAIL: query returns no rows.
+  # - PASS: none of these services are active: isc-dhcp-server.service, dhcpd.service
+  query: |
+    SELECT 1
+    WHERE NOT EXISTS (
+      SELECT 1 FROM systemd_units
+      WHERE name IN ('isc-dhcp-server.service', 'dhcpd.service')
+        AND active_state = 'active'
+    );
+  purpose: Informational
+  tags: compliance, CIS, CIS_Ubuntu_22_04
+  contributors: sharon-fdm
+
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS Ubuntu 22.04 - 2.1.4 Ensure dns server services are not in use (Automated) ................................
+  platforms: linux
+  platform: linux
+  description: Ensure dns server services are not in use (Automated) ................................
+  resolution: |
+    Remove or disable the service if not required for this system's role.
+  # Validation:
+  # - Run on the Ubuntu 22.04 host you are auditing.
+  # - PASS: query returns 1 row.
+  # - FAIL: query returns no rows.
+  # - PASS: none of these services are active: bind9.service, named.service
+  query: |
+    SELECT 1
+    WHERE NOT EXISTS (
+      SELECT 1 FROM systemd_units
+      WHERE name IN ('bind9.service', 'named.service')
+        AND active_state = 'active'
+    );
+  purpose: Informational
+  tags: compliance, CIS, CIS_Ubuntu_22_04
+  contributors: sharon-fdm
+
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS Ubuntu 22.04 - 2.1.5 Ensure dnsmasq services are not in use (Automated)  ................................
+  platforms: linux
+  platform: linux
+  description: Ensure dnsmasq services are not in use (Automated)  ................................
+  resolution: |
+    Remove or disable the service if not required for this system's role.
+  # Validation:
+  # - Run on the Ubuntu 22.04 host you are auditing.
+  # - PASS: query returns 1 row.
+  # - FAIL: query returns no rows.
+  # - PASS: none of these services are active: dnsmasq.service
+  query: |
+    SELECT 1
+    WHERE NOT EXISTS (
+      SELECT 1 FROM systemd_units
+      WHERE name IN ('dnsmasq.service')
+        AND active_state = 'active'
+    );
+  purpose: Informational
+  tags: compliance, CIS, CIS_Ubuntu_22_04
+  contributors: sharon-fdm
+
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS Ubuntu 22.04 - 2.1.6 Ensure ftp server services are not in use (Automated)  ................................
+  platforms: linux
+  platform: linux
+  description: Ensure ftp server services are not in use (Automated)  ................................
+  resolution: |
+    Remove or disable the service if not required for this system's role.
+  # Validation:
+  # - Run on the Ubuntu 22.04 host you are auditing.
+  # - PASS: query returns 1 row.
+  # - FAIL: query returns no rows.
+  # - PASS: none of these services are active: vsftpd.service, proftpd.service
+  query: |
+    SELECT 1
+    WHERE NOT EXISTS (
+      SELECT 1 FROM systemd_units
+      WHERE name IN ('vsftpd.service', 'proftpd.service')
+        AND active_state = 'active'
+    );
+  purpose: Informational
+  tags: compliance, CIS, CIS_Ubuntu_22_04
+  contributors: sharon-fdm
+
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS Ubuntu 22.04 - 2.1.7 Ensure ldap server services are not in use (Automated) ................................
+  platforms: linux
+  platform: linux
+  description: Ensure ldap server services are not in use (Automated) ................................
+  resolution: |
+    Remove or disable the service if not required for this system's role.
+  # Validation:
+  # - Run on the Ubuntu 22.04 host you are auditing.
+  # - PASS: query returns 1 row.
+  # - FAIL: query returns no rows.
+  # - PASS: none of these services are active: slapd.service
+  query: |
+    SELECT 1
+    WHERE NOT EXISTS (
+      SELECT 1 FROM systemd_units
+      WHERE name IN ('slapd.service')
+        AND active_state = 'active'
+    );
+  purpose: Informational
+  tags: compliance, CIS, CIS_Ubuntu_22_04
+  contributors: sharon-fdm
+
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS Ubuntu 22.04 - 2.1.8 Ensure message access server services are not in use (Automated)
+  platforms: linux
+  platform: linux
+  description: Ensure message access server services are not in use (Automated)
+  resolution: |
+    Remove or disable the service if not required for this system's role.
+  # Validation:
+  # - Run on the Ubuntu 22.04 host you are auditing.
+  # - PASS: query returns 1 row.
+  # - FAIL: query returns no rows.
+  # - PASS: none of these services are active: dovecot.service, courier-imap.service, cyrus-imapd.service
+  query: |
+    SELECT 1
+    WHERE NOT EXISTS (
+      SELECT 1 FROM systemd_units
+      WHERE name IN ('dovecot.service', 'courier-imap.service', 'cyrus-imapd.service')
+        AND active_state = 'active'
+    );
+  purpose: Informational
+  tags: compliance, CIS, CIS_Ubuntu_22_04
+  contributors: sharon-fdm
+
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS Ubuntu 22.04 - 2.1.9 Ensure network file system services are not in use (Automated)  ................................
+  platforms: linux
+  platform: linux
+  description: Ensure network file system services are not in use (Automated)  ................................
+  resolution: |
+    Remove or disable the service if not required for this system's role.
+  # Validation:
+  # - Run on the Ubuntu 22.04 host you are auditing.
+  # - PASS: query returns 1 row.
+  # - FAIL: query returns no rows.
+  # - PASS: none of these services are active: nfs-server.service, nfs-kernel-server.service
+  query: |
+    SELECT 1
+    WHERE NOT EXISTS (
+      SELECT 1 FROM systemd_units
+      WHERE name IN ('nfs-server.service', 'nfs-kernel-server.service')
+        AND active_state = 'active'
+    );
+  purpose: Informational
+  tags: compliance, CIS, CIS_Ubuntu_22_04
+  contributors: sharon-fdm
+
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS Ubuntu 22.04 - 2.1.10 Ensure nis server services are not in use (Automated)  ................................
+  platforms: linux
+  platform: linux
+  description: Ensure nis server services are not in use (Automated)  ................................
+  resolution: |
+    Remove or disable the service if not required for this system's role.
+  # Validation:
+  # - Run on the Ubuntu 22.04 host you are auditing.
+  # - PASS: query returns 1 row.
+  # - FAIL: query returns no rows.
+  # - PASS: none of these services are active: nis.service, ypserv.service
+  query: |
+    SELECT 1
+    WHERE NOT EXISTS (
+      SELECT 1 FROM systemd_units
+      WHERE name IN ('nis.service', 'ypserv.service')
+        AND active_state = 'active'
+    );
+  purpose: Informational
+  tags: compliance, CIS, CIS_Ubuntu_22_04
+  contributors: sharon-fdm
+
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS Ubuntu 22.04 - 2.1.11 Ensure print server services are not in use (Automated)  ................................
+  platforms: linux
+  platform: linux
+  description: Ensure print server services are not in use (Automated)  ................................
+  resolution: |
+    Remove or disable the service if not required for this system's role.
+  # Validation:
+  # - Run on the Ubuntu 22.04 host you are auditing.
+  # - PASS: query returns 1 row.
+  # - FAIL: query returns no rows.
+  # - PASS: none of these services are active: cups.service
+  query: |
+    SELECT 1
+    WHERE NOT EXISTS (
+      SELECT 1 FROM systemd_units
+      WHERE name IN ('cups.service')
+        AND active_state = 'active'
+    );
+  purpose: Informational
+  tags: compliance, CIS, CIS_Ubuntu_22_04
+  contributors: sharon-fdm
+
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS Ubuntu 22.04 - 2.1.12 Ensure rpcbind services are not in use (Automated) ................................
+  platforms: linux
+  platform: linux
+  description: Ensure rpcbind services are not in use (Automated) ................................
+  resolution: |
+    Remove or disable the service if not required for this system's role.
+  # Validation:
+  # - Run on the Ubuntu 22.04 host you are auditing.
+  # - PASS: query returns 1 row.
+  # - FAIL: query returns no rows.
+  # - PASS: none of these services are active: rpcbind.service
+  query: |
+    SELECT 1
+    WHERE NOT EXISTS (
+      SELECT 1 FROM systemd_units
+      WHERE name IN ('rpcbind.service')
+        AND active_state = 'active'
+    );
+  purpose: Informational
+  tags: compliance, CIS, CIS_Ubuntu_22_04
+  contributors: sharon-fdm
+
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS Ubuntu 22.04 - 2.1.13 Ensure rsync services are not in use (Automated)  ................................
+  platforms: linux
+  platform: linux
+  description: Ensure rsync services are not in use (Automated)  ................................
+  resolution: |
+    Remove or disable the service if not required for this system's role.
+  # Validation:
+  # - Run on the Ubuntu 22.04 host you are auditing.
+  # - PASS: query returns 1 row.
+  # - FAIL: query returns no rows.
+  # - PASS: none of these services are active: rsync.service
+  query: |
+    SELECT 1
+    WHERE NOT EXISTS (
+      SELECT 1 FROM systemd_units
+      WHERE name IN ('rsync.service')
+        AND active_state = 'active'
+    );
+  purpose: Informational
+  tags: compliance, CIS, CIS_Ubuntu_22_04
+  contributors: sharon-fdm
+
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS Ubuntu 22.04 - 2.1.14 Ensure samba file server services are not in use (Automated)  ................................
+  platforms: linux
+  platform: linux
+  description: Ensure samba file server services are not in use (Automated)  ................................
+  resolution: |
+    Remove or disable the service if not required for this system's role.
+  # Validation:
+  # - Run on the Ubuntu 22.04 host you are auditing.
+  # - PASS: query returns 1 row.
+  # - FAIL: query returns no rows.
+  # - PASS: none of these services are active: smbd.service, nmbd.service
+  query: |
+    SELECT 1
+    WHERE NOT EXISTS (
+      SELECT 1 FROM systemd_units
+      WHERE name IN ('smbd.service', 'nmbd.service')
+        AND active_state = 'active'
+    );
+  purpose: Informational
+  tags: compliance, CIS, CIS_Ubuntu_22_04
+  contributors: sharon-fdm
+
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS Ubuntu 22.04 - 2.1.15 Ensure snmp services are not in use (Automated)  ................................
+  platforms: linux
+  platform: linux
+  description: Ensure snmp services are not in use (Automated)  ................................
+  resolution: |
+    Remove or disable the service if not required for this system's role.
+  # Validation:
+  # - Run on the Ubuntu 22.04 host you are auditing.
+  # - PASS: query returns 1 row.
+  # - FAIL: query returns no rows.
+  # - PASS: none of these services are active: snmpd.service
+  query: |
+    SELECT 1
+    WHERE NOT EXISTS (
+      SELECT 1 FROM systemd_units
+      WHERE name IN ('snmpd.service')
+        AND active_state = 'active'
+    );
+  purpose: Informational
+  tags: compliance, CIS, CIS_Ubuntu_22_04
+  contributors: sharon-fdm
+
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS Ubuntu 22.04 - 2.1.16 Ensure tftp server services are not in use (Automated)  ................................
+  platforms: linux
+  platform: linux
+  description: Ensure tftp server services are not in use (Automated)  ................................
+  resolution: |
+    Remove or disable the service if not required for this system's role.
+  # Validation:
+  # - Run on the Ubuntu 22.04 host you are auditing.
+  # - PASS: query returns 1 row.
+  # - FAIL: query returns no rows.
+  # - PASS: none of these services are active: tftpd.service, tftpd-hpa.service
+  query: |
+    SELECT 1
+    WHERE NOT EXISTS (
+      SELECT 1 FROM systemd_units
+      WHERE name IN ('tftpd.service', 'tftpd-hpa.service')
+        AND active_state = 'active'
+    );
+  purpose: Informational
+  tags: compliance, CIS, CIS_Ubuntu_22_04
+  contributors: sharon-fdm
+
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS Ubuntu 22.04 - 2.1.17 Ensure web proxy server services are not in use (Automated)  ................................
+  platforms: linux
+  platform: linux
+  description: Ensure web proxy server services are not in use (Automated)  ................................
+  resolution: |
+    Remove or disable the service if not required for this system's role.
+  # Validation:
+  # - Run on the Ubuntu 22.04 host you are auditing.
+  # - PASS: query returns 1 row.
+  # - FAIL: query returns no rows.
+  # - PASS: none of these services are active: squid.service
+  query: |
+    SELECT 1
+    WHERE NOT EXISTS (
+      SELECT 1 FROM systemd_units
+      WHERE name IN ('squid.service')
+        AND active_state = 'active'
+    );
+  purpose: Informational
+  tags: compliance, CIS, CIS_Ubuntu_22_04
+  contributors: sharon-fdm
+
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS Ubuntu 22.04 - 2.1.18 Ensure web server services are not in use (Automated)  ................................
+  platforms: linux
+  platform: linux
+  description: Ensure web server services are not in use (Automated)  ................................
+  resolution: |
+    Remove or disable the service if not required for this system's role.
+  # Validation:
+  # - Run on the Ubuntu 22.04 host you are auditing.
+  # - PASS: query returns 1 row.
+  # - FAIL: query returns no rows.
+  # - PASS: none of these services are active: apache2.service, nginx.service
+  query: |
+    SELECT 1
+    WHERE NOT EXISTS (
+      SELECT 1 FROM systemd_units
+      WHERE name IN ('apache2.service', 'nginx.service')
+        AND active_state = 'active'
+    );
+  purpose: Informational
+  tags: compliance, CIS, CIS_Ubuntu_22_04
+  contributors: sharon-fdm
+
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS Ubuntu 22.04 - 2.1.19 Ensure xinetd services are not in use (Automated)  ................................
+  platforms: linux
+  platform: linux
+  description: Ensure xinetd services are not in use (Automated)  ................................
+  resolution: |
+    Remove or disable the service if not required for this system's role.
+  # Validation:
+  # - Run on the Ubuntu 22.04 host you are auditing.
+  # - PASS: query returns 1 row.
+  # - FAIL: query returns no rows.
+  # - PASS: none of these services are active: xinetd.service
+  query: |
+    SELECT 1
+    WHERE NOT EXISTS (
+      SELECT 1 FROM systemd_units
+      WHERE name IN ('xinetd.service')
+        AND active_state = 'active'
+    );
+  purpose: Informational
+  tags: compliance, CIS, CIS_Ubuntu_22_04
+  contributors: sharon-fdm
+
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS Ubuntu 22.04 - 2.1.20 Ensure X window server services are not in use (Automated)  ................................
+  platforms: linux
+  platform: linux
+  description: Ensure X window server services are not in use (Automated)  ................................
+  resolution: |
+    Remove or disable the service if not required for this system's role.
+  # Validation:
+  # - Run on the Ubuntu 22.04 host you are auditing.
+  # - PASS: query returns 1 row.
+  # - FAIL: query returns no rows.
+  # - PASS: none of these services are active: display-manager.service, gdm.service, gdm3.service, lightdm.service
+  query: |
+    SELECT 1
+    WHERE NOT EXISTS (
+      SELECT 1 FROM systemd_units
+      WHERE name IN ('display-manager.service', 'gdm.service', 'gdm3.service', 'lightdm.service')
+        AND active_state = 'active'
+    );
+  purpose: Informational
+  tags: compliance, CIS, CIS_Ubuntu_22_04
+  contributors: sharon-fdm
+
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS Ubuntu 22.04 - 2.1.21 Ensure mail transfer agents are configured for local -only mode (Automated)
+  platforms: linux
+  platform: linux
+  description: Ensure mail transfer agents are configured for local -only mode (Automated)
+  resolution: |
+    Configure MTA for local-only mode (no remote listening on TCP/25).
+  # Validation:
+  # - Run on the Ubuntu 22.04 host you are auditing.
+  # - PASS: query returns 1 row.
+  # - FAIL: query returns no rows.
+  query: |
+    SELECT 1
+    WHERE NOT EXISTS (
+      SELECT 1 FROM listening_ports
+      WHERE port = 25 AND protocol = 6
+        AND address NOT IN ('127.0.0.1','::1')
+    );
+  purpose: Informational
+  tags: compliance, CIS, CIS_Ubuntu_22_04
+  contributors: sharon-fdm
+
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS Ubuntu 22.04 - 2.1.22 Ensure only approved services are listening on a network interface (Manual)
+  platforms: linux
+  platform: linux
+  description: Ensure only approved services are listening on a network interface (Manual)
+  resolution: |
+    Manually confirm only approved services/ports are listening on network interfaces.
+  # Validation:
+  # - Run on the Ubuntu 22.04 host you are auditing.
+  # - PASS: query returns 1 row.
+  # - FAIL: query returns no rows.
+  # - Manual: review listening_ports output vs your approved list.
+  query: |
+    SELECT 1 WHERE 0;
+  purpose: Manual Validation Required
+  tags: compliance, CIS, CIS_Ubuntu_22_04
+  contributors: sharon-fdm
+
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS Ubuntu 22.04 - 2.2.1 Ensure nis client is not installed (Automated)  ................................
+  platforms: linux
+  platform: linux
+  description: Ensure nis client is not installed (Automated)  ................................
+  resolution: |
+    Remove the nis client package if not required.
+  # Validation:
+  # - Run on the Ubuntu 22.04 host you are auditing.
+  # - PASS: query returns 1 row.
+  # - FAIL: query returns no rows.
+  query: |
+    SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM deb_packages WHERE name = 'nis');
+  purpose: Informational
+  tags: compliance, CIS, CIS_Ubuntu_22_04
+  contributors: sharon-fdm
+
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS Ubuntu 22.04 - 2.2.3 Ensure talk client is not installed (Automated)  ................................
+  platforms: linux
+  platform: linux
+  description: Ensure talk client is not installed (Automated)  ................................
+  resolution: |
+    Remove the talk client package if not required.
+  # Validation:
+  # - Run on the Ubuntu 22.04 host you are auditing.
+  # - PASS: query returns 1 row.
+  # - FAIL: query returns no rows.
+  query: |
+    SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM deb_packages WHERE name = 'talk');
+  purpose: Informational
+  tags: compliance, CIS, CIS_Ubuntu_22_04
+  contributors: sharon-fdm
+
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS Ubuntu 22.04 - 2.2.4 Ensure telnet client is not installed (Automated)  ................................
+  platforms: linux
+  platform: linux
+  description: Ensure telnet client is not installed (Automated)  ................................
+  resolution: |
+    Remove the telnet client package if not required.
+  # Validation:
+  # - Run on the Ubuntu 22.04 host you are auditing.
+  # - PASS: query returns 1 row.
+  # - FAIL: query returns no rows.
+  query: |
+    SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM deb_packages WHERE name = 'telnet');
+  purpose: Informational
+  tags: compliance, CIS, CIS_Ubuntu_22_04
+  contributors: sharon-fdm
+
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS Ubuntu 22.04 - 2.2.5 Ensure ldap client is not installed (Automated)  ................................
+  platforms: linux
+  platform: linux
+  description: Ensure ldap client is not installed (Automated)  ................................
+  resolution: |
+    Remove the ldap-utils client package if not required.
+  # Validation:
+  # - Run on the Ubuntu 22.04 host you are auditing.
+  # - PASS: query returns 1 row.
+  # - FAIL: query returns no rows.
+  query: |
+    SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM deb_packages WHERE name = 'ldap-utils');
+  purpose: Informational
+  tags: compliance, CIS, CIS_Ubuntu_22_04
+  contributors: sharon-fdm
+
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS Ubuntu 22.04 - 2.2.6 Ensure ftp client is not installed (Automated)  ................................
+  platforms: linux
+  platform: linux
+  description: Ensure ftp client is not installed (Automated)  ................................
+  resolution: |
+    Remove the ftp client package if not required.
+  # Validation:
+  # - Run on the Ubuntu 22.04 host you are auditing.
+  # - PASS: query returns 1 row.
+  # - FAIL: query returns no rows.
+  query: |
+    SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM deb_packages WHERE name = 'ftp');
+  purpose: Informational
+  tags: compliance, CIS, CIS_Ubuntu_22_04
+  contributors: sharon-fdm
+
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS Ubuntu 22.04 - 2.3.1 Ensure time synchronization is in use ................................ ................................
+  platforms: linux
+  platform: linux
+  description: Ensure time synchronization is in use ................................ ................................
+  resolution: |
+    Ensure time synchronization is in use (system role/policy).
+  # Validation:
+  # - Run on the Ubuntu 22.04 host you are auditing.
+  # - PASS: query returns 1 row.
+  # - FAIL: query returns no rows.
+  query: |
+    SELECT 1 WHERE 0;
+  purpose: Manual Validation Required
+  tags: compliance, CIS, CIS_Ubuntu_22_04
+  contributors: sharon-fdm
+
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS Ubuntu 22.04 - 2.3.1.1 Ensure a single time synchronization daemon is in use (Automated)
+  platforms: linux
+  platform: linux
+  description: Ensure a single time synchronization daemon is in use (Automated)
+  resolution: |
+    Ensure exactly one time synchronization daemon is active (systemd-timesyncd OR chrony).
+  # Validation:
+  # - Run on the Ubuntu 22.04 host you are auditing.
+  # - PASS: query returns 1 row.
+  # - FAIL: query returns no rows.
+  query: |
+    WITH active AS (
+      SELECT name FROM systemd_units
+      WHERE name IN ('systemd-timesyncd.service','chrony.service')
+        AND active_state = 'active'
+    )
+    SELECT 1
+    WHERE (SELECT COUNT(*) FROM active) = 1;
+  purpose: Informational
+  tags: compliance, CIS, CIS_Ubuntu_22_04
+  contributors: sharon-fdm
+
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS Ubuntu 22.04 - 2.3.2.1 Ensure systemd -timesyncd configured with authorized timeserver (Automated)
+  platforms: linux
+  platform: linux
+  description: Ensure systemd -timesyncd configured with authorized timeserver (Automated)
+  resolution: |
+    Configure systemd-timesyncd with authorized NTP servers in /etc/systemd/timesyncd.conf.
+  # Validation:
+  # - Run on the Ubuntu 22.04 host you are auditing.
+  # - PASS: query returns 1 row.
+  # - FAIL: query returns no rows.
+  query: |
+    SELECT 1
+    WHERE EXISTS (
+      SELECT 1 FROM file_lines
+      WHERE path = '/etc/systemd/timesyncd.conf'
+        AND line LIKE 'NTP=%'
+        AND line NOT LIKE '#%'
+        AND line NOT LIKE 'NTP='
+    );
+  purpose: Informational
+  tags: compliance, CIS, CIS_Ubuntu_22_04
+  contributors: sharon-fdm
+
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS Ubuntu 22.04 - 2.3.2.2 Ensure systemd -timesyncd is enabled and running (Automated)
+  platforms: linux
+  platform: linux
+  description: Ensure systemd -timesyncd is enabled and running (Automated)
+  resolution: |
+    Enable and run systemd-timesyncd.
+  # Validation:
+  # - Run on the Ubuntu 22.04 host you are auditing.
+  # - PASS: query returns 1 row.
+  # - FAIL: query returns no rows.
+  query: |
+    SELECT 1
+    WHERE EXISTS (
+      SELECT 1 FROM systemd_units
+      WHERE name = 'systemd-timesyncd.service'
+        AND active_state = 'active'
+    );
+  purpose: Informational
+  tags: compliance, CIS, CIS_Ubuntu_22_04
+  contributors: sharon-fdm
+
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS Ubuntu 22.04 - 2.3.3.1 Ensure chrony is configured with authorized timeserver (Automated)
+  platforms: linux
+  platform: linux
+  description: Ensure chrony is configured with authorized timeserver (Automated)
+  resolution: |
+    Configure chrony with authorized servers (server/pool lines in /etc/chrony/chrony.conf).
+  # Validation:
+  # - Run on the Ubuntu 22.04 host you are auditing.
+  # - PASS: query returns 1 row.
+  # - FAIL: query returns no rows.
+  query: |
+    SELECT 1
+    WHERE EXISTS (
+      SELECT 1 FROM file_lines
+      WHERE path = '/etc/chrony/chrony.conf'
+        AND (line LIKE 'server %' OR line LIKE 'pool %')
+        AND line NOT LIKE '#%'
+    );
+  purpose: Informational
+  tags: compliance, CIS, CIS_Ubuntu_22_04
+  contributors: sharon-fdm
+
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS Ubuntu 22.04 - 2.3.3.2 Ensure chrony is running as user _chrony (Automated)  ................................
+  platforms: linux
+  platform: linux
+  description: Ensure chrony is running as user _chrony (Automated)  ................................
+  resolution: |
+    Ensure chronyd runs as user _chrony.
+  # Validation:
+  # - Run on the Ubuntu 22.04 host you are auditing.
+  # - PASS: query returns 1 row.
+  # - FAIL: query returns no rows.
+  query: |
+    WITH chrony_uid AS (
+      SELECT uid FROM users WHERE username = '_chrony' LIMIT 1
+    )
+    SELECT 1
+    WHERE EXISTS (SELECT 1 FROM chrony_uid)
+      AND EXISTS (
+        SELECT 1 FROM processes
+        WHERE name = 'chronyd'
+          AND uid = (SELECT uid FROM chrony_uid)
+      );
+  purpose: Informational
+  tags: compliance, CIS, CIS_Ubuntu_22_04
+  contributors: sharon-fdm
+
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS Ubuntu 22.04 - 2.3.3.3 Ensure chrony is enabled and running (Automated)  ................................
+  platforms: linux
+  platform: linux
+  description: Ensure chrony is enabled and running (Automated)  ................................
+  resolution: |
+    Enable and run chrony.
+  # Validation:
+  # - Run on the Ubuntu 22.04 host you are auditing.
+  # - PASS: query returns 1 row.
+  # - FAIL: query returns no rows.
+  query: |
+    SELECT 1
+    WHERE EXISTS (
+      SELECT 1 FROM systemd_units
+      WHERE name = 'chrony.service'
+        AND active_state = 'active'
+    );
+  purpose: Informational
+  tags: compliance, CIS, CIS_Ubuntu_22_04
+  contributors: sharon-fdm
+
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS Ubuntu 22.04 - 2.4.1.1 Ensure cron daemon is enabled and active (Automated)  ................................
+  platforms: linux
+  platform: linux
+  description: Ensure cron daemon is enabled and active (Automated)  ................................
+  resolution: |
+    Enable and run cron.
+  # Validation:
+  # - Run on the Ubuntu 22.04 host you are auditing.
+  # - PASS: query returns 1 row.
+  # - FAIL: query returns no rows.
+  query: |
+    SELECT 1
+    WHERE EXISTS (
+      SELECT 1 FROM systemd_units
+      WHERE name = 'cron.service'
+        AND active_state = 'active'
+    );
+  purpose: Informational
+  tags: compliance, CIS, CIS_Ubuntu_22_04
+  contributors: sharon-fdm
+
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS Ubuntu 22.04 - 2.4.1.2 Ensure access to /etc/crontab is configured (Automated)  ................................
+  platforms: linux
+  platform: linux
+  description: Ensure access to /etc/crontab is configured (Automated)  ................................
+  resolution: |
+    Ensure /etc/crontab ownership and permissions are restricted.
+  # Validation:
+  # - Run on the Ubuntu 22.04 host you are auditing.
+  # - PASS: query returns 1 row.
+  # - FAIL: query returns no rows.
+  query: |
+    SELECT 1 WHERE EXISTS (SELECT 1 FROM file WHERE path = '/etc/crontab' AND uid = 0 AND gid = 0 AND (mode = '0400' OR mode = '0440' OR mode = '0600' OR mode = '0640'));
+  purpose: Informational
+  tags: compliance, CIS, CIS_Ubuntu_22_04
+  contributors: sharon-fdm
+
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS Ubuntu 22.04 - 2.4.1.3 Ensure access to /etc/cron.hourly is configured (Automated)  ................................
+  platforms: linux
+  platform: linux
+  description: Ensure access to /etc/cron.hourly is configured (Automated)  ................................
+  resolution: |
+    Ensure /etc/cron.hourly ownership and permissions are restricted.
+  # Validation:
+  # - Run on the Ubuntu 22.04 host you are auditing.
+  # - PASS: query returns 1 row.
+  # - FAIL: query returns no rows.
+  query: |
+    SELECT 1 WHERE EXISTS (SELECT 1 FROM file WHERE path = '/etc/cron.hourly' AND uid = 0 AND gid = 0 AND type = 'directory' AND (mode = '0700'));
+  purpose: Informational
+  tags: compliance, CIS, CIS_Ubuntu_22_04
+  contributors: sharon-fdm
+
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS Ubuntu 22.04 - 2.4.1.4 Ensure access to /etc/cron.daily is configured (Automated)  ................................
+  platforms: linux
+  platform: linux
+  description: Ensure access to /etc/cron.daily is configured (Automated)  ................................
+  resolution: |
+    Ensure /etc/cron.daily ownership and permissions are restricted.
+  # Validation:
+  # - Run on the Ubuntu 22.04 host you are auditing.
+  # - PASS: query returns 1 row.
+  # - FAIL: query returns no rows.
+  query: |
+    SELECT 1 WHERE EXISTS (SELECT 1 FROM file WHERE path = '/etc/cron.daily' AND uid = 0 AND gid = 0 AND type = 'directory' AND (mode = '0700'));
+  purpose: Informational
+  tags: compliance, CIS, CIS_Ubuntu_22_04
+  contributors: sharon-fdm
+
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS Ubuntu 22.04 - 2.4.1.5 Ensure access to /etc/cron.weekly is configured (Automated)  ................................
+  platforms: linux
+  platform: linux
+  description: Ensure access to /etc/cron.weekly is configured (Automated)  ................................
+  resolution: |
+    Ensure /etc/cron.weekly ownership and permissions are restricted.
+  # Validation:
+  # - Run on the Ubuntu 22.04 host you are auditing.
+  # - PASS: query returns 1 row.
+  # - FAIL: query returns no rows.
+  query: |
+    SELECT 1 WHERE EXISTS (SELECT 1 FROM file WHERE path = '/etc/cron.weekly' AND uid = 0 AND gid = 0 AND type = 'directory' AND (mode = '0700'));
+  purpose: Informational
+  tags: compliance, CIS, CIS_Ubuntu_22_04
+  contributors: sharon-fdm
+
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS Ubuntu 22.04 - 2.4.1.6 Ensure access to /etc/cron.monthly is configured (Automated)  ................................
+  platforms: linux
+  platform: linux
+  description: Ensure access to /etc/cron.monthly is configured (Automated)  ................................
+  resolution: |
+    Ensure /etc/cron.monthly ownership and permissions are restricted.
+  # Validation:
+  # - Run on the Ubuntu 22.04 host you are auditing.
+  # - PASS: query returns 1 row.
+  # - FAIL: query returns no rows.
+  query: |
+    SELECT 1 WHERE EXISTS (SELECT 1 FROM file WHERE path = '/etc/cron.monthly' AND uid = 0 AND gid = 0 AND type = 'directory' AND (mode = '0700'));
+  purpose: Informational
+  tags: compliance, CIS, CIS_Ubuntu_22_04
+  contributors: sharon-fdm
+
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS Ubuntu 22.04 - 2.4.1.7 Ensure access to /etc/cron.yearly is configured (Automated)  ................................
+  platforms: linux
+  platform: linux
+  description: Ensure access to /etc/cron.yearly is configured (Automated)  ................................
+  resolution: |
+    Ensure /etc/cron.yearly ownership and permissions are restricted.
+  # Validation:
+  # - Run on the Ubuntu 22.04 host you are auditing.
+  # - PASS: query returns 1 row.
+  # - FAIL: query returns no rows.
+  query: |
+    SELECT 1 WHERE EXISTS (SELECT 1 FROM file WHERE path = '/etc/cron.yearly' AND uid = 0 AND gid = 0 AND type = 'directory' AND (mode = '0700'));
+  purpose: Informational
+  tags: compliance, CIS, CIS_Ubuntu_22_04
+  contributors: sharon-fdm
+
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS Ubuntu 22.04 - 2.4.1.8 Ensure access to /etc/cron.d is configured (Automated)  ................................
+  platforms: linux
+  platform: linux
+  description: Ensure access to /etc/cron.d is configured (Automated)  ................................
+  resolution: |
+    Ensure /etc/cron.d ownership and permissions are restricted.
+  # Validation:
+  # - Run on the Ubuntu 22.04 host you are auditing.
+  # - PASS: query returns 1 row.
+  # - FAIL: query returns no rows.
+  query: |
+    SELECT 1 WHERE EXISTS (SELECT 1 FROM file WHERE path = '/etc/cron.d' AND uid = 0 AND gid = 0 AND type = 'directory' AND (mode = '0700'));
+  purpose: Informational
+  tags: compliance, CIS, CIS_Ubuntu_22_04
+  contributors: sharon-fdm
+
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS Ubuntu 22.04 - 2.4.1.9 Ensure access to crontab is configured (Automated)  ................................
+  platforms: linux
+  platform: linux
+  description: Ensure access to crontab is configured (Automated)  ................................
+  resolution: |
+    Ensure access to crontab is restricted (/etc/cron.allow present; /etc/cron.deny absent).
+  # Validation:
+  # - Run on the Ubuntu 22.04 host you are auditing.
+  # - PASS: query returns 1 row.
+  # - FAIL: query returns no rows.
+  query: |
+    SELECT 1
+    WHERE EXISTS (SELECT 1 FROM file WHERE path = '/etc/cron.allow')
+      AND NOT EXISTS (SELECT 1 FROM file WHERE path = '/etc/cron.deny');
+  purpose: Informational
+  tags: compliance, CIS, CIS_Ubuntu_22_04
+  contributors: sharon-fdm
+
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS Ubuntu 22.04 - 2.4.2.1 Ensure access to at is configured (Automated)  ................................
+  platforms: linux
+  platform: linux
+  description: Ensure access to at is configured (Automated)  ................................
+  resolution: |
+    Ensure access to at is restricted (/etc/at.allow present; /etc/at.deny absent).
+  # Validation:
+  # - Run on the Ubuntu 22.04 host you are auditing.
+  # - PASS: query returns 1 row.
+  # - FAIL: query returns no rows.
+  query: |
+    SELECT 1
+    WHERE EXISTS (SELECT 1 FROM file WHERE path = '/etc/at.allow')
+      AND NOT EXISTS (SELECT 1 FROM file WHERE path = '/etc/at.deny');
+  purpose: Informational
+  tags: compliance, CIS, CIS_Ubuntu_22_04
+  contributors: sharon-fdm
+
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS Ubuntu 22.04 - 3.1.1 Ensure IPv6 status is identified (Manual)  ................................ ................................
+  platforms: linux
+  platform: linux
+  description: Ensure IPv6 status is identified (Manual)  ................................ ................................
+  resolution: |
+    Identify IPv6 status (enabled/disabled) per system role and policy.
+  # Validation:
+  # - Run on the Ubuntu 22.04 host you are auditing.
+  # - PASS: query returns 1 row.
+  # - FAIL: query returns no rows.
+  query: |
+    SELECT 1 WHERE 0;
+  purpose: Manual Validation Required
+  tags: compliance, CIS, CIS_Ubuntu_22_04
+  contributors: sharon-fdm
+
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS Ubuntu 22.04 - 3.1.2 Ensure wireless interfaces are not available (Automated)  ................................
+  platforms: linux
+  platform: linux
+  description: Ensure wireless interfaces are not available (Automated)  ................................
+  resolution: |
+    Ensure wireless interfaces are not present/available (best-effort hardware check).
+  # Validation:
+  # - Run on the Ubuntu 22.04 host you are auditing.
+  # - PASS: query returns 1 row.
+  # - FAIL: query returns no rows.
+  query: |
+    SELECT 1
+    WHERE NOT EXISTS (
+      SELECT 1 FROM pci_devices
+      WHERE (model LIKE '%Wireless%' OR model LIKE '%Wi-Fi%' OR model LIKE '%WLAN%')
+    )
+    AND NOT EXISTS (
+      SELECT 1 FROM usb_devices
+      WHERE (model LIKE '%Wireless%' OR model LIKE '%Wi-Fi%' OR model LIKE '%WLAN%')
+    );
+  purpose: Informational
+  tags: compliance, CIS, CIS_Ubuntu_22_04
+  contributors: sharon-fdm
+
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS Ubuntu 22.04 - 3.1.3 Ensure bluetooth services are not in use (Automated) ................................
+  platforms: linux
+  platform: linux
+  description: Ensure bluetooth services are not in use (Automated) ................................
+  resolution: |
+    Disable bluetooth service if not needed.
+  # Validation:
+  # - Run on the Ubuntu 22.04 host you are auditing.
+  # - PASS: query returns 1 row.
+  # - FAIL: query returns no rows.
+  query: |
+    SELECT 1
+    WHERE NOT EXISTS (
+      SELECT 1 FROM systemd_units
+      WHERE name IN ('bluetooth.service')
+        AND active_state = 'active'
+    );
+  purpose: Informational
+  tags: compliance, CIS, CIS_Ubuntu_22_04
+  contributors: sharon-fdm
+
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS Ubuntu 22.04 - 3.2.1 Ensure dccp kernel module is not available (Automated)  ................................
+  platforms: linux
+  platform: linux
+  description: Ensure dccp kernel module is not available (Automated)  ................................
+  resolution: |
+    Ensure kernel module dccp is not loaded.
+  # Validation:
+  # - Run on the Ubuntu 22.04 host you are auditing.
+  # - PASS: query returns 1 row.
+  # - FAIL: query returns no rows.
+  query: |
+    SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM kernel_modules WHERE name = 'dccp');
+  purpose: Informational
+  tags: compliance, CIS, CIS_Ubuntu_22_04
+  contributors: sharon-fdm
+
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS Ubuntu 22.04 - 3.2.2 Ensure tipc kernel module is not available (Automated)  ................................
+  platforms: linux
+  platform: linux
+  description: Ensure tipc kernel module is not available (Automated)  ................................
+  resolution: |
+    Ensure kernel module tipc is not loaded.
+  # Validation:
+  # - Run on the Ubuntu 22.04 host you are auditing.
+  # - PASS: query returns 1 row.
+  # - FAIL: query returns no rows.
+  query: |
+    SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM kernel_modules WHERE name = 'tipc');
+  purpose: Informational
+  tags: compliance, CIS, CIS_Ubuntu_22_04
+  contributors: sharon-fdm
+
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS Ubuntu 22.04 - 3.2.3 Ensure rds kernel module is not available (Automated)  ................................
+  platforms: linux
+  platform: linux
+  description: Ensure rds kernel module is not available (Automated)  ................................
+  resolution: |
+    Ensure kernel module rds is not loaded.
+  # Validation:
+  # - Run on the Ubuntu 22.04 host you are auditing.
+  # - PASS: query returns 1 row.
+  # - FAIL: query returns no rows.
+  query: |
+    SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM kernel_modules WHERE name = 'rds');
+  purpose: Informational
+  tags: compliance, CIS, CIS_Ubuntu_22_04
+  contributors: sharon-fdm
+
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS Ubuntu 22.04 - 3.2.4 Ensure sctp kernel module is not available (Automated)  ................................
+  platforms: linux
+  platform: linux
+  description: Ensure sctp kernel module is not available (Automated)  ................................
+  resolution: |
+    Ensure kernel module sctp is not loaded.
+  # Validation:
+  # - Run on the Ubuntu 22.04 host you are auditing.
+  # - PASS: query returns 1 row.
+  # - FAIL: query returns no rows.
+  query: |
+    SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM kernel_modules WHERE name = 'sctp');
+  purpose: Informational
+  tags: compliance, CIS, CIS_Ubuntu_22_04
+  contributors: sharon-fdm
+
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS Ubuntu 22.04 - 3.3.1.1 Ensure net.ipv4.ip_forward is configured (Automated)  ................................
+  platforms: linux
+  platform: linux
+  description: Ensure net.ipv4.ip_forward is configured (Automated)  ................................
+  resolution: |
+    Set net.ipv4.ip_forward to 0 via sysctl and persistent config.
+  # Validation:
+  # - Run on the Ubuntu 22.04 host you are auditing.
+  # - PASS: query returns 1 row.
+  # - FAIL: query returns no rows.
+  query: |
+    SELECT 1 WHERE EXISTS (SELECT 1 FROM sysctl WHERE name = 'net.ipv4.ip_forward' AND value = '0');
+  purpose: Informational
+  tags: compliance, CIS, CIS_Ubuntu_22_04
+  contributors: sharon-fdm
+
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS Ubuntu 22.04 - 3.3.1.2 Ensure net.ipv4.conf.all.forwarding is configured (Automated)  ................................
+  platforms: linux
+  platform: linux
+  description: Ensure net.ipv4.conf.all.forwarding is configured (Automated)  ................................
+  resolution: |
+    Set net.ipv4.conf.all.forwarding to 0 via sysctl and persistent config.
+  # Validation:
+  # - Run on the Ubuntu 22.04 host you are auditing.
+  # - PASS: query returns 1 row.
+  # - FAIL: query returns no rows.
+  query: |
+    SELECT 1 WHERE EXISTS (SELECT 1 FROM sysctl WHERE name = 'net.ipv4.conf.all.forwarding' AND value = '0');
+  purpose: Informational
+  tags: compliance, CIS, CIS_Ubuntu_22_04
+  contributors: sharon-fdm
+
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS Ubuntu 22.04 - 3.3.1.3 Ensure net.ipv4.conf.default.forwarding is configured (Automated)
+  platforms: linux
+  platform: linux
+  description: Ensure net.ipv4.conf.default.forwarding is configured (Automated)
+  resolution: |
+    Set net.ipv4.conf.default.forwarding to 0 via sysctl and persistent config.
+  # Validation:
+  # - Run on the Ubuntu 22.04 host you are auditing.
+  # - PASS: query returns 1 row.
+  # - FAIL: query returns no rows.
+  query: |
+    SELECT 1 WHERE EXISTS (SELECT 1 FROM sysctl WHERE name = 'net.ipv4.conf.default.forwarding' AND value = '0');
+  purpose: Informational
+  tags: compliance, CIS, CIS_Ubuntu_22_04
+  contributors: sharon-fdm
+
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS Ubuntu 22.04 - 3.3.1.4 Ensure net.ipv4.conf.all.send_redirects is configured (Automated)
+  platforms: linux
+  platform: linux
+  description: Ensure net.ipv4.conf.all.send_redirects is configured (Automated)
+  resolution: |
+    Set net.ipv4.conf.all.send_redirects to 0 via sysctl and persistent config.
+  # Validation:
+  # - Run on the Ubuntu 22.04 host you are auditing.
+  # - PASS: query returns 1 row.
+  # - FAIL: query returns no rows.
+  query: |
+    SELECT 1 WHERE EXISTS (SELECT 1 FROM sysctl WHERE name = 'net.ipv4.conf.all.send_redirects' AND value = '0');
+  purpose: Informational
+  tags: compliance, CIS, CIS_Ubuntu_22_04
+  contributors: sharon-fdm
+
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS Ubuntu 22.04 - 3.3.1.5 Ensure net.ipv4.conf.default.send_redirects is configured (Automated)
+  platforms: linux
+  platform: linux
+  description: Ensure net.ipv4.conf.default.send_redirects is configured (Automated)
+  resolution: |
+    Set net.ipv4.conf.default.send_redirects to 0 via sysctl and persistent config.
+  # Validation:
+  # - Run on the Ubuntu 22.04 host you are auditing.
+  # - PASS: query returns 1 row.
+  # - FAIL: query returns no rows.
+  query: |
+    SELECT 1 WHERE EXISTS (SELECT 1 FROM sysctl WHERE name = 'net.ipv4.conf.default.send_redirects' AND value = '0');
+  purpose: Informational
+  tags: compliance, CIS, CIS_Ubuntu_22_04
+  contributors: sharon-fdm
+
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS Ubuntu 22.04 - 3.3.1.6 Ensure net.ipv4.icmp_ignore_bogus_error_responses is configured (Automated)
+  platforms: linux
+  platform: linux
+  description: Ensure net.ipv4.icmp_ignore_bogus_error_responses is configured (Automated)
+  resolution: |
+    Set net.ipv4.icmp_ignore_bogus_error_responses to 1 via sysctl and persistent config.
+  # Validation:
+  # - Run on the Ubuntu 22.04 host you are auditing.
+  # - PASS: query returns 1 row.
+  # - FAIL: query returns no rows.
+  query: |
+    SELECT 1 WHERE EXISTS (SELECT 1 FROM sysctl WHERE name = 'net.ipv4.icmp_ignore_bogus_error_responses' AND value = '1');
+  purpose: Informational
+  tags: compliance, CIS, CIS_Ubuntu_22_04
+  contributors: sharon-fdm
+
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS Ubuntu 22.04 - 3.3.1.7 Ensure net.ipv4.icmp_echo_ignore_broadcasts is configured (Automated)
+  platforms: linux
+  platform: linux
+  description: Ensure net.ipv4.icmp_echo_ignore_broadcasts is configured (Automated)
+  resolution: |
+    Set net.ipv4.icmp_echo_ignore_broadcasts to 1 via sysctl and persistent config.
+  # Validation:
+  # - Run on the Ubuntu 22.04 host you are auditing.
+  # - PASS: query returns 1 row.
+  # - FAIL: query returns no rows.
+  query: |
+    SELECT 1 WHERE EXISTS (SELECT 1 FROM sysctl WHERE name = 'net.ipv4.icmp_echo_ignore_broadcasts' AND value = '1');
+  purpose: Informational
+  tags: compliance, CIS, CIS_Ubuntu_22_04
+  contributors: sharon-fdm
+
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS Ubuntu 22.04 - 3.3.1.8 Ensure net.ipv4.conf.all.accept_redirects is configured (Automated)
+  platforms: linux
+  platform: linux
+  description: Ensure net.ipv4.conf.all.accept_redirects is configured (Automated)
+  resolution: |
+    Set net.ipv4.conf.all.accept_redirects to 0 via sysctl and persistent config.
+  # Validation:
+  # - Run on the Ubuntu 22.04 host you are auditing.
+  # - PASS: query returns 1 row.
+  # - FAIL: query returns no rows.
+  query: |
+    SELECT 1 WHERE EXISTS (SELECT 1 FROM sysctl WHERE name = 'net.ipv4.conf.all.accept_redirects' AND value = '0');
+  purpose: Informational
+  tags: compliance, CIS, CIS_Ubuntu_22_04
+  contributors: sharon-fdm
+
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS Ubuntu 22.04 - 3.3.1.9 Ensure net.ipv4.conf.default.accept_redirects is configured (Automated)
+  platforms: linux
+  platform: linux
+  description: Ensure net.ipv4.conf.default.accept_redirects is configured (Automated)
+  resolution: |
+    Set net.ipv4.conf.default.accept_redirects to 0 via sysctl and persistent config.
+  # Validation:
+  # - Run on the Ubuntu 22.04 host you are auditing.
+  # - PASS: query returns 1 row.
+  # - FAIL: query returns no rows.
+  query: |
+    SELECT 1 WHERE EXISTS (SELECT 1 FROM sysctl WHERE name = 'net.ipv4.conf.default.accept_redirects' AND value = '0');
+  purpose: Informational
+  tags: compliance, CIS, CIS_Ubuntu_22_04
+  contributors: sharon-fdm
+
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS Ubuntu 22.04 - 3.3.1.10 Ensure net.ipv4.conf.all.secure_redirects is configured (Automated)
+  platforms: linux
+  platform: linux
+  description: Ensure net.ipv4.conf.all.secure_redirects is configured (Automated)
+  resolution: |
+    Set net.ipv4.conf.all.secure_redirects to 0 via sysctl and persistent config.
+  # Validation:
+  # - Run on the Ubuntu 22.04 host you are auditing.
+  # - PASS: query returns 1 row.
+  # - FAIL: query returns no rows.
+  query: |
+    SELECT 1 WHERE EXISTS (SELECT 1 FROM sysctl WHERE name = 'net.ipv4.conf.all.secure_redirects' AND value = '0');
+  purpose: Informational
+  tags: compliance, CIS, CIS_Ubuntu_22_04
+  contributors: sharon-fdm
+
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS Ubuntu 22.04 - 3.3.1.11 Ensure net.ipv4.conf.default.secure_redirects is configured (Automated)
+  platforms: linux
+  platform: linux
+  description: Ensure net.ipv4.conf.default.secure_redirects is configured (Automated)
+  resolution: |
+    Set net.ipv4.conf.default.secure_redirects to 0 via sysctl and persistent config.
+  # Validation:
+  # - Run on the Ubuntu 22.04 host you are auditing.
+  # - PASS: query returns 1 row.
+  # - FAIL: query returns no rows.
+  query: |
+    SELECT 1 WHERE EXISTS (SELECT 1 FROM sysctl WHERE name = 'net.ipv4.conf.default.secure_redirects' AND value = '0');
+  purpose: Informational
+  tags: compliance, CIS, CIS_Ubuntu_22_04
+  contributors: sharon-fdm
+
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS Ubuntu 22.04 - 3.3.1.12 Ensure net.ipv4.conf.all.rp_filter is configured (Automated)  ................................
+  platforms: linux
+  platform: linux
+  description: Ensure net.ipv4.conf.all.rp_filter is configured (Automated)  ................................
+  resolution: |
+    Set net.ipv4.conf.all.rp_filter to 1 via sysctl and persistent config.
+  # Validation:
+  # - Run on the Ubuntu 22.04 host you are auditing.
+  # - PASS: query returns 1 row.
+  # - FAIL: query returns no rows.
+  query: |
+    SELECT 1 WHERE EXISTS (SELECT 1 FROM sysctl WHERE name = 'net.ipv4.conf.all.rp_filter' AND value = '1');
+  purpose: Informational
+  tags: compliance, CIS, CIS_Ubuntu_22_04
+  contributors: sharon-fdm
+
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS Ubuntu 22.04 - 3.3.1.13 Ensure net.ipv4.conf.default.rp_filter is configured (Automated)
+  platforms: linux
+  platform: linux
+  description: Ensure net.ipv4.conf.default.rp_filter is configured (Automated)
+  resolution: |
+    Set net.ipv4.conf.default.rp_filter to 1 via sysctl and persistent config.
+  # Validation:
+  # - Run on the Ubuntu 22.04 host you are auditing.
+  # - PASS: query returns 1 row.
+  # - FAIL: query returns no rows.
+  query: |
+    SELECT 1 WHERE EXISTS (SELECT 1 FROM sysctl WHERE name = 'net.ipv4.conf.default.rp_filter' AND value = '1');
+  purpose: Informational
+  tags: compliance, CIS, CIS_Ubuntu_22_04
+  contributors: sharon-fdm
+
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS Ubuntu 22.04 - 3.3.1.14 Ensure net.ipv4.conf.all.accept_source_route is configured (Automated)
+  platforms: linux
+  platform: linux
+  description: Ensure net.ipv4.conf.all.accept_source_route is configured (Automated)
+  resolution: |
+    Set net.ipv4.conf.all.accept_source_route to 0 via sysctl and persistent config.
+  # Validation:
+  # - Run on the Ubuntu 22.04 host you are auditing.
+  # - PASS: query returns 1 row.
+  # - FAIL: query returns no rows.
+  query: |
+    SELECT 1 WHERE EXISTS (SELECT 1 FROM sysctl WHERE name = 'net.ipv4.conf.all.accept_source_route' AND value = '0');
+  purpose: Informational
+  tags: compliance, CIS, CIS_Ubuntu_22_04
+  contributors: sharon-fdm
+
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS Ubuntu 22.04 - 3.3.1.15 Ensure net.ipv4.conf.default.accept_source_route is configured (Automated)
+  platforms: linux
+  platform: linux
+  description: Ensure net.ipv4.conf.default.accept_source_route is configured (Automated)
+  resolution: |
+    Set net.ipv4.conf.default.accept_source_route to 0 via sysctl and persistent config.
+  # Validation:
+  # - Run on the Ubuntu 22.04 host you are auditing.
+  # - PASS: query returns 1 row.
+  # - FAIL: query returns no rows.
+  query: |
+    SELECT 1 WHERE EXISTS (SELECT 1 FROM sysctl WHERE name = 'net.ipv4.conf.default.accept_source_route' AND value = '0');
+  purpose: Informational
+  tags: compliance, CIS, CIS_Ubuntu_22_04
+  contributors: sharon-fdm
+
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS Ubuntu 22.04 - 3.3.1.17 Ensure net.ipv4.conf.default.log_martians is configured (Automated)
+  platforms: linux
+  platform: linux
+  description: Ensure net.ipv4.conf.default.log_martians is configured (Automated)
+  resolution: |
+    Set net.ipv4.conf.default.log_martians to 1 via sysctl and persistent config.
+  # Validation:
+  # - Run on the Ubuntu 22.04 host you are auditing.
+  # - PASS: query returns 1 row.
+  # - FAIL: query returns no rows.
+  query: |
+    SELECT 1 WHERE EXISTS (SELECT 1 FROM sysctl WHERE name = 'net.ipv4.conf.default.log_martians' AND value = '1');
+  purpose: Informational
+  tags: compliance, CIS, CIS_Ubuntu_22_04
+  contributors: sharon-fdm
+
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS Ubuntu 22.04 - 3.3.1.18 Ensure net.ipv4.tcp_syncookies is configured (Automated)  ................................
+  platforms: linux
+  platform: linux
+  description: Ensure net.ipv4.tcp_syncookies is configured (Automated)  ................................
+  resolution: |
+    Set net.ipv4.tcp_syncookies to 1 via sysctl and persistent config.
+  # Validation:
+  # - Run on the Ubuntu 22.04 host you are auditing.
+  # - PASS: query returns 1 row.
+  # - FAIL: query returns no rows.
+  query: |
+    SELECT 1 WHERE EXISTS (SELECT 1 FROM sysctl WHERE name = 'net.ipv4.tcp_syncookies' AND value = '1');
+  purpose: Informational
+  tags: compliance, CIS, CIS_Ubuntu_22_04
+  contributors: sharon-fdm
+
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS Ubuntu 22.04 - 3.3.2.1 Ensure net.ipv6.conf.all.forwarding is configured (Automated)  ................................
+  platforms: linux
+  platform: linux
+  description: Ensure net.ipv6.conf.all.forwarding is configured (Automated)  ................................
+  resolution: |
+    Set net.ipv6.conf.all.forwarding to 0 via sysctl and persistent config.
+  # Validation:
+  # - Run on the Ubuntu 22.04 host you are auditing.
+  # - PASS: query returns 1 row.
+  # - FAIL: query returns no rows.
+  query: |
+    SELECT 1 WHERE EXISTS (SELECT 1 FROM sysctl WHERE name = 'net.ipv6.conf.all.forwarding' AND value = '0');
+  purpose: Informational
+  tags: compliance, CIS, CIS_Ubuntu_22_04
+  contributors: sharon-fdm
+
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS Ubuntu 22.04 - 3.3.2.2 Ensure net.ipv6.conf.default.forwarding is configured (Automated)
+  platforms: linux
+  platform: linux
+  description: Ensure net.ipv6.conf.default.forwarding is configured (Automated)
+  resolution: |
+    Set net.ipv6.conf.default.forwarding to 0 via sysctl and persistent config.
+  # Validation:
+  # - Run on the Ubuntu 22.04 host you are auditing.
+  # - PASS: query returns 1 row.
+  # - FAIL: query returns no rows.
+  query: |
+    SELECT 1 WHERE EXISTS (SELECT 1 FROM sysctl WHERE name = 'net.ipv6.conf.default.forwarding' AND value = '0');
+  purpose: Informational
+  tags: compliance, CIS, CIS_Ubuntu_22_04
+  contributors: sharon-fdm
+
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS Ubuntu 22.04 - 3.3.2.3 Ensure net.ipv6.conf.all.accept_redirects is configured (Automated)
+  platforms: linux
+  platform: linux
+  description: Ensure net.ipv6.conf.all.accept_redirects is configured (Automated)
+  resolution: |
+    Set net.ipv6.conf.all.accept_redirects to 0 via sysctl and persistent config.
+  # Validation:
+  # - Run on the Ubuntu 22.04 host you are auditing.
+  # - PASS: query returns 1 row.
+  # - FAIL: query returns no rows.
+  query: |
+    SELECT 1 WHERE EXISTS (SELECT 1 FROM sysctl WHERE name = 'net.ipv6.conf.all.accept_redirects' AND value = '0');
+  purpose: Informational
+  tags: compliance, CIS, CIS_Ubuntu_22_04
+  contributors: sharon-fdm
+
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS Ubuntu 22.04 - 3.3.2.4 Ensure net.ipv6.conf.default.accept_redirects is configured (Automated)
+  platforms: linux
+  platform: linux
+  description: Ensure net.ipv6.conf.default.accept_redirects is configured (Automated)
+  resolution: |
+    Set net.ipv6.conf.default.accept_redirects to 0 via sysctl and persistent config.
+  # Validation:
+  # - Run on the Ubuntu 22.04 host you are auditing.
+  # - PASS: query returns 1 row.
+  # - FAIL: query returns no rows.
+  query: |
+    SELECT 1 WHERE EXISTS (SELECT 1 FROM sysctl WHERE name = 'net.ipv6.conf.default.accept_redirects' AND value = '0');
+  purpose: Informational
+  tags: compliance, CIS, CIS_Ubuntu_22_04
+  contributors: sharon-fdm
+
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS Ubuntu 22.04 - 3.3.2.5 Ensure net.ipv6.conf.all.accept_source_route is configured (Automated)
+  platforms: linux
+  platform: linux
+  description: Ensure net.ipv6.conf.all.accept_source_route is configured (Automated)
+  resolution: |
+    Set net.ipv6.conf.all.accept_source_route to 0 via sysctl and persistent config.
+  # Validation:
+  # - Run on the Ubuntu 22.04 host you are auditing.
+  # - PASS: query returns 1 row.
+  # - FAIL: query returns no rows.
+  query: |
+    SELECT 1 WHERE EXISTS (SELECT 1 FROM sysctl WHERE name = 'net.ipv6.conf.all.accept_source_route' AND value = '0');
+  purpose: Informational
+  tags: compliance, CIS, CIS_Ubuntu_22_04
+  contributors: sharon-fdm
+
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS Ubuntu 22.04 - 3.3.2.6 Ensure net.ipv6.conf.default.accept_source_route is configured (Automated)
+  platforms: linux
+  platform: linux
+  description: Ensure net.ipv6.conf.default.accept_source_route is configured (Automated)
+  resolution: |
+    Set net.ipv6.conf.default.accept_source_route to 0 via sysctl and persistent config.
+  # Validation:
+  # - Run on the Ubuntu 22.04 host you are auditing.
+  # - PASS: query returns 1 row.
+  # - FAIL: query returns no rows.
+  query: |
+    SELECT 1 WHERE EXISTS (SELECT 1 FROM sysctl WHERE name = 'net.ipv6.conf.default.accept_source_route' AND value = '0');
+  purpose: Informational
+  tags: compliance, CIS, CIS_Ubuntu_22_04
+  contributors: sharon-fdm
+
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS Ubuntu 22.04 - 3.3.2.7 Ensure net.ipv6.conf.all.accept_ra is configured (Automated)  ................................
+  platforms: linux
+  platform: linux
+  description: Ensure net.ipv6.conf.all.accept_ra is configured (Automated)  ................................
+  resolution: |
+    Set net.ipv6.conf.all.accept_ra to 0 via sysctl and persistent config.
+  # Validation:
+  # - Run on the Ubuntu 22.04 host you are auditing.
+  # - PASS: query returns 1 row.
+  # - FAIL: query returns no rows.
+  query: |
+    SELECT 1 WHERE EXISTS (SELECT 1 FROM sysctl WHERE name = 'net.ipv6.conf.all.accept_ra' AND value = '0');
+  purpose: Informational
+  tags: compliance, CIS, CIS_Ubuntu_22_04
+  contributors: sharon-fdm
+
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS Ubuntu 22.04 - 3.3.2.8 Ensure net.ipv6.conf.default.accept_ra is configured (Automated)
+  platforms: linux
+  platform: linux
+  description: Ensure net.ipv6.conf.default.accept_ra is configured (Automated)
+  resolution: |
+    Set net.ipv6.conf.default.accept_ra to 0 via sysctl and persistent config.
+  # Validation:
+  # - Run on the Ubuntu 22.04 host you are auditing.
+  # - PASS: query returns 1 row.
+  # - FAIL: query returns no rows.
+  query: |
+    SELECT 1 WHERE EXISTS (SELECT 1 FROM sysctl WHERE name = 'net.ipv6.conf.default.accept_ra' AND value = '0');
+  purpose: Informational
+  tags: compliance, CIS, CIS_Ubuntu_22_04
+  contributors: sharon-fdm
+
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS Ubuntu 22.04 - 4.1.1 Ensure ufw is installed (Automated)  ................................ ................................
+  platforms: linux
+  platform: linux
+  description: Ensure ufw is installed (Automated)  ................................ ................................
+  resolution: |
+    Install ufw.
+  # Validation:
+  # - Run on the Ubuntu 22.04 host you are auditing.
+  # - PASS: query returns 1 row.
+  # - FAIL: query returns no rows.
+  query: |
+    SELECT 1 WHERE EXISTS (SELECT 1 FROM deb_packages WHERE name = 'ufw');
+  purpose: Informational
+  tags: compliance, CIS, CIS_Ubuntu_22_04
+  contributors: sharon-fdm
+
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS Ubuntu 22.04 - 4.1.2 Ensure ufw service is configured (Automated)  ................................
+  platforms: linux
+  platform: linux
+  description: Ensure ufw service is configured (Automated)  ................................
+  resolution: |
+    Enable ufw in /etc/ufw/ufw.conf (ENABLED=yes).
+  # Validation:
+  # - Run on the Ubuntu 22.04 host you are auditing.
+  # - PASS: query returns 1 row.
+  # - FAIL: query returns no rows.
+  query: |
+    SELECT 1
+    WHERE EXISTS (SELECT 1 FROM deb_packages WHERE name = 'ufw')
+      AND EXISTS (
+        SELECT 1 FROM file_lines
+        WHERE path = '/etc/ufw/ufw.conf'
+          AND line LIKE 'ENABLED=yes%'
+          AND line NOT LIKE '#%'
+      );
+  purpose: Informational
+  tags: compliance, CIS, CIS_Ubuntu_22_04
+  contributors: sharon-fdm
+
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS Ubuntu 22.04 - 4.1.3 Ensure ufw incoming default is configured (Automated)  ................................
+  platforms: linux
+  platform: linux
+  description: Ensure ufw incoming default is configured (Automated)  ................................
+  resolution: |
+    Set ufw default incoming policy to DROP.
+  # Validation:
+  # - Run on the Ubuntu 22.04 host you are auditing.
+  # - PASS: query returns 1 row.
+  # - FAIL: query returns no rows.
+  query: |
+    SELECT 1
+    WHERE EXISTS (
+      SELECT 1 FROM file_lines
+      WHERE path = '/etc/default/ufw'
+        AND line LIKE 'DEFAULT_INPUT_POLICY=%'
+        AND line LIKE '%DROP%'
+        AND line NOT LIKE '#%'
+    );
+  purpose: Informational
+  tags: compliance, CIS, CIS_Ubuntu_22_04
+  contributors: sharon-fdm
+
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS Ubuntu 22.04 - 4.1.4 Ensure ufw outgoing default is configured (Automated)  ................................
+  platforms: linux
+  platform: linux
+  description: Ensure ufw outgoing default is configured (Automated)  ................................
+  resolution: |
+    Set ufw default outgoing policy to ACCEPT.
+  # Validation:
+  # - Run on the Ubuntu 22.04 host you are auditing.
+  # - PASS: query returns 1 row.
+  # - FAIL: query returns no rows.
+  query: |
+    SELECT 1
+    WHERE EXISTS (
+      SELECT 1 FROM file_lines
+      WHERE path = '/etc/default/ufw'
+        AND line LIKE 'DEFAULT_OUTPUT_POLICY=%'
+        AND line LIKE '%ACCEPT%'
+        AND line NOT LIKE '#%'
+    );
+  purpose: Informational
+  tags: compliance, CIS, CIS_Ubuntu_22_04
+  contributors: sharon-fdm
+
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS Ubuntu 22.04 - 4.1.5 Ensure ufw routed default is configured (Automated)  ................................
+  platforms: linux
+  platform: linux
+  description: Ensure ufw routed default is configured (Automated)  ................................
+  resolution: |
+    Set ufw default forward policy to DROP.
+  # Validation:
+  # - Run on the Ubuntu 22.04 host you are auditing.
+  # - PASS: query returns 1 row.
+  # - FAIL: query returns no rows.
+  query: |
+    SELECT 1
+    WHERE EXISTS (
+      SELECT 1 FROM file_lines
+      WHERE path = '/etc/default/ufw'
+        AND line LIKE 'DEFAULT_FORWARD_POLICY=%'
+        AND line LIKE '%DROP%'
+        AND line NOT LIKE '#%'
+    );
+  purpose: Informational
+  tags: compliance, CIS, CIS_Ubuntu_22_04
+  contributors: sharon-fdm
+
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS Ubuntu 22.04 - 5.1.1 Ensure access to /etc/ssh/sshd_config is configured (Automated)
+  platforms: linux
+  platform: linux
+  description: Ensure access to /etc/ssh/sshd_config is configured (Automated)
+  resolution: |
+    Restrict access to /etc/ssh/sshd_config (root owned, restrictive permissions).
+  # Validation:
+  # - Run on the Ubuntu 22.04 host you are auditing.
+  # - PASS: query returns 1 row.
+  # - FAIL: query returns no rows.
+  query: |
+    SELECT 1 WHERE EXISTS (SELECT 1 FROM file WHERE path = '/etc/ssh/sshd_config' AND uid = 0 AND gid = 0 AND (mode = '0400' OR mode = '0440' OR mode = '0600' OR mode = '0640'));
+  purpose: Informational
+  tags: compliance, CIS, CIS_Ubuntu_22_04
+  contributors: sharon-fdm
