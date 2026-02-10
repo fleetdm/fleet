@@ -135,6 +135,12 @@ The Executive Assistant (EA) will use the following steps when a call is booked 
 2. Before the journalist call, The EA will meet with the Manager of Training and Enablement to build an agenda with 3 vertebrae listed and bring it to the Manager of Training and Enablement to collect the answers along with suggestions for the other two primary talking points.
 3. The CEO will review the agenda during the “📰 Journalist prep” time.
 
+### Schedule Analyst prep
+
+The Executive Assistant (EA) will use the following steps when a call is booked between the CEO and an analyst:
+1. The EA will schedule a 30-minute “Analyst prep” call right before the analyst meeting, with the CEO as the only attendee.
+2. The EA will prep the agenda with a link to the analysts LinkedIn and 3 topics the CEO will talk about.
+3. The CEO will review the agenda during the "Analyst prep" time.
 
 ### Confirm CEO shadow dates
 
