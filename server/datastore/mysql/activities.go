@@ -940,6 +940,12 @@ func (ds *Datastore) UnblockHostsUpcomingActivityQueue(ctx context.Context, maxH
 
 // ActivateNextUpcomingActivityForHost activates the next upcoming activity for the given host.
 // fromCompletedExecID is the execution ID of the activity that just completed (if any).
+//
+// NOTE: this intentionally does not use a transaction wrapper. The original
+// call site in NewActivity (now in the activity bounded context) also called
+// activateNextUpcomingActivity outside a transaction. See @mna's comment in
+// cab7cc15bef (2025-10-28) explaining that this non-transactional approach is
+// accepted and consistent with how other critical state updates work in Fleet.
 func (ds *Datastore) ActivateNextUpcomingActivityForHost(ctx context.Context, hostID uint, fromCompletedExecID string) error {
 	_, err := ds.activateNextUpcomingActivity(ctx, ds.writer(ctx), hostID, fromCompletedExecID)
 	return err
