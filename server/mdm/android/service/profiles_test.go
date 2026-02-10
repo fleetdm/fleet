@@ -299,8 +299,6 @@ func testHostsWithMultiOverrideProfile(t *testing.T, ds fleet.Datastore, client 
 	require.NoError(t, err)
 	require.False(t, client.EnterprisesPoliciesPatchFuncInvoked)
 	require.False(t, client.EnterprisesDevicesPatchFuncInvoked)
-
-	// todo(JK): run status report, nothing should change
 }
 
 func testHostsWithAPIFailures(t *testing.T, ds fleet.Datastore, client *mock.Client, reconciler *profileReconciler) {
