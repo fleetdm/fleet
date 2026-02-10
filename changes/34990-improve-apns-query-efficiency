@@ -1,0 +1,1 @@
+- Improved the speed of a database query that runs every minute, to avoid database locking
