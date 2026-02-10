@@ -4124,8 +4124,14 @@ spec:
   #   - PASS: query returns 1 row
   #   - FAIL: query returns 0 rows
   query: |
-    SELECT 1 WHERE 0;
-  purpose: Manual Validation Required
+    SELECT 1
+    WHERE EXISTS (
+      SELECT 1 FROM file_lines
+      WHERE (path = '/etc/ssh/sshd_config' OR path LIKE '/etc/ssh/sshd_config.d/%.conf')
+        AND line NOT LIKE '#%'
+        AND (line LIKE 'ClientAliveInterval 300%' OR line LIKE 'ClientAliveInterval	300%')
+    );
+purpose: Manual Validation Required
   tags: compliance, CIS, CIS_Ubuntu_22_04
   contributors: sharon-fdm
 ---
@@ -4196,8 +4202,20 @@ spec:
   #   - PASS: query returns 1 row
   #   - FAIL: query returns 0 rows
   query: |
-    SELECT 1 WHERE 0;
-  purpose: Manual Validation Required
+    SELECT 1
+    WHERE EXISTS (
+      SELECT 1 FROM file_lines
+      WHERE (path = '/etc/ssh/sshd_config' OR path LIKE '/etc/ssh/sshd_config.d/%.conf')
+        AND line NOT LIKE '#%'
+        AND (line LIKE 'HostbasedAuthentication no%' OR line LIKE 'HostbasedAuthentication	no%')
+    )
+    AND NOT EXISTS (
+      SELECT 1 FROM file_lines
+      WHERE (path = '/etc/ssh/sshd_config' OR path LIKE '/etc/ssh/sshd_config.d/%.conf')
+        AND line NOT LIKE '#%'
+        AND (line LIKE 'HostbasedAuthentication yes%' OR line LIKE 'HostbasedAuthentication	yes%')
+    );
+purpose: Manual Validation Required
   tags: compliance, CIS, CIS_Ubuntu_22_04
   contributors: sharon-fdm
 ---
@@ -4220,8 +4238,20 @@ spec:
   #   - PASS: query returns 1 row
   #   - FAIL: query returns 0 rows
   query: |
-    SELECT 1 WHERE 0;
-  purpose: Manual Validation Required
+    SELECT 1
+    WHERE EXISTS (
+      SELECT 1 FROM file_lines
+      WHERE (path = '/etc/ssh/sshd_config' OR path LIKE '/etc/ssh/sshd_config.d/%.conf')
+        AND line NOT LIKE '#%'
+        AND (line LIKE 'IgnoreRhosts yes%' OR line LIKE 'IgnoreRhosts	yes%')
+    )
+    AND NOT EXISTS (
+      SELECT 1 FROM file_lines
+      WHERE (path = '/etc/ssh/sshd_config' OR path LIKE '/etc/ssh/sshd_config.d/%.conf')
+        AND line NOT LIKE '#%'
+        AND (line LIKE 'IgnoreRhosts no%' OR line LIKE 'IgnoreRhosts	no%')
+    );
+purpose: Manual Validation Required
   tags: compliance, CIS, CIS_Ubuntu_22_04
   contributors: sharon-fdm
 ---
@@ -4268,8 +4298,14 @@ spec:
   #   - PASS: query returns 1 row
   #   - FAIL: query returns 0 rows
   query: |
-    SELECT 1 WHERE 0;
-  purpose: Manual Validation Required
+    SELECT 1
+    WHERE EXISTS (
+      SELECT 1 FROM file_lines
+      WHERE (path = '/etc/ssh/sshd_config' OR path LIKE '/etc/ssh/sshd_config.d/%.conf')
+        AND line NOT LIKE '#%'
+        AND (line LIKE 'LoginGraceTime 60%' OR line LIKE 'LoginGraceTime	60%')
+    );
+purpose: Manual Validation Required
   tags: compliance, CIS, CIS_Ubuntu_22_04
   contributors: sharon-fdm
 ---
@@ -4292,8 +4328,14 @@ spec:
   #   - PASS: query returns 1 row
   #   - FAIL: query returns 0 rows
   query: |
-    SELECT 1 WHERE 0;
-  purpose: Manual Validation Required
+    SELECT 1
+    WHERE EXISTS (
+      SELECT 1 FROM file_lines
+      WHERE (path = '/etc/ssh/sshd_config' OR path LIKE '/etc/ssh/sshd_config.d/%.conf')
+        AND line NOT LIKE '#%'
+        AND (line LIKE 'LogLevel INFO%' OR line LIKE 'LogLevel VERBOSE%' OR line LIKE 'LogLevel	INFO%' OR line LIKE 'LogLevel	VERBOSE%')
+    );
+purpose: Manual Validation Required
   tags: compliance, CIS, CIS_Ubuntu_22_04
   contributors: sharon-fdm
 ---
@@ -4340,8 +4382,14 @@ spec:
   #   - PASS: query returns 1 row
   #   - FAIL: query returns 0 rows
   query: |
-    SELECT 1 WHERE 0;
-  purpose: Manual Validation Required
+    SELECT 1
+    WHERE EXISTS (
+      SELECT 1 FROM file_lines
+      WHERE (path = '/etc/ssh/sshd_config' OR path LIKE '/etc/ssh/sshd_config.d/%.conf')
+        AND line NOT LIKE '#%'
+        AND (line LIKE 'MaxAuthTries 4%' OR line LIKE 'MaxAuthTries	4%')
+    );
+purpose: Manual Validation Required
   tags: compliance, CIS, CIS_Ubuntu_22_04
   contributors: sharon-fdm
 ---
@@ -4412,8 +4460,20 @@ spec:
   #   - PASS: query returns 1 row
   #   - FAIL: query returns 0 rows
   query: |
-    SELECT 1 WHERE 0;
-  purpose: Manual Validation Required
+    SELECT 1
+    WHERE EXISTS (
+      SELECT 1 FROM file_lines
+      WHERE (path = '/etc/ssh/sshd_config' OR path LIKE '/etc/ssh/sshd_config.d/%.conf')
+        AND line NOT LIKE '#%'
+        AND (line LIKE 'PermitEmptyPasswords no%' OR line LIKE 'PermitEmptyPasswords	no%')
+    )
+    AND NOT EXISTS (
+      SELECT 1 FROM file_lines
+      WHERE (path = '/etc/ssh/sshd_config' OR path LIKE '/etc/ssh/sshd_config.d/%.conf')
+        AND line NOT LIKE '#%'
+        AND (line LIKE 'PermitEmptyPasswords yes%' OR line LIKE 'PermitEmptyPasswords	yes%')
+    );
+purpose: Manual Validation Required
   tags: compliance, CIS, CIS_Ubuntu_22_04
   contributors: sharon-fdm
 ---
@@ -4436,8 +4496,20 @@ spec:
   #   - PASS: query returns 1 row
   #   - FAIL: query returns 0 rows
   query: |
-    SELECT 1 WHERE 0;
-  purpose: Manual Validation Required
+    SELECT 1
+    WHERE EXISTS (
+      SELECT 1 FROM file_lines
+      WHERE (path = '/etc/ssh/sshd_config' OR path LIKE '/etc/ssh/sshd_config.d/%.conf')
+        AND line NOT LIKE '#%'
+        AND (line LIKE 'PermitRootLogin no%' OR line LIKE 'PermitRootLogin	no%')
+    )
+    AND NOT EXISTS (
+      SELECT 1 FROM file_lines
+      WHERE (path = '/etc/ssh/sshd_config' OR path LIKE '/etc/ssh/sshd_config.d/%.conf')
+        AND line NOT LIKE '#%'
+        AND (line LIKE 'PermitRootLogin yes%' OR line LIKE 'PermitRootLogin prohibit-password%' OR line LIKE 'PermitRootLogin without-password%' OR line LIKE 'PermitRootLogin	yes%' OR line LIKE 'PermitRootLogin	prohibit-password%' OR line LIKE 'PermitRootLogin	without-password%')
+    );
+purpose: Manual Validation Required
   tags: compliance, CIS, CIS_Ubuntu_22_04
   contributors: sharon-fdm
 ---
@@ -4460,8 +4532,20 @@ spec:
   #   - PASS: query returns 1 row
   #   - FAIL: query returns 0 rows
   query: |
-    SELECT 1 WHERE 0;
-  purpose: Manual Validation Required
+    SELECT 1
+    WHERE EXISTS (
+      SELECT 1 FROM file_lines
+      WHERE (path = '/etc/ssh/sshd_config' OR path LIKE '/etc/ssh/sshd_config.d/%.conf')
+        AND line NOT LIKE '#%'
+        AND (line LIKE 'PermitUserEnvironment no%' OR line LIKE 'PermitUserEnvironment	no%')
+    )
+    AND NOT EXISTS (
+      SELECT 1 FROM file_lines
+      WHERE (path = '/etc/ssh/sshd_config' OR path LIKE '/etc/ssh/sshd_config.d/%.conf')
+        AND line NOT LIKE '#%'
+        AND (line LIKE 'PermitUserEnvironment yes%' OR line LIKE 'PermitUserEnvironment	yes%')
+    );
+purpose: Manual Validation Required
   tags: compliance, CIS, CIS_Ubuntu_22_04
   contributors: sharon-fdm
 ---
@@ -4484,8 +4568,20 @@ spec:
   #   - PASS: query returns 1 row
   #   - FAIL: query returns 0 rows
   query: |
-    SELECT 1 WHERE 0;
-  purpose: Manual Validation Required
+    SELECT 1
+    WHERE EXISTS (
+      SELECT 1 FROM file_lines
+      WHERE (path = '/etc/ssh/sshd_config' OR path LIKE '/etc/ssh/sshd_config.d/%.conf')
+        AND line NOT LIKE '#%'
+        AND (line LIKE 'UsePAM yes%' OR line LIKE 'UsePAM	yes%')
+    )
+    AND NOT EXISTS (
+      SELECT 1 FROM file_lines
+      WHERE (path = '/etc/ssh/sshd_config' OR path LIKE '/etc/ssh/sshd_config.d/%.conf')
+        AND line NOT LIKE '#%'
+        AND (line LIKE 'UsePAM no%' OR line LIKE 'UsePAM	no%')
+    );
+purpose: Manual Validation Required
   tags: compliance, CIS, CIS_Ubuntu_22_04
   contributors: sharon-fdm
 ---
