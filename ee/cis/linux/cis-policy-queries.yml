@@ -5492,8 +5492,12 @@ spec:
   #   - PASS: query returns 1 row
   #   - FAIL: query returns 0 rows
   query: |
-    SELECT 1 WHERE 0;
-  purpose: Manual Validation Required
+    SELECT 1
+    WHERE NOT EXISTS (
+      SELECT 1 FROM users
+      WHERE uid=0 AND username != 'root'
+    );
+purpose: Manual Validation Required
   tags: compliance, CIS, CIS_Ubuntu_22_04
   contributors: sharon-fdm
 ---
@@ -5516,8 +5520,12 @@ spec:
   #   - PASS: query returns 1 row
   #   - FAIL: query returns 0 rows
   query: |
-    SELECT 1 WHERE 0;
-  purpose: Manual Validation Required
+    SELECT 1
+    WHERE NOT EXISTS (
+      SELECT 1 FROM users
+      WHERE gid=0 AND username != 'root'
+    );
+purpose: Manual Validation Required
   tags: compliance, CIS, CIS_Ubuntu_22_04
   contributors: sharon-fdm
 ---
@@ -5540,8 +5548,12 @@ spec:
   #   - PASS: query returns 1 row
   #   - FAIL: query returns 0 rows
   query: |
-    SELECT 1 WHERE 0;
-  purpose: Manual Validation Required
+    SELECT 1
+    WHERE NOT EXISTS (
+      SELECT 1 FROM groups
+      WHERE gid=0 AND groupname != 'root'
+    );
+purpose: Manual Validation Required
   tags: compliance, CIS, CIS_Ubuntu_22_04
   contributors: sharon-fdm
 ---
@@ -7262,8 +7274,12 @@ spec:
   #   - PASS: query returns 1 row
   #   - FAIL: query returns 0 rows
   query: |
-    SELECT 1 WHERE 0;
-  purpose: Manual Validation Required
+    SELECT 1
+    WHERE EXISTS (
+      SELECT 1 FROM file
+      WHERE path='/etc/passwd' AND mode='0644' AND uid=0 AND gid=0
+    );
+purpose: Manual Validation Required
   tags: compliance, CIS, CIS_Ubuntu_22_04
   contributors: sharon-fdm
 ---
@@ -7286,8 +7302,12 @@ spec:
   #   - PASS: query returns 1 row
   #   - FAIL: query returns 0 rows
   query: |
-    SELECT 1 WHERE 0;
-  purpose: Manual Validation Required
+    SELECT 1
+    WHERE EXISTS (
+      SELECT 1 FROM file
+      WHERE path='/etc/passwd-' AND mode='0644' AND uid=0 AND gid=0
+    );
+purpose: Manual Validation Required
   tags: compliance, CIS, CIS_Ubuntu_22_04
   contributors: sharon-fdm
 ---
@@ -7310,8 +7330,12 @@ spec:
   #   - PASS: query returns 1 row
   #   - FAIL: query returns 0 rows
   query: |
-    SELECT 1 WHERE 0;
-  purpose: Manual Validation Required
+    SELECT 1
+    WHERE EXISTS (
+      SELECT 1 FROM file
+      WHERE path='/etc/group' AND mode='0644' AND uid=0 AND gid=0
+    );
+purpose: Manual Validation Required
   tags: compliance, CIS, CIS_Ubuntu_22_04
   contributors: sharon-fdm
 ---
@@ -7334,8 +7358,12 @@ spec:
   #   - PASS: query returns 1 row
   #   - FAIL: query returns 0 rows
   query: |
-    SELECT 1 WHERE 0;
-  purpose: Manual Validation Required
+    SELECT 1
+    WHERE EXISTS (
+      SELECT 1 FROM file
+      WHERE path='/etc/group-' AND mode='0644' AND uid=0 AND gid=0
+    );
+purpose: Manual Validation Required
   tags: compliance, CIS, CIS_Ubuntu_22_04
   contributors: sharon-fdm
 ---
@@ -7358,8 +7386,12 @@ spec:
   #   - PASS: query returns 1 row
   #   - FAIL: query returns 0 rows
   query: |
-    SELECT 1 WHERE 0;
-  purpose: Manual Validation Required
+    SELECT 1
+    WHERE EXISTS (
+      SELECT 1 FROM file
+      WHERE path='/etc/shadow' AND mode='0640' AND uid=0 AND gid=0
+    );
+purpose: Manual Validation Required
   tags: compliance, CIS, CIS_Ubuntu_22_04
   contributors: sharon-fdm
 ---
@@ -7382,8 +7414,12 @@ spec:
   #   - PASS: query returns 1 row
   #   - FAIL: query returns 0 rows
   query: |
-    SELECT 1 WHERE 0;
-  purpose: Manual Validation Required
+    SELECT 1
+    WHERE EXISTS (
+      SELECT 1 FROM file
+      WHERE path='/etc/shadow-' AND mode='0640' AND uid=0 AND gid=0
+    );
+purpose: Manual Validation Required
   tags: compliance, CIS, CIS_Ubuntu_22_04
   contributors: sharon-fdm
 ---
@@ -7406,8 +7442,12 @@ spec:
   #   - PASS: query returns 1 row
   #   - FAIL: query returns 0 rows
   query: |
-    SELECT 1 WHERE 0;
-  purpose: Manual Validation Required
+    SELECT 1
+    WHERE EXISTS (
+      SELECT 1 FROM file
+      WHERE path='/etc/gshadow' AND mode='0640' AND uid=0 AND gid=0
+    );
+purpose: Manual Validation Required
   tags: compliance, CIS, CIS_Ubuntu_22_04
   contributors: sharon-fdm
 ---
@@ -7430,8 +7470,12 @@ spec:
   #   - PASS: query returns 1 row
   #   - FAIL: query returns 0 rows
   query: |
-    SELECT 1 WHERE 0;
-  purpose: Manual Validation Required
+    SELECT 1
+    WHERE EXISTS (
+      SELECT 1 FROM file
+      WHERE path='/etc/gshadow-' AND mode='0640' AND uid=0 AND gid=0
+    );
+purpose: Manual Validation Required
   tags: compliance, CIS, CIS_Ubuntu_22_04
   contributors: sharon-fdm
 ---
@@ -7478,8 +7522,12 @@ spec:
   #   - PASS: query returns 1 row
   #   - FAIL: query returns 0 rows
   query: |
-    SELECT 1 WHERE 0;
-  purpose: Manual Validation Required
+    SELECT 1
+    WHERE EXISTS (
+      SELECT 1 FROM file
+      WHERE path='/etc/passwd' AND mode='0644' AND uid=0 AND gid=0
+    );
+purpose: Manual Validation Required
   tags: compliance, CIS, CIS_Ubuntu_22_04
   contributors: sharon-fdm
 ---
@@ -7574,8 +7622,14 @@ spec:
   #   - PASS: query returns 1 row
   #   - FAIL: query returns 0 rows
   query: |
-    SELECT 1 WHERE 0;
-  purpose: Manual Validation Required
+    SELECT 1
+    WHERE NOT EXISTS (
+      SELECT 1 FROM users
+      WHERE password != 'x'
+        AND password != '*'
+        AND password != '!'
+    );
+purpose: Manual Validation Required
   tags: compliance, CIS, CIS_Ubuntu_22_04
   contributors: sharon-fdm
 ---
@@ -7598,8 +7652,12 @@ spec:
   #   - PASS: query returns 1 row
   #   - FAIL: query returns 0 rows
   query: |
-    SELECT 1 WHERE 0;
-  purpose: Manual Validation Required
+    SELECT 1
+    WHERE NOT EXISTS (
+      SELECT 1 FROM shadow
+      WHERE password = '' OR password IS NULL
+    );
+purpose: Manual Validation Required
   tags: compliance, CIS, CIS_Ubuntu_22_04
   contributors: sharon-fdm
 ---
@@ -7622,8 +7680,14 @@ spec:
   #   - PASS: query returns 1 row
   #   - FAIL: query returns 0 rows
   query: |
-    SELECT 1 WHERE 0;
-  purpose: Manual Validation Required
+    SELECT 1
+    WHERE NOT EXISTS (
+      SELECT 1
+      FROM users u
+      LEFT JOIN groups g ON u.gid = g.gid
+      WHERE g.gid IS NULL
+    );
+purpose: Manual Validation Required
   tags: compliance, CIS, CIS_Ubuntu_22_04
   contributors: sharon-fdm
 ---
@@ -7646,8 +7710,12 @@ spec:
   #   - PASS: query returns 1 row
   #   - FAIL: query returns 0 rows
   query: |
-    SELECT 1 WHERE 0;
-  purpose: Manual Validation Required
+    SELECT 1
+    WHERE NOT EXISTS (
+      SELECT 1 FROM user_groups
+      WHERE groupname='shadow'
+    );
+purpose: Manual Validation Required
   tags: compliance, CIS, CIS_Ubuntu_22_04
   contributors: sharon-fdm
 ---
@@ -7670,8 +7738,11 @@ spec:
   #   - PASS: query returns 1 row
   #   - FAIL: query returns 0 rows
   query: |
-    SELECT 1 WHERE 0;
-  purpose: Manual Validation Required
+    SELECT 1
+    WHERE NOT EXISTS (
+      SELECT uid FROM users GROUP BY uid HAVING COUNT(*) > 1
+    );
+purpose: Manual Validation Required
   tags: compliance, CIS, CIS_Ubuntu_22_04
   contributors: sharon-fdm
 ---
@@ -7694,8 +7765,11 @@ spec:
   #   - PASS: query returns 1 row
   #   - FAIL: query returns 0 rows
   query: |
-    SELECT 1 WHERE 0;
-  purpose: Manual Validation Required
+    SELECT 1
+    WHERE NOT EXISTS (
+      SELECT gid FROM groups GROUP BY gid HAVING COUNT(*) > 1
+    );
+purpose: Manual Validation Required
   tags: compliance, CIS, CIS_Ubuntu_22_04
   contributors: sharon-fdm
 ---
@@ -7718,8 +7792,11 @@ spec:
   #   - PASS: query returns 1 row
   #   - FAIL: query returns 0 rows
   query: |
-    SELECT 1 WHERE 0;
-  purpose: Manual Validation Required
+    SELECT 1
+    WHERE NOT EXISTS (
+      SELECT username FROM users GROUP BY username HAVING COUNT(*) > 1
+    );
+purpose: Manual Validation Required
   tags: compliance, CIS, CIS_Ubuntu_22_04
   contributors: sharon-fdm
 ---
@@ -7742,8 +7819,11 @@ spec:
   #   - PASS: query returns 1 row
   #   - FAIL: query returns 0 rows
   query: |
-    SELECT 1 WHERE 0;
-  purpose: Manual Validation Required
+    SELECT 1
+    WHERE NOT EXISTS (
+      SELECT groupname FROM groups GROUP BY groupname HAVING COUNT(*) > 1
+    );
+purpose: Manual Validation Required
   tags: compliance, CIS, CIS_Ubuntu_22_04
   contributors: sharon-fdm
 ---
@@ -7766,8 +7846,28 @@ spec:
   #   - PASS: query returns 1 row
   #   - FAIL: query returns 0 rows
   query: |
-    SELECT 1 WHERE 0;
-  purpose: Manual Validation Required
+    WITH interactive AS (
+      SELECT username, directory AS home
+      FROM users
+      WHERE uid >= 1000 AND uid < 65534
+        AND shell NOT IN ('/usr/sbin/nologin','/bin/false')
+    ),
+    missing_home AS (
+      SELECT i.username, i.home
+      FROM interactive i
+      LEFT JOIN file f ON f.path = i.home
+      WHERE f.path IS NULL OR f.type != 'directory'
+    ),
+    wrong_owner AS (
+      SELECT i.username, i.home
+      FROM interactive i
+      JOIN file f ON f.path = i.home
+      WHERE f.type='directory' AND f.uid != (SELECT uid FROM users WHERE username=i.username LIMIT 1)
+    )
+    SELECT 1
+    WHERE NOT EXISTS (SELECT 1 FROM missing_home)
+      AND NOT EXISTS (SELECT 1 FROM wrong_owner);
+purpose: Manual Validation Required
   tags: compliance, CIS, CIS_Ubuntu_22_04
   contributors: sharon-fdm
 ---
