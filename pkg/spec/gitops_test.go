@@ -298,7 +298,7 @@ func TestValidGitOpsYaml(t *testing.T) {
 				assert.True(t, ok, "windows_migration_enabled not found")
 				_, ok = gitops.Controls.EnableTurnOnWindowsMDMManually.(bool)
 				assert.True(t, ok, "enable_turn_on_windows_mdm_manually not found")
-				_, ok = gitops.Controls.WindowsEntraTenantIDs.([]string)
+				_, ok = gitops.Controls.WindowsEntraTenantIDs.([]any)
 				assert.True(t, ok, "windows_entra_tenant_ids not found")
 				_, ok = gitops.Controls.WindowsUpdates.(map[string]interface{})
 				assert.True(t, ok, "windows_updates not found")
