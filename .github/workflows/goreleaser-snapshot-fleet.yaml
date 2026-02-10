@@ -73,7 +73,7 @@ jobs:
         id: compute_version
         run: |
           BRANCH="${{ github.head_ref || github.ref_name }}"
-          VERSION=$(tools/version-from-branch.sh "$BRANCH" 2>/dev/null || true)
+          VERSION=$(tools/version-from-branch.sh "$BRANCH" 2>/dev/null)
           if [ -z "$VERSION" ]; then
             # Fall back to default snapshot version
             VERSION="0.0.0-SNAPSHOT-$(git rev-parse --short HEAD)"
