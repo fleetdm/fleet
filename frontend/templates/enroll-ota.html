@@ -560,12 +560,13 @@
       const getEnrollmentToken = async (fullyManaged) => {
         const enrollSecret = getEnrollmentSecret();
 
-        const url = `${ANDROID_GET_TOKEN_URL}?enroll_secret=${encodeURIComponent(
+        let url = `${ANDROID_GET_TOKEN_URL}?enroll_secret=${encodeURIComponent(
           enrollSecret
         )}`;
+         debugger;
 
         if (fullyManaged) {
-          url.concat("&fully_managed=true");
+          url = url.concat("&fully_managed=true");
         }
 
         const response = await fetch(url, {
