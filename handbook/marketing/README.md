@@ -23,7 +23,7 @@ This handbook page details processes specific to working [with](#contact-us) and
 
 ## Marketing assets
 
-This list (for now) will be in roughly chronological order as assets are created.
+This list is in chronological order as assets are created.
 
 | Asset | Last updated | Use for 
 |:------------|:------------|:----------------|
@@ -117,6 +117,11 @@ In the Marketing department, we're using the following issue labels to organize 
 ### Prepare "Let's get you set up!" meeting notes
 
 Before each group call, copy the attendees from the "Lets get you set up! (group office hours)" calendar event and paste them into the correct section of the ["Let's get you set up!" meeting notes](https://docs.google.com/document/d/1rlvueDlTqiz0cyH426nVL6LXpv9MWDUtXW6YiMT3oK8/edit?tab=t.0#heading=h.l967l3n9mjnd), be sure to use the format listed in the doc.
+
+
+### Create UTM link
+
+Use the [Fleet UTM builder](https://docs.google.com/spreadsheets/d/1SO7-WIJSMPjEg89tskBIJmNj59xNySt0D-EjLg61IW8/edit?gid=0#gid=0) to create and record a UTM link needed for marketing campaigns
 
 
 ### Refresh event calendar
