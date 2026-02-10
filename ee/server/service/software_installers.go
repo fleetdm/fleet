@@ -2007,6 +2007,10 @@ func (svc *Service) softwareInstallerPayloadFromSlug(ctx context.Context, payloa
 		return nil
 	}
 
+	// TODO: check that version is available for rollback
+	// if payload.RollbackVersion != "" {
+	// }
+
 	app, err := svc.ds.GetMaintainedAppBySlug(ctx, *slug, teamID)
 	if err != nil {
 		// Return user-friendly message for generic not found error
