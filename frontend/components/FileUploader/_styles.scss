@@ -10,6 +10,11 @@
 
   &:not(.file-uploader__file-preview) {
     text-align: center;
+
+    // Preview may include dropdown input that needs to be shown
+    input {
+      display: none;
+    }
   }
 
   .content-wrapper {
@@ -43,10 +48,6 @@
   &__additional-info {
     margin: 0;
     color: $ui-fleet-black-50;
-  }
-
-  input {
-    display: none;
   }
 
   &__upload-button {

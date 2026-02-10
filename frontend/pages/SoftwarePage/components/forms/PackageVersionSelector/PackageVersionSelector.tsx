@@ -35,24 +35,19 @@ const PackageVersionSelector = ({
   selectedVersion,
   onSelectVersion,
 }: IPackageVersionSelectorProps) => {
-  console.log("versions: ", versions);
-  console.log("selectedVersion: ", selectedVersion);
-
   const renderDropdown = () => (
-    <div>
-      <DropdownWrapper
-        name="package-version-selector"
-        className={classnames(baseClass, className)}
-        value={selectedVersion as string}
-        onChange={(version) => onSelectVersion(version?.value || "")}
-        options={disableAllUIOptions(versions, selectedVersion)} // Replace with "versions" when we want to enable selecting versions in the UI
-        placeholder="Select a version"
-        isDisabled={selectedVersion === versions[0].value}
-      />
-    </div>
+    <DropdownWrapper
+      name="package-version-selector"
+      className={classnames(baseClass, className)}
+      value={selectedVersion as string}
+      onChange={(version) => onSelectVersion(version?.value || "")}
+      options={disableAllUIOptions(versions, selectedVersion)} // Replace with "versions" when we want to enable selecting versions in the UI
+      placeholder="Select a version"
+      isDisabled={selectedVersion === versions[0].value}
+    />
   );
 
-  if (selectedVersion === versions[0].value) {
+  return (
     <TooltipWrapper
       tipContent={
         selectedVersion === versions[0].value ? (
@@ -70,12 +65,11 @@ const PackageVersionSelector = ({
       position="top"
       showArrow
       underline={false}
+      tipOffset={8}
     >
       {renderDropdown()}
-    </TooltipWrapper>;
-  }
-
-  return renderDropdown();
+    </TooltipWrapper>
+  );
 };
 
 export default PackageVersionSelector;
