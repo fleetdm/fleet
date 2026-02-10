@@ -5816,8 +5816,14 @@ spec:
   #   - PASS: query returns 1 row
   #   - FAIL: query returns 0 rows
   query: |
-    SELECT 1 WHERE 0;
-  purpose: Manual Validation Required
+    SELECT 1
+    WHERE EXISTS (
+      SELECT 1 FROM file_lines
+      WHERE path='/etc/systemd/journald.conf'
+        AND line NOT LIKE '#%'
+        AND (line LIKE 'ForwardToSyslog=no%' OR line LIKE 'ForwardToSyslog = no%')
+    );
+purpose: Manual Validation Required
   tags: compliance, CIS, CIS_Ubuntu_22_04
   contributors: sharon-fdm
 ---
@@ -5840,8 +5846,14 @@ spec:
   #   - PASS: query returns 1 row
   #   - FAIL: query returns 0 rows
   query: |
-    SELECT 1 WHERE 0;
-  purpose: Manual Validation Required
+    SELECT 1
+    WHERE EXISTS (
+      SELECT 1 FROM file_lines
+      WHERE path='/etc/systemd/journald.conf'
+        AND line NOT LIKE '#%'
+        AND (line LIKE 'Storage=persistent%' OR line LIKE 'Storage = persistent%')
+    );
+purpose: Manual Validation Required
   tags: compliance, CIS, CIS_Ubuntu_22_04
   contributors: sharon-fdm
 ---
@@ -5864,8 +5876,14 @@ spec:
   #   - PASS: query returns 1 row
   #   - FAIL: query returns 0 rows
   query: |
-    SELECT 1 WHERE 0;
-  purpose: Manual Validation Required
+    SELECT 1
+    WHERE EXISTS (
+      SELECT 1 FROM file_lines
+      WHERE path='/etc/systemd/journald.conf'
+        AND line NOT LIKE '#%'
+        AND (line LIKE 'Compress=yes%' OR line LIKE 'Compress = yes%')
+    );
+purpose: Manual Validation Required
   tags: compliance, CIS, CIS_Ubuntu_22_04
   contributors: sharon-fdm
 ---
@@ -5936,8 +5954,10 @@ spec:
   #   - PASS: query returns 1 row
   #   - FAIL: query returns 0 rows
   query: |
-    SELECT 1 WHERE 0;
-  purpose: Manual Validation Required
+    SELECT 1
+    WHERE EXISTS (SELECT 1 FROM systemd_units WHERE name='systemd-journal-upload.service' AND enabled_state='enabled')
+      AND EXISTS (SELECT 1 FROM systemd_units WHERE name='systemd-journal-upload.service' AND active_state='active');
+purpose: Manual Validation Required
   tags: compliance, CIS, CIS_Ubuntu_22_04
   contributors: sharon-fdm
 ---
@@ -5960,8 +5980,16 @@ spec:
   #   - PASS: query returns 1 row
   #   - FAIL: query returns 0 rows
   query: |
-    SELECT 1 WHERE 0;
-  purpose: Manual Validation Required
+    SELECT 1
+    WHERE NOT EXISTS (
+      SELECT 1 FROM systemd_units
+      WHERE name IN ('systemd-journal-remote.socket','systemd-journal-remote.service') AND enabled_state='enabled'
+    )
+    AND NOT EXISTS (
+      SELECT 1 FROM systemd_units
+      WHERE name IN ('systemd-journal-remote.socket','systemd-journal-remote.service') AND active_state='active'
+    );
+purpose: Manual Validation Required
   tags: compliance, CIS, CIS_Ubuntu_22_04
   contributors: sharon-fdm
 ---
@@ -6036,8 +6064,14 @@ spec:
   #   - PASS: query returns 1 row
   #   - FAIL: query returns 0 rows
   query: |
-    SELECT 1 WHERE 0;
-  purpose: Manual Validation Required
+    SELECT 1
+    WHERE EXISTS (
+      SELECT 1 FROM file_lines
+      WHERE path='/etc/systemd/journald.conf'
+        AND line NOT LIKE '#%'
+        AND (line LIKE 'ForwardToSyslog=yes%' OR line LIKE 'ForwardToSyslog = yes%')
+    );
+purpose: Manual Validation Required
   tags: compliance, CIS, CIS_Ubuntu_22_04
   contributors: sharon-fdm
 ---
@@ -6060,8 +6094,36 @@ spec:
   #   - PASS: query returns 1 row
   #   - FAIL: query returns 0 rows
   query: |
-    SELECT 1 WHERE 0;
-  purpose: Manual Validation Required
+    WITH cfg AS (
+      SELECT ltrim(replace(line, char(9), ' ')) AS l
+      FROM file_lines
+      WHERE (path='/etc/rsyslog.conf' OR path LIKE '/etc/rsyslog.d/%.conf')
+        AND line NOT LIKE '#%'
+    ),
+    tokens AS (
+      SELECT
+        CASE
+          WHEN l LIKE '$FileCreateMode %' THEN
+            trim(substr(l, length('$FileCreateMode ')+1))
+          ELSE NULL
+        END AS mode
+      FROM cfg
+      WHERE l LIKE '$FileCreateMode %'
+    ),
+    m AS (
+      SELECT substr(mode,1,4) AS m4
+      FROM tokens
+      WHERE mode IS NOT NULL AND length(mode) >= 4
+    )
+    SELECT 1
+    WHERE EXISTS (
+      SELECT 1 FROM m
+      WHERE substr(m4,1,1)='0'
+        AND substr(m4,2,1) IN ('0','2','4','6')
+        AND substr(m4,3,1) IN ('0','2','4')
+        AND substr(m4,4,1)='0'
+    );
+purpose: Manual Validation Required
   tags: compliance, CIS, CIS_Ubuntu_22_04
   contributors: sharon-fdm
 ---
@@ -6138,8 +6200,16 @@ spec:
   #   - PASS: query returns 1 row
   #   - FAIL: query returns 0 rows
   query: |
-    SELECT 1 WHERE 0;
-  purpose: Manual Validation Required
+    SELECT 1
+    WHERE NOT EXISTS (
+      SELECT 1 FROM file_lines
+      WHERE (path='/etc/rsyslog.conf' OR path LIKE '/etc/rsyslog.d/%.conf')
+        AND line NOT LIKE '#%'
+        AND (
+          line LIKE '%imtcp%' AND (line LIKE '%module(%' OR line LIKE '%input(%' OR line LIKE '%$ModLoad %' OR line LIKE '%$InputTCPServerRun%')
+        )
+    );
+purpose: Manual Validation Required
   tags: compliance, CIS, CIS_Ubuntu_22_04
   contributors: sharon-fdm
 ---
@@ -6186,8 +6256,29 @@ spec:
   #   - PASS: query returns 1 row
   #   - FAIL: query returns 0 rows
   query: |
-    SELECT 1 WHERE 0;
-  purpose: Manual Validation Required
+    WITH logfiles AS (
+      SELECT path, type, mode
+      FROM file
+      WHERE path LIKE '/var/log/%'
+        AND path NOT LIKE '/var/log/journal/%' -- journald binary logs handled separately
+    ),
+    ww_files AS (
+      SELECT 1 FROM logfiles
+      WHERE type='regular'
+        AND substr(mode,4,1) IN ('2','3','6','7') -- other has write
+      LIMIT 1
+    ),
+    ww_dirs_no_sticky AS (
+      SELECT 1 FROM logfiles
+      WHERE type='directory'
+        AND substr(mode,4,1) IN ('2','3','6','7')
+        AND (mode NOT LIKE '1%') -- sticky bit not set
+      LIMIT 1
+    )
+    SELECT 1
+    WHERE NOT EXISTS (SELECT 1 FROM ww_files)
+      AND NOT EXISTS (SELECT 1 FROM ww_dirs_no_sticky);
+purpose: Manual Validation Required
   tags: compliance, CIS, CIS_Ubuntu_22_04
   contributors: sharon-fdm
 ---
