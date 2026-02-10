@@ -67,23 +67,6 @@ export const useSoftwareInstaller = (
       "fleet_maintained_app_id" in softwareInstaller &&
       !!softwareInstaller.fleet_maintained_app_id;
 
-    // if (
-    //   softwareInstaller &&
-    //   isFleetMaintainedApp &&
-    //   isSoftwarePackage(softwareInstaller)
-    // ) {
-    //   softwareInstaller.fleet_maintained_versions = [
-    //     {
-    //       id: 1,
-    //       version: "4.16.0",
-    //     },
-    //     {
-    //       id: 2,
-    //       version: "4.15.0",
-    //     },
-    //   ]; // Mock data for Fleet-maintained versions
-    // }
-
     const isLatestFmaVersion =
       isFleetMaintainedApp &&
       "fleet_maintained_versions" in softwareInstaller &&
