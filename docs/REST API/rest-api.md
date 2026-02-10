@@ -2861,7 +2861,6 @@ None.
 - [Get hosts report in CSV](#get-hosts-report-in-csv)
 - [Get host's disk encryption key](#get-hosts-disk-encryption-key)
 - [Get host's Recovery Lock password](#get-hosts-recovery-lock-password)
-- [Rotate host's Recovery Lock password](#rotate-hosts-recovery-lock-password)
 - [Get host's certificates](#get-hosts-certificates)
 - [Lock host](#lock-host)
 - [Unlock host](#unlock-host)
@@ -4966,36 +4965,6 @@ The host will only return a password if its Recovery Lock password status is "Ve
     "password": "test-123",
     "updated_at": "2026-02-01T05:31:43Z"
   }
-}
-```
-
-### Rotate host's Recovery Lock password
-
-_Available in Fleet Premium_
-
-Rotates the Recovery Lock password for a specific macOS host.
-
-`POST /api/v1/fleet/hosts/:id/rotate_recovery_lock_password`
-
-#### Parameters
-
-| Name | Type    | In   | Description                                                               |
-| ---- | ------- | ---- | ------------------------------------------------------------------------- |
-| id   | integer | path | **Required** The id of the host to rotate the Recovery Lock password for. |
-
-
-#### Example
-
-`POST /api/v1/fleet/hosts/8/rotate_recovery_lock_password`
-
-##### Default response
-
-`Status: 200`
-
-```json
-{
-  "host_id": 8,
-  "status": "success",
 }
 ```
 
