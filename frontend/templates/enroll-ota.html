@@ -601,12 +601,12 @@
 
           try {
             const data = await getEnrollmentToken(true);
-            renderContent("fully-managed-template");
-            if (!data.android_enrollment_qrcode) {
+            if (!data.android_enrollment_qr_code) {
               throw new Error("Failed to get QR code");
             }
+            renderContent("fully-managed-template");
             renderQRCode(
-              data.android_enrollment_qrcode,
+              data.android_enrollment_qr_code,
               document.querySelector(".qr-code"),
               { width: 245, color: { dark: "#515774", light: "#fff" } }
             );
