@@ -20,16 +20,16 @@ spec:
   #   - PASS: query returns 1 row.
   #   - FAIL: query returns 0 rows.
   query: |
- SELECT 1
-WHERE (SELECT COUNT(*) FROM kernel_modules WHERE name='cramfs') = 0
-  AND (SELECT COUNT(*) FROM file_lines
-       WHERE path='/etc/modprobe.d/cramfs.conf'
-         AND line LIKE 'blacklist cramfs%'
-         AND line NOT LIKE '#%') >= 1
-  AND (SELECT COUNT(*) FROM file_lines
-       WHERE path='/etc/modprobe.d/cramfs.conf'
-         AND line LIKE 'install cramfs /bin/false%'
-         AND line NOT LIKE '#%') >= 1;
+    SELECT 1
+    WHERE (SELECT COUNT(*) FROM kernel_modules WHERE name='cramfs') = 0
+      AND (SELECT COUNT(*) FROM file_lines
+           WHERE path LIKE '/etc/modprobe.d/%.conf'
+             AND line LIKE 'blacklist cramfs%'
+             AND line NOT LIKE '#%') >= 1
+      AND (SELECT COUNT(*) FROM file_lines
+           WHERE path LIKE '/etc/modprobe.d/%.conf'
+             AND (line LIKE 'install cramfs /bin/false%' OR line LIKE 'install cramfs /bin/true%')
+             AND line NOT LIKE '#%') >= 1;
   purpose: Informational
   tags: compliance, CIS, CIS_Ubuntu_22_04
   contributors: sharon-fdm
@@ -55,53 +55,16 @@ spec:
   #   - PASS: query returns 1 row.
   #   - FAIL: query returns 0 rows.
   query: |
-    WITH
-      loaded AS (
-        SELECT 1 FROM kernel_modules WHERE name IN ('freevxfs') LIMIT 1
-      ),
-      module_present AS (
-        SELECT 1
-        FROM glob
-        WHERE pattern IN (
-          '/lib/modules/*/kernel/**/freevxfs.ko',
-          '/lib/modules/*/kernel/**/freevxfs.ko.*',
-          '/usr/lib/modules/*/kernel/**/freevxfs.ko',
-          '/usr/lib/modules/*/kernel/**/freevxfs.ko.*',
-          '/lib/modules/*/kernel/**/freevxfs.ko',
-          '/lib/modules/*/kernel/**/freevxfs.ko.*',
-          '/usr/lib/modules/*/kernel/**/freevxfs.ko',
-          '/usr/lib/modules/*/kernel/**/freevxfs.ko.*'
-        )
-        LIMIT 1
-      ),
-      blacklisted AS (
-        SELECT 1 FROM file_lines
-        WHERE (path LIKE '/etc/modprobe.d/%.conf' OR path LIKE '/lib/modprobe.d/%.conf' OR path LIKE '/usr/lib/modprobe.d/%.conf' OR path LIKE '/run/modprobe.d/%.conf')
-          AND (
-            line = 'blacklist freevxfs'
-            OR line LIKE 'blacklist freevxfs %'
-            OR line = 'blacklist freevxfs'
-            OR line LIKE 'blacklist freevxfs %'
-          )
-        LIMIT 1
-      ),
-      install_blocked AS (
-        SELECT 1 FROM file_lines
-        WHERE (path LIKE '/etc/modprobe.d/%.conf' OR path LIKE '/lib/modprobe.d/%.conf' OR path LIKE '/usr/lib/modprobe.d/%.conf' OR path LIKE '/run/modprobe.d/%.conf')
-          AND (
-            line = 'install freevxfs /bin/false'
-            OR line = 'install freevxfs /bin/true'
-            OR line = 'install freevxfs /bin/false'
-            OR line = 'install freevxfs /bin/true'
-          )
-        LIMIT 1
-      )
     SELECT 1
-    WHERE NOT EXISTS (SELECT 1 FROM loaded)
-      AND (
-        NOT EXISTS (SELECT 1 FROM module_present)
-        OR (EXISTS (SELECT 1 FROM blacklisted) AND EXISTS (SELECT 1 FROM install_blocked))
-      );
+    WHERE (SELECT COUNT(*) FROM kernel_modules WHERE name='freevxfs') = 0
+      AND (SELECT COUNT(*) FROM file_lines
+           WHERE path LIKE '/etc/modprobe.d/%.conf'
+             AND line LIKE 'blacklist freevxfs%'
+             AND line NOT LIKE '#%') >= 1
+      AND (SELECT COUNT(*) FROM file_lines
+           WHERE path LIKE '/etc/modprobe.d/%.conf'
+             AND (line LIKE 'install freevxfs /bin/false%' OR line LIKE 'install freevxfs /bin/true%')
+             AND line NOT LIKE '#%') >= 1;
   purpose: Informational
   tags: compliance, CIS, CIS_Ubuntu_22_04
   contributors: sharon-fdm
@@ -127,53 +90,16 @@ spec:
   #   - PASS: query returns 1 row.
   #   - FAIL: query returns 0 rows.
   query: |
-    WITH
-      loaded AS (
-        SELECT 1 FROM kernel_modules WHERE name IN ('hfsplus') LIMIT 1
-      ),
-      module_present AS (
-        SELECT 1
-        FROM glob
-        WHERE pattern IN (
-          '/lib/modules/*/kernel/**/hfsplus.ko',
-          '/lib/modules/*/kernel/**/hfsplus.ko.*',
-          '/usr/lib/modules/*/kernel/**/hfsplus.ko',
-          '/usr/lib/modules/*/kernel/**/hfsplus.ko.*',
-          '/lib/modules/*/kernel/**/hfsplus.ko',
-          '/lib/modules/*/kernel/**/hfsplus.ko.*',
-          '/usr/lib/modules/*/kernel/**/hfsplus.ko',
-          '/usr/lib/modules/*/kernel/**/hfsplus.ko.*'
-        )
-        LIMIT 1
-      ),
-      blacklisted AS (
-        SELECT 1 FROM file_lines
-        WHERE (path LIKE '/etc/modprobe.d/%.conf' OR path LIKE '/lib/modprobe.d/%.conf' OR path LIKE '/usr/lib/modprobe.d/%.conf' OR path LIKE '/run/modprobe.d/%.conf')
-          AND (
-            line = 'blacklist hfsplus'
-            OR line LIKE 'blacklist hfsplus %'
-            OR line = 'blacklist hfsplus'
-            OR line LIKE 'blacklist hfsplus %'
-          )
-        LIMIT 1
-      ),
-      install_blocked AS (
-        SELECT 1 FROM file_lines
-        WHERE (path LIKE '/etc/modprobe.d/%.conf' OR path LIKE '/lib/modprobe.d/%.conf' OR path LIKE '/usr/lib/modprobe.d/%.conf' OR path LIKE '/run/modprobe.d/%.conf')
-          AND (
-            line = 'install hfsplus /bin/false'
-            OR line = 'install hfsplus /bin/true'
-            OR line = 'install hfsplus /bin/false'
-            OR line = 'install hfsplus /bin/true'
-          )
-        LIMIT 1
-      )
     SELECT 1
-    WHERE NOT EXISTS (SELECT 1 FROM loaded)
-      AND (
-        NOT EXISTS (SELECT 1 FROM module_present)
-        OR (EXISTS (SELECT 1 FROM blacklisted) AND EXISTS (SELECT 1 FROM install_blocked))
-      );
+    WHERE (SELECT COUNT(*) FROM kernel_modules WHERE name='hfsplus') = 0
+      AND (SELECT COUNT(*) FROM file_lines
+           WHERE path LIKE '/etc/modprobe.d/%.conf'
+             AND line LIKE 'blacklist hfsplus%'
+             AND line NOT LIKE '#%') >= 1
+      AND (SELECT COUNT(*) FROM file_lines
+           WHERE path LIKE '/etc/modprobe.d/%.conf'
+             AND (line LIKE 'install hfsplus /bin/false%' OR line LIKE 'install hfsplus /bin/true%')
+             AND line NOT LIKE '#%') >= 1;
   purpose: Informational
   tags: compliance, CIS, CIS_Ubuntu_22_04
   contributors: sharon-fdm
@@ -199,53 +125,16 @@ spec:
   #   - PASS: query returns 1 row.
   #   - FAIL: query returns 0 rows.
   query: |
-    WITH
-      loaded AS (
-        SELECT 1 FROM kernel_modules WHERE name IN ('jffs2') LIMIT 1
-      ),
-      module_present AS (
-        SELECT 1
-        FROM glob
-        WHERE pattern IN (
-          '/lib/modules/*/kernel/**/jffs2.ko',
-          '/lib/modules/*/kernel/**/jffs2.ko.*',
-          '/usr/lib/modules/*/kernel/**/jffs2.ko',
-          '/usr/lib/modules/*/kernel/**/jffs2.ko.*',
-          '/lib/modules/*/kernel/**/jffs2.ko',
-          '/lib/modules/*/kernel/**/jffs2.ko.*',
-          '/usr/lib/modules/*/kernel/**/jffs2.ko',
-          '/usr/lib/modules/*/kernel/**/jffs2.ko.*'
-        )
-        LIMIT 1
-      ),
-      blacklisted AS (
-        SELECT 1 FROM file_lines
-        WHERE (path LIKE '/etc/modprobe.d/%.conf' OR path LIKE '/lib/modprobe.d/%.conf' OR path LIKE '/usr/lib/modprobe.d/%.conf' OR path LIKE '/run/modprobe.d/%.conf')
-          AND (
-            line = 'blacklist jffs2'
-            OR line LIKE 'blacklist jffs2 %'
-            OR line = 'blacklist jffs2'
-            OR line LIKE 'blacklist jffs2 %'
-          )
-        LIMIT 1
-      ),
-      install_blocked AS (
-        SELECT 1 FROM file_lines
-        WHERE (path LIKE '/etc/modprobe.d/%.conf' OR path LIKE '/lib/modprobe.d/%.conf' OR path LIKE '/usr/lib/modprobe.d/%.conf' OR path LIKE '/run/modprobe.d/%.conf')
-          AND (
-            line = 'install jffs2 /bin/false'
-            OR line = 'install jffs2 /bin/true'
-            OR line = 'install jffs2 /bin/false'
-            OR line = 'install jffs2 /bin/true'
-          )
-        LIMIT 1
-      )
     SELECT 1
-    WHERE NOT EXISTS (SELECT 1 FROM loaded)
-      AND (
-        NOT EXISTS (SELECT 1 FROM module_present)
-        OR (EXISTS (SELECT 1 FROM blacklisted) AND EXISTS (SELECT 1 FROM install_blocked))
-      );
+    WHERE (SELECT COUNT(*) FROM kernel_modules WHERE name='jffs2') = 0
+      AND (SELECT COUNT(*) FROM file_lines
+           WHERE path LIKE '/etc/modprobe.d/%.conf'
+             AND line LIKE 'blacklist jffs2%'
+             AND line NOT LIKE '#%') >= 1
+      AND (SELECT COUNT(*) FROM file_lines
+           WHERE path LIKE '/etc/modprobe.d/%.conf'
+             AND (line LIKE 'install jffs2 /bin/false%' OR line LIKE 'install jffs2 /bin/true%')
+             AND line NOT LIKE '#%') >= 1;
   purpose: Informational
   tags: compliance, CIS, CIS_Ubuntu_22_04
   contributors: sharon-fdm
@@ -271,53 +160,16 @@ spec:
   #   - PASS: query returns 1 row.
   #   - FAIL: query returns 0 rows.
   query: |
-    WITH
-      loaded AS (
-        SELECT 1 FROM kernel_modules WHERE name IN ('overlay') LIMIT 1
-      ),
-      module_present AS (
-        SELECT 1
-        FROM glob
-        WHERE pattern IN (
-          '/lib/modules/*/kernel/**/overlay.ko',
-          '/lib/modules/*/kernel/**/overlay.ko.*',
-          '/usr/lib/modules/*/kernel/**/overlay.ko',
-          '/usr/lib/modules/*/kernel/**/overlay.ko.*',
-          '/lib/modules/*/kernel/**/overlay.ko',
-          '/lib/modules/*/kernel/**/overlay.ko.*',
-          '/usr/lib/modules/*/kernel/**/overlay.ko',
-          '/usr/lib/modules/*/kernel/**/overlay.ko.*'
-        )
-        LIMIT 1
-      ),
-      blacklisted AS (
-        SELECT 1 FROM file_lines
-        WHERE (path LIKE '/etc/modprobe.d/%.conf' OR path LIKE '/lib/modprobe.d/%.conf' OR path LIKE '/usr/lib/modprobe.d/%.conf' OR path LIKE '/run/modprobe.d/%.conf')
-          AND (
-            line = 'blacklist overlay'
-            OR line LIKE 'blacklist overlay %'
-            OR line = 'blacklist overlay'
-            OR line LIKE 'blacklist overlay %'
-          )
-        LIMIT 1
-      ),
-      install_blocked AS (
-        SELECT 1 FROM file_lines
-        WHERE (path LIKE '/etc/modprobe.d/%.conf' OR path LIKE '/lib/modprobe.d/%.conf' OR path LIKE '/usr/lib/modprobe.d/%.conf' OR path LIKE '/run/modprobe.d/%.conf')
-          AND (
-            line = 'install overlay /bin/false'
-            OR line = 'install overlay /bin/true'
-            OR line = 'install overlay /bin/false'
-            OR line = 'install overlay /bin/true'
-          )
-        LIMIT 1
-      )
     SELECT 1
-    WHERE NOT EXISTS (SELECT 1 FROM loaded)
-      AND (
-        NOT EXISTS (SELECT 1 FROM module_present)
-        OR (EXISTS (SELECT 1 FROM blacklisted) AND EXISTS (SELECT 1 FROM install_blocked))
-      );
+    WHERE (SELECT COUNT(*) FROM kernel_modules WHERE name='overlay') = 0
+      AND (SELECT COUNT(*) FROM file_lines
+           WHERE path LIKE '/etc/modprobe.d/%.conf'
+             AND line LIKE 'blacklist overlay%'
+             AND line NOT LIKE '#%') >= 1
+      AND (SELECT COUNT(*) FROM file_lines
+           WHERE path LIKE '/etc/modprobe.d/%.conf'
+             AND (line LIKE 'install overlay /bin/false%' OR line LIKE 'install overlay /bin/true%')
+             AND line NOT LIKE '#%') >= 1;
   purpose: Informational
   tags: compliance, CIS, CIS_Ubuntu_22_04
   contributors: sharon-fdm
@@ -343,53 +195,16 @@ spec:
   #   - PASS: query returns 1 row.
   #   - FAIL: query returns 0 rows.
   query: |
-    WITH
-      loaded AS (
-        SELECT 1 FROM kernel_modules WHERE name IN ('squashfs') LIMIT 1
-      ),
-      module_present AS (
-        SELECT 1
-        FROM glob
-        WHERE pattern IN (
-          '/lib/modules/*/kernel/**/squashfs.ko',
-          '/lib/modules/*/kernel/**/squashfs.ko.*',
-          '/usr/lib/modules/*/kernel/**/squashfs.ko',
-          '/usr/lib/modules/*/kernel/**/squashfs.ko.*',
-          '/lib/modules/*/kernel/**/squashfs.ko',
-          '/lib/modules/*/kernel/**/squashfs.ko.*',
-          '/usr/lib/modules/*/kernel/**/squashfs.ko',
-          '/usr/lib/modules/*/kernel/**/squashfs.ko.*'
-        )
-        LIMIT 1
-      ),
-      blacklisted AS (
-        SELECT 1 FROM file_lines
-        WHERE (path LIKE '/etc/modprobe.d/%.conf' OR path LIKE '/lib/modprobe.d/%.conf' OR path LIKE '/usr/lib/modprobe.d/%.conf' OR path LIKE '/run/modprobe.d/%.conf')
-          AND (
-            line = 'blacklist squashfs'
-            OR line LIKE 'blacklist squashfs %'
-            OR line = 'blacklist squashfs'
-            OR line LIKE 'blacklist squashfs %'
-          )
-        LIMIT 1
-      ),
-      install_blocked AS (
-        SELECT 1 FROM file_lines
-        WHERE (path LIKE '/etc/modprobe.d/%.conf' OR path LIKE '/lib/modprobe.d/%.conf' OR path LIKE '/usr/lib/modprobe.d/%.conf' OR path LIKE '/run/modprobe.d/%.conf')
-          AND (
-            line = 'install squashfs /bin/false'
-            OR line = 'install squashfs /bin/true'
-            OR line = 'install squashfs /bin/false'
-            OR line = 'install squashfs /bin/true'
-          )
-        LIMIT 1
-      )
     SELECT 1
-    WHERE NOT EXISTS (SELECT 1 FROM loaded)
-      AND (
-        NOT EXISTS (SELECT 1 FROM module_present)
-        OR (EXISTS (SELECT 1 FROM blacklisted) AND EXISTS (SELECT 1 FROM install_blocked))
-      );
+    WHERE (SELECT COUNT(*) FROM kernel_modules WHERE name='squashfs') = 0
+      AND (SELECT COUNT(*) FROM file_lines
+           WHERE path LIKE '/etc/modprobe.d/%.conf'
+             AND line LIKE 'blacklist squashfs%'
+             AND line NOT LIKE '#%') >= 1
+      AND (SELECT COUNT(*) FROM file_lines
+           WHERE path LIKE '/etc/modprobe.d/%.conf'
+             AND (line LIKE 'install squashfs /bin/false%' OR line LIKE 'install squashfs /bin/true%')
+             AND line NOT LIKE '#%') >= 1;
   purpose: Informational
   tags: compliance, CIS, CIS_Ubuntu_22_04
   contributors: sharon-fdm
@@ -415,53 +230,16 @@ spec:
   #   - PASS: query returns 1 row.
   #   - FAIL: query returns 0 rows.
   query: |
-    WITH
-      loaded AS (
-        SELECT 1 FROM kernel_modules WHERE name IN ('udf') LIMIT 1
-      ),
-      module_present AS (
-        SELECT 1
-        FROM glob
-        WHERE pattern IN (
-          '/lib/modules/*/kernel/**/udf.ko',
-          '/lib/modules/*/kernel/**/udf.ko.*',
-          '/usr/lib/modules/*/kernel/**/udf.ko',
-          '/usr/lib/modules/*/kernel/**/udf.ko.*',
-          '/lib/modules/*/kernel/**/udf.ko',
-          '/lib/modules/*/kernel/**/udf.ko.*',
-          '/usr/lib/modules/*/kernel/**/udf.ko',
-          '/usr/lib/modules/*/kernel/**/udf.ko.*'
-        )
-        LIMIT 1
-      ),
-      blacklisted AS (
-        SELECT 1 FROM file_lines
-        WHERE (path LIKE '/etc/modprobe.d/%.conf' OR path LIKE '/lib/modprobe.d/%.conf' OR path LIKE '/usr/lib/modprobe.d/%.conf' OR path LIKE '/run/modprobe.d/%.conf')
-          AND (
-            line = 'blacklist udf'
-            OR line LIKE 'blacklist udf %'
-            OR line = 'blacklist udf'
-            OR line LIKE 'blacklist udf %'
-          )
-        LIMIT 1
-      ),
-      install_blocked AS (
-        SELECT 1 FROM file_lines
-        WHERE (path LIKE '/etc/modprobe.d/%.conf' OR path LIKE '/lib/modprobe.d/%.conf' OR path LIKE '/usr/lib/modprobe.d/%.conf' OR path LIKE '/run/modprobe.d/%.conf')
-          AND (
-            line = 'install udf /bin/false'
-            OR line = 'install udf /bin/true'
-            OR line = 'install udf /bin/false'
-            OR line = 'install udf /bin/true'
-          )
-        LIMIT 1
-      )
     SELECT 1
-    WHERE NOT EXISTS (SELECT 1 FROM loaded)
-      AND (
-        NOT EXISTS (SELECT 1 FROM module_present)
-        OR (EXISTS (SELECT 1 FROM blacklisted) AND EXISTS (SELECT 1 FROM install_blocked))
-      );
+    WHERE (SELECT COUNT(*) FROM kernel_modules WHERE name='udf') = 0
+      AND (SELECT COUNT(*) FROM file_lines
+           WHERE path LIKE '/etc/modprobe.d/%.conf'
+             AND line LIKE 'blacklist udf%'
+             AND line NOT LIKE '#%') >= 1
+      AND (SELECT COUNT(*) FROM file_lines
+           WHERE path LIKE '/etc/modprobe.d/%.conf'
+             AND (line LIKE 'install udf /bin/false%' OR line LIKE 'install udf /bin/true%')
+             AND line NOT LIKE '#%') >= 1;
   purpose: Informational
   tags: compliance, CIS, CIS_Ubuntu_22_04
   contributors: sharon-fdm
@@ -1483,7 +1261,7 @@ spec:
   #   - PASS: query returns 1 row.
   #   - FAIL: query returns 0 rows.
   query: |
-    SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM glob WHERE pattern='/etc/apparmor.d/disable/*');
+    SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM file WHERE path='/etc/apparmor.d/disable' AND type='directory');
   purpose: Informational
   tags: compliance, CIS, CIS_Ubuntu_22_04
   contributors: sharon-fdm
@@ -3445,53 +3223,16 @@ spec:
   #   - PASS: query returns 1 row.
   #   - FAIL: query returns 0 rows.
   query: |
-    WITH
-      loaded AS (
-        SELECT 1 FROM kernel_modules WHERE name IN ('dccp') LIMIT 1
-      ),
-      module_present AS (
-        SELECT 1
-        FROM glob
-        WHERE pattern IN (
-          '/lib/modules/*/kernel/**/dccp.ko',
-          '/lib/modules/*/kernel/**/dccp.ko.*',
-          '/usr/lib/modules/*/kernel/**/dccp.ko',
-          '/usr/lib/modules/*/kernel/**/dccp.ko.*',
-          '/lib/modules/*/kernel/**/dccp.ko',
-          '/lib/modules/*/kernel/**/dccp.ko.*',
-          '/usr/lib/modules/*/kernel/**/dccp.ko',
-          '/usr/lib/modules/*/kernel/**/dccp.ko.*'
-        )
-        LIMIT 1
-      ),
-      blacklisted AS (
-        SELECT 1 FROM file_lines
-        WHERE (path LIKE '/etc/modprobe.d/%.conf' OR path LIKE '/lib/modprobe.d/%.conf' OR path LIKE '/usr/lib/modprobe.d/%.conf' OR path LIKE '/run/modprobe.d/%.conf')
-          AND (
-            line = 'blacklist dccp'
-            OR line LIKE 'blacklist dccp %'
-            OR line = 'blacklist dccp'
-            OR line LIKE 'blacklist dccp %'
-          )
-        LIMIT 1
-      ),
-      install_blocked AS (
-        SELECT 1 FROM file_lines
-        WHERE (path LIKE '/etc/modprobe.d/%.conf' OR path LIKE '/lib/modprobe.d/%.conf' OR path LIKE '/usr/lib/modprobe.d/%.conf' OR path LIKE '/run/modprobe.d/%.conf')
-          AND (
-            line = 'install dccp /bin/false'
-            OR line = 'install dccp /bin/true'
-            OR line = 'install dccp /bin/false'
-            OR line = 'install dccp /bin/true'
-          )
-        LIMIT 1
-      )
     SELECT 1
-    WHERE NOT EXISTS (SELECT 1 FROM loaded)
-      AND (
-        NOT EXISTS (SELECT 1 FROM module_present)
-        OR (EXISTS (SELECT 1 FROM blacklisted) AND EXISTS (SELECT 1 FROM install_blocked))
-      );
+    WHERE (SELECT COUNT(*) FROM kernel_modules WHERE name='dccp') = 0
+      AND (SELECT COUNT(*) FROM file_lines
+           WHERE path LIKE '/etc/modprobe.d/%.conf'
+             AND line LIKE 'blacklist dccp%'
+             AND line NOT LIKE '#%') >= 1
+      AND (SELECT COUNT(*) FROM file_lines
+           WHERE path LIKE '/etc/modprobe.d/%.conf'
+             AND (line LIKE 'install dccp /bin/false%' OR line LIKE 'install dccp /bin/true%')
+             AND line NOT LIKE '#%') >= 1;
   purpose: Informational
   tags: compliance, CIS, CIS_Ubuntu_22_04
   contributors: sharon-fdm
@@ -3517,53 +3258,16 @@ spec:
   #   - PASS: query returns 1 row.
   #   - FAIL: query returns 0 rows.
   query: |
-    WITH
-      loaded AS (
-        SELECT 1 FROM kernel_modules WHERE name IN ('tipc') LIMIT 1
-      ),
-      module_present AS (
-        SELECT 1
-        FROM glob
-        WHERE pattern IN (
-          '/lib/modules/*/kernel/**/tipc.ko',
-          '/lib/modules/*/kernel/**/tipc.ko.*',
-          '/usr/lib/modules/*/kernel/**/tipc.ko',
-          '/usr/lib/modules/*/kernel/**/tipc.ko.*',
-          '/lib/modules/*/kernel/**/tipc.ko',
-          '/lib/modules/*/kernel/**/tipc.ko.*',
-          '/usr/lib/modules/*/kernel/**/tipc.ko',
-          '/usr/lib/modules/*/kernel/**/tipc.ko.*'
-        )
-        LIMIT 1
-      ),
-      blacklisted AS (
-        SELECT 1 FROM file_lines
-        WHERE (path LIKE '/etc/modprobe.d/%.conf' OR path LIKE '/lib/modprobe.d/%.conf' OR path LIKE '/usr/lib/modprobe.d/%.conf' OR path LIKE '/run/modprobe.d/%.conf')
-          AND (
-            line = 'blacklist tipc'
-            OR line LIKE 'blacklist tipc %'
-            OR line = 'blacklist tipc'
-            OR line LIKE 'blacklist tipc %'
-          )
-        LIMIT 1
-      ),
-      install_blocked AS (
-        SELECT 1 FROM file_lines
-        WHERE (path LIKE '/etc/modprobe.d/%.conf' OR path LIKE '/lib/modprobe.d/%.conf' OR path LIKE '/usr/lib/modprobe.d/%.conf' OR path LIKE '/run/modprobe.d/%.conf')
-          AND (
-            line = 'install tipc /bin/false'
-            OR line = 'install tipc /bin/true'
-            OR line = 'install tipc /bin/false'
-            OR line = 'install tipc /bin/true'
-          )
-        LIMIT 1
-      )
     SELECT 1
-    WHERE NOT EXISTS (SELECT 1 FROM loaded)
-      AND (
-        NOT EXISTS (SELECT 1 FROM module_present)
-        OR (EXISTS (SELECT 1 FROM blacklisted) AND EXISTS (SELECT 1 FROM install_blocked))
-      );
+    WHERE (SELECT COUNT(*) FROM kernel_modules WHERE name='tipc') = 0
+      AND (SELECT COUNT(*) FROM file_lines
+           WHERE path LIKE '/etc/modprobe.d/%.conf'
+             AND line LIKE 'blacklist tipc%'
+             AND line NOT LIKE '#%') >= 1
+      AND (SELECT COUNT(*) FROM file_lines
+           WHERE path LIKE '/etc/modprobe.d/%.conf'
+             AND (line LIKE 'install tipc /bin/false%' OR line LIKE 'install tipc /bin/true%')
+             AND line NOT LIKE '#%') >= 1;
   purpose: Informational
   tags: compliance, CIS, CIS_Ubuntu_22_04
   contributors: sharon-fdm
@@ -3589,53 +3293,16 @@ spec:
   #   - PASS: query returns 1 row.
   #   - FAIL: query returns 0 rows.
   query: |
-    WITH
-      loaded AS (
-        SELECT 1 FROM kernel_modules WHERE name IN ('rds') LIMIT 1
-      ),
-      module_present AS (
-        SELECT 1
-        FROM glob
-        WHERE pattern IN (
-          '/lib/modules/*/kernel/**/rds.ko',
-          '/lib/modules/*/kernel/**/rds.ko.*',
-          '/usr/lib/modules/*/kernel/**/rds.ko',
-          '/usr/lib/modules/*/kernel/**/rds.ko.*',
-          '/lib/modules/*/kernel/**/rds.ko',
-          '/lib/modules/*/kernel/**/rds.ko.*',
-          '/usr/lib/modules/*/kernel/**/rds.ko',
-          '/usr/lib/modules/*/kernel/**/rds.ko.*'
-        )
-        LIMIT 1
-      ),
-      blacklisted AS (
-        SELECT 1 FROM file_lines
-        WHERE (path LIKE '/etc/modprobe.d/%.conf' OR path LIKE '/lib/modprobe.d/%.conf' OR path LIKE '/usr/lib/modprobe.d/%.conf' OR path LIKE '/run/modprobe.d/%.conf')
-          AND (
-            line = 'blacklist rds'
-            OR line LIKE 'blacklist rds %'
-            OR line = 'blacklist rds'
-            OR line LIKE 'blacklist rds %'
-          )
-        LIMIT 1
-      ),
-      install_blocked AS (
-        SELECT 1 FROM file_lines
-        WHERE (path LIKE '/etc/modprobe.d/%.conf' OR path LIKE '/lib/modprobe.d/%.conf' OR path LIKE '/usr/lib/modprobe.d/%.conf' OR path LIKE '/run/modprobe.d/%.conf')
-          AND (
-            line = 'install rds /bin/false'
-            OR line = 'install rds /bin/true'
-            OR line = 'install rds /bin/false'
-            OR line = 'install rds /bin/true'
-          )
-        LIMIT 1
-      )
     SELECT 1
-    WHERE NOT EXISTS (SELECT 1 FROM loaded)
-      AND (
-        NOT EXISTS (SELECT 1 FROM module_present)
-        OR (EXISTS (SELECT 1 FROM blacklisted) AND EXISTS (SELECT 1 FROM install_blocked))
-      );
+    WHERE (SELECT COUNT(*) FROM kernel_modules WHERE name='rds') = 0
+      AND (SELECT COUNT(*) FROM file_lines
+           WHERE path LIKE '/etc/modprobe.d/%.conf'
+             AND line LIKE 'blacklist rds%'
+             AND line NOT LIKE '#%') >= 1
+      AND (SELECT COUNT(*) FROM file_lines
+           WHERE path LIKE '/etc/modprobe.d/%.conf'
+             AND (line LIKE 'install rds /bin/false%' OR line LIKE 'install rds /bin/true%')
+             AND line NOT LIKE '#%') >= 1;
   purpose: Informational
   tags: compliance, CIS, CIS_Ubuntu_22_04
   contributors: sharon-fdm
@@ -3661,53 +3328,16 @@ spec:
   #   - PASS: query returns 1 row.
   #   - FAIL: query returns 0 rows.
   query: |
-    WITH
-      loaded AS (
-        SELECT 1 FROM kernel_modules WHERE name IN ('sctp') LIMIT 1
-      ),
-      module_present AS (
-        SELECT 1
-        FROM glob
-        WHERE pattern IN (
-          '/lib/modules/*/kernel/**/sctp.ko',
-          '/lib/modules/*/kernel/**/sctp.ko.*',
-          '/usr/lib/modules/*/kernel/**/sctp.ko',
-          '/usr/lib/modules/*/kernel/**/sctp.ko.*',
-          '/lib/modules/*/kernel/**/sctp.ko',
-          '/lib/modules/*/kernel/**/sctp.ko.*',
-          '/usr/lib/modules/*/kernel/**/sctp.ko',
-          '/usr/lib/modules/*/kernel/**/sctp.ko.*'
-        )
-        LIMIT 1
-      ),
-      blacklisted AS (
-        SELECT 1 FROM file_lines
-        WHERE (path LIKE '/etc/modprobe.d/%.conf' OR path LIKE '/lib/modprobe.d/%.conf' OR path LIKE '/usr/lib/modprobe.d/%.conf' OR path LIKE '/run/modprobe.d/%.conf')
-          AND (
-            line = 'blacklist sctp'
-            OR line LIKE 'blacklist sctp %'
-            OR line = 'blacklist sctp'
-            OR line LIKE 'blacklist sctp %'
-          )
-        LIMIT 1
-      ),
-      install_blocked AS (
-        SELECT 1 FROM file_lines
-        WHERE (path LIKE '/etc/modprobe.d/%.conf' OR path LIKE '/lib/modprobe.d/%.conf' OR path LIKE '/usr/lib/modprobe.d/%.conf' OR path LIKE '/run/modprobe.d/%.conf')
-          AND (
-            line = 'install sctp /bin/false'
-            OR line = 'install sctp /bin/true'
-            OR line = 'install sctp /bin/false'
-            OR line = 'install sctp /bin/true'
-          )
-        LIMIT 1
-      )
     SELECT 1
-    WHERE NOT EXISTS (SELECT 1 FROM loaded)
-      AND (
-        NOT EXISTS (SELECT 1 FROM module_present)
-        OR (EXISTS (SELECT 1 FROM blacklisted) AND EXISTS (SELECT 1 FROM install_blocked))
-      );
+    WHERE (SELECT COUNT(*) FROM kernel_modules WHERE name='sctp') = 0
+      AND (SELECT COUNT(*) FROM file_lines
+           WHERE path LIKE '/etc/modprobe.d/%.conf'
+             AND line LIKE 'blacklist sctp%'
+             AND line NOT LIKE '#%') >= 1
+      AND (SELECT COUNT(*) FROM file_lines
+           WHERE path LIKE '/etc/modprobe.d/%.conf'
+             AND (line LIKE 'install sctp /bin/false%' OR line LIKE 'install sctp /bin/true%')
+             AND line NOT LIKE '#%') >= 1;
   purpose: Informational
   tags: compliance, CIS, CIS_Ubuntu_22_04
   contributors: sharon-fdm
