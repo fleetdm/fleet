@@ -1376,8 +1376,8 @@ spec:
   #   - PASS: query returns 1 row
   #   - FAIL: query returns 0 rows
   query: |
-    SELECT 1 WHERE 0;
-  purpose: Manual Validation Required
+    SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM deb_packages WHERE name='prelink');
+purpose: Manual Validation Required
   tags: compliance, CIS, CIS_Ubuntu_22_04
   contributors: sharon-fdm
 ---
@@ -4508,8 +4508,8 @@ spec:
   #   - PASS: query returns 1 row
   #   - FAIL: query returns 0 rows
   query: |
-    SELECT 1 WHERE 0;
-  purpose: Manual Validation Required
+    SELECT 1 WHERE EXISTS (SELECT 1 FROM deb_packages WHERE name='sudo');
+purpose: Manual Validation Required
   tags: compliance, CIS, CIS_Ubuntu_22_04
   contributors: sharon-fdm
 ---
@@ -4676,8 +4676,8 @@ spec:
   #   - PASS: query returns 1 row
   #   - FAIL: query returns 0 rows
   query: |
-    SELECT 1 WHERE 0;
-  purpose: Manual Validation Required
+    SELECT 1 WHERE EXISTS (SELECT 1 FROM deb_packages WHERE name='latest-version-of-pam');
+purpose: Manual Validation Required
   tags: compliance, CIS, CIS_Ubuntu_22_04
   contributors: sharon-fdm
 ---
@@ -4700,8 +4700,8 @@ spec:
   #   - PASS: query returns 1 row
   #   - FAIL: query returns 0 rows
   query: |
-    SELECT 1 WHERE 0;
-  purpose: Manual Validation Required
+    SELECT 1 WHERE EXISTS (SELECT 1 FROM deb_packages WHERE name='latest-version-of-libpam--pwquality');
+purpose: Manual Validation Required
   tags: compliance, CIS, CIS_Ubuntu_22_04
   contributors: sharon-fdm
 ---
@@ -5780,8 +5780,8 @@ spec:
   #   - PASS: query returns 1 row
   #   - FAIL: query returns 0 rows
   query: |
-    SELECT 1 WHERE 0;
-  purpose: Manual Validation Required
+    SELECT 1 WHERE EXISTS (SELECT 1 FROM deb_packages WHERE name='systemd--journal--remote');
+purpose: Manual Validation Required
   tags: compliance, CIS, CIS_Ubuntu_22_04
   contributors: sharon-fdm
 ---
@@ -5876,8 +5876,8 @@ spec:
   #   - PASS: query returns 1 row
   #   - FAIL: query returns 0 rows
   query: |
-    SELECT 1 WHERE 0;
-  purpose: Manual Validation Required
+    SELECT 1 WHERE EXISTS (SELECT 1 FROM deb_packages WHERE name='rsyslog');
+purpose: Manual Validation Required
   tags: compliance, CIS, CIS_Ubuntu_22_04
   contributors: sharon-fdm
 ---
@@ -5900,8 +5900,12 @@ spec:
   #   - PASS: query returns 1 row
   #   - FAIL: query returns 0 rows
   query: |
-    SELECT 1 WHERE 0;
-  purpose: Manual Validation Required
+    SELECT 1
+    WHERE EXISTS (
+      SELECT 1 FROM systemd_units
+      WHERE name='rsyslog.service' AND enabled_state='enabled'
+    );
+purpose: Manual Validation Required
   tags: compliance, CIS, CIS_Ubuntu_22_04
   contributors: sharon-fdm
 ---
@@ -6116,8 +6120,12 @@ spec:
   #   - PASS: query returns 1 row
   #   - FAIL: query returns 0 rows
   query: |
-    SELECT 1 WHERE 0;
-  purpose: Manual Validation Required
+    SELECT 1
+    WHERE EXISTS (
+      SELECT 1 FROM systemd_units
+      WHERE name='auditd.service' AND enabled_state='enabled'
+    );
+purpose: Manual Validation Required
   tags: compliance, CIS, CIS_Ubuntu_22_04
   contributors: sharon-fdm
 ---
@@ -7004,8 +7012,8 @@ spec:
   #   - PASS: query returns 1 row
   #   - FAIL: query returns 0 rows
   query: |
-    SELECT 1 WHERE 0;
-  purpose: Manual Validation Required
+    SELECT 1 WHERE EXISTS (SELECT 1 FROM deb_packages WHERE name='aide');
+purpose: Manual Validation Required
   tags: compliance, CIS, CIS_Ubuntu_22_04
   contributors: sharon-fdm
 ---
