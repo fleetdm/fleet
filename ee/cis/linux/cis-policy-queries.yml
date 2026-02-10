@@ -3116,7 +3116,12 @@ spec:
   #   - PASS: query returns 1 row
   #   - FAIL: query returns 0 rows
   query: |
-    SELECT 1 WHERE 0;
+    SELECT 1
+    WHERE NOT EXISTS (
+      SELECT 1 FROM file_lines
+      WHERE path='/proc/net/wireless'
+        AND line LIKE '%:%'
+    );
   purpose: Manual Validation Required
   tags: compliance, CIS, CIS_Ubuntu_22_04
   contributors: sharon-fdm
@@ -3140,7 +3145,18 @@ spec:
   #   - PASS: query returns 1 row
   #   - FAIL: query returns 0 rows
   query: |
-    SELECT 1 WHERE 0;
+    SELECT 1
+    WHERE NOT EXISTS (SELECT 1 FROM deb_packages WHERE name='bluez')
+       OR (
+         NOT EXISTS (
+           SELECT 1 FROM systemd_units
+           WHERE name='bluetooth.service' AND enabled_state='enabled'
+         )
+         AND NOT EXISTS (
+           SELECT 1 FROM systemd_units
+           WHERE name='bluetooth.service' AND active_state='active'
+         )
+       );
   purpose: Manual Validation Required
   tags: compliance, CIS, CIS_Ubuntu_22_04
   contributors: sharon-fdm
@@ -3340,7 +3356,21 @@ spec:
   #   - PASS: query returns 1 row
   #   - FAIL: query returns 0 rows
   query: |
-    SELECT 1 WHERE 0;
+    SELECT 1
+    WHERE EXISTS (SELECT 1 FROM system_controls WHERE name='net.ipv4.conf.all.forwarding' AND value='0')
+      AND EXISTS (
+        SELECT 1 FROM file_lines
+        WHERE (path='/etc/sysctl.conf'
+           OR path LIKE '/etc/sysctl.d/%.conf'
+           OR path LIKE '/usr/lib/sysctl.d/%.conf'
+           OR path LIKE '/lib/sysctl.d/%.conf'
+           OR path LIKE '/run/sysctl.d/%.conf')
+          AND line NOT LIKE '#%'
+          AND (line LIKE 'net.ipv4.conf.all.forwarding = 0'
+            OR line LIKE 'net.ipv4.conf.all.forwarding=0'
+            OR line LIKE 'net.ipv4.conf.all.forwarding = 0 %'
+            OR line LIKE 'net.ipv4.conf.all.forwarding=0 %')
+      );
   purpose: Manual Validation Required
   tags: compliance, CIS, CIS_Ubuntu_22_04
   contributors: sharon-fdm
@@ -3364,7 +3394,21 @@ spec:
   #   - PASS: query returns 1 row
   #   - FAIL: query returns 0 rows
   query: |
-    SELECT 1 WHERE 0;
+    SELECT 1
+    WHERE EXISTS (SELECT 1 FROM system_controls WHERE name='net.ipv4.conf.default.forwarding' AND value='0')
+      AND EXISTS (
+        SELECT 1 FROM file_lines
+        WHERE (path='/etc/sysctl.conf'
+           OR path LIKE '/etc/sysctl.d/%.conf'
+           OR path LIKE '/usr/lib/sysctl.d/%.conf'
+           OR path LIKE '/lib/sysctl.d/%.conf'
+           OR path LIKE '/run/sysctl.d/%.conf')
+          AND line NOT LIKE '#%'
+          AND (line LIKE 'net.ipv4.conf.default.forwarding = 0'
+            OR line LIKE 'net.ipv4.conf.default.forwarding=0'
+            OR line LIKE 'net.ipv4.conf.default.forwarding = 0 %'
+            OR line LIKE 'net.ipv4.conf.default.forwarding=0 %')
+      );
   purpose: Manual Validation Required
   tags: compliance, CIS, CIS_Ubuntu_22_04
   contributors: sharon-fdm
