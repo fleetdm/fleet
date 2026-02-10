@@ -359,6 +359,14 @@ type SoftwareAutoUpdateScheduleFilter struct {
 	Enabled *bool
 }
 
+// FleetMaintainedVersion represents a cached version of a Fleet-maintained app.
+type FleetMaintainedVersion struct {
+	// ID is the ID of the software installer for this version.
+	ID uint `json:"id" db:"id"`
+	// Version is the version string.
+	Version string `json:"version" db:"version"`
+}
+
 // SoftwareTitle represents a title backed by the `software_titles` table.
 type SoftwareTitle struct {
 	ID uint `json:"id" db:"id"`

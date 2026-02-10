@@ -1940,6 +1940,8 @@ func (ds *Datastore) CleanupUnusedSoftwareInstallers(ctx context.Context, softwa
 	return ctxerr.Wrap(ctx, err, "cleanup unused software installers")
 }
 
+const maxCachedFMAVersions = 2
+
 func (ds *Datastore) BatchSetSoftwareInstallers(ctx context.Context, tmID *uint, installers []*fleet.UploadSoftwareInstallerPayload) error {
 	const upsertSoftwareTitles = `
 INSERT INTO software_titles
@@ -2211,8 +2213,9 @@ FROM
 	software_installers
 WHERE
 	global_or_team_id = ?	AND
-	-- this is guaranteed to select a single title_id, due to unique index
 	title_id = ?
+ORDER BY uploaded_at DESC, id DESC
+LIMIT 1
 `
 
 	const deleteInstallerLabelsNotInList = `
@@ -2628,6 +2631,28 @@ WHERE
 			var installerID uint
 			if err := sqlx.GetContext(ctx, tx, &installerID, loadSoftwareInstallerID, globalOrTeamID, titleID); err != nil {
 				return ctxerr.Wrapf(ctx, err, "load id of new/edited installer with name %q", installer.Filename)
+			}
+
+			// Evict old FMA versions beyond the max of 2 per title per team.
+			if installer.FleetMaintainedAppID != nil {
+				var allFMAInstallerIDs []uint
+				if err := sqlx.SelectContext(ctx, tx, &allFMAInstallerIDs, `
+					SELECT id FROM software_installers
+					WHERE global_or_team_id = ? AND title_id = ? AND fleet_maintained_app_id IS NOT NULL
+					ORDER BY uploaded_at DESC, id DESC
+				`, globalOrTeamID, titleID); err != nil {
+					return ctxerr.Wrapf(ctx, err, "list FMA installer versions for eviction for %q", installer.Filename)
+				}
+				if len(allFMAInstallerIDs) > maxCachedFMAVersions {
+					evictIDs := allFMAInstallerIDs[maxCachedFMAVersions:]
+					stmt, args, err := sqlx.In(`DELETE FROM software_installers WHERE id IN (?)`, evictIDs)
+					if err != nil {
+						return ctxerr.Wrap(ctx, err, "build FMA eviction query")
+					}
+					if _, err := tx.ExecContext(ctx, stmt, args...); err != nil {
+						return ctxerr.Wrapf(ctx, err, "evict old FMA versions for %q", installer.Filename)
+					}
+				}
 			}
 
 			// process the labels associated with that software installer

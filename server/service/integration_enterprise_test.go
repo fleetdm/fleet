@@ -24969,8 +24969,6 @@ func (s *integrationEnterpriseTestSuite) TestMaintainedAppsRollback() {
 			DefaultCategories:  []string{"Productivity"},
 		})
 
-		fmt.Printf("latestVersion: %v\n", latestVersion)
-
 		manifest := ma.FMAManifestFile{
 			Versions: versions,
 			Refs: map[string]string{
@@ -25034,6 +25032,10 @@ func (s *integrationEnterpriseTestSuite) TestMaintainedAppsRollback() {
 	require.Equal(t, "1.0", title.SoftwarePackage.Version)
 	require.Equal(t, "installer.zip", title.SoftwarePackage.Name)
 
+	// With only one version, fleet_maintained_versions should list it
+	require.Len(t, title.SoftwarePackage.FleetMaintainedVersions, 1)
+	require.Equal(t, "1.0", title.SoftwarePackage.FleetMaintainedVersions[0].Version)
+
 	// Now add a second version
 	latestVersion = "2.0"
 	installerBytes = []byte(`def`)
@@ -25044,9 +25046,9 @@ func (s *integrationEnterpriseTestSuite) TestMaintainedAppsRollback() {
 
 	s.DoJSON("POST", "/api/latest/fleet/software/batch", batchSetSoftwareInstallersRequest{Software: softwareToInstall, TeamName: team.Name}, http.StatusAccepted, &batchResponse, "team_name", team.Name, "team_id", fmt.Sprint(team.ID))
 	packages = waitBatchSetSoftwareInstallersCompleted(t, &s.withServer, team.Name, batchResponse.RequestUUID)
-	require.Len(t, packages, 1)
-	require.NotNil(t, packages[0].TitleID)
+	require.Len(t, packages, 2)
 
+	resp = listSoftwareTitlesResponse{}
 	s.DoJSON(
 		"GET", "/api/latest/fleet/software/titles",
 		listSoftwareTitlesRequest{},
@@ -25063,8 +25065,51 @@ func (s *integrationEnterpriseTestSuite) TestMaintainedAppsRollback() {
 	require.Equal(t, "2.0", title.SoftwarePackage.Version)
 	require.Equal(t, "installer.zip", title.SoftwarePackage.Name)
 
-	// We should have the previous version cached
+	// fleet_maintained_versions should list both versions (newest first)
+	require.Len(t, title.SoftwarePackage.FleetMaintainedVersions, 2)
+	require.Equal(t, "2.0", title.SoftwarePackage.FleetMaintainedVersions[0].Version)
+	require.Equal(t, "1.0", title.SoftwarePackage.FleetMaintainedVersions[1].Version)
+
+	// We should have the previous version cached in the DB
 	installers, err := s.ds.GetSoftwareInstallers(ctx, team.ID)
+	s.Require().NoError(err)
+	s.Assert().Len(installers, 2)
+
+	// Now add a third version — should evict v1.0, keeping only v3.0 and v2.0
+	latestVersion = "3.0"
+	installerBytes = []byte(`ghi`)
+	h = sha256.New()
+	_, err = h.Write(installerBytes)
+	require.NoError(t, err)
+	spoofedSHA = hex.EncodeToString(h.Sum(nil))
+
+	s.DoJSON("POST", "/api/latest/fleet/software/batch", batchSetSoftwareInstallersRequest{Software: softwareToInstall, TeamName: team.Name}, http.StatusAccepted, &batchResponse, "team_name", team.Name, "team_id", fmt.Sprint(team.ID))
+	packages = waitBatchSetSoftwareInstallersCompleted(t, &s.withServer, team.Name, batchResponse.RequestUUID)
+	require.Len(t, packages, 2)
+
+	resp = listSoftwareTitlesResponse{}
+	s.DoJSON(
+		"GET", "/api/latest/fleet/software/titles",
+		listSoftwareTitlesRequest{},
+		http.StatusOK, &resp,
+		"per_page", "1",
+		"order_key", "name",
+		"order_direction", "desc",
+		"available_for_install", "true",
+		"team_id", fmt.Sprintf("%d", team.ID),
+	)
+
+	require.Equal(t, 1, resp.Count)
+	title = resp.SoftwareTitles[0]
+	require.Equal(t, "3.0", title.SoftwarePackage.Version)
+
+	// Only 2 versions should remain after eviction (max 2 cached)
+	require.Len(t, title.SoftwarePackage.FleetMaintainedVersions, 2)
+	require.Equal(t, "3.0", title.SoftwarePackage.FleetMaintainedVersions[0].Version)
+	require.Equal(t, "2.0", title.SoftwarePackage.FleetMaintainedVersions[1].Version)
+
+	// DB should also only have 2 installers
+	installers, err = s.ds.GetSoftwareInstallers(ctx, team.ID)
 	s.Require().NoError(err)
 	s.Assert().Len(installers, 2)
 }
