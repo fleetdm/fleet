@@ -16,6 +16,10 @@ module.exports = {
       type: 'string',
       required: true,
     },
+    googleAction: {
+      type: 'string',
+      required: true,
+    },
   },
 
 
@@ -27,7 +31,7 @@ module.exports = {
   },
 
 
-  fn: async function ({ androidEnterpriseId, policyId}) {
+  fn: async function ({ androidEnterpriseId, policyId, googleAction}) {
 
     // Extract fleetServerSecret from the Authorization header
     let authHeader = this.req.get('authorization');
@@ -76,11 +80,24 @@ module.exports = {
       let authClient = await googleAuth.getClient();
       google.options({ auth: authClient });
 
-      let patchPoliciesResponse = await androidmanagement.enterprises.policies.modifyPolicyApplications({
-        name: `enterprises/${androidEnterpriseId}/policies/${policyId}`,
-        requestBody: this.req.body,
-      });
-      return patchPoliciesResponse.data;
+      sails.log.debug('modify called', {method: this.req.method, url: this.req.originalUrl, body: this.req.body});
+      switch (googleAction) {
+        case 'removePolicyApplications': {
+          let response = await androidmanagement.enterprises.policies.removePolicyApplications({
+            name: `enterprises/${androidEnterpriseId}/policies/${policyId}`,
+            requestBody: this.req.body,
+          });
+          return response.data;
+        }
+
+        default: {
+          let response = await androidmanagement.enterprises.policies.modifyPolicyApplications({
+            name: `enterprises/${androidEnterpriseId}/policies/${policyId}`,
+            requestBody: this.req.body,
+          });
+          return response.data;
+        }
+      }
     }).intercept((err) => {
       return new Error(`When attempting to update applications for a policy of Android enterprise (${androidEnterpriseId}), an error occurred. Error: ${err}`);
     });
