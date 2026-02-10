@@ -1277,6 +1277,7 @@ func (s *integrationEnterpriseTestSuite) TestTeamPolicies() {
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/teams/%d/policies/count", team1.ID), nil, http.StatusOK, &tc)
 	require.Nil(t, tc.Err)
 	require.Equal(t, 1, tc.Count)
+	require.Equal(t, 0, tc.InheritedPolicyCount)
 
 	gc := countGlobalPoliciesResponse{}
 	s.DoJSON("GET", "/api/latest/fleet/policies/count", nil, http.StatusOK, &gc)
@@ -1300,6 +1301,7 @@ func (s *integrationEnterpriseTestSuite) TestTeamPolicies() {
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/teams/%d/policies/count", team1.ID), nil, http.StatusOK, &countResp, "merge_inherited", "true")
 	require.Nil(t, countResp.Err)
 	require.Equal(t, 2, countResp.Count)
+	require.Equal(t, 1, countResp.InheritedPolicyCount)
 
 	// Test delete
 	deletePolicyParams := deleteTeamPoliciesRequest{IDs: []uint{ts.Policies[0].ID}}
@@ -1370,6 +1372,7 @@ func (s *integrationEnterpriseTestSuite) TestNoTeamPolicies() {
 	tc := countTeamPoliciesResponse{}
 	s.DoJSON("GET", "/api/latest/fleet/teams/0/policies/count", nil, http.StatusOK, &tc)
 	require.Equal(t, 2, tc.Count)
+	require.Equal(t, 0, tc.InheritedPolicyCount)
 	// Test merge inherited for "No team" policies.
 	ts = listTeamPoliciesResponse{}
 	s.DoJSON("GET", "/api/latest/fleet/teams/0/policies", nil, http.StatusOK, &ts, "merge_inherited", "true", "order_key", "team_id", "order_direction", "desc")
@@ -1386,6 +1389,7 @@ func (s *integrationEnterpriseTestSuite) TestNoTeamPolicies() {
 	s.DoJSON("GET", "/api/latest/fleet/teams/0/policies/count", nil, http.StatusOK, &countResp, "merge_inherited", "true")
 	require.Nil(t, countResp.Err)
 	require.Equal(t, 3, countResp.Count)
+	require.Equal(t, 1, countResp.InheritedPolicyCount)
 	// Test deleting "No team" policies.
 	deletePolicyParams := deleteTeamPoliciesRequest{
 		IDs: []uint{ts.Policies[0].ID},
@@ -1485,12 +1489,16 @@ func (s *integrationEnterpriseTestSuite) TestTeamQueries() {
 	s.DoJSON("GET", "/api/latest/fleet/queries", nil, http.StatusOK, &listQueriesResp, "team_id", fmt.Sprint(team1.ID))
 	require.Len(t, listQueriesResp.Queries, 1)
 	assert.Equal(t, "team1", listQueriesResp.Queries[0].Name)
+	assert.Equal(t, 1, listQueriesResp.Count)
+	assert.Equal(t, 0, listQueriesResp.InheritedQueryCount)
 
 	// list merged team queries
 	s.DoJSON("GET", "/api/latest/fleet/queries", nil, http.StatusOK, &listQueriesResp, "team_id", fmt.Sprint(team1.ID), "merge_inherited", "true", "order_key", "team_id", "order_direction", "desc")
 	require.Len(t, listQueriesResp.Queries, 2)
 	assert.Equal(t, "team1", listQueriesResp.Queries[0].Name)
 	assert.Equal(t, "global1", listQueriesResp.Queries[1].Name)
+	assert.Equal(t, 2, listQueriesResp.Count)
+	assert.Equal(t, 1, listQueriesResp.InheritedQueryCount)
 }
 
 func (s *integrationEnterpriseTestSuite) TestModifyTeamEnrollSecrets() {
