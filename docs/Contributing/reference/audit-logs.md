@@ -2350,6 +2350,23 @@ This activity contains the following fields:
 }
 ```
 
+## read_host_recovery_lock_password
+
+Generated when a user reads the Recovery Lock password for a host.
+
+This activity contains the following fields:
+- "host_id": ID of the host.
+- "host_display_name": Display name of the host.
+
+#### Example
+
+```json
+{
+  "host_id": 1,
+  "host_display_name": "Anna's MacBook Pro"
+}
+```
+
 ## rotated_recovery_lock_password
 
 Generated when a Recovery Lock password is rotated.
