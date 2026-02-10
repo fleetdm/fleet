@@ -80,7 +80,6 @@ module.exports = {
       let authClient = await googleAuth.getClient();
       google.options({ auth: authClient });
 
-      sails.log.debug('modify called', {method: this.req.method, url: this.req.originalUrl, body: this.req.body});
       switch (googleAction) {
         case 'removePolicyApplications': {
           let response = await androidmanagement.enterprises.policies.removePolicyApplications({
