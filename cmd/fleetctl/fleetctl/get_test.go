@@ -1439,7 +1439,7 @@ func TestGetQueries(t *testing.T) {
 		}
 		return nil, &notFoundError{}
 	}
-	ds.ListQueriesFunc = func(ctx context.Context, opt fleet.ListQueryOptions) ([]*fleet.Query, int, *fleet.PaginationMetadata, error) {
+	ds.ListQueriesFunc = func(ctx context.Context, opt fleet.ListQueryOptions) ([]*fleet.Query, int, int, *fleet.PaginationMetadata, error) {
 		if opt.TeamID == nil { //nolint:gocritic // ignore ifElseChain
 			return []*fleet.Query{
 				{
@@ -1476,7 +1476,7 @@ func TestGetQueries(t *testing.T) {
 					Saved:              true, // ListQueries always returns the saved ones.
 					ObserverCanRun:     true,
 				},
-			}, 3, nil, nil
+			}, 3, 0, nil, nil
 		} else if *opt.TeamID == 1 {
 			return []*fleet.Query{
 				{
@@ -1493,11 +1493,11 @@ func TestGetQueries(t *testing.T) {
 					TeamID:             ptr.Uint(1),
 					ObserverCanRun:     true,
 				},
-			}, 1, nil, nil
+			}, 1, 0, nil, nil
 		} else if *opt.TeamID == 2 {
-			return []*fleet.Query{}, 0, nil, nil
+			return []*fleet.Query{}, 0, 0, nil, nil
 		}
-		return nil, 0, nil, errors.New("invalid team ID")
+		return nil, 0, 0, nil, errors.New("invalid team ID")
 	}
 
 	expectedGlobal := `+--------+-------------+-----------+-----------+--------------------------------+
@@ -1766,7 +1766,7 @@ spec:
 func TestGetQueriesAsObserver(t *testing.T) {
 	_, ds := testing_utils.RunServerWithMockedDS(t)
 
-	ds.ListQueriesFunc = func(ctx context.Context, opt fleet.ListQueryOptions) ([]*fleet.Query, int, *fleet.PaginationMetadata, error) {
+	ds.ListQueriesFunc = func(ctx context.Context, opt fleet.ListQueryOptions) ([]*fleet.Query, int, int, *fleet.PaginationMetadata, error) {
 		return []*fleet.Query{
 			{
 				ID:             42,
@@ -1789,7 +1789,7 @@ func TestGetQueriesAsObserver(t *testing.T) {
 				Query:          "select 3;",
 				ObserverCanRun: false,
 			},
-		}, 3, nil, nil
+		}, 3, 0, nil, nil
 	}
 
 	for _, tc := range []struct {
@@ -2005,7 +2005,7 @@ spec:
 		GlobalRole: nil,
 		Teams:      []fleet.UserTeam{{Role: fleet.RoleObserver}},
 	})
-	ds.ListQueriesFunc = func(ctx context.Context, opt fleet.ListQueryOptions) ([]*fleet.Query, int, *fleet.PaginationMetadata, error) {
+	ds.ListQueriesFunc = func(ctx context.Context, opt fleet.ListQueryOptions) ([]*fleet.Query, int, int, *fleet.PaginationMetadata, error) {
 		return []*fleet.Query{
 			{
 				ID:             42,
@@ -2021,12 +2021,12 @@ spec:
 				Query:          "select 2;",
 				ObserverCanRun: false,
 			},
-		}, 2, nil, nil
+		}, 2, 0, nil, nil
 	}
 	assert.Equal(t, "", RunAppForTest(t, []string{"get", "queries"}))
 
 	// No filtering is performed if all are observer_can_run.
-	ds.ListQueriesFunc = func(ctx context.Context, opt fleet.ListQueryOptions) ([]*fleet.Query, int, *fleet.PaginationMetadata, error) {
+	ds.ListQueriesFunc = func(ctx context.Context, opt fleet.ListQueryOptions) ([]*fleet.Query, int, int, *fleet.PaginationMetadata, error) {
 		return []*fleet.Query{
 			{
 				ID:             42,
@@ -2042,7 +2042,7 @@ spec:
 				Query:          "select 2;",
 				ObserverCanRun: true,
 			},
-		}, 2, nil, nil
+		}, 2, 0, nil, nil
 	}
 	expected = `+--------+-------------+-----------+-----------+----------------------------+
 |  NAME  | DESCRIPTION |   QUERY   |   TEAM    |          SCHEDULE          |
