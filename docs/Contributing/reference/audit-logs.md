@@ -2350,9 +2350,9 @@ This activity contains the following fields:
 }
 ```
 
-## read_host_recovery_lock_password
+## view_host_recovery_lock_password
 
-Generated when a user reads the Recovery Lock password for a host.
+Generated when a user views the Recovery Lock password for a host.
 
 This activity contains the following fields:
 - "host_id": ID of the host.
