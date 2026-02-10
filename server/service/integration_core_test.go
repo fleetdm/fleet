@@ -3042,18 +3042,22 @@ func (s *integrationTestSuite) TestTeamPoliciesProprietary() {
 	tpCountResp := countTeamPoliciesResponse{}
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/teams/%d/policies/count", team1.ID), nil, http.StatusOK, &tpCountResp)
 	assert.Equal(t, 1, tpCountResp.Count)
+	assert.Equal(t, 0, tpCountResp.InheritedPolicyCount)
 
 	tpCountResp = countTeamPoliciesResponse{}
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/teams/%d/policies/count", team1.ID), nil, http.StatusOK, &tpCountResp, "query", tpNameNew)
 	assert.Equal(t, 1, tpCountResp.Count)
+	assert.Equal(t, 0, tpCountResp.InheritedPolicyCount)
 
 	tpCountResp = countTeamPoliciesResponse{}
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/teams/%d/policies/count", team1.ID), nil, http.StatusOK, &tpCountResp, "query", " "+tpNameNew+" ")
 	assert.Equal(t, 1, tpCountResp.Count)
+	assert.Equal(t, 0, tpCountResp.InheritedPolicyCount)
 
 	tpCountResp = countTeamPoliciesResponse{}
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/teams/%d/policies/count", team1.ID), nil, http.StatusOK, &tpCountResp, "query", " nomatch")
 	assert.Equal(t, 0, tpCountResp.Count)
+	assert.Equal(t, 0, tpCountResp.InheritedPolicyCount)
 
 	listHostsURL := fmt.Sprintf("/api/latest/fleet/hosts?policy_id=%d", policiesResponse.Policies[0].ID)
 	listHostsResp := listHostsResponse{}
@@ -3650,7 +3654,8 @@ func (s *integrationTestSuite) TestScheduledQueries() {
 	var listQryResp listQueriesResponse
 	s.DoJSON("GET", "/api/latest/fleet/queries", nil, http.StatusOK, &listQryResp)
 	assert.Len(t, listQryResp.Queries, 0)
-	assert.Equal(t, listQryResp.Count, 0)
+	assert.Equal(t, 0, listQryResp.Count)
+	assert.Equal(t, 0, listQryResp.InheritedQueryCount)
 
 	// create a query
 	var createQueryResp createQueryResponse
@@ -3665,6 +3670,8 @@ func (s *integrationTestSuite) TestScheduledQueries() {
 	s.DoJSON("GET", "/api/latest/fleet/queries", nil, http.StatusOK, &listQryResp)
 	require.Len(t, listQryResp.Queries, 1)
 	assert.Equal(t, query.Name, listQryResp.Queries[0].Name)
+	assert.Equal(t, 1, listQryResp.Count)
+	assert.Equal(t, 0, listQryResp.InheritedQueryCount)
 
 	// listing with matching name returns that query
 	s.DoJSON("GET", "/api/latest/fleet/queries", nil, http.StatusOK, &listQryResp, "query", query.Name)
@@ -3688,7 +3695,8 @@ func (s *integrationTestSuite) TestScheduledQueries() {
 	// next page returns nothing, count and meta are correct
 	s.DoJSON("GET", "/api/latest/fleet/queries", nil, http.StatusOK, &listQryResp, "per_page", "2", "page", "1")
 	require.Len(t, listQryResp.Queries, 0)
-	require.Equal(t, listQryResp.Count, 1)
+	require.Equal(t, 1, listQryResp.Count)
+	require.Equal(t, 0, listQryResp.InheritedQueryCount)
 	require.True(t, listQryResp.Meta.HasPreviousResults)
 	require.False(t, listQryResp.Meta.HasNextResults)
 
@@ -7781,6 +7789,9 @@ func (s *integrationTestSuite) TestAppConfig() {
 	s.DoJSON("GET", "/api/latest/fleet/spec/enroll_secret", nil, http.StatusOK, &specResp)
 	assert.Empty(t, specResp.Spec.Secrets)
 
+	seenActivitiesIDs := map[uint]struct{}{}
+	activityName := fleet.ActivityTypeEditedEnrollSecrets{}.ActivityName()
+
 	// apply spec, one secret
 	var applyResp applyEnrollSecretSpecResponse
 	s.DoJSON("POST", "/api/latest/fleet/spec/enroll_secret", applyEnrollSecretSpecRequest{
@@ -7789,12 +7800,30 @@ func (s *integrationTestSuite) TestAppConfig() {
 		},
 	}, http.StatusOK, &applyResp)
 
+	// adding a new secret should create a new activity entry
+	seenActivitiesIDs[s.lastActivityMatches(activityName, "", 0)] = struct{}{}
+	require.Len(t, seenActivitiesIDs, 1)
+
+	// applying the same secret again shouldn't create a new activity since we are only interested in mutations
+	s.DoJSON("POST", "/api/latest/fleet/spec/enroll_secret", applyEnrollSecretSpecRequest{
+		Spec: &fleet.EnrollSecretSpec{
+			Secrets: []*fleet.EnrollSecret{{Secret: "XYZ"}},
+		},
+	}, http.StatusOK, &applyResp)
+
+	seenActivitiesIDs[s.lastActivityMatches(activityName, "", 0)] = struct{}{}
+	require.Len(t, seenActivitiesIDs, 1)
+
 	// apply spec, too many secrets
 	s.DoJSON("POST", "/api/latest/fleet/spec/enroll_secret", applyEnrollSecretSpecRequest{
 		Spec: &fleet.EnrollSecretSpec{
 			Secrets: createEnrollSecrets(t, fleet.MaxEnrollSecretsCount+1),
 		},
 	}, http.StatusUnprocessableEntity, &applyResp)
+
+	// error conditions should create new activities
+	seenActivitiesIDs[s.lastActivityMatches(activityName, "", 0)] = struct{}{}
+	require.Len(t, seenActivitiesIDs, 1)
 
 	// get enroll secrets, one
 	s.DoJSON("GET", "/api/latest/fleet/spec/enroll_secret", nil, http.StatusOK, &specResp)
@@ -7805,6 +7834,10 @@ func (s *integrationTestSuite) TestAppConfig() {
 	s.DoJSON("POST", "/api/latest/fleet/spec/enroll_secret", applyEnrollSecretSpecRequest{
 		Spec: &fleet.EnrollSecretSpec{},
 	}, http.StatusOK, &applyResp)
+
+	// removing the secret should create a new activity entry
+	seenActivitiesIDs[s.lastActivityMatches(activityName, "", 0)] = struct{}{}
+	require.Len(t, seenActivitiesIDs, 2)
 
 	s.DoJSON("GET", "/api/latest/fleet/spec/enroll_secret", nil, http.StatusOK, &specResp)
 	require.Len(t, specResp.Spec.Secrets, 0)
@@ -14685,7 +14718,7 @@ func (s *integrationTestSuite) TestAndroidHostUUIDPropagation() {
 	host.SetNodeKey(expectedUUID)
 
 	// Create Android host
-	androidHost, err := s.ds.NewAndroidHost(ctx, host)
+	androidHost, err := s.ds.NewAndroidHost(ctx, host, false)
 	require.NoError(t, err)
 	require.NotZero(t, androidHost.Host.ID)
 
@@ -14703,7 +14736,7 @@ func (s *integrationTestSuite) TestAndroidHostUUIDPropagation() {
 	updatedHost.Host.OSVersion = "Android 16"
 	updatedHost.Host.UUID = expectedUUID
 
-	err = s.ds.UpdateAndroidHost(ctx, updatedHost, false)
+	err = s.ds.UpdateAndroidHost(ctx, updatedHost, false, false)
 	require.NoError(t, err)
 
 	// Get the host again, verify UUID is still present
@@ -14856,7 +14889,7 @@ func createAndroidHosts(t *testing.T, ds *mysql.Datastore, count int, teamID *ui
 			},
 		}
 		host.SetNodeKey(*host.Device.EnterpriseSpecificID)
-		ahost, err := ds.NewAndroidHost(context.Background(), host)
+		ahost, err := ds.NewAndroidHost(context.Background(), host, false)
 		require.NoError(t, err)
 		ids = append(ids, ahost.Host.ID)
 	}
@@ -14887,7 +14920,7 @@ func createAndroidHostWithStorage(t *testing.T, ds *mysql.Datastore, teamID *uin
 		},
 	}
 	host.SetNodeKey(*host.Device.EnterpriseSpecificID)
-	ahost, err := ds.NewAndroidHost(context.Background(), host)
+	ahost, err := ds.NewAndroidHost(context.Background(), host, false)
 	require.NoError(t, err)
 	return ahost.Host.ID
 }
