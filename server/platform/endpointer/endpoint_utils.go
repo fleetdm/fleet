@@ -54,10 +54,7 @@ func ParseTag(tag string) (string, bool, error) {
 	case 2:
 		return parts[0], parts[1] == "optional", nil
 	default:
-		if parts[2] != "renamed" {
-			return "", false, fmt.Errorf("Error parsing %s: too many parts", tag)
-		}
-		return parts[0], parts[1] == "optional", nil
+		return "", false, fmt.Errorf("Error parsing %s: too many parts", tag)
 	}
 }
 
@@ -287,7 +284,7 @@ func DecodeURLTagValue(r *http.Request, field reflect.Value, urlTagValue string,
 // It returns true if it handled the field, false if default handling should be used.
 type DomainQueryFieldDecoder func(queryTagName, queryVal string, field reflect.Value) (handled bool, err error)
 
-func DecodeQueryTagValue(r *http.Request, fp fieldPair, customDecoder DomainQueryFieldDecoder) error {
+func DecodeQueryTagValue(r *http.Request, fp fieldPair, customDecoder DomainQueryFieldDecoder, ctx context.Context) error {
 	queryTagValue, ok := fp.Sf.Tag.Lookup("query")
 
 	if ok {
@@ -298,7 +295,26 @@ func DecodeQueryTagValue(r *http.Request, fp fieldPair, customDecoder DomainQuer
 			return err
 		}
 		queryVal := r.URL.Query().Get(queryTagValue)
-		// if optional and it's a ptr, leave as nil
+
+		// If we don't find a value, check if there's an alias (deprecated) query parameter.
+		if queryVal == "" {
+			if renamedFrom, hasRenamed := fp.Sf.Tag.Lookup("renamedfrom"); hasRenamed {
+				renamedFrom, _, err = ParseTag(renamedFrom)
+				if err != nil {
+					return err
+				}
+				queryVal = r.URL.Query().Get(renamedFrom)
+				if queryVal != "" {
+					// Log deprecation warning - force warn level and add descriptive message
+					logging.WithLevel(ctx, level.Warn)
+					logging.WithExtras(ctx,
+						"deprecated_param", renamedFrom,
+						"deprecation_warning", fmt.Sprintf("'%s' is deprecated, use '%s' instead", renamedFrom, queryTagValue),
+					)
+				}
+			}
+		}
+		// If we still don't have a value, return if this is optional, otherwise error.
 		if queryVal == "" {
 			if optional {
 				return nil
@@ -627,7 +643,7 @@ func MakeDecoder(
 				return nil, platform_http.NewUserMessageError(errors.New("Expected Content-Type \"application/json\""), http.StatusUnsupportedMediaType)
 			}
 
-			err = DecodeQueryTagValue(r, fp, customQueryDecoder)
+			err = DecodeQueryTagValue(r, fp, customQueryDecoder, ctx)
 			if err != nil {
 				return nil, err
 			}
