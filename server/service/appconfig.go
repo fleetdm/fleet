@@ -1431,6 +1431,12 @@ func (svc *Service) validateMDM(
 		}
 	}
 
+	if mdm.MacOSSetup.BootstrapPackage.Value != "" && oldMdm.MacOSSetup.BootstrapPackage.Value != mdm.MacOSSetup.BootstrapPackage.Value {
+		if _, err := url.ParseRequestURI(mdm.MacOSSetup.BootstrapPackage.Value); err != nil {
+			invalid.Append("macos_setup.bootstrap_package", "bootstrap package must be a valid URL")
+		}
+	}
+
 	updatingMacOSMigration := mdm.MacOSMigration.Enable != oldMdm.MacOSMigration.Enable ||
 		mdm.MacOSMigration.Mode != oldMdm.MacOSMigration.Mode ||
 		mdm.MacOSMigration.WebhookURL != oldMdm.MacOSMigration.WebhookURL
