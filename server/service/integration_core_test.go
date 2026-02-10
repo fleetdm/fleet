@@ -14356,11 +14356,11 @@ func (s *integrationTestSuite) TestSecretVariablesGitOps() {
 	t := s.T()
 	ctx := context.Background()
 
-	// Create the global GitOps user we'll use in tests.
 	u := &fleet.User{
-		Name:       "GitOps",
-		Email:      "gitops1@example.com",
-		GlobalRole: ptr.String(fleet.RoleGitOps),
+		Name:  "GitOps",
+		Email: "gitops1@example.com",
+		// GitOps role is premium only, so we use the global admin role.
+		GlobalRole: ptr.String(fleet.RoleAdmin),
 	}
 	require.NoError(t, u.SetPassword(test.GoodPassword, 10, 10))
 	_, err := s.ds.NewUser(ctx, u)
