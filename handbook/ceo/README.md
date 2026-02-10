@@ -138,9 +138,9 @@ The Executive Assistant (EA) will use the following steps when a call is booked 
 ### Schedule Analyst prep
 
 The Executive Assistant (EA) will use the following steps when a call is booked between the CEO and an analyst:
-1. The EA will schedule a 30-minute “Analyst prep” call right before the analyst meeting, with the CEO as the only attendee.
-2. The EA will prep the agenda with a link to the analysts LinkedIn and 3 topics the CEO will talk about.
-3. The CEO will review the agenda during the "Analyst prep" time.
+1. The EA will schedule a 30-minute “analyst prep” call right before the analyst meeting, with the CEO as the only attendee.
+2. The EA will prep the agenda with a link to the analysts LinkedIn and 3 topics on what the CEO will talk about.
+3. The CEO will review the agenda during the "analyst prep" time.
 
 ### Confirm CEO shadow dates
 
