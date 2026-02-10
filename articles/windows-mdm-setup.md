@@ -71,7 +71,6 @@ These issues are caused by residual enrollment data, registry conflicts, or thir
 
 **Conflicting RMM or management agents:** Third-party RMM agents (such as N-able/SolarWinds, ConnectWise, or Kaseya) installed alongside the previous MDM solution can interfere with Fleet's MDM enrollment and may cause Windows Update to stop functioning. Check for and remove any RMM agents that are no longer needed before or after migrating to Fleet.
 
-If issues persist after running these scripts and rebooting, collect Orbit logs from the affected devices and contact [Fleet support](https://fleetdm.com/support).
 ## Automatic enrollment
 
 > Available in Fleet Premium
