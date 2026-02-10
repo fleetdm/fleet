@@ -85,7 +85,6 @@ func TestPolicies(t *testing.T) {
 		{"ResetAttemptsOnFailingToPassingAsync", testResetAttemptsOnFailingToPassingAsync},
 		{"PolicyModificationResetsAttemptNumber", testPolicyModificationResetsAttemptNumber},
 		{"ConditionalAccessBypassEnabled", testPoliciesConditionalAccessBypassEnabled},
-		{"GlobalAlwaysBypassEnabled", testPoliciesGlobalAlwaysBypassEnabled},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -6801,12 +6800,13 @@ func testPolicyModificationResetsAttemptNumber(t *testing.T, ds *Datastore) {
 
 func testPoliciesConditionalAccessBypassEnabled(t *testing.T, ds *Datastore) {
 	user := test.NewUser(t, ds, "User1", "user1@example.com", true)
-	ctx := t.Context()
+	ctx := context.Background()
 	team, err := ds.NewTeam(ctx, &fleet.Team{Name: "team1"})
 	require.NoError(t, err)
 
 	cases := []struct {
 		name           string
+		global         bool
 		createBypass   *bool
 		expectedCreate bool
 		toggleTo       *bool
@@ -6838,32 +6838,28 @@ func testPoliciesConditionalAccessBypassEnabled(t *testing.T, ds *Datastore) {
 			expectedCreate: true,
 			toggleTo:       ptr.Bool(false),
 		},
+		{
+			name:           "global default",
+			global:         true,
+			createBypass:   nil,
+			expectedCreate: true,
+		},
 	}
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			// Build NewTeamPolicyPayload (which has *bool) to exercise the
-			// same nil-default logic used by the service layer.
-			newPayload := fleet.NewTeamPolicyPayload{
+			payload := fleet.PolicyPayload{
 				Name:                           tc.name,
 				Query:                          "select 1;",
 				ConditionalAccessBypassEnabled: tc.createBypass,
 			}
 
-			// Apply the same nil-default conversion as newTeamPolicyPayloadToPolicyPayload:
-			// nil means bypass enabled (true).
-			bypassEnabled := true
-			if newPayload.ConditionalAccessBypassEnabled != nil {
-				bypassEnabled = *newPayload.ConditionalAccessBypassEnabled
+			var policy *fleet.Policy
+			if tc.global {
+				policy, err = ds.NewGlobalPolicy(ctx, &user.ID, payload)
+			} else {
+				policy, err = ds.NewTeamPolicy(ctx, team.ID, &user.ID, payload)
 			}
-
-			payload := fleet.PolicyPayload{
-				Name:                           newPayload.Name,
-				Query:                          newPayload.Query,
-				ConditionalAccessBypassEnabled: bypassEnabled,
-			}
-
-			policy, err := ds.NewTeamPolicy(ctx, team.ID, &user.ID, payload)
 			require.NoError(t, err)
 			assert.Equal(t, tc.expectedCreate, policy.ConditionalAccessBypassEnabled)
 
@@ -6882,25 +6878,4 @@ func testPoliciesConditionalAccessBypassEnabled(t *testing.T, ds *Datastore) {
 			}
 		})
 	}
-}
-
-func testPoliciesGlobalAlwaysBypassEnabled(t *testing.T, ds *Datastore) {
-	user := test.NewUser(t, ds, "User1", "user1@example.com", true)
-	ctx := t.Context()
-
-	// Global policies always have ConditionalAccessBypassEnabled set to true,
-	// matching the hardcoded value in globalPolicyEndpoint.
-	payload := fleet.PolicyPayload{
-		Name:                           "global bypass policy",
-		Query:                          "select 1;",
-		ConditionalAccessBypassEnabled: true,
-	}
-
-	policy, err := ds.NewGlobalPolicy(ctx, &user.ID, payload)
-	require.NoError(t, err)
-	assert.True(t, policy.ConditionalAccessBypassEnabled)
-
-	got, err := ds.Policy(ctx, policy.ID)
-	require.NoError(t, err)
-	assert.True(t, got.ConditionalAccessBypassEnabled)
 }
