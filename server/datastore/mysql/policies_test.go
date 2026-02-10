@@ -6861,11 +6861,11 @@ func testPoliciesConditionalAccessBypassEnabled(t *testing.T, ds *Datastore) {
 				policy, err = ds.NewTeamPolicy(ctx, team.ID, &user.ID, payload)
 			}
 			require.NoError(t, err)
-			assert.Equal(t, tc.expectedCreate, policy.ConditionalAccessBypassEnabled)
+			assert.Equal(t, tc.expectedCreate, *policy.ConditionalAccessBypassEnabled)
 
 			got, err := ds.Policy(ctx, policy.ID)
 			require.NoError(t, err)
-			assert.Equal(t, tc.expectedCreate, got.ConditionalAccessBypassEnabled)
+			assert.Equal(t, tc.expectedCreate, *got.ConditionalAccessBypassEnabled)
 
 			if tc.toggleTo != nil {
 				policy.ConditionalAccessBypassEnabled = tc.toggleTo
@@ -6874,7 +6874,7 @@ func testPoliciesConditionalAccessBypassEnabled(t *testing.T, ds *Datastore) {
 
 				got, err = ds.Policy(ctx, policy.ID)
 				require.NoError(t, err)
-				assert.Equal(t, *tc.toggleTo, got.ConditionalAccessBypassEnabled)
+				assert.Equal(t, *tc.toggleTo, *got.ConditionalAccessBypassEnabled)
 			}
 		})
 	}
