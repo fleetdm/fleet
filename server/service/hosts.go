@@ -18,6 +18,7 @@ import (
 
 	"github.com/fleetdm/fleet/v4/server"
 	"github.com/fleetdm/fleet/v4/server/authz"
+	"github.com/fleetdm/fleet/v4/server/platform/endpointer"
 	platform_http "github.com/fleetdm/fleet/v4/server/platform/http"
 
 	authzctx "github.com/fleetdm/fleet/v4/server/contexts/authz"
@@ -151,6 +152,7 @@ type streamHostsResponse struct {
 func (r streamHostsResponse) Error() error { return r.Err }
 
 func (r streamHostsResponse) HijackRender(_ context.Context, w http.ResponseWriter) {
+	aliasRules := endpointer.ExtractAliasRules(listHostsResponse{})
 	w.Header().Set("Content-Type", "application/json")
 	// If no iterator is provided, return a 500.
 	if r.HostResponseIterator == nil {
@@ -248,6 +250,7 @@ func (r streamHostsResponse) HijackRender(_ context.Context, w http.ResponseWrit
 			return
 		}
 		data, err := marshalJson(hostResp)
+		data = endpointer.DuplicateJSONKeys(data, aliasRules)
 		if err != nil {
 			fmt.Fprint(w, `],`)
 			fmt.Fprint(w, marshalError(fmt.Sprintf("marshaling host response: %s", err.Error())))
