@@ -7766,7 +7766,6 @@ _Available in Fleet Premium_
       "host_count_updated_at": "2023-12-20T15:23:57Z",
       "calendar_events_enabled": true,
       "conditional_access_enabled": true,
-      "fleet_maintained": false,
       "labels_include_any": ["Macs on Sonoma"]
     },
     {
@@ -7788,7 +7787,6 @@ _Available in Fleet Premium_
       "host_count_updated_at": "2023-12-20T15:23:57Z",
       "calendar_events_enabled": false,
       "conditional_access_enabled": false,
-      "fleet_maintained": false,
       "labels_exclude_any": ["Compliance exclusions", "Workstations (Canary)"],
       "run_script": {
         "name": "Encrypt Windows disk with BitLocker",
@@ -7814,7 +7812,6 @@ _Available in Fleet Premium_
       "host_count_updated_at": "2023-12-20T15:23:57Z",
       "calendar_events_enabled": false,
       "conditional_access_enabled": false,
-      "fleet_maintained": false,
       "install_software": {
         "name": "Adobe Acrobat.app",
         "software_title_id": 1234
