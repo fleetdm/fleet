@@ -35,6 +35,7 @@
     "lodash": "4.17.23",
     "memoize-one": "5.2.1",
     "normalizr": "3.6.2",
+    "postcss": "^8.4.31",
     "prop-types": "15.8.1",
     "proxy-middleware": "0.15.0",
     "rc-pagination": "1.16.3",
