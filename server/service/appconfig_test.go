@@ -225,6 +225,7 @@ func TestEnrollSecretAuth(t *testing.T) {
 	ds.GetEnrollSecretsFunc = func(ctx context.Context, tid *uint) ([]*fleet.EnrollSecret, error) {
 		return nil, nil
 	}
+	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) { return &fleet.AppConfig{}, nil }
 
 	testCases := []struct {
 		name            string
@@ -332,6 +333,11 @@ func TestApplyEnrollSecretWithGlobalEnrollConfig(t *testing.T) {
 	)
 	assert.True(t, ds.IsEnrollSecretAvailableFuncInvoked)
 	assert.Equal(t, assert.AnError, err)
+
+	ds.GetEnrollSecretsFunc = func(ctx context.Context, teamID *uint) ([]*fleet.EnrollSecret, error) {
+		return nil, nil
+	}
+	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) { return &fleet.AppConfig{}, nil }
 
 	ds.IsEnrollSecretAvailableFunc = nil
 	ds.ApplyEnrollSecretsFunc = func(ctx context.Context, teamID *uint, secrets []*fleet.EnrollSecret) error {
@@ -968,7 +974,8 @@ func TestMDMConfig(t *testing.T) {
 					CustomSettings: optjson.Slice[fleet.MDMProfileSpec]{Set: true, Value: []fleet.MDMProfileSpec{}},
 					Certificates:   optjson.Slice[fleet.CertificateTemplateSpec]{Set: true, Value: []fleet.CertificateTemplateSpec{}},
 				},
-				RequireBitLockerPIN: optjson.Bool{Set: true, Value: false},
+				RequireBitLockerPIN:   optjson.Bool{Set: true, Value: false},
+				WindowsEntraTenantIDs: optjson.Slice[string]{Set: true, Value: []string{}},
 			},
 		},
 		{
@@ -1018,7 +1025,8 @@ func TestMDMConfig(t *testing.T) {
 					CustomSettings: optjson.Slice[fleet.MDMProfileSpec]{Set: true, Value: []fleet.MDMProfileSpec{}},
 					Certificates:   optjson.Slice[fleet.CertificateTemplateSpec]{Set: true, Value: []fleet.CertificateTemplateSpec{}},
 				},
-				RequireBitLockerPIN: optjson.Bool{Set: true, Value: false},
+				RequireBitLockerPIN:   optjson.Bool{Set: true, Value: false},
+				WindowsEntraTenantIDs: optjson.Slice[string]{Set: true, Value: []string{}},
 			},
 		},
 		{
@@ -1050,7 +1058,8 @@ func TestMDMConfig(t *testing.T) {
 					CustomSettings: optjson.Slice[fleet.MDMProfileSpec]{Set: true, Value: []fleet.MDMProfileSpec{}},
 					Certificates:   optjson.Slice[fleet.CertificateTemplateSpec]{Set: true, Value: []fleet.CertificateTemplateSpec{}},
 				},
-				RequireBitLockerPIN: optjson.Bool{Set: true, Value: false},
+				RequireBitLockerPIN:   optjson.Bool{Set: true, Value: false},
+				WindowsEntraTenantIDs: optjson.Slice[string]{Set: true, Value: []string{}},
 			},
 		},
 		{
@@ -1089,7 +1098,8 @@ func TestMDMConfig(t *testing.T) {
 					CustomSettings: optjson.Slice[fleet.MDMProfileSpec]{Set: true, Value: []fleet.MDMProfileSpec{}},
 					Certificates:   optjson.Slice[fleet.CertificateTemplateSpec]{Set: true, Value: []fleet.CertificateTemplateSpec{}},
 				},
-				RequireBitLockerPIN: optjson.Bool{Set: true, Value: false},
+				RequireBitLockerPIN:   optjson.Bool{Set: true, Value: false},
+				WindowsEntraTenantIDs: optjson.Slice[string]{Set: true, Value: []string{}},
 			},
 		},
 		{
@@ -1128,7 +1138,8 @@ func TestMDMConfig(t *testing.T) {
 					CustomSettings: optjson.Slice[fleet.MDMProfileSpec]{Set: true, Value: []fleet.MDMProfileSpec{}},
 					Certificates:   optjson.Slice[fleet.CertificateTemplateSpec]{Set: true, Value: []fleet.CertificateTemplateSpec{}},
 				},
-				RequireBitLockerPIN: optjson.Bool{Set: true, Value: false},
+				RequireBitLockerPIN:   optjson.Bool{Set: true, Value: false},
+				WindowsEntraTenantIDs: optjson.Slice[string]{Set: true, Value: []string{}},
 			},
 		},
 		{
@@ -1167,7 +1178,8 @@ func TestMDMConfig(t *testing.T) {
 					CustomSettings: optjson.Slice[fleet.MDMProfileSpec]{Set: true, Value: []fleet.MDMProfileSpec{}},
 					Certificates:   optjson.Slice[fleet.CertificateTemplateSpec]{Set: true, Value: []fleet.CertificateTemplateSpec{}},
 				},
-				RequireBitLockerPIN: optjson.Bool{Set: true, Value: false},
+				RequireBitLockerPIN:   optjson.Bool{Set: true, Value: false},
+				WindowsEntraTenantIDs: optjson.Slice[string]{Set: true, Value: []string{}},
 			},
 		},
 		{
@@ -1231,7 +1243,8 @@ func TestMDMConfig(t *testing.T) {
 					CustomSettings: optjson.Slice[fleet.MDMProfileSpec]{Set: true, Value: []fleet.MDMProfileSpec{}},
 					Certificates:   optjson.Slice[fleet.CertificateTemplateSpec]{Set: true, Value: []fleet.CertificateTemplateSpec{}},
 				},
-				RequireBitLockerPIN: optjson.Bool{Set: true, Value: false},
+				RequireBitLockerPIN:   optjson.Bool{Set: true, Value: false},
+				WindowsEntraTenantIDs: optjson.Slice[string]{Set: true, Value: []string{}},
 			},
 		},
 		{

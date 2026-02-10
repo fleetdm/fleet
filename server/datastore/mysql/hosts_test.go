@@ -854,7 +854,7 @@ func testHostListOptionsTeamFilter(t *testing.T, ds *Datastore) {
 	// Add a couple of Android hosts(creation path is slightly different)
 	for i := 0; i < 2; i++ {
 		androidHost := createAndroidHost(fmt.Sprintf("enterprise-id-%d", i))
-		newHost, err := ds.NewAndroidHost(context.Background(), androidHost)
+		newHost, err := ds.NewAndroidHost(context.Background(), androidHost, false)
 		require.NoError(t, err)
 		require.NotNil(t, newHost)
 		hosts = append(hosts, newHost.Host)
@@ -978,13 +978,46 @@ func testHostListOptionsTeamFilter(t *testing.T, ds *Datastore) {
 			Checksum:          test.MakeTestBytes(), // 16 bytes
 			Scope:             fleet.PayloadScopeSystem,
 		},
+		{
+			ProfileUUID:       profUUID,
+			ProfileIdentifier: mobileconfig.FleetFileVaultPayloadIdentifier,
+			HostUUID:          hosts[19].UUID, // hosts[19] is assgined to no team
+			CommandUUID:       "command-uuid-4",
+			OperationType:     fleet.MDMOperationTypeInstall,
+			Status:            &fleet.MDMDeliveryVerifying, // will set ActionRequired
+			Checksum:          test.MakeTestBytes(),        // 16 bytes
+			Scope:             fleet.PayloadScopeSystem,
+		},
+		{
+			ProfileUUID:       profUUID,
+			ProfileIdentifier: mobileconfig.FleetFileVaultPayloadIdentifier,
+			HostUUID:          hosts[15].UUID, // hosts[15] is assgined to team 2
+			CommandUUID:       "command-uuid-5",
+			OperationType:     fleet.MDMOperationTypeInstall,
+			Status:            &fleet.MDMDeliveryVerifying, // will set ActionRequired
+			Checksum:          test.MakeTestBytes(),        // 16 bytes
+			Scope:             fleet.PayloadScopeSystem,
+		},
+		{
+			ProfileUUID:       profUUID,
+			ProfileIdentifier: mobileconfig.FleetFileVaultPayloadIdentifier,
+			HostUUID:          hosts[16].UUID, // hosts[16] is assgined to team 2
+			CommandUUID:       "command-uuid-6",
+			OperationType:     fleet.MDMOperationTypeInstall,
+			Status:            &fleet.MDMDeliveryVerified, // will set ActionRequired
+			Checksum:          test.MakeTestBytes(),       // 16 bytes
+			Scope:             fleet.PayloadScopeSystem,
+		},
 	}))
-	listHostsCheckCount(t, ds, userFilter, fleet.HostListOptions{TeamFilter: &team1.ID, OSSettingsDiskEncryptionFilter: fleet.DiskEncryptionEnforcing}, 0) // hosts[10]
-	listHostsCheckCount(t, ds, userFilter, fleet.HostListOptions{TeamFilter: &team2.ID, OSSettingsDiskEncryptionFilter: fleet.DiskEncryptionEnforcing}, 0) // wrong team
+	listHostsCheckCount(t, ds, userFilter, fleet.HostListOptions{TeamFilter: &team1.ID, OSSettingsDiskEncryptionFilter: fleet.DiskEncryptionEnforcing}, 0)      // hosts[10]
+	listHostsCheckCount(t, ds, userFilter, fleet.HostListOptions{TeamFilter: &team2.ID, OSSettingsDiskEncryptionFilter: fleet.DiskEncryptionEnforcing}, 0)      // hosts[16]
+	listHostsCheckCount(t, ds, userFilter, fleet.HostListOptions{TeamFilter: &team2.ID, OSSettingsDiskEncryptionFilter: fleet.DiskEncryptionActionRequired}, 2) // hosts[15], hosts[16]
 	// os settings filter does not support "all teams" so teamIDFilterNil acts the same as teamIDFilterZero
 	listHostsCheckCount(t, ds, userFilter, fleet.HostListOptions{TeamFilter: teamIDFilterZero, OSSettingsDiskEncryptionFilter: fleet.DiskEncryptionEnforcing}, 1) // hosts[18]
 	listHostsCheckCount(t, ds, userFilter, fleet.HostListOptions{TeamFilter: teamIDFilterNil, OSSettingsDiskEncryptionFilter: fleet.DiskEncryptionEnforcing}, 1)  // hosts[18]
 	listHostsCheckCount(t, ds, userFilter, fleet.HostListOptions{OSSettingsDiskEncryptionFilter: fleet.DiskEncryptionEnforcing}, 1)                               // hosts[18]
+
+	listHostsCheckCount(t, ds, userFilter, fleet.HostListOptions{TeamFilter: teamIDFilterZero, OSSettingsDiskEncryptionFilter: fleet.DiskEncryptionActionRequired}, 4) // hosts[3, 4, 5, 19]
 
 	// move linux hosts to team 1 (un-escrows keys)
 	require.NoError(t, ds.AddHostsToTeam(context.Background(), fleet.NewAddHostsToTeamParams(&team1.ID, []uint{hosts[1].ID, hosts[2].ID, hosts[3].ID, hosts[4].ID, hosts[5].ID})))
@@ -1021,7 +1054,7 @@ func testHostListAndroidHostsOSSettings(t *testing.T, ds *Datastore) {
 	hosts := []*fleet.Host{}
 	for i := 0; i < 2; i++ {
 		androidHost := createAndroidHost(fmt.Sprintf("enterprise-id-%d", i))
-		newHost, err := ds.NewAndroidHost(context.Background(), androidHost)
+		newHost, err := ds.NewAndroidHost(context.Background(), androidHost, false)
 		require.NoError(t, err)
 		require.NotNil(t, newHost)
 		hosts = append(hosts, newHost.Host)
@@ -1064,7 +1097,7 @@ func testHostListAndroidCertificateTemplatesOSSettings(t *testing.T, ds *Datasto
 
 	// Create an Android host
 	androidHost := createAndroidHost("enterprise-id-cert-test")
-	newHost, err := ds.NewAndroidHost(t.Context(), androidHost)
+	newHost, err := ds.NewAndroidHost(t.Context(), androidHost, false)
 	require.NoError(t, err)
 	require.NotNil(t, newHost)
 
@@ -1651,12 +1684,7 @@ func testHostsListMDMAndroid(t *testing.T, ds *Datastore) {
 	test.AddBuiltinLabels(t, ds)
 
 	// Helper to create Android hosts with specific UUID configurations
-	createAndroidHostForTest := func(t *testing.T, name string, withUUID bool) *fleet.Host {
-		uuid := ""
-		if withUUID {
-			uuid = fmt.Sprintf("enterprise-id-%s", name)
-		}
-
+	createAndroidHostForTest := func(t *testing.T, name string, companyOwned bool) *fleet.Host {
 		androidHost := &fleet.AndroidHost{
 			Host: &fleet.Host{
 				Hostname:       fmt.Sprintf("%s.android.local", name),
@@ -1665,38 +1693,43 @@ func testHostsListMDMAndroid(t *testing.T, ds *Datastore) {
 				OSVersion:      "Android 14",
 				Build:          "test-build",
 				Memory:         8192,
-				HardwareSerial: fmt.Sprintf("serial-%s", name),
 				CPUType:        "arm64",
 				HardwareModel:  "Pixel",
 				HardwareVendor: "Google",
-				UUID:           uuid,
 			},
 			Device: &android.Device{
 				DeviceID:             fmt.Sprintf("device-%s", name),
-				EnterpriseSpecificID: ptr.String(name),
 				AppliedPolicyID:      ptr.String("1"),
 				AppliedPolicyVersion: ptr.Int64(1),
 				LastPolicySyncTime:   ptr.Time(time.Now().UTC().Truncate(time.Millisecond)),
 			},
 		}
-		androidHost.SetNodeKey(name)
+		if companyOwned {
+			androidHost.UUID = "uuid-" + name
+			androidHost.Device.EnterpriseSpecificID = &androidHost.UUID
+			// Company owned devices have a real serial - others just use the enterprise ID attribute
+			androidHost.Host.HardwareSerial = "serial-" + name
+		} else {
+			androidHost.Device.EnterpriseSpecificID = ptr.String("enterprise-id-" + name)
+			androidHost.Host.HardwareSerial = *androidHost.Device.EnterpriseSpecificID
+			androidHost.UUID = *androidHost.Device.EnterpriseSpecificID
+		}
+		androidHost.SetNodeKey(*androidHost.Device.EnterpriseSpecificID)
 
-		result, err := ds.NewAndroidHost(ctx, androidHost)
+		result, err := ds.NewAndroidHost(ctx, androidHost, companyOwned)
 		require.NoError(t, err)
 		return result.Host
 	}
 
-	// Create Android hosts with personal enrollment (BYOD - non-empty UUID)
-	_ = createAndroidHostForTest(t, "android-personal-1", true)
-	_ = createAndroidHostForTest(t, "android-personal-2", true)
+	// Create Android hosts with personal enrollment (BYOD)
+	_ = createAndroidHostForTest(t, "android-personal-1", false)
+	_ = createAndroidHostForTest(t, "android-personal-2", false)
 
-	// Create Android hosts without personal enrollment (company-owned - empty UUID)
-	_ = createAndroidHostForTest(t, "android-company-1", false)
-	_ = createAndroidHostForTest(t, "android-company-2", false)
+	// Create Android hosts without personal enrollment (company-owned)
+	_ = createAndroidHostForTest(t, "android-company-1", true)
+	_ = createAndroidHostForTest(t, "android-company-2", true)
 
 	// Android hosts are automatically enrolled in MDM when created with NewAndroidHost
-	// Personal hosts get is_personal_enrollment = 1 based on UUID
-	// Company hosts get is_personal_enrollment = 0 based on empty UUID
 
 	// Create a non-Android host to ensure Android platform filtering works
 	darwinHost, err := ds.NewHost(ctx, &fleet.Host{
@@ -1732,11 +1765,11 @@ func testHostsListMDMAndroid(t *testing.T, ds *Datastore) {
 	}
 	assert.Equal(t, 2, androidPersonalCount, "Should have exactly 2 Android personal hosts")
 
-	// Test filtering by manual enrollment - should return Android company hosts
-	hosts = listHostsCheckCount(t, ds, filter, fleet.HostListOptions{MDMEnrollmentStatusFilter: fleet.MDMEnrollStatusManual}, 2)
-	require.Len(t, hosts, 2, "Should have 2 Android company hosts (manual enrollment)")
+	// Test filtering by automatic enrollment - should return Android company hosts
+	hosts = listHostsCheckCount(t, ds, filter, fleet.HostListOptions{MDMEnrollmentStatusFilter: fleet.MDMEnrollStatusAutomatic}, 2)
+	require.Len(t, hosts, 2, "Should have 2 Android company hosts (automatic enrollment)")
 	for _, h := range hosts {
-		assert.Equal(t, "android", h.Platform, "All manual enrollment hosts should be Android")
+		assert.Equal(t, "android", h.Platform, "All automatic enrollment hosts should be Android")
 		assert.Contains(t, []string{"android-company-1.android.local", "android-company-2.android.local"}, h.Hostname)
 	}
 
