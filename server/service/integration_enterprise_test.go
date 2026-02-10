@@ -5971,9 +5971,9 @@ func (s *integrationEnterpriseTestSuite) TestPolicySpecConditionalAccessBypassEn
 
 			policyName := t.Name() + " policy"
 			spec := &fleet.PolicySpec{
-				Name:                          policyName,
-				Query:                         "SELECT 1",
-				Team:                          teamName,
+				Name:                           policyName,
+				Query:                          "SELECT 1",
+				Team:                           teamName,
 				ConditionalAccessBypassEnabled: tc.createBypass,
 			}
 
@@ -5984,7 +5984,7 @@ func (s *integrationEnterpriseTestSuite) TestPolicySpecConditionalAccessBypassEn
 			)
 
 			// Read back and find the policy by name.
-			var bypassValue bool
+			var bypassValue *bool
 			if teamName != "" {
 				listResp := listTeamPoliciesResponse{}
 				// Look up the team to get its ID.
@@ -6024,7 +6024,7 @@ func (s *integrationEnterpriseTestSuite) TestPolicySpecConditionalAccessBypassEn
 				require.NotNil(t, found, "policy %s not found", policyName)
 				bypassValue = found.ConditionalAccessBypassEnabled
 			}
-			require.Equal(t, tc.expectedCreate, bypassValue, "after initial apply")
+			require.Equal(t, tc.expectedCreate, *bypassValue, "after initial apply")
 
 			// Reapply with updated bypass value if specified.
 			if tc.reapply != nil {
@@ -6057,7 +6057,7 @@ func (s *integrationEnterpriseTestSuite) TestPolicySpecConditionalAccessBypassEn
 						}
 					}
 					require.NotNil(t, found, "policy %s not found after reapply", policyName)
-					require.Equal(t, tc.reapply.expected, found.ConditionalAccessBypassEnabled, "after reapply")
+					require.Equal(t, tc.reapply.expected, *found.ConditionalAccessBypassEnabled, "after reapply")
 				} else {
 					listResp := listGlobalPoliciesResponse{}
 					s.DoJSON("GET", "/api/latest/fleet/policies", nil, http.StatusOK, &listResp)
@@ -6069,7 +6069,7 @@ func (s *integrationEnterpriseTestSuite) TestPolicySpecConditionalAccessBypassEn
 						}
 					}
 					require.NotNil(t, found, "policy %s not found after reapply", policyName)
-					require.Equal(t, tc.reapply.expected, found.ConditionalAccessBypassEnabled, "after reapply")
+					require.Equal(t, tc.reapply.expected, *found.ConditionalAccessBypassEnabled, "after reapply")
 				}
 			}
 		})
