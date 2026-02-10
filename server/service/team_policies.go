@@ -21,7 +21,7 @@ import (
 
 type teamPolicyRequest struct {
 	TeamID                   uint     `url:"fleet_id" renamedfrom:"team_id"`
-	QueryID                  *uint    `json:"query_id"`
+	QueryID                  *uint    `json:"report_id" renamedfrom:"query_id"`
 	Query                    string   `json:"query"`
 	Name                     string   `json:"name"`
 	Description              string   `json:"description"`

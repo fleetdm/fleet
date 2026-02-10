@@ -13,7 +13,7 @@ import (
 
 type packResponse struct {
 	fleet.Pack
-	QueryCount uint `json:"query_count"`
+	QueryCount uint `json:"report_count" renamedfrom:"query_count"`
 
 	// All current hosts in the pack. Hosts which are selected explicty and
 	// hosts which are part of a label.

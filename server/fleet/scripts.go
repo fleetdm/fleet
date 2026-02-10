@@ -624,7 +624,7 @@ var (
 type BatchExecutionStatusFilter struct {
 	ScriptID *uint   `json:"script_id,omitempty"`
 	TeamID   *uint   `json:"fleet_id,omitempty" renamedfrom:"team_id"` // if nil, it is scoped to hosts that are assigned to "No team"
-	Status   *string `json:"status,omitempty"`  // e.g. "pending", "ran", "errored", "canceled", "incompatible-platform", "incompatible-fleetd"
+	Status   *string `json:"status,omitempty"`                         // e.g. "pending", "ran", "errored", "canceled", "incompatible-platform", "incompatible-fleetd"
 	// ExecutionID is the unique identifier for a single execution of the script.
 	ExecutionID *string `json:"execution_id,omitempty"`
 	// Limit is the maximum number of results to return.

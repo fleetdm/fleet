@@ -19,8 +19,8 @@ type ScheduledQuery struct {
 	ID          uint   `json:"id"`
 	PackID      uint   `json:"pack_id" db:"pack_id"`
 	Name        string `json:"name"`
-	QueryID     uint   `json:"query_id" db:"query_id"`
-	QueryName   string `json:"query_name" db:"query_name"`
+	QueryID     uint   `json:"report_id" renamedfrom:"query_id" db:"query_id"`
+	QueryName   string `json:"report_name" renamedfrom:"query_name" db:"query_name"`
 	Query       string `json:"query"` // populated via a join on queries
 	Description string `json:"description,omitempty"`
 	// Interval specifies query frequency, in seconds.
@@ -129,7 +129,7 @@ type AggregatedStats struct {
 
 type ScheduledQueryPayload struct {
 	PackID   *uint     `json:"pack_id"`
-	QueryID  *uint     `json:"query_id"`
+	QueryID  *uint     `json:"report_id" renamedfrom:"query_id"`
 	Interval *uint     `json:"interval"`
 	Snapshot *bool     `json:"snapshot"`
 	Removed  *bool     `json:"removed"`
@@ -140,10 +140,10 @@ type ScheduledQueryPayload struct {
 }
 
 type ScheduledQueryStats struct {
-	ScheduledQueryName string `json:"scheduled_query_name,omitempty" db:"scheduled_query_name"`
-	ScheduledQueryID   uint   `json:"scheduled_query_id,omitempty" db:"scheduled_query_id"`
+	ScheduledQueryName string `json:"scheduled_report_name,omitempty" renamedfrom:"scheduled_query_name" db:"scheduled_query_name"`
+	ScheduledQueryID   uint   `json:"scheduled_report_id,omitempty" renamedfrom:"scheduled_query_id" db:"scheduled_query_id"`
 
-	QueryName   string `json:"query_name,omitempty" db:"query_name"`
+	QueryName   string `json:"report_name,omitempty" renamedfrom:"query_name" db:"query_name"`
 	Description string `json:"description,omitempty" db:"description"`
 
 	PackName string `json:"pack_name,omitempty" db:"pack_name"`

@@ -497,7 +497,7 @@ type HostHealth struct {
 	FailingCriticalPoliciesCount *int                           `json:"failing_critical_policies_count,omitempty"` // Fleet Premium Only
 	VulnerableSoftware           []HostHealthVulnerableSoftware `json:"vulnerable_software,omitempty"`
 	FailingPolicies              []*HostHealthFailingPolicy     `json:"failing_policies,omitempty"`
-	Platform                     string                         `json:"-" db:"platform"`                // Needed to fetch failing policies. Not returned in HTTP responses.
+	Platform                     string                         `json:"-" db:"platform"`                         // Needed to fetch failing policies. Not returned in HTTP responses.
 	TeamID                       *uint                          `json:"fleet_id,omitempty,renamed" db:"team_id"` // Needed to verify that user can access this host's health data. Not returned in HTTP responses.
 }
 

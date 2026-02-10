@@ -136,7 +136,7 @@ func (svc Service) TeamScheduleQuery(ctx context.Context, teamID uint, scheduled
 
 type modifyTeamScheduleRequest struct {
 	TeamID           uint `url:"fleet_id" renamedfrom:"team_id"`
-	ScheduledQueryID uint `url:"scheduled_query_id"`
+	ScheduledQueryID uint `url:"scheduled_report_id" renamedfrom:"scheduled_query_id"`
 	fleet.ScheduledQueryPayload
 }
 
@@ -175,7 +175,7 @@ func (svc Service) ModifyTeamScheduledQueries(
 
 type deleteTeamScheduleRequest struct {
 	TeamID           uint `url:"fleet_id" renamedfrom:"team_id"`
-	ScheduledQueryID uint `url:"scheduled_query_id"`
+	ScheduledQueryID uint `url:"scheduled_report_id" renamedfrom:"scheduled_query_id"`
 }
 
 type deleteTeamScheduleResponse struct {

@@ -204,7 +204,7 @@ type PackSpecTargets struct {
 }
 
 type PackSpecQuery struct {
-	QueryName   string  `json:"query" db:"query_name"`
+	QueryName   string  `json:"report" renamedfrom:"query" db:"query_name"`
 	Name        string  `json:"name"`
 	Description string  `json:"description"`
 	Interval    uint    `json:"interval"`
@@ -224,5 +224,5 @@ type PackStats struct {
 	//	- "team-$ID" is returned for team packs.
 	//	- "pack" means it is a user created pack.
 	Type       string                `json:"type"`
-	QueryStats []ScheduledQueryStats `json:"query_stats"`
+	QueryStats []ScheduledQueryStats `json:"report_stats" renamedfrom:"query_stats"`
 }

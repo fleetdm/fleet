@@ -525,8 +525,8 @@ func (a ActivityTypeAppliedSpecPolicy) Documentation() (activity string, details
 }
 
 type ActivityTypeCreatedSavedQuery struct {
-	ID       uint    `json:"query_id"`
-	Name     string  `json:"query_name"`
+	ID       uint    `json:"report_id" renamedfrom:"query_id"`
+	Name     string  `json:"report_name" renamedfrom:"query_name"`
 	TeamID   int64   `json:"fleet_id" renamedfrom:"team_id"`
 	TeamName *string `json:"fleet_name,omitempty" renamedfrom:"team_name"`
 }
@@ -550,8 +550,8 @@ func (a ActivityTypeCreatedSavedQuery) Documentation() (activity string, details
 }
 
 type ActivityTypeEditedSavedQuery struct {
-	ID       uint    `json:"query_id"`
-	Name     string  `json:"query_name"`
+	ID       uint    `json:"report_id" renamedfrom:"query_id"`
+	Name     string  `json:"report_name" renamedfrom:"query_name"`
 	TeamID   int64   `json:"fleet_id" renamedfrom:"team_id"`
 	TeamName *string `json:"fleet_name,omitempty" renamedfrom:"team_name"`
 }
@@ -575,7 +575,7 @@ func (a ActivityTypeEditedSavedQuery) Documentation() (activity string, details 
 }
 
 type ActivityTypeDeletedSavedQuery struct {
-	Name     string  `json:"query_name"`
+	Name     string  `json:"report_name" renamedfrom:"query_name"`
 	TeamID   int64   `json:"fleet_id" renamedfrom:"team_id"`
 	TeamName *string `json:"fleet_name,omitempty" renamedfrom:"team_name"`
 }
@@ -597,7 +597,7 @@ func (a ActivityTypeDeletedSavedQuery) Documentation() (activity string, details
 }
 
 type ActivityTypeDeletedMultipleSavedQuery struct {
-	IDs      []uint  `json:"query_ids"`
+	IDs      []uint  `json:"report_ids" renamedfrom:"query_ids"`
 	Teamid   int64   `json:"fleet_id" renamedfrom:"team_id"`
 	TeamName *string `json:"fleet_name,omitempty" renamedfrom:"team_name"`
 }
@@ -757,8 +757,8 @@ func (a ActivityTypeEditedAgentOptions) Documentation() (activity string, detail
 
 type ActivityTypeLiveQuery struct {
 	TargetsCount uint             `json:"targets_count"`
-	QuerySQL     string           `json:"query_sql"`
-	QueryName    *string          `json:"query_name,omitempty"`
+	QuerySQL     string           `json:"report_sql" renamedfrom:"query_sql"`
+	QueryName    *string          `json:"report_name,omitempty" renamedfrom:"query_name"`
 	Stats        *AggregatedStats `json:"stats,omitempty"`
 }
 

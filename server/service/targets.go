@@ -18,7 +18,7 @@ type searchTargetsRequest struct {
 	MatchQuery string `json:"query"`
 	// QueryID is the ID of a saved query to run (used to determine if this is a
 	// query that observers can run).
-	QueryID *uint `json:"query_id"`
+	QueryID *uint `json:"report_id" renamedfrom:"query_id"`
 	// Selected is the list of IDs that are already selected on the caller side
 	// (e.g. the UI), so those are IDs that will be omitted from the returned
 	// payload.
@@ -254,7 +254,7 @@ func (svc *Service) CountHostsInTargets(ctx context.Context, queryID *uint, targ
 
 type countTargetsRequest struct {
 	Selected fleet.HostTargets `json:"selected"`
-	QueryID  *uint             `json:"query_id"`
+	QueryID  *uint             `json:"report_id" renamedfrom:"query_id"`
 }
 
 type countTargetsResponse struct {

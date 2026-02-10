@@ -24,7 +24,7 @@ type getQueryRequest struct {
 }
 
 type getQueryResponse struct {
-	Query *fleet.Query `json:"query,omitempty"`
+	Query *fleet.Query `json:"report,omitempty" renamedfrom:"query"`
 	Err   error        `json:"error,omitempty"`
 }
 
@@ -159,7 +159,7 @@ type getQueryReportRequest struct {
 }
 
 type getQueryReportResponse struct {
-	QueryID       uint                       `json:"query_id"`
+	QueryID       uint                       `json:"report_id" renamedfrom:"query_id"`
 	Results       []fleet.HostQueryResultRow `json:"results"`
 	ReportClipped bool                       `json:"report_clipped"`
 	Err           error                      `json:"error,omitempty"`
@@ -251,7 +251,7 @@ type createQueryRequest struct {
 }
 
 type createQueryResponse struct {
-	Query *fleet.Query `json:"query,omitempty"`
+	Query *fleet.Query `json:"report,omitempty" renamedfrom:"query"`
 	Err   error        `json:"error,omitempty"`
 }
 
@@ -384,7 +384,7 @@ type modifyQueryRequest struct {
 }
 
 type modifyQueryResponse struct {
-	Query *fleet.Query `json:"query,omitempty"`
+	Query *fleet.Query `json:"report,omitempty" renamedfrom:"query"`
 	Err   error        `json:"error,omitempty"`
 }
 
