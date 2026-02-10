@@ -27,11 +27,8 @@ jobs:
             const issue = context.payload.issue;
             const labels = issue.labels.map(label => label.name);
 
-            const hasNoopLabel = labels.some(label =>
-              label.includes('~released bug') || label.includes('~unreleased bug') || labels.includes('#g-website')
-            );
-
-            if (hasNoopLabel) {
+            const noopLabels = ['~released bug', '~unreleased bug', '#g-website', 'flaky-ci-tests'];
+            if (labels.some(label => noopLabels.includes(label))) {
               return;
             }
 
