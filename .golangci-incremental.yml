@@ -23,3 +23,10 @@ linters:
           include-pkgs: "github.com/fleetdm/fleet/v4"
   exclusions:
     generated: strict
+    rules:
+      # nilaway has a hardcoded 500 CFG block limit (_maxFuncSizeInCFGBlocks). Functions exceeding
+      # it produce an INTERNAL ERROR with a bogus $GOROOT path that crashes golangci-lint's
+      # generated_file_filter processor. These are informational skip messages, not real findings.
+      - linters:
+          - nilaway
+        text: "INTERNAL ERROR"
