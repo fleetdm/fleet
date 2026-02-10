@@ -6800,7 +6800,7 @@ func testPolicyModificationResetsAttemptNumber(t *testing.T, ds *Datastore) {
 
 func testPoliciesConditionalAccessBypassEnabled(t *testing.T, ds *Datastore) {
 	user := test.NewUser(t, ds, "User1", "user1@example.com", true)
-	ctx := context.Background()
+	ctx := t.Context()
 	team, err := ds.NewTeam(ctx, &fleet.Team{Name: "team1"})
 	require.NoError(t, err)
 
