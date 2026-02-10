@@ -53,7 +53,6 @@ When migrating Windows hosts from another MDM, devices may fail to report MDM as
 
 These issues are caused by residual enrollment data, registry conflicts, or third-party management agents from the previous MDM solution. [Run the scripts](https://fleetdm.com/guides/scripts#manually-run-scripts) below on the affected hosts, then **reboot the device** and select **Refetch** on the host details.
 
-**Enrollment flag conflict:** Resets the `MmpcEnrollmentFlag` registry value that can prevent Fleet from reporting MDM status correctly after migration.
 
 - [reset-mdm-enrollment-flag.ps1](https://github.com/fleetdm/fleet/blob/main/docs/solutions/windows/scripts/reset-mdm-enrollment-flag.ps1): Resets the `MmpcEnrollmentFlag` registry value to fix incorrect MDM status reporting after migration.
 
