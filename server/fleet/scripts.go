@@ -16,7 +16,7 @@ import (
 // Script represents a saved script that can be executed on a host.
 type Script struct {
 	ID     uint   `json:"id" db:"id"`
-	TeamID *uint  `json:"fleet_id,renamed" db:"team_id"`
+	TeamID *uint  `json:"fleet_id" renamedfrom:"team_id" db:"team_id"`
 	Name   string `json:"name" db:"name"`
 	// ScriptContents is not returned in payloads nor is it returned
 	// from reading from the database, it is only used as payload to
@@ -250,7 +250,7 @@ type HostScriptResult struct {
 
 	// TeamID is only used for authorization, it must be set to the team id of
 	// the host when checking authorization and is otherwise not set.
-	TeamID *uint `json:"fleet_id,renamed" db:"-"` // TODO: should we omit this from the json result?
+	TeamID *uint `json:"fleet_id" renamedfrom:"team_id" db:"-"` // TODO: should we omit this from the json result?
 
 	// Message is the UserMessage associated with a response from an execution.
 	// It may be set by the endpoint and included in the resulting JSON but it is
@@ -486,7 +486,7 @@ type HostLockWipeStatus struct {
 type ScriptResponse struct {
 	// TeamID is the id of the team.
 	// A value of nil means it is scoped to hosts that are assigned to "No team".
-	TeamID *uint `json:"fleet_id,renamed" db:"team_id"`
+	TeamID *uint `json:"fleet_id" renamedfrom:"team_id" db:"team_id"`
 	// ID is the id of the script
 	ID uint `json:"id" db:"id"`
 	// Name is the name of the script
@@ -650,7 +650,7 @@ type BatchActivity struct {
 	ActivityType     BatchExecutionActivityType    `json:"-" db:"activity_type"`
 	ScriptID         *uint                         `json:"script_id" db:"script_id"`
 	ScriptName       string                        `json:"script_name" db:"script_name"`
-	TeamID           *uint                         `json:"fleet_id,renamed" db:"team_id"`
+	TeamID           *uint                         `json:"fleet_id" renamedfrom:"team_id" db:"team_id"`
 	CreatedAt        time.Time                     `json:"created_at" db:"created_at"`
 	UpdatedAt        time.Time                     `json:"updated_at" db:"updated_at"`
 	NotBefore        *time.Time                    `json:"not_before,omitempty" db:"not_before"`

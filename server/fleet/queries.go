@@ -64,7 +64,7 @@ type Query struct {
 	// team_id and their name, but since team_id can be null (and (NULL == NULL) != true), we need
 	// to use something else to guarantee uniqueness, hence the use of team_id_char. team_id_char
 	// will be computed as string(team_id), if team_id IS NULL then team_char_id will be ''.
-	TeamID *uint `json:"fleet_id,renamed" db:"team_id"`
+	TeamID *uint `json:"fleet_id" renamedfrom:"team_id" db:"team_id"`
 	// Interval frequency of execution (in seconds), if 0 then, this query will never run.
 	Interval uint `json:"interval" db:"schedule_interval"`
 	// Platform if set, specifies the platform(s) this query will target.
@@ -429,7 +429,7 @@ type QueryStats struct {
 	ID          uint   `json:"id" db:"id"`
 	Name        string `json:"name" db:"name"`
 	Description string `json:"description,omitempty" db:"description"`
-	TeamID      *uint  `json:"fleet_id,renamed" db:"team_id"`
+	TeamID      *uint  `json:"fleet_id" renamedfrom:"team_id" db:"team_id"`
 
 	// From osquery directly
 	AverageMemory uint64 `json:"average_memory" db:"average_memory"`

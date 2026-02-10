@@ -614,7 +614,7 @@ type MDMAppleCommand struct {
 // or no team.
 type MDMAppleSetupAssistant struct {
 	ID         uint            `json:"-" db:"id"`
-	TeamID     *uint           `json:"fleet_id,renamed" db:"team_id"`
+	TeamID     *uint           `json:"fleet_id" renamedfrom:"team_id" db:"team_id"`
 	Name       string          `json:"name" db:"name"`
 	Profile    json.RawMessage `json:"enrollment_profile" db:"profile"`
 	UploadedAt time.Time       `json:"uploaded_at" db:"uploaded_at"`

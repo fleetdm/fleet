@@ -330,12 +330,12 @@ type Host struct {
 	DistributedInterval       uint                `json:"distributed_interval" db:"distributed_interval" csv:"distributed_interval"`
 	ConfigTLSRefresh          uint                `json:"config_tls_refresh" db:"config_tls_refresh" csv:"config_tls_refresh"`
 	LoggerTLSPeriod           uint                `json:"logger_tls_period" db:"logger_tls_period" csv:"logger_tls_period"`
-	TeamID                    *uint               `json:"fleet_id,renamed" db:"team_id" csv:"team_id"`
+	TeamID                    *uint               `json:"fleet_id" renamedfrom:"team_id" db:"team_id" csv:"team_id"`
 
 	// Loaded via JOIN in DB
 	PackStats []PackStats `json:"pack_stats" csv:"-"`
 	// TeamName is the name of the team, loaded by JOIN to the teams table.
-	TeamName *string `json:"fleet_name,renamed" db:"team_name" csv:"team_name"`
+	TeamName *string `json:"fleet_name" renamedfrom:"team_name" db:"team_name" csv:"team_name"`
 	// Additional is the additional information from the host
 	// additional_queries. This should be stored in a separate DB table.
 	Additional *json.RawMessage `json:"additional,omitempty" db:"additional" csv:"-"`
@@ -498,7 +498,7 @@ type HostHealth struct {
 	VulnerableSoftware           []HostHealthVulnerableSoftware `json:"vulnerable_software,omitempty"`
 	FailingPolicies              []*HostHealthFailingPolicy     `json:"failing_policies,omitempty"`
 	Platform                     string                         `json:"-" db:"platform"`                         // Needed to fetch failing policies. Not returned in HTTP responses.
-	TeamID                       *uint                          `json:"fleet_id,omitempty,renamed" db:"team_id"` // Needed to verify that user can access this host's health data. Not returned in HTTP responses.
+	TeamID                       *uint                          `json:"fleet_id,omitempty" renamedfrom:"team_id" db:"team_id"` // Needed to verify that user can access this host's health data. Not returned in HTTP responses.
 }
 
 type HostHealthVulnerableSoftware struct {
@@ -919,7 +919,7 @@ const (
 // set of hosts in the database. This structure is returned by the HostService
 // method GetHostSummary
 type HostSummary struct {
-	TeamID             *uint                  `json:"fleet_id,omitempty,renamed" db:"-"`
+	TeamID             *uint                  `json:"fleet_id,omitempty" renamedfrom:"team_id" db:"-"`
 	TotalsHostsCount   uint                   `json:"totals_hosts_count" db:"total"`
 	OnlineCount        uint                   `json:"online_count" db:"online"`
 	OfflineCount       uint                   `json:"offline_count" db:"offline"`
@@ -1431,7 +1431,7 @@ type HostMDMCheckinInfo struct {
 	HardwareSerial     string `json:"hardware_serial" db:"hardware_serial"`
 	InstalledFromDEP   bool   `json:"installed_from_dep" db:"installed_from_dep"`
 	DisplayName        string `json:"display_name" db:"display_name"`
-	TeamID             uint   `json:"fleet_id,renamed" db:"team_id"`
+	TeamID             uint   `json:"fleet_id" renamedfrom:"team_id" db:"team_id"`
 	DEPAssignedToFleet bool   `json:"dep_assigned_to_fleet" db:"dep_assigned_to_fleet"`
 	OsqueryEnrolled    bool   `json:"osquery_enrolled" db:"osquery_enrolled"`
 

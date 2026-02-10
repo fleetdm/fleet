@@ -324,7 +324,7 @@ type SoftwareAutoUpdateConfig struct {
 
 type SoftwareAutoUpdateSchedule struct {
 	TitleID uint `json:"title_id" db:"title_id"`
-	TeamID  uint `json:"fleet_id,renamed" db:"team_id"`
+	TeamID  uint `json:"fleet_id" renamedfrom:"team_id" db:"team_id"`
 	SoftwareAutoUpdateConfig
 }
 
