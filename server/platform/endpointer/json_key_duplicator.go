@@ -34,7 +34,7 @@ func DuplicateJSONKeys(data []byte, rules []AliasRule) []byte {
 	existingKeys := scanExistingKeys(data, rules)
 
 	// Second pass: produce output with duplicated keys.
-	return duplicatePass(data, newToOld, existingKeys)
+	return duplicatePass(data, newToOld, existingKeys, rules)
 }
 
 // scopeID identifies an object scope by its nesting depth and the byte offset
@@ -164,7 +164,10 @@ func scanExistingKeys(data []byte, rules []AliasRule) map[scopeID]map[string]boo
 // duplicatePass does the second pass: copies data to output, and after each
 // key-value pair where the key is a NewKey (per rules), inserts a duplicate
 // with the OldKey name.
-func duplicatePass(data []byte, newToOld map[string]string, existingKeys map[scopeID]map[string]bool) []byte {
+//
+// When a value is an object or array, it is recursively processed by
+// DuplicateJSONKeys so that nested keys also get duplicated.
+func duplicatePass(data []byte, newToOld map[string]string, existingKeys map[scopeID]map[string]bool, rules []AliasRule) []byte {
 	out := bytes.NewBuffer(make([]byte, 0, len(data)+len(data)/4))
 
 	depth := 0
@@ -185,7 +188,6 @@ func duplicatePass(data []byte, newToOld map[string]string, existingKeys map[sco
 		case '"':
 			str, end := extractString(data, i)
 			if end < 0 {
-				// Malformed; copy rest and return.
 				out.Write(data[i:])
 				return out.Bytes()
 			}
@@ -208,42 +210,52 @@ func duplicatePass(data []byte, newToOld map[string]string, existingKeys map[sco
 				oldKey, shouldDuplicate := newToOld[str]
 				if shouldDuplicate && len(scopeStack) > 0 {
 					sid := scopeStack[len(scopeStack)-1]
-					// Skip if old key already exists in this scope.
 					if keys, ok := existingKeys[sid]; ok && keys[oldKey] {
 						shouldDuplicate = false
 					}
 				}
 
 				if shouldDuplicate {
-					// We need to copy the colon + value, then insert the duplicate.
-					// Find the colon, copy it.
+					// Copy the colon.
 					colonIdx := skipWhitespace(data, i)
 					if colonIdx < len(data) && data[colonIdx] == ':' {
 						out.Write(data[i : colonIdx+1])
 						i = colonIdx + 1
 					}
 
-					// Copy the value.
+					// Find the full extent of the value.
 					valStart := skipWhitespace(data, i)
 					valEnd := findValueEnd(data, valStart)
 					if valEnd < 0 {
 						out.Write(data[i:])
 						return out.Bytes()
 					}
-					out.Write(data[i:valEnd])
-					// Extract just the value portion (with leading whitespace preserved).
-					valuePortion := data[i:valEnd]
+					rawValue := data[valStart:valEnd]
+					leadingWS := data[i:valStart]
+
+					// For object/array values, recursively apply duplication
+					// so nested keys also get duplicated.
+					var processedValue []byte
+					if len(rawValue) > 0 && (rawValue[0] == '{' || rawValue[0] == '[') {
+						processedValue = DuplicateJSONKeys(rawValue, rules)
+					} else {
+						processedValue = rawValue
+					}
+
+					// Write the processed value for the new key.
+					out.Write(leadingWS)
+					out.Write(processedValue)
 					i = valEnd
 
-					// Now insert the duplicate: comma + old key + colon + value.
+					// Insert the duplicate: comma + old key + colon + value.
 					out.WriteByte(',')
 					out.WriteByte('"')
 					out.WriteString(oldKey)
 					out.WriteByte('"')
 					out.WriteByte(':')
-					out.Write(valuePortion)
+					out.Write(leadingWS)
+					out.Write(processedValue)
 
-					// Update state: after emitting the value, we mark afterColon=false.
 					if len(stateStack) > 0 {
 						stateStack[len(stateStack)-1].afterColon = false
 					}
@@ -251,7 +263,7 @@ func duplicatePass(data []byte, newToOld map[string]string, existingKeys map[sco
 				continue
 			}
 
-			// Not a key — just a string value; copy verbatim.
+			// Not a key — a string value; copy verbatim.
 			out.Write(data[i : end+1])
 			i = end + 1
 			continue

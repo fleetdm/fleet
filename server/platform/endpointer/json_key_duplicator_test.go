@@ -151,6 +151,32 @@ func TestDuplicateJSONKeys(t *testing.T) {
 			},
 		},
 		{
+			// This simulates the ABM tokens response pattern where a duplicated
+			// outer key (e.g., ios_fleet→ios_team) has an object value that itself
+			// contains keys needing duplication (e.g., fleet_id→team_id).
+			name:  "DuplicatedKeyWithNestedDuplicatableKeys",
+			input: `{"ios_fleet": {"name": "Default", "fleet_id": 5}}`,
+			rules: []AliasRule{
+				{OldKey: "team_id", NewKey: "fleet_id"},
+				{OldKey: "ios_team", NewKey: "ios_fleet"},
+			},
+			validate: func(t *testing.T, result []byte) {
+				assert.True(t, json.Valid(result), "result should be valid JSON: %s", string(result))
+				var m map[string]interface{}
+				require.NoError(t, json.Unmarshal(result, &m))
+				// Both ios_fleet and ios_team should exist.
+				iosFleet := m["ios_fleet"].(map[string]interface{})
+				iosTeam := m["ios_team"].(map[string]interface{})
+				// Both should have fleet_id AND team_id.
+				assert.Equal(t, "Default", iosFleet["name"])
+				assert.Equal(t, float64(5), iosFleet["fleet_id"])
+				assert.Equal(t, float64(5), iosFleet["team_id"])
+				assert.Equal(t, "Default", iosTeam["name"])
+				assert.Equal(t, float64(5), iosTeam["fleet_id"])
+				assert.Equal(t, float64(5), iosTeam["team_id"])
+			},
+		},
+		{
 			name:  "ArrayOfObjects",
 			input: `[{"fleet_id": 1}, {"fleet_id": 2}]`,
 			rules: rules,
