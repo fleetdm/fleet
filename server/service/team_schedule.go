@@ -16,7 +16,7 @@ import (
 /////////////////////////////////////////////////////////////////////////////////
 
 type getTeamScheduleRequest struct {
-	TeamID      uint              `url:"fleet_id,renamed"`
+	TeamID      uint              `url:"fleet_id" renamedfrom:"team_id"`
 	ListOptions fleet.ListOptions `url:"list_options"`
 }
 
@@ -63,7 +63,7 @@ func (svc Service) GetTeamScheduledQueries(ctx context.Context, teamID uint, opt
 /////////////////////////////////////////////////////////////////////////////////
 
 type teamScheduleQueryRequest struct {
-	TeamID uint `url:"fleet_id,renamed"`
+	TeamID uint `url:"fleet_id" renamedfrom:"team_id"`
 	fleet.ScheduledQueryPayload
 }
 
@@ -135,7 +135,7 @@ func (svc Service) TeamScheduleQuery(ctx context.Context, teamID uint, scheduled
 /////////////////////////////////////////////////////////////////////////////////
 
 type modifyTeamScheduleRequest struct {
-	TeamID           uint `url:"fleet_id,renamed"`
+	TeamID           uint `url:"fleet_id" renamedfrom:"team_id"`
 	ScheduledQueryID uint `url:"scheduled_query_id"`
 	fleet.ScheduledQueryPayload
 }
@@ -174,7 +174,7 @@ func (svc Service) ModifyTeamScheduledQueries(
 /////////////////////////////////////////////////////////////////////////////////
 
 type deleteTeamScheduleRequest struct {
-	TeamID           uint `url:"fleet_id,renamed"`
+	TeamID           uint `url:"fleet_id" renamedfrom:"team_id"`
 	ScheduledQueryID uint `url:"scheduled_query_id"`
 }
 

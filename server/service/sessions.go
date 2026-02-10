@@ -117,7 +117,7 @@ func (svc *Service) DeleteSession(ctx context.Context, id uint) error {
 
 type loginResponse struct {
 	User           *fleet.User          `json:"user,omitempty"`
-	AvailableTeams []*fleet.TeamSummary `json:"available_fleets,renamed"`
+	AvailableTeams []*fleet.TeamSummary `json:"available_fleets" renamedfrom:"available_teams"`
 	Token          string               `json:"token,omitempty"`
 	Err            error                `json:"error,omitempty"`
 }

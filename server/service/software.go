@@ -135,7 +135,7 @@ func (svc *Service) ListSoftware(ctx context.Context, opt fleet.SoftwareListOpti
 
 type getSoftwareRequest struct {
 	ID     uint  `url:"id"`
-	TeamID *uint `query:"fleet_id,optional,renamed"`
+	TeamID *uint `query:"fleet_id,optional" renamedfrom:"team_id"`
 }
 
 type getSoftwareResponse struct {

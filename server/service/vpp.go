@@ -19,7 +19,7 @@ import (
 //////////////////////////////////////////////////////////////////////////////
 
 type getAppStoreAppsRequest struct {
-	TeamID uint `query:"fleet_id,renamed"`
+	TeamID uint `query:"fleet_id" renamedfrom:"team_id"`
 }
 
 type getAppStoreAppsResponse struct {
@@ -52,7 +52,7 @@ func (svc *Service) GetAppStoreApps(ctx context.Context, teamID *uint) ([]*fleet
 //////////////////////////////////////////////////////////////////////////////
 
 type addAppStoreAppRequest struct {
-	TeamID           *uint                           `json:"fleet_id,renamed"`
+	TeamID           *uint                           `json:"fleet_id" renamedfrom:"team_id"`
 	AppStoreID       string                          `json:"app_store_id"`
 	Platform         fleet.InstallableDevicePlatform `json:"platform"`
 	SelfService      bool                            `json:"self_service"`
@@ -102,7 +102,7 @@ func (svc *Service) AddAppStoreApp(ctx context.Context, _ *uint, _ fleet.VPPAppT
 
 type updateAppStoreAppRequest struct {
 	TitleID           uint            `url:"title_id"`
-	TeamID            *uint           `json:"fleet_id,renamed"`
+	TeamID            *uint           `json:"fleet_id" renamedfrom:"team_id"`
 	SelfService       *bool           `json:"self_service"`
 	LabelsIncludeAny  []string        `json:"labels_include_any"`
 	LabelsExcludeAny  []string        `json:"labels_exclude_any"`
@@ -332,7 +332,7 @@ func (svc *Service) UpdateVPPToken(ctx context.Context, tokenID uint, token io.R
 
 type patchVPPTokensTeamsRequest struct {
 	ID      uint   `url:"id"`
-	TeamIDs []uint `json:"fleets,renamed"`
+	TeamIDs []uint `json:"fleets" renamedfrom:"teams"`
 }
 
 type patchVPPTokensTeamsResponse struct {

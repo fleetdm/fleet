@@ -20,7 +20,7 @@ import (
 /////////////////////////////////////////////////////////////////////////////////
 
 type teamPolicyRequest struct {
-	TeamID                   uint     `url:"fleet_id,renamed"`
+	TeamID                   uint     `url:"fleet_id" renamedfrom:"team_id"`
 	QueryID                  *uint    `json:"query_id"`
 	Query                    string   `json:"query"`
 	Name                     string   `json:"name"`
@@ -217,7 +217,7 @@ func (svc *Service) newTeamPolicyPayloadToPolicyPayload(ctx context.Context, tea
 /////////////////////////////////////////////////////////////////////////////////
 
 type listTeamPoliciesRequest struct {
-	TeamID                  uint                 `url:"fleet_id,renamed"`
+	TeamID                  uint                 `url:"fleet_id" renamedfrom:"team_id"`
 	Opts                    fleet.ListOptions    `url:"list_options"`
 	InheritedPage           uint                 `query:"inherited_page,optional"`
 	InheritedPerPage        uint                 `query:"inherited_per_page,optional"`
@@ -302,7 +302,7 @@ func (svc *Service) ListTeamPolicies(ctx context.Context, teamID uint, opts flee
 
 type countTeamPoliciesRequest struct {
 	ListOptions    fleet.ListOptions `url:"list_options"`
-	TeamID         uint              `url:"fleet_id,renamed"`
+	TeamID         uint              `url:"fleet_id" renamedfrom:"team_id"`
 	MergeInherited bool              `query:"merge_inherited,optional"`
 }
 
@@ -362,7 +362,7 @@ func (svc *Service) CountTeamPolicies(ctx context.Context, teamID uint, matchQue
 /////////////////////////////////////////////////////////////////////////////////
 
 type getTeamPolicyByIDRequest struct {
-	TeamID   uint `url:"fleet_id,renamed"`
+	TeamID   uint `url:"fleet_id" renamedfrom:"team_id"`
 	PolicyID uint `url:"policy_id"`
 }
 
@@ -411,7 +411,7 @@ func (svc Service) GetTeamPolicyByIDQueries(ctx context.Context, teamID uint, po
 /////////////////////////////////////////////////////////////////////////////////
 
 type deleteTeamPoliciesRequest struct {
-	TeamID uint   `url:"fleet_id,renamed"`
+	TeamID uint   `url:"fleet_id" renamedfrom:"team_id"`
 	IDs    []uint `json:"ids"`
 }
 
@@ -527,7 +527,7 @@ func (svc Service) DeleteTeamPolicies(ctx context.Context, teamID uint, ids []ui
 /////////////////////////////////////////////////////////////////////////////////
 
 type modifyTeamPolicyRequest struct {
-	TeamID   uint `url:"fleet_id,renamed"`
+	TeamID   uint `url:"fleet_id" renamedfrom:"team_id"`
 	PolicyID uint `url:"policy_id"`
 	fleet.ModifyPolicyPayload
 }

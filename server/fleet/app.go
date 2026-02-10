@@ -167,16 +167,16 @@ type VulnerabilitySettings struct {
 // hosts when they're ingested during the ABM sync.
 type MDMAppleABMAssignmentInfo struct {
 	OrganizationName string `json:"organization_name"`
-	MacOSTeam        string `json:"macos_fleet,renamed"`
-	IOSTeam          string `json:"ios_fleet,renamed"`
-	IpadOSTeam       string `json:"ipados_fleet,renamed"`
+	MacOSTeam        string `json:"macos_fleet" renamedfrom:"macos_team"`
+	IOSTeam          string `json:"ios_fleet" renamedfrom:"ios_team"`
+	IpadOSTeam       string `json:"ipados_fleet" renamedfrom:"ipados_team"`
 }
 
 // MDMAppleVolumePurchasingProgramInfo represents an user definition of the association
 // between a VPP token (via location) and the team associations.
 type MDMAppleVolumePurchasingProgramInfo struct {
 	Location string   `json:"location"`
-	Teams    []string `json:"fleets,renamed"`
+	Teams    []string `json:"fleets" renamedfrom:"teams"`
 }
 
 // MDM is part of AppConfig and defines the mdm settings.
@@ -188,7 +188,7 @@ type MDM struct {
 	AppleServerURL string `json:"apple_server_url"`
 
 	// Deprecated: use AppleBussinessManager instead
-	DeprecatedAppleBMDefaultTeam string `json:"apple_bm_default_fleet,omitempty,renamed"`
+	DeprecatedAppleBMDefaultTeam string `json:"apple_bm_default_fleet,omitempty" renamedfrom:"apple_bm_default_team"`
 
 	// AppleBusinessManager defines the associations between ABM tokens
 	// and the teams used to assign hosts when they're ingested from ABM.

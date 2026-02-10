@@ -26,7 +26,7 @@ type QueryPayload struct {
 	ObserverCanRun *bool `json:"observer_can_run"`
 	// TeamID is only used when creating a query. When modifying a query
 	// TeamID is ignored.
-	TeamID *uint `json:"fleet_id,renamed"`
+	TeamID *uint `json:"fleet_id" renamedfrom:"team_id"`
 	// Interval is the interval to set on the query. If not set when creating
 	// a query, then the default value 0 is set on the query.
 	Interval *uint `json:"interval"`
@@ -355,7 +355,7 @@ type QuerySpec struct {
 	// TeamName is the team's name, the default "" means the query will be
 	// created globally. This field is only used when creating a query,
 	// when editing a query this field is ignored.
-	TeamName string `json:"fleet,renamed"`
+	TeamName string `json:"fleet" renamedfrom:"team"`
 	// Interval is set to 0 if not set.
 	Interval uint `json:"interval"`
 	// ObserverCanRun is set to false if not set.

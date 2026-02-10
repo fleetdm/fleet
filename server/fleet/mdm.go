@@ -128,7 +128,7 @@ type AppleBM struct {
 	OrgName      string    `json:"org_name"`
 	MDMServerURL string    `json:"mdm_server_url"`
 	RenewDate    time.Time `json:"renew_date"`
-	DefaultTeam  string    `json:"default_fleet,renamed"`
+	DefaultTeam  string    `json:"default_fleet" renamedfrom:"default_team"`
 }
 
 func (a AppleBM) AuthzType() string {
@@ -161,14 +161,14 @@ type ABMToken struct {
 	IPadOSTeamName string `db:"ipados_team" json:"-"`
 
 	// These fields are composed of the ID and name fields above, and are used in API responses.
-	MacOSTeam  ABMTokenTeam `json:"macos_fleet,renamed"`
-	IOSTeam    ABMTokenTeam `json:"ios_fleet,renamed"`
-	IPadOSTeam ABMTokenTeam `json:"ipados_fleet,renamed"`
+	MacOSTeam  ABMTokenTeam `json:"macos_fleet" renamedfrom:"macos_team"`
+	IOSTeam    ABMTokenTeam `json:"ios_fleet" renamedfrom:"ios_team"`
+	IPadOSTeam ABMTokenTeam `json:"ipados_fleet" renamedfrom:"ipados_team"`
 }
 
 type ABMTokenTeam struct {
 	Name string `json:"name"`
-	ID   uint   `json:"fleet_id,renamed"`
+	ID   uint   `json:"fleet_id" renamedfrom:"team_id"`
 }
 
 type AppleCSR struct {
@@ -313,7 +313,7 @@ type CommandEnqueueResult struct {
 // MDMCommandAuthz is used to check user authorization to read/write an
 // MDM command.
 type MDMCommandAuthz struct {
-	TeamID *uint `json:"fleet_id,renamed"` // required for authorization by team
+	TeamID *uint `json:"fleet_id" renamedfrom:"team_id"` // required for authorization by team
 }
 
 // SetTeamID implements the TeamIDSetter interface.
@@ -544,7 +544,7 @@ func (o MDMOperationType) IsValid() bool {
 // MDMConfigProfileAuthz is used to check user authorization to read/write an
 // MDM configuration profile.
 type MDMConfigProfileAuthz struct {
-	TeamID *uint `json:"fleet_id,renamed"` // required for authorization by team
+	TeamID *uint `json:"fleet_id" renamedfrom:"team_id"` // required for authorization by team
 }
 
 // AuthzType implements authz.AuthzTyper.
@@ -1063,13 +1063,13 @@ type VPPTokenDB struct {
 	// Token is the token dowloaded from ABM. It is the base64 encoded
 	// JSON object with the structure of `VPPTokenRaw`
 	Token string      `db:"token" json:"-"`
-	Teams []TeamTuple `json:"fleets,renamed"`
+	Teams []TeamTuple `json:"fleets" renamedfrom:"teams"`
 	// CreatedAt    time.Time `json:"created_at" db:"created_at"`
 	// UpdatedAt    time.Time `json:"updated_at" db:"updated_at"`
 }
 
 type TeamTuple struct {
-	ID   uint   `json:"fleet_id,renamed"`
+	ID   uint   `json:"fleet_id" renamedfrom:"team_id"`
 	Name string `json:"name"`
 }
 

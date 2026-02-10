@@ -2,14 +2,14 @@ package fleet
 
 type CertificateRequestSpec struct {
 	Name                   string `json:"name"`
-	Team                   string `json:"fleet,omitempty,renamed"`
+	Team                   string `json:"fleet,omitempty" renamedfrom:"team"`
 	CertificateAuthorityId uint   `json:"certificate_authority_id"`
 	SubjectName            string `json:"subject_name"`
 }
 
 type CertificateTemplate struct {
 	Name                   string `json:"name"`
-	TeamID                 uint   `json:"fleet_id,renamed"`
+	TeamID                 uint   `json:"fleet_id" renamedfrom:"team_id"`
 	CertificateAuthorityID uint   `json:"certificate_authority_id"`
 	SubjectName            string `json:"subject_name"`
 }

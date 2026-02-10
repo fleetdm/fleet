@@ -25,7 +25,7 @@ type listTeamsRequest struct {
 }
 
 type listTeamsResponse struct {
-	Teams []fleet.Team `json:"fleets,renamed"`
+	Teams []fleet.Team `json:"fleets" renamedfrom:"teams"`
 	Err   error        `json:"error,omitempty"`
 }
 
@@ -62,14 +62,14 @@ type getTeamRequest struct {
 }
 
 type getTeamResponse struct {
-	Team *fleet.Team `json:"fleet,renamed"`
+	Team *fleet.Team `json:"fleet" renamedfrom:"team"`
 	Err  error       `json:"error,omitempty"`
 }
 
 func (r getTeamResponse) Error() error { return r.Err }
 
 type defaultTeamResponse struct {
-	Team *fleet.DefaultTeam `json:"fleet,renamed"`
+	Team *fleet.DefaultTeam `json:"fleet" renamedfrom:"team"`
 	Err  error              `json:"error,omitempty"`
 }
 
@@ -121,7 +121,7 @@ type createTeamRequest struct {
 }
 
 type teamResponse struct {
-	Team *fleet.Team `json:"fleet,omitempty,renamed"`
+	Team *fleet.Team `json:"fleet,omitempty" renamedfrom:"team"`
 	Err  error       `json:"error,omitempty"`
 }
 
@@ -278,7 +278,7 @@ func (req *applyTeamSpecsRequest) DecodeBody(ctx context.Context, r io.Reader, u
 
 type applyTeamSpecsResponse struct {
 	Err           error           `json:"error,omitempty"`
-	TeamIDsByName map[string]uint `json:"fleet_ids_by_name,omitempty,renamed"`
+	TeamIDsByName map[string]uint `json:"fleet_ids_by_name,omitempty" renamedfrom:"team_ids_by_name"`
 }
 
 func (r applyTeamSpecsResponse) Error() error { return r.Err }
@@ -468,7 +468,7 @@ func (svc *Service) TeamEnrollSecrets(ctx context.Context, teamID uint) ([]*flee
 ////////////////////////////////////////////////////////////////////////////////
 
 type modifyTeamEnrollSecretsRequest struct {
-	TeamID  uint                 `url:"fleet_id,renamed"`
+	TeamID  uint                 `url:"fleet_id" renamedfrom:"team_id"`
 	Secrets []fleet.EnrollSecret `json:"secrets"`
 }
 

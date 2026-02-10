@@ -59,7 +59,7 @@ func (svc *Service) GetQuery(ctx context.Context, id uint) (*fleet.Query, error)
 type listQueriesRequest struct {
 	ListOptions fleet.ListOptions `url:"list_options"`
 	// TeamID url argument set to 0 means global.
-	TeamID         uint `query:"fleet_id,optional,renamed"`
+	TeamID         uint `query:"fleet_id,optional" renamedfrom:"team_id"`
 	MergeInherited bool `query:"merge_inherited,optional"`
 	// only return queries targeted to run on this platform
 	Platform string `query:"platform,optional"`
@@ -155,7 +155,7 @@ func (svc *Service) ListQueries(ctx context.Context, opt fleet.ListOptions, team
 
 type getQueryReportRequest struct {
 	ID     uint  `url:"id"`
-	TeamID *uint `query:"fleet_id,optional,renamed"`
+	TeamID *uint `query:"fleet_id,optional" renamedfrom:"team_id"`
 }
 
 type getQueryReportResponse struct {
@@ -551,7 +551,7 @@ func comparePlatforms(platform1, platform2 string) bool {
 type deleteQueryRequest struct {
 	Name string `url:"name"`
 	// TeamID if not set is assumed to be 0 (global).
-	TeamID uint `url:"fleet_id,optional,renamed"`
+	TeamID uint `url:"fleet_id,optional" renamedfrom:"team_id"`
 }
 
 type deleteQueryResponse struct {
@@ -950,7 +950,7 @@ type getQuerySpecsResponse struct {
 }
 
 type getQuerySpecsRequest struct {
-	TeamID uint `url:"fleet_id,optional,renamed"`
+	TeamID uint `url:"fleet_id,optional" renamedfrom:"team_id"`
 }
 
 func (r getQuerySpecsResponse) Error() error { return r.Err }
@@ -1027,7 +1027,7 @@ type getQuerySpecResponse struct {
 
 type getQuerySpecRequest struct {
 	Name   string `url:"name"`
-	TeamID uint   `query:"fleet_id,optional,renamed"`
+	TeamID uint   `query:"fleet_id,optional" renamedfrom:"team_id"`
 }
 
 func (r getQuerySpecResponse) Error() error { return r.Err }

@@ -144,7 +144,7 @@ type HostScriptRequestPayload struct {
 	ScriptContents  string `json:"script_contents"`
 	ScriptContentID uint   `json:"-"`
 	ScriptName      string `json:"script_name"`
-	TeamID          uint   `json:"fleet_id,omitempty,renamed"`
+	TeamID          uint   `json:"fleet_id,omitempty" renamedfrom:"team_id"`
 	// UserID is filled automatically from the context's user (the authenticated
 	// user that made the API request).
 	UserID *uint `json:"-"`
@@ -623,7 +623,7 @@ var (
 
 type BatchExecutionStatusFilter struct {
 	ScriptID *uint   `json:"script_id,omitempty"`
-	TeamID   *uint   `json:"fleet_id,omitempty,renamed"` // if nil, it is scoped to hosts that are assigned to "No team"
+	TeamID   *uint   `json:"fleet_id,omitempty" renamedfrom:"team_id"` // if nil, it is scoped to hosts that are assigned to "No team"
 	Status   *string `json:"status,omitempty"`  // e.g. "pending", "ran", "errored", "canceled", "incompatible-platform", "incompatible-fleetd"
 	// ExecutionID is the unique identifier for a single execution of the script.
 	ExecutionID *string `json:"execution_id,omitempty"`

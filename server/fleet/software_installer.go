@@ -482,7 +482,7 @@ func (h *HostSoftwareInstallerResult) EnhanceOutputDetails() {
 }
 
 type HostSoftwareInstallerResultAuthz struct {
-	HostTeamID *uint `json:"host_fleet_id,renamed"`
+	HostTeamID *uint `json:"host_fleet_id" renamedfrom:"host_team_id"`
 }
 
 // AuthzType implements authz.AuthzTyper.
@@ -983,7 +983,7 @@ const (
 // SoftwareInstallerTokenMetadata is the metadata stored in Redis for a software installer token.
 type SoftwareInstallerTokenMetadata struct {
 	TitleID uint `json:"title_id"`
-	TeamID  uint `json:"fleet_id,renamed"`
+	TeamID  uint `json:"fleet_id" renamedfrom:"team_id"`
 }
 
 const SoftwareInstallerURLMaxLength = 4000

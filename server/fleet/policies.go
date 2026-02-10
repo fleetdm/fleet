@@ -368,7 +368,7 @@ type PolicySpec struct {
 	// Resolution describes how to solve a failing policy.
 	Resolution string `json:"resolution,omitempty"`
 	// Team is the name of the team.
-	Team string `json:"fleet,omitempty,renamed"`
+	Team string `json:"fleet,omitempty" renamedfrom:"team"`
 	// Platform is a comma-separated string to indicate the target platforms.
 	//
 	// Empty string targets all platforms.

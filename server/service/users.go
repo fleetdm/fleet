@@ -300,7 +300,7 @@ type getUserRequest struct {
 
 type getUserResponse struct {
 	User           *fleet.User          `json:"user,omitempty"`
-	AvailableTeams []*fleet.TeamSummary `json:"available_fleets,renamed"`
+	AvailableTeams []*fleet.TeamSummary `json:"available_fleets" renamedfrom:"available_teams"`
 	Settings       *fleet.UserSettings  `json:"settings,omitempty"`
 	Err            error                `json:"error,omitempty"`
 }
