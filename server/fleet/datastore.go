@@ -110,9 +110,10 @@ type Datastore interface {
 	// Query returns the query associated with the provided ID. Associated packs should also be loaded.
 	Query(ctx context.Context, id uint) (*Query, error)
 	// ListQueries returns a list of queries filtered with the provided sorting and pagination
-	// options, a count of total queries on all pages, and pagination metadata. Associated packs should also
-	// be loaded.
-	ListQueries(ctx context.Context, opt ListQueryOptions) ([]*Query, int, *PaginationMetadata, error)
+	// options, a count of total queries on all pages, a count of inherited (global) queries, and
+	// pagination metadata. Associated packs should also be loaded.
+	// The inherited count is only computed when TeamID is set and MergeInherited is true; otherwise it is 0.
+	ListQueries(ctx context.Context, opt ListQueryOptions) ([]*Query, int, int, *PaginationMetadata, error)
 	// ListScheduledQueriesForAgents returns a list of scheduled queries (without stats) for the
 	// given teamID and hostID. If teamID is nil, then scheduled queries for the 'global' team are returned.
 	ListScheduledQueriesForAgents(ctx context.Context, teamID *uint, hostID *uint, queryReportsDisabled bool) ([]*Query, error)
@@ -781,10 +782,8 @@ type Datastore interface {
 	// ActivitiesStore
 
 	NewActivity(ctx context.Context, user *User, activity ActivityDetails, details []byte, createdAt time.Time) error
-	MarkActivitiesAsStreamed(ctx context.Context, activityIDs []uint) error
 	ListHostUpcomingActivities(ctx context.Context, hostID uint, opt ListOptions) ([]*UpcomingActivity, *PaginationMetadata, error)
 	CancelHostUpcomingActivity(ctx context.Context, hostID uint, executionID string) (ActivityDetails, error)
-	ListHostPastActivities(ctx context.Context, hostID uint, opt ListOptions) ([]*Activity, *PaginationMetadata, error)
 	IsExecutionPendingForHost(ctx context.Context, hostID uint, scriptID uint) (bool, error)
 	GetHostUpcomingActivityMeta(ctx context.Context, hostID uint, executionID string) (*UpcomingActivityMeta, error)
 	UnblockHostsUpcomingActivityQueue(ctx context.Context, maxHosts int) (int, error)
@@ -2702,9 +2701,9 @@ type AndroidDatastore interface {
 	GetAllMDMConfigAssetsByName(ctx context.Context, assetNames []MDMAssetName,
 		queryerContext sqlx.QueryerContext) (map[MDMAssetName]MDMConfigAsset, error)
 	InsertOrReplaceMDMConfigAsset(ctx context.Context, asset MDMConfigAsset) error
-	NewAndroidHost(ctx context.Context, host *AndroidHost) (*AndroidHost, error)
+	NewAndroidHost(ctx context.Context, host *AndroidHost, companyOwned bool) (*AndroidHost, error)
 	SetAndroidEnabledAndConfigured(ctx context.Context, configured bool) error
-	UpdateAndroidHost(ctx context.Context, host *AndroidHost, fromEnroll bool) error
+	UpdateAndroidHost(ctx context.Context, host *AndroidHost, fromEnroll, companyOwned bool) error
 	UserOrDeletedUserByID(ctx context.Context, id uint) (*User, error)
 	VerifyEnrollSecret(ctx context.Context, secret string) (*EnrollSecret, error)
 	GetMDMIdPAccountByUUID(ctx context.Context, uuid string) (*MDMIdPAccount, error)
