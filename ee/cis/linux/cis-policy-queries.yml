@@ -12,9 +12,9 @@ spec:
   # - Where: Run on the audited Ubuntu 22.04 host (use a disposable VM for FAIL).
   # - PASS (run):
   #   - sudo bash -c 'cat <<EOF > /etc/modprobe.d/cramfs.conf
-  #     blacklist cramfs
-  #     install cramfs /bin/false
-  #     EOF'
+blacklist cramfs
+install cramfs /bin/false
+EOF'
   #   - sudo modprobe -r cramfs 2>/dev/null || true
   # - FAIL (run):
   #   - sudo rm -f /etc/modprobe.d/cramfs.conf
@@ -35,7 +35,7 @@ spec:
              AND line NOT LIKE '#%') >= 1;
   purpose: Informational
   tags: compliance, CIS, CIS_Ubuntu_22_04
-  contributors: sharon-fdm, qaed
+  contributors: sharon-fdm
 ---
 apiVersion: v1
 kind: policy
@@ -208,8 +208,17 @@ spec:
   #   - PASS: query returns 1 row
   #   - FAIL: query returns 0 rows
   query: |
-    SELECT 1 WHERE 0;
-  purpose: Manual Validation Required
+    SELECT 1
+    WHERE (SELECT COUNT(*) FROM kernel_modules WHERE name IN ('squashfs')) = 0
+      AND (SELECT COUNT(*) FROM file_lines
+           WHERE path LIKE '/etc/modprobe.d/%.conf'
+             AND (line LIKE 'blacklist squashfs%')
+             AND line NOT LIKE '#%') >= 1
+      AND (SELECT COUNT(*) FROM file_lines
+           WHERE path LIKE '/etc/modprobe.d/%.conf'
+             AND ((line LIKE 'install squashfs /bin/false%') OR (line LIKE 'install squashfs /bin/true%'))
+             AND line NOT LIKE '#%') >= 1;
+purpose: Manual Validation Required
   tags: compliance, CIS, CIS_Ubuntu_22_04
   contributors: sharon-fdm
 ---
@@ -232,8 +241,17 @@ spec:
   #   - PASS: query returns 1 row
   #   - FAIL: query returns 0 rows
   query: |
-    SELECT 1 WHERE 0;
-  purpose: Manual Validation Required
+    SELECT 1
+    WHERE (SELECT COUNT(*) FROM kernel_modules WHERE name IN ('udf')) = 0
+      AND (SELECT COUNT(*) FROM file_lines
+           WHERE path LIKE '/etc/modprobe.d/%.conf'
+             AND (line LIKE 'blacklist udf%')
+             AND line NOT LIKE '#%') >= 1
+      AND (SELECT COUNT(*) FROM file_lines
+           WHERE path LIKE '/etc/modprobe.d/%.conf'
+             AND ((line LIKE 'install udf /bin/false%') OR (line LIKE 'install udf /bin/true%'))
+             AND line NOT LIKE '#%') >= 1;
+purpose: Manual Validation Required
   tags: compliance, CIS, CIS_Ubuntu_22_04
   contributors: sharon-fdm
 ---
@@ -256,8 +274,17 @@ spec:
   #   - PASS: query returns 1 row
   #   - FAIL: query returns 0 rows
   query: |
-    SELECT 1 WHERE 0;
-  purpose: Manual Validation Required
+    SELECT 1
+    WHERE (SELECT COUNT(*) FROM kernel_modules WHERE name IN ('usb-storage', 'usb_storage')) = 0
+      AND (SELECT COUNT(*) FROM file_lines
+           WHERE path LIKE '/etc/modprobe.d/%.conf'
+             AND (line LIKE 'blacklist usb-storage%' OR line LIKE 'blacklist usb_storage%')
+             AND line NOT LIKE '#%') >= 1
+      AND (SELECT COUNT(*) FROM file_lines
+           WHERE path LIKE '/etc/modprobe.d/%.conf'
+             AND ((line LIKE 'install usb-storage /bin/false%' OR line LIKE 'install usb_storage /bin/false%') OR (line LIKE 'install usb-storage /bin/true%' OR line LIKE 'install usb_storage /bin/true%'))
+             AND line NOT LIKE '#%') >= 1;
+purpose: Manual Validation Required
   tags: compliance, CIS, CIS_Ubuntu_22_04
   contributors: sharon-fdm
 ---
@@ -304,8 +331,17 @@ spec:
   #   - PASS: query returns 1 row
   #   - FAIL: query returns 0 rows
   query: |
-    SELECT 1 WHERE 0;
-  purpose: Manual Validation Required
+    SELECT 1
+    WHERE (SELECT COUNT(*) FROM kernel_modules WHERE name IN ('firewire-core', 'firewire_core')) = 0
+      AND (SELECT COUNT(*) FROM file_lines
+           WHERE path LIKE '/etc/modprobe.d/%.conf'
+             AND (line LIKE 'blacklist firewire-core%' OR line LIKE 'blacklist firewire_core%')
+             AND line NOT LIKE '#%') >= 1
+      AND (SELECT COUNT(*) FROM file_lines
+           WHERE path LIKE '/etc/modprobe.d/%.conf'
+             AND ((line LIKE 'install firewire-core /bin/false%' OR line LIKE 'install firewire_core /bin/false%') OR (line LIKE 'install firewire-core /bin/true%' OR line LIKE 'install firewire_core /bin/true%'))
+             AND line NOT LIKE '#%') >= 1;
+purpose: Manual Validation Required
   tags: compliance, CIS, CIS_Ubuntu_22_04
   contributors: sharon-fdm
 ---
@@ -328,8 +364,8 @@ spec:
   #   - PASS: query returns 1 row
   #   - FAIL: query returns 0 rows
   query: |
-    SELECT 1 WHERE 0;
-  purpose: Manual Validation Required
+    SELECT 1 WHERE EXISTS (SELECT 1 FROM mounts WHERE path='/tmp');
+purpose: Manual Validation Required
   tags: compliance, CIS, CIS_Ubuntu_22_04
   contributors: sharon-fdm
 ---
@@ -352,8 +388,13 @@ spec:
   #   - PASS: query returns 1 row
   #   - FAIL: query returns 0 rows
   query: |
-    SELECT 1 WHERE 0;
-  purpose: Manual Validation Required
+    SELECT 1
+    WHERE EXISTS (
+      SELECT 1 FROM mounts
+      WHERE path='/tmp'
+        AND ',' || flags || ',' LIKE '%,nodev,%'
+    );
+purpose: Manual Validation Required
   tags: compliance, CIS, CIS_Ubuntu_22_04
   contributors: sharon-fdm
 ---
@@ -376,8 +417,13 @@ spec:
   #   - PASS: query returns 1 row
   #   - FAIL: query returns 0 rows
   query: |
-    SELECT 1 WHERE 0;
-  purpose: Manual Validation Required
+    SELECT 1
+    WHERE EXISTS (
+      SELECT 1 FROM mounts
+      WHERE path='/tmp'
+        AND ',' || flags || ',' LIKE '%,nosuid,%'
+    );
+purpose: Manual Validation Required
   tags: compliance, CIS, CIS_Ubuntu_22_04
   contributors: sharon-fdm
 ---
@@ -400,8 +446,13 @@ spec:
   #   - PASS: query returns 1 row
   #   - FAIL: query returns 0 rows
   query: |
-    SELECT 1 WHERE 0;
-  purpose: Manual Validation Required
+    SELECT 1
+    WHERE EXISTS (
+      SELECT 1 FROM mounts
+      WHERE path='/tmp'
+        AND ',' || flags || ',' LIKE '%,noexec,%'
+    );
+purpose: Manual Validation Required
   tags: compliance, CIS, CIS_Ubuntu_22_04
   contributors: sharon-fdm
 ---
@@ -424,8 +475,8 @@ spec:
   #   - PASS: query returns 1 row
   #   - FAIL: query returns 0 rows
   query: |
-    SELECT 1 WHERE 0;
-  purpose: Manual Validation Required
+    SELECT 1 WHERE EXISTS (SELECT 1 FROM mounts WHERE path='/dev/shm');
+purpose: Manual Validation Required
   tags: compliance, CIS, CIS_Ubuntu_22_04
   contributors: sharon-fdm
 ---
@@ -448,8 +499,13 @@ spec:
   #   - PASS: query returns 1 row
   #   - FAIL: query returns 0 rows
   query: |
-    SELECT 1 WHERE 0;
-  purpose: Manual Validation Required
+    SELECT 1
+    WHERE EXISTS (
+      SELECT 1 FROM mounts
+      WHERE path='/dev/shm'
+        AND ',' || flags || ',' LIKE '%,nodev,%'
+    );
+purpose: Manual Validation Required
   tags: compliance, CIS, CIS_Ubuntu_22_04
   contributors: sharon-fdm
 ---
@@ -472,8 +528,13 @@ spec:
   #   - PASS: query returns 1 row
   #   - FAIL: query returns 0 rows
   query: |
-    SELECT 1 WHERE 0;
-  purpose: Manual Validation Required
+    SELECT 1
+    WHERE EXISTS (
+      SELECT 1 FROM mounts
+      WHERE path='/dev/shm'
+        AND ',' || flags || ',' LIKE '%,nosuid,%'
+    );
+purpose: Manual Validation Required
   tags: compliance, CIS, CIS_Ubuntu_22_04
   contributors: sharon-fdm
 ---
@@ -496,8 +557,13 @@ spec:
   #   - PASS: query returns 1 row
   #   - FAIL: query returns 0 rows
   query: |
-    SELECT 1 WHERE 0;
-  purpose: Manual Validation Required
+    SELECT 1
+    WHERE EXISTS (
+      SELECT 1 FROM mounts
+      WHERE path='/dev/shm'
+        AND ',' || flags || ',' LIKE '%,noexec,%'
+    );
+purpose: Manual Validation Required
   tags: compliance, CIS, CIS_Ubuntu_22_04
   contributors: sharon-fdm
 ---
@@ -544,8 +610,13 @@ spec:
   #   - PASS: query returns 1 row
   #   - FAIL: query returns 0 rows
   query: |
-    SELECT 1 WHERE 0;
-  purpose: Manual Validation Required
+    SELECT 1
+    WHERE EXISTS (
+      SELECT 1 FROM mounts
+      WHERE path='/home'
+        AND ',' || flags || ',' LIKE '%,nodev,%'
+    );
+purpose: Manual Validation Required
   tags: compliance, CIS, CIS_Ubuntu_22_04
   contributors: sharon-fdm
 ---
@@ -568,8 +639,13 @@ spec:
   #   - PASS: query returns 1 row
   #   - FAIL: query returns 0 rows
   query: |
-    SELECT 1 WHERE 0;
-  purpose: Manual Validation Required
+    SELECT 1
+    WHERE EXISTS (
+      SELECT 1 FROM mounts
+      WHERE path='/home'
+        AND ',' || flags || ',' LIKE '%,nosuid,%'
+    );
+purpose: Manual Validation Required
   tags: compliance, CIS, CIS_Ubuntu_22_04
   contributors: sharon-fdm
 ---
@@ -616,8 +692,13 @@ spec:
   #   - PASS: query returns 1 row
   #   - FAIL: query returns 0 rows
   query: |
-    SELECT 1 WHERE 0;
-  purpose: Manual Validation Required
+    SELECT 1
+    WHERE EXISTS (
+      SELECT 1 FROM mounts
+      WHERE path='/var'
+        AND ',' || flags || ',' LIKE '%,nodev,%'
+    );
+purpose: Manual Validation Required
   tags: compliance, CIS, CIS_Ubuntu_22_04
   contributors: sharon-fdm
 ---
@@ -640,8 +721,13 @@ spec:
   #   - PASS: query returns 1 row
   #   - FAIL: query returns 0 rows
   query: |
-    SELECT 1 WHERE 0;
-  purpose: Manual Validation Required
+    SELECT 1
+    WHERE EXISTS (
+      SELECT 1 FROM mounts
+      WHERE path='/var'
+        AND ',' || flags || ',' LIKE '%,nosuid,%'
+    );
+purpose: Manual Validation Required
   tags: compliance, CIS, CIS_Ubuntu_22_04
   contributors: sharon-fdm
 ---
@@ -688,8 +774,13 @@ spec:
   #   - PASS: query returns 1 row
   #   - FAIL: query returns 0 rows
   query: |
-    SELECT 1 WHERE 0;
-  purpose: Manual Validation Required
+    SELECT 1
+    WHERE EXISTS (
+      SELECT 1 FROM mounts
+      WHERE path='/var/tmp'
+        AND ',' || flags || ',' LIKE '%,nodev,%'
+    );
+purpose: Manual Validation Required
   tags: compliance, CIS, CIS_Ubuntu_22_04
   contributors: sharon-fdm
 ---
@@ -712,8 +803,13 @@ spec:
   #   - PASS: query returns 1 row
   #   - FAIL: query returns 0 rows
   query: |
-    SELECT 1 WHERE 0;
-  purpose: Manual Validation Required
+    SELECT 1
+    WHERE EXISTS (
+      SELECT 1 FROM mounts
+      WHERE path='/var/tmp'
+        AND ',' || flags || ',' LIKE '%,nosuid,%'
+    );
+purpose: Manual Validation Required
   tags: compliance, CIS, CIS_Ubuntu_22_04
   contributors: sharon-fdm
 ---
@@ -736,8 +832,13 @@ spec:
   #   - PASS: query returns 1 row
   #   - FAIL: query returns 0 rows
   query: |
-    SELECT 1 WHERE 0;
-  purpose: Manual Validation Required
+    SELECT 1
+    WHERE EXISTS (
+      SELECT 1 FROM mounts
+      WHERE path='/var/tmp'
+        AND ',' || flags || ',' LIKE '%,noexec,%'
+    );
+purpose: Manual Validation Required
   tags: compliance, CIS, CIS_Ubuntu_22_04
   contributors: sharon-fdm
 ---
@@ -784,8 +885,13 @@ spec:
   #   - PASS: query returns 1 row
   #   - FAIL: query returns 0 rows
   query: |
-    SELECT 1 WHERE 0;
-  purpose: Manual Validation Required
+    SELECT 1
+    WHERE EXISTS (
+      SELECT 1 FROM mounts
+      WHERE path='/var/log'
+        AND ',' || flags || ',' LIKE '%,nodev,%'
+    );
+purpose: Manual Validation Required
   tags: compliance, CIS, CIS_Ubuntu_22_04
   contributors: sharon-fdm
 ---
@@ -808,8 +914,13 @@ spec:
   #   - PASS: query returns 1 row
   #   - FAIL: query returns 0 rows
   query: |
-    SELECT 1 WHERE 0;
-  purpose: Manual Validation Required
+    SELECT 1
+    WHERE EXISTS (
+      SELECT 1 FROM mounts
+      WHERE path='/var/log'
+        AND ',' || flags || ',' LIKE '%,nosuid,%'
+    );
+purpose: Manual Validation Required
   tags: compliance, CIS, CIS_Ubuntu_22_04
   contributors: sharon-fdm
 ---
@@ -832,8 +943,13 @@ spec:
   #   - PASS: query returns 1 row
   #   - FAIL: query returns 0 rows
   query: |
-    SELECT 1 WHERE 0;
-  purpose: Manual Validation Required
+    SELECT 1
+    WHERE EXISTS (
+      SELECT 1 FROM mounts
+      WHERE path='/var/log'
+        AND ',' || flags || ',' LIKE '%,noexec,%'
+    );
+purpose: Manual Validation Required
   tags: compliance, CIS, CIS_Ubuntu_22_04
   contributors: sharon-fdm
 ---
@@ -880,8 +996,13 @@ spec:
   #   - PASS: query returns 1 row
   #   - FAIL: query returns 0 rows
   query: |
-    SELECT 1 WHERE 0;
-  purpose: Manual Validation Required
+    SELECT 1
+    WHERE EXISTS (
+      SELECT 1 FROM mounts
+      WHERE path='/var/log/audit'
+        AND ',' || flags || ',' LIKE '%,nodev,%'
+    );
+purpose: Manual Validation Required
   tags: compliance, CIS, CIS_Ubuntu_22_04
   contributors: sharon-fdm
 ---
@@ -904,8 +1025,13 @@ spec:
   #   - PASS: query returns 1 row
   #   - FAIL: query returns 0 rows
   query: |
-    SELECT 1 WHERE 0;
-  purpose: Manual Validation Required
+    SELECT 1
+    WHERE EXISTS (
+      SELECT 1 FROM mounts
+      WHERE path='/var/log/audit'
+        AND ',' || flags || ',' LIKE '%,nosuid,%'
+    );
+purpose: Manual Validation Required
   tags: compliance, CIS, CIS_Ubuntu_22_04
   contributors: sharon-fdm
 ---
@@ -928,8 +1054,13 @@ spec:
   #   - PASS: query returns 1 row
   #   - FAIL: query returns 0 rows
   query: |
-    SELECT 1 WHERE 0;
-  purpose: Manual Validation Required
+    SELECT 1
+    WHERE EXISTS (
+      SELECT 1 FROM mounts
+      WHERE path='/var/log/audit'
+        AND ',' || flags || ',' LIKE '%,noexec,%'
+    );
+purpose: Manual Validation Required
   tags: compliance, CIS, CIS_Ubuntu_22_04
   contributors: sharon-fdm
 ---
