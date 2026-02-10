@@ -16,6 +16,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/aws/smithy-go/ptr"
 	"github.com/docker/go-units"
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/datastore/cached_mysql"
@@ -86,7 +87,7 @@ func RunServerWithMockedDS(t *testing.T, opts ...*service.TestServerOpts) (*http
 				Description:                    args.Description,
 				Resolution:                     &args.Resolution,
 				AuthorID:                       authorID,
-				ConditionalAccessBypassEnabled: true,
+				ConditionalAccessBypassEnabled: ptr.Bool(true),
 			},
 		}, nil
 	}
