@@ -199,10 +199,8 @@ func (svc *Service) SendEmail(ctx context.Context, mail fleet.Email) error {
 
 // SetActivityService sets the activity bounded context service for creating activities.
 // This should be called after NewService to inject the activity service dependency.
-func (svc *Service) SetActivityService(activitySvc any) {
-	if s, ok := activitySvc.(activity_api.NewActivityService); ok {
-		svc.activitySvc = s
-	}
+func (svc *Service) SetActivityService(activitySvc activity_api.NewActivityService) {
+	svc.activitySvc = activitySvc
 }
 
 type validationMiddleware struct {

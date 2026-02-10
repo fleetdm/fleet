@@ -9,6 +9,7 @@ import (
 	"net/url"
 	"time"
 
+	activity_api "github.com/fleetdm/fleet/v4/server/activity/api"
 	"github.com/fleetdm/fleet/v4/server/version"
 	"github.com/fleetdm/fleet/v4/server/websocket"
 )
@@ -643,7 +644,7 @@ type Service interface {
 
 	// SetActivityService sets the activity bounded context service for creating activities.
 	// This should be called after service creation to inject the activity service dependency.
-	SetActivityService(activitySvc any)
+	SetActivityService(activitySvc activity_api.NewActivityService)
 
 	// NewActivity creates the given activity on the datastore.
 	//
