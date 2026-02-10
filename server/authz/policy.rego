@@ -62,10 +62,10 @@ allow {
   action == read
 }
 
-# Team admin, maintainer, observer_plus and observer can read global config.
+# Team admin, maintainer, technician, observer_plus, and observer can read global config.
 allow {
   object.type == "app_config"
-  # If role is admin, gitops, maintainer, technician, observer_plus or observer on any team.
+  # If role is admin, gitops, maintainer, technician, observer_plus, or observer on any team.
   team_role(subject, subject.teams[_].id) == [admin, gitops, maintainer, technician, observer_plus, observer][_]
   action == read
 }
@@ -235,7 +235,7 @@ allow {
 # Hosts
 ##
 
-# allowed_read_roles evaulates which roles are allowed for read based on the given action.
+# allowed_read_roles evaluates which roles are allowed for read based on the given action.
 allowed_read_roles(action, base_roles, extra_roles) = result {
 	action == selective_read
 	result := base_roles | extra_roles
@@ -246,7 +246,7 @@ allowed_read_roles(action, base_roles, extra_roles) = result {
 	result := null
 }
 
-# allowed_list_roles evaulates which roles are allowed for list based on the given action.
+# allowed_list_roles evaluates which roles are allowed for list based on the given action.
 allowed_list_roles(action, base_roles, extra_roles) = result {
 	action == "selective_list"
 	result := base_roles | extra_roles
@@ -342,18 +342,21 @@ allow {
 	action == cancel_host_activity
 }
 
-# Allow read for host health for global admin/maintainer, team admins, observer.
+##
+# Host health
+##
+
+# Global admins, maintainers, technicians, observer_plus, and observers can read host health.
 allow {
 	object.type == "host_health"
-  subject.global_role == [admin, maintainer, observer][_]
+  subject.global_role == [admin, maintainer, technician, observer_plus, observer][_]
 	action == read
 }
 
-
-# Allow read for host health for team admin/maintainer, team admins, observer.
+# Team admins, maintainers, technicians, observer_plus, and observers can read host health of their own team.
 allow {
   object.type == "host_health"
-  team_role(subject, object.team_id) == [admin, maintainer, observer][_]
+  team_role(subject, object.team_id) == [admin, maintainer, technician, observer_plus, observer][_]
   action == read
 }
 
@@ -528,7 +531,7 @@ allow {
 
   is_null(object.team_id)
 
-  # If role is admin, maintainer or observer_plus on any team.
+  # If role is admin, maintainer, technician, or observer_plus on any team.
   team_role(subject, subject.teams[_].id) == [admin, maintainer, technician, observer_plus][_]
 
   # and there are no team targets
@@ -579,7 +582,7 @@ allow {
   count(ok_teams) == count(object.host_targets.teams)
 }
 
-# Team admin, maintainer, technician, observer_plus and observer running an observers_can_run query that belongs to their team must have the targets
+# Team admin, maintainer, technician, observer_plus, and observer running an observers_can_run query that belongs to their team must have the targets
 # filtered to only teams that they observe.
 allow {
   object.type == "targeted_query"
@@ -587,14 +590,14 @@ allow {
   is_null(subject.global_role)
   action == run
 
-  team_role(subject, object.team_id) == [admin, maintainer, observer_plus, observer][_]
+  team_role(subject, object.team_id) == [admin, maintainer, technician, observer_plus, observer][_]
 
   not is_null(object.host_targets.teams)
   ok_teams := { tmid | tmid := object.host_targets.teams[_]; team_role(subject, tmid) == [admin, maintainer, technician, observer_plus, observer][_] }
   count(ok_teams) == count(object.host_targets.teams)
 }
 
-# Team admin, maintainer, technician, observer_plus and observer running a global observers_can_run query and there are no target teams.
+# Team admin, maintainer, technician, observer_plus, and observer running a global observers_can_run query and there are no target teams.
 allow {
   object.type == "targeted_query"
   object.observer_can_run == true
@@ -603,7 +606,7 @@ allow {
 
   is_null(object.team_id)
 
-  # If role is admin, maintainer, technician, observer_plus or observer on any team.
+  # If role is admin, maintainer, technician, observer_plus, or observer on any team.
   team_role(subject, subject.teams[_].id) == [admin, maintainer, technician, observer_plus, observer][_]
 
   # and there are no team targets
@@ -627,10 +630,10 @@ allow {
 # Targets
 ##
 
-# Global admin, maintainer, observer_plus and observer can read targets.
+# Global admin, maintainer, technician, observer_plus, and observer can read targets.
 allow {
   object.type == "target"
-  subject.global_role == [admin, maintainer, observer_plus, observer][_]
+  subject.global_role == [admin, maintainer, technician, observer_plus, observer][_]
   action == read
 }
 
