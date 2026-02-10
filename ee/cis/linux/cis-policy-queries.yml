@@ -2762,8 +2762,21 @@ spec:
   #   - PASS: query returns 1 row
   #   - FAIL: query returns 0 rows
   query: |
-    SELECT 1 WHERE 0;
-  purpose: Manual Validation Required
+    SELECT 1
+    WHERE NOT EXISTS (SELECT 1 FROM deb_packages WHERE name='cron')
+       OR (
+         EXISTS (
+           SELECT 1 FROM systemd_units
+           WHERE (name='cron.service' OR name='crond.service')
+             AND enabled_state='enabled'
+         )
+         AND EXISTS (
+           SELECT 1 FROM systemd_units
+           WHERE (name='cron.service' OR name='crond.service')
+             AND active_state='active'
+         )
+       );
+purpose: Manual Validation Required
   tags: compliance, CIS, CIS_Ubuntu_22_04
   contributors: sharon-fdm
 ---
@@ -2989,8 +3002,29 @@ spec:
   #   - PASS: query returns 1 row
   #   - FAIL: query returns 0 rows
   query: |
-    SELECT 1 WHERE 0;
-  purpose: Manual Validation Required
+    SELECT 1
+    WHERE NOT EXISTS (SELECT 1 FROM deb_packages WHERE name='cron')
+       OR (
+         (SELECT 1
+    WHERE EXISTS (
+      SELECT 1 FROM file
+      WHERE path='/etc/cron.allow'
+        AND uid=0
+        AND mode IN ('0640','0600','0400')
+        AND (gid=0 OR gid = (SELECT gid FROM groups WHERE groupname='crontab' LIMIT 1))
+    );)
+         AND
+         (SELECT 1
+    WHERE NOT EXISTS (SELECT 1 FROM file WHERE path='/etc/cron.deny')
+       OR EXISTS (
+         SELECT 1 FROM file
+         WHERE path='/etc/cron.deny'
+           AND uid=0
+           AND mode IN ('0640','0600','0400')
+           AND (gid=0 OR gid = (SELECT gid FROM groups WHERE groupname='crontab' LIMIT 1))
+       );)
+       );
+purpose: Manual Validation Required
   tags: compliance, CIS, CIS_Ubuntu_22_04
   contributors: sharon-fdm
 ---
@@ -3013,8 +3047,29 @@ spec:
   #   - PASS: query returns 1 row
   #   - FAIL: query returns 0 rows
   query: |
-    SELECT 1 WHERE 0;
-  purpose: Manual Validation Required
+    SELECT 1
+    WHERE NOT EXISTS (SELECT 1 FROM deb_packages WHERE name='at')
+       OR (
+         (SELECT 1
+    WHERE EXISTS (
+      SELECT 1 FROM file
+      WHERE path='/etc/at.allow'
+        AND uid=0
+        AND mode IN ('0640','0600','0400')
+        AND (gid=0 OR gid = (SELECT gid FROM groups WHERE groupname='daemon' LIMIT 1))
+    );)
+         AND
+         (SELECT 1
+    WHERE NOT EXISTS (SELECT 1 FROM file WHERE path='/etc/at.deny')
+       OR EXISTS (
+         SELECT 1 FROM file
+         WHERE path='/etc/at.deny'
+           AND uid=0
+           AND mode IN ('0640','0600','0400')
+           AND (gid=0 OR gid = (SELECT gid FROM groups WHERE groupname='daemon' LIMIT 1))
+       );)
+       );
+purpose: Manual Validation Required
   tags: compliance, CIS, CIS_Ubuntu_22_04
   contributors: sharon-fdm
 ---
