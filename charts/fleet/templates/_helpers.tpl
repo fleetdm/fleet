@@ -67,7 +67,7 @@ Create the name of the service account to use
 {{- end }}
 
 {{- define "fleet.additionalCAs.enabled" -}}
-{{- if and .Values.fleet.additionalCAs.enabled (or .Values.fleet.additionalCAs.configMaps .Values.fleet.additionalCAs.secrets) -}}
+{{- if and .Values.fleet.additionalCAs.enabled (or (and (.Values.fleet.additionalCAs.configMaps) (gt (len .Values.fleet.additionalCAs.configMaps) 0)) (and (.Values.fleet.additionalCAs.secrets) (gt (len .Values.fleet.additionalCAs.secrets) 0))) -}}
 true
 {{- end -}}
 {{- end -}}
