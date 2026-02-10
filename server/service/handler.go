@@ -475,7 +475,7 @@ func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetC
 	ue.GET("/api/_version_/fleet/hosts/report", hostsReportEndpoint, hostsReportRequest{})
 	ue.GET("/api/_version_/fleet/os_versions", osVersionsEndpoint, osVersionsRequest{})
 	ue.GET("/api/_version_/fleet/os_versions/{id:[0-9]+}", getOSVersionEndpoint, getOSVersionRequest{})
-	ue.GET("/api/_version_/fleet/hosts/{id:[0-9]+}/queries/{report_id:[0-9]+}", getHostQueryReportEndpoint, getHostQueryReportRequest{})
+	ue.WithAltPaths("/api/_version_/fleet/hosts/{id:[0-9]+}/queries/{report_id:[0-9]+}").GET("/api/_version_/fleet/hosts/{id:[0-9]+}/reports/{report_id:[0-9]+}", getHostQueryReportEndpoint, getHostQueryReportRequest{})
 	ue.GET("/api/_version_/fleet/hosts/{id:[0-9]+}/health", getHostHealthEndpoint, getHostHealthRequest{})
 	ue.POST("/api/_version_/fleet/hosts/{id:[0-9]+}/labels", addLabelsToHostEndpoint, addLabelsToHostRequest{})
 	ue.DELETE("/api/_version_/fleet/hosts/{id:[0-9]+}/labels", removeLabelsFromHostEndpoint, removeLabelsFromHostRequest{})
@@ -498,16 +498,16 @@ func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetC
 	ue.GET("/api/_version_/fleet/spec/labels/{name}", getLabelSpecEndpoint, getGenericSpecRequest{})
 
 	// This endpoint runs live queries synchronously (with a configured timeout).
-	ue.POST("/api/_version_/fleet/queries/{id:[0-9]+}/run", runOneLiveQueryEndpoint, runOneLiveQueryRequest{})
+	ue.WithAltPaths("/api/_version_/fleet/queries/{id:[0-9]+}/run").POST("/api/_version_/fleet/reports/{id:[0-9]+}/run", runOneLiveQueryEndpoint, runOneLiveQueryRequest{})
 	// Old endpoint, removed from docs. This GET endpoint runs live queries synchronously (with a configured timeout).
-	ue.GET("/api/_version_/fleet/queries/run", runLiveQueryEndpoint, runLiveQueryRequest{})
+	ue.WithAltPaths("/api/_version_/fleet/queries/run").GET("/api/_version_/fleet/reports/run", runLiveQueryEndpoint, runLiveQueryRequest{})
 	// The following two POST APIs are the asynchronous way to run live queries.
 	// The live queries are created with these two endpoints and their results can be queried via
 	// websockets via the `GET /api/_version_/fleet/results/` endpoint.
-	ue.POST("/api/_version_/fleet/queries/run", createDistributedQueryCampaignEndpoint, createDistributedQueryCampaignRequest{})
-	ue.POST("/api/_version_/fleet/queries/run_by_identifiers", createDistributedQueryCampaignByIdentifierEndpoint, createDistributedQueryCampaignByIdentifierRequest{})
+	ue.WithAltPaths("/api/_version_/fleet/queries/run").POST("/api/_version_/fleet/reports/run", createDistributedQueryCampaignEndpoint, createDistributedQueryCampaignRequest{})
+	ue.WithAltPaths("/api/_version_/fleet/queries/run_by_identifiers").POST("/api/_version_/fleet/reports/run_by_identifiers", createDistributedQueryCampaignByIdentifierEndpoint, createDistributedQueryCampaignByIdentifierRequest{})
 	// This endpoint is deprecated and maintained for backwards compatibility. This and above endpoint are functionally equivalent
-	ue.POST("/api/_version_/fleet/queries/run_by_names", createDistributedQueryCampaignByIdentifierEndpoint, createDistributedQueryCampaignByIdentifierRequest{})
+	ue.WithAltPaths("/api/_version_/fleet/queries/run_by_names").POST("/api/_version_/fleet/reports/run_by_names", createDistributedQueryCampaignByIdentifierEndpoint, createDistributedQueryCampaignByIdentifierRequest{})
 
 	ue.GET("/api/_version_/fleet/packs/{id:[0-9]+}/scheduled", getScheduledQueriesInPackEndpoint, getScheduledQueriesInPackRequest{})
 	ue.EndingAtVersion("v1").POST("/api/_version_/fleet/schedule", scheduleQueryEndpoint, scheduleQueryRequest{})
