@@ -132,6 +132,10 @@ When migrating macOS hosts from another MDM solution, in order to complete the p
 
 Share [these guided instructions](https://fleetdm.com/guides/mdm-migration#how-to-turn-on-disk-encryption) with your end users.
 
+## Advanced
+
+Fleet uses [Escrow Buddy](https://github.com/macadmins/escrow-buddy) to escrow disk encryption keys from macOS hosts. Escrow Buddy is installed only on macOS hosts that are assigned to a team in Fleet with disk encryption enforced. If a host is then transferred to a team that doesn't enforce disk encryption, Escrow Buddy stays installed.
+
 <meta name="category" value="guides">
 <meta name="authorGitHubUsername" value="noahtalerman">
 <meta name="authorFullName" value="Noah Talerman">

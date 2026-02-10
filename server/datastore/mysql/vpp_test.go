@@ -2255,18 +2255,18 @@ func testAndroidVPPAppStatus(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 
 	host1 := createAndroidHost(uuid.NewString())
-	host1, err = ds.NewAndroidHost(ctx, host1)
+	host1, err = ds.NewAndroidHost(ctx, host1, false)
 	require.NoError(t, err)
 
 	host2 := createAndroidHost(uuid.NewString())
-	host2, err = ds.NewAndroidHost(ctx, host2)
+	host2, err = ds.NewAndroidHost(ctx, host2, false)
 	require.NoError(t, err)
 	err = ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&tm.ID, []uint{host2.Host.ID}))
 	require.NoError(t, err)
 	host2.Host.TeamID = &tm.ID
 
 	host3 := createAndroidHost(uuid.NewString())
-	host3, err = ds.NewAndroidHost(ctx, host3)
+	host3, err = ds.NewAndroidHost(ctx, host3, false)
 	require.NoError(t, err)
 
 	// create no-team app
