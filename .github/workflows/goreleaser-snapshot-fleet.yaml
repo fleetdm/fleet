@@ -71,8 +71,9 @@ jobs:
 
       - name: Compute version from branch
         id: compute_version
+        env:
+          BRANCH: ${{ github.head_ref || github.ref_name }}
         run: |
-          BRANCH="${{ github.head_ref || github.ref_name }}"
           VERSION=$(tools/version-from-branch.sh "$BRANCH" 2>/dev/null)
           if [ -z "$VERSION" ]; then
             # Fall back to default snapshot version
