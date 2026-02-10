@@ -27,7 +27,7 @@ Use the Fleet APIs to automate Fleet.
 
 This page includes a list of available resources and their API routes.
 
-Unless otherwise specified, endpoints that accept a request body limit its size to the configured `FLEET_SERVER_DEFAULT_MAX_REQUEST_BODY_SIZE` (default 1MB).
+Unless otherwise specified, endpoints that accept a request body limit its size to the configured `FLEET_SERVER_DEFAULT_MAX_REQUEST_BODY_SIZE` (default 1MiB).
 
 ## Authentication
 
@@ -6052,6 +6052,8 @@ Add a configuration profile to enforce custom settings on macOS and Windows host
 
 > You need to send a request of type `multipart/form-data`.
 
+> This endpoint accepts a maximum request body size of 1.5MiB.
+
 `POST /api/v1/fleet/configuration_profiles`
 
 #### Parameters
@@ -6314,7 +6316,7 @@ For declaration (DDM) profiles, hosts with new, updated, or removed profiles are
 
 For requests with 100+ profiles, requests will take 5+ seconds.
 
-> This endpoint accepts a maximum request body size of 25MB.
+> This endpoint accepts a maximum request body size of 25MiB.
 
 `POST /api/v1/fleet/configuration_profiles/batch`
 
@@ -6975,7 +6977,7 @@ Upload an EULA that will be shown during the DEP flow.
 
 > You need to send a request of type `multipart/form-data`.
 
-> This endpoint accepts a maximum request body size of 25MB.
+> This endpoint accepts a maximum request body size of 25MiB.
 
 `POST /api/v1/fleet/setup_experience/eula`
 
@@ -7340,7 +7342,7 @@ Delete a script that will automatically run during macOS setup.
 
 This endpoint tells Fleet to run a custom MDM command on the targeted macOS, iOS, iPadOS, or Windows hosts the next time they come online.
 
-> This endpoint accepts a maximum request body size of 2MB.
+> This endpoint accepts a maximum request body size of 2MiB.
 
 `POST /api/v1/fleet/commands/run`
 
@@ -9521,6 +9523,8 @@ Returns a list hosts targeted in a batch script run, along with their script exe
 Uploads a script, making it available to run on hosts assigned to the specified team (or no team).
 
 > You need to send a request of type `multipart/form-data`.
+
+> This endpoint accepts a maximum request body size of 1.5MiB.
 
 `POST /api/v1/fleet/scripts`
 
