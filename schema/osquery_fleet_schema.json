@@ -29781,7 +29781,7 @@
     "evented": false,
     "cacheable": true,
     "notes": "",
-    "examples": "Find WiFi networks configured on Macs that are unencrypted and require a\ncaptive portal. This can be useful to understand how much people use laptops\nin hotels, airports and other environments, and is a good indicator that tools\nsuch as DNS-over-HTTPS would improve privacy of connectivity.\n\n```\nSELECT network_name FROM wifi_networks WHERE security_type='Open' AND captive_portal='1';\n```",
+    "examples": "Find WiFi networks configured on Macs that are unencrypted and require a\ncaptive portal. This can be useful to understand how much people use laptops\nin hotels, airports and other environments, and is a good indicator that tools\nsuch as DNS-over-HTTPS would improve privacy of connectivity.\n\n```\nSELECT network_name FROM wifi_networks WHERE security_type='Open' AND captive_portal='1';\n```\n\nDiscover last connected times for WiFi networks:\n\n```\nSELECT network_name,last_connected,last_connected_automatic,last_connected_manual\nFROM wifi_networks\nORDER BY \nCOALESCE(last_connected, 0) \nDESC\nLIMIT 10;\n```",
     "columns": [
       {
         "name": "ssid",
@@ -31860,6 +31860,7 @@
     ],
     "notes": "This table is not a core osquery table. It is included as part of Fleet's agent ([fleetd](https://fleetdm.com/docs/get-started/anatomy#fleetd)).",
     "evented": false,
+    "examples": "Parse Kubernetes YAML configuartion files.\n\n```\nSELECT json FROM yaml_to_json WHERE yaml = (SELECT contents FROM file_contents WHERE path = 'deployment.yaml');\n```",
     "url": "https://fleetdm.com/tables/yaml_to_json",
     "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/yaml_to_json.yml"
   },

@@ -41,7 +41,7 @@ jobs:
                 owner: context.repo.owner,
                 repo: context.repo.repo,
                 issue_number: issue.number,
-                labels: ['~unreleased-bug']
+                labels: ['~unreleased bug']
               });
 
               // Post a comment explaining the action

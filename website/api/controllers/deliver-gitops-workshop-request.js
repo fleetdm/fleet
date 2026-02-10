@@ -33,7 +33,7 @@ module.exports = {
 
 
     let emailDomain = emailAddress.split('@')[1];
-    if(_.includes(sails.config.custom.bannedEmailDomainsForContactFormSubmissions, emailDomain.toLowerCase())){
+    if(_.includes(sails.config.custom.bannedEmailDomainsForWebsiteSubmissions, emailDomain.toLowerCase())){
       throw 'invalidEmailDomain';
     }
 
@@ -74,7 +74,7 @@ module.exports = {
         emailAddress: emailAddress,
         firstName: firstName,
         lastName: lastName,
-        contactSource: 'Website - Contact forms',
+        contactSource: 'Website - GitOps',
         description: descriptionForCrmUpdate,
         marketingAttributionCookie: attributionCookieOrUndefined
       }).intercept((err)=>{
@@ -85,6 +85,20 @@ module.exports = {
       await sails.helpers.salesforce.createCampaignMember.with({
         salesforceContactId: recordIds.salesforceContactId,
         salesforceCampaignId: '701UG00000bLCLpYAO',// 2026_01-FE-GitOps_Workshop_Interest Campaign
+      });
+
+      if(!recordIds.salesforceAccountId) {
+        throw new Error(`Could not create historical event. The contact record (ID: ${recordIds.salesforceContactId}) returned by the updateOrCreateContactAndAccount helper is missing a parent account record.`);
+      }
+      // Create the new historical event record.
+      await sails.helpers.salesforce.createHistoricalEvent.with({
+        salesforceAccountId: recordIds.salesforceAccountId,
+        salesforceContactId: recordIds.salesforceContactId,
+        eventType: 'Intent signal',
+        intentSignal: 'Submitted the "GitOps workshop request" form',
+        eventContent: descriptionForCrmUpdate,
+      }).intercept((err)=>{
+        return new Error(`Could not create an historical event. Full error: ${require('util').inspect(err)}`);
       });
 
     }).tolerate((err)=>{

@@ -1,0 +1,1 @@
+Fixed Smallstep CA integration to send Authorization header with first request.

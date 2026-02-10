@@ -9,6 +9,8 @@ import TableContainer from "components/TableContainer";
 import EmptyTable from "components/EmptyTable";
 import CardHeader from "components/CardHeader";
 import CustomLink from "components/CustomLink";
+import InfoBanner from "components/InfoBanner";
+import IconStatusMessage from "components/IconStatusMessage";
 
 import {
   generatePolicyTableHeaders,
@@ -27,6 +29,7 @@ interface IPoliciesProps {
   router: InjectedRouter;
   currentTeamId?: number;
   conditionalAccessEnabled?: boolean;
+  conditionalAccessBypassed?: boolean;
 }
 
 interface IHostPoliciesRowProps extends Row {
@@ -42,6 +45,7 @@ const Policies = ({
   router,
   currentTeamId,
   conditionalAccessEnabled,
+  conditionalAccessBypassed,
 }: IPoliciesProps): JSX.Element => {
   const tableHeaders = generatePolicyTableHeaders(currentTeamId);
   if (deviceUser) {
@@ -57,6 +61,38 @@ const Policies = ({
     },
     [router]
   );
+
+  const renderBanner = () => {
+    if (!failingResponses?.length) {
+      return null;
+    }
+    if (conditionalAccessBypassed) {
+      return (
+        <InfoBanner color="grey" borderRadius="xlarge">
+          <IconStatusMessage
+            iconName="clock"
+            iconColor="ui-fleet-black-50"
+            message={
+              <span>
+                <strong>Access restored for next Okta login</strong>
+                <br />
+                To fully restore access, click on the policies marked
+                &apos;Action required&apos; and follow the resolution steps.
+                Once resolved, click &apos;Refetch&apos; to check status.
+              </span>
+            }
+          />
+        </InfoBanner>
+      );
+    }
+    return (
+      <PolicyFailingCount
+        policyList={policies}
+        deviceUser={deviceUser}
+        conditionalAccessEnabled={conditionalAccessEnabled}
+      />
+    );
+  };
 
   const renderHostPolicies = () => {
     if (hostPlatform === "ios" || hostPlatform === "ipados") {
@@ -110,13 +146,7 @@ const Policies = ({
 
     return (
       <>
-        {failingResponses?.length > 0 && (
-          <PolicyFailingCount
-            policyList={policies}
-            deviceUser={deviceUser}
-            conditionalAccessEnabled={conditionalAccessEnabled}
-          />
-        )}
+        {renderBanner()}
         <TableContainer
           columnConfigs={tableHeaders}
           data={generatePolicyDataSet(policies, !!conditionalAccessEnabled)}
