@@ -245,16 +245,13 @@ func TestWorkerWithRealDatastore(t *testing.T) {
 	// call TruncateTables immediately, because a DB migration may create jobs
 	mysql.TruncateTables(t, ds)
 
-	oldDelayPerRetry := delayPerRetry
-	delayPerRetry = []time.Duration{
+	logger := kitlog.NewNopLogger()
+	w := NewWorker(ds, logger)
+	w.DelayPerRetry = []time.Duration{
 		1: 0,
 		2: 0,
 		3: time.Hour,
 	} // retry twice on the next cron, then not before an hour
-	t.Cleanup(func() { delayPerRetry = oldDelayPerRetry })
-
-	logger := kitlog.NewNopLogger()
-	w := NewWorker(ds, logger)
 
 	// register a test job
 	var jobCallCount int
