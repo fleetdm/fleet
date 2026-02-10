@@ -55,7 +55,7 @@ These issues are caused by residual enrollment data, registry conflicts, or thir
 
 **Enrollment flag conflict:** Resets the `MmpcEnrollmentFlag` registry value that can prevent Fleet from reporting MDM status correctly after migration.
 
-- [reset-mdm-enrollment-flag.ps1](https://github.com/fleetdm/fleet/blob/main/docs/solutions/windows/scripts/reset-mdm-enrollment-flag.ps1)
+- [reset-mdm-enrollment-flag.ps1](https://github.com/fleetdm/fleet/blob/main/docs/solutions/windows/scripts/reset-mdm-enrollment-flag.ps1): Resets the `MmpcEnrollmentFlag` registry value to fix incorrect MDM status reporting after migration.
 
 **Stale enrollment registry entries:** Removes failed or orphaned MDM enrollment records, AAD discovery cache, and MS DM Server cache left behind by the previous MDM solution.
 
