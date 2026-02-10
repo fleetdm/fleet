@@ -67,9 +67,9 @@ type Worker struct {
 	// For tests only, allows ignoring unknown jobs instead of failing them.
 	TestIgnoreUnknownJobs bool
 
-	// DelayPerRetry defines the delays between retries. If nil, the default
+	// delayPerRetry defines the delays between retries. If nil, the default
 	// delays are used.
-	DelayPerRetry []time.Duration
+	delayPerRetry []time.Duration
 
 	registry map[string]Job
 }
@@ -188,12 +188,12 @@ func (w *Worker) ProcessJobs(ctx context.Context) error {
 				if job.Retries < maxRetries {
 					level.Debug(log).Log("msg", "will retry job")
 					job.Retries += 1
-					delays := w.DelayPerRetry
+					delays := w.delayPerRetry
 					if delays == nil {
 						delays = defaultDelayPerRetry
 					}
 					if job.Retries < len(delays) {
-						job.NotBefore = time.Now().Add(delays[job.Retries])
+						job.NotBefore = time.Now().UTC().Add(delays[job.Retries])
 					}
 				} else {
 					job.State = fleet.JobStateFailure

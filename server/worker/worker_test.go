@@ -247,7 +247,7 @@ func TestWorkerWithRealDatastore(t *testing.T) {
 
 	logger := kitlog.NewNopLogger()
 	w := NewWorker(ds, logger)
-	w.DelayPerRetry = []time.Duration{
+	w.delayPerRetry = []time.Duration{
 		1: 0,
 		2: 0,
 		3: time.Hour,
