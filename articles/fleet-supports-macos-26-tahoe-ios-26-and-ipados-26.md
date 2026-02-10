@@ -15,11 +15,13 @@ All new features go through Fleet's [prioritization process](https://fleetdm.com
 
 ## MDM migration with Apple Business Manager (ABM)
 
-With MacOS Tahoe 26, iOS 26, and iPadOS 26, Apple introduces Device Management Migration: an improved workflow for migrating devices from one management service (MDM) to another. 
+With macOS Tahoe 26, iOS 26, and iPadOS 26, Apple introduces Device Management Migration: an improved workflow for migrating devices from one management service (MDM) to another. 
 
 In Apple Business Manager (ABM), admins can assign devices to a new MDM server and set a migration deadline. Users receive clear notifications that enrollment into a new management service is required. If users do not act before the migration deadline, enrollment into the new MDM is enforced automatically, eliminating the need for device wipes, scripts, or manual workarounds that previously made MDM migrations more difficult, complex and time-consuming.
 
 Fleet is ready to support this migration workflow, making it easier for organizations to migrate devices with minimal disruption. Learn more about configuring migration in the [Apple docs](https://support.apple.com/guide/deployment/migrate-managed-devices-dep4acb2aa44/web).
+
+> If the MDM migration fails, don't reassign the host back to your old MDM in Apple Business Manager (ABM). Reassigning breaks the host’s eligibility for migration because a host must be actively enrolled in the MDM it’s being migrated from. Once you change the ABM assignment, ABM thinks the host is no longer enrolled in that MDM, so migration can’t continue.
 
 ## Declarative device management (DDM) OS updates and profiles
 

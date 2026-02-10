@@ -31,7 +31,7 @@ To migrate hosts, we will do the following steps:
 
 ### Step 3: Choose migration workflow and migrate hosts
 
-There are two migration workflows in Fleet: default and end user.
+There are three migration workflows in Fleet: default, end user, and [macOS Tahoe](https://fleetdm.com/announcements/fleet-supports-macos-26-tahoe-ios-26-and-ipados-26#mdm-migration-with-apple-business-manager-abm).
 
 The default migration workflow requires that the IT admin unenrolls hosts from the old MDM solution before the end user can complete migration. This will result in a gap in MDM coverage until the end user completes migration.
 
