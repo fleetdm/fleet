@@ -162,11 +162,11 @@ describe("Device User Page", () => {
     const SETUP_FAILED_MATCHER = /Device setup failed/i;
 
     const setupTest = async (
-      dupDataOverrides?: Partial<IDUPDetails>,
+      dupDetailsOverrides?: Partial<IDUPDetails>,
       setupExperienceOverrides?: Partial<IGetSetupExperienceStatusesResponse>,
       mockLocationOverrides = {}
     ) => {
-      mockServer.use(customDeviceHandler(dupDataOverrides));
+      mockServer.use(customDeviceHandler(dupDetailsOverrides));
       mockServer.use(defaultDeviceCertificatesHandler);
       mockServer.use(deviceSetupExperienceHandler(setupExperienceOverrides));
 
