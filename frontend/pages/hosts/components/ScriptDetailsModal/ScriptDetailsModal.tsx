@@ -88,8 +88,6 @@ const ScriptDetailsModal = ({
 
   const {
     currentUser,
-    isGlobalTechnician,
-    isAnyTeamTechnician,
     isGlobalAdmin,
     isAnyTeamAdmin,
     isGlobalMaintainer,
@@ -100,9 +98,7 @@ const ScriptDetailsModal = ({
     isGlobalAdmin ||
     isAnyTeamAdmin ||
     isGlobalMaintainer ||
-    isAnyTeamMaintainer ||
-    isGlobalTechnician ||
-    isAnyTeamTechnician;
+    isAnyTeamMaintainer;
 
   const { renderFlash } = useContext(NotificationContext);
 

@@ -10,6 +10,7 @@ import { IMdmProfile } from "interfaces/mdm";
 
 import mdmAPI, { IMdmProfilesResponse } from "services/entities/mdm";
 
+import Card from "components/Card/Card";
 import CustomLink from "components/CustomLink";
 import SectionHeader from "components/SectionHeader";
 import PageDescription from "components/PageDescription";
@@ -171,7 +172,11 @@ const CustomSettings = ({
 
     if (!profiles?.length) {
       if (isTechnician) {
-        return <p>No configuration profiles have been added.</p>;
+        return (
+          <Card className="empty-profiles">
+            No configuration profiles have been added.
+          </Card>
+        );
       }
       return <AddProfileCard setShowModal={setShowAddProfileModal} />;
     }

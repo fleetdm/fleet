@@ -35,10 +35,16 @@ const DiskEncryption = ({
   onMutation,
   router,
 }: IDiskEncryptionProps) => {
-  const { isPremiumTier, config, setConfig, isTeamTechnician } = useContext(
-    AppContext
-  );
+  const {
+    isPremiumTier,
+    config,
+    setConfig,
+    isTeamTechnician,
+    isGlobalTechnician,
+  } = useContext(AppContext);
   const { renderFlash } = useContext(NotificationContext);
+
+  const isTechnician = isTeamTechnician || isGlobalTechnician;
 
   const defaultShowDiskEncryption = currentTeamId
     ? false
@@ -201,14 +207,13 @@ const DiskEncryption = ({
         />
       )}
       {isPremiumTier && isLoadingTeam && <Spinner />}
-      {isPremiumTier &&
-        !isLoadingTeam &&
-        !showAggregate &&
-        isTeamTechnician && <p>Disk encryption is disabled.</p>}
+      {isPremiumTier && !isLoadingTeam && !showAggregate && isTechnician && (
+        <p>Disk encryption is disabled.</p>
+      )}
       {isPremiumTier && !isLoadingTeam && showAggregate && (
         <DiskEncryptionTable currentTeamId={currentTeamId} router={router} />
       )}
-      {isPremiumTier && !isLoadingTeam && !isTeamTechnician && (
+      {isPremiumTier && !isLoadingTeam && !isTechnician && (
         <div className="form disk-encryption-content">
           <Checkbox
             disabled={config?.gitops.gitops_mode_enabled}

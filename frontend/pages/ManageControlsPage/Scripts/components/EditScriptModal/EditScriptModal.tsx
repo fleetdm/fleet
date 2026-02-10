@@ -88,7 +88,19 @@ const EditScriptModal = ({
   onExit,
 }: IEditScriptModal) => {
   const { renderFlash } = useContext(NotificationContext);
-  const { currentTeam } = useContext(AppContext);
+  const {
+    currentTeam,
+    isGlobalAdmin,
+    isAnyTeamAdmin,
+    isGlobalMaintainer,
+    isAnyTeamMaintainer,
+  } = useContext(AppContext);
+
+  const canRunScripts =
+    isGlobalAdmin ||
+    isAnyTeamAdmin ||
+    isGlobalMaintainer ||
+    isAnyTeamMaintainer;
 
   // Editable script content
   const [scriptFormData, setScriptFormData] = useState("");
@@ -186,34 +198,40 @@ const EditScriptModal = ({
               })}
             />{" "}
             page and select a host.
-            <br />
-            To run the script across multiple hosts, add a policy automation on
-            the{" "}
-            <CustomLink
-              text="Policies"
-              url={getPathWithQueryParams(paths.MANAGE_POLICIES, {
-                team_id: currentTeam?.id,
-              })}
-            />{" "}
-            page.
+            {canRunScripts && (
+              <>
+                <br />
+                To run the script across multiple hosts, add a policy automation
+                on the{" "}
+                <CustomLink
+                  text="Policies"
+                  url={getPathWithQueryParams(paths.MANAGE_POLICIES, {
+                    team_id: currentTeam?.id,
+                  })}
+                />{" "}
+                page.
+              </>
+            )}
           </div>
         </form>
-        <ModalFooter
-          primaryButtons={
-            <>
-              <Button onClick={onExit} variant="inverse">
-                Cancel
-              </Button>
-              <Button
-                onClick={onSave}
-                isLoading={isSubmitting}
-                disabled={!!formError}
-              >
-                Save
-              </Button>
-            </>
-          }
-        />
+        {canRunScripts && (
+          <ModalFooter
+            primaryButtons={
+              <>
+                <Button onClick={onExit} variant="inverse">
+                  Cancel
+                </Button>
+                <Button
+                  onClick={onSave}
+                  isLoading={isSubmitting}
+                  disabled={!!formError}
+                >
+                  Save
+                </Button>
+              </>
+            }
+          />
+        )}
       </>
     );
   };

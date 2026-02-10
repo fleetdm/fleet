@@ -132,6 +132,7 @@ const HostSoftwareLibrary = ({
     isGlobalMaintainer,
     isTeamAdmin,
     isTeamMaintainer,
+    isGlobalTechnician,
     currentUser,
   } = useContext(AppContext);
 
@@ -453,6 +454,7 @@ const HostSoftwareLibrary = ({
       isGlobalMaintainer ||
       isTeamAdmin ||
       isTeamMaintainer ||
+      isGlobalTechnician ||
       permissions.isTeamTechnician(currentUser, hostTeamId)
   );
 

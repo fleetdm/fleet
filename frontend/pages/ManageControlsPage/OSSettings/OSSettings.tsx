@@ -28,7 +28,9 @@ const OSSettings = ({
   params,
 }: IOSSettingsProps) => {
   const { section } = params;
-  const { currentTeam, isTeamTechnician } = useContext(AppContext);
+  const { currentTeam, isTeamTechnician, isGlobalTechnician } = useContext(
+    AppContext
+  );
 
   // TODO: consider using useTeamIdParam hook here instead in the future
   const teamId =
@@ -51,13 +53,13 @@ const OSSettings = ({
   );
 
   const filteredNavItems = useMemo(() => {
-    if (isTeamTechnician) {
+    if (isTeamTechnician || isGlobalTechnician) {
       return OS_SETTINGS_NAV_ITEMS.filter(
         (item) => item.title !== "Certificates"
       );
     }
     return OS_SETTINGS_NAV_ITEMS;
-  }, [isTeamTechnician]);
+  }, [isTeamTechnician, isGlobalTechnician]);
 
   const DEFAULT_SETTINGS_SECTION = filteredNavItems[0];
 

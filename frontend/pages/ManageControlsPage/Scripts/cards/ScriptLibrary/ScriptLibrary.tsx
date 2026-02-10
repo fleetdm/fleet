@@ -18,6 +18,7 @@ import InfoBanner from "components/InfoBanner";
 import Spinner from "components/Spinner";
 import Pagination from "components/Pagination";
 import SectionHeader from "components/SectionHeader";
+import Card from "components/Card";
 
 import UploadList from "../../../components/UploadList";
 import DeleteScriptModal from "../../components/DeleteScriptModal";
@@ -137,7 +138,11 @@ const ScriptLibrary = ({ router, teamId, location }: IScriptLibraryProps) => {
     }
 
     const headingComponent = () => (
-      <ScriptListHeading onClickAddScript={() => setShowAddScriptModal(true)} />
+      <ScriptListHeading
+        onClickAddScript={
+          isTechnician ? undefined : () => setShowAddScriptModal(true)
+        }
+      />
     );
 
     return (
@@ -145,7 +150,7 @@ const ScriptLibrary = ({ router, teamId, location }: IScriptLibraryProps) => {
         <UploadList
           keyAttribute="id"
           listItems={scripts || []}
-          HeadingComponent={isTechnician ? undefined : headingComponent}
+          HeadingComponent={headingComponent}
           ListItemComponent={({ listItem }) => (
             <ScriptListItem
               script={listItem}
@@ -187,7 +192,7 @@ const ScriptLibrary = ({ router, teamId, location }: IScriptLibraryProps) => {
         currentPage === 0 &&
         !scripts?.length &&
         (isTechnician ? (
-          <p>No scripts uploaded.</p>
+          <Card className="empty-scripts">No scripts uploaded.</Card>
         ) : (
           <ScriptUploader onButtonClick={() => setShowAddScriptModal(true)} />
         ))}
