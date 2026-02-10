@@ -12,9 +12,9 @@ spec:
   # - Where: Run on the audited Ubuntu 22.04 host (use a disposable VM for FAIL).
   # - PASS (run):
   #   - sudo bash -c 'cat <<EOF > /etc/modprobe.d/cramfs.conf
-blacklist cramfs
-install cramfs /bin/false
-EOF'
+  #     blacklist cramfs
+  #     install cramfs /bin/false
+  #     EOF'
   #   - sudo modprobe -r cramfs 2>/dev/null || true
   # - FAIL (run):
   #   - sudo rm -f /etc/modprobe.d/cramfs.conf
@@ -35,7 +35,7 @@ EOF'
              AND line NOT LIKE '#%') >= 1;
   purpose: Informational
   tags: compliance, CIS, CIS_Ubuntu_22_04
-  contributors: sharon-fdm
+  contributors: sharon-fdm, qaed
 ---
 apiVersion: v1
 kind: policy
