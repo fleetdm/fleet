@@ -3585,7 +3585,6 @@ Returns the information of the specified host.
         "platform": "darwin",
         "response": "fail",
         "critical": false,
-        "fleet_maintained": false
       },
       {
         "id": 3,
@@ -3596,7 +3595,6 @@ Returns the information of the specified host.
         "platform": "",
         "response": "",
         "critical": false,
-        "fleet_maintained": false
       },
       {
         "id": 1,
@@ -3607,7 +3605,6 @@ Returns the information of the specified host.
         "platform": "windows,linux",
         "response": "pass",
         "critical": false,
-        "fleet_maintained": false
       }
     ],
     "software": [
@@ -3855,7 +3852,6 @@ If `hostname` is specified when there is more than one host with the same hostna
         "updated_at": "2022-09-02T18:52:19Z",
         "response": "fail",
         "critical": false,
-        "fleet_maintained": false
       }
     ],
     "software": [
@@ -4424,7 +4420,6 @@ This report includes a subset of host vitals, and simplified policy and vulnerab
         "name": "Google Chrome is up to date",
         "critical": true, // Fleet Premium only
         "resolution": "Follow the Update Google Chrome instructions here: https://support.google.com/chrome/answer/95414?sjid=6534253818042437614-NA",
-        "fleet_maintained": false
       }
     ],
     "vulnerable_software": [
@@ -7766,7 +7761,6 @@ _Available in Fleet Premium_
       "host_count_updated_at": "2023-12-20T15:23:57Z",
       "calendar_events_enabled": true,
       "conditional_access_enabled": true,
-      "fleet_maintained": false,
       "labels_include_any": ["Macs on Sonoma"]
     },
     {
@@ -7788,7 +7782,6 @@ _Available in Fleet Premium_
       "host_count_updated_at": "2023-12-20T15:23:57Z",
       "calendar_events_enabled": false,
       "conditional_access_enabled": false,
-      "fleet_maintained": false,
       "labels_exclude_any": ["Compliance exclusions", "Workstations (Canary)"],
       "run_script": {
         "name": "Encrypt Windows disk with BitLocker",
@@ -7814,7 +7807,6 @@ _Available in Fleet Premium_
       "host_count_updated_at": "2023-12-20T15:23:57Z",
       "calendar_events_enabled": false,
       "conditional_access_enabled": false,
-      "fleet_maintained": false,
       "install_software": {
         "name": "Adobe Acrobat.app",
         "software_title_id": 1234
@@ -8063,7 +8055,6 @@ _Available in Fleet Premium_
     "host_count_updated_at": null,
     "calendar_events_enabled": true,
     "conditional_access_enabled": false,
-    "fleet_maintained": false,
     "labels_include_any": ["Macs on Sonoma"],
     "install_software": {
       "name": "Adobe Acrobat.app",
@@ -8217,7 +8208,6 @@ Only one of `labels_include_any` or `labels_exclude_any` can be specified. If ne
     "failing_host_count": 0,
     "host_count_updated_at": null,
     "calendar_events_enabled": false,
-    "fleet_maintained": false,
     "labels_include_any": ["Macs on Sonoma"],
     "install_software": {
       "name": "Adobe Acrobat.app",
@@ -8442,7 +8432,6 @@ Only one of `labels_include_any` or `labels_exclude_any` can be specified. If ne
     "host_count_updated_at": null,
     "calendar_events_enabled": true,
     "conditional_access_enabled": false,
-    "fleet_maintained": false,
     "install_software": {
       "name": "Adobe Acrobat.app",
       "software_title_id": 1234
@@ -9866,7 +9855,6 @@ Get a list of all software.
           {
             "id": 343,
             "name": "[Install software] Firefox.app",
-            "fleet_maintained": false
           }
         ],
       },
@@ -10218,7 +10206,6 @@ Returns information about the specified software. By default, `versions` are sor
         {
           "id": 343,
           "name": "[Install software] Crowdstrike Agent",
-          "fleet_maintained": false
         }
       ],
       "status": {
@@ -10292,7 +10279,6 @@ Returns information about the specified software. By default, `versions` are sor
         {
           "id": 345,
           "name": "[Install software] Logic Pro",
-          "fleet_maintained": false
         }
       ],
       "status": {
@@ -11051,7 +11037,6 @@ Only one of `labels_include_any` or `labels_exclude_any` can be specified. If ne
       {
         "id": 345,
         "name": "[Install software] Logic Pro",
-        "fleet_maintained": false
       }
     ],
     "status": {
