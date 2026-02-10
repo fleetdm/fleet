@@ -5738,6 +5738,8 @@ func (s *integrationEnterpriseTestSuite) TestGlobalPolicyCreateReadPatch() {
 	}
 	s.DoJSON("POST", "/api/latest/fleet/policies", createPol1Req, http.StatusOK, &createPol1)
 	allEqual(t, createPol1Req, createPol1.Policy, fields...)
+	require.NotNil(t, createPol1.Policy.ConditionalAccessBypassEnabled)
+	assert.True(t, *createPol1.Policy.ConditionalAccessBypassEnabled)
 
 	createPol2 := &globalPolicyResponse{}
 	createPol2Req := &globalPolicyRequest{
@@ -5750,6 +5752,8 @@ func (s *integrationEnterpriseTestSuite) TestGlobalPolicyCreateReadPatch() {
 	}
 	s.DoJSON("POST", "/api/latest/fleet/policies", createPol2Req, http.StatusOK, &createPol2)
 	allEqual(t, createPol2Req, createPol2.Policy, fields...)
+	require.NotNil(t, createPol2.Policy.ConditionalAccessBypassEnabled)
+	assert.True(t, *createPol2.Policy.ConditionalAccessBypassEnabled)
 
 	listPol := &listGlobalPoliciesResponse{}
 	s.DoJSON("GET", "/api/latest/fleet/policies", nil, http.StatusOK, listPol)
@@ -5901,6 +5905,19 @@ func (s *integrationEnterpriseTestSuite) TestTeamPolicyCreateReadPatch() {
 	getPol2 := &getPolicyByIDResponse{}
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/teams/%d/policies/%d", team1.ID, createPol2.Policy.ID), nil, http.StatusOK, getPol2)
 	require.Equal(s.T(), listPol.Policies[1], getPol2.Policy)
+
+	// Verify that patching without ConditionalAccessBypassEnabled preserves existing value.
+	// patchPol1 previously set bypass to true.
+	patchPreserveReq := &modifyTeamPolicyRequest{
+		ModifyPolicyPayload: fleet.ModifyPolicyPayload{
+			Name: ptr.String("preservedBypassName"),
+			// ConditionalAccessBypassEnabled intentionally omitted
+		},
+	}
+	patchPreserve := &modifyTeamPolicyResponse{}
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d/policies/%d", team1.ID, createPol1.Policy.ID), patchPreserveReq, http.StatusOK, patchPreserve)
+	require.NotNil(s.T(), patchPreserve.Policy.ConditionalAccessBypassEnabled)
+	assert.True(s.T(), *patchPreserve.Policy.ConditionalAccessBypassEnabled, "bypass value should be preserved when not provided in PATCH")
 }
 
 func (s *integrationEnterpriseTestSuite) TestPolicySpecConditionalAccessBypassEnabled() {
