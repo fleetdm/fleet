@@ -51,7 +51,7 @@ With Windows MDM turned on, enroll a Windows host to Fleet by installing [Fleet'
 
 When migrating Windows hosts from another MDM, devices may fail to report MDM as "On." You might see enrollment errors (e.g., ⁠400 or ⁠0x8018000a) in [fleetd logs](https://fleetdm.com/guides/enroll-hosts#debugging).
 
-These issues are caused by residual enrollment data, registry conflicts, or third-party management agents from the previous MDM solution. Run the following scripts on affected hosts via **Controls > Scripts** to remediate, then **reboot the device** and trigger a refetch.
+These issues are caused by residual enrollment data, registry conflicts, or third-party management agents from the previous MDM solution. [Run the scripts](https://fleetdm.com/guides/scripts#manually-run-scripts) below on the affected hosts, then **reboot the device** and select **Refetch** on the host details.
 
 **Enrollment flag conflict:** Resets the `MmpcEnrollmentFlag` registry value that can prevent Fleet from reporting MDM status correctly after migration.
 
