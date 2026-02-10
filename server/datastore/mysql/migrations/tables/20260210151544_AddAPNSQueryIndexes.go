@@ -13,8 +13,7 @@ func Up_20260210151544(tx *sql.Tx) error {
 		basicMigrationStep(`CREATE INDEX idx_neq_filter ON nano_enrollment_queue (
     active,
     priority,
-    created_at,
-    id
+    created_at
 );`, "creating index idx_neq_filter on nano_enrollment_queue"),
 		basicMigrationStep(`CREATE INDEX idx_ncr_lookup ON nano_command_results (id, command_uuid, status);`, "creating index idx_ncr_lookup on nano_command_results"),
 	}, tx)
