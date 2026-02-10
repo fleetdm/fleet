@@ -972,8 +972,8 @@ spec:
   #   - PASS: query returns 1 row
   #   - FAIL: query returns 0 rows
   query: |
-    SELECT 1 WHERE 0;
-  purpose: Manual Validation Required
+    SELECT 1 WHERE EXISTS (SELECT 1 FROM mounts WHERE path='/var/log/audit');
+purpose: Manual Validation Required
   tags: compliance, CIS, CIS_Ubuntu_22_04
   contributors: sharon-fdm
 ---
@@ -6192,8 +6192,10 @@ spec:
   #   - PASS: query returns 1 row
   #   - FAIL: query returns 0 rows
   query: |
-    SELECT 1 WHERE 0;
-  purpose: Manual Validation Required
+    SELECT 1
+    WHERE EXISTS (SELECT 1 FROM deb_packages WHERE name='auditd')
+      AND EXISTS (SELECT 1 FROM deb_packages WHERE name='audispd-plugins');
+purpose: Manual Validation Required
   tags: compliance, CIS, CIS_Ubuntu_22_04
   contributors: sharon-fdm
 ---
@@ -6244,8 +6246,20 @@ spec:
   #   - PASS: query returns 1 row
   #   - FAIL: query returns 0 rows
   query: |
-    SELECT 1 WHERE 0;
-  purpose: Manual Validation Required
+    SELECT 1
+    WHERE EXISTS (
+      SELECT 1 FROM file_lines
+      WHERE path='/boot/grub/grub.cfg'
+        AND line LIKE 'linux %'
+        AND line LIKE '%audit=1%'
+    )
+    OR EXISTS (
+      SELECT 1 FROM file_lines
+      WHERE path='/etc/default/grub'
+        AND line NOT LIKE '#%'
+        AND line LIKE 'GRUB_CMDLINE_LINUX%audit=1%'
+    );
+purpose: Manual Validation Required
   tags: compliance, CIS, CIS_Ubuntu_22_04
   contributors: sharon-fdm
 ---
@@ -6268,8 +6282,28 @@ spec:
   #   - PASS: query returns 1 row
   #   - FAIL: query returns 0 rows
   query: |
-    SELECT 1 WHERE 0;
-  purpose: Manual Validation Required
+    WITH lines AS (
+      SELECT line AS l
+      FROM file_lines
+      WHERE path='/boot/grub/grub.cfg'
+        AND l LIKE 'linux %'
+        AND l LIKE '%audit_backlog_limit=%'
+        AND l NOT LIKE '#%'
+    ),
+    vals AS (
+      SELECT
+        CAST(
+          CASE
+            WHEN instr(substr(l, instr(l, 'audit_backlog_limit=') + 20), ' ') > 0
+              THEN substr(substr(l, instr(l, 'audit_backlog_limit=') + 20), 1, instr(substr(l, instr(l, 'audit_backlog_limit=') + 20), ' ') - 1)
+            ELSE substr(l, instr(l, 'audit_backlog_limit=') + 20)
+          END
+        AS INTEGER) AS v
+      FROM lines
+    )
+    SELECT 1
+    WHERE EXISTS (SELECT 1 FROM vals WHERE v >= 8192);
+purpose: Manual Validation Required
   tags: compliance, CIS, CIS_Ubuntu_22_04
   contributors: sharon-fdm
 ---
@@ -6316,8 +6350,19 @@ spec:
   #   - PASS: query returns 1 row
   #   - FAIL: query returns 0 rows
   query: |
-    SELECT 1 WHERE 0;
-  purpose: Manual Validation Required
+    SELECT 1
+    WHERE EXISTS (
+      SELECT 1 FROM file_lines
+      WHERE path='/etc/audit/auditd.conf'
+        AND line NOT LIKE '#%'
+        AND (
+          line LIKE 'max_log_file_action = keep_logs'
+          OR line LIKE 'max_log_file_action=keep_logs'
+          OR line LIKE 'max_log_file_action = keep_logs %'
+          OR line LIKE 'max_log_file_action=keep_logs %'
+        )
+    );
+purpose: Manual Validation Required
   tags: compliance, CIS, CIS_Ubuntu_22_04
   contributors: sharon-fdm
 ---
@@ -6340,8 +6385,23 @@ spec:
   #   - PASS: query returns 1 row
   #   - FAIL: query returns 0 rows
   query: |
-    SELECT 1 WHERE 0;
-  purpose: Manual Validation Required
+    SELECT 1
+    WHERE EXISTS (
+      SELECT 1 FROM file_lines
+      WHERE path='/etc/audit/auditd.conf'
+        AND line NOT LIKE '#%'
+        AND (line LIKE 'disk_full_action = halt%' OR line LIKE 'disk_full_action=halt%' OR
+             line LIKE 'disk_full_action = single%' OR line LIKE 'disk_full_action=single%')
+    )
+    AND EXISTS (
+      SELECT 1 FROM file_lines
+      WHERE path='/etc/audit/auditd.conf'
+        AND line NOT LIKE '#%'
+        AND (line LIKE 'disk_error_action = syslog%' OR line LIKE 'disk_error_action=syslog%' OR
+             line LIKE 'disk_error_action = single%' OR line LIKE 'disk_error_action=single%' OR
+             line LIKE 'disk_error_action = halt%' OR line LIKE 'disk_error_action=halt%')
+    );
+purpose: Manual Validation Required
   tags: compliance, CIS, CIS_Ubuntu_22_04
   contributors: sharon-fdm
 ---
@@ -6364,8 +6424,24 @@ spec:
   #   - PASS: query returns 1 row
   #   - FAIL: query returns 0 rows
   query: |
-    SELECT 1 WHERE 0;
-  purpose: Manual Validation Required
+    SELECT 1
+    WHERE EXISTS (
+      SELECT 1 FROM file_lines
+      WHERE path='/etc/audit/auditd.conf'
+        AND line NOT LIKE '#%'
+        AND (line LIKE 'space_left_action = email%' OR line LIKE 'space_left_action=email%' OR
+             line LIKE 'space_left_action = exec%' OR line LIKE 'space_left_action=exec%' OR
+             line LIKE 'space_left_action = single%' OR line LIKE 'space_left_action=single%' OR
+             line LIKE 'space_left_action = halt%' OR line LIKE 'space_left_action=halt%')
+    )
+    AND EXISTS (
+      SELECT 1 FROM file_lines
+      WHERE path='/etc/audit/auditd.conf'
+        AND line NOT LIKE '#%'
+        AND (line LIKE 'admin_space_left_action = single%' OR line LIKE 'admin_space_left_action=single%' OR
+             line LIKE 'admin_space_left_action = halt%' OR line LIKE 'admin_space_left_action=halt%')
+    );
+purpose: Manual Validation Required
   tags: compliance, CIS, CIS_Ubuntu_22_04
   contributors: sharon-fdm
 ---
@@ -6820,8 +6896,14 @@ spec:
   #   - PASS: query returns 1 row
   #   - FAIL: query returns 0 rows
   query: |
-    SELECT 1 WHERE 0;
-  purpose: Manual Validation Required
+    SELECT 1
+    WHERE EXISTS (
+      SELECT 1 FROM file_lines
+      WHERE path LIKE '/etc/audit/rules.d/%.rules'
+        AND line NOT LIKE '#%'
+        AND (line = '-e 2' OR line LIKE '-e 2 %' OR line LIKE '-e 2	%')
+    );
+purpose: Manual Validation Required
   tags: compliance, CIS, CIS_Ubuntu_22_04
   contributors: sharon-fdm
 ---
