@@ -3,8 +3,21 @@
 export GO111MODULE=on
 
 PATH := $(shell npm bin):$(PATH)
-VERSION = $(shell git describe --tags --always --dirty)
 BRANCH = $(shell git rev-parse --abbrev-ref HEAD)
+
+# If VERSION is not explicitly set, check for version patterns in branch name
+ifndef VERSION
+	# 1. rc-minor-fleet-vX.Y.Z or rc-patch-fleet-vX.Y.Z → X.Y.Z-rc.YYMMDDhhmm
+	VERSION := $(shell echo "$(BRANCH)" | sed -E -n "s/^rc-(minor|patch)-fleet-v([0-9]+\.[0-9]+\.[0-9]+).*/\2-rc.$$(date -u +'%y%m%d%H%M')/p")
+	ifeq ($(VERSION),)
+		# 2. X.Y.Z-anything or vX.Y.Z-anything → X.Y.Z+YYMMDDhhmm
+		VERSION := $(shell echo "$(BRANCH)" | sed -E -n "s/^v?([0-9]+\.[0-9]+\.[0-9]+)[-+].*/\1+$$(date -u +'%y%m%d%H%M')/p")
+	endif
+	# 3. Otherwise fall back to git describe
+	ifeq ($(VERSION),)
+		VERSION := $(shell git describe --tags --always --dirty)
+	endif
+endif
 REVISION = $(shell git rev-parse HEAD)
 REVSHORT = $(shell git rev-parse --short HEAD)
 USER = $(shell whoami)

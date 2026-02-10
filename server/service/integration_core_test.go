@@ -3042,18 +3042,22 @@ func (s *integrationTestSuite) TestTeamPoliciesProprietary() {
 	tpCountResp := countTeamPoliciesResponse{}
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/teams/%d/policies/count", team1.ID), nil, http.StatusOK, &tpCountResp)
 	assert.Equal(t, 1, tpCountResp.Count)
+	assert.Equal(t, 0, tpCountResp.InheritedPolicyCount)
 
 	tpCountResp = countTeamPoliciesResponse{}
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/teams/%d/policies/count", team1.ID), nil, http.StatusOK, &tpCountResp, "query", tpNameNew)
 	assert.Equal(t, 1, tpCountResp.Count)
+	assert.Equal(t, 0, tpCountResp.InheritedPolicyCount)
 
 	tpCountResp = countTeamPoliciesResponse{}
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/teams/%d/policies/count", team1.ID), nil, http.StatusOK, &tpCountResp, "query", " "+tpNameNew+" ")
 	assert.Equal(t, 1, tpCountResp.Count)
+	assert.Equal(t, 0, tpCountResp.InheritedPolicyCount)
 
 	tpCountResp = countTeamPoliciesResponse{}
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/teams/%d/policies/count", team1.ID), nil, http.StatusOK, &tpCountResp, "query", " nomatch")
 	assert.Equal(t, 0, tpCountResp.Count)
+	assert.Equal(t, 0, tpCountResp.InheritedPolicyCount)
 
 	listHostsURL := fmt.Sprintf("/api/latest/fleet/hosts?policy_id=%d", policiesResponse.Policies[0].ID)
 	listHostsResp := listHostsResponse{}
@@ -3650,7 +3654,8 @@ func (s *integrationTestSuite) TestScheduledQueries() {
 	var listQryResp listQueriesResponse
 	s.DoJSON("GET", "/api/latest/fleet/queries", nil, http.StatusOK, &listQryResp)
 	assert.Len(t, listQryResp.Queries, 0)
-	assert.Equal(t, listQryResp.Count, 0)
+	assert.Equal(t, 0, listQryResp.Count)
+	assert.Equal(t, 0, listQryResp.InheritedQueryCount)
 
 	// create a query
 	var createQueryResp createQueryResponse
@@ -3665,6 +3670,8 @@ func (s *integrationTestSuite) TestScheduledQueries() {
 	s.DoJSON("GET", "/api/latest/fleet/queries", nil, http.StatusOK, &listQryResp)
 	require.Len(t, listQryResp.Queries, 1)
 	assert.Equal(t, query.Name, listQryResp.Queries[0].Name)
+	assert.Equal(t, 1, listQryResp.Count)
+	assert.Equal(t, 0, listQryResp.InheritedQueryCount)
 
 	// listing with matching name returns that query
 	s.DoJSON("GET", "/api/latest/fleet/queries", nil, http.StatusOK, &listQryResp, "query", query.Name)
@@ -3688,7 +3695,8 @@ func (s *integrationTestSuite) TestScheduledQueries() {
 	// next page returns nothing, count and meta are correct
 	s.DoJSON("GET", "/api/latest/fleet/queries", nil, http.StatusOK, &listQryResp, "per_page", "2", "page", "1")
 	require.Len(t, listQryResp.Queries, 0)
-	require.Equal(t, listQryResp.Count, 1)
+	require.Equal(t, 1, listQryResp.Count)
+	require.Equal(t, 0, listQryResp.InheritedQueryCount)
 	require.True(t, listQryResp.Meta.HasPreviousResults)
 	require.False(t, listQryResp.Meta.HasNextResults)
 

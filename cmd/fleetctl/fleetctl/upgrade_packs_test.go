@@ -248,8 +248,8 @@ func TestFleetctlUpgradePacks_EmptyPacks(t *testing.T) {
 		return fleet.TargetMetrics{}, nil
 	}
 
-	ds.ListQueriesFunc = func(ctx context.Context, opt fleet.ListQueryOptions) ([]*fleet.Query, int, *fleet.PaginationMetadata, error) {
-		return nil, 0, nil, nil
+	ds.ListQueriesFunc = func(ctx context.Context, opt fleet.ListQueryOptions) ([]*fleet.Query, int, int, *fleet.PaginationMetadata, error) {
+		return nil, 0, 0, nil, nil
 	}
 
 	tempDir := t.TempDir()
@@ -315,12 +315,12 @@ func TestFleetctlUpgradePacks_NonEmpty(t *testing.T) {
 		return fleet.TargetMetrics{}, nil
 	}
 
-	ds.ListQueriesFunc = func(ctx context.Context, opt fleet.ListQueryOptions) ([]*fleet.Query, int, *fleet.PaginationMetadata, error) {
+	ds.ListQueriesFunc = func(ctx context.Context, opt fleet.ListQueryOptions) ([]*fleet.Query, int, int, *fleet.PaginationMetadata, error) {
 		return []*fleet.Query{
 			{Name: "q1", Query: "select 1"},
 			{Name: "q2", Query: "select 2"},
 			{Name: "q3", Query: "select 3"},
-		}, 3, nil, nil
+		}, 3, 0, nil, nil
 	}
 
 	const expected = `
