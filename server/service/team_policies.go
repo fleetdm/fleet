@@ -307,41 +307,54 @@ type countTeamPoliciesRequest struct {
 }
 
 type countTeamPoliciesResponse struct {
-	Count int   `json:"count"`
-	Err   error `json:"error,omitempty"`
+	Count                int   `json:"count"`
+	InheritedPolicyCount int   `json:"inherited_policy_count"`
+	Err                  error `json:"error,omitempty"`
 }
 
 func (r countTeamPoliciesResponse) Error() error { return r.Err }
 
 func countTeamPoliciesEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*countTeamPoliciesRequest)
-	resp, err := svc.CountTeamPolicies(ctx, req.TeamID, req.ListOptions.MatchQuery, req.MergeInherited)
+	count, inheritedCount, err := svc.CountTeamPolicies(ctx, req.TeamID, req.ListOptions.MatchQuery, req.MergeInherited)
 	if err != nil {
 		return countTeamPoliciesResponse{Err: err}, nil
 	}
-	return countTeamPoliciesResponse{Count: resp}, nil
+	return countTeamPoliciesResponse{Count: count, InheritedPolicyCount: inheritedCount}, nil
 }
 
-func (svc *Service) CountTeamPolicies(ctx context.Context, teamID uint, matchQuery string, mergeInherited bool) (int, error) {
+func (svc *Service) CountTeamPolicies(ctx context.Context, teamID uint, matchQuery string, mergeInherited bool) (int, int, error) {
 	if err := svc.authz.Authorize(ctx, &fleet.Policy{
 		PolicyData: fleet.PolicyData{
 			TeamID: ptr.Uint(teamID),
 		},
 	}, fleet.ActionRead); err != nil {
-		return 0, err
+		return 0, 0, err
 	}
 
 	if teamID > 0 {
 		if _, err := svc.ds.TeamLite(ctx, teamID); err != nil { // TODO see if we can use TeamExists here instead
-			return 0, ctxerr.Wrapf(ctx, err, "loading team %d", teamID)
+			return 0, 0, ctxerr.Wrapf(ctx, err, "loading team %d", teamID)
 		}
 	}
 
 	if mergeInherited {
-		return svc.ds.CountMergedTeamPolicies(ctx, teamID, matchQuery)
+		count, err := svc.ds.CountMergedTeamPolicies(ctx, teamID, matchQuery)
+		if err != nil {
+			return 0, 0, err
+		}
+		inheritedCount, err := svc.ds.CountPolicies(ctx, nil, matchQuery)
+		if err != nil {
+			return 0, 0, err
+		}
+		return count, inheritedCount, nil
 	}
 
-	return svc.ds.CountPolicies(ctx, &teamID, matchQuery)
+	count, err := svc.ds.CountPolicies(ctx, &teamID, matchQuery)
+	if err != nil {
+		return 0, 0, err
+	}
+	return count, 0, nil
 }
 
 /////////////////////////////////////////////////////////////////////////////////
