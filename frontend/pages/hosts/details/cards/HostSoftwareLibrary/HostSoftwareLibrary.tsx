@@ -458,6 +458,10 @@ const HostSoftwareLibrary = ({
       permissions.isTeamTechnician(currentUser, hostTeamId)
   );
 
+  const canAddSoftware =
+    (isGlobalAdmin || isGlobalMaintainer || isTeamAdmin || isTeamMaintainer) &&
+    !isAndroidHost;
+
   // 4.77 Currently Android apps can only be installed via self-service by end user
   const userHasSWWritePermission = hasSWWriteRole && !isAndroidHost;
 
@@ -602,7 +606,7 @@ const HostSoftwareLibrary = ({
     <div className={baseClass}>
       <div className={`${baseClass}__header`}>
         <CardHeader subheader="Software available to be installed on this host" />
-        {userHasSWWritePermission && (
+        {canAddSoftware && (
           <Button variant="inverse" onClick={onAddSoftware}>
             <Icon name="plus" />
             <span>Add software</span>
