@@ -182,6 +182,14 @@ policies:
   install_software:
     package_path: ./linux-firefox.deb.package.yml
     # app_store_id: "1487937127" (for App Store apps)
+- name: Zoom up to date
+  platform: darwin
+  description: This policy checks that the newest version of the Zoom Fleet-maintained app is installed
+  resolution: Install or update the Zoom app.
+  patch_software:
+    fleet_maintained_app_slug: zoom/darwin
+  install_software:
+    fleet_maintained_app_slug: zoom/darwin
 ```
 
 `default.yml` (for policies that neither install software nor run scripts), `teams/team-name.yml`, or `teams/no-team.yml`
