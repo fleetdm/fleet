@@ -9855,7 +9855,6 @@ Get a list of all software.
           {
             "id": 343,
             "name": "[Install software] Firefox.app",
-            "fleet_maintained": false
           }
         ],
       },
@@ -10207,7 +10206,6 @@ Returns information about the specified software. By default, `versions` are sor
         {
           "id": 343,
           "name": "[Install software] Crowdstrike Agent",
-          "fleet_maintained": false
         }
       ],
       "status": {
@@ -10281,7 +10279,6 @@ Returns information about the specified software. By default, `versions` are sor
         {
           "id": 345,
           "name": "[Install software] Logic Pro",
-          "fleet_maintained": false
         }
       ],
       "status": {
@@ -11040,7 +11037,6 @@ Only one of `labels_include_any` or `labels_exclude_any` can be specified. If ne
       {
         "id": 345,
         "name": "[Install software] Logic Pro",
-        "fleet_maintained": false
       }
     ],
     "status": {
