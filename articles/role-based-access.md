@@ -91,7 +91,6 @@ GitOps is an API-only and write-only role that can be used on CI/CD pipelines.
 | Connect Android Enterprise                                                                                               |          |            |            | ✅    |         |
 | View disk encryption key for macOS, Windows, and Linux hosts                                                                                       | ✅       | ✅         | ✅         | ✅    |         |
 | View Recovery Lock password for macOS hosts                                                                                                        | ✅       | ✅         | ✅         | ✅    |         |
-| Rotate Recovery Lock password for macOS hosts                                                                                                      |          |            | ✅         | ✅    |         |
 | Edit OS updates for macOS, Windows, iOS, and iPadOS hosts                                                                                                |          |            |           | ✅    | ✅      |
 | Create, edit, resend and delete configuration profiles for Apple (macOS/iOS/iPadOS), Windows, and Android hosts                            |          |            | ✅         | ✅    | ✅      |
 | Execute MDM commands on macOS and Windows hosts\**                                                                                         |          |            | ✅         | ✅    | ✅      |
@@ -171,7 +170,6 @@ Users with access to multiple teams can be assigned different roles for each tea
 | Initiate [file carving](https://fleetdm.com/docs/using-fleet/rest-api#file-carving)                                              |               |                | ✅              | ✅         |             |
 | View disk encryption key for macOS hosts                                                                                         | ✅            | ✅             | ✅              | ✅         |             |
 | View Recovery Lock password for macOS hosts                                                                                      | ✅            | ✅             | ✅              | ✅         |             |
-| Rotate Recovery Lock password for macOS hosts                                                                                    |               |                | ✅              | ✅         |             |
 | Edit OS updates for macOS, Windows, iOS, and iPadOS hosts                                                                                                |          |            |           | ✅    | ✅      |
 | Create, edit, resend and delete configuration profiles for Apple (macOS/iOS/iPadOS), Windows, and Android hosts                  |               |                | ✅              | ✅         | ✅          |
 | Execute MDM commands on macOS and Windows hosts*                                                                                 |               |                | ✅              | ✅         |             |
