@@ -435,6 +435,9 @@ Any fleetie can follow the process below to add a priority label to an issue.
 
 Learn how to contribute to the handbook, documentation, and articles at Fleet on the ["Writing at Fleet" handbook page](https://fleetdm.com/handbook/company/writing).
 
+## Social media 
+When posting about a personal or philosophical topic that potential Fleet customers might read, consider adding a disclaimer that these are your views and don’t necessarily represent your company or peers.
+
 
 ## Feedback
 
