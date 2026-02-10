@@ -65,3 +65,11 @@ Create the name of the service account to use
 {{- default "default" .Values.serviceAccount.name }}
 {{- end }}
 {{- end }}
+
+{{- define "fleet.additionalCAs.enabled" -}}
+{{- if and .Values.fleet.additionalCAs.enabled (or .Values.fleet.additionalCAs.configMaps .Values.fleet.additionalCAs.secrets) -}}
+true
+{{- else -}}
+false
+{{- end -}}
+{{- end -}}
