@@ -67,24 +67,17 @@ export const useSoftwareInstaller = (
       "fleet_maintained_app_id" in softwareInstaller &&
       !!softwareInstaller.fleet_maintained_app_id;
 
-    // TODO remove when FMA versions are added to API
-    const fakeVersions = [
-      { id: 1, version: softwareInstaller.version },
-      { id: 2, version: "4.14.0" },
-    ];
-
     const isLatestFmaVersion =
       isFleetMaintainedApp &&
-      // "fleet_maintained_versions" in softwareInstaller &&
-      // !!softwareInstaller.fleet_maintained_versions &&
-      // softwareInstaller.version ===
-      //   softwareInstaller.fleet_maintained_versions[0].version;
-      softwareInstaller.version === fakeVersions[0].version;
+      "fleet_maintained_versions" in softwareInstaller &&
+      !!softwareInstaller.fleet_maintained_versions &&
+      softwareInstaller.version ===
+        softwareInstaller.fleet_maintained_versions[0].version;
 
     const fmaVersions =
       isFleetMaintainedApp && "fleet_maintained_versions" in softwareInstaller
         ? softwareInstaller.fleet_maintained_versions
-        : fakeVersions;
+        : [];
 
     const isCustomPackage =
       installerType === "package" && !isFleetMaintainedApp;

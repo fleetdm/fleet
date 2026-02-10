@@ -24,33 +24,37 @@ const disableAllUIOptions = (
 
 interface IPackageVersionSelectorProps {
   className?: string;
-  versions: CustomOptionType[];
+  versionOptions: CustomOptionType[];
   selectedVersion: string;
   onSelectVersion: (version: string) => void;
 }
 
 const PackageVersionSelector = ({
   className,
-  versions,
+  versionOptions,
   selectedVersion,
   onSelectVersion,
 }: IPackageVersionSelectorProps) => {
+  if (versionOptions.length === 0) {
+    return null;
+  }
+
   const renderDropdown = () => (
     <DropdownWrapper
       name="package-version-selector"
       className={classnames(baseClass, className)}
       value={selectedVersion as string}
       onChange={(version) => onSelectVersion(version?.value || "")}
-      options={disableAllUIOptions(versions, selectedVersion)} // Replace with "versions" when we want to enable selecting versions in the UI
+      options={disableAllUIOptions(versionOptions, selectedVersion)} // Replace with "versions" when we want to enable selecting versions in the UI
       placeholder="Select a version"
-      isDisabled={selectedVersion === versions[0].value}
+      isDisabled={selectedVersion === versionOptions[0].value}
     />
   );
 
   return (
     <TooltipWrapper
       tipContent={
-        selectedVersion === versions[0].value ? (
+        selectedVersion === versionOptions[0].value ? (
           <>
             Currently, you can only use GitOps <br />
             to roll back (UI coming soon).

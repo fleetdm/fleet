@@ -9,7 +9,7 @@ describe("PackageVersionSelector component", () => {
     render(
       <PackageVersionSelector
         selectedVersion="1.0.0"
-        versions={[
+        versionOptions={[
           { value: "1.0.0", label: "1.0.0" },
           { value: "2.0.0", label: "2.0.0" },
         ]}

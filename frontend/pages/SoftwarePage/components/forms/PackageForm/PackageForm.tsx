@@ -12,7 +12,7 @@ import getDefaultInstallScript from "utilities/software_install_scripts";
 import getDefaultUninstallScript from "utilities/software_uninstall_scripts";
 import { ILabelSummary } from "interfaces/label";
 
-import { SoftwareCategory } from "interfaces/software";
+import { ISoftwareVersion, SoftwareCategory } from "interfaces/software";
 
 import Button from "components/buttons/Button";
 import TooltipWrapper from "components/TooltipWrapper";
@@ -120,8 +120,7 @@ const PackageForm = ({
 
   const initialFormData: IPackageFormData = {
     software: defaultSoftware || null,
-    version: "4.14.0",
-    // version: defaultSoftware?.version || "",
+    version: defaultSoftware?.version || "",
     installScript: defaultInstallScript || "",
     preInstallQuery: defaultPreInstallQuery || "",
     postInstallScript: defaultPostInstallScript || "",
@@ -370,12 +369,8 @@ const PackageForm = ({
       return null;
     }
 
-    const fakeVersions = [
-      { id: 1, version: defaultSoftware.version },
-      { id: 2, version: "4.14.0" },
-    ];
-
-    const versions = fakeVersions.map((v) => {
+    const fmaVersions = defaultSoftware.fleet_maintained_versions || [];
+    const versionOptions = fmaVersions.map((v: ISoftwareVersion) => {
       return {
         label: `${v.version}${v.id === 1 ? " (latest)" : ""}`,
         value: v.version,
@@ -384,8 +379,8 @@ const PackageForm = ({
 
     return (
       <PackageVersionSelector
-        selectedVersion={formData.version || versions[1].value}
-        versions={versions}
+        selectedVersion={formData.version || versionOptions[1].value}
+        versionOptions={versionOptions}
         onSelectVersion={onSelectVersion}
         className={`${baseClass}__version-selector`}
       />
