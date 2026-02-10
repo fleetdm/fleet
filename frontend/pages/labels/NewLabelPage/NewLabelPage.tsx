@@ -2,7 +2,7 @@ import React, { useContext, useEffect, useState } from "react";
 
 import { useQuery } from "react-query";
 import { useDebouncedCallback } from "use-debounce";
-import { IAceEditor } from "react-ace/lib/types";
+import { Ace } from "ace-builds";
 import { Row } from "react-table";
 
 import PATHS from "router/paths";
@@ -353,11 +353,11 @@ const NewLabelPage = ({
   };
 
   // form rendering helpers
-  const onLoadSQLEditor = (editor: IAceEditor) => {
+  const onLoadSQLEditor = (editor: Ace.Editor) => {
     editor.setOptions({
       enableLinking: true,
       enableMultiselect: false, // Disables command + click creating multiple cursors
-    });
+    } as any);
 
     // @ts-expect-error
     // the string "linkClick" is not officially in the lib but we need it
