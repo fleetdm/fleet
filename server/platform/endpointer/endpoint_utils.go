@@ -592,10 +592,19 @@ func MakeDecoder(
 			// Log deprecation warnings when deprecated field names are used.
 			if rewriter != nil {
 				if deprecated := rewriter.UsedDeprecatedKeys(); len(deprecated) > 0 {
+					newNames := make([]string, len(deprecated))
+					for i, old := range deprecated {
+						for _, rule := range aliasRules {
+							if rule.OldKey == old {
+								newNames[i] = rule.NewKey
+								break
+							}
+						}
+					}
 					logging.WithLevel(ctx, level.Warn)
 					logging.WithExtras(ctx,
 						"deprecated_fields", fmt.Sprintf("%v", deprecated),
-						"deprecation_warning", "use the updated field names instead",
+						"deprecation_warning", fmt.Sprintf("use the updated field names (%s) instead", newNames),
 					)
 				}
 			}
