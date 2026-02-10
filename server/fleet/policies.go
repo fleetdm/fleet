@@ -247,7 +247,7 @@ type PolicyData struct {
 	AuthorEmail string `json:"author_email" db:"author_email"`
 	// TeamID is the ID of the team the policy belongs to.
 	// If TeamID is nil, then this is a global policy.
-	TeamID *uint `json:"team_id" db:"team_id"`
+	TeamID *uint `json:"fleet_id,renamed" db:"team_id"`
 	// Resolution describes how to solve a failing policy.
 	Resolution *string `json:"resolution,omitempty" db:"resolution"`
 	// Platform is a comma-separated string to indicate the target platforms.
@@ -368,7 +368,7 @@ type PolicySpec struct {
 	// Resolution describes how to solve a failing policy.
 	Resolution string `json:"resolution,omitempty"`
 	// Team is the name of the team.
-	Team string `json:"team,omitempty"`
+	Team string `json:"fleet,omitempty,renamed"`
 	// Platform is a comma-separated string to indicate the target platforms.
 	//
 	// Empty string targets all platforms.

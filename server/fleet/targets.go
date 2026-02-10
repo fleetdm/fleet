@@ -62,7 +62,7 @@ type HostTargets struct {
 	// LabelIDs is the IDs of labels to be targeted.
 	LabelIDs []uint `json:"labels"`
 	// TeamIDs is the IDs of teams to be targeted.
-	TeamIDs []uint `json:"teams"`
+	TeamIDs []uint `json:"fleets,renamed"`
 }
 
 type TargetType int

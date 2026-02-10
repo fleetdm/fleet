@@ -1103,7 +1103,7 @@ func (svc *Service) ListMDMCommands(ctx context.Context, opts *fleet.MDMCommandL
 ////////////////////////////////////////////////////////////////////////////////
 
 type getMDMDiskEncryptionSummaryRequest struct {
-	TeamID *uint `query:"team_id,optional"`
+	TeamID *uint `query:"fleet_id,optional,renamed"`
 }
 
 type getMDMDiskEncryptionSummaryResponse struct {
@@ -1140,7 +1140,7 @@ func (svc *Service) GetMDMDiskEncryptionSummary(ctx context.Context, teamID *uin
 ////////////////////////////////////////////////////////////////////////////////
 
 type getMDMProfilesSummaryRequest struct {
-	TeamID *uint `query:"team_id,optional"`
+	TeamID *uint `query:"fleet_id,optional,renamed"`
 }
 
 type getMDMProfilesSummaryResponse struct {
@@ -2703,7 +2703,7 @@ func validateProfiles(profiles map[int]fleet.MDMProfileBatchPayload) error {
 ////////////////////////////////////////////////////////////////////////////////
 
 type listMDMConfigProfilesRequest struct {
-	TeamID      *uint             `query:"team_id,optional"`
+	TeamID      *uint             `query:"fleet_id,optional,renamed"`
 	ListOptions fleet.ListOptions `url:"list_options"`
 }
 
@@ -2761,7 +2761,7 @@ func (svc *Service) ListMDMConfigProfiles(ctx context.Context, teamID *uint, opt
 ////////////////////////////////////////////////////////////////////////////////
 
 type updateDiskEncryptionRequest struct {
-	TeamID               *uint `json:"team_id"`
+	TeamID               *uint `json:"fleet_id,renamed"`
 	EnableDiskEncryption bool  `json:"enable_disk_encryption"`
 	RequireBitLockerPIN  bool  `json:"windows_require_bitlocker_pin"`
 }

@@ -10,10 +10,10 @@ type UsersRoleSpec struct {
 
 type UserRoleSpec struct {
 	GlobalRole *string        `json:"global_role"`
-	Teams      []TeamRoleSpec `json:"teams"`
+	Teams      []TeamRoleSpec `json:"fleets,renamed"`
 }
 
 type TeamRoleSpec struct {
-	Name string `json:"team"`
+	Name string `json:"fleet,renamed"`
 	Role string `json:"role"`
 }

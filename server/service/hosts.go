@@ -911,7 +911,7 @@ func (svc *Service) GetHostLite(ctx context.Context, id uint) (*fleet.Host, erro
 ////////////////////////////////////////////////////////////////////////////////
 
 type getHostSummaryRequest struct {
-	TeamID       *uint   `query:"team_id,optional"`
+	TeamID       *uint   `query:"fleet_id,optional,renamed"`
 	Platform     *string `query:"platform,optional"`
 	LowDiskSpace *int    `query:"low_disk_space,optional"`
 }
@@ -1146,7 +1146,7 @@ func (svc *Service) CleanupExpiredHosts(ctx context.Context) ([]fleet.DeletedHos
 ////////////////////////////////////////////////////////////////////////////////
 
 type addHostsToTeamRequest struct {
-	TeamID  *uint  `json:"team_id"`
+	TeamID  *uint  `json:"fleet_id,renamed"`
 	HostIDs []uint `json:"hosts"`
 }
 
@@ -1282,7 +1282,7 @@ func (svc *Service) createTransferredHostsActivity(ctx context.Context, teamID *
 ////////////////////////////////////////////////////////////////////////////////
 
 type addHostsToTeamByFilterRequest struct {
-	TeamID  *uint                   `json:"team_id"`
+	TeamID  *uint                   `json:"fleet_id,renamed"`
 	Filters *map[string]interface{} `json:"filters"`
 }
 
@@ -2172,7 +2172,7 @@ type getHostMDMSummaryResponse struct {
 }
 
 type getHostMDMSummaryRequest struct {
-	TeamID   *uint  `query:"team_id,optional"`
+	TeamID   *uint  `query:"fleet_id,optional,renamed"`
 	Platform string `query:"platform,optional"`
 }
 
@@ -2277,7 +2277,7 @@ func (svc *Service) MacadminsData(ctx context.Context, id uint) (*fleet.Macadmin
 ////////////////////////////////////////////////////////////////////////////////
 
 type getAggregatedMacadminsDataRequest struct {
-	TeamID *uint `query:"team_id,optional"`
+	TeamID *uint `query:"fleet_id,optional,renamed"`
 }
 
 type getAggregatedMacadminsDataResponse struct {
@@ -2568,7 +2568,7 @@ func (svc *Service) ListLabelsForHost(ctx context.Context, hostID uint) ([]*flee
 
 type osVersionsRequest struct {
 	fleet.ListOptions
-	TeamID             *uint   `query:"team_id,optional"`
+	TeamID             *uint   `query:"fleet_id,optional,renamed"`
 	Platform           *string `query:"platform,optional"`
 	Name               *string `query:"os_name,optional"`
 	Version            *string `query:"os_version,optional"`
@@ -2761,7 +2761,7 @@ func paginateOSVersions(slice []fleet.OSVersion, opts fleet.ListOptions) ([]flee
 
 type getOSVersionRequest struct {
 	ID                 uint  `url:"id"`
-	TeamID             *uint `query:"team_id,optional"`
+	TeamID             *uint `query:"fleet_id,optional,renamed"`
 	MaxVulnerabilities *int  `query:"max_vulnerabilities,optional"`
 }
 

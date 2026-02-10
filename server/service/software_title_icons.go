@@ -20,7 +20,7 @@ import (
 
 type getSoftwareTitleIconsRequest struct {
 	TitleID uint  `url:"title_id"`
-	TeamID  *uint `query:"team_id"`
+	TeamID  *uint `query:"fleet_id,renamed"`
 }
 type getSoftwareTitleIconsResponse struct {
 	Err         error  `json:"error,omitempty"`
@@ -98,7 +98,7 @@ func (svc *Service) GetSoftwareTitleIcon(ctx context.Context, teamID uint, title
 
 type putSoftwareTitleIconRequest struct {
 	TitleID    uint  `url:"title_id"`
-	TeamID     *uint `query:"team_id"`
+	TeamID     *uint `query:"fleet_id,renamed"`
 	File       *multipart.FileHeader
 	HashSHA256 *string
 	Filename   *string
@@ -278,7 +278,7 @@ func ValidateIcon(file io.ReadSeeker) error {
 
 type deleteSoftwareTitleIconRequest struct {
 	TitleID uint  `url:"title_id"`
-	TeamID  *uint `query:"team_id"`
+	TeamID  *uint `query:"fleet_id,renamed"`
 }
 
 type deleteSoftwareTitleIconResponse struct {

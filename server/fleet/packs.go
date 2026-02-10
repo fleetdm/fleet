@@ -39,9 +39,9 @@ type Pack struct {
 	LabelIDs []uint   `json:"label_ids"`
 	Hosts    []Target `json:"hosts"`
 	HostIDs  []uint   `json:"host_ids"`
-	Teams    []Target `json:"teams"`
+	Teams    []Target `json:"fleets,renamed"`
 	// TeamIDs holds the ID of the teams this pack should target.
-	TeamIDs []uint `json:"team_ids"`
+	TeamIDs []uint `json:"fleet_ids,renamed"`
 
 	/////////////////////////////////////////////////////////////////
 	// WARNING: If you add to this struct make sure it's taken into
@@ -157,7 +157,7 @@ type PackPayload struct {
 	Disabled    *bool   `json:"disabled"`
 	HostIDs     *[]uint `json:"host_ids"`
 	LabelIDs    *[]uint `json:"label_ids"`
-	TeamIDs     *[]uint `json:"team_ids"`
+	TeamIDs     *[]uint `json:"fleet_ids,renamed"`
 }
 
 var (
@@ -200,7 +200,7 @@ func (p *PackSpec) Verify() error {
 
 type PackSpecTargets struct {
 	Labels []string `json:"labels"`
-	Teams  []string `json:"teams"`
+	Teams  []string `json:"fleets,renamed"`
 }
 
 type PackSpecQuery struct {

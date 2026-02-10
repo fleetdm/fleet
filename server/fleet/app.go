@@ -167,16 +167,16 @@ type VulnerabilitySettings struct {
 // hosts when they're ingested during the ABM sync.
 type MDMAppleABMAssignmentInfo struct {
 	OrganizationName string `json:"organization_name"`
-	MacOSTeam        string `json:"macos_team"`
-	IOSTeam          string `json:"ios_team"`
-	IpadOSTeam       string `json:"ipados_team"`
+	MacOSTeam        string `json:"macos_fleet,renamed"`
+	IOSTeam          string `json:"ios_fleet,renamed"`
+	IpadOSTeam       string `json:"ipados_fleet,renamed"`
 }
 
 // MDMAppleVolumePurchasingProgramInfo represents an user definition of the association
 // between a VPP token (via location) and the team associations.
 type MDMAppleVolumePurchasingProgramInfo struct {
 	Location string   `json:"location"`
-	Teams    []string `json:"teams"`
+	Teams    []string `json:"fleets,renamed"`
 }
 
 // MDM is part of AppConfig and defines the mdm settings.
@@ -188,7 +188,7 @@ type MDM struct {
 	AppleServerURL string `json:"apple_server_url"`
 
 	// Deprecated: use AppleBussinessManager instead
-	DeprecatedAppleBMDefaultTeam string `json:"apple_bm_default_team,omitempty"`
+	DeprecatedAppleBMDefaultTeam string `json:"apple_bm_default_fleet,omitempty,renamed"`
 
 	// AppleBusinessManager defines the associations between ABM tokens
 	// and the teams used to assign hosts when they're ingested from ABM.
@@ -1410,7 +1410,7 @@ type EnrollSecret struct {
 	CreatedAt time.Time `json:"created_at" db:"created_at"`
 	// TeamID is the ID for the associated team. If no ID is set, then this is a
 	// global enroll secret.
-	TeamID *uint `json:"team_id,omitempty" db:"team_id"`
+	TeamID *uint `json:"fleet_id,omitempty,renamed" db:"team_id"`
 }
 
 func (e *EnrollSecret) GetTeamID() *uint {

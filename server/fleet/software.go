@@ -324,7 +324,7 @@ type SoftwareAutoUpdateConfig struct {
 
 type SoftwareAutoUpdateSchedule struct {
 	TitleID uint `json:"title_id" db:"title_id"`
-	TeamID  uint `json:"team_id" db:"team_id"`
+	TeamID  uint `json:"fleet_id,renamed" db:"team_id"`
 	SoftwareAutoUpdateConfig
 }
 
@@ -502,7 +502,7 @@ type SoftwareTitleListOptions struct {
 	// ListOptions cannot be embedded in order to unmarshall with validation.
 	ListOptions ListOptions `url:"list_options"`
 
-	TeamID              *uint   `query:"team_id,optional"`
+	TeamID              *uint   `query:"fleet_id,optional,renamed"`
 	VulnerableOnly      bool    `query:"vulnerable,optional"`
 	AvailableForInstall bool    `query:"available_for_install,optional"`
 	SelfServiceOnly     bool    `query:"self_service,optional"`
@@ -554,7 +554,7 @@ type HostSoftwareTitleListOptions struct {
 // AuthzSoftwareInventory is used for access controls on software inventory.
 type AuthzSoftwareInventory struct {
 	// TeamID is the ID of the team. A value of nil means global scope.
-	TeamID *uint `json:"team_id"`
+	TeamID *uint `json:"fleet_id,renamed"`
 }
 
 // AuthzType implements authz.AuthzTyper.
@@ -613,7 +613,7 @@ func (hse *HostSoftwareEntry) UnmarshalJSON(b []byte) error {
 
 type PathSignatureInformation struct {
 	InstalledPath  string `json:"installed_path"`
-	TeamIdentifier string `json:"team_identifier"`
+	TeamIdentifier string `json:"fleet_identifier,renamed"`
 	// json struct tag difference here is for backwards compatibility. API field was initially "hash_sha256", though it is specifically the CD hash (sha256).
 	CDHashSHA256     *string `json:"hash_sha256"`
 	ExecutableSHA256 *string `json:"executable_sha256"`
@@ -642,7 +642,7 @@ type SoftwareListOptions struct {
 
 	// HostID filters software to the specified host if not nil.
 	HostID                      *uint
-	TeamID                      *uint `query:"team_id,optional"`
+	TeamID                      *uint `query:"fleet_id,optional,renamed"`
 	VulnerableOnly              bool  `query:"vulnerable,optional"`
 	WithoutVulnerabilityDetails bool  `query:"without_vulnerability_details,optional"`
 	IncludeCVEScores            bool

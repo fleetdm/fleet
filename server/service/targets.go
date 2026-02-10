@@ -112,7 +112,7 @@ func (t *teamSearchResult) UnmarshalJSON(b []byte) error {
 type targetsData struct {
 	Hosts  []*fleet.HostResponse `json:"hosts"`
 	Labels []labelSearchResult   `json:"labels"`
-	Teams  []teamSearchResult    `json:"teams"`
+	Teams  []teamSearchResult    `json:"fleets,renamed"`
 }
 
 type searchTargetsResponse struct {

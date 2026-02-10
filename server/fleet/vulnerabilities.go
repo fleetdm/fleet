@@ -150,7 +150,7 @@ type VulnListOptions struct {
 	ListOptions      ListOptions `url:"list_options"`
 	IsEE             bool
 	ValidSortColumns []string
-	TeamID           *uint `query:"team_id,optional"`
+	TeamID           *uint `query:"fleet_id,optional,renamed"`
 	KnownExploit     bool  `query:"exploit,optional"`
 }
 

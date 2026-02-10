@@ -116,7 +116,7 @@ func (svc *Service) ListSoftwareTitles(
 
 type getSoftwareTitleRequest struct {
 	ID     uint  `url:"id"`
-	TeamID *uint `query:"team_id,optional"`
+	TeamID *uint `query:"fleet_id,optional,renamed"`
 }
 
 type getSoftwareTitleResponse struct {

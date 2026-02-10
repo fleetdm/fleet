@@ -36,7 +36,7 @@ type runScriptRequest struct {
 	ScriptID       *uint  `json:"script_id"`
 	ScriptContents string `json:"script_contents"`
 	ScriptName     string `json:"script_name"`
-	TeamID         uint   `json:"team_id"`
+	TeamID         uint   `json:"fleet_id,renamed"`
 }
 
 type runScriptResponse struct {
@@ -74,7 +74,7 @@ type runScriptSyncRequest struct {
 	ScriptID       *uint  `json:"script_id"`
 	ScriptContents string `json:"script_contents"`
 	ScriptName     string `json:"script_name"`
-	TeamID         uint   `json:"team_id"`
+	TeamID         uint   `json:"fleet_id,renamed"`
 }
 
 type runScriptSyncResponse struct {
@@ -634,7 +634,7 @@ func (svc *Service) DeleteScript(ctx context.Context, scriptID uint) error {
 ////////////////////////////////////////////////////////////////////////////////
 
 type listScriptsRequest struct {
-	TeamID      *uint             `query:"team_id,optional"`
+	TeamID      *uint             `query:"fleet_id,optional,renamed"`
 	ListOptions fleet.ListOptions `url:"list_options"`
 }
 
@@ -959,7 +959,7 @@ type batchScriptExecutionStatusRequest struct {
 }
 
 type batchScriptExecutionListRequest struct {
-	TeamID  uint    `query:"team_id,required"`
+	TeamID  uint    `query:"fleet_id,required,renamed"`
 	Status  *string `query:"status,optional"`
 	Page    *uint   `query:"page,optional"`
 	PerPage *uint   `query:"per_page,optional"`
@@ -976,7 +976,7 @@ type (
 	batchScriptExecutionSummaryResponse struct {
 		ScriptID    uint      `json:"script_id" db:"script_id"`
 		ScriptName  string    `json:"script_name" db:"script_name"`
-		TeamID      *uint     `json:"team_id" db:"team_id"`
+		TeamID      *uint     `json:"fleet_id,renamed" db:"team_id"`
 		CreatedAt   time.Time `json:"created_at" db:"created_at"`
 		NumTargeted *uint     `json:"targeted" db:"num_targeted"`
 		NumPending  *uint     `json:"pending" db:"num_pending"`

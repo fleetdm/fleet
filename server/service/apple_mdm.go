@@ -1007,7 +1007,7 @@ func (svc *Service) validateDeclarationLabels(ctx context.Context, labelNames []
 }
 
 type listMDMAppleConfigProfilesRequest struct {
-	TeamID uint `query:"team_id,optional"`
+	TeamID uint `query:"fleet_id,optional,renamed"`
 }
 
 type listMDMAppleConfigProfilesResponse struct {
@@ -1328,7 +1328,7 @@ func (svc *Service) DeleteMDMAppleDeclaration(ctx context.Context, declUUID stri
 }
 
 type getMDMAppleFileVaultSummaryRequest struct {
-	TeamID *uint `query:"team_id,optional"`
+	TeamID *uint `query:"fleet_id,optional,renamed"`
 }
 
 type getMDMAppleFileVaultSummaryResponse struct {
@@ -1365,7 +1365,7 @@ func (svc *Service) GetMDMAppleFileVaultSummary(ctx context.Context, teamID *uin
 }
 
 type getMDMAppleProfilesSummaryRequest struct {
-	TeamID *uint `query:"team_id,optional"`
+	TeamID *uint `query:"fleet_id,optional,renamed"`
 }
 
 type getMDMAppleProfilesSummaryResponse struct {
@@ -2905,7 +2905,7 @@ func (svc *Service) GetMDMAppleBootstrapPackageBytes(ctx context.Context, token 
 ////////////////////////////////////////////////////////////////////////////////
 
 type bootstrapPackageMetadataRequest struct {
-	TeamID uint `url:"team_id"`
+	TeamID uint `url:"fleet_id,renamed"`
 
 	// ForUpdate is used to indicate that the authorization should be for a
 	// "write" instead of a "read", this is needed specifically for the gitops
@@ -2951,7 +2951,7 @@ func (svc *Service) GetMDMAppleBootstrapPackageMetadata(ctx context.Context, tea
 ////////////////////////////////////////////////////////////////////////////////
 
 type deleteBootstrapPackageRequest struct {
-	TeamID uint `url:"team_id"`
+	TeamID uint `url:"fleet_id,renamed"`
 	DryRun bool `query:"dry_run,optional"` // if true, apply validation but do not delete
 }
 
@@ -2982,7 +2982,7 @@ func (svc *Service) DeleteMDMAppleBootstrapPackage(ctx context.Context, teamID *
 ////////////////////////////////////////////////////////////////////////////////
 
 type getMDMAppleBootstrapPackageSummaryRequest struct {
-	TeamID *uint `query:"team_id,optional"`
+	TeamID *uint `query:"fleet_id,optional,renamed"`
 }
 
 type getMDMAppleBootstrapPackageSummaryResponse struct {
@@ -3014,7 +3014,7 @@ func (svc *Service) GetMDMAppleBootstrapPackageSummary(ctx context.Context, team
 ////////////////////////////////////////////////////////////////////////////////
 
 type createMDMAppleSetupAssistantRequest struct {
-	TeamID            *uint           `json:"team_id"`
+	TeamID            *uint           `json:"fleet_id,renamed"`
 	Name              string          `json:"name"`
 	EnrollmentProfile json.RawMessage `json:"enrollment_profile"`
 }
@@ -3052,7 +3052,7 @@ func (svc *Service) SetOrUpdateMDMAppleSetupAssistant(ctx context.Context, asst 
 ////////////////////////////////////////////////////////////////////////////////
 
 type getMDMAppleSetupAssistantRequest struct {
-	TeamID *uint `query:"team_id,optional"`
+	TeamID *uint `query:"fleet_id,optional,renamed"`
 }
 
 type getMDMAppleSetupAssistantResponse struct {
@@ -3084,7 +3084,7 @@ func (svc *Service) GetMDMAppleSetupAssistant(ctx context.Context, teamID *uint)
 ////////////////////////////////////////////////////////////////////////////////
 
 type deleteMDMAppleSetupAssistantRequest struct {
-	TeamID *uint `query:"team_id,optional"`
+	TeamID *uint `query:"fleet_id,optional,renamed"`
 }
 
 type deleteMDMAppleSetupAssistantResponse struct {
@@ -6883,9 +6883,9 @@ func (svc *Service) CountABMTokens(ctx context.Context) (int, error) {
 
 type updateABMTokenTeamsRequest struct {
 	TokenID      uint  `url:"id"`
-	MacOSTeamID  *uint `json:"macos_team_id"`
-	IOSTeamID    *uint `json:"ios_team_id"`
-	IPadOSTeamID *uint `json:"ipados_team_id"`
+	MacOSTeamID  *uint `json:"macos_fleet_id,renamed"`
+	IOSTeamID    *uint `json:"ios_fleet_id,renamed"`
+	IPadOSTeamID *uint `json:"ipados_fleet_id,renamed"`
 }
 
 type updateABMTokenTeamsResponse struct {
