@@ -381,6 +381,7 @@ func MakeDecoder(
 	decodeBody func(ctx context.Context, r *http.Request, v reflect.Value, body io.Reader) error,
 	customQueryDecoder DomainQueryFieldDecoder,
 	maxRequestBodySize int64,
+	aliasRules []AliasRule,
 ) kithttp.DecodeRequestFunc {
 	if iface == nil {
 		return func(ctx context.Context, r *http.Request) (interface{}, error) {
@@ -413,6 +414,7 @@ func MakeDecoder(
 	return func(ctx context.Context, r *http.Request) (interface{}, error) {
 		v := reflect.New(t)
 		nilBody := false
+		var rewriter *JSONKeyRewriteReader
 
 		if maxRequestBodySize != -1 {
 			limitedReader := io.LimitReader(r.Body, maxRequestBodySize).(*io.LimitedReader)
@@ -437,17 +439,45 @@ func MakeDecoder(
 				body = gzr
 			}
 
+			// Insert the JSON key rewriter into the reader pipeline
+			// (after gzip decompression, before JSON decoding) to rename
+			// deprecated field names and detect alias conflicts.
+			if len(aliasRules) > 0 {
+				rewriter = NewJSONKeyRewriteReader(body, aliasRules)
+				body = rewriter
+			}
+
 			if isBodyDecoder == nil || !isBodyDecoder(v) {
 				req := v.Interface()
 				err := jsonUnmarshal(body, req)
 				if err != nil {
-					if errors.Is(err, io.ErrUnexpectedEOF) {
+					// Check for alias conflict errors from the rewriter.
+					var ace *AliasConflictError
+					if errors.As(err, &ace) {
+						return nil, &platform_http.BadRequestError{
+							Message:     fmt.Sprintf("Specify only one of %q or %q", ace.Old, ace.New),
+							InternalErr: ace,
+						}
+					}
+
+					if err == io.ErrUnexpectedEOF {
 						return nil, platform_http.PayloadTooLargeError{ContentLength: r.Header.Get("Content-Length"), MaxRequestSize: maxRequestBodySize}
 					}
 
 					return nil, BadRequestErr("json decoder error", err)
 				}
 				v = reflect.ValueOf(req)
+			}
+
+			// Log deprecation warnings when deprecated field names are used.
+			if rewriter != nil {
+				if deprecated := rewriter.UsedDeprecatedKeys(); len(deprecated) > 0 {
+					logging.WithLevel(ctx, level.Warn)
+					logging.WithExtras(ctx,
+						"deprecated_fields", fmt.Sprintf("%v", deprecated),
+						"deprecation_warning", "use the updated field names instead",
+					)
+				}
 			}
 		}
 
@@ -502,10 +532,31 @@ func MakeDecoder(
 		if isBodyDecoder != nil && isBodyDecoder(v) {
 			err := decodeBody(ctx, r, v, body)
 			if err != nil {
+				// Check for alias conflict errors from the rewriter.
+				var ace *AliasConflictError
+				if errors.As(err, &ace) {
+					return nil, &platform_http.BadRequestError{
+						Message:     fmt.Sprintf("Specify only one of %q or %q", ace.Old, ace.New),
+						InternalErr: ace,
+					}
+				}
+
 				if errors.Is(err, io.ErrUnexpectedEOF) {
 					return nil, platform_http.PayloadTooLargeError{ContentLength: r.Header.Get("Content-Length"), MaxRequestSize: maxRequestBodySize}
 				}
 				return nil, err
+			}
+
+			// Log deprecation warnings when deprecated field names are used
+			// (bodyDecoder path).
+			if rewriter != nil {
+				if deprecated := rewriter.UsedDeprecatedKeys(); len(deprecated) > 0 {
+					logging.WithLevel(ctx, level.Warn)
+					logging.WithExtras(ctx,
+						"deprecated_fields", fmt.Sprintf("%v", deprecated),
+						"deprecation_warning", "use the updated field names instead",
+					)
+				}
 			}
 		}
 

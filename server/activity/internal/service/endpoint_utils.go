@@ -42,7 +42,7 @@ func encodeResponse(ctx context.Context, w http.ResponseWriter, response any) er
 func makeDecoder(iface any, requestBodySizeLimit int64) kithttp.DecodeRequestFunc {
 	return eu.MakeDecoder(iface, func(body io.Reader, req any) error {
 		return json.NewDecoder(body).Decode(req)
-	}, parseCustomTags, nil, nil, nil, requestBodySizeLimit)
+	}, parseCustomTags, nil, nil, nil, requestBodySizeLimit, nil)
 }
 
 // parseCustomTags handles custom URL tag values for activity requests.
