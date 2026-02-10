@@ -262,8 +262,8 @@ software:
     - slug: slack/darwin # Slack for macOS
       self_service: true
       setup_experience: true
-      post_install_script:
-        path: ../lib/macos/scripts/migrate-slack-preferences.sh
+    # post_install_script:
+    #  path: ../lib/macos/scripts/migrate-slack-preferences.sh
       categories:
         - Communication
         - Productivity
