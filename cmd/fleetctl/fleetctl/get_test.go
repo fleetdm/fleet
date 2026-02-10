@@ -416,7 +416,7 @@ func TestGetHosts(t *testing.T) {
 					Resolution:                     ptr.String("Some resolution"),
 					TeamID:                         ptr.Uint(1),
 					CalendarEventsEnabled:          true,
-					ConditionalAccessBypassEnabled: true,
+					ConditionalAccessBypassEnabled: ptr.Bool(true),
 				},
 				Response: "passes",
 			},
