@@ -49,7 +49,7 @@ With Windows MDM turned on, enroll a Windows host to Fleet by installing [Fleet'
 
 ### Migrating from another MDM solution
 
-If you're migrating Windows hosts from another MDM solution (e.g., Intune), some devices may not report MDM as turned on after enrollment. Common symptoms include MDM status showing as "Off," the MDM server field remaining unpopulated, or enrollment errors in Orbit logs such as `HTTP error code 400 (0x80190190)` or `0x8018000a`.
+When migrating Windows hosts from another MDM, devices may fail to report MDM as "On." You might see enrollment errors (e.g., ⁠400 or ⁠0x8018000a) in [fleetd logs](https://fleetdm.com/guides/enroll-hosts#debugging).
 
 These issues are caused by residual enrollment data, registry conflicts, or third-party management agents from the previous MDM solution. Run the following scripts on affected hosts via **Controls > Scripts** to remediate, then **reboot the device** and trigger a refetch.
 
