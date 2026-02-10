@@ -12,9 +12,9 @@ spec:
   # - Where: Run on the audited Ubuntu 22.04 host (use a disposable VM for FAIL).
   # - PASS (run):
   #   - sudo bash -c 'cat <<EOF > /etc/modprobe.d/cramfs.conf
-blacklist cramfs
-install cramfs /bin/false
-EOF'
+# blacklist cramfs
+# install cramfs /bin/false
+# EOF'
   #   - sudo modprobe -r cramfs 2>/dev/null || true
   # - FAIL (run):
   #   - sudo rm -f /etc/modprobe.d/cramfs.conf
@@ -50,9 +50,9 @@ spec:
   # - Where: Run on the audited Ubuntu 22.04 host (use a disposable VM for FAIL).
   # - PASS (run):
   #   - sudo bash -c 'cat <<EOF > /etc/modprobe.d/freevxfs.conf
-blacklist freevxfs
-install freevxfs /bin/false
-EOF'
+# blacklist freevxfs
+# install freevxfs /bin/false
+# EOF'
   #   - sudo modprobe -r freevxfs 2>/dev/null || true
   # - FAIL (run):
   #   - sudo rm -f /etc/modprobe.d/freevxfs.conf
@@ -88,9 +88,9 @@ spec:
   # - Where: Run on the audited Ubuntu 22.04 host (use a disposable VM for FAIL).
   # - PASS (run):
   #   - sudo bash -c 'cat <<EOF > /etc/modprobe.d/hfs.conf
-blacklist hfs
-install hfs /bin/false
-EOF'
+# blacklist hfs
+# install hfs /bin/false
+# EOF'
   #   - sudo modprobe -r hfs 2>/dev/null || true
   # - FAIL (run):
   #   - sudo rm -f /etc/modprobe.d/hfs.conf
@@ -126,9 +126,9 @@ spec:
   # - Where: Run on the audited Ubuntu 22.04 host (use a disposable VM for FAIL).
   # - PASS (run):
   #   - sudo bash -c 'cat <<EOF > /etc/modprobe.d/hfsplus.conf
-blacklist hfsplus
-install hfsplus /bin/false
-EOF'
+# blacklist hfsplus
+# install hfsplus /bin/false
+# EOF'
   #   - sudo modprobe -r hfsplus 2>/dev/null || true
   # - FAIL (run):
   #   - sudo rm -f /etc/modprobe.d/hfsplus.conf
@@ -164,9 +164,9 @@ spec:
   # - Where: Run on the audited Ubuntu 22.04 host (use a disposable VM for FAIL).
   # - PASS (run):
   #   - sudo bash -c 'cat <<EOF > /etc/modprobe.d/udf.conf
-blacklist udf
-install udf /bin/false
-EOF'
+# blacklist udf
+# install udf /bin/false
+# EOF'
   #   - sudo modprobe -r udf 2>/dev/null || true
   # - FAIL (run):
   #   - sudo rm -f /etc/modprobe.d/udf.conf
@@ -3089,9 +3089,9 @@ spec:
   # - Where: Run on the audited Ubuntu 22.04 host (use a disposable VM for FAIL).
   # - PASS (run):
   #   - sudo bash -c 'cat <<EOF > /etc/modprobe.d/dccp.conf
-blacklist dccp
-install dccp /bin/false
-EOF'
+# blacklist dccp
+# install dccp /bin/false
+# EOF'
   #   - sudo modprobe -r dccp 2>/dev/null || true
   # - FAIL (run):
   #   - sudo rm -f /etc/modprobe.d/dccp.conf
@@ -3127,9 +3127,9 @@ spec:
   # - Where: Run on the audited Ubuntu 22.04 host (use a disposable VM for FAIL).
   # - PASS (run):
   #   - sudo bash -c 'cat <<EOF > /etc/modprobe.d/tipc.conf
-blacklist tipc
-install tipc /bin/false
-EOF'
+# blacklist tipc
+# install tipc /bin/false
+# EOF'
   #   - sudo modprobe -r tipc 2>/dev/null || true
   # - FAIL (run):
   #   - sudo rm -f /etc/modprobe.d/tipc.conf
@@ -3165,9 +3165,9 @@ spec:
   # - Where: Run on the audited Ubuntu 22.04 host (use a disposable VM for FAIL).
   # - PASS (run):
   #   - sudo bash -c 'cat <<EOF > /etc/modprobe.d/rds.conf
-blacklist rds
-install rds /bin/false
-EOF'
+# blacklist rds
+# install rds /bin/false
+# EOF'
   #   - sudo modprobe -r rds 2>/dev/null || true
   # - FAIL (run):
   #   - sudo rm -f /etc/modprobe.d/rds.conf
@@ -3203,9 +3203,9 @@ spec:
   # - Where: Run on the audited Ubuntu 22.04 host (use a disposable VM for FAIL).
   # - PASS (run):
   #   - sudo bash -c 'cat <<EOF > /etc/modprobe.d/sctp.conf
-blacklist sctp
-install sctp /bin/false
-EOF'
+# blacklist sctp
+# install sctp /bin/false
+# EOF'
   #   - sudo modprobe -r sctp 2>/dev/null || true
   # - FAIL (run):
   #   - sudo rm -f /etc/modprobe.d/sctp.conf
