@@ -20,37 +20,16 @@ spec:
   #   - PASS: query returns 1 row.
   #   - FAIL: query returns 0 rows.
   query: |
- WITH
-  loaded AS (
-    SELECT 1 FROM kernel_modules WHERE name IN ('cramfs') LIMIT 1
-  ),
-  blacklisted AS (
-    SELECT 1 FROM file_lines
-    WHERE (path LIKE '/etc/modprobe.d/%.conf'
-        OR path LIKE '/lib/modprobe.d/%.conf'
-        OR path LIKE '/usr/lib/modprobe.d/%.conf'
-        OR path LIKE '/run/modprobe.d/%.conf')
-      AND line LIKE 'blacklist cramfs%'
-      AND line NOT LIKE '#%'
-    LIMIT 1
-  ),
-  install_blocked AS (
-    SELECT 1 FROM file_lines
-    WHERE (path LIKE '/etc/modprobe.d/%.conf'
-        OR path LIKE '/lib/modprobe.d/%.conf'
-        OR path LIKE '/usr/lib/modprobe.d/%.conf'
-        OR path LIKE '/run/modprobe.d/%.conf')
-      AND (
-        line LIKE 'install cramfs /bin/false%'
-        OR line LIKE 'install cramfs /bin/true%'
-      )
-      AND line NOT LIKE '#%'
-    LIMIT 1
-  )
-SELECT 1
-WHERE NOT EXISTS (SELECT 1 FROM loaded)
-  AND EXISTS (SELECT 1 FROM blacklisted)
-  AND EXISTS (SELECT 1 FROM install_blocked);
+ SELECT 1
+WHERE (SELECT COUNT(*) FROM kernel_modules WHERE name='cramfs') = 0
+  AND (SELECT COUNT(*) FROM file_lines
+       WHERE path='/etc/modprobe.d/cramfs.conf'
+         AND line LIKE 'blacklist cramfs%'
+         AND line NOT LIKE '#%') >= 1
+  AND (SELECT COUNT(*) FROM file_lines
+       WHERE path='/etc/modprobe.d/cramfs.conf'
+         AND line LIKE 'install cramfs /bin/false%'
+         AND line NOT LIKE '#%') >= 1;
   purpose: Informational
   tags: compliance, CIS, CIS_Ubuntu_22_04
   contributors: sharon-fdm
