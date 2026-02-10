@@ -1,4 +1,4 @@
-import React, { useCallback, useContext, useMemo } from "react";
+import React, { useCallback, useContext, useEffect, useMemo } from "react";
 import { Tab, Tabs, TabList } from "react-tabs";
 import { InjectedRouter } from "react-router";
 
@@ -128,6 +128,24 @@ const ManageControlsPage = ({
     }
     return renderedSubNav;
   }, [isGlobalAdmin, isTeamAdmin, isTeamTechnician, isGlobalTechnician]);
+
+  // Redirect to the first permitted tab if the current path doesn't match any
+  const currentTabIndex = getTabIndex(
+    permittedControlsSubNav,
+    location?.pathname || ""
+  );
+  useEffect(() => {
+    if (currentTabIndex === -1 && permittedControlsSubNav.length > 0) {
+      const newParams = new URLSearchParams(location?.search);
+      subNavQueryParams.forEach((p) => newParams.delete(p));
+      const newQuery = newParams.toString();
+      router.replace(
+        permittedControlsSubNav[0].pathname.concat(
+          newQuery ? `?${newQuery}` : ""
+        )
+      );
+    }
+  }, [currentTabIndex, permittedControlsSubNav, location?.search, router]);
 
   const navigateToNav = useCallback(
     (i: number): void => {

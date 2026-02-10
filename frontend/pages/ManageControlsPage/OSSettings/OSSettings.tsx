@@ -67,6 +67,16 @@ const OSSettings = ({
     filteredNavItems.find((item) => item.urlSection === section) ??
     DEFAULT_SETTINGS_SECTION;
 
+  // Redirect to the default section if the URL section is not in the filtered list
+  if (
+    section &&
+    currentFormSection === DEFAULT_SETTINGS_SECTION &&
+    section !== DEFAULT_SETTINGS_SECTION.urlSection
+  ) {
+    router.replace(DEFAULT_SETTINGS_SECTION.path.concat(queryString));
+    return null;
+  }
+
   const CurrentCard = currentFormSection.Card;
 
   return (
