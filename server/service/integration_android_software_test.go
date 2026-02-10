@@ -876,12 +876,18 @@ func (s *integrationMDMTestSuite) TestAndroidAppsUninstallOnDelete() {
 	ctx := context.Background()
 	t := s.T()
 
+	s.setSkipWorkerJobs(t)
 	s.setVPPTokenForTeam(0)
 	appConf, err := s.ds.AppConfig(ctx)
 	require.NoError(t, err)
 	appConf.MDM.AndroidEnabledAndConfigured = false
 	err = s.ds.SaveAppConfig(ctx, appConf)
 	require.NoError(t, err)
+
+	// create a team for the test host that will not be affected
+	var createTeamResp teamResponse
+	s.DoJSON("POST", "/api/latest/fleet/teams", &fleet.Team{Name: "test"}, http.StatusOK, &createTeamResp)
+	teamID := createTeamResp.Team.ID
 
 	s.enableAndroidMDM(t)
 
@@ -904,8 +910,8 @@ func (s *integrationMDMTestSuite) TestAndroidAppsUninstallOnDelete() {
 	}
 
 	// add some Android apps
-	androidApps := make([]*fleet.VPPApp, 4)
-	titleIDs := make([]uint, 4)
+	androidApps := make([]*fleet.VPPApp, 5)
+	titleIDs := make([]uint, len(androidApps))
 	for i := range androidApps {
 		androidApps[i] = &fleet.VPPApp{
 			VPPAppTeam: fleet.VPPAppTeam{
@@ -918,9 +924,16 @@ func (s *integrationMDMTestSuite) TestAndroidAppsUninstallOnDelete() {
 		amapiConfig.AppIDsToNames[androidApps[i].AdamID] = androidApps[i].Name
 
 		var addAppResp addAppStoreAppResponse
+
+		// last app goes on the team, will not affect the test
+		var teamIDPtr *uint
+		if i == len(androidApps)-1 {
+			teamIDPtr = &teamID
+		}
 		s.DoJSON("POST", "/api/latest/fleet/software/app_store_apps", &addAppStoreAppRequest{
 			AppStoreID: androidApps[i].AdamID,
 			Platform:   fleet.AndroidPlatform,
+			TeamID:     teamIDPtr,
 		}, http.StatusOK, &addAppResp)
 		titleIDs[i] = addAppResp.TitleID
 	}
@@ -931,7 +944,7 @@ func (s *integrationMDMTestSuite) TestAndroidAppsUninstallOnDelete() {
 	require.False(t, s.androidAPIClient.EnterprisesPoliciesRemovePolicyApplicationsFuncInvoked)
 	require.False(t, s.androidAPIClient.EnterprisesPoliciesModifyPolicyApplicationsFuncInvoked)
 
-	// enroll a couple Android devices
+	// enroll a few Android devices
 	secrets, err := s.ds.GetEnrollSecrets(ctx, nil)
 	require.NoError(t, err)
 	require.Len(t, secrets, 1)
@@ -943,14 +956,16 @@ func (s *integrationMDMTestSuite) TestAndroidAppsUninstallOnDelete() {
 
 	deviceID1 := createAndroidDeviceID("test-android")
 	deviceID2 := createAndroidDeviceID("test-android-2")
+	deviceID3 := createAndroidDeviceID("test-android-3")
 
 	enterpriseSpecificID1 := strings.ToUpper(uuid.New().String())
 	enterpriseSpecificID2 := strings.ToUpper(uuid.New().String())
+	enterpriseSpecificID3 := strings.ToUpper(uuid.New().String())
 	var req android_service.PubSubPushRequest
 	for _, d := range []struct {
 		id  string
 		esi string
-	}{{deviceID1, enterpriseSpecificID1}, {deviceID2, enterpriseSpecificID2}} {
+	}{{deviceID1, enterpriseSpecificID1}, {deviceID2, enterpriseSpecificID2}, {deviceID3, enterpriseSpecificID3}} {
 		enrollmentMessage := enrollmentMessageWithEnterpriseSpecificID(t, androidmanagement.Device{
 			Name:                d.id,
 			EnrollmentTokenData: fmt.Sprintf(`{"EnrollSecret": "%s"}`, secrets[0].Secret),
@@ -961,9 +976,16 @@ func (s *integrationMDMTestSuite) TestAndroidAppsUninstallOnDelete() {
 
 	var hosts listHostsResponse
 	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &hosts)
-	require.Len(t, hosts.Hosts, 2)
+	require.Len(t, hosts.Hosts, 3)
 	host1 := hosts.Hosts[0]
 	host2 := hosts.Hosts[1]
+	host3 := hosts.Hosts[2] // isolated host, not affected by test
+
+	// transfer host3 to the team
+	s.DoJSON("POST", "/api/latest/fleet/hosts/transfer", addHostsToTeamRequest{
+		TeamID:  &teamID,
+		HostIDs: []uint{host3.ID},
+	}, http.StatusOK, &addHostsToTeamResponse{})
 
 	// run the worker, the hosts get the 3 remaining android apps as self-service-available
 	s.runWorkerUntilDone()
@@ -976,7 +998,7 @@ func (s *integrationMDMTestSuite) TestAndroidAppsUninstallOnDelete() {
 		var getHostSw getHostSoftwareResponse
 		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/software", host.ID), nil, http.StatusOK, &getHostSw,
 			"available_for_install", "true", "order_key", "name")
-		assert.Len(t, getHostSw.Software, 3)
+		require.Len(t, getHostSw.Software, 3)
 		require.NotNil(t, getHostSw.Software[0].AppStoreApp)
 		require.Equal(t, androidApps[1].AdamID, getHostSw.Software[0].AppStoreApp.AppStoreID)
 		require.NotNil(t, getHostSw.Software[1].AppStoreApp)
@@ -997,7 +1019,7 @@ func (s *integrationMDMTestSuite) TestAndroidAppsUninstallOnDelete() {
 		var getHostSw getHostSoftwareResponse
 		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/software", host.ID), nil, http.StatusOK, &getHostSw,
 			"available_for_install", "true", "order_key", "name")
-		assert.Len(t, getHostSw.Software, 2)
+		require.Len(t, getHostSw.Software, 2)
 		require.NotNil(t, getHostSw.Software[0].AppStoreApp)
 		require.Equal(t, androidApps[2].AdamID, getHostSw.Software[0].AppStoreApp.AppStoreID)
 		require.NotNil(t, getHostSw.Software[1].AppStoreApp)
@@ -1022,7 +1044,7 @@ func (s *integrationMDMTestSuite) TestAndroidAppsUninstallOnDelete() {
 		var getHostSw getHostSoftwareResponse
 		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/software", host.ID), nil, http.StatusOK, &getHostSw,
 			"available_for_install", "true", "order_key", "name")
-		assert.Len(t, getHostSw.Software, 1)
+		require.Len(t, getHostSw.Software, 1)
 		require.NotNil(t, getHostSw.Software[0].AppStoreApp)
 		require.Equal(t, androidApps[3].AdamID, getHostSw.Software[0].AppStoreApp.AppStoreID)
 	}
@@ -1043,7 +1065,7 @@ func (s *integrationMDMTestSuite) TestAndroidAppsUninstallOnDelete() {
 		var getHostSw getHostSoftwareResponse
 		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/software", host.ID), nil, http.StatusOK, &getHostSw,
 			"available_for_install", "true", "order_key", "name")
-		assert.Len(t, getHostSw.Software, 0)
+		require.Len(t, getHostSw.Software, 0)
 	}
 
 	// batch-set again without any app is a no-op
@@ -1056,4 +1078,12 @@ func (s *integrationMDMTestSuite) TestAndroidAppsUninstallOnDelete() {
 	require.False(t, s.androidAPIClient.EnterprisesPoliciesRemovePolicyApplicationsFuncInvoked)
 	require.False(t, s.androidAPIClient.EnterprisesPoliciesModifyPolicyApplicationsFuncInvoked)
 	require.False(t, s.androidAPIClient.EnterprisesPoliciesPatchFuncInvoked)
+
+	// isolated host was unaffected, still has the same team app
+	var getHostSw getHostSoftwareResponse
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/software", host3.ID), nil, http.StatusOK, &getHostSw,
+		"available_for_install", "true", "order_key", "name")
+	require.Len(t, getHostSw.Software, 1)
+	require.NotNil(t, getHostSw.Software[0].AppStoreApp)
+	require.Equal(t, androidApps[4].AdamID, getHostSw.Software[0].AppStoreApp.AppStoreID)
 }
