@@ -66,9 +66,9 @@ type listQueriesRequest struct {
 }
 
 type listQueriesResponse struct {
-	Queries             []fleet.Query             `json:"queries"`
+	Queries             []fleet.Query             `json:"reports" renamedfrom:"queries"`
 	Count               int                       `json:"count"`
-	InheritedQueryCount int                       `json:"inherited_query_count"`
+	InheritedQueryCount int                       `json:"inherited_report_count" renamedfrom:"inherited_query_count"`
 	Meta                *fleet.PaginationMetadata `json:"meta"`
 	Err                 error                     `json:"error,omitempty"`
 }

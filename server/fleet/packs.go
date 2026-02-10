@@ -182,7 +182,7 @@ type PackSpec struct {
 	Platform    string          `json:"platform,omitempty"`
 	Disabled    bool            `json:"disabled"`
 	Targets     PackSpecTargets `json:"targets,omitempty"`
-	Queries     []PackSpecQuery `json:"queries,omitempty"`
+	Queries     []PackSpecQuery `json:"reports,omitempty" renamedfrom:"queries"`
 }
 
 // Verify verifies the pack's spec fields are valid.
