@@ -36,6 +36,10 @@ var fleetAliasRules = []eu.AliasRule{
 	{OldKey: "macos_team_id", NewKey: "macos_fleet_id"},
 	{OldKey: "ios_team_id", NewKey: "ios_fleet_id"},
 	{OldKey: "ipados_team_id", NewKey: "ipados_fleet_id"},
+	{OldKey: "macos_team", NewKey: "macos_fleet"},
+	{OldKey: "ios_team", NewKey: "ios_fleet"},
+	{OldKey: "ipados_team", NewKey: "ipados_fleet"},
+	{OldKey: "available_teams", NewKey: "available_fleets"},
 }
 
 func makeDecoder(iface any, requestBodySizeLimit int64) kithttp.DecodeRequestFunc {

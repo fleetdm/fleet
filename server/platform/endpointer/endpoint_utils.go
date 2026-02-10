@@ -2,6 +2,7 @@ package endpointer
 
 import (
 	"bufio"
+	"bytes"
 	"compress/gzip"
 	"context"
 	"errors"
@@ -52,7 +53,10 @@ func ParseTag(tag string) (string, bool, error) {
 	case 2:
 		return parts[0], parts[1] == "optional", nil
 	default:
-		return "", false, fmt.Errorf("Error parsing %s: too many parts", tag)
+		if parts[2] != "renamed" {
+			return "", false, fmt.Errorf("Error parsing %s: too many parts", tag)
+		}
+		return parts[0], parts[1] == "optional", nil
 	}
 }
 
@@ -854,6 +858,7 @@ func EncodeCommonResponse(
 	response interface{},
 	jsonMarshal func(w http.ResponseWriter, response interface{}) error,
 	domainErrorEncoder DomainErrorEncoder,
+	aliasRules []AliasRule,
 ) error {
 	if cs, ok := response.(cookieSetter); ok {
 		cs.SetCookies(ctx, w)
@@ -888,6 +893,20 @@ func EncodeCommonResponse(
 		}
 	}
 
+	// If alias rules are configured, buffer the JSON output so we can
+	// duplicate keys (new→old) for backwards compatibility before writing
+	// to the response.
+	if len(aliasRules) > 0 {
+		var buf bytes.Buffer
+		bufWriter := &bufferedResponseWriter{ResponseWriter: w, buf: &buf}
+		if err := jsonMarshal(bufWriter, response); err != nil {
+			return err
+		}
+		transformed := DuplicateJSONKeys(buf.Bytes(), aliasRules)
+		_, err := w.Write(transformed)
+		return err
+	}
+
 	return jsonMarshal(w, response)
 }
 
@@ -912,4 +931,17 @@ type renderHijacker interface {
 // cookieSetter can be implemented by response values to set cookies on the response.
 type cookieSetter interface {
 	SetCookies(ctx context.Context, w http.ResponseWriter)
+}
+
+// bufferedResponseWriter wraps an http.ResponseWriter but redirects Write
+// calls to a bytes.Buffer, allowing the output to be captured and
+// transformed before being sent to the real writer. It implements
+// http.ResponseWriter so it can be passed to jsonMarshal functions.
+type bufferedResponseWriter struct {
+	http.ResponseWriter
+	buf *bytes.Buffer
+}
+
+func (b *bufferedResponseWriter) Write(data []byte) (int, error) {
+	return b.buf.Write(data)
 }

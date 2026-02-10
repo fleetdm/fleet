@@ -23,6 +23,7 @@ func encodeResponse(ctx context.Context, w http.ResponseWriter, response interfa
 			return json.MarshalWrite(w, response, jsontext.WithIndent("  "))
 		},
 		nil, // no domain-specific error encoder
+		nil, // no alias rules
 	)
 }
 
