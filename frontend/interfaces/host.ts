@@ -215,6 +215,7 @@ export interface IHostResponse {
   host: IHost;
 }
 
+// Device User Page
 export interface IDUPDetails {
   host: IHostDevice;
   license: ILicense;
