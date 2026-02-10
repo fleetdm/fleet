@@ -161,7 +161,7 @@ Videos are transcribed, and this makes it easier to find required redactions dur
 
 To schedule a meeting within Fleet:
 - To add a Zoom meeting to a calendar event, click the "Add video conferencing" dropdown and select "Zoom Meeting." Google Calendar will automatically add the Zoom meeting details and instructions to join the event.
-- Enter the `@fleetdm.com` emails for each participant into the "Add guests" box in Google Calendar, and the calendar availability for each participant will appear in your view.
+- Enter the `@fleetdm.com` emails for each participant into the "Add guests" box in Google Calendar, and the calendar availability for each participant will appear in your view. Do not use "Optional" for invitees.
 - Select a meeting time, the participants will automatically be invited and a video conference will be attached to the invite (this can save a lot of communication overhead when scheduling with multiple participants).
 
 **Internal meeting scheduling**: Fleet uses the Zoom add-on for Google Calendar to schedule meetings (exceptions are customers that are non-negotiably required to use a different tool) when we [create calendar events](https://support.google.com/calendar/answer/72143?hl=en&ref_topic=10510646&sjid=7187599067132459840-NA#zippy=%2Cclick-an-empty-time-in-your-calendar). 
@@ -215,6 +215,11 @@ Fleet uses skip-level 1:1 meetings as a recurring pulse check to encourage [valu
 > **Are you scheduling time with the CEO?**
 >
 > Please do not add events to the CEO's calendar, *even if the CEO asks you to*. Instead, [get scheduling help from the Executive Assistant](https://fleetdm.com/handbook/company/leadership#schedule-time-with-the-ceo)).
+
+
+## Shadowing meetings
+
+Calendars at Fleet are public for all Fleeties, and anyone can join any meeting that doesn't say `[no shadows]`. The invitees for a recurring calendar event are those who are mandatory for the meeting. If you are interested in joining a call, add yourself to a particular instance of the meeting. Do not mark yourself as "Optional" in Google Calendar.
 
 
 ## Email relays

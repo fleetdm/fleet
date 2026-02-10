@@ -8,6 +8,7 @@ import (
 	"testing"
 	"time"
 
+	activity_api "github.com/fleetdm/fleet/v4/server/activity/api"
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/mdm"
@@ -1789,8 +1790,11 @@ func testInHouseAppsCancelledOnUnenroll(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.Equal(t, fleet.VPPAppStatusSummary{Installed: 0, Pending: 1, Failed: 0}, *summary)
 
+	// Create activity service for checking past activities
+	activitySvc := NewTestActivityService(t, ds)
+
 	// no past activities yet
-	acts, _, err := ds.ListHostPastActivities(ctx, iosHost.ID, fleet.ListOptions{})
+	acts, _, err := activitySvc.ListHostPastActivities(ctx, iosHost.ID, activity_api.ListOptions{})
 	require.NoError(t, err)
 	require.Len(t, acts, 0)
 
@@ -1806,16 +1810,17 @@ func testInHouseAppsCancelledOnUnenroll(t *testing.T, ds *Datastore) {
 	// point for it to show up in the install summary
 	createInHouseAppInstallResult(t, ds, iosHost, ipaCmd, "Acknowledged")
 
-	// past activity for the failed install
-	acts, _, err = ds.ListHostPastActivities(ctx, iosHost.ID, fleet.ListOptions{})
+	// past activity for the failed install (ordered by created_at DESC - newest first)
+	acts, _, err = activitySvc.ListHostPastActivities(ctx, iosHost.ID, activity_api.ListOptions{})
 	require.NoError(t, err)
 	require.Len(t, acts, 2)
-	require.NotNil(t, acts[0].ActorID)
-	require.Equal(t, *acts[0].ActorID, user.ID)
-	require.Equal(t, acts[0].Type, fleet.ActivityTypeInstalledSoftware{}.ActivityName())
-	// limitation of using createInHouseAppInstallResult which creates an activity
-	require.Nil(t, acts[1].ActorID)
-	require.Equal(t, acts[1].Type, fleet.ActivityInstalledAppStoreApp{}.ActivityName())
+	// newest: created by createInHouseAppInstallResult with nil user
+	require.Nil(t, acts[0].ActorID)
+	require.Equal(t, acts[0].Type, fleet.ActivityInstalledAppStoreApp{}.ActivityName())
+	// older: created by MDMTurnOff with user
+	require.NotNil(t, acts[1].ActorID)
+	require.Equal(t, *acts[1].ActorID, user.ID)
+	require.Equal(t, acts[1].Type, fleet.ActivityTypeInstalledSoftware{}.ActivityName())
 
 	// there should be no upcoming activities and 1 failed install
 	checkUpcomingActivities(t, ds, iosHost)
