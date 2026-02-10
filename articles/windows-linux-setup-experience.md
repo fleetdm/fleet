@@ -4,6 +4,8 @@ _Available in Fleet Premium_
 
 In Fleet, you can customize the out-of-the-box Windows and Linux setup.
 
+Currently, Windows setup experience is only supported for [manual enrollments](https://fleetdm.com/guides/windows-mdm-setup#manual-enrollment). [Automatic enrollment](https://fleetdm.com/guides/windows-mdm-setup#automatic-enrollment) and [Autopilot](https://fleetdm.com/guides/windows-mdm-setup#windows-autopilot) support is coming soon.
+
 Here's what you can configure, and in what order each happen, to your Windows and Linux hosts during setup:
 
 1. Require [end users to authenticate](#end-user-authentication) with your identity provider (IdP).
