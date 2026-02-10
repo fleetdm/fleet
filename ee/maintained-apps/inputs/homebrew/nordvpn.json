@@ -4,5 +4,5 @@
   "token": "nordvpn",
   "installer_format": "pkg",
   "slug": "nordvpn/darwin",
-  "default_categories": ["Security"]
+  "default_categories": ["Productivity"]
 }
