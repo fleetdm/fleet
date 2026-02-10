@@ -836,10 +836,14 @@ allow {
   action == read
 }
 
-# Global admins, maintainers, and technicians can resend MDM config profiles.
+# Global admins, maintainers, technicians, and gitops can resend MDM config profiles.
+#
+# GitOps doesn't really need permissions to resend to specific hosts,
+# but we will keep this as-is to not break any workflows that might be using a
+# GitOps token to do a resend.
 allow {
   object.type == "mdm_config_profile"
-  subject.global_role == [admin, maintainer, technician][_]
+  subject.global_role == [admin, maintainer, technician, gitops][_]
   action == resend
 }
 
@@ -861,12 +865,16 @@ allow {
   action == read
 }
 
-# Team admins, maintainers, and technicians can resend MDM config profiles on their teams.
+# Team admins, maintainers, technicians, and gitops can resend MDM config profiles on their teams.
+#
+# GitOps doesn't really need permissions to resend to specific hosts,
+# but we will keep this as-is to not break any workflows that might be using a
+# GitOps token to do a resend.
 allow {
   not is_null(object.team_id)
   object.team_id != 0
   object.type == "mdm_config_profile"
-  team_role(subject, object.team_id) == [admin, maintainer, technician][_]
+  team_role(subject, object.team_id) == [admin, maintainer, technician, gitops][_]
   action == resend
 }
 
