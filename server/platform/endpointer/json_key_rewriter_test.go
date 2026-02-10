@@ -225,7 +225,7 @@ func TestJSONKeyRewriteReader_EmptyObject(t *testing.T) {
 	r := NewJSONKeyRewriteReader(strings.NewReader(input), rules)
 	out, err := io.ReadAll(r)
 	require.NoError(t, err)
-	assert.Equal(t, `{}`, string(out))
+	assert.JSONEq(t, `{}`, string(out))
 	assert.Empty(t, r.UsedDeprecatedKeys())
 }
 
@@ -347,7 +347,8 @@ func TestJSONKeyRewriteReader_WhitespaceAroundColon(t *testing.T) {
 }
 
 func TestJSONKeyRewriteReader_UnicodeEscapesInKeys(t *testing.T) {
-	// Keys with unicode escapes that don't match our rules should pass through.
+	// Keys with unicode escapes are decoded by jsontext.Decoder, so
+	// \u0074eam_id is correctly recognized as "team_id" and rewritten.
 	input := `{"\u0074eam_id": 42}`
 	rules := []AliasRule{{OldKey: "team_id", NewKey: "fleet_id"}}
 
@@ -355,13 +356,11 @@ func TestJSONKeyRewriteReader_UnicodeEscapesInKeys(t *testing.T) {
 	out, err := io.ReadAll(r)
 	require.NoError(t, err)
 
-	// The raw key is "\u0074eam_id" which Go's JSON decoder interprets as "team_id",
-	// but our rewriter compares raw bytes, so it should NOT match.
 	var result map[string]interface{}
 	require.NoError(t, json.Unmarshal(out, &result))
-	// The key will be decoded as "team_id" by json.Unmarshal since \u0074 = 't',
-	// but our rewriter won't have seen it as "team_id" in raw form.
-	assert.Empty(t, r.UsedDeprecatedKeys())
+	assert.Equal(t, float64(42), result["fleet_id"])
+	assert.Nil(t, result["team_id"])
+	assert.Contains(t, r.UsedDeprecatedKeys(), "team_id")
 }
 
 func TestJSONKeyRewriteReader_DeeplyNestedObjects(t *testing.T) {
