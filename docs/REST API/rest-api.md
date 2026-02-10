@@ -3086,6 +3086,7 @@ If `include_device_status` is set to `true`, `device_status` and `pending_action
           "version": "2.12",
           "source": "rpm_packages",
           "generated_cpe": "cpe:2.3:a:gnu:glibc:2.12:*:*:*:*:*:*:*",
+          "last_opened_at": "2021-08-18T21:14:00Z",
           "vulnerabilities": [
             {
               "cve": "CVE-2009-5155",
