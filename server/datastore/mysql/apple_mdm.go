@@ -4076,10 +4076,10 @@ WHERE team_id = 0
 		if url != "" {
 			updateConfigStmt := `
 UPDATE teams
-SET config = JSON_SET(config, '$.mdm.macos_setup.bootstrap_package', '%s')
+SET config = JSON_SET(config, '$.mdm.macos_setup.bootstrap_package', ?)
 WHERE id = ?
 `
-			_, err = tx.ExecContext(ctx, fmt.Sprintf(updateConfigStmt, url), toTeamID)
+			_, err = tx.ExecContext(ctx, updateConfigStmt, url, toTeamID)
 			if err != nil {
 				return ctxerr.Wrap(ctx, err, fmt.Sprintf("update bootstrap package config for team %d", toTeamID))
 			}
