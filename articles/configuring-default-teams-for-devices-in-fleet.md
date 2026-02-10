@@ -34,7 +34,7 @@ Follow these steps to assign default fleets to your devices:
 
 ## Conclusion
 
-Configuring default fleets in Fleet simplifies the enrollment and management of Apple devices, ensuring that each device is assigned to the correct fleet immediately upon enrollment. This feature reduces manual setup tasks for IT teams by automating the assignment of configuration profiles and apps based on fleet specifications. By streamlining the deployment process and minimizing errors, configuring default fleets ensures that devices are ready to use right out of the box, helping organizations save time and maintain consistency across their device fleet.
+Configuring default fleets simplifies the enrollment and management of Apple devices, ensuring that each device is assigned to the correct fleet immediately upon enrollment. This feature reduces manual setup tasks for IT teams by automating the assignment of configuration profiles and apps based on fleet specifications. By streamlining the deployment process and minimizing errors, configuring default fleets ensures that devices are ready to use right out of the box, helping organizations save time and maintain consistency across their device fleet.
 
 For organizations managing a large number of macOS, iOS, or iPadOS devices, this feature plays a crucial role in automating routine tasks, increasing efficiency, and improving the overall deployment experience. It enables teams to focus on more critical tasks and be confident that newly enrolled devices are correctly configured. For more information on using Fleet, please refer to the [Fleet documentation](https://fleetdm.com/docs) and [guides](https://fleetdm.com/guides).
 
