@@ -257,8 +257,8 @@ export const SOURCE_TYPE_CONVERSION = {
   chocolatey_packages: "Package (Chocolatey)",
   pkg_packages: "Package (pkg)",
   vscode_extensions: "IDE extension", // vscode_extensions can include any vscode-based editor (e.g., Cursor, Trae, Windsurf), so we rely instead on the `extension_for` field computed by Fleet server and fallback to this value if it is not present.
-  sh_packages: "Script-only (macOS & Linux)",
-  ps1_packages: "Script-only (Windows)",
+  sh_packages: "Script-only package (macOS & Linux)",
+  ps1_packages: "Script-only package (Windows)",
   jetbrains_plugins: "IDE extension", // jetbrains_plugins can include any JetBrains IDE (e.g., IntelliJ, PyCharm, WebStorm), so we rely instead on the `extension_for` field computed by Fleet server and fallback to this value if it is not present.
 } as const;
 
