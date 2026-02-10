@@ -125,6 +125,7 @@ type MDMAndroidProfilePayload struct {
 	RequestFailCount        int                `db:"request_fail_count"`
 	IncludedInPolicyVersion *int               `db:"included_in_policy_version"`
 	LastErrorDetails        string             `db:"last_error_details"`
+	CanReverify             bool               `db:"can_reverify"`
 }
 
 // HostMDMAndroidProfile represents the status of an MDM profile for a Android host.
