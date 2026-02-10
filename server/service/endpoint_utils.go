@@ -21,29 +21,8 @@ import (
 	"github.com/gorilla/mux"
 )
 
-// fleetAliasRules defines the JSON field name alias rules for the Fleet API's
-// backwards-compatible rename from "team" to "fleet" terminology. During the
-// transition period, both old and new field names are accepted in requests.
-// If a client sends both the old and new name in the same request, an error is
-// returned. Usage of deprecated (old) names is logged as a warning.
-var fleetAliasRules = []eu.AliasRule{
-	{OldKey: "team_id", NewKey: "fleet_id"},
-	{OldKey: "team_ids", NewKey: "fleet_ids"},
-	{OldKey: "team", NewKey: "fleet"},
-	{OldKey: "teams", NewKey: "fleets"},
-	{OldKey: "team_name", NewKey: "fleet_name"},
-	{OldKey: "default_team", NewKey: "default_fleet"},
-	{OldKey: "macos_team_id", NewKey: "macos_fleet_id"},
-	{OldKey: "ios_team_id", NewKey: "ios_fleet_id"},
-	{OldKey: "ipados_team_id", NewKey: "ipados_fleet_id"},
-	{OldKey: "macos_team", NewKey: "macos_fleet"},
-	{OldKey: "ios_team", NewKey: "ios_fleet"},
-	{OldKey: "ipados_team", NewKey: "ipados_fleet"},
-	{OldKey: "available_teams", NewKey: "available_fleets"},
-}
-
 func makeDecoder(iface any, requestBodySizeLimit int64) kithttp.DecodeRequestFunc {
-	return eu.MakeDecoder(iface, jsonDecode, parseCustomTags, isBodyDecoder, decodeBody, fleetQueryDecoder, requestBodySizeLimit, fleetAliasRules)
+	return eu.MakeDecoder(iface, jsonDecode, parseCustomTags, isBodyDecoder, decodeBody, fleetQueryDecoder, requestBodySizeLimit)
 }
 
 // fleetQueryDecoder handles fleet-specific query parameter decoding, such as

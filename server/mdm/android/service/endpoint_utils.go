@@ -23,14 +23,13 @@ func encodeResponse(ctx context.Context, w http.ResponseWriter, response interfa
 			return json.MarshalWrite(w, response, jsontext.WithIndent("  "))
 		},
 		nil, // no domain-specific error encoder
-		nil, // no alias rules
 	)
 }
 
 func makeDecoder(iface any, requestBodySizeLimit int64) kithttp.DecodeRequestFunc {
 	return eu.MakeDecoder(iface, func(body io.Reader, req any) error {
 		return json.UnmarshalRead(body, req)
-	}, nil, nil, nil, nil, requestBodySizeLimit, nil)
+	}, nil, nil, nil, nil, requestBodySizeLimit)
 }
 
 // handlerFunc is the handler function type for Android service endpoints.

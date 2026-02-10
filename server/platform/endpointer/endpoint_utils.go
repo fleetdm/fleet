@@ -14,6 +14,7 @@ import (
 	"reflect"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
@@ -93,6 +94,104 @@ func allFields(ifv reflect.Value) []fieldPair {
 	}
 
 	return fields
+}
+
+// aliasRulesCache caches the result of ExtractAliasRules by reflect.Type so
+// that the reflection walk happens only once per struct type, not on every
+// request.
+var aliasRulesCache sync.Map // reflect.Type → []AliasRule
+
+// ExtractAliasRules inspects the struct type of iface (recursively, including
+// embedded structs) and builds an []AliasRule from fields that carry a
+// `renamedfrom` struct tag. For each such field the json tag's field name
+// becomes NewKey and the renamedfrom value becomes OldKey.
+//
+// Only `json` tags are considered; `url` and `query` tags are ignored for now.
+//
+// The returned slice is deduplicated: if the same alias pair appears on
+// multiple fields (e.g. in both a request and an embedded struct) it is
+// included only once.
+//
+// Results are cached by type so that the reflection walk only happens once.
+func ExtractAliasRules(iface any) []AliasRule {
+	if iface == nil {
+		return nil
+	}
+	t := reflect.TypeOf(iface)
+	if t.Kind() == reflect.Ptr {
+		t = t.Elem()
+	}
+	if t.Kind() != reflect.Struct {
+		return nil
+	}
+
+	if cached, ok := aliasRulesCache.Load(t); ok {
+		return cached.([]AliasRule)
+	}
+
+	seen := make(map[AliasRule]bool)
+	var rules []AliasRule
+	extractAliasRulesFromType(t, seen, &rules)
+	aliasRulesCache.Store(t, rules)
+	return rules
+}
+
+func extractAliasRulesFromType(t reflect.Type, seen map[AliasRule]bool, rules *[]AliasRule) {
+	// visited tracks types we've already walked to avoid infinite recursion
+	// from cyclic type references (e.g. type Node struct { Children []Node }).
+	visited := make(map[reflect.Type]bool)
+	extractAliasRulesRecursive(t, seen, rules, visited)
+}
+
+// elemType dereferences pointer, slice, array, and map types to find the
+// underlying (possibly struct) element type.
+func elemType(t reflect.Type) reflect.Type {
+	for {
+		switch t.Kind() {
+		case reflect.Ptr, reflect.Slice, reflect.Array:
+			t = t.Elem()
+		case reflect.Map:
+			// For maps, the values may contain structs with renamedfrom tags.
+			t = t.Elem()
+		default:
+			return t
+		}
+	}
+}
+
+func extractAliasRulesRecursive(t reflect.Type, seen map[AliasRule]bool, rules *[]AliasRule, visited map[reflect.Type]bool) {
+	if visited[t] {
+		return
+	}
+	visited[t] = true
+
+	for i := 0; i < t.NumField(); i++ {
+		sf := t.Field(i)
+
+		// Check this field for a renamedfrom tag.
+		renamedFrom, hasRenamed := sf.Tag.Lookup("renamedfrom")
+		if hasRenamed && renamedFrom != "" {
+			jsonTag, hasJSON := sf.Tag.Lookup("json")
+			if hasJSON && jsonTag != "" && jsonTag != "-" {
+				// Strip options like ",omitempty" from the json tag.
+				jsonFieldName, _, _ := strings.Cut(jsonTag, ",")
+				if jsonFieldName != "" && jsonFieldName != "-" {
+					rule := AliasRule{OldKey: renamedFrom, NewKey: jsonFieldName}
+					if !seen[rule] {
+						seen[rule] = true
+						*rules = append(*rules, rule)
+					}
+				}
+			}
+		}
+
+		// Recurse into any struct type reachable from this field
+		// (through pointers, slices, arrays, maps, or directly).
+		ft := elemType(sf.Type)
+		if ft.Kind() == reflect.Struct {
+			extractAliasRulesRecursive(ft, seen, rules, visited)
+		}
+	}
 }
 
 func BadRequestErr(publicMsg string, internalErr error) error {
@@ -385,8 +484,9 @@ func MakeDecoder(
 	decodeBody func(ctx context.Context, r *http.Request, v reflect.Value, body io.Reader) error,
 	customQueryDecoder DomainQueryFieldDecoder,
 	maxRequestBodySize int64,
-	aliasRules []AliasRule,
 ) kithttp.DecodeRequestFunc {
+	// Infer alias rules from `renamedfrom` struct tags on the request type.
+	aliasRules := ExtractAliasRules(iface)
 	if iface == nil {
 		return func(ctx context.Context, r *http.Request) (interface{}, error) {
 			return nil, nil
@@ -858,8 +958,9 @@ func EncodeCommonResponse(
 	response interface{},
 	jsonMarshal func(w http.ResponseWriter, response interface{}) error,
 	domainErrorEncoder DomainErrorEncoder,
-	aliasRules []AliasRule,
 ) error {
+	// Infer alias rules from `renamedfrom` struct tags on the response type.
+	aliasRules := ExtractAliasRules(response)
 	if cs, ok := response.(cookieSetter); ok {
 		cs.SetCookies(ctx, w)
 	}
