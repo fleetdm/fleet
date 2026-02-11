@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
 	"slices"
 	"strings"
@@ -535,10 +536,14 @@ FROM software_titles st
 			SELECT si_inner.*
 			FROM software_installers si_inner
 			INNER JOIN (
-				SELECT title_id, global_or_team_id, MAX(id) AS max_id
-				FROM software_installers
-				WHERE global_or_team_id = {{teamID .}}
-				GROUP BY title_id, global_or_team_id
+				SELECT si2.title_id, si2.global_or_team_id,
+					COALESCE(MAX(fma_active.software_installer_id), MAX(si2.id)) AS max_id
+				FROM software_installers si2
+				LEFT JOIN fma_active_installers fma_active
+					ON fma_active.global_or_team_id = si2.global_or_team_id
+					AND fma_active.fleet_maintained_app_id = si2.fleet_maintained_app_id
+				WHERE si2.global_or_team_id = {{teamID .}}
+				GROUP BY si2.title_id, si2.global_or_team_id
 			) si_latest ON si_inner.id = si_latest.max_id
 		) si ON si.title_id = st.id AND si.global_or_team_id = {{teamID .}}
 		LEFT JOIN in_house_apps iha ON iha.title_id = st.id AND iha.global_or_team_id = {{teamID .}}
@@ -757,6 +762,27 @@ func (ds *Datastore) getFleetMaintainedVersionsByTitleIDs(ctx context.Context, t
 	}
 
 	return result, nil
+}
+
+func (ds *Datastore) HasFMAInstallerVersion(ctx context.Context, teamID *uint, fmaID uint, version string) (bool, error) {
+	var globalOrTeamID uint
+	if teamID != nil {
+		globalOrTeamID = *teamID
+	}
+
+	var exists bool
+	err := sqlx.GetContext(ctx, ds.reader(ctx), &exists, `
+		SELECT 1 FROM software_installers
+		WHERE global_or_team_id = ? AND fleet_maintained_app_id = ? AND version = ?
+		LIMIT 1
+	`, globalOrTeamID, fmaID, version)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return false, nil
+		}
+		return false, ctxerr.Wrap(ctx, err, "check FMA installer version exists")
+	}
+	return exists, nil
 }
 
 func (ds *Datastore) selectSoftwareVersionsSQL(titleIDs []uint, teamID *uint, tmFilter fleet.TeamFilter, withCounts bool) (

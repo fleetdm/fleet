@@ -24916,18 +24916,13 @@ func (s *integrationEnterpriseTestSuite) TestMaintainedAppsRollback() {
 	ctx := context.Background()
 
 	installerBytes := []byte("abc")
+	installerSrvHit := false
 
 	// Mock server to serve the "installers"
 	installerServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		switch r.URL.Path {
-		case "/badinstaller":
-			_, _ = w.Write([]byte("badinstaller"))
-		case "/timeout":
-			time.Sleep(3 * time.Second)
-			_, _ = w.Write([]byte("timeout"))
-		default:
-			_, _ = w.Write(installerBytes)
-		}
+		installerSrvHit = true
+		_, _ = w.Write(installerBytes)
+
 	}))
 	defer installerServer.Close()
 
@@ -24954,7 +24949,6 @@ func (s *integrationEnterpriseTestSuite) TestMaintainedAppsRollback() {
 	latestVersion := "1.0"
 
 	manifestServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		slug := strings.TrimPrefix(strings.TrimSuffix(r.URL.Path, ".json"), "/")
 
 		var versions []*ma.FMAManifestApp
 		versions = append(versions, &ma.FMAManifestApp{
@@ -24962,7 +24956,7 @@ func (s *integrationEnterpriseTestSuite) TestMaintainedAppsRollback() {
 			Queries: ma.FMAQueries{
 				Exists: "SELECT 1 FROM osquery_info;",
 			},
-			InstallerURL:       installerServer.URL + "/installer.zip",
+			InstallerURL:       installerServer.URL + "/installer.msi",
 			InstallScriptRef:   "foobaz",
 			UninstallScriptRef: "foobaz",
 			SHA256:             spoofedSHA,
@@ -24975,23 +24969,6 @@ func (s *integrationEnterpriseTestSuite) TestMaintainedAppsRollback() {
 				"foobaz": "Hello World!",
 			},
 		}
-
-		switch slug {
-		case "fail":
-			w.WriteHeader(http.StatusInternalServerError)
-			return
-
-		case "notfound":
-			w.WriteHeader(http.StatusNotFound)
-			return
-
-		case "badinstaller":
-			manifest.Versions[0].InstallerURL = installerServer.URL + "/badinstaller"
-
-		case "timeout":
-			manifest.Versions[0].InstallerURL = installerServer.URL + "/timeout"
-		}
-
 		err := json.NewEncoder(w).Encode(manifest)
 		require.NoError(t, err)
 	}))
@@ -25030,7 +25007,7 @@ func (s *integrationEnterpriseTestSuite) TestMaintainedAppsRollback() {
 	require.Equal(t, 1, resp.Count)
 	title := resp.SoftwareTitles[0]
 	require.Equal(t, "1.0", title.SoftwarePackage.Version)
-	require.Equal(t, "installer.zip", title.SoftwarePackage.Name)
+	require.Equal(t, "installer.msi", title.SoftwarePackage.Name)
 
 	// With only one version, fleet_maintained_versions should list it
 	require.Len(t, title.SoftwarePackage.FleetMaintainedVersions, 1)
@@ -25063,7 +25040,7 @@ func (s *integrationEnterpriseTestSuite) TestMaintainedAppsRollback() {
 	require.Equal(t, 1, resp.Count)
 	title = resp.SoftwareTitles[0]
 	require.Equal(t, "2.0", title.SoftwarePackage.Version)
-	require.Equal(t, "installer.zip", title.SoftwarePackage.Name)
+	require.Equal(t, "installer.msi", title.SoftwarePackage.Name)
 
 	// fleet_maintained_versions should list both versions (newest first)
 	require.Len(t, title.SoftwarePackage.FleetMaintainedVersions, 2)
@@ -25112,4 +25089,120 @@ func (s *integrationEnterpriseTestSuite) TestMaintainedAppsRollback() {
 	installers, err = s.ds.GetSoftwareInstallers(ctx, team.ID)
 	s.Require().NoError(err)
 	s.Assert().Len(installers, 2)
+
+	// ---- Test version rollback via fleet_maintained_app_version ----
+	// Pin to version "2.0" in the batch request (simulating GitOps yaml with version specified).
+	// The active installer should switch to the cached v2.0 installer.
+	softwareToInstallPinned := []*fleet.SoftwareInstallerPayload{
+		{Slug: ptr.String("cloudflare-warp/windows"), SelfService: true, RollbackVersion: "2.0"},
+	}
+
+	s.DoJSON("POST", "/api/latest/fleet/software/batch", batchSetSoftwareInstallersRequest{Software: softwareToInstallPinned, TeamName: team.Name}, http.StatusAccepted, &batchResponse, "team_name", team.Name, "team_id", fmt.Sprint(team.ID))
+	packages = waitBatchSetSoftwareInstallersCompleted(t, &s.withServer, team.Name, batchResponse.RequestUUID)
+	require.Len(t, packages, 2)
+
+	// The active version shown in the title should now be "2.0"
+	resp = listSoftwareTitlesResponse{}
+	s.DoJSON(
+		"GET", "/api/latest/fleet/software/titles",
+		listSoftwareTitlesRequest{},
+		http.StatusOK, &resp,
+		"per_page", "1",
+		"order_key", "name",
+		"order_direction", "desc",
+		"available_for_install", "true",
+		"team_id", fmt.Sprintf("%d", team.ID),
+	)
+
+	require.Equal(t, 1, resp.Count)
+	title = resp.SoftwareTitles[0]
+	require.Equal(t, "2.0", title.SoftwarePackage.Version)
+
+	// Both versions should still be listed
+	require.Len(t, title.SoftwarePackage.FleetMaintainedVersions, 2)
+
+	// Create a host in the team, trigger an install, and verify the downloaded bytes match v2.0
+	hostInTeam := createOrbitEnrolledHost(t, "windows", "orbit-host-rollback", s.ds)
+	require.NoError(t, s.ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&team.ID, []uint{hostInTeam.ID})))
+
+	s.Do("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/software/%d/install", hostInTeam.ID, title.ID), installSoftwareRequest{}, http.StatusAccepted)
+
+	// Get the queued installer ID from the pending install record
+	var installerID uint
+	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q, &installerID, `
+			SELECT software_installer_id FROM host_software_installs
+			WHERE host_id = ? AND software_installer_id IS NOT NULL AND install_script_exit_code IS NULL
+			ORDER BY created_at DESC LIMIT 1
+		`, hostInTeam.ID)
+	})
+
+	// Download the installer via orbit — should get the v2.0 bytes ("def")
+	r := s.Do("POST", "/api/fleet/orbit/software_install/package?alt=media", orbitDownloadSoftwareInstallerRequest{
+		InstallerID:  installerID,
+		OrbitNodeKey: *hostInTeam.OrbitNodeKey,
+	}, http.StatusOK)
+	body, err := io.ReadAll(r.Body)
+	require.NoError(t, err)
+	r.Body.Close()
+	// v2.0 installer bytes were []byte("def")
+	require.Equal(t, []byte("def"), body, "downloaded installer should match v2.0 bytes")
+
+	installerSrvHit = false
+	// ---- Test switching active version back to 3.0 ----
+	// Pin to version "3.0" — the active installer should switch to the cached v3.0 installer.
+	softwareToInstallV3 := []*fleet.SoftwareInstallerPayload{
+		{Slug: ptr.String("cloudflare-warp/windows"), SelfService: true, RollbackVersion: "3.0"},
+	}
+
+	s.DoJSON("POST", "/api/latest/fleet/software/batch", batchSetSoftwareInstallersRequest{Software: softwareToInstallV3, TeamName: team.Name}, http.StatusAccepted, &batchResponse, "team_name", team.Name, "team_id", fmt.Sprint(team.ID))
+	packages = waitBatchSetSoftwareInstallersCompleted(t, &s.withServer, team.Name, batchResponse.RequestUUID)
+	require.Len(t, packages, 2)
+
+	// The active version shown in the title should now be "3.0"
+	resp = listSoftwareTitlesResponse{}
+	s.DoJSON(
+		"GET", "/api/latest/fleet/software/titles",
+		listSoftwareTitlesRequest{},
+		http.StatusOK, &resp,
+		"per_page", "1",
+		"order_key", "name",
+		"order_direction", "desc",
+		"available_for_install", "true",
+		"team_id", fmt.Sprintf("%d", team.ID),
+	)
+
+	require.Equal(t, 1, resp.Count)
+	title = resp.SoftwareTitles[0]
+	require.Equal(t, "3.0", title.SoftwarePackage.Version)
+
+	// Both versions should still be listed
+	require.Len(t, title.SoftwarePackage.FleetMaintainedVersions, 2)
+
+	// Trigger an install and verify the downloaded bytes match v3.0
+	s.Do("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/software/%d/install", hostInTeam.ID, title.ID), installSoftwareRequest{}, http.StatusAccepted)
+
+	// Get the queued installer ID from the pending install record
+	var installerIDv3 uint
+	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q, &installerIDv3, `
+			SELECT software_installer_id FROM host_software_installs
+			WHERE host_id = ? AND software_installer_id IS NOT NULL AND install_script_exit_code IS NULL
+			ORDER BY created_at DESC LIMIT 1
+		`, hostInTeam.ID)
+	})
+
+	// Download the installer via orbit — should get the v3.0 bytes ("ghi")
+	r = s.Do("POST", "/api/fleet/orbit/software_install/package?alt=media", orbitDownloadSoftwareInstallerRequest{
+		InstallerID:  installerIDv3,
+		OrbitNodeKey: *hostInTeam.OrbitNodeKey,
+	}, http.StatusOK)
+	body, err = io.ReadAll(r.Body)
+	require.NoError(t, err)
+	r.Body.Close()
+	// v3.0 installer bytes were []byte("ghi")
+	require.Equal(t, []byte("ghi"), body, "downloaded installer should match v3.0 bytes")
+
+	// We have version 3.0 cached, so we should not have downloaded the bytes
+	s.Assert().False(installerSrvHit)
 }

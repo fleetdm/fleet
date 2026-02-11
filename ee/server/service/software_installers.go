@@ -2208,6 +2208,7 @@ func (svc *Service) softwareBatchUpload(
 				ValidatedLabels:    p.ValidatedLabels,
 				Categories:         p.Categories,
 				DisplayName:        p.DisplayName,
+				RollbackVersion:    p.RollbackVersion,
 			}
 
 			var extraInstallers []*fleet.UploadSoftwareInstallerPayload
@@ -2312,8 +2313,19 @@ func (svc *Service) softwareBatchUpload(
 				}
 			}
 
+			// For FMA installers, check if this version is already cached for this team.
+			// If so, skip the download entirely — we already have the bytes.
+			var fmaVersionCached bool
+			if p.Slug != nil && *p.Slug != "" && p.MaintainedApp != nil && p.MaintainedApp.Version != "" {
+				cached, err := svc.ds.HasFMAInstallerVersion(ctx, teamID, p.MaintainedApp.ID, p.MaintainedApp.Version)
+				if err != nil {
+					return ctxerr.Wrap(ctx, err, "check cached FMA version")
+				}
+				fmaVersionCached = cached
+			}
+
 			var installerBytesExist bool
-			if p.SHA256 != "" {
+			if !fmaVersionCached && p.SHA256 != "" {
 				installerBytesExist, err = svc.softwareInstallStore.Exists(ctx, installer.StorageID)
 				if err != nil {
 					return err
@@ -2321,7 +2333,7 @@ func (svc *Service) softwareBatchUpload(
 			}
 
 			// no accessible matching installer was found, so attempt to download it from URL.
-			if installer.StorageID == "" || !installerBytesExist {
+			if !fmaVersionCached && (installer.StorageID == "" || !installerBytesExist) {
 				if p.SHA256 != "" && p.URL == "" {
 					return fmt.Errorf("package not found with hash %s", p.SHA256)
 				}

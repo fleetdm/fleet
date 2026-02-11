@@ -508,7 +508,10 @@ type UploadSoftwareInstallerPayload struct {
 	UserID               uint
 	URL                  string
 	FleetMaintainedAppID *uint
-	PackageIDs           []string
+	// RollbackVersion is the version to pin as "active" for a fleet-maintained app.
+	// If empty, the latest version is used.
+	RollbackVersion string
+	PackageIDs      []string
 	UpgradeCode          string
 	UninstallScript      string
 	Extension            string
