@@ -532,10 +532,10 @@ func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetC
 		GET("/api/_version_/fleet/fleets/{fleet_id}/schedule", getTeamScheduleEndpoint, getTeamScheduleRequest{})
 	ue.WithAltPaths("/api/_version_/fleet/team/{fleet_id}/schedule", "/api/_version_/fleet/teams/{fleet_id}/schedule").
 		POST("/api/_version_/fleet/fleets/{fleet_id}/schedule", teamScheduleQueryEndpoint, teamScheduleQueryRequest{})
-	ue.WithAltPaths("/api/_version_/fleet/team/{fleet_id}/schedule/{scheduled_query_id}", "/api/_version_/fleet/teams/{fleet_id}/schedule/{scheduled_query_id}").
-		PATCH("/api/_version_/fleet/fleets/{fleet_id}/schedule/{scheduled_query_id}", modifyTeamScheduleEndpoint, modifyTeamScheduleRequest{})
-	ue.WithAltPaths("/api/_version_/fleet/team/{fleet_id}/schedule/{scheduled_query_id}", "/api/_version_/fleet/teams/{fleet_id}/schedule/{scheduled_query_id}").
-		DELETE("/api/_version_/fleet/fleets/{fleet_id}/schedule/{scheduled_query_id}", deleteTeamScheduleEndpoint, deleteTeamScheduleRequest{})
+	ue.WithAltPaths("/api/_version_/fleet/team/{fleet_id}/schedule/{scheduled_report_id}", "/api/_version_/fleet/teams/{fleet_id}/schedule/{scheduled_report_id}").
+		PATCH("/api/_version_/fleet/fleets/{fleet_id}/schedule/{scheduled_report_id}", modifyTeamScheduleEndpoint, modifyTeamScheduleRequest{})
+	ue.WithAltPaths("/api/_version_/fleet/team/{fleet_id}/schedule/{scheduled_report_id}", "/api/_version_/fleet/teams/{fleet_id}/schedule/{scheduled_report_id}").
+		DELETE("/api/_version_/fleet/fleets/{fleet_id}/schedule/{scheduled_report_id}", deleteTeamScheduleEndpoint, deleteTeamScheduleRequest{})
 
 	ue.GET("/api/_version_/fleet/carves", listCarvesEndpoint, listCarvesRequest{})
 	ue.GET("/api/_version_/fleet/carves/{id:[0-9]+}", getCarveEndpoint, getCarveRequest{})
