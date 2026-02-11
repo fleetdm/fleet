@@ -653,8 +653,9 @@ func (svc *Service) verifyDevicePolicy(ctx context.Context, hostUUID string, dev
 
 	level.Debug(svc.logger).Log("msg", "Verifying Android device policy", "host_uuid", hostUUID, "applied_policy_version", appliedPolicyVersion)
 
-	// Get all host_mdm_android_profiles that are pending or failed, and included_in_policy_version <= device.AppliedPolicyVersion.
-	// That way we can either fully verify the profile, or mark as failed if the field it tries to set is not compliant.
+	// Get all host_mdm_android_profiles that are pending or failed due to non compliance reasons,
+	// and included_in_policy_version <= device.AppliedPolicyVersion. That way we can either fully
+	// verify the profile, or mark as failed if the field it tries to set is not compliant.
 
 	// Get all profiles that are pending or failed install
 	pendingInstallProfiles, err := svc.ds.ListHostMDMAndroidProfilesPendingOrFailedInstallWithVersion(ctx, hostUUID, appliedPolicyVersion)
@@ -731,10 +732,13 @@ func (svc *Service) verifyDevicePolicy(ctx context.Context, hostUUID string, dev
 		for _, profile := range pendingInstallProfiles {
 			status := &fleet.MDMDeliveryVerified
 			detail := profile.Detail
+			canReverify := false
 
 			if nonCompliance, ok := failedProfileUUIDsWithNonCompliances[profile.ProfileUUID]; ok {
 				status = &fleet.MDMDeliveryFailed
 				detail = buildNonComplianceErrorMessage(nonCompliance)
+				// profiles that failed due to non compliance reasons can be reverified on status reports
+				canReverify = true
 			}
 
 			profiles = append(profiles, &fleet.MDMAndroidProfilePayload{
@@ -748,6 +752,7 @@ func (svc *Service) verifyDevicePolicy(ctx context.Context, hostUUID string, dev
 				ProfileName:             profile.ProfileName,
 				PolicyRequestUUID:       profile.PolicyRequestUUID,
 				Detail:                  detail,
+				CanReverify:             canReverify,
 			})
 		}
 

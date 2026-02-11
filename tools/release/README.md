@@ -71,9 +71,9 @@ Wait for build to run, which typically takes about fifteen minutes.
 
 Wait for publish process to complete.
 
-**6. Update the fleetdm/terraform repo**
+**6. Update the fleetdm/terraform and fleetdm/fleet-gitops repos**
 
-Update all Fleet version references in our [fleetdm/terraform](https://github.com/fleetdm/fleet-terraform) repo and submit a PR.
+Update all Fleet version references in our [fleetdm/terraform](https://github.com/fleetdm/fleet-terraform) repo and submit a PR. Then update `DEFAULT_FLEETCTL_VERSION` in `.github/gitops-action/action.yml` in [fleetdm/fleet-gitops](https://github.com/fleetdm/fleet-gitops) and submit a PR.
 
 
 **7. Merge milestone pull requests**
@@ -150,9 +150,9 @@ Wait for build to run, which typically takes about fifteen minutes.
 
 > During the publish process, the release script will attempt to publish `fleetctl` to NPM. If this times out or otherise fails, you need to publish to NPM manually. From the `/tools/fleetctl-npm/` directory, run `npm publish`.
 
-**7. Update the fleetdm/terraform repo**
+**7. Update the fleetdm/terraform and fleetdm/fleet-gitops repos**
 
-Update all Fleet version references in our [fleetdm/terraform](https://github.com/fleetdm/fleet-terraform) repo and submit a PR.
+Update all Fleet version references in our [fleetdm/terraform](https://github.com/fleetdm/fleet-terraform) repo and submit a PR. Then, if this release is _not_ a backport, update `DEFAULT_FLEETCTL_VERSION` in `.github/gitops-action/action.yml` in [fleetdm/fleet-gitops](https://github.com/fleetdm/fleet-gitops) and submit a PR.
 
 **8. Announce the release**
 

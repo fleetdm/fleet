@@ -25,11 +25,11 @@ import (
 	mdmtesting "github.com/fleetdm/fleet/v4/server/mdm/testing_utils"
 	"github.com/fleetdm/fleet/v4/server/mock"
 	nanodep_mock "github.com/fleetdm/fleet/v4/server/mock/nanodep"
+	"github.com/fleetdm/fleet/v4/server/platform/logging"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/service"
 	"github.com/fleetdm/fleet/v4/server/test"
 	"github.com/fleetdm/fleet/v4/server/worker"
-	kitlog "github.com/go-kit/log"
 	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
 	"github.com/stretchr/testify/require"
@@ -40,7 +40,7 @@ func setupMockDatastorePremiumService(t testing.TB) (*mock.Store, *eeservice.Ser
 	lic := &fleet.LicenseInfo{Tier: fleet.TierPremium}
 	ctx := license.NewContext(context.Background(), lic)
 
-	logger := kitlog.NewNopLogger()
+	logger := logging.NewNopLogger()
 	fleetConfig := config.FleetConfig{
 		MDM: config.MDMConfig{
 			AppleSCEPCertBytes: eeservice.TestCert,

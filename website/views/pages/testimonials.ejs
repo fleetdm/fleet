@@ -234,8 +234,8 @@
         <h2 class="mx-auto">Manage devices your way</h2>
         </div>
         <div purpose="button-row" class="d-flex flex-sm-row flex-column justify-content-center align-items-center mx-auto">
-          <a purpose="cta-button" href="/contact">Get a demo</a>
-          <signup-button :is-logged-in="!! this.me"></signup-button>
+          <a purpose="cta-button" class="mr-0" href="/contact">Get a demo</a>
+          <!-- <animated-arrow-button href="/try">Try it yourself</animated-arrow-button> -->
         </div>
       </div>
     </div>
@@ -250,6 +250,5 @@
       <iframe width="560" height="315" :src="'https://www.youtube.com/embed/'+video.embedId+'?rel=0'" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture;" allowfullscreen></iframe>
     </modal>
   </div>
-  <signup-modal></signup-modal>
 </div>
 <%- /* Expose server-rendered data as window.SAILS_LOCALS :: */ exposeLocalsToBrowser() %>

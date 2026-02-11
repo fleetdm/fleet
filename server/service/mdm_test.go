@@ -2077,9 +2077,11 @@ func TestMDMResendConfigProfileAuthz(t *testing.T) {
 			false,
 			false,
 			false,
-			// Global GitOps cannot resend configuration profiles.
-			true,
-			true,
+			// GitOps doesn't really need permissions to resend to specific hosts,
+			// but we will keep this as-is to not break any workflows that might be using a
+			// GitOps token to do a resend.
+			false,
+			false,
 		},
 		{
 			"team admin, belongs to team",
@@ -2169,7 +2171,10 @@ func TestMDMResendConfigProfileAuthz(t *testing.T) {
 			true,
 			false,
 			true,
-			true,
+			// GitOps doesn't really need permissions to resend to specific hosts,
+			// but we will keep this as-is to not break any workflows that might be using a
+			// GitOps token to do a resend.
+			false,
 		},
 		{
 			"team gitops, DOES NOT belong to team",

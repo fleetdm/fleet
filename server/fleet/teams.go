@@ -540,6 +540,8 @@ func ValidateRole(globalRole *string, teamUsers []UserTeam) error {
 	return nil
 }
 
+// PremiumRolesPresent returns true if the provided globalRole or any
+// role in teamRoles is a premium role.
 func PremiumRolesPresent(globalRole *string, teamRoles []UserTeam) bool {
 	if globalRole != nil {
 		if _, ok := premiumGlobalRoles[*globalRole]; ok {
