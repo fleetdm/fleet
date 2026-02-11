@@ -1,3 +1,15 @@
+# # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
+#
+# default.yml
+# 
+# Use default.yml to configure top-level settings for your
+# organization as a whole, and controls/reports/etc that
+# apply to all of your fleets. 
+#
+# For more, see:
+#   https://fleetdm.com/docs/anatomy/default.yml
+#
+# # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
 agent_options:
   path: ./lib/all/agent-options/agent-options.yml
 org_settings:
