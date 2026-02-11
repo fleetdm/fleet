@@ -18,6 +18,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/platform/endpointer"
 )
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -45,6 +46,11 @@ func newActivity(ctx context.Context, user *fleet.User, activity fleet.ActivityD
 	detailsBytes, err := json.Marshal(activity)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "marshaling activity details")
+	}
+	// Duplicate renamed JSON keys so that stored activity details include
+	// both the new and deprecated field names (e.g. fleet_id and team_id).
+	if rules := endpointer.ExtractAliasRules(activity); len(rules) > 0 {
+		detailsBytes = endpointer.DuplicateJSONKeys(detailsBytes, rules)
 	}
 	timestamp := time.Now()
 
