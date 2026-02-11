@@ -31,7 +31,6 @@ import (
 	common_mysql "github.com/fleetdm/fleet/v4/server/platform/mysql"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/worker"
-	"github.com/go-kit/log"
 	kitlog "github.com/go-kit/log"
 	"github.com/go-kit/log/level"
 	"github.com/google/uuid"
@@ -2100,7 +2099,7 @@ func (svc *Service) softwareBatchUpload(
 		if batchErr != nil {
 			status = fmt.Sprintf("%s%s", batchSetFailedPrefix, batchErr)
 		}
-		logger := log.With(svc.logger,
+		logger := svc.logger.With(
 			"request_uuid", requestUUID,
 			"team_id", teamID,
 			"payloads", len(payloads),

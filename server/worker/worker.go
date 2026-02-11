@@ -8,7 +8,7 @@ import (
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
-	kitlog "github.com/go-kit/log"
+	"github.com/fleetdm/fleet/v4/server/platform/logging"
 	"github.com/go-kit/log/level"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
@@ -62,7 +62,7 @@ type vulnArgs struct {
 // Worker runs jobs. NOT SAFE FOR CONCURRENT USE.
 type Worker struct {
 	ds  fleet.Datastore
-	log kitlog.Logger
+	log *logging.Logger
 
 	// For tests only, allows ignoring unknown jobs instead of failing them.
 	TestIgnoreUnknownJobs bool
@@ -74,7 +74,7 @@ type Worker struct {
 	registry map[string]Job
 }
 
-func NewWorker(ds fleet.Datastore, log kitlog.Logger) *Worker {
+func NewWorker(ds fleet.Datastore, log *logging.Logger) *Worker {
 	return &Worker{
 		ds:       ds,
 		log:      log,
@@ -172,7 +172,7 @@ func (w *Worker) ProcessJobs(ctx context.Context) error {
 			default:
 			}
 
-			log := kitlog.With(w.log, "job_id", job.ID)
+			log := w.log.With("job_id", job.ID)
 
 			if _, ok := seen[job.ID]; ok {
 				level.Debug(log).Log("msg", "some jobs failed, retrying on next cron execution")
