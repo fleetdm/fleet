@@ -69,8 +69,6 @@ This list is in chronological order as assets are created.
 | Recorded demo of [vulnerability management dashboard](https://play.goconsensus.com/s3130001d) |  | Good to use in VM buying scenario, even with non-coding elves/christmas trees |
 | Tom Larkin, [Snowflake blog post](https://fleetdm.com/guides/delivering-data-to-snowflake-from-fleet-and-osquery) On Tom’s own blog, [1st post](https://t-lark.github.io/posts/snowflake-osquery-fleet-magic/) [2nd post](https://t-lark.github.io/posts/osquery-data-in-snowflake/) |  | When someone doesn’t want to replace their MDM, but wants Fleet for Endpoint Ops |
 | [Osquery overview](https://fleetdm.com/guides/osquery-a-tool-to-easily-ask-questions-about-operating-systems) on Fleet blog |  |  |
-| [macOS / Windows device management roadmap](https://docs.google.com/presentation/d/1pCADKXo8-iiuEn_eQAx9LrKWP8_81fO-ObO8O0wQ1WA/edit#slide=id.g246739d8889_2_0) |  | Prospect wants to see what we do with MDM |
-| [A configurable & transparent alternative to Rapid7](https://jarod.ngrok.dev/imagine/rapid-7-alternative) |  |  |
 | [ROI Spreadsheet](https://docs.google.com/spreadsheets/d/14Cfj77ynOB6z4pmb9DD7HNRGo0kcKJuEIifgnz-YO50/edit?usp=sharing) |  |  |
 | [9to5mac article: Latest scripting features](https://9to5mac.com/2023/10/17/fleet-releases-open-source-cross-platform-scripting-based-on-osquery/) |  |  |
 | [Computer World article from MDM release](https://www.computerworld.com/article/3692916/fleet-announces-open-source-cross-platform-mdm-solution.html) |  |  |
