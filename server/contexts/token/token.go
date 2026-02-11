@@ -21,24 +21,14 @@ type Token string
 // FromHTTPRequest extracts an Authorization
 // from an HTTP request if present.
 func FromHTTPRequest(r *http.Request) Token {
-	headers := r.Header.Get("Authorization")
-	headerParts, ok := splitToken(headers)
-	if !ok {
-		return ""
+	authHeader := r.Header.Get("Authorization")
+	headerCouple, ok := parseHeaderLimited(authHeader)
+	if ok && strings.ToUpper(headerCouple[0]) == "BEARER" {
+		// If the Authorization header is present and properly formatted, return the token.
+		// Preserve case-insensitivity of "Bearer:" while case-sensitivity of token value
+		return Token(headerCouple[1])
 	}
-	// If the Authorization header is present and properly formatted, return the token.
-	if strings.ToUpper(headerParts[0]) == "BEARER" {
-		if headerParts[1] == "" {
-			// Empty "BEARER" value in header, return empty token
-			return ""
-		}
-		return Token(headerParts[1])
-	}
-	// If the Authorization header is not present, try to extract the token from the form data.
-	if err := r.ParseForm(); err != nil {
-		return ""
-	}
-	return Token(r.FormValue("token"))
+	return ""
 }
 
 // NewContext returns a new context carrying the Authorization Bearer token.
@@ -55,20 +45,23 @@ func FromContext(ctx context.Context) (Token, bool) {
 	return token, ok
 }
 
-func splitToken(token string) ([]string, bool) {
+// parseHeaderLimited splits an authHeader into exactly two parts or nil, and returns an ok boolean indicating whether the passed in authHeader did have exactly 2 parts. If it did not, nil and false are returned.
+func parseHeaderLimited(authHeader string) ([]string, bool) {
 	parts := make([]string, 2)
-	tokenType, remain, found := strings.Cut(token, tokenDelimiter)
-	if !found {
+
+	pre, remain, foundDelimeter := strings.Cut(authHeader, tokenDelimiter)
+	if !foundDelimeter {
 		return nil, false
 	}
-	parts[0] = tokenType
+	parts[0] = pre
 	// Ensure the token value is the last part of the string and there are no more
 	// delimiters. This avoids an issue where malicious input could contain additional delimiters
 	// causing unecessary overhead parsing tokens.
-	tokenVal, _, unexpectedDelimeterFound := strings.Cut(remain, tokenDelimiter)
+	post, _, unexpectedDelimeterFound := strings.Cut(remain, tokenDelimiter)
 	if unexpectedDelimeterFound {
+		// more than 2 parts
 		return nil, false
 	}
-	parts[1] = tokenVal
+	parts[1] = post
 	return parts, true
 }

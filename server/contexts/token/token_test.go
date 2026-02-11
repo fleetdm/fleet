@@ -57,7 +57,7 @@ func TestFromHTTPRequest(t *testing.T) {
 				Method: http.MethodPost,
 				Body:   io.NopCloser(strings.NewReader("token=bar")),
 			},
-			want: "bar",
+			want: "", // no longe support parsing token from request body
 		}, {
 			name: "BEARER with 3 parts",
 			r: &http.Request{
