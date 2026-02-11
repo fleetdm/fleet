@@ -24,6 +24,7 @@ import {
 import { HostPlatform, isIPadOrIPhone, isAndroid } from "interfaces/platform";
 
 import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
+import permissions from "utilities/permissions";
 import { getPathWithQueryParams } from "utilities/url";
 
 import { NotificationContext } from "context/notification";
@@ -132,6 +133,8 @@ const HostSoftwareLibrary = ({
     isGlobalMaintainer,
     isTeamAdmin,
     isTeamMaintainer,
+    isGlobalTechnician,
+    currentUser,
   } = useContext(AppContext);
 
   const isUnsupported = isAndroid(platform); // no Android software
@@ -454,8 +457,17 @@ const HostSoftwareLibrary = ({
   ]);
 
   const hasSWWriteRole = Boolean(
-    isGlobalAdmin || isGlobalMaintainer || isTeamAdmin || isTeamMaintainer
+    isGlobalAdmin ||
+      isGlobalMaintainer ||
+      isTeamAdmin ||
+      isTeamMaintainer ||
+      isGlobalTechnician ||
+      permissions.isTeamTechnician(currentUser, hostTeamId)
   );
+
+  const canAddSoftware =
+    (isGlobalAdmin || isGlobalMaintainer || isTeamAdmin || isTeamMaintainer) &&
+    !isAndroidHost;
 
   // 4.77 Currently Android apps can only be installed via self-service by end user
   const userHasSWWritePermission = hasSWWriteRole && !isAndroidHost;
@@ -601,7 +613,7 @@ const HostSoftwareLibrary = ({
     <div className={baseClass}>
       <div className={`${baseClass}__header`}>
         <CardHeader subheader="Software available to be installed on this host" />
-        {userHasSWWritePermission && (
+        {canAddSoftware && (
           <Button variant="inverse" onClick={onAddSoftware}>
             <Icon name="plus" />
             <span>Add software</span>

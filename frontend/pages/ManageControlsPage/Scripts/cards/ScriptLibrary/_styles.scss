@@ -1,3 +1,8 @@
 .script-library {
   @include vertical-card-layout;
+
+  .empty-scripts {
+    font-size: px-to-rem(14);
+    text-align: center;
+  }
 }
