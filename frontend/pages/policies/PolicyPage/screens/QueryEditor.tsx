@@ -171,7 +171,7 @@ const QueryEditor = ({
           team_id: policy.team_id,
         })
       );
-      renderFlash("success", "Policy created!");
+      renderFlash("success", "Policy created.");
     } catch (createError: any) {
       console.error(createError);
       if (createError.data.errors[0].reason.includes("already exists")) {

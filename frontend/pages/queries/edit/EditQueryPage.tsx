@@ -270,7 +270,7 @@ const EditQueryPage = ({
             host_id: hostId,
           })
         );
-        renderFlash("success", "Query created!");
+        renderFlash("success", "Query created.");
         setBackendValidators({});
       } catch (createError: any) {
         if (getErrorReason(createError).includes("already exists")) {
