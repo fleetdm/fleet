@@ -1136,7 +1136,8 @@ func (ds *Datastore) BulkUpsertMDMAndroidHostProfiles(ctx context.Context, paylo
 				policy_request_uuid,
 				device_request_uuid,
 				request_fail_count,
-				included_in_policy_version
+				included_in_policy_version,
+				can_reverify
 			)
 			VALUES %s
 			ON DUPLICATE KEY UPDATE
@@ -1147,7 +1148,8 @@ func (ds *Datastore) BulkUpsertMDMAndroidHostProfiles(ctx context.Context, paylo
 				policy_request_uuid = VALUES(policy_request_uuid),
 				device_request_uuid = VALUES(device_request_uuid),
 				request_fail_count = VALUES(request_fail_count),
-				included_in_policy_version = VALUES(included_in_policy_version)
+				included_in_policy_version = VALUES(included_in_policy_version),
+				can_reverify = VALUES(can_reverify)
 `, strings.TrimSuffix(valuePart, ","),
 		)
 
@@ -1166,12 +1168,12 @@ func (ds *Datastore) BulkUpsertMDMAndroidHostProfiles(ctx context.Context, paylo
 	}
 
 	generateValueArgs := func(p *fleet.MDMAndroidProfilePayload) (string, []any) {
-		valuePart := "(?, ?, ?, ?, ?, ?, ?, ?, ?, ?),"
+		valuePart := "(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?),"
 		args := []any{
 			p.HostUUID, p.Status, p.OperationType,
 			p.Detail, p.ProfileUUID, p.ProfileName,
 			p.PolicyRequestUUID, p.DeviceRequestUUID, p.RequestFailCount,
-			p.IncludedInPolicyVersion,
+			p.IncludedInPolicyVersion, p.CanReverify,
 		}
 		return valuePart, args
 	}
@@ -1226,18 +1228,14 @@ func (ds *Datastore) ListHostMDMAndroidProfilesPendingOrFailedInstallWithVersion
 	stmt := `
 		SELECT profile_uuid, host_uuid, status, operation_type, detail, profile_name, policy_request_uuid, device_request_uuid, request_fail_count, included_in_policy_version
 		FROM host_mdm_android_profiles
-		WHERE host_uuid = ? AND included_in_policy_version <= ? AND operation_type = ? AND status IN (?)
+		WHERE host_uuid = ? AND included_in_policy_version <= ? AND operation_type = ? 
+		AND (status = 'pending' OR (status = 'failed' AND can_reverify = true))
 	`
 
-	stmt, args, err := sqlx.In(stmt, hostUUID, policyVersion, fleet.MDMOperationTypeInstall, []fleet.MDMDeliveryStatus{fleet.MDMDeliveryPending, fleet.MDMDeliveryFailed})
-	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "building query to get pending host MDM Android profiles")
-	}
-
 	var profiles []*fleet.MDMAndroidProfilePayload
-	err = sqlx.SelectContext(ctx, ds.reader(ctx), &profiles, stmt, args...)
+	err := sqlx.SelectContext(ctx, ds.reader(ctx), &profiles, stmt, hostUUID, policyVersion, fleet.MDMOperationTypeInstall)
 	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "listing host MDM Android profiles pending install")
+		return nil, ctxerr.Wrap(ctx, err, "listing host MDM Android profiles pending or failed install")
 	}
 
 	return profiles, nil

@@ -177,6 +177,7 @@ module.exports.custom = {
     'handbook/sales': 'sampfluger88',
     'handbook/customer-success': 'zayhanlon',
     'handbook/marketing': 'akuthiala',
+    'handbook/ceo': 'mikermcneil',
     'handbook/README.md': 'mikermcneil',
     'handbook/company/README.md': 'mikermcneil',
     'handbook/company/why-this-way.md': 'mikermcneil',
@@ -291,6 +292,7 @@ module.exports.custom = {
     // Handbook
     'handbook/README.md': 'mikermcneil', // See https://github.com/fleetdm/fleet/pull/13195
     'handbook/company': 'mikermcneil',
+    'handbook/ceo': 'mikermcneil',
     'handbook/company/product-maturity-assessment': ['mikermcneil','noahtalerman','allenhouchins'],
     'handbook/company/open-positions.yml': ['sampfluger88', 'mikermcneil', 'ireedy'],
     'handbook/company/communications.md': ['mikermcneil', 'sampfluger88'],
