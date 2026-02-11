@@ -39,6 +39,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	mdm_types "github.com/fleetdm/fleet/v4/server/mdm"
+	"github.com/fleetdm/fleet/v4/server/mdm/acme"
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/appmanifest"
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/gdmf"
@@ -6197,20 +6198,35 @@ func RenewSCEPCertificates(
 	}
 	scepChallenge := string(assets[fleet.MDMAssetSCEPChallenge].Value)
 
-	// send a single command for all the hosts without references.
 	if len(assocsWithoutRefs) > 0 {
-		profile, err := apple_mdm.GenerateEnrollmentProfileMobileconfig(
-			appConfig.OrgInfo.OrgName,
-			appConfig.MDMUrl(),
-			scepChallenge,
-			mdmPushCertTopic,
-		)
-		if err != nil {
-			return ctxerr.Wrap(ctx, err, "generating enrollment profile for hosts without enroll reference")
-		}
+		// send per-host enrollment profile using acme
+		for _, assoc := range assocsWithoutRefs {
+			idents, err := ds.GetHostMDMIdentifiers(ctx, assoc.HostUUID, fleet.TeamFilter{User: &fleet.User{
+				Name:       fleet.ActivityAutomationAuthor,
+				GlobalRole: ptr.String(fleet.RoleAdmin),
+			}})
+			switch {
+			case err != nil:
+				return ctxerr.Wrap(ctx, err, "getting host identifiers for hosts without enroll reference")
+			case len(idents) != 1:
+				return fmt.Errorf("expected to find exactly 1 identifier for host %s, but found %d", assoc.HostUUID, len(idents))
+			}
+			profile, err := acme.GenerateEnrollmentProfileMobileconfig(
+				appConfig.OrgInfo.OrgName,
+				appConfig.MDMUrl(),
+				idents[0].HardwareSerial,
+				mdmPushCertTopic,
+			)
+			if err != nil {
+				return ctxerr.Wrap(ctx, err, "generating enrollment profile for hosts without enroll reference")
+			}
+			// TODO: Figure out why the generated profile contains an escaped less than symbol and remove the need for this replacement.
+			p := strings.Replace(string(profile), "&lt;", "<", 1)
+			profile = []byte(p)
 
-		if err := renewSCEPWithProfile(ctx, ds, commander, logger, assocsWithoutRefs, profile); err != nil {
-			return ctxerr.Wrap(ctx, err, "sending profile to hosts without associations")
+			if err := renewSCEPWithProfile(ctx, ds, commander, logger, []fleet.SCEPIdentityAssociation{assoc}, profile); err != nil {
+				return ctxerr.Wrap(ctx, err, "sending profile to hosts without associations")
+			}
 		}
 	}
 
