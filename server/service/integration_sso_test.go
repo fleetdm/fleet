@@ -266,6 +266,50 @@ func (s *integrationSSOTestSuite) TestSSOLogin() {
 	})
 }
 
+func (s *integrationSSOTestSuite) TestSSOLoginDisallowedWithPremiumRoles() {
+	t := s.T()
+
+	acResp := appConfigResponse{}
+	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
+        "server_settings": {
+          "server_url": "https://localhost:8080"
+        },
+		"sso_settings": {
+			"enable_sso": true,
+			"entity_id": "https://localhost:8080",
+			"idp_name": "SimpleSAML",
+			"metadata_url": "http://localhost:9080/simplesaml/saml2/idp/metadata.php"
+		}
+	}`), http.StatusOK, &acResp)
+	require.NotNil(t, acResp)
+
+	t.Run("global premium roles", func(t *testing.T) {
+		for _, role := range []string{fleet.RoleTechnician, fleet.RoleGitOps, fleet.RoleObserverPlus} {
+			// Create user.
+			u := &fleet.User{
+				Name:       "SSO User 2",
+				Email:      "sso_user2@example.com",
+				GlobalRole: ptr.String(role),
+				SSOEnabled: true,
+			}
+			password := test.GoodPassword
+			require.NoError(t, u.SetPassword(password, 10, 10))
+			u, err := s.ds.NewUser(t.Context(), u)
+			require.NoError(t, err)
+
+			// Attempt to log in.
+			res := s.loginSSOUser("sso_user2", "user123#", "/api/v1/fleet/sso", http.StatusPaymentRequired)
+			t.Cleanup(func() {
+				res.Body.Close()
+			})
+
+			// Cleanup user.
+			err = s.ds.DeleteUser(t.Context(), u.ID)
+			require.NoError(t, err)
+		}
+	})
+}
+
 func (s *integrationSSOTestSuite) TestPerformRequiredPasswordResetWithSSO() {
 	// ensure that on exit, the admin token is used
 	defer func() { s.token = s.getTestAdminToken() }()

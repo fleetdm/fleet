@@ -454,6 +454,43 @@ func (s *integrationTestSuite) TestActivityUserEmailPersistsAfterDeletion() {
 	s.token = s.getTestAdminToken()
 }
 
+func (s *integrationTestSuite) TestPremiumOnlyRoles() {
+	t := s.T()
+
+	for _, role := range []string{fleet.RoleTechnician, fleet.RoleGitOps, fleet.RoleObserverPlus} {
+		t.Run(role, func(t *testing.T) {
+			t.Run("login", func(t *testing.T) {
+				user := &fleet.User{
+					Name:       role,
+					Email:      fmt.Sprintf("%s@example.com", role),
+					GlobalRole: ptr.String(role),
+				}
+				err := user.SetPassword(test.GoodPassword, 10, 10)
+				require.NoError(t, err)
+				_, err = s.ds.NewUser(t.Context(), user)
+				require.NoError(t, err)
+
+				var loginResp loginResponse
+				s.DoJSON("POST", "/api/latest/fleet/login", contract.LoginRequest{
+					Email:    fmt.Sprintf("%s@example.com", role),
+					Password: test.GoodPassword,
+				}, http.StatusPaymentRequired, &loginResp)
+			})
+
+			t.Run("create", func(t *testing.T) {
+				var createResp createUserResponse
+				params := fleet.UserPayload{
+					Name:       ptr.String(role),
+					Email:      ptr.String(fmt.Sprintf("%s@example.com", role)),
+					Password:   ptr.String(test.GoodPassword),
+					GlobalRole: ptr.String(role),
+				}
+				s.DoJSON("POST", "/api/latest/fleet/users/admin", params, http.StatusPaymentRequired, &createResp)
+			})
+		})
+	}
+}
+
 func (s *integrationTestSuite) TestPolicyDeletionLogsActivity() {
 	t := s.T()
 

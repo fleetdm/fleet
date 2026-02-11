@@ -229,7 +229,7 @@ allow {
 	action == [read, write][_]
 }
 
-# (Observers are not granted read for enroll secrets)
+# (Technicians, observer_plus, and observers are not granted read for enroll secrets)
 
 ##
 # Hosts
