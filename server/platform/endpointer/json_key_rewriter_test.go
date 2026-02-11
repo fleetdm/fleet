@@ -21,7 +21,7 @@ func TestJSONKeyRewriteReader_BasicRewrite(t *testing.T) {
 	require.NoError(t, err)
 
 	// Verify the key was rewritten.
-	var result map[string]interface{}
+	var result map[string]any
 	require.NoError(t, json.Unmarshal(out, &result))
 	assert.Equal(t, float64(42), result["fleet_id"])
 	assert.Equal(t, "hello", result["name"])
@@ -39,7 +39,7 @@ func TestJSONKeyRewriteReader_NoRewriteNeeded(t *testing.T) {
 	out, err := io.ReadAll(r)
 	require.NoError(t, err)
 
-	var result map[string]interface{}
+	var result map[string]any
 	require.NoError(t, json.Unmarshal(out, &result))
 	assert.Equal(t, float64(42), result["fleet_id"])
 	assert.Empty(t, r.UsedDeprecatedKeys())
@@ -94,10 +94,10 @@ func TestJSONKeyRewriteReader_NestedObjects(t *testing.T) {
 	require.NoError(t, err)
 
 	// Both occurrences should be rewritten.
-	var result map[string]interface{}
+	var result map[string]any
 	require.NoError(t, json.Unmarshal(out, &result))
 	assert.Equal(t, float64(2), result["fleet_id"])
-	inner := result["outer"].(map[string]interface{})
+	inner := result["outer"].(map[string]any)
 	assert.Equal(t, float64(1), inner["fleet_id"])
 
 	assert.Contains(t, r.UsedDeprecatedKeys(), "team_id")
@@ -125,10 +125,10 @@ func TestJSONKeyRewriteReader_NoConflictAcrossScopes(t *testing.T) {
 	out, err := io.ReadAll(r)
 	require.NoError(t, err)
 
-	var result map[string]interface{}
+	var result map[string]any
 	require.NoError(t, json.Unmarshal(out, &result))
 	assert.Equal(t, float64(1), result["fleet_id"])
-	inner := result["inner"].(map[string]interface{})
+	inner := result["inner"].(map[string]any)
 	assert.Equal(t, float64(2), inner["fleet_id"])
 }
 
@@ -141,7 +141,7 @@ func TestJSONKeyRewriteReader_StringValuesNotRewritten(t *testing.T) {
 	out, err := io.ReadAll(r)
 	require.NoError(t, err)
 
-	var result map[string]interface{}
+	var result map[string]any
 	require.NoError(t, json.Unmarshal(out, &result))
 	assert.Equal(t, "team_id", result["name"], "string value should not be rewritten")
 	assert.Equal(t, "the team_id field", result["description"])
@@ -156,7 +156,7 @@ func TestJSONKeyRewriteReader_EscapedQuotesInStrings(t *testing.T) {
 	out, err := io.ReadAll(r)
 	require.NoError(t, err)
 
-	var result map[string]interface{}
+	var result map[string]any
 	require.NoError(t, json.Unmarshal(out, &result))
 	assert.Equal(t, `value with "escaped" quotes`, result["fleet_id"])
 	assert.Contains(t, r.UsedDeprecatedKeys(), "team_id")
@@ -170,7 +170,7 @@ func TestJSONKeyRewriteReader_ArrayValues(t *testing.T) {
 	out, err := io.ReadAll(r)
 	require.NoError(t, err)
 
-	var result map[string]interface{}
+	var result map[string]any
 	require.NoError(t, json.Unmarshal(out, &result))
 	assert.NotNil(t, result["fleet_id"])
 	assert.Contains(t, r.UsedDeprecatedKeys(), "team_id")
@@ -184,11 +184,11 @@ func TestJSONKeyRewriteReader_ArrayOfObjects(t *testing.T) {
 	out, err := io.ReadAll(r)
 	require.NoError(t, err)
 
-	var result map[string]interface{}
+	var result map[string]any
 	require.NoError(t, json.Unmarshal(out, &result))
-	items := result["items"].([]interface{})
+	items := result["items"].([]any)
 	for _, item := range items {
-		obj := item.(map[string]interface{})
+		obj := item.(map[string]any)
 		assert.NotNil(t, obj["fleet_id"])
 		assert.Nil(t, obj["team_id"])
 	}
@@ -205,7 +205,7 @@ func TestJSONKeyRewriteReader_MultipleRules(t *testing.T) {
 	out, err := io.ReadAll(r)
 	require.NoError(t, err)
 
-	var result map[string]interface{}
+	var result map[string]any
 	require.NoError(t, json.Unmarshal(out, &result))
 	assert.Equal(t, float64(1), result["fleet_id"])
 	assert.Equal(t, "Engineering", result["fleet_name"])
@@ -237,7 +237,7 @@ func TestJSONKeyRewriteReader_NullValues(t *testing.T) {
 	out, err := io.ReadAll(r)
 	require.NoError(t, err)
 
-	var result map[string]interface{}
+	var result map[string]any
 	require.NoError(t, json.Unmarshal(out, &result))
 	assert.Contains(t, result, "fleet_id")
 	assert.Nil(t, result["fleet_id"])
@@ -251,7 +251,7 @@ func TestJSONKeyRewriteReader_BooleanValues(t *testing.T) {
 	out, err := io.ReadAll(r)
 	require.NoError(t, err)
 
-	var result map[string]interface{}
+	var result map[string]any
 	require.NoError(t, json.Unmarshal(out, &result))
 	assert.Equal(t, true, result["fleet_id"])
 }
@@ -265,7 +265,7 @@ func TestJSONKeyRewriteReader_NoRules(t *testing.T) {
 	require.NoError(t, err)
 
 	// With no rules, output should be identical to input.
-	var result map[string]interface{}
+	var result map[string]any
 	require.NoError(t, json.Unmarshal(out, &result))
 	assert.Equal(t, float64(42), result["team_id"])
 	assert.Empty(t, r.UsedDeprecatedKeys())
@@ -287,7 +287,7 @@ func TestJSONKeyRewriteReader_LargePayload(t *testing.T) {
 	out, err := io.ReadAll(r)
 	require.NoError(t, err)
 
-	var result map[string]interface{}
+	var result map[string]any
 	require.NoError(t, json.Unmarshal(out, &result))
 	assert.Equal(t, float64(1), result["fleet_id"])
 	assert.Nil(t, result["team_id"])
@@ -341,7 +341,7 @@ func TestJSONKeyRewriteReader_WhitespaceAroundColon(t *testing.T) {
 	out, err := io.ReadAll(r)
 	require.NoError(t, err)
 
-	var result map[string]interface{}
+	var result map[string]any
 	require.NoError(t, json.Unmarshal(out, &result))
 	assert.Equal(t, float64(42), result["fleet_id"])
 }
@@ -356,7 +356,7 @@ func TestJSONKeyRewriteReader_UnicodeEscapesInKeys(t *testing.T) {
 	out, err := io.ReadAll(r)
 	require.NoError(t, err)
 
-	var result map[string]interface{}
+	var result map[string]any
 	require.NoError(t, json.Unmarshal(out, &result))
 	assert.Equal(t, float64(42), result["fleet_id"])
 	assert.Nil(t, result["team_id"])
@@ -371,9 +371,9 @@ func TestJSONKeyRewriteReader_DeeplyNestedObjects(t *testing.T) {
 	out, err := io.ReadAll(r)
 	require.NoError(t, err)
 
-	var result map[string]interface{}
+	var result map[string]any
 	require.NoError(t, json.Unmarshal(out, &result))
-	inner := result["a"].(map[string]interface{})["b"].(map[string]interface{})["c"].(map[string]interface{})
+	inner := result["a"].(map[string]any)["b"].(map[string]any)["c"].(map[string]any)
 	assert.Equal(t, float64(99), inner["fleet_id"])
 }
 
@@ -385,7 +385,7 @@ func TestJSONKeyRewriteReader_TopLevelArray(t *testing.T) {
 	out, err := io.ReadAll(r)
 	require.NoError(t, err)
 
-	var result []map[string]interface{}
+	var result []map[string]any
 	require.NoError(t, json.Unmarshal(out, &result))
 	assert.Len(t, result, 2)
 	assert.Equal(t, float64(1), result[0]["fleet_id"])
@@ -401,7 +401,7 @@ func TestJSONKeyRewriteReader_StringValueContainingKeyName(t *testing.T) {
 	out, err := io.ReadAll(r)
 	require.NoError(t, err)
 
-	var result map[string]interface{}
+	var result map[string]any
 	require.NoError(t, json.Unmarshal(out, &result))
 	assert.Equal(t, "team_id", result["message"])
 }
@@ -415,9 +415,9 @@ func TestJSONKeyRewriteReader_NestedObjectStringValue(t *testing.T) {
 	out, err := io.ReadAll(r)
 	require.NoError(t, err)
 
-	var result map[string]interface{}
+	var result map[string]any
 	require.NoError(t, json.Unmarshal(out, &result))
-	config := result["config"].(map[string]interface{})
+	config := result["config"].(map[string]any)
 	assert.Equal(t, float64(5), config["fleet_id"])
 	assert.Equal(t, true, config["enabled"])
 }

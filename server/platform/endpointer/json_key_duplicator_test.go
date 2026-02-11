@@ -28,7 +28,7 @@ func TestDuplicateJSONKeys(t *testing.T) {
 			input: `{"fleet_id": 42, "name": "hello"}`,
 			rules: rules,
 			validate: func(t *testing.T, result []byte) {
-				var m map[string]interface{}
+				var m map[string]any
 				require.NoError(t, json.Unmarshal(result, &m))
 				assert.Equal(t, float64(42), m["fleet_id"])
 				assert.Equal(t, float64(42), m["team_id"])
@@ -48,7 +48,7 @@ func TestDuplicateJSONKeys(t *testing.T) {
 			input: `{"fleet_id": 1, "fleet_name": "test"}`,
 			rules: rules,
 			validate: func(t *testing.T, result []byte) {
-				var m map[string]interface{}
+				var m map[string]any
 				require.NoError(t, json.Unmarshal(result, &m))
 				assert.Equal(t, float64(1), m["fleet_id"])
 				assert.Equal(t, float64(1), m["team_id"])
@@ -62,7 +62,7 @@ func TestDuplicateJSONKeys(t *testing.T) {
 			rules: rules,
 			validate: func(t *testing.T, result []byte) {
 				// When old key already exists, no duplication should happen.
-				var m map[string]interface{}
+				var m map[string]any
 				require.NoError(t, json.Unmarshal(result, &m))
 				assert.Equal(t, float64(1), m["fleet_id"])
 				assert.Equal(t, float64(2), m["team_id"])
@@ -73,7 +73,7 @@ func TestDuplicateJSONKeys(t *testing.T) {
 			input: `{"fleet_name": "my fleet"}`,
 			rules: rules,
 			validate: func(t *testing.T, result []byte) {
-				var m map[string]interface{}
+				var m map[string]any
 				require.NoError(t, json.Unmarshal(result, &m))
 				assert.Equal(t, "my fleet", m["fleet_name"])
 				assert.Equal(t, "my fleet", m["team_name"])
@@ -84,7 +84,7 @@ func TestDuplicateJSONKeys(t *testing.T) {
 			input: `{"fleet_id": null}`,
 			rules: rules,
 			validate: func(t *testing.T, result []byte) {
-				var m map[string]interface{}
+				var m map[string]any
 				require.NoError(t, json.Unmarshal(result, &m))
 				assert.Nil(t, m["fleet_id"])
 				assert.Nil(t, m["team_id"])
@@ -97,7 +97,7 @@ func TestDuplicateJSONKeys(t *testing.T) {
 			input: `{"fleet_id": true}`,
 			rules: rules,
 			validate: func(t *testing.T, result []byte) {
-				var m map[string]interface{}
+				var m map[string]any
 				require.NoError(t, json.Unmarshal(result, &m))
 				assert.Equal(t, true, m["fleet_id"])
 				assert.Equal(t, true, m["team_id"])
@@ -108,10 +108,10 @@ func TestDuplicateJSONKeys(t *testing.T) {
 			input: `{"fleet_ids": [1, 2, 3]}`,
 			rules: rules,
 			validate: func(t *testing.T, result []byte) {
-				var m map[string]interface{}
+				var m map[string]any
 				require.NoError(t, json.Unmarshal(result, &m))
-				assert.Equal(t, []interface{}{float64(1), float64(2), float64(3)}, m["fleet_ids"])
-				assert.Equal(t, []interface{}{float64(1), float64(2), float64(3)}, m["team_ids"])
+				assert.Equal(t, []any{float64(1), float64(2), float64(3)}, m["fleet_ids"])
+				assert.Equal(t, []any{float64(1), float64(2), float64(3)}, m["team_ids"])
 			},
 		},
 		{
@@ -119,9 +119,9 @@ func TestDuplicateJSONKeys(t *testing.T) {
 			input: `{"fleet_id": {"sub": "value"}}`,
 			rules: rules,
 			validate: func(t *testing.T, result []byte) {
-				var m map[string]interface{}
+				var m map[string]any
 				require.NoError(t, json.Unmarshal(result, &m))
-				expected := map[string]interface{}{"sub": "value"}
+				expected := map[string]any{"sub": "value"}
 				assert.Equal(t, expected, m["fleet_id"])
 				assert.Equal(t, expected, m["team_id"])
 			},
@@ -131,9 +131,9 @@ func TestDuplicateJSONKeys(t *testing.T) {
 			input: `{"outer": {"fleet_id": 10}}`,
 			rules: rules,
 			validate: func(t *testing.T, result []byte) {
-				var m map[string]interface{}
+				var m map[string]any
 				require.NoError(t, json.Unmarshal(result, &m))
-				inner := m["outer"].(map[string]interface{})
+				inner := m["outer"].(map[string]any)
 				assert.Equal(t, float64(10), inner["fleet_id"])
 				assert.Equal(t, float64(10), inner["team_id"])
 			},
@@ -143,9 +143,9 @@ func TestDuplicateJSONKeys(t *testing.T) {
 			input: `{"a": {"b": {"c": {"fleet_id": 99}}}}`,
 			rules: rules,
 			validate: func(t *testing.T, result []byte) {
-				var m map[string]interface{}
+				var m map[string]any
 				require.NoError(t, json.Unmarshal(result, &m))
-				c := m["a"].(map[string]interface{})["b"].(map[string]interface{})["c"].(map[string]interface{})
+				c := m["a"].(map[string]any)["b"].(map[string]any)["c"].(map[string]any)
 				assert.Equal(t, float64(99), c["fleet_id"])
 				assert.Equal(t, float64(99), c["team_id"])
 			},
@@ -162,11 +162,11 @@ func TestDuplicateJSONKeys(t *testing.T) {
 			},
 			validate: func(t *testing.T, result []byte) {
 				assert.True(t, json.Valid(result), "result should be valid JSON: %s", string(result))
-				var m map[string]interface{}
+				var m map[string]any
 				require.NoError(t, json.Unmarshal(result, &m))
 				// Both ios_fleet and ios_team should exist.
-				iosFleet := m["ios_fleet"].(map[string]interface{})
-				iosTeam := m["ios_team"].(map[string]interface{})
+				iosFleet := m["ios_fleet"].(map[string]any)
+				iosTeam := m["ios_team"].(map[string]any)
 				// Both should have fleet_id AND team_id.
 				assert.Equal(t, "Default", iosFleet["name"])
 				assert.Equal(t, float64(5), iosFleet["fleet_id"])
@@ -181,7 +181,7 @@ func TestDuplicateJSONKeys(t *testing.T) {
 			input: `[{"fleet_id": 1}, {"fleet_id": 2}]`,
 			rules: rules,
 			validate: func(t *testing.T, result []byte) {
-				var arr []map[string]interface{}
+				var arr []map[string]any
 				require.NoError(t, json.Unmarshal(result, &arr))
 				require.Len(t, arr, 2)
 				assert.Equal(t, float64(1), arr[0]["fleet_id"])
@@ -195,14 +195,14 @@ func TestDuplicateJSONKeys(t *testing.T) {
 			input: `{"fleet_id": 1, "child": {"team_id": 5}}`,
 			rules: rules,
 			validate: func(t *testing.T, result []byte) {
-				var m map[string]interface{}
+				var m map[string]any
 				require.NoError(t, json.Unmarshal(result, &m))
 				// Top level: fleet_id should be duplicated (no team_id at top level).
 				assert.Equal(t, float64(1), m["fleet_id"])
 				assert.Equal(t, float64(1), m["team_id"])
 				// Child: team_id exists but fleet_id doesn't; no duplication
 				// (we only duplicate new->old, not old->new).
-				child := m["child"].(map[string]interface{})
+				child := m["child"].(map[string]any)
 				assert.Equal(t, float64(5), child["team_id"])
 				_, hasFleetIDInChild := child["fleet_id"]
 				assert.False(t, hasFleetIDInChild)
@@ -246,7 +246,7 @@ func TestDuplicateJSONKeys(t *testing.T) {
 			rules: rules,
 			validate: func(t *testing.T, result []byte) {
 				// String values that happen to match a key name should NOT trigger duplication.
-				var m map[string]interface{}
+				var m map[string]any
 				require.NoError(t, json.Unmarshal(result, &m))
 				assert.Equal(t, "fleet_id", m["value"])
 				_, hasTeamID := m["team_id"]
@@ -258,7 +258,7 @@ func TestDuplicateJSONKeys(t *testing.T) {
 			input: `{"fleet_id": 1.5e2}`,
 			rules: rules,
 			validate: func(t *testing.T, result []byte) {
-				var m map[string]interface{}
+				var m map[string]any
 				require.NoError(t, json.Unmarshal(result, &m))
 				assert.Equal(t, float64(150), m["fleet_id"])
 				assert.Equal(t, float64(150), m["team_id"])
@@ -269,7 +269,7 @@ func TestDuplicateJSONKeys(t *testing.T) {
 			input: `{"fleet_id": -7}`,
 			rules: rules,
 			validate: func(t *testing.T, result []byte) {
-				var m map[string]interface{}
+				var m map[string]any
 				require.NoError(t, json.Unmarshal(result, &m))
 				assert.Equal(t, float64(-7), m["fleet_id"])
 				assert.Equal(t, float64(-7), m["team_id"])
@@ -280,7 +280,7 @@ func TestDuplicateJSONKeys(t *testing.T) {
 			input: `{"fleet_name": "he said \"hi\""}`,
 			rules: rules,
 			validate: func(t *testing.T, result []byte) {
-				var m map[string]interface{}
+				var m map[string]any
 				require.NoError(t, json.Unmarshal(result, &m))
 				assert.Equal(t, `he said "hi"`, m["fleet_name"])
 				assert.Equal(t, `he said "hi"`, m["team_name"])
@@ -291,7 +291,7 @@ func TestDuplicateJSONKeys(t *testing.T) {
 			input: "{\n  \"fleet_id\": 42,\n  \"name\": \"test\"\n}",
 			rules: rules,
 			validate: func(t *testing.T, result []byte) {
-				var m map[string]interface{}
+				var m map[string]any
 				require.NoError(t, json.Unmarshal(result, &m))
 				assert.Equal(t, float64(42), m["fleet_id"])
 				assert.Equal(t, float64(42), m["team_id"])
@@ -306,19 +306,19 @@ func TestDuplicateJSONKeys(t *testing.T) {
 				// Ensure the result is valid JSON.
 				assert.True(t, json.Valid(result), "result should be valid JSON: %s", string(result))
 
-				var m map[string]interface{}
+				var m map[string]any
 				require.NoError(t, json.Unmarshal(result, &m))
 				assert.Equal(t, float64(42), m["fleet_id"])
 				assert.Equal(t, float64(42), m["team_id"])
 
-				nested := m["nested"].(map[string]interface{})
+				nested := m["nested"].(map[string]any)
 				assert.Equal(t, "x", nested["fleet_name"])
 				assert.Equal(t, "x", nested["team_name"])
 
-				arr := m["arr"].([]interface{})
-				arrObj := arr[0].(map[string]interface{})
-				assert.Equal(t, []interface{}{float64(1)}, arrObj["fleet_ids"])
-				assert.Equal(t, []interface{}{float64(1)}, arrObj["team_ids"])
+				arr := m["arr"].([]any)
+				arrObj := arr[0].(map[string]any)
+				assert.Equal(t, []any{float64(1)}, arrObj["fleet_ids"])
+				assert.Equal(t, []any{float64(1)}, arrObj["team_ids"])
 			},
 		},
 		{
@@ -333,7 +333,7 @@ func TestDuplicateJSONKeys(t *testing.T) {
 			rules: rules,
 			validate: func(t *testing.T, result []byte) {
 				assert.True(t, json.Valid(result), "result should be valid JSON")
-				var arr []map[string]interface{}
+				var arr []map[string]any
 				require.NoError(t, json.Unmarshal(result, &arr))
 				require.Len(t, arr, 100)
 				for i, obj := range arr {
@@ -349,7 +349,7 @@ func TestDuplicateJSONKeys(t *testing.T) {
 			validate: func(t *testing.T, result []byte) {
 				// The old key is present but not the new key. We only duplicate
 				// new->old, not old->new. So no duplication should happen.
-				var m map[string]interface{}
+				var m map[string]any
 				require.NoError(t, json.Unmarshal(result, &m))
 				assert.Equal(t, float64(5), m["team_id"])
 				_, hasFleetID := m["fleet_id"]
@@ -361,13 +361,13 @@ func TestDuplicateJSONKeys(t *testing.T) {
 			input: `{"fleet_id": 1, "child": {"fleet_id": 2, "team_id": 3}}`,
 			rules: rules,
 			validate: func(t *testing.T, result []byte) {
-				var m map[string]interface{}
+				var m map[string]any
 				require.NoError(t, json.Unmarshal(result, &m))
 				// Top level: fleet_id duplicated (no team_id at top).
 				assert.Equal(t, float64(1), m["fleet_id"])
 				assert.Equal(t, float64(1), m["team_id"])
 				// Child: both keys exist, no duplication.
-				child := m["child"].(map[string]interface{})
+				child := m["child"].(map[string]any)
 				assert.Equal(t, float64(2), child["fleet_id"])
 				assert.Equal(t, float64(3), child["team_id"])
 			},
@@ -378,7 +378,7 @@ func TestDuplicateJSONKeys(t *testing.T) {
 			rules: rules,
 			validate: func(t *testing.T, result []byte) {
 				// json.Encoder appends a newline; ensure it still works.
-				var m map[string]interface{}
+				var m map[string]any
 				require.NoError(t, json.Unmarshal(result, &m))
 				assert.Equal(t, float64(1), m["fleet_id"])
 				assert.Equal(t, float64(1), m["team_id"])
@@ -412,7 +412,7 @@ func TestDuplicateJSONKeysWithEncoder(t *testing.T) {
 	result := DuplicateJSONKeys(data, rules)
 	assert.True(t, json.Valid(result), "result should be valid JSON: %s", string(result))
 
-	var m map[string]interface{}
+	var m map[string]any
 	require.NoError(t, json.Unmarshal(result, &m))
 	assert.Equal(t, float64(42), m["fleet_id"])
 	assert.Equal(t, float64(42), m["team_id"])
@@ -429,14 +429,14 @@ func TestDuplicateJSONKeysIdempotent(t *testing.T) {
 	input := `{"fleet_id": 42}`
 	first := DuplicateJSONKeys([]byte(input), rules)
 
-	var m1 map[string]interface{}
+	var m1 map[string]any
 	require.NoError(t, json.Unmarshal(first, &m1))
 	assert.Equal(t, float64(42), m1["fleet_id"])
 	assert.Equal(t, float64(42), m1["team_id"])
 
 	// Second pass should not add anything new.
 	second := DuplicateJSONKeys(first, rules)
-	var m2 map[string]interface{}
+	var m2 map[string]any
 	require.NoError(t, json.Unmarshal(second, &m2))
 	assert.Equal(t, float64(42), m2["fleet_id"])
 	assert.Equal(t, float64(42), m2["team_id"])

@@ -196,11 +196,11 @@ func jsonToInterface(in interface{}) (interface{}, error) {
 // `renamedfrom` tag, copies the value stored under the current JSON key into
 // the map under the old key name. It also recurses one level into direct child
 // structs (not slices) to handle nested renames.
-func addRenamedFromKeys(t reflect.Type, m map[string]interface{}) {
+func addRenamedFromKeys(t reflect.Type, m map[string]any) {
 	addRenamedFromKeysDepth(t, m, 0)
 }
 
-func addRenamedFromKeysDepth(t reflect.Type, m map[string]interface{}, depth int) {
+func addRenamedFromKeysDepth(t reflect.Type, m map[string]any, depth int) {
 	if t == nil {
 		return
 	}
@@ -240,7 +240,7 @@ func addRenamedFromKeysDepth(t reflect.Type, m map[string]interface{}, depth int
 				ft = ft.Elem()
 			}
 			if ft.Kind() == reflect.Struct {
-				if nested, ok := m[jsonKey].(map[string]interface{}); ok {
+				if nested, ok := m[jsonKey].(map[string]any); ok {
 					addRenamedFromKeysDepth(ft, nested, depth+1)
 				}
 			}
