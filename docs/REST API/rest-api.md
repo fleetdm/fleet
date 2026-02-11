@@ -7750,7 +7750,7 @@ _Available in Fleet Premium_
       "name": "Gatekeeper enabled",
       "query": "SELECT 1 FROM gatekeeper WHERE assessments_enabled = 1;",
       "description": "Checks if gatekeeper is enabled on macOS devices",
-      "type": "manual",
+      "type": "dynamic",
       "critical": true,
       "author_id": 42,
       "author_name": "John",
@@ -8051,7 +8051,7 @@ _Available in Fleet Premium_
     "query": "SELECT 1 FROM gatekeeper WHERE assessments_enabled = 1;",
     "description": "Checks if gatekeeper is enabled on macOS devices",
     "critical": true,
-    "type": "manual",
+    "type": "dynamic",
     "author_id": 42,
     "author_name": "John",
     "author_email": "john@example.com",
@@ -9875,7 +9875,7 @@ Get a list of all software.
           {
             "id": 343,
             "name": "[Install software] Firefox.app",
-            "type": "manual",
+            "type": "dynamic",
             "fleet_maintained": false
           }
         ],
@@ -10228,7 +10228,7 @@ Returns information about the specified software. By default, `versions` are sor
         {
           "id": 343,
           "name": "[Install software] Crowdstrike Agent",
-          "type": "manual",
+          "type": "dynamic",
           "fleet_maintained": false
         }
       ],
@@ -10303,7 +10303,7 @@ Returns information about the specified software. By default, `versions` are sor
         {
           "id": 345,
           "name": "[Install software] Logic Pro",
-          "type": "manual",
+          "type": "dynamic",
           "fleet_maintained": false
         }
       ],
@@ -11063,7 +11063,7 @@ Only one of `labels_include_any` or `labels_exclude_any` can be specified. If ne
       {
         "id": 345,
         "name": "[Install software] Logic Pro",
-        "type": "manual",
+        "type": "dynamic",
         "fleet_maintained": false
       }
     ],
