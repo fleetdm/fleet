@@ -450,21 +450,7 @@ func (s *Schedule) Start() {
 					pollTicker.Stop()
 					return
 				case <-pollTicker.C:
-					_, trig, err := s.GetLatestStats(s.ctx)
-					if err != nil {
-						level.Error(s.logger).Log("err", "trigger poll get cron stats", "details", err)
-						ctxerr.Handle(s.ctx, err)
-						continue
-					}
-					if trig.Status == fleet.CronStatsStatusQueued {
-						// Signal the trigger handler; it will claim the record when ready.
-						// Non-blocking: if the handler is busy, the record stays queued and the next poll will try again.
-						select {
-						case s.trigger <- trig.ID:
-							level.Info(s.logger).Log("msg", "picked up queued trigger", "stats_id", trig.ID)
-						default:
-						}
-					}
+					s.pollForQueuedTrigger()
 				}
 			}
 		})
@@ -548,6 +534,33 @@ func (s *Schedule) runAllJobs(ctx context.Context) {
 			s.errors[job.ID] = err
 			level.Error(s.logger).Log("err", "running job", "details", err, "jobID", job.ID)
 			ctxerr.Handle(ctx, err)
+		}
+	}
+}
+
+// pollForQueuedTrigger checks for a queued trigger record and signals the
+// trigger handler if one is found.
+func (s *Schedule) pollForQueuedTrigger() {
+	ctx, span := startRootSpan(s.ctx, "cron.trigger_poll."+s.name,
+		attribute.String("cron.name", s.name),
+		attribute.String("cron.instance", s.instanceID),
+		attribute.String("cron.type", "trigger_poll"),
+	)
+	defer span.End()
+
+	_, trig, err := s.GetLatestStats(ctx)
+	if err != nil {
+		level.Error(s.logger).Log("err", "trigger poll get cron stats", "details", err)
+		ctxerr.Handle(ctx, err)
+		return
+	}
+	if trig.Status == fleet.CronStatsStatusQueued {
+		// Signal the trigger handler; it will claim the record when ready.
+		// Non-blocking: if the handler is busy, the record stays queued and the next poll will try again.
+		select {
+		case s.trigger <- trig.ID:
+			level.Info(s.logger).Log("msg", "picked up queued trigger", "stats_id", trig.ID)
+		default:
 		}
 	}
 }
