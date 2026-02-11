@@ -56,4 +56,37 @@ projects:
             region: oregon
             healthCheckPath: /api/health
             autoDeployTrigger: commit
+          - type: cron
+            rootDir: tools/fleet-customer-metrics
+            name: importer
+            runtime: python
+            plan: starter
+            envVars:
+              - key: CSV_URL
+                sync: false
+              - key: PGPASSWORD
+                fromDatabase:
+                  name: metrics-db
+                  property: password
+              - key: PGUSER
+                fromDatabase:
+                  name: metrics-db
+                  property: user
+              - key: PGDATABASE
+                fromDatabase:
+                  name: metrics-db
+                  property: database
+              - key: PGPORT
+                fromDatabase:
+                  name: metrics-db
+                  property: port
+              - key: PGHOST
+                fromDatabase:
+                  name: metrics-db
+                  property: host
+            region: oregon
+            buildCommand: pip install -r requirements.txt
+            startCommand: python import_data.py
+            schedule: 48 * * * *
+            autoDeployTrigger: commit
 version: "1"
