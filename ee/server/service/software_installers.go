@@ -1432,12 +1432,15 @@ func (svc *Service) installSoftwareTitleUsingInstaller(ctx context.Context, host
 	}
 
 	if host.FleetPlatform() != requiredPlatform {
-		return &fleet.BadRequestError{
-			Message: fmt.Sprintf("Package (%s) can be installed only on %s hosts.", ext, requiredPlatform),
-			InternalErr: ctxerr.NewWithData(
-				ctx, "invalid host platform for requested installer",
-				map[string]any{"host_id": host.ID, "team_id": host.TeamID, "title_id": installer.TitleID},
-			),
+		// Allow .sh scripts for any unix-like platform (linux and darwin)
+		if !(ext == ".sh" && fleet.IsUnixLike(host.Platform)) {
+			return &fleet.BadRequestError{
+				Message: fmt.Sprintf("Package (%s) can be installed only on %s hosts.", ext, requiredPlatform),
+				InternalErr: ctxerr.NewWithData(
+					ctx, "invalid host platform for requested installer",
+					map[string]any{"host_id": host.ID, "team_id": host.TeamID, "title_id": installer.TitleID},
+				),
+			}
 		}
 	}
 
@@ -2681,12 +2684,15 @@ func (svc *Service) SelfServiceInstallSoftwareTitle(ctx context.Context, host *f
 		}
 
 		if host.FleetPlatform() != requiredPlatform {
-			return &fleet.BadRequestError{
-				Message: fmt.Sprintf("Package (%s) can be installed only on %s hosts.", ext, requiredPlatform),
-				InternalErr: ctxerr.WrapWithData(
-					ctx, err, "invalid host platform for requested installer",
-					map[string]any{"host_id": host.ID, "team_id": host.TeamID, "title_id": softwareTitleID},
-				),
+			// Allow .sh scripts for any unix-like platform (linux and darwin)
+			if !(ext == ".sh" && fleet.IsUnixLike(host.Platform)) {
+				return &fleet.BadRequestError{
+					Message: fmt.Sprintf("Package (%s) can be installed only on %s hosts.", ext, requiredPlatform),
+					InternalErr: ctxerr.WrapWithData(
+						ctx, err, "invalid host platform for requested installer",
+						map[string]any{"host_id": host.ID, "team_id": host.TeamID, "title_id": softwareTitleID},
+					),
+				}
 			}
 		}
 

@@ -21,6 +21,11 @@ This handbook page details processes specific to working [with](#contact-us) and
   - Any Fleet team member can [view the kanban board](https://github.com/orgs/fleetdm/projects/94) for this department, including pending tasks and the status of new requests.
 
 
+## Responsibilities
+
+The Marketing department is directly responsible for achieving revenue pipeline targets, increasing awareness and interest in the open-source project, customer training curriculums, prospect enablement, and nurturing the Fleet community through participation in video, sponsored events, and other [programs](https://fleetdm.com/handbook/company/communications#programs).
+
+
 ## Marketing assets
 
 This list is in chronological order as assets are created.
@@ -46,7 +51,6 @@ This list is in chronological order as assets are created.
 | [Detect Log4j with osquery and Fleet](https://fleetdm.com/securing/detect-log4j-with-osquery-and-fleet) | 2021-12-15 | Example of how to leverage the flexibility of Fleet and osquery for quick response |
 | [Queries/create a query](https://fleetdm.com/guides/queries#create-a-query) |  | Explaining what Queries are and how to create them |
 | [Death to Extension Attributes](https://github.com/allenhouchins/death-to-extension-attributes) |  | Demonstrating to Jamf users how simple Fleet queries are compared to Jamf Extension Attributes. |
-| [Overview deck](https://docs.google.com/presentation/d/1kPcn3Ht-74D5Ta9ARcE-Ofby-E0TC7hZ2yTuwiK_eKk/edit?usp=sharing) |  |  |
 | [Understanding objections and when we see them](https://docs.google.com/document/d/1UFjHaIBdoSGDiqNqwgxRdwRz9Wn9SqP7h-g2OM8Runk/edit) |  | Understanding objections and when they’ll come up |
 | [Sales one-pager](https://docs.google.com/document/d/15nVnn2dalLnyJgfX3o-96jvFAzZPS9vrTaNo_lYNick/edit?usp=sharing) |  | Introduction to Fleet; best for printing and folding |
 | [Fleet for IT product brochure](https://docs.google.com/document/d/1d_53iYU6O-uzaXnzjlXXGwByGRmpz3VMG6kWT6hMCkU/edit?usp=sharing) |  | Early marketing/sales cycle learning \- for “One pager” or “Overview” requests |
@@ -54,22 +58,17 @@ This list is in chronological order as assets are created.
 | [Fleet capabilities one-pager](https://docs.google.com/document/d/15nVnn2dalLnyJgfX3o-96jvFAzZPS9vrTaNo_lYNick/edit?tab=t.0) |  | High level overview of what Fleet does |
 | [Customer use cases](https://docs.google.com/document/d/1zz74xL12KB2Re-I06Ongg7giZ2obZAQdTFV_FdlULws/edit?usp=sharing) |  | Outbound, discussion/presentation |
 | [Log4j blog post](https://fleetdm.com/securing/detect-log4j-with-osquery-and-fleet) |  | Example of how to leverage the flexibility of Fleet and osquery for quick response |
-| [GitHub value deck](https://docs.google.com/presentation/d/1lYOdJiCNFuMUB-6MZ3ZtYC5iYM9ZZrV7YR6ShM9WcCY/edit?usp=sharing) |  |  |
 | [Intro to Fleet](https://www.youtube.com/watch?v=rVxSgvKjrWo), product demo |  |  |
 | Reports— [SODM](https://fleetdm.com/reports/state-of-device-management)  |  | Grow authority |
-| [2023 IBM study](https://drive.google.com/file/d/1YUfXnbOQ93S0gttwf3qoW7F4bN7-Egci/view?usp=drive_link) on cost of a Breach |  |  |
 | [Why Fleet; MDM questions](https://docs.google.com/document/d/1dujnNVZAKp4h8ruYnVf7JGltVJXfOCZeqKn9HKoAkC8/edit?usp=sharing) |  |  |
 | [Swag typeform](https://kqphpqst851.typeform.com/to/ZfA3sOu0?typeform-source=fleetdm.com) |  | Build goodwill |
 | [Trends in cyber blog post](https://ventureinsecurity.net/p/the-rise-of-security-engineering) |  | Where Fleet fits in to today’s security engineering world which needs more flexibility in its technical solutions |
 | [Red Hat post](https://www.redhat.com/sysadmin/fleetdm-get-started) about Fleet |  | How Fleet makes osquery better, and how to get started (technical instructions) |
 | [Keyboard crunch](https://keyboardcrunch.com/posts/FleetDM/) 3rd party overview of Fleet |  | Another 3rd party overview of Fleet  |
 | [MDM UI dashboard](https://drive.google.com/drive/folders/1fjwbl_XmrCi1HtehFFGdKA0AYhy9AIpC) |  | Showing the UI of the MDM Dashboard (Windows) |
-| [The rise of security engineering and how it is changing the cybersecurity of tomorrow](https://ventureinsecurity.net/p/the-rise-of-security-engineering) |  | An in-depth look at one of the trends defining the future of security  |
-| [Vulnerability dashboard](https://dash.fleetdm.com/login) |  | Example of product extensibility |
 | Recorded demo of [vulnerability management dashboard](https://play.goconsensus.com/s3130001d) |  | Good to use in VM buying scenario, even with non-coding elves/christmas trees |
 | Tom Larkin, [Snowflake blog post](https://fleetdm.com/guides/delivering-data-to-snowflake-from-fleet-and-osquery) On Tom’s own blog, [1st post](https://t-lark.github.io/posts/snowflake-osquery-fleet-magic/) [2nd post](https://t-lark.github.io/posts/osquery-data-in-snowflake/) |  | When someone doesn’t want to replace their MDM, but wants Fleet for Endpoint Ops |
 | [Osquery overview](https://fleetdm.com/guides/osquery-a-tool-to-easily-ask-questions-about-operating-systems) on Fleet blog |  |  |
-| [Gusto case study](https://docs.google.com/document/d/1zw-Q3mqCX8j6AEXAk_7c2MTd0NUXOW1wQYTdhEUJWIU/edit?usp=sharing) |  | Middle to end of sales cycle to help justify spend |
 | [macOS / Windows device management roadmap](https://docs.google.com/presentation/d/1pCADKXo8-iiuEn_eQAx9LrKWP8_81fO-ObO8O0wQ1WA/edit#slide=id.g246739d8889_2_0) |  | Prospect wants to see what we do with MDM |
 | [A configurable & transparent alternative to Rapid7](https://jarod.ngrok.dev/imagine/rapid-7-alternative) |  |  |
 | [ROI Spreadsheet](https://docs.google.com/spreadsheets/d/14Cfj77ynOB6z4pmb9DD7HNRGo0kcKJuEIifgnz-YO50/edit?usp=sharing) |  |  |
@@ -87,15 +86,18 @@ This list is in chronological order as assets are created.
 | [Competitive Matrix - Jamf & Intune](https://docs.google.com/spreadsheets/d/1-DcJ9kPd8Pm1ExuMTynO2owrix37ddkDseuXMtgLevQ/edit?gid=0#gid=0)File |  | Competitive Matrix Jamf & Intune |
 | [Charles from Roblox talking about Fleet’s performance and scale](https://www.linkedin.com/posts/zacharywasserman_charles-zaffery-rolled-out-fleet-device-management-activity-7196618547131793409-vLSE?utm_source=share&utm_medium=member_desktop) |  | Customer proof point of scale and performance |
 | [Performance measuring with OTEL](https://docs.google.com/document/d/1nUVZP3JBLgcLDhBUV_YvIqsFreg9QDARxby-TWEia-A/edit?usp=sharing) |  | Summary of discussion with Fastly about how they measure |
-| [Example internal pitch deck from Nutanix](https://docs.google.com/presentation/d/1VsPqYG-IbWsDPds7F0yo-gih5xR1ISKj/edit?usp=sharing&ouid=101039358388338051104&rtpof=true&sd=true) |  | Nutanix champions genericized their internal deck and shared with Fleet to reuse |
 | [2025 - Gartner IT Symposium Updated (1).pdf](https://drive.google.com/file/d/1HK1QXA2kOCeOoOG1E0-tk7-xwBhQ2QMa/view?usp=sharing) |  | Executive summary of value / outcomes from GitOps |
 | [Linux endpoint management for Enterprise IT](https://www.linkedin.com/events/7361776596396957696/) (lead by Kadar Anwar and Cisco) |  | Workstation Linux MDM (not servers/observability) |
 | [Translating Jamf Pro terminology & capabilities](https://fleetdm.com/guides/translating-jamf-pro-terminology#basic-article) |  |  |
 
 
-## Responsibilities
+### Press Broiler Plate Text
 
-The Marketing department is directly responsible for achieving revenue pipeline targets, increasing awareness and interest in the open-source project, customer training curriculums, prospect enablement, and nurturing the Fleet community through participation in video, sponsored events, and other [programs](https://fleetdm.com/handbook/company/communications#programs).
+Fleet is the single endpoint management platform for macOS, iOS, Android, Windows, Linux, ChromeOS, and cloud infrastructure. Trusted by over 1,300 organizations,  Fleet empowers IT and Security teams to accelerate productivity, build verifiable trust, and optimize costs.
+
+By bringing infrastructure-as-code (IaC) practices to device management, Fleet ensures endpoints remain secure and operational, freeing engineering teams to focus on strategic initiatives.
+
+Fleet offers total deployment flexibility: on-premises, air-gapped, container-native (Docker and Kubernetes), or cloud-agnostic (AWS, Azure, GCP, DigitalOcean). Organizations can also choose fully managed SaaS via Fleet Cloud, ensuring complete control over data residency and legal jurisdiction.
 
 
 ### Organize work in GitHub issues with marketing labels
