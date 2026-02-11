@@ -18,7 +18,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/authz"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
-	"github.com/fleetdm/fleet/v4/server/mdm/android"
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/apple_apps"
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/vpp"
 	"github.com/fleetdm/fleet/v4/server/ptr"
@@ -264,11 +263,31 @@ func (svc *Service) BatchAssociateVPPApps(ctx context.Context, teamName string, 
 		appStoreApps = append(appStoreApps, apps...)
 	}
 
-	var enterprise *android.Enterprise
-	if len(incomingAndroidApps) > 0 {
-		var err error
-		enterprise, err = svc.ds.GetEnterprise(ctx)
+	enterprise, err := svc.ds.GetEnterprise(ctx)
+	if err != nil && !fleet.IsNotFound(err) {
+		return nil, &fleet.BadRequestError{Message: "Android MDM is not enabled", InternalErr: err}
+	}
+
+	androidHostPoliciesToUpdate := map[string]string{}
+	if len(incomingAndroidApps) == 0 {
+		// get the currently available VPP apps, and the hosts that have them in scope,
+		// to update their set of apps to the empty set (and remove/uninstall the apps).
+		removedApps, err := svc.ds.GetVPPApps(ctx, teamID)
 		if err != nil {
+			return nil, err
+		}
+
+		for _, app := range removedApps {
+			if app.Platform == fleet.AndroidPlatform {
+				hostsInScope, err := svc.ds.GetIncludedHostUUIDMapForAppStoreApp(ctx, app.AppTeamID)
+				if err != nil {
+					return nil, err
+				}
+				maps.Copy(androidHostPoliciesToUpdate, hostsInScope)
+			}
+		}
+	} else {
+		if enterprise == nil {
 			return nil, &fleet.BadRequestError{Message: "Android MDM is not enabled", InternalErr: err}
 		}
 
@@ -387,16 +406,11 @@ func (svc *Service) BatchAssociateVPPApps(ctx context.Context, teamName string, 
 		return nil, err // returned error already includes context that we could include here
 	}
 
-	if len(allPlatformApps) == 0 {
-		return []fleet.VPPAppResponse{}, nil
-	}
-
 	addedApps, err := svc.ds.GetVPPApps(ctx, teamID)
 	if err != nil {
 		return nil, err
 	}
 
-	policiesToUpdate := map[string]string{}
 	var appIDs []string
 	for _, app := range addedApps {
 		if app.Platform == fleet.AndroidPlatform {
@@ -405,13 +419,13 @@ func (svc *Service) BatchAssociateVPPApps(ctx context.Context, teamName string, 
 				return nil, err
 			}
 
-			maps.Copy(policiesToUpdate, hostsInScope)
+			maps.Copy(androidHostPoliciesToUpdate, hostsInScope)
 			appIDs = append(appIDs, app.AppStoreID)
 		}
 	}
 
-	if len(policiesToUpdate) > 0 && enterprise != nil {
-		for hostUUID, policyID := range policiesToUpdate {
+	if len(androidHostPoliciesToUpdate) > 0 && enterprise != nil {
+		for hostUUID, policyID := range androidHostPoliciesToUpdate {
 			err := worker.QueueBulkSetAndroidAppsAvailableForHost(ctx, svc.ds, svc.logger, hostUUID, policyID, appIDs, enterprise.Name())
 			if err != nil {
 				return nil, ctxerr.WrapWithData(
@@ -435,6 +449,9 @@ func (svc *Service) BatchAssociateVPPApps(ctx context.Context, teamName string, 
 		}
 	}
 
+	if len(addedApps) == 0 {
+		return []fleet.VPPAppResponse{}, nil
+	}
 	return addedApps, nil
 }
 
