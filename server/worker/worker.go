@@ -67,6 +67,10 @@ type Worker struct {
 	// For tests only, allows ignoring unknown jobs instead of failing them.
 	TestIgnoreUnknownJobs bool
 
+	// delayPerRetry defines the delays between retries. If nil, the default
+	// delays are used.
+	delayPerRetry []time.Duration
+
 	registry map[string]Job
 }
 
@@ -117,12 +121,12 @@ func QueueJobWithDelay(ctx context.Context, ds fleet.Datastore, name string, arg
 	return ds.NewJob(ctx, job)
 }
 
-// this defines the delays to add between retries (i.e. how the "not_before"
-// timestamp of a job will be set for the next run). Keep in mind that at a
-// minimum, the job will not be retried before the next cron run of the worker,
-// but we want to ensure a minimum delay before retries to give a chance to
-// e.g. transient network issues to resolve themselves.
-var delayPerRetry = []time.Duration{
+// defaultDelayPerRetry defines the delays to add between retries (i.e. how
+// the "not_before" timestamp of a job will be set for the next run). Keep in
+// mind that at a minimum, the job will not be retried before the next cron run
+// of the worker, but we want to ensure a minimum delay before retries to give
+// a chance to e.g. transient network issues to resolve themselves.
+var defaultDelayPerRetry = []time.Duration{
 	1: 0, // i.e. for the first retry, do it ASAP (on the next worker run)
 	2: 5 * time.Minute,
 	3: 10 * time.Minute,
@@ -184,8 +188,12 @@ func (w *Worker) ProcessJobs(ctx context.Context) error {
 				if job.Retries < maxRetries {
 					level.Debug(log).Log("msg", "will retry job")
 					job.Retries += 1
-					if job.Retries < len(delayPerRetry) {
-						job.NotBefore = time.Now().Add(delayPerRetry[job.Retries])
+					delays := w.delayPerRetry
+					if delays == nil {
+						delays = defaultDelayPerRetry
+					}
+					if job.Retries < len(delays) {
+						job.NotBefore = time.Now().UTC().Add(delays[job.Retries])
 					}
 				} else {
 					job.State = fleet.JobStateFailure
