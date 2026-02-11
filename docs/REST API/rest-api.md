@@ -2936,7 +2936,6 @@ the `software` table.
 | bootstrap_package       | string | query | _Available in Fleet Premium_. Filters the hosts by the status of the MDM bootstrap package on the host. Valid options are 'installed', 'pending', or 'failed'. |
 | os_settings          | string  | query | Filters the hosts by the status of the operating system settings applied to the hosts. Valid options are 'verified', 'verifying', 'pending', or 'failed'. **Note: If this filter is used in Fleet Premium without a team ID filter, the results include only hosts that are not assigned to any team.** |
 | os_settings_disk_encryption | string | query | Filters the hosts by disk encryption status. Valid options are 'verified', 'verifying', 'action_required', 'enforcing', 'failed', or 'removing_enforcement'.  **Note: If this filter is used in Fleet Premium without a team ID filter, the results include only hosts that are not assigned to any team.** |
-| os_settings_recovery_lock_password | string | query | Filters the hosts by Recovery Lock password status. Valid options are 'verified', 'action_required', 'enforcing', 'failed', or 'removing_enforcement'.  **Note: If this filter is used in Fleet Premium without a team ID filter, the results include only hosts that are not assigned to any team.** |
 | populate_software     | string | query | If `false` (or omitted), omits installed software details for each host. If `"without_vulnerability_details"`, include a list of installed software for each host, including which CVEs apply to the installed software versions. `true` adds vulnerability description, CVSS score, and other details when using Fleet Premium. See notes below on performance. |
 | populate_policies     | boolean | query | If `true`, the response will include policy data for each host, including Fleet-maintained policies. |
 | populate_users     | boolean | query | If `true`, the response will include user data for each host. |
@@ -3236,7 +3235,6 @@ Response payload with the `munki_issue_id` filter provided:
 | bootstrap_package       | string | query | _Available in Fleet Premium_. Filters the hosts by the status of the MDM bootstrap package on the host. Valid options are 'installed', 'pending', or 'failed'. **Note: If this filter is used in Fleet Premium without a team ID filter, the results include only hosts that are not assigned to any team.** |
 | os_settings          | string  | query | Filters the hosts by the status of the operating system settings applied to the hosts. Valid options are 'verified', 'verifying', 'pending', or 'failed'. **Note: If this filter is used in Fleet Premium without a team ID filter, the results include only hosts that are not assigned to any team.** |
 | os_settings_disk_encryption | string | query | Filters the hosts by disk encryption status. Valid options are 'verified', 'verifying', 'action_required', 'enforcing', 'failed', or 'removing_enforcement'.  **Note: If this filter is used in Fleet Premium without a team ID filter, the results include only hosts that are not assigned to any team.** |
-| os_settings_recovery_lock_password | string | query | Filters the hosts by Recovery Lock password status. Valid options are 'verified', 'action_required', 'enforcing', 'failed', or 'removing_enforcement'.  **Note: If this filter is used in Fleet Premium without a team ID filter, the results include only hosts that are not assigned to any team.** |
 
 If `additional_info_filters` is not specified, no `additional` information will be returned.
 
@@ -4939,7 +4937,7 @@ The host will only return a key if its disk encryption status is "Verified." Get
 
 Retrieves the Recovery Lock password for a host.
 
-The host will only return a password if its Recovery Lock password status is "Verified." Get hosts' Recovery Lock password statuses using the [List hosts endpoint](#list-hosts) and `os_settings_recovery_lock_password` parameter.
+The host will only return a password if its Recovery Lock password status is "Verified."
 
 `GET /api/v1/fleet/hosts/:id/recovery_lock_password`
 
@@ -5922,7 +5920,6 @@ Returns a list of the hosts that belong to the specified label.
 | bootstrap_package       | string | query | _Available in Fleet Premium_. Filters the hosts by the status of the MDM bootstrap package on the host. Valid options are 'installed', 'pending', or 'failed'. **Note: If this filter is used in Fleet Premium without a team ID filter, the results include only hosts that are not assigned to any team.** |
 | os_settings          | string  | query | Filters the hosts by the status of the operating system settings applied to the hosts. Valid options are 'verified', 'verifying', 'pending', or 'failed'. **Note: If this filter is used in Fleet Premium without a team ID filter, the results include only hosts that are not assigned to any team.** |
 | os_settings_disk_encryption | string | query | Filters the hosts by disk encryption status. Valid options are 'verified', 'verifying', 'action_required', 'enforcing', 'failed', or 'removing_enforcement'.  **Note: If this filter is used in Fleet Premium without a team ID filter, the results include only hosts that are not assigned to any team.** |
-| os_settings_recovery_lock_password | string | query | Filters the hosts by Recovery Lock password status. Valid options are 'verified', 'action_required', 'enforcing', 'failed', or 'removing_enforcement'.  **Note: If this filter is used in Fleet Premium without a team ID filter, the results include only hosts that are not assigned to any team.** |
 
 If `mdm_id`, `mdm_name`, `mdm_enrollment_status`, `os_settings`, or `os_settings_disk_encryption` is specified, then Windows Servers are excluded from the results.
 
@@ -6045,7 +6042,6 @@ Deletes the label specified by ID.
 - [Update disk encryption](#update-disk-encryption)
 - [Get disk encryption status](#get-disk-encryption-status)
 - [Update Recovery Lock password](#update-recovery-lock-password)
-- [Get Recovery Lock password status](#get-recovery-lock-password-status)
 - [Get OS settings (configuration profiles) status](#get-os-settings-configuration-profiles-status)
 - [Get OS setting (configuration profile) status](#get-os-setting-configuration-profile-status)
 - [Resend custom OS setting (configuration profile)](#resend-custom-os-setting-configuration-profile)
@@ -6513,40 +6509,6 @@ _Available in Fleet Premium_
 ##### Default response
 
 `204`
-
-
-### Get Recovery Lock password status
-_Available in Fleet Premium_
-
-Get aggregate status counts of Recovery Lock passwords enforced on macOS hosts.
-
-The summary can optionally be filtered by team ID.
-
-`GET /api/v1/fleet/recovery_lock_password`
-
-#### Parameters
-
-| Name                      | Type   | In    | Description                                                               |
-| ------------------------- | ------ | ----- | ------------------------------------------------------------------------- |
-| team_id                   | string | query | _Available in Fleet Premium_. The team ID to filter the summary.           |
-
-#### Example
-
-`GET /api/v1/fleet/recovery_lock_password`
-
-##### Default response
-
-`Status: 200`
-
-```json
-{
-  "verified": {"macos": 123},
-  "action_required": {"macos": 123},
-  "enforcing": {"macos": 123},
-  "failed": {"macos": 123},
-  "removing_enforcement": {"macos": 123}
-}
-```
 
 ### Get OS settings (configuration profiles) status
 
