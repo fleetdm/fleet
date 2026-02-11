@@ -106,6 +106,33 @@ func (r *JSONKeyRewriteReader) Read(p []byte) (int, error) {
 	return r.reader.Read(p)
 }
 
+// RewriteDeprecatedKeys rewrites deprecated JSON object keys (old → new) in
+// data using the provided alias rules. It returns the rewritten JSON and an
+// error if alias conflicts are detected or the JSON is malformed.
+//
+// This is useful when a request body is captured as json.RawMessage and later
+// decoded into a struct with `renamedfrom` tags — the rewriter in MakeDecoder
+// won't have seen the inner fields, so this function can be called before the
+// deferred unmarshal.
+func RewriteDeprecatedKeys(data []byte, rules []AliasRule) ([]byte, error) {
+	if len(rules) == 0 || len(data) == 0 {
+		return data, nil
+	}
+	idx := make(map[string]AliasRule, len(rules))
+	for _, r := range rules {
+		idx[r.OldKey] = r
+	}
+	rw := &JSONKeyRewriteReader{
+		oldKeyIndex:    idx,
+		usedDeprecated: make(map[string]bool),
+	}
+	var buf bytes.Buffer
+	if err := rw.rewrite(bytes.NewReader(data), &buf); err != nil {
+		return nil, err
+	}
+	return buf.Bytes(), nil
+}
+
 // rewrite reads tokens from src, rewrites deprecated keys, checks for alias
 // conflicts, and writes the transformed JSON to w.
 func (r *JSONKeyRewriteReader) rewrite(src io.Reader, w io.Writer) error {
