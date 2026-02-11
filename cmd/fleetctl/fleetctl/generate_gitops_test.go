@@ -1435,7 +1435,7 @@ func TestGenerateSoftware(t *testing.T) {
 		t.Fatalf("Expected file not found")
 	}
 
-	if fileContents, ok := cmd.FilesToWrite["lib/some-team/queries/my-software-package-darwin-preinstallquery.yml"]; ok {
+	if fileContents, ok := cmd.FilesToWrite["lib/some-team/reports/my-software-package-darwin-preinstallquery.yml"]; ok {
 		require.Equal(t, []map[string]any{{
 			"query": "SELECT * FROM pre_install_query",
 		}}, fileContents)
@@ -1449,7 +1449,7 @@ func TestGenerateSoftware(t *testing.T) {
 		t.Fatalf("Expected file not found")
 	}
 
-	if fileContents, ok := cmd.FilesToWrite["lib/some-team/queries/my-fma-darwin-preinstallquery.yml"]; ok {
+	if fileContents, ok := cmd.FilesToWrite["lib/some-team/reports/my-fma-darwin-preinstallquery.yml"]; ok {
 		require.Equal(t, []map[string]any{{
 			"query": "SELECT * FROM pre_install_query",
 		}}, fileContents)
@@ -1766,7 +1766,7 @@ func TestGenerateQueries(t *testing.T) {
 	require.NoError(t, err)
 
 	// Get the expected org settings YAML.
-	b, err = os.ReadFile("./testdata/generateGitops/expectedGlobalQueries.yaml")
+	b, err = os.ReadFile("./testdata/generateGitops/expectedGlobalReports.yaml")
 	require.NoError(t, err)
 	var expectedQueries []map[string]interface{}
 	err = yaml.Unmarshal(b, &expectedQueries)
@@ -1788,7 +1788,7 @@ func TestGenerateQueries(t *testing.T) {
 	require.NoError(t, err)
 
 	// Get the expected org settings YAML.
-	b, err = os.ReadFile("./testdata/generateGitops/expectedTeamQueries.yaml")
+	b, err = os.ReadFile("./testdata/generateGitops/expectedTeamReports.yaml")
 	require.NoError(t, err)
 	err = yaml.Unmarshal(b, &expectedQueries)
 	require.NoError(t, err)

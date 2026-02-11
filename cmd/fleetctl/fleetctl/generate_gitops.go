@@ -370,7 +370,7 @@ func (cmd *GenerateGitopsCommand) Run() error {
 				return ErrGeneric
 			}
 
-			cmd.FilesToWrite[fileName].(map[string]interface{})["team_settings"] = teamSettings
+			cmd.FilesToWrite[fileName].(map[string]interface{})["settings"] = teamSettings
 
 			// Only add agent_options for regular teams (not "No Team")
 			if team.ID != 0 {
@@ -428,13 +428,13 @@ func (cmd *GenerateGitopsCommand) Run() error {
 		cmd.FilesToWrite[fileName].(map[string]interface{})["policies"] = policies
 
 		if team == nil || team.ID != 0 {
-			// Generate queries (except for on No Team).
-			queries, err := cmd.generateQueries(teamToProcess.ID)
+			// Generate reports (except for on No Team).
+			reports, err := cmd.generateQueries(teamToProcess.ID)
 			if err != nil {
-				fmt.Fprintf(cmd.CLI.App.ErrWriter, "Error generating queries for team %s: %s\n", team.Name, err)
+				fmt.Fprintf(cmd.CLI.App.ErrWriter, "Error generating reports for team %s: %s\n", team.Name, err)
 				return ErrGeneric
 			}
-			cmd.FilesToWrite[fileName].(map[string]interface{})["queries"] = queries
+			cmd.FilesToWrite[fileName].(map[string]interface{})["reports"] = reports
 		}
 	}
 
@@ -1018,7 +1018,7 @@ func (cmd *GenerateGitopsCommand) generateTeamSettings(filePath string, team *fl
 		teamSettings["secrets"] = []map[string]string{{"secret": cmd.AddComment(filePath, "TODO: Add your enroll secrets here")}}
 		cmd.Messages.SecretWarnings = append(cmd.Messages.SecretWarnings, SecretWarning{
 			Filename: filePath,
-			Key:      "team_settings.secrets",
+			Key:      "settings.secrets",
 		})
 	}
 	return teamSettings, nil
@@ -1576,7 +1576,7 @@ func (cmd *GenerateGitopsCommand) generateSoftware(filePath string, teamID uint,
 
 				if softwareTitle.SoftwarePackage.PreInstallQuery != "" {
 					query := softwareTitle.SoftwarePackage.PreInstallQuery
-					fileName := fmt.Sprintf("lib/%s/queries/%s", teamFilename, filenamePrefix+"-preinstallquery.yml")
+					fileName := fmt.Sprintf("lib/%s/reports/%s", teamFilename, filenamePrefix+"-preinstallquery.yml")
 					path := fmt.Sprintf("../%s", fileName)
 					softwareSpec["pre_install_query"] = map[string]interface{}{
 						"path": path,
