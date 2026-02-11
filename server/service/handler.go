@@ -37,8 +37,8 @@ import (
 	"github.com/fleetdm/fleet/v4/server/service/middleware/otel"
 
 	"github.com/docker/go-units"
+	"github.com/fleetdm/fleet/v4/server/platform/logging"
 	kithttp "github.com/go-kit/kit/transport/http"
-	kitlog "github.com/go-kit/log"
 	"github.com/go-kit/log/level"
 	"github.com/gorilla/mux"
 	"github.com/klauspost/compress/gzhttp"
@@ -103,7 +103,7 @@ func setCarveStoreInRequestContext(carveStore fleet.CarveStore) kithttp.RequestF
 func MakeHandler(
 	svc fleet.Service,
 	config config.FleetConfig,
-	logger kitlog.Logger,
+	logger *logging.Logger,
 	limitStore throttled.GCRAStore,
 	redisPool fleet.RedisPool,
 	carveStore fleet.CarveStore,
@@ -278,7 +278,7 @@ const (
 )
 
 func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetConfig,
-	logger kitlog.Logger, limitStore throttled.GCRAStore, redisPool fleet.RedisPool, opts []kithttp.ServerOption,
+	logger *logging.Logger, limitStore throttled.GCRAStore, redisPool fleet.RedisPool, opts []kithttp.ServerOption,
 	extra extraHandlerOpts,
 ) {
 	apiVersions := []string{"v1", "2022-04"}
@@ -1108,7 +1108,7 @@ func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetC
 // WithSetup is an http middleware that checks if setup procedures have been completed.
 // If setup hasn't been completed it serves the API with a setup middleware.
 // If the server is already configured, the default API handler is exposed.
-func WithSetup(svc fleet.Service, logger kitlog.Logger, next http.Handler) http.HandlerFunc {
+func WithSetup(svc fleet.Service, logger *logging.Logger, next http.Handler) http.HandlerFunc {
 	rxOsquery := regexp.MustCompile(`^/api/[^/]+/osquery`)
 	return func(w http.ResponseWriter, r *http.Request) {
 		configRouter := http.NewServeMux()
@@ -1143,7 +1143,7 @@ func WithSetup(svc fleet.Service, logger kitlog.Logger, next http.Handler) http.
 
 // RedirectLoginToSetup detects if the setup endpoint should be used. If setup is required it redirect all
 // frontend urls to /setup, otherwise the frontend router is used.
-func RedirectLoginToSetup(svc fleet.Service, logger kitlog.Logger, next http.Handler, urlPrefix string) http.HandlerFunc {
+func RedirectLoginToSetup(svc fleet.Service, logger *logging.Logger, next http.Handler, urlPrefix string) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		redirect := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			if r.URL.Path == "/setup" {
@@ -1171,7 +1171,7 @@ func RedirectLoginToSetup(svc fleet.Service, logger kitlog.Logger, next http.Han
 
 // RedirectSetupToLogin forces the /setup path to be redirected to login. This middleware is used after
 // the app has been setup.
-func RedirectSetupToLogin(svc fleet.Service, logger kitlog.Logger, next http.Handler, urlPrefix string) http.HandlerFunc {
+func RedirectSetupToLogin(svc fleet.Service, logger *logging.Logger, next http.Handler, urlPrefix string) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path == "/setup" {
 			newURL := r.URL
@@ -1190,7 +1190,7 @@ func RegisterAppleMDMProtocolServices(
 	scepConfig config.MDMConfig,
 	mdmStorage fleet.MDMAppleStore,
 	scepStorage scep_depot.Depot,
-	logger kitlog.Logger,
+	logger *logging.Logger,
 	checkinAndCommandService nanomdm_service.CheckinAndCommandService,
 	ddmService nanomdm_service.DeclarativeManagement,
 	profileService nanomdm_service.ProfileService,
@@ -1211,11 +1211,11 @@ func RegisterAppleMDMProtocolServices(
 
 func registerMDMServiceDiscovery(
 	mux *http.ServeMux,
-	logger kitlog.Logger,
+	logger *logging.Logger,
 	serverURLPrefix string,
 	fleetConfig config.FleetConfig,
 ) error {
-	serviceDiscoveryLogger := kitlog.With(logger, "component", "mdm-apple-service-discovery")
+	serviceDiscoveryLogger := logger.With("component", "mdm-apple-service-discovery")
 	fullMDMEnrollmentURL := fmt.Sprintf("%s%s", serverURLPrefix, apple_mdm.AccountDrivenEnrollPath)
 	serviceDiscoveryHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		serviceDiscoveryLogger.Log("msg", "serving MDM service discovery response", "url", fullMDMEnrollmentURL)
@@ -1238,7 +1238,7 @@ func registerSCEP(
 	scepConfig config.MDMConfig,
 	scepStorage scep_depot.Depot,
 	mdmStorage fleet.MDMAppleStore,
-	logger kitlog.Logger,
+	logger *logging.Logger,
 	fleetConfig config.FleetConfig,
 ) error {
 	var signer scepserver.CSRSignerContext = scepserver.SignCSRAdapter(scep_depot.NewSigner(
@@ -1256,10 +1256,10 @@ func registerSCEP(
 	scepService := NewSCEPService(
 		mdmStorage,
 		signer,
-		kitlog.With(logger, "component", "mdm-apple-scep"),
+		logger.With("component", "mdm-apple-scep"),
 	)
 
-	scepLogger := kitlog.With(logger, "component", "http-mdm-apple-scep")
+	scepLogger := logger.With("component", "http-mdm-apple-scep")
 	e := scepserver.MakeServerEndpoints(scepService)
 	e.GetEndpoint = scepserver.EndpointLoggingMiddleware(scepLogger)(e.GetEndpoint)
 	e.PostEndpoint = scepserver.EndpointLoggingMiddleware(scepLogger)(e.PostEndpoint)
@@ -1271,7 +1271,7 @@ func registerSCEP(
 func RegisterSCEPProxy(
 	rootMux *http.ServeMux,
 	ds fleet.Datastore,
-	logger kitlog.Logger,
+	logger *logging.Logger,
 	timeout *time.Duration,
 	fleetConfig *config.FleetConfig,
 ) error {
@@ -1280,10 +1280,10 @@ func RegisterSCEPProxy(
 	}
 	scepService := eeservice.NewSCEPProxyService(
 		ds,
-		kitlog.With(logger, "component", "scep-proxy-service"),
+		logger.With("component", "scep-proxy-service"),
 		timeout,
 	)
-	scepLogger := kitlog.With(logger, "component", "http-scep-proxy")
+	scepLogger := logger.With("component", "http-scep-proxy")
 	e := scepserver.MakeServerEndpointsWithIdentifier(scepService)
 	e.GetEndpoint = scepserver.EndpointLoggingMiddleware(scepLogger)(e.GetEndpoint)
 	e.PostEndpoint = scepserver.EndpointLoggingMiddleware(scepLogger)(e.PostEndpoint)
@@ -1296,10 +1296,10 @@ func RegisterSCEPProxy(
 
 // NanoMDMLogger is a logger adapter for nanomdm.
 type NanoMDMLogger struct {
-	logger kitlog.Logger
+	logger *logging.Logger
 }
 
-func NewNanoMDMLogger(logger kitlog.Logger) *NanoMDMLogger {
+func NewNanoMDMLogger(logger *logging.Logger) *NanoMDMLogger {
 	return &NanoMDMLogger{
 		logger: logger,
 	}
@@ -1314,9 +1314,8 @@ func (l *NanoMDMLogger) Debug(keyvals ...interface{}) {
 }
 
 func (l *NanoMDMLogger) With(keyvals ...interface{}) nanomdm_log.Logger {
-	newLogger := kitlog.With(l.logger, keyvals...)
 	return &NanoMDMLogger{
-		logger: newLogger,
+		logger: l.logger.With(keyvals...),
 	}
 }
 
@@ -1327,11 +1326,11 @@ func registerMDM(
 	checkinAndCommandService nanomdm_service.CheckinAndCommandService,
 	ddmService nanomdm_service.DeclarativeManagement,
 	profileService nanomdm_service.ProfileService,
-	logger kitlog.Logger,
+	logger *logging.Logger,
 	fleetConfig config.FleetConfig,
 ) error {
 	certVerifier := mdmcrypto.NewSCEPVerifier(mdmStorage)
-	mdmLogger := NewNanoMDMLogger(kitlog.With(logger, "component", "http-mdm-apple-mdm"))
+	mdmLogger := NewNanoMDMLogger(logger.With("component", "http-mdm-apple-mdm"))
 
 	// As usual, handlers are applied from bottom to top:
 	// 1. Extract and verify MDM signature.
@@ -1364,7 +1363,7 @@ func registerMDM(
 	return nil
 }
 
-func WithMDMEnrollmentMiddleware(svc fleet.Service, logger kitlog.Logger, next http.Handler) http.HandlerFunc {
+func WithMDMEnrollmentMiddleware(svc fleet.Service, logger *logging.Logger, next http.Handler) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path != "/mdm/sso" && r.URL.Path != "/account_driven_enroll/sso" {
 			// TODO: redirects for non-SSO config web url?
