@@ -44,7 +44,10 @@ func GenerateEnrollmentProfileMobileconfig(orgName, fleetURL, deviceSerial, topi
 	}); err != nil {
 		return nil, fmt.Errorf("execute template: %w", err)
 	}
-	return buf.Bytes(), nil
+
+	// TODO: Figure out why the generated profile escaopes the left angle bracket in the opening
+	// `<?xml` tag and remove the need for this replacement.
+	return bytes.Replace(buf.Bytes(), []byte("&lt;"), []byte("<"), 1), nil
 }
 
 // TODO: this will need to be updated to use the Fleet server URL when we have the ACME endpoints routed in the server.

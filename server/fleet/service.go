@@ -885,7 +885,7 @@ type Service interface {
 	GetMDMAppleProfilesSummary(ctx context.Context, teamID *uint) (*MDMProfilesSummary, error)
 
 	// GetMDMAppleEnrollmentProfileByToken returns the Apple enrollment from its secret token.
-	GetMDMAppleEnrollmentProfileByToken(ctx context.Context, enrollmentToken string, enrollmentRef string) (profile []byte, err error)
+	GetMDMAppleEnrollmentProfileByToken(ctx context.Context, enrollmentToken string, enrollmentRef string, idents *HostMDMIdentifiers) (profile []byte, err error)
 
 	// GetMDMAppleEnrollmentProfileByToken returns the Apple account-driven user enrollment profile for a given enrollment reference.
 	GetMDMAppleAccountEnrollmentProfile(ctx context.Context, enrollReference string) (profile []byte, err error)
@@ -1068,6 +1068,10 @@ type Service interface {
 
 	// CheckMDMAppleEnrollmentWithMinimumOSVersion checks if the minimum OS version is met for a MDM enrollment
 	CheckMDMAppleEnrollmentWithMinimumOSVersion(ctx context.Context, m *MDMAppleMachineInfo) (*MDMAppleSoftwareUpdateRequired, error)
+
+	// GetHostMDMIdentifiersFromMachineInfo looks up MDM identifiers from the serial number in given
+	// machine info. It performs additional checks to verify the host is eligible for MDM enrollment and returns an error if not.
+	GetHostMDMIdentifiersFromMachineInfo(ctx context.Context, m *MDMAppleMachineInfo) (*HostMDMIdentifiers, error)
 
 	// GetOTAProfile gets the OTA (over-the-air) profile for a given team based on the enroll secret provided.
 	GetOTAProfile(ctx context.Context, enrollSecret, idpUUID string) ([]byte, error)

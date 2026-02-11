@@ -567,7 +567,7 @@ type GetMDMAppleFileVaultSummaryFunc func(ctx context.Context, teamID *uint) (*f
 
 type GetMDMAppleProfilesSummaryFunc func(ctx context.Context, teamID *uint) (*fleet.MDMProfilesSummary, error)
 
-type GetMDMAppleEnrollmentProfileByTokenFunc func(ctx context.Context, enrollmentToken string, enrollmentRef string) (profile []byte, err error)
+type GetMDMAppleEnrollmentProfileByTokenFunc func(ctx context.Context, enrollmentToken string, enrollmentRef string, idents *fleet.HostMDMIdentifiers) (profile []byte, err error)
 
 type GetMDMAppleAccountEnrollmentProfileFunc func(ctx context.Context, enrollReference string) (profile []byte, err error)
 
@@ -672,6 +672,8 @@ type GetMDMManualEnrollmentProfileFunc func(ctx context.Context) ([]byte, error)
 type TriggerLinuxDiskEncryptionEscrowFunc func(ctx context.Context, host *fleet.Host) error
 
 type CheckMDMAppleEnrollmentWithMinimumOSVersionFunc func(ctx context.Context, m *fleet.MDMAppleMachineInfo) (*fleet.MDMAppleSoftwareUpdateRequired, error)
+
+type GetHostMDMIdentifiersFromMachineInfoFunc func(ctx context.Context, m *fleet.MDMAppleMachineInfo) (*fleet.HostMDMIdentifiers, error)
 
 type GetOTAProfileFunc func(ctx context.Context, enrollSecret string, idpUUID string) ([]byte, error)
 
@@ -1860,6 +1862,9 @@ type Service struct {
 
 	CheckMDMAppleEnrollmentWithMinimumOSVersionFunc        CheckMDMAppleEnrollmentWithMinimumOSVersionFunc
 	CheckMDMAppleEnrollmentWithMinimumOSVersionFuncInvoked bool
+
+	GetHostMDMIdentifiersFromMachineInfoFunc        GetHostMDMIdentifiersFromMachineInfoFunc
+	GetHostMDMIdentifiersFromMachineInfoFuncInvoked bool
 
 	GetOTAProfileFunc        GetOTAProfileFunc
 	GetOTAProfileFuncInvoked bool
@@ -4091,11 +4096,11 @@ func (s *Service) GetMDMAppleProfilesSummary(ctx context.Context, teamID *uint) 
 	return s.GetMDMAppleProfilesSummaryFunc(ctx, teamID)
 }
 
-func (s *Service) GetMDMAppleEnrollmentProfileByToken(ctx context.Context, enrollmentToken string, enrollmentRef string) (profile []byte, err error) {
+func (s *Service) GetMDMAppleEnrollmentProfileByToken(ctx context.Context, enrollmentToken string, enrollmentRef string, idents *fleet.HostMDMIdentifiers) (profile []byte, err error) {
 	s.mu.Lock()
 	s.GetMDMAppleEnrollmentProfileByTokenFuncInvoked = true
 	s.mu.Unlock()
-	return s.GetMDMAppleEnrollmentProfileByTokenFunc(ctx, enrollmentToken, enrollmentRef)
+	return s.GetMDMAppleEnrollmentProfileByTokenFunc(ctx, enrollmentToken, enrollmentRef, idents)
 }
 
 func (s *Service) GetMDMAppleAccountEnrollmentProfile(ctx context.Context, enrollReference string) (profile []byte, err error) {
@@ -4460,6 +4465,13 @@ func (s *Service) CheckMDMAppleEnrollmentWithMinimumOSVersion(ctx context.Contex
 	s.CheckMDMAppleEnrollmentWithMinimumOSVersionFuncInvoked = true
 	s.mu.Unlock()
 	return s.CheckMDMAppleEnrollmentWithMinimumOSVersionFunc(ctx, m)
+}
+
+func (s *Service) GetHostMDMIdentifiersFromMachineInfo(ctx context.Context, m *fleet.MDMAppleMachineInfo) (*fleet.HostMDMIdentifiers, error) {
+	s.mu.Lock()
+	s.GetHostMDMIdentifiersFromMachineInfoFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetHostMDMIdentifiersFromMachineInfoFunc(ctx, m)
 }
 
 func (s *Service) GetOTAProfile(ctx context.Context, enrollSecret string, idpUUID string) ([]byte, error) {

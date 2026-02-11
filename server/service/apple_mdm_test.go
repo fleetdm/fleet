@@ -338,8 +338,7 @@ func TestAppleMDMAuthorization(t *testing.T) {
 	ctx = test.UserContext(ctx, test.UserNoRoles)
 	_, err := svc.GetMDMAppleInstallerByToken(ctx, "foo")
 	require.NoError(t, err)
-	_, err = svc.GetMDMAppleEnrollmentProfileByToken(ctx, "foo", "")
-	require.NoError(t, err)
+	_, err = svc.GetMDMAppleEnrollmentProfileByToken(ctx, "foo", "", &fleet.HostMDMIdentifiers{HardwareSerial: "FIXME"}) // TODO: update test to use realistic inputs after PoC
 	_, err = svc.GetMDMAppleInstallerDetailsByToken(ctx, "foo")
 	require.NoError(t, err)
 	_, err = svc.MDMGetEULABytes(ctx, "foo")

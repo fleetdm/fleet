@@ -1825,18 +1825,93 @@ func mdmAppleEnrollEndpoint(ctx context.Context, request interface{}, svc fleet.
 		}
 	}
 
+	idents, err := svc.GetHostMDMIdentifiersFromMachineInfo(ctx, req.MachineInfo)
+	if err != nil {
+		return mdmAppleEnrollResponse{Err: err}, nil
+	}
+
 	legacyRef, err := svc.ReconcileMDMAppleEnrollRef(ctx, req.EnrollmentReference, req.MachineInfo)
 	if err != nil {
 		return mdmAppleEnrollResponse{Err: err}, nil
 	}
 
-	profile, err := svc.GetMDMAppleEnrollmentProfileByToken(ctx, req.Token, legacyRef)
+	profile, err := svc.GetMDMAppleEnrollmentProfileByToken(ctx, req.Token, legacyRef, idents)
 	if err != nil {
 		return mdmAppleEnrollResponse{Err: err}, nil
 	}
 	return mdmAppleEnrollResponse{
 		Profile: profile,
 	}, nil
+}
+
+func (svc *Service) GetHostMDMIdentifiersFromMachineInfo(ctx context.Context, machineInfo *fleet.MDMAppleMachineInfo) (*fleet.HostMDMIdentifiers, error) {
+	if machineInfo == nil {
+		return nil, &fleet.BadRequestError{
+			Message:     "machine info is required",
+			InternalErr: ctxerr.New(ctx, "machine info is nil"),
+		}
+	}
+	if machineInfo.Serial == "" {
+		return nil, &fleet.BadRequestError{
+			Message:     "machine info is required",
+			InternalErr: ctxerr.New(ctx, "serial number is required in machine info"),
+		}
+	}
+
+	idents, err := svc.ds.GetHostMDMIdentifiers(ctx, machineInfo.Serial, fleet.TeamFilter{User: &fleet.User{
+		Name:       fleet.ActivityAutomationAuthor,
+		GlobalRole: ptr.String(fleet.RoleAdmin),
+	}})
+	switch {
+	case err != nil:
+		return nil, &fleet.BadRequestError{
+			Message:     "machine info is required",
+			InternalErr: ctxerr.Wrap(ctx, err, "getting host MDM identifiers from the database"),
+		}
+	case len(idents) != 1:
+		return nil, &fleet.BadRequestError{
+			Message:     "machine info is required",
+			InternalErr: ctxerr.New(ctx, fmt.Sprintf("expected to find exactly 1 host with the given serial number, but found %d", len(idents))),
+		}
+	case idents[0] == nil:
+		// this should never happen, but sanity check just in case
+		return nil, &fleet.BadRequestError{
+			Message:     "machine info is required",
+			InternalErr: ctxerr.New(ctx, "host found with the given serial number has nil MDM identifiers"),
+		}
+	case idents[0].HardwareSerial != machineInfo.Serial:
+		// this should never happen since we're querying by the serial number, but we check just to
+		// be safe and to avoid any potential shenanigans like matching on a different identifier
+		// and then having a mismatch on the serial number
+		return nil, &fleet.BadRequestError{
+			Message:     "machine info is required",
+			InternalErr: ctxerr.New(ctx, "host found with the given serial number has a different serial number than the one provided in the machine info"),
+		}
+	case idents[0].UUID != "" && idents[0].UUID != machineInfo.UDID:
+		// Similar to the hardware serial check above, this is a sanity check to ensure that if we
+		// have stored a UDID for the host (i.e., not a pending DEP host), it matches the UDID provided in the machine info
+		return nil, &fleet.BadRequestError{
+			Message:     "machine info is required",
+			InternalErr: ctxerr.New(ctx, "host found with the given serial number has a different UDID than the one provided in the machine info"),
+		}
+	case idents[0].Platform != "darwin":
+		// TODO: expand this to work for iOS/iPadOS as well
+		return nil, &fleet.BadRequestError{
+			Message:     "machine info is required",
+			InternalErr: ctxerr.New(ctx, "host found with the given serial number is not a darwin device"),
+		}
+	}
+
+	// TODO: add check that host is dep assigned to Fleet (and deleted_at is null)
+
+	// TODO: if mdm idp enabled, add check that host_mdm_idp_accounts has a record for the host uuid
+	// (and confirm account_uuid exists, not empty, additional validation of account details?)
+
+	// TODO: we can add other checks here as well to potentially validate other information we have
+	// from fleetd, DEP sync, any prior MDM enrollments (in case of renewal or return to service?),
+	// or other device inventory sources (e.g., maybe allow admin to upload list?)
+
+	return idents[0], nil
 }
 
 // This endpoint gets called twice by the Apple account driven enrollment flow. The first time it
@@ -2008,7 +2083,7 @@ func (svc *Service) ReconcileMDMAppleEnrollRef(ctx context.Context, enrollRef st
 	return legacyRef, nil
 }
 
-func (svc *Service) GetMDMAppleEnrollmentProfileByToken(ctx context.Context, token string, ref string) (profile []byte, err error) {
+func (svc *Service) GetMDMAppleEnrollmentProfileByToken(ctx context.Context, token string, ref string, idents *fleet.HostMDMIdentifiers) (profile []byte, err error) {
 	// skipauth: The enroll profile endpoint is unauthenticated.
 	svc.authz.SkipAuthorization(ctx)
 
@@ -2035,16 +2110,22 @@ func (svc *Service) GetMDMAppleEnrollmentProfileByToken(ctx context.Context, tok
 		return nil, ctxerr.Wrap(ctx, err, "extracting topic from APNs cert")
 	}
 
-	assets, err := svc.ds.GetAllMDMConfigAssetsByName(ctx, []fleet.MDMAssetName{
-		fleet.MDMAssetSCEPChallenge,
-	}, nil)
-	if err != nil {
-		return nil, fmt.Errorf("loading SCEP challenge from the database: %w", err)
-	}
-	enrollmentProf, err := apple_mdm.GenerateEnrollmentProfileMobileconfig(
+	// assets, err := svc.ds.GetAllMDMConfigAssetsByName(ctx, []fleet.MDMAssetName{
+	// 	fleet.MDMAssetSCEPChallenge,
+	// }, nil)
+	// if err != nil {
+	// 	return nil, fmt.Errorf("loading SCEP challenge from the database: %w", err)
+	// }
+	// enrollmentProf, err := apple_mdm.GenerateEnrollmentProfileMobileconfig(
+	// 	appConfig.OrgInfo.OrgName,
+	// 	enrollURL,
+	// 	string(assets[fleet.MDMAssetSCEPChallenge].Value),
+	// 	topic,
+	// )
+	enrollmentProf, err := acme.GenerateEnrollmentProfileMobileconfig(
 		appConfig.OrgInfo.OrgName,
 		enrollURL,
-		string(assets[fleet.MDMAssetSCEPChallenge].Value),
+		idents.HardwareSerial,
 		topic,
 	)
 	if err != nil {
@@ -6220,9 +6301,6 @@ func RenewSCEPCertificates(
 			if err != nil {
 				return ctxerr.Wrap(ctx, err, "generating enrollment profile for hosts without enroll reference")
 			}
-			// TODO: Figure out why the generated profile contains an escaped less than symbol and remove the need for this replacement.
-			p := strings.Replace(string(profile), "&lt;", "<", 1)
-			profile = []byte(p)
 
 			if err := renewSCEPWithProfile(ctx, ds, commander, logger, []fleet.SCEPIdentityAssociation{assoc}, profile); err != nil {
 				return ctxerr.Wrap(ctx, err, "sending profile to hosts without associations")
