@@ -129,6 +129,25 @@ def main():
         print("Connection successful.")
 
         with conn.cursor() as cursor:
+            # Ensure destination table exists with reasonable column types inferred from header
+            print(f"Ensuring table '{db_table}' exists...")
+
+            ddl_columns = []
+            for col in new_header:
+                if col == 'updatedTime':
+                    col_type = 'TIMESTAMP'
+                elif col in integer_columns:
+                    col_type = 'INTEGER'
+                elif col in json_columns:
+                    col_type = 'JSONB'
+                else:
+                    col_type = 'TEXT'
+                ddl_columns.append(f'"{col}" {col_type}')
+
+            create_table_sql = f"CREATE TABLE IF NOT EXISTS {db_table} (" + ", ".join(ddl_columns) + ");"
+            cursor.execute(create_table_sql)
+            conn.commit()
+
             print(f"Importing data into table '{db_table}'...")
 
             quoted_header = ','.join([f'"{col}"' for col in new_header])
