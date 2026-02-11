@@ -183,7 +183,6 @@ policies:
     package_path: ./linux-firefox.deb.package.yml
     # app_store_id: "1487937127" (for App Store apps)
 - name: Zoom up to date
-  platform: darwin
   description: Outdated software might introduce security vulnerabilities or compatibility issues.
   resolution: Install the latest version from self-service.
   type: patch
