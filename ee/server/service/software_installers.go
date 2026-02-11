@@ -2323,7 +2323,7 @@ func (svc *Service) softwareBatchUpload(
 			if !fmaVersionCached && p.SHA256 != "" {
 				installerBytesExist, err = svc.softwareInstallStore.Exists(ctx, installer.StorageID)
 				if err != nil {
-					return err
+					return ctxerr.Wrap(ctx, err, "check if installer exists in store")
 				}
 			}
 

@@ -510,14 +510,14 @@ type UploadSoftwareInstallerPayload struct {
 	FleetMaintainedAppID *uint
 	// RollbackVersion is the version to pin as "active" for a fleet-maintained app.
 	// If empty, the latest version is used.
-	RollbackVersion string
-	PackageIDs      []string
-	UpgradeCode          string
-	UninstallScript      string
-	Extension            string
-	InstallDuringSetup   *bool    // keep saved value if nil, otherwise set as indicated
-	LabelsIncludeAny     []string // names of "include any" labels
-	LabelsExcludeAny     []string // names of "exclude any" labels
+	RollbackVersion    string
+	PackageIDs         []string
+	UpgradeCode        string
+	UninstallScript    string
+	Extension          string
+	InstallDuringSetup *bool    // keep saved value if nil, otherwise set as indicated
+	LabelsIncludeAny   []string // names of "include any" labels
+	LabelsExcludeAny   []string // names of "exclude any" labels
 	// ValidatedLabels is a struct that contains the validated labels for the software installer. It
 	// is nil if the labels have not been validated.
 	ValidatedLabels       *LabelIdentsWithScope
@@ -743,10 +743,10 @@ type SoftwarePackageOrApp struct {
 	PackageURL    *string                `json:"package_url"`
 	// InstallDuringSetup is a boolean that indicates if the package
 	// will be installed during the macos setup experience.
-	InstallDuringSetup   *bool    `json:"install_during_setup,omitempty" db:"install_during_setup"`
-	FleetMaintainedAppID       *uint                    `json:"fleet_maintained_app_id,omitempty" db:"fleet_maintained_app_id"`
-	FleetMaintainedVersions    []FleetMaintainedVersion `json:"fleet_maintained_versions,omitempty"`
-	Categories                 []string                 `json:"categories,omitempty"`
+	InstallDuringSetup      *bool                    `json:"install_during_setup,omitempty" db:"install_during_setup"`
+	FleetMaintainedAppID    *uint                    `json:"fleet_maintained_app_id,omitempty" db:"fleet_maintained_app_id"`
+	FleetMaintainedVersions []FleetMaintainedVersion `json:"fleet_maintained_versions,omitempty"`
+	Categories              []string                 `json:"categories,omitempty"`
 }
 
 func (s *SoftwarePackageOrApp) GetPlatform() string {
