@@ -467,14 +467,13 @@ const ConditionalAccess = () => {
           <TooltipWrapper
             tipContent={
               <>
-                <b>Tenant ID:</b>
-                {entraTenantId}
+                <b>Tenant ID:</b> {entraTenantId}
               </>
             }
           >
             Microsoft Entra
           </TooltipWrapper>{" "}
-          conditional access connected
+          conditional access connected.
         </>
       );
     } else if (entraIsAwaitingOAuth) {
