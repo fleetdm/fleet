@@ -1,6 +1,6 @@
 module github.com/fleetdm/fleet/v4
 
-go 1.25.6
+go 1.25.7
 
 require (
 	cloud.google.com/go/pubsub v1.49.0
@@ -59,7 +59,7 @@ require (
 	github.com/foxboron/go-tpm-keyfiles v0.0.0-20250520203025-c3c3a4ec1653
 	github.com/getsentry/sentry-go v0.18.0
 	github.com/ghodss/yaml v1.0.0
-	github.com/go-git/go-git/v5 v5.13.0
+	github.com/go-git/go-git/v5 v5.16.5
 	github.com/go-ini/ini v1.67.0
 	github.com/go-json-experiment/json v0.0.0-20250517221953-25912455fbc8
 	github.com/go-kit/kit v0.12.0
@@ -200,7 +200,7 @@ require (
 	github.com/Masterminds/sprig v2.22.0+incompatible // indirect
 	github.com/Microsoft/go-winio v0.6.2 // indirect
 	github.com/Microsoft/hcsshim v0.11.7 // indirect
-	github.com/ProtonMail/go-crypto v1.1.3 // indirect
+	github.com/ProtonMail/go-crypto v1.1.6 // indirect
 	github.com/agnivade/levenshtein v1.2.1 // indirect
 	github.com/akavel/rsrc v0.10.2 // indirect
 	github.com/antchfx/xpath v1.2.2 // indirect
@@ -256,7 +256,7 @@ require (
 	github.com/fsnotify/fsnotify v1.8.0 // indirect
 	github.com/garyburd/go-oauth v0.0.0-20180319155456-bca2e7f09a17 // indirect
 	github.com/go-git/gcfg v1.5.1-0.20230307220236-3a3c6141e376 // indirect
-	github.com/go-git/go-billy/v5 v5.6.0 // indirect
+	github.com/go-git/go-billy/v5 v5.6.2 // indirect
 	github.com/go-logfmt/logfmt v0.5.1 // indirect
 	github.com/go-logr/logr v1.4.3 // indirect
 	github.com/go-logr/stdr v1.2.2 // indirect
@@ -264,7 +264,7 @@ require (
 	github.com/gobwas/glob v0.2.3 // indirect
 	github.com/gogo/protobuf v1.3.2 // indirect
 	github.com/golang/glog v1.2.5 // indirect
-	github.com/golang/groupcache v0.0.0-20210331224755-41bb18bfe9da // indirect
+	github.com/golang/groupcache v0.0.0-20241129210726-2c02b8208cf8 // indirect
 	github.com/golang/protobuf v1.5.4 // indirect
 	github.com/google/go-querystring v1.1.0 // indirect
 	github.com/google/go-tpm-tools v0.4.5 // indirect
@@ -315,7 +315,7 @@ require (
 	github.com/opencontainers/selinux v1.13.0 // indirect
 	github.com/oschwald/maxminddb-golang v1.10.0 // indirect
 	github.com/pelletier/go-toml/v2 v2.2.3 // indirect
-	github.com/pjbgf/sha1cd v0.3.0 // indirect
+	github.com/pjbgf/sha1cd v0.3.2 // indirect
 	github.com/pkg/term v0.0.0-20190109203006-aa71e9d9e942 // indirect
 	github.com/power-devops/perfstat v0.0.0-20210106213030-5aafc221ea8c // indirect
 	github.com/prometheus/client_model v0.6.1 // indirect
@@ -331,7 +331,7 @@ require (
 	github.com/shoenig/go-m1cpu v0.1.7 // indirect
 	github.com/siderolabs/go-cmd v0.1.1 // indirect
 	github.com/sirupsen/logrus v1.9.3 // indirect
-	github.com/skeema/knownhosts v1.3.0 // indirect
+	github.com/skeema/knownhosts v1.3.1 // indirect
 	github.com/sourcegraph/conc v0.3.0 // indirect
 	github.com/spf13/afero v1.12.0 // indirect
 	github.com/spf13/pflag v1.0.6 // indirect

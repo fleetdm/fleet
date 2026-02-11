@@ -3,8 +3,16 @@
 export GO111MODULE=on
 
 PATH := $(shell npm bin):$(PATH)
-VERSION = $(shell git describe --tags --always --dirty)
 BRANCH = $(shell git rev-parse --abbrev-ref HEAD)
+
+# If VERSION is not explicitly set, derive it from the branch name
+ifndef VERSION
+	VERSION := $(shell tools/version-from-branch.sh "$(BRANCH)" 2>/dev/null)
+	# Fall back to git describe when the branch name doesn't match any pattern
+	ifeq ($(VERSION),)
+		VERSION := $(shell git describe --tags --always --dirty)
+	endif
+endif
 REVISION = $(shell git rev-parse HEAD)
 REVSHORT = $(shell git rev-parse --short HEAD)
 USER = $(shell whoami)

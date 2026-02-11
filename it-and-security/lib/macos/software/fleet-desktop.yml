@@ -1,0 +1,4 @@
+# Fleet Desktop (fleet_desktop-v1.0.0.pkg) version 1.0.0
+- hash_sha256: 5e7076fbfb5c602e2202bb649b8512d919a1c3bdfaff5e3d0cd5bcf46ac924b5
+  icon:
+    path: ../../all/icons/fleet-desktop-icon.png

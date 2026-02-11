@@ -36,9 +36,10 @@ Specialized API-only users, who can modify configurations via GitOps but cannot 
 Labels can be specified in your `default.yml` and `teams/team-name.yml` files using inline configuration or references to separate files in your `lib/` folder. Labels cannot be specified in `teams/no-team.yml`.
 
 - `name` specifies the label's name. Must be unique across all global and team labels.
+    + Changing a label's `name` in GitOps will delete and re-create the label, temporarily clearing its membership. To avoid this, update the label name in the UI before making the change in YAML. 
 - `description` specifies the label's description.
 - `platform` specifies platforms for the label to target. Provides an additional filter. Choices for platform are `darwin`, `windows`, `ubuntu`, and `centos`. All platforms are included by default and this option is represented by an empty string. Only supported if `label_membership_type` is `dynamic`.
-- `label_membership_type` specifies label type which determines. Choices for platform are `dynamic` , `manual`, and `host_vitals`.
+- `label_membership_type` specifies label type which determines. Choices for type are `dynamic` , `manual`, and `host_vitals` (default: `dynamic`).
 - `query` is the query in SQL syntax used to filter the hosts. Only supported if `label_membership_type` is `dynamic`.
 - `hosts` is a list of host identifiers (`id`, `hardware_serial`, or `uuid`). The label will apply to any host with a matching identifier. Only supported if `label_membership_type` is `manual`.
 - `criteria` - is the criteria for adding hosts to a host vitals label. Hosts with `vital` data matching the specified `value` will be added to the label. See [criteria](https://fleetdm.com/docs/rest-api/rest-api#criteria) documentation for details.
