@@ -1802,7 +1802,9 @@ const ManageHostsPage = ({
       hiddenColumns,
       isFreeTier,
       isOnlyObserver:
-        isOnlyObserver || (!isOnGlobalTeam && !isTeamMaintainerOrTeamAdmin),
+        isOnlyObserver ||
+        isGlobalTechnician ||
+        (!isOnGlobalTeam && !isTeamMaintainerOrTeamAdmin),
     });
 
     const emptyState = () => {
