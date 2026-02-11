@@ -51,6 +51,11 @@ func TestCPEFromSoftware(t *testing.T) {
 	// Does not error on Unicode Names
 	_, err = CPEFromSoftware(log.NewNopLogger(), db, &fleet.Software{Name: "Девушка Фонарём", Version: "1.2.3", BundleIdentifier: "vendor", Source: "apps"}, nil, reCache)
 	require.NoError(t, err)
+
+	// Does not error on names that sanitize to empty (e.g. only special characters)
+	_, err = CPEFromSoftware(log.NewNopLogger(), db, &fleet.Software{Name: "[", Version: "1.2.3", BundleIdentifier: "vendor", Source: "apps"}, nil,
+		reCache)
+	require.NoError(t, err)
 }
 
 func TestCPETranslations(t *testing.T) {

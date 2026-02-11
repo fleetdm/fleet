@@ -238,6 +238,8 @@ type MDM struct {
 	EnableTurnOnWindowsMDMManually bool                     `json:"enable_turn_on_windows_mdm_manually"`
 	EndUserAuthentication          MDMEndUserAuthentication `json:"end_user_authentication"`
 
+	WindowsEntraTenantIDs optjson.Slice[string] `json:"windows_entra_tenant_ids"`
+
 	// WindowsEnabledAndConfigured indicates if Fleet MDM is enabled for Windows.
 	// There is no other configuration required for Windows other than enabling
 	// the support, but it is still called "EnabledAndConfigured" for consistency
@@ -871,6 +873,11 @@ func (c *AppConfig) Copy() *AppConfig {
 		clone.ConditionalAccess = &conditionalAccess
 	}
 
+	if c.MDM.WindowsEntraTenantIDs.Set {
+		clone.MDM.WindowsEntraTenantIDs = optjson.SetSlice(make([]string, len(c.MDM.WindowsEntraTenantIDs.Value)))
+		copy(clone.MDM.WindowsEntraTenantIDs.Value, c.MDM.WindowsEntraTenantIDs.Value)
+	}
+
 	return &clone
 }
 
@@ -1304,6 +1311,7 @@ const DefaultPerPage = 1000000
 // Interface methods for common_mysql.ListOptions
 
 func (l ListOptions) GetPage() uint { return l.Page }
+
 func (l ListOptions) GetPerPage() uint {
 	if l.PerPage == 0 {
 		return DefaultPerPage

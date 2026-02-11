@@ -71,9 +71,9 @@ Wait for build to run, which typically takes about fifteen minutes.
 
 Wait for publish process to complete.
 
-**6. Update the fleetdm/terraform repo**
+**6. Update the fleetdm/terraform and fleetdm/fleet-gitops repos**
 
-Update all Fleet version references in our [fleetdm/terraform](https://github.com/fleetdm/fleet-terraform) repo and submit a PR.
+Update all Fleet version references in our [fleetdm/terraform](https://github.com/fleetdm/fleet-terraform) repo and submit a PR. Then update `DEFAULT_FLEETCTL_VERSION` in `.github/gitops-action/action.yml` in [fleetdm/fleet-gitops](https://github.com/fleetdm/fleet-gitops) and submit a PR.
 
 
 **7. Merge milestone pull requests**
@@ -108,7 +108,13 @@ Complete the [conclude the milestone ritual](https://fleetdm.com/handbook/engine
 
 ## Patch release
 
-**1. Create release candidate**
+**1. Confirm commits, milestones, and cherry-picks**
+
+Ensure all tickets that you want in the patch release are milestoned to that release, and all PRs into `main` for associated work, including follow-ups, are linked to an issue with the milestone. For confidential issues, create a placeholder issue (e.g. https://github.com/fleetdm/fleet/issues/39483) to link against, as the patch release tooling does not interact with the confidential repo.
+
+If a higher-version minor release RC is currently active, make sure all chosen commits are also in the RC branch, either because they were made before the RC cut or because they were cherry-picked in after the cut. For example, any commit landing in 4.80.1 should also land in 4.81.0, so when a new minor release goes GA users upgrading from a patch release don't experience regressions.
+
+**2. Create release candidate**
 
 ```sh
 ./tools/release/publish_release.sh
@@ -117,17 +123,17 @@ Complete the [conclude the milestone ritual](https://fleetdm.com/handbook/engine
 This will create the patch release candidate branch, changelog PRs (`main` and RC branch), and the release QA issue.
 
 
-**2. Complete quality assurance**
+**3. Complete quality assurance**
 
 A Quality Assurance Engineer from each product group needs to [confirm that their product group is ready](https://fleetdm.com/handbook/engineering#indicate-your-product-group-is-release-ready) before proceeding to the next step.
 
 
-**3. Merge changelog and version bump**
+**4. Merge changelog and version bump**
 
 Finalize and merge the two PRs. Check out the RC branch locally and pull the latest updates so that the changelog commit is the most recent commit on the branch.
 
 
-**4. Tag patch release**
+**5. Tag patch release**
 
 ```sh
 ./tools/release/publish_release.sh -g
@@ -136,7 +142,7 @@ Finalize and merge the two PRs. Check out the RC branch locally and pull the lat
 Wait for build to run, which typically takes about fifteen minutes. 
 
 
-**5. Publish patch release**
+**6. Publish patch release**
 
 ```sh
 ./tools/release/publish_release.sh -u
@@ -144,15 +150,15 @@ Wait for build to run, which typically takes about fifteen minutes.
 
 > During the publish process, the release script will attempt to publish `fleetctl` to NPM. If this times out or otherise fails, you need to publish to NPM manually. From the `/tools/fleetctl-npm/` directory, run `npm publish`.
 
-**6. Update the fleetdm/terraform repo**
+**7. Update the fleetdm/terraform and fleetdm/fleet-gitops repos**
 
-Update all Fleet version references in our [fleetdm/terraform](https://github.com/fleetdm/fleet-terraform) repo and submit a PR.
+Update all Fleet version references in our [fleetdm/terraform](https://github.com/fleetdm/fleet-terraform) repo and submit a PR. Then, if this release is _not_ a backport, update `DEFAULT_FLEETCTL_VERSION` in `.github/gitops-action/action.yml` in [fleetdm/fleet-gitops](https://github.com/fleetdm/fleet-gitops) and submit a PR.
 
-**7. Announce the release**
+**8. Announce the release**
 
 The release script will announce the patch in the #general channel. Open the Fleet channels in the osquery Slack and MacAdmins Slack and update the topic to point to the new release. 
 
 
-**7. Conclude the milestone**
+**9. Conclude the milestone**
 
 Complete the [conclude the milestone ritual](https://fleetdm.com/handbook/engineering#conclude-current-milestone).
