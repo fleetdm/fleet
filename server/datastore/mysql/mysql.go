@@ -247,8 +247,11 @@ func NewDBConnections(cfg config.MysqlConfig, opts ...DBOption) (*common_mysql.D
 	if err := checkConfig(&cfg); err != nil {
 		return nil, err
 	}
+	// Convert replica config once so that checkConfig mutations (TLSConfig,
+	// Password from PasswordPath) are preserved for the later NewDB call.
+	var replicaConf *config.MysqlConfig
 	if options.ReplicaConfig != nil {
-		replicaConf := fromCommonMysqlConfig(options.ReplicaConfig)
+		replicaConf = fromCommonMysqlConfig(options.ReplicaConfig)
 		if err := checkConfig(replicaConf); err != nil {
 			return nil, fmt.Errorf("replica: %w", err)
 		}
@@ -264,12 +267,11 @@ func NewDBConnections(cfg config.MysqlConfig, opts ...DBOption) (*common_mysql.D
 		return nil, err
 	}
 	dbReader := dbWriter
-	if options.ReplicaConfig != nil {
+	if replicaConf != nil {
 		// Set up IAM auth for replica if needed (may have different region/credentials)
 		replicaOptions := *options
 		// Reset ConnectorFactory - replica may have different auth requirements than primary
 		replicaOptions.ConnectorFactory = nil
-		replicaConf := fromCommonMysqlConfig(options.ReplicaConfig)
 		if err := setupIAMAuthIfNeeded(replicaConf, &replicaOptions); err != nil {
 			return nil, fmt.Errorf("replica: %w", err)
 		}
