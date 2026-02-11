@@ -4,7 +4,7 @@ projects:
       - name: Production
         databases:
           - name: metrics-db
-            databaseName: metrics_8216
+            databaseName: metrics
             user: metrics
             plan: basic-256mb
             region: oregon
@@ -12,7 +12,7 @@ projects:
             postgresMajorVersion: "18"
             diskSizeGB: 1
           - name: grafana-db
-            databaseName: grafana_5snp
+            databaseName: grafana
             user: grafana
             plan: basic-256mb
             region: oregon
