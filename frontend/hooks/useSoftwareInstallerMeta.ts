@@ -18,6 +18,7 @@ export interface SoftwareInstallerMeta {
   installerType: InstallerType;
   isAndroidPlayStoreApp: boolean;
   isFleetMaintainedApp: boolean;
+  isLatestFmaVersion: boolean;
   isCustomPackage: boolean;
   isIosOrIpadosApp: boolean;
   sha256?: string;
@@ -66,6 +67,18 @@ export const useSoftwareInstaller = (
       "fleet_maintained_app_id" in softwareInstaller &&
       !!softwareInstaller.fleet_maintained_app_id;
 
+    const isLatestFmaVersion =
+      isFleetMaintainedApp &&
+      "fleet_maintained_versions" in softwareInstaller &&
+      !!softwareInstaller.fleet_maintained_versions &&
+      softwareInstaller.version ===
+        softwareInstaller.fleet_maintained_versions[0].version;
+
+    const fmaVersions =
+      isFleetMaintainedApp && "fleet_maintained_versions" in softwareInstaller
+        ? softwareInstaller.fleet_maintained_versions
+        : [];
+
     const isCustomPackage =
       installerType === "package" && !isFleetMaintainedApp;
 
@@ -110,6 +123,8 @@ export const useSoftwareInstaller = (
         installerType,
         isAndroidPlayStoreApp,
         isFleetMaintainedApp,
+        isLatestFmaVersion,
+        fmaVersions,
         isCustomPackage,
         isIosOrIpadosApp,
         sha256,

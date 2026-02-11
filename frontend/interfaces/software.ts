@@ -94,6 +94,11 @@ export interface ISoftwareAppStoreAppStatus {
   failed: number;
 }
 
+interface IFleetMaintainedVersion {
+  id: number;
+  version: string;
+}
+
 export interface ISoftwarePackage {
   name: string;
   /** Not included in SoftwareTitle software.software_package response, hoisted up one level
@@ -118,6 +123,7 @@ export interface ISoftwarePackage {
   labels_exclude_any: ILabelSoftwareTitle[] | null;
   categories?: SoftwareCategory[] | null;
   fleet_maintained_app_id?: number | null;
+  fleet_maintained_versions?: IFleetMaintainedVersion[] | null;
   hash_sha256?: string | null;
 }
 
