@@ -101,12 +101,12 @@ func (ds *Datastore) CleanupCronStats(ctx context.Context) error {
 		if _, err := tx.ExecContext(ctx, deleteStmt); err != nil {
 			return ctxerr.Wrap(ctx, err, "deleting old cron stats")
 		}
-		// Delete cron_stats entries that have been in pending state for more than two hours.
+		// Delete cron_stats entries that have been in pending or queued state for more than two hours.
 		//
 		// NOTE(lucas): We don't know of any job that is taking longer than two hours. This value might need changing
 		// if that is not true anymore in the future.
-		updateStmt := `UPDATE cron_stats SET status = ? WHERE created_at < DATE_SUB(NOW(), INTERVAL 2 HOUR) AND status = ?`
-		if _, err := tx.ExecContext(ctx, updateStmt, fleet.CronStatsStatusExpired, fleet.CronStatsStatusPending); err != nil {
+		updateStmt := `UPDATE cron_stats SET status = ? WHERE created_at < DATE_SUB(NOW(), INTERVAL 2 HOUR) AND status IN (?, ?)`
+		if _, err := tx.ExecContext(ctx, updateStmt, fleet.CronStatsStatusExpired, fleet.CronStatsStatusPending, fleet.CronStatsStatusQueued); err != nil {
 			return ctxerr.Wrap(ctx, err, "updating expired cron stats")
 		}
 

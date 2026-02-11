@@ -825,8 +825,7 @@ func TestTriggerMultipleInstances(t *testing.T) {
 }
 
 func TestTriggerPollPicksUpQueuedRecord(t *testing.T) {
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+	ctx := t.Context()
 
 	name := "test_trigger_poll"
 	instanceID := "test_instance"
@@ -876,8 +875,7 @@ func TestTriggerPollPicksUpQueuedRecord(t *testing.T) {
 }
 
 func TestTriggerPollIgnoresNonQueuedRecords(t *testing.T) {
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+	ctx := t.Context()
 
 	name := "test_trigger_poll_ignore"
 	instanceID := "test_instance"
