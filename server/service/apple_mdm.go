@@ -3327,6 +3327,7 @@ type MDMAppleCheckinAndCommandService struct {
 	mdmLifecycle    *mdmlifecycle.HostLifecycle
 	commandHandlers map[string][]fleet.MDMCommandResultsHandler
 	keyValueStore   fleet.KeyValueStore
+	newActivityFn   mdmlifecycle.NewActivityFunc
 	isPremium       bool
 }
 
@@ -3337,8 +3338,9 @@ func NewMDMAppleCheckinAndCommandService(
 	isPremium bool,
 	logger kitlog.Logger,
 	keyValueStore fleet.KeyValueStore,
+	newActivityFn mdmlifecycle.NewActivityFunc,
 ) *MDMAppleCheckinAndCommandService {
-	mdmLifecycle := mdmlifecycle.New(ds, logger, newActivity)
+	mdmLifecycle := mdmlifecycle.New(ds, logger, newActivityFn)
 	return &MDMAppleCheckinAndCommandService{
 		ds:              ds,
 		commander:       commander,
@@ -3348,6 +3350,7 @@ func NewMDMAppleCheckinAndCommandService(
 		isPremium:       isPremium,
 		commandHandlers: map[string][]fleet.MDMCommandResultsHandler{},
 		keyValueStore:   keyValueStore,
+		newActivityFn:   newActivityFn,
 	}
 }
 
@@ -3552,13 +3555,13 @@ func (svc *MDMAppleCheckinAndCommandService) CheckOut(r *mdm.Request, m *mdm.Che
 		return err
 	}
 
-	return newActivity(
+	return svc.newActivityFn(
 		r.Context, nil, &fleet.ActivityTypeMDMUnenrolled{
 			HostSerial:       info.HardwareSerial,
 			HostDisplayName:  info.DisplayName,
 			InstalledFromDEP: info.InstalledFromDEP,
 			Platform:         info.Platform,
-		}, svc.ds, svc.logger,
+		},
 	)
 }
 
@@ -3820,7 +3823,7 @@ func (svc *MDMAppleCheckinAndCommandService) CommandAndReportResults(r *mdm.Requ
 				return nil, ctxerr.Wrap(r.Context, err, "fetching data for installed app store app activity")
 			}
 			act.FromSetupExperience = fromSetupExperience
-			if err := newActivity(r.Context, user, act, svc.ds, svc.logger); err != nil {
+			if err := svc.newActivityFn(r.Context, user, act); err != nil {
 				return nil, ctxerr.Wrap(r.Context, err, "creating activity for installed app store app")
 			}
 		}

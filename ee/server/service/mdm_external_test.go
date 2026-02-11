@@ -8,7 +8,6 @@ import (
 	"net/http/httptest"
 	"strings"
 	"testing"
-	"time"
 
 	"github.com/WatchBeam/clock"
 	eeservice "github.com/fleetdm/fleet/v4/ee/server/service"
@@ -104,6 +103,9 @@ func setupMockDatastorePremiumService(t testing.TB) (*mock.Store, *eeservice.Ser
 	if err != nil {
 		panic(err)
 	}
+	freeSvc.SetActivityService(&mock.MockNewActivityService{
+		NewActivityFunc: mock.NoopNewActivityFunc,
+	})
 	svc, err := eeservice.NewService(
 		freeSvc,
 		ds,
@@ -186,9 +188,6 @@ func TestGetOrCreatePreassignTeam(t *testing.T) {
 
 		ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 			return appConfig, nil
-		}
-		ds.NewActivityFunc = func(ctx context.Context, u *fleet.User, a fleet.ActivityDetails, details []byte, createdAt time.Time) error {
-			return nil
 		}
 		ds.TeamByNameFunc = func(ctx context.Context, name string) (*fleet.Team, error) {
 			for _, team := range teamStore {

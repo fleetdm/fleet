@@ -846,7 +846,7 @@ the way that the Fleet server works.
 			digiCertService := digicert.NewService(digicert.WithLogger(logger))
 			ctx = ctxerr.NewContext(ctx, eh)
 
-			activitiesModule := activities.NewActivityModule(ds, logger)
+			activitiesModule := activities.NewActivityModule()
 			config.MDM.AndroidAgent.Validate(initFatal)
 			androidSvc, err := android_service.NewService(
 				ctx,
@@ -1011,6 +1011,9 @@ the way that the Fleet server works.
 
 			// Bootstrap activity bounded context (needed for cron schedules and HTTP routes)
 			activitySvc, activityRoutes := createActivityBoundedContext(svc, dbConns, logger)
+			// Inject the activity bounded context into the main service and activity module
+			svc.SetActivityService(activitySvc)
+			activitiesModule.SetService(activitySvc)
 
 			// Perform a cleanup of cron_stats outside of the cronSchedules because the
 			// schedule package uses cron_stats entries to decide whether a schedule will
@@ -1195,6 +1198,7 @@ the way that the Fleet server works.
 					ds,
 					logger,
 					config.License.Key,
+					svc.NewActivity,
 				)
 			}); err != nil {
 				initFatal(err, "failed to register mdm_android_device_reconciler schedule")
@@ -1425,9 +1429,10 @@ the way that the Fleet server works.
 					license.IsPremium(),
 					logger,
 					redis_key_value.New(redisPool),
+					svc.NewActivity,
 				)
 
-				mdmCheckinAndCommandService.RegisterResultsHandler("InstalledApplicationList", service.NewInstalledApplicationListResultsHandler(ds, commander, logger, config.Server.VPPVerifyTimeout, config.Server.VPPVerifyRequestDelay))
+				mdmCheckinAndCommandService.RegisterResultsHandler("InstalledApplicationList", service.NewInstalledApplicationListResultsHandler(ds, commander, logger, config.Server.VPPVerifyTimeout, config.Server.VPPVerifyRequestDelay, svc.NewActivity))
 				mdmCheckinAndCommandService.RegisterResultsHandler(fleet.DeviceLocationCmdName, service.NewDeviceLocationResultsHandler(ds, commander, logger))
 
 				hasSCEPChallenge, err := checkMDMAssets([]fleet.MDMAssetName{fleet.MDMAssetSCEPChallenge})

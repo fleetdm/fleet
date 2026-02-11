@@ -20,6 +20,7 @@ import (
 	"time"
 
 	"github.com/fleetdm/fleet/v4/pkg/optjson"
+	activity_api "github.com/fleetdm/fleet/v4/server/activity/api"
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/mobileconfig"
@@ -131,10 +132,6 @@ func TestMDMAppleAuthorization(t *testing.T) {
 	}
 
 	ds.SaveAppConfigFunc = func(ctx context.Context, info *fleet.AppConfig) error {
-		return nil
-	}
-
-	ds.NewActivityFunc = func(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails, details []byte, createdAt time.Time) error {
 		return nil
 	}
 
@@ -1213,9 +1210,6 @@ func TestMDMWindowsConfigProfileAuthz(t *testing.T) {
 			},
 		}, nil
 	}
-	ds.NewActivityFunc = func(context.Context, *fleet.User, fleet.ActivityDetails, []byte, time.Time) error {
-		return nil
-	}
 	ds.GetMDMWindowsConfigProfileFunc = func(ctx context.Context, pid string) (*fleet.MDMWindowsConfigProfile, error) {
 		var tid uint
 		if pid == "team-1" {
@@ -1312,9 +1306,6 @@ func TestUploadWindowsMDMConfigProfileValidations(t *testing.T) {
 			return nil, &notFoundError{}
 		}
 		return &fleet.Team{ID: tid, Name: "team1"}, nil
-	}
-	ds.NewActivityFunc = func(context.Context, *fleet.User, fleet.ActivityDetails, []byte, time.Time) error {
-		return nil
 	}
 	ds.NewMDMWindowsConfigProfileFunc = func(ctx context.Context, cp fleet.MDMWindowsConfigProfile, usesFleetVars []fleet.FleetVarName) (*fleet.MDMWindowsConfigProfile, error) {
 		if bytes.Contains(cp.SyncML, []byte("duplicate")) {
@@ -1430,11 +1421,6 @@ func TestMDMBatchSetProfiles(t *testing.T) {
 		winProfiles []*fleet.MDMWindowsConfigProfile, macDecls []*fleet.MDMAppleDeclaration, androidProfiles []*fleet.MDMAndroidConfigProfile, profVars []fleet.MDMProfileIdentifierFleetVariables,
 	) (updates fleet.MDMProfilesUpdates, err error) {
 		return fleet.MDMProfilesUpdates{}, nil
-	}
-	ds.NewActivityFunc = func(
-		ctx context.Context, user *fleet.User, activity fleet.ActivityDetails, details []byte, createdAt time.Time,
-	) error {
-		return nil
 	}
 	ds.BulkSetPendingMDMHostProfilesFunc = func(ctx context.Context, hostIDs []uint, teamIDs []uint, profileUUIDs []string,
 		hostUUIDs []string,
@@ -2197,9 +2183,6 @@ func TestMDMResendConfigProfileAuthz(t *testing.T) {
 	ds.ResendHostMDMProfileFunc = func(ctx context.Context, hostUUID, profUUID string) error {
 		return nil
 	}
-	ds.NewActivityFunc = func(context.Context, *fleet.User, fleet.ActivityDetails, []byte, time.Time) error {
-		return nil
-	}
 	ds.BatchResendMDMProfileToHostsFunc = func(ctx context.Context, profUUID string, filters fleet.BatchResendMDMProfileFilters) (int64, error) {
 		return 0, nil
 	}
@@ -2517,7 +2500,8 @@ func TestUploadMDMAppleAPNSCertReplacesFileVaultProfile(t *testing.T) {
 	// We want to verify here that the disk encryption profile get's deleted for apple.
 	ds := new(mock.Store)
 	lic := &fleet.LicenseInfo{Tier: fleet.TierPremium}
-	svc, ctx := newTestService(t, ds, nil, nil, &TestServerOpts{SkipCreateTestUsers: true, License: lic})
+	opts := &TestServerOpts{SkipCreateTestUsers: true, License: lic}
+	svc, ctx := newTestService(t, ds, nil, nil, opts)
 	ctx = test.UserContext(ctx, test.UserAdmin)
 	ctx = license.NewContext(ctx, lic)
 
@@ -2564,7 +2548,7 @@ func TestUploadMDMAppleAPNSCertReplacesFileVaultProfile(t *testing.T) {
 	}
 
 	newActivityCalls := 0
-	ds.NewActivityFunc = func(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails, details []byte, createdAt time.Time) error {
+	opts.ActivityMock.NewActivityFunc = func(_ context.Context, _ *activity_api.User, activity activity_api.ActivityDetails) error {
 		act := fleet.ActivityTypeEnabledMacosDiskEncryption{}
 		require.Equal(t, act.ActivityName(), activity.ActivityName())
 		newActivityCalls++
@@ -2651,11 +2635,6 @@ func TestNewMDMProfilePremiumOnlyAndroid(t *testing.T) {
 	}
 	ds.TeamWithExtrasFunc = func(ctx context.Context, id uint) (*fleet.Team, error) {
 		return &fleet.Team{ID: id, Name: "team"}, nil
-	}
-	ds.NewActivityFunc = func(
-		ctx context.Context, user *fleet.User, activity fleet.ActivityDetails, details []byte, createdAt time.Time,
-	) error {
-		return nil
 	}
 	ds.ValidateEmbeddedSecretsFunc = func(ctx context.Context, documents []string) error {
 		return nil

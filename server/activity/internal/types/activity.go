@@ -3,6 +3,7 @@ package types
 
 import (
 	"context"
+	"time"
 
 	"github.com/fleetdm/fleet/v4/server/activity/api"
 )
@@ -45,4 +46,7 @@ type Datastore interface {
 	ListActivities(ctx context.Context, opt ListOptions) ([]*api.Activity, *api.PaginationMetadata, error)
 	ListHostPastActivities(ctx context.Context, hostID uint, opt ListOptions) ([]*api.Activity, *api.PaginationMetadata, error)
 	MarkActivitiesAsStreamed(ctx context.Context, activityIDs []uint) error
+	// NewActivity stores a new activity record in the database.
+	// The webhook context key must be set in the context before calling this method.
+	NewActivity(ctx context.Context, user *api.User, activity api.ActivityDetails, details []byte, createdAt time.Time) error
 }

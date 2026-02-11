@@ -81,6 +81,8 @@ type withServer struct {
 	lq *live_query_mock.MockLiveQuery
 
 	redisPool fleet.RedisPool
+
+	fleetSvc fleet.Service
 }
 
 func (ts *withServer) SetupSuite(dbName string) {

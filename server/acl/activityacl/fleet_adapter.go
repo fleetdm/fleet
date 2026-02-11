@@ -9,6 +9,7 @@ package activityacl
 import (
 	"context"
 
+	"github.com/fleetdm/fleet/v4/server"
 	"github.com/fleetdm/fleet/v4/server/activity"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 )
@@ -16,18 +17,22 @@ import (
 // FleetServiceAdapter provides access to Fleet service methods
 // for data that the activity bounded context doesn't own.
 type FleetServiceAdapter struct {
-	svc fleet.LookupService
+	svc fleet.ActivityLookupService
 }
 
 // NewFleetServiceAdapter creates a new adapter for the Fleet service.
-func NewFleetServiceAdapter(svc fleet.LookupService) *FleetServiceAdapter {
+func NewFleetServiceAdapter(svc fleet.ActivityLookupService) *FleetServiceAdapter {
 	return &FleetServiceAdapter{svc: svc}
 }
 
-// Ensure FleetServiceAdapter implements activity.UserProvider and activity.HostProvider
+// Ensure FleetServiceAdapter implements the required interfaces
 var (
-	_ activity.UserProvider = (*FleetServiceAdapter)(nil)
-	_ activity.HostProvider = (*FleetServiceAdapter)(nil)
+	_ activity.UserProvider              = (*FleetServiceAdapter)(nil)
+	_ activity.HostProvider              = (*FleetServiceAdapter)(nil)
+	_ activity.AppConfigProvider         = (*FleetServiceAdapter)(nil)
+	_ activity.UpcomingActivityActivator = (*FleetServiceAdapter)(nil)
+	_ activity.WebhookSender             = (*FleetServiceAdapter)(nil)
+	_ activity.URLMasker                 = (*FleetServiceAdapter)(nil)
 )
 
 // UsersByIDs fetches users by their IDs from the Fleet service.
@@ -93,4 +98,36 @@ func convertUser(u *fleet.UserSummary) *activity.User {
 		Gravatar: u.GravatarURL,
 		APIOnly:  u.APIOnly,
 	}
+}
+
+// GetActivitiesWebhookConfig returns the webhook configuration for activities.
+func (a *FleetServiceAdapter) GetActivitiesWebhookConfig(ctx context.Context) (*activity.ActivitiesWebhookSettings, error) {
+	settings, err := a.svc.GetActivitiesWebhookSettings(ctx)
+	if err != nil {
+		return nil, err
+	}
+	return &activity.ActivitiesWebhookSettings{
+		Enable:         settings.Enable,
+		DestinationURL: settings.DestinationURL,
+	}, nil
+}
+
+// ActivateNextUpcomingActivity activates the next upcoming activity in the queue.
+func (a *FleetServiceAdapter) ActivateNextUpcomingActivity(ctx context.Context, hostID uint, fromCompletedExecID string) error {
+	return a.svc.ActivateNextUpcomingActivityForHost(ctx, hostID, fromCompletedExecID)
+}
+
+// SendWebhookPayload sends a JSON payload to the given URL using the server's HTTP utility.
+func (a *FleetServiceAdapter) SendWebhookPayload(ctx context.Context, url string, payload any) error {
+	return server.PostJSONWithTimeout(ctx, url, payload)
+}
+
+// MaskSecretURLParams masks sensitive parameters in a URL for safe logging.
+func (a *FleetServiceAdapter) MaskSecretURLParams(rawURL string) string {
+	return server.MaskSecretURLParams(rawURL)
+}
+
+// MaskURLError masks sensitive URL information in an error for safe logging.
+func (a *FleetServiceAdapter) MaskURLError(err error) error {
+	return server.MaskURLError(err)
 }

@@ -5,6 +5,7 @@ import (
 	"testing"
 	"time"
 
+	activity_api "github.com/fleetdm/fleet/v4/server/activity/api"
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
@@ -154,7 +155,8 @@ func TestAuthenticate(t *testing.T) {
 
 func TestMFA(t *testing.T) {
 	ds := new(mock.Store)
-	svc, ctx := newTestService(t, ds, nil, nil)
+	opts := &TestServerOpts{}
+	svc, ctx := newTestService(t, ds, nil, nil, opts)
 
 	user := &fleet.User{MFAEnabled: true, Name: "Bob Smith", Email: "foo@example.com"}
 	require.NoError(t, user.SetPassword(test.GoodPassword, 10, 10))
@@ -200,15 +202,15 @@ func TestMFA(t *testing.T) {
 
 	session = &fleet.Session{}
 	mfaUser = user
-	ds.NewActivityFunc = func(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails, details []byte, createdAt time.Time) error {
-		require.Equal(t, mfaUser, user)
+	opts.ActivityMock.NewActivityFunc = func(_ context.Context, user *activity_api.User, activity activity_api.ActivityDetails) error {
+		require.Equal(t, mfaUser.Email, user.Email)
 		require.Equal(t, fleet.ActivityTypeUserLoggedIn{}.ActivityName(), activity.ActivityName())
 		return nil
 	}
 	resp, err = sessionCreateEndpoint(ctx, &sessionCreateRequest{Token: mfaToken}, svc)
 	require.NoError(t, err)
 	require.Nil(t, resp.Error())
-	require.True(t, ds.NewActivityFuncInvoked)
+	require.True(t, opts.ActivityMock.NewActivityFuncInvoked)
 }
 
 func TestGetSessionByKey(t *testing.T) {
@@ -299,12 +301,6 @@ func TestGetSSOUser(t *testing.T) {
 			Tier: fleet.TierPremium,
 		},
 	})
-
-	ds.NewActivityFunc = func(
-		ctx context.Context, user *fleet.User, activity fleet.ActivityDetails, details []byte, createdAt time.Time,
-	) error {
-		return nil
-	}
 
 	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 		return &fleet.AppConfig{

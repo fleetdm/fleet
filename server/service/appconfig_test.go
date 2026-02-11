@@ -14,7 +14,6 @@ import (
 	"os"
 	"strings"
 	"testing"
-	"time"
 
 	"github.com/fleetdm/fleet/v4/pkg/optjson"
 	"github.com/fleetdm/fleet/v4/server/config"
@@ -227,9 +226,6 @@ func TestEnrollSecretAuth(t *testing.T) {
 		return nil, nil
 	}
 	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) { return &fleet.AppConfig{}, nil }
-	ds.NewActivityFunc = func(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails, details []byte, createdAt time.Time) error {
-		return nil
-	}
 
 	testCases := []struct {
 		name            string
@@ -342,9 +338,6 @@ func TestApplyEnrollSecretWithGlobalEnrollConfig(t *testing.T) {
 		return nil, nil
 	}
 	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) { return &fleet.AppConfig{}, nil }
-	ds.NewActivityFunc = func(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails, details []byte, createdAt time.Time) error {
-		return nil
-	}
 
 	ds.IsEnrollSecretAvailableFunc = nil
 	ds.ApplyEnrollSecretsFunc = func(ctx context.Context, teamID *uint, secrets []*fleet.EnrollSecret) error {
@@ -1478,11 +1471,6 @@ func TestModifyAppConfigSMTPSSOAgentOptions(t *testing.T) {
 	}
 	ds.SaveAppConfigFunc = func(ctx context.Context, conf *fleet.AppConfig) error {
 		*dsAppConfig = *conf
-		return nil
-	}
-	ds.NewActivityFunc = func(
-		ctx context.Context, user *fleet.User, activity fleet.ActivityDetails, details []byte, createdAt time.Time,
-	) error {
 		return nil
 	}
 	ds.SaveABMTokenFunc = func(ctx context.Context, tok *fleet.ABMToken) error {
