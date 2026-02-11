@@ -376,19 +376,10 @@ func maybeUpdateSetupExperienceStatus(ctx context.Context, ds fleet.Datastore, r
 	return updated, err
 }
 
-var setupExperienceSupportedPlatforms = []string{
-	"macos",
-	"ios",
-	"ipados",
-	"windows",
-	"linux",
-	"android",
-}
-
 func validateSetupExperiencePlatform(platforms string) error {
 	for platform := range strings.SplitSeq(platforms, ",") {
-		if platform != "" && !slices.Contains(setupExperienceSupportedPlatforms, platform) {
-			quotedPlatforms := strings.Join(setupExperienceSupportedPlatforms, "\", \"")
+		if platform != "" && !slices.Contains(fleet.SetupExperienceSupportedPlatforms, platform) {
+			quotedPlatforms := strings.Join(fleet.SetupExperienceSupportedPlatforms, "\", \"")
 			quotedPlatforms = fmt.Sprintf("\"%s\"", quotedPlatforms)
 			return badRequestf("platform %q unsupported, platform must be one of %s", platform, quotedPlatforms)
 		}

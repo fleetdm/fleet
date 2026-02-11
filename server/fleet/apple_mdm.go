@@ -554,6 +554,7 @@ const (
 	DEPAssignProfileResponseSuccess       DEPAssignProfileResponseStatus = "SUCCESS"
 	DEPAssignProfileResponseNotAccessible DEPAssignProfileResponseStatus = "NOT_ACCESSIBLE"
 	DEPAssignProfileResponseFailed        DEPAssignProfileResponseStatus = "FAILED"
+	DEPAssignProfileResponseThrottled     DEPAssignProfileResponseStatus = "THROTTLED"
 )
 
 // NanoEnrollment represents a row in the nano_enrollments table managed by
@@ -987,6 +988,8 @@ type MDMAppleDDMActivation struct {
 	Type        string                       `json:"Type"` // "com.apple.activation.simple"
 }
 
+const BootstrapPackageSignedURLExpiry = 6 * time.Hour
+
 // MDMBootstrapPackageStore is the interface to store and retrieve bootstrap
 // package files. Fleet supports storing to the database and to an S3 bucket.
 type MDMBootstrapPackageStore interface {
@@ -994,7 +997,7 @@ type MDMBootstrapPackageStore interface {
 	Put(ctx context.Context, packageID string, content io.ReadSeeker) error
 	Exists(ctx context.Context, packageID string) (bool, error)
 	Cleanup(ctx context.Context, usedPackageIDs []string, removeCreatedBefore time.Time) (int, error)
-	Sign(ctx context.Context, fileID string) (string, error)
+	Sign(ctx context.Context, fileID string, expiresIn time.Duration) (string, error)
 }
 
 // MDMAppleMachineInfo is a [device's information][1] sent as part of an MDM enrollment profile request
@@ -1112,5 +1115,18 @@ type AppleMDMVPPInstaller interface {
 	GetVPPTokenIfCanInstallVPPApps(ctx context.Context, appleDevice bool, host *Host) (string, error)
 
 	// InstallVPPAppPostValidation installs a VPP app, assuming that GetVPPTokenIfCanInstallVPPApps has passed and provided a VPP token
+	// Returns the command UUID of the installation.
 	InstallVPPAppPostValidation(ctx context.Context, host *Host, vppApp *VPPApp, token string, opts HostSoftwareInstallOptions) (string, error)
+}
+
+const (
+	DeviceLocationCmdName  = "DeviceLocation"
+	EnableLostModeCmdName  = "EnableLostMode"
+	DisableLostModeCmdName = "DisableLostMode"
+)
+
+type HostLocationData struct {
+	HostID    uint    `db:"host_id"`
+	Latitude  float64 `db:"latitude"`
+	Longitude float64 `db:"longitude"`
 }

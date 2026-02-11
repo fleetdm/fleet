@@ -368,6 +368,48 @@ func TestTranslateCPEToCVE(t *testing.T) {
 			},
 			continuesToUpdate: true,
 		},
+		"cpe:2.3:a:apple:safari:16.2:*:*:*:*:macos:*:*": {
+			includedCVEs: []cve{
+				{ID: "CVE-2023-28205", resolvedInVersion: "16.4.1"},
+			},
+			continuesToUpdate: true,
+		},
+		"cpe:2.3:a:apple:safari:16.4.1:*:*:*:*:macos:*:*": {
+			excludedCVEs: []string{
+				"CVE-2023-28205",
+			},
+			continuesToUpdate: true,
+		},
+		"cpe:2.3:a:apple:safari:16.5:*:*:*:*:macos:*:*": {
+			excludedCVEs: []string{
+				"CVE-2023-28205",
+			},
+			continuesToUpdate: true,
+		},
+		"cpe:2.3:a:apple:safari:16.6:*:*:*:*:macos:*:*": {
+			excludedCVEs: []string{
+				"CVE-2023-28205",
+			},
+			continuesToUpdate: true,
+		},
+		"cpe:2.3:a:apple:safari:15.6.1:*:*:*:*:macos:*:*": {
+			excludedCVEs: []string{
+				"CVE-2023-28205",
+			},
+			continuesToUpdate: true,
+		},
+		"cpe:2.3:a:apple:safari:14.1.2:*:*:*:*:macos:*:*": {
+			excludedCVEs: []string{
+				"CVE-2023-28205",
+			},
+			continuesToUpdate: true,
+		},
+		"cpe:2.3:a:apple:safari:13.1.3:*:*:*:*:macos:*:*": {
+			excludedCVEs: []string{
+				"CVE-2023-28205",
+			},
+			continuesToUpdate: true,
+		},
 		"cpe:2.3:a:microsoft:365_apps:16.0.17628.20144:*:*:*:*:windows:*:*": {
 			includedCVEs: []cve{
 				{ID: "CVE-2024-21402"},
@@ -690,6 +732,76 @@ func TestTranslateCPEToCVE(t *testing.T) {
 			osID:     3,
 			// This was resolved in 15.3, so it should be excluded. See https://github.com/fleetdm/fleet/issues/26561.
 			excludedCVEs: []string{"CVE-2025-24176"},
+		},
+		{
+			platform: "darwin",
+			version:  "13.2",
+			osID:     4,
+			// macOS Ventura 13.2 < 13.3.1 is vulnerable to CVE-2023-28205
+			includedCVEs: []string{"CVE-2023-28205"},
+		},
+		{
+			platform: "darwin",
+			version:  "13.3",
+			osID:     5,
+			// macOS Ventura 13.3.0 is vulnerable (< 13.3.1)
+			includedCVEs: []string{"CVE-2023-28205"},
+		},
+		{
+			platform: "darwin",
+			version:  "13.3.1",
+			osID:     6,
+			// macOS Ventura 13.3.1 includes system-level WebKit patch for CVE-2023-28205
+			excludedCVEs: []string{"CVE-2023-28205"},
+		},
+		{
+			platform: "darwin",
+			version:  "13.4",
+			osID:     7,
+			// macOS Ventura 13.4 is patched (>= 13.3.1)
+			excludedCVEs: []string{"CVE-2023-28205"},
+		},
+		{
+			platform: "darwin",
+			version:  "13.5",
+			osID:     8,
+			// macOS Ventura 13.5 is patched (>= 13.3.1)
+			excludedCVEs: []string{"CVE-2023-28205"},
+		},
+		{
+			platform: "darwin",
+			version:  "12.7.6",
+			osID:     9,
+			// macOS Monterey 12.7.6 did NOT receive system-level fix (rely on Safari matching)
+			excludedCVEs: []string{"CVE-2023-28205"},
+		},
+		{
+			platform: "darwin",
+			version:  "12.6.5",
+			osID:     10,
+			// macOS Monterey 12.6.5 did NOT fix CVE-2023-28205 (only fixed CVE-2023-28206)
+			excludedCVEs: []string{"CVE-2023-28205"},
+		},
+		{
+			platform: "darwin",
+			version:  "11.7.10",
+			osID:     11,
+			// macOS Big Sur 11.7.10 did NOT receive system-level fix (rely on Safari matching)
+			excludedCVEs: []string{"CVE-2023-28205"},
+		},
+		{
+			platform: "darwin",
+			version:  "11.7.6",
+			osID:     12,
+			// macOS Big Sur 11.7.6 did NOT fix CVE-2023-28205 (only fixed CVE-2023-28206)
+			excludedCVEs: []string{"CVE-2023-28205"},
+		},
+		{
+			platform: "darwin",
+			version:  "10.15.7",
+			osID:     13,
+			// macOS Catalina (10.x) should NOT match CVE-2023-28205 (pre-Big Sur)
+			excludedCVEs: []string{"CVE-2023-28205"},
 		},
 	}
 
@@ -1115,6 +1227,36 @@ func TestExpandCPEAliases(t *testing.T) {
 	python3130RC1Alias.Version = "3.13.0rc1"
 	python3130RC1Alias.Update = ""
 
+	pgadminMacOS := &wfn.Attributes{
+		Vendor:   "pgadmin",
+		Product:  "pgadmin",
+		Version:  "9.10",
+		TargetSW: "macos",
+	}
+	pgadminMacOSAliasPgadmin := *pgadminMacOS
+	pgadminMacOSAliasPgadmin.TargetSW = "postgresql"
+	pgadminMacOSAliasPgadmin_4 := *pgadminMacOS
+	pgadminMacOSAliasPgadmin_4.Product = "pgadmin_4"
+	pgadminMacOSAliasPgadmin_4.TargetSW = "postgresql"
+	pgadminMacOSAliasPgadmin4 := *pgadminMacOS
+	pgadminMacOSAliasPgadmin4.Product = "pgadmin4"
+	pgadminMacOSAliasPgadmin4.TargetSW = "postgresql"
+
+	pgadminWindows := &wfn.Attributes{
+		Vendor:   "pgadmin",
+		Product:  "pgadmin_4",
+		Version:  "9.10",
+		TargetSW: "windows",
+	}
+	pgadminWindowsAliasPgadmin := *pgadminWindows
+	pgadminWindowsAliasPgadmin.Product = "pgadmin"
+	pgadminWindowsAliasPgadmin.TargetSW = "postgresql"
+	pgadminWindowsAliasPgadmin_4 := *pgadminWindows
+	pgadminWindowsAliasPgadmin_4.TargetSW = "postgresql"
+	pgadminWindowsAliasPgadmin4 := *pgadminWindows
+	pgadminWindowsAliasPgadmin4.Product = "pgadmin4"
+	pgadminWindowsAliasPgadmin4.TargetSW = "postgresql"
+
 	for _, tc := range []struct {
 		name            string
 		cpeItem         *wfn.Attributes
@@ -1154,6 +1296,26 @@ func TestExpandCPEAliases(t *testing.T) {
 			name:            "pre-release python: 3.13.0 rc1",
 			cpeItem:         python3130RC1,
 			expectedAliases: []*wfn.Attributes{python3130RC1, &python3130RC1Alias},
+		},
+		{
+			name:    "pgadmin on macos",
+			cpeItem: pgadminMacOS,
+			expectedAliases: []*wfn.Attributes{
+				pgadminMacOS,
+				&pgadminMacOSAliasPgadmin,
+				&pgadminMacOSAliasPgadmin_4,
+				&pgadminMacOSAliasPgadmin4,
+			},
+		},
+		{
+			name:    "pgadmin on windows",
+			cpeItem: pgadminWindows,
+			expectedAliases: []*wfn.Attributes{
+				pgadminWindows,
+				&pgadminWindowsAliasPgadmin,
+				&pgadminWindowsAliasPgadmin_4,
+				&pgadminWindowsAliasPgadmin4,
+			},
 		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {

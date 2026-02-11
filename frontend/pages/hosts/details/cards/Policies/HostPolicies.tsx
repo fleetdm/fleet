@@ -9,6 +9,8 @@ import TableContainer from "components/TableContainer";
 import EmptyTable from "components/EmptyTable";
 import CardHeader from "components/CardHeader";
 import CustomLink from "components/CustomLink";
+import InfoBanner from "components/InfoBanner";
+import IconStatusMessage from "components/IconStatusMessage";
 
 import {
   generatePolicyTableHeaders,
@@ -26,6 +28,8 @@ interface IPoliciesProps {
   hostPlatform: string;
   router: InjectedRouter;
   currentTeamId?: number;
+  conditionalAccessEnabled?: boolean;
+  conditionalAccessBypassed?: boolean;
 }
 
 interface IHostPoliciesRowProps extends Row {
@@ -40,6 +44,8 @@ const Policies = ({
   hostPlatform,
   router,
   currentTeamId,
+  conditionalAccessEnabled,
+  conditionalAccessBypassed,
 }: IPoliciesProps): JSX.Element => {
   const tableHeaders = generatePolicyTableHeaders(currentTeamId);
   if (deviceUser) {
@@ -108,12 +114,32 @@ const Policies = ({
 
     return (
       <>
-        {failingResponses?.length > 0 && (
-          <PolicyFailingCount policyList={policies} deviceUser={deviceUser} />
+        {failingResponses?.length > 0 && !conditionalAccessBypassed ? (
+          <PolicyFailingCount
+            policyList={policies}
+            deviceUser={deviceUser}
+            conditionalAccessEnabled={conditionalAccessEnabled}
+          />
+        ) : (
+          <InfoBanner color="grey" borderRadius="xlarge">
+            <IconStatusMessage
+              iconName="clock"
+              iconColor="ui-fleet-black-50"
+              message={
+                <span>
+                  <strong>Access restored for next Okta login</strong>
+                  <br />
+                  {`To fully restore access, click on the policies marked "Action
+                  required" and follow the resolution steps. Once resolved,
+                  click "Refetch" to check status.`}
+                </span>
+              }
+            />
+          </InfoBanner>
         )}
         <TableContainer
           columnConfigs={tableHeaders}
-          data={generatePolicyDataSet(policies)}
+          data={generatePolicyDataSet(policies, !!conditionalAccessEnabled)}
           isLoading={isLoading}
           defaultSortHeader="status"
           resultsTitle="policies"

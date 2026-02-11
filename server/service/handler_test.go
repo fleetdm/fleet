@@ -2,6 +2,7 @@ package service
 
 import (
 	"bufio"
+	"context"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
@@ -10,8 +11,12 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
 	"github.com/fleetdm/fleet/v4/server/config"
+	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mock"
+	"github.com/fleetdm/fleet/v4/server/platform/endpointer"
+	kithttp "github.com/go-kit/kit/transport/http"
 	kitlog "github.com/go-kit/log"
 	"github.com/gorilla/mux"
 	"github.com/prometheus/client_golang/prometheus"
@@ -326,4 +331,83 @@ func mockRouteHandler(route *mux.Route, status int) (verb, path string, err erro
 
 	route.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { w.WriteHeader(status) })
 	return meths[0], path, nil
+}
+
+func TestGzipResponses(t *testing.T) {
+	ds := new(mock.Store)
+	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+		return &fleet.AppConfig{}, nil
+	}
+
+	testRoute := func(r *mux.Router, opts []kithttp.ServerOption) {
+		r.Handle("/api/test-gzip", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.Header().Set("Content-Type", "application/json")
+			// Write enough data to trigger gzip (default threshold is 1500 bytes)
+			data := make([]byte, 2000)
+			for i := range data {
+				data[i] = 'a'
+			}
+			_, err := w.Write(data)
+			require.NoError(t, err)
+		}))
+	}
+
+	t.Run("Enabled", func(t *testing.T) {
+		cfg := config.TestConfig()
+		cfg.Server.GzipResponses = true
+
+		_, server := RunServerForTestsWithDS(t, ds, &TestServerOpts{
+			FleetConfig:         &cfg,
+			FeatureRoutes:       []endpointer.HandlerRoutesFunc{testRoute},
+			SkipCreateTestUsers: true,
+		})
+		defer server.Close()
+
+		t.Run("WithAcceptEncoding", func(t *testing.T) {
+			req, err := http.NewRequest("GET", server.URL+"/api/test-gzip", nil)
+			require.NoError(t, err)
+			req.Header.Set("Accept-Encoding", "gzip")
+			resp, err := fleethttp.NewClient().Do(req)
+			require.NoError(t, err)
+			defer resp.Body.Close()
+
+			require.Equal(t, "gzip", resp.Header.Get("Content-Encoding"), "Expected gzip Content-Encoding when enabled")
+		})
+
+		t.Run("WithoutAcceptEncoding", func(t *testing.T) {
+			req, err := http.NewRequest("GET", server.URL+"/api/test-gzip", nil)
+			require.NoError(t, err)
+			// Do NOT set Accept-Encoding header
+			transport := fleethttp.NewTransport()
+			transport.DisableCompression = true // Prevents automatic addition of Accept-Encoding: gzip
+			client := fleethttp.NewClient()
+			client.Transport = transport
+			resp, err := client.Do(req)
+			require.NoError(t, err)
+			defer resp.Body.Close()
+
+			require.Empty(t, resp.Header.Get("Content-Encoding"), "Expected no gzip Content-Encoding when Accept-Encoding not set")
+		})
+	})
+
+	t.Run("Disabled", func(t *testing.T) {
+		t.Parallel()
+		cfg := config.TestConfig()
+		cfg.Server.GzipResponses = false
+		_, server := RunServerForTestsWithDS(t, ds, &TestServerOpts{
+			FleetConfig:         &cfg,
+			FeatureRoutes:       []endpointer.HandlerRoutesFunc{testRoute},
+			SkipCreateTestUsers: true,
+		})
+		defer server.Close()
+
+		req, err := http.NewRequest("GET", server.URL+"/api/test-gzip", nil)
+		require.NoError(t, err)
+		req.Header.Set("Accept-Encoding", "gzip")
+		resp, err := fleethttp.NewClient().Do(req)
+		require.NoError(t, err)
+		defer resp.Body.Close()
+
+		require.Empty(t, resp.Header.Get("Content-Encoding"), "Expected no gzip Content-Encoding when disabled")
+	})
 }

@@ -215,7 +215,7 @@
 #  ╔═╗╦═╗╔═╗╔═╗╔═╗   ╔═╗╦  ╔═╗╔╦╗╔═╗╔═╗╦═╗╔╦╗  ╔╦╗╔╦╗╔╦╗  ╔═╗╦ ╦╔═╗╔═╗╔═╗╦═╗╔╦╗
 #  ║  ╠╦╝║ ║╚═╗╚═╗───╠═╝║  ╠═╣ ║ ╠╣ ║ ║╠╦╝║║║  ║║║ ║║║║║  ╚═╗║ ║╠═╝╠═╝║ ║╠╦╝ ║ 
 #  ╚═╝╩╚═╚═╝╚═╝╚═╝   ╩  ╩═╝╩ ╩ ╩ ╚  ╚═╝╩╚═╩ ╩  ╩ ╩═╩╝╩ ╩  ╚═╝╚═╝╩  ╩  ╚═╝╩╚═ ╩ 
-- industryName: Cross-platform MDM support
+- industryName: Multi-platform MDM support
   description: Apple, Windows (x64 and Arm), Linux (amd64 and Arm), and Android (coming soon).
   documentationUrl: https://fleetdm.com/announcements/debunk-the-cross-platform-myth
   tier: Premium

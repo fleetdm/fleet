@@ -27,7 +27,7 @@ import (
 
 var (
 	rxOption       = regexp.MustCompile(`\-\-(\w+)\s`)
-	osqueryVersion = "5.20.0"
+	osqueryVersion = "5.21.0"
 
 	structTpl = template.Must(template.New("struct").Funcs(template.FuncMap{
 		"camelCase": camelCaseOptionName,

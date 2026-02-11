@@ -58,11 +58,6 @@ DOWNLOAD_URL="https://github.com/fleetdm/fleet/releases/download/fleet-v${latest
 echo "Downloading fleetctl ${latest_strippedVersion} for ${OS_DISPLAY_NAME}..."
 curl -sSL "$DOWNLOAD_URL" | tar -xz -C "$FLEETCTL_INSTALL_DIR" --strip-components=1 fleetctl_v"${latest_strippedVersion}"_${OS}/
 echo "fleetctl installed successfully in ${FLEETCTL_INSTALL_DIR}"
-echo
-echo "To start the local demo:"
-echo
-echo "1. Start Docker Desktop"
-echo "2. To access your Fleet Premium trial, head to fleetdm.com/try-fleet and run the command in step 2."
 
 # Verify if the binary is executable
 if [[ ! -x "${FLEETCTL_INSTALL_DIR}/fleetctl" ]]; then

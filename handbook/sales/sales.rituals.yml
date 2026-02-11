@@ -14,5 +14,5 @@
   moreInfoUrl: "https://fleetdm.com/handbook/sales#communicate-gross-new-arr-added"
   dri: "alexmitchelliii"
   autoIssue:   # Enables automation of GitHub issues
-    labels: [ "#g-unicorns" ] # label to be applied to issue
+    labels: [ ":help-gtm-ops" ] # label to be applied to issue
     repo: "confidential"

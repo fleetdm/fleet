@@ -1,6 +1,6 @@
 # Configuration for contributors
 
-Don't use these Fleet server configuration options. For Fleet server configuraiton, please use the public [Fleet server configuration documentation](https://fleetdm.com/docs/configuration/fleet-server-configuration) instead. For YAML, please use the [public GitOps documentation](https://fleetdm.com/docs/configuration/yaml-files) instead.
+Don't use these Fleet server configuration options. For Fleet server configuration, please use the public [Fleet server configuration documentation](https://fleetdm.com/docs/configuration/fleet-server-configuration) instead. For YAML, please use the [public GitOps documentation](https://fleetdm.com/docs/configuration/yaml-files) instead.
 
 These options in this document are only used when contributing to Fleet. They frequently change to reflect current functionality.
 

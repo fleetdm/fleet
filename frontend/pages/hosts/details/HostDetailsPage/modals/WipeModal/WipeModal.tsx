@@ -39,7 +39,7 @@ const WipeModal = ({ id, hostName, onSuccess, onClose }: IWipeModalProps) => {
   };
 
   return (
-    <Modal className={baseClass} title="Wipe host" onExit={onClose}>
+    <Modal className={baseClass} title="Wipe" onExit={onClose}>
       <>
         <div className={`${baseClass}__modal-content`}>
           <p>All content will be erased on this host.</p>

@@ -40,6 +40,7 @@ import VppInstallDetailsModal from "components/ActivityDetails/InstallDetails/Vp
 import SoftwareUninstallDetailsModal, {
   ISWUninstallDetailsParentState,
 } from "components/ActivityDetails/InstallDetails/SoftwareUninstallDetailsModal/SoftwareUninstallDetailsModal";
+import { getDisplayedSoftwareName } from "pages/SoftwarePage/helpers";
 
 import { generateHostSWLibraryTableHeaders } from "./HostSoftwareLibraryTable/HostSoftwareLibraryTableConfig";
 import HostSoftwareLibraryTable from "./HostSoftwareLibraryTable";
@@ -626,9 +627,10 @@ const HostSoftwareLibrary = ({
           details={{
             hostDisplayName,
             fleetInstallStatus: selectedHostSWIpaInstallDetails.status,
-            appName:
-              selectedHostSWIpaInstallDetails.display_name ||
+            appName: getDisplayedSoftwareName(
               selectedHostSWIpaInstallDetails.name,
+              selectedHostSWIpaInstallDetails.display_name
+            ),
             commandUuid:
               selectedHostSWIpaInstallDetails.software_package?.last_install
                 ?.install_uuid, // slightly redundant, see explanation in `SoftwareInstallDetailsModal
@@ -661,9 +663,10 @@ const HostSoftwareLibrary = ({
           details={{
             fleetInstallStatus: selectedVPPInstallDetails.status,
             hostDisplayName,
-            appName:
-              selectedVPPInstallDetails.display_name ||
+            appName: getDisplayedSoftwareName(
               selectedVPPInstallDetails.name,
+              selectedVPPInstallDetails.display_name
+            ),
             commandUuid: selectedVPPInstallDetails.commandUuid,
             platform,
           }}

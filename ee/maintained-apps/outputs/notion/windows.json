@@ -1,14 +1,14 @@
 {
   "versions": [
     {
-      "version": "6.3.2",
+      "version": "7.2.1",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name = 'Notion 6.1.0' AND publisher = 'Notion Labs, Inc';"
       },
-      "installer_url": "https://desktop-release.notion-static.com/Notion%20Setup%206.3.2.exe",
+      "installer_url": "https://desktop-release.notion-static.com/Notion%20Setup%207.2.1.exe",
       "install_script_ref": "0803ad8c",
       "uninstall_script_ref": "a8fdd9b7",
-      "sha256": "b279b934260125f69ccdf1051894d531741e7ea516c91ca55d4b134a41a6696b",
+      "sha256": "0516c4257557a392c95fb5140a22e06d4fb3083d83a246dd975078cff466bd51",
       "default_categories": [
         "Productivity"
       ]

@@ -11,7 +11,7 @@ import (
 	shared_mdm "github.com/fleetdm/fleet/v4/pkg/mdm"
 	"github.com/fleetdm/fleet/v4/server/bindata"
 	"github.com/fleetdm/fleet/v4/server/fleet"
-	"github.com/fleetdm/fleet/v4/server/service/middleware/endpoint_utils"
+	"github.com/fleetdm/fleet/v4/server/platform/endpointer"
 	"github.com/go-kit/log"
 	"github.com/klauspost/compress/gzhttp"
 )
@@ -31,7 +31,7 @@ func ServeFrontend(urlPrefix string, sandbox bool, logger log.Logger) http.Handl
 		http.Error(w, err, http.StatusInternalServerError)
 	}
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		endpoint_utils.WriteBrowserSecurityHeaders(w)
+		endpointer.WriteBrowserSecurityHeaders(w)
 
 		// The following check is to prevent a misconfigured osquery from submitting
 		// data to the root endpoint (the osquery remote API uses POST for all its endpoints).
@@ -88,7 +88,7 @@ func ServeEndUserEnrollOTA(
 	}
 
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		endpoint_utils.WriteBrowserSecurityHeaders(w)
+		endpointer.WriteBrowserSecurityHeaders(w)
 		setupRequired, err := svc.SetupRequired(r.Context())
 		if err != nil {
 			herr(w, "setup required err: "+err.Error())

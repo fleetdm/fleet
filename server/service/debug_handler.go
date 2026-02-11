@@ -39,7 +39,7 @@ func (m *debugAuthenticationMiddleware) Middleware(next http.Handler) http.Handl
 			return
 		}
 
-		if !v.CanPerformActions() {
+		if !v.CanPerformActions() || v.User.GlobalRole == nil || *v.User.GlobalRole != fleet.RoleAdmin {
 			http.Error(w, "Unauthorized", http.StatusForbidden)
 			return
 		}

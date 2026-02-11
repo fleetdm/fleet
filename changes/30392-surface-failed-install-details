@@ -1,0 +1,1 @@
+- Fixed an issue where `last_install` details were not returned in the Host Software API for failed software installs, preventing users from viewing failure information.

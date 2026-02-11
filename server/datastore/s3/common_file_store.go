@@ -20,8 +20,6 @@ import (
 	"golang.org/x/sync/errgroup"
 )
 
-const signedURLExpiresIn = 6 * time.Hour
-
 // commonFileStore implements the common Get, Put, Exists, Sign and Cleanup
 // operations typical for storage of files in the SoftwareInstallers S3 bucket
 // configuration. It is used by the SoftwareInstallerStore and the
@@ -193,7 +191,7 @@ func (s *commonFileStore) Cleanup(ctx context.Context, usedFileIDs []string, rem
 	return int(deleted.Load()), ctxerr.Wrapf(ctx, err, "deleting %s in S3 store", s.fileLabel)
 }
 
-func (s *commonFileStore) Sign(ctx context.Context, fileID string) (string, error) {
+func (s *commonFileStore) Sign(ctx context.Context, fileID string, expiresIn time.Duration) (string, error) {
 	if s.cloudFrontConfig == nil {
 		return "", ctxerr.Wrapf(ctx, fleet.ErrNotConfigured, "signing %s URL in S3 store", s.fileLabel)
 	}
@@ -202,7 +200,7 @@ func (s *commonFileStore) Sign(ctx context.Context, fileID string) (string, erro
 		return "", ctxerr.Wrapf(ctx, err, "building URL for %s  with ID %s in S3 store", s.fileLabel, fileID)
 	}
 	signer := sign.NewURLSigner(s.cloudFrontConfig.SigningPublicKeyID, s.cloudFrontConfig.Signer)
-	signedURL, err := signer.Sign(urlToAccess, time.Now().Add(signedURLExpiresIn))
+	signedURL, err := signer.Sign(urlToAccess, time.Now().Add(expiresIn))
 	if err != nil {
 		return "", ctxerr.Wrapf(ctx, err, "signing %s URL %s in S3 store", s.fileLabel, urlToAccess)
 	}

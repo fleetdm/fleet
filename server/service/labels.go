@@ -488,7 +488,7 @@ func (svc *Service) ListHostsInLabel(ctx context.Context, lid uint, opt fleet.Ho
 		}
 	}
 
-	if opt.PopulateDeviceStatus {
+	if opt.IncludeDeviceStatus {
 		statusMap, err := svc.ds.GetHostsLockWipeStatusBatch(ctx, hosts)
 		if err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "get hosts lock/wipe status batch")
@@ -853,10 +853,7 @@ func (svc *Service) BatchValidateLabels(ctx context.Context, teamID *uint, label
 	}
 
 	if len(labels) != len(uniqueNames) {
-		return nil, &fleet.BadRequestError{
-			Message:     "some or all the labels provided don't exist",
-			InternalErr: fmt.Errorf("names provided: %v", labelNames),
-		}
+		return nil, fleet.NewMissingLabelError(uniqueNames, labels)
 	}
 
 	if err := verifyLabelsToAssociate(ctx, svc.ds, teamID, labelNames, authz.UserFromContext(ctx)); err != nil {

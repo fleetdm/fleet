@@ -910,6 +910,24 @@ SELECT c.*
 		JOIN codesign c ON a.path = c.path
 ```
 
+## software_macos_executable_sha256
+
+- Description: A software override query[^1] to append the sha256 hash of app bundle executables to macOS software entries. Requires `fleetd`
+
+- Platforms: darwin
+
+- Discovery query:
+```sql
+SELECT 1 FROM osquery_registry WHERE active = true AND registry = 'table' AND name = 'executable_hashes'
+```
+
+- Query:
+```sql
+SELECT eh.*
+		FROM apps a
+		JOIN executable_hashes eh ON a.path = eh.path
+```
+
 ## software_macos_firefox
 
 - Description: A software override query[^1] to differentiate between Firefox and Firefox ESR on macOS. Requires `fleetd`

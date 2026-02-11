@@ -1,7 +1,7 @@
 <div id="homepage" v-cloak>
-  <div purpose="announcement-banner">
+  <!-- <div purpose="announcement-banner">
     <animated-arrow-button arrow-color="white" text-color="white" href="/articles/free-migration-from-jamf-to-fleet">Free Jamf to Fleet MDM migration service</animated-arrow-button>
-  </div>
+  </div> -->
   <%/* Hero container */%>
   <div purpose="hero-container">
     <div purpose="hero-background-image">
@@ -10,21 +10,22 @@
           <%/* Hero text */%>
           <div purpose="hero-text" class="d-flex flex-column justify-content-start">
             <h4>Open device management</h4>
-            <h1>“I just moved 10,000<br> Macs to Fleet”
-
+            <h1>
+              Configure, update and secure all your devices in one place
             </h1>
             <div purpose="hero-quote-author" class="d-flex flex-row align-items-center">
               <div purpose="hero-quote-profile-image">
                 <img alt="Wes Whetstone" src="/images/homepage-hero-wes-whetstone-86x72@2x.png">
               </div>
               <div purpose="quote-author-info">
+                <p purpose="quote-text">“I just moved 10,000 Macs to Fleet”</p>
                 <p purpose="quote-author-name">Wes Whetstone</p>
                 <p purpose="quote-author-title">Client Platform Engineer at Stripe</p>
               </div>
             </div>
             <div purpose="button-row" class="d-flex justify-content-start align-items-center">
               <a purpose="cta-button" href="/contact">Get a demo</a>
-              <a purpose="video-button"  @click="clickOpenVideoModal('fleet-in-three-minutes')"><img alt="Play" class="d-inline" src="/images/icon-play-video-32x32@2x.png">See Fleet in action<span>3 mins</span></a>
+              <a purpose="video-button"  @click="clickOpenVideoModal('fleet-in-three-minutes')"><img alt="Play" class="d-inline" src="/images/icon-play-video-32x32@2x.png">See how it works<span>3 mins</span></a>
             </div>
           </div>
         </div>
@@ -35,11 +36,11 @@
   <div purpose="hero-logos" class="mx-auto">
     <logo-carousel></logo-carousel>
   </div>
-  <a purpose="statistics" class="d-flex" href="/testimonials" no-underline>
+  <a purpose="statistics" class="d-flex" href="/customers" no-underline>
     <div purpose="statistics-column">
       <div purpose="customers" class="d-none d-sm-block">
         <h4>1,300+</h4>
-        <p>customers</p>
+        <p>organizations</p>
       </div>
       <div purpose="countries" class="d-block d-sm-none">
         <h4>90+</h4>
@@ -57,7 +58,7 @@
       </div>
       <div purpose="customers" class="d-block d-sm-none">
         <h4>1,300+</h4>
-        <p>customers</p>
+        <p>organizations</p>
       </div>
       <div purpose="response-time">
         <h4>21 minutes</h4>

@@ -5,16 +5,18 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"errors"
+	"net/http"
 	"os"
 	"strconv"
 	"strings"
 	"testing"
 	"time"
 
-	"github.com/fleetdm/fleet/v4/server/datastore/mysql/common_mysql"
+	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm/android"
 	android_mock "github.com/fleetdm/fleet/v4/server/mdm/android/mock"
+	common_mysql "github.com/fleetdm/fleet/v4/server/platform/mysql"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/service/modules/activities"
 	kitlog "github.com/go-kit/log"
@@ -29,7 +31,7 @@ func createAndroidService(t *testing.T) (android.Service, *AndroidMockDS) {
 	logger := kitlog.NewLogfmtLogger(os.Stdout)
 	mockDS := InitCommonDSMocks()
 	activityModule := activities.NewActivityModule(mockDS, logger)
-	svc, err := NewServiceWithClient(logger, mockDS, &androidAPIClient, "test-private-key", &mockDS.DataStore, activityModule)
+	svc, err := NewServiceWithClient(logger, mockDS, &androidAPIClient, "test-private-key", &mockDS.DataStore, activityModule, config.AndroidAgentConfig{})
 	require.NoError(t, err)
 
 	return svc, mockDS
@@ -83,8 +85,10 @@ func TestPubSubEnrollment(t *testing.T) {
 				EnrollmentTokenData: string(enrollTokenData),
 			})
 			err = svc.ProcessPubSubPush(context.Background(), "invalid", enrollmentMessage)
-			require.Error(t, err)
 			require.Equal(t, "validation failed: android Android MDM is NOT configured", err.Error())
+			sc, ok := err.(interface{ Status() int })
+			require.True(t, ok, "error should implement Status() interface")
+			require.Equal(t, http.StatusOK, sc.Status())
 		})
 
 		t.Run("if android token is invalid", func(t *testing.T) {

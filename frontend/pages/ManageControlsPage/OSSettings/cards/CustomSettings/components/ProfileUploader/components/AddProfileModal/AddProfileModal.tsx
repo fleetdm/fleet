@@ -39,6 +39,7 @@ interface IFileChooserProps {
   onFileOpen: (files: FileList | null) => void;
 }
 
+/** TODO: Legacy component, should be replaced with newer FileUploader */
 const FileChooser = ({ isLoading, onFileOpen }: IFileChooserProps) => (
   <div className={`${baseClass}__file-chooser`}>
     <ProfileGraphic
@@ -61,8 +62,7 @@ const FileChooser = ({ isLoading, onFileOpen }: IFileChooserProps) => (
     >
       <label htmlFor="upload-profile">
         <span className={`${baseClass}__file-chooser--button-wrap`}>
-          <Icon name="upload" />
-          Choose file
+          Choose file <Icon name="upload" color="core-fleet-green" />
         </span>
       </label>
     </Button>

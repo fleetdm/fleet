@@ -1,0 +1,374 @@
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - Ensure 'Device Enumeration Policy' is set to 'Block all (most restrictive)'
+  platform: windows
+  description: 'This policy is intended to provide additional security against external DMA-capable devices. It allows for more control over the enumeration of external DMA-capable devices that are not compatible with DMA Remapping/device memory isolation and sandboxing. The recommended state for this setting is: Block all (most restrictive). Note: This policy does not apply to 1394, PCMCIA or ExpressCard devices. The protection also only applies to Windows 10 R1803 or higher and requires a UEFI BIOS to function.'
+  resolution: To establish the recommended configuration via configuration profiles, set the following Settings Catalog path to Block all (most restrictive). Dma Guard\Device Enumeration Policy
+  query: SELECT 1 FROM registry WHERE path = 'HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\DeviceInstall\Settings\DeviceEnumerationPolicy' AND data = '0';
+  tags: framework:CISv8.1, benchmark:win11, level:BL, platform:windows, category:dma-guard, requirement:standard, critical:false, control:device-enumeration-policy-is-block-all, cis_safeguard_ids:CIS28.1
+  purpose: Enforcement
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - Ensure 'Prevent installation of devices using drivers that match these device setup classes' is set to 'Enabled'
+  platform: windows
+  description: 'This policy setting allows you to specify a list of device setup class globally unique identifiers (GUIDs) for device drivers that Windows is prevented from installing. This policy setting takes precedence over any other policy setting that allows Windows to install a device. If you enable this policy setting, Windows is prevented from installing or updating device drivers whose device setup class GUIDs appear in the list you create. If you enable this policy setting on a remote desktop server, the policy setting affects redirection of the specified devices from a remote desktop client to the remote desktop server. If you disable or do not configure this policy setting, Windows can install and update devices as allowed or prevented by other policy settings. The recommended state for this setting is: Enabled.'
+  resolution: To establish the recommended configuration via configuration profiles, set the following Settings Catalog path to Enabled. Administrative Templates\System\Device Installation\Device Installation Restrictions\Prevent installation of devices using drivers that match these device setup classes
+  query: SELECT 1 WHERE EXISTS (SELECT 1 FROM mdm_bridge WHERE mdm_command_input = '<SyncBody><Get><CmdID>1</CmdID><Item><Target><LocURI>./Device/Vendor/MSFT/Policy/Result/DeviceInstallation/PreventInstallationOfMatchingDeviceSetupClasses</LocURI></Target></Item></Get></SyncBody>' AND mdm_command_output LIKE '%<Enabled%') OR EXISTS (SELECT 1 FROM registry WHERE path = 'HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\DeviceInstall\Restrictions\DenyDeviceClasses' AND data = '1');
+  tags: framework:CISv8.1, benchmark:win11, level:BL, platform:windows, category:device-installation, requirement:standard, critical:false, control:prevent-installation-of-devices-using-drivers-that-match-device-setup-classes-is-enabled, cis_safeguard_ids:CIS4.10.9.1.1
+  purpose: Enforcement
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: 'CIS - Ensure ''Prevent installation of devices using drivers that match these device setup classes: Also apply to matching devices that are already installed.'' is set to ''True'' (checked)'
+  platform: windows
+  description: 'This policy setting allows you to specify a list of device setup class globally unique identifiers (GUIDs) for device drivers that Windows is prevented from installing. This policy setting takes precedence over any other policy setting that allows Windows to install a device. If you enable this policy setting, Windows is prevented from installing or updating device drivers whose device setup class GUIDs appear in the list you create. If you enable this policy setting on a remote desktop server, the policy setting affects redirection of the specified devices from a remote desktop client to the remote desktop server. If you disable or do not configure this policy setting, Windows can install and update devices as allowed or prevented by other policy settings. The recommended state for this setting is: True (checked).'
+  resolution: To establish the recommended configuration via configuration profiles, set the following Settings Catalog path to Enabled, and check the Also apply to matching devices that are already installed. button. Administrative Templates\System\Device Installation\Device Installation Restrictions\Prevent installation of devices using drivers that match these device setup classes
+  query: SELECT 1 WHERE EXISTS (SELECT 1 FROM mdm_bridge WHERE mdm_command_input = '<SyncBody><Get><CmdID>1</CmdID><Item><Target><LocURI>./Device/Vendor/MSFT/Policy/Result/DeviceInstallation/PreventInstallationOfMatchingDeviceSetupClasses</LocURI></Target></Item></Get></SyncBody>' AND mdm_command_output LIKE '%DeviceInstall_Classes_Deny_Retroactive" value="true"%') OR EXISTS (SELECT 1 FROM registry WHERE path = 'HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\DeviceInstall\Restrictions\DenyDeviceClassesRetroactive' AND data = '1');
+  tags: framework:CISv8.1, benchmark:win11, level:BL, platform:windows, category:device-installation, requirement:standard, critical:false, control:prevent-installation-of-devices-also-apply-to-matching-devices-already-installed-is-true, cis_safeguard_ids:CIS4.10.9.1.2
+  purpose: Enforcement
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - Ensure 'Choose how BitLocker-protected fixed drives can be recovered' is set to 'Enabled'
+  platform: windows
+  description: 'This policy setting allows you to control how BitLocker-protected fixed data drives are recovered in the absence of the required credentials. This policy setting is applied when you turn on BitLocker. The recommended state for this setting is: Enabled.'
+  resolution: To establish the recommended configuration via configuration profiles, set the following Settings Catalog path to Enabled. Administrative Templates\Windows Components\BitLocker Drive Encryption\Fixed Data Drives\Choose how BitLocker-protected fixed drives can be recovered
+  query: SELECT 1 FROM registry WHERE path = 'HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\FVE\FDVRecovery' AND data = '1';
+  tags: framework:CISv8.1, benchmark:win11, level:BL, platform:windows, category:bitlocker, requirement:standard, critical:false, control:choose-how-bitlocker-protected-fixed-drives-can-be-recovered-is-enabled, cis_safeguard_ids:CIS4.11.7.1.1
+  purpose: Enforcement
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: 'CIS - Ensure ''Choose how BitLocker-protected fixed drives can be recovered: Recovery Key'' is set to ''Enabled: Allow 256-bit recovery key'''
+  platform: windows
+  description: 'This policy setting allows you to control how BitLocker-protected fixed data drives are recovered in the absence of the required credentials. This policy setting is applied when you turn on BitLocker. In "Configure user storage of BitLocker recovery information" select whether users are allowed, required, or not allowed to generate a 48-digit recovery password or a 256-bit recovery key. The recommended state for this setting is: Enabled: Allow 256-bit recovery key.'
+  resolution: 'To establish the recommended configuration via configuration profiles, set the following Settings Catalog path to Enabled: Allow 256-bit recovery key. Administrative Templates\Windows Components\BitLocker Drive Encryption\Fixed Data Drives\Choose how BitLocker-protected fixed drives can be recovered: Recovery Key'
+  query: SELECT 1 FROM registry WHERE path = 'HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\FVE\FDVRecoveryKey' AND data = '2';
+  tags: framework:CISv8.1, benchmark:win11, level:BL, platform:windows, category:bitlocker, requirement:standard, critical:false, control:choose-how-bitlocker-protected-fixed-drives-recovery-key-is-allow-256-bit, cis_safeguard_ids:CIS4.11.7.1.2
+  purpose: Enforcement
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: 'CIS - Ensure ''Choose how BitLocker-protected fixed drives can be recovered: Recovery Password'' is set to ''Enabled: Allow 48-digit recovery password'''
+  platform: windows
+  description: 'This policy setting allows you to control how BitLocker-protected fixed data drives are recovered in the absence of the required credentials. This policy setting is applied when you turn on BitLocker. In "Configure user storage of BitLocker recovery information" select whether users are allowed, required, or not allowed to generate a 48-digit recovery password or a 256-bit recovery key. The recommended state for this setting is: Enabled: Allow 48-digit recovery password.'
+  resolution: 'To establish the recommended configuration via configuration profiles, set the following Settings Catalog path to Enabled: Allow 48-digit recovery password. Administrative Templates\Windows Components\BitLocker Drive Encryption\Fixed Data Drives\Choose how BitLocker-protected fixed drives can be recovered: Recovery Password'
+  query: SELECT 1 FROM registry WHERE path = 'HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\FVE\FDVRecoveryPassword' AND data = '2';
+  tags: framework:CISv8.1, benchmark:win11, level:BL, platform:windows, category:bitlocker, requirement:standard, critical:false, control:choose-how-bitlocker-protected-fixed-drives-recovery-password-is-allow-48-digit, cis_safeguard_ids:CIS4.11.7.1.3
+  purpose: Enforcement
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: 'CIS - Ensure ''Choose how BitLocker-protected fixed drives can be recovered: Allow data recovery agent'' is set to ''Enabled: True'''
+  platform: windows
+  description: 'This policy setting allows you to control how BitLocker-protected fixed data drives are recovered in the absence of the required credentials. This policy setting is applied when you turn on BitLocker. The "Allow data recovery agent" check box is used to specify whether a Data Recovery Agent can be used with BitLocker-protected fixed data drives. Before a Data Recovery Agent can be used it must be added from the Public Key Policies item in either the Group Policy Management Console or the Local Group Policy Editor. The recommended state for this setting is: Enabled: True.'
+  resolution: 'To establish the recommended configuration via configuration profiles, set the following Settings Catalog path to Enabled: True. Administrative Templates\Windows Components\BitLocker Drive Encryption\Fixed Data Drives\Choose how BitLocker-protected fixed drives can be recovered: Allow data recovery agent'
+  query: SELECT 1 FROM registry WHERE path = 'HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\FVE\FDVManageDRA' AND data = '1';
+  tags: framework:CISv8.1, benchmark:win11, level:BL, platform:windows, category:bitlocker, requirement:standard, critical:false, control:choose-how-bitlocker-protected-fixed-drives-allow-data-recovery-agent-is-true, cis_safeguard_ids:CIS4.11.7.1.4
+  purpose: Enforcement
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: 'CIS - Ensure ''Choose how BitLocker-protected fixed drives can be recovered: Configure storage of BitLocker recovery information to AD DS'' is set to ''Enabled: Backup recovery passwords and key packages'''
+  platform: windows
+  description: 'This policy setting allows you to control how BitLocker-protected fixed data drives are recovered in the absence of the required credentials. This policy setting is applied when you turn on BitLocker. In "Save BitLocker recovery information to Active Directory Domain Services" choose which BitLocker recovery information to store in AD DS for fixed data drives. If you select "Backup recovery password and key package", both the BitLocker recovery password and key package are stored in AD DS. The recommended state for this setting is: Enabled: Backup recovery passwords and key packages.'
+  resolution: 'To establish the recommended configuration via configuration profiles, set the following Settings Catalog path to Enabled: Backup recovery passwords and key packages. Administrative Templates\Windows Components\BitLocker Drive Encryption\Fixed Data Drives\Choose how BitLocker-protected fixed drives can be recovered: Configure storage of BitLocker recovery information to AD DS:'
+  query: SELECT 1 FROM registry WHERE path = 'HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\FVE\FDVActiveDirectoryInfoToStore' AND data = '1';
+  tags: framework:CISv8.1, benchmark:win11, level:BL, platform:windows, category:bitlocker, requirement:standard, critical:false, control:choose-how-bitlocker-protected-fixed-drives-configure-storage-to-ad-ds-is-backup-passwords-and-key-packages, cis_safeguard_ids:CIS4.11.7.1.5
+  purpose: Enforcement
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: 'CIS - Ensure ''Choose how BitLocker-protected fixed drives can be recovered: Do not enable BitLocker until recovery information is stored to AD DS for fixed data drives'' is set to ''Enabled: False'''
+  platform: windows
+  description: 'This policy setting allows you to control how BitLocker-protected fixed data drives are recovered in the absence of the required credentials. This policy setting is applied when you turn on BitLocker. Select the "Do not enable BitLocker until recovery information is stored in AD DS for fixed data drives" check box if you want to prevent users from enabling BitLocker unless the computer is connected to the domain and the backup of BitLocker recovery information to AD DS succeeds. The recommended state for this setting is: Enabled: False.'
+  resolution: 'To establish the recommended configuration via configuration profiles, set the following Settings Catalog path to Enabled: False. Administrative Templates\Windows Components\BitLocker Drive Encryption\Fixed Data Drives\Choose how BitLocker-protected fixed drives can be recovered: Do not enable BitLocker until recovery information is stored to AD DS for fixed data drives'
+  query: SELECT 1 FROM registry WHERE path = 'HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\FVE\FDVRequireActiveDirectoryBackup' AND data = '0';
+  tags: framework:CISv8.1, benchmark:win11, level:BL, platform:windows, category:bitlocker, requirement:standard, critical:false, control:choose-how-bitlocker-protected-fixed-drives-do-not-enable-until-recovery-stored-to-ad-ds-is-false, cis_safeguard_ids:CIS4.11.7.1.6
+  purpose: Enforcement
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: 'CIS - Ensure ''Choose how BitLocker-protected fixed drives can be recovered: Omit recovery options from the BitLocker setup wizard'' is set to ''Enabled: True'''
+  platform: windows
+  description: 'This policy setting allows you to control how BitLocker-protected fixed data drives are recovered in the absence of the required credentials. This policy setting is applied when you turn on BitLocker. Select "Omit recovery options from the BitLocker setup wizard" to prevent users from specifying recovery options when they enable BitLocker on a drive. The recommended state for this setting is: Enabled: True.'
+  resolution: 'To establish the recommended configuration via configuration profiles, set the following Settings Catalog path to Enabled: True. Administrative Templates\Windows Components\BitLocker Drive Encryption\Fixed Data Drives\Choose how BitLocker-protected fixed drives can be recovered: Omit recovery options from the BitLocker setup wizard'
+  query: SELECT 1 FROM registry WHERE path = 'HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\FVE\FDVHideRecoveryPage' AND data = '1';
+  tags: framework:CISv8.1, benchmark:win11, level:BL, platform:windows, category:bitlocker, requirement:standard, critical:false, control:choose-how-bitlocker-protected-fixed-drives-omit-recovery-options-from-wizard-is-true, cis_safeguard_ids:CIS4.11.7.1.7
+  purpose: Enforcement
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: 'CIS - Ensure ''Choose how BitLocker-protected fixed drives can be recovered: Save BitLocker recovery information to AD DS for fixed data drives'' is set to ''Enabled: False'''
+  platform: windows
+  description: 'This policy setting allows you to control how BitLocker-protected fixed data drives are recovered in the absence of the required credentials. This policy setting is applied when you turn on BitLocker. In "Save BitLocker recovery information to Active Directory Domain Services" choose which BitLocker recovery information to store in AD DS for fixed data drives. The recommended state for this setting is: Enabled: False.'
+  resolution: 'To establish the recommended configuration via configuration profiles, set the following Settings Catalog path to Enabled: False. Administrative Templates\Windows Components\BitLocker Drive Encryption\Fixed Data Drives\Choose how BitLocker-protected fixed drives can be recovered: Save BitLocker recovery information to AD DS for fixed data drives'
+  query: SELECT 1 FROM registry WHERE path = 'HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\FVE\FDVActiveDirectoryBackup' AND data = '0';
+  tags: framework:CISv8.1, benchmark:win11, level:BL, platform:windows, category:bitlocker, requirement:standard, critical:false, control:choose-how-bitlocker-protected-fixed-drives-save-recovery-info-to-ad-ds-is-false, cis_safeguard_ids:CIS4.11.7.1.8
+  purpose: Enforcement
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - Ensure 'Choose how BitLocker-protected operating system drives can be recovered' is set to 'Enabled'
+  platform: windows
+  description: 'This policy setting allows you to control how BitLocker-protected operating system drives are recovered in the absence of the required startup key information. This policy setting is applied when you turn on BitLocker. The recommended state for this setting is: Enabled.'
+  resolution: To establish the recommended configuration via configuration profiles, set the following Settings Catalog path to Enabled. Administrative Templates\Windows Components\BitLocker Drive Encryption\Operating System Drives\Choose how BitLocker-protected operating system drives can be recovered
+  query: SELECT 1 FROM registry WHERE path = 'HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\FVE\OSRecovery' AND data = '1';
+  tags: framework:CISv8.1, benchmark:win11, level:BL, platform:windows, category:bitlocker, requirement:standard, critical:false, control:choose-how-bitlocker-protected-os-drives-can-be-recovered-is-enabled, cis_safeguard_ids:CIS4.11.7.2.1
+  purpose: Enforcement
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: 'CIS - Ensure ''Choose how BitLocker-protected operating system drives can be recovered: Recovery Key'' is set to ''Enabled: Do not allow 256-bit recovery key'''
+  platform: windows
+  description: 'This policy setting allows you to control how BitLocker-protected operating system drives are recovered in the absence of the required startup key information. This policy setting is applied when you turn on BitLocker. In "Configure user storage of BitLocker recovery information" select whether users are allowed, required, or not allowed to generate a 48-digit recovery password or a 256-bit recovery key. The recommended state for this setting is: Enabled: Do not allow 256-bit recovery key.'
+  resolution: 'To establish the recommended configuration via configuration profiles, set the following Settings Catalog path to Enabled: Do not allow 256-bit recovery key. Administrative Templates\Windows Components\BitLocker Drive Encryption\Operating System Drives\Choose how BitLocker-protected operating system drives can be recovered: Recovery Key'
+  query: SELECT 1 FROM registry WHERE path = 'HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\FVE\OSRecoveryKey' AND data = '0';
+  tags: framework:CISv8.1, benchmark:win11, level:BL, platform:windows, category:bitlocker, requirement:standard, critical:false, control:choose-how-bitlocker-protected-os-drives-recovery-key-is-do-not-allow-256-bit, cis_safeguard_ids:CIS4.11.7.2.2
+  purpose: Enforcement
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: 'CIS - Ensure ''Choose how BitLocker-protected operating system drives can be recovered: Recovery Password'' is set to ''Enabled: Require 48-digit recovery password'''
+  platform: windows
+  description: 'This policy setting allows you to control how BitLocker-protected operating system drives are recovered in the absence of the required startup key information. This policy setting is applied when you turn on BitLocker. In "Configure user storage of BitLocker recovery information" select whether users are allowed, required, or not allowed to generate a 48-digit recovery password or a 256-bit recovery key. The recommended state for this setting is: Enabled: Require 48-digit recovery password.'
+  resolution: 'To establish the recommended configuration via configuration profiles, set the following Settings Catalog path to Enabled: Require 48-digit recovery password. Administrative Templates\Windows Components\BitLocker Drive Encryption\Operating System Drives\Choose how BitLocker-protected operating system drives can be recovered: Recovery Password'
+  query: SELECT 1 FROM registry WHERE path = 'HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\FVE\OSRecoveryPassword' AND data = '1';
+  tags: framework:CISv8.1, benchmark:win11, level:BL, platform:windows, category:bitlocker, requirement:standard, critical:false, control:choose-how-bitlocker-protected-os-drives-recovery-password-is-require-48-digit, cis_safeguard_ids:CIS4.11.7.2.3
+  purpose: Enforcement
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: 'CIS - Ensure ''Choose how BitLocker-protected operating system drives can be recovered: Allow data recovery agent'' is set to ''Enabled: False'''
+  platform: windows
+  description: 'This policy setting allows you to control how BitLocker-protected operating system drives are recovered in the absence of the required startup key information. This policy setting is applied when you turn on BitLocker. The "Allow certificate-based data recovery agent" check box is used to specify whether a Data Recovery Agent can be used with BitLocker-protected operating system drives. The recommended state for this setting is: Enabled: False.'
+  resolution: 'To establish the recommended configuration via configuration profiles, set the following Settings Catalog path to Enabled: False. Administrative Templates\Windows Components\BitLocker Drive Encryption\Operating System Drives\Choose how BitLocker-protected operating system drives can be recovered: Allow data recovery agent'
+  query: SELECT 1 FROM registry WHERE path = 'HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\FVE\OSManageDRA' AND data = '0';
+  tags: framework:CISv8.1, benchmark:win11, level:BL, platform:windows, category:bitlocker, requirement:standard, critical:false, control:choose-how-bitlocker-protected-os-drives-allow-data-recovery-agent-is-false, cis_safeguard_ids:CIS4.11.7.2.4
+  purpose: Enforcement
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: 'CIS - Ensure ''Choose how BitLocker-protected operating system drives can be recovered: Configure storage of BitLocker recovery information to AD DS:'' is set to ''Enabled: Store recovery passwords and key packages'''
+  platform: windows
+  description: 'This policy setting allows you to control how BitLocker-protected operating system drives are recovered in the absence of the required startup key information. This policy setting is applied when you turn on BitLocker. In "Save BitLocker recovery information to Active Directory Domain Services", choose which BitLocker recovery information to store in AD DS for operating system drives. The recommended state for this setting is: Enabled: Store recovery passwords and key packages.'
+  resolution: 'To establish the recommended configuration via configuration profiles, set the following Settings Catalog path to Enabled: Store recovery passwords and key packages. Administrative Templates\Windows Components\BitLocker Drive Encryption\Operating System Drives\Choose how BitLocker-protected operating system drives can be recovered: Configure storage of BitLocker recovery information to AD DS:'
+  query: SELECT 1 FROM registry WHERE path = 'HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\FVE\OSActiveDirectoryInfoToStore' AND data = '1';
+  tags: framework:CISv8.1, benchmark:win11, level:BL, platform:windows, category:bitlocker, requirement:standard, critical:false, control:choose-how-bitlocker-protected-os-drives-configure-storage-to-ad-ds-is-store-passwords-and-key-packages, cis_safeguard_ids:CIS4.11.7.2.5
+  purpose: Enforcement
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: 'CIS - Ensure ''Choose how BitLocker-protected operating system drives can be recovered: Do not enable BitLocker until recovery information is stored to AD DS for operating system drives'' is set to ''Enabled: True'''
+  platform: windows
+  description: 'This policy setting allows you to control how BitLocker-protected operating system drives are recovered in the absence of the required startup key information. This policy setting is applied when you turn on BitLocker. Select the "Do not enable BitLocker until recovery information is stored in AD DS for operating system drives" check box if you want to prevent users from enabling BitLocker unless the computer is connected to the domain and the backup of BitLocker recovery information to AD DS succeeds. The recommended state for this setting is: Enabled: True.'
+  resolution: 'To establish the recommended configuration via configuration profiles, set the following Settings Catalog path to Enabled: True. Administrative Templates\Windows Components\BitLocker Drive Encryption\Operating System Drives\Choose how BitLocker-protected operating system drives can be recovered: Do not enable BitLocker until recovery information is stored to AD DS for operating system drives'
+  query: SELECT 1 FROM registry WHERE path = 'HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\FVE\OSRequireActiveDirectoryBackup' AND data = '1';
+  tags: framework:CISv8.1, benchmark:win11, level:BL, platform:windows, category:bitlocker, requirement:standard, critical:false, control:choose-how-bitlocker-protected-os-drives-do-not-enable-until-recovery-stored-to-ad-ds-is-true, cis_safeguard_ids:CIS4.11.7.2.6
+  purpose: Enforcement
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: 'CIS - Ensure ''Choose how BitLocker-protected operating system drives can be recovered: Omit recovery options from the BitLocker setup wizard'' is set to ''Enabled: True'''
+  platform: windows
+  description: 'This policy setting allows you to control how BitLocker-protected operating system drives are recovered in the absence of the required startup key information. This policy setting is applied when you turn on BitLocker. Select "Omit recovery options from the BitLocker setup wizard" to prevent users from specifying recovery options when they enable BitLocker on a drive. The recommended state for this setting is: Enabled: True.'
+  resolution: 'To establish the recommended configuration via configuration profiles, set the following Settings Catalog path to Enabled: True. Administrative Templates\Windows Components\BitLocker Drive Encryption\Operating System Drives\Choose how BitLocker-protected operating system drives can be recovered: Omit recovery options from the BitLocker setup wizard'
+  query: SELECT 1 FROM registry WHERE path = 'HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\FVE\OSHideRecoveryPage' AND data = '1';
+  tags: framework:CISv8.1, benchmark:win11, level:BL, platform:windows, category:bitlocker, requirement:standard, critical:false, control:choose-how-bitlocker-protected-os-drives-omit-recovery-options-from-wizard-is-true, cis_safeguard_ids:CIS4.11.7.2.7
+  purpose: Enforcement
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: 'CIS - Ensure ''Choose how BitLocker-protected operating system drives can be recovered: Save BitLocker recovery information to AD DS for operating system drives'' is set to ''Enabled: True'''
+  platform: windows
+  description: 'This policy setting allows you to control how BitLocker-protected operating system drives are recovered in the absence of the required startup key information. This policy setting is applied when you turn on BitLocker. In "Save BitLocker recovery information to Active Directory Domain Services", choose which BitLocker recovery information to store in AD DS for operating system drives. The recommended state for this setting is: Enabled: True.'
+  resolution: 'To establish the recommended configuration via configuration profiles, set the following Settings Catalog path to Enabled: True. Administrative Templates\Windows Components\BitLocker Drive Encryption\Operating System Drives\Choose how BitLocker-protected operating system drives can be recovered: Save BitLocker recovery information to AD DS for operating system drives'
+  query: SELECT 1 FROM registry WHERE path = 'HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\FVE\OSActiveDirectoryBackup' AND data = '1';
+  tags: framework:CISv8.1, benchmark:win11, level:BL, platform:windows, category:bitlocker, requirement:standard, critical:false, control:choose-how-bitlocker-protected-os-drives-save-recovery-info-to-ad-ds-is-true, cis_safeguard_ids:CIS4.11.7.2.8
+  purpose: Enforcement
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: 'CIS - Ensure ''Require additional authentication at startup: Configure TPM startup key and PIN:'' is set to ''Enabled: Do not allow startup key and PIN with TPM'''
+  platform: windows
+  description: 'This policy setting allows you to configure whether BitLocker requires additional authentication each time the computer starts. This policy setting is applied when you turn on BitLocker. Note: Only one of the additional authentication options can be required at startup, otherwise a policy error occurs. The recommended state for this setting is: Enabled: Do not allow startup key and PIN with TPM.'
+  resolution: 'To establish the recommended configuration via configuration profiles, set the following Settings Catalog path to Enabled: Do not allow startup key and PIN with TPM. Administrative Templates\Windows Components\BitLocker Drive Encryption\Operating System Drives\Require additional authentication at startup: Configure TPM startup key and PIN:'
+  query: SELECT 1 FROM registry WHERE path LIKE 'HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\PolicyManager\Providers\%\default\Device\BitLocker\SystemDrivesRequireStartupAuthentication' AND data LIKE '%ConfigureTPMPINKeyUsageDropDown_Name" value="0"%';
+  tags: framework:CISv8.1, benchmark:win11, level:BL, platform:windows, category:bitlocker, requirement:standard, critical:false, control:require-additional-authentication-configure-tpm-startup-key-and-pin-is-do-not-allow, cis_safeguard_ids:CIS4.11.7.2.10
+  purpose: Enforcement
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: 'CIS - Ensure ''Require additional authentication at startup: Configure TPM startup key:'' is set to ''Enabled: Do not allow startup key with TPM'''
+  platform: windows
+  description: 'This policy setting allows you to configure whether BitLocker requires additional authentication each time the computer starts. This policy setting is applied when you turn on BitLocker. Note: Only one of the additional authentication options can be required at startup, otherwise a policy error occurs. The recommended state for this setting is: Enabled: Do not allow startup key with TPM.'
+  resolution: 'To establish the recommended configuration via configuration profiles, set the following Settings Catalog path to Enabled: Do not allow startup key with TPM. Administrative Templates\Windows Components\BitLocker Drive Encryption\Operating System Drives\Require additional authentication at startup: Configure TPM startup key:'
+  query: SELECT 1 FROM registry WHERE path LIKE 'HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\PolicyManager\Providers\%\default\Device\BitLocker\SystemDrivesRequireStartupAuthentication' AND data LIKE '%ConfigureTPMStartupKeyUsageDropDown_Name" value="0"%';
+  tags: framework:CISv8.1, benchmark:win11, level:BL, platform:windows, category:bitlocker, requirement:standard, critical:false, control:require-additional-authentication-configure-tpm-startup-key-is-do-not-allow, cis_safeguard_ids:CIS4.11.7.2.11
+  purpose: Enforcement
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: 'CIS - Ensure ''Require additional authentication at startup: Configure TPM startup PIN:'' is set to ''Enabled: Require startup PIN with TPM'''
+  platform: windows
+  description: 'This policy setting allows you to configure whether BitLocker requires additional authentication each time the computer starts. This policy setting is applied when you turn on BitLocker. Note: Only one of the additional authentication options can be required at startup, otherwise a policy error occurs. The recommended state for this setting is: Enabled: Require startup PIN with TPM. Warning: If silent encryption is desired, this setting must be configured to Do not allow startup PIN with TPM and an exception to this recommendation will be needed.'
+  resolution: 'To establish the recommended configuration via configuration profiles, set the following Settings Catalog path to Enabled: Require startup PIN with TPM. Administrative Templates\Windows Components\BitLocker Drive Encryption\Operating System Drives\Require additional authentication at startup: Configure TPM startup PIN:'
+  query: SELECT 1 FROM registry WHERE path LIKE 'HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\PolicyManager\Providers\%\default\Device\BitLocker\SystemDrivesRequireStartupAuthentication' AND data LIKE '%ConfigurePINUsageDropDown_Name" value="1"%';
+  tags: framework:CISv8.1, benchmark:win11, level:BL, platform:windows, category:bitlocker, requirement:standard, critical:false, control:require-additional-authentication-configure-tpm-startup-pin-is-require, cis_safeguard_ids:CIS4.11.7.2.12
+  purpose: Enforcement
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: 'CIS - Ensure ''Require additional authentication at startup: Configure TPM startup:'' is set to ''Enabled: Do not allow TPM'''
+  platform: windows
+  description: 'This policy setting allows you to configure whether BitLocker requires additional authentication each time the computer starts. This policy setting is applied when you turn on BitLocker. Note: Only one of the additional authentication options can be required at startup, otherwise a policy error occurs. The recommended state for this setting is: Enabled: Do not allow TPM. Warning: If silent encryption is desired, this setting must be configured to Require TPM and an exception to this recommendation will be needed.'
+  resolution: 'To establish the recommended configuration via configuration profiles, set the following Settings Catalog path to Enabled: Do not allow TPM. Administrative Templates\Windows Components\BitLocker Drive Encryption\Operating System Drives\Require additional authentication at startup: Configure TPM startup:'
+  query: SELECT 1 FROM registry WHERE path LIKE 'HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\PolicyManager\Providers\%\default\Device\BitLocker\SystemDrivesRequireStartupAuthentication' AND data LIKE '%ConfigureTPMUsageDropDown_Name" value="0"%';
+  tags: framework:CISv8.1, benchmark:win11, level:BL, platform:windows, category:bitlocker, requirement:standard, critical:false, control:require-additional-authentication-configure-tpm-startup-is-do-not-allow-tpm, cis_safeguard_ids:CIS4.11.7.2.13
+  purpose: Enforcement
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: 'CIS - Ensure ''Enforce drive encryption type on operating system drives: Select the encryption type: (device)'' is set to ''Enabled: Used Space Only encryption'' or ''Enabled: Full encryption'''
+  platform: windows
+  description: 'This policy setting configures the encryption type (space only and whole) used by BitLocker Drive Encryption. The recommended state for this setting is: Enabled: Used Space Only encryption or Enabled: Full encryption. Note: Changing the encryption type does not affect drives that are already encrypted or if encryption is in progress.'
+  resolution: 'To establish the recommended configuration via configuration profiles, set the following Settings Catalog path to Used Space Only Encryption or Full encryption Administrative Templates\Windows Components\BitLocker Drive Encryption\Operating System Drives\Enforce drive encryption type on operating system drives: Select the encryption type: (Device)'
+  query: SELECT 1 FROM registry WHERE path LIKE 'HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\PolicyManager\Providers\%\default\Device\BitLocker\SystemDrivesEncryptionType' AND data LIKE '%OSEncryptionTypeDropDown_Name" value="2"%';
+  tags: framework:CISv8.1, benchmark:win11, level:BL, platform:windows, category:bitlocker, requirement:standard, critical:false, control:enforce-drive-encryption-type-on-os-drives-is-used-space-only-or-full, cis_safeguard_ids:CIS4.11.7.2.14
+  purpose: Enforcement
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - Ensure 'Deny write access to removable drives not protected by BitLocker' is set to 'Enabled'
+  platform: windows
+  description: 'This policy setting configures whether BitLocker protection is required for a computer to be able to write data to a removable data drive. All removable data drives that are not BitLocker-protected will be mounted as read-only. If the drive is protected by BitLocker, it will be mounted with read and write access. The recommended state for this setting is: Enabled.'
+  resolution: To establish the recommended configuration via configuration profiles, set the following Settings Catalog path to Enabled. Administrative Templates\Windows Components\BitLocker Drive Encryption\Removable Data Drives\Deny write access to removable drives not protected by BitLocker
+  query: SELECT 1 FROM registry WHERE path = 'HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\FVE\RDVDenyWriteAccess' AND data = '1';
+  tags: framework:CISv8.1, benchmark:win11, level:BL, platform:windows, category:bitlocker, requirement:standard, critical:false, control:deny-write-access-to-removable-drives-not-protected-by-bitlocker-is-enabled, cis_safeguard_ids:CIS4.11.7.3.1
+  purpose: Enforcement
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: 'CIS - Ensure ''Deny write access to removable drives not protected by BitLocker: Do not allow write access to devices configured in another organization'' is set to ''Enabled: False'''
+  platform: windows
+  description: 'This policy setting configures whether the computer will be able to write data to BitLocker-protected removable drives that were configured in another organization. The recommended state for this setting is: Enabled: False.'
+  resolution: 'To establish the recommended configuration via configuration profiles, set the following Settings Catalog path to Enabled: False. Administrative Templates\Windows Components\BitLocker Drive Encryption\Removable Data Drives\Deny write access to removable drives not protected by BitLocker: Do not allow write access to devices configured in another organization'
+  query: SELECT 1 FROM registry WHERE path = 'HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\FVE\RDVDenyCrossOrg' AND data = '0';
+  tags: framework:CISv8.1, benchmark:win11, level:BL, platform:windows, category:bitlocker, requirement:standard, critical:false, control:deny-write-access-to-removable-drives-do-not-allow-write-access-to-devices-in-another-org-is-false, cis_safeguard_ids:CIS4.11.7.3.2
+  purpose: Enforcement
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: 'CIS - Ensure ''Choose drive encryption method and cipher strength (Windows 10 [Version 1511] and later): Select the encryption method for fixed data drives'' is set to ''XTS-AES 128-bit (default)'' or ''XTS-AES 256-bit'''
+  platform: windows
+  description: 'This policy setting determines which encryption method should be used for fixed data drives. The recommended state for this setting is: XTS-AES 128-bit (default) or XTS-AES 256-bit'
+  resolution: To establish the recommended configuration via configuration profiles, set the following Settings Catalog path to XTS-AES 128-bit (default) or XTS-AES 256-bit. Administrative Templates\Windows Components\BitLocker Drive Encryption\Choose drive encryption method and cipher strength (Windows 10 [Version 1511] and later)\Select the encryption method for fixed data drives
+  query: SELECT 1 FROM registry WHERE path = 'HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\FVE\EncryptionMethodWithXtsFdv' AND data = '7';
+  tags: framework:CISv8.1, benchmark:win11, level:BL, platform:windows, category:bitlocker, requirement:standard, critical:false, control:choose-drive-encryption-method-fixed-data-drives-is-xts-aes-128-or-256, cis_safeguard_ids:CIS4.11.7.4
+  purpose: Enforcement
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: 'CIS - Ensure ''Choose drive encryption method and cipher strength (Windows 10 [Version 1511] and later): Select the encryption method for operating system drives'' is set to ''XTS-AES 128-bit (default)'' or ''XTS-AES 256-bit'''
+  platform: windows
+  description: 'This policy setting determines which encryption method should be used for operating system drives. The recommended state for this setting is: XTS-AES 128-bit (default) or XTS-AES 256-bit'
+  resolution: 'To establish the recommended configuration via configuration profiles, set the following Settings Catalog path to XTS-AES 128-bit (default) or XTS-AES 256-bit. Administrative Templates\Windows Components\BitLocker Drive Encryption\Choose drive encryption method and cipher strength (Windows 10 [Version 1511] and later)\Select the encryption method for operating system drives:'
+  query: SELECT 1 FROM registry WHERE path = 'HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\FVE\EncryptionMethodWithXtsOs' AND data = '7';
+  tags: framework:CISv8.1, benchmark:win11, level:BL, platform:windows, category:bitlocker, requirement:standard, critical:false, control:choose-drive-encryption-method-os-drives-is-xts-aes-128-or-256, cis_safeguard_ids:CIS4.11.7.5
+  purpose: Enforcement
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: 'CIS - Ensure ''Choose drive encryption method and cipher strength (Windows 10 [Version 1511] and later): Select the encryption method for removable data drives'' is set to ''XTS-AES 128-bit'' or higher'
+  platform: windows
+  description: 'This policy setting determines which encryption method should be used for operating system drives. The recommended state for this setting is: XTS-AES 128-bit or (higher)'
+  resolution: 'To establish the recommended configuration via configuration profiles, set the following Settings Catalog path to: XTS-AES 128-bit or XTS-AES 256-bit. Administrative Templates\Windows Components\BitLocker Drive Encryption\Choose drive encryption method and cipher strength (Windows 10 [Version 1511] and later)\Select the encryption method for removable data drives'
+  query: SELECT 1 FROM registry WHERE path = 'HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\FVE\EncryptionMethodWithXtsRdv' AND data = '7';
+  tags: framework:CISv8.1, benchmark:win11, level:BL, platform:windows, category:bitlocker, requirement:standard, critical:false, control:choose-drive-encryption-method-removable-data-drives-is-xts-aes-128-or-higher, cis_safeguard_ids:CIS4.11.7.6
+  purpose: Enforcement
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: 'CIS - Ensure ''Allow Warning For Other Disk Encryption: Allow Standard User Encryption'' is set to ''Enabled'''
+  platform: windows
+  description: 'This setting allows Admins to enforce "Require Device Encryption" policy for scenarios where policy is pushed while current logged-on user is non-admin/standard user. This policy is tied to "Allow Warning For Other Disk Encryption" policy being set to "0", i.e, Silent encryption is enforced. If "Allow Warning For Other Disk Encryption" isn''t set, or is set to "1", "Require Device Encryption" policy won''t try to encrypt drive(s) if a standard user is the current logged-on user in the system. The recommended state for this setting is: Enabled.'
+  resolution: 'To establish the recommended configuration via configuration profiles, set the following Settings Catalog path to Enabled: Bitlocker\Allow Standard User Encryption'
+  query: SELECT 1 FROM registry WHERE path LIKE 'HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\PolicyManager\Providers\%\default\Device\BitLocker\AllowStandardUserEncryption' AND data = '1';
+  tags: framework:CISv8.1, benchmark:win11, level:BL, platform:windows, category:bitlocker, requirement:standard, critical:false, control:allow-standard-user-encryption-is-enabled, cis_safeguard_ids:CIS8.3
+  purpose: Enforcement
+---
+apiVersion: v1
+kind: policy
+spec:
+  platform: windows
+  name: CIS - Ensure 'Require additional authentication at startup' is set to 'Enabled'
+  query: SELECT 1 FROM registry WHERE path LIKE 'HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\PolicyManager\Providers\%\default\Device\BitLocker\SystemDrivesRequireStartupAuthentication' AND data LIKE '%<enabled%';
+  purpose: Enforcement
+  tags: framework:CISv8.1, benchmark:win11, level:BL, platform:windows, category:bitlocker, requirement:standard, critical:false, control:require-additional-authentication-at-startup-is-enabled, cis_safeguard_ids:CIS4.11.7.2.9
+  description: 'This policy setting allows you to configure whether BitLocker requires additional authentication each time the computer starts and whether you are using BitLocker with or without a Trusted Platform Module (TPM). This policy setting is applied when you turn on BitLocker. Note: Only one of the additional authentication options can be required at startup, otherwise a policy error occurs. The recommended state for this setting is: Enabled.'
+  resolution: To establish the recommended configuration via configuration profiles, set the following Settings Catalog path to Enabled. Administrative Templates\Windows Components\BitLocker Drive Encryption\Operating System Drives\Require additional authentication at startup
+---
+apiVersion: v1
+kind: policy
+spec:
+  platform: windows
+  name: CIS - Ensure 'Require Device Encryption' is set to 'Enabled'
+  query: SELECT 1 FROM bitlocker_info WHERE protection_status = 1;
+  purpose: Enforcement
+  tags: framework:CISv8.1, benchmark:win11, level:BL, platform:windows, category:bitlocker, requirement:standard, critical:false, control:require-device-encryption-is-enabled, cis_safeguard_ids:CIS8.1
+  description: 'This setting allows the Admin to require encryption to be turned on using BitLocker\Device Encryption. Disabling the policy won''t turn off the encryption on the system drive. But will stop prompting the user to turn it on. The recommended state for this setting is: Enabled. Note: Setting this policy to Enabled triggers encryption of all drives (silently or non- silently based on AllowWarningForOtherDiskEncryption policy).'
+  resolution: 'To establish the recommended configuration via configuration profiles, set the following Settings Catalog path to Enabled: Bitlocker\Require Device Encryption'
+---
+apiVersion: v1
+kind: policy
+spec:
+  platform: windows
+  name: CIS - Ensure 'Allow Warning For Other Disk Encryption' is set to 'Disabled'
+  query: SELECT 1 FROM registry WHERE path = 'HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\PolicyManager\current\device\BitLocker\AllowWarningForOtherDiskEncryption' AND data = '0';
+  purpose: Enforcement
+  tags: framework:CISv8.1, benchmark:win11, level:BL, platform:windows, category:bitlocker, requirement:standard, critical:false, control:allow-warning-for-other-disk-encryption-is-disabled, cis_safeguard_ids:CIS8.2
+  description: 'This setting allows Admin to disable all UI (notification for encryption and warning prompt for other disk encryption) and turn on encryption on the user machines silently. When you disable the warning prompt, the OS drive''s recovery key will back up to the user''s Microsoft Entra account. When you allow the warning prompt, the user who receives the prompt can select where to back up the OS drive''s recovery key. The recommended state for this setting is: Disabled. Note: Starting in Windows 10, version 1803, the value 0 can only be set for Microsoft Entra joined devices. Windows will attempt to silently enable BitLocker for value 0.'
+  resolution: 'To establish the recommended configuration via configuration profiles, set the following Settings Catalog path to Disabled: Bitlocker\Allow Warning For Other Disk Encryption'
+---
+apiVersion: v1
+kind: policy
+spec:
+  platform: windows
+  name: 'CIS - Ensure ''Prevent installation of devices using drivers that match these device setup classes: Prevent installation of devices using drivers for these device setup'' is set to ''IEEE 1394 device setup classes'''
+  query: SELECT 1 FROM registry WHERE (path LIKE 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\Windows\\DeviceInstall\\Restrictions\\DenyDeviceClasses\\%' AND (data LIKE '%d48179be-ec20-11d1-b6b8-00c04fa372a7%' OR data LIKE '%7ebefbc0-3200-11d2-b4c2-00a0C9697d07%' OR data LIKE '%c06ff265-ae09-48f0-812c-16753d7cba83%' OR data LIKE '%6bdd1fc1-810f-11d0-bec7-08002be2092f%'));
+  purpose: Informational
+  tags: framework:CISv8.1, benchmark:win11, level:BL, platform:windows, category:device-installation, requirement:standard, critical:false, control:prevent-installation-of-devices-ieee-1394-device-setup-classes, cis_safeguard_ids:CIS4.10.9.1.3
+  description: 'This policy setting allows you to specify a list of device setup class globally unique identifiers (GUIDs) for device drivers that Windows is prevented from installing. This policy setting takes precedence over any other policy setting that allows Windows to install a device. Here are the four entries we recommend and what they translate to: {d48179be-ec20-11d1-b6b8-00c04fa372a7} - IEEE 1394 devices that support the SBP2 Protocol Class {7ebefbc0-3200-11d2-b4c2-00a0C9697d07} - IEEE 1394 devices that support the IEC-61883 Protocol Class {c06ff265-ae09-48f0-812c-16753d7cba83} - IEEE 1394 devices that support the AVC Protocol Class {6bdd1fc1-810f-11d0-bec7-08002be2092f} - IEEE 1394 Host Bus Controller Class The recommended state for this setting is: {d48179be-ec20-11d1-b6b8-00c04fa372a7}, {7ebefbc0-3200-11d2-b4c2-00a0C9697d07}, {c06ff265-ae09-48f0-812c-16753d7cba83}, and {6bdd1fc1-810f-11d0-bec7-08002be2092f} Note: IEEE 1394 has also been known/branded as FireWire (by Apple),
+    i.LINK (by Sony) and Lynx (by Texas Instruments).'
+  resolution: To establish the recommended configuration via configuration profiles, set the following Settings Catalog path to Enabled, and add {d48179be-ec20-11d1-b6b8-00c04fa372a7}, {7ebefbc0-3200-11d2-b4c2-00a0C9697d07}, {c06ff265-ae09-48f0-812c-16753d7cba83}, and {6bdd1fc1-810f-11d0-bec7-08002be2092f} to the device setup classes list. Administrative Templates\System\Device Installation\Device Installation Restrictions\Prevent installation of devices using drivers that match these device setup classes

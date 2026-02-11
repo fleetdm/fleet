@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/base64"
 	"fmt"
+	"net/http"
 	"strings"
 	"time"
 
@@ -69,7 +70,9 @@ func (svc *Service) ProcessPubSubPush(ctx context.Context, token string, message
 
 func (svc *Service) authenticatePubSub(ctx context.Context, token string) error {
 	svc.authz.SkipAuthorization(ctx)
-	_, err := svc.checkIfAndroidNotConfigured(ctx)
+	// On a simple not configured error return status OK to avoid PubSub retry looping after
+	// disabling Android MDM
+	_, err := svc.checkIfAndroidNotConfigured(ctx, http.StatusOK)
 	if err != nil {
 		return err
 	}
@@ -107,12 +110,13 @@ func (svc *Service) getClientAuthenticationSecret(ctx context.Context) (string, 
 }
 
 func (svc *Service) handlePubSubStatusReport(ctx context.Context, token string, rawData []byte) error {
-	// We allow DELETED notification type to be received since user may be in the process of disabling Android MDM.
-	// Otherwise, we authenticate below in authenticatePubSub
-	svc.authz.SkipAuthorization(ctx)
+	err := svc.authenticatePubSub(ctx, token)
+	if err != nil {
+		return err
+	}
 
 	var device androidmanagement.Device
-	err := json.Unmarshal(rawData, &device)
+	err = json.Unmarshal(rawData, &device)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "unmarshal Android status report message")
 	}
@@ -185,11 +189,6 @@ func (svc *Service) handlePubSubStatusReport(ctx context.Context, token string, 
 			})
 		}
 		return nil
-	}
-
-	err = svc.authenticatePubSub(ctx, token)
-	if err != nil {
-		return err
 	}
 
 	host, err := svc.getExistingHost(ctx, &device)

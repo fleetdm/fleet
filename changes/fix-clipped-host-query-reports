@@ -1,1 +1,0 @@
-* Fixed host query report to display "Report clipped" when a query has reached the 1k result limit.

@@ -804,7 +804,7 @@ func TestInheritedQueryReportTeamPermissions(t *testing.T) {
 			Data:        ptr.RawMessage([]byte(`{"model": "USB Keyboard", "vendor": "Apple Inc."}`)),
 		},
 	}
-	err = ds.OverwriteQueryResultRows(ctx, host2Row, fleet.DefaultMaxQueryReportRows)
+	_, err = ds.OverwriteQueryResultRows(ctx, host2Row, fleet.DefaultMaxQueryReportRows)
 	require.NoError(t, err)
 	host1Row := []*fleet.ScheduledQueryResultRow{
 		{
@@ -814,7 +814,7 @@ func TestInheritedQueryReportTeamPermissions(t *testing.T) {
 			Data:        ptr.RawMessage([]byte(`{"model": "USB Mouse", "vendor": "Apple Inc."}`)),
 		},
 	}
-	err = ds.OverwriteQueryResultRows(ctx, host1Row, fleet.DefaultMaxQueryReportRows)
+	_, err = ds.OverwriteQueryResultRows(ctx, host1Row, fleet.DefaultMaxQueryReportRows)
 	require.NoError(t, err)
 
 	team2Admin := &fleet.User{

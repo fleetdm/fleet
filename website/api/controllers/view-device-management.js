@@ -34,7 +34,7 @@ module.exports = {
       'Erik Gomez',
       'Chandra Majumdar',
       'Eric Tan',
-      'Matt Carr',
+      'matt carr',
       'Nico Waisman',
       'Dan Grzelak',
       'Philip Chotipradit',

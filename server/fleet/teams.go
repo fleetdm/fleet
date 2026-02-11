@@ -269,6 +269,10 @@ type TeamSpecAppStoreApp struct {
 	Platform           string                `json:"platform"`
 	DisplayName        string                `json:"display_name,omitempty"`
 	Configuration      TeamSpecSoftwareAsset `json:"configuration"`
+	// Auto-update fields for VPP apps
+	AutoUpdateEnabled   *bool   `json:"auto_update_enabled,omitempty"`
+	AutoUpdateStartTime *string `json:"auto_update_window_start,omitempty"`
+	AutoUpdateEndTime   *string `json:"auto_update_window_end,omitempty"`
 }
 
 func (spec TeamSpecAppStoreApp) ResolvePaths(baseDir string) TeamSpecAppStoreApp {

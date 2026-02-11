@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"errors"
+	"strings"
 	"testing"
 	"time"
 
@@ -96,10 +97,7 @@ func TestCreateCertificateTemplate(t *testing.T) {
 	})
 
 	t.Run("Name too long", func(t *testing.T) {
-		longName := string(make([]byte, 256))
-		for i := range longName {
-			longName = longName[:i] + "a" + longName[i+1:]
-		}
+		longName := strings.Repeat("a", 256)
 		_, err := svc.CreateCertificateTemplate(ctx, longName, TeamID, uint(ValidCATypeID), "CN=$FLEET_VAR_HOST_UUID")
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "Certificate template name is too long")
@@ -165,6 +163,15 @@ func TestCreateCertificateTemplate(t *testing.T) {
 				_, err := svc.CreateCertificateTemplate(ctx, name, TeamID, uint(ValidCATypeID), "CN=$FLEET_VAR_HOST_UUID")
 				require.NoError(t, err)
 			})
+		}
+	})
+
+	t.Run("Empty or whitespace-only subject name", func(t *testing.T) {
+		whitespaceSubjectNames := []string{"", " ", "   \t\n  "}
+		for _, subjectName := range whitespaceSubjectNames {
+			_, err := svc.CreateCertificateTemplate(ctx, "my template", TeamID, uint(ValidCATypeID), subjectName)
+			require.Error(t, err)
+			require.Contains(t, err.Error(), "Certificate template subject name is required")
 		}
 	})
 }
@@ -356,10 +363,7 @@ func TestApplyCertificateTemplateSpecs(t *testing.T) {
 	})
 
 	t.Run("Name too long", func(t *testing.T) {
-		longName := string(make([]byte, 256))
-		for i := range longName {
-			longName = longName[:i] + "a" + longName[i+1:]
-		}
+		longName := strings.Repeat("a", 256)
 		err := svc.ApplyCertificateTemplateSpecs(ctx, []*fleet.CertificateRequestSpec{
 			{
 				Name:                   longName,
@@ -369,5 +373,18 @@ func TestApplyCertificateTemplateSpecs(t *testing.T) {
 		})
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "Certificate template name is too long")
+	})
+
+	t.Run("Whitespace-only subject name", func(t *testing.T) {
+		err := svc.ApplyCertificateTemplateSpecs(ctx, []*fleet.CertificateRequestSpec{
+			{
+				Name:                   "Template 2",
+				CertificateAuthorityId: 1,
+				SubjectName:            "   ",
+			},
+		})
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "Certificate template subject name is required")
+		require.Contains(t, err.Error(), "Template 2")
 	})
 }

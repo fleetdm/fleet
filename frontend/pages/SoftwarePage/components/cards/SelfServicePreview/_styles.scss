@@ -1,0 +1,77 @@
+.self-service-preview {
+  &__preview-card {
+    overflow: hidden;
+    height: 310px;
+
+    &--mobile {
+      height: 230px; // Mobile preview is shorter height than Desktop preview
+    }
+
+    &__self-service {
+      width: 515px;
+      height: 310px;
+      @include vertical-card-layout;
+    }
+
+    .card-header__header {
+      font-size: initial;
+    }
+
+    .categories-menu {
+      top: 0;
+      width: 200px;
+    }
+
+    .data-table__table {
+      width: 325px;
+    }
+  }
+
+  &__preview-img-container--mobile {
+    img {
+      width: 100%;
+    }
+  }
+
+  &__table {
+    display: flex;
+    flex-direction: row;
+  }
+
+  &__disabled-overlay {
+    position: absolute;
+    width: 540px;
+    height: 335px;
+    z-index: 1000;
+  }
+
+  &__self-service-preview--mobile {
+    position: relative;
+    display: flex;
+    align-items: center;
+    max-width: 210px;
+    left: 154px;
+    top: -85px;
+    gap: $pad-xsmall;
+
+    .software-icon__xsmall {
+      border-radius: $border-radius-small;
+    }
+  }
+
+  &__self-service-preview-name-version--mobile {
+    display: flex;
+    flex-direction: column;
+    font-size: 8px;
+    max-width: 110px; // Required for tooltip truncating long software names (mobile)
+  }
+
+  // Required for tooltip truncating long software names
+  &__self-service-preview-name--mobile {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    position: relative;
+    font-weight: $bold;
+  }
+}

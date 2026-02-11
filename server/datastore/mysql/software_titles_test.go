@@ -30,7 +30,6 @@ func TestSoftwareTitles(t *testing.T) {
 		name string
 		fn   func(t *testing.T, ds *Datastore)
 	}{
-		{"TestUpdateAutoUpdateConfig", testUpdateAutoUpdateConfig},
 		{"SyncHostsSoftwareTitles", testSoftwareSyncHostsSoftwareTitles},
 		{"OrderSoftwareTitles", testOrderSoftwareTitles},
 		{"TeamFilterSoftwareTitles", testTeamFilterSoftwareTitles},
@@ -38,7 +37,6 @@ func TestSoftwareTitles(t *testing.T) {
 		{"ListSoftwareTitlesAvailableForInstallFilter", testListSoftwareTitlesAvailableForInstallFilter},
 		{"ListSoftwareTitlesOverflow", testListSoftwareTitlesOverflow},
 		{"ListSoftwareTitlesAllTeams", testListSoftwareTitlesAllTeams},
-		{"UploadedSoftwareExists", testUploadedSoftwareExists},
 		{"ListSoftwareTitlesVulnerabilityFilters", testListSoftwareTitlesVulnerabilityFilters},
 		{"UpdateSoftwareTitleName", testUpdateSoftwareTitleName},
 		{"ListSoftwareTitlesDoesnotIncludeDuplicates", testListSoftwareTitlesDoesnotIncludeDuplicates},
@@ -47,6 +45,7 @@ func TestSoftwareTitles(t *testing.T) {
 		{"SoftwareTitleByIDHostCount", testSoftwareTitleHostCount},
 		{"ListSoftwareTitlesInHouseApps", testListSoftwareTitlesInHouseApps},
 		{"ListSoftwareTitlesByPlatform", testListSoftwareTitlesByPlatform},
+		{"UpdateAutoUpdateConfig", testUpdateAutoUpdateConfig},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -1433,50 +1432,6 @@ func testListSoftwareTitlesAllTeams(t *testing.T, ds *Datastore) {
 	}, names)
 }
 
-func testUploadedSoftwareExists(t *testing.T, ds *Datastore) {
-	ctx := context.Background()
-
-	tm, err := ds.NewTeam(ctx, &fleet.Team{Name: "Team Foo"})
-	require.NoError(t, err)
-	user1 := test.NewUser(t, ds, "Alice", "alice@example.com", true)
-
-	installer1, _, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
-		Title:            "installer1",
-		Source:           "apps",
-		InstallScript:    "echo",
-		Filename:         "installer1.pkg",
-		BundleIdentifier: "com.foo.installer1",
-		UserID:           user1.ID,
-		ValidatedLabels:  &fleet.LabelIdentsWithScope{},
-	})
-	require.NoError(t, err)
-	require.NotZero(t, installer1)
-	installer2, _, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
-		Title:            "installer2",
-		Source:           "apps",
-		InstallScript:    "echo",
-		Filename:         "installer2.pkg",
-		TeamID:           &tm.ID,
-		BundleIdentifier: "com.foo.installer2",
-		UserID:           user1.ID,
-		ValidatedLabels:  &fleet.LabelIdentsWithScope{},
-	})
-	require.NoError(t, err)
-	require.NotZero(t, installer2)
-
-	exists, err := ds.UploadedSoftwareExists(ctx, "com.foo.installer1", nil)
-	require.NoError(t, err)
-	require.True(t, exists)
-
-	exists, err = ds.UploadedSoftwareExists(ctx, "com.foo.installer2", nil)
-	require.NoError(t, err)
-	require.False(t, exists)
-
-	exists, err = ds.UploadedSoftwareExists(ctx, "com.foo.installer2", &tm.ID)
-	require.NoError(t, err)
-	require.True(t, exists)
-}
-
 func testListSoftwareTitlesVulnerabilityFilters(t *testing.T, ds *Datastore) {
 	ctx := context.Background()
 	host := test.NewHost(t, ds, "host", "", "hostkey", "hostuuid", time.Now())
@@ -2229,7 +2184,7 @@ func testSoftwareTitleHostCount(t *testing.T, ds *Datastore) {
 		HostID:                host1.ID,
 		InstallUUID:           hostInstall1,
 		InstallScriptExitCode: ptr.Int(0),
-	})
+	}, nil)
 	require.NoError(t, err)
 
 	_, err = ds.applyChangesForNewSoftwareDB(ctx, host1.ID, []fleet.Software{*updateSw})
@@ -2602,7 +2557,7 @@ func testUpdateAutoUpdateConfig(t *testing.T, ds *Datastore) {
 
 	test.CreateInsertGlobalVPPToken(t, ds)
 
-	// create two VPP apps
+	// Create two VPP apps for iPadOS on the team.
 	_, err = ds.InsertVPPAppWithTeam(ctx, &fleet.VPPApp{
 		Name: "vpp1", BundleIdentifier: "com.app.vpp1",
 		VPPAppTeam: fleet.VPPAppTeam{VPPAppID: fleet.VPPAppID{AdamID: "adam_vpp_app_1", Platform: fleet.IPadOSPlatform}},
@@ -2613,20 +2568,32 @@ func testUpdateAutoUpdateConfig(t *testing.T, ds *Datastore) {
 		VPPAppTeam: fleet.VPPAppTeam{VPPAppID: fleet.VPPAppID{AdamID: "adam_vpp_app_2", Platform: fleet.IPadOSPlatform}},
 	}, teamID)
 	require.NoError(t, err)
+	// Create one VPP app for iOS on the team.
+	_, err = ds.InsertVPPAppWithTeam(ctx, &fleet.VPPApp{
+		Name: "vpp3", BundleIdentifier: "com.app.vpp3",
+		VPPAppTeam: fleet.VPPAppTeam{VPPAppID: fleet.VPPAppID{AdamID: "adam_vpp_app_3", Platform: fleet.IOSPlatform}},
+	}, teamID)
+	require.NoError(t, err)
 
 	titles, _, _, err := ds.ListSoftwareTitles(ctx, fleet.SoftwareTitleListOptions{
 		TeamID: teamID,
-	}, fleet.TeamFilter{User: &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}})
+	}, fleet.TeamFilter{
+		User: &fleet.User{
+			GlobalRole: ptr.String(fleet.RoleAdmin),
+		},
+	})
 	require.NoError(t, err)
-	require.Len(t, titles, 2)
+	require.Len(t, titles, 3)
 	titleID := titles[0].ID
 	title2ID := titles[1].ID
-
-	title, err := ds.SoftwareTitleByID(ctx, titleID, teamID, fleet.TeamFilter{User: &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}})
-	require.NoError(t, err)
+	title3ID := titles[2].ID
 
 	// Get the software title.
-	titleResult, err := ds.SoftwareTitleByID(ctx, title.ID, teamID, fleet.TeamFilter{User: &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}})
+	titleResult, err := ds.SoftwareTitleByID(ctx, titleID, teamID, fleet.TeamFilter{
+		User: &fleet.User{
+			GlobalRole: ptr.String(fleet.RoleAdmin),
+		},
+	})
 	require.NoError(t, err)
 
 	// Verify that it's the VPP app and that auto-update fields are not set.
@@ -2637,29 +2604,40 @@ func testUpdateAutoUpdateConfig(t *testing.T, ds *Datastore) {
 	// Attempt to enable auto-update with invalid start time.
 	startTime := "26:00"
 	endTime := "12:00"
-	err = ds.UpdateSoftwareTitleAutoUpdateConfig(ctx, title.ID, *teamID, fleet.SoftwareAutoUpdateConfig{
+	err = ds.UpdateSoftwareTitleAutoUpdateConfig(ctx, titleID, *teamID, fleet.SoftwareAutoUpdateConfig{
 		AutoUpdateEnabled:   ptr.Bool(true),
 		AutoUpdateStartTime: ptr.String(startTime),
 		AutoUpdateEndTime:   ptr.String(endTime),
 	})
 	require.Error(t, err)
-	require.Contains(t, err.Error(), "invalid auto-update time format")
+	require.Contains(t, err.Error(), "Error parsing start time")
 
 	// Attempt to enable auto-update with invalid end time.
 	startTime = "12:00"
 	endTime = "abc"
-	err = ds.UpdateSoftwareTitleAutoUpdateConfig(ctx, title.ID, *teamID, fleet.SoftwareAutoUpdateConfig{
+	err = ds.UpdateSoftwareTitleAutoUpdateConfig(ctx, titleID, *teamID, fleet.SoftwareAutoUpdateConfig{
 		AutoUpdateEnabled:   ptr.Bool(true),
 		AutoUpdateStartTime: ptr.String(startTime),
 		AutoUpdateEndTime:   ptr.String(endTime),
 	})
 	require.Error(t, err)
-	require.Contains(t, err.Error(), "invalid auto-update time format")
+	require.Contains(t, err.Error(), "Error parsing end time")
+
+	// Attempt to enable auto-update with less than an hour between start and end time.
+	startTime = "12:00"
+	endTime = "12:30"
+	err = ds.UpdateSoftwareTitleAutoUpdateConfig(ctx, titleID, *teamID, fleet.SoftwareAutoUpdateConfig{
+		AutoUpdateEnabled:   ptr.Bool(true),
+		AutoUpdateStartTime: ptr.String(startTime),
+		AutoUpdateEndTime:   ptr.String(endTime),
+	})
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "The update window must be at least one hour long")
 
 	// Enable auto-update.
 	startTime = "02:00"
 	endTime = "04:00"
-	err = ds.UpdateSoftwareTitleAutoUpdateConfig(ctx, title.ID, *teamID, fleet.SoftwareAutoUpdateConfig{
+	err = ds.UpdateSoftwareTitleAutoUpdateConfig(ctx, titleID, *teamID, fleet.SoftwareAutoUpdateConfig{
 		AutoUpdateEnabled:   ptr.Bool(true),
 		AutoUpdateStartTime: ptr.String(startTime),
 		AutoUpdateEndTime:   ptr.String(endTime),
@@ -2675,6 +2653,7 @@ func testUpdateAutoUpdateConfig(t *testing.T, ds *Datastore) {
 	require.Equal(t, endTime, *titleResult.AutoUpdateEndTime)
 
 	// Add valid, disabled auto-update schedule for the other VPP app.
+	// The schedule should be ignored since it's disabled, but it should still be created.
 	err = ds.UpdateSoftwareTitleAutoUpdateConfig(ctx, title2ID, *teamID, fleet.SoftwareAutoUpdateConfig{
 		AutoUpdateEnabled:   ptr.Bool(false),
 		AutoUpdateStartTime: ptr.String(startTime),
@@ -2682,8 +2661,8 @@ func testUpdateAutoUpdateConfig(t *testing.T, ds *Datastore) {
 	})
 	require.NoError(t, err)
 
-	// Verify that both schedules exist.
-	schedules, err := ds.ListSoftwareAutoUpdateSchedules(ctx, *teamID)
+	// Verify that both schedules exist for the iPadOS titles.
+	schedules, err := ds.ListSoftwareAutoUpdateSchedules(ctx, *teamID, "ipados_apps")
 	require.NoError(t, err)
 	require.Len(t, schedules, 2)
 	require.Equal(t, titleID, schedules[0].TitleID)
@@ -2694,11 +2673,11 @@ func testUpdateAutoUpdateConfig(t *testing.T, ds *Datastore) {
 	require.Equal(t, title2ID, schedules[1].TitleID)
 	require.Equal(t, team1.ID, schedules[1].TeamID)
 	require.False(t, *schedules[1].AutoUpdateEnabled)
-	require.Equal(t, startTime, *schedules[1].AutoUpdateStartTime)
-	require.Equal(t, endTime, *schedules[1].AutoUpdateEndTime)
+	require.Equal(t, "", *schedules[1].AutoUpdateStartTime)
+	require.Equal(t, "", *schedules[1].AutoUpdateEndTime)
 
 	// Filter by enabled only.
-	schedules, err = ds.ListSoftwareAutoUpdateSchedules(ctx, *teamID, fleet.SoftwareAutoUpdateScheduleFilter{
+	schedules, err = ds.ListSoftwareAutoUpdateSchedules(ctx, *teamID, "ipados_apps", fleet.SoftwareAutoUpdateScheduleFilter{
 		Enabled: ptr.Bool(true),
 	})
 	require.NoError(t, err)
@@ -2706,7 +2685,7 @@ func testUpdateAutoUpdateConfig(t *testing.T, ds *Datastore) {
 	require.Equal(t, titleID, schedules[0].TitleID)
 
 	// Fiter by disabled only.
-	schedules, err = ds.ListSoftwareAutoUpdateSchedules(ctx, *teamID, fleet.SoftwareAutoUpdateScheduleFilter{
+	schedules, err = ds.ListSoftwareAutoUpdateSchedules(ctx, *teamID, "ipados_apps", fleet.SoftwareAutoUpdateScheduleFilter{
 		Enabled: ptr.Bool(false),
 	})
 	require.NoError(t, err)
@@ -2715,9 +2694,7 @@ func testUpdateAutoUpdateConfig(t *testing.T, ds *Datastore) {
 
 	// Disable auto-update.
 	err = ds.UpdateSoftwareTitleAutoUpdateConfig(ctx, titleID, *teamID, fleet.SoftwareAutoUpdateConfig{
-		AutoUpdateEnabled:   ptr.Bool(false),
-		AutoUpdateStartTime: nil,
-		AutoUpdateEndTime:   nil,
+		AutoUpdateEnabled: ptr.Bool(false),
 	})
 	require.NoError(t, err)
 
@@ -2729,4 +2706,52 @@ func testUpdateAutoUpdateConfig(t *testing.T, ds *Datastore) {
 	require.Equal(t, startTime, *titleResult.AutoUpdateStartTime)
 	require.NotNil(t, titleResult.AutoUpdateEndTime)
 	require.Equal(t, endTime, *titleResult.AutoUpdateEndTime)
+
+	// Filter by enabled only.
+	schedules, err = ds.ListSoftwareAutoUpdateSchedules(ctx, *teamID, "ipados_apps", fleet.SoftwareAutoUpdateScheduleFilter{
+		Enabled: ptr.Bool(true),
+	})
+	require.NoError(t, err)
+	require.Len(t, schedules, 0)
+
+	// Enable auto-update back for the iPadOS app.
+	startTime = "02:00"
+	endTime = "04:00"
+	err = ds.UpdateSoftwareTitleAutoUpdateConfig(ctx, titleID, *teamID, fleet.SoftwareAutoUpdateConfig{
+		AutoUpdateEnabled:   ptr.Bool(true),
+		AutoUpdateStartTime: ptr.String(startTime),
+		AutoUpdateEndTime:   ptr.String(endTime),
+	})
+	require.NoError(t, err)
+
+	// Get scheduled updates for iOS, should return none.
+	schedules, err = ds.ListSoftwareAutoUpdateSchedules(ctx, *teamID, "ios_apps", fleet.SoftwareAutoUpdateScheduleFilter{})
+	require.NoError(t, err)
+	require.Len(t, schedules, 0)
+
+	// Enable auto-update for the iOS app.
+	startTime = "00:00"
+	endTime = "05:00"
+	err = ds.UpdateSoftwareTitleAutoUpdateConfig(ctx, title3ID, *teamID, fleet.SoftwareAutoUpdateConfig{
+		AutoUpdateEnabled:   ptr.Bool(true),
+		AutoUpdateStartTime: ptr.String(startTime),
+		AutoUpdateEndTime:   ptr.String(endTime),
+	})
+	require.NoError(t, err)
+
+	// Should still get 1 for iPadOS.
+	schedules, err = ds.ListSoftwareAutoUpdateSchedules(ctx, *teamID, "ipados_apps", fleet.SoftwareAutoUpdateScheduleFilter{
+		Enabled: ptr.Bool(true),
+	})
+	require.NoError(t, err)
+	require.Len(t, schedules, 1)
+	require.Equal(t, titleID, schedules[0].TitleID)
+
+	// Should get 1 for iOS.
+	schedules, err = ds.ListSoftwareAutoUpdateSchedules(ctx, *teamID, "ios_apps", fleet.SoftwareAutoUpdateScheduleFilter{
+		Enabled: ptr.Bool(true),
+	})
+	require.NoError(t, err)
+	require.Len(t, schedules, 1)
+	require.Equal(t, title3ID, schedules[0].TitleID)
 }

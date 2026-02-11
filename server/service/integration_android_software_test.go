@@ -326,7 +326,7 @@ func (s *integrationMDMTestSuite) TestAndroidAppsSelfService() {
 			appIDs = append(appIDs, a.PackageName)
 		}
 
-		s.Assert().ElementsMatch(appIDs, []string{androidAppNewTeam.AdamID, androidAppNewTeam2.AdamID})
+		s.Assert().ElementsMatch(appIDs, []string{androidAppNewTeam.AdamID, androidAppNewTeam2.AdamID, "com.fleetdm.agent"})
 		s.Assert().Contains(policyName, host1.UUID)
 	}
 
@@ -391,7 +391,7 @@ func (s *integrationMDMTestSuite) TestAndroidAppsSelfService() {
 	// Verify that activity includes configuration
 	s.lastActivityMatches(fleet.ActivityAddedAppStoreApp{}.ActivityName(),
 		fmt.Sprintf(`{"team_name": "%s", "software_title": "%s", "software_title_id": %d, "app_store_id": "%s", "team_id": %s, "platform": "%s", "self_service": true,"configuration": %s}`,
-			"", androidAppWithConfig.Name, appWithConfigResp.TitleID, androidAppWithConfig.AdamID, "null", androidAppWithConfig.Platform, androidAppWithConfig.Configuration), 0)
+			fleet.TeamNameNoTeam, androidAppWithConfig.Name, appWithConfigResp.TitleID, androidAppWithConfig.AdamID, "null", androidAppWithConfig.Platform, androidAppWithConfig.Configuration), 0)
 
 	// Should see it in host software library
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/software", host1.ID), nil, http.StatusOK, &getHostSw, "available_for_install", "true")

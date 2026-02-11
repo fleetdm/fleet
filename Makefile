@@ -763,7 +763,7 @@ desktop-linux:
 	docker build -f Dockerfile-desktop-linux -t desktop-linux-builder .
 	docker run --rm -v $(shell pwd):/output desktop-linux-builder /bin/bash -c "\
 		mkdir -p /output/fleet-desktop && \
-		go build -o /output/fleet-desktop/fleet-desktop -ldflags "-X=main.version=$(FLEET_DESKTOP_VERSION)" /usr/src/fleet/orbit/cmd/desktop && \
+		CGO_ENABLED=1 CC=musl-gcc go build -o /output/fleet-desktop/fleet-desktop -ldflags \"-linkmode external -extldflags \\\"-static\\\" -X=main.version=$(FLEET_DESKTOP_VERSION)\" /usr/src/fleet/orbit/cmd/desktop && \
 		cd /output && \
 		tar czf desktop.tar.gz fleet-desktop && \
 		rm -r fleet-desktop"

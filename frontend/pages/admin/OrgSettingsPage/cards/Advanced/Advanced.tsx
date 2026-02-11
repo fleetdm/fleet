@@ -446,7 +446,7 @@ const Advanced = ({
                     </>
                   )
                 }
-                helpText="Features that run scripts under-the-hood (e.g. software install, lock/wipe) will still be available."
+                helpText="Features that run scripts under-the-hood (e.g. software install, lock/wipe, payload-free packages) will still be available."
               >
                 Disable script execution features
               </Checkbox>

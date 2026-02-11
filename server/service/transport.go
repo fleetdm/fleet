@@ -10,13 +10,13 @@ import (
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/platform/endpointer"
 	"github.com/fleetdm/fleet/v4/server/ptr"
-	"github.com/fleetdm/fleet/v4/server/service/middleware/endpoint_utils"
 	"github.com/gorilla/mux"
 )
 
 func encodeResponse(ctx context.Context, w http.ResponseWriter, response interface{}) error {
-	return endpoint_utils.EncodeCommonResponse(ctx, w, response, jsonMarshal, FleetErrorEncoder)
+	return endpointer.EncodeCommonResponse(ctx, w, response, jsonMarshal, FleetErrorEncoder)
 }
 
 func jsonMarshal(w http.ResponseWriter, response interface{}) error {
@@ -29,7 +29,7 @@ func uint32FromRequest(r *http.Request, name string) (uint32, error) {
 	vars := mux.Vars(r)
 	s, ok := vars[name]
 	if !ok {
-		return 0, endpoint_utils.ErrBadRoute
+		return 0, endpointer.ErrBadRoute
 	}
 	u, err := strconv.ParseUint(s, 10, 32)
 	if err != nil {
@@ -553,15 +553,15 @@ func hostListOptionsFromRequest(r *http.Request) (fleet.HostListOptions, error) 
 		hopt.PopulateLabels = pl
 	}
 
-	populateDeviceStatus := r.URL.Query().Get("populate_device_status")
-	if populateDeviceStatus != "" {
-		pds, err := strconv.ParseBool(populateDeviceStatus)
+	includeDeviceStatus := r.URL.Query().Get("include_device_status")
+	if includeDeviceStatus != "" {
+		ids, err := strconv.ParseBool(includeDeviceStatus)
 		if err != nil {
 			return hopt, ctxerr.Wrap(
-				r.Context(), badRequest(fmt.Sprintf("Invalid boolean parameter populate_device_status: %s", populateDeviceStatus)),
+				r.Context(), badRequest(fmt.Sprintf("Invalid boolean parameter include_device_status: %s", includeDeviceStatus)),
 			)
 		}
-		hopt.PopulateDeviceStatus = pds
+		hopt.IncludeDeviceStatus = ids
 	}
 
 	// cannot combine software_id, software_version_id, and software_title_id

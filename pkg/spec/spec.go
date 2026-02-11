@@ -192,6 +192,18 @@ func expandEnv(s string, secretMode secretHandling) (string, error) {
 
 	s = escapeString(s, preventEscapingPrefix)
 	exclusionZones := getExclusionZones(s)
+	documentIsXML := strings.HasPrefix(strings.TrimSpace(s), "<") // We need to be more aggressive here, to also escape XML in Windows profiles which does not begin with <?xml
+
+	escapeXMLValues := func(value string, env string) (string, error) {
+		// Escape XML special characters
+		var b strings.Builder
+		xmlErr := xml.EscapeText(&b, []byte(value))
+		if xmlErr != nil {
+			return "", fmt.Errorf("failed to XML escape fleet secret %s", env)
+		}
+		value = b.String()
+		return value, nil
+	}
 
 	var err *multierror.Error
 	s = fleet.MaybeExpand(s, func(env string, startPos, endPos int) (string, bool) {
@@ -207,18 +219,15 @@ func expandEnv(s string, secretMode secretHandling) (string, error) {
 				// Expand secrets for client-side validation
 				v, ok := os.LookupEnv(env)
 				if ok {
-					documentIsXML := strings.HasPrefix(strings.TrimSpace(s), "<") // We need to be more aggressive here, to also escape XML in Windows profiles which does not begin with <?xml
-					if documentIsXML {
-						// Escape XML special characters
-						var b strings.Builder
-						xmlErr := xml.EscapeText(&b, []byte(v))
-						if xmlErr != nil {
-							err = multierror.Append(xmlErr, fmt.Errorf("failed to XML escape fleet secret %s", env))
-							return "", false
-						}
-						v = b.String()
+					if !documentIsXML {
+						return v, true
 					}
 
+					v, xmlErr := escapeXMLValues(v, env)
+					if xmlErr != nil {
+						err = multierror.Append(err, xmlErr)
+						return "", false
+					}
 					return v, true
 				}
 				// If secret not found, leave as-is for server to handle
@@ -244,6 +253,15 @@ func expandEnv(s string, secretMode secretHandling) (string, error) {
 		v, ok := os.LookupEnv(env)
 		if !ok {
 			err = multierror.Append(err, fmt.Errorf("environment variable %q not set", env))
+			return "", false
+		}
+		if !documentIsXML {
+			return v, true
+		}
+
+		v, xmlErr := escapeXMLValues(v, env)
+		if xmlErr != nil {
+			err = multierror.Append(err, xmlErr)
 			return "", false
 		}
 		return v, true

@@ -65,6 +65,12 @@ func TestBulkSetAndroidAppsAvailableForHostsPreservesFleetAgent(t *testing.T) {
 			},
 		}, nil
 	}
+	ds.SetHostCertificateTemplatesToPendingRemoveForHostFunc = func(ctx context.Context, hostUUID string) error {
+		return nil
+	}
+	ds.CreatePendingCertificateTemplatesForNewHostFunc = func(ctx context.Context, hostUUID string, teamID uint) (int64, error) {
+		return 0, nil
+	}
 	ds.GetAndroidAppsInScopeForHostFunc = func(ctx context.Context, hostID uint) ([]string, error) {
 		return []string{"com.example.teamapp"}, nil
 	}
@@ -102,4 +108,60 @@ func TestBulkSetAndroidAppsAvailableForHostsPreservesFleetAgent(t *testing.T) {
 		capturedPackageNames[i] = policy.PackageName
 	}
 	require.ElementsMatch(t, []string{"com.example.teamapp", "com.fleetdm.agent"}, capturedPackageNames)
+}
+
+// TestBulkMakeAndroidAppsAvailableForHostPreservesFleetAgent verifies that the Fleet Agent
+// is preserved when BatchAssociateVPPApps updates Android apps for a host.
+// This is the singular version called from BatchAssociateVPPApps.
+func TestBulkMakeAndroidAppsAvailableForHostPreservesFleetAgent(t *testing.T) {
+	ctx := t.Context()
+	hostUUID := "test-host-uuid"
+	policyID := "test-policy-id"
+	teamID := uint(2)
+
+	ds := new(mock.Store)
+	ds.AndroidHostLiteByHostUUIDFunc = func(ctx context.Context, uuid string) (*fleet.AndroidHost, error) {
+		return &fleet.AndroidHost{
+			Host: &fleet.Host{
+				UUID:   hostUUID,
+				TeamID: ptr.Uint(teamID),
+			},
+		}, nil
+	}
+	ds.BulkGetAndroidAppConfigurationsFunc = func(ctx context.Context, appIDs []string, globalOrTeamID uint) (map[string]json.RawMessage, error) {
+		return map[string]json.RawMessage{}, nil
+	}
+
+	var capturedAppPolicies []*androidmanagement.ApplicationPolicy
+	androidModule := &mockAndroidModule{
+		buildFleetAgentApplicationPolicyFunc: func(ctx context.Context, hostUUID string) (*androidmanagement.ApplicationPolicy, error) {
+			return &androidmanagement.ApplicationPolicy{
+				PackageName: "com.fleetdm.agent",
+				InstallType: "FORCE_INSTALLED",
+			}, nil
+		},
+		setAppsForAndroidPolicyFunc: func(ctx context.Context, enterpriseName string, appPolicies []*androidmanagement.ApplicationPolicy, hostUUIDs map[string]string) error {
+			capturedAppPolicies = appPolicies
+			return nil
+		},
+	}
+
+	worker := &SoftwareWorker{
+		Datastore:     ds,
+		AndroidModule: androidModule,
+		Log:           kitlog.NewNopLogger(),
+	}
+
+	// Simulate adding a VPP app via BatchAssociateVPPApps
+	applicationIDs := []string{"com.example.vppapp"}
+	err := worker.bulkMakeAndroidAppsAvailableForHost(ctx, hostUUID, policyID, applicationIDs, "enterprises/test")
+	require.NoError(t, err)
+
+	// Verify both the VPP app and Fleet Agent are in the policy
+	require.Len(t, capturedAppPolicies, 2, "expected VPP app + Fleet Agent")
+	capturedPackageNames := make([]string, len(capturedAppPolicies))
+	for i, policy := range capturedAppPolicies {
+		capturedPackageNames[i] = policy.PackageName
+	}
+	require.ElementsMatch(t, []string{"com.example.vppapp", "com.fleetdm.agent"}, capturedPackageNames)
 }

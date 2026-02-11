@@ -161,6 +161,7 @@ These event tables are available in osquery. We will provide more information fo
 | user_events | Linux | --audit_allow_user_events=true |
 | windows_events | Windows | --enable_windows_events_publisher=true |
 | powershell_events | Windows | --enable_powershell_events_subscriber=true |
+| dns_lookup_events| Windows | --enable_dns_lookup_events=true |
 
 <meta name="articleTitle" value="How to use osquery evented tables">
 <meta name="authorFullName" value="Mo Zhu">

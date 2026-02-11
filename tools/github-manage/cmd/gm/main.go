@@ -42,7 +42,7 @@ func main() {
 	rootCmd.AddCommand(estimatedCmd)
 	rootCmd.AddCommand(sprintCmd)
 	rootCmd.AddCommand(milestoneCmd)
-	rootCmd.AddCommand(roadmapCmd)
+	rootCmd.AddCommand(releasesCmd)
 	rootCmd.AddCommand(preSprintCmd)
 
 	// Test command to test SetCurrentSprint functionality

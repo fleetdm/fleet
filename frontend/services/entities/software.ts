@@ -190,15 +190,12 @@ export interface IEditAppStoreAppPostBody {
   display_name?: string;
   configuration?: string;
   auto_update_enabled?: boolean;
-  auto_update_start_time?: string;
-  auto_update_end_time?: string;
+  auto_update_window_start?: string;
+  auto_update_window_end?: string;
 }
 
 const ORDER_KEY = "name";
 const ORDER_DIRECTION = "asc";
-
-export const MAX_FILE_SIZE_MB = 3000;
-export const MAX_FILE_SIZE_BYTES = MAX_FILE_SIZE_MB * 1024 * 1024;
 
 const handleAndroidForm = (
   teamId: number,
@@ -342,8 +339,8 @@ const handleAutoUpdateConfigAppStoreAppForm = (
 ) => {
   body.auto_update_enabled = formData.autoUpdateEnabled;
   if (formData.autoUpdateEnabled) {
-    body.auto_update_start_time = formData.autoUpdateStartTime;
-    body.auto_update_end_time = formData.autoUpdateEndTime;
+    body.auto_update_window_start = formData.autoUpdateStartTime;
+    body.auto_update_window_end = formData.autoUpdateEndTime;
   }
   if (formData.targetType === "Custom") {
     const selectedLabels = listNamesFromSelectedLabels(formData.labelTargets);

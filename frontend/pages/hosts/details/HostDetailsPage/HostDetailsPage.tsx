@@ -65,6 +65,7 @@ import {
   isIPadOrIPhone,
   isLinuxLike,
   isWindows,
+  isChrome,
 } from "interfaces/platform";
 
 import Spinner from "components/Spinner";
@@ -93,6 +94,7 @@ import SoftwareUninstallDetailsModal, {
   ISWUninstallDetailsParentState,
 } from "components/ActivityDetails/InstallDetails/SoftwareUninstallDetailsModal/SoftwareUninstallDetailsModal";
 import { IShowActivityDetailsData } from "components/ActivityItem/ActivityItem";
+import { getDisplayedSoftwareName } from "pages/SoftwarePage/helpers";
 
 import CommandResultsModal from "pages/hosts/components/CommandDetailsModal";
 
@@ -136,6 +138,7 @@ import CertificateDetailsModal from "../modals/CertificateDetailsModal";
 import HostHeader from "../cards/HostHeader";
 import InventoryVersionsModal from "../modals/InventoryVersionsModal";
 import UpdateEndUserModal from "../cards/User/components/UpdateEndUserModal";
+import LocationModal from "../modals/LocationModal";
 
 const baseClass = "host-details";
 
@@ -203,6 +206,7 @@ const HostDetailsPage = ({
     filteredHostsPath,
     currentTeam,
     isAnyMaintainerAdminObserverPlus,
+    isMacMdmEnabledAndConfigured,
   } = useContext(AppContext);
   const { renderFlash } = useContext(NotificationContext);
 
@@ -223,6 +227,10 @@ const HostDetailsPage = ({
   const [showUnlockHostModal, setShowUnlockHostModal] = useState(false);
   const [showWipeModal, setShowWipeModal] = useState(false);
   const [showUpdateEndUserModal, setShowUpdateEndUserModal] = useState(false);
+  // Undefined used to return to true after closing the lock modal
+  const [showLocationModal, setShowLocationModal] = useState<
+    boolean | undefined
+  >(false);
 
   // General-use updating state
   const [isUpdating, setIsUpdating] = useState(false);
@@ -568,6 +576,9 @@ const HostDetailsPage = ({
     }
   );
 
+  const canGetMDMCommands =
+    !!isMacMdmEnabledAndConfigured && isAppleDevice(host?.platform);
+
   const {
     data: pastMDMCommands,
     isError: pastMDMCommandsIsError,
@@ -594,13 +605,12 @@ const HostDetailsPage = ({
     },
     {
       ...DEFAULT_USE_QUERY_OPTIONS,
-      enabled: isAppleDevice(host?.platform),
+      enabled: canGetMDMCommands,
       keepPreviousData: true,
       staleTime: ACTIVITY_CARD_DATA_STALE_TIME,
     }
   );
 
-  // request to get the host mdm commands
   const {
     data: upcomingMDMCommands,
     isError: upcomingMDMCommandsIsError,
@@ -627,7 +637,7 @@ const HostDetailsPage = ({
     },
     {
       ...DEFAULT_USE_QUERY_OPTIONS,
-      enabled: isAppleDevice(host?.platform),
+      enabled: canGetMDMCommands,
       keepPreviousData: true,
       staleTime: ACTIVITY_CARD_DATA_STALE_TIME,
     }
@@ -697,6 +707,10 @@ const HostDetailsPage = ({
   const toggleBootstrapPackageModal = useCallback(() => {
     setShowBootstrapPackageModal(!showBootstrapPackageModal);
   }, [showBootstrapPackageModal, setShowBootstrapPackageModal]);
+
+  const toggleLocationModal = useCallback(() => {
+    setShowLocationModal(!showLocationModal);
+  }, [showLocationModal, setShowLocationModal]);
 
   const onCancelPolicyDetailsModal = useCallback(() => {
     setPolicyDetailsModal(!showPolicyDetailsModal);
@@ -778,7 +792,10 @@ const HostDetailsPage = ({
               fleetInstallStatus: details?.status as SoftwareInstallUninstallStatus,
               hostDisplayName:
                 host?.display_name || details?.host_display_name || "",
-              appName: details.software_display_name || details?.name || "", // TODO: Confirm correct field
+              appName: getDisplayedSoftwareName(
+                details.software_title,
+                details.software_display_name
+              ),
               commandUuid: details?.command_uuid,
             });
           } else if (SCRIPT_PACKAGE_SOURCES.includes(details?.source || "")) {
@@ -804,8 +821,10 @@ const HostDetailsPage = ({
         case "uninstalled_software":
           setPackageUninstallDetails({
             ...details,
-            softwareName:
-              details?.software_display_name || details?.software_title || "",
+            softwareName: getDisplayedSoftwareName(
+              details?.software_title,
+              details?.software_display_name
+            ),
             uninstallStatus: resolveUninstallStatus(details?.status),
             scriptExecutionId: details?.script_execution_id || "",
             hostDisplayName: host?.display_name || details?.host_display_name,
@@ -813,8 +832,10 @@ const HostDetailsPage = ({
           break;
         case "installed_app_store_app":
           setActivityVPPInstallDetails({
-            appName:
-              details?.software_display_name || details?.software_title || "",
+            appName: getDisplayedSoftwareName(
+              details?.software_title,
+              details?.software_display_name
+            ),
             fleetInstallStatus: (details?.status ||
               "pending_install") as SoftwareInstallUninstallStatus,
             commandUuid: details?.command_uuid || "",
@@ -1099,6 +1120,10 @@ const HostDetailsPage = ({
   const isIosOrIpadosHost = isIPadOrIPhone(host.platform);
   const isAndroidHost = isAndroid(host.platform);
   const isWindowsHost = isWindows(host.platform);
+  const isChromeHost = isChrome(host.platform);
+
+  const isSupportedHostQueriesPlatform =
+    !isIosOrIpadosHost && !isAndroidHost && !isChromeHost;
 
   const canResendProfiles =
     (isMacOSHost || isWindowsHost) &&
@@ -1263,6 +1288,7 @@ const HostDetailsPage = ({
               onRefetchHost={onRefetchHost}
               renderActionsDropdown={renderActionsDropdown}
               hostMdmDeviceStatus={hostMdmDeviceStatus}
+              hostMdmEnrollmentStatus={host.mdm?.enrollment_status || undefined}
             />
           </div>
           <TabNav className={`${baseClass}__tab-nav`}>
@@ -1302,6 +1328,7 @@ const HostDetailsPage = ({
                   osVersionRequirement={getOSVersionRequirementFromMDMConfig(
                     host.platform
                   )}
+                  toggleLocationModal={toggleLocationModal}
                 />
                 <QueriesCard
                   hostId={host.id}
@@ -1311,7 +1338,10 @@ const HostDetailsPage = ({
                   queryReportsDisabled={
                     config?.server_settings?.query_reports_disabled
                   }
-                  canAddQuery={isAnyMaintainerAdminObserverPlus}
+                  canAddQuery={
+                    isAnyMaintainerAdminObserverPlus &&
+                    isSupportedHostQueriesPlatform
+                  }
                   onClickAddQuery={onClickAddQuery}
                 />
                 <UserCard
@@ -1367,7 +1397,7 @@ const HostDetailsPage = ({
                       isHostTeamAdmin ||
                       isHostTeamMaintainer
                     }
-                    showMDMCommandsToggle={isAppleDevice(host.platform)}
+                    showMDMCommandsToggle={canGetMDMCommands}
                     showMDMCommands={showMDMCommands}
                     onShowMDMCommands={() => {
                       setActivityPage(0);
@@ -1588,8 +1618,15 @@ const HostDetailsPage = ({
               id={host.id}
               platform={host.platform}
               hostName={host.display_name}
-              onSuccess={() => setHostMdmDeviceState("locking")}
-              onClose={() => setShowLockHostModal(false)}
+              onSuccess={() => {
+                setHostMdmDeviceState("locking");
+                setShowLocationModal(false);
+                setShowLockHostModal(false);
+              }}
+              onClose={() => {
+                setShowLockHostModal(false);
+                showLocationModal === undefined && setShowLocationModal(true);
+              }}
             />
           )}
           {showUnlockHostModal && (
@@ -1641,6 +1678,21 @@ const HostDetailsPage = ({
             onUpdate={onUpdateEndUser}
             isUpdating={isUpdating}
             onExit={() => setShowUpdateEndUserModal(false)}
+          />
+        )}
+        {showLocationModal && (
+          <LocationModal
+            hostGeolocation={host.geolocation}
+            onExit={toggleLocationModal}
+            iosOrIpadosDetails={{
+              isIosOrIpadosHost,
+              hostMdmDeviceStatus,
+            }}
+            onClickLock={() => {
+              setShowLockHostModal(true);
+              setShowLocationModal(undefined);
+            }}
+            detailsUpdatedAt={host.detail_updated_at}
           />
         )}
       </>

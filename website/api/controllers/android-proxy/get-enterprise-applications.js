@@ -20,7 +20,7 @@ module.exports = {
 
 
   exits: {
-    success: { description: 'The device of an Android enterprise was successfully retrieved.adfasd' },
+    success: { description: 'The device of an Android enterprise was successfully retrieved.' },
     missingAuthHeader: { description: 'This request was missing an authorization header.', responseType: 'unauthorized'},
     unauthorized: { description: 'Invalid authentication token.', responseType: 'unauthorized'},
     notFound: { description: 'App not found', responseType: 'notFound' },

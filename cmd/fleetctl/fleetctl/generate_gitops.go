@@ -2,6 +2,7 @@ package fleetctl
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -18,6 +19,7 @@ import (
 
 	"github.com/fleetdm/fleet/v4/pkg/spec"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	maintained_apps "github.com/fleetdm/fleet/v4/server/mdm/maintainedapps"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/service"
 	"github.com/ghodss/yaml"
@@ -1438,14 +1440,16 @@ func (cmd *GenerateGitopsCommand) generateSoftware(filePath string, teamID uint,
 		}
 	}
 
-	result := make(map[string]interface{})
-	packages := make([]map[string]interface{}, 0)
-	appStoreApps := make([]map[string]interface{}, 0)
+	result := make(map[string]any)
+	packages := make([]map[string]any, 0)
+	appStoreApps := make([]map[string]any, 0)
+	fmas := make([]map[string]any, 0)
 
 	// in-house apps generate two software titles for the same gitops entry: one
 	// for iOS and one for iPadOS. Use this set to deduplicate them (by filename,
 	// which is unique for a given team and platform).
 	dedupeInHouseAppsByFilename := make(map[string]struct{})
+	var byUniqueID map[string]string
 	for _, sw := range software {
 		softwareSpec := make(map[string]interface{})
 		switch {
@@ -1489,6 +1493,8 @@ func (cmd *GenerateGitopsCommand) generateSoftware(filePath string, teamID uint,
 			return nil, err
 		}
 
+		var slug string
+
 		if softwareTitle.SoftwarePackage != nil {
 			filenamePrefix := generateFilename(sw.Name) + "-" + sw.SoftwarePackage.Platform
 
@@ -1500,10 +1506,44 @@ func (cmd *GenerateGitopsCommand) generateSoftware(filePath string, teamID uint,
 				(strings.HasSuffix(strings.ToLower(sw.SoftwarePackage.Name), ".sh") ||
 					strings.HasSuffix(strings.ToLower(sw.SoftwarePackage.Name), ".ps1"))
 
+			var fmaInstallScriptModified, fmaUninstallScriptModified bool
+			if softwareTitle.SoftwarePackage.FleetMaintainedAppID != nil {
+				if byUniqueID == nil {
+					appsList, err := maintained_apps.FetchAppsList(context.Background())
+					if err != nil {
+						return nil, err
+					}
+					byUniqueID = make(map[string]string, len(appsList.Apps))
+					for _, a := range appsList.Apps {
+						byUniqueID[a.UniqueIdentifier] = a.Slug
+					}
+				}
+
+				slug = byUniqueID[ptr.ValOrZero(softwareTitle.BundleIdentifier)]
+				fma, err := maintained_apps.Hydrate(context.Background(), &fleet.MaintainedApp{
+					ID:   *softwareTitle.SoftwarePackage.FleetMaintainedAppID,
+					Slug: slug,
+				})
+				if err != nil {
+					return nil, err
+				}
+
+				fmaInstallScriptModified = fma.InstallScript != softwareTitle.SoftwarePackage.InstallScript
+				fmaUninstallScriptModified = fma.UninstallScript != softwareTitle.SoftwarePackage.UninstallScript
+			}
+
+			shouldWriteScript := func(fmaID *uint, scriptContents string, scriptModified bool) bool {
+				if fmaID != nil {
+					return scriptModified && scriptContents != ""
+				}
+
+				return scriptContents != ""
+			}
+
 			// Only output install_script, post_install_script, uninstall_script, and
 			// pre_install_query for non-script packages
 			if !isScriptPackage {
-				if softwareTitle.SoftwarePackage.InstallScript != "" {
+				if shouldWriteScript(softwareTitle.SoftwarePackage.FleetMaintainedAppID, softwareTitle.SoftwarePackage.InstallScript, fmaInstallScriptModified) {
 					script := softwareTitle.SoftwarePackage.InstallScript
 					fileName := fmt.Sprintf("lib/%s/scripts/%s", teamFilename, filenamePrefix+"-install")
 					path := fmt.Sprintf("../%s", fileName)
@@ -1523,7 +1563,7 @@ func (cmd *GenerateGitopsCommand) generateSoftware(filePath string, teamID uint,
 					cmd.FilesToWrite[fileName] = script
 				}
 
-				if softwareTitle.SoftwarePackage.UninstallScript != "" {
+				if shouldWriteScript(softwareTitle.SoftwarePackage.FleetMaintainedAppID, softwareTitle.SoftwarePackage.UninstallScript, fmaUninstallScriptModified) {
 					script := softwareTitle.SoftwarePackage.UninstallScript
 					fileName := fmt.Sprintf("lib/%s/scripts/%s", teamFilename, filenamePrefix+"-uninstall")
 					path := fmt.Sprintf("../%s", fileName)
@@ -1630,6 +1670,24 @@ func (cmd *GenerateGitopsCommand) generateSoftware(filePath string, teamID uint,
 
 				cmd.FilesToWrite[fileName] = buf.Bytes()
 			}
+
+			// export auto-update schedule settings for iOS/iPadOS VPP apps when present.
+			// only VPP apps (those with an AdamID) support auto-update schedules.
+			if softwareTitle.AutoUpdateEnabled != nil || softwareTitle.AutoUpdateStartTime != nil || softwareTitle.AutoUpdateEndTime != nil {
+				platform := softwareTitle.AppStoreApp.Platform
+				adamID := softwareTitle.AppStoreApp.VPPAppID.AdamID
+				if (platform == fleet.IOSPlatform || platform == fleet.IPadOSPlatform) && adamID != "" {
+					if softwareTitle.AutoUpdateEnabled != nil {
+						softwareSpec["auto_update_enabled"] = *softwareTitle.AutoUpdateEnabled
+					}
+					if softwareTitle.AutoUpdateStartTime != nil {
+						softwareSpec["auto_update_window_start"] = *softwareTitle.AutoUpdateStartTime
+					}
+					if softwareTitle.AutoUpdateEndTime != nil {
+						softwareSpec["auto_update_window_end"] = *softwareTitle.AutoUpdateEndTime
+					}
+				}
+			}
 		}
 
 		var labels []fleet.SoftwareScopeLabel
@@ -1669,9 +1727,15 @@ func (cmd *GenerateGitopsCommand) generateSoftware(filePath string, teamID uint,
 			softwareSpec[labelKey] = labelsList
 		}
 
-		if sw.SoftwarePackage != nil {
+		switch {
+		case sw.SoftwarePackage != nil && sw.SoftwarePackage.FleetMaintainedAppID != nil:
+			fmas = append(fmas, softwareSpec)
+			delete(softwareSpec, "hash_sha256")
+			delete(softwareSpec, "url")
+			softwareSpec["slug"] = slug
+		case sw.SoftwarePackage != nil:
 			packages = append(packages, softwareSpec)
-		} else {
+		case sw.AppStoreApp != nil:
 			appStoreApps = append(appStoreApps, softwareSpec)
 		}
 	}
@@ -1681,7 +1745,10 @@ func (cmd *GenerateGitopsCommand) generateSoftware(filePath string, teamID uint,
 	if len(appStoreApps) > 0 {
 		result["app_store_apps"] = appStoreApps
 	}
-	// TODO -- add FMA apps to the result. Currently they will be output using hashes.
+	if len(fmas) > 0 {
+		result["fleet_maintained_apps"] = fmas
+	}
+
 	return result, nil
 }
 

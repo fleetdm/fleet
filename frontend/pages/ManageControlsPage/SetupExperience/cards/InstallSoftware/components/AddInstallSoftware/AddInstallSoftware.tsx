@@ -3,7 +3,7 @@ import { capitalize } from "lodash";
 
 import PATHS from "router/paths";
 import { buildQueryStringFromParams } from "utilities/url";
-import { SetupExperiencePlatform } from "interfaces/platform";
+import { isMacOS, SetupExperiencePlatform } from "interfaces/platform";
 import { ISoftwareTitle } from "interfaces/software";
 
 import { AppContext } from "context/app";
@@ -151,6 +151,9 @@ const AddInstallSoftware = ({
     </>
   );
 
+  const manualAgentInstallBlockingSoftware =
+    hasManualAgentInstall && isMacOS(platform);
+
   return (
     <div className={baseClass}>
       <div className={`${baseClass}__description-container`}>
@@ -166,7 +169,9 @@ const AddInstallSoftware = ({
               <TooltipWrapper
                 className={`${baseClass}__manual-install-tooltip`}
                 tipContent={manuallyInstallTooltipText}
-                disableTooltip={disableChildren || !hasManualAgentInstall}
+                disableTooltip={
+                  disableChildren || !manualAgentInstallBlockingSoftware
+                }
                 position="top"
                 showArrow
                 underline={false}
@@ -176,7 +181,7 @@ const AddInstallSoftware = ({
                   onClick={onAddSoftware}
                   disabled={
                     disableChildren ||
-                    hasManualAgentInstall ||
+                    manualAgentInstallBlockingSoftware ||
                     noSoftwareUploaded
                   }
                 >
