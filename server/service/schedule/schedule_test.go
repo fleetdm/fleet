@@ -864,14 +864,17 @@ func TestTriggerPollPicksUpQueuedRecord(t *testing.T) {
 		return jobsRun.Load() >= 1
 	}, 5*time.Second, 100*time.Millisecond, "expected poll goroutine to pick up queued trigger")
 
-	// Verify the queued record was completed
+	// Verify the queued record was completed (not replaced by a new record)
 	stats, err := statsStore.GetLatestCronStats(ctx, name)
 	require.NoError(t, err)
+	found := false
 	for _, st := range stats {
 		if st.ID == queuedID {
 			require.Equal(t, fleet.CronStatsStatusCompleted, st.Status)
+			found = true
 		}
 	}
+	require.True(t, found, "queued record %d should still be present in latest stats", queuedID)
 }
 
 func TestTriggerPollIgnoresNonQueuedRecords(t *testing.T) {

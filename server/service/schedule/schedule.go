@@ -242,7 +242,6 @@ func (s *Schedule) Start() {
 
 			select {
 			case <-s.ctx.Done():
-				close(s.trigger)
 				schedTicker.Stop()
 				return
 
@@ -487,14 +486,14 @@ func (s *Schedule) Start() {
 // case where the signal is published to the trigger channel and the case where the trigger channel
 // is blocked or otherwise unavailable to publish the signal. From the caller's perspective, both
 // cases are deemed to be equivalent.
-func (s *Schedule) Trigger(_ context.Context) (stats *fleet.CronStats, didTrigger bool, err error) {
-	sched, trig, err := s.GetLatestStats(s.ctx)
+func (s *Schedule) Trigger(ctx context.Context) (stats *fleet.CronStats, didTrigger bool, err error) {
+	sched, trig, err := s.GetLatestStats(ctx)
 	switch {
 	case err != nil:
 		return nil, false, err
 	case sched.Status == fleet.CronStatsStatusPending:
 		return &sched, false, nil
-	case trig.Status == fleet.CronStatsStatusPending:
+	case trig.Status == fleet.CronStatsStatusPending || trig.Status == fleet.CronStatsStatusQueued:
 		return &trig, false, nil
 	default:
 		// ok
@@ -799,12 +798,21 @@ func (r *RemoteTriggerSchedule) Trigger(ctx context.Context) (*fleet.CronStats, 
 	)
 	defer span.End()
 
+	// NOTE: The read-then-insert below is not atomic, so concurrent trigger
+	// requests could race and insert duplicate queued rows. This is acceptable
+	// because triggering is a low-frequency manual admin operation, and the
+	// worst-case outcome is the schedule running twice.
 	latestStats, err := r.statsStore.GetLatestCronStats(ctx, r.name)
 	if err != nil {
 		return nil, false, err
 	}
 	for _, s := range latestStats {
-		if s.Status == fleet.CronStatsStatusPending || s.Status == fleet.CronStatsStatusQueued {
+		switch {
+		case s.Status == fleet.CronStatsStatusPending:
+			// A scheduled or triggered run is already in progress.
+			return &s, false, nil
+		case s.StatsType == fleet.CronStatsTypeTriggered && s.Status == fleet.CronStatsStatusQueued:
+			// A triggered run is already queued and waiting to be picked up.
 			return &s, false, nil
 		}
 	}

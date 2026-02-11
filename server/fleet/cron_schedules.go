@@ -218,7 +218,7 @@ const (
 	CronStatsTypeTriggered CronStatsType = "triggered"
 )
 
-// CronStatsStatus is one of four recognized statuses of cron stats (i.e. "pending", "expired", "canceled", or "completed")
+// CronStatsStatus is one of the recognized statuses of cron stats
 type CronStatsStatus string
 
 // List of recognized cron stats statuses.
