@@ -954,7 +954,7 @@ func (s *integrationMDMTestSuite) TestDEPProfileAssignment() {
 		require.NotNil(t, pending[0].Args)
 		var gotArgs struct {
 			Task              string   `json:"task"`
-			TeamID            *uint    `json:"fleet_id,omitempty" renamedfrom:"team_id"`
+			TeamID            *uint    `json:"team_id,omitempty"`
 			HostSerialNumbers []string `json:"host_serial_numbers,omitempty"`
 		}
 		require.NoError(t, json.Unmarshal(*pending[0].Args, &gotArgs))
