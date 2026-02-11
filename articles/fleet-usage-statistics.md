@@ -43,7 +43,7 @@ Below is the JSON payload that is sent to Fleet Device Management Inc:
   "maintenanceWindowsEnabled": true,
   "maintenanceWindowsConfigured": true,
   "numHostsFleetDesktopEnabled": 999,
-  "recoveryLockPasswordEnabled": true,
+  "anyFleetRecoveryLockPasswordEnabled": true,
   "hostsEnrolledByOperatingSystem": {
     "android": [
       {
