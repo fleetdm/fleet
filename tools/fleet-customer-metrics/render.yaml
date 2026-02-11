@@ -87,6 +87,6 @@ projects:
             region: oregon
             buildCommand: pip install -r requirements.txt
             startCommand: python import_data.py
-            schedule: 48 * * * *
+            schedule: 04 * * * *
             autoDeployTrigger: commit
 version: "1"
