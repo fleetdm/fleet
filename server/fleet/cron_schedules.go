@@ -1,6 +1,7 @@
 package fleet
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -52,7 +53,7 @@ const (
 
 type CronSchedulesService interface {
 	// TriggerCronSchedule attempts to trigger an ad-hoc run of the named cron schedule.
-	TriggerCronSchedule(name string) error
+	TriggerCronSchedule(ctx context.Context, name string) error
 }
 
 func NewCronSchedules() *CronSchedules {
@@ -60,7 +61,7 @@ func NewCronSchedules() *CronSchedules {
 }
 
 type CronSchedule interface {
-	Trigger() (*CronStats, bool, error)
+	Trigger(ctx context.Context) (*CronStats, bool, error)
 	Name() string
 	Start()
 }
@@ -88,12 +89,12 @@ func (cs *CronSchedules) StartCronSchedule(fn NewCronScheduleFunc) error {
 }
 
 // TriggerCronSchedule attempts to trigger an ad-hoc run of the named cron schedule.
-func (cs *CronSchedules) TriggerCronSchedule(name string) error {
+func (cs *CronSchedules) TriggerCronSchedule(ctx context.Context, name string) error {
 	sched, ok := cs.Schedules[name]
 	if !ok {
 		return triggerNotFoundError{name: name, msg: cs.formatSupportedTriggerNames()}
 	}
-	stats, _, err := sched.Trigger()
+	stats, _, err := sched.Trigger(ctx)
 	switch {
 	case err != nil:
 		return err

@@ -487,7 +487,7 @@ func (s *Schedule) Start() {
 // case where the signal is published to the trigger channel and the case where the trigger channel
 // is blocked or otherwise unavailable to publish the signal. From the caller's perspective, both
 // cases are deemed to be equivalent.
-func (s *Schedule) Trigger() (stats *fleet.CronStats, didTrigger bool, err error) {
+func (s *Schedule) Trigger(_ context.Context) (stats *fleet.CronStats, didTrigger bool, err error) {
 	sched, trig, err := s.GetLatestStats(s.ctx)
 	switch {
 	case err != nil:
@@ -793,8 +793,11 @@ func NewRemoteTriggerSchedule(name string, statsStore CronStatsStore) *RemoteTri
 
 // Trigger inserts a "queued" record in the database for the remote server to
 // pick up. It returns a conflict if there is already a pending or queued run.
-func (r *RemoteTriggerSchedule) Trigger() (*fleet.CronStats, bool, error) {
-	ctx := context.Background()
+func (r *RemoteTriggerSchedule) Trigger(ctx context.Context) (*fleet.CronStats, bool, error) {
+	ctx, span := startSpan(ctx, "cron.remote_trigger",
+		attribute.String("cron.name", r.name),
+	)
+	defer span.End()
 
 	latestStats, err := r.statsStore.GetLatestCronStats(ctx, r.name)
 	if err != nil {

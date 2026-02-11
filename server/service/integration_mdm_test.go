@@ -954,7 +954,7 @@ func (s *integrationMDMTestSuite) awaitTriggerProfileSchedule(t *testing.T) {
 		err        error
 	)
 	for range 10 {
-		_, didTrigger, err = s.profileSchedule.Trigger()
+		_, didTrigger, err = s.profileSchedule.Trigger(t.Context())
 		require.NoError(t, err)
 		if didTrigger {
 			break
@@ -991,7 +991,7 @@ func (s *integrationMDMTestSuite) awaitTriggerAndroidProfileSchedule(t *testing.
 		err        error
 	)
 	for range 10 {
-		_, didTrigger, err = s.androidProfileSchedule.Trigger()
+		_, didTrigger, err = s.androidProfileSchedule.Trigger(t.Context())
 		require.NoError(t, err)
 		if didTrigger {
 			break
@@ -10269,7 +10269,7 @@ func (s *integrationMDMTestSuite) runIntegrationsSchedule() {
 		err        error
 	)
 	for range 10 {
-		_, didTrigger, err = s.integrationsSchedule.Trigger()
+		_, didTrigger, err = s.integrationsSchedule.Trigger(s.T().Context())
 		require.NoError(s.T(), err)
 		if didTrigger {
 			break
@@ -10291,7 +10291,7 @@ func (s *integrationMDMTestSuite) awaitRunCleanupSchedule() {
 		err        error
 	)
 	for range 10 {
-		_, didTrigger, err = s.cleanupsSchedule.Trigger()
+		_, didTrigger, err = s.cleanupsSchedule.Trigger(s.T().Context())
 		require.NoError(s.T(), err)
 		if didTrigger {
 			break
