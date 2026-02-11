@@ -801,6 +801,14 @@ func (s *integrationMDMTestSuite) TestBatchAndroidApps() {
 		)
 	})
 	t.Run("android app setup experience", func(t *testing.T) {
+		// Get initial count of edited setup experience activities
+		var initialCount int
+		mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+			err := sqlx.GetContext(ctx, q, &initialCount, `SELECT COUNT(id) FROM activities WHERE activity_type = 'edited_setup_experience_software'`)
+			require.NoError(t, err)
+			return nil
+		})
+
 		var batchResp batchAssociateAppStoreAppsResponse
 		s.DoJSON("POST", "/api/latest/fleet/software/app_store_apps/batch",
 			batchAssociateAppStoreAppsRequest{
@@ -863,6 +871,6 @@ func (s *integrationMDMTestSuite) TestBatchAndroidApps() {
 			require.NoError(t, err)
 			return nil
 		})
-		require.Equal(t, 3, count)
+		require.Equal(t, initialCount+3, count)
 	})
 }
