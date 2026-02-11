@@ -129,7 +129,7 @@ const CustomSettings = ({
       await mdmAPI.deleteProfile(profileId);
       refetchProfiles();
       onMutation();
-      renderFlash("success", "Successfully deleted!");
+      renderFlash("success", "Successfully deleted.");
     } catch (e) {
       renderFlash("error", "Couldn't delete. Please try again.");
     } finally {
