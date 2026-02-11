@@ -5573,6 +5573,7 @@ func preprocessProfileContents(
 					if ndesConfig == nil {
 						ndesConfig = groupedCAs.NDESSCEP
 					}
+					level.Debug(logger).Log("msg", "fetching NDES challenge", "host_uuid", hostUUID, "profile_uuid", profUUID)
 					// Insert the SCEP challenge into the profile contents
 					challenge, err := scepConfig.GetNDESSCEPChallenge(ctx, *ndesConfig)
 					if err != nil {
@@ -5661,6 +5662,7 @@ func preprocessProfileContents(
 							"This error should never happen since we validated/populated CAs earlier", "ca_name", caName)
 						continue
 					}
+					level.Debug(logger).Log("msg", "fetching Smallstep SCEP challenge", "host_uuid", hostUUID, "profile_uuid", profUUID)
 					challenge, err := scepConfig.GetSmallstepSCEPChallenge(ctx, *ca)
 					if err != nil {
 						detail := fmt.Sprintf("Fleet couldn't populate $FLEET_VAR_%s. %s", fleet.FleetVarSmallstepSCEPChallengePrefix, err.Error())
