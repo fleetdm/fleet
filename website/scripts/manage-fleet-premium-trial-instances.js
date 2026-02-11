@@ -652,6 +652,7 @@ module.exports = {
         sails.log.warn(`When sending an email to a user with a newly expired Fleet Premium trial (email: ${user.emailAddress}) an error occured. Full error: ${util.inspect(err)}`);
         return;
       });
+      // Set the fleetPremiumTrialEmailSentAt value on this user record.
       await User.updateOne({id: user.id}).set({fleetPremiumTrialEmailSentAt: nowAt});
       await RenderProofOfValue.updateOne({id: expiringInstance.id}).set({status: 'expired'});
     }//∞

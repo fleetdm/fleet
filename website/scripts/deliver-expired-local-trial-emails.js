@@ -20,6 +20,7 @@ module.exports = {
       fleetPremiumTrialLicenseKeyExpiresAt: {
         '>=': oneDayAgoAt,
         '<': nowAt,
+      },
     });
 
 
@@ -42,7 +43,7 @@ module.exports = {
           sails.log.warn(`When sending an email to a user with a newly expired Fleet Premium local trial (email: ${expiredTrialUser.emailAddress}) an error occured. Full error: ${require('util').inspect(err)}`);
           return;
         });
-        // Update the timestamp for this user.
+        // Update the fleetPremiumTrialEmailSentAt for this user.
         await User.updateOne({id: expiredTrialUser.id}).set({fleetPremiumTrialEmailSentAt: Date.now()});
 
       }
