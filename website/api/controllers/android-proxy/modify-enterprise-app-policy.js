@@ -20,6 +20,14 @@ module.exports = {
       type: 'string',
       required: true,
     },
+    // packageNames is the body for the removePolicyApplications googleAction.
+    packageNames: {
+      type: ['string'],
+    },
+    // changes is the body for the modifyPolicyApplications googleAction.
+    changes: {
+      type: [{}],
+    },
   },
 
 
@@ -31,7 +39,7 @@ module.exports = {
   },
 
 
-  fn: async function ({ androidEnterpriseId, policyId, googleAction}) {
+  fn: async function ({ androidEnterpriseId, policyId, googleAction, packageNames, changes }) {
 
     // Extract fleetServerSecret from the Authorization header
     let authHeader = this.req.get('authorization');
@@ -84,7 +92,7 @@ module.exports = {
         case 'removePolicyApplications': {
           let response = await androidmanagement.enterprises.policies.removePolicyApplications({
             name: `enterprises/${androidEnterpriseId}/policies/${policyId}`,
-            requestBody: this.req.body,
+            requestBody: { packageNames },
           });
           return response.data;
         }
@@ -92,7 +100,7 @@ module.exports = {
         default: {
           let response = await androidmanagement.enterprises.policies.modifyPolicyApplications({
             name: `enterprises/${androidEnterpriseId}/policies/${policyId}`,
-            requestBody: this.req.body,
+            requestBody: { changes },
           });
           return response.data;
         }
