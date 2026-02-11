@@ -188,7 +188,7 @@ type MDM struct {
 	AppleServerURL string `json:"apple_server_url"`
 
 	// Deprecated: use AppleBussinessManager instead
-	DeprecatedAppleBMDefaultTeam string `json:"apple_bm_default_fleet,omitempty" renamedfrom:"apple_bm_default_team"`
+	DeprecatedAppleBMDefaultTeam string `json:"apple_bm_default_team,omitempty"`
 
 	// AppleBusinessManager defines the associations between ABM tokens
 	// and the teams used to assign hosts when they're ingested from ABM.
