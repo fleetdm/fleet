@@ -219,7 +219,7 @@ const QueryEditor = ({
 
     try {
       await updateAPIRequest();
-      renderFlash("success", "Policy updated!");
+      renderFlash("success", "Policy updated.");
     } catch (updateError: any) {
       console.error(updateError);
       if (updateError.data.errors[0].reason.includes("Duplicate")) {
