@@ -23,9 +23,9 @@ import (
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
 	"github.com/fleetdm/fleet/v4/server/datastore/redis/redistest"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/platform/logging"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/test"
-	kitlog "github.com/go-kit/log"
 	"github.com/jmoiron/sqlx"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -43,7 +43,7 @@ func (s *integrationSSOTestSuite) SetupSuite() {
 	pool := redistest.SetupRedis(s.T(), "zz", false, false, false)
 	opts := &TestServerOpts{Pool: pool, DBConns: s.dbConns}
 	if os.Getenv("FLEET_INTEGRATION_TESTS_DISABLE_LOG") != "" {
-		opts.Logger = kitlog.NewNopLogger()
+		opts.Logger = logging.NewNopLogger()
 	}
 	users, server := RunServerForTestsWithDS(s.T(), s.ds, opts)
 	s.server = server

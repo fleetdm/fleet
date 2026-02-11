@@ -50,6 +50,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/live_query/live_query_mock"
 	"github.com/fleetdm/fleet/v4/server/mdm"
 	maintained_apps "github.com/fleetdm/fleet/v4/server/mdm/maintainedapps"
+	"github.com/fleetdm/fleet/v4/server/platform/logging"
 	"github.com/fleetdm/fleet/v4/server/policies"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/pubsub"
@@ -59,8 +60,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/service/redis_lock"
 	"github.com/fleetdm/fleet/v4/server/service/schedule"
 	"github.com/fleetdm/fleet/v4/server/test"
-	"github.com/go-kit/log"
-	kitlog "github.com/go-kit/log"
 	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
 	"github.com/stretchr/testify/assert"
@@ -114,16 +113,16 @@ func (s *integrationEnterpriseTestSuite) SetupSuite() {
 		Pool:           s.redisPool,
 		Rs:             pubsub.NewInmemQueryResults(),
 		Lq:             s.lq,
-		Logger:         log.NewLogfmtLogger(os.Stdout),
+		Logger:         logging.NewLogfmtLogger(os.Stdout),
 		EnableCachedDS: true,
 		StartCronSchedules: []TestNewScheduleFunc{
 			func(ctx context.Context, ds fleet.Datastore) fleet.NewCronScheduleFunc {
 				return func() (fleet.CronSchedule, error) {
 					// We set 24-hour interval so that it only runs when triggered.
 					var err error
-					cronLog := log.NewJSONLogger(os.Stdout)
+					cronLog := logging.NewJSONLogger(os.Stdout)
 					if os.Getenv("FLEET_INTEGRATION_TESTS_DISABLE_LOG") != "" {
-						cronLog = kitlog.NewNopLogger()
+						cronLog = logging.NewNopLogger()
 					}
 					calendarSchedule, err = cron.NewCalendarSchedule(
 						ctx, s.T().Name(), s.ds, redis_lock.NewLock(s.redisPool), config.CalendarConfig{Periodicity: 24 * time.Hour},
@@ -139,7 +138,7 @@ func (s *integrationEnterpriseTestSuite) SetupSuite() {
 		DBConns:                         s.dbConns,
 	}
 	if os.Getenv("FLEET_INTEGRATION_TESTS_DISABLE_LOG") != "" {
-		config.Logger = kitlog.NewNopLogger()
+		config.Logger = logging.NewNopLogger()
 	}
 	users, server := RunServerForTestsWithDS(s.T(), s.ds, &config)
 	s.server = server
@@ -2920,7 +2919,7 @@ func (s *integrationEnterpriseTestSuite) TestNoTeamFailingPolicyWebhookTrigger()
 	}
 
 	// Trigger the webhook automation with a custom sendFunc that captures the call
-	err = policies.TriggerFailingPoliciesAutomation(ctx, s.ds, kitlog.NewNopLogger(), failingPolicySet,
+	err = policies.TriggerFailingPoliciesAutomation(ctx, s.ds, logging.NewNopLogger(), failingPolicySet,
 		func(pol *fleet.Policy, cfg policies.FailingPolicyAutomationConfig) error {
 			webhookCalled = true
 			capturedPolicy = pol
@@ -12466,7 +12465,7 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareInstallerUploadDownloadAndD
 		}
 		s.uploadSoftwareInstaller(t, payload, http.StatusOK, "")
 
-		logger := kitlog.NewLogfmtLogger(os.Stderr)
+		logger := logging.NewLogfmtLogger(os.Stderr)
 
 		// Run the migration when nothing is to be done
 		err = eeservice.UninstallSoftwareMigration(context.Background(), s.ds, s.softwareInstallStore, logger)
@@ -19642,7 +19641,7 @@ func (s *integrationEnterpriseTestSuite) TestUpgradeCodesFromMaintainedApps() {
 
 	err = detailQueries["software_windows"].DirectIngestFunc(
 		context.Background(),
-		kitlog.NewNopLogger(),
+		logging.NewNopLogger(),
 		&fleet.Host{ID: host.ID},
 		s.ds,
 		rows,

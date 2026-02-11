@@ -14,7 +14,7 @@ import (
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
-	"github.com/go-kit/log"
+	"github.com/fleetdm/fleet/v4/server/platform/logging"
 	"github.com/go-kit/log/level"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
@@ -33,7 +33,7 @@ type Schedule struct {
 	ctx        context.Context
 	name       string
 	instanceID string
-	logger     log.Logger
+	logger     *logging.Logger
 
 	defaultPrevRunCreatedAt time.Time // default timestamp of previous run for the schedule if none exists, time.Now if not set
 
@@ -94,9 +94,9 @@ type CronStatsStore interface {
 type Option func(*Schedule)
 
 // WithLogger sets a logger for the Schedule.
-func WithLogger(l log.Logger) Option {
+func WithLogger(l *logging.Logger) Option {
 	return func(s *Schedule) {
-		s.logger = log.With(l, "schedule", s.name)
+		s.logger = l.With("schedule", s.name)
 	}
 }
 
@@ -180,7 +180,7 @@ func New(
 		ctx:                  ctx,
 		name:                 name,
 		instanceID:           instanceID,
-		logger:               log.NewNopLogger(),
+		logger:               logging.NewNopLogger(),
 		trigger:              make(chan int),
 		done:                 make(chan struct{}),
 		configReloadInterval: 1 * time.Hour, // by default we will check for updated config once per hour
@@ -192,9 +192,9 @@ func New(
 		fn(sch)
 	}
 	if sch.logger == nil {
-		sch.logger = log.NewNopLogger()
+		sch.logger = logging.NewNopLogger()
 	}
-	sch.logger = log.With(sch.logger, "instanceID", instanceID)
+	sch.logger = sch.logger.With("instanceID", instanceID)
 	sch.errors = make(fleet.CronScheduleErrors)
 	return sch
 }
