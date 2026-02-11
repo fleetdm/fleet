@@ -2007,10 +2007,6 @@ func (svc *Service) softwareInstallerPayloadFromSlug(ctx context.Context, payloa
 		return nil
 	}
 
-	// TODO: check that version is available for rollback
-	// if payload.RollbackVersion != "" {
-	// }
-
 	app, err := svc.ds.GetMaintainedAppBySlug(ctx, *slug, teamID)
 	if err != nil {
 		// Return user-friendly message for generic not found error
@@ -2314,7 +2310,6 @@ func (svc *Service) softwareBatchUpload(
 			}
 
 			// For FMA installers, check if this version is already cached for this team.
-			// If so, skip the download entirely — we already have the bytes.
 			var fmaVersionCached bool
 			if p.Slug != nil && *p.Slug != "" && p.MaintainedApp != nil && p.MaintainedApp.Version != "" {
 				cached, err := svc.ds.HasFMAInstallerVersion(ctx, teamID, p.MaintainedApp.ID, p.MaintainedApp.Version)
