@@ -12,7 +12,7 @@ import (
 
 // GetLatestCronStats returns a slice of no more than two cron stats records, where index 0 (if
 // present) is the most recently created scheduled run, and index 1 (if present) represents a
-// triggered run that is currently pending.
+// triggered run that is currently pending/queued.
 func (ds *Datastore) GetLatestCronStats(ctx context.Context, name string) ([]fleet.CronStats, error) {
 	stmt := `
 (
@@ -79,6 +79,16 @@ func (ds *Datastore) UpdateCronStats(ctx context.Context, id int, status fleet.C
 
 	if _, err := ds.writer(ctx).ExecContext(ctx, stmt, status, errorsJSON, id); err != nil {
 		return ctxerr.Wrap(ctx, err, "update cron stats")
+	}
+
+	return nil
+}
+
+func (ds *Datastore) ClaimCronStats(ctx context.Context, id int, instance string, status fleet.CronStatsStatus) error {
+	stmt := `UPDATE cron_stats SET status = ?, instance = ? WHERE id = ?`
+
+	if _, err := ds.writer(ctx).ExecContext(ctx, stmt, status, instance, id); err != nil {
+		return ctxerr.Wrap(ctx, err, "claim cron stats")
 	}
 
 	return nil

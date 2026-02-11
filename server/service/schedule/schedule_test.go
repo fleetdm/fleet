@@ -871,6 +871,7 @@ func TestTriggerPollPicksUpQueuedRecord(t *testing.T) {
 	for _, st := range stats {
 		if st.ID == queuedID {
 			require.Equal(t, fleet.CronStatsStatusCompleted, st.Status)
+			require.Equal(t, instanceID, st.Instance, "instance should be updated to the worker that claimed it")
 			found = true
 		}
 	}
