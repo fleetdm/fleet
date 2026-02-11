@@ -275,7 +275,7 @@ func TestJSONKeyRewriteReader_LargePayload(t *testing.T) {
 	// Build a large JSON payload that exceeds the internal buffer size (4096 bytes).
 	var sb strings.Builder
 	sb.WriteString(`{"team_id": 1`)
-	for i := 0; i < 500; i++ {
+	for i := range 500 {
 		sb.WriteString(fmt.Sprintf(`, "field_%04d": "value"`, i))
 	}
 	sb.WriteString(`}`)

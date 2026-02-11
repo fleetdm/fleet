@@ -325,7 +325,7 @@ func TestDuplicateJSONKeys(t *testing.T) {
 			name: "LargePayload",
 			input: func() string {
 				var items []string
-				for i := 0; i < 100; i++ {
+				for i := range 100 {
 					items = append(items, fmt.Sprintf(`{"fleet_id": %d, "field_%04d": "val"}`, i, i))
 				}
 				return "[" + strings.Join(items, ",") + "]"
