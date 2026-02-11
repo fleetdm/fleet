@@ -67,8 +67,8 @@ func TestClickHouseLogWriterValidation(t *testing.T) {
 			"fleet_logs",
 			"", "", "",
 			"lz4",
-			true,  // TLS enabled
-			false, // skip verify
+			true,                  // TLS enabled
+			false,                 // skip verify
 			"/nonexistent/ca.pem", // invalid CA file
 			"", "",
 			1000,
@@ -123,9 +123,9 @@ func TestClickHouseLogWriterValidation(t *testing.T) {
 			"fleet_logs",
 			"", "", "",
 			"lz4",
-			true,  // TLS enabled
-			false, // skip verify
-			"",    // no CA file
+			true,                      // TLS enabled
+			false,                     // skip verify
+			"",                        // no CA file
 			"/nonexistent/client.pem", // invalid client cert
 			"/nonexistent/client.key", // invalid client key
 			1000,
