@@ -1,3 +1,10 @@
+## Fleet 4.80.2 (Feb 11, 2026)
+
+### Bug fixes
+
+- Updated to Go 1.25.7.
+- Fix issue where MySQL read replicas were not using TLS.
+
 ## Fleet 4.80.1 (Feb 06, 2026)
 
 ### Bug fixes
