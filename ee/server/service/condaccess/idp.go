@@ -84,7 +84,7 @@ func RegisterIdP(
 	}
 
 	// Create logging middleware
-	loggingMiddleware := log.NewLoggingMiddleware(svc.logger)
+	loggingMiddleware := log.NewLoggingMiddleware(svc.logger.SlogLogger())
 
 	// Register handlers with logging and OpenTelemetry middleware
 	// Order: OTEL wraps logging to capture full request lifecycle
