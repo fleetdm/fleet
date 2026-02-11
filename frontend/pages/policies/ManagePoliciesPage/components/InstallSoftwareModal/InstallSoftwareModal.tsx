@@ -276,7 +276,7 @@ const InstallSoftwareModal = ({
               })}
               text="Software"
             />{" "}
-            to add software to this team.
+            to add software to this fleet.
           </div>
         </div>
       );

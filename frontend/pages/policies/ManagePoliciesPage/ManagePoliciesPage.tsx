@@ -1092,28 +1092,28 @@ const ManagePolicyPage = ({
     } else if (isAllTeamsSelected) {
       disabledInstallTooltipContent = (
         <>
-          Select a team to manage
+          Select a fleet to manage
           <br />
           install software automation.
         </>
       );
       disabledCalendarTooltipContent = (
         <>
-          Select a team to manage
+          Select a fleet to manage
           <br />
           calendar events.
         </>
       );
       disabledRunScriptTooltipContent = (
         <>
-          Select a team to manage
+          Select a fleet to manage
           <br />
           run script automation.
         </>
       );
       disabledConditionalAccessTooltipContent = (
         <>
-          Select a team to manage
+          Select a fleet to manage
           <br />
           conditional access.
         </>
@@ -1197,9 +1197,9 @@ const ManagePolicyPage = ({
         currentTeamId !== APP_CONTEXT_ALL_TEAMS_ID &&
         !globalConfigFromContext?.partnerships?.enable_primo ? (
           <div className={`${baseClass}__header__tooltip`}>
-            To manage automations add a policy to this team.
+            To manage automations add a policy to this fleet.
             <br />
-            For inherited policies select &ldquo;All teams&rdquo;.
+            For inherited policies select &ldquo;All fleets&rdquo;.
           </div>
         ) : (
           <div className={`${baseClass}__header__tooltip`}>
@@ -1249,14 +1249,13 @@ const ManagePolicyPage = ({
     teamsDropdownHelpText = `Detect device health issues${
       globalConfigFromContext?.partnerships?.enable_primo
         ? ""
-        : " for hosts that are not on a team"
+        : ` for hosts that are not on a fleet`
     }.`;
   } else if (teamIdForApi === API_ALL_TEAMS_ID) {
     teamsDropdownHelpText = "Detect device health issues for all hosts.";
   } else {
     // a team is selected
-    teamsDropdownHelpText =
-      "Detect device health issues for all hosts assigned to this team.";
+    teamsDropdownHelpText = `Detect device health issues for all hosts assigned to this fleet.`;
   }
   return (
     <MainContent className={baseClass}>

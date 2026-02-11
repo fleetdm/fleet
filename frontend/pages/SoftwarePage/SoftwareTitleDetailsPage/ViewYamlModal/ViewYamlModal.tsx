@@ -210,7 +210,7 @@ const ViewYamlModal = ({
             <CustomLink url={repositoryUrl} text="repository" newTab />.
           </p>
         )}
-        <p>Make sure you reference the package YAML from your team YAML.</p>
+        <p>Make sure you reference the package YAML from your fleet YAML.</p>
         <div className={`${baseClass}__form-fields`}>
           <InputField
             enableCopy

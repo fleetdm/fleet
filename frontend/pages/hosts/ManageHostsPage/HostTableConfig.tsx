@@ -2,6 +2,7 @@
 // disable this rule as it was throwing an error in Header and Cell component
 // definitions for the selection row for some reason when we dont really need it.
 import React from "react";
+import { upperFirst } from "lodash";
 import { CellProps, Column } from "react-table";
 import ReactTooltip from "react-tooltip";
 
@@ -197,9 +198,9 @@ const allHostTableHeaders: IHostTableColumnConfig[] = [
     ),
   },
   {
-    title: "Team",
+    title: "Fleet",
     Header: (cellProps: IHostTableHeaderProps) => (
-      <HeaderCell value="Team" isSortedDesc={cellProps.column.isSortedDesc} />
+      <HeaderCell value="Fleet" isSortedDesc={cellProps.column.isSortedDesc} />
     ),
     accessor: "team_name",
     id: "team_name",
@@ -214,8 +215,8 @@ const allHostTableHeaders: IHostTableColumnConfig[] = [
         <TooltipWrapper
           tipContent={
             <>
-              Online hosts will respond to a live query. Offline hosts
-              won&apos;t respond to a live query because they may be shut down,
+              Online hosts will respond to a live report. Offline hosts
+              won&apos;t respond to a live report because they may be shut down,
               asleep, or not connected to the internet.
             </>
           }

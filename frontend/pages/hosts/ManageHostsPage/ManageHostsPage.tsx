@@ -1349,7 +1349,7 @@ const ManageHostsPage = ({
 
       const successMessage =
         teamId === null
-          ? `Hosts successfully removed from teams.`
+          ? `Hosts successfully removed from fleets.`
           : `Hosts successfully transferred to  ${transferTeam.name}.`;
 
       renderFlash("success", successMessage);
@@ -1759,7 +1759,7 @@ const ManageHostsPage = ({
         </>
       );
     } else if (isAllTeamsSelected && isPremiumTier) {
-      disableRunScriptBatchTooltipContent = "Select a team to run a script";
+      disableRunScriptBatchTooltipContent = "Select a fleet to run a script";
     } else if (isAllMatchingHostsSelected) {
       if (runScriptBatchFilterNotSupported) {
         disableRunScriptBatchTooltipContent =

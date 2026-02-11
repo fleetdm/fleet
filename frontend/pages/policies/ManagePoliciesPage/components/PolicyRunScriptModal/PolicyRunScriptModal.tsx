@@ -137,7 +137,7 @@ const PolicyRunScriptModal = ({
               })}
               text="Controls &gt; Scripts"
             />{" "}
-            to add scripts to this team.
+            to add scripts to this fleet.
           </div>
         </div>
       );

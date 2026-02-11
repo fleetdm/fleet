@@ -51,7 +51,7 @@ const CreateTeamModal = ({
   );
 
   return (
-    <Modal title="Create team" onExit={onCancel} className={baseClass}>
+    <Modal title="Create fleet" onExit={onCancel} className={baseClass}>
       <form
         className={`${baseClass}__form`}
         onSubmit={onFormSubmit}
@@ -64,14 +64,14 @@ const CreateTeamModal = ({
           onBlur={() => {
             setName(name.trim());
           }}
-          label="Team name"
+          label="Fleet name"
           placeholder="Workstations"
           value={name}
           error={errors.name}
           ignore1password
         />
         <InfoBanner className={`${baseClass}__sandbox-info`}>
-          To organize your hosts, create a team, like
+          To organize your hosts, create a fleet, like
           &ldquo;Workstations,&rdquo; &ldquo;Servers,&rdquo; or &ldquo;Servers
           (canary)&rdquo;.
         </InfoBanner>

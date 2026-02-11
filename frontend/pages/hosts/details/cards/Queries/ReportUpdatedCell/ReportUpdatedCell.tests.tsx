@@ -20,7 +20,7 @@ describe("ReportUpdatedCell component", () => {
     );
 
     expect(screen.getByText(/No report/)).toBeInTheDocument();
-    expect(screen.getByText(/Results from this query/)).toBeInTheDocument();
+    expect(screen.getByText(/Results from this report/)).toBeInTheDocument();
     expect(screen.queryByText(/View report/)).toBeNull();
   });
 
@@ -38,7 +38,7 @@ describe("ReportUpdatedCell component", () => {
 
     expect(screen.getByText(/---/)).toBeInTheDocument();
     expect(
-      screen.getByText(/Fleet is collecting query results\./)
+      screen.getByText(/Fleet is collecting report results\./)
     ).toBeInTheDocument();
     expect(screen.getByText(/Check back later./)).toBeInTheDocument();
   });

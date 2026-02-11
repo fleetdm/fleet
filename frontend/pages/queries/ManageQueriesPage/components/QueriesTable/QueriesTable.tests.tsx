@@ -171,7 +171,7 @@ describe("QueriesTable", () => {
     testData.forEach((tableProps) => {
       render(<QueriesTable {...tableProps} />);
       expect(
-        screen.getByText("You don't have any queries")
+        screen.getByText("You don't have any reports")
       ).toBeInTheDocument();
       expect(screen.queryByText("Interval")).toBeNull();
       expect(screen.queryByPlaceholderText("Search by name")).toBeNull();
@@ -198,7 +198,7 @@ describe("QueriesTable", () => {
     testData.forEach((tableProps) => {
       renderAsPremiumGlobalAdmin(<QueriesTable {...tableProps} />);
       expect(
-        screen.getByText("You don't have any queries that apply to all teams")
+        screen.getByText("You don't have any reports that apply to all fleets")
       ).toBeInTheDocument();
       expect(screen.queryByText("Interval")).toBeNull();
       expect(screen.queryByPlaceholderText("Search by name")).toBeNull();
@@ -225,7 +225,7 @@ describe("QueriesTable", () => {
     testData.forEach((tableProps) => {
       renderAsPremiumGlobalAdmin(<QueriesTable {...tableProps} />);
       expect(
-        screen.getByText("You don't have any queries that apply to this team")
+        screen.getByText("You don't have any reports that apply to this fleet")
       ).toBeInTheDocument();
       expect(screen.queryByText("Interval")).toBeNull();
       expect(screen.queryByPlaceholderText("Search by name")).toBeNull();
@@ -281,7 +281,7 @@ describe("QueriesTable", () => {
     };
     // will have no context to get current user from
     renderAsPremiumGlobalAdmin(<QueriesTable {...testData} />);
-    expect(screen.getByText("No matching queries")).toBeInTheDocument();
+    expect(screen.getByText("No matching reports")).toBeInTheDocument();
   });
 
   it("Renders an observer can run badge and tooltip for a observer can run query", async () => {
@@ -322,7 +322,7 @@ describe("QueriesTable", () => {
       });
 
       expect(
-        screen.getByText("Observers can run this query.")
+        screen.getByText("Observers can run this report.")
       ).toBeInTheDocument();
     });
   });
@@ -362,7 +362,7 @@ describe("QueriesTable", () => {
       });
 
       expect(
-        screen.getByText("This query runs on all hosts.")
+        screen.getByText("This report runs on all hosts.")
       ).toBeInTheDocument();
     });
   });

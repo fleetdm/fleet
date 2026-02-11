@@ -101,10 +101,10 @@ const Agents = ({
         {isPremiumTier ? (
           <InfoBanner>
             <div>
-              These options are not applied to hosts on a team. To update agent
-              options for hosts on a team, head to the&nbsp;
-              <CustomLink url={ADMIN_TEAMS} text="Teams page" />
-              &nbsp;and select a team.
+              These options are not applied to hosts on a fleet. To update agent
+              options for hosts on a fleet, head to the&nbsp;
+              <CustomLink url={ADMIN_TEAMS} text="Fleets page" />
+              &nbsp;and select a fleet.
             </div>
           </InfoBanner>
         ) : (
@@ -112,7 +112,7 @@ const Agents = ({
             Want some hosts to have different options?&nbsp;
             <CustomLink
               url="https://fleetdm.com/docs/using-fleet/teams"
-              text="Learn more about teams"
+              text="Learn more about fleets"
               newTab
               variant="banner-link"
             />

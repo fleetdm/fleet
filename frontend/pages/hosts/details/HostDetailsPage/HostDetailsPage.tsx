@@ -906,7 +906,7 @@ const HostDetailsPage = ({
 
       const successMessage =
         teamId === null
-          ? `Host successfully removed from teams.`
+          ? `Host successfully removed from fleets.`
           : `Host successfully transferred to  ${team.name}.`;
 
       renderFlash("success", successMessage);

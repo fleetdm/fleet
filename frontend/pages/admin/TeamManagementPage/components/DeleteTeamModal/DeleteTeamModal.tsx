@@ -20,7 +20,7 @@ const DeleteTeamModal = ({
 }: IDeleteTeamModalProps): JSX.Element => {
   return (
     <Modal
-      title="Delete team"
+      title="Delete fleet"
       onExit={onCancel}
       onEnter={onSubmit}
       className={baseClass}
@@ -31,7 +31,7 @@ const DeleteTeamModal = ({
           <span className={`${baseClass}__name`}>{name}</span> from Fleet.
         </p>
         <p>
-          Users on this team who are not assigned to other teams will lose
+          Users on this fleet who are not assigned to other fleets will lose
           access to Fleet.
         </p>
         <p className={`${baseClass}__warning`}>This action cannot be undone.</p>

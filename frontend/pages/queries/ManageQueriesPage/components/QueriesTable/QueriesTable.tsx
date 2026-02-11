@@ -173,7 +173,7 @@ const QueriesTable = ({
 
   const emptyParams: IEmptyTableProps = {
     graphicName: "empty-queries",
-    header: "You don't have any queries",
+    header: "You don't have any reports",
   };
 
   if (isPremiumTier && !config?.partnerships?.enable_primo) {
@@ -182,23 +182,23 @@ const QueriesTable = ({
       currentTeamId === null ||
       currentTeamId === APP_CONTEXT_ALL_TEAMS_ID
     ) {
-      emptyParams.header += " that apply to all teams";
+      emptyParams.header += " that apply to all fleets";
     } else {
-      emptyParams.header += " that apply to this team";
+      emptyParams.header += " that apply to this fleet";
     }
   }
 
   if (searchQuery || curTargetedPlatformFilter !== "all") {
     delete emptyParams.graphicName;
-    emptyParams.header = "No matching queries";
-    emptyParams.info = "No queries match the current filters.";
+    emptyParams.header = "No matching reports";
+    emptyParams.info = "No reports match the current filters.";
   } else if (!isOnlyObserver || isObserverPlus || isAnyTeamObserverPlus) {
     emptyParams.additionalInfo = (
       <>
-        Create a new query, or{" "}
+        Create a new report, or{" "}
         <CustomLink
           url="https://fleetdm.com/docs/using-fleet/standard-query-library"
-          text="import Fleet's standard query library"
+          text="import Fleet's standard report library"
           newTab
         />
       </>
@@ -269,7 +269,7 @@ const QueriesTable = ({
     columnConfigs && (
       <div className={`${baseClass}`}>
         <TableContainer
-          resultsTitle="queries"
+          resultsTitle="reports"
           columnConfigs={columnConfigs}
           data={queries}
           // won't ever actually be loading, see render condition above
@@ -282,7 +282,7 @@ const QueriesTable = ({
           showMarkAllPages={false}
           isAllPagesSelected={false}
           primarySelectAction={{
-            name: "delete query",
+            name: "delete report",
             buttonText: "Delete",
             iconSvg: "trash",
             variant: "inverse",
@@ -291,7 +291,7 @@ const QueriesTable = ({
           emptyComponent={() => EmptyTable(emptyParams)}
           renderCount={() =>
             ((totalQueriesCount || searchQuery) && (
-              <TableCount name="queries" count={totalQueriesCount} />
+              <TableCount name="reports" count={totalQueriesCount} />
             )) ||
             null
           }

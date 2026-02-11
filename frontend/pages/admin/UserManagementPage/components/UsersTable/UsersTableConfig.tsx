@@ -119,7 +119,7 @@ const generateTableHeaders = (
                   <br />
                   the same functions as an Observer, with the added
                   <br />
-                  ability to run any live query against all hosts.
+                  ability to run any live report against all hosts.
                 </>
               }
             >
@@ -181,9 +181,9 @@ const generateTableHeaders = (
   // Add Teams column for premium tier
   if (isPremiumTier) {
     tableHeaders.splice(2, 0, {
-      title: "Teams",
-      Header: "Teams",
-      accessor: "teams",
+      title: "Fleets",
+      Header: "Fleets",
+      accessor: "fleets",
       disableSortBy: true,
       Cell: (cellProps: ICellProps) => (
         <TextCell value={cellProps.cell.value} />
