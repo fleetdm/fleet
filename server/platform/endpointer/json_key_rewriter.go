@@ -1,9 +1,9 @@
 package endpointer
 
 import (
+	"bytes"
 	"fmt"
 	"io"
-	"sync"
 
 	"github.com/go-json-experiment/json/jsontext"
 )
@@ -42,8 +42,8 @@ type AliasRule struct {
 // delegating all JSON lexing (string escaping, unicode, whitespace) to the
 // standard library.
 type JSONKeyRewriteReader struct {
-	pr *io.PipeReader
-	wg sync.WaitGroup
+	reader  *bytes.Reader
+	initErr error
 
 	// Map from old key to its AliasRule for fast lookup.
 	oldKeyIndex map[string]AliasRule
@@ -63,16 +63,17 @@ func NewJSONKeyRewriteReader(src io.Reader, rules []AliasRule) *JSONKeyRewriteRe
 		idx[r.OldKey] = r
 	}
 
-	pr, pw := io.Pipe()
 	rw := &JSONKeyRewriteReader{
-		pr:             pr,
 		oldKeyIndex:    idx,
 		usedDeprecated: make(map[string]bool),
 	}
 
-	rw.wg.Add(1)
-	go rw.transform(src, pw)
-
+	var buf bytes.Buffer
+	if err := rw.rewrite(src, &buf); err != nil {
+		rw.initErr = err
+		return rw
+	}
+	rw.reader = bytes.NewReader(buf.Bytes())
 	return rw
 }
 
@@ -81,7 +82,6 @@ func NewJSONKeyRewriteReader(src io.Reader, rules []AliasRule) *JSONKeyRewriteRe
 // fully consumed (i.e., after json.Decoder.Decode or similar has returned),
 // which guarantees the background goroutine has finished.
 func (r *JSONKeyRewriteReader) UsedDeprecatedKeys() []string {
-	r.wg.Wait()
 	keys := make([]string, 0, len(r.usedDeprecated))
 	for k := range r.usedDeprecated {
 		keys = append(keys, k)
@@ -89,21 +89,28 @@ func (r *JSONKeyRewriteReader) UsedDeprecatedKeys() []string {
 	return keys
 }
 
+// Close closes the reader end of the pipe to unblock the transform goroutine
+// if the consumer stops reading early.
+func (r *JSONKeyRewriteReader) Close() error {
+	return nil
+}
+
 // Read implements io.Reader by reading from the pipe.
 func (r *JSONKeyRewriteReader) Read(p []byte) (int, error) {
-	return r.pr.Read(p)
+	if r.initErr != nil {
+		return 0, r.initErr
+	}
+	if r.reader == nil {
+		return 0, io.EOF
+	}
+	return r.reader.Read(p)
 }
 
-// transform runs in a goroutine. It reads tokens from src, rewrites deprecated
-// keys, checks for alias conflicts, and writes the transformed JSON to pw.
-func (r *JSONKeyRewriteReader) transform(src io.Reader, pw *io.PipeWriter) {
-	defer r.wg.Done()
-	pw.CloseWithError(r.doTransform(src, pw))
-}
-
-func (r *JSONKeyRewriteReader) doTransform(src io.Reader, pw *io.PipeWriter) error {
+// rewrite reads tokens from src, rewrites deprecated keys, checks for alias
+// conflicts, and writes the transformed JSON to w.
+func (r *JSONKeyRewriteReader) rewrite(src io.Reader, w io.Writer) error {
 	dec := jsontext.NewDecoder(src)
-	enc := jsontext.NewEncoder(pw)
+	enc := jsontext.NewEncoder(w)
 
 	// Stack of per-object-scope key sets for conflict detection.
 	// Pushed on '{', popped on '}'.

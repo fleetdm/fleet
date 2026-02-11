@@ -564,6 +564,7 @@ func MakeDecoder(
 			// deprecated field names and detect alias conflicts.
 			if len(aliasRules) > 0 {
 				rewriter = NewJSONKeyRewriteReader(body, aliasRules)
+				defer rewriter.Close()
 				body = rewriter
 			}
 
