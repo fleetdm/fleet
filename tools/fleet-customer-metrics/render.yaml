@@ -1,0 +1,51 @@
+databases:
+  - name: metrics-db
+    databaseName: metrics_8216
+    user: metrics
+    plan: basic-256mb
+    region: oregon
+    ipAllowList: [] # Only allow internal connections
+    postgresMajorVersion: "18"
+    diskSizeGB: 1
+  - name: grafana-db
+    databaseName: grafana_5snp
+    user: grafana
+    plan: basic-256mb
+    region: oregon
+    ipAllowList: []
+    postgresMajorVersion: "18"
+    diskSizeGB: 1
+services:
+  - type: web
+    name: grafana
+    runtime: image
+    image:
+      url: docker.io/grafana/grafana-oss:latest
+    plan: starter
+    envVars:
+      - key: GF_SERVER_ROOT_URL
+        sync: false
+      - key: GF_SECURITY_ADMIN_USER
+        sync: false
+      - key: GF_SECURITY_ADMIN_PASSWORD
+        sync: false
+      - key: GF_DATABASE_USER
+        sync: false
+      - key: GF_DATABASE_TYPE
+        sync: false
+      - key: GF_DATABASE_PASSWORD
+        fromDatabase:
+          name: grafana-db
+          property: password
+      - key: GF_DATABASE_NAME
+        sync: false
+      - key: GF_DATABASE_HOST
+        fromDatabase:
+          name: grafana-db
+          property: host
+      - key: GF_INSTALL_PLUGINS
+        value: volkovlabs-table-panel
+    region: oregon
+    healthCheckPath: /api/health
+    autoDeployTrigger: commit
+version: "1"
