@@ -2,6 +2,9 @@ version: 2
 
 project_name: fleet
 
+snapshot:
+  version_template: "{{ .Env.FLEET_VERSION }}"
+
 monorepo:
   tag_prefix: fleet-
   dir: .
@@ -55,7 +58,6 @@ builds:
       - -X github.com/fleetdm/fleet/v4/server/version.buildDate={{ time "2006-01-02" }}
       - -X github.com/fleetdm/fleet/v4/server/version.buildUser={{ .Env.USER }}
 
-
 dockers:
   - goos: linux
     goarch: amd64
@@ -64,4 +66,4 @@ dockers:
       - fleetctl
     dockerfile: tools/fleet-docker/Dockerfile
     image_templates:
-      - 'fleetdm/fleet:{{ .ShortCommit }}'
+      - "fleetdm/fleet:{{ .ShortCommit }}"
