@@ -19,6 +19,7 @@ import {
   IHostSoftware,
   IVPPHostSoftware,
   ISoftware,
+  NO_VERSION_OR_HOST_DATA_SOURCES,
 } from "interfaces/software";
 import { HostPlatform, isIPadOrIPhone, isAndroid } from "interfaces/platform";
 
@@ -234,7 +235,6 @@ const HostSoftwareLibrary = ({
     {
       enabled: false,
       onSuccess: (response) => {
-        // Get the set of pending software IDs
         const newPendingSet = new Set(
           response.software
             .filter(
@@ -245,9 +245,16 @@ const HostSoftwareLibrary = ({
             .map((software) => String(software.id))
         );
 
-        // Refresh host details if the number of pending installs or uninstalls has decreased
-        // To update the software library information of the newly installed/uninstalled software
-        if (newPendingSet.size < pendingSoftwareSetRef.current.size) {
+        // Determine which items just completed
+        const previouslyPendingIds = [...pendingSoftwareSetRef.current];
+        const completedIds = previouslyPendingIds.filter(
+          (pendingId) => !newPendingSet.has(pendingId)
+        );
+
+        if (completedIds.length > 0) {
+          // Refetch host details to:
+          // - Update the software library version information of newly installed/uninstalled software of inventory‑detectable sources only
+          // - Update the software inventory of any changes to software detected by software inventory
           refetchHostDetails();
         }
 
