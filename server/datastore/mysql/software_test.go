@@ -111,6 +111,7 @@ func TestSoftware(t *testing.T) {
 		{"CountHostSoftwareInstallAttempts", testCountHostSoftwareInstallAttempts},
 		{"ListSoftwareVersionsSearchByTitleName", testListSoftwareVersionsSearchByTitleName},
 		{"ListSoftwareInventoryDeletedHost", testListSoftwareInventoryDeletedHost},
+		{"ListHostSoftwareShPackageForDarwin", testListHostSoftwareShPackageForDarwin},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -983,6 +984,84 @@ func testSoftwareList(t *testing.T, ds *Datastore) {
 				assert.Nil(t, vuln.CISAKnownExploit)
 			}
 		}
+	})
+
+	t.Run("SQL injection prevention in OrderKey", func(t *testing.T) {
+		maliciousPayloads := []string{
+			"name;DROP TABLE software--",
+			"name+SLEEP(2)+name",
+			"name` UNION SELECT * FROM users--",
+			"name`+SLEEP(2)+`name",
+			"`name` UNION SELECT password FROM users WHERE `name",
+			"name' OR '1'='1",
+		}
+
+		for _, payload := range maliciousPayloads {
+			opts := fleet.SoftwareListOptions{
+				ListOptions: fleet.ListOptions{
+					OrderKey: payload,
+				},
+				IncludeCVEScores: true,
+			}
+
+			_, _, err := ds.ListSoftware(context.Background(), opts)
+			require.Error(t, err, "SQL injection payload should result in column error: %s", payload)
+			require.Contains(t, err.Error(), "Unknown column", "Expected column error for payload: %s", payload)
+		}
+	})
+
+	t.Run("validate ORDER BY", func(t *testing.T) {
+		opts := fleet.SoftwareListOptions{
+			ListOptions: fleet.ListOptions{
+				OrderKey:       "name",
+				OrderDirection: fleet.OrderAscending,
+			},
+			IncludeCVEScores: true,
+		}
+		software, _, err := ds.ListSoftware(context.Background(), opts)
+		require.NoError(t, err)
+		require.Len(t, software, 5)
+
+		// ordered by name ascending
+		require.Equal(t, "bar", software[0].Name)
+		require.Equal(t, "baz", software[1].Name)
+		require.Equal(t, "foo", software[2].Name)
+		require.Equal(t, "foo", software[3].Name)
+		require.Equal(t, "foo", software[4].Name)
+
+		opts.ListOptions.OrderDirection = fleet.OrderDescending
+		software, _, err = ds.ListSoftware(context.Background(), opts)
+		require.NoError(t, err)
+		require.Len(t, software, 5)
+
+		// ordered by name descending
+		require.Equal(t, "foo", software[0].Name)
+		require.Equal(t, "foo", software[1].Name)
+		require.Equal(t, "foo", software[2].Name)
+		require.Equal(t, "baz", software[3].Name)
+		require.Equal(t, "bar", software[4].Name)
+
+		opts = fleet.SoftwareListOptions{
+			ListOptions: fleet.ListOptions{
+				OrderKey:       "name,version",
+				OrderDirection: fleet.OrderAscending,
+			},
+			IncludeCVEScores: true,
+		}
+		software, _, err = ds.ListSoftware(context.Background(), opts)
+		require.NoError(t, err)
+		require.Len(t, software, 5)
+
+		require.Equal(t, "bar", software[0].Name)
+		require.Equal(t, "0.0.3", software[0].Version)
+		require.Equal(t, "baz", software[1].Name)
+		require.Equal(t, "0.0.1", software[1].Version)
+		for i := 2; i < 5; i++ {
+			require.Equal(t, "foo", software[i].Name)
+		}
+		require.Equal(t, "0.0.1", software[2].Version)
+		require.Equal(t, "0.0.3", software[3].Version)
+		require.Equal(t, "v0.0.2", software[4].Version)
 	})
 }
 
@@ -6303,8 +6382,8 @@ func testListHostSoftwareInstallThenTransferTeam(t *testing.T, ds *Datastore) {
 		require.Nil(t, sw[1].AppStoreApp)
 		require.Nil(t, sw[1].SoftwarePackage)
 	}
-
 }
+
 func testListHostSoftwareFailInstallThenTransferTeam(t *testing.T, ds *Datastore) {
 	ctx := context.Background()
 	user := test.NewUser(t, ds, "user1", "user1@example.com", false)
@@ -11120,4 +11199,133 @@ func testListSoftwareInventoryDeletedHost(t *testing.T, ds *Datastore) {
 	require.Len(t, software, 1)
 	require.Equal(t, "Software", software[0].Name)
 	require.Equal(t, titleID, software[0].ID)
+}
+
+// testListHostSoftwareShPackageForDarwin tests that .sh packages
+// (stored as platform='linux') are visible to darwin hosts
+func testListHostSoftwareShPackageForDarwin(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	// Create a darwin host
+	darwinHost := test.NewHost(t, ds, "darwin-host", "", "darwinkey", "darwinuuid", time.Now(), test.WithPlatform("darwin"))
+	nanoEnroll(t, ds, darwinHost, false)
+
+	// Create a linux host for comparison
+	linuxHost := test.NewHost(t, ds, "linux-host", "", "linuxkey", "linuxuuid", time.Now(), test.WithPlatform("ubuntu"))
+	nanoEnroll(t, ds, linuxHost, false)
+
+	user := test.NewUser(t, ds, "testuser", "testuser@example.com", true)
+
+	// Create a .sh installer (platform='linux', extension='sh')
+	tfr, err := fleet.NewTempFileReader(strings.NewReader("#!/bin/bash\necho hello"), t.TempDir)
+	require.NoError(t, err)
+	_, shTitleID, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
+		InstallScript:   "#!/bin/bash\necho install",
+		InstallerFile:   tfr,
+		StorageID:       "sh-storage-darwin-test",
+		Filename:        "test-script.sh",
+		Title:           "Test Script",
+		Version:         "1.0.0",
+		Source:          "sh_packages",
+		Platform:        "linux", // .sh files are stored as linux platform
+		Extension:       "sh",
+		UserID:          user.ID,
+		ValidatedLabels: &fleet.LabelIdentsWithScope{},
+	})
+	require.NoError(t, err)
+
+	// Create a regular .deb installer (platform='linux'), shouldn't be visible to darwin
+	tfr2, err := fleet.NewTempFileReader(strings.NewReader("deb content"), t.TempDir)
+	require.NoError(t, err)
+	_, debTitleID, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
+		InstallScript:   "dpkg -i installer.deb",
+		InstallerFile:   tfr2,
+		StorageID:       "deb-storage-test",
+		Filename:        "installer.deb",
+		Title:           "Linux Deb Package",
+		Version:         "1.0.0",
+		Source:          "deb_packages",
+		Platform:        "linux",
+		Extension:       "deb",
+		UserID:          user.ID,
+		ValidatedLabels: &fleet.LabelIdentsWithScope{},
+	})
+	require.NoError(t, err)
+
+	opts := fleet.HostSoftwareTitleListOptions{
+		ListOptions:                fleet.ListOptions{PerPage: 100, OrderKey: "name"},
+		IncludeAvailableForInstall: true,
+	}
+
+	// Query available software for darwin host
+	sw, _, err := ds.ListHostSoftware(ctx, darwinHost, opts)
+	require.NoError(t, err)
+
+	// Darwin host should see the .sh package but not the .deb package
+	var foundSh, foundDeb bool
+	for _, s := range sw {
+		if s.ID == shTitleID {
+			foundSh = true
+			require.Equal(t, "Test Script", s.Name)
+			require.Equal(t, "sh_packages", s.Source)
+		}
+		if s.ID == debTitleID {
+			foundDeb = true
+		}
+	}
+	require.True(t, foundSh, ".sh package should be visible to darwin host")
+	require.False(t, foundDeb, ".deb package should NOT be visible to darwin host")
+
+	// Query available software for linux host, should see both
+	sw, _, err = ds.ListHostSoftware(ctx, linuxHost, opts)
+	require.NoError(t, err)
+
+	foundSh = false
+	foundDeb = false
+	for _, s := range sw {
+		if s.ID == shTitleID {
+			foundSh = true
+		}
+		if s.ID == debTitleID {
+			foundDeb = true
+		}
+	}
+	require.True(t, foundSh, ".sh package should be visible to linux host")
+	require.True(t, foundDeb, ".deb package should be visible to linux host")
+
+	// Create a Windows host
+	windowsHost := test.NewHost(t, ds, "windows-host", "", "windowskey", "windowsuuid", time.Now(), test.WithPlatform("windows"))
+	nanoEnroll(t, ds, windowsHost, false)
+
+	// Query available software for Windows host
+	sw, _, err = ds.ListHostSoftware(ctx, windowsHost, opts)
+	require.NoError(t, err)
+
+	// Windows host should NOT see .sh or .deb packages
+	foundSh = false
+	foundDeb = false
+	for _, s := range sw {
+		if s.ID == shTitleID {
+			foundSh = true
+		}
+		if s.ID == debTitleID {
+			foundDeb = true
+		}
+	}
+	require.False(t, foundSh, ".sh package should NOT be visible to windows host")
+	require.False(t, foundDeb, ".deb package should NOT be visible to windows host")
+}
+
+// TestUniqueSoftwareTitleStrNormalization tests that UniqueSoftwareTitleStr
+// produces consistent keys regardless of Unicode format characters (like RTL mark)
+// which MySQL's utf8mb4_unicode_ci collation ignores.
+func TestUniqueSoftwareTitleStrNormalization(t *testing.T) {
+	// With RTL mark (U+200F) - the actual bug case from production
+	keyWithRTL := UniqueSoftwareTitleStr("\u200fSmart Connect", "programs", "")
+	keyWithoutRTL := UniqueSoftwareTitleStr("Smart Connect", "programs", "")
+	assert.Equal(t, keyWithoutRTL, keyWithRTL, "RTL mark should be stripped")
+
+	// Verify regular unicode is preserved
+	keyJapanese := UniqueSoftwareTitleStr("日本語ソフト", "apps", "")
+	assert.Contains(t, keyJapanese, "日本語ソフト")
 }

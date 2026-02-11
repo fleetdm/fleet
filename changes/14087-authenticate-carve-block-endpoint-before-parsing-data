@@ -1,0 +1,1 @@
+* Improved authentication of `POST /api/v1/osquery/carve/block` requests by parsing and validating `session_id` and `request_id` before processing `data`.

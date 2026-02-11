@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"flag"
 	"fmt"
 	"io"
 	"net/http"
@@ -31,6 +32,32 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
+
+// updateGolden is a flag to update golden files instead of comparing against them.
+// Usage: go test -update ./cmd/fleetctl/fleetctl/... -run TestGetHosts
+var updateGolden = flag.Bool("update", false, "update golden files")
+
+// updateGoldenFile writes content to the golden file if -update flag is set.
+// JSON files are pretty-printed before writing.
+// Returns true if the file was updated (test should skip comparison).
+func updateGoldenFile(t *testing.T, goldenFile string, content string) bool {
+	if !*updateGolden {
+		return false
+	}
+	output := content
+	if filepath.Ext(goldenFile) == ".json" {
+		var parsed any
+		if err := json.Unmarshal([]byte(content), &parsed); err == nil {
+			if pretty, err := json.MarshalIndent(parsed, "", "  "); err == nil {
+				output = string(pretty) + "\n"
+			}
+		}
+	}
+	err := os.WriteFile(filepath.Join("testdata", goldenFile), []byte(output), 0644)
+	require.NoError(t, err)
+	t.Logf("Updated golden file: %s", goldenFile)
+	return true
+}
 
 var userRoleList = []*fleet.User{
 	{
@@ -371,6 +398,9 @@ func TestGetHosts(t *testing.T) {
 	ds.ListUpcomingHostMaintenanceWindowsFunc = func(ctx context.Context, hid uint) ([]*fleet.HostMaintenanceWindow, error) {
 		return nil, nil
 	}
+	ds.ConditionalAccessBypassedAtFunc = func(ctx context.Context, hostID uint) (*time.Time, error) {
+		return nil, nil
+	}
 	defaultPolicyQuery := "select 1 from osquery_info where start_time > 1;"
 	ds.ListPoliciesForHostFunc = func(ctx context.Context, host *fleet.Host) ([]*fleet.HostPolicy, error) {
 		return []*fleet.HostPolicy{
@@ -493,10 +523,14 @@ func TestGetHosts(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(fmt.Sprintf("%s - %s", tt.name, tt.goldenFile), func(t *testing.T) {
+			actualOutput := RunAppForTest(t, tt.args)
+			if updateGoldenFile(t, tt.goldenFile, actualOutput) {
+				return
+			}
 			expected, err := os.ReadFile(filepath.Join("testdata", tt.goldenFile))
 			require.NoError(t, err)
 			expectedResults := tt.scanner(string(expected))
-			actualResult := tt.scanner(RunAppForTest(t, tt.args))
+			actualResult := tt.scanner(actualOutput)
 			require.Equal(t, len(expectedResults), len(actualResult))
 			for i := range expectedResults {
 				require.Equal(t, tt.prettifier(t, expectedResults[i]), tt.prettifier(t, actualResult[i]))
@@ -606,15 +640,23 @@ func TestGetHostsMDM(t *testing.T) {
 			}
 
 			if tt.goldenFile != "" {
-				expected, err := os.ReadFile(filepath.Join("testdata", tt.goldenFile))
-				require.NoError(t, err)
 				if ext := filepath.Ext(tt.goldenFile); ext == ".json" {
 					// the output of --json is not a json array, but a list of
 					// newline-separated json objects. fix that for the assertion,
 					// turning it into a JSON array.
 					actual := "[" + strings.ReplaceAll(got.String(), "}\n{", "},{") + "]"
+					if updateGoldenFile(t, tt.goldenFile, actual) {
+						return
+					}
+					expected, err := os.ReadFile(filepath.Join("testdata", tt.goldenFile))
+					require.NoError(t, err)
 					require.JSONEq(t, string(expected), actual)
 				} else {
+					if updateGoldenFile(t, tt.goldenFile, got.String()) {
+						return
+					}
+					expected, err := os.ReadFile(filepath.Join("testdata", tt.goldenFile))
+					require.NoError(t, err)
 					require.YAMLEq(t, string(expected), got.String())
 				}
 			}
@@ -1396,7 +1438,7 @@ func TestGetQueries(t *testing.T) {
 		}
 		return nil, &notFoundError{}
 	}
-	ds.ListQueriesFunc = func(ctx context.Context, opt fleet.ListQueryOptions) ([]*fleet.Query, int, *fleet.PaginationMetadata, error) {
+	ds.ListQueriesFunc = func(ctx context.Context, opt fleet.ListQueryOptions) ([]*fleet.Query, int, int, *fleet.PaginationMetadata, error) {
 		if opt.TeamID == nil { //nolint:gocritic // ignore ifElseChain
 			return []*fleet.Query{
 				{
@@ -1433,7 +1475,7 @@ func TestGetQueries(t *testing.T) {
 					Saved:              true, // ListQueries always returns the saved ones.
 					ObserverCanRun:     true,
 				},
-			}, 3, nil, nil
+			}, 3, 0, nil, nil
 		} else if *opt.TeamID == 1 {
 			return []*fleet.Query{
 				{
@@ -1450,11 +1492,11 @@ func TestGetQueries(t *testing.T) {
 					TeamID:             ptr.Uint(1),
 					ObserverCanRun:     true,
 				},
-			}, 1, nil, nil
+			}, 1, 0, nil, nil
 		} else if *opt.TeamID == 2 {
-			return []*fleet.Query{}, 0, nil, nil
+			return []*fleet.Query{}, 0, 0, nil, nil
 		}
-		return nil, 0, nil, errors.New("invalid team ID")
+		return nil, 0, 0, nil, errors.New("invalid team ID")
 	}
 
 	expectedGlobal := `+--------+-------------+-----------+-----------+--------------------------------+
@@ -1723,7 +1765,7 @@ spec:
 func TestGetQueriesAsObserver(t *testing.T) {
 	_, ds := testing_utils.RunServerWithMockedDS(t)
 
-	ds.ListQueriesFunc = func(ctx context.Context, opt fleet.ListQueryOptions) ([]*fleet.Query, int, *fleet.PaginationMetadata, error) {
+	ds.ListQueriesFunc = func(ctx context.Context, opt fleet.ListQueryOptions) ([]*fleet.Query, int, int, *fleet.PaginationMetadata, error) {
 		return []*fleet.Query{
 			{
 				ID:             42,
@@ -1746,7 +1788,7 @@ func TestGetQueriesAsObserver(t *testing.T) {
 				Query:          "select 3;",
 				ObserverCanRun: false,
 			},
-		}, 3, nil, nil
+		}, 3, 0, nil, nil
 	}
 
 	for _, tc := range []struct {
@@ -1962,7 +2004,7 @@ spec:
 		GlobalRole: nil,
 		Teams:      []fleet.UserTeam{{Role: fleet.RoleObserver}},
 	})
-	ds.ListQueriesFunc = func(ctx context.Context, opt fleet.ListQueryOptions) ([]*fleet.Query, int, *fleet.PaginationMetadata, error) {
+	ds.ListQueriesFunc = func(ctx context.Context, opt fleet.ListQueryOptions) ([]*fleet.Query, int, int, *fleet.PaginationMetadata, error) {
 		return []*fleet.Query{
 			{
 				ID:             42,
@@ -1978,12 +2020,12 @@ spec:
 				Query:          "select 2;",
 				ObserverCanRun: false,
 			},
-		}, 2, nil, nil
+		}, 2, 0, nil, nil
 	}
 	assert.Equal(t, "", RunAppForTest(t, []string{"get", "queries"}))
 
 	// No filtering is performed if all are observer_can_run.
-	ds.ListQueriesFunc = func(ctx context.Context, opt fleet.ListQueryOptions) ([]*fleet.Query, int, *fleet.PaginationMetadata, error) {
+	ds.ListQueriesFunc = func(ctx context.Context, opt fleet.ListQueryOptions) ([]*fleet.Query, int, int, *fleet.PaginationMetadata, error) {
 		return []*fleet.Query{
 			{
 				ID:             42,
@@ -1999,7 +2041,7 @@ spec:
 				Query:          "select 2;",
 				ObserverCanRun: true,
 			},
-		}, 2, nil, nil
+		}, 2, 0, nil, nil
 	}
 	expected = `+--------+-------------+-----------+-----------+----------------------------+
 |  NAME  | DESCRIPTION |   QUERY   |   TEAM    |          SCHEDULE          |

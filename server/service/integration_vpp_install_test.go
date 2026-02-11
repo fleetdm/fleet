@@ -796,11 +796,12 @@ func (s *integrationMDMTestSuite) TestVPPAppInstallVerification() {
 	// Test iOS VPP app installation
 	// ========================================================
 
-	// Enroll iOS device, add serial number to fake Apple server, and transfer to team
+	// Enroll iOS device and ipod device, add serial number to fake Apple server, and transfer to team
 	iosHost, iosDevice := s.createAppleMobileHostThenEnrollMDM("ios")
-	s.appleVPPConfigSrvConfig.SerialNumbers = append(s.appleVPPConfigSrvConfig.SerialNumbers, iosDevice.SerialNumber)
+	ipodHost, ipodDevice := s.createIpodHostThenEnrollMDM()
+	s.appleVPPConfigSrvConfig.SerialNumbers = append(s.appleVPPConfigSrvConfig.SerialNumbers, iosDevice.SerialNumber, ipodDevice.SerialNumber)
 	s.Do("POST", "/api/latest/fleet/hosts/transfer",
-		&addHostsToTeamRequest{HostIDs: []uint{iosHost.ID}, TeamID: &team.ID}, http.StatusOK)
+		&addHostsToTeamRequest{HostIDs: []uint{iosHost.ID, ipodHost.ID}, TeamID: &team.ID}, http.StatusOK)
 
 	var iosTitleID uint
 	for _, sw := range listSw.SoftwareTitles {
@@ -925,27 +926,136 @@ func (s *integrationMDMTestSuite) TestVPPAppInstallVerification() {
 	assert.Equal(t, iOSApp.LatestVersion, getHostSw.Software[0].InstalledVersions[0].Version)
 
 	// ========================================================
+	// Test iOS VPP app installation for ipod device
+	// ========================================================
+
+	// Trigger install to the iOS device
+	installResp = installSoftwareResponse{}
+	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/software/%d/install", ipodHost.ID, iosTitleID), &installSoftwareRequest{},
+		http.StatusAccepted, &installResp)
+
+	// Verify pending status
+	countResp = countHostsResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/hosts/count", nil, http.StatusOK, &countResp, "software_status", "pending", "team_id",
+		fmt.Sprint(team.ID), "software_title_id", fmt.Sprint(iosTitleID))
+	require.Equal(t, 1, countResp.Count)
+
+	// Before installation, we should have 0 refetch commands
+	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		var count int
+		err := sqlx.GetContext(context.Background(), q, &count, "SELECT COUNT(*) FROM host_mdm_commands WHERE host_id = ? AND command_type = ?", ipodHost.ID, fleet.RefetchAppsCommandUUIDPrefix)
+		require.NoError(t, err)
+		require.Zero(t, count)
+		return nil
+	})
+
+	// Simulate successful installation on iOS device
+	opts.appInstallTimeout = false
+	opts.appInstallVerified = true
+	opts.failOnInstall = false
+	opts.bundleID = iOSApp.BundleIdentifier
+	installCmdUUID = processVPPInstallOnClient(ipodDevice, opts)
+
+	// Verify successful installation
+	listResp = listHostsResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &listResp, "software_status", "installed", "team_id",
+		fmt.Sprint(team.ID), "software_title_id", fmt.Sprint(iosTitleID))
+	assert.Len(t, listResp.Hosts, 2) // iosHost and ipodHost
+	assert.Equal(t, ipodHost.ID, listResp.Hosts[1].ID)
+
+	// Verify activity log entry
+	s.lastActivityMatches(
+		fleet.ActivityInstalledAppStoreApp{}.ActivityName(),
+		fmt.Sprintf(
+			`{"host_id": %d, "host_display_name": "%s", "software_title": "%s", "app_store_id": "%s", "command_uuid": "%s", "status": "%s", "self_service": false, "from_auto_update": false, "policy_id": null, "policy_name": null, "host_platform": "%s"}`,
+			ipodHost.ID,
+			ipodHost.DisplayName(),
+			iOSApp.Name,
+			iOSApp.AdamID,
+			installCmdUUID,
+			fleet.SoftwareInstalled,
+			ipodHost.Platform,
+		),
+		0,
+	)
+
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", ipodHost.ID), nil, http.StatusOK, &hostResp)
+	require.False(t, hostResp.Host.RefetchRequested, "RefetchRequested should be false after successful software install for iDevice")
+
+	// Now we have a refetch apps command in flight to update the host software inventory
+	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		var count int
+		err := sqlx.GetContext(context.Background(), q, &count, "SELECT COUNT(*) FROM host_mdm_commands WHERE host_id = ?", ipodHost.ID)
+		require.NoError(t, err)
+		require.Equal(t, count, 1)
+		return nil
+	})
+
+	s.runWorker()
+	cmdIpod, err := ipodDevice.Idle()
+	require.NoError(t, err)
+	for cmdIpod != nil {
+		var fullCmd micromdm.CommandPayload
+		switch cmdIpod.Command.RequestType {
+		case "InstalledApplicationList":
+			require.NoError(t, plist.Unmarshal(cmdIpod.Raw, &fullCmd))
+			require.True(t, strings.HasPrefix(cmdIpod.CommandUUID, fleet.RefetchAppsCommandUUIDPrefix))
+			cmdIpod, err = ipodDevice.AcknowledgeInstalledApplicationList(
+				ipodDevice.UUID,
+				cmdIpod.CommandUUID,
+				[]fleet.Software{
+					{
+						Name:             "RandomApp",
+						BundleIdentifier: "com.example.randomapp",
+						Version:          "9.9.9",
+						Installed:        false,
+					},
+					{
+						Name:             iOSApp.Name,
+						BundleIdentifier: iOSApp.BundleIdentifier,
+						Version:          iOSApp.LatestVersion,
+						Installed:        true,
+					},
+				},
+			)
+			require.NoError(t, err)
+		default:
+			require.Fail(t, "unexpected MDM command on client", cmdIpod.Command.RequestType)
+		}
+	}
+
+	// we should also have the installed version, because we update host software inventory on verification
+	getHostSw = getHostSoftwareResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/software", ipodHost.ID), nil, http.StatusOK, &getHostSw, "available_for_install", "true")
+	assert.Len(t, getHostSw.Software, 1)
+	assert.Equal(t, iosTitleID, getHostSw.Software[0].ID)
+	assert.NotNil(t, getHostSw.Software[0].AppStoreApp)
+	assert.Len(t, getHostSw.Software[0].InstalledVersions, 1)
+	assert.Equal(t, iOSApp.LatestVersion, getHostSw.Software[0].InstalledVersions[0].Version)
+
+	// ========================================================
 	// Test iOS VPP app self service installation
 	// ========================================================
 
 	type SSVPPTestData struct {
-		host       *fleet.Host
-		app        *fleet.VPPApp
-		device     *mdmtest.TestAppleMDMClient
-		platform   string
-		titleID    uint
-		certSerial uint64
+		host              *fleet.Host
+		app               *fleet.VPPApp
+		device            *mdmtest.TestAppleMDMClient
+		platform          string
+		titleID           uint
+		certSerial        uint64
+		expectedHostCount int
 	}
 	// Edit iOS app to enable self service
 	require.NotZero(t, iosTitleID)
 	require.NotZero(t, ipadosTitleID)
 
 	ssVppData := []SSVPPTestData{
-		{platform: "ios", titleID: iosTitleID, app: iOSApp, certSerial: uint64(1111)},
-		{platform: "ipados", titleID: ipadosTitleID, app: iPadOSApp, certSerial: uint64(2222)},
+		{platform: "ios", titleID: iosTitleID, app: iOSApp, certSerial: uint64(1111), expectedHostCount: 3},          // expectHostCount is from iosHost, ipodHost, and the new ios device
+		{platform: "ipados", titleID: ipadosTitleID, app: iPadOSApp, certSerial: uint64(2222), expectedHostCount: 1}, // no ipad has installed an app, so we expect 1 only for this device
 	}
 
-	for i, data := range ssVppData {
+	for _, data := range ssVppData {
 		// Enroll device, add serial number to fake Apple server, and transfer to team
 		data.host, data.device = s.createAppleMobileHostThenEnrollMDM(data.platform)
 		s.appleVPPConfigSrvConfig.SerialNumbers = append(s.appleVPPConfigSrvConfig.SerialNumbers, data.device.SerialNumber)
@@ -1005,7 +1115,7 @@ func (s *integrationMDMTestSuite) TestVPPAppInstallVerification() {
 		listResp = listHostsResponse{}
 		s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &listResp, "software_status", "installed", "team_id",
 			fmt.Sprint(team.ID), "software_title_id", fmt.Sprint(data.titleID))
-		assert.Len(t, listResp.Hosts, 2-i)
+		assert.Len(t, listResp.Hosts, data.expectedHostCount)
 		assert.Equal(t, data.host.ID, listResp.Hosts[len(listResp.Hosts)-1].ID)
 
 		// Verify activity log entry
@@ -2374,6 +2484,12 @@ func (s *integrationMDMTestSuite) TestVPPAppScheduledUpdates() {
 		vppAutoUpdateTest(t, team, ipadosHost, ipadosClientDevice)
 	})
 
+	ipadHost, ipodClientDevice := s.createIpodHostThenEnrollMDM()
+	s.appleVPPConfigSrvConfig.SerialNumbers = append(s.appleVPPConfigSrvConfig.SerialNumbers, ipodClientDevice.SerialNumber)
+	t.Run("ipod-on-a team", func(t *testing.T) {
+		vppAutoUpdateTest(t, team, ipadHost, ipodClientDevice)
+	})
+
 	// Enroll iOS device, and add serial number to fake Apple server (for VPP APIs).
 	iosHostNoTeam, iosClientDeviceNoTeam := s.createAppleMobileHostThenEnrollMDM("ios")
 	s.appleVPPConfigSrvConfig.SerialNumbers = append(s.appleVPPConfigSrvConfig.SerialNumbers, iosClientDeviceNoTeam.SerialNumber)
@@ -2395,6 +2511,12 @@ func (s *integrationMDMTestSuite) TestVPPAppScheduledUpdates() {
 
 	t.Run("ipad-on-no-team", func(t *testing.T) {
 		vppAutoUpdateTest(t, &fleet.Team{ID: 0}, ipadosHostNoTeam, ipadosClientDeviceNoTeam)
+	})
+
+	ipadHostNoTeam, ipodClientDeviceNoTeam := s.createIpodHostThenEnrollMDM()
+	s.appleVPPConfigSrvConfig.SerialNumbers = append(s.appleVPPConfigSrvConfig.SerialNumbers, ipodClientDeviceNoTeam.SerialNumber)
+	t.Run("ipod-on-no-team", func(t *testing.T) {
+		vppAutoUpdateTest(t, &fleet.Team{ID: 0}, ipadHostNoTeam, ipodClientDeviceNoTeam)
 	})
 }
 

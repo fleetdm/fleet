@@ -95,7 +95,7 @@ Reach out directly to me or [the team at Fleet today](https://fleetdm.com/contac
 
 Check out the [livestream replay for "GitOps: Infrastructure-as-code for managing devices at scale"](https://www.linkedin.com/events/gitops-infrastructure-as-codefo7289751303876952065/comments/).
 
-[Sign up for free in-person GitOps training](https://www.eventbrite.com/cc/gitops-for-device-management-4104123) in your city. 
+[Sign up for free in-person GitOps training](https://fleetdm.com/gitops-workshop) in your city. 
 
 
 <meta name="articleTitle" value="What I have learned from managing devices with GitOps">

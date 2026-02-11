@@ -45,3 +45,5 @@ software:
     - app_store_id: "507874739" # Google Drive
       setup_experience: true
       self_service: true
+    - app_store_id: "490179405" # Okta Verify
+      self_service: true

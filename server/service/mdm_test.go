@@ -2669,6 +2669,9 @@ func TestNewMDMProfilePremiumOnlyAndroid(t *testing.T) {
 	ds.NewMDMAndroidConfigProfileFunc = func(ctx context.Context, cp fleet.MDMAndroidConfigProfile) (*fleet.MDMAndroidConfigProfile, error) {
 		return &fleet.MDMAndroidConfigProfile{}, nil
 	}
+	ds.BulkSetPendingMDMHostProfilesFunc = func(ctx context.Context, hostIDs, teamIDs []uint, profileUUIDs, hostUUIDs []string) (updates fleet.MDMProfilesUpdates, err error) {
+		return fleet.MDMProfilesUpdates{}, nil
+	}
 
 	testCases := []struct {
 		name    string

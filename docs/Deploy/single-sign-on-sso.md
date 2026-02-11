@@ -17,11 +17,12 @@ If you're configuring [end user authentication](https://fleetdm.com/guides/setup
 
 Once configured, you will need to retrieve the issuer URI from **View Setup Instructions** and metadata URL from the **Identity Provider metadata** link within the application **Sign on** settings. See below for where to find them:
 
+> Note that while setting up the SAML app in Okta, the Entity ID is called "Audience URI (SP Entity ID)", but after the app is set up, Okta labels this as "Audience Restriction".
+
 ![Where to find SSO links for Fleet](https://raw.githubusercontent.com/fleetdm/fleet/main/docs/images/okta-retrieve-links.png)
 
 > The Provider Sign-on URL within **View Setup Instructions** has a similar format as the Provider SAML Metadata URL, but this link provides a redirect to _sign into_ the application, not the metadata necessary for dynamic configuration.
 
-> Note that while setting up the SAML app in Okta, the Entity ID is called "Audience URI (SP Entity ID)," but after the app is set up, Okta labels this as "Audience Restriction."
 
 ## Google Workspace
 
@@ -174,14 +175,11 @@ If you're configuring end user authentication head to **Settings > Integrations 
 
 `Applies only to Fleet Premium`
 
-Fleet automates user creation using just-in-time (JIT) provisioning. Fleet uses System for Cross-domain Identity Management (SCIM) to [map end users' identity provider (IdP) information to host vitals](https://fleetdm.com/guides/foreign-vitals-map-idp-users-to-hosts). SCIM for user provisioning is [coming soon](https://github.com/fleetdm/fleet/issues/15671).
+Fleet can automatically create users using just-in-time (JIT) provisioning. To enable this, go to **Settings > Integrations > Single sign-on (SSO) > Fleet users** and check **Create user and sync permissions on login**.
 
-When JIT user provisioning is turned on, Fleet will automatically create an account when a user logs in for the first time with the configured SSO. This removes the need to create individual user accounts for a large organization. The new account's email and full name are copied from the user data in the SSO response.
+When enabled, Fleet will automatically create an account when a user logs in for the first time with the configured SSO. The new account's email and full name are copied from the user data in the SSO response.
 
-By default, accounts created via JIT provisioning are assigned the [Global Observer role](https://fleetdm.com/docs/using-fleet/permissions).
-To assign different roles for accounts created via JIT provisioning, see [Customization of user roles](#customization-of-user-roles) below.
-
-To enable this option, go to **Settings > Integrations > Single sign-on (SSO) > Fleet users** and check "_Create user and sync permissions on login_" or [adjust your config](https://fleetdm.com/docs/configuration/yaml-files#sso-settings).
+By default, accounts created via JIT provisioning are assigned the [Global Observer role](https://fleetdm.com/docs/using-fleet/permissions). To assign different roles for accounts created via JIT provisioning, see [customization of user roles](#customization-of-user-roles) below.
 
 For this to work correctly make sure that:
 

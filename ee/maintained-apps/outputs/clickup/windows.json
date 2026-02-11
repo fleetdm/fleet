@@ -1,14 +1,14 @@
 {
   "versions": [
     {
-      "version": "3.5.163",
+      "version": "3.5.176",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name = 'ClickUp' AND publisher = 'ClickUp';"
       },
-      "installer_url": "https://download.todesktop.com/221003ra4tebclw/ClickUp-3.5.163-build-251222he6ynyxiw-x64.msi",
+      "installer_url": "https://download.todesktop.com/221003ra4tebclw/ClickUp-3.5.176-build-260210al7vspjfr-x64.msi",
       "install_script_ref": "8959087b",
       "uninstall_script_ref": "d40f06cf",
-      "sha256": "43ad89e451b4226a540e7f5e38a6ba317c89653d466ff8d16eb4f63ccefb88c5",
+      "sha256": "33abc8033063c287dd14054b4eafdca5612db414803bfe4c24699b406a54ed53",
       "default_categories": [
         "Productivity"
       ],

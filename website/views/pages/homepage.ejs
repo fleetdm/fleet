@@ -1,7 +1,7 @@
 <div id="homepage" v-cloak>
-  <!-- <div purpose="announcement-banner">
-    <animated-arrow-button arrow-color="white" text-color="white" href="/articles/free-migration-from-jamf-to-fleet">Free Jamf to Fleet MDM migration service</animated-arrow-button>
-  </div> -->
+  <div purpose="announcement-banner">
+    <animated-arrow-button arrow-color="white" text-color="white" href="/compare/jamf">How to choose the right MDM — Fleet vs. Jamf</animated-arrow-button>
+  </div>
   <%/* Hero container */%>
   <div purpose="hero-container">
     <div purpose="hero-background-image">
@@ -25,7 +25,7 @@
             </div>
             <div purpose="button-row" class="d-flex justify-content-start align-items-center">
               <a purpose="cta-button" href="/contact">Get a demo</a>
-              <a purpose="video-button"  @click="clickOpenVideoModal('fleet-in-three-minutes')"><img alt="Play" class="d-inline" src="/images/icon-play-video-32x32@2x.png">See Fleet in action<span>3 mins</span></a>
+              <a purpose="video-button"  @click="clickOpenVideoModal('fleet-in-three-minutes')"><img alt="Play" class="d-inline" src="/images/icon-play-video-32x32@2x.png">See how it works<span>3 mins</span></a>
             </div>
           </div>
         </div>
@@ -36,11 +36,11 @@
   <div purpose="hero-logos" class="mx-auto">
     <logo-carousel></logo-carousel>
   </div>
-  <a purpose="statistics" class="d-flex" href="/testimonials" no-underline>
+  <a purpose="statistics" class="d-flex" href="/customers" no-underline>
     <div purpose="statistics-column">
       <div purpose="customers" class="d-none d-sm-block">
         <h4>1,300+</h4>
-        <p>customers</p>
+        <p>organizations</p>
       </div>
       <div purpose="countries" class="d-block d-sm-none">
         <h4>90+</h4>
@@ -58,7 +58,7 @@
       </div>
       <div purpose="customers" class="d-block d-sm-none">
         <h4>1,300+</h4>
-        <p>customers</p>
+        <p>organizations</p>
       </div>
       <div purpose="response-time">
         <h4>21 minutes</h4>
@@ -1452,8 +1452,8 @@
           </div>
         </h1>
         <div purpose="button-row" style="margin-top: 40px;" class="d-flex flex-sm-row flex-column justify-content-center align-items-center mx-auto">
-          <a purpose="cta-button" href="/contact">Get a demo</a>
-          <signup-button :signed-in="this.me"></signup-button>
+          <a purpose="cta-button" class="mr-0" href="/contact">Get a demo</a>
+          <!-- <animated-arrow-button href="/try">Try it yourself</animated-arrow-button> -->
         </div>
       </div>
     </div>
@@ -1501,6 +1501,5 @@
     <iframe width="560" height="315" src="https://www.youtube.com/embed/q1Tm3IBcx24?rel=0&autoplay=1" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe>
   </modal>
   <p style="opacity: 0; line-height: 0px; font-size: 0px; margin: 0;">537c652d-cb1a-440e-ae35-0f0bf5743e75</p>
-  <signup-modal></signup-modal>
 </div>
 <%- /* Expose locals as `window.SAILS_LOCALS` :: */ exposeLocalsToBrowser() %>

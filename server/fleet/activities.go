@@ -258,6 +258,8 @@ var ActivityDetailsList = []ActivityDetails{
 	ActivityEditedSetupExperienceSoftware{},
 
 	ActivityTypeEditedHostIdpData{},
+
+	ActivityTypeEditedEnrollSecrets{},
 }
 
 type ActivityDetails interface {
@@ -3081,10 +3083,6 @@ func (a ActivityTypeHostBypassedConditionalAccess) ActivityName() string {
 	return "host_bypassed_conditional_access"
 }
 
-func (a ActivityTypeHostBypassedConditionalAccess) HostIDs() []uint {
-	return []uint{a.HostID}
-}
-
 func (a ActivityTypeHostBypassedConditionalAccess) Documentation() (activity string, details string, detailsExample string) {
 	return `Generated when a host bypasses conditional access.`,
 		`This activity contains the following fields:
@@ -3325,5 +3323,24 @@ func (a ActivityTypeDeletedCertificate) Documentation() (activity string, detail
   "certificate_name": "WiFi cert",
   "team_id": 123,
   "team_name": "Mobile devices"
+}`
+}
+
+type ActivityTypeEditedEnrollSecrets struct {
+	TeamID   *uint   `json:"team_id"`
+	TeamName *string `json:"team_name"`
+}
+
+func (a ActivityTypeEditedEnrollSecrets) ActivityName() string {
+	return "edited_enroll_secrets"
+}
+
+func (a ActivityTypeEditedEnrollSecrets) Documentation() (activity, details, detailsExample string) {
+	return `Generated when global or team enroll secrets are edited.`,
+		`This activity contains the following fields:
+- "team_id": The ID of the team that the enroll secret applies to, ` + "`null`" + ` if it applies to devices that are not in a team.
+- "team_name": The name of the team that the enroll secret applies to, ` + "`null`" + ` if it applies to devices that are not in a team.`, `{
+  "team_id": 1,
+  "team_name": "Workstations",
 }`
 }
