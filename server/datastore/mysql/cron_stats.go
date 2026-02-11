@@ -36,7 +36,7 @@ UNION
 	WHERE
 		name = ?
 		AND stats_type = 'triggered'
-		AND (status = 'pending' OR status = 'completed')
+		AND (status = 'pending' OR status = 'completed' OR status = 'queued')
 	ORDER BY
 		created_at DESC
 	LIMIT 1)`

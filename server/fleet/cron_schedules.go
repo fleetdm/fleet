@@ -226,4 +226,6 @@ const (
 	CronStatsStatusExpired   CronStatsStatus = "expired"
 	CronStatsStatusCompleted CronStatsStatus = "completed"
 	CronStatsStatusCanceled  CronStatsStatus = "canceled"
+	// CronStatsStatusQueued indicates a trigger request waiting for a remote server to pick up.
+	CronStatsStatusQueued CronStatsStatus = "queued"
 )

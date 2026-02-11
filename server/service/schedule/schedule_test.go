@@ -823,3 +823,155 @@ func TestTriggerMultipleInstances(t *testing.T) {
 		cancelFunc()
 	}
 }
+
+func TestTriggerPollPicksUpQueuedRecord(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	name := "test_trigger_poll"
+	instanceID := "test_instance"
+	schedInterval := 10 * time.Second // long interval so scheduled runs don't interfere
+
+	locker := SetupMockLocker(name, instanceID, time.Now().Add(-schedInterval))
+	statsStore := SetUpMockStatsStore(name, fleet.CronStats{
+		ID:        1,
+		StatsType: fleet.CronStatsTypeScheduled,
+		Name:      name,
+		Instance:  instanceID,
+		CreatedAt: time.Now().Truncate(1 * time.Second),
+		UpdatedAt: time.Now().Truncate(1 * time.Second),
+		Status:    fleet.CronStatsStatusCompleted,
+	})
+
+	jobsRun := atomic.Uint32{}
+	s := New(
+		ctx, name, instanceID, schedInterval, locker, statsStore,
+		WithTriggerPollInterval(200*time.Millisecond),
+		WithJob("test_job", func(ctx context.Context) error {
+			jobsRun.Add(1)
+			return nil
+		}),
+	)
+	s.Start()
+
+	// Simulate an external server inserting a queued trigger record
+	queuedID, err := statsStore.InsertCronStats(
+		ctx, fleet.CronStatsTypeTriggered, name, "trigger-api", fleet.CronStatsStatusQueued,
+	)
+	require.NoError(t, err)
+
+	// Wait for the poll goroutine to detect and process the queued record
+	require.Eventually(t, func() bool {
+		return jobsRun.Load() >= 1
+	}, 5*time.Second, 100*time.Millisecond, "expected poll goroutine to pick up queued trigger")
+
+	// Verify the queued record was completed
+	stats, err := statsStore.GetLatestCronStats(ctx, name)
+	require.NoError(t, err)
+	for _, st := range stats {
+		if st.ID == queuedID {
+			require.Equal(t, fleet.CronStatsStatusCompleted, st.Status)
+		}
+	}
+}
+
+func TestTriggerPollIgnoresNonQueuedRecords(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	name := "test_trigger_poll_ignore"
+	instanceID := "test_instance"
+	schedInterval := 10 * time.Second
+
+	statsStore := SetUpMockStatsStore(name, fleet.CronStats{
+		ID:        1,
+		StatsType: fleet.CronStatsTypeScheduled,
+		Name:      name,
+		Instance:  instanceID,
+		CreatedAt: time.Now().Truncate(1 * time.Second),
+		UpdatedAt: time.Now().Truncate(1 * time.Second),
+		Status:    fleet.CronStatsStatusCompleted,
+	})
+
+	// Insert a completed triggered record — should be ignored by poll
+	_, err := statsStore.InsertCronStats(
+		ctx, fleet.CronStatsTypeTriggered, name, "trigger-api", fleet.CronStatsStatusCompleted,
+	)
+	require.NoError(t, err)
+
+	jobsRun := atomic.Uint32{}
+	s := New(
+		ctx, name, instanceID, schedInterval, NopLocker{}, statsStore,
+		WithTriggerPollInterval(200*time.Millisecond),
+		WithJob("test_job", func(ctx context.Context) error {
+			jobsRun.Add(1)
+			return nil
+		}),
+	)
+	s.Start()
+
+	// Wait a bit — no job should run from poll (scheduled run won't fire due to long interval)
+	time.Sleep(1 * time.Second)
+	require.Equal(t, uint32(0), jobsRun.Load(), "poll goroutine should not pick up non-queued records")
+}
+
+func TestRemoteTriggerSchedule(t *testing.T) {
+	t.Run("trigger inserts queued record", func(t *testing.T) {
+		store := SetUpMockStatsStore(string(fleet.CronVulnerabilities))
+		rts := NewRemoteTriggerSchedule(string(fleet.CronVulnerabilities), store)
+
+		stats, didTrigger, err := rts.Trigger()
+		require.NoError(t, err)
+		require.True(t, didTrigger)
+		require.Nil(t, stats)
+
+		latestStats, err := store.GetLatestCronStats(t.Context(), string(fleet.CronVulnerabilities))
+		require.NoError(t, err)
+		require.Len(t, latestStats, 1)
+		require.Equal(t, fleet.CronStatsTypeTriggered, latestStats[0].StatsType)
+		require.Equal(t, "trigger-api", latestStats[0].Instance)
+		require.Equal(t, fleet.CronStatsStatusQueued, latestStats[0].Status)
+	})
+
+	t.Run("already queued returns conflict stats", func(t *testing.T) {
+		store := SetUpMockStatsStore(string(fleet.CronVulnerabilities), fleet.CronStats{
+			ID:        1,
+			StatsType: fleet.CronStatsTypeTriggered,
+			Name:      string(fleet.CronVulnerabilities),
+			Status:    fleet.CronStatsStatusQueued,
+		})
+		rts := NewRemoteTriggerSchedule(string(fleet.CronVulnerabilities), store)
+
+		stats, didTrigger, err := rts.Trigger()
+		require.NoError(t, err)
+		require.False(t, didTrigger)
+		require.NotNil(t, stats)
+		require.Equal(t, fleet.CronStatsStatusQueued, stats.Status)
+	})
+
+	t.Run("already pending returns conflict stats", func(t *testing.T) {
+		store := SetUpMockStatsStore(string(fleet.CronVulnerabilities), fleet.CronStats{
+			ID:        1,
+			StatsType: fleet.CronStatsTypeTriggered,
+			Name:      string(fleet.CronVulnerabilities),
+			Status:    fleet.CronStatsStatusPending,
+		})
+		rts := NewRemoteTriggerSchedule(string(fleet.CronVulnerabilities), store)
+
+		stats, didTrigger, err := rts.Trigger()
+		require.NoError(t, err)
+		require.False(t, didTrigger)
+		require.NotNil(t, stats)
+		require.Equal(t, fleet.CronStatsStatusPending, stats.Status)
+	})
+
+	t.Run("name returns schedule name", func(t *testing.T) {
+		rts := NewRemoteTriggerSchedule(string(fleet.CronVulnerabilities), SetUpMockStatsStore(string(fleet.CronVulnerabilities)))
+		require.Equal(t, string(fleet.CronVulnerabilities), rts.Name())
+	})
+
+	t.Run("start is a no-op", func(t *testing.T) {
+		rts := NewRemoteTriggerSchedule(string(fleet.CronVulnerabilities), SetUpMockStatsStore(string(fleet.CronVulnerabilities)))
+		rts.Start() // should not panic
+	})
+}
