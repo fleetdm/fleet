@@ -8169,7 +8169,8 @@ The semantics for creating a team policy are the same as for global policies, se
 | resolution        | string  | body | The resolution steps for the policy.                                                                                                                   |
 | platform          | string  | body | Comma-separated target platforms, currently supported values are "windows", "linux", "darwin". The default, an empty string means target all platforms. |
 | critical          | boolean | body | _Available in Fleet Premium_. Mark policy as critical/high impact.                                                                                     |
-| patch_software | object | body | _Available in Fleet Premium_. See [patch_software](#patch-software). |
+| type | string | body | The type of the policy. Currently available `dynamic` and `patch`. Dynamic policies are custom policies with a editable query. Patch policies are policies that are tied to `patch_software_title_id` and query is automatically updated to include the newest Fleet-maintained app version.|
+| patch_software_title_id | integer | body | _Available in Fleet Premium_. ID of the softwae title (Fleet-maintained only) to create patch policy for.|
 | software_title_id | integer | body | _Available in Fleet Premium_. ID of software title to install if the policy fails. If `software_title_id` is specified and the software has `labels_include_any` or `labels_exclude_any` defined, the policy will inherit this target in addition to specified `platform`.                                                                     |
 | script_id         | integer | body | _Available in Fleet Premium_. ID of script to run if the policy fails.                                                                 |
 | labels_include_any      | array     | form | _Available in Fleet Premium_. Target hosts that have any label, specified by label name, in the array. |
@@ -8233,12 +8234,6 @@ Only one of `labels_include_any` or `labels_exclude_any` can be specified. If ne
   }
 }
 ```
-
-#### patch_software
-
-| Name                | Type     | Description                                       |
-| ------------------- | -------  | ------------------------------------------------- |
-| software_title_id   | integer  | ID of software title to create patch policy for. Only Fleet-maintained apps supported. Query is automatically updated with the newest version of the app.  If `software_title_id` is specified and the software has `labels_include_any` or `labels_exclude_any` defined, the policy will inherit this targets in addition to specified `platform`.  |
 
 ---
 
