@@ -96,8 +96,8 @@ controls:
     enable_end_user_authentication: true
     macos_setup_assistant: ../lib/macos/enrollment-profiles/automatic-enrollment.dep.json
   macos_updates:
-    deadline:
-    minimum_version:
+    deadline: "2025-08-15"
+    minimum_version: "15.5"
   windows_settings:
     custom_settings:
       - path: ../lib/windows/configuration-profiles/Enable firewall.xml
