@@ -7774,7 +7774,7 @@ _Available in Fleet Premium_
       "query": "SELECT 1 FROM bitlocker_info WHERE protection_status = 1;",
       "description": "Checks if the hard disk is encrypted on Windows devices",
       "critical": false,
-      "type": "patch",
+      "type": "dynamic",
       "author_id": 43,
       "author_name": "Alice",
       "author_email": "alice@example.com",
@@ -7797,8 +7797,8 @@ _Available in Fleet Premium_
     },
     {
       "id": 3,
-      "name": "macOS - install/update Adobe Acrobat",
-      "query": "SELECT 1 FROM apps WHERE name = \"Adobe Acrobat.app\" AND bundle_short_version != \"24.002.21005\";",
+      "name": "macOS - Adobe Acrobat up to date",
+      "query": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.adobe.Reader' AND version_compare(bundle_short_version, '23.001.20687') >= 0;",
       "description": "Checks if the hard disk is encrypted on Windows devices",
       "critical": false,
       "type": "patch",
@@ -7817,7 +7817,7 @@ _Available in Fleet Premium_
       "conditional_access_enabled": false,
       "fleet_maintained": false,
       "install_software": {
-        "name": "Adobe Acrobat.app",
+        "name": "Adobe Acrobat",
         "software_title_id": 1234
       }
     }
