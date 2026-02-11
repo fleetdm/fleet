@@ -13,6 +13,8 @@ import (
 	_ "embed"
 	"encoding/json"
 	"fmt"
+	"reflect"
+	"strings"
 
 	authz_ctx "github.com/fleetdm/fleet/v4/server/contexts/authz"
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
@@ -183,7 +185,67 @@ func jsonToInterface(in interface{}) (interface{}, error) {
 		}
 	}
 
+	// Add deprecated key aliases from `renamedfrom` struct tags so that OPA
+	// policies can continue to reference the old field names.
+	addRenamedFromKeys(reflect.TypeOf(in), out)
+
 	return out, nil
+}
+
+// addRenamedFromKeys inspects the struct type t and, for each field that has a
+// `renamedfrom` tag, copies the value stored under the current JSON key into
+// the map under the old key name. It also recurses one level into direct child
+// structs (not slices) to handle nested renames.
+func addRenamedFromKeys(t reflect.Type, m map[string]interface{}) {
+	addRenamedFromKeysDepth(t, m, 0)
+}
+
+func addRenamedFromKeysDepth(t reflect.Type, m map[string]interface{}, depth int) {
+	if t == nil {
+		return
+	}
+	for t.Kind() == reflect.Ptr {
+		t = t.Elem()
+	}
+	if t.Kind() != reflect.Struct {
+		return
+	}
+
+	for i := 0; i < t.NumField(); i++ {
+		field := t.Field(i)
+
+		// Handle embedded (anonymous) structs — their fields are promoted.
+		if field.Anonymous {
+			addRenamedFromKeysDepth(field.Type, m, depth)
+			continue
+		}
+
+		jsonTag := field.Tag.Get("json")
+		if jsonTag == "" || jsonTag == "-" {
+			continue
+		}
+		jsonKey := strings.Split(jsonTag, ",")[0]
+
+		// If this field has a renamedfrom tag, copy the value under the old key.
+		if oldKey := field.Tag.Get("renamedfrom"); oldKey != "" {
+			if val, ok := m[jsonKey]; ok {
+				m[oldKey] = val
+			}
+		}
+
+		// Recurse one level into direct child structs.
+		if depth < 1 {
+			ft := field.Type
+			for ft.Kind() == reflect.Ptr {
+				ft = ft.Elem()
+			}
+			if ft.Kind() == reflect.Struct {
+				if nested, ok := m[jsonKey].(map[string]interface{}); ok {
+					addRenamedFromKeysDepth(ft, nested, depth+1)
+				}
+			}
+		}
+	}
 }
 
 // UserFromContext retrieves a user from the viewer context, returning nil if
