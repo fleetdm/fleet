@@ -11,7 +11,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mdm/assets"
 	depclient "github.com/fleetdm/fleet/v4/server/mdm/nanodep/client"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanodep/storage"
-	kitlog "github.com/go-kit/log"
+	"github.com/fleetdm/fleet/v4/server/platform/logging"
 )
 
 // SetABMTokenMetadata uses the provided ABM token to fetch the associated
@@ -23,7 +23,7 @@ func SetABMTokenMetadata(
 	abmToken *fleet.ABMToken,
 	depStorage storage.AllDEPStorage,
 	ds fleet.Datastore,
-	logger kitlog.Logger,
+	logger *logging.Logger,
 	renewal bool,
 ) error {
 	decryptedToken, err := assets.ABMToken(ctx, ds, abmToken.OrganizationName)
@@ -42,7 +42,7 @@ func SetDecryptedABMTokenMetadata(
 	decryptedToken *depclient.OAuth1Tokens,
 	depStorage storage.AllDEPStorage,
 	ds fleet.Datastore,
-	logger kitlog.Logger,
+	logger *logging.Logger,
 	renewal bool,
 ) error {
 	depClient := NewDEPClient(depStorage, ds, logger)

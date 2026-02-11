@@ -109,6 +109,7 @@ const ManageControlsPage = ({
       maintainer: true,
       observer: false,
       observer_plus: false,
+      technician: false,
     },
   });
 

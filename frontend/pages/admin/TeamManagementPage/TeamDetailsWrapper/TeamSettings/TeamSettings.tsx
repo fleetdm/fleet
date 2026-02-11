@@ -133,6 +133,7 @@ const TeamSettings = ({ location, router }: ITeamSubnavProps) => {
       maintainer: false,
       observer: false,
       observer_plus: false,
+      technician: false,
     },
   });
 

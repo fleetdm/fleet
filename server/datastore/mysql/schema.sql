@@ -793,6 +793,7 @@ CREATE TABLE `host_mdm_android_profiles` (
   `included_in_policy_version` int DEFAULT NULL,
   `created_at` timestamp(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
   `updated_at` timestamp(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
+  `can_reverify` tinyint(1) NOT NULL DEFAULT '0',
   PRIMARY KEY (`host_uuid`,`profile_uuid`),
   KEY `status` (`status`),
   KEY `operation_type` (`operation_type`),
@@ -802,7 +803,7 @@ CREATE TABLE `host_mdm_android_profiles` (
   CONSTRAINT `host_mdm_android_profiles_ibfk_2` FOREIGN KEY (`operation_type`) REFERENCES `mdm_operation_types` (`operation_type`) ON UPDATE CASCADE,
   CONSTRAINT `host_mdm_android_profiles_ibfk_3` FOREIGN KEY (`policy_request_uuid`) REFERENCES `android_policy_requests` (`request_uuid`) ON DELETE SET NULL,
   CONSTRAINT `host_mdm_android_profiles_ibfk_4` FOREIGN KEY (`device_request_uuid`) REFERENCES `android_policy_requests` (`request_uuid`) ON DELETE SET NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) /*!50100 TABLESPACE `innodb_system` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
