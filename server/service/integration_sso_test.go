@@ -283,6 +283,18 @@ func (s *integrationSSOTestSuite) TestSSOLoginDisallowedWithPremiumRoles() {
 	}`), http.StatusOK, &acResp)
 	require.NotNil(t, acResp)
 
+	user, err := s.ds.UserByEmail(t.Context(), "sso_user2@example.com")
+	switch {
+	case fleet.IsNotFound(err):
+		// OK, proceed.
+	case err == nil:
+		// Cleanup (probably created by other tests)
+		err = s.ds.DeleteUser(t.Context(), user.ID)
+		require.NoError(t, err)
+	default:
+		require.NoError(t, err)
+	}
+
 	t.Run("global premium roles", func(t *testing.T) {
 		for _, role := range []string{fleet.RoleTechnician, fleet.RoleGitOps, fleet.RoleObserverPlus} {
 			// Create user.
