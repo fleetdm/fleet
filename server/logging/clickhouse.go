@@ -335,7 +335,7 @@ func (w *clickHouseLogWriter) Write(ctx context.Context, logs []json.RawMessage)
 		}
 
 		// Try to extract host_identifier and team_id from the log
-		var logData map[string]interface{}
+		var logData map[string]any
 		if err := json.Unmarshal(rawLog, &logData); err == nil {
 			if hostID, ok := logData["hostIdentifier"].(string); ok {
 				entry.hostIdentifier = hostID

@@ -295,7 +295,7 @@ func TestClickHouseTableNameResolution(t *testing.T) {
 func TestClickHouseLogEntryParsing(t *testing.T) {
 	t.Run("parse hostIdentifier", func(t *testing.T) {
 		rawLog := json.RawMessage(`{"hostIdentifier": "host-123", "name": "test"}`)
-		var logData map[string]interface{}
+		var logData map[string]any
 		err := json.Unmarshal(rawLog, &logData)
 		require.NoError(t, err)
 
@@ -308,7 +308,7 @@ func TestClickHouseLogEntryParsing(t *testing.T) {
 
 	t.Run("parse host_identifier", func(t *testing.T) {
 		rawLog := json.RawMessage(`{"host_identifier": "host-456", "name": "test"}`)
-		var logData map[string]interface{}
+		var logData map[string]any
 		err := json.Unmarshal(rawLog, &logData)
 		require.NoError(t, err)
 
@@ -323,7 +323,7 @@ func TestClickHouseLogEntryParsing(t *testing.T) {
 
 	t.Run("parse team_id", func(t *testing.T) {
 		rawLog := json.RawMessage(`{"team_id": 42, "name": "test"}`)
-		var logData map[string]interface{}
+		var logData map[string]any
 		err := json.Unmarshal(rawLog, &logData)
 		require.NoError(t, err)
 
@@ -336,7 +336,7 @@ func TestClickHouseLogEntryParsing(t *testing.T) {
 
 	t.Run("missing fields default to zero values", func(t *testing.T) {
 		rawLog := json.RawMessage(`{"name": "test", "action": "snapshot"}`)
-		var logData map[string]interface{}
+		var logData map[string]any
 		err := json.Unmarshal(rawLog, &logData)
 		require.NoError(t, err)
 
