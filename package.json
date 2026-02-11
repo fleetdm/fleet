@@ -134,7 +134,7 @@
     "classnames": "2.2.5",
     "compare-versions": "6.1.1",
     "css-loader": "6.7.3",
-    "esbuild-loader": "2.18.0",
+    "esbuild-loader": "4.4.2",
     "eslint": "7.32.0",
     "eslint-config-airbnb": "15.1.0",
     "eslint-config-prettier": "8.5.0",
