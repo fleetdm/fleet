@@ -5029,7 +5029,48 @@ spec:
   #   - PASS: query returns 1 row
   #   - FAIL: query returns 0 rows
   query: |
-    SELECT 1 WHERE 0;
+    SELECT 1
+    WHERE EXISTS (
+      SELECT 1 FROM file_lines
+      WHERE path='/etc/security/faillock.conf'
+        AND line NOT LIKE '#%'
+        AND (
+          line LIKE 'deny=1%' OR line LIKE 'deny = 1%'
+          OR line LIKE 'deny=2%' OR line LIKE 'deny = 2%'
+          OR line LIKE 'deny=3%' OR line LIKE 'deny = 3%'
+          OR line LIKE 'deny=4%' OR line LIKE 'deny = 4%'
+          OR line LIKE 'deny=5%' OR line LIKE 'deny = 5%'
+        )
+    )
+      AND NOT (EXISTS (
+      SELECT 1 FROM file_lines
+      WHERE path='/etc/pam.d/common-auth'
+        AND line NOT LIKE '#%'
+        AND line LIKE '%pam_faillock.so%'
+        AND (
+          line LIKE '%deny=1_%' OR line LIKE '%deny = 1_%'
+          OR line LIKE '%deny=2_%' OR line LIKE '%deny = 2_%'
+          OR line LIKE '%deny=3_%' OR line LIKE '%deny = 3_%'
+          OR line LIKE '%deny=4_%' OR line LIKE '%deny = 4_%'
+          OR line LIKE '%deny=5_%' OR line LIKE '%deny = 5_%'
+          OR line LIKE '%deny=6_%' OR line LIKE '%deny = 6_%'
+          OR line LIKE '%deny=7_%' OR line LIKE '%deny = 7_%'
+          OR line LIKE '%deny=8_%' OR line LIKE '%deny = 8_%'
+          OR line LIKE '%deny=9_%' OR line LIKE '%deny = 9_%'
+        )
+    ) OR EXISTS (
+      SELECT 1 FROM file_lines
+      WHERE path='/etc/pam.d/common-auth'
+        AND line NOT LIKE '#%'
+        AND line LIKE '%pam_faillock.so%'
+        AND (
+          line LIKE '%deny=0%' OR line LIKE '%deny = 0%'
+          OR line LIKE '%deny=6 %' OR line LIKE '%deny = 6 %' OR line LIKE '%deny=6' OR line LIKE '%deny = 6'
+          OR line LIKE '%deny=7 %' OR line LIKE '%deny = 7 %' OR line LIKE '%deny=7' OR line LIKE '%deny = 7'
+          OR line LIKE '%deny=8 %' OR line LIKE '%deny = 8 %' OR line LIKE '%deny=8' OR line LIKE '%deny = 8'
+          OR line LIKE '%deny=9 %' OR line LIKE '%deny = 9 %' OR line LIKE '%deny=9' OR line LIKE '%deny = 9'
+        )
+    ));
   purpose: Manual Validation Required
   tags: compliance, CIS, CIS_Ubuntu_22_04
   contributors: sharon-fdm
@@ -5053,7 +5094,38 @@ spec:
   #   - PASS: query returns 1 row
   #   - FAIL: query returns 0 rows
   query: |
-    SELECT 1 WHERE 0;
+    SELECT 1
+    WHERE EXISTS (
+      SELECT 1 FROM file_lines
+      WHERE path='/etc/security/faillock.conf'
+        AND line NOT LIKE '#%'
+        AND (
+          line LIKE 'unlock_time=0%' OR line LIKE 'unlock_time = 0%'
+          OR line LIKE 'unlock_time=9__%' OR line LIKE 'unlock_time = 9__%'
+          OR line LIKE 'unlock_time=____%' OR line LIKE 'unlock_time = ____%'
+          OR line LIKE 'unlock_time=_____%' OR line LIKE 'unlock_time = _____%'
+        )
+    )
+      AND NOT (EXISTS (
+      SELECT 1 FROM file_lines
+      WHERE path='/etc/pam.d/common-auth'
+        AND line NOT LIKE '#%'
+        AND line LIKE '%pam_faillock.so%'
+        AND (
+          line LIKE '%unlock_time=_%' OR line LIKE '%unlock_time = _%'
+          OR line LIKE '%unlock_time=__%' OR line LIKE '%unlock_time = __%'
+          OR line LIKE '%unlock_time=1__%' OR line LIKE '%unlock_time = 1__%'
+          OR line LIKE '%unlock_time=2__%' OR line LIKE '%unlock_time = 2__%'
+          OR line LIKE '%unlock_time=3__%' OR line LIKE '%unlock_time = 3__%'
+          OR line LIKE '%unlock_time=4__%' OR line LIKE '%unlock_time = 4__%'
+          OR line LIKE '%unlock_time=5__%' OR line LIKE '%unlock_time = 5__%'
+          OR line LIKE '%unlock_time=6__%' OR line LIKE '%unlock_time = 6__%'
+          OR line LIKE '%unlock_time=7__%' OR line LIKE '%unlock_time = 7__%'
+          OR line LIKE '%unlock_time=8__%' OR line LIKE '%unlock_time = 8__%'
+        )
+        AND line NOT LIKE '%unlock_time=9__%'
+        AND line NOT LIKE '%unlock_time = 9__%'
+    ));
   purpose: Manual Validation Required
   tags: compliance, CIS, CIS_Ubuntu_22_04
   contributors: sharon-fdm
@@ -5077,7 +5149,42 @@ spec:
   #   - PASS: query returns 1 row
   #   - FAIL: query returns 0 rows
   query: |
-    SELECT 1 WHERE 0;
+    SELECT 1
+    WHERE EXISTS (
+      SELECT 1 FROM file_lines
+      WHERE path='/etc/security/faillock.conf'
+        AND line NOT LIKE '#%'
+        AND (line LIKE 'even_deny_root%' OR line LIKE 'root_unlock_time=%' OR line LIKE 'root_unlock_time = %')
+    )
+      AND NOT (EXISTS (
+      SELECT 1 FROM file_lines
+      WHERE path='/etc/security/faillock.conf'
+        AND line NOT LIKE '#%'
+        AND (
+          line LIKE 'root_unlock_time=1%' OR line LIKE 'root_unlock_time = 1%'
+          OR line LIKE 'root_unlock_time=2%' OR line LIKE 'root_unlock_time = 2%'
+          OR line LIKE 'root_unlock_time=3%' OR line LIKE 'root_unlock_time = 3%'
+          OR line LIKE 'root_unlock_time=4%' OR line LIKE 'root_unlock_time = 4%'
+          OR line LIKE 'root_unlock_time=5%' OR line LIKE 'root_unlock_time = 5%'
+        )
+        AND line NOT LIKE 'root_unlock_time=6_%'
+        AND line NOT LIKE 'root_unlock_time = 6_%'
+    ))
+      AND NOT (EXISTS (
+      SELECT 1 FROM file_lines
+      WHERE path='/etc/pam.d/common-auth'
+        AND line NOT LIKE '#%'
+        AND line LIKE '%pam_faillock.so%'
+        AND (
+          line LIKE '%root_unlock_time=1%' OR line LIKE '%root_unlock_time = 1%'
+          OR line LIKE '%root_unlock_time=2%' OR line LIKE '%root_unlock_time = 2%'
+          OR line LIKE '%root_unlock_time=3%' OR line LIKE '%root_unlock_time = 3%'
+          OR line LIKE '%root_unlock_time=4%' OR line LIKE '%root_unlock_time = 4%'
+          OR line LIKE '%root_unlock_time=5%' OR line LIKE '%root_unlock_time = 5%'
+        )
+        AND line NOT LIKE '%root_unlock_time=6_%'
+        AND line NOT LIKE '%root_unlock_time = 6_%'
+    ));
   purpose: Manual Validation Required
   tags: compliance, CIS, CIS_Ubuntu_22_04
   contributors: sharon-fdm
@@ -5293,7 +5400,14 @@ spec:
   #   - PASS: query returns 1 row
   #   - FAIL: query returns 0 rows
   query: |
-    SELECT 1 WHERE 0;
+    SELECT 1
+    WHERE EXISTS (
+      SELECT 1 FROM file_lines
+      WHERE path='/etc/pam.d/common-password'
+        AND line NOT LIKE '#%'
+        AND line LIKE '%pam_pwhistory.so%'
+        AND ((line LIKE '%remember=24%' OR line LIKE '%remember = 24%') OR (line LIKE '%remember=25%' OR line LIKE '%remember = 25%') OR (line LIKE '%remember=26%' OR line LIKE '%remember = 26%') OR (line LIKE '%remember=27%' OR line LIKE '%remember = 27%') OR (line LIKE '%remember=28%' OR line LIKE '%remember = 28%') OR (line LIKE '%remember=29%' OR line LIKE '%remember = 29%') OR (line LIKE '%remember=3_%' OR line LIKE '%remember = 3_%') OR (line LIKE '%remember=4_%' OR line LIKE '%remember = 4_%') OR (line LIKE '%remember=5_%' OR line LIKE '%remember = 5_%') OR (line LIKE '%remember=6_%' OR line LIKE '%remember = 6_%') OR (line LIKE '%remember=7_%' OR line LIKE '%remember = 7_%') OR (line LIKE '%remember=8_%' OR line LIKE '%remember = 8_%') OR (line LIKE '%remember=9_%' OR line LIKE '%remember = 9_%') OR (line LIKE '%remember=___%' OR line LIKE '%remember = ___%'))
+    );
   purpose: Manual Validation Required
   tags: compliance, CIS, CIS_Ubuntu_22_04
   contributors: sharon-fdm
