@@ -1,0 +1,689 @@
+name: Fetch Test
+
+on:
+  pull_request:
+  schedule:
+  - cron: '0 0 * * *'
+
+jobs:
+  fetch-debian:
+    name: fetch-debian
+    runs-on: ubuntu-latest
+    services:
+      mysql:
+        image: mysql
+        ports:
+          - 3306:3306
+        env:
+          MYSQL_ROOT_PASSWORD: password
+          MYSQL_DATABASE: test
+        options: >-
+          --health-cmd "mysqladmin ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+      postgres:
+        image: postgres
+        ports:
+          - 5432:5432
+        env:
+          POSTGRES_PASSWORD: password
+          POSTGRES_DB: test
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+      redis:
+        image: redis
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    env:
+      Version: 7 8 9 10 11 12 13
+    steps:
+      - name: Check out code into the Go module directory
+        uses: actions/checkout@v6
+      - name: Set up Go
+        uses: actions/setup-go@v6
+        with:
+          go-version-file: go.mod
+      - name: build
+        id: build
+        run: make build
+      - name: fetch sqlite3
+        if: ${{ steps.build.conclusion == 'success' && ( success() || failure() )}}
+        run: ./goval-dictionary fetch --dbtype sqlite3 debian $Version
+      - name: fetch mysql
+        if: ${{ steps.build.conclusion == 'success' && ( success() || failure() )}}
+        run: ./goval-dictionary fetch --dbtype mysql --dbpath "root:password@tcp(127.0.0.1:3306)/test?parseTime=true" debian $Version
+      - name: fetch postgres
+        if: ${{ steps.build.conclusion == 'success' && ( success() || failure() )}}
+        run: ./goval-dictionary fetch --dbtype postgres --dbpath "host=127.0.0.1 user=postgres dbname=test sslmode=disable password=password" debian $Version
+      - name: fetch redis
+        if: ${{ steps.build.conclusion == 'success' && ( success() || failure() )}}
+        run: ./goval-dictionary fetch --dbtype redis --dbpath "redis://127.0.0.1:6379/0" debian $Version
+
+  fetch-ubuntu:
+    name: fetch-ubuntu
+    runs-on: ubuntu-latest
+    services:
+      mysql:
+        image: mysql
+        ports:
+          - 3306:3306
+        env:
+          MYSQL_ROOT_PASSWORD: password
+          MYSQL_DATABASE: test
+        options: >-
+          --health-cmd "mysqladmin ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+      postgres:
+        image: postgres
+        ports:
+          - 5432:5432
+        env:
+          POSTGRES_PASSWORD: password
+          POSTGRES_DB: test
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+      redis:
+        image: redis
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    env:
+      Version: 14.04 16.04 18.04 20.04 22.04 24.04 24.10 25.04
+    steps:
+      - name: Check out code into the Go module directory
+        uses: actions/checkout@v6
+      - name: Set up Go
+        uses: actions/setup-go@v6
+        with:
+          go-version-file: go.mod
+      - name: build
+        id: build
+        run: make build
+      - name: fetch sqlite3
+        if: ${{ steps.build.conclusion == 'success' && ( success() || failure() )}}
+        run: ./goval-dictionary fetch --dbtype sqlite3 ubuntu $Version
+      - name: fetch mysql
+        if: ${{ steps.build.conclusion == 'success' && ( success() || failure() )}}
+        run: ./goval-dictionary fetch --dbtype mysql --dbpath "root:password@tcp(127.0.0.1:3306)/test?parseTime=true" ubuntu $Version
+      - name: fetch postgres
+        if: ${{ steps.build.conclusion == 'success' && ( success() || failure() )}}
+        run: ./goval-dictionary fetch --dbtype postgres --dbpath "host=127.0.0.1 user=postgres dbname=test sslmode=disable password=password" ubuntu $Version
+      - name: fetch redis
+        if: ${{ steps.build.conclusion == 'success' && ( success() || failure() )}}
+        run: ./goval-dictionary fetch --dbtype redis --dbpath "redis://127.0.0.1:6379/0" ubuntu $Version
+
+  fetch-redhat:
+    name: fetch-redhat
+    runs-on: ubuntu-latest
+    services:
+      mysql:
+        image: mysql
+        ports:
+          - 3306:3306
+        env:
+          MYSQL_ROOT_PASSWORD: password
+          MYSQL_DATABASE: test
+        options: >-
+          --health-cmd "mysqladmin ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+      postgres:
+        image: postgres
+        ports:
+          - 5432:5432
+        env:
+          POSTGRES_PASSWORD: password
+          POSTGRES_DB: test
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+      redis:
+        image: redis
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    env:
+      Version: 5 6 7 8 9
+    steps:
+      - name: Check out code into the Go module directory
+        uses: actions/checkout@v6
+      - name: Set up Go
+        uses: actions/setup-go@v6
+        with:
+          go-version-file: go.mod
+      - name: build
+        id: build
+        run: make build
+      - name: fetch sqlite3
+        if: ${{ steps.build.conclusion == 'success' && ( success() || failure() )}}
+        run: ./goval-dictionary fetch --dbtype sqlite3 redhat $Version
+      - name: fetch mysql
+        if: ${{ steps.build.conclusion == 'success' && ( success() || failure() )}}
+        run: ./goval-dictionary fetch --dbtype mysql --dbpath "root:password@tcp(127.0.0.1:3306)/test?parseTime=true" redhat $Version
+      - name: fetch postgres
+        if: ${{ steps.build.conclusion == 'success' && ( success() || failure() )}}
+        run: ./goval-dictionary fetch --dbtype postgres --dbpath "host=127.0.0.1 user=postgres dbname=test sslmode=disable password=password" redhat $Version
+      - name: fetch redis
+        if: ${{ steps.build.conclusion == 'success' && ( success() || failure() )}}
+        run: ./goval-dictionary fetch --dbtype redis --dbpath "redis://127.0.0.1:6379/0" redhat $Version
+
+  fetch-oracle:
+    name: fetch-oracle
+    runs-on: ubuntu-latest
+    services:
+      mysql:
+        image: mysql
+        ports:
+          - 3306:3306
+        env:
+          MYSQL_ROOT_PASSWORD: password
+          MYSQL_DATABASE: test
+        options: >-
+          --health-cmd "mysqladmin ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+      postgres:
+        image: postgres
+        ports:
+          - 5432:5432
+        env:
+          POSTGRES_PASSWORD: password
+          POSTGRES_DB: test
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+      redis:
+        image: redis
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    env:
+      Version: 5 6 7 8 9 10
+    steps:
+      - name: Check out code into the Go module directory
+        uses: actions/checkout@v6
+      - name: Set up Go
+        uses: actions/setup-go@v6
+        with:
+          go-version-file: go.mod
+      - name: build
+        id: build
+        run: make build
+      - name: fetch sqlite3
+        if: ${{ steps.build.conclusion == 'success' && ( success() || failure() )}}
+        run: ./goval-dictionary fetch --dbtype sqlite3 oracle $Version
+      - name: fetch mysql
+        if: ${{ steps.build.conclusion == 'success' && ( success() || failure() )}}
+        run: ./goval-dictionary fetch --dbtype mysql --dbpath "root:password@tcp(127.0.0.1:3306)/test?parseTime=true" oracle $Version
+      - name: fetch postgres
+        if: ${{ steps.build.conclusion == 'success' && ( success() || failure() )}}
+        run: ./goval-dictionary fetch --dbtype postgres --dbpath "host=127.0.0.1 user=postgres dbname=test sslmode=disable password=password" oracle $Version
+      - name: fetch redis
+        if: ${{ steps.build.conclusion == 'success' && ( success() || failure() )}}
+        run: ./goval-dictionary fetch --dbtype redis --dbpath "redis://127.0.0.1:6379/0" oracle $Version
+
+  fetch-amazon:
+    name: fetch-amazon
+    runs-on: ubuntu-latest
+    services:
+      mysql:
+        image: mysql
+        ports:
+          - 3306:3306
+        env:
+          MYSQL_ROOT_PASSWORD: password
+          MYSQL_DATABASE: test
+        options: >-
+          --health-cmd "mysqladmin ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+      postgres:
+        image: postgres
+        ports:
+          - 5432:5432
+        env:
+          POSTGRES_PASSWORD: password
+          POSTGRES_DB: test
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+      redis:
+        image: redis
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    env:
+      Version: 1 2 2022 2023
+    steps:
+      - name: Check out code into the Go module directory
+        uses: actions/checkout@v6
+      - name: Set up Go
+        uses: actions/setup-go@v6
+        with:
+          go-version-file: go.mod
+      - name: build
+        id: build
+        run: make build
+      - name: fetch sqlite3
+        if: ${{ steps.build.conclusion == 'success' && ( success() || failure() )}}
+        run: ./goval-dictionary fetch --dbtype sqlite3 amazon $Version
+      - name: fetch mysql
+        if: ${{ steps.build.conclusion == 'success' && ( success() || failure() )}}
+        run: ./goval-dictionary fetch --dbtype mysql --dbpath "root:password@tcp(127.0.0.1:3306)/test?parseTime=true" amazon $Version
+      - name: fetch postgres
+        if: ${{ steps.build.conclusion == 'success' && ( success() || failure() )}}
+        run: ./goval-dictionary fetch --dbtype postgres --dbpath "host=127.0.0.1 user=postgres dbname=test sslmode=disable password=password" amazon $Version
+      - name: fetch redis
+        if: ${{ steps.build.conclusion == 'success' && ( success() || failure() )}}
+        run: ./goval-dictionary fetch --dbtype redis --dbpath "redis://127.0.0.1:6379/0" amazon $Version
+
+  fetch-fedora:
+    name: fetch-fedora
+    runs-on: ubuntu-latest
+    services:
+      mysql:
+        image: mysql
+        ports:
+          - 3306:3306
+        env:
+          MYSQL_ROOT_PASSWORD: password
+          MYSQL_DATABASE: test
+        options: >-
+          --health-cmd "mysqladmin ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+      postgres:
+        image: postgres
+        ports:
+          - 5432:5432
+        env:
+          POSTGRES_PASSWORD: password
+          POSTGRES_DB: test
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+      redis:
+        image: redis
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    env:
+      Version: 32 33 34 35 36 37 38 39 40 41 42
+    steps:
+      - name: Check out code into the Go module directory
+        uses: actions/checkout@v6
+      - name: Set up Go
+        uses: actions/setup-go@v6
+        with:
+          go-version-file: go.mod
+      - name: build
+        id: build
+        run: make build
+      - name: fetch sqlite3
+        if: ${{ steps.build.conclusion == 'success' && ( success() || failure() )}}
+        run: ./goval-dictionary fetch --dbtype sqlite3 fedora $Version
+      - name: fetch mysql
+        if: ${{ steps.build.conclusion == 'success' && ( success() || failure() )}}
+        run: ./goval-dictionary fetch --dbtype mysql --dbpath "root:password@tcp(127.0.0.1:3306)/test?parseTime=true" fedora $Version
+      - name: fetch postgres
+        if: ${{ steps.build.conclusion == 'success' && ( success() || failure() )}}
+        run: ./goval-dictionary fetch --dbtype postgres --dbpath "host=127.0.0.1 user=postgres dbname=test sslmode=disable password=password" fedora $Version
+      - name: fetch redis
+        if: ${{ steps.build.conclusion == 'success' && ( success() || failure() )}}
+        run: ./goval-dictionary fetch --dbtype redis --dbpath "redis://127.0.0.1:6379/0" fedora $Version
+
+  fetch-opensuse:
+    name: fetch-opensuse
+    runs-on: ubuntu-latest
+    services:
+      mysql:
+        image: mysql
+        ports:
+          - 3306:3306
+        env:
+          MYSQL_ROOT_PASSWORD: password
+          MYSQL_DATABASE: test
+        options: >-
+          --health-cmd "mysqladmin ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+      postgres:
+        image: postgres
+        ports:
+          - 5432:5432
+        env:
+          POSTGRES_PASSWORD: password
+          POSTGRES_DB: test
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+      redis:
+        image: redis
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    env:
+      Version: 10.2 10.3 11.0 11.1 11.2 11.3 11.4 12.1 12.2 12.3 13.1 13.2 tumbleweed
+    steps:
+      - name: Check out code into the Go module directory
+        uses: actions/checkout@v6
+      - name: Set up Go
+        uses: actions/setup-go@v6
+        with:
+          go-version-file: go.mod
+      - name: build
+        id: build
+        run: make build
+      - name: fetch sqlite3
+        if: ${{ steps.build.conclusion == 'success' && ( success() || failure() )}}
+        run: ./goval-dictionary fetch --dbtype sqlite3 suse --suse-type opensuse $Version
+      - name: fetch mysql
+        if: ${{ steps.build.conclusion == 'success' && ( success() || failure() )}}
+        run: ./goval-dictionary fetch --dbtype mysql --dbpath "root:password@tcp(127.0.0.1:3306)/test?parseTime=true" suse --suse-type opensuse $Version
+      - name: fetch postgres
+        if: ${{ steps.build.conclusion == 'success' && ( success() || failure() )}}
+        run: ./goval-dictionary fetch --dbtype postgres --dbpath "host=127.0.0.1 user=postgres dbname=test sslmode=disable password=password" suse --suse-type opensuse $Version
+      - name: fetch redis
+        if: ${{ steps.build.conclusion == 'success' && ( success() || failure() )}}
+        run: ./goval-dictionary fetch --dbtype redis --dbpath "redis://127.0.0.1:6379/0" suse --suse-type opensuse $Version
+
+  fetch-opensuse-leap:
+    name: fetch-opensuse-leap
+    runs-on: ubuntu-latest
+    services:
+      mysql:
+        image: mysql
+        ports:
+          - 3306:3306
+        env:
+          MYSQL_ROOT_PASSWORD: password
+          MYSQL_DATABASE: test
+        options: >-
+          --health-cmd "mysqladmin ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+      postgres:
+        image: postgres
+        ports:
+          - 5432:5432
+        env:
+          POSTGRES_PASSWORD: password
+          POSTGRES_DB: test
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+      redis:
+        image: redis
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    env:
+      Version: 42.1 42.2 42.3 15.0 15.1 15.2 15.3 15.4 15.5 15.6
+    steps:
+      - name: Check out code into the Go module directory
+        uses: actions/checkout@v6
+      - name: Set up Go
+        uses: actions/setup-go@v6
+        with:
+          go-version-file: go.mod
+      - name: build
+        id: build
+        run: make build
+      - name: fetch sqlite3
+        if: ${{ steps.build.conclusion == 'success' && ( success() || failure() )}}
+        run: ./goval-dictionary fetch --dbtype sqlite3 suse --suse-type opensuse-leap $Version
+      - name: fetch mysql
+        if: ${{ steps.build.conclusion == 'success' && ( success() || failure() )}}
+        run: ./goval-dictionary fetch --dbtype mysql --dbpath "root:password@tcp(127.0.0.1:3306)/test?parseTime=true" suse --suse-type opensuse-leap $Version
+      - name: fetch postgres
+        if: ${{ steps.build.conclusion == 'success' && ( success() || failure() )}}
+        run: ./goval-dictionary fetch --dbtype postgres --dbpath "host=127.0.0.1 user=postgres dbname=test sslmode=disable password=password" suse --suse-type opensuse-leap $Version
+      - name: fetch redis
+        if: ${{ steps.build.conclusion == 'success' && ( success() || failure() )}}
+        run: ./goval-dictionary fetch --dbtype redis --dbpath "redis://127.0.0.1:6379/0" suse --suse-type opensuse-leap $Version
+
+  fetch-suse-enterprise-server:
+    name: fetch-suse-enterprise-server
+    runs-on: ubuntu-latest
+    services:
+      mysql:
+        image: mysql
+        ports:
+          - 3306:3306
+        env:
+          MYSQL_ROOT_PASSWORD: password
+          MYSQL_DATABASE: test
+        options: >-
+          --health-cmd "mysqladmin ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+      postgres:
+        image: postgres
+        ports:
+          - 5432:5432
+        env:
+          POSTGRES_PASSWORD: password
+          POSTGRES_DB: test
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+      redis:
+        image: redis
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    env:
+      Version: 9 10 11 12 15
+    steps:
+      - name: Check out code into the Go module directory
+        uses: actions/checkout@v6
+      - name: Set up Go
+        uses: actions/setup-go@v6
+        with:
+          go-version-file: go.mod
+      - name: build
+        id: build
+        run: make build
+      - name: fetch sqlite3
+        if: ${{ steps.build.conclusion == 'success' && ( success() || failure() )}}
+        run: ./goval-dictionary fetch --dbtype sqlite3 suse --suse-type suse-enterprise-server $Version
+      - name: fetch mysql
+        if: ${{ steps.build.conclusion == 'success' && ( success() || failure() )}}
+        run: ./goval-dictionary fetch --dbtype mysql --dbpath "root:password@tcp(127.0.0.1:3306)/test?parseTime=true" suse --suse-type suse-enterprise-server $Version
+      - name: fetch postgres
+        if: ${{ steps.build.conclusion == 'success' && ( success() || failure() )}}
+        run: ./goval-dictionary fetch --dbtype postgres --dbpath "host=127.0.0.1 user=postgres dbname=test sslmode=disable password=password" suse --suse-type suse-enterprise-server $Version
+      - name: fetch redis
+        if: ${{ steps.build.conclusion == 'success' && ( success() || failure() )}}
+        run: ./goval-dictionary fetch --dbtype redis --dbpath "redis://127.0.0.1:6379/0" suse --suse-type suse-enterprise-server $Version
+
+  fetch-suse-enterprise-desktop:
+    name: fetch-suse-enterprise-desktop
+    runs-on: ubuntu-latest
+    services:
+      mysql:
+        image: mysql
+        ports:
+          - 3306:3306
+        env:
+          MYSQL_ROOT_PASSWORD: password
+          MYSQL_DATABASE: test
+        options: >-
+          --health-cmd "mysqladmin ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+      postgres:
+        image: postgres
+        ports:
+          - 5432:5432
+        env:
+          POSTGRES_PASSWORD: password
+          POSTGRES_DB: test
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+      redis:
+        image: redis
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    env:
+      Version: 10 11 12 15
+    steps:
+      - name: Check out code into the Go module directory
+        uses: actions/checkout@v6
+      - name: Set up Go
+        uses: actions/setup-go@v6
+        with:
+          go-version-file: go.mod
+      - name: build
+        id: build
+        run: make build
+      - name: fetch sqlite3
+        if: ${{ steps.build.conclusion == 'success' && ( success() || failure() )}}
+        run: ./goval-dictionary fetch --dbtype sqlite3 suse --suse-type suse-enterprise-desktop $Version
+      - name: fetch mysql
+        if: ${{ steps.build.conclusion == 'success' && ( success() || failure() )}}
+        run: ./goval-dictionary fetch --dbtype mysql --dbpath "root:password@tcp(127.0.0.1:3306)/test?parseTime=true" suse --suse-type suse-enterprise-desktop $Version
+      - name: fetch postgres
+        if: ${{ steps.build.conclusion == 'success' && ( success() || failure() )}}
+        run: ./goval-dictionary fetch --dbtype postgres --dbpath "host=127.0.0.1 user=postgres dbname=test sslmode=disable password=password" suse --suse-type suse-enterprise-desktop $Version
+      - name: fetch redis
+        if: ${{ steps.build.conclusion == 'success' && ( success() || failure() )}}
+        run: ./goval-dictionary fetch --dbtype redis --dbpath "redis://127.0.0.1:6379/0" suse --suse-type suse-enterprise-desktop $Version
+
+  fetch-alpine:
+    name: fetch-alpine
+    runs-on: ubuntu-latest
+    services:
+      mysql:
+        image: mysql
+        ports:
+          - 3306:3306
+        env:
+          MYSQL_ROOT_PASSWORD: password
+          MYSQL_DATABASE: test
+        options: >-
+          --health-cmd "mysqladmin ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+      postgres:
+        image: postgres
+        ports:
+          - 5432:5432
+        env:
+          POSTGRES_PASSWORD: password
+          POSTGRES_DB: test
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+      redis:
+        image: redis
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    env:
+      Version: 3.2 3.3 3.4 3.5 3.6 3.7 3.8 3.9 3.10 3.11 3.12 3.13 3.14 3.15 3.16 3.17 3.18 3.19 3.20 3.21 3.22
+    steps:
+      - name: Check out code into the Go module directory
+        uses: actions/checkout@v6
+      - name: Set up Go
+        uses: actions/setup-go@v6
+        with:
+          go-version-file: go.mod
+      - name: build
+        id: build
+        run: make build
+      - name: fetch sqlite3
+        if: ${{ steps.build.conclusion == 'success' && ( success() || failure() )}}
+        run: ./goval-dictionary fetch --dbtype sqlite3 alpine $Version
+      - name: fetch mysql
+        if: ${{ steps.build.conclusion == 'success' && ( success() || failure() )}}
+        run: ./goval-dictionary fetch --dbtype mysql --dbpath "root:password@tcp(127.0.0.1:3306)/test?parseTime=true" alpine $Version
+      - name: fetch postgres
+        if: ${{ steps.build.conclusion == 'success' && ( success() || failure() )}}
+        run: ./goval-dictionary fetch --dbtype postgres --dbpath "host=127.0.0.1 user=postgres dbname=test sslmode=disable password=password" alpine $Version
+      - name: fetch redis
+        if: ${{ steps.build.conclusion == 'success' && ( success() || failure() )}}
+        run: ./goval-dictionary fetch --dbtype redis --dbpath "redis://127.0.0.1:6379/0" alpine $Version

@@ -64,14 +64,14 @@ software:
         - Communication
       labels_include_any:
         - "RPM-based Linux hosts"
-    - path: ../lib/linux/software/slack-deb.yml # Zoom for Ubuntu
+    - path: ../lib/linux/software/slack-deb.yml # Slack for Ubuntu
       self_service: true
       categories:
         - Productivity
         - Communication
       labels_include_any:
         - "Debian-based Linux hosts"
-    - path: ../lib/linux/software/slack-rpm.yml # Zoom for RHEL
+    - path: ../lib/linux/software/slack-rpm.yml # Slack for RHEL
       self_service: true
       categories:
         - Productivity

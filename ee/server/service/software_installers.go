@@ -1225,7 +1225,7 @@ func (svc *Service) InstallSoftwareTitle(ctx context.Context, hostID uint, softw
 			if lastInstallRequest != nil && lastInstallRequest.Status != nil &&
 				(*lastInstallRequest.Status == fleet.SoftwareInstallPending || *lastInstallRequest.Status == fleet.SoftwareUninstallPending) {
 				return &fleet.BadRequestError{
-					Message: "Couldn't install. This host isn't a member of the labels defined for this software title.",
+					Message: "Couldn't install. Host already has a pending install/uninstall for this installer.",
 					InternalErr: ctxerr.WrapWithData(
 						ctx, err, "host already has a pending install/uninstall for this installer",
 						map[string]any{
