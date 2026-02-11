@@ -20,27 +20,32 @@ module.exports = {
       fleetPremiumTrialLicenseKeyExpiresAt: {
         '>=': oneDayAgoAt,
         '<': nowAt,
-      }
     });
 
 
     for(let expiredTrialUser of usersWithRecentlyExpiredLocalTrials) {
-      // Send an "Your fleet trial has ended" email to the user.
-      await sails.helpers.sendTemplateEmail.with({
-        to: expiredTrialUser.emailAddress,
-        from: sails.config.custom.fromEmailAddress,
-        fromName: sails.config.custom.fromName,
-        subject: 'Your Fleet trial has ended',
-        template: 'email-fleet-premium-local-trial-ended',
-        layout: 'layout-nurture-email',
-        templateData: {
-          firstName: expiredTrialUser.firstName,
-        },
-        ensureAck: true,
-      }).tolerate((err)=>{
-        sails.log.warn(`When sending an email to a user with a newly expired Fleet Premium local trial (email: ${expiredTrialUser.emailAddress}) an error occured. Full error: ${require('util').inspect(err)}`);
-        return;
-      });
+      if(!expiredTrialUser.fleetPremiumTrialEmailSentAt) {
+
+        // Send an "Your fleet trial has ended" email to the user.
+        await sails.helpers.sendTemplateEmail.with({
+          to: expiredTrialUser.emailAddress,
+          from: sails.config.custom.fromEmailAddress,
+          fromName: sails.config.custom.fromName,
+          subject: 'Your Fleet trial has ended',
+          template: 'email-fleet-premium-local-trial-ended',
+          layout: 'layout-nurture-email',
+          templateData: {
+            firstName: expiredTrialUser.firstName,
+          },
+          ensureAck: true,
+        }).tolerate((err)=>{
+          sails.log.warn(`When sending an email to a user with a newly expired Fleet Premium local trial (email: ${expiredTrialUser.emailAddress}) an error occured. Full error: ${require('util').inspect(err)}`);
+          return;
+        });
+        // Update the timestamp for this user.
+        await User.updateOne({id: expiredTrialUser.id}).set({fleetPremiumTrialEmailSentAt: Date.now()});
+
+      }
 
     }
 
