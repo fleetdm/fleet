@@ -86,6 +86,7 @@ import (
 	kitlog "github.com/go-kit/log"
 	"github.com/go-kit/log/level"
 	"github.com/google/uuid"
+	grpc_recovery "github.com/grpc-ecosystem/go-grpc-middleware/v2/interceptors/recovery"
 	"github.com/ngrok/sqlmw"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
@@ -95,13 +96,15 @@ import (
 	_ "go.elastic.co/apm/module/apmsql/v2"
 	_ "go.elastic.co/apm/module/apmsql/v2/mysql"
 	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/exporters/otlp/otlplog/otlploggrpc"
 	"go.opentelemetry.io/otel/exporters/otlp/otlpmetric/otlpmetricgrpc"
 	"go.opentelemetry.io/otel/exporters/otlp/otlptrace"
 	"go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc"
+	otelsdklog "go.opentelemetry.io/otel/sdk/log"
 	sdkmetric "go.opentelemetry.io/otel/sdk/metric"
 	"go.opentelemetry.io/otel/sdk/resource"
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
-	semconv "go.opentelemetry.io/otel/semconv/v1.37.0"
+	semconv "go.opentelemetry.io/otel/semconv/v1.39.0"
 	"google.golang.org/grpc"
 	_ "google.golang.org/grpc/encoding/gzip" // Because we use gzip compression for OTLP
 )
@@ -156,30 +159,20 @@ the way that the Fleet server works.
 				fleet.WriteExpiredLicenseBanner(os.Stderr)
 			}
 
-			logger := initLogger(config)
-
-			if dev_mode.IsEnabled {
-				createTestBuckets(&config, logger)
+			// Validate OTEL server options
+			if config.Logging.OtelLogsEnabled && !config.Logging.TracingEnabled {
+				initFatal(
+					errors.New("logging.otel_logs_enabled requires logging.tracing_enabled to be true"),
+					"OTEL logs require tracing for trace correlation",
+				)
 			}
 
-			// Init tracing and metrics
+			// Init OTEL providers (traces, metrics, logs)
+			var loggerProvider *otelsdklog.LoggerProvider
 			var tracerProvider *sdktrace.TracerProvider
 			var meterProvider *sdkmetric.MeterProvider
-			if config.Logging.TracingEnabled {
-				ctx := context.Background()
-				client := otlptracegrpc.NewClient(
-					// Enable gzip compression to reduce message size
-					otlptracegrpc.WithCompressor("gzip"),
-				)
-				otlpTraceExporter, err := otlptrace.New(ctx, client)
-				if err != nil {
-					initFatal(err, "Failed to initialize tracing")
-				}
-				// Configure batch span processor with smaller batch size to avoid exceeding message size limits (4MB default limit)
-				batchSpanProcessor := sdktrace.NewBatchSpanProcessor(otlpTraceExporter,
-					sdktrace.WithMaxExportBatchSize(256), // Reduce from default 512 to 256
-				)
-				// Create resource with service identification attributes
+			if config.OTELEnabled() {
+				// Create shared resource with service identification attributes
 				res, err := resource.Merge(
 					resource.Default(),
 					resource.NewWithAttributes(
@@ -191,14 +184,26 @@ the way that the Fleet server works.
 				if err != nil {
 					initFatal(err, "Failed to create OTEL resource")
 				}
+
+				// Initialize OTEL traces
+				otlpTraceExporter, err := otlptrace.New(context.Background(), otlptracegrpc.NewClient(
+					otlptracegrpc.WithCompressor("gzip"),
+				))
+				if err != nil {
+					initFatal(err, "Failed to initialize OTEL trace exporter")
+				}
+				// Configure batch span processor with smaller batch size to avoid exceeding message size limits (4MB default limit)
+				batchSpanProcessor := sdktrace.NewBatchSpanProcessor(otlpTraceExporter,
+					sdktrace.WithMaxExportBatchSize(256), // Reduce from default 512 to 256
+				)
 				tracerProvider = sdktrace.NewTracerProvider(
 					sdktrace.WithResource(res),
 					sdktrace.WithSpanProcessor(batchSpanProcessor),
 				)
 				otel.SetTracerProvider(tracerProvider)
 
-				// Initialize OTEL metrics exporter
-				metricExporter, err := otlpmetricgrpc.New(ctx,
+				// Initialize OTEL metrics
+				metricExporter, err := otlpmetricgrpc.New(context.Background(),
 					otlpmetricgrpc.WithCompressor("gzip"),
 				)
 				if err != nil {
@@ -209,6 +214,26 @@ the way that the Fleet server works.
 					sdkmetric.WithReader(sdkmetric.NewPeriodicReader(metricExporter)),
 				)
 				otel.SetMeterProvider(meterProvider)
+
+				// Initialize OTEL logs
+				if config.Logging.OtelLogsEnabled {
+					logExporter, err := otlploggrpc.New(context.Background(),
+						otlploggrpc.WithCompressor("gzip"),
+					)
+					if err != nil {
+						initFatal(err, "Failed to initialize OTEL log exporter")
+					}
+					loggerProvider = otelsdklog.NewLoggerProvider(
+						otelsdklog.WithResource(res),
+						otelsdklog.WithProcessor(otelsdklog.NewBatchProcessor(logExporter)),
+					)
+				}
+			}
+
+			logger := initLogger(config, loggerProvider)
+
+			if dev_mode.IsEnabled {
+				createTestBuckets(&config, logger)
 			}
 
 			allowedHostIdentifiers := map[string]bool{
@@ -278,7 +303,7 @@ the way that the Fleet server works.
 			// NOTE this will disable OTEL/APM interceptor
 			if dev_mode.Env("FLEET_DEV_ENABLE_SQL_INTERCEPTOR") != "" {
 				opts = append(opts, mysql.WithInterceptor(&devSQLInterceptor{
-					logger: kitlog.With(logger, "component", "sql-interceptor"),
+					logger: logger.With("component", "sql-interceptor"),
 				}))
 			}
 
@@ -396,7 +421,7 @@ the way that the Fleet server works.
 			ds = redisWrapperDS
 
 			resultStore := pubsub.NewRedisQueryResults(redisPool, config.Redis.DuplicateResults,
-				log.With(logger, "component", "query-results"),
+				logger.With("component", "query-results"),
 			)
 			liveQueryStore := live_query.NewRedisLiveQuery(redisPool, logger, liveQueryMemCacheDuration)
 			ssoSessionStore := sso.NewSessionStore(redisPool)
@@ -560,7 +585,7 @@ the way that the Fleet server works.
 			}
 
 			var mdmPushService push.Pusher
-			nanoMDMLogger := service.NewNanoMDMLogger(kitlog.With(logger, "component", "apple-mdm-push"))
+			nanoMDMLogger := service.NewNanoMDMLogger(logger.With("component", "apple-mdm-push"))
 			pushProviderFactory := buford.NewPushProviderFactory(buford.WithNewClient(func(cert *tls.Certificate) (*http.Client, error) {
 				return fleethttp.NewClient(fleethttp.WithTLSClientConfig(&tls.Config{
 					Certificates: []tls.Certificate{*cert},
@@ -1267,7 +1292,7 @@ the way that the Fleet server works.
 			level.Info(logger).Log("msg", fmt.Sprintf("started cron schedules: %s", strings.Join(cronSchedules.ScheduleNames(), ", ")))
 
 			// StartCollectors starts a goroutine per collector, using ctx to cancel.
-			task.StartCollectors(ctx, kitlog.With(logger, "cron", "async_task"))
+			task.StartCollectors(ctx, logger.With("cron", "async_task"))
 
 			// Flush seen hosts every second
 			hostsAsyncCfg := config.Osquery.AsyncConfigForTask(configpkg.AsyncTaskHostLastSeen)
@@ -1300,7 +1325,7 @@ the way that the Fleet server works.
 
 			svc = service.NewMetricsService(svc, requestCount, requestLatency)
 
-			httpLogger := kitlog.With(logger, "component", "http")
+			httpLogger := logger.With("component", "http")
 
 			limiterStore := &redis.ThrottledStore{
 				Pool:      redisPool,
@@ -1309,7 +1334,7 @@ the way that the Fleet server works.
 
 			var httpSigVerifier func(http.Handler) http.Handler
 			if license.IsPremium() {
-				httpSigVerifier, err = httpsig.Middleware(ds, config.Auth.RequireHTTPMessageSignature, kitlog.With(logger, "component", "http-sig-verifier"))
+				httpSigVerifier, err = httpsig.Middleware(ds, config.Auth.RequireHTTPMessageSignature, logger.With("component", "http-sig-verifier"))
 				if err != nil {
 					initFatal(err, "initializing HTTP signature verifier")
 				}
@@ -1375,7 +1400,14 @@ the way that the Fleet server works.
 			}
 
 			// Instantiate a gRPC service to handle launcher requests.
-			launcher := launcher.New(svc, logger, grpc.NewServer(), healthCheckers)
+			launcher := launcher.New(svc, logger, grpc.NewServer(
+				grpc.ChainUnaryInterceptor(
+					grpc_recovery.UnaryServerInterceptor(),
+				),
+				grpc.ChainStreamInterceptor(
+					grpc_recovery.StreamServerInterceptor(),
+				),
+			), healthCheckers)
 
 			rootMux := http.NewServeMux()
 			rootMux.Handle("/healthz", service.PrometheusMetricsHandler("healthz", otelmw.WrapHandler(health.Handler(httpLogger, healthCheckers), "/healthz", config)))
@@ -1450,7 +1482,7 @@ the way that the Fleet server works.
 				}
 				// Host identify and conditional access SCEP feature only works if a private key has been set up
 				if len(config.Server.PrivateKey) > 0 {
-					hostIdentitySCEPDepot, err := mds.NewHostIdentitySCEPDepot(kitlog.With(logger, "component", "host-id-scep-depot"), &config)
+					hostIdentitySCEPDepot, err := mds.NewHostIdentitySCEPDepot(logger.With("component", "host-id-scep-depot"), &config)
 					if err != nil {
 						initFatal(err, "setup host identity SCEP depot")
 					}
@@ -1459,7 +1491,7 @@ the way that the Fleet server works.
 					}
 
 					// Conditional Access SCEP
-					condAccessSCEPDepot, err := mds.NewConditionalAccessSCEPDepot(kitlog.With(logger, "component", "conditional-access-scep-depot"), &config)
+					condAccessSCEPDepot, err := mds.NewConditionalAccessSCEPDepot(logger.With("component", "conditional-access-scep-depot"), &config)
 					if err != nil {
 						initFatal(err, "setup conditional access SCEP depot")
 					}
@@ -1703,6 +1735,11 @@ the way that the Fleet server works.
 							level.Error(logger).Log("msg", "failed to shutdown OTEL meter provider", "err", err)
 						}
 					}
+					if loggerProvider != nil {
+						if err := loggerProvider.Shutdown(ctx); err != nil {
+							level.Error(logger).Log("msg", "failed to shutdown OTEL logger provider", "err", err)
+						}
+					}
 					return srv.Shutdown(ctx)
 				}()
 			}()
@@ -1726,11 +1763,11 @@ func createActivityBoundedContext(svc fleet.Service, dbConns *common_mysql.DBCon
 		initFatal(err, "initializing activity authorizer")
 	}
 	activityAuthorizer := authz.NewAuthorizerAdapter(legacyAuthorizer)
-	activityUserProvider := activityacl.NewFleetServiceAdapter(svc)
+	activityACLAdapter := activityacl.NewFleetServiceAdapter(svc)
 	activitySvc, activityRoutesFn := activity_bootstrap.New(
 		dbConns,
 		activityAuthorizer,
-		activityUserProvider,
+		activityACLAdapter,
 		logger,
 	)
 	// Create auth middleware for activity bounded context

@@ -3888,8 +3888,10 @@ SELECT
 FROM
     hosts h
     LEFT JOIN host_disk_encryption_keys hdek ON h.id = hdek.host_id
+	LEFT JOIN host_mdm hm ON h.id = hm.host_id
+	LEFT JOIN nano_enrollments ne ON ne.id = h.uuid AND ne.enabled = 1 AND ne.type IN ('Device', 'User Enrollment (Device)')
 WHERE
-    h.platform = 'darwin' AND %s`
+    h.platform = 'darwin' AND ne.id IS NOT NULL AND hm.enrolled = 1 AND %s`
 
 	var args []interface{}
 	subqueryVerified, subqueryVerifiedArgs := subqueryFileVaultVerified()
@@ -4076,10 +4078,10 @@ WHERE team_id = 0
 		if url != "" {
 			updateConfigStmt := `
 UPDATE teams
-SET config = JSON_SET(config, '$.mdm.macos_setup.bootstrap_package', '%s')
+SET config = JSON_SET(config, '$.mdm.macos_setup.bootstrap_package', ?)
 WHERE id = ?
 `
-			_, err = tx.ExecContext(ctx, fmt.Sprintf(updateConfigStmt, url), toTeamID)
+			_, err = tx.ExecContext(ctx, updateConfigStmt, url, toTeamID)
 			if err != nil {
 				return ctxerr.Wrap(ctx, err, fmt.Sprintf("update bootstrap package config for team %d", toTeamID))
 			}
@@ -6302,12 +6304,10 @@ SELECT DISTINCT
     neq.id
 FROM
     nano_enrollment_queue neq
-    INNER JOIN nano_enrollments ne ON ne.id = neq.id
     LEFT JOIN nano_command_results ncr ON ncr.command_uuid = neq.command_uuid
     AND ncr.id = neq.id
 WHERE
     neq.active = 1
-    AND ne.enabled = 1
     AND ncr.status IS NULL
     AND neq.created_at >= NOW() - INTERVAL 7 DAY
     AND neq.priority IN (0, 1)

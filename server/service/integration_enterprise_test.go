@@ -50,6 +50,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/live_query/live_query_mock"
 	"github.com/fleetdm/fleet/v4/server/mdm"
 	maintained_apps "github.com/fleetdm/fleet/v4/server/mdm/maintainedapps"
+	"github.com/fleetdm/fleet/v4/server/platform/logging"
 	"github.com/fleetdm/fleet/v4/server/policies"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/pubsub"
@@ -59,8 +60,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/service/redis_lock"
 	"github.com/fleetdm/fleet/v4/server/service/schedule"
 	"github.com/fleetdm/fleet/v4/server/test"
-	"github.com/go-kit/log"
-	kitlog "github.com/go-kit/log"
 	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
 	"github.com/stretchr/testify/assert"
@@ -114,16 +113,16 @@ func (s *integrationEnterpriseTestSuite) SetupSuite() {
 		Pool:           s.redisPool,
 		Rs:             pubsub.NewInmemQueryResults(),
 		Lq:             s.lq,
-		Logger:         log.NewLogfmtLogger(os.Stdout),
+		Logger:         logging.NewLogfmtLogger(os.Stdout),
 		EnableCachedDS: true,
 		StartCronSchedules: []TestNewScheduleFunc{
 			func(ctx context.Context, ds fleet.Datastore) fleet.NewCronScheduleFunc {
 				return func() (fleet.CronSchedule, error) {
 					// We set 24-hour interval so that it only runs when triggered.
 					var err error
-					cronLog := log.NewJSONLogger(os.Stdout)
+					cronLog := logging.NewJSONLogger(os.Stdout)
 					if os.Getenv("FLEET_INTEGRATION_TESTS_DISABLE_LOG") != "" {
-						cronLog = kitlog.NewNopLogger()
+						cronLog = logging.NewNopLogger()
 					}
 					calendarSchedule, err = cron.NewCalendarSchedule(
 						ctx, s.T().Name(), s.ds, redis_lock.NewLock(s.redisPool), config.CalendarConfig{Periodicity: 24 * time.Hour},
@@ -139,7 +138,7 @@ func (s *integrationEnterpriseTestSuite) SetupSuite() {
 		DBConns:                         s.dbConns,
 	}
 	if os.Getenv("FLEET_INTEGRATION_TESTS_DISABLE_LOG") != "" {
-		config.Logger = kitlog.NewNopLogger()
+		config.Logger = logging.NewNopLogger()
 	}
 	users, server := RunServerForTestsWithDS(s.T(), s.ds, &config)
 	s.server = server
@@ -1277,6 +1276,7 @@ func (s *integrationEnterpriseTestSuite) TestTeamPolicies() {
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/teams/%d/policies/count", team1.ID), nil, http.StatusOK, &tc)
 	require.Nil(t, tc.Err)
 	require.Equal(t, 1, tc.Count)
+	require.Equal(t, 0, tc.InheritedPolicyCount)
 
 	gc := countGlobalPoliciesResponse{}
 	s.DoJSON("GET", "/api/latest/fleet/policies/count", nil, http.StatusOK, &gc)
@@ -1300,6 +1300,7 @@ func (s *integrationEnterpriseTestSuite) TestTeamPolicies() {
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/teams/%d/policies/count", team1.ID), nil, http.StatusOK, &countResp, "merge_inherited", "true")
 	require.Nil(t, countResp.Err)
 	require.Equal(t, 2, countResp.Count)
+	require.Equal(t, 1, countResp.InheritedPolicyCount)
 
 	// Test delete
 	deletePolicyParams := deleteTeamPoliciesRequest{IDs: []uint{ts.Policies[0].ID}}
@@ -1370,6 +1371,7 @@ func (s *integrationEnterpriseTestSuite) TestNoTeamPolicies() {
 	tc := countTeamPoliciesResponse{}
 	s.DoJSON("GET", "/api/latest/fleet/teams/0/policies/count", nil, http.StatusOK, &tc)
 	require.Equal(t, 2, tc.Count)
+	require.Equal(t, 0, tc.InheritedPolicyCount)
 	// Test merge inherited for "No team" policies.
 	ts = listTeamPoliciesResponse{}
 	s.DoJSON("GET", "/api/latest/fleet/teams/0/policies", nil, http.StatusOK, &ts, "merge_inherited", "true", "order_key", "team_id", "order_direction", "desc")
@@ -1386,6 +1388,7 @@ func (s *integrationEnterpriseTestSuite) TestNoTeamPolicies() {
 	s.DoJSON("GET", "/api/latest/fleet/teams/0/policies/count", nil, http.StatusOK, &countResp, "merge_inherited", "true")
 	require.Nil(t, countResp.Err)
 	require.Equal(t, 3, countResp.Count)
+	require.Equal(t, 1, countResp.InheritedPolicyCount)
 	// Test deleting "No team" policies.
 	deletePolicyParams := deleteTeamPoliciesRequest{
 		IDs: []uint{ts.Policies[0].ID},
@@ -1485,12 +1488,16 @@ func (s *integrationEnterpriseTestSuite) TestTeamQueries() {
 	s.DoJSON("GET", "/api/latest/fleet/queries", nil, http.StatusOK, &listQueriesResp, "team_id", fmt.Sprint(team1.ID))
 	require.Len(t, listQueriesResp.Queries, 1)
 	assert.Equal(t, "team1", listQueriesResp.Queries[0].Name)
+	assert.Equal(t, 1, listQueriesResp.Count)
+	assert.Equal(t, 0, listQueriesResp.InheritedQueryCount)
 
 	// list merged team queries
 	s.DoJSON("GET", "/api/latest/fleet/queries", nil, http.StatusOK, &listQueriesResp, "team_id", fmt.Sprint(team1.ID), "merge_inherited", "true", "order_key", "team_id", "order_direction", "desc")
 	require.Len(t, listQueriesResp.Queries, 2)
 	assert.Equal(t, "team1", listQueriesResp.Queries[0].Name)
 	assert.Equal(t, "global1", listQueriesResp.Queries[1].Name)
+	assert.Equal(t, 2, listQueriesResp.Count)
+	assert.Equal(t, 1, listQueriesResp.InheritedQueryCount)
 }
 
 func (s *integrationEnterpriseTestSuite) TestModifyTeamEnrollSecrets() {
@@ -1522,17 +1529,42 @@ func (s *integrationEnterpriseTestSuite) TestModifyTeamEnrollSecrets() {
 	assert.Equal(t, "testSecret1", team.Secrets[0].Secret)
 	assert.Equal(t, "testSecret2", team.Secrets[1].Secret)
 
+	seenActivitiesIDs := map[uint]struct{}{}
+	activityName := fleet.ActivityTypeEditedEnrollSecrets{}.ActivityName()
+	activityDetails := fmt.Sprintf(`{"team_id": %d, "team_name": "%s"}`, team.ID, team.Name)
+
+	// Check that an activity was created for the new secrets
+	seenActivitiesIDs[s.lastActivityMatches(activityName, activityDetails, 0)] = struct{}{}
+	require.Len(t, seenActivitiesIDs, 1)
+
+	// Posting the same secret shouldn't create a new activity, since we are only interested in mutations
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d/secrets", team.ID), req, http.StatusOK, &resp)
+	seenActivitiesIDs[s.lastActivityMatches(activityName, activityDetails, 0)] = struct{}{}
+	require.Len(t, seenActivitiesIDs, 1)
+
 	// Test delete all enroll secrets
 	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d/secrets", team.ID), json.RawMessage(`{"secrets": []}`), http.StatusOK, &resp)
 	require.Len(t, resp.Secrets, 0)
+
+	// We should see a new activity for the deleted secrets
+	seenActivitiesIDs[s.lastActivityMatches(activityName, activityDetails, 0)] = struct{}{}
+	require.Len(t, seenActivitiesIDs, 2)
 
 	// Test bad requests
 	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d/secrets", team.ID), json.RawMessage(`{"foo": [{"secret": "testSecret3"}]}`), http.StatusUnprocessableEntity, &resp)
 	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d/secrets", team.ID), json.RawMessage(`{}`), http.StatusUnprocessableEntity, &resp)
 
+	// No new activities should be generated
+	seenActivitiesIDs[s.lastActivityMatches(activityName, activityDetails, 0)] = struct{}{}
+	require.Len(t, seenActivitiesIDs, 2)
+
 	// too many secrets
 	secrets := createEnrollSecrets(t, fleet.MaxEnrollSecretsCount+1)
 	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d/secrets", team.ID), json.RawMessage(`{"secrets": `+string(jsonMustMarshal(t, secrets))+`}`), http.StatusUnprocessableEntity, &resp)
+
+	// No new activities should be generated
+	seenActivitiesIDs[s.lastActivityMatches(activityName, activityDetails, 0)] = struct{}{}
+	require.Len(t, seenActivitiesIDs, 2)
 }
 
 func (s *integrationEnterpriseTestSuite) TestAvailableTeams() {
@@ -2887,7 +2919,7 @@ func (s *integrationEnterpriseTestSuite) TestNoTeamFailingPolicyWebhookTrigger()
 	}
 
 	// Trigger the webhook automation with a custom sendFunc that captures the call
-	err = policies.TriggerFailingPoliciesAutomation(ctx, s.ds, kitlog.NewNopLogger(), failingPolicySet,
+	err = policies.TriggerFailingPoliciesAutomation(ctx, s.ds, logging.NewNopLogger(), failingPolicySet,
 		func(pol *fleet.Policy, cfg policies.FailingPolicyAutomationConfig) error {
 			webhookCalled = true
 			capturedPolicy = pol
@@ -4623,7 +4655,7 @@ func (s *integrationEnterpriseTestSuite) TestInvitedUserMFA() {
 
 	// create valid invite
 	createInviteReq := createInviteRequest{InvitePayload: fleet.InvitePayload{
-		Email:      ptr.String("some email"),
+		Email:      ptr.String("some@email.com"),
 		Name:       ptr.String("some name"),
 		GlobalRole: null.StringFrom(fleet.RoleAdmin),
 		MFAEnabled: ptr.Bool(true),
@@ -4641,19 +4673,18 @@ func (s *integrationEnterpriseTestSuite) TestInvitedUserMFA() {
 	// response's json, must get it from the db
 	inv, err := s.ds.Invite(context.Background(), validInvite.ID)
 	require.NoError(t, err)
-	validInviteToken := inv.Token
 
 	// verify the token with valid invite
 	var verifyInvResp verifyInviteResponse
-	s.DoJSON("GET", "/api/latest/fleet/invites/"+validInviteToken, nil, http.StatusOK, &verifyInvResp)
+	s.DoJSON("GET", "/api/latest/fleet/invites/"+inv.Token, nil, http.StatusOK, &verifyInvResp)
 	require.Equal(t, validInvite.ID, verifyInvResp.Invite.ID)
 
 	var createFromInviteResp createUserResponse
 	s.DoJSON("POST", "/api/latest/fleet/users", fleet.UserPayload{
 		Name:        ptr.String("Full Name"),
 		Password:    ptr.String(test.GoodPassword),
-		Email:       ptr.String("a@b.c"),
-		InviteToken: ptr.String(validInviteToken),
+		Email:       ptr.String(inv.Email),
+		InviteToken: ptr.String(inv.Token),
 	}, http.StatusOK, &createFromInviteResp)
 	require.True(t, createFromInviteResp.User.MFAEnabled)
 
@@ -6269,7 +6300,7 @@ func (s *integrationEnterpriseTestSuite) TestListSoftware() {
 	require.NotEmpty(t, respVersions.CountsUpdatedAt)
 }
 
-// TestGitOpsUserActions tests the MDM permissions listed in ../../docs/Using\ Fleet/manage-access.md
+// TestGitOpsUserActions tests the (non-MDM) permissions listed in ../../docs/Using\ Fleet/manage-access.md
 func (s *integrationEnterpriseTestSuite) TestGitOpsUserActions() {
 	t := s.T()
 	ctx := context.Background()
@@ -12434,7 +12465,7 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareInstallerUploadDownloadAndD
 		}
 		s.uploadSoftwareInstaller(t, payload, http.StatusOK, "")
 
-		logger := kitlog.NewLogfmtLogger(os.Stderr)
+		logger := logging.NewLogfmtLogger(os.Stderr)
 
 		// Run the migration when nothing is to be done
 		err = eeservice.UninstallSoftwareMigration(context.Background(), s.ds, s.softwareInstallStore, logger)
@@ -19610,7 +19641,7 @@ func (s *integrationEnterpriseTestSuite) TestUpgradeCodesFromMaintainedApps() {
 
 	err = detailQueries["software_windows"].DirectIngestFunc(
 		context.Background(),
-		kitlog.NewNopLogger(),
+		logging.NewNopLogger(),
 		&fleet.Host{ID: host.ID},
 		s.ds,
 		rows,

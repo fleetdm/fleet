@@ -1,14 +1,14 @@
 {
   "versions": [
     {
-      "version": "0.0.375",
+      "version": "0.0.376",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.hnc.Discord';"
       },
-      "installer_url": "https://dl.discordapp.net/apps/osx/0.0.375/Discord.dmg",
+      "installer_url": "https://dl.discordapp.net/apps/osx/0.0.376/Discord.dmg",
       "install_script_ref": "b66869e3",
       "uninstall_script_ref": "8ed76f08",
-      "sha256": "a512f57c205740bde230d33fa68ef72abb4945085636f103ec7f0face0564da5",
+      "sha256": "01b82f23c549d6e4461708252f59aa38b1129620256c541d3f881c25ffadd4f6",
       "default_categories": [
         "Communication"
       ]

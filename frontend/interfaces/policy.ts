@@ -26,6 +26,7 @@ export interface IStoredPolicyResponse {
 
 export interface IPoliciesCountResponse {
   count: number;
+  inherited_policy_count?: number;
 }
 
 export interface IPolicy {
