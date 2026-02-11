@@ -244,12 +244,14 @@ func NewDBConnections(cfg config.MysqlConfig, opts ...DBOption) (*common_mysql.D
 		}
 	}
 
-	if err := checkConfig(&cfg); err != nil {
+	if err := checkAndModifyConfig(&cfg); err != nil {
 		return nil, err
 	}
+	// Convert replica config once so that checkAndModifyConfig mutations are preserved for the later NewDB call.
+	var replicaConf *config.MysqlConfig
 	if options.ReplicaConfig != nil {
-		replicaConf := fromCommonMysqlConfig(options.ReplicaConfig)
-		if err := checkConfig(replicaConf); err != nil {
+		replicaConf = fromCommonMysqlConfig(options.ReplicaConfig)
+		if err := checkAndModifyConfig(replicaConf); err != nil {
 			return nil, fmt.Errorf("replica: %w", err)
 		}
 	}
@@ -264,12 +266,11 @@ func NewDBConnections(cfg config.MysqlConfig, opts ...DBOption) (*common_mysql.D
 		return nil, err
 	}
 	dbReader := dbWriter
-	if options.ReplicaConfig != nil {
+	if replicaConf != nil {
 		// Set up IAM auth for replica if needed (may have different region/credentials)
 		replicaOptions := *options
 		// Reset ConnectorFactory - replica may have different auth requirements than primary
 		replicaOptions.ConnectorFactory = nil
-		replicaConf := fromCommonMysqlConfig(options.ReplicaConfig)
 		if err := setupIAMAuthIfNeeded(replicaConf, &replicaOptions); err != nil {
 			return nil, fmt.Errorf("replica: %w", err)
 		}
@@ -441,7 +442,7 @@ func fromCommonMysqlConfig(conf *common_mysql.MysqlConfig) *config.MysqlConfig {
 	}
 }
 
-func checkConfig(conf *config.MysqlConfig) error {
+func checkAndModifyConfig(conf *config.MysqlConfig) error {
 	if conf.PasswordPath != "" && conf.Password != "" {
 		return errors.New("A MySQL password and a MySQL password file were provided - please specify only one")
 	}

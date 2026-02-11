@@ -351,7 +351,7 @@ func setupRealReplica(t testing.TB, testName string, ds *Datastore, options *com
 		Database: testName,
 		Address:  testing_utils.TestReplicaAddress,
 	}
-	require.NoError(t, checkConfig(&replicaConfig))
+	require.NoError(t, checkAndModifyConfig(&replicaConfig))
 	replica, err := NewDB(&replicaConfig, options)
 	require.NoError(t, err)
 	ds.replica = replica
