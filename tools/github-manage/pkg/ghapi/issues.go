@@ -385,7 +385,7 @@ listLoop:
 
 			if verbose {
 				mu.Lock()
-				fmt.Fprintf(os.Stderr, "[%d/%d] Checking issue #%d: %s...", idx+1, len(issues), iss.Number, iss.Title)
+				fmt.Fprintf(os.Stderr, "[%d/%d] Checking issue #%d\n", idx+1, len(issues), iss.Number)
 				mu.Unlock()
 			}
 
@@ -408,17 +408,9 @@ listLoop:
 
 			mu.Lock()
 			if hadLabel {
-				if verbose {
-					fmt.Fprintf(os.Stderr, " MATCH\n")
-				}
 				filteredIssues = append(filteredIssues, iss)
-			} else if verbose {
-				fmt.Fprintf(os.Stderr, " no label\n")
 			}
-			// Print progress dot in non-verbose mode
-			if !verbose {
-				fmt.Fprint(os.Stderr, ".")
-			}
+			fmt.Fprint(os.Stderr, ".")
 			mu.Unlock()
 		}(i, issue)
 	}
