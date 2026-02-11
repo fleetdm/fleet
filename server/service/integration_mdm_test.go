@@ -20799,6 +20799,31 @@ func (s *integrationMDMTestSuite) TestTechnicianPermissions() {
 		Logging: fleet.LoggingSnapshot,
 	})
 	require.NoError(t, err)
+	_, globalMacOSMDMClient := createHostThenEnrollMDM(s.ds, s.server.URL, t)
+	team1MacOSHost, team1MacOSMDMClient := createHostThenEnrollMDM(s.ds, s.server.URL, t)
+	s.Do("POST", "/api/v1/fleet/hosts/transfer",
+		addHostsToTeamRequest{TeamID: &t1.ID, HostIDs: []uint{team1MacOSHost.ID}}, http.StatusOK)
+	// Add a configuration profile to t1.
+	mcUUID := "a" + uuid.NewString()
+	prof := mcBytesForTest("name-"+mcUUID, "identifier-"+mcUUID, mcUUID)
+	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		stmt := `INSERT INTO mdm_apple_configuration_profiles (profile_uuid, team_id, name, identifier, mobileconfig, checksum, uploaded_at) VALUES (?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP);`
+		_, err := q.ExecContext(t.Context(), stmt, mcUUID, t1.ID, "name-"+mcUUID, "identifier-"+mcUUID, prof, test.MakeTestBytes())
+		return err
+	})
+	s.awaitTriggerProfileSchedule(t)
+	checkNextPayloads(t, team1MacOSMDMClient, false)
+	// Add a configuration profile to "No team".
+	mcUUID2 := "a" + uuid.NewString()
+	prof2 := mcBytesForTest("name-"+mcUUID2, "identifier-"+mcUUID2, mcUUID2)
+	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		stmt := `INSERT INTO mdm_apple_configuration_profiles (profile_uuid, team_id, name, identifier, mobileconfig, checksum, uploaded_at) VALUES (?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP);`
+		_, err := q.ExecContext(t.Context(), stmt, mcUUID2, 0, "name-"+mcUUID2, "identifier-"+mcUUID2, prof2, test.MakeTestBytes())
+		return err
+	})
+	s.awaitTriggerProfileSchedule(t)
+	checkNextPayloads(t, globalMacOSMDMClient, false)
+	team1Host.OrbitNodeKey = ptr.String(setOrbitEnrollment(t, team1Host, s.ds))
 	ggsr := getGlobalScheduleResponse{}
 	s.DoJSON("GET", "/api/latest/fleet/schedule", nil, http.StatusOK, &ggsr)
 	require.NoError(t, ggsr.Err)
@@ -20959,6 +20984,20 @@ func (s *integrationMDMTestSuite) TestTechnicianPermissions() {
 	s.lq.On("QueriesForHost", team1Host.ID).Return(map[string]string{fmt.Sprintf("%d", team1Host.ID): "SELECT 1 FROM osquery_info;"}, nil)
 	s.lq.On("RunQuery", testify_mock.Anything, testify_mock.Anything, testify_mock.Anything).Return(nil)
 	s.lq.On("StopQuery", testify_mock.Anything).Return(nil)
+	// Create a script on t1.
+	scriptT1, err := s.ds.NewScript(ctx, &fleet.Script{
+		Name:           "exit_0.sh",
+		ScriptContents: "exit 0",
+		TeamID:         &t1.ID,
+	})
+	require.NoError(t, err)
+	// Create a script on "No team".
+	scriptNoTeam, err := s.ds.NewScript(ctx, &fleet.Script{
+		Name:           "no_team_exit_0.sh",
+		ScriptContents: "exit 0",
+		TeamID:         nil,
+	})
+	require.NoError(t, err)
 
 	//
 	// Start running permission tests with user global-technician@example.com.
@@ -21352,6 +21391,49 @@ func (s *integrationMDMTestSuite) TestTechnicianPermissions() {
 	// Attempt to uninstall software on a host, should allow.
 	s.Do("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/software/%d/uninstall", globalHost.ID, softwareTitleIDNoTeam), &uninstallSoftwareRequest{}, http.StatusAccepted)
 
+	// Attempt to read all profiles on t1, should allow.
+	s.DoJSON("GET", "/api/latest/fleet/configuration_profiles", listMDMConfigProfilesRequest{}, http.StatusOK, &listMDMConfigProfilesResponse{}, "team_id", fmt.Sprint(t1.ID))
+	// Attempt to read the summary of profiles on t1, should allow.
+	s.DoJSON("GET", "/api/latest/fleet/configuration_profiles/summary", getMDMProfilesSummaryRequest{}, http.StatusOK, &getMDMProfilesSummaryResponse{}, "team_id", fmt.Sprint(t1.ID))
+	// Attempt to read a profile on t1, should allow.
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/configuration_profiles/%s", mcUUID), getMDMConfigProfileRequest{}, http.StatusOK, &getMDMConfigProfileResponse{})
+
+	// Attempt to create a profile on t1, should fail.
+	profileBody, profileHeaders := generateNewProfileMultipartRequest(
+		t,
+		"test_prof",
+		mobileconfigForTest("test_prof", "test_prof"),
+		s.token,
+		map[string][]string{"team_id": {fmt.Sprint(t1.ID)}},
+	)
+	s.DoRawWithHeaders("POST", "/api/latest/fleet/mdm/apple/profiles", profileBody.Bytes(), http.StatusForbidden, profileHeaders)
+
+	// Attempt to resend a profile.
+	// First set the profile to failed, so that we can resend.
+	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		stmt := `UPDATE host_mdm_apple_profiles SET status = ? WHERE profile_uuid = ? AND host_uuid = ?`
+		_, err := q.ExecContext(t.Context(), stmt, fleet.MDMDeliveryFailed, mcUUID, team1MacOSHost.UUID)
+		return err
+	})
+	_ = s.DoRaw("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/configuration_profiles/%s/resend", team1MacOSHost.ID, mcUUID), nil, http.StatusAccepted)
+
+	// Attempt to list scripts, should allow.
+	s.DoJSON("GET", "/api/latest/fleet/scripts", listScriptsRequest{}, http.StatusOK, &listScriptsResponse{}, "team_id", fmt.Sprint(t1.ID))
+	// Attempt to get a script, should allow.
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/scripts/%d", scriptNoTeam.ID), getScriptRequest{}, http.StatusOK, &getScriptResponse{})
+	// Attempt to run script on a host, should allow.
+	var rsr runScriptResponse
+	s.DoJSON("POST", "/api/latest/fleet/scripts/run", fleet.HostScriptRequestPayload{
+		HostID:     globalHost.ID,
+		ScriptName: "no_team_exit_0.sh",
+	}, http.StatusAccepted, &rsr)
+	// Attempt to run script on batch of hosts, should fail.
+	var batchRes batchScriptRunResponse
+	s.DoJSON("POST", "/api/latest/fleet/scripts/run/batch", batchScriptRunRequest{
+		ScriptID: scriptT1.ID,
+		HostIDs:  []uint{team1MacOSHost.ID},
+	}, http.StatusForbidden, &batchRes)
+
 	//
 	// Start running permission tests with t1-t3-technician@example.com.
 	//
@@ -21640,4 +21722,64 @@ func (s *integrationMDMTestSuite) TestTechnicianPermissions() {
 
 	// Attempt to uninstall software on a global host, should fail.
 	s.Do("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/software/%d/uninstall", globalHost.ID, softwareTitleIDNoTeam), &uninstallSoftwareRequest{}, http.StatusForbidden)
+
+	// Attempt to read all profiles on t1, should allow.
+	s.DoJSON("GET", "/api/latest/fleet/configuration_profiles", listMDMConfigProfilesRequest{}, http.StatusOK, &listMDMConfigProfilesResponse{}, "team_id", fmt.Sprint(t1.ID))
+	// Attempt to read the summary of profiles on t1, should allow.
+	s.DoJSON("GET", "/api/latest/fleet/configuration_profiles/summary", getMDMProfilesSummaryRequest{}, http.StatusOK, &getMDMProfilesSummaryResponse{}, "team_id", fmt.Sprint(t1.ID))
+	// Attempt to read a profile on t1, should allow.
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/configuration_profiles/%s", mcUUID), getMDMConfigProfileRequest{}, http.StatusOK, &getMDMConfigProfileResponse{})
+	// Attempt to read all profiles on "No team", should fail.
+	s.DoJSON("GET", "/api/latest/fleet/configuration_profiles", listMDMConfigProfilesRequest{}, http.StatusForbidden, &listMDMConfigProfilesResponse{}, "team_id", "0")
+	// Attempt to read a profile on "No team", should fail.
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/configuration_profiles/%s", mcUUID2), getMDMConfigProfileRequest{}, http.StatusForbidden, &getMDMConfigProfileResponse{})
+
+	// Attempt to create a profile on t1, should fail.
+	profileBody, profileHeaders = generateNewProfileMultipartRequest(
+		t,
+		"test_prof",
+		mobileconfigForTest("test_prof2", "test_prof2"),
+		s.token,
+		map[string][]string{"team_id": {fmt.Sprint(t1.ID)}},
+	)
+	s.DoRawWithHeaders("POST", "/api/latest/fleet/mdm/apple/profiles", profileBody.Bytes(), http.StatusForbidden, profileHeaders)
+
+	// Attempt to resend a profile on t1, should allow.
+	// First set the profile to failed, so that we can resend.
+	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		stmt := `UPDATE host_mdm_apple_profiles SET status = ? WHERE profile_uuid = ? AND host_uuid = ?`
+		_, err := q.ExecContext(t.Context(), stmt, fleet.MDMDeliveryFailed, mcUUID, team1MacOSHost.UUID)
+		return err
+	})
+	_ = s.DoRaw("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/configuration_profiles/%s/resend", team1MacOSHost.ID, mcUUID), nil, http.StatusAccepted)
+
+	// Attempt to resend a profile on "No team" host, should fail.
+	_ = s.DoRaw("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/configuration_profiles/%s/resend", globalHost.ID, mcUUID2), nil, http.StatusForbidden)
+
+	// Attempt to list scripts on t1, should allow.
+	s.DoJSON("GET", "/api/latest/fleet/scripts", listScriptsRequest{}, http.StatusOK, &listScriptsResponse{}, "team_id", fmt.Sprint(t1.ID))
+	// Attempt to list scripts on "No team", should fail.
+	s.DoJSON("GET", "/api/latest/fleet/scripts", listScriptsRequest{}, http.StatusForbidden, &listScriptsResponse{})
+	// Attempt to get a script, should allow.
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/scripts/%d", scriptT1.ID), getScriptRequest{}, http.StatusOK, &getScriptResponse{})
+	// Attempt to run script on a host, should allow.
+	rsr = runScriptResponse{}
+	s.DoJSON("POST", "/api/latest/fleet/scripts/run", fleet.HostScriptRequestPayload{
+		HostID:     team1Host.ID,
+		ScriptName: "exit_0.sh",
+		TeamID:     t1.ID,
+	}, http.StatusAccepted, &rsr)
+	// Attempt to run script on a host in "No team", should fail.
+	rsr = runScriptResponse{}
+	s.DoJSON("POST", "/api/latest/fleet/scripts/run", fleet.HostScriptRequestPayload{
+		HostID:     globalHost.ID,
+		ScriptName: "no_team_exit_0.sh",
+	}, http.StatusForbidden, &rsr)
+
+	// Attempt to run script on batch of hosts, should fail.
+	batchRes = batchScriptRunResponse{}
+	s.DoJSON("POST", "/api/latest/fleet/scripts/run/batch", batchScriptRunRequest{
+		ScriptID: scriptT1.ID,
+		HostIDs:  []uint{team1MacOSHost.ID},
+	}, http.StatusForbidden, &batchRes)
 }
