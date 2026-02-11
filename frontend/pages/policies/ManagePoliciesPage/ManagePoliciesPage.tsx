@@ -164,6 +164,7 @@ const ManagePolicyPage = ({
       maintainer: true,
       observer: true,
       observer_plus: true,
+      technician: false,
     },
   });
 
