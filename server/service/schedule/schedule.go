@@ -88,6 +88,9 @@ type CronStatsStore interface {
 	InsertCronStats(ctx context.Context, statsType fleet.CronStatsType, name string, instance string, status fleet.CronStatsStatus) (int, error)
 	// UpdateCronStats updates the status of the identified cron stats record
 	UpdateCronStats(ctx context.Context, id int, status fleet.CronStatsStatus, cronErrors *fleet.CronScheduleErrors) error
+	// ClaimCronStats transitions a queued cron stats record to the given status
+	// and updates the instance to the worker that is claiming it.
+	ClaimCronStats(ctx context.Context, id int, instance string, status fleet.CronStatsStatus) error
 }
 
 // Option allows configuring a Schedule.
@@ -263,9 +266,10 @@ func (s *Schedule) Start() {
 				}
 
 				// If this is a DB-polled trigger, claim the queued record now
-				// that we hold the lock and are ready to run.
+				// that we hold the lock and are ready to run. This updates the
+				// instance to the actual worker instance ID.
 				if claimedStatsID > 0 {
-					if err := s.updateStats(ctx, claimedStatsID, fleet.CronStatsStatusPending); err != nil {
+					if err := s.statsStore.ClaimCronStats(ctx, claimedStatsID, s.instanceID, fleet.CronStatsStatusPending); err != nil {
 						level.Error(s.logger).Log("err", "claiming queued trigger", "details", err)
 						ctxerr.Handle(ctx, err)
 					}
