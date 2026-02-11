@@ -19365,7 +19365,7 @@ func (s *integrationEnterpriseTestSuite) TestMaintainedApps() {
 		TeamID:   &noTeamID,
 		TeamName: nil,
 	}
-	s.lastActivityMatches(wantAct.ActivityName(), `{"fleet_id":0, "policy_id":1, "policy_name":"[Install software]", "team_id":0}`, 0)
+	s.lastActivityMatches(wantAct.ActivityName(), fmt.Sprintf(`{"fleet_id":0, "policy_id":%d, "policy_name":"[Install software]", "team_id":0}`, gotPolicy.ID), 0)
 
 	// First FMA added doesn't have automatic install policies
 	st = resp.SoftwareTitles[1] // sorted by ID above
