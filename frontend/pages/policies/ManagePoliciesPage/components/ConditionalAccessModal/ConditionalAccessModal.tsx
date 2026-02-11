@@ -195,7 +195,7 @@ const ConditionalAccessModal = ({
       onExit={onExit}
       width="large"
     >
-      {configured || true ? renderConfigured() : renderNotConfigured()}
+      {configured ? renderConfigured() : renderNotConfigured()}
     </Modal>
   );
 };
