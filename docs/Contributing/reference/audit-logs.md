@@ -639,6 +639,22 @@ This activity contains the following fields:
 }
 ```
 
+## started_setup_experience
+
+Generated when a macOS, Windows, or Linux host starts the setup experience.
+
+This activity contains the following fields:
+- "host_serial": Serial number of the host.
+- "host_display_name": Display name of the host.
+
+## finished_setup_experience
+
+Generated when a macOS, Windows, or Linux host finished the setup experience.
+
+This activity contains the following fields:
+- "host_serial": Serial number of the host.
+- "host_display_name": Display name of the host.
+
 ## edited_macos_min_version
 
 Generated when the minimum required macOS version or deadline is modified.
