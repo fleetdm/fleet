@@ -31,7 +31,7 @@ const ScriptUploadModal = ({
     setShowLoading(true);
     try {
       await scriptAPI.uploadScript(selectedFile, currentTeamId);
-      renderFlash("success", "Successfully uploaded.);
+      renderFlash("success", "Successfully uploaded.");
       onSubmit();
     } catch (e) {
       renderFlash("error", getErrorMessage(e));
