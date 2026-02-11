@@ -8,10 +8,51 @@ module.exports = {
 
 
   inputs: {
+    // Set via path parameter
     androidEnterpriseId: {
       type: 'string',
       required: true,
     },
+
+    // Sent in request body
+    // https://developers.google.com/android/management/reference/rest/v1/enterprises.enrollmentTokens#EnrollmentToken
+    name: {
+      type: 'string',
+    },
+    value: {
+      type: 'string',
+    },
+    duration: {
+      type: 'string',
+    },
+    expirationTimestamp: {
+      type: 'string',
+    },
+    policyName: {
+      type: 'string',
+    },
+    additionalData: {
+      type: 'string',
+    },
+    qrCode: {
+      type: 'string',
+    },
+    oneTimeOnly: {
+      type: 'boolean',
+    },
+    user: {
+      type: {},
+    },
+    allowPersonalUsage: {
+      type: 'string',
+      isIn: [
+        'ALLOW_PERSONAL_USAGE_UNSPECIFIED',
+        'PERSONAL_USAGE_ALLOWED',
+        'PERSONAL_USAGE_DISALLOWED',
+        'PERSONAL_USAGE_DISALLOWED_USERLESS',
+      ]
+    }
+
   },
 
 
@@ -23,7 +64,7 @@ module.exports = {
   },
 
 
-  fn: async function ({androidEnterpriseId}) {
+  fn: async function ({androidEnterpriseId, name, value, duration, expirationTimestamp, policyName, additionalData, qrCode, user, allowPersonalUsage}) {
     // Extract fleetServerSecret from the Authorization header
     let authHeader = this.req.get('authorization');
     let fleetServerSecret;
@@ -72,7 +113,17 @@ module.exports = {
       // [?]: https://googleapis.dev/nodejs/googleapis/latest/androidmanagement/classes/Resource$Enterprises$Enrollmenttokens.html#create
       let enrollmentTokenCreateResponse = await androidmanagement.enterprises.enrollmentTokens.create({
         parent: `enterprises/${androidEnterpriseId}`,
-        requestBody: this.req.body,
+        requestBody: {
+          name,
+          value,
+          duration,
+          expirationTimestamp,
+          policyName,
+          additionalData,
+          qrCode,
+          user,
+          allowPersonalUsage
+        }
       });
       return enrollmentTokenCreateResponse.data;
     }).intercept({status: 429}, (err)=>{
