@@ -53,6 +53,7 @@ func (svc *Service) BatchAssociateVPPApps(ctx context.Context, teamName string, 
 		return nil, err
 	}
 
+	var manualAgentInstall bool
 	var teamID *uint
 	if teamName != "" {
 		tm, err := svc.ds.TeamByName(ctx, teamName)
@@ -64,6 +65,13 @@ func (svc *Service) BatchAssociateVPPApps(ctx context.Context, teamName string, 
 			return nil, err
 		}
 		teamID = &tm.ID
+		manualAgentInstall = tm.Config.MDM.MacOSSetup.ManualAgentInstall.Value
+	} else {
+		noTeamConfig, err := svc.ds.DefaultTeamConfig(ctx)
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "getting no-team config")
+		}
+		manualAgentInstall = noTeamConfig.MDM.MacOSSetup.ManualAgentInstall.Value
 	}
 
 	if err := svc.authz.Authorize(ctx, &fleet.SoftwareInstaller{TeamID: teamID}, fleet.ActionWrite); err != nil {
@@ -155,6 +163,13 @@ func (svc *Service) BatchAssociateVPPApps(ctx context.Context, teamName string, 
 			if payload.Platform == fleet.AndroidPlatform && strings.HasPrefix(payload.AppStoreID, fleetAgentPackagePrefix) {
 				return nil, fleet.NewInvalidArgumentError("app_store_id", "The Fleet agent cannot be added manually. "+
 					"It is automatically managed by Fleet when Android MDM is enabled.")
+			}
+
+			// TODO(JK): can we just check if macos platform here?
+			if payload.Platform == fleet.MacOSPlatform && ptr.ValOrZero(payload.InstallDuringSetup) && manualAgentInstall {
+				return nil, fleet.NewUserMessageError(
+					errors.New(`Couldn't edit software. "setup_experience" cannot be used for macOS software if "manual_agent_install" is enabled.`),
+					http.StatusUnprocessableEntity)
 			}
 
 			var err error

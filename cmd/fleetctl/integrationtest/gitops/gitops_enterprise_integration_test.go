@@ -3331,3 +3331,128 @@ team_settings:
 		})
 	}
 }
+
+func (s *enterpriseIntegrationGitopsTestSuite) TestDisallowSoftwareSetupExperience() {
+	t := s.T()
+	// ctx := context.Background()
+
+	user := s.createGitOpsUser(t)
+	fleetctlConfig := s.createFleetctlConfig(t, user)
+
+	// Create a global VPP token (location is "Jungle")
+	test.CreateInsertGlobalVPPToken(t, s.DS)
+
+	// Generate team name upfront since we need it in the global template
+	teamName := uuid.NewString()
+
+	// The global template includes VPP token assignment to the team
+	// The location "Jungle" comes from test.CreateInsertGlobalVPPToken
+	globalTemplate := `agent_options:
+org_settings:
+  server_settings:
+    server_url: $FLEET_URL
+  org_info:
+    org_name: Fleet
+  secrets:
+  - secret: foobar
+  mdm:
+    volume_purchasing_program:
+      - location: Jungle
+        teams:
+          - %s
+policies:
+controls:
+queries:
+`
+
+	teamTemplate := `
+controls:
+  macos_setup:
+    manual_agent_install: true
+software:
+  app_store_apps:
+    - app_store_id: "2"
+      platform: darwin
+      setup_experience: true
+    - app_store_id: "2"
+      platform: ios
+      setup_experience: true
+    - app_store_id: "2"
+      platform: ipados
+      setup_experience: true
+queries:
+policies:
+agent_options:
+name: %s
+team_settings:
+  %s
+`
+
+	testCases := []struct {
+		specialCase  string
+		teamName     string
+		teamSettings string
+	}{
+		{
+			specialCase:  "All teams",
+			teamName:     teamName,
+			teamSettings: `secrets: [{"secret":"enroll_secret"}]`,
+		},
+		{
+			specialCase: "No team",
+			teamName:    "No team",
+		},
+	}
+	for _, tc := range testCases {
+		t.Run(tc.specialCase, func(t *testing.T) {
+			globalFile, err := os.CreateTemp(t.TempDir(), "*.yml")
+			require.NoError(t, err)
+			globalYAML := fmt.Sprintf(globalTemplate, tc.specialCase)
+			_, err = globalFile.WriteString(globalYAML)
+			require.NoError(t, err)
+			err = globalFile.Close()
+			require.NoError(t, err)
+			teamFile, err := os.CreateTemp(t.TempDir(), "*.yml")
+			require.NoError(t, err)
+			_, err = fmt.Fprintf(teamFile, teamTemplate, tc.teamName, tc.teamSettings)
+			require.NoError(t, err)
+			err = teamFile.Close()
+			require.NoError(t, err)
+
+			teamFileName := teamFile.Name()
+
+			if tc.specialCase == "No team" {
+				noTeamFilePath := filepath.Join(filepath.Dir(teamFile.Name()), "no-team.yml")
+				err = os.Rename(teamFile.Name(), noTeamFilePath)
+				require.NoError(t, err)
+
+				teamFileName = noTeamFilePath
+			}
+			umm, err := os.ReadFile(teamFileName)
+			require.NoError(t, err)
+			fmt.Println(string(umm))
+
+			t.Setenv("FLEET_URL", s.Server.URL)
+
+			testing_utils.StartAndServeVPPServer(t)
+
+			// Don't attempt dry runs because they would not actually create the team
+			// dryRunOutput := fleetctl.RunAppForTest(t, []string{"gitops", "--config", fleetctlConfig.Name(), "-f", globalFile.Name(), "-f", teamFileName, "--dry-run"})
+			// require.Contains(t, dryRunOutput, "Couldn't edit software.")
+
+			output, err := fleetctl.RunAppNoChecks([]string{"gitops", "--config", fleetctlConfig.Name(), "-f", globalFile.Name(), "-f", teamFileName})
+
+			mysql.ExecAdhocSQL(t, s.DS, func(q sqlx.ExtContext) error {
+				mysql.DumpTable(t, q, "default_team_config_json")
+				// mysql.DumpTable(t, q, "teams")
+				return nil
+			})
+			fmt.Println("------------------------------")
+			fmt.Println(output)
+			fmt.Println(err)
+			fmt.Println("------------------------------")
+			require.ErrorContains(t, err, "Couldn't edit software.")
+
+		})
+	}
+}

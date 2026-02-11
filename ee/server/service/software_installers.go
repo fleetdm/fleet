@@ -2189,6 +2189,14 @@ func (svc *Service) softwareBatchUpload(
 		return resp, tfr, nil
 	}
 
+	tmID := ptr.ValOrZero(teamID)
+	team, err := svc.ds.TeamLite(ctx, tmID)
+	if err != nil {
+		batchErr = fmt.Errorf("Couldn't get team for team ID %d: %w", tmID, err)
+		return
+	}
+	manualAgentInstall := team.Config.MDM.MacOSSetup.ManualAgentInstall.Value
+
 	var g errgroup.Group
 	g.SetLimit(1) // TODO: consider whether we can increase this limit, see https://github.com/fleetdm/fleet/issues/22704#issuecomment-2397407837
 
@@ -2251,15 +2259,13 @@ func (svc *Service) softwareBatchUpload(
 
 			installer.CategoryIDs = catIDs
 
+			// umm, can we check if InstallDuringSetup AND config.manualagentinstall, then fail here
+			// we will have to do this later on
+
 			// check if we already have the installer based on the SHA256 and URL
 			teamIDs, err := svc.ds.GetTeamsWithInstallerByHash(ctx, p.SHA256, p.URL)
 			if err != nil {
 				return err
-			}
-
-			var tmID uint
-			if teamID != nil {
-				tmID = *teamID
 			}
 
 			foundInstallers, ok := teamIDs[tmID]
@@ -2477,6 +2483,12 @@ func (svc *Service) softwareBatchUpload(
 				installer.UninstallScript = ""
 				installer.PreInstallQuery = ""
 				installer.InstallScript = ""
+			}
+
+			// if manual_agent_install is true, error if any macOS software is added to setup experience
+			// TODO(JK): I'm not totally sure if platform is 100% guaranteed here
+			if installer.Platform == string(fleet.MacOSPlatform) && ptr.ValOrZero(installer.InstallDuringSetup) && manualAgentInstall {
+				return errors.New(`Couldn't edit software. "setup_experience" cannot be used for macOS software if "manual_agent_install" is enabled.`)
 			}
 
 			// Update $PACKAGE_ID/$UPGRADE_CODE in uninstall script
