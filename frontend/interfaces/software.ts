@@ -257,8 +257,8 @@ export const SOURCE_TYPE_CONVERSION = {
   chocolatey_packages: "Package (Chocolatey)",
   pkg_packages: "Package (pkg)",
   vscode_extensions: "IDE extension", // vscode_extensions can include any vscode-based editor (e.g., Cursor, Trae, Windsurf), so we rely instead on the `extension_for` field computed by Fleet server and fallback to this value if it is not present.
-  sh_packages: "Payload-free (Linux)",
-  ps1_packages: "Payload-free (Windows)",
+  sh_packages: "Script-only package (macOS & Linux)",
+  ps1_packages: "Script-only package (Windows)",
   jetbrains_plugins: "IDE extension", // jetbrains_plugins can include any JetBrains IDE (e.g., IntelliJ, PyCharm, WebStorm), so we rely instead on the `extension_for` field computed by Fleet server and fallback to this value if it is not present.
 } as const;
 
@@ -375,7 +375,7 @@ export const SOFTWARE_INSTALL_STATUSES = [
   "failed_install",
 ] as const;
 
-// Payload-free (script) software statuses
+// Script-only software statuses
 export const SOFTWARE_SCRIPT_STATUSES = [
   "ran_script",
   "pending_script",
@@ -387,7 +387,7 @@ export type SoftwareInstallStatus = typeof SOFTWARE_INSTALL_STATUSES[number];
 export const SOFTWARE_INSTALL_UNINSTALL_STATUSES = [
   ...SOFTWARE_INSTALL_STATUSES,
   ...SOFTWARE_UNINSTALL_STATUSES,
-  // Payload-free (script) software statuses use API's SOFTWARE_INSTALL_STATUSES
+  // Script-only software statuses use API's SOFTWARE_INSTALL_STATUSES
 ] as const;
 
 /*
@@ -395,15 +395,15 @@ export const SOFTWARE_INSTALL_UNINSTALL_STATUSES = [
  */
 export type SoftwareInstallUninstallStatus = typeof SOFTWARE_INSTALL_UNINSTALL_STATUSES[number];
 
-/** Include payload-free statuses */
+/** Include script-only software statuses */
 export const ENAHNCED_SOFTWARE_INSTALL_UNINSTALL_STATUSES = [
   ...SOFTWARE_INSTALL_STATUSES,
   ...SOFTWARE_UNINSTALL_STATUSES,
-  ...SOFTWARE_SCRIPT_STATUSES, // Payload-free (script) software
+  ...SOFTWARE_SCRIPT_STATUSES, // Script-only software
 ] as const;
 
 /*
- * EnhancedSoftwareInstallUninstallStatus represents the possible states of software install operations including payload-free used in the UI.
+ * EnhancedSoftwareInstallUninstallStatus represents the possible states of software install operations including script-only software used in the UI.
  */
 export type EnhancedSoftwareInstallUninstallStatus = typeof ENAHNCED_SOFTWARE_INSTALL_UNINSTALL_STATUSES[number];
 
@@ -695,9 +695,9 @@ const INSTALL_STATUS_PREDICATES: Record<
   failed_install: "failed to install",
   pending_uninstall: "told Fleet to uninstall",
   failed_uninstall: "failed to uninstall",
-  ran_script: "ran", // Payload-free (script) software
-  failed_script: "failed to run", // Payload-free (script) software
-  pending_script: "told Fleet to run", // Payload-free (script) software
+  ran_script: "ran", // Script-only software
+  failed_script: "failed to run", // Script-only software
+  pending_script: "told Fleet to run", // Script-only software
 } as const;
 
 export const getInstallUninstallStatusPredicate = (
@@ -750,9 +750,9 @@ export const INSTALL_STATUS_ICONS: Record<
   failed_install: "error-outline",
   pending_uninstall: "pending-outline",
   failed_uninstall: "error-outline",
-  ran_script: "success-outline", // Payload-free (script) software
-  failed_script: "error-outline", // Payload-free (script) software
-  pending_script: "pending-outline", // Payload-free (script) software
+  ran_script: "success-outline", // Script-only software
+  failed_script: "error-outline", // Script-only software
+  pending_script: "pending-outline", // Script-only software
 } as const;
 
 type IHostSoftwarePackageWithLastInstall = IHostSoftwarePackage & {
