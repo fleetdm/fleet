@@ -2016,8 +2016,8 @@ func directIngestScheduledQueryStats(ctx context.Context, logger log.Logger, hos
 
 const (
 	linuxImageRegex = `^linux-image-[[:digit:]]+\.[[:digit:]]+\.[[:digit:]]+-[[:digit:]]+-[[:alnum:]]+`
-	rpmKernelName  = "kernel"
-	archKernelName = `^linux(?:-(?:lts|zen|hardened))?$`
+	rpmKernelName   = "kernel"
+	archKernelName  = `^linux(?:-(?:lts|zen|hardened))?$`
 )
 
 var (
