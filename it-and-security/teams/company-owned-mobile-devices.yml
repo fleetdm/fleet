@@ -32,12 +32,14 @@ software:
   app_store_apps:
     # iOS apps
     - app_store_id: "618783545" # Slack
+      display_name: "Slack"
       self_service: true
       setup_experience: true
       platform: ios
       categories:
         - "Communication"
     - app_store_id: "546505307" # Zoom
+      display_name: "Zoom"
       self_service: true
       setup_experience: true
       platform: ios
@@ -47,6 +49,7 @@ software:
       categories:
         - "Communication"
     - app_store_id: "842842640" # Google Docs
+      display_name: "Google Docs"
       self_service: true
       platform: ios
       auto_update_enabled: true
@@ -55,6 +58,7 @@ software:
       categories:
         - "Productivity"
     - app_store_id: "842849113" # Google Sheets
+      display_name: "Google Sheets"
       self_service: true
       platform: ios
       auto_update_enabled: true
@@ -63,6 +67,7 @@ software:
       categories:
         - "Productivity"
     - app_store_id: "507874739" # Google Drive
+      display_name: "Google Drive"
       self_service: true
       platform: ios
       auto_update_enabled: true
@@ -71,6 +76,7 @@ software:
       categories:
         - "Productivity"
     - app_store_id: "490179405" # Okta Verify
+      display_name: "Okta Verify"
       self_service: true
       platform: ios
       auto_update_enabled: true
@@ -80,6 +86,7 @@ software:
         - "Security"
     # iPadOS apps
     - app_store_id: "618783545" # Slack
+      display_name: "Slack"
       self_service: true
       setup_experience: true
       platform: ipados
@@ -87,6 +94,7 @@ software:
         - "Productivity"
         - "Communication"
     - app_store_id: "546505307" # Zoom
+      display_name: "Zoom"
       self_service: true
       setup_experience: true
       platform: ipados
@@ -96,6 +104,7 @@ software:
       categories:
         - "Communication"
     - app_store_id: "842842640" # Google Docs
+      display_name: "Google Docs"
       self_service: true
       platform: ipados
       auto_update_enabled: true
@@ -104,6 +113,7 @@ software:
       categories:
         - "Productivity"
     - app_store_id: "842849113" # Google Sheets
+      display_name: "Google Sheets"
       self_service: true
       platform: ipados
       auto_update_enabled: true
@@ -112,6 +122,7 @@ software:
       categories:
         - "Productivity"
     - app_store_id: "507874739" # Google Drive
+      display_name: "Google Drive"
       self_service: true
       platform: ipados
       auto_update_enabled: true
@@ -132,7 +143,7 @@ software:
       setup_experience: true
     - app_store_id: "com.onepassword.android" # 1Password
       platform: android
-      display_name: "Slack"
+      display_name: "1Password"
       self_service: true
       setup_experience: true
     - app_store_id: "com.google.android.apps.docs" # Google Drive
