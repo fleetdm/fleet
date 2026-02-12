@@ -17,6 +17,7 @@ import {
   IHostSoftware,
   IDeviceSoftwareWithUiStatus,
   IVPPHostSoftware,
+  NO_VERSION_OR_HOST_DATA_SOURCES,
 } from "interfaces/software";
 
 import deviceApi, {
@@ -345,9 +346,13 @@ const SoftwareSelfService = ({
             return next;
           });
 
-          // Some pending installs finished during the last refresh
+          // Some pending installs/uninstalls finished during the last refresh
           // Trigger an additional refetch to ensure UI status is up-to-date
           // If already refetching, queue another refetch
+
+          // Refetch host details to:
+          // - Update the software library version information of newly installed/uninstalled software of inventory‑detectable sources only
+          // - Update the software inventory of any changes to software detected by software inventory
           refetchHostDetails();
         }
 

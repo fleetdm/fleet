@@ -244,12 +244,14 @@ func NewDBConnections(cfg config.MysqlConfig, opts ...DBOption) (*common_mysql.D
 		}
 	}
 
-	if err := checkConfig(&cfg); err != nil {
+	if err := checkAndModifyConfig(&cfg); err != nil {
 		return nil, err
 	}
+	// Convert replica config once so that checkAndModifyConfig mutations are preserved for the later NewDB call.
+	var replicaConf *config.MysqlConfig
 	if options.ReplicaConfig != nil {
-		replicaConf := fromCommonMysqlConfig(options.ReplicaConfig)
-		if err := checkConfig(replicaConf); err != nil {
+		replicaConf = fromCommonMysqlConfig(options.ReplicaConfig)
+		if err := checkAndModifyConfig(replicaConf); err != nil {
 			return nil, fmt.Errorf("replica: %w", err)
 		}
 	}
@@ -264,12 +266,11 @@ func NewDBConnections(cfg config.MysqlConfig, opts ...DBOption) (*common_mysql.D
 		return nil, err
 	}
 	dbReader := dbWriter
-	if options.ReplicaConfig != nil {
+	if replicaConf != nil {
 		// Set up IAM auth for replica if needed (may have different region/credentials)
 		replicaOptions := *options
 		// Reset ConnectorFactory - replica may have different auth requirements than primary
 		replicaOptions.ConnectorFactory = nil
-		replicaConf := fromCommonMysqlConfig(options.ReplicaConfig)
 		if err := setupIAMAuthIfNeeded(replicaConf, &replicaOptions); err != nil {
 			return nil, fmt.Errorf("replica: %w", err)
 		}
@@ -441,7 +442,7 @@ func fromCommonMysqlConfig(conf *common_mysql.MysqlConfig) *config.MysqlConfig {
 	}
 }
 
-func checkConfig(conf *config.MysqlConfig) error {
+func checkAndModifyConfig(conf *config.MysqlConfig) error {
 	if conf.PasswordPath != "" && conf.Password != "" {
 		return errors.New("A MySQL password and a MySQL password file were provided - please specify only one")
 	}
@@ -869,7 +870,7 @@ func (ds *Datastore) whereFilterHostsByTeams(filter fleet.TeamFilter, hostKey st
 
 	if filter.User.GlobalRole != nil {
 		switch *filter.User.GlobalRole {
-		case fleet.RoleAdmin, fleet.RoleMaintainer, fleet.RoleObserverPlus:
+		case fleet.RoleAdmin, fleet.RoleMaintainer, fleet.RoleTechnician, fleet.RoleObserverPlus:
 			return defaultAllowClause
 		case fleet.RoleObserver:
 			if filter.IncludeObserver {
@@ -887,6 +888,7 @@ func (ds *Datastore) whereFilterHostsByTeams(filter fleet.TeamFilter, hostKey st
 	for _, team := range filter.User.Teams {
 		if team.Role == fleet.RoleAdmin ||
 			team.Role == fleet.RoleMaintainer ||
+			team.Role == fleet.RoleTechnician ||
 			team.Role == fleet.RoleObserverPlus ||
 			(team.Role == fleet.RoleObserver && filter.IncludeObserver) {
 			idStrs = append(idStrs, fmt.Sprint(team.ID))
@@ -945,7 +947,7 @@ func (ds *Datastore) whereFilterGlobalOrTeamIDByTeamsWithSqlFilter(
 
 	if filter.User.GlobalRole != nil {
 		switch *filter.User.GlobalRole {
-		case fleet.RoleAdmin, fleet.RoleMaintainer, fleet.RoleObserverPlus:
+		case fleet.RoleAdmin, fleet.RoleMaintainer, fleet.RoleTechnician, fleet.RoleObserverPlus:
 			return defaultAllowClause
 		case fleet.RoleObserver:
 			if filter.IncludeObserver {
@@ -963,6 +965,7 @@ func (ds *Datastore) whereFilterGlobalOrTeamIDByTeamsWithSqlFilter(
 	for _, team := range filter.User.Teams {
 		if team.Role == fleet.RoleAdmin ||
 			team.Role == fleet.RoleMaintainer ||
+			team.Role == fleet.RoleTechnician ||
 			team.Role == fleet.RoleObserverPlus ||
 			(team.Role == fleet.RoleObserver && filter.IncludeObserver) {
 			idStrs = append(idStrs, fmt.Sprint(team.ID))
@@ -1004,7 +1007,7 @@ func (ds *Datastore) whereFilterTeams(filter fleet.TeamFilter, teamKey string) s
 
 	if filter.User.GlobalRole != nil {
 		switch *filter.User.GlobalRole {
-		case fleet.RoleAdmin, fleet.RoleMaintainer, fleet.RoleGitOps, fleet.RoleObserverPlus:
+		case fleet.RoleAdmin, fleet.RoleMaintainer, fleet.RoleTechnician, fleet.RoleGitOps, fleet.RoleObserverPlus:
 			return "TRUE"
 		case fleet.RoleObserver:
 			if filter.IncludeObserver {
@@ -1021,6 +1024,7 @@ func (ds *Datastore) whereFilterTeams(filter fleet.TeamFilter, teamKey string) s
 	for _, team := range filter.User.Teams {
 		if team.Role == fleet.RoleAdmin ||
 			team.Role == fleet.RoleMaintainer ||
+			team.Role == fleet.RoleTechnician ||
 			team.Role == fleet.RoleGitOps ||
 			team.Role == fleet.RoleObserverPlus ||
 			(team.Role == fleet.RoleObserver && filter.IncludeObserver) {

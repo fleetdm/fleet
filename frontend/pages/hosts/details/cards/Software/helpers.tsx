@@ -7,6 +7,7 @@ import {
   IHostSoftware,
   IHostSoftwareUiStatus,
   IHostSoftwareWithUiStatus,
+  NO_VERSION_OR_HOST_DATA_SOURCES,
   SCRIPT_PACKAGE_SOURCES,
 } from "interfaces/software";
 import { IconNames } from "components/icons";
@@ -194,6 +195,12 @@ export const getUiStatus = (
   const lastUninstallDate = getLastUninstall(software)?.uninstalled_at;
   const installerVersion = getInstallerVersion(software);
   const isScriptPackage = SCRIPT_PACKAGE_SOURCES.includes(source);
+  // Some sources (e.g. tarballs, scripts) do not map to software inventory, so we will always skip
+  // inventory-based checks (e.g. recently_installed/recently_uninstalled) for these software sources
+  // This guard allows the switch to 'installed' or 'uninstalled' immediately after a tarball action succeeds.
+  const isInventoryDetectableSource = !NO_VERSION_OR_HOST_DATA_SOURCES.includes(
+    source
+  );
   /** True if a recent user-initiated action (install/uninstall) was detected for this software */
   const recentUserActionDetected =
     recentlyUpdatedIds && recentlyUpdatedIds.has(software.id);
@@ -206,6 +213,9 @@ export const getUiStatus = (
     if (status === "pending_install") {
       return isHostOnline ? "running_script" : "pending_script";
     }
+    // We never show recently installed/updated or waiting for inventory for script packages
+    // Since version won't be retreived from inventory, we are not waiting on a refetch
+    // UI status immediately changes to "Ran" status after a successful install
     if (status === "installed") {
       return "ran_script";
     }
@@ -269,7 +279,12 @@ export const getUiStatus = (
   }
 
   // Recently_uninstalled check comes BEFORE update_available
-  if (status === null && lastUninstallDate && hostSoftwareUpdatedAt) {
+  if (
+    status === null &&
+    lastUninstallDate &&
+    hostSoftwareUpdatedAt &&
+    isInventoryDetectableSource // Only wait for inventory updates for sources that appear in software inventory
+  ) {
     const newerDate = getNewerDate(hostSoftwareUpdatedAt, lastUninstallDate);
     if (newerDate === lastUninstallDate || recentUserActionDetected) {
       return "recently_uninstalled";
@@ -297,7 +312,11 @@ export const getUiStatus = (
 
   // 6. Recently installed (not an update)
   if (status === "installed") {
-    if (lastInstallDate && hostSoftwareUpdatedAt) {
+    if (
+      lastInstallDate &&
+      hostSoftwareUpdatedAt &&
+      isInventoryDetectableSource // Only wait for inventory updates for sources that appear in software inventory
+    ) {
       const newerDate = getNewerDate(hostSoftwareUpdatedAt, lastInstallDate);
       if (newerDate === lastInstallDate || recentUserActionDetected) {
         return "recently_installed";

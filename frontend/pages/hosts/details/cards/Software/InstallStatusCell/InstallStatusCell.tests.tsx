@@ -125,7 +125,7 @@ describe("InstallStatusCell - component", () => {
     ).not.toBeInTheDocument();
   });
 
-  it("renders 'Ran' status for a payload-free package", async () => {
+  it("renders 'Ran' status for a script-only package", async () => {
     const { user } = renderWithSetup(
       <InstallStatusCell
         software={{
@@ -191,7 +191,7 @@ describe("InstallStatusCell - component", () => {
     });
   });
 
-  it("renders 'Running...' status for a payload-free package with tooltip if host is online", async () => {
+  it("renders 'Running...' status for a script-only package with tooltip if host is online", async () => {
     const { user } = renderWithSetup(
       <InstallStatusCell
         software={{
@@ -233,7 +233,7 @@ describe("InstallStatusCell - component", () => {
     ).not.toBeInTheDocument();
   });
 
-  it("renders 'Run (pending)' for a payload-free package with tooltip if host is offline", async () => {
+  it("renders 'Run (pending)' for a script-only package with tooltip if host is offline", async () => {
     const { user } = renderWithSetup(
       <InstallStatusCell
         software={{
@@ -374,7 +374,7 @@ describe("InstallStatusCell - component", () => {
     });
   });
 
-  it("renders 'Failed' for a payload-free package that failed to run", async () => {
+  it("renders 'Failed' for a script-only package that failed to run", async () => {
     const { user } = renderWithSetup(
       <InstallStatusCell
         software={{
@@ -662,7 +662,7 @@ describe("InstallStatusCell - component", () => {
     expect(screen.queryByRole("button")).not.toBeInTheDocument();
   });
 
-  it("renders '---' for a payload-free package available for run", async () => {
+  it("renders '---' for a script-only package available for run", async () => {
     const { user } = renderWithSetup(
       <InstallStatusCell
         software={{

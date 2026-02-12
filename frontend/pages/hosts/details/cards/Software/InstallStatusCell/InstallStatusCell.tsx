@@ -427,7 +427,7 @@ const InstallStatusCell = ({
 
   const displayConfig = INSTALL_STATUS_DISPLAY_OPTIONS[displayStatus];
 
-  // This is only called for script packages (payload-free installers: .sh, .ps1)
+  // This is only called for script packages (script-only installers: .sh, .ps1)
   const onClickScriptStatus = () => {
     onShowScriptDetails(software);
   };

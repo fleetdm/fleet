@@ -14,8 +14,9 @@ locals {
 
 
     # Load TLS Certificate for RDS Authentication
-    FLEET_MYSQL_TLS_CA              = local.cert_path
-    FLEET_MYSQL_READ_REPLICA_TLS_CA = local.cert_path
+    FLEET_MYSQL_TLS_CA                  = local.cert_path
+    FLEET_MYSQL_READ_REPLICA_TLS_CA     = local.cert_path
+    FLEET_MYSQL_READ_REPLICA_TLS_CONFIG = "custom"
   }
 
   /* 
