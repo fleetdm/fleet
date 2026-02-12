@@ -79,12 +79,14 @@ software:
     # iPadOS apps
     - app_store_id: "618783545" # Slack
       self_service: true
+      setup_experience: true
       platform: ipados
       categories:
         - "Productivity"
         - "Communication"
     - app_store_id: "546505307" # Zoom
       self_service: true
+      setup_experience: true
       platform: ipados
       auto_update_enabled: true
       auto_update_window_start: "21:00"
