@@ -9,7 +9,7 @@ import (
 
 	"github.com/fleetdm/fleet/v4/ee/server/calendar/load_test"
 	"github.com/fleetdm/fleet/v4/server/fleet"
-	kitlog "github.com/go-kit/log"
+	"github.com/fleetdm/fleet/v4/server/platform/logging"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
@@ -62,7 +62,7 @@ func (s *googleCalendarIntegrationTestSuite) TestCreateGetDeleteEvent() {
 				"private_key":  s.server.URL,
 			}},
 		},
-		Logger: kitlog.NewLogfmtLogger(kitlog.NewSyncWriter(os.Stdout)),
+		Logger: logging.NewLogfmtLogger(os.Stdout),
 	}
 	gCal := NewGoogleCalendar(config)
 	err := gCal.Configure(userEmail)
@@ -129,7 +129,7 @@ func (s *googleCalendarIntegrationTestSuite) TestFillUpCalendar() {
 				"private_key":  s.server.URL,
 			}},
 		},
-		Logger: kitlog.NewLogfmtLogger(kitlog.NewSyncWriter(os.Stdout)),
+		Logger: logging.NewLogfmtLogger(os.Stdout),
 	}
 	gCal := NewGoogleCalendar(config)
 	err := gCal.Configure(userEmail)

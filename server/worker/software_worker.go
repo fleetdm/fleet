@@ -31,8 +31,9 @@ func (v *SoftwareWorker) Name() string {
 }
 
 const (
-	makeAndroidAppsAvailableForHostTask     SoftwareWorkerTask = "make_android_apps_available_for_host"
+	makeAndroidAppsAvailableForHostTask     SoftwareWorkerTask = "make_android_apps_available_for_host" // deprecated
 	makeAndroidAppAvailableTask             SoftwareWorkerTask = "make_android_app_available"
+	makeAndroidAppUnavailableTask           SoftwareWorkerTask = "make_android_app_unavailable"
 	runAndroidSetupExperienceTask           SoftwareWorkerTask = "run_android_setup_experience"
 	bulkSetAndroidAppsAvailableForHostTask  SoftwareWorkerTask = "bulk_set_android_apps_available_for_host"
 	bulkSetAndroidAppsAvailableForHostsTask SoftwareWorkerTask = "bulk_set_android_apps_available_for_hosts"
@@ -62,6 +63,10 @@ type softwareWorkerArgs struct {
 	// of the action that triggered this task.
 	AppConfigChanged bool            `json:"app_config_changed,omitempty"`
 	UUIDsToIDs       map[string]uint `json:"uuids_to_ids,omitempty"`
+
+	// HostUUIDToPolicyID is a map of host UUID as key to policy ID as value
+	// for which the app to make unavailable applies.
+	HostUUIDToPolicyID map[string]string `json:"host_uuid_to_policy_id,omitempty"`
 }
 
 func (v *SoftwareWorker) Run(ctx context.Context, argsJSON json.RawMessage) error {
@@ -87,6 +92,14 @@ func (v *SoftwareWorker) Run(ctx context.Context, argsJSON json.RawMessage) erro
 			v.makeAndroidAppAvailable(ctx, args.ApplicationID, args.AppTeamID, args.EnterpriseName, args.AppConfigChanged),
 			"running %s task",
 			makeAndroidAppAvailableTask,
+		)
+
+	case makeAndroidAppUnavailableTask:
+		return ctxerr.Wrapf(
+			ctx,
+			v.makeAndroidAppUnavailable(ctx, args.ApplicationID, args.HostUUIDToPolicyID, args.EnterpriseName),
+			"running %s task",
+			makeAndroidAppUnavailableTask,
 		)
 
 	case runAndroidSetupExperienceTask:
@@ -164,6 +177,16 @@ func (v *SoftwareWorker) makeAndroidAppAvailable(ctx context.Context, applicatio
 		}
 	}
 
+	return nil
+}
+
+// this is called when an app is removed from Fleet.
+func (v *SoftwareWorker) makeAndroidAppUnavailable(ctx context.Context, applicationID string, hostUUIDToPolicyID map[string]string, enterpriseName string) error {
+	// Update Android MDM policy to remove the app from the hosts
+	_, err := v.AndroidModule.RemoveAppsFromAndroidPolicy(ctx, enterpriseName, []string{applicationID}, hostUUIDToPolicyID)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "add app store app: add app to android policy")
+	}
 	return nil
 }
 
@@ -437,6 +460,23 @@ func QueueMakeAndroidAppAvailableJob(ctx context.Context, ds fleet.Datastore, lo
 		AppTeamID:        appTeamID,
 		EnterpriseName:   enterpriseName,
 		AppConfigChanged: appConfigChanged,
+	}
+
+	job, err := QueueJob(ctx, ds, softwareWorkerJobName, args)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "queueing job")
+	}
+
+	level.Debug(logger).Log("job_id", job.ID, "job_name", softwareWorkerJobName, "task", args.Task)
+	return nil
+}
+
+func QueueMakeAndroidAppUnavailableJob(ctx context.Context, ds fleet.Datastore, logger kitlog.Logger, applicationID string, hostsUUIDToPolicyID map[string]string, enterpriseName string) error {
+	args := &softwareWorkerArgs{
+		Task:               makeAndroidAppUnavailableTask,
+		ApplicationID:      applicationID,
+		HostUUIDToPolicyID: hostsUUIDToPolicyID,
+		EnterpriseName:     enterpriseName,
 	}
 
 	job, err := QueueJob(ctx, ds, softwareWorkerJobName, args)

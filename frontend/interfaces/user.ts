@@ -23,6 +23,7 @@ export const USERS_ROLES = [
   "maintainer",
   "observer",
   "observer_plus",
+  "technician",
 ] as const;
 export type IUserRole = typeof USERS_ROLES[number];
 export type UserRole =
@@ -30,11 +31,13 @@ export type UserRole =
   | "maintainer"
   | "observer"
   | "observer_plus"
+  | "technician"
   | "gitops"
   | "Admin"
   | "Maintainer"
   | "Observer"
   | "Observer+"
+  | "Technician"
   | "GitOps"
   | "Unassigned"
   | ""

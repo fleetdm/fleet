@@ -2030,6 +2030,10 @@ func (c *Client) DoGitOps(
 		if incoming.Controls.WindowsMigrationEnabled == nil {
 			mdmAppConfig["windows_migration_enabled"] = false
 		}
+		mdmAppConfig["windows_entra_tenant_ids"] = incoming.Controls.WindowsEntraTenantIDs
+		if incoming.Controls.WindowsEntraTenantIDs == nil {
+			mdmAppConfig["windows_entra_tenant_ids"] = []any{}
+		}
 		// Put in default values for enable_turn_on_windows_mdm_manually
 		mdmAppConfig["enable_turn_on_windows_mdm_manually"] = incoming.Controls.EnableTurnOnWindowsMDMManually
 		if incoming.Controls.EnableTurnOnWindowsMDMManually == nil {
@@ -2196,9 +2200,9 @@ func (c *Client) DoGitOps(
 			macOSUpdates["deadline"] = ""
 		}
 
-		// To keep things backward compatible, if a minimum_version and deadline are both set,
-		// then we also set update_new_hosts
-		if macOSUpdates["minimum_version"] != "" && macOSUpdates["deadline"] != "" {
+		// To keep things backward compatible, if a minimum_version and deadline are both set but the user hasn't set update_new_hosts,
+		// then we default update_new_hosts to true
+		if macOSUpdates["minimum_version"] != "" && macOSUpdates["deadline"] != "" && macOSUpdates["update_new_hosts"] == nil {
 			macOSUpdates["update_new_hosts"] = true
 		}
 

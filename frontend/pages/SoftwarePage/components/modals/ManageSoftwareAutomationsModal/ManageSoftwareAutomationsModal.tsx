@@ -74,7 +74,7 @@ const validateWebhookURL = (url: string) => {
   if (!url) {
     errors.url = "Please add a destination URL";
   } else if (!validUrl({ url })) {
-    errors.url = `${url} is not a valid URL`;
+    errors.url = "Destination URL is not a valid URL";
   } else {
     delete errors.url;
   }

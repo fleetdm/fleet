@@ -2,7 +2,7 @@
 
 Don't use these API endpoints. Please use the [public Fleet REST API documentation](https://fleetdm.com/docs/using-fleet/rest-api) instead.
 
-These API endpoints in this document are only used when contributing to Fleet. They're for the Fleet UI, Fleet Desktop, and `fleetctl` clients and frequently change to reflect current functionality. 
+These API endpoints in this document are only used when contributing to Fleet. They're for the Fleet UI, Fleet Desktop, and `fleetctl` clients and frequently change to reflect current functionality.
 
 - [Authentication](#authentication)
 - [Packs](#packs)
@@ -3777,7 +3777,7 @@ Redirects to the transparency URL.
 
 #### Download device's MDM manual enrollment profile
 
-Returns the URL to open to provide installation instructions and allow a user to download a manual enrollment profile 
+Returns the URL to open to provide installation instructions and allow a user to download a manual enrollment profile
 for a device. A user may be required to complete SSO authenticaton if configured on the team before being presented
 with the download option.
 
@@ -3883,7 +3883,9 @@ _Available in Fleet Premium_
       {
         "name": "slack.deb",
         "status": "pending",
-        "software_title_id": 3008
+        "software_title_id": 3008,
+        "display_name": "My Slack",
+        "icon_url": "/api/latest/fleet/device/7d940b6e-130a-493b-b58a-2b6e9f9f8bfc/software/titles/3008/icon"
       }
     ]
   }
@@ -4021,7 +4023,9 @@ Notifies the server about an agent error, resulting in two outcomes:
             {
                 "name": "Evernote",
                 "status": "success",
-                "software_title_id": 1313
+                "software_title_id": 1313,
+                "display_name": "My Evernote",
+                "icon_url": "/api/latest/fleet/software/titles/1313/icon?team_id=0"
             }
         ],
         "configuration_profiles": [

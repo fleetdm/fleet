@@ -14,6 +14,8 @@ If your Fleet server is hosted by Fleet, contact your Fleet representative to se
 
 ### Self-hosted servers
 
+> If you would like to set up a testing environment, see the [Okta conditional access testing guide](https://github.com/fleetdm/fleet/tree/main/docs/contributing/guides/okta-conditional-access-testing).
+
 If you use [fleet-terraform](https://github.com/fleetdm/fleet-terraform) modules for AWS hosting, see the [okta-conditional-access addon](https://github.com/fleetdm/fleet-terraform/tree/main/addons/okta-conditional-access) for streamlined mTLS proxy setup.
 
 Otherwise, you'll need to:
