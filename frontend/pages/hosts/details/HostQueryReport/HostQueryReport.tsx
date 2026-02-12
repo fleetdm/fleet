@@ -119,7 +119,7 @@ const HostQueryReport = ({
         <div className={`${baseClass}__header__row1`}>
           <BackButton
             text="Back to host details"
-            path={PATHS.HOST_DETAILS_PAGE(hostId)}
+            path={PATHS.HOST_QUERIES(hostId)}
           />
         </div>
         <div className={`${baseClass}__header__row2`}>
