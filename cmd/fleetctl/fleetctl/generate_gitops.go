@@ -436,7 +436,7 @@ func (cmd *GenerateGitopsCommand) Run() error {
 			}
 			if reports == nil {
 				// to please nilaway
-				cmd.FilesToWrite[fileName].(map[string]interface{})["reports"] = nil
+				cmd.FilesToWrite[fileName].(map[string]any)["reports"] = nil
 			} else {
 				cmd.FilesToWrite[fileName].(map[string]any)["reports"] = reports
 			}
