@@ -13,7 +13,7 @@ import { useQuery } from "react-query";
 import { size } from "lodash";
 import classnames from "classnames";
 import { useDebouncedCallback } from "use-debounce";
-import { IAceEditor } from "react-ace/lib/types";
+import { Ace } from "ace-builds";
 
 import PATHS from "router/paths";
 
@@ -289,9 +289,8 @@ const EditQueryForm = ({
     setShowSaveAsNewQueryModal(!showSaveAsNewQueryModal);
   };
 
-  const onLoad = (editor: IAceEditor) => {
+  const onLoad = (editor: Ace.Editor) => {
     editor.setOptions({
-      enableLinking: true,
       enableMultiselect: false, // Disables command + click creating multiple cursors
     });
 

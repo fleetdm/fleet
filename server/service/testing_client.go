@@ -25,13 +25,13 @@ import (
 	"github.com/fleetdm/fleet/v4/server/datastore/redis/redistest"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/live_query/live_query_mock"
+	"github.com/fleetdm/fleet/v4/server/platform/logging"
 	common_mysql "github.com/fleetdm/fleet/v4/server/platform/mysql"
 	"github.com/fleetdm/fleet/v4/server/pubsub"
 	"github.com/fleetdm/fleet/v4/server/service/contract"
 	"github.com/fleetdm/fleet/v4/server/test"
 	fleet_httptest "github.com/fleetdm/fleet/v4/server/test/httptest"
 	"github.com/ghodss/yaml"
-	kitlog "github.com/go-kit/log"
 	"github.com/jmoiron/sqlx"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -98,7 +98,7 @@ func (ts *withServer) SetupSuite(dbName string) {
 		DBConns:     ts.dbConns,
 	}
 	if os.Getenv("FLEET_INTEGRATION_TESTS_DISABLE_LOG") != "" {
-		opts.Logger = kitlog.NewNopLogger()
+		opts.Logger = logging.NewNopLogger()
 	}
 	users, server := RunServerForTestsWithDS(ts.s.T(), ts.ds, opts)
 	ts.server = server

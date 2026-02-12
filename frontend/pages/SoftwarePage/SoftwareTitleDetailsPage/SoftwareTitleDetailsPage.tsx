@@ -52,6 +52,7 @@ const SoftwareTitleDetailsPage = ({
     isTeamAdmin,
     isTeamMaintainer,
     isTeamObserver,
+    isTeamTechnician,
     config,
   } = useContext(AppContext);
   const handlePageError = useErrorHandler();
@@ -134,7 +135,11 @@ const SoftwareTitleDetailsPage = ({
 
   const renderSoftwareInstallerCard = (title: ISoftwareTitleDetails) => {
     const hasPermission = Boolean(
-      isOnGlobalTeam || isTeamAdmin || isTeamMaintainer || isTeamObserver
+      isOnGlobalTeam ||
+        isTeamAdmin ||
+        isTeamMaintainer ||
+        isTeamObserver ||
+        isTeamTechnician
     );
 
     const showInstallerCard =

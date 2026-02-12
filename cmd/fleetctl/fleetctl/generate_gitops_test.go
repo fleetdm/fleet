@@ -300,6 +300,17 @@ func (MockClient) ListSoftwareTitles(query string) ([]fleet.SoftwareTitleListRes
 					FleetMaintainedAppID: ptr.Uint(1),
 				},
 			},
+			{
+				ID:         9,
+				Name:       "My Windows FMA",
+				HashSHA256: ptr.String("win-fma-package-hash"),
+				SoftwarePackage: &fleet.SoftwarePackageOrApp{
+					Name:                 "my-fma.msi",
+					Platform:             "windows",
+					Version:              "1",
+					FleetMaintainedAppID: ptr.Uint(2),
+				},
+			},
 		}, nil
 	case "available_for_install=1&team_id=0":
 		return []fleet.SoftwareTitleListResult{}, nil
@@ -324,7 +335,8 @@ func (MockClient) GetPolicies(teamID *uint) ([]*fleet.Policy, error) {
 					}, {
 						LabelName: "Label B",
 					}},
-					ConditionalAccessEnabled: true,
+					ConditionalAccessEnabled:       true,
+					ConditionalAccessBypassEnabled: ptr.Bool(true),
 				},
 				InstallSoftware: &fleet.PolicySoftwareTitle{
 					SoftwareTitleID: 1,
@@ -335,13 +347,14 @@ func (MockClient) GetPolicies(teamID *uint) ([]*fleet.Policy, error) {
 	return []*fleet.Policy{
 		{
 			PolicyData: fleet.PolicyData{
-				ID:                       1,
-				Name:                     "Team Policy",
-				Query:                    "SELECT * FROM team_policy WHERE id = 1",
-				Resolution:               ptr.String("Do a team thing"),
-				Description:              "This is a team policy",
-				Platform:                 "linux,windows",
-				ConditionalAccessEnabled: true,
+				ID:                             1,
+				Name:                           "Team Policy",
+				Query:                          "SELECT * FROM team_policy WHERE id = 1",
+				Resolution:                     ptr.String("Do a team thing"),
+				Description:                    "This is a team policy",
+				Platform:                       "linux,windows",
+				ConditionalAccessEnabled:       true,
+				ConditionalAccessBypassEnabled: ptr.Bool(true),
 			},
 			RunScript: &fleet.PolicyScript{
 				ID: 1,
@@ -485,6 +498,19 @@ func (MockClient) GetSoftwareTitleByID(ID uint, teamID *uint) (*fleet.SoftwareTi
 			},
 			IconUrl:          ptr.String("/api/icon1.png"),
 			BundleIdentifier: ptr.String("com.my.fma"),
+		}, nil
+	case 9:
+		return &fleet.SoftwareTitle{
+			ID:               9,
+			Name:             "My Windows FMA",
+			SoftwarePackage: &fleet.SoftwareInstaller{
+				InstallScript:        "install",
+				UninstallScript:      "uninstall",
+				SelfService:          true,
+				Platform:             "windows",
+				FleetMaintainedAppID: ptr.Uint(2),
+			},
+			IconUrl: ptr.String("/api/icon5.png"),
 		}, nil
 	default:
 		return nil, errors.New("software title not found")
@@ -753,7 +779,7 @@ func compareDirs(t *testing.T, sourceDir, targetDir string) {
 func configureFMAManifestServer(t *testing.T) {
 	manifestServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if strings.Contains(r.URL.Path, "apps.json") {
-			data := json.RawMessage(`{"version": 2, "apps": [{"name": "My FMA", "slug": "fma1/darwin", "platform": "darwin", "unique_identifier": "com.my.fma"}]}`)
+			data := json.RawMessage(`{"version": 2, "apps": [{"name": "My FMA", "slug": "fma1/darwin", "platform": "darwin", "unique_identifier": "com.my.fma"}, {"name": "My Windows FMA", "slug": "fma2/windows", "platform": "windows", "unique_identifier": "My Windows FMA"}]}`)
 			err := json.NewEncoder(w).Encode(data)
 			require.NoError(t, err)
 			return

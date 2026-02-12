@@ -171,7 +171,7 @@ const QueryEditor = ({
           team_id: policy.team_id,
         })
       );
-      renderFlash("success", "Policy created!");
+      renderFlash("success", "Policy created.");
     } catch (createError: any) {
       console.error(createError);
       if (createError.data.errors[0].reason.includes("already exists")) {
@@ -219,7 +219,7 @@ const QueryEditor = ({
 
     try {
       await updateAPIRequest();
-      renderFlash("success", "Policy updated!");
+      renderFlash("success", "Policy updated.");
     } catch (updateError: any) {
       console.error(updateError);
       if (updateError.data.errors[0].reason.includes("Duplicate")) {

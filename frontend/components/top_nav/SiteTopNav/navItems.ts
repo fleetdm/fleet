@@ -27,17 +27,13 @@ export default (
   isAnyTeamAdmin = false,
   isAnyTeamMaintainer = false,
   isGlobalMaintainer = false,
-  isNoAccess = false
+  isNoAccess = false,
+  isGlobalTechnician = false,
+  isAnyTeamTechnician = false
 ): INavItem[] => {
   if (!user) {
     return [];
   }
-
-  const isMaintainerOrAdmin =
-    isGlobalMaintainer ||
-    isAnyTeamMaintainer ||
-    isGlobalAdmin ||
-    isAnyTeamAdmin;
 
   const logo = [
     {
@@ -66,7 +62,14 @@ export default (
         regex: new RegExp(`^${URL_PREFIX}/controls/`),
         pathname: PATHS.CONTROLS,
       },
-      exclude: !isMaintainerOrAdmin,
+      exclude: !(
+        isGlobalMaintainer ||
+        isAnyTeamMaintainer ||
+        isGlobalAdmin ||
+        isAnyTeamAdmin ||
+        isGlobalTechnician ||
+        isAnyTeamTechnician
+      ),
       alwaysToPathname: true,
       withParams: { type: "query", names: ["team_id"] },
     },

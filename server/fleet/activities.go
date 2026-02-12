@@ -3326,6 +3326,38 @@ func (a ActivityTypeDeletedCertificate) Documentation() (activity string, detail
 }`
 }
 
+type ActivityTypeAddedMicrosoftEntraTenant struct {
+	TenantID string `json:"tenant_id"`
+}
+
+func (a ActivityTypeAddedMicrosoftEntraTenant) ActivityName() string {
+	return "added_microsoft_entra_tenant"
+}
+
+func (a ActivityTypeAddedMicrosoftEntraTenant) Documentation() (activity string, details string, detailsExample string) {
+	return `Generated when Entra tenant is added.`,
+		`This activity contains the following field:
+- "tenant_id": the ID of the Entra tenant.`, `{
+	"tenant_id": "ada00076-06f6-459b-8c45-88a843a2271f"
+}`
+}
+
+type ActivityTypeDeletedMicrosoftEntraTenant struct {
+	TenantID string `json:"tenant_id"`
+}
+
+func (a ActivityTypeDeletedMicrosoftEntraTenant) ActivityName() string {
+	return "deleted_microsoft_entra_tenant"
+}
+
+func (a ActivityTypeDeletedMicrosoftEntraTenant) Documentation() (activity string, details string, detailsExample string) {
+	return `Generated when Entra tenant is deleted.`,
+		`This activity contains the following field:
+- "tenant_id": the ID of the Entra tenant.`, `{
+	"tenant_id": "ada00076-06f6-459b-8c45-88a843a2271f"
+}`
+}
+
 type ActivityTypeEditedEnrollSecrets struct {
 	TeamID   *uint   `json:"team_id"`
 	TeamName *string `json:"team_name"`
