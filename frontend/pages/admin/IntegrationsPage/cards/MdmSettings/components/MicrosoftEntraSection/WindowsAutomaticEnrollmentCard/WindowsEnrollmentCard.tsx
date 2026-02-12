@@ -18,8 +18,8 @@ const WindowsAutomaticEnrollmentCard = ({
       To enable end users to enroll to Fleet via Microsoft Entra (e.g.
       Autopilot),{" "}
       {windowsMdmEnabled
-        ? "you need to connect Fleet to Entra first."
-        : "first turn on Windows MDM."}{" "}
+        ? "you need to add Entra tenant ID first."
+        : "first turn on Windows MDM."}
     </>
   );
 
@@ -28,9 +28,7 @@ const WindowsAutomaticEnrollmentCard = ({
       header="Windows enrollment"
       cta={
         windowsMdmEnabled ? (
-          <Button onClick={viewDetails} variant="inverse" iconStroke>
-            Details <Icon name="chevron-right" color="ui-fleet-black-75" />
-          </Button>
+          <Button onClick={viewDetails}>Connect</Button>
         ) : undefined
       }
     >
