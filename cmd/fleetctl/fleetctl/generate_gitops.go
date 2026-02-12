@@ -434,12 +434,8 @@ func (cmd *GenerateGitopsCommand) Run() error {
 				fmt.Fprintf(cmd.CLI.App.ErrWriter, "Error generating reports for team %s: %s\n", team.Name, err)
 				return ErrGeneric
 			}
-			if reports == nil {
-				// to please nilaway
-				cmd.FilesToWrite[fileName].(map[string]any)["reports"] = nil
-			} else {
-				cmd.FilesToWrite[fileName].(map[string]any)["reports"] = reports
-			}
+			// nolint:nilaway // we want to include "reports: null" in the output if there are no reports.
+			cmd.FilesToWrite[fileName].(map[string]any)["reports"] = reports
 		}
 	}
 
