@@ -129,7 +129,8 @@ const DiskEncryption = ({
         renderFlash(
           "error",
           <>
-            Couldn&apos;t enable disk encryption. Please configure a private key.{" "}
+            Couldn&apos;t enable disk encryption. Please configure a private
+            key.{" "}
             <CustomLink
               url={link}
               text="Learn how"
@@ -226,8 +227,8 @@ const DiskEncryption = ({
             className={`${baseClass}__checkbox`}
             helpText={
               <>
-                If turned on, hosts&apos; disk encryption keys will be
-                stored in Fleet.{" "}
+                If turned on, hosts&apos; disk encryption keys will be stored in
+                Fleet.{" "}
                 <CustomLink
                   text="Learn more"
                   url={`${LEARN_MORE_ABOUT_BASE_LINK}/mdm-disk-encryption`}

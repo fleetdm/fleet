@@ -99,7 +99,7 @@ const DiskEncryptionTable = ({
         // these 2 properties allow linking on click anywhere in the row
         disableMultiRowSelect
         onSelectSingleRow={onSelectSingleRow}
-        hideFooter={true}
+        hideFooter
       />
     </div>
   );
