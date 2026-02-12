@@ -510,7 +510,10 @@ type UploadSoftwareInstallerPayload struct {
 	FleetMaintainedAppID *uint
 	// RollbackVersion is the version to pin as "active" for a fleet-maintained app.
 	// If empty, the latest version is used.
-	RollbackVersion    string
+	RollbackVersion string
+	// FMAVersionCached indicates this FMA version is already cached in the
+	// database and installer store, so storage and insert can be skipped.
+	FMAVersionCached bool
 	PackageIDs         []string
 	UpgradeCode        string
 	UninstallScript    string

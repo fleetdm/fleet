@@ -14,7 +14,7 @@ func Up_20260212202406(tx *sql.Tx) error {
 		ALTER TABLE software_installers
 			DROP INDEX idx_software_installers_team_id_title_id,
 			DROP INDEX idx_software_installers_platform_title_id,
-			ADD INDEX idx_software_installers_platform_title_id (global_or_team_id,platform,title_id,version) USING BTREE
+			ADD UNIQUE INDEX idx_software_installers_team_title_version (global_or_team_id,title_id,version)
 	`)
 	if err != nil {
 		return fmt.Errorf("altering software_installers indexes: %w", err)

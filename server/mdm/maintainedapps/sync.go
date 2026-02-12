@@ -132,14 +132,14 @@ func Hydrate(ctx context.Context, app *fleet.MaintainedApp, version string, team
 		cached, err := cache.GetCachedFMAInstallerMetadata(ctx, teamID, app.ID, version)
 		if err == nil {
 			// Preserve fields from the original app that the cache doesn't store.
-			cached.ID = app.ID
-			cached.Name = app.Name
-			cached.Slug = app.Slug
-			cached.UniqueIdentifier = app.UniqueIdentifier
-			cached.TitleID = app.TitleID
-			cached.SHA256 = app.SHA256
-			cached.InstallerURL = app.InstallerURL
-			return cached, nil
+			app.ID = cached.ID
+			app.Name = cached.Name
+			app.Slug = cached.Slug
+			app.UniqueIdentifier = cached.UniqueIdentifier
+			app.TitleID = cached.TitleID
+			app.SHA256 = cached.SHA256
+			app.InstallerURL = cached.InstallerURL
+			return app, nil
 		}
 		// Not found in cache — fall through to remote manifest fetch.
 	}
