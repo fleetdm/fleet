@@ -140,7 +140,7 @@ def main():
                     col_type = 'INTEGER'
                 elif col in json_columns:
                     col_type = 'JSONB'
-                elif col.endswidth("Enabled"):
+                elif col.endswith("Enabled"):
                     col_type = 'BOOLEAN'
                 else:
                     col_type = 'TEXT'
