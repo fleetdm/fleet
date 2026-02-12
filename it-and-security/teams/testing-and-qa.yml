@@ -52,40 +52,6 @@ queries:
 software:
   packages:
     # Linux apps
-    - path: ../lib/linux/software/zoom-deb.yml # Zoom for Ubuntu
-      self_service: true
-      categories:
-        - Communication
-      labels_include_any:
-        - "Debian-based Linux hosts"
-    - path: ../lib/linux/software/zoom-rpm.yml # Zoom for RHEL
-      self_service: true
-      categories:
-        - Communication
-      labels_include_any:
-        - "RPM-based Linux hosts"
-    - path: ../lib/linux/software/slack-deb.yml # Slack for Ubuntu
-      self_service: true
-      categories:
-        - Productivity
-        - Communication
-      labels_include_any:
-        - "Debian-based Linux hosts"
-    - path: ../lib/linux/software/slack-rpm.yml # Slack for RHEL
-      self_service: true
-      categories:
-        - Productivity
-        - Communication
-      labels_include_any:
-        - "RPM-based Linux hosts"
   fleet_maintained_apps:
     # macOS apps
-    - slug: privileges/darwin # Privileges for macOS
-      self_service: true
-    - slug: cursor/darwin # Cursor for macOS
-      self_service: true
     # Windows apps
-    - slug: google-chrome/windows # Google Chrome for Windows
-      self_service: true
-    - slug: slack/windows # Slack for Windows
-      self_service: true
