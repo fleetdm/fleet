@@ -67,7 +67,7 @@ func TestRunApiCommand(t *testing.T) {
     "author_id": 1,
     "author_name": "",
     "author_email": "",
-    "team_id": null,
+    "fleet_id": null,
     "resolution": "",
     "platform": "darwin,windows,linux,chrome",
     "calendar_events_enabled": false,
@@ -76,7 +76,8 @@ func TestRunApiCommand(t *testing.T) {
     "updated_at": "0001-01-01T00:00:00Z",
     "passing_host_count": 0,
     "failing_host_count": 0,
-    "host_count_updated_at": null
+    "host_count_updated_at": null,
+    "team_id": null
   }
 }
 `
