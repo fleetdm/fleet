@@ -221,8 +221,8 @@ const EditQueryForm = ({
     labels_include_any:
       selectedTargetType === "Custom"
         ? Object.entries(selectedLabels)
-          .filter(([, selected]) => selected)
-          .map(([labelName]) => labelName)
+            .filter(([, selected]) => selected)
+            .map(([labelName]) => labelName)
         : [],
   };
 
@@ -485,8 +485,9 @@ const EditQueryForm = ({
                   name="query-name"
                   placeholder="Add name"
                   value={lastEditedQueryName}
-                  inputClassName={`${baseClass}__query-name ${!lastEditedQueryName ? "no-value" : ""
-                    }`}
+                  inputClassName={`${baseClass}__query-name ${
+                    !lastEditedQueryName ? "no-value" : ""
+                  }`}
                   maxLength={160}
                   hasError={errors && errors.name}
                   onChange={setLastEditedQueryName}
@@ -541,8 +542,9 @@ const EditQueryForm = ({
                   placeholder="Add description"
                   value={lastEditedQueryDescription}
                   maxLength={250}
-                  inputClassName={`${baseClass}__query-description ${!lastEditedQueryDescription ? "no-value" : ""
-                    }`}
+                  inputClassName={`${baseClass}__query-description ${
+                    !lastEditedQueryDescription ? "no-value" : ""
+                  }`}
                   onChange={setLastEditedQueryDescription}
                   onKeyPress={onInputKeypress}
                   isFocused={isEditingDescription}
@@ -629,32 +631,32 @@ const EditQueryForm = ({
       {(lastEditedQueryObserverCanRun ||
         isObserverPlus ||
         isAnyTeamObserverPlus) && (
-          <div className={`button-wrap ${baseClass}__button-wrap--new-query`}>
-            <TooltipWrapper
-              className="live-query-button-tooltip"
-              tipContent="Live queries are disabled in organization settings"
-              disableTooltip={!disabledLiveQuery}
-              position="top"
-              showArrow
-              tipOffset={8}
-              underline={false}
+        <div className={`button-wrap ${baseClass}__button-wrap--new-query`}>
+          <TooltipWrapper
+            className="live-query-button-tooltip"
+            tipContent="Live queries are disabled in organization settings"
+            disableTooltip={!disabledLiveQuery}
+            position="top"
+            showArrow
+            tipOffset={8}
+            underline={false}
+          >
+            <Button
+              onClick={() => {
+                router.push(
+                  getPathWithQueryParams(PATHS.LIVE_QUERY(queryIdForEdit), {
+                    host_id: hostId,
+                    team_id: apiTeamIdForQuery,
+                  })
+                );
+              }}
+              disabled={disabledLiveQuery}
             >
-              <Button
-                onClick={() => {
-                  router.push(
-                    getPathWithQueryParams(PATHS.LIVE_QUERY(queryIdForEdit), {
-                      host_id: hostId,
-                      team_id: apiTeamIdForQuery,
-                    })
-                  );
-                }}
-                disabled={disabledLiveQuery}
-              >
-                Live query <Icon name="run" />
-              </Button>
-            </TooltipWrapper>
-          </div>
-        )}
+              Live query <Icon name="run" />
+            </Button>
+          </TooltipWrapper>
+        </div>
+      )}
     </form>
   );
 
@@ -683,7 +685,7 @@ const EditQueryForm = ({
   const changedPlatforms =
     storedQuery &&
     formatPlatformEquivalences(lastEditedQueryPlatforms) !==
-    formatPlatformEquivalences(storedQuery?.platform);
+      formatPlatformEquivalences(storedQuery?.platform);
 
   const changedMinOsqueryVersion =
     storedQuery &&
