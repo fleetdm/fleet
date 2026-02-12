@@ -402,12 +402,12 @@ const DeviceUserPage = ({
       refetchIntervalInBackground: true,
       select: (response) => {
         // Marshal the response to include a `type` property so we can differentiate
-        // between software, payload-free software, and script setup steps in the UI.
+        // between software, script-only software, and script setup steps in the UI.
         return [
           ...(response.setup_experience_results.software ?? []).map((s) => ({
             ...s,
             type: isSoftwareScriptSetup(s)
-              ? "software_script_run" // used for payload-free software
+              ? "software_script_run" // used for script-only software
               : "software_install",
           })),
           ...(response.setup_experience_results.scripts ?? []).map((s) => ({
@@ -851,7 +851,8 @@ const DeviceUserPage = ({
             policy={selectedPolicy}
             onResolveLater={
               globalConfig?.features?.enable_conditional_access &&
-              globalConfig.features?.enable_conditional_access_bypass
+              globalConfig.features?.enable_conditional_access_bypass &&
+              selectedPolicy?.conditional_access_bypass_enabled
                 ? () => {
                     onCancelPolicyDetailsModal();
                     setShowBypassModal(true);
