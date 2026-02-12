@@ -434,6 +434,7 @@ func (cmd *GenerateGitopsCommand) Run() error {
 				fmt.Fprintf(cmd.CLI.App.ErrWriter, "Error generating reports for team %s: %s\n", team.Name, err)
 				return ErrGeneric
 			}
+			// nilaway:ignore reports can be nil, which we'll transform to an empty value in YAML.
 			cmd.FilesToWrite[fileName].(map[string]any)["reports"] = reports
 		}
 	}
