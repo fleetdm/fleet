@@ -11,7 +11,6 @@ import (
 	"path/filepath"
 	"regexp"
 	"sort"
-	"strconv"
 	"strings"
 
 	userpkg "github.com/fleetdm/fleet/v4/orbit/pkg/user"
@@ -20,7 +19,7 @@ import (
 
 // base command to setup an exec.Cmd using `runuser`
 func baserun(path string, opts eopts) (cmd *exec.Cmd, err error) {
-	args, env, err := getConfigForCommand(path)
+	args, env, err := getConfigForCommand(opts.user, path)
 	if err != nil {
 		return nil, fmt.Errorf("get args: %w", err)
 	}
@@ -84,7 +83,7 @@ func run(path string, opts eopts) (lastLogs string, err error) {
 	return "", nil
 }
 
-// run a command and return its output and exit code.
+// runWithOutput runs a command and return its output and exit code.
 func runWithOutput(path string, opts eopts) (output []byte, exitCode int, err error) {
 	cmd, err := baserun(path, opts)
 	if err != nil {
@@ -103,82 +102,76 @@ func runWithOutput(path string, opts eopts) (output []byte, exitCode int, err er
 	return output, exitCode, nil
 }
 
-// run a command that requires stdin input, returning a pipe to write to stdin.
-func runWithStdin(path string, opts eopts) (io.WriteCloser, error) {
-	cmd, err := baserun(path, opts)
+func getUserID(user string) (string, error) {
+	uid_, err := exec.Command("id", "-u", user).Output()
 	if err != nil {
-		return nil, err
+		return "", fmt.Errorf("failed to execute id command: %w", err)
 	}
-
-	stdin, err := cmd.StdinPipe()
-	if err != nil {
-		return nil, fmt.Errorf("stdin pipe: %w", err)
+	uid := strings.TrimSpace(string(uid_))
+	if uid == "" {
+		return "", errors.New("failed to get uid")
 	}
-
-	if err := cmd.Start(); err != nil {
-		return nil, fmt.Errorf("open path %q: %w", path, err)
-	}
-
-	return stdin, nil
+	return uid, nil
 }
 
-func getConfigForCommand(path string) (args []string, env []string, err error) {
-	user, err := userpkg.GetLoginUser()
-	if err != nil {
-		return nil, nil, fmt.Errorf("get user: %w", err)
-	}
-
-	log.Info().Str("user", user.Name).Int64("id", user.ID).Msg("attempting to get user session type and display")
-
-	// Get user's display session type (x11 vs. wayland).
-	uid := strconv.FormatInt(user.ID, 10)
-	userDisplaySession, err := userpkg.GetUserDisplaySessionType(uid)
-	if userDisplaySession != nil && userDisplaySession.Type == userpkg.GuiSessionTypeTty {
-		return nil, nil, fmt.Errorf("user %q (%d) is not running a GUI session", user.Name, user.ID)
-	}
-	if err != nil || userDisplaySession == nil {
-		// Wayland is the default for most distributions, thus we assume
-		// wayland if we couldn't determine the session type.
-		log.Error().Err(err).Msg("assuming wayland session")
-		userDisplaySession = &userpkg.UserDisplaySession{Type: userpkg.GuiSessionTypeWayland, Active: true}
-	}
-
-	var display string
-	if userDisplaySession.Type == userpkg.GuiSessionTypeX11 {
-		x11Display, err := getUserX11Display(user.Name)
+func getDisplayVariableForSession(user string, userID string, displaySessionType userpkg.GuiSessionType) string {
+	if displaySessionType == userpkg.GuiSessionTypeX11 {
+		x11Display, err := getUserX11Display(user)
 		if err != nil {
 			log.Error().Err(err).Msg("failed to get X11 display, using default :0")
 			// TODO(lucas): Revisit when working on multi-user/multi-session support.
 			// Default to display ':0' if user display could not be found.
 			// This assumes there's only one desktop session and belongs to the
 			// user returned in `getLoginUID'.
-			display = ":0"
-		} else {
-			display = x11Display
+			return ":0"
 		}
-	} else {
-		waylandDisplay, err := getUserWaylandDisplay(uid)
-		if err != nil {
-			log.Error().Err(err).Msg("failed to get wayland display, using default wayland-0")
-			// TODO(lucas): Revisit when working on multi-user/multi-session support.
-			// Default to display 'wayland-0' if user display could not be found.
-			// This assumes there's only one desktop session and belongs to the
-			// user returned in `getLoginUID'.
-			display = "wayland-0"
-		} else {
-			display = waylandDisplay
-		}
+		return x11Display
 	}
+
+	waylandDisplay, err := getUserWaylandDisplay(userID)
+	if err != nil {
+		log.Error().Err(err).Msg("failed to get wayland display, using default wayland-0")
+		// TODO(lucas): Revisit when working on multi-user/multi-session support.
+		// Default to display 'wayland-0' if user display could not be found.
+		// This assumes there's only one desktop session and belongs to the
+		// user returned in `getLoginUID'.
+		return "wayland-0"
+	}
+	return waylandDisplay
+}
+
+func getConfigForCommand(user string, path string) (args []string, env []string, err error) {
+	// Get user ID
+	userID, err := getUserID(user)
+	if err != nil {
+		return nil, nil, fmt.Errorf("get user ID: %w", err)
+	}
+	log.Info().Str("user", user).Str("id", userID).Msg("attempting to get user session type and display")
+
+	// Get user's display session type.
+	userDisplaySession, err := userpkg.GetUserDisplaySessionType(userID)
+	if err != nil {
+		// Wayland is the default for most distributions,
+		// thus we assume wayland if we couldn't determine the session type.
+		log.Error().Err(err).Msg("assuming wayland session")
+		userDisplaySession = &userpkg.UserDisplaySession{Type: userpkg.GuiSessionTypeWayland}
+	}
+	if userDisplaySession.Type == userpkg.GuiSessionTypeTty {
+		return nil, nil, fmt.Errorf("user %q (%s) is not running a GUI session", user, userID)
+	}
+
+	// Get user's "display" variable for the GUI session.
+	display := getDisplayVariableForSession(user, userID, userDisplaySession.Type)
 
 	log.Info().
 		Str("path", path).
-		Str("user", user.Name).
-		Int64("id", user.ID).
+		Str("user", user).
+		Str("id", userID).
 		Str("display", display).
 		Str("session_type", userDisplaySession.Type.String()).
 		Msg("running sudo")
 
-	args = []string{"-n", "-i", "-u", user.Name, "-H"}
+	args = []string{"-n", "-i", "-u", user, "-H"}
 	env = make([]string, 0)
 
 	if userDisplaySession.Type == userpkg.GuiSessionTypeWayland {
@@ -197,7 +190,7 @@ func getConfigForCommand(path string) (args []string, env []string, err error) {
 		//
 		// This is required for Ubuntu 18, and not required for Ubuntu 21/22
 		// (because it's already part of the user).
-		fmt.Sprintf("DBUS_SESSION_BUS_ADDRESS=unix:path=/run/user/%d/bus", user.ID),
+		fmt.Sprintf("DBUS_SESSION_BUS_ADDRESS=unix:path=/run/user/%s/bus", userID),
 	)
 
 	return args, env, nil

@@ -57,16 +57,6 @@ func UserLoggedInViaGui() (*string, error) {
 	return nil, nil
 }
 
-// GetLoginUser returns the first logged-in user as reported by
-// `loginctl list-users`.
-func GetLoginUser() (*User, error) {
-	users, err := getLoginUsers()
-	if err != nil {
-		return nil, err
-	}
-	return &users[0], nil
-}
-
 // getLoginUsers returns all logged-in users as reported by
 // `loginctl list-users`.
 func getLoginUsers() ([]User, error) {
@@ -108,7 +98,7 @@ func parseLoginctlUsersOutput(s string) ([]User, error) {
 
 // UserDisplaySession holds the display session type and active status for a user.
 type UserDisplaySession struct {
-	Type   guiSessionType
+	Type   GuiSessionType
 	Active bool
 }
 
@@ -125,7 +115,7 @@ func GetUserDisplaySessionType(uid string) (*UserDisplaySession, error) {
 	}
 	guiSessionID := strings.TrimSpace(stdout.String())
 	if guiSessionID == "" {
-		return nil, nil
+		return nil, errors.New("empty display session")
 	}
 
 	// Get the "Type" of session.
@@ -135,7 +125,7 @@ func GetUserDisplaySessionType(uid string) (*UserDisplaySession, error) {
 	if err := cmd.Run(); err != nil {
 		return nil, fmt.Errorf("run 'loginctl' to get user GUI session type: %w", err)
 	}
-	var sessionType guiSessionType
+	var sessionType GuiSessionType
 	switch t := strings.TrimSpace(stdout.String()); t {
 	case "":
 		return nil, errors.New("empty GUI session type")
@@ -163,15 +153,15 @@ func GetUserDisplaySessionType(uid string) (*UserDisplaySession, error) {
 	}, nil
 }
 
-type guiSessionType int
+type GuiSessionType int
 
 const (
-	GuiSessionTypeX11 guiSessionType = iota + 1
+	GuiSessionTypeX11 GuiSessionType = iota + 1
 	GuiSessionTypeWayland
 	GuiSessionTypeTty
 )
 
-func (s guiSessionType) String() string {
+func (s GuiSessionType) String() string {
 	if s == GuiSessionTypeX11 {
 		return "x11"
 	}
