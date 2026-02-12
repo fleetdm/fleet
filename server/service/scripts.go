@@ -976,7 +976,7 @@ type (
 	batchScriptExecutionSummaryResponse struct {
 		ScriptID    uint      `json:"script_id" db:"script_id"`
 		ScriptName  string    `json:"script_name" db:"script_name"`
-		TeamID      *uint     `json:"fleet_id,renamed" db:"team_id"`
+		TeamID      *uint     `json:"fleet_id" db:"team_id" renamedfrom:"team_id"`
 		CreatedAt   time.Time `json:"created_at" db:"created_at"`
 		NumTargeted *uint     `json:"targeted" db:"num_targeted"`
 		NumPending  *uint     `json:"pending" db:"num_pending"`

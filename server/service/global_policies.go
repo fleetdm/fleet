@@ -350,7 +350,7 @@ func (svc *Service) ModifyGlobalPolicy(ctx context.Context, id uint, p fleet.Mod
 /////////////////////////////////////////////////////////////////////////////////
 
 type resetAutomationRequest struct {
-	TeamIDs   []uint `json:"fleet_ids,renamed" premium:"true"`
+	TeamIDs   []uint `json:"fleet_ids" premium:"true" renamedfrom:"team_ids"`
 	PolicyIDs []uint `json:"policy_ids"`
 }
 
