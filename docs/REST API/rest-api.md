@@ -11975,6 +11975,7 @@ _Available in Fleet Premium_
 | integrations                                            | object  | body | Integrations settings for the team. See [integrations](#integrations3) for details. Note that integrations referenced here must already exist globally, created by a call to [Modify configuration](#modify-configuration).                               |
 | mdm                                                     | object  | body | MDM settings for the team. See [mdm](#mdm2) for details.                                                                                                                                                                                |
 | host_expiry_settings                                    | object  | body | Host expiry settings for the team. See [host_expiry_settings](#host-expiry-settings2) for details.   |
+| features                 | object  | body  | See [features](#features2).   
 
 #### Example (transfer hosts to a team)
 
@@ -12319,6 +12320,31 @@ _Available in Fleet Premium_
   "host_expiry_settings": {
     "host_expiry_enabled": true,
     "host_expiry_window": 7
+  }
+}
+```
+
+#### Features
+
+| Name                              | Type    | Description   |
+| ---------------------             | ------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| enable_host_users                 | boolean | Whether to enable the users feature in Fleet. (Default: `true`)                                                                          |
+| enable_software_inventory         | boolean | Whether to enable the software inventory feature in Fleet. (Default: `true`)                                                             |
+| additional_queries                | object | `additional_queries` adds extra host details. This information will be updated at the same time as other host details and is returned by the API when host objects are returned. (Default: `null`)                                                                         |
+
+<br/>
+
+##### Example request body
+
+```json
+{
+  "features": {
+    "enable_host_users": true,
+    "enable_software_inventory": true,
+    "additional_queries": {
+      "time": "SELECT * FROM time",
+      "macs": "SELECT mac FROM interface_details"
+    }
   }
 }
 ```
