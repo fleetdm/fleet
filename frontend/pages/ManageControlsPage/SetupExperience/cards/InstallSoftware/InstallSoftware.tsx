@@ -166,13 +166,21 @@ const InstallSoftware = ({
         platform === "windows" &&
         !globalConfig?.mdm.windows_enabled_and_configured;
 
-      const turnOnMdm = turnOnAppleMdm || turnOnWindowsMdm;
+      const turnOnAndroidMdm = platform === "android" && !isAndroidMdmEnabled;
+
+      const turnOnMdm = turnOnAppleMdm || turnOnWindowsMdm || turnOnAndroidMdm;
 
       if (turnOnMdm) {
         return (
           <GenericMsgWithNavButton
-            header="Additional configuration required"
-            info="To customize, first turn on automatic enrollment."
+            header={`${
+              platform === "android"
+                ? "Turn on Android MDM"
+                : "Additional configuration required"
+            }`}
+            info={`To customize, first turn on ${
+              platform === "android" ? "Android MDM" : "automatic enrollment"
+            }.`}
             buttonText="Turn on"
             path={PATHS.ADMIN_INTEGRATIONS_MDM}
             router={router}
@@ -236,11 +244,9 @@ const InstallSoftware = ({
               <Tab>
                 <TabText>iPadOS</TabText>
               </Tab>
-              {isAndroidMdmEnabled && (
-                <Tab>
-                  <TabText>Android</TabText>
-                </Tab>
-              )}
+              <Tab>
+                <TabText>Android</TabText>
+              </Tab>
             </TabList>
             {PLATFORM_BY_INDEX.map((platform) => {
               return (
