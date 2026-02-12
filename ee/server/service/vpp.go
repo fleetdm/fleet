@@ -53,8 +53,8 @@ func (svc *Service) BatchAssociateVPPApps(ctx context.Context, teamName string, 
 		return nil, err
 	}
 
-	var manualAgentInstall bool
 	var teamID *uint
+	var manualAgentInstall bool
 	if teamName != "" {
 		tm, err := svc.ds.TeamByName(ctx, teamName)
 		if err != nil {
@@ -67,11 +67,11 @@ func (svc *Service) BatchAssociateVPPApps(ctx context.Context, teamName string, 
 		teamID = &tm.ID
 		manualAgentInstall = tm.Config.MDM.MacOSSetup.ManualAgentInstall.Value
 	} else {
-		noTeamConfig, err := svc.ds.DefaultTeamConfig(ctx)
+		ac, err := svc.ds.AppConfig(ctx)
 		if err != nil {
-			return nil, ctxerr.Wrap(ctx, err, "getting no-team config")
+			return nil, ctxerr.Wrap(ctx, err, "getting app config")
 		}
-		manualAgentInstall = noTeamConfig.MDM.MacOSSetup.ManualAgentInstall.Value
+		manualAgentInstall = ac.MDM.MacOSSetup.ManualAgentInstall.Value
 	}
 
 	if err := svc.authz.Authorize(ctx, &fleet.SoftwareInstaller{TeamID: teamID}, fleet.ActionWrite); err != nil {

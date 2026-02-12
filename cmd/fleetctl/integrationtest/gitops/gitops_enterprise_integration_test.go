@@ -3365,7 +3365,7 @@ controls:
 queries:
 `
 
-	teamTemplate := `
+	testAll := `
 controls:
   macos_setup:
     manual_agent_install: true
@@ -3387,20 +3387,78 @@ name: %s
 team_settings:
   %s
 `
+	testDarwinOffAllPlatformsOn := `
+controls:
+  macos_setup:
+    manual_agent_install: true
+software:
+  app_store_apps:
+    - app_store_id: "2"
+      platform: darwin
+    - app_store_id: "2"
+      setup_experience: true
+queries:
+policies:
+agent_options:
+name: %s
+team_settings:
+  %s
+`
+	testDarwinOffOtherPlatformsOn := `
+controls:
+  macos_setup:
+    manual_agent_install: true
+software:
+  app_store_apps:
+    - app_store_id: "2"
+      platform: darwin
+    - app_store_id: "2"
+      platform: ios
+      setup_experience: true
+    - app_store_id: "2"
+      platform: ipados
+      setup_experience: true
+queries:
+policies:
+agent_options:
+name: %s
+team_settings:
+  %s
+`
 
 	testCases := []struct {
 		specialCase  string
 		teamName     string
+		teamTemplate string
 		teamSettings string
+		errContains  *string
 	}{
 		{
 			specialCase:  "All teams",
 			teamName:     teamName,
+			teamTemplate: testAll,
 			teamSettings: `secrets: [{"secret":"enroll_secret"}]`,
+			errContains:  ptr.String("Couldn't edit software."),
 		},
 		{
-			specialCase: "No team",
-			teamName:    "No team",
+			specialCase:  "All teams",
+			teamName:     teamName,
+			teamTemplate: testDarwinOffAllPlatformsOn,
+			teamSettings: `secrets: [{"secret":"enroll_secret"}]`,
+			errContains:  ptr.String("Couldn't edit software."),
+		},
+		{
+			specialCase:  "All teams",
+			teamName:     teamName,
+			teamTemplate: testDarwinOffOtherPlatformsOn,
+			teamSettings: `secrets: [{"secret":"enroll_secret"}]`,
+			errContains:  nil,
+		},
+		{
+			specialCase:  "No team",
+			teamName:     "No team",
+			teamTemplate: testAll,
+			errContains:  ptr.String("Couldn't edit software."),
 		},
 	}
 	for _, tc := range testCases {
@@ -3414,7 +3472,7 @@ team_settings:
 			require.NoError(t, err)
 			teamFile, err := os.CreateTemp(t.TempDir(), "*.yml")
 			require.NoError(t, err)
-			_, err = fmt.Fprintf(teamFile, teamTemplate, tc.teamName, tc.teamSettings)
+			_, err = fmt.Fprintf(teamFile, tc.teamTemplate, tc.teamName, tc.teamSettings)
 			require.NoError(t, err)
 			err = teamFile.Close()
 			require.NoError(t, err)
@@ -3428,30 +3486,19 @@ team_settings:
 
 				teamFileName = noTeamFilePath
 			}
-			umm, err := os.ReadFile(teamFileName)
-			require.NoError(t, err)
-			fmt.Println(string(umm))
 
 			t.Setenv("FLEET_URL", s.Server.URL)
-
 			testing_utils.StartAndServeVPPServer(t)
 
-			// Don't attempt dry runs because they would not actually create the team
-			// dryRunOutput := fleetctl.RunAppForTest(t, []string{"gitops", "--config", fleetctlConfig.Name(), "-f", globalFile.Name(), "-f", teamFileName, "--dry-run"})
-			// require.Contains(t, dryRunOutput, "Couldn't edit software.")
+			// Don't attempt dry runs because they would not actually create the team, so the config would not be found
 
-			output, err := fleetctl.RunAppNoChecks([]string{"gitops", "--config", fleetctlConfig.Name(), "-f", globalFile.Name(), "-f", teamFileName})
+			_, err = fleetctl.RunAppNoChecks([]string{"gitops", "--config", fleetctlConfig.Name(), "-f", globalFile.Name(), "-f", teamFileName})
 
-			mysql.ExecAdhocSQL(t, s.DS, func(q sqlx.ExtContext) error {
-				mysql.DumpTable(t, q, "default_team_config_json")
-				// mysql.DumpTable(t, q, "teams")
-				return nil
-			})
-			fmt.Println("------------------------------")
-			fmt.Println(output)
-			fmt.Println(err)
-			fmt.Println("------------------------------")
-			require.ErrorContains(t, err, "Couldn't edit software.")
+			if tc.errContains != nil {
+				require.ErrorContains(t, err, *tc.errContains)
+			} else {
+				require.NoError(t, err)
+			}
 
 		})
 	}

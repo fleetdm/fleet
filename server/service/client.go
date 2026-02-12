@@ -892,8 +892,6 @@ func (c *Client) ApplyGroup(
 					}
 				}
 
-				fmt.Printf("%#v\n-----------\n", app)
-
 				payload := fleet.VPPBatchPayload{
 					AppStoreID:          app.AppStoreID,
 					SelfService:         app.SelfService,
