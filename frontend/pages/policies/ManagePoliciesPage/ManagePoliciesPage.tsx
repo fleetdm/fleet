@@ -1133,6 +1133,17 @@ const ManagePolicyPage = ({
       );
     }
 
+    // Calendar events are not a supported feature for "No team"
+    if (!disabledCalendarTooltipContent && teamIdForApi === API_NO_TEAM_ID) {
+      disabledCalendarTooltipContent = (
+        <>
+          Select a team to manage
+          <br />
+          calendar events.
+        </>
+      );
+    }
+
     const options: CustomOptionType[] = [
       {
         label: "Calendar",
