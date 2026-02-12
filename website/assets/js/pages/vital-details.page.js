@@ -91,7 +91,9 @@ parasails.registerPage('vital-details', {
       }, 2000);
       navigator.clipboard.writeText(code);
     });
+    // Add a scroll event listener to shift the platform filters upwards when the header is hidden.
     window.addEventListener('scroll', this.handleScrollingPlatformFilters);
+    this.handleScrollingPlatformFilters();
   },
 
   //  ╦╔╗╔╔╦╗╔═╗╦═╗╔═╗╔═╗╔╦╗╦╔═╗╔╗╔╔═╗
