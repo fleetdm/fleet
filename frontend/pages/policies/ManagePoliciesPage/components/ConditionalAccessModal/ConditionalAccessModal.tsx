@@ -5,10 +5,14 @@ import {
   LEARN_MORE_ABOUT_BASE_LINK,
 } from "utilities/constants";
 
+import { isOktaConditionalAccessConfigured } from "interfaces/config";
+
 import CustomLink from "components/CustomLink";
 import Modal from "components/Modal";
 import Button from "components/buttons/Button";
 import Slider from "components/forms/fields/Slider";
+import Checkbox from "components/forms/fields/Checkbox";
+import TooltipWrapper from "components/TooltipWrapper";
 import { AppContext } from "context/app";
 import { IPaginatedListHandle } from "components/PaginatedList";
 import PoliciesPaginatedList, {
@@ -49,7 +53,7 @@ const ConditionalAccessModal = ({
   });
 
   const paginatedListRef = useRef<IPaginatedListHandle<IFormPolicy>>(null);
-  const { isGlobalAdmin, isTeamAdmin } = useContext(AppContext);
+  const { isGlobalAdmin, isTeamAdmin, config } = useContext(AppContext);
   const isAdmin = isGlobalAdmin || isTeamAdmin;
 
   const onChangeEnabled = () => {
@@ -78,6 +82,44 @@ const ConditionalAccessModal = ({
     />
   );
 
+  const renderItemRow = (
+    item: IFormPolicy,
+    onChange: (item: IFormPolicy) => void
+  ) => {
+    const shouldShowCheckbox =
+      item.conditional_access_enabled &&
+      // currently redundant as only darwin-targeting policies are enabled in this list
+      item.platform.includes("darwin") &&
+      isOktaConditionalAccessConfigured(config) &&
+      !config?.conditional_access?.bypass_disabled;
+
+    if (!shouldShowCheckbox) {
+      return null;
+    }
+
+    return (
+      <span
+        onClick={(e) => {
+          e.stopPropagation();
+        }}
+      >
+        <Checkbox
+          value={item.conditional_access_bypass_enabled}
+          onChange={() => {
+            onChange({
+              ...item,
+              conditional_access_bypass_enabled: !item.conditional_access_bypass_enabled,
+            });
+          }}
+        >
+          <TooltipWrapper tipContent="Allows end users to bypass conditional access for a single login if they are unable to resolve the failing policy.">
+            End users can bypass
+          </TooltipWrapper>
+        </Checkbox>
+      </span>
+    );
+  };
+
   const renderConfigured = () => {
     return (
       <>
@@ -102,6 +144,7 @@ const ConditionalAccessModal = ({
             isSelected="conditional_access_enabled"
             getPolicyDisabled={getPolicyDisabled}
             getPolicyTooltipContent={getPolicyTooltipContent}
+            renderItemRow={renderItemRow}
             onToggleItem={(item: IFormPolicy) => {
               item.conditional_access_enabled = !item.conditional_access_enabled;
               return item;

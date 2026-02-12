@@ -81,6 +81,7 @@ locals {
     FLEET_WEBHOOK_RESULT_URL        = var.webhook_url
     FLEET_OSQUERY_RESULT_LOG_PLUGIN = var.webhook_url != "" ? "webhook" : ""
     FLEET_SERVER_VPP_VERIFY_TIMEOUT = "20m"
+    FLEET_SERVER_GZIP_RESPONSES     = "true"
 
     # Load TLS Certificate for RDS Authentication
     FLEET_MYSQL_TLS_CA                  = local.cert_path

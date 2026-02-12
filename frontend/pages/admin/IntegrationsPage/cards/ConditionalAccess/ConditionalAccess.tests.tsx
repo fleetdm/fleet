@@ -18,16 +18,20 @@ const triggerConditionalAccessHandler = http.post(
   }
 );
 
+const TEST_TENANT_ID = "abcdefg";
+const TEST_OKTA_IDP_ID = "okta-idp-123";
+
 const updateConfigHandler = http.patch(baseUrl("/config"), () => {
   return HttpResponse.json(
     createMockConfig({
       conditional_access: {
         microsoft_entra_tenant_id: "",
         microsoft_entra_connection_configured: false,
-        okta_idp_id: "okta-idp-123",
+        okta_idp_id: TEST_OKTA_IDP_ID,
         okta_assertion_consumer_service_url: "https://example.com/acs",
         okta_audience_uri: "https://example.com",
         okta_certificate: "cert-data",
+        bypass_disabled: false,
       },
     })
   );
@@ -43,6 +47,7 @@ const createEmptyConditionalAccessConfig = () =>
       okta_assertion_consumer_service_url: "",
       okta_audience_uri: "",
       okta_certificate: "",
+      bypass_disabled: false,
     },
   });
 
@@ -123,7 +128,7 @@ describe("Conditional access", () => {
 
       // Fill in tenant ID
       const input = screen.getByRole("textbox");
-      await user.type(input, "abcdefg");
+      await user.type(input, TEST_TENANT_ID);
 
       // Submit form
       const saveButton = screen.getByRole("button", { name: "Save" });
@@ -200,7 +205,7 @@ describe("Conditional access", () => {
       // Fill in text fields
       // Note: First textarea is the read-only User scope profile
       const textboxes = screen.getAllByRole("textbox");
-      await user.type(textboxes[1], "okta-idp-123"); // IdP ID
+      await user.type(textboxes[1], TEST_OKTA_IDP_ID); // IdP ID
       await user.type(textboxes[2], "https://example.com/acs"); // ACS URL
       await user.type(textboxes[3], "https://example.com"); // Audience URI
 
@@ -241,12 +246,13 @@ BAYTAkFVMRMwEQYDVQQIDApTb21lLVN0YXRlMSEwHwYDVQQKDBhJbnRlcm5ldCBX
     it("Renders a spinner when Entra tenant id is present but configuration not yet confirmed", () => {
       const mockConfig = createMockConfig({
         conditional_access: {
-          microsoft_entra_tenant_id: "abcdefg",
+          microsoft_entra_tenant_id: TEST_TENANT_ID,
           microsoft_entra_connection_configured: false,
           okta_idp_id: "",
           okta_assertion_consumer_service_url: "",
           okta_audience_uri: "",
           okta_certificate: "",
+          bypass_disabled: false,
         },
       });
 
@@ -270,105 +276,13 @@ BAYTAkFVMRMwEQYDVQQIDApTb21lLVN0YXRlMSEwHwYDVQQKDBhJbnRlcm5ldCBX
     it("Shows Entra as configured when connection is confirmed", async () => {
       const mockConfig = createMockConfig({
         conditional_access: {
-          microsoft_entra_tenant_id: "abcdefg",
+          microsoft_entra_tenant_id: TEST_TENANT_ID,
           microsoft_entra_connection_configured: true,
           okta_idp_id: "",
           okta_assertion_consumer_service_url: "",
           okta_audience_uri: "",
           okta_certificate: "",
-        },
-      });
-
-      const render = createCustomRenderer({
-        withBackendMock: true,
-        context: {
-          app: {
-            isPremiumTier: true,
-            config: mockConfig,
-          },
-        },
-      });
-
-      render(<ConditionalAccess />);
-
-      expect(
-        screen.getByText("Microsoft Entra conditional access configured")
-      ).toBeInTheDocument();
-      // Should only have Delete button for Entra (no Edit button per Figma design)
-      expect(screen.getByText("Delete")).toBeInTheDocument();
-      expect(screen.queryByText("Edit")).not.toBeInTheDocument();
-    });
-
-    it("Shows Okta as configured when all Okta fields are present", async () => {
-      const mockConfig = createMockConfig({
-        conditional_access: {
-          microsoft_entra_tenant_id: "",
-          microsoft_entra_connection_configured: false,
-          okta_idp_id: "okta-idp-123",
-          okta_assertion_consumer_service_url: "https://example.com/acs",
-          okta_audience_uri: "https://example.com",
-          okta_certificate: "cert-data",
-        },
-      });
-
-      const render = createCustomRenderer({
-        withBackendMock: true,
-        context: {
-          app: {
-            isPremiumTier: true,
-            config: mockConfig,
-          },
-        },
-      });
-
-      render(<ConditionalAccess />);
-
-      expect(
-        screen.getByText("Okta conditional access configured")
-      ).toBeInTheDocument();
-    });
-
-    it("Shows both providers as configured when both are set up", async () => {
-      const mockConfig = createMockConfig({
-        conditional_access: {
-          microsoft_entra_tenant_id: "abcdefg",
-          microsoft_entra_connection_configured: true,
-          okta_idp_id: "okta-idp-123",
-          okta_assertion_consumer_service_url: "https://example.com/acs",
-          okta_audience_uri: "https://example.com",
-          okta_certificate: "cert-data",
-        },
-      });
-
-      const render = createCustomRenderer({
-        withBackendMock: true,
-        context: {
-          app: {
-            isPremiumTier: true,
-            config: mockConfig,
-          },
-        },
-      });
-
-      render(<ConditionalAccess />);
-
-      expect(
-        screen.getByText("Okta conditional access configured")
-      ).toBeInTheDocument();
-      expect(
-        screen.getByText("Microsoft Entra conditional access configured")
-      ).toBeInTheDocument();
-    });
-
-    it("Shows delete confirmation modal when clicking Delete on Okta", async () => {
-      const mockConfig = createMockConfig({
-        conditional_access: {
-          microsoft_entra_tenant_id: "",
-          microsoft_entra_connection_configured: false,
-          okta_idp_id: "okta-idp-123",
-          okta_assertion_consumer_service_url: "https://example.com/acs",
-          okta_audience_uri: "https://example.com",
-          okta_certificate: "cert-data",
+          bypass_disabled: false,
         },
       });
 
@@ -384,10 +298,139 @@ BAYTAkFVMRMwEQYDVQQIDApTb21lLVN0YXRlMSEwHwYDVQQKDBhJbnRlcm5ldCBX
 
       const { user } = render(<ConditionalAccess />);
 
-      // Should show configured state
+      const entraCopy = screen.getByText(/Microsoft Entra/);
+      expect(entraCopy).toBeInTheDocument();
       expect(
-        screen.getByText("Okta conditional access configured")
+        screen.getByText(/conditional access connected/)
       ).toBeInTheDocument();
+
+      await user.hover(entraCopy);
+      await waitFor(() => {
+        expect(screen.getByText(TEST_TENANT_ID)).toBeInTheDocument();
+      });
+
+      // Should only have Delete button for Entra (no Edit button per Figma design)
+      expect(screen.getByText("Delete")).toBeInTheDocument();
+      expect(screen.queryByText("Edit")).not.toBeInTheDocument();
+    });
+
+    it("Shows Okta as configured when all Okta fields are present", async () => {
+      const mockConfig = createMockConfig({
+        conditional_access: {
+          microsoft_entra_tenant_id: "",
+          microsoft_entra_connection_configured: false,
+          okta_idp_id: TEST_OKTA_IDP_ID,
+          okta_assertion_consumer_service_url: "https://example.com/acs",
+          okta_audience_uri: "https://example.com",
+          okta_certificate: "cert-data",
+          bypass_disabled: false,
+        },
+      });
+
+      const render = createCustomRenderer({
+        withBackendMock: true,
+        context: {
+          app: {
+            isPremiumTier: true,
+            config: mockConfig,
+          },
+        },
+      });
+
+      const { user } = render(<ConditionalAccess />);
+
+      const oktaCopy = screen.getByText(/Okta/);
+      expect(oktaCopy).toBeInTheDocument();
+      expect(
+        screen.getByText(/conditional access connected/)
+      ).toBeInTheDocument();
+
+      await user.hover(oktaCopy);
+      await waitFor(() => {
+        expect(screen.getByText(TEST_OKTA_IDP_ID)).toBeInTheDocument();
+      });
+    });
+
+    it("Shows both providers as configured when both are set up", async () => {
+      const mockConfig = createMockConfig({
+        conditional_access: {
+          microsoft_entra_tenant_id: TEST_TENANT_ID,
+          microsoft_entra_connection_configured: true,
+          okta_idp_id: TEST_OKTA_IDP_ID,
+          okta_assertion_consumer_service_url: "https://example.com/acs",
+          okta_audience_uri: "https://example.com",
+          okta_certificate: "cert-data",
+          bypass_disabled: false,
+        },
+      });
+
+      const render = createCustomRenderer({
+        withBackendMock: true,
+        context: {
+          app: {
+            isPremiumTier: true,
+            config: mockConfig,
+          },
+        },
+      });
+
+      const { user } = render(<ConditionalAccess />);
+
+      const entraCopy = screen.getByText(/Microsoft Entra/);
+      expect(entraCopy).toBeInTheDocument();
+
+      await user.hover(entraCopy);
+      await waitFor(() => {
+        expect(screen.getByText(TEST_TENANT_ID)).toBeInTheDocument();
+      });
+
+      const oktaCopy = screen.getByText(/Okta/);
+      expect(oktaCopy).toBeInTheDocument();
+      await user.hover(oktaCopy);
+      await waitFor(() => {
+        expect(screen.getByText(TEST_OKTA_IDP_ID)).toBeInTheDocument();
+      });
+
+      expect(
+        screen.queryAllByText(/conditional access connected/)
+      ).toHaveLength(2);
+    });
+
+    it("Shows delete confirmation modal when clicking Delete on Okta", async () => {
+      const mockConfig = createMockConfig({
+        conditional_access: {
+          microsoft_entra_tenant_id: "",
+          microsoft_entra_connection_configured: false,
+          okta_idp_id: TEST_OKTA_IDP_ID,
+          okta_assertion_consumer_service_url: "https://example.com/acs",
+          okta_audience_uri: "https://example.com",
+          okta_certificate: "cert-data",
+          bypass_disabled: false,
+        },
+      });
+
+      const render = createCustomRenderer({
+        withBackendMock: true,
+        context: {
+          app: {
+            isPremiumTier: true,
+            config: mockConfig,
+          },
+        },
+      });
+
+      const { user } = render(<ConditionalAccess />);
+
+      const oktaCopy = screen.getByText(/Okta/);
+      expect(oktaCopy).toBeInTheDocument();
+      expect(
+        screen.getByText(/conditional access connected/)
+      ).toBeInTheDocument();
+
+      await user.hover(oktaCopy);
+      await waitFor(() => {
+        expect(screen.getByText(TEST_OKTA_IDP_ID)).toBeInTheDocument();
+      });
 
       // Click Delete button (first one is for Okta)
       const deleteButton = screen.getAllByText("Delete")[0];

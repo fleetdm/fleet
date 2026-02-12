@@ -3,7 +3,7 @@
 import React, { useState, useContext, useEffect, KeyboardEvent } from "react";
 import { useQuery } from "react-query";
 
-import { IAceEditor } from "react-ace/lib/types";
+import { Ace } from "ace-builds";
 import ReactTooltip from "react-tooltip";
 import { useDebouncedCallback } from "use-debounce";
 import { size } from "lodash";
@@ -278,11 +278,11 @@ const PolicyForm = ({
   const hasSavePermissions =
     isGlobalAdmin || isGlobalMaintainer || isTeamMaintainerOrTeamAdmin;
 
-  const onLoad = (editor: IAceEditor) => {
+  const onLoad = (editor: Ace.Editor) => {
     editor.setOptions({
       enableLinking: true,
       enableMultiselect: false, // Disables command + click creating multiple cursors
-    });
+    } as any);
 
     // @ts-expect-error
     // the string "linkClick" is not officially in the lib but we need it
