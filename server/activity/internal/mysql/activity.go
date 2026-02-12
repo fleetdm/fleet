@@ -6,6 +6,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"errors"
+	"log/slog"
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server/activity/api"
@@ -14,7 +15,6 @@ import (
 	platform_mysql "github.com/fleetdm/fleet/v4/server/platform/mysql"
 	"github.com/jmoiron/sqlx"
 	"go.opentelemetry.io/otel"
-	"log/slog"
 )
 
 // tracer is an OTEL tracer. It has no-op behavior when OTEL is not enabled.

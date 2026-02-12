@@ -7,7 +7,7 @@ import (
 	"testing"
 	"time"
 
-	platformlogging "github.com/fleetdm/fleet/v4/server/platform/logging"
+	"github.com/fleetdm/fleet/v4/server/platform/logging"
 	common_mysql "github.com/fleetdm/fleet/v4/server/platform/mysql"
 	mysql_testing_utils "github.com/fleetdm/fleet/v4/server/platform/mysql/testing_utils"
 	kitlog "github.com/go-kit/log"
@@ -38,7 +38,7 @@ func SetupTestDB(t *testing.T, testNamePrefix string) *TestDB {
 
 	return &TestDB{
 		DB:     db,
-		Logger: slog.New(platformlogging.DiscardHandler{}),
+		Logger: slog.New(logging.DiscardHandler{}),
 	}
 }
 

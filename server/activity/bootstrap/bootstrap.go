@@ -3,6 +3,8 @@
 package bootstrap
 
 import (
+	"log/slog"
+
 	"github.com/fleetdm/fleet/v4/server/activity"
 	"github.com/fleetdm/fleet/v4/server/activity/api"
 	"github.com/fleetdm/fleet/v4/server/activity/internal/mysql"
@@ -11,7 +13,6 @@ import (
 	eu "github.com/fleetdm/fleet/v4/server/platform/endpointer"
 	platform_mysql "github.com/fleetdm/fleet/v4/server/platform/mysql"
 	"github.com/go-kit/kit/endpoint"
-	"log/slog"
 )
 
 // New creates a new activity bounded context and returns its service and route handler.

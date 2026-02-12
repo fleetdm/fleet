@@ -4,6 +4,7 @@ package service
 import (
 	"context"
 	"encoding/json"
+	"log/slog"
 	"maps"
 	"slices"
 	"strconv"
@@ -15,7 +16,6 @@ import (
 	platform_authz "github.com/fleetdm/fleet/v4/server/platform/authz"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/hashicorp/go-multierror"
-	"log/slog"
 )
 
 // streamBatchSize is the number of activities to fetch per batch when streaming.
