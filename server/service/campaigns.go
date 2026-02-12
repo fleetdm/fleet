@@ -19,7 +19,7 @@ import (
 
 type createDistributedQueryCampaignRequest struct {
 	QuerySQL string            `json:"query"`
-	QueryID  *uint             `json:"report_id" renamedfrom:"query_id"`
+	QueryID  *uint             `json:"query_id" renameto:"report_id"`
 	Selected fleet.HostTargets `json:"selected"`
 }
 
@@ -175,7 +175,7 @@ func (svc *Service) NewDistributedQueryCampaign(ctx context.Context, queryString
 
 type createDistributedQueryCampaignByIdentifierRequest struct {
 	QuerySQL string                                       `json:"query"`
-	QueryID  *uint                                        `json:"report_id" renamedfrom:"query_id"`
+	QueryID  *uint                                        `json:"query_id" renameto:"report_id"`
 	Selected distributedQueryCampaignTargetsByIdentifiers `json:"selected"`
 }
 

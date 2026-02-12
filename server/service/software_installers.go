@@ -454,7 +454,7 @@ func (svc *Service) UploadSoftwareInstaller(ctx context.Context, payload *fleet.
 }
 
 type deleteSoftwareInstallerRequest struct {
-	TeamID  *uint `query:"fleet_id" renamedfrom:"team_id"`
+	TeamID  *uint `query:"team_id" renameto:"fleet_id"`
 	TitleID uint  `url:"title_id"`
 }
 
@@ -484,7 +484,7 @@ func (svc *Service) DeleteSoftwareInstaller(ctx context.Context, titleID uint, t
 
 type getSoftwareInstallerRequest struct {
 	Alt     string `query:"alt,optional"`
-	TeamID  *uint  `query:"fleet_id" renamedfrom:"team_id"`
+	TeamID  *uint  `query:"team_id" renameto:"fleet_id"`
 	TitleID uint   `url:"title_id"`
 }
 
@@ -775,8 +775,8 @@ func (svc *Service) GetSelfServiceUninstallScriptResult(ctx context.Context, hos
 ////////////////////////////////////////////////////////////////////////////////
 
 type batchSetSoftwareInstallersRequest struct {
-	TeamName string                            `json:"-" query:"team_name,optional"`
-	DryRun   bool                              `json:"-" query:"dry_run,optional"` // if true, apply validation but do not save changes
+	TeamName string                            `json:"-" query:"team_name,optional" renameto:"fleet_name"` // optional team name to limit the scope of the operation, if empty applies to all teams
+	DryRun   bool                              `json:"-" query:"dry_run,optional"`                         // if true, apply validation but do not save changes
 	Software []*fleet.SoftwareInstallerPayload `json:"software"`
 }
 
@@ -807,7 +807,7 @@ func (svc *Service) BatchSetSoftwareInstallers(ctx context.Context, tmName strin
 
 type batchSetSoftwareInstallersResultRequest struct {
 	RequestUUID string `url:"request_uuid"`
-	TeamName    string `query:"fleet_name,optional" renamedfrom:"team_name"`
+	TeamName    string `query:"team_name,optional" renameto:"fleet_name"`
 	DryRun      bool   `query:"dry_run,optional"` // if true, apply validation but do not save changes
 }
 
@@ -976,7 +976,7 @@ func (svc *Service) BatchAssociateVPPApps(ctx context.Context, teamName string, 
 
 type getInHouseAppManifestRequest struct {
 	TitleID uint  `url:"title_id"`
-	TeamID  *uint `query:"fleet_id" renamedfrom:"team_id"`
+	TeamID  *uint `query:"team_id" renameto:"fleet_id"`
 }
 
 type getInHouseAppManifestResponse struct {
@@ -1024,7 +1024,7 @@ func (svc *Service) GetInHouseAppManifest(ctx context.Context, titleID uint, tea
 
 type getInHouseAppPackageRequest struct {
 	TitleID uint  `url:"title_id"`
-	TeamID  *uint `query:"fleet_id" renamedfrom:"team_id"`
+	TeamID  *uint `query:"team_id" renameto:"fleet_id"`
 }
 
 type getInHouseAppPackageResponse struct {

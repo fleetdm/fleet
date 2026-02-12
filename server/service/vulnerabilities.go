@@ -122,7 +122,7 @@ func (svc *Service) IsCVEKnownToFleet(ctx context.Context, cve string) (bool, er
 
 type getVulnerabilityRequest struct {
 	CVE    string `url:"cve"`
-	TeamID *uint  `query:"fleet_id,optional" renamedfrom:"team_id"`
+	TeamID *uint  `query:"team_id,optional" renameto:"fleet_id"`
 }
 
 type getVulnerabilityResponse struct {

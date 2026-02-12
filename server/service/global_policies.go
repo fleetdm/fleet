@@ -25,7 +25,7 @@ import (
 /////////////////////////////////////////////////////////////////////////////////
 
 type globalPolicyRequest struct {
-	QueryID          *uint    `json:"report_id" renamedfrom:"query_id"`
+	QueryID          *uint    `json:"query_id" renameto:"report_id"`
 	Query            string   `json:"query"`
 	Name             string   `json:"name"`
 	Description      string   `json:"description"`
@@ -350,7 +350,7 @@ func (svc *Service) ModifyGlobalPolicy(ctx context.Context, id uint, p fleet.Mod
 /////////////////////////////////////////////////////////////////////////////////
 
 type resetAutomationRequest struct {
-	TeamIDs   []uint `json:"fleet_ids" premium:"true" renamedfrom:"team_ids"`
+	TeamIDs   []uint `json:"team_ids" premium:"true" renameto:"fleet_ids"`
 	PolicyIDs []uint `json:"policy_ids"`
 }
 

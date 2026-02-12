@@ -52,8 +52,8 @@ func (a *activityModule) NewActivity(ctx context.Context, user *fleet.User, acti
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "marshaling activity details")
 	}
-	// Duplicate renamed JSON keys so that stored activity details include
-	// both the new and deprecated field names (e.g. fleet_id and team_id).
+	// Duplicate JSON keys so that stored activity details include both the
+	// old and new field names (e.g. team_id and fleet_id).
 	if rules := endpointer.ExtractAliasRules(activity); len(rules) > 0 {
 		detailsBytes = endpointer.DuplicateJSONKeys(detailsBytes, rules)
 	}

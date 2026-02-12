@@ -324,7 +324,7 @@ type SoftwareAutoUpdateConfig struct {
 
 type SoftwareAutoUpdateSchedule struct {
 	TitleID uint `json:"title_id" db:"title_id"`
-	TeamID  uint `json:"fleet_id" renamedfrom:"team_id" db:"team_id"`
+	TeamID  uint `json:"team_id" renameto:"fleet_id" db:"team_id"`
 	SoftwareAutoUpdateConfig
 }
 
@@ -502,7 +502,7 @@ type SoftwareTitleListOptions struct {
 	// ListOptions cannot be embedded in order to unmarshall with validation.
 	ListOptions ListOptions `url:"list_options"`
 
-	TeamID              *uint   `query:"fleet_id,optional" renamedfrom:"team_id"`
+	TeamID              *uint   `query:"team_id,optional" renameto:"fleet_id"`
 	VulnerableOnly      bool    `query:"vulnerable,optional"`
 	AvailableForInstall bool    `query:"available_for_install,optional"`
 	SelfServiceOnly     bool    `query:"self_service,optional"`
@@ -554,7 +554,7 @@ type HostSoftwareTitleListOptions struct {
 // AuthzSoftwareInventory is used for access controls on software inventory.
 type AuthzSoftwareInventory struct {
 	// TeamID is the ID of the team. A value of nil means global scope.
-	TeamID *uint `json:"fleet_id" renamedfrom:"team_id"`
+	TeamID *uint `json:"team_id" renameto:"fleet_id"`
 }
 
 // AuthzType implements authz.AuthzTyper.
@@ -642,7 +642,7 @@ type SoftwareListOptions struct {
 
 	// HostID filters software to the specified host if not nil.
 	HostID                      *uint
-	TeamID                      *uint `query:"fleet_id,optional" renamedfrom:"team_id"`
+	TeamID                      *uint `query:"team_id,optional" renameto:"fleet_id"`
 	VulnerableOnly              bool  `query:"vulnerable,optional"`
 	WithoutVulnerabilityDetails bool  `query:"without_vulnerability_details,optional"`
 	IncludeCVEScores            bool

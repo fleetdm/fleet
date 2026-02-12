@@ -100,8 +100,9 @@ var aliasRulesCache sync.Map // reflect.Type → []AliasRule
 
 // ExtractAliasRules inspects the struct type of iface (recursively, including
 // embedded structs) and builds an []AliasRule from fields that carry a
-// `renamedfrom` struct tag. For each such field the json tag's field name
-// becomes NewKey and the renamedfrom value becomes OldKey.
+// `renameto` struct tag. For each such field the json tag's field name
+// becomes OldKey (the current/deprecated name) and the renameto value becomes
+// NewKey (the target name).
 //
 // Only `json` tags are considered; `url` and `query` tags are ignored for now.
 //
@@ -148,7 +149,7 @@ func elemType(t reflect.Type) reflect.Type {
 		case reflect.Ptr, reflect.Slice, reflect.Array:
 			t = t.Elem()
 		case reflect.Map:
-			// For maps, the values may contain structs with renamedfrom tags.
+			// For maps, the values may contain structs with renameto tags.
 			t = t.Elem()
 		default:
 			return t
@@ -165,15 +166,15 @@ func extractAliasRulesRecursive(t reflect.Type, seen map[AliasRule]bool, rules *
 	for i := 0; i < t.NumField(); i++ {
 		sf := t.Field(i)
 
-		// Check this field for a renamedfrom tag.
-		renamedFrom, hasRenamed := sf.Tag.Lookup("renamedfrom")
-		if hasRenamed && renamedFrom != "" {
+		// Check this field for a renameto tag.
+		renameTo, hasRenameTo := sf.Tag.Lookup("renameto")
+		if hasRenameTo && renameTo != "" {
 			jsonTag, hasJSON := sf.Tag.Lookup("json")
 			if hasJSON && jsonTag != "" && jsonTag != "-" {
 				// Strip options like ",omitempty" from the json tag.
 				jsonFieldName, _, _ := strings.Cut(jsonTag, ",")
 				if jsonFieldName != "" && jsonFieldName != "-" {
-					rule := AliasRule{OldKey: renamedFrom, NewKey: jsonFieldName}
+					rule := AliasRule{OldKey: jsonFieldName, NewKey: renameTo}
 					if !seen[rule] {
 						seen[rule] = true
 						*rules = append(*rules, rule)
@@ -296,22 +297,25 @@ func DecodeQueryTagValue(r *http.Request, fp fieldPair, customDecoder DomainQuer
 		}
 		queryVal := r.URL.Query().Get(queryTagValue)
 
-		// If we don't find a value, check if there's an alias (deprecated) query parameter.
-		if queryVal == "" {
-			if renamedFrom, hasRenamed := fp.Sf.Tag.Lookup("renamedfrom"); hasRenamed {
-				renamedFrom, _, err = ParseTag(renamedFrom)
+		// The query tag now holds the old (deprecated) name. If the old name
+		// was used, log a deprecation warning. If not found, check the
+		// renameto value (the new name) as a fallback.
+		if queryVal != "" {
+			if renameTo, hasRenameTo := fp.Sf.Tag.Lookup("renameto"); hasRenameTo {
+				// Log deprecation warning - the old name was used.
+				logging.WithLevel(ctx, level.Warn)
+				logging.WithExtras(ctx,
+					"deprecated_param", queryTagValue,
+					"deprecation_warning", fmt.Sprintf("'%s' is deprecated, use '%s' instead", queryTagValue, renameTo),
+				)
+			}
+		} else {
+			if renameTo, hasRenameTo := fp.Sf.Tag.Lookup("renameto"); hasRenameTo {
+				renameTo, _, err = ParseTag(renameTo)
 				if err != nil {
 					return err
 				}
-				queryVal = r.URL.Query().Get(renamedFrom)
-				if queryVal != "" {
-					// Log deprecation warning - force warn level and add descriptive message
-					logging.WithLevel(ctx, level.Warn)
-					logging.WithExtras(ctx,
-						"deprecated_param", renamedFrom,
-						"deprecation_warning", fmt.Sprintf("'%s' is deprecated, use '%s' instead", renamedFrom, queryTagValue),
-					)
-				}
+				queryVal = r.URL.Query().Get(renameTo)
 			}
 		}
 		// If we still don't have a value, return if this is optional, otherwise error.
@@ -501,7 +505,7 @@ func MakeDecoder(
 	customQueryDecoder DomainQueryFieldDecoder,
 	maxRequestBodySize int64,
 ) kithttp.DecodeRequestFunc {
-	// Infer alias rules from `renamedfrom` struct tags on the request type.
+	// Infer alias rules from `renameto` struct tags on the request type.
 	aliasRules := ExtractAliasRules(iface)
 	if iface == nil {
 		return func(ctx context.Context, r *http.Request) (interface{}, error) {
@@ -986,7 +990,7 @@ func EncodeCommonResponse(
 	jsonMarshal func(w http.ResponseWriter, response interface{}) error,
 	domainErrorEncoder DomainErrorEncoder,
 ) error {
-	// Infer alias rules from `renamedfrom` struct tags on the response type.
+	// Infer alias rules from `renameto` struct tags on the response type.
 	aliasRules := ExtractAliasRules(response)
 	if cs, ok := response.(cookieSetter); ok {
 		cs.SetCookies(ctx, w)
@@ -1022,7 +1026,7 @@ func EncodeCommonResponse(
 	}
 
 	// If alias rules are configured, buffer the JSON output so we can
-	// duplicate keys (new→old) for backwards compatibility before writing
+	// duplicate keys (old→new) for forwards compatibility before writing
 	// to the response.
 	if len(aliasRules) > 0 {
 		var buf bytes.Buffer

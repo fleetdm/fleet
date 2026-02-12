@@ -496,7 +496,7 @@ type MDMApplePreassignProfile struct {
 // MDMAppleSettingsPayload describes the payload accepted by the endpoint to
 // update specific MDM macos settings for a team (or no team).
 type MDMAppleSettingsPayload struct {
-	TeamID               *uint `json:"fleet_id" renamedfrom:"team_id"`
+	TeamID               *uint `json:"team_id" renameto:"fleet_id"`
 	EnableDiskEncryption *bool `json:"enable_disk_encryption"`
 }
 
@@ -508,7 +508,7 @@ func (p MDMAppleSettingsPayload) AuthzType() string {
 // MDMAppleSetupPayload describes the payload accepted by the endpoint to
 // update specific MDM macos setup values for a team (or no team).
 type MDMAppleSetupPayload struct {
-	TeamID                      *uint `json:"fleet_id" renamedfrom:"team_id"`
+	TeamID                      *uint `json:"team_id" renameto:"fleet_id"`
 	EnableEndUserAuthentication *bool `json:"enable_end_user_authentication"`
 	EnableReleaseDeviceManually *bool `json:"enable_release_device_manually"`
 	ManualAgentInstall          *bool `json:"manual_agent_install"`
@@ -614,7 +614,7 @@ type MDMAppleCommand struct {
 // or no team.
 type MDMAppleSetupAssistant struct {
 	ID         uint            `json:"-" db:"id"`
-	TeamID     *uint           `json:"fleet_id" renamedfrom:"team_id" db:"team_id"`
+	TeamID     *uint           `json:"team_id" renameto:"fleet_id" db:"team_id"`
 	Name       string          `json:"name" db:"name"`
 	Profile    json.RawMessage `json:"enrollment_profile" db:"profile"`
 	UploadedAt time.Time       `json:"uploaded_at" db:"uploaded_at"`

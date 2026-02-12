@@ -291,7 +291,7 @@ func (svc *Service) GetLabel(ctx context.Context, id uint) (*fleet.LabelWithTeam
 
 type listLabelsRequest struct {
 	ListOptions       fleet.ListOptions `url:"list_options"`
-	TeamID            *string           `query:"fleet_id,optional" renamedfrom:"team_id"` // string because it's an int or "global"
+	TeamID            *string           `query:"team_id,optional" renameto:"fleet_id"` // string because it's an int or "global"
 	IncludeHostCounts *bool             `query:"include_host_counts,optional"`
 }
 
@@ -388,7 +388,7 @@ func labelResponseForLabelWithTeamName(label *fleet.LabelWithTeamName, hostIDs [
 ////////////////////////////////////////////////////////////////////////////////
 
 type getLabelsSummaryRequest struct {
-	TeamID *string `query:"fleet_id,optional" renamedfrom:"team_id"` // string because it's an int or "global"
+	TeamID *string `query:"team_id,optional" renameto:"fleet_id"` // string because it's an int or "global"
 }
 
 type getLabelsSummaryResponse struct {
@@ -772,7 +772,7 @@ type getLabelSpecsResponse struct {
 func (r getLabelSpecsResponse) Error() error { return r.Err }
 
 type getLabelSpecsRequest struct {
-	TeamID *uint `query:"fleet_id,optional" renamedfrom:"team_id"`
+	TeamID *uint `query:"team_id,optional" renameto:"fleet_id"`
 }
 
 func getLabelSpecsEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {

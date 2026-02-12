@@ -8,27 +8,27 @@ import (
 )
 
 // DuplicateJSONKeys takes marshaled JSON and, for each AliasRule, duplicates
-// keys so that both the new and old (deprecated) names appear in the output.
+// keys so that both the old (native) and new names appear in the output.
 // For example, if a rule maps OldKey:"team_id" → NewKey:"fleet_id", and the
-// JSON contains "fleet_id": 42, the output will contain both "fleet_id": 42
-// and "team_id": 42.
+// JSON contains "team_id": 42, the output will contain both "team_id": 42
+// and "fleet_id": 42.
 //
-// If the old key already exists in the same object scope, the duplication is
+// If the new key already exists in the same object scope, the duplication is
 // skipped for that key (to avoid producing duplicate keys when the source
 // struct already has both, or when the function is called more than once).
 //
 // The function uses jsontext.Decoder/Encoder for token-level processing,
 // delegating all JSON lexing (string escaping, unicode, nesting) to the
 // library. Duplicates are deferred until the closing '}' of each object so
-// that naturally-occurring old keys can be detected and skipped.
+// that naturally-occurring new keys can be detected and skipped.
 func DuplicateJSONKeys(data []byte, rules []AliasRule) []byte {
 	if len(rules) == 0 || len(data) == 0 {
 		return data
 	}
 
-	newToOld := make(map[string]string, len(rules))
+	oldToNew := make(map[string]string, len(rules))
 	for _, r := range rules {
-		newToOld[r.NewKey] = r.OldKey
+		oldToNew[r.OldKey] = r.NewKey
 	}
 
 	var buf bytes.Buffer
@@ -37,16 +37,16 @@ func DuplicateJSONKeys(data []byte, rules []AliasRule) []byte {
 
 	// pendingDup holds a key-value pair that should be inserted as a
 	// duplicate at the end of the current object scope (before '}'),
-	// unless the old key was found naturally in the same scope.
+	// unless the new key was found naturally in the same scope.
 	type pendingDup struct {
-		oldKey string
+		newKey string
 		value  jsontext.Value
 	}
 
-	// Per-object-scope state: pending duplicates and naturally-seen old keys.
+	// Per-object-scope state: pending duplicates and naturally-seen new keys.
 	type scopeState struct {
 		pending    []pendingDup
-		naturalOld map[string]bool
+		naturalNew map[string]bool
 	}
 	var scopes []scopeState
 
@@ -64,21 +64,21 @@ func DuplicateJSONKeys(data []byte, rules []AliasRule) []byte {
 
 		switch kind {
 		case '{':
-			scopes = append(scopes, scopeState{naturalOld: make(map[string]bool)})
+			scopes = append(scopes, scopeState{naturalNew: make(map[string]bool)})
 			if err := enc.WriteToken(tok); err != nil {
 				return data
 			}
 
 		case '}':
 			// Before closing the object, emit any pending duplicates whose
-			// old key was not seen naturally in this scope.
+			// new key was not seen naturally in this scope.
 			if len(scopes) > 0 {
 				scope := scopes[len(scopes)-1]
 				for _, dup := range scope.pending {
-					if scope.naturalOld[dup.oldKey] {
-						continue // old key exists naturally; skip duplicate
+					if scope.naturalNew[dup.newKey] {
+						continue // new key exists naturally; skip duplicate
 					}
-					if err := enc.WriteToken(jsontext.String(dup.oldKey)); err != nil {
+					if err := enc.WriteToken(jsontext.String(dup.newKey)); err != nil {
 						return data
 					}
 					if err := enc.WriteValue(dup.value); err != nil {
@@ -105,19 +105,19 @@ func DuplicateJSONKeys(data []byte, rules []AliasRule) []byte {
 			if isKey {
 				keyName := tok.String()
 
-				// Track old keys that appear naturally.
+				// Track new keys that appear naturally.
 				if len(scopes) > 0 {
-					for _, oldKey := range newToOld {
-						if keyName == oldKey {
-							scopes[len(scopes)-1].naturalOld[oldKey] = true
+					for _, newKey := range oldToNew {
+						if keyName == newKey {
+							scopes[len(scopes)-1].naturalNew[newKey] = true
 						}
 					}
 				}
 
-				// Check if this new key should generate a duplicate.
-				oldKey, shouldDuplicate := newToOld[keyName]
+				// Check if this old key should generate a duplicate.
+				newKey, shouldDuplicate := oldToNew[keyName]
 				if shouldDuplicate {
-					// Write the new key.
+					// Write the old key.
 					if err := enc.WriteToken(tok); err != nil {
 						return data
 					}
@@ -131,7 +131,7 @@ func DuplicateJSONKeys(data []byte, rules []AliasRule) []byte {
 					// Recursively duplicate keys within the value.
 					processedVal := DuplicateJSONKeys([]byte(val), rules)
 
-					// Write the value for the new key.
+					// Write the value for the old key.
 					if err := enc.WriteValue(jsontext.Value(processedVal)); err != nil {
 						return data
 					}
@@ -140,7 +140,7 @@ func DuplicateJSONKeys(data []byte, rules []AliasRule) []byte {
 					if len(scopes) > 0 {
 						scopes[len(scopes)-1].pending = append(
 							scopes[len(scopes)-1].pending,
-							pendingDup{oldKey: oldKey, value: jsontext.Value(processedVal)},
+							pendingDup{newKey: newKey, value: jsontext.Value(processedVal)},
 						)
 					}
 				} else {

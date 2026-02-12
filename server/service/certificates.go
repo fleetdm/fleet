@@ -50,7 +50,7 @@ func validateCertificateTemplateName(name string) error {
 
 type createCertificateTemplateRequest struct {
 	Name                   string `json:"name"`
-	TeamID                 uint   `json:"fleet_id" renamedfrom:"team_id"` // If not provided, intentionally defaults to 0 aka "No team"
+	TeamID                 uint   `json:"team_id" renameto:"fleet_id"` // If not provided, intentionally defaults to 0 aka "No team"
 	CertificateAuthorityId uint   `json:"certificate_authority_id"`
 	SubjectName            string `json:"subject_name"`
 }
@@ -151,7 +151,7 @@ type listCertificateTemplatesRequest struct {
 	fleet.ListOptions
 
 	// If not provided, intentionally defaults to 0 aka "No team"
-	TeamID uint `query:"fleet_id,optional" renamedfrom:"team_id"`
+	TeamID uint `query:"team_id,optional" renameto:"fleet_id"`
 }
 
 type listCertificateTemplatesResponse struct {
@@ -524,7 +524,7 @@ func (svc *Service) ApplyCertificateTemplateSpecs(ctx context.Context, specs []*
 
 type deleteCertificateTemplateSpecsRequest struct {
 	IDs    []uint `json:"ids"`
-	TeamID uint   `json:"fleet_id" renamedfrom:"team_id"` // If not provided, intentionally defaults to 0 aka "No team"
+	TeamID uint   `json:"team_id" renameto:"fleet_id"` // If not provided, intentionally defaults to 0 aka "No team"
 }
 
 type deleteCertificateTemplateSpecsResponse struct {

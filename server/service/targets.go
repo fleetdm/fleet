@@ -18,7 +18,7 @@ type searchTargetsRequest struct {
 	MatchQuery string `json:"query"`
 	// QueryID is the ID of a saved query to run (used to determine if this is a
 	// query that observers can run).
-	QueryID *uint `json:"report_id" renamedfrom:"query_id"`
+	QueryID *uint `json:"query_id" renameto:"report_id"`
 	// Selected is the list of IDs that are already selected on the caller side
 	// (e.g. the UI), so those are IDs that will be omitted from the returned
 	// payload.
@@ -112,7 +112,7 @@ func (t *teamSearchResult) UnmarshalJSON(b []byte) error {
 type targetsData struct {
 	Hosts  []*fleet.HostResponse `json:"hosts"`
 	Labels []labelSearchResult   `json:"labels"`
-	Teams  []teamSearchResult    `json:"fleets" renamedfrom:"teams"`
+	Teams  []teamSearchResult    `json:"teams" renameto:"fleets"`
 }
 
 type searchTargetsResponse struct {
@@ -254,7 +254,7 @@ func (svc *Service) CountHostsInTargets(ctx context.Context, queryID *uint, targ
 
 type countTargetsRequest struct {
 	Selected fleet.HostTargets `json:"selected"`
-	QueryID  *uint             `json:"report_id" renamedfrom:"query_id"`
+	QueryID  *uint             `json:"query_id" renameto:"report_id"`
 }
 
 type countTargetsResponse struct {

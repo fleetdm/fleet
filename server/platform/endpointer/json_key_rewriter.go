@@ -21,49 +21,54 @@ func (e *AliasConflictError) Error() string {
 }
 
 // AliasRule defines a key-rename rule: the deprecated (old) key name and its
-// replacement (new) key name. The rewriter will rewrite OldKey to NewKey when
-// found in the JSON stream.
+// replacement (new) key name. The struct's json tag uses OldKey (the current
+// name), and renameto specifies NewKey (the target name). The rewriter
+// accepts both names in requests: OldKey passes through as-is (with
+// deprecation tracking) and NewKey is rewritten to OldKey for deserialization.
 type AliasRule struct {
 	OldKey string
 	NewKey string
 }
 
-// JSONKeyRewriteReader is a streaming io.Reader that rewrites deprecated JSON
-// object keys to their new names while reading. It also:
+// JSONKeyRewriteReader is a streaming io.Reader that handles bidirectional
+// JSON key aliasing while reading. It:
 //
-//   - Tracks which deprecated keys were encountered (for deprecation logging).
-//   - Detects alias conflicts: if both the deprecated and new key appear in the
-//     same JSON object scope, it returns an *AliasConflictError.
+//   - Passes through OldKey (deprecated) names as-is (the struct expects them)
+//     and tracks them in usedDeprecated for deprecation logging.
+//   - Rewrites NewKey names to OldKey so the struct can deserialize them.
+//   - Detects alias conflicts: if both OldKey and NewKey appear in the same
+//     JSON object scope, it returns an *AliasConflictError.
 //
-// Internally it uses an io.Pipe with a background goroutine that reads tokens
-// from the source using jsontext.Decoder and writes rewritten tokens via
-// jsontext.Encoder. This keeps the streaming io.Reader interface while
-// delegating all JSON lexing (string escaping, unicode, whitespace) to the
-// standard library.
+// It uses jsontext.Decoder/Encoder for token-level processing, delegating all
+// JSON lexing (string escaping, unicode, whitespace) to the library.
 type JSONKeyRewriteReader struct {
 	reader  *bytes.Reader
 	initErr error
 
-	// Map from old key to its AliasRule for fast lookup.
+	// Map from old (deprecated) key to its AliasRule for fast lookup.
 	oldKeyIndex map[string]AliasRule
+	// Map from new key to its AliasRule for fast lookup.
+	newKeyIndex map[string]AliasRule
 
 	// Tracks which deprecated keys have been used (old key -> true).
-	// Written by the goroutine, read after the pipe is drained (wg.Wait).
 	usedDeprecated map[string]bool
 }
 
 // NewJSONKeyRewriteReader creates a new JSONKeyRewriteReader that wraps the
-// given reader and applies the provided alias rules. A background goroutine
-// reads JSON tokens from src, rewrites deprecated keys, detects conflicts,
-// and writes the result to the returned reader.
+// given reader and applies the provided alias rules. It reads JSON tokens
+// from src, handles bidirectional key aliasing, detects conflicts, and
+// writes the result to an internal buffer.
 func NewJSONKeyRewriteReader(src io.Reader, rules []AliasRule) *JSONKeyRewriteReader {
-	idx := make(map[string]AliasRule, len(rules))
+	oldIdx := make(map[string]AliasRule, len(rules))
+	newIdx := make(map[string]AliasRule, len(rules))
 	for _, r := range rules {
-		idx[r.OldKey] = r
+		oldIdx[r.OldKey] = r
+		newIdx[r.NewKey] = r
 	}
 
 	rw := &JSONKeyRewriteReader{
-		oldKeyIndex:    idx,
+		oldKeyIndex:    oldIdx,
+		newKeyIndex:    newIdx,
 		usedDeprecated: make(map[string]bool),
 	}
 
@@ -105,24 +110,28 @@ func (r *JSONKeyRewriteReader) Read(p []byte) (int, error) {
 	return r.reader.Read(p)
 }
 
-// RewriteDeprecatedKeys rewrites deprecated JSON object keys (old → new) in
-// data using the provided alias rules. It returns the rewritten JSON and an
-// error if alias conflicts are detected or the JSON is malformed.
+// RewriteDeprecatedKeys handles bidirectional JSON key aliasing in data using
+// the provided alias rules. It rewrites NewKey→OldKey (so the struct can
+// deserialize), passes through OldKey as-is, and returns an error if both
+// appear in the same scope (alias conflict) or the JSON is malformed.
 //
 // This is useful when a request body is captured as json.RawMessage and later
-// decoded into a struct with `renamedfrom` tags — the rewriter in MakeDecoder
+// decoded into a struct with `renameto` tags — the rewriter in MakeDecoder
 // won't have seen the inner fields, so this function can be called before the
 // deferred unmarshal.
 func RewriteDeprecatedKeys(data []byte, rules []AliasRule) ([]byte, error) {
 	if len(rules) == 0 || len(data) == 0 {
 		return data, nil
 	}
-	idx := make(map[string]AliasRule, len(rules))
+	oldIdx := make(map[string]AliasRule, len(rules))
+	newIdx := make(map[string]AliasRule, len(rules))
 	for _, r := range rules {
-		idx[r.OldKey] = r
+		oldIdx[r.OldKey] = r
+		newIdx[r.NewKey] = r
 	}
 	rw := &JSONKeyRewriteReader{
-		oldKeyIndex:    idx,
+		oldKeyIndex:    oldIdx,
+		newKeyIndex:    newIdx,
 		usedDeprecated: make(map[string]bool),
 	}
 	var buf bytes.Buffer
@@ -186,9 +195,15 @@ func (r *JSONKeyRewriteReader) rewrite(src io.Reader, w io.Writer) error {
 			if isKey {
 				keyName := tok.String()
 
-				// Check if this is a deprecated key that needs rewriting.
+				// Use OldKey as the canonical key for scope tracking.
+				// Both OldKey (pass-through) and NewKey (rewrite) resolve
+				// to the same canonical key for conflict detection.
+
 				if rule, ok := r.oldKeyIndex[keyName]; ok {
-					canonicalKey := rule.NewKey
+					// This is an OldKey (deprecated name). Pass through
+					// as-is — the struct expects this name. Track it for
+					// deprecation logging.
+					canonicalKey := rule.OldKey
 					r.usedDeprecated[keyName] = true
 
 					// Conflict detection.
@@ -200,27 +215,30 @@ func (r *JSONKeyRewriteReader) rewrite(src io.Reader, w io.Writer) error {
 						scope[canonicalKey] = true
 					}
 
-					// Write the rewritten (new) key.
-					if err := enc.WriteToken(jsontext.String(canonicalKey)); err != nil {
+					// Write the key as-is (old name, which the struct expects).
+					if err := enc.WriteToken(tok); err != nil {
 						return err
 					}
-				} else {
-					// Not a deprecated key — check for conflict with a
-					// previously-rewritten key in this scope.
-					canonicalKey := keyName
+				} else if rule, ok := r.newKeyIndex[keyName]; ok {
+					// This is a NewKey. Rewrite it to OldKey so the
+					// struct can deserialize it.
+					canonicalKey := rule.OldKey
+
+					// Conflict detection.
 					if len(keyScopes) > 0 {
 						scope := keyScopes[len(keyScopes)-1]
 						if scope[canonicalKey] {
-							// This new key was already seen via a rewritten old key.
-							for _, rule := range r.oldKeyIndex {
-								if rule.NewKey == canonicalKey {
-									return &AliasConflictError{Old: rule.OldKey, New: rule.NewKey}
-								}
-							}
+							return &AliasConflictError{Old: rule.OldKey, New: rule.NewKey}
 						}
 						scope[canonicalKey] = true
 					}
 
+					// Write the rewritten (old) key.
+					if err := enc.WriteToken(jsontext.String(canonicalKey)); err != nil {
+						return err
+					}
+				} else {
+					// Not an aliased key — pass through unchanged.
 					if err := enc.WriteToken(tok); err != nil {
 						return err
 					}

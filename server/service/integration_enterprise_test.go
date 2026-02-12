@@ -2730,7 +2730,7 @@ func (s *integrationEnterpriseTestSuite) TestNoTeamWebhookConfig() {
 	// Test that we can configure webhooks for "No Team" (team ID 0)
 	// Use a generic response that will work with DefaultTeam
 	var defaultTeamResp struct {
-		Team *fleet.DefaultTeam `json:"fleet" renamedfrom:"team"`
+		Team *fleet.DefaultTeam `json:"team" renameto:"fleet"`
 	}
 
 	// First clear any existing webhook configuration for "No Team"
@@ -2764,7 +2764,7 @@ func (s *integrationEnterpriseTestSuite) TestNoTeamWebhookConfig() {
 
 	// Get the config again to verify it persisted
 	defaultTeamResp = struct {
-		Team *fleet.DefaultTeam `json:"fleet" renamedfrom:"team"`
+		Team *fleet.DefaultTeam `json:"team" renameto:"fleet"`
 	}{}
 	s.DoJSON("GET", "/api/latest/fleet/teams/0", nil, http.StatusOK, &defaultTeamResp)
 	require.Equal(t, uint(0), defaultTeamResp.Team.ID)
@@ -2853,7 +2853,7 @@ func (s *integrationEnterpriseTestSuite) TestNoTeamFailingPolicyWebhookTrigger()
 
 	// Configure webhook for "No Team" - only include pol1 and pol2
 	var defaultTeamResp struct {
-		Team *fleet.DefaultTeam `json:"fleet" renamedfrom:"team"`
+		Team *fleet.DefaultTeam `json:"team" renameto:"fleet"`
 	}
 	s.DoJSON("PATCH", "/api/latest/fleet/teams/0", fleet.TeamPayload{WebhookSettings: &fleet.TeamWebhookSettings{
 		FailingPoliciesWebhook: fleet.FailingPoliciesWebhookSettings{
@@ -2891,7 +2891,7 @@ func (s *integrationEnterpriseTestSuite) TestNoTeamFailingPolicyWebhookTrigger()
 
 	// Test that we can configure and retrieve the "No Team" webhook settings
 	defaultTeamResp = struct {
-		Team *fleet.DefaultTeam `json:"fleet" renamedfrom:"team"`
+		Team *fleet.DefaultTeam `json:"team" renameto:"fleet"`
 	}{}
 	s.DoJSON("GET", "/api/latest/fleet/teams/0", nil, http.StatusOK, &defaultTeamResp)
 	require.Equal(t, uint(0), defaultTeamResp.Team.ID)

@@ -185,22 +185,22 @@ func jsonToInterface(in interface{}) (interface{}, error) {
 		}
 	}
 
-	// Add deprecated key aliases from `renamedfrom` struct tags so that OPA
-	// policies can continue to reference the old field names.
-	addRenamedFromKeys(reflect.TypeOf(in), out)
+	// Add key aliases from `renameto` struct tags so that OPA policies can
+	// reference both old and new field names.
+	addRenameToKeys(reflect.TypeOf(in), out)
 
 	return out, nil
 }
 
-// addRenamedFromKeys inspects the struct type t and, for each field that has a
-// `renamedfrom` tag, copies the value stored under the current JSON key into
-// the map under the old key name. It also recurses one level into direct child
-// structs (not slices) to handle nested renames.
-func addRenamedFromKeys(t reflect.Type, m map[string]any) {
-	addRenamedFromKeysDepth(t, m, 0)
+// addRenameToKeys inspects the struct type t and, for each field that has a
+// `renameto` tag, copies the value stored under the current (old) JSON key
+// into the map under the new key name. It also recurses one level into direct
+// child structs (not slices) to handle nested renames.
+func addRenameToKeys(t reflect.Type, m map[string]any) {
+	addRenameToKeysDepth(t, m, 0)
 }
 
-func addRenamedFromKeysDepth(t reflect.Type, m map[string]any, depth int) {
+func addRenameToKeysDepth(t reflect.Type, m map[string]any, depth int) {
 	if t == nil {
 		return
 	}
@@ -216,7 +216,7 @@ func addRenamedFromKeysDepth(t reflect.Type, m map[string]any, depth int) {
 
 		// Handle embedded (anonymous) structs — their fields are promoted.
 		if field.Anonymous {
-			addRenamedFromKeysDepth(field.Type, m, depth)
+			addRenameToKeysDepth(field.Type, m, depth)
 			continue
 		}
 
@@ -226,10 +226,10 @@ func addRenamedFromKeysDepth(t reflect.Type, m map[string]any, depth int) {
 		}
 		jsonKey := strings.Split(jsonTag, ",")[0]
 
-		// If this field has a renamedfrom tag, copy the value under the old key.
-		if oldKey := field.Tag.Get("renamedfrom"); oldKey != "" {
+		// If this field has a renameto tag, copy the value under the new key.
+		if newKey := field.Tag.Get("renameto"); newKey != "" {
 			if val, ok := m[jsonKey]; ok {
-				m[oldKey] = val
+				m[newKey] = val
 			}
 		}
 
@@ -241,7 +241,7 @@ func addRenamedFromKeysDepth(t reflect.Type, m map[string]any, depth int) {
 			}
 			if ft.Kind() == reflect.Struct {
 				if nested, ok := m[jsonKey].(map[string]any); ok {
-					addRenamedFromKeysDepth(ft, nested, depth+1)
+					addRenameToKeysDepth(ft, nested, depth+1)
 				}
 			}
 		}
