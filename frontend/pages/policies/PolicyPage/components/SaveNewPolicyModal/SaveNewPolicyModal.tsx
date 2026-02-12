@@ -318,7 +318,7 @@ const SaveNewPolicyModal = ({
                     </p>
                   }
                 >
-                  Critical:
+                  Critical
                 </TooltipWrapper>
               </Checkbox>
             </div>
