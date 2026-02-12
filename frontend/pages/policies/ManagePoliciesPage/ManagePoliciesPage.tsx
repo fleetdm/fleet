@@ -1139,7 +1139,7 @@ const ManagePolicyPage = ({
         <>
           Select a team to manage
           <br />
-          calendar events.
+          calendar automations.
         </>
       );
     }
