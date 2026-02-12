@@ -158,9 +158,10 @@ func getConfigForCommand(user string, path string) (args []string, env []string,
 		// Wayland is the default for most distributions,
 		// thus we assume wayland if we couldn't determine the session type.
 		log.Error().Err(err).Msg("assuming wayland session")
-		userDisplaySession = &userpkg.UserDisplaySession{Type: userpkg.GuiSessionTypeWayland}
-	}
-	if userDisplaySession.Type == userpkg.GuiSessionTypeTty {
+		userDisplaySession = &userpkg.UserDisplaySession{
+			Type: userpkg.GuiSessionTypeWayland,
+		}
+	} else if userDisplaySession.Type == userpkg.GuiSessionTypeTty {
 		return nil, nil, fmt.Errorf("user %q (%s) is not running a GUI session", user, userID)
 	}
 

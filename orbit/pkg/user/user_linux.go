@@ -39,10 +39,6 @@ func UserLoggedInViaGui() (*string, error) {
 			log.Debug().Err(err).Msgf("failed to get user display session for user %s", user.Name)
 			continue
 		}
-		if session == nil {
-			log.Debug().Msgf("no display session found for user %s", user.Name)
-			continue
-		}
 		if !session.Active {
 			log.Debug().Msgf("user %s has an inactive display session, skipping", user.Name)
 			continue
@@ -104,8 +100,8 @@ type UserDisplaySession struct {
 }
 
 // GetUserDisplaySessionType returns the display session type (X11 or Wayland)
-// and active status of the given user. Returns nil with no error if the user
-// has no display session.
+// and active status of the given user. Returns an error if the user doesn't have
+// a Display session.
 func GetUserDisplaySessionType(uid string) (*UserDisplaySession, error) {
 	// Get the "Display" session ID of the user.
 	cmd := exec.Command("loginctl", "show-user", uid, "-p", "Display", "--value")

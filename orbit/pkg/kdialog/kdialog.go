@@ -90,7 +90,7 @@ func execCmdWithOutput(timeout time.Duration, args ...string) ([]byte, int, erro
 	if loggedInUser == nil || *loggedInUser == "" {
 		return nil, 0, errors.New("no GUI user found")
 	}
-	log.Debug().Msgf("found GUI user: %s, attempting zenity", *loggedInUser)
+	log.Debug().Msgf("found GUI user: %s, attempting kdialog", *loggedInUser)
 	opts = append(opts, execuser.WithUser(*loggedInUser))
 
 	output, exitCode, err := execuser.RunWithOutput(kdialogProcessName, opts...)
