@@ -140,6 +140,8 @@ def main():
                     col_type = 'INTEGER'
                 elif col in json_columns:
                     col_type = 'JSONB'
+                elif col.endswidth("Enabled"):
+                    col_type = 'BOOLEAN'
                 else:
                     col_type = 'TEXT'
                 ddl_columns.append(f'"{col}" {col_type}')
