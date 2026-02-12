@@ -141,28 +141,52 @@ export default {
   MANAGE_HOSTS_LABEL: (labelId: number | string): string => {
     return `${URL_PREFIX}/hosts/manage/labels/${labelId}`;
   },
-  HOST_DETAILS_PAGE: (id: number): string => {
+  HOST_DETAILS_PAGE: (id: number, teamId?: number): string => {
+    if (teamId) {
+      return `${URL_PREFIX}/hosts/${id}?team_id=${teamId}`;
+    }
     return `${URL_PREFIX}/hosts/${id}`;
   },
-  HOST_DETAILS: (id: number): string => {
+  HOST_DETAILS: (id: number, teamId?: number): string => {
+    if (teamId) {
+      return `${URL_PREFIX}/hosts/${id}/details?team_id=${teamId}`;
+    }
     return `${URL_PREFIX}/hosts/${id}/details`;
   },
-  HOST_SCRIPTS: (id: number): string => {
+  HOST_SCRIPTS: (id: number, teamId?: number): string => {
+    if (teamId) {
+      return `${URL_PREFIX}/hosts/${id}/scripts?team_id=${teamId}`;
+    }
     return `${URL_PREFIX}/hosts/${id}/scripts`;
   },
-  HOST_SOFTWARE: (id: number): string => {
+  HOST_SOFTWARE: (id: number, teamId?: number): string => {
+    if (teamId) {
+      return `${URL_PREFIX}/hosts/${id}/software?team_id=${teamId}`;
+    }
     return `${URL_PREFIX}/hosts/${id}/software`;
   },
-  HOST_INVENTORY: (id: number): string => {
+  HOST_INVENTORY: (id: number, teamId?: number): string => {
+    if (teamId) {
+      return `${URL_PREFIX}/hosts/${id}/software/inventory?team_id=${teamId}`;
+    }
     return `${URL_PREFIX}/hosts/${id}/software/inventory`;
   },
-  HOST_LIBRARY: (id: number): string => {
+  HOST_LIBRARY: (id: number, teamId?: number): string => {
+    if (teamId) {
+      return `${URL_PREFIX}/hosts/${id}/software/library?team_id=${teamId}`;
+    }
     return `${URL_PREFIX}/hosts/${id}/software/library`;
   },
-  HOST_QUERIES: (id: number): string => {
+  HOST_QUERIES: (id: number, teamId?: number): string => {
+    if (teamId) {
+      return `${URL_PREFIX}/hosts/${id}/queries?team_id=${teamId}`;
+    }
     return `${URL_PREFIX}/hosts/${id}/queries`;
   },
-  HOST_POLICIES: (id: number): string => {
+  HOST_POLICIES: (id: number, teamId?: number): string => {
+    if (teamId) {
+      return `${URL_PREFIX}/hosts/${id}/policies?team_id=${teamId}`;
+    }
     return `${URL_PREFIX}/hosts/${id}/policies`;
   },
   HOST_QUERY_REPORT: (hostId: number, queryId: number): string =>

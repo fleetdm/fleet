@@ -87,7 +87,7 @@ const lastSeenTime = (status: string, seenTime: string): string => {
   return "Online";
 };
 
-const allHostTableHeaders: IHostTableColumnConfig[] = [
+const allHostTableHeaders = (teamId?: number): IHostTableColumnConfig[] => [
   // We are using React Table useRowSelect functionality for the selection header.
   // More information on its API can be found here
   // https://react-table.tanstack.com/docs/api/useRowSelect
@@ -158,7 +158,7 @@ const allHostTableHeaders: IHostTableColumnConfig[] = [
       return (
         <LinkCell
           value={cellProps.cell.value}
-          path={PATHS.HOST_DETAILS(cellProps.row.original.id)}
+          path={PATHS.HOST_DETAILS(cellProps.row.original.id, teamId)}
           title={lastSeenTime(
             cellProps.row.original.status,
             cellProps.row.original.seen_time
@@ -697,11 +697,13 @@ const defaultHiddenColumns = [
 const generateAvailableTableHeaders = ({
   isFreeTier = true,
   isOnlyObserver = true,
+  teamId,
 }: {
   isFreeTier: boolean | undefined;
   isOnlyObserver: boolean | undefined;
+  teamId?: number;
 }): IHostTableColumnConfig[] => {
-  return allHostTableHeaders.reduce(
+  return allHostTableHeaders(teamId).reduce(
     (columns: Column<IHost>[], currentColumn: Column<IHost>) => {
       // skip over column headers that are not shown in free observer tier
       if (isFreeTier) {
@@ -738,17 +740,21 @@ const generateVisibleTableColumns = ({
   hiddenColumns,
   isFreeTier = true,
   isOnlyObserver = true,
+  teamId,
 }: {
   hiddenColumns: string[];
   isFreeTier: boolean | undefined;
   isOnlyObserver: boolean | undefined;
+  teamId?: number;
 }): IHostTableColumnConfig[] => {
   // remove columns set as hidden by the user.
-  return generateAvailableTableHeaders({ isFreeTier, isOnlyObserver }).filter(
-    (column) => {
-      return !hiddenColumns.includes(column.id as string);
-    }
-  );
+  return generateAvailableTableHeaders({
+    isFreeTier,
+    isOnlyObserver,
+    teamId,
+  }).filter((column) => {
+    return !hiddenColumns.includes(column.id as string);
+  });
 };
 
 export {
