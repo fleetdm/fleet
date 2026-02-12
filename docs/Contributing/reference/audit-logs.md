@@ -2333,6 +2333,23 @@ This activity contains the following fields:
 }
 ```
 
+## view_host_recovery_lock_password
+
+Generated when a user views the Recovery Lock password for a host.
+
+This activity contains the following fields:
+- "host_id": ID of the host.
+- "host_display_name": Display name of the host.
+
+#### Example
+
+```json
+{
+  "host_id": 1,
+  "host_display_name": "Anna's MacBook Pro"
+}
+```
+
 ## escrowed_recovery_lock_password
 
 Generated when a Recovery Lock password is escrowed.
