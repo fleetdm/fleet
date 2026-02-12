@@ -407,6 +407,9 @@ func SetupFullGitOpsPremiumServer(t *testing.T) (*mock.Store, **fleet.AppConfig,
 		return nil, &notFoundError{}
 	}
 	ds.TeamLiteFunc = func(ctx context.Context, tid uint) (*fleet.TeamLite, error) {
+		if tid == 0 {
+			return &fleet.TeamLite{}, nil
+		}
 		for _, tm := range savedTeams {
 			if (*tm).ID == tid {
 				teamToCopy := *tm
