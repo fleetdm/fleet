@@ -276,7 +276,7 @@ func readEnvFromProcFile(path string, envVar string) (string, error) {
 		return "", err
 	}
 	prefix := envVar + "="
-	for _, entry := range bytes.Split(data, []byte{0}) {
+	for entry := range bytes.SplitSeq(data, []byte{0}) {
 		if s := string(entry); strings.HasPrefix(s, prefix) {
 			return s[len(prefix):], nil
 		}
