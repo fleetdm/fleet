@@ -115,7 +115,7 @@ const DiskEncryption = ({
       );
       renderFlash(
         "success",
-        "Successfully updated disk encryption enforcement!"
+        "Successfully updated disk encryption enforcement."
       );
       onMutation();
       setShowAggregate(diskEncryptionEnabled);

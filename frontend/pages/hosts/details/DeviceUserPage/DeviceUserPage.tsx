@@ -851,7 +851,8 @@ const DeviceUserPage = ({
             policy={selectedPolicy}
             onResolveLater={
               globalConfig?.features?.enable_conditional_access &&
-              globalConfig.features?.enable_conditional_access_bypass
+              globalConfig.features?.enable_conditional_access_bypass &&
+              selectedPolicy?.conditional_access_bypass_enabled
                 ? () => {
                     onCancelPolicyDetailsModal();
                     setShowBypassModal(true);
