@@ -2066,6 +2066,12 @@ type Datastore interface {
 	// cached as a software installer for the given team.
 	HasFMAInstallerVersion(ctx context.Context, teamID *uint, fmaID uint, version string) (bool, error)
 
+	// GetCachedFMAInstallerMetadata returns the cached metadata for a specific
+	// FMA installer version, including install/uninstall scripts, URL, SHA256,
+	// etc. Returns a NotFoundError if no cached installer exists for the given
+	// version.
+	GetCachedFMAInstallerMetadata(ctx context.Context, teamID *uint, fmaID uint, version string) (*MaintainedApp, error)
+
 	InsertHostInHouseAppInstall(ctx context.Context, hostID uint, inHouseAppID, softwareTitleID uint, commandUUID string, opts HostSoftwareInstallOptions) error
 
 	// GetSoftwareInstallersPendingUninstallScriptPopulation returns a map of software installers to storage IDs that:

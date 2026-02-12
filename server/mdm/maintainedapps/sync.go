@@ -115,8 +115,35 @@ func upsertMaintainedApps(ctx context.Context, appsList *AppsList, ds fleet.Data
 	return nil
 }
 
-// Hydrate pulls information from app-level FMA manifests info an FMA skeleton pulled from the database
-func Hydrate(ctx context.Context, app *fleet.MaintainedApp) (*fleet.MaintainedApp, error) {
+// FMAInstallerCache is an optional interface for looking up cached FMA installer
+// metadata from the database. When provided to Hydrate with a target version,
+// it allows skipping the remote manifest fetch if the version is already cached.
+type FMAInstallerCache interface {
+	GetCachedFMAInstallerMetadata(ctx context.Context, teamID *uint, fmaID uint, version string) (*fleet.MaintainedApp, error)
+}
+
+// Hydrate pulls information from app-level FMA manifests into an FMA skeleton
+// pulled from the database. If version is non-empty and cache is provided, it
+// first attempts to load the metadata from the local cache, falling back to the
+// remote manifest if the version is not cached.
+func Hydrate(ctx context.Context, app *fleet.MaintainedApp, version string, teamID *uint, cache FMAInstallerCache) (*fleet.MaintainedApp, error) {
+	// If a specific version is requested and we have a cache, try the cache first.
+	if version != "" && cache != nil {
+		cached, err := cache.GetCachedFMAInstallerMetadata(ctx, teamID, app.ID, version)
+		if err == nil {
+			// Preserve fields from the original app that the cache doesn't store.
+			cached.ID = app.ID
+			cached.Name = app.Name
+			cached.Slug = app.Slug
+			cached.UniqueIdentifier = app.UniqueIdentifier
+			cached.TitleID = app.TitleID
+			cached.SHA256 = app.SHA256
+			cached.InstallerURL = app.InstallerURL
+			return cached, nil
+		}
+		// Not found in cache — fall through to remote manifest fetch.
+	}
+
 	httpClient := fleethttp.NewClient(fleethttp.WithTimeout(10 * time.Second))
 	baseURL := fmaOutputsBase
 	if baseFromEnvVar := dev_mode.Env("FLEET_DEV_MAINTAINED_APPS_BASE_URL"); baseFromEnvVar != "" {

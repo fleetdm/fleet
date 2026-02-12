@@ -785,6 +785,71 @@ func (ds *Datastore) HasFMAInstallerVersion(ctx context.Context, teamID *uint, f
 	return exists, nil
 }
 
+func (ds *Datastore) GetCachedFMAInstallerMetadata(ctx context.Context, teamID *uint, fmaID uint, version string) (*fleet.MaintainedApp, error) {
+	var globalOrTeamID uint
+	if teamID != nil {
+		globalOrTeamID = *teamID
+	}
+
+	var result struct {
+		Version         string `db:"version"`
+		Platform        string `db:"platform"`
+		URL             string `db:"url"`
+		StorageID       string `db:"storage_id"`
+		InstallScript   string `db:"install_script"`
+		UninstallScript string `db:"uninstall_script"`
+		UpgradeCode     string `db:"upgrade_code"`
+	}
+
+	err := sqlx.GetContext(ctx, ds.reader(ctx), &result, `
+		SELECT
+			si.version,
+			si.platform,
+			si.url,
+			si.storage_id,
+			COALESCE(isc.contents, '') AS install_script,
+			COALESCE(usc.contents, '') AS uninstall_script,
+			COALESCE(si.pre_install_query, '') AS pre_install_query,
+			si.upgrade_code
+		FROM software_installers si
+		LEFT JOIN script_contents isc ON isc.id = si.install_script_content_id
+		LEFT JOIN script_contents usc ON usc.id = si.uninstall_script_content_id
+		WHERE si.global_or_team_id = ? AND si.fleet_maintained_app_id = ? AND si.version = ?
+		LIMIT 1
+	`, globalOrTeamID, fmaID, version)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, notFound("CachedFMAInstaller")
+		}
+		return nil, ctxerr.Wrap(ctx, err, "get cached FMA installer metadata")
+	}
+
+	app := &fleet.MaintainedApp{
+		Version:         result.Version,
+		Platform:        result.Platform,
+		InstallerURL:    result.URL,
+		SHA256:          result.StorageID,
+		InstallScript:   result.InstallScript,
+		UninstallScript: result.UninstallScript,
+		UpgradeCode:     result.UpgradeCode,
+	}
+
+	// Load categories
+	var categories []string
+	err = sqlx.SelectContext(ctx, ds.reader(ctx), &categories, `
+		SELECT sc.name FROM software_categories sc
+		JOIN software_installer_software_categories sisc ON sisc.software_category_id = sc.id
+		JOIN software_installers si ON si.id = sisc.software_installer_id
+		WHERE si.global_or_team_id = ? AND si.fleet_maintained_app_id = ? AND si.version = ?
+	`, globalOrTeamID, fmaID, version)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "get cached FMA installer categories")
+	}
+	app.Categories = categories
+
+	return app, nil
+}
+
 func (ds *Datastore) selectSoftwareVersionsSQL(titleIDs []uint, teamID *uint, tmFilter fleet.TeamFilter, withCounts bool) (
 	string, []any, error,
 ) {
