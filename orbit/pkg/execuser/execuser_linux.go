@@ -132,19 +132,19 @@ func getConfigForCommand(path string) (args []string, env []string, err error) {
 
 	// Get user's display session type (x11 vs. wayland).
 	uid := strconv.FormatInt(user.ID, 10)
-	userDisplaySessionType, err := userpkg.GetUserDisplaySessionType(uid)
-	if userDisplaySessionType == userpkg.GuiSessionTypeTty {
+	userDisplaySession, err := userpkg.GetUserDisplaySessionType(uid)
+	if userDisplaySession != nil && userDisplaySession.Type == userpkg.GuiSessionTypeTty {
 		return nil, nil, fmt.Errorf("user %q (%d) is not running a GUI session", user.Name, user.ID)
 	}
-	if err != nil {
+	if err != nil || userDisplaySession == nil {
 		// Wayland is the default for most distributions, thus we assume
 		// wayland if we couldn't determine the session type.
 		log.Error().Err(err).Msg("assuming wayland session")
-		userDisplaySessionType = userpkg.GuiSessionTypeWayland
+		userDisplaySession = &userpkg.UserDisplaySession{Type: userpkg.GuiSessionTypeWayland, Active: true}
 	}
 
 	var display string
-	if userDisplaySessionType == userpkg.GuiSessionTypeX11 {
+	if userDisplaySession.Type == userpkg.GuiSessionTypeX11 {
 		x11Display, err := getUserX11Display(user.Name)
 		if err != nil {
 			log.Error().Err(err).Msg("failed to get X11 display, using default :0")
@@ -175,13 +175,13 @@ func getConfigForCommand(path string) (args []string, env []string, err error) {
 		Str("user", user.Name).
 		Int64("id", user.ID).
 		Str("display", display).
-		Str("session_type", userDisplaySessionType.String()).
+		Str("session_type", userDisplaySession.Type.String()).
 		Msg("running sudo")
 
 	args = []string{"-n", "-i", "-u", user.Name, "-H"}
 	env = make([]string, 0)
 
-	if userDisplaySessionType == userpkg.GuiSessionTypeWayland {
+	if userDisplaySession.Type == userpkg.GuiSessionTypeWayland {
 		env = append(env, "WAYLAND_DISPLAY="+display)
 		// For xdg-open to work on a Wayland session we still need to set the DISPLAY variable.
 		x11Display := ":" + strings.TrimPrefix(display, "wayland-")
