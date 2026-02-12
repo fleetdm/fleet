@@ -3334,15 +3334,10 @@ team_settings:
 
 func (s *enterpriseIntegrationGitopsTestSuite) TestDisallowSoftwareSetupExperience() {
 	t := s.T()
-	// ctx := context.Background()
 
 	user := s.createGitOpsUser(t)
 	fleetctlConfig := s.createFleetctlConfig(t, user)
-
-	// Create a global VPP token (location is "Jungle")
 	test.CreateInsertGlobalVPPToken(t, s.DS)
-
-	// Generate team name upfront since we need it in the global template
 	teamName := uuid.NewString()
 
 	// The global template includes VPP token assignment to the team
@@ -3426,46 +3421,101 @@ team_settings:
   %s
 `
 
+	testPackagesFail := `
+controls:
+  macos_setup:
+    manual_agent_install: true
+software:
+  app_store_apps:
+  packages:
+    - url: ${SOFTWARE_INSTALLER_URL}/dummy_installer.pkg
+      setup_experience: true
+queries:
+policies:
+agent_options:
+name: %s
+team_settings:
+  %s
+`
+
+	testPackagesPass := `
+controls:
+  macos_setup:
+    manual_agent_install: true
+software:
+  app_store_apps:
+  packages:
+    - url: ${SOFTWARE_INSTALLER_URL}/ruby.deb
+      setup_experience: true
+queries:
+policies:
+agent_options:
+name: %s
+team_settings:
+  %s
+`
+
 	testCases := []struct {
-		specialCase  string
+		VPPTeam      string
+		testName     string
 		teamName     string
 		teamTemplate string
 		teamSettings string
 		errContains  *string
 	}{
 		{
-			specialCase:  "All teams",
+			testName:     "All VPP with setup experience",
+			VPPTeam:      "All teams",
 			teamName:     teamName,
 			teamTemplate: testAll,
 			teamSettings: `secrets: [{"secret":"enroll_secret"}]`,
 			errContains:  ptr.String("Couldn't edit software."),
 		},
 		{
-			specialCase:  "All teams",
+			testName:     "Darwin off all platforms on",
+			VPPTeam:      "All teams",
 			teamName:     teamName,
 			teamTemplate: testDarwinOffAllPlatformsOn,
 			teamSettings: `secrets: [{"secret":"enroll_secret"}]`,
 			errContains:  ptr.String("Couldn't edit software."),
 		},
 		{
-			specialCase:  "All teams",
+			testName:     "Darwin off other platforms on",
+			VPPTeam:      "All teams",
 			teamName:     teamName,
 			teamTemplate: testDarwinOffOtherPlatformsOn,
 			teamSettings: `secrets: [{"secret":"enroll_secret"}]`,
 			errContains:  nil,
 		},
 		{
-			specialCase:  "No team",
+			testName:     "Packages fail",
+			VPPTeam:      "All teams",
+			teamName:     teamName,
+			teamTemplate: testPackagesFail,
+			teamSettings: `secrets: [{"secret":"enroll_secret"}]`,
+			errContains:  ptr.String("Couldn't edit software."),
+		},
+		{
+			testName:     "Packages pass",
+			VPPTeam:      "All teams",
+			teamName:     teamName,
+			teamTemplate: testPackagesPass,
+			teamSettings: `secrets: [{"secret":"enroll_secret"}]`,
+			errContains:  nil,
+		},
+		{
+			testName:     "No team",
+			VPPTeam:      "No team",
 			teamName:     "No team",
 			teamTemplate: testAll,
 			errContains:  ptr.String("Couldn't edit software."),
 		},
 	}
 	for _, tc := range testCases {
-		t.Run(tc.specialCase, func(t *testing.T) {
+		t.Run(tc.testName, func(t *testing.T) {
 			globalFile, err := os.CreateTemp(t.TempDir(), "*.yml")
 			require.NoError(t, err)
-			globalYAML := fmt.Sprintf(globalTemplate, tc.specialCase)
+			globalYAML := fmt.Sprintf(globalTemplate, tc.VPPTeam)
 			_, err = globalFile.WriteString(globalYAML)
 			require.NoError(t, err)
 			err = globalFile.Close()
@@ -3479,15 +3529,15 @@ team_settings:
 
 			teamFileName := teamFile.Name()
 
-			if tc.specialCase == "No team" {
+			if tc.VPPTeam == "No team" {
 				noTeamFilePath := filepath.Join(filepath.Dir(teamFile.Name()), "no-team.yml")
 				err = os.Rename(teamFile.Name(), noTeamFilePath)
 				require.NoError(t, err)
-
 				teamFileName = noTeamFilePath
 			}
 
 			t.Setenv("FLEET_URL", s.Server.URL)
+			testing_utils.StartSoftwareInstallerServer(t)
 			testing_utils.StartAndServeVPPServer(t)
 
 			// Don't attempt dry runs because they would not actually create the team, so the config would not be found
