@@ -129,7 +129,7 @@ def main():
         print("Connection successful.")
 
         with conn.cursor() as cursor:
-            # Ensure destination table exists with reasonable column types inferred from header
+            # Ensure destination table exists with column types inferred from header
             print(f"Ensuring table '{db_table}' exists...")
 
             ddl_columns = []
@@ -140,7 +140,7 @@ def main():
                     col_type = 'INTEGER'
                 elif col in json_columns:
                     col_type = 'JSONB'
-                elif col.endswith("Enabled"):
+                elif col.endswith("Enabled") or col.endswith("Disabled") or col.endswith("Configured"):
                     col_type = 'BOOLEAN'
                 else:
                     col_type = 'TEXT'
