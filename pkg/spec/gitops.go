@@ -285,8 +285,8 @@ func GitOpsFromFile(filePath, baseDir string, appConfig *fleet.EnrichedAppConfig
 		return nil, fmt.Errorf("failed to expand environment in file %s: %w", filePath, err)
 	}
 
-	// First unmarshal to map[string]interface{} for deprecation handling
-	var rawData map[string]interface{}
+	// First unmarshal to map[string]any for deprecation handling
+	var rawData map[string]any
 	if err := yaml.Unmarshal(b, &rawData); err != nil {
 		return nil, fmt.Errorf("failed to unmarshal file %w: \n", err)
 	}

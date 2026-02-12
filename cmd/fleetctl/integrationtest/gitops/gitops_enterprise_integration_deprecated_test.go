@@ -477,9 +477,9 @@ team_settings:
 	require.Equal(t, "Label1", profs[0].LabelsIncludeAll[0].LabelName)
 
 	// remove the label conditions
-	err = os.WriteFile(globalFile.Name(), []byte(fmt.Sprintf(globalTemplate, profileFile.Name(), emptyLabelsIncludeAny)), 0o644)
+	err = os.WriteFile(globalFile.Name(), fmt.Appendf(nil, globalTemplate, profileFile.Name(), emptyLabelsIncludeAny), 0o644)
 	require.NoError(t, err)
-	err = os.WriteFile(teamFile.Name(), []byte(fmt.Sprintf(teamTemplate, profileFile.Name(), "", teamName)), 0o644)
+	err = os.WriteFile(teamFile.Name(), fmt.Appendf(nil, teamTemplate, profileFile.Name(), "", teamName), 0o644)
 	require.NoError(t, err)
 
 	// Apply configs
@@ -617,9 +617,9 @@ team_settings:
 	require.Equal(t, "Label1", meta.LabelsExcludeAny[0].LabelName)
 
 	// remove the label conditions
-	err = os.WriteFile(noTeamFilePath, []byte(fmt.Sprintf(noTeamTemplate, emptyLabelsIncludeAny)), 0o644)
+	err = os.WriteFile(noTeamFilePath, fmt.Appendf(nil, noTeamTemplate, emptyLabelsIncludeAny), 0o644)
 	require.NoError(t, err)
-	err = os.WriteFile(teamFile.Name(), []byte(fmt.Sprintf(teamTemplate, "", teamName)), 0o644)
+	err = os.WriteFile(teamFile.Name(), fmt.Appendf(nil, teamTemplate, "", teamName), 0o644)
 	require.NoError(t, err)
 
 	// Apply configs
@@ -1370,7 +1370,8 @@ labels:
 	labels, err := s.DS.LabelsByName(ctx, []string{"my-label-deprecated"}, fleet.TeamFilter{})
 	require.NoError(t, err)
 	require.Len(t, labels, 1)
-	label := labels["my-label-deprecated"]
+	label, ok := labels["my-label-deprecated"]
+	require.True(t, ok)
 	// Get the hosts for the label
 	labelHosts, err := s.DS.ListHostsInLabel(ctx, fleet.TeamFilter{User: &user}, label.ID, fleet.HostListOptions{})
 	require.NoError(t, err)
@@ -1547,10 +1548,10 @@ team_settings:
 	require.ElementsMatch(t, []string{"ios", "ipados"}, platforms)
 
 	// update the team config to clear the label condition
-	err = os.WriteFile(teamFile.Name(), []byte(fmt.Sprintf(teamTemplate, `
+	err = os.WriteFile(teamFile.Name(), fmt.Appendf(nil, teamTemplate, `
       - url: ${SOFTWARE_INSTALLER_URL}/ipa_test.ipa
         labels_include_any:
-`, teamName)), 0o644)
+`, teamName), 0o644)
 	require.NoError(t, err)
 
 	s.assertDryRunOutputWithDeprecation(t, fleetctl.RunAppForTest(t, []string{"gitops", "--config", fleetctlConfig.Name(), "-f", globalFile.Name(), "-f", teamFile.Name(), "--dry-run"}), true)
@@ -1583,7 +1584,7 @@ team_settings:
 	require.ElementsMatch(t, []string{"ios", "ipados"}, platforms)
 
 	// update the team config to clear all installers
-	err = os.WriteFile(teamFile.Name(), []byte(fmt.Sprintf(teamTemplate, "", teamName)), 0o644)
+	err = os.WriteFile(teamFile.Name(), fmt.Appendf(nil, teamTemplate, "", teamName), 0o644)
 	require.NoError(t, err)
 
 	s.assertDryRunOutputWithDeprecation(t, fleetctl.RunAppForTest(t, []string{"gitops", "--config", fleetctlConfig.Name(), "-f", globalFile.Name(), "-f", teamFile.Name(), "--dry-run"}), true)
@@ -1745,7 +1746,7 @@ software:
       icon:
         path: %s/testdata/gitops/lib/icon.png
   fleet_maintained_apps:
-    - slug: foo/darwin
+    - slug: foodeprecated/darwin
       icon:
         path: %s/testdata/gitops/lib/icon.png
 `
@@ -1758,7 +1759,7 @@ software:
       icon:
         path: %s/testdata/gitops/lib/icon.png
   fleet_maintained_apps:
-    - slug: foo/darwin
+    - slug: foodeprecated/darwin
       icon:
         path: %s/testdata/gitops/lib/icon.png
 queries:
@@ -2095,16 +2096,16 @@ func (s *enterpriseIntegrationGitopsTestSuite) TestGitOpsTeamLabelsMultipleRepos
 	t := s.T()
 	ctx := context.Background()
 
-	var users []fleet.User
-	var cfgPaths []*os.File
-	var reposDir []string
+	type repoSetup struct {
+		user    fleet.User
+		cfg     *os.File
+		repoDir string
+	}
+	setups := make([]repoSetup, 0, 2)
 
 	for range 2 {
 		user := s.createGitOpsUser(t)
-		users = append(users, user)
-
 		cfg := s.createFleetctlConfig(t, user)
-		cfgPaths = append(cfgPaths, cfg)
 
 		repoDir := t.TempDir()
 		_, err := git.PlainClone(
@@ -2117,7 +2118,11 @@ func (s *enterpriseIntegrationGitopsTestSuite) TestGitOpsTeamLabelsMultipleRepos
 			},
 		)
 		require.NoError(t, err)
-		reposDir = append(reposDir, repoDir)
+		setups = append(setups, repoSetup{
+			user:    user,
+			cfg:     cfg,
+			repoDir: repoDir,
+		})
 	}
 
 	// Set the required environment variables
@@ -2147,8 +2152,8 @@ team_settings:
 	// --------------------------------------------------
 	// First, lets simulate adding a new team per repo
 	// --------------------------------------------------
-	for i, repo := range reposDir {
-		globalFile := path.Join(repo, "default.yml")
+	for i, setup := range setups {
+		globalFile := path.Join(setup.repoDir, "default.yml")
 
 		newTeamCfgFile, err := os.CreateTemp(t.TempDir(), "*.yml")
 		require.NoError(t, err)
@@ -2159,11 +2164,12 @@ team_settings:
 			Labels:  fmt.Sprintf("\n  - name: label-%d\n    label_membership_type: dynamic\n    query: SELECT 1", i),
 		}))
 
-		args := []string{"gitops", "--config", cfgPaths[i].Name(), "-f", globalFile, "-f", newTeamCfgFile.Name()}
+		args := []string{"gitops", "--config", setup.cfg.Name(), "-f", globalFile, "-f", newTeamCfgFile.Name()}
 		s.assertRealRunOutputWithDeprecation(t, fleetctl.RunAppForTest(t, args), true)
 	}
 
-	for i, user := range users {
+	for i, setup := range setups {
+		user := setup.user
 		team, err := s.DS.TeamByName(ctx, fmt.Sprintf("team-%d", i))
 		require.NoError(t, err)
 		require.NotNil(t, team)
@@ -2190,8 +2196,8 @@ team_settings:
 	// -----------------------------------------------------------------
 	// Then, lets simulate a mutation by dropping the labels on team one
 	// -----------------------------------------------------------------
-	for i, repo := range reposDir {
-		globalFile := path.Join(repo, "default.yml")
+	for i, setup := range setups {
+		globalFile := path.Join(setup.repoDir, "default.yml")
 
 		newTeamCfgFile, err := os.CreateTemp(t.TempDir(), "*.yml")
 		require.NoError(t, err)
@@ -2206,11 +2212,12 @@ team_settings:
 
 		require.NoError(t, teamCfgTmpl.Execute(newTeamCfgFile, params))
 
-		args := []string{"gitops", "--config", cfgPaths[i].Name(), "-f", globalFile, "-f", newTeamCfgFile.Name()}
+		args := []string{"gitops", "--config", setup.cfg.Name(), "-f", globalFile, "-f", newTeamCfgFile.Name()}
 		s.assertRealRunOutputWithDeprecation(t, fleetctl.RunAppForTest(t, args), true)
 	}
 
-	for i, user := range users {
+	for i, setup := range setups {
+		user := setup.user
 		team, err := s.DS.TeamByName(ctx, fmt.Sprintf("team-%d", i))
 		require.NoError(t, err)
 		require.NotNil(t, team)

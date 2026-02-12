@@ -35,7 +35,7 @@ var DeprecatedGitOpsKeyMappings = []DeprecatedKeyMapping{
 // ApplyDeprecatedKeyMappings walks the YAML data map and migrates deprecated keys to their new names.
 // It logs warnings for each deprecated key found and returns an error if both old and new keys are specified.
 // After this function returns successfully, only the new key names will be present in the data.
-func ApplyDeprecatedKeyMappings(data map[string]interface{}, logFn Logf) error {
+func ApplyDeprecatedKeyMappings(data map[string]any, logFn Logf) error {
 	for _, mapping := range DeprecatedGitOpsKeyMappings {
 		if err := migrateKeyPath(data, mapping.OldPath, mapping.NewPath, logFn); err != nil {
 			return err
@@ -46,14 +46,14 @@ func ApplyDeprecatedKeyMappings(data map[string]interface{}, logFn Logf) error {
 
 // migrateKeyPath migrates a single deprecated key path to its new path.
 // Paths are dot-separated, with [] indicating iteration over array elements.
-func migrateKeyPath(data map[string]interface{}, oldPath, newPath string, logFn Logf) error {
+func migrateKeyPath(data map[string]any, oldPath, newPath string, logFn Logf) error {
 	oldParts := strings.Split(oldPath, ".")
 	newParts := strings.Split(newPath, ".")
 
 	return migrateKeyPathRecursive(data, oldParts, newParts, oldPath, newPath, logFn)
 }
 
-func migrateKeyPathRecursive(data map[string]interface{}, oldParts, newParts []string, fullOldPath, fullNewPath string, logFn Logf) error {
+func migrateKeyPathRecursive(data map[string]any, oldParts, newParts []string, fullOldPath, fullNewPath string, logFn Logf) error {
 	if len(oldParts) == 0 || len(newParts) == 0 {
 		return nil
 	}
@@ -77,7 +77,7 @@ func migrateKeyPathRecursive(data map[string]interface{}, oldParts, newParts []s
 			return nil // Key doesn't exist, nothing to migrate
 		}
 
-		arrSlice, ok := arr.([]interface{})
+		arrSlice, ok := arr.([]any)
 		if !ok {
 			return nil // Not an array, skip
 		}
@@ -87,7 +87,7 @@ func migrateKeyPathRecursive(data map[string]interface{}, oldParts, newParts []s
 		remainingNewParts := newParts[2:] // Skip key and []
 
 		for i, elem := range arrSlice {
-			elemMap, ok := elem.(map[string]interface{})
+			elemMap, ok := elem.(map[string]any)
 			if !ok {
 				continue // Not a map, skip
 			}
@@ -110,7 +110,7 @@ func migrateKeyPathRecursive(data map[string]interface{}, oldParts, newParts []s
 		return nil // Key doesn't exist, nothing to migrate
 	}
 
-	nestedMap, ok := nested.(map[string]interface{})
+	nestedMap, ok := nested.(map[string]any)
 	if !ok {
 		return nil // Not a map, skip
 	}
@@ -119,7 +119,7 @@ func migrateKeyPathRecursive(data map[string]interface{}, oldParts, newParts []s
 }
 
 // migrateLeafKey handles the actual key migration at the leaf level.
-func migrateLeafKey(data map[string]interface{}, oldKey, newKey, fullOldPath, fullNewPath string, logFn Logf) error {
+func migrateLeafKey(data map[string]any, oldKey, newKey, fullOldPath, fullNewPath string, logFn Logf) error {
 	oldValue, oldExists := data[oldKey]
 	_, newExists := data[newKey]
 
