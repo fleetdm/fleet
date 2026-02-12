@@ -52,9 +52,9 @@ const availableCriteria: {
   label: string;
   value: LabelHostVitalsCriterion;
 }[] = [
-  { label: "Identity provider (IdP) group", value: "end_user_idp_group" },
-  { label: "IdP department", value: "end_user_idp_department" },
-];
+    { label: "Identity provider (IdP) group", value: "end_user_idp_group" },
+    { label: "IdP department", value: "end_user_idp_department" },
+  ];
 
 const baseClass = "new-label-page";
 
@@ -355,9 +355,8 @@ const NewLabelPage = ({
   // form rendering helpers
   const onLoadSQLEditor = (editor: Ace.Editor) => {
     editor.setOptions({
-      enableLinking: true,
       enableMultiselect: false, // Disables command + click creating multiple cursors
-    } as any);
+    });
 
     // @ts-expect-error
     // the string "linkClick" is not officially in the lib but we need it
