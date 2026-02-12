@@ -1301,38 +1301,38 @@ func (s *enterpriseIntegrationGitopsTestSuite) TestAddManualLabelsDeprecated() {
 
 	// Add some hosts
 	host1, err := s.DS.NewHost(context.Background(), &fleet.Host{
-		UUID:           "uuid-1",
-		Hostname:       "host1",
+		UUID:           "uuid-deprecated-1",
+		Hostname:       "host-deprecated1",
 		Platform:       "linux",
-		HardwareSerial: "serial1",
+		HardwareSerial: "serial-deprecated1",
 	})
 	require.NoError(t, err)
 	host2, err := s.DS.NewHost(context.Background(), &fleet.Host{
-		UUID:           "uuid-2",
-		Hostname:       "host2",
+		UUID:           "uuid-deprecated-2",
+		Hostname:       "host-deprecated2",
 		Platform:       "linux",
-		HardwareSerial: "serial2",
+		HardwareSerial: "serial-deprecated2",
 	})
 	require.NoError(t, err)
 	host3, err := s.DS.NewHost(context.Background(), &fleet.Host{
-		UUID:           "uuid-3",
-		Hostname:       "host3",
+		UUID:           "uuid-deprecated-3",
+		Hostname:       "host-deprecated3",
 		Platform:       "linux",
-		HardwareSerial: "serial3",
+		HardwareSerial: "serial-deprecated3",
 	})
 	require.NoError(t, err)
 	host4, err := s.DS.NewHost(context.Background(), &fleet.Host{
-		UUID:           "uuid-4",
-		Hostname:       "host4",
+		UUID:           "uuid-deprecated-4",
+		Hostname:       "host-deprecated4",
 		Platform:       "linux",
-		HardwareSerial: "serial4",
+		HardwareSerial: "serial-deprecated4",
 	})
 	require.NoError(t, err)
 	// Add a host whose UUID starts with the ID of host4 (probably ID 4,
 	// but get it from the record just in case.)
 	// host4 should _not_ be added to the label (see issue #34236).
 	host5, err := s.DS.NewHost(context.Background(), &fleet.Host{
-		UUID:           fmt.Sprintf("%duuid-5", host4.ID),
+		UUID:           fmt.Sprintf("%duuid-deprecated-5", host4.ID),
 		Hostname:       "dummy",
 		Platform:       "linux",
 		HardwareSerial: "dummy",
