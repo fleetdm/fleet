@@ -154,3 +154,81 @@ var acmeEnrollmentProfileMobileconfigTemplate = template.Must(template.New("").F
 	<integer>1</integer>
 </dict>
 </plist>`))
+
+// // TODO: Based on prelimanary testing, we can't use ACME for the first phase of OTA enrollment and
+// // need to retain SCEP for that phase, but we can use ACME for the second phase (the actual
+// // enrollment profile). When attempting to deliver this in the first phase, Apple gives this error:
+// // "ACME: Hardware bound keys not supported for 'Profiles Service' profiles."
+// // See also https://developer.apple.com/library/archive/documentation/NetworkingInternet/Conceptual/iPhoneOTAConfiguration/OTASecurity/OTASecurity.htm
+// func GenerateOTAProfileMobileconfig(deviceSerial string) ([]byte, error) {
+// 	discoveryURL, err := ResolveAppleACMEURL()
+// 	if err != nil {
+// 		return nil, fmt.Errorf("resolve Apple SCEP url: %w", err)
+// 	}
+
+// 	var buf bytes.Buffer
+// 	if err := acmeOTAProfileTemplate.Funcs(funcMap).Execute(&buf, struct {
+// 		DirectoryURL     string
+// 		ClientIdentifier string
+// 		SerialTemplate   string
+// 	}{
+// 		DirectoryURL:     discoveryURL,
+// 		ClientIdentifier: deviceSerial,
+// 		SerialTemplate:   `%SerialNumber%`, // Apple replaces this placeholder with the device's serial number during enrollment
+// 	}); err != nil {
+// 		return nil, fmt.Errorf("execute template: %w", err)
+// 	}
+
+// 	return bytes.Replace(buf.Bytes(), []byte("&lt;"), []byte("<"), 1), nil
+// }
+
+// var acmeOTAProfileTemplate = template.Must(template.New("").Funcs(funcMap).Parse(`<?xml version="1.0" encoding="UTF-8"?>
+// <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+// <plist version="1.0">
+// <dict>
+//     <key>PayloadVersion</key>
+//     <integer>1</integer>
+//     <key>PayloadType</key>
+//     <string>Configuration</string>
+//     <key>PayloadIdentifier</key>
+//     <string>Ignored</string>
+//     <key>PayloadUUID</key>
+//     <string>Ignored</string>
+//     <key>PayloadContent</key>
+// 	<array>
+// 		<dict>
+// 			<key>Attest</key>
+// 			<true/>
+// 			<key>ClientIdentifier</key>
+// 			<string>{{ .ClientIdentifier | xml }}</string>
+// 			<key>DirectoryURL</key>
+// 			<string>{{ .DirectoryURL | xml }}</string>
+// 			<key>HardwareBound</key>
+// 			<true/>
+// 			<key>KeySize</key>
+// 			<integer>384</integer>
+// 			<key>KeyType</key>
+// 			<string>ECSECPrimeRandom</string>
+// 			<key>PayloadDisplayName</key>
+// 			<string>Fleet Identity ACME</string>
+// 			<key>PayloadIdentifier</key>
+// 			<string>BCA53F9D-5DD2-494D-98D3-0D0F20FF6BA1</string>
+// 			<key>PayloadType</key>
+// 			<string>com.apple.security.acme</string>
+// 			<key>PayloadUUID</key>
+// 			<string>BCA53F9D-5DD2-494D-98D3-0D0F20FF6BA1</string>
+// 			<key>PayloadVersion</key>
+// 			<integer>1</integer>
+// 			<key>Subject</key>
+// 			<array>
+// 				<array>
+// 					<array>
+// 						<string>CN</string>
+// 						<string>{{ .SerialTemplate | xml }}</string>
+// 					</array>
+// 				</array>
+// 			</array>
+// 		</dict>
+// 	</array>
+// </dict>
+// </plist>`))

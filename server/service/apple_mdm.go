@@ -7313,16 +7313,6 @@ func (svc *Service) MDMAppleProcessOTAEnrollment(
 		return nil, ctxerr.Wrap(ctx, err, "extracting topic from APNs cert")
 	}
 
-	enrollmentProf, err := apple_mdm.GenerateEnrollmentProfileMobileconfig(
-		appCfg.OrgInfo.OrgName,
-		mdmURL,
-		string(assets[fleet.MDMAssetSCEPChallenge].Value),
-		topic,
-	)
-	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "generating manual enrollment profile")
-	}
-
 	requiresIdPUUID, err := shared_mdm.RequiresEnrollOTAAuthentication(ctx, svc.ds, enrollSecret, appCfg.MDM.MacOSSetup.EnableEndUserAuthentication)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "checking requirement of ota enrollment authentication")
@@ -7341,6 +7331,25 @@ func (svc *Service) MDMAppleProcessOTAEnrollment(
 		if err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "validating idp account existence")
 		}
+	}
+
+	// TODO: maybe we want to use the idpUUID to match agains the device UUID as an additional parameter
+	// to GetHostMDMIdentifiersFromMachineInfo?
+	idents, err := svc.GetHostMDMIdentifiersFromMachineInfo(ctx, &deviceInfo)
+	if err != nil {
+		// TODO: we'll want to determine the right error to return here for the best UX, for now we
+		// return 400 (which shows up in the Apple UI for the end user as an ugly "Profile installattion
+		// failed... due to an unexpectd error")
+		return nil, ctxerr.Wrap(ctx, err, "getting host identifiers from machine info")
+	}
+	enrollmentProf, err := acme.GenerateEnrollmentProfileMobileconfig(
+		appCfg.OrgInfo.OrgName,
+		mdmURL,
+		idents.HardwareSerial,
+		topic,
+	)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "generating manual enrollment profile")
 	}
 
 	// before responding, create a host record, and assign the host to the
