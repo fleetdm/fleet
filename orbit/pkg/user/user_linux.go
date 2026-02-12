@@ -72,7 +72,7 @@ func getLoginUsers() ([]User, error) {
 // Each line has the format: UID USERNAME
 func parseLoginctlUsersOutput(s string) ([]User, error) {
 	var users []User
-	for _, line := range strings.Split(strings.TrimSpace(s), "\n") {
+	for line := range strings.SplitSeq(strings.TrimSpace(s), "\n") {
 		line = strings.TrimSpace(line)
 		if line == "" {
 			continue
