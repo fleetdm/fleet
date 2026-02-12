@@ -22,6 +22,9 @@ controls:
   scripts:
   - path: ../lib/no-team/scripts/Script Z.ps1
   windows_enabled_and_configured: true
+  windows_entra_tenant_ids:
+  - 5b84b6dd-d257-415e-b8b4-0240666ba4d4
+  - 9d30f55f-d117-4574-acf0-ff593e3e06e3
   windows_migration_enabled: true
   windows_require_bitlocker_pin: false
   windows_updates:
