@@ -40,7 +40,7 @@ func TestUp_20260211200153(t *testing.T) {
 	var initialCount int
 	err = db.Get(&initialCount, `SELECT COUNT(*) FROM kernel_host_counts`)
 	require.NoError(t, err)
-	require.Equal(t, 2, initialCount, "Should have 3 kernel_host_counts entries before migration")
+	require.Equal(t, 2, initialCount, "Should have 2 kernel_host_counts entries before migration")
 
 	// Apply migration
 	applyNext(t, db)
@@ -87,6 +87,6 @@ func TestUp_20260211200153(t *testing.T) {
 		var finalCount int
 		err := db.Get(&finalCount, `SELECT COUNT(*) FROM kernel_host_counts`)
 		require.NoError(t, err)
-		require.Equal(t, 1, finalCount, "Should have 2 kernel_host_counts entries after migration (one deleted)")
+		require.Equal(t, 1, finalCount, "Should have 1 kernel_host_counts entries after migration (one deleted)")
 	})
 }
