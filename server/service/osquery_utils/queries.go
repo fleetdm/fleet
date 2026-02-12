@@ -2016,8 +2016,8 @@ func directIngestScheduledQueryStats(ctx context.Context, logger log.Logger, hos
 
 const (
 	linuxImageRegex = `^linux-image-[[:digit:]]+\.[[:digit:]]+\.[[:digit:]]+-[[:digit:]]+-[[:alnum:]]+`
-	rpmKernelName  = "kernel"
-	archKernelName = `^linux(?:-(?:lts|zen|hardened))?$`
+	rpmKernelName   = "kernel"
+	archKernelName  = `^linux(?:-(?:lts|zen|hardened))?$`
 )
 
 var (
@@ -2274,6 +2274,13 @@ func MutateSoftwareOnIngestion(s *fleet.Software, logger log.Logger) {
 				break
 			}
 		}
+	}
+
+	// For RHEL kernels, join version and release to match OVAL format.
+	// See server/vulnerabilities/goval_dictionary/database.Eval
+	if s != nil && s.Source == "rpm_packages" && s.Name == rpmKernelName && s.Release != "" {
+		s.Version = fmt.Sprintf("%s-%s", s.Version, s.Release)
+		s.Release = "" // Clear release to avoid issues with vulnerability matching
 	}
 }
 
