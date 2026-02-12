@@ -2333,6 +2333,22 @@ This activity contains the following fields:
 }
 ```
 
+## rotated_recovery_lock_password
+
+Generated when a Recovery Lock password is rotated.
+
+This activity contains the following fields:
+- "host_id": ID of the host.
+- "host_display_name": Display name of the host.
+
+#### Example
+
+```json
+{
+	"host_id": 123,
+	"host_display_name": "Anna's MacBook Pro"
+}
+```
 
 <meta name="title" value="Audit logs">
 <meta name="pageOrderInSection" value="1400">
