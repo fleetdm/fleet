@@ -6038,6 +6038,7 @@ Deletes the label specified by ID.
 - [Batch-update custom OS settings (configuration profiles)](#batch-update-custom-os-settings-configuration-profiles)
 - [Update disk encryption](#update-disk-encryption)
 - [Get disk encryption status](#get-disk-encryption-status)
+- [Update Recovery Lock](#update-recovery-lock)
 - [Get OS settings (configuration profiles) status](#get-os-settings-configuration-profiles-status)
 - [Get OS setting (configuration profile) status](#get-os-setting-configuration-profile-status)
 - [Resend custom OS setting (configuration profile)](#resend-custom-os-setting-configuration-profile)
