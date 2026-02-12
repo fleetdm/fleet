@@ -56,15 +56,24 @@ export interface IPackageFormValidation {
   customTarget?: { isValid: boolean };
 }
 
+const getGraphicName = (ext: string) => {
+  if (ext === "sh") {
+    return "file-sh";
+  } else if (ext === "ps1") {
+    return "file-ps1";
+  }
+  return "file-pkg";
+};
+
 const renderFileTypeMessage = () => {
   return (
     <>
       macOS (.pkg), iOS/iPadOS (.ipa),
       <br />
       Windows (.msi, .exe.,{" "}
-      <TooltipWrapper tipContent="Payload-free package">.ps1</TooltipWrapper>),
+      <TooltipWrapper tipContent="Script-only package">.ps1</TooltipWrapper>),
       or Linux (.deb, .rpm,{" "}
-      <TooltipWrapper tipContent="Payload-free package">.sh</TooltipWrapper>)
+      <TooltipWrapper tipContent="Script-only package">.sh</TooltipWrapper>)
     </>
   );
 };
@@ -314,7 +323,7 @@ const PackageForm = ({
       <form className={`${baseClass}__form`} onSubmit={onFormSubmit}>
         <FileUploader
           canEdit={canEditFile}
-          graphicName="file-pkg"
+          graphicName={getGraphicName(ext || "")}
           accept={ACCEPTED_EXTENSIONS}
           message={renderFileTypeMessage()}
           onFileUpload={onFileSelect}
@@ -322,9 +331,7 @@ const PackageForm = ({
           buttonType="brand-inverse-icon"
           className={`${baseClass}__file-uploader`}
           fileDetails={
-            formData.software
-              ? getFileDetails(formData.software, true)
-              : undefined
+            formData.software ? getFileDetails(formData.software) : undefined
           }
           gitopsCompatible={gitopsCompatible}
           gitOpsModeEnabled={gitOpsModeEnabled}

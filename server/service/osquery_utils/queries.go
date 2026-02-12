@@ -974,7 +974,9 @@ var softwareMacOS = DetailQuery{
 	// which is used in vulnerability scanning.
 	Query: withCachedUsers(`WITH cached_users AS (%s)
 SELECT
-  COALESCE(NULLIF(display_name, ''), NULLIF(bundle_name, ''), NULLIF(NULLIF(bundle_executable, ''), 'run.sh'), TRIM(name, '.app') ) AS name,
+  COALESCE(NULLIF(display_name, ''), NULLIF(bundle_name, ''), NULLIF(NULLIF(bundle_executable, ''), 'run.sh'),
+    CASE WHEN name IS NOT NULL AND lower(name) LIKE '%%.app' THEN substr(name, 1, length(name) - 4) ELSE name END
+  ) AS name,
   COALESCE(NULLIF(bundle_short_version, ''), bundle_version) AS version,
   bundle_identifier AS bundle_identifier,
   '' AS extension_id,
@@ -2013,10 +2015,9 @@ func directIngestScheduledQueryStats(ctx context.Context, logger log.Logger, hos
 }
 
 const (
-	linuxImageRegex       = `^linux-image-[[:digit:]]+\.[[:digit:]]+\.[[:digit:]]+-[[:digit:]]+-[[:alnum:]]+`
-	amazonLinuxKernelName = "kernel"
-	rhelKernelName        = "kernel-core"
-	archKernelName        = `^linux(?:-(?:lts|zen|hardened))?$`
+	linuxImageRegex = `^linux-image-[[:digit:]]+\.[[:digit:]]+\.[[:digit:]]+-[[:digit:]]+-[[:alnum:]]+`
+	rpmKernelName   = "kernel"
+	archKernelName  = `^linux(?:-(?:lts|zen|hardened))?$`
 )
 
 var (
@@ -2062,7 +2063,7 @@ func directIngestSoftware(ctx context.Context, logger log.Logger, host *fleet.Ho
 			continue
 		}
 
-		if fleet.IsLinux(host.Platform) && (kernelRegex.MatchString(s.Name) || s.Name == amazonLinuxKernelName || s.Name == rhelKernelName || archKernelRegex.MatchString(s.Name)) {
+		if fleet.IsLinux(host.Platform) && (kernelRegex.MatchString(s.Name) || s.Name == rpmKernelName || archKernelRegex.MatchString(s.Name)) {
 			s.IsKernel = true
 		}
 
