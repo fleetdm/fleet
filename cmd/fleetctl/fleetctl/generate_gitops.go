@@ -1446,6 +1446,7 @@ func (cmd *GenerateGitopsCommand) generateSoftware(filePath string, teamID uint,
 	packages := make([]map[string]any, 0)
 	appStoreApps := make([]map[string]any, 0)
 	fmas := make([]map[string]any, 0)
+	var appsList *maintained_apps.AppsList
 
 	// in-house apps generate two software titles for the same gitops entry: one
 	// for iOS and one for iPadOS. Use this set to deduplicate them (by filename,
@@ -1511,9 +1512,12 @@ func (cmd *GenerateGitopsCommand) generateSoftware(filePath string, teamID uint,
 			var fmaInstallScriptModified, fmaUninstallScriptModified bool
 			if softwareTitle.SoftwarePackage.FleetMaintainedAppID != nil {
 				if byUniqueID == nil {
-					appsList, err := maintained_apps.FetchAppsList(context.Background())
-					if err != nil {
-						return nil, err
+					if appsList == nil {
+						var err error
+						appsList, err = maintained_apps.FetchAppsList(context.Background())
+						if err != nil {
+							return nil, err
+						}
 					}
 					byUniqueID = make(map[string]string, len(appsList.Apps))
 					for _, a := range appsList.Apps {
@@ -1521,7 +1525,14 @@ func (cmd *GenerateGitopsCommand) generateSoftware(filePath string, teamID uint,
 					}
 				}
 
-				slug = byUniqueID[ptr.ValOrZero(softwareTitle.BundleIdentifier)]
+				// Look up slug by bundle identifier (macOS) or software title name (Windows).
+				// Windows FMAs don't have a bundle identifier; their unique_identifier
+				// in the manifest is the program name (e.g., "1Password").
+				lookupKey := ptr.ValOrZero(softwareTitle.BundleIdentifier)
+				if lookupKey == "" {
+					lookupKey = softwareTitle.Name
+				}
+				slug = byUniqueID[lookupKey]
 				fma, err := maintained_apps.Hydrate(context.Background(), &fleet.MaintainedApp{
 					ID:   *softwareTitle.SoftwarePackage.FleetMaintainedAppID,
 					Slug: slug,

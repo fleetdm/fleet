@@ -110,6 +110,10 @@ software:
     self_service: true
     setup_experience: true
     slug: fma1/darwin
+  - icon:
+      path: "../lib/team-a-👍/icons/my-windows-fma-windows-icon.png"
+    self_service: true
+    slug: fma2/windows
   packages:
   - categories:
     - Browsers
