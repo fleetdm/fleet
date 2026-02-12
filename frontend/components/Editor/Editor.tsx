@@ -5,7 +5,7 @@ import AceEditor from "react-ace";
 import "ace-builds/src-noconflict/mode-sh";
 import "ace-builds/src-noconflict/mode-powershell";
 import "ace-builds/src-noconflict/mode-python";
-import { IAceEditor } from "react-ace/lib/types";
+import { Ace } from "ace-builds";
 
 import { stringToClipboard } from "utilities/copy_text";
 
@@ -122,7 +122,7 @@ const Editor = ({
     );
   };
 
-  const onLoadHandler = (editor: IAceEditor) => {
+  const onLoadHandler = (editor: Ace.Editor) => {
     // Lose focus using the Escape key so you can Tab forward (or Shift+Tab backwards) through app
     editor.commands.addCommand({
       name: "escapeToBlur",
