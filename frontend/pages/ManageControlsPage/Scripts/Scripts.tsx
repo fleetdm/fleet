@@ -47,6 +47,16 @@ const Scripts = ({ router, location, params }: IScriptsProps) => {
     SCRIPTS_NAV_ITEMS.find((item) => item.urlSection === section) ??
     DEFAULT_SCRIPTS_SECTION;
 
+  // Redirect to the default section if the URL section is not in the filtered list
+  if (
+    section &&
+    currentFormSection === DEFAULT_SCRIPTS_SECTION &&
+    section !== DEFAULT_SCRIPTS_SECTION.urlSection
+  ) {
+    router.replace(DEFAULT_SCRIPTS_SECTION.path);
+    return null;
+  }
+
   const CurrentCard = currentFormSection.Card;
 
   return (

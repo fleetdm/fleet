@@ -83,8 +83,9 @@ locals {
     FLEET_SERVER_VPP_VERIFY_TIMEOUT = "20m"
 
     # Load TLS Certificate for RDS Authentication
-    FLEET_MYSQL_TLS_CA              = local.cert_path
-    FLEET_MYSQL_READ_REPLICA_TLS_CA = local.cert_path
+    FLEET_MYSQL_TLS_CA                  = local.cert_path
+    FLEET_MYSQL_READ_REPLICA_TLS_CA     = local.cert_path
+    FLEET_MYSQL_READ_REPLICA_TLS_CONFIG = "custom"
   }
   entra_conditional_access_secrets = {
     # Entra Conditional Access Proxy API Key
