@@ -33,6 +33,7 @@ const MicrosoftEntraSection = ({
         <div className={`${baseClass}__content`}>
           <WindowsAutomaticEnrollmentCard
             windowsMdmEnabled={windowsMdmEnabled}
+            tenantAdded
             viewDetails={navigateToWindowsEnrollment}
           />
         </div>
