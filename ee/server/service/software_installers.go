@@ -2259,9 +2259,6 @@ func (svc *Service) softwareBatchUpload(
 
 			installer.CategoryIDs = catIDs
 
-			// umm, can we check if InstallDuringSetup AND config.manualagentinstall, then fail here
-			// we will have to do this later on
-
 			// check if we already have the installer based on the SHA256 and URL
 			teamIDs, err := svc.ds.GetTeamsWithInstallerByHash(ctx, p.SHA256, p.URL)
 			if err != nil {
@@ -2485,8 +2482,6 @@ func (svc *Service) softwareBatchUpload(
 				installer.InstallScript = ""
 			}
 
-			// if manual_agent_install is true, error if any macOS software is added to setup experience
-			// TODO(JK): I'm not totally sure if platform is 100% guaranteed here
 			if fleet.IsMacOSPlatform(installer.Platform) && ptr.ValOrZero(installer.InstallDuringSetup) && manualAgentInstall {
 				return errors.New(`Couldn't edit software. "setup_experience" cannot be used for macOS software if "manual_agent_install" is enabled.`)
 			}

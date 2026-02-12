@@ -165,7 +165,6 @@ func (svc *Service) BatchAssociateVPPApps(ctx context.Context, teamName string, 
 					"It is automatically managed by Fleet when Android MDM is enabled.")
 			}
 
-			// TODO(JK): can we just check if macos platform here?
 			if payload.Platform == fleet.MacOSPlatform && ptr.ValOrZero(payload.InstallDuringSetup) && manualAgentInstall {
 				return nil, fleet.NewUserMessageError(
 					errors.New(`Couldn't edit software. "setup_experience" cannot be used for macOS software if "manual_agent_install" is enabled.`),
