@@ -13,6 +13,7 @@ import (
 
 	shared_mdm "github.com/fleetdm/fleet/v4/pkg/mdm"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
+	"github.com/fleetdm/fleet/v4/server/contexts/license"
 	"github.com/fleetdm/fleet/v4/server/contexts/logging"
 	"github.com/fleetdm/fleet/v4/server/contexts/publicip"
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
@@ -226,6 +227,13 @@ func (svc *Service) Login(ctx context.Context, email, password string, supportsE
 		}
 
 		return nil, nil, sendingMFAEmail
+	}
+
+	// Do not allow login if on Fleet Free and the user has a Premium-only role.
+	if !license.IsPremium(ctx) {
+		if fleet.PremiumRolesPresent(user.GlobalRole, user.Teams) {
+			return nil, nil, fleet.ErrMissingLicense
+		}
 	}
 
 	session, err := svc.makeSession(ctx, user.ID)
@@ -733,6 +741,14 @@ func (svc *Service) LoginSSOUser(ctx context.Context, user *fleet.User, redirect
 		err := ctxerr.New(ctx, "user not configured to use sso")
 		return nil, ctxerr.Wrap(ctx, newSSOError(err, ssoAccountDisabled))
 	}
+
+	// Do not allow login if on Fleet Free and the user has a Premium-only role.
+	if !license.IsPremium(ctx) {
+		if fleet.PremiumRolesPresent(user.GlobalRole, user.Teams) {
+			return nil, fleet.ErrMissingLicense
+		}
+	}
+
 	session, err := svc.makeSession(ctx, user.ID)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "make session in sso callback")

@@ -73,6 +73,7 @@ func TestRunApiCommand(t *testing.T) {
     "platform": "darwin,windows,linux,chrome",
     "calendar_events_enabled": false,
     "conditional_access_enabled": false,
+    "conditional_access_bypass_enabled": true,
     "created_at": "0001-01-01T00:00:00Z",
     "updated_at": "0001-01-01T00:00:00Z",
     "passing_host_count": 0,
