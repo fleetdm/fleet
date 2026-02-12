@@ -2661,6 +2661,18 @@ WHERE
 				return ctxerr.Wrapf(ctx, err, "load id of new/edited installer with name %q", installer.Filename)
 			}
 
+			// For non-FMA (custom) packages, enforce one installer per title per team.
+			// With the unique constraint on (global_or_team_id, title_id, version),
+			// a version change inserts a new row instead of replacing — clean up the old one.
+			if installer.FleetMaintainedAppID == nil {
+				if _, err := tx.ExecContext(ctx, `
+					DELETE FROM software_installers
+					WHERE global_or_team_id = ? AND title_id = ? AND id != ?
+				`, globalOrTeamID, titleID, installerID); err != nil {
+					return ctxerr.Wrapf(ctx, err, "clean up old versions of custom installer %q", installer.Filename)
+				}
+			}
+
 			// For FMA installers: determine the active version, then evict old versions
 			// (protecting the active one from eviction).
 			if installer.FleetMaintainedAppID != nil {
