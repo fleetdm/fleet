@@ -416,7 +416,7 @@ const EditSoftwareModal = ({
       )}
       {!!pendingPackageUpdates.software && showFileProgressModal && (
         <FileProgressModal
-          fileDetails={getFileDetails(pendingPackageUpdates.software, true)}
+          fileDetails={getFileDetails(pendingPackageUpdates.software)}
           fileProgress={uploadProgress}
         />
       )}

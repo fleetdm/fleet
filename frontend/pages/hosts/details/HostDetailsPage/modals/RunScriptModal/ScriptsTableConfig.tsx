@@ -13,6 +13,8 @@ import {
   isGlobalMaintainer,
   isGlobalObserver,
   isTeamObserver,
+  isGlobalTechnician,
+  isTeamTechnician,
 } from "utilities/permissions/permissions";
 import Button from "components/buttons/Button";
 import TooltipTruncatedTextCell from "components/TableContainer/DataTable/TooltipTruncatedTextCell";
@@ -61,7 +63,9 @@ export const generateActionDropdownOptions = (
       // TODO - refactor all permissions to be clear and granular
       // each of these (confusingly) cover both observer and observer+
       isGlobalObserver(currentUser) ||
-      isTeamObserver(currentUser, teamId));
+      isTeamObserver(currentUser, teamId) ||
+      isGlobalTechnician(currentUser) ||
+      isTeamTechnician(currentUser, teamId));
   const options: IDropdownOption[] = [
     {
       label: "Show run details",

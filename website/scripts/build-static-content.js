@@ -994,14 +994,26 @@ module.exports = {
                 if(column.platforms.length > 3) {// FUTURE: add support for more than three platform values in columns.
                   throw new Error('Support for more than three platforms in columns has not been implemented yet. If this column is supported on all platforms, you can omit the platforms array entirely.');
                 }
-
+                let lowercasePlatformValuesToFriendlyNames = {
+                  darwin: 'macOS',
+                  macos: 'macOS',
+                  linux: 'Linux',
+                  windows: 'Windows',
+                  chrome: 'ChromeOS',
+                };
+                // Normalize the capitalization of platform names.
+                column.platforms = column.platforms.map((platform)=>{
+                  return lowercasePlatformValuesToFriendlyNames[platform.toLowerCase()];
+                });
+                // Filter out any platforms not included in the list above.
+                column.platforms = _.filter(column.platforms, (platform =>{return !! platform;}));
                 if(column.platforms.length === 3) { // Because there are only four options for platform, we can safely assume that there will be at most 3 platforms, so we'll just handle this one of three ways
                   // If there are three, we'll add a string with an oxford comma. e.g., "On macOS, Windows, and Linux"
                   platformString += `${column.platforms[0]}, ${column.platforms[1]}, and ${column.platforms[2]}`;
                 } else if(column.platforms.length === 2) {
                   // If there are two values in the platforms array, it will be formated as "[Platform 1] and [Platform 2]"
                   platformString += `${column.platforms[0]} and ${column.platforms[1]}`;
-                } else {
+                } else if(column.platforms.length === 1) {
                   // Otherwise, there is only one value in the platform array and we'll add that value to the column's description
                   platformString += column.platforms[0];
                 }

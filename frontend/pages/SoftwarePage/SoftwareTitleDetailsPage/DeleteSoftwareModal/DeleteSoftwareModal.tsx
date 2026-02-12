@@ -87,7 +87,7 @@ const DeleteSoftwareModal = ({
     setIsDeleting(true);
     try {
       await softwareAPI.deleteSoftwareInstaller(softwareId, teamId);
-      renderFlash("success", "Software deleted successfully!");
+      renderFlash("success", "Successfully deleted software.");
       onSuccess();
     } catch (error) {
       const reason = getErrorReason(error);
