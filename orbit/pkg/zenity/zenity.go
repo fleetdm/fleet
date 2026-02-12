@@ -95,13 +95,11 @@ func execCmdWithOutput(args ...string) ([]byte, int, error) {
 	if err != nil {
 		return nil, 0, fmt.Errorf("user logged in via GUI: %w", err)
 	}
-	if loggedInUser == nil {
+	if loggedInUser == nil || *loggedInUser == "" {
 		return nil, 0, errors.New("no GUI user found")
 	}
 	log.Debug().Msgf("found GUI user: %s, attempting zenity", *loggedInUser)
-	if *loggedInUser != "" {
-		opts = append(opts, execuser.WithUser(*loggedInUser))
-	}
+	opts = append(opts, execuser.WithUser(*loggedInUser))
 
 	// Execute zenity.
 	output, exitCode, err := execuser.RunWithOutput(zenityProcessName, opts...)

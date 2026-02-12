@@ -109,7 +109,7 @@ func runWithOutput(path string, opts eopts) (output []byte, exitCode int, err er
 func getUserID(user string) (string, error) {
 	uid_, err := exec.Command("id", "-u", user).Output()
 	if err != nil {
-		return "", fmt.Errorf("failed to execute id command: %w", err)
+		return "", fmt.Errorf("failed to execute id command for %q: %w", user, err)
 	}
 	uid := strings.TrimSpace(string(uid_))
 	if uid == "" {

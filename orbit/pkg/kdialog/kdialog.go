@@ -2,11 +2,14 @@ package kdialog
 
 import (
 	"errors"
+	"fmt"
 	"strings"
 	"time"
 
 	"github.com/fleetdm/fleet/v4/orbit/pkg/dialog"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/execuser"
+	"github.com/fleetdm/fleet/v4/orbit/pkg/user"
+	"github.com/rs/zerolog/log"
 )
 
 const kdialogProcessName = "kdialog"
@@ -78,6 +81,17 @@ func execCmdWithOutput(timeout time.Duration, args ...string) ([]byte, int, erro
 	if timeout > 0 {
 		opts = append(opts, execuser.WithTimeout(timeout))
 	}
+
+	// Retrieve and set active GUI user.
+	loggedInUser, err := user.UserLoggedInViaGui()
+	if err != nil {
+		return nil, 0, fmt.Errorf("user logged in via GUI: %w", err)
+	}
+	if loggedInUser == nil || *loggedInUser == "" {
+		return nil, 0, errors.New("no GUI user found")
+	}
+	log.Debug().Msgf("found GUI user: %s, attempting zenity", *loggedInUser)
+	opts = append(opts, execuser.WithUser(*loggedInUser))
 
 	output, exitCode, err := execuser.RunWithOutput(kdialogProcessName, opts...)
 	if err != nil {
