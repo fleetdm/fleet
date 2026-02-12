@@ -3,6 +3,7 @@ package service
 import (
 	"bytes"
 	"context"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -23,6 +24,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/go-kit/log"
 	"github.com/google/uuid"
+	"github.com/smallstep/pkcs7"
 	"golang.org/x/net/html/charset"
 	"golang.org/x/text/encoding/unicode"
 	"golang.org/x/text/transform"
@@ -261,16 +263,86 @@ func (svc *scepProxyService) PKIOperation(ctx context.Context, data []byte, iden
 		return nil, err
 	}
 
+	svc.debugLogger.Log(
+		"msg", "PKIOperation proxy request",
+		"scep_url", scepURL,
+		"data_len", len(data),
+	)
+
+	// Sanity check: try to parse the SCEP message locally before forwarding.
+	// This helps diagnose whether malformed messages originate from the client
+	// or from issues in transit to the upstream SCEP server.
+	svc.debugParseSCEPMessage(data)
+
 	client, err := scepclient.New(scepURL, svc.debugLogger, scepclient.WithTimeout(svc.Timeout))
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "creating SCEP client")
 	}
 	res, err := client.PKIOperation(ctx, data)
 	if err != nil {
+		// Always log on upstream failure regardless of log level so we can
+		// diagnose PKCS7 encoding issues in production.
+		svc.debugLogger.Log(
+			"msg", "PKIOperation upstream error, dumping request",
+			"scep_url", scepURL,
+			"data_len", len(data),
+			"data_hex", hex.EncodeToString(data),
+			"err", err.Error(),
+		)
 		return res, ctxerr.Wrapf(ctx, err,
 			"Could not do PKIOperation on SCEP server %s", scepURL)
 	}
 	return res, nil
+}
+
+// debugParseSCEPMessage attempts to parse the SCEP message locally and logs
+// diagnostic information about its structure. This does not modify the message
+// and is used solely for debugging PKCS7 encoding issues.
+func (svc *scepProxyService) debugParseSCEPMessage(data []byte) {
+	// Try parsing the outer PKCS7 SignedData
+	p7, err := pkcs7.Parse(data)
+	if err != nil {
+		// Always log parse failures regardless of log level.
+		svc.debugLogger.Log(
+			"msg", "SCEP proxy: outer PKCS7 parse failed",
+			"err", err.Error(),
+			"data_len", len(data),
+			"data_hex", hex.EncodeToString(data),
+		)
+		return
+	}
+
+	// Try parsing the inner PKCS7 (EnvelopedData) to check for BER/DER issues
+	if len(p7.Content) > 0 {
+		innerP7, err := pkcs7.Parse(p7.Content)
+		if err != nil {
+			// Always log inner parse failures regardless of log level.
+			svc.debugLogger.Log(
+				"msg", "SCEP proxy: inner PKCS7 (EnvelopedData) parse failed",
+				"err", err.Error(),
+				"content_len", len(p7.Content),
+				"content_hex", hex.EncodeToString(p7.Content),
+			)
+			return
+		}
+		svc.debugLogger.Log(
+			"msg", "SCEP proxy: PKCS7 structure parsed OK",
+			"data_len", len(data),
+			"content_len", len(p7.Content),
+			"inner_content_len", len(innerP7.Content),
+			"num_certificates", len(p7.Certificates),
+			"num_signers", len(p7.Signers),
+		)
+		return
+	}
+
+	svc.debugLogger.Log(
+		"msg", "SCEP proxy: PKCS7 structure parsed OK (no inner content)",
+		"data_len", len(data),
+		"content_len", 0,
+		"num_certificates", len(p7.Certificates),
+		"num_signers", len(p7.Signers),
+	)
 }
 
 func (svc *scepProxyService) validateIdentifier(ctx context.Context, identifier string, checkChallenge bool) (string,
