@@ -15,8 +15,8 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/dev_mode"
 	"github.com/fleetdm/fleet/v4/server/mdm/android"
+	"github.com/fleetdm/fleet/v4/server/platform/logging"
 	"github.com/go-json-experiment/json"
-	kitlog "github.com/go-kit/log"
 	"github.com/go-kit/log/level"
 	"google.golang.org/api/androidmanagement/v1"
 	"google.golang.org/api/googleapi"
@@ -27,7 +27,7 @@ const defaultProxyEndpoint = "https://fleetdm.com/api/android/"
 
 // ProxyClient connects to Google's Android Management API via a proxy, which is hosted at fleetdm.com by default.
 type ProxyClient struct {
-	logger            kitlog.Logger
+	logger            *logging.Logger
 	mgmt              *androidmanagement.Service
 	licenseKey        string
 	proxyEndpoint     string
@@ -37,7 +37,7 @@ type ProxyClient struct {
 // Compile-time check to ensure that ProxyClient implements Client.
 var _ Client = &ProxyClient{}
 
-func NewProxyClient(ctx context.Context, logger kitlog.Logger, licenseKey string, getenv dev_mode.GetEnv) Client {
+func NewProxyClient(ctx context.Context, logger *logging.Logger, licenseKey string, getenv dev_mode.GetEnv) Client {
 	proxyEndpoint := getenv("FLEET_DEV_ANDROID_PROXY_ENDPOINT")
 	if proxyEndpoint == "" {
 		proxyEndpoint = defaultProxyEndpoint

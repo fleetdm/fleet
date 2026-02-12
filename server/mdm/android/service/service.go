@@ -22,8 +22,8 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm/android"
 	"github.com/fleetdm/fleet/v4/server/mdm/android/service/androidmgmt"
+	"github.com/fleetdm/fleet/v4/server/platform/logging"
 	"github.com/fleetdm/fleet/v4/server/service/modules/activities"
-	kitlog "github.com/go-kit/log"
 	"github.com/go-kit/log/level"
 	"google.golang.org/api/androidmanagement/v1"
 	"google.golang.org/api/googleapi"
@@ -38,7 +38,7 @@ const (
 )
 
 type Service struct {
-	logger           kitlog.Logger
+	logger           *logging.Logger
 	authz            *authz.Authorizer
 	ds               fleet.AndroidDatastore
 	fleetDS          fleet.Datastore
@@ -57,7 +57,7 @@ type Service struct {
 
 func NewService(
 	ctx context.Context,
-	logger kitlog.Logger,
+	logger *logging.Logger,
 	ds fleet.AndroidDatastore,
 	licenseKey string,
 	serverPrivateKey string,
@@ -70,7 +70,7 @@ func NewService(
 }
 
 func NewServiceWithClient(
-	logger kitlog.Logger,
+	logger *logging.Logger,
 	ds fleet.AndroidDatastore,
 	client androidmgmt.Client,
 	serverPrivateKey string,
@@ -108,7 +108,7 @@ func NewServiceWithClient(
 	return svc, nil
 }
 
-func newAMAPIClient(ctx context.Context, logger kitlog.Logger, licenseKey string) androidmgmt.Client {
+func newAMAPIClient(ctx context.Context, logger *logging.Logger, licenseKey string) androidmgmt.Client {
 	var client androidmgmt.Client
 	getEnv := dev_mode.Env
 	if getEnv("FLEET_DEV_ANDROID_GOOGLE_CLIENT") == "1" || strings.ToUpper(getEnv("FLEET_DEV_ANDROID_GOOGLE_CLIENT")) == "ON" {

@@ -15,8 +15,8 @@ import (
 	"github.com/fleetdm/fleet/v4/server/dev_mode"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm/android"
+	"github.com/fleetdm/fleet/v4/server/platform/logging"
 	"github.com/go-json-experiment/json"
-	kitlog "github.com/go-kit/log"
 	"github.com/go-kit/log/level"
 	"github.com/google/uuid"
 	"google.golang.org/api/androidmanagement/v1"
@@ -27,7 +27,7 @@ import (
 // GoogleClient connects directly to Google's Android Management API. It is intended to be used for development/debugging.
 // To enable, set the following env vars: FLEET_DEV_ANDROID_GOOGLE_CLIENT=1 and FLEET_DEV_ANDROID_GOOGLE_SERVICE_CREDENTIALS=$(cat credentials.json)
 type GoogleClient struct {
-	logger                    kitlog.Logger
+	logger                    *logging.Logger
 	mgmt                      *androidmanagement.Service
 	androidServiceCredentials string
 	androidProjectID          string
@@ -36,7 +36,7 @@ type GoogleClient struct {
 // Compile-time check to ensure that ProxyClient implements Client.
 var _ Client = &GoogleClient{}
 
-func NewGoogleClient(ctx context.Context, logger kitlog.Logger, getenv dev_mode.GetEnv) Client {
+func NewGoogleClient(ctx context.Context, logger *logging.Logger, getenv dev_mode.GetEnv) Client {
 	androidServiceCredentials := getenv("FLEET_DEV_ANDROID_GOOGLE_SERVICE_CREDENTIALS")
 	if androidServiceCredentials == "" {
 		return nil

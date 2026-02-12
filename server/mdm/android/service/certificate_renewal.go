@@ -5,13 +5,13 @@ import (
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
-	kitlog "github.com/go-kit/log"
+	"github.com/fleetdm/fleet/v4/server/platform/logging"
 	"github.com/go-kit/log/level"
 )
 
 // RenewCertificateTemplates identifies Android certificate templates that are approaching
 // expiration and marks them for renewal by updating their status.
-func RenewCertificateTemplates(ctx context.Context, ds fleet.Datastore, logger kitlog.Logger) error {
+func RenewCertificateTemplates(ctx context.Context, ds fleet.Datastore, logger *logging.Logger) error {
 	const batchSize = 1000
 	templates, err := ds.GetAndroidCertificateTemplatesForRenewal(ctx, batchSize)
 	if err != nil {
