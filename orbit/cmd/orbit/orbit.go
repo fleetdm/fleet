@@ -1882,7 +1882,7 @@ func (d *desktopRunner) Execute() error {
 				log.Debug().Msg("No GUI user found, skipping fleet-desktop start")
 				return true
 			}
-			log.Debug().Msg(fmt.Sprintf("Found GUI user: %v, attempting fleet-desktop start", loggedInUser))
+			log.Debug().Msgf("found GUI user: %q, attempting fleet-desktop start", *loggedInUser)
 
 			if *loggedInUser != "" {
 				opts = append(opts, execuser.WithUser(*loggedInUser))
@@ -2418,7 +2418,7 @@ func executeFleetDesktopWithPermanentError(desktopPath string, errorMessage stri
 		log.Debug().Msg("No GUI user found, skipping fleet-desktop start")
 		return nil
 	}
-	log.Debug().Msg(fmt.Sprintf("Found GUI user: %v, attempting fleet-desktop start", loggedInUser))
+	log.Debug().Msgf("found GUI user: %q, attempting fleet-desktop start", *loggedInUser)
 
 	log.Info().Msg("killing any pre-existing fleet-desktop instances")
 	if err := platform.SignalProcessBeforeTerminate(constant.DesktopAppExecName); err != nil &&

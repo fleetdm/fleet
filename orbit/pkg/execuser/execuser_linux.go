@@ -19,6 +19,10 @@ import (
 
 // base command to setup an exec.Cmd using `runuser`
 func baserun(path string, opts eopts) (cmd *exec.Cmd, err error) {
+	if opts.user == "" {
+		return nil, errors.New("missing user")
+	}
+
 	args, env, err := getConfigForCommand(opts.user, path)
 	if err != nil {
 		return nil, fmt.Errorf("get args: %w", err)

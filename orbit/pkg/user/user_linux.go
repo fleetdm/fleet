@@ -54,6 +54,7 @@ func UserLoggedInViaGui() (*string, error) {
 		return &user.Name, nil
 	}
 
+	// No valid user found
 	return nil, nil
 }
 
