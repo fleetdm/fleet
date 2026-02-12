@@ -440,6 +440,83 @@ describe("InstallStatusCell - component", () => {
     });
   });
 
+  it("renders 'Installed' with failed install tooltip for failed_install_installed", async () => {
+    const { user } = renderWithSetup(
+      <InstallStatusCell
+        software={{
+          ...createMockHostSoftware({
+            status: "failed_install",
+            software_package: createMockHostSoftwarePackage({
+              last_install: {
+                installed_at: "2022-01-01T12:00:00Z",
+              } as any,
+            }),
+          }),
+          ui_status: "failed_install_installed",
+        }}
+        onShowUpdateDetails={noop}
+        onShowInstallDetails={noop}
+        onShowIpaInstallDetails={noop}
+        onShowScriptDetails={noop}
+        onShowUninstallDetails={noop}
+        onShowVPPInstallDetails={noop}
+      />
+    );
+
+    expect(
+      screen.getByRole("button", { name: /Installed/i })
+    ).toBeInTheDocument();
+    expect(screen.getByTestId("success-icon")).toBeInTheDocument();
+
+    await user.hover(screen.getByText("Installed"));
+    await waitFor(() => {
+      // Core failure message
+      expect(
+        screen.getByText(/Software failed to install/i)
+      ).toBeInTheDocument();
+    });
+  });
+
+  it("renders 'Installed' with failed uninstall tooltip for failed_uninstall_installed", async () => {
+    const { user } = renderWithSetup(
+      <InstallStatusCell
+        software={{
+          ...createMockHostSoftware({
+            status: "failed_uninstall",
+            software_package: createMockHostSoftwarePackage({
+              last_uninstall: {
+                script_execution_id: "123-abc",
+                uninstalled_at: "2022-01-01T12:00:00Z",
+              },
+            }),
+          }),
+          ui_status: "failed_uninstall_installed",
+        }}
+        onShowUpdateDetails={noop}
+        onShowInstallDetails={noop}
+        onShowIpaInstallDetails={noop}
+        onShowScriptDetails={noop}
+        onShowUninstallDetails={noop}
+        onShowVPPInstallDetails={noop}
+      />
+    );
+
+    expect(
+      screen.getByRole("button", { name: /Installed/i })
+    ).toBeInTheDocument();
+    expect(screen.getByTestId("success-icon")).toBeInTheDocument();
+
+    await user.hover(screen.getByText("Installed"));
+    await waitFor(() => {
+      // Core failure message
+      expect(
+        screen.getByText(/Software failed to uninstall/i)
+      ).toBeInTheDocument();
+      // Ensure the “to uninstall again” part of the tooltip is present
+      expect(screen.getByText(/to uninstall again/i)).toBeInTheDocument();
+    });
+  });
+
   it("renders 'Update available' with failure tooltip for failed_install_update_available", async () => {
     const { user } = renderWithSetup(
       <InstallStatusCell
