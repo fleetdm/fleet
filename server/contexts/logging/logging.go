@@ -152,6 +152,10 @@ func (l *LoggingContext) Log(ctx context.Context, logger *slog.Logger) {
 		lvl = slog.LevelDebug
 	}
 
+	if !logger.Enabled(ctx, lvl) {
+		return
+	}
+
 	attrs := make([]slog.Attr, 0, 8+len(l.Extras)/2)
 
 	if !l.SkipUser {

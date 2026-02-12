@@ -70,7 +70,8 @@ func jsonHandler(
 		}
 		b, err := json.MarshalIndent(jsonData, "", "  ")
 		if err != nil {
-			logger.ErrorContext(r.Context(), "json marshal error", "err", err)
+			lc.SetErrs(err)
+			lc.Log(ctx, logger)
 			rw.WriteHeader(http.StatusInternalServerError)
 			return
 		}
