@@ -9,5 +9,5 @@
   description: This policy checks that Clawbot (also known as moltbot) is not installed on the host.
   resolution: "Clawbot/moltbot should be automatically removed. If it persists, drop a note in #help-it."
   run_script:
-    path: ../scripts/uninstall-clawbot.sh
+    path: ../scripts/uninstall-clawbot-linux.sh
   platform: linux

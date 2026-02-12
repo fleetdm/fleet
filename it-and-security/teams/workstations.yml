@@ -127,9 +127,9 @@ controls:
     - path: ../lib/macos/scripts/install-macos-compatibility-extension.sh
     - path: ../lib/macos/scripts/install-nudge.sh
     - path: ../lib/linux/scripts/install-fleet-desktop-required-extension.sh
-    - path: ../lib/macos/scripts/uninstall-clawbot.sh
+    - path: ../lib/macos/scripts/uninstall-clawbot-macos.sh
     - path: ../lib/windows/scripts/uninstall-clawbot.ps1
-    - path: ../lib/linux/scripts/uninstall-clawbot.sh
+    - path: ../lib/linux/scripts/uninstall-clawbot-linux.sh
 policies:
   # macOS policies
   - path: ../lib/macos/policies/1password-emergency-kit-check.yml
