@@ -39,10 +39,11 @@ func TestRunApiCommand(t *testing.T) {
   "scripts": [
     {
       "id": 23,
-      "team_id": null,
+      "fleet_id": null,
       "name": "get_my_device_page.sh",
       "created_at": "%s",
-      "updated_at": "%s"
+      "updated_at": "%s",
+      "team_id": null
     }
   ]
 }
@@ -170,7 +171,7 @@ func TestRunApiCommand(t *testing.T) {
 			},
 			expectOutput: fmt.Sprintf(
 				expectedNewPolicy,
-				"\\u003ctestdata/does-not-exist.sql"),
+				"<testdata/does-not-exist.sql"),
 		},
 		{
 			name: "upload script",
