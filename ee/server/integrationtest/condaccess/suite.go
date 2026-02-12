@@ -7,10 +7,9 @@ import (
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/datastore/redis/redistest"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/platform/logging"
 	"github.com/fleetdm/fleet/v4/server/service"
 	"github.com/fleetdm/fleet/v4/server/service/integrationtest"
-	"github.com/go-kit/kit/log"
-	kitlog "github.com/go-kit/log"
 	"github.com/stretchr/testify/require"
 )
 
@@ -37,8 +36,8 @@ func SetUpSuiteWithConfig(t *testing.T, uniqueTestName string, configModifier fu
 		configModifier(&fleetCfg)
 	}
 
-	logger := log.NewLogfmtLogger(os.Stdout)
-	condAccessSCEPDepot, err := ds.NewConditionalAccessSCEPDepot(kitlog.With(logger, "component", "conditional-access-scep-depot"), &fleetCfg)
+	logger := logging.NewLogfmtLogger(os.Stdout)
+	condAccessSCEPDepot, err := ds.NewConditionalAccessSCEPDepot(logger.With("component", "conditional-access-scep-depot"), &fleetCfg)
 	require.NoError(t, err)
 
 	users, server := service.RunServerForTestsWithServiceWithDS(t, ctx, ds, fleetSvc, &service.TestServerOpts{

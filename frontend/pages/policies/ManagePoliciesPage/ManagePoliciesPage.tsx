@@ -24,7 +24,6 @@ import {
   ILoadAllPoliciesResponse,
   ILoadTeamPoliciesResponse,
   IPoliciesCountResponse,
-  IPolicy,
 } from "interfaces/policy";
 import {
   API_ALL_TEAMS_ID,
@@ -165,6 +164,7 @@ const ManagePolicyPage = ({
       maintainer: true,
       observer: true,
       observer_plus: true,
+      technician: true,
     },
   });
 
@@ -184,11 +184,6 @@ const ManagePolicyPage = ({
   const [showConditionalAccessModal, setShowConditionalAccessModal] = useState(
     false
   );
-  const [
-    policiesAvailableToAutomate,
-    setPoliciesAvailableToAutomate,
-  ] = useState<IPolicyStats[]>([]);
-
   // Functions to avoid race conditions
   const initialSearchQuery = (() => queryParams.query ?? "")();
   const initialSortHeader = (() =>
@@ -275,15 +270,11 @@ const ManagePolicyPage = ({
       enabled: isRouteOk && isAllTeamsSelected,
       select: (data) => data.policies || [],
       staleTime: 5000,
-      onSuccess: (data) => {
-        setPoliciesAvailableToAutomate(data || []);
-      },
     }
   );
 
   const {
     data: globalPoliciesCount,
-
     isFetching: isFetchingGlobalCount,
     refetch: refetchGlobalPoliciesCount,
   } = useQuery<IPoliciesCountResponse, Error, number, IPoliciesCountQueryKey[]>(
@@ -334,23 +325,17 @@ const ManagePolicyPage = ({
     {
       enabled: isRouteOk && isPremiumTier && !isAllTeamsSelected,
       select: (data: ILoadTeamPoliciesResponse) => data.policies || [],
-      onSuccess: (data) => {
-        const teamPoliciesAvailableToAutomate = data.filter(
-          (policy: IPolicy) => policy.team_id === currentTeamId
-        );
-        setPoliciesAvailableToAutomate(teamPoliciesAvailableToAutomate || []);
-      },
     }
   );
 
   const {
-    data: teamPoliciesCountMergeInherited,
+    data: teamPoliciesCountResponse,
     isFetching: isFetchingTeamCountMergeInherited,
     refetch: refetchTeamPoliciesCountMergeInherited,
   } = useQuery<
     IPoliciesCountResponse,
     Error,
-    number,
+    IPoliciesCountResponse,
     ITeamPoliciesCountQueryKey[]
   >(
     [
@@ -367,9 +352,10 @@ const ManagePolicyPage = ({
       keepPreviousData: true,
       refetchOnWindowFocus: false,
       retry: 1,
-      select: (data) => data.count,
     }
   );
+
+  const teamPoliciesCountMergeInherited = teamPoliciesCountResponse?.count;
 
   const canAddOrDeletePolicies =
     isGlobalAdmin || isGlobalMaintainer || isTeamMaintainer || isTeamAdmin;
@@ -793,6 +779,8 @@ const ManagePolicyPage = ({
           return teamPoliciesAPI.update(changedPolicy.id, {
             conditional_access_enabled:
               changedPolicy.conditional_access_enabled,
+            conditional_access_bypass_enabled:
+              changedPolicy.conditional_access_bypass_enabled,
             team_id: teamIdForApi,
           });
         })
@@ -937,7 +925,10 @@ const ManagePolicyPage = ({
     automationsConfig = teamConfig;
   }
 
-  const hasPoliciesToAutomate = policiesAvailableToAutomate.length > 0;
+  const hasPoliciesToAutomate = isAllTeamsSelected
+    ? (globalPoliciesCount ?? 0) > 0
+    : (teamPoliciesCountMergeInherited ?? 0) >
+      (teamPoliciesCountResponse?.inherited_policy_count ?? 0);
   const hasPoliciesToDelete =
     hasPoliciesToAutomate || (isPrimoMode && (teamPolicies?.length ?? 0) > 0); // in Primo mode, allow deleting inherited policies, which will be included in teamPolicies, from this view
 
@@ -1305,7 +1296,6 @@ const ManagePolicyPage = ({
               // Although TypeScript thinks globalConfig could be undefined here, in practice it will always be present for users with canManageAutomations/canAddOrDeletePolicies permissions.
               globalConfig?.integrations || automationsConfig.integrations
             }
-            availablePolicies={policiesAvailableToAutomate}
             isUpdating={isUpdatingPolicies}
             onExit={toggleOtherWorkflowsModal}
             onSubmit={onUpdateOtherWorkflows}

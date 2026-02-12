@@ -25,8 +25,10 @@ func UserLoggedInViaGui() (*string, error) {
 	if err != nil {
 		return nil, fmt.Errorf("get login user: %w", err)
 	}
+
 	// Bail out if the user is gdm or root, since they aren't GUI users.
-	if user.Name == "gdm" || user.Name == "root" {
+	// User gdm-greeter is active during the GUI log-in prompt (GNOME 49).
+	if user.Name == "gdm" || user.Name == "root" || user.Name == "gdm-greeter" {
 		return nil, nil
 	}
 	// Check if the user has a GUI session.

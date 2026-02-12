@@ -109,6 +109,8 @@ const QueryDetailsPage = ({
     availableTeams,
     setCurrentTeam,
     isOnGlobalTeam,
+    isGlobalTechnician,
+    isTeamTechnician,
   } = useContext(AppContext);
   const {
     lastEditedQueryName,
@@ -247,7 +249,9 @@ const QueryDetailsPage = ({
       isObserverPlus ||
       isGlobalAdmin ||
       isGlobalMaintainer ||
-      isTeamMaintainerOrTeamAdmin;
+      isTeamMaintainerOrTeamAdmin ||
+      isGlobalTechnician ||
+      isTeamTechnician;
 
     // Function instead of constant eliminates race condition with filteredQueriesPath
     const backPath = () => {

@@ -1454,7 +1454,7 @@ describe("Activity Feed", () => {
       type: ActivityType.InstalledSoftware,
       actor_full_name: "Script Admin",
       details: {
-        software_title: "Payload-free Script",
+        software_title: "Script-only Software",
         source: "sh_packages",
         status: "installed",
         software_package: "myscript.sh",
@@ -1464,7 +1464,7 @@ describe("Activity Feed", () => {
 
     render(<GlobalActivityItem activity={activity} isPremiumTier />);
     expect(screen.getByText(/ran/i)).toBeInTheDocument(); // For status: "installed"
-    expect(screen.getByText("Payload-free Script")).toBeInTheDocument();
+    expect(screen.getByText("Script-only Software")).toBeInTheDocument();
   });
 
   it("renders script package pending run status in InstalledSoftware activity", () => {
@@ -1472,7 +1472,7 @@ describe("Activity Feed", () => {
       type: ActivityType.InstalledSoftware,
       actor_full_name: "Script Admin",
       details: {
-        software_title: "Payload-free Script",
+        software_title: "Script-only Software",
         source: "sh_packages",
         status: "pending_install",
         software_package: "myscript.sh",
@@ -1482,7 +1482,7 @@ describe("Activity Feed", () => {
 
     render(<GlobalActivityItem activity={activity} isPremiumTier />);
     expect(screen.getByText(/told Fleet to run/i)).toBeInTheDocument(); // For status: "pending_install"
-    expect(screen.getByText("Payload-free Script")).toBeInTheDocument();
+    expect(screen.getByText("Script-only Software")).toBeInTheDocument();
   });
 
   it("renders script package failed run status in InstalledSoftware activity", () => {
@@ -1490,7 +1490,7 @@ describe("Activity Feed", () => {
       type: ActivityType.InstalledSoftware,
       actor_full_name: "Script Admin",
       details: {
-        software_title: "Payload-free Script",
+        software_title: "Script-only Software",
         source: "ps1_packages", // Other script package source
         status: "failed_install",
         software_package: "myscript.ps1",
@@ -1500,7 +1500,7 @@ describe("Activity Feed", () => {
 
     render(<GlobalActivityItem activity={activity} isPremiumTier />);
     expect(screen.getByText(/failed to run/i)).toBeInTheDocument(); // For status: "failed_install"
-    expect(screen.getByText("Payload-free Script")).toBeInTheDocument();
+    expect(screen.getByText("Script-only Software")).toBeInTheDocument();
   });
 
   it("renders addedNdesScepProxy activity correctly", () => {

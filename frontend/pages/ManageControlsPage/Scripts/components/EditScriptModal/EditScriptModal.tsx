@@ -5,17 +5,15 @@ import classnames from "classnames";
 
 import { NotificationContext } from "context/notification";
 import { AppContext } from "context/app";
-import { getPathWithQueryParams } from "utilities/url";
+import RunScriptHelpText from "pages/hosts/components/ScriptDetailsModal/RunScriptHelpText";
 import scriptAPI from "services/entities/scripts";
 
 import Button from "components/buttons/Button";
-import CustomLink from "components/CustomLink";
 import DataError from "components/DataError";
 import Editor from "components/Editor";
 import Modal from "components/Modal";
 import ModalFooter from "components/ModalFooter";
 import Spinner from "components/Spinner";
-import paths from "router/paths";
 
 import { ScriptContent } from "interfaces/script";
 import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
@@ -88,7 +86,24 @@ const EditScriptModal = ({
   onExit,
 }: IEditScriptModal) => {
   const { renderFlash } = useContext(NotificationContext);
-  const { currentTeam } = useContext(AppContext);
+  const {
+    currentTeam,
+    isGlobalAdmin,
+    isAnyTeamAdmin,
+    isGlobalMaintainer,
+    isAnyTeamMaintainer,
+    isTeamTechnician,
+    isGlobalTechnician,
+  } = useContext(AppContext);
+
+  const isTechnician = !!isTeamTechnician || !!isGlobalTechnician;
+
+  const canRunScripts = !!(
+    isGlobalAdmin ||
+    isAnyTeamAdmin ||
+    isGlobalMaintainer ||
+    isAnyTeamMaintainer
+  );
 
   // Editable script content
   const [scriptFormData, setScriptFormData] = useState("");
@@ -182,43 +197,31 @@ const EditScriptModal = ({
             onChange={onChange}
             value={scriptFormData}
           />
-          <div className="form-field__help-text">
-            To run this script on a host, go to the{" "}
-            <CustomLink
-              text="Hosts"
-              url={getPathWithQueryParams(paths.MANAGE_HOSTS, {
-                team_id: currentTeam?.id,
-              })}
-            />{" "}
-            page and select a host.
-            <br />
-            To run the script across multiple hosts, add a policy automation on
-            the{" "}
-            <CustomLink
-              text="Policies"
-              url={getPathWithQueryParams(paths.MANAGE_POLICIES, {
-                team_id: currentTeam?.id,
-              })}
-            />{" "}
-            page.
-          </div>
+          <RunScriptHelpText
+            className="form-field__help-text"
+            isTechnician={isTechnician}
+            canRunScripts={canRunScripts}
+            teamId={currentTeam?.id}
+          />
         </form>
-        <ModalFooter
-          primaryButtons={
-            <>
-              <Button onClick={onExit} variant="inverse">
-                Cancel
-              </Button>
-              <Button
-                onClick={onSave}
-                isLoading={isSubmitting}
-                disabled={!!formError}
-              >
-                Save
-              </Button>
-            </>
-          }
-        />
+        {canRunScripts && (
+          <ModalFooter
+            primaryButtons={
+              <>
+                <Button onClick={onExit} variant="inverse">
+                  Cancel
+                </Button>
+                <Button
+                  onClick={onSave}
+                  isLoading={isSubmitting}
+                  disabled={!!formError}
+                >
+                  Save
+                </Button>
+              </>
+            }
+          />
+        )}
       </>
     );
   };
