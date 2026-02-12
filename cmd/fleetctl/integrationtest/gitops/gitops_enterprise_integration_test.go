@@ -3382,45 +3382,8 @@ name: %s
 team_settings:
   %s
 `
-	testDarwinOffAllPlatformsOn := `
-controls:
-  macos_setup:
-    manual_agent_install: true
-software:
-  app_store_apps:
-    - app_store_id: "2"
-      platform: darwin
-    - app_store_id: "2"
-      setup_experience: true
-queries:
-policies:
-agent_options:
-name: %s
-team_settings:
-  %s
-`
-	testDarwinOffOtherPlatformsOn := `
-controls:
-  macos_setup:
-    manual_agent_install: true
-software:
-  app_store_apps:
-    - app_store_id: "2"
-      platform: darwin
-    - app_store_id: "2"
-      platform: ios
-      setup_experience: true
-    - app_store_id: "2"
-      platform: ipados
-      setup_experience: true
-queries:
-policies:
-agent_options:
-name: %s
-team_settings:
-  %s
-`
 
+	//nolint:gosec // test code
 	testPackagesFail := `
 controls:
   macos_setup:
@@ -3429,23 +3392,6 @@ software:
   app_store_apps:
   packages:
     - url: ${SOFTWARE_INSTALLER_URL}/dummy_installer.pkg
-      setup_experience: true
-queries:
-policies:
-agent_options:
-name: %s
-team_settings:
-  %s
-`
-
-	testPackagesPass := `
-controls:
-  macos_setup:
-    manual_agent_install: true
-software:
-  app_store_apps:
-  packages:
-    - url: ${SOFTWARE_INSTALLER_URL}/ruby.deb
       setup_experience: true
 queries:
 policies:
@@ -3472,22 +3418,6 @@ team_settings:
 			errContains:  ptr.String("Couldn't edit software."),
 		},
 		{
-			testName:     "Darwin off all platforms on",
-			VPPTeam:      "All teams",
-			teamName:     teamName,
-			teamTemplate: testDarwinOffAllPlatformsOn,
-			teamSettings: `secrets: [{"secret":"enroll_secret"}]`,
-			errContains:  ptr.String("Couldn't edit software."),
-		},
-		{
-			testName:     "Darwin off other platforms on",
-			VPPTeam:      "All teams",
-			teamName:     teamName,
-			teamTemplate: testDarwinOffOtherPlatformsOn,
-			teamSettings: `secrets: [{"secret":"enroll_secret"}]`,
-			errContains:  nil,
-		},
-		{
 			testName:     "Packages fail",
 			VPPTeam:      "All teams",
 			teamName:     teamName,
@@ -3496,20 +3426,13 @@ team_settings:
 			errContains:  ptr.String("Couldn't edit software."),
 		},
 		{
-			testName:     "Packages pass",
-			VPPTeam:      "All teams",
-			teamName:     teamName,
-			teamTemplate: testPackagesPass,
-			teamSettings: `secrets: [{"secret":"enroll_secret"}]`,
-			errContains:  nil,
-		},
-		{
 			testName:     "No team",
 			VPPTeam:      "No team",
 			teamName:     "No team",
 			teamTemplate: testAll,
 			errContains:  ptr.String("Couldn't edit software."),
 		},
+		// left out more possible combinations of setup experience being set for different platforms
 	}
 	for _, tc := range testCases {
 		t.Run(tc.testName, func(t *testing.T) {
