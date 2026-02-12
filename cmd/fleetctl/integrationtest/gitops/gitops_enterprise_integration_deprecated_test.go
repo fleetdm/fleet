@@ -1333,9 +1333,9 @@ func (s *enterpriseIntegrationGitopsTestSuite) TestAddManualLabelsDeprecated() {
 	// host4 should _not_ be added to the label (see issue #34236).
 	host5, err := s.DS.NewHost(context.Background(), &fleet.Host{
 		UUID:           fmt.Sprintf("%duuid-deprecated-5", host4.ID),
-		Hostname:       "dummy",
+		Hostname:       "dummydeprecated",
 		Platform:       "linux",
-		HardwareSerial: "dummy",
+		HardwareSerial: "dummydeprecated",
 	})
 	require.NoError(t, err)
 
@@ -1358,7 +1358,7 @@ labels:
     - %s
     - %d
     - %s
-    - dummy
+    - dummydeprecated
 `, host1.Hostname, host2.HardwareSerial, host3.ID, host5.UUID))
 	require.NoError(t, err)
 
