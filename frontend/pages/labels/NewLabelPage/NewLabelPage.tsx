@@ -52,9 +52,9 @@ const availableCriteria: {
   label: string;
   value: LabelHostVitalsCriterion;
 }[] = [
-    { label: "Identity provider (IdP) group", value: "end_user_idp_group" },
-    { label: "IdP department", value: "end_user_idp_department" },
-  ];
+  { label: "Identity provider (IdP) group", value: "end_user_idp_group" },
+  { label: "IdP department", value: "end_user_idp_department" },
+];
 
 const baseClass = "new-label-page";
 
