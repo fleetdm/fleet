@@ -1032,6 +1032,11 @@ type SyncMLCmd struct {
 	ExecCommands []SyncMLCmd `xml:"Exec,omitempty"`
 }
 
+// Raw returns the raw byte representation of the SyncMLCmd
+func (cmd SyncMLCmd) Raw() ([]byte, error) {
+	return xml.Marshal(cmd)
+}
+
 type SyncMLChallenge struct {
 	Meta ChallengeMeta `xml:"Meta"`
 }

@@ -1874,12 +1874,91 @@ func (svc *Service) getManagementResponse(ctx context.Context, reqMsg *fleet.Syn
 	resPendingCmds := []*mdm_types.SyncMLCmd{}
 
 	if requestAuthState == RequestAuthStateTrusted {
+		var isAwaitingConfiguration bool
+		// We should never really have a not nil device, but let's gate it for safety
+
+		// lookup the device and check if we should block enrollment, that should happen when we have an mdm_windows_enrollment entry
+		// but no hosts entry // TODO: Is this the correct state? Do we have an awaiting setup_experience
+		isAwaitingConfiguration, err = svc.ds.MDMWindowsAwaitingConfiguration(ctx, deviceID)
+		if err != nil {
+			return nil, fmt.Errorf("checking if device is awaiting configuration %w", err)
+		}
+
+		if isAwaitingConfiguration {
+			// TODO: We don't have to check for FleetD install, as we already do that on every session open.
+
+			/* if isPresent, err := svc.isFleetdPresentOnDevice(ctx, deviceID); err == nil && !isPresent {
+				err = svc.enqueueInstallFleetdCommand(ctx, deviceID)
+				if err != nil {
+					return nil, fmt.Errorf("enqueue install fleetd command: %w", err)
+				}
+			} */
+
+			skipDeviceCmdId := uuid.NewString()
+			skipDeviceCmd := newSyncMLCmdBool("Replace", fmt.Sprintf("./Device/Vendor/MSFT/DMClient/Provider/%s/FirstSyncStatus/SkipDeviceStatusPage", syncml.DocProvisioningAppProviderID), "false")
+			skipDeviceCmd.CmdID = mdm_types.CmdID{
+				Value:               skipDeviceCmdId,
+				IncludeFleetComment: true,
+			}
+			skipDeviceCmdRaw, err := skipDeviceCmd.Raw()
+			if err != nil {
+				return nil, fmt.Errorf("error creating raw command: %w", err)
+			}
+
+			err = svc.ds.MDMWindowsInsertCommandForHosts(ctx, []string{deviceID}, &mdm_types.MDMWindowsCommand{
+				CommandUUID: skipDeviceCmdId,
+				RawCommand:  skipDeviceCmdRaw,
+			})
+			if err != nil {
+				return nil, fmt.Errorf("insert command to skip device setup experience: %w", err)
+			}
+
+			skipUserCmdId := uuid.NewString()
+			skipUserCmd := newSyncMLCmdBool("Replace", fmt.Sprintf("./Device/Vendor/MSFT/DMClient/Provider/%s/FirstSyncStatus/SkipUserStatusPage", syncml.DocProvisioningAppProviderID), "false")
+			skipUserCmd.CmdID = mdm_types.CmdID{
+				Value:               skipUserCmdId,
+				IncludeFleetComment: true,
+			}
+			skipUserCmdRaw, err := skipUserCmd.Raw()
+			if err != nil {
+				return nil, fmt.Errorf("error creating raw command: %w", err)
+			}
+
+			err = svc.ds.MDMWindowsInsertCommandForHosts(ctx, []string{deviceID}, &mdm_types.MDMWindowsCommand{
+				CommandUUID: skipUserCmdId,
+				RawCommand:  skipUserCmdRaw,
+			})
+			if err != nil {
+				return nil, fmt.Errorf("insert command to skip user setup experience: %w", err)
+			}
+
+			espCmdId := uuid.NewString()
+			espCmd := newSyncMLCmdInt("Replace", "./Device/Vendor/MSFT/EnrollmentStatusTracking/DevicePreparation/PolicyProviders/FLEET/InstallationState", "1")
+			espCmd.CmdID = mdm_types.CmdID{
+				Value:               espCmdId,
+				IncludeFleetComment: true,
+			}
+			espCmdRaw, err := espCmd.Raw()
+			if err != nil {
+				return nil, fmt.Errorf("error creating raw command: %w", err)
+			}
+
+			err = svc.ds.MDMWindowsInsertCommandForHosts(ctx, []string{deviceID}, &mdm_types.MDMWindowsCommand{
+				CommandUUID: espCmdId,
+				RawCommand:  espCmdRaw,
+			})
+			if err != nil {
+				return nil, fmt.Errorf("insert command to mark device as awaiting configuration: %w", err)
+			}
+			// TODO: Short circuit here and check on setup experience items missing, if not missing we can send the providerID and mark it as Completed (3)
+		}
+
 		// Process the pending operations and get the MDM response protocol commands
 		pendingCmds, err := svc.getPendingMDMCmds(ctx, deviceID)
 		if err != nil {
 			return nil, fmt.Errorf("message processing error %w", err)
 		}
-		resPendingCmds = pendingCmds
+		resPendingCmds = append(resPendingCmds, pendingCmds...)
 	}
 
 	// Create the response SyncML message

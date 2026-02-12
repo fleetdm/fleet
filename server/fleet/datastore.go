@@ -2688,6 +2688,8 @@ type Datastore interface {
 	MDMWindowsUpdateEnrolledDeviceCredentials(ctx context.Context, deviceId string, credentialsHash []byte) error
 	// MDMWindowsAcknowledgeEnrolledDeviceCredentials marks the enrolled Windows device credentials as acknowledged.
 	MDMWindowsAcknowledgeEnrolledDeviceCredentials(ctx context.Context, deviceId string) error
+
+	MDMWindowsAwaitingConfiguration(ctx context.Context, deviceId string) (bool, error)
 }
 
 type AndroidDatastore interface {
