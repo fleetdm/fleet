@@ -6483,6 +6483,28 @@ The summary can optionally be filtered by team ID.
 }
 ```
 
+### Update Recovery Lock
+
+_Available in Fleet Premium_
+
+Sets the Recovery Lock password for eligible macOS hosts on a team or no team.
+
+`POST /api/v1/fleet/recovery_lock_password`
+
+#### Parameters
+
+| Name                          | Type    | In    | Description                                                                                                 |
+| ----------------------------- | ------  | ----  | --------------------------------------------------------------------------------------                      |
+| team_id                       | integer | body  | The team ID to apply the settings to. Settings applied to hosts in no team if absent.                       |
+| enable_recovery_lock_password | boolean | body  | Whether Recovery Lock password should be enforced on eligible hosts that belong to the team (or no team).   |
+
+#### Example
+
+`POST /api/v1/fleet/recovery_lock_password`
+
+##### Default response
+
+`204`
 
 ### Get OS settings (configuration profiles) status
 
