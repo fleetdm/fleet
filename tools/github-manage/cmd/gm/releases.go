@@ -196,15 +196,15 @@ var releasesForecastCmd = &cobra.Command{
 	Long: `Calculate effort forecast for a milestone based on t-shirt sizes.
 
 This command retrieves all issues in a milestone on the Releases project, maps their
-t-shirt sizes to numeric values, and provides a total forecast.
+t-shirt sizes to numeric ranges, and provides a total forecast range.
 
-Size mapping:
-  XXS: 3
-  XS:  8
-  S:   25
-  M:   50
-  L:   75
-  XL:  100
+Size mapping (low-high):
+  XXS: 1-3
+  XS:  3-8
+  S:   8-25
+  M:   25-50
+  L:   50-75
+  XL:  75-100
 
 Usage:
   gm releases forecast --milestone "Fleet 4.83.0"`,
@@ -217,14 +217,18 @@ Usage:
 			return
 		}
 
-		// Size to numeric value mapping
-		sizeMap := map[string]int{
-			"XXS": 3,
-			"XS":  8,
-			"S":   25,
-			"M":   50,
-			"L":   75,
-			"XL":  100,
+		// Size to numeric range mapping (low, high)
+		type SizeRange struct {
+			Low  int
+			High int
+		}
+		sizeMap := map[string]SizeRange{
+			"XXS": {Low: 1, High: 3},
+			"XS":  {Low: 3, High: 8},
+			"S":   {Low: 8, High: 25},
+			"M":   {Low: 25, High: 50},
+			"L":   {Low: 50, High: 75},
+			"XL":  {Low: 75, High: 100},
 		}
 
 		// Fetch milestone issues
@@ -253,7 +257,8 @@ Usage:
 		}
 
 		// Calculate forecast for milestone issues on Releases project
-		total := 0
+		totalLow := 0
+		totalHigh := 0
 		counted := 0
 		missing := 0
 		sizeBreakdown := make(map[string]int)
@@ -274,10 +279,11 @@ Usage:
 			}
 
 			if value, ok := sizeMap[size]; ok {
-				total += value
+				totalLow += value.Low
+				totalHigh += value.High
 				counted++
 				sizeBreakdown[size]++
-				fmt.Printf("  #%d: %s (%d)\n", num, size, value)
+				fmt.Printf("  #%d: %s (%d-%d)\n", num, size, value.Low, value.High)
 			} else {
 				fmt.Printf("  #%d: unknown size '%s' (skipped)\n", num, size)
 				missing++
@@ -293,11 +299,14 @@ Usage:
 		fmt.Println("\nSize breakdown:")
 		for _, size := range []string{"XXS", "XS", "S", "M", "L", "XL"} {
 			if count, ok := sizeBreakdown[size]; ok {
-				fmt.Printf("  %s: %d issue(s) = %d points\n", size, count, count*sizeMap[size])
+				sizeRange := sizeMap[size]
+				fmt.Printf("  %s: %d issue(s) = %d-%d points\n", size, count, count*sizeRange.Low, count*sizeRange.High)
 			}
 		}
 		fmt.Println("\n" + strings.Repeat("=", 50))
-		fmt.Printf("TOTAL FORECAST: %d points\n", total)
+		fmt.Printf("TOTAL FORECAST (Low):  %d points\n", totalLow)
+		fmt.Printf("TOTAL FORECAST (High): %d points\n", totalHigh)
+		fmt.Printf("FORECAST RANGE:        %d-%d points\n", totalLow, totalHigh)
 		fmt.Println(strings.Repeat("=", 50))
 	},
 }
