@@ -1061,14 +1061,7 @@ func (svc *Service) authBinarySecurityToken(ctx context.Context, authToken *flee
 			)
 			return "", "", ctxerr.Errorf(ctx, "token audience is not authorized")
 		}
-		foundExpectedTenant := false
-		for _, expectedTenantID := range entraTenantIDs {
-			if tokenData.TenantID == expectedTenantID {
-				foundExpectedTenant = true
-				break
-			}
-		}
-		if !foundExpectedTenant {
+		if !slices.Contains(entraTenantIDs, tokenData.TenantID) {
 			level.Error(svc.logger).Log(
 				"msg", "unexpected token tenant in AzureAD Binary Security Token",
 				"token_tenant", tokenData.TenantID,
