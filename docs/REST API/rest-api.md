@@ -2857,6 +2857,7 @@ None.
 - [Get host's software](#get-hosts-software)
 - [Get hosts report in CSV](#get-hosts-report-in-csv)
 - [Get host's disk encryption key](#get-hosts-disk-encryption-key)
+- [Update host's Recovery Lock password](#update-hosts-recovery-lock-password)
 - [Get host's certificates](#get-hosts-certificates)
 - [Lock host](#lock-host)
 - [Unlock host](#unlock-host)
@@ -4926,6 +4927,27 @@ The host will only return a key if its disk encryption status is "Verified." Get
   }
 }
 ```
+
+### Update host's Recovery Lock password
+
+_Available in Fleet Premium_
+
+`POST /api/v1/fleet/recovery_lock_password`
+
+#### Parameters
+
+| Name                          | Type    | In    | Description                                                                                        |
+| ----------------------------- | ------  | ----  | --------------------------------------------------------------------------------------             |
+| team_id                       | integer | body  | The team ID to apply the settings to. Settings applied to hosts in no team if absent.              |
+| enable_recovery_lock_password | boolean | body  | Whether Recovery Lock password should be enforced on devices that belong to the team (or no team). |
+
+#### Example
+
+`POST /api/v1/fleet/recovery_lock_password`
+
+##### Default response
+
+`204`
 
 ### Get host's certificates
 
