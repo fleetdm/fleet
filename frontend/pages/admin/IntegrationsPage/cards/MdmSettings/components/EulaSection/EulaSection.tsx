@@ -32,7 +32,7 @@ const EulaSection = ({
 
     try {
       await mdmAPI.deleteEULA(eulaMetadata.token);
-      renderFlash("success", "Successfully deleted!");
+      renderFlash("success", "Successfully deleted.");
     } catch {
       renderFlash("error", "Couldn’t delete. Please try again.");
     } finally {

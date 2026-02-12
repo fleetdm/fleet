@@ -98,6 +98,7 @@ controls:
   macos_updates:
     deadline:
     minimum_version:
+    update_new_hosts: true
   windows_settings:
     custom_settings:
       - path: ../lib/windows/configuration-profiles/Enable firewall.xml
@@ -265,14 +266,13 @@ software:
   app_store_apps:
     - app_store_id: "361285480" # Keynote
       display_name: "Keynote"
+      platform: darwin
       self_service: true
   fleet_maintained_apps:
     # macOS apps
     - slug: slack/darwin # Slack for macOS
       self_service: true
       setup_experience: true
-    # post_install_script:
-    #  path: ../lib/macos/scripts/migrate-slack-preferences.sh
       categories:
         - Communication
         - Productivity
