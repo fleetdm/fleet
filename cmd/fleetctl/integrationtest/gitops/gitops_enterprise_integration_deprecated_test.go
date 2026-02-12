@@ -1351,7 +1351,7 @@ org_settings:
 policies:
 queries:
 labels:
-  - name: my-label
+  - name: my-label-deprecated
     label_membership_type: manual
     hosts:
     - %s
@@ -1367,10 +1367,10 @@ labels:
 	s.assertRealRunOutputWithDeprecation(t, fleetctl.RunAppForTest(t, []string{"gitops", "--config", fleetctlConfig.Name(), "-f", globalFile.Name()}), true)
 
 	// Verify the label was created and has the correct hosts
-	labels, err := s.DS.LabelsByName(ctx, []string{"my-label"}, fleet.TeamFilter{})
+	labels, err := s.DS.LabelsByName(ctx, []string{"my-label-deprecated"}, fleet.TeamFilter{})
 	require.NoError(t, err)
 	require.Len(t, labels, 1)
-	label := labels["my-label"]
+	label := labels["my-label-deprecated"]
 	// Get the hosts for the label
 	labelHosts, err := s.DS.ListHostsInLabel(ctx, fleet.TeamFilter{User: &user}, label.ID, fleet.HostListOptions{})
 	require.NoError(t, err)
@@ -1844,7 +1844,7 @@ team_settings:
 
 	mysql.ExecAdhocSQL(t, s.DS, func(q sqlx.ExtContext) error {
 		_, err := q.ExecContext(ctx, `INSERT INTO fleet_maintained_apps (name, slug, platform, unique_identifier)
-			VALUES ('foo', 'foo/darwin', 'darwin', 'com.example.foo')`)
+			VALUES ('foodeprecated', 'foodeprecated/darwin', 'darwin', 'com.example.foodeprecated')`)
 		return err
 	})
 

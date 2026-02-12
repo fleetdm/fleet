@@ -2836,7 +2836,7 @@ settings:
 		}))
 
 		args := []string{"gitops", "--config", cfgPaths[i].Name(), "-f", globalFile, "-f", newTeamCfgFile.Name()}
-		s.assertRealRunOutput(t, fleetctl.RunAppForTest(t, args))
+		s.assertRealRunOutputWithDeprecation(t, fleetctl.RunAppForTest(t, args), true)
 	}
 
 	for i, user := range users {
@@ -2883,7 +2883,7 @@ settings:
 		require.NoError(t, teamCfgTmpl.Execute(newTeamCfgFile, params))
 
 		args := []string{"gitops", "--config", cfgPaths[i].Name(), "-f", globalFile, "-f", newTeamCfgFile.Name()}
-		s.assertRealRunOutput(t, fleetctl.RunAppForTest(t, args))
+		s.assertRealRunOutputWithDeprecation(t, fleetctl.RunAppForTest(t, args), true)
 	}
 
 	for i, user := range users {
