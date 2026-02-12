@@ -127,6 +127,7 @@ const MdmSettings = ({ router }: IMdmSettingsProps) => {
           />
           <MicrosoftEntraSection
             router={router}
+            windowsMdmEnabled={!!config?.mdm.windows_enabled_and_configured}
             isPremiumTier={!!isPremiumTier}
           />
           {isPremiumTier && !!config?.mdm.apple_bm_enabled_and_configured && (
