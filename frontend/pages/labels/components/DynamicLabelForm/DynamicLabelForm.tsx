@@ -93,9 +93,8 @@ const DynamicLabelForm = ({
 
   const onLoad = (editor: Ace.Editor) => {
     editor.setOptions({
-      enableLinking: true,
       enableMultiselect: false, // Disables command + click creating multiple cursors
-    } as any);
+    });
 
     // @ts-expect-error
     // the string "linkClick" is not officially in the lib but we need it
