@@ -67,17 +67,17 @@
   },
   "server_settings": {
     "server_url": "https://dogfood.fleetdm.com",
-    "live_report_disabled": false,
+    "live_query_disabled": false,
     "enable_analytics": true,
     "debug_host_ids": [
       1,
       3
     ],
     "deferred_save_host": false,
-    "reports_disabled": false,
+    "query_reports_disabled": false,
     "scripts_disabled": false,
     "ai_features_disabled": false,
-    "report_cap": 1
+    "query_report_cap": 1
   },
   "smtp_settings": {
     "enable_smtp": false,
@@ -209,9 +209,9 @@
     "apple_business_manager": [
       {
         "organization_name": "Fleet Device Management Inc.",
-        "macos_fleet": "💻 Workstations",
-        "ios_fleet": "📱🏢 Company-owned mobile devices",
-        "ipados_fleet": "📱🏢 Company-owned mobile devices"
+        "macos_team": "💻 Workstations",
+        "ios_team": "📱🏢 Company-owned mobile devices",
+        "ipados_team": "📱🏢 Company-owned mobile devices"
       }
     ],
     "apple_bm_enabled_and_configured": true,
@@ -266,7 +266,7 @@
     "volume_purchasing_program": [
       {
         "location": "Fleet Device Management Inc.",
-        "fleets": [
+        "teams": [
           "💻 Workstations",
           "💻🐣 Workstations (canary)",
           "📱🏢 Company-owned mobile devices",

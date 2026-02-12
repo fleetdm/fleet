@@ -916,7 +916,7 @@ func TestGenerateOrgSettings(t *testing.T) {
 	require.NoError(t, err)
 	require.NotNil(t, orgSettingsRaw)
 	var orgSettings map[string]interface{}
-	b, err := yaml.Marshal(orgSettingsRaw)
+	b, err := yaml.Marshal(applyRenamesDeep(orgSettingsRaw))
 	require.NoError(t, err)
 	fmt.Println("Org settings raw:\n", string(b)) // Debugging line
 	err = yaml.Unmarshal(b, &orgSettings)
@@ -959,7 +959,7 @@ func TestGenerateOrgSettingsMaskedGoogleCalendarApiKey(t *testing.T) {
 	require.NotNil(t, orgSettingsRaw)
 
 	// Verify the result can be marshaled to YAML without error.
-	b, err := yaml.Marshal(orgSettingsRaw)
+	b, err := yaml.Marshal(applyRenamesDeep(orgSettingsRaw))
 	require.NoError(t, err)
 
 	// Verify api_key_json was replaced with a comment placeholder (not "********")
@@ -1012,7 +1012,7 @@ func TestGeneratedOrgSettingsNoSSO(t *testing.T) {
 	require.NoError(t, err)
 	require.NotNil(t, orgSettingsRaw)
 	var orgSettings map[string]any
-	b, err := yaml.Marshal(orgSettingsRaw)
+	b, err := yaml.Marshal(applyRenamesDeep(orgSettingsRaw))
 	require.NoError(t, err)
 	err = yaml.Unmarshal(b, &orgSettings)
 	require.NoError(t, err)
@@ -1107,7 +1107,7 @@ func TestGeneratedOrgSettingsOktaConditionalAccessNotIncluded(t *testing.T) {
 	require.NoError(t, err)
 	require.NotNil(t, orgSettingsRaw)
 	var orgSettings map[string]any
-	b, err := yaml.Marshal(orgSettingsRaw)
+	b, err := yaml.Marshal(applyRenamesDeep(orgSettingsRaw))
 	require.NoError(t, err)
 	err = yaml.Unmarshal(b, &orgSettings)
 	require.NoError(t, err)
@@ -1151,7 +1151,7 @@ func TestGenerateOrgSettingsInsecure(t *testing.T) {
 	require.NoError(t, err)
 	require.NotNil(t, orgSettingsRaw)
 	var orgSettings map[string]interface{}
-	b, err := yaml.Marshal(orgSettingsRaw)
+	b, err := yaml.Marshal(applyRenamesDeep(orgSettingsRaw))
 	require.NoError(t, err)
 	fmt.Println("Org settings raw:\n", string(b)) // Debugging line
 	err = yaml.Unmarshal(b, &orgSettings)
@@ -1190,7 +1190,7 @@ func TestGenerateTeamSettings(t *testing.T) {
 	require.NoError(t, err)
 	require.NotNil(t, TeamSettingsRaw)
 	var TeamSettings map[string]interface{}
-	b, err := yaml.Marshal(TeamSettingsRaw)
+	b, err := yaml.Marshal(applyRenamesDeep(TeamSettingsRaw))
 	require.NoError(t, err)
 	fmt.Println("Team settings raw:\n", string(b)) // Debugging line
 	err = yaml.Unmarshal(b, &TeamSettings)
@@ -1231,7 +1231,7 @@ func TestGenerateTeamSettingsInsecure(t *testing.T) {
 	require.NoError(t, err)
 	require.NotNil(t, TeamSettingsRaw)
 	var TeamSettings map[string]interface{}
-	b, err := yaml.Marshal(TeamSettingsRaw)
+	b, err := yaml.Marshal(applyRenamesDeep(TeamSettingsRaw))
 	require.NoError(t, err)
 	fmt.Println("Team settings raw:\n", string(b)) // Debugging line
 	err = yaml.Unmarshal(b, &TeamSettings)
