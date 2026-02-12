@@ -1,17 +1,16 @@
 package execuser
 
 import (
-	"bufio"
 	"bytes"
 	"errors"
 	"fmt"
-	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
-	"regexp"
 	"sort"
+	"strconv"
 	"strings"
+	"syscall"
 
 	userpkg "github.com/fleetdm/fleet/v4/orbit/pkg/user"
 	"github.com/rs/zerolog/log"
@@ -118,9 +117,9 @@ func getUserID(user string) (string, error) {
 	return uid, nil
 }
 
-func getDisplayVariableForSession(user string, userID string, displaySessionType userpkg.GuiSessionType) string {
+func getDisplayVariableForSession(userID string, displaySessionType userpkg.GuiSessionType) string {
 	if displaySessionType == userpkg.GuiSessionTypeX11 {
-		x11Display, err := getUserX11Display(user)
+		x11Display, err := getUserX11Display(userID)
 		if err != nil {
 			log.Error().Err(err).Msg("failed to get X11 display, using default :0")
 			// TODO(lucas): Revisit when working on multi-user/multi-session support.
@@ -166,7 +165,7 @@ func getConfigForCommand(user string, path string) (args []string, env []string,
 	}
 
 	// Get user's "display" variable for the GUI session.
-	display := getDisplayVariableForSession(user, userID, userDisplaySession.Type)
+	display := getDisplayVariableForSession(userID, userDisplaySession.Type)
 
 	log.Info().
 		Str("path", path).
@@ -201,8 +200,6 @@ func getConfigForCommand(user string, path string) (args []string, env []string,
 	return args, env, nil
 }
 
-var whoLineRegexp = regexp.MustCompile(`(\w+)\s+(:\d+)\s+`)
-
 // getUserWaylandDisplay returns the value to set on WAYLAND_DISPLAY for the given user.
 func getUserWaylandDisplay(uid string) (string, error) {
 	matches, err := filepath.Glob("/run/user/" + uid + "/wayland-*")
@@ -222,27 +219,67 @@ func getUserWaylandDisplay(uid string) (string, error) {
 }
 
 // getUserX11Display returns the value to set on DISPLAY for the given user.
-func getUserX11Display(user string) (string, error) {
-	cmd := exec.Command("who")
-	var stdout bytes.Buffer
-	cmd.Stdout = &stdout
-	if err := cmd.Run(); err != nil {
-		return "", fmt.Errorf("run 'who' to get user display: %w", err)
+// It scans /proc to find a process owned by the user that has DISPLAY set
+// in its environment.
+func getUserX11Display(userID string) (string, error) {
+	uid, err := strconv.ParseUint(userID, 10, 32)
+	if err != nil {
+		return "", fmt.Errorf("parse user ID %q: %w", userID, err)
 	}
-	return parseWhoOutputForDisplay(&stdout, user)
+
+	entries, err := os.ReadDir("/proc")
+	if err != nil {
+		return "", fmt.Errorf("read /proc: %w", err)
+	}
+
+	for _, entry := range entries {
+		if !entry.IsDir() {
+			continue
+		}
+		// Skip non-PID directories.
+		if _, err := strconv.Atoi(entry.Name()); err != nil {
+			continue
+		}
+		// Check if the process belongs to our target user.
+		info, err := entry.Info()
+		if err != nil {
+			continue
+		}
+		stat, ok := info.Sys().(*syscall.Stat_t)
+		if !ok || stat.Uid != uint32(uid) {
+			continue
+		}
+
+		// Try to read DISPLAY from this process's environment.
+		display, err := readEnvFromProc(entry.Name(), "DISPLAY")
+		if err != nil || display == "" {
+			continue
+		}
+
+		log.Debug().Msgf("found DISPLAY variable in %q", entry.Name())
+		return display, nil
+	}
+
+	return "", fmt.Errorf("DISPLAY not found in any process for user %s", userID)
 }
 
-func parseWhoOutputForDisplay(output io.Reader, user string) (string, error) {
-	scanner := bufio.NewScanner(output)
-	for scanner.Scan() {
-		line := scanner.Text()
-		matches := whoLineRegexp.FindStringSubmatch(line)
-		if len(matches) > 1 && matches[1] == user {
-			return matches[2], nil
+// readEnvFromProc reads a specific environment variable from /proc/<pid>/environ.
+func readEnvFromProc(pid string, envVar string) (string, error) {
+	return readEnvFromProcFile(fmt.Sprintf("/proc/%s/environ", pid), envVar)
+}
+
+// readEnvFromProcFile reads a specific environment variable from a /proc environ file.
+// The file contains null-byte separated KEY=VALUE entries.
+func readEnvFromProcFile(path string, envVar string) (string, error) {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return "", err
+	}
+	prefix := envVar + "="
+	for entry := range bytes.SplitSeq(data, []byte{0}) {
+		if s := string(entry); strings.HasPrefix(s, prefix) {
+			return s[len(prefix):], nil
 		}
 	}
-	if err := scanner.Err(); err != nil {
-		return "", fmt.Errorf("scanner error: %w", err)
-	}
-	return "", errors.New("display not found on who output")
+	return "", nil
 }
