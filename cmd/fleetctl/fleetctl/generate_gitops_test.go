@@ -499,8 +499,8 @@ func (MockClient) GetSoftwareTitleByID(ID uint, teamID *uint) (*fleet.SoftwareTi
 		}, nil
 	case 9:
 		return &fleet.SoftwareTitle{
-			ID:               9,
-			Name:             "My Windows FMA",
+			ID:   9,
+			Name: "My Windows FMA",
 			SoftwarePackage: &fleet.SoftwareInstaller{
 				InstallScript:        "install",
 				UninstallScript:      "uninstall",
