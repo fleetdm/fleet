@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"log/slog"
 	"net/http"
-	"os"
 	"reflect"
 	"strings"
 	"time"
@@ -15,9 +14,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/dev_mode"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm/android"
-	"github.com/fleetdm/fleet/v4/server/platform/logging"
 	"github.com/go-json-experiment/json"
-	"github.com/go-kit/log/level"
 	"github.com/google/uuid"
 	"google.golang.org/api/androidmanagement/v1"
 	"google.golang.org/api/googleapi"
@@ -27,7 +24,7 @@ import (
 // GoogleClient connects directly to Google's Android Management API. It is intended to be used for development/debugging.
 // To enable, set the following env vars: FLEET_DEV_ANDROID_GOOGLE_CLIENT=1 and FLEET_DEV_ANDROID_GOOGLE_SERVICE_CREDENTIALS=$(cat credentials.json)
 type GoogleClient struct {
-	logger                    *logging.Logger
+	logger                    *slog.Logger
 	mgmt                      *androidmanagement.Service
 	androidServiceCredentials string
 	androidProjectID          string
@@ -36,7 +33,7 @@ type GoogleClient struct {
 // Compile-time check to ensure that ProxyClient implements Client.
 var _ Client = &GoogleClient{}
 
-func NewGoogleClient(ctx context.Context, logger *logging.Logger, getenv dev_mode.GetEnv) Client {
+func NewGoogleClient(ctx context.Context, logger *slog.Logger, getenv dev_mode.GetEnv) Client {
 	androidServiceCredentials := getenv("FLEET_DEV_ANDROID_GOOGLE_SERVICE_CREDENTIALS")
 	if androidServiceCredentials == "" {
 		return nil
@@ -49,17 +46,16 @@ func NewGoogleClient(ctx context.Context, logger *logging.Logger, getenv dev_mod
 	var creds credentials
 	err := json.Unmarshal([]byte(androidServiceCredentials), &creds)
 	if err != nil {
-		level.Error(logger).Log("msg", "unmarshaling android service credentials", "err", err)
+		logger.ErrorContext(ctx, "unmarshaling android service credentials", "err", err)
 		return nil
 	}
 
-	slogLogger := slog.New(slog.NewTextHandler(os.Stdout, nil))
 	mgmt, err := androidmanagement.NewService(ctx,
 		option.WithCredentialsJSON([]byte(androidServiceCredentials)),
-		option.WithLogger(slogLogger),
+		option.WithLogger(logger),
 	)
 	if err != nil {
-		level.Error(logger).Log("msg", "creating android management service", "err", err)
+		logger.ErrorContext(ctx, "creating android management service", "err", err)
 		return nil
 	}
 	return &GoogleClient{
@@ -202,7 +198,7 @@ func (g *GoogleClient) EnterprisesPoliciesPatch(ctx context.Context, policyName 
 
 	switch {
 	case googleapi.IsNotModified(err):
-		g.logger.Log("msg", "Android policy not modified", "policy_name", policyName)
+		g.logger.InfoContext(ctx, "Android policy not modified", "policy_name", policyName)
 		return nil, err
 	case err != nil:
 		return nil, fmt.Errorf("patching policy %s: %w", policyName, err)
@@ -214,7 +210,7 @@ func (g *GoogleClient) EnterprisesDevicesPatch(ctx context.Context, deviceName s
 	ret, err := g.mgmt.Enterprises.Devices.Patch(deviceName, device).Context(ctx).Do()
 	switch {
 	case googleapi.IsNotModified(err):
-		g.logger.Log("msg", "Android device not modified", "device_name", deviceName)
+		g.logger.InfoContext(ctx, "Android device not modified", "device_name", deviceName)
 		return nil, err
 	case err != nil:
 		return nil, fmt.Errorf("patching device %s: %w", deviceName, err)
@@ -234,7 +230,7 @@ func (g *GoogleClient) EnterprisesDevicesDelete(ctx context.Context, deviceName 
 	_, err := g.mgmt.Enterprises.Devices.Delete(deviceName).Context(ctx).Do()
 	switch {
 	case googleapi.IsNotModified(err):
-		g.logger.Log("msg", "Android device already deleted", "device_name", deviceName)
+		g.logger.InfoContext(ctx, "Android device already deleted", "device_name", deviceName)
 		return nil
 	case err != nil:
 		return fmt.Errorf("deleting device %s: %w", deviceName, err)
@@ -264,14 +260,14 @@ func (g *GoogleClient) EnterpriseDelete(ctx context.Context, enterpriseName stri
 	// We can also pull the topic from the DB, but this way is more reliable.
 	enterprise, err := g.mgmt.Enterprises.Get(enterpriseName).Context(ctx).Do()
 	if err != nil {
-		level.Error(g.logger).Log("msg", "getting enterprise; perhaps it was already deleted?", "err", err, "enterprise_name", enterpriseName)
+		g.logger.ErrorContext(ctx, "getting enterprise; perhaps it was already deleted?", "err", err, "enterprise_name", enterpriseName)
 		return nil
 	}
 
 	_, err = g.mgmt.Enterprises.Delete(enterpriseName).Do()
 	switch {
 	case googleapi.IsNotModified(err):
-		level.Info(g.logger).Log("msg", "enterprise was already deleted", "enterprise_name", enterpriseName)
+		g.logger.InfoContext(ctx, "enterprise was already deleted", "enterprise_name", enterpriseName)
 		return nil
 	case err != nil:
 		return fmt.Errorf("deleting enterprise %s: %w", enterpriseName, err)
@@ -284,7 +280,7 @@ func (g *GoogleClient) EnterpriseDelete(ctx context.Context, enterpriseName stri
 	// PubSub topic and subscription have the same ID (but not name) by convention.
 	topicAndSubscriptionID, err := getLastPart(ctx, enterprise.PubsubTopic)
 	if err != nil || len(topicAndSubscriptionID) == 0 {
-		level.Error(g.logger).Log("msg", "getting last part of PubSub topic", "err", err, "topic", enterprise.PubsubTopic)
+		g.logger.ErrorContext(ctx, "getting last part of PubSub topic", "err", err, "topic", enterprise.PubsubTopic)
 		return nil
 	}
 
@@ -370,7 +366,7 @@ func (g *GoogleClient) EnterprisesPoliciesModifyPolicyApplications(ctx context.C
 	ret, err := g.mgmt.Enterprises.Policies.ModifyPolicyApplications(policyName, &req).Context(ctx).Do()
 	switch {
 	case googleapi.IsNotModified(err):
-		g.logger.Log("msg", "Android application policy not modified", "policy_name", policyName)
+		g.logger.InfoContext(ctx, "Android application policy not modified", "policy_name", policyName)
 		return nil, err
 	case err != nil:
 		return nil, ctxerr.Wrapf(ctx, err, "modifying application policy %s", policyName)
@@ -385,7 +381,7 @@ func (g *GoogleClient) EnterprisesPoliciesRemovePolicyApplications(ctx context.C
 	ret, err := g.mgmt.Enterprises.Policies.RemovePolicyApplications(policyName, &req).Context(ctx).Do()
 	switch {
 	case googleapi.IsNotModified(err):
-		g.logger.Log("msg", "Android application policy not modified", "policy_name", policyName)
+		g.logger.InfoContext(ctx, "Android application policy not modified", "policy_name", policyName)
 		return nil, err
 	case err != nil:
 		return nil, ctxerr.Wrapf(ctx, err, "removing packages from application policy %s", policyName)

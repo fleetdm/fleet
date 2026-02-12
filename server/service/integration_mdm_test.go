@@ -225,7 +225,7 @@ func (s *integrationMDMTestSuite) SetupSuite() {
 	androidMockClient.SetAuthenticationSecretFunc = func(secret string) error {
 		return nil
 	}
-	androidSvc, err := android_service.NewServiceWithClient(wlog, s.ds, androidMockClient, "test-private-key", s.ds, activityModule, config.AndroidAgentConfig{
+	androidSvc, err := android_service.NewServiceWithClient(wlog.SlogLogger(), s.ds, androidMockClient, "test-private-key", s.ds, activityModule, config.AndroidAgentConfig{
 		Package:       "com.fleetdm.agent",
 		SigningSHA256: "abc123def456",
 	})
@@ -410,7 +410,7 @@ func (s *integrationMDMTestSuite) SetupSuite() {
 							if s.onCleanupScheduleDone != nil {
 								defer s.onCleanupScheduleDone()
 							}
-							return android_service.RenewCertificateTemplates(ctx, ds, logger)
+							return android_service.RenewCertificateTemplates(ctx, ds, logger.SlogLogger())
 						}),
 					)
 					return cleanupsSchedule, nil
@@ -432,7 +432,7 @@ func (s *integrationMDMTestSuite) SetupSuite() {
 									s.onAndroidProfileJobDone()
 								}()
 							}
-							err := android_service.ReconcileProfilesWithClient(ctx, ds, logger, "", androidMockClient, config.AndroidAgentConfig{
+							err := android_service.ReconcileProfilesWithClient(ctx, ds, logger.SlogLogger(), "", androidMockClient, config.AndroidAgentConfig{
 								Package:       "com.fleetdm.agent",
 								SigningSHA256: "abc123def456",
 							})

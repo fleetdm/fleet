@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log/slog"
 	"strings"
 	"testing"
 	"time"
@@ -100,7 +101,7 @@ func TestReconcileProfiles(t *testing.T) {
 					Package:       "com.fleetdm.agent",
 					SigningSHA256: "abc123def456",
 				},
-				Logger: logging.NewNopLogger(),
+				Logger: slog.New(logging.DiscardHandler{}),
 			}
 
 			c.fn(t, ds, client, reconciler)
@@ -1007,7 +1008,7 @@ func testBuildAndSendFleetAgentConfigForEnrollment(t *testing.T, ds fleet.Datast
 	// Create service and call BuildAndSendFleetAgentConfig with skipHostsWithoutNewCerts=false
 	// This simulates the enrollment flow from software_worker.go
 	svc := &Service{
-		logger:           logging.NewNopLogger(),
+		logger:           slog.New(logging.DiscardHandler{}),
 		fleetDS:          ds,
 		ds:               ds.(fleet.AndroidDatastore),
 		androidAPIClient: client,
