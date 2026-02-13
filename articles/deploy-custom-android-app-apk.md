@@ -12,7 +12,7 @@ Before deploying custom Android apps, you must first [turn on Android MDM](https
 
 If you don't already have a Google Play Console account, you'll need to create one. The [Google Play Console](https://play.google.com/console/signup) requires a one-time registration fee of $25.
 
-## Add private app in Google Play Console
+## Add a private app in Google Play Console
 
 1. In the [Google Play Console](https://play.google.com/console), select **Home** from the left navigation.
 
@@ -28,7 +28,7 @@ If you don't already have a Google Play Console account, you'll need to create o
 
 5. Select **Create app**.
 
-### Configure app details
+### Configure the app details
 
 1. After creating the app, you'll be directed to the app dashboard.
 
@@ -39,19 +39,19 @@ If you don't already have a Google Play Console account, you'll need to create o
    - **Ads**: Declare whether your app contains ads
    - **Content rating**: Complete the content rating questionnaire
    - **Target audience**: Select your target age group
-   - **App content**: Complete required declarations
+   - **App content**: Complete the required declarations
 
 ### Make the app private
 
-1. First, find your Android Enterprise ID in Fleet. Navigate to **Settings > Integrations > MDM > Android MDM > Edit** and copy Android Enterprise ID (e.g. LC04yu8c9).
+1. First, find your Android Enterprise ID in Fleet. Navigate to **Settings > Integrations > MDM > Android MDM > Edit** and copy the Android Enterprise ID (e.g., LC04yu8c9).
 
 2. In the left navigation, go to **Test and release > Advanced settings**.
 
 3. Select **Managed Google Play**, tab on the top, and select **Turn on**.
 
-4. Select **Add organization**, paste your Android Enterprise ID from the first step to **Organization ID** and add **Organization name**, for example "Fleet".
+4. Select **Add organization**, paste your Android Enterprise ID from the first step to **Organization ID** and add an **Organization name**, for example, "Fleet".
 
-5. Select **Add**, then select **Save** on the bottom, and select **Make app private**.
+5. Select **Add**, then select **Save** at the bottom, and select **Make app private**.
 
 > The app will now be private and only available to your organization through managed Google Play. It won't appear in the public Google Play Store.
 
@@ -63,25 +63,25 @@ If you don't already have a Google Play Console account, you'll need to create o
 
 3. Upload your package (`.apk` or `.aab`).
 
-4. Release name will be automatically populated after package is uploaded.
+4. The release name will be automatically populated after the package is uploaded.
 
 5. Select **Save** and then select **Save** on the next screen.
 
-6. Select **Go to overview** and then send **Send 1 change for review**. To confirm select **Send changes for review**.
+6. Select **Go to overview** and then select **Send 1 change for review**. To confirm, select **Send changes for review**.
 
-> The Google Play Console displays messages about app review that can take up to 7 days. However, private apps are typically available for deployment within 10 minutes and they don't go through regular Google Play Store review.
+> The Google Play Console displays messages about app review that can take up to 7 days. However, private apps are typically available for deployment within 10 minutes, and they don't go through the regular Google Play Store review.
 
 ## Add the app to Fleet
 
 After publishing your private app in the Google Play Console, you can add it to Fleet.
 
-1. Find application ID in the Google Play Console on the **Home** page. The app ID will be in the app list under the app name. It looks like "com.yourcompany.appname".
+1. Find the application ID in the Google Play Console on the **Home** page. The app ID will be in the app list under the app name. It looks like "com.yourcompany.appname".
 
 2. In Fleet, head to the **Software** page and select a team in the teams dropdown.
 
 3. Select **Add software > App store**, choose the Android platform, then enter the application ID.
 
-> If your private app doesn't appear in Fleet after adding it, try again in a 10 minutes. Sometimes it takes bit more time for app to became available for Android Enterprise.
+> If your private app doesn't appear in Fleet after adding it, try again in 10 minutes. Sometimes it takes a bit more time for the app to become available for Android Enterprise.
  
 ## Install, edit, and delete custom app
 
@@ -89,7 +89,7 @@ Learn how to install, edit, and delete the app in the [Install app store apps gu
 
 ## Update new version in Google Play Console
 
-To release a new version of your custom app, please folow the step described in [Upload your custom app package](#upload-your-custom-app-package). The process is the same as for uploading a new app.
+To release a new version of your custom app, please follow the steps described in [Upload your custom app package](#upload-your-custom-app-package). The process is the same as for uploading a new app.
 
 <meta name="articleTitle" value="Deploy custom Android apps (APK)">
 <meta name="authorFullName" value="Marko Lisica">
