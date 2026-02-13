@@ -58,7 +58,7 @@ const DiskEncryptionTable = ({
 
       const queryParams = {
         [HOSTS_QUERY_PARAMS.DISK_ENCRYPTION]: status?.value,
-        team_id: teamId,
+        fleet_id: teamId,
       };
       const path = getPathWithQueryParams(PATHS.MANAGE_HOSTS, queryParams);
 

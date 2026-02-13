@@ -28,13 +28,15 @@ const useScriptNavItems = (
       {
         title: "Library",
         urlSection: "library",
-        path: `${PATHS.CONTROLS_SCRIPTS_LIBRARY}?team_id=${teamId || 0}`,
+        path: `${PATHS.CONTROLS_SCRIPTS_LIBRARY}?fleet_id=${teamId || 0}`,
         Card: ScriptLibrary,
       },
       {
         title: "Batch progress",
         urlSection: "progress",
-        path: `${PATHS.CONTROLS_SCRIPTS_BATCH_PROGRESS}?team_id=${teamId || 0}`,
+        path: `${PATHS.CONTROLS_SCRIPTS_BATCH_PROGRESS}?fleet_id=${
+          teamId || 0
+        }`,
         Card: ScriptBatchProgress,
       },
     ],

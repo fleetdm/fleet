@@ -52,7 +52,7 @@ interface IQueryDetailsPageProps {
   location: {
     pathname: string;
     query: {
-      team_id?: string;
+      fleet_id?: string;
       order_key?: string;
       order_direction?: string;
       host_id?: string;
@@ -178,11 +178,11 @@ const QueryDetailsPage = ({
     !isOnGlobalTeam &&
     !isStoredQueryLoading &&
     storedQuery?.team_id &&
-    !(storedQuery?.team_id?.toString() === location.query.team_id)
+    !(storedQuery?.team_id?.toString() === location.query.fleet_id)
   ) {
     router.push(
       getPathWithQueryParams(location.pathname, {
-        team_id: storedQuery?.team_id?.toString(),
+        fleet_id: storedQuery?.team_id?.toString(),
       })
     );
   }
@@ -256,7 +256,7 @@ const QueryDetailsPage = ({
       if (hostId) return getPathWithQueryParams(PATHS.HOST_DETAILS(hostId));
 
       return getPathWithQueryParams(PATHS.MANAGE_QUERIES, {
-        team_id: currentTeamId,
+        fleet_id: currentTeamId,
       });
     };
 
@@ -304,7 +304,7 @@ const QueryDetailsPage = ({
                                 PATHS.LIVE_QUERY(queryId),
                                 {
                                   host_id: hostId,
-                                  team_id: currentTeamId,
+                                  fleet_id: currentTeamId,
                                 }
                               )
                             );
@@ -332,7 +332,7 @@ const QueryDetailsPage = ({
                       queryId &&
                         router.push(
                           getPathWithQueryParams(PATHS.EDIT_QUERY(queryId), {
-                            team_id: currentTeamId,
+                            fleet_id: currentTeamId,
                             host_id: hostId,
                           })
                         );

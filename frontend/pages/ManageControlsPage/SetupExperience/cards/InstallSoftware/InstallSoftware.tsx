@@ -54,7 +54,7 @@ export interface InstallSoftwareLocation {
   search: string;
   pathname: string;
   query: {
-    team_id?: string;
+    fleet_id?: string;
   };
 }
 

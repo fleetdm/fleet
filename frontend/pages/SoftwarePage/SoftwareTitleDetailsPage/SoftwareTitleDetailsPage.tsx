@@ -120,7 +120,7 @@ const SoftwareTitleDetailsPage = ({
     // redirect to software titles page if no versions are available
     router.push(
       getPathWithQueryParams(paths.SOFTWARE_TITLES, {
-        team_id: teamIdForApi,
+        fleet_id: teamIdForApi,
       })
     );
   }, [refetchSoftwareTitle, router, softwareTitle, teamIdForApi]);

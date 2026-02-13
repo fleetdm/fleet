@@ -133,7 +133,7 @@ const CustomSettings = ({
 
   // pagination controls
   const path = PATHS.CONTROLS_CUSTOM_SETTINGS;
-  const queryString = isPremiumTier ? `?team_id=${currentTeamId}&` : "?";
+  const queryString = isPremiumTier ? `?fleet_id=${currentTeamId}&` : "?";
 
   const onPrevPage = useCallback(() => {
     router.push(path.concat(`${queryString}page=${currentPage - 1}`));

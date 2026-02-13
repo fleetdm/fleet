@@ -41,7 +41,7 @@ export interface IQueriesTableProps {
     query?: string;
     order_key?: string;
     order_direction?: "asc" | "desc";
-    team_id?: string;
+    fleet_id?: string;
   };
   currentTeamId?: number;
   isPremiumTier?: boolean;
@@ -152,7 +152,7 @@ const QueriesTable = ({
       ) {
         newQueryParams.page = "0";
       }
-      newQueryParams.team_id = queryParams?.team_id;
+      newQueryParams.fleet_id = queryParams?.fleet_id;
 
       const locationPath = getNextLocationPath({
         pathPrefix: PATHS.MANAGE_QUERIES,
@@ -230,7 +230,7 @@ const QueriesTable = ({
     if (row.original.id) {
       router?.push(
         getPathWithQueryParams(PATHS.QUERY_DETAILS(row.original.id), {
-          team_id: currentTeamId,
+          fleet_id: currentTeamId,
         })
       );
     }
