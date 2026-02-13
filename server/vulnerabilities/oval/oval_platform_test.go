@@ -104,4 +104,27 @@ func TestOvalPlatform(t *testing.T) {
 			require.Equal(t, c.expected, plat.ToGovalDatabaseFilename())
 		}
 	})
+
+	t.Run("IsGovalDictionaryKernelOnly", func(t *testing.T) {
+		cases := []struct {
+			platform   string
+			osVersion  string
+			kernelOnly bool
+		}{
+			// Amazon Linux is NOT kernel-only (full goval-dictionary scanning)
+			{"amzn", "Amazon Linux 1.0.0", false},
+			{"amzn", "Amazon Linux 2.0.0", false},
+			{"amzn", "Amazon Linux 2023.0.0", false},
+			// RHEL is kernel-only (only kernel packages scanned via goval-dictionary)
+			{"rhel", "CentOS Linux 7.9.2009", true},
+			{"rhel", "CentOS Linux 8.3.2011", true},
+			{"rhel", "Red Hat Enterprise Linux 9.0.0", true},
+			// Ubuntu is not supported by goval-dictionary at all
+			{"ubuntu", "Ubuntu 20.4.0", false},
+		}
+		for _, c := range cases {
+			plat := NewPlatform(c.platform, c.osVersion)
+			require.Equal(t, c.kernelOnly, plat.IsGovalDictionaryKernelOnly(), "platform=%s, osVersion=%s", c.platform, c.osVersion)
+		}
+	})
 }
