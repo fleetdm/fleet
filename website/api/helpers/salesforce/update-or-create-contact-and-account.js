@@ -43,6 +43,7 @@ module.exports = {
         'Website - Contact forms - Demo - ICP',
         'Website - Sign up',
         'Website - Newsletter',
+        'Website - GitOps',
         'LinkedIn - Comment',
         'LinkedIn - Reaction',
         'LinkedIn - Share',

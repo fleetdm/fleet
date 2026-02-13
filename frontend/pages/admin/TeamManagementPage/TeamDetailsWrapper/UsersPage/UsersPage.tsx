@@ -55,6 +55,7 @@ const UsersPage = ({ location, router }: ITeamSubnavProps): JSX.Element => {
       maintainer: false,
       observer: false,
       observer_plus: false,
+      technician: false,
     },
   });
 

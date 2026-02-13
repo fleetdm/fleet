@@ -425,7 +425,7 @@ func testListKernelsByOS(t *testing.T, ds *Datastore) {
 			name:     "RHEL with team",
 			team:     true,
 			host:     test.NewHost(t, ds, "host_fedora41", "", "hostkey_fedora41", "hostuuid_fedora41", time.Now(), test.WithPlatform("rhel")),
-			software: []fleet.Software{{Name: "kernel-core", Version: "6.11.4", Arch: "aarch64", Source: "rpm_packages", IsKernel: true}},
+			software: []fleet.Software{{Name: "kernel", Version: "6.11.4", Arch: "aarch64", Source: "rpm_packages", IsKernel: true}},
 			vulns:    []fleet.SoftwareVulnerability{{CVE: "CVE-2025-0007"}},
 			vulnsByKernelVersion: map[string][]string{
 				"6.11.4": {"CVE-2025-0007"},

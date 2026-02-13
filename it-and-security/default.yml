@@ -9,9 +9,7 @@ org_settings:
   host_expiry_settings:
     host_expiry_enabled: false
   integrations:
-    google_calendar:
-      - api_key_json: $DOGFOOD_CALENDAR_API_KEY
-        domain: fleetdm.com
+    google_calendar: []
     jira: []
     zendesk: []
   mdm:
@@ -31,21 +29,6 @@ org_settings:
       macos_team: "🧪 Testing & QA" 
       ios_team: "🧪 Testing & QA"
       ipados_team: "🧪 Testing & QA"
-    volume_purchasing_program:
-    - location: Fleet Device Management Inc.
-      teams:
-      - "💻 Workstations"
-      - "📱🏢 Employee-issued mobile devices"
-      - "📱🔐 Personal mobile devices"
-      - "🧪 Testing & QA"
-      - organization_name: Fleet Device Management Inc.
-        macos_team: "💻 Workstations"
-        ios_team: "📱🏢 Employee-issued mobile devices"
-        ipados_team: "📱🏢 Employee-issued mobile devices"
-      - organization_name: Mactivate LLC
-        macos_team: "🧪 Testing & QA"
-        ios_team: "🧪 Testing & QA"
-        ipados_team: "🧪 Testing & QA"
     volume_purchasing_program:
       - location: Fleet Device Management Inc.
         teams:
@@ -123,7 +106,7 @@ labels:
   - path: ./lib/all/labels/santa-test-devices.yml
   - path: ./lib/all/labels/x86-based-windows-hosts.yml
   - path: ./lib/all/labels/apple-silicon-macos-hosts.yml
-  - path: ./lib/all/labels/keynote-installed.yml
+  - path: ./lib/all/labels/keynote-14-installed.yml
   - path: ./lib/all/labels/macos-compatibility-extension-installed.yml
   - path: ./lib/all/labels/team-g-mdm.yml
   - path: ./lib/all/labels/team-g-software.yml

@@ -10,13 +10,13 @@ import (
 	"sync"
 	"time"
 
-	kitlog "github.com/go-kit/log"
+	"github.com/fleetdm/fleet/v4/server/platform/logging"
 	"google.golang.org/api/calendar/v3"
 	"google.golang.org/api/googleapi"
 )
 
 type GoogleCalendarMockAPI struct {
-	logger kitlog.Logger
+	logger *logging.Logger
 }
 
 type channel struct {
@@ -36,7 +36,7 @@ const latency = 200 * time.Millisecond
 // Configure creates a new Google Calendar service using the provided credentials.
 func (lowLevelAPI *GoogleCalendarMockAPI) Configure(_ context.Context, _ string, _ string, userToImpersonate string, _ string) error {
 	if lowLevelAPI.logger == nil {
-		lowLevelAPI.logger = kitlog.With(kitlog.NewLogfmtLogger(os.Stderr), "mock", "GoogleCalendarMockAPI", "user", userToImpersonate)
+		lowLevelAPI.logger = logging.NewLogfmtLogger(os.Stderr).With("mock", "GoogleCalendarMockAPI", "user", userToImpersonate)
 	}
 	return nil
 }

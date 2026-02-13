@@ -87,6 +87,10 @@ func TestTeamAuth(t *testing.T) {
 		return nil
 	}
 
+	ds.GetEnrollSecretsFunc = func(ctx context.Context, teamID *uint) ([]*fleet.EnrollSecret, error) {
+		return nil, nil
+	}
+
 	testCases := []struct {
 		name                       string
 		user                       *fleet.User

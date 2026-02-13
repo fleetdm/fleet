@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"maps"
 	"net/http"
 	"net/url"
 	"strings"
@@ -841,18 +842,20 @@ func (svc *Service) TeamEnrollSecrets(ctx context.Context, teamID uint) ([]*flee
 	}
 
 	isGlobalObs := vc.User.IsGlobalObserver()
+	isGlobalTechnician := vc.User.GlobalRole != nil && *vc.User.GlobalRole == fleet.RoleTechnician
 	teamMemberships := vc.User.TeamMembership(func(t fleet.UserTeam) bool {
 		return true
 	})
-	obsMembership := vc.User.TeamMembership(func(t fleet.UserTeam) bool {
-		return t.Role == fleet.RoleObserver || t.Role == fleet.RoleObserverPlus
+	// These roles are not allowed to see enroll secrets.
+	notAllowedTeamMembership := vc.User.TeamMembership(func(t fleet.UserTeam) bool {
+		return t.Role == fleet.RoleObserver || t.Role == fleet.RoleObserverPlus || t.Role == fleet.RoleTechnician
 	})
 
 	for _, s := range secrets {
 		if s == nil {
 			continue
 		}
-		if isGlobalObs || vc.User.GlobalRole == nil && (!teamMemberships[*s.TeamID] || obsMembership[*s.TeamID]) {
+		if isGlobalObs || isGlobalTechnician || (vc.User.GlobalRole == nil && (!teamMemberships[*s.TeamID] || notAllowedTeamMembership[*s.TeamID])) {
 			s.Secret = fleet.MaskedPassword
 		}
 	}
@@ -871,14 +874,62 @@ func (svc *Service) ModifyTeamEnrollSecrets(ctx context.Context, teamID uint, se
 		return nil, fleet.NewInvalidArgumentError("secrets", "too many secrets")
 	}
 
+	oldSecrets, err := svc.ds.GetEnrollSecrets(ctx, ptr.Uint(teamID))
+	if err != nil {
+		return nil, err
+	}
+
+	newSecretsValues := make(map[string]struct{}, len(secrets))
+
 	var newSecrets []*fleet.EnrollSecret
 	for _, secret := range secrets {
+		newSecretsValues[secret.Secret] = struct{}{}
+
 		newSecrets = append(newSecrets, &fleet.EnrollSecret{
 			Secret: secret.Secret,
 		})
 	}
 	if err := svc.ds.ApplyEnrollSecrets(ctx, ptr.Uint(teamID), newSecrets); err != nil {
 		return nil, err
+	}
+
+	// Check whether there were any mutations around the provided secrets ... if true, then register
+	// an activity.
+	oldSecretValues := make(map[string]struct{}, len(oldSecrets))
+	for _, s := range oldSecrets {
+		oldSecretValues[s.Secret] = struct{}{}
+	}
+
+	if !maps.Equal(oldSecretValues, newSecretsValues) {
+		activity := fleet.ActivityTypeEditedEnrollSecrets{}
+		team, err := svc.ds.TeamLite(ctx, teamID)
+		if err != nil {
+			level.Error(svc.logger).Log(
+				"err", err,
+				"teamID", teamID,
+				"msg", "error while fetching team for edited enroll secret activity",
+			)
+		}
+		if team != nil {
+			activity = fleet.ActivityTypeEditedEnrollSecrets{
+				TeamID:   &team.ID,
+				TeamName: &team.Name,
+			}
+		} else {
+			level.Error(svc.logger).Log(
+				"teamID", teamID,
+				"msg", "team not found for edited enroll secret activity",
+			)
+		}
+
+		if err := svc.NewActivity(
+			ctx,
+			authz.UserFromContext(ctx),
+			activity,
+		); err != nil {
+			errMsg := fmt.Sprintf("creating edited enroll secret activity for team %d", teamID)
+			return nil, ctxerr.Wrap(ctx, err, errMsg)
+		}
 	}
 
 	return newSecrets, nil

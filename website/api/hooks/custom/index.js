@@ -363,7 +363,6 @@ will be disabled and/or hidden in the UI.
                       emailAddress: sanitizedUser.emailAddress,
                       firstName: sanitizedUser.firstName,
                       lastName: sanitizedUser.lastName,
-                      organization: sanitizedUser.organization,
                       contactSource: 'Website - Sign up',// Note: this is only set on new contacts.
                       marketingAttributionCookie: attributionCookieOrUndefined,
                     });
