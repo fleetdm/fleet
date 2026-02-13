@@ -131,16 +131,21 @@ const cpeSelectColumns = `SELECT c.rowid, c.product, c.vendor, c.deprecated FROM
 func cpeSearchQueries(software *fleet.Software) []cpeSearchQuery {
 	var queries []cpeSearchQuery
 
-	// 1 - Try to match product and vendor terms
+	// 1 - Try to match product and vendor terms (or product-only if no vendor info available)
 	vendors := vendorVariations(software)
 	products := productVariations(software)
-	if len(vendors) > 0 && len(products) > 0 {
+	if len(products) > 0 {
 		var args []any
-		vendorPlaceholders := strings.TrimSuffix(strings.Repeat("?,", len(vendors)), ",")
+		var stm string
 		productPlaceholders := strings.TrimSuffix(strings.Repeat("?,", len(products)), ",")
-		stm := cpeSelectColumns + " WHERE vendor IN (" + vendorPlaceholders + ") AND product IN (" + productPlaceholders + ")"
-		for _, v := range vendors {
-			args = append(args, v)
+		if len(vendors) > 0 {
+			vendorPlaceholders := strings.TrimSuffix(strings.Repeat("?,", len(vendors)), ",")
+			stm = cpeSelectColumns + " WHERE vendor IN (" + vendorPlaceholders + ") AND product IN (" + productPlaceholders + ")"
+			for _, v := range vendors {
+				args = append(args, v)
+			}
+		} else {
+			stm = cpeSelectColumns + " WHERE product IN (" + productPlaceholders + ")"
 		}
 		for _, p := range products {
 			args = append(args, p)
@@ -148,7 +153,7 @@ func cpeSearchQueries(software *fleet.Software) []cpeSearchQuery {
 		queries = append(queries, cpeSearchQuery{stm: stm, args: args})
 	}
 
-	// 2 - Try to match product only
+	// 2 - Try to match product by sanitized name
 	queries = append(queries, cpeSearchQuery{
 		stm:  cpeSelectColumns + " WHERE product = ?",
 		args: []any{sanitizeSoftwareName(software)},
