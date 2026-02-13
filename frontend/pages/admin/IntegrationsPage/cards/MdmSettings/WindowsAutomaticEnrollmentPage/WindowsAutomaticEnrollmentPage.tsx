@@ -32,27 +32,37 @@ const WindowsAutomaticEnrollmentPage = () => {
   const [showAddTenantModal, setShowAddTenantModal] = useState(false);
 
   const renderEntraTenants = () => {
-    return (
-      <Card paddingSize="xxlarge">
-        <EmptyTable
-          className={`${baseClass}__empty-tenant-message`}
-          header="No tenants added"
-          info="Add your Entra tenant ID to be able to enroll Windows hosts."
-          primaryButton={
-            <GitOpsModeTooltipWrapper
-              renderChildren={(disable) => (
-                <Button
-                  onClick={() => setShowAddTenantModal(true)}
-                  disabled={disable}
-                >
-                  Add
-                </Button>
-              )}
-            />
-          }
-        />
-      </Card>
-    );
+    const tenants = [
+      "123e4567-e89b-12d3-a456-426614174000",
+      "987e6543-e21b-12d3-a456-426614174999",
+      "456e7890-e89b-12d3-a456-426614174abc",
+    ]; // Mock tenant IDs
+
+    if (tenants.length === 0) {
+      return (
+        <Card paddingSize="xxlarge">
+          <EmptyTable
+            className={`${baseClass}__empty-tenant-message`}
+            header="No tenants added"
+            info="Add your Entra tenant ID to be able to enroll Windows hosts."
+            primaryButton={
+              <GitOpsModeTooltipWrapper
+                renderChildren={(disable) => (
+                  <Button
+                    onClick={() => setShowAddTenantModal(true)}
+                    disabled={disable}
+                  >
+                    Add
+                  </Button>
+                )}
+              />
+            }
+          />
+        </Card>
+      );
+    }
+
+    return <p>Entra tenant IDs added: {tenants.join(", ")}</p>;
   };
 
   return (
