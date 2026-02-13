@@ -403,14 +403,18 @@ const ManageHostsPage = ({
   const canRunScriptBatch =
     isGlobalAdmin || isGlobalMaintainer || isTeamAdmin || isTeamMaintainer;
 
-  const { data: labels, refetch: refetchLabels } = useQuery<
-    ILabelsResponse,
-    Error,
-    ILabel[]
-  >(["labels", currentTeamId], () => labelsAPI.loadAll(currentTeamId), {
-    enabled: isRouteOk,
-    select: (data: ILabelsResponse) => data.labels,
-  });
+  const {
+    data: labels,
+    refetch: refetchLabels,
+    isLoading: isLoadingLabels,
+  } = useQuery<ILabelsResponse, Error, ILabel[]>(
+    ["labels", currentTeamId],
+    () => labelsAPI.loadAll(currentTeamId),
+    {
+      enabled: isRouteOk,
+      select: (data: ILabelsResponse) => data.labels,
+    }
+  );
 
   const {
     isLoading: isGlobalSecretsLoading,
@@ -1671,6 +1675,7 @@ const ManageHostsPage = ({
           selectedLabel={selectedDropdownLabel ?? null}
           onChange={handleLabelChange}
           onAddLabel={onAddLabelClick}
+          isLoading={isLoadingLabels}
         />
       </div>
     );
