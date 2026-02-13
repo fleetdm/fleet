@@ -133,7 +133,9 @@ const ManageAutomationsModal = ({
     setSelectedIntegration,
   ] = useState<IIntegration>();
 
-  const { config: globalConfigFromContext, isFreeTier } = useContext(AppContext);
+  const { config: globalConfigFromContext, isFreeTier } = useContext(
+    AppContext
+  );
   const gitOpsModeEnabled = globalConfigFromContext?.gitops.gitops_mode_enabled;
 
   const maxAgeInNanoseconds = isGlobalSWConfig(softwareConfig)
@@ -438,14 +440,14 @@ const ManageAutomationsModal = ({
           <p>
             {isFreeTier ? (
               <>
-                A request will be sent to your configured{" "}
-                <b>Destination URL</b> for each detected vulnerability (CVE).
+                A request will be sent to your configured <b>Destination URL</b>{" "}
+                for each detected vulnerability (CVE).
               </>
             ) : (
               <>
-                A request will be sent to your configured{" "}
-                <b>Destination URL</b> if a detected vulnerability (CVE) was
-                published in the last {recentVulnerabilityMaxAge || "30"} days.
+                A request will be sent to your configured <b>Destination URL</b>{" "}
+                if a detected vulnerability (CVE) was published in the last{" "}
+                {recentVulnerabilityMaxAge || "30"} days.
               </>
             )}
           </p>
