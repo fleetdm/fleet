@@ -39,15 +39,14 @@ func SetFatalErrorHandler(fn func(error)) {
 // If no handler is registered, it panics (legacy behavior).
 func triggerFatalError(err error) {
 	fatalErrorMu.RLock()
-	handler := fatalErrorHandler
-	fatalErrorMu.RUnlock()
+	defer fatalErrorMu.RUnlock()
 
-	if handler == nil {
+	if fatalErrorHandler == nil {
 		panic(fmt.Sprintf("database is read-only, possible failover detected: %v", err))
 	}
 
 	fatalErrorOnce.Do(func() {
-		handler(err)
+		fatalErrorHandler(err)
 	})
 }
 
