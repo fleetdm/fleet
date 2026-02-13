@@ -48,6 +48,7 @@ interface TooltipArgs {
   isSelfService?: boolean;
   softwareName?: string | null;
   lastInstalledAt?: string;
+  lastUninstalledAt?: string;
   isAppleAppStoreApp?: boolean;
   isHostOnline?: boolean;
 }
@@ -91,12 +92,12 @@ const failedInstallTooltip: IStatusDisplayConfig["tooltip"] = ({
 );
 
 const failedUninstallTooltip: IStatusDisplayConfig["tooltip"] = ({
-  lastInstalledAt = null,
+  lastUninstalledAt = null,
   isSelfService,
 }) => (
   <>
     Software failed to uninstall
-    {lastInstalledAt ? ` (${dateAgo(lastInstalledAt)})` : ""}. Select{" "}
+    {lastUninstalledAt ? ` (${dateAgo(lastUninstalledAt)})` : ""}. Select{" "}
     <b>Retry</b> to uninstall again
     {isSelfService && ", or contact your IT department"}.
   </>
@@ -128,8 +129,8 @@ export const INSTALL_STATUS_DISPLAY_OPTIONS: Record<
   failed_uninstall_installed: {
     iconName: "success",
     displayText: "Installed", // Opens "Install details" modal
-    tooltip: ({ lastInstalledAt, isSelfService }) => {
-      return failedUninstallTooltip({ lastInstalledAt, isSelfService });
+    tooltip: ({ lastUninstalledAt, isSelfService }) => {
+      return failedUninstallTooltip({ lastUninstalledAt, isSelfService });
     },
   },
   recently_updated: {
@@ -427,7 +428,7 @@ const InstallStatusCell = ({
 
   const displayConfig = INSTALL_STATUS_DISPLAY_OPTIONS[displayStatus];
 
-  // This is only called for script packages (payload-free installers: .sh, .ps1)
+  // This is only called for script packages (script-only installers: .sh, .ps1)
   const onClickScriptStatus = () => {
     onShowScriptDetails(software);
   };
@@ -555,6 +556,7 @@ const InstallStatusCell = ({
 
   const tooltipContent = displayConfig.tooltip({
     lastInstalledAt: lastInstall?.installed_at,
+    lastUninstalledAt: lastUninstall?.uninstalled_at,
     softwareName: softwarePackageName,
     isAppleAppStoreApp,
     isSelfService,
