@@ -177,13 +177,14 @@ module.exports.custom = {
     'handbook/sales': 'sampfluger88',
     'handbook/customer-success': 'zayhanlon',
     'handbook/marketing': 'akuthiala',
+    'handbook/ceo': 'mikermcneil',
     'handbook/README.md': 'mikermcneil',
     'handbook/company/README.md': 'mikermcneil',
     'handbook/company/why-this-way.md': 'mikermcneil',
     'handbook/company/communications.md': 'mikermcneil',
     'handbook/company/leadership.md': 'mikermcneil',
     'handbook/it/security.md': 'allenhouchins',
-    'handbook/company/go-to-market-groups.md': 'sampfluger88',
+    'handbook/company/go-to-market-operations.md': 'sampfluger88',
 
     // 🫧 Other brandfronts
     'README.md': 'mikermcneil',// « GitHub brandfront
@@ -291,11 +292,12 @@ module.exports.custom = {
     // Handbook
     'handbook/README.md': 'mikermcneil', // See https://github.com/fleetdm/fleet/pull/13195
     'handbook/company': 'mikermcneil',
+    'handbook/ceo': 'mikermcneil',
     'handbook/company/product-maturity-assessment': ['mikermcneil','noahtalerman','allenhouchins'],
     'handbook/company/open-positions.yml': ['sampfluger88', 'mikermcneil', 'ireedy'],
     'handbook/company/communications.md': ['mikermcneil', 'sampfluger88'],
     'handbook/company/writing.md': ['mike-j-thomas', 'mikermcneil', 'sampfluger88'],
-    'handbook/company/go-to-market-groups.md': ['sampfluger88', 'mikermcneil'],
+    'handbook/company/go-to-market-operations.md': ['sampfluger88', 'mikermcneil'],
     'handbook/company/leadership.md': ['sampfluger88', 'mikermcneil', 'ireedy'],
     'handbook/it': ['sampfluger88', 'mikermcneil', 'allenhouchins'],
     'handbook/finance': ['sampfluger88', 'mikermcneil', 'rfoo2015'],

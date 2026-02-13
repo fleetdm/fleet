@@ -1,0 +1,1 @@
+* Added an environment variable to allow reverting to the old behavior of installing the bootstrap package during macOS MDM migration

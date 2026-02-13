@@ -2,7 +2,9 @@ package service
 
 import (
 	"context"
+	"crypto/sha256"
 	"encoding/base64"
+	"encoding/hex"
 	"fmt"
 	"net/http"
 	"strings"
@@ -18,6 +20,11 @@ import (
 	"golang.org/x/text/cases"
 	"golang.org/x/text/language"
 	"google.golang.org/api/androidmanagement/v1"
+)
+
+const (
+	DeviceOwnershipCompanyOwned    = "COMPANY_OWNED"
+	DeviceOwnershipPersonallyOwned = "PERSONALLY_OWNED"
 )
 
 type PubSubPushRequest struct {
@@ -369,7 +376,8 @@ func (svc *Service) enrollHost(ctx context.Context, device *androidmanagement.De
 }
 
 func (svc *Service) getExistingHost(ctx context.Context, device *androidmanagement.Device) (*fleet.AndroidHost, error) {
-	host, err := svc.getHostIfPresent(ctx, device.HardwareInfo.EnterpriseSpecificId)
+	hostKey := getAndroidHostKey(device)
+	host, err := svc.getHostIfPresent(ctx, hostKey)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "getting Android host if present")
 	}
@@ -441,12 +449,11 @@ func (svc *Service) updateHost(ctx context.Context, device *androidmanagement.De
 		}
 		host.DetailUpdatedAt = lastStatusReportTime
 	}
-	host.SetNodeKey(device.HardwareInfo.EnterpriseSpecificId)
-	if device.HardwareInfo.EnterpriseSpecificId != "" {
-		host.Host.UUID = device.HardwareInfo.EnterpriseSpecificId
-	}
 
-	err = svc.ds.UpdateAndroidHost(ctx, host, fromEnroll)
+	setAndroidHostUUID(host, device)
+	companyOwned := device.Ownership == DeviceOwnershipCompanyOwned
+
+	err = svc.ds.UpdateAndroidHost(ctx, host, fromEnroll, companyOwned)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "enrolling Android host")
 	}
@@ -477,6 +484,28 @@ func (svc *Service) updateHost(ctx context.Context, device *androidmanagement.De
 
 	// Enrollment activities are intentionally not emitted for Android at this time.
 	return nil
+}
+
+func getAndroidHostKey(device *androidmanagement.Device) string {
+	if device.HardwareInfo.EnterpriseSpecificId != "" {
+		return device.HardwareInfo.EnterpriseSpecificId
+	}
+	// Fallback to a generated UUID based on device serial and manufacturer. This will happen on
+	// devices enrolled with work profiles prior to Android 12 or company-owned devices, both of
+	// which report serials. Both enterpriseSpecificId and our generated UUID are stable across
+	// unenroll/re-enroll cycles for the same device + Android Enterprise, though if a new enterprise
+	// is created the EnterpriseSpecificID will change
+	generatedUUIDInput := fmt.Sprintf("%s:%s", device.HardwareInfo.Brand, device.HardwareInfo.SerialNumber)
+	hashedUUIDBytes := sha256.Sum256([]byte(generatedUUIDInput))
+	generatedUUID := hex.EncodeToString(hashedUUIDBytes[:])
+	return generatedUUID
+}
+
+func setAndroidHostUUID(host *fleet.AndroidHost, device *androidmanagement.Device) {
+	uuidKey := getAndroidHostKey(device)
+	host.SetNodeKey(uuidKey)
+	host.Host.UUID = uuidKey
+	host.Device.EnterpriseSpecificID = ptr.String(uuidKey)
 }
 
 func (svc *Service) addNewHost(ctx context.Context, device *androidmanagement.Device) error {
@@ -516,12 +545,12 @@ func (svc *Service) addNewHost(ctx context.Context, device *androidmanagement.De
 			HardwareVendor:            device.HardwareInfo.Brand,
 			LabelUpdatedAt:            time.Now(),
 			DetailUpdatedAt:           time.Time{},
-			UUID:                      device.HardwareInfo.EnterpriseSpecificId,
 		},
 		Device: &android.Device{
 			DeviceID: deviceID,
 		},
 	}
+	setAndroidHostUUID(host, device)
 	if device.AppliedPolicyName != "" {
 		policy, err := svc.getPolicyID(ctx, device)
 		if err != nil {
@@ -537,8 +566,9 @@ func (svc *Service) addNewHost(ctx context.Context, device *androidmanagement.De
 		}
 		host.Device.LastPolicySyncTime = ptr.Time(policySyncTime)
 	}
-	host.SetNodeKey(device.HardwareInfo.EnterpriseSpecificId)
-	fleetHost, err := svc.ds.NewAndroidHost(ctx, host)
+	companyOwned := device.Ownership == DeviceOwnershipCompanyOwned
+
+	fleetHost, err := svc.ds.NewAndroidHost(ctx, host, companyOwned)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "enrolling Android host")
 	}
@@ -548,6 +578,9 @@ func (svc *Service) addNewHost(ctx context.Context, device *androidmanagement.De
 		err := svc.ds.AssociateHostMDMIdPAccount(ctx, host.UUID, enrollmentTokenRequest.IdpUUID)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "associating host with idp account")
+		}
+		if err := svc.fleetDS.MaybeAssociateHostWithScimUser(ctx, fleetHost.Host.ID); err != nil {
+			return ctxerr.Wrap(ctx, err, "associating android host with scim user")
 		}
 	}
 
@@ -620,21 +653,18 @@ func (svc *Service) verifyDevicePolicy(ctx context.Context, hostUUID string, dev
 
 	level.Debug(svc.logger).Log("msg", "Verifying Android device policy", "host_uuid", hostUUID, "applied_policy_version", appliedPolicyVersion)
 
-	// Get all host_mdm_android_profiles that is pending, and included_in_policy_version <= device.AppliedPolicyVersion.
-	// That way we can either fully verify the profile, or mark as failed if the field it tries to set is not compliant.
+	// Get all host_mdm_android_profiles that are pending or failed due to non compliance reasons,
+	// and included_in_policy_version <= device.AppliedPolicyVersion. That way we can either fully
+	// verify the profile, or mark as failed if the field it tries to set is not compliant.
 
-	// Get all profiles that are pending install
-	pendingInstallProfiles, err := svc.ds.ListHostMDMAndroidProfilesPendingInstallWithVersion(ctx, hostUUID, appliedPolicyVersion)
+	// Get all profiles that are pending or failed install
+	pendingInstallProfiles, err := svc.ds.ListHostMDMAndroidProfilesPendingOrFailedInstallWithVersion(ctx, hostUUID, appliedPolicyVersion)
 	if err != nil {
 		level.Error(svc.logger).Log("msg", "error getting pending profiles", "err", err)
 		return
 	}
-	pendingProfilesUUIDMap := make(map[string]*fleet.MDMAndroidProfilePayload, len(pendingInstallProfiles))
-	for _, profile := range pendingInstallProfiles {
-		pendingProfilesUUIDMap[profile.ProfileUUID] = profile
-	}
 
-	// First case, if nonComplianceDetails is empty, verify all profiles that is pending install, and remove the pending remove ones.
+	// First case, if nonComplianceDetails is empty, verify all profiles that are pending or failed install, and remove the pending remove ones.
 	if len(device.NonComplianceDetails) == 0 {
 		var verifiedProfiles []*fleet.MDMAndroidProfilePayload
 		for _, profile := range pendingInstallProfiles {
@@ -702,10 +732,13 @@ func (svc *Service) verifyDevicePolicy(ctx context.Context, hostUUID string, dev
 		for _, profile := range pendingInstallProfiles {
 			status := &fleet.MDMDeliveryVerified
 			detail := profile.Detail
+			canReverify := false
 
 			if nonCompliance, ok := failedProfileUUIDsWithNonCompliances[profile.ProfileUUID]; ok {
 				status = &fleet.MDMDeliveryFailed
 				detail = buildNonComplianceErrorMessage(nonCompliance)
+				// profiles that failed due to non compliance reasons can be reverified on status reports
+				canReverify = true
 			}
 
 			profiles = append(profiles, &fleet.MDMAndroidProfilePayload{
@@ -719,6 +752,7 @@ func (svc *Service) verifyDevicePolicy(ctx context.Context, hostUUID string, dev
 				ProfileName:             profile.ProfileName,
 				PolicyRequestUUID:       profile.PolicyRequestUUID,
 				Detail:                  detail,
+				CanReverify:             canReverify,
 			})
 		}
 

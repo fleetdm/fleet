@@ -10,7 +10,7 @@ import (
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
-	"github.com/go-kit/log"
+	"github.com/fleetdm/fleet/v4/server/platform/logging"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/api/calendar/v3"
@@ -26,7 +26,7 @@ const (
 
 var (
 	baseCtx = context.Background()
-	logger  = log.NewLogfmtLogger(log.NewSyncWriter(os.Stdout))
+	logger  = logging.NewLogfmtLogger(os.Stdout)
 )
 
 type MockGoogleCalendarLowLevelAPI struct {

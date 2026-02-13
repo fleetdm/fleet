@@ -143,7 +143,7 @@ const BootstrapPackage = ({
         team_id: currentTeamId,
         manual_agent_install: false,
       });
-      renderFlash("success", "Successfully deleted!");
+      renderFlash("success", "Successfully deleted.");
     } catch {
       renderFlash("error", "Couldn't delete. Please try again.");
     } finally {
