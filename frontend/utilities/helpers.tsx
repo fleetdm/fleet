@@ -494,7 +494,7 @@ export const generateTeam = (
   if (globalRole === null) {
     if (teams.length === 0) {
       // no global role and no teams
-      return "No fleet";
+      return "Unassigned";
     } else if (teams.length === 1) {
       // no global role and only one team
       return teams[0].name;
@@ -617,7 +617,7 @@ export const internationalNumberFormat = (number: number): string => {
 
 export const hostTeamName = (teamName: string | null): string => {
   if (!teamName) {
-    return "No fleet";
+    return "Unassigned";
   }
 
   return teamName;

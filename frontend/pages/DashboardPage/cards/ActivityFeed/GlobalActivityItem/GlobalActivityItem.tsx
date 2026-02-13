@@ -71,7 +71,7 @@ const getProfileMessageSuffix = (
         {platformDisplayName} hosts assigned to the <b>{teamName}</b> fleet
       </>
     ) : (
-      <>{platformDisplayName} hosts with no fleet</>
+      <>unassigned {platformDisplayName} hosts</>
     );
   }
   return messageSuffix;
@@ -84,7 +84,7 @@ const getDiskEncryptionMessageSuffix = (teamName?: string | null) => {
       assigned to the <b>{teamName}</b> fleet
     </>
   ) : (
-    <>with no fleet</>
+    <> that are unassigned</>
   );
 };
 
@@ -99,7 +99,7 @@ const getMacOSSetupAssistantMessage = (
       that automatically enroll to the <b>{teamName}</b> fleet
     </>
   ) : (
-    <>that automatically enroll to no fleet</>
+    <>that automatically enroll to unassigned</>
   );
 
   return (
@@ -425,7 +425,7 @@ const TAGGED_TEMPLATES = {
         the <b>{activity.details.team_name}</b> fleet
       </>
     ) : (
-      <>no fleet</>
+      <>unassigned</>
     );
 
     return (
@@ -445,7 +445,7 @@ const TAGGED_TEMPLATES = {
         the <b>{activity.details.team_name}</b> fleet
       </>
     ) : (
-      <>no fleet</>
+      <>unassigned</>
     );
 
     return (
@@ -466,7 +466,7 @@ const TAGGED_TEMPLATES = {
         the <b>{activity.details.team_name}</b> fleet
       </>
     ) : (
-      <>no fleet</>
+      <>unassigned</>
     );
 
     return (
@@ -765,7 +765,7 @@ const TAGGED_TEMPLATES = {
             the <b>{activity.details.team_name}</b> fleet
           </>
         ) : (
-          `no fleet`
+          `unassigned`
         )}
         .
       </>
@@ -790,7 +790,7 @@ const TAGGED_TEMPLATES = {
             the <b>{activity.details.team_name}</b> fleet
           </>
         ) : (
-          `no fleet`
+          `unassigned`
         )}
         .
       </>
@@ -807,7 +807,7 @@ const TAGGED_TEMPLATES = {
             the <b>{activity.details.team_name}</b> fleet
           </>
         ) : (
-          `no fleet`
+          `unassigned`
         )}
         .
       </>
@@ -824,7 +824,7 @@ const TAGGED_TEMPLATES = {
             the <b>{activity.details.team_name}</b> fleet
           </>
         ) : (
-          `no fleet`
+          `unassigned`
         )}
         .
       </>
@@ -838,7 +838,7 @@ const TAGGED_TEMPLATES = {
         <>
           {" "}
           transferred host <b>{hostNames[0]}</b> to {teamName ? `fleet ` : ""}
-          <b>{teamName || `no fleet`}</b>.
+          <b>{teamName || `unassigned`}</b>.
         </>
       );
     }
@@ -846,7 +846,7 @@ const TAGGED_TEMPLATES = {
       <>
         {" "}
         transferred {hostNames.length} hosts to {teamName ? `fleet ` : ""}
-        <b>{teamName || `no fleet`}</b>.
+        <b>{teamName || `unassigned`}</b>.
       </>
     );
   },
@@ -952,7 +952,7 @@ const TAGGED_TEMPLATES = {
             the <b>{activity.details.team_name}</b> fleet
           </>
         ) : (
-          `no fleet`
+          `unassigned`
         )}
         .
       </>
@@ -977,7 +977,7 @@ const TAGGED_TEMPLATES = {
             the <b>{activity.details.team_name}</b> fleet
           </>
         ) : (
-          `no fleet`
+          `unassigned`
         )}
         .
       </>
@@ -1002,7 +1002,7 @@ const TAGGED_TEMPLATES = {
             the <b>{activity.details.team_name}</b> fleet
           </>
         ) : (
-          `no fleet`
+          `unassigned`
         )}
         .
       </>
@@ -1018,7 +1018,7 @@ const TAGGED_TEMPLATES = {
             the <b>{activity.details.team_name}</b> fleet
           </>
         ) : (
-          `no fleet`
+          `unassigned`
         )}{" "}
         via fleetctl.
       </>
@@ -1039,7 +1039,7 @@ const TAGGED_TEMPLATES = {
             the <b>{activity.details.team_name}</b> fleet
           </>
         ) : (
-          `no fleet`
+          `unassigned`
         )}
         .
       </>
@@ -1179,7 +1179,7 @@ const TAGGED_TEMPLATES = {
             the <b>{activity.details?.team_name}</b> fleet.
           </>
         ) : (
-          `no fleet.`
+          `unassigned.`
         )}
       </>
     );
@@ -1194,7 +1194,7 @@ const TAGGED_TEMPLATES = {
             the <b>{activity.details?.team_name}</b> fleet.
           </>
         ) : (
-          `no fleet.`
+          `unassigned.`
         )}
       </>
     );
@@ -1209,7 +1209,7 @@ const TAGGED_TEMPLATES = {
             the <b>{activity.details?.team_name}</b> fleet.
           </>
         ) : (
-          `no fleet.`
+          `unassigned.`
         )}
       </>
     );
@@ -1312,7 +1312,7 @@ const TAGGED_TEMPLATES = {
             the <b>{activity.details?.team_name}</b> fleet.
           </>
         ) : (
-          `no fleet.`
+          `unassigned.`
         )}
       </>
     );
@@ -1331,7 +1331,7 @@ const TAGGED_TEMPLATES = {
             the <b>{activity.details?.team_name}</b> fleet.
           </>
         ) : (
-          `no fleet.`
+          `unassigned.`
         )}
       </>
     );
@@ -1350,7 +1350,7 @@ const TAGGED_TEMPLATES = {
             the <b>{activity.details?.team_name}</b> fleet.
           </>
         ) : (
-          `no fleet.`
+          `unassigned.`
         )}
       </>
     );
@@ -1405,7 +1405,7 @@ const TAGGED_TEMPLATES = {
             the <b>{teamName}</b> fleet
           </>
         ) : (
-          `no fleet`
+          `unassigned`
         )}
         .
       </>
@@ -1423,7 +1423,7 @@ const TAGGED_TEMPLATES = {
             the <b>{teamName}</b> fleet
           </>
         ) : (
-          `no fleet`
+          `unassigned`
         )}
         .
       </>
@@ -1534,7 +1534,7 @@ const TAGGED_TEMPLATES = {
       teamText = (
         <>
           {" "}
-          for <b>No Fleet</b>
+          for <b>Unassigned</b>
         </>
       );
     } else if (activity.details?.team_name) {
@@ -1564,7 +1564,7 @@ const TAGGED_TEMPLATES = {
       teamText = (
         <>
           {" "}
-          for <b>No Fleet</b>
+          for <b>Unassigned</b>
         </>
       );
     } else if (activity.details?.team_name) {
@@ -1594,7 +1594,7 @@ const TAGGED_TEMPLATES = {
       teamText = (
         <>
           {" "}
-          for <b>No Fleet</b>
+          for <b>Unassigned</b>
         </>
       );
     } else if (activity.details?.team_name) {
@@ -1665,7 +1665,7 @@ const TAGGED_TEMPLATES = {
         {" "}
         edited setup experience software for {platformText} hosts that enroll to{" "}
         {team_id === API_NO_TEAM_ID ? (
-          `no fleet`
+          `unassigned`
         ) : (
           <>
             the <b>{team_name}</b> fleet

@@ -571,7 +571,7 @@ const SelectTargets = ({
         {!!teams?.length &&
           (isOnGlobalTeam
             ? renderTargetEntitySection("teams", [
-                { id: 0, name: "No fleet" },
+                { id: 0, name: "Unassigned" },
                 ...teams,
               ])
             : renderTargetEntitySection("teams", filterTeamObserverTeams()))}
