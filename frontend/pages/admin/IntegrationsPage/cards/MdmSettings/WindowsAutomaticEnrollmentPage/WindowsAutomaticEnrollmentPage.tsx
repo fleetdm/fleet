@@ -12,6 +12,7 @@ import PageDescription from "components/PageDescription";
 import EmptyTable from "components/EmptyTable";
 import Card from "components/Card";
 import Button from "components/buttons/Button";
+import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
 
 const generateMdmTermsOfUseUrl = (domain: string) => {
   return `${domain}/api/mdm/microsoft/tos`;
@@ -36,7 +37,16 @@ const WindowsAutomaticEnrollmentPage = () => {
           header="No tenants added"
           info="Add your Entra tenant ID to be able to enroll Windows hosts."
           primaryButton={
-            <Button onClick={() => setShowAddTenantModal(true)}>Add</Button>
+            <GitOpsModeTooltipWrapper
+              renderChildren={(disable) => (
+                <Button
+                  onClick={() => setShowAddTenantModal(true)}
+                  disabled={disable}
+                >
+                  Add
+                </Button>
+              )}
+            />
           }
         />
       </Card>
