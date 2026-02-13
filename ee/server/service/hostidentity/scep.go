@@ -25,9 +25,9 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mdm/assets"
 	scepdepot "github.com/fleetdm/fleet/v4/server/mdm/scep/depot"
 	scepserver "github.com/fleetdm/fleet/v4/server/mdm/scep/server"
+	"github.com/fleetdm/fleet/v4/server/platform/logging"
 	"github.com/fleetdm/fleet/v4/server/service/middleware/otel"
 	"github.com/go-kit/kit/log"
-	kitlog "github.com/go-kit/log"
 	"github.com/go-kit/log/level"
 	"github.com/smallstep/scep"
 )
@@ -67,7 +67,7 @@ func RegisterSCEP(
 	mux *http.ServeMux,
 	scepStorage scepdepot.Depot,
 	ds fleet.Datastore,
-	logger kitlog.Logger,
+	logger *logging.Logger,
 	fleetConfig *config.FleetConfig,
 ) error {
 	if fleetConfig == nil {
@@ -87,10 +87,10 @@ func RegisterSCEP(
 	scepService := NewSCEPService(
 		ds,
 		signer,
-		kitlog.With(logger, "component", "host-id-scep"),
+		logger.With("component", "host-id-scep"),
 	)
 
-	scepLogger := kitlog.With(logger, "component", "http-host-id-scep")
+	scepLogger := logger.With("component", "http-host-id-scep")
 	e := scepserver.MakeServerEndpoints(scepService)
 	e.GetEndpoint = scepserver.EndpointLoggingMiddleware(scepLogger)(e.GetEndpoint)
 	e.PostEndpoint = scepserver.EndpointLoggingMiddleware(scepLogger)(e.PostEndpoint)
@@ -140,7 +140,7 @@ func hasRenewalExtension(csr *x509.CertificateRequest) bool {
 }
 
 // renewalMiddleware handles certificate renewal with proof-of-possession
-func renewalMiddleware(ds fleet.Datastore, logger kitlog.Logger, next scepserver.CSRSignerContext) scepserver.CSRSignerContextFunc {
+func renewalMiddleware(ds fleet.Datastore, logger *logging.Logger, next scepserver.CSRSignerContext) scepserver.CSRSignerContextFunc {
 	return func(ctx context.Context, m *scep.CSRReqMessage) (*x509.Certificate, error) {
 		// Check if this is a renewal request
 		var renewalData types.RenewalData

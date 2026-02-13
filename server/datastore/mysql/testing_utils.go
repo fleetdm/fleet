@@ -355,7 +355,7 @@ func setupRealReplica(t testing.TB, testName string, ds *Datastore, options *com
 		Database: testName,
 		Address:  testing_utils.TestReplicaAddress,
 	}
-	require.NoError(t, checkConfig(&replicaConfig))
+	require.NoError(t, checkAndModifyConfig(&replicaConfig))
 	replica, err := NewDB(&replicaConfig, options)
 	require.NoError(t, err)
 	ds.replica = replica
@@ -983,6 +983,26 @@ func (t *testingAuthorizer) Authorize(_ context.Context, _ platform_authz.AuthzT
 	return nil
 }
 
+// testingLookupService adapts mysql.Datastore to fleet.LookupService interface.
+// This allows tests to use the real activityacl.FleetServiceAdapter instead of
+// duplicating the conversion logic.
+type testingLookupService struct {
+	ds *Datastore
+}
+
+func (t *testingLookupService) ListUsers(ctx context.Context, opt fleet.UserListOptions) ([]*fleet.User, error) {
+	return t.ds.ListUsers(ctx, opt)
+}
+
+func (t *testingLookupService) UsersByIDs(ctx context.Context, ids []uint) ([]*fleet.UserSummary, error) {
+	return t.ds.UsersByIDs(ctx, ids)
+}
+
+// GetHostLite adapts Datastore.HostLite to the LookupService interface.
+func (t *testingLookupService) GetHostLite(ctx context.Context, id uint) (*fleet.Host, error) {
+	return t.ds.HostLite(ctx, id)
+}
+
 // NewTestActivityService creates an activity service. This allows tests to call the activity bounded context API.
 // User data is fetched from the same database to support tests that verify user info in activities.
 func NewTestActivityService(t testing.TB, ds *Datastore) activity_api.Service {
@@ -993,11 +1013,12 @@ func NewTestActivityService(t testing.TB, ds *Datastore) activity_api.Service {
 	require.True(t, ok, "ds.replica should be *sqlx.DB in tests")
 	dbConns := &common_mysql.DBConnections{Primary: ds.primary, Replica: replica}
 
-	// Create a UserProvider that reads from the datastore
-	userProvider := activityacl.NewFleetServiceAdapter(ds)
+	// Use the real ACL adapter with a testing lookup service
+	lookupSvc := &testingLookupService{ds: ds}
+	providers := activityacl.NewFleetServiceAdapter(lookupSvc)
 
 	// Create service via bootstrap (the public API for creating the bounded context)
-	svc, _ := activity_bootstrap.New(dbConns, &testingAuthorizer{}, userProvider, log.NewNopLogger())
+	svc, _ := activity_bootstrap.New(dbConns, &testingAuthorizer{}, providers, log.NewNopLogger())
 	return svc
 }
 

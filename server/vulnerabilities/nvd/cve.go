@@ -576,9 +576,9 @@ func expandCPEAliases(cpeItem *wfn.Attributes) []*wfn.Attributes {
 		}
 	}
 
-	// The python extension is defined in two ways in the CPE database:
 	// 	cpe:2.3:a:microsoft:python_extension:2024.2.1:*:*:*:*:visual_studio_code:*:*
 	//	cpe:2.3:a:microsoft:visual_studio_code:2024.2.1:*:*:*:*:python:*:*
+	//	cpe:2.3:a:microsoft:python:2020.4.0:*:*:*:*:visual_studio_code:*:*
 	for _, cpeItem := range cpeItems {
 		if cpeItem.TargetSW == "visual_studio_code" &&
 			cpeItem.Vendor == "microsoft" &&
@@ -587,6 +587,10 @@ func expandCPEAliases(cpeItem *wfn.Attributes) []*wfn.Attributes {
 			cpeItem2.Product = "visual_studio_code"
 			cpeItem2.TargetSW = "python"
 			cpeItems = append(cpeItems, &cpeItem2)
+
+			cpeItem3 := *cpeItem
+			cpeItem3.Product = "python"
+			cpeItems = append(cpeItems, &cpeItem3)
 		}
 	}
 
