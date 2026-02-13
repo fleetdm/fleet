@@ -714,11 +714,7 @@ GROUP BY
 // GetFleetMaintainedVersionsByTitleID returns all cached versions of a fleet-maintained app
 // for the given title and team.
 func (ds *Datastore) GetFleetMaintainedVersionsByTitleID(ctx context.Context, teamID *uint, titleID uint) ([]fleet.FleetMaintainedVersion, error) {
-	var tid uint
-	if teamID != nil {
-		tid = *teamID
-	}
-	result, err := ds.getFleetMaintainedVersionsByTitleIDs(ctx, []uint{titleID}, tid)
+	result, err := ds.getFleetMaintainedVersionsByTitleIDs(ctx, []uint{titleID}, ptr.ValOrZero(teamID))
 	if err != nil {
 		return nil, err
 	}
@@ -766,17 +762,12 @@ func (ds *Datastore) getFleetMaintainedVersionsByTitleIDs(ctx context.Context, t
 }
 
 func (ds *Datastore) HasFMAInstallerVersion(ctx context.Context, teamID *uint, fmaID uint, version string) (bool, error) {
-	var globalOrTeamID uint
-	if teamID != nil {
-		globalOrTeamID = *teamID
-	}
-
 	var exists bool
 	err := sqlx.GetContext(ctx, ds.reader(ctx), &exists, `
 		SELECT 1 FROM software_installers
 		WHERE global_or_team_id = ? AND fleet_maintained_app_id = ? AND version = ?
 		LIMIT 1
-	`, globalOrTeamID, fmaID, version)
+	`, ptr.ValOrZero(teamID), fmaID, version)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return false, nil
@@ -787,20 +778,9 @@ func (ds *Datastore) HasFMAInstallerVersion(ctx context.Context, teamID *uint, f
 }
 
 func (ds *Datastore) GetCachedFMAInstallerMetadata(ctx context.Context, teamID *uint, fmaID uint, version string) (*fleet.MaintainedApp, error) {
-	var globalOrTeamID uint
-	if teamID != nil {
-		globalOrTeamID = *teamID
-	}
+	globalOrTeamID := ptr.ValOrZero(teamID)
 
-	var result struct {
-		Version         string `db:"version"`
-		Platform        string `db:"platform"`
-		URL             string `db:"url"`
-		StorageID       string `db:"storage_id"`
-		InstallScript   string `db:"install_script"`
-		UninstallScript string `db:"uninstall_script"`
-		UpgradeCode     string `db:"upgrade_code"`
-	}
+	var result fleet.MaintainedApp
 
 	err := sqlx.GetContext(ctx, ds.reader(ctx), &result, `
 		SELECT
@@ -825,16 +805,6 @@ func (ds *Datastore) GetCachedFMAInstallerMetadata(ctx context.Context, teamID *
 		return nil, ctxerr.Wrap(ctx, err, "get cached FMA installer metadata")
 	}
 
-	app := &fleet.MaintainedApp{
-		Version:         result.Version,
-		Platform:        result.Platform,
-		InstallerURL:    result.URL,
-		SHA256:          result.StorageID,
-		InstallScript:   result.InstallScript,
-		UninstallScript: result.UninstallScript,
-		UpgradeCode:     result.UpgradeCode,
-	}
-
 	// Load categories
 	var categories []string
 	err = sqlx.SelectContext(ctx, ds.reader(ctx), &categories, `
@@ -846,9 +816,9 @@ func (ds *Datastore) GetCachedFMAInstallerMetadata(ctx context.Context, teamID *
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "get cached FMA installer categories")
 	}
-	app.Categories = categories
+	result.Categories = categories
 
-	return app, nil
+	return &result, nil
 }
 
 func (ds *Datastore) selectSoftwareVersionsSQL(titleIDs []uint, teamID *uint, tmFilter fleet.TeamFilter, withCounts bool) (
