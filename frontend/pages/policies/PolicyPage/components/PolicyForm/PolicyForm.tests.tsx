@@ -295,7 +295,7 @@ describe("PolicyForm - component", () => {
         });
 
         expect(
-          screen.getByText(/live queries are disabled/i)
+          screen.getByText(/live reports are disabled/i)
         ).toBeInTheDocument();
       });
     });
