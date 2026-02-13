@@ -850,7 +850,7 @@ the way that the Fleet server works.
 			config.MDM.AndroidAgent.Validate(initFatal)
 			androidSvc, err := android_service.NewService(
 				ctx,
-				logger,
+				logger.SlogLogger(),
 				ds,
 				config.License.Key,
 				config.Server.PrivateKey,
