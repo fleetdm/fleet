@@ -373,6 +373,21 @@ INSERT INTO software_installers (
 			}
 		}
 
+		// Ensure every FMA installer has an active entry so that
+		// queries filtering on fma_active_installers always find
+		// a row, even for the first (single) installer version.
+		if payload.FleetMaintainedAppID != nil {
+			if _, err := tx.ExecContext(ctx, `
+				INSERT INTO fma_active_installers
+					(team_id, global_or_team_id, fleet_maintained_app_id, software_installer_id)
+				VALUES (?, ?, ?, ?)
+				ON DUPLICATE KEY UPDATE
+					software_installer_id = VALUES(software_installer_id)
+			`, tid, globalOrTeamID, *payload.FleetMaintainedAppID, installerID); err != nil {
+				return ctxerr.Wrapf(ctx, err, "upsert fma_active_installers for %q", payload.Filename)
+			}
+		}
+
 		if payload.AutomaticInstall {
 			var installerMetadata automatic_policy.InstallerMetadata
 			if payload.AutomaticInstallQuery != "" {
