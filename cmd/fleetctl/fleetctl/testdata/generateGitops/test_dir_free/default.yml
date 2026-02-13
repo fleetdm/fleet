@@ -142,9 +142,9 @@ org_settings:
     - 3
     deferred_save_host: false
     enable_analytics: true
-    live_query_disabled: false
-    query_report_cap: 1
-    query_reports_disabled: false
+    live_report_disabled: false
+    report_cap: 1
+    reports_disabled: false
     scripts_disabled: false
     server_url: https://dogfood.fleetdm.com
   sso_settings:
@@ -191,7 +191,7 @@ policies:
   platform: darwin
   query: SELECT * FROM global_policy WHERE id = 1
   resolution: Do a global thing
-queries:
+reports:
 - automations_enabled: true
   description: This is a global query
   discard_data: false

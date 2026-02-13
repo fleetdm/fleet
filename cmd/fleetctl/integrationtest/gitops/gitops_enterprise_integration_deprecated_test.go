@@ -12,388 +12,27 @@ import (
 	"path/filepath"
 	"regexp"
 	"runtime"
-	"strings"
 	"sync"
 	"testing"
 	"text/template"
 
 	"github.com/fleetdm/fleet/v4/cmd/fleetctl/fleetctl"
 	"github.com/fleetdm/fleet/v4/cmd/fleetctl/fleetctl/testing_utils"
-	"github.com/fleetdm/fleet/v4/cmd/fleetctl/integrationtest"
 	ma "github.com/fleetdm/fleet/v4/ee/maintained-apps"
-	eeservice "github.com/fleetdm/fleet/v4/ee/server/service"
-	"github.com/fleetdm/fleet/v4/ee/server/service/digicert"
-	"github.com/fleetdm/fleet/v4/server/config"
-	"github.com/fleetdm/fleet/v4/server/datastore/filesystem"
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
-	"github.com/fleetdm/fleet/v4/server/datastore/redis/redistest"
 	"github.com/fleetdm/fleet/v4/server/dev_mode"
 	"github.com/fleetdm/fleet/v4/server/fleet"
-	appleMdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
-	"github.com/fleetdm/fleet/v4/server/mdm/nanodep/tokenpki"
-	"github.com/fleetdm/fleet/v4/server/platform/logging"
 	"github.com/fleetdm/fleet/v4/server/ptr"
-	"github.com/fleetdm/fleet/v4/server/service"
 	"github.com/fleetdm/fleet/v4/server/service/integrationtest/scep_server"
 	"github.com/fleetdm/fleet/v4/server/test"
 	"github.com/go-git/go-git/v5"
-	kitlog "github.com/go-kit/log"
 	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"github.com/stretchr/testify/suite"
 )
 
-const fleetGitopsRepo = "https://github.com/fleetdm/fleet-gitops"
-
-func TestIntegrationsEnterpriseGitops(t *testing.T) {
-	testingSuite := new(enterpriseIntegrationGitopsTestSuite)
-	testingSuite.WithServer.Suite = &testingSuite.Suite
-	suite.Run(t, testingSuite)
-}
-
-type enterpriseIntegrationGitopsTestSuite struct {
-	suite.Suite
-	integrationtest.WithServer
-	fleetCfg               config.FleetConfig
-	softwareTitleIconStore fleet.SoftwareTitleIconStore
-}
-
-func (s *enterpriseIntegrationGitopsTestSuite) SetupSuite() {
-	s.WithDS.SetupSuite("enterpriseIntegrationGitopsTestSuite")
-
-	appConf, err := s.DS.AppConfig(context.Background())
-	require.NoError(s.T(), err)
-	appConf.MDM.EnabledAndConfigured = true
-	appConf.MDM.AppleBMEnabledAndConfigured = true
-	err = s.DS.SaveAppConfig(context.Background(), appConf)
-	require.NoError(s.T(), err)
-
-	testCert, testKey, err := appleMdm.NewSCEPCACertKey()
-	require.NoError(s.T(), err)
-	testCertPEM := tokenpki.PEMCertificate(testCert.Raw)
-	testKeyPEM := tokenpki.PEMRSAPrivateKey(testKey)
-
-	fleetCfg := config.TestConfig()
-	config.SetTestMDMConfig(s.T(), &fleetCfg, testCertPEM, testKeyPEM, "../../../../server/service/testdata")
-	fleetCfg.Osquery.EnrollCooldown = 0
-
-	err = s.DS.InsertMDMConfigAssets(context.Background(), []fleet.MDMConfigAsset{
-		{Name: fleet.MDMAssetAPNSCert, Value: testCertPEM},
-		{Name: fleet.MDMAssetAPNSKey, Value: testKeyPEM},
-		{Name: fleet.MDMAssetCACert, Value: testCertPEM},
-		{Name: fleet.MDMAssetCAKey, Value: testKeyPEM},
-	}, nil)
-	require.NoError(s.T(), err)
-
-	mdmStorage, err := s.DS.NewMDMAppleMDMStorage()
-	require.NoError(s.T(), err)
-	depStorage, err := s.DS.NewMDMAppleDEPStorage()
-	require.NoError(s.T(), err)
-	scepStorage, err := s.DS.NewSCEPDepot()
-	require.NoError(s.T(), err)
-	redisPool := redistest.SetupRedis(s.T(), "zz", false, false, false)
-
-	// Create a software title icon store
-	iconDir := s.T().TempDir()
-	softwareTitleIconStore, err := filesystem.NewSoftwareTitleIconStore(iconDir)
-	require.NoError(s.T(), err)
-	s.softwareTitleIconStore = softwareTitleIconStore
-
-	serverConfig := service.TestServerOpts{
-		License: &fleet.LicenseInfo{
-			Tier: fleet.TierPremium,
-		},
-		FleetConfig:            &fleetCfg,
-		MDMStorage:             mdmStorage,
-		DEPStorage:             depStorage,
-		SCEPStorage:            scepStorage,
-		Pool:                   redisPool,
-		APNSTopic:              "com.apple.mgmt.External.10ac3ce5-4668-4e58-b69a-b2b5ce667589",
-		SCEPConfigService:      eeservice.NewSCEPConfigService(kitlog.NewLogfmtLogger(os.Stdout), nil),
-		DigiCertService:        digicert.NewService(),
-		SoftwareTitleIconStore: softwareTitleIconStore,
-	}
-	err = s.DS.InsertMDMConfigAssets(context.Background(), []fleet.MDMConfigAsset{
-		{Name: fleet.MDMAssetSCEPChallenge, Value: []byte("scepchallenge")},
-	}, nil)
-	require.NoError(s.T(), err)
-
-	if os.Getenv("FLEET_INTEGRATION_TESTS_DISABLE_LOG") != "" {
-		serverConfig.Logger = logging.NewNopLogger()
-	}
-	users, server := service.RunServerForTestsWithDS(s.T(), s.DS, &serverConfig)
-	s.T().Setenv("FLEET_SERVER_ADDRESS", server.URL) // fleetctl always uses this env var in tests
-	s.Server = server
-	s.Users = users
-	s.fleetCfg = fleetCfg
-
-	appConf, err = s.DS.AppConfig(context.Background())
-	require.NoError(s.T(), err)
-	appConf.ServerSettings.ServerURL = server.URL
-	err = s.DS.SaveAppConfig(context.Background(), appConf)
-	require.NoError(s.T(), err)
-}
-
-func (s *enterpriseIntegrationGitopsTestSuite) TearDownSuite() {
-	appConf, err := s.DS.AppConfig(context.Background())
-	require.NoError(s.T(), err)
-	appConf.MDM.EnabledAndConfigured = false
-	err = s.DS.SaveAppConfig(context.Background(), appConf)
-	require.NoError(s.T(), err)
-}
-
-func (s *enterpriseIntegrationGitopsTestSuite) TearDownTest() {
-	t := s.T()
-	ctx := context.Background()
-
-	teams, err := s.DS.ListTeams(ctx, fleet.TeamFilter{User: test.UserAdmin}, fleet.ListOptions{})
-	require.NoError(t, err)
-	for _, tm := range teams {
-		err := s.DS.DeleteTeam(ctx, tm.ID)
-		require.NoError(t, err)
-	}
-
-	// Clean software installers in "No team" (the others are deleted in ts.DS.DeleteTeam above).
-	mysql.ExecAdhocSQL(t, s.DS, func(q sqlx.ExtContext) error {
-		_, err := q.ExecContext(ctx, `DELETE FROM software_installers WHERE global_or_team_id = 0;`)
-		return err
-	})
-
-	vppTokens, err := s.DS.ListVPPTokens(ctx)
-	require.NoError(t, err)
-	for _, tok := range vppTokens {
-		err := s.DS.DeleteVPPToken(ctx, tok.ID)
-		require.NoError(t, err)
-	}
-
-	mysql.ExecAdhocSQL(t, s.DS, func(tx sqlx.ExtContext) error {
-		_, err := tx.ExecContext(ctx, "DELETE FROM vpp_apps;")
-		return err
-	})
-	mysql.ExecAdhocSQL(t, s.DS, func(tx sqlx.ExtContext) error {
-		_, err := tx.ExecContext(ctx, "DELETE FROM in_house_apps;")
-		return err
-	})
-
-	lbls, err := s.DS.ListLabels(ctx, fleet.TeamFilter{User: test.UserAdmin}, fleet.ListOptions{}, false)
-	require.NoError(t, err)
-	for _, lbl := range lbls {
-		if lbl.LabelType != fleet.LabelTypeBuiltIn {
-			err := s.DS.DeleteLabel(ctx, lbl.Name, fleet.TeamFilter{User: test.UserAdmin})
-			require.NoError(t, err)
-		}
-	}
-}
-
-func (s *enterpriseIntegrationGitopsTestSuite) assertDryRunOutput(t *testing.T, output string) {
-	s.assertDryRunOutputWithDeprecation(t, output, false)
-}
-
-func (s *enterpriseIntegrationGitopsTestSuite) assertDryRunOutputWithDeprecation(t *testing.T, output string, allowDeprecation bool) {
-	allowedVerbs := []string{
-		"moved",
-		"deleted",
-		"updated",
-		"applied",
-		"added",
-		"created",
-		"set",
-	}
-	pattern := fmt.Sprintf("\\[([+\\-!])] would've (%s)", strings.Join(allowedVerbs, "|"))
-	reg := regexp.MustCompile(pattern)
-	for line := range strings.SplitSeq(output, "\n") {
-		if allowDeprecation && line != "" && strings.Contains(line, "is deprecated") {
-			continue
-		}
-		if line != "" && !strings.Contains(line, "succeeded") {
-			assert.Regexp(t, reg, line, "on dry run")
-		}
-	}
-}
-
-func (s *enterpriseIntegrationGitopsTestSuite) assertRealRunOutput(t *testing.T, output string) {
-	s.assertRealRunOutputWithDeprecation(t, output, false)
-}
-
-func (s *enterpriseIntegrationGitopsTestSuite) assertRealRunOutputWithDeprecation(t *testing.T, output string, allowDeprecation bool) {
-	allowedVerbs := []string{
-		"moving",
-		"deleted",
-		"updated",
-		"applied",
-		"added",
-		"created",
-		"set",
-		"applying", // this is used when doing groups operations before the operation starts, e.g. "Applying 10 policies"
-		"deleting", // ditto
-	}
-	pattern := fmt.Sprintf("\\[([+\\-!])] (%s)", strings.Join(allowedVerbs, "|"))
-	reg := regexp.MustCompile(pattern)
-	for line := range strings.SplitSeq(output, "\n") {
-		if allowDeprecation && line != "" && strings.Contains(line, "is deprecated") {
-			continue
-		}
-		if line != "" && !strings.Contains(line, "succeeded") {
-			assert.Regexp(t, reg, line, "on real run")
-		}
-	}
-}
-
-// TestFleetGitops runs `fleetctl gitops` command on configs in https://github.com/fleetdm/fleet-gitops repo.
-// Changes to that repo may cause this test to fail.
-func (s *enterpriseIntegrationGitopsTestSuite) TestFleetGitops() {
-	t := s.T()
-
-	user := s.createGitOpsUser(t)
-	fleetctlConfig := s.createFleetctlConfig(t, user)
-
-	// Clone git repo
-	repoDir := t.TempDir()
-	_, err := git.PlainClone(
-		repoDir, false, &git.CloneOptions{
-			ReferenceName: "main",
-			SingleBranch:  true,
-			Depth:         1,
-			URL:           fleetGitopsRepo,
-			Progress:      os.Stdout,
-		},
-	)
-	require.NoError(t, err)
-
-	// Set the required environment variables
-	t.Setenv("FLEET_URL", s.Server.URL)
-	t.Setenv("FLEET_GLOBAL_ENROLL_SECRET", "global_enroll_secret")
-	t.Setenv("FLEET_WORKSTATIONS_ENROLL_SECRET", "workstations_enroll_secret")
-	t.Setenv("FLEET_PERSONAL_MOBILE_DEVICES_ENROLL_SECRET", "personal_mobile_devices_enroll_secret")
-	t.Setenv("FLEET_DEDICATED_DEVICES_ENROLL_SECRET", "dedicated_devices_enroll_secret")
-	t.Setenv("FLEET_EMPLOYEE_ISSUED_MOBILE_DEVICES_ENROLL_SECRET", "employee_issued_mobile_devices_enroll_secret")
-	t.Setenv("FLEET_IT_SERVERS_ENROLL_SECRET", "it_servers_enroll_secret")
-	globalFile := path.Join(repoDir, "default.yml")
-	teamsDir := path.Join(repoDir, "teams")
-	teamFiles, err := os.ReadDir(teamsDir)
-	require.NoError(t, err)
-	teamFileNames := make([]string, 0, len(teamFiles))
-	for _, file := range teamFiles {
-		if filepath.Ext(file.Name()) == ".yml" {
-			teamFileNames = append(teamFileNames, path.Join(teamsDir, file.Name()))
-		}
-	}
-
-	// Create a team to be deleted.
-	deletedTeamFile, err := os.CreateTemp(t.TempDir(), "*.yml")
-	require.NoError(t, err)
-	const deletedTeamName = "team_to_be_deleted"
-
-	_, err = deletedTeamFile.WriteString(
-		fmt.Sprintf(
-			`
-controls:
-software:
-reports:
-policies:
-agent_options:
-name: %s
-settings:
-  secrets: [{"secret":"deleted_team_secret"}]
-`, deletedTeamName,
-		),
-	)
-	require.NoError(t, err)
-
-	test.CreateInsertGlobalVPPToken(t, s.DS)
-
-	// Apply the team to be deleted
-	s.assertRealRunOutputWithDeprecation(t, fleetctl.RunAppForTest(t, []string{"gitops", "--config", fleetctlConfig.Name(), "-f", deletedTeamFile.Name()}), true)
-
-	// Dry run
-	// NOTE: The fleet-gitops repo may still use deprecated keys (queries, team_settings),
-	// so we allow deprecation warnings in this test.
-	s.assertDryRunOutputWithDeprecation(t, fleetctl.RunAppForTest(t, []string{"gitops", "--config", fleetctlConfig.Name(), "-f", globalFile, "--dry-run"}), true)
-	for _, fileName := range teamFileNames {
-		// When running no-teams, global config must also be provided ...
-		if strings.Contains(fileName, "no-team.yml") {
-			s.assertDryRunOutputWithDeprecation(t, fleetctl.RunAppForTest(t, []string{"gitops", "--config", fleetctlConfig.Name(), "-f", fileName, "-f", globalFile, "--dry-run"}), true)
-		} else {
-			s.assertDryRunOutputWithDeprecation(t, fleetctl.RunAppForTest(t, []string{"gitops", "--config", fleetctlConfig.Name(), "-f", fileName, "--dry-run"}), true)
-		}
-	}
-
-	// Dry run with all the files
-	args := []string{"gitops", "--config", fleetctlConfig.Name(), "--dry-run", "--delete-other-teams", "-f", globalFile}
-	for _, fileName := range teamFileNames {
-		args = append(args, "-f", fileName)
-	}
-	s.assertDryRunOutputWithDeprecation(t, fleetctl.RunAppForTest(t, args), true)
-
-	// Real run with all the files, but don't delete other teams
-	args = []string{"gitops", "--config", fleetctlConfig.Name(), "-f", globalFile}
-	for _, fileName := range teamFileNames {
-		args = append(args, "-f", fileName)
-	}
-	s.assertRealRunOutputWithDeprecation(t, fleetctl.RunAppForTest(t, args), true)
-
-	// Check that all the teams exist
-	teamsJSON := fleetctl.RunAppForTest(t, []string{"get", "teams", "--config", fleetctlConfig.Name(), "--json"})
-	assert.Equal(t, 6, strings.Count(teamsJSON, "team_id"))
-
-	// Real run with all the files, and delete other teams
-	args = []string{"gitops", "--config", fleetctlConfig.Name(), "--delete-other-teams", "-f", globalFile}
-	for _, fileName := range teamFileNames {
-		args = append(args, "-f", fileName)
-	}
-	s.assertRealRunOutputWithDeprecation(t, fleetctl.RunAppForTest(t, args), true)
-
-	// Check that only the right teams exist
-	teamsJSON = fleetctl.RunAppForTest(t, []string{"get", "teams", "--config", fleetctlConfig.Name(), "--json"})
-	assert.Equal(t, 5, strings.Count(teamsJSON, "team_id"))
-	assert.NotContains(t, teamsJSON, deletedTeamName)
-
-	// Real run with one file at a time
-	s.assertRealRunOutputWithDeprecation(t, fleetctl.RunAppForTest(t, []string{"gitops", "--config", fleetctlConfig.Name(), "-f", globalFile}), true)
-	for _, fileName := range teamFileNames {
-		// When running no-teams, global config must also be provided ...
-		if strings.Contains(fileName, "no-team.yml") {
-			s.assertRealRunOutputWithDeprecation(t, fleetctl.RunAppForTest(t, []string{"gitops", "--config", fleetctlConfig.Name(), "-f", fileName, "-f", globalFile}), true)
-		} else {
-			s.assertRealRunOutputWithDeprecation(t, fleetctl.RunAppForTest(t, []string{"gitops", "--config", fleetctlConfig.Name(), "-f", fileName}), true)
-		}
-	}
-}
-
-func (s *enterpriseIntegrationGitopsTestSuite) createFleetctlConfig(t *testing.T, user fleet.User) *os.File {
-	fleetctlConfig, err := os.CreateTemp(t.TempDir(), "*.yml")
-	require.NoError(t, err)
-	token := s.GetTestToken(user.Email, test.GoodPassword)
-	configStr := fmt.Sprintf(
-		`
-contexts:
-  default:
-    address: %s
-    tls-skip-verify: true
-    token: %s
-`, s.Server.URL, token,
-	)
-	_, err = fleetctlConfig.WriteString(configStr)
-	require.NoError(t, err)
-	return fleetctlConfig
-}
-
-func (s *enterpriseIntegrationGitopsTestSuite) createGitOpsUser(t *testing.T) fleet.User {
-	user := fleet.User{
-		Name:       "GitOps User " + uuid.NewString(),
-		Email:      uuid.NewString() + "@example.com",
-		GlobalRole: ptr.String(fleet.RoleGitOps),
-	}
-	require.NoError(t, user.SetPassword(test.GoodPassword, 10, 10))
-	_, err := s.DS.NewUser(context.Background(), &user)
-	require.NoError(t, err)
-	return user
-}
-
-// TestDeleteMacOSSetup tests the deletion of macOS setup assets by `fleetctl gitops` command.
-func (s *enterpriseIntegrationGitopsTestSuite) TestDeleteMacOSSetup() {
+func (s *enterpriseIntegrationGitopsTestSuite) TestDeleteMacOSSetupDeprecated() {
 	t := s.T()
 
 	user := s.createGitOpsUser(t)
@@ -411,7 +50,7 @@ org_settings:
     org_name: Fleet
   secrets:
 policies:
-reports:
+queries:
 `)
 	require.NoError(t, err)
 
@@ -423,11 +62,11 @@ reports:
 			`
 controls:
 software:
-reports:
+queries:
 policies:
 agent_options:
 name: %s
-settings:
+team_settings:
   secrets: [{"secret":"enroll_secret"}]
 `, teamName,
 		),
@@ -438,8 +77,8 @@ settings:
 	t.Setenv("FLEET_URL", s.Server.URL)
 
 	// Apply configs
-	s.assertDryRunOutput(t, fleetctl.RunAppForTest(t, []string{"gitops", "--config", fleetctlConfig.Name(), "-f", globalFile.Name(), "-f", teamFile.Name(), "--dry-run"}))
-	s.assertRealRunOutput(t, fleetctl.RunAppForTest(t, []string{"gitops", "--config", fleetctlConfig.Name(), "-f", globalFile.Name(), "-f", teamFile.Name()}))
+	s.assertDryRunOutputWithDeprecation(t, fleetctl.RunAppForTest(t, []string{"gitops", "--config", fleetctlConfig.Name(), "-f", globalFile.Name(), "-f", teamFile.Name(), "--dry-run"}), true)
+	s.assertRealRunOutputWithDeprecation(t, fleetctl.RunAppForTest(t, []string{"gitops", "--config", fleetctlConfig.Name(), "-f", globalFile.Name(), "-f", teamFile.Name()}), true)
 
 	// Add bootstrap packages
 	require.NoError(t, s.DS.InsertMDMAppleBootstrapPackage(context.Background(), &fleet.MDMAppleBootstrapPackage{
@@ -491,8 +130,8 @@ settings:
 	})
 
 	// Re-apply configs and expect the macOS setup assets to be cleared
-	s.assertDryRunOutput(t, fleetctl.RunAppForTest(t, []string{"gitops", "--config", fleetctlConfig.Name(), "-f", globalFile.Name(), "-f", teamFile.Name(), "--dry-run"}))
-	s.assertRealRunOutput(t, fleetctl.RunAppForTest(t, []string{"gitops", "--config", fleetctlConfig.Name(), "-f", globalFile.Name(), "-f", teamFile.Name()}))
+	s.assertDryRunOutputWithDeprecation(t, fleetctl.RunAppForTest(t, []string{"gitops", "--config", fleetctlConfig.Name(), "-f", globalFile.Name(), "-f", teamFile.Name(), "--dry-run"}), true)
+	s.assertRealRunOutputWithDeprecation(t, fleetctl.RunAppForTest(t, []string{"gitops", "--config", fleetctlConfig.Name(), "-f", globalFile.Name(), "-f", teamFile.Name()}), true)
 
 	mysql.ExecAdhocSQL(t, s.DS, func(q sqlx.ExtContext) error {
 		stmt := "SELECT COUNT(*) FROM mdm_apple_bootstrap_packages WHERE team_id IN (?, ?)"
@@ -510,9 +149,7 @@ settings:
 	})
 }
 
-// TestCAIntegrations enables DigiCert and Custom SCEP CAs via GitOps.
-// At the same time, GitOps uploads Apple profiles that use the newly configured CAs.
-func (s *enterpriseIntegrationGitopsTestSuite) TestCAIntegrations() {
+func (s *enterpriseIntegrationGitopsTestSuite) TestCAIntegrationsDeprecated() {
 	t := s.T()
 	user := s.createGitOpsUser(t)
 	fleetctlConfig := s.createFleetctlConfig(t, user)
@@ -612,7 +249,7 @@ org_settings:
         url: %s
         challenge: challenge
 policies:
-reports:
+queries:
 `,
 		dirPath,
 		digiCertServer.URL,
@@ -624,8 +261,8 @@ reports:
 	t.Setenv("FLEET_URL", s.Server.URL)
 
 	// Apply configs
-	s.assertDryRunOutput(t, fleetctl.RunAppForTest(t, []string{"gitops", "--config", fleetctlConfig.Name(), "-f", globalFile.Name(), "--dry-run"}))
-	s.assertRealRunOutput(t, fleetctl.RunAppForTest(t, []string{"gitops", "--config", fleetctlConfig.Name(), "-f", globalFile.Name()}))
+	s.assertDryRunOutputWithDeprecation(t, fleetctl.RunAppForTest(t, []string{"gitops", "--config", fleetctlConfig.Name(), "-f", globalFile.Name(), "--dry-run"}), true)
+	s.assertRealRunOutputWithDeprecation(t, fleetctl.RunAppForTest(t, []string{"gitops", "--config", fleetctlConfig.Name(), "-f", globalFile.Name()}), true)
 
 	groupedCAs, err := s.DS.GetGroupedCertificateAuthorities(t.Context(), false)
 	require.NoError(t, err)
@@ -682,7 +319,7 @@ org_settings:
         url: %s
         challenge: challenge
 policies:
-reports:
+queries:
 `,
 		dirPath,
 		digiCertServer.URL,
@@ -692,8 +329,8 @@ reports:
 	require.NoError(t, err)
 
 	// Apply configs
-	s.assertDryRunOutput(t, fleetctl.RunAppForTest(t, []string{"gitops", "--config", fleetctlConfig.Name(), "-f", globalFile.Name(), "--dry-run"}))
-	s.assertRealRunOutput(t, fleetctl.RunAppForTest(t, []string{"gitops", "--config", fleetctlConfig.Name(), "-f", globalFile.Name()}))
+	s.assertDryRunOutputWithDeprecation(t, fleetctl.RunAppForTest(t, []string{"gitops", "--config", fleetctlConfig.Name(), "-f", globalFile.Name(), "--dry-run"}), true)
+	s.assertRealRunOutputWithDeprecation(t, fleetctl.RunAppForTest(t, []string{"gitops", "--config", fleetctlConfig.Name(), "-f", globalFile.Name()}), true)
 
 	groupedCAs, err = s.DS.GetGroupedCertificateAuthorities(t.Context(), false)
 	require.NoError(t, err)
@@ -725,12 +362,12 @@ org_settings:
     org_name: Fleet
   secrets:
 policies:
-reports:
+queries:
 `)
 	require.NoError(t, err)
 
-	s.assertDryRunOutput(t, fleetctl.RunAppForTest(t, []string{"gitops", "--config", fleetctlConfig.Name(), "-f", globalFile.Name(), "--dry-run"}))
-	s.assertRealRunOutput(t, fleetctl.RunAppForTest(t, []string{"gitops", "--config", fleetctlConfig.Name(), "-f", globalFile.Name()}))
+	s.assertDryRunOutputWithDeprecation(t, fleetctl.RunAppForTest(t, []string{"gitops", "--config", fleetctlConfig.Name(), "-f", globalFile.Name(), "--dry-run"}), true)
+	s.assertRealRunOutputWithDeprecation(t, fleetctl.RunAppForTest(t, []string{"gitops", "--config", fleetctlConfig.Name(), "-f", globalFile.Name()}), true)
 
 	groupedCAs, err = s.DS.GetGroupedCertificateAuthorities(t.Context(), true)
 	require.NoError(t, err)
@@ -738,9 +375,7 @@ reports:
 	assert.Empty(t, groupedCAs.CustomScepProxy)
 }
 
-// TestUnsetConfigurationProfileLabels tests the removal of labels associated with a
-// configuration profile via gitops.
-func (s *enterpriseIntegrationGitopsTestSuite) TestUnsetConfigurationProfileLabels() {
+func (s *enterpriseIntegrationGitopsTestSuite) TestUnsetConfigurationProfileLabelsDeprecated() {
 	t := s.T()
 	ctx := context.Background()
 
@@ -772,7 +407,7 @@ org_settings:
     org_name: Fleet
   secrets:
 policies:
-reports:
+queries:
 `
 		withLabelsIncludeAny = `
         labels_include_any:
@@ -788,11 +423,11 @@ controls:
       - path: %s
 %s
 software:
-reports:
+queries:
 policies:
 agent_options:
 name: %s
-settings:
+team_settings:
   secrets: [{"secret":"enroll_secret"}]
 `
 		withLabelsIncludeAll = `
@@ -820,8 +455,8 @@ settings:
 	t.Setenv("FLEET_URL", s.Server.URL)
 
 	// Apply configs
-	s.assertDryRunOutput(t, fleetctl.RunAppForTest(t, []string{"gitops", "--config", fleetctlConfig.Name(), "-f", globalFile.Name(), "-f", teamFile.Name(), "--dry-run"}))
-	s.assertRealRunOutput(t, fleetctl.RunAppForTest(t, []string{"gitops", "--config", fleetctlConfig.Name(), "-f", globalFile.Name(), "-f", teamFile.Name()}))
+	s.assertDryRunOutputWithDeprecation(t, fleetctl.RunAppForTest(t, []string{"gitops", "--config", fleetctlConfig.Name(), "-f", globalFile.Name(), "-f", teamFile.Name(), "--dry-run"}), true)
+	s.assertRealRunOutputWithDeprecation(t, fleetctl.RunAppForTest(t, []string{"gitops", "--config", fleetctlConfig.Name(), "-f", globalFile.Name(), "-f", teamFile.Name()}), true)
 
 	// get the team ID
 	team, err := s.DS.TeamByName(ctx, teamName)
@@ -842,14 +477,14 @@ settings:
 	require.Equal(t, "Label1", profs[0].LabelsIncludeAll[0].LabelName)
 
 	// remove the label conditions
-	err = os.WriteFile(globalFile.Name(), []byte(fmt.Sprintf(globalTemplate, profileFile.Name(), emptyLabelsIncludeAny)), 0o644)
+	err = os.WriteFile(globalFile.Name(), fmt.Appendf(nil, globalTemplate, profileFile.Name(), emptyLabelsIncludeAny), 0o644)
 	require.NoError(t, err)
-	err = os.WriteFile(teamFile.Name(), []byte(fmt.Sprintf(teamTemplate, profileFile.Name(), "", teamName)), 0o644)
+	err = os.WriteFile(teamFile.Name(), fmt.Appendf(nil, teamTemplate, profileFile.Name(), "", teamName), 0o644)
 	require.NoError(t, err)
 
 	// Apply configs
-	s.assertDryRunOutput(t, fleetctl.RunAppForTest(t, []string{"gitops", "--config", fleetctlConfig.Name(), "-f", globalFile.Name(), "-f", teamFile.Name(), "--dry-run"}))
-	s.assertRealRunOutput(t, fleetctl.RunAppForTest(t, []string{"gitops", "--config", fleetctlConfig.Name(), "-f", globalFile.Name(), "-f", teamFile.Name()}))
+	s.assertDryRunOutputWithDeprecation(t, fleetctl.RunAppForTest(t, []string{"gitops", "--config", fleetctlConfig.Name(), "-f", globalFile.Name(), "-f", teamFile.Name(), "--dry-run"}), true)
+	s.assertRealRunOutputWithDeprecation(t, fleetctl.RunAppForTest(t, []string{"gitops", "--config", fleetctlConfig.Name(), "-f", globalFile.Name(), "-f", teamFile.Name()}), true)
 
 	// the custom setting is not scoped by label anymore
 	profs, _, err = s.DS.ListMDMConfigProfiles(ctx, nil, fleet.ListOptions{})
@@ -863,9 +498,7 @@ settings:
 	require.Len(t, profs[0].LabelsIncludeAll, 0)
 }
 
-// TestUnsetSoftwareInstallerLabels tests the removal of labels associated with a
-// software installer via gitops.
-func (s *enterpriseIntegrationGitopsTestSuite) TestUnsetSoftwareInstallerLabels() {
+func (s *enterpriseIntegrationGitopsTestSuite) TestUnsetSoftwareInstallerLabelsDeprecated() {
 	t := s.T()
 	ctx := context.Background()
 
@@ -886,7 +519,7 @@ org_settings:
     org_name: Fleet
   secrets:
 policies:
-reports:
+queries:
 `
 
 		noTeamTemplate = `name: No team
@@ -910,11 +543,11 @@ software:
   packages:
     - url: ${SOFTWARE_INSTALLER_URL}/ruby.deb
 %s
-reports:
+queries:
 policies:
 agent_options:
 name: %s
-settings:
+team_settings:
   secrets: [{"secret":"enroll_secret"}]
 `
 		withLabelsExcludeAny = `
@@ -953,8 +586,8 @@ settings:
 	testing_utils.StartSoftwareInstallerServer(t)
 
 	// Apply configs
-	s.assertDryRunOutput(t, fleetctl.RunAppForTest(t, []string{"gitops", "--config", fleetctlConfig.Name(), "-f", globalFile.Name(), "-f", noTeamFilePath, "-f", teamFile.Name(), "--dry-run"}))
-	s.assertRealRunOutput(t, fleetctl.RunAppForTest(t, []string{"gitops", "--config", fleetctlConfig.Name(), "-f", globalFile.Name(), "-f", noTeamFilePath, "-f", teamFile.Name()}))
+	s.assertDryRunOutputWithDeprecation(t, fleetctl.RunAppForTest(t, []string{"gitops", "--config", fleetctlConfig.Name(), "-f", globalFile.Name(), "-f", noTeamFilePath, "-f", teamFile.Name(), "--dry-run"}), true)
+	s.assertRealRunOutputWithDeprecation(t, fleetctl.RunAppForTest(t, []string{"gitops", "--config", fleetctlConfig.Name(), "-f", globalFile.Name(), "-f", noTeamFilePath, "-f", teamFile.Name()}), true)
 
 	// get the team ID
 	team, err := s.DS.TeamByName(ctx, teamName)
@@ -984,16 +617,16 @@ settings:
 	require.Equal(t, "Label1", meta.LabelsExcludeAny[0].LabelName)
 
 	// remove the label conditions
-	err = os.WriteFile(noTeamFilePath, []byte(fmt.Sprintf(noTeamTemplate, emptyLabelsIncludeAny)), 0o644)
+	err = os.WriteFile(noTeamFilePath, fmt.Appendf(nil, noTeamTemplate, emptyLabelsIncludeAny), 0o644)
 	require.NoError(t, err)
-	err = os.WriteFile(teamFile.Name(), []byte(fmt.Sprintf(teamTemplate, "", teamName)), 0o644)
+	err = os.WriteFile(teamFile.Name(), fmt.Appendf(nil, teamTemplate, "", teamName), 0o644)
 	require.NoError(t, err)
 
 	// Apply configs
-	s.assertDryRunOutput(t, fleetctl.RunAppForTest(t,
-		[]string{"gitops", "--config", fleetctlConfig.Name(), "-f", globalFile.Name(), "-f", noTeamFilePath, "-f", teamFile.Name(), "--dry-run"}))
-	s.assertRealRunOutput(t, fleetctl.RunAppForTest(t,
-		[]string{"gitops", "--config", fleetctlConfig.Name(), "-f", globalFile.Name(), "-f", noTeamFilePath, "-f", teamFile.Name()}))
+	s.assertDryRunOutputWithDeprecation(t, fleetctl.RunAppForTest(t,
+		[]string{"gitops", "--config", fleetctlConfig.Name(), "-f", globalFile.Name(), "-f", noTeamFilePath, "-f", teamFile.Name(), "--dry-run"}), true)
+	s.assertRealRunOutputWithDeprecation(t, fleetctl.RunAppForTest(t,
+		[]string{"gitops", "--config", fleetctlConfig.Name(), "-f", globalFile.Name(), "-f", noTeamFilePath, "-f", teamFile.Name()}), true)
 
 	// the installer is not scoped by label anymore
 	meta, err = s.DS.GetSoftwareInstallerMetadataByTeamAndTitleID(ctx, nil, noTeamTitleID, false)
@@ -1011,7 +644,7 @@ settings:
 	require.Len(t, meta.LabelsIncludeAny, 0)
 }
 
-func (s *enterpriseIntegrationGitopsTestSuite) TestDeletingNoTeamYAML() {
+func (s *enterpriseIntegrationGitopsTestSuite) TestDeletingNoTeamYAMLDeprecated() {
 	t := s.T()
 	ctx := context.Background()
 
@@ -1033,7 +666,7 @@ org_settings:
     org_name: Fleet
   secrets:
 policies:
-reports:
+queries:
 `
 	)
 
@@ -1075,9 +708,9 @@ software:
 	err = os.Rename(noTeamFile.Name(), noTeamFilePath)
 	require.NoError(t, err)
 
-	s.assertDryRunOutput(t, fleetctl.RunAppForTest(t,
-		[]string{"gitops", "--config", fleetctlConfig.Name(), "-f", globalFile.Name(), "-f", noTeamFilePath, "--dry-run"}))
-	s.assertRealRunOutput(t, fleetctl.RunAppForTest(t, []string{"gitops", "--config", fleetctlConfig.Name(), "-f", globalFile.Name(), "-f", noTeamFilePath}))
+	s.assertDryRunOutputWithDeprecation(t, fleetctl.RunAppForTest(t,
+		[]string{"gitops", "--config", fleetctlConfig.Name(), "-f", globalFile.Name(), "-f", noTeamFilePath, "--dry-run"}), true)
+	s.assertRealRunOutputWithDeprecation(t, fleetctl.RunAppForTest(t, []string{"gitops", "--config", fleetctlConfig.Name(), "-f", globalFile.Name(), "-f", noTeamFilePath}), true)
 
 	// Check script existance
 	_, err = s.DS.GetSetupExperienceScript(ctx, nil)
@@ -1092,27 +725,7 @@ software:
 	require.ErrorAs(t, err, &nfe)
 }
 
-// Helper function to get No Team webhook settings from the database
-func getNoTeamWebhookSettings(ctx context.Context, t *testing.T, ds *mysql.Datastore) fleet.FailingPoliciesWebhookSettings {
-	cfg, err := ds.DefaultTeamConfig(ctx)
-	require.NoError(t, err)
-	require.NotNil(t, cfg)
-	return cfg.WebhookSettings.FailingPoliciesWebhook
-}
-
-// Helper function to verify No Team webhook settings match expected values
-func verifyNoTeamWebhookSettings(ctx context.Context, t *testing.T, ds *mysql.Datastore, expected fleet.FailingPoliciesWebhookSettings) {
-	actual := getNoTeamWebhookSettings(ctx, t, ds)
-
-	require.Equal(t, expected.Enable, actual.Enable)
-	if expected.Enable {
-		require.Equal(t, expected.DestinationURL, actual.DestinationURL)
-		require.Equal(t, expected.HostBatchSize, actual.HostBatchSize)
-		require.ElementsMatch(t, expected.PolicyIDs, actual.PolicyIDs)
-	}
-}
-
-func (s *enterpriseIntegrationGitopsTestSuite) TestNoTeamWebhookSettings() {
+func (s *enterpriseIntegrationGitopsTestSuite) TestNoTeamWebhookSettingsDeprecated() {
 	t := s.T()
 	ctx := t.Context()
 
@@ -1136,7 +749,7 @@ org_settings:
   secrets:
     - secret: global_secret
 policies:
-reports:
+queries:
 `
 
 	globalFile, err := os.CreateTemp(t.TempDir(), "*.yml")
@@ -1156,7 +769,7 @@ policies:
     resolution: This is a test
 controls:
 software:
-settings:
+team_settings:
   webhook_settings:
     failing_policies_webhook:
       enable_failing_policies_webhook: true
@@ -1181,7 +794,7 @@ settings:
 	// Test dry-run first
 	output := fleetctl.RunAppForTest(t,
 		[]string{"gitops", "--config", fleetctlConfig.Name(), "-f", globalFile.Name(), "-f", noTeamFilePath, "--dry-run"})
-	s.assertDryRunOutput(t, output)
+	s.assertDryRunOutputWithDeprecation(t, output, true)
 
 	// Check that webhook settings are mentioned in the output
 	require.Contains(t, output, "would've applied webhook settings for 'No team'")
@@ -1189,7 +802,7 @@ settings:
 	// Apply the configuration (non-dry-run)
 	output = fleetctl.RunAppForTest(t,
 		[]string{"gitops", "--config", fleetctlConfig.Name(), "-f", globalFile.Name(), "-f", noTeamFilePath})
-	s.assertRealRunOutput(t, output)
+	s.assertRealRunOutputWithDeprecation(t, output, true)
 
 	// Verify the output mentions webhook settings were applied
 	require.Contains(t, output, "applying webhook settings for 'No team'")
@@ -1213,7 +826,7 @@ policies:
     resolution: This is a test
 controls:
 software:
-settings:
+team_settings:
   webhook_settings:
     failing_policies_webhook:
       enable_failing_policies_webhook: false
@@ -1305,7 +918,7 @@ policies:
     resolution: This is a test
 controls:
 software:
-settings:
+team_settings:
 `
 	noTeamFileTeamNoWebhook, err := os.CreateTemp(t.TempDir(), "*.yml")
 	require.NoError(t, err)
@@ -1350,7 +963,7 @@ policies:
     resolution: This is a test
 controls:
 software:
-settings:
+team_settings:
   webhook_settings:
 `
 	noTeamFileWebhookNoFailing, err := os.CreateTemp(t.TempDir(), "*.yml")
@@ -1377,7 +990,7 @@ settings:
 	})
 }
 
-func (s *enterpriseIntegrationGitopsTestSuite) TestRemoveCustomSettingsFromDefaultYAML() {
+func (s *enterpriseIntegrationGitopsTestSuite) TestRemoveCustomSettingsFromDefaultYAMLDeprecated() {
 	t := s.T()
 	ctx := context.Background()
 
@@ -1410,7 +1023,7 @@ org_settings:
     org_name: Fleet
   secrets:
 policies:
-reports:
+queries:
 `
 	)
 
@@ -1421,8 +1034,8 @@ reports:
 	err = globalFile.Close()
 	require.NoError(t, err)
 
-	s.assertDryRunOutput(t, fleetctl.RunAppForTest(t, []string{"gitops", "--config", fleetctlConfig.Name(), "-f", globalFile.Name(), "--dry-run"}))
-	s.assertRealRunOutput(t, fleetctl.RunAppForTest(t, []string{"gitops", "--config", fleetctlConfig.Name(), "-f", globalFile.Name()}))
+	s.assertDryRunOutputWithDeprecation(t, fleetctl.RunAppForTest(t, []string{"gitops", "--config", fleetctlConfig.Name(), "-f", globalFile.Name(), "--dry-run"}), true)
+	s.assertRealRunOutputWithDeprecation(t, fleetctl.RunAppForTest(t, []string{"gitops", "--config", fleetctlConfig.Name(), "-f", globalFile.Name()}), true)
 
 	profiles, err := s.DS.ListMDMAppleConfigProfiles(ctx, nil)
 	require.NoError(t, err)
@@ -1440,7 +1053,7 @@ org_settings:
     org_name: Fleet
   secrets:
 policies:
-reports:
+queries:
 `
 	)
 
@@ -1451,8 +1064,8 @@ reports:
 	err = globalFile.Close()
 	require.NoError(t, err)
 
-	s.assertDryRunOutput(t, fleetctl.RunAppForTest(t, []string{"gitops", "--config", fleetctlConfig.Name(), "-f", globalFile.Name(), "--dry-run"}))
-	s.assertRealRunOutput(t, fleetctl.RunAppForTest(t, []string{"gitops", "--config", fleetctlConfig.Name(), "-f", globalFile.Name()}))
+	s.assertDryRunOutputWithDeprecation(t, fleetctl.RunAppForTest(t, []string{"gitops", "--config", fleetctlConfig.Name(), "-f", globalFile.Name(), "--dry-run"}), true)
+	s.assertRealRunOutputWithDeprecation(t, fleetctl.RunAppForTest(t, []string{"gitops", "--config", fleetctlConfig.Name(), "-f", globalFile.Name()}), true)
 
 	// Check profile does not exist
 	profiles, err = s.DS.ListMDMAppleConfigProfiles(ctx, nil)
@@ -1460,7 +1073,7 @@ reports:
 	require.Equal(t, 0, len(profiles))
 }
 
-func (s *enterpriseIntegrationGitopsTestSuite) TestMacOSSetup() {
+func (s *enterpriseIntegrationGitopsTestSuite) TestMacOSSetupDeprecated() {
 	t := s.T()
 	ctx := context.Background()
 
@@ -1477,7 +1090,7 @@ org_settings:
     org_name: Fleet
   secrets:
 policies:
-reports:
+queries:
 `
 
 		globalConfigOnly = `
@@ -1492,7 +1105,7 @@ org_settings:
     org_name: Fleet
   secrets:
 policies:
-reports:
+queries:
 `
 
 		noTeamConfig = `name: No team
@@ -1508,11 +1121,11 @@ controls:
   macos_setup:
     manual_agent_install: %t
 software:
-reports:
+queries:
 policies:
 agent_options:
 name: %s
-settings:
+team_settings:
   secrets: [{"secret":"enroll_secret"}]
 `
 	)
@@ -1565,10 +1178,10 @@ settings:
 	t.Setenv("FLEET_URL", s.Server.URL)
 
 	// Apply configs
-	s.assertDryRunOutput(t, fleetctl.RunAppForTest(t,
-		[]string{"gitops", "--config", fleetctlConfig.Name(), "-f", globalFile.Name(), "-f", noTeamFilePath, "-f", teamFile.Name(), "--dry-run"}))
-	s.assertRealRunOutput(t, fleetctl.RunAppForTest(t,
-		[]string{"gitops", "--config", fleetctlConfig.Name(), "-f", globalFile.Name(), "-f", noTeamFilePath, "-f", teamFile.Name()}))
+	s.assertDryRunOutputWithDeprecation(t, fleetctl.RunAppForTest(t,
+		[]string{"gitops", "--config", fleetctlConfig.Name(), "-f", globalFile.Name(), "-f", noTeamFilePath, "-f", teamFile.Name(), "--dry-run"}), true)
+	s.assertRealRunOutputWithDeprecation(t, fleetctl.RunAppForTest(t,
+		[]string{"gitops", "--config", fleetctlConfig.Name(), "-f", globalFile.Name(), "-f", noTeamFilePath, "-f", teamFile.Name()}), true)
 
 	appConfig, err := s.DS.AppConfig(ctx)
 	require.NoError(t, err)
@@ -1579,10 +1192,10 @@ settings:
 	assert.True(t, team.Config.MDM.MacOSSetup.ManualAgentInstall.Value)
 
 	// Apply global configs without no-team
-	s.assertDryRunOutput(t, fleetctl.RunAppForTest(t,
-		[]string{"gitops", "--config", fleetctlConfig.Name(), "-f", globalFileOnlyClear.Name(), "-f", teamFileClear.Name(), "--dry-run"}))
-	s.assertRealRunOutput(t, fleetctl.RunAppForTest(t,
-		[]string{"gitops", "--config", fleetctlConfig.Name(), "-f", globalFileOnlyClear.Name(), "-f", teamFileClear.Name()}))
+	s.assertDryRunOutputWithDeprecation(t, fleetctl.RunAppForTest(t,
+		[]string{"gitops", "--config", fleetctlConfig.Name(), "-f", globalFileOnlyClear.Name(), "-f", teamFileClear.Name(), "--dry-run"}), true)
+	s.assertRealRunOutputWithDeprecation(t, fleetctl.RunAppForTest(t,
+		[]string{"gitops", "--config", fleetctlConfig.Name(), "-f", globalFileOnlyClear.Name(), "-f", teamFileClear.Name()}), true)
 	appConfig, err = s.DS.AppConfig(ctx)
 	require.NoError(t, err)
 	assert.False(t, appConfig.MDM.MacOSSetup.ManualAgentInstall.Value)
@@ -1591,71 +1204,15 @@ settings:
 	assert.False(t, team.Config.MDM.MacOSSetup.ManualAgentInstall.Value)
 
 	// Apply global configs only
-	s.assertDryRunOutput(t, fleetctl.RunAppForTest(t,
-		[]string{"gitops", "--config", fleetctlConfig.Name(), "-f", globalFileOnlySet.Name(), "--dry-run"}))
-	s.assertRealRunOutput(t, fleetctl.RunAppForTest(t, []string{"gitops", "--config", fleetctlConfig.Name(), "-f", globalFileOnlySet.Name()}))
+	s.assertDryRunOutputWithDeprecation(t, fleetctl.RunAppForTest(t,
+		[]string{"gitops", "--config", fleetctlConfig.Name(), "-f", globalFileOnlySet.Name(), "--dry-run"}), true)
+	s.assertRealRunOutputWithDeprecation(t, fleetctl.RunAppForTest(t, []string{"gitops", "--config", fleetctlConfig.Name(), "-f", globalFileOnlySet.Name()}), true)
 	appConfig, err = s.DS.AppConfig(ctx)
 	require.NoError(t, err)
 	assert.True(t, appConfig.MDM.MacOSSetup.ManualAgentInstall.Value)
 }
 
-func (s *enterpriseIntegrationGitopsTestSuite) TestFleetGitOpsDeletesNonManagedLabels() {
-	t := s.T()
-	ctx := context.Background()
-
-	// Set the required environment variables
-	t.Setenv("FLEET_SERVER_URL", s.Server.URL)
-	t.Setenv("ORG_NAME", "Around the block")
-
-	user := s.createGitOpsUser(t)
-	fleetctlConfig := s.createFleetctlConfig(t, user)
-
-	var someUser fleet.User
-	for _, u := range s.Users {
-		someUser = u
-		break
-	}
-
-	// 'nonManagedLabel' is associated with a software installer and is
-	// not managed in the ops file so it should be deleted.
-	nonManagedLabel, err := s.DS.NewLabel(ctx, &fleet.Label{
-		Name:  t.Name(),
-		Query: "bye bye label",
-	})
-	require.NoError(t, err)
-
-	installer, err := fleet.NewTempFileReader(strings.NewReader("echo"), t.TempDir)
-	require.NoError(t, err)
-
-	_, _, err = s.DS.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
-		InstallScript: "install zoo",
-		InstallerFile: installer,
-		StorageID:     uuid.NewString(),
-		Filename:      "zoo.pkg",
-		Title:         "zoo",
-		Source:        "apps",
-		Version:       "0.0.1",
-		UserID:        someUser.ID,
-		ValidatedLabels: &fleet.LabelIdentsWithScope{
-			LabelScope: fleet.LabelScopeIncludeAny,
-			ByName: map[string]fleet.LabelIdent{nonManagedLabel.Name: {
-				LabelID:   nonManagedLabel.ID,
-				LabelName: nonManagedLabel.Name,
-			}},
-		},
-	})
-	require.NoError(t, err)
-
-	opsFile := path.Join("..", "..", "fleetctl", "testdata", "gitops", "global_config_no_paths.yml")
-	_ = fleetctl.RunAppForTest(t, []string{"gitops", "--config", fleetctlConfig.Name(), "-f", opsFile})
-
-	// Check label was removed successfully
-	result, err := s.DS.LabelIDsByName(ctx, []string{nonManagedLabel.Name}, fleet.TeamFilter{})
-	require.NoError(t, err)
-	require.Empty(t, result)
-}
-
-func (s *enterpriseIntegrationGitopsTestSuite) TestMacOSSetupScriptWithFleetSecret() {
+func (s *enterpriseIntegrationGitopsTestSuite) TestMacOSSetupScriptWithFleetSecretDeprecated() {
 	t := s.T()
 	ctx := context.Background()
 
@@ -1708,13 +1265,13 @@ org_settings:
     org_name: Fleet
   secrets:
 policies:
-reports:
+queries:
 `)
 	require.NoError(t, err)
 
 	// Apply the configs
-	s.assertDryRunOutput(t, fleetctl.RunAppForTest(t, []string{"gitops", "--config", fleetctlConfig.Name(), "-f", globalFile.Name(), "-f", noTeamFilePath, "--dry-run"}))
-	s.assertRealRunOutput(t, fleetctl.RunAppForTest(t, []string{"gitops", "--config", fleetctlConfig.Name(), "-f", globalFile.Name(), "-f", noTeamFilePath}))
+	s.assertDryRunOutputWithDeprecation(t, fleetctl.RunAppForTest(t, []string{"gitops", "--config", fleetctlConfig.Name(), "-f", globalFile.Name(), "-f", noTeamFilePath, "--dry-run"}), true)
+	s.assertRealRunOutputWithDeprecation(t, fleetctl.RunAppForTest(t, []string{"gitops", "--config", fleetctlConfig.Name(), "-f", globalFile.Name(), "-f", noTeamFilePath}), true)
 
 	// Verify the script was saved
 	_, err = s.DS.GetSetupExperienceScript(ctx, nil)
@@ -1727,244 +1284,7 @@ reports:
 	require.Equal(t, secretVariables[0].Value, secretValue)
 }
 
-// TestEnvSubstitutionInProfiles tests that only FLEET_SECRET_ prefixed env vars are saved as secrets
-func (s *enterpriseIntegrationGitopsTestSuite) TestEnvSubstitutionInProfiles() {
-	t := s.T()
-	ctx := t.Context()
-	tempDir := t.TempDir()
-
-	// Create a test configuration profile with both valid and invalid secret references
-	profileContent := `<?xml version="1.0" encoding="UTF-8"?>
-<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-<plist version="1.0">
-<dict>
-    <key>PayloadContent</key>
-    <array>
-        <dict>
-            <key>PayloadDisplayName</key>
-            <string>Test Profile</string>
-            <key>PayloadIdentifier</key>
-            <string>com.fleet.test.env</string>
-            <key>PayloadType</key>
-            <string>Configuration</string>
-            <key>PayloadUUID</key>
-            <string>12345678-1234-1234-1234-123456789012</string>
-            <key>PayloadVersion</key>
-            <integer>1</integer>
-            <key>TestSecretValue</key>
-            <string>$FLEET_SECRET_TEST_SECRET</string>
-            <key>TestInvalidSecret</key>
-            <string>$FLEET_DUO_CERTIFICATE_SECRET</string>
-            <key>TestPlainValue</key>
-            <string>$HOME</string>
-        </dict>
-    </array>
-    <key>PayloadDisplayName</key>
-    <string>Test Profile</string>
-    <key>PayloadIdentifier</key>
-    <string>com.fleet.test.env</string>
-    <key>PayloadType</key>
-    <string>Configuration</string>
-    <key>PayloadUUID</key>
-    <string>12345678-1234-1234-1234-123456789012</string>
-    <key>PayloadVersion</key>
-    <integer>1</integer>
-</dict>
-</plist>`
-
-	// Write the profile to a file
-	profilePath := filepath.Join(tempDir, "test-profile.mobileconfig")
-	err := os.WriteFile(profilePath, []byte(profileContent), 0o644) //nolint:gosec // test code
-	require.NoError(t, err)
-
-	// Create a GitOps config file that references the profile
-	// Note: Environment variables in the YAML config itself get expanded,
-	// but not in the referenced profile files
-	gitopsConfig := fmt.Sprintf(`
-org_settings:
-  server_settings:
-    server_url: %s
-  secrets:
-    - secret: test_secret
-agent_options:
-  config:
-    decorators:
-      load:
-        - SELECT uuid AS host_uuid FROM system_info;
-controls:
-  macos_settings:
-    custom_settings:
-      - path: %s
-reports: []
-policies: []
-`, s.Server.URL, profilePath)
-
-	configPath := filepath.Join(tempDir, "gitops.yml")
-	err = os.WriteFile(configPath, []byte(gitopsConfig), 0o644) //nolint:gosec // test code
-	require.NoError(t, err)
-
-	// Create a GitOps user
-	gitOpsUser := s.createGitOpsUser(t)
-	fleetctlConfig := s.createFleetctlConfig(t, gitOpsUser)
-
-	// Set the environment variable for the valid secret
-	t.Setenv("FLEET_SECRET_TEST_SECRET", "super_secret_value_123")
-	t.Setenv("FLEET_DUO_CERTIFICATE_SECRET", "should_not_be_saved")
-	t.Setenv("HOME", "also_not_saved")
-
-	// Run GitOps dry-run - should fail without the required secret
-	// First, unset the environment variable to trigger the error
-	_ = os.Unsetenv("FLEET_SECRET_TEST_SECRET")
-	_, err = fleetctl.RunAppNoChecks([]string{"gitops", "--config", fleetctlConfig.Name(), "-f", configPath, "--dry-run"})
-	require.ErrorContains(t, err, "FLEET_SECRET_TEST_SECRET")
-
-	// Set the env var again and run for real
-	t.Setenv("FLEET_SECRET_TEST_SECRET", "super_secret_value_123")
-	_ = fleetctl.RunAppForTest(t, []string{"gitops", "--config", fleetctlConfig.Name(), "-f", configPath})
-
-	// Verify that the secret was saved to the server
-	secrets, err := s.DS.GetSecretVariables(ctx, []string{"TEST_SECRET"})
-	require.NoError(t, err)
-	require.Len(t, secrets, 1)
-	assert.Equal(t, "TEST_SECRET", secrets[0].Name)
-	assert.Equal(t, "super_secret_value_123", secrets[0].Value)
-
-	// Verify that non-FLEET_SECRET_ variables were NOT saved
-	notSaved, err := s.DS.GetSecretVariables(ctx, []string{"DUO_CERTIFICATE_SECRET", "HOME"})
-	require.NoError(t, err)
-	assert.Empty(t, notSaved, "Non-FLEET_SECRET_ variables should not be saved")
-
-	// Verify that the profile content has the expected substitutions:
-	// - $FLEET_SECRET_* variables should remain as-is (substituted at delivery time)
-	// - Other env vars should be expanded during GitOps
-	profiles, err := s.DS.ListMDMAppleConfigProfiles(ctx, nil)
-	require.NoError(t, err)
-
-	foundProfile := false
-	for _, profile := range profiles {
-		t.Logf("Found profile: %s", profile.Name)
-		if strings.Contains(profile.Name, "test-profile") || strings.Contains(profile.Identifier, "com.fleet.test.env") {
-			foundProfile = true
-			// $FLEET_SECRET_* variables should NOT be expanded (they're expanded at delivery time)
-			assert.Contains(t, string(profile.Mobileconfig), "$FLEET_SECRET_TEST_SECRET")
-			// Non-FLEET_SECRET_/FLEET_VAR_ variables SHOULD be expanded during GitOps
-			assert.Contains(t, string(profile.Mobileconfig), "should_not_be_saved") // Value of $FLEET_DUO_CERTIFICATE_SECRET
-			assert.Contains(t, string(profile.Mobileconfig), "also_not_saved")      // Value of $HOME
-			// The original variable names should NOT be present
-			assert.NotContains(t, string(profile.Mobileconfig), "$FLEET_DUO_CERTIFICATE_SECRET")
-			assert.NotContains(t, string(profile.Mobileconfig), "$HOME")
-			break
-		}
-	}
-	assert.True(t, foundProfile, "Profile should be uploaded to the server")
-}
-
-// TestFleetSecretInDataTag tests that FLEET_SECRET_ variables in <data> tags of Apple profiles
-// are handled properly.
-func (s *enterpriseIntegrationGitopsTestSuite) TestFleetSecretInDataTag() {
-	t := s.T()
-	tempDir := t.TempDir()
-	ctx := context.Background()
-
-	// Sample certificate in base64 format (this is a dummy test certificate)
-	testCertBase64 := `MIIDaTCCAlGgAwIBAgIUNQLezMUpmZK18DcLKt/XTRcLlK8wDQYJKoZIhvcNAQELBQAwRDEfMB0GA1UEAwwWRHVtbXkgVGVzdCBDZXJ0aWZpY2F0ZTEUMBIGA1UECgwLRXhhbXBsZSBPcmcxCzAJBgNVBAYTAlVTMB4XDTI1MDgxOTE3NDMwN1oXDTI2MDgxOTE3NDMwN1owRDEfMB0GA1UEAwwWRHVtbXkgVGVzdCBDZXJ0aWZpY2F0ZTEUMBIGA1UECgwLRXhhbXBsZSBPcmcxCzAJBgNVBAYTAlVTMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA07Np/w5WpFVLlMKX3dZSxwo+c2uwP2glTN0HA5c/6UOQRR9c91yoGGJsD4pfqhtIMSTFw7po3n/PjhGDe/WH+utK+ZIcD0nGD6SvmOggyoohHs81eIOjJAEJjxzhk7eLTVpUI2EnPe/24ei/dgkK59As9qQyH/y+CoR8JIYbNCJH5YLC2Pa44V84QWa2I5DHKUKrUXo9WsrRp1N1JjyaG/6hxLBJZ69e0QTrxxScboreRqVUR6oIEJRTchB+rDG5dxXzCQE6/F8N3qR76t23wd3CLmrcXoEc1P2P331Qzi0KXNXjdJFf0plmfRkT/IWgfM81Vfon1QwENwRSBNmPfQIDAQABo1MwUTAdBgNVHQ4EFgQU9q7SDfQRbJ31snRt2sZzx5sdEpYwHwYDVR0jBBgwFoAU9q7SDfQRbJ31snRt2sZzx5sdEpYwDwYDVR0TAQH/BAUwAwEB/zANBgkqhkiG9w0BAQsFAAOCAQEAYwH42JP45SnZejSF74OcYt8fp08jCWHOiFC3QEo3cROXVn6AWjEbzuQpOxRWF9EizNA83c4E6I+kQVztiuv9bUKGuLFeYb9lUZe8HOvH+j22MtGvZrDPygsJc8TavdkxAsu6OiNQZrYiCFzixkKS9b5p/1B93GBh62OFnV1nUBS8PzAZhOAyJ8UcEhr+GNzZG99/wOkcB0uwxmIb8x8sB3KnQ0qef/qnmgeWxlJlDc/SZ2/4PgtaluZ+noDfNPzaQn4eJNnBz0OTqZ9yuKALeE1WHk8U13zSdc1GNVLhXOrEHegPK5bBmA/lpIQ6HrkwUX7MJ3vK0AD3LjaTzXltDQ==`
-
-	// Create a test team first
-	team, err := s.DS.NewTeam(ctx, &fleet.Team{
-		Name: "Test Team for Secret in Data Tag",
-	})
-	require.NoError(t, err)
-
-	// Create a profile with $FLEET_SECRET_DUO_CERTIFICATE in a <data> tag
-	// This mimics the real-world scenario where the certificate should be base64 encoded
-	profileContent := `<?xml version="1.0" encoding="UTF-8"?>
-<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-<plist version="1.0">
-    <dict>
-        <key>PayloadContent</key>
-        <array>
-            <dict>
-                <key>PayloadType</key>
-                <string>com.apple.security.root</string>
-                <key>PayloadVersion</key>
-                <integer>1</integer>
-                <key>PayloadIdentifier</key>
-                <string>com.example.test.cert</string>
-                <key>PayloadUUID</key>
-                <string>11111111-2222-3333-4444-555555555555</string>
-                <key>PayloadDisplayName</key>
-                <string>Test Root Certificate</string>
-                <key>PayloadContent</key>
-                <data>$FLEET_SECRET_DUO_CERTIFICATE</data>
-            </dict>
-        </array>
-        <key>PayloadType</key>
-        <string>Configuration</string>
-        <key>PayloadVersion</key>
-        <integer>1</integer>
-        <key>PayloadIdentifier</key>
-        <string>com.example.test.profile</string>
-        <key>PayloadUUID</key>
-        <string>aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee</string>
-        <key>PayloadDisplayName</key>
-        <string>Test MDM Profile with Base64</string>
-    </dict>
-</plist>`
-
-	// Write the profile to a file
-	profilePath := filepath.Join(tempDir, "rootcert-secret.mobileconfig")
-	err = os.WriteFile(profilePath, []byte(profileContent), 0o644) //nolint:gosec
-	require.NoError(t, err)
-
-	// Create a team GitOps config file that references the profile
-	teamConfig := fmt.Sprintf(`
-name: %s
-settings:
-  secrets:
-    - secret: test_secret
-agent_options:
-  config:
-    decorators:
-      load:
-        - SELECT uuid AS host_uuid FROM system_info;
-controls:
-  macos_settings:
-    custom_settings:
-      - path: %s
-reports:
-policies:
-software:
-`, team.Name, profilePath)
-
-	configPath := filepath.Join(tempDir, "team-gitops.yml")
-	err = os.WriteFile(configPath, []byte(teamConfig), 0o644) //nolint:gosec
-	require.NoError(t, err)
-
-	// Create a GitOps user
-	gitOpsUser := s.createGitOpsUser(t)
-	fleetctlConfig := s.createFleetctlConfig(t, gitOpsUser)
-
-	// Set the environment variable with the base64-encoded certificate
-	t.Setenv("FLEET_SECRET_DUO_CERTIFICATE", testCertBase64)
-
-	// The fix expands FLEET_SECRET_ variables for validation only, allowing the profile to be parsed
-	_, err = fleetctl.RunAppNoChecks([]string{"gitops", "--config", fleetctlConfig.Name(), "-f", configPath, "--dry-run"})
-	require.NoError(t, err, "GitOps dry-run should succeed with the fix")
-
-	// Also test without dry-run to confirm it works
-	_, err = fleetctl.RunAppNoChecks([]string{"gitops", "--config", fleetctlConfig.Name(), "-f", configPath})
-	require.NoError(t, err, "GitOps should succeed with the fix")
-
-	// Verify that the profile stored on the server still has the unexpanded variable
-	profiles, err := s.DS.ListMDMAppleConfigProfiles(ctx, &team.ID)
-	require.NoError(t, err)
-	require.Len(t, profiles, 1)
-	// The stored profile should still contain the unexpanded variable, not the actual secret
-	require.Contains(t, string(profiles[0].Mobileconfig), "$FLEET_SECRET_DUO_CERTIFICATE",
-		"Profile should still contain unexpanded FLEET_SECRET variable")
-}
-
-func (s *enterpriseIntegrationGitopsTestSuite) TestAddManualLabels() {
+func (s *enterpriseIntegrationGitopsTestSuite) TestAddManualLabelsDeprecated() {
 	t := s.T()
 	ctx := context.Background()
 
@@ -1981,41 +1301,41 @@ func (s *enterpriseIntegrationGitopsTestSuite) TestAddManualLabels() {
 
 	// Add some hosts
 	host1, err := s.DS.NewHost(context.Background(), &fleet.Host{
-		UUID:           "uuid-1",
-		Hostname:       "host1",
+		UUID:           "uuid-deprecated-1",
+		Hostname:       "host-deprecated1",
 		Platform:       "linux",
-		HardwareSerial: "serial1",
+		HardwareSerial: "serial-deprecated1",
 	})
 	require.NoError(t, err)
 	host2, err := s.DS.NewHost(context.Background(), &fleet.Host{
-		UUID:           "uuid-2",
-		Hostname:       "host2",
+		UUID:           "uuid-deprecated-2",
+		Hostname:       "host-deprecated2",
 		Platform:       "linux",
-		HardwareSerial: "serial2",
+		HardwareSerial: "serial-deprecated2",
 	})
 	require.NoError(t, err)
 	host3, err := s.DS.NewHost(context.Background(), &fleet.Host{
-		UUID:           "uuid-3",
-		Hostname:       "host3",
+		UUID:           "uuid-deprecated-3",
+		Hostname:       "host-deprecated3",
 		Platform:       "linux",
-		HardwareSerial: "serial3",
+		HardwareSerial: "serial-deprecated3",
 	})
 	require.NoError(t, err)
 	host4, err := s.DS.NewHost(context.Background(), &fleet.Host{
-		UUID:           "uuid-4",
-		Hostname:       "host4",
+		UUID:           "uuid-deprecated-4",
+		Hostname:       "host-deprecated4",
 		Platform:       "linux",
-		HardwareSerial: "serial4",
+		HardwareSerial: "serial-deprecated4",
 	})
 	require.NoError(t, err)
 	// Add a host whose UUID starts with the ID of host4 (probably ID 4,
 	// but get it from the record just in case.)
 	// host4 should _not_ be added to the label (see issue #34236).
 	host5, err := s.DS.NewHost(context.Background(), &fleet.Host{
-		UUID:           fmt.Sprintf("%duuid-5", host4.ID),
-		Hostname:       "dummy",
+		UUID:           fmt.Sprintf("%duuid-deprecated-5", host4.ID),
+		Hostname:       "dummydeprecated",
 		Platform:       "linux",
-		HardwareSerial: "dummy",
+		HardwareSerial: "dummydeprecated",
 	})
 	require.NoError(t, err)
 
@@ -2029,28 +1349,29 @@ org_settings:
   secrets:
   - secret: test_secret
 policies:
-reports:
+queries:
 labels:
-  - name: my-label
+  - name: my-label-deprecated
     label_membership_type: manual
     hosts:
     - %s
     - %s
     - %d
     - %s
-    - dummy
+    - dummydeprecated
 `, host1.Hostname, host2.HardwareSerial, host3.ID, host5.UUID))
 	require.NoError(t, err)
 
 	// Apply the configs
-	s.assertDryRunOutput(t, fleetctl.RunAppForTest(t, []string{"gitops", "--config", fleetctlConfig.Name(), "-f", globalFile.Name(), "--dry-run"}))
-	s.assertRealRunOutput(t, fleetctl.RunAppForTest(t, []string{"gitops", "--config", fleetctlConfig.Name(), "-f", globalFile.Name()}))
+	s.assertDryRunOutputWithDeprecation(t, fleetctl.RunAppForTest(t, []string{"gitops", "--config", fleetctlConfig.Name(), "-f", globalFile.Name(), "--dry-run"}), true)
+	s.assertRealRunOutputWithDeprecation(t, fleetctl.RunAppForTest(t, []string{"gitops", "--config", fleetctlConfig.Name(), "-f", globalFile.Name()}), true)
 
 	// Verify the label was created and has the correct hosts
-	labels, err := s.DS.LabelsByName(ctx, []string{"my-label"}, fleet.TeamFilter{})
+	labels, err := s.DS.LabelsByName(ctx, []string{"my-label-deprecated"}, fleet.TeamFilter{})
 	require.NoError(t, err)
 	require.Len(t, labels, 1)
-	label := labels["my-label"]
+	label, ok := labels["my-label-deprecated"]
+	require.True(t, ok)
 	// Get the hosts for the label
 	labelHosts, err := s.DS.ListHostsInLabel(ctx, fleet.TeamFilter{User: &user}, label.ID, fleet.HostListOptions{})
 	require.NoError(t, err)
@@ -2064,7 +1385,7 @@ labels:
 	require.ElementsMatch(t, labelHostIDs, []uint{host1.ID, host2.ID, host3.ID, host5.ID})
 }
 
-func (s *enterpriseIntegrationGitopsTestSuite) TestIPASoftwareInstallers() {
+func (s *enterpriseIntegrationGitopsTestSuite) TestIPASoftwareInstallersDeprecated() {
 	t := s.T()
 	ctx := context.Background()
 
@@ -2085,7 +1406,7 @@ org_settings:
     org_name: Fleet
   secrets:
 policies:
-reports:
+queries:
 labels:
   - name: Label1
     label_membership_type: dynamic
@@ -2104,11 +1425,11 @@ controls:
 software:
   packages:
 %s
-reports:
+queries:
 policies:
 agent_options:
 name: %s
-settings:
+team_settings:
   secrets: [{"secret":"enroll_secret"}]
 `
 	)
@@ -2138,8 +1459,8 @@ settings:
 	t.Setenv("FLEET_URL", s.Server.URL)
 	testing_utils.StartSoftwareInstallerServer(t)
 
-	s.assertDryRunOutput(t, fleetctl.RunAppForTest(t, []string{"gitops", "--config", fleetctlConfig.Name(), "-f", globalFile.Name(), "-f", noTeamFilePath, "--dry-run"}))
-	s.assertRealRunOutput(t, fleetctl.RunAppForTest(t, []string{"gitops", "--config", fleetctlConfig.Name(), "-f", globalFile.Name(), "-f", noTeamFilePath}))
+	s.assertDryRunOutputWithDeprecation(t, fleetctl.RunAppForTest(t, []string{"gitops", "--config", fleetctlConfig.Name(), "-f", globalFile.Name(), "-f", noTeamFilePath, "--dry-run"}), true)
+	s.assertRealRunOutputWithDeprecation(t, fleetctl.RunAppForTest(t, []string{"gitops", "--config", fleetctlConfig.Name(), "-f", globalFile.Name(), "-f", noTeamFilePath}), true)
 
 	// the ipa installer was created for no team
 	titles, _, _, err := s.DS.ListSoftwareTitles(ctx, fleet.SoftwareTitleListOptions{AvailableForInstall: true, TeamID: ptr.Uint(0)},
@@ -2191,8 +1512,8 @@ settings:
 	err = teamFile.Close()
 	require.NoError(t, err)
 
-	s.assertDryRunOutput(t, fleetctl.RunAppForTest(t, []string{"gitops", "--config", fleetctlConfig.Name(), "-f", globalFile.Name(), "-f", teamFile.Name(), "--dry-run"}))
-	s.assertRealRunOutput(t, fleetctl.RunAppForTest(t, []string{"gitops", "--config", fleetctlConfig.Name(), "-f", globalFile.Name(), "-f", teamFile.Name()}))
+	s.assertDryRunOutputWithDeprecation(t, fleetctl.RunAppForTest(t, []string{"gitops", "--config", fleetctlConfig.Name(), "-f", globalFile.Name(), "-f", teamFile.Name(), "--dry-run"}), true)
+	s.assertRealRunOutputWithDeprecation(t, fleetctl.RunAppForTest(t, []string{"gitops", "--config", fleetctlConfig.Name(), "-f", globalFile.Name(), "-f", teamFile.Name()}), true)
 
 	// get the team ID
 	team, err := s.DS.TeamByName(ctx, teamName)
@@ -2227,14 +1548,14 @@ settings:
 	require.ElementsMatch(t, []string{"ios", "ipados"}, platforms)
 
 	// update the team config to clear the label condition
-	err = os.WriteFile(teamFile.Name(), []byte(fmt.Sprintf(teamTemplate, `
+	err = os.WriteFile(teamFile.Name(), fmt.Appendf(nil, teamTemplate, `
       - url: ${SOFTWARE_INSTALLER_URL}/ipa_test.ipa
         labels_include_any:
-`, teamName)), 0o644)
+`, teamName), 0o644)
 	require.NoError(t, err)
 
-	s.assertDryRunOutput(t, fleetctl.RunAppForTest(t, []string{"gitops", "--config", fleetctlConfig.Name(), "-f", globalFile.Name(), "-f", teamFile.Name(), "--dry-run"}))
-	s.assertRealRunOutput(t, fleetctl.RunAppForTest(t, []string{"gitops", "--config", fleetctlConfig.Name(), "-f", globalFile.Name(), "-f", teamFile.Name()}))
+	s.assertDryRunOutputWithDeprecation(t, fleetctl.RunAppForTest(t, []string{"gitops", "--config", fleetctlConfig.Name(), "-f", globalFile.Name(), "-f", teamFile.Name(), "--dry-run"}), true)
+	s.assertRealRunOutputWithDeprecation(t, fleetctl.RunAppForTest(t, []string{"gitops", "--config", fleetctlConfig.Name(), "-f", globalFile.Name(), "-f", teamFile.Name()}), true)
 
 	// the ipa installer was created for the team
 	titles, _, _, err = s.DS.ListSoftwareTitles(ctx, fleet.SoftwareTitleListOptions{AvailableForInstall: true, TeamID: &team.ID},
@@ -2263,11 +1584,11 @@ settings:
 	require.ElementsMatch(t, []string{"ios", "ipados"}, platforms)
 
 	// update the team config to clear all installers
-	err = os.WriteFile(teamFile.Name(), []byte(fmt.Sprintf(teamTemplate, "", teamName)), 0o644)
+	err = os.WriteFile(teamFile.Name(), fmt.Appendf(nil, teamTemplate, "", teamName), 0o644)
 	require.NoError(t, err)
 
-	s.assertDryRunOutput(t, fleetctl.RunAppForTest(t, []string{"gitops", "--config", fleetctlConfig.Name(), "-f", globalFile.Name(), "-f", teamFile.Name(), "--dry-run"}))
-	s.assertRealRunOutput(t, fleetctl.RunAppForTest(t, []string{"gitops", "--config", fleetctlConfig.Name(), "-f", globalFile.Name(), "-f", teamFile.Name()}))
+	s.assertDryRunOutputWithDeprecation(t, fleetctl.RunAppForTest(t, []string{"gitops", "--config", fleetctlConfig.Name(), "-f", globalFile.Name(), "-f", teamFile.Name(), "--dry-run"}), true)
+	s.assertRealRunOutputWithDeprecation(t, fleetctl.RunAppForTest(t, []string{"gitops", "--config", fleetctlConfig.Name(), "-f", globalFile.Name(), "-f", teamFile.Name()}), true)
 
 	titles, _, _, err = s.DS.ListSoftwareTitles(ctx, fleet.SoftwareTitleListOptions{AvailableForInstall: true, TeamID: &team.ID},
 		fleet.TeamFilter{User: test.UserAdmin})
@@ -2276,8 +1597,8 @@ settings:
 }
 
 // TestGitOpsSoftwareDisplayName tests that display names for software packages and VPP apps
-// are properly applied via GitOps.
-func (s *enterpriseIntegrationGitopsTestSuite) TestGitOpsSoftwareDisplayName() {
+
+func (s *enterpriseIntegrationGitopsTestSuite) TestGitOpsSoftwareDisplayNameDeprecated() {
 	t := s.T()
 	ctx := context.Background()
 
@@ -2295,7 +1616,7 @@ org_settings:
     org_name: Fleet
   secrets:
 policies:
-reports:
+queries:
 `
 
 		noTeamTemplate = `name: No team
@@ -2313,11 +1634,11 @@ software:
   packages:
     - url: ${SOFTWARE_INSTALLER_URL}/ruby.deb
       display_name: Team Custom Ruby
-reports:
+queries:
 policies:
 agent_options:
 name: %s
-settings:
+team_settings:
   secrets: [{"secret":"enroll_secret"}]
 `
 	)
@@ -2352,8 +1673,8 @@ settings:
 	testing_utils.StartSoftwareInstallerServer(t)
 
 	// Apply configs
-	s.assertDryRunOutput(t, fleetctl.RunAppForTest(t, []string{"gitops", "--config", fleetctlConfig.Name(), "-f", globalFile.Name(), "-f", noTeamFilePath, "-f", teamFile.Name(), "--dry-run"}))
-	s.assertRealRunOutput(t, fleetctl.RunAppForTest(t, []string{"gitops", "--config", fleetctlConfig.Name(), "-f", globalFile.Name(), "-f", noTeamFilePath, "-f", teamFile.Name()}))
+	s.assertDryRunOutputWithDeprecation(t, fleetctl.RunAppForTest(t, []string{"gitops", "--config", fleetctlConfig.Name(), "-f", globalFile.Name(), "-f", noTeamFilePath, "-f", teamFile.Name(), "--dry-run"}), true)
+	s.assertRealRunOutputWithDeprecation(t, fleetctl.RunAppForTest(t, []string{"gitops", "--config", fleetctlConfig.Name(), "-f", globalFile.Name(), "-f", noTeamFilePath, "-f", teamFile.Name()}), true)
 
 	// get the team ID
 	team, err := s.DS.TeamByName(ctx, teamName)
@@ -2394,8 +1715,8 @@ settings:
 }
 
 // TestGitOpsSoftwareIcons tests that custom icons for software packages
-// and fleet maintained apps are properly applied via GitOps.
-func (s *enterpriseIntegrationGitopsTestSuite) TestGitOpsSoftwareIcons() {
+
+func (s *enterpriseIntegrationGitopsTestSuite) TestGitOpsSoftwareIconsDeprecated() {
 	t := s.T()
 	ctx := context.Background()
 
@@ -2413,7 +1734,7 @@ org_settings:
     org_name: Fleet
   secrets:
 policies:
-reports:
+queries:
 `
 
 		noTeamTemplate = `name: No team
@@ -2425,7 +1746,7 @@ software:
       icon:
         path: %s/testdata/gitops/lib/icon.png
   fleet_maintained_apps:
-    - slug: foo/darwin
+    - slug: foodeprecated/darwin
       icon:
         path: %s/testdata/gitops/lib/icon.png
 `
@@ -2438,14 +1759,14 @@ software:
       icon:
         path: %s/testdata/gitops/lib/icon.png
   fleet_maintained_apps:
-    - slug: foo/darwin
+    - slug: foodeprecated/darwin
       icon:
         path: %s/testdata/gitops/lib/icon.png
-reports:
+queries:
 policies:
 agent_options:
 name: %s
-settings:
+team_settings:
   secrets: [{"secret":"enroll_secret"}]
 `
 	)
@@ -2524,13 +1845,13 @@ settings:
 
 	mysql.ExecAdhocSQL(t, s.DS, func(q sqlx.ExtContext) error {
 		_, err := q.ExecContext(ctx, `INSERT INTO fleet_maintained_apps (name, slug, platform, unique_identifier)
-			VALUES ('foo', 'foo/darwin', 'darwin', 'com.example.foo')`)
+			VALUES ('foodeprecated', 'foodeprecated/darwin', 'darwin', 'com.example.foodeprecated')`)
 		return err
 	})
 
 	// Apply configs
-	s.assertDryRunOutput(t, fleetctl.RunAppForTest(t, []string{"gitops", "--config", fleetctlConfig.Name(), "-f", globalFile.Name(), "-f", noTeamFilePath, "-f", teamFile.Name(), "--dry-run"}))
-	s.assertRealRunOutput(t, fleetctl.RunAppForTest(t, []string{"gitops", "--config", fleetctlConfig.Name(), "-f", globalFile.Name(), "-f", noTeamFilePath, "-f", teamFile.Name()}))
+	s.assertDryRunOutputWithDeprecation(t, fleetctl.RunAppForTest(t, []string{"gitops", "--config", fleetctlConfig.Name(), "-f", globalFile.Name(), "-f", noTeamFilePath, "-f", teamFile.Name(), "--dry-run"}), true)
+	s.assertRealRunOutputWithDeprecation(t, fleetctl.RunAppForTest(t, []string{"gitops", "--config", fleetctlConfig.Name(), "-f", globalFile.Name(), "-f", noTeamFilePath, "-f", teamFile.Name()}), true)
 
 	// Get the team ID
 	team, err := s.DS.TeamByName(ctx, teamName)
@@ -2580,8 +1901,7 @@ settings:
 	require.Equal(t, "icon.png", teamIconFilenames[1])
 }
 
-// TestGitOpsTeamLabels tests operations around team labels
-func (s *enterpriseIntegrationGitopsTestSuite) TestGitOpsTeamLabels() {
+func (s *enterpriseIntegrationGitopsTestSuite) TestGitOpsTeamLabelsDeprecated() {
 	t := s.T()
 	ctx := context.Background()
 
@@ -2601,7 +1921,7 @@ org_settings:
   secrets:
   - secret: test_secret
 policies:
-reports:
+queries:
 labels:
   - name: global-label-one
     label_membership_type: dynamic
@@ -2611,8 +1931,8 @@ labels:
     query: SELECT 1
 `), 0o644))
 
-	s.assertDryRunOutput(t, fleetctl.RunAppForTest(t, []string{"gitops", "--config", fleetCfg.Name(), "-f", globalFile.Name(), "--dry-run"}))
-	s.assertRealRunOutput(t, fleetctl.RunAppForTest(t, []string{"gitops", "--config", fleetCfg.Name(), "-f", globalFile.Name()}))
+	s.assertDryRunOutputWithDeprecation(t, fleetctl.RunAppForTest(t, []string{"gitops", "--config", fleetCfg.Name(), "-f", globalFile.Name(), "--dry-run"}), true)
+	s.assertRealRunOutputWithDeprecation(t, fleetctl.RunAppForTest(t, []string{"gitops", "--config", fleetCfg.Name(), "-f", globalFile.Name()}), true)
 
 	expected := make(map[string]uint)
 	expected["global-label-one"] = 0
@@ -2637,11 +1957,11 @@ labels:
 		`
 controls:
 software:
-reports:
+queries:
 policies:
 agent_options:
 name: %s
-settings:
+team_settings:
   secrets: [{"secret":"enroll_secret"}]
 labels:
   - name: team-one-label-one
@@ -2652,8 +1972,8 @@ labels:
     query: SELECT 3
 `, teamOneName), 0o644))
 
-	s.assertDryRunOutput(t, fleetctl.RunAppForTest(t, []string{"gitops", "--config", fleetCfg.Name(), "-f", teamOneFile.Name(), "--dry-run"}))
-	s.assertRealRunOutput(t, fleetctl.RunAppForTest(t, []string{"gitops", "--config", fleetCfg.Name(), "-f", teamOneFile.Name()}))
+	s.assertDryRunOutputWithDeprecation(t, fleetctl.RunAppForTest(t, []string{"gitops", "--config", fleetCfg.Name(), "-f", teamOneFile.Name(), "--dry-run"}), true)
+	s.assertRealRunOutputWithDeprecation(t, fleetctl.RunAppForTest(t, []string{"gitops", "--config", fleetCfg.Name(), "-f", teamOneFile.Name()}), true)
 
 	got = labelTeamIDResult(t, s, ctx)
 
@@ -2670,11 +1990,11 @@ labels:
 		`
 controls:
 software:
-reports:
+queries:
 policies:
 agent_options:
 name: %s
-settings:
+team_settings:
   secrets: [{"secret":"enroll_secret"}]
 labels:
   - name: team-one-label-one
@@ -2682,7 +2002,7 @@ labels:
     query: SELECT 2
 `, teamOneName), 0o644))
 
-	s.assertRealRunOutput(t, fleetctl.RunAppForTest(t, []string{"gitops", "--config", fleetCfg.Name(), "-f", globalFile.Name(), "-f", teamOneFile.Name()}))
+	s.assertRealRunOutputWithDeprecation(t, fleetctl.RunAppForTest(t, []string{"gitops", "--config", fleetCfg.Name(), "-f", globalFile.Name(), "-f", teamOneFile.Name()}), true)
 
 	expected = make(map[string]uint)
 	expected["global-label-one"] = 0
@@ -2703,7 +2023,7 @@ org_settings:
   secrets:
   - secret: test_secret
 policies:
-reports:
+queries:
 labels:
   - name: global-label-one
     label_membership_type: dynamic
@@ -2716,11 +2036,11 @@ labels:
 		`
 controls:
 software:
-reports:
+queries:
 policies:
 agent_options:
 name: %s
-settings:
+team_settings:
   secrets: [{"secret":"enroll_secret"}]
 labels:
   - name: team-one-label-two
@@ -2738,11 +2058,11 @@ labels:
 	require.NoError(t, os.WriteFile(teamTwoFile.Name(), fmt.Appendf(nil, `
 controls:
 software:
-reports:
+queries:
 policies:
 agent_options:
 name: %s
-settings:
+team_settings:
   secrets: [{"secret":"enroll_secret2"}]
 labels:
   - name: team-one-label-one
@@ -2750,11 +2070,11 @@ labels:
     query: SELECT 2
 `, teamTwoName), 0o644))
 
-	s.assertDryRunOutput(t, fleetctl.RunAppForTest(t, []string{"gitops", "--config", fleetCfg.Name(), "-f", globalFile.Name(), "-f", teamOneFile.Name(), "-f", teamTwoFile.Name(), "--dry-run"}))
+	s.assertDryRunOutputWithDeprecation(t, fleetctl.RunAppForTest(t, []string{"gitops", "--config", fleetCfg.Name(), "-f", globalFile.Name(), "-f", teamOneFile.Name(), "-f", teamTwoFile.Name(), "--dry-run"}), true)
 
 	// TODO: Seems like we require two passes to achieve equilibrium?
-	s.assertRealRunOutput(t, fleetctl.RunAppForTest(t, []string{"gitops", "--config", fleetCfg.Name(), "-f", globalFile.Name(), "-f", teamOneFile.Name(), "-f", teamTwoFile.Name()}))
-	s.assertRealRunOutput(t, fleetctl.RunAppForTest(t, []string{"gitops", "--config", fleetCfg.Name(), "-f", globalFile.Name(), "-f", teamOneFile.Name(), "-f", teamTwoFile.Name()}))
+	s.assertRealRunOutputWithDeprecation(t, fleetctl.RunAppForTest(t, []string{"gitops", "--config", fleetCfg.Name(), "-f", globalFile.Name(), "-f", teamOneFile.Name(), "-f", teamTwoFile.Name()}), true)
+	s.assertRealRunOutputWithDeprecation(t, fleetctl.RunAppForTest(t, []string{"gitops", "--config", fleetCfg.Name(), "-f", globalFile.Name(), "-f", teamOneFile.Name(), "-f", teamTwoFile.Name()}), true)
 
 	teamTwo, err := s.DS.TeamByName(ctx, teamTwoName)
 	require.NoError(t, err)
@@ -2771,21 +2091,21 @@ labels:
 }
 
 // Tests a gitops setup where every team runs from an independent repo. Multiple repos are simulated by
-// copying over the example repository multiple times.
-func (s *enterpriseIntegrationGitopsTestSuite) TestGitOpsTeamLabelsMultipleRepos() {
+
+func (s *enterpriseIntegrationGitopsTestSuite) TestGitOpsTeamLabelsMultipleReposDeprecated() {
 	t := s.T()
 	ctx := context.Background()
 
-	var users []fleet.User
-	var cfgPaths []*os.File
-	var reposDir []string
+	type repoSetup struct {
+		user    fleet.User
+		cfg     *os.File
+		repoDir string
+	}
+	setups := make([]repoSetup, 0, 2)
 
 	for range 2 {
 		user := s.createGitOpsUser(t)
-		users = append(users, user)
-
 		cfg := s.createFleetctlConfig(t, user)
-		cfgPaths = append(cfgPaths, cfg)
 
 		repoDir := t.TempDir()
 		_, err := git.PlainClone(
@@ -2798,7 +2118,11 @@ func (s *enterpriseIntegrationGitopsTestSuite) TestGitOpsTeamLabelsMultipleRepos
 			},
 		)
 		require.NoError(t, err)
-		reposDir = append(reposDir, repoDir)
+		setups = append(setups, repoSetup{
+			user:    user,
+			cfg:     cfg,
+			repoDir: repoDir,
+		})
 	}
 
 	// Set the required environment variables
@@ -2815,12 +2139,12 @@ func (s *enterpriseIntegrationGitopsTestSuite) TestGitOpsTeamLabelsMultipleRepos
 	teamCfgTmpl, err := template.New("t1").Parse(`
 controls:
 software:
-reports:{{ .Queries }}
+queries:{{ .Queries }}
 policies:
 labels:{{ .Labels }}
 agent_options:
 name:{{ .Name }}
-settings:
+team_settings:
   secrets: [{"secret":"{{ .Name}}_secret"}]
 `)
 	require.NoError(t, err)
@@ -2828,8 +2152,8 @@ settings:
 	// --------------------------------------------------
 	// First, lets simulate adding a new team per repo
 	// --------------------------------------------------
-	for i, repo := range reposDir {
-		globalFile := path.Join(repo, "default.yml")
+	for i, setup := range setups {
+		globalFile := path.Join(setup.repoDir, "default.yml")
 
 		newTeamCfgFile, err := os.CreateTemp(t.TempDir(), "*.yml")
 		require.NoError(t, err)
@@ -2840,11 +2164,12 @@ settings:
 			Labels:  fmt.Sprintf("\n  - name: label-%d\n    label_membership_type: dynamic\n    query: SELECT 1", i),
 		}))
 
-		args := []string{"gitops", "--config", cfgPaths[i].Name(), "-f", globalFile, "-f", newTeamCfgFile.Name()}
+		args := []string{"gitops", "--config", setup.cfg.Name(), "-f", globalFile, "-f", newTeamCfgFile.Name()}
 		s.assertRealRunOutputWithDeprecation(t, fleetctl.RunAppForTest(t, args), true)
 	}
 
-	for i, user := range users {
+	for i, setup := range setups {
+		user := setup.user
 		team, err := s.DS.TeamByName(ctx, fmt.Sprintf("team-%d", i))
 		require.NoError(t, err)
 		require.NotNil(t, team)
@@ -2871,8 +2196,8 @@ settings:
 	// -----------------------------------------------------------------
 	// Then, lets simulate a mutation by dropping the labels on team one
 	// -----------------------------------------------------------------
-	for i, repo := range reposDir {
-		globalFile := path.Join(repo, "default.yml")
+	for i, setup := range setups {
+		globalFile := path.Join(setup.repoDir, "default.yml")
 
 		newTeamCfgFile, err := os.CreateTemp(t.TempDir(), "*.yml")
 		require.NoError(t, err)
@@ -2887,11 +2212,12 @@ settings:
 
 		require.NoError(t, teamCfgTmpl.Execute(newTeamCfgFile, params))
 
-		args := []string{"gitops", "--config", cfgPaths[i].Name(), "-f", globalFile, "-f", newTeamCfgFile.Name()}
+		args := []string{"gitops", "--config", setup.cfg.Name(), "-f", globalFile, "-f", newTeamCfgFile.Name()}
 		s.assertRealRunOutputWithDeprecation(t, fleetctl.RunAppForTest(t, args), true)
 	}
 
-	for i, user := range users {
+	for i, setup := range setups {
+		user := setup.user
 		team, err := s.DS.TeamByName(ctx, fmt.Sprintf("team-%d", i))
 		require.NoError(t, err)
 		require.NotNil(t, team)
@@ -2921,239 +2247,9 @@ settings:
 	}
 }
 
-func labelTeamIDResult(t *testing.T, s *enterpriseIntegrationGitopsTestSuite, ctx context.Context) map[string]uint {
-	type labelResult struct {
-		Name   string `db:"name"`
-		TeamID *uint  `db:"team_id"`
-	}
-	var result []labelResult
-	mysql.ExecAdhocSQL(t, s.DS, func(q sqlx.ExtContext) error {
-		require.NoError(t, sqlx.SelectContext(ctx, q, &result, "SELECT name, team_id FROM labels WHERE label_type = 0"))
-		return nil
-	})
-	got := make(map[string]uint)
-	for _, r := range result {
-		var teamID uint
-		if r.TeamID != nil {
-			teamID = *r.TeamID
-		}
-		got[r.Name] = teamID
-	}
-	return got
-}
-
 // TestGitOpsVPPAppAutoUpdate tests that auto-update settings for VPP apps (iOS/iPadOS)
-// are properly applied via GitOps.
-func (s *enterpriseIntegrationGitopsTestSuite) TestGitOpsVPPAppAutoUpdate() {
-	t := s.T()
-	ctx := context.Background()
 
-	user := s.createGitOpsUser(t)
-	fleetctlConfig := s.createFleetctlConfig(t, user)
-
-	// Create a global VPP token (location is "Jungle")
-	test.CreateInsertGlobalVPPToken(t, s.DS)
-
-	// Generate team name upfront since we need it in the global template
-	teamName := uuid.NewString()
-
-	// The global template includes VPP token assignment to the team
-	// The location "Jungle" comes from test.CreateInsertGlobalVPPToken
-	globalTemplate := fmt.Sprintf(`
-agent_options:
-controls:
-org_settings:
-  server_settings:
-    server_url: $FLEET_URL
-  org_info:
-    org_name: Fleet
-  secrets:
-  mdm:
-    volume_purchasing_program:
-      - location: Jungle
-        teams:
-          - %s
-policies:
-reports:
-`, teamName)
-
-	teamTemplate := `
-controls:
-software:
-  app_store_apps:
-    - app_store_id: "2"
-      platform: ios
-      self_service: false
-      auto_update_enabled: true
-      auto_update_window_start: "02:00"
-      auto_update_window_end: "06:00"
-    - app_store_id: "2"
-      platform: ipados
-      self_service: false
-      auto_update_enabled: true
-      auto_update_window_start: "03:00"
-      auto_update_window_end: "07:00"
-reports:
-policies:
-agent_options:
-name: %s
-settings:
-  secrets: [{"secret":"enroll_secret"}]
-`
-
-	globalFile, err := os.CreateTemp(t.TempDir(), "*.yml")
-	require.NoError(t, err)
-	_, err = globalFile.WriteString(globalTemplate)
-	require.NoError(t, err)
-	err = globalFile.Close()
-	require.NoError(t, err)
-	teamFile, err := os.CreateTemp(t.TempDir(), "*.yml")
-	require.NoError(t, err)
-	_, err = teamFile.WriteString(fmt.Sprintf(teamTemplate, teamName))
-	require.NoError(t, err)
-	err = teamFile.Close()
-	require.NoError(t, err)
-
-	t.Setenv("FLEET_URL", s.Server.URL)
-
-	testing_utils.StartAndServeVPPServer(t)
-
-	dryRunOutput := fleetctl.RunAppForTest(t, []string{"gitops", "--config", fleetctlConfig.Name(), "-f", globalFile.Name(), "-f", teamFile.Name(), "--dry-run"})
-	require.Contains(t, dryRunOutput, "gitops dry run succeeded")
-
-	realRunOutput := fleetctl.RunAppForTest(t, []string{"gitops", "--config", fleetctlConfig.Name(), "-f", globalFile.Name(), "-f", teamFile.Name()})
-	require.Contains(t, realRunOutput, "gitops succeeded")
-
-	team, err := s.DS.TeamByName(ctx, teamName)
-	require.NoError(t, err)
-
-	// Verify VPP apps were added
-	titles, _, _, err := s.DS.ListSoftwareTitles(ctx, fleet.SoftwareTitleListOptions{AvailableForInstall: true, TeamID: &team.ID},
-		fleet.TeamFilter{User: test.UserAdmin})
-	require.NoError(t, err)
-	require.Len(t, titles, 2) // One for iOS, one for iPadOS
-
-	// Verify auto-update schedules were created in the database
-	type autoUpdateSchedule struct {
-		TitleID   uint   `db:"title_id"`
-		TeamID    uint   `db:"team_id"`
-		Enabled   bool   `db:"enabled"`
-		StartTime string `db:"start_time"`
-		EndTime   string `db:"end_time"`
-	}
-	var schedules []autoUpdateSchedule
-	mysql.ExecAdhocSQL(t, s.DS, func(q sqlx.ExtContext) error {
-		return sqlx.SelectContext(ctx, q, &schedules,
-			`SELECT title_id, team_id, enabled, start_time, end_time
-			FROM software_update_schedules
-			WHERE team_id = ?
-			ORDER BY title_id`, team.ID)
-	})
-
-	require.Len(t, schedules, 2)
-
-	for _, schedule := range schedules {
-		require.Equal(t, team.ID, schedule.TeamID)
-		require.True(t, schedule.Enabled)
-
-		var foundTitle *fleet.SoftwareTitleListResult
-		for i := range titles {
-			if titles[i].ID == schedule.TitleID {
-				foundTitle = &titles[i]
-				break
-			}
-		}
-		require.NotNil(t, foundTitle, "should find title for schedule")
-
-		// Verify the correct start/end times based on source
-		switch foundTitle.Source {
-		case "ios_apps":
-			require.Equal(t, "02:00", schedule.StartTime)
-			require.Equal(t, "06:00", schedule.EndTime)
-		case "ipados_apps":
-			require.Equal(t, "03:00", schedule.StartTime)
-			require.Equal(t, "07:00", schedule.EndTime)
-		default:
-			t.Fatalf("unexpected source: %s", foundTitle.Source)
-		}
-	}
-
-	// Now apply a config without auto-update fields for the iPadOS app and verify they're cleared
-	teamTemplateNoAutoUpdate := `
-controls:
-software:
-  app_store_apps:
-    - app_store_id: "2"
-      platform: ios
-      self_service: false
-      auto_update_enabled: true
-      auto_update_window_start: "02:00"
-      auto_update_window_end: "06:00"
-    - app_store_id: "2"
-      platform: ipados
-      self_service: false
-reports:
-policies:
-agent_options:
-name: %s
-settings:
-  secrets: [{"secret":"enroll_secret"}]
-`
-
-	teamFileNoAutoUpdate, err := os.CreateTemp(t.TempDir(), "*.yml")
-	require.NoError(t, err)
-	_, err = teamFileNoAutoUpdate.WriteString(fmt.Sprintf(teamTemplateNoAutoUpdate, teamName))
-	require.NoError(t, err)
-	err = teamFileNoAutoUpdate.Close()
-	require.NoError(t, err)
-
-	// Apply the updated config
-	realRunOutput = fleetctl.RunAppForTest(t, []string{"gitops", "--config", fleetctlConfig.Name(), "-f", globalFile.Name(), "-f", teamFileNoAutoUpdate.Name()})
-	require.Contains(t, realRunOutput, "gitops succeeded")
-
-	// Verify auto-update schedules: iOS should still have settings, iPadOS should be disabled
-	var updatedSchedules []autoUpdateSchedule
-	mysql.ExecAdhocSQL(t, s.DS, func(q sqlx.ExtContext) error {
-		return sqlx.SelectContext(ctx, q, &updatedSchedules,
-			`SELECT title_id, team_id, enabled, start_time, end_time
-			FROM software_update_schedules
-			WHERE team_id = ?
-			ORDER BY title_id`, team.ID)
-	})
-
-	require.Len(t, updatedSchedules, 2)
-
-	for _, schedule := range updatedSchedules {
-		var foundTitle *fleet.SoftwareTitleListResult
-		for i := range titles {
-			if titles[i].ID == schedule.TitleID {
-				foundTitle = &titles[i]
-				break
-			}
-		}
-		require.NotNil(t, foundTitle, "should find title for schedule")
-
-		switch foundTitle.Source {
-		case "ios_apps":
-			// iOS app should still have auto-update enabled
-			require.True(t, schedule.Enabled)
-			require.Equal(t, "02:00", schedule.StartTime)
-			require.Equal(t, "06:00", schedule.EndTime)
-		case "ipados_apps":
-			// iPadOS app should now have auto-update disabled (fields removed from config)
-			// but the previous start/end times should still be preserved in the database
-			require.False(t, schedule.Enabled)
-			require.Equal(t, "03:00", schedule.StartTime)
-			require.Equal(t, "07:00", schedule.EndTime)
-		default:
-			t.Fatalf("unexpected source: %s", foundTitle.Source)
-		}
-	}
-}
-
-// TestFleetDesktopSettingsBrowserAlternativeHost tests that user can mutate the fleet_desktop.alternative_browser_host
-// setting via GitOps.
-func (s *enterpriseIntegrationGitopsTestSuite) TestFleetDesktopSettingsBrowserAlternativeHost() {
+func (s *enterpriseIntegrationGitopsTestSuite) TestFleetDesktopSettingsBrowserAlternativeHostDeprecated() {
 	t := s.T()
 	ctx := context.Background()
 
@@ -3166,7 +2262,7 @@ func (s *enterpriseIntegrationGitopsTestSuite) TestFleetDesktopSettingsBrowserAl
 	globalCfgTpl, err := template.New("t1").Parse(`
 agent_options:
 controls:
-reports:
+queries:
 policies:
 org_settings:
   secrets:
@@ -3217,283 +2313,14 @@ org_settings:
 			if testCase.ShouldError {
 				fleetctl.RunAppCheckErr(t, []string{"gitops", "--config", fleetCfg.Name(), "-f", globalCfgFile.Name()}, "applying fleet config: PATCH /api/latest/fleet/config received status 422 Validation Failed: must be a valid hostname or IP address")
 			} else {
-				s.assertDryRunOutput(t, fleetctl.RunAppForTest(t, []string{"gitops", "--config", fleetCfg.Name(), "-f", globalCfgFile.Name(), "--dry-run"}))
-				s.assertRealRunOutput(t, fleetctl.RunAppForTest(t, []string{"gitops", "--config", fleetCfg.Name(), "-f", globalCfgFile.Name()}))
+				s.assertDryRunOutputWithDeprecation(t, fleetctl.RunAppForTest(t, []string{"gitops", "--config", fleetCfg.Name(), "-f", globalCfgFile.Name(), "--dry-run"}), true)
+				s.assertRealRunOutputWithDeprecation(t, fleetctl.RunAppForTest(t, []string{"gitops", "--config", fleetCfg.Name(), "-f", globalCfgFile.Name()}), true)
 			}
 
 			storedCfg, err := s.DS.AppConfig(ctx)
 			require.NoError(t, err)
 			require.NotNil(t, storedCfg)
 			require.Equal(t, testCase.Expected, storedCfg.FleetDesktop.AlternativeBrowserHost)
-		})
-	}
-}
-
-func (s *enterpriseIntegrationGitopsTestSuite) TestSpecialCaseTeamsVPPApps() {
-	t := s.T()
-	ctx := context.Background()
-
-	user := s.createGitOpsUser(t)
-	fleetctlConfig := s.createFleetctlConfig(t, user)
-
-	// Create a global VPP token (location is "Jungle")
-	test.CreateInsertGlobalVPPToken(t, s.DS)
-
-	// Generate team name upfront since we need it in the global template
-	teamName := uuid.NewString()
-
-	// The global template includes VPP token assignment to the team
-	// The location "Jungle" comes from test.CreateInsertGlobalVPPToken
-	globalTemplate := `agent_options:
-controls:
-org_settings:
-  server_settings:
-    server_url: $FLEET_URL
-  org_info:
-    org_name: Fleet
-  secrets:
-  - secret: foobar
-  mdm:
-    volume_purchasing_program:
-      - location: Jungle
-        teams:
-          - %s
-policies:
-reports:
-`
-
-	teamTemplate := `
-controls:
-software:
-  app_store_apps:
-    - app_store_id: "2"
-      platform: ios
-      self_service: false
-      auto_update_enabled: true
-      auto_update_window_start: "02:00"
-      auto_update_window_end: "06:00"
-    - app_store_id: "2"
-      platform: ipados
-      self_service: false
-      auto_update_enabled: true
-      auto_update_window_start: "03:00"
-      auto_update_window_end: "07:00"
-reports:
-policies:
-agent_options:
-name: %s
-settings:
-  %s
-`
-
-	testCases := []struct {
-		specialCase  string
-		teamName     string
-		teamSettings string
-	}{
-		{
-			specialCase:  "All teams",
-			teamName:     teamName,
-			teamSettings: `secrets: [{"secret":"enroll_secret"}]`,
-		},
-		{
-			specialCase: "No team",
-			teamName:    "No team",
-		},
-	}
-	for _, tc := range testCases {
-		t.Run(tc.specialCase, func(t *testing.T) {
-			globalFile, err := os.CreateTemp(t.TempDir(), "*.yml")
-			require.NoError(t, err)
-			globalYAML := fmt.Sprintf(globalTemplate, tc.specialCase)
-			_, err = globalFile.WriteString(globalYAML)
-			require.NoError(t, err)
-			err = globalFile.Close()
-			require.NoError(t, err)
-			teamFile, err := os.CreateTemp(t.TempDir(), "*.yml")
-			require.NoError(t, err)
-			_, err = fmt.Fprintf(teamFile, teamTemplate, tc.teamName, tc.teamSettings)
-			require.NoError(t, err)
-			err = teamFile.Close()
-			require.NoError(t, err)
-
-			teamFileName := teamFile.Name()
-
-			if tc.specialCase == "No team" {
-				noTeamFilePath := filepath.Join(filepath.Dir(teamFile.Name()), "no-team.yml")
-				err = os.Rename(teamFile.Name(), noTeamFilePath)
-				require.NoError(t, err)
-
-				teamFileName = noTeamFilePath
-			}
-
-			t.Setenv("FLEET_URL", s.Server.URL)
-
-			testing_utils.StartAndServeVPPServer(t)
-
-			dryRunOutput := fleetctl.RunAppForTest(t, []string{"gitops", "--config", fleetctlConfig.Name(), "-f", globalFile.Name(), "-f", teamFileName, "--dry-run"})
-			require.Contains(t, dryRunOutput, "gitops dry run succeeded")
-
-			realRunOutput := fleetctl.RunAppForTest(t, []string{"gitops", "--config", fleetctlConfig.Name(), "-f", globalFile.Name(), "-f", teamFileName})
-			require.Contains(t, realRunOutput, "gitops succeeded")
-
-			var teamID uint
-			if tc.specialCase != "No team" {
-				team, err := s.DS.TeamByName(ctx, teamName)
-				require.NoError(t, err)
-				teamID = team.ID
-			}
-
-			// Verify VPP apps were added
-			titles, _, _, err := s.DS.ListSoftwareTitles(ctx, fleet.SoftwareTitleListOptions{AvailableForInstall: true, TeamID: &teamID},
-				fleet.TeamFilter{User: test.UserAdmin})
-			require.NoError(t, err)
-			require.Len(t, titles, 2) // One for iOS, one for iPadOS
-		})
-	}
-}
-
-func (s *enterpriseIntegrationGitopsTestSuite) TestDisallowSoftwareSetupExperience() {
-	t := s.T()
-
-	user := s.createGitOpsUser(t)
-	fleetctlConfig := s.createFleetctlConfig(t, user)
-	test.CreateInsertGlobalVPPToken(t, s.DS)
-	teamName := uuid.NewString()
-
-	// The global template includes VPP token assignment to the team
-	// The location "Jungle" comes from test.CreateInsertGlobalVPPToken
-	globalTemplate := `agent_options:
-org_settings:
-  server_settings:
-    server_url: $FLEET_URL
-  org_info:
-    org_name: Fleet
-  secrets:
-  - secret: foobar
-  mdm:
-    volume_purchasing_program:
-      - location: Jungle
-        teams:
-          - %s
-policies:
-controls:
-queries:
-`
-
-	testAll := `
-controls:
-  macos_setup:
-    manual_agent_install: true
-software:
-  app_store_apps:
-    - app_store_id: "2"
-      platform: darwin
-      setup_experience: true
-    - app_store_id: "2"
-      platform: ios
-      setup_experience: true
-    - app_store_id: "2"
-      platform: ipados
-      setup_experience: true
-queries:
-policies:
-agent_options:
-name: %s
-team_settings:
-  %s
-`
-
-	//nolint:gosec // test code
-	testPackagesFail := `
-controls:
-  macos_setup:
-    manual_agent_install: true
-software:
-  app_store_apps:
-  packages:
-    - url: ${SOFTWARE_INSTALLER_URL}/dummy_installer.pkg
-      setup_experience: true
-queries:
-policies:
-agent_options:
-name: %s
-team_settings:
-  %s
-`
-
-	testCases := []struct {
-		VPPTeam      string
-		testName     string
-		teamName     string
-		teamTemplate string
-		teamSettings string
-		errContains  *string
-	}{
-		{
-			testName:     "All VPP with setup experience",
-			VPPTeam:      "All teams",
-			teamName:     teamName,
-			teamTemplate: testAll,
-			teamSettings: `secrets: [{"secret":"enroll_secret"}]`,
-			errContains:  ptr.String("Couldn't edit software."),
-		},
-		{
-			testName:     "Packages fail",
-			VPPTeam:      "All teams",
-			teamName:     teamName,
-			teamTemplate: testPackagesFail,
-			teamSettings: `secrets: [{"secret":"enroll_secret"}]`,
-			errContains:  ptr.String("Couldn't edit software."),
-		},
-		{
-			testName:     "No team",
-			VPPTeam:      "No team",
-			teamName:     "No team",
-			teamTemplate: testAll,
-			errContains:  ptr.String("Couldn't edit software."),
-		},
-		// left out more possible combinations of setup experience being set for different platforms
-	}
-	for _, tc := range testCases {
-		t.Run(tc.testName, func(t *testing.T) {
-			globalFile, err := os.CreateTemp(t.TempDir(), "*.yml")
-			require.NoError(t, err)
-			globalYAML := fmt.Sprintf(globalTemplate, tc.VPPTeam)
-			_, err = globalFile.WriteString(globalYAML)
-			require.NoError(t, err)
-			err = globalFile.Close()
-			require.NoError(t, err)
-			teamFile, err := os.CreateTemp(t.TempDir(), "*.yml")
-			require.NoError(t, err)
-			_, err = fmt.Fprintf(teamFile, tc.teamTemplate, tc.teamName, tc.teamSettings)
-			require.NoError(t, err)
-			err = teamFile.Close()
-			require.NoError(t, err)
-
-			teamFileName := teamFile.Name()
-
-			if tc.VPPTeam == "No team" {
-				noTeamFilePath := filepath.Join(filepath.Dir(teamFile.Name()), "no-team.yml")
-				err = os.Rename(teamFile.Name(), noTeamFilePath)
-				require.NoError(t, err)
-				teamFileName = noTeamFilePath
-			}
-
-			t.Setenv("FLEET_URL", s.Server.URL)
-			testing_utils.StartSoftwareInstallerServer(t)
-			testing_utils.StartAndServeVPPServer(t)
-
-			// Don't attempt dry runs because they would not actually create the team, so the config would not be found
-
-			_, err = fleetctl.RunAppNoChecks([]string{"gitops", "--config", fleetctlConfig.Name(), "-f", globalFile.Name(), "-f", teamFileName})
-
-			if tc.errContains != nil {
-				require.ErrorContains(t, err, *tc.errContains)
-			} else {
-				require.NoError(t, err)
-			}
-
 		})
 	}
 }

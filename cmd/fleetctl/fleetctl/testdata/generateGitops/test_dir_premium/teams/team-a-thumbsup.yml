@@ -58,7 +58,7 @@ policies:
   platform: linux,windows
   query: SELECT * FROM team_policy WHERE id = 1
   resolution: Do a team thing
-queries:
+reports:
 - automations_enabled: true
   description: This is a team query
   discard_data: false
@@ -69,6 +69,34 @@ queries:
   observer_can_run: false
   platform: linux,windows
   query: SELECT * FROM team_query WHERE id = 1
+settings:
+  features:
+    enable_host_users: true
+    enable_software_inventory: true
+  host_expiry_settings:
+    host_expiry_enabled: false
+    host_expiry_window: 1
+  integrations:
+    conditional_access_enabled: true
+    google_calendar:
+      enable_calendar_events: true
+      webhook_url: https://some-team-google-calendar-webhook.com
+  secrets:
+  - secret: # TODO: Add your enroll secrets here
+  webhook_settings:
+    failing_policies_webhook:
+      destination_url: https://some-team-failing_policies-webhook.com
+      enable_failing_policies_webhook: false
+      host_batch_size: 4
+      policy_ids:
+      - 1
+      - 2
+      - 3
+    host_status_webhook:
+      days_count: 3
+      destination_url: https://some-team-host-status-webhook.com
+      enable_host_status_webhook: false
+      host_percentage: 2
 software:
   app_store_apps:
   - app_store_id: com.example.team-software
@@ -106,7 +134,7 @@ software:
     post_install_script:
       path: "../lib/team-a-👍/scripts/my-fma-darwin-postinstall"
     pre_install_query:
-      path: "../lib/team-a-👍/queries/my-fma-darwin-preinstallquery.yml"
+      path: "../lib/team-a-👍/reports/my-fma-darwin-preinstallquery.yml"
     self_service: true
     setup_experience: true
     slug: fma1/darwin
@@ -128,37 +156,9 @@ software:
     post_install_script:
       path: "../lib/team-a-👍/scripts/my-software-package-darwin-postinstall"
     pre_install_query:
-      path: "../lib/team-a-👍/queries/my-software-package-darwin-preinstallquery.yml"
+      path: "../lib/team-a-👍/reports/my-software-package-darwin-preinstallquery.yml"
     self_service: true
     setup_experience: true
     uninstall_script:
       path: "../lib/team-a-👍/scripts/my-software-package-darwin-uninstall"
     url: https://example.com/download/my-software.pkg
-team_settings:
-  features:
-    enable_host_users: true
-    enable_software_inventory: true
-  host_expiry_settings:
-    host_expiry_enabled: false
-    host_expiry_window: 1
-  integrations:
-    conditional_access_enabled: true
-    google_calendar:
-      enable_calendar_events: true
-      webhook_url: https://some-team-google-calendar-webhook.com
-  secrets:
-  - secret: # TODO: Add your enroll secrets here
-  webhook_settings:
-    failing_policies_webhook:
-      destination_url: https://some-team-failing_policies-webhook.com
-      enable_failing_policies_webhook: false
-      host_batch_size: 4
-      policy_ids:
-      - 1
-      - 2
-      - 3
-    host_status_webhook:
-      days_count: 3
-      destination_url: https://some-team-host-status-webhook.com
-      enable_host_status_webhook: false
-      host_percentage: 2
