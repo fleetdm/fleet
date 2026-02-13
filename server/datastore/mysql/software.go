@@ -6090,6 +6090,26 @@ func (ds *Datastore) CountHostSoftwareInstallAttempts(ctx context.Context, hostI
 	return count, nil
 }
 
+func (ds *Datastore) CountHostSoftwareInstallAttemptsWithoutPolicy(ctx context.Context, hostID, softwareInstallerID uint) (int, error) {
+	var count int
+	err := sqlx.GetContext(ctx, ds.reader(ctx), &count, `
+		SELECT COUNT(*)
+		FROM host_software_installs
+		WHERE host_id = ?
+		  AND software_installer_id = ?
+		  AND policy_id IS NULL
+		  AND removed = 0
+		  AND canceled = 0
+		  AND host_deleted_at IS NULL
+		  AND (attempt_number > 0 OR attempt_number IS NULL)
+	`, hostID, softwareInstallerID)
+	if err != nil {
+		return 0, ctxerr.Wrap(ctx, err, "count host software install attempts without policy")
+	}
+
+	return count, nil
+}
+
 func (ds *Datastore) CreateIntermediateInstallFailureRecord(ctx context.Context, result *fleet.HostSoftwareInstallResultPayload) (string, error) {
 	// Get the original installation details first, including software title and package info
 	const getDetailsStmt = `

@@ -751,6 +751,19 @@ func (ds *Datastore) resetInstallerPolicyAutomationAttempts(ctx context.Context,
 	return nil
 }
 
+// ResetNonPolicyInstallAttempts resets all attempt numbers for non-policy software installer executions for a host
+func (ds *Datastore) ResetNonPolicyInstallAttempts(ctx context.Context, hostID, softwareInstallerID uint) error {
+	_, err := ds.writer(ctx).ExecContext(ctx, `
+		UPDATE host_software_installs
+		SET attempt_number = 0
+		WHERE host_id = ?
+		  AND software_installer_id = ?
+		  AND policy_id IS NULL
+		  AND (attempt_number > 0 OR attempt_number IS NULL)
+	`, hostID, softwareInstallerID)
+	return ctxerr.Wrap(ctx, err, "reset non-policy install attempts")
+}
+
 func (ds *Datastore) ValidateOrbitSoftwareInstallerAccess(ctx context.Context, hostID uint, installerID uint) (bool, error) {
 	// NOTE: this is ok to only look in host_software_installs (and ignore
 	// upcoming_activities), because orbit should not be able to get the
@@ -1212,7 +1225,9 @@ VALUES
 	}
 
 	var userID *uint
-	if ctxUser := authz.UserFromContext(ctx); ctxUser != nil && opts.PolicyID == nil {
+	if opts.UserID != nil {
+		userID = opts.UserID
+	} else if ctxUser := authz.UserFromContext(ctx); ctxUser != nil && opts.PolicyID == nil {
 		userID = &ctxUser.ID
 	}
 	execID := uuid.NewString()

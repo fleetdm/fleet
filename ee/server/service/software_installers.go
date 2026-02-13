@@ -1443,6 +1443,10 @@ func (svc *Service) installSoftwareTitleUsingInstaller(ctx context.Context, host
 		}
 	}
 
+	if err := svc.ds.ResetNonPolicyInstallAttempts(ctx, host.ID, installer.InstallerID); err != nil {
+		level.Error(svc.logger).Log("msg", "failed to reset install attempts", "err", err)
+	}
+
 	_, err := svc.ds.InsertSoftwareInstallRequest(ctx, host.ID, installer.InstallerID, fleet.HostSoftwareInstallOptions{
 		SelfService: false,
 	})
@@ -2693,6 +2697,10 @@ func (svc *Service) SelfServiceInstallSoftwareTitle(ctx context.Context, host *f
 					),
 				}
 			}
+		}
+
+		if err := svc.ds.ResetNonPolicyInstallAttempts(ctx, host.ID, installer.InstallerID); err != nil {
+			level.Error(svc.logger).Log("msg", "failed to reset install attempts", "err", err)
 		}
 
 		_, err = svc.ds.InsertSoftwareInstallRequest(ctx, host.ID, installer.InstallerID, fleet.HostSoftwareInstallOptions{
