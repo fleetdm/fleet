@@ -495,8 +495,7 @@ const Advanced = ({
                   !disableChildren && (
                     <>
                       <>
-                        Disabling reports will decrease database usage,{" "}
-                        <br />
+                        Disabling reports will decrease database usage, <br />
                         but will prevent you from accessing report results in
                         <br />
                         Fleet and will delete existing reports. This can also be{" "}
