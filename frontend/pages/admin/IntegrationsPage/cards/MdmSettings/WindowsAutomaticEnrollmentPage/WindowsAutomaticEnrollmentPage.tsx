@@ -13,8 +13,12 @@ import EmptyTable from "components/EmptyTable";
 import Card from "components/Card";
 import Button from "components/buttons/Button";
 import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
+import UploadList from "components/UploadList";
 
 import AddEntraTenantModal from "../components/AddEntraTenantModal";
+
+import EntraTenantsListHeader from "./EntraTenantsListHeader";
+import EntraTenantsListItem from "./EntraTenantsListItem";
 
 const generateMdmTermsOfUseUrl = (domain: string) => {
   return `${domain}/api/mdm/microsoft/tos`;
@@ -30,6 +34,7 @@ const WindowsAutomaticEnrollmentPage = () => {
   const { config } = useContext(AppContext);
 
   const [showAddTenantModal, setShowAddTenantModal] = useState(false);
+  const [showDeleteTenantModal, setShowDeleteTenantModal] = useState(false);
 
   const renderEntraTenants = () => {
     const tenants = [
@@ -62,7 +67,23 @@ const WindowsAutomaticEnrollmentPage = () => {
       );
     }
 
-    return <p>Entra tenant IDs added: {tenants.join(", ")}</p>;
+    return (
+      <UploadList
+        className={`${baseClass}__tenant-list`}
+        listItems={tenants}
+        HeadingComponent={() => (
+          <EntraTenantsListHeader
+            onClickAddTenant={() => setShowAddTenantModal(true)}
+          />
+        )}
+        ListItemComponent={({ listItem }) => (
+          <EntraTenantsListItem
+            tenantId={listItem}
+            onClickDelete={() => setShowDeleteTenantModal(true)}
+          />
+        )}
+      />
+    );
   };
 
   return (
