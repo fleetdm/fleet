@@ -70,5 +70,5 @@ fleetctl debug errors
 <meta name="category" value="guides">
 <meta name="authorFullName" value="Steven Palmesano">
 <meta name="authorGitHubUsername" value="spalmesano0">
-<meta name="publishedOn" value="2026-02-09">
+<meta name="publishedOn" value="2026-02-13">
 <meta name="articleTitle" value="Fleet troubleshooting for IT admins">
