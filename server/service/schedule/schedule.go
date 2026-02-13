@@ -49,7 +49,8 @@ type Schedule struct {
 
 	locker Locker
 
-	altLockName string
+	altLockName    string
+	lockExpiration time.Duration // if set, overrides schedInterval for lock duration
 
 	jobs   []Job
 	errors fleet.CronScheduleErrors
@@ -115,6 +116,15 @@ func WithConfigReloadInterval(interval time.Duration, fn ReloadInterval) Option 
 func WithAltLockID(name string) Option {
 	return func(s *Schedule) {
 		s.altLockName = name
+	}
+}
+
+// WithLockExpiration sets a custom lock expiration duration. If not set, the schedule interval is
+// used as the lock expiration. This is useful for long-running jobs where the lock should be held
+// longer than the schedule interval to prevent premature expiration.
+func WithLockExpiration(d time.Duration) Option {
+	return func(s *Schedule) {
+		s.lockExpiration = d
 	}
 }
 
@@ -565,8 +575,15 @@ func (s *Schedule) getRemainingInterval(start time.Time) time.Duration {
 	return interval - (time.Since(start) % interval)
 }
 
+func (s *Schedule) getLockExpiration() time.Duration {
+	if s.lockExpiration > 0 {
+		return s.lockExpiration
+	}
+	return s.getSchedInterval()
+}
+
 func (s *Schedule) acquireLock(ctx context.Context) bool {
-	ok, err := s.locker.Lock(ctx, s.getLockName(), s.instanceID, s.getSchedInterval())
+	ok, err := s.locker.Lock(ctx, s.getLockName(), s.instanceID, s.getLockExpiration())
 	if err != nil {
 		level.Error(s.logger).Log("msg", "lock failed", "err", err)
 		ctxerr.Handle(ctx, err)

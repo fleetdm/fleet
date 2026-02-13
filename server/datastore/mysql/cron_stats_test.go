@@ -131,100 +131,170 @@ func TestGetLatestCronStats(t *testing.T) {
 func TestCleanupCronStats(t *testing.T) {
 	ctx := context.Background()
 	ds := CreateMySQLDS(t)
-	now := time.Now().UTC().Truncate(time.Second)
-	twoDaysAgo := now.Add(-2 * 24 * time.Hour)
-	name := "test_sched"
-	instance := "test_instance"
 
-	cases := []struct {
-		createdAt               time.Time
-		status                  fleet.CronStatsStatus
-		shouldCleanupMaxPending bool
-		shouldCleanupMaxAge     bool
-	}{
-		{
-			createdAt:               now,
-			status:                  fleet.CronStatsStatusCompleted,
-			shouldCleanupMaxPending: false,
-			shouldCleanupMaxAge:     false,
-		},
-		{
-			createdAt:               now,
-			status:                  fleet.CronStatsStatusPending,
-			shouldCleanupMaxPending: false,
-			shouldCleanupMaxAge:     false,
-		},
-		{
-			createdAt:               now.Add(-1 * time.Hour),
-			status:                  fleet.CronStatsStatusPending,
-			shouldCleanupMaxPending: false,
-			shouldCleanupMaxAge:     false,
-		},
-		{
-			createdAt:               now.Add(-2 * time.Hour),
-			status:                  fleet.CronStatsStatusExpired,
-			shouldCleanupMaxPending: false,
-			shouldCleanupMaxAge:     false,
-		},
-		{
-			createdAt:               now.Add(-3 * time.Hour),
-			status:                  fleet.CronStatsStatusPending,
-			shouldCleanupMaxPending: true,
-			shouldCleanupMaxAge:     false,
-		},
-		{
-			createdAt:               now.Add(-3 * time.Hour),
-			status:                  fleet.CronStatsStatusCompleted,
-			shouldCleanupMaxPending: false,
-			shouldCleanupMaxAge:     false,
-		},
-		{
-			createdAt:               twoDaysAgo.Add(1 * time.Hour),
-			status:                  fleet.CronStatsStatusCompleted,
-			shouldCleanupMaxPending: false,
-			shouldCleanupMaxAge:     false,
-		},
-		{
-			createdAt:               twoDaysAgo.Add(-1 * time.Hour),
-			status:                  fleet.CronStatsStatusCompleted,
-			shouldCleanupMaxPending: false,
-			shouldCleanupMaxAge:     true,
-		},
-	}
-
-	for _, c := range cases {
+	insertCronStats := func(t *testing.T, name, instance string, status fleet.CronStatsStatus, createdAt time.Time) {
+		t.Helper()
 		stmt := `INSERT INTO cron_stats (stats_type, name, instance, status, created_at) VALUES (?, ?, ?, ?, ?)`
-		_, err := ds.writer(ctx).ExecContext(ctx, stmt, fleet.CronStatsTypeScheduled, name, instance, c.status, c.createdAt)
+		_, err := ds.writer(ctx).ExecContext(ctx, stmt, fleet.CronStatsTypeScheduled, name, instance, status, createdAt)
 		require.NoError(t, err)
 	}
 
-	var stats []testCronStats
-	err := sqlx.SelectContext(ctx, ds.reader(ctx), &stats, `SELECT * FROM cron_stats ORDER BY id`)
-	require.NoError(t, err)
-	require.Len(t, stats, len(cases))
-	for i, s := range stats {
-		require.Equal(t, cases[i].createdAt, s.CreatedAt)
-		require.Equal(t, cases[i].status, s.Status)
+	clearCronStats := func(t *testing.T) {
+		t.Helper()
+		_, err := ds.writer(ctx).ExecContext(ctx, `DELETE FROM cron_stats`)
+		require.NoError(t, err)
 	}
 
-	err = ds.CleanupCronStats(ctx)
-	require.NoError(t, err)
-
-	stats = []testCronStats{}
-	err = sqlx.SelectContext(ctx, ds.reader(ctx), &stats, `SELECT * FROM cron_stats ORDER BY id`)
-	require.NoError(t, err)
-	require.Len(t, stats, len(cases)-1) // case[7] was deleted because it exceeded max age
-	for i, c := range cases {
-		if i >= len(stats) {
-			require.True(t, c.shouldCleanupMaxAge)
-			break
-		}
-		if c.shouldCleanupMaxPending {
-			require.Equal(t, fleet.CronStatsStatusExpired, stats[i].Status)
-		} else {
-			require.Equal(t, c.status, stats[i].Status)
-		}
+	clearLocks := func(t *testing.T) {
+		t.Helper()
+		_, err := ds.writer(ctx).ExecContext(ctx, `DELETE FROM locks`)
+		require.NoError(t, err)
 	}
+
+	t.Run("basic expiry and deletion", func(t *testing.T) {
+		clearCronStats(t)
+		now := time.Now().UTC().Truncate(time.Second)
+		twoDaysAgo := now.Add(-2 * 24 * time.Hour)
+		name := "test_sched"
+		instance := "test_instance"
+
+		cases := []struct {
+			createdAt               time.Time
+			status                  fleet.CronStatsStatus
+			shouldCleanupMaxPending bool
+			shouldCleanupMaxAge     bool
+		}{
+			{
+				createdAt:               now,
+				status:                  fleet.CronStatsStatusCompleted,
+				shouldCleanupMaxPending: false,
+				shouldCleanupMaxAge:     false,
+			},
+			{
+				createdAt:               now,
+				status:                  fleet.CronStatsStatusPending,
+				shouldCleanupMaxPending: false,
+				shouldCleanupMaxAge:     false,
+			},
+			{
+				createdAt:               now.Add(-1 * time.Hour),
+				status:                  fleet.CronStatsStatusPending,
+				shouldCleanupMaxPending: false,
+				shouldCleanupMaxAge:     false,
+			},
+			{
+				createdAt:               now.Add(-2 * time.Hour),
+				status:                  fleet.CronStatsStatusExpired,
+				shouldCleanupMaxPending: false,
+				shouldCleanupMaxAge:     false,
+			},
+			{
+				createdAt:               now.Add(-3 * time.Hour),
+				status:                  fleet.CronStatsStatusPending,
+				shouldCleanupMaxPending: true,
+				shouldCleanupMaxAge:     false,
+			},
+			{
+				createdAt:               now.Add(-3 * time.Hour),
+				status:                  fleet.CronStatsStatusCompleted,
+				shouldCleanupMaxPending: false,
+				shouldCleanupMaxAge:     false,
+			},
+			{
+				createdAt:               twoDaysAgo.Add(1 * time.Hour),
+				status:                  fleet.CronStatsStatusCompleted,
+				shouldCleanupMaxPending: false,
+				shouldCleanupMaxAge:     false,
+			},
+			{
+				createdAt:               twoDaysAgo.Add(-1 * time.Hour),
+				status:                  fleet.CronStatsStatusCompleted,
+				shouldCleanupMaxPending: false,
+				shouldCleanupMaxAge:     true,
+			},
+		}
+
+		for _, c := range cases {
+			insertCronStats(t, name, instance, c.status, c.createdAt)
+		}
+
+		var stats []testCronStats
+		err := sqlx.SelectContext(ctx, ds.reader(ctx), &stats, `SELECT * FROM cron_stats ORDER BY id`)
+		require.NoError(t, err)
+		require.Len(t, stats, len(cases))
+		for i, s := range stats {
+			require.Equal(t, cases[i].createdAt, s.CreatedAt)
+			require.Equal(t, cases[i].status, s.Status)
+		}
+
+		err = ds.CleanupCronStats(ctx)
+		require.NoError(t, err)
+
+		stats = []testCronStats{}
+		err = sqlx.SelectContext(ctx, ds.reader(ctx), &stats, `SELECT * FROM cron_stats ORDER BY id`)
+		require.NoError(t, err)
+		require.Len(t, stats, len(cases)-1) // case[7] was deleted because it exceeded max age
+		for i, c := range cases {
+			if i >= len(stats) {
+				require.True(t, c.shouldCleanupMaxAge)
+				break
+			}
+			if c.shouldCleanupMaxPending {
+				require.Equal(t, fleet.CronStatsStatusExpired, stats[i].Status)
+			} else {
+				require.Equal(t, c.status, stats[i].Status)
+			}
+		}
+	})
+
+	// Verify that an active lock prevents expiry, while an expired lock does not.
+	// The "no lock" case is already covered by case index 4 in the basic subtest above.
+	t.Run("respects active lock", func(t *testing.T) {
+		lockCases := []struct {
+			name           string
+			lockExpiresAt  time.Duration // relative to now; positive = future (active), negative = past (expired)
+			expectedStatus fleet.CronStatsStatus
+		}{
+			{
+				name:           "active_lock",
+				lockExpiresAt:  12 * time.Hour,
+				expectedStatus: fleet.CronStatsStatusPending,
+			},
+			{
+				name:           "expired_lock",
+				lockExpiresAt:  -1 * time.Hour,
+				expectedStatus: fleet.CronStatsStatusExpired,
+			},
+		}
+
+		for _, lc := range lockCases {
+			t.Run(lc.name, func(t *testing.T) {
+				clearCronStats(t)
+				clearLocks(t)
+
+				now := time.Now().UTC().Truncate(time.Second)
+				instance := "test_instance"
+
+				insertCronStats(t, lc.name, instance, fleet.CronStatsStatusPending, now.Add(-3*time.Hour))
+
+				// Insert lock with the specified expiration.
+				_, err := ds.writer(ctx).ExecContext(ctx,
+					`INSERT INTO locks (name, owner, expires_at) VALUES (?, ?, ?)`,
+					lc.name, instance, now.Add(lc.lockExpiresAt),
+				)
+				require.NoError(t, err)
+
+				err = ds.CleanupCronStats(ctx)
+				require.NoError(t, err)
+
+				var stats []testCronStats
+				err = sqlx.SelectContext(ctx, ds.reader(ctx), &stats, `SELECT * FROM cron_stats WHERE name = ? ORDER BY id`, lc.name)
+				require.NoError(t, err)
+				require.Len(t, stats, 1)
+				require.Equal(t, lc.expectedStatus, stats[0].Status)
+			})
+		}
+	})
 }
 
 func TestUpdateAllCronStatsForInstance(t *testing.T) {
