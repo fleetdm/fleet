@@ -191,7 +191,7 @@ describe("Activity Feed", () => {
     render(<GlobalActivityItem activity={activity} isPremiumTier />);
 
     expect(
-      screen.getByText("edited the team using fleetctl.")
+      screen.getByText("edited the fleet using fleetctl.")
     ).toBeInTheDocument();
     expect(screen.getByText("Team 1")).toBeInTheDocument();
   });
@@ -206,7 +206,7 @@ describe("Activity Feed", () => {
     render(<GlobalActivityItem activity={activity} isPremiumTier />);
 
     expect(
-      screen.getByText("edited multiple teams using fleetctl.")
+      screen.getByText("edited multiple fleets using fleetctl.")
     ).toBeInTheDocument();
   });
 
@@ -357,7 +357,7 @@ describe("Activity Feed", () => {
     expect(screen.getByText("newuser@example.com")).toBeInTheDocument();
     expect(screen.getByText("maintainer")).toBeInTheDocument();
     expect(
-      screen.getByText("for all teams.", { exact: false })
+      screen.getByText("for all fleets.", { exact: false })
     ).toBeInTheDocument();
   });
 
@@ -371,7 +371,7 @@ describe("Activity Feed", () => {
     expect(screen.getByText("changed", { exact: false })).toBeInTheDocument();
     expect(screen.getByText("newuser@example.com")).toBeInTheDocument();
     expect(screen.getByText("maintainer")).toBeInTheDocument();
-    const forAllTeams = screen.queryByText("for all teams.");
+    const forAllTeams = screen.queryByText("for all fleets.");
     expect(forAllTeams).toBeNull();
   });
 
@@ -388,11 +388,11 @@ describe("Activity Feed", () => {
     render(<GlobalActivityItem activity={activity} isPremiumTier />);
 
     //  If actor_id is the same as user_id:
-    // "<user_email> was assigned the <role> for all teams."
+    // "<user_email> was assigned the <role> for all fleets."
     expect(screen.getByText("jit@sso.com")).toBeInTheDocument();
     expect(screen.getByText(/was assigned the/)).toBeInTheDocument();
     expect(screen.getByText("observer")).toBeInTheDocument();
-    expect(screen.getByText(/role for all teams./)).toBeInTheDocument();
+    expect(screen.getByText(/role for all fleets./)).toBeInTheDocument();
   });
 
   it("correctly renders a changed_user_global_role type activity when changing an existing user's global role, premium", () => {
@@ -409,13 +409,13 @@ describe("Activity Feed", () => {
     render(<GlobalActivityItem activity={activity} isPremiumTier />);
 
     //  If actor_id is different from user_id on premium:
-    // "<actor_full_name> changed <user_email> to <role> for all teams."
+    // "<actor_full_name> changed <user_email> to <role> for all fleets."
     expect(screen.getByText("Ally Admin")).toBeInTheDocument();
     expect(screen.getByText(/changed/)).toBeInTheDocument();
     expect(screen.getByText("user@example.com")).toBeInTheDocument();
     expect(screen.getByText(/to/)).toBeInTheDocument();
     expect(screen.getByText("maintainer")).toBeInTheDocument();
-    expect(screen.getByText(/for all teams/)).toBeInTheDocument();
+    expect(screen.getByText(/for all fleets/)).toBeInTheDocument();
   });
 
   it("correctly renders a changed_user_global_role type activity when changing an existing user's global role, free", () => {
@@ -438,7 +438,7 @@ describe("Activity Feed", () => {
     expect(screen.getByText("user@example.com")).toBeInTheDocument();
     expect(screen.getByText("to", { exact: false })).toBeInTheDocument();
     expect(screen.getByText("maintainer")).toBeInTheDocument();
-    const forAllTeams = screen.queryByText("for all teams.");
+    const forAllTeams = screen.queryByText("for all fleets.");
     expect(forAllTeams).toBeNull();
   });
 
@@ -484,10 +484,10 @@ describe("Activity Feed", () => {
     expect(screen.getByText("maintainer")).toBeInTheDocument();
     expect(screen.getByText(/role for the/)).toBeInTheDocument();
     expect(screen.getByText(/Test Team/)).toBeInTheDocument();
-    expect(screen.getByText(/team\./)).toBeInTheDocument();
+    expect(screen.getByText(/fleet\./)).toBeInTheDocument();
 
     expect(screen.queryByText("Ally Admin")).toBeNull();
-    const forAllTeams = screen.queryByText("for all teams.");
+    const forAllTeams = screen.queryByText("for all fleets.");
     expect(forAllTeams).toBeNull();
   });
 
@@ -514,8 +514,8 @@ describe("Activity Feed", () => {
     expect(screen.getByText("maintainer")).toBeInTheDocument();
     expect(screen.getByText(/for the/)).toBeInTheDocument();
     expect(screen.getByText(/Test Team/)).toBeInTheDocument();
-    expect(screen.getByText(/team\./)).toBeInTheDocument();
-    expect(screen.queryByText("for all teams.")).toBeNull();
+    expect(screen.getByText(/fleet\./)).toBeInTheDocument();
+    expect(screen.queryByText("for all fleets.")).toBeNull();
   });
 
   // // // // // // // // // // // //
@@ -546,7 +546,7 @@ describe("Activity Feed", () => {
     expect(screen.getByText("newuser@example.com")).toBeInTheDocument();
     expect(screen.getByText("maintainer")).toBeInTheDocument();
     expect(
-      screen.getByText("for all teams.", { exact: false })
+      screen.getByText("for all fleets.", { exact: false })
     ).toBeInTheDocument();
   });
 
@@ -560,7 +560,7 @@ describe("Activity Feed", () => {
     expect(screen.getByText("removed", { exact: false })).toBeInTheDocument();
     expect(screen.getByText("newuser@example.com")).toBeInTheDocument();
     expect(screen.getByText("maintainer")).toBeInTheDocument();
-    const forAllTeams = screen.queryByText("for all teams.");
+    const forAllTeams = screen.queryByText("for all fleets.");
     expect(forAllTeams).toBeNull();
   });
 
@@ -936,7 +936,7 @@ describe("Activity Feed", () => {
       screen.getByText("transferred host", { exact: false })
     ).toBeInTheDocument();
     expect(screen.getByText("foo", { exact: false })).toBeInTheDocument();
-    expect(screen.getByText("no team", { exact: false })).toBeInTheDocument();
+    expect(screen.getByText("no fleet", { exact: false })).toBeInTheDocument();
   });
 
   it("renders a 'transferred_hosts' type activity for one host transferred to a fleet.", () => {
@@ -973,7 +973,7 @@ describe("Activity Feed", () => {
     expect(screen.queryByText("foo")).toBeNull();
     expect(screen.queryByText("bar")).toBeNull();
     expect(screen.queryByText("baz")).toBeNull();
-    expect(screen.getByText("no team", { exact: false })).toBeInTheDocument();
+    expect(screen.getByText("no fleet", { exact: false })).toBeInTheDocument();
   });
 
   it("renders a 'transferred_hosts' type activity for multiple hosts transferred to a fleet.", () => {
@@ -1291,7 +1291,7 @@ describe("Activity Feed", () => {
 
     expect(screen.getByText("edited", { exact: false })).toBeInTheDocument();
     expect(
-      screen.getByText("on no team", { exact: false })
+      screen.getByText("on no fleet", { exact: false })
     ).toBeInTheDocument();
   });
 
@@ -1732,7 +1732,7 @@ describe("Activity Feed", () => {
       )
     ).toBeInTheDocument();
     expect(screen.getByText(/Bears/i)).toBeInTheDocument();
-    expect(screen.getByText(/team/i)).toBeInTheDocument();
+    expect(screen.getByText(/fleet/i)).toBeInTheDocument();
   });
   it("renders an enabledMacosUpdateNewHosts activity for a team", () => {
     const activity = createMockActivity({
@@ -1748,7 +1748,7 @@ describe("Activity Feed", () => {
     ).toBeInTheDocument();
     expect(screen.getByText(/macOS/i)).toBeInTheDocument();
     expect(screen.getByText(/Lions/i)).toBeInTheDocument();
-    expect(screen.getByText(/team/i)).toBeInTheDocument();
+    expect(screen.getByText(/fleet/i)).toBeInTheDocument();
   });
   it("renders a disabledMacosUpdateNewHosts activity for a team", () => {
     const activity = createMockActivity({
@@ -1764,6 +1764,6 @@ describe("Activity Feed", () => {
     ).toBeInTheDocument();
     expect(screen.getByText(/macOS/i)).toBeInTheDocument();
     expect(screen.getByText(/Lions/i)).toBeInTheDocument();
-    expect(screen.getByText(/team/i)).toBeInTheDocument();
+    expect(screen.getByText(/fleet/i)).toBeInTheDocument();
   });
 });
