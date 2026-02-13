@@ -54,7 +54,7 @@ describe("HostQueries card", () => {
     expect(screen.queryByText("Add report")).not.toBeInTheDocument();
   });
 
-  it("renders empty state and add query button for supported platform with no queries", () => {
+  it("renders empty state and add query button for supported platform with no reports", () => {
     render(
       <HostQueries
         hostId={1}

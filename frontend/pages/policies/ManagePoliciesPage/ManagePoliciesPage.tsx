@@ -1244,19 +1244,6 @@ const ManagePolicyPage = ({
     return <h1>Policies</h1>;
   };
 
-  let teamsDropdownHelpText: string;
-  if (teamIdForApi === API_NO_TEAM_ID) {
-    teamsDropdownHelpText = `Detect device health issues${
-      globalConfigFromContext?.partnerships?.enable_primo
-        ? ""
-        : ` for hosts that are not on a fleet`
-    }.`;
-  } else if (teamIdForApi === API_ALL_TEAMS_ID) {
-    teamsDropdownHelpText = "Detect device health issues for all hosts.";
-  } else {
-    // a team is selected
-    teamsDropdownHelpText = `Detect device health issues for all hosts assigned to this fleet.`;
-  }
   return (
     <MainContent className={baseClass}>
       <>
@@ -1282,7 +1269,7 @@ const ManagePolicyPage = ({
               </div>
             )}
           </div>
-          <PageDescription content={teamsDropdownHelpText} />
+          <PageDescription content={"Detect device health issues."} />
         </div>
         {renderMainTable()}
         {automationsConfig && showOtherWorkflowsModal && (
