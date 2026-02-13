@@ -32,7 +32,7 @@ describe("EditTeamsVppModal", () => {
     org_name: "Org 3",
     location: "https://example.com/mdm/apple/mdm",
     renew_date: "2024-11-29T00:00:00Z",
-    teams: [{ team_id: 0, name: "No fleet" }],
+    teams: [{ team_id: 0, name: "Unassigned" }],
   };
 
   const piratesAndNinjasToken = {
@@ -56,7 +56,7 @@ describe("EditTeamsVppModal", () => {
 
   const availableTeams = [
     { id: APP_CONTEXT_ALL_TEAMS_ID, name: "All fleets" },
-    { id: APP_CONTEXT_NO_TEAM_ID, name: "No fleet" },
+    { id: APP_CONTEXT_NO_TEAM_ID, name: "Unassigned" },
     { id: 1, name: "Ninjas" },
     { id: 2, name: "Pirates" },
     { id: 3, name: "Pandas" },

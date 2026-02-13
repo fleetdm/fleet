@@ -91,7 +91,7 @@ const HostSummary = ({
         summaryData.team_name !== "---" ? (
           `${summaryData.team_name}`
         ) : (
-          <span className="no-team">No fleet</span>
+          <span className="no-team">Unassigned</span>
         )
       }
     />

@@ -129,7 +129,7 @@ const TeamManagementPage = (): JSX.Element => {
             });
           } else if (createError.data.errors[0].reason.includes("No team")) {
             setBackendValidators({
-              name: `"No fleet" is a reserved fleet name. Please try another name.`,
+              name: `"Unassigned" is a reserved fleet name. Please try another name.`,
             });
           } else {
             renderFlash("error", "Could not create fleet. Please try again.");
@@ -208,7 +208,7 @@ const TeamManagementPage = (): JSX.Element => {
               });
             } else if (updateError.data.errors[0].reason.includes("no team")) {
               setBackendValidators({
-                name: `"No fleet" is a reserved fleet name. Please try another name.`,
+                name: `"Unassigned" is a reserved fleet name. Please try another name.`,
               });
             } else {
               renderFlash(

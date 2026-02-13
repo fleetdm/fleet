@@ -29,7 +29,7 @@ describe("EditTeamsAbmModal", () => {
       const selectedTeamNames = {
         ios_team: "Team 1",
         ipados_team: "Team 2",
-        macos_team: "No fleet",
+        macos_team: "Unassigned",
       };
       expect(getSelectedTeamIds(selectedTeamNames, availableTeams)).toEqual({
         ios_team_id: 1,

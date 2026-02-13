@@ -28,7 +28,7 @@ const baseClass = "transfer-host-modal";
 
 const NO_TEAM_OPTION = {
   value: "no-team",
-  label: "No fleet",
+  label: "Unassigned",
 };
 
 const TransferHostModal = ({

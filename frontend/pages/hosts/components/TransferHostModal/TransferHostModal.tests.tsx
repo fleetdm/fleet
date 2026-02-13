@@ -78,7 +78,7 @@ describe("TransferHostModal", () => {
 
     await user.click(dropdown);
 
-    expect(screen.getByText("No fleet")).toBeInTheDocument();
+    expect(screen.getByText("Unassigned")).toBeInTheDocument();
     expect(screen.getByText("Team Beta")).toBeInTheDocument();
     expect(screen.queryByText("Team Alpha")).not.toBeInTheDocument();
   });
@@ -89,7 +89,7 @@ describe("TransferHostModal", () => {
     const dropdown = screen.getByText(/Select a fleet/i);
     await user.click(dropdown);
 
-    expect(screen.queryByText("No fleet")).not.toBeInTheDocument();
+    expect(screen.queryByText("Unassigned")).not.toBeInTheDocument();
     expect(screen.getByText("Team Alpha")).toBeInTheDocument();
     expect(screen.getByText("Team Beta")).toBeInTheDocument();
   });
@@ -118,7 +118,7 @@ describe("TransferHostModal", () => {
 
     await user.click(dropdown);
     const noTeamOption = await screen.findByRole("option", {
-      name: "No fleet",
+      name: "Unassigned",
     });
     await user.click(noTeamOption);
 
