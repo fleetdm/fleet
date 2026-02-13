@@ -70,11 +70,6 @@ const CreateTeamModal = ({
           error={errors.name}
           ignore1password
         />
-        <InfoBanner className={`${baseClass}__sandbox-info`}>
-          To organize your hosts, create a fleet, like
-          &ldquo;Workstations,&rdquo; &ldquo;Servers,&rdquo; or &ldquo;Servers
-          (canary)&rdquo;.
-        </InfoBanner>
         <div className="modal-cta-wrap">
           <Button
             type="submit"
