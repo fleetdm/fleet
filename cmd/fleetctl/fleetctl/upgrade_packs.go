@@ -136,7 +136,7 @@ func writeQuerySpecsToFile(filename string, specs []*fleet.QuerySpec) error {
 			},
 			Spec: *spec,
 		}
-		yml, err := yaml.Marshal(qYaml)
+		yml, err := yaml.Marshal(applyRenamesDeep(qYaml))
 		if err != nil {
 			return err
 		}

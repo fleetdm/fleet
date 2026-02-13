@@ -501,8 +501,8 @@ func (MockClient) GetSoftwareTitleByID(ID uint, teamID *uint) (*fleet.SoftwareTi
 		}, nil
 	case 9:
 		return &fleet.SoftwareTitle{
-			ID:               9,
-			Name:             "My Windows FMA",
+			ID:   9,
+			Name: "My Windows FMA",
 			SoftwarePackage: &fleet.SoftwareInstaller{
 				InstallScript:        "install",
 				UninstallScript:      "uninstall",
@@ -916,7 +916,7 @@ func TestGenerateOrgSettings(t *testing.T) {
 	require.NoError(t, err)
 	require.NotNil(t, orgSettingsRaw)
 	var orgSettings map[string]interface{}
-	b, err := yaml.Marshal(orgSettingsRaw)
+	b, err := yaml.Marshal(applyRenamesDeep(orgSettingsRaw))
 	require.NoError(t, err)
 	fmt.Println("Org settings raw:\n", string(b)) // Debugging line
 	err = yaml.Unmarshal(b, &orgSettings)
@@ -959,7 +959,7 @@ func TestGenerateOrgSettingsMaskedGoogleCalendarApiKey(t *testing.T) {
 	require.NotNil(t, orgSettingsRaw)
 
 	// Verify the result can be marshaled to YAML without error.
-	b, err := yaml.Marshal(orgSettingsRaw)
+	b, err := yaml.Marshal(applyRenamesDeep(orgSettingsRaw))
 	require.NoError(t, err)
 
 	// Verify api_key_json was replaced with a comment placeholder (not "********")
@@ -1012,7 +1012,7 @@ func TestGeneratedOrgSettingsNoSSO(t *testing.T) {
 	require.NoError(t, err)
 	require.NotNil(t, orgSettingsRaw)
 	var orgSettings map[string]any
-	b, err := yaml.Marshal(orgSettingsRaw)
+	b, err := yaml.Marshal(applyRenamesDeep(orgSettingsRaw))
 	require.NoError(t, err)
 	err = yaml.Unmarshal(b, &orgSettings)
 	require.NoError(t, err)
@@ -1107,7 +1107,7 @@ func TestGeneratedOrgSettingsOktaConditionalAccessNotIncluded(t *testing.T) {
 	require.NoError(t, err)
 	require.NotNil(t, orgSettingsRaw)
 	var orgSettings map[string]any
-	b, err := yaml.Marshal(orgSettingsRaw)
+	b, err := yaml.Marshal(applyRenamesDeep(orgSettingsRaw))
 	require.NoError(t, err)
 	err = yaml.Unmarshal(b, &orgSettings)
 	require.NoError(t, err)
@@ -1151,7 +1151,7 @@ func TestGenerateOrgSettingsInsecure(t *testing.T) {
 	require.NoError(t, err)
 	require.NotNil(t, orgSettingsRaw)
 	var orgSettings map[string]interface{}
-	b, err := yaml.Marshal(orgSettingsRaw)
+	b, err := yaml.Marshal(applyRenamesDeep(orgSettingsRaw))
 	require.NoError(t, err)
 	fmt.Println("Org settings raw:\n", string(b)) // Debugging line
 	err = yaml.Unmarshal(b, &orgSettings)
@@ -1190,7 +1190,7 @@ func TestGenerateTeamSettings(t *testing.T) {
 	require.NoError(t, err)
 	require.NotNil(t, TeamSettingsRaw)
 	var TeamSettings map[string]interface{}
-	b, err := yaml.Marshal(TeamSettingsRaw)
+	b, err := yaml.Marshal(applyRenamesDeep(TeamSettingsRaw))
 	require.NoError(t, err)
 	fmt.Println("Team settings raw:\n", string(b)) // Debugging line
 	err = yaml.Unmarshal(b, &TeamSettings)
@@ -1231,7 +1231,7 @@ func TestGenerateTeamSettingsInsecure(t *testing.T) {
 	require.NoError(t, err)
 	require.NotNil(t, TeamSettingsRaw)
 	var TeamSettings map[string]interface{}
-	b, err := yaml.Marshal(TeamSettingsRaw)
+	b, err := yaml.Marshal(applyRenamesDeep(TeamSettingsRaw))
 	require.NoError(t, err)
 	fmt.Println("Team settings raw:\n", string(b)) // Debugging line
 	err = yaml.Unmarshal(b, &TeamSettings)
@@ -1461,7 +1461,7 @@ func TestGenerateSoftware(t *testing.T) {
 		t.Fatalf("Expected file not found")
 	}
 
-	if fileContents, ok := cmd.FilesToWrite["lib/some-team/queries/my-software-package-darwin-preinstallquery.yml"]; ok {
+	if fileContents, ok := cmd.FilesToWrite["lib/some-team/reports/my-software-package-darwin-preinstallquery.yml"]; ok {
 		require.Equal(t, []map[string]any{{
 			"query": "SELECT * FROM pre_install_query",
 		}}, fileContents)
@@ -1475,7 +1475,7 @@ func TestGenerateSoftware(t *testing.T) {
 		t.Fatalf("Expected file not found")
 	}
 
-	if fileContents, ok := cmd.FilesToWrite["lib/some-team/queries/my-fma-darwin-preinstallquery.yml"]; ok {
+	if fileContents, ok := cmd.FilesToWrite["lib/some-team/reports/my-fma-darwin-preinstallquery.yml"]; ok {
 		require.Equal(t, []map[string]any{{
 			"query": "SELECT * FROM pre_install_query",
 		}}, fileContents)
@@ -1792,7 +1792,7 @@ func TestGenerateQueries(t *testing.T) {
 	require.NoError(t, err)
 
 	// Get the expected org settings YAML.
-	b, err = os.ReadFile("./testdata/generateGitops/expectedGlobalQueries.yaml")
+	b, err = os.ReadFile("./testdata/generateGitops/expectedGlobalReports.yaml")
 	require.NoError(t, err)
 	var expectedQueries []map[string]interface{}
 	err = yaml.Unmarshal(b, &expectedQueries)
@@ -1814,7 +1814,7 @@ func TestGenerateQueries(t *testing.T) {
 	require.NoError(t, err)
 
 	// Get the expected org settings YAML.
-	b, err = os.ReadFile("./testdata/generateGitops/expectedTeamQueries.yaml")
+	b, err = os.ReadFile("./testdata/generateGitops/expectedTeamReports.yaml")
 	require.NoError(t, err)
 	err = yaml.Unmarshal(b, &expectedQueries)
 	require.NoError(t, err)
