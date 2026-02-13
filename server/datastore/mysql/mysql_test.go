@@ -1459,7 +1459,7 @@ func TestReplicaPasswordReadFromDisk(t *testing.T) {
 //
 // This is a regression test for https://github.com/fleetdm/fleet/pull/39689.
 // Before the fix, NewDBConnections called fromCommonMysqlConfig twice for the replica config.
-// The first call's config got TLSConfig="custom" via checkConfig, but that config was
+// The first call's config got TLSConfig="custom" via checkAndModifyConfig, but that config was
 // block-scoped and discarded. The second call created a fresh config where TLSConfig was
 // empty, so the replica silently connected without TLS.
 func TestReplicaTLSConfigPreserved(t *testing.T) {
