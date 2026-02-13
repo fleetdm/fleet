@@ -21,6 +21,8 @@
 		"osquery_version": "",
 		"orbit_version": null,
 		"fleet_desktop_version": null,
+		"fleet_id": null,
+		"fleet_name": null,
 		"scripts_enabled": null,
 		"os_version": "",
 		"build": "",
@@ -53,9 +55,7 @@
 			"server_url": null,
 			"connected_to_fleet": null
 		},
-		"team_id": null,
 		"pack_stats": null,
-		"team_name": null,
 		"timezone": null,
 		"additional": {
 			"query1": [
@@ -99,6 +99,8 @@
 		"osquery_version": "",
 		"orbit_version": null,
 		"fleet_desktop_version": null,
+		"fleet_id": null,
+		"fleet_name": null,
 		"scripts_enabled": null,
 		"os_version": "",
 		"build": "",
@@ -132,9 +134,7 @@
 			"server_url": null,
 			"connected_to_fleet": null
 		},
-		"team_id": null,
 		"pack_stats": null,
-		"team_name": null,
 		"timezone": null,
 		"gigs_disk_space_available": 0,
 		"percent_disk_space_available": 0,
