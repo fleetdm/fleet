@@ -113,172 +113,73 @@ func jsonFieldName(t reflect.Type, fieldName string) string {
 	return name
 }
 
-// marshalRenamed JSON-marshals v, then renames keys in the resulting
-// map/slice tree according to `renameto` struct tags on t. This ensures
-// that when struct values are placed into a map for YAML marshaling,
-// the output uses the new canonical field names rather than the old
-// json tag names.
-func marshalRenamed(v any) any {
+// aliasRules maps deprecated JSON key names (from `json` struct tags) to their
+// new canonical names (from `renameto` struct tags). Used by replaceAliasKeys
+// and yamlMarshalRenamed to rename keys in serialized output.
+var aliasRules = map[string]string{
+	"default_team":                    "default_fleet",
+	"distributed_query_execution_id":  "distributed_report_execution_id",
+	"host_team_id":                    "host_fleet_id",
+	"ios_team":                        "ios_fleet",
+	"ipados_team":                     "ipados_fleet",
+	"live_query_disabled":             "live_report_disabled",
+	"macos_team":                      "macos_fleet",
+	"queries":                         "reports",
+	"query_id":                        "report_id",
+	"query_ids":                       "report_ids",
+	"query_name":                      "report_name",
+	"query_report_cap":                "report_cap",
+	"query_reports_disabled":          "reports_disabled",
+	"query_sql":                       "report_sql",
+	"query_stats":                     "report_stats",
+	"scheduled_query_id":              "scheduled_report_id",
+	"scheduled_query_name":            "scheduled_report_name",
+	"team":                            "fleet",
+	"team_id":                         "fleet_id",
+	"team_ids":                        "fleet_ids",
+	"team_name":                       "fleet_name",
+	"teams":                           "fleets",
+}
+
+// replaceAliasKeys recursively walks map[string]any / []any trees renaming
+// keys according to the provided rules.
+func replaceAliasKeys(v any, rules map[string]string) {
+	switch val := v.(type) {
+	case map[string]any:
+		type rename struct{ oldKey, newKey string }
+		var renames []rename
+		for k := range val {
+			if newKey, ok := rules[k]; ok {
+				renames = append(renames, rename{k, newKey})
+			}
+		}
+		for _, r := range renames {
+			val[r.newKey] = val[r.oldKey]
+			delete(val, r.oldKey)
+		}
+		for _, v := range val {
+			replaceAliasKeys(v, rules)
+		}
+	case []any:
+		for _, item := range val {
+			replaceAliasKeys(item, rules)
+		}
+	}
+}
+
+// yamlMarshalRenamed JSON-marshals v, applies renameto alias rules to the
+// resulting map/slice tree, then YAML-marshals the result.
+func yamlMarshalRenamed(v any) ([]byte, error) {
 	b, err := json.Marshal(v)
 	if err != nil {
-		return v // fall back to raw value
+		return nil, err
 	}
-	var result any
-	if err := json.Unmarshal(b, &result); err != nil {
-		return v
+	var raw any
+	if err := json.Unmarshal(b, &raw); err != nil {
+		return nil, err
 	}
-	applyRenameToKeys(reflect.TypeOf(v), result)
-	return result
-}
-
-func applyRenameToKeys(t reflect.Type, v any) {
-	if t == nil {
-		return
-	}
-	for t.Kind() == reflect.Ptr {
-		t = t.Elem()
-	}
-	switch t.Kind() {
-	case reflect.Struct:
-		if m, ok := v.(map[string]any); ok {
-			applyRenameToKeysStruct(t, m)
-		} else if s, ok := v.([]any); ok {
-			// Handle wrapper types like optjson.Slice that are Go structs
-			// but marshal to a JSON array. Find the inner slice field's
-			// element type and apply renames to each item.
-			for i := 0; i < t.NumField(); i++ {
-				ft := t.Field(i).Type
-				if ft.Kind() == reflect.Slice {
-					for _, item := range s {
-						applyRenameToKeys(ft.Elem(), item)
-					}
-					break
-				}
-			}
-		}
-	case reflect.Slice:
-		if s, ok := v.([]any); ok {
-			for _, item := range s {
-				applyRenameToKeys(t.Elem(), item)
-			}
-		}
-	}
-}
-
-func applyRenameToKeysStruct(t reflect.Type, m map[string]any) {
-	for i := 0; i < t.NumField(); i++ {
-		field := t.Field(i)
-
-		// Handle embedded (anonymous) structs — their fields are promoted.
-		if field.Anonymous {
-			ft := field.Type
-			for ft.Kind() == reflect.Ptr {
-				ft = ft.Elem()
-			}
-			if ft.Kind() == reflect.Struct {
-				applyRenameToKeysStruct(ft, m)
-			}
-			continue
-		}
-
-		jsonTag := field.Tag.Get("json")
-		if jsonTag == "" || jsonTag == "-" {
-			continue
-		}
-		jsonKey := strings.Split(jsonTag, ",")[0]
-
-		renameTo := field.Tag.Get("renameto")
-		currentKey := jsonKey
-		if renameTo != "" {
-			if val, ok := m[jsonKey]; ok {
-				m[renameTo] = val
-				delete(m, jsonKey)
-				currentKey = renameTo
-			}
-		}
-
-		// Recurse into nested values.
-		if val, ok := m[currentKey]; ok {
-			applyRenameToKeys(field.Type, val)
-		}
-	}
-}
-
-// applyRenamesDeep recursively walks a value tree, finding Go struct values
-// and applying marshalRenamed to them so that `renameto` tags are honored.
-// This allows struct values to be placed directly into maps without manually
-// wrapping each one in marshalRenamed at the call site.
-func applyRenamesDeep(v any) any {
-	if v == nil {
-		return nil
-	}
-	rv := reflect.ValueOf(v)
-	return applyRenamesDeepValue(rv)
-}
-
-func applyRenamesDeepValue(rv reflect.Value) any {
-	if !rv.IsValid() {
-		return nil
-	}
-
-	// Unwrap interfaces and pointers.
-	for rv.Kind() == reflect.Ptr || rv.Kind() == reflect.Interface {
-		if rv.IsNil() {
-			return nil
-		}
-		rv = rv.Elem()
-	}
-
-	switch rv.Kind() {
-	case reflect.Struct:
-		// Skip types that marshal to non-object JSON (e.g. json.RawMessage, time.Time).
-		t := rv.Type()
-		if t == reflect.TypeFor[json.RawMessage]() {
-			return rv.Interface()
-		}
-		// Use marshalRenamed to JSON-marshal the struct and apply renameto tags.
-		result := marshalRenamed(rv.Interface())
-		// Recurse into the resulting map to handle any nested structs.
-		if m, ok := result.(map[string]any); ok {
-			for k, val := range m {
-				m[k] = applyRenamesDeep(val)
-			}
-		}
-		return result
-
-	case reflect.Map:
-		// Recurse into map values.
-		if rv.Type().Key().Kind() == reflect.String {
-			for _, key := range rv.MapKeys() {
-				val := rv.MapIndex(key)
-				// Check if the value is nil (interface holding nil).
-				if val.Kind() == reflect.Interface && val.IsNil() {
-					continue // preserve nil values as-is
-				}
-				newVal := applyRenamesDeepValue(val)
-				if newVal == nil {
-					// Preserve nil map entries — SetMapIndex with zero Value deletes.
-					continue
-				}
-				rv.SetMapIndex(key, reflect.ValueOf(newVal))
-			}
-		}
-		return rv.Interface()
-
-	case reflect.Slice:
-		// Skip []byte / json.RawMessage.
-		if rv.Type().Elem().Kind() == reflect.Uint8 {
-			return rv.Interface()
-		}
-		result := make([]any, rv.Len())
-		for i := 0; i < rv.Len(); i++ {
-			result[i] = applyRenamesDeepValue(rv.Index(i))
-		}
-		return result
-
-	default:
-		return rv.Interface()
-	}
+	replaceAliasKeys(raw, aliasRules)
+	return yaml.Marshal(raw)
 }
 
 // Given a dot-separated path, return the value at that key in a map.
@@ -632,7 +533,7 @@ func (cmd *GenerateGitopsCommand) Run() error {
 		}
 
 		// Apply renameto tags and marshal/unmarshal the data to standardize the keys.
-		b, err := yaml.Marshal(applyRenamesDeep(cmd.FilesToWrite[fileName]))
+		b, err := yamlMarshalRenamed(cmd.FilesToWrite[fileName])
 		if err != nil {
 			fmt.Fprintf(cmd.CLI.App.ErrWriter, "Error marshaling settings: %s\n", err)
 			return ErrGeneric
@@ -664,7 +565,7 @@ func (cmd *GenerateGitopsCommand) Run() error {
 		var err error
 		// If the filename ends in .yml, marshal it to YAML.
 		if strings.HasSuffix(path, ".yml") {
-			b, err = yaml.Marshal(applyRenamesDeep(fileToWrite))
+			b, err = yamlMarshalRenamed(fileToWrite)
 			if err != nil {
 				fmt.Fprintf(cmd.CLI.App.ErrWriter, "Error marshaling file to write: %s\n", err)
 				return ErrGeneric
