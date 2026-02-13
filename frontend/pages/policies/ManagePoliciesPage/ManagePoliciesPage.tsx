@@ -84,7 +84,7 @@ interface IManagePoliciesPageProps {
     key: string;
     pathname: string;
     query: {
-      team_id?: string;
+      fleet_id?: string;
       query?: string;
       order_key?: string;
       order_direction?: "asc" | "desc";
@@ -446,7 +446,7 @@ const ManagePolicyPage = ({
       }
 
       if (isRouteOk && teamIdForApi !== undefined) {
-        newQueryParams.team_id = teamIdForApi;
+        newQueryParams.fleet_id = teamIdForApi;
       }
 
       const locationPath = getNextLocationPath({
@@ -815,7 +815,7 @@ const ManagePolicyPage = ({
     router.push(
       currentTeamId === API_ALL_TEAMS_ID
         ? PATHS.NEW_POLICY
-        : `${PATHS.NEW_POLICY}?team_id=${currentTeamId}`
+        : `${PATHS.NEW_POLICY}?fleet_id=${currentTeamId}`
     );
   };
 

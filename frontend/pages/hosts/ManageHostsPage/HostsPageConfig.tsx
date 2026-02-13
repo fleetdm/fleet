@@ -2,7 +2,7 @@ import { HOSTS_QUERY_PARAMS } from "services/entities/hosts";
 
 export const MANAGE_HOSTS_PAGE_FILTER_KEYS = [
   "query",
-  "team_id",
+  "fleet_id",
   "policy_id",
   "policy_response",
   "macos_settings",

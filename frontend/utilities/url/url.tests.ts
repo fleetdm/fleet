@@ -54,11 +54,11 @@ describe("url utilities > getPathWithQueryParams", () => {
     const endpoint = "/hosts/manage";
     const queryParams = {
       software_id: 25,
-      team_id: 10,
+      fleet_id: 10,
       order_key: "issues",
     };
     expect(getPathWithQueryParams(endpoint, queryParams)).toBe(
-      "/hosts/manage?software_id=25&team_id=10&order_key=issues"
+      "/hosts/manage?software_id=25&fleet_id=10&order_key=issues"
     );
   });
 
@@ -66,7 +66,7 @@ describe("url utilities > getPathWithQueryParams", () => {
     const endpoint = "/hosts/manage";
     const queryParams = {
       software_id: undefined,
-      team_id: null,
+      fleet_id: null,
       policy_response: "",
       policy_id: 4,
     };
@@ -79,7 +79,7 @@ describe("url utilities > getPathWithQueryParams", () => {
     const endpoint = "/hosts/manage";
     const queryParams = {
       software_id: undefined,
-      team_id: null,
+      fleet_id: null,
       policy_response: "",
     };
     expect(getPathWithQueryParams(endpoint, queryParams)).toBe("/hosts/manage");

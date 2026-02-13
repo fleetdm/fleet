@@ -182,19 +182,19 @@ export default {
 
   TEAM_DETAILS_USERS: (teamId?: number): string => {
     if (teamId !== undefined && teamId > 0) {
-      return `${URL_PREFIX}/settings/teams/users?team_id=${teamId}`;
+      return `${URL_PREFIX}/settings/teams/users?fleet_id=${teamId}`;
     }
     return `${URL_PREFIX}/settings/teams`;
   },
   TEAM_DETAILS_OPTIONS: (teamId?: number): string => {
     if (teamId !== undefined && teamId > 0) {
-      return `${URL_PREFIX}/settings/teams/options?team_id=${teamId}`;
+      return `${URL_PREFIX}/settings/teams/options?fleet_id=${teamId}`;
     }
     return `${URL_PREFIX}/settings/teams`;
   },
   TEAM_DETAILS_SETTINGS: (teamId?: number) => {
     if (teamId !== undefined && teamId > 0) {
-      return `${URL_PREFIX}/settings/teams/settings?team_id=${teamId}`;
+      return `${URL_PREFIX}/settings/teams/settings?fleet_id=${teamId}`;
     }
     return `${URL_PREFIX}/settings/teams`;
   },

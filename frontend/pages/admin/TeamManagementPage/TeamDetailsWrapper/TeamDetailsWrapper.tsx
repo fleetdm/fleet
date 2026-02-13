@@ -65,7 +65,7 @@ interface ITeamDetailsPageProps {
     pathname: string;
     search: string;
     hash?: string;
-    query: { team_id?: string };
+    query: { fleet_id?: string };
   };
   router: InjectedRouter;
 }

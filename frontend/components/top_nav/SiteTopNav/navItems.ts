@@ -58,7 +58,7 @@ export default (
         regex: new RegExp(`^${URL_PREFIX}/hosts/`),
         pathname: PATHS.MANAGE_HOSTS,
       },
-      withParams: { type: "query", names: ["team_id"] },
+      withParams: { type: "query", names: ["fleet_id"] },
     },
     {
       name: "Controls",
@@ -68,7 +68,7 @@ export default (
       },
       exclude: !isMaintainerOrAdmin,
       alwaysToPathname: true,
-      withParams: { type: "query", names: ["team_id"] },
+      withParams: { type: "query", names: ["fleet_id"] },
     },
     {
       name: "Software",
@@ -77,7 +77,7 @@ export default (
         pathname: PATHS.SOFTWARE_TITLES,
       },
       alwaysToPathname: true,
-      withParams: { type: "query", names: ["team_id"] },
+      withParams: { type: "query", names: ["fleet_id"] },
     },
     {
       name: "Reports",
@@ -85,7 +85,7 @@ export default (
         regex: new RegExp(`^${URL_PREFIX}/queries/`),
         pathname: PATHS.MANAGE_QUERIES,
       },
-      withParams: { type: "query", names: ["team_id"] },
+      withParams: { type: "query", names: ["fleet_id"] },
     },
     {
       name: "Policies",
@@ -93,7 +93,7 @@ export default (
         regex: new RegExp(`^${URL_PREFIX}/(policies)/`),
         pathname: PATHS.MANAGE_POLICIES,
       },
-      withParams: { type: "query", names: ["team_id"] },
+      withParams: { type: "query", names: ["fleet_id"] },
     },
   ];
 

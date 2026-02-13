@@ -60,7 +60,7 @@ interface IManageQueriesPageProps {
       query?: string;
       order_key?: string;
       order_direction?: "asc" | "desc";
-      team_id?: string;
+      fleet_id?: string;
     };
     search: string;
   };
@@ -194,7 +194,7 @@ const ManageQueriesPage = ({
   const onCreateQueryClick = useCallback(() => {
     setLastEditedQueryBody(DEFAULT_QUERY.query);
     router.push(
-      getPathWithQueryParams(PATHS.NEW_QUERY, { team_id: currentTeamId })
+      getPathWithQueryParams(PATHS.NEW_QUERY, { fleet_id: currentTeamId })
     );
   }, [currentTeamId, router, setLastEditedQueryBody]);
 

@@ -31,7 +31,8 @@ const DeleteTeamModal = ({
           <span className={`${baseClass}__name`}>{name}</span> fleet.
         </p>
         <p>
-          Users on this fleet who are not assigned to other fleets won't be able to login.
+          Users on this fleet who are not assigned to other fleets won&apos;t be
+          able to login.
         </p>
         <div className="modal-cta-wrap">
           <Button

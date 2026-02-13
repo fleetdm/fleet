@@ -125,7 +125,7 @@ const ScriptBatchDetailsPage = ({
   const pathToProgress = useMemo(() => {
     const params = buildQueryStringFromParams({
       status: batchDetails?.status,
-      team_id: batchDetails?.team_id,
+      fleet_id: batchDetails?.team_id,
     });
 
     return paths.CONTROLS_SCRIPTS_BATCH_PROGRESS + (params ? `?${params}` : "");

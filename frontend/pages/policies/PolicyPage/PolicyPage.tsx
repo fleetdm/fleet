@@ -43,7 +43,7 @@ interface IPolicyPageProps {
   location: {
     pathname: string;
     search: string;
-    query: { host_ids: string; team_id: string };
+    query: { host_ids: string; fleet_id: string };
     hash?: string;
   };
 }
@@ -223,11 +223,11 @@ const PolicyPage = ({
     !isStoredPolicyLoading &&
     storedPolicy?.team_id !== undefined &&
     storedPolicy?.team_id !== null &&
-    !(storedPolicy?.team_id?.toString() === location.query.team_id)
+    !(storedPolicy?.team_id?.toString() === location.query.fleet_id)
   ) {
     router.push(
       getPathWithQueryParams(location.pathname, {
-        team_id: storedPolicy?.team_id?.toString(),
+        fleet_id: storedPolicy?.team_id?.toString(),
       })
     );
   }

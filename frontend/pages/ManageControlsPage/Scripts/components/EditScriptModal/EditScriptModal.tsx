@@ -182,7 +182,7 @@ const EditScriptModal = ({
             <CustomLink
               text="Hosts"
               url={getPathWithQueryParams(paths.MANAGE_HOSTS, {
-                team_id: currentTeam?.id,
+                fleet_id: currentTeam?.id,
               })}
             />{" "}
             page and select a host.
@@ -192,7 +192,7 @@ const EditScriptModal = ({
             <CustomLink
               text="Policies"
               url={getPathWithQueryParams(paths.MANAGE_POLICIES, {
-                team_id: currentTeam?.id,
+                fleet_id: currentTeam?.id,
               })}
             />{" "}
             page.

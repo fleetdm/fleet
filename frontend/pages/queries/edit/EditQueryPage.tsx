@@ -42,7 +42,7 @@ import EditQueryForm from "./components/EditQueryForm";
 interface IEditQueryPageProps {
   router: InjectedRouter;
   params: Params;
-  location: Location<{ host_id: string; team_id?: string }>;
+  location: Location<{ host_id: string; fleet_id?: string }>;
 }
 
 const baseClass = "edit-query-page";
@@ -171,11 +171,11 @@ const EditQueryPage = ({
     !isOnGlobalTeam &&
     !isStoredQueryLoading &&
     storedQuery?.team_id &&
-    !(storedQuery?.team_id?.toString() === location.query.team_id)
+    !(storedQuery?.team_id?.toString() === location.query.fleet_id)
   ) {
     router.push(
       getPathWithQueryParams(location.pathname, {
-        team_id: storedQuery?.team_id?.toString(),
+        fleet_id: storedQuery?.team_id?.toString(),
         host_id: hostId,
       })
     );
@@ -216,7 +216,7 @@ const EditQueryPage = ({
       router.push(
         getPathWithQueryParams(PATHS.QUERY_DETAILS(queryId), {
           host_id: location.query.host_id,
-          team_id: location.query.team_id,
+          fleet_id: location.query.fleet_id,
         })
       );
     }
@@ -266,7 +266,7 @@ const EditQueryPage = ({
         const { query } = await queryAPI.create(formData);
         router.push(
           getPathWithQueryParams(PATHS.QUERY_DETAILS(query.id), {
-            team_id: query.team_id,
+            fleet_id: query.team_id,
             host_id: hostId,
           })
         );
@@ -375,7 +375,7 @@ const EditQueryPage = ({
   const backPath = () => {
     if (queryId) {
       return getPathWithQueryParams(PATHS.QUERY_DETAILS(queryId), {
-        team_id: currentTeamId,
+        fleet_id: currentTeamId,
         host_id: hostId,
       });
     }
@@ -387,7 +387,7 @@ const EditQueryPage = ({
     if (filteredQueriesPath) return filteredQueriesPath;
 
     return getPathWithQueryParams(PATHS.MANAGE_QUERIES, {
-      team_id: currentTeamId,
+      fleet_id: currentTeamId,
     });
   };
 
