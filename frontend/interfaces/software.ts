@@ -296,6 +296,13 @@ export const INSTALLABLE_SOURCE_PLATFORM_CONVERSION = {
 
 export const SCRIPT_PACKAGE_SOURCES = ["sh_packages", "ps1_packages"];
 
+/** Sources that don't map cleanly to versions or hosts in software inventory.
+ * UI behavior for these sources:
+ * - Never shows “Update available” (no version to compare against the package version).
+ * - Skips showing recently updated and waiting for inventory  UI status/tooltip after successful install/uninstall (no inventory entry to await)
+ * - Skips showing a host count (hosts cannot be mapped to the package).
+ * - Skips showing a versions table (versions cannot be mapped to the package).
+ * - Skips linking to “View all hosts” (hosts cannot be mapped to the package). */
 export const NO_VERSION_OR_HOST_DATA_SOURCES = [
   "tgz_packages",
   ...SCRIPT_PACKAGE_SOURCES,
@@ -623,6 +630,7 @@ export const isSoftwareInProgressStatus = (
 export const HOST_SOFTWARE_UI_SUCCESS_STATUSES = [
   "installed", // Present in inventory; no newer fleet installer version (tarballs: successful install only)
   "uninstalled", // Not present in inventory (tarballs: successful uninstall or never installed)
+  // NOTE: Recently statuses cannot apply to tarballs as we cannot detect inventory
   "recently_updated", // Update applied (installer newer than inventory), but inventory not yet refreshed
   "recently_installed", // Install applied (installer NOT newer than inventory), but inventory not yet refreshed
   "recently_uninstalled", // Uninstall applied, but inventory not yet refreshed

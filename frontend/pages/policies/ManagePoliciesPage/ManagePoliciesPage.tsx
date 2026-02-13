@@ -164,7 +164,7 @@ const ManagePolicyPage = ({
       maintainer: true,
       observer: true,
       observer_plus: true,
-      technician: false,
+      technician: true,
     },
   });
 
@@ -275,7 +275,6 @@ const ManagePolicyPage = ({
 
   const {
     data: globalPoliciesCount,
-
     isFetching: isFetchingGlobalCount,
     refetch: refetchGlobalPoliciesCount,
   } = useQuery<IPoliciesCountResponse, Error, number, IPoliciesCountQueryKey[]>(
@@ -780,6 +779,8 @@ const ManagePolicyPage = ({
           return teamPoliciesAPI.update(changedPolicy.id, {
             conditional_access_enabled:
               changedPolicy.conditional_access_enabled,
+            conditional_access_bypass_enabled:
+              changedPolicy.conditional_access_bypass_enabled,
             team_id: teamIdForApi,
           });
         })
@@ -1119,7 +1120,16 @@ const ManagePolicyPage = ({
           conditional access.
         </>
       );
+    } else if (teamIdForApi === API_NO_TEAM_ID) {
+      disabledCalendarTooltipContent = (
+        <>
+          Select a team to manage
+          <br />
+          calendar events.
+        </>
+      );
     } else if (
+      // a team other than no team is selected
       (isGlobalMaintainer || isTeamMaintainer) &&
       !isCalEventsEnabled
     ) {
@@ -1316,7 +1326,6 @@ const ManagePolicyPage = ({
             isUpdating={isUpdatingPolicies}
             // currentTeamId will at this point be present
             teamId={currentTeamId ?? 0}
-            gitOpsModeEnabled={gitOpsModeEnabled}
           />
         )}
         {showPolicyRunScriptModal && (

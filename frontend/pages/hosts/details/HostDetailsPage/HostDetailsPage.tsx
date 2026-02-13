@@ -200,6 +200,7 @@ const HostDetailsPage = ({
     currentUser,
     isGlobalAdmin = false,
     isGlobalMaintainer,
+    isGlobalTechnician,
     isTeamMaintainerOrTeamAdmin,
     isPremiumTier = false,
     isOnlyObserver,
@@ -1109,6 +1110,10 @@ const HostDetailsPage = ({
     currentUser,
     host?.team_id
   );
+  const isHostTeamTechnician = permissions.isTeamTechnician(
+    currentUser,
+    host?.team_id
+  );
 
   const bootstrapPackageData = {
     status: host?.mdm.macos_setup?.bootstrap_package_status,
@@ -1129,8 +1134,10 @@ const HostDetailsPage = ({
     (isMacOSHost || isWindowsHost) &&
     (isGlobalAdmin ||
       isGlobalMaintainer ||
+      isGlobalTechnician ||
       isHostTeamAdmin ||
-      isHostTeamMaintainer);
+      isHostTeamMaintainer ||
+      isHostTeamTechnician);
 
   const showSoftwareLibraryTab = isPremiumTier;
 
