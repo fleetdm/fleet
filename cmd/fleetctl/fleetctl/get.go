@@ -1,6 +1,7 @@
 package fleetctl
 
 import (
+	"bytes"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -18,6 +19,7 @@ import (
 	"github.com/fleetdm/fleet/v4/pkg/rawjson"
 	"github.com/fleetdm/fleet/v4/pkg/secure"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/platform/endpointer"
 	"github.com/fleetdm/fleet/v4/server/service"
 	"github.com/ghodss/yaml"
 	kithttp "github.com/go-kit/kit/transport/http"
@@ -276,14 +278,28 @@ func printTeams(c *cli.Context, teams []fleet.Team) error {
 }
 
 func printSpec(c *cli.Context, spec specGeneric) error {
-	var err error
-
 	if c.Bool(jsonFlagName) {
-		err = printJSON(spec, c.App.Writer)
-	} else {
-		err = printYaml(spec, c.App.Writer)
+		// Marshal with struct field ordering, then apply byte-level key renames
+		// to honor renameto tags while preserving key order.
+		b, err := json.Marshal(spec)
+		if err != nil {
+			return err
+		}
+		rules := endpointer.ExtractAliasRules(spec.Spec)
+		if len(rules) > 0 {
+			b, err = endpointer.RewriteDeprecatedKeys(b, endpointer.SwapRules(rules))
+			if err != nil {
+				return err
+			}
+			b = bytes.TrimRight(b, "\n")
+		}
+		fmt.Fprintf(c.App.Writer, "%s\n", b)
+		return nil
 	}
-	return err
+	// For YAML, apply marshalRenamed to the inner spec value only.
+	// Key ordering doesn't matter in YAML output.
+	spec.Spec = marshalRenamed(spec.Spec)
+	return printYaml(spec, c.App.Writer)
 }
 
 func getCommand() *cli.Command {

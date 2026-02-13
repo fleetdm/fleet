@@ -90,11 +90,19 @@ type generateGitopsClient interface {
 }
 
 // Given a struct type and a field name, return the JSON field name.
+// If the field has a `renameto` tag, the renameto value (the new canonical name)
+// is returned instead of the json tag value (the old/deprecated name).
 func jsonFieldName(t reflect.Type, fieldName string) string {
 	field, ok := t.FieldByName(fieldName)
 	if !ok {
 		panic(fieldName + " not found in " + t.Name())
 	}
+
+	// Prefer the renameto tag (new canonical name) if it exists.
+	if renameTo := field.Tag.Get("renameto"); renameTo != "" {
+		return renameTo
+	}
+
 	tag := field.Tag.Get("json")
 	parts := strings.Split(tag, ",")
 	name := parts[0]
@@ -103,6 +111,174 @@ func jsonFieldName(t reflect.Type, fieldName string) string {
 		panic(field.Name + " has no json tag")
 	}
 	return name
+}
+
+// marshalRenamed JSON-marshals v, then renames keys in the resulting
+// map/slice tree according to `renameto` struct tags on t. This ensures
+// that when struct values are placed into a map for YAML marshaling,
+// the output uses the new canonical field names rather than the old
+// json tag names.
+func marshalRenamed(v any) any {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return v // fall back to raw value
+	}
+	var result any
+	if err := json.Unmarshal(b, &result); err != nil {
+		return v
+	}
+	applyRenameToKeys(reflect.TypeOf(v), result)
+	return result
+}
+
+func applyRenameToKeys(t reflect.Type, v any) {
+	if t == nil {
+		return
+	}
+	for t.Kind() == reflect.Ptr {
+		t = t.Elem()
+	}
+	switch t.Kind() {
+	case reflect.Struct:
+		if m, ok := v.(map[string]any); ok {
+			applyRenameToKeysStruct(t, m)
+		} else if s, ok := v.([]any); ok {
+			// Handle wrapper types like optjson.Slice that are Go structs
+			// but marshal to a JSON array. Find the inner slice field's
+			// element type and apply renames to each item.
+			for i := 0; i < t.NumField(); i++ {
+				ft := t.Field(i).Type
+				if ft.Kind() == reflect.Slice {
+					for _, item := range s {
+						applyRenameToKeys(ft.Elem(), item)
+					}
+					break
+				}
+			}
+		}
+	case reflect.Slice:
+		if s, ok := v.([]any); ok {
+			for _, item := range s {
+				applyRenameToKeys(t.Elem(), item)
+			}
+		}
+	}
+}
+
+func applyRenameToKeysStruct(t reflect.Type, m map[string]any) {
+	for i := 0; i < t.NumField(); i++ {
+		field := t.Field(i)
+
+		// Handle embedded (anonymous) structs — their fields are promoted.
+		if field.Anonymous {
+			ft := field.Type
+			for ft.Kind() == reflect.Ptr {
+				ft = ft.Elem()
+			}
+			if ft.Kind() == reflect.Struct {
+				applyRenameToKeysStruct(ft, m)
+			}
+			continue
+		}
+
+		jsonTag := field.Tag.Get("json")
+		if jsonTag == "" || jsonTag == "-" {
+			continue
+		}
+		jsonKey := strings.Split(jsonTag, ",")[0]
+
+		renameTo := field.Tag.Get("renameto")
+		currentKey := jsonKey
+		if renameTo != "" {
+			if val, ok := m[jsonKey]; ok {
+				m[renameTo] = val
+				delete(m, jsonKey)
+				currentKey = renameTo
+			}
+		}
+
+		// Recurse into nested values.
+		if val, ok := m[currentKey]; ok {
+			applyRenameToKeys(field.Type, val)
+		}
+	}
+}
+
+// applyRenamesDeep recursively walks a value tree, finding Go struct values
+// and applying marshalRenamed to them so that `renameto` tags are honored.
+// This allows struct values to be placed directly into maps without manually
+// wrapping each one in marshalRenamed at the call site.
+func applyRenamesDeep(v any) any {
+	if v == nil {
+		return nil
+	}
+	rv := reflect.ValueOf(v)
+	return applyRenamesDeepValue(rv)
+}
+
+func applyRenamesDeepValue(rv reflect.Value) any {
+	if !rv.IsValid() {
+		return nil
+	}
+
+	// Unwrap interfaces and pointers.
+	for rv.Kind() == reflect.Ptr || rv.Kind() == reflect.Interface {
+		if rv.IsNil() {
+			return nil
+		}
+		rv = rv.Elem()
+	}
+
+	switch rv.Kind() {
+	case reflect.Struct:
+		// Skip types that marshal to non-object JSON (e.g. json.RawMessage, time.Time).
+		t := rv.Type()
+		if t == reflect.TypeFor[json.RawMessage]() {
+			return rv.Interface()
+		}
+		// Use marshalRenamed to JSON-marshal the struct and apply renameto tags.
+		result := marshalRenamed(rv.Interface())
+		// Recurse into the resulting map to handle any nested structs.
+		if m, ok := result.(map[string]any); ok {
+			for k, val := range m {
+				m[k] = applyRenamesDeep(val)
+			}
+		}
+		return result
+
+	case reflect.Map:
+		// Recurse into map values.
+		if rv.Type().Key().Kind() == reflect.String {
+			for _, key := range rv.MapKeys() {
+				val := rv.MapIndex(key)
+				// Check if the value is nil (interface holding nil).
+				if val.Kind() == reflect.Interface && val.IsNil() {
+					continue // preserve nil values as-is
+				}
+				newVal := applyRenamesDeepValue(val)
+				if newVal == nil {
+					// Preserve nil map entries — SetMapIndex with zero Value deletes.
+					continue
+				}
+				rv.SetMapIndex(key, reflect.ValueOf(newVal))
+			}
+		}
+		return rv.Interface()
+
+	case reflect.Slice:
+		// Skip []byte / json.RawMessage.
+		if rv.Type().Elem().Kind() == reflect.Uint8 {
+			return rv.Interface()
+		}
+		result := make([]any, rv.Len())
+		for i := 0; i < rv.Len(); i++ {
+			result[i] = applyRenamesDeepValue(rv.Index(i))
+		}
+		return result
+
+	default:
+		return rv.Interface()
+	}
 }
 
 // Given a dot-separated path, return the value at that key in a map.
@@ -370,7 +546,7 @@ func (cmd *GenerateGitopsCommand) Run() error {
 				return ErrGeneric
 			}
 
-			cmd.FilesToWrite[fileName].(map[string]interface{})["team_settings"] = teamSettings
+			cmd.FilesToWrite[fileName].(map[string]any)["settings"] = teamSettings
 
 			// Only add agent_options for regular teams (not "No Team")
 			if team.ID != 0 {
@@ -428,13 +604,14 @@ func (cmd *GenerateGitopsCommand) Run() error {
 		cmd.FilesToWrite[fileName].(map[string]interface{})["policies"] = policies
 
 		if team == nil || team.ID != 0 {
-			// Generate queries (except for on No Team).
-			queries, err := cmd.generateQueries(teamToProcess.ID)
+			// Generate reports (except for on No Team).
+			reports, err := cmd.generateQueries(teamToProcess.ID)
 			if err != nil {
-				fmt.Fprintf(cmd.CLI.App.ErrWriter, "Error generating queries for team %s: %s\n", team.Name, err)
+				fmt.Fprintf(cmd.CLI.App.ErrWriter, "Error generating reports for team %s: %s\n", team.Name, err)
 				return ErrGeneric
 			}
-			cmd.FilesToWrite[fileName].(map[string]interface{})["queries"] = queries
+			// nolint:nilaway // we want to include "reports: null" in the output if there are no reports.
+			cmd.FilesToWrite[fileName].(map[string]any)["reports"] = reports
 		}
 	}
 
@@ -454,8 +631,8 @@ func (cmd *GenerateGitopsCommand) Run() error {
 			fileName = "teams/" + teamFileName + ".yml"
 		}
 
-		// Marshal and ummarshal the data to standardize the keys.
-		b, err := yaml.Marshal(cmd.FilesToWrite[fileName])
+		// Apply renameto tags and marshal/unmarshal the data to standardize the keys.
+		b, err := yaml.Marshal(applyRenamesDeep(cmd.FilesToWrite[fileName]))
 		if err != nil {
 			fmt.Fprintf(cmd.CLI.App.ErrWriter, "Error marshaling settings: %s\n", err)
 			return ErrGeneric
@@ -487,7 +664,7 @@ func (cmd *GenerateGitopsCommand) Run() error {
 		var err error
 		// If the filename ends in .yml, marshal it to YAML.
 		if strings.HasSuffix(path, ".yml") {
-			b, err = yaml.Marshal(fileToWrite)
+			b, err = yaml.Marshal(applyRenamesDeep(fileToWrite))
 			if err != nil {
 				fmt.Fprintf(cmd.CLI.App.ErrWriter, "Error marshaling file to write: %s\n", err)
 				return ErrGeneric
@@ -1018,7 +1195,7 @@ func (cmd *GenerateGitopsCommand) generateTeamSettings(filePath string, team *fl
 		teamSettings["secrets"] = []map[string]string{{"secret": cmd.AddComment(filePath, "TODO: Add your enroll secrets here")}}
 		cmd.Messages.SecretWarnings = append(cmd.Messages.SecretWarnings, SecretWarning{
 			Filename: filePath,
-			Key:      "team_settings.secrets",
+			Key:      "settings.secrets",
 		})
 	}
 	return teamSettings, nil
@@ -1592,7 +1769,7 @@ func (cmd *GenerateGitopsCommand) generateSoftware(filePath string, teamID uint,
 
 				if softwareTitle.SoftwarePackage.PreInstallQuery != "" {
 					query := softwareTitle.SoftwarePackage.PreInstallQuery
-					fileName := fmt.Sprintf("lib/%s/queries/%s", teamFilename, filenamePrefix+"-preinstallquery.yml")
+					fileName := fmt.Sprintf("lib/%s/reports/%s", teamFilename, filenamePrefix+"-preinstallquery.yml")
 					path := fmt.Sprintf("../%s", fileName)
 					softwareSpec["pre_install_query"] = map[string]interface{}{
 						"path": path,
