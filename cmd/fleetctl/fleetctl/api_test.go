@@ -39,11 +39,11 @@ func TestRunApiCommand(t *testing.T) {
   "scripts": [
     {
       "id": 23,
-      "fleet_id": null,
+      "team_id": null,
       "name": "get_my_device_page.sh",
       "created_at": "%s",
       "updated_at": "%s",
-      "team_id": null
+      "fleet_id": null
     }
   ]
 }
@@ -68,7 +68,7 @@ func TestRunApiCommand(t *testing.T) {
     "author_id": 1,
     "author_name": "",
     "author_email": "",
-    "fleet_id": null,
+    "team_id": null,
     "resolution": "",
     "platform": "darwin,windows,linux,chrome",
     "calendar_events_enabled": false,
@@ -79,7 +79,7 @@ func TestRunApiCommand(t *testing.T) {
     "passing_host_count": 0,
     "failing_host_count": 0,
     "host_count_updated_at": null,
-    "team_id": null
+    "fleet_id": null
   }
 }
 `

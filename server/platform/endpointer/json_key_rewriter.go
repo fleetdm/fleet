@@ -144,8 +144,8 @@ func RewriteDeprecatedKeys(data []byte, rules []AliasRule) ([]byte, error) {
 // rewrite reads tokens from src, rewrites deprecated keys, checks for alias
 // conflicts, and writes the transformed JSON to w.
 func (r *JSONKeyRewriteReader) rewrite(src io.Reader, w io.Writer) error {
-	dec := jsontext.NewDecoder(src)
-	enc := jsontext.NewEncoder(w)
+	dec := jsontext.NewDecoder(src, jsontext.AllowDuplicateNames(true))
+	enc := jsontext.NewEncoder(w, jsontext.AllowDuplicateNames(true))
 
 	// Stack of per-object-scope key sets for conflict detection.
 	// Pushed on '{', popped on '}'.

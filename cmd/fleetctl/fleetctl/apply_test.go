@@ -113,7 +113,7 @@ spec:
       global_role: null
       fleets:
       - role: maintainer
-        team: team1
+        fleet: team1
 `)
 	require.NoError(t, err)
 	assert.Equal(t, "[+] applied user roles\n", RunAppForTest(t, []string{"apply", "-f", tmpFile.Name()}))

@@ -204,7 +204,7 @@ func convertCommand() *cli.Command {
 			}
 
 			for _, query := range specs.Queries {
-				specBytes, err := json.Marshal(query)
+				specBytes, err := json.Marshal(marshalRenamed(query))
 				if err != nil {
 					return err
 				}
