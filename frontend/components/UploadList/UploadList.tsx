@@ -4,8 +4,10 @@ import classnames from "classnames";
 const baseClass = "upload-list";
 
 interface IUploadListProps<T = any> {
-  /** The attribute name that is used for the react key for each list item */
-  keyAttribute: keyof T;
+  /** The attribute name that is used for the react key for each list item.
+   * This is optional and not needed when the listItem type is a string
+   */
+  keyAttribute?: keyof T;
   listItems: T[];
   HeadingComponent?: (props: any) => JSX.Element;
   ListItemComponent: (props: { listItem: T }) => JSX.Element;
@@ -22,7 +24,7 @@ const UploadList = <T,>({
   const items = listItems.map((listItem) => {
     return (
       <li
-        key={`${listItem[keyAttribute]}`}
+        key={keyAttribute ? `${listItem[keyAttribute]}` : undefined}
         className={`${baseClass}__list-item`}
       >
         <ListItemComponent listItem={listItem} />
