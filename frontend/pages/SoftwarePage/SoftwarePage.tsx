@@ -384,14 +384,10 @@ const SoftwarePage = ({ children, router, location }: ISoftwarePageProps) => {
   };
 
   const renderHeaderDescription = () => {
-    let suffix;
-    if (!isPrimoMode) {
-      suffix = isAllTeamsSelected ? " for all hosts" : " on this fleet";
-    }
     return (
       <>
         Manage software and search for installed software, OS, and
-        vulnerabilities{suffix}.
+        vulnerabilities.
       </>
     );
   };
