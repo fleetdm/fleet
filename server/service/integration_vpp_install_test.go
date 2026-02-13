@@ -309,7 +309,7 @@ func (s *integrationMDMTestSuite) TestVPPAppInstallVerification() {
 		// When verification times out and retries are available, the handler
 		// re-enqueues InstallApplication. We loop through the full retry cycle
 		// until retries are exhausted or install succeeds.
-		for attempt := 0; attempt <= fleet.MaxSoftwareInstallRetries; attempt++ {
+		for attempt := range fleet.MaxSoftwareInstallRetries + 1 {
 			s.runWorker()
 			if attempt == 0 {
 				checkCommandsInFlight(1)
@@ -406,7 +406,7 @@ func (s *integrationMDMTestSuite) TestVPPAppInstallVerification() {
 		bundleID:           addedApp.BundleIdentifier,
 	}
 	var failedCmdUUID string
-	for i := 0; i < fleet.MaxSoftwareInstallRetries+1; i++ {
+	for range fleet.MaxSoftwareInstallRetries + 1 {
 		failedCmdUUID = processVPPInstallOnClient(mdmDevice, opts)
 	}
 

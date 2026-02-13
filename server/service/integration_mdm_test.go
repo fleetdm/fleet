@@ -13647,7 +13647,7 @@ func (s *integrationMDMTestSuite) TestVPPApps() {
 	// Simulate failed installation on the host, exhaust retries (MaxSoftwareInstallRetries = 3)
 	// First error triggers retry 1, second triggers retry 2, third triggers retry 3,
 	// fourth exhausts retries and marks as failed.
-	for i := 0; i < fleet.MaxSoftwareInstallRetries+1; i++ {
+	for range fleet.MaxSoftwareInstallRetries + 1 {
 		errorOnInstallApplicationCommand(1234)
 	}
 
