@@ -606,8 +606,8 @@
     /usr/sbin/ipconfig setverbose 1
     ntwknm="$(/usr/sbin/ipconfig getsummary "$(/usr/sbin/scutil --nwi | /usr/bin/awk '/Network interfaces:/{print $NF}')" | /usr/bin/awk -v ORS="," -F ' : ' '!/<dictionary>/&&!/<array>/&&!/}/{gsub("^[[:space:]]*","",$0);print "\x22"$1"\x22"":""\x22"$2"\x22"}' | /usr/bin/sed 's/^/{/;s/,$/}/' | /usr/bin/jq -r '.SSID')"
     /usr/sbin/ipconfig setverbose 0
-
- 	  /usr/bin/defaults write /Library/Preferences/com.apple.wifi.known-networks wifi.network.ssid."$ntwknm" -dict-add AutoJoinDisabled -bool TRUE
+    
+    /usr/bin/defaults write /Library/Preferences/com.apple.wifi.known-networks wifi.network.ssid."$ntwknm" -dict-add AutoJoinDisabled -bool TRUE
 
 #
 #  ╦ ╦╦╔╗╔╔╦╗╔═╗╦ ╦╔═╗
