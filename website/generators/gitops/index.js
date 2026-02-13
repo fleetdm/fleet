@@ -2,8 +2,14 @@ module.exports = {
 
   targets: {
 
-    './it-and-security/.gitignore': { copy: './default.yml.template' },
     './it-and-security/README.md': { copy: './default.yml.template' },
+    './it-and-security/.github': { folder: {} },
+    './it-and-security/.github/gitops-action': { folder: {} },
+    './it-and-security/.github/gitops-action/action.yml': { copy: './action.yml.template' }, // TODO: Make sure to grab latest version from fleet-gitops before retiring that repo
+    './it-and-security/.github/workflows': { folder: {} },
+    './it-and-security/.github/workflows/workflow.yml': { copy: './workflow.yml.template' }, // TODO: Make sure to grab latest version from fleet-gitops before retiring that repo
+    './it-and-security/.gitlab-ci.yml': { copy: './gitlab-ci.yml.template' }, // TODO: Make sure to grab latest version from fleet-gitops before retiring that repo
+    './it-and-security/.gitignore': { copy: './gitignore.template' },
     './it-and-security/default.yml': { copy: './default.yml.template' },
     './it-and-security/fleets/': { folder: {} },
     './it-and-security/fleets/workstations.yml': { copy: './default.yml.template' },
