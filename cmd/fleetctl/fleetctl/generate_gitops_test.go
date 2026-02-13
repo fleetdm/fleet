@@ -1034,10 +1034,10 @@ func TestGenerateSoftwareAutoUpdateSchedule(t *testing.T) {
 	cmd.AppConfig = appConfig
 
 	// prepare FilesToWrite entry like Run() would
-	cmd.FilesToWrite["teams/test.yml"] = map[string]any{}
+	cmd.FilesToWrite["fleets/test.yml"] = map[string]any{}
 
 	// generate software for team 1
-	res, err := cmd.generateSoftware("teams/test.yml", 1, "team-a", false)
+	res, err := cmd.generateSoftware("fleets/test.yml", 1, "team-a", false)
 	require.NoError(t, err)
 	require.NotNil(t, res)
 
@@ -1954,7 +1954,7 @@ func TestSillyTeamNames(t *testing.T) {
 			require.NoError(t, err, buf.String())
 
 			// Expect a correctly-named .yaml
-			tgtPath := filepath.Join(tempDir, "teams", expectedFilename)
+			tgtPath := filepath.Join(tempDir, "fleets", expectedFilename)
 			_, err = os.Stat(tgtPath)
 			require.NoError(t, err)
 		})

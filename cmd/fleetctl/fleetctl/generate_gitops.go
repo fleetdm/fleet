@@ -117,28 +117,28 @@ func jsonFieldName(t reflect.Type, fieldName string) string {
 // new canonical names (from `renameto` struct tags). Used by replaceAliasKeys
 // and yamlMarshalRenamed to rename keys in serialized output.
 var aliasRules = map[string]string{
-	"default_team":                    "default_fleet",
-	"distributed_query_execution_id":  "distributed_report_execution_id",
-	"host_team_id":                    "host_fleet_id",
-	"ios_team":                        "ios_fleet",
-	"ipados_team":                     "ipados_fleet",
-	"live_query_disabled":             "live_report_disabled",
-	"macos_team":                      "macos_fleet",
-	"queries":                         "reports",
-	"query_id":                        "report_id",
-	"query_ids":                       "report_ids",
-	"query_name":                      "report_name",
-	"query_report_cap":                "report_cap",
-	"query_reports_disabled":          "reports_disabled",
-	"query_sql":                       "report_sql",
-	"query_stats":                     "report_stats",
-	"scheduled_query_id":              "scheduled_report_id",
-	"scheduled_query_name":            "scheduled_report_name",
-	"team":                            "fleet",
-	"team_id":                         "fleet_id",
-	"team_ids":                        "fleet_ids",
-	"team_name":                       "fleet_name",
-	"teams":                           "fleets",
+	"default_team":                   "default_fleet",
+	"distributed_query_execution_id": "distributed_report_execution_id",
+	"host_team_id":                   "host_fleet_id",
+	"ios_team":                       "ios_fleet",
+	"ipados_team":                    "ipados_fleet",
+	"live_query_disabled":            "live_report_disabled",
+	"macos_team":                     "macos_fleet",
+	"queries":                        "reports",
+	"query_id":                       "report_id",
+	"query_ids":                      "report_ids",
+	"query_name":                     "report_name",
+	"query_report_cap":               "report_cap",
+	"query_reports_disabled":         "reports_disabled",
+	"query_sql":                      "report_sql",
+	"query_stats":                    "report_stats",
+	"scheduled_query_id":             "scheduled_report_id",
+	"scheduled_query_name":           "scheduled_report_name",
+	"team":                           "fleet",
+	"team_id":                        "fleet_id",
+	"team_ids":                       "fleet_ids",
+	"team_name":                      "fleet_name",
+	"teams":                          "fleets",
 }
 
 // replaceAliasKeys recursively walks map[string]any / []any trees renaming
@@ -406,7 +406,7 @@ func (cmd *GenerateGitopsCommand) Run() error {
 		// If it's a real team, start the filename with the team name.
 		if team != nil {
 			teamFileName = generateFilename(team.Name)
-			fileName = "teams/" + teamFileName + ".yml"
+			fileName = "fleets/" + teamFileName + ".yml"
 			cmd.FilesToWrite[fileName] = map[string]interface{}{
 				"name": team.Name,
 			}
@@ -526,10 +526,10 @@ func (cmd *GenerateGitopsCommand) Run() error {
 		case "":
 			fileName = "default.yml"
 		case "no-team":
-			fileName = "teams/no-team.yml"
+			fileName = "fleets/no-team.yml"
 		default:
 			teamFileName := generateFilename(cmd.CLI.String("team"))
-			fileName = "teams/" + teamFileName + ".yml"
+			fileName = "fleets/" + teamFileName + ".yml"
 		}
 
 		// Apply renameto tags and marshal/unmarshal the data to standardize the keys.
