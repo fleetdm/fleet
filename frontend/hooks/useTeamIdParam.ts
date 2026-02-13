@@ -361,6 +361,16 @@ export const useTeamIdParam = ({
   overrideParamsOnTeamChange?: IConfigOverrideParamsOnTeamChange;
 }) => {
   const { hash, pathname, query, search } = location;
+
+  // Backward compat: redirect legacy ?team_id= URLs to ?fleet_id=
+  if (search.includes("team_id=")) {
+    router.replace(
+      pathname
+        .concat(search.replace(/\bteam_id=/g, "fleet_id="))
+        .concat(hash || "")
+    );
+  }
+
   const {
     availableTeams,
     currentTeam: contextTeam,
