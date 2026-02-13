@@ -184,7 +184,7 @@ func TestCreateBulkUsers(t *testing.T) {
 		user15,user15@example.com,false,false,,1:admin
 		user16,user16@example.com,false,false,,1:admin 2:maintainer`)
 
-	expectedText := `{"kind":"user_roles","apiVersion":"v1","spec":{"roles":{"admin1@example.com":{"global_role":"admin","teams":null},"user11@example.com":{"global_role":"maintainer","teams":null},"user12@example.com":{"global_role":"observer","teams":null},"user13@example.com":{"global_role":"admin","teams":null},"user14@example.com":{"global_role":null,"teams":[{"team":"","role":"maintainer"}]},"user15@example.com":{"global_role":null,"teams":[{"team":"","role":"admin"}]},"user16@example.com":{"global_role":null,"teams":[{"team":"","role":"admin"},{"team":"","role":"maintainer"}]},"user1@example.com":{"global_role":"maintainer","teams":null},"user2@example.com":{"global_role":"observer","teams":null}}}}
+	expectedText := `{"kind":"user_roles","apiVersion":"v1","spec":{"roles":{"admin1@example.com":{"fleets":null,"global_role":"admin"},"user11@example.com":{"fleets":null,"global_role":"maintainer"},"user12@example.com":{"fleets":null,"global_role":"observer"},"user13@example.com":{"fleets":null,"global_role":"admin"},"user14@example.com":{"fleets":[{"fleet":"","role":"maintainer"}],"global_role":null},"user15@example.com":{"fleets":[{"fleet":"","role":"admin"}],"global_role":null},"user16@example.com":{"fleets":[{"fleet":"","role":"admin"},{"fleet":"","role":"maintainer"}],"global_role":null},"user1@example.com":{"fleets":null,"global_role":"maintainer"},"user2@example.com":{"fleets":null,"global_role":"observer"}}}}
 `
 
 	assert.Equal(t, "", RunAppForTest(t, []string{"user", "create-users", "--csv", csvFile}))
