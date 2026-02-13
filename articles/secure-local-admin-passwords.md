@@ -76,8 +76,6 @@ The repository includes a complete test suite you can run locally with Docker Co
 
 If a rotation fails, check Fleet's script execution logs and verify the device can reach your Connect server. Firewall rules and network segmentation sometimes block API calls.
 
-## What's next
-
 Once you've got LAPS running, consider:
 
 * Setting up alerting for consecutive rotation failures
@@ -86,3 +84,10 @@ Once you've got LAPS running, consider:
 * Reviewing 1Password access policies to ensure only authorized admins can view credentials
 
 Managing local admin passwords doesn't have to be painful. With Fleet handling the automation and 1Password securing the storage, you get enterprise-grade credential management without the enterprise-grade headaches.
+
+<meta name="articleTitle" value="Secure local admin passwords with LAPS and 1Password">
+<meta name="authorFullName" value="Josh Roskos">
+<meta name="authorGitHubUsername" value="kc9wwh">
+<meta name="category" value="guides">
+<meta name="publishedOn" value="2025-02-13">
+<meta name="description" value="A guide to implementing LAPS (Local Administrator Password Solution) with Fleet and 1Password Connect, automatically rotating local admin passwords every 7 days and storing them securely in your vault">
