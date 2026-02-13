@@ -14,6 +14,8 @@ import Card from "components/Card";
 import Button from "components/buttons/Button";
 import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
 
+import AddEntraTenantModal from "../components/AddEntraTenantModal";
+
 const generateMdmTermsOfUseUrl = (domain: string) => {
   return `${domain}/api/mdm/microsoft/tos`;
 };
@@ -116,6 +118,9 @@ const WindowsAutomaticEnrollmentPage = () => {
             <div>{renderEntraTenants()}</div>
           </section>
         </div>
+        {showAddTenantModal && (
+          <AddEntraTenantModal onExit={() => setShowAddTenantModal(false)} />
+        )}
       </>
     </MainContent>
   );
