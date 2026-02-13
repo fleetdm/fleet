@@ -50,6 +50,8 @@ type TestWindowsMDMClient struct {
 	jwtSigningKey *rsa.PrivateKey
 	// jwtSigningKeyID is the ID to report in the header for the signing key
 	jwtSigningKeyID string
+	// Entra Tenant ID to include int he JWT
+	entraTenantID string
 
 	username string
 	password string
@@ -77,10 +79,11 @@ func TestWindowsMDMClientNotInOOBE() TestWindowsMDMClientOption {
 	}
 }
 
-func TestWindowsMDMClientWithSigningKey(signingKey *rsa.PrivateKey, signingKeyID string) TestWindowsMDMClientOption {
+func TestWindowsMDMClientWithSigningKeyAndTenantID(signingKey *rsa.PrivateKey, signingKeyID, tenantID string) TestWindowsMDMClientOption {
 	return func(c *TestWindowsMDMClient) {
 		c.jwtSigningKey = signingKey
 		c.jwtSigningKeyID = signingKeyID
+		c.entraTenantID = tenantID
 	}
 }
 
@@ -687,9 +690,11 @@ func (c *TestWindowsMDMClient) getToken() (binarySecToken string, tokenValueType
 	case fleet.WindowsMDMAutomaticEnrollmentType:
 		claims := &jwt.MapClaims{
 			"upn":         c.TokenIdentifier,
-			"tid":         "tenant_id",
+			"tid":         c.entraTenantID,
 			"unique_name": "foo_bar",
 			"scp":         "mdm_delegation",
+			"iss":         "https://sts.windows.net/" + c.entraTenantID + "/",
+			"aud":         c.fleetServerURL,
 		}
 		if c.jwtSigningKey == nil || c.jwtSigningKeyID == "" {
 			return "", "", errors.New("jwt signing key is not set")
