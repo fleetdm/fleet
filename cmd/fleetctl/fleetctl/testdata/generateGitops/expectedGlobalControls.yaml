@@ -31,6 +31,9 @@ windows_updates:
   deadline_days: 5
   grace_period_days: 2
 windows_enabled_and_configured: true
+windows_entra_tenant_ids:
+- 5b84b6dd-d257-415e-b8b4-0240666ba4d4
+- 9d30f55f-d117-4574-acf0-ff593e3e06e3
 windows_migration_enabled: true
 enable_turn_on_windows_mdm_manually: false
 windows_require_bitlocker_pin: false

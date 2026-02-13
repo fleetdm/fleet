@@ -1,14 +1,14 @@
 {
   "versions": [
     {
-      "version": "2.5.1",
+      "version": "2.6.0",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name = 'Asana' AND publisher = 'Asana, Inc.';"
       },
-      "installer_url": "https://desktop-downloads.asana.com/win32_x64/prod/v2.5.1/AsanaSetup.exe",
+      "installer_url": "https://desktop-downloads.asana.com/win32_x64/prod/v2.6.0/AsanaSetup.exe",
       "install_script_ref": "7d7fdd9d",
       "uninstall_script_ref": "223f54f6",
-      "sha256": "c760d8e3b8c8f014a5ed29d8996cf0524e03332b4fdb635aa9637d88b414b06c",
+      "sha256": "fcb1e7e9dc094465fa2667462b37bb741a01003da1469c30d3ecb6b3ef68475b",
       "default_categories": [
         "Productivity"
       ]

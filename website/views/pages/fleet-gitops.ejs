@@ -9,7 +9,7 @@
         <p>See every change, undo any error, repeat every success. Fleet and GitOps work together to optimize your endpoint management strategy.</p>
         <div purpose="button-row">
           <a purpose="cta-button" class="btn btn-primary" href="/contact">Get a demo</a>
-          <signup-button :is-logged-in="!! this.me"></signup-button>
+          <!-- <animated-arrow-button href="/try">Try it yourself</animated-arrow-button> -->
         </div>
       </div>
       <div purpose="list-and-cta">
@@ -20,9 +20,9 @@
             <a href="#get-to-know-fleet-gitops">Learn more</a>
           </div>
           <div purpose="list-item">
-            <h5>Benefits of using GitOps</h5>
+            <h5>Benefits of using infrastructure as code</h5>
             <p>GUI-based device management practices are difficult to maintain and audit. Undo complex change management and leave manual, repetitive tasks behind. Add real business value in IT and get time back for your team.</p>
-            <a href="#benefits-of-using-gitops">Learn more</a>
+            <a href="#benefits-of-using-infrastructure as code">Learn more</a>
           </div>
           <div purpose="list-item">
             <h5>Challenges</h5>
@@ -77,7 +77,7 @@
 
     <div purpose="page-section">
       <div purpose="section-title">
-        <h2 id="benefits-of-using-gitops">Benefits of using GitOps</h2>
+        <h2 id="benefits-of-using-infrastructure as code">Benefits of using infrastructure as code</h2>
       </div>
       <div purpose="features-section">
         <div purpose="feature">
@@ -168,13 +168,12 @@
         </div>
         <div purpose="button-row">
           <a purpose="cta-button" class="btn btn-primary" href="/contact">Get a demo</a>
-          <signup-button :is-logged-in="!! this.me"></signup-button>
+          <!-- <animated-arrow-button href="/try">Try it yourself</animated-arrow-button> -->
         </div>
       </div>
     </div>
   </div>
   <%/* Cloud city banner */%>
   <parallax-city></parallax-city>
-  <signup-modal></signup-modal>
 </div>
 <%- /* Expose server-rendered data as window.SAILS_LOCALS :: */ exposeLocalsToBrowser() %>

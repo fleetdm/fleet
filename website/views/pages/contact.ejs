@@ -11,7 +11,6 @@
       </div>
       <div v-else-if="formToDisplay === 'apply'">
         <h2 purpose="application-form-heading" v-if="formToDisplay === 'apply'">Apply for an open position</h2>
-        <h2>Request a workshop</h2>
       </div>
       <div v-else-if="formToDisplay === 'gitops-workshop-request'">
         <h2 class="mb-3">Request a workshop</h2>
@@ -375,6 +374,5 @@
   </div>
   </div>
   <p style="opacity: 0; line-height: 0px; font-size: 0px; margin: 0;">537c652d-cb1a-440e-ae35-0f0bf5743e75</p>
-  <signup-modal></signup-modal>
 </div>
 <%- /* Expose locals as `window.SAILS_LOCALS` :: */ exposeLocalsToBrowser() %>

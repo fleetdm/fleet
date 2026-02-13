@@ -125,6 +125,15 @@
   },
   {
     "software": {
+      "bundle_identifier": ["com.nextcloud.desktopclient"]
+    },
+    "filter": {
+      "product": ["desktop"],
+      "vendor": ["nextcloud"]
+    }
+  },
+  {
+    "software": {
       "name": ["jira"],
       "source": ["python_packages"]
     },
@@ -728,6 +737,16 @@
       "product": ["pgadmin", "pgadmin_4"],
       "vendor": ["pgadmin"],
       "target_sw": ["postgresql"]
+    }
+  },
+  {
+    "software": {
+      "name": ["Acrobat Reader"],
+      "source": ["apps"],
+      "bundle_identifier": ["com.adobe.Reader"]
+    },
+    "filter": {
+      "product": ["acrobat_reader_dc"]
     }
   }
 ]

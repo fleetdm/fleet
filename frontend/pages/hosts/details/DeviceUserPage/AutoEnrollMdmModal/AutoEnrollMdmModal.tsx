@@ -5,10 +5,10 @@ import InputField from "components/forms/fields/InputField";
 
 import Button from "components/buttons/Button";
 import Modal from "components/Modal";
-import { IDeviceUserResponse } from "interfaces/host";
+import { IDUPDetails } from "interfaces/host";
 
 interface IAutoEnrollMdmModalProps {
-  host: IDeviceUserResponse["host"];
+  host: IDUPDetails["host"];
   onCancel: () => void;
 }
 

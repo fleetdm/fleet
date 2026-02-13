@@ -129,18 +129,6 @@ func (ds *Datastore) NewActivity(
 	})
 }
 
-func (ds *Datastore) MarkActivitiesAsStreamed(ctx context.Context, activityIDs []uint) error {
-	stmt := `UPDATE activities SET streamed = true WHERE id IN (?);`
-	query, args, err := sqlx.In(stmt, activityIDs)
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "sqlx.In mark activities as streamed")
-	}
-	if _, err := ds.writer(ctx).ExecContext(ctx, query, args...); err != nil {
-		return ctxerr.Wrap(ctx, err, "exec mark activities as streamed")
-	}
-	return nil
-}
-
 // ListHostUpcomingActivities returns the list of activities pending execution
 // or processing for the specific host. It is the "unified queue" of work to be
 // done on the host. That queue is "virtual" in the sense that it pulls from a
@@ -414,49 +402,6 @@ func (ds *Datastore) ListHostUpcomingActivities(ctx context.Context, hostID uint
 	if len(activities) > int(opt.PerPage) { //nolint:gosec // dismiss G115
 		metaData.HasNextResults = true
 		activities = activities[:len(activities)-1]
-	}
-
-	return activities, metaData, nil
-}
-
-func (ds *Datastore) ListHostPastActivities(ctx context.Context, hostID uint, opt fleet.ListOptions) ([]*fleet.Activity, *fleet.PaginationMetadata, error) {
-	const listStmt = `
-	SELECT
-		ha.activity_id as id,
-		a.user_email as user_email,
-		a.user_name as name,
-		a.activity_type as activity_type,
-		a.details as details,
-		u.gravatar_url as gravatar_url,
-		a.created_at as created_at,
-		u.id as user_id,
-		u.api_only as api_only,
-		a.fleet_initiated as fleet_initiated
-	FROM
-		host_activities ha
-		JOIN activities a
-			ON ha.activity_id = a.id
-		LEFT OUTER JOIN
-			users u ON u.id = a.user_id
-	WHERE
-		ha.host_id = ?
-	`
-
-	args := []any{hostID}
-	stmt, args := appendListOptionsWithCursorToSQL(listStmt, args, &opt)
-
-	var activities []*fleet.Activity
-	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &activities, stmt, args...); err != nil {
-		return nil, nil, ctxerr.Wrap(ctx, err, "select upcoming activities")
-	}
-
-	var metaData *fleet.PaginationMetadata
-	if opt.IncludeMetadata {
-		metaData = &fleet.PaginationMetadata{HasPreviousResults: opt.Page > 0}
-		if len(activities) > int(opt.PerPage) { //nolint:gosec // dismiss G115
-			metaData.HasNextResults = true
-			activities = activities[:len(activities)-1]
-		}
 	}
 
 	return activities, metaData, nil

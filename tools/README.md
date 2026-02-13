@@ -242,6 +242,7 @@ go run ./tools/run-scripts -scripts-disabled -content 'echo "Test"'
 | `percona/` | Percona testing | Percona MySQL testing configs - See [percona/test/README.md](percona/test/README.md) |
 | `sentry-self-hosted/` | Self-hosted Sentry | See [sentry-self-hosted/README.md](sentry-self-hosted/README.md) |
 | `smtp4dev/` | Local SMTP testing | SMTP4Dev server with TLS certs for email testing |
+| `signoz/` | SigNoz for traces, metrics, and logs | See [signoz/README.md](signoz/README.md) |
 | `telemetry/` | Jaeger + Prometheus for tracing | `docker compose up` - See [telemetry/README.md](telemetry/README.md) |
 | `terraform/` | Terraform provider for Fleet teams | `make install && make apply` - See [terraform/README.md](terraform/README.md) |
 | **MDM Tools** | | |
@@ -262,7 +263,6 @@ go run ./tools/run-scripts -scripts-disabled -content 'echo "Test"'
 | `mdm/migration/micromdm/` | MicroMDM migration tools | See [mdm/migration/micromdm/README.md](mdm/migration/micromdm/README.md) |
 | `mdm/migration/simplemdm/` | SimpleMDM migration tools | `go run ./tools/mdm/migration/simplemdm` |
 | `mdm/windows/bitlocker/` | BitLocker key management | Go utilities for BitLocker |
-| `mdm/windows/poc-mdm-server/` | PoC Windows MDM server | See [mdm/windows/poc-mdm-server/README.md](mdm/windows/poc-mdm-server/README.md) |
 | `mdm/windows/programmatic-enrollment/` | Windows MDM enrollment | `go run ./tools/mdm/windows/programmatic-enrollment` |
 | `windows-mdm-enroll/` | Windows MDM enrollment | Enrollment utilities for Windows |
 | **Other Utilities** | | |

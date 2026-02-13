@@ -30,7 +30,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/mdm"
 	common_mysql "github.com/fleetdm/fleet/v4/server/platform/mysql"
 	"github.com/fleetdm/fleet/v4/server/ptr"
-	"github.com/go-kit/log"
+	"github.com/fleetdm/fleet/v4/server/worker"
 	kitlog "github.com/go-kit/log"
 	"github.com/go-kit/log/level"
 	"github.com/google/uuid"
@@ -803,8 +803,33 @@ func (svc *Service) deleteVPPApp(ctx context.Context, teamID *uint, meta *fleet.
 		return fleet.ErrNoContext
 	}
 
+	var androidHostsUUIDToPolicyID map[string]string
+	if meta.Platform == fleet.AndroidPlatform {
+		// if this is an Android app we're deleting, collect the host uuids that should have it removed
+		// (as we uninstall Android apps on delete). We can't do this in the worker as it will be too late,
+		// the vpp_apps_teams entry will have been deleted.
+		hosts, err := svc.ds.GetIncludedHostUUIDMapForAppStoreApp(ctx, meta.VPPAppsTeamsID)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "delete app store app: getting android hosts in scope")
+		}
+		androidHostsUUIDToPolicyID = hosts
+	}
+
 	if err := svc.ds.DeleteVPPAppFromTeam(ctx, teamID, meta.VPPAppID); err != nil {
 		return ctxerr.Wrap(ctx, err, "deleting VPP app")
+	}
+
+	// if this is an android app, remove the self-service app from the managed Google Play store
+	// and uninstall it from the hosts.
+	if meta.Platform == fleet.AndroidPlatform && len(androidHostsUUIDToPolicyID) > 0 {
+		enterprise, err := svc.ds.GetEnterprise(ctx)
+		if err != nil {
+			return &fleet.BadRequestError{Message: "Android MDM is not enabled", InternalErr: err}
+		}
+		err = worker.QueueMakeAndroidAppUnavailableJob(ctx, svc.ds, svc.logger, meta.VPPAppID.AdamID, androidHostsUUIDToPolicyID, enterprise.Name())
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "enqueuing job to make android app unavailable")
+		}
 	}
 
 	var teamName *string
@@ -1200,7 +1225,7 @@ func (svc *Service) InstallSoftwareTitle(ctx context.Context, hostID uint, softw
 			if lastInstallRequest != nil && lastInstallRequest.Status != nil &&
 				(*lastInstallRequest.Status == fleet.SoftwareInstallPending || *lastInstallRequest.Status == fleet.SoftwareUninstallPending) {
 				return &fleet.BadRequestError{
-					Message: "Couldn't install. This host isn't a member of the labels defined for this software title.",
+					Message: "Couldn't install. Host already has a pending install/uninstall for this installer.",
 					InternalErr: ctxerr.WrapWithData(
 						ctx, err, "host already has a pending install/uninstall for this installer",
 						map[string]any{
@@ -1406,12 +1431,15 @@ func (svc *Service) installSoftwareTitleUsingInstaller(ctx context.Context, host
 	}
 
 	if host.FleetPlatform() != requiredPlatform {
-		return &fleet.BadRequestError{
-			Message: fmt.Sprintf("Package (%s) can be installed only on %s hosts.", ext, requiredPlatform),
-			InternalErr: ctxerr.NewWithData(
-				ctx, "invalid host platform for requested installer",
-				map[string]any{"host_id": host.ID, "team_id": host.TeamID, "title_id": installer.TitleID},
-			),
+		// Allow .sh scripts for any unix-like platform (linux and darwin)
+		if !(ext == ".sh" && fleet.IsUnixLike(host.Platform)) {
+			return &fleet.BadRequestError{
+				Message: fmt.Sprintf("Package (%s) can be installed only on %s hosts.", ext, requiredPlatform),
+				InternalErr: ctxerr.NewWithData(
+					ctx, "invalid host platform for requested installer",
+					map[string]any{"host_id": host.ID, "team_id": host.TeamID, "title_id": installer.TitleID},
+				),
+			}
 		}
 	}
 
@@ -2071,7 +2099,7 @@ func (svc *Service) softwareBatchUpload(
 		if batchErr != nil {
 			status = fmt.Sprintf("%s%s", batchSetFailedPrefix, batchErr)
 		}
-		logger := log.With(svc.logger,
+		logger := svc.logger.With(
 			"request_uuid", requestUUID,
 			"team_id", teamID,
 			"payloads", len(payloads),
@@ -2655,12 +2683,15 @@ func (svc *Service) SelfServiceInstallSoftwareTitle(ctx context.Context, host *f
 		}
 
 		if host.FleetPlatform() != requiredPlatform {
-			return &fleet.BadRequestError{
-				Message: fmt.Sprintf("Package (%s) can be installed only on %s hosts.", ext, requiredPlatform),
-				InternalErr: ctxerr.WrapWithData(
-					ctx, err, "invalid host platform for requested installer",
-					map[string]any{"host_id": host.ID, "team_id": host.TeamID, "title_id": softwareTitleID},
-				),
+			// Allow .sh scripts for any unix-like platform (linux and darwin)
+			if !(ext == ".sh" && fleet.IsUnixLike(host.Platform)) {
+				return &fleet.BadRequestError{
+					Message: fmt.Sprintf("Package (%s) can be installed only on %s hosts.", ext, requiredPlatform),
+					InternalErr: ctxerr.WrapWithData(
+						ctx, err, "invalid host platform for requested installer",
+						map[string]any{"host_id": host.ID, "team_id": host.TeamID, "title_id": softwareTitleID},
+					),
+				}
 			}
 		}
 

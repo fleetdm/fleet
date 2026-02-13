@@ -17,7 +17,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/host"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/health"
-	"github.com/go-kit/log"
+	"github.com/fleetdm/fleet/v4/server/platform/logging"
 	"github.com/kolide/launcher/pkg/service"
 	"github.com/osquery/osquery-go/plugin/distributed"
 	"github.com/osquery/osquery-go/plugin/logger"
@@ -26,7 +26,7 @@ import (
 // launcherWrapper wraps the TLS interface.
 type launcherWrapper struct {
 	tls            fleet.OsqueryService
-	logger         log.Logger
+	logger         *logging.Logger
 	healthCheckers map[string]health.Checker
 }
 
@@ -110,9 +110,11 @@ func (svc *launcherWrapper) PublishLogs(ctx context.Context, nodeKey string, log
 		err = svc.tls.SubmitResultLogs(newCtx, results)
 		return "", "", false, ctxerr.Wrap(ctx, err, "submit result logs from launcher")
 	default:
-		// We have a logTypeAgent which is not there in the osquery-go enum.
-		// See https://github.com/kolide/launcher/issues/183
-		panic(fmt.Sprintf("%s log type not implemented", logType))
+		return "", "", false, ctxerr.Wrap(ctx,
+			&fleet.BadRequestError{Message: fmt.Sprintf("log type %q not implemented", logType)},
+			"unsupported log type",
+		)
+
 	}
 }
 

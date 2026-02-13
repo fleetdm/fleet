@@ -51,7 +51,9 @@ interface IEditSoftwareModalProps {
   installerType: InstallerType;
   router: InjectedRouter;
   openViewYamlModal: () => void;
+  isFleetMaintainedApp?: boolean;
   isIosOrIpadosApp?: boolean;
+  gitOpsModeEnabled?: boolean;
   name: string;
   displayName: string;
   source?: string;
@@ -67,6 +69,7 @@ const EditSoftwareModal = ({
   installerType,
   router,
   openViewYamlModal,
+  isFleetMaintainedApp = false,
   isIosOrIpadosApp = false,
   name,
   displayName,
@@ -77,6 +80,12 @@ const EditSoftwareModal = ({
   const { config } = useContext(AppContext);
 
   const gitOpsModeEnabled = config?.gitops.gitops_mode_enabled || false;
+  // Viewing an FMA in GitOps mode only allows viewing options, not editing
+  const isGitOpsCompatible = gitOpsModeEnabled && isFleetMaintainedApp;
+
+  const formClassNames = classnames(`${baseClass}__package-form`, {
+    [`${baseClass}__package-form--disabled`]: isGitOpsCompatible,
+  });
 
   const [editSoftwareModalClasses, setEditSoftwareModalClasses] = useState(
     baseClass
@@ -342,7 +351,7 @@ const EditSoftwareModal = ({
       return (
         <PackageForm
           labels={labels || []}
-          className={`${baseClass}__package-form`}
+          className={formClassNames}
           isEditingSoftware
           onCancel={onExit}
           onSubmit={onClickSavePackage}
@@ -354,6 +363,7 @@ const EditSoftwareModal = ({
           defaultUninstallScript={softwarePackage.uninstall_script}
           defaultSelfService={softwarePackage.self_service}
           defaultCategories={softwarePackage.categories}
+          gitopsCompatible={isGitOpsCompatible}
         />
       );
     }
@@ -406,7 +416,7 @@ const EditSoftwareModal = ({
       )}
       {!!pendingPackageUpdates.software && showFileProgressModal && (
         <FileProgressModal
-          fileDetails={getFileDetails(pendingPackageUpdates.software, true)}
+          fileDetails={getFileDetails(pendingPackageUpdates.software)}
           fileProgress={uploadProgress}
         />
       )}
