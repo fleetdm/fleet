@@ -4,7 +4,7 @@ Use Fleet's best practice GitOps workflow to manage your computers as code. To l
 
 > When changing a team's name, you must first change it in the UI and then update your YAML. If you only update your YAML, the team will be deleted and the team's hosts will lose their settings. This happens because the hosts are transferred to "No team".
 
-Any settings not defined in your YAML files (including missing or misspelled keys) will be reset to the default values, which may include deleting assets such as software packages.
+Any settings not defined in your YAML files (including missing or misspelled keys) will be set to the default values defined in the UI.
 
 The following are the required keys in the `default.yml` and any `teams/team-name.yml` files:
 
