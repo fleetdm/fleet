@@ -90,7 +90,7 @@ Here's an example profile with `$FLEET_SECRET_CERT_PASSWORD` and `$FLEET_SECRET_
 </plist>
 ```
 
-> Fleet variables are automatically escaped in Apple (`.mobileconfig`) and Windows (`.xml`) configuration profiles. For example, `&` will become `&amp;`. If you're using special characters outside of Fleet variables, they must be manually escaped because they have special meanings in XML.
+> Fleet variables are automatically escaped in Apple (`.mobileconfig`) and Windows (`.xml`) configuration profiles. For example, `&` will become `&amp;`. Special characters outside of Fleet variables must be manually escaped because they have special meanings in XML.
 
 ## Known limitations and issues
 
