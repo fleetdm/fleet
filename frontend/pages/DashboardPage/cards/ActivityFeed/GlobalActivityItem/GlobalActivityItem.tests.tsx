@@ -652,7 +652,9 @@ describe("Activity Feed", () => {
     render(<GlobalActivityItem activity={activity} isPremiumTier />);
 
     expect(
-      screen.getByText("enforced disk encryption for hosts that are unassigned.")
+      screen.getByText(
+        "enforced disk encryption for hosts that are unassigned."
+      )
     ).toBeInTheDocument();
     expect(screen.queryByText("assigned to the")).toBeNull();
   });
@@ -666,7 +668,9 @@ describe("Activity Feed", () => {
     render(<GlobalActivityItem activity={activity} isPremiumTier />);
 
     expect(
-      screen.getByText("enforced disk encryption for hosts that are unassigned.")
+      screen.getByText(
+        "enforced disk encryption for hosts that are unassigned."
+      )
     ).toBeInTheDocument();
     expect(screen.queryByText("assigned to the")).toBeNull();
   });
@@ -936,7 +940,9 @@ describe("Activity Feed", () => {
       screen.getByText("transferred host", { exact: false })
     ).toBeInTheDocument();
     expect(screen.getByText("foo", { exact: false })).toBeInTheDocument();
-    expect(screen.getByText("unassigned", { exact: false })).toBeInTheDocument();
+    expect(
+      screen.getByText("unassigned", { exact: false })
+    ).toBeInTheDocument();
   });
 
   it("renders a 'transferred_hosts' type activity for one host transferred to a fleet.", () => {
@@ -973,7 +979,9 @@ describe("Activity Feed", () => {
     expect(screen.queryByText("foo")).toBeNull();
     expect(screen.queryByText("bar")).toBeNull();
     expect(screen.queryByText("baz")).toBeNull();
-    expect(screen.getByText("unassigned", { exact: false })).toBeInTheDocument();
+    expect(
+      screen.getByText("unassigned", { exact: false })
+    ).toBeInTheDocument();
   });
 
   it("renders a 'transferred_hosts' type activity for multiple hosts transferred to a fleet.", () => {
