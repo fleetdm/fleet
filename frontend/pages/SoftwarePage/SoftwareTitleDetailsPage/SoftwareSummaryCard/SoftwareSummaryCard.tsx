@@ -110,6 +110,7 @@ const SoftwareSummaryCard = ({
     softwareInstaller,
     installerType,
     isIosOrIpadosApp,
+    isFleetMaintainedApp,
     isAndroidPlayStoreApp,
     canManageSoftware,
   } = meta;
@@ -205,6 +206,7 @@ const SoftwareSummaryCard = ({
           refetchSoftwareTitle={refetchSoftwareTitle}
           installerType={installerType}
           openViewYamlModal={onToggleViewYaml}
+          isFleetMaintainedApp={isFleetMaintainedApp}
           isIosOrIpadosApp={isIosOrIpadosApp}
           name={softwareTitle.name}
           displayName={softwareDisplayName}

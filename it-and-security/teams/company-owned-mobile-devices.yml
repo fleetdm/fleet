@@ -30,20 +30,140 @@ policies:
 queries:
 software:
   app_store_apps:
+    # iOS apps
     - app_store_id: "618783545" # Slack
-      setup_experience: true
+      display_name: "Slack"
       self_service: true
+      setup_experience: true
+      platform: ios
+      categories:
+        - "Communication"
     - app_store_id: "546505307" # Zoom
-      setup_experience: true
+      display_name: "Zoom"
       self_service: true
+      setup_experience: true
+      platform: ios
+      auto_update_enabled: true
+      auto_update_window_start: "21:00"
+      auto_update_window_end: "05:00"
+      categories:
+        - "Communication"
     - app_store_id: "842842640" # Google Docs
-      setup_experience: true
+      display_name: "Google Docs"
       self_service: true
+      platform: ios
+      auto_update_enabled: true
+      auto_update_window_start: "21:00"
+      auto_update_window_end: "05:00"
+      categories:
+        - "Productivity"
     - app_store_id: "842849113" # Google Sheets
-      setup_experience: true
+      display_name: "Google Sheets"
       self_service: true
+      platform: ios
+      auto_update_enabled: true
+      auto_update_window_start: "21:00"
+      auto_update_window_end: "05:00"
+      categories:
+        - "Productivity"
     - app_store_id: "507874739" # Google Drive
-      setup_experience: true
+      display_name: "Google Drive"
       self_service: true
+      platform: ios
+      auto_update_enabled: true
+      auto_update_window_start: "21:00"
+      auto_update_window_end: "05:00"
+      categories:
+        - "Productivity"
     - app_store_id: "490179405" # Okta Verify
+      display_name: "Okta Verify"
+      self_service: true
+      platform: ios
+      auto_update_enabled: true
+      auto_update_window_start: "21:00"
+      auto_update_window_end: "05:00"
+      categories:
+        - "Security"
+    # iPadOS apps
+    - app_store_id: "618783545" # Slack
+      display_name: "Slack"
+      self_service: true
+      setup_experience: true
+      platform: ipados
+      categories:
+        - "Productivity"
+        - "Communication"
+    - app_store_id: "546505307" # Zoom
+      display_name: "Zoom"
+      self_service: true
+      setup_experience: true
+      platform: ipados
+      auto_update_enabled: true
+      auto_update_window_start: "21:00"
+      auto_update_window_end: "05:00"
+      categories:
+        - "Communication"
+    - app_store_id: "842842640" # Google Docs
+      display_name: "Google Docs"
+      self_service: true
+      platform: ipados
+      auto_update_enabled: true
+      auto_update_window_start: "21:00"
+      auto_update_window_end: "05:00"
+      categories:
+        - "Productivity"
+    - app_store_id: "842849113" # Google Sheets
+      display_name: "Google Sheets"
+      self_service: true
+      platform: ipados
+      auto_update_enabled: true
+      auto_update_window_start: "21:00"
+      auto_update_window_end: "05:00"
+      categories:
+        - "Productivity"
+    - app_store_id: "507874739" # Google Drive
+      display_name: "Google Drive"
+      self_service: true
+      platform: ipados
+      auto_update_enabled: true
+      auto_update_window_start: "21:00"
+      auto_update_window_end: "05:00"
+      categories:
+        - "Productivity"
+    # Android apps
+    - app_store_id: "us.zoom.videomeetings" # Zoom
+      platform: android
+      display_name: "Zoom"
+      self_service: true
+      setup_experience: true
+    - app_store_id: "com.Slack" # Slack
+      platform: android
+      display_name: "Slack"
+      self_service: true
+      setup_experience: true
+    - app_store_id: "com.onepassword.android" # 1Password
+      platform: android
+      display_name: "1Password"
+      self_service: true
+      setup_experience: true
+    - app_store_id: "com.google.android.apps.docs" # Google Drive
+      platform: android
+      display_name: "Google Drive"
+      self_service: true
+      setup_experience: true
+    - app_store_id: "com.google.android.apps.docs.editors.sheets" # Google Sheets
+      platform: android
+      display_name: "Google Sheets"
+      self_service: true
+    - app_store_id: "com.google.android.apps.docs.editors.docs" # Google Docs
+      platform: android
+      display_name: "Google Docs"
+      self_service: true
+    - app_store_id: "com.google.android.apps.docs.editors.slides" # Google Slides
+      platform: android
+      display_name: "Google Slides"
+      self_service: true
+    - app_store_id: "com.okta.android.auth" # Okta Verify
+      platform: android
+      display_name: "Okta Verify"
       self_service: true

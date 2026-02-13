@@ -51,7 +51,7 @@ const errorMetadataUrl = (data: IFormDataIdp) => {
     case !data.metadata && !data.metadata_url:
       return "Metadata or Metadata URL must be present.";
     case data.metadata_url && !isURL(data.metadata_url):
-      return `${data.metadata_url} is not a valid URL.`;
+      return "Metadata URL is not a valid URL.";
     case data.metadata_url &&
       !isURL(data.metadata_url, {
         require_protocol: true,

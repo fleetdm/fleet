@@ -71,7 +71,7 @@ html, body {
   padding: 12px 8px;
   justify-content: center;
   align-items: center;
-  background: #0587FF;
+  background: #527CDB;
   color: #FFF;
   font-family: Inter;
   font-size: 14px;
@@ -489,10 +489,11 @@ html, body {
         padding-left: 16px;
       }
       [purpose='dropdown-item-link'] {
-        padding: 8px 0px;
+        padding: 0px;
       }
       [purpose='dropdown-item'] {
         white-space: normal;
+        padding: 8px;
       }
       [purpose='dropdown-cta'] {
         text-decoration: none;
@@ -565,6 +566,10 @@ html, body {
         height: 12px;
         margin-left: 4px;
       }
+      &[button-text='More'] {
+        // FUTURE: remove this when try it yourself buttons are uncommented;
+        margin-right: 70px;
+      }
     }
     [purpose='header-nav-btn']:hover {
       // font-weight: 700;
@@ -593,7 +598,7 @@ html, body {
         left: -10px;
       }
       &.more-dropdown {
-        left: -379px;
+        left: -358px;
         flex-direction: row;
       }
       &.customers-dropdown {
@@ -611,13 +616,11 @@ html, body {
       flex-direction: column;
       min-width: 460px;
       padding: 8px;
+      gap: 8px;
       a {
         font-weight: 400;
         line-height: 20px;
         text-decoration: none;
-        &:not(:last-of-type) {
-          margin-bottom: 8px;
-        }
         &[target='_blank'] {
           display: flex;
           flex-direction: row;
@@ -638,7 +641,12 @@ html, body {
       [purpose='dropdown-column'] {
         display: flex;
         flex-direction: column;
-        margin-right: 4px;
+        justify-content: center;
+        gap: 4px;
+      }
+      [purpose='dropdown-cta'] {
+        margin-right: 8px;
+        display: block;
       }
     }
   }
@@ -679,6 +687,7 @@ html, body {
   }
   [purpose='dropdown-cta'] {
     margin-right: 16px;
+    display: block;
     [purpose='dropdown-cta-link'] {
       height: 100%;
       padding: 8px;

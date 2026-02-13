@@ -142,16 +142,20 @@ func cpeGeneralSearchQuery(software *fleet.Software) (string, []interface{}, err
 		Select("c.rowid", "c.product", "c.vendor", "c.deprecated", goqu.L("2 as weight")).
 		Where(goqu.L("c.product = ?", sanitizeSoftwareName(software)))
 
-	// 3 - Try Full text match
-	search3 := dialect.From(goqu.I("cpe_2").As("c")).
-		Select("c.rowid", "c.product", "c.vendor", "c.deprecated", goqu.L("3 as weight")).
-		Join(
-			goqu.I("cpe_search").As("cs"),
-			goqu.On(goqu.I("cs.rowid").Eq(goqu.I("c.rowid"))),
-		).
-		Where(goqu.L("cs.title MATCH ?", sanitizeMatch(software.Name)))
+	datasets := []*goqu.SelectDataset{search1, search2}
 
-	datasets := []*goqu.SelectDataset{search1, search2, search3}
+	// 3 - Try Full text match (only if sanitized name has content)
+	sanitizedName := sanitizeMatch(software.Name)
+	if strings.TrimSpace(sanitizedName) != "" {
+		search3 := dialect.From(goqu.I("cpe_2").As("c")).
+			Select("c.rowid", "c.product", "c.vendor", "c.deprecated", goqu.L("3 as weight")).
+			Join(
+				goqu.I("cpe_search").As("cs"),
+				goqu.On(goqu.I("cs.rowid").Eq(goqu.I("c.rowid"))),
+			).
+			Where(goqu.L("cs.title MATCH ?", sanitizedName))
+		datasets = append(datasets, search3)
+	}
 
 	// 4 - Try vendor/product from bundle identifier, like tld.vendor.product
 	bundleParts := strings.Split(software.BundleIdentifier, ".")

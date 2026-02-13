@@ -10,7 +10,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/datastore/redis"
 	"github.com/fleetdm/fleet/v4/server/fleet"
-	"github.com/go-kit/log"
+	"github.com/fleetdm/fleet/v4/server/platform/logging"
 	"github.com/go-kit/log/level"
 	redigo "github.com/gomodule/redigo/redis"
 )
@@ -18,14 +18,14 @@ import (
 type redisQueryResults struct {
 	pool             fleet.RedisPool
 	duplicateResults bool
-	logger           log.Logger
+	logger           *logging.Logger
 }
 
 var _ fleet.QueryResultStore = &redisQueryResults{}
 
 // NewRedisQueryResults creats a new Redis implementation of the
 // QueryResultStore interface using the provided Redis connection pool.
-func NewRedisQueryResults(pool fleet.RedisPool, duplicateResults bool, logger log.Logger) *redisQueryResults {
+func NewRedisQueryResults(pool fleet.RedisPool, duplicateResults bool, logger *logging.Logger) *redisQueryResults {
 	return &redisQueryResults{
 		pool:             pool,
 		duplicateResults: duplicateResults,
@@ -86,7 +86,7 @@ func writeOrDone(ctx context.Context, ch chan<- interface{}, item interface{}) b
 // connection over the provided channel. This effectively allows a select
 // statement to run on conn.Receive() (by selecting on outChan that is
 // passed into this function)
-func receiveMessages(ctx context.Context, conn *redigo.PubSubConn, outChan chan<- interface{}, logger log.Logger) {
+func receiveMessages(ctx context.Context, conn *redigo.PubSubConn, outChan chan<- any, logger *logging.Logger) {
 	defer close(outChan)
 
 	for {
@@ -136,7 +136,7 @@ func (r *redisQueryResults) ReadChannel(ctx context.Context, query fleet.Distrib
 
 	var wg sync.WaitGroup
 
-	logger := log.With(r.logger, "campaignID", query.ID)
+	logger := r.logger.With("campaignID", query.ID)
 
 	// Run a separate goroutine feeding redis messages into msgChannel.
 	wg.Add(+1)

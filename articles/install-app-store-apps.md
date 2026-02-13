@@ -30,15 +30,31 @@ You can also manage which Google Play Store apps are available for self-service 
 
 3. Select **Add software > App store**, choose the Android platform, then enter the application ID.
 
+#### Install Android web app (web clip)
+
+To add an Android web app, first create the web app using the Fleet API. Send a request to the [`Create Android web app`](https://fleetdm.com/docs/rest-api/rest-api#create-android-web-app).
+
+The response includes an `app_store_id` (e.g. `com.google.enterprise.webapp.x1c41e22ab611cb98`). Use this ID as the application ID in **Add software > App store** (step 3 above).
+
+**Example request**
+
+```sh
+curl -X POST https://<your_fleet_server_url>/api/v1/fleet/software/web_apps \
+  -H "Authorization: Bearer <your_fleet_api_token>" \
+  -F 'title=Acme web app' \
+  -F 'url=https://app.acme.com' \
+  -F 'icon=@/path/to/app-icon.png'
+```
+
 ## Edit or delete the app
 
 1. In Fleet, head to the **Software** page and select a team in the teams dropdown.
 
 2. Search for the app you want to remove and select the app to head to its **Software details** page.
 
-3. To edit the app icon and display name, select **Actions > Edit appearance**. This applies only to software available for install. The changes will appear on the software list and details pages for the team where the app is added, as well as on [self-service](https://fleetdm.com/guides/software-self-service). By default, Fleet uses the name provided by osquery.
+3. To edit the app icon and display name, select **Actions > Edit appearance**.
 
-4. To make the app available in [self-service](https://fleetdm.com/guides/software-self-service) or to edit categories, target scope, or [configuration](#configuration), select **Actions > Edit software**.
+4. To configure the app's self-service categories or change which hosts can install the app, select **Actions > Edit software**.
 
 5. To remove the app, click the trash can (delete) icon above the table of installed, pending, and failed hosts.
 
@@ -69,6 +85,7 @@ Currently, Apple App Store (VPP) apps can't be uninstalled via Fleet.
 ### Google Play (Android)
 
 Android apps can be installed via self-service in the end user's managed Google Play Store (work profile).
+
 
 #### Configuration
 

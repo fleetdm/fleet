@@ -77,14 +77,14 @@ const Info = ({
     }
 
     if (orgLogoURL && !validateOrgLogoURL(orgLogoURL)) {
-      errors.org_logo_url = `${orgLogoURL} is not a valid URL`;
+      errors.org_logo_url = `Logo URL for dark background is not a valid URL`;
     }
 
     if (
       orgLogoURLLightBackground &&
       !validateOrgLogoURL(orgLogoURLLightBackground)
     ) {
-      errors.org_logo_url_light_background = `${orgLogoURL} is not a valid URL`;
+      errors.org_logo_url_light_background = `Logo URL for light background is not a valid URL`;
     }
 
     if (!orgSupportURL) {
@@ -92,7 +92,7 @@ const Info = ({
     } else if (
       !validUrl({ url: orgSupportURL, protocols: ["http", "https", "file"] })
     ) {
-      errors.org_support_url = `${orgSupportURL} is not a valid URL`;
+      errors.org_support_url = "Organization support URL is not a valid URL";
     }
 
     setFormErrors(errors);
