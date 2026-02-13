@@ -31,7 +31,7 @@ const DeleteTeamModal = ({
           <span className={`${baseClass}__name`}>{name}</span> from Fleet.
         </p>
         <p>
-          Users in this fleet who are not assigned to other fleets will lose
+          Users in this fleet who aren&apos;t assigned to other fleets will lose
           access to Fleet.
         </p>
         <p className={`${baseClass}__warning`}>This action cannot be undone.</p>
