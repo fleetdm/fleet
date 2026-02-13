@@ -233,7 +233,7 @@ func applyRenamesDeepValue(rv reflect.Value) any {
 	case reflect.Struct:
 		// Skip types that marshal to non-object JSON (e.g. json.RawMessage, time.Time).
 		t := rv.Type()
-		if t == reflect.TypeOf(json.RawMessage{}) {
+		if t == reflect.TypeFor[json.RawMessage]() {
 			return rv.Interface()
 		}
 		// Use marshalRenamed to JSON-marshal the struct and apply renameto tags.
