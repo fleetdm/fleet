@@ -143,7 +143,7 @@ const renderAsPremiumGlobalAdmin = createCustomRenderer({
   },
 });
 describe("QueriesTable", () => {
-  it("Renders the page-wide empty state when no queries are present (free tier)", () => {
+  it("Renders the page-wide empty state when no reports are present (free tier)", () => {
     const render = createCustomRenderer({
       context: {
         app: {
@@ -178,7 +178,7 @@ describe("QueriesTable", () => {
     });
   });
 
-  it("Renders the page-wide empty state when no queries are present (all teams)", () => {
+  it("Renders the page-wide empty state when no reports are present (all teams)", () => {
     const testData: IQueriesTableProps[] = [
       {
         queries: [],
@@ -205,7 +205,7 @@ describe("QueriesTable", () => {
     });
   });
 
-  it("Renders the page-wide empty state when no queries are present (specific team)", () => {
+  it("Renders the page-wide empty state when no reports are present (specific team)", () => {
     const testData: IQueriesTableProps[] = [
       {
         queries: [],
@@ -263,7 +263,7 @@ describe("QueriesTable", () => {
     });
   });
 
-  it("renders the 'no-matching' empty state when a search string is entered that matches no queries", async () => {
+  it("renders the 'no-matching' empty state when a search string is entered that matches no reports", async () => {
     const testData: IQueriesTableProps = {
       queries: [],
       totalQueriesCount: 0,

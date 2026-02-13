@@ -385,15 +385,6 @@ const ManageQueriesPage = ({
     isTeamMaintainer ||
     isObserverPlus; // isObserverPlus checks global and selected team
 
-  let dropdownHelpText: string;
-  if (isAnyTeamSelected) {
-    dropdownHelpText = "Gather data about all hosts assigned to this fleet.";
-  } else if (config?.partnerships?.enable_primo) {
-    dropdownHelpText = "Gather data about your hosts.";
-  } else {
-    dropdownHelpText = "Gather data about all hosts.";
-  }
-
   const canManageAutomations = isGlobalAdmin || isTeamAdmin;
   const isManageAutomationsEnabled = isAnyTeamSelected
     ? (queriesResponse?.count ?? 0) >
@@ -451,7 +442,7 @@ const ManageQueriesPage = ({
             )}
           </div>
 
-          <PageDescription content={dropdownHelpText} />
+          <PageDescription content={"Gather data."} />
         </div>
         {renderQueriesTable()}
         {renderModals()}
