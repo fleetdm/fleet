@@ -87,6 +87,7 @@ func TestActivityPackageDependencies(t *testing.T) {
 			ignoreDeps: append(append([]string{
 				m + "/server/activity/internal/mysql",
 				m + "/server/activity/internal/service",
+				m + "/server/ptr",
 			}, activityPkgs...), platformPkgs...),
 		},
 		{

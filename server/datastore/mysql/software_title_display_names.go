@@ -50,12 +50,12 @@ func (ds *Datastore) getDisplayNamesByTeamAndTitleIds(ctx context.Context, teamI
 		return nil, ctxerr.Wrap(ctx, err, "get software title display names")
 	}
 
-	iconsBySoftwareTitleID := make(map[uint]string, len(results))
+	namesBySoftwareTitleID := make(map[uint]string, len(results))
 	for _, r := range results {
-		iconsBySoftwareTitleID[r.SoftwareTitleID] = r.DisplayName
+		namesBySoftwareTitleID[r.SoftwareTitleID] = r.DisplayName
 	}
 
-	return iconsBySoftwareTitleID, nil
+	return namesBySoftwareTitleID, nil
 }
 
 func (ds *Datastore) getSoftwareTitleDisplayName(ctx context.Context, teamID uint, titleID uint) (string, error) {

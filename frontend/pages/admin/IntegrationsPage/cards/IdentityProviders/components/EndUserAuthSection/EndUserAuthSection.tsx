@@ -99,7 +99,7 @@ const EndUserAuthSection = ({
             },
           },
         });
-        renderFlash("success", "Successfully updated end user authentication!");
+        renderFlash("success", "Successfully updated end user authentication.");
         originalFormData.current = { ...formData };
         setDirty(false);
         // Notify parent component of changes, since we're calling our own API

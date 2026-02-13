@@ -40,6 +40,7 @@ spec:
     windows_require_bitlocker_pin: null
     windows_migration_enabled: false
     enable_turn_on_windows_mdm_manually: false
+    windows_entra_tenant_ids: null
     macos_migration:
       enable: false
       mode: ""
