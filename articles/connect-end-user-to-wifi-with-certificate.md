@@ -761,7 +761,7 @@ You can deploy a user-scoped certificate on macOS and Windows hosts using a user
 2. Create a certificate [configuration profile](#example-configuration-profiles). For Windows, replace `./Device` with `./User` in all `<LocURI>` elements. For macOS, set `PayloadScope` to `User`.
 3. In Fleet, navigate to **Controls > OS settings > Custom settings** and upload the configuration profile you created.
 
-For macOS hosts, user-scoped certificates only work if the `login` keychain is unlocked. If it's locked, MDM commands to install certificate configuration profile will always respond with `NotNow`. To check if the `login` keychain is unlocked, on the Mac open Keychain Access. An unlocked icon should appear to the left of the `login` keychain under **Default keychains**. If it's locked, right click on the `login` keychain to unlock it.
+For macOS hosts, user-scoped certificates only work if the `login` keychain is unlocked. If it's locked, MDM commands to install the certificate configuration profile will always return `NotNow`. To check whether the `login` keychain is unlocked, open Keychain Access on the Mac. An unlocked icon should appear to the left of the `login` keychain under **Default keychains**. If it's locked, right-click on the `login` keychain to unlock it.
 
 ### Editing ceritificate configuration profiles on Apple (macOS, iOS, iPadOS) hosts
 
