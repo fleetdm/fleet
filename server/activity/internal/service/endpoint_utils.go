@@ -86,7 +86,7 @@ func listOptionsFromRequest(r *http.Request) (api.ListOptions, error) {
 		}
 		if perPage > maxPerPage {
 			return api.ListOptions{}, ctxerr.Wrap(r.Context(), &platform_http.BadRequestError{
-				Message: fmt.Sprintf("Request could not be processed. Please set a per_page limit less than %d", maxPerPage),
+				Message: fmt.Sprintf("Request could not be processed. Please set a per_page limit of %d or less", maxPerPage),
 			})
 		}
 	}
