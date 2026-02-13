@@ -594,6 +594,40 @@
         bash -c "bash $0 remove >/dev/null 2>/dev/null </dev/null &"
     fi
 
+- name: Disable Wi-Fi auto-join
+  platform: macos
+  description: Disables auto-join for a specified Wi-Fi network (SSID). Update the SSID variable to match the target network name.
+  script: |
+    #!/bin/bash
+
+    # Disable Wi-Fi auto-join for a specified SSID
+    # Based on Alan Siu's approach: https://www.alansiu.net/2026/01/22/scripting-disabling-auto-join-for-wi-fi-networks/
+
+    SSID="YourNetworkName"
+
+    # Get the Wi-Fi interface name
+    WIFI_IF=$(networksetup -listallhardwareports | awk '/Wi-Fi/{getline; print $2}')
+
+    if [ -z "$WIFI_IF" ]; then
+      echo "Error: Could not detect Wi-Fi interface."
+      exit 1
+    fi
+
+    # Disable auto-join for the specified SSID
+    networksetup -setairportnetwork "$WIFI_IF" "$SSID"
+    networksetup -removepreferredwirelessnetwork "$WIFI_IF" "$SSID" 2>/dev/null
+
+    # Re-add the network with auto-join disabled via the airport preferences plist
+    /usr/libexec/PlistBuddy -c "Set :rememberedNetworks:$(echo "$SSID" | sed 's/ /_/g'):AutoLogin false" \
+      /Library/Preferences/com.apple.wifi.known-networks.plist 2>/dev/null
+
+    # Alternative approach using defaults for older macOS versions
+    defaults write /Library/Preferences/SystemConfiguration/com.apple.airport.preferences \
+      "KnownNetworks" -dict-add "$SSID" '<dict><key>AutoLogin</key><false/></dict>' 2>/dev/null
+
+    echo "Auto-join has been disabled for SSID: $SSID"
+    echo "Note: Update the SSID variable in this script to target a different network."
+
 #
 #  ╦ ╦╦╔╗╔╔╦╗╔═╗╦ ╦╔═╗
 #  ║║║║║║║ ║║║ ║║║║╚═╗
