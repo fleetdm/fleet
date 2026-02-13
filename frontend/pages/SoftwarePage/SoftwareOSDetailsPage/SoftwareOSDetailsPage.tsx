@@ -139,7 +139,7 @@ export const KernelsCard = ({
 
 interface ISoftwareOSDetailsRouteParams {
   id: string;
-  team_id?: string;
+  fleet_id?: string;
 }
 
 type ISoftwareOSDetailsPageProps = RouteComponentProps<

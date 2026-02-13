@@ -44,7 +44,7 @@ const baseClass = "software-version-details-page";
 
 interface ISoftwareVersionDetailsRouteParams {
   id: string;
-  team_id?: string;
+  fleet_id?: string;
 }
 
 type ISoftwareTitleDetailsPageProps = RouteComponentProps<

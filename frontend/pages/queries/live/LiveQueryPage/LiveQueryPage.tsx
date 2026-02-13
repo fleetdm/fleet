@@ -29,7 +29,7 @@ interface IRunQueryPageProps {
   params: Params;
   location: {
     pathname: string;
-    query: { host_id: string; team_id?: string };
+    query: { host_id: string; fleet_id?: string };
     search: string;
   };
 }
@@ -90,7 +90,7 @@ const RunQueryPage = ({
 
     router.push(
       getPathWithQueryParams(path, {
-        team_id: currentTeamId,
+        fleet_id: currentTeamId,
       })
     );
   }
@@ -163,7 +163,7 @@ const RunQueryPage = ({
   const goToQueryEditor = useCallback(() => {
     const path = queryId ? PATHS.EDIT_QUERY(queryId) : PATHS.NEW_QUERY;
 
-    router.push(getPathWithQueryParams(path, { team_id: currentTeamId }));
+    router.push(getPathWithQueryParams(path, { fleet_id: currentTeamId }));
   }, []);
 
   const renderScreen = () => {
