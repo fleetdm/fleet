@@ -49,8 +49,7 @@ type Schedule struct {
 
 	locker Locker
 
-	altLockName    string
-	lockExpiration time.Duration // if set, overrides schedInterval for lock duration
+	altLockName string
 
 	jobs   []Job
 	errors fleet.CronScheduleErrors
@@ -116,15 +115,6 @@ func WithConfigReloadInterval(interval time.Duration, fn ReloadInterval) Option 
 func WithAltLockID(name string) Option {
 	return func(s *Schedule) {
 		s.altLockName = name
-	}
-}
-
-// WithLockExpiration sets a custom lock expiration duration. If not set, the schedule interval is
-// used as the lock expiration. This is useful for long-running jobs where the lock should be held
-// longer than the schedule interval to prevent premature expiration.
-func WithLockExpiration(d time.Duration) Option {
-	return func(s *Schedule) {
-		s.lockExpiration = d
 	}
 }
 
@@ -575,15 +565,8 @@ func (s *Schedule) getRemainingInterval(start time.Time) time.Duration {
 	return interval - (time.Since(start) % interval)
 }
 
-func (s *Schedule) getLockExpiration() time.Duration {
-	if s.lockExpiration > 0 {
-		return s.lockExpiration
-	}
-	return s.getSchedInterval()
-}
-
 func (s *Schedule) acquireLock(ctx context.Context) bool {
-	ok, err := s.locker.Lock(ctx, s.getLockName(), s.instanceID, s.getLockExpiration())
+	ok, err := s.locker.Lock(ctx, s.getLockName(), s.instanceID, s.getSchedInterval())
 	if err != nil {
 		level.Error(s.logger).Log("msg", "lock failed", "err", err)
 		ctxerr.Handle(ctx, err)
@@ -607,7 +590,7 @@ func (s *Schedule) releaseLock(ctx context.Context) {
 // holdLock attempts to acquire a schedule lock. If it successfully acquires the lock, it starts a
 // goroutine that periodically extends the lock, and it returns `true` along with a
 // context.CancelFunc that will end the goroutine and release the lock. If it is unable to initially
-// acquire a lock, it returns `false, nil`. The maximum duration of the hold is two hours.
+// acquire a lock, it returns `false, nil`.
 func (s *Schedule) holdLock(ctx context.Context) (bool, context.CancelFunc) {
 	if ok := s.acquireLock(ctx); !ok {
 		return false, nil

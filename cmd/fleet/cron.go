@@ -66,9 +66,6 @@ func newVulnerabilitiesSchedule(
 	var options []schedule.Option
 
 	options = append(options, schedule.WithLogger(vulnerabilitiesLogger))
-	// Use a long lock expiration when job can take longer than the default
-	// schedule interval. This will prevent the job from being cleaned up.
-	options = append(options, schedule.WithLockExpiration(12*time.Hour))
 
 	vulnFuncs := getVulnFuncs(ds, vulnerabilitiesLogger, config)
 	for _, fn := range vulnFuncs {
