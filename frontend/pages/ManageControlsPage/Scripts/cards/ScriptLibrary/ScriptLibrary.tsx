@@ -20,7 +20,7 @@ import Pagination from "components/Pagination";
 import SectionHeader from "components/SectionHeader";
 import Card from "components/Card";
 
-import UploadList from "../../../components/UploadList";
+import UploadList from "../../../../../components/UploadList";
 import DeleteScriptModal from "../../components/DeleteScriptModal";
 import EditScriptModal from "../../components/EditScriptModal";
 import ScriptUploadModal from "../../components/ScriptUploadModal";
