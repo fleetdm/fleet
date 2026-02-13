@@ -1,5 +1,10 @@
 import React, { useMemo, useRef, useState } from "react";
-import Select, { GroupBase, SelectInstance, components } from "react-select-5";
+import Select, {
+  GroupBase,
+  SelectInstance,
+  components,
+  MenuProps,
+} from "react-select-5";
 import classnames from "classnames";
 
 import { ILabel } from "interfaces/label";
@@ -67,10 +72,12 @@ const formatOptionLabel = (data: ILabel | IEmptyOption) => {
   );
 };
 
-const LoadingMenu = (props: any) => {
+const LoadingMenu = (
+  props: MenuProps<ILabel | IEmptyOption, false, IGroupOption>
+) => {
   return (
     <components.Menu {...props}>
-      <div className="label-filter-select__menu-loading">
+      <div className={`${baseClass}__menu-loading`}>
         <Spinner includeContainer={false} />
       </div>
     </components.Menu>
