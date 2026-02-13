@@ -77,7 +77,7 @@ Now let us combine these two queries into a single policy.
 
 ## Discovering out-of-policy devices
 
-The policies page indicates whether devices on each team are passing or failing with distinct "yes" or "no" responses. Although manually checking devices is relatively easy, we have made it easier for endpoint detection and response security using Fleet's automation.
+The policies page indicates whether devices in each fleet are passing or failing with distinct "yes" or "no" responses. Although manually checking devices is relatively easy, we have made it easier for endpoint detection and response security using Fleet's automation.
 
 Fleet can call a webhook when an out-of-policy device is identified. Users can specify a webhook URL to send alerts that include all devices that answered "No" to a policy. This makes it easier to create a support ticket and resolve each device.
 

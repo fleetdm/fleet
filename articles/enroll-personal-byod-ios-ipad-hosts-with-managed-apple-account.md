@@ -11,7 +11,7 @@ With Account-driven User Enrollment, end users can separate work and personal da
 - [Step 1: Connect Apple Business Manager (ABM) to Fleet](#step-1-connect-apple-business-manager-abm-to-fleet)
 - [Step 2: Add and verify your domain in Apple Business Manager (ABM)](#step-2-add-and-verify-your-domain-in-apple-business-manager-abm)
 - [Step 3: Connect (federate) your identity provider (IdP) with Apple Business Manager (ABM)](#step-3-connect-federate-your-identity-provider-idp-with-apple-business-manager-abm)
-- [Step 4: Create a team for personal hosts](#step-4-create-a-team-for-personal-hosts)
+- [Step 4: Create a fleet for personal hosts](#step-4-create-a-fleet-for-personal-hosts)
 - [Step 5: Log in on the device to enroll to Fleet (end user's iPhone or iPad)](#step-5-log-in-on-the-device-to-enroll-to-fleet-end-users-iphone-or-ipad)
 
 
@@ -32,11 +32,11 @@ Follow the [Apple documentation](https://support.apple.com/en-gb/guide/apple-bus
 
 > **Note:** For visual walk-throughs, see [Connect Google Workspace to ABM](https://www.youtube.com/watch?v=CPfO6W67d3A) and [Connect Microsoft Entra ID to ABM](https://www.youtube.com/watch?v=_-PnhMurAVk).
 
-## Step 4: Create a team for personal hosts
+## Step 4: Create a fleet for personal hosts
 
-Fleet's [best practice](https://fleetdm.com/guides/teams#best-practice) is to create a team, e.g., `📱🔐 Personal mobile devices`, for personal hosts that have access to company resources.
+Fleet's [best practice](https://fleetdm.com/guides/fleet#best-practice) is to create a fleet, for personal hosts that have access to company resources.
 
-In this team you can add custom OS settings that are compatible with hosts enrolled with Account-driven User Enrollment. To find out which payloads are compatible with User Enrollment, visit the [Apple documentation](https://support.apple.com/en-gb/guide/deployment/dep6ae3f1d5a/1/web/1.0).
+In this fleet you can add custom OS settings that are compatible with hosts enrolled with Account-driven User Enrollment. To find out which payloads are compatible with User Enrollment, visit the [Apple documentation](https://support.apple.com/en-gb/guide/deployment/dep6ae3f1d5a/1/web/1.0).
 
 ## Step 5: Log in on the device to enroll to Fleet (end user's iPhone or iPad)
 

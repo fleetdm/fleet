@@ -753,7 +753,7 @@ fetch_cert -ca <EST-CA-ID> -fleeturl "<Fleet-server-URL>" -csr CustomerUserNetwo
 * On **Windows**, SCEP challenge strings should NOT include `base64` encoding or special characters such as `! @ # $ % ^ & * _`, and Common Names (CN) should NOT include `+` characters. 
 * The SCEP Server used for **Windows**, should accept `/pkiclient.exe` at the end, as Windows will always append this to the SCEP URL. If using a Certificate Authority and Fleet Variables, Fleet handles this and strips it away from the request sent to the backing SCEP server.
 * On **Windows** hosts, Fleet will not verify the SCEP profile via osquery reports. Fleet will mark it as verified, if a successful request went through, even if the certificate is not present.
-* On **Windows** hosts, Fleet will not remove certificates from profiles, when removing the profile from the host, or transferring teams.
+* On **Windows** hosts, Fleet will not remove certificates from hosts, when removing the profile from the host, or changing the host's fleet.
 
 ### How the SCEP proxy works
 

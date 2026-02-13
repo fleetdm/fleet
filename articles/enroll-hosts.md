@@ -14,14 +14,14 @@ To learn how to enroll Chromebooks, see the [Enroll Chromebooks guide](#enroll-c
 
 To manually enroll macOS, Windows, or Linux hosts, generate Fleet's agent (fleetd) through Fleet UI:
 
-1. Go to the **Hosts** page, select the team you want your host(s) to enroll to, and select **Add hosts**.
+1. Go to the **Hosts** page, select the fleet you want your host(s) to enroll to, and select **Add hosts**.
 2. Select the tab for your desired platform (e.g. **macOS**).
 3. Copy the command to generate fleetd and run the command with [fleetctl](https://fleetdm.com/docs/using-fleet/fleetctl-cli) installed.
 4. Install fleetd on your host(s) to enroll it to Fleet.
 
 To manually enroll iOS, iPadOS, or Android hosts, follow the steps below:
 
-1. Go to the **Hosts** page, select the team you want your host(s) to enroll to, and select **Add hosts**.
+1. Go to the **Hosts** page, select the fleet you want your host(s) to enroll to, and select **Add hosts**.
 2. Select the tab for your desired platform (e.g. **iOS**).
 3. Copy the enrollment link from the UI and share it with your end users.
 4. When your end users visit the link and follow the steps provided on the enrollment page, their host will be enrolled.
@@ -64,11 +64,11 @@ Tip: To see all options for `fleetctl package` command, run `fleetctl package -h
 
 You can use your tool of choice, like [Munki](https://www.munki.org/munki/) on macOS or a package manager ([APT](https://en.wikipedia.org/wiki/APT_(software)) or [DNF](https://en.wikipedia.org/wiki/DNF_(software))) on Linux, to install fleetd.
 
-### Enroll hosts to a team
+### Enroll hosts to a fleet
 
-With hosts segmented into teams, you can apply unique queries and give users access to only the hosts in specific teams. [Learn more about teams](https://fleetdm.com/docs/using-fleet/segment-hosts).
+With hosts segmented into fleet, you can apply unique queries and give users access to only the hosts in specific fleet. [Learn more about fleet](https://fleetdm.com/docs/using-fleet/segment-hosts).
 
-To enroll to a specific team: from the **Hosts** page, select the desired team from the menu at the top of the screen, then follow the instructions above for generating Fleet's agent (fleetd). The team's enroll secret will be included in the generated command or on the enrollment page for iOS, iPadOS, and Android hosts.
+To enroll to a specific fleet: from the **Hosts** page, select the desired fleet from the menu at the top of the screen, then follow the instructions above for generating Fleet's agent (fleetd). The fleet's enroll secret will be included in the generated command or on the enrollment page for iOS, iPadOS, and Android hosts.
 
 ### Fleet Desktop
 
@@ -142,7 +142,7 @@ In the Google Admin console:
 
 2. If MDM is turned on, for macOS, Windows, iOS/iPadOS, and Android hosts:
   - For macOS hosts, select **Actions > Turn off MDM** on the host's details page to turn MDM off. 
-  - For Windows hosts, download the [turn off MDM script](https://github.com/fleetdm/fleet/blob/main/it-and-security/lib/windows/scripts/turn-off-mdm.ps1), add it to the host's team on the **Scripts** page in Fleet, and run the script via **Actions > Run script** on the host's details page. 
+  - For Windows hosts, download the [turn off MDM script](https://github.com/fleetdm/fleet/blob/main/it-and-security/lib/windows/scripts/turn-off-mdm.ps1), add it to the host's fleet on the **Scripts** page in Fleet, and run the script via **Actions > Run script** on the host's details page. 
   - For iOS/iPadOS and Android hosts, select **Actions > Unenroll**.
 
 3. [Uninstall fleetd](https://fleetdm.com/guides/how-to-uninstall-fleetd) for macOS, Windows, and Linux hosts. 

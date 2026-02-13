@@ -28,12 +28,12 @@ Fleet prefers 64-bit x86 versions of applications when available. Installing on 
 
 ## Add a Fleet-maintained app
 
-1. Head to the **Software** page for a team, then click **Add software**. You'll land on the Fleet-maintained apps list.
+1. Head to the **Software** page for a fleet, then click **Add software**. You'll land on the Fleet-maintained apps list.
 2. Click the **Add** button for the app and platform you wish to add.
 
-> You'll see a ✅ icon instead of an **Add** button if the application has already been added to your team as a custom package or VPP app, or if you've already added the Fleet-maintained app.
+> You'll see a ✅ icon instead of an **Add** button if the application has already been added to your fleet as a custom package or VPP app, or if you've already added the Fleet-maintained app.
 
-3. Click **Add software** to download the installer package from the app's publisher into Fleet and make it available for install for your selected team.
+3. Click **Add software** to download the installer package from the app's publisher into Fleet and make it available for install for your selected fleet.
 
 Fleet verifies install and uninstall scripts for each maintained app, and keeps the scripts up to date as an app's vendor releases new versions. You can override Fleet's scripts, or add pre-install queries or post-install scripts, either when adding the app (by clicking **Advanced options**) or later on (by editing the package).
 
@@ -59,7 +59,7 @@ The uninstallation process is also visible in the  **Activities** section on the
 
 To get the latest version of a Fleet-maintained app,
 
-1. Remove the app from the team.
+1. Remove the app from the fleet.
 2. Re-add it from the Fleet-maintained list on the **Software** page.
 3. Install the new version of the app via one of the three methods above.
 

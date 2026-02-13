@@ -10,18 +10,18 @@ Cloudflare WARP is a secure VPN-like service that encrypts internet traffic and 
 
 2. Upload `.mobileconfig` to Fleet
    a. In the Fleet admin console, navigate to **Controls**
-   b. Select the **Team** that requires Cloudflare WARP
+   b. Select the fleet that requires Cloudflare WARP
    c. Select **OS settings** > **Custom settings**
    d. Select **Add profile** and upload the `.mobileconfig` from step 1
    e. Select the hosts which require Cloudflare WARP:
-      - **All hosts:** Deploys WARP to all hosts in selected Team
-      - **Custom:** Deploys WARP to a subset of the hosts in the Team using [labels](https://fleetdm.com/guides/managing-labels-in-fleet)
+      - **All hosts:** Deploys WARP to all hosts in selected fleet
+      - **Custom:** Deploys WARP to a subset of the hosts in the fleet using [labels](https://fleetdm.com/guides/managing-labels-in-fleet)
 
 > Note that the payload will be installed on all targeted hosts, but the WARP agent is not yet installed. Proceed to step 3 to complete the process.
 
 3. Install WARP on hosts
    a. In the Fleet admin console, navigate to **Software**
-   b. Select the **Team** that requires Cloudflare WARP
+   b. Select the fleet that requires Cloudflare WARP
    c. Select **Add software**
       - Either add Cloudflare WARP from the **Fleet-maintained** library or
       - Upload a custom `.pkg` obtained from [Cloudflare.](https://developers.cloudflare.com/cloudflare-one/connections/connect-devices/warp/download-warp/#macos) If deploying with this approach, WARP will still need to be installed on select hosts via the UI, API or GitOps. Learn more about deploying software from this [article.](https://fleetdm.com/guides/deploy-software-packages)
@@ -35,7 +35,7 @@ Cloudflare WARP is a secure VPN-like service that encrypts internet traffic and 
 
 2. Upload WARP installer to Fleet
    a. In the Fleet admin console, navigate to **Software**
-   b. Select the **Team** that requires Cloudflare WARP
+   b. Select the fleet that requires Cloudflare WARP
    c. Select **Add software** > **Custom Package** and upload the `.msi` file downloaded from step 1
       - To allow users to install WARP from Fleet Desktop, select Self-service. (Optional)
    d. Select **Advanced options**
