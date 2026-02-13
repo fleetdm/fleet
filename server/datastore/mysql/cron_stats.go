@@ -101,19 +101,25 @@ func (ds *Datastore) CleanupCronStats(ctx context.Context) error {
 		if _, err := tx.ExecContext(ctx, deleteStmt); err != nil {
 			return ctxerr.Wrap(ctx, err, "deleting old cron stats")
 		}
-		// Mark cron_stats entries as expired if they have been in pending state for more than two
-		// hours AND their corresponding lock is no longer active. This prevents expiring entries for
-		// long-running jobs that are still actively holding their lock (e.g., vulnerability scans
-		// that take longer than 2 hours).
+		// Mark cron_stats entries as expired if:
+		// 1. Pending for >2 hours and no active lock (instance likely crashed), OR
+		// 2. Pending for >12 hours regardless of lock state (hard cap for hung jobs).
+		//
+		// NOTE: The lock check assumes locks.name matches cron_stats.name. Schedules using
+		// WithAltLockID (e.g., "leader", "worker") store locks under a different name, so
+		// the NOT EXISTS check won't find their lock and they fall back to the 2-hour timeout.
 		updateStmt := `
 			UPDATE cron_stats cs
 			SET cs.status = ?
-			WHERE cs.created_at < DATE_SUB(NOW(), INTERVAL 2 HOUR)
-			AND cs.status = ?
-			AND NOT EXISTS (
-				SELECT 1 FROM locks l
-				WHERE l.name = cs.name
-				AND l.expires_at >= CURRENT_TIMESTAMP
+			WHERE cs.status = ?
+			AND (
+				(cs.created_at < DATE_SUB(NOW(), INTERVAL 2 HOUR)
+				AND NOT EXISTS (
+					SELECT 1 FROM locks l
+					WHERE l.name = cs.name
+					AND l.expires_at >= CURRENT_TIMESTAMP
+				))
+				OR cs.created_at < DATE_SUB(NOW(), INTERVAL 12 HOUR)
 			)`
 		if _, err := tx.ExecContext(ctx, updateStmt, fleet.CronStatsStatusExpired, fleet.CronStatsStatusPending); err != nil {
 			return ctxerr.Wrap(ctx, err, "updating expired cron stats")

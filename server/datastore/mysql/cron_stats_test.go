@@ -252,17 +252,26 @@ func TestCleanupCronStats(t *testing.T) {
 	t.Run("respects active lock", func(t *testing.T) {
 		lockCases := []struct {
 			name           string
+			statsAge       time.Duration // how old the pending cron_stats entry is
 			lockExpiresAt  time.Duration // relative to now; positive = future (active), negative = past (expired)
 			expectedStatus fleet.CronStatsStatus
 		}{
 			{
-				name:           "active_lock",
+				name:           "active_lock_3h",
+				statsAge:       3 * time.Hour,
 				lockExpiresAt:  12 * time.Hour,
 				expectedStatus: fleet.CronStatsStatusPending,
 			},
 			{
-				name:           "expired_lock",
+				name:           "expired_lock_3h",
+				statsAge:       3 * time.Hour,
 				lockExpiresAt:  -1 * time.Hour,
+				expectedStatus: fleet.CronStatsStatusExpired,
+			},
+			{
+				name:           "active_lock_13h_hard_cap",
+				statsAge:       13 * time.Hour,
+				lockExpiresAt:  12 * time.Hour,
 				expectedStatus: fleet.CronStatsStatusExpired,
 			},
 		}
@@ -275,7 +284,7 @@ func TestCleanupCronStats(t *testing.T) {
 				now := time.Now().UTC().Truncate(time.Second)
 				instance := "test_instance"
 
-				insertCronStats(t, lc.name, instance, fleet.CronStatsStatusPending, now.Add(-3*time.Hour))
+				insertCronStats(t, lc.name, instance, fleet.CronStatsStatusPending, now.Add(-lc.statsAge))
 
 				// Insert lock with the specified expiration.
 				_, err := ds.writer(ctx).ExecContext(ctx,
