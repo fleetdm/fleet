@@ -362,14 +362,7 @@ export const useTeamIdParam = ({
 }) => {
   const { hash, pathname, query, search } = location;
 
-  // Backward compat: redirect legacy ?team_id= URLs to ?fleet_id=
-  if (search.includes("team_id=")) {
-    router.replace(
-      pathname
-        .concat(search.replace(/\bteam_id=/g, "fleet_id="))
-        .concat(hash || "")
-    );
-  }
+  const hasLegacyTeamIdParam = search.includes("team_id=");
 
   const {
     availableTeams,
@@ -446,7 +439,15 @@ export const useTeamIdParam = ({
 
   // reconcile router location and redirect to default team as applicable
   let isRouteOk = false;
-  if (isFreeTier) {
+  if (hasLegacyTeamIdParam) {
+    // Backward compat: redirect legacy ?team_id= URLs to ?fleet_id=
+    // Skip other reconciliation to avoid a second redirect overwriting this one.
+    router.replace(
+      pathname
+        .concat(search.replace(/\bteam_id=/g, "fleet_id="))
+        .concat(hash || "")
+    );
+  } else if (isFreeTier) {
     // free tier should never have fleet_id param, so change to "All teams"
     if (query.fleet_id) {
       handleTeamChange(-1); // -1 because all pages on Free actually function as if on "All teams", even when not supported e.g. Controls
