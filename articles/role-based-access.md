@@ -11,11 +11,13 @@ Users with the admin role receive all permissions.
 ### Maintainer
 
 Maintainers can manage most entities in Fleet, like queries, policies, and labels.
-Unlike admins, maintainers cannot edit higher level settings like application configuration, teams or users.
+
+Unlike admins, maintainers cannot edit higher level settings like application configuration, fleets or users.
 
 ### Observer
 
-The observer role is a read-only role. It can access most entities in Fleet, like queries, policies, labels, application configuration, teams, etc.
+The observer role is a read-only role. It can access most entities in Fleet, like queries, policies, labels, application configuration, fleets, etc.
+
 They can also run queries configured with the `observer_can_run` flag set to `true`.
 
 ### Observer+
@@ -44,7 +46,7 @@ GitOps is an API-only and write-only role that can be used on CI/CD pipelines.
 | Target hosts using labels                                                                                                                  | ✅       | ✅         | ✅         | ✅    |         |
 | Add/remove manual labels to/from hosts                                                                                                     |          |            | ✅         | ✅    | ✅      |
 | Add and delete hosts                                                                                                                       |          |            | ✅         | ✅    |         |
-| Transfer hosts between teams\*                                                                                                             |          |            | ✅         | ✅    | ✅      |
+| Transfer hosts between fleets\*                                                                                                             |          |            | ✅         | ✅    | ✅      |
 | Add user information from IdP to hosts\*                                                                                                   |          |            | ✅          | ✅    |        |
 | Create, edit, and delete labels                                                                                                            |          |            | ✅         | ✅    | ✅      |
 | View all software                                                                                                                          | ✅       | ✅         | ✅         | ✅    |         |
@@ -53,7 +55,7 @@ GitOps is an API-only and write-only role that can be used on CI/CD pipelines.
 | Install/uninstall software on hosts                                                                                                                  |          |           | ✅         | ✅    |         |
 | Filter software by [vulnerabilities](https://fleetdm.com/docs/using-fleet/vulnerability-processing#vulnerability-processing)               | ✅       | ✅         | ✅         | ✅    |         |
 | Filter hosts by software                                                                                                                   | ✅       | ✅         | ✅         | ✅    |         |
-| Filter software by team\*                                                                                                                  | ✅       | ✅         | ✅         | ✅    |         |
+| Filter software by fleet\*                                                                                                                  | ✅       | ✅         | ✅         | ✅    |         |
 | Manage [vulnerability automations](https://fleetdm.com/docs/using-fleet/automations#vulnerability-automations)                             |          |            |            | ✅    | ✅      |
 | Run queries designated "**observer can run**" as live queries against all hosts                                                            | ✅       | ✅         | ✅         | ✅    |         |
 | Run any query as [live query](https://fleetdm.com/docs/using-fleet/fleet-ui#run-a-query) against all hosts                                 |          | ✅         | ✅         | ✅    |         |
@@ -65,23 +67,23 @@ GitOps is an API-only and write-only role that can be used on CI/CD pipelines.
 | Run all policies                                                                                                                           |          | ✅         | ✅         | ✅    |         |
 | Filter hosts using policies                                                                                                                | ✅       | ✅         | ✅         | ✅    |         |
 | Create, edit, and delete policies for all hosts                                                                                            |          |            | ✅         | ✅    | ✅      |
-| Create, edit, and delete policies for all hosts assigned to team\*                                                                         |          |            | ✅         | ✅    | ✅      |
-| Edit global ("All teams") policy automations                  |          |            |            | ✅    | ✅      |
-| Edit team policy automations: calendar events, install software, and run script\* |          |            | ✅         | ✅    | ✅      |
-| Edit team policy automations: other workflows (tickets and webhooks)\*                 |          |            |            | ✅    | ✅      |
-| Edit "No team" policy automations                  |          |            |            | ✅    | ✅      |
+| Create, edit, and delete policies for all hosts assigned to a fleet\*                                                                         |          |            | ✅         | ✅    | ✅      |
+| Edit global ("All fleets") policy automations                  |          |            |            | ✅    | ✅      |
+| Edit fleet's policy automations: calendar events, install software, and run script\* |          |            | ✅         | ✅    | ✅      |
+| Edit fleet's policy automations: other workflows (tickets and webhooks)\*                 |          |            |            | ✅    | ✅      |
+| Edit "No fleet" policy automations                  |          |            |            | ✅    | ✅      |
 | Create, edit, view, and delete users                                                                                                       |          |            |            | ✅    |         |
-| Add and remove team users\*                                                                                                                |          |            |            | ✅    | ✅      |
-| Create, edit, and delete teams\*                                                                                                           |          |            |            | ✅    | ✅      |
+| Add and remove  users from fleets\*                                                                                                                |          |            |            | ✅    | ✅      |
+| Create, edit, and delete fleets\*                                                                                                           |          |            |            | ✅    | ✅      |
 | Create, edit, and delete [enroll secrets](https://fleetdm.com/docs/deploying/faq#when-do-i-need-to-deploy-a-new-enroll-secret-to-my-hosts) |          |            | ✅         | ✅    | ✅      |
-| Create, edit, and delete [enroll secrets for teams](https://fleetdm.com/docs/using-fleet/rest-api#get-enroll-secrets-for-a-team)\*         |          |            | ✅         | ✅    |         |
+| Create, edit, and delete [enroll secrets for fleets](https://fleetdm.com/docs/using-fleet/rest-api#get-enroll-secrets-for-a-team)\*         |          |            | ✅         | ✅    |         |
 | Read organization settings\**                                                                                                              | ✅       | ✅         | ✅         | ✅   | ✅      |
 | Read Single Sign-On settings\**                                                                                                            |          |            |            | ✅    |         |
 | Read SMTP settings\**                                                                                                                      |          |            |            | ✅    |         |
 | Read osquery agent options\**                                                                                                              |          |            |            | ✅    |         |
 | Edit organization settings                            |          |            |            | ✅    | ✅      |
 | Edit agent options                                              |          |            |            | ✅    | ✅      |
-| Edit agent options for hosts assigned to teams\*            |          |            |            | ✅    | ✅      |
+| Edit agent options for hosts assigned to fleets\*            |          |            |            | ✅    | ✅      |
 | Initiate [file carving](https://fleetdm.com/docs/using-fleet/rest-api#file-carving)                                                        |          |            | ✅         | ✅    |         |
 | Retrieve contents from file carving                                                                                                        |          |            |            | ✅    |         |
 | Create Apple Push Certificates service (APNs) certificate signing request (CSR)                                                            |          |            |            | ✅    |         |
@@ -114,24 +116,24 @@ GitOps is an API-only and write-only role that can be used on CI/CD pipelines.
 
 \** Applies only to [Fleet REST API](https://fleetdm.com/docs/using-fleet/rest-api)
 
-## Team user permissions
+## Fleet-level user permissions
 
 `Applies only to Fleet Premium`
 
-Users in Fleet either have team access or global access.
+Users in Fleet either have global access or access to specific fleets.
 
-Users with team access only have access to the [hosts](https://fleetdm.com/docs/using-fleet/rest-api#hosts), [software](https://fleetdm.com/docs/using-fleet/rest-api#software), and [policies](https://fleetdm.com/docs/using-fleet/rest-api#policies) assigned to
-their team.
+Users with access to specific fleets only have access to the [hosts](https://fleetdm.com/docs/using-fleet/rest-api#hosts), [software](https://fleetdm.com/docs/using-fleet/rest-api#software), and [policies](https://fleetdm.com/docs/using-fleet/rest-api#policies) assigned to
+their fleet.
 
 Users with global access have access to all
 [hosts](https://fleetdm.com/docs/using-fleet/rest-api#hosts), [software](https://fleetdm.com/docs/using-fleet/rest-api#software), [queries](https://fleetdm.com/docs/using-fleet/rest-api#queries), and [policies](https://fleetdm.com/docs/using-fleet/rest-api#policies). Check out [the user permissions
 table](#user-permissions) above for global user permissions.
 
-Users can be assigned to multiple teams in Fleet.
+Users can be assigned to multiple fleets in Fleet.
 
-Users with access to multiple teams can be assigned different roles for each team. For example, a user can be given access to the "Workstations" team and assigned the "Observer" role. This same user can be given access to the "Servers" team and assigned the "Maintainer" role.
+Users with access to multiple fleets can be assigned different roles for each fleet. For example, a user can be given access to the "💻 Workstations" fleet and assigned the "Observer" role. This same user can be given access to the "📱🔐 Personal mobile devices" fleet and assigned the "Maintainer" role.
 
-| **Action**                                                                                                                       | Team observer | Team observer+ | Team maintainer | Team admin | Team GitOps |
+| **Action**                                                                                                                       | Observer |  Observer+ |  Maintainer | Admin | GitOps |
 | -------------------------------------------------------------------------------------------------------------------------------- | :-----------: | :------------: | :-------------: | :--------: | :---------: |
 | View hosts                                                                                                                       | ✅            | ✅             | ✅              | ✅         |             |
 | View a host by identifier                                                                                                        | ✅            | ✅             | ✅              | ✅         | ✅          |
@@ -152,20 +154,20 @@ Users with access to multiple teams can be assigned different roles for each tea
 | Run queries designated "**observer can run**" as live queries against hosts                                                      | ✅            | ✅             | ✅              | ✅         |             |
 | Run any query as [live query](https://fleetdm.com/docs/using-fleet/fleet-ui#run-a-query)                                         |               | ✅             | ✅              | ✅         |             |
 | Create, edit, and delete self-authored queries                                                                          |               |                | ✅              | ✅         | ✅          |
-| View team queries and their reports                                                                                              | ✅            | ✅             | ✅              | ✅         |             |
+| View fleet's queries and their reports                                                                                              | ✅            | ✅             | ✅              | ✅         |             |
 | View global (inherited) queries and their reports\**                                                                             | ✅            | ✅             | ✅              | ✅         |             |
 | Manage [query automations](https://fleetdm.com/docs/using-fleet/fleet-ui#schedule-a-query)                                       |               |                | ✅              | ✅         | ✅          |
-| View team policies                                                                                                               | ✅            | ✅             | ✅              | ✅         |             |
-| Run team policies as a live policy                                                                                               |               | ✅             | ✅              | ✅         |             |
+| View fleet's policies                                                                                                               | ✅            | ✅             | ✅              | ✅         |             |
+| Run fleet's policies as a live policy                                                                                               |               | ✅             | ✅              | ✅         |             |
 | View global (inherited) policies                                                                                                 | ✅            | ✅             | ✅              | ✅         |             |
 | Run global (inherited) policies as a live policy                                                                                 |               | ✅             | ✅              | ✅         |             |
 | Filter hosts using policies                                                                                                      | ✅            | ✅             | ✅              | ✅         |             |
-| Create, edit, and delete team policies                                                                                           |               |                | ✅              | ✅         | ✅          |
-| Edit team policy automations: calendar events, install software, and run script |          |            | ✅         | ✅    | ✅      |
-| Edit team policy automations: other workflows (tickets and webhooks)                 |          |            |            | ✅    | ✅      |
-| Add and remove team users                                                                                                        |               |                |                 | ✅         | ✅          |
-| Edit team name                                                                                                                   |               |                |                 | ✅         | ✅          |
-| Create, edit, and delete [team enroll secrets](https://fleetdm.com/docs/using-fleet/rest-api#get-enroll-secrets-for-a-team)      |               |                | ✅              | ✅         |             |
+| Create, edit, and delete fleet's policies                                                                                           |               |                | ✅              | ✅         | ✅          |
+| Edit fleet's policy automations: calendar events, install software, and run script |          |            | ✅         | ✅    | ✅      |
+| Edit fleet's policy automations: other workflows (tickets and webhooks)                 |          |            |            | ✅    | ✅      |
+| Add and remove fleet's users                                                                                                        |               |                |                 | ✅         | ✅          |
+| Edit fleet's name                                                                                                                   |               |                |                 | ✅         | ✅          |
+| Create, edit, and delete [fleet's enroll secrets](https://fleetdm.com/docs/using-fleet/rest-api#get-enroll-secrets-for-a-team)      |               |                | ✅              | ✅         |             |
 | Read organization settings\*                                                                                                     | ✅            | ✅             | ✅              | ✅         | ✅          |
 | Read agent options\*                                                                                                             | ✅            | ✅             | ✅              | ✅         |             |
 | Edit agent options                                    |               |                |                 | ✅         | ✅          |
@@ -175,7 +177,7 @@ Users with access to multiple teams can be assigned different roles for each tea
 | Create, edit, resend and delete configuration profiles for Apple (macOS/iOS/iPadOS), Windows, and Android hosts                  |               |                | ✅              | ✅         | ✅          |
 | Execute MDM commands on macOS and Windows hosts*                                                                                 |               |                | ✅              | ✅         |             |
 | View results of MDM commands executed on macOS and Windows hosts*                                                                | ✅            | ✅             | ✅              | ✅         |             |
-| Edit [team OS settings](https://fleetdm.com/docs/rest-api/rest-api#os-settings)                                                |               |                | ✅               | ✅         | ✅          |
+| Edit [fleet's OS settings](https://fleetdm.com/docs/rest-api/rest-api#os-settings)                                                |               |                | ✅               | ✅         | ✅          |
 | Edit [setup experience](https://fleetdm.com/guides/setup-experience)\*                                                                                         |          |            | ✅             | ✅    | ✅          |
 | Schedule and run scripts on hosts                                                                                                               |               |                | ✅              | ✅         |             |
 | View saved scripts                                                                                                               | ✅            | ✅             | ✅              | ✅         |             |
@@ -187,7 +189,7 @@ Users with access to multiple teams can be assigned different roles for each tea
 
 \* Applies only to [Fleet REST API](https://fleetdm.com/docs/using-fleet/rest-api)
 
-\** Team-level users only see global query results for hosts on teams where they have access.
+\** Fleet-level users only see global query results for hosts on fleets where they have access.
 
 <meta name="category" value="guides">
 <meta name="authorGitHubUsername" value="noahtalerman">

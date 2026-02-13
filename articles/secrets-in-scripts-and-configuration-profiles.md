@@ -20,7 +20,7 @@ To add or delete a variable in the UI, go to `Controls` > `Variables` and click 
 
 ![Add variable](../website/assets/images/articles/controls-add-variable-337x209@2x.png)
 
-Variables are global, meaning they can be used in scripts and profiles across all teams.
+Variables are global, meaning they can be used in scripts and profiles across all fleets.
 
 ### GitOps
 
@@ -46,7 +46,7 @@ On subsequent GitOps syncs, if a variable is used by an updated configuration pr
 
 Variables aren't removed on GitOps runs. To remove a variable, delete it on the `Controls` > `Variables` page.
 
-> Profiles with variables are not entirely validated during a GitOps dry run because the required variables may not exist or may be incorrect in the database. As a result, these profiles have a higher chance of failing during a non-dry run. Test them by uploading to a small team first.
+> Profiles with variables are not entirely validated during a GitOps dry run because the required variables may not exist or may be incorrect in the database. As a result, these profiles have a higher chance of failing during a non-dry run. Test them by uploading to a small fleet first.
 
 ## Using the secret on a configuration profile
 

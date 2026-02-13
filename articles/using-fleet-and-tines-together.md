@@ -10,7 +10,7 @@ First, by leveraging the “Software” tab, you can add a filter that will disp
 
 ![](../website/assets/images/articles/using-fleet-and-tines-together-filter-800x450@2x.gif)
 
-From the “Hosts” column, you can see the count of hosts in the respective team that have the vulnerable software installed. If you click “View all hosts,” you can get the list of hosts displayed. Additionally, in this view, you can export the list of hosts to take further action toward remediation or compliance reporting.
+From the “Hosts” column, you can see the count of hosts in the respective fleet that have the vulnerable software installed. If you click “View all hosts,” you can get the list of hosts displayed. Additionally, in this view, you can export the list of hosts to take further action toward remediation or compliance reporting.
 
 ![](../website/assets/images/articles/using-fleet-and-tines-together-hosts-800x450@2x.gif)
 

@@ -1,37 +1,28 @@
-# Teams
+# Fleets
 
-> Teams are available in Fleet Premium.
+> Fleets are available in Fleet Premium.
 
-In Fleet, you can organize hosts into 'teams' to apply queries, policies, scripts, and other configurations tailored to their specific risk and compliance requirements.
+In Fleet, you can organize hosts into fleets to apply queries, policies, scripts, and other configurations tailored to their specific risk and compliance requirements.
 
-To manage teams:
+A host can only belong to one fleet. You can give users access to mutiple fleet.
+
+To manage fleets:
 
 1. Select your avatar in the top navigation.
-2. Choose **Settings > Teams**.
-
-> **Note:** 
-> - A host can only belong to one team. 
-> - You can give users access to only some teams.
+2. Choose **Settings > Fleets**.
 
 ## Best practice
 
-Fleet's best practice teams:
+Fleet's best practice fleets:
 - `💻 Workstations`: End users' production work computers (macOS, Windows, and Linux)
 - `☁️ IT servers`: Production servers used to host internal tools like certificate authorities (CAs).
 - `📱🔐 Personal mobile devices`: iPhones, iPads, and Android devices owned by employees that can access company data.
 - `📱🏢 Employee-issued mobile devices`: iPhones, iPads, and Android devices issued to employees that can access company data.
-- `🖥️ Dedicated devices`: iPads or iPhones for dedicated or shared use. If some of your devices have different use cases, break this team into separate teams (ex. `🖥️ Kiosk devices` and `🎥 Zoom room devices`).
+- `🖥️ Dedicated devices`: iPads or iPhones for dedicated or shared use. If some of your devices have different use cases, break this fleet into separate fleets (ex. `🖥️ Kiosk devices` and `🎥 Zoom room devices`).
 
-## Add hosts to a team
+## Add hosts to a fleet
 
-You can add hosts to a team in Fleet by either enrolling the host with a team's enroll secret or by transferring the host via Fleet UI after the host has been enrolled to Fleet.
-
-### Enroll hosts with a team's enroll secret
-
-1. In Fleet UI, navigate to **Settings > Teams** and select the team you wish to add a host to.
-2. Select **Add hosts** and follow the on-screen instructions.
-
-> Quick tip: When viewing a specific team (from the **Teams** dropdown), Selecting **Add hosts** will display instructions to add new hosts directly to that team.
+You can add hosts to a fleet in Fleet by either enrolling the host with a fleet's enroll secret or by transferring the host via Fleet UI after the host has been enrolled to Fleet.
 
 ### Transfer a host
 
@@ -42,13 +33,13 @@ You can add hosts to a team in Fleet by either enrolling the host with a team's 
 
 ## Advanced
 
-You can automatically enroll hosts to a specific team in Fleet by installing a fleetd agent with a [team enroll secret](https://fleetdm.com/guides/enroll-hosts#enroll-host-to-a-specific-team).
+You can automatically enroll hosts to a specific fleet in Fleet by installing a fleetd agent with a [fleet enroll secret](https://fleetdm.com/guides/enroll-hosts#enroll-host-to-a-specific-fleet).
 
-Changing the host's enroll secret after enrollment will not cause the host to be transferred to a different team.
+Changing the host's enroll secret after enrollment will not cause the host to be transferred to a different fleet.
 
 <meta name="category" value="guides">
 <meta name="authorGitHubUsername" value="noahtalerman">
 <meta name="authorFullName" value="Noah Talerman">
 <meta name="publishedOn" value="2024-07-11">
-<meta name="articleTitle" value="Teams">
-<meta name="description" value="Learn how to group hosts in Fleet to apply specific queries, policies, and agent options using teams.">
+<meta name="articleTitle" value="Fleets">
+<meta name="description" value="Learn how to group hosts in Fleet to apply specific queries, policies, and agent options using fleets.">

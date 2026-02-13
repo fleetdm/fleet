@@ -64,7 +64,7 @@ Fleet enforces trusted device policies, including disk encryption and the latest
 
 ### Role-based access controls (RBAC) 
 
-Fleet’s [role-based access controls](https://fleetdm.com/guides/role-based-access) enabled the company to assign specific permissions to different teams, ensuring that access controls were maintained without disabling features across the entire fleet. 
+Fleet’s [role-based access controls](https://fleetdm.com/guides/role-based-access) enabled the company to assign specific permissions to different fleets, ensuring that access controls were maintained without disabling features across the entire fleet. 
 
 ### Seamless migration and integration
 
