@@ -2,7 +2,7 @@ import React, { useContext, useEffect, useState } from "react";
 
 import { useQuery } from "react-query";
 import { useDebouncedCallback } from "use-debounce";
-import { IAceEditor } from "react-ace/lib/types";
+import { Ace } from "ace-builds";
 import { Row } from "react-table";
 
 import PATHS from "router/paths";
@@ -326,7 +326,8 @@ const NewLabelPage = ({
       const status = (error as { status: number }).status;
       let errorMessage = "Couldn't add label. Please try again.";
       if (status === 409) {
-        errorMessage = "A label with this name already exists.";
+        errorMessage =
+          "Couldn't add label: A label with this name already exists.";
       } else if (status === 422) {
         const reason = getErrorReason(error);
         if (reason) {
@@ -352,9 +353,8 @@ const NewLabelPage = ({
   };
 
   // form rendering helpers
-  const onLoadSQLEditor = (editor: IAceEditor) => {
+  const onLoadSQLEditor = (editor: Ace.Editor) => {
     editor.setOptions({
-      enableLinking: true,
       enableMultiselect: false, // Disables command + click creating multiple cursors
     });
 

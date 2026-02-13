@@ -974,7 +974,9 @@ var softwareMacOS = DetailQuery{
 	// which is used in vulnerability scanning.
 	Query: withCachedUsers(`WITH cached_users AS (%s)
 SELECT
-  COALESCE(NULLIF(display_name, ''), NULLIF(bundle_name, ''), NULLIF(NULLIF(bundle_executable, ''), 'run.sh'), TRIM(name, '.app') ) AS name,
+  COALESCE(NULLIF(display_name, ''), NULLIF(bundle_name, ''), NULLIF(NULLIF(bundle_executable, ''), 'run.sh'),
+    CASE WHEN name IS NOT NULL AND lower(name) LIKE '%%.app' THEN substr(name, 1, length(name) - 4) ELSE name END
+  ) AS name,
   COALESCE(NULLIF(bundle_short_version, ''), bundle_version) AS version,
   bundle_identifier AS bundle_identifier,
   '' AS extension_id,
@@ -1342,6 +1344,42 @@ FROM chrome_extensions`,
 // Software queries expect specific columns to be present.  Reference the
 // software_{macos|windows|linux} queries for the expected columns.
 var SoftwareOverrideQueries = map[string]DetailQuery{
+	// windows_acrobat_dc checks the Windows registry to determine if "DC" should be appended to the Adobe Acrobat
+	// product name. While Adobe recently rebranded the free version to "Adobe Acrobat (64-bit)" — matching
+	// the naming convention of the paid product — our vulnerability detection engine requires the "DC" postfix for accurate
+	// signature matching.
+	"windows_acrobat_dc": {
+		Description: "Software override query used to determine whether the Adobe Acrobat Reader program name needs to include the DC postfix",
+		Platforms:   []string{"windows"},
+		Query:       `SELECT 1 FROM registry WHERE key = 'HKEY_LOCAL_MACHINE\SOFTWARE\Adobe\Adobe Acrobat\DC'`,
+		SoftwareProcessResults: func(softwareResults, registryResults []map[string]string) []map[string]string {
+			if len(registryResults) == 0 {
+				return softwareResults
+			}
+
+			for i, row := range softwareResults {
+				orig := row["name"]
+				lower := strings.ToLower(orig)
+
+				if !strings.HasPrefix(lower, "adobe acrobat") && !strings.HasPrefix(lower, "acrobat reader") {
+					continue
+				}
+
+				// We need to correctly identify whether the name is in the
+				// form of `... Acrobat Reader ...` or just `... Acrobat ...`
+				options := []string{"reader", "acrobat"}
+				for _, variant := range options {
+					if idx := strings.Index(lower, variant); idx != -1 {
+						splitPoint := idx + len(variant)
+						softwareResults[i]["name"] = orig[:splitPoint] + " DC" + orig[splitPoint:]
+						break
+					}
+				}
+			}
+
+			return softwareResults
+		},
+	},
 	// macos_firefox differentiates between Firefox and Firefox ESR by checking the RemotingName value in the
 	// application.ini file. If the RemotingName is 'firefox-esr', the name is set to 'Firefox ESR.app'.
 	//
@@ -1977,10 +2015,9 @@ func directIngestScheduledQueryStats(ctx context.Context, logger log.Logger, hos
 }
 
 const (
-	linuxImageRegex       = `^linux-image-[[:digit:]]+\.[[:digit:]]+\.[[:digit:]]+-[[:digit:]]+-[[:alnum:]]+`
-	amazonLinuxKernelName = "kernel"
-	rhelKernelName        = "kernel-core"
-	archKernelName        = `^linux(?:-(?:lts|zen|hardened))?$`
+	linuxImageRegex = `^linux-image-[[:digit:]]+\.[[:digit:]]+\.[[:digit:]]+-[[:digit:]]+-[[:alnum:]]+`
+	rpmKernelName   = "kernel"
+	archKernelName  = `^linux(?:-(?:lts|zen|hardened))?$`
 )
 
 var (
@@ -2026,7 +2063,7 @@ func directIngestSoftware(ctx context.Context, logger log.Logger, host *fleet.Ho
 			continue
 		}
 
-		if fleet.IsLinux(host.Platform) && (kernelRegex.MatchString(s.Name) || s.Name == amazonLinuxKernelName || s.Name == rhelKernelName || archKernelRegex.MatchString(s.Name)) {
+		if fleet.IsLinux(host.Platform) && (kernelRegex.MatchString(s.Name) || s.Name == rpmKernelName || archKernelRegex.MatchString(s.Name)) {
 			s.IsKernel = true
 		}
 
@@ -2237,6 +2274,13 @@ func MutateSoftwareOnIngestion(s *fleet.Software, logger log.Logger) {
 				break
 			}
 		}
+	}
+
+	// For RHEL kernels, join version and release to match OVAL format.
+	// See server/vulnerabilities/goval_dictionary/database.Eval
+	if s != nil && s.Source == "rpm_packages" && s.Name == rpmKernelName && s.Release != "" {
+		s.Version = fmt.Sprintf("%s-%s", s.Version, s.Release)
+		s.Release = "" // Clear release to avoid issues with vulnerability matching
 	}
 }
 

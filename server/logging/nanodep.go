@@ -2,16 +2,16 @@ package logging
 
 import (
 	nanodep_log "github.com/fleetdm/fleet/v4/server/mdm/nanodep/log"
-	kitlog "github.com/go-kit/log"
+	"github.com/fleetdm/fleet/v4/server/platform/logging"
 	"github.com/go-kit/log/level"
 )
 
 // NanoDEPLogger is a logger adapter for nanodep.
 type NanoDEPLogger struct {
-	logger kitlog.Logger
+	logger *logging.Logger
 }
 
-func NewNanoDEPLogger(logger kitlog.Logger) *NanoDEPLogger {
+func NewNanoDEPLogger(logger *logging.Logger) *NanoDEPLogger {
 	return &NanoDEPLogger{
 		logger: logger,
 	}
@@ -26,8 +26,7 @@ func (l *NanoDEPLogger) Debug(keyvals ...interface{}) {
 }
 
 func (l *NanoDEPLogger) With(keyvals ...interface{}) nanodep_log.Logger {
-	newLogger := kitlog.With(l.logger, keyvals...)
 	return &NanoDEPLogger{
-		logger: newLogger,
+		logger: l.logger.With(keyvals...),
 	}
 }

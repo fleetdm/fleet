@@ -1853,7 +1853,7 @@ func (ds *Datastore) filterHostsByOSSettingsDiskEncryptionStatus(sql string, opt
 		if diskEncryptionConfig.Enabled {
 			whereWindows = ds.whereBitLockerStatus(fleet.DiskEncryptionActionRequired, diskEncryptionConfig.BitLockerPINRequired)
 		}
-		subqueryMacOS, subqueryParams = subqueryFileVaultVerifying()
+		subqueryMacOS, subqueryParams = subqueryFileVaultActionRequired()
 
 	case fleet.DiskEncryptionEnforcing:
 		if diskEncryptionConfig.Enabled {
@@ -2185,8 +2185,10 @@ type enrolledHostInfo struct {
 // Attempts to find the matching host ID by osqueryID, host UUID or serial
 // number. Any of those fields can be left empty if not available, and it will
 // use the best match in this order:
-// * if it matched on osquery_host_id (with osqueryID or uuid), use that host
-// * otherwise if it matched on serial, use that host
+//   - if it matched on osquery_host_id (with osqueryID or uuid), use that host
+//   - otherwise if it matched on serial, use that host
+//   - otherwise if uuid and serial match and an Android host can be found with a matching
+//     uuid, use that host
 //
 // Note that in general, all options should result in a single match anyway.
 // It's just that our DB schema doesn't enforce this (only osquery_host_id has
@@ -2242,6 +2244,16 @@ func matchHostDuringEnrollment(
 		}
 		_, _ = query.WriteString(fmt.Sprintf(`(SELECT id, last_enrolled_at, %s IS NOT NULL AS node_key_set, 2 priority, platform FROM hosts WHERE hardware_serial = ? AND (platform = 'darwin' OR platform = 'ios' OR platform = 'ipados' OR platform = 'android') ORDER BY id LIMIT 1)`, nodeKeyColumn))
 		args = append(args, serial)
+	}
+
+	// special case for android hosts when uuid == serial. This will only work for an exact match on existing Android
+	// host UUID == enrolling device UUID.
+	if uuid != "" && serial == uuid && isMDMEnabled && !orbitEnrollingWithOsqueryIdentifier {
+		if query.Len() > 0 {
+			_, _ = query.WriteString(" UNION ")
+		}
+		_, _ = query.WriteString(fmt.Sprintf(`(SELECT id, last_enrolled_at, %s IS NOT NULL AS node_key_set, 3 priority, platform FROM hosts WHERE uuid = ? AND (platform = 'android') ORDER BY id LIMIT 1)`, nodeKeyColumn))
+		args = append(args, uuid)
 	}
 
 	if err := sqlx.SelectContext(ctx, q, &rows, query.String(), args...); err != nil {
@@ -3553,7 +3565,7 @@ func (ds *Datastore) ListPoliciesForHost(ctx context.Context, host *fleet.Host) 
 		// We log to help troubleshooting in case this happens.
 		level.Error(ds.logger).Log("err", "unrecognized platform", "hostID", host.ID, "platform", host.Platform) //nolint:errcheck
 	}
-	query := `SELECT p.id, p.team_id, p.resolution, p.name, p.query, p.description, p.author_id, p.platforms, p.critical, p.created_at, p.updated_at, p.conditional_access_enabled,
+	query := `SELECT p.id, p.team_id, p.resolution, p.name, p.query, p.description, p.author_id, p.platforms, p.critical, p.created_at, p.updated_at, p.conditional_access_enabled, p.conditional_access_bypass_enabled,
 		COALESCE(u.name, '<deleted>') AS author_name,
 		COALESCE(u.email, '') AS author_email,
 		CASE

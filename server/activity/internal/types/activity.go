@@ -43,4 +43,6 @@ func (o *ListOptions) IsSecondaryDescending() bool { return false }
 // Datastore is the datastore interface for the activity bounded context.
 type Datastore interface {
 	ListActivities(ctx context.Context, opt ListOptions) ([]*api.Activity, *api.PaginationMetadata, error)
+	ListHostPastActivities(ctx context.Context, hostID uint, opt ListOptions) ([]*api.Activity, *api.PaginationMetadata, error)
+	MarkActivitiesAsStreamed(ctx context.Context, activityIDs []uint) error
 }
