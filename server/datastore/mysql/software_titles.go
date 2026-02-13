@@ -533,18 +533,19 @@ SELECT
 FROM software_titles st
 	{{if hasTeamID .}}
 		LEFT JOIN (
-			SELECT si_inner.*
+			SELECT si_inner.id, si_inner.title_id, si_inner.global_or_team_id,
+				si_inner.self_service, si_inner.filename, si_inner.version,
+				si_inner.platform, si_inner.url, si_inner.install_during_setup,
+				si_inner.storage_id, si_inner.fleet_maintained_app_id
 			FROM software_installers si_inner
-			INNER JOIN (
-				SELECT si2.title_id, si2.global_or_team_id,
-					COALESCE(MAX(fma_active.software_installer_id), MAX(si2.id)) AS max_id
-				FROM software_installers si2
-				LEFT JOIN fma_active_installers fma_active
-					ON fma_active.global_or_team_id = si2.global_or_team_id
-					AND fma_active.fleet_maintained_app_id = si2.fleet_maintained_app_id
-				WHERE si2.global_or_team_id = {{teamID .}}
-				GROUP BY si2.title_id, si2.global_or_team_id
-			) si_latest ON si_inner.id = si_latest.max_id
+			LEFT JOIN fma_active_installers fma_active
+				ON fma_active.global_or_team_id = si_inner.global_or_team_id
+				AND fma_active.fleet_maintained_app_id = si_inner.fleet_maintained_app_id
+			WHERE si_inner.global_or_team_id = {{teamID .}}
+				AND (
+					si_inner.fleet_maintained_app_id IS NULL
+					OR si_inner.id = fma_active.software_installer_id
+				)
 		) si ON si.title_id = st.id AND si.global_or_team_id = {{teamID .}}
 		LEFT JOIN in_house_apps iha ON iha.title_id = st.id AND iha.global_or_team_id = {{teamID .}}
 		LEFT JOIN vpp_apps vap ON vap.title_id = st.id AND {{yesNo .PackagesOnly "FALSE" "TRUE"}}
