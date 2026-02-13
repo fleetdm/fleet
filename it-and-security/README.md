@@ -10,6 +10,8 @@
   - TODO: consider Apple TV
   - TODO: Could we eliminate the agent options folder?  Its hierarchical home makes it seem more important than it is for most folks.
   - TODO: (MAYBE) Consider renaming `lib/` to `platforms/` (or something). If so, then pull out agent options, labels, and icons elsewhere
+    <br/> <img width="329" height="151" alt="image" src="https://github.com/user-attachments/assets/c93cf1eb-aef2-40a9-895d-e5b8354b8d99" />
 - Ship `fleetctl new` and retire the boilerplate in fleet's github action, updating curriculum for gitops certification and making `fleetctl new` + actually deploying the repo a part of smoketesting every release
 - Ship equivalent of https://sailsjs.com/documentation/anatomy linking to it from code comments - https://fleetdm.slack.com/archives/C0ACJ8L1FD0/p1770812933638829
 - Deliver: Mar 14, 2026
+
