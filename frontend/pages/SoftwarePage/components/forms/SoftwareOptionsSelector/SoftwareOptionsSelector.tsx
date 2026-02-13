@@ -143,7 +143,7 @@ const SoftwareOptionsSelector = ({
       return (
         <>
           Fleet can&apos;t create a policy to detect existing installations of
-          payload-free packages. To automatically install these packages, add a
+          script-only packages. To automatically install these packages, add a
           custom policy and enable the install software automation on the{" "}
           <b>Policies</b> page.
         </>

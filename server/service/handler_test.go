@@ -16,8 +16,8 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mock"
 	"github.com/fleetdm/fleet/v4/server/platform/endpointer"
+	"github.com/fleetdm/fleet/v4/server/platform/logging"
 	kithttp "github.com/go-kit/kit/transport/http"
-	kitlog "github.com/go-kit/log"
 	"github.com/gorilla/mux"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
@@ -31,7 +31,7 @@ func TestAPIRoutesConflicts(t *testing.T) {
 	svc, _ := newTestService(t, ds, nil, nil)
 	limitStore, _ := memstore.New(0)
 	cfg := config.TestConfig()
-	h := MakeHandler(svc, cfg, kitlog.NewNopLogger(), limitStore, nil, nil)
+	h := MakeHandler(svc, cfg, logging.NewNopLogger(), limitStore, nil, nil, nil)
 	router := h.(*mux.Router)
 
 	type testCase struct {
@@ -85,7 +85,7 @@ func TestAPIRoutesMetrics(t *testing.T) {
 
 	svc, _ := newTestService(t, ds, nil, nil)
 	limitStore, _ := memstore.New(0)
-	h := MakeHandler(svc, config.TestConfig(), kitlog.NewNopLogger(), limitStore, nil, nil)
+	h := MakeHandler(svc, config.TestConfig(), logging.NewNopLogger(), limitStore, nil, nil, nil)
 	router := h.(*mux.Router)
 
 	// replace all handlers with mocks, and collect the requests to make to each
