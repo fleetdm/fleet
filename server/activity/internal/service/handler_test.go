@@ -52,6 +52,11 @@ func TestListActivitiesValidation(t *testing.T) {
 			wantErr: "invalid per_page value",
 		},
 		{
+			name:    "per_page exceeds maximum",
+			query:   "per_page=10001",
+			wantErr: "Request could not be processed. Please set a per_page limit less than 10000",
+		},
+		{
 			name:    "order_direction without order_key",
 			query:   "order_direction=desc",
 			wantErr: "order_key must be specified with order_direction",
