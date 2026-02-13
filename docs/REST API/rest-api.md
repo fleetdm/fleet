@@ -2960,7 +2960,7 @@ If `after` is being used with `created_at` or `updated_at`, the table must be sp
 
 If `include_device_status` is set to `true`, `device_status` and `pending_action` are included in the MDM information for each host. `device_status` indicates the current lock/wipe state of the device with possible values: `unlocked`, `locked`, `locking`, `unlocking`, `wiped`, `wiping`. `pending_action` indicates if a lock, unlock, or wipe command is pending with possible values: `lock`, `unlock`, `wipe`, or an empty string (no pending action).
 
-To filter hosts by platform (macOS, Windows, Linux), use the ["List label's hosts" API endpoint](https://fleetdm.com/docs/rest-api/rest-api#list-labels-hosts). Find the label ID by filtering in the **Hosts** page of the Fleet UI and copying the ID from the URL (for example, `/hosts/manage/labels/7`, the label ID is 7).
+To filter hosts by platform (macOS, Windows, Linux), use the ["List label's hosts" API endpoint](https://fleetdm.com/docs/rest-api/rest-api#list-labels-hosts). Find the label ID by filtering in the **Hosts** page of the Fleet UI and copying the ID from the URL (for example: `7` for `/hosts/manage/labels/7`).
 
 #### Example
 
