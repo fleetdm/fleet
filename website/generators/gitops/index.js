@@ -2,13 +2,13 @@ module.exports = {
 
   targets: {
 
-    './it-and-security/.gitignore': { file: { contents: '# todo' } },
-    './it-and-security/README.md': { file: { contents: 'todo' } },
-    './it-and-security/default.yml': { file: { contents: '# todo' } },
+    './it-and-security/.gitignore': { copy: './default.yml.template' },
+    './it-and-security/README.md': { copy: './default.yml.template' },
+    './it-and-security/default.yml': { copy: './default.yml.template' },
     './it-and-security/fleets/': { folder: {} },
-    './it-and-security/fleets/workstations.yml': { file: { contents: '# todo' } },
-    './it-and-security/fleets/personal-mobile-devices.yml': { file: { contents: '# todo' } },
-    './it-and-security/fleets/company-owned-mobile-devices.yml': { file: { contents: '# todo' } },
+    './it-and-security/fleets/workstations.yml': { copy: './default.yml.template' },
+    './it-and-security/fleets/personal-mobile-devices.yml': { copy: './default.yml.template' },
+    './it-and-security/fleets/company-owned-mobile-devices.yml': { copy: './default.yml.template' },
     './it-and-security/labels/': { folder: {} },
     './it-and-security/icons/': { folder: {} },
     './it-and-security/platforms/': { folder: {} },
@@ -49,6 +49,6 @@ module.exports = {
    *
    * @type {String}
    */
-  templatesDirectory: path.resolve(__dirname, './templates')
+  templatesDirectory: require('path').resolve(__dirname, './templates')
 
 };
