@@ -1,4 +1,4 @@
-import React, { useContext, useState } from "react";
+import React, { useContext, useState, useRef } from "react";
 
 import PATHS from "router/paths";
 import { AppContext } from "context/app";
@@ -16,6 +16,7 @@ import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
 import UploadList from "components/UploadList";
 
 import AddEntraTenantModal from "../components/AddEntraTenantModal";
+import DeleteEntraTenantModal from "../components/DeleteEntraTenantModal";
 
 import EntraTenantsListHeader from "./EntraTenantsListHeader";
 import EntraTenantsListItem from "./EntraTenantsListItem";
@@ -33,8 +34,15 @@ const baseClass = "windows-automatic-enrollment-page";
 const WindowsAutomaticEnrollmentPage = () => {
   const { config } = useContext(AppContext);
 
+  const deletingTenantId = useRef<null | string>(null);
+
   const [showAddTenantModal, setShowAddTenantModal] = useState(false);
   const [showDeleteTenantModal, setShowDeleteTenantModal] = useState(false);
+
+  const onDeleteTenant = (tenantId: string) => {
+    deletingTenantId.current = tenantId;
+    setShowDeleteTenantModal(true);
+  };
 
   const renderEntraTenants = () => {
     const tenants = [
@@ -79,7 +87,7 @@ const WindowsAutomaticEnrollmentPage = () => {
         ListItemComponent={({ listItem }) => (
           <EntraTenantsListItem
             tenantId={listItem}
-            onClickDelete={() => setShowDeleteTenantModal(true)}
+            onClickDelete={() => onDeleteTenant(listItem)}
           />
         )}
       />
@@ -151,6 +159,15 @@ const WindowsAutomaticEnrollmentPage = () => {
         </div>
         {showAddTenantModal && (
           <AddEntraTenantModal onExit={() => setShowAddTenantModal(false)} />
+        )}
+        {showDeleteTenantModal && deletingTenantId.current && (
+          <DeleteEntraTenantModal
+            tenantId={deletingTenantId.current}
+            onExit={() => {
+              deletingTenantId.current = null;
+              setShowDeleteTenantModal(false);
+            }}
+          />
         )}
       </>
     </MainContent>
