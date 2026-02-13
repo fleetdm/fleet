@@ -32,7 +32,7 @@ const generateMdmDiscoveryUrl = (domain: string) => {
 const baseClass = "windows-automatic-enrollment-page";
 
 const WindowsAutomaticEnrollmentPage = () => {
-  const { config } = useContext(AppContext);
+  const { config, setConfig } = useContext(AppContext);
 
   const deletingTenantId = useRef<null | string>(null);
 
@@ -45,13 +45,9 @@ const WindowsAutomaticEnrollmentPage = () => {
   };
 
   const renderEntraTenants = () => {
-    const tenants = [
-      "123e4567-e89b-12d3-a456-426614174000",
-      "987e6543-e21b-12d3-a456-426614174999",
-      "456e7890-e89b-12d3-a456-426614174abc",
-    ]; // Mock tenant IDs
+    const tenants = config?.mdm.windows_entra_tenant_ids;
 
-    if (tenants.length === 0) {
+    if (!tenants || tenants.length === 0) {
       return (
         <Card paddingSize="xxlarge">
           <EmptyTable

@@ -15,7 +15,7 @@ const EntraTenantsListHeader = ({
 }: IEntraTenantsListHeaderProps) => {
   return (
     <div className={baseClass}>
-      <span className={`${baseClass}__name`}>Tenant ID</span>
+      <span className={`${baseClass}__name`}>Tenants</span>
       <span className={`${baseClass}__actions`}>
         <GitOpsModeTooltipWrapper
           position="left"
