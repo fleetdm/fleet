@@ -10,38 +10,44 @@
 #   https://fleetdm.com/docs/anatomy/default.yml
 #
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
+
+# tldr of all TODOs: simplify
+
+# (*) What is the default?  If this, then omit.  If 50%+ it has to be changed, then default to quickstart behavior and then leave commented-out hint
+
 agent_options:
-  path: ./lib/all/agent-options/agent-options.yml
-org_settings:
-  features:
+  path: ./lib/all/agent-options/agent-options.yml # TODO: Guessing we're using defaults, right?  If so, can omit.  Else try inlining them (though list key at the bottom so it doesn't distract from other more important parts of this file)
+org_settings: 
+  features: # TODO: These both should be on by default and so can be omitted
     enable_host_users: true
     enable_software_inventory: true
-  fleet_desktop:
+  fleet_desktop: # TODO: Support omitting if default
     transparency_url: https://fleetdm.com/transparency
   host_expiry_settings:
     host_expiry_enabled: false
-  integrations:
+  integrations: # TODO: Support omitting if empty
     google_calendar: []
     jira: []
     zendesk: []
   mdm:
     end_user_authentication:
-      entity_id: dogfood-eula.fleetdm.com
-      idp_name: Google Workspace
+      entity_id: dogfood-eula.fleetdm.com #TODO: Seems like this URL doesn't resolve.  Let's omit.  Why is it here by default?
+      idp_name: Google Workspace # TODO: What is the purpose of this?  I think it's for end user auth
       metadata: |-
         $DOGFOOD_END_USER_SSO_METADATA
-      metadata_url: ""
-    end_user_license_agreement: ../it-and-security/lib/macos/misc/eula.pdf
+      # TODO: ^Need to understand what this is and why we have to have a variable for it
+      metadata_url: "" #TODO: Should be omitted, no reason to include an empty state here (if we do, it should be commented out, just like in sailsjs)
+    end_user_license_agreement: ../it-and-security/lib/macos/misc/eula.pdf  #TODO: Could be omitted, right?  What is behavior?
     apple_business_manager:
-      - organization_name: Fleet Device Management Inc.
-        macos_fleet: "💻 Workstations" 
+      - organization_name: Fleet Device Management Inc. # TODO: why does the organization name need to be specified? 
+        macos_fleet: "💻 Workstations"  #TODO: This could default to "Unassigned" if unspecified, and then it could be omitted.
         ios_fleet: "📱🏢 Employee-issued mobile devices"
         ipados_fleet: "📱🏢 Employee-issued mobile devices"
       - organization_name: Mactivate LLC
         macos_fleet: "🧪 Testing & QA" 
         ios_fleet: "🧪 Testing & QA"
         ipados_fleet: "🧪 Testing & QA"
-    volume_purchasing_program:
+    volume_purchasing_program: # TODO: does this need to be specified? can we just turn them all on by default? and then this can be omitted
       - location: Fleet Device Management Inc.
         fleets:
           - "💻 Workstations"
@@ -49,27 +55,27 @@ org_settings:
           - "📱🔐 Personal mobile devices"
           - "🧪 Testing & QA"
   org_info:
-    contact_url: https://fleetdm.slack.com/archives/C071NNMSP2R
-    org_logo_url: ""
-    org_logo_url_light_background: ""
-    org_name: Fleet
+    contact_url: https://fleetdm.slack.com/archives/C071NNMSP2R  # TODO: (*) + Also: Seems like this will stop working due to slack retention settings.  Needs real contact URL.
+    org_logo_url: "" # TODO: keep, but commented out
+    org_logo_url_light_background: "" # TODO: explain why this matters, and refernce it from other comment, without including
+    org_name: Fleet # TODO: keep, but commented out
   secrets:
-    - secret: $DOGFOOD_GLOBAL_ENROLL_SECRET
+    - secret: $DOGFOOD_GLOBAL_ENROLL_SECRET # TODO: What happens if omitted?
   server_settings:
-    debug_host_ids:
+    debug_host_ids: # TODO: what is this for, logging?  Is it important?  Can it be omitted?
       - 1
       - 3
-    deferred_save_host: false
-    enable_analytics: true
-    live_query_disabled: false
-    query_reports_disabled: false
-    scripts_disabled: false
-    server_url: https://dogfood.fleetdm.com
+    deferred_save_host: false # TODO: (*)
+    enable_analytics: true # TODO: Remove, it's on by default and documented how to disable.  Doesn't need to be a part of everyone's quickstart experience.
+    live_query_disabled: false # TODO: Remove, it's enabled by default and documented how to disable.  Doesn't need to be a part of everyone's quickstart experience.
+    query_reports_disabled: false # TODO: Same
+    scripts_disabled: false # TODO: Same
+    server_url: https://dogfood.fleetdm.com # This seems important and something everyone MUST configure, right?   Needs to be emphasized.  What happens if omitted?  Probably bad thigns.  This should warn if you don't have it set.
   sso_settings:
     enable_jit_provisioning: true
     enable_sso: true
     enable_sso_idp_login: true
-    entity_id: dogfood.fleetdm.com
+    entity_id: dogfood.fleetdm.com # TODO: Why is this separate from end user authentication?  Why aren't things like entity_id required in the other place?
     idp_image_url: ""
     idp_name: Google Workspace
     metadata: |-
@@ -78,22 +84,22 @@ org_settings:
   webhook_settings:
     failing_policies_webhook:
       destination_url: $DOGFOOD_FAILING_POLICIES_WEBHOOK_URL
-      enable_failing_policies_webhook: true
-      host_batch_size: 0
-      policy_ids: []
-    host_status_webhook:
-      days_count: 5
+      enable_failing_policies_webhook: true  # TODO: This is implied if a URL is provided.  Can be omitted (still can function if you explicitly set to false, but 99.9999% of people will never want that, and it's only for debugging, and this can be omitted)
+      host_batch_size: 0 # TODO: (*)
+      policy_ids: [] # TODO: Instead of referencing database ids, register webhook here and then refernce it from policy YAML
+    host_status_webhook:  # TODO: Is this important enough to include by default?  Do we rely on it?
+      days_count: 5 # TODO: (*)
       destination_url: $DOGFOOD_HOST_STATUS_WEBHOOK_URL
-      enable_host_status_webhook: true
-      host_percentage: 20
-    interval: 360m0s
+      enable_host_status_webhook: true # TODO: Same as above
+      host_percentage: 20  # TODO: (*)  What's a sane default for this, when in use?  Use that and make it so you don't have to set it.
+    interval: 360m0s  # TODO: What is a `m0s`- is this a typo?  Also, what is this for?
     vulnerabilities_webhook:
       destination_url: $DOGFOOD_VULNERABILITIES_WEBHOOK_URL
-      enable_vulnerabilities_webhook: true
-      host_batch_size: 0
+      enable_vulnerabilities_webhook: true # TODO: Same as above
+      host_batch_size: 0 # TODO: Same as above
     activities_webhook:
       destination_url: $DOGFOOD_ACTIVITIES_WEBHOOK_URL
-      enable_activities_webhook: true
+      enable_activities_webhook: true  # TODO: Same as above
 policies:
 reports:
   - path: ./lib/all/reports/collect-fleetd-information.yml
@@ -102,14 +108,14 @@ reports:
   - path: ./lib/macos/reports/detect-apns-certificate.yml
   - path: ./lib/macos/reports/collect-macos-compatibility-data.yml
 controls:
-  enable_disk_encryption: true
-  macos_migration:
+  enable_disk_encryption: true  # TODO: (*)
+  macos_migration: # TODO: (*) Probably worth having this commented out.
     enable: true
     mode: voluntary
-    webhook_url: $DOGFOOD_MACOS_MIGRATION_WEBHOOK_URL
-  windows_enabled_and_configured: true
-  windows_migration_enabled: true
-labels:
+    webhook_url: $DOGFOOD_MACOS_MIGRATION_WEBHOOK_URL #TODO: Instead of 'DOGFOOD' prefix for these, lets use something that works for every Fleet user and include it in comments by default
+  windows_enabled_and_configured: true # TODO: Redundant.  If URL is there, it is enabled.  If you want to keep URL and disable it, then you can add this, but let's omit it from boilerplate.
+  windows_migration_enabled: true # TODO: What is the default?  If this, then omit.  If 50%+ it has to be changed, then default to quickstart behavior and then leave commented-out hint
+labels: # TODO: This seems like it should be automatic, so you don't have to manually require them (they're global anyway)
   - path: ./lib/all/labels/arm-based-windows-hosts.yml
   - path: ./lib/all/labels/debian-based-linux-hosts.yml
   - path: ./lib/all/labels/macs-with-1password-installed.yml
