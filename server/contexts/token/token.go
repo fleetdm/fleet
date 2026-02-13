@@ -25,7 +25,7 @@ func FromHTTPRequest(r *http.Request) Token {
 	headerCouple, ok := parseHeaderLimited(authHeader)
 	if ok && strings.ToUpper(headerCouple[0]) == "BEARER" {
 		// If the Authorization header is present and properly formatted, return the token.
-		// Preserve case-insensitivity of "Bearer " prefix while case-sensitivity of the token value
+		// Preserve case-insensitivity for "Bearer" prefix while case-sensitivity for the token value
 		return Token(headerCouple[1])
 	}
 	return ""
