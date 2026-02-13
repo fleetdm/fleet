@@ -6,11 +6,15 @@ import CustomLink from "components/CustomLink";
 
 export interface IInfoModalProps {
   onCancel: () => void;
+  transparencyURL?: string;
 }
 
 const baseClass = "device-user-info";
 
-const InfoModal = ({ onCancel }: IInfoModalProps): JSX.Element => {
+const InfoModal = ({
+  onCancel,
+  transparencyURL,
+}: IInfoModalProps): JSX.Element => {
   return (
     <Modal
       title="Welcome to Fleet"
@@ -26,7 +30,7 @@ const InfoModal = ({ onCancel }: IInfoModalProps): JSX.Element => {
         <p>
           Want to know what your organization can see?&nbsp;
           <CustomLink
-            url="https://fleetdm.com/transparency"
+            url={transparencyURL || "https://fleetdm.com/transparency"}
             text="Read about transparency"
             newTab
             multiline

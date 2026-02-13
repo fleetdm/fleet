@@ -222,6 +222,7 @@ export interface IDUPDetails {
   org_logo_url: string;
   org_logo_url_light_background: string;
   org_contact_url: string;
+  transparency_url: string;
   disk_encryption_enabled?: boolean;
   platform?: HostPlatform;
   global_config: IDeviceGlobalConfig;

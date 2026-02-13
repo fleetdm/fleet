@@ -949,7 +949,12 @@ const DeviceUserPage = ({
       ) : (
         <div className={coreWrapperClassnames}>{renderDeviceUserPage()}</div>
       )}
-      {showInfoModal && <InfoModal onCancel={toggleInfoModal} />}
+      {showInfoModal && (
+        <InfoModal
+          onCancel={toggleInfoModal}
+          transparencyURL={dupDetails?.transparency_url}
+        />
+      )}
       {showBypassModal && (
         <BypassModal
           onCancel={toggleShowBypassModal}
