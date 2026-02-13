@@ -2986,6 +2986,55 @@ func (ds *Datastore) InsertSoftwareVulnerability(
 	return insertOnDuplicateDidInsertOrUpdate(res), nil
 }
 
+func (ds *Datastore) InsertSoftwareVulnerabilities(
+	ctx context.Context,
+	vulns []fleet.SoftwareVulnerability,
+	source fleet.VulnerabilitySource,
+) (int64, error) {
+	var totalAffected int64
+	err := common_mysql.BatchProcessSimple(vulns, 500, func(batch []fleet.SoftwareVulnerability) error {
+		values := strings.TrimSuffix(strings.Repeat("(?,?,?,?),", len(batch)), ",")
+		stmt := fmt.Sprintf(`
+			INSERT INTO software_cve (cve, source, software_id, resolved_in_version)
+			VALUES %s
+			ON DUPLICATE KEY UPDATE
+				source = VALUES(source),
+				resolved_in_version = VALUES(resolved_in_version),
+				updated_at = NOW()
+		`, values)
+
+		var args []any
+		for _, v := range batch {
+			args = append(args, v.CVE, source, v.SoftwareID, v.ResolvedInVersion)
+		}
+
+		res, err := ds.writer(ctx).ExecContext(ctx, stmt, args...)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "batch insert software vulnerabilities")
+		}
+
+		affected, _ := res.RowsAffected()
+		totalAffected += affected
+		return nil
+	})
+
+	return totalAffected, err
+}
+
+func (ds *Datastore) ListSoftwareVulnerabilityKeysBySource(
+	ctx context.Context,
+	source fleet.VulnerabilitySource,
+) ([]fleet.SoftwareVulnerability, error) {
+	var vulns []fleet.SoftwareVulnerability
+	err := sqlx.SelectContext(ctx, ds.reader(ctx), &vulns,
+		`SELECT software_id, cve FROM software_cve WHERE source = ?`, source,
+	)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "list software vulnerability keys by source")
+	}
+	return vulns, nil
+}
+
 func (ds *Datastore) ListSoftwareVulnerabilitiesByHostIDsSource(
 	ctx context.Context,
 	hostIDs []uint,

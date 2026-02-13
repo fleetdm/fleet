@@ -299,28 +299,48 @@ func TranslateCPEToCVE(
 		}
 	}
 
-	var newVulns []fleet.SoftwareVulnerability
+	// Batch insert software vulnerabilities.
+	allSoftwareVulns := make([]fleet.SoftwareVulnerability, 0, len(softwareVulns))
 	for _, vuln := range softwareVulns {
-		ok, err := ds.InsertSoftwareVulnerability(ctx, vuln, fleet.NVDSource)
-		if err != nil {
-			level.Error(logger).Log("cpe processing", "error", "err", err)
-			continue
-		}
+		allSoftwareVulns = append(allSoftwareVulns, vuln)
+	}
 
-		// collect vuln only if inserted, otherwise we would send
-		// webhook requests for the same vulnerability over and over again until
-		// it is older than 2 days.
-		if collectVulns && ok {
-			newVulns = append(newVulns, vuln)
+	// To identify newly inserted vulns for webhook notifications, we need to know
+	// which (software_id, cve) pairs already exist. We build a set of existing keys
+	// before the insert and diff after.
+	var existingKeys map[string]struct{}
+	if collectVulns {
+		existing, err := ds.ListSoftwareVulnerabilityKeysBySource(ctx, fleet.NVDSource)
+		if err != nil {
+			level.Error(logger).Log("msg", "error listing existing software vulnerabilities", "err", err)
+		} else {
+			existingKeys = make(map[string]struct{}, len(existing))
+			for _, v := range existing {
+				existingKeys[v.Key()] = struct{}{}
+			}
 		}
 	}
 
-	for _, vuln := range osVulns {
-		_, err := ds.InsertOSVulnerability(ctx, vuln, fleet.NVDSource)
-		if err != nil {
-			level.Error(logger).Log("cpe processing", "error", "err", err)
-			continue
+	if _, err := ds.InsertSoftwareVulnerabilities(ctx, allSoftwareVulns, fleet.NVDSource); err != nil {
+		level.Error(logger).Log("cpe processing", "error", "err", err)
+	}
+
+	var newVulns []fleet.SoftwareVulnerability
+	if collectVulns && existingKeys != nil {
+		for _, vuln := range allSoftwareVulns {
+			if _, exists := existingKeys[vuln.Key()]; !exists {
+				newVulns = append(newVulns, vuln)
+			}
 		}
+	}
+
+	// Batch insert OS vulnerabilities.
+	allOSVulns := make([]fleet.OSVulnerability, 0, len(osVulns))
+	for _, vuln := range osVulns {
+		allOSVulns = append(allOSVulns, vuln)
+	}
+	if _, err := ds.InsertOSVulnerabilities(ctx, allOSVulns, fleet.NVDSource); err != nil {
+		level.Error(logger).Log("cpe processing", "error", "err", err)
 	}
 
 	// Delete any stale vulnerabilities. A vulnerability is stale iff the last time it was
