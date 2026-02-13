@@ -1383,6 +1383,27 @@ func TestGetContextTryStmt(t *testing.T) {
 
 }
 
+// createTestDatabase creates a temporary test database with the given name and
+// registers cleanup logic to drop it and close the connection when the test
+// completes.
+func createTestDatabase(t *testing.T, dbName string) {
+	t.Helper()
+	db, err := sql.Open(
+		"mysql",
+		fmt.Sprintf("%s:%s@tcp(%s)/?multiStatements=true", testing_utils.TestUsername, testing_utils.TestPassword,
+			testing_utils.TestAddress),
+	)
+	require.NoError(t, err)
+
+	_, err = db.Exec(fmt.Sprintf("DROP DATABASE IF EXISTS %s; CREATE DATABASE %s;", dbName, dbName))
+	require.NoError(t, err)
+
+	t.Cleanup(func() {
+		_, _ = db.Exec(fmt.Sprintf("DROP DATABASE IF EXISTS %s", dbName))
+		db.Close()
+	})
+}
+
 // TestReplicaPasswordReadFromDisk verifies that when a replica config uses PasswordPath,
 // the password read from disk by checkAndModifyConfig is preserved for the actual DB connection.
 //
@@ -1402,18 +1423,7 @@ func TestReplicaPasswordReadFromDisk(t *testing.T) {
 	dbName := t.Name()
 
 	// Create the test database using a direct connection.
-	db, err := sql.Open(
-		"mysql",
-		fmt.Sprintf("%s:%s@tcp(%s)/?multiStatements=true", testing_utils.TestUsername, testing_utils.TestPassword,
-			testing_utils.TestAddress),
-	)
-	require.NoError(t, err)
-	_, err = db.Exec(fmt.Sprintf("DROP DATABASE IF EXISTS %s; CREATE DATABASE %s;", dbName, dbName))
-	require.NoError(t, err)
-	defer func() {
-		_, _ = db.Exec(fmt.Sprintf("DROP DATABASE IF EXISTS %s", dbName))
-		db.Close()
-	}()
+	createTestDatabase(t, dbName)
 
 	// Primary config uses Password directly — this always works.
 	primaryConfig := config.MysqlConfig{
@@ -1456,18 +1466,7 @@ func TestReplicaTLSConfigPreserved(t *testing.T) {
 	dbName := t.Name()
 
 	// Create the test database using a direct connection.
-	db, err := sql.Open(
-		"mysql",
-		fmt.Sprintf("%s:%s@tcp(%s)/?multiStatements=true", testing_utils.TestUsername, testing_utils.TestPassword,
-			testing_utils.TestAddress),
-	)
-	require.NoError(t, err)
-	_, err = db.Exec(fmt.Sprintf("DROP DATABASE IF EXISTS %s; CREATE DATABASE %s;", dbName, dbName))
-	require.NoError(t, err)
-	defer func() {
-		_, _ = db.Exec(fmt.Sprintf("DROP DATABASE IF EXISTS %s", dbName))
-		db.Close()
-	}()
+	createTestDatabase(t, dbName)
 
 	// Generate a test CA cert that does NOT match the MySQL server's cert.
 	ca, _ := generateTestCert(t)
@@ -1499,8 +1498,10 @@ func TestReplicaTLSConfigPreserved(t *testing.T) {
 	//
 	// Before the fix TLSConfig was empty for the replica's NewDB call, so the
 	// replica connected without TLS (no error) — meaning this assertion would fail.
-	_, err = NewDBConnections(primaryConfig, Replica(&replicaConfig), LimitAttempts(1), Logger(log.NewNopLogger()))
+	_, err := NewDBConnections(primaryConfig, Replica(&replicaConfig), LimitAttempts(1), Logger(log.NewNopLogger()))
 	require.Error(t, err, "replica connection should fail with a TLS error when TLSCA is set — "+
 		"if this succeeds, TLS was silently not applied to the replica")
 	require.Regexp(t, "(x509|tls|EOF)", err.Error())
+	// Ensure the failure is due to the TLS handshake/connection and not TLS config registration.
+	assert.NotContains(t, err.Error(), "RegisterTLSConfig")
 }
