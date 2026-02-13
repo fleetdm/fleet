@@ -221,7 +221,6 @@ const LabelFilterSelect = ({
           onClickLabelSearchInput,
           onBlurLabelSearchInput,
         }}
-        isLoading={isLoading}
       />
     </div>
   );
