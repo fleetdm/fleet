@@ -52,7 +52,7 @@ describe("Host Summary section", () => {
       });
       const summaryData = createMockHostSummary({ team_name: "---" });
       render(<HostSummary summaryData={summaryData} isPremiumTier />);
-      expect(screen.getByText("No fleet")).toBeInTheDocument();
+      expect(screen.getByText("Unassigned")).toBeInTheDocument();
     });
   });
 

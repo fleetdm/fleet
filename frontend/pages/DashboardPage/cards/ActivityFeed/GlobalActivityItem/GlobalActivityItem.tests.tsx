@@ -644,7 +644,7 @@ describe("Activity Feed", () => {
     expect(withNoTeams).toBeNull();
   });
 
-  it("renders an 'enabled_disk_encryption' type activity for hosts with no fleet.", () => {
+  it("renders an 'enabled_disk_encryption' type activity for hosts that are unassigned.", () => {
     const activity = createMockActivity({
       type: ActivityType.EnabledDiskEncryption,
       details: {},
@@ -652,12 +652,12 @@ describe("Activity Feed", () => {
     render(<GlobalActivityItem activity={activity} isPremiumTier />);
 
     expect(
-      screen.getByText("enforced disk encryption for hosts with no fleet.")
+      screen.getByText("enforced disk encryption for hosts that are unassigned.")
     ).toBeInTheDocument();
     expect(screen.queryByText("assigned to the")).toBeNull();
   });
 
-  it("renders an 'enabled_macos_disk_encryption' type activity for hosts with no fleet.", () => {
+  it("renders an 'enabled_macos_disk_encryption' type activity for hosts that are unassigned.", () => {
     // Test deprecated activity type
     const activity = createMockActivity({
       type: ActivityType.EnabledMacDiskEncryption,
@@ -666,12 +666,12 @@ describe("Activity Feed", () => {
     render(<GlobalActivityItem activity={activity} isPremiumTier />);
 
     expect(
-      screen.getByText("enforced disk encryption for hosts with no fleet.")
+      screen.getByText("enforced disk encryption for hosts that are unassigned.")
     ).toBeInTheDocument();
     expect(screen.queryByText("assigned to the")).toBeNull();
   });
 
-  it("renders a 'disabled_disk_encryption' type activity for hosts with no fleet.", () => {
+  it("renders a 'disabled_disk_encryption' type activity for hosts that are unassigned.", () => {
     const activity = createMockActivity({
       type: ActivityType.DisabledDiskEncryption,
       details: {},
@@ -680,7 +680,7 @@ describe("Activity Feed", () => {
 
     expect(
       screen.getByText(
-        "removed disk encryption enforcement for hosts with no fleet.",
+        "removed disk encryption enforcement for hosts that are unassigned.",
         {
           exact: false,
         }
@@ -689,7 +689,7 @@ describe("Activity Feed", () => {
     expect(screen.queryByText("assigned to the")).toBeNull();
   });
 
-  it("renders a 'disabled_macos_disk_encryption' type activity for hosts with no fleet.", () => {
+  it("renders a 'disabled_macos_disk_encryption' type activity for hosts that are unassigned.", () => {
     // Test deprecated activity type
     const activity = createMockActivity({
       type: ActivityType.DisabledMacDiskEncryption,
@@ -699,7 +699,7 @@ describe("Activity Feed", () => {
 
     expect(
       screen.getByText(
-        "removed disk encryption enforcement for hosts with no fleet.",
+        "removed disk encryption enforcement for hosts that are unassigned.",
         {
           exact: false,
         }
@@ -719,7 +719,7 @@ describe("Activity Feed", () => {
       screen.getByText((content, node) => {
         return (
           node?.innerHTML ===
-          "<b>Test User </b> changed the macOS Setup Assistant (added <b>dep-profile.json</b>) for hosts that automatically enroll to no fleet."
+          "<b>Test User </b> changed the macOS Setup Assistant (added <b>dep-profile.json</b>) for hosts that automatically enroll to unassigned."
         );
       })
     ).toBeInTheDocument();
@@ -753,7 +753,7 @@ describe("Activity Feed", () => {
       screen.getByText((content, node) => {
         return (
           node?.innerHTML ===
-          "<b>Test User </b> changed the macOS Setup Assistant (deleted <b>dep-profile.json</b>) for hosts that automatically enroll to no fleet."
+          "<b>Test User </b> changed the macOS Setup Assistant (deleted <b>dep-profile.json</b>) for hosts that automatically enroll to unassigned."
         );
       })
     ).toBeInTheDocument();
@@ -820,7 +820,7 @@ describe("Activity Feed", () => {
     expect(withNoTeams).toBeNull();
   });
 
-  it("renders a 'added_bootstrap_package' type activity for hosts with no fleet.", () => {
+  it("renders a 'added_bootstrap_package' type activity for hosts that are unassigned.", () => {
     const activity = createMockActivity({
       type: ActivityType.AddedBootstrapPackage,
       details: { bootstrap_package_name: "foo.pkg" },
@@ -833,13 +833,13 @@ describe("Activity Feed", () => {
     expect(screen.getByText("foo.pkg", { exact: false })).toBeInTheDocument();
     expect(
       screen.getByText(
-        ") for macOS hosts that automatically enroll to no fleet.",
+        ") for macOS hosts that automatically enroll to unassigned.",
         { exact: false }
       )
     ).toBeInTheDocument();
   });
 
-  it("renders a 'deleted_bootstrap_package' type activity for hosts with no fleet.", () => {
+  it("renders a 'deleted_bootstrap_package' type activity for hosts that are unassigned.", () => {
     const activity = createMockActivity({
       type: ActivityType.DeletedBootstrapPackage,
       details: { bootstrap_package_name: "foo.pkg" },
@@ -852,7 +852,7 @@ describe("Activity Feed", () => {
     expect(screen.getByText("foo.pkg", { exact: false })).toBeInTheDocument();
     expect(
       screen.getByText(
-        ") for macOS hosts that automatically enroll to no fleet.",
+        ") for macOS hosts that automatically enroll to unassigned.",
         { exact: false }
       )
     ).toBeInTheDocument();
@@ -876,7 +876,7 @@ describe("Activity Feed", () => {
     expect(withNoTeams).toBeNull();
   });
 
-  it("renders a 'enabled_macos_setup_end_user_auth' type activity for hosts with no fleet.", () => {
+  it("renders a 'enabled_macos_setup_end_user_auth' type activity for hosts that are unassigned.", () => {
     const activity = createMockActivity({
       type: ActivityType.EnabledMacOSSetupEndUserAuth,
     });
@@ -884,7 +884,7 @@ describe("Activity Feed", () => {
 
     expect(
       screen.getByText(
-        "required end user authentication for macOS, iOS, iPadOS, and Android hosts that automatically enroll to no fleet.",
+        "required end user authentication for macOS, iOS, iPadOS, and Android hosts that automatically enroll to unassigned.",
         { exact: false }
       )
     ).toBeInTheDocument();
@@ -908,7 +908,7 @@ describe("Activity Feed", () => {
     expect(withNoTeams).toBeNull();
   });
 
-  it("renders a 'disabled_macos_setup_end_user_auth' type activity for hosts with no fleet.", () => {
+  it("renders a 'disabled_macos_setup_end_user_auth' type activity for hosts that are unassigned.", () => {
     const activity = createMockActivity({
       type: ActivityType.DisabledMacOSSetupEndUserAuth,
     });
@@ -916,13 +916,13 @@ describe("Activity Feed", () => {
 
     expect(
       screen.getByText(
-        "removed end user authentication requirement for macOS, iOS, iPadOS, and Android hosts that automatically enroll to no fleet.",
+        "removed end user authentication requirement for macOS, iOS, iPadOS, and Android hosts that automatically enroll to unassigned.",
         { exact: false }
       )
     ).toBeInTheDocument();
   });
 
-  it("renders a 'transferred_hosts' type activity for one host transferred to no fleet.", () => {
+  it("renders a 'transferred_hosts' type activity for one host transferred to Unassigned.", () => {
     const activity = createMockActivity({
       type: ActivityType.TransferredHosts,
       details: {
@@ -936,7 +936,7 @@ describe("Activity Feed", () => {
       screen.getByText("transferred host", { exact: false })
     ).toBeInTheDocument();
     expect(screen.getByText("foo", { exact: false })).toBeInTheDocument();
-    expect(screen.getByText("no fleet", { exact: false })).toBeInTheDocument();
+    expect(screen.getByText("unassigned", { exact: false })).toBeInTheDocument();
   });
 
   it("renders a 'transferred_hosts' type activity for one host transferred to a fleet.", () => {
@@ -957,7 +957,7 @@ describe("Activity Feed", () => {
     expect(screen.getByText("Alphas", { exact: false })).toBeInTheDocument();
   });
 
-  it("renders a 'transferred_hosts' type activity for multiple hosts transferred to no fleet.", () => {
+  it("renders a 'transferred_hosts' type activity for multiple hosts transferred to Unassigned.", () => {
     const activity = createMockActivity({
       type: ActivityType.TransferredHosts,
       details: {
@@ -973,7 +973,7 @@ describe("Activity Feed", () => {
     expect(screen.queryByText("foo")).toBeNull();
     expect(screen.queryByText("bar")).toBeNull();
     expect(screen.queryByText("baz")).toBeNull();
-    expect(screen.getByText("no fleet", { exact: false })).toBeInTheDocument();
+    expect(screen.getByText("unassigned", { exact: false })).toBeInTheDocument();
   });
 
   it("renders a 'transferred_hosts' type activity for multiple hosts transferred to a fleet.", () => {
@@ -1141,7 +1141,7 @@ describe("Activity Feed", () => {
     expect(withNoTeams).toBeNull();
   });
 
-  it("renders an 'added_script' type activity for hosts with no fleet.", () => {
+  it("renders an 'added_script' type activity for hosts that are unassigned.", () => {
     const activity = createMockActivity({
       type: ActivityType.AddedScript,
       details: { script_name: "foo.sh" },
@@ -1153,11 +1153,11 @@ describe("Activity Feed", () => {
     ).toBeInTheDocument();
     expect(screen.getByText("foo.sh", { exact: false })).toBeInTheDocument();
     expect(
-      screen.getByText("to no fleet.", { exact: false })
+      screen.getByText("to unassigned.", { exact: false })
     ).toBeInTheDocument();
   });
 
-  it("renders an 'edited_script' type activity for hosts with no fleet.", () => {
+  it("renders an 'edited_script' type activity for hosts that are unassigned.", () => {
     const activity = createMockActivity({
       type: ActivityType.EditedScript,
       details: {},
@@ -1168,11 +1168,11 @@ describe("Activity Feed", () => {
       screen.getByText("edited scripts", { exact: false })
     ).toBeInTheDocument();
     expect(
-      screen.getByText("for no fleet via fleetctl.", { exact: false })
+      screen.getByText("for unassigned via fleetctl.", { exact: false })
     ).toBeInTheDocument();
   });
 
-  it("renders a 'deleted_script' type activity for hosts with no fleet.", () => {
+  it("renders a 'deleted_script' type activity for hosts that are unassigned.", () => {
     const activity = createMockActivity({
       type: ActivityType.DeletedScript,
       details: { script_name: "foo.sh" },
@@ -1184,7 +1184,7 @@ describe("Activity Feed", () => {
     ).toBeInTheDocument();
     expect(screen.getByText("foo.sh", { exact: false })).toBeInTheDocument();
     expect(
-      screen.getByText("from no fleet.", { exact: false })
+      screen.getByText("from unassigned.", { exact: false })
     ).toBeInTheDocument();
   });
 
@@ -1263,7 +1263,7 @@ describe("Activity Feed", () => {
     expect(withNoTeams).toBeNull();
   });
 
-  it("renders an 'added_software' type activity for hosts with no fleet.", () => {
+  it("renders an 'added_software' type activity for hosts that are unassigned.", () => {
     const activity = createMockActivity({
       type: ActivityType.AddedSoftware,
       details: { software_title: "Foo bar", software_package: "foobar.pkg" },
@@ -1275,11 +1275,11 @@ describe("Activity Feed", () => {
       screen.getByText("foobar.pkg", { exact: false })
     ).toBeInTheDocument();
     expect(
-      screen.getByText("to no fleet.", { exact: false })
+      screen.getByText("to unassigned.", { exact: false })
     ).toBeInTheDocument();
   });
 
-  it("renders an 'edited_software' type activity for hosts with no fleet.", () => {
+  it("renders an 'edited_software' type activity for hosts that are unassigned.", () => {
     const activity = createMockActivity({
       type: ActivityType.EditedSoftware,
       details: {
@@ -1291,11 +1291,11 @@ describe("Activity Feed", () => {
 
     expect(screen.getByText("edited", { exact: false })).toBeInTheDocument();
     expect(
-      screen.getByText("on no fleet", { exact: false })
+      screen.getByText("on unassigned", { exact: false })
     ).toBeInTheDocument();
   });
 
-  it("renders a 'deleted_software' type activity for hosts with no fleet.", () => {
+  it("renders a 'deleted_software' type activity for hosts that are unassigned.", () => {
     const activity = createMockActivity({
       type: ActivityType.DeletedSoftware,
       details: { software_title: "Foo bar", software_package: "foobar.pkg" },
@@ -1307,7 +1307,7 @@ describe("Activity Feed", () => {
       screen.getByText("foobar.pkg", { exact: false })
     ).toBeInTheDocument();
     expect(
-      screen.getByText("from no fleet.", { exact: false })
+      screen.getByText("from unassigned.", { exact: false })
     ).toBeInTheDocument();
   });
 

@@ -137,7 +137,7 @@ export const API_NO_TEAM_ID = 0;
 export const APP_CONTEXT_NO_TEAM_ID = 0;
 export const APP_CONTEXT_NO_TEAM_SUMMARY: ITeamSummary = {
   id: APP_CONTEXT_NO_TEAM_ID,
-  name: "No fleet",
+  name: "Unassigned",
 } as const;
 
 export const isAnyTeamSelected = (currentTeamId?: number) =>
