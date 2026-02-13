@@ -77,7 +77,7 @@ If you want to make sure the profile stays device-scoped, update `PayloadScope` 
 
 In the Fleet UI, head to the **Controls > OS settings** tab.
 
-To see the status for a specific settings, hover over a row in the **Custom settings** table and select the information (**i**) icon.
+To see the status of a specific setting, hover over the setting's row in the **Custom settings** table and select the information (**i**) icon.
 
 Currently, when editing a profile using Fleet's GitOps workflow, it can take 30 seconds for the
 Profile's status to update to "Pending."
