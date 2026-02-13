@@ -8,7 +8,6 @@ import (
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
-	"github.com/ghodss/yaml"
 	"github.com/urfave/cli/v2"
 )
 
@@ -136,7 +135,7 @@ func writeQuerySpecsToFile(filename string, specs []*fleet.QuerySpec) error {
 			},
 			Spec: *spec,
 		}
-		yml, err := yaml.Marshal(qYaml)
+		yml, err := yamlMarshalRenamed(qYaml)
 		if err != nil {
 			return err
 		}

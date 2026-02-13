@@ -2,6 +2,7 @@ package webhooks
 
 import (
 	"context"
+	"encoding/json"
 	"net/url"
 	"path"
 	"sort"
@@ -11,6 +12,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/platform/endpointer"
 	kitlog "github.com/go-kit/log"
 	"github.com/go-kit/log/level"
 )
@@ -67,7 +69,18 @@ func SendFailingPoliciesBatchedPOSTs(
 			FailingHosts: failingHosts,
 		}
 		level.Debug(logger).Log("payload", payload, "url", server.MaskSecretURLParams(webhookURL.String()), "batch", len(batch))
-		if err := server.PostJSONWithTimeout(ctx, webhookURL.String(), &payload); err != nil {
+
+		// Marshal and duplicate renamed JSON keys (e.g. fleet_id → also team_id)
+		// so that webhook consumers see both the new and deprecated field names.
+		jsonBytes, err := json.Marshal(&payload)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "marshal failing policies payload")
+		}
+		if rules := endpointer.ExtractAliasRules(payload); len(rules) > 0 {
+			jsonBytes = endpointer.DuplicateJSONKeys(jsonBytes, rules)
+		}
+
+		if err := server.PostJSONWithTimeout(ctx, webhookURL.String(), json.RawMessage(jsonBytes)); err != nil {
 			return ctxerr.Wrapf(ctx, server.MaskURLError(err), "posting to %q", server.MaskSecretURLParams(webhookURL.String()))
 		}
 		if err := failingPoliciesSet.RemoveHosts(policy.ID, batch); err != nil {

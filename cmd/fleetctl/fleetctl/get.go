@@ -276,14 +276,29 @@ func printTeams(c *cli.Context, teams []fleet.Team) error {
 }
 
 func printSpec(c *cli.Context, spec specGeneric) error {
-	var err error
+	// Marshal the spec value to JSON, unmarshal to a raw tree, and apply
+	// alias key renames (e.g. "teams" → "fleets") so both JSON and YAML
+	// output use the new canonical names.
+	b, err := json.Marshal(spec.Spec)
+	if err != nil {
+		return err
+	}
+	var raw any
+	if err := json.Unmarshal(b, &raw); err != nil {
+		return err
+	}
+	replaceAliasKeys(raw, aliasRules)
+	spec.Spec = raw
 
 	if c.Bool(jsonFlagName) {
-		err = printJSON(spec, c.App.Writer)
-	} else {
-		err = printYaml(spec, c.App.Writer)
+		b, err := json.Marshal(spec)
+		if err != nil {
+			return err
+		}
+		fmt.Fprintf(c.App.Writer, "%s\n", b)
+		return nil
 	}
-	return err
+	return printYaml(spec, c.App.Writer)
 }
 
 func getCommand() *cli.Command {

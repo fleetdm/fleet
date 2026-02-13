@@ -27,6 +27,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/license"
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/platform/endpointer"
 	"github.com/fleetdm/fleet/v4/server/version"
 	"github.com/go-kit/log/level"
 	"golang.org/x/text/unicode/norm"
@@ -359,6 +360,19 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 	storedZendeskByGroupID, err := fleet.IndexZendeskIntegrations(appConfig.Integrations.Zendesk)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "modify AppConfig")
+	}
+
+	// Rewrite deprecated JSON field names (e.g. team_id → fleet_id) before
+	// unmarshaling into AppConfig, since the request body was captured as
+	// json.RawMessage and wasn't processed by the request decoder's rewriter.
+	if rules := endpointer.ExtractAliasRules(fleet.AppConfig{}); len(rules) > 0 {
+		var err error
+		if p, err = endpointer.RewriteDeprecatedKeys(p, rules); err != nil {
+			return nil, ctxerr.Wrap(ctx, &fleet.BadRequestError{
+				Message:     "failed to decode app config",
+				InternalErr: err,
+			})
+		}
 	}
 
 	invalid := &fleet.InvalidArgumentError{}

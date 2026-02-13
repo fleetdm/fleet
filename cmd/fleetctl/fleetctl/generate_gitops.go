@@ -90,11 +90,19 @@ type generateGitopsClient interface {
 }
 
 // Given a struct type and a field name, return the JSON field name.
+// If the field has a `renameto` tag, the renameto value (the new canonical name)
+// is returned instead of the json tag value (the old/deprecated name).
 func jsonFieldName(t reflect.Type, fieldName string) string {
 	field, ok := t.FieldByName(fieldName)
 	if !ok {
 		panic(fieldName + " not found in " + t.Name())
 	}
+
+	// Prefer the renameto tag (new canonical name) if it exists.
+	if renameTo := field.Tag.Get("renameto"); renameTo != "" {
+		return renameTo
+	}
+
 	tag := field.Tag.Get("json")
 	parts := strings.Split(tag, ",")
 	name := parts[0]
@@ -103,6 +111,75 @@ func jsonFieldName(t reflect.Type, fieldName string) string {
 		panic(field.Name + " has no json tag")
 	}
 	return name
+}
+
+// aliasRules maps deprecated JSON key names (from `json` struct tags) to their
+// new canonical names (from `renameto` struct tags). Used by replaceAliasKeys
+// and yamlMarshalRenamed to rename keys in serialized output.
+var aliasRules = map[string]string{
+	"default_team":                   "default_fleet",
+	"distributed_query_execution_id": "distributed_report_execution_id",
+	"host_team_id":                   "host_fleet_id",
+	"ios_team":                       "ios_fleet",
+	"ipados_team":                    "ipados_fleet",
+	"live_query_disabled":            "live_report_disabled",
+	"macos_team":                     "macos_fleet",
+	"queries":                        "reports",
+	"query_id":                       "report_id",
+	"query_ids":                      "report_ids",
+	"query_name":                     "report_name",
+	"query_report_cap":               "report_cap",
+	"query_reports_disabled":         "reports_disabled",
+	"query_sql":                      "report_sql",
+	"query_stats":                    "report_stats",
+	"scheduled_query_id":             "scheduled_report_id",
+	"scheduled_query_name":           "scheduled_report_name",
+	"team":                           "fleet",
+	"team_id":                        "fleet_id",
+	"team_ids":                       "fleet_ids",
+	"team_name":                      "fleet_name",
+	"teams":                          "fleets",
+}
+
+// replaceAliasKeys recursively walks map[string]any / []any trees renaming
+// keys according to the provided rules.
+func replaceAliasKeys(v any, rules map[string]string) {
+	switch val := v.(type) {
+	case map[string]any:
+		type rename struct{ oldKey, newKey string }
+		var renames []rename
+		for k := range val {
+			if newKey, ok := rules[k]; ok {
+				renames = append(renames, rename{k, newKey})
+			}
+		}
+		for _, r := range renames {
+			val[r.newKey] = val[r.oldKey]
+			delete(val, r.oldKey)
+		}
+		for _, v := range val {
+			replaceAliasKeys(v, rules)
+		}
+	case []any:
+		for _, item := range val {
+			replaceAliasKeys(item, rules)
+		}
+	}
+}
+
+// yamlMarshalRenamed JSON-marshals v, applies renameto alias rules to the
+// resulting map/slice tree, then YAML-marshals the result.
+func yamlMarshalRenamed(v any) ([]byte, error) {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return nil, err
+	}
+	var raw any
+	if err := json.Unmarshal(b, &raw); err != nil {
+		return nil, err
+	}
+	replaceAliasKeys(raw, aliasRules)
+	return yaml.Marshal(raw)
 }
 
 // Given a dot-separated path, return the value at that key in a map.
@@ -329,7 +406,7 @@ func (cmd *GenerateGitopsCommand) Run() error {
 		// If it's a real team, start the filename with the team name.
 		if team != nil {
 			teamFileName = generateFilename(team.Name)
-			fileName = "teams/" + teamFileName + ".yml"
+			fileName = "fleets/" + teamFileName + ".yml"
 			cmd.FilesToWrite[fileName] = map[string]interface{}{
 				"name": team.Name,
 			}
@@ -370,7 +447,7 @@ func (cmd *GenerateGitopsCommand) Run() error {
 				return ErrGeneric
 			}
 
-			cmd.FilesToWrite[fileName].(map[string]interface{})["team_settings"] = teamSettings
+			cmd.FilesToWrite[fileName].(map[string]any)["settings"] = teamSettings
 
 			// Only add agent_options for regular teams (not "No Team")
 			if team.ID != 0 {
@@ -428,13 +505,14 @@ func (cmd *GenerateGitopsCommand) Run() error {
 		cmd.FilesToWrite[fileName].(map[string]interface{})["policies"] = policies
 
 		if team == nil || team.ID != 0 {
-			// Generate queries (except for on No Team).
-			queries, err := cmd.generateQueries(teamToProcess.ID)
+			// Generate reports (except for on No Team).
+			reports, err := cmd.generateQueries(teamToProcess.ID)
 			if err != nil {
-				fmt.Fprintf(cmd.CLI.App.ErrWriter, "Error generating queries for team %s: %s\n", team.Name, err)
+				fmt.Fprintf(cmd.CLI.App.ErrWriter, "Error generating reports for team %s: %s\n", team.Name, err)
 				return ErrGeneric
 			}
-			cmd.FilesToWrite[fileName].(map[string]interface{})["queries"] = queries
+			// nolint:nilaway // we want to include "reports: null" in the output if there are no reports.
+			cmd.FilesToWrite[fileName].(map[string]any)["reports"] = reports
 		}
 	}
 
@@ -448,14 +526,14 @@ func (cmd *GenerateGitopsCommand) Run() error {
 		case "":
 			fileName = "default.yml"
 		case "no-team":
-			fileName = "teams/no-team.yml"
+			fileName = "fleets/no-team.yml"
 		default:
 			teamFileName := generateFilename(cmd.CLI.String("team"))
-			fileName = "teams/" + teamFileName + ".yml"
+			fileName = "fleets/" + teamFileName + ".yml"
 		}
 
-		// Marshal and ummarshal the data to standardize the keys.
-		b, err := yaml.Marshal(cmd.FilesToWrite[fileName])
+		// Apply renameto tags and marshal/unmarshal the data to standardize the keys.
+		b, err := yamlMarshalRenamed(cmd.FilesToWrite[fileName])
 		if err != nil {
 			fmt.Fprintf(cmd.CLI.App.ErrWriter, "Error marshaling settings: %s\n", err)
 			return ErrGeneric
@@ -487,7 +565,7 @@ func (cmd *GenerateGitopsCommand) Run() error {
 		var err error
 		// If the filename ends in .yml, marshal it to YAML.
 		if strings.HasSuffix(path, ".yml") {
-			b, err = yaml.Marshal(fileToWrite)
+			b, err = yamlMarshalRenamed(fileToWrite)
 			if err != nil {
 				fmt.Fprintf(cmd.CLI.App.ErrWriter, "Error marshaling file to write: %s\n", err)
 				return ErrGeneric
@@ -1018,7 +1096,7 @@ func (cmd *GenerateGitopsCommand) generateTeamSettings(filePath string, team *fl
 		teamSettings["secrets"] = []map[string]string{{"secret": cmd.AddComment(filePath, "TODO: Add your enroll secrets here")}}
 		cmd.Messages.SecretWarnings = append(cmd.Messages.SecretWarnings, SecretWarning{
 			Filename: filePath,
-			Key:      "team_settings.secrets",
+			Key:      "settings.secrets",
 		})
 	}
 	return teamSettings, nil
@@ -1588,7 +1666,7 @@ func (cmd *GenerateGitopsCommand) generateSoftware(filePath string, teamID uint,
 
 				if softwareTitle.SoftwarePackage.PreInstallQuery != "" {
 					query := softwareTitle.SoftwarePackage.PreInstallQuery
-					fileName := fmt.Sprintf("lib/%s/queries/%s", teamFilename, filenamePrefix+"-preinstallquery.yml")
+					fileName := fmt.Sprintf("lib/%s/reports/%s", teamFilename, filenamePrefix+"-preinstallquery.yml")
 					path := fmt.Sprintf("../%s", fileName)
 					softwareSpec["pre_install_query"] = map[string]interface{}{
 						"path": path,
