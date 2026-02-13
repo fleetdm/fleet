@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"fmt"
 	"time"
 
 	"github.com/VividCortex/mysqlerr"
@@ -45,6 +46,12 @@ func WithRetryTxx(ctx context.Context, db *sqlx.DB, fn TxFn, logger log.Logger) 
 				return backoff.Permanent(ctxerr.Wrapf(ctx, err, "got err '%s' rolling back after err", rbErr.Error()))
 			}
 
+			// Read-only errors indicate a DB failover occurred (primary demoted to reader).
+			// Panic to force Fleet to restart and reconnect to the new primary.
+			if IsReadOnlyError(err) {
+				panic(fmt.Sprintf("database is read-only, possible failover detected: %v", err))
+			}
+
 			if retryableError(err) {
 				return err
 			}
@@ -55,6 +62,10 @@ func WithRetryTxx(ctx context.Context, db *sqlx.DB, fn TxFn, logger log.Logger) 
 
 		if err := tx.Commit(); err != nil {
 			err = ctxerr.Wrap(ctx, err, "commit transaction")
+
+			if IsReadOnlyError(err) {
+				panic(fmt.Sprintf("database is read-only, possible failover detected: %v", err))
+			}
 
 			if retryableError(err) {
 				return err
