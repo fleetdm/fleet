@@ -13644,8 +13644,12 @@ func (s *integrationMDMTestSuite) TestVPPApps() {
 		fmt.Sprint(team.ID), "software_title_id", fmt.Sprint(errTitleID))
 	require.Equal(t, 1, countResp.Count)
 
-	// Simulate failed installation on the host
-	errorOnInstallApplicationCommand(1234)
+	// Simulate failed installation on the host, exhaust retries (MaxSoftwareInstallRetries = 3)
+	// First error triggers retry 1, second triggers retry 2, third triggers retry 3,
+	// fourth exhausts retries and marks as failed.
+	for i := 0; i < fleet.MaxSoftwareInstallRetries+1; i++ {
+		errorOnInstallApplicationCommand(1234)
+	}
 
 	listResp = listHostsResponse{}
 	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &listResp, "software_status", "failed", "team_id", fmt.Sprint(team.ID),
