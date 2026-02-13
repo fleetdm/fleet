@@ -1634,11 +1634,6 @@ func (svc *Service) SaveHostSoftwareInstallResult(ctx context.Context, result *f
 					)
 				}
 			}
-
-			// Suppress activity for intermediate retries
-			if hsi.AttemptNumber != nil && *hsi.AttemptNumber < fleet.MaxSoftwareInstallRetries {
-				shouldCreateActivity = false
-			}
 		}
 
 		if shouldCreateActivity {
@@ -1732,6 +1727,7 @@ func (svc *Service) retrySoftwareInstall(ctx context.Context, host *fleet.Host, 
 		SelfService:        hsi.SelfService,
 		UserID:             hsi.UserID,
 		ForSetupExperience: fromSetupExperience,
+		WithRetries:        true,
 	})
 	return err
 }
@@ -1820,12 +1816,11 @@ func (svc *Service) getSoftwareInstallerAttemptNumber(ctx context.Context, host 
 		return &count, nil
 	}
 
-	// Non-policy installs (host details, self-service, setup experience)
-	count, err := svc.ds.CountHostSoftwareInstallAttemptsWithoutPolicy(ctx, host.ID, *currentInstall.SoftwareInstallerID)
-	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "count previous non-policy install attempts")
-	}
-	return &count, nil
+	// Non-policy installs (host details, self-service, setup experience):
+	// attempt_number is set at activation time for retry-eligible installs
+	// (those created with WithRetries=true). If nil, this install was not
+	// created with retry support.
+	return currentInstall.AttemptNumber, nil
 }
 
 /////////////////////////////////////////////////////////////////////////////////

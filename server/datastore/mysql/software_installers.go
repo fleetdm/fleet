@@ -751,8 +751,13 @@ func (ds *Datastore) resetInstallerPolicyAutomationAttempts(ctx context.Context,
 	return nil
 }
 
-// ResetNonPolicyInstallAttempts resets all attempt numbers for non-policy software installer executions for a host
+// ResetNonPolicyInstallAttempts resets all attempt numbers for non-policy
+// software installer executions for a host and cancels any pending retry
+// installs. This is called before user-initiated installs to ensure a fresh
+// retry sequence and to allow the new install to proceed without being
+// blocked by a pending retry.
 func (ds *Datastore) ResetNonPolicyInstallAttempts(ctx context.Context, hostID, softwareInstallerID uint) error {
+	// Reset attempt_number for old installs
 	_, err := ds.writer(ctx).ExecContext(ctx, `
 		UPDATE host_software_installs
 		SET attempt_number = 0
@@ -761,7 +766,41 @@ func (ds *Datastore) ResetNonPolicyInstallAttempts(ctx context.Context, hostID, 
 		  AND policy_id IS NULL
 		  AND (attempt_number > 0 OR attempt_number IS NULL)
 	`, hostID, softwareInstallerID)
-	return ctxerr.Wrap(ctx, err, "reset non-policy install attempts")
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "reset non-policy install attempts")
+	}
+
+	// Cancel any pending retry installs in the upcoming_activities queue.
+	// The CASCADE FK on software_install_upcoming_activities handles cleanup.
+	_, err = ds.writer(ctx).ExecContext(ctx, `
+		DELETE ua FROM upcoming_activities ua
+		INNER JOIN software_install_upcoming_activities siua
+			ON ua.id = siua.upcoming_activity_id
+		WHERE ua.host_id = ?
+		  AND siua.software_installer_id = ?
+		  AND siua.policy_id IS NULL
+		  AND ua.activity_type = 'software_install'
+	`, hostID, softwareInstallerID)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "cancel pending non-policy install retries")
+	}
+
+	// Cancel any activated but pending installs in host_software_installs.
+	// Setting canceled = 1 updates the generated status column to
+	// 'canceled_install' automatically.
+	_, err = ds.writer(ctx).ExecContext(ctx, `
+		UPDATE host_software_installs
+		SET canceled = 1
+		WHERE host_id = ?
+		  AND software_installer_id = ?
+		  AND policy_id IS NULL
+		  AND status = 'pending_install'
+	`, hostID, softwareInstallerID)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "cancel activated pending non-policy installs")
+	}
+
+	return nil
 }
 
 func (ds *Datastore) ValidateOrbitSoftwareInstallerAccess(ctx context.Context, hostID uint, installerID uint) (bool, error) {
@@ -1185,6 +1224,7 @@ VALUES
 			'version', ?,
 			'software_title_name', ?,
 			'source', ?,
+			'with_retries', ?,
 			'user', (SELECT JSON_OBJECT('name', name, 'email', email, 'gravatar_url', gravatar_url) FROM users WHERE id = ?)
 		)
 	)`
@@ -1244,6 +1284,7 @@ VALUES
 			installerDetails.Version,
 			installerDetails.TitleName,
 			installerDetails.Source,
+			opts.WithRetries,
 			userID,
 		)
 		if err != nil {

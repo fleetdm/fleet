@@ -14515,6 +14515,26 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareInstallerHostRequests() {
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", h3.ID), nil, http.StatusOK, &hostRespFailed)
 	require.False(t, hostRespFailed.Host.RefetchRequested, "RefetchRequested should be false after failed software install")
 
+	// Exhaust automatic retries for h3 so it reaches terminal "failed" state.
+	// Server-side retries queue up to MaxSoftwareInstallRetries attempts.
+	for attempt := 2; attempt <= fleet.MaxSoftwareInstallRetries; attempt++ {
+		getHostSoftwareResp = getHostSoftwareResponse{}
+		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/software", h3.ID), nil, http.StatusOK, &getHostSoftwareResp)
+		require.Len(t, getHostSoftwareResp.Software, 1)
+		require.NotNil(t, getHostSoftwareResp.Software[0].SoftwarePackage)
+		require.NotNil(t, getHostSoftwareResp.Software[0].SoftwarePackage.LastInstall)
+		retryUUID := getHostSoftwareResp.Software[0].SoftwarePackage.LastInstall.InstallUUID
+		require.NotEqual(t, installUUID3, retryUUID, "retry should have a new install UUID (attempt %d)", attempt)
+		s.Do("POST", "/api/fleet/orbit/software_install/result", json.RawMessage(fmt.Sprintf(`{
+				"orbit_node_key": %q,
+				"install_uuid": %q,
+				"pre_install_condition_output": "ok",
+				"install_script_exit_code": 1,
+				"install_script_output": "retry %d failed"
+			}`, *h3.OrbitNodeKey, retryUUID, attempt)), http.StatusNoContent)
+		installUUID3 = retryUUID
+	}
+
 	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/software/%d/install", h4.ID, titleID), nil, http.StatusAccepted, &resp)
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/software", h4.ID), nil, http.StatusOK, &getHostSoftwareResp)
 	require.Len(t, getHostSoftwareResp.Software, 1)
@@ -14529,6 +14549,23 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareInstallerHostRequests() {
 	var hostRespPreInstallFailed getHostResponse
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", h4.ID), nil, http.StatusOK, &hostRespPreInstallFailed)
 	require.False(t, hostRespPreInstallFailed.Host.RefetchRequested, "RefetchRequested should be false after failed pre-install condition")
+
+	// Exhaust automatic retries for h4 so it reaches terminal "failed" state.
+	for attempt := 2; attempt <= fleet.MaxSoftwareInstallRetries; attempt++ {
+		getHostSoftwareResp = getHostSoftwareResponse{}
+		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/software", h4.ID), nil, http.StatusOK, &getHostSoftwareResp)
+		require.Len(t, getHostSoftwareResp.Software, 1)
+		require.NotNil(t, getHostSoftwareResp.Software[0].SoftwarePackage)
+		require.NotNil(t, getHostSoftwareResp.Software[0].SoftwarePackage.LastInstall)
+		retryUUID := getHostSoftwareResp.Software[0].SoftwarePackage.LastInstall.InstallUUID
+		require.NotEqual(t, installUUID4a, retryUUID, "retry should have a new install UUID (attempt %d)", attempt)
+		s.Do("POST", "/api/fleet/orbit/software_install/result", json.RawMessage(fmt.Sprintf(`{
+				"orbit_node_key": %q,
+				"install_uuid": %q,
+				"pre_install_condition_output": ""
+			}`, *h4.OrbitNodeKey, retryUUID)), http.StatusNoContent)
+		installUUID4a = retryUUID
+	}
 
 	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/software/%d/install", h4.ID, titleID), nil, http.StatusAccepted, &resp)
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/software", h4.ID), nil, http.StatusOK, &getHostSoftwareResp)
@@ -18043,7 +18080,11 @@ func (s *integrationEnterpriseTestSuite) TestNonPolicySoftwareInstallRetries() {
 			assert.Nil(t, results[1].InstallScriptExitCode)
 		}
 	}, 5*time.Second, 100*time.Millisecond)
-	require.Equal(t, 0, countActivities())
+
+	// Activity created for each failure
+	require.EventuallyWithT(t, func(t *assert.CollectT) {
+		assert.Equal(t, 1, countActivities(), "activity should be created for attempt 1")
+	}, 5*time.Second, 100*time.Millisecond)
 
 	// Wait for pending retry
 	require.EventuallyWithT(t, func(t *assert.CollectT) {
@@ -18070,7 +18111,7 @@ func (s *integrationEnterpriseTestSuite) TestNonPolicySoftwareInstallRetries() {
 			assert.Nil(t, results[2].InstallScriptExitCode)
 		}
 	}, 5*time.Second, 100*time.Millisecond)
-	require.Equal(t, 0, countActivities())
+	require.Equal(t, 2, countActivities())
 
 	// Wait for second retry
 	require.EventuallyWithT(t, func(t *assert.CollectT) {
@@ -18091,9 +18132,9 @@ func (s *integrationEnterpriseTestSuite) TestNonPolicySoftwareInstallRetries() {
 	require.Equal(t, 3, *results[2].AttemptNumber)
 	require.NotNil(t, results[2].InstallScriptExitCode)
 
-	// Activity created after final attempt
+	// All 3 attempts create activities
 	require.EventuallyWithT(t, func(t *assert.CollectT) {
-		assert.Equal(t, 1, countActivities(), "activity should be created for final attempt")
+		assert.Equal(t, 3, countActivities(), "activity should be created for each attempt")
 	}, 5*time.Second, 100*time.Millisecond)
 
 	// No more retries

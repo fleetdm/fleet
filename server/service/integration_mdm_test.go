@@ -19003,6 +19003,17 @@ func (s *integrationMDMTestSuite) TestCancelUpcomingActivity() {
 			"orbit_node_key": %q, "install_uuid": %q, "pre_install_condition_output": "ok", "install_script_exit_code": 1, "install_script_output": "fail"
 		}`, *mdmHost.OrbitNodeKey, hostActivitiesResp.Activities[1].UUID)), http.StatusNoContent)
 
+	// Exhaust automatic retries for the failed software install.
+	// Server-side retries queue up to MaxSoftwareInstallRetries attempts.
+	for attempt := 2; attempt <= fleet.MaxSoftwareInstallRetries; attempt++ {
+		hostActivitiesResp = listHostUpcomingActivitiesResponse{}
+		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/activities/upcoming", mdmHost.ID), nil, http.StatusOK, &hostActivitiesResp)
+		require.Len(t, hostActivitiesResp.Activities, 1, "should have pending retry (attempt %d)", attempt)
+		s.Do("POST", "/api/fleet/orbit/software_install/result", json.RawMessage(fmt.Sprintf(`{
+				"orbit_node_key": %q, "install_uuid": %q, "pre_install_condition_output": "ok", "install_script_exit_code": 1, "install_script_output": "fail"
+			}`, *mdmHost.OrbitNodeKey, hostActivitiesResp.Activities[0].UUID)), http.StatusNoContent)
+	}
+
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/activities/upcoming", mdmHost.ID), nil, http.StatusOK, &hostActivitiesResp)
 	require.Len(t, hostActivitiesResp.Activities, 0)
 

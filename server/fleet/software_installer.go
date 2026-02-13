@@ -1084,6 +1084,10 @@ type HostSoftwareInstallOptions struct {
 	ForScheduledUpdates bool
 	// UserID is an explicit user ID for retries (overrides context user when set).
 	UserID *uint
+	// WithRetries indicates the install should be retried on failure (up to
+	// MaxSoftwareInstallRetries). Set by host details, self-service, and
+	// setup experience install paths.
+	WithRetries bool
 }
 
 // IsFleetInitiated returns true if the software install is initiated by Fleet.
