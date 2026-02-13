@@ -513,7 +513,7 @@ type UploadSoftwareInstallerPayload struct {
 	RollbackVersion string
 	// FMAVersionCached indicates this FMA version is already cached in the
 	// database and installer store, so storage and insert can be skipped.
-	FMAVersionCached bool
+	FMAVersionCached   bool
 	PackageIDs         []string
 	UpgradeCode        string
 	UninstallScript    string
