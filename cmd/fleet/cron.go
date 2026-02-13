@@ -991,7 +991,7 @@ func newCleanupsAndAggregationSchedule(
 			return ds.RenewMDMManagedCertificates(ctx)
 		}),
 		schedule.WithJob("renew_android_certificate_templates", func(ctx context.Context) error {
-			return android_svc.RenewCertificateTemplates(ctx, ds, logger)
+			return android_svc.RenewCertificateTemplates(ctx, ds, logger.SlogLogger())
 		}),
 		schedule.WithJob("query_results_cleanup", func(ctx context.Context) error {
 			config, err := ds.AppConfig(ctx)
@@ -1412,7 +1412,7 @@ func newAndroidMDMProfileManagerSchedule(
 		ctx, name, instanceID, defaultInterval, ds, ds,
 		schedule.WithLogger(logger),
 		schedule.WithJob("manage_android_profiles", func(ctx context.Context) error {
-			return android_svc.ReconcileProfiles(ctx, ds, logger, licenseKey, androidAgentConfig)
+			return android_svc.ReconcileProfiles(ctx, ds, logger.SlogLogger(), licenseKey, androidAgentConfig)
 		}),
 	)
 
@@ -1848,7 +1848,7 @@ func newAndroidMDMDeviceReconcilerSchedule(
 		ctx, name, instanceID, defaultInterval, ds, ds,
 		schedule.WithLogger(logger),
 		schedule.WithJob("reconcile_android_devices", func(ctx context.Context) error {
-			return android_svc.ReconcileAndroidDevices(ctx, ds, logger, licenseKey)
+			return android_svc.ReconcileAndroidDevices(ctx, ds, logger.SlogLogger(), licenseKey)
 		}),
 	)
 
