@@ -4925,6 +4925,28 @@ The host will only return a key if its disk encryption status is "Verified." Get
 }
 ```
 
+### Rotate host's Recovery Lock password
+
+_Available in Fleet Premium_
+
+Rotates the Recovery Lock password for a host.
+
+`POST /api/v1/fleet/hosts/:id/rotate_recovery_lock_password`
+
+#### Parameters
+
+| Name                          | Type    | In    | Description                                                                                        |
+| ----------------------------- | ------  | ----  | --------------------------------------------------------------------------------------             |
+| id                            | integer | body  | The host ID to rotate Recovery Lock password for.                                                  |
+
+#### Example
+
+`POST /api/v1/fleet/hosts/:id/rotate_recovery_lock_password`
+
+##### Default response
+
+`204`
+
 ### Get host's certificates
 
 Available for macOS, iOS, iPadOS, and Windows hosts only. Requires Fleet's MDM to be [enabled and configured](https://fleetdm.com/docs/using-fleet/mdm-setup).
