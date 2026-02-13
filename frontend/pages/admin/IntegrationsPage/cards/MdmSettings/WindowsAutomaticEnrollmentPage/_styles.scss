@@ -1,11 +1,26 @@
 .windows-automatic-enrollment-page {
   @include vertical-page-layout;
 
-  &__card {
+  &__content-container {
+    display: flex;
+    flex-direction: column;
+    gap: $pad-xlarge;
     max-width: $settings-form-max-width;
-    p {
-      margin-top: 0;
-    }
+  }
+
+  h2 {
+    font-size: $medium;
+    color: $ui-fleet-black-75;
+  }
+
+  p {
+    margin-top: 0;
+  }
+
+  &__mdm-urls-container, &__tenants-container {
+    display: flex;
+    flex-direction: column;
+    gap: $pad-large;
   }
 
   &__url-inputs-wrapper {
