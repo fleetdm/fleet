@@ -158,6 +158,7 @@ const ManageHostsPage = ({
     filteredHostsPath,
     isGlobalAdmin,
     isGlobalMaintainer,
+    isGlobalTechnician,
     isOnGlobalTeam,
     isOnlyObserver,
     isPremiumTier,
@@ -186,6 +187,7 @@ const ManageHostsPage = ({
     isRouteOk,
     isTeamAdmin,
     isTeamMaintainer,
+    isTeamTechnician,
     isTeamMaintainerOrTeamAdmin,
     teamIdForApi,
     userTeams,
@@ -398,7 +400,12 @@ const ManageHostsPage = ({
     isGlobalAdmin || isGlobalMaintainer || isTeamAdmin || isTeamMaintainer;
   const canEnrollGlobalHosts = isGlobalAdmin || isGlobalMaintainer;
   const canAddNewLabels =
-    (isGlobalAdmin || isGlobalMaintainer || isTeamAdmin || isTeamMaintainer) ??
+    (isGlobalAdmin ||
+      isGlobalMaintainer ||
+      isGlobalTechnician ||
+      isTeamAdmin ||
+      isTeamMaintainer ||
+      isTeamTechnician) ??
     false;
   const canRunScriptBatch =
     isGlobalAdmin || isGlobalMaintainer || isTeamAdmin || isTeamMaintainer;
@@ -1795,7 +1802,9 @@ const ManageHostsPage = ({
       hiddenColumns,
       isFreeTier,
       isOnlyObserver:
-        isOnlyObserver || (!isOnGlobalTeam && !isTeamMaintainerOrTeamAdmin),
+        isOnlyObserver ||
+        isGlobalTechnician ||
+        (!isOnGlobalTeam && !isTeamMaintainerOrTeamAdmin),
     });
 
     const emptyState = () => {

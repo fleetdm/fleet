@@ -90,6 +90,7 @@ const SaveAsNewQueryModal = ({
       maintainer: true,
       observer: false,
       observer_plus: false,
+      technician: false,
     },
   });
 

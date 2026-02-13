@@ -101,7 +101,7 @@ const AddInstallSoftware = ({
         currentTeamId,
         requireAllSoftwareMacOS
       );
-      renderFlash("success", "Successfully updated!");
+      renderFlash("success", "Successfully updated.");
     } catch {
       renderFlash("error", "Couldn't update. Please try again.");
     } finally {

@@ -9,9 +9,9 @@ import (
 	authz_ctx "github.com/fleetdm/fleet/v4/server/contexts/authz"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mock"
+	"github.com/fleetdm/fleet/v4/server/platform/logging"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/service/calendar"
-	"github.com/go-kit/log"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -389,7 +389,7 @@ func TestCalendarWebhookErrorCases(t *testing.T) {
 				ds:              ds,
 				distributedLock: lock,
 				authz:           auth,
-				logger:          log.NewNopLogger(),
+				logger:          logging.NewNopLogger(),
 			}
 
 			// Apply test-specific mocks

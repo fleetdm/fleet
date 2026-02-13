@@ -1,0 +1,1 @@
+- Fleet UI: Fix install/uninstall tarballs package to skip recently updated status that is waiting for a change in software inventory

@@ -3,6 +3,7 @@ import React from "react";
 import { validateQuery } from "components/forms/validators/validate_query";
 
 import { getExtensionFromFileName } from "utilities/file/fileUtils";
+import { getGitOpsModeTipContent } from "utilities/helpers";
 import { IPackageFormData, IPackageFormValidation } from "./PackageForm";
 
 type IMessageFunc = (formData: IPackageFormData) => string;
@@ -209,8 +210,13 @@ export const generateFormValidation = (formData: IPackageFormData) => {
 };
 
 export const createTooltipContent = (
-  formValidation: IPackageFormValidation
+  formValidation: IPackageFormValidation,
+  repoURL?: string,
+  disabledFieldsForGitOps?: boolean
 ) => {
+  if (disabledFieldsForGitOps && repoURL) {
+    return getGitOpsModeTipContent(repoURL);
+  }
   const messages = Object.values(formValidation)
     .filter((field) => field.isValid === false && field.message)
     .map((field) => field.message);
