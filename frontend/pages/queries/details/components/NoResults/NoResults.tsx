@@ -73,8 +73,7 @@ const NoResults = ({
                 in Fleet:
               </div>
               <div>
-                &nbsp; • Reports are globally disabled in organization
-                settings.
+                &nbsp; • Reports are globally disabled in organization settings.
               </div>
             </>
           );

@@ -391,8 +391,8 @@ const QueryDetailsPage = ({
       cta={<CustomLink url={SUPPORT_LINK} text="Get help" newTab />}
     >
       <div>
-        <b>Report clipped.</b> A sample of this report&apos;s results is included
-        below.
+        <b>Report clipped.</b> A sample of this report&apos;s results is
+        included below.
         {
           // Exclude below message for global and team observers/observer+s
           !(
