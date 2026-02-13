@@ -508,7 +508,7 @@ Returns a list of the activities that have been performed in Fleet. For a compre
 | Name            | Type    | In    | Description                                                 |
 |:--------------- |:------- |:----- |:------------------------------------------------------------|
 | page            | integer | query | Page number of the results to fetch.                                                                                          |
-| per_page        | integer | query | Results per page.                                                                                                             |
+| per_page        | integer | query | Results per page. Maximum is 10,000 records. If no pagination parameters are specified, defaults to 10,000.                    |
 | order_key       | string  | query | What to order results by. Can be any column in the `activities` table.                                                         |
 | order_direction | string  | query | **Requires `order_key`**. The direction of the order given the order key. Options include `"asc"` and `"desc"`. Default is `"asc"`. |
 | query | string | query | Search query keywords. Searchable fields include `actor_full_name` and `actor_email`.
@@ -5158,7 +5158,7 @@ To wipe a macOS, iOS, iPadOS, or Windows host, the host must have MDM turned on.
 | ---- | ------- | ---- | ---------------------------- |
 | id   | integer | path | **Required**. The host's ID. |
 | page | integer | query | Page number of the results to fetch.|
-| per_page | integer | query | Results per page.|
+| per_page | integer | query | Results per page. Maximum is 10,000 records. If no pagination parameters are specified, defaults to 10,000.|
 
 #### Example
 
