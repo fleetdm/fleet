@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log/slog"
 	"net/http"
 	"net/url"
 	"os"
@@ -207,21 +208,21 @@ func (svc *Service) EnrollOsquery(ctx context.Context, enrollSecret, hostIdentif
 	)
 	save := false
 	if r, ok := hostDetails["os_version"]; ok {
-		err := detailQueries["os_version"].IngestFunc(ctx, svc.logger, host, []map[string]string{r})
+		err := detailQueries["os_version"].IngestFunc(ctx, svc.logger.SlogLogger(), host, []map[string]string{r})
 		if err != nil {
 			return "", ctxerr.Wrap(ctx, err, "Ingesting os_version")
 		}
 		save = true
 	}
 	if r, ok := hostDetails["osquery_info"]; ok {
-		err := detailQueries["osquery_info"].IngestFunc(ctx, svc.logger, host, []map[string]string{r})
+		err := detailQueries["osquery_info"].IngestFunc(ctx, svc.logger.SlogLogger(), host, []map[string]string{r})
 		if err != nil {
 			return "", ctxerr.Wrap(ctx, err, "Ingesting osquery_info")
 		}
 		save = true
 	}
 	if r, ok := hostDetails["system_info"]; ok {
-		err := detailQueries["system_info"].IngestFunc(ctx, svc.logger, host, []map[string]string{r})
+		err := detailQueries["system_info"].IngestFunc(ctx, svc.logger.SlogLogger(), host, []map[string]string{r})
 		if err != nil {
 			return "", ctxerr.Wrap(ctx, err, "Ingesting system_info")
 		}
@@ -776,7 +777,7 @@ func (svc *Service) detailQueriesForHost(ctx context.Context, host *fleet.Host) 
 			queryName := hostDetailQueryPrefix + name
 
 			if query.QueryFunc != nil && query.Query == "" {
-				query, ok := query.QueryFunc(ctx, svc.logger, host, svc.ds)
+				query, ok := query.QueryFunc(ctx, svc.logger.SlogLogger(), host, svc.ds)
 				if !ok {
 					continue
 				}
@@ -1094,7 +1095,7 @@ func (svc *Service) SubmitDistributedQueryResults(
 
 	svc.maybeDebugHost(ctx, host, results, statuses, messages, stats)
 
-	preProcessSoftwareResults(host, results, statuses, messages, osquery_utils.SoftwareOverrideQueries, svc.logger)
+	preProcessSoftwareResults(ctx, host, results, statuses, messages, osquery_utils.SoftwareOverrideQueries, svc.logger.SlogLogger())
 
 	var hostWithoutPolicies bool
 	for query, rows := range results {
@@ -1423,30 +1424,31 @@ func getFailingCalendarPolicies(policyResults map[uint]*bool, calendarPolicies [
 // We do this to not grow the main software queries and to ingest
 // all software together (one direct ingest function for all software).
 func preProcessSoftwareResults(
+	ctx context.Context,
 	host *fleet.Host,
 	results fleet.OsqueryDistributedQueryResults,
 	statuses map[string]fleet.OsqueryStatus,
 	messages map[string]string,
 	overrides map[string]osquery_utils.DetailQuery,
-	logger log.Logger,
+	logger *slog.Logger,
 ) {
 	vsCodeExtensionsExtraQuery := hostDetailQueryPrefix + "software_vscode_extensions"
-	preProcessSoftwareExtraResults(vsCodeExtensionsExtraQuery, host.ID, results, statuses, messages, osquery_utils.DetailQuery{}, logger)
+	preProcessSoftwareExtraResults(ctx, vsCodeExtensionsExtraQuery, host.ID, results, statuses, messages, osquery_utils.DetailQuery{}, logger)
 
 	pythonPackagesExtraQuery := hostDetailQueryPrefix + "software_python_packages"
-	preProcessSoftwareExtraResults(pythonPackagesExtraQuery, host.ID, results, statuses, messages, osquery_utils.DetailQuery{}, logger)
+	preProcessSoftwareExtraResults(ctx, pythonPackagesExtraQuery, host.ID, results, statuses, messages, osquery_utils.DetailQuery{}, logger)
 	pythonPackagesWithUsersExtraQuery := hostDetailQueryPrefix + "software_python_packages_with_users_dir"
-	preProcessSoftwareExtraResults(pythonPackagesWithUsersExtraQuery, host.ID, results, statuses, messages, osquery_utils.DetailQuery{}, logger)
+	preProcessSoftwareExtraResults(ctx, pythonPackagesWithUsersExtraQuery, host.ID, results, statuses, messages, osquery_utils.DetailQuery{}, logger)
 
 	fleetdPacmanPackagesExtraQuery := hostDetailQueryPrefix + "software_linux_fleetd_pacman"
-	preProcessSoftwareExtraResults(fleetdPacmanPackagesExtraQuery, host.ID, results, statuses, messages, osquery_utils.DetailQuery{}, logger)
+	preProcessSoftwareExtraResults(ctx, fleetdPacmanPackagesExtraQuery, host.ID, results, statuses, messages, osquery_utils.DetailQuery{}, logger)
 
 	jetbrainsPluginsExtraQuery := hostDetailQueryPrefix + "software_jetbrains_plugins"
-	preProcessSoftwareExtraResults(jetbrainsPluginsExtraQuery, host.ID, results, statuses, messages, osquery_utils.DetailQuery{}, logger)
+	preProcessSoftwareExtraResults(ctx, jetbrainsPluginsExtraQuery, host.ID, results, statuses, messages, osquery_utils.DetailQuery{}, logger)
 
 	for name, query := range overrides {
 		fullQueryName := hostDetailQueryPrefix + "software_" + name
-		preProcessSoftwareExtraResults(fullQueryName, host.ID, results, statuses, messages, query, logger)
+		preProcessSoftwareExtraResults(ctx, fullQueryName, host.ID, results, statuses, messages, query, logger)
 	}
 
 	// Filter out python packages that are also deb packages on ubuntu/debian
@@ -1566,13 +1568,14 @@ func pythonPackageFilter(platform string, results fleet.OsqueryDistributedQueryR
 }
 
 func preProcessSoftwareExtraResults(
+	ctx context.Context,
 	softwareExtraQuery string,
 	hostID uint,
 	results fleet.OsqueryDistributedQueryResults,
 	statuses map[string]fleet.OsqueryStatus,
 	messages map[string]string,
 	override osquery_utils.DetailQuery,
-	logger log.Logger,
+	logger *slog.Logger,
 ) {
 	// We always remove the extra query and its results
 	// in case the main or extra software query failed to execute.
@@ -1585,7 +1588,7 @@ func preProcessSoftwareExtraResults(
 	failed := status != fleet.StatusOK
 	if failed {
 		// extra query executed but with errors, so we return without changing anything.
-		level.Error(logger).Log(
+		logger.ErrorContext(ctx, "extra query executed with errors",
 			"query", softwareExtraQuery,
 			"message", messages[softwareExtraQuery],
 			"hostID", hostID,
@@ -1761,13 +1764,13 @@ func (svc *Service) directIngestDetailQuery(ctx context.Context, host *fleet.Hos
 		return false, newOsqueryError("unknown detail query " + name)
 	}
 	if query.DirectIngestFunc != nil {
-		err = query.DirectIngestFunc(ctx, svc.logger, host, svc.ds, rows)
+		err = query.DirectIngestFunc(ctx, svc.logger.SlogLogger(), host, svc.ds, rows)
 		if err != nil {
 			return false, newOsqueryError(fmt.Sprintf("ingesting query %s: %s", name, err.Error()))
 		}
 		return true, nil
 	} else if query.DirectTaskIngestFunc != nil {
-		err = query.DirectTaskIngestFunc(ctx, svc.logger, host, svc.task, rows)
+		err = query.DirectTaskIngestFunc(ctx, svc.logger.SlogLogger(), host, svc.task, rows)
 		if err != nil {
 			return false, newOsqueryError(fmt.Sprintf("ingesting query %s: %s", name, err.Error()))
 		}
@@ -1922,7 +1925,7 @@ func (svc *Service) ingestDetailQuery(ctx context.Context, host *fleet.Host, nam
 	}
 
 	if query.IngestFunc != nil {
-		err = query.IngestFunc(ctx, svc.logger, host, rows)
+		err = query.IngestFunc(ctx, svc.logger.SlogLogger(), host, rows)
 		if err != nil {
 			return newOsqueryError(fmt.Sprintf("ingesting query %s: %s", name, err.Error()))
 		}

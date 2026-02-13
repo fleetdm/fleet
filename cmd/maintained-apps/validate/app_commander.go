@@ -6,14 +6,13 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"log/slog"
 	"os"
 	"path/filepath"
 	"strings"
 
 	"github.com/fleetdm/fleet/v4/pkg/file"
 	"github.com/fleetdm/fleet/v4/server/fleet"
-	kitlog "github.com/go-kit/log"
-	"github.com/go-kit/log/level"
 )
 
 type AppCommander struct {
@@ -25,7 +24,7 @@ type AppCommander struct {
 	UninstallScript  string
 	InstallScript    string
 	cfg              *Config
-	appLogger        kitlog.Logger
+	appLogger        *slog.Logger
 }
 
 func (ac *AppCommander) isFrozen() (bool, error) {
@@ -68,47 +67,47 @@ func (ac *AppCommander) extractAppVersion(installerTFR *fleet.TempFileReader) er
 }
 
 func (ac *AppCommander) uninstallPreInstalled(ctx context.Context) {
-	level.Info(ac.appLogger).Log("msg", "App is marked as pre-installed, attempting to run uninstall script...")
+	ac.appLogger.InfoContext(ctx, "App is marked as pre-installed, attempting to run uninstall script...")
 
-	_, _, listError := ac.expectToChangeFileSystem(
+	_, _, listError := ac.expectToChangeFileSystem(ctx,
 		func() error {
 			uninstalled := ac.uninstallApp(ctx)
 			if !uninstalled {
-				level.Error(ac.appLogger).Log("msg", "Failed to uninstall pre-installed app")
+				ac.appLogger.ErrorContext(ctx, "Failed to uninstall pre-installed app")
 			}
 			return nil
 		},
 	)
 
 	if listError != nil {
-		level.Error(ac.appLogger).Log("msg", fmt.Sprintf("Error listing %s directory: %v", ac.cfg.installationSearchDirectory, listError))
+		ac.appLogger.ErrorContext(ctx, fmt.Sprintf("Error listing %s directory: %v", ac.cfg.installationSearchDirectory, listError))
 	}
 }
 
 func (ac *AppCommander) uninstallApp(ctx context.Context) bool {
-	level.Info(ac.appLogger).Log("msg", "Executing uninstall script for app...")
+	ac.appLogger.InfoContext(ctx, "Executing uninstall script for app...")
 	output, err := executeScript(ac.cfg, ac.UninstallScript)
 	if err != nil {
-		level.Error(ac.appLogger).Log("msg", fmt.Sprintf("Error uninstalling app: %v", err))
-		level.Error(ac.appLogger).Log("msg", fmt.Sprintf("Output: %s", output))
+		ac.appLogger.ErrorContext(ctx, fmt.Sprintf("Error uninstalling app: %v", err))
+		ac.appLogger.ErrorContext(ctx, fmt.Sprintf("Output: %s", output))
 		return false
 	}
-	level.Debug(ac.appLogger).Log("msg", fmt.Sprintf("Output: %s", output))
+	ac.appLogger.DebugContext(ctx, fmt.Sprintf("Output: %s", output))
 
-	existance, err := appExists(ctx, ac.appLogger, ac.Name, ac.UniqueIdentifier, ac.Version, ac.AppPath)
+	existance, err := appExists(ctx, ac.cfg.logger, ac.Name, ac.UniqueIdentifier, ac.Version, ac.AppPath)
 	if err != nil {
-		level.Error(ac.appLogger).Log("msg", fmt.Sprintf("Error checking if app exists after uninstall: %v", err))
+		ac.appLogger.ErrorContext(ctx, fmt.Sprintf("Error checking if app exists after uninstall: %v", err))
 		return false
 	}
 	if existance {
-		level.Error(ac.appLogger).Log("msg", fmt.Sprintf("App version '%s' was found after uninstall", ac.Version))
+		ac.appLogger.ErrorContext(ctx, fmt.Sprintf("App version '%s' was found after uninstall", ac.Version))
 		return false
 	}
 
 	return true
 }
 
-func (ac *AppCommander) expectToChangeFileSystem(changer func() error) (string, error, error) {
+func (ac *AppCommander) expectToChangeFileSystem(ctx context.Context, changer func() error) (string, error, error) {
 	var preListError, postListError, listError error
 	appListPre, err := listDirectoryContents(ac.cfg.installationSearchDirectory)
 	if err != nil {
@@ -124,12 +123,12 @@ func (ac *AppCommander) expectToChangeFileSystem(changer func() error) (string, 
 
 	appPath, changed := detectApplicationChange(ac.cfg.installationSearchDirectory, appListPre, appListPost)
 	if appPath == "" {
-		level.Warn(ac.appLogger).Log("msg", fmt.Sprintf("no changes detected in %s directory after running application script.", ac.cfg.installationSearchDirectory))
+		ac.appLogger.WarnContext(ctx, fmt.Sprintf("no changes detected in %s directory after running application script.", ac.cfg.installationSearchDirectory))
 	} else {
 		if changed {
-			level.Info(ac.appLogger).Log("msg", fmt.Sprintf("New application detected at: %s", appPath))
+			ac.appLogger.InfoContext(ctx, fmt.Sprintf("New application detected at: %s", appPath))
 		} else {
-			level.Info(ac.appLogger).Log("msg", fmt.Sprintf("Application removal detected at: %s", appPath))
+			ac.appLogger.InfoContext(ctx, fmt.Sprintf("Application removal detected at: %s", appPath))
 		}
 	}
 
