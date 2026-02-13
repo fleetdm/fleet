@@ -10,6 +10,7 @@ import {
   PLATFORM_TYPE_ICONS,
 } from "utilities/constants";
 import Icon from "components/Icon";
+import Spinner from "components/Spinner";
 
 import CustomLabelGroupHeading from "../CustomLabelGroupHeading";
 import { createDropdownOptions, IEmptyOption, IGroupOption } from "./helpers";
@@ -66,6 +67,16 @@ const formatOptionLabel = (data: ILabel | IEmptyOption) => {
   );
 };
 
+const LoadingMenu = (props: any) => {
+  return (
+    <components.Menu {...props}>
+      <div className="label-filter-select__menu-loading">
+        <Spinner includeContainer={false} />
+      </div>
+    </components.Menu>
+  );
+};
+
 interface ILabelFilterSelectProps {
   labels: ILabel[];
   selectedLabel: ILabel | null;
@@ -73,6 +84,7 @@ interface ILabelFilterSelectProps {
   className?: string;
   onChange: (labelId: ILabel) => void;
   onAddLabel: () => void;
+  isLoading?: boolean;
 }
 
 const LabelFilterSelect = ({
@@ -82,6 +94,7 @@ const LabelFilterSelect = ({
   className,
   onChange,
   onAddLabel,
+  isLoading = false,
 }: ILabelFilterSelectProps) => {
   const [labelQuery, setLabelQuery] = useState("");
 
@@ -189,6 +202,7 @@ const LabelFilterSelect = ({
           GroupHeading: CustomLabelGroupHeading,
           DropdownIndicator: CustomDropdownIndicator,
           ValueContainer,
+          Menu: isLoading ? LoadingMenu : components.Menu,
         }}
         onChange={handleChange}
         closeMenuOnSelect
@@ -207,6 +221,7 @@ const LabelFilterSelect = ({
           onClickLabelSearchInput,
           onBlurLabelSearchInput,
         }}
+        isLoading={isLoading}
       />
     </div>
   );
