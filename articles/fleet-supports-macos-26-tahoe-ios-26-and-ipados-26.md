@@ -21,7 +21,7 @@ In Apple Business Manager (ABM), admins can assign devices to a new MDM server a
 
 Fleet is ready to support this migration workflow, making it easier for organizations to migrate devices with minimal disruption. Learn more about configuring migration in the [Apple docs](https://support.apple.com/guide/deployment/migrate-managed-devices-dep4acb2aa44/web).
 
-> If the MDM migration fails, don't reassign the host back to your old MDM in Apple Business Manager (ABM). Reassigning breaks the host’s eligibility for migration because a host must be actively enrolled in the MDM it’s being migrated from. Once you change the ABM assignment, ABM thinks the host is no longer enrolled in that MDM, so migration can’t continue.
+> If the MDM migration fails, don’t reassign the host to your old MDM in Apple Business Manager (ABM). Reassigning makes the host ineligible for migration. The host must stay actively enrolled in the MDM it’s migrating from. Once you change the ABM assignment, ABM treats the host as no longer enrolled, and the migration can’t continue.
 
 ## Declarative device management (DDM) OS updates and profiles
 
