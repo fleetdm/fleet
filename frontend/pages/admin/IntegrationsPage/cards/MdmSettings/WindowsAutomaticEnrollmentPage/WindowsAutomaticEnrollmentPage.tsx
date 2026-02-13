@@ -1,4 +1,4 @@
-import React, { useContext } from "react";
+import React, { useContext, useState } from "react";
 
 import PATHS from "router/paths";
 import { AppContext } from "context/app";
@@ -9,6 +9,9 @@ import BackButton from "components/BackButton";
 import MainContent from "components/MainContent";
 import CustomLink from "components/CustomLink/CustomLink";
 import PageDescription from "components/PageDescription";
+import EmptyTable from "components/EmptyTable";
+import Card from "components/Card";
+import Button from "components/buttons/Button";
 
 const generateMdmTermsOfUseUrl = (domain: string) => {
   return `${domain}/api/mdm/microsoft/tos`;
@@ -22,6 +25,23 @@ const baseClass = "windows-automatic-enrollment-page";
 
 const WindowsAutomaticEnrollmentPage = () => {
   const { config } = useContext(AppContext);
+
+  const [showAddTenantModal, setShowAddTenantModal] = useState(false);
+
+  const renderEntraTenants = () => {
+    return (
+      <Card paddingSize="xxlarge">
+        <EmptyTable
+          className={`${baseClass}__empty-tenant-message`}
+          header="No tenants added"
+          info="Add your Entra tenant ID to be able to enroll Windows hosts."
+          primaryButton={
+            <Button onClick={() => setShowAddTenantModal(true)}>Add</Button>
+          }
+        />
+      </Card>
+    );
+  };
 
   return (
     <MainContent className={baseClass}>
@@ -61,8 +81,8 @@ const WindowsAutomaticEnrollmentPage = () => {
                   label="MDM terms of use URL"
                   name="mdmTermsOfUseUrl"
                   tooltip="The terms of use URL is used to display the terms of service to end users
-              before turning on MDM for their host. The terms of use text informs users about
-              policies that will be enforced on the host."
+                  before turning on MDM for their host. The terms of use text informs users about
+                  policies that will be enforced on the host."
                   value={generateMdmTermsOfUseUrl(
                     config?.server_settings.server_url || ""
                   )}
@@ -83,6 +103,7 @@ const WindowsAutomaticEnrollmentPage = () => {
           </section>
           <section className={`${baseClass}__tenants-container`}>
             <h2>Entra tenants</h2>
+            <div>{renderEntraTenants()}</div>
           </section>
         </div>
       </>
