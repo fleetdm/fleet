@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"sync"
 	"time"
 
 	"github.com/VividCortex/mysqlerr"
@@ -14,6 +15,41 @@ import (
 	"github.com/go-sql-driver/mysql"
 	"github.com/jmoiron/sqlx"
 )
+
+var (
+	fatalErrorMu      sync.RWMutex
+	fatalErrorHandler func(error)
+	fatalErrorOnce    sync.Once
+)
+
+// SetFatalErrorHandler registers a function that will be called (at most once)
+// when a fatal database error is detected, such as the primary becoming
+// read-only during an Aurora failover. The handler should trigger a graceful
+// process shutdown.
+//
+// If no handler is set, the default behavior is to panic.
+func SetFatalErrorHandler(fn func(error)) {
+	fatalErrorMu.Lock()
+	defer fatalErrorMu.Unlock()
+	fatalErrorHandler = fn
+	fatalErrorOnce = sync.Once{} // reset so handler fires on next fatal error
+}
+
+// triggerFatalError calls the registered fatal error handler exactly once.
+// If no handler is registered, it panics (legacy behavior).
+func triggerFatalError(err error) {
+	fatalErrorMu.RLock()
+	handler := fatalErrorHandler
+	fatalErrorMu.RUnlock()
+
+	if handler == nil {
+		panic(fmt.Sprintf("database is read-only, possible failover detected: %v", err))
+	}
+
+	fatalErrorOnce.Do(func() {
+		handler(err)
+	})
+}
 
 var DoRetryErr = errors.New("fleet datastore retry")
 
@@ -47,9 +83,10 @@ func WithRetryTxx(ctx context.Context, db *sqlx.DB, fn TxFn, logger log.Logger) 
 			}
 
 			// Read-only errors indicate a DB failover occurred (primary demoted to reader).
-			// Panic to force Fleet to restart and reconnect to the new primary.
+			// Trigger graceful shutdown so the orchestrator restarts and reconnects to the new primary.
 			if IsReadOnlyError(err) {
-				panic(fmt.Sprintf("database is read-only, possible failover detected: %v", err))
+				triggerFatalError(err)
+				return backoff.Permanent(err)
 			}
 
 			if retryableError(err) {
@@ -64,7 +101,8 @@ func WithRetryTxx(ctx context.Context, db *sqlx.DB, fn TxFn, logger log.Logger) 
 			err = ctxerr.Wrap(ctx, err, "commit transaction")
 
 			if IsReadOnlyError(err) {
-				panic(fmt.Sprintf("database is read-only, possible failover detected: %v", err))
+				triggerFatalError(err)
+				return backoff.Permanent(err)
 			}
 
 			if retryableError(err) {

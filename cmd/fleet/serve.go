@@ -822,6 +822,16 @@ the way that the Fleet server works.
 			ctx, cancelFunc := context.WithCancel(baseCtx)
 			defer cancelFunc()
 
+			// Channel used to trigger graceful shutdown on fatal DB errors (e.g. Aurora failover).
+			dbFatalCh := make(chan error, 1)
+			common_mysql.SetFatalErrorHandler(func(err error) {
+				level.Error(logger).Log("msg", "fatal database error detected, initiating graceful shutdown", "err", err)
+				select {
+				case dbFatalCh <- err:
+				default:
+				}
+			})
+
 			var conditionalAccessMicrosoftProxy *conditional_access_microsoft_proxy.Proxy
 			if config.MicrosoftCompliancePartner.IsSet() {
 				var err error
@@ -1717,7 +1727,10 @@ the way that the Fleet server works.
 			go func() {
 				sig := make(chan os.Signal, 1)
 				signal.Notify(sig, syscall.SIGINT, syscall.SIGTERM)
-				<-sig // block on signal
+				select {
+				case <-sig:
+				case <-dbFatalCh:
+				}
 				ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 				defer cancel()
 				errs <- func() error {
