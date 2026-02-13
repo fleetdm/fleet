@@ -2,7 +2,7 @@
 apiVersion: v1
 kind: team
 spec:
-  team:
+  fleet:
     host_expiry_settings:
       host_expiry_enabled: false
       host_expiry_window: 0
