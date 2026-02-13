@@ -132,7 +132,7 @@ export interface IAppStoreApp {
   created_at: string;
   icon_url: string;
   self_service: boolean;
-  platform: typeof HOST_APPLE_PLATFORMS[number] | "android";
+  platform: (typeof HOST_APPLE_PLATFORMS)[number] | "android";
   status: ISoftwareAppStoreAppStatus;
   install_during_setup?: boolean;
   automatic_install_policies?: ISoftwareInstallPolicy[] | null;
@@ -156,7 +156,7 @@ export interface IAppStoreApp {
 export type InstallerType = "package" | "app-store";
 
 export const isSoftwarePackage = (
-  data: ISoftwarePackage | IAppStoreApp
+  data: ISoftwarePackage | IAppStoreApp,
 ): data is ISoftwarePackage =>
   (data as ISoftwarePackage).install_script !== undefined;
 
@@ -260,6 +260,7 @@ export const SOURCE_TYPE_CONVERSION = {
   sh_packages: "Script-only package (macOS & Linux)",
   ps1_packages: "Script-only package (Windows)",
   jetbrains_plugins: "IDE extension", // jetbrains_plugins can include any JetBrains IDE (e.g., IntelliJ, PyCharm, WebStorm), so we rely instead on the `extension_for` field computed by Fleet server and fallback to this value if it is not present.
+  go_packages: "Package (Go)",
 } as const;
 
 export type SoftwareSource = keyof typeof SOURCE_TYPE_CONVERSION;
@@ -292,6 +293,7 @@ export const INSTALLABLE_SOURCE_PLATFORM_CONVERSION = {
   sh_packages: "linux", // 4.76 Added support for Linux hosts only
   ps1_packages: "windows",
   jetbrains_plugins: null,
+  go_packages: null,
 } as const;
 
 export const SCRIPT_PACKAGE_SOURCES = ["sh_packages", "ps1_packages"];
@@ -308,7 +310,8 @@ export const NO_VERSION_OR_HOST_DATA_SOURCES = [
   ...SCRIPT_PACKAGE_SOURCES,
 ];
 
-export type InstallableSoftwareSource = keyof typeof INSTALLABLE_SOURCE_PLATFORM_CONVERSION;
+export type InstallableSoftwareSource =
+  keyof typeof INSTALLABLE_SOURCE_PLATFORM_CONVERSION;
 
 const EXTENSION_FOR_TYPE_CONVERSION = {
   // chrome versions
@@ -374,7 +377,8 @@ export const SOFTWARE_UNINSTALL_STATUSES = [
   "failed_uninstall",
 ] as const;
 
-export type SoftwareUninstallStatus = typeof SOFTWARE_UNINSTALL_STATUSES[number];
+export type SoftwareUninstallStatus =
+  (typeof SOFTWARE_UNINSTALL_STATUSES)[number];
 
 export const SOFTWARE_INSTALL_STATUSES = [
   "installed",
@@ -389,7 +393,7 @@ export const SOFTWARE_SCRIPT_STATUSES = [
   "failed_script",
 ] as const;
 
-export type SoftwareInstallStatus = typeof SOFTWARE_INSTALL_STATUSES[number];
+export type SoftwareInstallStatus = (typeof SOFTWARE_INSTALL_STATUSES)[number];
 
 export const SOFTWARE_INSTALL_UNINSTALL_STATUSES = [
   ...SOFTWARE_INSTALL_STATUSES,
@@ -400,7 +404,8 @@ export const SOFTWARE_INSTALL_UNINSTALL_STATUSES = [
 /*
  * SoftwareInstallUninstallStatus represents the possible states of software install operations.
  */
-export type SoftwareInstallUninstallStatus = typeof SOFTWARE_INSTALL_UNINSTALL_STATUSES[number];
+export type SoftwareInstallUninstallStatus =
+  (typeof SOFTWARE_INSTALL_UNINSTALL_STATUSES)[number];
 
 /** Include script-only software statuses */
 export const ENAHNCED_SOFTWARE_INSTALL_UNINSTALL_STATUSES = [
@@ -412,14 +417,15 @@ export const ENAHNCED_SOFTWARE_INSTALL_UNINSTALL_STATUSES = [
 /*
  * EnhancedSoftwareInstallUninstallStatus represents the possible states of software install operations including script-only software used in the UI.
  */
-export type EnhancedSoftwareInstallUninstallStatus = typeof ENAHNCED_SOFTWARE_INSTALL_UNINSTALL_STATUSES[number];
+export type EnhancedSoftwareInstallUninstallStatus =
+  (typeof ENAHNCED_SOFTWARE_INSTALL_UNINSTALL_STATUSES)[number];
 
 export const isValidSoftwareInstallUninstallStatus = (
-  s: string | undefined | null
+  s: string | undefined | null,
 ): s is EnhancedSoftwareInstallUninstallStatus =>
   !!s &&
   ENAHNCED_SOFTWARE_INSTALL_UNINSTALL_STATUSES.includes(
-    s as EnhancedSoftwareInstallUninstallStatus
+    s as EnhancedSoftwareInstallUninstallStatus,
   );
 
 export const SOFTWARE_AGGREGATE_STATUSES = [
@@ -428,15 +434,16 @@ export const SOFTWARE_AGGREGATE_STATUSES = [
   "failed",
 ] as const;
 
-export type SoftwareAggregateStatus = typeof SOFTWARE_AGGREGATE_STATUSES[number];
+export type SoftwareAggregateStatus =
+  (typeof SOFTWARE_AGGREGATE_STATUSES)[number];
 
 export const isValidSoftwareAggregateStatus = (
-  s: string | undefined | null
+  s: string | undefined | null,
 ): s is SoftwareAggregateStatus =>
   !!s && SOFTWARE_AGGREGATE_STATUSES.includes(s as SoftwareAggregateStatus);
 
 export const isSoftwareUninstallStatus = (
-  s: string | undefined | null
+  s: string | undefined | null,
 ): s is SoftwareUninstallStatus =>
   !!s && SOFTWARE_UNINSTALL_STATUSES.includes(s as SoftwareUninstallStatus);
 
@@ -445,7 +452,7 @@ export const isPendingStatus = (s: string | undefined | null) =>
   ["pending_install", "pending_uninstall"].includes(s || "");
 
 export const resolveUninstallStatus = (
-  activityStatus?: string
+  activityStatus?: string,
 ): SoftwareUninstallStatus => {
   let resolvedStatus = activityStatus;
   if (resolvedStatus === "pending") {
@@ -456,7 +463,7 @@ export const resolveUninstallStatus = (
   }
   if (!isSoftwareUninstallStatus(resolvedStatus)) {
     console.warn(
-      `Unexpected uninstall status "${activityStatus}" for activity. Defaulting to "pending_uninstall".`
+      `Unexpected uninstall status "${activityStatus}" for activity. Defaulting to "pending_uninstall".`,
     );
     resolvedStatus = "pending_uninstall";
   }
@@ -590,9 +597,10 @@ export const HOST_SOFTWARE_UI_ERROR_STATUSES = [
   "failed_uninstall_update_available", // Uninstall/update failed; newer installer version available
   "failed_script", // Script package failed to run
 ] as const;
-export type HostSoftwareUiErrorStatus = typeof HOST_SOFTWARE_UI_ERROR_STATUSES[number];
+export type HostSoftwareUiErrorStatus =
+  (typeof HOST_SOFTWARE_UI_ERROR_STATUSES)[number];
 export const isSoftwareErrorStatus = (
-  status: IHostSoftwareUiStatus
+  status: IHostSoftwareUiStatus,
 ): status is HostSoftwareUiErrorStatus =>
   HOST_SOFTWARE_UI_ERROR_STATUSES.includes(status as HostSoftwareUiErrorStatus);
 
@@ -603,12 +611,13 @@ export const HOST_SOFTWARE_UI_PENDING_STATUSES = [
   "pending_update", // Update scheduled (no newer installer version)
   "pending_script", // Fleet-initiated script run scheduled
 ] as const;
-export type HostSoftwareUiPendingStatus = typeof HOST_SOFTWARE_UI_PENDING_STATUSES[number];
+export type HostSoftwareUiPendingStatus =
+  (typeof HOST_SOFTWARE_UI_PENDING_STATUSES)[number];
 export const isSoftwarePendingStatus = (
-  status: IHostSoftwareUiStatus
+  status: IHostSoftwareUiStatus,
 ): status is HostSoftwareUiPendingStatus =>
   HOST_SOFTWARE_UI_PENDING_STATUSES.includes(
-    status as HostSoftwareUiPendingStatus
+    status as HostSoftwareUiPendingStatus,
   );
 
 // In-progress UI statuses for ONLINE hosts
@@ -618,12 +627,13 @@ export const HOST_SOFTWARE_UI_IN_PROGRESS_STATUSES = [
   "uninstalling", // Fleet-initiated uninstall in progress
   "running_script", // Fleet-initiated script run in progress
 ] as const;
-export type HostSoftwareUiInProgressStatus = typeof HOST_SOFTWARE_UI_IN_PROGRESS_STATUSES[number];
+export type HostSoftwareUiInProgressStatus =
+  (typeof HOST_SOFTWARE_UI_IN_PROGRESS_STATUSES)[number];
 export const isSoftwareInProgressStatus = (
-  status: IHostSoftwareUiStatus
+  status: IHostSoftwareUiStatus,
 ): status is HostSoftwareUiInProgressStatus =>
   HOST_SOFTWARE_UI_IN_PROGRESS_STATUSES.includes(
-    status as HostSoftwareUiInProgressStatus
+    status as HostSoftwareUiInProgressStatus,
   );
 
 // Success/steady-state UI statuses
@@ -637,24 +647,26 @@ export const HOST_SOFTWARE_UI_SUCCESS_STATUSES = [
   "ran_script", // Script package ran successfully
   "never_ran_script", // Script package never ran before
 ] as const;
-export type HostSoftwareUiSuccessStatus = typeof HOST_SOFTWARE_UI_SUCCESS_STATUSES[number];
+export type HostSoftwareUiSuccessStatus =
+  (typeof HOST_SOFTWARE_UI_SUCCESS_STATUSES)[number];
 export const isSoftwareSuccessStatus = (
-  status: IHostSoftwareUiStatus
+  status: IHostSoftwareUiStatus,
 ): status is HostSoftwareUiSuccessStatus =>
   HOST_SOFTWARE_UI_SUCCESS_STATUSES.includes(
-    status as HostSoftwareUiSuccessStatus
+    status as HostSoftwareUiSuccessStatus,
   );
 
 // Update-available UI status
 export const HOST_SOFTWARE_UI_UPDATE_AVAILABLE_STATUSES = [
   "update_available", // In inventory, but newer fleet installer version is available
 ] as const;
-export type HostSoftwareUiUpdateAvailableStatus = typeof HOST_SOFTWARE_UI_UPDATE_AVAILABLE_STATUSES[number];
+export type HostSoftwareUiUpdateAvailableStatus =
+  (typeof HOST_SOFTWARE_UI_UPDATE_AVAILABLE_STATUSES)[number];
 export const isSoftwareUpdateAvailableStatus = (
-  status: IHostSoftwareUiStatus
+  status: IHostSoftwareUiStatus,
 ): status is HostSoftwareUiUpdateAvailableStatus =>
   HOST_SOFTWARE_UI_UPDATE_AVAILABLE_STATUSES.includes(
-    status as HostSoftwareUiUpdateAvailableStatus
+    status as HostSoftwareUiUpdateAvailableStatus,
   );
 
 // Master UI status type, combining all:
@@ -710,7 +722,7 @@ const INSTALL_STATUS_PREDICATES: Record<
 
 export const getInstallUninstallStatusPredicate = (
   status: string | undefined,
-  isScriptPackage = false
+  isScriptPackage = false,
 ) => {
   if (!status) {
     return INSTALL_STATUS_PREDICATES.pending;
@@ -739,7 +751,7 @@ export const getInstallUninstallStatusPredicate = (
 };
 
 export const aggregateInstallStatusCounts = (
-  packageStatuses: ISoftwarePackage["status"]
+  packageStatuses: ISoftwarePackage["status"],
 ) => ({
   installed: packageStatuses.installed,
   pending: packageStatuses.pending_install + packageStatuses.pending_uninstall,
@@ -768,7 +780,7 @@ type IHostSoftwarePackageWithLastInstall = IHostSoftwarePackage & {
 };
 
 export const hasHostSoftwarePackageLastInstall = (
-  software: IHostSoftware
+  software: IHostSoftware,
 ): software is IHostSoftware & {
   software_package: IHostSoftwarePackageWithLastInstall;
 } => {
@@ -780,7 +792,7 @@ type IHostAppWithLastInstall = IHostAppStoreApp & {
 };
 
 export const hasHostSoftwareAppLastInstall = (
-  software: IHostSoftware
+  software: IHostSoftware,
 ): software is IHostSoftware & {
   app_store_app: IHostAppWithLastInstall;
 } => {
@@ -838,5 +850,5 @@ export const ROLLING_ARCH_LINUX_NAMES = [
 ];
 
 export const ROLLING_ARCH_LINUX_VERSIONS = ROLLING_ARCH_LINUX_NAMES.map(
-  (name) => `${name} rolling`
+  (name) => `${name} rolling`,
 );

@@ -7,6 +7,7 @@ import (
 
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/bitlocker_key_protectors"
 	cisaudit "github.com/fleetdm/fleet/v4/orbit/pkg/table/cis_audit"
+	"github.com/fleetdm/fleet/v4/orbit/pkg/table/go_packages"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/mdm_bridge"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/windowsupdatetable"
 	"github.com/rs/zerolog/log"
@@ -24,6 +25,7 @@ func PlatformTables(_ PluginOpts) ([]osquery.OsqueryPlugin, error) {
 		bitlocker_key_protectors.TablePlugin(log.Logger),
 
 		windowsupdatetable.TablePlugin(windowsupdatetable.UpdatesTable, log.Logger), // table name is "windows_updates"
+		table.NewPlugin("go_packages", go_packages.GoPackagesColumns(), go_packages.GenerateGoPackages),
 	}
 
 	windowsServer, err := IsWindowsServer()
