@@ -13,8 +13,6 @@ import (
 	_ "embed"
 	"encoding/json"
 	"fmt"
-	"reflect"
-	"strings"
 
 	authz_ctx "github.com/fleetdm/fleet/v4/server/contexts/authz"
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
@@ -185,67 +183,7 @@ func jsonToInterface(in interface{}) (interface{}, error) {
 		}
 	}
 
-	// Add key aliases from `renameto` struct tags so that OPA policies can
-	// reference both old and new field names.
-	addRenameToKeys(reflect.TypeOf(in), out)
-
 	return out, nil
-}
-
-// addRenameToKeys inspects the struct type t and, for each field that has a
-// `renameto` tag, copies the value stored under the current (old) JSON key
-// into the map under the new key name. It also recurses one level into direct
-// child structs (not slices) to handle nested renames.
-func addRenameToKeys(t reflect.Type, m map[string]any) {
-	addRenameToKeysDepth(t, m, 0)
-}
-
-func addRenameToKeysDepth(t reflect.Type, m map[string]any, depth int) {
-	if t == nil {
-		return
-	}
-	for t.Kind() == reflect.Ptr {
-		t = t.Elem()
-	}
-	if t.Kind() != reflect.Struct {
-		return
-	}
-
-	for i := 0; i < t.NumField(); i++ {
-		field := t.Field(i)
-
-		// Handle embedded (anonymous) structs — their fields are promoted.
-		if field.Anonymous {
-			addRenameToKeysDepth(field.Type, m, depth)
-			continue
-		}
-
-		jsonTag := field.Tag.Get("json")
-		if jsonTag == "" || jsonTag == "-" {
-			continue
-		}
-		jsonKey := strings.Split(jsonTag, ",")[0]
-
-		// If this field has a renameto tag, copy the value under the new key.
-		if newKey := field.Tag.Get("renameto"); newKey != "" {
-			if val, ok := m[jsonKey]; ok {
-				m[newKey] = val
-			}
-		}
-
-		// Recurse one level into direct child structs.
-		if depth < 1 {
-			ft := field.Type
-			for ft.Kind() == reflect.Ptr {
-				ft = ft.Elem()
-			}
-			if ft.Kind() == reflect.Struct {
-				if nested, ok := m[jsonKey].(map[string]any); ok {
-					addRenameToKeysDepth(ft, nested, depth+1)
-				}
-			}
-		}
-	}
 }
 
 // UserFromContext retrieves a user from the viewer context, returning nil if
