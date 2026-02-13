@@ -1568,6 +1568,7 @@ const ManageHostsPage = ({
         hiddenColumns: currentHiddenColumns,
         isFreeTier,
         isOnlyObserver,
+        teamId: teamIdForApi,
       });
 
       const columnIds = tableColumns
@@ -1810,6 +1811,7 @@ const ManageHostsPage = ({
         isOnlyObserver ||
         isGlobalTechnician ||
         (!isOnGlobalTeam && !isTeamMaintainerOrTeamAdmin),
+      teamId: teamIdForApi,
     });
 
     const emptyState = () => {
