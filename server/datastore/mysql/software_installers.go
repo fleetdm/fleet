@@ -373,6 +373,21 @@ INSERT INTO software_installers (
 			}
 		}
 
+		// Ensure every FMA installer has an active entry so that
+		// queries filtering on fma_active_installers always find
+		// a row, even for the first (single) installer version.
+		if payload.FleetMaintainedAppID != nil {
+			if _, err := tx.ExecContext(ctx, `
+				INSERT INTO fma_active_installers
+					(team_id, global_or_team_id, fleet_maintained_app_id, software_installer_id)
+				VALUES (?, ?, ?, ?)
+				ON DUPLICATE KEY UPDATE
+					software_installer_id = VALUES(software_installer_id)
+			`, tid, globalOrTeamID, *payload.FleetMaintainedAppID, installerID); err != nil {
+				return ctxerr.Wrapf(ctx, err, "upsert fma_active_installers for %q", payload.Filename)
+			}
+		}
+
 		if payload.AutomaticInstall {
 			var installerMetadata automatic_policy.InstallerMetadata
 			if payload.AutomaticInstallQuery != "" {
@@ -931,7 +946,15 @@ FROM
   LEFT JOIN fleet_maintained_apps fma ON fma.id = si.fleet_maintained_app_id
   %s
 WHERE
-  si.title_id = ? AND si.global_or_team_id = ?`,
+  si.title_id = ? AND si.global_or_team_id = ?
+  AND si.id = COALESCE(
+    (SELECT fai.software_installer_id FROM fma_active_installers fai
+     WHERE fai.global_or_team_id = si.global_or_team_id
+       AND fai.fleet_maintained_app_id = si.fleet_maintained_app_id),
+    si.id
+  )
+ORDER BY si.uploaded_at DESC, si.id DESC
+LIMIT 1`,
 		scriptContentsSelect, scriptContentsFrom)
 
 	var tmID uint
@@ -1940,6 +1963,8 @@ func (ds *Datastore) CleanupUnusedSoftwareInstallers(ctx context.Context, softwa
 	return ctxerr.Wrap(ctx, err, "cleanup unused software installers")
 }
 
+const maxCachedFMAVersions = 2
+
 func (ds *Datastore) BatchSetSoftwareInstallers(ctx context.Context, tmID *uint, installers []*fleet.UploadSoftwareInstallerPayload) error {
 	const upsertSoftwareTitles = `
 INSERT INTO software_titles
@@ -2211,8 +2236,9 @@ FROM
 	software_installers
 WHERE
 	global_or_team_id = ?	AND
-	-- this is guaranteed to select a single title_id, due to unique index
 	title_id = ?
+ORDER BY uploaded_at DESC, id DESC
+LIMIT 1
 `
 
 	const deleteInstallerLabelsNotInList = `
@@ -2613,13 +2639,33 @@ WHERE
 				installer.FleetMaintainedAppID,
 				installer.InstallDuringSetup,
 			}
-			upsertQuery := insertNewOrEditedInstaller
-			if len(existing) > 0 && existing[0].IsPackageModified { // update uploaded_at for updated installer package
-				upsertQuery = fmt.Sprintf("%s, uploaded_at = NOW()", upsertQuery)
+			// For FMA installers, skip the insert if this exact version is already cached
+			// for this team+title. This prevents duplicate rows from repeated batch sets
+			// that re-download the same latest version.
+			var skipInsert bool
+			if installer.FleetMaintainedAppID != nil {
+				var existingID uint
+				err := sqlx.GetContext(ctx, tx, &existingID, `
+					SELECT id FROM software_installers
+					WHERE global_or_team_id = ? AND title_id = ? AND fleet_maintained_app_id IS NOT NULL AND version = ?
+					LIMIT 1
+				`, globalOrTeamID, titleID, installer.Version)
+				if err == nil {
+					skipInsert = true
+				} else if !errors.Is(err, sql.ErrNoRows) {
+					return ctxerr.Wrapf(ctx, err, "check existing FMA version %q for %q", installer.Version, installer.Filename)
+				}
 			}
 
-			if _, err := tx.ExecContext(ctx, upsertQuery, args...); err != nil {
-				return ctxerr.Wrapf(ctx, err, "insert new/edited installer with name %q", installer.Filename)
+			if !skipInsert {
+				upsertQuery := insertNewOrEditedInstaller
+				if len(existing) > 0 && existing[0].IsPackageModified { // update uploaded_at for updated installer package
+					upsertQuery = fmt.Sprintf("%s, uploaded_at = NOW()", upsertQuery)
+				}
+
+				if _, err := tx.ExecContext(ctx, upsertQuery, args...); err != nil {
+					return ctxerr.Wrapf(ctx, err, "insert new/edited installer with name %q", installer.Filename)
+				}
 			}
 
 			// now that the software installer is created/updated, load its installer
@@ -2628,6 +2674,86 @@ WHERE
 			var installerID uint
 			if err := sqlx.GetContext(ctx, tx, &installerID, loadSoftwareInstallerID, globalOrTeamID, titleID); err != nil {
 				return ctxerr.Wrapf(ctx, err, "load id of new/edited installer with name %q", installer.Filename)
+			}
+
+			// For non-FMA (custom) packages, enforce one installer per title per team.
+			// With the unique constraint on (global_or_team_id, title_id, version),
+			// a version change inserts a new row instead of replacing — clean up the old one.
+			if installer.FleetMaintainedAppID == nil {
+				if _, err := tx.ExecContext(ctx, `
+					DELETE FROM software_installers
+					WHERE global_or_team_id = ? AND title_id = ? AND id != ?
+				`, globalOrTeamID, titleID, installerID); err != nil {
+					return ctxerr.Wrapf(ctx, err, "clean up old versions of custom installer %q", installer.Filename)
+				}
+			}
+
+			// For FMA installers: determine the active version, then evict old versions
+			// (protecting the active one from eviction).
+			if installer.FleetMaintainedAppID != nil {
+				// Determine which installer should be "active" for this FMA+team.
+				// If RollbackVersion is specified, find the cached installer with that version;
+				// otherwise default to the newest (just inserted/updated).
+				activeInstallerID := installerID
+				if installer.RollbackVersion != "" {
+					var pinnedID uint
+					err := sqlx.GetContext(ctx, tx, &pinnedID, `
+						SELECT id FROM software_installers
+						WHERE global_or_team_id = ? AND title_id = ? AND fleet_maintained_app_id IS NOT NULL AND version = ?
+						ORDER BY uploaded_at DESC, id DESC LIMIT 1
+					`, globalOrTeamID, titleID, installer.RollbackVersion)
+					if err != nil {
+						return ctxerr.Wrapf(ctx, err, "find cached FMA installer version %q for %q", installer.RollbackVersion, installer.Filename)
+					}
+					activeInstallerID = pinnedID
+				}
+
+				// Evict old FMA versions beyond the max per title per team.
+				// Always keep the active installer; fill remaining slots with
+				// the most recent versions, evict everything else.
+				var allFMAInstallerIDs []uint
+				if err := sqlx.SelectContext(ctx, tx, &allFMAInstallerIDs, `
+					SELECT id FROM software_installers
+					WHERE global_or_team_id = ? AND title_id = ? AND fleet_maintained_app_id IS NOT NULL
+					ORDER BY uploaded_at DESC, id DESC
+				`, globalOrTeamID, titleID); err != nil {
+					return ctxerr.Wrapf(ctx, err, "list FMA installer versions for eviction for %q", installer.Filename)
+				}
+				if len(allFMAInstallerIDs) > maxCachedFMAVersions {
+					// Build the keep set: active installer + most recent up to max.
+					keepSet := map[uint]bool{activeInstallerID: true}
+					for _, id := range allFMAInstallerIDs {
+						if len(keepSet) >= maxCachedFMAVersions {
+							break
+						}
+						keepSet[id] = true
+					}
+					var evictIDs []uint
+					for _, id := range allFMAInstallerIDs {
+						if !keepSet[id] {
+							evictIDs = append(evictIDs, id)
+						}
+					}
+					if len(evictIDs) > 0 {
+						stmt, args, err := sqlx.In(`DELETE FROM software_installers WHERE id IN (?)`, evictIDs)
+						if err != nil {
+							return ctxerr.Wrap(ctx, err, "build FMA eviction query")
+						}
+						if _, err := tx.ExecContext(ctx, stmt, args...); err != nil {
+							return ctxerr.Wrapf(ctx, err, "evict old FMA versions for %q", installer.Filename)
+						}
+					}
+				}
+
+				if _, err := tx.ExecContext(ctx, `
+					INSERT INTO fma_active_installers
+						(team_id, global_or_team_id, fleet_maintained_app_id, software_installer_id)
+					VALUES (?, ?, ?, ?)
+					ON DUPLICATE KEY UPDATE
+						software_installer_id = VALUES(software_installer_id)
+				`, tmID, globalOrTeamID, *installer.FleetMaintainedAppID, activeInstallerID); err != nil {
+					return ctxerr.Wrapf(ctx, err, "upsert fma_active_installers for %q", installer.Filename)
+				}
 			}
 
 			// process the labels associated with that software installer

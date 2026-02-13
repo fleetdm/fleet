@@ -13506,6 +13506,11 @@ func (s *integrationEnterpriseTestSuite) TestBatchSetSoftwareInstallers() {
 		return nil
 	})
 
+	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		mysql.DumpTable(t, q, "software_installers", "id", "global_or_team_id", "title_id", "filename", "version")
+		mysql.DumpTable(t, q, "fma_active_installers")
+		return nil
+	})
 	// same payload doesn't modify anything
 	s.DoJSON("POST", "/api/latest/fleet/software/batch", batchSetSoftwareInstallersRequest{Software: softwareToInstall}, http.StatusAccepted, &batchResponse, "team_name", tm.Name)
 	packages = waitBatchSetSoftwareInstallersCompleted(t, &s.withServer, tm.Name, batchResponse.RequestUUID)
@@ -19261,7 +19266,7 @@ func (s *integrationEnterpriseTestSuite) TestMaintainedApps() {
 	// TODO this will change when actual install scripts are created.
 	dbAppRecord, err := s.ds.GetMaintainedAppByID(ctx, listMAResp.FleetMaintainedApps[0].ID, nil)
 	require.NoError(t, err)
-	_, err = maintained_apps.Hydrate(ctx, dbAppRecord)
+	_, err = maintained_apps.Hydrate(ctx, dbAppRecord, "", nil, nil)
 	require.NoError(t, err)
 	dbAppResponse := fleet.MaintainedApp{
 		ID:              dbAppRecord.ID,
@@ -19348,7 +19353,7 @@ func (s *integrationEnterpriseTestSuite) TestMaintainedApps() {
 	// Validate software installer fields
 	mapp, err := s.ds.GetMaintainedAppByID(ctx, 1, &team.ID)
 	require.NoError(t, err)
-	_, err = maintained_apps.Hydrate(ctx, mapp)
+	_, err = maintained_apps.Hydrate(ctx, mapp, "", nil, nil)
 	require.NoError(t, err)
 	i, err := s.ds.GetSoftwareInstallerMetadataByID(context.Background(), getSoftwareInstallerIDByMAppID(1))
 	require.NoError(t, err)
@@ -19439,7 +19444,7 @@ func (s *integrationEnterpriseTestSuite) TestMaintainedApps() {
 
 	mapp, err = s.ds.GetMaintainedAppByID(ctx, 4, ptr.Uint(0))
 	require.NoError(t, err)
-	_, err = maintained_apps.Hydrate(ctx, mapp)
+	_, err = maintained_apps.Hydrate(ctx, mapp, "", nil, nil)
 	require.NoError(t, err)
 	require.Equal(t, 1, resp.Count)
 	title = resp.SoftwareTitles[0]
@@ -20911,6 +20916,7 @@ func (s *integrationEnterpriseTestSuite) TestBatchSoftwareInstallerAndFMACategor
 				// check that categories come back on individual title fetch
 				stResp := getSoftwareTitleResponse{}
 				s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d", *p.TitleID), getSoftwareTitleRequest{}, http.StatusOK, &stResp, "team_id", fmt.Sprint(team1.ID))
+				fmt.Printf("stResp.SoftwareTitle.SoftwarePackage.SelfService: %v\n", stResp.SoftwareTitle.SoftwarePackage.SelfService)
 				require.NotNil(t, stResp.SoftwareTitle.SoftwarePackage)
 				if stResp.SoftwareTitle.SoftwarePackage.FleetMaintainedAppID != nil && len(tc.categories) == 0 {
 					// if no categories are set on an FMA in GitOps, we set categories to
@@ -20926,6 +20932,21 @@ func (s *integrationEnterpriseTestSuite) TestBatchSoftwareInstallerAndFMACategor
 			getDeviceSw := getDeviceSoftwareResponse{}
 			err = json.NewDecoder(res.Body).Decode(&getDeviceSw)
 			require.NoError(t, err)
+			mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+				mysql.DumpTable(t, q, "software_installers", "id", "title_id", "version", "self_service", "fleet_maintained_app_id")
+				mysql.DumpTable(t, q, "software_titles")
+				return nil
+			})
+			mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+				var results []*fleet.SoftwareInstaller
+				err := sqlx.SelectContext(ctx, q, &results, "SELECT id, title_id, version, self_service, fleet_maintained_app_id FROM software_installers WHERE global_or_team_id = ?", team1.ID)
+				s.Assert().NoError(err)
+
+				for _, v := range results {
+					fmt.Printf("result: %+v\n", v)
+				}
+				return nil
+			})
 			require.Len(t, getDeviceSw.Software, 2)
 			for _, s := range getDeviceSw.Software {
 				if s.Name == maintained1.Name && len(tc.categories) == 0 {
@@ -25102,4 +25123,300 @@ func (s *integrationEnterpriseTestSuite) TestUpdateSoftwareAutoUpdateConfig() {
 	}, http.StatusOK, &titlesResp)
 
 	s.lastActivityMatches(fleet.ActivityEditedAppStoreApp{}.ActivityName(), fmt.Sprintf(`{"app_store_id":"adam_vpp_app_1", "auto_update_enabled":false, "platform":"ipados", "self_service":false, "software_display_name":"Updated Display Name", "software_icon_url":null, "software_title":"vpp1", "software_title_id":%d, "team_id":%d, "team_name":"%s"}`, vppApp.TitleID, team.ID, team.Name), 0)
+}
+
+func (s *integrationEnterpriseTestSuite) TestMaintainedAppsRollback() {
+	t := s.T()
+	ctx := context.Background()
+
+	installerBytes := []byte("abc")
+	installerSrvHit := false
+
+	// Mock server to serve the "installers"
+	installerServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		installerSrvHit = true
+		_, _ = w.Write(installerBytes)
+
+	}))
+	defer installerServer.Close()
+
+	// getSoftwareInstallerIDByMAppID := func(mappID uint) uint {
+	// 	var id uint
+	// 	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+	// 		return sqlx.GetContext(ctx, q, &id, "SELECT id FROM software_installers WHERE fleet_maintained_app_id = ?", mappID)
+	// 	})
+
+	// 	return id
+	// }
+
+	// Non-existent maintained app
+	s.Do("POST", "/api/latest/fleet/software/fleet_maintained_apps", &addFleetMaintainedAppRequest{AppID: 1}, http.StatusNotFound)
+
+	// Insert the list of maintained apps
+	maintained_apps.SyncApps(t, s.ds)
+
+	h := sha256.New()
+	_, err := h.Write(installerBytes)
+	require.NoError(t, err)
+	spoofedSHA := hex.EncodeToString(h.Sum(nil))
+
+	latestVersion := "1.0"
+
+	manifestServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+
+		var versions []*ma.FMAManifestApp
+		versions = append(versions, &ma.FMAManifestApp{
+			Version: latestVersion,
+			Queries: ma.FMAQueries{
+				Exists: "SELECT 1 FROM osquery_info;",
+			},
+			InstallerURL:       installerServer.URL + "/installer.msi",
+			InstallScriptRef:   "foobaz",
+			UninstallScriptRef: "foobaz",
+			SHA256:             spoofedSHA,
+			DefaultCategories:  []string{"Productivity"},
+		})
+
+		manifest := ma.FMAManifestFile{
+			Versions: versions,
+			Refs: map[string]string{
+				"foobaz": "Hello World!",
+			},
+		}
+		err := json.NewEncoder(w).Encode(manifest)
+		require.NoError(t, err)
+	}))
+	t.Cleanup(manifestServer.Close)
+	dev_mode.SetOverride("FLEET_DEV_MAINTAINED_APPS_BASE_URL", manifestServer.URL)
+	defer dev_mode.ClearOverride("FLEET_DEV_MAINTAINED_APPS_BASE_URL")
+
+	// Create a team
+	var newTeamResp teamResponse
+	s.DoJSON("POST", "/api/latest/fleet/teams", &createTeamRequest{TeamPayload: fleet.TeamPayload{Name: ptr.String("team_" + t.Name())}}, http.StatusOK, &newTeamResp)
+	team := newTeamResp.Team
+
+	// Add an ingested app to the team
+	softwareToInstall := []*fleet.SoftwareInstallerPayload{
+		{Slug: ptr.String("cloudflare-warp/windows"), SelfService: true},
+	}
+
+	var batchResponse batchSetSoftwareInstallersResponse
+	s.DoJSON("POST", "/api/latest/fleet/software/batch", batchSetSoftwareInstallersRequest{Software: softwareToInstall, TeamName: team.Name}, http.StatusAccepted, &batchResponse, "team_name", team.Name, "team_id", fmt.Sprint(team.ID))
+	packages := waitBatchSetSoftwareInstallersCompleted(t, &s.withServer, team.Name, batchResponse.RequestUUID)
+	require.Len(t, packages, 1)
+	require.NotNil(t, packages[0].TitleID)
+
+	var resp listSoftwareTitlesResponse
+	s.DoJSON(
+		"GET", "/api/latest/fleet/software/titles",
+		listSoftwareTitlesRequest{},
+		http.StatusOK, &resp,
+		"per_page", "1",
+		"order_key", "name",
+		"order_direction", "desc",
+		"available_for_install", "true",
+		"team_id", fmt.Sprintf("%d", team.ID),
+	)
+
+	require.Equal(t, 1, resp.Count)
+	title := resp.SoftwareTitles[0]
+	require.Equal(t, "1.0", title.SoftwarePackage.Version)
+	require.Equal(t, "installer.msi", title.SoftwarePackage.Name)
+
+	// With only one version, fleet_maintained_versions should list it
+	require.Len(t, title.SoftwarePackage.FleetMaintainedVersions, 1)
+	require.Equal(t, "1.0", title.SoftwarePackage.FleetMaintainedVersions[0].Version)
+
+	// Now add a second version
+	latestVersion = "2.0"
+	installerBytes = []byte(`def`)
+	h = sha256.New()
+	_, err = h.Write(installerBytes)
+	require.NoError(t, err)
+	spoofedSHA = hex.EncodeToString(h.Sum(nil))
+
+	s.DoJSON("POST", "/api/latest/fleet/software/batch", batchSetSoftwareInstallersRequest{Software: softwareToInstall, TeamName: team.Name}, http.StatusAccepted, &batchResponse, "team_name", team.Name, "team_id", fmt.Sprint(team.ID))
+	packages = waitBatchSetSoftwareInstallersCompleted(t, &s.withServer, team.Name, batchResponse.RequestUUID)
+	require.Len(t, packages, 2)
+
+	resp = listSoftwareTitlesResponse{}
+	s.DoJSON(
+		"GET", "/api/latest/fleet/software/titles",
+		listSoftwareTitlesRequest{},
+		http.StatusOK, &resp,
+		"per_page", "1",
+		"order_key", "name",
+		"order_direction", "desc",
+		"available_for_install", "true",
+		"team_id", fmt.Sprintf("%d", team.ID),
+	)
+
+	require.Equal(t, 1, resp.Count)
+	title = resp.SoftwareTitles[0]
+	require.Equal(t, "2.0", title.SoftwarePackage.Version)
+	require.Equal(t, "installer.msi", title.SoftwarePackage.Name)
+
+	// fleet_maintained_versions should list both versions (newest first)
+	require.Len(t, title.SoftwarePackage.FleetMaintainedVersions, 2)
+	require.Equal(t, "2.0", title.SoftwarePackage.FleetMaintainedVersions[0].Version)
+	require.Equal(t, "1.0", title.SoftwarePackage.FleetMaintainedVersions[1].Version)
+
+	// We should have the previous version cached in the DB
+	installers, err := s.ds.GetSoftwareInstallers(ctx, team.ID)
+	s.Require().NoError(err)
+	s.Assert().Len(installers, 2)
+
+	// Now add a third version — should evict v1.0, keeping only v3.0 and v2.0
+	latestVersion = "3.0"
+	installerBytes = []byte(`ghi`)
+	h = sha256.New()
+	_, err = h.Write(installerBytes)
+	require.NoError(t, err)
+	spoofedSHA = hex.EncodeToString(h.Sum(nil))
+
+	s.DoJSON("POST", "/api/latest/fleet/software/batch", batchSetSoftwareInstallersRequest{Software: softwareToInstall, TeamName: team.Name}, http.StatusAccepted, &batchResponse, "team_name", team.Name, "team_id", fmt.Sprint(team.ID))
+	packages = waitBatchSetSoftwareInstallersCompleted(t, &s.withServer, team.Name, batchResponse.RequestUUID)
+	require.Len(t, packages, 2)
+
+	resp = listSoftwareTitlesResponse{}
+	s.DoJSON(
+		"GET", "/api/latest/fleet/software/titles",
+		listSoftwareTitlesRequest{},
+		http.StatusOK, &resp,
+		"per_page", "1",
+		"order_key", "name",
+		"order_direction", "desc",
+		"available_for_install", "true",
+		"team_id", fmt.Sprintf("%d", team.ID),
+	)
+
+	require.Equal(t, 1, resp.Count)
+	title = resp.SoftwareTitles[0]
+	require.Equal(t, "3.0", title.SoftwarePackage.Version)
+
+	// Only 2 versions should remain after eviction (max 2 cached)
+	require.Len(t, title.SoftwarePackage.FleetMaintainedVersions, 2)
+	require.Equal(t, "3.0", title.SoftwarePackage.FleetMaintainedVersions[0].Version)
+	require.Equal(t, "2.0", title.SoftwarePackage.FleetMaintainedVersions[1].Version)
+
+	// DB should also only have 2 installers
+	installers, err = s.ds.GetSoftwareInstallers(ctx, team.ID)
+	s.Require().NoError(err)
+	s.Assert().Len(installers, 2)
+
+	// ---- Test version rollback via fleet_maintained_app_version ----
+	// Pin to version "2.0" in the batch request (simulating GitOps yaml with version specified).
+	// The active installer should switch to the cached v2.0 installer.
+	softwareToInstallPinned := []*fleet.SoftwareInstallerPayload{
+		{Slug: ptr.String("cloudflare-warp/windows"), SelfService: true, RollbackVersion: "2.0"},
+	}
+
+	s.DoJSON("POST", "/api/latest/fleet/software/batch", batchSetSoftwareInstallersRequest{Software: softwareToInstallPinned, TeamName: team.Name}, http.StatusAccepted, &batchResponse, "team_name", team.Name, "team_id", fmt.Sprint(team.ID))
+	packages = waitBatchSetSoftwareInstallersCompleted(t, &s.withServer, team.Name, batchResponse.RequestUUID)
+	require.Len(t, packages, 2)
+
+	// The active version shown in the title should now be "2.0"
+	resp = listSoftwareTitlesResponse{}
+	s.DoJSON(
+		"GET", "/api/latest/fleet/software/titles",
+		listSoftwareTitlesRequest{},
+		http.StatusOK, &resp,
+		"per_page", "1",
+		"order_key", "name",
+		"order_direction", "desc",
+		"available_for_install", "true",
+		"team_id", fmt.Sprintf("%d", team.ID),
+	)
+
+	require.Equal(t, 1, resp.Count)
+	title = resp.SoftwareTitles[0]
+	require.Equal(t, "2.0", title.SoftwarePackage.Version)
+
+	// Both versions should still be listed
+	require.Len(t, title.SoftwarePackage.FleetMaintainedVersions, 2)
+
+	// Create a host in the team, trigger an install, and verify the downloaded bytes match v2.0
+	hostInTeam := createOrbitEnrolledHost(t, "windows", "orbit-host-rollback", s.ds)
+	require.NoError(t, s.ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&team.ID, []uint{hostInTeam.ID})))
+
+	s.Do("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/software/%d/install", hostInTeam.ID, title.ID), installSoftwareRequest{}, http.StatusAccepted)
+
+	// Get the queued installer ID from the pending install record
+	var installerID uint
+	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q, &installerID, `
+			SELECT software_installer_id FROM host_software_installs
+			WHERE host_id = ? AND software_installer_id IS NOT NULL AND install_script_exit_code IS NULL
+			ORDER BY created_at DESC LIMIT 1
+		`, hostInTeam.ID)
+	})
+
+	// Download the installer via orbit — should get the v2.0 bytes ("def")
+	r := s.Do("POST", "/api/fleet/orbit/software_install/package?alt=media", orbitDownloadSoftwareInstallerRequest{
+		InstallerID:  installerID,
+		OrbitNodeKey: *hostInTeam.OrbitNodeKey,
+	}, http.StatusOK)
+	body, err := io.ReadAll(r.Body)
+	require.NoError(t, err)
+	r.Body.Close()
+	// v2.0 installer bytes were []byte("def")
+	require.Equal(t, []byte("def"), body, "downloaded installer should match v2.0 bytes")
+
+	installerSrvHit = false
+	// ---- Test switching active version back to 3.0 ----
+	// Pin to version "3.0" — the active installer should switch to the cached v3.0 installer.
+	softwareToInstallV3 := []*fleet.SoftwareInstallerPayload{
+		{Slug: ptr.String("cloudflare-warp/windows"), SelfService: true, RollbackVersion: "3.0"},
+	}
+
+	s.DoJSON("POST", "/api/latest/fleet/software/batch", batchSetSoftwareInstallersRequest{Software: softwareToInstallV3, TeamName: team.Name}, http.StatusAccepted, &batchResponse, "team_name", team.Name, "team_id", fmt.Sprint(team.ID))
+	packages = waitBatchSetSoftwareInstallersCompleted(t, &s.withServer, team.Name, batchResponse.RequestUUID)
+	require.Len(t, packages, 2)
+
+	// The active version shown in the title should now be "3.0"
+	resp = listSoftwareTitlesResponse{}
+	s.DoJSON(
+		"GET", "/api/latest/fleet/software/titles",
+		listSoftwareTitlesRequest{},
+		http.StatusOK, &resp,
+		"per_page", "1",
+		"order_key", "name",
+		"order_direction", "desc",
+		"available_for_install", "true",
+		"team_id", fmt.Sprintf("%d", team.ID),
+	)
+
+	require.Equal(t, 1, resp.Count)
+	title = resp.SoftwareTitles[0]
+	require.Equal(t, "3.0", title.SoftwarePackage.Version)
+
+	// Both versions should still be listed
+	require.Len(t, title.SoftwarePackage.FleetMaintainedVersions, 2)
+
+	// Trigger an install and verify the downloaded bytes match v3.0
+	s.Do("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/software/%d/install", hostInTeam.ID, title.ID), installSoftwareRequest{}, http.StatusAccepted)
+
+	// Get the queued installer ID from the pending install record
+	var installerIDv3 uint
+	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q, &installerIDv3, `
+			SELECT software_installer_id FROM host_software_installs
+			WHERE host_id = ? AND software_installer_id IS NOT NULL AND install_script_exit_code IS NULL
+			ORDER BY created_at DESC LIMIT 1
+		`, hostInTeam.ID)
+	})
+
+	// Download the installer via orbit — should get the v3.0 bytes ("ghi")
+	r = s.Do("POST", "/api/fleet/orbit/software_install/package?alt=media", orbitDownloadSoftwareInstallerRequest{
+		InstallerID:  installerIDv3,
+		OrbitNodeKey: *hostInTeam.OrbitNodeKey,
+	}, http.StatusOK)
+	body, err = io.ReadAll(r.Body)
+	require.NoError(t, err)
+	r.Body.Close()
+	// v3.0 installer bytes were []byte("ghi")
+	require.Equal(t, []byte("ghi"), body, "downloaded installer should match v3.0 bytes")
+
+	// We have version 3.0 cached, so we should not have downloaded the bytes
+	s.Assert().False(installerSrvHit)
 }

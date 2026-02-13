@@ -1329,6 +1329,12 @@ type ValidateOrbitSoftwareInstallerAccessFunc func(ctx context.Context, hostID u
 
 type GetSoftwareInstallerMetadataByTeamAndTitleIDFunc func(ctx context.Context, teamID *uint, titleID uint, withScriptContents bool) (*fleet.SoftwareInstaller, error)
 
+type GetFleetMaintainedVersionsByTitleIDFunc func(ctx context.Context, teamID *uint, titleID uint) ([]fleet.FleetMaintainedVersion, error)
+
+type HasFMAInstallerVersionFunc func(ctx context.Context, teamID *uint, fmaID uint, version string) (bool, error)
+
+type GetCachedFMAInstallerMetadataFunc func(ctx context.Context, teamID *uint, fmaID uint, version string) (*fleet.MaintainedApp, error)
+
 type InsertHostInHouseAppInstallFunc func(ctx context.Context, hostID uint, inHouseAppID uint, softwareTitleID uint, commandUUID string, opts fleet.HostSoftwareInstallOptions) error
 
 type GetSoftwareInstallersPendingUninstallScriptPopulationFunc func(ctx context.Context) (map[uint]string, error)
@@ -3730,6 +3736,15 @@ type DataStore struct {
 
 	GetSoftwareInstallerMetadataByTeamAndTitleIDFunc        GetSoftwareInstallerMetadataByTeamAndTitleIDFunc
 	GetSoftwareInstallerMetadataByTeamAndTitleIDFuncInvoked bool
+
+	GetFleetMaintainedVersionsByTitleIDFunc        GetFleetMaintainedVersionsByTitleIDFunc
+	GetFleetMaintainedVersionsByTitleIDFuncInvoked bool
+
+	HasFMAInstallerVersionFunc        HasFMAInstallerVersionFunc
+	HasFMAInstallerVersionFuncInvoked bool
+
+	GetCachedFMAInstallerMetadataFunc        GetCachedFMAInstallerMetadataFunc
+	GetCachedFMAInstallerMetadataFuncInvoked bool
 
 	InsertHostInHouseAppInstallFunc        InsertHostInHouseAppInstallFunc
 	InsertHostInHouseAppInstallFuncInvoked bool
@@ -8966,6 +8981,27 @@ func (s *DataStore) GetSoftwareInstallerMetadataByTeamAndTitleID(ctx context.Con
 	s.GetSoftwareInstallerMetadataByTeamAndTitleIDFuncInvoked = true
 	s.mu.Unlock()
 	return s.GetSoftwareInstallerMetadataByTeamAndTitleIDFunc(ctx, teamID, titleID, withScriptContents)
+}
+
+func (s *DataStore) GetFleetMaintainedVersionsByTitleID(ctx context.Context, teamID *uint, titleID uint) ([]fleet.FleetMaintainedVersion, error) {
+	s.mu.Lock()
+	s.GetFleetMaintainedVersionsByTitleIDFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetFleetMaintainedVersionsByTitleIDFunc(ctx, teamID, titleID)
+}
+
+func (s *DataStore) HasFMAInstallerVersion(ctx context.Context, teamID *uint, fmaID uint, version string) (bool, error) {
+	s.mu.Lock()
+	s.HasFMAInstallerVersionFuncInvoked = true
+	s.mu.Unlock()
+	return s.HasFMAInstallerVersionFunc(ctx, teamID, fmaID, version)
+}
+
+func (s *DataStore) GetCachedFMAInstallerMetadata(ctx context.Context, teamID *uint, fmaID uint, version string) (*fleet.MaintainedApp, error) {
+	s.mu.Lock()
+	s.GetCachedFMAInstallerMetadataFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetCachedFMAInstallerMetadataFunc(ctx, teamID, fmaID, version)
 }
 
 func (s *DataStore) InsertHostInHouseAppInstall(ctx context.Context, hostID uint, inHouseAppID uint, softwareTitleID uint, commandUUID string, opts fleet.HostSoftwareInstallOptions) error {
