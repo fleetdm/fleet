@@ -218,7 +218,7 @@ spec:
            WHERE path LIKE '/etc/modprobe.d/%.conf'
              AND ((line LIKE 'install squashfs /bin/false%') OR (line LIKE 'install squashfs /bin/true%'))
              AND line NOT LIKE '#%') >= 1;
-  purpose: Manual Validation Required
+  purpose: Informational
   tags: compliance, CIS, CIS_Ubuntu_22_04
   contributors: sharon-fdm
 ---
@@ -251,7 +251,7 @@ spec:
            WHERE path LIKE '/etc/modprobe.d/%.conf'
              AND ((line LIKE 'install udf /bin/false%') OR (line LIKE 'install udf /bin/true%'))
              AND line NOT LIKE '#%') >= 1;
-  purpose: Manual Validation Required
+  purpose: Informational
   tags: compliance, CIS, CIS_Ubuntu_22_04
   contributors: sharon-fdm
 ---
@@ -284,7 +284,7 @@ spec:
            WHERE path LIKE '/etc/modprobe.d/%.conf'
              AND ((line LIKE 'install usb-storage /bin/false%' OR line LIKE 'install usb_storage /bin/false%') OR (line LIKE 'install usb-storage /bin/true%' OR line LIKE 'install usb_storage /bin/true%'))
              AND line NOT LIKE '#%') >= 1;
-  purpose: Manual Validation Required
+  purpose: Informational
   tags: compliance, CIS, CIS_Ubuntu_22_04
   contributors: sharon-fdm
 ---
@@ -341,7 +341,7 @@ spec:
            WHERE path LIKE '/etc/modprobe.d/%.conf'
              AND ((line LIKE 'install firewire-core /bin/false%' OR line LIKE 'install firewire_core /bin/false%') OR (line LIKE 'install firewire-core /bin/true%' OR line LIKE 'install firewire_core /bin/true%'))
              AND line NOT LIKE '#%') >= 1;
-  purpose: Manual Validation Required
+  purpose: Informational
   tags: compliance, CIS, CIS_Ubuntu_22_04
   contributors: sharon-fdm
 ---
@@ -365,7 +365,7 @@ spec:
   #   - FAIL: query returns 0 rows
   query: |
     SELECT 1 WHERE EXISTS (SELECT 1 FROM mounts WHERE path='/tmp');
-  purpose: Manual Validation Required
+  purpose: Informational
   tags: compliance, CIS, CIS_Ubuntu_22_04
   contributors: sharon-fdm
 ---
@@ -394,7 +394,7 @@ spec:
       WHERE path='/tmp'
         AND ',' || flags || ',' LIKE '%,nodev,%'
     );
-  purpose: Manual Validation Required
+  purpose: Informational
   tags: compliance, CIS, CIS_Ubuntu_22_04
   contributors: sharon-fdm
 ---
@@ -423,7 +423,7 @@ spec:
       WHERE path='/tmp'
         AND ',' || flags || ',' LIKE '%,nosuid,%'
     );
-  purpose: Manual Validation Required
+  purpose: Informational
   tags: compliance, CIS, CIS_Ubuntu_22_04
   contributors: sharon-fdm
 ---
@@ -452,7 +452,7 @@ spec:
       WHERE path='/tmp'
         AND ',' || flags || ',' LIKE '%,noexec,%'
     );
-  purpose: Manual Validation Required
+  purpose: Informational
   tags: compliance, CIS, CIS_Ubuntu_22_04
   contributors: sharon-fdm
 ---
@@ -476,7 +476,7 @@ spec:
   #   - FAIL: query returns 0 rows
   query: |
     SELECT 1 WHERE EXISTS (SELECT 1 FROM mounts WHERE path='/dev/shm');
-  purpose: Manual Validation Required
+  purpose: Informational
   tags: compliance, CIS, CIS_Ubuntu_22_04
   contributors: sharon-fdm
 ---
@@ -505,7 +505,7 @@ spec:
       WHERE path='/dev/shm'
         AND ',' || flags || ',' LIKE '%,nodev,%'
     );
-  purpose: Manual Validation Required
+  purpose: Informational
   tags: compliance, CIS, CIS_Ubuntu_22_04
   contributors: sharon-fdm
 ---
@@ -534,7 +534,7 @@ spec:
       WHERE path='/dev/shm'
         AND ',' || flags || ',' LIKE '%,nosuid,%'
     );
-  purpose: Manual Validation Required
+  purpose: Informational
   tags: compliance, CIS, CIS_Ubuntu_22_04
   contributors: sharon-fdm
 ---
@@ -563,7 +563,7 @@ spec:
       WHERE path='/dev/shm'
         AND ',' || flags || ',' LIKE '%,noexec,%'
     );
-  purpose: Manual Validation Required
+  purpose: Informational
   tags: compliance, CIS, CIS_Ubuntu_22_04
   contributors: sharon-fdm
 ---
@@ -616,7 +616,7 @@ spec:
       WHERE path='/home'
         AND ',' || flags || ',' LIKE '%,nodev,%'
     );
-  purpose: Manual Validation Required
+  purpose: Informational
   tags: compliance, CIS, CIS_Ubuntu_22_04
   contributors: sharon-fdm
 ---
@@ -645,7 +645,7 @@ spec:
       WHERE path='/home'
         AND ',' || flags || ',' LIKE '%,nosuid,%'
     );
-  purpose: Manual Validation Required
+  purpose: Informational
   tags: compliance, CIS, CIS_Ubuntu_22_04
   contributors: sharon-fdm
 ---
@@ -698,7 +698,7 @@ spec:
       WHERE path='/var'
         AND ',' || flags || ',' LIKE '%,nodev,%'
     );
-  purpose: Manual Validation Required
+  purpose: Informational
   tags: compliance, CIS, CIS_Ubuntu_22_04
   contributors: sharon-fdm
 ---
@@ -727,7 +727,7 @@ spec:
       WHERE path='/var'
         AND ',' || flags || ',' LIKE '%,nosuid,%'
     );
-  purpose: Manual Validation Required
+  purpose: Informational
   tags: compliance, CIS, CIS_Ubuntu_22_04
   contributors: sharon-fdm
 ---
@@ -780,7 +780,7 @@ spec:
       WHERE path='/var/tmp'
         AND ',' || flags || ',' LIKE '%,nodev,%'
     );
-  purpose: Manual Validation Required
+  purpose: Informational
   tags: compliance, CIS, CIS_Ubuntu_22_04
   contributors: sharon-fdm
 ---
@@ -809,7 +809,7 @@ spec:
       WHERE path='/var/tmp'
         AND ',' || flags || ',' LIKE '%,nosuid,%'
     );
-  purpose: Manual Validation Required
+  purpose: Informational
   tags: compliance, CIS, CIS_Ubuntu_22_04
   contributors: sharon-fdm
 ---
@@ -838,7 +838,7 @@ spec:
       WHERE path='/var/tmp'
         AND ',' || flags || ',' LIKE '%,noexec,%'
     );
-  purpose: Manual Validation Required
+  purpose: Informational
   tags: compliance, CIS, CIS_Ubuntu_22_04
   contributors: sharon-fdm
 ---
@@ -891,7 +891,7 @@ spec:
       WHERE path='/var/log'
         AND ',' || flags || ',' LIKE '%,nodev,%'
     );
-  purpose: Manual Validation Required
+  purpose: Informational
   tags: compliance, CIS, CIS_Ubuntu_22_04
   contributors: sharon-fdm
 ---
@@ -920,7 +920,7 @@ spec:
       WHERE path='/var/log'
         AND ',' || flags || ',' LIKE '%,nosuid,%'
     );
-  purpose: Manual Validation Required
+  purpose: Informational
   tags: compliance, CIS, CIS_Ubuntu_22_04
   contributors: sharon-fdm
 ---
@@ -949,7 +949,7 @@ spec:
       WHERE path='/var/log'
         AND ',' || flags || ',' LIKE '%,noexec,%'
     );
-  purpose: Manual Validation Required
+  purpose: Informational
   tags: compliance, CIS, CIS_Ubuntu_22_04
   contributors: sharon-fdm
 ---
@@ -973,7 +973,7 @@ spec:
   #   - FAIL: query returns 0 rows
   query: |
     SELECT 1 WHERE EXISTS (SELECT 1 FROM mounts WHERE path='/var/log/audit');
-  purpose: Manual Validation Required
+  purpose: Informational
   tags: compliance, CIS, CIS_Ubuntu_22_04
   contributors: sharon-fdm
 ---
@@ -1002,7 +1002,7 @@ spec:
       WHERE path='/var/log/audit'
         AND ',' || flags || ',' LIKE '%,nodev,%'
     );
-  purpose: Manual Validation Required
+  purpose: Informational
   tags: compliance, CIS, CIS_Ubuntu_22_04
   contributors: sharon-fdm
 ---
@@ -1031,7 +1031,7 @@ spec:
       WHERE path='/var/log/audit'
         AND ',' || flags || ',' LIKE '%,nosuid,%'
     );
-  purpose: Manual Validation Required
+  purpose: Informational
   tags: compliance, CIS, CIS_Ubuntu_22_04
   contributors: sharon-fdm
 ---
@@ -1060,7 +1060,7 @@ spec:
       WHERE path='/var/log/audit'
         AND ',' || flags || ',' LIKE '%,noexec,%'
     );
-  purpose: Manual Validation Required
+  purpose: Informational
   tags: compliance, CIS, CIS_Ubuntu_22_04
   contributors: sharon-fdm
 ---
@@ -1144,19 +1144,20 @@ spec:
   platform: linux
   description: Ensure the apparmor packages are installed (Automated)
   resolution: |
-    Manual: follow the CIS 'Audit' procedure for this control and document the result.
-  # QA Validation:
-  # - Where: Manual validation required (no safe generic osquery automation).
+    Install AppArmor packages (apparmor and apparmor-utils).
+  # QA Validation:  # - Where: Run on the audited host (use disposable VM for FAIL).
   # - PASS (run):
-  #   - (manual) follow CIS Audit steps; capture evidence (command output, config snippet, screenshot)
+  #   - sudo apt-get update -y && sudo apt-get install -y apparmor apparmor-utils
   # - FAIL (run):
-  #   - (manual) change config on a disposable VM to violate the control; re-run audit to confirm fail
+  #   - sudo apt-get update -y && sudo apt-get purge -y apparmor apparmor-utils || true
   # - Expected:
   #   - PASS: query returns 1 row
   #   - FAIL: query returns 0 rows
   query: |
-    SELECT 1 WHERE 0;
-  purpose: Manual Validation Required
+    SELECT 1
+    WHERE EXISTS (SELECT 1 FROM deb_packages WHERE name='apparmor')
+      AND EXISTS (SELECT 1 FROM deb_packages WHERE name='apparmor-utils');
+  purpose: Informational
   tags: compliance, CIS, CIS_Ubuntu_22_04
   contributors: sharon-fdm
 ---
@@ -1168,19 +1169,26 @@ spec:
   platform: linux
   description: Ensure AppArmor is enabled (Automated) ................................
   resolution: |
-    Manual: follow the CIS 'Audit' procedure for this control and document the result.
-  # QA Validation:
-  # - Where: Manual validation required (no safe generic osquery automation).
+    Enable and start AppArmor (ensure kernel AppArmor is enabled and apparmor.service is active).
+  # QA Validation:  # - Where: Run on the audited host (use disposable VM for FAIL).
   # - PASS (run):
-  #   - (manual) follow CIS Audit steps; capture evidence (command output, config snippet, screenshot)
+  #   - sudo systemctl enable --now apparmor.service
   # - FAIL (run):
-  #   - (manual) change config on a disposable VM to violate the control; re-run audit to confirm fail
+  #   - sudo systemctl disable --now apparmor.service
   # - Expected:
   #   - PASS: query returns 1 row
   #   - FAIL: query returns 0 rows
   query: |
-    SELECT 1 WHERE 0;
-  purpose: Manual Validation Required
+    SELECT 1
+    WHERE EXISTS (
+      SELECT 1 FROM file_lines
+      WHERE path='/sys/module/apparmor/parameters/enabled' AND line='Y'
+    )
+    AND EXISTS (
+      SELECT 1 FROM systemd_units
+      WHERE name='apparmor.service' AND active_state='active'
+    );
+  purpose: Informational
   tags: compliance, CIS, CIS_Ubuntu_22_04
   contributors: sharon-fdm
 ---
@@ -1192,19 +1200,22 @@ spec:
   platform: linux
   description: Ensure all AppArmor Profiles are not disabled (Automated)
   resolution: |
-    Manual: follow the CIS 'Audit' procedure for this control and document the result.
-  # QA Validation:
-  # - Where: Manual validation required (no safe generic osquery automation).
+    Ensure no AppArmor profiles are disabled (remove entries under /etc/apparmor.d/disable/).
+  # QA Validation:  # - Where: Run on the audited host (use disposable VM for FAIL).
   # - PASS (run):
-  #   - (manual) follow CIS Audit steps; capture evidence (command output, config snippet, screenshot)
+  #   - sudo rm -f /etc/apparmor.d/disable/* || true
   # - FAIL (run):
-  #   - (manual) change config on a disposable VM to violate the control; re-run audit to confirm fail
+  #   - sudo mkdir -p /etc/apparmor.d/disable && sudo ln -sf /etc/apparmor.d/usr.bin.man /etc/apparmor.d/disable/usr.bin.man
   # - Expected:
   #   - PASS: query returns 1 row
   #   - FAIL: query returns 0 rows
   query: |
-    SELECT 1 WHERE 0;
-  purpose: Manual Validation Required
+    SELECT 1
+    WHERE NOT EXISTS (
+      SELECT 1 FROM glob
+      WHERE pattern='/etc/apparmor.d/disable/*'
+    );
+  purpose: Informational
   tags: compliance, CIS, CIS_Ubuntu_22_04
   contributors: sharon-fdm
 ---
@@ -1377,7 +1388,7 @@ spec:
   #   - FAIL: query returns 0 rows
   query: |
     SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM deb_packages WHERE name='prelink');
-  purpose: Manual Validation Required
+  purpose: Informational
   tags: compliance, CIS, CIS_Ubuntu_22_04
   contributors: sharon-fdm
 ---
@@ -1509,19 +1520,23 @@ spec:
   platform: linux
   description: Ensure access to /etc/issue is configured (Automated)
   resolution: |
-    Manual: follow the CIS 'Audit' procedure for this control and document the result.
-  # QA Validation:
-  # - Where: Manual validation required (no safe generic osquery automation).
+    Set owner root:root and permissions to 0644 for /etc/issue (or stricter).
+  # QA Validation:  # - Where: Run on the audited host (use disposable VM for FAIL).
   # - PASS (run):
-  #   - (manual) follow CIS Audit steps; capture evidence (command output, config snippet, screenshot)
+  #   - sudo chown root:root /etc/issue && sudo chmod 0644 /etc/issue
   # - FAIL (run):
-  #   - (manual) change config on a disposable VM to violate the control; re-run audit to confirm fail
+  #   - sudo chmod 0777 /etc/issue
   # - Expected:
   #   - PASS: query returns 1 row
   #   - FAIL: query returns 0 rows
   query: |
-    SELECT 1 WHERE 0;
-  purpose: Manual Validation Required
+    SELECT 1
+    WHERE EXISTS (
+      SELECT 1 FROM file
+      WHERE path='/etc/issue' AND uid=0 AND gid=0 AND type='regular'
+        AND mode IN ('0644','0640')
+    );
+  purpose: Informational
   tags: compliance, CIS, CIS_Ubuntu_22_04
   contributors: sharon-fdm
 ---
@@ -1533,19 +1548,23 @@ spec:
   platform: linux
   description: Ensure access to /etc/issue.net is configured (Automated)
   resolution: |
-    Manual: follow the CIS 'Audit' procedure for this control and document the result.
-  # QA Validation:
-  # - Where: Manual validation required (no safe generic osquery automation).
+    Set owner root:root and permissions to 0644 for /etc/issue.net (or stricter).
+  # QA Validation:  # - Where: Run on the audited host (use disposable VM for FAIL).
   # - PASS (run):
-  #   - (manual) follow CIS Audit steps; capture evidence (command output, config snippet, screenshot)
+  #   - sudo chown root:root /etc/issue.net && sudo chmod 0644 /etc/issue.net
   # - FAIL (run):
-  #   - (manual) change config on a disposable VM to violate the control; re-run audit to confirm fail
+  #   - sudo chmod 0777 /etc/issue.net
   # - Expected:
   #   - PASS: query returns 1 row
   #   - FAIL: query returns 0 rows
   query: |
-    SELECT 1 WHERE 0;
-  purpose: Manual Validation Required
+    SELECT 1
+    WHERE EXISTS (
+      SELECT 1 FROM file
+      WHERE path='/etc/issue.net' AND uid=0 AND gid=0 AND type='regular'
+        AND mode IN ('0644','0640')
+    );
+  purpose: Informational
   tags: compliance, CIS, CIS_Ubuntu_22_04
   contributors: sharon-fdm
 ---
@@ -1557,19 +1576,19 @@ spec:
   platform: linux
   description: Ensure GDM is removed (Automated) ................................
   resolution: |
-    Manual: follow the CIS 'Audit' procedure for this control and document the result.
-  # QA Validation:
-  # - Where: Manual validation required (no safe generic osquery automation).
+    Remove GDM (gdm3 package) if not needed.
+  # QA Validation:  # - Where: Run on the audited host (use disposable VM for FAIL).
   # - PASS (run):
-  #   - (manual) follow CIS Audit steps; capture evidence (command output, config snippet, screenshot)
+  #   - sudo apt-get update -y && sudo apt-get purge -y gdm3 || true
   # - FAIL (run):
-  #   - (manual) change config on a disposable VM to violate the control; re-run audit to confirm fail
+  #   - sudo apt-get update -y && sudo apt-get install -y gdm3
   # - Expected:
   #   - PASS: query returns 1 row
   #   - FAIL: query returns 0 rows
   query: |
-    SELECT 1 WHERE 0;
-  purpose: Manual Validation Required
+    SELECT 1
+    WHERE NOT EXISTS (SELECT 1 FROM deb_packages WHERE name='gdm3');
+  purpose: Informational
   tags: compliance, CIS, CIS_Ubuntu_22_04
   contributors: sharon-fdm
 ---
@@ -2691,7 +2710,7 @@ spec:
         AND line NOT LIKE '#%'
         AND (line LIKE 'server %' OR line LIKE 'pool %')
     );
-  purpose: Manual Validation Required
+  purpose: Informational
   tags: compliance, CIS, CIS_Ubuntu_22_04
   contributors: sharon-fdm
 ---
@@ -2776,7 +2795,7 @@ spec:
              AND active_state='active'
          )
        );
-  purpose: Manual Validation Required
+  purpose: Informational
   tags: compliance, CIS, CIS_Ubuntu_22_04
   contributors: sharon-fdm
 ---
@@ -3024,7 +3043,7 @@ spec:
            AND (gid=0 OR gid = (SELECT gid FROM groups WHERE groupname='crontab' LIMIT 1))
        );)
        );
-  purpose: Manual Validation Required
+  purpose: Informational
   tags: compliance, CIS, CIS_Ubuntu_22_04
   contributors: sharon-fdm
 ---
@@ -3069,7 +3088,7 @@ spec:
            AND (gid=0 OR gid = (SELECT gid FROM groups WHERE groupname='daemon' LIMIT 1))
        );)
        );
-  purpose: Manual Validation Required
+  purpose: Informational
   tags: compliance, CIS, CIS_Ubuntu_22_04
   contributors: sharon-fdm
 ---
@@ -3122,7 +3141,7 @@ spec:
       WHERE path='/proc/net/wireless'
         AND line LIKE '%:%'
     );
-  purpose: Manual Validation Required
+  purpose: Informational
   tags: compliance, CIS, CIS_Ubuntu_22_04
   contributors: sharon-fdm
 ---
@@ -3157,7 +3176,7 @@ spec:
            WHERE name='bluetooth.service' AND active_state='active'
          )
        );
-  purpose: Manual Validation Required
+  purpose: Informational
   tags: compliance, CIS, CIS_Ubuntu_22_04
   contributors: sharon-fdm
 ---
@@ -3174,12 +3193,6 @@ spec:
   # - Where: Run on the audited Ubuntu 22.04 host (use a disposable VM for FAIL).
   # - PASS (run):
   #   - sudo bash -c 'cat <<EOF > /etc/modprobe.d/dccp.conf
-  # - Where: Run on the audited host (use disposable VM for FAIL).
-  # - FAIL (run):
-  #   - sudo apt-get update -y && sudo apt-get install -y bluez
-  # - Expected:
-  #   - PASS: query returns 1 row
-  #   - FAIL: query returns 0 rows
 # blacklist dccp
 # install dccp /bin/false
 # EOF'
@@ -3377,7 +3390,7 @@ spec:
             OR line LIKE 'net.ipv4.conf.all.forwarding = 0 %'
             OR line LIKE 'net.ipv4.conf.all.forwarding=0 %')
       );
-  purpose: Manual Validation Required
+  purpose: Informational
   tags: compliance, CIS, CIS_Ubuntu_22_04
   contributors: sharon-fdm
 ---
@@ -3415,7 +3428,7 @@ spec:
             OR line LIKE 'net.ipv4.conf.default.forwarding = 0 %'
             OR line LIKE 'net.ipv4.conf.default.forwarding=0 %')
       );
-  purpose: Manual Validation Required
+  purpose: Informational
   tags: compliance, CIS, CIS_Ubuntu_22_04
   contributors: sharon-fdm
 ---
@@ -4250,7 +4263,7 @@ spec:
         AND line NOT LIKE '#%'
         AND (line LIKE 'ClientAliveInterval 300%' OR line LIKE 'ClientAliveInterval	300%')
     );
-  purpose: Manual Validation Required
+  purpose: Informational
   tags: compliance, CIS, CIS_Ubuntu_22_04
   contributors: sharon-fdm
 ---
@@ -4334,7 +4347,7 @@ spec:
         AND line NOT LIKE '#%'
         AND (line LIKE 'HostbasedAuthentication yes%' OR line LIKE 'HostbasedAuthentication	yes%')
     );
-  purpose: Manual Validation Required
+  purpose: Informational
   tags: compliance, CIS, CIS_Ubuntu_22_04
   contributors: sharon-fdm
 ---
@@ -4370,7 +4383,7 @@ spec:
         AND line NOT LIKE '#%'
         AND (line LIKE 'IgnoreRhosts no%' OR line LIKE 'IgnoreRhosts	no%')
     );
-  purpose: Manual Validation Required
+  purpose: Informational
   tags: compliance, CIS, CIS_Ubuntu_22_04
   contributors: sharon-fdm
 ---
@@ -4424,7 +4437,7 @@ spec:
         AND line NOT LIKE '#%'
         AND (line LIKE 'LoginGraceTime 60%' OR line LIKE 'LoginGraceTime	60%')
     );
-  purpose: Manual Validation Required
+  purpose: Informational
   tags: compliance, CIS, CIS_Ubuntu_22_04
   contributors: sharon-fdm
 ---
@@ -4454,7 +4467,7 @@ spec:
         AND line NOT LIKE '#%'
         AND (line LIKE 'LogLevel INFO%' OR line LIKE 'LogLevel VERBOSE%' OR line LIKE 'LogLevel	INFO%' OR line LIKE 'LogLevel	VERBOSE%')
     );
-  purpose: Manual Validation Required
+  purpose: Informational
   tags: compliance, CIS, CIS_Ubuntu_22_04
   contributors: sharon-fdm
 ---
@@ -4508,7 +4521,7 @@ spec:
         AND line NOT LIKE '#%'
         AND (line LIKE 'MaxAuthTries 4%' OR line LIKE 'MaxAuthTries	4%')
     );
-  purpose: Manual Validation Required
+  purpose: Informational
   tags: compliance, CIS, CIS_Ubuntu_22_04
   contributors: sharon-fdm
 ---
@@ -4592,7 +4605,7 @@ spec:
         AND line NOT LIKE '#%'
         AND (line LIKE 'PermitEmptyPasswords yes%' OR line LIKE 'PermitEmptyPasswords	yes%')
     );
-  purpose: Manual Validation Required
+  purpose: Informational
   tags: compliance, CIS, CIS_Ubuntu_22_04
   contributors: sharon-fdm
 ---
@@ -4628,7 +4641,7 @@ spec:
         AND line NOT LIKE '#%'
         AND (line LIKE 'PermitRootLogin yes%' OR line LIKE 'PermitRootLogin prohibit-password%' OR line LIKE 'PermitRootLogin without-password%' OR line LIKE 'PermitRootLogin	yes%' OR line LIKE 'PermitRootLogin	prohibit-password%' OR line LIKE 'PermitRootLogin	without-password%')
     );
-  purpose: Manual Validation Required
+  purpose: Informational
   tags: compliance, CIS, CIS_Ubuntu_22_04
   contributors: sharon-fdm
 ---
@@ -4664,7 +4677,7 @@ spec:
         AND line NOT LIKE '#%'
         AND (line LIKE 'PermitUserEnvironment yes%' OR line LIKE 'PermitUserEnvironment	yes%')
     );
-  purpose: Manual Validation Required
+  purpose: Informational
   tags: compliance, CIS, CIS_Ubuntu_22_04
   contributors: sharon-fdm
 ---
@@ -4700,7 +4713,7 @@ spec:
         AND line NOT LIKE '#%'
         AND (line LIKE 'UsePAM no%' OR line LIKE 'UsePAM	no%')
     );
-  purpose: Manual Validation Required
+  purpose: Informational
   tags: compliance, CIS, CIS_Ubuntu_22_04
   contributors: sharon-fdm
 ---
@@ -4724,7 +4737,7 @@ spec:
   #   - FAIL: query returns 0 rows
   query: |
     SELECT 1 WHERE EXISTS (SELECT 1 FROM deb_packages WHERE name='sudo');
-  purpose: Manual Validation Required
+  purpose: Informational
   tags: compliance, CIS, CIS_Ubuntu_22_04
   contributors: sharon-fdm
 ---
@@ -4892,7 +4905,7 @@ spec:
   #   - FAIL: query returns 0 rows
   query: |
     SELECT 1 WHERE EXISTS (SELECT 1 FROM deb_packages WHERE name='latest-version-of-pam');
-  purpose: Manual Validation Required
+  purpose: Informational
   tags: compliance, CIS, CIS_Ubuntu_22_04
   contributors: sharon-fdm
 ---
@@ -4916,7 +4929,7 @@ spec:
   #   - FAIL: query returns 0 rows
   query: |
     SELECT 1 WHERE EXISTS (SELECT 1 FROM deb_packages WHERE name='latest-version-of-libpam--pwquality');
-  purpose: Manual Validation Required
+  purpose: Informational
   tags: compliance, CIS, CIS_Ubuntu_22_04
   contributors: sharon-fdm
 ---
@@ -4928,19 +4941,22 @@ spec:
   platform: linux
   description: Ensure pam_unix module is enabled (Automated)
   resolution: |
-    Manual: follow the CIS 'Audit' procedure for this control and document the result.
-  # QA Validation:
-  # - Where: Manual validation required (no safe generic osquery automation).
+    Ensure pam_unix is enabled in /etc/pam.d/common-auth (typically via pam-auth-update).
+  # QA Validation:  # - Where: Run on the audited host (use disposable VM for FAIL).
   # - PASS (run):
-  #   - (manual) follow CIS Audit steps; capture evidence (command output, config snippet, screenshot)
+  #   - sudo pam-auth-update --enable unix
   # - FAIL (run):
-  #   - (manual) change config on a disposable VM to violate the control; re-run audit to confirm fail
+  #   - sudo sed -i.bak '/pam_unix\.so/d' /etc/pam.d/common-auth
   # - Expected:
   #   - PASS: query returns 1 row
   #   - FAIL: query returns 0 rows
   query: |
-    SELECT 1 WHERE 0;
-  purpose: Manual Validation Required
+    SELECT 1
+    WHERE EXISTS (
+      SELECT 1 FROM file_lines
+      WHERE path='/etc/pam.d/common-auth' AND line LIKE '%pam_unix.so%'
+    );
+  purpose: Informational
   tags: compliance, CIS, CIS_Ubuntu_22_04
   contributors: sharon-fdm
 ---
@@ -4952,19 +4968,22 @@ spec:
   platform: linux
   description: Ensure pam_faillock module is enabled (Automated)
   resolution: |
-    Manual: follow the CIS 'Audit' procedure for this control and document the result.
-  # QA Validation:
-  # - Where: Manual validation required (no safe generic osquery automation).
+    Ensure pam_faillock is enabled in /etc/pam.d/common-auth (typically via pam-auth-update).
+  # QA Validation:  # - Where: Run on the audited host (use disposable VM for FAIL).
   # - PASS (run):
-  #   - (manual) follow CIS Audit steps; capture evidence (command output, config snippet, screenshot)
+  #   - sudo pam-auth-update --enable faillock
   # - FAIL (run):
-  #   - (manual) change config on a disposable VM to violate the control; re-run audit to confirm fail
+  #   - sudo sed -i.bak '/pam_faillock\.so/d' /etc/pam.d/common-auth
   # - Expected:
   #   - PASS: query returns 1 row
   #   - FAIL: query returns 0 rows
   query: |
-    SELECT 1 WHERE 0;
-  purpose: Manual Validation Required
+    SELECT 1
+    WHERE EXISTS (
+      SELECT 1 FROM file_lines
+      WHERE path='/etc/pam.d/common-auth' AND line LIKE '%pam_faillock.so%'
+    );
+  purpose: Informational
   tags: compliance, CIS, CIS_Ubuntu_22_04
   contributors: sharon-fdm
 ---
@@ -4976,19 +4995,22 @@ spec:
   platform: linux
   description: Ensure pam_pwquality module is enabled (Automated)
   resolution: |
-    Manual: follow the CIS 'Audit' procedure for this control and document the result.
-  # QA Validation:
-  # - Where: Manual validation required (no safe generic osquery automation).
+    Ensure pam_pwquality is enabled in /etc/pam.d/common-password (typically via pam-auth-update).
+  # QA Validation:  # - Where: Run on the audited host (use disposable VM for FAIL).
   # - PASS (run):
-  #   - (manual) follow CIS Audit steps; capture evidence (command output, config snippet, screenshot)
+  #   - sudo apt-get update -y && sudo apt-get install -y libpam-pwquality
   # - FAIL (run):
-  #   - (manual) change config on a disposable VM to violate the control; re-run audit to confirm fail
+  #   - sudo sed -i.bak '/pam_pwquality\.so/d' /etc/pam.d/common-password
   # - Expected:
   #   - PASS: query returns 1 row
   #   - FAIL: query returns 0 rows
   query: |
-    SELECT 1 WHERE 0;
-  purpose: Manual Validation Required
+    SELECT 1
+    WHERE EXISTS (
+      SELECT 1 FROM file_lines
+      WHERE path='/etc/pam.d/common-password' AND line LIKE '%pam_pwquality.so%'
+    );
+  purpose: Informational
   tags: compliance, CIS, CIS_Ubuntu_22_04
   contributors: sharon-fdm
 ---
@@ -5077,7 +5099,7 @@ spec:
           OR line LIKE '%deny=9 %' OR line LIKE '%deny = 9 %' OR line LIKE '%deny=9' OR line LIKE '%deny = 9'
         )
     ));
-  purpose: Manual Validation Required
+  purpose: Informational
   tags: compliance, CIS, CIS_Ubuntu_22_04
   contributors: sharon-fdm
 ---
@@ -5132,7 +5154,7 @@ spec:
         AND line NOT LIKE '%unlock_time=9__%'
         AND line NOT LIKE '%unlock_time = 9__%'
     ));
-  purpose: Manual Validation Required
+  purpose: Informational
   tags: compliance, CIS, CIS_Ubuntu_22_04
   contributors: sharon-fdm
 ---
@@ -5191,7 +5213,7 @@ spec:
         AND line NOT LIKE '%root_unlock_time=6_%'
         AND line NOT LIKE '%root_unlock_time = 6_%'
     ));
-  purpose: Manual Validation Required
+  purpose: Informational
   tags: compliance, CIS, CIS_Ubuntu_22_04
   contributors: sharon-fdm
 ---
@@ -5414,7 +5436,7 @@ spec:
         AND line LIKE '%pam_pwhistory.so%'
         AND ((line LIKE '%remember=24%' OR line LIKE '%remember = 24%') OR (line LIKE '%remember=25%' OR line LIKE '%remember = 25%') OR (line LIKE '%remember=26%' OR line LIKE '%remember = 26%') OR (line LIKE '%remember=27%' OR line LIKE '%remember = 27%') OR (line LIKE '%remember=28%' OR line LIKE '%remember = 28%') OR (line LIKE '%remember=29%' OR line LIKE '%remember = 29%') OR (line LIKE '%remember=3_%' OR line LIKE '%remember = 3_%') OR (line LIKE '%remember=4_%' OR line LIKE '%remember = 4_%') OR (line LIKE '%remember=5_%' OR line LIKE '%remember = 5_%') OR (line LIKE '%remember=6_%' OR line LIKE '%remember = 6_%') OR (line LIKE '%remember=7_%' OR line LIKE '%remember = 7_%') OR (line LIKE '%remember=8_%' OR line LIKE '%remember = 8_%') OR (line LIKE '%remember=9_%' OR line LIKE '%remember = 9_%') OR (line LIKE '%remember=___%' OR line LIKE '%remember = ___%'))
     );
-  purpose: Manual Validation Required
+  purpose: Informational
   tags: compliance, CIS, CIS_Ubuntu_22_04
   contributors: sharon-fdm
 ---
@@ -5730,7 +5752,7 @@ spec:
       SELECT 1 FROM users
       WHERE uid=0 AND username != 'root'
     );
-  purpose: Manual Validation Required
+  purpose: Informational
   tags: compliance, CIS, CIS_Ubuntu_22_04
   contributors: sharon-fdm
 ---
@@ -5758,7 +5780,7 @@ spec:
       SELECT 1 FROM users
       WHERE gid=0 AND username != 'root'
     );
-  purpose: Manual Validation Required
+  purpose: Informational
   tags: compliance, CIS, CIS_Ubuntu_22_04
   contributors: sharon-fdm
 ---
@@ -5786,7 +5808,7 @@ spec:
       SELECT 1 FROM groups
       WHERE gid=0 AND groupname != 'root'
     );
-  purpose: Manual Validation Required
+  purpose: Informational
   tags: compliance, CIS, CIS_Ubuntu_22_04
   contributors: sharon-fdm
 ---
@@ -6056,7 +6078,7 @@ spec:
         AND line NOT LIKE '#%'
         AND (line LIKE 'ForwardToSyslog=no%' OR line LIKE 'ForwardToSyslog = no%')
     );
-  purpose: Manual Validation Required
+  purpose: Informational
   tags: compliance, CIS, CIS_Ubuntu_22_04
   contributors: sharon-fdm
 ---
@@ -6086,7 +6108,7 @@ spec:
         AND line NOT LIKE '#%'
         AND (line LIKE 'Storage=persistent%' OR line LIKE 'Storage = persistent%')
     );
-  purpose: Manual Validation Required
+  purpose: Informational
   tags: compliance, CIS, CIS_Ubuntu_22_04
   contributors: sharon-fdm
 ---
@@ -6116,7 +6138,7 @@ spec:
         AND line NOT LIKE '#%'
         AND (line LIKE 'Compress=yes%' OR line LIKE 'Compress = yes%')
     );
-  purpose: Manual Validation Required
+  purpose: Informational
   tags: compliance, CIS, CIS_Ubuntu_22_04
   contributors: sharon-fdm
 ---
@@ -6140,7 +6162,7 @@ spec:
   #   - FAIL: query returns 0 rows
   query: |
     SELECT 1 WHERE EXISTS (SELECT 1 FROM deb_packages WHERE name='systemd--journal--remote');
-  purpose: Manual Validation Required
+  purpose: Informational
   tags: compliance, CIS, CIS_Ubuntu_22_04
   contributors: sharon-fdm
 ---
@@ -6190,7 +6212,7 @@ spec:
     SELECT 1
     WHERE EXISTS (SELECT 1 FROM systemd_units WHERE name='systemd-journal-upload.service' AND enabled_state='enabled')
       AND EXISTS (SELECT 1 FROM systemd_units WHERE name='systemd-journal-upload.service' AND active_state='active');
-  purpose: Manual Validation Required
+  purpose: Informational
   tags: compliance, CIS, CIS_Ubuntu_22_04
   contributors: sharon-fdm
 ---
@@ -6222,7 +6244,7 @@ spec:
       SELECT 1 FROM systemd_units
       WHERE name IN ('systemd-journal-remote.socket','systemd-journal-remote.service') AND active_state='active'
     );
-  purpose: Manual Validation Required
+  purpose: Informational
   tags: compliance, CIS, CIS_Ubuntu_22_04
   contributors: sharon-fdm
 ---
@@ -6246,7 +6268,7 @@ spec:
   #   - FAIL: query returns 0 rows
   query: |
     SELECT 1 WHERE EXISTS (SELECT 1 FROM deb_packages WHERE name='rsyslog');
-  purpose: Manual Validation Required
+  purpose: Informational
   tags: compliance, CIS, CIS_Ubuntu_22_04
   contributors: sharon-fdm
 ---
@@ -6272,9 +6294,9 @@ spec:
     SELECT 1
     WHERE EXISTS (
       SELECT 1 FROM systemd_units
-      WHERE name='rsyslog.service' AND enabled_state='enabled'
+      WHERE name='rsyslog.service' AND enabled_state='enabled' AND active_state='active'
     );
-  purpose: Manual Validation Required
+  purpose: Informational
   tags: compliance, CIS, CIS_Ubuntu_22_04
   contributors: sharon-fdm
 ---
@@ -6304,7 +6326,7 @@ spec:
         AND line NOT LIKE '#%'
         AND (line LIKE 'ForwardToSyslog=yes%' OR line LIKE 'ForwardToSyslog = yes%')
     );
-  purpose: Manual Validation Required
+  purpose: Informational
   tags: compliance, CIS, CIS_Ubuntu_22_04
   contributors: sharon-fdm
 ---
@@ -6356,7 +6378,7 @@ spec:
         AND substr(m4,3,1) IN ('0','2','4')
         AND substr(m4,4,1)='0'
     );
-  purpose: Manual Validation Required
+  purpose: Informational
   tags: compliance, CIS, CIS_Ubuntu_22_04
   contributors: sharon-fdm
 ---
@@ -6442,7 +6464,7 @@ spec:
           line LIKE '%imtcp%' AND (line LIKE '%module(%' OR line LIKE '%input(%' OR line LIKE '%$ModLoad %' OR line LIKE '%$InputTCPServerRun%')
         )
     );
-  purpose: Manual Validation Required
+  purpose: Informational
   tags: compliance, CIS, CIS_Ubuntu_22_04
   contributors: sharon-fdm
 ---
@@ -6511,7 +6533,7 @@ spec:
     SELECT 1
     WHERE NOT EXISTS (SELECT 1 FROM ww_files)
       AND NOT EXISTS (SELECT 1 FROM ww_dirs_no_sticky);
-  purpose: Manual Validation Required
+  purpose: Informational
   tags: compliance, CIS, CIS_Ubuntu_22_04
   contributors: sharon-fdm
 ---
@@ -6537,7 +6559,7 @@ spec:
     SELECT 1
     WHERE EXISTS (SELECT 1 FROM deb_packages WHERE name='auditd')
       AND EXISTS (SELECT 1 FROM deb_packages WHERE name='audispd-plugins');
-  purpose: Manual Validation Required
+  purpose: Informational
   tags: compliance, CIS, CIS_Ubuntu_22_04
   contributors: sharon-fdm
 ---
@@ -6565,7 +6587,7 @@ spec:
       SELECT 1 FROM systemd_units
       WHERE name='auditd.service' AND enabled_state='enabled'
     );
-  purpose: Manual Validation Required
+  purpose: Informational
   tags: compliance, CIS, CIS_Ubuntu_22_04
   contributors: sharon-fdm
 ---
@@ -6601,7 +6623,7 @@ spec:
         AND line NOT LIKE '#%'
         AND line LIKE 'GRUB_CMDLINE_LINUX%audit=1%'
     );
-  purpose: Manual Validation Required
+  purpose: Informational
   tags: compliance, CIS, CIS_Ubuntu_22_04
   contributors: sharon-fdm
 ---
@@ -6645,7 +6667,7 @@ spec:
     )
     SELECT 1
     WHERE EXISTS (SELECT 1 FROM vals WHERE v >= 8192);
-  purpose: Manual Validation Required
+  purpose: Informational
   tags: compliance, CIS, CIS_Ubuntu_22_04
   contributors: sharon-fdm
 ---
@@ -6704,7 +6726,7 @@ spec:
           OR line LIKE 'max_log_file_action=keep_logs %'
         )
     );
-  purpose: Manual Validation Required
+  purpose: Informational
   tags: compliance, CIS, CIS_Ubuntu_22_04
   contributors: sharon-fdm
 ---
@@ -6743,7 +6765,7 @@ spec:
              line LIKE 'disk_error_action = single%' OR line LIKE 'disk_error_action=single%' OR
              line LIKE 'disk_error_action = halt%' OR line LIKE 'disk_error_action=halt%')
     );
-  purpose: Manual Validation Required
+  purpose: Informational
   tags: compliance, CIS, CIS_Ubuntu_22_04
   contributors: sharon-fdm
 ---
@@ -6783,7 +6805,7 @@ spec:
         AND (line LIKE 'admin_space_left_action = single%' OR line LIKE 'admin_space_left_action=single%' OR
              line LIKE 'admin_space_left_action = halt%' OR line LIKE 'admin_space_left_action=halt%')
     );
-  purpose: Manual Validation Required
+  purpose: Informational
   tags: compliance, CIS, CIS_Ubuntu_22_04
   contributors: sharon-fdm
 ---
@@ -7245,7 +7267,7 @@ spec:
         AND line NOT LIKE '#%'
         AND (line = '-e 2' OR line LIKE '-e 2 %' OR line LIKE '-e 2	%')
     );
-  purpose: Manual Validation Required
+  purpose: Informational
   tags: compliance, CIS, CIS_Ubuntu_22_04
   contributors: sharon-fdm
 ---
@@ -7533,7 +7555,7 @@ spec:
   #   - FAIL: query returns 0 rows
   query: |
     SELECT 1 WHERE EXISTS (SELECT 1 FROM deb_packages WHERE name='aide');
-  purpose: Manual Validation Required
+  purpose: Informational
   tags: compliance, CIS, CIS_Ubuntu_22_04
   contributors: sharon-fdm
 ---
@@ -7609,7 +7631,7 @@ spec:
       SELECT 1 FROM file
       WHERE path='/etc/passwd' AND mode='0644' AND uid=0 AND gid=0
     );
-  purpose: Manual Validation Required
+  purpose: Informational
   tags: compliance, CIS, CIS_Ubuntu_22_04
   contributors: sharon-fdm
 ---
@@ -7637,7 +7659,7 @@ spec:
       SELECT 1 FROM file
       WHERE path='/etc/passwd-' AND mode='0644' AND uid=0 AND gid=0
     );
-  purpose: Manual Validation Required
+  purpose: Informational
   tags: compliance, CIS, CIS_Ubuntu_22_04
   contributors: sharon-fdm
 ---
@@ -7665,7 +7687,7 @@ spec:
       SELECT 1 FROM file
       WHERE path='/etc/group' AND mode='0644' AND uid=0 AND gid=0
     );
-  purpose: Manual Validation Required
+  purpose: Informational
   tags: compliance, CIS, CIS_Ubuntu_22_04
   contributors: sharon-fdm
 ---
@@ -7693,7 +7715,7 @@ spec:
       SELECT 1 FROM file
       WHERE path='/etc/group-' AND mode='0644' AND uid=0 AND gid=0
     );
-  purpose: Manual Validation Required
+  purpose: Informational
   tags: compliance, CIS, CIS_Ubuntu_22_04
   contributors: sharon-fdm
 ---
@@ -7721,7 +7743,7 @@ spec:
       SELECT 1 FROM file
       WHERE path='/etc/shadow' AND mode='0640' AND uid=0 AND gid=0
     );
-  purpose: Manual Validation Required
+  purpose: Informational
   tags: compliance, CIS, CIS_Ubuntu_22_04
   contributors: sharon-fdm
 ---
@@ -7749,7 +7771,7 @@ spec:
       SELECT 1 FROM file
       WHERE path='/etc/shadow-' AND mode='0640' AND uid=0 AND gid=0
     );
-  purpose: Manual Validation Required
+  purpose: Informational
   tags: compliance, CIS, CIS_Ubuntu_22_04
   contributors: sharon-fdm
 ---
@@ -7777,7 +7799,7 @@ spec:
       SELECT 1 FROM file
       WHERE path='/etc/gshadow' AND mode='0640' AND uid=0 AND gid=0
     );
-  purpose: Manual Validation Required
+  purpose: Informational
   tags: compliance, CIS, CIS_Ubuntu_22_04
   contributors: sharon-fdm
 ---
@@ -7805,7 +7827,7 @@ spec:
       SELECT 1 FROM file
       WHERE path='/etc/gshadow-' AND mode='0640' AND uid=0 AND gid=0
     );
-  purpose: Manual Validation Required
+  purpose: Informational
   tags: compliance, CIS, CIS_Ubuntu_22_04
   contributors: sharon-fdm
 ---
@@ -7857,7 +7879,7 @@ spec:
       SELECT 1 FROM file
       WHERE path='/etc/passwd' AND mode='0644' AND uid=0 AND gid=0
     );
-  purpose: Manual Validation Required
+  purpose: Informational
   tags: compliance, CIS, CIS_Ubuntu_22_04
   contributors: sharon-fdm
 ---
@@ -7959,7 +7981,7 @@ spec:
         AND password != '*'
         AND password != '!'
     );
-  purpose: Manual Validation Required
+  purpose: Informational
   tags: compliance, CIS, CIS_Ubuntu_22_04
   contributors: sharon-fdm
 ---
@@ -7987,7 +8009,7 @@ spec:
       SELECT 1 FROM shadow
       WHERE password = '' OR password IS NULL
     );
-  purpose: Manual Validation Required
+  purpose: Informational
   tags: compliance, CIS, CIS_Ubuntu_22_04
   contributors: sharon-fdm
 ---
@@ -8017,7 +8039,7 @@ spec:
       LEFT JOIN groups g ON u.gid = g.gid
       WHERE g.gid IS NULL
     );
-  purpose: Manual Validation Required
+  purpose: Informational
   tags: compliance, CIS, CIS_Ubuntu_22_04
   contributors: sharon-fdm
 ---
@@ -8045,7 +8067,7 @@ spec:
       SELECT 1 FROM user_groups
       WHERE groupname='shadow'
     );
-  purpose: Manual Validation Required
+  purpose: Informational
   tags: compliance, CIS, CIS_Ubuntu_22_04
   contributors: sharon-fdm
 ---
@@ -8072,7 +8094,7 @@ spec:
     WHERE NOT EXISTS (
       SELECT uid FROM users GROUP BY uid HAVING COUNT(*) > 1
     );
-  purpose: Manual Validation Required
+  purpose: Informational
   tags: compliance, CIS, CIS_Ubuntu_22_04
   contributors: sharon-fdm
 ---
@@ -8099,7 +8121,7 @@ spec:
     WHERE NOT EXISTS (
       SELECT gid FROM groups GROUP BY gid HAVING COUNT(*) > 1
     );
-  purpose: Manual Validation Required
+  purpose: Informational
   tags: compliance, CIS, CIS_Ubuntu_22_04
   contributors: sharon-fdm
 ---
@@ -8126,7 +8148,7 @@ spec:
     WHERE NOT EXISTS (
       SELECT username FROM users GROUP BY username HAVING COUNT(*) > 1
     );
-  purpose: Manual Validation Required
+  purpose: Informational
   tags: compliance, CIS, CIS_Ubuntu_22_04
   contributors: sharon-fdm
 ---
@@ -8153,7 +8175,7 @@ spec:
     WHERE NOT EXISTS (
       SELECT groupname FROM groups GROUP BY groupname HAVING COUNT(*) > 1
     );
-  purpose: Manual Validation Required
+  purpose: Informational
   tags: compliance, CIS, CIS_Ubuntu_22_04
   contributors: sharon-fdm
 ---
@@ -8197,7 +8219,7 @@ spec:
     SELECT 1
     WHERE NOT EXISTS (SELECT 1 FROM missing_home)
       AND NOT EXISTS (SELECT 1 FROM wrong_owner);
-  purpose: Manual Validation Required
+  purpose: Informational
   tags: compliance, CIS, CIS_Ubuntu_22_04
   contributors: sharon-fdm
 ---
