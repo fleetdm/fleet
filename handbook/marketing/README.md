@@ -84,7 +84,7 @@ This list is in chronological order as assets are created.
 | [Queries/create a query](https://fleetdm.com/guides/queries#create-a-query) | Explaining what Queries are and how to create them | 2021-01-25 | — |
 | [Product roadmap](https://docs.google.com/document/d/16si8Nkh0F25opUMpZYm6XwU8LEhGd7H4eOzPKFz8jGw/edit?usp=sharing) | Future vision and open opportunities | 2021-01-20 | — |
 
-### Press Broiler Plate Text
+### Press boilerplate text
 
 Fleet is the single endpoint management platform for macOS, iOS, Android, Windows, Linux, ChromeOS, and cloud infrastructure. Trusted by over 1,300 organizations,  Fleet empowers IT and Security teams to accelerate productivity, build verifiable trust, and optimize costs.
 
