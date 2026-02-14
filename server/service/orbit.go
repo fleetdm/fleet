@@ -1173,7 +1173,7 @@ func (svc *Service) SetOrUpdateDiskEncryptionKey(ctx context.Context, encryption
 	}
 
 	// Only archive the key if disk encryption is enabled for this host (team/globally)
-	if !osquery_utils.IsDiskEncryptionEnabledForHost(ctx, svc.logger, svc.ds, host) {
+	if !osquery_utils.IsDiskEncryptionEnabledForHost(ctx, svc.logger.SlogLogger(), svc.ds, host) {
 		level.Debug(svc.logger).Log(
 			"msg", "skipping key archival, disk encryption not enabled for host team/globally",
 			"host_id", host.ID,
@@ -1281,7 +1281,7 @@ func (svc *Service) EscrowLUKSData(ctx context.Context, passphrase string, salt 
 	}
 
 	// Only archive the key if disk encryption is enabled for this host (team/globally)
-	if !osquery_utils.IsDiskEncryptionEnabledForHost(ctx, svc.logger, svc.ds, host) {
+	if !osquery_utils.IsDiskEncryptionEnabledForHost(ctx, svc.logger.SlogLogger(), svc.ds, host) {
 		level.Debug(svc.logger).Log(
 			"msg", "skipping LUKS key archival, disk encryption not enabled for host team/globally",
 			"host_id", host.ID,
