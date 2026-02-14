@@ -1,0 +1,1 @@
+* Refactored query used for deleting host_mdm_apple_profiles in bulk to use Primary keys only.
