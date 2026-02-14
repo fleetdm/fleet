@@ -147,3 +147,38 @@ spec:
   purpose: Informational
   tags: compliance, CIS, CIS_Ubuntu_22_04
   contributors: sharon-fdm
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS Ubuntu 22.04 - 1.1.1.6 Ensure overlay kernel module is not available (Automated)
+  platforms: linux
+  platform: linux
+  description: Ensure overlay kernel module is not available (Automated)
+  resolution: |
+    Create /etc/modprobe.d/udf.conf with blacklist + install rules to prevent loading udf.
+  # QA Validation:
+  # - Where: Run on the audited Ubuntu 22.04 host (use a disposable VM for FAIL).
+  # - PASS (run):
+  #   - sudo bash -c "printf '%s\n' 'blacklist udf' 'install udf /bin/false' > /etc/modprobe.d/udf.conf"
+  #   - sudo modprobe -r udf 2>/dev/null || true
+  # - FAIL (run):
+  #   - sudo rm -f /etc/modprobe.d/udf.conf
+  #   - (optional) sudo modprobe udf 2>/dev/null || true
+  # - Expected:
+  #   - PASS: query returns 1 row
+  #   - FAIL: query returns 0 rows
+  query: |
+    SELECT 1
+    WHERE (SELECT COUNT(*) FROM kernel_modules WHERE name='udf') = 0
+      AND (SELECT COUNT(*) FROM file_contents
+           WHERE path LIKE '/etc/modprobe.d/%.conf'
+             AND contents LIKE '%blacklist udf%'
+             AND contents NOT LIKE '%#%') >= 1
+      AND (SELECT COUNT(*) FROM file_contents
+           WHERE path LIKE '/etc/modprobe.d/%.conf'
+             AND (contents LIKE '%install udf /bin/false%' OR contents LIKE '%install udf /bin/true%')
+             AND contents NOT LIKE '%#%') >= 1;
+  purpose: Informational
+  tags: compliance, CIS, CIS_Ubuntu_22_04
+  contributors: sharon-fdm
