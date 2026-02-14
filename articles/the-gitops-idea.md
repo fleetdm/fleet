@@ -54,7 +54,7 @@ Powerful auditing and declarative control over any system should result in a red
 
 ## GitOps is ready when you are
 
-You don't need specific reasons or products to apply GitOps thinking to your work today. GitOps is a set of practices and ideas that can be creatively applied in almost any context or technology domain.
+You don't need specific reasons or products to apply GitOps thinking to your work today. GitOps can be creatively applied in almost any context or technology domain.
 
 To get a feel for how GitOps fits with device management, Allen Houchins has written an excellent article about his journey to GitOps adoption as head of IT for Fleet: [What I have learned from managing devices with GitOps](https://fleetdm.com/guides/what-i-have-learned-from-managing-devices-with-gitops).
 
