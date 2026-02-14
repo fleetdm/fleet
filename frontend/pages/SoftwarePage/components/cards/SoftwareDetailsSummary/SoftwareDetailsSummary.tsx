@@ -214,6 +214,21 @@ const SoftwareDetailsSummary = ({
     );
   };
 
+  const renderDisplayName = () => {
+    if (isRollingArch) {
+      return (
+        <>
+          {displayName.slice(0, -8)}
+          <TooltipWrapperArchLinuxRolling />
+        </>
+      );
+    }
+    if (titleDetailsPath) {
+      return <CustomLink url={titleDetailsPath} text={displayName} />;
+    }
+    return <TooltipTruncatedText value={displayName} />;
+  };
+
   const actionOptions = buildActionOptions(
     gitOpsModeEnabled,
     repoURL,
@@ -233,17 +248,7 @@ const SoftwareDetailsSummary = ({
         <dl className={`${baseClass}__info`}>
           <div className={`${baseClass}__title-actions`}>
             <h1 aria-label="software display name">
-              {isRollingArch ? (
-                // wrap a tooltip around the "rolling" suffix
-                <>
-                  {displayName.slice(0, -8)}
-                  <TooltipWrapperArchLinuxRolling />
-                </>
-              ) : titleDetailsPath ? (
-                <CustomLink url={titleDetailsPath} text={displayName} />
-              ) : (
-                <TooltipTruncatedText value={displayName} />
-              )}
+              {renderDisplayName()}
             </h1>
             {canManageSoftware && (
               <div className={`${baseClass}__actions-wrapper`}>
