@@ -134,6 +134,8 @@ interface ISoftwareDetailsSummaryProps {
   iconPreviewUrl?: string | null;
   /** timestamp of when icon was last uploaded, used to force refresh of cached icon */
   iconUploadedAt?: string;
+  /** Path to the software title details page. When provided, the display name becomes a clickable link. */
+  titleDetailsPath?: string;
 }
 
 const SoftwareDetailsSummary = ({
@@ -154,6 +156,7 @@ const SoftwareDetailsSummary = ({
   onClickEditAutoUpdateConfig,
   iconPreviewUrl,
   iconUploadedAt,
+  titleDetailsPath,
 }: ISoftwareDetailsSummaryProps) => {
   const hostCountPath = getPathWithQueryParams(paths.MANAGE_HOSTS, queryParams);
 
@@ -236,6 +239,8 @@ const SoftwareDetailsSummary = ({
                   {displayName.slice(0, -8)}
                   <TooltipWrapperArchLinuxRolling />
                 </>
+              ) : titleDetailsPath ? (
+                <CustomLink url={titleDetailsPath} text={displayName} />
               ) : (
                 <TooltipTruncatedText value={displayName} />
               )}

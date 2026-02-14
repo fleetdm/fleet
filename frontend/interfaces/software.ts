@@ -50,6 +50,7 @@ export interface ISoftware {
   extension_for?: string;
   vendor?: string;
   icon_url: string | null; // Only available on team view if an admin uploaded an icon to a team's software
+  software_title_id?: number;
 }
 
 export type IVulnerabilitySoftware = Omit<
@@ -229,6 +230,7 @@ export interface ISoftwareVersion {
   generated_cpe: string;
   vulnerabilities: ISoftwareVulnerability[] | null;
   hosts_count?: number;
+  software_title_id?: number;
   /** @deprecated Use extension_for instead */
   browser?: string;
 }

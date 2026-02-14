@@ -974,6 +974,15 @@ func testOSVersionsByCVE(t *testing.T, ds *Datastore) {
 func testSoftwareByCVE(t *testing.T, ds *Datastore) {
 	seedVulnerabilities(t, ds)
 
+	// Look up the actual software_title_id for Chrome/programs from the DB
+	// to verify the API returns the correct value (not just any non-nil value).
+	var expectedTitleID uint
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(context.Background(), q, &expectedTitleID,
+			`SELECT id FROM software_titles WHERE name = ? AND source = ?`, "Chrome", "programs")
+	})
+	require.NotZero(t, expectedTitleID)
+
 	// global
 	software, _, err := ds.SoftwareByCVE(context.Background(), "CVE-2020-1234", nil)
 	require.NoError(t, err)
@@ -986,12 +995,13 @@ func testSoftwareByCVE(t *testing.T, ds *Datastore) {
 		HostsCount:        6,
 		GenerateCPE:       "cpe:2.3:a:google:chrome:1.0.0:*:*:*:*:*:*:*:*",
 		ResolvedInVersion: ptr.String("1.0.0"),
+		SoftwareTitleID:   ptr.Uint(expectedTitleID),
 	}
 
 	require.Len(t, software, 1)
 	require.Equal(t, expected, software[0])
 
-	// team 1
+	// team 1 — same title ID, different host count
 	expected.HostsCount = 4
 	software, _, err = ds.SoftwareByCVE(context.Background(), "CVE-2020-1234", ptr.Uint(1))
 	require.NoError(t, err)
@@ -1005,7 +1015,7 @@ func testSoftwareByCVE(t *testing.T, ds *Datastore) {
 	require.Len(t, software, 1)
 	require.Equal(t, expected, software[0])
 
-	// team 0
+	// team 0 (no team)
 	expected.HostsCount = 1
 	software, _, err = ds.SoftwareByCVE(context.Background(), "CVE-2020-1234", ptr.Uint(0))
 	require.NoError(t, err)
