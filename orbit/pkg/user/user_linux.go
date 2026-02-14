@@ -7,7 +7,6 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
-	"os"
 	"os/exec"
 	"strconv"
 	"strings"
@@ -20,170 +19,146 @@ type User struct {
 	ID   int64
 }
 
+// UserLoggedInViaGui returns the username that has an active GUI session.
+// It returns nil, nil if there's no user with an active GUI session.
 func UserLoggedInViaGui() (*string, error) {
-	user, err := GetLoginUser()
+	users, err := getLoginUsers()
 	if err != nil {
-		return nil, fmt.Errorf("get login user: %w", err)
+		return nil, fmt.Errorf("get login users: %w", err)
 	}
 
-	// Bail out if the user is gdm or root, since they aren't GUI users.
-	// User gdm-greeter is active during the GUI log-in prompt (GNOME 49).
-	if user.Name == "gdm" || user.Name == "root" || user.Name == "gdm-greeter" {
-		return nil, nil
-	}
-	// Check if the user has a GUI session.
-	displaySessionType, err := GetUserDisplaySessionType(strconv.FormatInt(user.ID, 10))
-	if err != nil {
-		log.Debug().Err(err).Msgf("failed to get user display session type for user %s", user.Name)
-		return nil, nil
-	}
-	if displaySessionType == GuiSessionTypeTty {
-		log.Debug().Msgf("user %s is logged in via TTY, not GUI", user.Name)
-		return nil, nil
+	for _, user := range users {
+		// Skip system/display manager users since they aren't GUI users.
+		// User gdm-greeter is active during the GUI log-in prompt (GNOME 49).
+		if user.Name == "gdm" || user.Name == "root" || user.Name == "gdm-greeter" {
+			continue
+		}
+		// Check if the user has an active GUI session.
+		session, err := GetUserDisplaySessionType(strconv.FormatInt(user.ID, 10))
+		if err != nil {
+			log.Debug().Err(err).Msgf("failed to get user display session for user %s", user.Name)
+			continue
+		}
+		if !session.Active {
+			log.Debug().Msgf("user %s has an inactive display session, skipping", user.Name)
+			continue
+		}
+		if session.Type == GuiSessionTypeTty {
+			log.Debug().Msgf("user %s is logged in via TTY, not GUI", user.Name)
+			continue
+		}
+		return &user.Name, nil
 	}
 
-	return &user.Name, nil
+	// No valid user found
+	return nil, nil
 }
 
-// GetLoginUser returns the name and uid of the first login user
-// as reported by the `users' command.
-//
-// NOTE(lucas): It is always picking first login user as returned
-// by `users', revisit when working on multi-user/multi-session support.
-func GetLoginUser() (*User, error) {
-	out, err := exec.Command("users").CombinedOutput()
+// getLoginUsers returns all logged-in users as reported by
+// `loginctl list-users`.
+func getLoginUsers() ([]User, error) {
+	out, err := exec.Command("loginctl", "list-users", "--no-legend", "--no-pager").CombinedOutput()
 	if err != nil {
-		return nil, fmt.Errorf("users exec failed: %w", err)
+		return nil, fmt.Errorf("loginctl list-users exec failed: %w, output: %s", err, string(out))
 	}
-	usernames := parseUsersOutput(string(out))
-	username := usernames[0]
-	if username == "" {
+	return parseLoginctlUsersOutput(string(out))
+}
+
+// parseLoginctlUsersOutput parses the output of `loginctl list-users --no-legend`.
+// Each line has the format: UID USERNAME
+func parseLoginctlUsersOutput(s string) ([]User, error) {
+	var users []User
+	for line := range strings.SplitSeq(strings.TrimSpace(s), "\n") {
+		line = strings.TrimSpace(line)
+		if line == "" {
+			continue
+		}
+		fields := strings.Fields(line)
+		if len(fields) < 2 {
+			continue
+		}
+		uid, err := strconv.ParseInt(fields[0], 10, 64)
+		if err != nil {
+			log.Debug().Err(err).Msgf("failed to parse uid from loginctl output: %q", line)
+			continue
+		}
+		users = append(users, User{
+			Name: fields[1],
+			ID:   uid,
+		})
+	}
+	if len(users) == 0 {
 		return nil, errors.New("no user session found")
 	}
-	out, err = exec.Command("id", "-u", username).CombinedOutput()
-	if err != nil {
-		return nil, fmt.Errorf("id exec failed: %w", err)
-	}
-	uid, err := parseIDOutput(string(out))
-	if err != nil {
-		return nil, err
-	}
-	return &User{
-		Name: username,
-		ID:   uid,
-	}, nil
+	return users, nil
 }
 
-// GetSELinuxUserContext returns the SELinux context for the given user.
-// Example: `unconfined_u:unconfined_r:unconfined_t:s0-s0:c0.c1023`
-//
-// If SELinux is not enabled, the `runcon` command is not available,
-// or context cannot be determined, it returns nil.
-func GetSELinuxUserContext(user *User) *string {
-	// If SELinux is not enabled, return nil right away.
-	if _, err := os.Stat("/sys/fs/selinux/enforce"); err != nil {
-		return nil
-	}
-	// If runcon is not available, we won't be able to switch contexts,
-	// so return nil.
-	if _, err := exec.LookPath("runcon"); err != nil {
-		log.Warn().Msg("runcon not available, returning nil for user context since we can't switch contexts")
-		return nil
-	}
-	// Find the first systemd process for the user and read its SELinux context.
-	pidBytes, err := exec.Command("pgrep", "-u", strconv.FormatInt(user.ID, 10), "-nx", "systemd").Output() // #nosec G204
-	if err != nil {
-		log.Debug().Msgf("Error finding systemd process for user %s: %v", user.Name, err)
-		return nil
-	}
-	pid := strings.TrimSpace(string(pidBytes))
-	if pid == "" {
-		log.Debug().Msgf("No systemd process found for user %s", user.Name)
-		return nil
-	}
-	ctx, err := os.ReadFile("/proc/" + pid + "/attr/current")
-	if err != nil {
-		log.Debug().Msgf("Error reading SELinux context for user %s: %v", user.Name, err)
-		return nil
-	}
-	context := strings.TrimSpace(string(ctx))
-	// Remove any null byte at the end
-	context = strings.TrimSuffix(context, "\x00")
-	if context == "" {
-		log.Debug().Msg("Empty SELinux context for user " + user.Name)
-		return nil
-	}
-	return &context
+// UserDisplaySession holds the display session type and active status for a user.
+type UserDisplaySession struct {
+	Type   GuiSessionType
+	Active bool
 }
 
-// parseUsersOutput parses the output of the `users' command.
-//
-//	`users' command prints on a single line a blank-separated list of user names of
-//	users currently logged in to the current host. Each user name
-//	corresponds to a login session, so if a user has more than one login
-//	session, that user's name will appear the same number of times in the
-//	output.
-//
-// Returns the list of usernames.
-func parseUsersOutput(s string) []string {
-	var users []string
-	users = append(users, strings.Split(strings.TrimSpace(s), " ")...)
-	return users
-}
-
-// parseIDOutput parses the output of the `id' command.
-//
-// Returns the parsed uid.
-func parseIDOutput(s string) (int64, error) {
-	uid, err := strconv.ParseInt(strings.TrimSpace(s), 10, 0)
-	if err != nil {
-		return 0, fmt.Errorf("failed to parse uid: %w", err)
-	}
-	return uid, nil
-}
-
-// getUserDisplaySessionType returns the display session type (X11 or Wayland) of the given user.
-func GetUserDisplaySessionType(uid string) (guiSessionType, error) {
+// GetUserDisplaySessionType returns the display session type (X11 or Wayland)
+// and active status of the given user. Returns an error if the user doesn't have
+// a Display session.
+func GetUserDisplaySessionType(uid string) (*UserDisplaySession, error) {
+	// Get the "Display" session ID of the user.
 	cmd := exec.Command("loginctl", "show-user", uid, "-p", "Display", "--value")
 	var stdout bytes.Buffer
 	cmd.Stdout = &stdout
 	if err := cmd.Run(); err != nil {
-		return 0, fmt.Errorf("run 'loginctl' to get user GUI session: %w", err)
+		return nil, fmt.Errorf("run 'loginctl' to get user GUI session: %w", err)
 	}
 	guiSessionID := strings.TrimSpace(stdout.String())
 	if guiSessionID == "" {
-		return 0, nil
+		return nil, errors.New("empty display session")
 	}
+
+	// Get the "Type" of session.
 	cmd = exec.Command("loginctl", "show-session", guiSessionID, "-p", "Type", "--value")
 	stdout.Reset()
 	cmd.Stdout = &stdout
 	if err := cmd.Run(); err != nil {
-		return 0, fmt.Errorf("run 'loginctl' to get user GUI session type: %w", err)
+		return nil, fmt.Errorf("run 'loginctl' to get user GUI session type: %w", err)
 	}
-	guiSessionType := strings.TrimSpace(stdout.String())
-	switch guiSessionType {
+	var sessionType GuiSessionType
+	switch t := strings.TrimSpace(stdout.String()); t {
 	case "":
-		return 0, errors.New("empty GUI session type")
+		return nil, errors.New("empty GUI session type")
 	case "x11":
-		return GuiSessionTypeX11, nil
+		sessionType = GuiSessionTypeX11
 	case "wayland":
-		return GuiSessionTypeWayland, nil
+		sessionType = GuiSessionTypeWayland
 	case "tty":
-		return GuiSessionTypeTty, nil
+		sessionType = GuiSessionTypeTty
 	default:
-		return 0, fmt.Errorf("unknown GUI session type: %q", guiSessionType)
+		return nil, fmt.Errorf("unknown GUI session type: %q", t)
 	}
+
+	// Get the "Active" property of the session.
+	cmd = exec.Command("loginctl", "show-session", guiSessionID, "-p", "Active", "--value")
+	stdout.Reset()
+	cmd.Stdout = &stdout
+	if err := cmd.Run(); err != nil {
+		return nil, fmt.Errorf("run 'loginctl' to get session active status: %w", err)
+	}
+	active := strings.TrimSpace(stdout.String()) == "yes"
+	return &UserDisplaySession{
+		Type:   sessionType,
+		Active: active,
+	}, nil
 }
 
-type guiSessionType int
+type GuiSessionType int
 
 const (
-	GuiSessionTypeX11 guiSessionType = iota + 1
+	GuiSessionTypeX11 GuiSessionType = iota + 1
 	GuiSessionTypeWayland
 	GuiSessionTypeTty
 )
 
-func (s guiSessionType) String() string {
+func (s GuiSessionType) String() string {
 	if s == GuiSessionTypeX11 {
 		return "x11"
 	}

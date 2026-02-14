@@ -1870,20 +1870,25 @@ func (d *desktopRunner) Execute() error {
 	for {
 		// First retry logic to start fleet-desktop.
 		if done := retry(30*time.Second, false, d.interruptCh, func() bool {
-			// On MacOS, if we attempt to run Fleet Desktop while the user is not logged in through
-			// the GUI, MacOS returns an error. See https://github.com/fleetdm/fleet/issues/14698
-			// for more details.
+			//
+			// - On MacOS, if we attempt to run Fleet Desktop while the user is not logged in through
+			//   the GUI, MacOS returns an error. See https://github.com/fleetdm/fleet/issues/14698
+			//   for more details.
+			// - On Linux, we also don't want to start the Fleet Desktop unless there's an active GUI session.
+			// - On Windows, user.UserLoggedInViaGui is a no-op, and execuser.Run will take care of
+			//   starting Fleet Desktop with the correct GUI user.
+			//
+
 			loggedInUser, err := user.UserLoggedInViaGui()
 			if err != nil {
-				log.Debug().Err(err).Msg("desktop.IsUserLoggedInGui")
+				log.Debug().Err(err).Msg("desktop.IsUserLoggedViaGui")
 				return true
 			}
 			if loggedInUser == nil {
 				log.Debug().Msg("No GUI user found, skipping fleet-desktop start")
 				return true
 			}
-			log.Debug().Msg(fmt.Sprintf("Found GUI user: %v, attempting fleet-desktop start", loggedInUser))
-
+			log.Debug().Msgf("found GUI user: %q, attempting fleet-desktop start", *loggedInUser)
 			if *loggedInUser != "" {
 				opts = append(opts, execuser.WithUser(*loggedInUser))
 			}
@@ -2418,7 +2423,7 @@ func executeFleetDesktopWithPermanentError(desktopPath string, errorMessage stri
 		log.Debug().Msg("No GUI user found, skipping fleet-desktop start")
 		return nil
 	}
-	log.Debug().Msg(fmt.Sprintf("Found GUI user: %v, attempting fleet-desktop start", loggedInUser))
+	log.Debug().Msgf("found GUI user: %q, attempting fleet-desktop start", *loggedInUser)
 
 	log.Info().Msg("killing any pre-existing fleet-desktop instances")
 	if err := platform.SignalProcessBeforeTerminate(constant.DesktopAppExecName); err != nil &&
