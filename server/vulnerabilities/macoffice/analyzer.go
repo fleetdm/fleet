@@ -118,25 +118,26 @@ func updateVulnsInDB(
 		return nil, err
 	}
 
-	inserted := make([]fleet.SoftwareVulnerability, 0, len(toInsertSet))
-	err = utils.BatchProcess(toInsertSet, func(vulns []fleet.SoftwareVulnerability) error {
-		for _, v := range vulns {
-			ok, err := ds.InsertSoftwareVulnerability(ctx, v, fleet.MacOfficeReleaseNotesSource)
-			if err != nil {
-				return err
-			}
+	allVulns := make([]fleet.SoftwareVulnerability, 0, len(toInsertSet))
+	for _, v := range toInsertSet {
+		allVulns = append(allVulns, v)
+	}
 
-			if ok {
-				inserted = append(inserted, v)
-			}
-		}
+	// Build set of existing keys to identify newly inserted vulns after the batch insert.
+	existingKeys := make(map[string]struct{}, len(existing))
+	for _, v := range existing {
+		existingKeys[v.Key()] = struct{}{}
+	}
 
-		return nil
-		// Since we are only detecting Mac Office vulnerabilities 'toInsertSet' should be small, so
-		// inserting the whole batch in one go should be ok.
-	}, len(toInsertSet))
-	if err != nil {
+	if _, err = ds.InsertSoftwareVulnerabilities(ctx, allVulns, fleet.MacOfficeReleaseNotesSource); err != nil {
 		return nil, err
+	}
+
+	inserted := make([]fleet.SoftwareVulnerability, 0)
+	for _, v := range allVulns {
+		if _, exists := existingKeys[v.Key()]; !exists {
+			inserted = append(inserted, v)
+		}
 	}
 
 	return inserted, nil

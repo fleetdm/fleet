@@ -8,6 +8,7 @@ import (
 	"os"
 	"time"
 
+	"github.com/fleetdm/fleet/v4/server/contexts/ctxdb"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	oval_parsed "github.com/fleetdm/fleet/v4/server/vulnerabilities/oval/parsed"
 	utils "github.com/fleetdm/fleet/v4/server/vulnerabilities/utils"
@@ -29,6 +30,7 @@ func Analyze(
 	ver fleet.OSVersion,
 	vulnPath string,
 	collectVulns bool,
+	startTime time.Time,
 ) ([]fleet.SoftwareVulnerability, error) {
 	platform := NewPlatform(ver.Platform, ver.Name)
 
@@ -132,26 +134,23 @@ func Analyze(
 		return nil, err
 	}
 
-	var inserted []fleet.SoftwareVulnerability
-	if collectVulns {
-		inserted = make([]fleet.SoftwareVulnerability, 0, len(toInsertSet))
+	allVulns := make([]fleet.SoftwareVulnerability, 0, len(toInsertSet))
+	for _, v := range toInsertSet {
+		allVulns = append(allVulns, v)
 	}
 
-	err = utils.BatchProcess(toInsertSet, func(vulns []fleet.SoftwareVulnerability) error {
-		for _, v := range vulns {
-			ok, err := ds.InsertSoftwareVulnerability(ctx, v, source)
-			if err != nil {
-				return err
-			}
-
-			if collectVulns && ok {
-				inserted = append(inserted, v)
-			}
-		}
-		return nil
-	}, vulnBatchSize)
-	if err != nil {
+	if _, err := ds.InsertSoftwareVulnerabilities(ctx, allVulns, source); err != nil {
 		return nil, err
+	}
+
+	var inserted []fleet.SoftwareVulnerability
+	if collectVulns {
+		// Use primary for read-after-write consistency.
+		primaryCtx := ctxdb.RequirePrimary(ctx, true)
+		inserted, err = ds.ListSoftwareVulnerabilitiesByCreatedAt(primaryCtx, source, startTime)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	return inserted, nil

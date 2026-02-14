@@ -2986,6 +2986,69 @@ func (ds *Datastore) InsertSoftwareVulnerability(
 	return insertOnDuplicateDidInsertOrUpdate(res), nil
 }
 
+func (ds *Datastore) InsertSoftwareVulnerabilities(
+	ctx context.Context,
+	vulns []fleet.SoftwareVulnerability,
+	source fleet.VulnerabilitySource,
+) (int64, error) {
+	// Filter out entries with empty CVEs.
+	filtered := make([]fleet.SoftwareVulnerability, 0, len(vulns))
+	for _, v := range vulns {
+		if v.CVE != "" {
+			filtered = append(filtered, v)
+		}
+	}
+	if len(filtered) == 0 {
+		return 0, nil
+	}
+
+	var totalAffected int64
+	err := common_mysql.BatchProcessSimple(filtered, 500, func(batch []fleet.SoftwareVulnerability) error {
+		values := strings.TrimSuffix(strings.Repeat("(?,?,?,?),", len(batch)), ",")
+		stmt := fmt.Sprintf(`
+			INSERT INTO software_cve (cve, source, software_id, resolved_in_version)
+			VALUES %s
+			ON DUPLICATE KEY UPDATE
+				source = VALUES(source),
+				resolved_in_version = VALUES(resolved_in_version),
+				updated_at = NOW()
+		`, values)
+
+		var args []any
+		for _, v := range batch {
+			args = append(args, v.CVE, source, v.SoftwareID, v.ResolvedInVersion)
+		}
+
+		res, err := ds.writer(ctx).ExecContext(ctx, stmt, args...)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "batch insert software vulnerabilities")
+		}
+
+		affected, _ := res.RowsAffected()
+		totalAffected += affected
+		return nil
+	})
+
+	return totalAffected, err
+}
+
+func (ds *Datastore) ListSoftwareVulnerabilitiesByCreatedAt(
+	ctx context.Context,
+	source fleet.VulnerabilitySource,
+	createdAfter time.Time,
+) ([]fleet.SoftwareVulnerability, error) {
+	var vulns []fleet.SoftwareVulnerability
+	// Callers should set ctxdb.RequirePrimary on the context for read-after-write
+	// consistency, since inserts go to the primary and replicas may lag.
+	err := sqlx.SelectContext(ctx, ds.reader(ctx), &vulns,
+		`SELECT software_id, cve FROM software_cve WHERE source = ? AND created_at >= ?`, source, createdAfter,
+	)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "list software vulnerabilities by created at")
+	}
+	return vulns, nil
+}
+
 func (ds *Datastore) ListSoftwareVulnerabilitiesByHostIDsSource(
 	ctx context.Context,
 	hostIDs []uint,

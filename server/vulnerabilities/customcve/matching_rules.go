@@ -7,6 +7,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/fleetdm/fleet/v4/server/contexts/ctxdb"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/vulnerabilities/nvd/tools/cvefeed/nvd"
 	"github.com/go-kit/log"
@@ -162,16 +163,15 @@ func CheckCustomVulnerabilities(ctx context.Context, ds fleet.Datastore, logger 
 		vulns = append(vulns, v...)
 	}
 
-	var newVulns []fleet.SoftwareVulnerability
-	for _, v := range vulns {
-		ok, err := ds.InsertSoftwareVulnerability(ctx, v, fleet.CustomSource)
-		if err != nil {
-			level.Error(logger).Log("msg", "Error inserting software vulnerability", "err", err)
-			continue
-		}
-		if ok {
-			newVulns = append(newVulns, v)
-		}
+	if _, err := ds.InsertSoftwareVulnerabilities(ctx, vulns, fleet.CustomSource); err != nil {
+		level.Error(logger).Log("msg", "Error inserting software vulnerabilities", "err", err)
+	}
+
+	// Use primary for read-after-write consistency.
+	primaryCtx := ctxdb.RequirePrimary(ctx, true)
+	newVulns, err := ds.ListSoftwareVulnerabilitiesByCreatedAt(primaryCtx, fleet.CustomSource, startTime)
+	if err != nil {
+		level.Error(logger).Log("msg", "Error listing new custom vulnerabilities", "err", err)
 	}
 
 	if err := ds.DeleteOutOfDateVulnerabilities(ctx, fleet.CustomSource, startTime); err != nil {

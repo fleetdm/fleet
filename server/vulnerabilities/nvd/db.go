@@ -20,6 +20,19 @@ func sqliteDB(dbPath string) (*sqlx.DB, error) {
 	return db, nil
 }
 
+func sqliteDBReadOnly(dbPath string) (*sqlx.DB, error) {
+	db, err := sqlx.Open("sqlite3", dbPath+"?mode=ro")
+	if err != nil {
+		return nil, err
+	}
+	// Memory-map up to 1GB for faster reads via OS page cache.
+	if _, err := db.Exec("PRAGMA mmap_size = 1073741824"); err != nil {
+		db.Close()
+		return nil, fmt.Errorf("setting mmap_size: %w", err)
+	}
+	return db, nil
+}
+
 func applyCPEDatabaseSchema(db *sqlx.DB) error {
 	// Use a new table cpe_2 containing new columns vendor, product. view cpe used for backwards compatibility
 	// with old fleet versions that use "select * from cpe ...". When creating the view, we need to

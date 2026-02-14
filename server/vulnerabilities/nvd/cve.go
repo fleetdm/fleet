@@ -15,6 +15,7 @@ import (
 	"time"
 
 	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
+	"github.com/fleetdm/fleet/v4/server/contexts/ctxdb"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/ptr"
@@ -299,28 +300,37 @@ func TranslateCPEToCVE(
 		}
 	}
 
-	var newVulns []fleet.SoftwareVulnerability
+	// Batch insert software vulnerabilities.
+	allSoftwareVulns := make([]fleet.SoftwareVulnerability, 0, len(softwareVulns))
 	for _, vuln := range softwareVulns {
-		ok, err := ds.InsertSoftwareVulnerability(ctx, vuln, fleet.NVDSource)
-		if err != nil {
-			level.Error(logger).Log("cpe processing", "error", "err", err)
-			continue
-		}
+		allSoftwareVulns = append(allSoftwareVulns, vuln)
+	}
 
-		// collect vuln only if inserted, otherwise we would send
-		// webhook requests for the same vulnerability over and over again until
-		// it is older than 2 days.
-		if collectVulns && ok {
-			newVulns = append(newVulns, vuln)
+	if _, err := ds.InsertSoftwareVulnerabilities(ctx, allSoftwareVulns, fleet.NVDSource); err != nil {
+		level.Error(logger).Log("cpe processing", "error", "err", err)
+	}
+
+	// Identify newly inserted vulns for webhook notifications by querying rows
+	// created since startTime (set before processing began).
+	var newVulns []fleet.SoftwareVulnerability
+	if collectVulns {
+		// Use primary for read-after-write consistency.
+		primaryCtx := ctxdb.RequirePrimary(ctx, true)
+		inserted, err := ds.ListSoftwareVulnerabilitiesByCreatedAt(primaryCtx, fleet.NVDSource, startTime)
+		if err != nil {
+			level.Error(logger).Log("msg", "error listing new software vulnerabilities", "err", err)
+		} else {
+			newVulns = inserted
 		}
 	}
 
+	// Batch insert OS vulnerabilities.
+	allOSVulns := make([]fleet.OSVulnerability, 0, len(osVulns))
 	for _, vuln := range osVulns {
-		_, err := ds.InsertOSVulnerability(ctx, vuln, fleet.NVDSource)
-		if err != nil {
-			level.Error(logger).Log("cpe processing", "error", "err", err)
-			continue
-		}
+		allOSVulns = append(allOSVulns, vuln)
+	}
+	if _, err := ds.InsertOSVulnerabilities(ctx, allOSVulns, fleet.NVDSource); err != nil {
+		level.Error(logger).Log("cpe processing", "error", "err", err)
 	}
 
 	// Delete any stale vulnerabilities. A vulnerability is stale iff the last time it was

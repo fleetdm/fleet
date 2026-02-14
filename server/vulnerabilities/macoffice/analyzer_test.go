@@ -38,8 +38,8 @@ func TestAnalyzer(t *testing.T) {
 			ds.DeleteSoftwareVulnerabilitiesFunc = func(ctx context.Context, vulnerabilities []fleet.SoftwareVulnerability) error {
 				return errors.New("some error")
 			}
-			ds.InsertSoftwareVulnerabilityFunc = func(ctx context.Context, vuln fleet.SoftwareVulnerability, source fleet.VulnerabilitySource) (bool, error) {
-				return false, nil
+			ds.InsertSoftwareVulnerabilitiesFunc = func(ctx context.Context, vulns []fleet.SoftwareVulnerability, source fleet.VulnerabilitySource) (int64, error) {
+				return 0, nil
 			}
 
 			vulns, err := updateVulnsInDB(ctx, ds, nil, nil)
@@ -56,8 +56,8 @@ func TestAnalyzer(t *testing.T) {
 			ds.DeleteSoftwareVulnerabilitiesFunc = func(ctx context.Context, vulnerabilities []fleet.SoftwareVulnerability) error {
 				return nil
 			}
-			ds.InsertSoftwareVulnerabilityFunc = func(ctx context.Context, vuln fleet.SoftwareVulnerability, source fleet.VulnerabilitySource) (bool, error) {
-				return false, errors.New("some error")
+			ds.InsertSoftwareVulnerabilitiesFunc = func(ctx context.Context, vulns []fleet.SoftwareVulnerability, source fleet.VulnerabilitySource) (int64, error) {
+				return 0, errors.New("some error")
 			}
 
 			vulns, err := updateVulnsInDB(ctx, ds, detected, nil)
