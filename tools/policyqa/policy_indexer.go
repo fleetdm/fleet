@@ -73,12 +73,78 @@ func main() {
 		}
 		fmt.Println()
 
-		// Apply PASS commands only when explicitly requested
-		passApplyFailed := false
+		// Always show FAIL commands
+		fmt.Println("FAIL command(s):")
+		if len(p.FailCmd) == 0 {
+			fmt.Println("  (none)")
+		} else {
+			for _, cmd := range p.FailCmd {
+				fmt.Printf("  %s\n", cmd)
+			}
+		}
+		fmt.Println()
 
+		// Execute mode: run FAIL cmds -> expect query FAIL -> run PASS cmds -> expect query PASS
 		if *executePass {
-			fmt.Println("Executing PASS command(s) on VM...")
+			// STEP 1: run FAIL commands
+			if len(p.FailCmd) > 0 {
+				fmt.Println("STEP 1: Executing FAIL command(s) on VM...")
+				for _, cmdToRun := range p.FailCmd {
+					fmt.Printf("About to run on VM: %s\n", cmdToRun)
 
+					stdout, stderr, err := sshRun(*sshUser, *sshHost, *sshPort, cmdToRun)
+					if err != nil {
+						fmt.Printf("********** FAIL **********\n")
+						fmt.Printf("FAIL command failed: %v\n", err)
+						if strings.TrimSpace(stderr) != "" {
+							fmt.Printf("stderr:\n%s\n", strings.TrimSpace(stderr))
+						}
+						if strings.TrimSpace(stdout) != "" {
+							fmt.Printf("stdout:\n%s\n", strings.TrimSpace(stdout))
+						}
+						fmt.Println()
+						// If we can't apply FAIL setup, we can't do the cycle reliably.
+						continue
+					}
+
+					if strings.TrimSpace(stdout) != "" {
+						fmt.Printf("stdout:\n%s\n", strings.TrimSpace(stdout))
+					}
+					if strings.TrimSpace(stderr) != "" {
+						fmt.Printf("stderr:\n%s\n", strings.TrimSpace(stderr))
+					}
+					fmt.Println()
+				}
+			} else {
+				fmt.Println("STEP 1: No FAIL command(s) found (skipping FAIL setup).")
+				fmt.Println()
+			}
+
+			// STEP 2: run query and expect FAIL (0 rows)
+			fmt.Println("STEP 2: Running osquery check (expect FAIL). If it fails, it is OK.")
+			fmt.Printf("About to run query on target machine %s:\n%s\n\n", *sshHost, strings.TrimSpace(p.Query))
+
+			pass, raw, stderr, err := sshOsquery(*sshUser, *sshHost, *sshPort, p.Query)
+			if err != nil {
+				fmt.Printf("********** FAIL **********\n")
+				fmt.Printf("osquery error: %v\n", err)
+				if strings.TrimSpace(stderr) != "" {
+					fmt.Printf("osquery stderr:\n%s\n", strings.TrimSpace(stderr))
+				}
+				fmt.Println()
+				continue
+			}
+
+			if pass {
+				fmt.Printf("❌ UNEXPECTED: query PASSED after FAIL setup (this is NOT OK)\n")
+				fmt.Printf("osquery output: %s\n\n", strings.TrimSpace(raw))
+			} else {
+				fmt.Printf("✅ Expected: query FAILED after FAIL setup (this is OK)\n")
+				fmt.Printf("osquery output: %s\n\n", strings.TrimSpace(raw))
+			}
+
+			// STEP 3: run PASS commands
+			fmt.Println("STEP 3: Executing PASS command(s) on VM...")
 			for _, cmdToRun := range p.PassCmd {
 				fmt.Printf("About to run on VM: %s\n", cmdToRun)
 
@@ -93,8 +159,8 @@ func main() {
 						fmt.Printf("stdout:\n%s\n", strings.TrimSpace(stdout))
 					}
 					fmt.Println()
-					passApplyFailed = true
-					break
+					// Can't continue the cycle if PASS commands fail.
+					continue
 				}
 
 				if strings.TrimSpace(stdout) != "" {
@@ -105,33 +171,37 @@ func main() {
 				}
 				fmt.Println()
 			}
-		} else {
-			// Dry-run marker only (no mutations)
-			msg := fmt.Sprintf("Policy %d: (dry-run) would run PASS command(s)", p.Index)
-			fmt.Printf("About to run: ssh %s@%s -p %d \"echo %s\"\n", *sshUser, *sshHost, *sshPort, msg)
 
-			stdout, stderr, err := sshRun(*sshUser, *sshHost, *sshPort, "echo "+shellQuote(msg))
+			// STEP 4: run query again and expect PASS (1+ rows)
+			fmt.Println("STEP 4: Running osquery check again (expect PASS).")
+			fmt.Printf("About to run query on target machine %s:\n%s\n\n", *sshHost, strings.TrimSpace(p.Query))
+
+			pass, raw, stderr, err = sshOsquery(*sshUser, *sshHost, *sshPort, p.Query)
 			if err != nil {
-				fmt.Printf("SSH ERROR: %v\n", err)
+				fmt.Printf("********** FAIL **********\n")
+				fmt.Printf("osquery error: %v\n", err)
 				if strings.TrimSpace(stderr) != "" {
-					fmt.Printf("SSH STDERR: %s\n", strings.TrimSpace(stderr))
-				}
-				if strings.TrimSpace(stdout) != "" {
-					fmt.Printf("SSH STDOUT: %s\n", strings.TrimSpace(stdout))
+					fmt.Printf("osquery stderr:\n%s\n", strings.TrimSpace(stderr))
 				}
 				fmt.Println()
 				continue
 			}
-			fmt.Println()
-		}
 
-		// If PASS apply failed, don't run osquery check
-		if passApplyFailed {
+			if pass {
+				fmt.Printf("********** PASS **********\n\n")
+			} else {
+				fmt.Printf("********** FAIL **********\n")
+				fmt.Printf("osquery returned no rows\n")
+				fmt.Printf("osquery output: %s\n\n", strings.TrimSpace(raw))
+			}
+
 			continue
 		}
 
-		// Now run osquery check
+		// Default (safe): no mutations; just run osquery check once
 		fmt.Println("Running osquery check…")
+		fmt.Printf("About to run query on target machine %s:\n%s\n\n", *sshHost, strings.TrimSpace(p.Query))
+
 		pass, raw, stderr, err := sshOsquery(*sshUser, *sshHost, *sshPort, p.Query)
 		if err != nil {
 			fmt.Printf("********** FAIL **********\n")
@@ -150,6 +220,7 @@ func main() {
 			fmt.Printf("osquery returned no rows\n")
 			fmt.Printf("osquery output: %s\n\n", strings.TrimSpace(raw))
 		}
+
 	}
 }
 
@@ -213,8 +284,14 @@ func sshOsquery(user, host string, port int, query string) (bool, string, string
 
 	out := strings.TrimSpace(stdout)
 
-	// osquery --json returns [] for zero rows
-	if out == "[]" || out == "" {
+	// osquery --json returns an empty JSON array for zero rows.
+	// Sometimes it includes whitespace/newlines inside the brackets.
+	compact := strings.ReplaceAll(out, "\n", "")
+	compact = strings.ReplaceAll(compact, "\r", "")
+	compact = strings.ReplaceAll(compact, "\t", "")
+	compact = strings.ReplaceAll(compact, " ", "")
+
+	if compact == "[]" || compact == "" {
 		return false, out, stderr, nil
 	}
 
