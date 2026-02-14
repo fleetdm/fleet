@@ -90,4 +90,4 @@ Managing local admin passwords doesn't have to be painful. With Fleet handling t
 <meta name="authorGitHubUsername" value="kc9wwh">
 <meta name="category" value="guides">
 <meta name="publishedOn" value="2026-02-13">
-<meta name="description" value="A guide to implementing LAPS (Local Administrator Password Solution) with Fleet and 1Password Connect, automatically rotating local admin passwords every 7 days and storing them securely in your vault">
+<meta name="description" value="A guide to implementing LAPS (Local Administrator Password Solution) with Fleet and 1Password Connect">
