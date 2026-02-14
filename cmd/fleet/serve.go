@@ -1644,7 +1644,7 @@ the way that the Fleet server works.
 			rootMux.Handle("/", otelmw.WrapHandler(frontendHandler, "/", config))
 
 			debugHandler := &debugMux{
-				fleetAuthenticatedHandler: service.MakeDebugHandler(svc, config, logger, eh, ds),
+				fleetAuthenticatedHandler: service.MakeDebugHandler(svc, config, logger.SlogLogger(), eh, ds),
 			}
 			rootMux.Handle("/debug/", otelmw.WrapHandlerDynamic(debugHandler, config))
 
