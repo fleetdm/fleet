@@ -162,14 +162,23 @@ func CheckCustomVulnerabilities(ctx context.Context, ds fleet.Datastore, logger 
 		vulns = append(vulns, v...)
 	}
 
+	// Build set of existing keys to identify newly inserted vulns.
+	existing, err := ds.ListSoftwareVulnerabilityKeysBySource(ctx, fleet.CustomSource)
+	if err != nil {
+		level.Error(logger).Log("msg", "Error listing existing custom vulnerabilities", "err", err)
+	}
+	existingKeys := make(map[string]struct{}, len(existing))
+	for _, v := range existing {
+		existingKeys[v.Key()] = struct{}{}
+	}
+
+	if _, err := ds.InsertSoftwareVulnerabilities(ctx, vulns, fleet.CustomSource); err != nil {
+		level.Error(logger).Log("msg", "Error inserting software vulnerabilities", "err", err)
+	}
+
 	var newVulns []fleet.SoftwareVulnerability
 	for _, v := range vulns {
-		ok, err := ds.InsertSoftwareVulnerability(ctx, v, fleet.CustomSource)
-		if err != nil {
-			level.Error(logger).Log("msg", "Error inserting software vulnerability", "err", err)
-			continue
-		}
-		if ok {
+		if _, exists := existingKeys[v.Key()]; !exists {
 			newVulns = append(newVulns, v)
 		}
 	}

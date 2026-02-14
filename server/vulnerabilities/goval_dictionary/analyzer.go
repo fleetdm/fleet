@@ -93,26 +93,37 @@ func Analyze(
 		return nil, err
 	}
 
-	var inserted []fleet.SoftwareVulnerability
-	if collectVulns {
-		inserted = make([]fleet.SoftwareVulnerability, 0, len(toInsertSet))
+	allVulns := make([]fleet.SoftwareVulnerability, 0, len(toInsertSet))
+	for _, v := range toInsertSet {
+		allVulns = append(allVulns, v)
 	}
 
-	err = utils.BatchProcess(toInsertSet, func(vulns []fleet.SoftwareVulnerability) error {
-		for _, v := range vulns {
-			ok, err := ds.InsertSoftwareVulnerability(ctx, v, source)
-			if err != nil {
-				return err
-			}
+	var inserted []fleet.SoftwareVulnerability
+	if collectVulns {
+		// Build set of existing keys to identify newly inserted vulns after the batch insert.
+		existing, err := ds.ListSoftwareVulnerabilityKeysBySource(ctx, source)
+		if err != nil {
+			return nil, err
+		}
+		existingKeys := make(map[string]struct{}, len(existing))
+		for _, v := range existing {
+			existingKeys[v.Key()] = struct{}{}
+		}
 
-			if collectVulns && ok {
+		if _, err := ds.InsertSoftwareVulnerabilities(ctx, allVulns, source); err != nil {
+			return nil, err
+		}
+
+		inserted = make([]fleet.SoftwareVulnerability, 0)
+		for _, v := range allVulns {
+			if _, exists := existingKeys[v.Key()]; !exists {
 				inserted = append(inserted, v)
 			}
 		}
-		return nil
-	}, vulnBatchSize)
-	if err != nil {
-		return nil, err
+	} else {
+		if _, err := ds.InsertSoftwareVulnerabilities(ctx, allVulns, source); err != nil {
+			return nil, err
+		}
 	}
 
 	return inserted, nil
