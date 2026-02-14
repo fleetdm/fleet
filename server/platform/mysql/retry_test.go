@@ -29,7 +29,7 @@ func TestTriggerFatalErrorCallsHandler(t *testing.T) {
 	t.Cleanup(func() { SetFatalErrorHandler(nil) })
 
 	testErr := errors.New("test read-only error")
-	triggerFatalError(testErr)
+	TriggerFatalError(testErr)
 
 	assert.True(t, called.Load())
 	assert.Equal(t, testErr, capturedErr.Load())
@@ -39,7 +39,7 @@ func TestTriggerFatalErrorPanicsWithoutHandler(t *testing.T) {
 	SetFatalErrorHandler(nil)
 
 	assert.Panics(t, func() {
-		triggerFatalError(errors.New("read-only"))
+		TriggerFatalError(errors.New("read-only"))
 	})
 }
 
@@ -53,7 +53,7 @@ func TestTriggerFatalErrorFiresOnce(t *testing.T) {
 	var wg sync.WaitGroup
 	for range 100 {
 		wg.Go(func() {
-			triggerFatalError(errors.New("read-only"))
+			TriggerFatalError(errors.New("read-only"))
 		})
 	}
 	wg.Wait()
