@@ -1,0 +1,49 @@
+name: 'Apply latest configuration to Fleet'
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+  workflow_dispatch: # allows manual triggering
+  schedule:
+  - cron: '0 6 * * *' # Nightly 6AM UTC
+
+# Prevent concurrent runs of this workflow.
+concurrency:
+  group: ${{ github.workflow }}
+  cancel-in-progress: false
+
+defaults:
+  run:
+    shell: bash
+
+# Limit permissions of GITHUB_TOKEN.
+permissions:
+  contents: read
+
+jobs:
+  fleet-gitops:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout GitOps repository
+        uses: actions/checkout@v4
+
+      - name: Apply latest configuration to Fleet
+        uses: ./.github/gitops-action
+        with:
+          # Run GitOps in dry-run mode for pull requests.
+          dry-run-only: ${{ github.event_name == 'pull_request' && 'true' || 'false' }}
+        # Add the environment variables below to the repository secrets.
+        # In addition, specify or add secrets for all the environment variables that are mentioned in the global/team YAML files.
+        env:
+          FLEET_API_TOKEN: ${{ secrets.FLEET_API_TOKEN }}
+          FLEET_DEDICATED_DEVICES_ENROLL_SECRET: ${{ secrets.FLEET_DEDICATED_DEVICES_ENROLL_SECRET }}
+          FLEET_EMPLOYEE_ISSUED_MOBILE_DEVICES_ENROLL_SECRET: ${{ secrets.FLEET_EMPLOYEE_ISSUED_MOBILE_DEVICES_ENROLL_SECRET }}
+          FLEET_IT_SERVERS_ENROLL_SECRET: ${{ secrets.FLEET_IT_SERVERS_ENROLL_SECRET }}
+          FLEET_PERSONAL_MOBILE_DEVICES_ENROLL_SECRET: ${{ secrets.FLEET_PERSONAL_MOBILE_DEVICES_ENROLL_SECRET }}
+          FLEET_URL: ${{ secrets.FLEET_URL }}
+          FLEET_WORKSTATIONS_ENROLL_SECRET: ${{ secrets.FLEET_WORKSTATIONS_ENROLL_SECRET }}
+          FLEET_GLOBAL_ENROLL_SECRET: ${{ secrets.FLEET_GLOBAL_ENROLL_SECRET }}
+          
+          
