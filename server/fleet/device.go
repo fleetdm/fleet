@@ -42,6 +42,7 @@ type DesktopOrgInfo struct {
 	OrgLogoURL                string `json:"org_logo_url"`
 	OrgLogoURLLightBackground string `json:"org_logo_url_light_background"`
 	ContactURL                string `json:"contact_url"`
+	TransparencyURL           string `json:"transparency_url"`
 }
 
 type MigrateMDMDeviceWebhookPayload struct {

@@ -114,6 +114,7 @@ type getDeviceHostResponse struct {
 	OrgLogoURL                string                   `json:"org_logo_url"`
 	OrgLogoURLLightBackground string                   `json:"org_logo_url_light_background"`
 	OrgContactURL             string                   `json:"org_contact_url"`
+	TransparencyURL           string                   `json:"transparency_url"`
 	Err                       error                    `json:"error,omitempty"`
 	License                   fleet.LicenseInfo        `json:"license"`
 	GlobalConfig              fleet.DeviceGlobalConfig `json:"global_config"`
@@ -234,6 +235,7 @@ func getDeviceHostEndpoint(ctx context.Context, request interface{}, svc fleet.S
 		OrgLogoURL:                ac.OrgInfo.OrgLogoURL,
 		OrgLogoURLLightBackground: ac.OrgInfo.OrgLogoURLLightBackground,
 		OrgContactURL:             ac.OrgInfo.ContactURL,
+		TransparencyURL:           ac.FleetDesktop.TransparencyURL,
 		License:                   *license,
 		GlobalConfig:              deviceGlobalConfig,
 		SelfService:               hasSelfService,

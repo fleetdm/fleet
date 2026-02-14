@@ -52,6 +52,7 @@ import {
   DOCUMENT_TITLE_SUFFIX,
   HOST_VITALS_DATA,
   HOST_SUMMARY_DATA,
+  TRANSPARENCY_LINK,
 } from "utilities/constants";
 
 import UnsupportedScreenSize from "layouts/UnsupportedScreenSize";
@@ -931,7 +932,7 @@ const DeviceUserPage = ({
           {isMobileView && (
             <div className="site-nav-better-link">
               <CustomLink
-                url="https://www.fleetdm.com/better"
+                url={dupDetails?.transparency_url || TRANSPARENCY_LINK}
                 text="About Fleet"
                 newTab
               />
@@ -949,7 +950,12 @@ const DeviceUserPage = ({
       ) : (
         <div className={coreWrapperClassnames}>{renderDeviceUserPage()}</div>
       )}
-      {showInfoModal && <InfoModal onCancel={toggleInfoModal} />}
+      {showInfoModal && (
+        <InfoModal
+          onCancel={toggleInfoModal}
+          transparencyURL={dupDetails?.transparency_url}
+        />
+      )}
       {showBypassModal && (
         <BypassModal
           onCancel={toggleShowBypassModal}
