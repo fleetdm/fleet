@@ -15,6 +15,7 @@ import (
 	"time"
 
 	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
+	"github.com/fleetdm/fleet/v4/server/contexts/ctxdb"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/ptr"
@@ -305,32 +306,21 @@ func TranslateCPEToCVE(
 		allSoftwareVulns = append(allSoftwareVulns, vuln)
 	}
 
-	// To identify newly inserted vulns for webhook notifications, we need to know
-	// which (software_id, cve) pairs already exist. We build a set of existing keys
-	// before the insert and diff after.
-	var existingKeys map[string]struct{}
-	if collectVulns {
-		existing, err := ds.ListSoftwareVulnerabilityKeysBySource(ctx, fleet.NVDSource)
-		if err != nil {
-			level.Error(logger).Log("msg", "error listing existing software vulnerabilities", "err", err)
-		} else {
-			existingKeys = make(map[string]struct{}, len(existing))
-			for _, v := range existing {
-				existingKeys[v.Key()] = struct{}{}
-			}
-		}
-	}
-
 	if _, err := ds.InsertSoftwareVulnerabilities(ctx, allSoftwareVulns, fleet.NVDSource); err != nil {
 		level.Error(logger).Log("cpe processing", "error", "err", err)
 	}
 
+	// Identify newly inserted vulns for webhook notifications by querying rows
+	// created since startTime (set before processing began).
 	var newVulns []fleet.SoftwareVulnerability
-	if collectVulns && existingKeys != nil {
-		for _, vuln := range allSoftwareVulns {
-			if _, exists := existingKeys[vuln.Key()]; !exists {
-				newVulns = append(newVulns, vuln)
-			}
+	if collectVulns {
+		// Use primary for read-after-write consistency.
+		primaryCtx := ctxdb.RequirePrimary(ctx, true)
+		inserted, err := ds.ListSoftwareVulnerabilitiesByCreatedAt(primaryCtx, fleet.NVDSource, startTime)
+		if err != nil {
+			level.Error(logger).Log("msg", "error listing new software vulnerabilities", "err", err)
+		} else {
+			newVulns = inserted
 		}
 	}
 

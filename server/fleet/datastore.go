@@ -658,9 +658,9 @@ type Datastore interface {
 	// InsertSoftwareVulnerabilities inserts a batch of vulnerabilities into the datastore.
 	// Returns the number of rows affected.
 	InsertSoftwareVulnerabilities(ctx context.Context, vulns []SoftwareVulnerability, source VulnerabilitySource) (int64, error)
-	// ListSoftwareVulnerabilityKeysBySource returns (software_id, cve) pairs for all
-	// software vulnerabilities with the given source.
-	ListSoftwareVulnerabilityKeysBySource(ctx context.Context, source VulnerabilitySource) ([]SoftwareVulnerability, error)
+	// ListSoftwareVulnerabilitiesByCreatedAt returns vulnerabilities for the given source
+	// that were inserted at or after the given time.
+	ListSoftwareVulnerabilitiesByCreatedAt(ctx context.Context, source VulnerabilitySource, createdAfter time.Time) ([]SoftwareVulnerability, error)
 	SoftwareByID(ctx context.Context, id uint, teamID *uint, includeCVEScores bool, tmFilter *TeamFilter) (*Software, error)
 	// ListSoftwareByHostIDShort lists software by host ID, but does not include CPEs or vulnerabilites.
 	// It is meant to be used when only minimal software fields are required eg when updating host software.

@@ -199,8 +199,8 @@ func scanVulnerabilities(
 	}
 
 	nvdVulns := checkNVDVulnerabilities(ctx, ds, logger, vulnPath, config, vulnAutomationEnabled != "", startTime)
-	ovalVulns := checkOvalVulnerabilities(ctx, ds, logger, vulnPath, config, vulnAutomationEnabled != "")
-	govalDictVulns := checkGovalDictionaryVulnerabilities(ctx, ds, logger, vulnPath, config, vulnAutomationEnabled != "")
+	ovalVulns := checkOvalVulnerabilities(ctx, ds, logger, vulnPath, config, vulnAutomationEnabled != "", startTime)
+	govalDictVulns := checkGovalDictionaryVulnerabilities(ctx, ds, logger, vulnPath, config, vulnAutomationEnabled != "", startTime)
 	macOfficeVulns := checkMacOfficeVulnerabilities(ctx, ds, logger, vulnPath, config, vulnAutomationEnabled != "")
 	customVulns := checkCustomVulnerabilities(ctx, ds, logger, vulnAutomationEnabled != "", startTime)
 
@@ -388,6 +388,7 @@ func checkOvalVulnerabilities(
 	vulnPath string,
 	config *config.VulnerabilitiesConfig,
 	collectVulns bool,
+	startTime time.Time,
 ) []fleet.SoftwareVulnerability {
 	ctx, span := vulnSpan(ctx, "vuln.check_oval")
 	defer span.End()
@@ -421,7 +422,7 @@ func checkOvalVulnerabilities(
 		attribute.Int("os_count", len(versions.OSVersions)))
 	for _, version := range versions.OSVersions {
 		start := time.Now()
-		r, err := oval.Analyze(analyzeCtx, ds, version, vulnPath, collectVulns)
+		r, err := oval.Analyze(analyzeCtx, ds, version, vulnPath, collectVulns, startTime)
 		if err != nil && errors.Is(err, oval.ErrUnsupportedPlatform) {
 			level.Debug(logger).Log("msg", "oval-analysis-unsupported", "platform", version.Name)
 			continue
@@ -451,6 +452,7 @@ func checkGovalDictionaryVulnerabilities(
 	vulnPath string,
 	config *config.VulnerabilitiesConfig,
 	collectVulns bool,
+	startTime time.Time,
 ) []fleet.SoftwareVulnerability {
 	ctx, span := vulnSpan(ctx, "vuln.check_goval_dictionary")
 	defer span.End()
@@ -484,7 +486,7 @@ func checkGovalDictionaryVulnerabilities(
 		attribute.Int("os_count", len(versions.OSVersions)))
 	for _, version := range versions.OSVersions {
 		start := time.Now()
-		r, err := goval_dictionary.Analyze(analyzeCtx, ds, version, vulnPath, collectVulns, logger)
+		r, err := goval_dictionary.Analyze(analyzeCtx, ds, version, vulnPath, collectVulns, logger, startTime)
 		if err != nil && errors.Is(err, goval_dictionary.ErrUnsupportedPlatform) {
 			level.Debug(logger).Log("msg", "goval_dictionary-analysis-unsupported", "platform", version.Name)
 			continue

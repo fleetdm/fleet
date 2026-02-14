@@ -509,7 +509,7 @@ type InsertSoftwareVulnerabilityFunc func(ctx context.Context, vuln fleet.Softwa
 
 type InsertSoftwareVulnerabilitiesFunc func(ctx context.Context, vulns []fleet.SoftwareVulnerability, source fleet.VulnerabilitySource) (int64, error)
 
-type ListSoftwareVulnerabilityKeysBySourceFunc func(ctx context.Context, source fleet.VulnerabilitySource) ([]fleet.SoftwareVulnerability, error)
+type ListSoftwareVulnerabilitiesByCreatedAtFunc func(ctx context.Context, source fleet.VulnerabilitySource, createdAfter time.Time) ([]fleet.SoftwareVulnerability, error)
 
 type SoftwareByIDFunc func(ctx context.Context, id uint, teamID *uint, includeCVEScores bool, tmFilter *fleet.TeamFilter) (*fleet.Software, error)
 
@@ -2507,8 +2507,8 @@ type DataStore struct {
 	InsertSoftwareVulnerabilitiesFunc        InsertSoftwareVulnerabilitiesFunc
 	InsertSoftwareVulnerabilitiesFuncInvoked bool
 
-	ListSoftwareVulnerabilityKeysBySourceFunc        ListSoftwareVulnerabilityKeysBySourceFunc
-	ListSoftwareVulnerabilityKeysBySourceFuncInvoked bool
+	ListSoftwareVulnerabilitiesByCreatedAtFunc        ListSoftwareVulnerabilitiesByCreatedAtFunc
+	ListSoftwareVulnerabilitiesByCreatedAtFuncInvoked bool
 
 	SoftwareByIDFunc        SoftwareByIDFunc
 	SoftwareByIDFuncInvoked bool
@@ -6113,11 +6113,11 @@ func (s *DataStore) InsertSoftwareVulnerabilities(ctx context.Context, vulns []f
 	return s.InsertSoftwareVulnerabilitiesFunc(ctx, vulns, source)
 }
 
-func (s *DataStore) ListSoftwareVulnerabilityKeysBySource(ctx context.Context, source fleet.VulnerabilitySource) ([]fleet.SoftwareVulnerability, error) {
+func (s *DataStore) ListSoftwareVulnerabilitiesByCreatedAt(ctx context.Context, source fleet.VulnerabilitySource, createdAfter time.Time) ([]fleet.SoftwareVulnerability, error) {
 	s.mu.Lock()
-	s.ListSoftwareVulnerabilityKeysBySourceFuncInvoked = true
+	s.ListSoftwareVulnerabilitiesByCreatedAtFuncInvoked = true
 	s.mu.Unlock()
-	return s.ListSoftwareVulnerabilityKeysBySourceFunc(ctx, source)
+	return s.ListSoftwareVulnerabilitiesByCreatedAtFunc(ctx, source, createdAfter)
 }
 
 func (s *DataStore) SoftwareByID(ctx context.Context, id uint, teamID *uint, includeCVEScores bool, tmFilter *fleet.TeamFilter) (*fleet.Software, error) {

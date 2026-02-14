@@ -136,10 +136,10 @@ func (d *threadSafeDSMock) InsertSoftwareVulnerabilities(ctx context.Context, vu
 	return d.Store.InsertSoftwareVulnerabilities(ctx, vulns, src)
 }
 
-func (d *threadSafeDSMock) ListSoftwareVulnerabilityKeysBySource(ctx context.Context, source fleet.VulnerabilitySource) ([]fleet.SoftwareVulnerability, error) {
+func (d *threadSafeDSMock) ListSoftwareVulnerabilitiesByCreatedAt(ctx context.Context, source fleet.VulnerabilitySource, createdAfter time.Time) ([]fleet.SoftwareVulnerability, error) {
 	d.mu.Lock()
 	defer d.mu.Unlock()
-	return d.Store.ListSoftwareVulnerabilityKeysBySource(ctx, source)
+	return d.Store.ListSoftwareVulnerabilitiesByCreatedAt(ctx, source, createdAfter)
 }
 
 func TestTranslateCPEToCVE(t *testing.T) {
@@ -859,15 +859,15 @@ func TestTranslateCPEToCVE(t *testing.T) {
 				if !ok {
 					return 0, fmt.Errorf("software id -> cpe not found: %d", vuln.SoftwareID)
 				}
-				c := cve{
-					ID:                vuln.CVE,
-					resolvedInVersion: *vuln.ResolvedInVersion,
+				c := cve{ID: vuln.CVE}
+				if vuln.ResolvedInVersion != nil {
+					c.resolvedInVersion = *vuln.ResolvedInVersion
 				}
 				cvesFound[cpe] = append(cvesFound[cpe], c)
 			}
 			return int64(len(vulns)), nil
 		}
-		ds.ListSoftwareVulnerabilityKeysBySourceFunc = func(ctx context.Context, source fleet.VulnerabilitySource) ([]fleet.SoftwareVulnerability, error) {
+		ds.ListSoftwareVulnerabilitiesByCreatedAtFunc = func(ctx context.Context, source fleet.VulnerabilitySource, createdAfter time.Time) ([]fleet.SoftwareVulnerability, error) {
 			return nil, nil
 		}
 
@@ -949,7 +949,7 @@ func TestTranslateCPEToCVE(t *testing.T) {
 			return int64(len(vulns)), nil
 		}
 		// First call: no existing vulns, so all are "new".
-		ds.ListSoftwareVulnerabilityKeysBySourceFunc = func(ctx context.Context, source fleet.VulnerabilitySource) ([]fleet.SoftwareVulnerability, error) {
+		ds.ListSoftwareVulnerabilitiesByCreatedAtFunc = func(ctx context.Context, source fleet.VulnerabilitySource, createdAfter time.Time) ([]fleet.SoftwareVulnerability, error) {
 			return nil, nil
 		}
 		ds.ListOperatingSystemsForPlatformFunc = func(ctx context.Context, p string) ([]fleet.OperatingSystem, error) {

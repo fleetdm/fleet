@@ -488,14 +488,23 @@ func TestScanVulnerabilities(t *testing.T) {
 			},
 		}, nil
 	}
-	ds.InsertSoftwareVulnerabilityFunc = func(ctx context.Context, vuln fleet.SoftwareVulnerability, src fleet.VulnerabilitySource) (bool, error) {
-		return true, nil
+	ds.InsertSoftwareVulnerabilitiesFunc = func(ctx context.Context, vulns []fleet.SoftwareVulnerability, src fleet.VulnerabilitySource) (int64, error) {
+		return int64(len(vulns)), nil
+	}
+	ds.ListSoftwareVulnerabilitiesByCreatedAtFunc = func(ctx context.Context, source fleet.VulnerabilitySource, createdAfter time.Time) ([]fleet.SoftwareVulnerability, error) {
+		// Return the vuln that triggers the webhook.
+		return []fleet.SoftwareVulnerability{
+			{SoftwareID: 1, CVE: "CVE-2022-39348"},
+		}, nil
 	}
 	ds.UpsertSoftwareCPEsFunc = func(ctx context.Context, cpes []fleet.SoftwareCPE) (int64, error) {
 		return int64(0), nil
 	}
 	ds.DeleteSoftwareCPEsFunc = func(ctx context.Context, cpes []fleet.SoftwareCPE) (int64, error) {
 		return int64(0), nil
+	}
+	ds.InsertOSVulnerabilitiesFunc = func(ctx context.Context, vulns []fleet.OSVulnerability, src fleet.VulnerabilitySource) (int64, error) {
+		return 0, nil
 	}
 	ds.DeleteOutOfDateVulnerabilitiesFunc = func(ctx context.Context, source fleet.VulnerabilitySource, olderThan time.Time) error {
 		return nil

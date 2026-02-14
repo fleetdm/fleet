@@ -322,10 +322,6 @@ func TestCheckCustomVulnerabilities(t *testing.T) {
 			return nil, nil
 		}
 
-		ds.ListSoftwareVulnerabilityKeysBySourceFunc = func(ctx context.Context, source fleet.VulnerabilitySource) ([]fleet.SoftwareVulnerability, error) {
-			return nil, nil // no existing vulns, so all are "new"
-		}
-
 		var insertedVulns []fleet.SoftwareVulnerability
 		ds.InsertSoftwareVulnerabilitiesFunc = func(ctx context.Context, vulns []fleet.SoftwareVulnerability, source fleet.VulnerabilitySource) (int64, error) {
 			require.Equal(t, fleet.CustomSource, source)
@@ -334,6 +330,10 @@ func TestCheckCustomVulnerabilities(t *testing.T) {
 			}
 			insertedVulns = append(insertedVulns, vulns...)
 			return int64(len(vulns)), nil
+		}
+
+		ds.ListSoftwareVulnerabilitiesByCreatedAtFunc = func(ctx context.Context, source fleet.VulnerabilitySource, createdAfter time.Time) ([]fleet.SoftwareVulnerability, error) {
+			return insertedVulns, nil // all inserted vulns are "new"
 		}
 
 		ds.DeleteOutOfDateVulnerabilitiesFunc = func(ctx context.Context, source fleet.VulnerabilitySource, olderThan time.Time) error {
@@ -550,19 +550,18 @@ func TestCheckCustomVulnerabilities(t *testing.T) {
 			return nil, nil
 		}
 
-		// Track all vulns across calls so the second run sees them as existing.
-		var allInserted []fleet.SoftwareVulnerability
-		ds.ListSoftwareVulnerabilityKeysBySourceFunc = func(ctx context.Context, source fleet.VulnerabilitySource) ([]fleet.SoftwareVulnerability, error) {
-			return allInserted, nil
-		}
-
 		ds.InsertSoftwareVulnerabilitiesFunc = func(ctx context.Context, vulns []fleet.SoftwareVulnerability, source fleet.VulnerabilitySource) (int64, error) {
 			require.Equal(t, fleet.CustomSource, source)
 			for _, v := range vulns {
 				require.NotEqual(t, uint(7), v.SoftwareID, "Microsoft 365 companion apps should be excluded from CVE matching")
 			}
-			allInserted = append(allInserted, vulns...)
 			return int64(len(vulns)), nil
+		}
+
+		// Simulate all vulns already existing: ListSoftwareVulnerabilitiesByCreatedAt
+		// returns empty (no vulns created after startTime).
+		ds.ListSoftwareVulnerabilitiesByCreatedAtFunc = func(ctx context.Context, source fleet.VulnerabilitySource, createdAfter time.Time) ([]fleet.SoftwareVulnerability, error) {
+			return nil, nil
 		}
 
 		ds.DeleteOutOfDateVulnerabilitiesFunc = func(ctx context.Context, source fleet.VulnerabilitySource, olderThan time.Time) error {
@@ -571,15 +570,7 @@ func TestCheckCustomVulnerabilities(t *testing.T) {
 		}
 
 		ctx := t.Context()
-
-		// First run: all vulns are new — populates allInserted via the mock.
 		vulns, err := CheckCustomVulnerabilities(ctx, ds, log.NewNopLogger(), time.Now().UTC().Add(-time.Hour))
-		require.NoError(t, err)
-		require.Len(t, vulns, 34)
-
-		// Second run: ListSoftwareVulnerabilityKeysBySource now returns all vulns
-		// from the first run, so none should be reported as new.
-		vulns, err = CheckCustomVulnerabilities(ctx, ds, log.NewNopLogger(), time.Now().UTC().Add(-time.Hour))
 		require.NoError(t, err)
 		require.True(t, ds.DeleteOutOfDateVulnerabilitiesFuncInvoked)
 		require.Len(t, vulns, 0)

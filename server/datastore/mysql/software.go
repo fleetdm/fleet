@@ -3032,16 +3032,19 @@ func (ds *Datastore) InsertSoftwareVulnerabilities(
 	return totalAffected, err
 }
 
-func (ds *Datastore) ListSoftwareVulnerabilityKeysBySource(
+func (ds *Datastore) ListSoftwareVulnerabilitiesByCreatedAt(
 	ctx context.Context,
 	source fleet.VulnerabilitySource,
+	createdAfter time.Time,
 ) ([]fleet.SoftwareVulnerability, error) {
 	var vulns []fleet.SoftwareVulnerability
+	// Callers should set ctxdb.RequirePrimary on the context for read-after-write
+	// consistency, since inserts go to the primary and replicas may lag.
 	err := sqlx.SelectContext(ctx, ds.reader(ctx), &vulns,
-		`SELECT software_id, cve FROM software_cve WHERE source = ?`, source,
+		`SELECT software_id, cve FROM software_cve WHERE source = ? AND created_at >= ?`, source, createdAfter,
 	)
 	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "list software vulnerability keys by source")
+		return nil, ctxerr.Wrap(ctx, err, "list software vulnerabilities by created at")
 	}
 	return vulns, nil
 }

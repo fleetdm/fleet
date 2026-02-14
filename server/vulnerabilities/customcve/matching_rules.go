@@ -7,6 +7,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/fleetdm/fleet/v4/server/contexts/ctxdb"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/vulnerabilities/nvd/tools/cvefeed/nvd"
 	"github.com/go-kit/log"
@@ -162,25 +163,15 @@ func CheckCustomVulnerabilities(ctx context.Context, ds fleet.Datastore, logger 
 		vulns = append(vulns, v...)
 	}
 
-	// Build set of existing keys to identify newly inserted vulns.
-	existing, err := ds.ListSoftwareVulnerabilityKeysBySource(ctx, fleet.CustomSource)
-	if err != nil {
-		level.Error(logger).Log("msg", "Error listing existing custom vulnerabilities", "err", err)
-	}
-	existingKeys := make(map[string]struct{}, len(existing))
-	for _, v := range existing {
-		existingKeys[v.Key()] = struct{}{}
-	}
-
 	if _, err := ds.InsertSoftwareVulnerabilities(ctx, vulns, fleet.CustomSource); err != nil {
 		level.Error(logger).Log("msg", "Error inserting software vulnerabilities", "err", err)
 	}
 
-	var newVulns []fleet.SoftwareVulnerability
-	for _, v := range vulns {
-		if _, exists := existingKeys[v.Key()]; !exists {
-			newVulns = append(newVulns, v)
-		}
+	// Use primary for read-after-write consistency.
+	primaryCtx := ctxdb.RequirePrimary(ctx, true)
+	newVulns, err := ds.ListSoftwareVulnerabilitiesByCreatedAt(primaryCtx, fleet.CustomSource, startTime)
+	if err != nil {
+		level.Error(logger).Log("msg", "Error listing new custom vulnerabilities", "err", err)
 	}
 
 	if err := ds.DeleteOutOfDateVulnerabilities(ctx, fleet.CustomSource, startTime); err != nil {
