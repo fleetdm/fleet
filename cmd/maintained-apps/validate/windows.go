@@ -52,14 +52,17 @@ func appExists(ctx context.Context, logger kitlog.Logger, appName, uniqueIdentif
 	}
 
 	level.Info(logger).Log("msg", fmt.Sprintf("Looking for app: %s, version: %s", appName, appVersion))
+	// Escape single quotes for SQLite by doubling them to prevent SQL injection
+	escapedAppName := strings.ReplaceAll(appName, "'", "''")
 	query := `
-		SELECT name, install_location, version 
+		SELECT name, install_location, version
 		FROM programs
 		WHERE
-		LOWER(name) LIKE LOWER('%` + appName + `%')
+		LOWER(name) LIKE LOWER('%` + escapedAppName + `%')
 	`
 	if appPath != "" {
-		query += fmt.Sprintf(" OR install_location LIKE '%%%s%%'", appPath)
+		escapedAppPath := strings.ReplaceAll(appPath, "'", "''")
+		query += fmt.Sprintf(" OR install_location LIKE '%%%s%%'", escapedAppPath)
 	}
 	cmd := exec.CommandContext(execTimeout, "osqueryi", "--json", query)
 	output, err := cmd.CombinedOutput()
@@ -124,7 +127,9 @@ func appExists(ctx context.Context, logger kitlog.Logger, appName, uniqueIdentif
 	}
 
 	// Search by DisplayName using exact match (unique_identifier should match DisplayName)
-	provisionedQuery := fmt.Sprintf(`Get-AppxProvisionedPackage -Online | Where-Object { $_.DisplayName -eq '%s' } | Select-Object -First 1 | ConvertTo-Json -Depth 5`, uniqueIdentifier)
+	// Escape single quotes for PowerShell single-quoted strings by doubling them
+	escapedIdentifier := strings.ReplaceAll(uniqueIdentifier, "'", "''")
+	provisionedQuery := fmt.Sprintf(`Get-AppxProvisionedPackage -Online | Where-Object { $_.DisplayName -eq '%s' } | Select-Object -First 1 | ConvertTo-Json -Depth 5`, escapedIdentifier)
 	cmd = exec.CommandContext(execTimeout, "powershell", "-NoProfile", "-NonInteractive", "-Command", provisionedQuery)
 	output, err = cmd.CombinedOutput()
 	if err != nil {
