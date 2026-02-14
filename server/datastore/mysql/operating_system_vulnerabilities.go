@@ -292,7 +292,14 @@ func (ds *Datastore) InsertOSVulnerabilities(ctx context.Context, vulnerabilitie
 	var totalAffected int64
 	err := common_mysql.BatchProcessSimple(vulnerabilities, 500, func(batch []fleet.OSVulnerability) error {
 		values := strings.TrimSuffix(strings.Repeat("(?,?,?,?),", len(batch)), ",")
-		stmt := fmt.Sprintf(`INSERT IGNORE INTO operating_system_vulnerabilities (operating_system_id, cve, source, resolved_in_version) VALUES %s`, values)
+		stmt := fmt.Sprintf(`
+			INSERT INTO operating_system_vulnerabilities (operating_system_id, cve, source, resolved_in_version)
+			VALUES %s
+			ON DUPLICATE KEY UPDATE
+				source = VALUES(source),
+				resolved_in_version = VALUES(resolved_in_version),
+				updated_at = NOW()
+		`, values)
 
 		var args []any
 		for _, v := range batch {
