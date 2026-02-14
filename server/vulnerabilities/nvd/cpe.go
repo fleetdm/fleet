@@ -809,7 +809,7 @@ func translateSoftwareToCPEWithIterator(
 ) error {
 	dbPath := filepath.Join(vulnPath, cpeDBFilename)
 
-	db, err := sqliteDBReadOnly(dbPath)
+	db, err := sqliteDBReadOnly(dbPath, logger)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "opening the cpe db")
 	}
