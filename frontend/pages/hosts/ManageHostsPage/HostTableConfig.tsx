@@ -354,8 +354,8 @@ const allHostTableHeaders = (teamId?: number): IHostTableColumnConfig[] => [
     },
   },
   {
-    title: "Used by",
-    Header: "Used by",
+    title: "User email",
+    Header: "User email",
     disableSortBy: true,
     accessor: "device_mapping",
     id: "device_mapping",
