@@ -161,6 +161,22 @@ func NewInstalledApplicationListResultsHandler(
 				poll = true
 				return nil
 			case expectedInstall.InstallCommandAckAt != nil && time.Since(*expectedInstall.InstallCommandAckAt) > verifyTimeout:
+				// Retry if under max retries
+				if expectedInstall.RetryCount < fleet.MaxSoftwareInstallRetries {
+					lite := &fleet.HostVPPSoftwareInstallLite{
+						InstallCommandUUID: expectedInstall.InstallCommandUUID,
+						HostID:             expectedInstall.HostID,
+						RetryCount:         expectedInstall.RetryCount,
+					}
+					if err := ds.RetryVPPInstall(ctx, lite); err != nil {
+						return ctxerr.Wrap(ctx, err, "retry VPP install after verification timeout")
+					}
+					level.Info(logger).Log("msg", "re-queued VPP install after verification timeout",
+						"host_id", expectedInstall.HostID, "bundle_id", expectedInstall.BundleIdentifier,
+						"retry_count", expectedInstall.RetryCount+1)
+					return nil
+				}
+				// Max retries exhausted — mark as failed
 				if err := setter.failFn(ctx, expectedInstall.HostID, expectedInstall.InstallCommandUUID, installedAppResult.UUID()); err != nil {
 					return ctxerr.Wrap(ctx, err, "InstalledApplicationList handler: set vpp install failed")
 				}
