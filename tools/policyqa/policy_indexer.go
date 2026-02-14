@@ -160,6 +160,13 @@ func main() {
 func sshRun(user, host string, port int, remoteCmd string) (string, string, error) {
 	target := fmt.Sprintf("%s@%s", user, host)
 
+	fmt.Printf(
+		"\nAbout to run on target machine %s as user %s:\n  %s\n\n",
+		host,
+		user,
+		remoteCmd,
+	)
+
 	args := []string{
 		"-i", os.ExpandEnv("$HOME/.ssh/policyqa"),
 		"-p", strconv.Itoa(port),
