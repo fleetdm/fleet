@@ -260,6 +260,7 @@ export const SOURCE_TYPE_CONVERSION = {
   sh_packages: "Script-only package (macOS & Linux)",
   ps1_packages: "Script-only package (Windows)",
   jetbrains_plugins: "IDE extension", // jetbrains_plugins can include any JetBrains IDE (e.g., IntelliJ, PyCharm, WebStorm), so we rely instead on the `extension_for` field computed by Fleet server and fallback to this value if it is not present.
+  go_packages: "Package (Go)",
 } as const;
 
 export type SoftwareSource = keyof typeof SOURCE_TYPE_CONVERSION;
@@ -292,6 +293,7 @@ export const INSTALLABLE_SOURCE_PLATFORM_CONVERSION = {
   sh_packages: "linux", // 4.76 Added support for Linux hosts only
   ps1_packages: "windows",
   jetbrains_plugins: null,
+  go_packages: null,
 } as const;
 
 export const SCRIPT_PACKAGE_SOURCES = ["sh_packages", "ps1_packages"];

@@ -13,6 +13,7 @@ import (
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/dataflattentable"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/dconf_read"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/fleetd_pacman_packages"
+	"github.com/fleetdm/fleet/v4/orbit/pkg/table/go_packages"
 	"github.com/macadmins/osquery-extension/tables/crowdstrike_falcon"
 	"github.com/osquery/osquery-go"
 	"github.com/osquery/osquery-go/plugin/table"
@@ -29,6 +30,7 @@ func PlatformTables(opts PluginOpts) ([]osquery.OsqueryPlugin, error) {
 		table.NewPlugin("containerd_containers", containerd.ContainersColumns(), containerd.GenerateContainers),
 		table.NewPlugin("containerd_mounts", containerd.MountsColumns(), containerd.GenerateMounts),
 		table.NewPlugin(fleetd_pacman_packages.TableName, fleetd_pacman_packages.Columns(), fleetd_pacman_packages.Generate),
+		table.NewPlugin("go_packages", go_packages.GoPackagesColumns(), go_packages.GenerateGoPackages),
 		table.NewPlugin("crowdstrike_falcon", crowdstrike_falcon.CrowdstrikeFalconColumns(),
 			func(ctx context.Context, queryContext table.QueryContext) ([]map[string]string, error) {
 				return crowdstrike_falcon.CrowdstrikeFalconGenerate(ctx, queryContext, opts.Socket)
