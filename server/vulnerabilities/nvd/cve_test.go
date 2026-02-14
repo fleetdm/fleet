@@ -977,10 +977,9 @@ func TestTranslateCPEToCVE(t *testing.T) {
 		assert.Greater(t, byCPE[softwareCPEs[1].SoftwareID], 280, "mozilla firefox CVEs")
 		assert.Greater(t, byCPE[softwareCPEs[2].SoftwareID], 10, "curl CVEs")
 
-		// Call it again but now return all previously inserted vulns as "existing",
-		// simulating CVE-CPE pairs that already existed in the DB.
-		ds.ListSoftwareVulnerabilityKeysBySourceFunc = func(ctx context.Context, source fleet.VulnerabilitySource) ([]fleet.SoftwareVulnerability, error) {
-			return insertedVulns, nil
+		// Call it again but now return no new vulns (all already existed in the DB).
+		ds.ListSoftwareVulnerabilitiesByCreatedAtFunc = func(ctx context.Context, source fleet.VulnerabilitySource, createdAfter time.Time) ([]fleet.SoftwareVulnerability, error) {
+			return nil, nil
 		}
 		recent, err = TranslateCPEToCVE(ctx, safeDS, tempDir, kitlog.NewNopLogger(), true, time.Now().UTC().Add(-time.Hour))
 		require.NoError(t, err)
