@@ -35,9 +35,9 @@ func SetFatalErrorHandler(fn func(error)) {
 	fatalErrorOnce = sync.Once{} // reset so handler fires on next fatal error
 }
 
-// triggerFatalError calls the registered fatal error handler exactly once.
+// TriggerFatalError calls the registered fatal error handler exactly once.
 // If no handler is registered, it panics (legacy behavior).
-func triggerFatalError(err error) {
+func TriggerFatalError(err error) {
 	fatalErrorMu.RLock()
 	defer fatalErrorMu.RUnlock()
 
@@ -84,7 +84,7 @@ func WithRetryTxx(ctx context.Context, db *sqlx.DB, fn TxFn, logger log.Logger) 
 			// Read-only errors indicate a DB failover occurred (primary demoted to reader).
 			// Trigger graceful shutdown so the orchestrator restarts and reconnects to the new primary.
 			if IsReadOnlyError(err) {
-				triggerFatalError(err)
+				TriggerFatalError(err)
 				return backoff.Permanent(err)
 			}
 
@@ -100,7 +100,7 @@ func WithRetryTxx(ctx context.Context, db *sqlx.DB, fn TxFn, logger log.Logger) 
 			err = ctxerr.Wrap(ctx, err, "commit transaction")
 
 			if IsReadOnlyError(err) {
-				triggerFatalError(err)
+				TriggerFatalError(err)
 				return backoff.Permanent(err)
 			}
 
