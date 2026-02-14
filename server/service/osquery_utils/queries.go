@@ -2275,6 +2275,13 @@ func MutateSoftwareOnIngestion(s *fleet.Software, logger log.Logger) {
 			}
 		}
 	}
+
+	// For RHEL kernels, join version and release to match OVAL format.
+	// See server/vulnerabilities/goval_dictionary/database.Eval
+	if s != nil && s.Source == "rpm_packages" && s.Name == rpmKernelName && s.Release != "" {
+		s.Version = fmt.Sprintf("%s-%s", s.Version, s.Release)
+		s.Release = "" // Clear release to avoid issues with vulnerability matching
+	}
 }
 
 // shouldRemoveSoftware returns whether or not we should remove the given Software item from this

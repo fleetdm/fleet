@@ -32,8 +32,8 @@ func applyListOptionsDefaults(opt *api.ListOptions, defaultOrderKey string) {
 	// Default PerPage based on whether pagination was requested
 	if opt.PerPage == 0 {
 		if opt.Page == 0 {
-			// No pagination requested - return all results (legacy behavior)
-			opt.PerPage = unlimitedPerPage
+			// No pagination requested - return up to maxPerPage results
+			opt.PerPage = maxPerPage
 		} else {
 			// Page specified without per_page - use sensible default
 			opt.PerPage = defaultPerPage
