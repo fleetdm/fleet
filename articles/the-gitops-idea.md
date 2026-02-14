@@ -26,7 +26,7 @@ CI/CD has a less-than-catchy name tag, but it's a relatively simple idea:
 
 Assuming there is a logical, frictionless way for a group of contributors to work on a set of files together without overwriting or messing up the contributions (e.g., git, but really any version-control system), the contributors, theoretically, should be able to work faster, commit more often, and continuously.
 
-Small, iterative changes that are tested in real-time and shipped quickly to production are preferred over years-long refactoring projects that don't go out into the world until they are perfect. The impact this way of thinking and the practice can have on a team, a product, an organization, and on work itself should not be underestimated.
+Small, iterative changes that are tested in real-time and shipped quickly to production are preferred over years-long refactoring projects that don't go out into the world until they are perfect. The impact this way of thinking and the practice can have on a team, a [product](https://fleetdm.com/fleet-gitops), an [organization](https://fleetdm.com/handbook/company#values), and on work itself should not be underestimated.
 
 ### Automation 
 
