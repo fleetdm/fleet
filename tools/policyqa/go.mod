@@ -1,4 +1,4 @@
-module policy_indexer
+module policyqa
 
 go 1.25.6
 
