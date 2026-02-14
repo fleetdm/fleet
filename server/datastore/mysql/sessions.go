@@ -4,9 +4,11 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+
 	"github.com/fleetdm/fleet/v4/server"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	common_mysql "github.com/fleetdm/fleet/v4/server/platform/mysql"
 	"github.com/jmoiron/sqlx"
 )
 
@@ -188,6 +190,9 @@ func (ds *Datastore) MarkSessionAccessed(ctx context.Context, session *fleet.Ses
 	`
 	results, err := ds.writer(ctx).ExecContext(ctx, sqlStatement, ds.clock.Now(), session.ID)
 	if err != nil {
+		if common_mysql.IsReadOnlyError(err) {
+			common_mysql.TriggerFatalError(err)
+		}
 		return ctxerr.Wrap(ctx, err, "updating mark session as accessed")
 	}
 	rows, err := results.RowsAffected()

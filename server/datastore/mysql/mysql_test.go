@@ -702,6 +702,25 @@ func TestWithTxWillRollbackWhenPanic(t *testing.T) {
 	require.NoError(t, mock.ExpectationsWereMet())
 }
 
+func TestHealthCheckDetectsReadOnly(t *testing.T) {
+	mock, ds := mockDatastore(t)
+	defer ds.Close()
+
+	// Healthy: primary is writable.
+	mock.ExpectQuery("SELECT @@read_only").
+		WillReturnRows(sqlmock.NewRows([]string{"@@read_only"}).AddRow(0))
+	require.NoError(t, ds.HealthCheck())
+
+	// Unhealthy: primary is read-only (failover scenario).
+	mock.ExpectQuery("SELECT @@read_only").
+		WillReturnRows(sqlmock.NewRows([]string{"@@read_only"}).AddRow(1))
+	err := ds.HealthCheck()
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "read-only")
+
+	require.NoError(t, mock.ExpectationsWereMet())
+}
+
 func TestNewReadsPasswordFromDisk(t *testing.T) {
 	passwordFile, err := os.CreateTemp(t.TempDir(), "*.passwordtest")
 	require.NoError(t, err)
