@@ -247,9 +247,7 @@ const SoftwareDetailsSummary = ({
         )}
         <dl className={`${baseClass}__info`}>
           <div className={`${baseClass}__title-actions`}>
-            <h1 aria-label="software display name">
-              {renderDisplayName()}
-            </h1>
+            <h1 aria-label="software display name">{renderDisplayName()}</h1>
             {canManageSoftware && (
               <div className={`${baseClass}__actions-wrapper`}>
                 <DropdownWrapper
