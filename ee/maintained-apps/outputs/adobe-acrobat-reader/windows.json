@@ -1,14 +1,14 @@
 {
   "versions": [
     {
-      "version": "25.001.21151",
+      "version": "25.001.21184",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name = 'Adobe Acrobat (64-bit)' AND publisher = 'Adobe';"
       },
-      "installer_url": "https://ardownload2.adobe.com/pub/adobe/acrobat/win/AcrobatDC/2500121151/AcroRdrDCx642500121151_MUI.exe",
+      "installer_url": "https://ardownload2.adobe.com/pub/adobe/acrobat/win/AcrobatDC/2500121184/AcroRdrDCx642500121184_MUI.exe",
       "install_script_ref": "7dc0b065",
       "uninstall_script_ref": "3bb10c80",
-      "sha256": "7aaab49cb6dc49de647b7c01e8f3b26b98929c9560bde27bb68661d1a6d13961",
+      "sha256": "0bdd2c978eaf97492a7bea960b39c1c0deeb7577cc87866639fd5c19d91e2690",
       "default_categories": [
         "Productivity"
       ]
