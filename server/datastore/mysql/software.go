@@ -2991,8 +2991,19 @@ func (ds *Datastore) InsertSoftwareVulnerabilities(
 	vulns []fleet.SoftwareVulnerability,
 	source fleet.VulnerabilitySource,
 ) (int64, error) {
+	// Filter out entries with empty CVEs.
+	filtered := make([]fleet.SoftwareVulnerability, 0, len(vulns))
+	for _, v := range vulns {
+		if v.CVE != "" {
+			filtered = append(filtered, v)
+		}
+	}
+	if len(filtered) == 0 {
+		return 0, nil
+	}
+
 	var totalAffected int64
-	err := common_mysql.BatchProcessSimple(vulns, 500, func(batch []fleet.SoftwareVulnerability) error {
+	err := common_mysql.BatchProcessSimple(filtered, 500, func(batch []fleet.SoftwareVulnerability) error {
 		values := strings.TrimSuffix(strings.Repeat("(?,?,?,?),", len(batch)), ",")
 		stmt := fmt.Sprintf(`
 			INSERT INTO software_cve (cve, source, software_id, resolved_in_version)

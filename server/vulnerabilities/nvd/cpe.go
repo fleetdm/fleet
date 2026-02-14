@@ -644,7 +644,7 @@ func CPEFromSoftware(logger log.Logger, db *sqlx.DB, software *fleet.Software, t
 				if cpe != "" {
 					return cpe, nil
 				}
-				break // deprecation unresolved from this query, try next
+				continue // deprecation unresolved for this result, try next result
 			}
 		}
 	}
