@@ -68,6 +68,7 @@ func TestActivityPackageDependencies(t *testing.T) {
 				m + "/server/activity/internal/types",
 				m + "/server/activity/internal/testutils",
 				m + "/server/platform/http",
+				m + "/server/platform/logging",
 				m + "/server/platform/mysql",
 				m + "/server/platform/mysql/testing_utils",
 				m + "/server/contexts/ctxerr",

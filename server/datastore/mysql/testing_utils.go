@@ -14,6 +14,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log/slog"
 	"os"
 	"os/exec"
 	"regexp"
@@ -34,6 +35,7 @@ import (
 	nanodep_client "github.com/fleetdm/fleet/v4/server/mdm/nanodep/client"
 	mdmtesting "github.com/fleetdm/fleet/v4/server/mdm/testing_utils"
 	platform_authz "github.com/fleetdm/fleet/v4/server/platform/authz"
+	platformlogging "github.com/fleetdm/fleet/v4/server/platform/logging"
 	common_mysql "github.com/fleetdm/fleet/v4/server/platform/mysql"
 	"github.com/fleetdm/fleet/v4/server/platform/mysql/testing_utils"
 	"github.com/go-kit/log"
@@ -1018,7 +1020,7 @@ func NewTestActivityService(t testing.TB, ds *Datastore) activity_api.Service {
 	providers := activityacl.NewFleetServiceAdapter(lookupSvc)
 
 	// Create service via bootstrap (the public API for creating the bounded context)
-	svc, _ := activity_bootstrap.New(dbConns, &testingAuthorizer{}, providers, log.NewNopLogger())
+	svc, _ := activity_bootstrap.New(dbConns, &testingAuthorizer{}, providers, slog.New(platformlogging.DiscardHandler{}))
 	return svc
 }
 

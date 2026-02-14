@@ -9,6 +9,7 @@ import (
 	"database/sql/driver"
 	"errors"
 	"fmt"
+	"log/slog"
 	"math/rand"
 	"net/http"
 	"net/url"
@@ -1010,7 +1011,7 @@ the way that the Fleet server works.
 			level.Info(logger).Log("instanceID", instanceID)
 
 			// Bootstrap activity bounded context (needed for cron schedules and HTTP routes)
-			activitySvc, activityRoutes := createActivityBoundedContext(svc, dbConns, logger)
+			activitySvc, activityRoutes := createActivityBoundedContext(svc, dbConns, logger.SlogLogger())
 
 			// Perform a cleanup of cron_stats outside of the cronSchedules because the
 			// schedule package uses cron_stats entries to decide whether a schedule will
@@ -1757,7 +1758,7 @@ the way that the Fleet server works.
 	return serveCmd
 }
 
-func createActivityBoundedContext(svc fleet.Service, dbConns *common_mysql.DBConnections, logger kitlog.Logger) (activity_api.Service, endpointer.HandlerRoutesFunc) {
+func createActivityBoundedContext(svc fleet.Service, dbConns *common_mysql.DBConnections, logger *slog.Logger) (activity_api.Service, endpointer.HandlerRoutesFunc) {
 	legacyAuthorizer, err := authz.NewAuthorizer()
 	if err != nil {
 		initFatal(err, "initializing activity authorizer")
