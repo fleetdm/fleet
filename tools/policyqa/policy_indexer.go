@@ -6,6 +6,7 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"io"
 	"os"
 	"os/exec"
 	"regexp"
@@ -14,10 +15,13 @@ import (
 )
 
 /*
-Usage:
+Examples:
 
+# Default (safe): prints PASS cmds, does NOT execute them; runs osquery check
 go run . -file ../../ee/cis/linux/cis-policy-queries.yml -ssh-user sharon -ssh-host 172.16.196.132 105
-go run . -file ../../ee/cis/linux/cis-policy-queries.yml -ssh-user sharon -ssh-host 172.16.196.132 15 20
+
+# Execute mode: runs PASS cmds over SSH, then runs osquery check
+go run . -file ../../ee/cis/linux/cis-policy-queries.yml -ssh-user sharon -ssh-host 172.16.196.132 --execute-pass 105
 */
 
 type Policy struct {
@@ -34,6 +38,7 @@ func main() {
 	sshUser := flag.String("ssh-user", "", "SSH user")
 	sshHost := flag.String("ssh-host", "", "SSH host")
 	sshPort := flag.Int("ssh-port", 22, "SSH port")
+	executePass := flag.Bool("execute-pass", false, "actually execute PASS command(s) over SSH (default: false)")
 	flag.Parse()
 
 	if *filePath == "" || *sshUser == "" || *sshHost == "" {
@@ -56,39 +61,103 @@ func main() {
 	for _, p := range toRun {
 		fmt.Printf("[%d] %s\n", p.Index, p.Name)
 
-		// Your requested behavior:
-		// If no automated PASS command -> print message and continue
 		if p.Manual || len(p.PassCmd) == 0 {
 			fmt.Println("i couldn't check this policy, continuing\n")
 			continue
 		}
 
+		// Always show PASS commands
 		fmt.Println("PASS command(s):")
 		for _, cmd := range p.PassCmd {
 			fmt.Printf("  %s\n", cmd)
 		}
 		fmt.Println()
 
-		msg := fmt.Sprintf("Policy %d: i am running the pass command", p.Index)
+		// Apply PASS commands only when explicitly requested
+		passApplyFailed := false
 
-		fmt.Printf("About to run: ssh %s@%s -p %d \"echo %s\"\n",
-			*sshUser, *sshHost, *sshPort, msg)
+		if *executePass {
+			fmt.Println("Executing PASS command(s) on VM...")
 
-		out, err := sshEcho(*sshUser, *sshHost, *sshPort, msg)
-		if err != nil {
-			fmt.Printf("SSH ERROR: %v\n\n", err)
+			for _, cmdToRun := range p.PassCmd {
+				fmt.Printf("About to run on VM: %s\n", cmdToRun)
+
+				stdout, stderr, err := sshRun(*sshUser, *sshHost, *sshPort, cmdToRun)
+				if err != nil {
+					fmt.Printf("********** FAIL **********\n")
+					fmt.Printf("PASS command failed: %v\n", err)
+					if strings.TrimSpace(stderr) != "" {
+						fmt.Printf("stderr:\n%s\n", strings.TrimSpace(stderr))
+					}
+					if strings.TrimSpace(stdout) != "" {
+						fmt.Printf("stdout:\n%s\n", strings.TrimSpace(stdout))
+					}
+					fmt.Println()
+					passApplyFailed = true
+					break
+				}
+
+				if strings.TrimSpace(stdout) != "" {
+					fmt.Printf("stdout:\n%s\n", strings.TrimSpace(stdout))
+				}
+				if strings.TrimSpace(stderr) != "" {
+					fmt.Printf("stderr:\n%s\n", strings.TrimSpace(stderr))
+				}
+				fmt.Println()
+			}
+		} else {
+			// Dry-run marker only (no mutations)
+			msg := fmt.Sprintf("Policy %d: (dry-run) would run PASS command(s)", p.Index)
+			fmt.Printf("About to run: ssh %s@%s -p %d \"echo %s\"\n", *sshUser, *sshHost, *sshPort, msg)
+
+			stdout, stderr, err := sshRun(*sshUser, *sshHost, *sshPort, "echo "+shellQuote(msg))
+			if err != nil {
+				fmt.Printf("SSH ERROR: %v\n", err)
+				if strings.TrimSpace(stderr) != "" {
+					fmt.Printf("SSH STDERR: %s\n", strings.TrimSpace(stderr))
+				}
+				if strings.TrimSpace(stdout) != "" {
+					fmt.Printf("SSH STDOUT: %s\n", strings.TrimSpace(stdout))
+				}
+				fmt.Println()
+				continue
+			}
+			fmt.Println()
+		}
+
+		// If PASS apply failed, don't run osquery check
+		if passApplyFailed {
 			continue
 		}
-		fmt.Printf("SSH OK: %s\n\n", strings.TrimSpace(out))
+
+		// Now run osquery check
+		fmt.Println("Running osquery check…")
+		pass, raw, stderr, err := sshOsquery(*sshUser, *sshHost, *sshPort, p.Query)
+		if err != nil {
+			fmt.Printf("********** FAIL **********\n")
+			fmt.Printf("osquery error: %v\n", err)
+			if strings.TrimSpace(stderr) != "" {
+				fmt.Printf("osquery stderr:\n%s\n", strings.TrimSpace(stderr))
+			}
+			fmt.Println()
+			continue
+		}
+
+		if pass {
+			fmt.Printf("********** PASS **********\n\n")
+		} else {
+			fmt.Printf("********** FAIL **********\n")
+			fmt.Printf("osquery returned no rows\n")
+			fmt.Printf("osquery output: %s\n\n", strings.TrimSpace(raw))
+		}
 	}
 }
 
 /* ---------------- SSH ---------------- */
 
-func sshEcho(user, host string, port int, message string) (string, error) {
-	if strings.TrimSpace(message) == "" {
-		return "", errors.New("empty message")
-	}
+// sshRun executes a remote shell command via SSH.
+// Returns stdout, stderr, and error (if exit code nonzero or ssh failed).
+func sshRun(user, host string, port int, remoteCmd string) (string, string, error) {
 	target := fmt.Sprintf("%s@%s", user, host)
 
 	args := []string{
@@ -96,23 +165,57 @@ func sshEcho(user, host string, port int, message string) (string, error) {
 		"-p", strconv.Itoa(port),
 		"-o", "BatchMode=yes",
 		"-o", "StrictHostKeyChecking=accept-new",
-		target,
-		"echo " + shellQuote(message),
 	}
+
+	// Only allocate a TTY when running sudo, so sudo can prompt for a password.
+	if strings.Contains(remoteCmd, "sudo") {
+		args = append(args, "-tt")
+	}
+
+	args = append(args, target, remoteCmd)
 
 	cmd := exec.Command("ssh", args...)
 	var stdout, stderr bytes.Buffer
-	cmd.Stdout = &stdout
-	cmd.Stderr = &stderr
+
+	isSudo := strings.Contains(remoteCmd, "sudo")
+	if isSudo {
+		// Interactive: show prompts/output live, and still capture for logs.
+		cmd.Stdin = os.Stdin
+		cmd.Stdout = io.MultiWriter(os.Stdout, &stdout)
+		cmd.Stderr = io.MultiWriter(os.Stderr, &stderr)
+	} else {
+		// Non-interactive: capture output only.
+		cmd.Stdout = &stdout
+		cmd.Stderr = &stderr
+	}
 
 	err := cmd.Run()
-	if err != nil {
-		return stderr.String(), err
+	return stdout.String(), stderr.String(), err
+}
+
+func sshOsquery(user, host string, port int, query string) (bool, string, string, error) {
+	if strings.TrimSpace(query) == "" {
+		return false, "", "", errors.New("empty osquery query")
 	}
-	return stdout.String(), nil
+
+	remoteCmd := fmt.Sprintf("osqueryi --json %s", shellQuote(query))
+	stdout, stderr, err := sshRun(user, host, port, remoteCmd)
+	if err != nil {
+		return false, "", stderr, err
+	}
+
+	out := strings.TrimSpace(stdout)
+
+	// osquery --json returns [] for zero rows
+	if out == "[]" || out == "" {
+		return false, out, stderr, nil
+	}
+
+	return true, out, stderr, nil
 }
 
 func shellQuote(s string) string {
+	// Safe single-quote quoting for sh:
 	return "'" + strings.ReplaceAll(s, "'", `'\''`) + "'"
 }
 
@@ -144,7 +247,7 @@ func parsePoliciesFromFile(path string) ([]Policy, error) {
 		}
 		p, ok := parsePolicyDoc(docLines)
 		if ok {
-			p.Index = len(out) + 1 // policy index = count of policy docs
+			p.Index = len(out) + 1
 			out = append(out, p)
 		}
 		docLines = nil
@@ -172,7 +275,6 @@ func parsePoliciesFromFile(path string) ([]Policy, error) {
 }
 
 func parsePolicyDoc(lines []string) (Policy, bool) {
-	// Only accept if kind: policy exists in doc
 	isPolicy := false
 	for _, l := range lines {
 		if reKind.MatchString(l) {
@@ -225,7 +327,6 @@ func extractSpecName(lines []string) string {
 		if !inSpec {
 			continue
 		}
-		// Leave spec when indentation goes back to <= spec indent
 		if indent <= specIndent {
 			inSpec = false
 			specIndent = -1
@@ -237,12 +338,10 @@ func extractSpecName(lines []string) string {
 			return strings.Trim(v, `"'`)
 		}
 	}
-
 	return ""
 }
 
 func extractQueryBlock(lines []string) string {
-	// Find "query: |" and then capture all following lines that are more indented
 	for i := 0; i < len(lines); i++ {
 		raw := lines[i]
 		if isCommentLine(raw) {
@@ -254,11 +353,9 @@ func extractQueryBlock(lines []string) string {
 			var b strings.Builder
 			for j := i + 1; j < len(lines); j++ {
 				l := lines[j]
-				// stop when indentation returns to baseIndent or less and it's not blank
 				if strings.TrimSpace(l) != "" && countIndent(l) <= baseIndent {
 					break
 				}
-				// strip one indentation level (2 spaces typical), but keep relative formatting
 				b.WriteString(strings.TrimRight(l, " \t"))
 				b.WriteString("\n")
 			}
@@ -269,7 +366,6 @@ func extractQueryBlock(lines []string) string {
 }
 
 func extractCommentText(lines []string) []string {
-	// Keep only comment lines, stripping leading spaces and the leading "#"
 	var out []string
 	for _, raw := range lines {
 		s := strings.TrimLeft(raw, " \t")
@@ -321,25 +417,13 @@ func distillCommands(lines []string) []string {
 		if t == "" {
 			continue
 		}
-		lc := strings.ToLower(t)
-		if strings.HasPrefix(lc, "sudo ") ||
-			strings.HasPrefix(lc, "modprobe ") ||
-			strings.HasPrefix(lc, "rm ") ||
-			strings.HasPrefix(lc, "bash ") ||
-			strings.HasPrefix(lc, "chown ") ||
-			strings.HasPrefix(lc, "chmod ") ||
-			strings.Contains(t, "2>/dev/null") ||
-			strings.Contains(t, " >/") ||
-			strings.Contains(t, " && ") ||
-			strings.Contains(t, " <<EOF") {
-			cmds = append(cmds, t)
-		}
+		// Keep as-is; PASS commands are meant to be run.
+		cmds = append(cmds, t)
 	}
 	return cmds
 }
 
 func detectManual(lines []string, name string) bool {
-	// conservative: any "Manual" in name or a "purpose: Manual..." line
 	if strings.Contains(strings.ToLower(name), "manual") {
 		return true
 	}
