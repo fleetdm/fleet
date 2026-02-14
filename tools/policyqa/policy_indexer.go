@@ -1,35 +1,32 @@
 package main
 
 import (
+	"bufio"
 	"bytes"
 	"errors"
 	"flag"
 	"fmt"
-	"io"
 	"os"
 	"os/exec"
+	"regexp"
 	"strconv"
 	"strings"
-
-	"gopkg.in/yaml.v3"
 )
 
 /*
 Usage:
 
-go run . -file cis-policy-queries.fixed.yml -ssh-user sharon -ssh-host 172.16.196.132
-go run . -file cis-policy-queries.fixed.yml -ssh-user sharon -ssh-host 172.16.196.132 15
-go run . -file cis-policy-queries.fixed.yml -ssh-user sharon -ssh-host 172.16.196.132 15 20
+go run . -file ../../ee/cis/linux/cis-policy-queries.yml -ssh-user sharon -ssh-host 172.16.196.132 105
+go run . -file ../../ee/cis/linux/cis-policy-queries.yml -ssh-user sharon -ssh-host 172.16.196.132 15 20
 */
 
 type Policy struct {
-	Index       int
-	Name        string
-	Description string
-	Purpose     string
-	Resolution  string
-	Query       string
-	Comments    string
+	Index   int
+	Name    string
+	Query   string
+	Manual  bool
+	PassCmd []string
+	FailCmd []string
 }
 
 func main() {
@@ -47,36 +44,31 @@ func main() {
 	start, end, ranged, err := parseRange(flag.Args())
 	exitIfErr(err)
 
-	policies, err := loadPolicies(*filePath)
+	policies, err := parsePoliciesFromFile(*filePath)
 	exitIfErr(err)
 
 	toRun := applyRange(policies, start, end, ranged)
-
 	if len(toRun) == 0 {
 		fmt.Println("No policies matched.")
 		return
 	}
 
 	for _, p := range toRun {
-
 		fmt.Printf("[%d] %s\n", p.Index, p.Name)
 
-		passLines := extractSection(p.Comments, "pass (run):")
-		passCmds := distillCommands(passLines)
-
-		if isManual(p) || len(passCmds) == 0 {
+		// Your requested behavior:
+		// If no automated PASS command -> print message and continue
+		if p.Manual || len(p.PassCmd) == 0 {
 			fmt.Println("i couldn't check this policy, continuing\n")
 			continue
 		}
 
 		msg := fmt.Sprintf("Policy %d: i am running the pass command", p.Index)
-
 		out, err := sshEcho(*sshUser, *sshHost, *sshPort, msg)
 		if err != nil {
 			fmt.Printf("SSH ERROR: %v\n\n", err)
 			continue
 		}
-
 		fmt.Printf("SSH OK: %s\n\n", strings.TrimSpace(out))
 	}
 }
@@ -87,12 +79,10 @@ func sshEcho(user, host string, port int, message string) (string, error) {
 	if strings.TrimSpace(message) == "" {
 		return "", errors.New("empty message")
 	}
-
 	target := fmt.Sprintf("%s@%s", user, host)
 
 	args := []string{
 		"-p", strconv.Itoa(port),
-		"-o", "BatchMode=yes",
 		"-o", "StrictHostKeyChecking=accept-new",
 		target,
 		"echo " + shellQuote(message),
@@ -107,7 +97,6 @@ func sshEcho(user, host string, port int, message string) (string, error) {
 	if err != nil {
 		return stderr.String(), err
 	}
-
 	return stdout.String(), nil
 }
 
@@ -115,111 +104,177 @@ func shellQuote(s string) string {
 	return "'" + strings.ReplaceAll(s, "'", `'\''`) + "'"
 }
 
-/* ---------------- YAML ---------------- */
+/* ---------------- Parsing policies from raw text ---------------- */
 
-func loadPolicies(path string) ([]Policy, error) {
+var (
+	reDocSep = regexp.MustCompile(`^\s*---\s*$`)
+	reKind   = regexp.MustCompile(`^\s*kind:\s*policy\s*$`)
+)
+
+func parsePoliciesFromFile(path string) ([]Policy, error) {
 	f, err := os.Open(path)
 	if err != nil {
 		return nil, err
 	}
 	defer f.Close()
 
-	dec := yaml.NewDecoder(f)
+	sc := bufio.NewScanner(f)
+	sc.Buffer(make([]byte, 64*1024), 20*1024*1024)
 
-	var out []Policy
-	index := 0
+	var (
+		docLines []string
+		out      []Policy
+	)
 
-	for {
-		var doc yaml.Node
-		err := dec.Decode(&doc)
-		if err == io.EOF {
-			break
+	flush := func() error {
+		if len(docLines) == 0 {
+			return nil
 		}
-		if err != nil {
-			return nil, err
+		p, ok := parsePolicyDoc(docLines)
+		if ok {
+			p.Index = len(out) + 1 // policy index = count of policy docs
+			out = append(out, p)
 		}
+		docLines = nil
+		return nil
+	}
 
-		if getMapString(&doc, "kind") != "policy" {
+	for sc.Scan() {
+		line := sc.Text()
+		if reDocSep.MatchString(line) {
+			if err := flush(); err != nil {
+				return nil, err
+			}
 			continue
 		}
-
-		index++
-
-		spec := getMapNode(&doc, "spec")
-
-		p := Policy{
-			Index:       index,
-			Name:        getMapString(spec, "name"),
-			Description: getMapString(spec, "description"),
-			Purpose:     getMapString(spec, "purpose"),
-			Resolution:  getMapString(spec, "resolution"),
-			Query:       getMapString(spec, "query"),
-			Comments:    gatherComments(&doc),
-		}
-
-		out = append(out, p)
+		docLines = append(docLines, line)
+	}
+	if err := sc.Err(); err != nil {
+		return nil, err
+	}
+	if err := flush(); err != nil {
+		return nil, err
 	}
 
 	return out, nil
 }
 
-func getMapNode(n *yaml.Node, key string) *yaml.Node {
-	root := docRoot(n)
-	if root == nil || root.Kind != yaml.MappingNode {
-		return nil
-	}
-	for i := 0; i+1 < len(root.Content); i += 2 {
-		if root.Content[i].Value == key {
-			return root.Content[i+1]
+func parsePolicyDoc(lines []string) (Policy, bool) {
+	// Only accept if kind: policy exists in doc
+	isPolicy := false
+	for _, l := range lines {
+		if reKind.MatchString(l) {
+			isPolicy = true
+			break
 		}
 	}
-	return nil
+	if !isPolicy {
+		return Policy{}, false
+	}
+
+	name := extractSpecName(lines)
+	query := extractQueryBlock(lines)
+
+	comments := extractCommentText(lines)
+	passBlock := extractBlock(comments, "pass (run):")
+	failBlock := extractBlock(comments, "fail (run):")
+
+	passCmd := distillCommands(passBlock)
+	failCmd := distillCommands(failBlock)
+
+	manual := detectManual(lines, name)
+
+	return Policy{
+		Name:    nonEmpty(name, "<missing spec.name>"),
+		Query:   strings.TrimSpace(query),
+		Manual:  manual,
+		PassCmd: passCmd,
+		FailCmd: failCmd,
+	}, true
 }
 
-func getMapString(n *yaml.Node, key string) string {
-	v := getMapNode(n, key)
-	if v != nil && v.Kind == yaml.ScalarNode {
-		return v.Value
+func extractSpecName(lines []string) string {
+	inSpec := false
+	specIndent := -1
+
+	for _, raw := range lines {
+		if strings.TrimSpace(raw) == "" || isCommentLine(raw) {
+			continue
+		}
+
+		indent := countIndent(raw)
+		trim := strings.TrimSpace(raw)
+
+		if trim == "spec:" {
+			inSpec = true
+			specIndent = indent
+			continue
+		}
+		if !inSpec {
+			continue
+		}
+		// Leave spec when indentation goes back to <= spec indent
+		if indent <= specIndent {
+			inSpec = false
+			specIndent = -1
+			continue
+		}
+
+		if strings.HasPrefix(strings.TrimSpace(raw), "name:") {
+			v := strings.TrimSpace(strings.TrimPrefix(strings.TrimSpace(raw), "name:"))
+			return strings.Trim(v, `"'`)
+		}
+	}
+
+	return ""
+}
+
+func extractQueryBlock(lines []string) string {
+	// Find "query: |" and then capture all following lines that are more indented
+	for i := 0; i < len(lines); i++ {
+		raw := lines[i]
+		if isCommentLine(raw) {
+			continue
+		}
+		trim := strings.TrimSpace(raw)
+		if trim == "query: |" {
+			baseIndent := countIndent(raw)
+			var b strings.Builder
+			for j := i + 1; j < len(lines); j++ {
+				l := lines[j]
+				// stop when indentation returns to baseIndent or less and it's not blank
+				if strings.TrimSpace(l) != "" && countIndent(l) <= baseIndent {
+					break
+				}
+				// strip one indentation level (2 spaces typical), but keep relative formatting
+				b.WriteString(strings.TrimRight(l, " \t"))
+				b.WriteString("\n")
+			}
+			return b.String()
+		}
 	}
 	return ""
 }
 
-func docRoot(n *yaml.Node) *yaml.Node {
-	if n.Kind == yaml.DocumentNode && len(n.Content) > 0 {
-		return n.Content[0]
-	}
-	return n
-}
-
-func gatherComments(n *yaml.Node) string {
-	var b strings.Builder
-	var walk func(*yaml.Node)
-	walk = func(x *yaml.Node) {
-		if x == nil {
-			return
-		}
-		root := docRoot(x)
-		for _, c := range []string{root.HeadComment, root.LineComment, root.FootComment} {
-			if strings.TrimSpace(c) != "" {
-				b.WriteString(c + "\n")
-			}
-		}
-		for _, child := range root.Content {
-			walk(child)
+func extractCommentText(lines []string) []string {
+	// Keep only comment lines, stripping leading spaces and the leading "#"
+	var out []string
+	for _, raw := range lines {
+		s := strings.TrimLeft(raw, " \t")
+		if strings.HasPrefix(s, "#") {
+			s = strings.TrimPrefix(s, "#")
+			s = strings.TrimLeft(s, " \t")
+			out = append(out, s)
 		}
 	}
-	walk(n)
-	return b.String()
+	return out
 }
 
-/* ---------------- PASS extraction ---------------- */
-
-func extractSection(commentText, marker string) []string {
-	lines := splitLines(commentText)
+func extractBlock(commentLines []string, marker string) []string {
 	marker = strings.ToLower(marker)
 
 	start := -1
-	for i, l := range lines {
+	for i, l := range commentLines {
 		if strings.Contains(strings.ToLower(l), marker) {
 			start = i + 1
 			break
@@ -230,16 +285,16 @@ func extractSection(commentText, marker string) []string {
 	}
 
 	var out []string
-	for i := start; i < len(lines); i++ {
-		l := lines[i]
-		low := strings.ToLower(strings.TrimSpace(l))
-		if strings.Contains(low, "fail (run):") ||
+	for i := start; i < len(commentLines); i++ {
+		low := strings.ToLower(strings.TrimSpace(commentLines[i]))
+		if strings.Contains(low, "pass (run):") ||
+			strings.Contains(low, "fail (run):") ||
 			strings.Contains(low, "expected:") ||
 			strings.Contains(low, "where:") {
 			break
 		}
-		if strings.TrimSpace(l) != "" {
-			out = append(out, l)
+		if strings.TrimSpace(commentLines[i]) != "" {
+			out = append(out, commentLines[i])
 		}
 	}
 	return out
@@ -248,27 +303,43 @@ func extractSection(commentText, marker string) []string {
 func distillCommands(lines []string) []string {
 	var cmds []string
 	for _, l := range lines {
-		t := strings.TrimSpace(strings.TrimPrefix(strings.TrimSpace(l), "-"))
+		t := strings.TrimSpace(l)
+		t = strings.TrimPrefix(t, "-")
+		t = strings.TrimSpace(t)
 		if t == "" {
 			continue
 		}
 		lc := strings.ToLower(t)
-
 		if strings.HasPrefix(lc, "sudo ") ||
 			strings.HasPrefix(lc, "modprobe ") ||
 			strings.HasPrefix(lc, "rm ") ||
 			strings.HasPrefix(lc, "bash ") ||
+			strings.HasPrefix(lc, "chown ") ||
+			strings.HasPrefix(lc, "chmod ") ||
 			strings.Contains(t, "2>/dev/null") ||
-			strings.Contains(t, " >/") {
+			strings.Contains(t, " >/") ||
+			strings.Contains(t, " && ") ||
+			strings.Contains(t, " <<EOF") {
 			cmds = append(cmds, t)
 		}
 	}
 	return cmds
 }
 
-func isManual(p Policy) bool {
-	all := strings.ToLower(p.Name + p.Description + p.Purpose + p.Resolution)
-	return strings.Contains(all, "manual")
+func detectManual(lines []string, name string) bool {
+	// conservative: any "Manual" in name or a "purpose: Manual..." line
+	if strings.Contains(strings.ToLower(name), "manual") {
+		return true
+	}
+	for _, raw := range lines {
+		if isCommentLine(raw) {
+			continue
+		}
+		if strings.Contains(strings.ToLower(strings.TrimSpace(raw)), "purpose: manual") {
+			return true
+		}
+	}
+	return false
 }
 
 /* ---------------- Range ---------------- */
@@ -279,17 +350,23 @@ func parseRange(args []string) (int, int, bool, error) {
 	}
 	if len(args) == 1 {
 		v, err := strconv.Atoi(args[0])
-		return v, v, true, err
+		if err != nil || v <= 0 {
+			return 0, 0, false, errors.New("invalid index")
+		}
+		return v, v, true, nil
 	}
-	a, err1 := strconv.Atoi(args[0])
-	b, err2 := strconv.Atoi(args[1])
-	if err1 != nil || err2 != nil {
-		return 0, 0, false, errors.New("invalid range")
+	if len(args) == 2 {
+		a, err1 := strconv.Atoi(args[0])
+		b, err2 := strconv.Atoi(args[1])
+		if err1 != nil || err2 != nil || a <= 0 || b <= 0 {
+			return 0, 0, false, errors.New("invalid range")
+		}
+		if a > b {
+			a, b = b, a
+		}
+		return a, b, true, nil
 	}
-	if a > b {
-		a, b = b, a
-	}
-	return a, b, true, nil
+	return 0, 0, false, errors.New("too many args")
 }
 
 func applyRange(policies []Policy, start, end int, ranged bool) []Policy {
@@ -305,10 +382,34 @@ func applyRange(policies []Policy, start, end int, ranged bool) []Policy {
 	return out
 }
 
-func splitLines(s string) []string {
-	s = strings.ReplaceAll(s, "\r\n", "\n")
-	s = strings.ReplaceAll(s, "\r", "\n")
-	return strings.Split(s, "\n")
+/* ---------------- Helpers ---------------- */
+
+func isCommentLine(s string) bool {
+	t := strings.TrimLeft(s, " \t")
+	return strings.HasPrefix(t, "#")
+}
+
+func countIndent(s string) int {
+	n := 0
+	for _, r := range s {
+		if r == ' ' {
+			n++
+			continue
+		}
+		if r == '\t' {
+			n += 4
+			continue
+		}
+		break
+	}
+	return n
+}
+
+func nonEmpty(v, fallback string) string {
+	if strings.TrimSpace(v) == "" {
+		return fallback
+	}
+	return v
 }
 
 func exitIfErr(err error) {
