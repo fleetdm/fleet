@@ -11,7 +11,10 @@ spec:
   # QA Validation:
   # - Where: Run on the audited Ubuntu 22.04 host (use a disposable VM for FAIL).
   # - PASS (run):
-  #   - sudo bash -c "printf '%s\n' 'blacklist cramfs' 'install cramfs /bin/false' > /etc/modprobe.d/cramfs.conf"
+  #   - sudo bash -c 'cat <<EOF > /etc/modprobe.d/cramfs.conf
+# blacklist cramfs
+# install cramfs /bin/false
+# EOF'
   #   - sudo modprobe -r cramfs 2>/dev/null || true
   # - FAIL (run):
   #   - sudo rm -f /etc/modprobe.d/cramfs.conf
@@ -22,14 +25,20 @@ spec:
   query: |
     SELECT 1
     WHERE (SELECT COUNT(*) FROM kernel_modules WHERE name='cramfs') = 0
-      AND (SELECT COUNT(*) FROM file_lines
+      AND (SELECT COUNT(*) FROM file_contents
            WHERE path LIKE '/etc/modprobe.d/%.conf'
-             AND line LIKE 'blacklist cramfs%'
-             AND line NOT LIKE '#%') >= 1
-      AND (SELECT COUNT(*) FROM file_lines
+             AND contents LIKE '%blacklist cramfs%'
+             
+           AND contents NOT LIKE '%#%blacklist cramfs%'
+       ) >= 1
+      AND (SELECT COUNT(*) FROM file_contents
            WHERE path LIKE '/etc/modprobe.d/%.conf'
-             AND (line LIKE 'install cramfs /bin/false%' OR line LIKE 'install cramfs /bin/true%')
-             AND line NOT LIKE '#%') >= 1;
+             AND (contents LIKE '%install cramfs /bin/false%' OR contents LIKE '%install cramfs /bin/true%')
+             
+           AND contents NOT LIKE '%#%blacklist cramfs%'
+           AND contents NOT LIKE '%#%install cramfs /bin/false%'
+           AND contents NOT LIKE '%#%install cramfs /bin/true%'
+       ) >= 1;
   purpose: Informational
   tags: compliance, CIS, CIS_Ubuntu_22_04
   contributors: sharon-fdm
@@ -46,7 +55,10 @@ spec:
   # QA Validation:
   # - Where: Run on the audited Ubuntu 22.04 host (use a disposable VM for FAIL).
   # - PASS (run):
-  #   - sudo bash -c "printf '%s\n' 'blacklist freevxfs' 'install freevxfs /bin/false' > /etc/modprobe.d/freevxfs.conf"
+  #   - sudo bash -c 'cat <<EOF > /etc/modprobe.d/freevxfs.conf
+# blacklist freevxfs
+# install freevxfs /bin/false
+# EOF'
   #   - sudo modprobe -r freevxfs 2>/dev/null || true
   # - FAIL (run):
   #   - sudo rm -f /etc/modprobe.d/freevxfs.conf
@@ -57,14 +69,20 @@ spec:
   query: |
     SELECT 1
     WHERE (SELECT COUNT(*) FROM kernel_modules WHERE name='freevxfs') = 0
-      AND (SELECT COUNT(*) FROM file_lines
+      AND (SELECT COUNT(*) FROM file_contents
            WHERE path LIKE '/etc/modprobe.d/%.conf'
-             AND line LIKE 'blacklist freevxfs%'
-             AND line NOT LIKE '#%') >= 1
-      AND (SELECT COUNT(*) FROM file_lines
+             AND contents LIKE '%blacklist freevxfs%'
+             
+           AND contents NOT LIKE '%#%blacklist freevxfs%'
+       ) >= 1
+      AND (SELECT COUNT(*) FROM file_contents
            WHERE path LIKE '/etc/modprobe.d/%.conf'
-             AND (line LIKE 'install freevxfs /bin/false%' OR line LIKE 'install freevxfs /bin/true%')
-             AND line NOT LIKE '#%') >= 1;
+             AND (contents LIKE '%install freevxfs /bin/false%' OR contents LIKE '%install freevxfs /bin/true%')
+             
+           AND contents NOT LIKE '%#%blacklist freevxfs%'
+           AND contents NOT LIKE '%#%install freevxfs /bin/false%'
+           AND contents NOT LIKE '%#%install freevxfs /bin/true%'
+       ) >= 1;
   purpose: Informational
   tags: compliance, CIS, CIS_Ubuntu_22_04
   contributors: sharon-fdm
@@ -81,7 +99,10 @@ spec:
   # QA Validation:
   # - Where: Run on the audited Ubuntu 22.04 host (use a disposable VM for FAIL).
   # - PASS (run):
-  #   - sudo bash -c "printf '%s\n' 'blacklist hfs' 'install hfs /bin/false' > /etc/modprobe.d/hfs.conf"
+  #   - sudo bash -c 'cat <<EOF > /etc/modprobe.d/hfs.conf
+# blacklist hfs
+# install hfs /bin/false
+# EOF'
   #   - sudo modprobe -r hfs 2>/dev/null || true
   # - FAIL (run):
   #   - sudo rm -f /etc/modprobe.d/hfs.conf
@@ -92,14 +113,20 @@ spec:
   query: |
     SELECT 1
     WHERE (SELECT COUNT(*) FROM kernel_modules WHERE name='hfs') = 0
-      AND (SELECT COUNT(*) FROM file_lines
+      AND (SELECT COUNT(*) FROM file_contents
            WHERE path LIKE '/etc/modprobe.d/%.conf'
-             AND line LIKE 'blacklist hfs%'
-             AND line NOT LIKE '#%') >= 1
-      AND (SELECT COUNT(*) FROM file_lines
+             AND contents LIKE '%blacklist hfs%'
+             
+           AND contents NOT LIKE '%#%blacklist hfs%'
+       ) >= 1
+      AND (SELECT COUNT(*) FROM file_contents
            WHERE path LIKE '/etc/modprobe.d/%.conf'
-             AND (line LIKE 'install hfs /bin/false%' OR line LIKE 'install hfs /bin/true%')
-             AND line NOT LIKE '#%') >= 1;
+             AND (contents LIKE '%install hfs /bin/false%' OR contents LIKE '%install hfs /bin/true%')
+             
+           AND contents NOT LIKE '%#%blacklist hfs%'
+           AND contents NOT LIKE '%#%install hfs /bin/false%'
+           AND contents NOT LIKE '%#%install hfs /bin/true%'
+       ) >= 1;
   purpose: Informational
   tags: compliance, CIS, CIS_Ubuntu_22_04
   contributors: sharon-fdm
@@ -116,7 +143,10 @@ spec:
   # QA Validation:
   # - Where: Run on the audited Ubuntu 22.04 host (use a disposable VM for FAIL).
   # - PASS (run):
-  #   - sudo bash -c "printf '%s\n' 'blacklist hfsplus' 'install hfsplus /bin/false' > /etc/modprobe.d/hfsplus.conf"
+  #   - sudo bash -c 'cat <<EOF > /etc/modprobe.d/hfsplus.conf
+# blacklist hfsplus
+# install hfsplus /bin/false
+# EOF'
   #   - sudo modprobe -r hfsplus 2>/dev/null || true
   # - FAIL (run):
   #   - sudo rm -f /etc/modprobe.d/hfsplus.conf
@@ -127,14 +157,20 @@ spec:
   query: |
     SELECT 1
     WHERE (SELECT COUNT(*) FROM kernel_modules WHERE name='hfsplus') = 0
-      AND (SELECT COUNT(*) FROM file_lines
+      AND (SELECT COUNT(*) FROM file_contents
            WHERE path LIKE '/etc/modprobe.d/%.conf'
-             AND line LIKE 'blacklist hfsplus%'
-             AND line NOT LIKE '#%') >= 1
-      AND (SELECT COUNT(*) FROM file_lines
+             AND contents LIKE '%blacklist hfsplus%'
+             
+           AND contents NOT LIKE '%#%blacklist hfsplus%'
+       ) >= 1
+      AND (SELECT COUNT(*) FROM file_contents
            WHERE path LIKE '/etc/modprobe.d/%.conf'
-             AND (line LIKE 'install hfsplus /bin/false%' OR line LIKE 'install hfsplus /bin/true%')
-             AND line NOT LIKE '#%') >= 1;
+             AND (contents LIKE '%install hfsplus /bin/false%' OR contents LIKE '%install hfsplus /bin/true%')
+             
+           AND contents NOT LIKE '%#%blacklist hfsplus%'
+           AND contents NOT LIKE '%#%install hfsplus /bin/false%'
+           AND contents NOT LIKE '%#%install hfsplus /bin/true%'
+       ) >= 1;
   purpose: Informational
   tags: compliance, CIS, CIS_Ubuntu_22_04
   contributors: sharon-fdm
@@ -151,7 +187,10 @@ spec:
   # QA Validation:
   # - Where: Run on the audited Ubuntu 22.04 host (use a disposable VM for FAIL).
   # - PASS (run):
-  #   - sudo bash -c "printf '%s\n' 'blacklist udf' 'install udf /bin/false' > /etc/modprobe.d/udf.conf"
+  #   - sudo bash -c 'cat <<EOF > /etc/modprobe.d/udf.conf
+# blacklist udf
+# install udf /bin/false
+# EOF'
   #   - sudo modprobe -r udf 2>/dev/null || true
   # - FAIL (run):
   #   - sudo rm -f /etc/modprobe.d/udf.conf
@@ -162,14 +201,20 @@ spec:
   query: |
     SELECT 1
     WHERE (SELECT COUNT(*) FROM kernel_modules WHERE name='udf') = 0
-      AND (SELECT COUNT(*) FROM file_lines
+      AND (SELECT COUNT(*) FROM file_contents
            WHERE path LIKE '/etc/modprobe.d/%.conf'
-             AND line LIKE 'blacklist udf%'
-             AND line NOT LIKE '#%') >= 1
-      AND (SELECT COUNT(*) FROM file_lines
+             AND contents LIKE '%blacklist udf%'
+             
+           AND contents NOT LIKE '%#%blacklist udf%'
+       ) >= 1
+      AND (SELECT COUNT(*) FROM file_contents
            WHERE path LIKE '/etc/modprobe.d/%.conf'
-             AND (line LIKE 'install udf /bin/false%' OR line LIKE 'install udf /bin/true%')
-             AND line NOT LIKE '#%') >= 1;
+             AND (contents LIKE '%install udf /bin/false%' OR contents LIKE '%install udf /bin/true%')
+             
+           AND contents NOT LIKE '%#%blacklist udf%'
+           AND contents NOT LIKE '%#%install udf /bin/false%'
+           AND contents NOT LIKE '%#%install udf /bin/true%'
+       ) >= 1;
   purpose: Informational
   tags: compliance, CIS, CIS_Ubuntu_22_04
   contributors: sharon-fdm
@@ -195,14 +240,19 @@ spec:
   query: |
     SELECT 1
     WHERE (SELECT COUNT(*) FROM kernel_modules WHERE name IN ('squashfs')) = 0
-      AND (SELECT COUNT(*) FROM file_lines
+      AND (SELECT COUNT(*) FROM file_contents
            WHERE path LIKE '/etc/modprobe.d/%.conf'
-             AND (line LIKE 'blacklist squashfs%')
-             AND line NOT LIKE '#%') >= 1
-      AND (SELECT COUNT(*) FROM file_lines
+             AND (contents LIKE '%blacklist squashfs%')
+             
+           AND contents NOT LIKE '%#%blacklist squashfs%'
+       ) >= 1
+      AND (SELECT COUNT(*) FROM file_contents
            WHERE path LIKE '/etc/modprobe.d/%.conf'
-             AND ((line LIKE 'install squashfs /bin/false%') OR (line LIKE 'install squashfs /bin/true%'))
-             AND line NOT LIKE '#%') >= 1;
+             AND ((contents LIKE '%install squashfs /bin/false%') OR (contents LIKE '%install squashfs /bin/true%'))
+             
+           AND contents NOT LIKE '%#%install squashfs /bin/false%'
+           AND contents NOT LIKE '%#%install squashfs /bin/true%'
+       ) >= 1;
   purpose: Informational
   tags: compliance, CIS, CIS_Ubuntu_22_04
   contributors: sharon-fdm
@@ -228,14 +278,19 @@ spec:
   query: |
     SELECT 1
     WHERE (SELECT COUNT(*) FROM kernel_modules WHERE name IN ('udf')) = 0
-      AND (SELECT COUNT(*) FROM file_lines
+      AND (SELECT COUNT(*) FROM file_contents
            WHERE path LIKE '/etc/modprobe.d/%.conf'
-             AND (line LIKE 'blacklist udf%')
-             AND line NOT LIKE '#%') >= 1
-      AND (SELECT COUNT(*) FROM file_lines
+             AND (contents LIKE '%blacklist udf%')
+             
+           AND contents NOT LIKE '%#%blacklist udf%'
+       ) >= 1
+      AND (SELECT COUNT(*) FROM file_contents
            WHERE path LIKE '/etc/modprobe.d/%.conf'
-             AND ((line LIKE 'install udf /bin/false%') OR (line LIKE 'install udf /bin/true%'))
-             AND line NOT LIKE '#%') >= 1;
+             AND ((contents LIKE '%install udf /bin/false%') OR (contents LIKE '%install udf /bin/true%'))
+             
+           AND contents NOT LIKE '%#%install udf /bin/false%'
+           AND contents NOT LIKE '%#%install udf /bin/true%'
+       ) >= 1;
   purpose: Informational
   tags: compliance, CIS, CIS_Ubuntu_22_04
   contributors: sharon-fdm
@@ -261,14 +316,22 @@ spec:
   query: |
     SELECT 1
     WHERE (SELECT COUNT(*) FROM kernel_modules WHERE name IN ('usb-storage', 'usb_storage')) = 0
-      AND (SELECT COUNT(*) FROM file_lines
+      AND (SELECT COUNT(*) FROM file_contents
            WHERE path LIKE '/etc/modprobe.d/%.conf'
-             AND (line LIKE 'blacklist usb-storage%' OR line LIKE 'blacklist usb_storage%')
-             AND line NOT LIKE '#%') >= 1
-      AND (SELECT COUNT(*) FROM file_lines
+             AND (contents LIKE '%blacklist usb-storage%' OR contents LIKE '%blacklist usb_storage%')
+             
+           AND contents NOT LIKE '%#%blacklist usb-storage%'
+           AND contents NOT LIKE '%#%blacklist usb_storage%'
+       ) >= 1
+      AND (SELECT COUNT(*) FROM file_contents
            WHERE path LIKE '/etc/modprobe.d/%.conf'
-             AND ((line LIKE 'install usb-storage /bin/false%' OR line LIKE 'install usb_storage /bin/false%') OR (line LIKE 'install usb-storage /bin/true%' OR line LIKE 'install usb_storage /bin/true%'))
-             AND line NOT LIKE '#%') >= 1;
+             AND ((contents LIKE '%install usb-storage /bin/false%' OR contents LIKE '%install usb_storage /bin/false%') OR (contents LIKE '%install usb-storage /bin/true%' OR contents LIKE '%install usb_storage /bin/true%'))
+             
+           AND contents NOT LIKE '%#%install usb-storage /bin/false%'
+           AND contents NOT LIKE '%#%install usb_storage /bin/false%'
+           AND contents NOT LIKE '%#%install usb-storage /bin/true%'
+           AND contents NOT LIKE '%#%install usb_storage /bin/true%'
+       ) >= 1;
   purpose: Informational
   tags: compliance, CIS, CIS_Ubuntu_22_04
   contributors: sharon-fdm
@@ -318,14 +381,22 @@ spec:
   query: |
     SELECT 1
     WHERE (SELECT COUNT(*) FROM kernel_modules WHERE name IN ('firewire-core', 'firewire_core')) = 0
-      AND (SELECT COUNT(*) FROM file_lines
+      AND (SELECT COUNT(*) FROM file_contents
            WHERE path LIKE '/etc/modprobe.d/%.conf'
-             AND (line LIKE 'blacklist firewire-core%' OR line LIKE 'blacklist firewire_core%')
-             AND line NOT LIKE '#%') >= 1
-      AND (SELECT COUNT(*) FROM file_lines
+             AND (contents LIKE '%blacklist firewire-core%' OR contents LIKE '%blacklist firewire_core%')
+             
+           AND contents NOT LIKE '%#%blacklist firewire-core%'
+           AND contents NOT LIKE '%#%blacklist firewire_core%'
+       ) >= 1
+      AND (SELECT COUNT(*) FROM file_contents
            WHERE path LIKE '/etc/modprobe.d/%.conf'
-             AND ((line LIKE 'install firewire-core /bin/false%' OR line LIKE 'install firewire_core /bin/false%') OR (line LIKE 'install firewire-core /bin/true%' OR line LIKE 'install firewire_core /bin/true%'))
-             AND line NOT LIKE '#%') >= 1;
+             AND ((contents LIKE '%install firewire-core /bin/false%' OR contents LIKE '%install firewire_core /bin/false%') OR (contents LIKE '%install firewire-core /bin/true%' OR contents LIKE '%install firewire_core /bin/true%'))
+             
+           AND contents NOT LIKE '%#%install firewire-core /bin/false%'
+           AND contents NOT LIKE '%#%install firewire_core /bin/false%'
+           AND contents NOT LIKE '%#%install firewire-core /bin/true%'
+           AND contents NOT LIKE '%#%install firewire_core /bin/true%'
+       ) >= 1;
   purpose: Informational
   tags: compliance, CIS, CIS_Ubuntu_22_04
   contributors: sharon-fdm
@@ -1166,8 +1237,8 @@ spec:
   query: |
     SELECT 1
     WHERE EXISTS (
-      SELECT 1 FROM file_lines
-      WHERE path='/sys/module/apparmor/parameters/enabled' AND line='Y'
+      SELECT 1 FROM file_contents
+      WHERE path='/sys/module/apparmor/parameters/enabled' AND contents='Y'
     )
     AND EXISTS (
       SELECT 1 FROM systemd_units
@@ -2690,10 +2761,9 @@ spec:
   query: |
     SELECT 1
     WHERE EXISTS (
-      SELECT 1 FROM file_lines
+      SELECT 1 FROM file_contents
       WHERE path='/etc/chrony/chrony.conf'
-        AND line NOT LIKE '#%'
-        AND (line LIKE 'server %' OR line LIKE 'pool %')
+                AND (contents LIKE '%server %' OR contents LIKE '%pool %')
     );
   purpose: Informational
   tags: compliance, CIS, CIS_Ubuntu_22_04
@@ -3122,9 +3192,9 @@ spec:
   query: |
     SELECT 1
     WHERE NOT EXISTS (
-      SELECT 1 FROM file_lines
+      SELECT 1 FROM file_contents
       WHERE path='/proc/net/wireless'
-        AND line LIKE '%:%'
+        AND contents LIKE '%:%'
     );
   purpose: Informational
   tags: compliance, CIS, CIS_Ubuntu_22_04
@@ -3177,7 +3247,10 @@ spec:
   # QA Validation:
   # - Where: Run on the audited Ubuntu 22.04 host (use a disposable VM for FAIL).
   # - PASS (run):
-  #   - sudo bash -c "printf '%s\n' 'blacklist dccp' 'install dccp /bin/false' > /etc/modprobe.d/dccp.conf"
+  #   - sudo bash -c 'cat <<EOF > /etc/modprobe.d/dccp.conf
+# blacklist dccp
+# install dccp /bin/false
+# EOF'
   #   - sudo modprobe -r dccp 2>/dev/null || true
   # - FAIL (run):
   #   - sudo rm -f /etc/modprobe.d/dccp.conf
@@ -3188,14 +3261,20 @@ spec:
   query: |
     SELECT 1
     WHERE (SELECT COUNT(*) FROM kernel_modules WHERE name='dccp') = 0
-      AND (SELECT COUNT(*) FROM file_lines
+      AND (SELECT COUNT(*) FROM file_contents
            WHERE path LIKE '/etc/modprobe.d/%.conf'
-             AND line LIKE 'blacklist dccp%'
-             AND line NOT LIKE '#%') >= 1
-      AND (SELECT COUNT(*) FROM file_lines
+             AND contents LIKE '%blacklist dccp%'
+             
+           AND contents NOT LIKE '%#%blacklist dccp%'
+       ) >= 1
+      AND (SELECT COUNT(*) FROM file_contents
            WHERE path LIKE '/etc/modprobe.d/%.conf'
-             AND (line LIKE 'install dccp /bin/false%' OR line LIKE 'install dccp /bin/true%')
-             AND line NOT LIKE '#%') >= 1;
+             AND (contents LIKE '%install dccp /bin/false%' OR contents LIKE '%install dccp /bin/true%')
+             
+           AND contents NOT LIKE '%#%blacklist dccp%'
+           AND contents NOT LIKE '%#%install dccp /bin/false%'
+           AND contents NOT LIKE '%#%install dccp /bin/true%'
+       ) >= 1;
   purpose: Informational
   tags: compliance, CIS, CIS_Ubuntu_22_04
   contributors: sharon-fdm
@@ -3212,7 +3291,10 @@ spec:
   # QA Validation:
   # - Where: Run on the audited Ubuntu 22.04 host (use a disposable VM for FAIL).
   # - PASS (run):
-  #   - sudo bash -c "printf '%s\n' 'blacklist tipc' 'install tipc /bin/false' > /etc/modprobe.d/tipc.conf"
+  #   - sudo bash -c 'cat <<EOF > /etc/modprobe.d/tipc.conf
+# blacklist tipc
+# install tipc /bin/false
+# EOF'
   #   - sudo modprobe -r tipc 2>/dev/null || true
   # - FAIL (run):
   #   - sudo rm -f /etc/modprobe.d/tipc.conf
@@ -3223,14 +3305,20 @@ spec:
   query: |
     SELECT 1
     WHERE (SELECT COUNT(*) FROM kernel_modules WHERE name='tipc') = 0
-      AND (SELECT COUNT(*) FROM file_lines
+      AND (SELECT COUNT(*) FROM file_contents
            WHERE path LIKE '/etc/modprobe.d/%.conf'
-             AND line LIKE 'blacklist tipc%'
-             AND line NOT LIKE '#%') >= 1
-      AND (SELECT COUNT(*) FROM file_lines
+             AND contents LIKE '%blacklist tipc%'
+             
+           AND contents NOT LIKE '%#%blacklist tipc%'
+       ) >= 1
+      AND (SELECT COUNT(*) FROM file_contents
            WHERE path LIKE '/etc/modprobe.d/%.conf'
-             AND (line LIKE 'install tipc /bin/false%' OR line LIKE 'install tipc /bin/true%')
-             AND line NOT LIKE '#%') >= 1;
+             AND (contents LIKE '%install tipc /bin/false%' OR contents LIKE '%install tipc /bin/true%')
+             
+           AND contents NOT LIKE '%#%blacklist tipc%'
+           AND contents NOT LIKE '%#%install tipc /bin/false%'
+           AND contents NOT LIKE '%#%install tipc /bin/true%'
+       ) >= 1;
   purpose: Informational
   tags: compliance, CIS, CIS_Ubuntu_22_04
   contributors: sharon-fdm
@@ -3247,7 +3335,10 @@ spec:
   # QA Validation:
   # - Where: Run on the audited Ubuntu 22.04 host (use a disposable VM for FAIL).
   # - PASS (run):
-  #   - sudo bash -c "printf '%s\n' 'blacklist rds' 'install rds /bin/false' > /etc/modprobe.d/rds.conf"
+  #   - sudo bash -c 'cat <<EOF > /etc/modprobe.d/rds.conf
+# blacklist rds
+# install rds /bin/false
+# EOF'
   #   - sudo modprobe -r rds 2>/dev/null || true
   # - FAIL (run):
   #   - sudo rm -f /etc/modprobe.d/rds.conf
@@ -3258,14 +3349,20 @@ spec:
   query: |
     SELECT 1
     WHERE (SELECT COUNT(*) FROM kernel_modules WHERE name='rds') = 0
-      AND (SELECT COUNT(*) FROM file_lines
+      AND (SELECT COUNT(*) FROM file_contents
            WHERE path LIKE '/etc/modprobe.d/%.conf'
-             AND line LIKE 'blacklist rds%'
-             AND line NOT LIKE '#%') >= 1
-      AND (SELECT COUNT(*) FROM file_lines
+             AND contents LIKE '%blacklist rds%'
+             
+           AND contents NOT LIKE '%#%blacklist rds%'
+       ) >= 1
+      AND (SELECT COUNT(*) FROM file_contents
            WHERE path LIKE '/etc/modprobe.d/%.conf'
-             AND (line LIKE 'install rds /bin/false%' OR line LIKE 'install rds /bin/true%')
-             AND line NOT LIKE '#%') >= 1;
+             AND (contents LIKE '%install rds /bin/false%' OR contents LIKE '%install rds /bin/true%')
+             
+           AND contents NOT LIKE '%#%blacklist rds%'
+           AND contents NOT LIKE '%#%install rds /bin/false%'
+           AND contents NOT LIKE '%#%install rds /bin/true%'
+       ) >= 1;
   purpose: Informational
   tags: compliance, CIS, CIS_Ubuntu_22_04
   contributors: sharon-fdm
@@ -3282,7 +3379,10 @@ spec:
   # QA Validation:
   # - Where: Run on the audited Ubuntu 22.04 host (use a disposable VM for FAIL).
   # - PASS (run):
-  #   - sudo bash -c "printf '%s\n' 'blacklist sctp' 'install sctp /bin/false' > /etc/modprobe.d/sctp.conf"
+  #   - sudo bash -c 'cat <<EOF > /etc/modprobe.d/sctp.conf
+# blacklist sctp
+# install sctp /bin/false
+# EOF'
   #   - sudo modprobe -r sctp 2>/dev/null || true
   # - FAIL (run):
   #   - sudo rm -f /etc/modprobe.d/sctp.conf
@@ -3293,14 +3393,20 @@ spec:
   query: |
     SELECT 1
     WHERE (SELECT COUNT(*) FROM kernel_modules WHERE name='sctp') = 0
-      AND (SELECT COUNT(*) FROM file_lines
+      AND (SELECT COUNT(*) FROM file_contents
            WHERE path LIKE '/etc/modprobe.d/%.conf'
-             AND line LIKE 'blacklist sctp%'
-             AND line NOT LIKE '#%') >= 1
-      AND (SELECT COUNT(*) FROM file_lines
+             AND contents LIKE '%blacklist sctp%'
+             
+           AND contents NOT LIKE '%#%blacklist sctp%'
+       ) >= 1
+      AND (SELECT COUNT(*) FROM file_contents
            WHERE path LIKE '/etc/modprobe.d/%.conf'
-             AND (line LIKE 'install sctp /bin/false%' OR line LIKE 'install sctp /bin/true%')
-             AND line NOT LIKE '#%') >= 1;
+             AND (contents LIKE '%install sctp /bin/false%' OR contents LIKE '%install sctp /bin/true%')
+             
+           AND contents NOT LIKE '%#%blacklist sctp%'
+           AND contents NOT LIKE '%#%install sctp /bin/false%'
+           AND contents NOT LIKE '%#%install sctp /bin/true%'
+       ) >= 1;
   purpose: Informational
   tags: compliance, CIS, CIS_Ubuntu_22_04
   contributors: sharon-fdm
@@ -3351,17 +3457,16 @@ spec:
     SELECT 1
     WHERE EXISTS (SELECT 1 FROM system_controls WHERE name='net.ipv4.conf.all.forwarding' AND value='0')
       AND EXISTS (
-        SELECT 1 FROM file_lines
+        SELECT 1 FROM file_contents
         WHERE (path='/etc/sysctl.conf'
            OR path LIKE '/etc/sysctl.d/%.conf'
            OR path LIKE '/usr/lib/sysctl.d/%.conf'
            OR path LIKE '/lib/sysctl.d/%.conf'
            OR path LIKE '/run/sysctl.d/%.conf')
-          AND line NOT LIKE '#%'
-          AND (line LIKE 'net.ipv4.conf.all.forwarding = 0'
-            OR line LIKE 'net.ipv4.conf.all.forwarding=0'
-            OR line LIKE 'net.ipv4.conf.all.forwarding = 0 %'
-            OR line LIKE 'net.ipv4.conf.all.forwarding=0 %')
+                    AND (contents LIKE '%net.ipv4.conf.all.forwarding = 0%'
+            OR contents LIKE '%net.ipv4.conf.all.forwarding=0%'
+            OR contents LIKE '%net.ipv4.conf.all.forwarding = 0 %'
+            OR contents LIKE '%net.ipv4.conf.all.forwarding=0 %')
       );
   purpose: Informational
   tags: compliance, CIS, CIS_Ubuntu_22_04
@@ -3389,17 +3494,16 @@ spec:
     SELECT 1
     WHERE EXISTS (SELECT 1 FROM system_controls WHERE name='net.ipv4.conf.default.forwarding' AND value='0')
       AND EXISTS (
-        SELECT 1 FROM file_lines
+        SELECT 1 FROM file_contents
         WHERE (path='/etc/sysctl.conf'
            OR path LIKE '/etc/sysctl.d/%.conf'
            OR path LIKE '/usr/lib/sysctl.d/%.conf'
            OR path LIKE '/lib/sysctl.d/%.conf'
            OR path LIKE '/run/sysctl.d/%.conf')
-          AND line NOT LIKE '#%'
-          AND (line LIKE 'net.ipv4.conf.default.forwarding = 0'
-            OR line LIKE 'net.ipv4.conf.default.forwarding=0'
-            OR line LIKE 'net.ipv4.conf.default.forwarding = 0 %'
-            OR line LIKE 'net.ipv4.conf.default.forwarding=0 %')
+                    AND (contents LIKE '%net.ipv4.conf.default.forwarding = 0%'
+            OR contents LIKE '%net.ipv4.conf.default.forwarding=0%'
+            OR contents LIKE '%net.ipv4.conf.default.forwarding = 0 %'
+            OR contents LIKE '%net.ipv4.conf.default.forwarding=0 %')
       );
   purpose: Informational
   tags: compliance, CIS, CIS_Ubuntu_22_04
@@ -3980,11 +4084,10 @@ spec:
     SELECT 1
     WHERE EXISTS (SELECT 1 FROM deb_packages WHERE name='ufw')
       AND EXISTS (
-        SELECT 1 FROM file_lines
+        SELECT 1 FROM file_contents
         WHERE path='/etc/ufw/ufw.conf'
-          AND line LIKE 'ENABLED=yes%'
-          AND line NOT LIKE '#%'
-      );
+          AND contents LIKE '%ENABLED=yes%'
+                );
   purpose: Informational
   tags: compliance, CIS, CIS_Ubuntu_22_04
   contributors: sharon-fdm
@@ -4231,10 +4334,9 @@ spec:
   query: |
     SELECT 1
     WHERE EXISTS (
-      SELECT 1 FROM file_lines
+      SELECT 1 FROM file_contents
       WHERE (path = '/etc/ssh/sshd_config' OR path LIKE '/etc/ssh/sshd_config.d/%.conf')
-        AND line NOT LIKE '#%'
-        AND (line LIKE 'ClientAliveInterval 300%' OR line LIKE 'ClientAliveInterval	300%')
+                AND (contents LIKE '%ClientAliveInterval 300%' OR contents LIKE '%ClientAliveInterval	300%')
     );
   purpose: Informational
   tags: compliance, CIS, CIS_Ubuntu_22_04
@@ -4309,16 +4411,14 @@ spec:
   query: |
     SELECT 1
     WHERE EXISTS (
-      SELECT 1 FROM file_lines
+      SELECT 1 FROM file_contents
       WHERE (path = '/etc/ssh/sshd_config' OR path LIKE '/etc/ssh/sshd_config.d/%.conf')
-        AND line NOT LIKE '#%'
-        AND (line LIKE 'HostbasedAuthentication no%' OR line LIKE 'HostbasedAuthentication	no%')
+                AND (contents LIKE '%HostbasedAuthentication no%' OR contents LIKE '%HostbasedAuthentication	no%')
     )
     AND NOT EXISTS (
-      SELECT 1 FROM file_lines
+      SELECT 1 FROM file_contents
       WHERE (path = '/etc/ssh/sshd_config' OR path LIKE '/etc/ssh/sshd_config.d/%.conf')
-        AND line NOT LIKE '#%'
-        AND (line LIKE 'HostbasedAuthentication yes%' OR line LIKE 'HostbasedAuthentication	yes%')
+                AND (contents LIKE '%HostbasedAuthentication yes%' OR contents LIKE '%HostbasedAuthentication	yes%')
     );
   purpose: Informational
   tags: compliance, CIS, CIS_Ubuntu_22_04
@@ -4345,16 +4445,14 @@ spec:
   query: |
     SELECT 1
     WHERE EXISTS (
-      SELECT 1 FROM file_lines
+      SELECT 1 FROM file_contents
       WHERE (path = '/etc/ssh/sshd_config' OR path LIKE '/etc/ssh/sshd_config.d/%.conf')
-        AND line NOT LIKE '#%'
-        AND (line LIKE 'IgnoreRhosts yes%' OR line LIKE 'IgnoreRhosts	yes%')
+                AND (contents LIKE '%IgnoreRhosts yes%' OR contents LIKE '%IgnoreRhosts	yes%')
     )
     AND NOT EXISTS (
-      SELECT 1 FROM file_lines
+      SELECT 1 FROM file_contents
       WHERE (path = '/etc/ssh/sshd_config' OR path LIKE '/etc/ssh/sshd_config.d/%.conf')
-        AND line NOT LIKE '#%'
-        AND (line LIKE 'IgnoreRhosts no%' OR line LIKE 'IgnoreRhosts	no%')
+                AND (contents LIKE '%IgnoreRhosts no%' OR contents LIKE '%IgnoreRhosts	no%')
     );
   purpose: Informational
   tags: compliance, CIS, CIS_Ubuntu_22_04
@@ -4405,10 +4503,9 @@ spec:
   query: |
     SELECT 1
     WHERE EXISTS (
-      SELECT 1 FROM file_lines
+      SELECT 1 FROM file_contents
       WHERE (path = '/etc/ssh/sshd_config' OR path LIKE '/etc/ssh/sshd_config.d/%.conf')
-        AND line NOT LIKE '#%'
-        AND (line LIKE 'LoginGraceTime 60%' OR line LIKE 'LoginGraceTime	60%')
+                AND (contents LIKE '%LoginGraceTime 60%' OR contents LIKE '%LoginGraceTime	60%')
     );
   purpose: Informational
   tags: compliance, CIS, CIS_Ubuntu_22_04
@@ -4435,10 +4532,9 @@ spec:
   query: |
     SELECT 1
     WHERE EXISTS (
-      SELECT 1 FROM file_lines
+      SELECT 1 FROM file_contents
       WHERE (path = '/etc/ssh/sshd_config' OR path LIKE '/etc/ssh/sshd_config.d/%.conf')
-        AND line NOT LIKE '#%'
-        AND (line LIKE 'LogLevel INFO%' OR line LIKE 'LogLevel VERBOSE%' OR line LIKE 'LogLevel	INFO%' OR line LIKE 'LogLevel	VERBOSE%')
+                AND (contents LIKE '%LogLevel INFO%' OR contents LIKE '%LogLevel VERBOSE%' OR contents LIKE '%LogLevel	INFO%' OR contents LIKE '%LogLevel	VERBOSE%')
     );
   purpose: Informational
   tags: compliance, CIS, CIS_Ubuntu_22_04
@@ -4489,10 +4585,9 @@ spec:
   query: |
     SELECT 1
     WHERE EXISTS (
-      SELECT 1 FROM file_lines
+      SELECT 1 FROM file_contents
       WHERE (path = '/etc/ssh/sshd_config' OR path LIKE '/etc/ssh/sshd_config.d/%.conf')
-        AND line NOT LIKE '#%'
-        AND (line LIKE 'MaxAuthTries 4%' OR line LIKE 'MaxAuthTries	4%')
+                AND (contents LIKE '%MaxAuthTries 4%' OR contents LIKE '%MaxAuthTries	4%')
     );
   purpose: Informational
   tags: compliance, CIS, CIS_Ubuntu_22_04
@@ -4567,16 +4662,14 @@ spec:
   query: |
     SELECT 1
     WHERE EXISTS (
-      SELECT 1 FROM file_lines
+      SELECT 1 FROM file_contents
       WHERE (path = '/etc/ssh/sshd_config' OR path LIKE '/etc/ssh/sshd_config.d/%.conf')
-        AND line NOT LIKE '#%'
-        AND (line LIKE 'PermitEmptyPasswords no%' OR line LIKE 'PermitEmptyPasswords	no%')
+                AND (contents LIKE '%PermitEmptyPasswords no%' OR contents LIKE '%PermitEmptyPasswords	no%')
     )
     AND NOT EXISTS (
-      SELECT 1 FROM file_lines
+      SELECT 1 FROM file_contents
       WHERE (path = '/etc/ssh/sshd_config' OR path LIKE '/etc/ssh/sshd_config.d/%.conf')
-        AND line NOT LIKE '#%'
-        AND (line LIKE 'PermitEmptyPasswords yes%' OR line LIKE 'PermitEmptyPasswords	yes%')
+                AND (contents LIKE '%PermitEmptyPasswords yes%' OR contents LIKE '%PermitEmptyPasswords	yes%')
     );
   purpose: Informational
   tags: compliance, CIS, CIS_Ubuntu_22_04
@@ -4603,16 +4696,14 @@ spec:
   query: |
     SELECT 1
     WHERE EXISTS (
-      SELECT 1 FROM file_lines
+      SELECT 1 FROM file_contents
       WHERE (path = '/etc/ssh/sshd_config' OR path LIKE '/etc/ssh/sshd_config.d/%.conf')
-        AND line NOT LIKE '#%'
-        AND (line LIKE 'PermitRootLogin no%' OR line LIKE 'PermitRootLogin	no%')
+                AND (contents LIKE '%PermitRootLogin no%' OR contents LIKE '%PermitRootLogin	no%')
     )
     AND NOT EXISTS (
-      SELECT 1 FROM file_lines
+      SELECT 1 FROM file_contents
       WHERE (path = '/etc/ssh/sshd_config' OR path LIKE '/etc/ssh/sshd_config.d/%.conf')
-        AND line NOT LIKE '#%'
-        AND (line LIKE 'PermitRootLogin yes%' OR line LIKE 'PermitRootLogin prohibit-password%' OR line LIKE 'PermitRootLogin without-password%' OR line LIKE 'PermitRootLogin	yes%' OR line LIKE 'PermitRootLogin	prohibit-password%' OR line LIKE 'PermitRootLogin	without-password%')
+                AND (contents LIKE '%PermitRootLogin yes%' OR contents LIKE '%PermitRootLogin prohibit-password%' OR contents LIKE '%PermitRootLogin without-password%' OR contents LIKE '%PermitRootLogin	yes%' OR contents LIKE '%PermitRootLogin	prohibit-password%' OR contents LIKE '%PermitRootLogin	without-password%')
     );
   purpose: Informational
   tags: compliance, CIS, CIS_Ubuntu_22_04
@@ -4639,16 +4730,14 @@ spec:
   query: |
     SELECT 1
     WHERE EXISTS (
-      SELECT 1 FROM file_lines
+      SELECT 1 FROM file_contents
       WHERE (path = '/etc/ssh/sshd_config' OR path LIKE '/etc/ssh/sshd_config.d/%.conf')
-        AND line NOT LIKE '#%'
-        AND (line LIKE 'PermitUserEnvironment no%' OR line LIKE 'PermitUserEnvironment	no%')
+                AND (contents LIKE '%PermitUserEnvironment no%' OR contents LIKE '%PermitUserEnvironment	no%')
     )
     AND NOT EXISTS (
-      SELECT 1 FROM file_lines
+      SELECT 1 FROM file_contents
       WHERE (path = '/etc/ssh/sshd_config' OR path LIKE '/etc/ssh/sshd_config.d/%.conf')
-        AND line NOT LIKE '#%'
-        AND (line LIKE 'PermitUserEnvironment yes%' OR line LIKE 'PermitUserEnvironment	yes%')
+                AND (contents LIKE '%PermitUserEnvironment yes%' OR contents LIKE '%PermitUserEnvironment	yes%')
     );
   purpose: Informational
   tags: compliance, CIS, CIS_Ubuntu_22_04
@@ -4675,16 +4764,14 @@ spec:
   query: |
     SELECT 1
     WHERE EXISTS (
-      SELECT 1 FROM file_lines
+      SELECT 1 FROM file_contents
       WHERE (path = '/etc/ssh/sshd_config' OR path LIKE '/etc/ssh/sshd_config.d/%.conf')
-        AND line NOT LIKE '#%'
-        AND (line LIKE 'UsePAM yes%' OR line LIKE 'UsePAM	yes%')
+                AND (contents LIKE '%UsePAM yes%' OR contents LIKE '%UsePAM	yes%')
     )
     AND NOT EXISTS (
-      SELECT 1 FROM file_lines
+      SELECT 1 FROM file_contents
       WHERE (path = '/etc/ssh/sshd_config' OR path LIKE '/etc/ssh/sshd_config.d/%.conf')
-        AND line NOT LIKE '#%'
-        AND (line LIKE 'UsePAM no%' OR line LIKE 'UsePAM	no%')
+                AND (contents LIKE '%UsePAM no%' OR contents LIKE '%UsePAM	no%')
     );
   purpose: Informational
   tags: compliance, CIS, CIS_Ubuntu_22_04
@@ -4926,8 +5013,8 @@ spec:
   query: |
     SELECT 1
     WHERE EXISTS (
-      SELECT 1 FROM file_lines
-      WHERE path='/etc/pam.d/common-auth' AND line LIKE '%pam_unix.so%'
+      SELECT 1 FROM file_contents
+      WHERE path='/etc/pam.d/common-auth' AND contents LIKE '%pam_unix.so%'
     );
   purpose: Informational
   tags: compliance, CIS, CIS_Ubuntu_22_04
@@ -4953,8 +5040,8 @@ spec:
   query: |
     SELECT 1
     WHERE EXISTS (
-      SELECT 1 FROM file_lines
-      WHERE path='/etc/pam.d/common-auth' AND line LIKE '%pam_faillock.so%'
+      SELECT 1 FROM file_contents
+      WHERE path='/etc/pam.d/common-auth' AND contents LIKE '%pam_faillock.so%'
     );
   purpose: Informational
   tags: compliance, CIS, CIS_Ubuntu_22_04
@@ -4980,8 +5067,8 @@ spec:
   query: |
     SELECT 1
     WHERE EXISTS (
-      SELECT 1 FROM file_lines
-      WHERE path='/etc/pam.d/common-password' AND line LIKE '%pam_pwquality.so%'
+      SELECT 1 FROM file_contents
+      WHERE path='/etc/pam.d/common-password' AND contents LIKE '%pam_pwquality.so%'
     );
   purpose: Informational
   tags: compliance, CIS, CIS_Ubuntu_22_04
@@ -5032,45 +5119,89 @@ spec:
   query: |
     SELECT 1
     WHERE EXISTS (
-      SELECT 1 FROM file_lines
+      SELECT 1 FROM file_contents
       WHERE path='/etc/security/faillock.conf'
-        AND line NOT LIKE '#%'
-        AND (
-          line LIKE 'deny=1%' OR line LIKE 'deny = 1%'
-          OR line LIKE 'deny=2%' OR line LIKE 'deny = 2%'
-          OR line LIKE 'deny=3%' OR line LIKE 'deny = 3%'
-          OR line LIKE 'deny=4%' OR line LIKE 'deny = 4%'
-          OR line LIKE 'deny=5%' OR line LIKE 'deny = 5%'
+                AND (
+          contents LIKE '%deny=1%' OR contents LIKE '%deny = 1%'
+          OR contents LIKE '%deny=2%' OR contents LIKE '%deny = 2%'
+          OR contents LIKE '%deny=3%' OR contents LIKE '%deny = 3%'
+          OR contents LIKE '%deny=4%' OR contents LIKE '%deny = 4%'
+          OR contents LIKE '%deny=5%' OR contents LIKE '%deny = 5%'
         )
     )
       AND NOT (EXISTS (
-      SELECT 1 FROM file_lines
+      SELECT 1 FROM file_contents
       WHERE path='/etc/pam.d/common-auth'
-        AND line NOT LIKE '#%'
-        AND line LIKE '%pam_faillock.so%'
+                AND contents LIKE '%pam_faillock.so%'
         AND (
-          line LIKE '%deny=1_%' OR line LIKE '%deny = 1_%'
-          OR line LIKE '%deny=2_%' OR line LIKE '%deny = 2_%'
-          OR line LIKE '%deny=3_%' OR line LIKE '%deny = 3_%'
-          OR line LIKE '%deny=4_%' OR line LIKE '%deny = 4_%'
-          OR line LIKE '%deny=5_%' OR line LIKE '%deny = 5_%'
-          OR line LIKE '%deny=6_%' OR line LIKE '%deny = 6_%'
-          OR line LIKE '%deny=7_%' OR line LIKE '%deny = 7_%'
-          OR line LIKE '%deny=8_%' OR line LIKE '%deny = 8_%'
-          OR line LIKE '%deny=9_%' OR line LIKE '%deny = 9_%'
+          contents LIKE '%deny=1_%' OR contents LIKE '%deny = 1_%'
+          OR contents LIKE '%deny=2_%' OR contents LIKE '%deny = 2_%'
+          OR contents LIKE '%deny=3_%' OR contents LIKE '%deny = 3_%'
+          OR contents LIKE '%deny=4_%' OR contents LIKE '%deny = 4_%'
+          OR contents LIKE '%deny=5_%' OR contents LIKE '%deny = 5_%'
+          OR contents LIKE '%deny=6_%' OR contents LIKE '%deny = 6_%'
+          OR contents LIKE '%deny=7_%' OR contents LIKE '%deny = 7_%'
+          OR contents LIKE '%deny=8_%' OR contents LIKE '%deny = 8_%'
+          OR contents LIKE '%deny=9_%' OR contents LIKE '%deny = 9_%'
         )
     ) OR EXISTS (
-      SELECT 1 FROM file_lines
+      SELECT 1 FROM file_contents
       WHERE path='/etc/pam.d/common-auth'
-        AND line NOT LIKE '#%'
-        AND line LIKE '%pam_faillock.so%'
+                AND contents LIKE '%pam_faillock.so%'
         AND (
-          line LIKE '%deny=0%' OR line LIKE '%deny = 0%'
-          OR line LIKE '%deny=6 %' OR line LIKE '%deny = 6 %' OR line LIKE '%deny=6' OR line LIKE '%deny = 6'
-          OR line LIKE '%deny=7 %' OR line LIKE '%deny = 7 %' OR line LIKE '%deny=7' OR line LIKE '%deny = 7'
-          OR line LIKE '%deny=8 %' OR line LIKE '%deny = 8 %' OR line LIKE '%deny=8' OR line LIKE '%deny = 8'
-          OR line LIKE '%deny=9 %' OR line LIKE '%deny = 9 %' OR line LIKE '%deny=9' OR line LIKE '%deny = 9'
+          contents LIKE '%deny=0%' OR contents LIKE '%deny = 0%'
+          OR contents LIKE '%deny=6 %' OR contents LIKE '%deny = 6 %' OR contents LIKE '%deny=6%' OR contents LIKE '%deny = 6%'
+          OR contents LIKE '%deny=7 %' OR contents LIKE '%deny = 7 %' OR contents LIKE '%deny=7%' OR contents LIKE '%deny = 7%'
+          OR contents LIKE '%deny=8 %' OR contents LIKE '%deny = 8 %' OR contents LIKE '%deny=8%' OR contents LIKE '%deny = 8%'
+          OR contents LIKE '%deny=9 %' OR contents LIKE '%deny = 9 %' OR contents LIKE '%deny=9%' OR contents LIKE '%deny = 9%'
         )
+        AND contents NOT LIKE '%#%deny=1%'
+        AND contents NOT LIKE '%#%deny = 1%'
+        AND contents NOT LIKE '%#%deny=2%'
+        AND contents NOT LIKE '%#%deny = 2%'
+        AND contents NOT LIKE '%#%deny=3%'
+        AND contents NOT LIKE '%#%deny = 3%'
+        AND contents NOT LIKE '%#%deny=4%'
+        AND contents NOT LIKE '%#%deny = 4%'
+        AND contents NOT LIKE '%#%deny=5%'
+        AND contents NOT LIKE '%#%deny = 5%'
+        AND contents NOT LIKE '%#%pam_faillock.so%'
+        AND contents NOT LIKE '%#%deny=1_%'
+        AND contents NOT LIKE '%#%deny = 1_%'
+        AND contents NOT LIKE '%#%deny=2_%'
+        AND contents NOT LIKE '%#%deny = 2_%'
+        AND contents NOT LIKE '%#%deny=3_%'
+        AND contents NOT LIKE '%#%deny = 3_%'
+        AND contents NOT LIKE '%#%deny=4_%'
+        AND contents NOT LIKE '%#%deny = 4_%'
+        AND contents NOT LIKE '%#%deny=5_%'
+        AND contents NOT LIKE '%#%deny = 5_%'
+        AND contents NOT LIKE '%#%deny=6_%'
+        AND contents NOT LIKE '%#%deny = 6_%'
+        AND contents NOT LIKE '%#%deny=7_%'
+        AND contents NOT LIKE '%#%deny = 7_%'
+        AND contents NOT LIKE '%#%deny=8_%'
+        AND contents NOT LIKE '%#%deny = 8_%'
+        AND contents NOT LIKE '%#%deny=9_%'
+        AND contents NOT LIKE '%#%deny = 9_%'
+        AND contents NOT LIKE '%#%deny=0%'
+        AND contents NOT LIKE '%#%deny = 0%'
+        AND contents NOT LIKE '%#%deny=6 %'
+        AND contents NOT LIKE '%#%deny = 6 %'
+        AND contents NOT LIKE '%#%deny=6%'
+        AND contents NOT LIKE '%#%deny = 6%'
+        AND contents NOT LIKE '%#%deny=7 %'
+        AND contents NOT LIKE '%#%deny = 7 %'
+        AND contents NOT LIKE '%#%deny=7%'
+        AND contents NOT LIKE '%#%deny = 7%'
+        AND contents NOT LIKE '%#%deny=8 %'
+        AND contents NOT LIKE '%#%deny = 8 %'
+        AND contents NOT LIKE '%#%deny=8%'
+        AND contents NOT LIKE '%#%deny = 8%'
+        AND contents NOT LIKE '%#%deny=9 %'
+        AND contents NOT LIKE '%#%deny = 9 %'
+        AND contents NOT LIKE '%#%deny=9%'
+        AND contents NOT LIKE '%#%deny = 9%'
     ));
   purpose: Informational
   tags: compliance, CIS, CIS_Ubuntu_22_04
@@ -5097,35 +5228,62 @@ spec:
   query: |
     SELECT 1
     WHERE EXISTS (
-      SELECT 1 FROM file_lines
+      SELECT 1 FROM file_contents
       WHERE path='/etc/security/faillock.conf'
-        AND line NOT LIKE '#%'
-        AND (
-          line LIKE 'unlock_time=0%' OR line LIKE 'unlock_time = 0%'
-          OR line LIKE 'unlock_time=9__%' OR line LIKE 'unlock_time = 9__%'
-          OR line LIKE 'unlock_time=____%' OR line LIKE 'unlock_time = ____%'
-          OR line LIKE 'unlock_time=_____%' OR line LIKE 'unlock_time = _____%'
+                AND (
+          contents LIKE '%unlock_time=0%' OR contents LIKE '%unlock_time = 0%'
+          OR contents LIKE '%unlock_time=9__%' OR contents LIKE '%unlock_time = 9__%'
+          OR contents LIKE '%unlock_time=____%' OR contents LIKE '%unlock_time = ____%'
+          OR contents LIKE '%unlock_time=_____%' OR contents LIKE '%unlock_time = _____%'
         )
     )
       AND NOT (EXISTS (
-      SELECT 1 FROM file_lines
+      SELECT 1 FROM file_contents
       WHERE path='/etc/pam.d/common-auth'
-        AND line NOT LIKE '#%'
-        AND line LIKE '%pam_faillock.so%'
+                AND contents LIKE '%pam_faillock.so%'
         AND (
-          line LIKE '%unlock_time=_%' OR line LIKE '%unlock_time = _%'
-          OR line LIKE '%unlock_time=__%' OR line LIKE '%unlock_time = __%'
-          OR line LIKE '%unlock_time=1__%' OR line LIKE '%unlock_time = 1__%'
-          OR line LIKE '%unlock_time=2__%' OR line LIKE '%unlock_time = 2__%'
-          OR line LIKE '%unlock_time=3__%' OR line LIKE '%unlock_time = 3__%'
-          OR line LIKE '%unlock_time=4__%' OR line LIKE '%unlock_time = 4__%'
-          OR line LIKE '%unlock_time=5__%' OR line LIKE '%unlock_time = 5__%'
-          OR line LIKE '%unlock_time=6__%' OR line LIKE '%unlock_time = 6__%'
-          OR line LIKE '%unlock_time=7__%' OR line LIKE '%unlock_time = 7__%'
-          OR line LIKE '%unlock_time=8__%' OR line LIKE '%unlock_time = 8__%'
+          contents LIKE '%unlock_time=_%' OR contents LIKE '%unlock_time = _%'
+          OR contents LIKE '%unlock_time=__%' OR contents LIKE '%unlock_time = __%'
+          OR contents LIKE '%unlock_time=1__%' OR contents LIKE '%unlock_time = 1__%'
+          OR contents LIKE '%unlock_time=2__%' OR contents LIKE '%unlock_time = 2__%'
+          OR contents LIKE '%unlock_time=3__%' OR contents LIKE '%unlock_time = 3__%'
+          OR contents LIKE '%unlock_time=4__%' OR contents LIKE '%unlock_time = 4__%'
+          OR contents LIKE '%unlock_time=5__%' OR contents LIKE '%unlock_time = 5__%'
+          OR contents LIKE '%unlock_time=6__%' OR contents LIKE '%unlock_time = 6__%'
+          OR contents LIKE '%unlock_time=7__%' OR contents LIKE '%unlock_time = 7__%'
+          OR contents LIKE '%unlock_time=8__%' OR contents LIKE '%unlock_time = 8__%'
         )
-        AND line NOT LIKE '%unlock_time=9__%'
-        AND line NOT LIKE '%unlock_time = 9__%'
+        AND contents NOT LIKE '%unlock_time=9__%'
+        AND contents NOT LIKE '%unlock_time = 9__%'
+        AND contents NOT LIKE '%#%unlock_time=0%'
+        AND contents NOT LIKE '%#%unlock_time = 0%'
+        AND contents NOT LIKE '%#%unlock_time=9__%'
+        AND contents NOT LIKE '%#%unlock_time = 9__%'
+        AND contents NOT LIKE '%#%unlock_time=____%'
+        AND contents NOT LIKE '%#%unlock_time = ____%'
+        AND contents NOT LIKE '%#%unlock_time=_____%'
+        AND contents NOT LIKE '%#%unlock_time = _____%'
+        AND contents NOT LIKE '%#%pam_faillock.so%'
+        AND contents NOT LIKE '%#%unlock_time=_%'
+        AND contents NOT LIKE '%#%unlock_time = _%'
+        AND contents NOT LIKE '%#%unlock_time=__%'
+        AND contents NOT LIKE '%#%unlock_time = __%'
+        AND contents NOT LIKE '%#%unlock_time=1__%'
+        AND contents NOT LIKE '%#%unlock_time = 1__%'
+        AND contents NOT LIKE '%#%unlock_time=2__%'
+        AND contents NOT LIKE '%#%unlock_time = 2__%'
+        AND contents NOT LIKE '%#%unlock_time=3__%'
+        AND contents NOT LIKE '%#%unlock_time = 3__%'
+        AND contents NOT LIKE '%#%unlock_time=4__%'
+        AND contents NOT LIKE '%#%unlock_time = 4__%'
+        AND contents NOT LIKE '%#%unlock_time=5__%'
+        AND contents NOT LIKE '%#%unlock_time = 5__%'
+        AND contents NOT LIKE '%#%unlock_time=6__%'
+        AND contents NOT LIKE '%#%unlock_time = 6__%'
+        AND contents NOT LIKE '%#%unlock_time=7__%'
+        AND contents NOT LIKE '%#%unlock_time = 7__%'
+        AND contents NOT LIKE '%#%unlock_time=8__%'
+        AND contents NOT LIKE '%#%unlock_time = 8__%'
     ));
   purpose: Informational
   tags: compliance, CIS, CIS_Ubuntu_22_04
@@ -5152,39 +5310,50 @@ spec:
   query: |
     SELECT 1
     WHERE EXISTS (
-      SELECT 1 FROM file_lines
+      SELECT 1 FROM file_contents
       WHERE path='/etc/security/faillock.conf'
-        AND line NOT LIKE '#%'
-        AND (line LIKE 'even_deny_root%' OR line LIKE 'root_unlock_time=%' OR line LIKE 'root_unlock_time = %')
+                AND (contents LIKE '%even_deny_root%' OR contents LIKE '%root_unlock_time=%' OR contents LIKE '%root_unlock_time = %')
     )
       AND NOT (EXISTS (
-      SELECT 1 FROM file_lines
+      SELECT 1 FROM file_contents
       WHERE path='/etc/security/faillock.conf'
-        AND line NOT LIKE '#%'
-        AND (
-          line LIKE 'root_unlock_time=1%' OR line LIKE 'root_unlock_time = 1%'
-          OR line LIKE 'root_unlock_time=2%' OR line LIKE 'root_unlock_time = 2%'
-          OR line LIKE 'root_unlock_time=3%' OR line LIKE 'root_unlock_time = 3%'
-          OR line LIKE 'root_unlock_time=4%' OR line LIKE 'root_unlock_time = 4%'
-          OR line LIKE 'root_unlock_time=5%' OR line LIKE 'root_unlock_time = 5%'
+                AND (
+          contents LIKE '%root_unlock_time=1%' OR contents LIKE '%root_unlock_time = 1%'
+          OR contents LIKE '%root_unlock_time=2%' OR contents LIKE '%root_unlock_time = 2%'
+          OR contents LIKE '%root_unlock_time=3%' OR contents LIKE '%root_unlock_time = 3%'
+          OR contents LIKE '%root_unlock_time=4%' OR contents LIKE '%root_unlock_time = 4%'
+          OR contents LIKE '%root_unlock_time=5%' OR contents LIKE '%root_unlock_time = 5%'
         )
-        AND line NOT LIKE 'root_unlock_time=6_%'
-        AND line NOT LIKE 'root_unlock_time = 6_%'
+        AND contents NOT LIKE 'root_unlock_time=6_%'
+        AND contents NOT LIKE 'root_unlock_time = 6_%'
     ))
       AND NOT (EXISTS (
-      SELECT 1 FROM file_lines
+      SELECT 1 FROM file_contents
       WHERE path='/etc/pam.d/common-auth'
-        AND line NOT LIKE '#%'
-        AND line LIKE '%pam_faillock.so%'
+                AND contents LIKE '%pam_faillock.so%'
         AND (
-          line LIKE '%root_unlock_time=1%' OR line LIKE '%root_unlock_time = 1%'
-          OR line LIKE '%root_unlock_time=2%' OR line LIKE '%root_unlock_time = 2%'
-          OR line LIKE '%root_unlock_time=3%' OR line LIKE '%root_unlock_time = 3%'
-          OR line LIKE '%root_unlock_time=4%' OR line LIKE '%root_unlock_time = 4%'
-          OR line LIKE '%root_unlock_time=5%' OR line LIKE '%root_unlock_time = 5%'
+          contents LIKE '%root_unlock_time=1%' OR contents LIKE '%root_unlock_time = 1%'
+          OR contents LIKE '%root_unlock_time=2%' OR contents LIKE '%root_unlock_time = 2%'
+          OR contents LIKE '%root_unlock_time=3%' OR contents LIKE '%root_unlock_time = 3%'
+          OR contents LIKE '%root_unlock_time=4%' OR contents LIKE '%root_unlock_time = 4%'
+          OR contents LIKE '%root_unlock_time=5%' OR contents LIKE '%root_unlock_time = 5%'
         )
-        AND line NOT LIKE '%root_unlock_time=6_%'
-        AND line NOT LIKE '%root_unlock_time = 6_%'
+        AND contents NOT LIKE '%root_unlock_time=6_%'
+        AND contents NOT LIKE '%root_unlock_time = 6_%'
+        AND contents NOT LIKE '%#%even_deny_root%'
+        AND contents NOT LIKE '%#%root_unlock_time=%'
+        AND contents NOT LIKE '%#%root_unlock_time = %'
+        AND contents NOT LIKE '%#%root_unlock_time=1%'
+        AND contents NOT LIKE '%#%root_unlock_time = 1%'
+        AND contents NOT LIKE '%#%root_unlock_time=2%'
+        AND contents NOT LIKE '%#%root_unlock_time = 2%'
+        AND contents NOT LIKE '%#%root_unlock_time=3%'
+        AND contents NOT LIKE '%#%root_unlock_time = 3%'
+        AND contents NOT LIKE '%#%root_unlock_time=4%'
+        AND contents NOT LIKE '%#%root_unlock_time = 4%'
+        AND contents NOT LIKE '%#%root_unlock_time=5%'
+        AND contents NOT LIKE '%#%root_unlock_time = 5%'
+        AND contents NOT LIKE '%#%pam_faillock.so%'
     ));
   purpose: Informational
   tags: compliance, CIS, CIS_Ubuntu_22_04
@@ -5403,11 +5572,10 @@ spec:
   query: |
     SELECT 1
     WHERE EXISTS (
-      SELECT 1 FROM file_lines
+      SELECT 1 FROM file_contents
       WHERE path='/etc/pam.d/common-password'
-        AND line NOT LIKE '#%'
-        AND line LIKE '%pam_pwhistory.so%'
-        AND ((line LIKE '%remember=24%' OR line LIKE '%remember = 24%') OR (line LIKE '%remember=25%' OR line LIKE '%remember = 25%') OR (line LIKE '%remember=26%' OR line LIKE '%remember = 26%') OR (line LIKE '%remember=27%' OR line LIKE '%remember = 27%') OR (line LIKE '%remember=28%' OR line LIKE '%remember = 28%') OR (line LIKE '%remember=29%' OR line LIKE '%remember = 29%') OR (line LIKE '%remember=3_%' OR line LIKE '%remember = 3_%') OR (line LIKE '%remember=4_%' OR line LIKE '%remember = 4_%') OR (line LIKE '%remember=5_%' OR line LIKE '%remember = 5_%') OR (line LIKE '%remember=6_%' OR line LIKE '%remember = 6_%') OR (line LIKE '%remember=7_%' OR line LIKE '%remember = 7_%') OR (line LIKE '%remember=8_%' OR line LIKE '%remember = 8_%') OR (line LIKE '%remember=9_%' OR line LIKE '%remember = 9_%') OR (line LIKE '%remember=___%' OR line LIKE '%remember = ___%'))
+                AND contents LIKE '%pam_pwhistory.so%'
+        AND ((contents LIKE '%remember=24%' OR contents LIKE '%remember = 24%') OR (contents LIKE '%remember=25%' OR contents LIKE '%remember = 25%') OR (contents LIKE '%remember=26%' OR contents LIKE '%remember = 26%') OR (contents LIKE '%remember=27%' OR contents LIKE '%remember = 27%') OR (contents LIKE '%remember=28%' OR contents LIKE '%remember = 28%') OR (contents LIKE '%remember=29%' OR contents LIKE '%remember = 29%') OR (contents LIKE '%remember=3_%' OR contents LIKE '%remember = 3_%') OR (contents LIKE '%remember=4_%' OR contents LIKE '%remember = 4_%') OR (contents LIKE '%remember=5_%' OR contents LIKE '%remember = 5_%') OR (contents LIKE '%remember=6_%' OR contents LIKE '%remember = 6_%') OR (contents LIKE '%remember=7_%' OR contents LIKE '%remember = 7_%') OR (contents LIKE '%remember=8_%' OR contents LIKE '%remember = 8_%') OR (contents LIKE '%remember=9_%' OR contents LIKE '%remember = 9_%') OR (contents LIKE '%remember=___%' OR contents LIKE '%remember = ___%'))
     );
   purpose: Informational
   tags: compliance, CIS, CIS_Ubuntu_22_04
@@ -6046,10 +6214,9 @@ spec:
   query: |
     SELECT 1
     WHERE EXISTS (
-      SELECT 1 FROM file_lines
+      SELECT 1 FROM file_contents
       WHERE path='/etc/systemd/journald.conf'
-        AND line NOT LIKE '#%'
-        AND (line LIKE 'ForwardToSyslog=no%' OR line LIKE 'ForwardToSyslog = no%')
+                AND (contents LIKE '%ForwardToSyslog=no%' OR contents LIKE '%ForwardToSyslog = no%')
     );
   purpose: Informational
   tags: compliance, CIS, CIS_Ubuntu_22_04
@@ -6076,10 +6243,9 @@ spec:
   query: |
     SELECT 1
     WHERE EXISTS (
-      SELECT 1 FROM file_lines
+      SELECT 1 FROM file_contents
       WHERE path='/etc/systemd/journald.conf'
-        AND line NOT LIKE '#%'
-        AND (line LIKE 'Storage=persistent%' OR line LIKE 'Storage = persistent%')
+                AND (contents LIKE '%Storage=persistent%' OR contents LIKE '%Storage = persistent%')
     );
   purpose: Informational
   tags: compliance, CIS, CIS_Ubuntu_22_04
@@ -6106,10 +6272,9 @@ spec:
   query: |
     SELECT 1
     WHERE EXISTS (
-      SELECT 1 FROM file_lines
+      SELECT 1 FROM file_contents
       WHERE path='/etc/systemd/journald.conf'
-        AND line NOT LIKE '#%'
-        AND (line LIKE 'Compress=yes%' OR line LIKE 'Compress = yes%')
+                AND (contents LIKE '%Compress=yes%' OR contents LIKE '%Compress = yes%')
     );
   purpose: Informational
   tags: compliance, CIS, CIS_Ubuntu_22_04
@@ -6294,10 +6459,9 @@ spec:
   query: |
     SELECT 1
     WHERE EXISTS (
-      SELECT 1 FROM file_lines
+      SELECT 1 FROM file_contents
       WHERE path='/etc/systemd/journald.conf'
-        AND line NOT LIKE '#%'
-        AND (line LIKE 'ForwardToSyslog=yes%' OR line LIKE 'ForwardToSyslog = yes%')
+                AND (contents LIKE '%ForwardToSyslog=yes%' OR contents LIKE '%ForwardToSyslog = yes%')
     );
   purpose: Informational
   tags: compliance, CIS, CIS_Ubuntu_22_04
@@ -6323,11 +6487,10 @@ spec:
   #   - FAIL: query returns 0 rows
   query: |
     WITH cfg AS (
-      SELECT ltrim(replace(line, char(9), ' ')) AS l
-      FROM file_lines
+      SELECT ltrim(replace(contents, char(9), ' ')) AS l
+      FROM file_contents
       WHERE (path='/etc/rsyslog.conf' OR path LIKE '/etc/rsyslog.d/%.conf')
-        AND line NOT LIKE '#%'
-    ),
+            ),
     tokens AS (
       SELECT
         CASE
@@ -6400,10 +6563,9 @@ spec:
   query: |
     SELECT 1
     WHERE EXISTS (
-      SELECT 1 FROM file_lines
+      SELECT 1 FROM file_contents
       WHERE (path='/etc/rsyslog.conf' OR path LIKE '/etc/rsyslog.d/%.conf')
-        AND line NOT LIKE '#%'
-        AND (line LIKE '%@@%' OR line LIKE '% @%' OR line LIKE '%@%')
+                AND (contents LIKE '%@@%' OR contents LIKE '% @%' OR contents LIKE '%@%')
     );
   purpose: Manual Validation Required
   tags: compliance, CIS, CIS_Ubuntu_22_04
@@ -6430,11 +6592,15 @@ spec:
   query: |
     SELECT 1
     WHERE NOT EXISTS (
-      SELECT 1 FROM file_lines
+      SELECT 1 FROM file_contents
       WHERE (path='/etc/rsyslog.conf' OR path LIKE '/etc/rsyslog.d/%.conf')
-        AND line NOT LIKE '#%'
-        AND (
-          line LIKE '%imtcp%' AND (line LIKE '%module(%' OR line LIKE '%input(%' OR line LIKE '%$ModLoad %' OR line LIKE '%$InputTCPServerRun%')
+                AND (
+          contents LIKE '%imtcp%' AND (contents LIKE '%module(%' OR contents LIKE '%input(%' OR contents LIKE '%$ModLoad %' OR contents LIKE '%$InputTCPServerRun%')
+        AND contents NOT LIKE '%#%imtcp%'
+        AND contents NOT LIKE '%#%module(%'
+        AND contents NOT LIKE '%#%input(%'
+        AND contents NOT LIKE '%#%$ModLoad %'
+        AND contents NOT LIKE '%#%$InputTCPServerRun%'
         )
     );
   purpose: Informational
@@ -6585,16 +6751,15 @@ spec:
   query: |
     SELECT 1
     WHERE EXISTS (
-      SELECT 1 FROM file_lines
+      SELECT 1 FROM file_contents
       WHERE path='/boot/grub/grub.cfg'
-        AND line LIKE 'linux %'
-        AND line LIKE '%audit=1%'
+        AND contents LIKE '%linux %'
+        AND contents LIKE '%audit=1%'
     )
     OR EXISTS (
-      SELECT 1 FROM file_lines
+      SELECT 1 FROM file_contents
       WHERE path='/etc/default/grub'
-        AND line NOT LIKE '#%'
-        AND line LIKE 'GRUB_CMDLINE_LINUX%audit=1%'
+                AND contents LIKE '%GRUB_CMDLINE_LINUX%audit=1%'
     );
   purpose: Informational
   tags: compliance, CIS, CIS_Ubuntu_22_04
@@ -6620,8 +6785,8 @@ spec:
   #   - FAIL: query returns 0 rows
   query: |
     WITH lines AS (
-      SELECT line AS l
-      FROM file_lines
+      SELECT contents AS l
+      FROM file_contents
       WHERE path='/boot/grub/grub.cfg'
         AND l LIKE 'linux %'
         AND l LIKE '%audit_backlog_limit=%'
@@ -6689,14 +6854,17 @@ spec:
   query: |
     SELECT 1
     WHERE EXISTS (
-      SELECT 1 FROM file_lines
+      SELECT 1 FROM file_contents
       WHERE path='/etc/audit/auditd.conf'
-        AND line NOT LIKE '#%'
-        AND (
-          line LIKE 'max_log_file_action = keep_logs'
-          OR line LIKE 'max_log_file_action=keep_logs'
-          OR line LIKE 'max_log_file_action = keep_logs %'
-          OR line LIKE 'max_log_file_action=keep_logs %'
+                AND (
+          contents LIKE '%max_log_file_action = keep_logs%'
+          OR contents LIKE '%max_log_file_action=keep_logs%'
+          OR contents LIKE '%max_log_file_action = keep_logs %'
+          OR contents LIKE '%max_log_file_action=keep_logs %'
+        AND contents NOT LIKE '%#%max_log_file_action = keep_logs%'
+        AND contents NOT LIKE '%#%max_log_file_action=keep_logs%'
+        AND contents NOT LIKE '%#%max_log_file_action = keep_logs %'
+        AND contents NOT LIKE '%#%max_log_file_action=keep_logs %'
         )
     );
   purpose: Informational
@@ -6724,19 +6892,17 @@ spec:
   query: |
     SELECT 1
     WHERE EXISTS (
-      SELECT 1 FROM file_lines
+      SELECT 1 FROM file_contents
       WHERE path='/etc/audit/auditd.conf'
-        AND line NOT LIKE '#%'
-        AND (line LIKE 'disk_full_action = halt%' OR line LIKE 'disk_full_action=halt%' OR
-             line LIKE 'disk_full_action = single%' OR line LIKE 'disk_full_action=single%')
+                AND (contents LIKE '%disk_full_action = halt%' OR contents LIKE '%disk_full_action=halt%' OR
+             contents LIKE '%disk_full_action = single%' OR contents LIKE '%disk_full_action=single%')
     )
     AND EXISTS (
-      SELECT 1 FROM file_lines
+      SELECT 1 FROM file_contents
       WHERE path='/etc/audit/auditd.conf'
-        AND line NOT LIKE '#%'
-        AND (line LIKE 'disk_error_action = syslog%' OR line LIKE 'disk_error_action=syslog%' OR
-             line LIKE 'disk_error_action = single%' OR line LIKE 'disk_error_action=single%' OR
-             line LIKE 'disk_error_action = halt%' OR line LIKE 'disk_error_action=halt%')
+                AND (contents LIKE '%disk_error_action = syslog%' OR contents LIKE '%disk_error_action=syslog%' OR
+             contents LIKE '%disk_error_action = single%' OR contents LIKE '%disk_error_action=single%' OR
+             contents LIKE '%disk_error_action = halt%' OR contents LIKE '%disk_error_action=halt%')
     );
   purpose: Informational
   tags: compliance, CIS, CIS_Ubuntu_22_04
@@ -6763,20 +6929,18 @@ spec:
   query: |
     SELECT 1
     WHERE EXISTS (
-      SELECT 1 FROM file_lines
+      SELECT 1 FROM file_contents
       WHERE path='/etc/audit/auditd.conf'
-        AND line NOT LIKE '#%'
-        AND (line LIKE 'space_left_action = email%' OR line LIKE 'space_left_action=email%' OR
-             line LIKE 'space_left_action = exec%' OR line LIKE 'space_left_action=exec%' OR
-             line LIKE 'space_left_action = single%' OR line LIKE 'space_left_action=single%' OR
-             line LIKE 'space_left_action = halt%' OR line LIKE 'space_left_action=halt%')
+                AND (contents LIKE '%space_left_action = email%' OR contents LIKE '%space_left_action=email%' OR
+             contents LIKE '%space_left_action = exec%' OR contents LIKE '%space_left_action=exec%' OR
+             contents LIKE '%space_left_action = single%' OR contents LIKE '%space_left_action=single%' OR
+             contents LIKE '%space_left_action = halt%' OR contents LIKE '%space_left_action=halt%')
     )
     AND EXISTS (
-      SELECT 1 FROM file_lines
+      SELECT 1 FROM file_contents
       WHERE path='/etc/audit/auditd.conf'
-        AND line NOT LIKE '#%'
-        AND (line LIKE 'admin_space_left_action = single%' OR line LIKE 'admin_space_left_action=single%' OR
-             line LIKE 'admin_space_left_action = halt%' OR line LIKE 'admin_space_left_action=halt%')
+                AND (contents LIKE '%admin_space_left_action = single%' OR contents LIKE '%admin_space_left_action=single%' OR
+             contents LIKE '%admin_space_left_action = halt%' OR contents LIKE '%admin_space_left_action=halt%')
     );
   purpose: Informational
   tags: compliance, CIS, CIS_Ubuntu_22_04
@@ -7235,10 +7399,9 @@ spec:
   query: |
     SELECT 1
     WHERE EXISTS (
-      SELECT 1 FROM file_lines
+      SELECT 1 FROM file_contents
       WHERE path LIKE '/etc/audit/rules.d/%.rules'
-        AND line NOT LIKE '#%'
-        AND (line = '-e 2' OR line LIKE '-e 2 %' OR line LIKE '-e 2	%')
+                AND (contents = '-e 2' OR contents LIKE '%-e 2 %' OR contents LIKE '%-e 2	%')
     );
   purpose: Informational
   tags: compliance, CIS, CIS_Ubuntu_22_04
