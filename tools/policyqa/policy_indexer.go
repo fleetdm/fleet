@@ -418,13 +418,31 @@ func sshOsquery(user, host string, port int, query string) (bool, string, string
 		return false, "", "", errors.New("empty osquery query")
 	}
 
-	remoteCmd := fmt.Sprintf("osqueryi --json %s", shellQuote(query))
+	var remoteCmd string
+	if strings.Contains(query, "file_contents") {
+		// file_contents is provided by Orbit/Fleet extensions; plain osqueryi won't have it.
+		remoteCmd = fmt.Sprintf("printf '%%s\n' %s '.exit' | sudo orbit shell", shellQuote(query))
+	} else {
+		remoteCmd = fmt.Sprintf("osqueryi --json %s", shellQuote(query))
+	}
 	stdout, stderr, err := sshRun(user, host, port, remoteCmd)
 	if err != nil {
 		return false, "", stderr, err
 	}
 
 	out := strings.TrimSpace(stdout)
+
+	// If we used `orbit shell`, output is a human table, not JSON.
+	if strings.Contains(query, "file_contents") {
+		if strings.Contains(out, "Error:") {
+			return false, out, stderr, nil
+		}
+		// PASS if we got at least one row (common pattern: SELECT 1 WHERE ...)
+		if strings.Contains(out, "| 1 |") || strings.Contains(out, "|1|") {
+			return true, out, stderr, nil
+		}
+		return false, out, stderr, nil
+	}
 
 	// osquery --json returns an empty JSON array for zero rows.
 	// Sometimes it includes whitespace/newlines inside the brackets.
