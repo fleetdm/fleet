@@ -12055,9 +12055,23 @@ func (s *integrationTestSuite) TestDirectIngestSoftwareWithInvalidFields() {
 		rows,
 	)
 	require.NoError(t, err)
-	require.NotNil(t, handler1.LastRecord())
-	require.Equal(t, slog.LevelDebug, handler1.LastRecord().Level)
-	require.Contains(t, handler1.LastRecord().Message, "host reported software with empty name")
+	records1 := handler1.Records()
+	require.NotEmpty(t, records1)
+	// The "empty name" error is returned by SoftwareFromOsqueryRow and logged as an attribute
+	// of the "failed to parse software row" debug message.
+	var foundEmptyName bool
+	for _, r := range records1 {
+		if r.Level == slog.LevelDebug && r.Message == "failed to parse software row" {
+			attrs := logtestutils.RecordAttrs(&r)
+			if err, ok := attrs["err"]; ok {
+				if errStr := fmt.Sprint(err); strings.Contains(errStr, "host reported software with empty name") {
+					foundEmptyName = true
+					break
+				}
+			}
+		}
+	}
+	require.True(t, foundEmptyName, "expected a debug log about software with empty name")
 
 	// Check that the software was not ingested.
 	softwareQueryByVendor := "SELECT id, name, version, source, bundle_identifier, `release`, arch, vendor FROM software WHERE vendor = ?;"
@@ -12091,9 +12105,21 @@ func (s *integrationTestSuite) TestDirectIngestSoftwareWithInvalidFields() {
 		rows,
 	)
 	require.NoError(t, err)
-	require.NotNil(t, handler2.LastRecord())
-	require.Equal(t, slog.LevelDebug, handler2.LastRecord().Level)
-	require.Contains(t, handler2.LastRecord().Message, "host reported software with empty source")
+	records2 := handler2.Records()
+	require.NotEmpty(t, records2)
+	var foundEmptySource bool
+	for _, r := range records2 {
+		if r.Level == slog.LevelDebug && r.Message == "failed to parse software row" {
+			attrs := logtestutils.RecordAttrs(&r)
+			if err, ok := attrs["err"]; ok {
+				if errStr := fmt.Sprint(err); strings.Contains(errStr, "host reported software with empty source") {
+					foundEmptySource = true
+					break
+				}
+			}
+		}
+	}
+	require.True(t, foundEmptySource, "expected a debug log about software with empty source")
 
 	// Check that the software was not ingested.
 	softwareQueryByName := "SELECT id, name, version, source, bundle_identifier, `release`, arch, vendor FROM software WHERE name = ?;"
@@ -12128,9 +12154,16 @@ func (s *integrationTestSuite) TestDirectIngestSoftwareWithInvalidFields() {
 		rows,
 	)
 	require.NoError(t, err)
-	require.NotNil(t, handler3.LastRecord())
-	require.Equal(t, slog.LevelDebug, handler3.LastRecord().Level)
-	require.Contains(t, handler3.LastRecord().Message, "host reported software with invalid last opened timestamp")
+	records3 := handler3.Records()
+	require.NotEmpty(t, records3)
+	var foundInvalidTimestamp bool
+	for _, r := range records3 {
+		if r.Level == slog.LevelDebug && r.Message == "host reported software with invalid last opened timestamp" {
+			foundInvalidTimestamp = true
+			break
+		}
+	}
+	require.True(t, foundInvalidTimestamp, "expected a debug log about software with invalid last opened timestamp")
 
 	// Check that the software was properly ingested.
 	var wiresharkSoftware fleet.Software
