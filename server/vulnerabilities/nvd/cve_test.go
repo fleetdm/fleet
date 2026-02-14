@@ -948,9 +948,9 @@ func TestTranslateCPEToCVE(t *testing.T) {
 			insertedVulns = append(insertedVulns, vulns...)
 			return int64(len(vulns)), nil
 		}
-		// First call: no existing vulns, so all are "new".
+		// First call: all vulns are new, return whatever was inserted.
 		ds.ListSoftwareVulnerabilitiesByCreatedAtFunc = func(ctx context.Context, source fleet.VulnerabilitySource, createdAfter time.Time) ([]fleet.SoftwareVulnerability, error) {
-			return nil, nil
+			return insertedVulns, nil
 		}
 		ds.ListOperatingSystemsForPlatformFunc = func(ctx context.Context, p string) ([]fleet.OperatingSystem, error) {
 			return nil, nil
