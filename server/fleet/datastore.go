@@ -942,6 +942,9 @@ type Datastore interface {
 	InsertCronStats(ctx context.Context, statsType CronStatsType, name string, instance string, status CronStatsStatus) (int, error)
 	// UpdateCronStats updates the status of the identified cron stats record.
 	UpdateCronStats(ctx context.Context, id int, status CronStatsStatus, cronErrors *CronScheduleErrors) error
+	// ClaimCronStats transitions a queued cron stats record to the given status
+	// and updates the instance to the worker that claimed it.
+	ClaimCronStats(ctx context.Context, id int, instance string, status CronStatsStatus) error
 	// UpdateAllCronStatsForInstance updates all records for the identified instance with the
 	// specified statuses
 	UpdateAllCronStatsForInstance(ctx context.Context, instance string, fromStatus CronStatsStatus, toStatus CronStatsStatus) error

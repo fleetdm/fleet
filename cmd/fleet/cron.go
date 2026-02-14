@@ -65,7 +65,7 @@ func newVulnerabilitiesSchedule(
 
 	var options []schedule.Option
 
-	options = append(options, schedule.WithLogger(vulnerabilitiesLogger))
+	options = append(options, schedule.WithLogger(vulnerabilitiesLogger), schedule.WithTriggerPollInterval(60*time.Second))
 
 	vulnFuncs := getVulnFuncs(ds, vulnerabilitiesLogger, config)
 	for _, fn := range vulnFuncs {
