@@ -33,6 +33,81 @@ type Policy struct {
 	FailCmd []string
 }
 
+type PolicyReportRow struct {
+	Index int
+	Name  string
+
+	Mode        string // "check" or "exec"
+	Manual      bool
+	NoRealQuery bool
+
+	Step1   string
+	Step2   string
+	Step3   string
+	Step4   string
+	Overall string // PASS / FAIL / SKIP / MANUAL
+
+	Notes []string
+}
+
+func isNoRealQuery(q string) bool {
+	// Detect obvious “fake” queries used as placeholders.
+	// Example: SELECT 1 WHERE 0
+	re := regexp.MustCompile(`(?i)\bselect\s+1\s+where\s+0\b`)
+	return re.MatchString(q)
+}
+
+func missingTableName(stderr string) (string, bool) {
+	re := regexp.MustCompile(`no such table:\s*([A-Za-z0-9_]+)`)
+	m := re.FindStringSubmatch(stderr)
+	if len(m) == 2 {
+		return m[1], true
+	}
+	return "", false
+}
+
+func firstLine(s string) string {
+	s = strings.TrimSpace(s)
+	if s == "" {
+		return ""
+	}
+	parts := strings.SplitN(s, "\n", 2)
+	return strings.TrimSpace(parts[0])
+}
+
+func printReport(report []PolicyReportRow) {
+	fmt.Println("\n================ REPORT ================")
+	fmt.Printf("%-5s %-6s %-7s %-7s %-18s %-14s %-6s %s\n", "IDX", "MODE", "MANUAL", "FAKE", "STEP2", "STEP4", "OVER", "NAME")
+	for _, r := range report {
+		man := "no"
+		if r.Manual {
+			man = "yes"
+		}
+		fake := "no"
+		if r.NoRealQuery {
+			fake = "yes"
+		}
+		s2 := r.Step2
+		if s2 == "" {
+			s2 = "-"
+		}
+		s4 := r.Step4
+		if s4 == "" {
+			s4 = "-"
+		}
+		over := r.Overall
+		if over == "" {
+			over = "-"
+		}
+		fmt.Printf("%-5d %-6s %-7s %-7s %-18s %-14s %-6s %s\n", r.Index, r.Mode, man, fake, s2, s4, over, r.Name)
+		if len(r.Notes) > 0 {
+			fmt.Printf("      notes: %s\n", strings.Join(r.Notes, "; "))
+		}
+	}
+	fmt.Println("========================================")
+	fmt.Println()
+}
+
 func main() {
 	filePath := flag.String("file", "", "YAML file path")
 	sshUser := flag.String("ssh-user", "", "SSH user")
@@ -58,22 +133,43 @@ func main() {
 		return
 	}
 
+	report := make([]PolicyReportRow, 0, len(toRun))
+
 	for _, p := range toRun {
+		row := PolicyReportRow{
+			Index:       p.Index,
+			Name:        p.Name,
+			Manual:      p.Manual || len(p.PassCmd) == 0,
+			NoRealQuery: isNoRealQuery(p.Query),
+			Mode:        "check",
+		}
+
 		fmt.Printf("[%d] %s\n", p.Index, p.Name)
 
-		if p.Manual || len(p.PassCmd) == 0 {
-			fmt.Println("i couldn't check this policy, continuing\n")
+		if row.Manual {
+			row.Overall = "MANUAL"
+			if p.Manual {
+				row.Notes = append(row.Notes, "manual policy")
+			}
+			if len(p.PassCmd) == 0 {
+				row.Notes = append(row.Notes, "no PASS commands")
+			}
+			if row.NoRealQuery {
+				row.Notes = append(row.Notes, "no real query (select 1 where 0)")
+			}
+			fmt.Println("i couldn't check this policy, continuing")
+			fmt.Println()
+			report = append(report, row)
 			continue
 		}
 
-		// Always show PASS commands
+		// Always show PASS/FAIL commands
 		fmt.Println("PASS command(s):")
 		for _, cmd := range p.PassCmd {
 			fmt.Printf("  %s\n", cmd)
 		}
 		fmt.Println()
 
-		// Always show FAIL commands
 		fmt.Println("FAIL command(s):")
 		if len(p.FailCmd) == 0 {
 			fmt.Println("  (none)")
@@ -84,16 +180,20 @@ func main() {
 		}
 		fmt.Println()
 
-		// Execute mode: run FAIL cmds -> expect query FAIL -> run PASS cmds -> expect query PASS
 		if *executePass {
-			// STEP 1: run FAIL commands
+			row.Mode = "exec"
+
+			// STEP 1: Execute FAIL commands
 			if len(p.FailCmd) > 0 {
 				fmt.Println("STEP 1: Executing FAIL command(s) on VM...")
 				for _, cmdToRun := range p.FailCmd {
-					fmt.Printf("About to run on VM: %s\n", cmdToRun)
-
+					fmt.Printf("About to run on VM: %s\n\n", cmdToRun)
 					stdout, stderr, err := sshRun(*sshUser, *sshHost, *sshPort, cmdToRun)
 					if err != nil {
+						row.Step1 = fmt.Sprintf("ERR(%v)", err)
+						if strings.TrimSpace(stderr) != "" {
+							row.Notes = append(row.Notes, "fail-cmd stderr: "+firstLine(stderr))
+						}
 						fmt.Printf("********** FAIL **********\n")
 						fmt.Printf("FAIL command failed: %v\n", err)
 						if strings.TrimSpace(stderr) != "" {
@@ -103,53 +203,66 @@ func main() {
 							fmt.Printf("stdout:\n%s\n", strings.TrimSpace(stdout))
 						}
 						fmt.Println()
-						// If we can't apply FAIL setup, we can't do the cycle reliably.
-						continue
+						// Keep going; still attempt checks/PASS to avoid stopping the batch.
+						break
 					}
-
-					if strings.TrimSpace(stdout) != "" {
-						fmt.Printf("stdout:\n%s\n", strings.TrimSpace(stdout))
-					}
-					if strings.TrimSpace(stderr) != "" {
-						fmt.Printf("stderr:\n%s\n", strings.TrimSpace(stderr))
-					}
-					fmt.Println()
 				}
 			} else {
+				row.Step1 = "SKIP(no fail cmds)"
 				fmt.Println("STEP 1: No FAIL command(s) found (skipping FAIL setup).")
 				fmt.Println()
 			}
 
-			// STEP 2: run query and expect FAIL (0 rows)
+			// STEP 2: Run query expecting FAIL
 			fmt.Println("STEP 2: Running osquery check (expect FAIL). If it fails, it is OK.")
 			fmt.Printf("About to run query on target machine %s:\n%s\n\n", *sshHost, strings.TrimSpace(p.Query))
 
 			pass, raw, stderr, err := sshOsquery(*sshUser, *sshHost, *sshPort, p.Query)
 			if err != nil {
+				if tbl, ok := missingTableName(stderr); ok {
+					row.Step2 = "SKIP(missing table " + tbl + ")"
+					row.Overall = "SKIP"
+					row.Notes = append(row.Notes, "missing table "+tbl)
+					fmt.Printf("********** SKIP **********\n")
+					fmt.Printf("osquery missing table: %s\n\n", tbl)
+					report = append(report, row)
+					continue
+				}
+				row.Step2 = "ERR(osquery)"
+				row.Overall = "FAIL"
 				fmt.Printf("********** FAIL **********\n")
 				fmt.Printf("osquery error: %v\n", err)
 				if strings.TrimSpace(stderr) != "" {
 					fmt.Printf("osquery stderr:\n%s\n", strings.TrimSpace(stderr))
 				}
 				fmt.Println()
+				report = append(report, row)
 				continue
 			}
 
 			if pass {
+				row.Step2 = "UNEXPECTED PASS"
+				row.Notes = append(row.Notes, "step2 unexpected pass after FAIL setup")
 				fmt.Printf("❌ UNEXPECTED: query PASSED after FAIL setup (this is NOT OK)\n")
 				fmt.Printf("osquery output: %s\n\n", strings.TrimSpace(raw))
 			} else {
+				row.Step2 = "OK(expected fail)"
 				fmt.Printf("✅ Expected: query FAILED after FAIL setup (this is OK)\n")
 				fmt.Printf("osquery output: %s\n\n", strings.TrimSpace(raw))
 			}
 
-			// STEP 3: run PASS commands
+			// STEP 3: Execute PASS commands
 			fmt.Println("STEP 3: Executing PASS command(s) on VM...")
+			passCmdFailed := false
 			for _, cmdToRun := range p.PassCmd {
-				fmt.Printf("About to run on VM: %s\n", cmdToRun)
-
+				fmt.Printf("About to run on VM: %s\n\n", cmdToRun)
 				stdout, stderr, err := sshRun(*sshUser, *sshHost, *sshPort, cmdToRun)
 				if err != nil {
+					passCmdFailed = true
+					row.Step3 = fmt.Sprintf("ERR(%v)", err)
+					if strings.TrimSpace(stderr) != "" {
+						row.Notes = append(row.Notes, "pass-cmd stderr: "+firstLine(stderr))
+					}
 					fmt.Printf("********** FAIL **********\n")
 					fmt.Printf("PASS command failed: %v\n", err)
 					if strings.TrimSpace(stderr) != "" {
@@ -159,69 +272,104 @@ func main() {
 						fmt.Printf("stdout:\n%s\n", strings.TrimSpace(stdout))
 					}
 					fmt.Println()
-					// Can't continue the cycle if PASS commands fail.
-					continue
+					break
 				}
-
-				if strings.TrimSpace(stdout) != "" {
-					fmt.Printf("stdout:\n%s\n", strings.TrimSpace(stdout))
-				}
-				if strings.TrimSpace(stderr) != "" {
-					fmt.Printf("stderr:\n%s\n", strings.TrimSpace(stderr))
-				}
-				fmt.Println()
+			}
+			if passCmdFailed {
+				row.Overall = "FAIL"
+				report = append(report, row)
+				continue
 			}
 
-			// STEP 4: run query again and expect PASS (1+ rows)
+			// STEP 4: Run query again expecting PASS
 			fmt.Println("STEP 4: Running osquery check again (expect PASS).")
 			fmt.Printf("About to run query on target machine %s:\n%s\n\n", *sshHost, strings.TrimSpace(p.Query))
 
 			pass, raw, stderr, err = sshOsquery(*sshUser, *sshHost, *sshPort, p.Query)
 			if err != nil {
+				if tbl, ok := missingTableName(stderr); ok {
+					row.Step4 = "SKIP(missing table " + tbl + ")"
+					row.Overall = "SKIP"
+					row.Notes = append(row.Notes, "missing table "+tbl)
+					fmt.Printf("********** SKIP **********\n")
+					fmt.Printf("osquery missing table: %s\n\n", tbl)
+					report = append(report, row)
+					continue
+				}
+				row.Step4 = "ERR(osquery)"
+				row.Overall = "FAIL"
 				fmt.Printf("********** FAIL **********\n")
 				fmt.Printf("osquery error: %v\n", err)
 				if strings.TrimSpace(stderr) != "" {
 					fmt.Printf("osquery stderr:\n%s\n", strings.TrimSpace(stderr))
 				}
 				fmt.Println()
+				report = append(report, row)
 				continue
 			}
 
 			if pass {
+				row.Step4 = "OK(pass)"
+				if row.Step2 == "UNEXPECTED PASS" {
+					row.Overall = "FAIL"
+				} else {
+					row.Overall = "PASS"
+				}
 				fmt.Printf("********** PASS **********\n\n")
 			} else {
+				row.Step4 = "UNEXPECTED FAIL"
+				row.Overall = "FAIL"
 				fmt.Printf("********** FAIL **********\n")
 				fmt.Printf("osquery returned no rows\n")
 				fmt.Printf("osquery output: %s\n\n", strings.TrimSpace(raw))
 			}
 
+			if row.NoRealQuery {
+				row.Notes = append(row.Notes, "no real query (select 1 where 0)")
+			}
+
+			report = append(report, row)
 			continue
 		}
 
-		// Default (safe): no mutations; just run osquery check once
+		// Default (safe): prints PASS cmds; does not execute; runs osquery check once.
 		fmt.Println("Running osquery check…")
 		fmt.Printf("About to run query on target machine %s:\n%s\n\n", *sshHost, strings.TrimSpace(p.Query))
 
 		pass, raw, stderr, err := sshOsquery(*sshUser, *sshHost, *sshPort, p.Query)
 		if err != nil {
+			if tbl, ok := missingTableName(stderr); ok {
+				row.Overall = "SKIP"
+				row.Notes = append(row.Notes, "missing table "+tbl)
+				fmt.Printf("********** SKIP **********\n")
+				fmt.Printf("osquery missing table: %s\n\n", tbl)
+				report = append(report, row)
+				continue
+			}
+			row.Overall = "FAIL"
 			fmt.Printf("********** FAIL **********\n")
 			fmt.Printf("osquery error: %v\n", err)
 			if strings.TrimSpace(stderr) != "" {
 				fmt.Printf("osquery stderr:\n%s\n", strings.TrimSpace(stderr))
 			}
 			fmt.Println()
+			report = append(report, row)
 			continue
 		}
 
 		if pass {
+			row.Overall = "PASS"
 			fmt.Printf("********** PASS **********\n\n")
 		} else {
+			row.Overall = "FAIL"
 			fmt.Printf("********** FAIL **********\n")
 			fmt.Printf("osquery returned no rows\n")
 			fmt.Printf("osquery output: %s\n\n", strings.TrimSpace(raw))
 		}
-
+		report = append(report, row)
 	}
+
+	printReport(report)
 }
 
 /* ---------------- SSH ---------------- */
@@ -231,13 +379,6 @@ func main() {
 func sshRun(user, host string, port int, remoteCmd string) (string, string, error) {
 	target := fmt.Sprintf("%s@%s", user, host)
 
-	fmt.Printf(
-		"\nAbout to run on target machine %s as user %s:\n  %s\n\n",
-		host,
-		user,
-		remoteCmd,
-	)
-
 	args := []string{
 		"-i", os.ExpandEnv("$HOME/.ssh/policyqa"),
 		"-p", strconv.Itoa(port),
@@ -245,24 +386,25 @@ func sshRun(user, host string, port int, remoteCmd string) (string, string, erro
 		"-o", "StrictHostKeyChecking=accept-new",
 	}
 
-	// Only allocate a TTY when running sudo, so sudo can prompt for a password.
-	if strings.Contains(remoteCmd, "sudo") {
+	// Only allocate a TTY when running sudo, so sudo can prompt (if needed).
+	isSudo := strings.Contains(remoteCmd, "sudo")
+	if isSudo {
 		args = append(args, "-tt")
 	}
 
 	args = append(args, target, remoteCmd)
 
+	fmt.Printf("\nAbout to run on target machine %s as user %s:\n  %s\n\n", host, user, remoteCmd)
+
 	cmd := exec.Command("ssh", args...)
 	var stdout, stderr bytes.Buffer
 
-	isSudo := strings.Contains(remoteCmd, "sudo")
 	if isSudo {
 		// Interactive: show prompts/output live, and still capture for logs.
 		cmd.Stdin = os.Stdin
 		cmd.Stdout = io.MultiWriter(os.Stdout, &stdout)
 		cmd.Stderr = io.MultiWriter(os.Stderr, &stderr)
 	} else {
-		// Non-interactive: capture output only.
 		cmd.Stdout = &stdout
 		cmd.Stderr = &stderr
 	}
@@ -501,7 +643,10 @@ func distillCommands(lines []string) []string {
 		if t == "" {
 			continue
 		}
-		// Keep as-is; PASS commands are meant to be run.
+		// Some CIS docs include human notes like "(optional) ...". Skip them.
+		if strings.HasPrefix(strings.ToLower(t), "(optional)") {
+			continue
+		}
 		cmds = append(cmds, t)
 	}
 	return cmds

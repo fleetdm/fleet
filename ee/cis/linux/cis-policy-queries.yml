@@ -3174,6 +3174,12 @@ spec:
   # - Where: Run on the audited Ubuntu 22.04 host (use a disposable VM for FAIL).
   # - PASS (run):
   #   - sudo bash -c 'cat <<EOF > /etc/modprobe.d/dccp.conf
+  # - Where: Run on the audited host (use disposable VM for FAIL).
+  # - FAIL (run):
+  #   - sudo apt-get update -y && sudo apt-get install -y bluez
+  # - Expected:
+  #   - PASS: query returns 1 row
+  #   - FAIL: query returns 0 rows
 # blacklist dccp
 # install dccp /bin/false
 # EOF'
