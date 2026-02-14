@@ -5,9 +5,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
-	"time"
 
-	"github.com/fleetdm/fleet/v4/server/contexts/ctxdb"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/vulnerabilities/oval"
 	"github.com/fleetdm/fleet/v4/server/vulnerabilities/utils"
@@ -31,7 +29,6 @@ func Analyze(
 	vulnPath string,
 	collectVulns bool,
 	logger kitlog.Logger,
-	startTime time.Time,
 ) ([]fleet.SoftwareVulnerability, error) {
 	platform := oval.NewPlatform(ver.Platform, ver.Name)
 	source := fleet.GovalDictionarySource
@@ -101,21 +98,15 @@ func Analyze(
 		allVulns = append(allVulns, v)
 	}
 
-	if _, err := ds.InsertSoftwareVulnerabilities(ctx, allVulns, source); err != nil {
+	newVulns, err := ds.InsertSoftwareVulnerabilities(ctx, allVulns, source)
+	if err != nil {
 		return nil, err
 	}
-
-	var inserted []fleet.SoftwareVulnerability
-	if collectVulns {
-		// Use primary for read-after-write consistency.
-		primaryCtx := ctxdb.RequirePrimary(ctx, true)
-		inserted, err = ds.ListSoftwareVulnerabilitiesByCreatedAt(primaryCtx, source, startTime)
-		if err != nil {
-			return nil, err
-		}
+	if !collectVulns {
+		return nil, nil
 	}
 
-	return inserted, nil
+	return newVulns, nil
 }
 
 // LoadDb returns the latest goval_dictionary database for the given platform.

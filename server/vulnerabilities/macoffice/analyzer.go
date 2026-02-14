@@ -123,24 +123,7 @@ func updateVulnsInDB(
 		allVulns = append(allVulns, v)
 	}
 
-	// Build set of existing keys to identify newly inserted vulns after the batch insert.
-	existingKeys := make(map[string]struct{}, len(existing))
-	for _, v := range existing {
-		existingKeys[v.Key()] = struct{}{}
-	}
-
-	if _, err = ds.InsertSoftwareVulnerabilities(ctx, allVulns, fleet.MacOfficeReleaseNotesSource); err != nil {
-		return nil, err
-	}
-
-	inserted := make([]fleet.SoftwareVulnerability, 0)
-	for _, v := range allVulns {
-		if _, exists := existingKeys[v.Key()]; !exists {
-			inserted = append(inserted, v)
-		}
-	}
-
-	return inserted, nil
+	return ds.InsertSoftwareVulnerabilities(ctx, allVulns, fleet.MacOfficeReleaseNotesSource)
 }
 
 // Analyze uses the most recent Mac Office release notes asset in 'vulnPath' for detecting

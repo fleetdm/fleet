@@ -322,18 +322,12 @@ func TestCheckCustomVulnerabilities(t *testing.T) {
 			return nil, nil
 		}
 
-		var insertedVulns []fleet.SoftwareVulnerability
-		ds.InsertSoftwareVulnerabilitiesFunc = func(ctx context.Context, vulns []fleet.SoftwareVulnerability, source fleet.VulnerabilitySource) (int64, error) {
+		ds.InsertSoftwareVulnerabilitiesFunc = func(ctx context.Context, vulns []fleet.SoftwareVulnerability, source fleet.VulnerabilitySource) ([]fleet.SoftwareVulnerability, error) {
 			require.Equal(t, fleet.CustomSource, source)
 			for _, v := range vulns {
 				require.NotEqual(t, uint(7), v.SoftwareID, "Microsoft 365 companion apps should be excluded from CVE matching")
 			}
-			insertedVulns = append(insertedVulns, vulns...)
-			return int64(len(vulns)), nil
-		}
-
-		ds.ListSoftwareVulnerabilitiesByCreatedAtFunc = func(ctx context.Context, source fleet.VulnerabilitySource, createdAfter time.Time) ([]fleet.SoftwareVulnerability, error) {
-			return insertedVulns, nil // all inserted vulns are "new"
+			return vulns, nil // all inserted vulns are "new"
 		}
 
 		ds.DeleteOutOfDateVulnerabilitiesFunc = func(ctx context.Context, source fleet.VulnerabilitySource, olderThan time.Time) error {
@@ -344,7 +338,6 @@ func TestCheckCustomVulnerabilities(t *testing.T) {
 		ctx := context.Background()
 		vulns, err := CheckCustomVulnerabilities(ctx, ds, log.NewNopLogger(), time.Now().UTC().Add(-time.Hour))
 		require.NoError(t, err)
-		require.Equal(t, 34, len(insertedVulns))
 		require.Len(t, vulns, 34)
 		require.True(t, ds.DeleteOutOfDateVulnerabilitiesFuncInvoked)
 
@@ -550,17 +543,13 @@ func TestCheckCustomVulnerabilities(t *testing.T) {
 			return nil, nil
 		}
 
-		ds.InsertSoftwareVulnerabilitiesFunc = func(ctx context.Context, vulns []fleet.SoftwareVulnerability, source fleet.VulnerabilitySource) (int64, error) {
+		// Simulate all vulns already existing: InsertSoftwareVulnerabilities
+		// returns empty (no new vulns).
+		ds.InsertSoftwareVulnerabilitiesFunc = func(ctx context.Context, vulns []fleet.SoftwareVulnerability, source fleet.VulnerabilitySource) ([]fleet.SoftwareVulnerability, error) {
 			require.Equal(t, fleet.CustomSource, source)
 			for _, v := range vulns {
 				require.NotEqual(t, uint(7), v.SoftwareID, "Microsoft 365 companion apps should be excluded from CVE matching")
 			}
-			return int64(len(vulns)), nil
-		}
-
-		// Simulate all vulns already existing: ListSoftwareVulnerabilitiesByCreatedAt
-		// returns empty (no vulns created after startTime).
-		ds.ListSoftwareVulnerabilitiesByCreatedAtFunc = func(ctx context.Context, source fleet.VulnerabilitySource, createdAfter time.Time) ([]fleet.SoftwareVulnerability, error) {
 			return nil, nil
 		}
 

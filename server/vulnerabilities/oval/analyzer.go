@@ -8,7 +8,6 @@ import (
 	"os"
 	"time"
 
-	"github.com/fleetdm/fleet/v4/server/contexts/ctxdb"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	oval_parsed "github.com/fleetdm/fleet/v4/server/vulnerabilities/oval/parsed"
 	utils "github.com/fleetdm/fleet/v4/server/vulnerabilities/utils"
@@ -30,7 +29,6 @@ func Analyze(
 	ver fleet.OSVersion,
 	vulnPath string,
 	collectVulns bool,
-	startTime time.Time,
 ) ([]fleet.SoftwareVulnerability, error) {
 	platform := NewPlatform(ver.Platform, ver.Name)
 
@@ -139,21 +137,15 @@ func Analyze(
 		allVulns = append(allVulns, v)
 	}
 
-	if _, err := ds.InsertSoftwareVulnerabilities(ctx, allVulns, source); err != nil {
+	newVulns, err := ds.InsertSoftwareVulnerabilities(ctx, allVulns, source)
+	if err != nil {
 		return nil, err
 	}
-
-	var inserted []fleet.SoftwareVulnerability
-	if collectVulns {
-		// Use primary for read-after-write consistency.
-		primaryCtx := ctxdb.RequirePrimary(ctx, true)
-		inserted, err = ds.ListSoftwareVulnerabilitiesByCreatedAt(primaryCtx, source, startTime)
-		if err != nil {
-			return nil, err
-		}
+	if !collectVulns {
+		return nil, nil
 	}
 
-	return inserted, nil
+	return newVulns, nil
 }
 
 // loadDef returns the latest oval Definition for the given platform.

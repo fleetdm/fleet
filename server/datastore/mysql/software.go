@@ -2990,7 +2990,7 @@ func (ds *Datastore) InsertSoftwareVulnerabilities(
 	ctx context.Context,
 	vulns []fleet.SoftwareVulnerability,
 	source fleet.VulnerabilitySource,
-) (int64, error) {
+) ([]fleet.SoftwareVulnerability, error) {
 	// Filter out entries with empty CVEs.
 	filtered := make([]fleet.SoftwareVulnerability, 0, len(vulns))
 	for _, v := range vulns {
@@ -2999,11 +2999,46 @@ func (ds *Datastore) InsertSoftwareVulnerabilities(
 		}
 	}
 	if len(filtered) == 0 {
-		return 0, nil
+		return nil, nil
 	}
 
-	var totalAffected int64
-	err := common_mysql.BatchProcessSimple(filtered, 500, func(batch []fleet.SoftwareVulnerability) error {
+	// Step 1: Batch-check which vulns already exist so we can identify truly new ones.
+	existing := make(map[string]bool, len(filtered))
+	if err := common_mysql.BatchProcessSimple(filtered, 500, func(batch []fleet.SoftwareVulnerability) error {
+		tuples := strings.TrimSuffix(strings.Repeat("(?,?),", len(batch)), ",")
+		query := fmt.Sprintf(
+			`SELECT software_id, cve FROM software_cve WHERE (software_id, cve) IN (%s)`,
+			tuples,
+		)
+		var args []any
+		for _, v := range batch {
+			args = append(args, v.SoftwareID, v.CVE)
+		}
+		var rows []struct {
+			SoftwareID uint   `db:"software_id"`
+			CVE        string `db:"cve"`
+		}
+		if err := sqlx.SelectContext(ctx, ds.writer(ctx), &rows, query, args...); err != nil {
+			return ctxerr.Wrap(ctx, err, "batch check existing software vulnerabilities")
+		}
+		for _, r := range rows {
+			existing[fmt.Sprintf("%d:%s", r.SoftwareID, r.CVE)] = true
+		}
+		return nil
+	}); err != nil {
+		return nil, err
+	}
+
+	// Step 2: Identify new vulns (not already in the database).
+	var newVulns []fleet.SoftwareVulnerability
+	for _, v := range filtered {
+		if !existing[fmt.Sprintf("%d:%s", v.SoftwareID, v.CVE)] {
+			newVulns = append(newVulns, v)
+		}
+	}
+
+	// Step 3: Batch INSERT (ON DUPLICATE KEY UPDATE for concurrent-safe upsert).
+	if err := common_mysql.BatchProcessSimple(filtered, 500, func(batch []fleet.SoftwareVulnerability) error {
 		values := strings.TrimSuffix(strings.Repeat("(?,?,?,?),", len(batch)), ",")
 		stmt := fmt.Sprintf(`
 			INSERT INTO software_cve (cve, source, software_id, resolved_in_version)
@@ -3019,34 +3054,15 @@ func (ds *Datastore) InsertSoftwareVulnerabilities(
 			args = append(args, v.CVE, source, v.SoftwareID, v.ResolvedInVersion)
 		}
 
-		res, err := ds.writer(ctx).ExecContext(ctx, stmt, args...)
-		if err != nil {
+		if _, err := ds.writer(ctx).ExecContext(ctx, stmt, args...); err != nil {
 			return ctxerr.Wrap(ctx, err, "batch insert software vulnerabilities")
 		}
-
-		affected, _ := res.RowsAffected()
-		totalAffected += affected
 		return nil
-	})
-
-	return totalAffected, err
-}
-
-func (ds *Datastore) ListSoftwareVulnerabilitiesByCreatedAt(
-	ctx context.Context,
-	source fleet.VulnerabilitySource,
-	createdAfter time.Time,
-) ([]fleet.SoftwareVulnerability, error) {
-	var vulns []fleet.SoftwareVulnerability
-	// Callers should set ctxdb.RequirePrimary on the context for read-after-write
-	// consistency, since inserts go to the primary and replicas may lag.
-	err := sqlx.SelectContext(ctx, ds.reader(ctx), &vulns,
-		`SELECT software_id, cve FROM software_cve WHERE source = ? AND created_at >= ?`, source, createdAfter,
-	)
-	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "list software vulnerabilities by created at")
+	}); err != nil {
+		return nil, err
 	}
-	return vulns, nil
+
+	return newVulns, nil
 }
 
 func (ds *Datastore) ListSoftwareVulnerabilitiesByHostIDsSource(
