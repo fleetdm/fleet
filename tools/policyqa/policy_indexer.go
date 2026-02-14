@@ -63,7 +63,17 @@ func main() {
 			continue
 		}
 
+		fmt.Println("PASS command(s):")
+		for _, cmd := range p.PassCmd {
+			fmt.Printf("  %s\n", cmd)
+		}
+		fmt.Println()
+
 		msg := fmt.Sprintf("Policy %d: i am running the pass command", p.Index)
+
+		fmt.Printf("About to run: ssh %s@%s -p %d \"echo %s\"\n",
+			*sshUser, *sshHost, *sshPort, msg)
+
 		out, err := sshEcho(*sshUser, *sshHost, *sshPort, msg)
 		if err != nil {
 			fmt.Printf("SSH ERROR: %v\n\n", err)
@@ -82,7 +92,9 @@ func sshEcho(user, host string, port int, message string) (string, error) {
 	target := fmt.Sprintf("%s@%s", user, host)
 
 	args := []string{
+		"-i", os.ExpandEnv("$HOME/.ssh/policyqa"),
 		"-p", strconv.Itoa(port),
+		"-o", "BatchMode=yes",
 		"-o", "StrictHostKeyChecking=accept-new",
 		target,
 		"echo " + shellQuote(message),
