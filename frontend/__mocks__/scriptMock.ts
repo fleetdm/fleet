@@ -1,7 +1,7 @@
 import {
   IScriptBatchHostResult,
   IScriptBatchHostResultsResponse,
-  IScriptBatchSummaryV2,
+  IScriptBatchSummary,
   IScriptResultResponse,
 } from "services/entities/scripts";
 import {
@@ -59,7 +59,7 @@ export const createMockHostScript = (
   return { ...DEFAULT_HOST_SCRIPT_MOCK, ...overrides };
 };
 
-const DEFAULT_SCRIPT_BATCH_SUMMARY_MOCK: IScriptBatchSummaryV2 = {
+const DEFAULT_SCRIPT_BATCH_SUMMARY_MOCK: IScriptBatchSummary = {
   created_at: "2025-07-01T10:00:00Z",
   batch_execution_id: "2756fff7-9a0d-4d95-a893-ec5771e839d8",
   script_id: 1,
@@ -79,8 +79,8 @@ const DEFAULT_SCRIPT_BATCH_SUMMARY_MOCK: IScriptBatchSummaryV2 = {
 };
 
 export const createMockBatchScriptSummary = (
-  overrides?: Partial<IScriptBatchSummaryV2>
-): IScriptBatchSummaryV2 => {
+  overrides?: Partial<IScriptBatchSummary>
+): IScriptBatchSummary => {
   return { ...DEFAULT_SCRIPT_BATCH_SUMMARY_MOCK, ...overrides };
 };
 
