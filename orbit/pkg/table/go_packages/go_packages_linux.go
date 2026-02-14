@@ -5,6 +5,7 @@ package go_packages
 import (
 	"bufio"
 	"context"
+	"io"
 	"os"
 	"strconv"
 	"strings"
@@ -30,10 +31,15 @@ func linuxHomeDirs() ([]string, error) {
 		return nil, err
 	}
 	defer f.Close()
+	return parsePasswdHomeDirs(f)
+}
 
+// parsePasswdHomeDirs parses /etc/passwd-formatted content and returns home
+// directories for real (non-system) user accounts.
+func parsePasswdHomeDirs(r io.Reader) ([]string, error) {
 	seen := make(map[string]bool)
 	var dirs []string
-	scanner := bufio.NewScanner(f)
+	scanner := bufio.NewScanner(r)
 	for scanner.Scan() {
 		fields := strings.SplitN(scanner.Text(), ":", 7)
 		if len(fields) < 7 {

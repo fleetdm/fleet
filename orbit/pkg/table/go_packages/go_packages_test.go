@@ -1,6 +1,7 @@
 package go_packages
 
 import (
+	"io"
 	"os"
 	"path/filepath"
 	"testing"
@@ -39,4 +40,38 @@ func TestGenerateForDirsEmpty(t *testing.T) {
 func TestGenerateForDirsNonExistentDir(t *testing.T) {
 	results := generateForDirs([]string{"/nonexistent/home/user"})
 	require.Nil(t, results)
+}
+
+func TestGenerateForDirsWithGoBinary(t *testing.T) {
+	// Get the test executable — it's a real Go binary with valid build info.
+	exe, err := os.Executable()
+	require.NoError(t, err)
+
+	// Create a temp directory structure: <tmpdir>/go/bin/
+	tmpHome := t.TempDir()
+	goBinDir := filepath.Join(tmpHome, "go", "bin")
+	require.NoError(t, os.MkdirAll(goBinDir, 0o755))
+
+	// Copy the test binary into the go/bin directory.
+	destPath := filepath.Join(goBinDir, "testbinary")
+	copyFile(t, exe, destPath)
+
+	results := generateForDirs([]string{tmpHome})
+	require.Len(t, results, 1)
+	require.Equal(t, "testbinary", results[0]["name"])
+	require.NotEmpty(t, results[0]["go_version"])
+	require.Equal(t, destPath, results[0]["installed_path"])
+}
+
+// copyFile copies src to dst for testing purposes.
+func copyFile(t *testing.T, src, dst string) {
+	t.Helper()
+	in, err := os.Open(src)
+	require.NoError(t, err)
+	defer in.Close()
+	out, err := os.Create(dst)
+	require.NoError(t, err)
+	defer out.Close()
+	_, err = io.Copy(out, in)
+	require.NoError(t, err)
 }
