@@ -327,7 +327,7 @@ const SoftwarePage = ({ children, router, location }: ISoftwarePageProps) => {
   );
 
   const renderPageActions = () => {
-    const canManageAutomations = isGlobalAdmin && isPremiumTier;
+    const canManageAutomations = isGlobalAdmin;
 
     const canAddSoftware =
       isGlobalAdmin || isGlobalMaintainer || isTeamAdmin || isTeamMaintainer;

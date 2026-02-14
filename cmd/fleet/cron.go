@@ -206,13 +206,19 @@ func scanVulnerabilities(
 	vulns = append(vulns, govalDictVulns...)
 	vulns = append(vulns, customVulns...)
 
-	meta, err := ds.ListCVEs(ctx, config.RecentVulnerabilityMaxAge)
-	if err != nil {
-		errHandler(ctx, logger, "could not fetch CVE meta", err)
-		return nil
+	var recentV []fleet.SoftwareVulnerability
+	var matchingMeta map[string]fleet.CVEMeta
+	if license.IsPremium(ctx) {
+		meta, err := ds.ListCVEs(ctx, config.RecentVulnerabilityMaxAge)
+		if err != nil {
+			errHandler(ctx, logger, "could not fetch CVE meta", err)
+			return nil
+		}
+		recentV, matchingMeta = utils.RecentVulns(vulns, meta)
+	} else {
+		recentV = vulns
+		matchingMeta = make(map[string]fleet.CVEMeta)
 	}
-
-	recentV, matchingMeta := utils.RecentVulns(vulns, meta)
 
 	if len(recentV) > 0 {
 		switch vulnAutomationEnabled {
