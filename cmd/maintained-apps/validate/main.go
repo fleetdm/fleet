@@ -163,7 +163,7 @@ func run(cfg *Config) error {
 			appWithWarning = append(appWithWarning, ac.Name)
 		}
 
-		existance, err := appExists(ctx, cfg.logger, ac.Name, ac.UniqueIdentifier, ac.Version, ac.AppPath)
+		existance, err := appExists(ctx, appLogger, ac.Name, ac.UniqueIdentifier, ac.Version, ac.AppPath)
 		if err != nil {
 			appLogger.ErrorContext(ctx, fmt.Sprintf("Error checking if app exists: %v", err))
 			appWithError = append(appWithError, ac.Name)

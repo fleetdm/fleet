@@ -2903,7 +2903,7 @@ var luksVerifyQueryIngester = func(decrypter func(string) (string, error)) func(
 
 		storedSalt, err := decrypter(dek.Base64EncryptedSalt)
 		if err != nil {
-			logger.DebugContext(ctx, "", "component", "service", "method", "luksVerifyQueryIngester", "host", host.ID, "err", err)
+			logger.DebugContext(ctx, "failed to decrypt stored salt", "component", "service", "method", "luksVerifyQueryIngester", "host", host.ID, "err", err)
 			return err
 		}
 		storedKeySlot := fmt.Sprintf("%d", *dek.KeySlot)
@@ -2914,11 +2914,10 @@ var luksVerifyQueryIngester = func(decrypter func(string) (string, error)) func(
 			hostKeySlot, okKeySlot := row["key_slot"]
 
 			if !okSalt || !okKeySlot {
-				logger.ErrorContext(ctx, "",
+				logger.ErrorContext(ctx, "luks_verify expected some salt and a key_slot",
 					"component", "service",
 					"method", "luksVerifyQueryIngester",
-					"host", host.ID,
-					"err", "luks_verify expected some salt and a key_slot")
+					"host", host.ID)
 				continue
 			}
 			if hostSalt == storedSalt && hostKeySlot == storedKeySlot {

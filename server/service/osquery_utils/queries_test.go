@@ -53,7 +53,7 @@ func TestSoftwareIngestionMutations(t *testing.T) {
 		Version:          "2024",
 	}
 
-	MutateSoftwareOnIngestion(t.Context(), dcvViewer, slog.New(slog.DiscardHandler))
+	MutateSoftwareOnIngestion(t.Context(), noOp, slog.New(slog.DiscardHandler))
 	assert.Equal(t, "2024", noOp.Version)
 
 	noMatch := &fleet.Software{

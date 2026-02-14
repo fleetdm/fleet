@@ -32,6 +32,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/live_query/live_query_mock"
 	"github.com/fleetdm/fleet/v4/server/mdm/android"
 	"github.com/fleetdm/fleet/v4/server/platform/endpointer"
+	logtestutils "github.com/fleetdm/fleet/v4/server/platform/logging/testutils"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/service/async"
 	"github.com/fleetdm/fleet/v4/server/service/contract"
@@ -12043,8 +12044,8 @@ func (s *integrationTestSuite) TestDirectIngestSoftwareWithInvalidFields() {
 			"last_opened_at": "foobar",
 		},
 	}
-	var w1 bytes.Buffer
-	logger1 := slog.New(slog.NewJSONHandler(&w1, &slog.HandlerOptions{Level: slog.LevelDebug}))
+	handler1 := logtestutils.NewTestHandler()
+	logger1 := slog.New(handler1)
 	detailQueries := osquery_utils.GetDetailQueries(context.Background(), config.FleetConfig{}, appConfig, &appConfig.Features, osquery_utils.Integrations{}, nil)
 	err = detailQueries["software_windows"].DirectIngestFunc(
 		context.Background(),
@@ -12054,10 +12055,9 @@ func (s *integrationTestSuite) TestDirectIngestSoftwareWithInvalidFields() {
 		rows,
 	)
 	require.NoError(t, err)
-	logs1, err := io.ReadAll(&w1)
-	require.NoError(t, err)
-	require.Contains(t, string(logs1), "host reported software with empty name", string(logs1))
-	require.Contains(t, string(logs1), "DEBUG")
+	require.NotNil(t, handler1.LastRecord())
+	require.Equal(t, slog.LevelDebug, handler1.LastRecord().Level)
+	require.Contains(t, handler1.LastRecord().Message, "host reported software with empty name")
 
 	// Check that the software was not ingested.
 	softwareQueryByVendor := "SELECT id, name, version, source, bundle_identifier, `release`, arch, vendor FROM software WHERE vendor = ?;"
@@ -12081,8 +12081,8 @@ func (s *integrationTestSuite) TestDirectIngestSoftwareWithInvalidFields() {
 		},
 	}
 	detailQueries = osquery_utils.GetDetailQueries(context.Background(), config.FleetConfig{}, appConfig, &appConfig.Features, osquery_utils.Integrations{}, nil)
-	var w2 bytes.Buffer
-	logger2 := slog.New(slog.NewJSONHandler(&w2, &slog.HandlerOptions{Level: slog.LevelDebug}))
+	handler2 := logtestutils.NewTestHandler()
+	logger2 := slog.New(handler2)
 	err = detailQueries["software_windows"].DirectIngestFunc(
 		context.Background(),
 		logger2,
@@ -12091,10 +12091,9 @@ func (s *integrationTestSuite) TestDirectIngestSoftwareWithInvalidFields() {
 		rows,
 	)
 	require.NoError(t, err)
-	logs2, err := io.ReadAll(&w2)
-	require.NoError(t, err)
-	require.Contains(t, string(logs2), "host reported software with empty source")
-	require.Contains(t, string(logs2), "DEBUG")
+	require.NotNil(t, handler2.LastRecord())
+	require.Equal(t, slog.LevelDebug, handler2.LastRecord().Level)
+	require.Contains(t, handler2.LastRecord().Message, "host reported software with empty source")
 
 	// Check that the software was not ingested.
 	softwareQueryByName := "SELECT id, name, version, source, bundle_identifier, `release`, arch, vendor FROM software WHERE name = ?;"
@@ -12118,8 +12117,8 @@ func (s *integrationTestSuite) TestDirectIngestSoftwareWithInvalidFields() {
 			"last_opened_at": "foobar",
 		},
 	}
-	var w3 bytes.Buffer
-	logger3 := slog.New(slog.NewJSONHandler(&w3, &slog.HandlerOptions{Level: slog.LevelDebug}))
+	handler3 := logtestutils.NewTestHandler()
+	logger3 := slog.New(handler3)
 	detailQueries = osquery_utils.GetDetailQueries(context.Background(), config.FleetConfig{}, appConfig, &appConfig.Features, osquery_utils.Integrations{}, nil)
 	err = detailQueries["software_windows"].DirectIngestFunc(
 		context.Background(),
@@ -12129,10 +12128,9 @@ func (s *integrationTestSuite) TestDirectIngestSoftwareWithInvalidFields() {
 		rows,
 	)
 	require.NoError(t, err)
-	logs3, err := io.ReadAll(&w3)
-	require.NoError(t, err)
-	require.Contains(t, string(logs3), "host reported software with invalid last opened timestamp")
-	require.Contains(t, string(logs3), "DEBUG")
+	require.NotNil(t, handler3.LastRecord())
+	require.Equal(t, slog.LevelDebug, handler3.LastRecord().Level)
+	require.Contains(t, handler3.LastRecord().Message, "host reported software with invalid last opened timestamp")
 
 	// Check that the software was properly ingested.
 	var wiresharkSoftware fleet.Software

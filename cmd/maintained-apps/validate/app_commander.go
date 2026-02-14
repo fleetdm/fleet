@@ -94,7 +94,7 @@ func (ac *AppCommander) uninstallApp(ctx context.Context) bool {
 	}
 	ac.appLogger.DebugContext(ctx, fmt.Sprintf("Output: %s", output))
 
-	existance, err := appExists(ctx, ac.cfg.logger, ac.Name, ac.UniqueIdentifier, ac.Version, ac.AppPath)
+	existance, err := appExists(ctx, ac.appLogger, ac.Name, ac.UniqueIdentifier, ac.Version, ac.AppPath)
 	if err != nil {
 		ac.appLogger.ErrorContext(ctx, fmt.Sprintf("Error checking if app exists after uninstall: %v", err))
 		return false
