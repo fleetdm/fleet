@@ -190,7 +190,7 @@ describe("formatSoftwareType", () => {
         formatSoftwareType({
           source: "chrome_extensions",
           extension_for: "unknown_browser" as SoftwareExtensionFor,
-        }),
+        })
       ).toBe("Browser plugin (Unknown Browser)");
     });
 
@@ -199,7 +199,7 @@ describe("formatSoftwareType", () => {
         formatSoftwareType({
           source: "vscode_extensions",
           extension_for: "unknown_editor" as SoftwareExtensionFor,
-        }),
+        })
       ).toBe("IDE extension (Unknown Editor)");
     });
   });
@@ -209,7 +209,7 @@ describe("formatSoftwareType", () => {
       expect(
         formatSoftwareType({
           source: "unknown_source" as any,
-        }),
+        })
       ).toBe("Unknown");
     });
 
@@ -218,7 +218,7 @@ describe("formatSoftwareType", () => {
         formatSoftwareType({
           source: "chrome_extensions",
           extension_for: "",
-        }),
+        })
       ).toBe("Browser plugin");
     });
 
@@ -227,7 +227,7 @@ describe("formatSoftwareType", () => {
         formatSoftwareType({
           source: "chrome_extensions",
           extension_for: undefined,
-        }),
+        })
       ).toBe("Browser plugin");
     });
 
@@ -236,7 +236,7 @@ describe("formatSoftwareType", () => {
         formatSoftwareType({
           source: "chrome_extensions",
           extension_for: null as any,
-        }),
+        })
       ).toBe("Browser plugin");
     });
   });
