@@ -724,7 +724,7 @@ type searchHostsRequest struct {
 	MatchQuery string `json:"query"`
 	// QueryID is the ID of a saved query to run (used to determine if this is a
 	// query that observers can run).
-	QueryID *uint `json:"query_id"`
+	QueryID *uint `json:"query_id" renameto:"report_id"`
 	// ExcludedHostIDs is the list of IDs selected on the caller side
 	// (e.g. the UI) that will be excluded from the returned payload.
 	ExcludedHostIDs []uint `json:"excluded_host_ids"`
@@ -911,7 +911,7 @@ func (svc *Service) GetHostLite(ctx context.Context, id uint) (*fleet.Host, erro
 ////////////////////////////////////////////////////////////////////////////////
 
 type getHostSummaryRequest struct {
-	TeamID       *uint   `query:"team_id,optional"`
+	TeamID       *uint   `query:"team_id,optional" renameto:"fleet_id"`
 	Platform     *string `query:"platform,optional"`
 	LowDiskSpace *int    `query:"low_disk_space,optional"`
 }
@@ -1146,7 +1146,7 @@ func (svc *Service) CleanupExpiredHosts(ctx context.Context) ([]fleet.DeletedHos
 ////////////////////////////////////////////////////////////////////////////////
 
 type addHostsToTeamRequest struct {
-	TeamID  *uint  `json:"team_id"`
+	TeamID  *uint  `json:"team_id" renameto:"fleet_id"`
 	HostIDs []uint `json:"hosts"`
 }
 
@@ -1282,7 +1282,7 @@ func (svc *Service) createTransferredHostsActivity(ctx context.Context, teamID *
 ////////////////////////////////////////////////////////////////////////////////
 
 type addHostsToTeamByFilterRequest struct {
-	TeamID  *uint                   `json:"team_id"`
+	TeamID  *uint                   `json:"team_id" renameto:"fleet_id"`
 	Filters *map[string]interface{} `json:"filters"`
 }
 
@@ -1782,11 +1782,11 @@ func (svc *Service) getHostDetails(ctx context.Context, host *fleet.Host, opts f
 
 type getHostQueryReportRequest struct {
 	ID      uint `url:"id"`
-	QueryID uint `url:"query_id"`
+	QueryID uint `url:"report_id"`
 }
 
 type getHostQueryReportResponse struct {
-	QueryID       uint                          `json:"query_id"`
+	QueryID       uint                          `json:"query_id" renameto:"report_id"`
 	HostID        uint                          `json:"host_id"`
 	HostName      string                        `json:"host_name"`
 	LastFetched   *time.Time                    `json:"last_fetched"`
@@ -2172,7 +2172,7 @@ type getHostMDMSummaryResponse struct {
 }
 
 type getHostMDMSummaryRequest struct {
-	TeamID   *uint  `query:"team_id,optional"`
+	TeamID   *uint  `query:"team_id,optional" renameto:"fleet_id"`
 	Platform string `query:"platform,optional"`
 }
 
@@ -2277,7 +2277,7 @@ func (svc *Service) MacadminsData(ctx context.Context, id uint) (*fleet.Macadmin
 ////////////////////////////////////////////////////////////////////////////////
 
 type getAggregatedMacadminsDataRequest struct {
-	TeamID *uint `query:"team_id,optional"`
+	TeamID *uint `query:"team_id,optional" renameto:"fleet_id"`
 }
 
 type getAggregatedMacadminsDataResponse struct {
@@ -2568,7 +2568,7 @@ func (svc *Service) ListLabelsForHost(ctx context.Context, hostID uint) ([]*flee
 
 type osVersionsRequest struct {
 	fleet.ListOptions
-	TeamID             *uint   `query:"team_id,optional"`
+	TeamID             *uint   `query:"team_id,optional" renameto:"fleet_id"`
 	Platform           *string `query:"platform,optional"`
 	Name               *string `query:"os_name,optional"`
 	Version            *string `query:"os_version,optional"`
@@ -2761,7 +2761,7 @@ func paginateOSVersions(slice []fleet.OSVersion, opts fleet.ListOptions) ([]flee
 
 type getOSVersionRequest struct {
 	ID                 uint  `url:"id"`
-	TeamID             *uint `query:"team_id,optional"`
+	TeamID             *uint `query:"team_id,optional" renameto:"fleet_id"`
 	MaxVulnerabilities *int  `query:"max_vulnerabilities,optional"`
 }
 

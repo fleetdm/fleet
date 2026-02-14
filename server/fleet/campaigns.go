@@ -16,7 +16,7 @@ type DistributedQueryCampaign struct {
 	UpdateCreateTimestamps
 	Metrics TargetMetrics
 	ID      uint                   `json:"id"`
-	QueryID uint                   `json:"query_id" db:"query_id"`
+	QueryID uint                   `json:"query_id" renameto:"report_id" db:"query_id"`
 	Status  DistributedQueryStatus `json:"status"`
 	UserID  uint                   `json:"user_id" db:"user_id"`
 }
@@ -39,7 +39,7 @@ type DistributedQueryCampaignTarget struct {
 // thus it should be kept as small as possible.
 type DistributedQueryResult struct {
 	// DistributedQueryCampaignID is the unique ID of the live query campaign.
-	DistributedQueryCampaignID uint `json:"distributed_query_execution_id"`
+	DistributedQueryCampaignID uint `json:"distributed_query_execution_id" renameto:"distributed_report_execution_id"`
 	// Host holds the host's data from where the query result comes from.
 	Host  ResultHostData      `json:"host"`
 	Rows  []map[string]string `json:"rows"`
@@ -67,7 +67,7 @@ type QueryResult struct {
 }
 
 type QueryCampaignResult struct {
-	QueryID uint          `json:"query_id"`
+	QueryID uint          `json:"query_id" renameto:"report_id"`
 	Error   *string       `json:"error,omitempty"`
 	Results []QueryResult `json:"results"`
 	Err     error         `json:"-"`

@@ -20,7 +20,7 @@ import (
 
 type putSetupExperienceSoftwareRequest struct {
 	Platform string `json:"platform"`
-	TeamID   uint   `json:"team_id"`
+	TeamID   uint   `json:"team_id" renameto:"fleet_id"`
 	TitleIDs []uint `json:"software_title_ids"`
 }
 
@@ -56,7 +56,7 @@ type getSetupExperienceSoftwareRequest struct {
 	// Platforms can be a comma separated list
 	Platforms string `query:"platform,optional"`
 	fleet.ListOptions
-	TeamID uint `query:"team_id"`
+	TeamID uint `query:"team_id" renameto:"fleet_id"`
 }
 
 func (r *getSetupExperienceSoftwareRequest) ValidateRequest() error {
@@ -91,7 +91,7 @@ func (svc *Service) ListSetupExperienceSoftware(ctx context.Context, platform st
 }
 
 type getSetupExperienceScriptRequest struct {
-	TeamID *uint  `query:"team_id,optional"`
+	TeamID *uint  `query:"team_id,optional" renameto:"fleet_id"`
 	Alt    string `query:"alt,optional"`
 }
 
@@ -197,7 +197,7 @@ func (svc *Service) SetSetupExperienceScript(ctx context.Context, teamID *uint, 
 }
 
 type deleteSetupExperienceScriptRequest struct {
-	TeamID *uint `query:"team_id,optional"`
+	TeamID *uint `query:"team_id,optional" renameto:"fleet_id"`
 }
 
 type deleteSetupExperienceScriptResponse struct {

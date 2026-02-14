@@ -24,7 +24,7 @@ type getQueryRequest struct {
 }
 
 type getQueryResponse struct {
-	Query *fleet.Query `json:"query,omitempty"`
+	Query *fleet.Query `json:"query,omitempty" renameto:"report"`
 	Err   error        `json:"error,omitempty"`
 }
 
@@ -59,16 +59,16 @@ func (svc *Service) GetQuery(ctx context.Context, id uint) (*fleet.Query, error)
 type listQueriesRequest struct {
 	ListOptions fleet.ListOptions `url:"list_options"`
 	// TeamID url argument set to 0 means global.
-	TeamID         uint `query:"team_id,optional"`
+	TeamID         uint `query:"team_id,optional" renameto:"fleet_id"`
 	MergeInherited bool `query:"merge_inherited,optional"`
 	// only return queries targeted to run on this platform
 	Platform string `query:"platform,optional"`
 }
 
 type listQueriesResponse struct {
-	Queries             []fleet.Query             `json:"queries"`
+	Queries             []fleet.Query             `json:"queries" renameto:"reports"`
 	Count               int                       `json:"count"`
-	InheritedQueryCount int                       `json:"inherited_query_count"`
+	InheritedQueryCount int                       `json:"inherited_query_count" renameto:"inherited_report_count"`
 	Meta                *fleet.PaginationMetadata `json:"meta"`
 	Err                 error                     `json:"error,omitempty"`
 }
@@ -155,11 +155,11 @@ func (svc *Service) ListQueries(ctx context.Context, opt fleet.ListOptions, team
 
 type getQueryReportRequest struct {
 	ID     uint  `url:"id"`
-	TeamID *uint `query:"team_id,optional"`
+	TeamID *uint `query:"team_id,optional" renameto:"fleet_id"`
 }
 
 type getQueryReportResponse struct {
-	QueryID       uint                       `json:"query_id"`
+	QueryID       uint                       `json:"query_id" renameto:"report_id"`
 	Results       []fleet.HostQueryResultRow `json:"results"`
 	ReportClipped bool                       `json:"report_clipped"`
 	Err           error                      `json:"error,omitempty"`
@@ -251,7 +251,7 @@ type createQueryRequest struct {
 }
 
 type createQueryResponse struct {
-	Query *fleet.Query `json:"query,omitempty"`
+	Query *fleet.Query `json:"query,omitempty" renameto:"report"`
 	Err   error        `json:"error,omitempty"`
 }
 
@@ -384,7 +384,7 @@ type modifyQueryRequest struct {
 }
 
 type modifyQueryResponse struct {
-	Query *fleet.Query `json:"query,omitempty"`
+	Query *fleet.Query `json:"query,omitempty" renameto:"report"`
 	Err   error        `json:"error,omitempty"`
 }
 
@@ -551,7 +551,7 @@ func comparePlatforms(platform1, platform2 string) bool {
 type deleteQueryRequest struct {
 	Name string `url:"name"`
 	// TeamID if not set is assumed to be 0 (global).
-	TeamID uint `url:"team_id,optional"`
+	TeamID uint `url:"fleet_id,optional"`
 }
 
 type deleteQueryResponse struct {
@@ -950,7 +950,7 @@ type getQuerySpecsResponse struct {
 }
 
 type getQuerySpecsRequest struct {
-	TeamID uint `url:"team_id,optional"`
+	TeamID uint `url:"fleet_id,optional"`
 }
 
 func (r getQuerySpecsResponse) Error() error { return r.Err }
@@ -1027,7 +1027,7 @@ type getQuerySpecResponse struct {
 
 type getQuerySpecRequest struct {
 	Name   string `url:"name"`
-	TeamID uint   `query:"team_id,optional"`
+	TeamID uint   `query:"team_id,optional" renameto:"fleet_id"`
 }
 
 func (r getQuerySpecResponse) Error() error { return r.Err }

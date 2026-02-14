@@ -167,16 +167,16 @@ type VulnerabilitySettings struct {
 // hosts when they're ingested during the ABM sync.
 type MDMAppleABMAssignmentInfo struct {
 	OrganizationName string `json:"organization_name"`
-	MacOSTeam        string `json:"macos_team"`
-	IOSTeam          string `json:"ios_team"`
-	IpadOSTeam       string `json:"ipados_team"`
+	MacOSTeam        string `json:"macos_team" renameto:"macos_fleet"`
+	IOSTeam          string `json:"ios_team" renameto:"ios_fleet"`
+	IpadOSTeam       string `json:"ipados_team" renameto:"ipados_fleet"`
 }
 
 // MDMAppleVolumePurchasingProgramInfo represents an user definition of the association
 // between a VPP token (via location) and the team associations.
 type MDMAppleVolumePurchasingProgramInfo struct {
 	Location string   `json:"location"`
-	Teams    []string `json:"teams"`
+	Teams    []string `json:"teams" renameto:"fleets"`
 }
 
 // MDM is part of AppConfig and defines the mdm settings.
@@ -1152,14 +1152,14 @@ const DefaultOrgInfoContactURL = "https://fleetdm.com/company/contact"
 // ServerSettings contains general settings about the Fleet application.
 type ServerSettings struct {
 	ServerURL            string `json:"server_url"`
-	LiveQueryDisabled    bool   `json:"live_query_disabled"`
+	LiveQueryDisabled    bool   `json:"live_query_disabled" renameto:"live_report_disabled"`
 	EnableAnalytics      bool   `json:"enable_analytics"`
 	DebugHostIDs         []uint `json:"debug_host_ids,omitempty"`
 	DeferredSaveHost     bool   `json:"deferred_save_host"`
-	QueryReportsDisabled bool   `json:"query_reports_disabled"`
+	QueryReportsDisabled bool   `json:"query_reports_disabled" renameto:"reports_disabled"`
 	ScriptsDisabled      bool   `json:"scripts_disabled"`
 	AIFeaturesDisabled   bool   `json:"ai_features_disabled"`
-	QueryReportCap       int    `json:"query_report_cap"`
+	QueryReportCap       int    `json:"query_report_cap" renameto:"report_cap"`
 }
 
 const DefaultMaxQueryReportRows int = 1000
@@ -1410,7 +1410,7 @@ type EnrollSecret struct {
 	CreatedAt time.Time `json:"created_at" db:"created_at"`
 	// TeamID is the ID for the associated team. If no ID is set, then this is a
 	// global enroll secret.
-	TeamID *uint `json:"team_id,omitempty" db:"team_id"`
+	TeamID *uint `json:"team_id,omitempty" renameto:"fleet_id" db:"team_id"`
 }
 
 func (e *EnrollSecret) GetTeamID() *uint {
