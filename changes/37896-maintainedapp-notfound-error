@@ -1,0 +1,2 @@
+- Improved error message when a Fleet-maintained app is not found to include the app slug or ID.
+
