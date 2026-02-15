@@ -26,10 +26,18 @@ func (i *IndexedCPEItem) FmtStr(s *fleet.Software) string {
 	cpe.TargetSW = targetSW(s)
 	cpe.SWEdition = i.SWEdition
 
+	softwareVersion := s.Version
+	// Strip Debian/RPM epoch prefix (e.g., "1:" from "1:29.3+1-1ubuntu2").
+	// Epochs are package manager metadata, not part of the upstream software version,
+	// and would otherwise be misinterpreted as a leading version segment.
+	if s.Source == "deb_packages" || s.Source == "rpm_packages" {
+		softwareVersion = epochPrefixRe.ReplaceAllString(softwareVersion, "")
+	}
+
 	// Some version strings (e.g. Python pre-releases) contain a part that should be placed in the
 	// CPE's update field. Parse that out (if it exists).
 	// See https://github.com/fleetdm/fleet/issues/25882.
-	version, update := parseUpdateFromVersion(sanitizeVersion(s.Version))
+	version, update := parseUpdateFromVersion(sanitizeVersion(softwareVersion))
 	cpe.Version = version
 	cpe.Update = update
 
@@ -49,6 +57,7 @@ func (i *IndexedCPEItem) FmtStr(s *fleet.Software) string {
 	return cpe.BindToFmtString()
 }
 
+var epochPrefixRe = regexp.MustCompile(`^\d+:`)
 var versionWithUpdate = regexp.MustCompile(`(\d+\.\d+\.\d+)((?:a|b|rc)\d+)$`)
 
 func parseUpdateFromVersion(originalVersion string) (version, update string) {
