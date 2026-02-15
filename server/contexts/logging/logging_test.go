@@ -1,44 +1,45 @@
 package logging
 
 import (
-	"bytes"
 	"context"
 	"errors"
 	"fmt"
-	"strings"
+	"log/slog"
 	"testing"
 
-	kitlog "github.com/go-kit/log"
+	"github.com/fleetdm/fleet/v4/server/platform/logging/testutils"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestLoggingErrs(t *testing.T) {
-	setupTest := func() (*bytes.Buffer, kitlog.Logger, *LoggingContext, context.Context) {
-		buf := new(bytes.Buffer)
-		logger := kitlog.NewLogfmtLogger(buf)
+	setupTest := func() (*testutils.TestHandler, *slog.Logger, *LoggingContext, context.Context) {
+		handler := testutils.NewTestHandler()
+		logger := slog.New(handler)
 		lc := &LoggingContext{}
 		ctx := NewContext(context.Background(), lc)
-		return buf, logger, lc, ctx
-	}
-	checkLogEnds := func(t *testing.T, logLine string, expected string) bool {
-		return assert.True(t, strings.HasSuffix(strings.TrimSpace(logLine), expected), logLine)
+		return handler, logger, lc, ctx
 	}
 
 	t.Run("one error", func(t *testing.T) {
-		buf, logger, lc, ctx := setupTest()
+		handler, logger, lc, ctx := setupTest()
 
 		WithErr(ctx, fmt.Errorf("BLAH: %w", errors.New("AAAA")))
 		lc.Log(ctx, logger)
-		logLine := buf.String()
-		checkLogEnds(t, logLine, `err="BLAH: AAAA"`)
+		records := handler.Records()
+		require.Len(t, records, 1)
+		attrs := testutils.RecordAttrs(&records[0])
+		assert.Equal(t, "BLAH: AAAA", attrs["err"])
 	})
 	t.Run("two errors", func(t *testing.T) {
-		buf, logger, lc, ctx := setupTest()
+		handler, logger, lc, ctx := setupTest()
 
 		WithErr(ctx, fmt.Errorf("BLAH: %w", errors.New("AAAA")))
 		WithErr(ctx, fmt.Errorf("FOO: %w", errors.New("BBBB")))
 		lc.Log(ctx, logger)
-		logLine := buf.String()
-		checkLogEnds(t, logLine, `err="BLAH: AAAA || FOO: BBBB"`)
+		records := handler.Records()
+		require.Len(t, records, 1)
+		attrs := testutils.RecordAttrs(&records[0])
+		assert.Equal(t, "BLAH: AAAA || FOO: BBBB", attrs["err"])
 	})
 }
