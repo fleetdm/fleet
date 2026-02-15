@@ -168,7 +168,7 @@ const AddProfileModal = ({
         teamId: currentTeamId,
         ...labelKey,
       });
-      renderFlash("success", "Successfully uploaded!");
+      renderFlash("success", "Successfully uploaded.");
       onUpload();
     } catch (e) {
       renderFlash("error", getErrorMessage(e as AxiosResponse<IApiError>));

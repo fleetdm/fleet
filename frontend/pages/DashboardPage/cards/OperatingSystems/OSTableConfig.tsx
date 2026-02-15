@@ -119,7 +119,7 @@ const generateDefaultTableHeaders = (
           tipContent={
             <>
               Vulnerabilities on Linux are currently supported <br />
-              for Ubuntu, Debian, and Amazon Linux.
+              for Ubuntu, Debian, and RHEL based systems.
             </>
           }
         >

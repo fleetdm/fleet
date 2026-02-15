@@ -1,4 +1,4 @@
-/** For payload-free packages (e.g. software source is sh_packages or ps1_packages)
+/** For script-only packages (e.g. software source is sh_packages or ps1_packages)
  * we use SoftwareScriptDetailsModal
  * For iOS/iPadOS packages (e.g. .ipa packages software source is ios_apps or ipados_apps)
  * we use SoftwareIpaInstallDetailsModal with the command_uuid

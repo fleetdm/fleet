@@ -1,7 +1,7 @@
 import React from "react";
 import { screen, waitFor } from "@testing-library/react";
 
-import { IDeviceUserResponse, IHostDevice } from "interfaces/host";
+import { IDUPDetails, IHostDevice } from "interfaces/host";
 import createMockHost from "__mocks__/hostMock";
 import mockServer from "test/mock-server";
 import { createCustomRenderer, createMockRouter } from "test/test-utils";
@@ -162,11 +162,11 @@ describe("Device User Page", () => {
     const SETUP_FAILED_MATCHER = /Device setup failed/i;
 
     const setupTest = async (
-      deviceUserResponseOverrides?: Partial<IDeviceUserResponse>,
+      dupDetailsOverrides?: Partial<IDUPDetails>,
       setupExperienceOverrides?: Partial<IGetSetupExperienceStatusesResponse>,
       mockLocationOverrides = {}
     ) => {
-      mockServer.use(customDeviceHandler(deviceUserResponseOverrides));
+      mockServer.use(customDeviceHandler(dupDetailsOverrides));
       mockServer.use(defaultDeviceCertificatesHandler);
       mockServer.use(deviceSetupExperienceHandler(setupExperienceOverrides));
 
@@ -415,7 +415,7 @@ describe("Device User Page", () => {
   });
 
   describe("MDM enrollment", () => {
-    const setupTest = async (overrides: Partial<IDeviceUserResponse>) => {
+    const setupTest = async (overrides: Partial<IDUPDetails>) => {
       mockServer.use(customDeviceHandler(overrides));
       mockServer.use(defaultDeviceCertificatesHandler);
       mockServer.use(emptySetupExperienceHandler);
@@ -556,6 +556,7 @@ describe("Device User Page", () => {
       critical: false,
       calendar_events_enabled: false,
       conditional_access_enabled: true,
+      conditional_access_bypass_enabled: true,
       response: "fail",
     });
 
