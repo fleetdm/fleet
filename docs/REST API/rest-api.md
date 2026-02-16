@@ -8061,6 +8061,11 @@ _Available in Fleet Premium_
     "calendar_events_enabled": true,
     "conditional_access_enabled": false,
     "labels_include_any": ["Macs on Sonoma"],
+    "patch_software": {
+      "display_name": "", 
+      "name": "Adobe Acrobat.app",
+      "software_title_id": 1234,
+    }
     "install_software": {
       "name": "Adobe Acrobat.app",
       "software_title_id": 1234
