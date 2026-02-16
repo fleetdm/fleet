@@ -31,9 +31,9 @@ Send the enrollment link to end users to open in a web browser. An easy alternat
    - On Samsung devices, this is **Agree**.
    - The Work Profile setup will then begin, and on Samsung devices, there may be one more prompt to select **Next**.
    - A series of enrollment screens will appear. When the Work Profile is active, a briefcase icon appears in the status bar on Google Pixel devices, and in the lower right corner on Samsung devices.
-6. If Google authentication is enabled in [Google Admin](https://support.google.com/work/android/answer/9415508?hl=en), sign in using your work Google account.
+5. If Google authentication is enabled in [Google Admin](https://support.google.com/work/android/answer/9415508?hl=en), sign in using your work Google account.
    - If **Skip** is selected at this screen, you will later be required to sign in to this Google account to access apps like Google Calendar.
-7. When enrollment is complete, the Work Profile screens will go away and you will be brought back to the web browser with the Fleet enrollment page.
+6. When enrollment is complete, the Work Profile screens will go away and you will be brought back to the web browser with the Fleet enrollment page.
 
 Open the App Drawer (swipe up at the home screen, or select the Apps icon), and a separate tab at the bottom will appear for Work Profile apps. These apps have a briefcase icon in the bottom right corner of their icon.
 
