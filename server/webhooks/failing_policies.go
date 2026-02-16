@@ -77,7 +77,7 @@ func SendFailingPoliciesBatchedPOSTs(
 			return ctxerr.Wrap(ctx, err, "marshal failing policies payload")
 		}
 		if rules := endpointer.ExtractAliasRules(payload); len(rules) > 0 {
-			jsonBytes = endpointer.DuplicateJSONKeys(jsonBytes, rules)
+			jsonBytes = endpointer.DuplicateJSONKeys(jsonBytes, rules, endpointer.DuplicateJSONKeysOpts{Compact: true})
 		}
 
 		if err := server.PostJSONWithTimeout(ctx, webhookURL.String(), json.RawMessage(jsonBytes)); err != nil {
