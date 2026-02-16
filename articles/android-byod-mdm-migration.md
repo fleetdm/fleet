@@ -38,7 +38,7 @@ After successfully authenticating, a page with an Enroll button will appear. Sel
 
 <img width="50%" alt="51" src="https://github.com/user-attachments/assets/3ca1c1dd-79dd-4ca6-ab4b-a0e32da834a1" />
 
-A Set up your work profile screen will then appear. Select **Next**, then the next screen will describe what a Work Profile is: select **Accept & continue** here (on Samsung devices, this is **Agree**).
+A "Set up your work profile" screen will then appear. Select **Next**, then the next screen will describe what a Work Profile is: select **Accept & continue** here (on Samsung devices, this is **Agree**).
 
 <img width="2500" height="2000" alt="image6" src="https://github.com/user-attachments/assets/5f09407a-4db3-4ed3-ac60-ab11c6c7cb1e" />
 
