@@ -728,17 +728,12 @@ func (ds *Datastore) getFleetMaintainedVersionsByTitleIDs(ctx context.Context, t
 		return nil, nil
 	}
 
-	globalOrTeamID := teamID
-	if teamID == 0 {
-		globalOrTeamID = 0
-	}
-
 	query, args, err := sqlx.In(`
 		SELECT si.id, si.version, si.title_id
 			FROM software_installers si
 		WHERE si.title_id IN (?) AND si.global_or_team_id = ? AND si.fleet_maintained_app_id IS NOT NULL
 		ORDER BY si.title_id, si.uploaded_at DESC
-	`, titleIDs, globalOrTeamID)
+	`, titleIDs, teamID)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "build fleet maintained versions query")
 	}
