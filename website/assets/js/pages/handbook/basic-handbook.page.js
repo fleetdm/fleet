@@ -138,10 +138,10 @@ parasails.registerPage('basic-handbook', {
       });
       return subtopics;
     })();
-    // Create a list of "Related topics"
-    let pagesInFolder = (()=>{
-      let relatedPages = [];
-      if(!this.isHandbookLandingPage) {
+    // If this isn't the handbook landing page or a page for an open position, create a list of "Related topics" for the sidebar.
+    if(!this.isHandbookLandingPage && !_.startsWith(this.thisPage.url, '/handbook/company/open-positions')) {
+      let pagesInFolder = (()=>{
+        let relatedPages = [];
         let thisPagesFolderInTheHandbookFolder = this.thisPage.sectionRelativeRepoPath.split('/')[0];
         let pagesInThisFolder = _.filter(this.markdownPages, (page)=>{ return _.startsWith(page.sectionRelativeRepoPath, thisPagesFolderInTheHandbookFolder);});
         relatedPages = pagesInThisFolder.map((page)=>{
@@ -153,9 +153,9 @@ parasails.registerPage('basic-handbook', {
           }
         });
         return _.filter(relatedPages, (page)=>{ return !! page; });
-      }
-    })();
-    this.relatedPages = pagesInFolder;
+      })();
+      this.relatedPages = pagesInFolder;
+    }
     // Set counters for items in ordered lists to be the value of their "start" attribute.
     document.querySelectorAll('ol[start]').forEach((ol)=> {
       let startValue = parseInt(ol.getAttribute('start'), 10) - 1;
