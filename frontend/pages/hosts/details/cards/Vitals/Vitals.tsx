@@ -49,6 +49,8 @@ interface IVitalsProps {
   toggleLocationModal?: () => void;
 }
 
+type VitalForSort = { sortKey: string; element: React.ReactNode };
+
 const baseClass = "vitals-card";
 
 const DISK_ENCRYPTION_MESSAGES = {
@@ -122,16 +124,20 @@ const Vitals = ({
 
   // Generate the device ID data set based on MDM enrollment status. This is
   // either the Enrollment ID for personal (BYOD) devices or the Serial number
-  // for business owned devices.
-  const generateDeviceIdDataSet = () => {
-    // we will default to showing the Serial number dataset. If the below consitions
-    // evaludate to true, we will instead show the Enrollment ID dataset.
-    let deviceIdDataSet = (
-      <DataSet
-        title="Serial number"
-        value={<TooltipTruncatedText value={vitalsData.hardware_serial} />}
-      />
-    );
+  // for business-owned devices.
+  const generateDeviceIdDataSet: () => VitalForSort | null = () => {
+    // Default to showing the Serial number dataset. If the below conditions
+    // evaluate to true, instead show the Enrollment ID dataset.
+    let deviceIdDataSet = {
+      sortKey: "Serial number",
+      element: (
+        <DataSet
+          key="serial-number"
+          title="Serial number"
+          value={<TooltipTruncatedText value={vitalsData.hardware_serial} />}
+        />
+      ),
+    };
 
     // if the host is an Android host and it is not enrolled in MDM personally,
     // we do not show the device ID dataset at all.
@@ -143,16 +149,20 @@ const Vitals = ({
     // is enrolled in MDM personally. Personal (BYOD) devices do not report
     // their serial numbers, so we show the Enrollment ID instead.
     if (mdm && isBYODAccountDrivenUserEnrollment(mdm.enrollment_status)) {
-      deviceIdDataSet = (
-        <DataSet
-          title={
-            <TooltipWrapper tipContent="Enrollment ID is a unique identifier for personal hosts. Personal (BYOD) devices don't report their serial numbers. The Enrollment ID changes with each enrollment.">
-              Enrollment ID
-            </TooltipWrapper>
-          }
-          value={<TooltipTruncatedText value={vitalsData.uuid} />}
-        />
-      );
+      deviceIdDataSet = {
+        sortKey: "Enrollment ID",
+        element: (
+          <DataSet
+            key="enrollment-id"
+            title={
+              <TooltipWrapper tipContent="Enrollment ID is a unique identifier for personal hosts. Personal (BYOD) devices don't report their serial numbers. The Enrollment ID changes with each enrollment.">
+                Enrollment ID
+              </TooltipWrapper>
+            }
+            value={<TooltipTruncatedText value={vitalsData.uuid} />}
+          />
+        ),
+      };
     }
     return deviceIdDataSet;
   };
@@ -507,7 +517,7 @@ const Vitals = ({
   };
 
   const renderVitalsAlphabetically = () => {
-    const vitals: { sortKey: string; element: React.ReactNode }[] = [];
+    const vitals: VitalForSort[] = [];
 
     vitals.push({
       sortKey: "Added to Fleet",
@@ -626,6 +636,8 @@ const Vitals = ({
           statusText = "Unknown";
           break;
         default:
+          // something unexpected happened on the way to this component, display whatever we got or
+          // "Unknown" to draw attention to the issue.
           statusText = diskEncryptionEnabled || "Unknown";
       }
 
@@ -645,7 +657,7 @@ const Vitals = ({
       });
     }
 
-    // Disk space available
+    // Disk space
     if (
       !isChromeHost &&
       !(
@@ -684,18 +696,10 @@ const Vitals = ({
       });
     }
 
-    // Enrollment ID (for BYOD devices)
-    const DeviceIdDataSet = generateDeviceIdDataSet();
-    if (DeviceIdDataSet) {
-      // Determine if it's Enrollment ID or Serial number for sorting
-      const isBYOD =
-        mdm && isBYODAccountDrivenUserEnrollment(mdm.enrollment_status);
-      vitals.push({
-        sortKey: isBYOD ? "Enrollment ID" : "Serial number",
-        element: React.cloneElement(DeviceIdDataSet, {
-          key: isBYOD ? "enrollment-id" : "serial-number",
-        }),
-      });
+    // Device identity
+    const deviceIdDataSet = generateDeviceIdDataSet();
+    if (deviceIdDataSet) {
+      vitals.push(deviceIdDataSet);
     }
 
     // Hardware model
@@ -747,49 +751,47 @@ const Vitals = ({
       });
     }
 
-    // MDM server URL
+    // MDM
     if (mdm?.enrollment_status) {
-      vitals.push({
-        sortKey: "MDM server URL",
-        element: (
-          <DataSet
-            key="mdm-server-url"
-            title="MDM server URL"
-            value={
-              <TooltipTruncatedText
-                value={mdm.server_url || DEFAULT_EMPTY_CELL_VALUE}
-              />
-            }
-          />
-        ),
-      });
+      vitals.push(
+        {
+          sortKey: "MDM status",
+          element: (
+            <DataSet
+              key="mdm-status"
+              title="MDM status"
+              value={
+                <TooltipWrapper
+                  tipContent={MDM_STATUS_TOOLTIP[mdm.enrollment_status]}
+                  underline={mdm.enrollment_status !== "Off"}
+                >
+                  {
+                    MDM_ENROLLMENT_STATUS_UI_MAP[mdm.enrollment_status]
+                      .displayName
+                  }
+                </TooltipWrapper>
+              }
+            />
+          ),
+        },
+
+        {
+          sortKey: "MDM server URL",
+          element: (
+            <DataSet
+              key="mdm-server-url"
+              title="MDM server URL"
+              value={
+                <TooltipTruncatedText
+                  value={mdm.server_url || DEFAULT_EMPTY_CELL_VALUE}
+                />
+              }
+            />
+          ),
+        }
+      );
     }
 
-    // MDM status
-    if (mdm?.enrollment_status) {
-      vitals.push({
-        sortKey: "MDM status",
-        element: (
-          <DataSet
-            key="mdm-status"
-            title="MDM status"
-            value={
-              <TooltipWrapper
-                tipContent={MDM_STATUS_TOOLTIP[mdm.enrollment_status]}
-                underline={mdm.enrollment_status !== "Off"}
-              >
-                {
-                  MDM_ENROLLMENT_STATUS_UI_MAP[mdm.enrollment_status]
-                    .displayName
-                }
-              </TooltipWrapper>
-            }
-          />
-        ),
-      });
-    }
-
-    // Memory
     if (!isIosOrIpadosHost) {
       vitals.push({
         sortKey: "Memory",
@@ -803,7 +805,6 @@ const Vitals = ({
       });
     }
 
-    // Munki version
     if (munki) {
       vitals.push({
         sortKey: "Munki version",
@@ -818,6 +819,7 @@ const Vitals = ({
     }
 
     // Operating system
+    // No tooltip if minimum version is not set, including all Windows, Linux, ChromeOS, Android operating systems
     if (!osVersionRequirement?.minimum_version) {
       const version = vitalsData.os_version;
       const versionForRender = ROLLING_ARCH_LINUX_VERSIONS.includes(version) ? (
@@ -890,7 +892,7 @@ const Vitals = ({
       });
     }
 
-    // Private IP address
+    // IP addresses
     if (!isIosOrIpadosHost && !isAndroidHost) {
       vitals.push({
         sortKey: "Private IP address",
@@ -902,24 +904,6 @@ const Vitals = ({
           />
         ),
       });
-    }
-
-    // Processor type
-    if (!isIosOrIpadosHost) {
-      vitals.push({
-        sortKey: "Processor type",
-        element: (
-          <DataSet
-            key="processor-type"
-            title="Processor type"
-            value={vitalsData.cpu_type}
-          />
-        ),
-      });
-    }
-
-    // Public IP address
-    if (!isIosOrIpadosHost && !isAndroidHost) {
       vitals.push({
         sortKey: "Public IP address",
         element: (
@@ -936,7 +920,19 @@ const Vitals = ({
       });
     }
 
-    // Timezone
+    if (!isIosOrIpadosHost) {
+      vitals.push({
+        sortKey: "Processor type",
+        element: (
+          <DataSet
+            key="processor-type"
+            title="Processor type"
+            value={vitalsData.cpu_type}
+          />
+        ),
+      });
+    }
+
     if (isIosOrIpadosHost && vitalsData?.timezone) {
       vitals.push({
         sortKey: "Timezone",
@@ -959,7 +955,7 @@ const Vitals = ({
       <>
         {vitals
           .sort((a, b) => a.sortKey.localeCompare(b.sortKey))
-          .map((dataset) => dataset.element)}
+          .map((vitalForSort) => vitalForSort.element)}
       </>
     );
   };
