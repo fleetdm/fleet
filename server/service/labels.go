@@ -630,7 +630,7 @@ func (svc *Service) DeleteLabelByID(ctx context.Context, id uint) error {
 
 type applyLabelSpecsRequest struct {
 	Specs       []*fleet.LabelSpec `json:"specs"`
-	TeamID      *uint              `json:"-" query:"team_id,optional"`
+	TeamID      *uint              `json:"-" query:"team_id,optional" renameto:"fleet_id"`
 	NamesToMove []string           `json:"names_to_move,omitempty"`
 }
 

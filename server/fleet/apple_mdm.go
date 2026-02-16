@@ -197,7 +197,7 @@ type MDMAppleConfigProfile struct {
 	ProfileID uint `db:"profile_id" json:"profile_id"`
 	// TeamID is the id of the team with which the configuration is associated. A nil team id
 	// represents a configuration profile that is not associated with any team.
-	TeamID *uint `db:"team_id" json:"team_id"`
+	TeamID *uint `db:"team_id" json:"team_id" renameto:"fleet_id"`
 	// Identifier corresponds to the payload identifier of the associated mobileconfig payload.
 	// Fleet requires that Identifier must be unique in combination with the Name and TeamID.
 	Identifier string `db:"identifier" json:"identifier"`
@@ -666,7 +666,7 @@ type MDMAppleDeclaration struct {
 
 	// TeamID is the id of the team with which the declaration is associated. A nil team id
 	// represents a declaration that is not associated with any team.
-	TeamID *uint `db:"team_id" json:"team_id"`
+	TeamID *uint `db:"team_id" json:"team_id" renameto:"fleet_id"`
 
 	// Identifier corresponds to the "Identifier" key of the associated declaration.
 	// Fleet requires that Identifier must be unique in combination with the Name and TeamID.
