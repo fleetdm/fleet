@@ -1,10 +1,10 @@
 ## Orbit 1.52.0 (Feb 16, 2026)
 
-* Updated macadmins/osquery-extensions to v1.3.2.
+* Updated `macadmins/osquery-extensions` to v1.3.2.
 
-* Updated Migrate to Fleet webhook to always send when device is seen as unmanaged.
+* Updated `Migrate to Fleet` webhook to always send when device is seen as unmanaged.
 
-* Harden app_sso_platform table command execution to prevent command injection.
+* Harden `app_sso_platform` table command execution to prevent command injection.
 
 * Added 'AlternativeBrowserHost' to Desktop Summary payload and updated Fleet Desktop to use it over the alternative browser host set via the env.
 
@@ -16,7 +16,7 @@
 
 * Added dummy implementation of `orbit_info` table to the orbit shell.
 
-* Set `--tls_accept_gzip=true` when connecting osquery to Fleet. This should have no effect until gzip is also enabled on the Fleet server (a new Fleet server configuration to enable this is coming).
+* Set `--tls_accept_gzip=true` when connecting osquery to Fleet. This should have no effect until gzip is also enabled on the Fleet server (a new Fleet server configuration `FLEET_SERVER_GZIP_RESPONSES=true` is coming in v4.81.0).
 
 ## Orbit 1.51.1 (Jan 28, 2026)
 
