@@ -122,6 +122,18 @@ func TestCheckURLForSSRFResolverError(t *testing.T) {
 	assert.Contains(t, err.Error(), "resolving host")
 }
 
+func TestCheckURLForSSRF_UnparseableAddressFailsClosed(t *testing.T) {
+	t.Parallel()
+
+	// A custom resolver returning a non-IP string will be blocked
+	badResolver := func(_ context.Context, _ string) ([]string, error) {
+		return []string{"not-an-ip"}, nil
+	}
+	err := CheckURLForSSRF(context.Background(), "https://example.com/admin", badResolver)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "not a valid IP")
+}
+
 func TestCheckURLForSSRFMultipleResolutions(t *testing.T) {
 	t.Parallel()
 

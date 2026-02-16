@@ -81,10 +81,7 @@ type SSRFError struct {
 }
 
 func (e *SSRFError) Error() string {
-	if e.IP != nil {
-		return fmt.Sprintf("URL %q resolves to blocked IP address %s", e.URL, e.IP)
-	}
-	return fmt.Sprintf("URL %q targets a blocked address", e.URL)
+	return fmt.Sprintf("URL %q resolves to a blocked address", e.URL)
 }
 
 func checkResolvedAddrs(ctx context.Context, host, rawURL string, resolver func(context.Context, string) ([]string, error)) error {
@@ -102,7 +99,7 @@ func checkResolvedAddrs(ctx context.Context, host, rawURL string, resolver func(
 		}
 		ip := net.ParseIP(h)
 		if ip == nil {
-			continue
+			return fmt.Errorf("resolved address %q for host %q is not a valid IP", h, host)
 		}
 		if isBlockedIP(ip) {
 			return &SSRFError{URL: rawURL, IP: ip}
