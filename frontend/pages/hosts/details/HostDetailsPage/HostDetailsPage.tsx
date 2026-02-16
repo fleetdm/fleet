@@ -686,7 +686,7 @@ const HostDetailsPage = ({
     } else {
       document.title = `Hosts | ${DOCUMENT_TITLE_SUFFIX}`;
     }
-  }, [location.pathname, host]);;
+  }, [location.pathname, host]);
 
   const summaryData = normalizeEmptyValues(pick(host, HOST_SUMMARY_DATA));
 
