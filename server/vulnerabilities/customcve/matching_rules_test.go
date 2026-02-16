@@ -543,8 +543,7 @@ func TestCheckCustomVulnerabilities(t *testing.T) {
 			return nil, nil
 		}
 
-		// Simulate all vulns already existing: InsertSoftwareVulnerabilities
-		// returns empty (no new vulns).
+		// Simulate all vulns already existing: InsertSoftwareVulnerabilities returns empty (no new vulns).
 		ds.InsertSoftwareVulnerabilitiesFunc = func(ctx context.Context, vulns []fleet.SoftwareVulnerability, source fleet.VulnerabilitySource) ([]fleet.SoftwareVulnerability, error) {
 			require.Equal(t, fleet.CustomSource, source)
 			for _, v := range vulns {

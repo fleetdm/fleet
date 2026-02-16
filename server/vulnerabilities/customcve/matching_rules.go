@@ -164,7 +164,8 @@ func CheckCustomVulnerabilities(ctx context.Context, ds fleet.Datastore, logger 
 
 	newVulns, err := ds.InsertSoftwareVulnerabilities(ctx, vulns, fleet.CustomSource)
 	if err != nil {
-		// Return early to avoid deleting stale vulns when nothing was inserted.
+		// Return early so DeleteOutOfDateVulnerabilities doesn't run.
+		// Otherwise, without the insert refreshing updated_at, all existing vulns would look stale and be deleted.
 		level.Error(logger).Log("msg", "Error inserting software vulnerabilities", "err", err)
 		return nil, err
 	}

@@ -203,8 +203,7 @@ func cpeItemMatchesSoftware(item *IndexedCPEItem, software *fleet.Software) bool
 	return true
 }
 
-// resolveDeprecatedCPE follows the deprecation chain for the given CPE items to find a
-// non-deprecated replacement.
+// resolveDeprecatedCPE follows the deprecation chain for the given CPE items to find a non-deprecated replacement.
 func resolveDeprecatedCPE(db *sqlx.DB, items []IndexedCPEItem, software *fleet.Software) (string, error) {
 	for _, item := range items {
 		deprecatedItem := item
@@ -809,7 +808,7 @@ func translateSoftwareToCPEWithIterator(
 ) error {
 	dbPath := filepath.Join(vulnPath, cpeDBFilename)
 
-	db, err := sqliteDBReadOnly(dbPath, logger)
+	db, err := sqliteDBReadOnly(ctx, dbPath, logger)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "opening the cpe db")
 	}
