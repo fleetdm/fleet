@@ -1,6 +1,8 @@
 import React, { useState, useContext } from "react";
 
 import { NotificationContext } from "context/notification";
+import { AppContext } from "context/app";
+import configAPI from "services/entities/config";
 
 // @ts-ignore
 import InputField from "components/forms/fields/InputField";
@@ -22,6 +24,7 @@ interface IAddEntraTenantModalProps {
 
 const AddEntraTenantModal = ({ onExit }: IAddEntraTenantModalProps) => {
   const { renderFlash } = useContext(NotificationContext);
+  const { setConfig, config } = useContext(AppContext);
 
   const [isAdding, setIsAdding] = React.useState(false);
   const [formData, setFormData] = React.useState<IAddTenantFormData>({
@@ -43,20 +46,22 @@ const AddEntraTenantModal = ({ onExit }: IAddEntraTenantModalProps) => {
     setFormValidation(newErrs);
   };
 
-  const onAddTenant = () => {
+  const onAddTenant = async () => {
     const validation = validateFormData({ tenantId: formData.tenantId });
     if (validation.isValid) {
       setIsAdding(true);
+      const currentTenantIds = config?.mdm.windows_entra_tenant_ids ?? [];
       try {
-        console.log("Adding tenant with ID:", formData.tenantId);
+        const updateData = await configAPI.update({
+          mdm: {
+            windows_entra_tenant_ids: [...currentTenantIds, formData.tenantId],
+          },
+        });
+        setConfig(updateData);
         renderFlash("success", "Successfully added tenant");
         onExit();
-      } catch (error: any) {
-        if (error.status === 409) {
-          renderFlash("error", "A secret with this name already exists.");
-        } else {
-          renderFlash("error", "Couldn't add tenant. Please try again");
-        }
+      } catch (error) {
+        renderFlash("error", "Couldn't add tenant. Please try again");
       } finally {
         setIsAdding(false);
       }
