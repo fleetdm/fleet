@@ -3143,7 +3143,7 @@ func TestDistributedQueriesLogsManyErrors(t *testing.T) {
 	)
 	require.NoError(t, err)
 
-	lCtx.Log(ctx, logger)
+	lCtx.Log(ctx, logger.SlogLogger())
 
 	logs := buf.String()
 	parts := strings.Split(strings.TrimSpace(logs), "\n")

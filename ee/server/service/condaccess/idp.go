@@ -84,7 +84,7 @@ func RegisterIdP(
 	}
 
 	// Create logging middleware
-	loggingMiddleware := log.NewLoggingMiddleware(svc.logger)
+	loggingMiddleware := log.NewLoggingMiddleware(svc.logger.SlogLogger())
 
 	// Register handlers with logging and OpenTelemetry middleware
 	// Order: OTEL wraps logging to capture full request lifecycle
@@ -361,6 +361,7 @@ func (p *deviceHealthSessionProvider) GetSession(w http.ResponseWriter, r *http.
 
 	// Check if device has failing conditional access policies
 	failingConditionalAccessCount := 0
+	failingWithoutBypass := 0
 	for _, policy := range policies {
 		// Only check policies that are marked for conditional access
 		if _, isConditionalAccessPolicy := conditionalAccessPolicyIDsSet[policy.ID]; !isConditionalAccessPolicy {
@@ -369,6 +370,9 @@ func (p *deviceHealthSessionProvider) GetSession(w http.ResponseWriter, r *http.
 		// Check if policy is failing
 		if policy.Response == policyResponseFail {
 			failingConditionalAccessCount++
+			if !(policy.ConditionalAccessBypassEnabled != nil && *policy.ConditionalAccessBypassEnabled) {
+				failingWithoutBypass++
+			}
 		}
 	}
 
@@ -403,7 +407,7 @@ func (p *deviceHealthSessionProvider) GetSession(w http.ResponseWriter, r *http.
 		bypassEnabled := config.ConditionalAccess == nil || config.ConditionalAccess.BypassEnabled()
 
 		var bypassedAt *time.Time
-		if bypassEnabled {
+		if bypassEnabled && failingWithoutBypass == 0 {
 			bypassedAt, err = p.ds.ConditionalAccessConsumeBypass(ctx, host.ID)
 			if err != nil {
 				ctxerr.Handle(ctx, fmt.Errorf("failed to check conditional access host bypass for host %d: %w", p.hostID, err))

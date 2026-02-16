@@ -131,7 +131,7 @@ func MakeHandler(
 		kithttp.ServerErrorEncoder(fleetErrorEncoder),
 		kithttp.ServerAfter(
 			kithttp.SetContentType("application/json; charset=utf-8"),
-			log.LogRequestEnd(logger),
+			log.LogRequestEnd(logger.SlogLogger()),
 			checkLicenseExpiration(svc),
 		),
 	}

@@ -16,7 +16,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/worker"
 	"github.com/go-json-experiment/json"
-	"github.com/go-kit/log/level"
 	"golang.org/x/text/cases"
 	"golang.org/x/text/language"
 	"google.golang.org/api/androidmanagement/v1"
@@ -45,7 +44,7 @@ func (svc *Service) ProcessPubSubPush(ctx context.Context, token string, message
 		svc.authz.SkipAuthorization(ctx)
 		return nil
 	}
-	level.Debug(svc.logger).Log("msg", "Received PubSub message", "notification", notificationType)
+	svc.logger.DebugContext(ctx, "Received PubSub message", "notification", notificationType)
 	if android.NotificationType(notificationType) == android.PubSubTest {
 		// Nothing to process
 		svc.authz.SkipAuthorization(ctx)
@@ -69,7 +68,7 @@ func (svc *Service) ProcessPubSubPush(ctx context.Context, token string, message
 		return svc.handlePubSubStatusReport(ctx, token, rawData)
 	default:
 		// Ignore unknown notification types
-		level.Debug(svc.logger).Log("msg", "Ignoring PubSub notification type", "notification", notificationType)
+		svc.logger.DebugContext(ctx, "Ignoring PubSub notification type", "notification", notificationType)
 		svc.authz.SkipAuthorization(ctx)
 		return nil
 	}
@@ -151,7 +150,7 @@ func (svc *Service) handlePubSubStatusReport(ctx context.Context, token string, 
 	}
 
 	if isDeleted {
-		level.Debug(svc.logger).Log("msg", "Android device deleted from MDM", "device.name", device.Name,
+		svc.logger.DebugContext(ctx, "Android device deleted from MDM", "device.name", device.Name,
 			"device.enterpriseSpecificId", device.HardwareInfo.EnterpriseSpecificId)
 
 		// User-initiated unenroll (work profile removed) or device deleted via AMAPI.
@@ -203,18 +202,18 @@ func (svc *Service) handlePubSubStatusReport(ctx context.Context, token string, 
 		return ctxerr.Wrap(ctx, err, "getting existing Android host")
 	}
 	if host == nil {
-		level.Debug(svc.logger).Log("msg", "Device not found in Fleet. Perhaps it was deleted, "+
+		svc.logger.DebugContext(ctx, "Device not found in Fleet. Perhaps it was deleted, "+
 			"but it is still connected via Android MDM. Re-enrolling", "device.name", device.Name,
 			"device.enterpriseSpecificId", device.HardwareInfo.EnterpriseSpecificId)
 		err = svc.enrollHost(ctx, &device)
 		if err != nil {
-			level.Debug(svc.logger).Log("msg", "Error re-enrolling Android host", "data", rawData)
+			svc.logger.DebugContext(ctx, "Error re-enrolling Android host", "data", rawData)
 			return ctxerr.Wrap(ctx, err, "re-enrolling deleted Android host")
 		}
 	}
 	err = svc.updateHost(ctx, &device, host, false)
 	if err != nil {
-		level.Debug(svc.logger).Log("msg", "Error updating Android host", "data", rawData)
+		svc.logger.DebugContext(ctx, "Error updating Android host", "data", rawData)
 		return ctxerr.Wrap(ctx, err, "enrolling Android host")
 	}
 	err = svc.updateHostSoftware(ctx, &device, host)
@@ -327,7 +326,7 @@ func (svc *Service) handlePubSubEnrollment(ctx context.Context, token string, ra
 
 	err = svc.enrollHost(ctx, &device)
 	if err != nil {
-		level.Debug(svc.logger).Log("msg", "Error enrolling Android host", "data", rawData)
+		svc.logger.DebugContext(ctx, "Error enrolling Android host", "data", rawData)
 		return ctxerr.Wrap(ctx, err, "enrolling Android host")
 	}
 	return nil
@@ -360,7 +359,7 @@ func (svc *Service) enrollHost(ctx context.Context, device *androidmanagement.De
 	}
 
 	if host != nil {
-		level.Debug(svc.logger).Log("msg", "The enrolling Android host is already present in Fleet. Updating team if needed",
+		svc.logger.DebugContext(ctx, "The enrolling Android host is already present in Fleet. Updating team if needed",
 			"device.name", device.Name, "device.enterpriseSpecificId", device.HardwareInfo.EnterpriseSpecificId)
 		enrollSecret, err := svc.ds.VerifyEnrollSecret(ctx, enrollmentTokenRequest.EnrollSecret)
 		if err != nil && !fleet.IsNotFound(err) {
@@ -466,7 +465,7 @@ func (svc *Service) updateHost(ctx context.Context, device *androidmanagement.De
 			teamID = *host.Host.TeamID
 		}
 		if _, err := svc.fleetDS.CreatePendingCertificateTemplatesForNewHost(ctx, host.Host.UUID, teamID); err != nil {
-			level.Error(svc.logger).Log("msg", "failed to create pending certificate templates for re-enrolled host", "host_uuid", host.Host.UUID, "err", err)
+			svc.logger.ErrorContext(ctx, "failed to create pending certificate templates for re-enrolled host", "host_uuid", host.Host.UUID, "err", err)
 			return ctxerr.Wrap(ctx, err, "creating pending certificate templates for re-enrolled host")
 		}
 
@@ -574,7 +573,7 @@ func (svc *Service) addNewHost(ctx context.Context, device *androidmanagement.De
 	}
 
 	if enrollmentTokenRequest.IdpUUID != "" {
-		level.Info(svc.logger).Log("msg", "associating android host with idp account", "host_uuid", host.UUID, "idp_uuid", enrollmentTokenRequest.IdpUUID)
+		svc.logger.InfoContext(ctx, "associating android host with idp account", "host_uuid", host.UUID, "idp_uuid", enrollmentTokenRequest.IdpUUID)
 		err := svc.ds.AssociateHostMDMIdPAccount(ctx, host.UUID, enrollmentTokenRequest.IdpUUID)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "associating host with idp account")
@@ -591,7 +590,7 @@ func (svc *Service) addNewHost(ctx context.Context, device *androidmanagement.De
 		teamID = *enrollSecret.GetTeamID()
 	}
 	if _, err := svc.fleetDS.CreatePendingCertificateTemplatesForNewHost(ctx, fleetHost.Host.UUID, teamID); err != nil {
-		level.Error(svc.logger).Log("msg", "failed to create pending certificate templates for new host", "host_uuid", fleetHost.Host.UUID, "err", err)
+		svc.logger.ErrorContext(ctx, "failed to create pending certificate templates for new host", "host_uuid", fleetHost.Host.UUID, "err", err)
 		return ctxerr.Wrap(ctx, err, "creating pending certificate templates for new host")
 	}
 
@@ -640,7 +639,7 @@ func (svc *Service) getPolicyID(ctx context.Context, device *androidmanagement.D
 		return nil, ctxerr.Errorf(ctx, "invalid Android policy name: %s", device.AppliedPolicyName)
 	}
 	if len(nameParts[3]) == 0 {
-		level.Error(svc.logger).Log("msg", "Empty Android policy ID", "device.name", device.Name,
+		svc.logger.ErrorContext(ctx, "Empty Android policy ID", "device.name", device.Name,
 			"device.enterpriseSpecificID", device.HardwareInfo.EnterpriseSpecificId, "device.AppliedPolicyName",
 			device.AppliedPolicyName)
 		return nil, nil
@@ -651,7 +650,7 @@ func (svc *Service) getPolicyID(ctx context.Context, device *androidmanagement.D
 func (svc *Service) verifyDevicePolicy(ctx context.Context, hostUUID string, device *androidmanagement.Device) {
 	appliedPolicyVersion := device.AppliedPolicyVersion
 
-	level.Debug(svc.logger).Log("msg", "Verifying Android device policy", "host_uuid", hostUUID, "applied_policy_version", appliedPolicyVersion)
+	svc.logger.DebugContext(ctx, "Verifying Android device policy", "host_uuid", hostUUID, "applied_policy_version", appliedPolicyVersion)
 
 	// Get all host_mdm_android_profiles that are pending or failed due to non compliance reasons,
 	// and included_in_policy_version <= device.AppliedPolicyVersion. That way we can either fully
@@ -660,7 +659,7 @@ func (svc *Service) verifyDevicePolicy(ctx context.Context, hostUUID string, dev
 	// Get all profiles that are pending or failed install
 	pendingInstallProfiles, err := svc.ds.ListHostMDMAndroidProfilesPendingOrFailedInstallWithVersion(ctx, hostUUID, appliedPolicyVersion)
 	if err != nil {
-		level.Error(svc.logger).Log("msg", "error getting pending profiles", "err", err)
+		svc.logger.ErrorContext(ctx, "error getting pending profiles", "err", err)
 		return
 	}
 
@@ -684,7 +683,7 @@ func (svc *Service) verifyDevicePolicy(ctx context.Context, hostUUID string, dev
 
 		err = svc.ds.BulkUpsertMDMAndroidHostProfiles(ctx, verifiedProfiles)
 		if err != nil {
-			level.Error(svc.logger).Log("msg", "error verifying pending install profiles", "err", err)
+			svc.logger.ErrorContext(ctx, "error verifying pending install profiles", "err", err)
 		}
 
 	} else {
@@ -700,19 +699,19 @@ func (svc *Service) verifyDevicePolicy(ctx context.Context, hostUUID string, dev
 		// Then re-use the map above, so we can iterate over it again, but now the payload is already unmarshalled.
 		policyRequest, err := svc.ds.GetAndroidPolicyRequestByUUID(ctx, policyRequestUUID)
 		if err != nil && !fleet.IsNotFound(err) {
-			level.Error(svc.logger).Log("msg", "error getting policy request", "err", err, "policy_request_uuid", policyRequestUUID, "host_uuid", hostUUID)
+			svc.logger.ErrorContext(ctx, "error getting policy request", "err", err, "policy_request_uuid", policyRequestUUID, "host_uuid", hostUUID)
 			return
 		}
 
 		if fleet.IsNotFound(err) {
-			level.Error(svc.logger).Log("msg", "policy request not found", "policy_request_uuid", policyRequestUUID, "host_uuid", hostUUID)
+			svc.logger.ErrorContext(ctx, "policy request not found", "policy_request_uuid", policyRequestUUID, "host_uuid", hostUUID)
 			return
 		}
 
 		var policyRequestPayload fleet.AndroidPolicyRequestPayload
 		err = json.Unmarshal(policyRequest.Payload, &policyRequestPayload)
 		if err != nil {
-			level.Error(svc.logger).Log("msg", "error unmarshalling policy request payload", "err", err, "policy_request_uuid", policyRequestUUID, "host_uuid", hostUUID)
+			svc.logger.ErrorContext(ctx, "error unmarshalling policy request payload", "err", err, "policy_request_uuid", policyRequestUUID, "host_uuid", hostUUID)
 			return
 		}
 
@@ -758,7 +757,7 @@ func (svc *Service) verifyDevicePolicy(ctx context.Context, hostUUID string, dev
 
 		err = svc.ds.BulkUpsertMDMAndroidHostProfiles(ctx, profiles)
 		if err != nil {
-			level.Error(svc.logger).Log("msg", "error upserting android profiles", "err", err, "host_uuid", hostUUID)
+			svc.logger.ErrorContext(ctx, "error upserting android profiles", "err", err, "host_uuid", hostUUID)
 			return
 		}
 	}
@@ -766,7 +765,7 @@ func (svc *Service) verifyDevicePolicy(ctx context.Context, hostUUID string, dev
 	// Bulk delete any pending or failed remove profiles.
 	err = svc.ds.BulkDeleteMDMAndroidHostProfiles(ctx, hostUUID, appliedPolicyVersion)
 	if err != nil {
-		level.Error(svc.logger).Log("msg", "error deleting pending or failed remove profiles", "err", err, "host_uuid", hostUUID)
+		svc.logger.ErrorContext(ctx, "error deleting pending or failed remove profiles", "err", err, "host_uuid", hostUUID)
 	}
 }
 
@@ -774,14 +773,14 @@ func (svc *Service) verifyDeviceSoftware(ctx context.Context, host *fleet.Host, 
 	appliedPolicyVersion := device.AppliedPolicyVersion
 	hostUUID := host.UUID
 
-	level.Debug(svc.logger).Log("msg", "Verifying Android device software", "host_uuid", hostUUID, "applied_policy_version", appliedPolicyVersion)
+	svc.logger.DebugContext(ctx, "Verifying Android device software", "host_uuid", hostUUID, "applied_policy_version", appliedPolicyVersion)
 
 	// Get all host_vpp_software_installs that are pending, and set in a policy version <= device.AppliedPolicyVersion.
 	// That way we can either fully verify the app install, or mark as failed if the app is not compliant.
 
 	pendingInstallApps, err := svc.ds.ListHostMDMAndroidVPPAppsPendingInstallWithVersion(ctx, hostUUID, appliedPolicyVersion)
 	if err != nil {
-		level.Error(svc.logger).Log("msg", "error getting pending vpp installs", "err", err)
+		svc.logger.ErrorContext(ctx, "error getting pending vpp installs", "err", err)
 		return
 	}
 	if len(pendingInstallApps) == 0 {
@@ -820,11 +819,11 @@ func (svc *Service) verifyDeviceSoftware(ctx context.Context, host *fleet.Host, 
 			if appReport.State == "INSTALLED" {
 				// definitely installed successfully
 				markVerified[appReport.PackageName] = true
-				level.Debug(svc.logger).Log("msg", "Software marked as verified", "host_uuid", hostUUID, "package_name", appReport.PackageName)
+				svc.logger.DebugContext(ctx, "Software marked as verified", "host_uuid", hostUUID, "package_name", appReport.PackageName)
 				continue
 			}
 		}
-		level.Debug(svc.logger).Log("msg", "Software not marked as verified, checking if failed", "host_uuid", hostUUID, "package_name", appReport.PackageName)
+		svc.logger.DebugContext(ctx, "Software not marked as verified, checking if failed", "host_uuid", hostUUID, "package_name", appReport.PackageName)
 	}
 
 	// for the remaining apps, mark as failed if non-conformant
@@ -838,7 +837,7 @@ func (svc *Service) verifyDeviceSoftware(ctx context.Context, host *fleet.Host, 
 			if report.NonComplianceReason == "PENDING" || report.InstallationFailureReason == "IN_PROGRESS" {
 				// keep as pending, the understanding is that another pub-sub will follow when the app's state
 				// chances to installed or failed.
-				level.Debug(svc.logger).Log("msg", "Software not reported as installed yet, will remain pending", "host_uuid", hostUUID, "package_name", packageName,
+				svc.logger.DebugContext(ctx, "Software not reported as installed yet, will remain pending", "host_uuid", hostUUID, "package_name", packageName,
 					"non_compliance_reason", report.NonComplianceReason,
 					"installation_failure_reason", report.InstallationFailureReason)
 				continue
@@ -846,7 +845,7 @@ func (svc *Service) verifyDeviceSoftware(ctx context.Context, host *fleet.Host, 
 
 			// otherwise it has failed to install, mark as failed
 			markVerified[packageName] = false
-			level.Error(svc.logger).Log("msg", "Software failed to install", "host_uuid", hostUUID, "package_name", packageName,
+			svc.logger.ErrorContext(ctx, "Software failed to install", "host_uuid", hostUUID, "package_name", packageName,
 				"non_compliance_reason", report.NonComplianceReason,
 				"installation_failure_reason", report.InstallationFailureReason,
 				"specific_non_compliance_reason", report.SpecificNonComplianceReason)
@@ -858,7 +857,7 @@ func (svc *Service) verifyDeviceSoftware(ctx context.Context, host *fleet.Host, 
 		// failed, we don't know how long it might take for the device to receive another
 		// policy, it may never happen.
 		markVerified[packageName] = false
-		level.Error(svc.logger).Log("msg", "Software failed to install without non-compliance report", "host_uuid", hostUUID, "package_name", packageName,
+		svc.logger.ErrorContext(ctx, "Software failed to install without non-compliance report", "host_uuid", hostUUID, "package_name", packageName,
 			"installation_failure_reason", "unknown - no non-compliance report received")
 	}
 
@@ -875,11 +874,11 @@ func (svc *Service) verifyDeviceSoftware(ctx context.Context, host *fleet.Host, 
 		}
 	}
 	if err := svc.ds.BulkSetVPPInstallsAsVerified(ctx, host.ID, toVerifyUUIDs); err != nil {
-		level.Error(svc.logger).Log("msg", "error marking vpp installs as verified", "err", err, "host_uuid", hostUUID)
+		svc.logger.ErrorContext(ctx, "error marking vpp installs as verified", "err", err, "host_uuid", hostUUID)
 		return
 	}
 	if err := svc.ds.BulkSetVPPInstallsAsFailed(ctx, host.ID, toFailUUIDs); err != nil {
-		level.Error(svc.logger).Log("msg", "error marking vpp installs as failed", "err", err, "host_uuid", hostUUID)
+		svc.logger.ErrorContext(ctx, "error marking vpp installs as failed", "err", err, "host_uuid", hostUUID)
 		return
 	}
 
@@ -891,17 +890,17 @@ func (svc *Service) verifyDeviceSoftware(ctx context.Context, host *fleet.Host, 
 				return false
 			}
 			// otherwise it's a DB error and we should fail
-			level.Error(svc.logger).Log("msg", "error getting past activity for installed software", "err", err, "host_uuid", hostUUID)
+			svc.logger.ErrorContext(ctx, "error getting past activity for installed software", "err", err, "host_uuid", hostUUID)
 			return true
 		}
 		if act == nil {
 			// could happen if command is not found, but shouldn't
-			level.Debug(svc.logger).Log("msg", "getting past activity for installed software did not find the command", "host_uuid", hostUUID)
+			svc.logger.DebugContext(ctx, "getting past activity for installed software did not find the command", "host_uuid", hostUUID)
 			return false
 		}
 		act.FromSetupExperience = true // currently, all Android app installs are from setup experience
 		if err := svc.activityModule.NewActivity(ctx, user, act); err != nil {
-			level.Error(svc.logger).Log("msg", "error creating past activity for installed software", "err", err, "host_uuid", hostUUID)
+			svc.logger.ErrorContext(ctx, "error creating past activity for installed software", "err", err, "host_uuid", hostUUID)
 			return true
 		}
 		return false
@@ -969,8 +968,7 @@ func (svc *Service) calculateAndroidStorageMetrics(
 	}
 
 	// Log memory events for debugging
-	level.Debug(svc.logger).Log(
-		"msg", logPrefix+logSuffix,
+	svc.logger.DebugContext(ctx, logPrefix+logSuffix,
 		"device_id", device.HardwareInfo.EnterpriseSpecificId,
 		"total_internal_storage", totalStorageBytes,
 		"memory_events_count", len(device.MemoryEvents),
@@ -990,8 +988,7 @@ func (svc *Service) calculateAndroidStorageMetrics(
 	var latestExternalMeasuredTime time.Time
 
 	for _, event := range device.MemoryEvents {
-		level.Debug(svc.logger).Log(
-			"msg", "Android memory event"+logSuffix,
+		svc.logger.DebugContext(ctx, "Android memory event"+logSuffix,
 			"event_type", event.EventType,
 			"byte_count", event.ByteCount,
 			"create_time", event.CreateTime,
@@ -1000,8 +997,7 @@ func (svc *Service) calculateAndroidStorageMetrics(
 		eventTime, err := time.Parse(time.RFC3339, event.CreateTime)
 		if err != nil {
 			// Log parse error but continue processing
-			level.Debug(svc.logger).Log(
-				"msg", "Failed to parse event time"+logSuffix,
+			svc.logger.DebugContext(ctx, "Failed to parse event time"+logSuffix,
 				"event_type", event.EventType,
 				"create_time", event.CreateTime,
 				"error", err,
@@ -1051,8 +1047,7 @@ func (svc *Service) calculateAndroidStorageMetrics(
 			gigsDiskSpaceAvailable = -1
 			percentDiskSpaceAvailable = -1
 
-			level.Debug(svc.logger).Log(
-				"msg", "Android storage measurement not supported"+logSuffix,
+			svc.logger.DebugContext(ctx, "Android storage measurement not supported"+logSuffix,
 				"device_id", device.HardwareInfo.EnterpriseSpecificId,
 				"total_storage_bytes", totalStorageBytes,
 				"reason", "Only DETECTED events, no MEASURED events",
@@ -1061,8 +1056,7 @@ func (svc *Service) calculateAndroidStorageMetrics(
 			gigsDiskSpaceAvailable = float64(totalAvailableBytes) / (1024 * 1024 * 1024)
 			percentDiskSpaceAvailable = (float64(totalAvailableBytes) / float64(totalStorageBytes)) * 100
 
-			level.Debug(svc.logger).Log(
-				"msg", "Android storage calculation complete"+logSuffix,
+			svc.logger.DebugContext(ctx, "Android storage calculation complete"+logSuffix,
 				"total_storage_bytes", totalStorageBytes,
 				"total_available_bytes", totalAvailableBytes,
 				"gigs_total", gigsTotalDiskSpace,
