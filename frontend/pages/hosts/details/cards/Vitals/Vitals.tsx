@@ -311,7 +311,7 @@ const Vitals = ({
     // Device identity
     if (!(isAndroidHost && mdm && mdm.enrollment_status !== "On (personal)")) {
       if (mdm && isBYODAccountDrivenUserEnrollment(mdm.enrollment_status)) {
-        //  Personal (BYOD) devices do not report their serial numbers, so show the Enrollment ID instead.
+        //  Personal (BYOD) devices do not report their serial numbers, so show the enrollment id instead.
         vitals.push({
           sortKey: "Enrollment ID",
           element: (
@@ -327,7 +327,7 @@ const Vitals = ({
           ),
         });
       } else {
-        // for all other host types, show the Enrollment ID dataset
+        // for all other host types, show the serial number
         vitals.push({
           sortKey: "Serial number",
           element: (
