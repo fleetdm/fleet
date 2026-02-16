@@ -9,7 +9,7 @@ Add Android hosts to Fleet using an enrollment link. Follow our [Enroll hosts gu
 
 ## Remove the old Work Profile
 
-To migrate from another MDM to Fleet, you must first remove the exisiting Work Profile.
+To migrate from another MDM to Fleet, you must first remove the existing Work Profile.
 
 1. On Google Pixel devices, open **Settings** > **Passwords, passkeys & accounts** > **Work** > **Remove work profile**.
    - On Samsung devices, open **Settings** > **Accounts and backup** > **Manage accounts** > **Work** > **Uninstall Work profile**.
