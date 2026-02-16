@@ -27,7 +27,7 @@ module.exports = {
 
   exits: {
     success: {description: 'A GitHub event was successfully received.'},
-    invalidBotSecret: {description: 'The provided botSignature did not match', responseType: 'unauthorized' },
+    unexpectedBotSignature: {description: 'The provided botSignature was incorrect', responseType: 'unauthorized' },
   },
 
 
@@ -146,7 +146,7 @@ module.exports = {
       throw new Error('No GitHub bot webhook secret configured!  (Please set `sails.config.custom.githubBotWebhookSecret`.)');
     }//•
     if (sails.config.custom.githubBotWebhookSecret !== botSignature) {
-      throw 'invalidBotSecret';
+      throw 'unexpectedBotSignature';
     }//•
 
     if (!sails.config.custom.githubAccessToken) {
