@@ -605,7 +605,7 @@ func MakeDecoder(
 						}
 					}
 
-					if err == io.ErrUnexpectedEOF {
+					if errors.Is(err, io.ErrUnexpectedEOF) {
 						return nil, platform_http.PayloadTooLargeError{ContentLength: r.Header.Get("Content-Length"), MaxRequestSize: maxRequestBodySize}
 					}
 
