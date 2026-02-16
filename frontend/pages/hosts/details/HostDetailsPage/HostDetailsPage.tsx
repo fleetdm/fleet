@@ -707,7 +707,7 @@ const HostDetailsPage = ({
     });
   }, [location.pathname, host?.display_name, setTitle]);
 
-  // Unlock the title when the component unmounts so that global App component can overrite it if needed ...
+  // Unlock the title when the component unmounts so that global App component can override it if needed ...
   useEffect(() => {
     return () => {
       clearTitle();
