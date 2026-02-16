@@ -320,7 +320,7 @@ func DecodeQueryTagValue(r *http.Request, fp fieldPair, customDecoder DomainQuer
 					}
 				}
 				// Log deprecation warning - the old name was used.
-				logging.WithLevel(ctx, level.Warn)
+				logging.WithLevel(ctx, slog.LevelWarn)
 				logging.WithExtras(ctx,
 					"deprecated_param", queryTagValue,
 					"deprecation_warning", fmt.Sprintf("'%s' is deprecated, use '%s' instead", queryTagValue, renameTo),
@@ -626,7 +626,7 @@ func MakeDecoder(
 							}
 						}
 					}
-					logging.WithLevel(ctx, level.Warn)
+					logging.WithLevel(ctx, slog.LevelWarn)
 					logging.WithExtras(ctx,
 						"deprecated_fields", fmt.Sprintf("%v", deprecated),
 						"deprecation_warning", fmt.Sprintf("use the updated field names (%s) instead", newNames),
@@ -705,7 +705,7 @@ func MakeDecoder(
 			// (bodyDecoder path).
 			if rewriter != nil {
 				if deprecated := rewriter.UsedDeprecatedKeys(); len(deprecated) > 0 {
-					logging.WithLevel(ctx, level.Warn)
+					logging.WithLevel(ctx, slog.LevelWarn)
 					logging.WithExtras(ctx,
 						"deprecated_fields", fmt.Sprintf("%v", deprecated),
 						"deprecation_warning", "use the updated field names instead",
