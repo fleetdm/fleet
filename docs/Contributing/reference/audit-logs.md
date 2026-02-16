@@ -2333,7 +2333,7 @@ This activity contains the following fields:
 }
 ```
 
-## view_host_recovery_lock_password
+## read_host_recovery_lock_password
 
 Generated when a user views the Recovery Lock password for a host.
 
