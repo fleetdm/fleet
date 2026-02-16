@@ -225,7 +225,7 @@ func (s *integrationMDMTestSuite) SetupSuite() {
 	androidMockClient.SetAuthenticationSecretFunc = func(secret string) error {
 		return nil
 	}
-	androidSvc, err := android_service.NewServiceWithClient(wlog, s.ds, androidMockClient, "test-private-key", s.ds, activityModule, config.AndroidAgentConfig{
+	androidSvc, err := android_service.NewServiceWithClient(wlog.SlogLogger(), s.ds, androidMockClient, "test-private-key", s.ds, activityModule, config.AndroidAgentConfig{
 		Package:       "com.fleetdm.agent",
 		SigningSHA256: "abc123def456",
 	})
@@ -410,7 +410,7 @@ func (s *integrationMDMTestSuite) SetupSuite() {
 							if s.onCleanupScheduleDone != nil {
 								defer s.onCleanupScheduleDone()
 							}
-							return android_service.RenewCertificateTemplates(ctx, ds, logger)
+							return android_service.RenewCertificateTemplates(ctx, ds, logger.SlogLogger())
 						}),
 					)
 					return cleanupsSchedule, nil
@@ -432,7 +432,7 @@ func (s *integrationMDMTestSuite) SetupSuite() {
 									s.onAndroidProfileJobDone()
 								}()
 							}
-							err := android_service.ReconcileProfilesWithClient(ctx, ds, logger, "", androidMockClient, config.AndroidAgentConfig{
+							err := android_service.ReconcileProfilesWithClient(ctx, ds, logger.SlogLogger(), "", androidMockClient, config.AndroidAgentConfig{
 								Package:       "com.fleetdm.agent",
 								SigningSHA256: "abc123def456",
 							})
@@ -1610,23 +1610,23 @@ func enrollWindowsHostInMDMViaOrbit(t *testing.T, host *fleet.Host, ds fleet.Dat
 }
 
 // Simulates a host being orbit enrolled first then an MDM enrollment coming via the settings app
-func (s *integrationMDMTestSuite) createWindowsHostThenEnrollMDMViaSettingsApp(fleetServerURL, email string) (*fleet.Host, *mdmtest.TestWindowsMDMClient) {
+func (s *integrationMDMTestSuite) createWindowsHostThenEnrollMDMViaSettingsApp(fleetServerURL, email, tenantID string) (*fleet.Host, *mdmtest.TestWindowsMDMClient) {
 	host := createOrbitEnrolledHost(s.T(), "windows", uuid.NewString(), s.ds)
-	mdmDevice := s.enrollWindowsMDMViaSettingsApp(fleetServerURL, email)
+	mdmDevice := s.enrollWindowsMDMViaSettingsApp(fleetServerURL, email, tenantID)
 	return host, mdmDevice
 }
 
 // Note that this method only creates the MDM Enrollment but it will still need to be linked to the host record either
 // via DS methods or by simualting a refetch.
-func (s *integrationMDMTestSuite) enrollWindowsMDMViaSettingsApp(fleetServerURL, email string) *mdmtest.TestWindowsMDMClient {
-	mdmDevice := mdmtest.NewTestMDMClientWindowsAutomatic(fleetServerURL, email, mdmtest.TestWindowsMDMClientNotInOOBE(), mdmtest.TestWindowsMDMClientWithSigningKey(s.jwtSigningKey, defaultFakeJWTKeyID))
+func (s *integrationMDMTestSuite) enrollWindowsMDMViaSettingsApp(fleetServerURL, email, tenantID string) *mdmtest.TestWindowsMDMClient {
+	mdmDevice := mdmtest.NewTestMDMClientWindowsAutomatic(fleetServerURL, email, mdmtest.TestWindowsMDMClientNotInOOBE(), mdmtest.TestWindowsMDMClientWithSigningKeyAndTenantID(s.jwtSigningKey, defaultFakeJWTKeyID, tenantID))
 	err := mdmDevice.Enroll()
 	require.NoError(s.T(), err)
 	return mdmDevice
 }
 
-func (s *integrationMDMTestSuite) enrollWindowsHostInMDMViaAutopilot(fleetServerURL, email string) *mdmtest.TestWindowsMDMClient {
-	mdmDevice := mdmtest.NewTestMDMClientWindowsAutomatic(fleetServerURL, email, mdmtest.TestWindowsMDMClientWithSigningKey(s.jwtSigningKey, defaultFakeJWTKeyID))
+func (s *integrationMDMTestSuite) enrollWindowsHostInMDMViaAutopilot(fleetServerURL, email, tenantID string) *mdmtest.TestWindowsMDMClient {
+	mdmDevice := mdmtest.NewTestMDMClientWindowsAutomatic(fleetServerURL, email, mdmtest.TestWindowsMDMClientWithSigningKeyAndTenantID(s.jwtSigningKey, defaultFakeJWTKeyID, tenantID))
 	err := mdmDevice.Enroll()
 	require.NoError(s.T(), err)
 	return mdmDevice
@@ -7473,6 +7473,38 @@ func (s *integrationMDMTestSuite) TestAppConfigWindowsMDM() {
 		}
 	}
 
+	// Set an Entra tenant ID
+	acResp = appConfigResponse{}
+	// Should fail with invalid value
+	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
+		"mdm": { "windows_entra_tenant_ids": ["tenant-id-1234"] }
+  }`), http.StatusUnprocessableEntity, &acResp)
+
+	// Should pass and create activity with valid value
+	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
+		"mdm": { "windows_entra_tenant_ids": ["1a86b496-e2a4-43ef-ba00-20004e29b13b"] }
+  }`), http.StatusOK, &acResp)
+	s.lastActivityMatches(fleet.ActivityTypeAddedMicrosoftEntraTenant{}.ActivityName(), `{"tenant_id": "1a86b496-e2a4-43ef-ba00-20004e29b13b"}`, 0)
+
+	// Should pass and create activity with multiple valid values
+	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
+		"mdm": { "windows_entra_tenant_ids": ["1a86b496-e2a4-43ef-ba00-20004e29b13b", "6dca58c4-c817-4730-831b-f3348931df05"] }
+  }`), http.StatusOK, &acResp)
+	s.lastActivityMatches(fleet.ActivityTypeAddedMicrosoftEntraTenant{}.ActivityName(), `{"tenant_id": "6dca58c4-c817-4730-831b-f3348931df05"}`, 0)
+
+	// Should fail and not create a new activity with multiple valid values and one new invalid one
+	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
+		"mdm": { "windows_entra_tenant_ids": ["1a86b496-e2a4-43ef-ba00-20004e29b13b", "6dca58c4-c817-4730-831b-f3348931df05", "fleetie-was-here"] }
+  }`), http.StatusUnprocessableEntity, &acResp)
+	// Same activity as before
+	s.lastActivityMatches(fleet.ActivityTypeAddedMicrosoftEntraTenant{}.ActivityName(), `{"tenant_id": "6dca58c4-c817-4730-831b-f3348931df05"}`, 0)
+
+	// Should pass and create a deleted activity with less valid values than before
+	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
+		"mdm": { "windows_entra_tenant_ids": ["6dca58c4-c817-4730-831b-f3348931df05"] }
+  }`), http.StatusOK, &acResp)
+	s.lastActivityMatches(fleet.ActivityTypeDeletedMicrosoftEntraTenant{}.ActivityName(), `{"tenant_id": "1a86b496-e2a4-43ef-ba00-20004e29b13b"}`, 0)
+
 	// enable Windows MDM manual enrollment
 	acResp = appConfigResponse{}
 	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
@@ -7912,13 +7944,20 @@ func (s *integrationMDMTestSuite) TestValidGetPoliciesRequestWithDeviceToken() {
 func (s *integrationMDMTestSuite) TestValidGetPoliciesRequestWithAzureToken() {
 	t := s.T()
 
+	tenantID := uuid.New().String()
+
+	acResp := appConfigResponse{}
+	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{ "mdm": { "windows_entra_tenant_ids": ["`+tenantID+`"] } }`), http.StatusOK, &acResp)
+
 	// Preparing the GetPolicies Request message with Azure JWT token
 	// Preparing the SecurityToken Request message with Azure JWT token
 	claims := &jwt.MapClaims{
 		"upn":         "fleetie@example.com",
-		"tid":         "tenant_id",
+		"tid":         tenantID,
+		"iss":         "https://sts.windows.net/" + tenantID + "/",
 		"unique_name": "foo_bar",
 		"scp":         "mdm_delegation",
+		"aud":         s.server.URL + microsoft_mdm.MDE2PolicyPath,
 	}
 
 	token := jwt.NewWithClaims(jwt.SigningMethodRS256, claims)
@@ -8088,12 +8127,19 @@ func (s *integrationMDMTestSuite) TestValidRequestSecurityTokenRequestWithDevice
 func (s *integrationMDMTestSuite) TestValidRequestSecurityTokenRequestWithAzureToken() {
 	t := s.T()
 
+	tenantID := uuid.New().String()
+
+	acResp := appConfigResponse{}
+	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{ "mdm": { "windows_entra_tenant_ids": ["`+tenantID+`"] } }`), http.StatusOK, &acResp)
+
 	// Preparing the SecurityToken Request message with Azure JWT token
 	claims := &jwt.MapClaims{
 		"upn":         "fleetie@example.com",
-		"tid":         "tenant_id",
+		"tid":         tenantID,
+		"iss":         "https://sts.windows.net/" + tenantID + "/",
 		"unique_name": "foo_bar",
 		"scp":         "mdm_delegation",
+		"aud":         s.server.URL,
 	}
 
 	token := jwt.NewWithClaims(jwt.SigningMethodRS256, claims)
@@ -8670,8 +8716,12 @@ func (s *integrationMDMTestSuite) TestWindowsAutomaticEnrollmentCommands() {
 	err := s.ds.ApplyEnrollSecrets(ctx, nil, []*fleet.EnrollSecret{{Secret: t.Name()}})
 	require.NoError(t, err)
 
+	tenantID := uuid.New().String()
+	acResp := appConfigResponse{}
+	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{ "mdm": { "windows_entra_tenant_ids": ["`+tenantID+`"] } }`), http.StatusOK, &acResp)
+
 	azureMail := "foo.bar.baz@example.com"
-	d := mdmtest.NewTestMDMClientWindowsAutomatic(s.server.URL, azureMail, mdmtest.TestWindowsMDMClientWithSigningKey(s.jwtSigningKey, defaultFakeJWTKeyID))
+	d := mdmtest.NewTestMDMClientWindowsAutomatic(s.server.URL, azureMail, mdmtest.TestWindowsMDMClientWithSigningKeyAndTenantID(s.jwtSigningKey, defaultFakeJWTKeyID, tenantID))
 	require.NoError(t, d.Enroll())
 
 	checkinAndAck := func(expectFleetdCmds bool) {
@@ -8774,20 +8824,49 @@ func (s *integrationMDMTestSuite) TestWindowsAzureInitiatedBadKeys() {
 	_, badKey, err := apple_mdm.NewSCEPCACertKey()
 	require.NoError(t, err)
 
+	tenantID := uuid.New().String()
+	acResp := appConfigResponse{}
+	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{ "mdm": { "windows_entra_tenant_ids": ["`+tenantID+`"] } }`), http.StatusOK, &acResp)
+
 	autopilotUserMail := "swan@example.com"
 
 	// Bad key
-	mdmDevice := mdmtest.NewTestMDMClientWindowsAutomatic(s.server.URL, autopilotUserMail, mdmtest.TestWindowsMDMClientWithSigningKey(badKey, defaultFakeJWTKeyID))
+	mdmDevice := mdmtest.NewTestMDMClientWindowsAutomatic(s.server.URL, autopilotUserMail, mdmtest.TestWindowsMDMClientWithSigningKeyAndTenantID(badKey, defaultFakeJWTKeyID, tenantID))
 	err = mdmDevice.Enroll()
 	require.Error(s.T(), err)
 
 	// Good key but wrong ID
-	mdmDevice = mdmtest.NewTestMDMClientWindowsAutomatic(s.server.URL, autopilotUserMail, mdmtest.TestWindowsMDMClientWithSigningKey(s.jwtSigningKey, "bad-key-id"))
+	mdmDevice = mdmtest.NewTestMDMClientWindowsAutomatic(s.server.URL, autopilotUserMail, mdmtest.TestWindowsMDMClientWithSigningKeyAndTenantID(s.jwtSigningKey, "bad-key-id", tenantID))
 	err = mdmDevice.Enroll()
 	require.Error(s.T(), err)
 
 	// Happy path to ensure the setup is correct
-	mdmDevice = mdmtest.NewTestMDMClientWindowsAutomatic(s.server.URL, autopilotUserMail, mdmtest.TestWindowsMDMClientWithSigningKey(s.jwtSigningKey, defaultFakeJWTKeyID))
+	mdmDevice = mdmtest.NewTestMDMClientWindowsAutomatic(s.server.URL, autopilotUserMail, mdmtest.TestWindowsMDMClientWithSigningKeyAndTenantID(s.jwtSigningKey, defaultFakeJWTKeyID, tenantID))
+	err = mdmDevice.Enroll()
+	require.NoError(s.T(), err)
+}
+
+func (s *integrationMDMTestSuite) TestWindowsAzureInitiatedTenantIDs() {
+	t := s.T()
+	ctx := context.Background()
+
+	// define a global enroll secret
+	err := s.ds.ApplyEnrollSecrets(ctx, nil, []*fleet.EnrollSecret{{Secret: t.Name()}})
+	require.NoError(t, err)
+
+	tenantID := uuid.New().String()
+	acResp := appConfigResponse{}
+	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{ "mdm": { "windows_entra_tenant_ids": ["`+tenantID+`"] } }`), http.StatusOK, &acResp)
+
+	autopilotUserMail := "swan@example.com"
+
+	// Bad entra tenant ID
+	mdmDevice := mdmtest.NewTestMDMClientWindowsAutomatic(s.server.URL, autopilotUserMail, mdmtest.TestWindowsMDMClientWithSigningKeyAndTenantID(s.jwtSigningKey, defaultFakeJWTKeyID, uuid.New().String()))
+	err = mdmDevice.Enroll()
+	require.Error(s.T(), err)
+
+	// Happy path to ensure the setup is correct
+	mdmDevice = mdmtest.NewTestMDMClientWindowsAutomatic(s.server.URL, autopilotUserMail, mdmtest.TestWindowsMDMClientWithSigningKeyAndTenantID(s.jwtSigningKey, defaultFakeJWTKeyID, tenantID))
 	err = mdmDevice.Enroll()
 	require.NoError(s.T(), err)
 }
@@ -8800,6 +8879,10 @@ func (s *integrationMDMTestSuite) TestWindowsAzureInitiatedEnrollmentAndMapping(
 	err := s.ds.ApplyEnrollSecrets(ctx, nil, []*fleet.EnrollSecret{{Secret: t.Name()}})
 	require.NoError(t, err)
 
+	tenantID := uuid.New().String()
+	acResp := appConfigResponse{}
+	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{ "mdm": { "windows_entra_tenant_ids": ["`+tenantID+`"] } }`), http.StatusOK, &acResp)
+
 	team, err := s.ds.NewTeam(context.Background(), &fleet.Team{
 		Name:        "team1_" + t.Name(),
 		Description: "desc team1_" + t.Name(),
@@ -8808,11 +8891,11 @@ func (s *integrationMDMTestSuite) TestWindowsAzureInitiatedEnrollmentAndMapping(
 
 	// Enroll another host to ensure the wires don't get crossed somehow
 	autopilotUserMail := "swan@example.com"
-	autopilotDevice := s.enrollWindowsHostInMDMViaAutopilot(s.server.URL, autopilotUserMail)
+	autopilotDevice := s.enrollWindowsHostInMDMViaAutopilot(s.server.URL, autopilotUserMail, tenantID)
 	require.NoError(t, autopilotDevice.Enroll())
 
 	settingsAppUserMail := "fleetie@example.com"
-	settingsAppHost, settingsAppDevice := s.createWindowsHostThenEnrollMDMViaSettingsApp(s.server.URL, settingsAppUserMail)
+	settingsAppHost, settingsAppDevice := s.createWindowsHostThenEnrollMDMViaSettingsApp(s.server.URL, settingsAppUserMail, tenantID)
 	require.NoError(t, settingsAppDevice.Enroll())
 
 	// Transfer the host to the team. Ensure it doesn't wind up in "No team" at the end

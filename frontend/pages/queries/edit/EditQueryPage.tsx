@@ -381,7 +381,7 @@ const EditQueryPage = ({
     }
 
     if (hostId) {
-      return getPathWithQueryParams(PATHS.HOST_DETAILS(hostId));
+      return getPathWithQueryParams(PATHS.HOST_DETAILS(hostId, currentTeamId));
     }
 
     if (filteredQueriesPath) return filteredQueriesPath;

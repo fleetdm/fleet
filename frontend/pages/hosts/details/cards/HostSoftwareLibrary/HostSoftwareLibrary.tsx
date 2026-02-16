@@ -88,6 +88,7 @@ export const parseHostSoftwareLibraryQueryParams = (queryParams: {
   order_key?: string;
   order_direction?: "asc" | "desc";
   self_service?: string;
+  team_id?: string;
 }) => {
   const searchQuery = queryParams?.query ?? DEFAULT_SEARCH_QUERY;
   const sortHeader = queryParams?.order_key ?? DEFAULT_SORT_HEADER;
@@ -97,6 +98,9 @@ export const parseHostSoftwareLibraryQueryParams = (queryParams: {
     : DEFAULT_PAGE;
   const pageSize = DEFAULT_PAGE_SIZE;
   const selfService = queryParams?.self_service === "true";
+  const teamId = queryParams?.team_id
+    ? parseInt(queryParams.team_id, 10)
+    : undefined;
 
   return {
     page,
@@ -106,6 +110,7 @@ export const parseHostSoftwareLibraryQueryParams = (queryParams: {
     per_page: pageSize,
     available_for_install: true, // always true for host installers
     self_service: selfService,
+    team_id: teamId,
   };
 };
 
@@ -605,6 +610,7 @@ const HostSoftwareLibrary = ({
         page={queryParams.page}
         pagePath={pathname}
         selfService={queryParams.self_service}
+        teamId={queryParams.team_id}
       />
     );
   };

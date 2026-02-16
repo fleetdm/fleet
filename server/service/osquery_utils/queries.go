@@ -2015,10 +2015,9 @@ func directIngestScheduledQueryStats(ctx context.Context, logger log.Logger, hos
 }
 
 const (
-	linuxImageRegex       = `^linux-image-[[:digit:]]+\.[[:digit:]]+\.[[:digit:]]+-[[:digit:]]+-[[:alnum:]]+`
-	amazonLinuxKernelName = "kernel"
-	rhelKernelName        = "kernel-core"
-	archKernelName        = `^linux(?:-(?:lts|zen|hardened))?$`
+	linuxImageRegex = `^linux-image-[[:digit:]]+\.[[:digit:]]+\.[[:digit:]]+-[[:digit:]]+-[[:alnum:]]+`
+	rpmKernelName   = "kernel"
+	archKernelName  = `^linux(?:-(?:lts|zen|hardened))?$`
 )
 
 var (
@@ -2064,7 +2063,7 @@ func directIngestSoftware(ctx context.Context, logger log.Logger, host *fleet.Ho
 			continue
 		}
 
-		if fleet.IsLinux(host.Platform) && (kernelRegex.MatchString(s.Name) || s.Name == amazonLinuxKernelName || s.Name == rhelKernelName || archKernelRegex.MatchString(s.Name)) {
+		if fleet.IsLinux(host.Platform) && (kernelRegex.MatchString(s.Name) || s.Name == rpmKernelName || archKernelRegex.MatchString(s.Name)) {
 			s.IsKernel = true
 		}
 
@@ -2275,6 +2274,13 @@ func MutateSoftwareOnIngestion(s *fleet.Software, logger log.Logger) {
 				break
 			}
 		}
+	}
+
+	// For RHEL kernels, join version and release to match OVAL format.
+	// See server/vulnerabilities/goval_dictionary/database.Eval
+	if s != nil && s.Source == "rpm_packages" && s.Name == rpmKernelName && s.Release != "" {
+		s.Version = fmt.Sprintf("%s-%s", s.Version, s.Release)
+		s.Release = "" // Clear release to avoid issues with vulnerability matching
 	}
 }
 
