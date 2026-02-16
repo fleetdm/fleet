@@ -108,7 +108,8 @@ func TestCheckURLForSSRFBadScheme(t *testing.T) {
 
 	err := CheckURLForSSRF(context.Background(), "file:///etc/passwd", noopResolver)
 	require.Error(t, err)
-	assert.NotErrorIs(t, err, (*SSRFError)(nil))
+	var ssrfErr *SSRFError
+	assert.False(t, errors.As(err, &ssrfErr), "bad-scheme error should not be an SSRFError")
 }
 
 func TestCheckURLForSSRFResolverError(t *testing.T) {
