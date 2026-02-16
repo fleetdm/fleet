@@ -250,13 +250,13 @@ func (r streamHostsResponse) HijackRender(_ context.Context, w http.ResponseWrit
 			return
 		}
 		data, err := marshalJson(hostResp)
-		data = endpointer.DuplicateJSONKeys(data, aliasRules, endpointer.DuplicateJSONKeysOpts{Compact: true})
 		if err != nil {
 			fmt.Fprint(w, `],`)
 			fmt.Fprint(w, marshalError(fmt.Sprintf("marshaling host response: %s", err.Error())))
 			fmt.Fprint(w, `}`)
 			return
 		}
+		data = endpointer.DuplicateJSONKeys(data, aliasRules, endpointer.DuplicateJSONKeysOpts{Compact: true})
 		if !firstHost {
 			fmt.Fprint(w, `,`)
 		}
