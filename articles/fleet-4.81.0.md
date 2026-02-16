@@ -11,13 +11,12 @@ Fleet 4.81.0 is now available. See the complete [changelog](https://github.com/f
 - Lower AWS costs
 - Automatic IdP deprovisioning
 - Okta as a certificate authority (CA) with a dynamic challenge
-- Okta conditional access
 - Proxy-ready Fleet Desktop configuration
 - Windows profiles behave like macOS
 
 ### Lower AWS costs
 
-Fleet now supports [gzip compression](https://developer.mozilla.org/en-US/docs/Glossary/gzip_compression) on agent API responses, reducing outbound bandwidth from your Fleet server. For Fleet users who self-host, that means lower AWS costs with no workflow changes. Currently, gzip compression is currently off by default but will soon default to on. Learn how to [turn on compression](TODO).
+Fleet now supports [gzip compression](https://developer.mozilla.org/en-US/docs/Glossary/gzip_compression) on agent API responses, reducing outbound bandwidth from your Fleet server. For Fleet users who self-host, that means lower AWS costs with no workflow changes. Currently, gzip compression is currently off by default but will soon default to on. Learn how to [turn on compression](https://fleetdm.com/docs/configuration/fleet-server-configuration#server-gzip-responses).
 
 ### Automatic IdP deprovisioning
 
@@ -27,13 +26,9 @@ When a user is removed from your identitify provider (IdP), like Okta, they’re
 
 Fleet now supports dynamic challenges when deploying certificates for Okta Verify. Each host gets a unique secret at enrollment, strengthening security. [Learn how](TODO).
 
-### Okta conditional access
-
-If you use Okta s your identity provider (IdP), you can now mark policies as required to access organization resources. When an end user fails a policy, Fleet takes them directly to the right page in Fleet Desktop and offers a snooze option. IT Admins see fewer support tickets and faster remediation. Security Engineers benefit from shorter failure windows and better policy adherence. [Learn more](TODO).
-
 ### Proxy-ready Fleet Desktop configuration
 
-For users that self-host Fleet, you can now configure an [alternative URL](TODO) for Fleet Desktop. IT Admins can route traffic through a custom proxy for added control.
+For users that self-host Fleet, you can now configure an [alternative URL](https://fleetdm.com/guides/enroll-hosts#alternative-browser-host) for Fleet Desktop. IT Admins can route traffic through a custom proxy for added control.
 
 ### Windows profiles behave like macOS
 
