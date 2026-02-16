@@ -42,7 +42,7 @@ A Set up your work profile screen will then appear. Select **Next**, then the ne
 
 <img width="2500" height="2000" alt="image6" src="https://github.com/user-attachments/assets/5f09407a-4db3-4ed3-ac60-ab11c6c7cb1e" />
 
-The Work Profile setup will then begin, and on Samsung devices there may be one more prompt to select **Next** at.
+The Work Profile setup will then begin, and on Samsung devices, there may be one more prompt to select **Next**.
 
 <img width="2500" height="2000" alt="image3" src="https://github.com/user-attachments/assets/e6823e4a-ed66-4831-8c63-f5b663e7a0a3" />
 
