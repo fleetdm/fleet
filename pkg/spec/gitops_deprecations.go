@@ -62,8 +62,8 @@ func migrateKeyPathRecursive(data map[string]any, oldParts, newParts []string, f
 	newKey := newParts[0]
 
 	// Check if this key references an array (e.g. "apple_business_manager[]").
-	if strings.HasSuffix(oldKey, "[]") {
-		oldKey = strings.TrimSuffix(oldKey, "[]")
+	if trimmed, ok := strings.CutSuffix(oldKey, "[]"); ok {
+		oldKey = trimmed
 		newKey = strings.TrimSuffix(newKey, "[]")
 
 		arr, ok := data[oldKey]
