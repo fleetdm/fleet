@@ -13,7 +13,7 @@ import (
 
 //go:generate go run ../../tools/osquery-agent-options agent_options_generated.go
 
-const maxAgentScriptExecutionTimeout = 3600
+const maxAgentScriptExecutionTimeout = 18000
 
 type AgentOptions struct {
 	// ScriptExecutionTimeout is the maximum time in seconds that a script can run.
