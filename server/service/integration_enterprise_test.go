@@ -19344,6 +19344,29 @@ func (s *integrationEnterpriseTestSuite) TestMaintainedApps() {
 	s.DoJSON("POST", "/api/latest/fleet/software/fleet_maintained_apps", req, http.StatusOK, &addMAResp)
 	require.Nil(t, addMAResp.Err)
 
+	// Verify the active installer ID matches the only installer for this FMA
+	var fmaActiveCount, fmaActiveInstallerID, onlyInstallerID uint
+	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		err := sqlx.GetContext(ctx, q, &fmaActiveInstallerID,
+			`SELECT software_installer_id FROM fma_active_installers WHERE fleet_maintained_app_id = ? AND global_or_team_id = ?`,
+			req.AppID, team.ID)
+		if err != nil {
+			return err
+		}
+
+		err = sqlx.GetContext(ctx, q, &fmaActiveCount,
+			`SELECT COUNT(*) FROM fma_active_installers WHERE fleet_maintained_app_id = ? AND global_or_team_id = ?`,
+			req.AppID, team.ID)
+
+		require.NoError(t, err)
+
+		return sqlx.GetContext(ctx, q, &onlyInstallerID,
+			`SELECT id FROM software_installers WHERE fleet_maintained_app_id = ? AND global_or_team_id = ?`,
+			req.AppID, team.ID)
+	})
+	require.Equal(t, onlyInstallerID, fmaActiveInstallerID, "active installer must point to the only installer")
+	require.Equal(t, uint(1), fmaActiveCount, "single-add API must create fma_active_installers row")
+
 	s.DoJSON(http.MethodGet, "/api/latest/fleet/software/fleet_maintained_apps", listFleetMaintainedAppsRequest{}, http.StatusOK,
 		&listMAResp, "team_id", fmt.Sprint(team.ID))
 	require.Nil(t, listMAResp.Err)
