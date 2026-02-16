@@ -138,21 +138,21 @@ parasails.registerPage('basic-handbook', {
       });
       return subtopics;
     })();
-
+    // Create a list of "Related topics"
     let pagesInFolder = (()=>{
       let relatedPages = [];
-      if(!this.isHandbookLandingPage){
+      if(!this.isHandbookLandingPage) {
         let thisPagesFolderInTheHandbookFolder = this.thisPage.sectionRelativeRepoPath.split('/')[0];
-        if(thisPagesFolderInTheHandbookFolder !== 'company'){
-          let pagesInThisFolder = _.filter(this.markdownPages, (page)=>{ return _.startsWith(page.sectionRelativeRepoPath, thisPagesFolderInTheHandbookFolder);});
-          relatedPages = pagesInThisFolder.map((page)=>{
+        let pagesInThisFolder = _.filter(this.markdownPages, (page)=>{ return _.startsWith(page.sectionRelativeRepoPath, thisPagesFolderInTheHandbookFolder);});
+        relatedPages = pagesInThisFolder.map((page)=>{
+          if(!_.startsWith(page.url, '/handbook/company/open-positions') && !_.startsWith(page.url, '/handbook/company/legal') ){
             return {
               url: page.url,
-              title: _.trim(page.title.replace(this.regexToMatchEmoji, '')),
+              title: page.title.replace(this.regexToMatchEmoji, '').replace(/^\W/, ''),
             };
-          });
-        }
-        return relatedPages;
+          }
+        });
+        return _.filter(relatedPages, (page)=>{ return !! page; });
       }
     })();
     this.relatedPages = pagesInFolder;
