@@ -293,7 +293,7 @@ queries:
 	assert.Len(t, profiles, 1)
 
 	// now modify the stored config and confirm that external digicert service is called
-	err = os.WriteFile(globalFile.Name(), []byte(fmt.Sprintf(`
+	err = os.WriteFile(globalFile.Name(), fmt.Appendf(nil, `
 agent_options:
 controls:
   macos_settings:
@@ -325,7 +325,7 @@ queries:
 		digiCertServer.URL,
 		"digicert_upn_2", // minor modification to stored config so gitops run is not a no-op and triggers call to external digicert service
 		scepServer.URL+"/scep",
-	)), 0o644)
+	), 0o644)
 	require.NoError(t, err)
 
 	// Apply configs
