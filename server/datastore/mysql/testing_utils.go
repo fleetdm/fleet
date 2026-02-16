@@ -14,6 +14,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log/slog"
 	"os"
 	"os/exec"
 	"regexp"
@@ -37,7 +38,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/platform/logging"
 	common_mysql "github.com/fleetdm/fleet/v4/server/platform/mysql"
 	"github.com/fleetdm/fleet/v4/server/platform/mysql/testing_utils"
-	"github.com/go-kit/log"
 	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
 	"github.com/olekukonko/tablewriter"
@@ -1021,7 +1021,7 @@ func NewTestActivityService(t testing.TB, ds *Datastore) activity_api.Service {
 	providers := activityacl.NewFleetServiceAdapter(lookupSvc)
 
 	// Create service via bootstrap (the public API for creating the bounded context)
-	svc, _ := activity_bootstrap.New(dbConns, &testingAuthorizer{}, providers, log.NewNopLogger())
+	svc, _ := activity_bootstrap.New(dbConns, &testingAuthorizer{}, providers, slog.New(slog.DiscardHandler))
 	return svc
 }
 

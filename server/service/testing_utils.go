@@ -468,7 +468,7 @@ func RunServerForTestsWithServiceWithDS(t *testing.T, ctx context.Context, ds fl
 			opts[0].DBConns,
 			activityAuthorizer,
 			activityACLAdapter,
-			logger,
+			logger.SlogLogger(),
 		)
 		activityAuthMiddleware := func(next endpoint.Endpoint) endpoint.Endpoint {
 			return auth.AuthenticatedUser(svc, next)
