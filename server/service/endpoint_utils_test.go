@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"io"
+	"log/slog"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -16,6 +17,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mock"
 	"github.com/fleetdm/fleet/v4/server/platform/endpointer"
 	platform_http "github.com/fleetdm/fleet/v4/server/platform/http"
+	platformlogging "github.com/fleetdm/fleet/v4/server/platform/logging"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/service/middleware/auth"
 	"github.com/fleetdm/fleet/v4/server/service/middleware/log"
@@ -318,7 +320,7 @@ func TestEndpointer(t *testing.T) {
 		kithttp.ServerErrorEncoder(fleetErrorEncoder),
 		kithttp.ServerAfter(
 			kithttp.SetContentType("application/json; charset=utf-8"),
-			log.LogRequestEnd(kitlog.NewNopLogger()),
+			log.LogRequestEnd(slog.New(platformlogging.DiscardHandler{})),
 			checkLicenseExpiration(svc),
 		),
 	}
@@ -438,7 +440,7 @@ func TestEndpointerCustomMiddleware(t *testing.T) {
 		kithttp.ServerErrorEncoder(fleetErrorEncoder),
 		kithttp.ServerAfter(
 			kithttp.SetContentType("application/json; charset=utf-8"),
-			log.LogRequestEnd(kitlog.NewNopLogger()),
+			log.LogRequestEnd(slog.New(platformlogging.DiscardHandler{})),
 			checkLicenseExpiration(svc),
 		),
 	}

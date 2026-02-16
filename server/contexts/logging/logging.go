@@ -3,14 +3,13 @@ package logging
 import (
 	"context"
 	"errors"
+	"log/slog"
 	"strings"
 	"sync"
 	"time"
 
 	platform_http "github.com/fleetdm/fleet/v4/server/platform/http"
 	kithttp "github.com/go-kit/kit/transport/http"
-	kitlog "github.com/go-kit/log"
-	"github.com/go-kit/log/level"
 )
 
 // UserEmailer provides the user's email for logging purposes.
@@ -90,7 +89,7 @@ func WithExtras(ctx context.Context, extras ...interface{}) context.Context {
 
 // WithLevel forces a log level for the current request/context.
 // Level may still be upgraded to Error if an error is present.
-func WithLevel(ctx context.Context, level func(kitlog.Logger) kitlog.Logger) context.Context {
+func WithLevel(ctx context.Context, level slog.Level) context.Context {
 	if logCtx, ok := FromContext(ctx); ok {
 		logCtx.SetForceLevel(level)
 	}
@@ -105,13 +104,13 @@ type LoggingContext struct {
 	Errs       []error
 	Extras     []interface{}
 	SkipUser   bool
-	ForceLevel func(kitlog.Logger) kitlog.Logger
+	ForceLevel *slog.Level
 }
 
-func (l *LoggingContext) SetForceLevel(level func(kitlog.Logger) kitlog.Logger) {
+func (l *LoggingContext) SetForceLevel(level slog.Level) {
 	l.l.Lock()
 	defer l.l.Unlock()
-	l.ForceLevel = level
+	l.ForceLevel = &level
 }
 
 func (l *LoggingContext) SetExtras(extras ...interface{}) {
@@ -139,45 +138,53 @@ func (l *LoggingContext) SetErrs(err ...error) {
 }
 
 // Log logs the data within the context
-func (l *LoggingContext) Log(ctx context.Context, logger kitlog.Logger) {
+func (l *LoggingContext) Log(ctx context.Context, logger *slog.Logger) {
 	l.l.Lock()
 	defer l.l.Unlock()
 
+	var lvl slog.Level
 	switch {
 	case l.setLevelError():
-		logger = level.Error(logger)
+		lvl = slog.LevelError
 	case l.ForceLevel != nil:
-		logger = l.ForceLevel(logger)
+		lvl = *l.ForceLevel
 	default:
-		logger = level.Debug(logger)
+		lvl = slog.LevelDebug
 	}
 
-	var keyvals []interface{}
+	if !logger.Enabled(ctx, lvl) {
+		return
+	}
+
+	attrs := make([]slog.Attr, 0, 8+len(l.Extras)/2)
 
 	if !l.SkipUser {
 		loggedInUser := "unauthenticated"
 		if emailer, ok := UserEmailerFromContext(ctx); ok {
 			loggedInUser = emailer.Email()
 		}
-		keyvals = append(keyvals, "user", loggedInUser)
+		attrs = append(attrs, slog.String("user", loggedInUser))
 	}
-	requestMethod, ok := ctx.Value(kithttp.ContextKeyRequestMethod).(string)
-	if !ok {
-		requestMethod = ""
-	}
-	requestURI, ok := ctx.Value(kithttp.ContextKeyRequestURI).(string)
-	if !ok {
-		requestURI = ""
-	}
-	keyvals = append(keyvals, "method", requestMethod, "uri", requestURI, "took", time.Since(l.StartTime))
+
+	requestMethod, _ := ctx.Value(kithttp.ContextKeyRequestMethod).(string)
+	requestURI, _ := ctx.Value(kithttp.ContextKeyRequestURI).(string)
+	attrs = append(attrs,
+		slog.String("method", requestMethod),
+		slog.String("uri", requestURI),
+		slog.Duration("took", time.Since(l.StartTime)),
+	)
 
 	if len(l.Extras) > 0 {
-		keyvals = append(keyvals, l.Extras...)
+		for i := 0; i < len(l.Extras)-1; i += 2 {
+			key, ok := l.Extras[i].(string)
+			if !ok {
+				continue
+			}
+			attrs = append(attrs, slog.Any(key, l.Extras[i+1]))
+		}
 	}
 
 	if len(l.Errs) > 0 {
-		// Going for string concatenation here instead of json.Marshal mostly to not have to deal with error handling
-		// within this method. kitlog doesn't support slices of strings
 		var (
 			errs         string
 			internalErrs string
@@ -207,17 +214,17 @@ func (l *LoggingContext) Log(ctx context.Context, logger kitlog.Logger) {
 			}
 		}
 		if len(errs) > 0 {
-			keyvals = append(keyvals, "err", errs)
+			attrs = append(attrs, slog.String("err", errs))
 		}
 		if len(internalErrs) > 0 {
-			keyvals = append(keyvals, "internal", internalErrs)
+			attrs = append(attrs, slog.String("internal", internalErrs))
 		}
 		if len(uuids) > 0 {
-			keyvals = append(keyvals, "uuid", strings.Join(uuids, ","))
+			attrs = append(attrs, slog.String("uuid", strings.Join(uuids, ",")))
 		}
 	}
 
-	_ = logger.Log(keyvals...)
+	logger.LogAttrs(ctx, lvl, "", attrs...)
 }
 
 func (l *LoggingContext) setLevelError() bool {

@@ -1,7 +1,7 @@
 {
   "versions": [
     {
-      "version": "6.7.5.75246",
+      "version": "6.7.6.75444",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'us.zoom.xos';"
       },
