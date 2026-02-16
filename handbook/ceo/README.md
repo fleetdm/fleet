@@ -8,7 +8,7 @@ This page details processes specific to working [with](#contact-us) and [within]
 | Role                            | Contributor(s)
 |:--------------------------------|:----------------------------------------------------------------------|
 | [CEO](https://fleetdm.com/handbook/company/leadership#ceo-flaws) | [Mike McNeil](https://www.linkedin.com/in/mikermcneil) _([@mikermcneil](https://github.com/mikermcneil))_
-| Executive Assistant | <sup><sub> _See [🧑‍🚀 People](https://fleetdm.com/handbook/people#team) </sup></sub>
+| Executive Assistant | <sup><sub> See [🧑‍🚀 People](https://fleetdm.com/handbook/people#team) </sup></sub>
 
 
 ## Contact us
@@ -20,7 +20,7 @@ This page details processes specific to working [with](#contact-us) and [within]
 
 Ultimately, the CEO is responsible for the success or failure of the company. The CEO is the [directly responsible individual (DRI)](https://fleetdm.com/handbook/company/why-this-way#why-direct-responsibility) for pricing tiers, the business model, human resources, legal counsel, signatures on all documents, and brand &amp; product marketing (brandfronts, pitchfronts, featurefronts, ICPs, personas, and targeting).
 
-> **Note:** When the CEO is out of office, CEO responsibilities are either paused, delegated, or coordinated through the [Head of Digital Workplace & GTM Systems](https://fleetdm.com/handbook/it-and-enablement#team) so they can be handled promptly.  (It depends on the responsibility and the situation.)
+> **Note:** When the CEO is out of office, CEO responsibilities are either paused, delegated, or coordinated through the [GTM Systems Architect](https://fleetdm.com/handbook/finance#team) so they can be handled promptly.  (It depends on the responsibility and the situation.)
 
 
 ### Process the CEO's inbox

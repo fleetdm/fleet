@@ -4,7 +4,7 @@ _Available in Fleet Premium_
 
 In Fleet, you can enforce OS updates on your macOS, Windows, iOS, and iPadOS hosts remotely using the Fleet UI, Fleet API, or Fleet's GitOps workflow.
 
-For Apple (macOS, iOS, and iPadOS) hosts, Apple requires that the OS version is one from the [list of available OS versions](https://gdmf.apple.com/v2/pmv). The update will only be enforced if you use a version in that list.
+For Apple (macOS, iOS, and iPadOS) hosts, Apple requires that the OS version is one from the [list of available OS versions](https://sofa.macadmins.io/). The update will only be enforced if you use a version in that list.
 
 ## Fleet UI
 
@@ -48,9 +48,9 @@ If you set a past date (ex. yesterday) as the deadline, the end user will immedi
 
 You can require hosts that automatically enroll via ADE to update to the latest version before they enroll to Fleet (during Setup Assistant).
 
-For iOS/iPadOS hosts, set a minimum version and deadline.
-
 For macOS hosts, in Fleet, head to **Controls > OS updates** and check the **Update new hosts to latest** checkbox.
+
+For iOS/iPadOS hosts, set a minimum version and deadline. New iOS/iPadOS hosts will always update to the latest version (not the minimum version specified). On already enrolled hosts, updates are only enforced if the host is [below the minimum version](#apple-macos-ios-and-ipados-end-user-experience).
 
 ## Windows end user experience
 

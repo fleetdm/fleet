@@ -22,6 +22,11 @@ type ActivityWebhookPayload struct {
 // ActivityWebhookContextKey is the context key to indicate that the activity webhook has been processed before saving the activity.
 const ActivityWebhookContextKey = ContextKey("ActivityWebhook")
 
+// ActivityAutomationAuthor is the name used for the actor when an activity
+// is performed by Fleet automation (cron jobs, system operations, etc.)
+// rather than by a human user.
+const ActivityAutomationAuthor = "Fleet"
+
 type Activity struct {
 	CreateTimestamp
 
@@ -253,6 +258,8 @@ var ActivityDetailsList = []ActivityDetails{
 	ActivityEditedSetupExperienceSoftware{},
 
 	ActivityTypeEditedHostIdpData{},
+
+	ActivityTypeEditedEnrollSecrets{},
 }
 
 type ActivityDetails interface {
@@ -3050,6 +3057,44 @@ func (a ActivityTypeDisabledConditionalAccessAutomations) Documentation() (strin
 }`
 }
 
+type ActivityTypeUpdateConditionalAccessBypass struct {
+	BypassDisabled bool `json:"bypass_disabled"`
+}
+
+func (a ActivityTypeUpdateConditionalAccessBypass) ActivityName() string {
+	return "update_conditional_access_bypass"
+}
+
+func (a ActivityTypeUpdateConditionalAccessBypass) Documentation() (activity string, details string, detailsExample string) {
+	return `Generated when conditional access bypass settings are updated.`,
+		`This activity contains the following field:
+- "bypass_disabled": Whether conditional access bypass was disabled.`, `{
+	"bypass_disabled": true,
+}`
+}
+
+type ActivityTypeHostBypassedConditionalAccess struct {
+	HostID          uint   `json:"host_id"`
+	HostDisplayName string `json:"host_display_name"`
+	IdPFullName     string `json:"idp_full_name"`
+}
+
+func (a ActivityTypeHostBypassedConditionalAccess) ActivityName() string {
+	return "host_bypassed_conditional_access"
+}
+
+func (a ActivityTypeHostBypassedConditionalAccess) Documentation() (activity string, details string, detailsExample string) {
+	return `Generated when a host bypasses conditional access.`,
+		`This activity contains the following fields:
+- "host_display_name": The display name of the bypassed host.
+- "host_id": ID of the host.
+- "idp_full_name": The end user's full name from Okta.`, `{
+	"host_display_name": "Anna's Macbook Pro",
+	"host_id": 123,
+	"idp_full_name": "Anna Chao"
+}`
+}
+
 type ActivityTypeEscrowedDiskEncryptionKey struct {
 	HostID          uint   `json:"host_id"`
 	HostDisplayName string `json:"host_display_name"`
@@ -3278,5 +3323,56 @@ func (a ActivityTypeDeletedCertificate) Documentation() (activity string, detail
   "certificate_name": "WiFi cert",
   "team_id": 123,
   "team_name": "Mobile devices"
+}`
+}
+
+type ActivityTypeAddedMicrosoftEntraTenant struct {
+	TenantID string `json:"tenant_id"`
+}
+
+func (a ActivityTypeAddedMicrosoftEntraTenant) ActivityName() string {
+	return "added_microsoft_entra_tenant"
+}
+
+func (a ActivityTypeAddedMicrosoftEntraTenant) Documentation() (activity string, details string, detailsExample string) {
+	return `Generated when Entra tenant is added.`,
+		`This activity contains the following field:
+- "tenant_id": the ID of the Entra tenant.`, `{
+	"tenant_id": "ada00076-06f6-459b-8c45-88a843a2271f"
+}`
+}
+
+type ActivityTypeDeletedMicrosoftEntraTenant struct {
+	TenantID string `json:"tenant_id"`
+}
+
+func (a ActivityTypeDeletedMicrosoftEntraTenant) ActivityName() string {
+	return "deleted_microsoft_entra_tenant"
+}
+
+func (a ActivityTypeDeletedMicrosoftEntraTenant) Documentation() (activity string, details string, detailsExample string) {
+	return `Generated when Entra tenant is deleted.`,
+		`This activity contains the following field:
+- "tenant_id": the ID of the Entra tenant.`, `{
+	"tenant_id": "ada00076-06f6-459b-8c45-88a843a2271f"
+}`
+}
+
+type ActivityTypeEditedEnrollSecrets struct {
+	TeamID   *uint   `json:"team_id"`
+	TeamName *string `json:"team_name"`
+}
+
+func (a ActivityTypeEditedEnrollSecrets) ActivityName() string {
+	return "edited_enroll_secrets"
+}
+
+func (a ActivityTypeEditedEnrollSecrets) Documentation() (activity, details, detailsExample string) {
+	return `Generated when global or team enroll secrets are edited.`,
+		`This activity contains the following fields:
+- "team_id": The ID of the team that the enroll secret applies to, ` + "`null`" + ` if it applies to devices that are not in a team.
+- "team_name": The name of the team that the enroll secret applies to, ` + "`null`" + ` if it applies to devices that are not in a team.`, `{
+  "team_id": 1,
+  "team_name": "Workstations",
 }`
 }

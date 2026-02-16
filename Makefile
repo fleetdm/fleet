@@ -3,8 +3,16 @@
 export GO111MODULE=on
 
 PATH := $(shell npm bin):$(PATH)
-VERSION = $(shell git describe --tags --always --dirty)
 BRANCH = $(shell git rev-parse --abbrev-ref HEAD)
+
+# If VERSION is not explicitly set, derive it from the branch name
+ifndef VERSION
+	VERSION := $(shell tools/version-from-branch.sh "$(BRANCH)" 2>/dev/null)
+	# Fall back to git describe when the branch name doesn't match any pattern
+	ifeq ($(VERSION),)
+		VERSION := $(shell git describe --tags --always --dirty)
+	endif
+endif
 REVISION = $(shell git rev-parse HEAD)
 REVSHORT = $(shell git rev-parse --short HEAD)
 USER = $(shell whoami)
@@ -210,10 +218,18 @@ lint-js:
 .help-short--lint-go:
 	@echo "Run the Go linters"
 lint-go:
-	golangci-lint run --timeout 15m
+	-golangci-lint run --timeout 15m
 ifndef SKIP_INCREMENTAL
-	golangci-lint run -c .golangci-incremental.yml --new-from-merge-base=origin/main --timeout 15m ./...
+	$(MAKE) lint-go-incremental
 endif
+
+.help-short--lint-go-incremental:
+	@echo "Run the incremental Go linters"
+lint-go-incremental: custom-gcl
+	./custom-gcl run -c .golangci-incremental.yml --new-from-merge-base=origin/main --timeout 15m ./...
+
+custom-gcl:
+	golangci-lint custom
 
 .help-short--lint:
 	@echo "Run linters"
@@ -763,7 +779,7 @@ desktop-linux:
 	docker build -f Dockerfile-desktop-linux -t desktop-linux-builder .
 	docker run --rm -v $(shell pwd):/output desktop-linux-builder /bin/bash -c "\
 		mkdir -p /output/fleet-desktop && \
-		go build -o /output/fleet-desktop/fleet-desktop -ldflags "-X=main.version=$(FLEET_DESKTOP_VERSION)" /usr/src/fleet/orbit/cmd/desktop && \
+		CGO_ENABLED=1 CC=musl-gcc go build -o /output/fleet-desktop/fleet-desktop -ldflags \"-linkmode external -extldflags \\\"-static\\\" -X=main.version=$(FLEET_DESKTOP_VERSION)\" /usr/src/fleet/orbit/cmd/desktop && \
 		cd /output && \
 		tar czf desktop.tar.gz fleet-desktop && \
 		rm -r fleet-desktop"

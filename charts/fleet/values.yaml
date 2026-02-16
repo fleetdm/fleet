@@ -4,7 +4,7 @@ hostName: fleet.localhost
 replicas: 3 # The number of Fleet instances to deploy
 revisionHistoryLimit: 10 # Number of old ReplicaSets for Fleet deployment to retain for rollback (set to 0 for unlimited)
 imageRepository: fleetdm/fleet
-imageTag: v4.79.0 # Version of Fleet to deploy
+imageTag: v4.80.1 # Version of Fleet to deploy
 # imagePullSecrets is optional.
 # imagePullSecrets:
 #   - name: docker
@@ -130,6 +130,26 @@ fleet:
     runAsNonRoot: true
     runAsUser: 3333
     runAsGroup: 3333
+  # Add additional CA's to the Fleet container truststore
+  # To add CA's, set enabled: true 
+  # Supports adding CA's from Config maps and Secrets
+  # configMaps:
+  #   - name: fleet-ca-config
+  #   - name: ca-config-map-2
+  #   - name: ca-config-map-3
+  #   - name: ca-config-map-N
+  # secrets:
+  #   - name: fleet-ca-secret
+  #   - name: ca-secret-2
+  #   - name: ca-secret-3
+  #   - name: ca-secret-N
+  additionalCAs:
+    enabled: false
+    configMaps:
+    # - name: fleet-ca-config
+    secrets:
+    # - name: fleet-ca-secret
+
 # Whether to make fleet vulnerability processing run in a dedicated container
 # if you set dedicated=false, you need to increase the main resources section
 # to 4Gi or the fleet container will be OOMKilled when vulnerability processing

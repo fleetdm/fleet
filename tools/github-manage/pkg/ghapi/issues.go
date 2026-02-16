@@ -83,6 +83,16 @@ func RemoveLabelFromIssue(issueNumber int, label string) error {
 	return nil
 }
 
+// CloseIssue closes a GitHub issue.
+func CloseIssue(issueNumber int) error {
+	command := fmt.Sprintf("gh issue close %d", issueNumber)
+	_, err := RunCommandAndReturnOutput(command)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
 // SetMilestoneToIssue sets a milestone for an issue.
 func SetMilestoneToIssue(issueNumber int, milestone string) error {
 	command := fmt.Sprintf("gh issue edit %d --milestone %s", issueNumber, milestone)
@@ -140,7 +150,7 @@ func SyncEstimateField(issueNumber int, sourceProjectID, targetProjectID int) er
 	}
 
 	// Get the estimate value from the source project using GraphQL
-	sourceEstimate, err := getProjectItemFieldValue(sourceItemID, sourceProjectID, "Estimate")
+	sourceEstimate, err := GetProjectItemFieldValue(sourceItemID, sourceProjectID, "Estimate")
 	if err != nil {
 		return fmt.Errorf("failed to get source estimate: %v", err)
 	}

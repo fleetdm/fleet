@@ -39,10 +39,10 @@ func encodeResponse(ctx context.Context, w http.ResponseWriter, response any) er
 }
 
 // makeDecoder creates a decoder for the given request type.
-func makeDecoder(iface any) kithttp.DecodeRequestFunc {
+func makeDecoder(iface any, requestBodySizeLimit int64) kithttp.DecodeRequestFunc {
 	return eu.MakeDecoder(iface, func(body io.Reader, req any) error {
 		return json.NewDecoder(body).Decode(req)
-	}, parseCustomTags, nil, nil, nil)
+	}, parseCustomTags, nil, nil, nil, requestBodySizeLimit)
 }
 
 // parseCustomTags handles custom URL tag values for activity requests.
@@ -95,9 +95,9 @@ func listOptionsFromRequest(r *http.Request) (api.ListOptions, error) {
 	var orderDirection api.OrderDirection
 	switch orderDirectionString {
 	case "desc":
-		orderDirection = api.OrderDesc
+		orderDirection = api.OrderDescending
 	case "asc", "":
-		orderDirection = api.OrderAsc
+		orderDirection = api.OrderAscending
 	default:
 		return api.ListOptions{}, ctxerr.Wrap(r.Context(), &platform_http.BadRequestError{Message: "unknown order_direction: " + orderDirectionString})
 	}
@@ -125,8 +125,10 @@ type endpointer struct {
 	svc api.Service
 }
 
-func (e *endpointer) CallHandlerFunc(f handlerFunc, ctx context.Context, request any,
-	svc any) (platform_http.Errorer, error) {
+func (e *endpointer) CallHandlerFunc(f handlerFunc, ctx context.Context,
+	request any,
+	svc any,
+) (platform_http.Errorer, error) {
 	return f(ctx, request, svc.(api.Service)), nil
 }
 
@@ -135,7 +137,8 @@ func (e *endpointer) Service() any {
 }
 
 func newUserAuthenticatedEndpointer(svc api.Service, authMiddleware endpoint.Middleware, opts []kithttp.ServerOption, r *mux.Router,
-	versions ...string) *eu.CommonEndpointer[handlerFunc] {
+	versions ...string,
+) *eu.CommonEndpointer[handlerFunc] {
 	return &eu.CommonEndpointer[handlerFunc]{
 		EP: &endpointer{
 			svc: svc,

@@ -69,6 +69,8 @@ export default {
   },
   DEVICE_RESEND_PROFILE: (token: string, profileUUID: string) =>
     `/${API_VERSION}/fleet/device/${token}/configuration_profiles/${profileUUID}/resend`,
+  DEVICE_BYPASS_CONDITIONAL_ACCESS: (token: string) =>
+    `/${API_VERSION}/fleet/device/${token}/bypass_conditional_access`,
 
   // Host endpoints
   HOST_SUMMARY: `/${API_VERSION}/fleet/host_summary`,

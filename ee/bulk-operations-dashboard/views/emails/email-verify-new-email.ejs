@@ -1,9 +1,0 @@
-<% /* Note: This is injected into `views/layouts/layout-email.ejs` */ %>
-<p style="margin-bottom: 25px;">Dear <%= fullName %>,</p>
-<p style="margin-bottom: 25px;">You recently requested an update to the email address for your account. To verify your new email, please click the button below:</p>
-<div style="margin-bottom: 25px; text-align: center;">
-  <a style="background-color: #28AFB0; display: inline-block; font-size: 1.1em; color: #fff; padding: 10px 35px 10px; font-weight: 500; text-decoration: none; border-radius: 7px;" href="<%= url.resolve(sails.config.custom.baseUrl,'/email/confirm')+'?token='+encodeURIComponent(token) %>">Confirm email</a>
-</div>
-<p style="margin-bottom: 25px;">If you have any trouble, try pasting this link in your browser: <a style="color: #28AFB0; word-wrap: break-word;" href="<%= url.resolve(sails.config.custom.baseUrl,'/email/confirm')+'?token='+encodeURIComponent(token) %>"><%= url.resolve(sails.config.custom.baseUrl,'/email/confirm')+'?token='+encodeURIComponent(token) %></a></p>
-<p style="margin-bottom: 5px;">Sincerely,</p>
-<p style="margin-top: 0px;">The NEW_APP_NAME Team</p>

@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"testing"
 
+	activity_api "github.com/fleetdm/fleet/v4/server/activity/api"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	platform_authz "github.com/fleetdm/fleet/v4/server/platform/authz"
 	"github.com/fleetdm/fleet/v4/server/ptr"
@@ -15,6 +16,9 @@ import (
 )
 
 const (
+	readAction = platform_authz.ActionRead
+
+	// Existing legacy code continues to use fleet package constants
 	read               = fleet.ActionRead
 	list               = fleet.ActionList
 	write              = fleet.ActionWrite
@@ -40,8 +44,8 @@ func init() {
 
 type authTestCase struct {
 	user   *fleet.User
-	object interface{}
-	action string
+	object any
+	action any
 	allow  bool
 }
 
@@ -68,6 +72,9 @@ func TestAuthorizeAppConfig(t *testing.T) {
 		{user: test.UserObserverPlus, object: config, action: read, allow: true},
 		{user: test.UserObserverPlus, object: config, action: write, allow: false},
 
+		{user: test.UserTechnician, object: config, action: read, allow: true},
+		{user: test.UserTechnician, object: config, action: write, allow: false},
+
 		{user: test.UserGitOps, object: config, action: read, allow: true},
 		{user: test.UserGitOps, object: config, action: write, allow: true},
 
@@ -85,6 +92,9 @@ func TestAuthorizeAppConfig(t *testing.T) {
 
 		{user: test.UserTeamGitOpsTeam1, object: config, action: read, allow: true},
 		{user: test.UserTeamGitOpsTeam1, object: config, action: write, allow: false},
+
+		{user: test.UserTeamTechnicianTeam1, object: config, action: read, allow: true},
+		{user: test.UserTeamTechnicianTeam1, object: config, action: write, allow: false},
 	})
 }
 
@@ -120,6 +130,11 @@ func TestAuthorizeSession(t *testing.T) {
 		{user: test.UserObserverPlus, object: session, action: write, allow: false},
 		{user: test.UserObserverPlus, object: &fleet.Session{UserID: test.UserObserverPlus.ID}, action: read, allow: true},
 		{user: test.UserObserverPlus, object: &fleet.Session{UserID: test.UserObserverPlus.ID}, action: write, allow: true},
+
+		{user: test.UserTechnician, object: session, action: read, allow: false},
+		{user: test.UserTechnician, object: session, action: write, allow: false},
+		{user: test.UserTechnician, object: &fleet.Session{UserID: test.UserTechnician.ID}, action: read, allow: true},
+		{user: test.UserTechnician, object: &fleet.Session{UserID: test.UserTechnician.ID}, action: write, allow: true},
 	})
 }
 
@@ -127,6 +142,7 @@ func TestAuthorizeActivity(t *testing.T) {
 	t.Parallel()
 
 	activity := &fleet.Activity{}
+	bcActivity := &activity_api.Activity{}
 
 	runTestCases(t, []authTestCase{
 		// All global roles except GitOps can read activities.
@@ -135,14 +151,32 @@ func TestAuthorizeActivity(t *testing.T) {
 		{user: test.UserMaintainer, object: activity, action: read, allow: true},
 		{user: test.UserObserver, object: activity, action: read, allow: true},
 		{user: test.UserObserverPlus, object: activity, action: read, allow: true},
+		{user: test.UserTechnician, object: activity, action: read, allow: true},
 		{user: test.UserGitOps, object: activity, action: read, allow: false},
 
-		// Team roles cannot read activites.
+		// Team roles cannot read activities.
 		{user: test.UserTeamAdminTeam1, object: activity, action: read, allow: false},
 		{user: test.UserTeamMaintainerTeam1, object: activity, action: read, allow: false},
 		{user: test.UserTeamObserverTeam1, object: activity, action: read, allow: false},
-		{user: test.UserTeamObserverTeam1, object: activity, action: read, allow: false},
+		{user: test.UserTeamObserverPlusTeam1, object: activity, action: read, allow: false},
 		{user: test.UserTeamGitOpsTeam1, object: activity, action: read, allow: false},
+		{user: test.UserTeamTechnicianTeam1, object: activity, action: read, allow: false},
+
+		// Bounded context (bc) Activity - same authorization rules apply
+		{user: nil, object: bcActivity, action: readAction, allow: false},
+		{user: test.UserAdmin, object: bcActivity, action: readAction, allow: true},
+		{user: test.UserMaintainer, object: bcActivity, action: readAction, allow: true},
+		{user: test.UserObserver, object: bcActivity, action: readAction, allow: true},
+		{user: test.UserObserverPlus, object: bcActivity, action: readAction, allow: true},
+		{user: test.UserTechnician, object: bcActivity, action: readAction, allow: true},
+		{user: test.UserGitOps, object: bcActivity, action: readAction, allow: false},
+		// Team roles cannot read activities.
+		{user: test.UserTeamAdminTeam1, object: bcActivity, action: readAction, allow: false},
+		{user: test.UserTeamMaintainerTeam1, object: bcActivity, action: readAction, allow: false},
+		{user: test.UserTeamObserverTeam1, object: bcActivity, action: readAction, allow: false},
+		{user: test.UserTeamObserverPlusTeam1, object: bcActivity, action: readAction, allow: false},
+		{user: test.UserTeamGitOpsTeam1, object: bcActivity, action: readAction, allow: false},
+		{user: test.UserTeamTechnicianTeam1, object: bcActivity, action: readAction, allow: false},
 	})
 }
 
@@ -181,8 +215,8 @@ func TestAuthorizeUser(t *testing.T) {
 		{user: test.UserAdmin, object: test.UserAdmin, action: writeRole, allow: true},
 		{user: test.UserAdmin, object: test.UserAdmin, action: changePwd, allow: true},
 
-		// Global maintainers cannot read/write users.
-		{user: test.UserMaintainer, object: user, action: read, allow: false},
+		// Global maintainers can read but not write users.
+		{user: test.UserMaintainer, object: user, action: read, allow: true},
 		{user: test.UserMaintainer, object: user, action: write, allow: false},
 		{user: test.UserMaintainer, object: user, action: writeRole, allow: false},
 		{user: test.UserMaintainer, object: user, action: changePwd, allow: false},
@@ -207,8 +241,8 @@ func TestAuthorizeUser(t *testing.T) {
 		{user: test.UserNoRoles, object: test.UserNoRoles, action: writeRole, allow: false},
 		{user: test.UserNoRoles, object: test.UserNoRoles, action: changePwd, allow: true},
 
-		// Global observers cannot read/write users.
-		{user: test.UserObserver, object: user, action: read, allow: false},
+		// Global observers can read but not write users.
+		{user: test.UserObserver, object: user, action: read, allow: true},
 		{user: test.UserObserver, object: user, action: write, allow: false},
 		{user: test.UserObserver, object: user, action: writeRole, allow: false},
 		{user: test.UserObserver, object: user, action: changePwd, allow: false},
@@ -220,8 +254,8 @@ func TestAuthorizeUser(t *testing.T) {
 		{user: test.UserObserver, object: test.UserObserver, action: writeRole, allow: false},
 		{user: test.UserObserver, object: test.UserObserver, action: changePwd, allow: true},
 
-		// Global observers+ cannot read/write users.
-		{user: test.UserObserverPlus, object: user, action: read, allow: false},
+		// Global observers+ can read but not write users.
+		{user: test.UserObserverPlus, object: user, action: read, allow: true},
 		{user: test.UserObserverPlus, object: user, action: write, allow: false},
 		{user: test.UserObserverPlus, object: user, action: writeRole, allow: false},
 		{user: test.UserObserverPlus, object: user, action: changePwd, allow: false},
@@ -232,6 +266,19 @@ func TestAuthorizeUser(t *testing.T) {
 		{user: test.UserObserverPlus, object: test.UserObserverPlus, action: write, allow: true},
 		{user: test.UserObserverPlus, object: test.UserObserverPlus, action: writeRole, allow: false},
 		{user: test.UserObserverPlus, object: test.UserObserverPlus, action: changePwd, allow: true},
+
+		// Global technicians can read but not write users.
+		{user: test.UserTechnician, object: user, action: read, allow: true},
+		{user: test.UserTechnician, object: user, action: write, allow: false},
+		{user: test.UserTechnician, object: user, action: writeRole, allow: false},
+		{user: test.UserTechnician, object: user, action: changePwd, allow: false},
+		// Global technicians cannot create users.
+		{user: test.UserTechnician, object: newUser, action: write, allow: false},
+		// Global technicians can read/write itself (besides roles).
+		{user: test.UserTechnician, object: test.UserTechnician, action: read, allow: true},
+		{user: test.UserTechnician, object: test.UserTechnician, action: write, allow: true},
+		{user: test.UserTechnician, object: test.UserTechnician, action: writeRole, allow: false},
+		{user: test.UserTechnician, object: test.UserTechnician, action: changePwd, allow: true},
 
 		// Team admins cannot read/write global users.
 		{user: teamAdmin, object: user, action: read, allow: false},
@@ -277,6 +324,9 @@ func TestAuthorizeInvite(t *testing.T) {
 
 		{user: test.UserObserverPlus, object: invite, action: read, allow: false},
 		{user: test.UserObserverPlus, object: invite, action: write, allow: false},
+
+		{user: test.UserTechnician, object: invite, action: read, allow: false},
+		{user: test.UserTechnician, object: invite, action: write, allow: false},
 	})
 }
 
@@ -306,6 +356,11 @@ func TestAuthorizeEnrollSecret(t *testing.T) {
 	teamGitOps := &fleet.User{
 		Teams: []fleet.UserTeam{
 			{Team: fleet.Team{ID: 1}, Role: fleet.RoleGitOps},
+		},
+	}
+	teamTechnician := &fleet.User{
+		Teams: []fleet.UserTeam{
+			{Team: fleet.Team{ID: 1}, Role: fleet.RoleTechnician},
 		},
 	}
 	globalSecret := &fleet.EnrollSecret{TeamID: nil}
@@ -340,6 +395,14 @@ func TestAuthorizeEnrollSecret(t *testing.T) {
 		{user: teamGitOps, object: globalSecret, action: write, allow: false},
 		{user: teamGitOps, object: teamSecret, action: read, allow: false},
 		{user: teamGitOps, object: teamSecret, action: write, allow: false},
+		{user: test.UserTechnician, object: globalSecret, action: read, allow: false},
+		{user: test.UserTechnician, object: globalSecret, action: write, allow: false},
+		{user: test.UserTechnician, object: teamSecret, action: read, allow: false},
+		{user: test.UserTechnician, object: teamSecret, action: write, allow: false},
+		{user: teamTechnician, object: globalSecret, action: read, allow: false},
+		{user: teamTechnician, object: globalSecret, action: write, allow: false},
+		{user: teamTechnician, object: teamSecret, action: read, allow: false},
+		{user: teamTechnician, object: teamSecret, action: write, allow: false},
 
 		// Global admin can read/write all.
 		{user: test.UserAdmin, object: globalSecret, action: read, allow: true},
@@ -411,6 +474,11 @@ func TestAuthorizeTeam(t *testing.T) {
 		{user: test.UserObserverPlus, object: team1, action: read, allow: true},
 		{user: test.UserObserverPlus, object: team1, action: write, allow: false},
 
+		{user: test.UserTechnician, object: team, action: read, allow: true},
+		{user: test.UserTechnician, object: team, action: write, allow: false},
+		{user: test.UserTechnician, object: team1, action: read, allow: true},
+		{user: test.UserTechnician, object: team1, action: write, allow: false},
+
 		{user: test.UserGitOps, object: team, action: read, allow: true},
 		{user: test.UserGitOps, object: team, action: write, allow: true},
 		{user: test.UserGitOps, object: team1, action: read, allow: false},
@@ -451,6 +519,13 @@ func TestAuthorizeTeam(t *testing.T) {
 		{user: test.UserTeamGitOpsTeam1, object: team1, action: write, allow: true},
 		{user: test.UserTeamGitOpsTeam1, object: team2, action: read, allow: false},
 		{user: test.UserTeamGitOpsTeam1, object: team2, action: write, allow: false},
+
+		{user: test.UserTeamTechnicianTeam1, object: team, action: read, allow: true},
+		{user: test.UserTeamTechnicianTeam1, object: team, action: write, allow: false},
+		{user: test.UserTeamTechnicianTeam1, object: team1, action: read, allow: true},
+		{user: test.UserTeamTechnicianTeam1, object: team1, action: write, allow: false},
+		{user: test.UserTeamTechnicianTeam1, object: team2, action: read, allow: false},
+		{user: test.UserTeamTechnicianTeam1, object: team2, action: write, allow: false},
 	})
 }
 
@@ -464,7 +539,7 @@ func TestAuthorizeLabel(t *testing.T) {
 	sameTeamLabel := func(user *fleet.User) fleet.Label {
 		return fleet.Label{TeamID: &user.Teams[0].ID}
 	}
-	differentTeamLabel := func(user *fleet.User) fleet.Label {
+	differentTeamLabel := func(_ *fleet.User) fleet.Label {
 		return fleet.Label{TeamID: ptr.Uint(999)}
 	}
 
@@ -492,6 +567,10 @@ func TestAuthorizeLabel(t *testing.T) {
 		{user: test.UserObserverPlus, object: label, action: read, allow: true},
 		{user: test.UserObserverPlus, object: label, action: write, allow: false},
 		{user: test.UserObserverPlus, object: label, action: create, allow: false},
+
+		{user: test.UserTechnician, object: label, action: read, allow: true},
+		{user: test.UserTechnician, object: label, action: write, allow: true},
+		{user: test.UserTechnician, object: label, action: create, allow: true},
 
 		{user: test.UserGitOps, object: label, action: read, allow: true},
 		{user: test.UserGitOps, object: label, action: write, allow: true},
@@ -540,6 +619,22 @@ func TestAuthorizeLabel(t *testing.T) {
 		{user: test.UserTeamGitOpsTeam1, object: differentTeamLabel(test.UserTeamGitOpsTeam1), action: read, allow: false},
 		{user: test.UserTeamGitOpsTeam1, object: differentTeamLabel(test.UserTeamGitOpsTeam1), action: write, allow: false},
 		{user: test.UserTeamGitOpsTeam1, object: differentTeamLabel(test.UserTeamGitOpsTeam1), action: create, allow: false},
+
+		{user: test.UserTeamTechnicianTeam1, object: label, action: read, allow: true},
+		{user: test.UserTeamTechnicianTeam1, object: label, action: write, allow: false},
+		{user: test.UserTeamTechnicianTeam1, object: label, action: create, allow: true},
+
+		{user: test.UserTeamTechnicianTeam1, object: authoredLabel(test.UserTeamTechnicianTeam1), action: read, allow: true},
+		{user: test.UserTeamTechnicianTeam1, object: authoredLabel(test.UserTeamTechnicianTeam1), action: write, allow: true},
+		{user: test.UserTeamTechnicianTeam1, object: authoredLabel(test.UserTeamTechnicianTeam1), action: create, allow: true},
+
+		{user: test.UserTeamTechnicianTeam1, object: sameTeamLabel(test.UserTeamTechnicianTeam1), action: read, allow: true},
+		{user: test.UserTeamTechnicianTeam1, object: sameTeamLabel(test.UserTeamTechnicianTeam1), action: write, allow: true},
+		{user: test.UserTeamTechnicianTeam1, object: sameTeamLabel(test.UserTeamTechnicianTeam1), action: create, allow: true},
+
+		{user: test.UserTeamTechnicianTeam1, object: differentTeamLabel(test.UserTeamTechnicianTeam1), action: read, allow: false},
+		{user: test.UserTeamTechnicianTeam1, object: differentTeamLabel(test.UserTeamTechnicianTeam1), action: write, allow: false},
+		{user: test.UserTeamTechnicianTeam1, object: differentTeamLabel(test.UserTeamTechnicianTeam1), action: create, allow: false},
 	})
 }
 
@@ -554,8 +649,10 @@ func TestAuthorizeSoftwareInventory(t *testing.T) {
 		{user: test.UserMaintainer, object: softwareInventory, action: read, allow: true},
 		{user: test.UserObserver, object: softwareInventory, action: read, allow: true},
 		{user: test.UserObserverPlus, object: softwareInventory, action: read, allow: true},
+		{user: test.UserTechnician, object: softwareInventory, action: read, allow: true},
 		{user: test.UserGitOps, object: softwareInventory, action: read, allow: false},
 		{user: test.UserTeamGitOpsTeam1, object: softwareInventory, action: read, allow: false},
+		{user: test.UserTeamTechnicianTeam1, object: softwareInventory, action: read, allow: false},
 	})
 }
 
@@ -608,6 +705,13 @@ func TestAuthorizeSoftwareInstaller(t *testing.T) {
 		{user: test.UserObserverPlus, object: team2Installer, action: read, allow: false},
 		{user: test.UserObserverPlus, object: team2Installer, action: write, allow: false},
 
+		{user: test.UserTechnician, object: noTeamInstaller, action: read, allow: true},
+		{user: test.UserTechnician, object: noTeamInstaller, action: write, allow: false},
+		{user: test.UserTechnician, object: team1Installer, action: read, allow: true},
+		{user: test.UserTechnician, object: team1Installer, action: write, allow: false},
+		{user: test.UserTechnician, object: team2Installer, action: read, allow: true},
+		{user: test.UserTechnician, object: team2Installer, action: write, allow: false},
+
 		// TODO: confirm gitops permissions
 		{user: test.UserGitOps, object: noTeamInstaller, action: read, allow: false},
 		{user: test.UserGitOps, object: noTeamInstaller, action: write, allow: true},
@@ -651,6 +755,13 @@ func TestAuthorizeSoftwareInstaller(t *testing.T) {
 		{user: test.UserTeamObserverPlusTeam1, object: team1Installer, action: write, allow: false},
 		{user: test.UserTeamObserverPlusTeam1, object: team2Installer, action: read, allow: false},
 		{user: test.UserTeamObserverPlusTeam1, object: team2Installer, action: write, allow: false},
+
+		{user: test.UserTeamTechnicianTeam1, object: noTeamInstaller, action: read, allow: false},
+		{user: test.UserTeamTechnicianTeam1, object: noTeamInstaller, action: write, allow: false},
+		{user: test.UserTeamTechnicianTeam1, object: team1Installer, action: read, allow: true},
+		{user: test.UserTeamTechnicianTeam1, object: team1Installer, action: write, allow: false},
+		{user: test.UserTeamTechnicianTeam1, object: team2Installer, action: read, allow: false},
+		{user: test.UserTeamTechnicianTeam1, object: team2Installer, action: write, allow: false},
 	})
 }
 
@@ -686,6 +797,10 @@ func TestAuthorizeHostSoftwareInstallerResult(t *testing.T) {
 		{user: test.UserObserverPlus, object: team1InstallResult, action: write, allow: false},
 		{user: test.UserObserverPlus, object: team2InstallResult, action: write, allow: false},
 
+		{user: test.UserTechnician, object: noTeamInstallResult, action: write, allow: true},
+		{user: test.UserTechnician, object: team1InstallResult, action: write, allow: true},
+		{user: test.UserTechnician, object: team2InstallResult, action: write, allow: true},
+
 		{user: test.UserGitOps, object: noTeamInstallResult, action: write, allow: false},
 		{user: test.UserGitOps, object: team1InstallResult, action: write, allow: false},
 		{user: test.UserGitOps, object: team2InstallResult, action: write, allow: false},
@@ -709,6 +824,10 @@ func TestAuthorizeHostSoftwareInstallerResult(t *testing.T) {
 		{user: test.UserTeamObserverPlusTeam1, object: noTeamInstallResult, action: write, allow: false},
 		{user: test.UserTeamObserverPlusTeam1, object: team1InstallResult, action: write, allow: false},
 		{user: test.UserTeamObserverPlusTeam1, object: team2InstallResult, action: write, allow: false},
+
+		{user: test.UserTeamTechnicianTeam1, object: noTeamInstallResult, action: write, allow: false},
+		{user: test.UserTeamTechnicianTeam1, object: team1InstallResult, action: write, allow: true},
+		{user: test.UserTeamTechnicianTeam1, object: team2InstallResult, action: write, allow: false},
 
 		// Read permissions
 		{user: nil, object: noTeamInstallResult, action: read, allow: false},
@@ -735,6 +854,10 @@ func TestAuthorizeHostSoftwareInstallerResult(t *testing.T) {
 		{user: test.UserObserverPlus, object: team1InstallResult, action: read, allow: true},
 		{user: test.UserObserverPlus, object: team2InstallResult, action: read, allow: true},
 
+		{user: test.UserTechnician, object: noTeamInstallResult, action: read, allow: true},
+		{user: test.UserTechnician, object: team1InstallResult, action: read, allow: true},
+		{user: test.UserTechnician, object: team2InstallResult, action: read, allow: true},
+
 		{user: test.UserGitOps, object: noTeamInstallResult, action: read, allow: false},
 		{user: test.UserGitOps, object: team1InstallResult, action: read, allow: false},
 		{user: test.UserGitOps, object: team2InstallResult, action: read, allow: false},
@@ -758,6 +881,10 @@ func TestAuthorizeHostSoftwareInstallerResult(t *testing.T) {
 		{user: test.UserTeamObserverPlusTeam1, object: noTeamInstallResult, action: read, allow: false},
 		{user: test.UserTeamObserverPlusTeam1, object: team1InstallResult, action: read, allow: true},
 		{user: test.UserTeamObserverPlusTeam1, object: team2InstallResult, action: read, allow: false},
+
+		{user: test.UserTeamTechnicianTeam1, object: noTeamInstallResult, action: read, allow: false},
+		{user: test.UserTeamTechnicianTeam1, object: team1InstallResult, action: read, allow: true},
+		{user: test.UserTeamTechnicianTeam1, object: team2InstallResult, action: read, allow: false},
 	})
 }
 
@@ -787,6 +914,11 @@ func TestAuthorizeHost(t *testing.T) {
 	teamGitOps := &fleet.User{
 		Teams: []fleet.UserTeam{
 			{Team: fleet.Team{ID: 1}, Role: fleet.RoleGitOps},
+		},
+	}
+	teamTechnician := &fleet.User{
+		Teams: []fleet.UserTeam{
+			{Team: fleet.Team{ID: 1}, Role: fleet.RoleTechnician},
 		},
 	}
 	host := &fleet.Host{}
@@ -856,6 +988,22 @@ func TestAuthorizeHost(t *testing.T) {
 		{user: test.UserObserverPlus, object: hostTeam2, action: selectiveRead, allow: true},
 		{user: test.UserObserverPlus, object: hostTeam2, action: write, allow: false},
 		{user: test.UserObserverPlus, object: hostTeam2, action: cancelHostActivity, allow: false},
+
+		// Global technician can read all but not write
+		{user: test.UserTechnician, object: host, action: read, allow: true},
+		{user: test.UserTechnician, object: host, action: write, allow: false},
+		{user: test.UserTechnician, object: host, action: list, allow: true},
+		{user: test.UserTechnician, object: host, action: selectiveList, allow: true},
+		{user: test.UserTechnician, object: host, action: selectiveRead, allow: true},
+		{user: test.UserTechnician, object: host, action: cancelHostActivity, allow: false},
+		{user: test.UserTechnician, object: hostTeam1, action: read, allow: true},
+		{user: test.UserTechnician, object: hostTeam1, action: selectiveRead, allow: true},
+		{user: test.UserTechnician, object: hostTeam1, action: write, allow: false},
+		{user: test.UserTechnician, object: hostTeam1, action: cancelHostActivity, allow: false},
+		{user: test.UserTechnician, object: hostTeam2, action: read, allow: true},
+		{user: test.UserTechnician, object: hostTeam2, action: selectiveRead, allow: true},
+		{user: test.UserTechnician, object: hostTeam2, action: write, allow: false},
+		{user: test.UserTechnician, object: hostTeam2, action: cancelHostActivity, allow: false},
 
 		// Global admin can read/write all
 		{user: test.UserAdmin, object: host, action: read, allow: true},
@@ -981,6 +1129,22 @@ func TestAuthorizeHost(t *testing.T) {
 		{user: teamGitOps, object: hostTeam2, action: write, allow: false},
 		{user: teamGitOps, object: hostTeam2, action: selectiveRead, allow: false},
 		{user: teamGitOps, object: hostTeam2, action: cancelHostActivity, allow: false},
+
+		// Team technician can read only on appropriate team
+		{user: teamTechnician, object: host, action: read, allow: false},
+		{user: teamTechnician, object: host, action: selectiveRead, allow: false},
+		{user: teamTechnician, object: host, action: write, allow: false},
+		{user: teamTechnician, object: host, action: list, allow: true},
+		{user: teamTechnician, object: host, action: selectiveList, allow: true},
+		{user: teamTechnician, object: host, action: cancelHostActivity, allow: false},
+		{user: teamTechnician, object: hostTeam1, action: read, allow: true},
+		{user: teamTechnician, object: hostTeam1, action: selectiveRead, allow: true},
+		{user: teamTechnician, object: hostTeam1, action: write, allow: false},
+		{user: teamTechnician, object: hostTeam1, action: cancelHostActivity, allow: false},
+		{user: teamTechnician, object: hostTeam2, action: read, allow: false},
+		{user: teamTechnician, object: hostTeam2, action: selectiveRead, allow: false},
+		{user: teamTechnician, object: hostTeam2, action: write, allow: false},
+		{user: teamTechnician, object: hostTeam2, action: cancelHostActivity, allow: false},
 	})
 }
 
@@ -1022,6 +1186,12 @@ func TestAuthorizeQuery(t *testing.T) {
 		ID: 105,
 		Teams: []fleet.UserTeam{
 			{Team: fleet.Team{ID: 1}, Role: fleet.RoleGitOps},
+		},
+	}
+	teamTechnician := &fleet.User{
+		ID: 106,
+		Teams: []fleet.UserTeam{
+			{Team: fleet.Team{ID: 1}, Role: fleet.RoleTechnician},
 		},
 	}
 
@@ -1200,6 +1370,28 @@ func TestAuthorizeQuery(t *testing.T) {
 			},
 		},
 		{
+			name: "Global technician can read all queries, not write them, and can run any query",
+			testCases: []authTestCase{
+				{user: test.UserTechnician, object: globalQuery, action: read, allow: true},
+				{user: test.UserTechnician, object: globalQuery, action: write, allow: false},
+				{user: test.UserTechnician, object: teamAdminQuery, action: write, allow: false},
+				{user: test.UserTechnician, object: globalQueryNoTargets, action: run, allow: true},
+				{user: test.UserTechnician, object: globalQueryTargetedToTeam1, action: run, allow: true},
+				{user: test.UserTechnician, object: globalQuery, action: runNew, allow: true},
+				{user: test.UserTechnician, object: globalObserverQuery, action: read, allow: true},
+				{user: test.UserTechnician, object: globalObserverQuery, action: write, allow: false},
+				{user: test.UserTechnician, object: globalObserverQueryEmptyTargets, action: run, allow: true},            // can run observer query
+				{user: test.UserTechnician, object: globalObserverQueryTargetedToTeam1, action: run, allow: true},         // can run observer query
+				{user: test.UserTechnician, object: globalObserverQueryTargetedToTeam1AndTeam2, action: run, allow: true}, // can run observer query
+				{user: test.UserTechnician, object: globalObserverQuery, action: runNew, allow: true},
+
+				{user: test.UserTechnician, object: observerQueryOnTeam3, action: read, allow: true},
+				{user: test.UserTechnician, object: observerQueryOnTeam3, action: write, allow: false},
+				{user: test.UserTechnician, object: observerQueryOnTeam3TargetedToTeam3, action: run, allow: true},
+				{user: test.UserTechnician, object: observerQueryOnTeam3TargetedToTeam2, action: run, allow: true},
+			},
+		},
+		{
 			name: "Global maintainer can read/write/run any query",
 			testCases: []authTestCase{
 				{user: test.UserMaintainer, object: globalQuery, action: read, allow: true},
@@ -1308,6 +1500,31 @@ func TestAuthorizeQuery(t *testing.T) {
 				{user: teamObserverPlus, object: observerQueryOnTeam3TargetedToTeam2, action: run, allow: false},
 				{user: teamObserverPlus, object: observerQueryOnTeam3TargetedToTeam1, action: run, allow: false},
 				{user: teamObserverPlus, object: observerQueryOnTeam1TargetedToTeam1, action: run, allow: true},
+			},
+		},
+		{
+			name: "Team technician can read all queries, not write them, and can run any query filtered on their team(s)",
+			testCases: []authTestCase{
+				{user: teamTechnician, object: globalQuery, action: read, allow: true},
+				{user: teamTechnician, object: globalQuery, action: write, allow: false},
+				{user: teamTechnician, object: teamAdminQuery, action: write, allow: false},
+				{user: teamTechnician, object: globalQueryNoTargets, action: run, allow: true},
+				{user: teamTechnician, object: globalQueryTargetedToTeam1, action: run, allow: true},
+				{user: teamTechnician, object: globalQuery, action: runNew, allow: true},
+				{user: teamTechnician, object: globalObserverQuery, action: read, allow: true},
+				{user: teamTechnician, object: globalObserverQuery, action: write, allow: false},
+				{user: teamTechnician, object: globalObserverQueryEmptyTargets, action: run, allow: true},             // can run observer query with no targeted team
+				{user: teamTechnician, object: globalObserverQueryTargetedToTeam1, action: run, allow: true},          // can run observer query filtered to observed team
+				{user: teamTechnician, object: globalObserverQueryTargetedToTeam1AndTeam2, action: run, allow: false}, // not filtered only to observed teams
+				{user: teamTechnician, object: globalObserverQueryTargetedToTeam2, action: run, allow: false},         // not filtered only to observed teams
+				{user: teamTechnician, object: globalObserverQuery, action: runNew, allow: true},
+
+				{user: teamTechnician, object: observerQueryOnTeam3, action: read, allow: false},
+				{user: teamTechnician, object: observerQueryOnTeam3, action: write, allow: false},
+				{user: teamTechnician, object: observerQueryOnTeam3TargetedToTeam3, action: run, allow: false},
+				{user: teamTechnician, object: observerQueryOnTeam3TargetedToTeam2, action: run, allow: false},
+				{user: teamTechnician, object: observerQueryOnTeam3TargetedToTeam1, action: run, allow: false},
+				{user: teamTechnician, object: observerQueryOnTeam1TargetedToTeam1, action: run, allow: true},
 			},
 		},
 		{
@@ -1439,6 +1656,7 @@ func TestAuthorizeTarget(t *testing.T) {
 		{user: test.UserMaintainer, object: target, action: read, allow: true},
 		{user: test.UserObserver, object: target, action: read, allow: true},
 		{user: test.UserObserverPlus, object: target, action: read, allow: true},
+		{user: test.UserTechnician, object: target, action: read, allow: true},
 		{user: test.UserGitOps, object: target, action: read, allow: false},
 
 		{user: test.UserTeamAdminTeam1, object: target, action: read, allow: true},
@@ -1446,6 +1664,7 @@ func TestAuthorizeTarget(t *testing.T) {
 		{user: test.UserTeamObserverTeam1, object: target, action: read, allow: true},
 		{user: test.UserTeamObserverPlusTeam1, object: target, action: read, allow: true},
 		{user: test.UserTeamGitOpsTeam1, object: target, action: read, allow: false},
+		{user: test.UserTeamTechnicianTeam1, object: target, action: read, allow: true},
 	})
 }
 
@@ -1475,6 +1694,9 @@ func TestAuthorizeUserCreatedPack(t *testing.T) {
 		{user: test.UserObserverPlus, object: userCreatedPack, action: read, allow: false},
 		{user: test.UserObserverPlus, object: userCreatedPack, action: write, allow: false},
 
+		{user: test.UserTechnician, object: userCreatedPack, action: read, allow: false},
+		{user: test.UserTechnician, object: userCreatedPack, action: write, allow: false},
+
 		// This is one exception to the "write only" nature of gitops. To be able to create
 		// and edit packs currently it needs read access too.
 		{user: test.UserGitOps, object: userCreatedPack, action: read, allow: true},
@@ -1494,6 +1716,9 @@ func TestAuthorizeUserCreatedPack(t *testing.T) {
 
 		{user: test.UserTeamGitOpsTeam1, object: userCreatedPack, action: read, allow: false},
 		{user: test.UserTeamGitOpsTeam1, object: userCreatedPack, action: write, allow: false},
+
+		{user: test.UserTeamTechnicianTeam1, object: userCreatedPack, action: read, allow: false},
+		{user: test.UserTeamTechnicianTeam1, object: userCreatedPack, action: write, allow: false},
 	})
 }
 
@@ -1514,6 +1739,8 @@ func TestAuthorizeCarve(t *testing.T) {
 		{user: test.UserObserverPlus, object: carve, action: write, allow: false},
 		{user: test.UserGitOps, object: carve, action: read, allow: false},
 		{user: test.UserGitOps, object: carve, action: write, allow: false},
+		{user: test.UserTechnician, object: carve, action: read, allow: false},
+		{user: test.UserTechnician, object: carve, action: write, allow: false},
 
 		// Only admins allowed
 		{user: test.UserAdmin, object: carve, action: read, allow: true},
@@ -1544,6 +1771,9 @@ func TestAuthorizeGlobalPolicy(t *testing.T) {
 		{user: test.UserObserverPlus, object: globalPolicy, action: write, allow: false},
 		{user: test.UserObserverPlus, object: globalPolicy, action: read, allow: true},
 
+		{user: test.UserTechnician, object: globalPolicy, action: write, allow: false},
+		{user: test.UserTechnician, object: globalPolicy, action: read, allow: true},
+
 		{user: test.UserGitOps, object: globalPolicy, action: write, allow: true},
 		{user: test.UserGitOps, object: globalPolicy, action: read, allow: true},
 
@@ -1561,6 +1791,9 @@ func TestAuthorizeGlobalPolicy(t *testing.T) {
 
 		{user: test.UserTeamGitOpsTeam1, object: globalPolicy, action: write, allow: false},
 		{user: test.UserTeamGitOpsTeam1, object: globalPolicy, action: read, allow: false},
+
+		{user: test.UserTeamTechnicianTeam1, object: globalPolicy, action: write, allow: false},
+		{user: test.UserTeamTechnicianTeam1, object: globalPolicy, action: read, allow: true},
 	})
 }
 
@@ -1596,6 +1829,9 @@ func TestAuthorizeTeamPolicy(t *testing.T) {
 		{user: test.UserObserverPlus, object: team1Policy, action: write, allow: false},
 		{user: test.UserObserverPlus, object: team1Policy, action: read, allow: true},
 
+		{user: test.UserTechnician, object: team1Policy, action: write, allow: false},
+		{user: test.UserTechnician, object: team1Policy, action: read, allow: true},
+
 		{user: test.UserGitOps, object: team1Policy, action: write, allow: true},
 		{user: test.UserGitOps, object: team1Policy, action: read, allow: true},
 
@@ -1628,6 +1864,12 @@ func TestAuthorizeTeamPolicy(t *testing.T) {
 
 		{user: test.UserTeamGitOpsTeam1, object: team2Policy, action: write, allow: false},
 		{user: test.UserTeamGitOpsTeam1, object: team2Policy, action: read, allow: false},
+
+		{user: test.UserTeamTechnicianTeam1, object: team1Policy, action: write, allow: false},
+		{user: test.UserTeamTechnicianTeam1, object: team1Policy, action: read, allow: true},
+
+		{user: test.UserTeamTechnicianTeam1, object: team2Policy, action: write, allow: false},
+		{user: test.UserTeamTechnicianTeam1, object: team2Policy, action: read, allow: false},
 	})
 }
 
@@ -1663,6 +1905,11 @@ func TestAuthorizeMDMConfigProfile(t *testing.T) {
 		{user: test.UserObserverPlus, object: globalProfile, action: read, allow: false},
 		{user: test.UserObserverPlus, object: team1Profile, action: write, allow: false},
 		{user: test.UserObserverPlus, object: team1Profile, action: read, allow: false},
+
+		{user: test.UserTechnician, object: globalProfile, action: write, allow: false},
+		{user: test.UserTechnician, object: globalProfile, action: read, allow: true},
+		{user: test.UserTechnician, object: team1Profile, action: write, allow: false},
+		{user: test.UserTechnician, object: team1Profile, action: read, allow: true},
 
 		{user: test.UserGitOps, object: globalProfile, action: write, allow: true},
 		{user: test.UserGitOps, object: globalProfile, action: read, allow: true},
@@ -1718,6 +1965,16 @@ func TestAuthorizeMDMConfigProfile(t *testing.T) {
 		{user: test.UserTeamGitOpsTeam2, object: globalProfile, action: read, allow: false},
 		{user: test.UserTeamGitOpsTeam2, object: team1Profile, action: write, allow: false},
 		{user: test.UserTeamGitOpsTeam2, object: team1Profile, action: read, allow: false},
+
+		{user: test.UserTeamTechnicianTeam1, object: globalProfile, action: write, allow: false},
+		{user: test.UserTeamTechnicianTeam1, object: globalProfile, action: read, allow: false},
+		{user: test.UserTeamTechnicianTeam1, object: team1Profile, action: write, allow: false},
+		{user: test.UserTeamTechnicianTeam1, object: team1Profile, action: read, allow: true},
+
+		{user: test.UserTeamTechnicianTeam2, object: globalProfile, action: write, allow: false},
+		{user: test.UserTeamTechnicianTeam2, object: globalProfile, action: read, allow: false},
+		{user: test.UserTeamTechnicianTeam2, object: team1Profile, action: write, allow: false},
+		{user: test.UserTeamTechnicianTeam2, object: team1Profile, action: read, allow: false},
 	})
 }
 
@@ -1753,6 +2010,11 @@ func TestAuthorizeMDMAppleSettings(t *testing.T) {
 		{user: test.UserObserverPlus, object: globalSettings, action: read, allow: false},
 		{user: test.UserObserverPlus, object: team1Settings, action: write, allow: false},
 		{user: test.UserObserverPlus, object: team1Settings, action: read, allow: false},
+
+		{user: test.UserTechnician, object: globalSettings, action: write, allow: false},
+		{user: test.UserTechnician, object: globalSettings, action: read, allow: false},
+		{user: test.UserTechnician, object: team1Settings, action: write, allow: false},
+		{user: test.UserTechnician, object: team1Settings, action: read, allow: false},
 
 		{user: test.UserGitOps, object: globalSettings, action: write, allow: true},
 		{user: test.UserGitOps, object: globalSettings, action: read, allow: false},
@@ -1808,6 +2070,11 @@ func TestAuthorizeMDMAppleSettings(t *testing.T) {
 		{user: test.UserTeamGitOpsTeam2, object: globalSettings, action: read, allow: false},
 		{user: test.UserTeamGitOpsTeam2, object: team1Settings, action: write, allow: false},
 		{user: test.UserTeamGitOpsTeam2, object: team1Settings, action: read, allow: false},
+
+		{user: test.UserTeamTechnicianTeam1, object: globalSettings, action: write, allow: false},
+		{user: test.UserTeamTechnicianTeam1, object: globalSettings, action: read, allow: false},
+		{user: test.UserTeamTechnicianTeam1, object: team1Settings, action: write, allow: false},
+		{user: test.UserTeamTechnicianTeam1, object: team1Settings, action: read, allow: false},
 	})
 }
 
@@ -1898,6 +2165,16 @@ func TestAuthorizeMDMAppleSetupAssistant(t *testing.T) {
 		{user: test.UserTeamGitOpsTeam2, object: globalSettings, action: read, allow: false},
 		{user: test.UserTeamGitOpsTeam2, object: team1Settings, action: write, allow: false},
 		{user: test.UserTeamGitOpsTeam2, object: team1Settings, action: read, allow: false},
+
+		{user: test.UserTechnician, object: globalSettings, action: write, allow: false},
+		{user: test.UserTechnician, object: globalSettings, action: read, allow: false},
+		{user: test.UserTechnician, object: team1Settings, action: write, allow: false},
+		{user: test.UserTechnician, object: team1Settings, action: read, allow: false},
+
+		{user: test.UserTeamTechnicianTeam1, object: globalSettings, action: write, allow: false},
+		{user: test.UserTeamTechnicianTeam1, object: globalSettings, action: read, allow: false},
+		{user: test.UserTeamTechnicianTeam1, object: team1Settings, action: write, allow: false},
+		{user: test.UserTeamTechnicianTeam1, object: team1Settings, action: read, allow: false},
 	})
 }
 
@@ -1988,6 +2265,16 @@ func TestAuthorizeMDMAppleBootstrapPackage(t *testing.T) {
 		{user: test.UserTeamGitOpsTeam2, object: globalSettings, action: read, allow: false},
 		{user: test.UserTeamGitOpsTeam2, object: team1Settings, action: write, allow: false},
 		{user: test.UserTeamGitOpsTeam2, object: team1Settings, action: read, allow: false},
+
+		{user: test.UserTechnician, object: globalSettings, action: write, allow: false},
+		{user: test.UserTechnician, object: globalSettings, action: read, allow: false},
+		{user: test.UserTechnician, object: team1Settings, action: write, allow: false},
+		{user: test.UserTechnician, object: team1Settings, action: read, allow: false},
+
+		{user: test.UserTeamTechnicianTeam1, object: globalSettings, action: write, allow: false},
+		{user: test.UserTeamTechnicianTeam1, object: globalSettings, action: read, allow: false},
+		{user: test.UserTeamTechnicianTeam1, object: team1Settings, action: write, allow: false},
+		{user: test.UserTeamTechnicianTeam1, object: team1Settings, action: read, allow: false},
 	})
 }
 
@@ -2055,7 +2342,7 @@ func runTestCasesGroups(t *testing.T, testCaseGroups []tcGroup) {
 					result = "deny"
 				}
 
-				t.Run(action+"_"+obj+"_"+role+"_"+result, func(t *testing.T) {
+				t.Run(fmt.Sprintf("%v", action)+"_"+obj+"_"+role+"_"+result, func(t *testing.T) {
 					t.Parallel()
 					if tt.allow {
 						assertAuthorized(t, tt.user, tt.object, tt.action)
@@ -2100,6 +2387,11 @@ func TestAuthorizeMDMCommand(t *testing.T) {
 		{user: test.UserObserverPlus, object: globalCommand, action: read, allow: true},
 		{user: test.UserObserverPlus, object: team1Command, action: write, allow: false},
 		{user: test.UserObserverPlus, object: team1Command, action: read, allow: true},
+
+		{user: test.UserTechnician, object: globalCommand, action: write, allow: false},
+		{user: test.UserTechnician, object: globalCommand, action: read, allow: true},
+		{user: test.UserTechnician, object: team1Command, action: write, allow: false},
+		{user: test.UserTechnician, object: team1Command, action: read, allow: true},
 
 		{user: test.UserGitOps, object: globalCommand, action: write, allow: true},
 		{user: test.UserGitOps, object: globalCommand, action: read, allow: false},
@@ -2155,6 +2447,16 @@ func TestAuthorizeMDMCommand(t *testing.T) {
 		{user: test.UserTeamGitOpsTeam2, object: globalCommand, action: read, allow: false},
 		{user: test.UserTeamGitOpsTeam2, object: team1Command, action: write, allow: false},
 		{user: test.UserTeamGitOpsTeam2, object: team1Command, action: read, allow: false},
+
+		{user: test.UserTeamTechnicianTeam1, object: globalCommand, action: write, allow: false},
+		{user: test.UserTeamTechnicianTeam1, object: globalCommand, action: read, allow: false},
+		{user: test.UserTeamTechnicianTeam1, object: team1Command, action: write, allow: false},
+		{user: test.UserTeamTechnicianTeam1, object: team1Command, action: read, allow: true},
+
+		{user: test.UserTeamTechnicianTeam2, object: globalCommand, action: write, allow: false},
+		{user: test.UserTeamTechnicianTeam2, object: globalCommand, action: read, allow: false},
+		{user: test.UserTeamTechnicianTeam2, object: team1Command, action: write, allow: false},
+		{user: test.UserTeamTechnicianTeam2, object: team1Command, action: read, allow: false},
 	})
 }
 
@@ -2211,6 +2513,15 @@ func TestAuthorizeHostScriptResult(t *testing.T) {
 		{user: test.UserObserverPlus, object: team1Script, action: read, allow: true},
 		{user: test.UserObserverPlus, object: team1SavedScript, action: write, allow: false},
 		{user: test.UserObserverPlus, object: team1SavedScript, action: read, allow: true},
+
+		{user: test.UserTechnician, object: globalScript, action: write, allow: true},
+		{user: test.UserTechnician, object: globalScript, action: read, allow: true},
+		{user: test.UserTechnician, object: globalSavedScript, action: write, allow: true},
+		{user: test.UserTechnician, object: globalSavedScript, action: read, allow: true},
+		{user: test.UserTechnician, object: team1Script, action: write, allow: true},
+		{user: test.UserTechnician, object: team1Script, action: read, allow: true},
+		{user: test.UserTechnician, object: team1SavedScript, action: write, allow: true},
+		{user: test.UserTechnician, object: team1SavedScript, action: read, allow: true},
 
 		{user: test.UserGitOps, object: globalScript, action: write, allow: false},
 		{user: test.UserGitOps, object: globalScript, action: read, allow: false},
@@ -2310,6 +2621,24 @@ func TestAuthorizeHostScriptResult(t *testing.T) {
 		{user: test.UserTeamGitOpsTeam2, object: team1Script, action: read, allow: false},
 		{user: test.UserTeamGitOpsTeam2, object: team1SavedScript, action: write, allow: false},
 		{user: test.UserTeamGitOpsTeam2, object: team1SavedScript, action: read, allow: false},
+
+		{user: test.UserTeamTechnicianTeam1, object: globalScript, action: write, allow: false},
+		{user: test.UserTeamTechnicianTeam1, object: globalScript, action: read, allow: false},
+		{user: test.UserTeamTechnicianTeam1, object: globalSavedScript, action: write, allow: false},
+		{user: test.UserTeamTechnicianTeam1, object: globalSavedScript, action: read, allow: false},
+		{user: test.UserTeamTechnicianTeam1, object: team1Script, action: write, allow: true},
+		{user: test.UserTeamTechnicianTeam1, object: team1Script, action: read, allow: true},
+		{user: test.UserTeamTechnicianTeam1, object: team1SavedScript, action: write, allow: true},
+		{user: test.UserTeamTechnicianTeam1, object: team1SavedScript, action: read, allow: true},
+
+		{user: test.UserTeamTechnicianTeam2, object: globalScript, action: write, allow: false},
+		{user: test.UserTeamTechnicianTeam2, object: globalScript, action: read, allow: false},
+		{user: test.UserTeamTechnicianTeam2, object: globalSavedScript, action: write, allow: false},
+		{user: test.UserTeamTechnicianTeam2, object: globalSavedScript, action: read, allow: false},
+		{user: test.UserTeamTechnicianTeam2, object: team1Script, action: write, allow: false},
+		{user: test.UserTeamTechnicianTeam2, object: team1Script, action: read, allow: false},
+		{user: test.UserTeamTechnicianTeam2, object: team1SavedScript, action: write, allow: false},
+		{user: test.UserTeamTechnicianTeam2, object: team1SavedScript, action: read, allow: false},
 	})
 }
 
@@ -2345,6 +2674,11 @@ func TestAuthorizeScript(t *testing.T) {
 		{user: test.UserObserverPlus, object: globalScript, action: read, allow: true},
 		{user: test.UserObserverPlus, object: team1Script, action: write, allow: false},
 		{user: test.UserObserverPlus, object: team1Script, action: read, allow: true},
+
+		{user: test.UserTechnician, object: globalScript, action: write, allow: false},
+		{user: test.UserTechnician, object: globalScript, action: read, allow: true},
+		{user: test.UserTechnician, object: team1Script, action: write, allow: false},
+		{user: test.UserTechnician, object: team1Script, action: read, allow: true},
 
 		{user: test.UserGitOps, object: globalScript, action: write, allow: true},
 		{user: test.UserGitOps, object: globalScript, action: read, allow: false},
@@ -2400,6 +2734,16 @@ func TestAuthorizeScript(t *testing.T) {
 		{user: test.UserTeamGitOpsTeam2, object: globalScript, action: read, allow: false},
 		{user: test.UserTeamGitOpsTeam2, object: team1Script, action: write, allow: false},
 		{user: test.UserTeamGitOpsTeam2, object: team1Script, action: read, allow: false},
+
+		{user: test.UserTeamTechnicianTeam1, object: globalScript, action: write, allow: false},
+		{user: test.UserTeamTechnicianTeam1, object: globalScript, action: read, allow: false},
+		{user: test.UserTeamTechnicianTeam1, object: team1Script, action: write, allow: false},
+		{user: test.UserTeamTechnicianTeam1, object: team1Script, action: read, allow: true},
+
+		{user: test.UserTeamTechnicianTeam2, object: globalScript, action: write, allow: false},
+		{user: test.UserTeamTechnicianTeam2, object: globalScript, action: read, allow: false},
+		{user: test.UserTeamTechnicianTeam2, object: team1Script, action: write, allow: false},
+		{user: test.UserTeamTechnicianTeam2, object: team1Script, action: read, allow: false},
 	})
 }
 
@@ -2450,6 +2794,9 @@ func TestHostHealth(t *testing.T) {
 		{user: test.UserMaintainer, object: hostHealth, action: read, allow: true},
 		{user: test.UserTeamMaintainerTeam1, object: hostHealth, action: read, allow: true},
 		{user: test.UserTeamMaintainerTeam2, object: hostHealth, action: read, allow: false},
+		{user: test.UserTechnician, object: hostHealth, action: read, allow: true},
+		{user: test.UserTeamTechnicianTeam1, object: hostHealth, action: read, allow: true},
+		{user: test.UserTeamTechnicianTeam2, object: hostHealth, action: read, allow: false},
 	})
 }
 
@@ -2485,6 +2832,9 @@ func TestMDMAppleEULA(t *testing.T) {
 
 		{user: test.UserMaintainer, object: eula, action: read, allow: false},
 		{user: test.UserMaintainer, object: eula, action: write, allow: false},
+
+		{user: test.UserTechnician, object: eula, action: read, allow: false},
+		{user: test.UserTechnician, object: eula, action: write, allow: false},
 
 		{user: test.UserTeamMaintainerTeam1, object: eula, action: read, allow: false},
 		{user: test.UserTeamMaintainerTeam1, object: eula, action: write, allow: false},
@@ -2526,6 +2876,9 @@ func TestCertificateAuthorities(t *testing.T) {
 		{user: test.UserMaintainer, object: certificateAuthority, action: read, allow: false},
 		{user: test.UserMaintainer, object: certificateAuthority, action: write, allow: false},
 
+		{user: test.UserTechnician, object: certificateAuthority, action: read, allow: false},
+		{user: test.UserTechnician, object: certificateAuthority, action: write, allow: false},
+
 		{user: test.UserTeamMaintainerTeam1, object: certificateAuthority, action: read, allow: false},
 		{user: test.UserTeamMaintainerTeam1, object: certificateAuthority, action: write, allow: false},
 		{user: test.UserTeamMaintainerTeam2, object: certificateAuthority, action: read, allow: false},
@@ -2556,6 +2909,10 @@ func TestAuthorizeSecretVariables(t *testing.T) {
 		{user: test.UserObserverPlus, object: secretVariable, action: read, allow: true},
 		{user: test.UserObserverPlus, object: secretVariable, action: write, allow: false},
 
+		// Global technicians can read but cannot write.
+		{user: test.UserTechnician, object: secretVariable, action: read, allow: true},
+		{user: test.UserTechnician, object: secretVariable, action: write, allow: false},
+
 		// Team users can read but cannot write.
 		{user: test.UserTeamAdminTeam1, object: secretVariable, action: read, allow: true},
 		{user: test.UserTeamAdminTeam1, object: secretVariable, action: write, allow: false},
@@ -2567,5 +2924,7 @@ func TestAuthorizeSecretVariables(t *testing.T) {
 		{user: test.UserTeamObserverPlusTeam1, object: secretVariable, action: write, allow: false},
 		{user: test.UserTeamObserverTeam1, object: secretVariable, action: read, allow: true},
 		{user: test.UserTeamObserverTeam1, object: secretVariable, action: write, allow: false},
+		{user: test.UserTeamTechnicianTeam1, object: secretVariable, action: read, allow: true},
+		{user: test.UserTeamTechnicianTeam1, object: secretVariable, action: write, allow: false},
 	})
 }

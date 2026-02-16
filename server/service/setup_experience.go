@@ -12,9 +12,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/docker/go-units"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	platform_http "github.com/fleetdm/fleet/v4/server/platform/http"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 )
 
@@ -138,7 +138,7 @@ type setSetupExperienceScriptRequest struct {
 func (setSetupExperienceScriptRequest) DecodeRequest(ctx context.Context, r *http.Request) (interface{}, error) {
 	var decoded setSetupExperienceScriptRequest
 
-	err := r.ParseMultipartForm(512 * units.MiB) // same in-memory size as for other multipart requests we have
+	err := r.ParseMultipartForm(platform_http.MaxMultipartFormSize)
 	if err != nil {
 		return nil, &fleet.BadRequestError{
 			Message:     "failed to parse multipart form",
@@ -376,19 +376,10 @@ func maybeUpdateSetupExperienceStatus(ctx context.Context, ds fleet.Datastore, r
 	return updated, err
 }
 
-var setupExperienceSupportedPlatforms = []string{
-	"macos",
-	"ios",
-	"ipados",
-	"windows",
-	"linux",
-	"android",
-}
-
 func validateSetupExperiencePlatform(platforms string) error {
 	for platform := range strings.SplitSeq(platforms, ",") {
-		if platform != "" && !slices.Contains(setupExperienceSupportedPlatforms, platform) {
-			quotedPlatforms := strings.Join(setupExperienceSupportedPlatforms, "\", \"")
+		if platform != "" && !slices.Contains(fleet.SetupExperienceSupportedPlatforms, platform) {
+			quotedPlatforms := strings.Join(fleet.SetupExperienceSupportedPlatforms, "\", \"")
 			quotedPlatforms = fmt.Sprintf("\"%s\"", quotedPlatforms)
 			return badRequestf("platform %q unsupported, platform must be one of %s", platform, quotedPlatforms)
 		}

@@ -24,6 +24,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	servermdm "github.com/fleetdm/fleet/v4/server/mdm"
+	android_service "github.com/fleetdm/fleet/v4/server/mdm/android/service"
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/mobileconfig"
 	microsoft_mdm "github.com/fleetdm/fleet/v4/server/mdm/microsoft"
@@ -42,6 +43,7 @@ import (
 	"github.com/smallstep/pkcs7"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"google.golang.org/api/androidmanagement/v1"
 )
 
 func (s *integrationMDMTestSuite) signedProfilesMatch(want, got [][]byte) {
@@ -994,9 +996,8 @@ func (s *integrationMDMTestSuite) TestWindowsProfileRetries() {
 		s.awaitTriggerProfileSchedule(t)
 		cmds, err := mdmDevice.StartManagementSession()
 		require.NoError(t, err)
-		fmt.Println("VERBOSE: got commands:", cmds)
-		// profile installs + Acks for each profile install, and then a single status
-		require.Len(t, cmds, wantProfileInstalls*2+1)
+		// profile installs + 2 protocol commands acks
+		require.Len(t, cmds, wantProfileInstalls+2)
 		msgID, err := mdmDevice.GetCurrentMsgID()
 		require.NoError(t, err)
 		atomicCmds := 0
@@ -1022,9 +1023,6 @@ func (s *integrationMDMTestSuite) TestWindowsProfileRetries() {
 	}
 
 	t.Run("retry after verifying", func(t *testing.T) {
-		// TODO(DSWA): #37935 Uncomment once osquery verification logic has changed
-		t.SkipNow()
-
 		// upload test profiles then simulate expired grace period by setting updated_at timestamp of profiles back by 48 hours
 		s.Do("POST", "/api/v1/fleet/mdm/profiles/batch", batchSetMDMProfilesRequest{Profiles: testProfiles}, http.StatusNoContent)
 		// profiles to install + 2 boilerplate <Status>
@@ -1055,9 +1053,6 @@ func (s *integrationMDMTestSuite) TestWindowsProfileRetries() {
 	})
 
 	t.Run("retry after verification", func(t *testing.T) {
-		// TODO(DSWA): #37935 Uncomment once osquery verification logic has changed
-		t.SkipNow()
-
 		// report osquery results with N1 missing and confirm that the N1 marked as pending (initial retry)
 		reportHostProfs("N2")
 		expectedProfileStatuses["N1"] = fleet.MDMDeliveryPending
@@ -1079,9 +1074,6 @@ func (s *integrationMDMTestSuite) TestWindowsProfileRetries() {
 	})
 
 	t.Run("retry after device error", func(t *testing.T) {
-		// TODO(DSWA): #37935 Uncomment once osquery verification logic has changed
-		t.SkipNow()
-
 		// add another profile
 		newProfile := syncml.ForTestWithData([]syncml.TestCommand{{Verb: "Replace", LocURI: "L3", Data: "D3"}})
 		testProfiles = append(testProfiles, fleet.MDMProfileBatchPayload{
@@ -1116,9 +1108,6 @@ func (s *integrationMDMTestSuite) TestWindowsProfileRetries() {
 	})
 
 	t.Run("repeated device error", func(t *testing.T) {
-		// TODO(DSWA): #37935 Uncomment once osquery verification logic has changed
-		t.SkipNow()
-
 		// add another profile
 		testProfiles = append(testProfiles, fleet.MDMProfileBatchPayload{
 			Name:     "N4",
@@ -1127,7 +1116,7 @@ func (s *integrationMDMTestSuite) TestWindowsProfileRetries() {
 		s.Do("POST", "/api/v1/fleet/mdm/profiles/batch", batchSetMDMProfilesRequest{Profiles: testProfiles}, http.StatusNoContent)
 		// trigger a profile sync and confirm that the install profile command for N4 was sent and
 		// simulate a device error
-		verifyCommands(3, syncml.CmdStatusAtomicFailed)
+		verifyCommands(1, syncml.CmdStatusAtomicFailed)
 		expectedProfileStatuses["N4"] = fleet.MDMDeliveryPending
 		checkProfilesStatus(t)
 		expectedRetryCounts["N4"] = 1
@@ -1135,7 +1124,7 @@ func (s *integrationMDMTestSuite) TestWindowsProfileRetries() {
 
 		// trigger a profile sync and confirm that the install profile
 		// command for N4 was sent and simulate a second device error
-		verifyCommands(3, syncml.CmdStatusAtomicFailed)
+		verifyCommands(1, syncml.CmdStatusAtomicFailed)
 		expectedProfileStatuses["N4"] = fleet.MDMDeliveryFailed
 		checkProfilesStatus(t)
 		checkRetryCounts(t) // unchanged
@@ -1146,8 +1135,6 @@ func (s *integrationMDMTestSuite) TestWindowsProfileRetries() {
 	})
 
 	t.Run("retry count does not reset", func(t *testing.T) {
-		// TODO(DSWA): #37935 Uncomment once osquery verification logic has changed
-		t.SkipNow()
 		// add another profile
 		testProfiles = append(testProfiles, fleet.MDMProfileBatchPayload{
 			Name:     "N5",
@@ -1219,12 +1206,12 @@ func (s *integrationMDMTestSuite) TestWindowsProfileResend() {
 		}
 	}
 
-	/* hostProfileReports := map[string][]profileData{
+	hostProfileReports := map[string][]profileData{
 		"N1": {{"200", "L1", "D1"}},
 		"N2": {{"200", "L2", "D2"}, {"200", "L3", "D3"}},
-	} */
-	// TODO(DSWA): #37935 Uncomment once osquery verification logic has changed
-	/* reportHostProfs := func(profileNames ...string) {
+	}
+
+	reportHostProfs := func(profileNames ...string) {
 		selectedReports := make(map[string][]profileData)
 		for _, name := range profileNames {
 			if reports, exists := hostProfileReports[name]; exists {
@@ -1232,7 +1219,7 @@ func (s *integrationMDMTestSuite) TestWindowsProfileResend() {
 			}
 		}
 		s.reportWindowsOSQueryProfiles(ctx, t, h, selectedReports)
-	} */
+	}
 
 	verifyCommands := func(wantProfileInstalls int, status string) {
 		s.awaitTriggerProfileSchedule(t)
@@ -1279,11 +1266,10 @@ func (s *integrationMDMTestSuite) TestWindowsProfileResend() {
 		checkProfilesStatus(t) // all profiles verifying
 
 		// report osquery results and confirm that all profiles are verified
-		// TODO(DSWA): #37935 Uncomment once osquery verification logic has changed
-		/* reportHostProfs("N1", "N2")
+		reportHostProfs("N1", "N2")
 		expectedProfileStatuses["N1"] = fleet.MDMDeliveryVerified
 		expectedProfileStatuses["N2"] = fleet.MDMDeliveryVerified
-		checkProfilesStatus(t) */
+		checkProfilesStatus(t)
 
 		// trigger a profile sync and confirm that no profiles were sent
 		verifyCommands(0, syncml.CmdStatusOK)
@@ -1309,11 +1295,10 @@ func (s *integrationMDMTestSuite) TestWindowsProfileResend() {
 		checkProfilesStatus(t) // all profiles verifying
 
 		// report osquery results and confirm that all profiles are verified
-		// TODO(DSWA): #37935 Uncomment once osquery verification logic has changed
-		/* reportHostProfs("N1", "N2")
+		reportHostProfs("N1", "N2")
 		expectedProfileStatuses["N1"] = fleet.MDMDeliveryVerified
 		expectedProfileStatuses["N2"] = fleet.MDMDeliveryVerified
-		checkProfilesStatus(t) */
+		checkProfilesStatus(t)
 
 		// trigger a profile sync and confirm that no profiles were sent
 		verifyCommands(0, syncml.CmdStatusOK)
@@ -1326,8 +1311,7 @@ func (s *integrationMDMTestSuite) TestWindowsProfileResend() {
 		// Confirm that one profile was sent and its status
 		verifyCommands(1, syncml.CmdStatusOK)
 		expectedProfileStatuses["N1"] = fleet.MDMDeliveryVerifying
-		// TODO(DSWA): #37935 Uncomment once osquery verification logic has changed
-		// expectedProfileStatuses["N2"] = fleet.MDMDeliveryVerified
+		expectedProfileStatuses["N2"] = fleet.MDMDeliveryVerified
 		checkProfilesStatus(t) // all profiles verifying
 	})
 }
@@ -3403,10 +3387,10 @@ func (s *integrationMDMTestSuite) TestMDMConfigProfileCRUD() {
 	}
 
 	// profiles with non-existent labels
-	assertAppleProfile("apple-profile-with-labels.mobileconfig", "apple-profile-with-labels", "ident-with-labels", 0, []string{"does-not-exist"}, http.StatusBadRequest, "some or all the labels provided don't exist")
-	assertAppleDeclaration("apple-declaration-with-labels.json", "ident-with-labels", 0, []string{"does-not-exist"}, http.StatusBadRequest, "some or all the labels provided don't exist")
-	assertWindowsProfile("win-profile-with-labels.xml", "./Test", 0, []string{"does-not-exist"}, http.StatusBadRequest, "some or all the labels provided don't exist")
-	assertAndroidProfile("android-with-labels.json", 0, []string{"does-not-exist"}, http.StatusBadRequest, "some or all the labels provided don't exist")
+	assertAppleProfile("apple-profile-with-labels.mobileconfig", "apple-profile-with-labels", "ident-with-labels", 0, []string{"does-not-exist"}, http.StatusBadRequest, `Couldn't update. Label "does-not-exist" doesn't exist. Please remove the label from the configuration profile.`)
+	assertAppleDeclaration("apple-declaration-with-labels.json", "ident-with-labels", 0, []string{"does-not-exist"}, http.StatusBadRequest, `Couldn't update. Label "does-not-exist" doesn't exist. Please remove the label from the configuration profile.`)
+	assertWindowsProfile("win-profile-with-labels.xml", "./Test", 0, []string{"does-not-exist"}, http.StatusBadRequest, `Couldn't update. Label "does-not-exist" doesn't exist. Please remove the label from the configuration profile.`)
+	assertAndroidProfile("android-with-labels.json", 0, []string{"does-not-exist"}, http.StatusBadRequest, `Couldn't update. Label "does-not-exist" doesn't exist. Please remove the label from the configuration profile.`)
 
 	// create a couple of labels
 	labelFoo := &fleet.Label{Name: "foo", Query: "select * from foo;"}
@@ -3417,10 +3401,10 @@ func (s *integrationMDMTestSuite) TestMDMConfigProfileCRUD() {
 	require.NoError(t, err)
 
 	// profiles mixing existent and non-existent labels
-	assertAppleProfile("apple-profile-with-labels.mobileconfig", "apple-profile-with-labels", "ident-with-labels", 0, []string{"does-not-exist", "foo"}, http.StatusBadRequest, "some or all the labels provided don't exist")
-	assertAppleDeclaration("apple-declaration-with-labels.json", "ident-with-labels", 0, []string{"does-not-exist", "foo"}, http.StatusBadRequest, "some or all the labels provided don't exist")
-	assertWindowsProfile("win-profile-with-labels.xml", "./Test", 0, []string{"does-not-exist", "bar"}, http.StatusBadRequest, "some or all the labels provided don't exist")
-	assertAndroidProfile("android-profile-with-labels.json", 0, []string{"does-not-exist", "bar"}, http.StatusBadRequest, "some or all the labels provided don't exist")
+	assertAppleProfile("apple-profile-with-labels.mobileconfig", "apple-profile-with-labels", "ident-with-labels", 0, []string{"does-not-exist", "foo"}, http.StatusBadRequest, `Couldn't update. Label "does-not-exist" doesn't exist. Please remove the label from the configuration profile.`)
+	assertAppleDeclaration("apple-declaration-with-labels.json", "ident-with-labels", 0, []string{"does-not-exist", "foo"}, http.StatusBadRequest, `Couldn't update. Label "does-not-exist" doesn't exist. Please remove the label from the configuration profile.`)
+	assertWindowsProfile("win-profile-with-labels.xml", "./Test", 0, []string{"does-not-exist", "bar"}, http.StatusBadRequest, `Couldn't update. Label "does-not-exist" doesn't exist. Please remove the label from the configuration profile.`)
+	assertAndroidProfile("android-profile-with-labels.json", 0, []string{"does-not-exist", "bar"}, http.StatusBadRequest, `Couldn't update. Label "does-not-exist" doesn't exist. Please remove the label from the configuration profile.`)
 
 	// profiles with invalid mix of labels
 	assertAppleProfile("apple-invalid-profile-with-labels.mobileconfig", "apple-invalid-profile-with-labels", "ident-with-labels", 0, []string{"foo", "!bar"}, http.StatusBadRequest, `Only one of "labels_exclude_any", "labels_include_all", "labels_include_any", or "labels" can be included.`)
@@ -3456,7 +3440,7 @@ func (s *integrationMDMTestSuite) TestMDMConfigProfileCRUD() {
 		"apple.mobileconfig", []byte("\x00\x01\x02"), s.token, nil)
 	res = s.DoRawWithHeaders("POST", "/api/latest/fleet/configuration_profiles", body.Bytes(), http.StatusBadRequest, headers)
 	errMsg = extractServerErrorText(res.Body)
-	require.Contains(t, errMsg, "Configuration profiles can't be signed. Fleet wil sign the profile for you.")
+	require.Contains(t, errMsg, "Configuration profiles can't be signed. Fleet will sign the profile for you.")
 
 	// Apple/Android invalid json declaration
 	body, headers = generateNewProfileMultipartRequest(t,
@@ -4761,7 +4745,7 @@ func (s *integrationMDMTestSuite) TestBatchSetMDMProfiles() {
 		{Name: "N1", Contents: mobileconfigForTest("N1", "I1"), Labels: []string{lbl1.Name, "no-such-label"}},
 	}}, http.StatusBadRequest)
 	msg := extractServerErrorText(res.Body)
-	require.Contains(t, msg, "some or all the labels provided don't exist")
+	require.Contains(t, msg, `Couldn't update. Label "no-such-label" doesn't exist. Please remove the label from the configuration profile.`)
 
 	// mix of labels fields
 	res = s.Do("POST", "/api/v1/fleet/mdm/profiles/batch", batchSetMDMProfilesRequest{Profiles: []fleet.MDMProfileBatchPayload{
@@ -5060,7 +5044,7 @@ func (s *integrationMDMTestSuite) TestBatchModifyMDMProfiles() {
 		{DisplayName: "N1", Profile: mobileconfigForTest("N1", "I1"), LabelsIncludeAll: []string{lbl1.Name, "no-such-label"}},
 	}}, http.StatusBadRequest)
 	msg := extractServerErrorText(res.Body)
-	require.Contains(t, msg, "some or all the labels provided don't exist")
+	require.Contains(t, msg, `Couldn't update. Label "no-such-label" doesn't exist. Please remove the label from the configuration profile.`)
 
 	// mix of labels fields
 	res = s.Do("POST", "/api/latest/fleet/configuration_profiles/batch", batchModifyMDMConfigProfilesRequest{ConfigurationProfiles: []fleet.BatchModifyMDMConfigProfilePayload{
@@ -6035,6 +6019,7 @@ func (s *integrationMDMTestSuite) TestHostMDMProfilesExcludeLabels() {
 func (s *integrationMDMTestSuite) TestMDMProfilesIncludeAnyLabels() {
 	t := s.T()
 	ctx := context.Background()
+	s.setSkipWorkerJobs(t)
 
 	triggerReconcileProfiles := func() {
 		s.awaitTriggerProfileSchedule(t)
@@ -7759,10 +7744,6 @@ func (s *integrationMDMTestSuite) TestWindowsProfilesWithFleetVariables() {
 
 func (s *integrationMDMTestSuite) TestWindowsProfilesFleetVariableSubstitution() {
 	t := s.T()
-
-	// TODO(DSWA): #37935 Uncomment once osquery verification logic has changed
-	t.SkipNow()
-
 	ctx := context.Background()
 
 	// Create a team
@@ -8711,4 +8692,98 @@ func (s *integrationMDMTestSuite) TestWindowsProfileRetry() {
 		require.NoError(t, err)
 		require.Len(t, cmds, 1) // only ack returned
 	})
+}
+
+func (s *integrationMDMTestSuite) TestHostMDMAndroidProfilesStatus() {
+	t := s.T()
+	ctx := context.Background()
+	s.setSkipWorkerJobs(t)
+
+	testTeam, err := s.ds.NewTeam(ctx, &fleet.Team{Name: "TestTeam", Secrets: []*fleet.EnrollSecret{{Secret: uuid.NewString()}}})
+	require.NoError(t, err)
+
+	enterpriseID := s.enableAndroidMDM(t)
+
+	s.runWorkerUntilDoneWithChecks(true)
+
+	host1, deviceInfo1, pubSubToken := s.createAndEnrollAndroidDevice(t, "host-1", &testTeam.ID, false)
+	s.createAndEnrollAndroidDevice(t, "host-2", &testTeam.ID, false)
+
+	var hosts listHostsResponse
+	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &hosts)
+	assert.Len(t, hosts.Hosts, 2)
+
+	bytes := []byte(`{
+  "removeUserDisabled": false
+}`)
+
+	fields := make(map[string][]string)
+	fields["team_id"] = []string{fmt.Sprintf("%d", testTeam.ID)}
+	body, headers := generateNewProfileMultipartRequest(t, "remove-user-disabled.json", bytes, s.token, fields)
+	res := s.DoRawWithHeaders("POST", "/api/latest/fleet/configuration_profiles", body.Bytes(), http.StatusOK, headers)
+	require.NotNil(t, res)
+
+	// profiles should be added with NULL status even before the cron job (s.awaitTriggerAndroidProfileSchedule(t))
+	var profiles []fleet.HostMDMAndroidProfile
+	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		err := sqlx.SelectContext(ctx, q, &profiles, "SELECT host_uuid, status, operation_type FROM host_mdm_android_profiles")
+		require.NoError(t, err)
+		return nil
+	})
+
+	require.Len(t, profiles, 2)
+	require.Nil(t, profiles[0].Status)
+	require.Nil(t, profiles[1].Status)
+
+	overrideProfile1 := []byte(`{
+  "maximumTimeToLock": "1"
+}`)
+	overrideProfile2 := []byte(`{
+  "maximumTimeToLock": "2"
+}`)
+
+	body, headers = generateNewProfileMultipartRequest(t, "maximum-time-to-lock-1.json", overrideProfile1, s.token, fields)
+	res = s.DoRawWithHeaders("POST", "/api/latest/fleet/configuration_profiles", body.Bytes(), http.StatusOK, headers)
+	require.NotNil(t, res)
+
+	body, headers = generateNewProfileMultipartRequest(t, "maximum-time-to-lock-2.json", overrideProfile2, s.token, fields)
+	res = s.DoRawWithHeaders("POST", "/api/latest/fleet/configuration_profiles", body.Bytes(), http.StatusOK, headers)
+	require.NotNil(t, res)
+
+	s.awaitTriggerAndroidProfileSchedule(t)
+
+	getHostProfiles := func(hostID uint, wantStatus []string) {
+		var hostResp getHostResponse
+		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", hostID), nil, http.StatusOK, &hostResp)
+		require.NotNil(t, hostResp.Host.MDM.Profiles)
+		require.Len(t, *hostResp.Host.MDM.Profiles, len(wantStatus))
+		actualProfileStatuses := make([]string, 0, len(wantStatus))
+		for _, p := range *hostResp.Host.MDM.Profiles {
+			if p.Status != nil {
+				actualProfileStatuses = append(actualProfileStatuses, *p.Status)
+			}
+		}
+		require.ElementsMatch(t, wantStatus, actualProfileStatuses)
+	}
+
+	getHostProfiles(host1.ID, []string{string(fleet.MDMDeliveryPending), string(fleet.MDMDeliveryPending), string(fleet.MDMDeliveryFailed)})
+
+	// send a pub-sub status report
+	policyName := fmt.Sprintf("enterprises/%s/policies/%s", enterpriseID, host1.UUID)
+	reportMsg := statusReportMessageWithEnterpriseSpecificID(
+		t,
+		androidmanagement.Device{
+			Name:                 deviceInfo1.Name,
+			EnrollmentTokenData:  deviceInfo1.EnrollmentTokenData,
+			AppliedPolicyName:    policyName,
+			AppliedPolicyVersion: 2,
+			LastPolicySyncTime:   time.Now().Format(time.RFC3339Nano),
+		},
+		host1.UUID,
+	)
+	req := android_service.PubSubPushRequest{PubSubMessage: *reportMsg}
+	s.Do("POST", "/api/v1/fleet/android_enterprise/pubsub", &req, http.StatusOK, "token", string(pubSubToken.Value))
+
+	// Profiles that failed because they were overriden should stay failed
+	getHostProfiles(host1.ID, []string{string(fleet.MDMDeliveryVerified), string(fleet.MDMDeliveryVerified), string(fleet.MDMDeliveryFailed)})
 }

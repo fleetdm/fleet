@@ -406,7 +406,7 @@ func testLabelsListHostsInLabel(t *testing.T, db *Datastore) {
 	const simpleMDM, kandji = "https://simplemdm.com", "https://kandji.io"
 	err = db.SetOrUpdateMDMData(ctx, h1.ID, false, true, simpleMDM, true, fleet.WellKnownMDMSimpleMDM, "", false) // enrollment: automatic
 	require.NoError(t, err)
-	err = db.SetOrUpdateMDMData(ctx, h2.ID, false, true, kandji, true, fleet.WellKnownMDMKandji, "", false) // enrollment: automatic
+	err = db.SetOrUpdateMDMData(ctx, h2.ID, false, true, kandji, true, fleet.WellKnownMDMIru, "", false) // enrollment: automatic
 	require.NoError(t, err)
 	err = db.SetOrUpdateMDMData(ctx, h3.ID, false, false, simpleMDM, false, fleet.WellKnownMDMSimpleMDM, "", false) // enrollment: unenrolled
 	require.NoError(t, err)
@@ -417,7 +417,7 @@ func testLabelsListHostsInLabel(t *testing.T, db *Datastore) {
 	})
 	var kandjiID uint
 	ExecAdhocSQL(t, db, func(q sqlx.ExtContext) error {
-		return sqlx.GetContext(ctx, q, &kandjiID, `SELECT id FROM mobile_device_management_solutions WHERE name = ? AND server_url = ?`, fleet.WellKnownMDMKandji, kandji)
+		return sqlx.GetContext(ctx, q, &kandjiID, `SELECT id FROM mobile_device_management_solutions WHERE name = ? AND server_url = ?`, fleet.WellKnownMDMIru, kandji)
 	})
 
 	l1 := &fleet.LabelSpec{
@@ -3079,6 +3079,7 @@ func testSetAsideLabels(t *testing.T, ds *Datastore) {
 	globalAdmin := newUser(fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)})
 	team1Admin := newUser(fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: team1.ID}, Role: fleet.RoleAdmin}}})
 	team1Maintainer := newUser(fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: team1.ID}, Role: fleet.RoleMaintainer}}})
+	team1Technician := newUser(fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: team1.ID}, Role: fleet.RoleTechnician}}})
 	multiTeamAdmin := newUser(fleet.User{Teams: []fleet.UserTeam{
 		{Team: fleet.Team{ID: team1.ID}, Role: fleet.RoleAdmin},
 		{Team: fleet.Team{ID: team2.ID}, Role: fleet.RoleAdmin},
@@ -3086,6 +3087,10 @@ func testSetAsideLabels(t *testing.T, ds *Datastore) {
 	multiTeamMaintainer := newUser(fleet.User{Teams: []fleet.UserTeam{
 		{Team: fleet.Team{ID: team1.ID}, Role: fleet.RoleMaintainer},
 		{Team: fleet.Team{ID: team2.ID}, Role: fleet.RoleMaintainer},
+	}})
+	multiTeamTechnician := newUser(fleet.User{Teams: []fleet.UserTeam{
+		{Team: fleet.Team{ID: team1.ID}, Role: fleet.RoleTechnician},
+		{Team: fleet.Team{ID: team2.ID}, Role: fleet.RoleTechnician},
 	}})
 
 	type labelSpec struct {
@@ -3141,6 +3146,13 @@ func testSetAsideLabels(t *testing.T, ds *Datastore) {
 			expectError: true,
 		},
 		{
+			name:        "global technician can set aside global labels",
+			labels:      []labelSpec{{name: "global-setaside-5", teamID: nil, authorID: nil}},
+			notOnTeamID: &team1.ID,
+			user:        newUser(fleet.User{GlobalRole: ptr.String(fleet.RoleTechnician)}),
+			expectError: false,
+		},
+		{
 			name:        "team admin can't set aside their own team's labels if they can't edit the not-on team",
 			labels:      []labelSpec{{name: "team1-setaside-1", teamID: &team1.ID, authorID: nil}},
 			notOnTeamID: &team2.ID,
@@ -3159,6 +3171,13 @@ func testSetAsideLabels(t *testing.T, ds *Datastore) {
 			labels:      []labelSpec{{name: "team1-setaside-maintain", teamID: &team1.ID, authorID: nil}},
 			notOnTeamID: &team2.ID,
 			user:        multiTeamMaintainer,
+			expectError: false,
+		},
+		{
+			name:        "team technician can set aside their own team's labels if they can also edit the not-on team",
+			labels:      []labelSpec{{name: "team1-setaside-technician", teamID: &team1.ID, authorID: nil}},
+			notOnTeamID: &team2.ID,
+			user:        multiTeamTechnician,
 			expectError: false,
 		},
 		{
@@ -3204,6 +3223,13 @@ func testSetAsideLabels(t *testing.T, ds *Datastore) {
 			labels:      []labelSpec{{name: "global-authored-setaside", teamID: nil, authorID: &team1Maintainer.ID}},
 			notOnTeamID: &team1.ID,
 			user:        team1Maintainer,
+			expectError: false,
+		},
+		{
+			name:        "team user with write role can set aside their authored global labels",
+			labels:      []labelSpec{{name: "global-authored-setaside-2", teamID: nil, authorID: &team1Technician.ID}},
+			notOnTeamID: &team1.ID,
+			user:        team1Technician,
 			expectError: false,
 		},
 		{

@@ -10,6 +10,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"maps"
 	"net"
 	"net/http"
 	"net/url"
@@ -399,6 +400,24 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 	appConfig.MDM.IOSUpdates.UpdateNewHosts = optjson.Bool{}
 	appConfig.MDM.IPadOSUpdates.UpdateNewHosts = optjson.Bool{}
 
+	// Handle Google Calendar API key preservation/replacement.
+	// The custom GoogleCalendarApiKey type handles unmarshaling "********" as masked.
+	if newAppConfig.Integrations.GoogleCalendar != nil {
+		for i, newGC := range newAppConfig.Integrations.GoogleCalendar {
+			if i < len(appConfig.Integrations.GoogleCalendar) {
+				// If api_key_json was omitted (empty) or masked ("********"), preserve the existing value
+				if newGC.ApiKey.IsEmpty() || newGC.ApiKey.IsMasked() {
+					if len(oldAppConfig.Integrations.GoogleCalendar) > i {
+						appConfig.Integrations.GoogleCalendar[i].ApiKey = oldAppConfig.Integrations.GoogleCalendar[i].ApiKey
+					}
+				} else {
+					// api_key_json was provided with real values, use it
+					appConfig.Integrations.GoogleCalendar[i].ApiKey = newGC.ApiKey
+				}
+			}
+		}
+	}
+
 	// if turning off Windows MDM and Windows Migration is not explicitly set to
 	// on in the same update, set it to off (otherwise, if it is explicitly set
 	// to true, return an error that it can't be done when MDM is off, this is
@@ -406,6 +425,11 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 	if oldAppConfig.MDM.WindowsEnabledAndConfigured != appConfig.MDM.WindowsEnabledAndConfigured &&
 		!appConfig.MDM.WindowsEnabledAndConfigured && !newAppConfig.MDM.WindowsMigrationEnabled {
 		appConfig.MDM.WindowsMigrationEnabled = false
+	}
+
+	if oldAppConfig.MDM.WindowsEnabledAndConfigured != appConfig.MDM.WindowsEnabledAndConfigured &&
+		!appConfig.MDM.WindowsEnabledAndConfigured && len(newAppConfig.MDM.WindowsEntraTenantIDs.Value) == 0 {
+		appConfig.MDM.WindowsEntraTenantIDs.Value = []string{}
 	}
 
 	// EnableDiskEncryption is an optjson.Bool field in order to support the
@@ -526,7 +550,6 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 	applyOptString(&appConfig.ConditionalAccess.OktaAssertionConsumerServiceURL, newAppConfig.ConditionalAccess.OktaAssertionConsumerServiceURL)
 	applyOptString(&appConfig.ConditionalAccess.OktaAudienceURI, newAppConfig.ConditionalAccess.OktaAudienceURI)
 	applyOptString(&appConfig.ConditionalAccess.OktaCertificate, newAppConfig.ConditionalAccess.OktaCertificate)
-
 	// Handle Okta conditional access fields - only update if Set=true (partial update support)
 	// Check if any Okta fields are being set with valid (non-null) non-empty values
 	isNonEmpty := func(s optjson.String) bool {
@@ -736,7 +759,7 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 			}
 		}
 	}
-	// If google_calendar is null, we keep the existing setting. If it's not null, we update.
+	// If google_calendar is null, we keep the existing setting.
 	if newAppConfig.Integrations.GoogleCalendar == nil {
 		appConfig.Integrations.GoogleCalendar = oldAppConfig.Integrations.GoogleCalendar
 	}
@@ -780,6 +803,38 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 
 	if err := svc.ds.SaveAppConfig(ctx, appConfig); err != nil {
 		return nil, err
+	}
+
+	addedEntraTenantIDs := make([]string, 0)
+	removedEntraTenantIDs := make([]string, 0)
+	oldTenantIDSet := make(map[string]struct{})
+	newTenantIDSet := make(map[string]struct{})
+
+	for _, tenantID := range oldAppConfig.MDM.WindowsEntraTenantIDs.Value {
+		oldTenantIDSet[tenantID] = struct{}{}
+	}
+	for _, tenantID := range appConfig.MDM.WindowsEntraTenantIDs.Value {
+		newTenantIDSet[tenantID] = struct{}{}
+		if _, found := oldTenantIDSet[tenantID]; !found {
+			addedEntraTenantIDs = append(addedEntraTenantIDs, tenantID)
+		}
+	}
+	for _, tenantID := range oldAppConfig.MDM.WindowsEntraTenantIDs.Value {
+		if _, found := newTenantIDSet[tenantID]; !found {
+			removedEntraTenantIDs = append(removedEntraTenantIDs, tenantID)
+		}
+	}
+	for _, tenantID := range addedEntraTenantIDs {
+		act := fleet.ActivityTypeAddedMicrosoftEntraTenant{TenantID: tenantID}
+		if err := svc.NewActivity(ctx, authz.UserFromContext(ctx), act); err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "create activity for added Microsoft Entra tenant")
+		}
+	}
+	for _, tenantID := range removedEntraTenantIDs {
+		act := fleet.ActivityTypeDeletedMicrosoftEntraTenant{TenantID: tenantID}
+		if err := svc.NewActivity(ctx, authz.UserFromContext(ctx), act); err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "create activity for deleted Microsoft Entra tenant")
+		}
 	}
 
 	// only create activities when config change has been persisted
@@ -1072,12 +1127,16 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 
 	// Check if Okta configuration values changed (for edited case)
 	oktaConfigChanged := false
+	oktaBypassChanged := false
 	if oldOktaConfigured && newOktaConfigured {
 		// Both old and new are configured - check if any values changed
 		oktaConfigChanged = oldAppConfig.ConditionalAccess.OktaIDPID.Value != appConfig.ConditionalAccess.OktaIDPID.Value ||
 			oldAppConfig.ConditionalAccess.OktaAssertionConsumerServiceURL.Value != appConfig.ConditionalAccess.OktaAssertionConsumerServiceURL.Value ||
 			oldAppConfig.ConditionalAccess.OktaAudienceURI.Value != appConfig.ConditionalAccess.OktaAudienceURI.Value ||
 			oldAppConfig.ConditionalAccess.OktaCertificate.Value != appConfig.ConditionalAccess.OktaCertificate.Value
+
+		// Only create an activity if bypass is changed after otka has already been initially configured
+		oktaBypassChanged = oldAppConfig.ConditionalAccess.BypassDisabled.Value != newAppConfig.ConditionalAccess.BypassDisabled.Value
 	}
 
 	if (!oldOktaConfigured && newOktaConfigured) || oktaConfigChanged {
@@ -1097,6 +1156,22 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 			fleet.ActivityTypeDeletedConditionalAccessOkta{},
 		); err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "create activity for deleting Okta conditional access")
+		}
+	}
+
+	if oktaBypassChanged {
+		if err := svc.ds.ConditionalAccessClearBypasses(ctx); err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "clearing existing conditional access bypasses")
+		}
+
+		if err := svc.NewActivity(
+			ctx,
+			authz.UserFromContext(ctx),
+			fleet.ActivityTypeUpdateConditionalAccessBypass{
+				BypassDisabled: appConfig.ConditionalAccess.BypassDisabled.Value,
+			},
+		); err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "create activity for updating conditional access bypass")
 		}
 	}
 
@@ -1238,6 +1313,9 @@ func (svc *Service) validateMDM(
 	}
 	if mdm.EnableTurnOnWindowsMDMManually && !lic.IsPremium() {
 		invalid.Append("enable_turn_on_windows_mdm_manually", ErrMissingLicense.Error())
+	}
+	if len(mdm.WindowsEntraTenantIDs.Value) > 0 && !lic.IsPremium() {
+		invalid.Append("windows_entra_tenant_ids", ErrMissingLicense.Error())
 	}
 
 	// we want to use `oldMdm` here as this boolean is set by the fleet
@@ -1431,6 +1509,20 @@ func (svc *Service) validateMDM(
 
 	if !mdm.WindowsEnabledAndConfigured && mdm.EnableTurnOnWindowsMDMManually {
 		invalid.Append("mdm.enable_turn_on_windows_mdm_manually", "Couldn't enable Turn on Windows MDM Manually, Windows MDM is not enabled.")
+	}
+
+	if !mdm.WindowsEnabledAndConfigured && len(mdm.WindowsEntraTenantIDs.Value) > 0 {
+		invalid.Append("mdm.windows_entra_tenant_ids", "Couldn't set Windows Entra tenant IDs, Windows MDM is not enabled.")
+	}
+
+	// validate Windows Entra tenant IDs are in the correct format (GUIDs). We can't use the standard UUID parser here
+	// as Azure tenants should be in the 8-4-4-4-12 format but the usual UUID parser will allow certain non-standard
+	// forms
+	guidRegex := regexp.MustCompile("^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$")
+	for _, tenantID := range mdm.WindowsEntraTenantIDs.Value {
+		if !guidRegex.MatchString(tenantID) {
+			invalid.Append("mdm.windows_entra_tenant_ids", fmt.Sprintf("Invalid Entra tenant ID: %s", tenantID))
+		}
 	}
 
 	if mdm.WindowsMigrationEnabled && mdm.EnableTurnOnWindowsMDMManually {
@@ -1730,7 +1822,33 @@ func (svc *Service) ApplyEnrollSecretSpec(ctx context.Context, spec *fleet.Enrol
 		return nil
 	}
 
-	return svc.ds.ApplyEnrollSecrets(ctx, nil, spec.Secrets)
+	oldSecrets, err := svc.ds.GetEnrollSecrets(ctx, nil)
+	if err != nil {
+		return err
+	}
+
+	if err := svc.ds.ApplyEnrollSecrets(ctx, nil, spec.Secrets); err != nil {
+		return err
+	}
+
+	// Check whether there were any mutations around the provided secrets ... if true, then register
+	// an activity.
+	oldSecretValues := make(map[string]struct{}, len(oldSecrets))
+	for _, s := range oldSecrets {
+		oldSecretValues[s.Secret] = struct{}{}
+	}
+	newSecretsValues := make(map[string]struct{}, len(spec.Secrets))
+	for _, s := range spec.Secrets {
+		newSecretsValues[s.Secret] = struct{}{}
+	}
+	if !maps.Equal(oldSecretValues, newSecretsValues) {
+		activity := fleet.ActivityTypeEditedEnrollSecrets{}
+		if err := svc.NewActivity(ctx, authz.UserFromContext(ctx), activity); err != nil {
+			return ctxerr.Wrap(ctx, err, "creating activity for edited enroll secret")
+		}
+	}
+
+	return nil
 }
 
 // //////////////////////////////////////////////////////////////////////////////

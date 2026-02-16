@@ -1,1 +1,0 @@
-- Implemented the `executable_hashes` `fleetd` table, providing easy access to the sha256 hashes of a binary, either passed directly via a PATH clause, or discovered within a .app bundle when the path to the bundle is provided in the WHERE clause.

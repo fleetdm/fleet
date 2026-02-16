@@ -4,10 +4,12 @@
 import { HOST_LINUX_PLATFORMS } from "interfaces/platform";
 import { ISoftware } from "interfaces/software";
 
+import ConnectFonts from "./ConnectFonts";
 import CrashPlan from "./CrashPlan";
 import Nextcloud from "./Nextcloud";
 import Notepad from "./Notepad++";
 import OktaVerify from "./OktaVerify";
+import Proxifier from "./Proxifier";
 import SevenZip from "./7Zip";
 import Abstract from "./Abstract";
 import AcrobatReader from "./AcrobatReader";
@@ -287,6 +289,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   cloudflare: Cloudflare,
   code: VisualStudioCode,
   "company portal": IntuneCompanyPortal,
+  "connect fonts": ConnectFonts,
   crashplan: CrashPlan,
   "microsoft.companyportal": IntuneCompanyPortal,
   coteditor: CotEditor,
@@ -400,6 +403,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   pritunl: Pritunl,
   "proton mail": ProtonMail,
   protonvpn: ProtonVpn,
+  proxifier: Proxifier,
   "pycharm ce": PyCharmCe,
   pycharm: PyCharm,
   quip: Quip,

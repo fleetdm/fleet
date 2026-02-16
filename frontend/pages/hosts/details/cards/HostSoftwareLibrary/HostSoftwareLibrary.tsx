@@ -19,10 +19,12 @@ import {
   IHostSoftware,
   IVPPHostSoftware,
   ISoftware,
+  NO_VERSION_OR_HOST_DATA_SOURCES,
 } from "interfaces/software";
 import { HostPlatform, isIPadOrIPhone, isAndroid } from "interfaces/platform";
 
 import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
+import permissions from "utilities/permissions";
 import { getPathWithQueryParams } from "utilities/url";
 
 import { NotificationContext } from "context/notification";
@@ -40,6 +42,7 @@ import VppInstallDetailsModal from "components/ActivityDetails/InstallDetails/Vp
 import SoftwareUninstallDetailsModal, {
   ISWUninstallDetailsParentState,
 } from "components/ActivityDetails/InstallDetails/SoftwareUninstallDetailsModal/SoftwareUninstallDetailsModal";
+import { getDisplayedSoftwareName } from "pages/SoftwarePage/helpers";
 
 import { generateHostSWLibraryTableHeaders } from "./HostSoftwareLibraryTable/HostSoftwareLibraryTableConfig";
 import HostSoftwareLibraryTable from "./HostSoftwareLibraryTable";
@@ -130,6 +133,8 @@ const HostSoftwareLibrary = ({
     isGlobalMaintainer,
     isTeamAdmin,
     isTeamMaintainer,
+    isGlobalTechnician,
+    currentUser,
   } = useContext(AppContext);
 
   const isUnsupported = isAndroid(platform); // no Android software
@@ -233,7 +238,6 @@ const HostSoftwareLibrary = ({
     {
       enabled: false,
       onSuccess: (response) => {
-        // Get the set of pending software IDs
         const newPendingSet = new Set(
           response.software
             .filter(
@@ -244,9 +248,16 @@ const HostSoftwareLibrary = ({
             .map((software) => String(software.id))
         );
 
-        // Refresh host details if the number of pending installs or uninstalls has decreased
-        // To update the software library information of the newly installed/uninstalled software
-        if (newPendingSet.size < pendingSoftwareSetRef.current.size) {
+        // Determine which items just completed
+        const previouslyPendingIds = [...pendingSoftwareSetRef.current];
+        const completedIds = previouslyPendingIds.filter(
+          (pendingId) => !newPendingSet.has(pendingId)
+        );
+
+        if (completedIds.length > 0) {
+          // Refetch host details to:
+          // - Update the software library version information of newly installed/uninstalled software of inventory‑detectable sources only
+          // - Update the software inventory of any changes to software detected by software inventory
           refetchHostDetails();
         }
 
@@ -446,8 +457,17 @@ const HostSoftwareLibrary = ({
   ]);
 
   const hasSWWriteRole = Boolean(
-    isGlobalAdmin || isGlobalMaintainer || isTeamAdmin || isTeamMaintainer
+    isGlobalAdmin ||
+      isGlobalMaintainer ||
+      isTeamAdmin ||
+      isTeamMaintainer ||
+      isGlobalTechnician ||
+      permissions.isTeamTechnician(currentUser, hostTeamId)
   );
+
+  const canAddSoftware =
+    (isGlobalAdmin || isGlobalMaintainer || isTeamAdmin || isTeamMaintainer) &&
+    !isAndroidHost;
 
   // 4.77 Currently Android apps can only be installed via self-service by end user
   const userHasSWWritePermission = hasSWWriteRole && !isAndroidHost;
@@ -593,7 +613,7 @@ const HostSoftwareLibrary = ({
     <div className={baseClass}>
       <div className={`${baseClass}__header`}>
         <CardHeader subheader="Software available to be installed on this host" />
-        {userHasSWWritePermission && (
+        {canAddSoftware && (
           <Button variant="inverse" onClick={onAddSoftware}>
             <Icon name="plus" />
             <span>Add software</span>
@@ -626,9 +646,10 @@ const HostSoftwareLibrary = ({
           details={{
             hostDisplayName,
             fleetInstallStatus: selectedHostSWIpaInstallDetails.status,
-            appName:
-              selectedHostSWIpaInstallDetails.display_name ||
+            appName: getDisplayedSoftwareName(
               selectedHostSWIpaInstallDetails.name,
+              selectedHostSWIpaInstallDetails.display_name
+            ),
             commandUuid:
               selectedHostSWIpaInstallDetails.software_package?.last_install
                 ?.install_uuid, // slightly redundant, see explanation in `SoftwareInstallDetailsModal
@@ -661,9 +682,10 @@ const HostSoftwareLibrary = ({
           details={{
             fleetInstallStatus: selectedVPPInstallDetails.status,
             hostDisplayName,
-            appName:
-              selectedVPPInstallDetails.display_name ||
+            appName: getDisplayedSoftwareName(
               selectedVPPInstallDetails.name,
+              selectedVPPInstallDetails.display_name
+            ),
             commandUuid: selectedVPPInstallDetails.commandUuid,
             platform,
           }}

@@ -17,6 +17,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/go-kit/log"
 	"github.com/google/uuid"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
@@ -39,9 +40,6 @@ func generateTestWlanProfiles(t *testing.T) (wlanXMLOriginalProfile, wlanXMLModi
 }
 
 func TestLoopHostMDMLocURIs(t *testing.T) {
-	// TODO(DSWA): #37935 Uncomment once osquery verification logic has changed
-	t.SkipNow()
-
 	ds := new(mock.Store)
 	ctx := context.Background()
 
@@ -152,9 +150,6 @@ func TestVerifyHostMDMProfilesErrors(t *testing.T) {
 }
 
 func TestVerifyHostMDMProfilesHappyPaths(t *testing.T) {
-	// TODO(DSWA): #37935 Uncomment once osquery verification logic has changed
-	t.SkipNow()
-
 	wlanXMLOriginalProfile, wlanXMLModifiedProfile := generateTestWlanProfiles(t)
 	cases := []struct {
 		name              string
@@ -742,6 +737,57 @@ func TestVerifyHostMDMProfilesHappyPaths(t *testing.T) {
 			toFail:   []string{},
 			toRetry:  []string{}, // It should not do anything on SCEP profiles.
 		},
+		{
+			name: "non atomic profile with multiple locURIs verifies only if all locURIs match",
+			hostProfiles: []hostProfile{
+				{"N1", syncml.ForTestWithDataNonAtomic([]syncml.TestCommand{
+					{Verb: "Replace", LocURI: "L1", Data: "D1"},
+					{Verb: "Replace", LocURI: "L1.1", Data: "D1.1"},
+				}), 3},
+			},
+			report: []osqueryReport{
+				{"N1", "200", "L1", "D1"},
+				{"N1", "200", "L1.1", "DifferentData"},
+			},
+			toVerify: []string{},
+			toFail:   []string{"N1"},
+			toRetry:  []string{},
+		},
+		{
+			name: "non atomic profile with multiple locURIs verifies if all locURIs match",
+			hostProfiles: []hostProfile{
+				{"N1", syncml.ForTestWithDataNonAtomic([]syncml.TestCommand{
+					{Verb: "Replace", LocURI: "L1", Data: "D1"},
+					{Verb: "Replace", LocURI: "L1.1", Data: "D1.1"},
+				}), 0},
+			},
+			report: []osqueryReport{
+				{"N1", "200", "L1", "D1"},
+				{"N1", "200", "L1.1", "D1.1"},
+			},
+			toVerify: []string{"N1"},
+			toFail:   []string{},
+			toRetry:  []string{},
+		},
+		{
+			name: "non atomic and atomic profiles does not interfere",
+			hostProfiles: []hostProfile{
+				{"N1", syncml.ForTestWithDataNonAtomic([]syncml.TestCommand{
+					{Verb: "Replace", LocURI: "L1", Data: "D1"},
+					{Verb: "Replace", LocURI: "L1.1", Data: "D1.1"},
+				}), 0},
+				{"N2", syncml.ForTestWithData([]syncml.TestCommand{
+					{Verb: "Replace", LocURI: "L2", Data: "D2"},
+				}), 3},
+			},
+			report: []osqueryReport{
+				{"N1", "200", "L1", "D1"},
+				{"N1", "200", "L1.1", "D1.1"},
+			},
+			toVerify: []string{"N1"},
+			toFail:   []string{"N2"},
+			toRetry:  []string{},
+		},
 	}
 
 	for _, tt := range cases {
@@ -800,9 +846,9 @@ func TestVerifyHostMDMProfilesHappyPaths(t *testing.T) {
 			}
 
 			ds.UpdateHostMDMProfilesVerificationFunc = func(ctx context.Context, host *fleet.Host, toVerify []string, toFail []string, toRetry []string) error {
-				require.ElementsMatch(t, tt.toVerify, toVerify, "profiles to verify don't match")
-				require.ElementsMatch(t, tt.toFail, toFail, "profiles to fail don't match")
-				require.ElementsMatch(t, tt.toRetry, toRetry, "profiles to retry don't match")
+				assert.ElementsMatch(t, tt.toVerify, toVerify, "profiles to verify don't match")
+				assert.ElementsMatch(t, tt.toFail, toFail, "profiles to fail don't match")
+				assert.ElementsMatch(t, tt.toRetry, toRetry, "profiles to retry don't match")
 				return nil
 			}
 

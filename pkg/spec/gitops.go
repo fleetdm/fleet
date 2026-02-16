@@ -143,26 +143,26 @@ type BaseItem struct {
 
 type GitOpsControls struct {
 	BaseItem
-	MacOSUpdates   interface{}       `json:"macos_updates"`
-	IOSUpdates     interface{}       `json:"ios_updates"`
-	IPadOSUpdates  interface{}       `json:"ipados_updates"`
-	MacOSSettings  interface{}       `json:"macos_settings"`
+	MacOSUpdates   any               `json:"macos_updates"`
+	IOSUpdates     any               `json:"ios_updates"`
+	IPadOSUpdates  any               `json:"ipados_updates"`
+	MacOSSettings  any               `json:"macos_settings"`
 	MacOSSetup     *fleet.MacOSSetup `json:"macos_setup"`
-	MacOSMigration interface{}       `json:"macos_migration"`
+	MacOSMigration any               `json:"macos_migration"`
 
-	WindowsUpdates                 interface{} `json:"windows_updates"`
-	WindowsSettings                interface{} `json:"windows_settings"`
-	WindowsEnabledAndConfigured    interface{} `json:"windows_enabled_and_configured"`
-	WindowsMigrationEnabled        interface{} `json:"windows_migration_enabled"`
-	EnableTurnOnWindowsMDMManually interface{} `json:"enable_turn_on_windows_mdm_manually"`
+	WindowsUpdates                 any `json:"windows_updates"`
+	WindowsSettings                any `json:"windows_settings"`
+	WindowsEnabledAndConfigured    any `json:"windows_enabled_and_configured"`
+	WindowsMigrationEnabled        any `json:"windows_migration_enabled"`
+	EnableTurnOnWindowsMDMManually any `json:"enable_turn_on_windows_mdm_manually"`
+	WindowsEntraTenantIDs          any `json:"windows_entra_tenant_ids"`
 
-	AndroidEnabledAndConfigured interface{} `json:"android_enabled_and_configured"`
-	AndroidSettings             interface{} `json:"android_settings"`
+	AndroidEnabledAndConfigured any `json:"android_enabled_and_configured"`
+	AndroidSettings             any `json:"android_settings"`
 
-	EnableDiskEncryption interface{} `json:"enable_disk_encryption"`
-	RequireBitLockerPIN  interface{} `json:"windows_require_bitlocker_pin,omitempty"`
-
-	Scripts []BaseItem `json:"scripts"`
+	EnableDiskEncryption any        `json:"enable_disk_encryption"`
+	RequireBitLockerPIN  any        `json:"windows_require_bitlocker_pin,omitempty"`
+	Scripts              []BaseItem `json:"scripts"`
 
 	Defined bool
 }
@@ -229,6 +229,12 @@ func (spec SoftwarePackage) HydrateToPackageLevel(packageLevel fleet.SoftwarePac
 	packageLevel.LabelsExcludeAny = spec.LabelsExcludeAny
 	packageLevel.InstallDuringSetup = spec.InstallDuringSetup
 	packageLevel.SelfService = spec.SelfService
+
+	// This will only override display name set at path: path/to/software.yml level
+	// if display_name is specified at the team level yml
+	if spec.DisplayName != "" {
+		packageLevel.DisplayName = spec.DisplayName
+	}
 
 	return packageLevel, nil
 }

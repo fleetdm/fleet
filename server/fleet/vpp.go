@@ -155,6 +155,7 @@ type HostVPPSoftwareInstall struct {
 	InstallCommandStatus string     `db:"install_command_status"`
 	BundleIdentifier     string     `db:"bundle_identifier"`
 	RetryCount           int        `db:"retry_count"`
+	ExpectedVersion      string     `db:"expected_version"`
 }
 
 type HostVPPSoftwareInstallLite struct {

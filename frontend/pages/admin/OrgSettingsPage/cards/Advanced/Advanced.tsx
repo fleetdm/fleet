@@ -55,19 +55,19 @@ const validateFormData = ({
   if (!ssoUserURL) {
     delete errors.ssoUserURL;
   } else if (!validUrl({ url: ssoUserURL })) {
-    errors.ssoUserURL = `${ssoUserURL} is not a valid URL`;
+    errors.ssoUserURL = "SSO user URL is not a valid URL";
   }
 
   if (!mdmAppleServerURL) {
     delete errors.mdmAppleServerURL;
   } else if (!validUrl({ url: mdmAppleServerURL })) {
-    errors.mdmAppleServerURL = `${mdmAppleServerURL} is not a valid URL`;
+    errors.mdmAppleServerURL = "Apple MDM server URL is not a valid URL";
   }
 
   if (!domain) {
     delete errors.domain;
   } else if (!validUrl({ url: domain })) {
-    errors.domain = `${domain} is not a valid URL`;
+    errors.domain = "Domain is not a valid URL";
   }
 
   if (
@@ -446,7 +446,7 @@ const Advanced = ({
                     </>
                   )
                 }
-                helpText="Features that run scripts under-the-hood (e.g. software install, lock/wipe) will still be available."
+                helpText="Features that run scripts under-the-hood (e.g. software install, lock/wipe, script-only packages) will still be available."
               >
                 Disable script execution features
               </Checkbox>

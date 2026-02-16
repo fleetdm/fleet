@@ -24,6 +24,7 @@ func attachFleetAPIRoutes(r *mux.Router, svc api.Service, authMiddleware endpoin
 	ue := newUserAuthenticatedEndpointer(svc, authMiddleware, opts, r, apiVersions()...)
 
 	ue.GET("/api/_version_/fleet/activities", listActivitiesEndpoint, api_http.ListActivitiesRequest{})
+	ue.GET("/api/_version_/fleet/hosts/{id:[0-9]+}/activities", listHostPastActivitiesEndpoint, api_http.ListHostPastActivitiesRequest{})
 }
 
 func apiVersions() []string {
@@ -34,10 +35,7 @@ func apiVersions() []string {
 func listActivitiesEndpoint(ctx context.Context, request any, svc api.Service) platform_http.Errorer {
 	req := request.(*api_http.ListActivitiesRequest)
 
-	opt := req.ListOptions // Access the embedded api.ListOptions
-	fillListOptions(&opt)
-
-	activities, meta, err := svc.ListActivities(ctx, opt)
+	activities, meta, err := svc.ListActivities(ctx, req.ListOptions)
 	if err != nil {
 		return api_http.ListActivitiesResponse{Err: err}
 	}
@@ -48,22 +46,17 @@ func listActivitiesEndpoint(ctx context.Context, request any, svc api.Service) p
 	}
 }
 
-// fillListOptions sets default values for list options.
-// Note: IncludeMetadata is set internally by the service layer.
-func fillListOptions(opt *api.ListOptions) {
-	// Default ordering by created_at descending (newest first) if not specified
-	if opt.OrderKey == "" {
-		opt.OrderKey = "created_at"
-		opt.OrderDirection = api.OrderDesc
+// listHostPastActivitiesEndpoint handles GET /api/_version_/fleet/hosts/{id}/activities
+func listHostPastActivitiesEndpoint(ctx context.Context, request any, svc api.Service) platform_http.Errorer {
+	req := request.(*api_http.ListHostPastActivitiesRequest)
+
+	activities, meta, err := svc.ListHostPastActivities(ctx, req.HostID, req.ListOptions)
+	if err != nil {
+		return api_http.ListHostPastActivitiesResponse{Err: err}
 	}
-	// Default PerPage based on whether pagination was requested
-	if opt.PerPage == 0 {
-		if opt.Page == 0 {
-			// No pagination requested - return all results (legacy behavior)
-			opt.PerPage = unlimitedPerPage
-		} else {
-			// Page specified without per_page - use sensible default
-			opt.PerPage = defaultPerPage
-		}
+
+	return api_http.ListHostPastActivitiesResponse{
+		Meta:       meta,
+		Activities: activities,
 	}
 }

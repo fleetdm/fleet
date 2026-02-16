@@ -52,7 +52,7 @@ const EndUserAuthForm = ({
         currentTeamId,
         isEndUserAuthEnabled
       );
-      renderFlash("success", "Successfully updated!");
+      renderFlash("success", "Successfully updated.");
     } catch {
       renderFlash("error", "Couldn’t update. Please try again.");
     } finally {
@@ -70,11 +70,8 @@ const EndUserAuthForm = ({
             url={PATHS.ADMIN_INTEGRATIONS_SSO_END_USERS}
             text="identity provider (IdP)"
           />{" "}
-          when they set up their new hosts.
-          <br />
-          <TooltipWrapper tipContent={getTooltipCopy()}>
-            macOS
-          </TooltipWrapper>{" "}
+          when they set up their new hosts.{" "}
+          <TooltipWrapper tipContent={getTooltipCopy()}>macOS</TooltipWrapper>{" "}
           hosts will also be required to agree to an{" "}
           <CustomLink
             url={`${PATHS.ADMIN_INTEGRATIONS_MDM}#end-user-license-agreement`}

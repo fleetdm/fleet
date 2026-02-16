@@ -1,14 +1,14 @@
 {
   "versions": [
     {
-      "version": "15.2.0",
+      "version": "15.2.1",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.cisco.jabber';"
       },
-      "installer_url": "https://binaries.webex.com/jabberclientmac/20251118100311/Install_Cisco-Jabber-Mac.pkg",
+      "installer_url": "https://binaries.webex.com/jabberclientmac/20260122074039/Install_Cisco-Jabber-Mac.pkg",
       "install_script_ref": "2979072e",
       "uninstall_script_ref": "06a25cf9",
-      "sha256": "02a836c3cced02f2780f980bad48edcf27d62dbd69a00d53d25911d2b7158c7f",
+      "sha256": "5644700e420febc1eca304c0a0f24bcff1e64b424112e1beda025d2eb78e16de",
       "default_categories": [
         "Communication"
       ]

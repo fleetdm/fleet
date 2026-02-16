@@ -24,12 +24,10 @@ import (
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanodep/tokenpki"
 	"github.com/fleetdm/fleet/v4/server/mock"
+	"github.com/fleetdm/fleet/v4/server/platform/logging"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/service"
 	"github.com/fleetdm/fleet/v4/server/service/schedule"
-	"github.com/go-kit/log"
-	kitlog "github.com/go-kit/log"
-	"github.com/go-kit/log/level"
 	"github.com/jmoiron/sqlx"
 	"github.com/smallstep/pkcs7"
 	"github.com/stretchr/testify/assert"
@@ -296,7 +294,7 @@ func TestAutomationsSchedule(t *testing.T) {
 	defer cancelFunc()
 
 	failingPoliciesSet := service.NewMemFailingPolicySet()
-	s, err := newAutomationsSchedule(ctx, "test_instance", ds, kitlog.NewNopLogger(), 5*time.Minute, failingPoliciesSet)
+	s, err := newAutomationsSchedule(ctx, "test_instance", ds, logging.NewNopLogger(), 5*time.Minute, failingPoliciesSet)
 	require.NoError(t, err)
 	s.Start()
 
@@ -355,7 +353,7 @@ func TestCronVulnerabilitiesCreatesDatabasesPath(t *testing.T) {
 	// Use schedule to test that the schedule does indeed call cronVulnerabilities.
 	ctx = license.NewContext(ctx, &fleet.LicenseInfo{Tier: fleet.TierPremium})
 	ctx, cancel := context.WithCancel(ctx)
-	lg := kitlog.NewJSONLogger(os.Stdout)
+	lg := logging.NewNopLogger()
 
 	go func() {
 		defer func() {
@@ -416,8 +414,7 @@ func (f *softwareIterator) Close() error { return nil }
 func TestScanVulnerabilities(t *testing.T) {
 	nettest.Run(t)
 
-	logger := kitlog.NewNopLogger()
-	logger = level.NewFilter(logger, level.AllowDebug())
+	logger := logging.NewNopLogger()
 
 	ctx := context.Background()
 
@@ -600,8 +597,7 @@ func TestScanVulnerabilities(t *testing.T) {
 }
 
 func TestUpdateVulnHostCounts(t *testing.T) {
-	logger := kitlog.NewNopLogger()
-	logger = level.NewFilter(logger, level.AllowDebug())
+	logger := logging.NewNopLogger()
 
 	ctx := context.Background()
 
@@ -645,8 +641,7 @@ func TestUpdateVulnHostCounts(t *testing.T) {
 }
 
 func TestScanVulnerabilitiesMkdirFailsIfVulnPathIsFile(t *testing.T) {
-	logger := kitlog.NewNopLogger()
-	logger = level.NewFilter(logger, level.AllowDebug())
+	logger := logging.NewNopLogger()
 
 	ctx, cancelFunc := context.WithCancel(context.Background())
 	defer cancelFunc()
@@ -722,7 +717,7 @@ func TestCronVulnerabilitiesSkipMkdirIfDisabled(t *testing.T) {
 	// Use schedule to test that the schedule does indeed call cronVulnerabilities.
 	ctx = license.NewContext(ctx, &fleet.LicenseInfo{Tier: fleet.TierPremium})
 	ctx, cancel := context.WithCancel(ctx)
-	s, err := newVulnerabilitiesSchedule(ctx, "test_instance", ds, kitlog.NewNopLogger(), &config)
+	s, err := newVulnerabilitiesSchedule(ctx, "test_instance", ds, logging.NewNopLogger(), &config)
 	require.NoError(t, err)
 	s.Start()
 	t.Cleanup(func() {
@@ -806,7 +801,7 @@ func TestAutomationsScheduleLockDuration(t *testing.T) {
 	ctx, cancelFunc := context.WithCancel(context.Background())
 	defer cancelFunc()
 
-	s, err := newAutomationsSchedule(ctx, "test_instance", ds, kitlog.NewNopLogger(), 1*time.Second, service.NewMemFailingPolicySet())
+	s, err := newAutomationsSchedule(ctx, "test_instance", ds, logging.NewNopLogger(), 1*time.Second, service.NewMemFailingPolicySet())
 	require.NoError(t, err)
 	s.Start()
 
@@ -872,7 +867,7 @@ func TestAutomationsScheduleIntervalChange(t *testing.T) {
 	ctx, cancelFunc := context.WithCancel(context.Background())
 	defer cancelFunc()
 
-	s, err := newAutomationsSchedule(ctx, "test_instance", ds, kitlog.NewNopLogger(), 200*time.Millisecond, service.NewMemFailingPolicySet())
+	s, err := newAutomationsSchedule(ctx, "test_instance", ds, logging.NewNopLogger(), 200*time.Millisecond, service.NewMemFailingPolicySet())
 	require.NoError(t, err)
 	s.Start()
 
@@ -1016,157 +1011,10 @@ func TestDebugMux(t *testing.T) {
 	}
 }
 
-func TestCronActivitiesStreaming(t *testing.T) {
-	ds := new(mock.Store)
-
-	newActivity := func(
-		id uint,
-		actorName string,
-		actorID uint,
-		actorGravatar, actorEmail, actType string,
-		details string,
-	) *fleet.Activity {
-		jsonRawMessage := json.RawMessage(details)
-		return &fleet.Activity{
-			ID:            id,
-			ActorFullName: &actorName,
-			ActorID:       &actorID,
-			ActorGravatar: &actorGravatar,
-			ActorEmail:    &actorEmail,
-			Type:          actType,
-			Details:       &jsonRawMessage,
-		}
-	}
-
-	a1 := newActivity(1, "foo1", 7, "foo1_gravatar", "foo1_email", "foobar1", `{"foo1":"bar1"}`)
-	a2 := newActivity(2, "foo2", 8, "foo2_gravatar", "foo2_email", "foobar2", `{"foo2":"bar2"}`)
-	a3 := newActivity(3, "foo3", 9, "foo3_gravatar", "foo3_email", "foobar3", `{"foo3":"bar3"}`)
-
-	t.Run("basic", func(t *testing.T) {
-		as := []*fleet.Activity{a1, a2, a3}
-
-		ds.ListActivitiesFunc = func(ctx context.Context, opt fleet.ListActivitiesOptions) ([]*fleet.Activity, *fleet.PaginationMetadata, error) {
-			return as, nil, nil
-		}
-
-		ds.MarkActivitiesAsStreamedFunc = func(ctx context.Context, activityIDs []uint) error {
-			require.Equal(t, []uint{1, 2, 3}, activityIDs)
-			return nil
-		}
-
-		var auditLogger jsonLogger
-		err := cronActivitiesStreaming(context.Background(), ds, log.NewNopLogger(), &auditLogger)
-		require.NoError(t, err)
-		require.Len(t, auditLogger.logs, 3)
-		for i, m := range auditLogger.logs {
-			var a *fleet.Activity
-			err := json.Unmarshal([]byte(m), &a)
-			require.NoError(t, err)
-			require.Equal(t, as[i], a)
-		}
-	})
-
-	t.Run("fail_to_stream_an_activity", func(t *testing.T) {
-		as := []*fleet.Activity{a1, a2, a3}
-
-		ds.ListActivitiesFunc = func(ctx context.Context, opt fleet.ListActivitiesOptions) ([]*fleet.Activity, *fleet.PaginationMetadata, error) {
-			return as, nil, nil
-		}
-
-		ds.MarkActivitiesAsStreamedFunc = func(ctx context.Context, activityIDs []uint) error {
-			require.Equal(t, []uint{1}, activityIDs)
-			return nil
-		}
-
-		auditLogger := jsonLogger{failAfter: 1}
-		err := cronActivitiesStreaming(context.Background(), ds, log.NewNopLogger(), &auditLogger)
-		require.Error(t, err)
-		require.ErrorIs(t, err, errStreamFailed)
-		require.Len(t, auditLogger.logs, 1)
-		var a *fleet.Activity
-		err = json.Unmarshal([]byte(auditLogger.logs[0]), &a)
-		require.NoError(t, err)
-		require.Equal(t, a1, a)
-	})
-
-	t.Run("bigger_than_batch", func(t *testing.T) {
-		// Make slice that will require three iterations (3 pages,
-		// two pages of ActivitiesToStreamBatchCount and one extra page of one item.
-		as := make([]*fleet.Activity, ActivitiesToStreamBatchCount*2+1)
-		for i := range as {
-			as[i] = newActivity(uint(i), "foo", uint(i), //nolint:gosec // dismiss G115
-				"foog", "fooe", "bar", `{"bar": "foo"}`)
-		}
-
-		ds.ListActivitiesFunc = func(ctx context.Context, opt fleet.ListActivitiesOptions) ([]*fleet.Activity, *fleet.PaginationMetadata, error) {
-			require.Equal(t, opt.PerPage, ActivitiesToStreamBatchCount)
-			switch opt.Page {
-			case 0:
-				return as[:ActivitiesToStreamBatchCount], nil, nil
-			case 1:
-				return as[ActivitiesToStreamBatchCount : ActivitiesToStreamBatchCount*2], nil, nil
-			case 2:
-				return as[ActivitiesToStreamBatchCount*2:], nil, nil
-			default:
-				t.Fatalf("invalid page requested: %d", opt.Page)
-				return nil, nil, nil
-			}
-		}
-
-		call := 0
-		firstBatch := make([]uint, ActivitiesToStreamBatchCount)
-		secondBatch := make([]uint, ActivitiesToStreamBatchCount)
-		for i := range as[:ActivitiesToStreamBatchCount] {
-			firstBatch[i] = as[i].ID
-		}
-		for i := range as[ActivitiesToStreamBatchCount : ActivitiesToStreamBatchCount*2] {
-			secondBatch[i] = as[int(ActivitiesToStreamBatchCount)+i].ID //nolint:gosec // dismiss G115
-		}
-		thirdBatch := []uint{as[len(as)-1].ID}
-		ds.MarkActivitiesAsStreamedFunc = func(ctx context.Context, activityIDs []uint) error {
-			switch call {
-			case 0:
-				require.Equal(t, firstBatch, activityIDs)
-			case 1:
-				require.Equal(t, secondBatch, activityIDs)
-			case 2:
-				require.Equal(t, thirdBatch, activityIDs)
-			default:
-				t.Fatalf("invalid number of calls: %d", call)
-			}
-			call += 1
-			return nil
-		}
-
-		var auditLogger jsonLogger
-		err := cronActivitiesStreaming(context.Background(), ds, log.NewNopLogger(), &auditLogger)
-		require.NoError(t, err)
-		require.Len(t, auditLogger.logs, int(ActivitiesToStreamBatchCount)*2+1) //nolint:gosec // dismiss G115
-		require.Equal(t, 3, call)
-	})
-}
-
-var errStreamFailed = errors.New("streaming failed")
-
-type jsonLogger struct {
-	logs      []string
-	failAfter int
-}
-
-func (j *jsonLogger) Write(ctx context.Context, logs []json.RawMessage) error {
-	for _, log := range logs {
-		if j.failAfter > 0 && len(j.logs) == j.failAfter {
-			return errStreamFailed
-		}
-		j.logs = append(j.logs, string(log))
-	}
-	return nil
-}
-
 func TestVerifyDiskEncryptionKeysJob(t *testing.T) {
 	ds := new(mock.Store)
 	ctx := context.Background()
-	logger := log.NewNopLogger()
+	logger := logging.NewNopLogger()
 
 	testCert, testKey, err := apple_mdm.NewSCEPCACertKey()
 	require.NoError(t, err)

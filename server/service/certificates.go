@@ -258,6 +258,18 @@ func (svc *Service) GetDeviceCertificateTemplate(ctx context.Context, id uint) (
 	}
 	certificate.SubjectName = subjectName
 
+	// On-demand challenge creation for delivered status.
+	// If FleetChallenge is nil or empty, create one now (the challenge TTL starts from this moment).
+	if certificate.Status == fleet.CertificateTemplateDelivered {
+		if certificate.FleetChallenge == nil || *certificate.FleetChallenge == "" {
+			challenge, err := svc.ds.GetOrCreateFleetChallengeForCertificateTemplate(ctx, host.UUID, id)
+			if err != nil {
+				return nil, ctxerr.Wrap(ctx, err, "create fleet challenge on-demand")
+			}
+			certificate.FleetChallenge = &challenge
+		}
+	}
+
 	return certificate, nil
 }
 
@@ -531,8 +543,26 @@ func deleteCertificateTemplateSpecsEndpoint(ctx context.Context, request interfa
 }
 
 func (svc *Service) DeleteCertificateTemplateSpecs(ctx context.Context, certificateTemplateIDs []uint, teamID uint) error {
+	// Authorize team
 	if err := svc.authz.Authorize(ctx, &fleet.CertificateTemplate{TeamID: teamID}, fleet.ActionWrite); err != nil {
 		return err
+	}
+	// Authorize all ids are on team
+	certificateTemplates, err := svc.ds.GetCertificateTemplatesByIdsAndTeam(ctx, certificateTemplateIDs, teamID)
+	if err != nil {
+		return err
+	}
+	uniqueIDs := make(map[uint]struct{}, len(certificateTemplateIDs))
+	for _, id := range certificateTemplateIDs {
+		uniqueIDs[id] = struct{}{}
+	}
+	if len(uniqueIDs) != len(certificateTemplates) {
+		return authz.ForbiddenWithInternal(
+			"can only delete templates from team parameter",
+			authz.UserFromContext(ctx),
+			&fleet.CertificateTemplate{TeamID: teamID},
+			fleet.ActionWrite,
+		)
 	}
 
 	deletedRows, err := svc.ds.BatchDeleteCertificateTemplates(ctx, certificateTemplateIDs)

@@ -96,7 +96,7 @@ org_settings:
     enable_host_users: true
     enable_software_inventory: true
   fleet_desktop:
-    alternative_browser_host:
+    alternative_browser_host: musica.alternativa
     transparency_url: https://fleetdm.com/transparency
   host_expiry_settings:
     host_expiry_enabled: false
@@ -104,9 +104,7 @@ org_settings:
   integrations:
     conditional_access_enabled: true
     google_calendar:
-    - api_key_json:
-        owl: hoot
-        private_key: # TODO: Add your Google Calendar API key JSON here
+    - api_key_json: # TODO: Add your Google Calendar API key JSON here
       domain: fleetdm.com
     jira:
     - api_token: # TODO: Add your Jira API token here
@@ -180,6 +178,7 @@ org_settings:
   yara_rules:
 policies:
 - calendar_events_enabled: false
+  conditional_access_bypass_enabled: true
   conditional_access_enabled: true
   critical: false
   description: This is a global policy

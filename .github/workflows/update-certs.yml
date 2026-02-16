@@ -46,7 +46,9 @@ jobs:
 
     - name: Add changes file to orbit
       run: |
-        echo "* Updated Orbit CA certs" > orbit/changes/updated-ca-certs
+        if [[ $(git diff) ]]; then
+          echo "* Updated Orbit CA certs" > orbit/changes/updated-ca-certs
+        fi
 
     - name: PR changes
       uses: peter-evans/create-pull-request@f22a7da129c901513876a2380e2dae9f8e145330 # v3.12.1

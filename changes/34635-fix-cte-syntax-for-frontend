@@ -1,0 +1,1 @@
+- Fixed an issue where queries with common table expressions (CTEs) were marked as having invalid syntax

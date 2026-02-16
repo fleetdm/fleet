@@ -416,7 +416,7 @@ func TestGetDetailQueries(t *testing.T) {
 	queriesWithUsersAndSoftware := GetDetailQueries(context.Background(), config.FleetConfig{App: config.AppConfig{EnableScheduledQueryStats: true}}, nil, &fleet.Features{EnableHostUsers: true, EnableSoftwareInventory: true}, Integrations{}, nil)
 	qs = baseQueries
 	qs = append(qs, "users", "users_chrome", "software_macos", "software_linux", "software_windows", "software_vscode_extensions", "software_jetbrains_plugins", "software_linux_fleetd_pacman",
-		"software_chrome", "software_python_packages", "software_python_packages_with_users_dir", "scheduled_query_stats", "software_macos_firefox", "software_macos_codesign", "software_macos_executable_sha256", "software_windows_last_opened_at", "software_deb_last_opened_at", "software_rpm_last_opened_at")
+		"software_chrome", "software_python_packages", "software_python_packages_with_users_dir", "scheduled_query_stats", "software_macos_firefox", "software_macos_codesign", "software_macos_executable_sha256", "software_windows_last_opened_at", "software_deb_last_opened_at", "software_rpm_last_opened_at", "software_windows_acrobat_dc")
 	require.Len(t, queriesWithUsersAndSoftware, len(qs))
 	sortedKeysCompare(t, queriesWithUsersAndSoftware, qs)
 
@@ -1838,6 +1838,14 @@ func TestDirectIngestDiskEncryptionKeyDarwin(t *testing.T) {
 	logger := log.NewNopLogger()
 	host := &fleet.Host{ID: 1}
 
+	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+		return &fleet.AppConfig{
+			MDM: fleet.MDM{
+				EnableDiskEncryption: optjson.SetBool(true),
+			},
+		}, nil
+	}
+
 	var wantKey string
 
 	mockFileLines := func(wantKey string, wantEncrypted string) []map[string]string {
@@ -2213,9 +2221,6 @@ func TestDirectIngestMDMDeviceIDWindows(t *testing.T) {
 }
 
 func TestDirectIngestWindowsProfiles(t *testing.T) {
-	// TODO(DSWA): #37935 Uncomment once osquery verification logic has changed
-	t.SkipNow()
-
 	ctx := context.Background()
 	logger := log.NewNopLogger()
 	ds := new(mock.Store)
@@ -3076,6 +3081,45 @@ func TestWindowsLastOpenedAt(t *testing.T) {
 		if software["name"] == "Mozilla Firefox (x64 en-US)" {
 			assert.Equal(t, "1751755087", software["last_opened_at"])
 		}
+	}
+}
+
+func TestWindowsAcrobatDC(t *testing.T) {
+	processFunc := SoftwareOverrideQueries["windows_acrobat_dc"].SoftwareProcessResults
+	softwareResults := []map[string]string{
+		{"name": "Adobe Acrobat Reader 64-bit"},
+		{"name": "Adobe Acrobat 2017"},
+		{"name": "Acrobat Reader"},
+	}
+
+	testCases := []struct {
+		name            string
+		registryResults []map[string]string
+		expected        []map[string]string
+	}{
+		{
+			name:            "no registry results",
+			registryResults: nil,
+			expected:        softwareResults,
+		},
+		{
+			name: "registry results",
+			registryResults: []map[string]string{
+				{"present": ""},
+			},
+			expected: []map[string]string{
+				{"name": "Adobe Acrobat Reader DC 64-bit"},
+				{"name": "Adobe Acrobat DC 2017"},
+				{"name": "Acrobat Reader DC"},
+			},
+		},
+	}
+
+	for _, testCase := range testCases {
+		t.Run(testCase.name, func(t *testing.T) {
+			result := processFunc(softwareResults, testCase.registryResults)
+			require.Equal(t, testCase.expected, result)
+		})
 	}
 }
 

@@ -8,18 +8,18 @@ import (
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/license"
+	"github.com/fleetdm/fleet/v4/server/dev_mode"
 
 	"github.com/WatchBeam/clock"
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
 	"github.com/fleetdm/fleet/v4/server/fleet"
-	kitlog "github.com/go-kit/log"
+	"github.com/fleetdm/fleet/v4/server/platform/logging"
 	"github.com/go-kit/log/level"
 	"github.com/spf13/cobra"
 )
 
 var (
-	dev               bool
 	devLicense        bool
 	devExpiredLicense bool
 	lockDuration      time.Duration
@@ -36,12 +36,11 @@ will disable it on the server allowing the user configure their own 'cron' mecha
 by an exit code of zero.`,
 		RunE: func(cmd *cobra.Command, args []string) (err error) {
 			cfg := configManager.LoadConfig()
-			if dev {
+			if dev_mode.IsEnabled {
 				applyDevFlags(&cfg)
 			}
 
-			logger := initLogger(cfg)
-			logger = kitlog.With(logger, fleet.CronVulnerabilities)
+			logger := initLogger(cfg, nil).With("cron", fleet.CronVulnerabilities)
 
 			licenseInfo, err := initLicense(&cfg, devLicense, devExpiredLicense)
 			if err != nil {
@@ -123,7 +122,7 @@ by an exit code of zero.`,
 			return
 		},
 	}
-	vulnProcessingCmd.PersistentFlags().BoolVar(&dev, "dev", false, "Enable developer options")
+	vulnProcessingCmd.PersistentFlags().BoolVar(&dev_mode.IsEnabled, "dev", false, "Enable developer options")
 	vulnProcessingCmd.PersistentFlags().BoolVar(&devLicense, "dev_license", false, "Enable development license")
 	vulnProcessingCmd.PersistentFlags().BoolVar(&devExpiredLicense, "dev_expired_license", false, "Enable expired development license")
 	vulnProcessingCmd.PersistentFlags().DurationVar(
@@ -136,7 +135,7 @@ by an exit code of zero.`,
 	return vulnProcessingCmd
 }
 
-func configureVulnPath(vulnConfig config.VulnerabilitiesConfig, appConfig *fleet.AppConfig, logger kitlog.Logger) (vulnPath string) {
+func configureVulnPath(vulnConfig config.VulnerabilitiesConfig, appConfig *fleet.AppConfig, logger *logging.Logger) (vulnPath string) {
 	switch {
 	case vulnConfig.DatabasesPath != "" && appConfig != nil && appConfig.VulnerabilitySettings.DatabasesPath != "":
 		vulnPath = vulnConfig.DatabasesPath
@@ -159,7 +158,7 @@ type NamedVulnFunc struct {
 	VulnFunc func(ctx context.Context) error
 }
 
-func getVulnFuncs(ds fleet.Datastore, logger kitlog.Logger, config *config.VulnerabilitiesConfig) []NamedVulnFunc {
+func getVulnFuncs(ds fleet.Datastore, logger *logging.Logger, config *config.VulnerabilitiesConfig) []NamedVulnFunc {
 	vulnFuncs := []NamedVulnFunc{
 		{
 			Name: "cron_vulnerabilities",

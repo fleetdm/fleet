@@ -418,3 +418,27 @@ func parseHostVitalCriteria(criteria *HostVitalCriteria, foreignVitalsGroups map
 	}
 	return fmt.Sprintf("%s = ?", vital.Path), nil
 }
+
+type MissingLabelError struct {
+	*BadRequestError
+	MissingLabelName string
+}
+
+// NewMissingLabelError creates a new MissingLabelError, determining which label name was missing
+// based on the provided list of labels and the map of found labels.
+func NewMissingLabelError(providedLabels []string, foundLabels map[string]uint) *MissingLabelError {
+	notFoundLabel := ""
+	for _, name := range providedLabels {
+		if _, ok := foundLabels[name]; !ok {
+			notFoundLabel = name
+			break
+		}
+	}
+	return &MissingLabelError{
+		BadRequestError: &BadRequestError{
+			Message:     "some or all the labels provided don't exist",
+			InternalErr: fmt.Errorf("names provided: %v", providedLabels),
+		},
+		MissingLabelName: notFoundLabel,
+	}
+}

@@ -27,6 +27,8 @@ Use the Fleet APIs to automate Fleet.
 
 This page includes a list of available resources and their API routes.
 
+Unless otherwise specified, endpoints that accept a request body limit its size to the configured `FLEET_SERVER_DEFAULT_MAX_REQUEST_BODY_SIZE` (default 1MiB).
+
 ## Authentication
 
 - [Retrieve your API token](#retrieve-your-api-token)
@@ -1896,7 +1898,8 @@ Modifies the Fleet's configuration with the supplied information.
     "databases_path": ""
   },
   "fleet_desktop": {
-    "transparency_url": "https://fleetdm.com/better"
+    "transparency_url": "https://fleetdm.com/better",
+    "alternative_browser_host": "fleet-desktop.example.com"
   },
   "gitops": {
     "gitops_mode_enabled": false,
@@ -2146,6 +2149,7 @@ _Available in Fleet Premium._
 | Name                              | Type    | Description   |
 | ---------------------             | ------- | -------------------------------------------------------------------------------- |
 | transparency_url                  | string  | The URL used to display transparency information to users of Fleet Desktop.      |
+| alternative_browser_host          | string  | The hostname used to navigate Fleet Desktop traffic through.                     |
 
 <br/>
 
@@ -2154,7 +2158,8 @@ _Available in Fleet Premium._
 ```json
 {
   "fleet_desktop": {
-    "transparency_url": "https://fleetdm.com/better"
+    "transparency_url": "https://fleetdm.com/better",
+    "alternative_browser_host": "fleet-desktop.example.com"
   }
 }
 ```
@@ -2942,6 +2947,7 @@ the `software` table.
 | populate_policies     | boolean | query | If `true`, the response will include policy data for each host, including Fleet-maintained policies. |
 | populate_users     | boolean | query | If `true`, the response will include user data for each host. |
 | populate_labels     | boolean | query | If `true`, the response will include labels for each host. |
+| include_device_status     | boolean | query | If `true`, the response will include lock and wipe status (`mdm.device_status`) and `mdm.pending_action` information for each host. |
 | profile_uuid | string | query |  **Requires `profile_status`**. The UUID of the profile to download. |
 | profile_status | string | query | **Requires `profile_uuid`**. Valid options are 'verified', 'verifying', 'pending', or 'failed'. |
 
@@ -2963,9 +2969,12 @@ If `munki_issue_id` is specified, an additional top-level key `munki_issue` is r
 
 If `after` is being used with `created_at` or `updated_at`, the table must be specified in `order_key`. Those columns become `h.created_at` and `h.updated_at`.
 
+If `include_device_status` is set to `true`, `device_status` and `pending_action` are included in the MDM information for each host. `device_status` indicates the current lock/wipe state of the device with possible values: `unlocked`, `locked`, `locking`, `unlocking`, `wiped`, `wiping`. `pending_action` indicates if a lock, unlock, or wipe command is pending with possible values: `lock`, `unlock`, `wipe`, or an empty string (no pending action).
+
+
 #### Example
 
-`GET /api/v1/fleet/hosts?page=0&per_page=100&order_key=hostname&query=2ce&populate_software=true&populate_policies=true&populate_users=true&populate_labels=true`
+`GET /api/v1/fleet/hosts?page=0&per_page=100&order_key=hostname&query=2ce&populate_software=true&populate_policies=true&populate_users=true&populate_labels=true&include_device_status=true`
 
 ##### Request query parameters
 
@@ -3015,6 +3024,7 @@ If `after` is being used with `created_at` or `updated_at`, the table must be sp
       "hardware_version": "",
       "hardware_serial": "C0124FXASD6G",
       "computer_name": "Anna's MacBook Pro",
+      "timezone": null,
       "display_name": "Anna's MacBook Pro",
       "public_ip": "123.45.678.910",
       "primary_ip": "192.12.345.678",
@@ -3076,7 +3086,9 @@ If `after` is being used with `created_at` or `updated_at`, the table must be sp
         "enrollment_status": "Pending",
         "dep_profile_error": true,
         "name": "Fleet",
-        "server_url": "https://example.fleetdm.com/mdm/apple/mdm"
+        "server_url": "https://example.fleetdm.com/mdm/apple/mdm",
+        "device_status": "unlocked",
+        "pending_action": ""
       },
       "software": [
         {
@@ -3085,6 +3097,7 @@ If `after` is being used with `created_at` or `updated_at`, the table must be sp
           "version": "2.12",
           "source": "rpm_packages",
           "generated_cpe": "cpe:2.3:a:gnu:glibc:2.12:*:*:*:*:*:*:*",
+          "last_opened_at": "2021-08-18T21:14:00Z",
           "vulnerabilities": [
             {
               "cve": "CVE-2009-5155",
@@ -3458,6 +3471,7 @@ Returns the information of the specified host.
     "hardware_version": "",
     "hardware_serial": "C0124FXASD6G",
     "computer_name": "Anna's MacBook Pro",
+    "timezone": null,
     "display_name": "Anna's MacBook Pro",
     "public_ip": "123.45.678.910",
     "primary_ip": "172.27.0.6",
@@ -3583,7 +3597,6 @@ Returns the information of the specified host.
         "platform": "darwin",
         "response": "fail",
         "critical": false,
-        "fleet_maintained": false
       },
       {
         "id": 3,
@@ -3594,7 +3607,6 @@ Returns the information of the specified host.
         "platform": "",
         "response": "",
         "critical": false,
-        "fleet_maintained": false
       },
       {
         "id": 1,
@@ -3605,7 +3617,6 @@ Returns the information of the specified host.
         "platform": "windows,linux",
         "response": "pass",
         "critical": false,
-        "fleet_maintained": false
       }
     ],
     "software": [
@@ -3687,11 +3698,15 @@ Returns the information of the specified host.
 
 > Note: [Get human-device mapping](https://github.com/fleetdm/fleet/blob/62dc32454f6a40e81fe229abdfc370d3bf7a56c6/docs/REST%20API/rest-api.md?plain=1#L3518) is deprecated as of Fleet 4.67.0. It is maintained for backwards compatibility. Please use the [Get host](#get-host) endpoint to get human-device mapping.
 
+> Note: For iOS, iPadOS, and Android hosts with ⁠`mdm.enrollment_status` set to "On (personal)", ⁠`hardware_serial` and ⁠`uuid` represent a temporary enrollment ID. For Android work profile, this is what Google calls an [enterprise-specific ID](https://developer.android.com/work/versions/android-12#:~:text=An%20enrollment%2Dspecific%20ID%20provides%20a%20unique%20ID%20that%20identifies%20the%20work%20profile%20enrollment%20in%20a%20particular%20organization%2C%20and%20will%20remain%20stable%20across%20factory%20resets).
+
 ### Get host by identifier
 
 Returns the information of the host specified using the `hostname`, `uuid`, or `hardware_serial` as an identifier.
 
-If `hostname` is specified when there is more than one host with the same hostname, the endpoint returns the first matching host. In Fleet, hostnames are fully qualified domain names (FQDNs). `hostname` (e.g. johns-macbook-air.local) is not the same as `display_name` (e.g. John's MacBook Air).
+If `hostname` is specified when there is more than one host with the same hostname, the endpoint returns the first matching host. 
+
+> In Fleet, hostnames are fully qualified domain names (FQDNs). `hostname` (e.g. johns-macbook-air.local) is **not** the same as `display_name` (e.g. John's MacBook Air).
 
 `GET /api/v1/fleet/hosts/identifier/:identifier`
 
@@ -3747,6 +3762,7 @@ If `hostname` is specified when there is more than one host with the same hostna
     "hardware_version": "",
     "hardware_serial": "",
     "computer_name": "23cfc9caacf0",
+    "timezone": null,
     "public_ip": "",
     "primary_ip": "172.27.0.6",
     "primary_mac": "02:42:ac:1b:00:06",
@@ -3848,7 +3864,6 @@ If `hostname` is specified when there is more than one host with the same hostna
         "updated_at": "2022-09-02T18:52:19Z",
         "response": "fail",
         "critical": false,
-        "fleet_maintained": false
       }
     ],
     "software": [
@@ -3974,6 +3989,7 @@ X-Client-Cert-Serial: <fleet_identity_scep_cert_serial>
     "hardware_version": "",
     "hardware_serial": "",
     "computer_name": "Anna's MacBook Pro",
+    "timezone": null,
     "display_name": "Anna's MacBook Pro",
     "public_ip": "123.45.678.910",
     "primary_ip": "192.12.345.678",
@@ -4417,7 +4433,6 @@ This report includes a subset of host vitals, and simplified policy and vulnerab
         "name": "Google Chrome is up to date",
         "critical": true, // Fleet Premium only
         "resolution": "Follow the Update Google Chrome instructions here: https://support.google.com/chrome/answer/95414?sjid=6534253818042437614-NA",
-        "fleet_maintained": false
       }
     ],
     "vulnerable_software": [
@@ -5943,6 +5958,7 @@ If `mdm_id`, `mdm_name`, `mdm_enrollment_status`, `os_settings`, or `os_settings
       "hardware_version": "",
       "hardware_serial": "",
       "computer_name": "e2e7f8d8983d",
+      "timezone": null,
       "display_name": "e2e7f8d8983d",
       "primary_ip": "172.20.0.2",
       "primary_mac": "02:42:ac:14:00:02",
@@ -6032,19 +6048,26 @@ Deletes the label specified by ID.
 
 Add a configuration profile to enforce custom settings on macOS and Windows hosts.
 
+> You need to send a request of type `multipart/form-data`.
+
+> This endpoint accepts a maximum request body size of 1.5MiB.
+
 `POST /api/v1/fleet/configuration_profiles`
 
 #### Parameters
 
 | Name                      | Type     | In   | Description                                                                                                   |
 | ------------------------- | -------- | ---- | ------------------------------------------------------------------------------------------------------------- |
-| profile                   | file     | form | **Required.** The .mobileconfig and JSON for macOS or XML for Windows file containing the profile. |
-| team_id                   | string   | form | _Available in Fleet Premium_. The team ID for the profile. If specified, the profile is applied to only hosts that are assigned to the specified team. If not specified, the profile is applied to only to hosts that are not assigned to any team. |
-| labels_include_all        | array     | form | _Available in Fleet Premium_. Target hosts that have all labels, specified by label name, in the array. |
-| labels_include_any      | array     | form | _Available in Fleet Premium_. Target hosts that have any label, specified by label name, in the array. |
-| labels_exclude_any | array | form | _Available in Fleet Premium_. Target hosts that that don’t have any label, specified by label name, in the array. |
+| profile                   | file     | body | **Required.** The .mobileconfig and JSON for macOS or XML for Windows file containing the profile. |
+| team_id                   | string   | body | _Available in Fleet Premium_. The team ID for the profile. If specified, the profile is applied to only hosts that are assigned to the specified team. If not specified, the profile is applied to only to hosts that are not assigned to any team. |
+| labels_include_all        | array     | body | _Available in Fleet Premium_. Target hosts that have all labels, specified by label name, in the array. |
+| labels_include_any      | array     | body | _Available in Fleet Premium_. Target hosts that have any label, specified by label name, in the array. |
+| labels_exclude_any | array | body | _Available in Fleet Premium_. Target hosts that that don’t have any label, specified by label name, in the array. |
 
 Only one of `labels_include_all`, `labels_include_any`, or `labels_exclude_any` can be specified. If none are specified, all hosts are targeted.
+
+If the response is `Status: 409 Conflict`, the body may include additional error details in the case
+of duplicate payload display name or duplicate payload identifier (macOS profiles).
 
 #### Example
 
@@ -6054,52 +6077,12 @@ assigned to a team. Note that in this example the form data specifies`team_id` i
 
 `POST /api/v1/fleet/configuration_profiles`
 
-##### Request headers
-
-```http
-Content-Length: 850
-Content-Type: multipart/form-data; boundary=------------------------f02md47480und42y
-```
-
 ##### Request body
 
 ```http
---------------------------f02md47480und42y
-Content-Disposition: form-data; name="team_id"
-
-1
---------------------------f02md47480und42y
-Content-Disposition: form-data; name="labels_include_all"
-
-Label name 1
---------------------------f02md47480und42y
-Content-Disposition: form-data; name="labels_include_all"
-
-Label name 2
---------------------------f02md47480und42y
-Content-Disposition: form-data; name="profile"; filename="Foo.mobileconfig"
-Content-Type: application/octet-stream
-
-<?xml version="1.0" encoding="UTF-8"?>
-<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-<plist version="1.0">
-<dict>
-  <key>PayloadContent</key>
-  <array/>
-  <key>PayloadDisplayName</key>
-  <string>Example profile</string>
-  <key>PayloadIdentifier</key>
-  <string>com.example.profile</string>
-  <key>PayloadType</key>
-  <string>Configuration</string>
-  <key>PayloadUUID</key>
-  <string>0BBF3E23-7F56-48FC-A2B6-5ACC598A4A69</string>
-  <key>PayloadVersion</key>
-  <integer>1</integer>
-</dict>
-</plist>
---------------------------f02md47480und42y--
-
+profile="Foo.mobileconfig"
+team_id="1"
+labels_include_all="Label name 1"
 ```
 
 ##### Default response
@@ -6111,11 +6094,6 @@ Content-Type: application/octet-stream
   "profile_uuid": "954ec5ea-a334-4825-87b3-937e7e381f24"
 }
 ```
-
-###### Additional notes
-If the response is `Status: 409 Conflict`, the body may include additional error details in the case
-of duplicate payload display name or duplicate payload identifier (macOS profiles).
-
 
 ### List custom OS settings (configuration profiles)
 
@@ -6335,6 +6313,8 @@ For Windows profiles, Fleet applies new profiles or updates when content changes
 For declaration (DDM) profiles, hosts with new, updated, or removed profiles are marked “Pending,” and Fleet sends a [DeclarativeManagement command](https://developer.apple.com/documentation/devicemanagement/declarativemanagementcommand) to tell Apple (macOS, iOS, iPadOS) hosts to sync profiles. If declarations are current, no command is sent and the host is not marked "Pending."
 
 For requests with 100+ profiles, requests will take 5+ seconds.
+
+> This endpoint accepts a maximum request body size of 25MiB.
 
 `POST /api/v1/fleet/configuration_profiles/batch`
 
@@ -6792,15 +6772,19 @@ _Available in Fleet Premium_
 
 Upload a bootstrap package that will be automatically installed during DEP setup.
 
+> You need to send a request of type `multipart/form-data`.
+
+> This endpoint accepts a maximum request body size of 10GB.
+
 `POST /api/v1/fleet/bootstrap`
 
 #### Parameters
 
 | Name    | Type   | In   | Description                                                                                                                                                                                                            |
 | ------- | ------ | ---- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| package | file   | form | **Required**. The bootstrap package installer. It must be a signed `pkg` file.                                                                                                                                         |
-| team_id | string | form | The team ID for the package. If specified, the package will be installed to hosts that are assigned to the specified team. If not specified, the package will be installed to hosts that are not assigned to any team. |
-| manual_agent_install | boolean | form | If set to `true` Fleet's agent (fleetd) won't be installed as part of automatic enrollment (ADE) on macOS hosts. (Default: `false`) |
+| package | file   | body | **Required**. The bootstrap package installer. It must be a signed `pkg` file.                                                                                                                                         |
+| team_id | string | body | The team ID for the package. If specified, the package will be installed to hosts that are assigned to the specified team. If not specified, the package will be installed to hosts that are not assigned to any team. |
+| manual_agent_install | boolean | body | If set to `true` Fleet's agent (fleetd) won't be installed as part of automatic enrollment (ADE) on macOS hosts. (Default: `false`) |
 
 #### Example
 
@@ -6810,30 +6794,16 @@ assigned to a team. Note that in this example the form data specifies `team_id` 
 
 `POST /api/v1/fleet/bootstrap`
 
-##### Request headers
-
-```http
-Content-Length: 850
-Content-Type: multipart/form-data; boundary=------------------------f02md47480und42y
-```
-
 ##### Request body
 
 ```http
---------------------------f02md47480und42y
-Content-Disposition: form-data; name="team_id"
-1
---------------------------f02md47480und42y
-Content-Disposition: form-data; name="package"; filename="bootstrap-package.pkg"
-Content-Type: application/octet-stream
-<BINARY_DATA>
---------------------------f02md47480und42y--
+team_id="1"
+package="bootstrap-package.pkg"
 ```
 
 ##### Default response
 
 `Status: 200`
-
 
 ### Get bootstrap package metadata
 
@@ -7003,39 +6973,31 @@ _Available in Fleet Premium_
 
 Upload an EULA that will be shown during the DEP flow.
 
+> You need to send a request of type `multipart/form-data`.
+
+> This endpoint accepts a maximum request body size of 25MiB.
+
 `POST /api/v1/fleet/setup_experience/eula`
 
 #### Parameters
 
 | Name | Type | In   | Description                                       |
 | ---- | ---- | ---- | ------------------------------------------------- |
-| eula | file | form | **Required**. A PDF document containing the EULA. |
+| eula | file | body | **Required**. A PDF document containing the EULA. |
 
 #### Example
 
 `POST /api/v1/fleet/setup_experience/eula`
 
-##### Request headers
-
-```http
-Content-Length: 850
-Content-Type: multipart/form-data; boundary=------------------------f02md47480und42y
-```
-
 ##### Request body
 
 ```http
---------------------------f02md47480und42y
-Content-Disposition: form-data; name="eula"; filename="eula.pdf"
-Content-Type: application/octet-stream
-<BINARY_DATA>
---------------------------f02md47480und42y--
+eula="eula.pdf"
 ```
 
 ##### Default response
 
 `Status: 200`
-
 
 ### Get EULA metadata
 
@@ -7237,43 +7199,29 @@ _Available in Fleet Premium_
 
 Add a script that will automatically run during macOS setup.
 
+> You need to send a request of type `multipart/form-data`.
+
 `POST /api/v1/fleet/setup_experience/script`
 
 | Name  | Type   | In    | Description                              |
 | ----- | ------ | ----- | ---------------------------------------- |
-| team_id | integer | form | _Available in Fleet Premium_. The ID of the team to add the script to. If not specified, a script will be added for hosts with no team. |
-| script | file | form | The contents of the script to run during setup. |
+| team_id | integer | body | _Available in Fleet Premium_. The ID of the team to add the script to. If not specified, a script will be added for hosts with no team. |
+| script | file | body | The contents of the script to run during setup. |
 
 #### Example
 
 `POST /api/v1/fleet/setup_experience/script`
 
-##### Default response
-
-`Status: 200`
-
-##### Request headers
-
-```http
-Content-Length: 306
-Content-Type: multipart/form-data; boundary=------------------------f02md47480und42y
-```
-
 ##### Request body
 
 ```http
---------------------------f02md47480und42y
-Content-Disposition: form-data; name="team_id"
-
-1
---------------------------f02md47480und42y
-Content-Disposition: form-data; name="script"; filename="myscript.sh"
-Content-Type: application/octet-stream
-
-echo "hello"
---------------------------f02md47480und42y--
-
+team_id="1"
+script="myscript.sh"
 ```
+
+##### Default response
+
+`Status: 200`
 
 ### Update setup experience script
 
@@ -7281,43 +7229,29 @@ _Available in Fleet Premium_
 
 Changes the script that will automatically run during macOS setup. Updates the existing script for the team, or for hosts with no team, if one already exists.
 
+> You need to send a request of type `multipart/form-data`.
+
 `PUT /api/v1/fleet/setup_experience/script`
 
 | Name  | Type   | In    | Description                              |
 | ----- | ------ | ----- | ---------------------------------------- |
-| team_id | integer | form | _Available in Fleet Premium_. The ID of the team to add the script to. If not specified, a script will be added for hosts with no team. |
-| script | file | form | The contents of the script to run during setup. |
+| team_id | integer | body | _Available in Fleet Premium_. The ID of the team to add the script to. If not specified, a script will be added for hosts with no team. |
+| script | file | body | The contents of the script to run during setup. |
 
 #### Example
 
 `PUT /api/v1/fleet/setup_experience/script`
 
-##### Default response
-
-`Status: 200`
-
-##### Request headers
-
-```http
-Content-Length: 306
-Content-Type: multipart/form-data; boundary=------------------------f02md47480und42y
-```
-
 ##### Request body
 
 ```http
---------------------------f02md47480und42y
-Content-Disposition: form-data; name="team_id"
-
-1
---------------------------f02md47480und42y
-Content-Disposition: form-data; name="script"; filename="myscript.sh"
-Content-Type: application/octet-stream
-
-echo "hello"
---------------------------f02md47480und42y--
-
+team_id="1"
+script="myscript.sh"
 ```
+
+##### Default response
+
+`Status: 200`
 
 ### Get or download setup experience script
 
@@ -7405,6 +7339,8 @@ Delete a script that will automatically run during macOS setup.
 > `POST /api/v1/fleet/mdm/apple/enqueue` API endpoint is deprecated as of Fleet 4.40. It is maintained for backward compatibility. Please use the new API endpoint below. [Archived documentation](https://github.com/fleetdm/fleet/blob/fleet-v4.39.0/docs/REST%20API/rest-api.md#run-custom-mdm-command) is available for the deprecated endpoint.
 
 This endpoint tells Fleet to run a custom MDM command on the targeted macOS, iOS, iPadOS, or Windows hosts the next time they come online.
+
+> This endpoint accepts a maximum request body size of 2MiB.
 
 `POST /api/v1/fleet/commands/run`
 
@@ -7870,7 +7806,6 @@ _Available in Fleet Premium_
       "host_count_updated_at": "2023-12-20T15:23:57Z",
       "calendar_events_enabled": true,
       "conditional_access_enabled": true,
-      "fleet_maintained": false,
       "labels_include_any": ["Macs on Sonoma"]
     },
     {
@@ -7892,7 +7827,6 @@ _Available in Fleet Premium_
       "host_count_updated_at": "2023-12-20T15:23:57Z",
       "calendar_events_enabled": false,
       "conditional_access_enabled": false,
-      "fleet_maintained": false,
       "labels_exclude_any": ["Compliance exclusions", "Workstations (Canary)"],
       "run_script": {
         "name": "Encrypt Windows disk with BitLocker",
@@ -7918,7 +7852,6 @@ _Available in Fleet Premium_
       "host_count_updated_at": "2023-12-20T15:23:57Z",
       "calendar_events_enabled": false,
       "conditional_access_enabled": false,
-      "fleet_maintained": false,
       "install_software": {
         "name": "Adobe Acrobat.app",
         "software_title_id": 1234
@@ -8167,7 +8100,6 @@ _Available in Fleet Premium_
     "host_count_updated_at": null,
     "calendar_events_enabled": true,
     "conditional_access_enabled": false,
-    "fleet_maintained": false,
     "labels_include_any": ["Macs on Sonoma"],
     "install_software": {
       "name": "Adobe Acrobat.app",
@@ -8321,7 +8253,6 @@ Only one of `labels_include_any` or `labels_exclude_any` can be specified. If ne
     "failing_host_count": 0,
     "host_count_updated_at": null,
     "calendar_events_enabled": false,
-    "fleet_maintained": false,
     "labels_include_any": ["Macs on Sonoma"],
     "install_software": {
       "name": "Adobe Acrobat.app",
@@ -8546,7 +8477,6 @@ Only one of `labels_include_any` or `labels_exclude_any` can be specified. If ne
     "host_count_updated_at": null,
     "calendar_events_enabled": true,
     "conditional_access_enabled": false,
-    "fleet_maintained": false,
     "install_software": {
       "name": "Adobe Acrobat.app",
       "software_title_id": 1234
@@ -8561,9 +8491,7 @@ Only one of `labels_include_any` or `labels_exclude_any` can be specified. If ne
 
 ### Reset policy automations
 
-Resets [automation](https://fleetdm.com/docs/using-fleet/automations#policy-automations) status for *all* hosts failing the specified policies. On the next automation run, any failing host will be considered newly failing.
-
-Currently, this API endpoint only resets ticket and webhook automations.
+Resets [webhook and ticket policy automations](https://fleetdm.com/docs/using-fleet/automations#webhooks-and-tickets) status for *all* hosts failing the specified policies. On the next automation run, any failing host will be considered newly failing.
 
 `POST /api/v1/fleet/automations/reset`
 
@@ -9586,43 +9514,30 @@ Returns a list hosts targeted in a batch script run, along with their script exe
 
 Uploads a script, making it available to run on hosts assigned to the specified team (or no team).
 
+> You need to send a request of type `multipart/form-data`.
+
+> This endpoint accepts a maximum request body size of 1.5MiB.
+
 `POST /api/v1/fleet/scripts`
 
 #### Parameters
 
 | Name            | Type    | In   | Description                                      |
 | ----            | ------- | ---- | --------------------------------------------     |
-| script          | file    | form | **Required**. The file containing the script.    |
-| team_id         | integer | form | _Available in Fleet Premium_. The team ID. If specified, the script will only be available to hosts assigned to this team. If not specified, the script will only be available to hosts on **no team**.  |
+| script          | file    | body | **Required**. The file containing the script.    |
+| team_id         | integer | body | _Available in Fleet Premium_. The team ID. If specified, the script will only be available to hosts assigned to this team. If not specified, the script will only be available to hosts on **no team**.  |
 
-Script line endings are automatically converted from [CRLF to LF](https://en.wikipedia.org/wiki/Newline) for compatibility with both
-non-Windows shells and PowerShell.
+Script line endings are automatically converted from [CRLF to LF](https://en.wikipedia.org/wiki/Newline) for compatibility with both non-Windows shells and PowerShell.
 
 #### Example
 
 `POST /api/v1/fleet/scripts`
 
-##### Request headers
-
-```http
-Content-Length: 306
-Content-Type: multipart/form-data; boundary=------------------------f02md47480und42y
-```
-
 ##### Request body
 
 ```http
---------------------------f02md47480und42y
-Content-Disposition: form-data; name="team_id"
-
-1
---------------------------f02md47480und42y
-Content-Disposition: form-data; name="script"; filename="myscript.sh"
-Content-Type: application/octet-stream
-
-echo "hello"
---------------------------f02md47480und42y--
-
+team_id="1"
+script="myscript.sh"
 ```
 
 ##### Default response
@@ -9639,6 +9554,8 @@ echo "hello"
 
 Modifies an existing script.
 
+> You need to send a request of type `multipart/form-data`.
+
 `PATCH /api/v1/fleet/scripts/:id`
 
 
@@ -9647,28 +9564,16 @@ Modifies an existing script.
 | Name            | Type    | In   | Description                                           |
 | ----            | ------- | ---- | --------------------------------------------          |
 | id              | integer | path | **Required**. The ID of the script to modify. |
-| script          | file    | form | **Required**. The file containing the script. Filename will be ignored. |
+| script          | file    | body | **Required**. The file containing the script. Filename will be ignored. |
 
 #### Example
 
 `PATCH /api/v1/fleet/scripts/1`
 
-
-##### Request headers
-
-```http
-Content-Length: 306
-Content-Type: multipart/form-data; boundary=------------------------f02md47480und42y
-```
-
 ##### Request body
 
 ```http
---------------------------f02md47480und42y
-Content-Disposition: form-data; name="script"; filename="myscript.sh"
-Content-Type: application/octet-stream
-echo "hello"
---------------------------f02md47480und42y--
+script="myscript.sh"
 ```
 
 ##### Default response
@@ -9684,7 +9589,6 @@ echo "hello"
   "updated_at": "2023-07-30T13:41:07Z"
 }
 ```
-
 
 ### Delete script
 
@@ -10000,7 +9904,6 @@ Get a list of all software.
           {
             "id": 343,
             "name": "[Install software] Firefox.app",
-            "fleet_maintained": false
           }
         ],
       },
@@ -10352,7 +10255,6 @@ Returns information about the specified software. By default, `versions` are sor
         {
           "id": 343,
           "name": "[Install software] Crowdstrike Agent",
-          "fleet_maintained": false
         }
       ],
       "status": {
@@ -10411,6 +10313,9 @@ Returns information about the specified software. By default, `versions` are sor
     "display_name": "",
     "bundle_identifier": "com.apple.logic10",
     "software_package": null,
+    "auto_update_enabled": true,
+    "auto_update_window_start": "00:00",
+    "auto_update_window_end": "02:00",
     "app_store_app": {
       "name": "Logic Pro",
       "categories": [],
@@ -10423,7 +10328,6 @@ Returns information about the specified software. By default, `versions` are sor
         {
           "id": 345,
           "name": "[Install software] Logic Pro",
-          "fleet_maintained": false
         }
       ],
       "status": {
@@ -10445,6 +10349,8 @@ Returns information about the specified software. By default, `versions` are sor
   }
 }
 ```
+
+`auto_update_enabled`, `auto_update_window_start` and `auto_update_window_end` will only be returned for iOS/iPadOS apps, and only when a `team_id` is specified in the request.
 
 #### Example (Play Store app)
 
@@ -10729,22 +10635,26 @@ _Available in Fleet Premium._
 
 Add a package (.pkg, .msi, .exe, .deb, .rpm, .tar.gz, .ipa) to install on Apple (macOS/iOS/iPadOS), Windows, or Linux hosts. Also supports adding a custom script (.sh, .ps1) to run on Windows or Linux hosts.
 
+> You need to send a request of type `multipart/form-data`.
+
+> This endpoint accepts a maximum request body size of 10GB.
+
 `POST /api/v1/fleet/software/package`
 
 #### Parameters
 
 | Name            | Type    | In   | Description                                      |
 | ----            | ------- | ---- | --------------------------------------------     |
-| software        | file    | form | **Required**. Installer package file or custom script file. Supported packages are `.pkg`, `.msi`, `.exe`, `.deb`, `.rpm`, `.tar.gz`, `.ipa`, `.sh`, and `.ps1`. |
-| team_id         | integer | form | The team ID. Adds a software package to the specified team. If not specified, it will add the software for hosts with no team. |
-| install_script  | string | form | Script that Fleet runs to install software. If not specified Fleet runs the [default install script](https://github.com/fleetdm/fleet/tree/main/pkg/file/scripts) for each package type if one exists. Required for `.tar.gz` and `.exe` (no default script). Not supported for `.sh` and `.ps1`. |
-| uninstall_script  | string | form | Script that Fleet runs to uninstall software. If not specified Fleet runs the [default uninstall script](https://github.com/fleetdm/fleet/tree/main/pkg/file/scripts) for each package type if one exists. Required for `.tar.gz` and `.exe` (no default script). Not supported for `.sh` and `.ps1`. |
-| pre_install_query  | string | form | Query that is pre-install condition. If the query doesn't return any result, Fleet won't proceed to install. Not supported for `.sh` and `.ps1`. |
-| post_install_script | string | form | The contents of the script to run after install. If the specified script fails (exit code non-zero) software install will be marked as failed and rolled back. Not supported for `.sh` and `.ps1`. |
-| self_service | boolean | form | Self-service software is optional and can be installed by the end user. |
-| labels_include_any        | array     | form | Target hosts that have any label, specified by label name, in the array. |
-| labels_exclude_any | array | form | Target hosts that don't have any label, specified by label name, in the array. |
-| automatic_install | boolean | form | Specifies whether to create a policy that triggers a software install only on hosts missing the software. Not supported for iOS, iPadOS, Android, or for `.sh` and `.ps1`. |
+| software        | file    | body | **Required**. Installer package file or custom script file. Supported packages are `.pkg`, `.msi`, `.exe`, `.deb`, `.rpm`, `.tar.gz`, `.ipa`, `.sh`, and `.ps1`. |
+| team_id         | integer | body | The team ID. Adds a software package to the specified team. If not specified, it will add the software for hosts with no team. |
+| install_script  | string | body | Script that Fleet runs to install software. If not specified Fleet runs the [default install script](https://github.com/fleetdm/fleet/tree/main/pkg/file/scripts) for each package type if one exists. Required for `.tar.gz` and `.exe` (no default script). Not supported for `.sh` and `.ps1`. |
+| uninstall_script  | string | body | Script that Fleet runs to uninstall software. If not specified Fleet runs the [default uninstall script](https://github.com/fleetdm/fleet/tree/main/pkg/file/scripts) for each package type if one exists. Required for `.tar.gz` and `.exe` (no default script). Not supported for `.sh` and `.ps1`. |
+| pre_install_query  | string | body | Query that is pre-install condition. If the query doesn't return any result, Fleet won't proceed to install. Not supported for `.sh` and `.ps1`. |
+| post_install_script | string | body | The contents of the script to run after install. If the specified script fails (exit code non-zero) software install will be marked as failed and rolled back. Not supported for `.sh` and `.ps1`. |
+| self_service | boolean | body | Self-service software is optional and can be installed by the end user. |
+| labels_include_any        | array     | body | Target hosts that have any label, specified by label name, in the array. |
+| labels_exclude_any | array | body | Target hosts that don't have any label, specified by label name, in the array. |
+| automatic_install | boolean | body | Specifies whether to create a policy that triggers a software install only on hosts missing the software. Not supported for iOS, iPadOS, Android, or for `.sh` and `.ps1`. |
 
 Only one of `labels_include_any` or `labels_exclude_any` can be specified. If neither are specified, all hosts are targeted.
 
@@ -10752,38 +10662,21 @@ Add the `X-Fleet-Scripts-Encoded: base64` header line to parse `install_script`,
 
 #### Example
 
-`POST /api/v1/fleet/software/package`
-
-##### Request header
-
-```http
-Content-Length: 8500
-Content-Type: multipart/form-data; boundary=------------------------d8c247122f594ba0
+```
+POST /api/v1/fleet/software/package
 ```
 
 ##### Request body
 
-```http
---------------------------d8c247122f594ba0
-Content-Disposition: form-data; name="team_id"
-1
---------------------------d8c247122f594ba0
-Content-Disposition: form-data; name="self_service"
-true
---------------------------d8c247122f594ba0
-Content-Disposition: form-data; name="install_script"
-sudo installer -pkg /temp/FalconSensor-6.44.pkg -target /
---------------------------d8c247122f594ba0
-Content-Disposition: form-data; name="pre_install_query"
-SELECT 1 FROM macos_profiles WHERE uuid='c9f4f0d5-8426-4eb8-b61b-27c543c9d3db';
---------------------------d8c247122f594ba0
-Content-Disposition: form-data; name="post_install_script"
-sudo /Applications/Falcon.app/Contents/Resources/falconctl license 0123456789ABCDEFGHIJKLMNOPQRSTUV-WX
---------------------------d8c247122f594ba0
-Content-Disposition: form-data; name="software"; filename="FalconSensor-6.44.pkg"
-Content-Type: application/octet-stream
-<BINARY_DATA>
---------------------------d8c247122f594ba0
+```
+team_id="1"
+self_service="true"
+install_script="sudo installer -pkg /temp/FalconSensor-6.44.pkg -target /"
+pre_install_query"SELECT 1 FROM macos_profiles WHERE uuid='c9f4f0d5-8426-4eb8-b61b-27c543c9d3db';"
+post_install_script"sudo /Applications/Falcon.app/Contents/Resources/falconctl license 0123456789ABCDEFGHIJKLMNOPQRSTUV-WX"
+software="FalconSensor-6.44.pkg"
+labels_exclude_any="Engineering"
+labels_exclude_any="QA"
 ```
 
 ##### Default response
@@ -10830,6 +10723,10 @@ _Available in Fleet Premium._
 
 Update a package to install on macOS, Windows, Linux, iOS, or iPadOS hosts.
 
+> You need to send a request of type `multipart/form-data`.
+
+> This endpoint accepts a maximum request body size of 10GB.
+
 `PATCH /api/v1/fleet/software/titles/:id/package`
 
 #### Parameters
@@ -10837,16 +10734,16 @@ Update a package to install on macOS, Windows, Linux, iOS, or iPadOS hosts.
 | Name            | Type    | In   | Description                                      |
 | ----            | ------- | ---- | --------------------------------------------     |
 | id | integer | path | ID of the software title being updated. |
-| software        | file    | form | Installer package file or custom script file. Supported packages are `.pkg`, `.msi`, `.exe`, `.deb`, `.rpm`, `.tar.gz`, `.ipa`, `.sh`, and `.ps1`.   |
-| team_id         | integer | form | **Required**. The team ID. Updates a software package in the specified team. |
-| display_name    | string  | form | Optional override for the default `name`. |
-| categories        | array | form | Zero or more of the [supported categories](https://fleetdm.com/docs/configuration/yaml-files#supported-software-categories), used to group self-service software on your end users' **Fleet Desktop > My device** page. Software with no categories will be still be shown under **All**. |
-| install_script  | string | form | Command that Fleet runs to install software. If not specified Fleet runs the [default install command](https://github.com/fleetdm/fleet/tree/main/pkg/file/scripts) for each package type. Not supported for `.sh` and `.ps1`. |
-| pre_install_query  | string | form | Query that is pre-install condition. If the query doesn't return any result, the package will not be installed. Not supported for `.sh` and `.ps1`. |
-| post_install_script | string | form | The contents of the script to run after install. If the specified script fails (exit code non-zero) software install will be marked as failed and rolled back. Not supported for `.sh` and `.ps1`. |
-| self_service | boolean | form | Whether this is optional self-service software that can be installed by the end user. |
-| labels_include_any        | array     | form | Target hosts that have any label, specified by label name, in the array. Only one of either `labels_include_any` or `labels_exclude_any` can be specified. |
-| labels_exclude_any | array | form | Target hosts that don't have any label, specified by label name, in the array. |
+| software        | file    | body | Installer package file or custom script file. Supported packages are `.pkg`, `.msi`, `.exe`, `.deb`, `.rpm`, `.tar.gz`, `.ipa`, `.sh`, and `.ps1`.   |
+| team_id         | integer | body | **Required**. The team ID. Updates a software package in the specified team. |
+| display_name    | string  | body | Optional override for the default `name`. |
+| categories        | array | body | Zero or more of the [supported categories](https://fleetdm.com/docs/configuration/yaml-files#supported-software-categories), used to group self-service software on your end users' **Fleet Desktop > My device** page. Software with no categories will be still be shown under **All**. |
+| install_script  | string | body | Command that Fleet runs to install software. If not specified Fleet runs the [default install command](https://github.com/fleetdm/fleet/tree/main/pkg/file/scripts) for each package type. Not supported for `.sh` and `.ps1`. |
+| pre_install_query  | string | body | Query that is pre-install condition. If the query doesn't return any result, the package will not be installed. Not supported for `.sh` and `.ps1`. |
+| post_install_script | string | body | The contents of the script to run after install. If the specified script fails (exit code non-zero) software install will be marked as failed and rolled back. Not supported for `.sh` and `.ps1`. |
+| self_service | boolean | body | Whether this is optional self-service software that can be installed by the end user. |
+| labels_include_any        | array     | body | Target hosts that have any label, specified by label name, in the array. Only one of either `labels_include_any` or `labels_exclude_any` can be specified. |
+| labels_exclude_any | array | body | Target hosts that don't have any label, specified by label name, in the array. |
 
 Only one of `labels_include_any` or `labels_exclude_any` can be specified. If neither are specified, all hosts are targeted.
 
@@ -10858,39 +10755,16 @@ Add the `X-Fleet-Scripts-Encoded: base64` header line to parse `install_script`,
 
 `PATCH /api/v1/fleet/software/titles/1/package`
 
-##### Request header
-
-```http
-Content-Length: 8500
-Content-Type: multipart/form-data; boundary=------------------------d8c247122f594ba0
-```
-
 ##### Request body
 
 ```http
---------------------------d8c247122f594ba0
-Content-Disposition: form-data; name="team_id"
-1
---------------------------d8c247122f594ba0
-Content-Disposition: form-data; name="self_service"
-true
---------------------------d8c247122f594ba0
-Content-Disposition: form-data; display_name="CrowdStrike agent"
-true
---------------------------d8c247122f594ba0
-Content-Disposition: form-data; name="install_script"
-sudo installer -pkg /temp/FalconSensor-6.44.pkg -target /
---------------------------d8c247122f594ba0
-Content-Disposition: form-data; name="pre_install_query"
-SELECT 1 FROM macos_profiles WHERE uuid='c9f4f0d5-8426-4eb8-b61b-27c543c9d3db';
---------------------------d8c247122f594ba0
-Content-Disposition: form-data; name="post_install_script"
-sudo /Applications/Falcon.app/Contents/Resources/falconctl license 0123456789ABCDEFGHIJKLMNOPQRSTUV-WX
---------------------------d8c247122f594ba0
-Content-Disposition: form-data; name="software"; filename="FalconSensor-6.44.pkg"
-Content-Type: application/octet-stream
-<BINARY_DATA>
---------------------------d8c247122f594ba0
+team_id="1"
+software="FalconSensor-6.44.pkg"
+self_service="true"
+display_name="CrowdStrike agent"
+install_script="sudo installer -pkg /temp/FalconSensor-6.44.pkg -target /"
+pre_install_query="SELECT 1 FROM macos_profiles WHERE uuid='c9f4f0d5-8426-4eb8-b61b-27c543c9d3db';"
+post_install_script="sudo /Applications/Falcon.app/Contents/Resources/falconctl license 0123456789ABCDEFGHIJKLMNOPQRSTUV-WX"
 ```
 
 ##### Default response
@@ -10932,6 +10806,8 @@ _Available in Fleet Premium._
 
 Icon will be displayed in Fleet and on **Fleet Desktop > Self-service**. In the UI for the specified team, overriding the default icon built into Fleet, as well as the Apple-sourced icon if the software has an associated VPP app.
 
+> You need to send a request of type `multipart/form-data`.
+
 `PUT /api/v1/fleet/software/titles/:id/icon`
 
 #### Parameters
@@ -10940,31 +10816,18 @@ Icon will be displayed in Fleet and on **Fleet Desktop > Self-service**. In the 
 | ----        | ------- | ---- | --------------------------------------------     |
 | id          | integer | path | ID of the software title being updated. |
 | team_id     | integer | query | **Required**. The team ID. Updates a software icon in the specified team. |
-| icon        | file    | form | Must be PNG format. It must be square with dimensions between 120x120 px and 1024x1024 px. |
-| hash_sha256 | string  | form | SHA256 hash of an already-uploaded icon to use. If provided, `filename` is required and `icon` should be omitted. |
-| filename    | string  | form | Filename to record for the icon image, if `hash_sha256` was supplied. |
+| icon        | file    | body | Must be PNG format. It must be square with dimensions between 120x120 px and 1024x1024 px. |
+| hash_sha256 | string  | body | SHA256 hash of an already-uploaded icon to use. If provided, `filename` is required and `icon` should be omitted. |
+| filename    | string  | body | Filename to record for the icon image, if `hash_sha256` was supplied. |
 
 #### Example
 
 `PUT /api/v1/fleet/software/titles/33/icon?team_id=2`
 
-##### Request header
-
-```http
-Content-Length: 8500
-Content-Type: multipart/form-data; boundary=------------------------d8c247122f594ba0
-```
-
 ##### Request body
 
 ```http
-------------------------d8c247122f594ba0
-Content-Disposition: form-data; name= "icon" filename="crowdstrike-icon-512x512.png"
-Content-Type: image/png
-
-<BINARY_IMAGE_DATA>
-
-------------------------d8c247122f594ba0
+icon="crowdstrike-icon-512x512.png"
 ```
 
 ##### Default response
@@ -11170,6 +11033,9 @@ Modify an Apple App Store (VPP) or a Google Play app's options.
 | display_name    | string  | body | Optional override for the default `name`. |
 | self_service | boolean | body | **Required if platform is Android**. Currently supported for macOS and Android apps. Specifies whether the app shows up in self-service and is available for install by the end user. For macOS shows up on **Fleet Desktop > My device** page, and for Android in **Play Store** app in end user's work profile.  |
 | categories | array | body | Zero or more of the [supported categories](https://fleetdm.com/docs/configuration/yaml-files#supported-software-categories), used to group self-service software on your end users' **Fleet Desktop > My device** page. Software with no categories will be still be shown under **All**. |
+| auto_update_enabled | boolean | body | Whether to enable automatic updates for iOS/iPadOS App Store (VPP) apps. |
+| auto_update_window_start | string | body | Update window start time (local time of the device) when automatic updates will take place for iOS/iPadOS App Store (VPP) apps, formatted as HH:MM. Required if `auto_update_enabled` is `true`. |
+| auto_update_window_end | string | body | Update window end time (local time of the device) when automatic updates will take place for iOS/iPadOS App Store (VPP) apps, formatted as HH:MM. Required if `auto_update_enabled` is `true`. |
 | labels_include_any        | array     | body | Target hosts that have any label, specified by label name, in the array. |
 | labels_exclude_any | array | body | Target hosts that don't have any label, specified by label name, in the array. |
 | configuration | object | body | The Android Play Store app's managed configuration in JSON format. Currently only supported for Android. |
@@ -11224,7 +11090,6 @@ Only one of `labels_include_any` or `labels_exclude_any` can be specified. If ne
       {
         "id": 345,
         "name": "[Install software] Logic Pro",
-        "fleet_maintained": false
       }
     ],
     "status": {
@@ -11764,6 +11629,7 @@ The returned lists are filtered based on the hosts the requesting user has acces
         "hardware_version": "",
         "hardware_serial": "",
         "computer_name": "7a2f41482833",
+        "timezone": null,
         "display_name": "7a2f41482833",
         "primary_ip": "172.20.0.3",
         "primary_mac": "02:42:ac:14:00:03",
@@ -11804,6 +11670,7 @@ The returned lists are filtered based on the hosts the requesting user has acces
         "hardware_version": "",
         "hardware_serial": "",
         "computer_name": "78c96e72746c",
+        "timezone": null,
         "display_name": "78c96e72746c",
         "primary_ip": "172.20.0.7",
         "primary_mac": "02:42:ac:14:00:07",

@@ -118,7 +118,12 @@ func NewInstalledApplicationListResultsHandler(
 			activityFn func(ctx context.Context, results *mdm.CommandResults, fromSetupExp bool, fromAutoUpdate bool) (*fleet.User, fleet.ActivityDetails, error)
 		}
 
-		var poll, shouldRefetch bool
+		// The requireXcodeSpecialCase is used to identify if we need to poll the list of apps
+		// with managedonly=false to verify the Xcode VPP app, which only reports during Installing=true
+		// as managed-only, and then disappears from the list once installed.
+		// See https://github.com/fleetdm/fleet/issues/37290#issuecomment-3774473552
+		const xcodeBundleID = "com.apple.dt.Xcode"
+		var poll, shouldRefetch, requireXcodeSpecialCase bool
 		setStatusForExpectedInstall := func(
 			expectedInstall *fleet.HostVPPSoftwareInstall,
 			setter installStatusSetter,
@@ -128,17 +133,33 @@ func NewInstalledApplicationListResultsHandler(
 				return ctxerr.Wrap(ctx, err, "checking if vpp install is from auto update")
 			}
 			// If we don't find the app in the result, then we need to poll for it (within the timeout).
-			appFromResult := installsByBundleID[expectedInstall.BundleIdentifier]
+			appFromResult, appWasReported := installsByBundleID[expectedInstall.BundleIdentifier]
+
+			// If ExpectedVersion is empty (legacy installs), we only check if the app is installed.
+			// Otherwise, we require both installed status and version match.
+			versionMatches := expectedInstall.ExpectedVersion == "" || appFromResult.Version == expectedInstall.ExpectedVersion
 
 			var terminalStatus string
 			switch {
-			case appFromResult.Installed:
+			case appFromResult.Installed && versionMatches:
 				if err := setter.verifyFn(ctx, expectedInstall.HostID, expectedInstall.InstallCommandUUID, installedAppResult.UUID()); err != nil {
 					return ctxerr.Wrap(ctx, err, "InstalledApplicationList handler: set vpp install verified")
 				}
 
 				terminalStatus = fleet.MDMAppleStatusAcknowledged
 				shouldRefetch = true
+			case appFromResult.Installed && !versionMatches:
+				// App is installed but version doesn't match, log and continue polling
+				level.Debug(logger).Log(
+					"msg", "app installed but version mismatch",
+					"host_uuid", installedAppResult.HostUUID(),
+					"bundle_identifier", expectedInstall.BundleIdentifier,
+					"expected_version", expectedInstall.ExpectedVersion,
+					"installed_version", appFromResult.Version,
+				)
+				// Fall through to poll, the app exists but wrong version, keep waiting for update
+				poll = true
+				return nil
 			case expectedInstall.InstallCommandAckAt != nil && time.Since(*expectedInstall.InstallCommandAckAt) > verifyTimeout:
 				if err := setter.failFn(ctx, expectedInstall.HostID, expectedInstall.InstallCommandUUID, installedAppResult.UUID()); err != nil {
 					return ctxerr.Wrap(ctx, err, "InstalledApplicationList handler: set vpp install failed")
@@ -149,6 +170,13 @@ func NewInstalledApplicationListResultsHandler(
 
 			if terminalStatus == "" {
 				poll = true
+				// use the Xcode special-case (managedonly=false) only if it wasn't reported
+				// in the current result (if it was reported and gets here, it means is still "Installing"),
+				// so we will list the full apps for verification only after it finished "installing", until
+				// it gets verified or times out doing so (and possibly once _before_ it starts installing).
+				// This minimizes the number of times we request the (~100KB large) payload of all apps.
+				requireXcodeSpecialCase = expectedInstall.BundleIdentifier == xcodeBundleID &&
+					installedAppResult.HostPlatform() == "darwin" && !appWasReported
 				return nil
 			}
 
@@ -222,7 +250,8 @@ func NewInstalledApplicationListResultsHandler(
 			// Queue a job to verify the VPP install.
 			return ctxerr.Wrap(
 				ctx,
-				worker.QueueVPPInstallVerificationJob(ctx, ds, logger, worker.VerifyVPPTask, verifyRequestDelay, installedAppResult.HostUUID(), installedAppResult.UUID()),
+				worker.QueueVPPInstallVerificationJob(ctx, ds, logger, verifyRequestDelay,
+					installedAppResult.HostUUID(), installedAppResult.UUID(), requireXcodeSpecialCase),
 				"InstalledApplicationList handler: queueing vpp install verification job",
 			)
 		}

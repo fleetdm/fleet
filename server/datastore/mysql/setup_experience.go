@@ -7,9 +7,11 @@ import (
 	"fmt"
 	"slices"
 	"strings"
+	"time"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/go-kit/log/level"
 	"github.com/jmoiron/sqlx"
 )
 
@@ -22,6 +24,34 @@ func (ds *Datastore) ResetSetupExperienceItemsAfterFailure(ctx context.Context, 
 }
 
 func (ds *Datastore) enqueueSetupExperienceItems(ctx context.Context, hostPlatformLike string, hostUUID string, teamID uint, resetFailedSetupSteps bool) (bool, error) {
+	// Find the host with the given UUID and platform. If it's already been enrolled for > the cutoff,
+	// don't enqueue any items. This handles the edge case where an enrolled host upgrades from an
+	// Orbit version that didn't support setup experience to one that does.
+	// See https://github.com/fleetdm/fleet/issues/35717
+	stmtHost := `
+	SELECT
+		last_enrolled_at
+	FROM
+		hosts
+	WHERE uuid = ? AND platform = ?
+	`
+	var lastEnrolledAt sql.NullTime
+	if err := sqlx.GetContext(ctx, ds.reader(ctx), &lastEnrolledAt, stmtHost, hostUUID, hostPlatformLike); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			// This shouldn't happen but we don't check for it elsewhere,
+			// so we'll log a warning and continue.
+			level.Warn(ds.logger).Log("msg", "Host not found while enqueueing setup experience items", "host_uuid", hostUUID, "platform_like", hostPlatformLike)
+		} else {
+			return false, ctxerr.Wrap(ctx, err, "finding host for enqueueing setup experience items")
+		}
+	}
+	// If the host was enrolled more than 24 hours ago, don't enqueue any items.
+	// Note: if the last enroll date is our "zero date" (1/1/2000), treat it as if it's never enrolled.
+	if lastEnrolledAt.Valid && lastEnrolledAt.Time.Before(time.Now().Add(-24*time.Hour)) && lastEnrolledAt.Time.After(time.Date(2000, time.January, 1, 0, 0, 0, 0, time.UTC)) {
+		level.Debug(ds.logger).Log("msg", "Host enrolled more than 24 hours ago, skipping enqueueing setup experience items", "host_uuid", hostUUID, "platform_like", hostPlatformLike, "last_enrolled_at", lastEnrolledAt.Time)
+		return false, nil
+	}
+
 	// NOTE: currently, the Android platform does not use the "enqueue setup experience items" flow as it
 	// doesn't support any on-device UI (such as the screen showing setup progress) nor any
 	// ordering of installs - all software to install is provided as part of the Android policy
@@ -515,6 +545,57 @@ WHERE host_uuid = ?
 	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &results, stmt, hostUUID); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "select setup experience status results by host uuid")
 	}
+
+	titleIDs := make([]uint, 0, len(results))
+	byTitleID := make(map[uint]*fleet.SetupExperienceStatusResult, len(results))
+	for _, res := range results {
+		if res.SoftwareTitleID != nil {
+			titleIDs = append(titleIDs, *res.SoftwareTitleID)
+			byTitleID[*res.SoftwareTitleID] = res
+		}
+	}
+
+	// load custom display name and custom icon for the software installers, if any
+	if len(titleIDs) > 0 {
+		// NOTE: as documented in fleet.HostUUIDForSetupExperience, the setup experience "host_uuid"
+		// is NOT always the host.uuid (on Windows and Linux, specifically). So if the host's team is
+		// not found, we simply don't load the icons and display names, anyway we only need those
+		// on macOS currently as it's the only place where the setup experience UI is shown.
+
+		// we need the host's team to load the custom icons and display names
+		const hostTeam = `SELECT team_id FROM hosts WHERE uuid = ? LIMIT 1`
+		var hostTeamID sql.Null[uint]
+		if err := sqlx.GetContext(ctx, ds.reader(ctx), &hostTeamID, hostTeam, hostUUID); err != nil {
+			if errors.Is(err, sql.ErrNoRows) {
+				// host not found, skip loading icons and display names
+				return results, nil
+			}
+			return nil, ctxerr.Wrap(ctx, err, "get host team ID for setup experience results")
+		}
+
+		icons, err := ds.GetSoftwareIconsByTeamAndTitleIds(ctx, hostTeamID.V, titleIDs)
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "get software icons by team and title IDs")
+		}
+
+		displayNames, err := ds.getDisplayNamesByTeamAndTitleIds(ctx, hostTeamID.V, titleIDs)
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "get software display names by team and title IDs")
+		}
+
+		for titleID, icon := range icons {
+			if res := byTitleID[titleID]; res != nil {
+				res.IconURL = icon.IconUrl()
+			}
+		}
+
+		for titleID, name := range displayNames {
+			if res := byTitleID[titleID]; res != nil {
+				res.DisplayName = name
+			}
+		}
+	}
+
 	return results, nil
 }
 

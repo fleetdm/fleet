@@ -15,7 +15,7 @@ import (
 	"github.com/cenkalti/backoff/v4"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
-	kitlog "github.com/go-kit/log"
+	"github.com/fleetdm/fleet/v4/server/platform/logging"
 	"github.com/go-kit/log/level"
 	"github.com/google/uuid"
 	"golang.org/x/oauth2/google"
@@ -53,7 +53,7 @@ var (
 type GoogleCalendarConfig struct {
 	Context           context.Context
 	IntegrationConfig *fleet.GoogleCalendarIntegration
-	Logger            kitlog.Logger
+	Logger            *logging.Logger
 	ServerURL         string
 	// Should be nil for production
 	API GoogleCalendarAPI
@@ -72,9 +72,9 @@ func NewGoogleCalendar(config *GoogleCalendarConfig) *GoogleCalendar {
 	switch {
 	case config.API != nil:
 		// Use the provided API.
-	case config.IntegrationConfig.ApiKey[fleet.GoogleCalendarEmail] == loadEmail:
+	case config.IntegrationConfig.ApiKey.Values[fleet.GoogleCalendarEmail] == loadEmail:
 		config.API = &GoogleCalendarLoadAPI{Logger: config.Logger}
-	case config.IntegrationConfig.ApiKey[fleet.GoogleCalendarEmail] == MockEmail:
+	case config.IntegrationConfig.ApiKey.Values[fleet.GoogleCalendarEmail] == MockEmail:
 		config.API = &GoogleCalendarMockAPI{config.Logger}
 	default:
 		config.API = &GoogleCalendarLowLevelAPI{logger: config.Logger}
@@ -108,7 +108,7 @@ type eventDetails struct {
 
 type GoogleCalendarLowLevelAPI struct {
 	service   *calendar.Service
-	logger    kitlog.Logger
+	logger    *logging.Logger
 	serverURL string
 }
 
@@ -283,8 +283,8 @@ func (lowLevelAPI *GoogleCalendarLowLevelAPI) withRetry(fn func() (any, error)) 
 func (c *GoogleCalendar) Configure(userEmail string) error {
 	adjustedUserEmail := adjustEmail(userEmail)
 	err := c.config.API.Configure(
-		c.config.Context, c.config.IntegrationConfig.ApiKey[fleet.GoogleCalendarEmail],
-		c.config.IntegrationConfig.ApiKey[fleet.GoogleCalendarPrivateKey], adjustedUserEmail,
+		c.config.Context, c.config.IntegrationConfig.ApiKey.Values[fleet.GoogleCalendarEmail],
+		c.config.IntegrationConfig.ApiKey.Values[fleet.GoogleCalendarPrivateKey], adjustedUserEmail,
 		c.config.ServerURL,
 	)
 	if err != nil {

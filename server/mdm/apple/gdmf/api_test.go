@@ -6,6 +6,7 @@ import (
 	"os"
 	"testing"
 
+	"github.com/fleetdm/fleet/v4/server/dev_mode"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/require"
@@ -24,7 +25,7 @@ func TestGetLatest(t *testing.T) {
 		require.NoError(t, err)
 	}))
 	defer srv.Close()
-	t.Setenv("FLEET_DEV_GDMF_URL", srv.URL)
+	dev_mode.SetOverride("FLEET_DEV_GDMF_URL", srv.URL, t)
 
 	// test the function
 	d := fleet.MDMAppleMachineInfo{
@@ -224,10 +225,10 @@ func TestRetries(t *testing.T) {
 		_, err := w.Write([]byte(`{"error": "bad request"}`))
 		require.NoError(t, err)
 	}))
-	os.Setenv("FLEET_DEV_GDMF_URL", srv.URL)
+	dev_mode.SetOverride("FLEET_DEV_GDMF_URL", srv.URL)
 	t.Cleanup(func() {
 		srv.Close()
-		os.Unsetenv("FLEET_DEV_GDMF_URL")
+		dev_mode.ClearOverride("FLEET_DEV_GDMF_URL")
 	})
 
 	latest, err := GetLatestOSVersion(fleet.MDMAppleMachineInfo{

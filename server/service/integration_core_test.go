@@ -41,6 +41,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 	"gopkg.in/guregu/null.v3"
@@ -451,6 +452,43 @@ func (s *integrationTestSuite) TestActivityUserEmailPersistsAfterDeletion() {
 
 	// ensure that on exit, the admin token is used
 	s.token = s.getTestAdminToken()
+}
+
+func (s *integrationTestSuite) TestPremiumOnlyRoles() {
+	t := s.T()
+
+	for _, role := range []string{fleet.RoleTechnician, fleet.RoleGitOps, fleet.RoleObserverPlus} {
+		t.Run(role, func(t *testing.T) {
+			t.Run("login", func(t *testing.T) {
+				user := &fleet.User{
+					Name:       role,
+					Email:      fmt.Sprintf("%s@example.com", role),
+					GlobalRole: ptr.String(role),
+				}
+				err := user.SetPassword(test.GoodPassword, 10, 10)
+				require.NoError(t, err)
+				_, err = s.ds.NewUser(t.Context(), user)
+				require.NoError(t, err)
+
+				var loginResp loginResponse
+				s.DoJSON("POST", "/api/latest/fleet/login", contract.LoginRequest{
+					Email:    fmt.Sprintf("%s@example.com", role),
+					Password: test.GoodPassword,
+				}, http.StatusPaymentRequired, &loginResp)
+			})
+
+			t.Run("create", func(t *testing.T) {
+				var createResp createUserResponse
+				params := fleet.UserPayload{
+					Name:       ptr.String(role),
+					Email:      ptr.String(fmt.Sprintf("%s@example.com", role)),
+					Password:   ptr.String(test.GoodPassword),
+					GlobalRole: ptr.String(role),
+				}
+				s.DoJSON("POST", "/api/latest/fleet/users/admin", params, http.StatusPaymentRequired, &createResp)
+			})
+		})
+	}
 }
 
 func (s *integrationTestSuite) TestPolicyDeletionLogsActivity() {
@@ -2419,16 +2457,22 @@ func (s *integrationTestSuite) TestInvites() {
 	require.Len(t, verify.Teams, 1)
 	assert.Equal(t, team.ID, verify.Teams[0].ID)
 
+	// Try to create an user with an email different that the one associated with the invite
 	var createFromInviteResp createUserResponse
-	s.DoJSON("POST", "/api/latest/fleet/users", fleet.UserPayload{
+	userPayload := fleet.UserPayload{
 		Name:        ptr.String("Full Name"),
 		Password:    ptr.String(test.GoodPassword),
 		Email:       ptr.String("a@b.c"),
 		InviteToken: ptr.String(validInviteToken),
-	}, http.StatusOK, &createFromInviteResp)
+	}
+	s.DoJSON("POST", "/api/latest/fleet/users", userPayload, http.StatusUnprocessableEntity, &createFromInviteResp)
+
+	// Adjust email and try again, this should be OK
+	userPayload.Email = ptr.String(verify.Email)
+	s.DoJSON("POST", "/api/latest/fleet/users", userPayload, http.StatusOK, &createFromInviteResp)
 
 	// Check that user is associated with unique invite ID
-	user, err := s.ds.UserByEmail(context.Background(), "a@b.c")
+	user, err := s.ds.UserByEmail(context.Background(), verify.Email)
 	require.NoError(t, err)
 	require.Equal(t, inv.ID, *user.InviteID)
 
@@ -2453,7 +2497,7 @@ func (s *integrationTestSuite) TestInvites() {
 	s.DoJSON("POST", "/api/latest/fleet/users", fleet.UserPayload{
 		Name:        ptr.String("Full Name"),
 		Password:    ptr.String(test.GoodPassword),
-		Email:       ptr.String("a@b.c"),
+		Email:       ptr.String(inv.Email),
 		InviteToken: ptr.String(deletedInviteToken),
 	}, http.StatusNotFound, &createFromInviteResp)
 }
@@ -3035,18 +3079,22 @@ func (s *integrationTestSuite) TestTeamPoliciesProprietary() {
 	tpCountResp := countTeamPoliciesResponse{}
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/teams/%d/policies/count", team1.ID), nil, http.StatusOK, &tpCountResp)
 	assert.Equal(t, 1, tpCountResp.Count)
+	assert.Equal(t, 0, tpCountResp.InheritedPolicyCount)
 
 	tpCountResp = countTeamPoliciesResponse{}
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/teams/%d/policies/count", team1.ID), nil, http.StatusOK, &tpCountResp, "query", tpNameNew)
 	assert.Equal(t, 1, tpCountResp.Count)
+	assert.Equal(t, 0, tpCountResp.InheritedPolicyCount)
 
 	tpCountResp = countTeamPoliciesResponse{}
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/teams/%d/policies/count", team1.ID), nil, http.StatusOK, &tpCountResp, "query", " "+tpNameNew+" ")
 	assert.Equal(t, 1, tpCountResp.Count)
+	assert.Equal(t, 0, tpCountResp.InheritedPolicyCount)
 
 	tpCountResp = countTeamPoliciesResponse{}
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/teams/%d/policies/count", team1.ID), nil, http.StatusOK, &tpCountResp, "query", " nomatch")
 	assert.Equal(t, 0, tpCountResp.Count)
+	assert.Equal(t, 0, tpCountResp.InheritedPolicyCount)
 
 	listHostsURL := fmt.Sprintf("/api/latest/fleet/hosts?policy_id=%d", policiesResponse.Policies[0].ID)
 	listHostsResp := listHostsResponse{}
@@ -3310,12 +3358,11 @@ func (s *integrationTestSuite) TestListActivities() {
 	ctx := context.Background()
 	u := s.users["admin1@example.com"]
 
-	prevActivities, _, err := s.ds.ListActivities(ctx, fleet.ListActivitiesOptions{})
-	require.NoError(t, err)
+	prevActivities := s.listActivities()
 
 	timestamp := time.Now()
 	ctx = context.WithValue(ctx, fleet.ActivityWebhookContextKey, true)
-	err = s.ds.NewActivity(ctx, &u, fleet.ActivityTypeAppliedSpecPack{}, nil, timestamp)
+	err := s.ds.NewActivity(ctx, &u, fleet.ActivityTypeAppliedSpecPack{}, nil, timestamp)
 	require.NoError(t, err)
 
 	err = s.ds.NewActivity(ctx, &u, fleet.ActivityTypeDeletedPack{}, nil, timestamp)
@@ -3644,7 +3691,8 @@ func (s *integrationTestSuite) TestScheduledQueries() {
 	var listQryResp listQueriesResponse
 	s.DoJSON("GET", "/api/latest/fleet/queries", nil, http.StatusOK, &listQryResp)
 	assert.Len(t, listQryResp.Queries, 0)
-	assert.Equal(t, listQryResp.Count, 0)
+	assert.Equal(t, 0, listQryResp.Count)
+	assert.Equal(t, 0, listQryResp.InheritedQueryCount)
 
 	// create a query
 	var createQueryResp createQueryResponse
@@ -3659,6 +3707,8 @@ func (s *integrationTestSuite) TestScheduledQueries() {
 	s.DoJSON("GET", "/api/latest/fleet/queries", nil, http.StatusOK, &listQryResp)
 	require.Len(t, listQryResp.Queries, 1)
 	assert.Equal(t, query.Name, listQryResp.Queries[0].Name)
+	assert.Equal(t, 1, listQryResp.Count)
+	assert.Equal(t, 0, listQryResp.InheritedQueryCount)
 
 	// listing with matching name returns that query
 	s.DoJSON("GET", "/api/latest/fleet/queries", nil, http.StatusOK, &listQryResp, "query", query.Name)
@@ -3682,7 +3732,8 @@ func (s *integrationTestSuite) TestScheduledQueries() {
 	// next page returns nothing, count and meta are correct
 	s.DoJSON("GET", "/api/latest/fleet/queries", nil, http.StatusOK, &listQryResp, "per_page", "2", "page", "1")
 	require.Len(t, listQryResp.Queries, 0)
-	require.Equal(t, listQryResp.Count, 1)
+	require.Equal(t, 1, listQryResp.Count)
+	require.Equal(t, 0, listQryResp.InheritedQueryCount)
 	require.True(t, listQryResp.Meta.HasPreviousResults)
 	require.False(t, listQryResp.Meta.HasNextResults)
 
@@ -4425,13 +4476,13 @@ func (s *integrationTestSuite) TestGetMacadminsData() {
 	assert.Equal(t, "warning1", macadminsData.Macadmins.MunkiIssues[0].Name)
 
 	// only mdm returns null on munki info
-	require.NoError(t, s.ds.SetOrUpdateMDMData(ctx, hostOnlyMDM.ID, false, true, "https://kandji.io", true, fleet.WellKnownMDMKandji, "", false))
+	require.NoError(t, s.ds.SetOrUpdateMDMData(ctx, hostOnlyMDM.ID, false, true, "https://kandji.io", true, fleet.WellKnownMDMIru, "", false))
 	macadminsData = macadminsDataResponse{}
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/macadmins", hostOnlyMDM.ID), nil, http.StatusOK, &macadminsData)
 	require.NotNil(t, macadminsData.Macadmins)
 	require.NotNil(t, macadminsData.Macadmins.MDM)
 	require.NotNil(t, macadminsData.Macadmins.MDM.Name)
-	assert.Equal(t, fleet.WellKnownMDMKandji, *macadminsData.Macadmins.MDM.Name)
+	assert.Equal(t, fleet.WellKnownMDMIru, *macadminsData.Macadmins.MDM.Name)
 	require.NotNil(t, macadminsData.Macadmins.MDM.ID)
 	assert.NotZero(t, *macadminsData.Macadmins.MDM.ID)
 	require.Nil(t, macadminsData.Macadmins.Munki)
@@ -4498,7 +4549,7 @@ func (s *integrationTestSuite) TestGetMacadminsData() {
 			assert.Equal(t, fleet.UnknownMDMName, sol.Name)
 			assert.Equal(t, 1, sol.HostsCount)
 		case "https://kandji.io":
-			assert.Equal(t, fleet.WellKnownMDMKandji, sol.Name)
+			assert.Equal(t, fleet.WellKnownMDMIru, sol.Name)
 			assert.Equal(t, 1, sol.HostsCount)
 		default:
 			require.Fail(t, "unknown MDM server URL: %s", sol.ServerURL)
@@ -4634,6 +4685,10 @@ func (s *integrationTestSuite) TestLabels() {
 		assert.NotZero(t, createResp.Label.ID)
 		assert.Equal(t, t.Name(), createResp.Label.Name)
 		assert.Empty(t, createResp.Label.HostIDs)
+		assert.False(t, createResp.Label.CreatedAt.IsZero())
+		assert.WithinDuration(t, time.Now(), createResp.Label.CreatedAt, time.Minute)
+		assert.False(t, createResp.Label.UpdatedAt.IsZero())
+		assert.WithinDuration(t, time.Now(), createResp.Label.UpdatedAt, time.Minute)
 		lbl1 := createResp.Label.Label
 
 		// try to create a manual label with the same name
@@ -6938,8 +6993,7 @@ func (s *integrationTestSuite) TestGoogleCalendarIntegrations() {
 
 	appConfig := s.getConfig()
 	require.Len(t, appConfig.Integrations.GoogleCalendar, 1)
-	assert.Equal(t, email, appConfig.Integrations.GoogleCalendar[0].ApiKey[fleet.GoogleCalendarEmail])
-	assert.Equal(t, privateKey, appConfig.Integrations.GoogleCalendar[0].ApiKey[fleet.GoogleCalendarPrivateKey])
+	assert.True(t, appConfig.Integrations.GoogleCalendar[0].ApiKey.IsMasked())
 	assert.Equal(t, domain, appConfig.Integrations.GoogleCalendar[0].Domain)
 
 	// Add 2nd config -- not allowed at this time
@@ -6999,8 +7053,7 @@ func (s *integrationTestSuite) TestGoogleCalendarIntegrations() {
 	)
 	appConfig = s.getConfig()
 	require.Len(t, appConfig.Integrations.GoogleCalendar, 1)
-	assert.Equal(t, email, appConfig.Integrations.GoogleCalendar[0].ApiKey[fleet.GoogleCalendarEmail])
-	assert.Equal(t, privateKey, appConfig.Integrations.GoogleCalendar[0].ApiKey[fleet.GoogleCalendarPrivateKey])
+	assert.True(t, appConfig.Integrations.GoogleCalendar[0].ApiKey.IsMasked())
 	assert.Equal(t, domain, appConfig.Integrations.GoogleCalendar[0].Domain)
 
 	// Clearing other integrations does not clear Google Calendar integration
@@ -7773,6 +7826,9 @@ func (s *integrationTestSuite) TestAppConfig() {
 	s.DoJSON("GET", "/api/latest/fleet/spec/enroll_secret", nil, http.StatusOK, &specResp)
 	assert.Empty(t, specResp.Spec.Secrets)
 
+	seenActivitiesIDs := map[uint]struct{}{}
+	activityName := fleet.ActivityTypeEditedEnrollSecrets{}.ActivityName()
+
 	// apply spec, one secret
 	var applyResp applyEnrollSecretSpecResponse
 	s.DoJSON("POST", "/api/latest/fleet/spec/enroll_secret", applyEnrollSecretSpecRequest{
@@ -7781,12 +7837,30 @@ func (s *integrationTestSuite) TestAppConfig() {
 		},
 	}, http.StatusOK, &applyResp)
 
+	// adding a new secret should create a new activity entry
+	seenActivitiesIDs[s.lastActivityMatches(activityName, "", 0)] = struct{}{}
+	require.Len(t, seenActivitiesIDs, 1)
+
+	// applying the same secret again shouldn't create a new activity since we are only interested in mutations
+	s.DoJSON("POST", "/api/latest/fleet/spec/enroll_secret", applyEnrollSecretSpecRequest{
+		Spec: &fleet.EnrollSecretSpec{
+			Secrets: []*fleet.EnrollSecret{{Secret: "XYZ"}},
+		},
+	}, http.StatusOK, &applyResp)
+
+	seenActivitiesIDs[s.lastActivityMatches(activityName, "", 0)] = struct{}{}
+	require.Len(t, seenActivitiesIDs, 1)
+
 	// apply spec, too many secrets
 	s.DoJSON("POST", "/api/latest/fleet/spec/enroll_secret", applyEnrollSecretSpecRequest{
 		Spec: &fleet.EnrollSecretSpec{
 			Secrets: createEnrollSecrets(t, fleet.MaxEnrollSecretsCount+1),
 		},
 	}, http.StatusUnprocessableEntity, &applyResp)
+
+	// error conditions should create new activities
+	seenActivitiesIDs[s.lastActivityMatches(activityName, "", 0)] = struct{}{}
+	require.Len(t, seenActivitiesIDs, 1)
 
 	// get enroll secrets, one
 	s.DoJSON("GET", "/api/latest/fleet/spec/enroll_secret", nil, http.StatusOK, &specResp)
@@ -7797,6 +7871,10 @@ func (s *integrationTestSuite) TestAppConfig() {
 	s.DoJSON("POST", "/api/latest/fleet/spec/enroll_secret", applyEnrollSecretSpecRequest{
 		Spec: &fleet.EnrollSecretSpec{},
 	}, http.StatusOK, &applyResp)
+
+	// removing the secret should create a new activity entry
+	seenActivitiesIDs[s.lastActivityMatches(activityName, "", 0)] = struct{}{}
+	require.Len(t, seenActivitiesIDs, 2)
 
 	s.DoJSON("GET", "/api/latest/fleet/spec/enroll_secret", nil, http.StatusOK, &specResp)
 	require.Len(t, specResp.Spec.Secrets, 0)
@@ -7902,6 +7980,8 @@ func (s *integrationTestSuite) TestAppConfig() {
 
 func (s *integrationTestSuite) TestQuerySpecs() {
 	t := s.T()
+
+	s.lq.On("SetQueryResultsCount", mock.Anything, mock.Anything).Return(nil)
 
 	// list specs, none yet
 	var getSpecsResp getQuerySpecsResponse
@@ -8029,8 +8109,7 @@ func (s *integrationTestSuite) TestCertificatesSpecs() {
 		},
 	}, http.StatusNotFound, &applyResp)
 
-	activitiesBeforeInsert, _, err := s.ds.ListActivities(ctx, fleet.ListActivitiesOptions{})
-	require.NoError(t, err)
+	activitiesBeforeInsert := s.listActivities()
 
 	// valid templates - test team name (not team ID)
 	s.DoJSON("POST", "/api/latest/fleet/spec/certificates", applyCertificateTemplateSpecsRequest{
@@ -8051,8 +8130,7 @@ func (s *integrationTestSuite) TestCertificatesSpecs() {
 	}, http.StatusOK, &applyResp)
 
 	// Only one activity per team
-	activitiesAfterInsert, _, err := s.ds.ListActivities(ctx, fleet.ListActivitiesOptions{})
-	require.NoError(t, err)
+	activitiesAfterInsert := s.listActivities()
 	require.Len(t, activitiesAfterInsert, len(activitiesBeforeInsert)+1, "expected exactly one new activity for the team")
 	s.lastActivityMatches(
 		fleet.ActivityTypeEditedAndroidCertificate{}.ActivityName(),
@@ -8184,8 +8262,7 @@ func (s *integrationTestSuite) TestCertificatesSpecs() {
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/certificates?team_id=%d", team.ID), nil, http.StatusOK, &listCertifcatesResp)
 	require.Len(t, listCertifcatesResp.Certificates, 0)
 
-	activitiesBeforeNoTeam, _, err := s.ds.ListActivities(ctx, fleet.ListActivitiesOptions{})
-	require.NoError(t, err)
+	activitiesBeforeNoTeam := s.listActivities()
 
 	// certificate templates for "No team"
 	s.DoJSON("POST", "/api/latest/fleet/spec/certificates", applyCertificateTemplateSpecsRequest{
@@ -8212,8 +8289,7 @@ func (s *integrationTestSuite) TestCertificatesSpecs() {
 	}, http.StatusOK, &applyResp)
 
 	// Only one activity was created for "No team"
-	activitiesAfterNoTeam, _, err := s.ds.ListActivities(ctx, fleet.ListActivitiesOptions{})
-	require.NoError(t, err)
+	activitiesAfterNoTeam := s.listActivities()
 	require.Len(t, activitiesAfterNoTeam, len(activitiesBeforeNoTeam)+1, "expected exactly one new activity for no team")
 	s.lastActivityMatches(
 		fleet.ActivityTypeEditedAndroidCertificate{}.ActivityName(),
@@ -8304,6 +8380,69 @@ func (s *integrationTestSuite) TestCertificatesSpecs() {
 
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/certificates/%d", createCertResp.ID), nil, http.StatusOK, &getCertResp)
 	require.NotNil(t, getCertResp.Certificate)
+
+	// Delete is authorized properly
+	observerEmail := "observer-cert-test@fleetdm.com"
+	observerPwd := test.GoodPassword
+	observerUser := &fleet.User{
+		Name:       "Observer User",
+		Email:      observerEmail,
+		GlobalRole: ptr.String(fleet.RoleObserver),
+	}
+	require.NoError(t, observerUser.SetPassword(observerPwd, 10, 10))
+	_, err = s.ds.NewUser(ctx, observerUser)
+	require.NoError(t, err)
+
+	// Switch to observer user
+	s.token = s.getCachedUserToken(observerEmail, observerPwd)
+	// just in case test fails, restore to admin
+	defer func() { s.token = s.getTestAdminToken() }()
+
+	// Delete with observer
+	resp = s.Do("DELETE", "/api/latest/fleet/spec/certificates", map[string]any{
+		"ids":     []uint{savedNoTeamCertTemplates[0].ID},
+		"team_id": uint(0), // "No team"
+	}, http.StatusForbidden)
+	resp.Body.Close()
+
+	// Switch back to admin
+	s.token = s.getTestAdminToken()
+
+	// Verify the certificate still exists (wasn't deleted by observer)
+	s.DoJSON("GET", "/api/latest/fleet/certificates", nil, http.StatusOK, &noTeamCertificatesResp)
+	found := false
+	for _, cert := range noTeamCertificatesResp.Certificates {
+		if cert.ID == savedNoTeamCertTemplates[0].ID {
+			found = true
+			break
+		}
+	}
+	require.True(t, found, "Certificate should not be deleted by observer user")
+
+	// Cannot delete certificates from a different team
+	// Create team 2
+	team2, err := s.ds.NewTeam(ctx, &fleet.Team{Name: "Test Team 2"})
+	require.NoError(t, err)
+	team2ID := team2.ID
+	// Create a certificate in team2
+	var team2CertResp createCertificateTemplateResponse
+	s.DoJSON("POST", "/api/latest/fleet/certificates", createCertificateTemplateRequest{
+		Name:                   "Team 2 Cert",
+		TeamID:                 team2ID,
+		CertificateAuthorityId: ca.ID,
+		SubjectName:            "CN=$FLEET_VAR_HOST_UUID",
+	}, http.StatusOK, &team2CertResp)
+	var forbiddenDelResp deleteCertificateTemplateSpecsResponse
+	// Delete with team 1 id and certificate from team 2
+	s.DoJSON("DELETE", "/api/latest/fleet/spec/certificates", map[string]any{
+		"ids":     []uint{team2CertResp.ID},
+		"team_id": team.ID,
+	}, http.StatusForbidden, &forbiddenDelResp)
+	var listTeam2Resp listCertificateTemplatesResponse
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/certificates?team_id=%d", team2ID),
+		nil, http.StatusOK, &listTeam2Resp)
+	require.Len(t, listTeam2Resp.Certificates, 1)
+	require.Equal(t, "Team 2 Cert", listTeam2Resp.Certificates[0].Name)
 
 	var delResp deleteCertificateTemplateResponse
 	s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/certificates/%d", createCertResp.ID), nil, http.StatusOK, &delResp)
@@ -9171,7 +9310,7 @@ func (s *integrationTestSuite) TestCarve() {
 		SessionId: sid + "zz",
 		RequestId: "??",
 		Data:      []byte("p1."),
-	}, http.StatusNotFound, &blockResp)
+	}, http.StatusUnauthorized, &blockResp)
 
 	// sending a block with valid session id but invalid request id
 	s.DoJSON("POST", "/api/osquery/carve/block", carveBlockRequest{
@@ -9179,7 +9318,7 @@ func (s *integrationTestSuite) TestCarve() {
 		SessionId: sid,
 		RequestId: "??",
 		Data:      []byte("p1."),
-	}, http.StatusInternalServerError, &blockResp) // TODO: should be 400, see #4406
+	}, http.StatusUnauthorized, &blockResp)
 
 	checkCarveError := func(id uint, err string) {
 		var getResp getCarveResponse
@@ -9254,6 +9393,61 @@ func (s *integrationTestSuite) TestCarve() {
 		Data:      []byte("p4."),
 	}, http.StatusBadRequest, &blockResp)
 	checkCarveError(1, "block_id exceeds expected max (2): 3")
+}
+
+func (s *integrationTestSuite) TestCarveUnauthenticated() {
+	t := s.T()
+
+	verifyAuthError := func(t *testing.T, res *http.Response) {
+		var errs validationErrResp
+		err := json.NewDecoder(res.Body).Decode(&errs)
+		require.NoError(t, err)
+		res.Body.Close()
+		assert.Equal(t, "Authentication failed", errs.Message)
+		require.Len(t, errs.Errors, 1)
+		assert.Equal(t, "Authentication failed", errs.Errors[0].Reason)
+	}
+
+	// Sending invalid format for data on purpose on purpose to check that the error is a HTTP 401 error
+	// vs a decoding/parsing error (this way we check it never gets to parse "data").
+	for _, tc := range []struct {
+		testName       string
+		rawJSONRequest string
+	}{
+		{
+			testName:       "empty-json",
+			rawJSONRequest: `{}`,
+		},
+		{
+			testName: "with-spaces", // osquery does not send spaces in the JSON
+			rawJSONRequest: `{
+				"block_id":   1,
+				"request_id": "invalid",
+				"data":      9999999999
+			}`,
+		},
+		{
+			testName:       "without-session-id",
+			rawJSONRequest: `{"block_id":1,"request_id":"invalid","data":9999999999}`,
+		},
+		{
+			testName:       "invalid-session-id-format",
+			rawJSONRequest: `{"block_id":1,"session_id":2,"request_id": "invalid","data":9999999999}`,
+		},
+		{
+			testName:       "invalid-session-id",
+			rawJSONRequest: `{"block_id":1,"session_id":"invalid","request_id":"invalid","data":9999999999}`,
+		},
+		{
+			testName:       "invalid-JSON",
+			rawJSONRequest: `{"block_ASDASDASDASDASDASDASDASDASDASDASDASDASD":1}`,
+		},
+	} {
+		t.Run(tc.testName, func(t *testing.T) {
+			res := s.DoRaw("POST", "/api/osquery/carve/block", []byte(tc.rawJSONRequest), http.StatusUnauthorized)
+			verifyAuthError(t, res)
+		})
+	}
 }
 
 func (s *integrationTestSuite) TestLogLoginAttempts() {
@@ -9357,18 +9551,30 @@ func (s *integrationTestSuite) TestChangePassword() {
 		{"password123$", "password123$", http.StatusUnprocessableEntity},
 		// wrong old pw
 		{"passgord123$", "Password$321", http.StatusUnprocessableEntity},
+
+		// change back to original password for cleanup
+		{"Password$321", startPwd, http.StatusOK},
 	}
 
-	runTestCases := func(name string) {
+	runTestCases := func(name, userEmail string) {
+		currentPwd := startPwd
 		for _, tc := range testCases {
 			t.Run(name, func(t *testing.T) {
 				var changePwResp changePasswordResponse
 				s.DoJSON("POST", endpoint, changePasswordRequest{OldPassword: tc.oldPw, NewPassword: tc.newPw}, tc.expectedStatus, &changePwResp)
+				// After a successful password change, the session is invalidated, so we need to re-authenticate
+				if tc.expectedStatus == http.StatusOK {
+					currentPwd = tc.newPw
+					s.token = s.getTestToken(userEmail, currentPwd)
+				}
 			})
 		}
 	}
 
-	runTestCases("test change passwords as admin")
+	adminEmail := "admin1@example.com"
+	// Clear the cached admin token so it will be refreshed after password changes
+	s.cachedAdminToken = ""
+	runTestCases("test change passwords as admin", adminEmail)
 
 	// create a new user
 	testUserEmail := "changepwd@example.com"
@@ -9383,13 +9589,13 @@ func (s *integrationTestSuite) TestChangePassword() {
 	s.DoJSON("POST", "/api/latest/fleet/users/admin", params, http.StatusOK, &createResp)
 	require.NotZero(t, createResp.User.ID)
 
-	// schedule cleanup with admin user's token before changing it
-	oldToken := s.token
-	t.Cleanup(func() { s.token = oldToken })
+	// Clear the cached admin token again and schedule cleanup to restore it
+	s.cachedAdminToken = ""
+	t.Cleanup(func() { s.token = s.getTestAdminToken() })
 
 	// login and run the change password tests as the user
 	s.token = s.getTestToken(testUserEmail, startPwd)
-	runTestCases("test change passwords as user")
+	runTestCases("test change passwords as user", testUserEmail)
 }
 
 func (s *integrationTestSuite) TestPasswordReset() {
@@ -12230,6 +12436,32 @@ func (s *integrationTestSuite) TestQueryReports() {
 	t := s.T()
 	ctx := context.Background()
 
+	// Add mock expectations to the existing mock (the server already has a reference to it)
+	counts := make(map[uint]int)
+	s.lq.GetQueryResultsCountsOverride = func(queryIDs []uint) (map[uint]int, error) {
+		return counts, nil
+	}
+	s.lq.SetQueryResultsCountOverride = func(queryID uint, count int) error {
+		counts[queryID] = count
+		return nil
+	}
+	s.lq.IncrQueryResultsCountsOverride = func(queryIDsToAmounts map[uint]int) error {
+		for queryID, amount := range queryIDsToAmounts {
+			counts[queryID] += amount
+		}
+		return nil
+	}
+	s.lq.DeleteQueryResultsCountOverride = func(queryID uint) error {
+		delete(counts, queryID)
+		return nil
+	}
+	defer func() {
+		s.lq.GetQueryResultsCountsOverride = nil
+		s.lq.SetQueryResultsCountOverride = nil
+		s.lq.IncrQueryResultsCountsOverride = nil
+		s.lq.DeleteQueryResultsCountOverride = nil
+	}()
+
 	team1, err := s.ds.NewTeam(ctx, &fleet.Team{
 		ID:          42,
 		Name:        "team1",
@@ -12437,6 +12669,8 @@ func (s *integrationTestSuite) TestQueryReports() {
 	slres := submitLogsResponse{}
 	s.DoJSON("POST", "/api/osquery/log", slreq, http.StatusOK, &slres)
 	require.NoError(t, slres.Err)
+	require.Equal(t, 2, counts[usbDevicesQuery.ID])
+	require.Equal(t, 1, counts[osqueryInfoQuery.ID])
 
 	slreq = submitLogsRequest{
 		NodeKey: *host1Global.NodeKey,
@@ -12477,6 +12711,8 @@ func (s *integrationTestSuite) TestQueryReports() {
 	slres = submitLogsResponse{}
 	s.DoJSON("POST", "/api/osquery/log", slreq, http.StatusOK, &slres)
 	require.NoError(t, slres.Err)
+	require.Equal(t, 2, counts[usbDevicesQuery.ID])
+	require.Equal(t, 2, counts[osqueryInfoQuery.ID])
 
 	slreq = submitLogsRequest{
 		NodeKey: *host1Team2.NodeKey,
@@ -12517,6 +12753,8 @@ func (s *integrationTestSuite) TestQueryReports() {
 	slres = submitLogsResponse{}
 	s.DoJSON("POST", "/api/osquery/log", slreq, http.StatusOK, &slres)
 	require.NoError(t, slres.Err)
+	require.Equal(t, 2, counts[usbDevicesQuery.ID])
+	require.Equal(t, 3, counts[osqueryInfoQuery.ID])
 
 	emptyslreq := submitLogsRequest{
 		NodeKey: *host2Global.NodeKey,
@@ -12542,6 +12780,9 @@ func (s *integrationTestSuite) TestQueryReports() {
 	emptyslres := submitLogsResponse{}
 	s.DoJSON("POST", "/api/osquery/log", emptyslreq, http.StatusOK, &emptyslres)
 	require.NoError(t, emptyslres.Err)
+	require.Equal(t, 2, counts[usbDevicesQuery.ID])
+	// Count stays the same because error rows don't count against the limit.
+	require.Equal(t, 3, counts[osqueryInfoQuery.ID])
 
 	gqrr = getQueryReportResponse{}
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/queries/%d/report", usbDevicesQuery.ID), getQueryReportRequest{}, http.StatusOK, &gqrr)
@@ -12745,6 +12986,9 @@ func (s *integrationTestSuite) TestQueryReports() {
 	// Re-add results to our query and check that they're actually there
 	s.DoJSON("POST", "/api/osquery/log", slreq, http.StatusOK, &slres)
 	require.NoError(t, slres.Err)
+	require.Equal(t, 2, counts[usbDevicesQuery.ID])
+	require.Equal(t, 1, counts[osqueryInfoQuery.ID])
+
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/queries/%d/report", osqueryInfoQuery.ID), getQueryReportRequest{}, http.StatusOK, &gqrr)
 	require.Len(t, gqrr.Results, 1)
 
@@ -12767,6 +13011,8 @@ func (s *integrationTestSuite) TestQueryReports() {
 	require.NoError(t, slres.Err)
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/queries/%d/report", osqueryInfoQuery.ID), getQueryReportRequest{}, http.StatusOK, &gqrr)
 	require.Len(t, gqrr.Results, 1)
+	require.Equal(t, 2, counts[usbDevicesQuery.ID])
+	require.Equal(t, 1, counts[osqueryInfoQuery.ID])
 
 	// now update the platform to the same value and verify that results are not deleted
 	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/queries/%d", osqueryInfoQuery.ID), modifyQueryRequest{
@@ -12801,6 +13047,8 @@ func (s *integrationTestSuite) TestQueryReports() {
 	require.NoError(t, slres.Err)
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/queries/%d/report", osqueryInfoQuery.ID), getQueryReportRequest{}, http.StatusOK, &gqrr)
 	require.Len(t, gqrr.Results, 1)
+	require.Equal(t, 2, counts[usbDevicesQuery.ID])
+	require.Equal(t, 1, counts[osqueryInfoQuery.ID])
 
 	// now update the min_osquery_version to another value and verify that results are deleted
 	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/queries/%d", osqueryInfoQuery.ID), modifyQueryRequest{
@@ -12821,6 +13069,7 @@ func (s *integrationTestSuite) TestQueryReports() {
 	require.NoError(t, slres.Err)
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/queries/%d/report", osqueryInfoQuery.ID), getQueryReportRequest{}, http.StatusOK, &gqrr)
 	require.Len(t, gqrr.Results, 1)
+	require.Equal(t, 1, counts[osqueryInfoQuery.ID])
 
 	// now update the min_osquery_version to the same value and verify that results are not deleted
 	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/queries/%d", osqueryInfoQuery.ID), modifyQueryRequest{
@@ -12857,6 +13106,7 @@ func (s *integrationTestSuite) TestQueryReports() {
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/queries/%d/report", osqueryInfoQuery.ID), getQueryReportRequest{}, http.StatusOK, &gqrr)
 	require.Len(t, gqrr.Results, 0)
 	require.False(t, gqrr.ReportClipped)
+	require.Equal(t, 0, counts[osqueryInfoQuery.ID]) // counter reset after min_osquery_version change
 
 	// Re-add results to our query and check that they're actually there
 	s.DoJSON("POST", "/api/osquery/log", slreq, http.StatusOK, &slres)
@@ -12864,6 +13114,7 @@ func (s *integrationTestSuite) TestQueryReports() {
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/queries/%d/report", osqueryInfoQuery.ID), getQueryReportRequest{}, http.StatusOK, &gqrr)
 	require.Len(t, gqrr.Results, 1)
 	require.False(t, gqrr.ReportClipped)
+	require.Equal(t, 1, counts[osqueryInfoQuery.ID])
 
 	// don't change platform or min_osquery_version and results should not be deleted
 	s.DoJSON("POST", "/api/latest/fleet/spec/queries", applyQuerySpecsRequest{
@@ -12881,6 +13132,7 @@ func (s *integrationTestSuite) TestQueryReports() {
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/queries/%d/report", osqueryInfoQuery.ID), getQueryReportRequest{}, http.StatusOK, &gqrr)
 	require.Len(t, gqrr.Results, 0)
 	require.False(t, gqrr.ReportClipped)
+	require.Equal(t, 0, counts[osqueryInfoQuery.ID]) // counter reset after platform change
 
 	// Update logging type, which should cause results deletion
 	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/queries/%d", usbDevicesQuery.ID), modifyQueryRequest{ID: usbDevicesQuery.ID, QueryPayload: fleet.QueryPayload{Logging: &fleet.LoggingDifferential}}, http.StatusOK, &modifyQueryResp)
@@ -12888,6 +13140,7 @@ func (s *integrationTestSuite) TestQueryReports() {
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/queries/%d/report", usbDevicesQuery.ID), getQueryReportRequest{}, http.StatusOK, &gqrr)
 	require.Len(t, gqrr.Results, 0)
 	require.False(t, gqrr.ReportClipped)
+	require.Equal(t, 0, counts[usbDevicesQuery.ID]) // counter reset after logging type change
 
 	// Re-add results to our query and check that they're actually there
 	s.DoJSON("POST", "/api/osquery/log", slreq, http.StatusOK, &slres)
@@ -12895,6 +13148,7 @@ func (s *integrationTestSuite) TestQueryReports() {
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/queries/%d/report", osqueryInfoQuery.ID), getQueryReportRequest{}, http.StatusOK, &gqrr)
 	require.Len(t, gqrr.Results, 1)
 	require.False(t, gqrr.ReportClipped)
+	require.Equal(t, 1, counts[osqueryInfoQuery.ID])
 
 	discardData := true
 	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/queries/%d", osqueryInfoQuery.ID), modifyQueryRequest{ID: osqueryInfoQuery.ID, QueryPayload: fleet.QueryPayload{DiscardData: &discardData}}, http.StatusOK, &modifyQueryResp)
@@ -12902,6 +13156,7 @@ func (s *integrationTestSuite) TestQueryReports() {
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/queries/%d/report", osqueryInfoQuery.ID), getQueryReportRequest{}, http.StatusOK, &gqrr)
 	require.Len(t, gqrr.Results, 0)
 	require.False(t, gqrr.ReportClipped)
+	require.Equal(t, 0, counts[osqueryInfoQuery.ID]) // counter reset after discardData=true
 
 	// check that now that discardData is set, we don't add new results
 	s.DoJSON("POST", "/api/osquery/log", slreq, http.StatusOK, &slres)
@@ -12910,12 +13165,14 @@ func (s *integrationTestSuite) TestQueryReports() {
 	require.Len(t, gqrr.Results, 0)
 	require.False(t, gqrr.ReportClipped)
 
-	// Verify that we can't have more than 1k results
-
+	// Verify row limit behavior with 10% buffer.
+	// The system allows up to limit+10% rows before blocking new inserts.
+	// This ensures the cleanup cron always has rows to delete, enabling rotation.
 	discardData = false
 	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/queries/%d", osqueryInfoQuery.ID), modifyQueryRequest{ID: osqueryInfoQuery.ID, QueryPayload: fleet.QueryPayload{DiscardData: &discardData}}, http.StatusOK, &modifyQueryResp)
 	require.False(t, modifyQueryResp.Query.DiscardData)
 
+	// Host1 submits exactly the max rows
 	slreq = submitLogsRequest{
 		NodeKey: *host1Global.NodeKey,
 		LogType: "result",
@@ -12941,12 +13198,15 @@ func (s *integrationTestSuite) TestQueryReports() {
 	slres = submitLogsResponse{}
 	s.DoJSON("POST", "/api/osquery/log", slreq, http.StatusOK, &slres)
 	require.NoError(t, slres.Err)
+	require.Equal(t, fleet.DefaultMaxQueryReportRows, counts[osqueryInfoQuery.ID])
 
+	// Host1 submits same rows again (overwrite), should still have 1000 rows
 	s.DoJSON("POST", "/api/osquery/log", slreq, http.StatusOK, &slres)
 	require.NoError(t, slres.Err)
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/queries/%d/report", osqueryInfoQuery.ID), getQueryReportRequest{}, http.StatusOK, &gqrr)
 	require.Len(t, gqrr.Results, fleet.DefaultMaxQueryReportRows)
 	require.True(t, gqrr.ReportClipped)
+	require.Equal(t, fleet.DefaultMaxQueryReportRows, counts[osqueryInfoQuery.ID]) // counter unchanged after overwrite
 
 	ghqrr = getHostQueryReportResponse{}
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/queries/%d", host1Global.ID, osqueryInfoQuery.ID), getHostQueryReportRequest{}, http.StatusOK, &ghqrr)
@@ -12954,6 +13214,42 @@ func (s *integrationTestSuite) TestQueryReports() {
 	require.Len(t, ghqrr.Results, fleet.DefaultMaxQueryReportRows)
 	require.True(t, ghqrr.ReportClipped)
 
+	// Host2 submits 1000 rows. Since we're at the limit but within the 10% buffer,
+	// these rows are allowed. Total becomes 2000 rows (1000 from each host).
+	slreq = submitLogsRequest{
+		NodeKey: *host2Global.NodeKey,
+		LogType: "result",
+		Data: []json.RawMessage{
+			json.RawMessage(`{
+  "snapshot": [` + results(fleet.DefaultMaxQueryReportRows, host2Global.UUID) + `
+  ],
+  "action": "snapshot",
+  "name": "pack/Global/` + osqueryInfoQuery.Name + `",
+  "hostIdentifier": "` + *host2Global.OsqueryHostID + `",
+  "calendarTime": "Fri Oct  6 18:13:04 2023 UTC",
+  "unixTime": 1696615984,
+  "epoch": 0,
+  "counter": 0,
+  "numerics": false,
+  "decorations": {
+    "host_uuid": "187c4d56-8e45-1a9d-8513-ac17efd2f0fd",
+    "hostname": "` + host2Global.Hostname + `"
+  }
+}`),
+		},
+	}
+	slres = submitLogsResponse{}
+	s.DoJSON("POST", "/api/osquery/log", slreq, http.StatusOK, &slres)
+	require.NoError(t, slres.Err)
+
+	// Now we have 2000 rows (1000 from host1, 1000 from host2)
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/queries/%d/report", osqueryInfoQuery.ID), getQueryReportRequest{}, http.StatusOK, &gqrr)
+	require.Len(t, gqrr.Results, fleet.DefaultMaxQueryReportRows*2)
+	require.True(t, gqrr.ReportClipped)
+	require.Equal(t, fleet.DefaultMaxQueryReportRows*2, counts[osqueryInfoQuery.ID]) // counter is now 2000
+
+	// Host1 tries to submit 1 row, but counter is now > limit+10%, so it's blocked
+	slreq.NodeKey = *host1Global.NodeKey
 	slreq.Data = []json.RawMessage{json.RawMessage(`{
   "snapshot": [` + results(1, host1Global.UUID) + `
   ],
@@ -12973,22 +13269,27 @@ func (s *integrationTestSuite) TestQueryReports() {
 
 	s.DoJSON("POST", "/api/osquery/log", slreq, http.StatusOK, &slres)
 	require.NoError(t, slres.Err)
+	// Still 2000 rows since the submission was blocked
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/queries/%d/report", osqueryInfoQuery.ID), getQueryReportRequest{}, http.StatusOK, &gqrr)
-	require.Len(t, gqrr.Results, fleet.DefaultMaxQueryReportRows)
+	require.Len(t, gqrr.Results, fleet.DefaultMaxQueryReportRows*2)
 	require.True(t, gqrr.ReportClipped)
+	require.Equal(t, fleet.DefaultMaxQueryReportRows*2, counts[osqueryInfoQuery.ID]) // counter unchanged (blocked)
 
+	// Increase the limit so we can test further submissions
 	appConfigSpec := map[string]map[string]int{
-		"server_settings": {"query_report_cap": fleet.DefaultMaxQueryReportRows + 1},
+		"server_settings": {"query_report_cap": fleet.DefaultMaxQueryReportRows * 3},
 	}
 	s.Do("PATCH", "/api/latest/fleet/config", appConfigSpec, http.StatusOK)
 
+	// With limit 3000, we have 2000 rows, which is below the limit, so not clipped
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/queries/%d/report", osqueryInfoQuery.ID), getQueryReportRequest{}, http.StatusOK, &gqrr)
-	require.Len(t, gqrr.Results, fleet.DefaultMaxQueryReportRows)
+	require.Len(t, gqrr.Results, fleet.DefaultMaxQueryReportRows*2)
 	require.False(t, gqrr.ReportClipped)
 
+	// Now host1 can submit again since we're under the new limit+10%
 	slreq.Data = []json.RawMessage{
 		json.RawMessage(`{
-  "snapshot": [` + results(1002, host1Global.UUID) + `
+  "snapshot": [` + results(500, host1Global.UUID) + `
   ],
   "action": "snapshot",
   "name": "pack/Global/` + osqueryInfoQuery.Name + `",
@@ -13008,9 +13309,11 @@ func (s *integrationTestSuite) TestQueryReports() {
 	s.DoJSON("POST", "/api/osquery/log", slreq, http.StatusOK, &slres)
 	require.NoError(t, slres.Err)
 
+	// Host1's 1000 rows were replaced with 500 rows, so total is now 1500 (500 from host1, 1000 from host2)
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/queries/%d/report", osqueryInfoQuery.ID), getQueryReportRequest{}, http.StatusOK, &gqrr)
-	require.Len(t, gqrr.Results, fleet.DefaultMaxQueryReportRows+1)
-	require.True(t, gqrr.ReportClipped)
+	require.Len(t, gqrr.Results, 1500)
+	require.Equal(t, 1500, counts[osqueryInfoQuery.ID]) // counter unchanged (blocked)
+	require.False(t, gqrr.ReportClipped)
 
 	// TODO: Set global discard flag and verify that all data is gone.
 }
@@ -14094,11 +14397,11 @@ func (s *integrationTestSuite) TestSecretVariablesGitOps() {
 	t := s.T()
 	ctx := context.Background()
 
-	// Create the global GitOps user we'll use in tests.
 	u := &fleet.User{
-		Name:       "GitOps",
-		Email:      "gitops1@example.com",
-		GlobalRole: ptr.String(fleet.RoleGitOps),
+		Name:  "GitOps",
+		Email: "gitops1@example.com",
+		// GitOps role is premium only, so we use the global admin role.
+		GlobalRole: ptr.String(fleet.RoleAdmin),
 	}
 	require.NoError(t, u.SetPassword(test.GoodPassword, 10, 10))
 	_, err := s.ds.NewUser(ctx, u)
@@ -14452,7 +14755,7 @@ func (s *integrationTestSuite) TestAndroidHostUUIDPropagation() {
 	host.SetNodeKey(expectedUUID)
 
 	// Create Android host
-	androidHost, err := s.ds.NewAndroidHost(ctx, host)
+	androidHost, err := s.ds.NewAndroidHost(ctx, host, false)
 	require.NoError(t, err)
 	require.NotZero(t, androidHost.Host.ID)
 
@@ -14470,7 +14773,7 @@ func (s *integrationTestSuite) TestAndroidHostUUIDPropagation() {
 	updatedHost.Host.OSVersion = "Android 16"
 	updatedHost.Host.UUID = expectedUUID
 
-	err = s.ds.UpdateAndroidHost(ctx, updatedHost, false)
+	err = s.ds.UpdateAndroidHost(ctx, updatedHost, false, false)
 	require.NoError(t, err)
 
 	// Get the host again, verify UUID is still present
@@ -14623,7 +14926,7 @@ func createAndroidHosts(t *testing.T, ds *mysql.Datastore, count int, teamID *ui
 			},
 		}
 		host.SetNodeKey(*host.Device.EnterpriseSpecificID)
-		ahost, err := ds.NewAndroidHost(context.Background(), host)
+		ahost, err := ds.NewAndroidHost(context.Background(), host, false)
 		require.NoError(t, err)
 		ids = append(ids, ahost.Host.ID)
 	}
@@ -14654,7 +14957,7 @@ func createAndroidHostWithStorage(t *testing.T, ds *mysql.Datastore, teamID *uin
 		},
 	}
 	host.SetNodeKey(*host.Device.EnterpriseSpecificID)
-	ahost, err := ds.NewAndroidHost(context.Background(), host)
+	ahost, err := ds.NewAndroidHost(context.Background(), host, false)
 	require.NoError(t, err)
 	return ahost.Host.ID
 }
@@ -15473,7 +15776,4 @@ func (s *integrationTestSuite) TestDeleteCertificateTemplateSpec() {
 		require.Equal(t, string(fleet.CertificateTemplatePending), *profile.Status, "%s profile status should be pending after deletion", tc.hostName)
 		require.Equal(t, fleet.MDMOperationTypeRemove, profile.OperationType, "%s profile operation_type should be remove after deletion", tc.hostName)
 	}
-}
-
-func (s *integrationTestSuite) TestDevieStatusMappingForHostsEndpoints() {
 }

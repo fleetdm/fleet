@@ -2,10 +2,14 @@ package service
 
 import (
 	"context"
+	"crypto/x509"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"net/http"
+	"net/url"
+	"os"
 	"regexp"
 	"sort"
 	"strconv"
@@ -55,6 +59,9 @@ func (svc *Service) AuthenticateHost(ctx context.Context, nodeKey string) (*flee
 		// OK
 	case fleet.IsNotFound(err):
 		return nil, false, newOsqueryErrorWithInvalidNode("authentication error: invalid node key")
+	case errors.Is(err, context.Canceled):
+		// Most likely client disconnected, so we treat this as a client error.
+		return nil, false, err
 	default:
 		return nil, false, newOsqueryError("authentication error: " + err.Error())
 	}
@@ -99,7 +106,7 @@ func (svc *Service) EnrollOsquery(ctx context.Context, enrollSecret, hostIdentif
 	// skipauth: Authorization is currently for user endpoints only.
 	svc.authz.SkipAuthorization(ctx)
 
-	logging.WithExtras(ctx, "hostIdentifier", hostIdentifier)
+	logging.WithLevel(logging.WithExtras(ctx, "hostIdentifier", hostIdentifier), level.Info)
 
 	secret, err := svc.ds.VerifyEnrollSecret(ctx, enrollSecret)
 	if err != nil {
@@ -319,7 +326,7 @@ func getHostIdentifier(logger log.Logger, identifierOption, providedIdentifier s
 }
 
 func (svc *Service) debugEnabledForHost(ctx context.Context, id uint) bool {
-	hlogger := log.With(svc.logger, "host-id", id)
+	hlogger := svc.logger.With("host-id", id)
 	ac, err := svc.ds.AppConfig(ctx)
 	if err != nil {
 		level.Debug(hlogger).Log("err", ctxerr.Wrap(ctx, err, "getting app config for host debug"))
@@ -945,6 +952,22 @@ type submitDistributedQueryResultsRequestShim struct {
 
 func (shim *submitDistributedQueryResultsRequestShim) hostNodeKey() string {
 	return shim.NodeKey
+}
+
+// DecodeBody implements the bodyDecoder interface for custom request body
+// decoding. This endpoint receives large payloads (distributed query results),
+// making it susceptible to client read timeouts (poll.DeadlineExceededError).
+// By implementing DecodeBody, we can classify those network errors as client errors.
+func (shim *submitDistributedQueryResultsRequestShim) DecodeBody(_ context.Context, r io.Reader, _ url.Values, _ []*x509.Certificate) error {
+	if err := json.NewDecoder(r).Decode(shim); err != nil {
+		if errors.Is(err, os.ErrDeadlineExceeded) {
+			osqueryErr := NewOsqueryError("request body read error: "+err.Error(), false)
+			osqueryErr.StatusCode = http.StatusRequestTimeout
+			return osqueryErr
+		}
+		return err
+	}
+	return nil
 }
 
 func (shim *submitDistributedQueryResultsRequestShim) toRequest(ctx context.Context) (*SubmitDistributedQueryResultsRequest, error) {
@@ -2031,7 +2054,7 @@ func (svc *Service) processSoftwareForNewlyFailingPolicies(
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "get software installer metadata by id")
 		}
-		logger := log.With(svc.logger,
+		logger := svc.logger.With(
 			"host_id", hostID,
 			"host_platform", hostPlatform,
 			"policy_id", failingPolicyWithInstaller.ID,
@@ -2190,7 +2213,7 @@ func (svc *Service) processVPPForNewlyFailingPolicies(
 
 	for _, failingPolicyWithVPP := range failingPoliciesWithVPP {
 		policyID := failingPolicyWithVPP.ID
-		logger := log.With(svc.logger,
+		logger := svc.logger.With(
 			"host_id", hostID,
 			"host_platform", hostPlatform,
 			"policy_id", policyID,
@@ -2349,7 +2372,7 @@ func (svc *Service) processScriptsForNewlyFailingPolicies(
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "get script metadata by id")
 		}
-		logger := log.With(svc.logger,
+		logger := svc.logger.With(
 			"host_id", hostID,
 			"host_platform", hostPlatform,
 			"policy_id", policyID,
@@ -2559,7 +2582,7 @@ func (svc *Service) setHostConditionalAccessAsync(
 	compliant bool,
 ) {
 	go func() {
-		logger := log.With(svc.logger,
+		logger := svc.logger.With(
 			"msg", "set host conditional access",
 			"host_id", hostID,
 			"managed", managed,
@@ -2589,7 +2612,7 @@ func (svc *Service) setHostConditionalAccess(
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "get integration")
 	}
-	logger := log.With(svc.logger,
+	logger := svc.logger.With(
 		"msg", "set compliance status",
 		"host_id", hostID,
 		"managed", managed,
@@ -2665,7 +2688,7 @@ func (svc *Service) maybeDebugHost(
 	stats map[string]*fleet.Stats,
 ) {
 	if svc.debugEnabledForHost(ctx, host.ID) {
-		hlogger := log.With(svc.logger, "host-id", host.ID)
+		hlogger := svc.logger.With("host-id", host.ID)
 
 		logJSON(hlogger, host, "host")
 		logJSON(hlogger, results, "results")
@@ -2945,6 +2968,24 @@ func (svc *Service) saveResultLogsToQueryReports(
 	// Filter results to only the most recent for each query.
 	unmarshaledResultsFiltered = getMostRecentResults(unmarshaledResultsFiltered)
 
+	// Batch fetch query result counts from Redis for all queries
+	var queryResultCounts map[uint]int
+	if svc.liveQueryStore != nil {
+		queryIDs := make([]uint, 0, len(queriesDBData))
+		for _, dbQuery := range queriesDBData {
+			queryIDs = append(queryIDs, dbQuery.ID)
+		}
+		var err error
+		queryResultCounts, err = svc.liveQueryStore.GetQueryResultsCounts(queryIDs)
+		if err != nil {
+			level.Error(svc.logger).Log("msg", "get result counts for queries", "err", err)
+			return
+		}
+	}
+
+	// Track rows added per query for batched Redis increment
+	rowsAddedByQuery := make(map[uint]int)
+
 	for _, result := range unmarshaledResultsFiltered {
 		dbQuery, ok := queriesDBData[result.QueryName]
 		if !ok {
@@ -2967,20 +3008,29 @@ func (svc *Service) saveResultLogsToQueryReports(
 			continue
 		}
 
-		// We first check the current query results count using the DB reader (also cached)
-		// to reduce the DB writer load of osquery/log requests when the host count is high.
-		count, err := svc.ds.ResultCountForQuery(ctx, dbQuery.ID)
-		if err != nil {
-			level.Error(svc.logger).Log("msg", "get result count for query", "err", err, "query_id", dbQuery.ID)
-			continue
+		// Check Redis counter for approximate count (fast, distributed check).
+		if queryResultCounts != nil {
+			if count := queryResultCounts[dbQuery.ID]; count > maxQueryReportRows {
+				continue
+			}
 		}
-		if count >= maxQueryReportRows {
+
+		var rowsAdded int
+		var err error
+		if rowsAdded, err = svc.overwriteResultRows(ctx, result, dbQuery.ID, host.ID, maxQueryReportRows); err != nil {
+			level.Error(svc.logger).Log("msg", "overwrite results", "err", err, "query_id", dbQuery.ID, "host_id", host.ID)
 			continue
 		}
 
-		if err := svc.overwriteResultRows(ctx, result, dbQuery.ID, host.ID, maxQueryReportRows); err != nil {
-			level.Error(svc.logger).Log("msg", "overwrite results", "err", err, "query_id", dbQuery.ID, "host_id", host.ID)
-			continue
+		// Track rows added for batched Redis increment
+		rowsAddedByQuery[dbQuery.ID] += rowsAdded
+	}
+
+	// Batch increment Redis counters after all successful inserts
+	if svc.liveQueryStore != nil && len(rowsAddedByQuery) > 0 {
+		if err := svc.liveQueryStore.IncrQueryResultsCounts(rowsAddedByQuery); err != nil {
+			// Log but don't fail - the inserts succeeded, counter is just a heuristic
+			level.Debug(svc.logger).Log("msg", "incr query results counts in redis", "err", err)
 		}
 	}
 }
@@ -3111,7 +3161,7 @@ func transformEventFormatToSnapshotFormat(results []*fleet.ScheduledQueryResult)
 // The "snapshot" array in a ScheduledQueryResult can contain multiple rows.
 // Each row is saved as a separate ScheduledQueryResultRow, i.e. a result could contain
 // many USB Devices or a result could contain all user accounts on a host.
-func (svc *Service) overwriteResultRows(ctx context.Context, result *fleet.ScheduledQueryResult, queryID, hostID uint, maxQueryReportRows int) error {
+func (svc *Service) overwriteResultRows(ctx context.Context, result *fleet.ScheduledQueryResult, queryID, hostID uint, maxQueryReportRows int) (int, error) {
 	fetchTime := time.Now()
 
 	rows := make([]*fleet.ScheduledQueryResultRow, 0, len(result.Snapshot))
@@ -3137,10 +3187,16 @@ func (svc *Service) overwriteResultRows(ctx context.Context, result *fleet.Sched
 		rows = append(rows, row)
 	}
 
-	if err := svc.ds.OverwriteQueryResultRows(ctx, rows, maxQueryReportRows); err != nil {
-		return ctxerr.Wrap(ctx, err, "overwriting query result rows")
+	var rowsAdded int
+	var err error
+	if rowsAdded, err = svc.ds.OverwriteQueryResultRows(ctx, rows, maxQueryReportRows); err != nil {
+		return rowsAdded, ctxerr.Wrap(ctx, err, "overwriting query result rows")
 	}
-	return nil
+	// If we only inserted an error row, don't count it against the limit.
+	if len(result.Snapshot) == 0 {
+		rowsAdded--
+	}
+	return rowsAdded, nil
 }
 
 // getMostRecentResults returns only the most recent result per query.

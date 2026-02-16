@@ -47,7 +47,8 @@
       "okta_idp_id": null,
       "okta_assertion_consumer_service_url": null,
       "okta_audience_uri": null,
-      "okta_certificate": null
+      "okta_certificate": null,
+      "bypass_disabled": null
     },
     "features": {
       "enable_host_users": true,
@@ -134,6 +135,7 @@
       },
       "windows_migration_enabled": false,
       "enable_turn_on_windows_mdm_manually": false,
+      "windows_entra_tenant_ids": null,
       "windows_require_bitlocker_pin": null,
       "macos_migration": {
         "enable": false,

@@ -1,14 +1,14 @@
 {
   "versions": [
     {
-      "version": "1.119.0",
+      "version": "1.120.0",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.canva.CanvaDesktop';"
       },
-      "installer_url": "https://desktop-release.canva.com/Canva-1.119.0-universal.dmg",
+      "installer_url": "https://desktop-release.canva.com/Canva-1.120.0-universal.dmg",
       "install_script_ref": "db63c321",
       "uninstall_script_ref": "b93d994d",
-      "sha256": "b66f268478c5ed9b87f82cb71ee564d6dfdea2defce82a88664a65bd3fa8c02c",
+      "sha256": "0f0c0620f8eab292fb869fffc11647ccea7d405230ada7f6ef5c6450ea507e5e",
       "default_categories": [
         "Productivity"
       ]

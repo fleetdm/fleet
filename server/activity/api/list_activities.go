@@ -1,5 +1,3 @@
-// Package api provides the public API for the activity bounded context.
-// External code should use this package to interact with activities.
 package api
 
 import (
@@ -12,8 +10,8 @@ import (
 type OrderDirection string
 
 const (
-	OrderAsc  OrderDirection = "asc"
-	OrderDesc OrderDirection = "desc"
+	OrderAscending  OrderDirection = "asc"
+	OrderDescending OrderDirection = "desc"
 )
 
 type ListActivitiesService interface {
@@ -52,7 +50,7 @@ type ListOptions struct {
 
 	// Sorting
 	OrderKey       string         // Field to order by (e.g., "created_at", "id")
-	OrderDirection OrderDirection // OrderAsc or OrderDesc
+	OrderDirection OrderDirection // OrderAscending or OrderDescending
 
 	// Filters
 	ActivityType   string // Filter by activity type
