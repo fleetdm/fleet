@@ -99,13 +99,14 @@ const AddEntraTenantModal = ({ onExit }: IAddEntraTenantModalProps) => {
           />
         </div>
         <div className="modal-cta-wrap">
-          <Button onClick={onAddTenant}>Add</Button>
           <Button
-            onClick={onExit}
-            variant="inverse"
+            onClick={onAddTenant}
             disabled={!formValidation.isValid}
             isLoading={isAdding}
           >
+            Add
+          </Button>
+          <Button onClick={onExit} variant="inverse">
             Cancel
           </Button>
         </div>

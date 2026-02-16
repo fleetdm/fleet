@@ -1,4 +1,8 @@
-import React from "react";
+import React, { useContext, useState } from "react";
+
+import { NotificationContext } from "context/notification";
+import { AppContext } from "context/app";
+import configAPI from "services/entities/config";
 
 import Modal from "components/Modal";
 import Button from "components/buttons/Button";
@@ -14,8 +18,29 @@ const DeleteEntraTenantModal = ({
   tenantId,
   onExit,
 }: IDeleteEntraTenantModalProps) => {
-  const onDeleteToken = () => {
-    onExit();
+  const { renderFlash } = useContext(NotificationContext);
+  const { setConfig, config } = useContext(AppContext);
+
+  const [isDeleting, setIsDeleting] = useState(false);
+
+  const onDeleteToken = async () => {
+    setIsDeleting(true);
+
+    try {
+      const currentTenantIds = config?.mdm.windows_entra_tenant_ids ?? [];
+      const updatedTenantIds = currentTenantIds.filter((id) => id !== tenantId);
+      const updateData = await configAPI.update({
+        mdm: {
+          windows_entra_tenant_ids: updatedTenantIds,
+        },
+      });
+      setConfig(updateData);
+      renderFlash("success", "Tenant deleted successfully.");
+      onExit();
+    } catch (err) {
+      renderFlash("error", "Couldn't delete tenant. Please try again.");
+    }
+    setIsDeleting(false);
   };
 
   return (
@@ -24,6 +49,7 @@ const DeleteEntraTenantModal = ({
       title="Delete tenant"
       onExit={onExit}
       width="medium"
+      isContentDisabled={isDeleting}
     >
       <>
         <p>
@@ -32,7 +58,11 @@ const DeleteEntraTenantModal = ({
           Windows) from this tenant.
         </p>
         <div className="modal-cta-wrap">
-          <Button onClick={onExit} variant="alert">
+          <Button
+            onClick={onDeleteToken}
+            variant="alert"
+            isLoading={isDeleting}
+          >
             Delete
           </Button>
           <Button onClick={onExit} variant="inverse">
