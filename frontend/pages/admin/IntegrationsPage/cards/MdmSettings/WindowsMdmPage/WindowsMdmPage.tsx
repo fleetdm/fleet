@@ -142,10 +142,7 @@ const WindowsMdmPage = ({ router }: IWindowsMdmPageProps) => {
           {isPremiumTier && (
             // NOTE: first time using fieldset and legend. if we use this more we should make
             // a reusable component
-            <fieldset
-              disabled={!mdmOn}
-              className={`${baseClass}__enrollment-type-fieldset form-field`}
-            >
+            <fieldset disabled={!mdmOn} className="form-field">
               {/* NOTE: we use this wrapper div to style the legend since legend
                does not work well with flexbox. the wrapper div helps the gap styling apply. */}
               <div>

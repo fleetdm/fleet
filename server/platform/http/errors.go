@@ -7,8 +7,10 @@ import (
 	"net/http"
 	"reflect"
 	"regexp"
+	"strconv"
 	"strings"
 
+	"github.com/docker/go-units"
 	"github.com/google/uuid"
 )
 
@@ -81,8 +83,46 @@ func (e BadRequestError) Internal() string {
 	return ""
 }
 
+// We implement the second type of Unwrap that returns an error array, which still works for errors.Is/As, but is not supported in errors.Unwrap
+// This allows us to check the error chain, but not log the most inner error in the HTTP response.
+func (e BadRequestError) Unwrap() []error {
+	return []error{e.InternalErr}
+}
+
 // IsClientError implements ErrWithIsClientError.
 func (e BadRequestError) IsClientError() bool {
+	return true
+}
+
+type PayloadTooLargeError struct {
+	ContentLength  string
+	MaxRequestSize int64
+}
+
+func (e PayloadTooLargeError) Error() string {
+	return fmt.Sprintf("Request exceeds the max size limit of %s. Configure the limit: https://fleetdm.com/docs/configuration/fleet-server-configuration#server-default-max-request-body-size", units.HumanSize(float64(e.MaxRequestSize)))
+}
+
+func (e PayloadTooLargeError) Internal() string {
+	// This is for us to have an indication of the size we get, might be spoofable, but better than nothing
+	msg := fmt.Sprintf("Request exceeds the max size limit of %s", units.HumanSize(float64(e.MaxRequestSize)))
+	if e.ContentLength != "" {
+		size := e.ContentLength
+		contentLengthAsNumber, err := strconv.ParseFloat(e.ContentLength, 64)
+		if err == nil {
+			// We don't care if we failed to parse the number, only if we were successful
+			size = units.HumanSize(contentLengthAsNumber)
+		}
+		msg += fmt.Sprintf(", Incoming Content-Length: %s", size)
+	}
+	return msg
+}
+
+func (e PayloadTooLargeError) StatusCode() int {
+	return http.StatusRequestEntityTooLarge
+}
+
+func (e PayloadTooLargeError) IsClientError() bool {
 	return true
 }
 

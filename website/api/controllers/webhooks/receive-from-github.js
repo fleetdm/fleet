@@ -101,7 +101,6 @@ module.exports = {
       'kc9wwh',
       'JordanMontgomery',
       'ds0x',
-      'bettapizza',
       'irenareedy',
       'jakestenger',
       'AndreyKizimenko',

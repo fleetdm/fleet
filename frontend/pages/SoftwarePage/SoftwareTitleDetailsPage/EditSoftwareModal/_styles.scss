@@ -11,6 +11,17 @@
     gap: $pad-medium;
   }
 
+  &__package-form {
+    &--disabled {
+      // We don't want to disable entire form or we can't get into the advanced options dropdown
+      .advanced-options-fields {
+        @include disabled(
+          true
+        ); // True allows pointer events to copy/scroll fields
+      }
+    }
+  }
+
   &--hidden {
     display: none;
   }
