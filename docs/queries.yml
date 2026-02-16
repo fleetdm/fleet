@@ -3221,7 +3221,7 @@ kind: query
 spec:
   name: MITRE - Reverse Shell Detection
   platform: linux, darwin
-  description: Monitor integrity of sudoers configuration file for unauthorized modifications - ATT&CK T1548.003
+  description: Detect active reverse shell connections via bash TCP redirects - ATT&CK T1059
   query: SELECT * FROM processes WHERE cmdline LIKE '/bin/bash -i >& /dev/tcp/%';
   purpose: Detection
   tags: MITRE, ATT&CK, threat detection
@@ -3327,11 +3327,11 @@ spec:
   platform: linux
   description: Detect loading, unloading, and manipulating modules on Linux systems - ATT&CK T1215
   query: |-
-    ' select usr.username, sht.command, sht.history_file from shell_history sht
-    JOIN users usr ON sht.uid = usr.uid WHERE sht.uid IN (SELECT uid from users) AND
-    (sht.command LIKE ''%modprobe%'' OR sht.command LIKE ''%insmod%'' OR sht.command  LIKE
-    ''%lsmod%'' OR sht.command  LIKE ''%rmmod%'' OR sht.command LIKE ''%modinfo%''
-    OR sht.command LIKE ''%linux-headers-$%''OR sht.command LIKE ''%kernel-devel-$%'');'
+    SELECT usr.username, sht.command, sht.history_file FROM shell_history sht
+    JOIN users usr ON sht.uid = usr.uid WHERE sht.uid IN (SELECT uid FROM users) AND
+    (sht.command LIKE '%modprobe%' OR sht.command LIKE '%insmod%' OR sht.command LIKE
+    '%lsmod%' OR sht.command LIKE '%rmmod%' OR sht.command LIKE '%modinfo%'
+    OR sht.command LIKE '%linux-headers-$%' OR sht.command LIKE '%kernel-devel-$%');
   purpose: Detection
   tags: MITRE, ATT&CK, threat detection
   contributors: tux234
@@ -3393,52 +3393,18 @@ spec:
 apiVersion: v1
 kind: query
 spec:
-  name: MITRE - Custom Directory Monitoring 1
+  name: MITRE - Custom Directory Monitoring
   platform: linux, darwin
-  description: "'Lists files and directories under YOURIMPDIR1 dir - ATT&CK: T1158,T1100'"
+  description: "Template: Monitor files in a custom directory. Replace /YOUR_DIRECTORY/ with the path to monitor - ATT&CK T1158,T1100"
   query: |-
     SELECT hash.sha1, fi.path, fi.filename, datetime(fi.btime, 'unixepoch', 'UTC')
     as btime, datetime(fi.atime, 'unixepoch', 'UTC') as atime, datetime(fi.ctime,
     'unixepoch', 'UTC') as ctime, datetime(fi.mtime, 'unixepoch', 'UTC') as mtime
-    FROM hash JOIN file fi USING (path) where ((fi.path like '/YOURIMPDIR1/%/%') OR
-    (fi.path like '/YOURIMPDIR1/%%/.%') OR (fi.path like '/YOURIMPDIR1/.%') OR (fi.path
-    like '/YOURIMPDIR1/%'));
+    FROM hash JOIN file fi USING (path) where ((fi.path like '/YOUR_DIRECTORY/%/%') OR
+    (fi.path like '/YOUR_DIRECTORY/%%/.%') OR (fi.path like '/YOUR_DIRECTORY/.%') OR (fi.path
+    like '/YOUR_DIRECTORY/%'));
   purpose: Detection
-  tags: MITRE, ATT&CK, threat detection
-  contributors: tux234
----
-apiVersion: v1
-kind: query
-spec:
-  name: MITRE - Custom Directory Monitoring 2
-  platform: linux, darwin
-  description: "'Lists files and directories under YOURIMPDIR2 dir - ATT&CK: T1158,T1100'"
-  query: |-
-    SELECT hash.sha1, fi.path, fi.filename, datetime(fi.btime, 'unixepoch', 'UTC')
-    as btime, datetime(fi.atime, 'unixepoch', 'UTC') as atime, datetime(fi.ctime,
-    'unixepoch', 'UTC') as ctime, datetime(fi.mtime, 'unixepoch', 'UTC') as mtime
-    FROM hash JOIN file fi USING (path) where ((fi.path like '/YOURIMPDIR2/%/%') OR
-    (fi.path like '/YOURIMPDIR2/%%/.%') OR (fi.path like '/YOURIMPDIR2/.%') OR (fi.path
-    like '/YOURIMPDIR2/%'));
-  purpose: Detection
-  tags: MITRE, ATT&CK, threat detection
-  contributors: tux234
----
-apiVersion: v1
-kind: query
-spec:
-  name: MITRE - Custom Directory Monitoring N
-  platform: linux, darwin
-  description: "'Lists files and directories under YOURIMPDIRn dir - ATT&CK: T1158,T1100'"
-  query: |-
-    SELECT hash.sha1, fi.path, fi.filename, datetime(fi.btime, 'unixepoch', 'UTC')
-    as btime, datetime(fi.atime, 'unixepoch', 'UTC') as atime, datetime(fi.ctime,
-    'unixepoch', 'UTC') as ctime, datetime(fi.mtime, 'unixepoch', 'UTC') as mtime
-    FROM hash JOIN file fi USING (path) where ((fi.path like '/YOURIMPDIRn/%/%') OR
-    (fi.path like '/YOURIMPDIRn/%%/.%') OR (fi.path like '/YOURIMPDIRn/.%') OR (fi.path
-    like '/YOURIMPDIRn/%'));
-  purpose: Detection
-  tags: MITRE, ATT&CK, threat detection
+  tags: MITRE, ATT&CK, threat detection, template
   contributors: tux234
 ---
 apiVersion: v1
@@ -4356,7 +4322,7 @@ kind: query
 spec:
   name: MITRE - DLL Registration
   platform: windows
-  description: POWERSHELL Execute, is a powerful interactive command-line interface and scripting environment included in the Windows operating system - ATT&CK T1117
+  description: Detect regsvr32 DLL registration activity via prefetch artifacts - ATT&CK T1117
   query: |-
     select * from file WHERE directory = 'C:\Windows\Prefetch\' and filename
     like '%regsvr%';
@@ -4539,7 +4505,7 @@ spec:
   name: MITRE - Internet Explorer Extensions Snapshot
   platform: windows
   description: Snapshot Lists all internet explorer extensions - ATT&CK T1176
-  query: ' select * from  ie_extensions;'
+  query: SELECT * FROM ie_extensions;
   purpose: Detection
   tags: MITRE, ATT&CK, threat detection
   contributors: tux234
@@ -4561,7 +4527,7 @@ apiVersion: v1
 kind: query
 spec:
   name: MITRE - Internet Explorer Extensions
-  platform: linux, darwin, windows
+  platform: windows
   description: Lists all internet explorer extensions - ATT&CK T1176
   query: select * from ie_extensions;
   purpose: Detection
@@ -4573,7 +4539,7 @@ kind: query
 spec:
   name: MITRE - Sophos Service Status 1
   platform: windows
-  description: Symantec Endpoint Protection service Status change - ATT&CK T1089
+  description: Sophos Endpoint Protection service status change - ATT&CK T1089
   query: SELECT * FROM services WHERE name = 'SAVAdminService' AND status != 'RUNNING';
   purpose: Detection
   tags: MITRE, ATT&CK, threat detection
@@ -4595,7 +4561,7 @@ kind: query
 spec:
   name: MITRE - Sophos Service Status 2
   platform: windows
-  description: Symantec Endpoint Protection service Status change - ATT&CK T1089
+  description: Sophos Endpoint Protection service status change - ATT&CK T1089
   query: SELECT * FROM services WHERE name = 'SavService' AND status != 'RUNNING';
   purpose: Detection
   tags: MITRE, ATT&CK, threat detection
@@ -4606,7 +4572,7 @@ kind: query
 spec:
   name: MITRE - Symantec Service Status
   platform: windows
-  description: Symantec Endpoint Protection service Status change - ATT&CK T1089
+  description: Sophos Endpoint Protection service status change - ATT&CK T1089
   query: SELECT * FROM services WHERE name = 'SepMasterService' AND status != 'RUNNING';
   purpose: Detection
   tags: MITRE, ATT&CK, threat detection
@@ -4670,17 +4636,6 @@ spec:
 apiVersion: v1
 kind: query
 spec:
-  name: MITRE - Certificate Discovery Snapshot
-  platform: linux, darwin, windows
-  description: Users snapshot query - ATT&CK T1116,T1130
-  query: select * from certificates;
-  purpose: Detection
-  tags: MITRE, ATT&CK, threat detection
-  contributors: tux234
----
-apiVersion: v1
-kind: query
-spec:
   name: MITRE - Logged In Users
   platform: linux, darwin
   description: Users with an active shell on the system. - ATT&CK T1075,T1097
@@ -4693,9 +4648,9 @@ apiVersion: v1
 kind: query
 spec:
   name: MITRE - Installed Programs
-  platform: linux, darwin, windows
-  description: Local system users.
-  query: SELECT * FROM users;
+  platform: windows
+  description: Lists installed programs on Windows systems - ATT&CK T1518
+  query: SELECT * FROM programs;
   purpose: Detection
   tags: MITRE, ATT&CK, threat detection
   contributors: tux234
@@ -5114,19 +5069,6 @@ spec:
   name: MITRE - Scheduled Tasks List
   platform: windows
   description: Lists all of the tasks in the Windows task scheduler - ATT&CK T1053
-  query: |-
-    select name,action,path,enabled,datetime(next_run_time,'unixepoch','UTC')
-    from scheduled_tasks;
-  purpose: Detection
-  tags: MITRE, ATT&CK, threat detection
-  contributors: tux234
----
-apiVersion: v1
-kind: query
-spec:
-  name: MITRE - Scheduled Tasks Monitoring
-  platform: windows
-  description: Lists all of the tasks in the Windows task scheduler
   query: |-
     select name,action,path,enabled,datetime(next_run_time,'unixepoch','UTC')
     from scheduled_tasks;
