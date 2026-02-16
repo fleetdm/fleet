@@ -13506,11 +13506,6 @@ func (s *integrationEnterpriseTestSuite) TestBatchSetSoftwareInstallers() {
 		return nil
 	})
 
-	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
-		mysql.DumpTable(t, q, "software_installers", "id", "global_or_team_id", "title_id", "filename", "version")
-		mysql.DumpTable(t, q, "fma_active_installers")
-		return nil
-	})
 	// same payload doesn't modify anything
 	s.DoJSON("POST", "/api/latest/fleet/software/batch", batchSetSoftwareInstallersRequest{Software: softwareToInstall}, http.StatusAccepted, &batchResponse, "team_name", tm.Name)
 	packages = waitBatchSetSoftwareInstallersCompleted(t, &s.withServer, tm.Name, batchResponse.RequestUUID)
@@ -20939,7 +20934,6 @@ func (s *integrationEnterpriseTestSuite) TestBatchSoftwareInstallerAndFMACategor
 				// check that categories come back on individual title fetch
 				stResp := getSoftwareTitleResponse{}
 				s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d", *p.TitleID), getSoftwareTitleRequest{}, http.StatusOK, &stResp, "team_id", fmt.Sprint(team1.ID))
-				fmt.Printf("stResp.SoftwareTitle.SoftwarePackage.SelfService: %v\n", stResp.SoftwareTitle.SoftwarePackage.SelfService)
 				require.NotNil(t, stResp.SoftwareTitle.SoftwarePackage)
 				if stResp.SoftwareTitle.SoftwarePackage.FleetMaintainedAppID != nil && len(tc.categories) == 0 {
 					// if no categories are set on an FMA in GitOps, we set categories to
@@ -20955,21 +20949,6 @@ func (s *integrationEnterpriseTestSuite) TestBatchSoftwareInstallerAndFMACategor
 			getDeviceSw := getDeviceSoftwareResponse{}
 			err = json.NewDecoder(res.Body).Decode(&getDeviceSw)
 			require.NoError(t, err)
-			mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
-				mysql.DumpTable(t, q, "software_installers", "id", "title_id", "version", "self_service", "fleet_maintained_app_id")
-				mysql.DumpTable(t, q, "software_titles")
-				return nil
-			})
-			mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
-				var results []*fleet.SoftwareInstaller
-				err := sqlx.SelectContext(ctx, q, &results, "SELECT id, title_id, version, self_service, fleet_maintained_app_id FROM software_installers WHERE global_or_team_id = ?", team1.ID)
-				s.Assert().NoError(err)
-
-				for _, v := range results {
-					fmt.Printf("result: %+v\n", v)
-				}
-				return nil
-			})
 			require.Len(t, getDeviceSw.Software, 2)
 			for _, s := range getDeviceSw.Software {
 				if s.Name == maintained1.Name && len(tc.categories) == 0 {
