@@ -1492,7 +1492,7 @@ None.
     "android_enabled_and_configured": true,
     "windows_enabled_and_configured": true,
     "windows_entra_tenant_ids": [
-      "tenant_id": "fec37e96-3615-4e37-8fac-445d5328af3c"
+      "fec37e96-3615-4e37-8fac-445d5328af3c"
     ],
     "enable_turn_on_windows_mdm_manually": false,
     "enable_disk_encryption": true,
