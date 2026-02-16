@@ -16,6 +16,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log/slog"
 	"math/big"
 	"mime/multipart"
 	"net/http"
@@ -19841,7 +19842,7 @@ func (s *integrationEnterpriseTestSuite) TestUpgradeCodesFromMaintainedApps() {
 
 	err = detailQueries["software_windows"].DirectIngestFunc(
 		context.Background(),
-		logging.NewNopLogger(),
+		slog.New(slog.DiscardHandler),
 		&fleet.Host{ID: host.ID},
 		s.ds,
 		rows,
