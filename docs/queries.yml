@@ -3167,3 +3167,2030 @@ spec:
   purpose: Informational
   tags: fleet, osquery, mcp, ai, agents, llm, inventory
   contributors: zwass
+
+#
+#  ███╗   ███╗██╗████████╗██████╗ ███████╗     █████╗ ████████╗████████╗██╗  ██████╗██╗  ██╗
+#  ████╗ ████║██║╚══██╔══╝██╔══██╗██╔════╝    ██╔══██╗╚══██╔══╝╚══██╔══╝██║ ██╔════╝██║ ██╔╝
+#  ██╔████╔██║██║   ██║   ██████╔╝█████╗      ███████║   ██║      ██║   ██║ ██║     █████╔╝
+#  ██║╚██╔╝██║██║   ██║   ██╔══██╗██╔══╝      ██╔══██║   ██║      ██║   ██║ ██║     ██╔═██╗
+#  ██║ ╚═╝ ██║██║   ██║   ██║  ██║███████╗    ██║  ██║   ██║      ██║   ██║ ╚██████╗██║  ██╗
+#  ╚═╝     ╚═╝╚═╝   ╚═╝   ╚═╝  ╚═╝╚══════╝    ╚═╝  ╚═╝   ╚═╝      ╚═╝   ╚═╝  ╚═════╝╚═╝  ╚═╝
+#
+# MITRE ATT&CK framework queries for threat detection across Linux, macOS, and Windows.
+# Source: https://github.com/MitchF/fleet-osquery-attck
+---
+apiVersion: v1
+kind: query
+spec:
+  name: MITRE - Mount Discovery
+  platform: linux, darwin, windows
+  description: Check mount on the host - ATT&CK T1025,T1052
+  query: SELECT device, device_alias, flags, path,type from mounts;
+  purpose: Detection
+  tags: MITRE, ATT&CK, threat detection
+  contributors: MitchF
+---
+apiVersion: v1
+kind: query
+spec:
+  name: MITRE - Setuid Binary Discovery
+  platform: linux, darwin
+  description: List linux files that are setuid-enabled
+  query: select * from suid_bin;
+  purpose: Detection
+  tags: MITRE, ATT&CK, threat detection
+  contributors: MitchF
+---
+apiVersion: v1
+kind: query
+spec:
+  name: MITRE - Sudoers Configuration
+  platform: linux, darwin
+  description: Linux sudoers information - ATT&CK T1548.003
+  query: select * from sudoers;
+  purpose: Detection
+  tags: MITRE, ATT&CK, threat detection
+  contributors: MitchF
+---
+apiVersion: v1
+kind: query
+spec:
+  name: MITRE - Sudoers Integrity Check
+  platform: linux, darwin
+  description: Monitor integrity of sudoers configuration file for unauthorized modifications - ATT&CK T1548.003
+  query: |-
+    SELECT hash.sha1, fi.path, fi.filename, datetime(fi.btime, 'unixepoch', 'UTC')
+    as btime, datetime(fi.atime, 'unixepoch', 'UTC') as atime, datetime(fi.ctime,
+    'unixepoch', 'UTC') as ctime, datetime(fi.mtime, 'unixepoch', 'UTC') as mtime
+    FROM hash JOIN file fi USING (path) where (fi.path like '/etc/sudoers') AND type='regular';
+  purpose: Detection
+  tags: MITRE, ATT&CK, threat detection
+  contributors: MitchF
+---
+apiVersion: v1
+kind: query
+spec:
+  name: MITRE - Reverse Shell Detection
+  platform: linux, darwin
+  description: Monitor integrity of sudoers configuration file for unauthorized modifications - ATT&CK T1548.003
+  query: SELECT * FROM processes WHERE cmdline LIKE '/bin/bash -i >& /dev/tcp/%';
+  purpose: Detection
+  tags: MITRE, ATT&CK, threat detection
+  contributors: MitchF
+---
+apiVersion: v1
+kind: query
+spec:
+  name: MITRE - USB Device Discovery
+  platform: linux, darwin, windows
+  description: Check USB device on the host - ATT&CK T1052
+  query: SELECT * FROM usb_devices;
+  purpose: Detection
+  tags: MITRE, ATT&CK, threat detection
+  contributors: MitchF
+---
+apiVersion: v1
+kind: query
+spec:
+  name: MITRE - Chrome Extensions (1)
+  platform: linux, darwin, windows
+  description: Lists all chrome extensions - ATT&CK T1176
+  query: |-
+    SELECT u.username, ce.* FROM users u CROSS JOIN chrome_extensions ce USING
+    (uid);
+  purpose: Detection
+  tags: MITRE, ATT&CK, threat detection
+  contributors: MitchF
+---
+apiVersion: v1
+kind: query
+spec:
+  name: MITRE - Firefox Addons
+  platform: linux, darwin, windows
+  description: Lists all Firefox addons - ATT&CK T1176
+  query: SELECT u.username, ce.* FROM users u CROSS JOIN firefox_addons ce USING (uid);
+  purpose: Detection
+  tags: MITRE, ATT&CK, threat detection
+  contributors: MitchF
+---
+apiVersion: v1
+kind: query
+spec:
+  name: MITRE - Opera Extensions
+  platform: linux, darwin, windows
+  description: Lists all Opera extensions - ATT&CK T1176
+  query: |-
+    SELECT u.username, ce.* FROM users u CROSS JOIN opera_extensions ce USING
+    (uid);
+  purpose: Detection
+  tags: MITRE, ATT&CK, threat detection
+  contributors: MitchF
+---
+apiVersion: v1
+kind: query
+spec:
+  name: MITRE - Shell History Analysis
+  platform: linux, darwin
+  description: List shell_history for each users on the system - ATT&CK T1064,T1059,T1153,T1166,T1100,T1055,T1222,T1107,T1146,T1081,T1003,T1033,T1016,T1082,T1069,T1201,T1083,T1217,T1087
+  query: |-
+    select usr.username, sht.command, sht.history_file from shell_history sht
+    JOIN users usr ON sht.uid = usr.uid WHERE sht.uid IN (SELECT uid from users);
+  purpose: Detection
+  tags: MITRE, ATT&CK, threat detection
+  contributors: MitchF
+---
+apiVersion: v1
+kind: query
+spec:
+  name: MITRE - Hidden Directory Discovery
+  platform: linux
+  description: Lists hidden direcotry in relevant path - ATT&CK T1158
+  query: |-
+    SELECT hash.sha1, fi.path, fi.filename, datetime(fi.btime, 'unixepoch', 'UTC')
+    as btime, datetime(fi.atime, 'unixepoch', 'UTC') as atime, datetime(fi.ctime,
+    'unixepoch', 'UTC') as ctime, datetime(fi.mtime, 'unixepoch', 'UTC') as mtime
+    FROM hash JOIN file fi USING (path) where ((fi.path like '/home/%%/.%') OR (fi.path
+    like '/root/.%')) AND type='directory';
+  purpose: Detection
+  tags: MITRE, ATT&CK, threat detection
+  contributors: MitchF
+---
+apiVersion: v1
+kind: query
+spec:
+  name: MITRE - Hidden File Discovery
+  platform: linux
+  description: Lists hidden file in relevant path - ATT&CK T1158,T1100
+  query: |-
+    SELECT hash.sha1, fi.path, fi.filename, datetime(fi.btime, 'unixepoch', 'UTC')
+    as btime, datetime(fi.atime, 'unixepoch', 'UTC') as atime, datetime(fi.ctime,
+    'unixepoch', 'UTC') as ctime, datetime(fi.mtime, 'unixepoch', 'UTC') as mtime
+    FROM hash JOIN file fi USING (path) where ((fi.path like '/home/%%/.%') OR (fi.path
+    like '/root/.%')) AND type='regular';
+  purpose: Detection
+  tags: MITRE, ATT&CK, threat detection
+  contributors: MitchF
+---
+apiVersion: v1
+kind: query
+spec:
+  name: MITRE - Kernel Module Activity
+  platform: linux
+  description: Detect loading, unloading, and manipulating modules on Linux systems - ATT&CK T1215
+  query: |-
+    ' select usr.username, sht.command, sht.history_file from shell_history sht
+    JOIN users usr ON sht.uid = usr.uid WHERE sht.uid IN (SELECT uid from users) AND
+    (sht.command LIKE ''%modprobe%'' OR sht.command LIKE ''%insmod%'' OR sht.command  LIKE
+    ''%lsmod%'' OR sht.command  LIKE ''%rmmod%'' OR sht.command LIKE ''%modinfo%''
+    OR sht.command LIKE ''%linux-headers-$%''OR sht.command LIKE ''%kernel-devel-$%'');'
+  purpose: Detection
+  tags: MITRE, ATT&CK, threat detection
+  contributors: MitchF
+---
+apiVersion: v1
+kind: query
+spec:
+  name: MITRE - Cron Job Discovery
+  platform: linux, darwin
+  description: List Local job scheduling with Cron - ATT&CK T1053
+  query: select command, path from crontab;
+  purpose: Detection
+  tags: MITRE, ATT&CK, threat detection
+  contributors: MitchF
+---
+apiVersion: v1
+kind: query
+spec:
+  name: MITRE - Process Listening Ports
+  platform: linux, darwin, windows
+  description: Returns the Listening port List - ATT&CK T1108,T1100,T1029,T1011,T1041,T1048,T1020,T1071,T1219
+  query: |-
+    select p.name, p.path, lp.port, lp.address, lp.protocol  from listening_ports
+    lp LEFT JOIN processes p ON lp.pid = p.pid WHERE lp.port != 0 AND p.name != '';
+  purpose: Detection
+  tags: MITRE, ATT&CK, threat detection
+  contributors: MitchF
+---
+apiVersion: v1
+kind: query
+spec:
+  name: MITRE - Process Network Connections
+  platform: linux, darwin, windows
+  description: Returns the network connections from system processes - ATT&CK T1108,T1100,T1102,T1105,T1039,T1029,T1011,T1041,T1043,T1090,T1094,T1048,T1132,T1020,T1065,T1001,T1071,T1219,T1104,T1008
+  query: |-
+    select DISTINCT p.name, p.path, pos.remote_address, pos.remote_port from
+    process_open_sockets pos LEFT JOIN processes p ON pos.pid = p.pid WHERE pos.remote_port
+    != 0 AND p.name != '';
+  purpose: Detection
+  tags: MITRE, ATT&CK, threat detection
+  contributors: MitchF
+---
+apiVersion: v1
+kind: query
+spec:
+  name: MITRE - Shell Process Detection
+  platform: linux, darwin
+  description: Check Returns possible Reverse Shells on system processes - ATT&CK T1108,T1100
+  query: |-
+    SELECT DISTINCT(processes.pid),processes.parent,processes.name,processes.path,processes.cmdline,processes.cwd,processes.root,processes.uid,processes.gid,processes.start_time,process_open_sockets.remote_address,process_open_sockets.remote_port,(SELECT
+    cmdline FROM processes AS parent_cmdline WHERE pid = processes.parent) AS parent_cmdline
+    FROM processes JOIN process_open_sockets USING(pid) LEFT OUTER JOIN process_open_files
+    ON processes.pid = process_open_files.pid WHERE (name = 'sh' OR name = 'bash')
+    AND process_open_files.pid IS NULL;
+  purpose: Detection
+  tags: MITRE, ATT&CK, threat detection
+  contributors: MitchF
+---
+apiVersion: v1
+kind: query
+spec:
+  name: MITRE - Custom Directory Monitoring 1
+  platform: linux, darwin
+  description: "'Lists files and directories under YOURIMPDIR1 dir - ATT&CK: T1158,T1100'"
+  query: |-
+    SELECT hash.sha1, fi.path, fi.filename, datetime(fi.btime, 'unixepoch', 'UTC')
+    as btime, datetime(fi.atime, 'unixepoch', 'UTC') as atime, datetime(fi.ctime,
+    'unixepoch', 'UTC') as ctime, datetime(fi.mtime, 'unixepoch', 'UTC') as mtime
+    FROM hash JOIN file fi USING (path) where ((fi.path like '/YOURIMPDIR1/%/%') OR
+    (fi.path like '/YOURIMPDIR1/%%/.%') OR (fi.path like '/YOURIMPDIR1/.%') OR (fi.path
+    like '/YOURIMPDIR1/%'));
+  purpose: Detection
+  tags: MITRE, ATT&CK, threat detection
+  contributors: MitchF
+---
+apiVersion: v1
+kind: query
+spec:
+  name: MITRE - Custom Directory Monitoring 2
+  platform: linux, darwin
+  description: "'Lists files and directories under YOURIMPDIR2 dir - ATT&CK: T1158,T1100'"
+  query: |-
+    SELECT hash.sha1, fi.path, fi.filename, datetime(fi.btime, 'unixepoch', 'UTC')
+    as btime, datetime(fi.atime, 'unixepoch', 'UTC') as atime, datetime(fi.ctime,
+    'unixepoch', 'UTC') as ctime, datetime(fi.mtime, 'unixepoch', 'UTC') as mtime
+    FROM hash JOIN file fi USING (path) where ((fi.path like '/YOURIMPDIR2/%/%') OR
+    (fi.path like '/YOURIMPDIR2/%%/.%') OR (fi.path like '/YOURIMPDIR2/.%') OR (fi.path
+    like '/YOURIMPDIR2/%'));
+  purpose: Detection
+  tags: MITRE, ATT&CK, threat detection
+  contributors: MitchF
+---
+apiVersion: v1
+kind: query
+spec:
+  name: MITRE - Custom Directory Monitoring N
+  platform: linux, darwin
+  description: "'Lists files and directories under YOURIMPDIRn dir - ATT&CK: T1158,T1100'"
+  query: |-
+    SELECT hash.sha1, fi.path, fi.filename, datetime(fi.btime, 'unixepoch', 'UTC')
+    as btime, datetime(fi.atime, 'unixepoch', 'UTC') as atime, datetime(fi.ctime,
+    'unixepoch', 'UTC') as ctime, datetime(fi.mtime, 'unixepoch', 'UTC') as mtime
+    FROM hash JOIN file fi USING (path) where ((fi.path like '/YOURIMPDIRn/%/%') OR
+    (fi.path like '/YOURIMPDIRn/%%/.%') OR (fi.path like '/YOURIMPDIRn/.%') OR (fi.path
+    like '/YOURIMPDIRn/%'));
+  purpose: Detection
+  tags: MITRE, ATT&CK, threat detection
+  contributors: MitchF
+---
+apiVersion: v1
+kind: query
+spec:
+  name: MITRE - Home Directory Discovery
+  platform: linux
+  description: "'Lists files and directories under all home user dir - ATT&CK: T1158,T1100'"
+  query: |-
+    SELECT hash.sha1, fi.path, fi.filename, datetime(fi.btime, 'unixepoch', 'UTC')
+    as btime, datetime(fi.atime, 'unixepoch', 'UTC') as atime, datetime(fi.ctime,
+    'unixepoch', 'UTC') as ctime, datetime(fi.mtime, 'unixepoch', 'UTC') as mtime
+    FROM hash JOIN file fi USING (path) where ((fi.path like '/home/%/%') OR (fi.path
+    like '/home/%') OR (fi.path like '/home/%/.%') OR (fi.path like '/home/.%'));
+  purpose: Detection
+  tags: MITRE, ATT&CK, threat detection
+  contributors: MitchF
+---
+apiVersion: v1
+kind: query
+spec:
+  name: MITRE - Root Directory Discovery
+  platform: linux, darwin
+  description: "'Lists files and directories under root dir - ATT&CK: T1158,T1100'"
+  query: |-
+    SELECT hash.sha1, fi.path, fi.filename, datetime(fi.btime, 'unixepoch', 'UTC')
+    as btime, datetime(fi.atime, 'unixepoch', 'UTC') as atime, datetime(fi.ctime,
+    'unixepoch', 'UTC') as ctime, datetime(fi.mtime, 'unixepoch', 'UTC') as mtime
+    FROM hash JOIN file fi USING (path) where ((fi.path like '/root/%/%') OR (fi.path
+    like '/root/%') OR (fi.path like '/root/%/.%') OR (fi.path like '/root/.%'));
+  purpose: Detection
+  tags: MITRE, ATT&CK, threat detection
+  contributors: MitchF
+---
+apiVersion: v1
+kind: query
+spec:
+  name: MITRE - Temp Directory Discovery
+  platform: linux, darwin
+  description: "'Lists files and directories under tmp dir - ATT&CK: T1158,T1100'"
+  query: |-
+    SELECT hash.sha1, fi.path, fi.filename, datetime(fi.btime, 'unixepoch', 'UTC')
+    as btime, datetime(fi.atime, 'unixepoch', 'UTC') as atime, datetime(fi.ctime,
+    'unixepoch', 'UTC') as ctime, datetime(fi.mtime, 'unixepoch', 'UTC') as mtime
+    FROM hash JOIN file fi USING (path) where ((fi.path like '/tmp/%/%') OR (fi.path
+    like '/tmp/.%') OR (fi.path like '/tmp/%'));
+  purpose: Detection
+  tags: MITRE, ATT&CK, threat detection
+  contributors: MitchF
+---
+apiVersion: v1
+kind: query
+spec:
+  name: MITRE - Web Directory Discovery
+  platform: linux
+  description: "'Lists files and directories under www dir - ATT&CK: T1158,T1100'"
+  query: |-
+    SELECT hash.sha1, fi.path, fi.filename, datetime(fi.btime, 'unixepoch', 'UTC')
+    as btime, datetime(fi.atime, 'unixepoch', 'UTC') as atime, datetime(fi.ctime,
+    'unixepoch', 'UTC') as ctime, datetime(fi.mtime, 'unixepoch', 'UTC') as mtime
+    FROM hash JOIN file fi USING (path) where ((fi.path like '/var/www/%/%') OR (fi.path
+    like '/var/www/%/.%') OR (fi.path like '/var/www/.%') OR (fi.path like '/var/www/.%'));
+  purpose: Detection
+  tags: MITRE, ATT&CK, threat detection
+  contributors: MitchF
+---
+apiVersion: v1
+kind: query
+spec:
+  name: MITRE - Process Discovery
+  platform: linux, darwin, windows
+  description: List Linux System running processes with CMDLINE not null. - ATT&CK T1059,T1108,T1166,T1100,T1064,T1107,T1003,T1033,T1016,T1082,T1057,T1201,T1083,T1217,T1087,T1072,T1002
+  query: |-
+    select pr.pid, pr.name, usr.username, pr.path, pr.cmdline from processes
+    pr LEFT JOIN users usr ON pr.uid = usr.uid WHERE pr.cmdline != '';
+  purpose: Detection
+  tags: MITRE, ATT&CK, threat detection
+  contributors: MitchF
+---
+apiVersion: v1
+kind: query
+spec:
+  name: MITRE - Last Login Discovery
+  platform: linux, darwin
+  description: Lists last logged in users - ATT&CK T1136,T1078
+  query: |-
+    select datetime(time,'unixepoch','UTC') as time_utc,host,username,tty,pid,type
+    from last;
+  purpose: Detection
+  tags: MITRE, ATT&CK, threat detection
+  contributors: MitchF
+---
+apiVersion: v1
+kind: query
+spec:
+  name: MITRE - Active User Sessions (1)
+  platform: linux, darwin, windows
+  description: Lists all logged in users - ATT&CK T1136,T1078,T1169,T1184,T1021
+  query: |-
+    select datetime(time,'unixepoch','UTC') as time_utc,host,user,tty,pid,type
+    from logged_in_users;
+  purpose: Detection
+  tags: MITRE, ATT&CK, threat detection
+  contributors: MitchF
+---
+apiVersion: v1
+kind: query
+spec:
+  name: MITRE - User Account Discovery (1)
+  platform: linux, darwin, windows
+  description: Lists all create and deleted account - ATT&CK T1136,T1078,T1184,T1021
+  query: select * from users;
+  purpose: Detection
+  tags: MITRE, ATT&CK, threat detection
+  contributors: MitchF
+---
+apiVersion: v1
+kind: query
+spec:
+  name: MITRE - Listening Ports Monitoring
+  platform: windows
+  description: Returns the Listening port List - ATT&CK T1043,T1090,T1094,T1205,T1219,T1105,T1065,T1102
+  query: |-
+    select p.name, p.path, lp.port, lp.address, lp.protocol  from listening_ports
+    lp LEFT JOIN processes p ON lp.pid = p.pid WHERE lp.port != 0 AND p.name != '';
+  purpose: Detection
+  tags: MITRE, ATT&CK, threat detection
+  contributors: MitchF
+---
+apiVersion: v1
+kind: query
+spec:
+  name: MITRE - Network Connections Monitoring
+  platform: windows
+  description: Returns the network connections from system processes - ATT&CK T1086,T1093,T1020,T1041,T1011,T1029,T1043,T1090,T1094,T1024,T1008,T1219,T1105,T1065
+  query: |-
+    select DISTINCT p.name, p.path, pos.remote_address, pos.remote_port from
+    process_open_sockets pos LEFT JOIN processes p ON pos.pid = p.pid WHERE pos.remote_port
+    != 0 AND p.name != '';
+  purpose: Detection
+  tags: MITRE, ATT&CK, threat detection
+  contributors: MitchF
+---
+apiVersion: v1
+kind: query
+spec:
+  name: MITRE - Chrome Parent Process Validation
+  platform: windows
+  description: Detect processes masquerading as legitimate Windows processes - ATT&CK T1204
+  query: |-
+    SELECT name as bad_parent_child_name, pid bad_parent_child_pid FROM processes
+    WHERE pid=(SELECT parent FROM processes WHERE parent != (SELECT pid from processes
+    where name='explorer.exe') AND LOWER(name)='chrome.exe') OR pid=(SELECT pid FROM
+    processes WHERE parent != (SELECT pid from processes where name='explorer.exe')
+    AND LOWER(name)='chrome.exe');
+  purpose: Detection
+  tags: MITRE, ATT&CK, threat detection
+  contributors: MitchF
+---
+apiVersion: v1
+kind: query
+spec:
+  name: MITRE - CMD Parent Process Validation
+  platform: windows
+  description: Detect processes masquerading as legitimate Windows processes - ATT&CK T1173,T1204
+  query: |-
+    SELECT name as bad_parent_child_name, pid bad_parent_child_pid FROM processes
+    WHERE pid=(SELECT parent FROM processes WHERE parent!=(SELECT pid from processes
+    where name='explorer.exe') AND LOWER(name)='cmd.exe') OR pid=(SELECT pid FROM
+    processes WHERE parent!=(SELECT pid from processes where name='explorer.exe')
+    AND LOWER(name)='cmd.exe');
+  purpose: Detection
+  tags: MITRE, ATT&CK, threat detection
+  contributors: MitchF
+---
+apiVersion: v1
+kind: query
+spec:
+  name: MITRE - Conhost Parent Process Validation
+  platform: windows
+  description: Detect processes masquerading as legitimate Windows processes - ATT&CK T1204
+  query: |-
+    SELECT name as bad_parent_child_name, pid bad_parent_child_pid FROM processes
+    WHERE pid=(SELECT parent FROM processes WHERE parent != (SELECT pid from processes
+    where name='csrss.exe') AND LOWER(name)='conhost.exe') OR pid=(SELECT pid FROM
+    processes WHERE parent != (SELECT pid from processes where name='csrss.exe') AND
+    LOWER(name)='conhost.exe');
+  purpose: Detection
+  tags: MITRE, ATT&CK, threat detection
+  contributors: MitchF
+---
+apiVersion: v1
+kind: query
+spec:
+  name: MITRE - Firefox Parent Process Validation
+  platform: windows
+  description: Detect processes masquerading as legitimate Windows processes - ATT&CK T1204
+  query: |-
+    SELECT name as bad_parent_child_name, pid bad_parent_child_pid FROM processes
+    WHERE pid=(SELECT parent FROM processes WHERE parent!=(SELECT pid from processes
+    where name='explorer.exe') AND LOWER(name)='firefox.exe') OR pid=(SELECT pid FROM
+    processes WHERE parent!=(SELECT pid from processes where name='explorer.exe')
+    AND LOWER(name)='firefox.exe');
+  purpose: Detection
+  tags: MITRE, ATT&CK, threat detection
+  contributors: MitchF
+---
+apiVersion: v1
+kind: query
+spec:
+  name: MITRE - Internet Explorer Parent Process Validation
+  platform: windows
+  description: Detect processes masquerading as legitimate Windows processes - ATT&CK T1204
+  query: |-
+    SELECT name as bad_parent_child_name, pid bad_parent_child_pid FROM processes
+    WHERE pid=(SELECT parent FROM processes WHERE parent!=(SELECT pid from processes
+    where name='explorer.exe') AND LOWER(name)='iexplore.exe') OR pid=(SELECT pid
+    FROM processes WHERE parent!=(SELECT pid from processes where name='explorer.exe')
+    AND LOWER(name)='iexplore.exe');
+  purpose: Detection
+  tags: MITRE, ATT&CK, threat detection
+  contributors: MitchF
+---
+apiVersion: v1
+kind: query
+spec:
+  name: MITRE - LSASS Parent Process Validation
+  platform: windows
+  description: Detect processes masquerading as legitimate Windows processes - ATT&CK T1204
+  query: |-
+    SELECT name as bad_parent_child_name, pid bad_parent_child_pid FROM processes
+    WHERE pid=(SELECT parent FROM processes WHERE parent!=(SELECT pid from processes
+    where name='wininit.exe') AND LOWER(name)='lsass.exe') OR pid=(SELECT pid FROM
+    processes WHERE parent!=(SELECT pid from processes where name='wininit.exe') AND
+    LOWER(name)='lsass.exe');
+  purpose: Detection
+  tags: MITRE, ATT&CK, threat detection
+  contributors: MitchF
+---
+apiVersion: v1
+kind: query
+spec:
+  name: MITRE - Notepad++ Parent Process Validation
+  platform: windows
+  description: Detect processes masquerading as legitimate Windows processes - ATT&CK T1204
+  query: |-
+    SELECT name as bad_parent_child_name, pid bad_parent_child_pid FROM processes
+    WHERE pid=(SELECT parent FROM processes WHERE parent!=(SELECT pid from processes
+    where name='explorer.exe') AND LOWER(name)='notepad++.exe') OR pid=(SELECT pid
+    FROM processes WHERE parent!=(SELECT pid from processes where name='explorer.exe')
+    AND LOWER(name)='notepad++.exe');
+  purpose: Detection
+  tags: MITRE, ATT&CK, threat detection
+  contributors: MitchF
+---
+apiVersion: v1
+kind: query
+spec:
+  name: MITRE - Notepad Parent Process Validation
+  platform: windows
+  description: Detect processes masquerading as legitimate Windows processes - ATT&CK T1204
+  query: |-
+    SELECT name as bad_parent_child_name, pid bad_parent_child_pid FROM processes
+    WHERE pid=(SELECT parent FROM processes WHERE parent!=(SELECT pid from processes
+    where name='explorer.exe') AND LOWER(name)='notepad.exe') OR pid=(SELECT pid FROM
+    processes WHERE parent!=(SELECT pid from processes where name='explorer.exe')
+    AND LOWER(name)='notepad.exe');
+  purpose: Detection
+  tags: MITRE, ATT&CK, threat detection
+  contributors: MitchF
+---
+apiVersion: v1
+kind: query
+spec:
+  name: MITRE - PowerShell Parent Process Validation
+  platform: windows
+  description: Detect processes masquerading as legitimate Windows processes - ATT&CK T1173,T1086,T1204
+  query: |-
+    SELECT name as bad_parent_child_name, pid bad_parent_child_pid FROM processes
+    WHERE pid=(SELECT parent FROM processes WHERE parent!=(SELECT pid from processes
+    where name='explorer.exe') AND LOWER(name)='powershell.exe') OR pid=(SELECT pid
+    FROM processes WHERE parent!=(SELECT pid from processes where name='explorer.exe')
+    AND LOWER(name)='powershell.exe');
+  purpose: Detection
+  tags: MITRE, ATT&CK, threat detection
+  contributors: MitchF
+---
+apiVersion: v1
+kind: query
+spec:
+  name: MITRE - Services Parent Process Validation
+  platform: windows
+  description: Detect processes masquerading as legitimate Windows processes - ATT&CK T1204
+  query: |-
+    SELECT name as bad_parent_child_name, pid bad_parent_child_pid FROM processes
+    WHERE pid=(SELECT parent FROM processes WHERE parent!=(SELECT pid from processes
+    where name='wininit.exe') AND LOWER(name)='services.exe') OR pid=(SELECT pid FROM
+    processes WHERE parent!=(SELECT pid from processes where name='wininit.exe') AND
+    LOWER(name)='services.exe');
+  purpose: Detection
+  tags: MITRE, ATT&CK, threat detection
+  contributors: MitchF
+---
+apiVersion: v1
+kind: query
+spec:
+  name: MITRE - Svchost Parent Process Validation
+  platform: windows
+  description: Detect processes masquerading as legitimate Windows processes - ATT&CK T1204
+  query: |-
+    SELECT name as bad_parent_child_name, pid bad_parent_child_pid FROM processes
+    WHERE pid=(SELECT parent FROM processes WHERE parent!=(SELECT pid from processes
+    where name='services.exe') AND LOWER(name)='svchost.exe') OR pid=(SELECT pid FROM
+    processes WHERE parent!=(SELECT pid from processes where name='services.exe')
+    AND LOWER(name)='svchost.exe');
+  purpose: Detection
+  tags: MITRE, ATT&CK, threat detection
+  contributors: MitchF
+---
+apiVersion: v1
+kind: query
+spec:
+  name: MITRE - Conhost Path Validation
+  platform: windows
+  description: Detect processes masquerading as legitimate Windows processes - ATT&CK T1034
+  query: |-
+    SELECT * FROM processes WHERE LOWER(name)='conhost.exe' AND LOWER(path)!='c:\windows\system32\conhost.exe'
+    AND path!='';
+  purpose: Detection
+  tags: MITRE, ATT&CK, threat detection
+  contributors: MitchF
+---
+apiVersion: v1
+kind: query
+spec:
+  name: MITRE - CSRSS Path Validation
+  platform: windows
+  description: Detect processes masquerading as legitimate Windows processes - ATT&CK T1034
+  query: |-
+    SELECT * FROM processes WHERE LOWER(name)='csrss.exe' AND LOWER(path)!='c:\windows\system32\csrss.exe'
+    AND path!='';
+  purpose: Detection
+  tags: MITRE, ATT&CK, threat detection
+  contributors: MitchF
+---
+apiVersion: v1
+kind: query
+spec:
+  name: MITRE - DLLHost Path Validation
+  platform: windows
+  description: Detect processes masquerading as legitimate Windows processes - ATT&CK T1034
+  query: |-
+    SELECT * FROM processes WHERE LOWER(name)='dllhost.exe' AND LOWER(path)!='c:\windows\system32\dllhost.exe'
+    AND LOWER(path)!='c:\windows\syswow64\dllhost.exe' AND path!='';
+  purpose: Detection
+  tags: MITRE, ATT&CK, threat detection
+  contributors: MitchF
+---
+apiVersion: v1
+kind: query
+spec:
+  name: MITRE - Explorer Path Validation
+  platform: windows
+  description: Detect processes masquerading as legitimate Windows processes - ATT&CK T1034
+  query: |-
+    SELECT * FROM processes WHERE LOWER(name)='explorer.exe' AND LOWER(path)!='c:\windows\explorer.exe'
+    AND LOWER(path)!='c:\windows\syswow64\explorer.exe' AND path!='';
+  purpose: Detection
+  tags: MITRE, ATT&CK, threat detection
+  contributors: MitchF
+---
+apiVersion: v1
+kind: query
+spec:
+  name: MITRE - LSASS Path Validation
+  platform: windows
+  description: Detect processes masquerading as legitimate Windows processes - ATT&CK T1034
+  query: |-
+    SELECT * FROM processes WHERE LOWER(name)='lsass.exe' AND LOWER(path)!='c:\windows\system32\lsass.exe'
+    AND path!='';
+  purpose: Detection
+  tags: MITRE, ATT&CK, threat detection
+  contributors: MitchF
+---
+apiVersion: v1
+kind: query
+spec:
+  name: MITRE - Services Path Validation
+  platform: windows
+  description: Detect processes masquerading as legitimate Windows processes - ATT&CK T1034
+  query: |-
+    SELECT * FROM processes WHERE LOWER(name)='services.exe' AND LOWER(path)!='c:\windows\system32\services.exe'
+    AND path!='';
+  purpose: Detection
+  tags: MITRE, ATT&CK, threat detection
+  contributors: MitchF
+---
+apiVersion: v1
+kind: query
+spec:
+  name: MITRE - SMSS Path Validation
+  platform: windows
+  description: Detect processes masquerading as legitimate Windows processes - ATT&CK T1034
+  query: |-
+    SELECT * FROM processes WHERE LOWER(name)='smss.exe' AND LOWER(path)!='c:\windows\system32\smss.exe'
+    AND path!='';
+  purpose: Detection
+  tags: MITRE, ATT&CK, threat detection
+  contributors: MitchF
+---
+apiVersion: v1
+kind: query
+spec:
+  name: MITRE - Svchost Path Validation
+  platform: windows
+  description: Detect processes masquerading as legitimate Windows processes - ATT&CK T1034
+  query: |-
+    SELECT * FROM processes WHERE LOWER(name)='svchost.exe' AND LOWER(path)!='c:\windows\system32\svchost.exe'
+    AND LOWER(path)!='c:\windows\syswow64\svchost.exe' AND path!='';
+  purpose: Detection
+  tags: MITRE, ATT&CK, threat detection
+  contributors: MitchF
+---
+apiVersion: v1
+kind: query
+spec:
+  name: MITRE - Wininit Path Validation
+  platform: windows
+  description: Detect processes masquerading as legitimate Windows processes - ATT&CK T1034
+  query: |-
+    SELECT * FROM processes WHERE LOWER(name)='wininit.exe' AND LOWER(path)!='c:\windows\system32\wininit.exe'
+    AND path!='';
+  purpose: Detection
+  tags: MITRE, ATT&CK, threat detection
+  contributors: MitchF
+---
+apiVersion: v1
+kind: query
+spec:
+  name: MITRE - Winlogon Path Validation
+  platform: windows
+  description: Detect processes masquerading as legitimate Windows processes - ATT&CK T1034
+  query: |-
+    SELECT * FROM processes WHERE LOWER(name)='winlogon.exe' AND LOWER(path)!='c:\windows\system32\winlogon.exe'
+    AND path!='';
+  purpose: Detection
+  tags: MITRE, ATT&CK, threat detection
+  contributors: MitchF
+---
+apiVersion: v1
+kind: query
+spec:
+  name: MITRE - WMI Provider Path Validation
+  platform: windows
+  description: Detect processes masquerading as legitimate Windows processes - ATT&CK T1034
+  query: |-
+    SELECT * FROM processes WHERE LOWER(name)='wmiprvse.exe' AND LOWER(path)!='c:\windows\system32\wbem\wmiprvse.exe'
+    AND LOWER(path)!='c:\windows\syswow64\wbem\wmiprvse.exe' AND path!='';
+  purpose: Detection
+  tags: MITRE, ATT&CK, threat detection
+  contributors: MitchF
+---
+apiVersion: v1
+kind: query
+spec:
+  name: MITRE - Desktop Registry Monitoring
+  platform: windows
+  description: Returns the content of the key HKCU_Control Panel_Desktop - ATT&CK T1180
+  query: |-
+    select name,type,data from registry where key='HKEY_CURRENT_USER\Control
+    Panel\Desktop';
+  purpose: Detection
+  tags: MITRE, ATT&CK, threat detection
+  contributors: MitchF
+---
+apiVersion: v1
+kind: query
+spec:
+  name: MITRE - Winlogon Registry Monitoring
+  platform: windows
+  description: Returns the content of the key HKCU_Software_Microsoft_WindowsNT_CurrentVersion_winlogon - ATT&CK T1004
+  query: |-
+    select name,type,data from registry where key='HKEY_CURRENT_USER\Software\Microsoft\Windows
+    NT\CurrentVersion\Winlogon';
+  purpose: Detection
+  tags: MITRE, ATT&CK, threat detection
+  contributors: MitchF
+---
+apiVersion: v1
+kind: query
+spec:
+  name: MITRE - Explorer Run Registry Monitoring
+  platform: windows
+  description: Returns the content of the key HKCU_Software_Microsoft_Windows_CurrentVersion_Policies_Explorer_Run - ATT&CK T1060
+  query: select name,type,data from registry where key='HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Policies\Explorer\Run';
+  purpose: Detection
+  tags: MITRE, ATT&CK, threat detection
+  contributors: MitchF
+---
+apiVersion: v1
+kind: query
+spec:
+  name: MITRE - Logon Scripts Registry Monitoring
+  platform: windows
+  description: Returns the content of the key HKEY_CURRENT_USER_Environment - ATT&CK T1037
+  query: select * from registry where key='HKEY_CURRENT_USER\Environment';
+  purpose: Detection
+  tags: MITRE, ATT&CK, threat detection
+  contributors: MitchF
+---
+apiVersion: v1
+kind: query
+spec:
+  name: MITRE - HKCU Run Registry Monitoring
+  platform: windows
+  description: Returns the content of the key HKCU_Software_Microsoft_Windows_CurrentVersion_Run - ATT&CK T1060
+  query: select name,type,data from registry where key='HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Run';
+  purpose: Detection
+  tags: MITRE, ATT&CK, threat detection
+  contributors: MitchF
+---
+apiVersion: v1
+kind: query
+spec:
+  name: MITRE - HKLM Winlogon Registry Monitoring
+  platform: windows
+  description: Returns the content of the key HKLM_Software_Microsoft_WindowsNT_CurrentVersion_winlogon - ATT&CK T1004
+  query: |-
+    select name,type,data from registry where key='HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows
+    NT\CurrentVersion\Winlogon';
+  purpose: Detection
+  tags: MITRE, ATT&CK, threat detection
+  contributors: MitchF
+---
+apiVersion: v1
+kind: query
+spec:
+  name: MITRE - HKLM Explorer Run Registry Monitoring
+  platform: windows
+  description: Returns the content of the key HKLM_Software_Microsoft_Windows_CurrentVersion_Policies_Explorer_Run - ATT&CK T1060
+  query: select name,type,data from registry where key='HKEY_LOCAL_MACHINE\Software\Microsoft\Windows\CurrentVersion\Policies\Explorer\Run';
+  purpose: Detection
+  tags: MITRE, ATT&CK, threat detection
+  contributors: MitchF
+---
+apiVersion: v1
+kind: query
+spec:
+  name: MITRE - Image File Execution Options Monitoring
+  platform: windows
+  description: Returns the content of the key HKLM_Image_File_Execution_Options - ATT&CK T1015
+  query: |-
+    select name,type,data from registry where key='HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows
+    NT\CurrentVersion\Image File Execution Options';
+  purpose: Detection
+  tags: MITRE, ATT&CK, threat detection
+  contributors: MitchF
+---
+apiVersion: v1
+kind: query
+spec:
+  name: MITRE - AppInit DLLs Registry Monitoring
+  platform: windows
+  description: '**AppInit DLLs** Returns the content of the key HKLM_Software_Microsoft_WindowsNT_CurrentVersion_Windows - ATT&CK T1103'
+  query: |-
+    select name,type,data from registry where key='HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows
+    NT\CurrentVersion\Windows' and name='AppInit_DLLs';
+  purpose: Detection
+  tags: MITRE, ATT&CK, threat detection
+  contributors: MitchF
+---
+apiVersion: v1
+kind: query
+spec:
+  name: MITRE - WOW64 Winlogon Registry Monitoring
+  platform: windows
+  description: Returns the content of the key HKLM_Software_Wow6432Node_Microsoft_WindowsNT_CurrentVersion_winlogon - ATT&CK T1004
+  query: |-
+    select name,type,data from registry where key='HKEY_LOCAL_MACHINE\SOFTWARE\Wow6432Node\Microsoft\Windows
+    NT\CurrentVersion\Winlogon';
+  purpose: Detection
+  tags: MITRE, ATT&CK, threat detection
+  contributors: MitchF
+---
+apiVersion: v1
+kind: query
+spec:
+  name: MITRE - WOW64 AppInit DLLs Registry Monitoring
+  platform: windows
+  description: '**AppInit DLLs** Returns the content of the key HKLM_Software_Wow6432Node_Microsoft_Windows NT_CurrentVersion_Windows - ATT&CK T1103'
+  query: |-
+    select name,type,data from registry where key='HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows
+    NT\CurrentVersion\Windows' and name='AppInit_DLLs';
+  purpose: Detection
+  tags: MITRE, ATT&CK, threat detection
+  contributors: MitchF
+---
+apiVersion: v1
+kind: query
+spec:
+  name: MITRE - Application Shimming Registry Monitoring Custom
+  platform: windows
+  description: '**Application Shimming** Returns the content of the key HKLM_Software_Microsoft_WindowsNT_CurrentVersion_appcompatflags_custom - ATT&CK T1138'
+  query: |-
+    select name,type,data from registry where key='HKEY_LOCAL_MACHINE\software\microsoft\windows
+    nt\currentversion\appcompatflags\custom';
+  purpose: Detection
+  tags: MITRE, ATT&CK, threat detection
+  contributors: MitchF
+---
+apiVersion: v1
+kind: query
+spec:
+  name: MITRE - Application Shimming Registry Monitoring Installed
+  platform: windows
+  description: '**Application Shimming** Returns the content of the key HKLM_Software_Microsoft_WindowsNT_CurrentVersion_appcompatflags_installedsdb - ATT&CK T1138'
+  query: |-
+    select name,type,data from registry where key='HKEY_LOCAL_MACHINE\software\microsoft\windows
+    nt\currentversion\appcompatflags\installedsdb';
+  purpose: Detection
+  tags: MITRE, ATT&CK, threat detection
+  contributors: MitchF
+---
+apiVersion: v1
+kind: query
+spec:
+  name: MITRE - LSA Registry Monitoring
+  platform: windows
+  description: Returns the content of the key HKLM_SYSTEM_CurrentControlSet_Control_Lsa - ATT&CK T1131
+  query: select name,type,data from registry where key='HKEY_LOCAL_MACHINE\system\CurrentControlSet\Control\Lsa';
+  purpose: Detection
+  tags: MITRE, ATT&CK, threat detection
+  contributors: MitchF
+---
+apiVersion: v1
+kind: query
+spec:
+  name: MITRE - Netsh Registry Monitoring
+  platform: windows
+  description: Returns the content of the key HKLM_SYSTEM_CurrentControlSet_Control_Lsa - ATT&CK T1128,S0108
+  query: select name,type,data from registry where key='HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Netsh';
+  purpose: Detection
+  tags: MITRE, ATT&CK, threat detection
+  contributors: MitchF
+---
+apiVersion: v1
+kind: query
+spec:
+  name: MITRE - Services Registry Monitoring
+  platform: windows
+  description: Returns the content of the key HKLM_SYSTEM_CurrentControlSet_Service - ATT&CK T1058
+  query: select name, type from registry where key='HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Services';
+  purpose: Detection
+  tags: MITRE, ATT&CK, threat detection
+  contributors: MitchF
+---
+apiVersion: v1
+kind: query
+spec:
+  name: MITRE - HKU Run Registry Monitoring
+  platform: windows
+  description: Returns the content of the key HKU_Software_Microsoft_Windows_CurrentVersion_Run
+  query: select name,type,data from registry where key='HKEY_USERS\Software\Microsoft\Windows\CurrentVersion\Run';
+  purpose: Detection
+  tags: MITRE, ATT&CK, threat detection
+  contributors: MitchF
+---
+apiVersion: v1
+kind: query
+spec:
+  name: MITRE - InstallUtil Execution
+  platform: windows
+  description: InstallUtil Execute, InstallUtil is a command-line utility that allows for installation and uninstallation of resources by executing specific installer components specified in .NET binaries - ATT&CK T1118
+  query: |-
+    select * from file WHERE directory = 'C:\Windows\Prefetch\' and filename
+    like '%InstallUtil%';
+  purpose: Detection
+  tags: MITRE, ATT&CK, threat detection
+  contributors: MitchF
+---
+apiVersion: v1
+kind: query
+spec:
+  name: MITRE - PsExec Execution
+  platform: windows
+  description: PsExec Execute, is a free Microsoft tool that can be used to execute a program on another computer. - ATT&CK T1035,S0029
+  query: |-
+    select * from file WHERE directory = 'C:\Windows\Prefetch\' and filename
+    like '%PsExec%';
+  purpose: Detection
+  tags: MITRE, ATT&CK, threat detection
+  contributors: MitchF
+---
+apiVersion: v1
+kind: query
+spec:
+  name: MITRE - Prefetch File Monitoring
+  platform: windows
+  description: Snapshot Prefetach File Directory - ATT&CK T1107
+  query: select * from file WHERE directory = 'C:\Windows\Prefetch\';
+  purpose: Detection
+  tags: MITRE, ATT&CK, threat detection
+  contributors: MitchF
+---
+apiVersion: v1
+kind: query
+spec:
+  name: MITRE - Task Scheduling
+  platform: windows
+  description: Schtasks Execute, usaullay used to create a scheduled task - ATT&CK T1053,S0110
+  query: |-
+    select * from file WHERE directory = 'C:\Windows\Prefetch\' and filename
+    like '%at.exe%';
+  purpose: Detection
+  tags: MITRE, ATT&CK, threat detection
+  contributors: MitchF
+---
+apiVersion: v1
+kind: query
+spec:
+  name: MITRE - File Attribute Modification
+  platform: windows
+  description: Attrib Execute, usaullay used to modify file attributes - ATT&CK T1158
+  query: |-
+    select * from file WHERE directory = 'C:\Windows\Prefetch\' and filename
+    like '%attrib%';
+  purpose: Detection
+  tags: MITRE, ATT&CK, threat detection
+  contributors: MitchF
+---
+apiVersion: v1
+kind: query
+spec:
+  name: MITRE - BITS Transfer
+  platform: windows
+  description: Bitsadmin Execute, Windows Background Intelligent Transfer Service (BITS) is a low-bandwidth, asynchronous file transfer mechanism exposed through Component Object Model (COM) - ATT&CK T1197,S0190
+  query: |-
+    select * from file WHERE directory = 'C:\Windows\Prefetch\' and filename
+    like '%bitsadmin%';
+  purpose: Detection
+  tags: MITRE, ATT&CK, threat detection
+  contributors: MitchF
+---
+apiVersion: v1
+kind: query
+spec:
+  name: MITRE - Certificate Utility
+  platform: windows
+  description: Monitor usage of Certutil.exe, a built-in command-line program to manage certificates that can be misused for malicious purposes - ATT&CK T1105,T1140,T1130,S0160
+  query: |-
+    select * from file WHERE directory = 'C:\Windows\Prefetch\' and filename
+    like '%certutil%';
+  purpose: Detection
+  tags: MITRE, ATT&CK, threat detection
+  contributors: MitchF
+---
+apiVersion: v1
+kind: query
+spec:
+  name: MITRE - Command Line Interface
+  platform: windows
+  description: Command-Line Interface Execute, CMD execution - ATT&CK T1059
+  query: |-
+    select * from file WHERE directory = 'C:\Windows\Prefetch\' and filename
+    like '%CMD%';
+  purpose: Detection
+  tags: MITRE, ATT&CK, threat detection
+  contributors: MitchF
+---
+apiVersion: v1
+kind: query
+spec:
+  name: MITRE - Connection Manager Profile
+  platform: windows
+  description: CMSTP Execute, The Microsoft Connection Manager Profile Installer (CMSTP.exe) is a command-line program used to install Connection Manager service profiles. - ATT&CK T1191
+  query: |-
+    select * from file WHERE directory = 'C:\Windows\Prefetch\' and filename
+    like '%CMSTP%';
+  purpose: Detection
+  tags: MITRE, ATT&CK, threat detection
+  contributors: MitchF
+---
+apiVersion: v1
+kind: query
+spec:
+  name: MITRE - Script Execution
+  platform: windows
+  description: Command-Line Interface Execute, Cscript execution starts a script so that it runs in a command-line environment. - ATT&CK T1216
+  query: |-
+    select * from file WHERE directory = 'C:\Windows\Prefetch\' and filename
+    like '%cscript%';
+  purpose: Detection
+  tags: MITRE, ATT&CK, threat detection
+  contributors: MitchF
+---
+apiVersion: v1
+kind: query
+spec:
+  name: MITRE - Database Utility
+  platform: windows
+  description: Monitor usage of Esentutl, a built-in command-line program that can be used to copy NTDS.dit and dump Active Directory credentials - ATT&CK T1003.003
+  query: |-
+    select * from file WHERE directory = 'C:\Windows\Prefetch\' and filename
+    like '%esentutl%';
+  purpose: Detection
+  tags: MITRE, ATT&CK, threat detection
+  contributors: MitchF
+---
+apiVersion: v1
+kind: query
+spec:
+  name: MITRE - HTML Application
+  platform: windows
+  description: Mshta Execute, is a utility that executes Microsoft HTML Applications (HTA) - ATT&CK T1170
+  query: |-
+    select * from file WHERE directory = 'C:\Windows\Prefetch\' and filename
+    like '%mshta%';
+  purpose: Detection
+  tags: MITRE, ATT&CK, threat detection
+  contributors: MitchF
+---
+apiVersion: v1
+kind: query
+spec:
+  name: MITRE - Remote Desktop
+  platform: windows
+  description: mstsc.exe Execute, usaullay used to perform a RDP Session  - ATT&CK T1076
+  query: |-
+    select * from file WHERE directory = 'C:\Windows\Prefetch\' and filename
+    like '%mstsc%';
+  purpose: Detection
+  tags: MITRE, ATT&CK, threat detection
+  contributors: MitchF
+---
+apiVersion: v1
+kind: query
+spec:
+  name: MITRE - Network Commands
+  platform: windows
+  description: Net Execute, is used in command-line operations for control of users, groups, services, and network connections - ATT&CK T1126,T1087,T1201,T1069,S0039,T1018,T1007,T1124
+  query: |-
+    select * from file WHERE directory = 'C:\Windows\Prefetch\' and filename
+    like '%net.exe%';
+  purpose: Detection
+  tags: MITRE, ATT&CK, threat detection
+  contributors: MitchF
+---
+apiVersion: v1
+kind: query
+spec:
+  name: MITRE - Network Shell
+  platform: windows
+  description: Netsh Execute, Netsh.exe (also referred to as Netshell) is a command-line scripting utility used to interact with the network configuration of a system - ATT&CK T1128,T1063,S0108
+  query: |-
+    select * from file WHERE directory = 'C:\Windows\Prefetch\' and filename
+    like '%netsh%';
+  purpose: Detection
+  tags: MITRE, ATT&CK, threat detection
+  contributors: MitchF
+---
+apiVersion: v1
+kind: query
+spec:
+  name: MITRE - Network Statistics
+  platform: windows
+  description: Netstat Execute,  is an operating system utility that displays active TCP connections, listening ports, and network statistics. - ATT&CK T1049,S0104
+  query: |-
+    select * from file WHERE directory = 'C:\Windows\Prefetch\' and filename
+    like '%netstat%';
+  purpose: Detection
+  tags: MITRE, ATT&CK, threat detection
+  contributors: MitchF
+---
+apiVersion: v1
+kind: query
+spec:
+  name: MITRE - PowerShell Execution
+  platform: windows
+  description: POWERSHELL Execute, is a powerful interactive command-line interface and scripting environment included in the Windows operating system - ATT&CK T1086
+  query: |-
+    select * from file WHERE directory = 'C:\Windows\Prefetch\' and filename
+    like '%POWERSHELL%';
+  purpose: Detection
+  tags: MITRE, ATT&CK, threat detection
+  contributors: MitchF
+---
+apiVersion: v1
+kind: query
+spec:
+  name: MITRE - Registry Modification
+  platform: windows
+  description: Reg Execute, Reg is a Windows utility used to interact with the Windows Registry.  - ATT&CK T1214,T1012,T1063,S0075
+  query: |-
+    select * from file WHERE directory = 'C:\Windows\Prefetch\' and filename
+    like '%reg%';
+  purpose: Detection
+  tags: MITRE, ATT&CK, threat detection
+  contributors: MitchF
+---
+apiVersion: v1
+kind: query
+spec:
+  name: MITRE - Registry Editor
+  platform: windows
+  description: Regedit Execute, is a Windows utility used to interact with the Windows Registry. - ATT&CK T1214
+  query: |-
+    select * from file WHERE directory = 'C:\Windows\Prefetch\' and filename
+    like '%regedit%';
+  purpose: Detection
+  tags: MITRE, ATT&CK, threat detection
+  contributors: MitchF
+---
+apiVersion: v1
+kind: query
+spec:
+  name: MITRE - DLL Registration
+  platform: windows
+  description: POWERSHELL Execute, is a powerful interactive command-line interface and scripting environment included in the Windows operating system - ATT&CK T1117
+  query: |-
+    select * from file WHERE directory = 'C:\Windows\Prefetch\' and filename
+    like '%regsvr%';
+  purpose: Detection
+  tags: MITRE, ATT&CK, threat detection
+  contributors: MitchF
+---
+apiVersion: v1
+kind: query
+spec:
+  name: MITRE - Privilege Escalation
+  platform: windows
+  description: Runas Execute, Allows a user to run specific tools and programs with different permissions than the user's current logon provides. - ATT&CK T1134
+  query: |-
+    select * from file WHERE directory = 'C:\Windows\Prefetch\' and filename
+    like '%runas%';
+  purpose: Detection
+  tags: MITRE, ATT&CK, threat detection
+  contributors: MitchF
+---
+apiVersion: v1
+kind: query
+spec:
+  name: MITRE - Service Control
+  platform: windows
+  description: SC.exe Execute, Service Control - Create, Start, Stop, Query or Delete any Windows SERVICE. . - ATT&CK T1007
+  query: |-
+    select * from file WHERE directory = 'C:\Windows\Prefetch\' and filename
+    like '%sc%';
+  purpose: Detection
+  tags: MITRE, ATT&CK, threat detection
+  contributors: MitchF
+---
+apiVersion: v1
+kind: query
+spec:
+  name: MITRE - Scheduled Tasks (1)
+  platform: windows
+  description: Schtasks Execute, usaullay used to create a scheduled task - ATT&CK T1053,S0111
+  query: |-
+    select * from file WHERE directory = 'C:\Windows\Prefetch\' and filename
+    like '%schtasks%';
+  purpose: Detection
+  tags: MITRE, ATT&CK, threat detection
+  contributors: MitchF
+---
+apiVersion: v1
+kind: query
+spec:
+  name: MITRE - Anomalous Svchost
+  platform: windows
+  description: SVCHOST Processes not using the -k [name] convention
+  query: |-
+    select * from processes where name like 'svchost.exe' and cmdline not like
+    '%-k%';
+  purpose: Detection
+  tags: MITRE, ATT&CK, threat detection
+  contributors: MitchF
+---
+apiVersion: v1
+kind: query
+spec:
+  name: MITRE - System Information (1)
+  platform: windows
+  description: Systeminfo Execute, Systeminfo is a Windows utility that can be used to gather detailed information about a computer. - ATT&CK T1082,S0096
+  query: |-
+    select * from file WHERE directory = 'C:\Windows\Prefetch\' and filename
+    like '%systeminfo%';
+  purpose: Detection
+  tags: MITRE, ATT&CK, threat detection
+  contributors: MitchF
+---
+apiVersion: v1
+kind: query
+spec:
+  name: MITRE - Task Engine
+  platform: windows
+  description: taskeng Execute, usaullay used to create a scheduled task - ATT&CK T1053
+  query: |-
+    select * from file WHERE directory = 'C:\Windows\Prefetch\' and filename
+    like '%taskeng%';
+  purpose: Detection
+  tags: MITRE, ATT&CK, threat detection
+  contributors: MitchF
+---
+apiVersion: v1
+kind: query
+spec:
+  name: MITRE - Process Termination
+  platform: windows
+  description: 'Taskkill Execute, usaullay used to kill task '
+  query: |-
+    select * from file WHERE directory = 'C:\Windows\Prefetch\' and filename
+    like '%taskkill%';
+  purpose: Detection
+  tags: MITRE, ATT&CK, threat detection
+  contributors: MitchF
+---
+apiVersion: v1
+kind: query
+spec:
+  name: MITRE - Process Enumeration
+  platform: windows
+  description: Tasklist Execute, usaullay used to list task - ATT&CK T1057,T1063,T1007,S0057
+  query: |-
+    select * from file WHERE directory = 'C:\Windows\Prefetch\' and filename
+    like '%tasklist%';
+  purpose: Detection
+  tags: MITRE, ATT&CK, threat detection
+  contributors: MitchF
+---
+apiVersion: v1
+kind: query
+spec:
+  name: MITRE - Terminal Services
+  platform: windows
+  description: tscon.exe Execute, usaullay used to Terminal Services Console - ATT&CK T1076
+  query: |-
+    select * from file WHERE directory = 'C:\Windows\Prefetch\' and filename
+    like '%tscon%';
+  purpose: Detection
+  tags: MITRE, ATT&CK, threat detection
+  contributors: MitchF
+---
+apiVersion: v1
+kind: query
+spec:
+  name: MITRE - Volume Shadow Copy
+  platform: windows
+  description: Vssadmin Execute, usaullay used to execute activity on Volume Shadow copy
+  query: |-
+    select * from file WHERE directory = 'C:\Windows\Prefetch\' and filename
+    like '%vssadmin%';
+  purpose: Detection
+  tags: MITRE, ATT&CK, threat detection
+  contributors: MitchF
+---
+apiVersion: v1
+kind: query
+spec:
+  name: MITRE - User Identification
+  platform: windows
+  description: Whoami Execute, used to prints the effective username of the current user
+  query: |-
+    select * from file WHERE directory = 'C:\Windows\Prefetch\' and filename
+    like '%whoami%';
+  purpose: Detection
+  tags: MITRE, ATT&CK, threat detection
+  contributors: MitchF
+---
+apiVersion: v1
+kind: query
+spec:
+  name: MITRE - File Copy
+  platform: windows
+  description: Xcopy Execute, is used for copying multiple files or entire directory trees from one directory to another and for copying files across a network.
+  query: |-
+    select * from file WHERE directory = 'C:\Windows\Prefetch\' and filename
+    like '%xcopy%';
+  purpose: Detection
+  tags: MITRE, ATT&CK, threat detection
+  contributors: MitchF
+---
+apiVersion: v1
+kind: query
+spec:
+  name: MITRE - Chrome Extensions Snapshot
+  platform: linux, darwin, windows
+  description: Snapshot Lists all chrome extensions - ATT&CK T1176
+  query: |-
+    select u.username, ce.name,ce.identifier,ce.version,ce.description,ce.locale,ce.update_url,ce.author,ce.persistent,ce.path
+    from chrome_extensions ce LEFT JOIN users u ON ce.uid = u.uid;
+  purpose: Detection
+  tags: MITRE, ATT&CK, threat detection
+  contributors: MitchF
+---
+apiVersion: v1
+kind: query
+spec:
+  name: MITRE - Internet Explorer Extensions Snapshot
+  platform: windows
+  description: Snapshot Lists all internet explorer extensions - ATT&CK T1176
+  query: ' select * from  ie_extensions;'
+  purpose: Detection
+  tags: MITRE, ATT&CK, threat detection
+  contributors: MitchF
+---
+apiVersion: v1
+kind: query
+spec:
+  name: MITRE - Chrome Extensions (2)
+  platform: linux, darwin, windows
+  description: Lists all chrome extensions - ATT&CK T1176
+  query: |-
+    select u.username, ce.name,ce.identifier,ce.version,ce.description,ce.locale,ce.update_url,ce.author,ce.persistent,ce.path
+    from chrome_extensions ce LEFT JOIN users u ON ce.uid = u.uid;
+  purpose: Detection
+  tags: MITRE, ATT&CK, threat detection
+  contributors: MitchF
+---
+apiVersion: v1
+kind: query
+spec:
+  name: MITRE - Internet Explorer Extensions
+  platform: linux, darwin, windows
+  description: Lists all internet explorer extensions - ATT&CK T1176
+  query: select * from ie_extensions;
+  purpose: Detection
+  tags: MITRE, ATT&CK, threat detection
+  contributors: MitchF
+---
+apiVersion: v1
+kind: query
+spec:
+  name: MITRE - Sophos Service Status 1
+  platform: windows
+  description: Symantec Endpoint Protection service Status change - ATT&CK T1089
+  query: SELECT * FROM services WHERE name = 'SAVAdminService' AND status != 'RUNNING';
+  purpose: Detection
+  tags: MITRE, ATT&CK, threat detection
+  contributors: MitchF
+---
+apiVersion: v1
+kind: query
+spec:
+  name: MITRE - Services Snapshot (1)
+  platform: linux, darwin, windows
+  description: Snapshot Services query
+  query: SELECT * FROM services;
+  purpose: Detection
+  tags: MITRE, ATT&CK, threat detection
+  contributors: MitchF
+---
+apiVersion: v1
+kind: query
+spec:
+  name: MITRE - Sophos Service Status 2
+  platform: windows
+  description: Symantec Endpoint Protection service Status change - ATT&CK T1089
+  query: SELECT * FROM services WHERE name = 'SavService' AND status != 'RUNNING';
+  purpose: Detection
+  tags: MITRE, ATT&CK, threat detection
+  contributors: MitchF
+---
+apiVersion: v1
+kind: query
+spec:
+  name: MITRE - Symantec Service Status
+  platform: windows
+  description: Symantec Endpoint Protection service Status change - ATT&CK T1089
+  query: SELECT * FROM services WHERE name = 'SepMasterService' AND status != 'RUNNING';
+  purpose: Detection
+  tags: MITRE, ATT&CK, threat detection
+  contributors: MitchF
+---
+apiVersion: v1
+kind: query
+spec:
+  name: MITRE - Windows Defender Service Status
+  platform: windows
+  description: Windows Defender service Status change - ATT&CK T1089
+  query: SELECT * FROM services WHERE name = 'WinDefend' AND status != 'RUNNING';
+  purpose: Detection
+  tags: MITRE, ATT&CK, threat detection
+  contributors: MitchF
+---
+apiVersion: v1
+kind: query
+spec:
+  name: MITRE - Windows Firewall Service Status
+  platform: windows
+  description: Windows Firewall service Status change - ATT&CK T1089
+  query: SELECT * FROM services WHERE name = 'MpsSvc' AND status != 'RUNNING';
+  purpose: Detection
+  tags: MITRE, ATT&CK, threat detection
+  contributors: MitchF
+---
+apiVersion: v1
+kind: query
+spec:
+  name: MITRE - Windows Security Service Status
+  platform: windows
+  description: Windows Security Service Status change - ATT&CK T1089
+  query: SELECT * FROM services WHERE name = 'wscsvc' AND status != 'RUNNING';
+  purpose: Detection
+  tags: MITRE, ATT&CK, threat detection
+  contributors: MitchF
+---
+apiVersion: v1
+kind: query
+spec:
+  name: MITRE - Windows Update Service Status
+  platform: windows
+  description: Windows Update Service Status change - ATT&CK T1089
+  query: SELECT * FROM services WHERE name = 'wuauserv' AND status != 'RUNNING';
+  purpose: Detection
+  tags: MITRE, ATT&CK, threat detection
+  contributors: MitchF
+---
+apiVersion: v1
+kind: query
+spec:
+  name: MITRE - Certificate Discovery
+  platform: linux, darwin, windows
+  description: Local system users. - ATT&CK T1116,T1130
+  query: select * from certificates;
+  purpose: Detection
+  tags: MITRE, ATT&CK, threat detection
+  contributors: MitchF
+---
+apiVersion: v1
+kind: query
+spec:
+  name: MITRE - Certificate Discovery Snapshot
+  platform: linux, darwin, windows
+  description: Users snapshot query - ATT&CK T1116,T1130
+  query: select * from certificates;
+  purpose: Detection
+  tags: MITRE, ATT&CK, threat detection
+  contributors: MitchF
+---
+apiVersion: v1
+kind: query
+spec:
+  name: MITRE - Active User Sessions (2)
+  platform: linux, darwin
+  description: Users with an active shell on the system. - ATT&CK T1075,T1097
+  query: select * from logged_in_users;
+  purpose: Detection
+  tags: MITRE, ATT&CK, threat detection
+  contributors: MitchF
+---
+apiVersion: v1
+kind: query
+spec:
+  name: MITRE - Installed Programs
+  platform: linux, darwin, windows
+  description: Local system users.
+  query: SELECT * FROM users;
+  purpose: Detection
+  tags: MITRE, ATT&CK, threat detection
+  contributors: MitchF
+---
+apiVersion: v1
+kind: query
+spec:
+  name: MITRE - Installed Programs Snapshot
+  platform: linux, darwin
+  description: Local system users.
+  query: select * from programs;
+  purpose: Detection
+  tags: MITRE, ATT&CK, threat detection
+  contributors: MitchF
+---
+apiVersion: v1
+kind: query
+spec:
+  name: MITRE - System Information (2)
+  platform: linux, darwin, windows
+  description: System information for identification.
+  query: SELECT * FROM system_info;
+  purpose: Detection
+  tags: MITRE, ATT&CK, threat detection
+  contributors: MitchF
+---
+apiVersion: v1
+kind: query
+spec:
+  name: MITRE - System Information Snapshot
+  platform: linux, darwin
+  description: System info snapshot query
+  query: SELECT * FROM system_info;
+  purpose: Detection
+  tags: MITRE, ATT&CK, threat detection
+  contributors: MitchF
+---
+apiVersion: v1
+kind: query
+spec:
+  name: MITRE - System Uptime
+  platform: linux, darwin, windows
+  description: System uptime
+  query: SELECT * FROM uptime;
+  purpose: Detection
+  tags: MITRE, ATT&CK, threat detection
+  contributors: MitchF
+---
+apiVersion: v1
+kind: query
+spec:
+  name: MITRE - User Account Discovery (2)
+  platform: linux, darwin, windows
+  description: Local system users. - ATT&CK T1136,T1078
+  query: SELECT * FROM users;
+  purpose: Detection
+  tags: MITRE, ATT&CK, threat detection
+  contributors: MitchF
+---
+apiVersion: v1
+kind: query
+spec:
+  name: MITRE - User Account Discovery Snapshot
+  platform: linux, darwin, windows
+  description: Users snapshot query - ATT&CK T1136,T1078
+  query: SELECT * FROM users;
+  purpose: Detection
+  tags: MITRE, ATT&CK, threat detection
+  contributors: MitchF
+---
+apiVersion: v1
+kind: query
+spec:
+  name: MITRE - Windows Crash Analysis
+  platform: windows
+  description: Extracted information from Windows crash logs (Minidumps).
+  query: SELECT * FROM windows_crashes;
+  purpose: Detection
+  tags: MITRE, ATT&CK, threat detection
+  contributors: MitchF
+---
+apiVersion: v1
+kind: query
+spec:
+  name: MITRE - AppData Local Directory Creation
+  platform: windows
+  description: Check suspicious directory creation under AppData\Local - ATT&CK T1034,T1074,T1044
+  query: |-
+    select f.path,f.directory,u.username,f.hard_links,f.symlink,datetime(f.btime,
+    'unixepoch', 'UTC') as btime, datetime(f.atime, 'unixepoch', 'UTC') as atime,
+    datetime(f.ctime, 'unixepoch', 'UTC') as ctime, datetime(f.mtime, 'unixepoch',
+    'UTC') as mtime from file f LEFT JOIN users u on f.uid=u.uid where f.path like
+    'C:\users\%\AppData\Local\%' AND f.type='directory';
+  purpose: Detection
+  tags: MITRE, ATT&CK, threat detection
+  contributors: MitchF
+---
+apiVersion: v1
+kind: query
+spec:
+  name: MITRE - AppData Temp Directory Creation
+  platform: windows
+  description: Check suspicious directory creation under %TEMP% or AppData\Local\Temp - ATT&CK T1034,T1074,T1044
+  query: |-
+    select f.path,f.directory,u.username,f.hard_links,f.symlink,datetime(f.btime,
+    'unixepoch', 'UTC') as btime, datetime(f.atime, 'unixepoch', 'UTC') as atime,
+    datetime(f.ctime, 'unixepoch', 'UTC') as ctime, datetime(f.mtime, 'unixepoch',
+    'UTC') as mtime from file f LEFT JOIN users u on f.uid=u.uid where f.path like
+    'C:\users\%\AppData\local\temp\%' AND f.type='directory';
+  purpose: Detection
+  tags: MITRE, ATT&CK, threat detection
+  contributors: MitchF
+---
+apiVersion: v1
+kind: query
+spec:
+  name: MITRE - AppData Roaming Directory Creation
+  platform: windows
+  description: Check suspicious directory creation under %APPDATA% or %\AppData\Roaming - ATT&CK T1034,T1074,T1044
+  query: |-
+    select f.path,f.directory,u.username,f.hard_links,f.symlink,datetime(f.btime,
+    'unixepoch', 'UTC') as btime, datetime(f.atime, 'unixepoch', 'UTC') as atime,
+    datetime(f.ctime, 'unixepoch', 'UTC') as ctime, datetime(f.mtime, 'unixepoch',
+    'UTC') as mtime from file f LEFT JOIN users u on f.uid=u.uid where f.path like
+    'C:\users\%\AppData\Roaming\%' AND f.type='directory';
+  purpose: Detection
+  tags: MITRE, ATT&CK, threat detection
+  contributors: MitchF
+---
+apiVersion: v1
+kind: query
+spec:
+  name: MITRE - User Start Menu Program Directory Creation
+  platform: windows
+  description: Check suspicious directory creation under Roaming\Microsoft\Windows\Start Menu\Programs - ATT&CK T1060,T1023
+  query: |-
+    select f.path,f.directory,u.username,f.hard_links,f.symlink,datetime(f.btime,
+    'unixepoch', 'UTC') as btime, datetime(f.atime, 'unixepoch', 'UTC') as atime,
+    datetime(f.ctime, 'unixepoch', 'UTC') as ctime, datetime(f.mtime, 'unixepoch',
+    'UTC') as mtime from file f LEFT JOIN users u on f.uid=u.uid where f.path like
+    'C:\users\%\AppData\Roaming\Microsoft\Windows\Start Menu\Programs\%' AND f.type='directory';
+  purpose: Detection
+  tags: MITRE, ATT&CK, threat detection
+  contributors: MitchF
+---
+apiVersion: v1
+kind: query
+spec:
+  name: MITRE - User Start Menu Startup Directory Creation
+  platform: windows
+  description: Check suspicious directory creation under Roaming\Microsoft\Windows\Start Menu\Programs\Startup - ATT&CK T1060,T1023
+  query: |-
+    select f.path,f.directory,u.username,f.hard_links,f.symlink,datetime(f.btime,
+    'unixepoch', 'UTC') as btime, datetime(f.atime, 'unixepoch', 'UTC') as atime,
+    datetime(f.ctime, 'unixepoch', 'UTC') as ctime, datetime(f.mtime, 'unixepoch',
+    'UTC') as mtime from file f LEFT JOIN users u on f.uid=u.uid where f.path like
+    'C:\users\%\AppData\Roaming\Microsoft\Windows\Start Menu\Programs\Startup\%' AND
+    f.type='directory';
+  purpose: Detection
+  tags: MITRE, ATT&CK, threat detection
+  contributors: MitchF
+---
+apiVersion: v1
+kind: query
+spec:
+  name: MITRE - ProgramData Start Menu Directory Creation
+  platform: windows
+  description: Check suspicious directory creation under ProgramData\Microsoft\Windows\Start Menu - ATT&CK T1060,T1023
+  query: |-
+    select f.path,f.directory,u.username,f.hard_links,f.symlink,datetime(f.btime,
+    'unixepoch', 'UTC') as btime, datetime(f.atime, 'unixepoch', 'UTC') as atime,
+    datetime(f.ctime, 'unixepoch', 'UTC') as ctime, datetime(f.mtime, 'unixepoch',
+    'UTC') as mtime from file f LEFT JOIN users u on f.uid=u.uid where f.path like
+    'C:\ProgramData\Microsoft\Windows\Start Menu\%' AND f.type='directory';
+  purpose: Detection
+  tags: MITRE, ATT&CK, threat detection
+  contributors: MitchF
+---
+apiVersion: v1
+kind: query
+spec:
+  name: MITRE - ProgramData Start Menu Program Directory Creation
+  platform: windows
+  description: Check suspicious directory creation under ProgramData\Microsoft\Windows\Start Menu\Programs - ATT&CK T1060,T1023
+  query: |-
+    select f.path,f.directory,u.username,f.hard_links,f.symlink,datetime(f.btime,
+    'unixepoch', 'UTC') as btime, datetime(f.atime, 'unixepoch', 'UTC') as atime,
+    datetime(f.ctime, 'unixepoch', 'UTC') as ctime, datetime(f.mtime, 'unixepoch',
+    'UTC') as mtime from file f LEFT JOIN users u on f.uid=u.uid where f.path like
+    'C:\ProgramData\Microsoft\Windows\Start Menu\Programs\%' AND f.type='directory';
+  purpose: Detection
+  tags: MITRE, ATT&CK, threat detection
+  contributors: MitchF
+---
+apiVersion: v1
+kind: query
+spec:
+  name: MITRE - Windows Directory Creation
+  platform: windows
+  description: "Check suspicious directory creation under c:\windows - ATT&CK T1034,T1074,T1044"
+  query: |-
+    select f.path,f.directory,u.username,f.hard_links,f.symlink,datetime(f.btime,
+    'unixepoch', 'UTC') as btime, datetime(f.atime, 'unixepoch', 'UTC') as atime,
+    datetime(f.ctime, 'unixepoch', 'UTC') as ctime, datetime(f.mtime, 'unixepoch',
+    'UTC') as mtime from file f LEFT JOIN users u on f.uid=u.uid where f.path like
+    'C:\Windows\%' AND f.type='directory';
+  purpose: Detection
+  tags: MITRE, ATT&CK, threat detection
+  contributors: MitchF
+---
+apiVersion: v1
+kind: query
+spec:
+  name: MITRE - Windows Temp Directory Creation
+  platform: windows
+  description: "Check suspicious directory creation under c:\windows\temp - ATT&CK T1034,T1074,T1044"
+  query: |-
+    select f.path,f.directory,u.username,f.hard_links,f.symlink,datetime(f.btime,
+    'unixepoch', 'UTC') as btime, datetime(f.atime, 'unixepoch', 'UTC') as atime,
+    datetime(f.ctime, 'unixepoch', 'UTC') as ctime, datetime(f.mtime, 'unixepoch',
+    'UTC') as mtime from file f LEFT JOIN users u on f.uid=u.uid where f.path like
+    'C:\Windows\temp\%' AND f.type='directory';
+  purpose: Detection
+  tags: MITRE, ATT&CK, threat detection
+  contributors: MitchF
+---
+apiVersion: v1
+kind: query
+spec:
+  name: MITRE - AppData Local File Creation
+  platform: windows
+  description: Check suspicious file creation under AppData\Local - ATT&CK T1034,T1074,T1044
+  query: |-
+    SELECT hash.md5, path, file.filename, datetime(file.btime, 'unixepoch', 'UTC')
+    as btime, datetime(file.atime, 'unixepoch', 'UTC') as atime, datetime(file.ctime,
+    'unixepoch', 'UTC') as ctime, datetime(file.mtime, 'unixepoch', 'UTC') as mtime
+    FROM hash JOIN file USING (path) where path like 'C:\users\%\AppData\Local\%'
+    and type='regular';
+  purpose: Detection
+  tags: MITRE, ATT&CK, threat detection
+  contributors: MitchF
+---
+apiVersion: v1
+kind: query
+spec:
+  name: MITRE - AppData Temp File Creation
+  platform: windows
+  description: Check suspicious file creation under %TEMP% or AppData\Local\Temp - ATT&CK T1034,T1074,T1044
+  query: |-
+    SELECT hash.md5, path, file.filename, datetime(file.btime, 'unixepoch', 'UTC')
+    as btime, datetime(file.atime, 'unixepoch', 'UTC') as atime, datetime(file.ctime,
+    'unixepoch', 'UTC') as ctime, datetime(file.mtime, 'unixepoch', 'UTC') as mtime
+    FROM hash JOIN file USING (path) where path like 'C:\users\%\AppData\Local\temp\%'
+    and type='regular';
+  purpose: Detection
+  tags: MITRE, ATT&CK, threat detection
+  contributors: MitchF
+---
+apiVersion: v1
+kind: query
+spec:
+  name: MITRE - AppData Roaming File Creation
+  platform: windows
+  description: Check suspicious file creation under %APPDATA% or %\AppData\Roaming - ATT&CK T1034,T1074,T1044
+  query: |-
+    SELECT hash.md5, path, file.filename, datetime(file.btime, 'unixepoch', 'UTC')
+    as btime, datetime(file.atime, 'unixepoch', 'UTC') as atime, datetime(file.ctime,
+    'unixepoch', 'UTC') as ctime, datetime(file.mtime, 'unixepoch', 'UTC') as mtime
+    FROM hash JOIN file USING (path) where path like 'C:\users\%\AppData\Roaming\%'
+    and type='regular';
+  purpose: Detection
+  tags: MITRE, ATT&CK, threat detection
+  contributors: MitchF
+---
+apiVersion: v1
+kind: query
+spec:
+  name: MITRE - ProgramData Start Menu File Creation
+  platform: windows
+  description: Check suspicious file creation under ProgramData\Microsoft\Windows\Start Menu - ATT&CK T1060,T1023
+  query: |-
+    SELECT hash.md5, path, file.filename, datetime(file.btime, 'unixepoch', 'UTC')
+    as btime, datetime(file.atime, 'unixepoch', 'UTC') as atime, datetime(file.ctime,
+    'unixepoch', 'UTC') as ctime, datetime(file.mtime, 'unixepoch', 'UTC') as mtime
+    FROM hash JOIN file USING (path) where path like 'C:\ProgramData\Microsoft\Windows\Start
+    Menu\%' AND type='regular';
+  purpose: Detection
+  tags: MITRE, ATT&CK, threat detection
+  contributors: MitchF
+---
+apiVersion: v1
+kind: query
+spec:
+  name: MITRE - ProgramData Start Menu Program File Creation
+  platform: windows
+  description: Check suspicious file creation under ProgramData\Microsoft\Windows\Start Menu\Programs - ATT&CK T1060,T1023
+  query: |-
+    SELECT hash.md5, path, file.filename, datetime(file.btime, 'unixepoch', 'UTC')
+    as btime, datetime(file.atime, 'unixepoch', 'UTC') as atime, datetime(file.ctime,
+    'unixepoch', 'UTC') as ctime, datetime(file.mtime, 'unixepoch', 'UTC') as mtime
+    FROM hash JOIN file USING (path) where path like 'C:\ProgramData\Microsoft\Windows\Start
+    Menu\Programs\%' AND type='regular';
+  purpose: Detection
+  tags: MITRE, ATT&CK, threat detection
+  contributors: MitchF
+---
+apiVersion: v1
+kind: query
+spec:
+  name: MITRE - User Start Menu Program File Creation
+  platform: windows
+  description: Check suspicious file creation under Roaming\Microsoft\Windows\Start Menu\Programs - ATT&CK T1060,T1023
+  query: |-
+    SELECT hash.md5, path, file.filename, datetime(file.btime, 'unixepoch', 'UTC')
+    as btime, datetime(file.atime, 'unixepoch', 'UTC') as atime, datetime(file.ctime,
+    'unixepoch', 'UTC') as ctime, datetime(file.mtime, 'unixepoch', 'UTC') as mtime
+    FROM hash JOIN file USING (path) where path like 'C:\users\%\AppData\Roaming\Microsoft\Windows\Start
+    Menu\Programs\%' AND type='regular';
+  purpose: Detection
+  tags: MITRE, ATT&CK, threat detection
+  contributors: MitchF
+---
+apiVersion: v1
+kind: query
+spec:
+  name: MITRE - User Start Menu Startup File Creation
+  platform: windows
+  description: Check suspicious file creation under Roaming\Microsoft\Windows\Start Menu\Programs\Startup - ATT&CK T1060,T1023
+  query: |-
+    SELECT hash.md5, path, file.filename, datetime(file.btime, 'unixepoch', 'UTC')
+    as btime, datetime(file.atime, 'unixepoch', 'UTC') as atime, datetime(file.ctime,
+    'unixepoch', 'UTC') as ctime, datetime(file.mtime, 'unixepoch', 'UTC') as mtime
+    FROM hash JOIN file USING (path) where path like 'C:\users\%\AppData\Roaming\Microsoft\Windows\Start
+    Menu\Programs\Startup\%' AND type='regular';
+  purpose: Detection
+  tags: MITRE, ATT&CK, threat detection
+  contributors: MitchF
+---
+apiVersion: v1
+kind: query
+spec:
+  name: MITRE - Windows File Creation
+  platform: windows
+  description: "Check suspicious file creation under c:\windows - ATT&CK T1034,T1074,T1044"
+  query: |-
+    SELECT hash.md5, path, file.filename, datetime(file.btime, 'unixepoch', 'UTC')
+    as btime, datetime(file.atime, 'unixepoch', 'UTC') as atime, datetime(file.ctime,
+    'unixepoch', 'UTC') as ctime, datetime(file.mtime, 'unixepoch', 'UTC') as mtime
+    FROM hash JOIN file USING (path) where path like 'C:\Windows\%' and type='regular';
+  purpose: Detection
+  tags: MITRE, ATT&CK, threat detection
+  contributors: MitchF
+---
+apiVersion: v1
+kind: query
+spec:
+  name: MITRE - Windows Temp File Creation
+  platform: windows
+  description: "Check suspicious file creation under c:\windows\temp - ATT&CK T1034,T1074,T1044"
+  query: |-
+    SELECT hash.md5, path, file.filename, datetime(file.btime, 'unixepoch', 'UTC')
+    as btime, datetime(file.atime, 'unixepoch', 'UTC') as atime, datetime(file.ctime,
+    'unixepoch', 'UTC') as ctime, datetime(file.mtime, 'unixepoch', 'UTC') as mtime
+    FROM hash JOIN file USING (path) where path like 'C:\Windows\temp\%' and type='regular';
+  purpose: Detection
+  tags: MITRE, ATT&CK, threat detection
+  contributors: MitchF
+---
+apiVersion: v1
+kind: query
+spec:
+  name: MITRE - Startup Items Snapshot
+  platform: linux, darwin
+  description: Snapshot Windows Startup Items Osquery predefined query - ATT&CK T1060
+  query: select * from startup_items;
+  purpose: Detection
+  tags: MITRE, ATT&CK, threat detection
+  contributors: MitchF
+---
+apiVersion: v1
+kind: query
+spec:
+  name: MITRE - Startup Items
+  platform: linux, darwin, windows
+  description: Windows Startup Items Osquery predefined query - ATT&CK T1060
+  query: select * from startup_items;
+  purpose: Detection
+  tags: MITRE, ATT&CK, threat detection
+  contributors: MitchF
+---
+apiVersion: v1
+kind: query
+spec:
+  name: MITRE - PowerShell Script Block Events
+  platform: windows
+  description: Powershell script blocks reconstructed to their full script content, this table requires script block logging to be enabled. - ATT&CK T1086,T1064
+  query: select * from powershell_events;
+  purpose: Detection
+  tags: MITRE, ATT&CK, threat detection
+  contributors: MitchF
+---
+apiVersion: v1
+kind: query
+spec:
+  name: MITRE - Fileless Process Detection
+  platform: linux, darwin, windows
+  description: Detect Processes running without a binary on disk
+  query: SELECT name, path, pid FROM processes WHERE on_disk = 0;
+  purpose: Detection
+  tags: MITRE, ATT&CK, threat detection
+  contributors: MitchF
+---
+apiVersion: v1
+kind: query
+spec:
+  name: MITRE - Scheduled Tasks (2)
+  platform: windows
+  description: Lists all of the tasks in the Windows task scheduler - ATT&CK T1053
+  query: |-
+    select name,action,path,enabled,datetime(next_run_time,'unixepoch','UTC')
+    from scheduled_tasks;
+  purpose: Detection
+  tags: MITRE, ATT&CK, threat detection
+  contributors: MitchF
+---
+apiVersion: v1
+kind: query
+spec:
+  name: MITRE - Scheduled Tasks Monitoring
+  platform: windows
+  description: Lists all of the tasks in the Windows task scheduler
+  query: |-
+    select name,action,path,enabled,datetime(next_run_time,'unixepoch','UTC')
+    from scheduled_tasks;
+  purpose: Detection
+  tags: MITRE, ATT&CK, threat detection
+  contributors: MitchF
+---
+apiVersion: v1
+kind: query
+spec:
+  name: MITRE - Auto-Start Services
+  platform: linux, darwin, windows
+  description: Lists all installed services configured to start automatically at boot - ATT&CK T1050
+  query: SELECT * FROM services WHERE start_type='DEMAND_START' OR start_type='AUTO_START';
+  purpose: Detection
+  tags: MITRE, ATT&CK, threat detection
+  contributors: MitchF
+---
+apiVersion: v1
+kind: query
+spec:
+  name: MITRE - Services Snapshot (2)
+  platform: linux, darwin, windows
+  description: Snapshot Services query
+  query: SELECT * FROM services;
+  purpose: Detection
+  tags: MITRE, ATT&CK, threat detection
+  contributors: MitchF
+---
+apiVersion: v1
+kind: query
+spec:
+  name: MITRE - Running Processes Snapshot
+  platform: linux, darwin
+  description: Snapshot List Windows System running processes - ATT&CK T1034,T1121,T1117,T1085
+  query: |-
+    select processes.pid, processes.name, users.username, processes.path from
+    processes LEFT JOIN users ON processes.uid = users.uid WHERE processes.path !=
+    '';
+  purpose: Detection
+  tags: MITRE, ATT&CK, threat detection
+  contributors: MitchF
+---
+apiVersion: v1
+kind: query
+spec:
+  name: MITRE - Running Processes
+  platform: linux, darwin, windows
+  description: List Windows System running processes. - ATT&CK T1034,T1121,T1117,T1085
+  query: |-
+    select processes.pid, processes.name, users.username, processes.path, processes.cmdline
+    from processes LEFT JOIN users ON processes.uid = users.uid WHERE processes.path
+    != '';
+  purpose: Detection
+  tags: MITRE, ATT&CK, threat detection
+  contributors: MitchF
