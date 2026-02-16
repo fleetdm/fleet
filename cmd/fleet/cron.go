@@ -219,7 +219,6 @@ func scanVulnerabilities(
 	meta, err := ds.ListCVEs(automationCtx, config.RecentVulnerabilityMaxAge)
 	if err != nil {
 		errHandler(automationCtx, logger, "could not fetch CVE meta", err)
-		automationSpan.RecordError(err)
 		return nil
 	}
 
@@ -249,7 +248,6 @@ func scanVulnerabilities(
 				mapper,
 			); err != nil {
 				errHandler(automationCtx, logger, "triggering vulnerabilities webhook", err)
-				automationSpan.RecordError(err)
 			}
 
 		case "jira":
@@ -262,7 +260,6 @@ func scanVulnerabilities(
 				matchingMeta,
 			); err != nil {
 				errHandler(automationCtx, logger, "queueing vulnerabilities to jira", err)
-				automationSpan.RecordError(err)
 			}
 
 		case "zendesk":
@@ -275,13 +272,11 @@ func scanVulnerabilities(
 				matchingMeta,
 			); err != nil {
 				errHandler(automationCtx, logger, "queueing vulnerabilities to Zendesk", err)
-				automationSpan.RecordError(err)
 			}
 
 		default:
 			err = ctxerr.New(automationCtx, "no vuln automations enabled")
 			errHandler(automationCtx, logger, "attempting to process vuln automations", err)
-			automationSpan.RecordError(err)
 		}
 	}
 
@@ -301,7 +296,6 @@ func checkCustomVulnerabilities(
 	vulns, err := customcve.CheckCustomVulnerabilities(ctx, ds, logger, startTime)
 	if err != nil {
 		errHandler(ctx, logger, "checking custom vulnerabilities", err)
-		span.RecordError(err)
 	}
 
 	level.Debug(logger).Log("msg", "custom-vulnerabilities-analysis-done", "found new", len(vulns))
@@ -330,7 +324,6 @@ func checkWinVulnerabilities(
 	os, err := ds.ListOperatingSystems(ctx)
 	if err != nil {
 		errHandler(ctx, logger, "fetching list of operating systems", err)
-		span.RecordError(err)
 		return nil
 	}
 
@@ -340,7 +333,6 @@ func checkWinVulnerabilities(
 		err = msrc.SyncFromGithub(syncCtx, vulnPath, os)
 		if err != nil {
 			errHandler(syncCtx, logger, "updating msrc definitions", err)
-			syncSpan.RecordError(err)
 		}
 		syncSpan.End()
 	}
@@ -366,7 +358,6 @@ func checkWinVulnerabilities(
 			results = append(results, r...)
 			if err != nil {
 				errHandler(analyzeCtx, logger.With("os name", o.Name, "display version", o.DisplayVersion), "analyzing hosts for Windows vulnerabilities", err)
-				analyzeSpan.RecordError(err)
 			}
 		}
 		analyzeSpan.End()
@@ -392,7 +383,6 @@ func checkOvalVulnerabilities(
 	versions, err := ds.OSVersions(ctx, nil, nil, nil, nil)
 	if err != nil {
 		errHandler(ctx, logger, "updating oval definitions", err)
-		span.RecordError(err)
 		return nil
 	}
 
@@ -402,7 +392,6 @@ func checkOvalVulnerabilities(
 		downloaded, err := oval.Refresh(refreshCtx, versions, vulnPath)
 		if err != nil {
 			errHandler(refreshCtx, logger, "updating oval definitions", err)
-			refreshSpan.RecordError(err)
 		}
 		for _, d := range downloaded {
 			level.Debug(logger).Log("oval-sync-downloaded", d)
@@ -430,7 +419,6 @@ func checkOvalVulnerabilities(
 		results = append(results, r...)
 		if err != nil {
 			errHandler(analyzeCtx, logger, "analyzing oval definitions", err)
-			analyzeSpan.RecordError(err)
 		}
 	}
 	analyzeSpan.End()
@@ -455,7 +443,6 @@ func checkGovalDictionaryVulnerabilities(
 	versions, err := ds.OSVersions(ctx, nil, nil, nil, nil)
 	if err != nil {
 		errHandler(ctx, logger, "listing platforms for goval_dictionary pulls", err)
-		span.RecordError(err)
 		return nil
 	}
 
@@ -465,7 +452,6 @@ func checkGovalDictionaryVulnerabilities(
 		downloaded, err := goval_dictionary.Refresh(versions, vulnPath, logger)
 		if err != nil {
 			errHandler(refreshCtx, logger, "updating goval_dictionary databases", err)
-			refreshSpan.RecordError(err)
 		}
 		for _, d := range downloaded {
 			level.Debug(logger).Log("goval_dictionary-sync-downloaded", d)
@@ -492,7 +478,6 @@ func checkGovalDictionaryVulnerabilities(
 		results = append(results, r...)
 		if err != nil {
 			errHandler(analyzeCtx, logger, "analyzing goval_dictionary definitions", err)
-			analyzeSpan.RecordError(err)
 		}
 	}
 	analyzeSpan.End()
@@ -524,7 +509,6 @@ func checkNVDVulnerabilities(
 		err := nvd.Sync(opts, logger)
 		if err != nil {
 			errHandler(syncCtx, logger, "syncing vulnerability database", err)
-			syncSpan.RecordError(err)
 			// don't return, continue on ...
 		}
 		syncSpan.End()
@@ -533,7 +517,6 @@ func checkNVDVulnerabilities(
 	loadCtx, loadSpan := tracer.Start(ctx, "vuln.nvd.load_cve_meta")
 	if err := nvd.LoadCVEMeta(loadCtx, logger, vulnPath, ds); err != nil {
 		errHandler(loadCtx, logger, "load cve meta", err)
-		loadSpan.RecordError(err)
 		// don't return, continue on ...
 	}
 	loadSpan.End()
@@ -542,7 +525,6 @@ func checkNVDVulnerabilities(
 	err := nvd.TranslateSoftwareToCPE(cpeCtx, ds, vulnPath, logger)
 	if err != nil {
 		errHandler(cpeCtx, logger, "analyzing vulnerable software: Software->CPE", err)
-		cpeSpan.RecordError(err)
 		cpeSpan.End()
 		return nil
 	}
@@ -552,7 +534,6 @@ func checkNVDVulnerabilities(
 	vulns, err := nvd.TranslateCPEToCVE(cveCtx, ds, vulnPath, logger, collectVulns, startTime)
 	if err != nil {
 		errHandler(cveCtx, logger, "analyzing vulnerable software: CPE->CVE", err)
-		cveSpan.RecordError(err)
 		cveSpan.End()
 		return nil
 	}
@@ -577,7 +558,6 @@ func checkMacOfficeVulnerabilities(
 		err := macoffice.SyncFromGithub(syncCtx, vulnPath)
 		if err != nil {
 			errHandler(syncCtx, logger, "updating mac office release notes", err)
-			syncSpan.RecordError(err)
 		}
 		syncSpan.End()
 
@@ -596,7 +576,6 @@ func checkMacOfficeVulnerabilities(
 
 	if err != nil {
 		errHandler(analyzeCtx, logger, "analyzing mac office products for vulnerabilities", err)
-		analyzeSpan.RecordError(err)
 	}
 	analyzeSpan.End()
 
