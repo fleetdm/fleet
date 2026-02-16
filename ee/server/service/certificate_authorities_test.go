@@ -15,6 +15,7 @@ import (
 	"github.com/fleetdm/fleet/v4/ee/server/service/est"
 	"github.com/fleetdm/fleet/v4/server/authz"
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
+	"github.com/fleetdm/fleet/v4/server/dev_mode"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mock"
 	scep_mock "github.com/fleetdm/fleet/v4/server/mock/scep"
@@ -144,6 +145,10 @@ func setupMockCAServers(t *testing.T) (digicertServer, hydrantServer *httptest.S
 }
 
 func TestCreatingCertificateAuthorities(t *testing.T) {
+	// Enable dev mode so CheckURLForSSRF skips the private-IP blocklist for the duration of this test.
+	dev_mode.IsEnabled = true
+	t.Cleanup(func() { dev_mode.IsEnabled = false })
+
 	digicertServer, hydrantServer := setupMockCAServers(t)
 	digicertURL := digicertServer.URL
 	hydrantURL := hydrantServer.URL
@@ -1092,7 +1097,9 @@ func TestCreatingCertificateAuthorities(t *testing.T) {
 }
 
 func TestUpdatingCertificateAuthorities(t *testing.T) {
-	t.Parallel()
+	// Enable dev mode so CheckURLForSSRF skips the private-IP blocklist for the duration of this test.
+	dev_mode.IsEnabled = true
+	t.Cleanup(func() { dev_mode.IsEnabled = false })
 
 	digicertServer, hydrantServer := setupMockCAServers(t)
 	digicertURL := digicertServer.URL
