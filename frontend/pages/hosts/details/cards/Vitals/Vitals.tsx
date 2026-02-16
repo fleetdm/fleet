@@ -287,7 +287,7 @@ const Vitals = ({
     return <DataSet title="Location" value={geoLocationButton} />;
   };
 
-  const renderBatteryCondition = () => {
+  const renderBattery = () => {
     if (
       vitalsData.batteries === null ||
       typeof vitalsData.batteries !== "object" ||
@@ -467,11 +467,6 @@ const Vitals = ({
         osVersionRequirement.minimum_version
       ) >= 0;
 
-    const renderHostVitals = () => {
-      // collect all datasets to be included, depending on various conditions - see above comment
-      // render the collected datasets in alphabetical order of their titles
-    };
-
     return (
       <DataSet
         title="Operating system"
@@ -511,6 +506,11 @@ const Vitals = ({
     );
   };
 
+  const renderVitals = () => {
+    // collect all datasets to be included, depending on various conditions
+    // render the collected datasets in alphabetical order of their titels
+  };
+
   const classNames = classnames(baseClass, className);
 
   return (
@@ -521,72 +521,44 @@ const Vitals = ({
     >
       <CardHeader header="Vitals" />
       <div className={`${baseClass}__info-grid`}>
-        {
-          // <DataSet
-          //   title="Added to Fleet"
-          //   value={
-          //     <HumanTimeDiffWithFleetLaunchCutoff
-          //       timeString={vitalsData.last_enrolled_at ?? "Unavailable"}
-          //     />
-          //   }
-          // />;
-          // {
-          //   renderAgentSummary();
-          // }
-          // {
-          //   renderBatteryCondition();
-          // }
-          // {
-          //   renderDiskEncryptionSummary();
-          // }
-          // {
-          //   !isChromeHost && renderDiskSpaceSummary();
-          // }
-          // {
-          //   !isIosOrIpadosHost && !isAndroidHost && (
-          //     <DataSet
-          //       title="Last restarted"
-          //       value={
-          //         <HumanTimeDiffWithFleetLaunchCutoff
-          //           timeString={vitalsData.last_restarted_at}
-          //         />
-          //       }
-          //     />
-          //   );
-          // }
-          // {
-          //   renderHardwareSerialAndIPs();
-          // }
-          // {
-          //   !isIosOrIpadosHost && (
-          //     <DataSet
-          //       title="Memory"
-          //       value={wrapFleetHelper(humanHostMemory, vitalsData.memory)}
-          //     />
-          //   );
-          // }
-          // {
-          //   !isIosOrIpadosHost && (
-          //     <DataSet title="Processor type" value={vitalsData.cpu_type} />
-          //   );
-          // }
-          // {
-          //   renderOperatingSystemSummary();
-          // }
-          // {
-          //   renderMunkiData();
-          // }
-          // {
-          //   renderMdmData();
-          // }
-          // {
-          //   renderTimezone();
-          // }
-          // {
-          //   renderGeolocation();
-          // }
-          renderHostVitals()
-        }
+        {renderVitalsAlphabetically()}
+        <DataSet
+          title="Added to Fleet"
+          value={
+            <HumanTimeDiffWithFleetLaunchCutoff
+              timeString={vitalsData.last_enrolled_at ?? "Unavailable"}
+            />
+          }
+        />
+        {!isIosOrIpadosHost && !isAndroidHost && (
+          <DataSet
+            title="Last restarted"
+            value={
+              <HumanTimeDiffWithFleetLaunchCutoff
+                timeString={vitalsData.last_restarted_at}
+              />
+            }
+          />
+        )}
+        {renderDiskEncryptionSummary()}
+        {!isChromeHost && renderDiskSpaceSummary()}
+        {renderAgentSummary()}
+        {renderHardwareSerialAndIPs()}
+        {!isIosOrIpadosHost && (
+          <DataSet
+            title="Memory"
+            value={wrapFleetHelper(humanHostMemory, vitalsData.memory)}
+          />
+        )}
+        {renderBattery()}
+        {!isIosOrIpadosHost && (
+          <DataSet title="Processor type" value={vitalsData.cpu_type} />
+        )}
+        {renderOperatingSystemSummary()}
+        {renderMunkiData()}
+        {renderMdmData()}
+        {renderTimezone()}
+        {renderGeolocation()}
       </div>
     </Card>
   );
