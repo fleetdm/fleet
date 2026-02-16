@@ -161,22 +161,13 @@ jobs:
                 "Please ensure the following checklist item is checked before QA begins:\n\n" +
                 "- [x] " + checkText;
 
-              if (itemType === "issue") {
-                await github.rest.issues.createComment({
-                  owner: context.repo.owner,
-                  repo: context.repo.repo,
-                  issue_number: number,
-                  body: commentBody
-                });
-              } else {
-                await github.rest.pulls.createReview({
-                  owner: context.repo.owner,
-                  repo: context.repo.repo,
-                  pull_number: number,
-                  body: commentBody,
-                  event: "COMMENT"
-                });
-              }
+              // Use issues.createComment for both issues and PRs
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: number,
+                body: commentBody
+              });
 
               console.log("Added comment to " + itemType + " #" + number);
             } else {
