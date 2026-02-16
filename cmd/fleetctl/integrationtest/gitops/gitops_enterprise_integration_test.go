@@ -2569,7 +2569,7 @@ settings:
 	// Verify the custom icon is stored in the database for team
 	var teamIconFilenames []string
 	mysql.ExecAdhocSQL(t, s.DS, func(q sqlx.ExtContext) error {
-		stmt, args, err := sqlx.In("SELECT filename FROM software_title_icons WHERE team_id = ? AND software_title_id IN (?)", 0, teamTitleIDs)
+		stmt, args, err := sqlx.In("SELECT filename FROM software_title_icons WHERE team_id = ? AND software_title_id IN (?)", team.ID, teamTitleIDs)
 		if err != nil {
 			return err
 		}

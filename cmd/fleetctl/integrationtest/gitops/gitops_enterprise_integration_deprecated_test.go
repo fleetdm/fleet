@@ -293,7 +293,7 @@ queries:
 	assert.Len(t, profiles, 1)
 
 	// now modify the stored config and confirm that external digicert service is called
-	_, err = globalFile.WriteString(fmt.Sprintf(`
+	err = os.WriteFile(globalFile.Name(), []byte(fmt.Sprintf(`
 agent_options:
 controls:
   macos_settings:
@@ -325,7 +325,7 @@ queries:
 		digiCertServer.URL,
 		"digicert_upn_2", // minor modification to stored config so gitops run is not a no-op and triggers call to external digicert service
 		scepServer.URL+"/scep",
-	))
+	)), 0o644)
 	require.NoError(t, err)
 
 	// Apply configs
@@ -350,7 +350,7 @@ queries:
 	gotProfileMu.Unlock()
 
 	// Now test that we can clear the configs
-	_, err = globalFile.WriteString(`
+	err = os.WriteFile(globalFile.Name(), []byte(`
 agent_options:
 controls:
   macos_settings:
@@ -363,7 +363,7 @@ org_settings:
   secrets:
 policies:
 queries:
-`)
+`), 0o644)
 	require.NoError(t, err)
 
 	s.assertDryRunOutputWithDeprecation(t, fleetctl.RunAppForTest(t, []string{"gitops", "--config", fleetctlConfig.Name(), "-f", globalFile.Name(), "--dry-run"}), true)
@@ -1890,7 +1890,7 @@ team_settings:
 	// Verify the custom icon is stored in the database for team
 	var teamIconFilenames []string
 	mysql.ExecAdhocSQL(t, s.DS, func(q sqlx.ExtContext) error {
-		stmt, args, err := sqlx.In("SELECT filename FROM software_title_icons WHERE team_id = ? AND software_title_id IN (?)", 0, teamTitleIDs)
+		stmt, args, err := sqlx.In("SELECT filename FROM software_title_icons WHERE team_id = ? AND software_title_id IN (?)", team.ID, teamTitleIDs)
 		if err != nil {
 			return err
 		}
