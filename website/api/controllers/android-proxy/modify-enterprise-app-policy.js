@@ -18,7 +18,7 @@ module.exports = {
     },
     googleAction: {
       type: 'string',
-      required: true,
+      defaultsTo: 'modifyPolicyApplications',
     },
     // packageNames is the body for the removePolicyApplications googleAction.
     packageNames: {
