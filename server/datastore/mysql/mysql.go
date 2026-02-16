@@ -30,6 +30,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mdm/android"
 	nano_push "github.com/fleetdm/fleet/v4/server/mdm/nanomdm/push"
 	scep_depot "github.com/fleetdm/fleet/v4/server/mdm/scep/depot"
+	"github.com/fleetdm/fleet/v4/server/platform/logging"
 	common_mysql "github.com/fleetdm/fleet/v4/server/platform/mysql"
 	"github.com/fleetdm/fleet/v4/server/service/modules/activities"
 	"github.com/go-kit/log"
@@ -63,7 +64,7 @@ type Datastore struct {
 	replica fleet.DBReader // so it cannot be used to perform writes
 	primary *sqlx.DB
 
-	logger log.Logger
+	logger *logging.Logger
 	clock  clock.Clock
 	config config.MysqlConfig
 	pusher nano_push.Pusher
@@ -233,7 +234,7 @@ func NewDBConnections(cfg config.MysqlConfig, opts ...DBOption) (*common_mysql.D
 	options := &common_mysql.DBOptions{
 		MinLastOpenedAtDiff: defaultMinLastOpenedAtDiff,
 		MaxAttempts:         defaultMaxAttempts,
-		Logger:              log.NewNopLogger(),
+		Logger:              logging.NewNopLogger(),
 	}
 
 	for _, setOpt := range opts {

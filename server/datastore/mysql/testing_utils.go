@@ -34,6 +34,7 @@ import (
 	nanodep_client "github.com/fleetdm/fleet/v4/server/mdm/nanodep/client"
 	mdmtesting "github.com/fleetdm/fleet/v4/server/mdm/testing_utils"
 	platform_authz "github.com/fleetdm/fleet/v4/server/platform/authz"
+	"github.com/fleetdm/fleet/v4/server/platform/logging"
 	common_mysql "github.com/fleetdm/fleet/v4/server/platform/mysql"
 	"github.com/fleetdm/fleet/v4/server/platform/mysql/testing_utils"
 	"github.com/go-kit/log"
@@ -65,9 +66,11 @@ func connectMySQL(t testing.TB, testName string, opts *testing_utils.DatastoreTe
 	// TODO: for some reason we never log datastore messages when running integration tests, why?
 	//
 	// Changes below assume that we want to follows the same pattern as the rest of the codebase.
-	dslogger := log.NewLogfmtLogger(os.Stdout)
+	var dslogger *logging.Logger
 	if os.Getenv("FLEET_INTEGRATION_TESTS_DISABLE_LOG") != "" {
-		dslogger = log.NewNopLogger()
+		dslogger = logging.NewNopLogger()
+	} else {
+		dslogger = logging.NewLogfmtLogger(os.Stdout)
 	}
 
 	// Use TestSQLMode which combines ANSI mode components with MySQL 8 strict modes
@@ -83,7 +86,7 @@ func connectMySQL(t testing.TB, testName string, opts *testing_utils.DatastoreTe
 		replicaOpts := &common_mysql.DBOptions{
 			MinLastOpenedAtDiff: defaultMinLastOpenedAtDiff,
 			MaxAttempts:         1,
-			Logger:              log.NewNopLogger(),
+			Logger:              logging.NewNopLogger(),
 			SqlMode:             common_mysql.TestSQLMode,
 		}
 		setupRealReplica(t, testName, ds, replicaOpts)
