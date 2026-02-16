@@ -38,6 +38,8 @@ func main() {
 		org          = flag.String("org", "fleetdm", "GitHub org login")
 		projectNum   = flag.Int("project", 71, "GitHub Project (v2) number")
 		fieldNameArg = flag.String("field", "Sprint", "Iteration field name to use (case-insensitive match, exact match preferred)")
+		statusField  = flag.String("status-field", "Status", "Status/column field name (single select) to use for excluding columns")
+		excludeCols  = flag.String("exclude", "✅ Ready for release,Done", "Comma-separated exact Status values to exclude")
 		limit        = flag.Int("limit", 0, "Optional max number of items to update (0 = no limit)")
 		yes          = flag.Bool("yes", false, "Skip confirmation prompt (dangerous)")
 		dryRun       = flag.Bool("dry-run", false, "Don't update anything; only print what would change")
@@ -62,6 +64,13 @@ func main() {
 		log.Fatalf("Failed to find iteration field: %v", err)
 	}
 
+	statusFieldID, statusFieldName, err := fetchSingleSelectField(ctx, client, *org, *projectNum, *statusField)
+	if err != nil {
+		log.Fatalf("Failed to find status field: %v", err)
+	}
+
+	excluded := parseExactSet(*excludeCols)
+
 	if len(sprintField.Iterations) == 0 {
 		log.Fatalf("Iteration field %q has no iterations configured", sprintField.FieldName)
 	}
@@ -74,9 +83,13 @@ func main() {
 
 	fmt.Printf("Project: %s (#%d)\n", projectTitle, *projectNum)
 	fmt.Printf("Sprint field: %s (%s)\n", sprintField.FieldName, sprintField.FieldID)
+	fmt.Printf("Status field: %s (%s)\n", statusFieldName, statusFieldID)
+	if len(excluded) > 0 {
+		fmt.Printf("Excluding columns (exact Status match): %s\n", strings.Join(sortedKeys(excluded), ", "))
+	}
 	fmt.Printf("Current iteration: %s (start %s, %d days)\n\n", cur.Title, cur.StartDate, cur.Duration)
 
-	items, err := fetchItemsMissingIteration(ctx, client, projectID, sprintField.FieldID)
+	items, err := fetchItemsMissingIteration(ctx, client, projectID, sprintField.FieldID, statusFieldID, excluded)
 	if err != nil {
 		log.Fatalf("Failed to list items: %v", err)
 	}
@@ -157,18 +170,20 @@ func fetchIterationField(ctx context.Context, client *githubv4.Client, org strin
 				Fields struct {
 					Nodes []struct {
 						Typename string        `graphql:"__typename"`
-						ID       githubv4.ID   `graphql:"... on ProjectV2FieldCommon { id }"`
-						Name     githubv4.String `graphql:"... on ProjectV2FieldCommon { name }"`
-						IterCfg  *struct {
+						Common struct {
+							ID   githubv4.ID   `graphql:"id"`
+							Name githubv4.String `graphql:"name"`
+						} `graphql:"... on ProjectV2FieldCommon"`
+						IterCfg struct {
 							Configuration struct {
 								Iterations []struct {
-									ID        githubv4.String
-									Title     githubv4.String
-									StartDate githubv4.String
-									Duration  githubv4.Int
-								}
-							}
-						} `graphql:"... on ProjectV2IterationField { configuration }"`
+									ID        githubv4.String `graphql:"id"`
+									Title     githubv4.String `graphql:"title"`
+									StartDate githubv4.String `graphql:"startDate"`
+									Duration  githubv4.Int    `graphql:"duration"`
+								} `graphql:"iterations"`
+							} `graphql:"configuration"`
+						} `graphql:"... on ProjectV2IterationField"`
 					}
 				} `graphql:"fields(first:50)"`
 			} `graphql:"projectV2(number:$number)"`
@@ -192,10 +207,10 @@ func fetchIterationField(ctx context.Context, client *githubv4.Client, org strin
 	var cands []candidate
 
 	for _, n := range q.Organization.ProjectV2.Fields.Nodes {
-		if n.Typename != "ProjectV2IterationField" || n.IterCfg == nil {
+		if n.Typename != "ProjectV2IterationField" {
 			continue
 		}
-		name := string(n.Name)
+		name := string(n.Common.Name)
 		nameLower := strings.ToLower(name)
 
 		score := 0
@@ -211,7 +226,7 @@ func fetchIterationField(ctx context.Context, client *githubv4.Client, org strin
 		}
 
 		sf := SprintField{
-			FieldID:   n.ID,
+			FieldID:   n.Common.ID,
 			FieldName: name,
 		}
 		for _, it := range n.IterCfg.Configuration.Iterations {
@@ -234,6 +249,61 @@ func fetchIterationField(ctx context.Context, client *githubv4.Client, org strin
 	return &best, nil
 }
 
+func fetchSingleSelectField(ctx context.Context, client *githubv4.Client, org string, projectNumber int, wantedName string) (githubv4.ID, string, error) {
+	var q struct {
+		Organization struct {
+			ProjectV2 struct {
+				Fields struct {
+					Nodes []struct {
+						Typename string `graphql:"__typename"`
+						Common   struct {
+							ID   githubv4.ID     `graphql:"id"`
+							Name githubv4.String `graphql:"name"`
+						} `graphql:"... on ProjectV2FieldCommon"`
+					} `graphql:"nodes"`
+				} `graphql:"fields(first:50)"`
+			} `graphql:"projectV2(number:$number)"`
+		} `graphql:"organization(login:$login)"`
+	}
+	vars := map[string]any{
+		"login":  githubv4.String(org),
+		"number": githubv4.Int(projectNumber),
+	}
+	if err := client.Query(ctx, &q, vars); err != nil {
+		return "", "", err
+	}
+
+	wantedLower := strings.ToLower(strings.TrimSpace(wantedName))
+	bestScore := -1
+	var bestID githubv4.ID
+	var bestName string
+	for _, n := range q.Organization.ProjectV2.Fields.Nodes {
+		if n.Typename != "ProjectV2SingleSelectField" {
+			continue
+		}
+		name := string(n.Common.Name)
+		nameLower := strings.ToLower(name)
+		score := -1
+		switch {
+		case nameLower == wantedLower:
+			score = 100
+		case strings.Contains(nameLower, wantedLower) && wantedLower != "":
+			score = 80
+		default:
+			continue
+		}
+		if score > bestScore {
+			bestScore = score
+			bestID = n.Common.ID
+			bestName = name
+		}
+	}
+	if bestScore < 0 {
+		return "", "", fmt.Errorf("no single select field matched %q", wantedName)
+	}
+	return bestID, bestName, nil
+}
+
 type ProjectItem struct {
 	ItemID githubv4.ID
 	Number int
@@ -242,7 +312,7 @@ type ProjectItem struct {
 	Type   string // Issue/PR/Draft
 }
 
-func fetchItemsMissingIteration(ctx context.Context, client *githubv4.Client, projectID githubv4.ID, sprintFieldID githubv4.ID) ([]ProjectItem, error) {
+func fetchItemsMissingIteration(ctx context.Context, client *githubv4.Client, projectID githubv4.ID, sprintFieldID githubv4.ID, statusFieldID githubv4.ID, excludedStatus map[string]struct{}) ([]ProjectItem, error) {
 	var all []ProjectItem
 	var after *githubv4.String
 
@@ -278,13 +348,30 @@ func fetchItemsMissingIteration(ctx context.Context, client *githubv4.Client, pr
 
 							FieldValues struct {
 								Nodes []struct {
-									Typename    string `graphql:"__typename"`
-									FieldCommon struct {
-										ID githubv4.ID
-										Name githubv4.String
-									} `graphql:"field { ... on ProjectV2FieldCommon { id name } }"`
-									IterationID githubv4.String `graphql:"... on ProjectV2ItemFieldIterationValue { iterationId }"`
-									Title       githubv4.String `graphql:"... on ProjectV2ItemFieldIterationValue { title }"`
+									// NOTE: fieldValues.nodes is a UNION (ProjectV2ItemFieldValue),
+									// so *all* selections (except __typename) must live inside inline fragments.
+									Typename string `graphql:"__typename"`
+
+									Iter struct {
+										Field struct {
+											Common struct {
+												ID   githubv4.ID     `graphql:"id"`
+												Name githubv4.String `graphql:"name"`
+											} `graphql:"... on ProjectV2FieldCommon"`
+										} `graphql:"field"`
+										IterationID githubv4.String `graphql:"iterationId"`
+										Title       githubv4.String `graphql:"title"`
+									} `graphql:"... on ProjectV2ItemFieldIterationValue"`
+
+									Single struct {
+										Field struct {
+											Common struct {
+												ID   githubv4.ID     `graphql:"id"`
+												Name githubv4.String `graphql:"name"`
+											} `graphql:"... on ProjectV2FieldCommon"`
+										} `graphql:"field"`
+										Name githubv4.String `graphql:"name"`
+									} `graphql:"... on ProjectV2ItemFieldSingleSelectValue"`
 								}
 							} `graphql:"fieldValues(first:20)"`
 						}
@@ -299,18 +386,29 @@ func fetchItemsMissingIteration(ctx context.Context, client *githubv4.Client, pr
 		}
 
 		for _, n := range q.Node.ProjectV2.Items.Nodes {
-			hasSprint := false
+			var (
+				hasSprint   bool
+				statusValue string
+			)
 			for _, fv := range n.FieldValues.Nodes {
-				if fv.Typename != "ProjectV2ItemFieldIterationValue" {
-					continue
+				// Sprint (iteration)
+				if fv.Typename == "ProjectV2ItemFieldIterationValue" && fv.Iter.Field.Common.ID == sprintFieldID {
+					if string(fv.Iter.IterationID) != "" {
+						hasSprint = true
+					}
 				}
-				if fv.FieldCommon.ID == sprintFieldID && string(fv.IterationID) != "" {
-					hasSprint = true
-					break
+				// Status (single select)
+				if fv.Typename == "ProjectV2ItemFieldSingleSelectValue" && fv.Single.Field.Common.ID == statusFieldID {
+					statusValue = string(fv.Single.Name)
 				}
 			}
 			if hasSprint {
 				continue
+			}
+			if statusValue != "" {
+				if _, ok := excludedStatus[statusValue]; ok {
+					continue
+				}
 			}
 
 			item := ProjectItem{ItemID: n.ID}
@@ -477,4 +575,25 @@ func setIteration(token string, projectID githubv4.ID, itemID githubv4.ID, field
 		return fmt.Errorf("GitHub GraphQL HTTP %s", resp.Status)
 	}
 	return nil
+}
+
+func parseExactSet(csv string) map[string]struct{} {
+	out := map[string]struct{}{}
+	for _, part := range strings.Split(csv, ",") {
+		v := strings.TrimSpace(part)
+		if v == "" {
+			continue
+		}
+		out[v] = struct{}{}
+	}
+	return out
+}
+
+func sortedKeys(m map[string]struct{}) []string {
+	keys := make([]string, 0, len(m))
+	for k := range m {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+	return keys
 }
