@@ -13,12 +13,14 @@ const baseClass = "microsoft-entra-section";
 interface IMicrosoftEntraSectionProps {
   router: InjectedRouter;
   windowsMdmEnabled: boolean;
+  tenantAdded: boolean;
   isPremiumTier: boolean;
 }
 
 const MicrosoftEntraSection = ({
   router,
   windowsMdmEnabled,
+  tenantAdded,
   isPremiumTier,
 }: IMicrosoftEntraSectionProps) => {
   const navigateToWindowsEnrollment = () => {
@@ -33,7 +35,7 @@ const MicrosoftEntraSection = ({
         <div className={`${baseClass}__content`}>
           <WindowsAutomaticEnrollmentCard
             windowsMdmEnabled={windowsMdmEnabled}
-            tenantAdded
+            tenantAdded={tenantAdded}
             viewDetails={navigateToWindowsEnrollment}
           />
         </div>

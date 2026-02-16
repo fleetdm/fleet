@@ -128,6 +128,7 @@ const MdmSettings = ({ router }: IMdmSettingsProps) => {
           <MicrosoftEntraSection
             router={router}
             windowsMdmEnabled={!!config?.mdm.windows_enabled_and_configured}
+            tenantAdded={!!config?.mdm.windows_entra_tenant_ids?.length}
             isPremiumTier={!!isPremiumTier}
           />
           {isPremiumTier && !!config?.mdm.apple_bm_enabled_and_configured && (
