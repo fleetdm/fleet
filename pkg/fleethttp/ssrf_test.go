@@ -172,7 +172,7 @@ func TestCheckURLForSSRFIPv4MappedBypass(t *testing.T) {
 func TestCheckURLForSSRFSSRFErrorMessage(t *testing.T) {
 	err := CheckURLForSSRF(context.Background(), "http://127.0.0.1/admin", noopResolver)
 	require.Error(t, err)
-	assert.Contains(t, err.Error(), "blocked IP address")
+	assert.Contains(t, err.Error(), "blocked address")
 	assert.Contains(t, err.Error(), "127.0.0.1")
 }
 
@@ -268,9 +268,9 @@ func TestSSRFDialContextNilsUseDefaults(t *testing.T) {
 	require.NotNil(t, dial)
 }
 
-func TestNewTransportHasSSRFDialContext(t *testing.T) {
+func TestNewSSRFProtectedTransportHasDialContext(t *testing.T) {
 	t.Parallel()
 
-	tr := NewTransport()
-	require.NotNil(t, tr.DialContext, "NewTransport() must set DialContext for SSRF protection")
+	tr := NewSSRFProtectedTransport()
+	require.NotNil(t, tr.DialContext, "NewSSRFProtectedTransport() must set DialContext for SSRF protection")
 }

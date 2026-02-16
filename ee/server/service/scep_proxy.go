@@ -513,7 +513,7 @@ func (s *SCEPConfigService) GetNDESSCEPChallenge(ctx context.Context, proxy flee
 	// Get the challenge from NDES
 	client := fleethttp.NewClient(fleethttp.WithTimeout(*s.Timeout))
 	client.Transport = ntlmssp.Negotiator{
-		RoundTripper: fleethttp.NewTransport(),
+		RoundTripper: fleethttp.NewSSRFProtectedTransport(),
 	}
 	req, err := http.NewRequest(http.MethodGet, adminURL, http.NoBody)
 	if err != nil {
@@ -588,7 +588,7 @@ func (s *SCEPConfigService) ValidateSmallstepChallengeURL(ctx context.Context, c
 func (s *SCEPConfigService) GetSmallstepSCEPChallenge(ctx context.Context, ca fleet.SmallstepSCEPProxyCA) (string, error) {
 	client := fleethttp.NewClient(
 		fleethttp.WithTimeout(30*time.Second),
-		fleethttp.WithTransport(fleethttp.NewTransport()),
+		fleethttp.WithTransport(fleethttp.NewSSRFProtectedTransport()),
 	)
 	var reqBody bytes.Buffer
 	if err := json.NewEncoder(&reqBody).Encode(fleet.SmallstepChallengeRequestBody{

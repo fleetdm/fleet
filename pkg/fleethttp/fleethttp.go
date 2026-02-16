@@ -122,9 +122,13 @@ func NewTransport(opts ...TransportOpt) *http.Transport {
 	if to.tlsConf != nil {
 		tr.TLSClientConfig = to.tlsConf
 	}
+	return tr
+}
 
-	// Override DialContext with the SSRF-blocking dialer so that every
-	// outbound TCP connection is checked against the blocklist at dial time.
+// Override DialContext with the SSRF-blocking dialer so that every
+// outbound TCP connection is checked against the blocklist at dial time.
+func NewSSRFProtectedTransport(opts ...TransportOpt) *http.Transport {
+	tr := NewTransport(opts...)
 	tr.DialContext = SSRFDialContext(nil, nil, nil)
 	return tr
 }
