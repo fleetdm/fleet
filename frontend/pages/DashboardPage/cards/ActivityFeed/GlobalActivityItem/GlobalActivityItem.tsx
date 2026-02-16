@@ -1734,6 +1734,14 @@ const TAGGED_TEMPLATES = {
     );
     return <>edited enroll secret{postFix}.</>;
   },
+  addedMicrosoftEntraTenant: (activity: IActivity) => {
+    return <> added Microsoft Entra tenant ({activity.details?.tenant_id}).</>;
+  },
+  deletedMicrosoftEntraTenant: (activity: IActivity) => {
+    return (
+      <> deleted Microsoft Entra tenant ({activity.details?.tenant_id}).</>
+    );
+  },
 };
 
 const getDetail = (activity: IActivity, isPremiumTier: boolean) => {
@@ -2114,6 +2122,12 @@ const getDetail = (activity: IActivity, isPremiumTier: boolean) => {
     }
     case ActivityType.EditedEnrollSecrets: {
       return TAGGED_TEMPLATES.editedEnrollSecrets(activity, isPremiumTier);
+    }
+    case ActivityType.AddedMicrosoftEntraTenant: {
+      return TAGGED_TEMPLATES.addedMicrosoftEntraTenant(activity);
+    }
+    case ActivityType.DeletedMicrosoftEntraTenant: {
+      return TAGGED_TEMPLATES.deletedMicrosoftEntraTenant(activity);
     }
     default: {
       return TAGGED_TEMPLATES.defaultActivityTemplate(activity);

@@ -155,6 +155,8 @@ export enum ActivityType {
   AddedCertificate = "added_certificate",
   DeletedCertificate = "deleted_certificate",
   EditedEnrollSecrets = "edited_enroll_secrets",
+  AddedMicrosoftEntraTenant = "added_microsoft_entra_tenant",
+  DeletedMicrosoftEntraTenant = "deleted_microsoft_entra_tenant",
 }
 
 /** This is a subset of ActivityType that are shown only for the host past activities */
@@ -275,6 +277,7 @@ export interface IActivityDetails {
   custom_variable_name?: string;
   host_idp_username?: string;
   idp_full_name?: string;
+  tenant_id?: string;
 }
 
 // maps activity types to their corresponding label to use when filtering activites via the dropdown
@@ -284,6 +287,7 @@ export const ACTIVITY_TYPE_TO_FILTER_LABEL: Record<ActivityType, string> = {
   added_conditional_access_microsoft: "Added conditional access: Microsoft",
   added_custom_scep_proxy: "Added certificate authority (CA): custom SCEP",
   added_digicert: "Added certificate authority (CA): DigiCert",
+  added_microsoft_entra_tenant: "Added Microsoft Entra tenant",
   added_ndes_scep_proxy: "Added certificate authority (CA): NDES",
   added_script: "Added script",
   added_software: "Added software",
@@ -316,6 +320,7 @@ export const ACTIVITY_TYPE_TO_FILTER_LABEL: Record<ActivityType, string> = {
   deleted_digicert: "Deleted certificate authority (CA): DigiCert",
   deleted_macos_profile: "Deleted configuration profile: Apple",
   deleted_macos_setup_assistant: "Deleted macOS automatic enrollment profile",
+  deleted_microsoft_entra_tenant: "Deleted Microsoft Entra tenant",
   deleted_multiple_saved_query: "Bulk deleted queries",
   deleted_ndes_scep_proxy: "Deleted certificate authority (CA): NDES",
   deleted_pack: "Deleted pack",
