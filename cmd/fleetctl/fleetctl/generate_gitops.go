@@ -141,8 +141,7 @@ var aliasRules = map[string]string{
 	"teams":                          "fleets",
 }
 
-// replaceAliasKeys recursively walks map[string]any / []any trees renaming
-// keys according to the provided rules.
+// Replace deprecated keys with their new canonical names.
 func replaceAliasKeys(v any, rules map[string]string) {
 	switch val := v.(type) {
 	case map[string]any:
