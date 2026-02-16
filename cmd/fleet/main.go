@@ -100,8 +100,8 @@ func applyDevFlags(cfg *config.FleetConfig) {
 		}
 	}
 
-	setIfEmpty(&cfg.Mysql.Username, "fleet")
-	setIfEmpty(&cfg.Mysql.Database, "fleet")
+	// We don't set defaults for database and username here because there are already defaults in config.go
+	// that match our default dev setup.
 	setIfEmpty(&cfg.Mysql.Password, "insecure")
 
 	setIfEmpty(&cfg.Prometheus.BasicAuth.Username, "fleet")
