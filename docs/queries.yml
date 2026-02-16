@@ -3647,7 +3647,7 @@ spec:
 apiVersion: v1
 kind: query
 spec:
-  name: MITRE - Notepad++ Parent Process Validation
+  name: MITRE - Notepad Plus Plus Parent Process Validation
   platform: windows
   description: Detect processes masquerading as legitimate Windows processes - ATT&CK T1204
   query: |-
