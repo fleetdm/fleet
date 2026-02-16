@@ -18,6 +18,7 @@ import (
 type clientOpts struct {
 	timeout   time.Duration
 	tlsConf   *tls.Config
+	transport http.RoundTripper
 	noFollow  bool
 	cookieJar http.CookieJar
 }
@@ -56,6 +57,14 @@ func WithCookieJar(jar http.CookieJar) ClientOpt {
 	}
 }
 
+// WithTransport sets an explicit RoundTripper on the HTTP client. When set,
+// this takes precedence over WithTLSClientConfig.
+func WithTransport(t http.RoundTripper) ClientOpt {
+	return func(o *clientOpts) {
+		o.transport = t
+	}
+}
+
 // NewClient returns an HTTP client configured according to the provided
 // options.
 func NewClient(opts ...ClientOpt) *http.Client {
@@ -71,7 +80,10 @@ func NewClient(opts ...ClientOpt) *http.Client {
 	if co.noFollow {
 		cli.CheckRedirect = noFollowRedirect
 	}
-	if co.tlsConf != nil {
+	switch {
+	case co.transport != nil:
+		cli.Transport = co.transport
+	case co.tlsConf != nil:
 		cli.Transport = NewTransport(WithTLSConfig(co.tlsConf))
 	}
 	if co.cookieJar != nil {
@@ -110,6 +122,10 @@ func NewTransport(opts ...TransportOpt) *http.Transport {
 	if to.tlsConf != nil {
 		tr.TLSClientConfig = to.tlsConf
 	}
+
+	// Override DialContext with the SSRF-blocking dialer so that every
+	// outbound TCP connection is checked against the blocklist at dial time.
+	tr.DialContext = SSRFDialContext(nil, nil, nil)
 	return tr
 }
 
