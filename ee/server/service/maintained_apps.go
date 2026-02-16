@@ -75,7 +75,7 @@ func (svc *Service) AddFleetMaintainedApp(
 		timeout, _ = time.ParseDuration(v)
 	}
 	client := fleethttp.NewClient(fleethttp.WithTimeout(timeout))
-	installerTFR, filename, err := maintained_apps.DownloadInstaller(ctx, app.InstallerURL, client)
+	installerTFR, filename, err := maintained_apps.DownloadInstaller(ctx, app.InstallerURL, app.Headers, client)
 	if err != nil {
 		return 0, ctxerr.Wrap(ctx, err, "downloading app installer")
 	}

@@ -304,6 +304,7 @@ func appFromJson(manifest *maintained_apps.FMAManifestFile) fleet.MaintainedApp 
 	app.Version = manifest.Versions[0].Version
 	app.Platform = manifest.Versions[0].Platform()
 	app.InstallerURL = manifest.Versions[0].InstallerURL
+	app.Headers = manifest.Versions[0].Headers
 	app.SHA256 = manifest.Versions[0].SHA256
 	app.InstallScript = manifest.Refs[manifest.Versions[0].InstallScriptRef]
 	app.UninstallScript = manifest.Refs[manifest.Versions[0].UninstallScriptRef]
@@ -318,7 +319,7 @@ func DownloadMaintainedApp(cfg *Config, app fleet.MaintainedApp) (*fleet.TempFil
 	defer cancel()
 
 	level.Info(cfg.logger).Log("msg", "Downloading...")
-	installerTFR, filename, err := mdm_maintained_apps.DownloadInstaller(ctx, app.InstallerURL, http.DefaultClient)
+	installerTFR, filename, err := mdm_maintained_apps.DownloadInstaller(ctx, app.InstallerURL, app.Headers, http.DefaultClient)
 	if err != nil {
 		return nil, fmt.Errorf("downloading installer: %w", err)
 	}
