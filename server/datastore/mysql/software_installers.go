@@ -321,8 +321,9 @@ INSERT INTO software_installers (
 	user_email,
 	fleet_maintained_app_id,
  	url,
- 	upgrade_code
-) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, (SELECT name FROM users WHERE id = ?), (SELECT email FROM users WHERE id = ?), ?, ?, ?)`
+ 	upgrade_code,
+ 	is_active
+) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, (SELECT name FROM users WHERE id = ?), (SELECT email FROM users WHERE id = ?), ?, ?, ?, ?)`
 
 		args := []interface{}{
 			tid,
@@ -345,6 +346,7 @@ INSERT INTO software_installers (
 			payload.FleetMaintainedAppID,
 			payload.URL,
 			payload.UpgradeCode,
+			true,
 		}
 
 		res, err := tx.ExecContext(ctx, stmt, args...)
@@ -370,21 +372,6 @@ INSERT INTO software_installers (
 		if payload.CategoryIDs != nil {
 			if err := setOrUpdateSoftwareInstallerCategoriesDB(ctx, tx, installerID, payload.CategoryIDs, softwareTypeInstaller); err != nil {
 				return ctxerr.Wrap(ctx, err, "upsert software installer categories")
-			}
-		}
-
-		// Ensure every FMA installer has an active entry so that
-		// queries filtering on fma_active_installers always find
-		// a row, even for the first (single) installer version.
-		if payload.FleetMaintainedAppID != nil {
-			if _, err := tx.ExecContext(ctx, `
-				INSERT INTO fma_active_installers
-					(team_id, global_or_team_id, fleet_maintained_app_id, software_installer_id)
-				VALUES (?, ?, ?, ?)
-				ON DUPLICATE KEY UPDATE
-					software_installer_id = VALUES(software_installer_id)
-			`, tid, globalOrTeamID, *payload.FleetMaintainedAppID, installerID); err != nil {
-				return ctxerr.Wrapf(ctx, err, "upsert fma_active_installers for %q", payload.Filename)
 			}
 		}
 
@@ -947,12 +934,7 @@ FROM
   %s
 WHERE
   si.title_id = ? AND si.global_or_team_id = ?
-  AND si.id = COALESCE(
-    (SELECT fai.software_installer_id FROM fma_active_installers fai
-     WHERE fai.global_or_team_id = si.global_or_team_id
-       AND fai.fleet_maintained_app_id = si.fleet_maintained_app_id),
-    si.id
-  )
+  AND si.is_active = 1
 ORDER BY si.uploaded_at DESC, si.id DESC
 LIMIT 1`,
 		scriptContentsSelect, scriptContentsFrom)
@@ -2205,10 +2187,11 @@ INSERT INTO software_installers (
 	url,
 	package_ids,
 	install_during_setup,
-	fleet_maintained_app_id
+	fleet_maintained_app_id,
+	is_active
 ) VALUES (
   ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
-  (SELECT name FROM users WHERE id = ?), (SELECT email FROM users WHERE id = ?), ?, ?, COALESCE(?, false), ?
+  (SELECT name FROM users WHERE id = ?), (SELECT email FROM users WHERE id = ?), ?, ?, COALESCE(?, false), ?, ?
 )
 ON DUPLICATE KEY UPDATE
   install_script_content_id = VALUES(install_script_content_id),
@@ -2226,7 +2209,8 @@ ON DUPLICATE KEY UPDATE
   user_name = VALUES(user_name),
   user_email = VALUES(user_email),
   url = VALUES(url),
-  install_during_setup = COALESCE(?, install_during_setup)
+  install_during_setup = COALESCE(?, install_during_setup),
+  is_active = VALUES(is_active)
 `
 
 	const loadSoftwareInstallerID = `
@@ -2615,6 +2599,12 @@ WHERE
 				}
 			}
 
+			// Non-FMA installers are always active, FMA installers start inactive and are activated later
+			isActive := 0
+			if installer.FleetMaintainedAppID == nil {
+				isActive = 1
+			}
+
 			args := []interface{}{
 				tmID,
 				globalOrTeamID,
@@ -2637,6 +2627,7 @@ WHERE
 				strings.Join(installer.PackageIDs, ","),
 				installer.InstallDuringSetup,
 				installer.FleetMaintainedAppID,
+				isActive,
 				installer.InstallDuringSetup,
 			}
 			// For FMA installers, skip the insert if this exact version is already cached
@@ -2753,14 +2744,24 @@ WHERE
 					}
 				}
 
+				// Set the active installer to is_active = 1
 				if _, err := tx.ExecContext(ctx, `
-					INSERT INTO fma_active_installers
-						(team_id, global_or_team_id, fleet_maintained_app_id, software_installer_id)
-					VALUES (?, ?, ?, ?)
-					ON DUPLICATE KEY UPDATE
-						software_installer_id = VALUES(software_installer_id)
-				`, tmID, globalOrTeamID, *installer.FleetMaintainedAppID, activeInstallerID); err != nil {
-					return ctxerr.Wrapf(ctx, err, "upsert fma_active_installers for %q", installer.Filename)
+					UPDATE software_installers
+					SET is_active = 1
+					WHERE id = ?
+				`, activeInstallerID); err != nil {
+					return ctxerr.Wrapf(ctx, err, "setting active installer for %q", installer.Filename)
+				}
+
+				// Set all other installers for this FMA+team to is_active = 0
+				if _, err := tx.ExecContext(ctx, `
+					UPDATE software_installers
+					SET is_active = 0
+					WHERE id != ?
+						AND global_or_team_id = ?
+						AND fleet_maintained_app_id = ?
+				`, activeInstallerID, globalOrTeamID, *installer.FleetMaintainedAppID); err != nil {
+					return ctxerr.Wrapf(ctx, err, "deactivating other installers for %q", installer.Filename)
 				}
 			}
 

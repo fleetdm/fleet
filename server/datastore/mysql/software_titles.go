@@ -538,14 +538,8 @@ FROM software_titles st
 				si_inner.platform, si_inner.url, si_inner.install_during_setup,
 				si_inner.storage_id, si_inner.fleet_maintained_app_id
 			FROM software_installers si_inner
-			LEFT JOIN fma_active_installers fma_active
-				ON fma_active.global_or_team_id = si_inner.global_or_team_id
-				AND fma_active.fleet_maintained_app_id = si_inner.fleet_maintained_app_id
 			WHERE si_inner.global_or_team_id = {{teamID .}}
-				AND (
-					si_inner.fleet_maintained_app_id IS NULL
-					OR si_inner.id = fma_active.software_installer_id
-				)
+				AND si_inner.is_active = 1
 		) si ON si.title_id = st.id AND si.global_or_team_id = {{teamID .}}
 		LEFT JOIN in_house_apps iha ON iha.title_id = st.id AND iha.global_or_team_id = {{teamID .}}
 		LEFT JOIN vpp_apps vap ON vap.title_id = st.id AND {{yesNo .PackagesOnly "FALSE" "TRUE"}}

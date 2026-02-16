@@ -446,26 +446,6 @@ CREATE TABLE `fleet_variables` (
 INSERT INTO `fleet_variables` VALUES (1,'FLEET_VAR_NDES_SCEP_CHALLENGE',0,'2025-04-22 00:00:00.000000'),(2,'FLEET_VAR_NDES_SCEP_PROXY_URL',0,'2025-04-22 00:00:00.000000'),(3,'FLEET_VAR_HOST_END_USER_EMAIL_IDP',0,'2025-04-22 00:00:00.000000'),(4,'FLEET_VAR_HOST_HARDWARE_SERIAL',0,'2025-04-22 00:00:00.000000'),(5,'FLEET_VAR_HOST_END_USER_IDP_USERNAME',0,'2025-04-22 00:00:00.000000'),(6,'FLEET_VAR_HOST_END_USER_IDP_USERNAME_LOCAL_PART',0,'2025-04-22 00:00:00.000000'),(7,'FLEET_VAR_HOST_END_USER_IDP_GROUPS',0,'2025-04-22 00:00:00.000000'),(8,'FLEET_VAR_DIGICERT_DATA_',1,'2025-04-22 00:00:00.000000'),(9,'FLEET_VAR_DIGICERT_PASSWORD_',1,'2025-04-22 00:00:00.000000'),(10,'FLEET_VAR_CUSTOM_SCEP_CHALLENGE_',1,'2025-04-22 00:00:00.000000'),(11,'FLEET_VAR_CUSTOM_SCEP_PROXY_URL_',1,'2025-04-22 00:00:00.000000'),(12,'FLEET_VAR_SCEP_RENEWAL_ID',0,'2025-04-30 00:00:00.000000'),(13,'FLEET_VAR_HOST_END_USER_IDP_DEPARTMENT',0,'2025-06-27 00:00:00.000000'),(14,'FLEET_VAR_HOST_UUID',0,'2025-08-08 00:00:00.000000'),(15,'FLEET_VAR_HOST_END_USER_IDP_FULL_NAME',0,'2025-08-25 00:00:00.000000'),(16,'FLEET_VAR_SCEP_WINDOWS_CERTIFICATE_ID',0,'2025-10-22 00:00:00.000000'),(17,'FLEET_VAR_HOST_PLATFORM',0,'2025-11-19 00:00:00.000000');
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
-CREATE TABLE `fma_active_installers` (
-  `id` int unsigned NOT NULL AUTO_INCREMENT,
-  `team_id` int unsigned DEFAULT NULL,
-  `global_or_team_id` int unsigned NOT NULL DEFAULT '0',
-  `fleet_maintained_app_id` int unsigned NOT NULL,
-  `software_installer_id` int unsigned NOT NULL,
-  `created_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  `updated_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-  PRIMARY KEY (`id`),
-  UNIQUE KEY `idx_fma_active_team_app` (`global_or_team_id`,`fleet_maintained_app_id`),
-  KEY `fk_fma_active_team` (`team_id`),
-  KEY `fk_fma_active_app` (`fleet_maintained_app_id`),
-  KEY `fk_fma_active_installer` (`software_installer_id`),
-  CONSTRAINT `fk_fma_active_app` FOREIGN KEY (`fleet_maintained_app_id`) REFERENCES `fleet_maintained_apps` (`id`) ON DELETE CASCADE,
-  CONSTRAINT `fk_fma_active_installer` FOREIGN KEY (`software_installer_id`) REFERENCES `software_installers` (`id`) ON DELETE CASCADE,
-  CONSTRAINT `fk_fma_active_team` FOREIGN KEY (`team_id`) REFERENCES `teams` (`id`) ON DELETE CASCADE ON UPDATE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-/*!40101 SET character_set_client = @saved_cs_client */;
-/*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `host_activities` (
   `host_id` int unsigned NOT NULL,
   `activity_id` int unsigned NOT NULL,
@@ -2727,6 +2707,7 @@ CREATE TABLE `software_installers` (
   `fleet_maintained_app_id` int unsigned DEFAULT NULL,
   `install_during_setup` tinyint(1) NOT NULL DEFAULT '0',
   `upgrade_code` varchar(48) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT '',
+  `is_active` tinyint(1) NOT NULL DEFAULT '0',
   PRIMARY KEY (`id`),
   UNIQUE KEY `idx_software_installers_team_title_version` (`global_or_team_id`,`title_id`,`version`),
   KEY `fk_software_installers_title` (`title_id`),

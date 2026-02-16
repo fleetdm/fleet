@@ -19339,28 +19339,30 @@ func (s *integrationEnterpriseTestSuite) TestMaintainedApps() {
 	s.DoJSON("POST", "/api/latest/fleet/software/fleet_maintained_apps", req, http.StatusOK, &addMAResp)
 	require.Nil(t, addMAResp.Err)
 
-	// Verify the active installer ID matches the only installer for this FMA
-	var fmaActiveCount, fmaActiveInstallerID, onlyInstallerID uint
+	// Verify the installer has is_active = 1 for this FMA
+	var activeInstallerCount, onlyInstallerID uint
+	var isActive bool
 	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
-		err := sqlx.GetContext(ctx, q, &fmaActiveInstallerID,
-			`SELECT software_installer_id FROM fma_active_installers WHERE fleet_maintained_app_id = ? AND global_or_team_id = ?`,
+		err := sqlx.GetContext(ctx, q, &activeInstallerCount,
+			`SELECT COUNT(*) FROM software_installers WHERE fleet_maintained_app_id = ? AND global_or_team_id = ? AND is_active = 1`,
 			req.AppID, team.ID)
 		if err != nil {
 			return err
 		}
 
-		err = sqlx.GetContext(ctx, q, &fmaActiveCount,
-			`SELECT COUNT(*) FROM fma_active_installers WHERE fleet_maintained_app_id = ? AND global_or_team_id = ?`,
-			req.AppID, team.ID)
-
-		require.NoError(t, err)
-
-		return sqlx.GetContext(ctx, q, &onlyInstallerID,
+		err = sqlx.GetContext(ctx, q, &onlyInstallerID,
 			`SELECT id FROM software_installers WHERE fleet_maintained_app_id = ? AND global_or_team_id = ?`,
 			req.AppID, team.ID)
+		if err != nil {
+			return err
+		}
+
+		return sqlx.GetContext(ctx, q, &isActive,
+			`SELECT is_active FROM software_installers WHERE id = ?`,
+			onlyInstallerID)
 	})
-	require.Equal(t, onlyInstallerID, fmaActiveInstallerID, "active installer must point to the only installer")
-	require.Equal(t, uint(1), fmaActiveCount, "single-add API must create fma_active_installers row")
+	require.True(t, isActive, "installer must have is_active = 1")
+	require.Equal(t, uint(1), activeInstallerCount, "single-add API must set is_active = 1 for the installer")
 
 	s.DoJSON(http.MethodGet, "/api/latest/fleet/software/fleet_maintained_apps", listFleetMaintainedAppsRequest{}, http.StatusOK,
 		&listMAResp, "team_id", fmt.Sprint(team.ID))
