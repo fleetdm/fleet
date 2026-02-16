@@ -505,7 +505,7 @@ func (cmd *GenerateGitopsCommand) Run() error {
 			if team != nil {
 				teamName = team.Name
 			}
-			fmt.Fprintf(cmd.CLI.App.ErrWriter, "Error generating policies for team %s: %s\n", teamName, err)
+			fmt.Fprintf(cmd.CLI.App.ErrWriter, "Error generating policies for fleet %s: %s\n", teamName, err)
 			return ErrGeneric
 		}
 		cmd.FilesToWrite[fileName].(map[string]interface{})["policies"] = policies
@@ -518,7 +518,7 @@ func (cmd *GenerateGitopsCommand) Run() error {
 				if team != nil {
 					teamName = team.Name
 				}
-				fmt.Fprintf(cmd.CLI.App.ErrWriter, "Error generating reports for team %s: %s\n", teamName, err)
+				fmt.Fprintf(cmd.CLI.App.ErrWriter, "Error generating reports for fleet %s: %s\n", teamName, err)
 				return ErrGeneric
 			}
 			// nolint:nilaway // we want to include "reports: null" in the output if there are no reports.
