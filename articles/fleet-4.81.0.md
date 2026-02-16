@@ -1,4 +1,4 @@
-# Fleet 4.81.0 | TODO
+# Fleet 4.81.0 | Lower AWS costs, automatic IdP deprovisioning, and more...
 
 <div purpose="embedded-content">
    <iframe src="TODO" frameborder="0" allowfullscreen></iframe>
@@ -8,11 +8,36 @@ Fleet 4.81.0 is now available. See the complete [changelog](https://github.com/f
 
 ## Highlights
 
-- TODO
+- Lower AWS costs
+- Automatic IdP deprovisioning
+- Okta as a certificate authority (CA) with a dynamic challenge
+- Okta conditional access
+- Proxy-ready Fleet Desktop configuration
+- Windows profiles behave like macOS
 
-### TODO
+### Lower AWS costs
 
-TODO
+Fleet now supports [gzip compression](https://developer.mozilla.org/en-US/docs/Glossary/gzip_compression) on agent API responses, reducing outbound bandwidth from your Fleet server. For Fleet users who self-host, that means lower AWS costs with no workflow changes. Currently, gzip compression is currently off by default but will soon default to on. Learn how to [turn on compression](TODO).
+
+### Automatic IdP deprovisioning
+
+When a user is removed from your identitify provider (IdP), like Okta, they’re now automatically removed from Fleet by default. No configuration changes needed. Security Engineers no longer need to worry about dangling admin accounts. IT Admins get cleaner offboarding and fewer manual access reviews.
+
+### Okta as a certificate authority (CA) with a dynamic challenge
+
+Fleet now supports dynamic challenges when deploying certificates for Okta Verify. Each host gets a unique secret at enrollment, strengthening security. [Learn how](TODO).
+
+### Okta conditional access
+
+If you use Okta s your identity provider (IdP), you can now mark policies as required to access organization resources. When an end user fails a policy, Fleet takes them directly to the right page in Fleet Desktop and offers a snooze option. IT Admins see fewer support tickets and faster remediation. Security Engineers benefit from shorter failure windows and better policy adherence. [Learn more](TODO).
+
+### Proxy-ready Fleet Desktop configuration
+
+For users that self-host Fleet, you can now configure an [alternative URL](TODO) for Fleet Desktop. IT Admins can route traffic through a custom proxy for added control.
+
+### Windows profiles behave like macOS
+
+Just like macOS, Windows [configuration profiles](leetdm.com/guides/custom-os-settings) now apply payloads individually. If one payload fails, the rest still succeed, bringing consistency across platforms. IT Admins get faster enforcement of critical controls without waiting on edge-case fixes.
 
 ## Changes
 
@@ -26,5 +51,5 @@ Visit our [Upgrade guide](https://fleetdm.com/docs/deploying/upgrading-fleet) in
 <meta name="authorFullName" value="Noah Talerman">
 <meta name="authorGitHubUsername" value="noahtalerman">
 <meta name="publishedOn" value="2026-02-18">
-<meta name="articleTitle" value="Fleet 4.81.0 | TODO">
+<meta name="articleTitle" value="Fleet 4.81.0 | Lower AWS costs, automatic IdP deprovisioning, and more...">
 <meta name="articleImageUrl" value="../website/assets/images/articles/fleet-4.81.0-1600x900@2x.png">
