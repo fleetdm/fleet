@@ -3184,7 +3184,7 @@ kind: query
 spec:
   name: MITRE - Setuid Binary Discovery
   platform: linux, darwin
-  description: List linux files that are setuid-enabled
+  description: List files that are setuid-enabled
   query: select * from suid_bin;
   purpose: Detection
   tags: MITRE, ATT&CK, threat detection
@@ -3195,7 +3195,7 @@ kind: query
 spec:
   name: MITRE - Sudoers Configuration
   platform: linux, darwin
-  description: Linux sudoers information - ATT&CK T1548.003
+  description: Sudoers configuration information - ATT&CK T1548.003
   query: select * from sudoers;
   purpose: Detection
   tags: MITRE, ATT&CK, threat detection
@@ -3293,7 +3293,7 @@ kind: query
 spec:
   name: MITRE - Hidden Directory Discovery
   platform: linux
-  description: Lists hidden direcotry in relevant path - ATT&CK T1158
+  description: Lists hidden directory in relevant path - ATT&CK T1158
   query: |-
     SELECT hash.sha1, fi.path, fi.filename, datetime(fi.btime, 'unixepoch', 'UTC')
     as btime, datetime(fi.atime, 'unixepoch', 'UTC') as atime, datetime(fi.ctime,
@@ -3412,7 +3412,7 @@ kind: query
 spec:
   name: MITRE - Home Directory Discovery
   platform: linux
-  description: "'Lists files and directories under all home user dir - ATT&CK: T1158,T1100'"
+  description: Lists files and directories under all home user directories - ATT&CK T1158,T1100
   query: |-
     SELECT hash.sha1, fi.path, fi.filename, datetime(fi.btime, 'unixepoch', 'UTC')
     as btime, datetime(fi.atime, 'unixepoch', 'UTC') as atime, datetime(fi.ctime,
@@ -3428,7 +3428,7 @@ kind: query
 spec:
   name: MITRE - Root Directory Discovery
   platform: linux, darwin
-  description: "'Lists files and directories under root dir - ATT&CK: T1158,T1100'"
+  description: Lists files and directories under root directory - ATT&CK T1158,T1100
   query: |-
     SELECT hash.sha1, fi.path, fi.filename, datetime(fi.btime, 'unixepoch', 'UTC')
     as btime, datetime(fi.atime, 'unixepoch', 'UTC') as atime, datetime(fi.ctime,
@@ -3444,7 +3444,7 @@ kind: query
 spec:
   name: MITRE - Temp Directory Discovery
   platform: linux, darwin
-  description: "'Lists files and directories under tmp dir - ATT&CK: T1158,T1100'"
+  description: Lists files and directories under tmp directory - ATT&CK T1158,T1100
   query: |-
     SELECT hash.sha1, fi.path, fi.filename, datetime(fi.btime, 'unixepoch', 'UTC')
     as btime, datetime(fi.atime, 'unixepoch', 'UTC') as atime, datetime(fi.ctime,
@@ -3460,7 +3460,7 @@ kind: query
 spec:
   name: MITRE - Web Directory Discovery
   platform: linux
-  description: "'Lists files and directories under www dir - ATT&CK: T1158,T1100'"
+  description: Lists files and directories under web server directory - ATT&CK T1158,T1100
   query: |-
     SELECT hash.sha1, fi.path, fi.filename, datetime(fi.btime, 'unixepoch', 'UTC')
     as btime, datetime(fi.atime, 'unixepoch', 'UTC') as atime, datetime(fi.ctime,
@@ -3476,7 +3476,7 @@ kind: query
 spec:
   name: MITRE - Process Discovery
   platform: linux, darwin, windows
-  description: List Linux System running processes with CMDLINE not null. - ATT&CK T1059,T1108,T1166,T1100,T1064,T1107,T1003,T1033,T1016,T1082,T1057,T1201,T1083,T1217,T1087,T1072,T1002
+  description: List running processes with non-empty command line. - ATT&CK T1059,T1108,T1166,T1100,T1064,T1107,T1003,T1033,T1016,T1082,T1057,T1201,T1083,T1217,T1087,T1072,T1002
   query: |-
     select pr.pid, pr.name, usr.username, pr.path, pr.cmdline from processes
     pr LEFT JOIN users usr ON pr.uid = usr.uid WHERE pr.cmdline != '';
@@ -3517,33 +3517,6 @@ spec:
   platform: linux, darwin, windows
   description: Lists all create and deleted account - ATT&CK T1136,T1078,T1184,T1021
   query: select * from users;
-  purpose: Detection
-  tags: MITRE, ATT&CK, threat detection
-  contributors: teoseller,tux234
----
-apiVersion: v1
-kind: query
-spec:
-  name: MITRE - Listening Ports Monitoring
-  platform: windows
-  description: Returns the Listening port List - ATT&CK T1043,T1090,T1094,T1205,T1219,T1105,T1065,T1102
-  query: |-
-    select p.name, p.path, lp.port, lp.address, lp.protocol  from listening_ports
-    lp LEFT JOIN processes p ON lp.pid = p.pid WHERE lp.port != 0 AND p.name != '';
-  purpose: Detection
-  tags: MITRE, ATT&CK, threat detection
-  contributors: teoseller,tux234
----
-apiVersion: v1
-kind: query
-spec:
-  name: MITRE - Network Connections Monitoring
-  platform: windows
-  description: Returns the network connections from system processes - ATT&CK T1086,T1093,T1020,T1041,T1011,T1029,T1043,T1090,T1094,T1024,T1008,T1219,T1105,T1065
-  query: |-
-    select DISTINCT p.name, p.path, pos.remote_address, pos.remote_port from
-    process_open_sockets pos LEFT JOIN processes p ON pos.pid = p.pid WHERE pos.remote_port
-    != 0 AND p.name != '';
   purpose: Detection
   tags: MITRE, ATT&CK, threat detection
   contributors: teoseller,tux234
@@ -3968,7 +3941,7 @@ kind: query
 spec:
   name: MITRE - AppInit DLLs Registry Monitoring
   platform: windows
-  description: '**AppInit DLLs** Returns the content of the key HKLM_Software_Microsoft_WindowsNT_CurrentVersion_Windows - ATT&CK T1103'
+  description: Returns the content of the key HKLM_Software_Microsoft_WindowsNT_CurrentVersion_Windows for AppInit DLLs - ATT&CK T1103
   query: |-
     select name,type,data from registry where key='HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows
     NT\CurrentVersion\Windows' and name='AppInit_DLLs';
@@ -3994,7 +3967,7 @@ kind: query
 spec:
   name: MITRE - WOW64 AppInit DLLs Registry Monitoring
   platform: windows
-  description: '**AppInit DLLs** Returns the content of the key HKLM_Software_Wow6432Node_Microsoft_Windows NT_CurrentVersion_Windows - ATT&CK T1103'
+  description: Returns the content of the key HKLM_Software_Wow6432Node_Microsoft_WindowsNT_CurrentVersion_Windows for AppInit DLLs - ATT&CK T1103
   query: |-
     select name,type,data from registry where key='HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows
     NT\CurrentVersion\Windows' and name='AppInit_DLLs';
@@ -4007,7 +3980,7 @@ kind: query
 spec:
   name: MITRE - Application Shimming Registry Monitoring Custom
   platform: windows
-  description: '**Application Shimming** Returns the content of the key HKLM_Software_Microsoft_WindowsNT_CurrentVersion_appcompatflags_custom - ATT&CK T1138'
+  description: Returns the content of the key HKLM_Software_Microsoft_WindowsNT_CurrentVersion_appcompatflags_custom for application shimming - ATT&CK T1138
   query: |-
     select name,type,data from registry where key='HKEY_LOCAL_MACHINE\software\microsoft\windows
     nt\currentversion\appcompatflags\custom';
@@ -4020,7 +3993,7 @@ kind: query
 spec:
   name: MITRE - Application Shimming Registry Monitoring Installed
   platform: windows
-  description: '**Application Shimming** Returns the content of the key HKLM_Software_Microsoft_WindowsNT_CurrentVersion_appcompatflags_installedsdb - ATT&CK T1138'
+  description: Returns the content of the key HKLM_Software_Microsoft_WindowsNT_CurrentVersion_appcompatflags_installedsdb for application shimming - ATT&CK T1138
   query: |-
     select name,type,data from registry where key='HKEY_LOCAL_MACHINE\software\microsoft\windows
     nt\currentversion\appcompatflags\installedsdb';
@@ -4044,7 +4017,7 @@ kind: query
 spec:
   name: MITRE - Netsh Registry Monitoring
   platform: windows
-  description: Returns the content of the key HKLM_SYSTEM_CurrentControlSet_Control_Lsa - ATT&CK T1128,S0108
+  description: Returns the content of the key HKLM_SOFTWARE_Microsoft_Netsh - ATT&CK T1128,S0108
   query: select name,type,data from registry where key='HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Netsh';
   purpose: Detection
   tags: MITRE, ATT&CK, threat detection
@@ -4103,7 +4076,7 @@ kind: query
 spec:
   name: MITRE - Prefetch File Monitoring
   platform: windows
-  description: Snapshot Prefetach File Directory - ATT&CK T1107
+  description: Monitor Windows Prefetch directory for execution artifacts - ATT&CK T1107
   query: select * from file WHERE directory = 'C:\Windows\Prefetch\';
   purpose: Detection
   tags: MITRE, ATT&CK, threat detection
@@ -4114,7 +4087,7 @@ kind: query
 spec:
   name: MITRE - Task Scheduling
   platform: windows
-  description: Schtasks Execute, usaullay used to create a scheduled task - ATT&CK T1053,S0110
+  description: Schtasks Execute, usually used to create a scheduled task - ATT&CK T1053,S0110
   query: |-
     select * from file WHERE directory = 'C:\Windows\Prefetch\' and filename
     like '%at.exe%';
@@ -4127,7 +4100,7 @@ kind: query
 spec:
   name: MITRE - File Attribute Modification
   platform: windows
-  description: Attrib Execute, usaullay used to modify file attributes - ATT&CK T1158
+  description: Attrib Execute, usually used to modify file attributes - ATT&CK T1158
   query: |-
     select * from file WHERE directory = 'C:\Windows\Prefetch\' and filename
     like '%attrib%';
@@ -4231,7 +4204,7 @@ kind: query
 spec:
   name: MITRE - Remote Desktop
   platform: windows
-  description: mstsc.exe Execute, usaullay used to perform a RDP Session  - ATT&CK T1076
+  description: mstsc.exe Execute, usually used to perform a RDP Session  - ATT&CK T1076
   query: |-
     select * from file WHERE directory = 'C:\Windows\Prefetch\' and filename
     like '%mstsc%';
@@ -4361,7 +4334,7 @@ kind: query
 spec:
   name: MITRE - Scheduled Tasks Prefetch
   platform: windows
-  description: Schtasks Execute, usaullay used to create a scheduled task - ATT&CK T1053,S0111
+  description: Schtasks Execute, usually used to create a scheduled task - ATT&CK T1053,S0111
   query: |-
     select * from file WHERE directory = 'C:\Windows\Prefetch\' and filename
     like '%schtasks%';
@@ -4400,7 +4373,7 @@ kind: query
 spec:
   name: MITRE - Task Engine
   platform: windows
-  description: taskeng Execute, usaullay used to create a scheduled task - ATT&CK T1053
+  description: taskeng Execute, usually used to create a scheduled task - ATT&CK T1053
   query: |-
     select * from file WHERE directory = 'C:\Windows\Prefetch\' and filename
     like '%taskeng%';
@@ -4413,7 +4386,7 @@ kind: query
 spec:
   name: MITRE - Process Termination
   platform: windows
-  description: 'Taskkill Execute, usaullay used to kill task '
+  description: 'Taskkill Execute, usually used to kill task '
   query: |-
     select * from file WHERE directory = 'C:\Windows\Prefetch\' and filename
     like '%taskkill%';
@@ -4426,7 +4399,7 @@ kind: query
 spec:
   name: MITRE - Process Enumeration
   platform: windows
-  description: Tasklist Execute, usaullay used to list task - ATT&CK T1057,T1063,T1007,S0057
+  description: Tasklist Execute, usually used to list task - ATT&CK T1057,T1063,T1007,S0057
   query: |-
     select * from file WHERE directory = 'C:\Windows\Prefetch\' and filename
     like '%tasklist%';
@@ -4439,7 +4412,7 @@ kind: query
 spec:
   name: MITRE - Terminal Services
   platform: windows
-  description: tscon.exe Execute, usaullay used to Terminal Services Console - ATT&CK T1076
+  description: tscon.exe Execute, usually used to Terminal Services Console - ATT&CK T1076
   query: |-
     select * from file WHERE directory = 'C:\Windows\Prefetch\' and filename
     like '%tscon%';
@@ -4452,7 +4425,7 @@ kind: query
 spec:
   name: MITRE - Volume Shadow Copy
   platform: windows
-  description: Vssadmin Execute, usaullay used to execute activity on Volume Shadow copy
+  description: Vssadmin Execute, usually used to execute activity on Volume Shadow copy
   query: |-
     select * from file WHERE directory = 'C:\Windows\Prefetch\' and filename
     like '%vssadmin%';
@@ -4513,19 +4486,6 @@ spec:
 apiVersion: v1
 kind: query
 spec:
-  name: MITRE - Chrome Extensions Detailed
-  platform: linux, darwin, windows
-  description: Lists all chrome extensions - ATT&CK T1176
-  query: |-
-    select u.username, ce.name,ce.identifier,ce.version,ce.description,ce.locale,ce.update_url,ce.author,ce.persistent,ce.path
-    from chrome_extensions ce LEFT JOIN users u ON ce.uid = u.uid;
-  purpose: Detection
-  tags: MITRE, ATT&CK, threat detection
-  contributors: teoseller,tux234
----
-apiVersion: v1
-kind: query
-spec:
   name: MITRE - Internet Explorer Extensions
   platform: windows
   description: Lists all internet explorer extensions - ATT&CK T1176
@@ -4572,7 +4532,7 @@ kind: query
 spec:
   name: MITRE - Symantec Service Status
   platform: windows
-  description: Sophos Endpoint Protection service status change - ATT&CK T1089
+  description: Symantec Endpoint Protection service status change - ATT&CK T1089
   query: SELECT * FROM services WHERE name = 'SepMasterService' AND status != 'RUNNING';
   purpose: Detection
   tags: MITRE, ATT&CK, threat detection
@@ -4627,7 +4587,7 @@ kind: query
 spec:
   name: MITRE - Certificate Discovery
   platform: linux, darwin, windows
-  description: Local system users. - ATT&CK T1116,T1130
+  description: Discover local system certificates for code signing and trust chain analysis - ATT&CK T1116,T1130
   query: select * from certificates;
   purpose: Detection
   tags: MITRE, ATT&CK, threat detection
@@ -4658,31 +4618,9 @@ spec:
 apiVersion: v1
 kind: query
 spec:
-  name: MITRE - Installed Programs Snapshot
-  platform: linux, darwin
-  description: Local system users.
-  query: select * from programs;
-  purpose: Detection
-  tags: MITRE, ATT&CK, threat detection
-  contributors: teoseller,tux234
----
-apiVersion: v1
-kind: query
-spec:
   name: MITRE - System Info Snapshot
   platform: linux, darwin, windows
   description: System information for identification.
-  query: SELECT * FROM system_info;
-  purpose: Detection
-  tags: MITRE, ATT&CK, threat detection
-  contributors: teoseller,tux234
----
-apiVersion: v1
-kind: query
-spec:
-  name: MITRE - System Information Snapshot
-  platform: linux, darwin
-  description: System info snapshot query
   query: SELECT * FROM system_info;
   purpose: Detection
   tags: MITRE, ATT&CK, threat detection
@@ -4695,28 +4633,6 @@ spec:
   platform: linux, darwin, windows
   description: System uptime
   query: SELECT * FROM uptime;
-  purpose: Detection
-  tags: MITRE, ATT&CK, threat detection
-  contributors: teoseller,tux234
----
-apiVersion: v1
-kind: query
-spec:
-  name: MITRE - Local User Accounts
-  platform: linux, darwin, windows
-  description: Local system users. - ATT&CK T1136,T1078
-  query: SELECT * FROM users;
-  purpose: Detection
-  tags: MITRE, ATT&CK, threat detection
-  contributors: teoseller,tux234
----
-apiVersion: v1
-kind: query
-spec:
-  name: MITRE - User Account Discovery Snapshot
-  platform: linux, darwin, windows
-  description: Users snapshot query - ATT&CK T1136,T1078
-  query: SELECT * FROM users;
   purpose: Detection
   tags: MITRE, ATT&CK, threat detection
   contributors: teoseller,tux234
@@ -5022,20 +4938,9 @@ spec:
 apiVersion: v1
 kind: query
 spec:
-  name: MITRE - Startup Items Snapshot
-  platform: linux, darwin
-  description: Snapshot Windows Startup Items Osquery predefined query - ATT&CK T1060
-  query: select * from startup_items;
-  purpose: Detection
-  tags: MITRE, ATT&CK, threat detection
-  contributors: teoseller,tux234
----
-apiVersion: v1
-kind: query
-spec:
   name: MITRE - Startup Items
   platform: linux, darwin, windows
-  description: Windows Startup Items Osquery predefined query - ATT&CK T1060
+  description: Startup items configured to launch on the system - ATT&CK T1060
   query: select * from startup_items;
   purpose: Detection
   tags: MITRE, ATT&CK, threat detection
@@ -5080,7 +4985,7 @@ apiVersion: v1
 kind: query
 spec:
   name: MITRE - Auto-Start Services
-  platform: linux, darwin, windows
+  platform: windows
   description: Lists all installed services configured to start automatically at boot - ATT&CK T1050
   query: SELECT * FROM services WHERE start_type='DEMAND_START' OR start_type='AUTO_START';
   purpose: Detection
@@ -5092,7 +4997,7 @@ kind: query
 spec:
   name: MITRE - Running Processes Snapshot
   platform: linux, darwin
-  description: Snapshot List Windows System running processes - ATT&CK T1034,T1121,T1117,T1085
+  description: List running processes with user and path information - ATT&CK T1034,T1121,T1117,T1085
   query: |-
     select processes.pid, processes.name, users.username, processes.path from
     processes LEFT JOIN users ON processes.uid = users.uid WHERE processes.path !=
@@ -5106,7 +5011,7 @@ kind: query
 spec:
   name: MITRE - Running Processes
   platform: linux, darwin, windows
-  description: List Windows System running processes. - ATT&CK T1034,T1121,T1117,T1085
+  description: List running processes with path and command line. - ATT&CK T1034,T1121,T1117,T1085
   query: |-
     select processes.pid, processes.name, users.username, processes.path, processes.cmdline
     from processes LEFT JOIN users ON processes.uid = users.uid WHERE processes.path
