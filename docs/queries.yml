@@ -3177,7 +3177,7 @@ spec:
   query: SELECT device, device_alias, flags, path,type from mounts;
   purpose: Detection
   tags: MITRE, ATT&CK, threat detection
-  contributors: tux234
+  contributors: teoseller,tux234
 ---
 apiVersion: v1
 kind: query
@@ -3188,7 +3188,7 @@ spec:
   query: select * from suid_bin;
   purpose: Detection
   tags: MITRE, ATT&CK, threat detection
-  contributors: tux234
+  contributors: teoseller,tux234
 ---
 apiVersion: v1
 kind: query
@@ -3199,7 +3199,7 @@ spec:
   query: select * from sudoers;
   purpose: Detection
   tags: MITRE, ATT&CK, threat detection
-  contributors: tux234
+  contributors: teoseller,tux234
 ---
 apiVersion: v1
 kind: query
@@ -3214,7 +3214,7 @@ spec:
     FROM hash JOIN file fi USING (path) where (fi.path like '/etc/sudoers') AND type='regular';
   purpose: Detection
   tags: MITRE, ATT&CK, threat detection
-  contributors: tux234
+  contributors: teoseller,tux234
 ---
 apiVersion: v1
 kind: query
@@ -3225,7 +3225,7 @@ spec:
   query: SELECT * FROM processes WHERE cmdline LIKE '/bin/bash -i >& /dev/tcp/%';
   purpose: Detection
   tags: MITRE, ATT&CK, threat detection
-  contributors: tux234
+  contributors: teoseller,tux234
 ---
 apiVersion: v1
 kind: query
@@ -3236,7 +3236,7 @@ spec:
   query: SELECT * FROM usb_devices;
   purpose: Detection
   tags: MITRE, ATT&CK, threat detection
-  contributors: tux234
+  contributors: teoseller,tux234
 ---
 apiVersion: v1
 kind: query
@@ -3249,7 +3249,7 @@ spec:
     (uid);
   purpose: Detection
   tags: MITRE, ATT&CK, threat detection
-  contributors: tux234
+  contributors: teoseller,tux234
 ---
 apiVersion: v1
 kind: query
@@ -3260,7 +3260,7 @@ spec:
   query: SELECT u.username, ce.* FROM users u CROSS JOIN firefox_addons ce USING (uid);
   purpose: Detection
   tags: MITRE, ATT&CK, threat detection
-  contributors: tux234
+  contributors: teoseller,tux234
 ---
 apiVersion: v1
 kind: query
@@ -3273,7 +3273,7 @@ spec:
     (uid);
   purpose: Detection
   tags: MITRE, ATT&CK, threat detection
-  contributors: tux234
+  contributors: teoseller,tux234
 ---
 apiVersion: v1
 kind: query
@@ -3286,7 +3286,7 @@ spec:
     JOIN users usr ON sht.uid = usr.uid WHERE sht.uid IN (SELECT uid from users);
   purpose: Detection
   tags: MITRE, ATT&CK, threat detection
-  contributors: tux234
+  contributors: teoseller,tux234
 ---
 apiVersion: v1
 kind: query
@@ -3302,7 +3302,7 @@ spec:
     like '/root/.%')) AND type='directory';
   purpose: Detection
   tags: MITRE, ATT&CK, threat detection
-  contributors: tux234
+  contributors: teoseller,tux234
 ---
 apiVersion: v1
 kind: query
@@ -3318,7 +3318,7 @@ spec:
     like '/root/.%')) AND type='regular';
   purpose: Detection
   tags: MITRE, ATT&CK, threat detection
-  contributors: tux234
+  contributors: teoseller,tux234
 ---
 apiVersion: v1
 kind: query
@@ -3334,7 +3334,7 @@ spec:
     OR sht.command LIKE '%linux-headers-$%' OR sht.command LIKE '%kernel-devel-$%');
   purpose: Detection
   tags: MITRE, ATT&CK, threat detection
-  contributors: tux234
+  contributors: teoseller,tux234
 ---
 apiVersion: v1
 kind: query
@@ -3345,7 +3345,7 @@ spec:
   query: select command, path from crontab;
   purpose: Detection
   tags: MITRE, ATT&CK, threat detection
-  contributors: tux234
+  contributors: teoseller,tux234
 ---
 apiVersion: v1
 kind: query
@@ -3358,7 +3358,7 @@ spec:
     lp LEFT JOIN processes p ON lp.pid = p.pid WHERE lp.port != 0 AND p.name != '';
   purpose: Detection
   tags: MITRE, ATT&CK, threat detection
-  contributors: tux234
+  contributors: teoseller,tux234
 ---
 apiVersion: v1
 kind: query
@@ -3372,7 +3372,7 @@ spec:
     != 0 AND p.name != '';
   purpose: Detection
   tags: MITRE, ATT&CK, threat detection
-  contributors: tux234
+  contributors: teoseller,tux234
 ---
 apiVersion: v1
 kind: query
@@ -3388,7 +3388,7 @@ spec:
     AND process_open_files.pid IS NULL;
   purpose: Detection
   tags: MITRE, ATT&CK, threat detection
-  contributors: tux234
+  contributors: teoseller,tux234
 ---
 apiVersion: v1
 kind: query
@@ -3405,7 +3405,7 @@ spec:
     like '/YOUR_DIRECTORY/%'));
   purpose: Detection
   tags: MITRE, ATT&CK, threat detection, template
-  contributors: tux234
+  contributors: teoseller,tux234
 ---
 apiVersion: v1
 kind: query
@@ -3421,7 +3421,7 @@ spec:
     like '/home/%') OR (fi.path like '/home/%/.%') OR (fi.path like '/home/.%'));
   purpose: Detection
   tags: MITRE, ATT&CK, threat detection
-  contributors: tux234
+  contributors: teoseller,tux234
 ---
 apiVersion: v1
 kind: query
@@ -3437,7 +3437,7 @@ spec:
     like '/root/%') OR (fi.path like '/root/%/.%') OR (fi.path like '/root/.%'));
   purpose: Detection
   tags: MITRE, ATT&CK, threat detection
-  contributors: tux234
+  contributors: teoseller,tux234
 ---
 apiVersion: v1
 kind: query
@@ -3453,7 +3453,7 @@ spec:
     like '/tmp/.%') OR (fi.path like '/tmp/%'));
   purpose: Detection
   tags: MITRE, ATT&CK, threat detection
-  contributors: tux234
+  contributors: teoseller,tux234
 ---
 apiVersion: v1
 kind: query
@@ -3469,7 +3469,7 @@ spec:
     like '/var/www/%/.%') OR (fi.path like '/var/www/.%') OR (fi.path like '/var/www/.%'));
   purpose: Detection
   tags: MITRE, ATT&CK, threat detection
-  contributors: tux234
+  contributors: teoseller,tux234
 ---
 apiVersion: v1
 kind: query
@@ -3482,7 +3482,7 @@ spec:
     pr LEFT JOIN users usr ON pr.uid = usr.uid WHERE pr.cmdline != '';
   purpose: Detection
   tags: MITRE, ATT&CK, threat detection
-  contributors: tux234
+  contributors: teoseller,tux234
 ---
 apiVersion: v1
 kind: query
@@ -3495,7 +3495,7 @@ spec:
     from last;
   purpose: Detection
   tags: MITRE, ATT&CK, threat detection
-  contributors: tux234
+  contributors: teoseller,tux234
 ---
 apiVersion: v1
 kind: query
@@ -3508,7 +3508,7 @@ spec:
     from logged_in_users;
   purpose: Detection
   tags: MITRE, ATT&CK, threat detection
-  contributors: tux234
+  contributors: teoseller,tux234
 ---
 apiVersion: v1
 kind: query
@@ -3519,7 +3519,7 @@ spec:
   query: select * from users;
   purpose: Detection
   tags: MITRE, ATT&CK, threat detection
-  contributors: tux234
+  contributors: teoseller,tux234
 ---
 apiVersion: v1
 kind: query
@@ -3532,7 +3532,7 @@ spec:
     lp LEFT JOIN processes p ON lp.pid = p.pid WHERE lp.port != 0 AND p.name != '';
   purpose: Detection
   tags: MITRE, ATT&CK, threat detection
-  contributors: tux234
+  contributors: teoseller,tux234
 ---
 apiVersion: v1
 kind: query
@@ -3546,7 +3546,7 @@ spec:
     != 0 AND p.name != '';
   purpose: Detection
   tags: MITRE, ATT&CK, threat detection
-  contributors: tux234
+  contributors: teoseller,tux234
 ---
 apiVersion: v1
 kind: query
@@ -3562,7 +3562,7 @@ spec:
     AND LOWER(name)='chrome.exe');
   purpose: Detection
   tags: MITRE, ATT&CK, threat detection
-  contributors: tux234
+  contributors: teoseller,tux234
 ---
 apiVersion: v1
 kind: query
@@ -3578,7 +3578,7 @@ spec:
     AND LOWER(name)='cmd.exe');
   purpose: Detection
   tags: MITRE, ATT&CK, threat detection
-  contributors: tux234
+  contributors: teoseller,tux234
 ---
 apiVersion: v1
 kind: query
@@ -3594,7 +3594,7 @@ spec:
     LOWER(name)='conhost.exe');
   purpose: Detection
   tags: MITRE, ATT&CK, threat detection
-  contributors: tux234
+  contributors: teoseller,tux234
 ---
 apiVersion: v1
 kind: query
@@ -3610,7 +3610,7 @@ spec:
     AND LOWER(name)='firefox.exe');
   purpose: Detection
   tags: MITRE, ATT&CK, threat detection
-  contributors: tux234
+  contributors: teoseller,tux234
 ---
 apiVersion: v1
 kind: query
@@ -3626,7 +3626,7 @@ spec:
     AND LOWER(name)='iexplore.exe');
   purpose: Detection
   tags: MITRE, ATT&CK, threat detection
-  contributors: tux234
+  contributors: teoseller,tux234
 ---
 apiVersion: v1
 kind: query
@@ -3642,7 +3642,7 @@ spec:
     LOWER(name)='lsass.exe');
   purpose: Detection
   tags: MITRE, ATT&CK, threat detection
-  contributors: tux234
+  contributors: teoseller,tux234
 ---
 apiVersion: v1
 kind: query
@@ -3658,7 +3658,7 @@ spec:
     AND LOWER(name)='notepad++.exe');
   purpose: Detection
   tags: MITRE, ATT&CK, threat detection
-  contributors: tux234
+  contributors: teoseller,tux234
 ---
 apiVersion: v1
 kind: query
@@ -3674,7 +3674,7 @@ spec:
     AND LOWER(name)='notepad.exe');
   purpose: Detection
   tags: MITRE, ATT&CK, threat detection
-  contributors: tux234
+  contributors: teoseller,tux234
 ---
 apiVersion: v1
 kind: query
@@ -3690,7 +3690,7 @@ spec:
     AND LOWER(name)='powershell.exe');
   purpose: Detection
   tags: MITRE, ATT&CK, threat detection
-  contributors: tux234
+  contributors: teoseller,tux234
 ---
 apiVersion: v1
 kind: query
@@ -3706,7 +3706,7 @@ spec:
     LOWER(name)='services.exe');
   purpose: Detection
   tags: MITRE, ATT&CK, threat detection
-  contributors: tux234
+  contributors: teoseller,tux234
 ---
 apiVersion: v1
 kind: query
@@ -3722,7 +3722,7 @@ spec:
     AND LOWER(name)='svchost.exe');
   purpose: Detection
   tags: MITRE, ATT&CK, threat detection
-  contributors: tux234
+  contributors: teoseller,tux234
 ---
 apiVersion: v1
 kind: query
@@ -3735,7 +3735,7 @@ spec:
     AND path!='';
   purpose: Detection
   tags: MITRE, ATT&CK, threat detection
-  contributors: tux234
+  contributors: teoseller,tux234
 ---
 apiVersion: v1
 kind: query
@@ -3748,7 +3748,7 @@ spec:
     AND path!='';
   purpose: Detection
   tags: MITRE, ATT&CK, threat detection
-  contributors: tux234
+  contributors: teoseller,tux234
 ---
 apiVersion: v1
 kind: query
@@ -3761,7 +3761,7 @@ spec:
     AND LOWER(path)!='c:\windows\syswow64\dllhost.exe' AND path!='';
   purpose: Detection
   tags: MITRE, ATT&CK, threat detection
-  contributors: tux234
+  contributors: teoseller,tux234
 ---
 apiVersion: v1
 kind: query
@@ -3774,7 +3774,7 @@ spec:
     AND LOWER(path)!='c:\windows\syswow64\explorer.exe' AND path!='';
   purpose: Detection
   tags: MITRE, ATT&CK, threat detection
-  contributors: tux234
+  contributors: teoseller,tux234
 ---
 apiVersion: v1
 kind: query
@@ -3787,7 +3787,7 @@ spec:
     AND path!='';
   purpose: Detection
   tags: MITRE, ATT&CK, threat detection
-  contributors: tux234
+  contributors: teoseller,tux234
 ---
 apiVersion: v1
 kind: query
@@ -3800,7 +3800,7 @@ spec:
     AND path!='';
   purpose: Detection
   tags: MITRE, ATT&CK, threat detection
-  contributors: tux234
+  contributors: teoseller,tux234
 ---
 apiVersion: v1
 kind: query
@@ -3813,7 +3813,7 @@ spec:
     AND path!='';
   purpose: Detection
   tags: MITRE, ATT&CK, threat detection
-  contributors: tux234
+  contributors: teoseller,tux234
 ---
 apiVersion: v1
 kind: query
@@ -3826,7 +3826,7 @@ spec:
     AND LOWER(path)!='c:\windows\syswow64\svchost.exe' AND path!='';
   purpose: Detection
   tags: MITRE, ATT&CK, threat detection
-  contributors: tux234
+  contributors: teoseller,tux234
 ---
 apiVersion: v1
 kind: query
@@ -3839,7 +3839,7 @@ spec:
     AND path!='';
   purpose: Detection
   tags: MITRE, ATT&CK, threat detection
-  contributors: tux234
+  contributors: teoseller,tux234
 ---
 apiVersion: v1
 kind: query
@@ -3852,7 +3852,7 @@ spec:
     AND path!='';
   purpose: Detection
   tags: MITRE, ATT&CK, threat detection
-  contributors: tux234
+  contributors: teoseller,tux234
 ---
 apiVersion: v1
 kind: query
@@ -3865,7 +3865,7 @@ spec:
     AND LOWER(path)!='c:\windows\syswow64\wbem\wmiprvse.exe' AND path!='';
   purpose: Detection
   tags: MITRE, ATT&CK, threat detection
-  contributors: tux234
+  contributors: teoseller,tux234
 ---
 apiVersion: v1
 kind: query
@@ -3878,7 +3878,7 @@ spec:
     Panel\Desktop';
   purpose: Detection
   tags: MITRE, ATT&CK, threat detection
-  contributors: tux234
+  contributors: teoseller,tux234
 ---
 apiVersion: v1
 kind: query
@@ -3891,7 +3891,7 @@ spec:
     NT\CurrentVersion\Winlogon';
   purpose: Detection
   tags: MITRE, ATT&CK, threat detection
-  contributors: tux234
+  contributors: teoseller,tux234
 ---
 apiVersion: v1
 kind: query
@@ -3902,7 +3902,7 @@ spec:
   query: select name,type,data from registry where key='HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Policies\Explorer\Run';
   purpose: Detection
   tags: MITRE, ATT&CK, threat detection
-  contributors: tux234
+  contributors: teoseller,tux234
 ---
 apiVersion: v1
 kind: query
@@ -3913,7 +3913,7 @@ spec:
   query: select * from registry where key='HKEY_CURRENT_USER\Environment';
   purpose: Detection
   tags: MITRE, ATT&CK, threat detection
-  contributors: tux234
+  contributors: teoseller,tux234
 ---
 apiVersion: v1
 kind: query
@@ -3924,7 +3924,7 @@ spec:
   query: select name,type,data from registry where key='HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Run';
   purpose: Detection
   tags: MITRE, ATT&CK, threat detection
-  contributors: tux234
+  contributors: teoseller,tux234
 ---
 apiVersion: v1
 kind: query
@@ -3937,7 +3937,7 @@ spec:
     NT\CurrentVersion\Winlogon';
   purpose: Detection
   tags: MITRE, ATT&CK, threat detection
-  contributors: tux234
+  contributors: teoseller,tux234
 ---
 apiVersion: v1
 kind: query
@@ -3948,7 +3948,7 @@ spec:
   query: select name,type,data from registry where key='HKEY_LOCAL_MACHINE\Software\Microsoft\Windows\CurrentVersion\Policies\Explorer\Run';
   purpose: Detection
   tags: MITRE, ATT&CK, threat detection
-  contributors: tux234
+  contributors: teoseller,tux234
 ---
 apiVersion: v1
 kind: query
@@ -3961,7 +3961,7 @@ spec:
     NT\CurrentVersion\Image File Execution Options';
   purpose: Detection
   tags: MITRE, ATT&CK, threat detection
-  contributors: tux234
+  contributors: teoseller,tux234
 ---
 apiVersion: v1
 kind: query
@@ -3974,7 +3974,7 @@ spec:
     NT\CurrentVersion\Windows' and name='AppInit_DLLs';
   purpose: Detection
   tags: MITRE, ATT&CK, threat detection
-  contributors: tux234
+  contributors: teoseller,tux234
 ---
 apiVersion: v1
 kind: query
@@ -3987,7 +3987,7 @@ spec:
     NT\CurrentVersion\Winlogon';
   purpose: Detection
   tags: MITRE, ATT&CK, threat detection
-  contributors: tux234
+  contributors: teoseller,tux234
 ---
 apiVersion: v1
 kind: query
@@ -4000,7 +4000,7 @@ spec:
     NT\CurrentVersion\Windows' and name='AppInit_DLLs';
   purpose: Detection
   tags: MITRE, ATT&CK, threat detection
-  contributors: tux234
+  contributors: teoseller,tux234
 ---
 apiVersion: v1
 kind: query
@@ -4013,7 +4013,7 @@ spec:
     nt\currentversion\appcompatflags\custom';
   purpose: Detection
   tags: MITRE, ATT&CK, threat detection
-  contributors: tux234
+  contributors: teoseller,tux234
 ---
 apiVersion: v1
 kind: query
@@ -4026,7 +4026,7 @@ spec:
     nt\currentversion\appcompatflags\installedsdb';
   purpose: Detection
   tags: MITRE, ATT&CK, threat detection
-  contributors: tux234
+  contributors: teoseller,tux234
 ---
 apiVersion: v1
 kind: query
@@ -4037,7 +4037,7 @@ spec:
   query: select name,type,data from registry where key='HKEY_LOCAL_MACHINE\system\CurrentControlSet\Control\Lsa';
   purpose: Detection
   tags: MITRE, ATT&CK, threat detection
-  contributors: tux234
+  contributors: teoseller,tux234
 ---
 apiVersion: v1
 kind: query
@@ -4048,7 +4048,7 @@ spec:
   query: select name,type,data from registry where key='HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Netsh';
   purpose: Detection
   tags: MITRE, ATT&CK, threat detection
-  contributors: tux234
+  contributors: teoseller,tux234
 ---
 apiVersion: v1
 kind: query
@@ -4059,7 +4059,7 @@ spec:
   query: select name, type from registry where key='HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Services';
   purpose: Detection
   tags: MITRE, ATT&CK, threat detection
-  contributors: tux234
+  contributors: teoseller,tux234
 ---
 apiVersion: v1
 kind: query
@@ -4070,7 +4070,7 @@ spec:
   query: select name,type,data from registry where key='HKEY_USERS\Software\Microsoft\Windows\CurrentVersion\Run';
   purpose: Detection
   tags: MITRE, ATT&CK, threat detection
-  contributors: tux234
+  contributors: teoseller,tux234
 ---
 apiVersion: v1
 kind: query
@@ -4083,7 +4083,7 @@ spec:
     like '%InstallUtil%';
   purpose: Detection
   tags: MITRE, ATT&CK, threat detection
-  contributors: tux234
+  contributors: teoseller,tux234
 ---
 apiVersion: v1
 kind: query
@@ -4096,7 +4096,7 @@ spec:
     like '%PsExec%';
   purpose: Detection
   tags: MITRE, ATT&CK, threat detection
-  contributors: tux234
+  contributors: teoseller,tux234
 ---
 apiVersion: v1
 kind: query
@@ -4107,7 +4107,7 @@ spec:
   query: select * from file WHERE directory = 'C:\Windows\Prefetch\';
   purpose: Detection
   tags: MITRE, ATT&CK, threat detection
-  contributors: tux234
+  contributors: teoseller,tux234
 ---
 apiVersion: v1
 kind: query
@@ -4120,7 +4120,7 @@ spec:
     like '%at.exe%';
   purpose: Detection
   tags: MITRE, ATT&CK, threat detection
-  contributors: tux234
+  contributors: teoseller,tux234
 ---
 apiVersion: v1
 kind: query
@@ -4133,7 +4133,7 @@ spec:
     like '%attrib%';
   purpose: Detection
   tags: MITRE, ATT&CK, threat detection
-  contributors: tux234
+  contributors: teoseller,tux234
 ---
 apiVersion: v1
 kind: query
@@ -4146,7 +4146,7 @@ spec:
     like '%bitsadmin%';
   purpose: Detection
   tags: MITRE, ATT&CK, threat detection
-  contributors: tux234
+  contributors: teoseller,tux234
 ---
 apiVersion: v1
 kind: query
@@ -4159,7 +4159,7 @@ spec:
     like '%certutil%';
   purpose: Detection
   tags: MITRE, ATT&CK, threat detection
-  contributors: tux234
+  contributors: teoseller,tux234
 ---
 apiVersion: v1
 kind: query
@@ -4172,7 +4172,7 @@ spec:
     like '%CMD%';
   purpose: Detection
   tags: MITRE, ATT&CK, threat detection
-  contributors: tux234
+  contributors: teoseller,tux234
 ---
 apiVersion: v1
 kind: query
@@ -4185,7 +4185,7 @@ spec:
     like '%CMSTP%';
   purpose: Detection
   tags: MITRE, ATT&CK, threat detection
-  contributors: tux234
+  contributors: teoseller,tux234
 ---
 apiVersion: v1
 kind: query
@@ -4198,7 +4198,7 @@ spec:
     like '%cscript%';
   purpose: Detection
   tags: MITRE, ATT&CK, threat detection
-  contributors: tux234
+  contributors: teoseller,tux234
 ---
 apiVersion: v1
 kind: query
@@ -4211,7 +4211,7 @@ spec:
     like '%esentutl%';
   purpose: Detection
   tags: MITRE, ATT&CK, threat detection
-  contributors: tux234
+  contributors: teoseller,tux234
 ---
 apiVersion: v1
 kind: query
@@ -4224,7 +4224,7 @@ spec:
     like '%mshta%';
   purpose: Detection
   tags: MITRE, ATT&CK, threat detection
-  contributors: tux234
+  contributors: teoseller,tux234
 ---
 apiVersion: v1
 kind: query
@@ -4237,7 +4237,7 @@ spec:
     like '%mstsc%';
   purpose: Detection
   tags: MITRE, ATT&CK, threat detection
-  contributors: tux234
+  contributors: teoseller,tux234
 ---
 apiVersion: v1
 kind: query
@@ -4250,7 +4250,7 @@ spec:
     like '%net.exe%';
   purpose: Detection
   tags: MITRE, ATT&CK, threat detection
-  contributors: tux234
+  contributors: teoseller,tux234
 ---
 apiVersion: v1
 kind: query
@@ -4263,7 +4263,7 @@ spec:
     like '%netsh%';
   purpose: Detection
   tags: MITRE, ATT&CK, threat detection
-  contributors: tux234
+  contributors: teoseller,tux234
 ---
 apiVersion: v1
 kind: query
@@ -4276,7 +4276,7 @@ spec:
     like '%netstat%';
   purpose: Detection
   tags: MITRE, ATT&CK, threat detection
-  contributors: tux234
+  contributors: teoseller,tux234
 ---
 apiVersion: v1
 kind: query
@@ -4289,7 +4289,7 @@ spec:
     like '%POWERSHELL%';
   purpose: Detection
   tags: MITRE, ATT&CK, threat detection
-  contributors: tux234
+  contributors: teoseller,tux234
 ---
 apiVersion: v1
 kind: query
@@ -4302,7 +4302,7 @@ spec:
     like '%reg%';
   purpose: Detection
   tags: MITRE, ATT&CK, threat detection
-  contributors: tux234
+  contributors: teoseller,tux234
 ---
 apiVersion: v1
 kind: query
@@ -4315,7 +4315,7 @@ spec:
     like '%regedit%';
   purpose: Detection
   tags: MITRE, ATT&CK, threat detection
-  contributors: tux234
+  contributors: teoseller,tux234
 ---
 apiVersion: v1
 kind: query
@@ -4328,7 +4328,7 @@ spec:
     like '%regsvr%';
   purpose: Detection
   tags: MITRE, ATT&CK, threat detection
-  contributors: tux234
+  contributors: teoseller,tux234
 ---
 apiVersion: v1
 kind: query
@@ -4341,7 +4341,7 @@ spec:
     like '%runas%';
   purpose: Detection
   tags: MITRE, ATT&CK, threat detection
-  contributors: tux234
+  contributors: teoseller,tux234
 ---
 apiVersion: v1
 kind: query
@@ -4354,7 +4354,7 @@ spec:
     like '%sc%';
   purpose: Detection
   tags: MITRE, ATT&CK, threat detection
-  contributors: tux234
+  contributors: teoseller,tux234
 ---
 apiVersion: v1
 kind: query
@@ -4367,7 +4367,7 @@ spec:
     like '%schtasks%';
   purpose: Detection
   tags: MITRE, ATT&CK, threat detection
-  contributors: tux234
+  contributors: teoseller,tux234
 ---
 apiVersion: v1
 kind: query
@@ -4380,7 +4380,7 @@ spec:
     '%-k%';
   purpose: Detection
   tags: MITRE, ATT&CK, threat detection
-  contributors: tux234
+  contributors: teoseller,tux234
 ---
 apiVersion: v1
 kind: query
@@ -4393,7 +4393,7 @@ spec:
     like '%systeminfo%';
   purpose: Detection
   tags: MITRE, ATT&CK, threat detection
-  contributors: tux234
+  contributors: teoseller,tux234
 ---
 apiVersion: v1
 kind: query
@@ -4406,7 +4406,7 @@ spec:
     like '%taskeng%';
   purpose: Detection
   tags: MITRE, ATT&CK, threat detection
-  contributors: tux234
+  contributors: teoseller,tux234
 ---
 apiVersion: v1
 kind: query
@@ -4419,7 +4419,7 @@ spec:
     like '%taskkill%';
   purpose: Detection
   tags: MITRE, ATT&CK, threat detection
-  contributors: tux234
+  contributors: teoseller,tux234
 ---
 apiVersion: v1
 kind: query
@@ -4432,7 +4432,7 @@ spec:
     like '%tasklist%';
   purpose: Detection
   tags: MITRE, ATT&CK, threat detection
-  contributors: tux234
+  contributors: teoseller,tux234
 ---
 apiVersion: v1
 kind: query
@@ -4445,7 +4445,7 @@ spec:
     like '%tscon%';
   purpose: Detection
   tags: MITRE, ATT&CK, threat detection
-  contributors: tux234
+  contributors: teoseller,tux234
 ---
 apiVersion: v1
 kind: query
@@ -4458,7 +4458,7 @@ spec:
     like '%vssadmin%';
   purpose: Detection
   tags: MITRE, ATT&CK, threat detection
-  contributors: tux234
+  contributors: teoseller,tux234
 ---
 apiVersion: v1
 kind: query
@@ -4471,7 +4471,7 @@ spec:
     like '%whoami%';
   purpose: Detection
   tags: MITRE, ATT&CK, threat detection
-  contributors: tux234
+  contributors: teoseller,tux234
 ---
 apiVersion: v1
 kind: query
@@ -4484,7 +4484,7 @@ spec:
     like '%xcopy%';
   purpose: Detection
   tags: MITRE, ATT&CK, threat detection
-  contributors: tux234
+  contributors: teoseller,tux234
 ---
 apiVersion: v1
 kind: query
@@ -4497,7 +4497,7 @@ spec:
     from chrome_extensions ce LEFT JOIN users u ON ce.uid = u.uid;
   purpose: Detection
   tags: MITRE, ATT&CK, threat detection
-  contributors: tux234
+  contributors: teoseller,tux234
 ---
 apiVersion: v1
 kind: query
@@ -4508,7 +4508,7 @@ spec:
   query: SELECT * FROM ie_extensions;
   purpose: Detection
   tags: MITRE, ATT&CK, threat detection
-  contributors: tux234
+  contributors: teoseller,tux234
 ---
 apiVersion: v1
 kind: query
@@ -4521,7 +4521,7 @@ spec:
     from chrome_extensions ce LEFT JOIN users u ON ce.uid = u.uid;
   purpose: Detection
   tags: MITRE, ATT&CK, threat detection
-  contributors: tux234
+  contributors: teoseller,tux234
 ---
 apiVersion: v1
 kind: query
@@ -4532,7 +4532,7 @@ spec:
   query: select * from ie_extensions;
   purpose: Detection
   tags: MITRE, ATT&CK, threat detection
-  contributors: tux234
+  contributors: teoseller,tux234
 ---
 apiVersion: v1
 kind: query
@@ -4543,7 +4543,7 @@ spec:
   query: SELECT * FROM services WHERE name = 'SAVAdminService' AND status != 'RUNNING';
   purpose: Detection
   tags: MITRE, ATT&CK, threat detection
-  contributors: tux234
+  contributors: teoseller,tux234
 ---
 apiVersion: v1
 kind: query
@@ -4554,7 +4554,7 @@ spec:
   query: SELECT * FROM services;
   purpose: Detection
   tags: MITRE, ATT&CK, threat detection
-  contributors: tux234
+  contributors: teoseller,tux234
 ---
 apiVersion: v1
 kind: query
@@ -4565,7 +4565,7 @@ spec:
   query: SELECT * FROM services WHERE name = 'SavService' AND status != 'RUNNING';
   purpose: Detection
   tags: MITRE, ATT&CK, threat detection
-  contributors: tux234
+  contributors: teoseller,tux234
 ---
 apiVersion: v1
 kind: query
@@ -4576,7 +4576,7 @@ spec:
   query: SELECT * FROM services WHERE name = 'SepMasterService' AND status != 'RUNNING';
   purpose: Detection
   tags: MITRE, ATT&CK, threat detection
-  contributors: tux234
+  contributors: teoseller,tux234
 ---
 apiVersion: v1
 kind: query
@@ -4587,7 +4587,7 @@ spec:
   query: SELECT * FROM services WHERE name = 'WinDefend' AND status != 'RUNNING';
   purpose: Detection
   tags: MITRE, ATT&CK, threat detection
-  contributors: tux234
+  contributors: teoseller,tux234
 ---
 apiVersion: v1
 kind: query
@@ -4598,7 +4598,7 @@ spec:
   query: SELECT * FROM services WHERE name = 'MpsSvc' AND status != 'RUNNING';
   purpose: Detection
   tags: MITRE, ATT&CK, threat detection
-  contributors: tux234
+  contributors: teoseller,tux234
 ---
 apiVersion: v1
 kind: query
@@ -4609,7 +4609,7 @@ spec:
   query: SELECT * FROM services WHERE name = 'wscsvc' AND status != 'RUNNING';
   purpose: Detection
   tags: MITRE, ATT&CK, threat detection
-  contributors: tux234
+  contributors: teoseller,tux234
 ---
 apiVersion: v1
 kind: query
@@ -4620,7 +4620,7 @@ spec:
   query: SELECT * FROM services WHERE name = 'wuauserv' AND status != 'RUNNING';
   purpose: Detection
   tags: MITRE, ATT&CK, threat detection
-  contributors: tux234
+  contributors: teoseller,tux234
 ---
 apiVersion: v1
 kind: query
@@ -4631,7 +4631,7 @@ spec:
   query: select * from certificates;
   purpose: Detection
   tags: MITRE, ATT&CK, threat detection
-  contributors: tux234
+  contributors: teoseller,tux234
 ---
 apiVersion: v1
 kind: query
@@ -4642,7 +4642,7 @@ spec:
   query: select * from logged_in_users;
   purpose: Detection
   tags: MITRE, ATT&CK, threat detection
-  contributors: tux234
+  contributors: teoseller,tux234
 ---
 apiVersion: v1
 kind: query
@@ -4653,7 +4653,7 @@ spec:
   query: SELECT * FROM programs;
   purpose: Detection
   tags: MITRE, ATT&CK, threat detection
-  contributors: tux234
+  contributors: teoseller,tux234
 ---
 apiVersion: v1
 kind: query
@@ -4664,7 +4664,7 @@ spec:
   query: select * from programs;
   purpose: Detection
   tags: MITRE, ATT&CK, threat detection
-  contributors: tux234
+  contributors: teoseller,tux234
 ---
 apiVersion: v1
 kind: query
@@ -4675,7 +4675,7 @@ spec:
   query: SELECT * FROM system_info;
   purpose: Detection
   tags: MITRE, ATT&CK, threat detection
-  contributors: tux234
+  contributors: teoseller,tux234
 ---
 apiVersion: v1
 kind: query
@@ -4686,7 +4686,7 @@ spec:
   query: SELECT * FROM system_info;
   purpose: Detection
   tags: MITRE, ATT&CK, threat detection
-  contributors: tux234
+  contributors: teoseller,tux234
 ---
 apiVersion: v1
 kind: query
@@ -4697,7 +4697,7 @@ spec:
   query: SELECT * FROM uptime;
   purpose: Detection
   tags: MITRE, ATT&CK, threat detection
-  contributors: tux234
+  contributors: teoseller,tux234
 ---
 apiVersion: v1
 kind: query
@@ -4708,7 +4708,7 @@ spec:
   query: SELECT * FROM users;
   purpose: Detection
   tags: MITRE, ATT&CK, threat detection
-  contributors: tux234
+  contributors: teoseller,tux234
 ---
 apiVersion: v1
 kind: query
@@ -4719,7 +4719,7 @@ spec:
   query: SELECT * FROM users;
   purpose: Detection
   tags: MITRE, ATT&CK, threat detection
-  contributors: tux234
+  contributors: teoseller,tux234
 ---
 apiVersion: v1
 kind: query
@@ -4730,7 +4730,7 @@ spec:
   query: SELECT * FROM windows_crashes;
   purpose: Detection
   tags: MITRE, ATT&CK, threat detection
-  contributors: tux234
+  contributors: teoseller,tux234
 ---
 apiVersion: v1
 kind: query
@@ -4746,7 +4746,7 @@ spec:
     'C:\users\%\AppData\Local\%' AND f.type='directory';
   purpose: Detection
   tags: MITRE, ATT&CK, threat detection
-  contributors: tux234
+  contributors: teoseller,tux234
 ---
 apiVersion: v1
 kind: query
@@ -4762,7 +4762,7 @@ spec:
     'C:\users\%\AppData\local\temp\%' AND f.type='directory';
   purpose: Detection
   tags: MITRE, ATT&CK, threat detection
-  contributors: tux234
+  contributors: teoseller,tux234
 ---
 apiVersion: v1
 kind: query
@@ -4778,7 +4778,7 @@ spec:
     'C:\users\%\AppData\Roaming\%' AND f.type='directory';
   purpose: Detection
   tags: MITRE, ATT&CK, threat detection
-  contributors: tux234
+  contributors: teoseller,tux234
 ---
 apiVersion: v1
 kind: query
@@ -4794,7 +4794,7 @@ spec:
     'C:\users\%\AppData\Roaming\Microsoft\Windows\Start Menu\Programs\%' AND f.type='directory';
   purpose: Detection
   tags: MITRE, ATT&CK, threat detection
-  contributors: tux234
+  contributors: teoseller,tux234
 ---
 apiVersion: v1
 kind: query
@@ -4811,7 +4811,7 @@ spec:
     f.type='directory';
   purpose: Detection
   tags: MITRE, ATT&CK, threat detection
-  contributors: tux234
+  contributors: teoseller,tux234
 ---
 apiVersion: v1
 kind: query
@@ -4827,7 +4827,7 @@ spec:
     'C:\ProgramData\Microsoft\Windows\Start Menu\%' AND f.type='directory';
   purpose: Detection
   tags: MITRE, ATT&CK, threat detection
-  contributors: tux234
+  contributors: teoseller,tux234
 ---
 apiVersion: v1
 kind: query
@@ -4843,7 +4843,7 @@ spec:
     'C:\ProgramData\Microsoft\Windows\Start Menu\Programs\%' AND f.type='directory';
   purpose: Detection
   tags: MITRE, ATT&CK, threat detection
-  contributors: tux234
+  contributors: teoseller,tux234
 ---
 apiVersion: v1
 kind: query
@@ -4859,7 +4859,7 @@ spec:
     'C:\Windows\%' AND f.type='directory';
   purpose: Detection
   tags: MITRE, ATT&CK, threat detection
-  contributors: tux234
+  contributors: teoseller,tux234
 ---
 apiVersion: v1
 kind: query
@@ -4875,7 +4875,7 @@ spec:
     'C:\Windows\temp\%' AND f.type='directory';
   purpose: Detection
   tags: MITRE, ATT&CK, threat detection
-  contributors: tux234
+  contributors: teoseller,tux234
 ---
 apiVersion: v1
 kind: query
@@ -4891,7 +4891,7 @@ spec:
     and type='regular';
   purpose: Detection
   tags: MITRE, ATT&CK, threat detection
-  contributors: tux234
+  contributors: teoseller,tux234
 ---
 apiVersion: v1
 kind: query
@@ -4907,7 +4907,7 @@ spec:
     and type='regular';
   purpose: Detection
   tags: MITRE, ATT&CK, threat detection
-  contributors: tux234
+  contributors: teoseller,tux234
 ---
 apiVersion: v1
 kind: query
@@ -4923,7 +4923,7 @@ spec:
     and type='regular';
   purpose: Detection
   tags: MITRE, ATT&CK, threat detection
-  contributors: tux234
+  contributors: teoseller,tux234
 ---
 apiVersion: v1
 kind: query
@@ -4939,7 +4939,7 @@ spec:
     Menu\%' AND type='regular';
   purpose: Detection
   tags: MITRE, ATT&CK, threat detection
-  contributors: tux234
+  contributors: teoseller,tux234
 ---
 apiVersion: v1
 kind: query
@@ -4955,7 +4955,7 @@ spec:
     Menu\Programs\%' AND type='regular';
   purpose: Detection
   tags: MITRE, ATT&CK, threat detection
-  contributors: tux234
+  contributors: teoseller,tux234
 ---
 apiVersion: v1
 kind: query
@@ -4971,7 +4971,7 @@ spec:
     Menu\Programs\%' AND type='regular';
   purpose: Detection
   tags: MITRE, ATT&CK, threat detection
-  contributors: tux234
+  contributors: teoseller,tux234
 ---
 apiVersion: v1
 kind: query
@@ -4987,7 +4987,7 @@ spec:
     Menu\Programs\Startup\%' AND type='regular';
   purpose: Detection
   tags: MITRE, ATT&CK, threat detection
-  contributors: tux234
+  contributors: teoseller,tux234
 ---
 apiVersion: v1
 kind: query
@@ -5002,7 +5002,7 @@ spec:
     FROM hash JOIN file USING (path) where path like 'C:\Windows\%' and type='regular';
   purpose: Detection
   tags: MITRE, ATT&CK, threat detection
-  contributors: tux234
+  contributors: teoseller,tux234
 ---
 apiVersion: v1
 kind: query
@@ -5017,7 +5017,7 @@ spec:
     FROM hash JOIN file USING (path) where path like 'C:\Windows\temp\%' and type='regular';
   purpose: Detection
   tags: MITRE, ATT&CK, threat detection
-  contributors: tux234
+  contributors: teoseller,tux234
 ---
 apiVersion: v1
 kind: query
@@ -5028,7 +5028,7 @@ spec:
   query: select * from startup_items;
   purpose: Detection
   tags: MITRE, ATT&CK, threat detection
-  contributors: tux234
+  contributors: teoseller,tux234
 ---
 apiVersion: v1
 kind: query
@@ -5039,7 +5039,7 @@ spec:
   query: select * from startup_items;
   purpose: Detection
   tags: MITRE, ATT&CK, threat detection
-  contributors: tux234
+  contributors: teoseller,tux234
 ---
 apiVersion: v1
 kind: query
@@ -5050,7 +5050,7 @@ spec:
   query: select * from powershell_events;
   purpose: Detection
   tags: MITRE, ATT&CK, threat detection
-  contributors: tux234
+  contributors: teoseller,tux234
 ---
 apiVersion: v1
 kind: query
@@ -5061,7 +5061,7 @@ spec:
   query: SELECT name, path, pid FROM processes WHERE on_disk = 0;
   purpose: Detection
   tags: MITRE, ATT&CK, threat detection
-  contributors: tux234
+  contributors: teoseller,tux234
 ---
 apiVersion: v1
 kind: query
@@ -5074,7 +5074,7 @@ spec:
     from scheduled_tasks;
   purpose: Detection
   tags: MITRE, ATT&CK, threat detection
-  contributors: tux234
+  contributors: teoseller,tux234
 ---
 apiVersion: v1
 kind: query
@@ -5085,7 +5085,7 @@ spec:
   query: SELECT * FROM services WHERE start_type='DEMAND_START' OR start_type='AUTO_START';
   purpose: Detection
   tags: MITRE, ATT&CK, threat detection
-  contributors: tux234
+  contributors: teoseller,tux234
 ---
 apiVersion: v1
 kind: query
@@ -5099,7 +5099,7 @@ spec:
     '';
   purpose: Detection
   tags: MITRE, ATT&CK, threat detection
-  contributors: tux234
+  contributors: teoseller,tux234
 ---
 apiVersion: v1
 kind: query
@@ -5113,4 +5113,4 @@ spec:
     != '';
   purpose: Detection
   tags: MITRE, ATT&CK, threat detection
-  contributors: tux234
+  contributors: teoseller,tux234
