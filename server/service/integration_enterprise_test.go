@@ -25153,24 +25153,15 @@ func (s *integrationEnterpriseTestSuite) TestMaintainedAppsRollback() {
 	ctx := context.Background()
 
 	installerBytes := []byte("abc")
-	installerSrvHit := false
+	downloadedInstaller := false
 
 	// Mock server to serve the "installers"
 	installerServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		installerSrvHit = true
+		downloadedInstaller = true
 		_, _ = w.Write(installerBytes)
 
 	}))
 	defer installerServer.Close()
-
-	// getSoftwareInstallerIDByMAppID := func(mappID uint) uint {
-	// 	var id uint
-	// 	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
-	// 		return sqlx.GetContext(ctx, q, &id, "SELECT id FROM software_installers WHERE fleet_maintained_app_id = ?", mappID)
-	// 	})
-
-	// 	return id
-	// }
 
 	// Non-existent maintained app
 	s.Do("POST", "/api/latest/fleet/software/fleet_maintained_apps", &addFleetMaintainedAppRequest{AppID: 1}, http.StatusNotFound)
@@ -25385,7 +25376,7 @@ func (s *integrationEnterpriseTestSuite) TestMaintainedAppsRollback() {
 	// v2.0 installer bytes were []byte("def")
 	require.Equal(t, []byte("def"), body, "downloaded installer should match v2.0 bytes")
 
-	installerSrvHit = false
+	downloadedInstaller = false
 	// ---- Test switching active version back to 3.0 ----
 	// Pin to version "3.0" — the active installer should switch to the cached v3.0 installer.
 	softwareToInstallV3 := []*fleet.SoftwareInstallerPayload{
@@ -25441,5 +25432,39 @@ func (s *integrationEnterpriseTestSuite) TestMaintainedAppsRollback() {
 	require.Equal(t, []byte("ghi"), body, "downloaded installer should match v3.0 bytes")
 
 	// We have version 3.0 cached, so we should not have downloaded the bytes
-	s.Assert().False(installerSrvHit)
+	s.Assert().False(downloadedInstaller)
+
+	// ---- Test rollback to an evicted version (v1.0) ----
+	// v1.0 was evicted when v3.0 was added (max 2 cached: v3.0 + v2.0).
+	// Per spec, pinning to an evicted version should fail with an error —
+	// Fleet should NOT re-download it.
+	downloadedInstaller = false
+
+	softwareToInstallV1 := []*fleet.SoftwareInstallerPayload{
+		{Slug: ptr.String("cloudflare-warp/windows"), SelfService: true, RollbackVersion: "1.0"},
+	}
+
+	s.DoJSON("POST", "/api/latest/fleet/software/batch", batchSetSoftwareInstallersRequest{Software: softwareToInstallV1, TeamName: team.Name}, http.StatusAccepted, &batchResponse, "team_name", team.Name, "team_id", fmt.Sprint(team.ID))
+	errMsg := waitBatchSetSoftwareInstallersFailed(t, &s.withServer, team.Name, batchResponse.RequestUUID)
+	require.Contains(t, errMsg, "specified version is not available")
+
+	// Should NOT have hit the installer server — no re-download attempt
+	require.False(t, downloadedInstaller, "should not attempt to re-download an evicted version")
+
+	// The active version should still be "3.0" (unchanged)
+	resp = listSoftwareTitlesResponse{}
+	s.DoJSON(
+		"GET", "/api/latest/fleet/software/titles",
+		listSoftwareTitlesRequest{},
+		http.StatusOK, &resp,
+		"per_page", "1",
+		"order_key", "name",
+		"order_direction", "desc",
+		"available_for_install", "true",
+		"team_id", fmt.Sprintf("%d", team.ID),
+	)
+
+	require.Equal(t, 1, resp.Count)
+	title = resp.SoftwareTitles[0]
+	require.Equal(t, "3.0", title.SoftwarePackage.Version, "active version should remain 3.0 after failed rollback to evicted version")
 }

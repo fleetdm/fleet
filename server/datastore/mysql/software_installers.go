@@ -2703,6 +2703,14 @@ WHERE
 						ORDER BY uploaded_at DESC, id DESC LIMIT 1
 					`, globalOrTeamID, titleID, installer.RollbackVersion)
 					if err != nil {
+						if errors.Is(err, sql.ErrNoRows) {
+							return ctxerr.Wrap(ctx, &fleet.BadRequestError{
+								Message: fmt.Sprintf(
+									"Couldn't edit %q: specified version is not available. Available versions are listed in the Fleet UI under Actions > Edit software.",
+									installer.Filename,
+								),
+							})
+						}
 						return ctxerr.Wrapf(ctx, err, "find cached FMA installer version %q for %q", installer.RollbackVersion, installer.Filename)
 					}
 					activeInstallerID = pinnedID
