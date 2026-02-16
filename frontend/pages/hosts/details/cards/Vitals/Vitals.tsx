@@ -468,69 +468,6 @@ const Vitals = ({
       ) >= 0;
 
     const renderHostVitals = () => {
-      // <DataSet
-      //   title="Added to Fleet"
-      //   value={
-      //     <HumanTimeDiffWithFleetLaunchCutoff
-      //       timeString={vitalsData.last_enrolled_at ?? "Unavailable"}
-      //     />
-      //   }
-      // />;
-      // {
-      //   renderAgentSummary();
-      // }
-      // {
-      //   renderBatteryCondition();
-      // }
-      // {
-      //   renderDiskEncryptionSummary();
-      // }
-      // {
-      //   !isChromeHost && renderDiskSpaceSummary();
-      // }
-      // {
-      //   !isIosOrIpadosHost && !isAndroidHost && (
-      //     <DataSet
-      //       title="Last restarted"
-      //       value={
-      //         <HumanTimeDiffWithFleetLaunchCutoff
-      //           timeString={vitalsData.last_restarted_at}
-      //         />
-      //       }
-      //     />
-      //   );
-      // }
-      // {
-      //   renderHardwareSerialAndIPs();
-      // }
-      // {
-      //   !isIosOrIpadosHost && (
-      //     <DataSet
-      //       title="Memory"
-      //       value={wrapFleetHelper(humanHostMemory, vitalsData.memory)}
-      //     />
-      //   );
-      // }
-      // {
-      //   !isIosOrIpadosHost && (
-      //     <DataSet title="Processor type" value={vitalsData.cpu_type} />
-      //   );
-      // }
-      // {
-      //   renderOperatingSystemSummary();
-      // }
-      // {
-      //   renderMunkiData();
-      // }
-      // {
-      //   renderMdmData();
-      // }
-      // {
-      //   renderTimezone();
-      // }
-      // {
-      //   renderGeolocation();
-      // }
       // collect all datasets to be included, depending on various conditions - see above comment
       // render the collected datasets in alphabetical order of their titles
     };
@@ -583,7 +520,74 @@ const Vitals = ({
       paddingSize="xlarge"
     >
       <CardHeader header="Vitals" />
-      <div className={`${baseClass}__info-grid`}>{renderHostVitals()}</div>
+      <div className={`${baseClass}__info-grid`}>
+        {
+          // <DataSet
+          //   title="Added to Fleet"
+          //   value={
+          //     <HumanTimeDiffWithFleetLaunchCutoff
+          //       timeString={vitalsData.last_enrolled_at ?? "Unavailable"}
+          //     />
+          //   }
+          // />;
+          // {
+          //   renderAgentSummary();
+          // }
+          // {
+          //   renderBatteryCondition();
+          // }
+          // {
+          //   renderDiskEncryptionSummary();
+          // }
+          // {
+          //   !isChromeHost && renderDiskSpaceSummary();
+          // }
+          // {
+          //   !isIosOrIpadosHost && !isAndroidHost && (
+          //     <DataSet
+          //       title="Last restarted"
+          //       value={
+          //         <HumanTimeDiffWithFleetLaunchCutoff
+          //           timeString={vitalsData.last_restarted_at}
+          //         />
+          //       }
+          //     />
+          //   );
+          // }
+          // {
+          //   renderHardwareSerialAndIPs();
+          // }
+          // {
+          //   !isIosOrIpadosHost && (
+          //     <DataSet
+          //       title="Memory"
+          //       value={wrapFleetHelper(humanHostMemory, vitalsData.memory)}
+          //     />
+          //   );
+          // }
+          // {
+          //   !isIosOrIpadosHost && (
+          //     <DataSet title="Processor type" value={vitalsData.cpu_type} />
+          //   );
+          // }
+          // {
+          //   renderOperatingSystemSummary();
+          // }
+          // {
+          //   renderMunkiData();
+          // }
+          // {
+          //   renderMdmData();
+          // }
+          // {
+          //   renderTimezone();
+          // }
+          // {
+          //   renderGeolocation();
+          // }
+          renderHostVitals()
+        }
+      </div>
     </Card>
   );
 };
