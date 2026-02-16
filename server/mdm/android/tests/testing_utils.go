@@ -2,6 +2,7 @@ package tests
 
 import (
 	"context"
+	"log/slog"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -18,12 +19,12 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mdm/android/service/androidmgmt"
 	ds_mock "github.com/fleetdm/fleet/v4/server/mock"
 	"github.com/fleetdm/fleet/v4/server/platform/endpointer"
+	"github.com/fleetdm/fleet/v4/server/platform/logging"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/service/middleware/auth"
 	"github.com/fleetdm/fleet/v4/server/service/middleware/log"
 	"github.com/fleetdm/fleet/v4/server/service/modules/activities"
 	kithttp "github.com/go-kit/kit/transport/http"
-	kitlog "github.com/go-kit/log"
 	"github.com/gorilla/mux"
 	"github.com/jmoiron/sqlx"
 	"github.com/stretchr/testify/assert"
@@ -111,13 +112,15 @@ func (ts *WithServer) SetupSuite(t *testing.T, dbName string) {
 	ts.AndroidAPIClient = android_mock.Client{}
 	ts.createCommonProxyMocks(t)
 
-	logger := kitlog.NewLogfmtLogger(os.Stdout)
-	activityModule := activities.NewActivityModule(&ts.DS.DataStore, logger)
-	svc, err := service.NewServiceWithClient(logger, &ts.DS, &ts.AndroidAPIClient, "test-private-key", ts.DS.Datastore, activityModule, config.AndroidAgentConfig{})
+	logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
+	kitLogger := logging.NewLogger(logger)
+	activityModule := activities.NewActivityModule(&ts.DS.DataStore, kitLogger)
+	svc, err := service.NewServiceWithClient(logger, &ts.DS, &ts.AndroidAPIClient, "test-private-key", ts.DS.Datastore, activityModule,
+		config.AndroidAgentConfig{})
 	require.NoError(t, err)
 	ts.Svc = svc
 
-	ts.Server = runServerForTests(t, logger, &ts.FleetSvc, svc)
+	ts.Server = runServerForTests(t, kitLogger, &ts.FleetSvc, svc)
 }
 
 func (ts *WithServer) CreateCommonDSMocks() {
@@ -206,7 +209,7 @@ func (m *mockService) NewActivity(ctx context.Context, user *fleet.User, details
 	return m.Called(ctx, user, details).Error(0)
 }
 
-func runServerForTests(t *testing.T, logger kitlog.Logger, fleetSvc fleet.Service, androidSvc android.Service) *httptest.Server {
+func runServerForTests(t *testing.T, logger *logging.Logger, fleetSvc fleet.Service, androidSvc android.Service) *httptest.Server {
 	// androidErrorEncoder wraps EncodeError with nil domain encoder for android tests
 	androidErrorEncoder := func(ctx context.Context, err error, w http.ResponseWriter) {
 		endpointer.EncodeError(ctx, err, w, nil)
@@ -221,7 +224,7 @@ func runServerForTests(t *testing.T, logger kitlog.Logger, fleetSvc fleet.Servic
 		kithttp.ServerErrorEncoder(androidErrorEncoder),
 		kithttp.ServerAfter(
 			kithttp.SetContentType("application/json; charset=utf-8"),
-			log.LogRequestEnd(logger),
+			log.LogRequestEnd(logger.SlogLogger()),
 		),
 	}
 

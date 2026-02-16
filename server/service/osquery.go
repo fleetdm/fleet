@@ -2,10 +2,15 @@ package service
 
 import (
 	"context"
+	"crypto/x509"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
+	"log/slog"
 	"net/http"
+	"net/url"
+	"os"
 	"regexp"
 	"sort"
 	"strconv"
@@ -55,6 +60,9 @@ func (svc *Service) AuthenticateHost(ctx context.Context, nodeKey string) (*flee
 		// OK
 	case fleet.IsNotFound(err):
 		return nil, false, newOsqueryErrorWithInvalidNode("authentication error: invalid node key")
+	case errors.Is(err, context.Canceled):
+		// Most likely client disconnected, so we treat this as a client error.
+		return nil, false, err
 	default:
 		return nil, false, newOsqueryError("authentication error: " + err.Error())
 	}
@@ -99,7 +107,7 @@ func (svc *Service) EnrollOsquery(ctx context.Context, enrollSecret, hostIdentif
 	// skipauth: Authorization is currently for user endpoints only.
 	svc.authz.SkipAuthorization(ctx)
 
-	logging.WithLevel(logging.WithExtras(ctx, "hostIdentifier", hostIdentifier), level.Info)
+	logging.WithLevel(logging.WithExtras(ctx, "hostIdentifier", hostIdentifier), slog.LevelInfo)
 
 	secret, err := svc.ds.VerifyEnrollSecret(ctx, enrollSecret)
 	if err != nil {
@@ -945,6 +953,22 @@ type submitDistributedQueryResultsRequestShim struct {
 
 func (shim *submitDistributedQueryResultsRequestShim) hostNodeKey() string {
 	return shim.NodeKey
+}
+
+// DecodeBody implements the bodyDecoder interface for custom request body
+// decoding. This endpoint receives large payloads (distributed query results),
+// making it susceptible to client read timeouts (poll.DeadlineExceededError).
+// By implementing DecodeBody, we can classify those network errors as client errors.
+func (shim *submitDistributedQueryResultsRequestShim) DecodeBody(_ context.Context, r io.Reader, _ url.Values, _ []*x509.Certificate) error {
+	if err := json.NewDecoder(r).Decode(shim); err != nil {
+		if errors.Is(err, os.ErrDeadlineExceeded) {
+			osqueryErr := NewOsqueryError("request body read error: "+err.Error(), false)
+			osqueryErr.StatusCode = http.StatusRequestTimeout
+			return osqueryErr
+		}
+		return err
+	}
+	return nil
 }
 
 func (shim *submitDistributedQueryResultsRequestShim) toRequest(ctx context.Context) (*SubmitDistributedQueryResultsRequest, error) {

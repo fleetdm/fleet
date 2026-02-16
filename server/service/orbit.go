@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log/slog"
 	"net/http"
 	"net/url"
 
@@ -130,7 +131,7 @@ func (svc *Service) EnrollOrbit(ctx context.Context, hostInfo fleet.OrbitHostInf
 			"computer_name", hostInfo.ComputerName,
 			"hardware_model", hostInfo.HardwareModel,
 		),
-		level.Info,
+		slog.LevelInfo,
 	)
 
 	secret, err := svc.ds.VerifyEnrollSecret(ctx, enrollSecret)

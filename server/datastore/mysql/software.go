@@ -3060,6 +3060,10 @@ func (ds *Datastore) ListSoftwareForVulnDetection(
 		baseSQL += "JOIN host_software hs ON s.id = hs.software_id "
 	}
 
+	if filters.KernelsOnly {
+		baseSQL += "JOIN software_titles st ON s.title_id = st.id "
+	}
+
 	conditions := []string{}
 
 	if filters.HostID != nil {
@@ -3075,6 +3079,10 @@ func (ds *Datastore) ListSoftwareForVulnDetection(
 	if filters.Source != "" {
 		conditions = append(conditions, "s.source = ?")
 		args = append(args, filters.Source)
+	}
+
+	if filters.KernelsOnly {
+		conditions = append(conditions, "st.is_kernel = 1")
 	}
 
 	if len(conditions) > 0 {
