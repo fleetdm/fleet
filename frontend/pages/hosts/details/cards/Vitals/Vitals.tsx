@@ -122,51 +122,6 @@ const Vitals = ({
   const isAndroidHost = isAndroid(vitalsData.platform);
   const isChromeHost = isChrome(vitalsData.platform);
 
-  // Generate the device ID data set based on MDM enrollment status. This is
-  // either the Enrollment ID for personal (BYOD) devices or the Serial number
-  // for business-owned devices.
-  const generateDeviceIdDataSet: () => VitalForSort | null = () => {
-    // Default to showing the Serial number dataset. If the below conditions
-    // evaluate to true, instead show the Enrollment ID dataset.
-    let deviceIdDataSet = {
-      sortKey: "Serial number",
-      element: (
-        <DataSet
-          key="serial-number"
-          title="Serial number"
-          value={<TooltipTruncatedText value={vitalsData.hardware_serial} />}
-        />
-      ),
-    };
-
-    // if the host is an Android host and it is not enrolled in MDM personally,
-    // we do not show the device ID dataset at all.
-    if (isAndroidHost && mdm && mdm.enrollment_status !== "On (personal)") {
-      return null;
-    }
-
-    // for all host types, we show the Enrollment ID dataset if the host
-    // is enrolled in MDM personally. Personal (BYOD) devices do not report
-    // their serial numbers, so we show the Enrollment ID instead.
-    if (mdm && isBYODAccountDrivenUserEnrollment(mdm.enrollment_status)) {
-      deviceIdDataSet = {
-        sortKey: "Enrollment ID",
-        element: (
-          <DataSet
-            key="enrollment-id"
-            title={
-              <TooltipWrapper tipContent="Enrollment ID is a unique identifier for personal hosts. Personal (BYOD) devices don't report their serial numbers. The Enrollment ID changes with each enrollment.">
-                Enrollment ID
-              </TooltipWrapper>
-            }
-            value={<TooltipTruncatedText value={vitalsData.uuid} />}
-          />
-        ),
-      };
-    }
-    return deviceIdDataSet;
-  };
-
   const {
     platform,
     os_version,
@@ -354,9 +309,38 @@ const Vitals = ({
     }
 
     // Device identity
-    const deviceIdDataSet = generateDeviceIdDataSet();
-    if (deviceIdDataSet) {
-      vitals.push(deviceIdDataSet);
+    if (!(isAndroidHost && mdm && mdm.enrollment_status !== "On (personal)")) {
+      if (mdm && isBYODAccountDrivenUserEnrollment(mdm.enrollment_status)) {
+        //  Personal (BYOD) devices do not report their serial numbers, so show the Enrollment ID instead.
+        vitals.push({
+          sortKey: "Enrollment ID",
+          element: (
+            <DataSet
+              key="enrollment-id"
+              title={
+                <TooltipWrapper tipContent="Enrollment ID is a unique identifier for personal hosts. Personal (BYOD) devices don't report their serial numbers. The Enrollment ID changes with each enrollment.">
+                  Enrollment ID
+                </TooltipWrapper>
+              }
+              value={<TooltipTruncatedText value={vitalsData.uuid} />}
+            />
+          ),
+        });
+      } else {
+        // for all other host types, show the Enrollment ID dataset
+        vitals.push({
+          sortKey: "Serial number",
+          element: (
+            <DataSet
+              key="serial-number"
+              title="Serial number"
+              value={
+                <TooltipTruncatedText value={vitalsData.hardware_serial} />
+              }
+            />
+          ),
+        });
+      }
     }
 
     // Hardware model
