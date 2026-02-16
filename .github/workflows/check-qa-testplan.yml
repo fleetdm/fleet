@@ -1,5 +1,10 @@
 name: Check QA test plan confirmation
 
+# This action runs when an issue or PR is moved on a GitHub Project board.
+# When an item is moved into the "✔️Awaiting QA" column, it checks if the
+# QA test plan confirmation checklist item is checked. If not, it adds a
+# comment to remind the engineer to check it before QA begins.
+
 on:
   projects_v2_item:
     types: [edited]
@@ -29,13 +34,16 @@ jobs:
 
             // Get the project item details
             const projectItemNodeId = context.payload.projects_v2_item.node_id;
-            
+
             // Check if this is a status field change to "Awaiting QA"
             const changes = context.payload.changes;
             if (!changes || !changes.field_value) {
               console.log("Not a field value change, skipping");
               return;
             }
+
+            // Log the change details for debugging
+            console.log("Field value changed from:", changes.field_value.from, "to:", changes.field_value.to);
 
             // Query the project item to get current status
             const query = `query($nodeId: ID!) {
@@ -82,8 +90,11 @@ jobs:
             }
 
             const item = result.node;
-            
+
             // Check if the item is now in "Awaiting QA" column
+            // This check ensures we only act when an item has been moved TO Awaiting QA
+            // (The event triggers when field_value changes, so if it's now in Awaiting QA
+            //  and wasn't before, this is a move into the column)
             let isInAwaitingQA = false;
             if (item.fieldValues && item.fieldValues.nodes) {
               for (const fieldValue of item.fieldValues.nodes) {
@@ -98,6 +109,8 @@ jobs:
               console.log("Item is not in Awaiting QA column, skipping");
               return;
             }
+
+            console.log("Item has been moved to Awaiting QA column");
 
             // Get the issue/PR body
             let body = "";
