@@ -1083,7 +1083,7 @@ software:
 		[]string{"gitops", "--config", fleetctlConfig.Name(), "-f", globalFile.Name(), "-f", noTeamFilePath, "--dry-run"}))
 	s.assertRealRunOutput(t, fleetctl.RunAppForTest(t, []string{"gitops", "--config", fleetctlConfig.Name(), "-f", globalFile.Name(), "-f", noTeamFilePath}))
 
-	// Check script existance
+	// Check script existence
 	_, err = s.DS.GetSetupExperienceScript(ctx, nil)
 	require.NoError(t, err)
 

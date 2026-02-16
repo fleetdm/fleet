@@ -33,7 +33,7 @@ func DuplicateJSONKeys(data []byte, rules []AliasRule) []byte {
 
 	var buf bytes.Buffer
 	dec := jsontext.NewDecoder(bytes.NewReader(data), jsontext.AllowDuplicateNames(true))
-	enc := jsontext.NewEncoder(&buf, jsontext.WithIndent("  "), jsontext.AllowDuplicateNames(true))
+	enc := jsontext.NewEncoder(&buf, jsontext.AllowDuplicateNames(true))
 
 	// pendingDup holds a key-value pair that should be inserted as a
 	// duplicate at the end of the current object scope (before '}'),
