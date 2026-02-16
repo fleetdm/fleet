@@ -17,6 +17,16 @@
               </li>
             </ul>
           </div>
+          <div purpose="related-pages-links" class="pt-3" v-if="relatedPages.length > 1">
+            <h4 class="font-weight-bold pb-2 m-0 mb-2" >Related topics:</h4>
+            <div purpose="subtopics">
+              <ul class="p-0 m-0">
+                <li v-for="(relatedPage, index) in relatedPages" class="subtopic" :key="index" v-if="relatedPage.url !== thisPage.url">
+                  <a :href="relatedPage.url" class="pl-lg-3">{{_.trim(relatedPage.title)}}</a>
+                </li>
+              </ul>
+            </div>
+          </div>
         </div>
         <div class="border-bottom py-3 d-flex d-md-none"></div>
       </div>
@@ -86,9 +96,19 @@
                 </li>
               </ul>
             </div>
+            <div purpose="related-pages-links" class="pt-3" v-if="relatedPages.length > 1">
+              <h4>Related topics:</h4>
+              <div purpose="subtopics">
+                <ul class="p-0 m-0">
+                  <li v-for="(relatedPage, index) in relatedPages" class="subtopic" :key="index"  v-if="relatedPage.url !== thisPage.url">
+                    <a :href="relatedPage.url">{{_.trim(relatedPage.title)}}</a>
+                  </li>
+                </ul>
+              </div>
+            </div>
           </div>
           <div>
-            <a href="/contact" purpose="sidebar-cta" class="d-flex flex-row justify-content-start">
+            <a href="/contact" purpose="sidebar-cta" class="d-flex flex-row justify-content-start" no-underline>
             <div class="d-flex align-self-start">
               <img alt="Ask us anything" src="/images/icon-question-20x19@2x.png">
             </div>

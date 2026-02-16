@@ -8,6 +8,7 @@ parasails.registerPage('basic-handbook', {
     breadcrumbs: [],
     subtopics: [],
     handbookIndexLinks: [],
+    relatedPages: [],
     hideEmojisOnPage: false,
     regexToMatchEmoji: /(?:(?!🥚|🐣|🐥|🦆|🦢)(?:[\u00A9\u00AE\u203C\u2049\u2122\u2139\u2194-\u21AA\u2300-\u23FF\u2460-\u24FF\u25AA-\u25FE\u2600-\u26FF\u2700-\u27BF\u2900-\u297F\u2934-\u2935\u2B05-\u2B07\u2B1B-\u2B1C\u2B50\u2B55\u3030\u303D\u3297\u3299]|\uD83C[\uDC04\uDCCF\uDD70-\uDD71\uDD7E-\uDD7F\uDE00-\uDE02\uDE1A\uDE2F\uDE30-\uDE39\uDE3A-\uDE3F\uDE50-\uDE51\uDF00-\uDF21\uDF24-\uDF93\uDF96-\uDF97\uDF99-\uDFF0\uDFF3-\uDFF5\uDFF7-\uDFFF]|\uD83D[\uDC00-\uDDFF\uDE00-\uDE4F\uDE80-\uDEFF\uDFE0-\uDFFF]|\uD83E[\uDD0D-\uDDFF\uDE00-\uDEFF]))\s{0,1}/g
   },
@@ -137,7 +138,24 @@ parasails.registerPage('basic-handbook', {
       });
       return subtopics;
     })();
-
+    // Create a list of "Related topics"
+    let pagesInFolder = (()=>{
+      let relatedPages = [];
+      if(!this.isHandbookLandingPage) {
+        let thisPagesFolderInTheHandbookFolder = this.thisPage.sectionRelativeRepoPath.split('/')[0];
+        let pagesInThisFolder = _.filter(this.markdownPages, (page)=>{ return _.startsWith(page.sectionRelativeRepoPath, thisPagesFolderInTheHandbookFolder);});
+        relatedPages = pagesInThisFolder.map((page)=>{
+          if(!_.startsWith(page.url, '/handbook/company/open-positions') && !_.startsWith(page.url, '/handbook/company/legal') ){
+            return {
+              url: page.url,
+              title: page.title.replace(this.regexToMatchEmoji, '').replace(/^\W/, ''),
+            };
+          }
+        });
+        return _.filter(relatedPages, (page)=>{ return !! page; });
+      }
+    })();
+    this.relatedPages = pagesInFolder;
     // Set counters for items in ordered lists to be the value of their "start" attribute.
     document.querySelectorAll('ol[start]').forEach((ol)=> {
       let startValue = parseInt(ol.getAttribute('start'), 10) - 1;
