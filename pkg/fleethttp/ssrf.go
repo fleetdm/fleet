@@ -84,14 +84,15 @@ func (e *SSRFError) Error() string {
 	return fmt.Sprintf("URL %q resolves to a blocked address", e.URL)
 }
 
-func checkResolvedAddrs(ctx context.Context, host, rawURL string, resolver func(context.Context, string) ([]string, error)) error {
+func checkResolvedAddrs(ctx context.Context, host, rawURL string, resolver func(context.Context, string) ([]string, error)) ([]net.IP, error) {
 	addrs, err := resolver(ctx, host)
 	if err != nil {
-		return fmt.Errorf("resolving host %q: %w", host, err)
+		return nil, fmt.Errorf("resolving host %q: %w", host, err)
 	}
 	if len(addrs) == 0 {
-		return fmt.Errorf("host %q resolved to no addresses", host)
+		return nil, fmt.Errorf("host %q resolved to no addresses", host)
 	}
+	safe := make([]net.IP, 0, len(addrs))
 	for _, addr := range addrs {
 		h, _, err := net.SplitHostPort(addr)
 		if err != nil {
@@ -99,13 +100,14 @@ func checkResolvedAddrs(ctx context.Context, host, rawURL string, resolver func(
 		}
 		ip := net.ParseIP(h)
 		if ip == nil {
-			return fmt.Errorf("resolved address %q for host %q is not a valid IP", h, host)
+			return nil, fmt.Errorf("resolved address %q for host %q is not a valid IP", h, host)
 		}
 		if isBlockedIP(ip) {
-			return &SSRFError{URL: rawURL, IP: ip}
+			return nil, &SSRFError{URL: rawURL, IP: ip}
 		}
+		safe = append(safe, ip)
 	}
-	return nil
+	return safe, nil
 }
 
 // CheckURLForSSRF validates rawURL against SSRF attack vectors using a static blocklist.
@@ -138,7 +140,8 @@ func CheckURLForSSRF(ctx context.Context, rawURL string, resolver func(ctx conte
 	if resolver == nil {
 		resolver = net.DefaultResolver.LookupHost
 	}
-	return checkResolvedAddrs(ctx, hostname, rawURL, resolver)
+	_, err = checkResolvedAddrs(ctx, hostname, rawURL, resolver)
+	return err
 }
 
 // SSRFDialContext returns a DialContext function that validates against SSRF attack vectors using a static blocklist.
@@ -166,10 +169,11 @@ func SSRFDialContext(
 			return nil, fmt.Errorf("ssrf dial: splitting host/port from %q: %w", addr, err)
 		}
 
-		if err := checkResolvedAddrs(ctx, host, net.JoinHostPort(host, port), resolver); err != nil {
+		safeIPs, err := checkResolvedAddrs(ctx, host, net.JoinHostPort(host, port), resolver)
+		if err != nil {
 			return nil, err
 		}
 
-		return dial(ctx, network, addr)
+		return dial(ctx, network, net.JoinHostPort(safeIPs[0].String(), port))
 	}
 }

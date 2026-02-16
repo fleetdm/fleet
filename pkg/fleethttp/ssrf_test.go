@@ -181,6 +181,14 @@ func noopDial(_ context.Context, _, _ string) (net.Conn, error) {
 	return nil, errors.New("no-op dial: connection not attempted in tests")
 }
 
+// captureDial records the addr passed to dial without opening a real socket.
+func captureDial(got *string) func(ctx context.Context, network, addr string) (net.Conn, error) {
+	return func(_ context.Context, _, addr string) (net.Conn, error) {
+		*got = addr
+		return nil, errors.New("no-op dial: connection not attempted in tests")
+	}
+}
+
 // staticResolver returns a fixed list of IPs for any host.
 func staticResolver(ips ...string) func(ctx context.Context, host string) ([]string, error) {
 	return func(_ context.Context, _ string) ([]string, error) {
@@ -259,6 +267,22 @@ func TestSSRFDialContextResolverError(t *testing.T) {
 	_, err := dial(context.Background(), "tcp", "cant-resolve.example.com:443")
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "resolving")
+}
+
+func TestSSRFDialContextDialsResolvedIP(t *testing.T) {
+	t.Parallel()
+
+	var gotAddr string
+	dialFn := SSRFDialContext(nil, staticResolver("93.184.216.34"), captureDial(&gotAddr))
+	_, _ = dialFn(context.Background(), "tcp", "example.com:443")
+
+	// The dialer must receive the resolved IP, not "example.com".
+	host, port, err := net.SplitHostPort(gotAddr)
+	require.NoError(t, err)
+	assert.Equal(t, "443", port)
+	assert.NotEmpty(t, host)
+	assert.NotEqual(t, "example.com", host, "dialer must receive resolved IP, not the hostname")
+	assert.Equal(t, net.ParseIP("93.184.216.34").String(), net.ParseIP(host).String())
 }
 
 func TestSSRFDialContextNilsUseDefaults(t *testing.T) {
