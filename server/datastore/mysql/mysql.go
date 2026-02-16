@@ -6,6 +6,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"log/slog"
 	"net"
 	"os"
 	"regexp"
@@ -30,10 +31,10 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mdm/android"
 	nano_push "github.com/fleetdm/fleet/v4/server/mdm/nanomdm/push"
 	scep_depot "github.com/fleetdm/fleet/v4/server/mdm/scep/depot"
+	"github.com/fleetdm/fleet/v4/server/platform/logging"
 	common_mysql "github.com/fleetdm/fleet/v4/server/platform/mysql"
 	"github.com/fleetdm/fleet/v4/server/service/modules/activities"
 	"github.com/go-kit/log"
-	"github.com/go-kit/log/level"
 	"github.com/go-sql-driver/mysql"
 	"github.com/hashicorp/go-multierror"
 	"github.com/jmoiron/sqlx"
@@ -107,6 +108,15 @@ func (ds *Datastore) WithPusher(p nano_push.Pusher) {
 	ds.pusher = p
 }
 
+// slogger returns the underlying *slog.Logger from the kitlog adapter.
+// This is used during the gradual migration from kitlog to slog (ADR-0008).
+func (ds *Datastore) slogger() *slog.Logger {
+	if la, ok := ds.logger.(*logging.Logger); ok {
+		return la.SlogLogger()
+	}
+	return slog.New(slog.DiscardHandler)
+}
+
 // reader returns the DB instance to use for read-only statements, which is the
 // replica unless the primary has been explicitly required via
 // ctxdb.RequirePrimary.
@@ -145,11 +155,7 @@ func (ds *Datastore) loadOrPrepareStmt(ctx context.Context, query string) *sqlx.
 		var err error
 		stmt, err = sqlx.PreparexContext(ctx, ds.replica, query)
 		if err != nil {
-			level.Error(ds.logger).Log(
-				"msg", "failed to prepare statement",
-				"query", query,
-				"err", err,
-			)
+			ds.slogger().ErrorContext(ctx, "failed to prepare statement", "query", query, "err", err)
 			return nil
 		}
 		ds.stmtCache[query] = stmt
@@ -163,11 +169,7 @@ func (ds *Datastore) deleteCachedStmt(query string) {
 	stmt, ok := ds.stmtCache[query]
 	if ok {
 		if err := stmt.Close(); err != nil {
-			level.Error(ds.logger).Log(
-				"msg", "failed to close prepared statement before deleting it",
-				"query", query,
-				"err", err,
-			)
+			ds.slogger().Error("failed to close prepared statement before deleting it", "query", query, "err", err)
 		}
 		delete(ds.stmtCache, query)
 	}
@@ -233,7 +235,7 @@ func NewDBConnections(cfg config.MysqlConfig, opts ...DBOption) (*common_mysql.D
 	options := &common_mysql.DBOptions{
 		MinLastOpenedAtDiff: defaultMinLastOpenedAtDiff,
 		MaxAttempts:         defaultMaxAttempts,
-		Logger:              log.NewNopLogger(),
+		Logger:              logging.NewNopLogger(),
 	}
 
 	for _, setOpt := range opts {
@@ -859,7 +861,7 @@ func (ds *Datastore) whereFilterHostsByTeams(filter fleet.TeamFilter, hostKey st
 		// This is likely unintentional, however we would like to return no
 		// results rather than panicking or returning some other error. At least
 		// log.
-		level.Info(ds.logger).Log("err", "team filter missing user")
+		ds.slogger().Info("team filter missing user")
 		return "FALSE"
 	}
 
@@ -936,7 +938,7 @@ func (ds *Datastore) whereFilterGlobalOrTeamIDByTeamsWithSqlFilter(
 		// This is likely unintentional, however we would like to return no
 		// results rather than panicking or returning some other error. At least
 		// log.
-		level.Info(ds.logger).Log("err", "team filter missing user")
+		ds.slogger().Info("team filter missing user")
 		return "FALSE"
 	}
 
@@ -1001,7 +1003,7 @@ func (ds *Datastore) whereFilterTeams(filter fleet.TeamFilter, teamKey string) s
 		// This is likely unintentional, however we would like to return no
 		// results rather than panicking or returning some other error. At least
 		// log.
-		level.Info(ds.logger).Log("err", "team filter missing user")
+		ds.slogger().Info("team filter missing user")
 		return "FALSE"
 	}
 

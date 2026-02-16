@@ -12,7 +12,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/ptr"
-	"github.com/go-kit/log/level"
 	"github.com/jmoiron/sqlx"
 )
 
@@ -31,7 +30,7 @@ func (ds *Datastore) UpdateHostCertificates(ctx context.Context, hostID uint, ho
 	for _, cert := range certs {
 		if cert.HostID != hostID {
 			// caller should ensure this does not happen
-			level.Debug(ds.logger).Log("msg", fmt.Sprintf("host certificates: host ID does not match provided certificate: %d %d", hostID, cert.HostID))
+			ds.slogger().DebugContext(ctx, "host certificates: host ID does not match provided certificate", "expected_host_id", hostID, "cert_host_id", cert.HostID)
 		}
 
 		// Validate and truncate certificate fields
@@ -100,7 +99,7 @@ func (ds *Datastore) UpdateHostCertificates(ctx context.Context, hostID uint, ho
 		if existing, ok := existingBySHA1[sha1]; ok && existing.NotValidBefore.Equal(incoming.NotValidBefore) && existing.NotValidAfter.Equal(incoming.NotValidAfter) {
 			// TODO: should we always update existing records? skipping updates reduces db load but
 			// osquery is using sha1 so we consider subtleties
-			level.Debug(ds.logger).Log("msg", fmt.Sprintf("host certificates: already exists: %s", sha1), "host_id", hostID) // TODO: silence this log after initial rollout period
+			ds.slogger().DebugContext(ctx, "host certificates: already exists", "sha1", sha1, "host_id", hostID) // TODO: silence this log after initial rollout period
 		} else {
 			toInsert = append(toInsert, incoming)
 		}
@@ -203,9 +202,8 @@ func (ds *Datastore) validateAndTruncateCertificateFields(ctx context.Context, h
 			truncated := value[:maxLen]
 			err := errors.New("certificate field too long")
 			ctxerr.Handle(ctx, err)
-			level.Error(ds.logger).Log(
+			ds.slogger().ErrorContext(ctx, "truncating certificate field",
 				"err", err,
-				"msg", "truncating certificate field",
 				"field", field,
 				"host_id", hostID,
 				"original_length", len(value),
