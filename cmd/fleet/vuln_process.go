@@ -169,30 +169,40 @@ func getVulnFuncs(ds fleet.Datastore, logger *logging.Logger, config *config.Vul
 		{
 			Name: "cron_sync_host_software",
 			VulnFunc: func(ctx context.Context) error {
+				ctx, span := tracer.Start(ctx, "vuln.sync_host_software")
+				defer span.End()
 				return ds.SyncHostsSoftware(ctx, time.Now())
 			},
 		},
 		{
 			Name: "cron_cleanup_software_titles",
 			VulnFunc: func(ctx context.Context) error {
+				ctx, span := tracer.Start(ctx, "vuln.cleanup_software_titles")
+				defer span.End()
 				return ds.CleanupSoftwareTitles(ctx)
 			},
 		},
 		{
 			Name: "cron_sync_hosts_software_titles",
 			VulnFunc: func(ctx context.Context) error {
+				ctx, span := tracer.Start(ctx, "vuln.sync_host_software_titles")
+				defer span.End()
 				return ds.SyncHostsSoftwareTitles(ctx, time.Now())
 			},
 		},
 		{
 			Name: "update_host_issues_vulnerabilities_counts",
 			VulnFunc: func(ctx context.Context) error {
+				ctx, span := tracer.Start(ctx, "vuln.update_host_issues")
+				defer span.End()
 				return ds.UpdateHostIssuesVulnerabilities(ctx)
 			},
 		},
 		{
 			Name: "insert_kernel_software_mapping",
 			VulnFunc: func(ctx context.Context) error {
+				ctx, span := tracer.Start(ctx, "vuln.kernel_software_mapping")
+				defer span.End()
 				return ds.InsertKernelSoftwareMapping(ctx)
 			},
 		},

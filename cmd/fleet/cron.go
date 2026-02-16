@@ -45,7 +45,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/webhooks"
 	"github.com/fleetdm/fleet/v4/server/worker"
 	"github.com/go-kit/log/level"
-	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/trace"
 )
@@ -53,11 +52,6 @@ import (
 func errHandler(ctx context.Context, logger *logging.Logger, msg string, err error) {
 	level.Error(logger).Log("msg", msg, "err", err)
 	ctxerr.Handle(ctx, err)
-}
-
-func vulnSpan(ctx context.Context, name string, attrs ...attribute.KeyValue) (context.Context, trace.Span) {
-	return otel.Tracer("github.com/fleetdm/fleet/v4/cmd/fleet").Start(ctx, name,
-		trace.WithAttributes(attrs...))
 }
 
 func newVulnerabilitiesSchedule(
@@ -124,7 +118,7 @@ func cronVulnerabilities(
 }
 
 func updateVulnHostCounts(ctx context.Context, ds fleet.Datastore, logger *logging.Logger, maxConcurrency int) error {
-	ctx, span := vulnSpan(ctx, "vuln.update_host_counts")
+	ctx, span := tracer.Start(ctx, "vuln.update_host_counts")
 	defer span.End()
 
 	// Prevent invalid values for max concurrency
@@ -211,8 +205,8 @@ func scanVulnerabilities(
 		return nil
 	}
 
-	automationCtx, automationSpan := vulnSpan(ctx, "vuln.trigger_automations",
-		attribute.String("automation_type", vulnAutomationEnabled))
+	automationCtx, automationSpan := tracer.Start(ctx, "vuln.trigger_automations",
+		trace.WithAttributes(attribute.String("automation_type", vulnAutomationEnabled)))
 	defer automationSpan.End()
 
 	vulns := make([]fleet.SoftwareVulnerability, 0, len(nvdVulns)+len(ovalVulns)+len(macOfficeVulns))
@@ -301,7 +295,7 @@ func checkCustomVulnerabilities(
 	collectVulns bool,
 	startTime time.Time,
 ) []fleet.SoftwareVulnerability {
-	ctx, span := vulnSpan(ctx, "vuln.check_custom")
+	ctx, span := tracer.Start(ctx, "vuln.check_custom")
 	defer span.End()
 
 	vulns, err := customcve.CheckCustomVulnerabilities(ctx, ds, logger, startTime)
@@ -327,7 +321,7 @@ func checkWinVulnerabilities(
 	config *config.VulnerabilitiesConfig,
 	collectVulns bool,
 ) []fleet.OSVulnerability {
-	ctx, span := vulnSpan(ctx, "vuln.check_windows")
+	ctx, span := tracer.Start(ctx, "vuln.check_windows")
 	defer span.End()
 
 	var results []fleet.OSVulnerability
@@ -342,7 +336,7 @@ func checkWinVulnerabilities(
 
 	if !config.DisableDataSync {
 		// Sync MSRC definitions
-		syncCtx, syncSpan := vulnSpan(ctx, "vuln.msrc.sync")
+		syncCtx, syncSpan := tracer.Start(ctx, "vuln.msrc.sync")
 		err = msrc.SyncFromGithub(syncCtx, vulnPath, os)
 		if err != nil {
 			errHandler(syncCtx, logger, "updating msrc definitions", err)
@@ -353,7 +347,7 @@ func checkWinVulnerabilities(
 
 	// Analyze all Win OS using the synched MSRC artifact.
 	if !config.DisableWinOSVulnerabilities {
-		analyzeCtx, analyzeSpan := vulnSpan(ctx, "vuln.msrc.analyze")
+		analyzeCtx, analyzeSpan := tracer.Start(ctx, "vuln.msrc.analyze")
 		for _, o := range os {
 			if !o.IsWindows() {
 				continue
@@ -389,7 +383,7 @@ func checkOvalVulnerabilities(
 	config *config.VulnerabilitiesConfig,
 	collectVulns bool,
 ) []fleet.SoftwareVulnerability {
-	ctx, span := vulnSpan(ctx, "vuln.check_oval")
+	ctx, span := tracer.Start(ctx, "vuln.check_oval")
 	defer span.End()
 
 	var results []fleet.SoftwareVulnerability
@@ -404,7 +398,7 @@ func checkOvalVulnerabilities(
 
 	if !config.DisableDataSync {
 		// Sync on disk OVAL definitions with current OS Versions.
-		refreshCtx, refreshSpan := vulnSpan(ctx, "vuln.oval.refresh")
+		refreshCtx, refreshSpan := tracer.Start(ctx, "vuln.oval.refresh")
 		downloaded, err := oval.Refresh(refreshCtx, versions, vulnPath)
 		if err != nil {
 			errHandler(refreshCtx, logger, "updating oval definitions", err)
@@ -417,8 +411,8 @@ func checkOvalVulnerabilities(
 	}
 
 	// Analyze all supported os versions using the synched OVAL definitions.
-	analyzeCtx, analyzeSpan := vulnSpan(ctx, "vuln.oval.analyze",
-		attribute.Int("os_count", len(versions.OSVersions)))
+	analyzeCtx, analyzeSpan := tracer.Start(ctx, "vuln.oval.analyze",
+		trace.WithAttributes(attribute.Int("os_count", len(versions.OSVersions))))
 	for _, version := range versions.OSVersions {
 		start := time.Now()
 		r, err := oval.Analyze(analyzeCtx, ds, version, vulnPath, collectVulns)
@@ -452,7 +446,7 @@ func checkGovalDictionaryVulnerabilities(
 	config *config.VulnerabilitiesConfig,
 	collectVulns bool,
 ) []fleet.SoftwareVulnerability {
-	ctx, span := vulnSpan(ctx, "vuln.check_goval_dictionary")
+	ctx, span := tracer.Start(ctx, "vuln.check_goval_dictionary")
 	defer span.End()
 
 	var results []fleet.SoftwareVulnerability
@@ -467,7 +461,7 @@ func checkGovalDictionaryVulnerabilities(
 
 	if !config.DisableDataSync {
 		// Sync on disk goval_dictionary sqlite with current OS Versions.
-		refreshCtx, refreshSpan := vulnSpan(ctx, "vuln.goval_dictionary.refresh")
+		refreshCtx, refreshSpan := tracer.Start(ctx, "vuln.goval_dictionary.refresh")
 		downloaded, err := goval_dictionary.Refresh(versions, vulnPath, logger)
 		if err != nil {
 			errHandler(refreshCtx, logger, "updating goval_dictionary databases", err)
@@ -480,8 +474,8 @@ func checkGovalDictionaryVulnerabilities(
 	}
 
 	// Analyze all supported os versions using the synced goval_dictionary definitions.
-	analyzeCtx, analyzeSpan := vulnSpan(ctx, "vuln.goval_dictionary.analyze",
-		attribute.Int("os_count", len(versions.OSVersions)))
+	analyzeCtx, analyzeSpan := tracer.Start(ctx, "vuln.goval_dictionary.analyze",
+		trace.WithAttributes(attribute.Int("os_count", len(versions.OSVersions))))
 	for _, version := range versions.OSVersions {
 		start := time.Now()
 		r, err := goval_dictionary.Analyze(analyzeCtx, ds, version, vulnPath, collectVulns, logger)
@@ -515,11 +509,11 @@ func checkNVDVulnerabilities(
 	collectVulns bool,
 	startTime time.Time,
 ) []fleet.SoftwareVulnerability {
-	ctx, span := vulnSpan(ctx, "vuln.check_nvd")
+	ctx, span := tracer.Start(ctx, "vuln.check_nvd")
 	defer span.End()
 
 	if !config.DisableDataSync {
-		syncCtx, syncSpan := vulnSpan(ctx, "vuln.nvd.sync")
+		syncCtx, syncSpan := tracer.Start(ctx, "vuln.nvd.sync")
 		opts := nvd.SyncOptions{
 			VulnPath:             config.DatabasesPath,
 			CPEDBURL:             config.CPEDatabaseURL,
@@ -536,7 +530,7 @@ func checkNVDVulnerabilities(
 		syncSpan.End()
 	}
 
-	loadCtx, loadSpan := vulnSpan(ctx, "vuln.nvd.load_cve_meta")
+	loadCtx, loadSpan := tracer.Start(ctx, "vuln.nvd.load_cve_meta")
 	if err := nvd.LoadCVEMeta(loadCtx, logger, vulnPath, ds); err != nil {
 		errHandler(loadCtx, logger, "load cve meta", err)
 		loadSpan.RecordError(err)
@@ -544,7 +538,7 @@ func checkNVDVulnerabilities(
 	}
 	loadSpan.End()
 
-	cpeCtx, cpeSpan := vulnSpan(ctx, "vuln.nvd.translate_software_to_cpe")
+	cpeCtx, cpeSpan := tracer.Start(ctx, "vuln.nvd.translate_software_to_cpe")
 	err := nvd.TranslateSoftwareToCPE(cpeCtx, ds, vulnPath, logger)
 	if err != nil {
 		errHandler(cpeCtx, logger, "analyzing vulnerable software: Software->CPE", err)
@@ -554,7 +548,7 @@ func checkNVDVulnerabilities(
 	}
 	cpeSpan.End()
 
-	cveCtx, cveSpan := vulnSpan(ctx, "vuln.nvd.translate_cpe_to_cve")
+	cveCtx, cveSpan := tracer.Start(ctx, "vuln.nvd.translate_cpe_to_cve")
 	vulns, err := nvd.TranslateCPEToCVE(cveCtx, ds, vulnPath, logger, collectVulns, startTime)
 	if err != nil {
 		errHandler(cveCtx, logger, "analyzing vulnerable software: CPE->CVE", err)
@@ -575,11 +569,11 @@ func checkMacOfficeVulnerabilities(
 	config *config.VulnerabilitiesConfig,
 	collectVulns bool,
 ) []fleet.SoftwareVulnerability {
-	ctx, span := vulnSpan(ctx, "vuln.check_macoffice")
+	ctx, span := tracer.Start(ctx, "vuln.check_macoffice")
 	defer span.End()
 
 	if !config.DisableDataSync {
-		syncCtx, syncSpan := vulnSpan(ctx, "vuln.macoffice.sync")
+		syncCtx, syncSpan := tracer.Start(ctx, "vuln.macoffice.sync")
 		err := macoffice.SyncFromGithub(syncCtx, vulnPath)
 		if err != nil {
 			errHandler(syncCtx, logger, "updating mac office release notes", err)
@@ -590,7 +584,7 @@ func checkMacOfficeVulnerabilities(
 		level.Debug(logger).Log("msg", "finished sync mac office release notes")
 	}
 
-	analyzeCtx, analyzeSpan := vulnSpan(ctx, "vuln.macoffice.analyze")
+	analyzeCtx, analyzeSpan := tracer.Start(ctx, "vuln.macoffice.analyze")
 	start := time.Now()
 	r, err := macoffice.Analyze(analyzeCtx, ds, vulnPath, collectVulns)
 	elapsed := time.Since(start)
