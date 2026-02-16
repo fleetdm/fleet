@@ -7,6 +7,13 @@ import (
 	"github.com/go-json-experiment/json/jsontext"
 )
 
+// DuplicateJSONKeysOpts controls optional behavior of DuplicateJSONKeys.
+type DuplicateJSONKeysOpts struct {
+	// Compact disables pretty-printing. By default, output is indented with
+	// two spaces to match the standard API response format.
+	Compact bool
+}
+
 // DuplicateJSONKeys takes marshaled JSON and, for each AliasRule, duplicates
 // keys so that both the old (native) and new names appear in the output.
 // For example, if a rule maps OldKey:"team_id" → NewKey:"fleet_id", and the
@@ -21,7 +28,7 @@ import (
 // delegating all JSON lexing (string escaping, unicode, nesting) to the
 // library. Duplicates are deferred until the closing '}' of each object so
 // that naturally-occurring new keys can be detected and skipped.
-func DuplicateJSONKeys(data []byte, rules []AliasRule) []byte {
+func DuplicateJSONKeys(data []byte, rules []AliasRule, opts ...DuplicateJSONKeysOpts) []byte {
 	if len(rules) == 0 || len(data) == 0 {
 		return data
 	}
@@ -33,7 +40,11 @@ func DuplicateJSONKeys(data []byte, rules []AliasRule) []byte {
 
 	var buf bytes.Buffer
 	dec := jsontext.NewDecoder(bytes.NewReader(data), jsontext.AllowDuplicateNames(true))
-	enc := jsontext.NewEncoder(&buf, jsontext.WithIndent("  "), jsontext.AllowDuplicateNames(true))
+	encOpts := []jsontext.Options{jsontext.AllowDuplicateNames(true)}
+	if len(opts) == 0 || !opts[0].Compact {
+		encOpts = append(encOpts, jsontext.WithIndent("  "))
+	}
+	enc := jsontext.NewEncoder(&buf, encOpts...)
 
 	// pendingDup holds a key-value pair that should be inserted as a
 	// duplicate at the end of the current object scope (before '}'),

@@ -50,7 +50,7 @@ func newActivity(ctx context.Context, user *fleet.User, activity fleet.ActivityD
 	// Duplicate JSON keys so that stored activity details include both the
 	// old and new field names (e.g. team_id and fleet_id).
 	if rules := endpointer.ExtractAliasRules(activity); len(rules) > 0 {
-		detailsBytes = endpointer.DuplicateJSONKeys(detailsBytes, rules)
+		detailsBytes = endpointer.DuplicateJSONKeys(detailsBytes, rules, endpointer.DuplicateJSONKeysOpts{Compact: true})
 	}
 	timestamp := time.Now()
 
