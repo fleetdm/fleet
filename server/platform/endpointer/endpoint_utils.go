@@ -94,17 +94,6 @@ func allFields(ifv reflect.Value) []fieldPair {
 	return fields
 }
 
-// SwapRules returns a new slice with OldKey and NewKey swapped in each rule.
-// This is useful for output renaming: the struct marshals with OldKey names,
-// and we want to rewrite them to NewKey names.
-func SwapRules(rules []AliasRule) []AliasRule {
-	swapped := make([]AliasRule, len(rules))
-	for i, r := range rules {
-		swapped[i] = AliasRule{OldKey: r.NewKey, NewKey: r.OldKey}
-	}
-	return swapped
-}
-
 // aliasRulesCache caches the result of ExtractAliasRules by reflect.Type so
 // that the reflection walk happens only once per struct type, not on every
 // request.
