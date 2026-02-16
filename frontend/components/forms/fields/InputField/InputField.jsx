@@ -147,7 +147,9 @@ class InputField extends Component {
     const { onClickCopy } = this;
 
     const copyButtonValue = <Icon name="copy" />;
-    const wrapperClasses = classnames(`${baseClass}__copy-wrapper`);
+    const wrapperClasses = classnames(`${baseClass}__copy-wrapper`, {
+      [`${baseClass}__copy-wrapper__text-area`]: this.props.type === "textarea",
+    });
 
     const copiedConfirmationClasses = classnames(
       `${baseClass}__copied-confirmation`
