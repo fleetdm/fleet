@@ -775,7 +775,7 @@ func TestInvalidGitOpsYaml(t *testing.T) {
 				_, err = gitOpsFromString(t, config)
 				assert.ErrorContains(t, err, "expected type []spec.Query but got object")
 
-				// Invalid policies in a separate file
+				// Invalid reports in a separate file
 				tmpFile, err = os.CreateTemp(t.TempDir(), "*reports.yml")
 				require.NoError(t, err)
 				_, err = tmpFile.WriteString("[2]")

@@ -146,6 +146,9 @@ var aliasRules = map[string]string{
 func replaceAliasKeys(v any, rules map[string]string) {
 	switch val := v.(type) {
 	case map[string]any:
+		if val == nil {
+			return
+		}
 		type rename struct{ oldKey, newKey string }
 		var renames []rename
 		for k := range val {
@@ -499,7 +502,11 @@ func (cmd *GenerateGitopsCommand) Run() error {
 		// Generate policies.
 		policies, err := cmd.generatePolicies(teamToProcess.ID, teamFileName)
 		if err != nil {
-			fmt.Fprintf(cmd.CLI.App.ErrWriter, "Error generating policies for team %s: %s\n", team.Name, err)
+			teamName := "global"
+			if team != nil {
+				teamName = team.Name
+			}
+			fmt.Fprintf(cmd.CLI.App.ErrWriter, "Error generating policies for team %s: %s\n", teamName, err)
 			return ErrGeneric
 		}
 		cmd.FilesToWrite[fileName].(map[string]interface{})["policies"] = policies
@@ -508,7 +515,11 @@ func (cmd *GenerateGitopsCommand) Run() error {
 			// Generate reports (except for on No Team).
 			reports, err := cmd.generateQueries(teamToProcess.ID)
 			if err != nil {
-				fmt.Fprintf(cmd.CLI.App.ErrWriter, "Error generating reports for team %s: %s\n", team.Name, err)
+				teamName := "global"
+				if team != nil {
+					teamName = team.Name
+				}
+				fmt.Fprintf(cmd.CLI.App.ErrWriter, "Error generating reports for team %s: %s\n", teamName, err)
 				return ErrGeneric
 			}
 			// nolint:nilaway // we want to include "reports: null" in the output if there are no reports.

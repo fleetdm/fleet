@@ -61,17 +61,11 @@ func migrateKeyPathRecursive(data map[string]any, oldParts, newParts []string, f
 	oldKey := oldParts[0]
 	newKey := newParts[0]
 
-	// Handle array iteration marker
-	if oldKey == "[]" {
-		// This shouldn't happen at the map level - [] should only appear after a key
-		return nil
-	}
+	// Check if this key references an array (e.g. "apple_business_manager[]").
+	if strings.HasSuffix(oldKey, "[]") {
+		oldKey = strings.TrimSuffix(oldKey, "[]")
+		newKey = strings.TrimSuffix(newKey, "[]")
 
-	// Check if this key references an array (next part is [])
-	isArrayKey := len(oldParts) > 1 && oldParts[1] == "[]"
-
-	if isArrayKey {
-		// Get the array at this key
 		arr, ok := data[oldKey]
 		if !ok {
 			return nil // Key doesn't exist, nothing to migrate
@@ -82,17 +76,14 @@ func migrateKeyPathRecursive(data map[string]any, oldParts, newParts []string, f
 			return nil // Not an array, skip
 		}
 
-		// Recurse into each array element
-		remainingOldParts := oldParts[2:] // Skip key and []
-		remainingNewParts := newParts[2:] // Skip key and []
-
+		// Recurse into each array element with the remaining path parts.
 		for i, elem := range arrSlice {
 			elemMap, ok := elem.(map[string]any)
 			if !ok {
 				continue // Not a map, skip
 			}
 
-			if err := migrateKeyPathRecursive(elemMap, remainingOldParts, remainingNewParts, fullOldPath, fullNewPath, logFn); err != nil {
+			if err := migrateKeyPathRecursive(elemMap, oldParts[1:], newParts[1:], fullOldPath, fullNewPath, logFn); err != nil {
 				return fmt.Errorf("in array element %d: %w", i, err)
 			}
 		}

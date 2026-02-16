@@ -712,7 +712,7 @@ software:
 		[]string{"gitops", "--config", fleetctlConfig.Name(), "-f", globalFile.Name(), "-f", noTeamFilePath, "--dry-run"}), true)
 	s.assertRealRunOutputWithDeprecation(t, fleetctl.RunAppForTest(t, []string{"gitops", "--config", fleetctlConfig.Name(), "-f", globalFile.Name(), "-f", noTeamFilePath}), true)
 
-	// Check script existance
+	// Check script existence
 	_, err = s.DS.GetSetupExperienceScript(ctx, nil)
 	require.NoError(t, err)
 
@@ -1596,8 +1596,8 @@ team_settings:
 	require.Len(t, titles, 0)
 }
 
-// TestGitOpsSoftwareDisplayName tests that display names for software packages and VPP apps
-
+// TestGitOpsSoftwareDisplayNameDeprecated tests that display names for software packages and VPP apps
+// are properly applied via GitOps.
 func (s *enterpriseIntegrationGitopsTestSuite) TestGitOpsSoftwareDisplayNameDeprecated() {
 	t := s.T()
 	ctx := context.Background()
@@ -1714,8 +1714,8 @@ team_settings:
 	require.Equal(t, "Team Custom Ruby", teamDisplayName)
 }
 
-// TestGitOpsSoftwareIcons tests that custom icons for software packages
-
+// TestGitOpsSoftwareIconsDeprecated tests that custom icons for software packages
+// and fleet maintained apps are properly applied via GitOps.
 func (s *enterpriseIntegrationGitopsTestSuite) TestGitOpsSoftwareIconsDeprecated() {
 	t := s.T()
 	ctx := context.Background()
@@ -2090,8 +2090,8 @@ labels:
 	require.True(t, maps.Equal(expected, got))
 }
 
-// Tests a gitops setup where every team runs from an independent repo. Multiple repos are simulated by
-
+// TestGitOpsTeamLabelsMultipleReposDeprecated tests a gitops setup where every team runs from an independent repo.
+// Multiple repos are simulated by copying over the example repository multiple times.
 func (s *enterpriseIntegrationGitopsTestSuite) TestGitOpsTeamLabelsMultipleReposDeprecated() {
 	t := s.T()
 	ctx := context.Background()
@@ -2247,8 +2247,8 @@ team_settings:
 	}
 }
 
-// TestGitOpsVPPAppAutoUpdate tests that auto-update settings for VPP apps (iOS/iPadOS)
-
+// TestFleetDesktopSettingsBrowserAlternativeHostDeprecated tests that user can mutate the fleet_desktop.alternative_browser_host
+// setting via GitOps.
 func (s *enterpriseIntegrationGitopsTestSuite) TestFleetDesktopSettingsBrowserAlternativeHostDeprecated() {
 	t := s.T()
 	ctx := context.Background()

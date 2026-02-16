@@ -313,6 +313,13 @@ func DecodeQueryTagValue(r *http.Request, fp fieldPair, customDecoder DomainQuer
 		// renameto value (the new name) as a fallback.
 		if queryVal != "" {
 			if renameTo, hasRenameTo := fp.Sf.Tag.Lookup("renameto"); hasRenameTo {
+				// Check for conflict: if both old and new names are provided, return an error.
+				newName, _, _ := ParseTag(renameTo)
+				if newVal := r.URL.Query().Get(newName); newVal != "" {
+					return &platform_http.BadRequestError{
+						Message: fmt.Sprintf("Specify only one of %q or %q", queryTagValue, newName),
+					}
+				}
 				// Log deprecation warning - the old name was used.
 				logging.WithLevel(ctx, level.Warn)
 				logging.WithExtras(ctx,
