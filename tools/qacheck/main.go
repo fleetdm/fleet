@@ -48,6 +48,7 @@ type Item struct {
 func main() {
 	org := flag.String("org", "", "GitHub org")
 	projectNum := flag.Int("project", 0, "Project number")
+	limit := flag.Int("limit", 100, "Max project items to scan (no pagination; expected usage is small)")
 	flag.Parse()
 
 	if *org == "" || *projectNum == 0 {
@@ -64,7 +65,7 @@ func main() {
 	client := githubv4.NewClient(oauth2.NewClient(ctx, src))
 
 	projectID := fetchProjectID(ctx, client, *org, *projectNum)
-	items := fetchItems(ctx, client, projectID)
+	items := fetchItems(ctx, client, projectID, *limit)
 
 	var bad []Item
 
@@ -72,49 +73,25 @@ func main() {
 		if !inAwaitingQA(it) {
 			continue
 		}
-
-		body := getBody(it)
-		if hasUncheckedTestPlanLine(body) {
+		if hasUncheckedTestPlanLine(getBody(it)) {
 			bad = append(bad, it)
 		}
 	}
 
-	fmt.Printf("\nFound %d items in %q with UNCHECKED test-plan confirmation:\n\n", len(bad), awaitingQAColumn)
+	fmt.Printf(
+		"\nFound %d items in %q with UNCHECKED test-plan confirmation:\n\n",
+		len(bad),
+		awaitingQAColumn,
+	)
+
 	for _, it := range bad {
-		fmt.Printf("❌ #%d – %s\n   %s\n\n",
+		fmt.Printf(
+			"❌ #%d – %s\n   %s\n\n",
 			getNumber(it),
 			getTitle(it),
 			getURL(it),
 		)
 	}
-}
-
-// Only match if the unchecked line is present.
-// Ignore if missing or checked.
-func hasUncheckedTestPlanLine(body string) bool {
-	if body == "" {
-		return false
-	}
-
-	// Accept both styles:
-	// - [ ] Engineer: ...
-	// [ ] Engineer: ...
-	u1 := "- [ ] " + checkText
-	u2 := "[ ] " + checkText
-
-	// Checked variants to ignore (even if someone has both, checked wins for safety)
-	c1 := "- [x] " + checkText
-	c2 := "- [X] " + checkText
-	c3 := "[x] " + checkText
-	c4 := "[X] " + checkText
-
-	// If it's checked anywhere, ignore.
-	if strings.Contains(body, c1) || strings.Contains(body, c2) || strings.Contains(body, c3) || strings.Contains(body, c4) {
-		return false
-	}
-
-	// Only flag if the unchecked line exists.
-	return strings.Contains(body, u1) || strings.Contains(body, u2)
 }
 
 func fetchProjectID(ctx context.Context, client *githubv4.Client, org string, num int) githubv4.ID {
@@ -137,22 +114,35 @@ func fetchProjectID(ctx context.Context, client *githubv4.Client, org string, nu
 	return q.Organization.ProjectV2.ID
 }
 
-func fetchItems(ctx context.Context, client *githubv4.Client, projectID githubv4.ID) []Item {
+func fetchItems(
+	ctx context.Context,
+	client *githubv4.Client,
+	projectID githubv4.ID,
+	limit int,
+) []Item {
 	var q struct {
 		Node struct {
 			ProjectV2 struct {
 				Items struct {
 					Nodes []Item
-				} `graphql:"items(first: 100)"`
+				} `graphql:"items(first: $first)"`
 			} `graphql:"... on ProjectV2"`
 		} `graphql:"node(id: $id)"`
 	}
 
 	err := client.Query(ctx, &q, map[string]interface{}{
-		"id": projectID,
+		"id":    projectID,
+		"first": githubv4.Int(limit),
 	})
 	if err != nil {
 		log.Fatalf("items query failed: %v", err)
+	}
+
+	if len(q.Node.ProjectV2.Items.Nodes) == limit {
+		log.Printf(
+			"NOTE: scanned %d items (limit reached, no pagination by design). Increase -limit if needed.",
+			limit,
+		)
 	}
 
 	return q.Node.ProjectV2.Items.Nodes
@@ -165,6 +155,32 @@ func inAwaitingQA(it Item) bool {
 		}
 	}
 	return false
+}
+
+// Only flag if the unchecked checklist line exists.
+// Ignore if missing or checked.
+func hasUncheckedTestPlanLine(body string) bool {
+	if body == "" {
+		return false
+	}
+
+	unchecked1 := "- [ ] " + checkText
+	unchecked2 := "[ ] " + checkText
+
+	checked := []string{
+		"- [x] " + checkText,
+		"- [X] " + checkText,
+		"[x] " + checkText,
+		"[X] " + checkText,
+	}
+
+	for _, c := range checked {
+		if strings.Contains(body, c) {
+			return false
+		}
+	}
+
+	return strings.Contains(body, unchecked1) || strings.Contains(body, unchecked2)
 }
 
 func getBody(it Item) string {
