@@ -9,6 +9,7 @@ import PATHS from "router/paths";
 
 import { AppContext } from "context/app";
 import { NotificationContext } from "context/notification";
+import { TitleContext } from "context/title";
 
 import activitiesAPI, {
   IHostPastActivitiesResponse,
@@ -211,6 +212,7 @@ const HostDetailsPage = ({
     isMacMdmEnabledAndConfigured,
   } = useContext(AppContext);
   const { renderFlash } = useContext(NotificationContext);
+  const { setTitle, clearTitle } = useContext(TitleContext);
 
   const handlePageError = useErrorHandler();
 
@@ -678,15 +680,39 @@ const HostDetailsPage = ({
     });
   }, [usersSearchString, host?.users]);
 
-  // Updates title that shows up on browser tabs
+  // Updates title that shows up on browser tabs.
   useEffect(() => {
-    if (host?.display_name) {
-      // e.g., Rachel's Macbook Pro | Hosts | Fleet
-      document.title = `${host?.display_name} | Hosts | ${DOCUMENT_TITLE_SUFFIX}`;
-    } else {
-      document.title = `Hosts | ${DOCUMENT_TITLE_SUFFIX}`;
+    const hostName = host?.display_name;
+
+    if (!hostName) {
+      setTitle(`Hosts | ${DOCUMENT_TITLE_SUFFIX}`, { lock: true });
+      return;
     }
-  }, [location.pathname, host]);
+
+    let sectionName = "";
+    switch (true) {
+      case location.pathname.includes("/software"):
+        sectionName = "Software";
+        break;
+      case location.pathname.includes("/policies"):
+        sectionName = "Policies";
+        break;
+      default:
+        sectionName = "Hosts";
+        break;
+    }
+
+    setTitle(`${hostName} | ${sectionName} | ${DOCUMENT_TITLE_SUFFIX}`, {
+      lock: true,
+    });
+  }, [location.pathname, host?.display_name, setTitle]);
+
+  // Unlock the title when the component unmounts so that global App component can overrite it if needed ...
+  useEffect(() => {
+    return () => {
+      clearTitle();
+    };
+  }, [clearTitle]);
 
   const summaryData = normalizeEmptyValues(pick(host, HOST_SUMMARY_DATA));
 

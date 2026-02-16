@@ -20,6 +20,7 @@ import AdminUserManagementPage from "pages/admin/UserManagementPage";
 import AdminTeamManagementPage from "pages/admin/TeamManagementPage";
 import TeamDetailsWrapper from "pages/admin/TeamManagementPage/TeamDetailsWrapper";
 import App from "components/App";
+import TitleProvider from "context/title";
 import ConfirmInvitePage from "pages/ConfirmInvitePage";
 import ConfirmSSOInvitePage from "pages/ConfirmSSOInvitePage";
 import MfaPage from "pages/MfaPage";
@@ -124,7 +125,9 @@ const AppWrapper = ({ children, location }: IAppWrapperProps) => {
     <AppProvider>
       <RoutingProvider>
         <CustomQueryClientProvider client={queryClient}>
-          <App location={location}>{children}</App>
+          <TitleProvider>
+            <App location={location}>{children}</App>
+          </TitleProvider>
         </CustomQueryClientProvider>
       </RoutingProvider>
     </AppProvider>

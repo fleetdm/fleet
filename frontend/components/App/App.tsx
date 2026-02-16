@@ -10,6 +10,7 @@ import QueryProvider from "context/query";
 import PolicyProvider from "context/policy";
 import NotificationProvider from "context/notification";
 import { AppContext } from "context/app";
+import { TitleContext } from "context/title";
 import { authToken, clearToken } from "utilities/local";
 import useDeepEffect from "hooks/useDeepEffect";
 import { QueryParams } from "utilities/url";
@@ -89,6 +90,7 @@ const App = ({ children, location }: IAppProps): JSX.Element => {
     setSandboxExpiry,
     setNoSandboxHosts,
   } = useContext(AppContext);
+  const { title: lockedTitle, locked } = useContext(TitleContext);
 
   const [isLoading, setIsLoading] = useState(false);
 
@@ -224,6 +226,12 @@ const App = ({ children, location }: IAppProps): JSX.Element => {
 
   // Updates title that shows up on browser tabs
   useEffect(() => {
+    // If the title was set on a child component, use that.
+    if (locked && lockedTitle) {
+      document.title = lockedTitle;
+      return;
+    }
+
     // Also applies title to subpaths such as settings/organization/webaddress
     // TODO - handle different kinds of paths from PATHS - string, function w/params
     const curTitle = page_titles.find((item) =>
@@ -233,7 +241,7 @@ const App = ({ children, location }: IAppProps): JSX.Element => {
     if (curTitle && curTitle.title) {
       document.title = curTitle.title;
     }
-  }, [location, config]);
+  }, [location, config, locked, lockedTitle]);
 
   useDeepEffect(() => {
     const canGetEnrollSecret =

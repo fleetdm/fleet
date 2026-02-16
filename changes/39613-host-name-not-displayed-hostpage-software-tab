@@ -1,0 +1,1 @@
+* Fixed bug where host name was not displayed on host page software tab, due to the App component overriding the title.
