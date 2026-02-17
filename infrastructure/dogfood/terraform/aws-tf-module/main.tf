@@ -725,7 +725,7 @@ module "ses" {
 # }
 
 module "geolite2" {
-  source            = "github.com/fleetdm/fleet-terraform//addons/geolite2?ref=tf-mod-addon-geolite2-v1.0.0"
+  source            = "github.com/fleetdm/fleet-terraform//addons/geolite2?ref=tf-mod-addon-geolite2-v1.0.1"
   fleet_image       = var.fleet_image
   destination_image = local.geolite2_image
   license_key       = var.geolite2_license
