@@ -1,0 +1,1 @@
+Fixed a bug where 2 vulnerability jobs can run in parallel if one is taking longer than 2 hours.
