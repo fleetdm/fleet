@@ -439,7 +439,7 @@ const Calendars = (): JSX.Element => {
             Now head over to{" "}
             <CustomLink
               url={getPathWithQueryParams(paths.MANAGE_POLICIES, {
-                team_id: currentTeam?.id,
+                fleet_id: currentTeam?.id,
               })}
               text="Policies &gt; Manage automations"
             />{" "}

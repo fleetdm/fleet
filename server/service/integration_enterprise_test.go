@@ -16,6 +16,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log/slog"
 	"math/big"
 	"mime/multipart"
 	"net/http"
@@ -15382,7 +15383,7 @@ func triggerAndWait(ctx context.Context, t *testing.T, ds fleet.Datastore, s *sc
 
 	var didTrigger bool
 	for range 10 {
-		_, didTrigger, err = s.Trigger()
+		_, didTrigger, err = s.Trigger(ctx)
 		require.NoError(t, err)
 		if didTrigger {
 			break
@@ -19835,7 +19836,7 @@ func (s *integrationEnterpriseTestSuite) TestUpgradeCodesFromMaintainedApps() {
 
 	err = detailQueries["software_windows"].DirectIngestFunc(
 		context.Background(),
-		logging.NewNopLogger(),
+		slog.New(slog.DiscardHandler),
 		&fleet.Host{ID: host.ID},
 		s.ds,
 		rows,

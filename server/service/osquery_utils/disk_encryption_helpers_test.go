@@ -2,19 +2,19 @@ package osquery_utils
 
 import (
 	"context"
+	"log/slog"
 	"testing"
 
 	"github.com/fleetdm/fleet/v4/pkg/optjson"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mock"
 	"github.com/fleetdm/fleet/v4/server/ptr"
-	"github.com/go-kit/log"
 	"github.com/stretchr/testify/require"
 )
 
 func TestIsDiskEncryptionEnabledForHost(t *testing.T) {
 	ctx := context.Background()
-	logger := log.NewNopLogger()
+	logger := slog.New(slog.DiscardHandler)
 
 	t.Run("team has disk encryption enabled", func(t *testing.T) {
 		ds := new(mock.Store)

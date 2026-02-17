@@ -39,7 +39,7 @@ Restart the Fleet server.
 
 2. Next to **Turn on Windows MDM** select **Turn on** to navigate to the **Manage Windows MDM** page.
 
-3. Select **Turn on**.
+3. Toggle Windows MDM on. The best practice is to leave the end user experience set to **Automatic**. If you want end users to have to take action to turn MDM on, choose **Manual**.
 
 ## Manual enrollment
 
