@@ -251,10 +251,8 @@ const NewLabelPage = ({
     setFormData(newFormData);
 
     const newErrs = validateNewLabelFormData(newFormData);
-
-    // optimistic UX:
-    // - only update errors that already exist
-    // - remove those that are now fixed
+    // only set errors that are updates of existing errors
+    // new errors are only set onBlur or submit
     const errsToSet: INewLabelFormErrors = {};
     Object.keys(formErrors).forEach((k) => {
       const key = k as keyof INewLabelFormErrors;
@@ -269,7 +267,7 @@ const NewLabelPage = ({
   const onTypeChange = (value: string): void => {
     const newFormData = {
       ...formData,
-      type: value as LabelMembershipType,
+      type: value as LabelMembershipType, // reconcile type differences between form data and radio component handler
     };
     setFormData(newFormData);
 
@@ -424,7 +422,7 @@ const NewLabelPage = ({
                 onChange={onInputChange}
                 parseTarget
                 value={vital}
-                error={formErrors.criteria || undefined}
+                error={formErrors.criteria}
                 options={availableCriteria}
                 classname={`${baseClass}__criteria-dropdown`}
                 wrapperClassName={`${baseClass}__form-field ${baseClass}__form-field--criteria`}

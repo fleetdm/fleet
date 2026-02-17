@@ -138,7 +138,6 @@ const LabelForm = ({
         inputClassName={`${baseClass}__label-title`}
         label="Name"
         placeholder="Label name"
-        maxLength={255}
       />
       <InputField
         error={formValidation.description?.message}
@@ -151,7 +150,6 @@ const LabelForm = ({
         label="Description"
         type="textarea"
         placeholder="Label description (optional)"
-        maxLength={255}
       />
       {immutableFields.length > 0 ? (
         <span className={`${baseClass}__help-text`}>
