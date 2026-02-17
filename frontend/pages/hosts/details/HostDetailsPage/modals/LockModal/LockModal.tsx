@@ -92,9 +92,9 @@ const LockModal = ({
           </p>
           <p> It can only be unlocked through Fleet.</p>
           <p>
-            <strong>Warning:</strong> If the device is turned off or restarted
-            while locked, it will disconnect from WiFi and won't be able
-            to receive MDM commands necessary to unlock the host.
+            If the device is turned off or restarted
+            while locked, it will disconnect from WiFi and won't be able to
+            unlock the host remotely.
           </p>
         </>
       );
