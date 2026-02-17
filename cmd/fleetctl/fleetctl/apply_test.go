@@ -121,6 +121,65 @@ spec:
 	assert.Equal(t, fleet.RoleMaintainer, userRoleSpecList[1].Teams[0].Role)
 }
 
+func TestApplyUserRolesDeprecated(t *testing.T) {
+	_, ds := testing_utils.RunServerWithMockedDS(t)
+
+	ds.ListUsersFunc = func(ctx context.Context, opt fleet.UserListOptions) ([]*fleet.User, error) {
+		return userRoleSpecList, nil
+	}
+
+	ds.UserByEmailFunc = func(ctx context.Context, email string) (*fleet.User, error) {
+		if email == "admin1@example.com" {
+			return userRoleSpecList[0], nil
+		}
+		return userRoleSpecList[1], nil
+	}
+
+	ds.TeamByNameFunc = func(ctx context.Context, name string) (*fleet.Team, error) {
+		return &fleet.Team{
+			ID:        1,
+			CreatedAt: time.Now(),
+			Name:      "team1",
+		}, nil
+	}
+
+	ds.SaveUsersFunc = func(ctx context.Context, users []*fleet.User) error {
+		for _, u := range users {
+			switch u.Email {
+			case "admin1@example.com":
+				userRoleList[0] = u
+			case "admin2@example.com":
+				userRoleList[1] = u
+			}
+		}
+		return nil
+	}
+
+	tmpFile, err := os.CreateTemp(os.TempDir(), "*.yml")
+	require.NoError(t, err)
+	defer os.Remove(tmpFile.Name())
+
+	_, err = tmpFile.WriteString(`
+---
+apiVersion: v1
+kind: user_roles
+spec:
+  roles:
+    admin1@example.com:
+      global_role: admin
+      teams: null
+    admin2@example.com:
+      global_role: null
+      teams:
+      - role: maintainer
+        team: team1
+`)
+	require.NoError(t, err)
+	assert.Equal(t, "[+] applied user roles\n", RunAppForTest(t, []string{"apply", "-f", tmpFile.Name()}))
+	require.Len(t, userRoleSpecList[1].Teams, 1)
+	assert.Equal(t, fleet.RoleMaintainer, userRoleSpecList[1].Teams[0].Role)
+}
+
 func TestApplyTeamSpecs(t *testing.T) {
 	license := &fleet.LicenseInfo{Tier: fleet.TierPremium, Expiration: time.Now().Add(24 * time.Hour)}
 	_, ds := testing_utils.RunServerWithMockedDS(t, &service.TestServerOpts{License: license})
