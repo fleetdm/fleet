@@ -95,7 +95,10 @@ On your Fleet server:
 
  ![The configuration for the SSO connection in Fleet](https://raw.githubusercontent.com/fleetdm/fleet/main/docs/images/entra-sso-configuration-fleet-config.png) 
 3. Enable SSO for a test user and try to log in with Entra.
-   
+	- Click the **Account** icon in the top right.
+	- Select the **Users** drop down.
+	- Select **Actions** on the right for that user, and select **edit**.
+	- Select `SSO`.
 
 
 ## authentik
