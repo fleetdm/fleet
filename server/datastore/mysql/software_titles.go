@@ -760,7 +760,7 @@ func (ds *Datastore) HasFMAInstallerVersion(ctx context.Context, teamID *uint, f
 		)
 	`, ptr.ValOrZero(teamID), fmaID, version)
 	if err != nil {
-		return false, ctxerr.Wrap(ctx, err, "check FMA installer version existxs")
+		return false, ctxerr.Wrap(ctx, err, "check FMA installer version exists")
 	}
 	return exists, nil
 }
