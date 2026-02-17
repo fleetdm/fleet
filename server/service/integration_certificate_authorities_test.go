@@ -233,7 +233,7 @@ func (s *integrationMDMTestSuite) TestBatchApplyCertificateAuthorities() {
 		{
 			testName:   "non-http",
 			url:        "nonhttp://bad.com",
-			errMessage: "URL scheme must be https or http",
+			errMessage: "must be http or https",
 		},
 	}
 
@@ -265,7 +265,7 @@ func (s *integrationMDMTestSuite) TestBatchApplyCertificateAuthorities() {
 			res := s.Do("POST", "/api/v1/fleet/spec/certificate_authorities", req, http.StatusUnprocessableEntity)
 			errMsg := extractServerErrorText(res.Body)
 			require.Contains(t, errMsg, "certificate_authorities.ndes_scep_proxy")
-			require.Contains(t, errMsg, "Invalid NDES SCEP URL")
+			require.Contains(t, errMsg, "NDES SCEP URL is invalid")
 			checkNDESApplied(t, nil)
 		})
 
@@ -436,7 +436,7 @@ func (s *integrationMDMTestSuite) TestBatchApplyCertificateAuthorities() {
 					errMsg := extractServerErrorText(res.Body)
 					require.Contains(t, errMsg, "certificate_authorities.digicert")
 					if tc.errMessage == "Invalid URL" {
-						require.Contains(t, errMsg, "Invalid DigiCert URL")
+						require.Contains(t, errMsg, "DigiCert URL is invalid")
 					} else {
 						require.Contains(t, errMsg, tc.errMessage)
 					}
@@ -783,7 +783,7 @@ func (s *integrationMDMTestSuite) TestBatchApplyCertificateAuthorities() {
 				errMsg := extractServerErrorText(res.Body)
 				require.Contains(t, errMsg, "certificate_authorities.custom_scep_proxy")
 				if tc.errMessage == "Invalid URL" {
-					require.Contains(t, errMsg, "Invalid SCEP URL")
+					require.Contains(t, errMsg, "Custom SCEP Proxy URL is invalid")
 				} else {
 					require.Contains(t, errMsg, tc.errMessage)
 				}
@@ -1008,7 +1008,7 @@ func (s *integrationMDMTestSuite) TestBatchApplyCertificateAuthorities() {
 					errMsg := extractServerErrorText(res.Body)
 					require.Contains(t, errMsg, "certificate_authorities.smallstep")
 					if tc.errMessage == "Invalid URL" {
-						require.Contains(t, errMsg, "Invalid Smallstep SCEP URL")
+						require.Contains(t, errMsg, "Smallstep SCEP URL is invalid")
 					} else {
 						require.Contains(t, errMsg, tc.errMessage)
 					}
@@ -1111,7 +1111,7 @@ func (s *integrationMDMTestSuite) TestBatchApplyCertificateAuthorities() {
 			res := s.Do("POST", "/api/v1/fleet/spec/certificate_authorities", req, http.StatusUnprocessableEntity)
 			errMsg := extractServerErrorText(res.Body)
 			require.Contains(t, errMsg, "certificate_authorities.smallstep")
-			require.Contains(t, errMsg, "Invalid Smallstep SCEP URL")
+			require.Contains(t, errMsg, "Smallstep SCEP URL is invalid")
 		})
 
 		t.Run("smallstep challenge url not set", func(t *testing.T) {
@@ -1268,7 +1268,7 @@ func (s *integrationMDMTestSuite) TestBatchApplyCertificateAuthorities() {
 					errMsg := extractServerErrorText(res.Body)
 					require.Contains(t, errMsg, "certificate_authorities.hydrant")
 					if tc.errMessage == "Invalid URL" {
-						require.Contains(t, errMsg, "Invalid Hydrant URL")
+						require.Contains(t, errMsg, "Hydrant URL is invalid")
 					} else {
 						require.Contains(t, errMsg, tc.errMessage)
 					}
@@ -1394,7 +1394,7 @@ func (s *integrationMDMTestSuite) TestBatchApplyCertificateAuthorities() {
 					errMsg := extractServerErrorText(res.Body)
 					require.Contains(t, errMsg, "certificate_authorities.custom_est_proxy")
 					if tc.errMessage == "Invalid URL" {
-						require.Contains(t, errMsg, "Invalid EST URL")
+						require.Contains(t, errMsg, "EST URL is invalid")
 					} else {
 						require.Contains(t, errMsg, tc.errMessage)
 					}
