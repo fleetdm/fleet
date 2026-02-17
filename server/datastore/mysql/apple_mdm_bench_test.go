@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"sort"
+	"strings"
 	"testing"
 	"time"
 
@@ -453,6 +454,270 @@ func TestScopedVsUnscopedPerformance(t *testing.T) {
 		scopedDuration, unscopedDuration, totalHosts)
 }
 
+// bulkInsertHosts inserts hosts in batches of 1000 using multi-row INSERT for speed.
+// Returns the host UUIDs created.
+func bulkInsertHosts(tb testing.TB, ds *Datastore, teamID uint, prefix string, count int) []string {
+	tb.Helper()
+	ctx := context.Background()
+	now := time.Now()
+
+	uuids := make([]string, count)
+	const batchSize = 1000
+
+	for start := 0; start < count; start += batchSize {
+		end := start + batchSize
+		if end > count {
+			end = count
+		}
+		batch := end - start
+
+		// Build multi-row INSERT for hosts
+		hostVals := make([]string, 0, batch)
+		hostArgs := make([]interface{}, 0, batch*10)
+		for i := start; i < end; i++ {
+			uuid := fmt.Sprintf("%s-uuid-%d", prefix, i)
+			uuids[i] = uuid
+			hostVals = append(hostVals, "(?, ?, ?, ?, ?, ?, ?, ?)")
+			hostArgs = append(hostArgs,
+				fmt.Sprintf("%s-osquery-%d", prefix, i), // osquery_host_id
+				now, // detail_updated_at
+				now, // label_updated_at
+				now, // policy_updated_at
+				fmt.Sprintf("%s-nodekey-%d", prefix, i), // node_key
+				uuid,     // uuid
+				"darwin", // platform
+				teamID,   // team_id
+			)
+		}
+
+		stmt := "INSERT INTO hosts (osquery_host_id, detail_updated_at, label_updated_at, policy_updated_at, node_key, uuid, platform, team_id) VALUES " +
+			strings.Join(hostVals, ",")
+		_, err := ds.writer(ctx).ExecContext(ctx, stmt, hostArgs...)
+		require.NoError(tb, err)
+
+		// Get the inserted host IDs for host_seen_times
+		var insertedHosts []struct {
+			ID   uint   `db:"id"`
+			UUID string `db:"uuid"`
+		}
+		batchUUIDs := uuids[start:end]
+		query, args, err := sqlx.In("SELECT id, uuid FROM hosts WHERE uuid IN (?)", batchUUIDs)
+		require.NoError(tb, err)
+		err = sqlx.SelectContext(ctx, ds.reader(ctx), &insertedHosts, query, args...)
+		require.NoError(tb, err)
+
+		// Bulk insert host_seen_times
+		seenVals := make([]string, 0, len(insertedHosts))
+		seenArgs := make([]interface{}, 0, len(insertedHosts)*2)
+		for _, h := range insertedHosts {
+			seenVals = append(seenVals, "(?, ?)")
+			seenArgs = append(seenArgs, h.ID, now)
+		}
+		_, err = ds.writer(ctx).ExecContext(ctx,
+			"INSERT INTO host_seen_times (host_id, seen_time) VALUES "+strings.Join(seenVals, ","),
+			seenArgs...)
+		require.NoError(tb, err)
+
+		// Bulk insert nano_devices
+		nanoDevVals := make([]string, 0, len(insertedHosts))
+		nanoDevArgs := make([]interface{}, 0, len(insertedHosts)*3)
+		for _, h := range insertedHosts {
+			nanoDevVals = append(nanoDevVals, "(?, 'test', ?, ?)")
+			nanoDevArgs = append(nanoDevArgs, h.UUID, "darwin", teamID)
+		}
+		_, err = ds.writer(ctx).ExecContext(ctx,
+			"INSERT INTO nano_devices (id, authenticate, platform, enroll_team_id) VALUES "+strings.Join(nanoDevVals, ","),
+			nanoDevArgs...)
+		require.NoError(tb, err)
+
+		// Bulk insert nano_enrollments
+		nanoEnrVals := make([]string, 0, len(insertedHosts))
+		nanoEnrArgs := make([]interface{}, 0, len(insertedHosts)*5)
+		enrollTime := now.Add(-2 * time.Second).Truncate(time.Second)
+		for _, h := range insertedHosts {
+			nanoEnrVals = append(nanoEnrVals, "(?, ?, 'Device', ?, ?, ?, 1, ?)")
+			nanoEnrArgs = append(nanoEnrArgs,
+				h.UUID,             // id
+				h.UUID,             // device_id
+				h.UUID+".topic",    // topic
+				h.UUID+".magic",    // push_magic
+				h.UUID,             // token_hex
+				enrollTime,         // last_seen_at
+			)
+		}
+		_, err = ds.writer(ctx).ExecContext(ctx,
+			"INSERT INTO nano_enrollments (id, device_id, type, topic, push_magic, token_hex, token_update_tally, last_seen_at) VALUES "+strings.Join(nanoEnrVals, ","),
+			nanoEnrArgs...)
+		require.NoError(tb, err)
+	}
+
+	return uuids
+}
+
+// TestReproduceIssue39921 reproduces the exact production scenario reported in
+// issue #39921: ~70k hosts and ~30 declarations causing 107+ second API responses
+// on POST /api/latest/fleet/spec/teams.
+//
+// The root cause was that mdmAppleBatchSetHostDeclarationStateDB computed
+// desired state for ALL hosts regardless of which team was modified. The
+// 4-way UNION in generateDesiredStateQuery() joins every host against every
+// declaration in their team, producing N_hosts * N_declarations row candidates.
+//
+// This test reproduces the EXACT scenario from issue #39921:
+//   - 70,000 hosts (50 teams × 1,400 hosts each)
+//   - 30 declarations per team (1,500 total)
+//   - One team modified via GitOps (POST /api/latest/fleet/spec/teams)
+//   - Reported: 107 second API response time
+//
+// It compares:
+//   - Scoped (fix): process only the target team's 1,400 hosts
+//   - Unscoped (bug): process ALL 70,000 hosts
+//
+// Run with:
+//
+//	MYSQL_TEST=1 FLEET_MYSQL_ADDRESS=127.0.0.1:3307 FLEET_MYSQL_DATABASE=fleet \
+//	  go test -run TestReproduceIssue39921 -v -count=1 -timeout 1200s \
+//	  ./server/datastore/mysql/
+func TestReproduceIssue39921(t *testing.T) {
+	ds := CreateMySQLDS(t)
+	defer TruncateTables(t, ds)
+
+	ctx := context.Background()
+
+	// Exact reproduction of issue #39921:
+	// - ~70k hosts total across multiple teams
+	// - ~30 profiles/declarations per team
+	// - POST /api/latest/fleet/spec/teams modifies ONE team via GitOps
+	// - The query scans ALL 70k hosts instead of just the affected team
+	// - Reported: 107 second response time
+	//
+	// We reproduce the EXACT numbers: 70,000 hosts across 50 teams (1,400
+	// hosts per team), with 30 declarations per team. One team (the target)
+	// is being modified via GitOps — the fix ensures only that team's 1,400
+	// hosts are scanned instead of all 70,000.
+
+	const (
+		targetTeamHosts    = 1400
+		numBystanderTeams  = 49
+		bystanderHosts     = 1400 // per team
+		declsPerTeam       = 30   // matches "~30 profiles" from the issue
+	)
+
+	totalHosts := targetTeamHosts + numBystanderTeams*bystanderHosts
+	totalDecls := (1 + numBystanderTeams) * declsPerTeam
+
+	t.Logf("Setting up %d hosts: target team (%d hosts) + %d bystander teams (%d hosts each), %d declarations/team (%d total)...",
+		totalHosts, targetTeamHosts, numBystanderTeams, bystanderHosts, declsPerTeam, totalDecls)
+	setupStart := time.Now()
+
+	// Create target team (the one being modified via GitOps)
+	targetTeam, err := ds.NewTeam(ctx, &fleet.Team{Name: "repro-target"})
+	require.NoError(t, err)
+	targetUUIDs := bulkInsertHosts(t, ds, targetTeam.ID, "repro-target", targetTeamHosts)
+	for d := 0; d < declsPerTeam; d++ {
+		_, err := ds.NewMDMAppleDeclaration(ctx, &fleet.MDMAppleDeclaration{
+			Identifier: fmt.Sprintf("com.fleet.repro.target.%d", d),
+			Name:       fmt.Sprintf("repro-target-decl-%d", d),
+			RawJSON:    []byte(fmt.Sprintf(`{"Type":"com.apple.configuration.decl.%d","Identifier":"com.fleet.repro.target.%d","Payload":{"ServiceType":"com.apple.svc.%d"}}`, d, d, d)),
+			TeamID:     &targetTeam.ID,
+		})
+		require.NoError(t, err)
+	}
+
+	// Create bystander teams (these create the load that the old code scanned needlessly)
+	for i := 0; i < numBystanderTeams; i++ {
+		teamName := fmt.Sprintf("repro-bystander-%02d", i)
+		team, err := ds.NewTeam(ctx, &fleet.Team{Name: teamName})
+		require.NoError(t, err)
+		bulkInsertHosts(t, ds, team.ID, teamName, bystanderHosts)
+		for d := 0; d < declsPerTeam; d++ {
+			_, err := ds.NewMDMAppleDeclaration(ctx, &fleet.MDMAppleDeclaration{
+				Identifier: fmt.Sprintf("com.fleet.repro.%s.%d", teamName, d),
+				Name:       fmt.Sprintf("%s-decl-%d", teamName, d),
+				RawJSON:    []byte(fmt.Sprintf(`{"Type":"com.apple.configuration.decl.%d","Identifier":"com.fleet.repro.%s.%d","Payload":{"ServiceType":"com.apple.svc.%d"}}`, d, teamName, d, d)),
+				TeamID:     &team.ID,
+			})
+			require.NoError(t, err)
+		}
+	}
+
+	t.Logf("Setup took %v", time.Since(setupStart))
+
+	// === SCOPED PATH (the fix) ===
+	// Only process the target team's hosts — this is what happens after the fix
+	// when BulkSetPendingMDMHostProfiles passes hostUUIDs from the team lookup.
+	var scopedResult []*fleet.MDMAppleHostDeclaration
+	scopedStart := time.Now()
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		var err error
+		scopedResult, err = mdmAppleGetHostsWithChangedDeclarationsDB(ctx, q, targetUUIDs)
+		return err
+	})
+	scopedDuration := time.Since(scopedStart)
+
+	// === UNSCOPED PATH (the bug) ===
+	// Process ALL hosts — this is what happened before the fix when
+	// mdmAppleBatchSetHostDeclarationStateDB was called with nil hostUUIDs.
+	var unscopedResult []*fleet.MDMAppleHostDeclaration
+	unscopedStart := time.Now()
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		var err error
+		unscopedResult, err = mdmAppleGetHostsWithChangedDeclarationsDB(ctx, q, nil)
+		return err
+	})
+	unscopedDuration := time.Since(unscopedStart)
+
+	// === VERIFY CORRECTNESS ===
+	scopedHosts := make(map[string]bool)
+	for _, d := range scopedResult {
+		scopedHosts[d.HostUUID] = true
+	}
+	unscopedHosts := make(map[string]bool)
+	for _, d := range unscopedResult {
+		unscopedHosts[d.HostUUID] = true
+	}
+
+	assert.Equal(t, targetTeamHosts, len(scopedHosts),
+		"scoped: expected %d unique hosts (target team), got %d", targetTeamHosts, len(scopedHosts))
+	assert.Equal(t, totalHosts, len(unscopedHosts),
+		"unscoped: expected %d unique hosts (all teams), got %d", totalHosts, len(unscopedHosts))
+
+	// Scoped returns only target team hosts
+	for _, uuid := range targetUUIDs {
+		assert.True(t, scopedHosts[uuid], "target host %s missing from scoped results", uuid)
+	}
+
+	// Scoped returns correct number of declarations per host
+	scopedDeclsPerHost := make(map[string]int)
+	for _, d := range scopedResult {
+		scopedDeclsPerHost[d.HostUUID]++
+	}
+	for _, uuid := range targetUUIDs {
+		assert.Equal(t, declsPerTeam, scopedDeclsPerHost[uuid],
+			"host %s: expected %d declarations, got %d", uuid, declsPerTeam, scopedDeclsPerHost[uuid])
+	}
+
+	// === REPORT ===
+	speedup := float64(unscopedDuration) / float64(scopedDuration)
+
+	t.Logf("")
+	t.Logf("╔══════════════════════════════════════════════════════════════════════════╗")
+	t.Logf("║  REPRODUCTION OF ISSUE #39921                                          ║")
+	t.Logf("║  'POST /api/latest/fleet/spec/teams taking ~107s with ~70k hosts'      ║")
+	t.Logf("╠══════════════════════════════════════════════════════════════════════════╣")
+	t.Logf("║  Setup: %d hosts, %d teams, %d decls/team (%d total)",
+		totalHosts, 1+numBystanderTeams, declsPerTeam, totalDecls)
+	t.Logf("╠══════════════════════════════════════════════════════════════════════════╣")
+	t.Logf("║  SCOPED   (fix)  : %6d hosts → %v", targetTeamHosts, scopedDuration.Truncate(time.Millisecond))
+	t.Logf("║  UNSCOPED (bug)  : %6d hosts → %v  (reported: ~107s)", totalHosts, unscopedDuration.Truncate(time.Millisecond))
+	t.Logf("║  Speedup         : %.1fx", speedup)
+	t.Logf("╚══════════════════════════════════════════════════════════════════════════╝")
+
+	// The fix must be faster
+	assert.Less(t, scopedDuration, unscopedDuration,
+		"scoped (%v) must be faster than unscoped (%v)", scopedDuration, unscopedDuration)
+}
+
 // BenchmarkDeclarationProcessingAtScale benchmarks scoped vs unscoped
 // declaration processing at multiple host counts to show how the performance
 // gap widens with scale.
@@ -460,42 +725,64 @@ func TestScopedVsUnscopedPerformance(t *testing.T) {
 // Run with:
 //
 //	MYSQL_TEST=1 FLEET_MYSQL_ADDRESS=127.0.0.1:3307 FLEET_MYSQL_DATABASE=fleet \
-//	  go test -bench BenchmarkDeclarationProcessingAtScale -benchtime 5x -run ^$ -timeout 600s \
+//	  go test -bench BenchmarkDeclarationProcessingAtScale -benchtime 3x -run ^$ -timeout 600s \
 //	  ./server/datastore/mysql/
 func BenchmarkDeclarationProcessingAtScale(b *testing.B) {
 	ds := CreateMySQLDS(b)
 	defer TruncateTables(b, ds)
 
-	const declsPerTeam = 10
+	const declsPerTeam = 3
 
-	// Scale tiers: each adds more bystander teams while the target team stays small.
-	// This simulates the production scenario where modifying one team's declarations
-	// shouldn't require scanning hosts from all other teams.
+	// Scale tiers showing how unscoped performance degrades with fleet size.
+	// The target team always has 500 hosts. Only bystander count changes.
 	tiers := []struct {
-		name            string
+		name              string
 		numBystanderTeams int
-		hostsPerTeam    int
+		hostsPerTeam      int
 	}{
-		{"500hosts_10teams", 9, 50},
-		{"1000hosts_20teams", 19, 50},
-		{"2000hosts_20teams", 19, 100},
+		{"1000hosts_10teams", 9, 100},
+		{"2000hosts_10teams", 9, 200},
+		{"5000hosts_10teams", 9, 500},
+		{"10000hosts_10teams", 9, 1000},
 	}
 
 	for _, tier := range tiers {
 		b.Run(tier.name, func(b *testing.B) {
-			// Clean slate for each tier
 			TruncateTables(b, ds)
+			ctx := context.Background()
 
-			// Create target team
-			_, targetUUIDs := createBenchmarkTeamWithHosts(b, ds, fmt.Sprintf("target-%s", tier.name), tier.hostsPerTeam, declsPerTeam)
+			// Create target team with its hosts
+			targetTeam, err := ds.NewTeam(ctx, &fleet.Team{Name: fmt.Sprintf("target-%s", tier.name)})
+			require.NoError(b, err)
+			targetUUIDs := bulkInsertHosts(b, ds, targetTeam.ID, fmt.Sprintf("target-%s", tier.name), tier.hostsPerTeam)
+			for d := 0; d < declsPerTeam; d++ {
+				_, err := ds.NewMDMAppleDeclaration(ctx, &fleet.MDMAppleDeclaration{
+					Identifier: fmt.Sprintf("com.fleet.bench.target-%s.%d", tier.name, d),
+					Name:       fmt.Sprintf("target-%s-decl-%d", tier.name, d),
+					RawJSON:    []byte(fmt.Sprintf(`{"Type":"com.apple.configuration.decl.%d","Identifier":"com.fleet.bench.target-%s.%d","Payload":{}}`, d, tier.name, d)),
+					TeamID:     &targetTeam.ID,
+				})
+				require.NoError(b, err)
+			}
 
 			// Create bystander teams
 			for i := 0; i < tier.numBystanderTeams; i++ {
-				createBenchmarkTeamWithHosts(b, ds, fmt.Sprintf("bystander-%s-%02d", tier.name, i), tier.hostsPerTeam, declsPerTeam)
+				name := fmt.Sprintf("bystander-%s-%02d", tier.name, i)
+				team, err := ds.NewTeam(ctx, &fleet.Team{Name: name})
+				require.NoError(b, err)
+				bulkInsertHosts(b, ds, team.ID, name, tier.hostsPerTeam)
+				for d := 0; d < declsPerTeam; d++ {
+					_, err := ds.NewMDMAppleDeclaration(ctx, &fleet.MDMAppleDeclaration{
+						Identifier: fmt.Sprintf("com.fleet.bench.%s.%d", name, d),
+						Name:       fmt.Sprintf("%s-decl-%d", name, d),
+						RawJSON:    []byte(fmt.Sprintf(`{"Type":"com.apple.configuration.decl.%d","Identifier":"com.fleet.bench.%s.%d","Payload":{}}`, d, name, d)),
+						TeamID:     &team.ID,
+					})
+					require.NoError(b, err)
+				}
 			}
 
 			totalHosts := tier.hostsPerTeam * (1 + tier.numBystanderTeams)
-			ctx := context.Background()
 
 			b.Run(fmt.Sprintf("Scoped_%dhosts", tier.hostsPerTeam), func(b *testing.B) {
 				b.ResetTimer()
