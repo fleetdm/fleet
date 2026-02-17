@@ -142,7 +142,8 @@ var aliasRules = map[string]string{
 }
 
 // Replace deprecated keys with their new canonical names.
-func replaceAliasKeys(v any, rules map[string]string) {
+// If deleteOld is true, the old keys are removed; otherwise both old and new keys are present.
+func replaceAliasKeys(v any, rules map[string]string, deleteOld bool) {
 	switch val := v.(type) {
 	case map[string]any:
 		if val == nil {
@@ -157,14 +158,16 @@ func replaceAliasKeys(v any, rules map[string]string) {
 		}
 		for _, r := range renames {
 			val[r.newKey] = val[r.oldKey]
-			delete(val, r.oldKey)
+			if deleteOld {
+				delete(val, r.oldKey)
+			}
 		}
 		for _, v := range val {
-			replaceAliasKeys(v, rules)
+			replaceAliasKeys(v, rules, deleteOld)
 		}
 	case []any:
 		for _, item := range val {
-			replaceAliasKeys(item, rules)
+			replaceAliasKeys(item, rules, deleteOld)
 		}
 	}
 }
@@ -180,7 +183,7 @@ func yamlMarshalRenamed(v any) ([]byte, error) {
 	if err := json.Unmarshal(b, &raw); err != nil {
 		return nil, err
 	}
-	replaceAliasKeys(raw, aliasRules)
+	replaceAliasKeys(raw, aliasRules, true)
 	return yaml.Marshal(raw)
 }
 

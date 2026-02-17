@@ -76,6 +76,13 @@ func jsonFlag() cli.Flag {
 	}
 }
 
+func removeDeprecatedKeysFlag() cli.Flag {
+	return &cli.BoolFlag{
+		Name:  "remove-deprecated-keys",
+		Usage: "Remove deprecated key names from YAML/JSON output, leaving only the new canonical names",
+	}
+}
+
 func printJSON(spec interface{}, writer io.Writer) error {
 	b, err := json.Marshal(spec)
 	if err != nil {
@@ -287,7 +294,7 @@ func printSpec(c *cli.Context, spec specGeneric) error {
 	if err := json.Unmarshal(b, &raw); err != nil {
 		return err
 	}
-	replaceAliasKeys(raw, aliasRules)
+	replaceAliasKeys(raw, aliasRules, c.Bool("remove-deprecated-keys"))
 	spec.Spec = raw
 
 	if c.Bool(jsonFlagName) {
@@ -404,6 +411,7 @@ func getQueriesCommand() *cli.Command {
 			},
 			jsonFlag(),
 			yamlFlag(),
+			removeDeprecatedKeysFlag(),
 			configFlag(),
 			contextFlag(),
 			debugFlag(),
@@ -562,6 +570,7 @@ func getPacksCommand() *cli.Command {
 			},
 			jsonFlag(),
 			yamlFlag(),
+			removeDeprecatedKeysFlag(),
 			configFlag(),
 			contextFlag(),
 			debugFlag(),
@@ -685,6 +694,7 @@ func getLabelsCommand() *cli.Command {
 		Flags: []cli.Flag{
 			jsonFlag(),
 			yamlFlag(),
+			removeDeprecatedKeysFlag(),
 			configFlag(),
 			contextFlag(),
 			debugFlag(),
@@ -761,6 +771,7 @@ func getEnrollSecretCommand() *cli.Command {
 		Flags: []cli.Flag{
 			jsonFlag(),
 			yamlFlag(),
+			removeDeprecatedKeysFlag(),
 			configFlag(),
 			contextFlag(),
 			debugFlag(),
@@ -793,6 +804,7 @@ func getAppConfigCommand() *cli.Command {
 		Flags: []cli.Flag{
 			jsonFlag(),
 			yamlFlag(),
+			removeDeprecatedKeysFlag(),
 			configFlag(),
 			contextFlag(),
 			debugFlag(),
@@ -839,6 +851,7 @@ func getHostsCommand() *cli.Command {
 			},
 			jsonFlag(),
 			yamlFlag(),
+			removeDeprecatedKeysFlag(),
 			configFlag(),
 			contextFlag(),
 			debugFlag(),
@@ -1094,6 +1107,7 @@ func getUserRolesCommand() *cli.Command {
 		Flags: []cli.Flag{
 			jsonFlag(),
 			yamlFlag(),
+			removeDeprecatedKeysFlag(),
 			configFlag(),
 			contextFlag(),
 			debugFlag(),
@@ -1182,6 +1196,7 @@ func getTeamsCommand() *cli.Command {
 		Flags: []cli.Flag{
 			getTeamsJSONFlag(),
 			getTeamsYAMLFlag(),
+			removeDeprecatedKeysFlag(),
 			configFlag(),
 			contextFlag(),
 			debugFlag(),
@@ -1259,6 +1274,7 @@ func getSoftwareCommand() *cli.Command {
 			},
 			jsonFlag(),
 			yamlFlag(),
+			removeDeprecatedKeysFlag(),
 			configFlag(),
 			contextFlag(),
 			debugFlag(),
