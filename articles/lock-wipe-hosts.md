@@ -68,7 +68,7 @@ Example URL:
 
 ### How to unlock offline iOS and iPadOS hosts
 
-If the host is turned off or restarted while locked, it will disconnect from Wi-Fi and can't be unlocked remotely. Connect your iPhone or iPad to your Mac with a USB and [share the network](https://support.apple.com/en-gb/guide/mac-help/mchlp1540/mac). After you connected yout iPhone/iPad to the internet, go to host details and select **Actions > Unlock**.
+If an iPhone/iPad is turned off or restarted while locked, it will disconnect from Wi-Fi and can't be unlocked remotely. Connect your iPhone/iPad to your Mac with a USB and [share the network](https://support.apple.com/en-gb/guide/mac-help/mchlp1540/mac). After connecting your iPhone/iPad to the internet, in Fleet, head to the **Host details** page and select **Actions > Unlock**.
 
 ## Lock and wipe using `fleetctl`
 
