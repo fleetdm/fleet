@@ -6,8 +6,6 @@ import (
 	"time"
 )
 
-//go:generate go run gen_activity_doc.go "../../docs/Contributing/reference/audit-logs.md"
-
 type ContextKey string
 
 type ActivityWebhookPayload struct {
