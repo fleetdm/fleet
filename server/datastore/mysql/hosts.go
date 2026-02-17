@@ -2954,11 +2954,11 @@ func (ds *Datastore) LoadHostByDeviceAuthToken(ctx context.Context, authToken st
     LEFT OUTER JOIN
       host_dep_assignments hdep ON hdep.host_id = h.id AND hdep.deleted_at IS NULL
     WHERE
-      hda.token = ? AND
+      (hda.token = ? OR hda.previous_token = ?) AND
       hda.updated_at >= DATE_SUB(NOW(), INTERVAL ? SECOND)`
 
 	var host fleet.Host
-	switch err := ds.getContextTryStmt(ctx, &host, query, authToken, tokenTTL.Seconds()); {
+	switch err := ds.getContextTryStmt(ctx, &host, query, authToken, authToken, tokenTTL.Seconds()); {
 	case err == nil:
 		return &host, nil
 	case errors.Is(err, sql.ErrNoRows):
@@ -2975,12 +2975,17 @@ func (ds *Datastore) SetOrUpdateDeviceAuthToken(ctx context.Context, hostID uint
 	// timestamp will NOT be changed if the new token is the same as the old token
 	// (which is exactly what we want). The updated_at timestamp WILL be updated if the
 	// new token is different.
+	//
+	// When the token changes, the current token is saved to previous_token so that
+	// both the old and new tokens can be used for authentication during the transition
+	// period (see #38351).
 	const stmt = `
 		INSERT INTO
 			host_device_auth ( host_id, token )
 		VALUES
 			(?, ?)
 		ON DUPLICATE KEY UPDATE
+			previous_token = IF(token = VALUES(token), previous_token, token),
 			token = VALUES(token)
 `
 	_, err := ds.writer(ctx).ExecContext(ctx, stmt, hostID, authToken)
@@ -2993,16 +2998,20 @@ func (ds *Datastore) SetOrUpdateDeviceAuthToken(ctx context.Context, hostID uint
 	return nil
 }
 
-// GetDeviceAuthToken returns the current auth token for a given host
+// GetDeviceAuthToken returns the current auth token for a given host.
+// Returns a NotFoundError if the host has no device auth token.
 func (ds *Datastore) GetDeviceAuthToken(ctx context.Context, hostID uint) (string, error) {
 	const stmt = `SELECT token FROM host_device_auth WHERE host_id = ?`
 
 	var token string
-	if err := sqlx.GetContext(ctx, ds.reader(ctx), &token, stmt, hostID); err != nil {
+	switch err := sqlx.GetContext(ctx, ds.reader(ctx), &token, stmt, hostID); {
+	case err == nil:
+		return token, nil
+	case errors.Is(err, sql.ErrNoRows):
+		return "", ctxerr.Wrap(ctx, notFound("token").WithID(hostID))
+	default:
 		return "", ctxerr.Wrap(ctx, err, "getting device auth token")
 	}
-
-	return token, nil
 }
 
 func (ds *Datastore) MarkHostsSeen(ctx context.Context, hostIDs []uint, t time.Time) error {
