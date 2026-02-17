@@ -2978,14 +2978,16 @@ func (ds *Datastore) SetOrUpdateDeviceAuthToken(ctx context.Context, hostID uint
 	//
 	// When the token changes, the current token is saved to previous_token so that
 	// both the old and new tokens can be used for authentication during the transition
-	// period (see #38351).
+	// period (see #38351). If the current token is already expired (older than 1 hour,
+	// matching deviceAuthTokenTTL), previous_token is set to NULL to avoid reviving it.
 	const stmt = `
 		INSERT INTO
 			host_device_auth ( host_id, token )
 		VALUES
 			(?, ?)
 		ON DUPLICATE KEY UPDATE
-			previous_token = IF(token = VALUES(token), previous_token, token),
+			previous_token = IF(token = VALUES(token), previous_token,
+				IF(updated_at >= DATE_SUB(NOW(), INTERVAL 3600 SECOND), token, NULL)),
 			token = VALUES(token)
 `
 	_, err := ds.writer(ctx).ExecContext(ctx, stmt, hostID, authToken)
