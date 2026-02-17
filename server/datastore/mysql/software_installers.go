@@ -5,6 +5,8 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"maps"
+	"slices"
 	"strings"
 	"time"
 
@@ -2727,20 +2729,13 @@ WHERE
 						}
 						keepSet[id] = true
 					}
-					var evictIDs []uint
-					for _, id := range allFMAInstallerIDs {
-						if !keepSet[id] {
-							evictIDs = append(evictIDs, id)
-						}
+
+					stmt, args, err := sqlx.In(`DELETE FROM software_installers WHERE id NOT IN (?)`, slices.Collect(maps.Keys(keepSet)))
+					if err != nil {
+						return ctxerr.Wrap(ctx, err, "build FMA eviction query")
 					}
-					if len(evictIDs) > 0 {
-						stmt, args, err := sqlx.In(`DELETE FROM software_installers WHERE id IN (?)`, evictIDs)
-						if err != nil {
-							return ctxerr.Wrap(ctx, err, "build FMA eviction query")
-						}
-						if _, err := tx.ExecContext(ctx, stmt, args...); err != nil {
-							return ctxerr.Wrapf(ctx, err, "evict old FMA versions for %q", installer.Filename)
-						}
+					if _, err := tx.ExecContext(ctx, stmt, args...); err != nil {
+						return ctxerr.Wrapf(ctx, err, "evict old FMA versions for %q", installer.Filename)
 					}
 				}
 

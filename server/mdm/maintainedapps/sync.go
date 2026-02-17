@@ -127,6 +127,10 @@ type FMAInstallerCache interface {
 // first attempts to load the metadata from the local cache, falling back to the
 // remote manifest if the version is not cached.
 func Hydrate(ctx context.Context, app *fleet.MaintainedApp, version string, teamID *uint, cache FMAInstallerCache) (*fleet.MaintainedApp, error) {
+	if version != "" && cache == nil {
+		return nil, ctxerr.New(ctx, "no fma version cache provided")
+	}
+
 	// If a specific version is requested and we have a cache, try the cache first.
 	if version != "" && cache != nil {
 		cached, err := cache.GetCachedFMAInstallerMetadata(ctx, teamID, app.ID, version)
