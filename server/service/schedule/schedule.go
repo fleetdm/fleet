@@ -272,6 +272,8 @@ func (s *Schedule) Start() {
 					if err := s.statsStore.ClaimCronStats(ctx, claimedStatsID, s.instanceID, fleet.CronStatsStatusPending); err != nil {
 						level.Error(s.logger).Log("err", "claiming queued trigger", "details", err)
 						ctxerr.Handle(ctx, err)
+						// there is an issue with this stats record; fall through to create a new stats record
+						claimedStatsID = 0
 					}
 				}
 
