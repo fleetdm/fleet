@@ -16,6 +16,7 @@ import (
 
 	eeservice "github.com/fleetdm/fleet/v4/ee/server/service"
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
+	"github.com/fleetdm/fleet/v4/server/dev_mode"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/mobileconfig"
@@ -33,6 +34,9 @@ import (
 
 func (s *integrationMDMTestSuite) TestBatchApplyCertificateAuthorities() {
 	t := s.T()
+
+	dev_mode.IsEnabled = true
+	t.Cleanup(func() { dev_mode.IsEnabled = false })
 
 	// TODO(hca): test each CA type activities once implemented
 

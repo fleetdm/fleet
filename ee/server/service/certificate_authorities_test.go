@@ -539,7 +539,7 @@ func TestCreatingCertificateAuthorities(t *testing.T) {
 		}
 
 		createdCA, err := svc.NewCertificateAuthority(ctx, createDigicertRequest)
-		require.ErrorContains(t, err, "Invalid DigiCert URL")
+		require.ErrorContains(t, err, "DigiCert URL is invalid")
 		require.Len(t, createdCAs, 0)
 		require.Nil(t, createdCA)
 	})
@@ -680,7 +680,7 @@ func TestCreatingCertificateAuthorities(t *testing.T) {
 		}
 
 		createdCA, err := svc.NewCertificateAuthority(ctx, createHydrantRequest)
-		require.ErrorContains(t, err, "Invalid Hydrant URL.")
+		require.ErrorContains(t, err, "Hydrant URL is invalid")
 		require.Len(t, createdCAs, 0)
 		require.Nil(t, createdCA)
 	})
@@ -768,7 +768,7 @@ func TestCreatingCertificateAuthorities(t *testing.T) {
 		}
 
 		createdCA, err := svc.NewCertificateAuthority(ctx, createCustomSCEPRequest)
-		require.ErrorContains(t, err, "Invalid SCEP URL.")
+		require.ErrorContains(t, err, "Custom SCEP Proxy URL is invalid")
 		require.Len(t, createdCAs, 0)
 		require.Nil(t, createdCA)
 	})
@@ -824,7 +824,7 @@ func TestCreatingCertificateAuthorities(t *testing.T) {
 		}
 
 		createdCA, err := svc.NewCertificateAuthority(ctx, createNDESSCEPRequest)
-		require.ErrorContains(t, err, "Invalid NDES SCEP URL.")
+		require.ErrorContains(t, err, "NDES SCEP URL is invalid")
 		require.Len(t, createdCAs, 0)
 		require.Nil(t, createdCA)
 	})
@@ -984,7 +984,7 @@ func TestCreatingCertificateAuthorities(t *testing.T) {
 		}
 
 		createdCA, err := svc.NewCertificateAuthority(ctx, createSmallstepRequest)
-		require.ErrorContains(t, err, "Invalid Smallstep SCEP URL.")
+		require.ErrorContains(t, err, "Smallstep SCEP URL is invalid")
 		require.Len(t, createdCAs, 0)
 		require.Nil(t, createdCA)
 	})
@@ -1367,7 +1367,7 @@ func TestUpdatingCertificateAuthorities(t *testing.T) {
 			}
 
 			err := svc.UpdateCertificateAuthority(ctx, digicertID, payload)
-			require.EqualError(t, err, "validation failed: url Couldn't edit certificate authority. Invalid DigiCert URL. Please correct and try again.")
+			require.ErrorContains(t, err, "DigiCert URL is invalid")
 		})
 
 		t.Run("Bad URL Path", func(t *testing.T) {
@@ -1509,7 +1509,7 @@ func TestUpdatingCertificateAuthorities(t *testing.T) {
 			}
 
 			err := svc.UpdateCertificateAuthority(ctx, hydrantID, payload)
-			require.EqualError(t, err, "validation failed: url Couldn't edit certificate authority. Invalid Hydrant URL. Please correct and try again.")
+			require.ErrorContains(t, err, "Hydrant URL is invalid")
 		})
 
 		t.Run("Bad URL", func(t *testing.T) {
@@ -1595,7 +1595,7 @@ func TestUpdatingCertificateAuthorities(t *testing.T) {
 			}
 
 			err := svc.UpdateCertificateAuthority(ctx, scepID, payload)
-			require.EqualError(t, err, "validation failed: url Couldn't edit certificate authority. Invalid SCEP URL. Please correct and try again.")
+			require.ErrorContains(t, err, "Custom SCEP Proxy URL is invalid")
 		})
 
 		t.Run("Requires challenge when updating URL", func(t *testing.T) {
@@ -1658,7 +1658,7 @@ func TestUpdatingCertificateAuthorities(t *testing.T) {
 			}
 
 			err := svc.UpdateCertificateAuthority(ctx, ndesID, payload)
-			require.EqualError(t, err, "validation failed: url Couldn't edit certificate authority. Invalid NDES SCEP URL. Please correct and try again.")
+			require.ErrorContains(t, err, "NDES SCEP URL is invalid")
 		})
 
 		t.Run("Bad SCEP URL", func(t *testing.T) {
@@ -1817,7 +1817,7 @@ func TestUpdatingCertificateAuthorities(t *testing.T) {
 			}
 
 			err := svc.UpdateCertificateAuthority(ctx, smallstepID, payload)
-			require.EqualError(t, err, "validation failed: url Couldn't edit certificate authority. Invalid SCEP URL. Please correct and try again.")
+			require.ErrorContains(t, err, "Smallstep SCEP URL is invalid")
 		})
 
 		t.Run("Invalid Challenge URL format", func(t *testing.T) {
@@ -1833,7 +1833,7 @@ func TestUpdatingCertificateAuthorities(t *testing.T) {
 			}
 
 			err := svc.UpdateCertificateAuthority(ctx, smallstepID, payload)
-			require.EqualError(t, err, "validation failed: url Couldn't edit certificate authority. Invalid Challenge URL. Please correct and try again.")
+			require.ErrorContains(t, err, "Challenge URL is invalid")
 		})
 
 		t.Run("Bad Smallstep SCEP URL", func(t *testing.T) {

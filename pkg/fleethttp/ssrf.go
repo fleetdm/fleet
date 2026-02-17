@@ -12,7 +12,7 @@ import (
 
 var (
 	// https://en.wikipedia.org/wiki/Reserved_IP_addresses
-	IPV4_BLACKLIST = []string{
+	ipv4Blocklist = []string{
 		"0.0.0.0/8",          // Current network (only valid as source address)
 		"10.0.0.0/8",         // Private network
 		"100.64.0.0/10",      // Shared Address Space
@@ -31,7 +31,7 @@ var (
 		"255.255.255.255/32", // Broadcast
 	}
 
-	IPV6_BLACKLIST = []string{
+	ipv6Blocklist = []string{
 		"::1/128",        // Loopback
 		"64:ff9b::/96",   // IPv4/IPv6 translation (RFC 6052)
 		"64:ff9b:1::/48", // Local-use IPv4/IPv6 translation (RFC 8215)
@@ -52,7 +52,7 @@ var (
 var blockedCIDRs []*net.IPNet
 
 func init() {
-	for _, cidr := range append(IPV4_BLACKLIST, IPV6_BLACKLIST...) {
+	for _, cidr := range append(ipv4Blocklist, ipv6Blocklist...) {
 		_, network, err := net.ParseCIDR(cidr)
 		if err != nil {
 			panic(fmt.Sprintf("fleethttp: invalid blocked CIDR %q: %v", cidr, err))
@@ -112,9 +112,6 @@ func checkResolvedAddrs(ctx context.Context, host, rawURL string, resolver func(
 
 // CheckURLForSSRF validates rawURL against SSRF attack vectors using a static blocklist.
 func CheckURLForSSRF(ctx context.Context, rawURL string, resolver func(ctx context.Context, host string) ([]string, error)) error {
-	if dev_mode.IsEnabled {
-		return nil
-	}
 	parsed, err := url.Parse(rawURL)
 	if err != nil {
 		return fmt.Errorf("invalid URL: %w", err)
@@ -128,6 +125,10 @@ func CheckURLForSSRF(ctx context.Context, rawURL string, resolver func(ctx conte
 	hostname := parsed.Hostname()
 	if hostname == "" {
 		return errors.New("URL has no host")
+	}
+
+	if dev_mode.IsEnabled {
+		return nil
 	}
 
 	if ip := net.ParseIP(hostname); ip != nil {
@@ -174,6 +175,21 @@ func SSRFDialContext(
 			return nil, err
 		}
 
-		return dial(ctx, network, net.JoinHostPort(safeIPs[0].String(), port))
+		// net.Dialer has no API to accept a pre-resolved IP list
+		// This is similar to what go does with dialSerial
+		// /usr/local/go/src/net/dial.go#dialSerial
+		var lastErr error
+		for _, ip := range safeIPs {
+			var conn net.Conn
+			conn, lastErr = dial(ctx, network, net.JoinHostPort(ip.String(), port))
+			if lastErr == nil {
+				return conn, nil
+			}
+			if ctx.Err() != nil {
+				// Context cancelled/timed out — no point trying remaining IPs.
+				return nil, lastErr
+			}
+		}
+		return nil, lastErr
 	}
 }
