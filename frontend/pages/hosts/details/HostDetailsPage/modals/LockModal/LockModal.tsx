@@ -95,6 +95,12 @@ const LockModal = ({
             If the device is turned off or restarted
             while locked, it will disconnect from WiFi and won't be able to
             unlock the host remotely.
+            <CustomLink
+              newTab
+              text="Learn more"
+              variant="tooltip-link"
+              url={`${LEARN_MORE_ABOUT_BASE_LINK}/unlock-ios-ipados`}
+            />
           </p>
         </>
       );
