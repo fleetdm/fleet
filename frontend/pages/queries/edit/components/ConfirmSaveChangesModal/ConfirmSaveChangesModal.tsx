@@ -19,7 +19,7 @@ const ConfirmSaveChangesModal = ({
   showChangedSQLCopy = false,
 }: IConfirmSaveChangesModalProps) => {
   const warningText = showChangedSQLCopy
-    ? "Changing this report's SQL will delete its previous results, since the existing report does not reflect the updated report."
+    ? "Changing this report's SQL will delete its previous results, since the existing results do not reflect the updated SQL."
     : "The changes you are making to this report will delete its previous results.";
 
   return (
