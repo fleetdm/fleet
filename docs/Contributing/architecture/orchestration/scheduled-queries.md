@@ -31,7 +31,7 @@ The Scheduled Queries architecture enables the configuration, distribution, and 
 Fleet User -> API Client (Frontend or Fleetctl) -> Server -> DB
 ```
 
-1. Fleet user creates a scheduled query for a team or globally through the UI or API.
+1. Fleet user creates a scheduled query for a fleet or globally through the UI or API.
 2. Server stores the query configuration in the database.
 
 ### 2 - Agent gets config file (with the scheduled query)
@@ -41,7 +41,7 @@ osquery agent -> Server -> DB
 ```
 
 1. osquery agent requests the configuration file from the server.
-2. Server merges team and global configurations.
+2. Server merges fleet and global configurations.
 3. Server returns the merged configuration to the agent.
 
 ### 3 - Agent returns results to be (optionally) logged

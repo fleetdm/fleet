@@ -100,11 +100,11 @@ sequenceDiagram
 #### Troubleshooting
 The key stored in host_disk_encryption_keys for a given host will be deleted under the following circumstances:
 - MDM re-enrollment or enrollment profile reinstallation, outside Fleet-initiated MDM SCEP certificate renewal
-- Disk encryption disabled for a host's team
-- Host moved to a team with disk encryption disabled
+- Disk encryption disabled for a host's fleet
+- Host moved to a fleet with disk encryption disabled
 
-If the host is still in an encrypted team after the MDM re-enrollment, or in the case of a team
-change, once the host is moved to a team with encryption enabled, Fleet will initiate one of the processes
+If the host is still in an encrypted fleet after the MDM re-enrollment, or in the case of a fleet
+change, once the host is moved to a fleet with encryption enabled, Fleet will initiate one of the processes
 described above, depending on the host's actual disk encryption status, to escrow a new encryption
 key. Until the process is complete no key will be listed in Fleet, however in the event of an
 emergency the latest key can be retrieved from the archive using the steps described in [Key Storage

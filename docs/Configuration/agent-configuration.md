@@ -84,7 +84,7 @@ You can use Fleet to configure the `yara` and `yara_events` osquery tables, used
 
 > This feature requires a custom TUF [auto-update server](https://fleetdm.com/guides/fleetd-updates) (available in Fleet Premium).
 
-The `extensions` key inside of `agent_options` allows you to remotely manage and deploy osquery extensions. Just like other `agent_options` the `extensions` key can be applied either to a team specific one or the global one.
+The `extensions` key inside of `agent_options` allows you to remotely manage and deploy osquery extensions. Just like other `agent_options` the `extensions` key can be applied either to a specific fleet specific or global across all fleets.
 
 #### Example
 

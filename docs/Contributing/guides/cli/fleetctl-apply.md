@@ -119,7 +119,7 @@ Deploying a new enroll secret cannot be done centrally from Fleet.
 ### Multiple enroll secrets
 
 Fleet allows the abiility to maintain multiple enroll secrets. Some organizations have internal goals  around rotating secrets. Having multiple secrets allows some of them to work at the same time the rotation is happening.
-Another reason you might want to use multiple enroll secrets is to use a certain [team enroll secret](#team-enroll-secrets) to auto-enroll hosts into a specific [team](https://fleetdm.com/docs/using-fleet/teams) (Fleet Premium).
+Another reason you might want to use multiple enroll secrets is to use a certain [fleet enroll secret](#fleet-enroll-secrets) to auto-enroll hosts into a specific [fleet](https://fleetdm.com/docs/using-fleet/teams) (Fleet Premium).
 
 ### Rotating enroll secrets
 
@@ -127,15 +127,15 @@ Another reason you might want to use multiple enroll secrets is to use a certain
 2. Create a fleetd agent with the new enroll secret and install it on hosts.
 3. Delete the old enroll secret.
 
-## Teams
+## Fleets
 
 **Applies only to Fleet Premium**.
 
-The `team` YAML file controls a team in Fleet.
+The `team` YAML file controls a fleet of hosts.
 
-You can define one or more teams in the same file with `---`.
+You can define one or more fleet in the same file with `---`.
 
-The following example file includes one team:
+The following example file includes one fleet:
 
 ```yaml
 apiVersion: v1
@@ -196,9 +196,9 @@ spec:
         - path/to/script2.sh
 ```
 
-### Team agent options
+### Fleet-level agent options
 
-The team agent options specify options that only apply to this team. When team-specific agent options have been specified, the agent options specified at the organization level are ignored for this team.
+The fleet-level agent options specify options that only apply to this fleet. When fleet-specific agent options have been specified, the agent options specified at the organization level are ignored for this fleet.
 
 The documentation for this section is identical to the [Agent options](#agent-options) documentation for the organization settings, except that the YAML section where it is set must be as follows. (Note the `kind: team` key and the location of the `agent_options` key under `team` must have a `name` key to identify the team to configure.)
 
@@ -212,9 +212,9 @@ spec:
       # the team-specific options go here
 ```
 
-### Team secrets
+### Fleet-level secrets
 
-The `secrets` section provides the list of enroll secrets that will be valid for this team. When a new team is created via `fleetctl apply`, an enroll secret is automatically generated for it. If the section is missing, the existing secrets are left unmodified. Otherwise, they are replaced with this list of secrets for this team.
+The `secrets` section provides the list of enroll secrets that will be valid for this fleet. When a new fleet is created via `fleetctl apply`, an enroll secret is automatically generated for it. If the section is missing, the existing secrets are left unmodified. Otherwise, they are replaced with this list of secrets for this fleet.
 
 - Optional setting (array of dictionaries)
 - Default value: none (empty)
@@ -227,11 +227,11 @@ The `secrets` section provides the list of enroll secrets that will be valid for
       - secret: JZ/C/Z7ucq22dt/zjx2kEuDBN0iLjqfz
   ```
 
-### Modify an existing team
+### Modify an existing fleet
 
-You can modify an existing team by applying a new team configuration file with the same `name` as an existing team. The new team configuration will completely replace the previous configuration. In order to avoid overriding existing settings, we recommend retrieving the existing configuration and modifying it.
+You can modify an existing fleet by applying a new fleet configuration file with the same `name` as an existing fleet. The new fleet configuration will completely replace the previous configuration. In order to avoid overriding existing settings, we recommend retrieving the existing configuration and modifying it.
 
-Retrieve the team configuration and output to a YAML file:
+Retrieve the fleet configuration and output to a YAML file:
 
 ```sh
 % fleetctl get teams --name Workstations --yaml > workstation_config.yml
@@ -242,7 +242,7 @@ After updating the generated YAML, apply the changes:
 % fleetctl apply -f workstation_config.yml
 ```
 
-Depending on your Fleet version, you may see `unsupported key` errors for the following keys when applying the new team configuration:
+Depending on your Fleet version, you may see `unsupported key` errors for the following keys when applying the new fleet configuration:
 
 ```text
 id
@@ -261,11 +261,11 @@ webhook_settings
 
 You can bypass these errors by removing the key from your YAML or adding the `--force` flag. This flag will apply the changes without validation and should be used with caution.
 
-### Mobile device management (MDM) settings for teams
+### Mobile device management (MDM) settings for fleets
 
-The `mdm` section of this configuration YAML lets you control MDM settings for each team in Fleet.
+The `mdm` section of this configuration YAML lets you control MDM settings for each fleet.
 
-To specify Team MDM configuration, as opposed to [Organization-wide MDM configuration](#mobile-device-management-mdm-settings), follow the below YAML format. Note the `kind: team` field, as well as the  `name` and `mdm` fields under `team`.
+To specify fleet MDM configuration, as opposed to [Organization-wide MDM configuration](#mobile-device-management-mdm-settings), follow the below YAML format. Note the `kind: team` field, as well as the  `name` and `mdm` fields under `team`.
 
 ```yaml
 apiVersion: v1
@@ -277,9 +277,9 @@ spec:
       # the team-specific mdm options go here
 ```
 
-### Team scripts
+### Fleet-level scripts
 
-List of saved scripts that can be run on hosts that are part of the team.
+List of saved scripts that can be run on hosts that are part of the fleet.
 
 - Default value: none
 - Config file format:
@@ -297,7 +297,7 @@ spec:
 
 ## Organization settings
 
-The `config` YAML file controls Fleet's organization settings and MDM features for hosts assigned to "No team."
+The `config` YAML file controls Fleet's organization settings and MDM features for hosts that are "Unassigned."
 
 The following example file shows the default organization settings:
 

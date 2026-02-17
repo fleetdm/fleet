@@ -14,7 +14,7 @@ The Orchestration architecture consists of the following main components:
 - **osquery**: The open-source agent that runs on devices and executes queries.
 - **Query Engine**: The component that processes and executes queries on devices.
 - **Result Processing**: The component that processes and stores query results.
-- **Teams and Access Control**: The component that manages user access to devices and queries.
+- **Fleets and Access Control**: The component that manages user access to devices and queries.
 
 ## Architecture diagram
 

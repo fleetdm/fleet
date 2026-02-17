@@ -151,7 +151,7 @@ graph LR;
 ### 1 - Fleet User initiates the query
 ```mermaid
 graph LR;
-    it_person[Fleet User<br>Creates a scheduled<br>for a team / global];
+    it_person[Fleet User<br>Creates a scheduled<br>for a fleet / global];
     api[API Client Frontend or Fleetctl];
 
     subgraph Cloud
@@ -174,7 +174,7 @@ graph LR;
     end
 
     agent -- request download config file --> server;
-    agent <-- teams and global cfg are merged --> server;
+    agent <-- fleets and global cfg are merged --> server;
     server -- ask for cfg file--> db;
 ```
 
@@ -196,7 +196,7 @@ graph LR;
 ## Agent  config options
 1 - Config TLS refresh 
 (Typical period 10 secs) OSQuery pulls down a config file that includes instructions for Scheduled Queries. 
-If both GLOBAL and TEAM is configured, there will be a config merge done on the Server side. 
+If agent options for both global and a fleet is configured, there will be a config merge done on the Server side. 
 
 2 - Logger TLS
 (Typical period10 secs) Frequency of sending the results. (different than the frequency of running the queries)
