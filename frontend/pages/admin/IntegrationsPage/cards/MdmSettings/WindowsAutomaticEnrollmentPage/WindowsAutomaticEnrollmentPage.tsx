@@ -32,7 +32,7 @@ const generateMdmDiscoveryUrl = (domain: string) => {
 const baseClass = "windows-automatic-enrollment-page";
 
 const WindowsAutomaticEnrollmentPage = () => {
-  const { config, setConfig } = useContext(AppContext);
+  const { config } = useContext(AppContext);
 
   const deletingTenantId = useRef<null | string>(null);
 
