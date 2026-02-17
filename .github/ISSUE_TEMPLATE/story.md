@@ -79,7 +79,7 @@ It is [planned and ready](https://fleetdm.com/handbook/company/development-group
 <!-- Any additional testing notes relevant to this story or tools required for testing. -->
 
 ### Confirmation
-<!-- The engineer responsible for implementing this user story completes the test plan before moving to the "Ready for QA" column. -->
+<!-- The engineer responsible for implementing this user story completes the test plan before moving to the "Awaiting QA" column. -->
 
 1. [ ] Engineer: Added comment to user story confirming successful completion of test plan.
 2. [ ] QA: Added comment to user story confirming successful completion of test plan.
