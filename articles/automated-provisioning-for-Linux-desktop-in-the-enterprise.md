@@ -29,14 +29,14 @@ Much of the improvement to these systems came along at just the right time. Duri
 
 But, without good management options, Linux enterprise deployment is often even worse than the old days of Windows or the pandemic:
 
-* Because of a lack of Linux management options, end users may be allowed by an organization to “manage” devices deployed to them on their own - this may mean end users are given management guidelines or security documentation without any form of actual enforcement.   
+* Because of a lack of Linux management options, end users may be allowed by an organization to “manage” devices deployed to them on their own - this may mean they are given management guidelines or security documentation without any form of actual enforcement.   
 * Linux at the enterprise level is often used by an organization’s most sophisticated end users, meaning lack of enforcement around Linux device management can become a hollow promise at best, or a political football at worst.   
 * Linux computers are often intended for use by end users with root-level OS access. This means manual creation and deployment of ‘golden master’ images is practically useless and really only functional as a “starting point”, not for management.   
 * Meanwhile, IT teams being asked by security teams to ensure that all devices are compliant with regulations and business policy can’t make their requirements - they have no control over an important subset of the devices they’ve been asked to deploy. 
 
 ## Why device enrollment and automated provisioning are critical
 
-There are 3 general reasons why device enrollment into a management solution and automated provisioning are critical for modern device management:
+There are 3 general reasons why device enrollment into a management solution and automated provisioning are crucial for modern device management:
 
 First, properly enrolling endpoints via a system like Apple’s ADE or Microsoft’s Autopilot protocols into a management solution guarantees device provenance, establishing ownership all the way from the manufacturer, through the purchase, to the end user. With provenance and institutional ownership established, MDM protocols **enable and allow automated provisioning** to occur, meaning, a device can automatically proceed from an OOB state with no IT interaction and minimal end user interaction all the way to being securely configured for use. A seamless, zero-touch provisioning process minimizes the risk of the security gap created by shipping new devices directly to end users. Because of this, automated enrollment and provisioning workflows have become indispensable to teams managing devices for remote workers. 
 
