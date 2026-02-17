@@ -970,23 +970,6 @@ type batchScriptExecutionStatusResponse struct {
 	Err error `json:"error,omitempty"`
 }
 
-// TODO - remove these once we retire batch script summary endpoint and code.
-type (
-	batchScriptExecutionSummaryRequest  batchScriptExecutionStatusRequest
-	batchScriptExecutionSummaryResponse struct {
-		ScriptID    uint      `json:"script_id" db:"script_id"`
-		ScriptName  string    `json:"script_name" db:"script_name"`
-		TeamID      *uint     `json:"team_id" db:"team_id"`
-		CreatedAt   time.Time `json:"created_at" db:"created_at"`
-		NumTargeted *uint     `json:"targeted" db:"num_targeted"`
-		NumPending  *uint     `json:"pending" db:"num_pending"`
-		NumRan      *uint     `json:"ran" db:"num_ran"`
-		NumErrored  *uint     `json:"errored" db:"num_errored"`
-		NumCanceled *uint     `json:"canceled" db:"num_canceled"`
-		Err         error     `json:"error,omitempty"`
-	}
-)
-
 type batchScriptExecutionListResponse struct {
 	BatchScriptExecutions []fleet.BatchActivity    `json:"batch_executions"`
 	Count                 uint                     `json:"count"`
@@ -1095,29 +1078,7 @@ func (svc *Service) BatchSetScripts(ctx context.Context, maybeTmID *uint, maybeT
 	return scriptResponses, nil
 }
 
-func (r batchScriptExecutionSummaryResponse) Error() error { return r.Err }
-func (r batchScriptExecutionStatusResponse) Error() error  { return r.Err }
-
-// Deprecated summary endpoint, to be removed in favor of the status endpoint
-// once the batch script details page is ready.
-func batchScriptExecutionSummaryEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
-	req := request.(*batchScriptExecutionSummaryRequest)
-	summary, err := svc.BatchScriptExecutionSummary(ctx, req.BatchExecutionID)
-	if err != nil {
-		return batchScriptExecutionSummaryResponse{Err: err}, nil
-	}
-	return batchScriptExecutionSummaryResponse{
-		ScriptID:    *summary.ScriptID,
-		ScriptName:  summary.ScriptName,
-		TeamID:      summary.TeamID,
-		CreatedAt:   summary.CreatedAt,
-		NumTargeted: summary.NumTargeted,
-		NumPending:  summary.NumPending,
-		NumRan:      summary.NumRan,
-		NumErrored:  summary.NumErrored,
-		NumCanceled: summary.NumCanceled,
-	}, nil
-}
+func (r batchScriptExecutionStatusResponse) Error() error { return r.Err }
 
 func batchScriptExecutionHostResultsEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*batchScriptExecutionHostResultsRequest)
@@ -1176,19 +1137,6 @@ func batchScriptExecutionListEndpoint(ctx context.Context, request interface{}, 
 			HasPreviousResults: hasPreviousResults,
 		},
 	}, nil
-}
-
-func (svc *Service) BatchScriptExecutionSummary(ctx context.Context, batchExecutionID string) (*fleet.BatchActivity, error) {
-	summary, err := svc.ds.BatchExecuteSummary(ctx, batchExecutionID)
-	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "get batch script summary")
-	}
-
-	if err := svc.authz.Authorize(ctx, &fleet.Script{TeamID: summary.TeamID}, fleet.ActionRead); err != nil {
-		return nil, err
-	}
-
-	return summary, nil
 }
 
 type batchScriptCancelRequest struct {

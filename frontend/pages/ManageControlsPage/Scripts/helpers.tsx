@@ -1,11 +1,11 @@
 import { HumanTimeDiffWithFleetLaunchCutoff } from "components/HumanTimeDiffWithDateTip";
 import Icon from "components/Icon";
 import React from "react";
-import { IScriptBatchSummaryV2 } from "services/entities/scripts";
+import { IScriptBatchSummary } from "services/entities/scripts";
 
 import { isDateTimePast } from "utilities/helpers";
 
-const getWhen = (summary: IScriptBatchSummaryV2) => {
+const getWhen = (summary: IScriptBatchSummary) => {
   const {
     batch_execution_id: id,
     not_before,
