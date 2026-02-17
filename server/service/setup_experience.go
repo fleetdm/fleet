@@ -154,7 +154,7 @@ func (setSetupExperienceScriptRequest) DecodeRequest(ctx context.Context, r *htt
 		}
 		// // TODO: do we want to allow end users to specify team_id=0? if so, we'll need to convert it to nil here so that we can
 		// // use it in the auth layer where team_id=0 is not allowed?
-		decoded.TeamID = ptr.Uint(uint(fleetID))
+		decoded.TeamID = ptr.Uint(uint(fleetID)) // nolint:gosec // ignore G115
 	}
 
 	fhs, ok := r.MultipartForm.File["script"]

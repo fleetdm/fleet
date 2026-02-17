@@ -474,7 +474,7 @@ func (createScriptRequest) DecodeRequest(ctx context.Context, r *http.Request) (
 		if err != nil {
 			return nil, &fleet.BadRequestError{Message: fmt.Sprintf("failed to decode fleet_id in multipart form: %s", err.Error())}
 		}
-		decoded.TeamID = ptr.Uint(uint(fleetID))
+		decoded.TeamID = ptr.Uint(uint(fleetID)) // nolint:gosec // ignore G115
 	}
 
 	fhs, ok := r.MultipartForm.File["script"]
