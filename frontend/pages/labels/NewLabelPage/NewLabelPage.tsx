@@ -47,6 +47,7 @@ import Icon from "components/Icon";
 import TargetsInput from "components/TargetsInput";
 import Radio from "components/forms/fields/Radio";
 import PlatformField from "../components/PlatformField";
+import { validateNewLabelFormData, INewLabelFormErrors } from "./helpers";
 
 const availableCriteria: {
   label: string;
@@ -84,30 +85,6 @@ export interface INewLabelFormData {
   // manual
   targetedHosts: IHost[];
 }
-
-interface INewLabelFormErrors {
-  name?: string | null;
-  labelQuery?: string | null;
-  criteria?: string | null;
-}
-
-const validate = (newData: INewLabelFormData) => {
-  const errors: INewLabelFormErrors = {};
-  const { name, type, labelQuery, vitalValue } = newData;
-  if (!name) {
-    errors.name = "Label name must be present";
-  }
-  if (type === "dynamic") {
-    if (!labelQuery) {
-      errors.labelQuery = "Query text must be present";
-    }
-  } else if (type === "host_vitals") {
-    if (!vitalValue) {
-      errors.criteria = "Label criteria must be completed";
-    }
-  }
-  return errors;
-};
 
 const DEFAULT_DYNAMIC_QUERY = "SELECT 1 FROM os_version WHERE major >= 13;";
 
@@ -155,6 +132,8 @@ const NewLabelPage = ({
     // manual-specific
     targetedHosts: [],
   });
+  const [formErrors, setFormErrors] = useState<INewLabelFormErrors>({});
+
   const {
     name,
     description,
@@ -165,8 +144,6 @@ const NewLabelPage = ({
     vitalValue,
     targetedHosts,
   } = formData;
-
-  const [formErrors, setFormErrors] = useState<INewLabelFormErrors>({});
 
   const [targetsSearchQuery, setTargetsSearchQuery] = useState("");
   const [
@@ -272,16 +249,19 @@ const NewLabelPage = ({
   }: IInputFieldParseTarget) => {
     const newFormData = { ...formData, [fieldName]: value };
     setFormData(newFormData);
-    const newErrs = validate(newFormData);
-    // only set errors that are updates of existing errors
-    // new errors are only set onBlur or submit
-    const errsToSet: Record<string, string> = {};
+
+    const newErrs = validateNewLabelFormData(newFormData);
+
+    // optimistic UX:
+    // - only update errors that already exist
+    // - remove those that are now fixed
+    const errsToSet: INewLabelFormErrors = {};
     Object.keys(formErrors).forEach((k) => {
-      // @ts-ignore
-      if (newErrs[k]) {
-        // @ts-ignore
-        errsToSet[k] = newErrs[k];
+      const key = k as keyof INewLabelFormErrors;
+      if (newErrs[key]) {
+        errsToSet[key] = newErrs[key];
       }
+      // if newErrs[key] is falsy, we drop the existing error
     });
     setFormErrors(errsToSet);
   };
@@ -289,30 +269,29 @@ const NewLabelPage = ({
   const onTypeChange = (value: string): void => {
     const newFormData = {
       ...formData,
-      type: value as LabelMembershipType, // reconcile type differences between form data and radio component handler
+      type: value as LabelMembershipType,
     };
     setFormData(newFormData);
 
-    const newErrs = validate(newFormData);
-    const errsToSet: Record<string, string> = {};
+    const newErrs = validateNewLabelFormData(newFormData);
+    const errsToSet: INewLabelFormErrors = {};
     Object.keys(formErrors).forEach((k) => {
-      // @ts-ignore
-      if (newErrs[k]) {
-        // @ts-ignore
-        errsToSet[k] = newErrs[k];
+      const key = k as keyof INewLabelFormErrors;
+      if (newErrs[key]) {
+        errsToSet[key] = newErrs[key];
       }
     });
     setFormErrors(errsToSet);
   };
 
   const onInputBlur = () => {
-    setFormErrors(validate(formData));
+    setFormErrors(validateNewLabelFormData(formData));
   };
 
   const onSubmit = async (evt: React.FormEvent<HTMLFormElement>) => {
     evt.preventDefault();
 
-    const errs = validate(formData);
+    const errs = validateNewLabelFormData(formData);
     if (Object.keys(errs).length > 0) {
       setFormErrors(errs);
       return;
@@ -445,7 +424,7 @@ const NewLabelPage = ({
                 onChange={onInputChange}
                 parseTarget
                 value={vital}
-                error={formErrors.criteria}
+                error={formErrors.criteria || undefined}
                 options={availableCriteria}
                 classname={`${baseClass}__criteria-dropdown`}
                 wrapperClassName={`${baseClass}__form-field ${baseClass}__form-field--criteria`}
