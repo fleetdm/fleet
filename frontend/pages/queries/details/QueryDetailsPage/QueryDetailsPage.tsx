@@ -257,7 +257,10 @@ const QueryDetailsPage = ({
     const backPath = () => {
       if (filteredQueriesPath) return filteredQueriesPath;
 
-      if (hostId) return getPathWithQueryParams(PATHS.HOST_DETAILS(hostId));
+      if (hostId)
+        return getPathWithQueryParams(
+          PATHS.HOST_DETAILS(hostId, currentTeamId)
+        );
 
       return getPathWithQueryParams(PATHS.MANAGE_QUERIES, {
         team_id: currentTeamId,

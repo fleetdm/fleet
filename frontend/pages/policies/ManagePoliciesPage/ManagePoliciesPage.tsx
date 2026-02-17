@@ -1120,7 +1120,16 @@ const ManagePolicyPage = ({
           conditional access.
         </>
       );
+    } else if (teamIdForApi === API_NO_TEAM_ID) {
+      disabledCalendarTooltipContent = (
+        <>
+          Select a team to manage
+          <br />
+          calendar events.
+        </>
+      );
     } else if (
+      // a team other than no team is selected
       (isGlobalMaintainer || isTeamMaintainer) &&
       !isCalEventsEnabled
     ) {
@@ -1317,7 +1326,6 @@ const ManagePolicyPage = ({
             isUpdating={isUpdatingPolicies}
             // currentTeamId will at this point be present
             teamId={currentTeamId ?? 0}
-            gitOpsModeEnabled={gitOpsModeEnabled}
           />
         )}
         {showPolicyRunScriptModal && (

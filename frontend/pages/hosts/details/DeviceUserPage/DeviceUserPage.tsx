@@ -16,11 +16,7 @@ import deviceUserAPI, {
   IGetSetupExperienceStatusesResponse,
 } from "services/entities/device_user";
 import diskEncryptionAPI from "services/entities/disk_encryption";
-import {
-  IMacadminsResponse,
-  IDeviceUserResponse,
-  IHostDevice,
-} from "interfaces/host";
+import { IMacadminsResponse, IDUPDetails, IHostDevice } from "interfaces/host";
 import { IListSort } from "interfaces/list_options";
 import { IHostPolicy } from "interfaces/policy";
 import { IDeviceGlobalConfig } from "interfaces/config";
@@ -29,7 +25,6 @@ import {
   CERTIFICATES_DEFAULT_SORT,
 } from "interfaces/certificates";
 import {
-  isAndroid,
   isMacOS,
   isAppleDevice,
   isLinuxLike,
@@ -87,10 +82,6 @@ import DeviceUserBanners from "./components/DeviceUserBanners";
 import CertificateDetailsModal from "../modals/CertificateDetailsModal";
 import CertificatesCard from "../cards/Certificates";
 import UserCard from "../cards/User";
-import {
-  generateChromeProfilesValues,
-  generateOtherEmailsValues,
-} from "../cards/User/helpers";
 import HostHeader from "../cards/HostHeader/HostHeader";
 import InventoryVersionsModal from "../modals/InventoryVersionsModal";
 import { REFETCH_HOST_DETAILS_POLLING_INTERVAL } from "../HostDetailsPage/HostDetailsPage";
@@ -101,7 +92,6 @@ import BypassModal from "./BypassModal";
 
 const baseClass = "device-user";
 
-const defaultCardClass = `${baseClass}__card`;
 const fullWidthCardClass = `${baseClass}__card--full-width`;
 
 const PREMIUM_TAB_PATHS = [
@@ -263,11 +253,11 @@ const DeviceUserPage = ({
   };
 
   const {
-    data: dupResponse,
-    isLoading: isLoadingHost,
-    error: isDeviceUserError,
-    refetch: refetchHostDetails,
-  } = useQuery<IDeviceUserResponse, AxiosError>(
+    data: dupDetails,
+    isLoading: isLoadingDupDetails,
+    error: isDupDetailsError,
+    refetch: refetchDupDetails,
+  } = useQuery<IDUPDetails, AxiosError>(
     ["host", deviceAuthToken],
     () =>
       deviceUserAPI.loadHostDetails({
@@ -300,7 +290,7 @@ const DeviceUserPage = ({
             if (responseHost.status === "online" || isIOSOrIPadOS) {
               setRefetchStartTime(Date.now());
               setTimeout(() => {
-                refetchHostDetails();
+                refetchDupDetails();
                 refetchExtensions();
               }, REFETCH_HOST_DETAILS_POLLING_INTERVAL);
             } else {
@@ -318,7 +308,7 @@ const DeviceUserPage = ({
                 responseHost.platform === "ipados";
               if (responseHost.status === "online" || isIOSOrIPadOS) {
                 setTimeout(() => {
-                  refetchHostDetails();
+                  refetchDupDetails();
                   refetchExtensions();
                 }, REFETCH_HOST_DETAILS_POLLING_INTERVAL);
               } else {
@@ -351,7 +341,7 @@ const DeviceUserPage = ({
   );
 
   const isAuthenticationError =
-    isDeviceUserError && isDeviceUserError.status === 401;
+    isDupDetailsError && isDupDetailsError.status === 401;
 
   const {
     host,
@@ -360,7 +350,7 @@ const DeviceUserPage = ({
     org_contact_url: orgContactURL = "",
     global_config: globalConfig = null as IDeviceGlobalConfig | null,
     self_service: hasSelfService = false,
-  } = dupResponse || {};
+  } = dupDetails || {};
   const isPremiumTier = license?.tier === "premium";
   const isAppleHost = isAppleDevice(host?.platform);
   const isIOSIPadOS = host?.platform === "ios" || host?.platform === "ipados";
@@ -499,7 +489,7 @@ const DeviceUserPage = ({
       await deviceUserAPI.refetch(deviceAuthToken);
       setRefetchStartTime(Date.now());
       setTimeout(() => {
-        refetchHostDetails();
+        refetchDupDetails();
         refetchExtensions();
       }, REFETCH_HOST_DETAILS_POLLING_INTERVAL);
     } catch (error) {
@@ -509,7 +499,7 @@ const DeviceUserPage = ({
   }, [
     host,
     deviceAuthToken,
-    refetchHostDetails,
+    refetchDupDetails,
     refetchExtensions,
     renderFlash,
   ]);
@@ -604,7 +594,11 @@ const DeviceUserPage = ({
       ).idx;
     };
 
-    if (!isLoadingHost && host && findSelectedTab(location.pathname) === -1) {
+    if (
+      !isLoadingDupDetails &&
+      host &&
+      findSelectedTab(location.pathname) === -1
+    ) {
       router.push(tabPaths[0]);
     }
 
@@ -613,15 +607,9 @@ const DeviceUserPage = ({
     const isSoftwareEnabled = !!globalConfig?.features
       ?.enable_software_inventory;
 
-    const showUsersCard =
-      isMacOS(host?.platform || "") ||
-      isAndroid(host?.platform || "") ||
-      generateChromeProfilesValues(host?.end_users ?? []).length > 0 ||
-      generateOtherEmailsValues(host?.end_users ?? []).length > 0;
-
     if (
       !host ||
-      isLoadingHost ||
+      isLoadingDupDetails ||
       isLoadingDeviceCertificates ||
       isLoadingSetupSteps
     ) {
@@ -820,7 +808,7 @@ const DeviceUserPage = ({
                 <TabPanel>
                   <PoliciesCard
                     policies={host?.policies || []}
-                    isLoading={isLoadingHost}
+                    isLoading={isLoadingDupDetails}
                     deviceUser
                     togglePolicyDetailsModal={togglePolicyDetailsModal}
                     hostPlatform={host?.platform || ""}
@@ -869,7 +857,7 @@ const DeviceUserPage = ({
             platform={host.platform}
             hostMDMData={host.mdm}
             resendRequest={resendProfile}
-            onProfileResent={refetchHostDetails}
+            onProfileResent={refetchDupDetails}
             onClose={toggleOSSettingsModal}
           />
         )}
@@ -931,7 +919,7 @@ const DeviceUserPage = ({
             <li className="site-nav-item dup-org-logo" key="dup-org-logo">
               <div className="site-nav-item__logo-wrapper">
                 <div className="site-nav-item__logo">
-                  {isLoadingHost ? (
+                  {isLoadingDupDetails ? (
                     <Spinner includeContainer={false} centered={false} />
                   ) : (
                     <OrgLogoIcon className="logo" src={orgLogoURL} />
@@ -951,7 +939,7 @@ const DeviceUserPage = ({
           )}
         </div>
       </nav>
-      {isDeviceUserError || enrollUrlError ? (
+      {isDupDetailsError || enrollUrlError ? (
         <DeviceUserError
           isMobileView={isMobileView}
           isMobileDevice={isMobileDevice}
@@ -973,7 +961,7 @@ const DeviceUserPage = ({
                 "success",
                 "Access has been temporarily restored. You may now attempt to sign in again."
               );
-              refetchHostDetails();
+              refetchDupDetails();
             } catch {
               renderFlash(
                 "error",

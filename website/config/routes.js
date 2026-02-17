@@ -389,6 +389,14 @@ module.exports.routes = {
     }
   },
 
+  'GET /admin/reset-trial': {
+    action: 'admin/view-reset-trial',
+    locals: {
+      hideFooterLinks: true,
+      showAdminLinks: true,
+    }
+  },
+
 
   'GET /connect-vanta': {
     action: 'view-connect-vanta',
@@ -1063,7 +1071,7 @@ module.exports.routes = {
   'GET /learn-more-about/certificate-authorities': '/guides/connect-end-user-to-wifi-with-certificate',
   'GET /learn-more-about/idp-email': 'https://fleetdm.com/docs/rest-api/rest-api#get-human-device-mapping',
   'GET /learn-more-about/enrolling-hosts': '/docs/using-fleet/adding-hosts',
-  'GET /learn-more-about/setup-assistant': '/guides/setup-experience#macos-setup-assistant',
+  'GET /learn-more-about/setup-assistant': '/guides/setup-experience',
   'GET /learn-more-about/policy-automations': '/docs/using-fleet/automations',
   'GET /install-wine': 'https://github.com/fleetdm/fleet/blob/main/it-and-security/lib/macos/scripts/install-wine.sh',
   'GET /learn-more-about/creating-service-accounts': 'https://console.cloud.google.com/projectselector2/iam-admin/serviceaccounts/create?walkthrough_id=iam--create-service-account&pli=1#step_index=1',
@@ -1141,10 +1149,10 @@ module.exports.routes = {
   'GET /learn-more-about/manual-enrollment-profile': '/docs/rest-api/rest-api#get-manual-enrollment-profile',
   'GET /learn-more-about/deleting-android-enterprise': '/guides/android-mdm-setup#deleting-android-enterprise-in-google-admin',
   'GET /learn-more-about/google-admin-emm': 'https://admin.google.com/ac/devices/settings/thirdparty',
-  'GET /learn-more-about/setup-experience/install-software': '/guides/setup-experience#install-software',
-  'GET /learn-more-about/setup-experience/run-script': '/guides/setup-experience#run-script',
-  'GET /learn-more-about/setup-experience/end-user-authentication': '/guides/setup-experience#end-user-authentication',
-  'GET /learn-more-about/setup-experience/bootstrap-package': '/guides/setup-experience#bootstrap-package',
+  'GET /learn-more-about/setup-experience/install-software': '/guides/setup-experience',
+  'GET /learn-more-about/setup-experience/run-script': '/guides/setup-experience',
+  'GET /learn-more-about/setup-experience/end-user-authentication': '/guides/setup-experience',
+  'GET /learn-more-about/setup-experience/bootstrap-package': '/guides/setup-experience',
   'GET /learn-more-about/built-in-variables': '/docs/configuration/yaml-files#variables',
   'GET /learn-more-about/disable-entra-conditional-access': '/guides/entra-conditional-access-integration#disable',
   'GET /learn-more-about/available-fma-versions': 'https://github.com/fleetdm/fleet/tree/main/ee/maintained-apps/outputs',
@@ -1157,7 +1165,7 @@ module.exports.routes = {
   'GET /learn-more-about/microsoft-entra-tenant-id': 'https://entra.microsoft.com/#home',
   'GET /learn-more-about/recovery-lock-passwords': 'https://developer.apple.com/documentation/devicemanagement/set-recovery-lock-command',
   'GET /learn-more-about/startup-security-macos': 'https://support.apple.com/guide/deployment/startup-security-dep5810e849c',
-
+  'GET /learn-more-about/unlock-ios-ipados': 'https://fleetdm.com/guides/lock-wipe-hosts#how-to-unlock-offline-ios-and-ipados-hosts',
   // Sitemap
   // =============================================================================================================
   // This is for search engines, not humans.  Search engines know to visit fleetdm.com/sitemap.xml to download this
@@ -1216,7 +1224,7 @@ module.exports.routes = {
   'DELETE /api/android/v1/enterprises/:androidEnterpriseId/devices/:deviceId': { action: 'android-proxy/delete-android-device', csrf: false},
   'PATCH /api/android/v1/enterprises/:androidEnterpriseId/devices/:deviceId': { action: 'android-proxy/modify-android-device', csrf: false},
   'GET /api/android/v1/enterprises/:androidEnterpriseId/applications/:applicationId': { action: 'android-proxy/get-enterprise-applications', skipAssets: false},
-  'POST /api/android/v1/enterprises/:androidEnterpriseId/policies/:policyId': { action: 'android-proxy/modify-enterprise-app-policy', csrf: false, skipAssets: false},
+  'POST /api/android/v1/enterprises/:androidEnterpriseId/policies/:policyId::googleAction': { action: 'android-proxy/modify-enterprise-app-policy', csrf: false, skipAssets: false},
 
 
   //  ╔═╗╔═╗╦  ╔═╗╔╗╔╔╦╗╔═╗╔═╗╦╔╗╔╔╦╗╔═╗
@@ -1257,6 +1265,7 @@ module.exports.routes = {
   'POST /api/v1/get-llm-generated-configuration-profile': { action: 'get-llm-generated-configuration-profile', hasSocketFeatures: true },
   'POST /api/v1/deliver-application-submission': { action: 'deliver-application-submission' },
   'POST /api/v1/deliver-gitops-request': { action: 'deliver-gitops-workshop-request' },
+  'POST /api/v1/admin/reset-one-fleet-premium-local-trial': { action: 'admin/reset-one-fleet-premium-local-trial' },
 
 
   //  ╔╦╗╦╔═╗╦═╗╔═╗╔═╗╔═╗╔═╗╔╦╗  ╔═╗╦═╗╔═╗═╗ ╦╦ ╦  ╔═╗╔╗╔╔╦╗╔═╗╔═╗╦╔╗╔╔╦╗╔═╗
