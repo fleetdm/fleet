@@ -49,16 +49,16 @@ func FromContext(ctx context.Context) (Token, bool) {
 func parseHeaderLimited(authHeader string) ([]string, bool) {
 	parts := make([]string, 2)
 
-	pre, remain, foundDelimeter := strings.Cut(authHeader, tokenDelimiter)
-	if !foundDelimeter {
+	pre, remain, foundDelimiter := strings.Cut(authHeader, tokenDelimiter)
+	if !foundDelimiter {
 		return nil, false
 	}
 	parts[0] = pre
 	// Ensure the token value is the last part of the string and there are no more
 	// delimiters. This avoids an issue where malicious input could contain additional delimiters
-	// causing unecessary overhead parsing tokens.
-	post, _, unexpectedDelimeterFound := strings.Cut(remain, tokenDelimiter)
-	if unexpectedDelimeterFound {
+	// causing unnecessary overhead parsing tokens.
+	post, _, unexpectedDelimiterFound := strings.Cut(remain, tokenDelimiter)
+	if unexpectedDelimiterFound {
 		// more than 2 parts
 		return nil, false
 	}
