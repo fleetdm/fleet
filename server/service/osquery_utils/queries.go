@@ -1344,6 +1344,8 @@ FROM chrome_extensions`,
 // Software queries expect specific columns to be present.  Reference the
 // software_{macos|windows|linux} queries for the expected columns.
 var SoftwareOverrideQueries = map[string]DetailQuery{
+	// windows_jetbrains uses the version contained in the product-info.json file as exe installers
+	// provide an unconvertible build number in the programs table not used in vulnerability matching.
 	"windows_jetbrains": {
 		Description: "A software override query[^1] to append 'JetBrains' to the name of JetBrains Toolbox-managed applications on Windows. Requires `fleetd`",
 		Query: `
@@ -1375,7 +1377,7 @@ var SoftwareOverrideQueries = map[string]DetailQuery{
 `,
 		Platforms:        []string{"windows"},
 		DirectIngestFunc: directIngestSoftware,
-		Discovery:        discoveryTable("programs"),
+		Discovery:        discoveryTable("file_contents"),
 		SoftwareOverrideMatch: func(row map[string]string) bool {
 			return strings.Contains(row["vendor"], "JetBrains") && !strings.Contains(row["name"], "Toolbox")
 		},
