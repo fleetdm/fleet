@@ -130,6 +130,10 @@ func Hydrate(ctx context.Context, app *fleet.MaintainedApp, version string, team
 	// If a specific version is requested and we have a cache, try the cache first.
 	if version != "" && cache != nil {
 		cached, err := cache.GetCachedFMAInstallerMetadata(ctx, teamID, app.ID, version)
+		if err != nil && !fleet.IsNotFound(err) {
+			return nil, ctxerr.Wrap(ctx, err, "get cached FMA installer metadata")
+		}
+
 		if err == nil {
 			// Copy installer-level fields from cache onto the app,
 			// preserving the app-level fields (ID, Name, Slug, etc.)
