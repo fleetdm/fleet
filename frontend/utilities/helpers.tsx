@@ -514,7 +514,7 @@ export const greyCell = (roleOrTeamText: string): boolean => {
     "Global",
     "Unassigned",
     "Various",
-    "No fleet",
+    "No team",
     "Unknown",
   ];
 
