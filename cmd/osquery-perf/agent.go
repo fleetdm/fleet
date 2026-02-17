@@ -373,6 +373,9 @@ type agent struct {
 	// Cached software indices (pointers into global softwareDB array for this agent's platform)
 	cachedSoftwareIndices []uint32
 
+	// Cached last_opened_at timestamps per software (keyed by software name)
+	cachedLastOpenedAt map[string]*time.Time
+
 	// Host identity client for HTTP message signatures
 	hostIdentityClient *hostidentity.Client
 
@@ -586,6 +589,7 @@ func newAgent(
 		bufferedResults:          make(map[resultLog]int),
 		scheduledQueryData:       new(sync.Map),
 		softwareVersionMap:       make(map[rune]int),
+		cachedLastOpenedAt:       make(map[string]*time.Time),
 		commonSoftwareNameSuffix: commonSoftwareNameSuffix,
 		mdmProfileFailureProb:    mdmProfileFailureProb,
 
@@ -1772,8 +1776,6 @@ func (a *agent) hostUsers() []map[string]string {
 }
 
 func (a *agent) softwareMacOS() []map[string]string {
-	var lastOpenedCount int
-
 	totalCommon := a.softwareCount.common
 	totalDuplicates := (a.softwareCount.common * a.softwareCount.duplicateBundleIdentifiersPercent) / 100
 	totalSoftware := totalCommon + totalDuplicates
@@ -1809,13 +1811,12 @@ func (a *agent) softwareMacOS() []map[string]string {
 	groupSize := 4
 
 	for i := startIdx; i < endIdx; i++ {
-		var lastOpenedAt string
-		if l := a.genLastOpenedAt(&lastOpenedCount); l != nil {
-			lastOpenedAt = fmt.Sprint(l.Unix())
-		}
-
 		if i < totalCommon {
 			name := fmt.Sprintf("Common_%d%s", i, a.commonSoftwareNameSuffix)
+			var lastOpenedAt string
+			if l := a.genLastOpenedAt(name); l != nil {
+				lastOpenedAt = fmt.Sprint(l.Unix())
+			}
 			commonSoftware = append(commonSoftware, map[string]string{
 				"name":              name,
 				"version":           a.selectSoftwareVersion(name, "0.0.1", "0.0.2"),
@@ -1849,11 +1850,11 @@ func (a *agent) softwareMacOS() []map[string]string {
 	// Unique Software (always per-host, not distributed)
 	uniqueSoftware := make([]map[string]string, a.softwareCount.unique)
 	for i := 0; i < len(uniqueSoftware); i++ {
+		name := fmt.Sprintf("Unique_%s_%d", a.CachedString("hostname"), i)
 		var lastOpenedAt string
-		if l := a.genLastOpenedAt(&lastOpenedCount); l != nil {
+		if l := a.genLastOpenedAt(name); l != nil {
 			lastOpenedAt = l.Format(time.UnixDate)
 		}
-		name := fmt.Sprintf("Unique_%s_%d", a.CachedString("hostname"), i)
 		uniqueSoftware[i] = map[string]string{
 			"name":              name,
 			"version":           a.selectSoftwareVersion(name, "1.1.1", "1.1.2"),
@@ -1918,7 +1919,7 @@ func (a *agent) softwareMacOS() []map[string]string {
 			}
 
 			var lastOpenedAt string
-			if l := a.genLastOpenedAt(&lastOpenedCount); l != nil {
+			if l := a.genLastOpenedAt(sw.Name); l != nil {
 				lastOpenedAt = l.Format(time.UnixDate)
 			}
 
@@ -2127,16 +2128,47 @@ var defaultQueryResult = []map[string]string{
 	{"foo": "bar"},
 }
 
-func (a *agent) genLastOpenedAt(count *int) *time.Time {
-	if *count >= a.softwareCount.withLastOpened {
+// genLastOpenedAt returns a cached last_opened_at timestamp for the given software.
+// On first call for a piece of software, it decides whether to assign a timestamp
+// (up to withLastOpened items total). On subsequent calls, it returns the cached
+// value, occasionally updating it based on lastOpenedProb to simulate the app
+// being reopened.
+func (a *agent) genLastOpenedAt(softwareName string) *time.Time {
+	// Check if we already have a cached value for this software
+	if cached, exists := a.cachedLastOpenedAt[softwareName]; exists {
+		if cached == nil {
+			// This software was decided to not have last_opened_at
+			return nil
+		}
+		// Maybe update the timestamp (simulating the app being reopened)
+		if rand.Float64() <= a.softwareCount.lastOpenedProb {
+			now := time.Now()
+			a.cachedLastOpenedAt[softwareName] = &now
+			return &now
+		}
+		// Return the existing cached timestamp
+		return cached
+	}
+
+	// First time seeing this software - decide if it should have a last_opened_at
+	// Count how many software items already have a timestamp
+	countWithTimestamp := 0
+	for _, v := range a.cachedLastOpenedAt {
+		if v != nil {
+			countWithTimestamp++
+		}
+	}
+
+	if countWithTimestamp >= a.softwareCount.withLastOpened {
+		// We've reached the limit, this software won't have last_opened_at
+		a.cachedLastOpenedAt[softwareName] = nil
 		return nil
 	}
-	*count++
-	if rand.Float64() <= a.softwareCount.lastOpenedProb {
-		now := time.Now()
-		return &now
-	}
-	return nil
+
+	// Assign a timestamp to this software
+	now := time.Now()
+	a.cachedLastOpenedAt[softwareName] = &now
+	return &now
 }
 
 func (a *agent) runPolicy(query string) []map[string]string {
