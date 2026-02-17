@@ -393,9 +393,22 @@ const ConditionalAccess = () => {
           )
         }
       >
-        {oktaConfigured
-          ? "Okta conditional access configured"
-          : "Connect Okta to enable conditional access."}
+        {oktaConfigured ? (
+          <span>
+            <TooltipWrapper
+              tipContent={
+                <>
+                  <b>IdP ID:</b> {config?.conditional_access?.okta_idp_id}
+                </>
+              }
+            >
+              Okta
+            </TooltipWrapper>{" "}
+            conditional access connected.
+          </span>
+        ) : (
+          "Connect Okta to enable conditional access."
+        )}
       </SectionCard>
     );
   };
@@ -447,9 +460,22 @@ const ConditionalAccess = () => {
       entraCta = <Button onClick={toggleEntraModal}>Connect</Button>;
     }
 
-    let entraContent: string;
+    let entraContent: React.ReactNode;
     if (entraIsConfigured) {
-      entraContent = "Microsoft Entra conditional access configured";
+      entraContent = (
+        <span>
+          <TooltipWrapper
+            tipContent={
+              <>
+                <b>Tenant ID:</b> {entraTenantId}
+              </>
+            }
+          >
+            Microsoft Entra
+          </TooltipWrapper>{" "}
+          conditional access connected.
+        </span>
+      );
     } else if (entraIsAwaitingOAuth) {
       entraContent =
         "To complete your integration, follow the instructions in the other tab, then refresh this page to verify.";
@@ -525,9 +551,8 @@ const ConditionalAccess = () => {
               <TooltipWrapper
                 tipContent={
                   <>
-                    When enabled, end users will have the option to bypass Okta
-                    conditional access if they are unable to resolve failing
-                    policies.{" "}
+                    When enabled, disables the per-policy setting to allow
+                    bypassing Okta conditional access.{" "}
                     <em>
                       (Default: <strong>Off</strong>)
                     </em>

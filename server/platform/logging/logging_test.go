@@ -126,7 +126,7 @@ func TestOtelHandler(t *testing.T) {
 
 	t.Run("injects trace context when span is active", func(t *testing.T) {
 		testHandler := testutils.NewTestHandler()
-		handler := NewOtelHandler(testHandler).
+		handler := NewOtelTracingHandler(testHandler).
 			WithAttrs([]slog.Attr{slog.String("component", "test")}).
 			WithGroup("testgroup")
 		logger := slog.New(handler)
@@ -147,7 +147,7 @@ func TestOtelHandler(t *testing.T) {
 
 	t.Run("no trace context without span", func(t *testing.T) {
 		testHandler := testutils.NewTestHandler()
-		handler := NewOtelHandler(testHandler).
+		handler := NewOtelTracingHandler(testHandler).
 			WithAttrs([]slog.Attr{slog.String("component", "test")}).
 			WithGroup("testgroup")
 		logger := slog.New(handler)

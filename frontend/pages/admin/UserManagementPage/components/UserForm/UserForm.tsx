@@ -1,10 +1,4 @@
-import React, {
-  FormEvent,
-  useState,
-  useEffect,
-  useContext,
-  useRef,
-} from "react";
+import React, { FormEvent, useState, useEffect, useContext } from "react";
 import { Link } from "react-router";
 import PATHS from "router/paths";
 
@@ -158,17 +152,6 @@ const UserForm = ({
   ancestorErrors,
   isUpdatingUsers,
 }: IUserFormProps): JSX.Element => {
-  // For scrollable modal
-  const [isTopScrolling, setIsTopScrolling] = useState(false);
-  const topDivRef = useRef<HTMLDivElement>(null);
-  const checkScroll = () => {
-    if (topDivRef.current) {
-      const isScrolling =
-        topDivRef.current.scrollHeight > topDivRef.current.clientHeight;
-      setIsTopScrolling(isScrolling);
-    }
-  };
-
   const { renderFlash } = useContext(NotificationContext);
   const { config } = useContext(AppContext);
   const priMode = config?.partnerships?.enable_primo;
@@ -213,13 +196,6 @@ const UserForm = ({
     }
   }, []);
 
-  // For scrollable modal (re-rerun when formData changes)
-  useEffect(() => {
-    checkScroll();
-    window.addEventListener("resize", checkScroll);
-    return () => window.removeEventListener("resize", checkScroll);
-  }, [formData]);
-
   const onInputChange = ({ name, value }: IInputFieldParseTarget) => {
     const newFormData = { ...formData, [name]: value };
     setFormData(newFormData);
@@ -253,19 +229,6 @@ const UserForm = ({
         initiallyPasswordAuth
       )
     );
-  };
-
-  // Used to show entire dropdown when a dropdown menu is open in scrollable component of a modal
-  // menuPortalTarget solution not used as scrolling is weird
-  const scrollToFitDropdownMenu = () => {
-    if (topDivRef?.current) {
-      setTimeout(() => {
-        if (topDivRef.current) {
-          topDivRef.current.scrollTop =
-            topDivRef.current.scrollHeight - topDivRef.current.clientHeight;
-        }
-      }, 50); // Delay needed for scrollHeight to update first
-    }
   };
 
   const onRadioChange = (formField: string): ((evt: string) => void) => {
@@ -407,7 +370,6 @@ const UserForm = ({
             }
           }}
           isSearchable={false}
-          onMenuOpen={scrollToFitDropdownMenu}
         />
       </>
     );
@@ -457,7 +419,6 @@ const UserForm = ({
                 usersCurrentTeams={formData.teams}
                 onFormChange={onSelectedTeamChange}
                 isApiOnly={isApiOnly}
-                onMenuOpen={scrollToFitDropdownMenu}
               />
             </>
           ) : (
@@ -467,7 +428,6 @@ const UserForm = ({
               defaultTeamRole={defaultTeamRole || "Observer"}
               onFormChange={onTeamRoleChange}
               isApiOnly={isApiOnly}
-              onMenuOpen={scrollToFitDropdownMenu}
             />
           ))}
         {!availableTeams.length && renderNoTeamsMessage()}
@@ -756,9 +716,9 @@ const UserForm = ({
     </>
   );
 
-  const renderScrollableContent = () => {
+  const renderFormContent = () => {
     return (
-      <div className={baseClass} ref={topDivRef}>
+      <div className={baseClass}>
         <form autoComplete="off">
           {isNewUser && renderAccountSection()}
           {renderNameAndEmailSection()}
@@ -778,7 +738,6 @@ const UserForm = ({
 
   const renderFooter = () => (
     <ModalFooter
-      isTopScrolling={isTopScrolling}
       primaryButtons={
         <>
           <Button onClick={onCancel} variant="inverse">
@@ -801,7 +760,7 @@ const UserForm = ({
 
   return (
     <>
-      {renderScrollableContent()}
+      {renderFormContent()}
       {renderFooter()}
     </>
   );

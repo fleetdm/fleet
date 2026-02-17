@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"os"
 	"strings"
 	"time"
 
@@ -160,7 +161,13 @@ func (a *AppleMDM) runPostDEPEnrollment(ctx context.Context, args appleMDMArgs) 
 			awaitCmdUUIDs = append(awaitCmdUUIDs, fleetdCmdUUID)
 		}
 
-		if args.FromMDMMigration {
+		allowBootstrapDuringMigration := false
+		allowBootstrapDuringMigrationEV := os.Getenv("FLEET_ALLOW_BOOTSTRAP_PACKAGE_DURING_MIGRATION")
+		if allowBootstrapDuringMigrationEV == "1" || strings.EqualFold(allowBootstrapDuringMigrationEV, "true") {
+			allowBootstrapDuringMigration = true
+		}
+
+		if args.FromMDMMigration && !allowBootstrapDuringMigration {
 			level.Info(a.Log).Log("info", "skipping bootstrap package installation during MDM migration", "host_uuid", args.HostUUID)
 			err = a.Datastore.RecordSkippedHostBootstrapPackage(ctx, args.HostUUID)
 			if err != nil {

@@ -1,67 +1,72 @@
 package execuser
 
 import (
-	"bytes"
+	"os"
+	"path/filepath"
 	"testing"
 
 	"github.com/stretchr/testify/require"
 )
 
-func TestParseWhoOutputForDisplay(t *testing.T) {
+func TestReadEnvFromProcFile(t *testing.T) {
+	dir := t.TempDir()
+	environPath := filepath.Join(dir, "environ")
+
 	testCases := []struct {
-		name            string
-		output          string
-		user            string
-		expectedDisplay string
-		expectedErr     bool
+		name     string
+		environ  string
+		envVar   string
+		expected string
 	}{
 		{
-			"Ubuntu 22.04.2 (X11)",
-			`foo      :0           2024-05-14 17:34 (:0)`,
-			"foo",
-			":0",
-			false,
+			name:     "DISPLAY found",
+			environ:  "HOME=/home/foo\x00DISPLAY=:0\x00LANG=en_US.UTF-8",
+			envVar:   "DISPLAY",
+			expected: ":0",
 		},
 		{
-			"Ubuntu 22.04.2 (X11) - user not listed",
-			`foo      :0           2024-05-14 17:34 (:0)`,
-			"bar",
-			"",
-			true,
+			name:     "DISPLAY :1",
+			environ:  "HOME=/home/foo\x00DISPLAY=:1\x00LANG=en_US.UTF-8",
+			envVar:   "DISPLAY",
+			expected: ":1",
 		},
 		{
-			"Ubuntu 24.04 (X11)",
-			`foo      seat0        2024-05-14 17:42 (login screen)
-foo      :1           2024-05-14 17:42 (:1)`,
-			"foo",
-			":1",
-			false,
+			name:     "DISPLAY not present",
+			environ:  "HOME=/home/foo\x00LANG=en_US.UTF-8",
+			envVar:   "DISPLAY",
+			expected: "",
 		},
 		{
-			"Ubuntu 24.04 (Wayland) - DISPLAY not found",
-			`foo      seat0        2024-05-14 18:11 (login screen)
-foo      tty2         2024-05-14 18:11 (tty2)`,
-			"foo",
-			"",
-			true,
+			name:     "empty environ",
+			environ:  "",
+			envVar:   "DISPLAY",
+			expected: "",
 		},
 		{
-			"Empty",
-			``,
-			"foo",
-			"",
-			true,
+			name:     "does not match prefix substring",
+			environ:  "DISPLAY_NUM=5\x00DISPLAY=:2",
+			envVar:   "DISPLAY",
+			expected: ":2",
+		},
+		{
+			name:     "other env var",
+			environ:  "HOME=/home/foo\x00DISPLAY=:0\x00WAYLAND_DISPLAY=wayland-0",
+			envVar:   "WAYLAND_DISPLAY",
+			expected: "wayland-0",
 		},
 	}
+
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			display, err := parseWhoOutputForDisplay(bytes.NewReader([]byte(tc.output)), tc.user)
-			require.Equal(t, tc.expectedDisplay, display)
-			if tc.expectedErr {
-				require.Error(t, err)
-			} else {
-				require.NoError(t, err)
-			}
+			require.NoError(t, os.WriteFile(environPath, []byte(tc.environ), 0o644))
+			result, err := readEnvFromProcFile(environPath, tc.envVar)
+			require.NoError(t, err)
+			require.Equal(t, tc.expected, result)
 		})
 	}
+}
+
+func TestReadEnvFromProcFileMissing(t *testing.T) {
+	_, err := readEnvFromProcFile("/nonexistent/path/environ", "DISPLAY")
+	require.Error(t, err)
 }

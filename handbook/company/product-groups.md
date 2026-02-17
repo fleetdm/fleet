@@ -1002,7 +1002,7 @@ Our scrum boards are exclusively composed of four types of scrum items:
 
 5. **Quick wins**: These are small copy or UX improvements that aren't quite bugs but they're so small that they're worthwhile. Once approved at design review, quick wins skip user story review and go straight to the current sprint.
 
-> Our sprint boards do not accommodate any other type of ticket. By strictly adhering to these four types of scrum items, we maintain an organized and focused workflow that consistently adds value for our users.
+> Our sprint boards do not accommodate any other type of ticket. By strictly adhering to these scrum items, we maintain an organized and focused workflow that consistently adds value for our users.
 
 
 ## Sprints

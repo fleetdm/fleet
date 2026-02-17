@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log/slog"
 	"strings"
 	"testing"
 	"time"
@@ -16,9 +17,9 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mdm/android"
 	"github.com/fleetdm/fleet/v4/server/mdm/android/mock"
 	"github.com/fleetdm/fleet/v4/server/mdm/android/service/androidmgmt"
+	"github.com/fleetdm/fleet/v4/server/platform/logging"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/test"
-	kitlog "github.com/go-kit/log"
 	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
 	"github.com/stretchr/testify/require"
@@ -100,7 +101,7 @@ func TestReconcileProfiles(t *testing.T) {
 					Package:       "com.fleetdm.agent",
 					SigningSHA256: "abc123def456",
 				},
-				Logger: kitlog.NewNopLogger(),
+				Logger: slog.New(logging.DiscardHandler{}),
 			}
 
 			c.fn(t, ds, client, reconciler)
@@ -752,7 +753,7 @@ func createAndroidHostInTeam(t *testing.T, ds fleet.Datastore, suffixID int, tea
 		},
 	}
 	host.SetNodeKey(*host.Device.EnterpriseSpecificID)
-	_, err := ds.NewAndroidHost(context.Background(), host)
+	_, err := ds.NewAndroidHost(context.Background(), host, false)
 	require.NoError(t, err)
 
 	return host
@@ -1007,7 +1008,7 @@ func testBuildAndSendFleetAgentConfigForEnrollment(t *testing.T, ds fleet.Datast
 	// Create service and call BuildAndSendFleetAgentConfig with skipHostsWithoutNewCerts=false
 	// This simulates the enrollment flow from software_worker.go
 	svc := &Service{
-		logger:           kitlog.NewNopLogger(),
+		logger:           slog.New(logging.DiscardHandler{}),
 		fleetDS:          ds,
 		ds:               ds.(fleet.AndroidDatastore),
 		androidAPIClient: client,

@@ -52,6 +52,11 @@ func TestListActivitiesValidation(t *testing.T) {
 			wantErr: "invalid per_page value",
 		},
 		{
+			name:    "per_page exceeds maximum",
+			query:   "per_page=10001",
+			wantErr: "Request could not be processed. Please set a per_page limit of 10000 or less",
+		},
+		{
 			name:    "order_direction without order_key",
 			query:   "order_direction=desc",
 			wantErr: "order_key must be specified with order_direction",
@@ -123,4 +128,12 @@ type mockService struct{}
 
 func (m *mockService) ListActivities(_ context.Context, _ api.ListOptions) ([]*api.Activity, *api.PaginationMetadata, error) {
 	panic("mockService.ListActivities should not be called in validation tests")
+}
+
+func (m *mockService) ListHostPastActivities(_ context.Context, _ uint, _ api.ListOptions) ([]*api.Activity, *api.PaginationMetadata, error) {
+	panic("mockService.ListHostPastActivities should not be called in validation tests")
+}
+
+func (m *mockService) StreamActivities(_ context.Context, _ api.JSONLogger) error {
+	panic("mockService.StreamActivities should not be called in validation tests")
 }

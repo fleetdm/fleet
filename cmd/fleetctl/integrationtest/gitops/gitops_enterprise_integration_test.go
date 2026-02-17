@@ -31,6 +31,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	appleMdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanodep/tokenpki"
+	"github.com/fleetdm/fleet/v4/server/platform/logging"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/service"
 	"github.com/fleetdm/fleet/v4/server/service/integrationtest/scep_server"
@@ -118,6 +119,10 @@ func (s *enterpriseIntegrationGitopsTestSuite) SetupSuite() {
 		{Name: fleet.MDMAssetSCEPChallenge, Value: []byte("scepchallenge")},
 	}, nil)
 	require.NoError(s.T(), err)
+
+	if os.Getenv("FLEET_INTEGRATION_TESTS_DISABLE_LOG") != "" {
+		serverConfig.Logger = logging.NewNopLogger()
+	}
 	users, server := service.RunServerForTestsWithDS(s.T(), s.DS, &serverConfig)
 	s.T().Setenv("FLEET_SERVER_ADDRESS", server.URL) // fleetctl always uses this env var in tests
 	s.Server = server
@@ -247,7 +252,10 @@ func (s *enterpriseIntegrationGitopsTestSuite) TestFleetGitops() {
 	t.Setenv("FLEET_URL", s.Server.URL)
 	t.Setenv("FLEET_GLOBAL_ENROLL_SECRET", "global_enroll_secret")
 	t.Setenv("FLEET_WORKSTATIONS_ENROLL_SECRET", "workstations_enroll_secret")
-	t.Setenv("FLEET_WORKSTATIONS_CANARY_ENROLL_SECRET", "workstations_canary_enroll_secret")
+	t.Setenv("FLEET_PERSONAL_MOBILE_DEVICES_ENROLL_SECRET", "personal_mobile_devices_enroll_secret")
+	t.Setenv("FLEET_DEDICATED_DEVICES_ENROLL_SECRET", "dedicated_devices_enroll_secret")
+	t.Setenv("FLEET_EMPLOYEE_ISSUED_MOBILE_DEVICES_ENROLL_SECRET", "employee_issued_mobile_devices_enroll_secret")
+	t.Setenv("FLEET_IT_SERVERS_ENROLL_SECRET", "it_servers_enroll_secret")
 	globalFile := path.Join(repoDir, "default.yml")
 	teamsDir := path.Join(repoDir, "teams")
 	teamFiles, err := os.ReadDir(teamsDir)
@@ -2825,7 +2833,7 @@ team_settings:
 		require.NoError(t, err)
 		require.NotNil(t, team)
 
-		queries, _, _, err := s.DS.ListQueries(ctx, fleet.ListQueryOptions{TeamID: &team.ID})
+		queries, _, _, _, err := s.DS.ListQueries(ctx, fleet.ListQueryOptions{TeamID: &team.ID})
 		require.NoError(t, err)
 		require.Len(t, queries, 1)
 		require.Equal(t, fmt.Sprintf("query-%d", i), queries[0].Name)
@@ -2872,7 +2880,7 @@ team_settings:
 		require.NoError(t, err)
 		require.NotNil(t, team)
 
-		queries, _, _, err := s.DS.ListQueries(ctx, fleet.ListQueryOptions{TeamID: &team.ID})
+		queries, _, _, _, err := s.DS.ListQueries(ctx, fleet.ListQueryOptions{TeamID: &team.ID})
 		require.NoError(t, err)
 		require.Len(t, queries, 1)
 		require.Equal(t, fmt.Sprintf("query-%d", i), queries[0].Name)
@@ -3325,6 +3333,151 @@ team_settings:
 				fleet.TeamFilter{User: test.UserAdmin})
 			require.NoError(t, err)
 			require.Len(t, titles, 2) // One for iOS, one for iPadOS
+		})
+	}
+}
+
+func (s *enterpriseIntegrationGitopsTestSuite) TestDisallowSoftwareSetupExperience() {
+	t := s.T()
+
+	user := s.createGitOpsUser(t)
+	fleetctlConfig := s.createFleetctlConfig(t, user)
+	test.CreateInsertGlobalVPPToken(t, s.DS)
+	teamName := uuid.NewString()
+
+	// The global template includes VPP token assignment to the team
+	// The location "Jungle" comes from test.CreateInsertGlobalVPPToken
+	globalTemplate := `agent_options:
+org_settings:
+  server_settings:
+    server_url: $FLEET_URL
+  org_info:
+    org_name: Fleet
+  secrets:
+  - secret: foobar
+  mdm:
+    volume_purchasing_program:
+      - location: Jungle
+        teams:
+          - %s
+policies:
+controls:
+queries:
+`
+
+	testAll := `
+controls:
+  macos_setup:
+    manual_agent_install: true
+software:
+  app_store_apps:
+    - app_store_id: "2"
+      platform: darwin
+      setup_experience: true
+    - app_store_id: "2"
+      platform: ios
+      setup_experience: true
+    - app_store_id: "2"
+      platform: ipados
+      setup_experience: true
+queries:
+policies:
+agent_options:
+name: %s
+team_settings:
+  %s
+`
+
+	//nolint:gosec // test code
+	testPackagesFail := `
+controls:
+  macos_setup:
+    manual_agent_install: true
+software:
+  app_store_apps:
+  packages:
+    - url: ${SOFTWARE_INSTALLER_URL}/dummy_installer.pkg
+      setup_experience: true
+queries:
+policies:
+agent_options:
+name: %s
+team_settings:
+  %s
+`
+
+	testCases := []struct {
+		VPPTeam      string
+		testName     string
+		teamName     string
+		teamTemplate string
+		teamSettings string
+		errContains  *string
+	}{
+		{
+			testName:     "All VPP with setup experience",
+			VPPTeam:      "All teams",
+			teamName:     teamName,
+			teamTemplate: testAll,
+			teamSettings: `secrets: [{"secret":"enroll_secret"}]`,
+			errContains:  ptr.String("Couldn't edit software."),
+		},
+		{
+			testName:     "Packages fail",
+			VPPTeam:      "All teams",
+			teamName:     teamName,
+			teamTemplate: testPackagesFail,
+			teamSettings: `secrets: [{"secret":"enroll_secret"}]`,
+			errContains:  ptr.String("Couldn't edit software."),
+		},
+		{
+			testName:     "No team",
+			VPPTeam:      "No team",
+			teamName:     "No team",
+			teamTemplate: testAll,
+			errContains:  ptr.String("Couldn't edit software."),
+		},
+		// left out more possible combinations of setup experience being set for different platforms
+	}
+	for _, tc := range testCases {
+		t.Run(tc.testName, func(t *testing.T) {
+			globalFile, err := os.CreateTemp(t.TempDir(), "*.yml")
+			require.NoError(t, err)
+			globalYAML := fmt.Sprintf(globalTemplate, tc.VPPTeam)
+			_, err = globalFile.WriteString(globalYAML)
+			require.NoError(t, err)
+			err = globalFile.Close()
+			require.NoError(t, err)
+			teamFile, err := os.CreateTemp(t.TempDir(), "*.yml")
+			require.NoError(t, err)
+			_, err = fmt.Fprintf(teamFile, tc.teamTemplate, tc.teamName, tc.teamSettings)
+			require.NoError(t, err)
+			err = teamFile.Close()
+			require.NoError(t, err)
+
+			teamFileName := teamFile.Name()
+
+			if tc.VPPTeam == "No team" {
+				noTeamFilePath := filepath.Join(filepath.Dir(teamFile.Name()), "no-team.yml")
+				err = os.Rename(teamFile.Name(), noTeamFilePath)
+				require.NoError(t, err)
+				teamFileName = noTeamFilePath
+			}
+
+			t.Setenv("FLEET_URL", s.Server.URL)
+			testing_utils.StartSoftwareInstallerServer(t)
+			testing_utils.StartAndServeVPPServer(t)
+
+			// Don't attempt dry runs because they would not actually create the team, so the config would not be found
+
+			_, err = fleetctl.RunAppNoChecks([]string{"gitops", "--config", fleetctlConfig.Name(), "-f", globalFile.Name(), "-f", teamFileName})
+
+			if tc.errContains != nil {
+				require.ErrorContains(t, err, *tc.errContains)
+			} else {
+				require.NoError(t, err)
+			}
+
 		})
 	}
 }

@@ -43,13 +43,9 @@ It's important to frame engineering-initiated user stories the same way we frame
 
 1. Create a new engineering-initiated story using the [new story template](https://github.com/fleetdm/fleet/issues/new?assignees=lukeheath&labels=story,~engineering-initiated&projects=&template=story.md&title=). Make sure the `~engineering-initiated` label is added, the `:product` label is removed, and the engineering output and architecture DRI (@lukeheath) is assigned.
 
-2. If the user story contributes to an OKR, explain how in the "Key result" section. If not, explain what key result we can measure to determine if this story is successful.
+2. Remove the "Product" section and checklist from the issue description. 
 
-3. Set yourself as the product designer for the user story if another engineer is not DRI. By default, the engineer creating the engineering-initiated story is DRI for the story and will design and implement it.
-
-4. Remove the "Product" section and checklist from the issue description. 
-
-5. Create the issue. The new user story will be automatically placed in the "New Requests" column of the [engineering GitHub board](https://github.com/orgs/fleetdm/projects/73). If you feel the issue is urgent, tag your EM or the engineering output and architecture DRI (@lukeheath) in a comment.
+3. Create the issue. The new user story will be automatically placed in the "New Requests" column of the [engineering GitHub board](https://github.com/orgs/fleetdm/projects/73). If you feel the issue is urgent, tag your EM or the engineering output and architecture DRI (@lukeheath) in a comment.
 
 > We prefer the term engineering-initiated stories over technical debt because the user story format helps keep us focused on our users and contributors.
 
@@ -162,6 +158,17 @@ Mitigating the outage may require writing and merging code. The current infrastr
 
 > If outside of business hours, the responding engineer should notify their manager using incident.io to bypass Do Not Disturb mode.
 
+### Participate in QA Day
+
+Once per sprint, each product group is expected to take a day to assist in QA-related activities. On that day, generally the most straightforward way to assist the QA team is to validate issues in the `Awaiting QA` stage marked with the `~assisting-qa` label. Start with issues milestoned for the lowest-version-number active release candidate, and clear your product group's queue for that release before assisting another team with QA. You may not QA issues where you made code changes, to ensure that two people run through the test plan (the implementing engineer and the person performing QA).
+
+For each issue:
+
+1. Add yourself as an assignee when you start QA. If other work comes up that prevents you from completing the QA process, remove yourself as an assignee to ensure someone else picks the issue up.
+2. Validate the changes, either via the test plan (for stories) or by reproducing the bug on an older version and the fix in the current version (for bugs).
+3. Document QA steps performed and outcome in a comment on the story (not subtask) or bug.
+4. If changes are needed to make QA pass, either create an unreleased bug (if changes required are small relative to the size of the original bug or story, e.g. a missed edge case) or move the issue (and relevant subtasks, if there are any) back to `In progress` (if changes required are significant relative to the sisze of the ticket, e.g. if an item listed in the test plan fails). Mention in the relevant product group's Slack channel when you take either of these actions to ensure QA failures are addressed quickly (e.g. the product group's tech lead may need to assign an unreleased bug fix to an engineer other than the developer(s) on the original bug or story).
+5. Once QA passes, move the issue to `Ready for release`.
 
 ### Create a release candidate
 

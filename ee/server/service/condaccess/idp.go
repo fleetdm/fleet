@@ -20,6 +20,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/dev_mode"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/platform/logging"
 	"github.com/fleetdm/fleet/v4/server/service/middleware/log"
 	"github.com/fleetdm/fleet/v4/server/service/middleware/otel"
 	kitlog "github.com/go-kit/log"
@@ -61,7 +62,7 @@ func (e *notFoundError) IsNotFound() bool {
 // idpService implements the Okta conditional access IdP functionality.
 type idpService struct {
 	ds               fleet.Datastore
-	logger           kitlog.Logger
+	logger           *logging.Logger
 	certSerialFormat string
 }
 
@@ -69,7 +70,7 @@ type idpService struct {
 func RegisterIdP(
 	mux *http.ServeMux,
 	ds fleet.Datastore,
-	logger kitlog.Logger,
+	logger *logging.Logger,
 	fleetConfig *config.FleetConfig,
 ) error {
 	if fleetConfig == nil {
@@ -78,12 +79,12 @@ func RegisterIdP(
 
 	svc := &idpService{
 		ds:               ds,
-		logger:           kitlog.With(logger, "component", "conditional-access-idp"),
+		logger:           logger.With("component", "conditional-access-idp"),
 		certSerialFormat: fleetConfig.ConditionalAccess.CertSerialFormat,
 	}
 
 	// Create logging middleware
-	loggingMiddleware := log.NewLoggingMiddleware(svc.logger)
+	loggingMiddleware := log.NewLoggingMiddleware(svc.logger.SlogLogger())
 
 	// Register handlers with logging and OpenTelemetry middleware
 	// Order: OTEL wraps logging to capture full request lifecycle
@@ -360,6 +361,7 @@ func (p *deviceHealthSessionProvider) GetSession(w http.ResponseWriter, r *http.
 
 	// Check if device has failing conditional access policies
 	failingConditionalAccessCount := 0
+	failingWithoutBypass := 0
 	for _, policy := range policies {
 		// Only check policies that are marked for conditional access
 		if _, isConditionalAccessPolicy := conditionalAccessPolicyIDsSet[policy.ID]; !isConditionalAccessPolicy {
@@ -368,6 +370,9 @@ func (p *deviceHealthSessionProvider) GetSession(w http.ResponseWriter, r *http.
 		// Check if policy is failing
 		if policy.Response == policyResponseFail {
 			failingConditionalAccessCount++
+			if !(policy.ConditionalAccessBypassEnabled != nil && *policy.ConditionalAccessBypassEnabled) {
+				failingWithoutBypass++
+			}
 		}
 	}
 
@@ -402,7 +407,7 @@ func (p *deviceHealthSessionProvider) GetSession(w http.ResponseWriter, r *http.
 		bypassEnabled := config.ConditionalAccess == nil || config.ConditionalAccess.BypassEnabled()
 
 		var bypassedAt *time.Time
-		if bypassEnabled {
+		if bypassEnabled && failingWithoutBypass == 0 {
 			bypassedAt, err = p.ds.ConditionalAccessConsumeBypass(ctx, host.ID)
 			if err != nil {
 				ctxerr.Handle(ctx, fmt.Errorf("failed to check conditional access host bypass for host %d: %w", p.hostID, err))
@@ -565,7 +570,7 @@ func (s *idpService) buildIdentityProvider(ctx context.Context, serverURL string
 	ssoURL = ssoURL.JoinPath(idpSSOPath)
 
 	// Create kitlog adapter for SAML library
-	samlLogger := &kitlogAdapter{logger: kitlog.With(s.logger, "component", "saml-idp")}
+	samlLogger := &kitlogAdapter{logger: s.logger.With("component", "saml-idp")}
 
 	// Build IdentityProvider
 	// Note: SessionProvider is set dynamically in serveSSO based on the authenticated device

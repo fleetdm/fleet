@@ -158,6 +158,7 @@ const ManageHostsPage = ({
     filteredHostsPath,
     isGlobalAdmin,
     isGlobalMaintainer,
+    isGlobalTechnician,
     isOnGlobalTeam,
     isOnlyObserver,
     isPremiumTier,
@@ -186,6 +187,7 @@ const ManageHostsPage = ({
     isRouteOk,
     isTeamAdmin,
     isTeamMaintainer,
+    isTeamTechnician,
     isTeamMaintainerOrTeamAdmin,
     teamIdForApi,
     userTeams,
@@ -398,19 +400,28 @@ const ManageHostsPage = ({
     isGlobalAdmin || isGlobalMaintainer || isTeamAdmin || isTeamMaintainer;
   const canEnrollGlobalHosts = isGlobalAdmin || isGlobalMaintainer;
   const canAddNewLabels =
-    (isGlobalAdmin || isGlobalMaintainer || isTeamAdmin || isTeamMaintainer) ??
+    (isGlobalAdmin ||
+      isGlobalMaintainer ||
+      isGlobalTechnician ||
+      isTeamAdmin ||
+      isTeamMaintainer ||
+      isTeamTechnician) ??
     false;
   const canRunScriptBatch =
     isGlobalAdmin || isGlobalMaintainer || isTeamAdmin || isTeamMaintainer;
 
-  const { data: labels, refetch: refetchLabels } = useQuery<
-    ILabelsResponse,
-    Error,
-    ILabel[]
-  >(["labels", currentTeamId], () => labelsAPI.loadAll(currentTeamId), {
-    enabled: isRouteOk,
-    select: (data: ILabelsResponse) => data.labels,
-  });
+  const {
+    data: labels,
+    refetch: refetchLabels,
+    isLoading: isLoadingLabels,
+  } = useQuery<ILabelsResponse, Error, ILabel[]>(
+    ["labels", currentTeamId],
+    () => labelsAPI.loadAll(currentTeamId),
+    {
+      enabled: isRouteOk,
+      select: (data: ILabelsResponse) => data.labels,
+    }
+  );
 
   const {
     isLoading: isGlobalSecretsLoading,
@@ -1557,6 +1568,7 @@ const ManageHostsPage = ({
         hiddenColumns: currentHiddenColumns,
         isFreeTier,
         isOnlyObserver,
+        teamId: teamIdForApi,
       });
 
       const columnIds = tableColumns
@@ -1671,6 +1683,7 @@ const ManageHostsPage = ({
           selectedLabel={selectedDropdownLabel ?? null}
           onChange={handleLabelChange}
           onAddLabel={onAddLabelClick}
+          isLoading={isLoadingLabels}
         />
       </div>
     );
@@ -1795,7 +1808,10 @@ const ManageHostsPage = ({
       hiddenColumns,
       isFreeTier,
       isOnlyObserver:
-        isOnlyObserver || (!isOnGlobalTeam && !isTeamMaintainerOrTeamAdmin),
+        isOnlyObserver ||
+        isGlobalTechnician ||
+        (!isOnGlobalTeam && !isTeamMaintainerOrTeamAdmin),
+      teamId: teamIdForApi,
     });
 
     const emptyState = () => {
