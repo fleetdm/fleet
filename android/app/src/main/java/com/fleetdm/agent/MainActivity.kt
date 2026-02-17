@@ -72,6 +72,9 @@ object MainDestination
 @Serializable
 object DebugDestination
 
+@Serializable
+object LogsDestination
+
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -107,7 +110,12 @@ fun AppNavigation() {
         composable<DebugDestination> {
             DebugScreen(
                 onNavigateBack = { navController.navigateUp() },
+                onNavigateToLogs = { navController.navigate(LogsDestination) },
             )
+        }
+
+        composable<LogsDestination> {
+            LogsScreen(onNavigateBack = { navController.navigateUp() })
         }
     }
 }
