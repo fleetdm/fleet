@@ -15,7 +15,7 @@ import { IAddTenantFormValidation, validateFormData } from "./helpers";
 const baseClass = "add-entra-tenant-modal";
 
 export interface IAddTenantFormData {
-  tenantId: string;
+  tenantId?: string;
 }
 
 interface IAddEntraTenantModalProps {
@@ -28,7 +28,7 @@ const AddEntraTenantModal = ({ onExit }: IAddEntraTenantModalProps) => {
 
   const [isAdding, setIsAdding] = React.useState(false);
   const [formData, setFormData] = React.useState<IAddTenantFormData>({
-    tenantId: "",
+    tenantId: undefined,
   });
   const [
     formValidation,

@@ -28,14 +28,20 @@ const FORM_VALIDATIONS: IFormValidations = {
       {
         name: "required",
         isValid: (formData: IAddTenantFormData) => {
-          return formData.tenantId.length > 0;
+          return (
+            formData.tenantId !== undefined && formData.tenantId.length > 0
+          );
         },
-        message: `Tenant ID is required`,
+        message: (formData: IAddTenantFormData) =>
+          formData.tenantId === undefined ? "" : `Tenant ID is required`,
       },
       {
         name: "validUUID",
         isValid: (formData: IAddTenantFormData) => {
-          if (formData.tenantId.length === 0) {
+          if (
+            formData.tenantId === undefined ||
+            formData.tenantId.length === 0
+          ) {
             return true; // Skip this validation if name is empty
           }
           return isUUID(formData.tenantId);
