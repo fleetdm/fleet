@@ -9,6 +9,7 @@ import (
 	"database/sql/driver"
 	"errors"
 	"fmt"
+	"log/slog"
 	"math/rand"
 	"net/http"
 	"net/url"
@@ -823,6 +824,16 @@ the way that the Fleet server works.
 			ctx, cancelFunc := context.WithCancel(baseCtx)
 			defer cancelFunc()
 
+			// Channel used to trigger graceful shutdown on fatal DB errors (e.g. Aurora failover).
+			dbFatalCh := make(chan error, 1)
+			common_mysql.SetFatalErrorHandler(func(err error) {
+				level.Error(logger).Log("msg", "fatal database error detected, initiating graceful shutdown", "err", err)
+				select {
+				case dbFatalCh <- err:
+				default:
+				}
+			})
+
 			var conditionalAccessMicrosoftProxy *conditional_access_microsoft_proxy.Proxy
 			if config.MicrosoftCompliancePartner.IsSet() {
 				var err error
@@ -851,7 +862,7 @@ the way that the Fleet server works.
 			config.MDM.AndroidAgent.Validate(initFatal)
 			androidSvc, err := android_service.NewService(
 				ctx,
-				logger,
+				logger.SlogLogger(),
 				ds,
 				config.License.Key,
 				config.Server.PrivateKey,
@@ -1011,7 +1022,7 @@ the way that the Fleet server works.
 			level.Info(logger).Log("instanceID", instanceID)
 
 			// Bootstrap activity bounded context (needed for cron schedules and HTTP routes)
-			activitySvc, activityRoutes := createActivityBoundedContext(svc, dbConns, logger)
+			activitySvc, activityRoutes := createActivityBoundedContext(svc, dbConns, logger.SlogLogger())
 
 			// Perform a cleanup of cron_stats outside of the cronSchedules because the
 			// schedule package uses cron_stats entries to decide whether a schedule will
@@ -1653,7 +1664,7 @@ the way that the Fleet server works.
 			rootMux.Handle("/", otelmw.WrapHandler(frontendHandler, "/", config))
 
 			debugHandler := &debugMux{
-				fleetAuthenticatedHandler: service.MakeDebugHandler(svc, config, logger, eh, ds),
+				fleetAuthenticatedHandler: service.MakeDebugHandler(svc, config, logger.SlogLogger(), eh, ds),
 			}
 			rootMux.Handle("/debug/", otelmw.WrapHandlerDynamic(debugHandler, config))
 
@@ -1726,7 +1737,10 @@ the way that the Fleet server works.
 			go func() {
 				sig := make(chan os.Signal, 1)
 				signal.Notify(sig, syscall.SIGINT, syscall.SIGTERM)
-				<-sig // block on signal
+				select {
+				case <-sig:
+				case <-dbFatalCh:
+				}
 				ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 				defer cancel()
 				errs <- func() error {
@@ -1766,7 +1780,7 @@ the way that the Fleet server works.
 	return serveCmd
 }
 
-func createActivityBoundedContext(svc fleet.Service, dbConns *common_mysql.DBConnections, logger kitlog.Logger) (activity_api.Service, endpointer.HandlerRoutesFunc) {
+func createActivityBoundedContext(svc fleet.Service, dbConns *common_mysql.DBConnections, logger *slog.Logger) (activity_api.Service, endpointer.HandlerRoutesFunc) {
 	legacyAuthorizer, err := authz.NewAuthorizer()
 	if err != nil {
 		initFatal(err, "initializing activity authorizer")

@@ -468,7 +468,7 @@ func RunServerForTestsWithServiceWithDS(t *testing.T, ctx context.Context, ds fl
 			opts[0].DBConns,
 			activityAuthorizer,
 			activityACLAdapter,
-			logger,
+			logger.SlogLogger(),
 		)
 		activityAuthMiddleware := func(next endpoint.Endpoint) endpoint.Endpoint {
 			return auth.AuthenticatedUser(svc, next)
@@ -577,7 +577,7 @@ func RunServerForTestsWithServiceWithDS(t *testing.T, ctx context.Context, ds fl
 	if ctxErrHandler != nil {
 		errHandler = ctxErrHandler.(*errorstore.Handler)
 	}
-	debugHandler := MakeDebugHandler(svc, cfg, logger, errHandler, ds)
+	debugHandler := MakeDebugHandler(svc, cfg, logger.SlogLogger(), errHandler, ds)
 	rootMux.Handle("/debug/", debugHandler)
 	rootMux.Handle("/enroll", ServeEndUserEnrollOTA(svc, "", ds, logger))
 

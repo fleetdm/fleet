@@ -121,6 +121,7 @@ const TeamDetailsWrapper = ({
       maintainer: false,
       observer: false,
       observer_plus: false,
+      technician: false,
     },
   });
 

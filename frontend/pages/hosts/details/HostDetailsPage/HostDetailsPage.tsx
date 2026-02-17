@@ -163,6 +163,7 @@ interface IHostDetailsProps {
       query?: string;
       order_key?: string;
       order_direction?: "asc" | "desc";
+      team_id?: string;
     };
     search?: string;
   };
@@ -200,6 +201,7 @@ const HostDetailsPage = ({
     currentUser,
     isGlobalAdmin = false,
     isGlobalMaintainer,
+    isGlobalTechnician,
     isTeamMaintainerOrTeamAdmin,
     isPremiumTier = false,
     isOnlyObserver,
@@ -972,7 +974,7 @@ const HostDetailsPage = ({
   const onClickAddQuery = () => {
     router.push(
       getPathWithQueryParams(PATHS.NEW_QUERY, {
-        team_id: currentTeam?.id,
+        team_id: currentTeam?.id || location.query.team_id,
         host_id: hostIdFromURL,
       })
     );
@@ -1096,16 +1098,28 @@ const HostDetailsPage = ({
 
   const navigateToNav = (i: number): void => {
     const navPath = hostDetailsSubNav[i].pathname;
-    router.push(navPath);
+    router.push(
+      getPathWithQueryParams(navPath, {
+        team_id: currentTeam?.id || location.query.team_id,
+      })
+    );
   };
 
   const navigateToSoftwareTab = (i: number): void => {
     const navPath = hostSoftwareSubNav[i].pathname;
-    router.push(navPath);
+    router.push(
+      getPathWithQueryParams(navPath, {
+        team_id: currentTeam?.id || location.query.team_id,
+      })
+    );
   };
 
   const isHostTeamAdmin = permissions.isTeamAdmin(currentUser, host?.team_id);
   const isHostTeamMaintainer = permissions.isTeamMaintainer(
+    currentUser,
+    host?.team_id
+  );
+  const isHostTeamTechnician = permissions.isTeamTechnician(
     currentUser,
     host?.team_id
   );
@@ -1129,8 +1143,10 @@ const HostDetailsPage = ({
     (isMacOSHost || isWindowsHost) &&
     (isGlobalAdmin ||
       isGlobalMaintainer ||
+      isGlobalTechnician ||
       isHostTeamAdmin ||
-      isHostTeamMaintainer);
+      isHostTeamMaintainer ||
+      isHostTeamTechnician);
 
   const showSoftwareLibraryTab = isPremiumTier;
 
@@ -1278,7 +1294,12 @@ const HostDetailsPage = ({
           <div className={`${baseClass}__header-links`}>
             <BackButton
               text="Back to all hosts"
-              path={filteredHostsPath || PATHS.MANAGE_HOSTS}
+              path={
+                filteredHostsPath ||
+                getPathWithQueryParams(PATHS.MANAGE_HOSTS, {
+                  team_id: location.query.team_id,
+                })
+              }
             />
           </div>
           <div className={`${baseClass}__header-summary`}>

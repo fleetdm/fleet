@@ -661,7 +661,7 @@ func (s *Schedule) releaseLock(ctx context.Context) {
 // holdLock attempts to acquire a schedule lock. If it successfully acquires the lock, it starts a
 // goroutine that periodically extends the lock, and it returns `true` along with a
 // context.CancelFunc that will end the goroutine and release the lock. If it is unable to initially
-// acquire a lock, it returns `false, nil`. The maximum duration of the hold is two hours.
+// acquire a lock, it returns `false, nil`.
 func (s *Schedule) holdLock(ctx context.Context) (bool, context.CancelFunc) {
 	if ok := s.acquireLock(ctx); !ok {
 		return false, nil
