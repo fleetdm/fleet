@@ -2730,7 +2730,12 @@ WHERE
 						keepSet[id] = true
 					}
 
-					stmt, args, err := sqlx.In(`DELETE FROM software_installers WHERE id NOT IN (?)`, slices.Collect(maps.Keys(keepSet)))
+					stmt, args, err := sqlx.In(
+						`DELETE FROM software_installers WHERE global_or_team_id = ? AND title_id = ? AND fleet_maintained_app_id IS NOT NULL AND id NOT IN (?)`,
+						globalOrTeamID,
+						titleID,
+						slices.Collect(maps.Keys(keepSet)),
+					)
 					if err != nil {
 						return ctxerr.Wrap(ctx, err, "build FMA eviction query")
 					}

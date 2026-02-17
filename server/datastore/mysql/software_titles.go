@@ -753,15 +753,14 @@ func (ds *Datastore) getFleetMaintainedVersionsByTitleIDs(ctx context.Context, t
 func (ds *Datastore) HasFMAInstallerVersion(ctx context.Context, teamID *uint, fmaID uint, version string) (bool, error) {
 	var exists bool
 	err := sqlx.GetContext(ctx, ds.reader(ctx), &exists, `
-		SELECT 1 FROM software_installers
-		WHERE global_or_team_id = ? AND fleet_maintained_app_id = ? AND version = ?
-		LIMIT 1
+		SELECT EXISTS(
+			SELECT 1 FROM software_installers
+				WHERE global_or_team_id = ? AND fleet_maintained_app_id = ? AND version = ?
+			LIMIT 1
+		)
 	`, ptr.ValOrZero(teamID), fmaID, version)
 	if err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
-			return false, nil
-		}
-		return false, ctxerr.Wrap(ctx, err, "check FMA installer version exists")
+		return false, ctxerr.Wrap(ctx, err, "check FMA installer version existxs")
 	}
 	return exists, nil
 }
