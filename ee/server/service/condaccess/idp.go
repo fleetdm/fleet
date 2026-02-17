@@ -395,7 +395,14 @@ func (p *deviceHealthSessionProvider) GetSession(w http.ResponseWriter, r *http.
 			// the old token remains valid after rotation.
 			const deviceAuthTokenTTL = time.Hour
 			if _, loadErr := p.ds.LoadHostByDeviceAuthToken(ctx, authToken, deviceAuthTokenTTL); loadErr != nil {
-				needNewToken = true // Case 1: token exists but is expired
+				if fleet.IsNotFound(loadErr) {
+					needNewToken = true // Case 1: token exists but is expired
+				} else {
+					level.Error(p.logger).Log("msg", "failed to validate device auth token", "err", loadErr, "host_id", p.hostID)
+					ctxerr.Handle(ctx, loadErr)
+					http.Redirect(w, r, remediateURL, http.StatusSeeOther)
+					return nil
+				}
 			}
 		case fleet.IsNotFound(getErr):
 			needNewToken = true // Case 2: no token exists (e.g. fresh install without Fleet Desktop)
@@ -413,7 +420,9 @@ func (p *deviceHealthSessionProvider) GetSession(w http.ResponseWriter, r *http.
 
 		if needNewToken {
 			// Create a server-side token so the redirect URL works.
-			// Orbit will overwrite this with a client-generated token on its next check-in.
+			// If Fleet Desktop is running, Orbit will overwrite this with a client-generated
+			// token on its next rotation, but this token will remain valid as
+			// previous_token for one rotation cycle.
 			authToken = uuid.NewString()
 			if setErr := p.ds.SetOrUpdateDeviceAuthToken(ctx, host.ID, authToken); setErr != nil {
 				level.Error(p.logger).Log(

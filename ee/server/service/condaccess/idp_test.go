@@ -541,7 +541,8 @@ func TestDeviceHealthSessionProvider(t *testing.T) {
 
 		deviceToken        string
 		deviceTokenErr     error
-		deviceTokenExpired bool // if true, LoadHostByDeviceAuthToken returns not found
+		deviceTokenExpired bool  // if true, LoadHostByDeviceAuthToken returns not found
+		loadDeviceTokenErr error // if set, LoadHostByDeviceAuthToken returns this error
 		setDeviceTokenErr  error
 
 		appConfig *fleet.AppConfig // nil = use default with ServerURL
@@ -650,6 +651,19 @@ func TestDeviceHealthSessionProvider(t *testing.T) {
 			deviceTokenExpired: true,
 			wantStatusCode:     http.StatusSeeOther,
 			// Redirect will be to /device/<generated-uuid>/policies, verified by assertion below
+		},
+		{
+			name:        "redirects to remediate when token validation fails with DB error",
+			hostID:      456,
+			host:        &fleet.Host{ID: 456, TeamID: ptr.Uint(1)},
+			caPolicyIDs: []uint{10},
+			hostPolicies: []*fleet.HostPolicy{
+				{PolicyData: fleet.PolicyData{ID: 10}, Response: "fail"},
+			},
+			deviceToken:        "some-token",
+			loadDeviceTokenErr: errors.New("database connection error"),
+			wantStatusCode:     http.StatusSeeOther,
+			wantLocation:       remediateURL,
 		},
 		{
 			name:           "returns 500 when HostLite fails",
@@ -809,6 +823,9 @@ func TestDeviceHealthSessionProvider(t *testing.T) {
 			}
 
 			ds.LoadHostByDeviceAuthTokenFunc = func(ctx context.Context, authToken string, ttl time.Duration) (*fleet.Host, error) {
+				if tt.loadDeviceTokenErr != nil {
+					return nil, tt.loadDeviceTokenErr
+				}
 				if tt.deviceTokenExpired {
 					return nil, &notFoundError{msg: "host not found"}
 				}
