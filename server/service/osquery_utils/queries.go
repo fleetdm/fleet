@@ -1347,7 +1347,7 @@ var SoftwareOverrideQueries = map[string]DetailQuery{
 	// windows_jetbrains uses the version contained in the product-info.json file as exe installers
 	// provide an unconvertible build number in the programs table not used in vulnerability matching.
 	"windows_jetbrains": {
-		Description: "A software override query[^1] to append 'JetBrains' to the name of JetBrains Toolbox-managed applications on Windows. Requires `fleetd`",
+		Description: "A software override query to use the version from the product-info.json file for JetBrains programs on Windows.",
 		Query: `
 		SELECT
 		p.name AS name,
