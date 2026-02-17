@@ -1,4 +1,6 @@
-# The Linux provisioning gap
+# Automated provisioning for Linux desktop in the enterprise
+
+## The Linux provisioning gap
 
 Linux users love the power and flexibility of their systems that include features like: 
 
@@ -67,7 +69,7 @@ Not only can your Linux devices be enrolled and managed, Fleet offers an automat
 
 The next article in this series will cover more on the topic of enforcing security baselines for Linux: how detecting device state, monitoring compliance and automatically bringing devices back into compliance by triggering automations will finally allow your Linux devices to be as secure as the other OS platforms in your fleet.
 
-<meta name="articleTitle" value="The Linux provisioning gap">
+<meta name="articleTitle" value="Automated provisioning for Linux desktop in the enterprise">
 <meta name="authorFullName" value="Ashish Kuthiala">
 <meta name="authorGitHubUsername" value="akuthiala">
 <meta name="category" value="articles">
