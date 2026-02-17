@@ -25130,7 +25130,7 @@ func (s *integrationEnterpriseTestSuite) TestUpdateSoftwareAutoUpdateConfig() {
 	s.lastActivityMatches(fleet.ActivityEditedAppStoreApp{}.ActivityName(), fmt.Sprintf(`{"app_store_id":"adam_vpp_app_1", "auto_update_enabled":false, "platform":"ipados", "self_service":false, "software_display_name":"Updated Display Name", "software_icon_url":null, "software_title":"vpp1", "software_title_id":%d, "team_id":%d, "team_name":"%s"}`, vppApp.TitleID, team.ID, team.Name), 0)
 }
 
-func (s *integrationEnterpriseTestSuite) TestMaintainedAppsRollback() {
+func (s *integrationEnterpriseTestSuite) TestFMAVersionRollback() {
 	t := s.T()
 	ctx := context.Background()
 
@@ -25426,9 +25426,8 @@ func (s *integrationEnterpriseTestSuite) TestMaintainedAppsRollback() {
 		{Slug: ptr.String("cloudflare-warp/windows"), SelfService: true, RollbackVersion: "1.0"},
 	}
 
-	s.DoJSON("POST", "/api/latest/fleet/software/batch", batchSetSoftwareInstallersRequest{Software: softwareToInstallV1, TeamName: team.Name}, http.StatusAccepted, &batchResponse, "team_name", team.Name, "team_id", fmt.Sprint(team.ID))
-	errMsg := waitBatchSetSoftwareInstallersFailed(t, &s.withServer, team.Name, batchResponse.RequestUUID)
-	require.Contains(t, errMsg, "specified version is not available")
+	rawResp := s.Do("POST", "/api/latest/fleet/software/batch", batchSetSoftwareInstallersRequest{Software: softwareToInstallV1, TeamName: team.Name}, http.StatusBadRequest, "team_name", team.Name, "team_id", fmt.Sprint(team.ID))
+	require.Contains(t, extractServerErrorText(rawResp.Body), "specified version is not available")
 
 	// Should NOT have hit the installer server — no re-download attempt
 	require.False(t, downloadedInstaller, "should not attempt to re-download an evicted version")

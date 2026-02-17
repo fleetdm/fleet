@@ -124,8 +124,8 @@ type FMAInstallerCache interface {
 
 // Hydrate pulls information from app-level FMA manifests into an FMA skeleton
 // pulled from the database. If version is non-empty and cache is provided, it
-// first attempts to load the metadata from the local cache, falling back to the
-// remote manifest if the version is not cached.
+// loads the metadata from the local cache, returning an error if the version is
+// not cached. If no version is specified, it fetches the latest from the remote manifest.
 func Hydrate(ctx context.Context, app *fleet.MaintainedApp, version string, teamID *uint, cache FMAInstallerCache) (*fleet.MaintainedApp, error) {
 	if version != "" && cache == nil {
 		return nil, ctxerr.New(ctx, "no fma version cache provided")
@@ -134,26 +134,32 @@ func Hydrate(ctx context.Context, app *fleet.MaintainedApp, version string, team
 	// If a specific version is requested and we have a cache, try the cache first.
 	if version != "" && cache != nil {
 		cached, err := cache.GetCachedFMAInstallerMetadata(ctx, teamID, app.ID, version)
-		if err != nil && !fleet.IsNotFound(err) {
+		if err != nil {
+			if fleet.IsNotFound(err) {
+				// Version not found in cache - return the same error as BatchSetSoftwareInstallers
+				return nil, ctxerr.Wrap(ctx, &fleet.BadRequestError{
+					Message: fmt.Sprintf(
+						"Couldn't edit %q: specified version is not available. Available versions are listed in the Fleet UI under Actions > Edit software.",
+						app.Name,
+					),
+				})
+			}
 			return nil, ctxerr.Wrap(ctx, err, "get cached FMA installer metadata")
 		}
 
-		if err == nil {
-			// Copy installer-level fields from cache onto the app,
-			// preserving the app-level fields (ID, Name, Slug, etc.)
-			// that were already loaded from the database.
-			app.Version = cached.Version
-			app.Platform = cached.Platform
-			app.InstallerURL = cached.InstallerURL
-			app.SHA256 = cached.SHA256
-			app.InstallScript = cached.InstallScript
-			app.UninstallScript = cached.UninstallScript
-			app.AutomaticInstallQuery = cached.AutomaticInstallQuery
-			app.Categories = cached.Categories
-			app.UpgradeCode = cached.UpgradeCode
-			return app, nil
-		}
-		// Not found in cache — fall through to remote manifest fetch.
+		// Copy installer-level fields from cache onto the app,
+		// preserving the app-level fields (ID, Name, Slug, etc.)
+		// that were already loaded from the database.
+		app.Version = cached.Version
+		app.Platform = cached.Platform
+		app.InstallerURL = cached.InstallerURL
+		app.SHA256 = cached.SHA256
+		app.InstallScript = cached.InstallScript
+		app.UninstallScript = cached.UninstallScript
+		app.AutomaticInstallQuery = cached.AutomaticInstallQuery
+		app.Categories = cached.Categories
+		app.UpgradeCode = cached.UpgradeCode
+		return app, nil
 	}
 
 	httpClient := fleethttp.NewClient(fleethttp.WithTimeout(10 * time.Second))
