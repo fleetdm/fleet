@@ -150,7 +150,7 @@ func fetchItems(
 
 func inAwaitingQA(it Item) bool {
 	for _, v := range it.FieldValues.Nodes {
-		if v.SingleSelectValue.Name == awaitingQAColumn {
+		if string(v.SingleSelectValue.Name) == awaitingQAColumn {
 			return true
 		}
 	}
