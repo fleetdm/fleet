@@ -78,6 +78,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/service/redis_key_value"
 	"github.com/fleetdm/fleet/v4/server/service/redis_lock"
 	"github.com/fleetdm/fleet/v4/server/service/redis_policy_set"
+	"github.com/fleetdm/fleet/v4/server/service/schedule"
 	"github.com/fleetdm/fleet/v4/server/sso"
 	"github.com/fleetdm/fleet/v4/server/version"
 	"github.com/getsentry/sentry-go"
@@ -1133,6 +1134,14 @@ the way that the Fleet server works.
 					return newVulnerabilitiesSchedule(ctx, instanceID, ds, logger, &config.Vulnerabilities)
 				}); err != nil {
 					initFatal(err, "failed to register vulnerabilities schedule")
+				}
+			} else {
+				// Register a remote trigger proxy so triggering still works
+				// when the vulnerability schedule runs on a separate server.
+				if err := cronSchedules.StartCronSchedule(func() (fleet.CronSchedule, error) {
+					return schedule.NewRemoteTriggerSchedule(string(fleet.CronVulnerabilities), ds), nil
+				}); err != nil {
+					initFatal(err, "failed to register remote vulnerability trigger")
 				}
 			}
 
