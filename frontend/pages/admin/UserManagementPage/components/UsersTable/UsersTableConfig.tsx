@@ -183,7 +183,7 @@ const generateTableHeaders = (
     tableHeaders.splice(2, 0, {
       title: "Fleets",
       Header: "Fleets",
-      accessor: "fleets",
+      accessor: "teams",
       disableSortBy: true,
       Cell: (cellProps: ICellProps) => (
         <TextCell value={cellProps.cell.value} />
