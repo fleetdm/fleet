@@ -53,6 +53,7 @@ interface IActionsDropdownProps {
   repoURL?: string;
   isFMA?: boolean;
   isAndroidPlayStoreApp?: boolean;
+  isTechnician?: boolean;
 }
 
 export const SoftwareActionButtons = ({
@@ -63,6 +64,7 @@ export const SoftwareActionButtons = ({
   repoURL,
   isFMA,
   isAndroidPlayStoreApp,
+  isTechnician,
 }: IActionsDropdownProps) => {
   let options = [...SOFTWARE_PACKAGE_ACTION_OPTIONS];
 
@@ -104,6 +106,10 @@ export const SoftwareActionButtons = ({
       }
       return option;
     });
+  }
+
+  if (isTechnician) {
+    options = options.filter((option) => option.value !== "delete");
   }
 
   // Map action values to handlers
@@ -217,6 +223,8 @@ const SoftwareInstallerCard = ({
     isGlobalMaintainer,
     isTeamAdmin,
     isTeamMaintainer,
+    isGlobalTechnician,
+    isTeamTechnician,
   } = useContext(AppContext);
 
   const { renderFlash } = useContext(NotificationContext);
@@ -254,7 +262,12 @@ const SoftwareInstallerCard = ({
   }, [renderFlash, softwareId, name, teamId]);
 
   const showActions =
-    isGlobalAdmin || isGlobalMaintainer || isTeamAdmin || isTeamMaintainer;
+    isGlobalAdmin ||
+    isGlobalMaintainer ||
+    isTeamAdmin ||
+    isTeamMaintainer ||
+    isGlobalTechnician ||
+    isTeamTechnician;
 
   return (
     <Card borderRadiusSize="xxlarge" className={baseClass}>
@@ -326,6 +339,7 @@ const SoftwareInstallerCard = ({
               repoURL={repoURL}
               isFMA={isFleetMaintainedApp}
               isAndroidPlayStoreApp={isAndroidPlayStoreApp}
+              isTechnician={isGlobalTechnician || isTeamTechnician}
             />
           )}
         </div>

@@ -1,14 +1,14 @@
 {
   "versions": [
     {
-      "version": "127.0.5778.14",
+      "version": "127.0.5778.64",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.operasoftware.Opera';"
       },
-      "installer_url": "https://get.geo.opera.com/pub/opera/desktop/127.0.5778.14/mac/Opera_127.0.5778.14_Setup.dmg",
+      "installer_url": "https://get.geo.opera.com/pub/opera/desktop/127.0.5778.64/mac/Opera_127.0.5778.64_Setup.dmg",
       "install_script_ref": "7eb493ab",
       "uninstall_script_ref": "f3ba65ab",
-      "sha256": "feb2339b8671741b263b067f058105ac29786982e9f31a4734cd8cc9cc72267f",
+      "sha256": "7ff3094e50ce8c769901e634495022b8432cec38815eaf80fa2c3b9208c95ac3",
       "default_categories": [
         "Browsers"
       ]

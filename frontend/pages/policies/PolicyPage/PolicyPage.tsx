@@ -98,6 +98,7 @@ const PolicyPage = ({
       maintainer: true,
       observer: true,
       observer_plus: true,
+      technician: true,
     },
   });
 

@@ -55,7 +55,7 @@ type statsTracker struct {
 
 func (svc Service) StreamCampaignResults(ctx context.Context, conn *websocket.Conn, campaignID uint) {
 	logging.WithExtras(ctx, "campaign_id", campaignID)
-	logger := log.With(svc.logger, "campaignID", campaignID)
+	logger := svc.logger.With("campaignID", campaignID)
 
 	// Explicitly set ObserverCanRun: true in this check because we check that the user trying to
 	// read results is the same user that initiated the query. This means the observer check already
