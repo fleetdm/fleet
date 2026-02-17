@@ -1,6 +1,6 @@
 name: Check QA test plan confirmation
 
-# This action runs when an issue or PR is moved on a GitHub Project board.
+# This action runs when an issue is moved on a GitHub Project board.
 # When an item is moved into the "✔️Awaiting QA" column, it checks if the
 # QA test plan confirmation checklist item is checked. If not, it adds a
 # comment to remind the engineer to check it before QA begins.
@@ -18,7 +18,6 @@ jobs:
     permissions:
       contents: read
       issues: write
-      pull-requests: write
     steps:
       - name: Harden Runner
         uses: step-security/harden-runner@20cf305ff2072d973412fa9b1e3a4f227bda3c76 # v2.14.0
@@ -69,12 +68,6 @@ jobs:
                       body
                       url
                     }
-                    ... on PullRequest {
-                      number
-                      title
-                      body
-                      url
-                    }
                   }
                 }
               }
@@ -112,28 +105,21 @@ jobs:
 
             console.log("Item has been moved to Awaiting QA column");
 
-            // Get the issue/PR body
+            // Get the issue body
             let body = "";
             let number = 0;
             let title = "";
-            let itemType = "";
 
-            if (item.content) {
-              if (item.content.number) {
-                number = item.content.number;
-                title = item.content.title;
-                body = item.content.body || "";
-                // Determine if it's an issue or PR based on URL
-                itemType = item.content.url.includes("/pull/") ? "pull_request" : "issue";
-              }
-            }
-
-            if (!number) {
-              console.log("Could not determine issue/PR number");
+            if (item.content && item.content.number) {
+              number = item.content.number;
+              title = item.content.title;
+              body = item.content.body || "";
+            } else {
+              console.log("Item is not an issue, skipping");
               return;
             }
 
-            console.log(`Checking ${itemType} #${number}: ${title}`);
+            console.log(`Checking issue #${number}: ${title}`);
 
             // Check for unchecked test plan line
             const unchecked1 = "- [ ] " + checkText;
@@ -157,11 +143,10 @@ jobs:
             if (body.includes(unchecked1) || body.includes(unchecked2)) {
               console.log("❌ Test plan confirmation is UNCHECKED");
 
-              const commentBody = "⚠️ This " + itemType + " has been moved to **" + awaitingQAColumn + "** but the QA test plan confirmation checklist item is not checked.\n\n" +
+              const commentBody = "⚠️ This issue has been moved to **" + awaitingQAColumn + "** but the QA test plan confirmation checklist item is not checked.\n\n" +
                 "Please ensure the following checklist item is checked before QA begins:\n\n" +
                 "- [x] " + checkText;
 
-              // Use issues.createComment for both issues and PRs
               await github.rest.issues.createComment({
                 owner: context.repo.owner,
                 repo: context.repo.repo,
@@ -169,7 +154,7 @@ jobs:
                 body: commentBody
               });
 
-              console.log("Added comment to " + itemType + " #" + number);
+              console.log("Added comment to issue #" + number);
             } else {
               console.log("⚠️ Test plan confirmation checklist not found in body");
             }
