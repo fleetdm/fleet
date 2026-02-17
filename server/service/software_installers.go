@@ -775,8 +775,8 @@ func (svc *Service) GetSelfServiceUninstallScriptResult(ctx context.Context, hos
 ////////////////////////////////////////////////////////////////////////////////
 
 type batchSetSoftwareInstallersRequest struct {
-	TeamName string                            `json:"-" query:"team_name,optional" renameto:"fleet_name"` // optional team name to limit the scope of the operation, if empty applies to all teams
-	DryRun   bool                              `json:"-" query:"dry_run,optional"`                         // if true, apply validation but do not save changes
+	TeamName string                            `json:"-" query:"team_name,optional" renameto:"fleet_name"`
+	DryRun   bool                              `json:"-" query:"dry_run,optional"` // if true, apply validation but do not save changes
 	Software []*fleet.SoftwareInstallerPayload `json:"software"`
 }
 
