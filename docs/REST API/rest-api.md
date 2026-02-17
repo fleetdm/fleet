@@ -11209,7 +11209,7 @@ Add the `X-Fleet-Scripts-Encoded: base64` header line to parse `install_script`,
 
 _Available in Fleet Premium._
 
-Creates web app (web clip). This endpoint returns the application ID that can be used to [add an Android app](##add-app-store-app) to Fleet.
+Creates web app (web clip). This endpoint returns the application ID that can be used to [add an Android app](#add-app-store-app) to Fleet.
 
 > You need to send a request of type `multipart/form-data`.
 
