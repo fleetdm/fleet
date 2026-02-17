@@ -75,6 +75,7 @@ interface IHostSoftwareTableProps {
   page: number;
   pagePath: string;
   vulnFilters: ISoftwareVulnFiltersParams;
+  teamId?: number;
   onAddFiltersClick: () => void;
   isMyDevicePage?: boolean;
   onShowInventoryVersions: (software: IHostSoftware) => void;
@@ -92,6 +93,7 @@ const HostSoftwareTable = ({
   page,
   pagePath,
   vulnFilters,
+  teamId,
   onAddFiltersClick,
   isMyDevicePage,
   onShowInventoryVersions,
@@ -124,6 +126,7 @@ const HostSoftwareTable = ({
         order_direction: newTableQuery.sortDirection,
         order_key: newTableQuery.sortHeader,
         page: changedParam === "pageIndex" ? newTableQuery.pageIndex : 0,
+        team_id: teamId,
         ...buildSoftwareVulnFiltersQueryParams(vulnFilters),
       };
       return newQueryParam;
