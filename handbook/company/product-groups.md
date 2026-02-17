@@ -49,7 +49,7 @@ The goal of the MDM group is to increase and exceed [Fleet's product maturity go
 
 | Responsibility                    | Human(s)                  |
 |:----------------------------------|:--------------------------|
-| Product Designer                  | [Marko Lisica](https://www.linkedin.com/in/markolisica/) _([@marko-lisica](https://github.com/marko-lisica))_
+| Product Designer                  | [Mel Pike](https://www.linkedin.com/in/melpike/) _([@melpike](https://github.com/melpike))_
 | Engineering Manager               | [George Karr](https://www.linkedin.com/in/george-karr-4977b441/) _([@georgekarrv](https://github.com/georgekarrv))_
 | Tech Lead                         | [Jordan Montgomery](https://www.linkedin.com/in/jordan-montgomery-54553651/) _([@JordanMontgomery](https://github.com/JordanMontgomery))_
 | Quality Assurance                 | [Andrey Kizimenko](https://www.linkedin.com/in/andrey-kizimenko-988900214/) _([@AndreyKizimenko](https://github.com/AndreyKizimenko))_
