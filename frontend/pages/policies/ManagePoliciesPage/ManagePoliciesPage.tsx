@@ -1120,7 +1120,16 @@ const ManagePolicyPage = ({
           conditional access.
         </>
       );
+    } else if (teamIdForApi === API_NO_TEAM_ID) {
+      disabledCalendarTooltipContent = (
+        <>
+          Select a team to manage
+          <br />
+          calendar events.
+        </>
+      );
     } else if (
+      // a team other than no team is selected
       (isGlobalMaintainer || isTeamMaintainer) &&
       !isCalEventsEnabled
     ) {
