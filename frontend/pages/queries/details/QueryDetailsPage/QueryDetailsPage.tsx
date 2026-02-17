@@ -109,6 +109,8 @@ const QueryDetailsPage = ({
     availableTeams,
     setCurrentTeam,
     isOnGlobalTeam,
+    isGlobalTechnician,
+    isTeamTechnician,
   } = useContext(AppContext);
   const {
     lastEditedQueryName,
@@ -247,13 +249,18 @@ const QueryDetailsPage = ({
       isObserverPlus ||
       isGlobalAdmin ||
       isGlobalMaintainer ||
-      isTeamMaintainerOrTeamAdmin;
+      isTeamMaintainerOrTeamAdmin ||
+      isGlobalTechnician ||
+      isTeamTechnician;
 
     // Function instead of constant eliminates race condition with filteredQueriesPath
     const backPath = () => {
       if (filteredQueriesPath) return filteredQueriesPath;
 
-      if (hostId) return getPathWithQueryParams(PATHS.HOST_DETAILS(hostId));
+      if (hostId)
+        return getPathWithQueryParams(
+          PATHS.HOST_DETAILS(hostId, currentTeamId)
+        );
 
       return getPathWithQueryParams(PATHS.MANAGE_QUERIES, {
         team_id: currentTeamId,

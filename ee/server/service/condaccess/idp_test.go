@@ -15,8 +15,8 @@ import (
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mock"
+	"github.com/fleetdm/fleet/v4/server/platform/logging"
 	common_mysql "github.com/fleetdm/fleet/v4/server/platform/mysql"
-	kitlog "github.com/go-kit/log"
 	"github.com/jmoiron/sqlx"
 	"github.com/stretchr/testify/require"
 )
@@ -76,13 +76,13 @@ b1ctZeF7HaWwFdTC8GqWI6zzRFn+YA3f/yYibhowuEypPQeSjlI=
 
 func newTestService() (*idpService, *mock.Store) {
 	ds := new(mock.Store)
-	logger := kitlog.NewNopLogger()
+	logger := logging.NewNopLogger()
 	return &idpService{ds: ds, logger: logger, certSerialFormat: config.CertSerialFormatHex}, ds
 }
 
 func newTestServiceWithCertFormat(certFormat string) (*idpService, *mock.Store) {
 	ds := new(mock.Store)
-	logger := kitlog.NewNopLogger()
+	logger := logging.NewNopLogger()
 	return &idpService{ds: ds, logger: logger, certSerialFormat: certFormat}, ds
 }
 
@@ -117,7 +117,7 @@ func mockCertAssetsFunc(includeCerts bool) func(context.Context, []fleet.MDMAsse
 
 func TestRegisterIdP(t *testing.T) {
 	ds := new(mock.Store)
-	logger := kitlog.NewNopLogger()
+	logger := logging.NewNopLogger()
 	cfg := &config.FleetConfig{}
 
 	ds.AppConfigFunc = mockAppConfigFunc("https://fleet.example.com")
@@ -526,7 +526,7 @@ func TestParseCertAndKeyBytes(t *testing.T) {
 }
 
 func TestDeviceHealthSessionProvider(t *testing.T) {
-	logger := kitlog.NewNopLogger()
+	logger := logging.NewNopLogger()
 	now := time.Now()
 
 	tests := []struct {
@@ -628,12 +628,12 @@ func TestDeviceHealthSessionProvider(t *testing.T) {
 			wantStatusCode: http.StatusInternalServerError,
 		},
 		{
-			name:        "allows device with bypass through",
+			name:        "allows device with bypass when all failing policies have per-policy bypass enabled",
 			hostID:      456,
 			host:        &fleet.Host{ID: 456, TeamID: ptr.Uint(1)},
 			caPolicyIDs: []uint{10, 20},
 			hostPolicies: []*fleet.HostPolicy{
-				{PolicyData: fleet.PolicyData{ID: 10}, Response: "fail"},
+				{PolicyData: fleet.PolicyData{ID: 10, ConditionalAccessBypassEnabled: ptr.Bool(true)}, Response: "fail"},
 				{PolicyData: fleet.PolicyData{ID: 20}, Response: "pass"},
 			},
 			deviceToken:    "abc123",
@@ -643,12 +643,12 @@ func TestDeviceHealthSessionProvider(t *testing.T) {
 			wantStatusCode: http.StatusOK,
 		},
 		{
-			name:        "redirects device without bypass",
+			name:        "redirects device without bypass when all failing policies have per-policy bypass enabled",
 			hostID:      456,
 			host:        &fleet.Host{ID: 456, TeamID: ptr.Uint(1)},
 			caPolicyIDs: []uint{10, 20},
 			hostPolicies: []*fleet.HostPolicy{
-				{PolicyData: fleet.PolicyData{ID: 10}, Response: "fail"},
+				{PolicyData: fleet.PolicyData{ID: 10, ConditionalAccessBypassEnabled: ptr.Bool(true)}, Response: "fail"},
 				{PolicyData: fleet.PolicyData{ID: 20}, Response: "pass"},
 			},
 			deviceToken:    "abc123",
@@ -656,18 +656,80 @@ func TestDeviceHealthSessionProvider(t *testing.T) {
 			wantLocation:   "https://example.com/device/abc123/policies",
 		},
 		{
-			name:        "redirects when bypass check fails",
+			name:        "redirects when bypass check fails and all failing policies have per-policy bypass enabled",
 			hostID:      456,
 			host:        &fleet.Host{ID: 456, TeamID: ptr.Uint(1)},
 			caPolicyIDs: []uint{10, 20},
 			hostPolicies: []*fleet.HostPolicy{
-				{PolicyData: fleet.PolicyData{ID: 10}, Response: "fail"},
+				{PolicyData: fleet.PolicyData{ID: 10, ConditionalAccessBypassEnabled: ptr.Bool(true)}, Response: "fail"},
 				{PolicyData: fleet.PolicyData{ID: 20}, Response: "pass"},
 			},
 			deviceToken:    "abc123",
 			bypassErr:      errors.New("database error"),
 			wantStatusCode: http.StatusSeeOther,
 			wantLocation:   "https://example.com/device/abc123/policies",
+		},
+		{
+			name:        "skips bypass check when any failing policy lacks per-policy bypass",
+			hostID:      456,
+			host:        &fleet.Host{ID: 456, TeamID: ptr.Uint(1)},
+			caPolicyIDs: []uint{10, 20},
+			hostPolicies: []*fleet.HostPolicy{
+				{PolicyData: fleet.PolicyData{ID: 10, ConditionalAccessBypassEnabled: ptr.Bool(true)}, Response: "fail"},
+				// no per-policy bypass, shouldn't be possible since column is not nullable
+				{PolicyData: fleet.PolicyData{ID: 20}, Response: "fail"},
+			},
+			deviceToken:           "abc123",
+			bypassTime:            &now,
+			bypassMustNotBeCalled: true,
+			wantStatusCode:        http.StatusSeeOther,
+			wantLocation:          "https://example.com/device/abc123/policies",
+		},
+		{
+			name:        "skips bypass check when failing policy has per-policy bypass explicitly disabled",
+			hostID:      456,
+			host:        &fleet.Host{ID: 456, TeamID: ptr.Uint(1)},
+			caPolicyIDs: []uint{10},
+			hostPolicies: []*fleet.HostPolicy{
+				{PolicyData: fleet.PolicyData{ID: 10, ConditionalAccessBypassEnabled: ptr.Bool(false)}, Response: "fail"},
+			},
+			deviceToken:           "abc123",
+			bypassTime:            &now,
+			bypassMustNotBeCalled: true,
+			wantStatusCode:        http.StatusSeeOther,
+			wantLocation:          "https://example.com/device/abc123/policies",
+		},
+		{
+			name:        "allows bypass when multiple failing policies all have per-policy bypass enabled",
+			hostID:      456,
+			host:        &fleet.Host{ID: 456, TeamID: ptr.Uint(1)},
+			caPolicyIDs: []uint{10, 20, 30},
+			hostPolicies: []*fleet.HostPolicy{
+				{PolicyData: fleet.PolicyData{ID: 10, ConditionalAccessBypassEnabled: ptr.Bool(true)}, Response: "fail"},
+				{PolicyData: fleet.PolicyData{ID: 20, ConditionalAccessBypassEnabled: ptr.Bool(true)}, Response: "fail"},
+				{PolicyData: fleet.PolicyData{ID: 30}, Response: "pass"},
+			},
+			deviceToken:    "abc123",
+			bypassTime:     &now,
+			wantSession:    true,
+			wantNameID:     "host-456",
+			wantStatusCode: http.StatusOK,
+		},
+		{
+			name:        "skips bypass when one of multiple failing policies has per-policy bypass disabled",
+			hostID:      456,
+			host:        &fleet.Host{ID: 456, TeamID: ptr.Uint(1)},
+			caPolicyIDs: []uint{10, 20, 30},
+			hostPolicies: []*fleet.HostPolicy{
+				{PolicyData: fleet.PolicyData{ID: 10, ConditionalAccessBypassEnabled: ptr.Bool(true)}, Response: "fail"},
+				{PolicyData: fleet.PolicyData{ID: 20, ConditionalAccessBypassEnabled: ptr.Bool(false)}, Response: "fail"},
+				{PolicyData: fleet.PolicyData{ID: 30}, Response: "pass"},
+			},
+			deviceToken:           "abc123",
+			bypassTime:            &now,
+			bypassMustNotBeCalled: true,
+			wantStatusCode:        http.StatusSeeOther,
+			wantLocation:          "https://example.com/device/abc123/policies",
 		},
 		{
 			name:        "bypass_disabled redirects without checking bypass",

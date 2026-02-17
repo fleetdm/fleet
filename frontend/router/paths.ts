@@ -141,10 +141,10 @@ export default {
   MANAGE_HOSTS_LABEL: (labelId: number | string): string => {
     return `${URL_PREFIX}/hosts/manage/labels/${labelId}`;
   },
-  HOST_DETAILS_PAGE: (id: number): string => {
-    return `${URL_PREFIX}/hosts/${id}`;
-  },
-  HOST_DETAILS: (id: number): string => {
+  HOST_DETAILS: (id: number, teamId?: number): string => {
+    if (teamId) {
+      return `${URL_PREFIX}/hosts/${id}/details?team_id=${teamId}`;
+    }
     return `${URL_PREFIX}/hosts/${id}/details`;
   },
   HOST_SCRIPTS: (id: number): string => {

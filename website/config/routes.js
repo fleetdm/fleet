@@ -17,7 +17,6 @@ module.exports.routes = {
     action: 'view-homepage-or-redirect',
     locals: {
       isHomepage: true,
-      showHeaderCTA: true,
     }
   },
 
@@ -284,7 +283,6 @@ module.exports.routes = {
     skipAssets: false,
     action: 'docs/view-basic-documentation',// Meta title and description set in view action
     locals: {
-      hideStartCTA: true,
       currentSection: 'documentation',
     }
   },// handles /docs and /docs/foo/bar
@@ -302,25 +300,14 @@ module.exports.routes = {
     locals: {
       hideHeaderLinks: true,
       hideFooterLinks: true,
-      hideStartCTA: true,
       pageTitleForMeta: 'Get Fleet Premium',
       pageDescriptionForMeta: 'Generate your quote and start using Fleet Premium today.',
-    }
-  },
-  'GET /register': {
-    action: 'entrance/view-signup',
-    locals: {
-      hideFooterLinks: true,
-      hideStartCTA: true,
-      pageTitleForMeta: 'Sign up',
-      pageDescriptionForMeta: 'Sign up for a Fleet account.',
     }
   },
   'GET /login': {
     action: 'entrance/view-login',
     locals: {
-      hideFooterLinks: true,
-      hideStartCTA: true,
+      showConfigurationProfileLayout: true,
       pageTitleForMeta: 'Log in',
       pageDescriptionForMeta: 'Log in to Fleet.',
     }
@@ -330,7 +317,6 @@ module.exports.routes = {
     locals: {
       hideHeaderLinks: true,
       hideFooterLinks: true,
-      hideStartCTA: true,
       pageTitleForMeta: 'Customer dashboard',
       pageDescriptionForMeta: 'View and edit information about your Fleet Premium license.',
     }
@@ -341,7 +327,6 @@ module.exports.routes = {
     locals: {
       hideHeaderLinks: true,
       hideFooterLinks: true,
-      hideStartCTA: true,
       pageTitleForMeta: 'Forgot password',
       pageDescriptionForMeta: 'Recover the password for your Fleet customer account.',
     }
@@ -351,7 +336,6 @@ module.exports.routes = {
     locals: {
       hideHeaderLinks: true,
       hideFooterLinks: true,
-      hideStartCTA: true,
       pageTitleForMeta: 'New password',
       pageDescriptionForMeta: 'Change the password for your Fleet customer account.',
     }
@@ -370,7 +354,6 @@ module.exports.routes = {
     locals: {
       hideFooterLinks: true,
       showAdminLinks: true,
-      hideStartCTA: true,
     },
   },
 
@@ -380,7 +363,6 @@ module.exports.routes = {
     locals: {
       hideFooterLinks: true,
       showAdminLinks: true,
-      hideStartCTA: true,
     },
   },
 
@@ -389,7 +371,6 @@ module.exports.routes = {
     locals: {
       hideFooterLinks: true,
       showAdminLinks: true,
-      hideStartCTA: true,
     },
   },
 
@@ -405,7 +386,6 @@ module.exports.routes = {
     locals: {
       hideFooterLinks: true,
       showAdminLinks: true,
-      hideStartCTA: true,
     }
   },
 
@@ -463,23 +443,11 @@ module.exports.routes = {
     }
   },
 
-  'GET /start': {
-    action: 'view-start',
-    locals: {
-      hideFooterLinks: true,
-      hideGetStartedButton: true,
-      hideStartCTA: true,
-      pageTitleForMeta: 'Start',
-      pageDescriptionForMeta: 'Get Started with Fleet. Spin up a local demo or get your Premium license key.',
-    }
-  },
-
   'GET /better': {
     action: 'view-transparency',
     locals: {
       pageDescriptionForMeta: 'Discover how Fleet simplifies IT and security, prioritizing privacy, transparency, and trust for end users.',
       pageTitleForMeta: 'Better with Fleet',
-      hideStartCTA: true,
     }
   },
 
@@ -489,7 +457,6 @@ module.exports.routes = {
       pageTitleForMeta: 'Deal registration',
       pageDescriptionForMeta: 'Register an opportunity with a potential customer.',
       hideFooterLinks: true,
-      hideStartCTA: true,
     }
   },
 
@@ -543,7 +510,6 @@ module.exports.routes = {
     action: 'view-configuration-builder',
     locals: {
       showConfigurationProfileLayout: true,
-      hideStartCTA: true,
     }
   },
 
@@ -551,7 +517,6 @@ module.exports.routes = {
     action: 'microsoft-proxy/view-remediate',
     locals: {
       showConfigurationProfileLayout: true,
-      hideStartCTA: true,
     }
   },
 
@@ -559,7 +524,6 @@ module.exports.routes = {
     action: 'microsoft-proxy/view-turn-on-mdm',
     locals: {
       showConfigurationProfileLayout: true,
-      hideStartCTA: true,
     }
   },
 
@@ -567,14 +531,12 @@ module.exports.routes = {
     action: 'view-fleet-premium-trial-or-redirect',
     locals: {
       showConfigurationProfileLayout: true,
-      hideStartCTA: true,
     }
   },
 
   'GET /okta-conditional-access-error': {
     action: 'view-okta-conditional-access-error',
     locals: {
-      hideStartCTA: true,
       showConfigurationProfileLayout: true,
     }
   },
@@ -590,7 +552,6 @@ module.exports.routes = {
   'GET /fast-track': {
     action: 'view-fast-track',
     locals: {
-      hideStartCTA: true,
       pageTitleForMeta: 'Fleet Fast-track',
       pageDescriptionForMeta: 'Fast-track helps your team enroll devices, set up workflows, and validate configurations with Fleet experts, to get Fleet ready for production.'
     }
@@ -1020,7 +981,7 @@ module.exports.routes = {
   'GET /software-catalog/zoom': '/software-catalog/zoom-darwin',
   'GET /software-catalog/vnc-viewer': '/software-catalog/vnc-viewer-darwin',
   'GET /apps': '/software-catalog',// This is mostly for mikermcneil who keeps trying to type the old url.
-
+  'GET /register': '/login#register',
   //  ╔╦╗╦╔═╗╔═╗  ╦═╗╔═╗╔╦╗╦╦═╗╔═╗╔═╗╔╦╗╔═╗   ┬   ╔╦╗╔═╗╦ ╦╔╗╔╦  ╔═╗╔═╗╔╦╗╔═╗
   //  ║║║║╚═╗║    ╠╦╝║╣  ║║║╠╦╝║╣ ║   ║ ╚═╗  ┌┼─   ║║║ ║║║║║║║║  ║ ║╠═╣ ║║╚═╗
   //  ╩ ╩╩╚═╝╚═╝  ╩╚═╚═╝═╩╝╩╩╚═╚═╝╚═╝ ╩ ╚═╝  └┘   ═╩╝╚═╝╚╩╝╝╚╝╩═╝╚═╝╩ ╩═╩╝╚═╝
@@ -1102,7 +1063,7 @@ module.exports.routes = {
   'GET /learn-more-about/certificate-authorities': '/guides/connect-end-user-to-wifi-with-certificate',
   'GET /learn-more-about/idp-email': 'https://fleetdm.com/docs/rest-api/rest-api#get-human-device-mapping',
   'GET /learn-more-about/enrolling-hosts': '/docs/using-fleet/adding-hosts',
-  'GET /learn-more-about/setup-assistant': '/guides/setup-experience#macos-setup-assistant',
+  'GET /learn-more-about/setup-assistant': '/guides/setup-experience',
   'GET /learn-more-about/policy-automations': '/docs/using-fleet/automations',
   'GET /install-wine': 'https://github.com/fleetdm/fleet/blob/main/it-and-security/lib/macos/scripts/install-wine.sh',
   'GET /learn-more-about/creating-service-accounts': 'https://console.cloud.google.com/projectselector2/iam-admin/serviceaccounts/create?walkthrough_id=iam--create-service-account&pli=1#step_index=1',
@@ -1180,10 +1141,10 @@ module.exports.routes = {
   'GET /learn-more-about/manual-enrollment-profile': '/docs/rest-api/rest-api#get-manual-enrollment-profile',
   'GET /learn-more-about/deleting-android-enterprise': '/guides/android-mdm-setup#deleting-android-enterprise-in-google-admin',
   'GET /learn-more-about/google-admin-emm': 'https://admin.google.com/ac/devices/settings/thirdparty',
-  'GET /learn-more-about/setup-experience/install-software': '/guides/setup-experience#install-software',
-  'GET /learn-more-about/setup-experience/run-script': '/guides/setup-experience#run-script',
-  'GET /learn-more-about/setup-experience/end-user-authentication': '/guides/setup-experience#end-user-authentication',
-  'GET /learn-more-about/setup-experience/bootstrap-package': '/guides/setup-experience#bootstrap-package',
+  'GET /learn-more-about/setup-experience/install-software': '/guides/setup-experience',
+  'GET /learn-more-about/setup-experience/run-script': '/guides/setup-experience',
+  'GET /learn-more-about/setup-experience/end-user-authentication': '/guides/setup-experience',
+  'GET /learn-more-about/setup-experience/bootstrap-package': '/guides/setup-experience',
   'GET /learn-more-about/built-in-variables': '/docs/configuration/yaml-files#variables',
   'GET /learn-more-about/disable-entra-conditional-access': '/guides/entra-conditional-access-integration#disable',
   'GET /learn-more-about/available-fma-versions': 'https://github.com/fleetdm/fleet/tree/main/ee/maintained-apps/outputs',
@@ -1255,7 +1216,7 @@ module.exports.routes = {
   'DELETE /api/android/v1/enterprises/:androidEnterpriseId/devices/:deviceId': { action: 'android-proxy/delete-android-device', csrf: false},
   'PATCH /api/android/v1/enterprises/:androidEnterpriseId/devices/:deviceId': { action: 'android-proxy/modify-android-device', csrf: false},
   'GET /api/android/v1/enterprises/:androidEnterpriseId/applications/:applicationId': { action: 'android-proxy/get-enterprise-applications', skipAssets: false},
-  'POST /api/android/v1/enterprises/:androidEnterpriseId/policies/:policyId': { action: 'android-proxy/modify-enterprise-app-policy', csrf: false, skipAssets: false},
+  'POST /api/android/v1/enterprises/:androidEnterpriseId/policies/:policyId::googleAction': { action: 'android-proxy/modify-enterprise-app-policy', csrf: false, skipAssets: false},
 
 
   //  ╔═╗╔═╗╦  ╔═╗╔╗╔╔╦╗╔═╗╔═╗╦╔╗╔╔╦╗╔═╗

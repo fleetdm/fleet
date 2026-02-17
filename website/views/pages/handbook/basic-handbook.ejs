@@ -17,6 +17,16 @@
               </li>
             </ul>
           </div>
+          <div purpose="related-pages-links" class="pt-3" v-if="relatedPages.length > 1">
+            <h4 class="font-weight-bold pb-2 m-0 mb-2" >Related topics:</h4>
+            <div purpose="subtopics">
+              <ul class="p-0 m-0">
+                <li v-for="(relatedPage, index) in relatedPages" class="subtopic" :key="index" v-if="relatedPage.url !== thisPage.url">
+                  <a :href="relatedPage.url" class="pl-lg-3">{{_.trim(relatedPage.title)}}</a>
+                </li>
+              </ul>
+            </div>
+          </div>
         </div>
         <div class="border-bottom py-3 d-flex d-md-none"></div>
       </div>
@@ -40,11 +50,11 @@
             <a :href="'/' + breadcrumbs[0]" class="pr-3">
               {{breadcrumbs[0] === 'handbook' ? 'Introduction' : breadcrumbs[0]}}
             </a>
-            <img style="width: 6px; height: 9px;" alt="right chevron" src="/images/chevron-right-6x9@2x.png" / v-if="breadcrumbs.length === 3">
+            <img style="width: 6px; height: 9px;" alt="right chevron" src="/images/chevron-right-green-6x9@2x.png" / v-if="breadcrumbs.length === 3">
             <a :href="'/' + breadcrumbs[0] + '/' + breadcrumbs[1]" class="px-3" v-if="breadcrumbs.length === 3">
               {{_getTitleFromUrl(breadcrumbs[1])}}
             </a>
-            <img style="width: 6px; height: 9px;" alt="right chevron" src="/images/chevron-right-6x9@2x.png"/ v-if="breadcrumbs.length > 1">
+            <img style="width: 6px; height: 9px;" alt="right chevron" src="/images/chevron-right-green-6x9@2x.png"/ v-if="breadcrumbs.length > 1">
             <p purpose="current-page-breadcrumb" class="pl-3 m-0" v-if="breadcrumbs.length > 1">
               {{thisPage.title}}
             </p>
@@ -86,9 +96,19 @@
                 </li>
               </ul>
             </div>
+            <div purpose="related-pages-links" class="pt-3" v-if="relatedPages.length > 1">
+              <h4>Related topics:</h4>
+              <div purpose="subtopics">
+                <ul class="p-0 m-0">
+                  <li v-for="(relatedPage, index) in relatedPages" class="subtopic" :key="index"  v-if="relatedPage.url !== thisPage.url">
+                    <a :href="relatedPage.url">{{_.trim(relatedPage.title)}}</a>
+                  </li>
+                </ul>
+              </div>
+            </div>
           </div>
           <div>
-            <a href="/contact" purpose="sidebar-cta" class="d-flex flex-row justify-content-start">
+            <a href="/contact" purpose="sidebar-cta" class="d-flex flex-row justify-content-start" no-underline>
             <div class="d-flex align-self-start">
               <img alt="Ask us anything" src="/images/icon-question-20x19@2x.png">
             </div>
@@ -135,6 +155,5 @@
       <p class="mb-0"><img alt="An arrow pointing up" class="d-inline" src="/images/icon-arrow-up-12x13@2x.png">Back to top</p>
     </div>
   </div>
-  <signup-modal></signup-modal>
 </div>
 <%- /* Expose server-rendered data as window.SAILS_LOCALS :: */ exposeLocalsToBrowser() %>

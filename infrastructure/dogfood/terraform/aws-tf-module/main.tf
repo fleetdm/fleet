@@ -77,14 +77,13 @@ locals {
     # ELASTIC_APM_SERVICE_NAME                   = "dogfood"
     FLEET_CALENDAR_PERIODICITY = var.fleet_calendar_periodicity
     # Webhook Results & Status Logging Destination
-    FLEET_WEBHOOK_STATUS_URL        = var.webhook_url
-    FLEET_WEBHOOK_RESULT_URL        = var.webhook_url
-    FLEET_OSQUERY_RESULT_LOG_PLUGIN = var.webhook_url != "" ? "webhook" : ""
     FLEET_SERVER_VPP_VERIFY_TIMEOUT = "20m"
+    FLEET_SERVER_GZIP_RESPONSES     = "true"
 
     # Load TLS Certificate for RDS Authentication
-    FLEET_MYSQL_TLS_CA              = local.cert_path
-    FLEET_MYSQL_READ_REPLICA_TLS_CA = local.cert_path
+    FLEET_MYSQL_TLS_CA                  = local.cert_path
+    FLEET_MYSQL_READ_REPLICA_TLS_CA     = local.cert_path
+    FLEET_MYSQL_READ_REPLICA_TLS_CONFIG = "custom"
   }
   entra_conditional_access_secrets = {
     # Entra Conditional Access Proxy API Key
@@ -208,7 +207,8 @@ module "main" {
       module.ses.fleet_extra_environment_variables,
       local.extra_environment_variables,
       module.geolite2.extra_environment_variables,
-      module.vuln-processing.extra_environment_variables
+      module.vuln-processing.extra_environment_variables,
+      module.firehose-logging.fleet_extra_environment_variables
     )
     extra_execution_iam_policies = concat(
       module.mdm.extra_execution_iam_policies,
@@ -495,13 +495,12 @@ module "mdm" {
   abm_secret_name    = null
 }
 
-# can deprecate once we get webhooks rolling
 module "firehose-logging" {
   source                = "github.com/fleetdm/fleet-terraform//addons/byo-firehose-logging-destination/firehose?ref=tf-mod-addon-byo-firehose-logging-destination-firehose-v2.0.3"
   firehose_results_name = "osquery_results"
   firehose_status_name  = "osquery_status"
   firehose_audit_name   = "fleet_audit"
-  iam_role_arn          = "arn:aws:iam::273354660820:role/terraform-20250115232230102400000003"
+  iam_role_arn          = "arn:aws:iam::273354660820:role/terraform-20260217045329203000000002"
   region                = data.aws_region.current.region
 }
 

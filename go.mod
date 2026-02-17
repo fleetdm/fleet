@@ -17,7 +17,6 @@ require (
 	github.com/XSAM/otelsql v0.39.0
 	github.com/andygrunwald/go-jira v1.16.0
 	github.com/antchfx/xmlquery v1.3.14
-	github.com/apex/log v1.9.0
 	github.com/aws/aws-sdk-go-v2 v1.36.6
 	github.com/aws/aws-sdk-go-v2/config v1.29.17
 	github.com/aws/aws-sdk-go-v2/credentials v1.17.70
@@ -93,11 +92,11 @@ require (
 	github.com/klauspost/compress v1.18.3
 	github.com/kolide/launcher v1.0.12
 	github.com/lib/pq v1.10.9
-	github.com/macadmins/osquery-extension v1.2.7
+	github.com/macadmins/osquery-extension v1.3.2
 	github.com/mattn/go-sqlite3 v1.14.22
 	github.com/micromdm/micromdm v1.9.0
 	github.com/micromdm/nanolib v0.2.0
-	github.com/micromdm/plist v0.2.1
+	github.com/micromdm/plist v0.2.3-0.20260123201933-667adaf87d87
 	github.com/mitchellh/go-ps v1.0.0
 	github.com/mitchellh/gon v0.2.6-0.20231031204852-2d4f161ccecd
 	github.com/mna/redisc v1.3.2

@@ -9,6 +9,7 @@ import (
 	"database/sql/driver"
 	"errors"
 	"fmt"
+	"log/slog"
 	"math/rand"
 	"net/http"
 	"net/url"
@@ -77,6 +78,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/service/redis_key_value"
 	"github.com/fleetdm/fleet/v4/server/service/redis_lock"
 	"github.com/fleetdm/fleet/v4/server/service/redis_policy_set"
+	"github.com/fleetdm/fleet/v4/server/service/schedule"
 	"github.com/fleetdm/fleet/v4/server/sso"
 	"github.com/fleetdm/fleet/v4/server/version"
 	"github.com/getsentry/sentry-go"
@@ -303,7 +305,7 @@ the way that the Fleet server works.
 			// NOTE this will disable OTEL/APM interceptor
 			if dev_mode.Env("FLEET_DEV_ENABLE_SQL_INTERCEPTOR") != "" {
 				opts = append(opts, mysql.WithInterceptor(&devSQLInterceptor{
-					logger: kitlog.With(logger, "component", "sql-interceptor"),
+					logger: logger.With("component", "sql-interceptor"),
 				}))
 			}
 
@@ -421,7 +423,7 @@ the way that the Fleet server works.
 			ds = redisWrapperDS
 
 			resultStore := pubsub.NewRedisQueryResults(redisPool, config.Redis.DuplicateResults,
-				log.With(logger, "component", "query-results"),
+				logger.With("component", "query-results"),
 			)
 			liveQueryStore := live_query.NewRedisLiveQuery(redisPool, logger, liveQueryMemCacheDuration)
 			ssoSessionStore := sso.NewSessionStore(redisPool)
@@ -585,7 +587,7 @@ the way that the Fleet server works.
 			}
 
 			var mdmPushService push.Pusher
-			nanoMDMLogger := service.NewNanoMDMLogger(kitlog.With(logger, "component", "apple-mdm-push"))
+			nanoMDMLogger := service.NewNanoMDMLogger(logger.With("component", "apple-mdm-push"))
 			pushProviderFactory := buford.NewPushProviderFactory(buford.WithNewClient(func(cert *tls.Certificate) (*http.Client, error) {
 				return fleethttp.NewClient(fleethttp.WithTLSClientConfig(&tls.Config{
 					Certificates: []tls.Certificate{*cert},
@@ -822,6 +824,16 @@ the way that the Fleet server works.
 			ctx, cancelFunc := context.WithCancel(baseCtx)
 			defer cancelFunc()
 
+			// Channel used to trigger graceful shutdown on fatal DB errors (e.g. Aurora failover).
+			dbFatalCh := make(chan error, 1)
+			common_mysql.SetFatalErrorHandler(func(err error) {
+				level.Error(logger).Log("msg", "fatal database error detected, initiating graceful shutdown", "err", err)
+				select {
+				case dbFatalCh <- err:
+				default:
+				}
+			})
+
 			var conditionalAccessMicrosoftProxy *conditional_access_microsoft_proxy.Proxy
 			if config.MicrosoftCompliancePartner.IsSet() {
 				var err error
@@ -850,7 +862,7 @@ the way that the Fleet server works.
 			config.MDM.AndroidAgent.Validate(initFatal)
 			androidSvc, err := android_service.NewService(
 				ctx,
-				logger,
+				logger.SlogLogger(),
 				ds,
 				config.License.Key,
 				config.Server.PrivateKey,
@@ -1010,7 +1022,7 @@ the way that the Fleet server works.
 			level.Info(logger).Log("instanceID", instanceID)
 
 			// Bootstrap activity bounded context (needed for cron schedules and HTTP routes)
-			activitySvc, activityRoutes := createActivityBoundedContext(svc, dbConns, logger)
+			activitySvc, activityRoutes := createActivityBoundedContext(svc, dbConns, logger.SlogLogger())
 
 			// Perform a cleanup of cron_stats outside of the cronSchedules because the
 			// schedule package uses cron_stats entries to decide whether a schedule will
@@ -1122,6 +1134,14 @@ the way that the Fleet server works.
 					return newVulnerabilitiesSchedule(ctx, instanceID, ds, logger, &config.Vulnerabilities)
 				}); err != nil {
 					initFatal(err, "failed to register vulnerabilities schedule")
+				}
+			} else {
+				// Register a remote trigger proxy so triggering still works
+				// when the vulnerability schedule runs on a separate server.
+				if err := cronSchedules.StartCronSchedule(func() (fleet.CronSchedule, error) {
+					return schedule.NewRemoteTriggerSchedule(string(fleet.CronVulnerabilities), ds), nil
+				}); err != nil {
+					initFatal(err, "failed to register remote vulnerability trigger")
 				}
 			}
 
@@ -1292,7 +1312,7 @@ the way that the Fleet server works.
 			level.Info(logger).Log("msg", fmt.Sprintf("started cron schedules: %s", strings.Join(cronSchedules.ScheduleNames(), ", ")))
 
 			// StartCollectors starts a goroutine per collector, using ctx to cancel.
-			task.StartCollectors(ctx, kitlog.With(logger, "cron", "async_task"))
+			task.StartCollectors(ctx, logger.With("cron", "async_task"))
 
 			// Flush seen hosts every second
 			hostsAsyncCfg := config.Osquery.AsyncConfigForTask(configpkg.AsyncTaskHostLastSeen)
@@ -1325,7 +1345,7 @@ the way that the Fleet server works.
 
 			svc = service.NewMetricsService(svc, requestCount, requestLatency)
 
-			httpLogger := kitlog.With(logger, "component", "http")
+			httpLogger := logger.With("component", "http")
 
 			limiterStore := &redis.ThrottledStore{
 				Pool:      redisPool,
@@ -1334,7 +1354,7 @@ the way that the Fleet server works.
 
 			var httpSigVerifier func(http.Handler) http.Handler
 			if license.IsPremium() {
-				httpSigVerifier, err = httpsig.Middleware(ds, config.Auth.RequireHTTPMessageSignature, kitlog.With(logger, "component", "http-sig-verifier"))
+				httpSigVerifier, err = httpsig.Middleware(ds, config.Auth.RequireHTTPMessageSignature, logger.With("component", "http-sig-verifier"))
 				if err != nil {
 					initFatal(err, "initializing HTTP signature verifier")
 				}
@@ -1482,7 +1502,7 @@ the way that the Fleet server works.
 				}
 				// Host identify and conditional access SCEP feature only works if a private key has been set up
 				if len(config.Server.PrivateKey) > 0 {
-					hostIdentitySCEPDepot, err := mds.NewHostIdentitySCEPDepot(kitlog.With(logger, "component", "host-id-scep-depot"), &config)
+					hostIdentitySCEPDepot, err := mds.NewHostIdentitySCEPDepot(logger.With("component", "host-id-scep-depot"), &config)
 					if err != nil {
 						initFatal(err, "setup host identity SCEP depot")
 					}
@@ -1491,7 +1511,7 @@ the way that the Fleet server works.
 					}
 
 					// Conditional Access SCEP
-					condAccessSCEPDepot, err := mds.NewConditionalAccessSCEPDepot(kitlog.With(logger, "component", "conditional-access-scep-depot"), &config)
+					condAccessSCEPDepot, err := mds.NewConditionalAccessSCEPDepot(logger.With("component", "conditional-access-scep-depot"), &config)
 					if err != nil {
 						initFatal(err, "setup conditional access SCEP depot")
 					}
@@ -1644,7 +1664,7 @@ the way that the Fleet server works.
 			rootMux.Handle("/", otelmw.WrapHandler(frontendHandler, "/", config))
 
 			debugHandler := &debugMux{
-				fleetAuthenticatedHandler: service.MakeDebugHandler(svc, config, logger, eh, ds),
+				fleetAuthenticatedHandler: service.MakeDebugHandler(svc, config, logger.SlogLogger(), eh, ds),
 			}
 			rootMux.Handle("/debug/", otelmw.WrapHandlerDynamic(debugHandler, config))
 
@@ -1717,7 +1737,10 @@ the way that the Fleet server works.
 			go func() {
 				sig := make(chan os.Signal, 1)
 				signal.Notify(sig, syscall.SIGINT, syscall.SIGTERM)
-				<-sig // block on signal
+				select {
+				case <-sig:
+				case <-dbFatalCh:
+				}
 				ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 				defer cancel()
 				errs <- func() error {
@@ -1757,7 +1780,7 @@ the way that the Fleet server works.
 	return serveCmd
 }
 
-func createActivityBoundedContext(svc fleet.Service, dbConns *common_mysql.DBConnections, logger kitlog.Logger) (activity_api.Service, endpointer.HandlerRoutesFunc) {
+func createActivityBoundedContext(svc fleet.Service, dbConns *common_mysql.DBConnections, logger *slog.Logger) (activity_api.Service, endpointer.HandlerRoutesFunc) {
 	legacyAuthorizer, err := authz.NewAuthorizer()
 	if err != nil {
 		initFatal(err, "initializing activity authorizer")
