@@ -518,10 +518,10 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
       try {
         if (
           formData.enabled !==
-            config?.webhook_settings.activities_webhook
-              .enable_activities_webhook ||
+          config?.webhook_settings.activities_webhook
+            .enable_activities_webhook ||
           formData.url !==
-            config?.webhook_settings.activities_webhook.destination_url
+          config?.webhook_settings.activities_webhook.destination_url
         ) {
           await configAPI.update({
             webhook_settings: {
@@ -619,10 +619,10 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
     showTitle: showActivityFeedTitle,
     action: canEditActivityFeedAutomations
       ? {
-          type: "button",
-          text: "Manage automations",
-          onClick: () => setShowActivityFeedAutomationsModal(true),
-        }
+        type: "button",
+        text: "Manage automations",
+        onClick: () => setShowActivityFeedAutomationsModal(true),
+      }
       : undefined,
     children: (
       <ActivityFeed
@@ -745,7 +745,7 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
           )}
         {(isSoftwareFetching || showSoftwareCard) && SoftwareCard}
         {!isAnyTeamSelected && isOnGlobalTeam && <>{ActivityFeedCard}</>}
-        {showMdmCard && <>{MDMCard}</>}
+        {true && <>{MDMCard}</>}
       </div>
     );
   };
