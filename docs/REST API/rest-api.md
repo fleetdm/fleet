@@ -11220,7 +11220,7 @@ Creates web app (web clip). This endpoint returns the application ID that can be
 | Name | Type | In | Description |
 | ---- | ---- | -- | ----------- |
 | title   | string | body | **Required.** It is displayed to the end user under the app icon. |
-| url     | string | body | **Required**. The URL of the web app. What end user sees when opens this app.  |
+| url     | string | body | **Required.** The URL of the web app. What the end user sees when they open this app. |
 | icon    | file | body | The app icon. The icon must be a PNG file and square, with dimensions of at least 512 x 512px. |
 
 
