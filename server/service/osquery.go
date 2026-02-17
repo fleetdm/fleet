@@ -1447,7 +1447,7 @@ func preProcessSoftwareResults(
 	preProcessSoftwareExtraResults(ctx, jetbrainsPluginsExtraQuery, host.ID, results, statuses, messages, osquery_utils.DetailQuery{}, logger)
 
 	goPackagesExtraQuery := hostDetailQueryPrefix + "software_go_packages"
-	preProcessSoftwareExtraResults(goPackagesExtraQuery, host.ID, results, statuses, messages, osquery_utils.DetailQuery{}, logger)
+	preProcessSoftwareExtraResults(ctx, goPackagesExtraQuery, host.ID, results, statuses, messages, osquery_utils.DetailQuery{}, logger)
 
 	for name, query := range overrides {
 		fullQueryName := hostDetailQueryPrefix + "software_" + name
