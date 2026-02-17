@@ -66,7 +66,6 @@ jobs:
                       number
                       title
                       body
-                      url
                     }
                   }
                 }
@@ -115,7 +114,7 @@ jobs:
               title = item.content.title;
               body = item.content.body || "";
             } else {
-              console.log("Item is not an issue, skipping");
+              console.log("Could not retrieve issue details, skipping (item may be a PR or draft)");
               return;
             }
 
