@@ -1,5 +1,3 @@
-import { upperFirst } from "lodash";
-
 import URL_PREFIX from "router/url_prefix";
 import { DisplayPlatform, Platform } from "interfaces/platform";
 import { ISchedulableQuery } from "interfaces/schedulable_query";
