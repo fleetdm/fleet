@@ -11233,7 +11233,7 @@ Creates web app (web clip). This endpoint returns the application ID that can be
 ```http
 title="Acme web app"
 url="https://app.acme.com"
-profile="app-icon-512x512.png"
+icon="app-icon-512x512.png"
 ```
 
 ##### Default response
