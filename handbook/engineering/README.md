@@ -41,7 +41,7 @@ Engineering-initiated stories are types of user stories created by engineers to 
 
 It's important to frame engineering-initiated user stories the same way we frame all user stories. Stay focused on how this technical change will drive value for our users.
 
-Engineering-initiated stories are for work that **no customer or product manager would directly ask for** but that makes Fleet healthier. If any of the following apply, the issue should go through normal product prioritization instead of being labeled `~engineering-initiated`:
+Engineering-initiated stories are for work that no customer or stakeholder has directly asked for but that makes Fleet better. If any of the following apply, the issue should go through normal product prioritization instead of being labeled `~engineering-initiated`:
 
 - The work was motivated by a **customer report or request** (has a `customer-*` label).
 - The issue is a **bug or defect** (has a `~released bug` or `bug` label).
