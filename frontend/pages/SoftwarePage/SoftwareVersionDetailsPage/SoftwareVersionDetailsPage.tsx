@@ -34,6 +34,9 @@ import MainContent from "components/MainContent";
 import TeamsHeader from "components/TeamsHeader";
 import Card from "components/Card";
 
+import PATHS from "router/paths";
+import { getPathWithQueryParams } from "utilities/url";
+
 import SoftwareDetailsSummary from "../components/cards/SoftwareDetailsSummary";
 import SoftwareVulnerabilitiesTable from "../components/tables/SoftwareVulnerabilitiesTable";
 import DetailsNoHosts from "../components/cards/DetailsNoHosts";
@@ -192,6 +195,16 @@ const SoftwareVersionDetailsPage = ({
                 }}
                 name={softwareVersion.name}
                 source={softwareVersion.source}
+                titleDetailsPath={
+                  softwareVersion.software_title_id
+                    ? getPathWithQueryParams(
+                        PATHS.SOFTWARE_TITLE_DETAILS(
+                          softwareVersion.software_title_id.toString()
+                        ),
+                        { team_id: teamIdForApi }
+                      )
+                    : undefined
+                }
               />
             </Card>
             <Card

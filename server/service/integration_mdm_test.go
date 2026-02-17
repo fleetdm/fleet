@@ -12641,6 +12641,7 @@ func (s *integrationMDMTestSuite) TestRefetchIOSIPadOS() {
 
 	for index := range hostResp.Host.Software {
 		hostResp.Host.Software[index].ID = 0
+		hostResp.Host.Software[index].TitleID = nil
 	}
 	assert.ElementsMatch(t, expectedSoftware, hostResp.Host.Software)
 
@@ -12693,6 +12694,7 @@ func (s *integrationMDMTestSuite) TestRefetchIOSIPadOS() {
 
 	for index := range hostResp.Host.Software {
 		hostResp.Host.Software[index].ID = 0
+		hostResp.Host.Software[index].TitleID = nil
 	}
 	assert.ElementsMatch(t, expectedSoftware, hostResp.Host.Software)
 
@@ -12761,6 +12763,7 @@ func (s *integrationMDMTestSuite) TestRefetchIOSIPadOS() {
 
 	for index := range hostResp.Host.Software {
 		hostResp.Host.Software[index].ID = 0
+		hostResp.Host.Software[index].TitleID = nil
 	}
 	assert.ElementsMatch(t, expectedSoftware, hostResp.Host.Software)
 

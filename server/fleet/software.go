@@ -129,7 +129,7 @@ type Software struct {
 
 	// TitleID is the ID of the associated software title, representing a unique combination of name
 	// and source.
-	TitleID *uint `json:"-" db:"title_id"`
+	TitleID *uint `json:"software_title_id,omitempty" db:"title_id"`
 	// NameSource indicates whether the name for this Software was changed during the migration to
 	// Fleet 4.67.0
 	NameSource string `json:"-" db:"name_source"`
@@ -252,6 +252,7 @@ type VulnerableSoftware struct {
 	GenerateCPE       string  `json:"generated_cpe" db:"generated_cpe"`
 	HostsCount        int     `json:"hosts_count,omitempty" db:"hosts_count"`
 	ResolvedInVersion *string `json:"resolved_in_version" db:"resolved_in_version"`
+	SoftwareTitleID   *uint   `json:"software_title_id,omitempty" db:"software_title_id"`
 }
 
 type VulnSoftwareFilter struct {

@@ -134,6 +134,8 @@ interface ISoftwareDetailsSummaryProps {
   iconPreviewUrl?: string | null;
   /** timestamp of when icon was last uploaded, used to force refresh of cached icon */
   iconUploadedAt?: string;
+  /** Path to the software title details page. When provided, the display name becomes a clickable link. */
+  titleDetailsPath?: string;
 }
 
 const SoftwareDetailsSummary = ({
@@ -154,6 +156,7 @@ const SoftwareDetailsSummary = ({
   onClickEditAutoUpdateConfig,
   iconPreviewUrl,
   iconUploadedAt,
+  titleDetailsPath,
 }: ISoftwareDetailsSummaryProps) => {
   const hostCountPath = getPathWithQueryParams(paths.MANAGE_HOSTS, queryParams);
 
@@ -211,6 +214,21 @@ const SoftwareDetailsSummary = ({
     );
   };
 
+  const renderDisplayName = () => {
+    if (isRollingArch) {
+      return (
+        <>
+          {displayName.slice(0, -8)}
+          <TooltipWrapperArchLinuxRolling />
+        </>
+      );
+    }
+    if (titleDetailsPath) {
+      return <CustomLink url={titleDetailsPath} text={displayName} />;
+    }
+    return <TooltipTruncatedText value={displayName} />;
+  };
+
   const actionOptions = buildActionOptions(
     gitOpsModeEnabled,
     repoURL,
@@ -229,17 +247,7 @@ const SoftwareDetailsSummary = ({
         )}
         <dl className={`${baseClass}__info`}>
           <div className={`${baseClass}__title-actions`}>
-            <h1 aria-label="software display name">
-              {isRollingArch ? (
-                // wrap a tooltip around the "rolling" suffix
-                <>
-                  {displayName.slice(0, -8)}
-                  <TooltipWrapperArchLinuxRolling />
-                </>
-              ) : (
-                <TooltipTruncatedText value={displayName} />
-              )}
-            </h1>
+            <h1 aria-label="software display name">{renderDisplayName()}</h1>
             {canManageSoftware && (
               <div className={`${baseClass}__actions-wrapper`}>
                 <DropdownWrapper
