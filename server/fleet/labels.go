@@ -139,6 +139,14 @@ type HostVitalsLabel interface {
 	GetLabel() *Label
 }
 
+var ValidLabelPlatformVariants = map[string][]struct{}{
+	"":        {}, // empty platform is valid value
+	"darwin":  {},
+	"windows": {},
+	"ubuntu":  {},
+	"centos":  {},
+}
+
 type Label struct {
 	UpdateCreateTimestamps
 	ID                  uint                `json:"id"`
