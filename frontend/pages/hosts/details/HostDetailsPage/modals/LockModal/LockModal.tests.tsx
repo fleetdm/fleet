@@ -60,7 +60,7 @@ describe("LockModal", () => {
     ).toBeInTheDocument();
     expect(
       screen.getByText(
-        /won't be able to receive MDM commands necessary to unlock the host/i
+        /won't be able to unlock the host remotely/i
         /won't be able to unlock the host remotely/i
       )
     ).toBeInTheDocument();
