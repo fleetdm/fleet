@@ -10,7 +10,10 @@
     },
     "server_settings": {
       "server_url": "",
+      "live_query_disabled": false,
       "live_report_disabled": false,
+      "query_report_cap": 0,
+      "query_reports_disabled": false,
       "report_cap": 0,
       "reports_disabled": false,
       "enable_analytics": false,

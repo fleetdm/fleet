@@ -1960,3 +1960,81 @@ func TestSillyTeamNames(t *testing.T) {
 		})
 	}
 }
+
+func TestReplaceAliasKeys(t *testing.T) {
+	rules := map[string]string{
+		"old_key":    "new_key",
+		"nested_old": "nested_new",
+	}
+
+	t.Run("deleteOld=true removes old keys", func(t *testing.T) {
+		data := map[string]any{
+			"old_key":   "value1",
+			"other_key": "value2",
+		}
+		replaceAliasKeys(data, rules, true)
+		require.Equal(t, "value1", data["new_key"])
+		_, exists := data["old_key"]
+		require.False(t, exists, "old key should be removed when deleteOld=true")
+		require.Equal(t, "value2", data["other_key"])
+	})
+
+	t.Run("deleteOld=false keeps both keys", func(t *testing.T) {
+		data := map[string]any{
+			"old_key":   "value1",
+			"other_key": "value2",
+		}
+		replaceAliasKeys(data, rules, false)
+		require.Equal(t, "value1", data["new_key"])
+		require.Equal(t, "value1", data["old_key"])
+		require.Equal(t, "value2", data["other_key"])
+	})
+
+	t.Run("nested maps and arrays", func(t *testing.T) {
+		data := map[string]any{
+			"outer": map[string]any{
+				"nested_old": "nested_value",
+			},
+			"list": []any{
+				map[string]any{"old_key": "in_array"},
+			},
+		}
+
+		// deleteOld=true: old keys removed recursively
+		replaceAliasKeys(data, rules, true)
+		outer := data["outer"].(map[string]any)
+		require.Equal(t, "nested_value", outer["nested_new"])
+		_, exists := outer["nested_old"]
+		require.False(t, exists)
+		item := data["list"].([]any)[0].(map[string]any)
+		require.Equal(t, "in_array", item["new_key"])
+		_, exists = item["old_key"]
+		require.False(t, exists)
+	})
+
+	t.Run("nested maps and arrays deleteOld=false", func(t *testing.T) {
+		data := map[string]any{
+			"outer": map[string]any{
+				"nested_old": "nested_value",
+			},
+			"list": []any{
+				map[string]any{"old_key": "in_array"},
+			},
+		}
+
+		replaceAliasKeys(data, rules, false)
+		outer := data["outer"].(map[string]any)
+		require.Equal(t, "nested_value", outer["nested_new"])
+		require.Equal(t, "nested_value", outer["nested_old"])
+		item := data["list"].([]any)[0].(map[string]any)
+		require.Equal(t, "in_array", item["new_key"])
+		require.Equal(t, "in_array", item["old_key"])
+	})
+
+	t.Run("nil map is safe", func(t *testing.T) {
+		replaceAliasKeys(nil, rules, true)
+		replaceAliasKeys(nil, rules, false)
+		var m map[string]any
+		replaceAliasKeys(m, rules, true)
+	})
+}
