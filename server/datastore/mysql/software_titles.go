@@ -434,7 +434,7 @@ func (ds *Datastore) ListSoftwareTitles(
 			}
 		}
 		if len(fmaTitleIDs) > 0 {
-			fmaVersions, err := ds.getFleetMaintainedVersionsByTitleIDs(ctx, fmaTitleIDs, *opt.TeamID)
+			fmaVersions, err := ds.getFleetMaintainedVersionsByTitleIDs(ctx, ds.reader(ctx), fmaTitleIDs, *opt.TeamID)
 			if err != nil {
 				return nil, 0, nil, ctxerr.Wrap(ctx, err, "get fleet maintained versions")
 			}
@@ -532,15 +532,7 @@ SELECT
 	{{end}}
 FROM software_titles st
 	{{if hasTeamID .}}
-		LEFT JOIN (
-			SELECT si_inner.id, si_inner.title_id, si_inner.global_or_team_id,
-				si_inner.self_service, si_inner.filename, si_inner.version,
-				si_inner.platform, si_inner.url, si_inner.install_during_setup,
-				si_inner.storage_id, si_inner.fleet_maintained_app_id
-			FROM software_installers si_inner
-			WHERE si_inner.global_or_team_id = {{teamID .}}
-				AND si_inner.is_active = 1
-		) si ON si.title_id = st.id AND si.global_or_team_id = {{teamID .}}
+		LEFT JOIN software_installers si ON si.title_id = st.id AND si.global_or_team_id = {{teamID .}} AND si.is_active = TRUE
 		LEFT JOIN in_house_apps iha ON iha.title_id = st.id AND iha.global_or_team_id = {{teamID .}}
 		LEFT JOIN vpp_apps vap ON vap.title_id = st.id AND {{yesNo .PackagesOnly "FALSE" "TRUE"}}
 		LEFT JOIN vpp_apps_teams vat ON vat.adam_id = vap.adam_id AND vat.platform = vap.platform AND
@@ -708,7 +700,7 @@ GROUP BY
 // GetFleetMaintainedVersionsByTitleID returns all cached versions of a fleet-maintained app
 // for the given title and team.
 func (ds *Datastore) GetFleetMaintainedVersionsByTitleID(ctx context.Context, teamID *uint, titleID uint) ([]fleet.FleetMaintainedVersion, error) {
-	result, err := ds.getFleetMaintainedVersionsByTitleIDs(ctx, []uint{titleID}, ptr.ValOrZero(teamID))
+	result, err := ds.getFleetMaintainedVersionsByTitleIDs(ctx, ds.reader(ctx), []uint{titleID}, ptr.ValOrZero(teamID))
 	if err != nil {
 		return nil, err
 	}
@@ -717,7 +709,7 @@ func (ds *Datastore) GetFleetMaintainedVersionsByTitleID(ctx context.Context, te
 
 // getFleetMaintainedVersionsByTitleIDs returns all cached versions of fleet-maintained apps
 // for the given title IDs and team, keyed by title ID.
-func (ds *Datastore) getFleetMaintainedVersionsByTitleIDs(ctx context.Context, titleIDs []uint, teamID uint) (map[uint][]fleet.FleetMaintainedVersion, error) {
+func (ds *Datastore) getFleetMaintainedVersionsByTitleIDs(ctx context.Context, q sqlx.QueryerContext, titleIDs []uint, teamID uint) (map[uint][]fleet.FleetMaintainedVersion, error) {
 	if len(titleIDs) == 0 {
 		return nil, nil
 	}
@@ -738,7 +730,7 @@ func (ds *Datastore) getFleetMaintainedVersionsByTitleIDs(ctx context.Context, t
 	}
 
 	var rows []fmaVersionRow
-	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &rows, query, args...); err != nil {
+	if err := sqlx.SelectContext(ctx, q, &rows, query, args...); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "select fleet maintained versions")
 	}
 

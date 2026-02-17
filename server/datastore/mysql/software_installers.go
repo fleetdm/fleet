@@ -2712,22 +2712,20 @@ WHERE
 				// Evict old FMA versions beyond the max per title per team.
 				// Always keep the active installer; fill remaining slots with
 				// the most recent versions, evict everything else.
-				var allFMAInstallerIDs []uint
-				if err := sqlx.SelectContext(ctx, tx, &allFMAInstallerIDs, `
-					SELECT id FROM software_installers
-					WHERE global_or_team_id = ? AND title_id = ? AND fleet_maintained_app_id IS NOT NULL
-					ORDER BY uploaded_at DESC, id DESC
-				`, globalOrTeamID, titleID); err != nil {
+				fmaVersions, err := ds.getFleetMaintainedVersionsByTitleIDs(ctx, tx, []uint{titleID}, globalOrTeamID)
+				if err != nil {
 					return ctxerr.Wrapf(ctx, err, "list FMA installer versions for eviction for %q", installer.Filename)
 				}
-				if len(allFMAInstallerIDs) > maxCachedFMAVersions {
+				versions := fmaVersions[titleID]
+
+				if len(versions) > maxCachedFMAVersions {
 					// Build the keep set: active installer + most recent up to max.
 					keepSet := map[uint]bool{activeInstallerID: true}
-					for _, id := range allFMAInstallerIDs {
+					for _, v := range versions {
 						if len(keepSet) >= maxCachedFMAVersions {
 							break
 						}
-						keepSet[id] = true
+						keepSet[v.ID] = true
 					}
 
 					stmt, args, err := sqlx.In(
