@@ -1159,13 +1159,13 @@ SELECT 1 FROM registry WHERE key = 'HKEY_LOCAL_MACHINE\SOFTWARE\Adobe\Adobe Acro
 
 ## software_windows_jetbrains
 
-- Description: A software override query[^1] to append 'JetBrains' to the name of JetBrains Toolbox-managed applications on Windows. Requires `fleetd`
+- Description: A software override query to use the version from the product-info.json file for JetBrains programs on Windows.
 
 - Platforms: windows
 
 - Discovery query:
 ```sql
-SELECT 1 FROM osquery_registry WHERE active = true AND registry = 'table' AND name = 'programs'
+SELECT 1 FROM osquery_registry WHERE active = true AND registry = 'table' AND name = 'file_contents'
 ```
 
 - Query:
