@@ -11,7 +11,7 @@ packages:
     post_install_script:
       path: ../lib/some-team/scripts/my-software-package-darwin-postinstall
     pre_install_query:
-      path: ../lib/some-team/reports/my-software-package-darwin-preinstallquery.yml
+      path: ../lib/some-team/queries/my-software-package-darwin-preinstallquery.yml
     self_service: true
     uninstall_script:
       path: ../lib/some-team/scripts/my-software-package-darwin-uninstall
@@ -27,7 +27,7 @@ fleet_maintained_apps:
     post_install_script:
       path: ../lib/some-team/scripts/my-fma-darwin-postinstall
     pre_install_query:
-      path: ../lib/some-team/reports/my-fma-darwin-preinstallquery.yml
+      path: ../lib/some-team/queries/my-fma-darwin-preinstallquery.yml
     self_service: true
   - slug: fma2/windows
     self_service: true

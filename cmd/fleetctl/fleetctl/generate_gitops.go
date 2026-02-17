@@ -1680,7 +1680,7 @@ func (cmd *GenerateGitopsCommand) generateSoftware(filePath string, teamID uint,
 
 				if softwareTitle.SoftwarePackage.PreInstallQuery != "" {
 					query := softwareTitle.SoftwarePackage.PreInstallQuery
-					fileName := fmt.Sprintf("lib/%s/reports/%s", teamFilename, filenamePrefix+"-preinstallquery.yml")
+					fileName := fmt.Sprintf("lib/%s/queries/%s", teamFilename, filenamePrefix+"-preinstallquery.yml")
 					path := fmt.Sprintf("../%s", fileName)
 					softwareSpec["pre_install_query"] = map[string]interface{}{
 						"path": path,

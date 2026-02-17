@@ -134,7 +134,7 @@ software:
     post_install_script:
       path: "../lib/team-a-👍/scripts/my-fma-darwin-postinstall"
     pre_install_query:
-      path: "../lib/team-a-👍/reports/my-fma-darwin-preinstallquery.yml"
+      path: "../lib/team-a-👍/queries/my-fma-darwin-preinstallquery.yml"
     self_service: true
     setup_experience: true
     slug: fma1/darwin
@@ -156,7 +156,7 @@ software:
     post_install_script:
       path: "../lib/team-a-👍/scripts/my-software-package-darwin-postinstall"
     pre_install_query:
-      path: "../lib/team-a-👍/reports/my-software-package-darwin-preinstallquery.yml"
+      path: "../lib/team-a-👍/queries/my-software-package-darwin-preinstallquery.yml"
     self_service: true
     setup_experience: true
     uninstall_script:
