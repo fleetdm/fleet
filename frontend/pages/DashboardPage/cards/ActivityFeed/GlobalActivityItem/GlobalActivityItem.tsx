@@ -736,7 +736,9 @@ const TAGGED_TEMPLATES = {
       key.includes("_name")
     );
 
-    const activityType = lowerCase(activity.type).replace(" saved", "");
+    const activityType = lowerCase(activity.type)
+      .replace(" saved", "")
+      .replace("team", "fleet");
 
     return !entityName || typeof entityName !== "string" ? (
       `${activityType}.`
