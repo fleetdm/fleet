@@ -43,13 +43,9 @@ It's important to frame engineering-initiated user stories the same way we frame
 
 1. Create a new engineering-initiated story using the [new story template](https://github.com/fleetdm/fleet/issues/new?assignees=lukeheath&labels=story,~engineering-initiated&projects=&template=story.md&title=). Make sure the `~engineering-initiated` label is added, the `:product` label is removed, and the engineering output and architecture DRI (@lukeheath) is assigned.
 
-2. If the user story contributes to an OKR, explain how in the "Key result" section. If not, explain what key result we can measure to determine if this story is successful.
+2. Remove the "Product" section and checklist from the issue description. 
 
-3. Set yourself as the product designer for the user story if another engineer is not DRI. By default, the engineer creating the engineering-initiated story is DRI for the story and will design and implement it.
-
-4. Remove the "Product" section and checklist from the issue description. 
-
-5. Create the issue. The new user story will be automatically placed in the "New Requests" column of the [engineering GitHub board](https://github.com/orgs/fleetdm/projects/73). If you feel the issue is urgent, tag your EM or the engineering output and architecture DRI (@lukeheath) in a comment.
+3. Create the issue. The new user story will be automatically placed in the "New Requests" column of the [engineering GitHub board](https://github.com/orgs/fleetdm/projects/73). If you feel the issue is urgent, tag your EM or the engineering output and architecture DRI (@lukeheath) in a comment.
 
 > We prefer the term engineering-initiated stories over technical debt because the user story format helps keep us focused on our users and contributors.
 
