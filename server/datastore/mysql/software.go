@@ -3006,7 +3006,7 @@ func (ds *Datastore) InsertSoftwareVulnerabilities(
 	}
 
 	// Step 1: Batch-check which vulns already exist so we can identify truly new ones.
-	existing := make(map[string]bool, len(filtered))
+	existing := make(map[string]struct{}, len(filtered))
 	if err := common_mysql.BatchProcessSimple(filtered, vulnBatchSize, func(batch []fleet.SoftwareVulnerability) error {
 		tuples := strings.TrimSuffix(strings.Repeat("(?,?),", len(batch)), ",")
 		query := fmt.Sprintf(
@@ -3025,7 +3025,7 @@ func (ds *Datastore) InsertSoftwareVulnerabilities(
 			return ctxerr.Wrap(ctx, err, "batch check existing software vulnerabilities")
 		}
 		for _, r := range rows {
-			existing[fmt.Sprintf("%d:%s", r.SoftwareID, r.CVE)] = true
+			existing[fmt.Sprintf("%d:%s", r.SoftwareID, r.CVE)] = struct{}{}
 		}
 		return nil
 	}); err != nil {
@@ -3035,7 +3035,7 @@ func (ds *Datastore) InsertSoftwareVulnerabilities(
 	// Step 2: Identify new vulns (not already in the database).
 	var newVulns []fleet.SoftwareVulnerability
 	for _, v := range filtered {
-		if !existing[fmt.Sprintf("%d:%s", v.SoftwareID, v.CVE)] {
+		if _, ok := existing[fmt.Sprintf("%d:%s", v.SoftwareID, v.CVE)]; !ok {
 			newVulns = append(newVulns, v)
 		}
 	}
