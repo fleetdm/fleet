@@ -271,6 +271,7 @@ func TestAutomationsSchedule(t *testing.T) {
 	ds.GetLatestCronStatsFunc = mockStatsStore.GetLatestCronStats
 	ds.InsertCronStatsFunc = mockStatsStore.InsertCronStats
 	ds.UpdateCronStatsFunc = mockStatsStore.UpdateCronStats
+	ds.ClaimCronStatsFunc = mockStatsStore.ClaimCronStats
 
 	calledOnce := make(chan struct{})
 	calledTwice := make(chan struct{})
@@ -341,6 +342,7 @@ func TestCronVulnerabilitiesCreatesDatabasesPath(t *testing.T) {
 	ds.GetLatestCronStatsFunc = mockStatsStore.GetLatestCronStats
 	ds.InsertCronStatsFunc = mockStatsStore.InsertCronStats
 	ds.UpdateCronStatsFunc = mockStatsStore.UpdateCronStats
+	ds.ClaimCronStatsFunc = mockStatsStore.ClaimCronStats
 
 	vulnPath := filepath.Join(t.TempDir(), "something")
 	require.NoDirExists(t, vulnPath)
@@ -596,6 +598,173 @@ func TestScanVulnerabilities(t *testing.T) {
 	require.Equal(t, 1, webhookCount)
 }
 
+func TestScanVulnerabilitiesFreeTier(t *testing.T) {
+	nettest.Run(t)
+
+	logger := logging.NewNopLogger()
+
+	ctx := context.Background()
+
+	var mu sync.Mutex
+	var webhookCVEs []string
+	svr := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		var payload map[string]json.RawMessage
+		err := json.NewDecoder(r.Body).Decode(&payload)
+		require.NoError(t, err)
+
+		// Free tier payload
+		var vuln map[string]json.RawMessage
+		require.NoError(t, json.Unmarshal(payload["vulnerability"], &vuln))
+		require.NotContains(t, vuln, "epss_probability")
+		require.NotContains(t, vuln, "cvss_score")
+		require.NotContains(t, vuln, "cisa_known_exploit")
+		require.NotContains(t, vuln, "cve_published")
+		require.Contains(t, vuln, "cve")
+		require.Contains(t, vuln, "details_link")
+		require.Contains(t, vuln, "hosts_affected")
+
+		var cve string
+		require.NoError(t, json.Unmarshal(vuln["cve"], &cve))
+		mu.Lock()
+		webhookCVEs = append(webhookCVEs, cve)
+		mu.Unlock()
+	}))
+
+	appConfig := &fleet.AppConfig{
+		Features: fleet.Features{
+			EnableSoftwareInventory: true,
+		},
+		WebhookSettings: fleet.WebhookSettings{
+			VulnerabilitiesWebhook: fleet.VulnerabilitiesWebhookSettings{
+				Enable:         true,
+				DestinationURL: svr.URL,
+			},
+		},
+	}
+
+	ds := new(mock.Store)
+	ds.InsertCVEMetaFunc = func(ctx context.Context, x []fleet.CVEMeta) error {
+		return nil
+	}
+	ds.AllSoftwareIteratorFunc = func(ctx context.Context, query fleet.SoftwareIterQueryOptions) (fleet.SoftwareIterator, error) {
+		iterator := &softwareIterator{
+			softwares: []*fleet.Software{
+				{
+					ID:               1,
+					Name:             "Twisted",
+					Version:          "22.2.0",
+					BundleIdentifier: "",
+					Source:           "python_packages",
+				},
+			},
+		}
+		return iterator, nil
+	}
+	ds.ListSoftwareCPEsFunc = func(ctx context.Context) ([]fleet.SoftwareCPE, error) {
+		return []fleet.SoftwareCPE{
+			{
+				ID:         1,
+				SoftwareID: 1,
+				CPE:        "cpe:2.3:a:twistedmatrix:twisted:22.2.0:*:*:*:*:python:*:*",
+			},
+		}, nil
+	}
+	ds.InsertSoftwareVulnerabilityFunc = func(ctx context.Context, vuln fleet.SoftwareVulnerability, src fleet.VulnerabilitySource) (bool, error) {
+		return true, nil
+	}
+	ds.UpsertSoftwareCPEsFunc = func(ctx context.Context, cpes []fleet.SoftwareCPE) (int64, error) {
+		return int64(0), nil
+	}
+	ds.DeleteSoftwareCPEsFunc = func(ctx context.Context, cpes []fleet.SoftwareCPE) (int64, error) {
+		return int64(0), nil
+	}
+	ds.DeleteOutOfDateVulnerabilitiesFunc = func(ctx context.Context, source fleet.VulnerabilitySource, olderThan time.Time) error {
+		return nil
+	}
+	ds.OSVersionsFunc = func(
+		ctx context.Context, teamFilter *fleet.TeamFilter, platform *string, name *string, version *string,
+	) (*fleet.OSVersions, error) {
+		return &fleet.OSVersions{
+			CountsUpdatedAt: time.Now(),
+			OSVersions: []fleet.OSVersion{
+				{HostsCount: 1, Name: "Ubuntu 22.04.1 LTS", Platform: "ubuntu"},
+			},
+		}, nil
+	}
+	ds.HostIDsByOSVersionFunc = func(ctx context.Context, osVersion fleet.OSVersion, offset int, limit int) ([]uint, error) {
+		if offset == 0 {
+			return []uint{1}, nil
+		}
+		return []uint{}, nil
+	}
+	ds.ListSoftwareForVulnDetectionFunc = func(ctx context.Context, filter fleet.VulnSoftwareFilter) ([]fleet.Software, error) {
+		return []fleet.Software{
+			{
+				ID:               1,
+				Name:             "Twisted",
+				Version:          "22.2.0",
+				BundleIdentifier: "",
+				Source:           "python_packages",
+			},
+		}, nil
+	}
+	ds.ListSoftwareVulnerabilitiesByHostIDsSourceFunc = func(ctx context.Context, hostIDs []uint, source fleet.VulnerabilitySource) (map[uint][]fleet.SoftwareVulnerability, error) {
+		require.Equal(t, []uint{1}, hostIDs)
+		require.Equal(t, fleet.UbuntuOVALSource, source)
+		return map[uint][]fleet.SoftwareVulnerability{}, nil
+	}
+	ds.ListOperatingSystemsFunc = func(ctx context.Context) ([]fleet.OperatingSystem, error) {
+		return []fleet.OperatingSystem{
+			{
+				ID:            1,
+				Name:          "Ubuntu",
+				Version:       "22.04.1 LTS",
+				Arch:          "x86_64",
+				KernelVersion: "5.10.124-linuxkit",
+			},
+		}, nil
+	}
+	ds.ListOperatingSystemsForPlatformFunc = func(ctx context.Context, platform string) ([]fleet.OperatingSystem, error) {
+		return []fleet.OperatingSystem{}, nil
+	}
+	ds.DeleteOutOfDateOSVulnerabilitiesFunc = func(ctx context.Context, src fleet.VulnerabilitySource, t time.Time) error {
+		return nil
+	}
+	ds.ListCVEsFunc = func(ctx context.Context, maxAge time.Duration) ([]fleet.CVEMeta, error) {
+		t.Error("ListCVEs should not be called on free tier")
+		return nil, nil
+	}
+	ds.HostVulnSummariesBySoftwareIDsFunc = func(ctx context.Context, softwareIDs []uint) ([]fleet.HostVulnerabilitySummary, error) {
+		return []fleet.HostVulnerabilitySummary{
+			{
+				ID:          1,
+				Hostname:    "1",
+				DisplayName: "1",
+			},
+		}, nil
+	}
+	ds.IsHostConnectedToFleetMDMFunc = func(ctx context.Context, host *fleet.Host) (bool, error) {
+		return true, nil
+	}
+
+	vulnPath := filepath.Join("..", "..", "server", "vulnerabilities", "testdata")
+
+	vulnsConfig := config.VulnerabilitiesConfig{
+		DatabasesPath:         vulnPath,
+		Periodicity:           10 * time.Second,
+		CurrentInstanceChecks: "auto",
+		DisableDataSync:       true,
+	}
+
+	ctx = license.NewContext(ctx, &fleet.LicenseInfo{Tier: fleet.TierFree})
+	err := scanVulnerabilities(ctx, ds, logger, &vulnsConfig, appConfig, vulnPath)
+	require.NoError(t, err)
+
+	require.False(t, ds.DeleteSoftwareVulnerabilitiesFuncInvoked)
+
+	require.NotEmpty(t, webhookCVEs)
+}
+
 func TestUpdateVulnHostCounts(t *testing.T) {
 	logger := logging.NewNopLogger()
 
@@ -704,6 +873,7 @@ func TestCronVulnerabilitiesSkipMkdirIfDisabled(t *testing.T) {
 	ds.GetLatestCronStatsFunc = mockStatsStore.GetLatestCronStats
 	ds.InsertCronStatsFunc = mockStatsStore.InsertCronStats
 	ds.UpdateCronStatsFunc = mockStatsStore.UpdateCronStats
+	ds.ClaimCronStatsFunc = mockStatsStore.ClaimCronStats
 
 	vulnPath := filepath.Join(t.TempDir(), "something")
 	require.NoDirExists(t, vulnPath)
@@ -797,6 +967,7 @@ func TestAutomationsScheduleLockDuration(t *testing.T) {
 	ds.GetLatestCronStatsFunc = mockStatsStore.GetLatestCronStats
 	ds.InsertCronStatsFunc = mockStatsStore.InsertCronStats
 	ds.UpdateCronStatsFunc = mockStatsStore.UpdateCronStats
+	ds.ClaimCronStatsFunc = mockStatsStore.ClaimCronStats
 
 	ctx, cancelFunc := context.WithCancel(context.Background())
 	defer cancelFunc()
@@ -863,6 +1034,7 @@ func TestAutomationsScheduleIntervalChange(t *testing.T) {
 	ds.GetLatestCronStatsFunc = mockStatsStore.GetLatestCronStats
 	ds.InsertCronStatsFunc = mockStatsStore.InsertCronStats
 	ds.UpdateCronStatsFunc = mockStatsStore.UpdateCronStats
+	ds.ClaimCronStatsFunc = mockStatsStore.ClaimCronStats
 
 	ctx, cancelFunc := context.WithCancel(context.Background())
 	defer cancelFunc()

@@ -18,6 +18,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log/slog"
 	"math/big"
 	"mime/multipart"
 	"net/http"
@@ -957,7 +958,7 @@ func (s *integrationMDMTestSuite) awaitTriggerProfileSchedule(t *testing.T) {
 		err        error
 	)
 	for range 10 {
-		_, didTrigger, err = s.profileSchedule.Trigger()
+		_, didTrigger, err = s.profileSchedule.Trigger(t.Context())
 		require.NoError(t, err)
 		if didTrigger {
 			break
@@ -994,7 +995,7 @@ func (s *integrationMDMTestSuite) awaitTriggerAndroidProfileSchedule(t *testing.
 		err        error
 	)
 	for range 10 {
-		_, didTrigger, err = s.androidProfileSchedule.Trigger()
+		_, didTrigger, err = s.androidProfileSchedule.Trigger(t.Context())
 		require.NoError(t, err)
 		if didTrigger {
 			break
@@ -6144,7 +6145,7 @@ func (s *integrationMDMTestSuite) TestSSO() {
 	}
 	err = detailQueries["mdm"].DirectIngestFunc(
 		context.Background(),
-		logging.NewNopLogger(),
+		slog.New(slog.DiscardHandler),
 		&fleet.Host{ID: hostResp.Host.ID},
 		s.ds,
 		rows,
@@ -6175,7 +6176,7 @@ func (s *integrationMDMTestSuite) TestSSO() {
 	}
 	err = detailQueries["google_chrome_profiles"].DirectIngestFunc(
 		context.Background(),
-		logging.NewNopLogger(),
+		slog.New(slog.DiscardHandler),
 		&fleet.Host{ID: hostResp.Host.ID},
 		s.ds,
 		rows,
@@ -6241,7 +6242,7 @@ func (s *integrationMDMTestSuite) TestSSO() {
 	// reporting google chrome profiles only clears chrome profiles from device mapping
 	err = detailQueries["google_chrome_profiles"].DirectIngestFunc(
 		context.Background(),
-		logging.NewNopLogger(),
+		slog.New(slog.DiscardHandler),
 		&fleet.Host{ID: hostResp.Host.ID},
 		s.ds,
 		[]map[string]string{},
@@ -6488,7 +6489,7 @@ func (s *integrationMDMTestSuite) TestSSOWithSCIM() {
 	}
 	err = detailQueries["mdm"].DirectIngestFunc(
 		context.Background(),
-		logging.NewNopLogger(),
+		slog.New(slog.DiscardHandler),
 		&fleet.Host{ID: hostResp.Host.ID},
 		s.ds,
 		rows,
@@ -6509,7 +6510,7 @@ func (s *integrationMDMTestSuite) TestSSOWithSCIM() {
 	}
 	err = detailQueries["google_chrome_profiles"].DirectIngestFunc(
 		context.Background(),
-		logging.NewNopLogger(),
+		slog.New(slog.DiscardHandler),
 		&fleet.Host{ID: hostResp.Host.ID},
 		s.ds,
 		rows,
@@ -10355,7 +10356,7 @@ func (s *integrationMDMTestSuite) runIntegrationsSchedule() {
 		err        error
 	)
 	for range 10 {
-		_, didTrigger, err = s.integrationsSchedule.Trigger()
+		_, didTrigger, err = s.integrationsSchedule.Trigger(s.T().Context())
 		require.NoError(s.T(), err)
 		if didTrigger {
 			break
@@ -10377,7 +10378,7 @@ func (s *integrationMDMTestSuite) awaitRunCleanupSchedule() {
 		err        error
 	)
 	for range 10 {
-		_, didTrigger, err = s.cleanupsSchedule.Trigger()
+		_, didTrigger, err = s.cleanupsSchedule.Trigger(s.T().Context())
 		require.NoError(s.T(), err)
 		if didTrigger {
 			break
