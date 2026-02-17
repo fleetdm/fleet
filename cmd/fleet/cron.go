@@ -221,7 +221,7 @@ func scanVulnerabilities(
 	if license.IsPremium(ctx) {
 		meta, err := ds.ListCVEs(automationCtx, config.RecentVulnerabilityMaxAge)
 		if err != nil {
-		errHandler(automationCtx, logger, "could not fetch CVE meta", err)
+			errHandler(automationCtx, logger, "could not fetch CVE meta", err)
 			return nil
 		}
 		recentV, matchingMeta = utils.RecentVulns(vulns, meta)
