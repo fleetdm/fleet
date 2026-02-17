@@ -317,7 +317,7 @@ func GitOpsFromFile(filePath, baseDir string, appConfig *fleet.EnrichedAppConfig
 		}
 	}
 
-	// Figure out if this is an org or team settings file
+	// Figure out if this is an org or fleet settings file
 	teamRaw, teamOk := top["name"]
 	settingsRaw, settingsOk := top["settings"]
 	orgSettingsRaw, orgOk := top["org_settings"]
