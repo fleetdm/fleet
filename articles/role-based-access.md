@@ -104,7 +104,6 @@ GitOps is an API-only and write-only role that can be used on CI/CD pipelines.
 | View saved scripts\*                                                                                                                       | ✅       | ✅         | ✅         | ✅    |         |
 | Edit/upload saved scripts\*                                                                                                                |          |            | ✅         | ✅    | ✅      |
 | Lock, unlock, and wipe hosts\*                                                                                                             |          |            | ✅         | ✅    |         |
-| Download fleetd installers                                                                                                                 |          |            | ✅         | ✅    |       |
 | Turn off MDM for specific hosts                                                                                                            |          |            | ✅         | ✅    |         |
 | Configure Microsoft Entra conditional access integration                                                                                   |          |            |            | ✅    |         |
 | View [custom variables](https://fleetdm.com/docs/rest-api/rest-api#list-custom-variables)                                                  | ✅       | ✅         | ✅         | ✅    |         |
@@ -182,7 +181,6 @@ Users with access to multiple teams can be assigned different roles for each tea
 | Edit/upload saved scripts                                                                                                        |               |                | ✅              | ✅         |             |
 | View script details by host                                                                                                      | ✅            | ✅             | ✅              | ✅         |             |
 | Lock, unlock, and wipe hosts                                                                                                     |               |                | ✅              | ✅         |             |
-| Download fleetd installers                                                                                                       |               |                | ✅              | ✅         |             |
 | Turn off MDM for specific hosts                                                                                                  |               |                | ✅              | ✅         |             |
 | View [custom variables](https://fleetdm.com/docs/rest-api/rest-api#list-custom-variables)                                        | ✅            | ✅             | ✅              | ✅         |             |
 
