@@ -501,7 +501,7 @@ module "firehose-logging" {
   firehose_status_name  = "osquery_status"
   firehose_audit_name   = "fleet_audit"
   iam_role_arn          = "arn:aws:iam::273354660820:role/terraform-20260217045329203000000002"
-  region                = data.aws_region.current.region
+  region                = "us-east-1"
 }
 
 module "osquery-carve" {
