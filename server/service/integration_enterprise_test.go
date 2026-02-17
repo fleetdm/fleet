@@ -14300,9 +14300,9 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareInstallerNewInstallRequestP
 
 			_, err = q.ExecContext(ctx, `
 			INSERT INTO software_installers
-				(title_id, filename, extension, version, platform, install_script_content_id, uninstall_script_content_id, storage_id, team_id, global_or_team_id, pre_install_query, package_ids)
+				(title_id, filename, extension, version, platform, install_script_content_id, uninstall_script_content_id, storage_id, team_id, global_or_team_id, pre_install_query, package_ids, is_active)
 			VALUES
-				(?, ?, ?, ?, ?, ?, ?, unhex(?), ?, ?, ?, ?)`,
+				(?, ?, ?, ?, ?, ?, ?, unhex(?), ?, ?, ?, ?, TRUE)`,
 				titleID, fmt.Sprintf("installer.%s", kind), kind, "v1.0.0", platform, scriptContentID, uninstallScriptContentID,
 				hex.EncodeToString([]byte("test")), tm.ID, tm.ID, "foo", "")
 			return err
