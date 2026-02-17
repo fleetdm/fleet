@@ -1,6 +1,8 @@
 import React, { useContext } from "react";
 import { Link } from "react-router";
 
+import { LEARN_MORE_ABOUT_BASE_LINK } from "utilities/constants";
+
 import PATHS from "router/paths";
 import { NotificationContext } from "context/notification";
 import { getErrorReason } from "interfaces/errors";
@@ -92,9 +94,8 @@ const LockModal = ({
           </p>
           <p> It can only be unlocked through Fleet.</p>
           <p>
-            If the device is turned off or restarted
-            while locked, it will disconnect from WiFi and won't be able to
-            unlock the host remotely.
+            If the device is turned off or restarted while locked, it will
+            disconnect from WiFi and won't be able to unlock the host remotely.
             <CustomLink
               newTab
               text="Learn more"
