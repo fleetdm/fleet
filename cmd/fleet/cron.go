@@ -1393,7 +1393,7 @@ func newWindowsMDMProfileManagerSchedule(
 		ctx, name, instanceID, defaultInterval, ds, ds,
 		schedule.WithLogger(logger),
 		schedule.WithJob("manage_windows_profiles", func(ctx context.Context) error {
-			return service.ReconcileWindowsProfiles(ctx, ds, logger)
+			return service.ReconcileWindowsProfiles(ctx, ds, logger.SlogLogger())
 		}),
 	)
 
@@ -1720,7 +1720,7 @@ func newMaintainedAppSchedule(
 		// ensures it runs a few seconds after Fleet is started
 		schedule.WithDefaultPrevRunCreatedAt(time.Now().Add(priorJobDiff)),
 		schedule.WithJob("refresh_maintained_apps", func(ctx context.Context) error {
-			return maintained_apps.Refresh(ctx, ds, logger)
+			return maintained_apps.Refresh(ctx, ds, logger.SlogLogger())
 		}),
 	)
 

@@ -934,7 +934,7 @@ func (s *integrationMDMTestSuite) reportWindowsOSQueryProfiles(ctx context.Conte
 	require.NoError(t, err)
 	out, err := xml.Marshal(msg)
 	require.NoError(t, err)
-	require.NoError(t, microsoft_mdm.VerifyHostMDMProfiles(ctx, s.logger, s.ds, host, out))
+	require.NoError(t, microsoft_mdm.VerifyHostMDMProfiles(ctx, s.logger.SlogLogger(), s.ds, host, out))
 }
 
 func (s *integrationMDMTestSuite) TestWindowsProfileRetries() {

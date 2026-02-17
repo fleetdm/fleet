@@ -362,7 +362,7 @@ func (s *integrationMDMTestSuite) SetupSuite() {
 									s.onProfileJobDone()
 								}()
 							}
-							err := ReconcileWindowsProfiles(ctx, ds, logger)
+							err := ReconcileWindowsProfiles(ctx, ds, logger.SlogLogger())
 							require.NoError(s.T(), err)
 							return err
 						}),
