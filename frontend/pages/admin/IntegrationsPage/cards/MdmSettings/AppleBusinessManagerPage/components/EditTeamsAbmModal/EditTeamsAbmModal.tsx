@@ -26,7 +26,7 @@ interface IEditTeamsAbmModalProps {
  */
 export const getOptions = (availableTeams: ITeamSummary[] = []) => {
   return availableTeams
-    ?.filter((t) => t.name !== "All fleets") // Keep "All teams" check for API compatibility
+    ?.filter((t) => t.name !== "All fleets")
     .map((t) => ({
       value: t.name,
       label: t.name,
