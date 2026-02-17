@@ -18,6 +18,12 @@
     gap: $pad-medium;
   }
 
+  &__wifi-warning {
+    p {
+      margin: 0;
+    }
+  }
+
   h3 {
     margin: 0;
     font-size: $small;

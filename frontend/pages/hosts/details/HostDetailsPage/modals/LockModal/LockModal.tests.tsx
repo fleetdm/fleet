@@ -49,6 +49,31 @@ describe("LockModal", () => {
     expect(screen.getByText(/iphone-1/i)).toBeInTheDocument();
   });
 
+  it("renders WiFi warning for iOS/iPadOS platforms", () => {
+    const render = createCustomRenderer({ withBackendMock: true });
+    render(<LockModal {...MOCK_PROPS} platform="ios" hostName="iphone-1" />);
+
+    expect(
+      screen.getByText(
+        /If the device is turned off or restarted while locked, it will disconnect from WiFi/i
+      )
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        /won't be able to receive MDM commands necessary to unlock the host/i
+      )
+    ).toBeInTheDocument();
+  });
+
+  it("does not render WiFi warning for macOS platform", () => {
+    const render = createCustomRenderer({ withBackendMock: true });
+    render(<LockModal {...MOCK_PROPS} platform="darwin" />);
+
+    expect(
+      screen.queryByText(/If the device is turned off or restarted while locked/i)
+    ).not.toBeInTheDocument();
+  });
+
   it("disables Lock button until confirm checkbox is checked", async () => {
     const render = createCustomRenderer({ withBackendMock: true });
     const { user } = render(<LockModal {...MOCK_PROPS} />);
