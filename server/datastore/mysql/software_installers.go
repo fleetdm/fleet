@@ -2744,24 +2744,13 @@ WHERE
 					}
 				}
 
-				// Set the active installer to is_active = 1
+				// Update the active installer and set all others to inactive
 				if _, err := tx.ExecContext(ctx, `
 					UPDATE software_installers
-					SET is_active = 1
-					WHERE id = ?
-				`, activeInstallerID); err != nil {
+					SET is_active = (id = ?)
+					WHERE global_or_team_id = ? AND fleet_maintained_app_id = ?
+				`, activeInstallerID, globalOrTeamID, installer.FleetMaintainedAppID); err != nil {
 					return ctxerr.Wrapf(ctx, err, "setting active installer for %q", installer.Filename)
-				}
-
-				// Set all other installers for this FMA+team to is_active = 0
-				if _, err := tx.ExecContext(ctx, `
-					UPDATE software_installers
-					SET is_active = 0
-					WHERE id != ?
-						AND global_or_team_id = ?
-						AND fleet_maintained_app_id = ?
-				`, activeInstallerID, globalOrTeamID, *installer.FleetMaintainedAppID); err != nil {
-					return ctxerr.Wrapf(ctx, err, "deactivating other installers for %q", installer.Filename)
 				}
 			}
 
