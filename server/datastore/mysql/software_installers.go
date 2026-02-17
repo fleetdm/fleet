@@ -518,9 +518,7 @@ func (ds *Datastore) getOrGenerateSoftwareInstallerTitleID(ctx context.Context, 
 	}
 
 	if payload.BundleIdentifier != "" {
-		// Match by bundle identifier and source first, or standard matching if we don't have a bundle identifier match.
-		// It might be possible for idx_software_titles_bundle_identifier to fail if a title with the same bundle identifier
-		// but a different source that isn't ios_apps or ipados_apps exists.
+		// match by bundle identifier and source first, or standard matching if we don't have a bundle identifier match
 		selectStmt = `SELECT id FROM software_titles WHERE (bundle_identifier = ? AND source = ?) OR (name = ? AND source = ? AND extension_for = '') ORDER BY bundle_identifier = ? DESC LIMIT 1`
 		selectArgs = []any{payload.BundleIdentifier, payload.Source, payload.Title, payload.Source, payload.BundleIdentifier}
 		// omit upgrade_code, since title.upgrade_code should be NULL for non-Windows software
