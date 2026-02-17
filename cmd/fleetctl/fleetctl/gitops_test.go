@@ -116,6 +116,9 @@ func TestGitOpsBasicGlobalFree(t *testing.T) {
 	) (teamPolicies []*fleet.Policy, inheritedPolicies []*fleet.Policy, err error) {
 		return nil, nil, nil
 	}
+	ds.TeamLiteFunc = func(ctx context.Context, tid uint) (*fleet.TeamLite, error) {
+		return &fleet.TeamLite{}, nil
+	}
 
 	// Mock appConfig
 	savedAppConfig := &fleet.AppConfig{}
@@ -369,6 +372,9 @@ func TestGitOpsBasicGlobalPremium(t *testing.T) {
 	}
 	ds.ListSoftwareAutoUpdateSchedulesFunc = func(ctx context.Context, teamID uint, source string, optionalFilter ...fleet.SoftwareAutoUpdateScheduleFilter) ([]fleet.SoftwareAutoUpdateSchedule, error) {
 		return []fleet.SoftwareAutoUpdateSchedule{}, nil
+	}
+	ds.TeamLiteFunc = func(ctx context.Context, id uint) (*fleet.TeamLite, error) {
+		return &fleet.TeamLite{}, nil
 	}
 
 	// we'll use to mock datastore persistence
@@ -1936,6 +1942,8 @@ software:
 			return team.ToTeamLite(), nil
 		case teamToDeleteID:
 			return teamToDelete.ToTeamLite(), nil
+		case 0:
+			return &fleet.TeamLite{}, nil
 		}
 		assert.Fail(t, fmt.Sprintf("unexpected team ID %d", tid))
 		return teamToDelete.ToTeamLite(), nil

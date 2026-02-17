@@ -2871,6 +2871,36 @@ func testListSoftwareForVulnDetection(t *testing.T, ds *Datastore) {
 		require.Equal(t, "baz", result[0].Name)
 		require.Equal(t, "biz", result[1].Name)
 	})
+
+	t.Run("KernelsOnly filter returns only kernel software", func(t *testing.T) {
+		ctx := context.Background()
+
+		host := test.NewHost(t, ds, "host_kernel_test", "", "hostkernelkey", "hostkerneluuid", time.Now())
+		host.Platform = "rhel"
+		require.NoError(t, ds.UpdateHost(ctx, host))
+
+		software := []fleet.Software{
+			{Name: "kernel", Version: "5.14.0-503.38.1.el9_5", Release: "", Arch: "x86_64", Source: "rpm_packages", IsKernel: true},
+			{Name: "kernel-modules", Version: "5.14.0", Release: "503.38.1.el9_5", Arch: "x86_64", Source: "rpm_packages", IsKernel: false},
+			{Name: "bash", Version: "5.1.8", Release: "6.el9_1", Arch: "x86_64", Source: "rpm_packages", IsKernel: false},
+			{Name: "openssl", Version: "3.0.7", Release: "18.el9_2", Arch: "x86_64", Source: "rpm_packages", IsKernel: false},
+		}
+		_, err := ds.UpdateHostSoftware(ctx, host.ID, software)
+		require.NoError(t, err)
+
+		// Test KernelsOnly filter
+		filter := fleet.VulnSoftwareFilter{HostID: &host.ID, KernelsOnly: true}
+		result, err := ds.ListSoftwareForVulnDetection(ctx, filter)
+		require.NoError(t, err)
+		require.Len(t, result, 1)
+		require.Equal(t, "kernel", result[0].Name)
+
+		// Verify non-kernel filter returns all software
+		filter = fleet.VulnSoftwareFilter{HostID: &host.ID, KernelsOnly: false}
+		result, err = ds.ListSoftwareForVulnDetection(ctx, filter)
+		require.NoError(t, err)
+		require.Len(t, result, 4)
+	})
 }
 
 func testSoftwareByIDNoDuplicatedVulns(t *testing.T, ds *Datastore) {

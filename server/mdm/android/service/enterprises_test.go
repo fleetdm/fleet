@@ -15,9 +15,9 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mdm/android"
 	android_mock "github.com/fleetdm/fleet/v4/server/mdm/android/mock"
 	ds_mock "github.com/fleetdm/fleet/v4/server/mock"
+	"github.com/fleetdm/fleet/v4/server/platform/logging"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/service/modules/activities"
-	kitlog "github.com/go-kit/log"
 	"github.com/jmoiron/sqlx"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -28,10 +28,10 @@ import (
 func TestEnterprisesAuth(t *testing.T) {
 	androidAPIClient := android_mock.Client{}
 	androidAPIClient.InitCommonMocks()
-	logger := kitlog.NewLogfmtLogger(os.Stdout)
+	logger := logging.NewLogfmtLogger(os.Stdout)
 	fleetDS := InitCommonDSMocks()
 	activityModule := activities.NewActivityModule(fleetDS, logger)
-	svc, err := NewServiceWithClient(logger, fleetDS, &androidAPIClient, "test-private-key", &fleetDS.DataStore, activityModule, config.AndroidAgentConfig{})
+	svc, err := NewServiceWithClient(logger.SlogLogger(), fleetDS, &androidAPIClient, "test-private-key", &fleetDS.DataStore, activityModule, config.AndroidAgentConfig{})
 	require.NoError(t, err)
 
 	testCases := []struct {
@@ -126,11 +126,11 @@ func TestEnterprisesAuth(t *testing.T) {
 func TestEnterpriseSignupMissingPrivateKey(t *testing.T) {
 	androidAPIClient := android_mock.Client{}
 	androidAPIClient.InitCommonMocks()
-	logger := kitlog.NewLogfmtLogger(os.Stdout)
+	logger := logging.NewLogfmtLogger(os.Stdout)
 	fleetDS := InitCommonDSMocks()
 	activityModule := activities.NewActivityModule(fleetDS, logger)
 
-	svc, err := NewServiceWithClient(logger, fleetDS, &androidAPIClient, "test-private-key", &fleetDS.DataStore, activityModule, config.AndroidAgentConfig{})
+	svc, err := NewServiceWithClient(logger.SlogLogger(), fleetDS, &androidAPIClient, "test-private-key", &fleetDS.DataStore, activityModule, config.AndroidAgentConfig{})
 	require.NoError(t, err)
 
 	user := &fleet.User{ID: 1, GlobalRole: ptr.String(fleet.RoleAdmin)}
@@ -237,7 +237,7 @@ func (e *notFoundError) Error() string    { return "not found" }
 func (e *notFoundError) IsNotFound() bool { return true }
 
 func TestGetEnterprise(t *testing.T) {
-	logger := kitlog.NewLogfmtLogger(os.Stdout)
+	logger := logging.NewLogfmtLogger(os.Stdout)
 	user := &fleet.User{ID: 1, GlobalRole: ptr.String(fleet.RoleAdmin)}
 	ctx := viewer.NewContext(context.Background(), viewer.Viewer{User: user})
 
@@ -247,7 +247,7 @@ func TestGetEnterprise(t *testing.T) {
 
 		fleetDS := InitCommonDSMocks()
 		activityModule := activities.NewActivityModule(fleetDS, logger)
-		svc, err := NewServiceWithClient(logger, fleetDS, &androidAPIClient, "test-private-key", &fleetDS.DataStore, activityModule, config.AndroidAgentConfig{})
+		svc, err := NewServiceWithClient(logger.SlogLogger(), fleetDS, &androidAPIClient, "test-private-key", &fleetDS.DataStore, activityModule, config.AndroidAgentConfig{})
 		require.NoError(t, err)
 
 		enterprise, err := svc.GetEnterprise(ctx)
@@ -267,7 +267,7 @@ func TestGetEnterprise(t *testing.T) {
 		}
 
 		activityModule := activities.NewActivityModule(fleetDS, logger)
-		svc, err := NewServiceWithClient(logger, fleetDS, &androidAPIClient, "test-private-key", &fleetDS.DataStore, activityModule, config.AndroidAgentConfig{})
+		svc, err := NewServiceWithClient(logger.SlogLogger(), fleetDS, &androidAPIClient, "test-private-key", &fleetDS.DataStore, activityModule, config.AndroidAgentConfig{})
 		require.NoError(t, err)
 
 		enterprise, err := svc.GetEnterprise(ctx)
@@ -281,7 +281,7 @@ func TestGetEnterprise(t *testing.T) {
 }
 
 func TestVerifyExistingEnterpriseIfAny(t *testing.T) {
-	logger := kitlog.NewLogfmtLogger(os.Stdout)
+	logger := logging.NewLogfmtLogger(os.Stdout)
 	user := &fleet.User{ID: 1, GlobalRole: ptr.String(fleet.RoleAdmin)}
 	ctx := viewer.NewContext(context.Background(), viewer.Viewer{User: user})
 
@@ -313,7 +313,7 @@ func TestVerifyExistingEnterpriseIfAny(t *testing.T) {
 		}
 
 		activityModule := activities.NewActivityModule(fleetDS, logger)
-		svc, err := NewServiceWithClient(logger, fleetDS, &androidAPIClient, "test-private-key", &fleetDS.DataStore, activityModule, config.AndroidAgentConfig{})
+		svc, err := NewServiceWithClient(logger.SlogLogger(), fleetDS, &androidAPIClient, "test-private-key", &fleetDS.DataStore, activityModule, config.AndroidAgentConfig{})
 		require.NoError(t, err)
 
 		err = svc.VerifyExistingEnterpriseIfAny(ctx)
@@ -362,7 +362,7 @@ func TestVerifyExistingEnterpriseIfAny(t *testing.T) {
 		}
 
 		activityModule := activities.NewActivityModule(fleetDS, logger)
-		svc, err := NewServiceWithClient(logger, fleetDS, &androidAPIClient, "test-private-key", &fleetDS.DataStore, activityModule, config.AndroidAgentConfig{})
+		svc, err := NewServiceWithClient(logger.SlogLogger(), fleetDS, &androidAPIClient, "test-private-key", &fleetDS.DataStore, activityModule, config.AndroidAgentConfig{})
 		require.NoError(t, err)
 
 		err = svc.VerifyExistingEnterpriseIfAny(ctx)
@@ -403,7 +403,7 @@ func TestVerifyExistingEnterpriseIfAny(t *testing.T) {
 		}
 
 		activityModule := activities.NewActivityModule(fleetDS, logger)
-		svc, err := NewServiceWithClient(logger, fleetDS, &androidAPIClient, "test-private-key", &fleetDS.DataStore, activityModule, config.AndroidAgentConfig{})
+		svc, err := NewServiceWithClient(logger.SlogLogger(), fleetDS, &androidAPIClient, "test-private-key", &fleetDS.DataStore, activityModule, config.AndroidAgentConfig{})
 		require.NoError(t, err)
 
 		err = svc.VerifyExistingEnterpriseIfAny(ctx)
@@ -444,7 +444,7 @@ func TestVerifyExistingEnterpriseIfAny(t *testing.T) {
 		}
 
 		activityModule := activities.NewActivityModule(fleetDS, logger)
-		svc, err := NewServiceWithClient(logger, fleetDS, &androidAPIClient, "test-private-key", &fleetDS.DataStore, activityModule, config.AndroidAgentConfig{})
+		svc, err := NewServiceWithClient(logger.SlogLogger(), fleetDS, &androidAPIClient, "test-private-key", &fleetDS.DataStore, activityModule, config.AndroidAgentConfig{})
 		require.NoError(t, err)
 
 		err = svc.VerifyExistingEnterpriseIfAny(ctx)
@@ -511,7 +511,7 @@ func TestVerifyExistingEnterpriseIfAny(t *testing.T) {
 				}
 
 				activityModule := activities.NewActivityModule(fleetDS, logger)
-				svc, err := NewServiceWithClient(logger, fleetDS, &androidAPIClient, "test-private-key", &fleetDS.DataStore, activityModule, config.AndroidAgentConfig{})
+				svc, err := NewServiceWithClient(logger.SlogLogger(), fleetDS, &androidAPIClient, "test-private-key", &fleetDS.DataStore, activityModule, config.AndroidAgentConfig{})
 				require.NoError(t, err)
 
 				err = svc.VerifyExistingEnterpriseIfAny(ctx)
@@ -541,7 +541,7 @@ func TestVerifyExistingEnterpriseIfAny(t *testing.T) {
 		}
 
 		activityModule := activities.NewActivityModule(fleetDS, logger)
-		svc, err := NewServiceWithClient(logger, fleetDS, &androidAPIClient, "test-private-key", &fleetDS.DataStore, activityModule, config.AndroidAgentConfig{})
+		svc, err := NewServiceWithClient(logger.SlogLogger(), fleetDS, &androidAPIClient, "test-private-key", &fleetDS.DataStore, activityModule, config.AndroidAgentConfig{})
 		require.NoError(t, err)
 
 		err = svc.VerifyExistingEnterpriseIfAny(ctx)

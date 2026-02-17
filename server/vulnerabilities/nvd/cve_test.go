@@ -180,8 +180,9 @@ func TestTranslateCPEToCVE(t *testing.T) {
 				{ID: "CVE-2021-3572", resolvedInVersion: "21.1"},
 				{ID: "CVE-2025-8869", resolvedInVersion: "25.3"},
 				{ID: "CVE-2023-5752", resolvedInVersion: "23.3"},
+				{ID: "CVE-2026-1703", resolvedInVersion: "26.0"},
 			},
-			continuesToUpdate: false,
+			continuesToUpdate: true,
 		},
 		"cpe:2.3:a:mozilla:firefox:93.0:*:*:*:*:windows:*:*": {
 			includedCVEs:      firefox93WindowsVulnerabilities,
@@ -291,13 +292,14 @@ func TestTranslateCPEToCVE(t *testing.T) {
 			},
 			continuesToUpdate: false,
 		},
-		/*"cpe:2.3:a:microsoft:python_extension:2020.9.1:*:*:*:*:visual_studio_code:*:*": {
+		"cpe:2.3:a:microsoft:python_extension:2020.9.1:*:*:*:*:visual_studio_code:*:*": {
 			includedCVEs: []cve{
 				{ID: "CVE-2020-17163", resolvedInVersion: "2020.9.2"},
 				{ID: "CVE-2024-49050", resolvedInVersion: "2024.18.2"},
+				{ID: "CVE-2025-49714", resolvedInVersion: "2025.8.1"},
 			},
 			continuesToUpdate: false,
-		},*/
+		},
 		"cpe:2.3:a:microsoft:jupyter:2023.10.10:*:*:*:*:visual_studio_code:*:*": {
 			includedCVEs: []cve{
 				{ID: "CVE-2023-36018", resolvedInVersion: "2023.10.1100000000"},
@@ -314,15 +316,16 @@ func TestTranslateCPEToCVE(t *testing.T) {
 			},
 			continuesToUpdate: false,
 		},
-		/*"cpe:2.3:a:microsoft:python_extension:2020.4.0:*:*:*:*:visual_studio_code:*:*": {
+		"cpe:2.3:a:microsoft:python_extension:2020.4.0:*:*:*:*:visual_studio_code:*:*": {
 			includedCVEs: []cve{
 				{ID: "CVE-2020-1171", resolvedInVersion: "2020.5.0"},
 				{ID: "CVE-2020-1192", resolvedInVersion: "2020.5.0"},
 				{ID: "CVE-2020-17163", resolvedInVersion: "2020.9.2"},
 				{ID: "CVE-2024-49050", resolvedInVersion: "2024.18.2"},
+				{ID: "CVE-2025-49714", resolvedInVersion: "2025.8.1"},
 			},
 			continuesToUpdate: false,
-		},*/
+		},
 		// #34323
 		"cpe:2.3:a:valvesoftware:dota_2:1.0:*:*:*:*:macos:*:*": {
 			excludedCVEs: []string{
@@ -1204,6 +1207,8 @@ func TestExpandCPEAliases(t *testing.T) {
 	pythonCodeExtensionAlias2 := *pythonCodeExtension
 	pythonCodeExtensionAlias2.Product = "visual_studio_code"
 	pythonCodeExtensionAlias2.TargetSW = "python"
+	pythonCodeExtensionAlias3 := *pythonCodeExtension
+	pythonCodeExtensionAlias3.Product = "python"
 
 	python3140Alpha2 := &wfn.Attributes{
 		Vendor:   "python",
@@ -1291,7 +1296,7 @@ func TestExpandCPEAliases(t *testing.T) {
 		{
 			name:            "python visual studio code extension",
 			cpeItem:         pythonCodeExtension,
-			expectedAliases: []*wfn.Attributes{pythonCodeExtension, &pythonCodeExtensionAlias1, &pythonCodeExtensionAlias2},
+			expectedAliases: []*wfn.Attributes{pythonCodeExtension, &pythonCodeExtensionAlias1, &pythonCodeExtensionAlias2, &pythonCodeExtensionAlias3},
 		},
 		{
 			name:            "pre-release python: 3.14.0 alpha2",

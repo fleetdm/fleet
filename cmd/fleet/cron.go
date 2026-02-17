@@ -216,13 +216,19 @@ func scanVulnerabilities(
 	vulns = append(vulns, govalDictVulns...)
 	vulns = append(vulns, customVulns...)
 
-	meta, err := ds.ListCVEs(automationCtx, config.RecentVulnerabilityMaxAge)
-	if err != nil {
+	var recentV []fleet.SoftwareVulnerability
+	var matchingMeta map[string]fleet.CVEMeta
+	if license.IsPremium(ctx) {
+		meta, err := ds.ListCVEs(automationCtx, config.RecentVulnerabilityMaxAge)
+		if err != nil {
 		errHandler(automationCtx, logger, "could not fetch CVE meta", err)
-		return nil
+			return nil
+		}
+		recentV, matchingMeta = utils.RecentVulns(vulns, meta)
+	} else {
+		recentV = vulns
+		matchingMeta = make(map[string]fleet.CVEMeta)
 	}
-
-	recentV, matchingMeta := utils.RecentVulns(vulns, meta)
 
 	automationSpan.SetAttributes(attribute.Int("recent_vulns", len(recentV)))
 
@@ -1049,7 +1055,7 @@ func newCleanupsAndAggregationSchedule(
 			return ds.RenewMDMManagedCertificates(ctx)
 		}),
 		schedule.WithJob("renew_android_certificate_templates", func(ctx context.Context) error {
-			return android_svc.RenewCertificateTemplates(ctx, ds, logger)
+			return android_svc.RenewCertificateTemplates(ctx, ds, logger.SlogLogger())
 		}),
 		schedule.WithJob("query_results_cleanup", func(ctx context.Context) error {
 			config, err := ds.AppConfig(ctx)
@@ -1470,7 +1476,7 @@ func newAndroidMDMProfileManagerSchedule(
 		ctx, name, instanceID, defaultInterval, ds, ds,
 		schedule.WithLogger(logger),
 		schedule.WithJob("manage_android_profiles", func(ctx context.Context) error {
-			return android_svc.ReconcileProfiles(ctx, ds, logger, licenseKey, androidAgentConfig)
+			return android_svc.ReconcileProfiles(ctx, ds, logger.SlogLogger(), licenseKey, androidAgentConfig)
 		}),
 	)
 
@@ -1906,7 +1912,7 @@ func newAndroidMDMDeviceReconcilerSchedule(
 		ctx, name, instanceID, defaultInterval, ds, ds,
 		schedule.WithLogger(logger),
 		schedule.WithJob("reconcile_android_devices", func(ctx context.Context) error {
-			return android_svc.ReconcileAndroidDevices(ctx, ds, logger, licenseKey)
+			return android_svc.ReconcileAndroidDevices(ctx, ds, logger.SlogLogger(), licenseKey)
 		}),
 	)
 

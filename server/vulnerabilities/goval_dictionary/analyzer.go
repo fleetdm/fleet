@@ -40,6 +40,11 @@ func Analyze(
 		return nil, err
 	}
 
+	// For kernel-only platforms (e.g., RHEL), we only scan kernel packages via goval-dictionary.
+	// Non-kernel packages are scanned via regular OVAL processing.  This keeps the testing
+	// surface smaller.  We can consider expanding scope to all packages in the future if needed.
+	kernelsOnly := platform.IsGovalDictionaryKernelOnly()
+
 	// Since hosts and software have a M:N relationship, the following sets are used to
 	// avoid doing duplicated inserts/delete operations (a vulnerable software might be
 	// present in many hosts).
@@ -61,7 +66,10 @@ func Analyze(
 		foundInBatch := make(map[uint][]fleet.SoftwareVulnerability)
 		for _, hostID := range hostIDs {
 			hostID := hostID
-			software, err := ds.ListSoftwareForVulnDetection(ctx, fleet.VulnSoftwareFilter{HostID: &hostID})
+			software, err := ds.ListSoftwareForVulnDetection(ctx, fleet.VulnSoftwareFilter{
+				HostID:      &hostID,
+				KernelsOnly: kernelsOnly,
+			})
 			if err != nil {
 				return nil, err
 			}
