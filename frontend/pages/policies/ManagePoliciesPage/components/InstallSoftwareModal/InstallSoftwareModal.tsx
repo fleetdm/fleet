@@ -270,11 +270,11 @@ const InstallSoftwareModal = ({
             Go to{" "}
             <CustomLink
               url={getPathWithQueryParams(paths.SOFTWARE_TITLES, {
-                team_id: teamId,
+                fleet_id: teamId,
               })}
               text="Software"
             />{" "}
-            to add software to this team.
+            to add software to this fleet.
           </div>
         </div>
       );

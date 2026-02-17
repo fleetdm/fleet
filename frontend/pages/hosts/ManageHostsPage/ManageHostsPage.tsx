@@ -1044,7 +1044,7 @@ const ManageHostsPage = ({
       newQueryParams.order_direction =
         sort[0].direction || DEFAULT_SORT_DIRECTION;
 
-      newQueryParams.team_id = teamIdForApi;
+      newQueryParams.fleet_id = teamIdForApi;
 
       if (status) {
         newQueryParams.status = status;
@@ -1353,7 +1353,7 @@ const ManageHostsPage = ({
 
       const successMessage =
         teamId === null
-          ? `Hosts successfully removed from teams.`
+          ? `Hosts successfully removed from fleets.`
           : `Hosts successfully transferred to  ${transferTeam.name}.`;
 
       renderFlash("success", successMessage);
@@ -1615,10 +1615,10 @@ const ManageHostsPage = ({
     };
 
     if (
-      queryParams.team_id !== API_ALL_TEAMS_ID &&
-      queryParams.team_id !== ""
+      queryParams.fleet_id !== API_ALL_TEAMS_ID &&
+      queryParams.fleet_id !== ""
     ) {
-      options.teamId = queryParams.team_id;
+      options.teamId = queryParams.fleet_id;
     }
 
     try {
@@ -1695,7 +1695,7 @@ const ManageHostsPage = ({
 
   const includesFilterQueryParam = MANAGE_HOSTS_PAGE_FILTER_KEYS.some(
     (filter) =>
-      filter !== "team_id" &&
+      filter !== "fleet_id" &&
       typeof queryParams === "object" &&
       filter in queryParams // TODO: replace this with `Object.hasOwn(queryParams, filter)` when we upgrade to es2022
   );
@@ -1765,7 +1765,7 @@ const ManageHostsPage = ({
         </>
       );
     } else if (isAllTeamsSelected && isPremiumTier) {
-      disableRunScriptBatchTooltipContent = "Select a team to run a script";
+      disableRunScriptBatchTooltipContent = "Select a fleet to run a script";
     } else if (isAllMatchingHostsSelected) {
       if (runScriptBatchFilterNotSupported) {
         disableRunScriptBatchTooltipContent =
