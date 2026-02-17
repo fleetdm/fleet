@@ -198,7 +198,7 @@ const QueriesTable = ({
         Create a new report, or{" "}
         <CustomLink
           url="https://fleetdm.com/docs/using-fleet/standard-query-library"
-          text="import Fleet's standard report library"
+          text="import Fleet's standard query library"
           newTab
         />
       </>
