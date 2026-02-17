@@ -23,13 +23,13 @@ Some organizations still take this antiquated approach believing it to be a best
 
 ## Modern device enrollment and provisioning
 
-Apple’s Automated Device Enrollment (ADE) and Microsoft’s Windows Autopilot enrollment protocols have made device provisioning and management far easier than ever before. 
+Apple’s [Automated Device Enrollment (ADE)](https://support.apple.com/en-us/102300) and Microsoft’s [Windows Autopilot](https://learn.microsoft.com/en-us/autopilot/overview) protocols have made device enrollment and provisioning far easier than ever before. 
 
-Much of the improvement to these systems came along at just the right time. During the dark days of the COVID pandemic, zero-touch device provisioning went from being a fancy, “nice-to-have” device deployment option to table stakes for enabling and maintaining end user productivity. IT and client platform engineers could no longer expect or even allow new employees to show up at an office nor were they able to provide the “white glove” experience of provisioning a computer by hand, on-demand.
+Much of the improvement to these systems came along at just the right time. During the dark days of the COVID pandemic, [zero-touch](https://en.wikipedia.org/wiki/Zero-touch_provisioning) device provisioning went from being a fancy, “nice-to-have” device deployment option to table stakes for enabling and maintaining end user productivity. IT and client platform engineers could no longer expect or even allow new employees to show up at an office nor were they able to provide the “white glove” experience of provisioning a computer by hand, on-demand.
 
 But, without good management options, Linux enterprise deployment is often even worse than the old days of Windows or the pandemic:
 
-* Because of a lack of Linux management options, end users may be allowed by an organization to “manage” devices deployed to them on their own \- this may mean end users are given management guidelines or security documentation without any form of actual enforcement.   
+* Because of a lack of Linux management options, end users may be allowed by an organization to “manage” devices deployed to them on their own - this may mean end users are given management guidelines or security documentation without any form of actual enforcement.   
 * Linux at the enterprise level is often used by an organization’s most sophisticated end users, meaning lack of enforcement around Linux device management can become a hollow promise at best, or a political football at worst.   
 * Linux computers are often intended for use by end users with root-level OS access. This means manual creation and deployment of ‘golden master’ images is practically useless and really only functional as a “starting point”, not for management.   
 * Meanwhile, IT teams being asked by security teams to ensure that all devices are compliant with regulations and business policy can’t make their requirements - they have no control over an important subset of the devices they’ve been asked to deploy. 
@@ -46,13 +46,13 @@ Third, automated device provisioning establishes the connection between **end us
 
 ## Best practices for automated provisioning on Linux deployments
 
-If your organization is purchasing computers directly from a large manufacturer like Dell or Lenovo, or from a 3rd party reseller like CDW or SHI, they all offer computers preinstalled with Linux. This is often the simplest and best way to start with enterprise Linux deployments. There is no MDM specification / protocol for Linux and there is no central registry for Linux computers like Apple Business Manager (ABM) or Microsoft Entra.
+If your organization is purchasing computers directly from a large manufacturer like Dell or Lenovo, or from a 3rd party reseller like CDW or SHI, they all offer computers preinstalled with Linux. This is often the simplest and best way to start with enterprise Linux deployments. There is no MDM specification / protocol for Linux and there is no central registry for Linux computers like [Apple Business Manager (ABM)](https://support.apple.com/guide/apple-business-manager/sign-up-axm402206497/web) or [Microsoft Entra](https://learn.microsoft.com/en-us/entra/fundamentals/what-is-entra).
 
 Typically, orchestration approaches are used for managing Linux devices at scale.
 
-The **agent-less** approach is typified by tools like Ansible. SSH connections are used to authenticate and control Linux endpoints. YAML files and scripts are used to configure devices to match a desired state per an Ansible “playbook”. The intent of this system is to “declaratively” manage endpoint state, however, because Linux end users often have root-level access (meaning any configuration “declared” can be overridden) “configuration drift” can become a challenge. Changes made by the end user are not reflected by default back to the Ansible playbook, monitored or remediated.
+The **agent-less** approach is typified by tools like [Ansible](https://www.redhat.com/en/ansible-collaborative/how-ansible-works). SSH connections are used to authenticate and control Linux endpoints. YAML files and scripts are used to configure devices to match a desired state per an Ansible “playbook”. The intent of this system is to “declaratively” manage endpoint state, however, because Linux end users often have root-level access (meaning any configuration “declared” can be overridden) “configuration drift” can become a challenge. Changes made by the end user are not reflected by default back to the Ansible playbook, monitored or remediated.
 
-An **agent-based** approach might make use of tools like Puppet or Chef. An installed agent is capable of monitoring Linux devices for deviations from a known baseline and remediation, but, in practice, these deployment systems are not full-featured device management solutions.
+An **agent-based** approach might make use of tools like [Puppet](https://www.puppet.com/) or [Chef](https://www.chef.io/). An installed agent is capable of monitoring Linux devices for deviations from a known baseline and remediation, but, in practice, these deployment systems are not full-featured device management solutions.
 
 When looking for a management solution to overcome these challenges around Linux deployments, the following features should be considered:
 
@@ -63,7 +63,7 @@ When looking for a management solution to overcome these challenges around Linux
 * Compliance reporting  
 * Automated state remediation
 
-Fleet has quickly become the first choice for many enterprise organizations deploying Linux desktop computers at scale because it ticks all of these boxes. Though there are Linux-flavor specific management options available like Canonical’s Landscape for Ubuntu management, no other multi-platform solution on the market comes close to Fleet’s Linux management capabilities.
+[Fleet](https://fleetdm.com/device-management) has quickly become the first choice for many enterprise organizations deploying Linux desktop computers at scale because it ticks all of these boxes. Though there are Linux-flavor specific management options available like Canonical’s [Landscape](https://ubuntu.com/landscape) for [Ubuntu](https://ubuntu.com/) management, no other multi-platform solution on the market comes close to [Fleet’s Linux management capabilities](https://fleetdm.com/guides/empower-linux-device-management#basic-article).
 
 Not only can your Linux devices be enrolled and managed, Fleet offers an automated [Setup Experience](https://fleetdm.com/guides/windows-linux-setup-experience) for Linux, meaning you can realize zero-touch, automated provisioning for your Linux end users and link your Linux endpoints to your user’s identity in your IdP just like you do on your other platforms.  
 
