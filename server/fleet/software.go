@@ -255,9 +255,10 @@ type VulnerableSoftware struct {
 }
 
 type VulnSoftwareFilter struct {
-	HostID *uint
-	Name   string // LIKE filter
-	Source string // exact match
+	HostID      *uint
+	Name        string // LIKE filter
+	Source      string // exact match
+	KernelsOnly bool   // filter to kernel packages only (for RHEL goval-dictionary scanning)
 }
 
 type SliceString []string
