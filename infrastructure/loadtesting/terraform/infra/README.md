@@ -12,6 +12,10 @@ Additionally, refer to the [Reference Architecture sizing recommendations](https
 
 # Deploy with Github Actions
 
+## Prerequisites
+
+1. Run the [Docker publish GitHub action](https://github.com/fleetdm/fleet/actions/workflows/goreleaser-snapshot-fleet.yaml) on your branch to build and push the Fleet Docker image.
+
 ## Deploy/Destroy environment with Github Action
 
 1. [Navigate to the github action](https://github.com/fleetdm/fleet/actions/workflows/loadtest-infra.yml)
