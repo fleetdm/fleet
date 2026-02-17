@@ -715,6 +715,7 @@ func (ds *Datastore) bulkSetPendingMDMHostProfilesDB(
 		macProfUUIDs     []string
 		winProfUUIDs     []string
 		androidProfUUIDs []string
+		declUUIDs        []string
 		hasAppleDecls    bool
 	)
 
@@ -733,6 +734,7 @@ func (ds *Datastore) bulkSetPendingMDMHostProfilesDB(
 				macProfUUIDs = append(macProfUUIDs, puid)
 			} else if strings.HasPrefix(puid, fleet.MDMAppleDeclarationUUIDPrefix) {
 				hasAppleDecls = true
+				declUUIDs = append(declUUIDs, puid)
 			} else if strings.HasPrefix(puid, fleet.MDMAndroidProfileUUIDPrefix) {
 				androidProfUUIDs = append(androidProfUUIDs, puid)
 			} else {
@@ -853,11 +855,25 @@ WHERE
 OR
 	hmap.profile_uuid IN (?) AND h.platform = 'android'`
 		args = append(args, androidProfUUIDs, androidProfUUIDs)
+
+	case hasAppleDecls:
+		uuidStmt = `
+SELECT DISTINCT h.uuid, h.platform
+FROM hosts h
+JOIN mdm_apple_declarations mad
+	ON h.team_id = mad.team_id OR (h.team_id IS NULL AND mad.team_id = 0)
+LEFT JOIN host_mdm_apple_declarations hmad
+	ON h.uuid = hmad.host_uuid
+WHERE
+	(mad.declaration_uuid IN (?) AND (h.platform = 'darwin' OR h.platform = 'ios' OR h.platform = 'ipados'))
+OR
+	(hmad.declaration_uuid IN (?) AND (h.platform = 'darwin' OR h.platform = 'ios' OR h.platform = 'ipados'))`
+		args = append(args, declUUIDs, declUUIDs)
 	}
 
 	// TODO: this could be optimized to avoid querying for platform when
 	// profileIDs or profileUUIDs are provided.
-	if len(hosts) == 0 && !hasAppleDecls {
+	if len(hosts) == 0 {
 		uuidStmt, args, err := sqlx.In(uuidStmt, args...)
 		if err != nil {
 			return updates, ctxerr.Wrap(ctx, err, "prepare query to load host UUIDs")
@@ -907,16 +923,10 @@ OR
 	if ds.testUpsertMDMDesiredProfilesBatchSize > 0 {
 		batchSize = ds.testUpsertMDMDesiredProfilesBatchSize
 	}
-	// TODO(roberto): this method currently sets the state of all
-	// declarations for all hosts. I don't see an immediate concern
-	// (and my hunch is that we could even do the same for
-	// profiles) but this could be optimized to use only a provided
-	// set of host uuids.
-	//
 	// Note(victor): Why is the status being set to nil? Shouldn't it be set to pending?
 	// Or at least pending for install and nil for remove profiles. Please update this comment if you know.
 	// This method is called bulkSetPendingMDMHostProfilesDB, so it is confusing that the status is NOT explicitly set to pending.
-	_, updates.AppleDeclaration, err = mdmAppleBatchSetHostDeclarationStateDB(ctx, tx, batchSize, nil)
+	_, updates.AppleDeclaration, err = mdmAppleBatchSetHostDeclarationStateDB(ctx, tx, batchSize, nil, appleHosts)
 	if err != nil {
 		return updates, ctxerr.Wrap(ctx, err, "bulk set pending apple declarations")
 	}

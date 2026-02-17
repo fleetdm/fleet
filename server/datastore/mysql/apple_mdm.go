@@ -3272,6 +3272,61 @@ func generateEntitiesToRemoveQuery(entityType string) string {
 `, func(s string) string { return dynamicNames[s] }), fmt.Sprintf(generateDesiredStateQuery(entityType), "TRUE", "TRUE", "TRUE", "TRUE"))
 }
 
+// generateEntitiesToInstallQueryWithDesiredState is like generateEntitiesToInstallQuery but accepts
+// a pre-built desired state subquery. This allows callers to provide a desired state query that
+// already has host filtering conditions applied (e.g., h.uuid IN (?)).
+func generateEntitiesToInstallQueryWithDesiredState(entityType string, desiredState string) string {
+	dynamicNames := mdmEntityTypeToDynamicNames[entityType]
+	if dynamicNames == nil {
+		panic(fmt.Sprintf("unknown entity type %q", entityType))
+	}
+	return fmt.Sprintf(os.Expand(`
+	( %s ) as ds
+		LEFT JOIN ${hostMDMAppleEntityTable} hmae
+			ON hmae.${entityUUIDColumn} = ds.${entityUUIDColumn} AND hmae.host_uuid = ds.host_uuid
+	WHERE
+		-- entity has been updated
+		( hmae.${checksumColumn} != ds.${checksumColumn} ) OR IFNULL(hmae.secrets_updated_at < ds.secrets_updated_at, FALSE) OR
+		-- entity in A but not in B
+		( hmae.${entityUUIDColumn} IS NULL AND hmae.host_uuid IS NULL ) OR
+		-- entities in A and B but with operation type "remove"
+		( hmae.host_uuid IS NOT NULL AND ( hmae.operation_type = ? OR hmae.operation_type IS NULL ) ) OR
+		-- entities in A and B with operation type "install" and NULL status
+		( hmae.host_uuid IS NOT NULL AND hmae.operation_type = ? AND hmae.status IS NULL )
+`, func(s string) string { return dynamicNames[s] }),
+		desiredState,
+	)
+}
+
+// generateEntitiesToRemoveQueryWithDesiredState is like generateEntitiesToRemoveQuery but accepts
+// a pre-built desired state subquery. This allows callers to provide a desired state query that
+// already has host filtering conditions applied (e.g., h.uuid IN (?)).
+func generateEntitiesToRemoveQueryWithDesiredState(entityType string, desiredState string) string {
+	dynamicNames := mdmEntityTypeToDynamicNames[entityType]
+	if dynamicNames == nil {
+		panic(fmt.Sprintf("unknown entity type %q", entityType))
+	}
+	return fmt.Sprintf(os.Expand(`
+	( %s ) as ds
+		RIGHT JOIN ${hostMDMAppleEntityTable} hmae
+			ON hmae.${entityUUIDColumn} = ds.${entityUUIDColumn} AND hmae.host_uuid = ds.host_uuid
+	WHERE
+		-- entities that are in B but not in A
+		ds.${entityUUIDColumn} IS NULL AND ds.host_uuid IS NULL AND
+		-- except "remove" operations in a terminal state or already pending
+		( hmae.operation_type IS NULL OR hmae.operation_type != ? OR hmae.status IS NULL ) AND
+		-- except "would be removed" entities if they are a broken label-based entities
+		-- (regardless of if it is an include-all or exclude-any label)
+		NOT EXISTS (
+			SELECT 1
+			FROM ${mdmEntityLabelsTable} mcpl
+			WHERE
+				mcpl.${appleEntityUUIDColumn} = hmae.${entityUUIDColumn} AND
+				mcpl.label_id IS NULL
+		)
+`, func(s string) string { return dynamicNames[s] }), desiredState)
+}
+
 // Optional hostUUID to list profiles to install for a single host instead of all.
 func (ds *Datastore) ListMDMAppleProfilesToInstall(ctx context.Context, hostUUID string) ([]*fleet.MDMAppleProfilePayload, error) {
 	var profiles []*fleet.MDMAppleProfilePayload
@@ -5626,7 +5681,7 @@ func (ds *Datastore) MDMAppleBatchSetHostDeclarationState(ctx context.Context) (
 
 	err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
 		var err error
-		uuids, _, err = mdmAppleBatchSetHostDeclarationStateDB(ctx, tx, batchSize, &fleet.MDMDeliveryPending)
+		uuids, _, err = mdmAppleBatchSetHostDeclarationStateDB(ctx, tx, batchSize, &fleet.MDMDeliveryPending, nil)
 		return err
 	})
 
@@ -5634,11 +5689,11 @@ func (ds *Datastore) MDMAppleBatchSetHostDeclarationState(ctx context.Context) (
 }
 
 func mdmAppleBatchSetHostDeclarationStateDB(ctx context.Context, tx sqlx.ExtContext, batchSize int,
-	status *fleet.MDMDeliveryStatus,
+	status *fleet.MDMDeliveryStatus, hostUUIDs []string,
 ) ([]string, bool, error) {
 	// once all the declarations are in place, compute the desired state
 	// and find which hosts need a DDM sync.
-	changedDeclarations, err := mdmAppleGetHostsWithChangedDeclarationsDB(ctx, tx)
+	changedDeclarations, err := mdmAppleGetHostsWithChangedDeclarationsDB(ctx, tx, hostUUIDs)
 	if err != nil {
 		return nil, false, ctxerr.Wrap(ctx, err, "find hosts with changed declarations")
 	}
@@ -5863,7 +5918,92 @@ func cleanUpDuplicateRemoveInstall(ctx context.Context, tx sqlx.ExtContext, prof
 // We should optimize this method to only return the rows that need to be updated.
 // Then we can eliminate the subsequent check for updates in the caller.
 // The check for updates is needed to log the correct activity item -- whether declarations were updated or not.
-func mdmAppleGetHostsWithChangedDeclarationsDB(ctx context.Context, tx sqlx.ExtContext) ([]*fleet.MDMAppleHostDeclaration, error) {
+func mdmAppleGetHostsWithChangedDeclarationsDB(ctx context.Context, tx sqlx.ExtContext, hostUUIDs []string) ([]*fleet.MDMAppleHostDeclaration, error) {
+	if len(hostUUIDs) == 0 {
+		// No host filter: original behavior, scan all hosts.
+		return mdmAppleGetAllHostsWithChangedDeclarationsDB(ctx, tx)
+	}
+
+	// With host filter: batch process to avoid scanning all hosts.
+	// This uses the same pattern as bulkSetPendingMDMAppleHostProfilesDB
+	// for profiles, building the desired state query with h.uuid IN (?)
+	// conditions to scope the work to only the affected hosts.
+	desiredStateQuery := generateDesiredStateQuery("declaration")
+	hostCondition := "h.uuid IN (?)"
+	filteredDesiredState := fmt.Sprintf(desiredStateQuery, hostCondition, hostCondition, hostCondition, hostCondition)
+
+	toInstallStmt := fmt.Sprintf(`
+		SELECT
+			ds.host_uuid,
+			'install' as operation_type,
+			ds.token,
+			ds.secrets_updated_at,
+			ds.declaration_uuid,
+			ds.declaration_identifier,
+			ds.declaration_name
+		FROM %s`,
+		generateEntitiesToInstallQueryWithDesiredState("declaration", filteredDesiredState),
+	)
+
+	toRemoveStmt := fmt.Sprintf(`
+		SELECT
+			hmae.host_uuid,
+			'remove' as operation_type,
+			hmae.token,
+			hmae.secrets_updated_at,
+			hmae.declaration_uuid,
+			hmae.declaration_identifier,
+			hmae.declaration_name
+		FROM %s AND hmae.host_uuid IN (?)`,
+		generateEntitiesToRemoveQueryWithDesiredState("declaration", filteredDesiredState),
+	)
+
+	const selectBatchSize = 10_000
+	var allDecls []*fleet.MDMAppleHostDeclaration
+
+	for i := 0; i < len(hostUUIDs); i += selectBatchSize {
+		end := i + selectBatchSize
+		if end > len(hostUUIDs) {
+			end = len(hostUUIDs)
+		}
+		batch := hostUUIDs[i:end]
+
+		// Install query: 4x batch (one per UNION branch) + 2 operation type args
+		installStmt, installArgs, err := sqlx.In(toInstallStmt,
+			batch, batch, batch, batch,
+			fleet.MDMOperationTypeRemove, fleet.MDMOperationTypeInstall,
+		)
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "building install query for changed declarations")
+		}
+		var installDecls []*fleet.MDMAppleHostDeclaration
+		if err := sqlx.SelectContext(ctx, tx, &installDecls, installStmt, installArgs...); err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "selecting declarations to install")
+		}
+		allDecls = append(allDecls, installDecls...)
+
+		// Remove query: 4x batch (one per UNION branch) + 1 remove op + 1x batch for hmae filter
+		removeStmt, removeArgs, err := sqlx.In(toRemoveStmt,
+			batch, batch, batch, batch,
+			fleet.MDMOperationTypeRemove,
+			batch,
+		)
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "building remove query for changed declarations")
+		}
+		var removeDecls []*fleet.MDMAppleHostDeclaration
+		if err := sqlx.SelectContext(ctx, tx, &removeDecls, removeStmt, removeArgs...); err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "selecting declarations to remove")
+		}
+		allDecls = append(allDecls, removeDecls...)
+	}
+
+	return allDecls, nil
+}
+
+// mdmAppleGetAllHostsWithChangedDeclarationsDB is the original unfiltered
+// implementation used by the cron job to process all hosts.
+func mdmAppleGetAllHostsWithChangedDeclarationsDB(ctx context.Context, tx sqlx.ExtContext) ([]*fleet.MDMAppleHostDeclaration, error) {
 	stmt := fmt.Sprintf(`
         (
             SELECT
