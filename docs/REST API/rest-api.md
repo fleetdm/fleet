@@ -7748,6 +7748,7 @@ _Available in Fleet Premium_
       "name": "Gatekeeper enabled",
       "query": "SELECT 1 FROM gatekeeper WHERE assessments_enabled = 1;",
       "description": "Checks if gatekeeper is enabled on macOS devices",
+      "type": "dynamic",
       "critical": true,
       "author_id": 42,
       "author_name": "John",
@@ -7770,6 +7771,7 @@ _Available in Fleet Premium_
       "query": "SELECT 1 FROM bitlocker_info WHERE protection_status = 1;",
       "description": "Checks if the hard disk is encrypted on Windows devices",
       "critical": false,
+      "type": "dynamic",
       "author_id": 43,
       "author_name": "Alice",
       "author_email": "alice@example.com",
@@ -7791,10 +7793,11 @@ _Available in Fleet Premium_
     },
     {
       "id": 3,
-      "name": "macOS - install/update Adobe Acrobat",
-      "query": "SELECT 1 FROM apps WHERE name = \"Adobe Acrobat.app\" AND bundle_short_version != \"24.002.21005\";",
+      "name": "macOS - Adobe Acrobat up to date",
+      "query": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.adobe.Reader' AND version_compare(bundle_short_version, '23.001.20687') >= 0;",
       "description": "Checks if the hard disk is encrypted on Windows devices",
       "critical": false,
+      "type": "patch",
       "author_id": 43,
       "author_name": "Alice",
       "author_email": "alice@example.com",
@@ -7809,7 +7812,7 @@ _Available in Fleet Premium_
       "calendar_events_enabled": false,
       "conditional_access_enabled": false,
       "install_software": {
-        "name": "Adobe Acrobat.app",
+        "name": "Adobe Acrobat",
         "software_title_id": 1234
       }
     }
@@ -8043,6 +8046,7 @@ _Available in Fleet Premium_
     "query": "SELECT 1 FROM gatekeeper WHERE assessments_enabled = 1;",
     "description": "Checks if gatekeeper is enabled on macOS devices",
     "critical": true,
+    "type": "dynamic",
     "author_id": 42,
     "author_name": "John",
     "author_email": "john@example.com",
@@ -8057,6 +8061,11 @@ _Available in Fleet Premium_
     "calendar_events_enabled": true,
     "conditional_access_enabled": false,
     "labels_include_any": ["Macs on Sonoma"],
+    "patch_software": {
+      "display_name": "", 
+      "name": "Adobe Acrobat.app",
+      "software_title_id": 1234,
+    }
     "install_software": {
       "name": "Adobe Acrobat.app",
       "software_title_id": 1234
@@ -8159,6 +8168,8 @@ The semantics for creating a team policy are the same as for global policies, se
 | resolution        | string  | body | The resolution steps for the policy.                                                                                                                   |
 | platform          | string  | body | Comma-separated target platforms, currently supported values are "windows", "linux", "darwin". The default, an empty string means target all platforms. |
 | critical          | boolean | body | _Available in Fleet Premium_. Mark policy as critical/high impact.                                                                                     |
+| type | string | body | The type of the policy. Options are `"dynamic"` (classic policy with an editable query) or `"patch"` (tied to `patch_software_title_id` and automatically updated to include the newest Fleet-maintained app version). If not specified, defaults to `"dynamic"`. |
+| patch_software_title_id | integer | body | _Available in Fleet Premium_. ID of the software title (Fleet-maintained only) to create a patch policy for. Required if `type` is `patch`. |
 | software_title_id | integer | body | _Available in Fleet Premium_. ID of software title to install if the policy fails. If `software_title_id` is specified and the software has `labels_include_any` or `labels_exclude_any` defined, the policy will inherit this target in addition to specified `platform`.                                                                     |
 | script_id         | integer | body | _Available in Fleet Premium_. ID of script to run if the policy fails.                                                                 |
 | labels_include_any      | array     | form | _Available in Fleet Premium_. Target hosts that have any label, specified by label name, in the array. |
@@ -9856,6 +9867,7 @@ Get a list of all software.
           {
             "id": 343,
             "name": "[Install software] Firefox.app",
+            "type": "dynamic",
           }
         ],
       },
@@ -10207,6 +10219,7 @@ Returns information about the specified software. By default, `versions` are sor
         {
           "id": 343,
           "name": "[Install software] Crowdstrike Agent",
+          "type": "dynamic"
         }
       ],
       "status": {
@@ -10280,6 +10293,7 @@ Returns information about the specified software. By default, `versions` are sor
         {
           "id": 345,
           "name": "[Install software] Logic Pro",
+          "type": "dynamic"
         }
       ],
       "status": {
@@ -11038,6 +11052,7 @@ Only one of `labels_include_any` or `labels_exclude_any` can be specified. If ne
       {
         "id": 345,
         "name": "[Install software] Logic Pro",
+        "type": "dynamic"
       }
     ],
     "status": {
