@@ -47,7 +47,7 @@ Engineering-initiated stories are for work that **no customer or product manager
 - The issue is a **bug or defect** (has a `~released bug` or `bug` label).
 - The issue is a **postmortem action item** (has a `~postmortem-action-item` label).
 
-These categories should compete for priority in the normal product pipeline so that product and customer stakeholders have full visibility into the work being done on their behalf.
+These categories compete for priority in the normal product pipeline so that product and customer stakeholders have full visibility into the work being done on their behalf.
 
 1. Create a new engineering-initiated story using the [new story template](https://github.com/fleetdm/fleet/issues/new?assignees=lukeheath&labels=story,~engineering-initiated&projects=&template=story.md&title=). Make sure the `~engineering-initiated` label is added, the `:product` label is removed, and the engineering output and architecture DRI (@lukeheath) is assigned.
 
