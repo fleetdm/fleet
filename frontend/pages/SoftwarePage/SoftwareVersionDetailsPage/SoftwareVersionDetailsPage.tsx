@@ -188,7 +188,7 @@ const SoftwareVersionDetailsPage = ({
                 hostCount={hostsCount}
                 queryParams={{
                   software_version_id: softwareVersion.id,
-                  team_id: teamIdForApi,
+                  fleet_id: teamIdForApi,
                 }}
                 name={softwareVersion.name}
                 source={softwareVersion.source}

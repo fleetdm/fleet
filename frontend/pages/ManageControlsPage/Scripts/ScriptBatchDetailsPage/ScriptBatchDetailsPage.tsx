@@ -189,7 +189,7 @@ const ScriptBatchDetailsPage = ({
             queryParams={{
               script_batch_execution_status: selectedHostStatus, // refers to script batch host status, may update pending conv w Rachael
               script_batch_execution_id: batchExecutionId,
-              team_id: batchDetails?.team_id,
+              fleet_id: batchDetails?.team_id,
             }}
           />
         </span>

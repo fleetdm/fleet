@@ -76,7 +76,7 @@ const SelectQueryModal = ({
     router.push(
       getPathWithQueryParams(PATHS.NEW_QUERY, {
         host_id: hostId,
-        team_id: currentTeamId,
+        fleet_id: currentTeamId,
       })
     );
   };
@@ -86,7 +86,7 @@ const SelectQueryModal = ({
     router.push(
       getPathWithQueryParams(PATHS.EDIT_QUERY(selectedQuery.id), {
         host_id: hostId,
-        team_id: currentTeamId,
+        fleet_id: currentTeamId,
       })
     );
   };

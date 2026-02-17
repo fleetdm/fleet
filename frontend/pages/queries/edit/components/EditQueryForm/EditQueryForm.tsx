@@ -646,7 +646,7 @@ const EditQueryForm = ({
                 router.push(
                   getPathWithQueryParams(PATHS.LIVE_QUERY(queryIdForEdit), {
                     host_id: hostId,
-                    team_id: apiTeamIdForQuery,
+                    fleet_id: apiTeamIdForQuery,
                   })
                 );
               }}
@@ -941,7 +941,7 @@ const EditQueryForm = ({
                   router.push(
                     getPathWithQueryParams(PATHS.LIVE_QUERY(queryIdForEdit), {
                       host_id: hostId,
-                      team_id: currentTeamId,
+                      fleet_id: currentTeamId,
                     })
                   );
                 }}
