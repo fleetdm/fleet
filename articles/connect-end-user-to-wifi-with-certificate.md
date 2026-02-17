@@ -192,7 +192,6 @@ When the profile is delivered to your hosts, Fleet will replace the variables. I
 </dict>
 </plist>
 ```
-
 ## Smallstep
 
 The following steps show how to connect end users to Wi-Fi or VPN with [Smallstep](https://smallstep.com/) certificates.
