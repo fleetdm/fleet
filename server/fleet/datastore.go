@@ -36,6 +36,10 @@ type CarveStore interface {
 	CleanupCarves(ctx context.Context, now time.Time) (expired int, err error)
 }
 
+type CarveBySessionIder interface {
+	CarveBySessionId(ctx context.Context, sessionId string) (*CarveMetadata, error)
+}
+
 // InstallerStore is used to communicate to a blob storage containing pre-built
 // fleet-osquery installers. This was originally implemented to support the
 // Fleet Sandbox and is not expected to be used outside of this:
@@ -106,9 +110,10 @@ type Datastore interface {
 	// Query returns the query associated with the provided ID. Associated packs should also be loaded.
 	Query(ctx context.Context, id uint) (*Query, error)
 	// ListQueries returns a list of queries filtered with the provided sorting and pagination
-	// options, a count of total queries on all pages, and pagination metadata. Associated packs should also
-	// be loaded.
-	ListQueries(ctx context.Context, opt ListQueryOptions) ([]*Query, int, *PaginationMetadata, error)
+	// options, a count of total queries on all pages, a count of inherited (global) queries, and
+	// pagination metadata. Associated packs should also be loaded.
+	// The inherited count is only computed when TeamID is set and MergeInherited is true; otherwise it is 0.
+	ListQueries(ctx context.Context, opt ListQueryOptions) ([]*Query, int, int, *PaginationMetadata, error)
 	// ListScheduledQueriesForAgents returns a list of scheduled queries (without stats) for the
 	// given teamID and hostID. If teamID is nil, then scheduled queries for the 'global' team are returned.
 	ListScheduledQueriesForAgents(ctx context.Context, teamID *uint, hostID *uint, queryReportsDisabled bool) ([]*Query, error)
@@ -777,10 +782,8 @@ type Datastore interface {
 	// ActivitiesStore
 
 	NewActivity(ctx context.Context, user *User, activity ActivityDetails, details []byte, createdAt time.Time) error
-	MarkActivitiesAsStreamed(ctx context.Context, activityIDs []uint) error
 	ListHostUpcomingActivities(ctx context.Context, hostID uint, opt ListOptions) ([]*UpcomingActivity, *PaginationMetadata, error)
 	CancelHostUpcomingActivity(ctx context.Context, hostID uint, executionID string) (ActivityDetails, error)
-	ListHostPastActivities(ctx context.Context, hostID uint, opt ListOptions) ([]*Activity, *PaginationMetadata, error)
 	IsExecutionPendingForHost(ctx context.Context, hostID uint, scriptID uint) (bool, error)
 	GetHostUpcomingActivityMeta(ctx context.Context, hostID uint, executionID string) (*UpcomingActivityMeta, error)
 	UnblockHostsUpcomingActivityQueue(ctx context.Context, maxHosts int) (int, error)
@@ -845,6 +848,8 @@ type Datastore interface {
 	ConditionalAccessConsumeBypass(ctx context.Context, hostID uint) (*time.Time, error)
 	// ConditionalAccessClearBypasses clears all conditional access bypasses from the database
 	ConditionalAccessClearBypasses(ctx context.Context) error
+	// ConditionalAccessBypassedAt returns the time the bypass was enabled for a host, or nil if no bypass exists
+	ConditionalAccessBypassedAt(ctx context.Context, hostID uint) (*time.Time, error)
 
 	// Methods used for async processing of host policy query results.
 	AsyncBatchInsertPolicyMembership(ctx context.Context, batch []PolicyMembershipResult) error
@@ -937,6 +942,9 @@ type Datastore interface {
 	InsertCronStats(ctx context.Context, statsType CronStatsType, name string, instance string, status CronStatsStatus) (int, error)
 	// UpdateCronStats updates the status of the identified cron stats record.
 	UpdateCronStats(ctx context.Context, id int, status CronStatsStatus, cronErrors *CronScheduleErrors) error
+	// ClaimCronStats transitions a queued cron stats record to the given status
+	// and updates the instance to the worker that claimed it.
+	ClaimCronStats(ctx context.Context, id int, instance string, status CronStatsStatus) error
 	// UpdateAllCronStatsForInstance updates all records for the identified instance with the
 	// specified statuses
 	UpdateAllCronStatsForInstance(ctx context.Context, instance string, fromStatus CronStatsStatus, toStatus CronStatsStatus) error
@@ -1673,6 +1681,18 @@ type Datastore interface {
 	// device that is still enrolled in Fleet MDM but the corresponding host has
 	// been deleted from Fleet.
 	GetMDMAppleEnrolledDeviceDeletedFromFleet(ctx context.Context, hostUUID string) (*MDMAppleEnrolledDeviceInfo, error)
+
+	// GetMDMAppleHostMDMEnrollRef returns the host mdm enrollment reference for
+	// the given host ID.
+	GetMDMAppleHostMDMEnrollRef(ctx context.Context, hostID uint) (string, error)
+	// UpdateMDMAppleHostMDMEnrollRef updates the host mdm enrollment reference for
+	// the given host ID. It returns a boolean indicating whether any row was
+	// affected.
+	UpdateMDMAppleHostMDMEnrollRef(ctx context.Context, hostID uint, enrollRef string) (bool, error)
+	// DeactivateMDMAppleHostSCEPRenewCommands deactivates any pending SCEP renew
+	// commands for the given host UUID in the nano_enrollment_queue. It also clears all renew
+	// command uuid associated in nano_cert_auth_assocations for that host.
+	DeactivateMDMAppleHostSCEPRenewCommands(ctx context.Context, hostUUID string) error
 
 	// ListMDMAppleEnrolledIphoneIpadDeletedFromFleet returns a list of nano
 	// device IDs (host UUIDs) of iPhone and iPad that are enrolled in Fleet MDM
@@ -2612,9 +2632,8 @@ type Datastore interface {
 	// If there are no pending certificate templates, then nothing is returned.
 	GetAndTransitionCertificateTemplatesToDelivering(ctx context.Context, hostUUID string) (*HostCertificateTemplatesForDelivery, error)
 
-	// TransitionCertificateTemplatesToDelivered transitions templates from 'delivering' to 'delivered'
-	// and sets the fleet_challenge for each template.
-	TransitionCertificateTemplatesToDelivered(ctx context.Context, hostUUID string, challenges map[uint]string) error
+	// TransitionCertificateTemplatesToDelivered transitions the specified templates from 'delivering' to 'delivered'.
+	TransitionCertificateTemplatesToDelivered(ctx context.Context, hostUUID string, templateIDs []uint) error
 
 	// RevertHostCertificateTemplatesToPending reverts specific host certificate templates from 'delivering' back to 'pending'.
 	RevertHostCertificateTemplatesToPending(ctx context.Context, hostUUID string, certificateTemplateIDs []uint) error
@@ -2640,6 +2659,11 @@ type Datastore interface {
 	// The new UUID signals to the Android agent that the certificate needs renewal.
 	SetAndroidCertificateTemplatesForRenewal(ctx context.Context, templates []HostCertificateTemplateForRenewal) error
 
+	// GetOrCreateFleetChallengeForCertificateTemplate ensures a fleet challenge exists for the given
+	// host and certificate template. If a challenge already exists, it returns it. If not, it creates
+	// a new one atomically. Only works for templates in 'delivered' status and with operation_type 'install'.
+	GetOrCreateFleetChallengeForCertificateTemplate(ctx context.Context, hostUUID string, certificateTemplateID uint) (string, error)
+
 	// GetCurrentTime gets the current time from the database
 	GetCurrentTime(ctx context.Context) (time.Time, error)
 
@@ -2662,6 +2686,11 @@ type Datastore interface {
 	// RetryVPPInstall retries a single VPP install that failed for the host.
 	// It makes sure to queue a new nano command and update the command_uuid in the host_vpp_software_installs table, as well as the execution ID for the activity.
 	RetryVPPInstall(ctx context.Context, vppInstall *HostVPPSoftwareInstallLite) error
+
+	// MDMWindowsUpdateEnrolledDeviceCredentials updates the credentials hash for the enrolled Windows device.
+	MDMWindowsUpdateEnrolledDeviceCredentials(ctx context.Context, deviceId string, credentialsHash []byte) error
+	// MDMWindowsAcknowledgeEnrolledDeviceCredentials marks the enrolled Windows device credentials as acknowledged.
+	MDMWindowsAcknowledgeEnrolledDeviceCredentials(ctx context.Context, deviceId string) error
 }
 
 type AndroidDatastore interface {
@@ -2675,9 +2704,9 @@ type AndroidDatastore interface {
 	GetAllMDMConfigAssetsByName(ctx context.Context, assetNames []MDMAssetName,
 		queryerContext sqlx.QueryerContext) (map[MDMAssetName]MDMConfigAsset, error)
 	InsertOrReplaceMDMConfigAsset(ctx context.Context, asset MDMConfigAsset) error
-	NewAndroidHost(ctx context.Context, host *AndroidHost) (*AndroidHost, error)
+	NewAndroidHost(ctx context.Context, host *AndroidHost, companyOwned bool) (*AndroidHost, error)
 	SetAndroidEnabledAndConfigured(ctx context.Context, configured bool) error
-	UpdateAndroidHost(ctx context.Context, host *AndroidHost, fromEnroll bool) error
+	UpdateAndroidHost(ctx context.Context, host *AndroidHost, fromEnroll, companyOwned bool) error
 	UserOrDeletedUserByID(ctx context.Context, id uint) (*User, error)
 	VerifyEnrollSecret(ctx context.Context, secret string) (*EnrollSecret, error)
 	GetMDMIdPAccountByUUID(ctx context.Context, uuid string) (*MDMIdPAccount, error)
@@ -2690,8 +2719,8 @@ type AndroidDatastore interface {
 	BulkUpsertMDMAndroidHostProfiles(ctx context.Context, payload []*MDMAndroidProfilePayload) error
 	// BulkDeleteMDMAndroidHostProfiles bulk removes records from the host's profile, that is pending or failed remove and less than or equals to the policy version.
 	BulkDeleteMDMAndroidHostProfiles(ctx context.Context, hostUUID string, policyVersionID int64) error
-	// ListHostMDMAndroidProfilesPendingInstallWithVersion returns a list of all android profiles that are pending install, and where version is less than or equals to the policyVersion.
-	ListHostMDMAndroidProfilesPendingInstallWithVersion(ctx context.Context, hostUUID string, policyVersion int64) ([]*MDMAndroidProfilePayload, error)
+	// ListHostMDMAndroidProfilesPendingOrFailedInstallWithVersion returns a list of all android profiles that are pending or failed install, and where version is less than or equals to the policyVersion.
+	ListHostMDMAndroidProfilesPendingOrFailedInstallWithVersion(ctx context.Context, hostUUID string, policyVersion int64) ([]*MDMAndroidProfilePayload, error)
 	GetAndroidPolicyRequestByUUID(ctx context.Context, requestUUID string) (*android.MDMAndroidPolicyRequest, error)
 	// UpdateHostSoftware updates the software list of a host.
 	// The update consists of deleting existing entries that are not in the given `software`

@@ -58,6 +58,8 @@ func (ds *Datastore) MDMWindowsGetEnrolledDeviceWithDeviceID(ctx context.Context
 		enroll_proto_version,
 		enroll_client_version,
 		not_in_oobe,
+		credentials_hash,
+		credentials_acknowledged,
 		created_at,
 		updated_at,
 		host_uuid
@@ -89,6 +91,8 @@ func (ds *Datastore) MDMWindowsGetEnrolledDeviceWithHostUUID(ctx context.Context
 		enroll_proto_version,
 		enroll_client_version,
 		not_in_oobe,
+		credentials_hash,
+		credentials_acknowledged,
 		created_at,
 		updated_at,
 		host_uuid
@@ -120,9 +124,11 @@ func (ds *Datastore) MDMWindowsInsertEnrolledDevice(ctx context.Context, device 
 			enroll_proto_version,
 			enroll_client_version,
 			not_in_oobe,
-			host_uuid)
+			host_uuid,
+			credentials_hash,
+			credentials_acknowledged)
 		VALUES
-			(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+			(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 		ON DUPLICATE KEY UPDATE
 			mdm_device_id         = VALUES(mdm_device_id),
 			device_state          = VALUES(device_state),
@@ -133,7 +139,9 @@ func (ds *Datastore) MDMWindowsInsertEnrolledDevice(ctx context.Context, device 
 			enroll_proto_version  = VALUES(enroll_proto_version),
 			enroll_client_version = VALUES(enroll_client_version),
 			not_in_oobe           = VALUES(not_in_oobe),
-			host_uuid             = VALUES(host_uuid)
+			host_uuid             = VALUES(host_uuid),
+			credentials_hash      = VALUES(credentials_hash),
+			credentials_acknowledged = VALUES(credentials_acknowledged)
 	`
 	_, err := ds.writer(ctx).ExecContext(
 		ctx,
@@ -148,7 +156,9 @@ func (ds *Datastore) MDMWindowsInsertEnrolledDevice(ctx context.Context, device 
 		device.MDMEnrollProtoVersion,
 		device.MDMEnrollClientVersion,
 		device.MDMNotInOOBE,
-		device.HostUUID)
+		device.HostUUID,
+		device.CredentialsHash,
+		device.CredentialsAcknowledged)
 	if err != nil {
 		if IsDuplicate(err) {
 			return ctxerr.Wrap(ctx, alreadyExists("MDMWindowsEnrolledDevice", device.MDMHardwareID))
@@ -2520,4 +2530,32 @@ func (ds *Datastore) ResendWindowsMDMCommand(ctx context.Context, mdmDeviceId st
 
 		return nil
 	})
+}
+
+func (ds *Datastore) MDMWindowsUpdateEnrolledDeviceCredentials(ctx context.Context, deviceId string, credentialsHash []byte) error {
+	if deviceId == "" {
+		return nil
+	}
+
+	_, err := ds.writer(ctx).ExecContext(ctx, `
+		UPDATE mdm_windows_enrollments
+		SET credentials_hash = ?
+		WHERE mdm_device_id = ?`,
+		credentialsHash, deviceId,
+	)
+	return err
+}
+
+func (ds *Datastore) MDMWindowsAcknowledgeEnrolledDeviceCredentials(ctx context.Context, deviceId string) error {
+	if deviceId == "" {
+		return nil
+	}
+
+	_, err := ds.writer(ctx).ExecContext(ctx, `
+		UPDATE mdm_windows_enrollments
+		SET credentials_acknowledged = TRUE
+		WHERE mdm_device_id = ?`,
+		deviceId,
+	)
+	return err
 }

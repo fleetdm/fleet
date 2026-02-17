@@ -77,15 +77,19 @@ If you want to make sure the profile stays device-scoped, update `PayloadScope` 
 
 In the Fleet UI, head to the **Controls > OS settings** tab.
 
-In the top box, with "Verified," "Verifying," "Pending," and "Failed" statuses, click each status to view a list of hosts.
+To see the status of a specific setting, hover over the setting's row in the **Custom settings** table and select the information (**i**) icon.
+
+Currently, when editing a profile using Fleet's GitOps workflow, it can take 30 seconds for the profile's status to update to "Pending."
 
 ### Verified
+
+> For some Windows configuration profiles, [verification doesn't work](https://github.com/fleetdm/fleet/issues/38833). Fleet will [remove verification](https://github.com/fleetdm/fleet/issues/31921) for Windows profiles in 4.83 (coming soon).
 
 Hosts that applied all OS settings. 
 
 For macOS configuration profiles and device-scoped Windows profiles, Fleet verified by running an osquery query. It can take up to 1 hour ([configurable](https://fleetdm.com/docs/configuration/fleet-server-configuration#osquery-detail-update-interval)) for these profiles to move from "Verifying" to "Verified".
 
-macOS declarations profiles are verified with a [DDM StatusReport](https://developer.apple.com/documentation/devicemanagement/statusreport)).
+macOS declarations profiles are verified with a [DDM StatusReport](https://developer.apple.com/documentation/devicemanagement/statusreport).
 
 User-scoped Windows profiles are "Verified" after Fleet gets a [200 response](https://learn.microsoft.com/en-us/windows/client-management/oma-dm-protocol-support#syncml-response-status-codes) from the Windows MDM protocol.
 
@@ -105,10 +109,9 @@ Hosts that are running MDM commands or will run MDM commands to apply OS setting
 
 Hosts that failed to apply OS settings. For Windows profiles, status codes are listed in [Microsoft's OMA DM docs](https://learn.microsoft.com/en-us/windows/client-management/oma-dm-protocol-support#syncml-response-status-codes).
 
-In the list of hosts, click on an individual host and click the **OS settings** item to see the status for a specific setting.
+macOS, iOS, or iPadOS hosts may display OS settings as "Failed" even when MDM is turned off. This can happen if MDM was previously enabled and the enrollment profile was deleted while the host was offline. Because Fleet never received [confirmation](https://developer.apple.com/documentation/devicemanagement/check-out) that the enrollment profile was removed, it continues sending MDM commands and checking their status, which always fails. 
 
-Currently, when editing a profile using Fleet's GitOps workflow, it can take 30 seconds for the
-profile's status to update to "Pending."
+To resolve this issue, turn MDM back on, then select **Actions > Turn off MDM** while the host is online.
 
 ### Special Windows behavior
 
@@ -147,7 +150,9 @@ On Android hosts, a broken profile will remove the enforcement of the OS setting
 
 ## Unmanaged profiles
 
-macOS, iOS, and iPadOS profiles installed manually by the end user aren't managed by Fleet. They're not visible and can't be removed from the host via Fleet. Additionally, if a backup is migrated to a new host using [Apple's Migration Assistant](https://support.apple.com/en-us/102613) and it contains configuration profiles, those profiles aren't managed.
+macOS, iOS, and iPadOS profiles installed manually by the end user aren't managed by Fleet. They're not visible and can't be removed from the host via Fleet. 
+
+If a backup is migrated to a new host using [Apple’s Migration Assistant](https://support.apple.com/en-us/102613) and includes configuration profiles, those profiles aren’t managed. Migration Assistant also restores the enrollment profile, but without a valid private key, which breaks communication with Fleet. Fleet still shows MDM as turned on. If this happens, the end user will have to manually turn MDM off and back on.
 
 To manually remove unmanaged profiles, ask the end user to go to **System Settings > General > Device Management**, select the profile, and select the **- (minus)** button at the bottom of the list.
 

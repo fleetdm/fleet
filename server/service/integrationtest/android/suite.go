@@ -9,10 +9,10 @@ import (
 	android_mock "github.com/fleetdm/fleet/v4/server/mdm/android/mock"
 	android_service "github.com/fleetdm/fleet/v4/server/mdm/android/service"
 	"github.com/fleetdm/fleet/v4/server/platform/endpointer"
+	"github.com/fleetdm/fleet/v4/server/platform/logging"
 	"github.com/fleetdm/fleet/v4/server/service"
 	"github.com/fleetdm/fleet/v4/server/service/integrationtest"
 	"github.com/fleetdm/fleet/v4/server/service/modules/activities"
-	"github.com/go-kit/log"
 	"github.com/stretchr/testify/require"
 )
 
@@ -23,12 +23,12 @@ type Suite struct {
 
 func SetUpSuite(t *testing.T, uniqueTestName string) *Suite {
 	ds, redisPool, fleetCfg, fleetSvc, ctx := integrationtest.SetUpMySQLAndRedisAndService(t, uniqueTestName)
-	logger := log.NewLogfmtLogger(os.Stdout)
+	logger := logging.NewLogfmtLogger(os.Stdout)
 	proxy := android_mock.Client{}
 	proxy.InitCommonMocks()
 	activityModule := activities.NewActivityModule(ds, logger)
 	androidSvc, err := android_service.NewServiceWithClient(
-		logger,
+		logger.SlogLogger(),
 		ds,
 		&proxy,
 		"test-private-key",

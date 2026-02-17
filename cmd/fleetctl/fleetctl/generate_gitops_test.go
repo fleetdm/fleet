@@ -15,6 +15,7 @@ import (
 	"testing"
 
 	"github.com/fleetdm/fleet/v4/pkg/optjson"
+	"github.com/fleetdm/fleet/v4/server/dev_mode"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/ghodss/yaml"
@@ -299,6 +300,17 @@ func (MockClient) ListSoftwareTitles(query string) ([]fleet.SoftwareTitleListRes
 					FleetMaintainedAppID: ptr.Uint(1),
 				},
 			},
+			{
+				ID:         9,
+				Name:       "My Windows FMA",
+				HashSHA256: ptr.String("win-fma-package-hash"),
+				SoftwarePackage: &fleet.SoftwarePackageOrApp{
+					Name:                 "my-fma.msi",
+					Platform:             "windows",
+					Version:              "1",
+					FleetMaintainedAppID: ptr.Uint(2),
+				},
+			},
 		}, nil
 	case "available_for_install=1&team_id=0":
 		return []fleet.SoftwareTitleListResult{}, nil
@@ -323,7 +335,8 @@ func (MockClient) GetPolicies(teamID *uint) ([]*fleet.Policy, error) {
 					}, {
 						LabelName: "Label B",
 					}},
-					ConditionalAccessEnabled: true,
+					ConditionalAccessEnabled:       true,
+					ConditionalAccessBypassEnabled: ptr.Bool(true),
 				},
 				InstallSoftware: &fleet.PolicySoftwareTitle{
 					SoftwareTitleID: 1,
@@ -334,13 +347,14 @@ func (MockClient) GetPolicies(teamID *uint) ([]*fleet.Policy, error) {
 	return []*fleet.Policy{
 		{
 			PolicyData: fleet.PolicyData{
-				ID:                       1,
-				Name:                     "Team Policy",
-				Query:                    "SELECT * FROM team_policy WHERE id = 1",
-				Resolution:               ptr.String("Do a team thing"),
-				Description:              "This is a team policy",
-				Platform:                 "linux,windows",
-				ConditionalAccessEnabled: true,
+				ID:                             1,
+				Name:                           "Team Policy",
+				Query:                          "SELECT * FROM team_policy WHERE id = 1",
+				Resolution:                     ptr.String("Do a team thing"),
+				Description:                    "This is a team policy",
+				Platform:                       "linux,windows",
+				ConditionalAccessEnabled:       true,
+				ConditionalAccessBypassEnabled: ptr.Bool(true),
 			},
 			RunScript: &fleet.PolicyScript{
 				ID: 1,
@@ -484,6 +498,19 @@ func (MockClient) GetSoftwareTitleByID(ID uint, teamID *uint) (*fleet.SoftwareTi
 			},
 			IconUrl:          ptr.String("/api/icon1.png"),
 			BundleIdentifier: ptr.String("com.my.fma"),
+		}, nil
+	case 9:
+		return &fleet.SoftwareTitle{
+			ID:   9,
+			Name: "My Windows FMA",
+			SoftwarePackage: &fleet.SoftwareInstaller{
+				InstallScript:        "install",
+				UninstallScript:      "uninstall",
+				SelfService:          true,
+				Platform:             "windows",
+				FleetMaintainedAppID: ptr.Uint(2),
+			},
+			IconUrl: ptr.String("/api/icon5.png"),
 		}, nil
 	default:
 		return nil, errors.New("software title not found")
@@ -752,7 +779,7 @@ func compareDirs(t *testing.T, sourceDir, targetDir string) {
 func configureFMAManifestServer(t *testing.T) {
 	manifestServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if strings.Contains(r.URL.Path, "apps.json") {
-			data := json.RawMessage(`{"version": 2, "apps": [{"name": "My FMA", "slug": "fma1/darwin", "platform": "darwin", "unique_identifier": "com.my.fma"}]}`)
+			data := json.RawMessage(`{"version": 2, "apps": [{"name": "My FMA", "slug": "fma1/darwin", "platform": "darwin", "unique_identifier": "com.my.fma"}, {"name": "My Windows FMA", "slug": "fma2/windows", "platform": "windows", "unique_identifier": "My Windows FMA"}]}`)
 			err := json.NewEncoder(w).Encode(data)
 			require.NoError(t, err)
 			return
@@ -785,8 +812,7 @@ func configureFMAManifestServer(t *testing.T) {
 		require.NoError(t, err)
 	}))
 	t.Cleanup(manifestServer.Close)
-	os.Setenv("FLEET_DEV_MAINTAINED_APPS_BASE_URL", manifestServer.URL)
-	t.Cleanup(func() { os.Unsetenv("FLEET_DEV_MAINTAINED_APPS_BASE_URL") })
+	dev_mode.SetOverride("FLEET_DEV_MAINTAINED_APPS_BASE_URL", manifestServer.URL, t)
 }
 
 func TestGenerateGitops(t *testing.T) {
@@ -905,6 +931,61 @@ func TestGenerateOrgSettings(t *testing.T) {
 
 	// Compare.
 	require.Equal(t, expectedAppConfig, orgSettings)
+}
+
+func TestGenerateOrgSettingsMaskedGoogleCalendarApiKey(t *testing.T) {
+	// This test verifies that generateOrgSettings handles the case where
+	// api_key_json is masked (returned as "********" string instead of a map).
+	fleetClient := &MockClient{}
+	appConfig, err := fleetClient.GetAppConfig()
+	require.NoError(t, err)
+
+	// Set the Google Calendar API key to masked, which will serialize as "********"
+	require.NotEmpty(t, appConfig.Integrations.GoogleCalendar)
+	appConfig.Integrations.GoogleCalendar[0].ApiKey.SetMasked()
+
+	// Create the command.
+	cmd := &GenerateGitopsCommand{
+		Client:       fleetClient,
+		CLI:          cli.NewContext(&cli.App{}, nil, nil),
+		Messages:     Messages{},
+		FilesToWrite: make(map[string]any),
+		AppConfig:    appConfig,
+	}
+
+	// Generate the org settings - this should not panic.
+	orgSettingsRaw, err := cmd.generateOrgSettings()
+	require.NoError(t, err)
+	require.NotNil(t, orgSettingsRaw)
+
+	// Verify the result can be marshaled to YAML without error.
+	b, err := yaml.Marshal(orgSettingsRaw)
+	require.NoError(t, err)
+
+	// Verify api_key_json was replaced with a comment placeholder (not "********")
+	var orgSettings map[string]any
+	err = yaml.Unmarshal(b, &orgSettings)
+	require.NoError(t, err)
+
+	integrations := orgSettings["integrations"].(map[string]any)
+	googleCalendar := integrations["google_calendar"].([]any)
+	intg := googleCalendar[0].(map[string]any)
+	apiKeyJson := intg["api_key_json"]
+
+	// Should be a comment placeholder string, not "********" or a map
+	apiKeyJsonStr, ok := apiKeyJson.(string)
+	require.True(t, ok, "api_key_json should be a string placeholder")
+	require.Contains(t, apiKeyJsonStr, "GITOPS_COMMENT", "api_key_json should be a comment placeholder")
+
+	// Verify SecretWarning was added for google_calendar.api_key_json
+	var foundWarning bool
+	for _, w := range cmd.Messages.SecretWarnings {
+		if w.Key == "integrations.google_calendar.api_key_json" {
+			foundWarning = true
+			break
+		}
+	}
+	require.True(t, foundWarning, "expected SecretWarning for integrations.google_calendar.api_key_json")
 }
 
 func TestGeneratedOrgSettingsNoSSO(t *testing.T) {

@@ -39,13 +39,31 @@ Restart the Fleet server.
 
 2. Next to **Turn on Windows MDM** select **Turn on** to navigate to the **Manage Windows MDM** page.
 
-3. Select **Turn on**.
+3. Toggle Windows MDM on. The best practice is to leave the end user experience set to **Automatic**. If you want end users to have to take action to turn MDM on, choose **Manual**.
 
 ## Manual enrollment
 
 With Windows MDM turned on, enroll a Windows host to Fleet by installing [Fleet's agent (fleetd)](https://fleetdm.com/docs/using-fleet/enroll-hosts).
 
 > Windows [tamper protection](https://learn.microsoft.com/en-us/defender-endpoint/prevent-changes-to-security-settings-with-tamper-protection) is disabled on a host when MDM is turned on.
+
+### Migrating from another MDM solution
+
+When migrating Windows hosts from another MDM, devices may fail to report MDM as "On." You might see enrollment errors (e.g., ⁠400 or ⁠0x8018000a) in [fleetd logs](https://fleetdm.com/guides/enroll-hosts#debugging).
+
+These issues are caused by residual enrollment data, registry conflicts, or third-party management agents from the previous MDM solution. [Run the scripts](https://fleetdm.com/guides/scripts#manually-run-scripts) below on the affected hosts, then **reboot the device** and select **Refetch** on the host details.
+
+
+- [reset-mdm-enrollment-flag.ps1](https://github.com/fleetdm/fleet/blob/main/docs/solutions/windows/scripts/reset-mdm-enrollment-flag.ps1): Resets the `MmpcEnrollmentFlag` registry value to fix incorrect MDM status reporting after migration.
+
+
+- [remove-stale-mdm-enrollment-records.ps1](https://github.com/fleetdm/fleet/blob/main/docs/solutions/windows/scripts/remove-stale-mdm-enrollment-records.ps1): Removes failed or orphaned MDM enrollment records, AAD discovery cache, and MS DM Server cache left behind by the previous MDM solution.
+
+- [fix-workplace-join-configuration.ps1](https://github.com/fleetdm/fleet/blob/main/docs/solutions/windows/scripts/fix-workplace-join-configuration.ps1): Re-enables the Automatic-Device-Join scheduled task and fixes Workplace Join policies that may be misconfigured after migration.
+
+- [remove-unreachable-wsus-configuration.ps1](https://github.com/fleetdm/fleet/blob/main/docs/solutions/windows/scripts/remove-unreachable-wsus-configuration.ps1): Removes stale WSUS server configurations that can break Windows Update after migration. Only removes the configuration if the WSUS server is unreachable.
+
+**Conflicting RMM or management agents:** Third-party RMM agents (such as N-able/SolarWinds, ConnectWise, or Kaseya) installed alongside the previous MDM solution can interfere with Fleet's MDM enrollment and may cause Windows Update to stop functioning. Check for and remove any RMM agents that are no longer needed before or after migrating to Fleet.
 
 ## Automatic enrollment
 
@@ -83,7 +101,34 @@ In order to connect Fleet to Entra, the IT admin (you) needs a Microsoft Enterpr
 
 ### Step 2: Connect Fleet to Microsoft Entra ID
 
-For instructions on how to connect Fleet to Microsoft Entra ID, in the Fleet UI, select the avatar on the right side of the top navigation and select **Settings > Integrations > Mobile device management (MDM)**. Then, next to **Windows automatic enrollment** select **Details**.
+The end user will see Microsoft's default initial setup. You can further simplify the initial device setup with Autopilot, which is similar to Apple's Automated Device Enrollment (DEP).
+
+Some Intune/Entra deployments enable automatic enrollment into Intune. Check to ensure **Automatic Enrollment** is not enabled, or your devices will not appear in Fleet.
+
+In your Intune settings, select **Devices**, and under **Device onbarding**, open the **Enrollment** submenu. Select **Automatic Enrollment** and ensure both **MDM user scope** and **Windows Information Protection (WIP) user scope** are set to **None**.
+
+1. [Sign in to Azure portal](https://fleetdm.com/sign-in-to/microsoft-automatic-enrollment-tool).
+2. At the top of the page, search "Domain names" and select **Domain names**. Select **+ Add custom domain**, type your Fleet URL (e.g. fleet.acme.com), and select **Add domain**.
+3. Use the information presented in Azure AD to create a new TXT/MX record with your domain registrar, then select **Verify**. If you're a managed-cloud customer, please reach out to Fleet to create a TXT/MX record for you.
+4. At the top of the page, search for "Mobility" and select **Mobility (MDM and WIP)**.
+5. Select **+ Add application**, then select **+ Create your own application**.
+6. Enter "Fleet" as the name of your application and select **Create**.
+7. Set MDM user scope to **All**, then in the Fleet UI head to **Settings** > **Integrations** > **MDM** > **Windows Enrollment** and copy the URLs on the **Microsoft Entra** page (`/settings/integrations/automatic-enrollment/windows`). Paste them in Azure AD, and select **Save**.
+8. While on this same page, select the **Custom MDM application settings** link.
+9. Click on the **Application ID URI** which will bring you to the **Expose an API** submenu with an edit button next to the text box.
+10. Replace with your Fleet URL (e.g. fleet.acme.com) and select **Save**.
+11. Select **API permissions** from the sidebar, then select **+ Add a permission**.
+12.  Select **Microsoft Graph**, then select **Delegated permissions**, and select **Group > Group.Read.All** and **Group > Group.ReadWrite.All** and **Add permissions**.
+13. Again select **+ Add a permission** and then **Microsoft Graph** and **Application permissions**, select the following:
+    + Device > Device.Read.All
+    + Device > Device.ReadWrite.All
+    + Directory > Directory.Read.All
+    + Group > Group.Read.All
+    + User > User.Read.All
+14. Select **Add permissions**.
+15. Select **Grant admin consent for [your tenant name]**, and confirm.
+
+Now you're ready to automatically enroll Windows hosts to Fleet.
 
 ### Step 3: Test automatic enrollment
 

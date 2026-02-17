@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"io"
+	"log/slog"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -11,9 +12,12 @@ import (
 	"testing"
 	"time"
 
+	"github.com/fleetdm/fleet/v4/server/contexts/installersize"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mock"
 	"github.com/fleetdm/fleet/v4/server/platform/endpointer"
+	platform_http "github.com/fleetdm/fleet/v4/server/platform/http"
+	platformlogging "github.com/fleetdm/fleet/v4/server/platform/logging"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/service/middleware/auth"
 	"github.com/fleetdm/fleet/v4/server/service/middleware/log"
@@ -30,7 +34,7 @@ func TestUniversalDecoderIDs(t *testing.T) {
 		ID1        uint `url:"some-id"`
 		OptionalID uint `url:"some-other-id,optional"`
 	}
-	decoder := makeDecoder(universalStruct{})
+	decoder := makeDecoder(universalStruct{}, installersize.MaxSoftwareInstallerSize)
 
 	req := httptest.NewRequest("POST", "/target", nil)
 	req = mux.SetURLVars(req, map[string]string{"some-id": "999"})
@@ -54,7 +58,7 @@ func TestUniversalDecoderIDsAndJSON(t *testing.T) {
 		ID1        uint   `url:"some-id"`
 		SomeString string `json:"some_string"`
 	}
-	decoder := makeDecoder(universalStruct{})
+	decoder := makeDecoder(universalStruct{}, installersize.MaxSoftwareInstallerSize)
 
 	body := `{"some_string": "hello"}`
 	req := httptest.NewRequest("POST", "/target", strings.NewReader(body))
@@ -77,7 +81,7 @@ func TestUniversalDecoderIDsAndJSONEmbedded(t *testing.T) {
 		ID1 uint `url:"some-id"`
 		EmbeddedJSON
 	}
-	decoder := makeDecoder(UniversalStruct{})
+	decoder := makeDecoder(UniversalStruct{}, installersize.MaxSoftwareInstallerSize)
 
 	body := `{"some_string": "hello"}`
 	req := httptest.NewRequest("POST", "/target", strings.NewReader(body))
@@ -98,7 +102,7 @@ func TestUniversalDecoderIDsAndListOptions(t *testing.T) {
 		Opts       fleet.ListOptions `url:"list_options"`
 		SomeString string            `json:"some_string"`
 	}
-	decoder := makeDecoder(universalStruct{})
+	decoder := makeDecoder(universalStruct{}, installersize.MaxSoftwareInstallerSize)
 
 	body := `{"some_string": "bye"}`
 	req := httptest.NewRequest("POST", "/target?per_page=77&page=4", strings.NewReader(body))
@@ -124,7 +128,7 @@ func TestUniversalDecoderHandlersEmbeddedAndNot(t *testing.T) {
 		Opts fleet.ListOptions `url:"list_options"`
 		EmbeddedJSON
 	}
-	decoder := makeDecoder(universalStruct{})
+	decoder := makeDecoder(universalStruct{}, installersize.MaxSoftwareInstallerSize)
 
 	body := `{"some_string": "o/"}`
 	req := httptest.NewRequest("POST", "/target?per_page=77&page=4", strings.NewReader(body))
@@ -146,7 +150,7 @@ func TestUniversalDecoderListOptions(t *testing.T) {
 		ID1  uint              `url:"some-id"`
 		Opts fleet.ListOptions `url:"list_options"`
 	}
-	decoder := makeDecoder(universalStruct{})
+	decoder := makeDecoder(universalStruct{}, installersize.MaxSoftwareInstallerSize)
 
 	req := httptest.NewRequest("POST", "/target", nil)
 	req = mux.SetURLVars(req, map[string]string{"some-id": "123"})
@@ -161,7 +165,7 @@ func TestUniversalDecoderOptionalQueryParams(t *testing.T) {
 	type universalStruct struct {
 		ID1 *uint `query:"some_id,optional"`
 	}
-	decoder := makeDecoder(universalStruct{})
+	decoder := makeDecoder(universalStruct{}, installersize.MaxSoftwareInstallerSize)
 
 	req := httptest.NewRequest("POST", "/target", nil)
 
@@ -187,7 +191,7 @@ func TestUniversalDecoderOptionalQueryParamString(t *testing.T) {
 	type universalStruct struct {
 		ID1 *string `query:"some_val,optional"`
 	}
-	decoder := makeDecoder(universalStruct{})
+	decoder := makeDecoder(universalStruct{}, installersize.MaxSoftwareInstallerSize)
 
 	req := httptest.NewRequest("POST", "/target", nil)
 
@@ -213,7 +217,7 @@ func TestUniversalDecoderOptionalQueryParamNotPtr(t *testing.T) {
 	type universalStruct struct {
 		ID1 string `query:"some_val,optional"`
 	}
-	decoder := makeDecoder(universalStruct{})
+	decoder := makeDecoder(universalStruct{}, installersize.MaxSoftwareInstallerSize)
 
 	req := httptest.NewRequest("POST", "/target", nil)
 
@@ -239,7 +243,7 @@ func TestUniversalDecoderQueryAndListPlayNice(t *testing.T) {
 		ID1  *uint             `query:"some_id"`
 		Opts fleet.ListOptions `url:"list_options"`
 	}
-	decoder := makeDecoder(universalStruct{})
+	decoder := makeDecoder(universalStruct{}, installersize.MaxSoftwareInstallerSize)
 
 	req := httptest.NewRequest("POST", "/target?per_page=77&page=4&some_id=444", nil)
 
@@ -252,6 +256,29 @@ func TestUniversalDecoderQueryAndListPlayNice(t *testing.T) {
 	assert.Equal(t, uint(4), casted.Opts.Page)
 	require.NotNil(t, casted.ID1)
 	assert.Equal(t, uint(444), *casted.ID1)
+}
+
+func TestUniversalDecoderSizeLimit(t *testing.T) {
+	type universalStruct struct {
+		ID1  uint              `url:"some-id"`
+		Opts fleet.ListOptions `url:"list_options"`
+	}
+	decoder := makeDecoder(universalStruct{}, platform_http.MaxRequestBodySize)
+
+	largeBody := `{"key": "` + strings.Repeat("A", int(platform_http.MaxRequestBodySize)+1) + `"}`
+	req := httptest.NewRequest("POST", "/target?per_page=77&page=4", strings.NewReader(largeBody))
+	req = mux.SetURLVars(req, map[string]string{"some-id": "123"})
+
+	_, err := decoder(context.Background(), req)
+	require.Error(t, err)
+	require.IsType(t, platform_http.PayloadTooLargeError{}, err)
+
+	largeBody = `{"key": "` + strings.Repeat("A", int(platform_http.MaxRequestBodySize)-11) + `"}` // -11 to account for the wrapping JSON
+	req = httptest.NewRequest("POST", "/target?per_page=77&page=4", strings.NewReader(largeBody))
+	req = mux.SetURLVars(req, map[string]string{"some-id": "123"})
+
+	_, err = decoder(context.Background(), req)
+	require.NoError(t, err)
 }
 
 type stringErrorer string
@@ -293,7 +320,7 @@ func TestEndpointer(t *testing.T) {
 		kithttp.ServerErrorEncoder(fleetErrorEncoder),
 		kithttp.ServerAfter(
 			kithttp.SetContentType("application/json; charset=utf-8"),
-			log.LogRequestEnd(kitlog.NewNopLogger()),
+			log.LogRequestEnd(slog.New(platformlogging.DiscardHandler{})),
 			checkLicenseExpiration(svc),
 		),
 	}
@@ -413,7 +440,7 @@ func TestEndpointerCustomMiddleware(t *testing.T) {
 		kithttp.ServerErrorEncoder(fleetErrorEncoder),
 		kithttp.ServerAfter(
 			kithttp.SetContentType("application/json; charset=utf-8"),
-			log.LogRequestEnd(kitlog.NewNopLogger()),
+			log.LogRequestEnd(slog.New(platformlogging.DiscardHandler{})),
 			checkLicenseExpiration(svc),
 		),
 	}

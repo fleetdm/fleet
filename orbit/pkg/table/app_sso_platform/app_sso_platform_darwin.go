@@ -113,7 +113,17 @@ func Generate(ctx context.Context, queryContext table.QueryContext) ([]map[strin
 }
 
 func executeAppSSOPlatform(loggedInUser string) ([]byte, error) {
-	cmd := exec.Command("sh", "-c", fmt.Sprintf(`launchctl asuser $(id -u "%s") sudo -iu "%s" /usr/bin/app-sso platform --state`, loggedInUser, loggedInUser)) // #nosec G20: loggedInUser is not controlled by user.
+	uid_, err := exec.Command("id", "-u", loggedInUser).Output()
+	if err != nil {
+		return nil, fmt.Errorf("failed to execute id command: %w", err)
+	}
+	uid := strings.TrimSpace(string(uid_))
+	if uid == "" {
+		return nil, errors.New("failed to get uid")
+	}
+	cmd := exec.Command("launchctl", "asuser", uid,
+		"sudo", "-iu", loggedInUser, "/usr/bin/app-sso", "platform", "--state",
+	)
 	return cmd.Output()
 }
 
@@ -196,7 +206,7 @@ func parseAppSSOPlatformCommandOutput(output []byte, expectedExtensionIdentifier
 		return nil, fmt.Errorf("could not unmarshal \"User Configuration\" JSON: %w", err)
 	}
 	if len(userConfig.KerberosStatus) == 0 {
-		return nil, errors.New("\"kerberosStatus\" has no entries")
+		return nil, nil
 	}
 	realm_, ok := userConfig.KerberosStatus[0]["realm"]
 	if !ok {

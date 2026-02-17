@@ -142,16 +142,20 @@ func cpeGeneralSearchQuery(software *fleet.Software) (string, []interface{}, err
 		Select("c.rowid", "c.product", "c.vendor", "c.deprecated", goqu.L("2 as weight")).
 		Where(goqu.L("c.product = ?", sanitizeSoftwareName(software)))
 
-	// 3 - Try Full text match
-	search3 := dialect.From(goqu.I("cpe_2").As("c")).
-		Select("c.rowid", "c.product", "c.vendor", "c.deprecated", goqu.L("3 as weight")).
-		Join(
-			goqu.I("cpe_search").As("cs"),
-			goqu.On(goqu.I("cs.rowid").Eq(goqu.I("c.rowid"))),
-		).
-		Where(goqu.L("cs.title MATCH ?", sanitizeMatch(software.Name)))
+	datasets := []*goqu.SelectDataset{search1, search2}
 
-	datasets := []*goqu.SelectDataset{search1, search2, search3}
+	// 3 - Try Full text match (only if sanitized name has content)
+	sanitizedName := sanitizeMatch(software.Name)
+	if strings.TrimSpace(sanitizedName) != "" {
+		search3 := dialect.From(goqu.I("cpe_2").As("c")).
+			Select("c.rowid", "c.product", "c.vendor", "c.deprecated", goqu.L("3 as weight")).
+			Join(
+				goqu.I("cpe_search").As("cs"),
+				goqu.On(goqu.I("cs.rowid").Eq(goqu.I("c.rowid"))),
+			).
+			Where(goqu.L("cs.title MATCH ?", sanitizedName))
+		datasets = append(datasets, search3)
+	}
 
 	// 4 - Try vendor/product from bundle identifier, like tld.vendor.product
 	bundleParts := strings.Split(software.BundleIdentifier, ".")
@@ -442,6 +446,37 @@ var (
 			},
 			mutate: func(s *fleet.Software, logger log.Logger) {
 				s.Name = "integrative-modeling-platform"
+			},
+		},
+		{
+			// ninxsoft/Mist (macOS installer download tool) is incorrectly matched against
+			// mist.io/Mist CPEs. Rename the app to prevent incorrect CPE matching with mist:mist.
+			// See https://github.com/fleetdm/fleet/issues/37111
+			matches: func(s *fleet.Software) bool {
+				return s.BundleIdentifier == "com.ninxsoft.mist" && s.Source == "apps"
+			},
+			mutate: func(s *fleet.Software, logger log.Logger) {
+				s.Name = "ninxsoft-mist"
+			},
+		},
+		{
+			// 7-Zip on Windows installed with MSI reports versions like "24.09.00.0" but NVD uses "24.09".
+			// Strip trailing ".00.0" components to match NVD version format.
+			// See https://github.com/fleetdm/fleet/issues/36335
+			matches: func(s *fleet.Software) bool {
+				return strings.HasPrefix(s.Name, "7-Zip") && s.Source == "programs"
+			},
+			mutate: func(s *fleet.Software, logger log.Logger) {
+				parts := strings.Split(s.Version, ".")
+				switch len(parts) {
+				case 0, 1:
+					level.Debug(logger).Log("msg", "unexpected 7-Zip version format", "source", "programs", "name", s.Name, "version", s.Version)
+					return
+				case 2:
+					return // Already in the correct format
+				default:
+					s.Version = parts[0] + "." + parts[1]
+				}
 			},
 		},
 	}

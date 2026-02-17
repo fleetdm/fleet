@@ -1,0 +1,2 @@
+* Fixed false positive CVE for Nextcloud Desktop.
+* Fixed rare CPE error when software name sanitizes to empty (e.g. only special characters)

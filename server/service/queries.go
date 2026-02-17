@@ -24,7 +24,7 @@ type getQueryRequest struct {
 }
 
 type getQueryResponse struct {
-	Query *fleet.Query `json:"query,omitempty"`
+	Query *fleet.Query `json:"query,omitempty" renameto:"report"`
 	Err   error        `json:"error,omitempty"`
 }
 
@@ -59,17 +59,18 @@ func (svc *Service) GetQuery(ctx context.Context, id uint) (*fleet.Query, error)
 type listQueriesRequest struct {
 	ListOptions fleet.ListOptions `url:"list_options"`
 	// TeamID url argument set to 0 means global.
-	TeamID         uint `query:"team_id,optional"`
+	TeamID         uint `query:"team_id,optional" renameto:"fleet_id"`
 	MergeInherited bool `query:"merge_inherited,optional"`
 	// only return queries targeted to run on this platform
 	Platform string `query:"platform,optional"`
 }
 
 type listQueriesResponse struct {
-	Queries []fleet.Query             `json:"queries"`
-	Count   int                       `json:"count"`
-	Meta    *fleet.PaginationMetadata `json:"meta"`
-	Err     error                     `json:"error,omitempty"`
+	Queries             []fleet.Query             `json:"queries" renameto:"reports"`
+	Count               int                       `json:"count"`
+	InheritedQueryCount int                       `json:"inherited_query_count" renameto:"inherited_report_count"`
+	Meta                *fleet.PaginationMetadata `json:"meta"`
+	Err                 error                     `json:"error,omitempty"`
 }
 
 func (r listQueriesResponse) Error() error { return r.Err }
@@ -87,7 +88,7 @@ func listQueriesEndpoint(ctx context.Context, request interface{}, svc fleet.Ser
 		urlPlatform = &req.Platform
 	}
 
-	queries, count, meta, err := svc.ListQueries(ctx, req.ListOptions, teamID, nil, req.MergeInherited, urlPlatform)
+	queries, count, inheritedCount, meta, err := svc.ListQueries(ctx, req.ListOptions, teamID, nil, req.MergeInherited, urlPlatform)
 	if err != nil {
 		return listQueriesResponse{Err: err}, nil
 	}
@@ -98,18 +99,19 @@ func listQueriesEndpoint(ctx context.Context, request interface{}, svc fleet.Ser
 	}
 
 	return listQueriesResponse{
-		Queries: respQueries,
-		Count:   count,
-		Meta:    meta,
+		Queries:             respQueries,
+		Count:               count,
+		InheritedQueryCount: inheritedCount,
+		Meta:                meta,
 	}, nil
 }
 
-func (svc *Service) ListQueries(ctx context.Context, opt fleet.ListOptions, teamID *uint, scheduled *bool, mergeInherited bool, urlPlatform *string) ([]*fleet.Query, int, *fleet.PaginationMetadata, error) {
+func (svc *Service) ListQueries(ctx context.Context, opt fleet.ListOptions, teamID *uint, scheduled *bool, mergeInherited bool, urlPlatform *string) ([]*fleet.Query, int, int, *fleet.PaginationMetadata, error) {
 	// Check the user is allowed to list queries on the given team.
 	if err := svc.authz.Authorize(ctx, &fleet.Query{
 		TeamID: teamID,
 	}, fleet.ActionRead); err != nil {
-		return nil, 0, nil, err
+		return nil, 0, 0, nil, err
 	}
 
 	// always include metadata for queries
@@ -125,15 +127,15 @@ func (svc *Service) ListQueries(ctx context.Context, opt fleet.ListOptions, team
 			dbPlatform = urlPlatform
 		}
 		if strings.Contains(*urlPlatform, ",") {
-			return nil, 0, nil, &fleet.BadRequestError{Message: "queries can only be filtered by one platform at a time"}
+			return nil, 0, 0, nil, &fleet.BadRequestError{Message: "queries can only be filtered by one platform at a time"}
 		}
 		targetableDBPlatforms := []string{"darwin", "windows", "linux"}
 		if !slices.Contains(targetableDBPlatforms, *dbPlatform) {
-			return nil, 0, nil, &fleet.BadRequestError{Message: fmt.Sprintf("platform %q cannot be a scheduled query target, supported platforms are: %s", *dbPlatform, strings.Join(targetableDBPlatforms, ","))}
+			return nil, 0, 0, nil, &fleet.BadRequestError{Message: fmt.Sprintf("platform %q cannot be a scheduled query target, supported platforms are: %s", *dbPlatform, strings.Join(targetableDBPlatforms, ","))}
 		}
 	}
 
-	queries, count, meta, err := svc.ds.ListQueries(ctx, fleet.ListQueryOptions{
+	queries, count, inheritedCount, meta, err := svc.ds.ListQueries(ctx, fleet.ListQueryOptions{
 		ListOptions:    opt,
 		TeamID:         teamID,
 		IsScheduled:    scheduled,
@@ -141,10 +143,10 @@ func (svc *Service) ListQueries(ctx context.Context, opt fleet.ListOptions, team
 		Platform:       dbPlatform,
 	})
 	if err != nil {
-		return nil, 0, nil, err
+		return nil, 0, 0, nil, err
 	}
 
-	return queries, count, meta, nil
+	return queries, count, inheritedCount, meta, nil
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -153,11 +155,11 @@ func (svc *Service) ListQueries(ctx context.Context, opt fleet.ListOptions, team
 
 type getQueryReportRequest struct {
 	ID     uint  `url:"id"`
-	TeamID *uint `query:"team_id,optional"`
+	TeamID *uint `query:"team_id,optional" renameto:"fleet_id"`
 }
 
 type getQueryReportResponse struct {
-	QueryID       uint                       `json:"query_id"`
+	QueryID       uint                       `json:"query_id" renameto:"report_id"`
 	Results       []fleet.HostQueryResultRow `json:"results"`
 	ReportClipped bool                       `json:"report_clipped"`
 	Err           error                      `json:"error,omitempty"`
@@ -249,7 +251,7 @@ type createQueryRequest struct {
 }
 
 type createQueryResponse struct {
-	Query *fleet.Query `json:"query,omitempty"`
+	Query *fleet.Query `json:"query,omitempty" renameto:"report"`
 	Err   error        `json:"error,omitempty"`
 }
 
@@ -382,7 +384,7 @@ type modifyQueryRequest struct {
 }
 
 type modifyQueryResponse struct {
-	Query *fleet.Query `json:"query,omitempty"`
+	Query *fleet.Query `json:"query,omitempty" renameto:"report"`
 	Err   error        `json:"error,omitempty"`
 }
 
@@ -549,7 +551,7 @@ func comparePlatforms(platform1, platform2 string) bool {
 type deleteQueryRequest struct {
 	Name string `url:"name"`
 	// TeamID if not set is assumed to be 0 (global).
-	TeamID uint `url:"team_id,optional"`
+	TeamID uint `url:"fleet_id,optional"`
 }
 
 type deleteQueryResponse struct {
@@ -948,7 +950,7 @@ type getQuerySpecsResponse struct {
 }
 
 type getQuerySpecsRequest struct {
-	TeamID uint `url:"team_id,optional"`
+	TeamID uint `url:"fleet_id,optional"`
 }
 
 func (r getQuerySpecsResponse) Error() error { return r.Err }
@@ -967,7 +969,7 @@ func getQuerySpecsEndpoint(ctx context.Context, request interface{}, svc fleet.S
 }
 
 func (svc *Service) GetQuerySpecs(ctx context.Context, teamID *uint) ([]*fleet.QuerySpec, error) {
-	queries, _, _, err := svc.ListQueries(ctx, fleet.ListOptions{}, teamID, nil, false, nil)
+	queries, _, _, _, err := svc.ListQueries(ctx, fleet.ListOptions{}, teamID, nil, false, nil)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "getting queries")
 	}
@@ -1025,7 +1027,7 @@ type getQuerySpecResponse struct {
 
 type getQuerySpecRequest struct {
 	Name   string `url:"name"`
-	TeamID uint   `query:"team_id,optional"`
+	TeamID uint   `query:"team_id,optional" renameto:"fleet_id"`
 }
 
 func (r getQuerySpecResponse) Error() error { return r.Err }

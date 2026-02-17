@@ -65,12 +65,10 @@ const Statistics = ({
             This information helps our team better understand feature adoption
             and usage, and allows us to see how Fleet is adding value, so that
             we can make better product decisions. Fleet Premium customers always
-            submit usage statistics data.
-            <br />
-            <br />
+            submit usage statistics data.{" "}
             <CustomLink
               url="https://fleetdm.com/docs/using-fleet/usage-statistics#usage-statistics"
-              text="Learn more about usage statistics"
+              text="Learn more"
               newTab
             />
           </p>
@@ -91,7 +89,7 @@ const Statistics = ({
           renderChildren={(disableChildren) => (
             <Button
               type="submit"
-              disabled={disableChildren}
+              disabled={disableChildren || telemetryAlwaysEnabled}
               className="button-wrap"
               isLoading={isUpdatingSettings}
             >

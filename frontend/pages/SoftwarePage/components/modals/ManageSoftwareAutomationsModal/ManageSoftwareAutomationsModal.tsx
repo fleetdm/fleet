@@ -74,7 +74,7 @@ const validateWebhookURL = (url: string) => {
   if (!url) {
     errors.url = "Please add a destination URL";
   } else if (!validUrl({ url })) {
-    errors.url = `${url} is not a valid URL`;
+    errors.url = "Destination URL is not a valid URL";
   } else {
     delete errors.url;
   }
@@ -133,7 +133,9 @@ const ManageAutomationsModal = ({
     setSelectedIntegration,
   ] = useState<IIntegration>();
 
-  const { config: globalConfigFromContext } = useContext(AppContext);
+  const { config: globalConfigFromContext, isFreeTier } = useContext(
+    AppContext
+  );
   const gitOpsModeEnabled = globalConfigFromContext?.gitops.gitops_mode_enabled;
 
   const maxAgeInNanoseconds = isGlobalSWConfig(softwareConfig)
@@ -376,11 +378,20 @@ const ManageAutomationsModal = ({
     return (
       <>
         <div className={`${baseClass}__software-automation-description`}>
-          A ticket will be created in your <b>Integration</b> if a detected
-          vulnerability (CVE) was published in the last{" "}
-          {recentVulnerabilityMaxAge ||
-            CONFIG_DEFAULT_RECENT_VULNERABILITY_MAX_AGE_IN_DAYS}{" "}
-          days.
+          {isFreeTier ? (
+            <>
+              A ticket will be created in your <b>Integration</b> for each
+              detected vulnerability (CVE).
+            </>
+          ) : (
+            <>
+              A ticket will be created in your <b>Integration</b> if a detected
+              vulnerability (CVE) was published in the last{" "}
+              {recentVulnerabilityMaxAge ||
+                CONFIG_DEFAULT_RECENT_VULNERABILITY_MAX_AGE_IN_DAYS}{" "}
+              days.
+            </>
+          )}
         </div>
         {(jiraIntegrationsIndexed && jiraIntegrationsIndexed.length > 0) ||
         (zendeskIntegrationsIndexed &&
@@ -427,9 +438,18 @@ const ManageAutomationsModal = ({
       <>
         <div className={`${baseClass}__software-automation-description`}>
           <p>
-            A request will be sent to your configured <b>Destination URL</b> if
-            a detected vulnerability (CVE) was published in the last{" "}
-            {recentVulnerabilityMaxAge || "30"} days.
+            {isFreeTier ? (
+              <>
+                A request will be sent to your configured <b>Destination URL</b>{" "}
+                for each detected vulnerability (CVE).
+              </>
+            ) : (
+              <>
+                A request will be sent to your configured <b>Destination URL</b>{" "}
+                if a detected vulnerability (CVE) was published in the last{" "}
+                {recentVulnerabilityMaxAge || "30"} days.
+              </>
+            )}
           </p>
         </div>
         <InputField

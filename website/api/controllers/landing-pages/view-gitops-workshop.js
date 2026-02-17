@@ -50,8 +50,8 @@ module.exports = {
 
       // Convert the ISO timestamps that represent the start and end time of the event into a formatted string.
       // Create new Date objects from the start and end times.
-      let eventStartsOn = new Date(event.start.local);
-      let eventEndsOn = new Date(event.end.local);
+      let eventStartsOn = new Date(event.start.utc);
+      let eventEndsOn = new Date(event.end.utc);
 
       let eventTimeZone = event.start.timezone;
       let formattedDateString = new Intl.DateTimeFormat('en-US', {

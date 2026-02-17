@@ -16,6 +16,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log/slog"
 	"math/big"
 	"mime/multipart"
 	"net/http"
@@ -45,10 +46,12 @@ import (
 	"github.com/fleetdm/fleet/v4/server/datastore/filesystem"
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
 	"github.com/fleetdm/fleet/v4/server/datastore/redis/redistest"
+	"github.com/fleetdm/fleet/v4/server/dev_mode"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/live_query/live_query_mock"
 	"github.com/fleetdm/fleet/v4/server/mdm"
 	maintained_apps "github.com/fleetdm/fleet/v4/server/mdm/maintainedapps"
+	"github.com/fleetdm/fleet/v4/server/platform/logging"
 	"github.com/fleetdm/fleet/v4/server/policies"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/pubsub"
@@ -58,8 +61,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/service/redis_lock"
 	"github.com/fleetdm/fleet/v4/server/service/schedule"
 	"github.com/fleetdm/fleet/v4/server/test"
-	"github.com/go-kit/log"
-	kitlog "github.com/go-kit/log"
 	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
 	"github.com/stretchr/testify/assert"
@@ -113,16 +114,16 @@ func (s *integrationEnterpriseTestSuite) SetupSuite() {
 		Pool:           s.redisPool,
 		Rs:             pubsub.NewInmemQueryResults(),
 		Lq:             s.lq,
-		Logger:         log.NewLogfmtLogger(os.Stdout),
+		Logger:         logging.NewLogfmtLogger(os.Stdout),
 		EnableCachedDS: true,
 		StartCronSchedules: []TestNewScheduleFunc{
 			func(ctx context.Context, ds fleet.Datastore) fleet.NewCronScheduleFunc {
 				return func() (fleet.CronSchedule, error) {
 					// We set 24-hour interval so that it only runs when triggered.
 					var err error
-					cronLog := log.NewJSONLogger(os.Stdout)
+					cronLog := logging.NewJSONLogger(os.Stdout)
 					if os.Getenv("FLEET_INTEGRATION_TESTS_DISABLE_LOG") != "" {
-						cronLog = kitlog.NewNopLogger()
+						cronLog = logging.NewNopLogger()
 					}
 					calendarSchedule, err = cron.NewCalendarSchedule(
 						ctx, s.T().Name(), s.ds, redis_lock.NewLock(s.redisPool), config.CalendarConfig{Periodicity: 24 * time.Hour},
@@ -138,7 +139,7 @@ func (s *integrationEnterpriseTestSuite) SetupSuite() {
 		DBConns:                         s.dbConns,
 	}
 	if os.Getenv("FLEET_INTEGRATION_TESTS_DISABLE_LOG") != "" {
-		config.Logger = kitlog.NewNopLogger()
+		config.Logger = logging.NewNopLogger()
 	}
 	users, server := RunServerForTestsWithDS(s.T(), s.ds, &config)
 	s.server = server
@@ -1276,6 +1277,7 @@ func (s *integrationEnterpriseTestSuite) TestTeamPolicies() {
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/teams/%d/policies/count", team1.ID), nil, http.StatusOK, &tc)
 	require.Nil(t, tc.Err)
 	require.Equal(t, 1, tc.Count)
+	require.Equal(t, 0, tc.InheritedPolicyCount)
 
 	gc := countGlobalPoliciesResponse{}
 	s.DoJSON("GET", "/api/latest/fleet/policies/count", nil, http.StatusOK, &gc)
@@ -1299,6 +1301,7 @@ func (s *integrationEnterpriseTestSuite) TestTeamPolicies() {
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/teams/%d/policies/count", team1.ID), nil, http.StatusOK, &countResp, "merge_inherited", "true")
 	require.Nil(t, countResp.Err)
 	require.Equal(t, 2, countResp.Count)
+	require.Equal(t, 1, countResp.InheritedPolicyCount)
 
 	// Test delete
 	deletePolicyParams := deleteTeamPoliciesRequest{IDs: []uint{ts.Policies[0].ID}}
@@ -1369,6 +1372,7 @@ func (s *integrationEnterpriseTestSuite) TestNoTeamPolicies() {
 	tc := countTeamPoliciesResponse{}
 	s.DoJSON("GET", "/api/latest/fleet/teams/0/policies/count", nil, http.StatusOK, &tc)
 	require.Equal(t, 2, tc.Count)
+	require.Equal(t, 0, tc.InheritedPolicyCount)
 	// Test merge inherited for "No team" policies.
 	ts = listTeamPoliciesResponse{}
 	s.DoJSON("GET", "/api/latest/fleet/teams/0/policies", nil, http.StatusOK, &ts, "merge_inherited", "true", "order_key", "team_id", "order_direction", "desc")
@@ -1385,6 +1389,7 @@ func (s *integrationEnterpriseTestSuite) TestNoTeamPolicies() {
 	s.DoJSON("GET", "/api/latest/fleet/teams/0/policies/count", nil, http.StatusOK, &countResp, "merge_inherited", "true")
 	require.Nil(t, countResp.Err)
 	require.Equal(t, 3, countResp.Count)
+	require.Equal(t, 1, countResp.InheritedPolicyCount)
 	// Test deleting "No team" policies.
 	deletePolicyParams := deleteTeamPoliciesRequest{
 		IDs: []uint{ts.Policies[0].ID},
@@ -1484,12 +1489,16 @@ func (s *integrationEnterpriseTestSuite) TestTeamQueries() {
 	s.DoJSON("GET", "/api/latest/fleet/queries", nil, http.StatusOK, &listQueriesResp, "team_id", fmt.Sprint(team1.ID))
 	require.Len(t, listQueriesResp.Queries, 1)
 	assert.Equal(t, "team1", listQueriesResp.Queries[0].Name)
+	assert.Equal(t, 1, listQueriesResp.Count)
+	assert.Equal(t, 0, listQueriesResp.InheritedQueryCount)
 
 	// list merged team queries
 	s.DoJSON("GET", "/api/latest/fleet/queries", nil, http.StatusOK, &listQueriesResp, "team_id", fmt.Sprint(team1.ID), "merge_inherited", "true", "order_key", "team_id", "order_direction", "desc")
 	require.Len(t, listQueriesResp.Queries, 2)
 	assert.Equal(t, "team1", listQueriesResp.Queries[0].Name)
 	assert.Equal(t, "global1", listQueriesResp.Queries[1].Name)
+	assert.Equal(t, 2, listQueriesResp.Count)
+	assert.Equal(t, 1, listQueriesResp.InheritedQueryCount)
 }
 
 func (s *integrationEnterpriseTestSuite) TestModifyTeamEnrollSecrets() {
@@ -1521,17 +1530,42 @@ func (s *integrationEnterpriseTestSuite) TestModifyTeamEnrollSecrets() {
 	assert.Equal(t, "testSecret1", team.Secrets[0].Secret)
 	assert.Equal(t, "testSecret2", team.Secrets[1].Secret)
 
+	seenActivitiesIDs := map[uint]struct{}{}
+	activityName := fleet.ActivityTypeEditedEnrollSecrets{}.ActivityName()
+	activityDetails := fmt.Sprintf(`{"team_id": %d, "team_name": "%s"}`, team.ID, team.Name)
+
+	// Check that an activity was created for the new secrets
+	seenActivitiesIDs[s.lastActivityMatches(activityName, activityDetails, 0)] = struct{}{}
+	require.Len(t, seenActivitiesIDs, 1)
+
+	// Posting the same secret shouldn't create a new activity, since we are only interested in mutations
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d/secrets", team.ID), req, http.StatusOK, &resp)
+	seenActivitiesIDs[s.lastActivityMatches(activityName, activityDetails, 0)] = struct{}{}
+	require.Len(t, seenActivitiesIDs, 1)
+
 	// Test delete all enroll secrets
 	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d/secrets", team.ID), json.RawMessage(`{"secrets": []}`), http.StatusOK, &resp)
 	require.Len(t, resp.Secrets, 0)
+
+	// We should see a new activity for the deleted secrets
+	seenActivitiesIDs[s.lastActivityMatches(activityName, activityDetails, 0)] = struct{}{}
+	require.Len(t, seenActivitiesIDs, 2)
 
 	// Test bad requests
 	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d/secrets", team.ID), json.RawMessage(`{"foo": [{"secret": "testSecret3"}]}`), http.StatusUnprocessableEntity, &resp)
 	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d/secrets", team.ID), json.RawMessage(`{}`), http.StatusUnprocessableEntity, &resp)
 
+	// No new activities should be generated
+	seenActivitiesIDs[s.lastActivityMatches(activityName, activityDetails, 0)] = struct{}{}
+	require.Len(t, seenActivitiesIDs, 2)
+
 	// too many secrets
 	secrets := createEnrollSecrets(t, fleet.MaxEnrollSecretsCount+1)
 	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d/secrets", team.ID), json.RawMessage(`{"secrets": `+string(jsonMustMarshal(t, secrets))+`}`), http.StatusUnprocessableEntity, &resp)
+
+	// No new activities should be generated
+	seenActivitiesIDs[s.lastActivityMatches(activityName, activityDetails, 0)] = struct{}{}
+	require.Len(t, seenActivitiesIDs, 2)
 }
 
 func (s *integrationEnterpriseTestSuite) TestAvailableTeams() {
@@ -1613,8 +1647,12 @@ func (s *integrationEnterpriseTestSuite) TestTeamEndpoints() {
 	var tmResp teamResponse
 	s.DoJSON("POST", "/api/latest/fleet/teams", team, http.StatusOK, &tmResp)
 	assert.Equal(t, team.Name, tmResp.Team.Name)
+	assert.False(t, tmResp.Team.CreatedAt.IsZero())
+	assert.WithinDuration(t, time.Now(), tmResp.Team.CreatedAt, time.Minute)
 	require.Len(t, tmResp.Team.Secrets, 1)
 	assert.Equal(t, "DEF", tmResp.Team.Secrets[0].Secret)
+	assert.False(t, tmResp.Team.Secrets[0].CreatedAt.IsZero())
+	assert.WithinDuration(t, time.Now(), tmResp.Team.Secrets[0].CreatedAt, time.Minute)
 
 	// create a duplicate team (same name)
 	team2 := &fleet.Team{
@@ -2882,7 +2920,7 @@ func (s *integrationEnterpriseTestSuite) TestNoTeamFailingPolicyWebhookTrigger()
 	}
 
 	// Trigger the webhook automation with a custom sendFunc that captures the call
-	err = policies.TriggerFailingPoliciesAutomation(ctx, s.ds, kitlog.NewNopLogger(), failingPolicySet,
+	err = policies.TriggerFailingPoliciesAutomation(ctx, s.ds, logging.NewNopLogger(), failingPolicySet,
 		func(pol *fleet.Policy, cfg policies.FailingPolicyAutomationConfig) error {
 			webhookCalled = true
 			capturedPolicy = pol
@@ -3175,7 +3213,7 @@ func (s *integrationEnterpriseTestSuite) assertAppleOSUpdatesDeclaration(teamID 
 	require.NoError(t, err)
 
 	require.Contains(t, string(decl.RawJSON), fmt.Sprintf(`"TargetOSVersion": "%s"`, expected.MinimumVersion.Value))
-	require.Contains(t, string(decl.RawJSON), fmt.Sprintf(`"TargetLocalDateTime": "%sT12:00:00"`, expected.Deadline.Value))
+	require.Contains(t, string(decl.RawJSON), fmt.Sprintf(`"TargetLocalDateTime": "%sT19:00:00"`, expected.Deadline.Value))
 }
 
 func (s *integrationEnterpriseTestSuite) TestAppleOSUpdatesTeamConfig() {
@@ -3907,6 +3945,155 @@ func (s *integrationEnterpriseTestSuite) TestListDevicePolicies() {
 	require.True(t, getDeviceHostResp.GlobalConfig.Features.EnableSoftwareInventory)
 }
 
+// TestDeviceHostConditionalAccessFeatures tests the EnableConditionalAccess and
+// EnableConditionalAccessBypass flags in the device endpoint response for hosts WITH teams.
+// EnableConditionalAccess requires: host has team + global Okta configured + team conditional access enabled.
+// EnableConditionalAccessBypass is controlled solely by AppConfig.ConditionalAccess.BypassEnabled().
+func (s *integrationEnterpriseTestSuite) TestDeviceHostConditionalAccessFeatures() {
+	t := s.T()
+	ctx := t.Context()
+
+	s.clearOktaConditionalAccess()
+	// Clean up Okta conditional access config at the end
+	t.Cleanup(func() {
+		s.clearOktaConditionalAccess()
+	})
+
+	// Create a test team
+	team, err := s.ds.NewTeam(ctx, &fleet.Team{
+		Name:        "team-conditional-access-test",
+		Description: "Test team for conditional access",
+	})
+	require.NoError(t, err)
+
+	// Create a host with device token and assign to team
+	token := "conditional_access_features_test_token"
+	host := createHostAndDeviceToken(t, s.ds, token)
+	err = s.ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&team.ID, []uint{host.ID}))
+	require.NoError(t, err)
+
+	// Helper to call the device endpoint and return the response
+	getDeviceHost := func() getDeviceHostResponse {
+		var resp getDeviceHostResponse
+		res := s.DoRawNoAuth("GET", "/api/latest/fleet/device/"+token, nil, http.StatusOK)
+		err := json.NewDecoder(res.Body).Decode(&resp)
+		require.NoError(t, err)
+		res.Body.Close()
+		return resp
+	}
+
+	// Test case 1: No global Okta configured, team conditional access not enabled
+	// Expected: EnableConditionalAccess=false, EnableConditionalAccessBypass=false (no ConditionalAccess in AppConfig)
+	t.Run("no_okta_no_team_config", func(t *testing.T) {
+		resp := getDeviceHost()
+		require.NoError(t, resp.Err)
+		assert.False(t, resp.GlobalConfig.Features.EnableConditionalAccess, "should be false when Okta not configured")
+		assert.True(t, resp.GlobalConfig.Features.EnableConditionalAccessBypass, "should be true when no ConditionalAccess config")
+	})
+
+	// Configure Okta at global level (without bypass settings first)
+	validCert := `-----BEGIN CERTIFICATE-----
+MIICpDCCAYwCCQDU+pQ4P2GH3jANBgkqhkiG9w0BAQsFADAUMRIwEAYDVQQDDAls
+b2NhbGhvc3QwHhcNMjMxMjA2MTYyOTQ0WhcNMjQxMjA1MTYyOTQ0WjAUMRIwEAYD
+VQQDDAlsb2NhbGhvc3QwggEiMA0GCSqGSIb3DQEBAQUAA4IBDwAwggEKAoIBAQC8
+fKEMF69sJR8Ky7Vrt3EfJvL3NlVPgj/OAkFhpKgL9QPrjAAY9qdmkLuU5eBPpSvB
+jAqGUEBLHKGUKx8kIJxoBguq5WIWwIBq1b3cmPbUXtDi7GzqoUqPSfPWMzLCrmpl
+N5RYPu/pRWg9M4vI2XdhVFaDOE6X1sXhNqYfr7TNbOfxDQ0VPjpNqHY+kiEAqmcr
+tJzuJFYN1y8eyevZj4VGTS/dZ3HYHWBpZ6xpVoZ6LWDqdmLPLQkp2ceGLCvoFaG8
+TaMMfz3dfHnMvI9o7IrT8kCbLqVoxhLk1FwT+iLLL9v0rhOUbg/mvNT6BQM0P7rA
+wDOx1kIauDmJQVWe9nYPAgMBAAEwDQYJKoZIhvcNAQELBQADggEBAChAhSvUqH+u
+wksgUXqBpQt7OPQhYmpCtq16eIYb6+LzX1FnTuMdaiT4q9FBnJVNcS2ofxhkv/67
+d7r5SjMqFvCnSZujddP0TGo5Z7wfPhXKG5+X2GQMIX7agh7lfx5y5F5I/TsTQ+DS
+AbKIDRWaHD5hPjUobJKtBdZxicXZj7e/K1mPxyQu9K3j/wPqIGkKwmEQQNWw/mFH
+A9XUANZP+7e9EbV6AMtJPA/vmg3mSFqX+N2xLBFvpfhxdPMXLDOO3EHKQ8IMWPOC
+A3smrFnIVFrVeLPn47FnPVP8HzT8dcMBwGKOGANW1VAMEwlZXHdVlRaGVqd9FbxS
+KSCy+VfKBn4=
+-----END CERTIFICATE-----`
+
+	s.DoRaw("PATCH", "/api/latest/fleet/config", fmt.Appendf(nil, `{
+		"conditional_access": {
+			"okta_idp_id": "https://www.okta.com/saml2/service-provider/test",
+			"okta_assertion_consumer_service_url": "https://dev-test.okta.com/sso/saml2/test",
+			"okta_audience_uri": "https://www.okta.com/saml2/service-provider/test",
+			"okta_certificate": %q
+		}
+	}`, validCert), http.StatusOK)
+
+	// Test case 2: Global Okta configured, team conditional access NOT enabled
+	// Expected: EnableConditionalAccess=false (team not enabled), EnableConditionalAccessBypass=true (default)
+	t.Run("okta_configured_team_not_enabled", func(t *testing.T) {
+		resp := getDeviceHost()
+		require.NoError(t, resp.Err)
+		assert.False(t, resp.GlobalConfig.Features.EnableConditionalAccess, "should be false when team conditional access not enabled")
+		assert.True(t, resp.GlobalConfig.Features.EnableConditionalAccessBypass, "should be true when bypass not explicitly disabled")
+	})
+
+	// Enable conditional access on the team
+	var tmResp teamResponse
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), map[string]any{
+		"integrations": map[string]any{
+			"conditional_access_enabled": true,
+		},
+	}, http.StatusOK, &tmResp)
+
+	// Test case 3: Global Okta configured, team conditional access enabled
+	// Expected: EnableConditionalAccess=true, EnableConditionalAccessBypass=true (default)
+	t.Run("okta_configured_team_enabled", func(t *testing.T) {
+		resp := getDeviceHost()
+		require.NoError(t, resp.Err)
+		assert.True(t, resp.GlobalConfig.Features.EnableConditionalAccess, "should be true when Okta configured and team enabled")
+		assert.True(t, resp.GlobalConfig.Features.EnableConditionalAccessBypass, "should be true when bypass not explicitly disabled")
+	})
+
+	// Disable bypass explicitly
+	s.DoRaw("PATCH", "/api/latest/fleet/config", []byte(`{
+		"conditional_access": {
+			"bypass_disabled": true
+		}
+	}`), http.StatusOK)
+
+	// Test case 4: Bypass explicitly disabled
+	// Expected: EnableConditionalAccess=true, EnableConditionalAccessBypass=false
+	t.Run("bypass_explicitly_disabled", func(t *testing.T) {
+		resp := getDeviceHost()
+		require.NoError(t, resp.Err)
+		assert.True(t, resp.GlobalConfig.Features.EnableConditionalAccess, "should still be true")
+		assert.False(t, resp.GlobalConfig.Features.EnableConditionalAccessBypass, "should be false when bypass explicitly disabled")
+	})
+
+	// Re-enable bypass explicitly
+	s.DoRaw("PATCH", "/api/latest/fleet/config", []byte(`{
+		"conditional_access": {
+			"bypass_disabled": false
+		}
+	}`), http.StatusOK)
+
+	// Test case 5: Bypass explicitly enabled
+	// Expected: EnableConditionalAccess=true, EnableConditionalAccessBypass=true
+	t.Run("bypass_explicitly_enabled", func(t *testing.T) {
+		resp := getDeviceHost()
+		require.NoError(t, resp.Err)
+		assert.True(t, resp.GlobalConfig.Features.EnableConditionalAccess, "should still be true")
+		assert.True(t, resp.GlobalConfig.Features.EnableConditionalAccessBypass, "should be true when bypass explicitly enabled")
+	})
+
+	// Disable conditional access on the team
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), map[string]any{
+		"integrations": map[string]any{
+			"conditional_access_enabled": false,
+		},
+	}, http.StatusOK, &tmResp)
+
+	// Test case 6: Global Okta configured, team conditional access disabled
+	// Expected: EnableConditionalAccess=false, EnableConditionalAccessBypass=true
+	t.Run("okta_configured_team_disabled", func(t *testing.T) {
+		resp := getDeviceHost()
+		require.NoError(t, resp.Err)
+		assert.False(t, resp.GlobalConfig.Features.EnableConditionalAccess, "should be false when team disabled")
+		assert.True(t, resp.GlobalConfig.Features.EnableConditionalAccessBypass, "should still be true since global bypass is enabled")
+	})
+}
+
 // TestCustomTransparencyURL tests that Fleet Premium licensees can use custom transparency urls.
 func (s *integrationEnterpriseTestSuite) TestCustomTransparencyURL() {
 	t := s.T()
@@ -4469,7 +4656,7 @@ func (s *integrationEnterpriseTestSuite) TestInvitedUserMFA() {
 
 	// create valid invite
 	createInviteReq := createInviteRequest{InvitePayload: fleet.InvitePayload{
-		Email:      ptr.String("some email"),
+		Email:      ptr.String("some@email.com"),
 		Name:       ptr.String("some name"),
 		GlobalRole: null.StringFrom(fleet.RoleAdmin),
 		MFAEnabled: ptr.Bool(true),
@@ -4487,19 +4674,18 @@ func (s *integrationEnterpriseTestSuite) TestInvitedUserMFA() {
 	// response's json, must get it from the db
 	inv, err := s.ds.Invite(context.Background(), validInvite.ID)
 	require.NoError(t, err)
-	validInviteToken := inv.Token
 
 	// verify the token with valid invite
 	var verifyInvResp verifyInviteResponse
-	s.DoJSON("GET", "/api/latest/fleet/invites/"+validInviteToken, nil, http.StatusOK, &verifyInvResp)
+	s.DoJSON("GET", "/api/latest/fleet/invites/"+inv.Token, nil, http.StatusOK, &verifyInvResp)
 	require.Equal(t, validInvite.ID, verifyInvResp.Invite.ID)
 
 	var createFromInviteResp createUserResponse
 	s.DoJSON("POST", "/api/latest/fleet/users", fleet.UserPayload{
 		Name:        ptr.String("Full Name"),
 		Password:    ptr.String(test.GoodPassword),
-		Email:       ptr.String("a@b.c"),
-		InviteToken: ptr.String(validInviteToken),
+		Email:       ptr.String(inv.Email),
+		InviteToken: ptr.String(inv.Token),
 	}, http.StatusOK, &createFromInviteResp)
 	require.True(t, createFromInviteResp.User.MFAEnabled)
 
@@ -5552,6 +5738,8 @@ func (s *integrationEnterpriseTestSuite) TestGlobalPolicyCreateReadPatch() {
 	}
 	s.DoJSON("POST", "/api/latest/fleet/policies", createPol1Req, http.StatusOK, &createPol1)
 	allEqual(t, createPol1Req, createPol1.Policy, fields...)
+	require.NotNil(t, createPol1.Policy.ConditionalAccessBypassEnabled)
+	assert.True(t, *createPol1.Policy.ConditionalAccessBypassEnabled)
 
 	createPol2 := &globalPolicyResponse{}
 	createPol2Req := &globalPolicyRequest{
@@ -5564,6 +5752,8 @@ func (s *integrationEnterpriseTestSuite) TestGlobalPolicyCreateReadPatch() {
 	}
 	s.DoJSON("POST", "/api/latest/fleet/policies", createPol2Req, http.StatusOK, &createPol2)
 	allEqual(t, createPol2Req, createPol2.Policy, fields...)
+	require.NotNil(t, createPol2.Policy.ConditionalAccessBypassEnabled)
+	assert.True(t, *createPol2.Policy.ConditionalAccessBypassEnabled)
 
 	listPol := &listGlobalPoliciesResponse{}
 	s.DoJSON("GET", "/api/latest/fleet/policies", nil, http.StatusOK, listPol)
@@ -5624,7 +5814,7 @@ func (s *integrationEnterpriseTestSuite) TestGlobalPolicyCreateReadPatch() {
 }
 
 func (s *integrationEnterpriseTestSuite) TestTeamPolicyCreateReadPatch() {
-	fields := []string{"Query", "Name", "Description", "Resolution", "Platform", "Critical", "CalendarEventsEnabled"}
+	fields := []string{"Query", "Name", "Description", "Resolution", "Platform", "Critical", "CalendarEventsEnabled", "ConditionalAccessBypassEnabled"}
 
 	team1, err := s.ds.NewTeam(context.Background(), &fleet.Team{
 		ID:          42,
@@ -5635,26 +5825,28 @@ func (s *integrationEnterpriseTestSuite) TestTeamPolicyCreateReadPatch() {
 
 	createPol1 := &teamPolicyResponse{}
 	createPol1Req := &teamPolicyRequest{
-		Query:                 "query",
-		Name:                  "name1",
-		Description:           "description",
-		Resolution:            "resolution",
-		Platform:              "linux",
-		Critical:              true,
-		CalendarEventsEnabled: true,
+		Query:                          "query",
+		Name:                           "name1",
+		Description:                    "description",
+		Resolution:                     "resolution",
+		Platform:                       "linux",
+		Critical:                       true,
+		CalendarEventsEnabled:          true,
+		ConditionalAccessBypassEnabled: ptr.Bool(false),
 	}
 	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/teams/%d/policies", team1.ID), createPol1Req, http.StatusOK, &createPol1)
 	allEqual(s.T(), createPol1Req, createPol1.Policy, fields...)
 
 	createPol2 := &teamPolicyResponse{}
 	createPol2Req := &teamPolicyRequest{
-		Query:                 "query",
-		Name:                  "name2",
-		Description:           "description",
-		Resolution:            "resolution",
-		Platform:              "linux",
-		Critical:              false,
-		CalendarEventsEnabled: false,
+		Query:                          "query",
+		Name:                           "name2",
+		Description:                    "description",
+		Resolution:                     "resolution",
+		Platform:                       "linux",
+		Critical:                       false,
+		CalendarEventsEnabled:          false,
+		ConditionalAccessBypassEnabled: ptr.Bool(true),
 	}
 	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/teams/%d/policies", team1.ID), createPol2Req, http.StatusOK, &createPol2)
 	allEqual(s.T(), createPol2Req, createPol2.Policy, fields...)
@@ -5670,13 +5862,14 @@ func (s *integrationEnterpriseTestSuite) TestTeamPolicyCreateReadPatch() {
 
 	patchPol1Req := &modifyTeamPolicyRequest{
 		ModifyPolicyPayload: fleet.ModifyPolicyPayload{
-			Name:                  ptr.String("newName1"),
-			Query:                 ptr.String("newQuery"),
-			Description:           ptr.String("newDescription"),
-			Resolution:            ptr.String("newResolution"),
-			Platform:              ptr.String("windows"),
-			Critical:              ptr.Bool(false),
-			CalendarEventsEnabled: ptr.Bool(false),
+			Name:                           ptr.String("newName1"),
+			Query:                          ptr.String("newQuery"),
+			Description:                    ptr.String("newDescription"),
+			Resolution:                     ptr.String("newResolution"),
+			Platform:                       ptr.String("windows"),
+			Critical:                       ptr.Bool(false),
+			CalendarEventsEnabled:          ptr.Bool(false),
+			ConditionalAccessBypassEnabled: ptr.Bool(true),
 		},
 	}
 	patchPol1 := &modifyTeamPolicyResponse{}
@@ -5685,13 +5878,14 @@ func (s *integrationEnterpriseTestSuite) TestTeamPolicyCreateReadPatch() {
 
 	patchPol2Req := &modifyTeamPolicyRequest{
 		ModifyPolicyPayload: fleet.ModifyPolicyPayload{
-			Name:                  ptr.String("newName2"),
-			Query:                 ptr.String("newQuery"),
-			Description:           ptr.String("newDescription"),
-			Resolution:            ptr.String("newResolution"),
-			Platform:              ptr.String("windows"),
-			Critical:              ptr.Bool(true),
-			CalendarEventsEnabled: ptr.Bool(true),
+			Name:                           ptr.String("newName2"),
+			Query:                          ptr.String("newQuery"),
+			Description:                    ptr.String("newDescription"),
+			Resolution:                     ptr.String("newResolution"),
+			Platform:                       ptr.String("windows"),
+			Critical:                       ptr.Bool(true),
+			CalendarEventsEnabled:          ptr.Bool(true),
+			ConditionalAccessBypassEnabled: ptr.Bool(false),
 		},
 	}
 	patchPol2 := &modifyTeamPolicyResponse{}
@@ -5711,6 +5905,192 @@ func (s *integrationEnterpriseTestSuite) TestTeamPolicyCreateReadPatch() {
 	getPol2 := &getPolicyByIDResponse{}
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/teams/%d/policies/%d", team1.ID, createPol2.Policy.ID), nil, http.StatusOK, getPol2)
 	require.Equal(s.T(), listPol.Policies[1], getPol2.Policy)
+
+	// Verify that patching without ConditionalAccessBypassEnabled preserves existing value.
+	// patchPol1 previously set bypass to true.
+	patchPreserveReq := &modifyTeamPolicyRequest{
+		ModifyPolicyPayload: fleet.ModifyPolicyPayload{
+			Name: ptr.String("preservedBypassName"),
+			// ConditionalAccessBypassEnabled intentionally omitted
+		},
+	}
+	patchPreserve := &modifyTeamPolicyResponse{}
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d/policies/%d", team1.ID, createPol1.Policy.ID), patchPreserveReq, http.StatusOK, patchPreserve)
+	require.NotNil(s.T(), patchPreserve.Policy.ConditionalAccessBypassEnabled)
+	assert.True(s.T(), *patchPreserve.Policy.ConditionalAccessBypassEnabled, "bypass value should be preserved when not provided in PATCH")
+}
+
+func (s *integrationEnterpriseTestSuite) TestPolicySpecConditionalAccessBypassEnabled() {
+	t := s.T()
+
+	type reapply struct {
+		bypass   *bool
+		expected bool
+	}
+
+	cases := []struct {
+		name           string
+		team           string // empty = global policy
+		createBypass   *bool
+		expectedCreate bool
+		reapply        *reapply
+	}{
+		{
+			name:           "team default nil",
+			team:           "team",
+			createBypass:   nil,
+			expectedCreate: true,
+		},
+		{
+			name:           "team explicit false",
+			team:           "team",
+			createBypass:   ptr.Bool(false),
+			expectedCreate: false,
+		},
+		{
+			name:           "team explicit true",
+			team:           "team",
+			createBypass:   ptr.Bool(true),
+			expectedCreate: true,
+		},
+		{
+			name:           "reapply false to true",
+			team:           "team",
+			createBypass:   ptr.Bool(false),
+			expectedCreate: false,
+			reapply:        &reapply{bypass: ptr.Bool(true), expected: true},
+		},
+		{
+			name:           "reapply true to false",
+			team:           "team",
+			createBypass:   nil,
+			expectedCreate: true,
+			reapply:        &reapply{bypass: ptr.Bool(false), expected: false},
+		},
+		{
+			name:           "global default",
+			team:           "",
+			createBypass:   nil,
+			expectedCreate: true,
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			teamName := tc.team
+			if teamName != "" {
+				teamName = t.Name() // use unique team name per subtest
+				_, err := s.ds.NewTeam(t.Context(), &fleet.Team{
+					Name: teamName,
+				})
+				require.NoError(t, err)
+			}
+
+			policyName := t.Name() + " policy"
+			spec := &fleet.PolicySpec{
+				Name:                           policyName,
+				Query:                          "SELECT 1",
+				Team:                           teamName,
+				ConditionalAccessBypassEnabled: tc.createBypass,
+			}
+
+			applyResp := applyPolicySpecsResponse{}
+			s.DoJSON("POST", "/api/latest/fleet/spec/policies",
+				applyPolicySpecsRequest{Specs: []*fleet.PolicySpec{spec}},
+				http.StatusOK, &applyResp,
+			)
+
+			// Read back and find the policy by name.
+			var bypassValue *bool
+			if teamName != "" {
+				listResp := listTeamPoliciesResponse{}
+				// Look up the team to get its ID.
+				teams, err := s.ds.TeamsSummary(t.Context())
+				require.NoError(t, err)
+				var teamID uint
+				for _, tm := range teams {
+					if tm.Name == teamName {
+						teamID = tm.ID
+						break
+					}
+				}
+				require.NotZero(t, teamID, "team %s not found", teamName)
+
+				s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/teams/%d/policies", teamID),
+					nil, http.StatusOK, &listResp,
+				)
+				var found *fleet.Policy
+				for _, p := range listResp.Policies {
+					if p.Name == policyName {
+						found = p
+						break
+					}
+				}
+				require.NotNil(t, found, "policy %s not found", policyName)
+				bypassValue = found.ConditionalAccessBypassEnabled
+			} else {
+				listResp := listGlobalPoliciesResponse{}
+				s.DoJSON("GET", "/api/latest/fleet/policies", nil, http.StatusOK, &listResp)
+				var found *fleet.Policy
+				for _, p := range listResp.Policies {
+					if p.Name == policyName {
+						found = p
+						break
+					}
+				}
+				require.NotNil(t, found, "policy %s not found", policyName)
+				bypassValue = found.ConditionalAccessBypassEnabled
+			}
+			require.Equal(t, tc.expectedCreate, *bypassValue, "after initial apply")
+
+			// Reapply with updated bypass value if specified.
+			if tc.reapply != nil {
+				spec.ConditionalAccessBypassEnabled = tc.reapply.bypass
+				reapplyResp := applyPolicySpecsResponse{}
+				s.DoJSON("POST", "/api/latest/fleet/spec/policies",
+					applyPolicySpecsRequest{Specs: []*fleet.PolicySpec{spec}},
+					http.StatusOK, &reapplyResp,
+				)
+
+				if teamName != "" {
+					listResp := listTeamPoliciesResponse{}
+					teams, err := s.ds.TeamsSummary(t.Context())
+					require.NoError(t, err)
+					var teamID uint
+					for _, tm := range teams {
+						if tm.Name == teamName {
+							teamID = tm.ID
+							break
+						}
+					}
+					s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/teams/%d/policies", teamID),
+						nil, http.StatusOK, &listResp,
+					)
+					var found *fleet.Policy
+					for _, p := range listResp.Policies {
+						if p.Name == policyName {
+							found = p
+							break
+						}
+					}
+					require.NotNil(t, found, "policy %s not found after reapply", policyName)
+					require.Equal(t, tc.reapply.expected, *found.ConditionalAccessBypassEnabled, "after reapply")
+				} else {
+					listResp := listGlobalPoliciesResponse{}
+					s.DoJSON("GET", "/api/latest/fleet/policies", nil, http.StatusOK, &listResp)
+					var found *fleet.Policy
+					for _, p := range listResp.Policies {
+						if p.Name == policyName {
+							found = p
+							break
+						}
+					}
+					require.NotNil(t, found, "policy %s not found after reapply", policyName)
+					require.Equal(t, tc.reapply.expected, *found.ConditionalAccessBypassEnabled, "after reapply")
+				}
+			}
+		})
+	}
 }
 
 func (s *integrationEnterpriseTestSuite) TestResetAutomation() {
@@ -6115,7 +6495,7 @@ func (s *integrationEnterpriseTestSuite) TestListSoftware() {
 	require.NotEmpty(t, respVersions.CountsUpdatedAt)
 }
 
-// TestGitOpsUserActions tests the MDM permissions listed in ../../docs/Using\ Fleet/manage-access.md
+// TestGitOpsUserActions tests the (non-MDM) permissions listed in ../../docs/Using\ Fleet/manage-access.md
 func (s *integrationEnterpriseTestSuite) TestGitOpsUserActions() {
 	t := s.T()
 	ctx := context.Background()
@@ -12280,7 +12660,7 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareInstallerUploadDownloadAndD
 		}
 		s.uploadSoftwareInstaller(t, payload, http.StatusOK, "")
 
-		logger := kitlog.NewLogfmtLogger(os.Stderr)
+		logger := logging.NewLogfmtLogger(os.Stderr)
 
 		// Run the migration when nothing is to be done
 		err = eeservice.UninstallSoftwareMigration(context.Background(), s.ds, s.softwareInstallStore, logger)
@@ -15003,7 +15383,7 @@ func triggerAndWait(ctx context.Context, t *testing.T, ds fleet.Datastore, s *sc
 
 	var didTrigger bool
 	for range 10 {
-		_, didTrigger, err = s.Trigger()
+		_, didTrigger, err = s.Trigger(ctx)
 		require.NoError(t, err)
 		if didTrigger {
 			break
@@ -18834,8 +19214,8 @@ func (s *integrationEnterpriseTestSuite) TestMaintainedApps() {
 		require.NoError(t, err)
 	}))
 	t.Cleanup(manifestServer.Close)
-	os.Setenv("FLEET_DEV_MAINTAINED_APPS_BASE_URL", manifestServer.URL)
-	defer os.Unsetenv("FLEET_DEV_MAINTAINED_APPS_BASE_URL")
+	dev_mode.SetOverride("FLEET_DEV_MAINTAINED_APPS_BASE_URL", manifestServer.URL)
+	defer dev_mode.ClearOverride("FLEET_DEV_MAINTAINED_APPS_BASE_URL")
 
 	// Create a team
 	var newTeamResp teamResponse
@@ -19028,9 +19408,9 @@ func (s *integrationEnterpriseTestSuite) TestMaintainedApps() {
 	require.Contains(t, extractServerErrorText(r.Body), "mismatch in maintained app SHA256 hash")
 
 	// Should timeout
-	os.Setenv("FLEET_DEV_MAINTAINED_APPS_INSTALLER_TIMEOUT", "1s")
+	dev_mode.SetOverride("FLEET_DEV_MAINTAINED_APPS_INSTALLER_TIMEOUT", "1s")
 	r = s.Do("POST", "/api/latest/fleet/software/fleet_maintained_apps", &addFleetMaintainedAppRequest{AppID: 3}, http.StatusGatewayTimeout)
-	os.Unsetenv("FLEET_DEV_MAINTAINED_APPS_INSTALLER_TIMEOUT")
+	dev_mode.ClearOverride("FLEET_DEV_MAINTAINED_APPS_INSTALLER_TIMEOUT")
 	require.Contains(t, extractServerErrorText(r.Body), "Couldn't add. Request timeout. Please make sure your server and load balancer timeout is long enough.")
 
 	// Add a maintained app to no team
@@ -19456,7 +19836,7 @@ func (s *integrationEnterpriseTestSuite) TestUpgradeCodesFromMaintainedApps() {
 
 	err = detailQueries["software_windows"].DirectIngestFunc(
 		context.Background(),
-		kitlog.NewNopLogger(),
+		slog.New(slog.DiscardHandler),
 		&fleet.Host{ID: host.ID},
 		s.ds,
 		rows,
@@ -23715,6 +24095,76 @@ FqU+KJOed6qlzj7qy+u5l6CQeajLGdjUxFlFyw==
 				"bypass_disabled": false
 			}
 		}`), http.StatusOK, &acResp)
+	})
+
+	t.Run("ConditionalAccessBypassedAt does not consume bypass", func(t *testing.T) {
+		token := fmt.Sprintf("bypassed-at-%s", uuid.New().String())
+		host := createHostAndDeviceToken(t, s.ds, token)
+
+		bypassedAtBefore, err := s.ds.ConditionalAccessBypassedAt(ctx, host.ID)
+		require.NoError(t, err)
+		require.Nil(t, bypassedAtBefore)
+
+		var bypassResp bypassConditionalAccessResponse
+		s.DoJSON("POST", fmt.Sprintf("/api/v1/fleet/device/%s/bypass_conditional_access", token),
+			nil, http.StatusOK, &bypassResp)
+		require.Nil(t, bypassResp.Err)
+
+		bypassedAtAfter, err := s.ds.ConditionalAccessBypassedAt(ctx, host.ID)
+		require.NoError(t, err)
+		require.NotNil(t, bypassedAtAfter)
+
+		bypassedAtAgain, err := s.ds.ConditionalAccessBypassedAt(ctx, host.ID)
+		require.NoError(t, err)
+		require.NotNil(t, bypassedAtAgain)
+		require.Equal(t, *bypassedAtAfter, *bypassedAtAgain)
+
+		consumedBypass, err := s.ds.ConditionalAccessConsumeBypass(ctx, host.ID)
+		require.NoError(t, err)
+		require.NotNil(t, consumedBypass)
+		require.Equal(t, *bypassedAtAfter, *consumedBypass)
+
+		bypassedAtAfterConsume, err := s.ds.ConditionalAccessBypassedAt(ctx, host.ID)
+		require.NoError(t, err)
+		require.Nil(t, bypassedAtAfterConsume)
+	})
+
+	t.Run("device host endpoint returns correct bypass state", func(t *testing.T) {
+		token := fmt.Sprintf("device-endpoint-bypass-%s", uuid.New().String())
+		host := createHostAndDeviceToken(t, s.ds, token)
+
+		getDeviceHostResp := getDeviceHostResponse{}
+		res := s.DoRawNoAuth("GET", "/api/latest/fleet/device/"+token, nil, http.StatusOK)
+		err := json.NewDecoder(res.Body).Decode(&getDeviceHostResp)
+		require.NoError(t, err)
+		require.NoError(t, res.Body.Close())
+		require.NoError(t, getDeviceHostResp.Err)
+		require.Equal(t, host.ID, getDeviceHostResp.Host.ID)
+		require.False(t, getDeviceHostResp.Host.ConditionalAccessBypassed)
+
+		var bypassResp bypassConditionalAccessResponse
+		s.DoJSON("POST", fmt.Sprintf("/api/v1/fleet/device/%s/bypass_conditional_access", token),
+			nil, http.StatusOK, &bypassResp)
+		require.Nil(t, bypassResp.Err)
+
+		getDeviceHostResp = getDeviceHostResponse{}
+		res = s.DoRawNoAuth("GET", "/api/latest/fleet/device/"+token, nil, http.StatusOK)
+		err = json.NewDecoder(res.Body).Decode(&getDeviceHostResp)
+		require.NoError(t, err)
+		require.NoError(t, res.Body.Close())
+		require.NoError(t, getDeviceHostResp.Err)
+		require.True(t, getDeviceHostResp.Host.ConditionalAccessBypassed)
+
+		_, err = s.ds.ConditionalAccessConsumeBypass(ctx, host.ID)
+		require.NoError(t, err)
+
+		getDeviceHostResp = getDeviceHostResponse{}
+		res = s.DoRawNoAuth("GET", "/api/latest/fleet/device/"+token, nil, http.StatusOK)
+		err = json.NewDecoder(res.Body).Decode(&getDeviceHostResp)
+		require.NoError(t, err)
+		require.NoError(t, res.Body.Close())
+		require.NoError(t, getDeviceHostResp.Err)
+		require.False(t, getDeviceHostResp.Host.ConditionalAccessBypassed)
 	})
 }
 

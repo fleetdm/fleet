@@ -244,11 +244,15 @@
       padding-top: 40px;
       padding-bottom: 24px;
       margin-top: 40px;
+      margin-bottom: 0px;
       &:first-of-type {
         border-top: none;
         padding-top: 24px;
         margin-top: 0px;
       }
+    }
+    h2 + h3 {
+      padding-top: 12px;
     }
     h3 {
       font-size: 20px;
@@ -401,6 +405,9 @@
       td {
         border: 1px solid @border-lt-gray;
         padding: 8px 7px 7px 8px;
+        sub {
+          font-size: 14px;
+        }
       }
     }
     blockquote {
@@ -491,7 +498,7 @@
         height: 16px;
         vertical-align: middle;
         margin-left: 8px;
-        content: url('/images/icon-link-16x16@2x.png');
+        content: url('/images/icon-link-green-16x16@2x.png');
       }
     }
     [purpose='embedded-content'] {
@@ -640,7 +647,7 @@
       padding-bottom: 0px;
     }
     [purpose='right-sidebar'] {
-      width: 100%;
+      width: fit-content;
       margin: 0;
       [purpose='subtopics'] {
         border-left: none;

@@ -5,10 +5,10 @@
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'org.gimp.gimp-3.0';"
       },
-      "installer_url": "https://download.gimp.org/gimp/v3.0/macos/gimp-3.0.8-arm64.dmg",
+      "installer_url": "https://download.gimp.org/gimp/v3.0/macos/gimp-3.0.8-arm64-1.dmg",
       "install_script_ref": "129ff211",
       "uninstall_script_ref": "2cdb3a30",
-      "sha256": "d14ebcf2ffd4920a49195b7f2fd50cae120c135f3ee6947a08efea2ddc389134",
+      "sha256": "da83a0ae4c6d50abcbecb821a3cc43f75902572df1b7549700c9fab10f73d16d",
       "default_categories": [
         "Productivity"
       ]

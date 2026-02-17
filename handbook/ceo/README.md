@@ -8,7 +8,7 @@ This page details processes specific to working [with](#contact-us) and [within]
 | Role                            | Contributor(s)
 |:--------------------------------|:----------------------------------------------------------------------|
 | [CEO](https://fleetdm.com/handbook/company/leadership#ceo-flaws) | [Mike McNeil](https://www.linkedin.com/in/mikermcneil) _([@mikermcneil](https://github.com/mikermcneil))_
-| Executive Assistant | <sup><sub> _See [🧑‍🚀 People](https://fleetdm.com/handbook/people#team) </sup></sub>
+| Executive Assistant | <sup><sub> See [🧑‍🚀 People](https://fleetdm.com/handbook/people#team) </sup></sub>
 
 
 ## Contact us
@@ -182,8 +182,9 @@ Follow these steps to process and backup the E-group agenda:
 
 The Executive Assistant will perform the following steps to process all communication from the CEO in the [help-being-ceo Slack channel](https://fleetdm.slack.com/archives/C03U703J0G5).
 1. As soon as the message is received in the channel, add the "`:eyes:` (👀)" emoji to the Slack message to signify that you have seen and understood the task or question.
-2. Start a Slack thread to add any context or let the stakeholders know the status of the task. 
-3. After each task is completed, apply the "`:white_check_mark:`" (✅) to the slack message.
+2. If the message is prefixed with "ASAP", complete the task within 2 hours. If you are unable to, get another fleetie's help.
+3. Start a Slack thread to add any context or let the stakeholders know the status of the task.
+4. After each task is completed, apply the "`:white_check_mark:`" (✅) to the slack message.
 
 
 ### Unroll a Slack thread

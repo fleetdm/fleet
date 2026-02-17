@@ -26,7 +26,7 @@ const policyCols = `
 	p.id, p.team_id, p.resolution, p.name, p.query, p.description,
 	p.author_id, p.platforms, p.created_at, p.updated_at, p.critical,
 	p.calendar_events_enabled, p.software_installer_id, p.script_id,
-	p.vpp_apps_teams_id, p.conditional_access_enabled
+	p.vpp_apps_teams_id, p.conditional_access_enabled, p.conditional_access_bypass_enabled
 `
 
 const (
@@ -335,6 +335,11 @@ func savePolicy(ctx context.Context, db sqlx.ExtContext, logger kitlog.Logger, p
 		}
 	}
 
+	// Defaults to true if not present
+	if p.ConditionalAccessBypassEnabled == nil {
+		p.ConditionalAccessBypassEnabled = ptr.Bool(true)
+	}
+
 	// We must normalize the name for full Unicode support (Unicode equivalence).
 	p.Name = norm.NFC.String(p.Name)
 	updateStmt := `
@@ -342,11 +347,16 @@ func savePolicy(ctx context.Context, db sqlx.ExtContext, logger kitlog.Logger, p
 			SET name = ?, query = ?, description = ?, resolution = ?,
 			platforms = ?, critical = ?, calendar_events_enabled = ?,
 			software_installer_id = ?, script_id = ?, vpp_apps_teams_id = ?,
-			conditional_access_enabled = ?, checksum = ` + policiesChecksumComputedColumn() + `
-			WHERE id = ?
+			conditional_access_enabled = ?, conditional_access_bypass_enabled = ?,
+			checksum = ` + policiesChecksumComputedColumn() + `
+		WHERE id = ?
 	`
 	result, err := db.ExecContext(
-		ctx, updateStmt, p.Name, p.Query, p.Description, p.Resolution, p.Platform, p.Critical, p.CalendarEventsEnabled, p.SoftwareInstallerID, p.ScriptID, p.VPPAppsTeamsID, p.ConditionalAccessEnabled, p.ID,
+		ctx, updateStmt, p.Name, p.Query, p.Description, p.Resolution,
+		p.Platform, p.Critical, p.CalendarEventsEnabled,
+		p.SoftwareInstallerID, p.ScriptID, p.VPPAppsTeamsID,
+		p.ConditionalAccessEnabled, p.ConditionalAccessBypassEnabled,
+		p.ID,
 	)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "updating policy")
@@ -363,9 +373,38 @@ func savePolicy(ctx context.Context, db sqlx.ExtContext, logger kitlog.Logger, p
 		return ctxerr.Wrap(ctx, err, "updating policy labels")
 	}
 
+	// Reset attempt numbers for script/software policy automations
+	if err := resetPolicyAutomationAttempts(ctx, db, p.ID); err != nil {
+		return ctxerr.Wrap(ctx, err, "resetting policy automation attempts")
+	}
+
 	return cleanupPolicy(
 		ctx, db, db, p.ID, p.Platform, shouldRemoveAllPolicyMemberships, removePolicyStats, logger,
 	)
+}
+
+// resetPolicyAutomationAttempts resets all attempt numbers for script and software install executions
+// associated with the given policy.
+func resetPolicyAutomationAttempts(ctx context.Context, db sqlx.ExecerContext, policyID uint) error {
+	_, err := db.ExecContext(ctx, `
+		UPDATE host_script_results
+		SET attempt_number = 0
+		WHERE policy_id = ? AND (attempt_number > 0 OR attempt_number IS NULL)
+	`, policyID)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "reset script execution attempts for policy")
+	}
+
+	_, err = db.ExecContext(ctx, `
+		UPDATE host_software_installs
+		SET attempt_number = 0
+		WHERE policy_id = ? AND (attempt_number > 0 OR attempt_number IS NULL)
+	`, policyID)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "reset software install attempts for policy")
+	}
+
+	return nil
 }
 
 func assertTeamMatches(ctx context.Context, db sqlx.QueryerContext, teamID uint, softwareInstallerID *uint, scriptID *uint, vppAppsTeamsID *uint) error {
@@ -1015,17 +1054,22 @@ func newTeamPolicy(ctx context.Context, db sqlx.ExtContext, teamID uint, authorI
 		return nil, ctxerr.Wrap(ctx, err, "create team policy")
 	}
 
+	if args.ConditionalAccessBypassEnabled == nil {
+		args.ConditionalAccessBypassEnabled = ptr.Bool(true)
+	}
+
 	res, err := db.ExecContext(ctx,
 		fmt.Sprintf(
 			`INSERT INTO policies (
 				name, query, description, team_id, resolution, author_id,
 				platforms, critical, calendar_events_enabled, software_installer_id,
-				script_id, vpp_apps_teams_id, conditional_access_enabled, checksum
-			) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, %s)`,
+				script_id, vpp_apps_teams_id, conditional_access_enabled, conditional_access_bypass_enabled, checksum
+			) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, %s)`,
 			policiesChecksumComputedColumn(),
 		),
 		nameUnicode, args.Query, args.Description, teamID, args.Resolution, authorID, args.Platform, args.Critical,
-		args.CalendarEventsEnabled, args.SoftwareInstallerID, args.ScriptID, args.VPPAppsTeamsID, args.ConditionalAccessEnabled,
+		args.CalendarEventsEnabled, args.SoftwareInstallerID, args.ScriptID, args.VPPAppsTeamsID,
+		args.ConditionalAccessEnabled, args.ConditionalAccessBypassEnabled,
 	)
 	switch {
 	case err == nil:
@@ -1273,8 +1317,9 @@ func (ds *Datastore) ApplyPolicySpecs(ctx context.Context, authorID uint, specs 
 		    vpp_apps_teams_id,
 		    script_id,
 			conditional_access_enabled,
+			conditional_access_bypass_enabled,
 			checksum
-		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, %s)
+		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, %s)
 		ON DUPLICATE KEY UPDATE
 			query = VALUES(query),
 			description = VALUES(description),
@@ -1286,7 +1331,8 @@ func (ds *Datastore) ApplyPolicySpecs(ctx context.Context, authorID uint, specs 
 			software_installer_id = VALUES(software_installer_id),
 			vpp_apps_teams_id = VALUES(vpp_apps_teams_id),
 			script_id = VALUES(script_id),
-			conditional_access_enabled = VALUES(conditional_access_enabled)
+			conditional_access_enabled = VALUES(conditional_access_enabled),
+			conditional_access_bypass_enabled = VALUES(conditional_access_bypass_enabled)
 		`, policiesChecksumComputedColumn(),
 		)
 		for teamID, teamPolicySpecs := range teamIDToPolicies {
@@ -1306,11 +1352,16 @@ func (ds *Datastore) ApplyPolicySpecs(ctx context.Context, authorID uint, specs 
 					scriptID = nil
 				}
 
+				if spec.ConditionalAccessBypassEnabled == nil {
+					spec.ConditionalAccessBypassEnabled = ptr.Bool(true)
+				}
+
 				res, err := tx.ExecContext(
 					ctx,
 					query,
 					spec.Name, spec.Query, spec.Description, authorID, spec.Resolution, teamID, spec.Platform, spec.Critical,
 					spec.CalendarEventsEnabled, softwareInstallerID, vppAppsTeamsID, scriptID, spec.ConditionalAccessEnabled,
+					spec.ConditionalAccessBypassEnabled,
 				)
 				if err != nil {
 					return ctxerr.Wrap(ctx, err, "exec ApplyPolicySpecs insert")
@@ -1320,12 +1371,12 @@ func (ds *Datastore) ApplyPolicySpecs(ctx context.Context, authorID uint, specs 
 				var lastID int64
 				lastID, _ = res.LastInsertId()
 
-				// If something was actually inserted or updated, perform any necessary cleanup.
+				// Track what kind of cleanup is needed.
+				var (
+					shouldRemoveAllPolicyMemberships bool
+					removePolicyStats                bool
+				)
 				if insertOnDuplicateDidInsertOrUpdate(res) {
-					var (
-						shouldRemoveAllPolicyMemberships bool
-						removePolicyStats                bool
-					)
 					// Figure out if the query, platform, software installer, or VPP app changed.
 					var softwareInstallerID *uint
 					if spec.SoftwareTitleID != nil {
@@ -1354,12 +1405,6 @@ func (ds *Datastore) ApplyPolicySpecs(ctx context.Context, authorID uint, specs 
 						case prev.Platforms != spec.Platform:
 							removePolicyStats = true
 						}
-					}
-					if err = cleanupPolicy(
-						ctx, tx, tx, uint(lastID), spec.Platform, shouldRemoveAllPolicyMemberships, //nolint:gosec // dismiss G115
-						removePolicyStats, ds.logger,
-					); err != nil {
-						return err
 					}
 				}
 
@@ -1398,6 +1443,18 @@ func (ds *Datastore) ApplyPolicySpecs(ctx context.Context, authorID uint, specs 
 				})
 				if err != nil {
 					return ctxerr.Wrap(ctx, err, "exec policies update labels")
+				}
+
+				// Run cleanup after labels are updated so the cleanup function can
+				// query the current label criteria from the database.
+				// Always run cleanup since labels may have changed even if the main policy
+				// fields didn't (the cleanup function is safe to call and will only delete
+				// memberships that don't match current criteria).
+				if err = cleanupPolicy(
+					ctx, tx, tx, uint(lastID), spec.Platform, shouldRemoveAllPolicyMemberships, //nolint:gosec // dismiss G115
+					removePolicyStats, ds.logger,
+				); err != nil {
+					return err
 				}
 
 			}
@@ -1589,58 +1646,108 @@ func cleanupConditionalAccessOnTeamChange(ctx context.Context, tx sqlx.ExtContex
 func cleanupPolicyMembershipOnPolicyUpdate(
 	ctx context.Context, queryerContext sqlx.QueryerContext, db sqlx.ExecerContext, policyID uint, platforms string,
 ) error {
-	if platforms == "" {
-		// all platforms allowed, nothing to clean up
-		return nil
+	var allHostIDs []uint
+
+	// Clean up hosts that don't match the platform criteria
+	if platforms != "" {
+		delStmt := `
+		DELETE
+		  pm
+		FROM
+		  policy_membership pm
+		LEFT JOIN
+		  hosts h
+		ON
+		  pm.host_id = h.id
+		WHERE
+		  pm.policy_id = ? AND
+		  ( h.id IS NULL OR
+			FIND_IN_SET(h.platform, ?) = 0 )`
+
+		selectStmt := `
+		SELECT DISTINCT
+		  h.id
+		FROM
+		  policy_membership pm
+		INNER JOIN
+		  hosts h
+		ON
+		  pm.host_id = h.id
+		WHERE
+		  pm.policy_id = ? AND
+		  FIND_IN_SET(h.platform, ?) = 0`
+
+		var expandedPlatforms []string
+		for platform := range strings.SplitSeq(platforms, ",") {
+			expandedPlatforms = append(expandedPlatforms, fleet.ExpandPlatform(strings.TrimSpace(platform))...)
+		}
+
+		// Find the impacted host IDs, so we can update their host issues entries
+		var hostIDs []uint
+		err := sqlx.SelectContext(ctx, queryerContext, &hostIDs, selectStmt, policyID, strings.Join(expandedPlatforms, ","))
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "select hosts to cleanup policy membership for platform")
+		}
+		allHostIDs = append(allHostIDs, hostIDs...)
+
+		_, err = db.ExecContext(ctx, delStmt, policyID, strings.Join(expandedPlatforms, ","))
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "cleanup policy membership for platform")
+		}
 	}
 
-	delStmt := `
-	DELETE
-	  pm
+	labelQuery := `
 	FROM
 	  policy_membership pm
-	LEFT JOIN
-	  hosts h
-	ON
-	  pm.host_id = h.id
 	WHERE
-	  pm.policy_id = ? AND
-	  ( h.id IS NULL OR
-		FIND_IN_SET(h.platform, ?) = 0 )`
+	  pm.policy_id = ?
+	  AND NOT (
+	    (
+ 		  -- If the policy has no include labels, all hosts match this part.
+	      NOT EXISTS (
+	        SELECT 1 FROM policy_labels pl
+	        WHERE pl.policy_id = pm.policy_id AND pl.exclude = 0
+	      )
+		  -- If the policy has include labels, the host must be in at least one of them.
+	      OR EXISTS (
+	        SELECT 1 FROM policy_labels pl
+	        JOIN label_membership lm ON lm.label_id = pl.label_id AND lm.host_id = pm.host_id
+	        WHERE pl.policy_id = pm.policy_id AND pl.exclude = 0
+	      )
+	    )
+	    -- If the policy has exclude labels, the host must not be in any of them.
+	    AND NOT EXISTS (
+	      SELECT 1 FROM policy_labels pl
+	      JOIN label_membership lm ON lm.label_id = pl.label_id AND lm.host_id = pm.host_id
+	      WHERE pl.policy_id = pm.policy_id AND pl.exclude = 1
+	    )
+	  )`
 
-	selectStmt := `
-	SELECT DISTINCT
-	  h.id
-	FROM
-	  policy_membership pm
-	INNER JOIN
-	  hosts h
-	ON
-	  pm.host_id = h.id
-	WHERE
-	  pm.policy_id = ? AND
-	  FIND_IN_SET(h.platform, ?) = 0`
+	// Find the impacted host IDs, so we can update their host issues entries.
+	labelSelectStmt := `
+	  SELECT DISTINCT
+	  pm.host_id
+	  ` + labelQuery
 
-	var expandedPlatforms []string
-	splitPlatforms := strings.Split(platforms, ",")
-	for _, platform := range splitPlatforms {
-		expandedPlatforms = append(expandedPlatforms, fleet.ExpandPlatform(strings.TrimSpace(platform))...)
-	}
+	// Delete memberships for hosts that don't match the label criteria.
+	labelDelStmt := `
+	DELETE pm
+	` + labelQuery
 
-	// Find the impacted host IDs, so we can update their host issues entries
-	var hostIDs []uint
-	err := sqlx.SelectContext(ctx, queryerContext, &hostIDs, selectStmt, policyID, strings.Join(expandedPlatforms, ","))
+	var labelHostIDs []uint
+	err := sqlx.SelectContext(ctx, queryerContext, &labelHostIDs, labelSelectStmt, policyID)
 	if err != nil {
-		return ctxerr.Wrap(ctx, err, "select hosts to cleanup policy membership")
+		return ctxerr.Wrap(ctx, err, "select hosts to cleanup policy membership for labels")
 	}
+	allHostIDs = append(allHostIDs, labelHostIDs...)
 
-	_, err = db.ExecContext(ctx, delStmt, policyID, strings.Join(expandedPlatforms, ","))
+	_, err = db.ExecContext(ctx, labelDelStmt, policyID)
 	if err != nil {
-		return ctxerr.Wrap(ctx, err, "cleanup policy membership")
+		return ctxerr.Wrap(ctx, err, "cleanup policy membership for labels")
 	}
 
 	// Update host issues entries. This method is rarely called, so performance should not be a concern.
-	if err = updateHostIssuesFailingPolicies(ctx, db, hostIDs); err != nil {
+	if err = updateHostIssuesFailingPolicies(ctx, db, allHostIDs); err != nil {
 		return err
 	}
 

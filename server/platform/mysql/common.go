@@ -64,10 +64,10 @@ func NewDB(conf *MysqlConfig, opts *DBOptions, otelDriverName string) (*sqlx.DB,
 	driverName := "mysql"
 
 	if opts.TracingConfig != nil && opts.TracingConfig.TracingEnabled {
-		if opts.TracingConfig.TracingType == "opentelemetry" {
-			driverName = otelDriverName
-		} else {
+		if opts.TracingConfig.TracingType == "elasticapm" {
 			driverName = "apm/mysql"
+		} else {
+			driverName = otelDriverName
 		}
 	}
 	if opts.Interceptor != nil {
@@ -180,11 +180,18 @@ func WithTxx(ctx context.Context, db *sqlx.DB, fn TxFn, logger log.Logger) error
 		if rbErr != nil && rbErr != sql.ErrTxDone {
 			return ctxerr.Wrapf(ctx, err, "got err '%s' rolling back after err", rbErr.Error())
 		}
+		if IsReadOnlyError(err) {
+			TriggerFatalError(err)
+		}
 		return err
 	}
 
 	if err := tx.Commit(); err != nil {
-		return ctxerr.Wrap(ctx, err, "commit transaction")
+		err = ctxerr.Wrap(ctx, err, "commit transaction")
+		if IsReadOnlyError(err) {
+			TriggerFatalError(err)
+		}
+		return err
 	}
 
 	return nil

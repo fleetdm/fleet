@@ -270,7 +270,7 @@ const EditQueryPage = ({
             host_id: hostId,
           })
         );
-        renderFlash("success", "Query created!");
+        renderFlash("success", "Query created.");
         setBackendValidators({});
       } catch (createError: any) {
         if (getErrorReason(createError).includes("already exists")) {
@@ -316,7 +316,7 @@ const EditQueryPage = ({
 
     try {
       await queryAPI.update(queryId, updatedQuery);
-      renderFlash("success", "Query updated!");
+      renderFlash("success", "Query updated.");
       refetchStoredQuery(); // Required to compare recently saved query to a subsequent save to the query
     } catch (updateError: any) {
       console.error(updateError);
@@ -381,7 +381,7 @@ const EditQueryPage = ({
     }
 
     if (hostId) {
-      return getPathWithQueryParams(PATHS.HOST_DETAILS(hostId));
+      return getPathWithQueryParams(PATHS.HOST_DETAILS(hostId, currentTeamId));
     }
 
     if (filteredQueriesPath) return filteredQueriesPath;

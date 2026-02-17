@@ -24,6 +24,7 @@ func TestSoftwareUpgradeCode(t *testing.T) {
 		{"CaseSensitivityWithExistingUpgradeCode", testUpgradeCodeCaseSensitivityWithExistingUpgradeCode},
 		{"CaseSensitivityTitleDuplication", testUpdateHostSoftwareCaseSensitivityTitleDuplication},
 		{"Reconciliation", testUpdateHostSoftwareUpgradeCodeReconciliation},
+		{"SameUpgradeCodeDifferentNames", testSameUpgradeCodeDifferentNames},
 	}
 
 	for _, c := range cases {
@@ -459,4 +460,92 @@ func testUpdateHostSoftwareUpgradeCodeReconciliation(t *testing.T, ds *Datastore
 	require.Equal(t, originalTitleID, titlesAfterStep3[0].ID, "Should be the same title")
 	require.NotNil(t, titlesAfterStep3[0].UpgradeCode)
 	require.Equal(t, upgradeCode, *titlesAfterStep3[0].UpgradeCode, "Title's upgrade_code should NOT have been cleared")
+}
+
+// testSameUpgradeCodeDifferentNames tests that when two software versions with the same
+// upgrade_code but different names are ingested, both get linked to the same title.
+func testSameUpgradeCodeDifferentNames(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	hostA := test.NewHost(t, ds, "test-host-7zip-a", "", "test-host-7zip-a-key", "test-host-7zip-a-uuid", time.Now())
+	hostB := test.NewHost(t, ds, "test-host-7zip-b", "", "test-host-7zip-b-key", "test-host-7zip-b-uuid", time.Now())
+
+	upgradeCode := "{23170F69-40C1-2702-0000-000004000000}"
+
+	// Step 1: Host A reports "7-Zip 24.08 (x64 edition)" with upgrade_code
+	swHostA := []fleet.Software{
+		{
+			Name:        "7-Zip 24.08 (x64 edition)",
+			Version:     "24.08.00.0",
+			Source:      "programs",
+			UpgradeCode: &upgradeCode,
+		},
+	}
+	_, err := ds.UpdateHostSoftware(ctx, hostA.ID, swHostA)
+	require.NoError(t, err)
+
+	// Verify title was created
+	var titlesAfterA []struct {
+		ID          uint   `db:"id"`
+		Name        string `db:"name"`
+		UpgradeCode string `db:"upgrade_code"`
+	}
+	err = sqlx.SelectContext(ctx, ds.reader(ctx), &titlesAfterA, `
+		SELECT id, name, upgrade_code FROM software_titles
+		WHERE upgrade_code = ?`, upgradeCode)
+	require.NoError(t, err)
+	require.Len(t, titlesAfterA, 1)
+	require.Equal(t, "7-Zip 24.08 (x64 edition)", titlesAfterA[0].Name)
+	titleID := titlesAfterA[0].ID
+
+	// Verify software A is linked to the title
+	var softwareA []struct {
+		ID      uint  `db:"id"`
+		TitleID *uint `db:"title_id"`
+	}
+	err = sqlx.SelectContext(ctx, ds.reader(ctx), &softwareA, `
+		SELECT id, title_id FROM software WHERE name = '7-Zip 24.08 (x64 edition)'`)
+	require.NoError(t, err)
+	require.Len(t, softwareA, 1)
+	require.NotNil(t, softwareA[0].TitleID)
+	require.Equal(t, titleID, *softwareA[0].TitleID)
+
+	// Step 2: Host B reports "7-Zip 24.09 (x64 edition)" with SAME upgrade_code but different name
+	swHostB := []fleet.Software{
+		{
+			Name:        "7-Zip 24.09 (x64 edition)",
+			Version:     "24.09.00.0",
+			Source:      "programs",
+			UpgradeCode: &upgradeCode,
+		},
+	}
+	_, err = ds.UpdateHostSoftware(ctx, hostB.ID, swHostB)
+	require.NoError(t, err)
+
+	// Verify only one title exists (no duplicate created)
+	var titlesAfterB []struct {
+		ID          uint   `db:"id"`
+		Name        string `db:"name"`
+		UpgradeCode string `db:"upgrade_code"`
+	}
+	err = sqlx.SelectContext(ctx, ds.reader(ctx), &titlesAfterB, `
+		SELECT id, name, upgrade_code FROM software_titles
+		WHERE upgrade_code = ?`, upgradeCode)
+	require.NoError(t, err)
+	require.Len(t, titlesAfterB, 1, "Should still have only one title (same upgrade_code)")
+
+	// Software B should be linked to the existing title (same upgrade_code)
+	var softwareB []struct {
+		ID      uint   `db:"id"`
+		Name    string `db:"name"`
+		TitleID *uint  `db:"title_id"`
+	}
+	err = sqlx.SelectContext(ctx, ds.reader(ctx), &softwareB, `
+		SELECT id, name, title_id FROM software WHERE name = '7-Zip 24.09 (x64 edition)'`)
+	require.NoError(t, err)
+	require.Len(t, softwareB, 1)
+	require.NotNil(t, softwareB[0].TitleID,
+		"Software with same upgrade_code as existing title should be linked to that title, not have NULL title_id")
+	require.Equal(t, titleID, *softwareB[0].TitleID,
+		"Software should be linked to the existing title with matching upgrade_code")
 }

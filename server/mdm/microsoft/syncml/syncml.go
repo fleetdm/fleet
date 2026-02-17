@@ -108,6 +108,9 @@ const (
 	// This response code will be generated if you try to access a property that the CSP doesn't support
 	CmdStatusOptionalFeature = "406"
 
+	// This response code will be generated if authentication is required to continue the session
+	CmdStatusAuthenticationRequired = "407"
+
 	// Unsupported type or format
 	// This response code can result from XML parsing or formatting errors
 	CmdStatusUnsupportedType = "415"
@@ -294,6 +297,9 @@ const (
 
 	// FleetdWindowsInstallerGUID is the GUID used for fleetd on Windows
 	FleetdWindowsInstallerGUID = "./Device/Vendor/MSFT/EnterpriseDesktopAppManagement/MSI/%7BA427C0AA-E2D5-40DF-ACE8-0D726A6BE096%7D/DownloadInstall"
+
+	AuthMD5       = "syncml:auth-md5"
+	AuthB64Format = "b64"
 )
 
 // MS-MDM Message constants
