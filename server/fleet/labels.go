@@ -139,7 +139,7 @@ type HostVitalsLabel interface {
 	GetLabel() *Label
 }
 
-var ValidLabelPlatformVariants = map[string][]struct{}{
+var ValidLabelPlatformVariants = map[string]struct{}{
 	"":        {}, // empty platform is valid value
 	"darwin":  {},
 	"windows": {},
