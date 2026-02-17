@@ -497,13 +497,12 @@ module "mdm" {
   abm_secret_name    = null
 }
 
-# can deprecate once we get webhooks rolling
 module "firehose-logging" {
   source                = "github.com/fleetdm/fleet-terraform//addons/byo-firehose-logging-destination/firehose?ref=tf-mod-addon-byo-firehose-logging-destination-firehose-v2.0.3"
   firehose_results_name = "osquery_results"
   firehose_status_name  = "osquery_status"
   firehose_audit_name   = "fleet_audit"
-  iam_role_arn          = "arn:aws:iam::273354660820:role/terraform-20250115232230102400000003"
+  iam_role_arn          = "arn:aws:iam::273354660820:role/terraform-20260217045329203000000002"
   region                = data.aws_region.current.region
 }
 
