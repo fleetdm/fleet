@@ -11203,6 +11203,49 @@ Add the `X-Fleet-Scripts-Encoded: base64` header line to parse `install_script`,
 }
 ```
 
+### Create Android web app
+
+> **Experimental feature**. This feature is undergoing rapid improvement, which may result in breaking changes to the API or configuration surface. It is not recommended for use in automated workflows.
+
+_Available in Fleet Premium._
+
+Creates web app (web clip). This endpoint returns the application ID that can be used to [add an Android app](#add-app-store-app) to Fleet.
+
+> You need to send a request of type `multipart/form-data`.
+
+`POST /api/v1/fleet/software/web_apps`
+
+#### Parameters
+
+| Name | Type | In | Description |
+| ---- | ---- | -- | ----------- |
+| title   | string | body | **Required.** It is displayed to the end user under the app icon. |
+| url     | string | body | **Required.** The URL of the web app. What the end user sees when they open this app. |
+| icon    | file | body | The app icon. The icon must be a PNG file and square, with dimensions of at least 512 x 512px. |
+
+
+#### Example
+
+`POST /api/v1/fleet/software/web_apps`
+
+##### Request body
+
+```http
+title="Acme web app"
+url="https://app.acme.com"
+icon="app-icon-512x512.png"
+```
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "app_store_id": "com.google.enterprise.webapp.x1c41e22ab611cb98"
+}
+```
+
 ### Download software
 
 > **Experimental feature**. This feature is undergoing rapid improvement, which may result in breaking changes to the API or configuration surface. It is not recommended for use in automated workflows.
