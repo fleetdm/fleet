@@ -3411,7 +3411,9 @@ func (ds *Datastore) checkSoftwareConflictsByIdentifier(ctx context.Context, pay
 			}
 		}
 
-		// check if an in-house app with the same bundle id already exists.
+		// Check if an in-house app with the same bundle id already exists.
+		// Also check if equivalent installers exist, since we relaxed the uniqueness constraints to allow
+		// multiple FMA installer versions.
 		if payload.BundleIdentifier != "" {
 			exists, err := ds.checkInstallerOrInHouseAppExists(ctx, ds.reader(ctx), payload.TeamID, payload.BundleIdentifier, payload.Platform, softwareTypeInHouseApp)
 			if err != nil {
@@ -3419,6 +3421,24 @@ func (ds *Datastore) checkSoftwareConflictsByIdentifier(ctx context.Context, pay
 			}
 			if exists {
 				return alreadyExists("in-house app", payload.Title)
+			}
+
+			exists, err = ds.checkInstallerOrInHouseAppExists(ctx, ds.reader(ctx), payload.TeamID, payload.BundleIdentifier, payload.Platform, softwareTypeInstaller)
+			if err != nil {
+				return ctxerr.Wrap(ctx, err, "check if installer exists for title identifier")
+			}
+			if exists {
+				return alreadyExists("installer", payload.Title)
+			}
+		}
+
+		if payload.Platform == "windows" {
+			exists, err := ds.checkInstallerOrInHouseAppExists(ctx, ds.reader(ctx), payload.TeamID, payload.Title, payload.Platform, softwareTypeInstaller)
+			if err != nil {
+				return ctxerr.Wrap(ctx, err, "check if installer exists for title identifier")
+			}
+			if exists {
+				return alreadyExists("installer", payload.Title)
 			}
 		}
 	}

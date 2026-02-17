@@ -25448,4 +25448,42 @@ func (s *integrationEnterpriseTestSuite) TestFMAVersionRollback() {
 	require.Equal(t, 1, resp.Count)
 	title = resp.SoftwareTitles[0]
 	require.Equal(t, "3.0", title.SoftwarePackage.Version, "active version should remain 3.0 after failed rollback to evicted version")
+
+	// Attempt to add a custom package that will map to the same software title. Should fail.
+	installerContent := "installerbytes"
+	installerFile, err := fleet.NewTempFileReader(strings.NewReader(installerContent), t.TempDir)
+	require.NoError(t, err)
+	defer installerFile.Close()
+
+	h = sha256.New()
+	_, err = h.Write([]byte(installerContent))
+	require.NoError(t, err)
+	spoofedSHA = hex.EncodeToString(h.Sum(nil))
+
+	user, err := s.ds.UserByEmail(context.Background(), "admin1@example.com")
+	require.NoError(t, err)
+
+	payload := &fleet.UploadSoftwareInstallerPayload{
+		TeamID:          &team.ID,
+		Filename:        "cloudflare-warp-installer.msi",
+		InstallerFile:   installerFile,
+		Version:         "99.0.0",
+		StorageID:       spoofedSHA,
+		SelfService:     true,
+		Title:           "cloudflare warp", // windows installer, so Fleet does software title matching on this field
+		InstallScript:   "install",
+		UninstallScript: "uninstall",
+		Source:          "programs",
+		Platform:        "windows",
+		ValidatedLabels: &fleet.LabelIdentsWithScope{},
+		UserID:          user.ID,
+	}
+
+	// We call the datastore method directly here because
+	// the service layer would attempt to extract metadata from the
+	// "installer", but that's just a fake file in this case so it'd fail.
+	// That logic isn't what we're trying to test here.
+	_, _, err = s.ds.MatchOrCreateSoftwareInstaller(ctx, payload)
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), fmt.Sprintf(fleet.CantAddSoftwareConflictMessage, payload.Title, team.Name))
 }
