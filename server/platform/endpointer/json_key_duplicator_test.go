@@ -419,6 +419,71 @@ func TestDuplicateJSONKeysWithEncoder(t *testing.T) {
 	assert.Equal(t, "test", m["name"])
 }
 
+// TestDuplicateJSONKeysCompact tests that the Compact option disables
+// pretty-printing and that the option propagates to recursive calls
+// (nested objects whose values are themselves duplicated).
+func TestDuplicateJSONKeysCompact(t *testing.T) {
+	rules := []AliasRule{
+		{OldKey: "team_id", NewKey: "fleet_id"},
+		{OldKey: "ios_team", NewKey: "ios_fleet"},
+	}
+	opts := DuplicateJSONKeysOpts{Compact: true}
+
+	t.Run("flat object is compact", func(t *testing.T) {
+		input := `{"team_id": 42, "name": "hello"}`
+		result := DuplicateJSONKeys([]byte(input), rules, opts)
+
+		// Compact output should have no newlines (other than a possible
+		// trailing one from the encoder) or multi-space indentation.
+		trimmed := strings.TrimRight(string(result), "\n")
+		assert.NotContains(t, trimmed, "\n")
+		assert.NotContains(t, trimmed, "  ")
+
+		var m map[string]any
+		require.NoError(t, json.Unmarshal(result, &m))
+		assert.Equal(t, float64(42), m["team_id"])
+		assert.Equal(t, float64(42), m["fleet_id"])
+		assert.Equal(t, "hello", m["name"])
+	})
+
+	t.Run("nested duplicated key value is also compact", func(t *testing.T) {
+		// ios_team's value contains team_id, which triggers a recursive
+		// DuplicateJSONKeys call. The Compact option must propagate so the
+		// recursively-processed value is also compact.
+		input := `{"ios_team": {"team_id": 5, "name": "Default"}}`
+		result := DuplicateJSONKeys([]byte(input), rules, opts)
+
+		trimmed := strings.TrimRight(string(result), "\n")
+		assert.NotContains(t, trimmed, "\n")
+		assert.NotContains(t, trimmed, "  ")
+
+		var m map[string]any
+		require.NoError(t, json.Unmarshal(result, &m))
+
+		iosTeam := m["ios_team"].(map[string]any)
+		assert.Equal(t, float64(5), iosTeam["team_id"])
+		assert.Equal(t, float64(5), iosTeam["fleet_id"])
+
+		iosFleet := m["ios_fleet"].(map[string]any)
+		assert.Equal(t, float64(5), iosFleet["team_id"])
+		assert.Equal(t, float64(5), iosFleet["fleet_id"])
+	})
+
+	t.Run("default (no opts) is indented", func(t *testing.T) {
+		input := `{"team_id": 42}`
+		result := DuplicateJSONKeys([]byte(input), rules)
+
+		// Default output should contain indentation.
+		assert.Contains(t, string(result), "\n")
+		assert.Contains(t, string(result), "  ")
+
+		var m map[string]any
+		require.NoError(t, json.Unmarshal(result, &m))
+		assert.Equal(t, float64(42), m["team_id"])
+		assert.Equal(t, float64(42), m["fleet_id"])
+	})
+}
+
 // TestDuplicateJSONKeysIdempotent ensures that running the duplicator twice
 // doesn't add more keys (since after the first run the new key exists).
 func TestDuplicateJSONKeysIdempotent(t *testing.T) {

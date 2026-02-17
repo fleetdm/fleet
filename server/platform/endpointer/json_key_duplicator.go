@@ -140,7 +140,7 @@ func DuplicateJSONKeys(data []byte, rules []AliasRule, opts ...DuplicateJSONKeys
 					}
 
 					// Recursively duplicate keys within the value.
-					processedVal := DuplicateJSONKeys([]byte(val), rules)
+					processedVal := DuplicateJSONKeys([]byte(val), rules, opts...)
 
 					// Write the value for the old key.
 					if err := enc.WriteValue(jsontext.Value(processedVal)); err != nil {
