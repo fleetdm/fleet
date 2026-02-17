@@ -6,7 +6,6 @@ Fleet can help your end users connect to Wi-Fi or VPN by deploying certificates 
 
 Fleet will automatically renew certificates on Apple (macOS, iOS, iPadOS) hosts before expiration. Learn more in the [Renewal section](#renewal).
 
-
 ## DigiCert
 
 The following steps show how to connect end users to Wi-Fi or VPN with DigiCert certificates.
@@ -193,6 +192,7 @@ When the profile is delivered to your hosts, Fleet will replace the variables. I
 </dict>
 </plist>
 ```
+
 ## Smallstep
 
 The following steps show how to connect end users to Wi-Fi or VPN with [Smallstep](https://smallstep.com/) certificates.
@@ -414,6 +414,22 @@ The following steps show how to connect end users to Wi-Fi or VPN with a [custom
 4. In Fleet, head to **Controls > OS settings > Custom settings** and add the configuration profile to deploy certificates to your hosts.
 
 When the profile is delivered to your hosts, Fleet will replace the variables. If something goes wrong, errors will appear on each host's **Host details > OS settings**.
+
+### Android: Add certificate
+
+On Android, certificates are deployed differently from Apple and Windows. Instead of a configuration profile, Fleet uses a certificates interface.
+
+Fleet automatically installs Android agent app on every host. It retreives SCEP certificate from the custome SCEP CA and installs the certificate into the Android keystore.
+
+#### Using Fleet UI
+
+1. In Fleet, head to **Controls > OS settings > Certificates** and select **Add certificate**.
+2. In **Name**, enter a name for the certificate (e.g., "wifi-certificate"). This name is used as the certificate alias to reference in configuration profiles (e.g. [WiFi configuration](https://developers.google.com/android/management/configure-networks#eap_authentication)).
+3. In **Certificate authority**, select the custom SCEP CA you created in step 1.
+4. In **Subject name**, enter the certificate's subject name (SN). Separate subject fields by a "/". You can use [Fleet's host variables](https://fleetdm.com/docs/configuration/yaml-files#variables) to make the certificate unique to each host. For example: `/CN=$FLEET_VAR_HOST_END_USER_IDP_USERNAME/OU=$FLEET_VAR_HOST_UUID/ST=$FLEET_VAR_HOST_HARDWARE_SERIAL`.
+5. Select **Save**. Fleet will deploy the certificate to your Android hosts.
+
+If something goes wrong, errors will appear on each host's **Host details > OS settings**.
 
 #### Example configuration profiles
 
@@ -696,7 +712,7 @@ Automatic renewal is only supported if the validity period is set to 2 days or l
 
 If an end user is on vacation (offline for more than 30 days), their certificate might expire, and they'll lose access to Wi-Fi or VPN. To reconnect them, ask your end users to temporarily connect to a different network so that Fleet can deliver a new certificate.
 
-Fleet automatically retries each failed macOS, iOS, iPadOS, and Windows certificate once per host, checking every 30 seconds for certificates to resend. Learn more in the [4.38.0 release article](https://fleetdm.com/releases/fleet-4-38-0#failed-profile-redelivery). Automatic retries for Android is coming soon.
+Fleet automatically retries each failed macOS, iOS, iPadOS, Windows, and Android certificate once per host, checking every 30 seconds for certificates to resend. Learn more in the [4.38.0 release article](https://fleetdm.com/releases/fleet-4-38-0#failed-profile-redelivery).
 
 > Currently, for NDES, Smallstep, and custom SCEP CAs, Fleet requires that the ⁠`$FLEET_VAR_SCEP_RENEWAL_ID` variable is in the certificate's OU (Organizational Unit) for automatic renewal to work. For some CAs, including [NDES](https://learn.microsoft.com/en-us/windows-server/identity/ad-ds/plan/active-directory-domain-services-maximum-limits?utm_source=chatgpt.com#:~:text=OU%20names%20can%20only%20be%2064%20characters%20long.), the OU has a maximum length of 64 characters so any characters beyond this limit get truncated, causing the renewal to fail.
 >
@@ -754,6 +770,7 @@ fetch_cert -ca <EST-CA-ID> -fleeturl "<Fleet-server-URL>" -csr CustomerUserNetwo
 * The SCEP Server used for **Windows**, should accept `/pkiclient.exe` at the end, as Windows will always append this to the SCEP URL. If using a Certificate Authority and Fleet Variables, Fleet handles this and strips it away from the request sent to the backing SCEP server.
 * On **Windows** hosts, Fleet will not verify the SCEP profile via osquery reports. Fleet will mark it as verified, if a successful request went through, even if the certificate is not present.
 * On **Windows** hosts, Fleet will not remove certificates from profiles, when removing the profile from the host, or transferring teams.
+* On **Android** hosts, only a custom SCEP certificate authority is currently supported.
 
 ### How the SCEP proxy works
 
