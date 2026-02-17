@@ -7,7 +7,7 @@
       .data-table__wrapper {
         // this handles an edge case where the table is too wide for the
         // container at a smaller viewport width.
-        overflow: auto
+        overflow: auto;
       }
     }
   }

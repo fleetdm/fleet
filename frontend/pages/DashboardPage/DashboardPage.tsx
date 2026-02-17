@@ -745,7 +745,7 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
           )}
         {(isSoftwareFetching || showSoftwareCard) && SoftwareCard}
         {!isAnyTeamSelected && isOnGlobalTeam && <>{ActivityFeedCard}</>}
-        {true && <>{MDMCard}</>}
+        {showMdmCard && <>{MDMCard}</>}
       </div>
     );
   };
