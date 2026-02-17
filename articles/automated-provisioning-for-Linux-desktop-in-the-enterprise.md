@@ -17,7 +17,7 @@ Delivering a frictionless end user experience when deploying devices to new hire
 
 Getting a computer from a manufacturer and setting it up manually (i.e., installing software, configuring controls and securing access to enterprise resources) requires meticulous planning, coordination and a lot of effort. To deploy manually at scale, many large organizations pay 3rd parties or have dedicated entire teams to handle this work due to the complexity of delivery logistics and device configuration. 
 
-In the early days of Windows PCs, disk imaging became the de facto approach for IT vendors wanting to replicate OS settings across their fleets. Windows admins spent unimaginable amounts of time crafting a ‘golden image’ which was then applied to all newly purchased computers. 
+In the early days of Windows PCs, disk imaging became the de facto approach for replicating OS settings across a deployment. Windows admins spent unimaginable amounts of time crafting a ‘golden image’ which was then applied to all newly purchased computers. 
 
 Some organizations still take this antiquated approach believing it to be a best practice, but the overhead of maintaining and refreshing master images is expensive. Windows has long supported automated provisioning because of this, following Apple’s lead on improving and boosting the use of mobile device management (MDM) specifications built into operating systems that help organizations modernize their device deployments.
 
