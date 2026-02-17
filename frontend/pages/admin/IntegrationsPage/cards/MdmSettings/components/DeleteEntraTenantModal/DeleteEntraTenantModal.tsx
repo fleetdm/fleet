@@ -39,8 +39,9 @@ const DeleteEntraTenantModal = ({
       onExit();
     } catch (err) {
       renderFlash("error", "Couldn't delete tenant. Please try again.");
+    } finally {
+      setIsDeleting(false);
     }
-    setIsDeleting(false);
   };
 
   return (

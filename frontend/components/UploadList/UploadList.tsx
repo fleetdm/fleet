@@ -24,7 +24,7 @@ const UploadList = <T,>({
   const items = listItems.map((listItem) => {
     return (
       <li
-        key={keyAttribute ? `${listItem[keyAttribute]}` : undefined}
+        key={keyAttribute ? `${listItem[keyAttribute]}` : `${listItem}`}
         className={`${baseClass}__list-item`}
       >
         <ListItemComponent listItem={listItem} />

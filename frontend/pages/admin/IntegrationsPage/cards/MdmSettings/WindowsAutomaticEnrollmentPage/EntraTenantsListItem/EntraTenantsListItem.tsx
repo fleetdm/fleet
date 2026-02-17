@@ -12,7 +12,7 @@ interface IEntraTenantsListItemProps {
   onClickDelete: () => void;
 }
 
-const CertAuthorityListItem = ({
+const EntraTenantsListItem = ({
   tenantId,
   onClickDelete,
 }: IEntraTenantsListItemProps) => {
@@ -39,4 +39,4 @@ const CertAuthorityListItem = ({
   );
 };
 
-export default CertAuthorityListItem;
+export default EntraTenantsListItem;
