@@ -79,7 +79,7 @@ Fleet’s ability to scale horizontally allowed the company to manage thousands 
 
 By providing tools typically overlooked for Linux, Fleet's open-source platform completes the circle of high-security standards, compliance, and trust with a technically proficient and privacy-conscious Linux user base. Fleet’s automation and integration capabilities meant that IT could still use the tools they wanted, without leaving Linux behind. This proved vital for the company which continues to scale globally. 
 
-To learn more about how Fleet can support your organization, visit [fleetdm.com/mdm](fleetdm.com/mdm).
+To learn more about how Fleet can support your organization, visit [fleetdm.com/mdm](https://fleetdm.com/mdm).
 
 <call-to-action></call-to-action>
 
