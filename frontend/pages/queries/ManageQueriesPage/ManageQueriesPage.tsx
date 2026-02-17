@@ -442,7 +442,7 @@ const ManageQueriesPage = ({
             )}
           </div>
 
-          <PageDescription content={"Gather data."} />
+          <PageDescription content={"Gather data about your hosts."} />
         </div>
         {renderQueriesTable()}
         {renderModals()}
