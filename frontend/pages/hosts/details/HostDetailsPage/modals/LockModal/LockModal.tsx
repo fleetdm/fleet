@@ -12,7 +12,6 @@ import Button from "components/buttons/Button";
 import Checkbox from "components/forms/fields/Checkbox";
 import CustomLink from "components/CustomLink";
 import Card from "components/Card";
-import InfoBanner from "components/InfoBanner";
 
 import IphoneLockPreview from "../../../../../../../assets/images/iphone-lock-preview.png";
 import IpadLockPreview from "../../../../../../../assets/images/ipad-lock-preview.png";
@@ -92,6 +91,11 @@ const LockModal = ({
             .
           </p>
           <p> It can only be unlocked through Fleet.</p>
+          <p>
+            <strong>Warning:</strong> If the device is turned off or restarted
+            while locked, it will disconnect from WiFi and won't be able
+            to receive MDM commands necessary to unlock the host.
+          </p>
         </>
       );
     }
@@ -113,19 +117,6 @@ const LockModal = ({
           <div className={`${baseClass}__description`}>
             {renderDescription()}
           </div>
-          {isIPadOrIPhone(platform) && (
-            <InfoBanner
-              color="yellow"
-              className={`${baseClass}__wifi-warning`}
-            >
-              <p>
-                <strong>Warning:</strong> If the device is turned off or
-                restarted while locked, it will disconnect from WiFi and
-                won't be able to receive MDM commands necessary to unlock
-                the host.
-              </p>
-            </InfoBanner>
-          )}
           <div className={`${baseClass}__confirm-message`}>
             <span>
               <b>Confirm:</b>
