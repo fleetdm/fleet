@@ -1415,7 +1415,7 @@ func (svc *Service) UploadABMToken(ctx context.Context, token io.Reader) (*fleet
 		EncryptedToken: encryptedToken,
 	}
 
-	if err := apple_mdm.SetDecryptedABMTokenMetadata(ctx, tok, decryptedToken, svc.depStorage, svc.ds, svc.logger, false); err != nil {
+	if err := apple_mdm.SetDecryptedABMTokenMetadata(ctx, tok, decryptedToken, svc.depStorage, svc.ds, svc.logger.SlogLogger(), false); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "setting ABM token metadata")
 	}
 
@@ -1576,7 +1576,7 @@ func (svc *Service) RenewABMToken(ctx context.Context, token io.Reader, tokenID 
 		return nil, ctxerr.Wrap(ctx, err, "decrypting ABM token for renewal")
 	}
 
-	if err := apple_mdm.SetDecryptedABMTokenMetadata(ctx, oldTok, decryptedToken, svc.depStorage, svc.ds, svc.logger, true); err != nil {
+	if err := apple_mdm.SetDecryptedABMTokenMetadata(ctx, oldTok, decryptedToken, svc.depStorage, svc.ds, svc.logger.SlogLogger(), true); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "setting ABM token metadata")
 	}
 

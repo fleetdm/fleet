@@ -7271,7 +7271,7 @@ func (svc *Service) MDMAppleProcessOTAEnrollment(
 // and assigns it if necessary.
 func EnsureMDMAppleServiceDiscovery(ctx context.Context, ds fleet.Datastore, depStorage storage.AllDEPStorage, logger *platformlogging.Logger,
 	urlPrefix string) error {
-	depSvc := apple_mdm.NewDEPService(ds, depStorage, logger)
+	depSvc := apple_mdm.NewDEPService(ds, depStorage, logger.SlogLogger())
 
 	ac, err := ds.AppConfig(ctx)
 	if err != nil {
