@@ -59,10 +59,7 @@ describe("LockModal", () => {
       )
     ).toBeInTheDocument();
     expect(
-      screen.getByText(
-        /won't be able to unlock the host remotely/i
-        /won't be able to unlock the host remotely/i
-      )
+      screen.getByText(/won't be able to unlock the host remotely/i)
     ).toBeInTheDocument();
   });
 
@@ -71,7 +68,9 @@ describe("LockModal", () => {
     render(<LockModal {...MOCK_PROPS} platform="darwin" />);
 
     expect(
-      screen.queryByText(/If the device is turned off or restarted while locked/i)
+      screen.queryByText(
+        /If the device is turned off or restarted while locked/i
+      )
     ).not.toBeInTheDocument();
   });
 
