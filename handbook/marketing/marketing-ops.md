@@ -274,7 +274,6 @@ All campaigns must utilize the following status values. Custom statuses outside 
 - **Engaged:** Replied to the email directly.
 
 
----
 
 ## 📧 Contact marketability & compliance
 
