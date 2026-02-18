@@ -127,7 +127,7 @@ func MakeHandler(
 			auth.SetRequestsContexts(svc),
 			setCarveStoreInRequestContext(carveStore),
 		),
-		kithttp.ServerErrorHandler(&endpointer.ErrorHandler{Logger: logger}),
+		kithttp.ServerErrorHandler(&endpointer.ErrorHandler{Logger: logger.SlogLogger()}),
 		kithttp.ServerErrorEncoder(fleetErrorEncoder),
 		kithttp.ServerAfter(
 			kithttp.SetContentType("application/json; charset=utf-8"),
@@ -881,7 +881,7 @@ func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetC
 		deviceIPAllowedConsecutiveFailingRequestsTimeWindow,
 		deviceIPBanTime,
 	)
-	errorLimiter := ratelimit.NewErrorMiddleware(ipBanner).Limit(logger)
+	errorLimiter := ratelimit.NewErrorMiddleware(ipBanner).Limit(logger.SlogLogger())
 
 	// Device-authenticated endpoints.
 	de := newDeviceAuthenticatedEndpointer(svc, logger, opts, r, apiVersions...)
@@ -926,7 +926,7 @@ func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetC
 		POST("/api/osquery/config", getClientConfigEndpoint, getClientConfigRequest{})
 	he.WithAltPaths("/api/v1/osquery/distributed/read").
 		POST("/api/osquery/distributed/read", getDistributedQueriesEndpoint, getDistributedQueriesRequest{})
-	he.WithAltPaths("/api/v1/osquery/distributed/write").
+	he.WithRequestBodySizeLimit(fleet.MaxOsqueryDistributedWriteSize).WithAltPaths("/api/v1/osquery/distributed/write").
 		POST("/api/osquery/distributed/write", submitDistributedQueryResultsEndpoint, submitDistributedQueryResultsRequestShim{})
 	he.WithAltPaths("/api/v1/osquery/carve/begin").
 		POST("/api/osquery/carve/begin", carveBeginEndpoint, carveBeginRequest{})

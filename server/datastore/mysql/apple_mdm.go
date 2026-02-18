@@ -2492,7 +2492,7 @@ func (ds *Datastore) bulkDeleteMDMAppleHostsConfigProfilesDB(ctx context.Context
 	}
 
 	executeDeleteBatch := func(valuePart string, args []any) error {
-		stmt := fmt.Sprintf(`DELETE FROM host_mdm_apple_profiles WHERE (profile_identifier, host_uuid) IN (%s)`, strings.TrimSuffix(valuePart, ","))
+		stmt := fmt.Sprintf(`DELETE FROM host_mdm_apple_profiles WHERE (profile_uuid, host_uuid) IN (%s)`, strings.TrimSuffix(valuePart, ","))
 		if _, err := tx.ExecContext(ctx, stmt, args...); err != nil {
 			return ctxerr.Wrap(ctx, err, "error deleting host_mdm_apple_profiles")
 		}
@@ -2518,7 +2518,7 @@ func (ds *Datastore) bulkDeleteMDMAppleHostsConfigProfilesDB(ctx context.Context
 	}
 
 	for _, p := range profs {
-		args = append(args, p.ProfileIdentifier, p.HostUUID)
+		args = append(args, p.ProfileUUID, p.HostUUID)
 		sb.WriteString("(?, ?),")
 		batchCount++
 
