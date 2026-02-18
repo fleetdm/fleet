@@ -734,11 +734,13 @@ const ManagePolicyPage = ({
         })
       );
 
-      await Promise.all([teamConfigPromise, ...policyPromises].filter(Boolean));
+      const [teamConfigResult] = await Promise.all([
+        teamConfigPromise,
+        ...policyPromises,
+      ]);
 
-      if (teamConfigPromise) {
-        const updatedTeamResponse = await teamConfigPromise;
-        updateTeamConfig(updatedTeamResponse);
+      if (teamConfigResult) {
+        updateTeamConfig(teamConfigResult);
       }
 
       await wait(100); // Wait 100ms to avoid race conditions with refetch
@@ -803,19 +805,17 @@ const ManagePolicyPage = ({
         });
       });
 
-      await Promise.all(
-        [globalConfigPromise, teamConfigPromise, ...policyPromises].filter(
-          Boolean
-        )
-      );
+      const [globalConfigResult, teamConfigResult] = await Promise.all([
+        globalConfigPromise,
+        teamConfigPromise,
+        ...policyPromises,
+      ]);
 
-      if (globalConfigPromise) {
-        const updatedConfig = await globalConfigPromise;
-        updateGlobalConfig(updatedConfig);
+      if (globalConfigResult) {
+        updateGlobalConfig(globalConfigResult);
       }
-      if (teamConfigPromise) {
-        const updatedTeamResponse = await teamConfigPromise;
-        updateTeamConfig(updatedTeamResponse);
+      if (teamConfigResult) {
+        updateTeamConfig(teamConfigResult);
       }
       renderFlash(
         "success",
