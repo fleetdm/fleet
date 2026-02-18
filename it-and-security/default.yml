@@ -43,7 +43,7 @@ org_settings:
     org_logo_url_light_background: ""
     org_name: Fleet
   secrets:
-    - secret: $DOGFOOD_GLOBAL_ENROLL_SECRET
+    - secret: 12345678901234567890123456789012
   server_settings:
     debug_host_ids:
       - 1
