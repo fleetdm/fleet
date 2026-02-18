@@ -36,6 +36,7 @@ org_settings:
           - "📱🏢 Employee-issued mobile devices"
           - "📱🔐 Personal mobile devices"
           - "🧪 Testing & QA"
+          - "Workstations VPP"
   org_info:
     contact_url: https://fleetdm.slack.com/archives/C071NNMSP2R
     org_logo_url: ""
