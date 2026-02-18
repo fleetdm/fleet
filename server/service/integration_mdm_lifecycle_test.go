@@ -458,13 +458,18 @@ func (s *integrationMDMTestSuite) TestTurnOnLifecycleEventsWindows() {
 					t.Skip("wipe tests are not supported for windows automatic enrollment until we fix #TODO")
 				}
 
+				tenantID := uuid.New().String()
+
+				acResp := appConfigResponse{}
+				s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{ "mdm": { "windows_entra_tenant_ids": ["`+tenantID+`"] } }`), http.StatusOK, &acResp)
+
 				err := s.ds.ApplyEnrollSecrets(context.Background(), nil, []*fleet.EnrollSecret{{Secret: t.Name()}})
 				require.NoError(t, err)
 
 				host := createOrbitEnrolledHost(t, "windows", "windows_automatic", s.ds)
 
 				azureMail := "foo.bar.baz@example.com"
-				device := mdmtest.NewTestMDMClientWindowsAutomatic(s.server.URL, azureMail, mdmtest.TestWindowsMDMClientWithSigningKey(s.jwtSigningKey, defaultFakeJWTKeyID))
+				device := mdmtest.NewTestMDMClientWindowsAutomatic(s.server.URL, azureMail, mdmtest.TestWindowsMDMClientWithSigningKeyAndTenantID(s.jwtSigningKey, defaultFakeJWTKeyID, tenantID))
 				device.HardwareID = host.UUID
 				device.DeviceID = host.UUID
 				require.NoError(t, device.Enroll())

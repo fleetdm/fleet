@@ -1,3 +1,23 @@
+## Orbit 1.52.0 (Feb 16, 2026)
+
+* Updated `macadmins/osquery-extensions` to v1.3.2.
+
+* Updated `Migrate to Fleet` webhook to always send when device is seen as unmanaged.
+
+* Harden `app_sso_platform` table command execution to prevent command injection.
+
+* Added 'AlternativeBrowserHost' to Desktop Summary payload and updated Fleet Desktop to use it over the alternative browser host set via the env.
+
+* Updated fleetd to ignore the `gdm-greeter` user in GNOME 49 sessions when starting Fleet Desktop.
+
+* Added `musl-tools` to fleet-desktop build process to fix GLIBC incompatibility that caused orbit agent to fail when updating fleet-desktop on Ubuntu 20.04.
+
+* Added `containerd_mounts` table on Linux to query container mount information from containerd.
+
+* Added dummy implementation of `orbit_info` table to the orbit shell.
+
+* Set `--tls_accept_gzip=true` when connecting osquery to Fleet. This should have no effect until gzip is also enabled on the Fleet server (a new Fleet server configuration `FLEET_SERVER_GZIP_RESPONSES=true` is coming in v4.81.0).
+
 ## Orbit 1.51.1 (Jan 28, 2026)
 
 * Improved "Fleet Desktop" description in Windows' system tray.

@@ -8,6 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log/slog"
 	"net"
 	"net/http"
 	"os"
@@ -1207,6 +1208,7 @@ func verifyDiscovery(t *testing.T, queries, discovery map[string]string) {
 		hostDetailQueryPrefix + "software_macos_executable_sha256":        {},
 		hostDetailQueryPrefix + "software_rpm_last_opened_at":             {},
 		hostDetailQueryPrefix + "software_deb_last_opened_at":             {},
+		hostDetailQueryPrefix + "software_windows_jetbrains":              {},
 	}
 	for name := range queries {
 		require.NotEmpty(t, discovery[name])
@@ -3143,7 +3145,7 @@ func TestDistributedQueriesLogsManyErrors(t *testing.T) {
 	)
 	require.NoError(t, err)
 
-	lCtx.Log(ctx, logger)
+	lCtx.Log(ctx, logger.SlogLogger())
 
 	logs := buf.String()
 	parts := strings.Split(strings.TrimSpace(logs), "\n")
@@ -4588,7 +4590,7 @@ func TestPreProcessSoftwareResults(t *testing.T) {
 				host = tc.host
 			}
 			// mutates tc.resultsIn
-			preProcessSoftwareResults(host, tc.resultsIn, tc.statusesIn, tc.messagesIn, tc.overrides, platformlogging.NewNopLogger())
+			preProcessSoftwareResults(t.Context(), host, tc.resultsIn, tc.statusesIn, tc.messagesIn, tc.overrides, slog.New(slog.DiscardHandler))
 			require.Equal(t, tc.resultsExpected, tc.resultsIn)
 		})
 	}
@@ -4671,7 +4673,7 @@ func BenchmarkPreprocessUbuntuPythonPackageFilter(b *testing.B) {
 	}
 
 	for i := 0; i < b.N; i++ {
-		preProcessSoftwareResults(&fleet.Host{ID: 1, Platform: platform}, results, statuses, nil, nil, platformlogging.NewNopLogger())
+		preProcessSoftwareResults(context.Background(), &fleet.Host{ID: 1, Platform: platform}, results, statuses, nil, nil, slog.New(slog.DiscardHandler))
 	}
 }
 

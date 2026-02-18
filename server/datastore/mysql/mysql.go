@@ -30,6 +30,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mdm/android"
 	nano_push "github.com/fleetdm/fleet/v4/server/mdm/nanomdm/push"
 	scep_depot "github.com/fleetdm/fleet/v4/server/mdm/scep/depot"
+	"github.com/fleetdm/fleet/v4/server/platform/logging"
 	common_mysql "github.com/fleetdm/fleet/v4/server/platform/mysql"
 	"github.com/fleetdm/fleet/v4/server/service/modules/activities"
 	"github.com/go-kit/log"
@@ -63,7 +64,7 @@ type Datastore struct {
 	replica fleet.DBReader // so it cannot be used to perform writes
 	primary *sqlx.DB
 
-	logger log.Logger
+	logger *logging.Logger
 	clock  clock.Clock
 	config config.MysqlConfig
 	pusher nano_push.Pusher
@@ -233,7 +234,7 @@ func NewDBConnections(cfg config.MysqlConfig, opts ...DBOption) (*common_mysql.D
 	options := &common_mysql.DBOptions{
 		MinLastOpenedAtDiff: defaultMinLastOpenedAtDiff,
 		MaxAttempts:         defaultMaxAttempts,
-		Logger:              log.NewNopLogger(),
+		Logger:              logging.NewNopLogger(),
 	}
 
 	for _, setOpt := range opts {
@@ -731,9 +732,20 @@ func (ds *Datastore) HealthCheck() error {
 	// NOTE: does not receive a context as argument here, because the HealthCheck
 	// interface potentially affects more than the datastore layer, and I'm not
 	// sure we can safely identify and change them all at this moment.
-	if _, err := ds.primary.ExecContext(context.Background(), "select 1"); err != nil {
+
+	// Check that the primary is reachable and not in read-only mode.
+	// After an AWS Aurora failover the old writer is demoted to a reader;
+	// detecting this lets the health check fail so the orchestrator can restart Fleet.
+	var readOnly int
+	if err := ds.primary.QueryRowContext(context.Background(), "SELECT @@read_only").Scan(&readOnly); err != nil {
 		return err
 	}
+	if readOnly == 1 {
+		// Intentionally return an error so that the health check endpoint returns a 500,
+		// signaling the orchestrator (ECS, Kubernetes) to restart Fleet with fresh DB connections.
+		return errors.New("primary database is read-only, possible failover detected")
+	}
+
 	if ds.readReplicaConfig != nil {
 		var dst int
 		if err := sqlx.GetContext(context.Background(), ds.replica, &dst, "select 1"); err != nil {

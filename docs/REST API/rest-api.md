@@ -508,7 +508,7 @@ Returns a list of the activities that have been performed in Fleet. For a compre
 | Name            | Type    | In    | Description                                                 |
 |:--------------- |:------- |:----- |:------------------------------------------------------------|
 | page            | integer | query | Page number of the results to fetch.                                                                                          |
-| per_page        | integer | query | Results per page.                                                                                                             |
+| per_page        | integer | query | Results per page. Maximum is 10,000 records. If no pagination parameters are specified, defaults to 10,000.                    |
 | order_key       | string  | query | What to order results by. Can be any column in the `activities` table.                                                         |
 | order_direction | string  | query | **Requires `order_key`**. The direction of the order given the order key. Options include `"asc"` and `"desc"`. Default is `"asc"`. |
 | query | string | query | Search query keywords. Searchable fields include `actor_full_name` and `actor_email`.
@@ -1492,9 +1492,7 @@ None.
     "android_enabled_and_configured": true,
     "windows_enabled_and_configured": true,
     "windows_entra_tenant_ids": [
-      {
-        "tenant_id": "fec37e96-3615-4e37-8fac-445d5328af3c",
-      },
+      "fec37e96-3615-4e37-8fac-445d5328af3c"
     ],
     "enable_turn_on_windows_mdm_manually": false,
     "enable_disk_encryption": true,
@@ -2970,6 +2968,7 @@ If `after` is being used with `created_at` or `updated_at`, the table must be sp
 
 If `include_device_status` is set to `true`, `device_status` and `pending_action` are included in the MDM information for each host. `device_status` indicates the current lock/wipe state of the device with possible values: `unlocked`, `locked`, `locking`, `unlocking`, `wiped`, `wiping`. `pending_action` indicates if a lock, unlock, or wipe command is pending with possible values: `lock`, `unlock`, `wipe`, or an empty string (no pending action).
 
+To filter hosts by platform (macOS, Windows, Linux), use the ["List label's hosts" API endpoint](https://fleetdm.com/docs/rest-api/rest-api#list-labels-hosts). Find the label ID by filtering in the **Hosts** page of the Fleet UI and copying the ID from the URL (for example: `7` for `/hosts/manage/labels/7`).
 
 #### Example
 
@@ -5158,7 +5157,7 @@ To wipe a macOS, iOS, iPadOS, or Windows host, the host must have MDM turned on.
 | ---- | ------- | ---- | ---------------------------- |
 | id   | integer | path | **Required**. The host's ID. |
 | page | integer | query | Page number of the results to fetch.|
-| per_page | integer | query | Results per page.|
+| per_page | integer | query | Results per page. Maximum is 10,000 records. If no pagination parameters are specified, defaults to 10,000.|
 
 #### Example
 
@@ -7344,7 +7343,7 @@ This endpoint returns the results for a specific custom MDM command.
 In the response, the possible `status` values for macOS, iOS, and iPadOS hosts are the following:
 
 * Pending: the command has yet to run on the host. The host will run the command the next time it comes online.
-* NotNow: the host responded with "NotNow" status via the MDM protocol: the host received the command, but couldn’t execute it. The host will try to run the command the next time it comes online.
+* NotNow: the host acknowledged the MDM command but couldn’t run for one of [Apple's documented reasons](https://developer.apple.com/documentation/devicemanagement/handling-notnow-status-responses#Handle-NotNow-Responses). Per Apple, the host retries automatically. Apple doesn’t specify when the retries happen, or whether they depend on clearing _all_ blocking reasons or just one.
 * Acknowledged: the host responded with "Acknowledged" status via the MDM protocol: the host processed the command successfully.
 * Error: the host responded with "Error" status via the MDM protocol: an error occurred. Run the `fleetctl get mdm-command-results --id=<insert-command-id` to view the error.
 * CommandFormatError: the host responded with "CommandFormatError" status via the MDM protocol: a protocol error occurred, which can result from a malformed command. Run the `fleetctl get mdm-command-results --id=<insert-command-id` to view the error.

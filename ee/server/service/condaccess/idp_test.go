@@ -2,7 +2,6 @@ package condaccess
 
 import (
 	"context"
-	"database/sql"
 	"errors"
 	"net/http"
 	"net/http/httptest"
@@ -540,8 +539,11 @@ func TestDeviceHealthSessionProvider(t *testing.T) {
 		caPolicyIDs  []uint
 		hostPolicies []*fleet.HostPolicy
 
-		deviceToken    string
-		deviceTokenErr error
+		deviceToken        string
+		deviceTokenErr     error
+		deviceTokenExpired bool  // if true, LoadHostByDeviceAuthToken returns not found
+		loadDeviceTokenErr error // if set, LoadHostByDeviceAuthToken returns this error
+		setDeviceTokenErr  error
 
 		appConfig *fleet.AppConfig // nil = use default with ServerURL
 
@@ -608,7 +610,7 @@ func TestDeviceHealthSessionProvider(t *testing.T) {
 			wantLocation:   "https://example.com/device/abc123/policies",
 		},
 		{
-			name:        "redirects to remediate when no auth token",
+			name:        "creates token and redirects to device policy page when no auth token",
 			hostID:      456,
 			host:        &fleet.Host{ID: 456, TeamID: ptr.Uint(1)},
 			caPolicyIDs: []uint{10, 20},
@@ -617,9 +619,51 @@ func TestDeviceHealthSessionProvider(t *testing.T) {
 				{PolicyData: fleet.PolicyData{ID: 20}, Response: "pass"},
 				{PolicyData: fleet.PolicyData{ID: 30}, Response: "fail"}, // Not conditional access
 			},
-			deviceTokenErr: sql.ErrNoRows,
+			deviceTokenErr: &notFoundError{msg: "HostDeviceAuth not found"},
 			wantStatusCode: http.StatusSeeOther,
-			wantLocation:   remediateURL,
+			// The redirect will be to /device/<generated-uuid>/policies, verified below
+		},
+		{
+			name:        "redirects to remediate when no auth token and create fails",
+			hostID:      456,
+			host:        &fleet.Host{ID: 456, TeamID: ptr.Uint(1)},
+			caPolicyIDs: []uint{10, 20},
+			hostPolicies: []*fleet.HostPolicy{
+				{PolicyData: fleet.PolicyData{ID: 10}, Response: "fail"},
+				{PolicyData: fleet.PolicyData{ID: 20}, Response: "pass"},
+				{PolicyData: fleet.PolicyData{ID: 30}, Response: "fail"}, // Not conditional access
+			},
+			deviceTokenErr:    &notFoundError{msg: "HostDeviceAuth not found"},
+			setDeviceTokenErr: errors.New("database error"),
+			wantStatusCode:    http.StatusSeeOther,
+			wantLocation:      remediateURL,
+		},
+		{
+			name:        "creates token and redirects when existing token is expired",
+			hostID:      456,
+			host:        &fleet.Host{ID: 456, TeamID: ptr.Uint(1)},
+			caPolicyIDs: []uint{10, 20},
+			hostPolicies: []*fleet.HostPolicy{
+				{PolicyData: fleet.PolicyData{ID: 10}, Response: "fail"},
+				{PolicyData: fleet.PolicyData{ID: 20}, Response: "pass"},
+			},
+			deviceToken:        "expired-token",
+			deviceTokenExpired: true,
+			wantStatusCode:     http.StatusSeeOther,
+			// Redirect will be to /device/<generated-uuid>/policies, verified by assertion below
+		},
+		{
+			name:        "redirects to remediate when token validation fails with DB error",
+			hostID:      456,
+			host:        &fleet.Host{ID: 456, TeamID: ptr.Uint(1)},
+			caPolicyIDs: []uint{10},
+			hostPolicies: []*fleet.HostPolicy{
+				{PolicyData: fleet.PolicyData{ID: 10}, Response: "fail"},
+			},
+			deviceToken:        "some-token",
+			loadDeviceTokenErr: errors.New("database connection error"),
+			wantStatusCode:     http.StatusSeeOther,
+			wantLocation:       remediateURL,
 		},
 		{
 			name:           "returns 500 when HostLite fails",
@@ -774,6 +818,20 @@ func TestDeviceHealthSessionProvider(t *testing.T) {
 				return tt.deviceToken, tt.deviceTokenErr
 			}
 
+			ds.SetOrUpdateDeviceAuthTokenFunc = func(ctx context.Context, hostID uint, authToken string) error {
+				return tt.setDeviceTokenErr
+			}
+
+			ds.LoadHostByDeviceAuthTokenFunc = func(ctx context.Context, authToken string, ttl time.Duration) (*fleet.Host, error) {
+				if tt.loadDeviceTokenErr != nil {
+					return nil, tt.loadDeviceTokenErr
+				}
+				if tt.deviceTokenExpired {
+					return nil, &notFoundError{msg: "host not found"}
+				}
+				return tt.host, nil
+			}
+
 			if tt.appConfig != nil {
 				ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 					return tt.appConfig, nil
@@ -815,6 +873,15 @@ func TestDeviceHealthSessionProvider(t *testing.T) {
 			require.Equal(t, tt.wantStatusCode, w.Code)
 			if tt.wantLocation != "" {
 				require.Equal(t, tt.wantLocation, w.Header().Get("Location"))
+			}
+			// When a new token is created (missing or expired) and SetOrUpdateDeviceAuthToken succeeds,
+			// the redirect should use a server-generated token.
+			needsNewToken := tt.deviceTokenErr != nil || tt.deviceTokenExpired
+			if needsNewToken && tt.setDeviceTokenErr == nil && w.Code == http.StatusSeeOther {
+				loc := w.Header().Get("Location")
+				require.Contains(t, loc, "https://example.com/device/")
+				require.Contains(t, loc, "/policies")
+				require.NotEqual(t, remediateURL, loc)
 			}
 			if tt.bypassMustNotBeCalled {
 				require.False(t, ds.ConditionalAccessConsumeBypassFuncInvoked)
