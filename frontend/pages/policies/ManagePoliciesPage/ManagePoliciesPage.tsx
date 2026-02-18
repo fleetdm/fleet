@@ -29,7 +29,6 @@ import {
   API_ALL_TEAMS_ID,
   API_NO_TEAM_ID,
   APP_CONTEXT_ALL_TEAMS_ID,
-  ITeamConfig,
 } from "interfaces/team";
 import { TooltipContent } from "interfaces/dropdownOption";
 
@@ -379,34 +378,25 @@ const ManagePolicyPage = ({
     }
   );
 
-  const { data: teamConfig, isFetching: isFetchingTeamConfig } = useQuery<
+  const { data: teamData, isFetching: isFetchingTeamConfig } = useQuery<
     ILoadTeamResponse,
-    Error,
-    ITeamConfig
+    Error
   >(["teams", teamIdForApi], () => teamsAPI.load(teamIdForApi), {
     // Enable for all teams including "No team" (teamIdForApi === 0)
     enabled: isRouteOk && teamIdForApi !== undefined && canAddOrDeletePolicies,
-    select: (data) => data.team,
     staleTime: 5000,
   });
+  const teamConfig = teamData?.team;
 
-  const queryAutomationsConfig = isAllTeamsSelected ? globalConfig : teamConfig;
-  const [automationsConfig, setAutomationsConfig] = useState(
-    queryAutomationsConfig
-  );
-  useEffect(() => {
-    setAutomationsConfig(queryAutomationsConfig);
-  }, [queryAutomationsConfig]);
+  const automationsConfig = isAllTeamsSelected ? globalConfig : teamConfig;
 
   const updateGlobalConfig = (updatedConfig: IConfig) => {
     queryClient.setQueryData(["config"], updatedConfig);
     setConfig(updatedConfig);
-    setAutomationsConfig(updatedConfig);
   };
 
   const updateTeamConfig = (updatedTeamResponse: ILoadTeamResponse) => {
     queryClient.setQueryData(["teams", teamIdForApi], updatedTeamResponse);
-    setAutomationsConfig(updatedTeamResponse.team);
   };
 
   const refetchPolicies = (teamId?: number) => {
