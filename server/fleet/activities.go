@@ -496,7 +496,7 @@ func (a ActivityTypeEditedAgentOptions) ActivityName() string {
 
 type ActivityTypeLiveQuery struct {
 	TargetsCount uint             `json:"targets_count"`
-	QuerySQL     string           `json:"query_sql" renameto:"report_sql"`
+	QuerySQL     string           `json:"query_sql" renameto:"query"`
 	QueryName    *string          `json:"query_name,omitempty" renameto:"report_name"`
 	Stats        *AggregatedStats `json:"stats,omitempty"`
 }
