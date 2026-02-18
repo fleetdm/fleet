@@ -1103,7 +1103,7 @@ func (svc *Service) ListMDMCommands(ctx context.Context, opts *fleet.MDMCommandL
 ////////////////////////////////////////////////////////////////////////////////
 
 type getMDMDiskEncryptionSummaryRequest struct {
-	TeamID *uint `query:"team_id,optional"`
+	TeamID *uint `query:"team_id,optional" renameto:"fleet_id"`
 }
 
 type getMDMDiskEncryptionSummaryResponse struct {
@@ -1140,7 +1140,7 @@ func (svc *Service) GetMDMDiskEncryptionSummary(ctx context.Context, teamID *uin
 ////////////////////////////////////////////////////////////////////////////////
 
 type getMDMProfilesSummaryRequest struct {
-	TeamID *uint `query:"team_id,optional"`
+	TeamID *uint `query:"team_id,optional" renameto:"fleet_id"`
 }
 
 type getMDMProfilesSummaryResponse struct {
@@ -1884,8 +1884,8 @@ func (svc *Service) validateProfileLabels(ctx context.Context, teamID *uint, lab
 }
 
 type batchModifyMDMConfigProfilesRequest struct {
-	TeamID                *uint                                      `json:"-" query:"team_id,optional"`
-	TeamName              *string                                    `json:"-" query:"team_name,optional"`
+	TeamID                *uint                                      `json:"-" query:"team_id,optional" renameto:"fleet_id"`
+	TeamName              *string                                    `json:"-" query:"team_name,optional" renameto:"fleet_name"`
 	DryRun                bool                                       `json:"-" query:"dry_run,optional"` // if true, apply validation but do not save changes
 	ConfigurationProfiles []fleet.BatchModifyMDMConfigProfilePayload `json:"configuration_profiles"`
 }
@@ -1924,8 +1924,8 @@ func batchModifyMDMConfigProfilesEndpoint(ctx context.Context, request interface
 ////////////////////////////////////////////////////////////////////////////////
 
 type batchSetMDMProfilesRequest struct {
-	TeamID        *uint                        `json:"-" query:"team_id,optional"`
-	TeamName      *string                      `json:"-" query:"team_name,optional"`
+	TeamID        *uint                        `json:"-" query:"team_id,optional" renameto:"fleet_id"`
+	TeamName      *string                      `json:"-" query:"team_name,optional" renameto:"fleet_name"`
 	DryRun        bool                         `json:"-" query:"dry_run,optional"`        // if true, apply validation but do not save changes
 	AssumeEnabled *bool                        `json:"-" query:"assume_enabled,optional"` // if true, assume MDM is enabled
 	Profiles      backwardsCompatProfilesParam `json:"profiles"`
@@ -2703,7 +2703,7 @@ func validateProfiles(profiles map[int]fleet.MDMProfileBatchPayload) error {
 ////////////////////////////////////////////////////////////////////////////////
 
 type listMDMConfigProfilesRequest struct {
-	TeamID      *uint             `query:"team_id,optional"`
+	TeamID      *uint             `query:"team_id,optional" renameto:"fleet_id"`
 	ListOptions fleet.ListOptions `url:"list_options"`
 }
 
@@ -2761,7 +2761,7 @@ func (svc *Service) ListMDMConfigProfiles(ctx context.Context, teamID *uint, opt
 ////////////////////////////////////////////////////////////////////////////////
 
 type updateDiskEncryptionRequest struct {
-	TeamID               *uint `json:"team_id"`
+	TeamID               *uint `json:"team_id" renameto:"fleet_id"`
 	EnableDiskEncryption bool  `json:"enable_disk_encryption"`
 	RequireBitLockerPIN  bool  `json:"windows_require_bitlocker_pin"`
 }

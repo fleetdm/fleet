@@ -174,8 +174,9 @@ func TestTranslateCPEToCVE(t *testing.T) {
 				{ID: "CVE-2021-3572", resolvedInVersion: "21.1"},
 				{ID: "CVE-2025-8869", resolvedInVersion: "25.3"},
 				{ID: "CVE-2023-5752", resolvedInVersion: "23.3"},
+				{ID: "CVE-2026-1703", resolvedInVersion: "26.0"},
 			},
-			continuesToUpdate: false,
+			continuesToUpdate: true,
 		},
 		"cpe:2.3:a:mozilla:firefox:93.0:*:*:*:*:windows:*:*": {
 			includedCVEs:      firefox93WindowsVulnerabilities,

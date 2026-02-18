@@ -58,7 +58,7 @@ const DiskEncryptionTable = ({
 
       const queryParams = {
         [HOSTS_QUERY_PARAMS.DISK_ENCRYPTION]: status?.value,
-        team_id: teamId,
+        fleet_id: teamId,
       };
       const path = getPathWithQueryParams(PATHS.MANAGE_HOSTS, queryParams);
 
@@ -99,6 +99,7 @@ const DiskEncryptionTable = ({
         // these 2 properties allow linking on click anywhere in the row
         disableMultiRowSelect
         onSelectSingleRow={onSelectSingleRow}
+        hideFooter
       />
     </div>
   );

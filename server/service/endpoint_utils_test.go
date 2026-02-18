@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"io"
+	"log/slog"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -21,7 +22,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/service/middleware/log"
 	"github.com/go-kit/kit/endpoint"
 	kithttp "github.com/go-kit/kit/transport/http"
-	kitlog "github.com/go-kit/log"
 	"github.com/gorilla/mux"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -314,11 +314,11 @@ func TestEndpointer(t *testing.T) {
 			kithttp.PopulateRequestContext, // populate the request context with common fields
 			auth.SetRequestsContexts(svc),
 		),
-		kithttp.ServerErrorHandler(&endpointer.ErrorHandler{Logger: kitlog.NewNopLogger()}),
+		kithttp.ServerErrorHandler(&endpointer.ErrorHandler{Logger: slog.New(slog.DiscardHandler)}),
 		kithttp.ServerErrorEncoder(fleetErrorEncoder),
 		kithttp.ServerAfter(
 			kithttp.SetContentType("application/json; charset=utf-8"),
-			log.LogRequestEnd(kitlog.NewNopLogger()),
+			log.LogRequestEnd(slog.New(slog.DiscardHandler)),
 			checkLicenseExpiration(svc),
 		),
 	}
@@ -434,11 +434,11 @@ func TestEndpointerCustomMiddleware(t *testing.T) {
 			kithttp.PopulateRequestContext,
 			auth.SetRequestsContexts(svc),
 		),
-		kithttp.ServerErrorHandler(&endpointer.ErrorHandler{Logger: kitlog.NewNopLogger()}),
+		kithttp.ServerErrorHandler(&endpointer.ErrorHandler{Logger: slog.New(slog.DiscardHandler)}),
 		kithttp.ServerErrorEncoder(fleetErrorEncoder),
 		kithttp.ServerAfter(
 			kithttp.SetContentType("application/json; charset=utf-8"),
-			log.LogRequestEnd(kitlog.NewNopLogger()),
+			log.LogRequestEnd(slog.New(slog.DiscardHandler)),
 			checkLicenseExpiration(svc),
 		),
 	}

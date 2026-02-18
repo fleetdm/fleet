@@ -31,7 +31,7 @@ Debug mode can be helpful by providing more information in the logs.
 
 When [generating an installer package](https://fleetdm.com/guides/enroll-hosts#cli) with `fleetctl package`, add the `--debug` argument to enable debug mode for the agent installer.
 
-If you're trying to troubleshoot macOS hosts, you can [run a script](../docs/solutions/macos/scripts/manage-orbit-debug.sh) on the host to turn on debug mode. After you're done, you can run the script again to disable debug mode on the host.
+If you're trying to troubleshoot macOS hosts, you can [run a script](https://github.com/fleetdm/fleet/blob/main/docs/solutions/macos/scripts/manage-orbit-debug.sh) on the host to turn on debug mode. After you're done, you can run the script again to disable debug mode on the host.
 
 1. Run the script on the affected host.
 2. Wait ~10 min.
@@ -70,5 +70,5 @@ fleetctl debug errors
 <meta name="category" value="guides">
 <meta name="authorFullName" value="Steven Palmesano">
 <meta name="authorGitHubUsername" value="spalmesano0">
-<meta name="publishedOn" value="2026-02-09">
+<meta name="publishedOn" value="2026-02-13">
 <meta name="articleTitle" value="Fleet troubleshooting for IT admins">

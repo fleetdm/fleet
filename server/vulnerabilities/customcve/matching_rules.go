@@ -80,6 +80,14 @@ func getCVEMatchingRules() CVEMatchingRules {
 			CVEs:              []string{"CVE-2025-27613", "CVE-2025-27614", "CVE-2025-46835"},
 			ResolvedInVersion: "2.50.1",
 		},
+		// Windows Notepad command injection vulnerability
+		// https://cveawg.mitre.org/api/cve/CVE-2026-20841
+		{
+			NameLikeMatch:     "Microsoft.WindowsNotepad",
+			SourceMatch:       "programs",
+			CVEs:              []string{"CVE-2026-20841"},
+			ResolvedInVersion: "11.2510",
+		},
 	}
 }
 
