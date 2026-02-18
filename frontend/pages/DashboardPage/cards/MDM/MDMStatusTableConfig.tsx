@@ -31,7 +31,10 @@ export const generateStatusTableHeaders = (
       !MDM_STATUS_TOOLTIP[status] ? (
         <TextCell value={status} />
       ) : (
-        <TooltipWrapper tipContent={MDM_STATUS_TOOLTIP[status]}>
+        <TooltipWrapper
+          className="status-cell"
+          tipContent={MDM_STATUS_TOOLTIP[status]}
+        >
           {MDM_ENROLLMENT_STATUS_UI_MAP[status].displayName}
         </TooltipWrapper>
       ),
