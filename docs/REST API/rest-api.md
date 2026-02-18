@@ -6488,7 +6488,7 @@ The summary can optionally be filtered by team ID.
 
 _Available in Fleet Premium_
 
-Sets the Recovery Lock password for eligible macOS hosts on a team or no team.
+Edit Recovery Lock password enforcement settings for eligible macOS hosts.
 
 `POST /api/v1/fleet/recovery_lock_password`
 
@@ -6496,8 +6496,8 @@ Sets the Recovery Lock password for eligible macOS hosts on a team or no team.
 
 | Name                          | Type    | In    | Description                                                                                                 |
 | ----------------------------- | ------  | ----  | --------------------------------------------------------------------------------------                      |
-| team_id                       | integer | body  | The team ID to apply the settings to. Settings applied to hosts in no team if absent.                       |
-| enable_recovery_lock_password | boolean | body  | Whether Recovery Lock password should be enforced on eligible hosts that belong to the team (or no team).   |
+| team_id                       | integer | body  | The team ID to apply the settings to. If omitted, settings apply to unassigned hosts.                       |
+| enable_recovery_lock_password | boolean | body  | Whether to enforce Recovery Lock password on eligible hosts.   |
 
 #### Example
 
