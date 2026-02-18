@@ -160,6 +160,10 @@ func (r rateLimitError) RetryAfter() int {
 	return int(r.result.RetryAfter.Seconds())
 }
 
+func (r rateLimitError) IsClientError() bool {
+	return true
+}
+
 func (r rateLimitError) Result() throttled.RateLimitResult {
 	return r.result
 }
