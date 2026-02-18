@@ -11042,7 +11042,6 @@ func (s *integrationTestSuite) TestMDMNotConfiguredEndpoints() {
 		if route.method == "PATCH" && (route.path == "/api/latest/fleet/setup_experience" || route.path == "/api/latest/fleet/mdm/apple/setup") {
 			expectedErr = fleet.ErrMissingLicense
 		}
-		fmt.Printf("Testing %s %s\n", route.method, path)
 		res := s.Do(route.method, path, params, expectedErr.StatusCode())
 		errMsg := extractServerErrorText(res.Body)
 		assert.Contains(t, errMsg, expectedErr.Error(), fmt.Sprintf("%s %s", route.method, path))
