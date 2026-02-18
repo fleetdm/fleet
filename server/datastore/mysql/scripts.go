@@ -456,13 +456,7 @@ func (ds *Datastore) getHostScriptExecutionResultDB(ctx context.Context, q sqlx.
 			// try with upcoming activities
 			err = sqlx.GetContext(ctx, q, &result, getUpcomingStmt, execID)
 			if errors.Is(err, sql.ErrNoRows) {
-				// Log instead of returning an error to avoid breaking the host
-				// details page when there's an orphan reference in the database
-				// (e.g. host_mdm_actions pointing to a deleted host_script_results row).
-				// To fix the orphan, run:
-				// UPDATE host_mdm_actions SET unlock_ref = NULL WHERE unlock_ref = '<execID>';
-				level.Error(ds.logger).Log("msg", "orphan script execution reference, HostScriptResult not found", "execution_id", execID)
-				return nil, nil
+				return nil, ctxerr.Wrap(ctx, notFound("HostScriptResult").WithName(execID))
 			}
 		}
 		if err != nil {
@@ -1532,16 +1526,22 @@ func (ds *Datastore) GetHostLockWipeStatus(ctx context.Context, host *fleet.Host
 		// lock and unlock references are scripts
 		if mdmActions.LockRef != nil {
 			hsr, err := ds.getHostScriptExecutionResultDB(ctx, ds.reader(ctx), *mdmActions.LockRef, scriptExecutionSearchOpts{IncludeCanceled: true})
-			if err != nil {
+			if err != nil && !fleet.IsNotFound(err) {
 				return nil, ctxerr.Wrap(ctx, err, "get lock reference script result")
+			}
+			if fleet.IsNotFound(err) {
+				level.Error(ds.logger).Log("msg", "orphan lock script execution reference", "host_id", host.ID, "execution_id", *mdmActions.LockRef)
 			}
 			status.LockScript = hsr
 		}
 
 		if mdmActions.UnlockRef != nil {
 			hsr, err := ds.getHostScriptExecutionResultDB(ctx, ds.reader(ctx), *mdmActions.UnlockRef, scriptExecutionSearchOpts{IncludeCanceled: true})
-			if err != nil {
+			if err != nil && !fleet.IsNotFound(err) {
 				return nil, ctxerr.Wrap(ctx, err, "get unlock reference script result")
+			}
+			if fleet.IsNotFound(err) {
+				level.Error(ds.logger).Log("msg", "orphan unlock script execution reference", "host_id", host.ID, "execution_id", *mdmActions.UnlockRef)
 			}
 			status.UnlockScript = hsr
 		}
@@ -1557,8 +1557,11 @@ func (ds *Datastore) GetHostLockWipeStatus(ctx context.Context, host *fleet.Host
 				status.WipeMDMCommandResult = cmdRes
 			} else {
 				hsr, err := ds.getHostScriptExecutionResultDB(ctx, ds.reader(ctx), *mdmActions.WipeRef, scriptExecutionSearchOpts{IncludeCanceled: true})
-				if err != nil {
+				if err != nil && !fleet.IsNotFound(err) {
 					return nil, ctxerr.Wrap(ctx, err, "get wipe reference script result")
+				}
+				if fleet.IsNotFound(err) {
+					level.Error(ds.logger).Log("msg", "orphan wipe script execution reference", "host_id", host.ID, "execution_id", *mdmActions.WipeRef)
 				}
 				status.WipeScript = hsr
 			}
