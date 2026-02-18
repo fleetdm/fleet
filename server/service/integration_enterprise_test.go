@@ -26028,4 +26028,88 @@ func (s *integrationEnterpriseTestSuite) TestFMAVersionRollback() {
 		require.Equal(t, "1.0", titleB.SoftwarePackage.Version,
 			"Team B should successfully roll back to v1.0, which is still in its cache")
 	})
+
+	// =========================================================================
+	// Section 6: Deleting an FMA software title removes all cached versions,
+	// not just the active one.
+	//
+	// An FMA is advanced through v1.0 → v2.0 → v3.0 so that two versions are
+	// cached (v3.0 active, v2.0 inactive, v1.0 evicted).  After deleting the
+	// software title the DB should contain zero software_installers rows for
+	// that title+team.
+	// =========================================================================
+	t.Run("delete_fma_cleans_all_cached_versions", func(t *testing.T) {
+		// Reset warp state to v1.0.
+		warpState.version = "1.0"
+		warpState.installerBytes = []byte("del-warp-v1")
+		warpState.sha256 = computeSHA(warpState.installerBytes)
+
+		var delTeamResp teamResponse
+		s.DoJSON("POST", "/api/latest/fleet/teams", &createTeamRequest{
+			TeamPayload: fleet.TeamPayload{Name: ptr.String("team_del_" + t.Name())},
+		}, http.StatusOK, &delTeamResp)
+		delTeam := delTeamResp.Team
+
+		warpPayload := []*fleet.SoftwareInstallerPayload{
+			{Slug: ptr.String("cloudflare-warp/windows"), SelfService: true},
+		}
+
+		// ---- v1.0 ----
+		var batchResp batchSetSoftwareInstallersResponse
+		s.DoJSON("POST", "/api/latest/fleet/software/batch",
+			batchSetSoftwareInstallersRequest{Software: warpPayload, TeamName: delTeam.Name},
+			http.StatusAccepted, &batchResp,
+			"team_name", delTeam.Name, "team_id", fmt.Sprint(delTeam.ID),
+		)
+		waitBatchSetSoftwareInstallersCompleted(t, &s.withServer, delTeam.Name, batchResp.RequestUUID)
+
+		// ---- v2.0 ----
+		warpState.version = "2.0"
+		warpState.installerBytes = []byte("del-warp-v2")
+		warpState.sha256 = computeSHA(warpState.installerBytes)
+
+		s.DoJSON("POST", "/api/latest/fleet/software/batch",
+			batchSetSoftwareInstallersRequest{Software: warpPayload, TeamName: delTeam.Name},
+			http.StatusAccepted, &batchResp,
+			"team_name", delTeam.Name, "team_id", fmt.Sprint(delTeam.ID),
+		)
+		waitBatchSetSoftwareInstallersCompleted(t, &s.withServer, delTeam.Name, batchResp.RequestUUID)
+
+		// Confirm we have exactly 2 cached installers (v1.0 + v2.0).
+		delInstallers, err := s.ds.GetSoftwareInstallers(ctx, delTeam.ID)
+		require.NoError(t, err)
+		require.Len(t, delInstallers, 2, "should have 2 cached FMA versions before delete")
+
+		// Retrieve the title ID so we can call the delete endpoint.
+		delTitle := getActiveTitleForTeam(delTeam.ID)
+		require.Equal(t, "2.0", delTitle.SoftwarePackage.Version)
+
+		// Delete via the API endpoint — this is the path exercised by the UI.
+		s.Do("DELETE",
+			fmt.Sprintf("/api/latest/fleet/software/titles/%d/available_for_install", delTitle.ID),
+			nil, http.StatusNoContent,
+			"team_id", fmt.Sprint(delTeam.ID),
+		)
+
+		// After deletion, zero software_installer rows should remain for this
+		// title+team — both the active (v2.0) and the inactive cached (v1.0)
+		// version must be gone.
+		delInstallers, err = s.ds.GetSoftwareInstallers(ctx, delTeam.ID)
+		require.NoError(t, err)
+		require.Empty(t, delInstallers,
+			"all cached FMA versions (active + inactive) should be deleted, not just the active one")
+
+		// The software title should no longer appear in the available-for-install
+		// list for the team.
+		var titlesResp listSoftwareTitlesResponse
+		s.DoJSON(
+			"GET", "/api/latest/fleet/software/titles",
+			listSoftwareTitlesRequest{},
+			http.StatusOK, &titlesResp,
+			"available_for_install", "true",
+			"team_id", fmt.Sprintf("%d", delTeam.ID),
+		)
+		require.Zero(t, titlesResp.Count,
+			"software title should no longer be available for install after deletion")
+	})
 }
