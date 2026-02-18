@@ -115,9 +115,9 @@ GitOps is an API-only and write-only role that can be used on CI/CD pipelines.
 | Lock, unlock, and wipe hosts\*                                                                                                             |          |            |            | ✅         | ✅    |         |
 | Turn off MDM for specific hosts                                                                                                            |          |            |            | ✅         | ✅    |         |
 | Configure Microsoft Entra conditional access integration                                                                                   |          |            |            |            | ✅    |         |
-| Add Microsoft Entra tenant                                                                                                                 |          |            | ✅         | ✅         |       |         |
-| View [custom variables](https://fleetdm.com/docs/rest-api/rest-api#list-custom-variables)                                                  | ✅       | ✅         | ✅         | ✅         |       |         |
-| Create, edit, and delete custom variables                                                                                                  | ✅       | ✅         | ✅         | ✅         |       |         |
+| Add Microsoft Entra tenant                                                                                                                 |          |            | ✅         | ✅         | ✅    |         |
+| View [custom variables](https://fleetdm.com/docs/rest-api/rest-api#list-custom-variables)                                                  | ✅       | ✅         | ✅         | ✅         | ✅    |         |
+| Create, edit, and delete custom variables                                                                                                  | ✅       | ✅         | ✅         | ✅         | ✅    |         |
 
 \* Applies only to Fleet Premium
 
@@ -149,7 +149,7 @@ Users with access to multiple teams can be assigned different roles for each tea
 | View hosts' [past](https://fleetdm.com/docs/rest-api/rest-api#get-hosts-past-activity) and [upcoming](https://fleetdm.com/docs/rest-api/rest-api#get-hosts-upcoming-activity) activity | ✅            | ✅             | ✅              | ✅              | ✅         |             |
 | Cancel hosts' [upcoming](https://fleetdm.com/docs/rest-api/rest-api#get-hosts-upcoming-activity) activity                        |               |                |                 | ✅              | ✅         |             |
 | Add/remove manual labels to/from hosts                                                                                           |               |                | ✅              | ✅              | ✅         | ✅          |
-| Create and edit self-authored labels                                                                                             |               |                | ✅              |                 |            | ✅          |
+| Create and edit self-authored labels                                                                                             |               |                | ✅              | ✅              | ✅         | ✅          |
 | Add and delete hosts                                                                                                             |               |                |                 | ✅              | ✅         |             |
 | View software                                                                                                                    | ✅            | ✅             | ✅              | ✅              | ✅         |             |
 | Add, edit, and delete software                                                                                                   |               |                |                 | ✅              | ✅         | ✅          |
