@@ -47,7 +47,7 @@ import Icon from "components/Icon";
 import TargetsInput from "components/TargetsInput";
 import Radio from "components/forms/fields/Radio";
 import PlatformField from "../components/PlatformField";
-import { validateNewLabelFormData, INewLabelFormErrors } from "./helpers";
+import { validateNewLabelFormData, INewLabelFormValidation } from "./helpers";
 
 const availableCriteria: {
   label: string;
@@ -132,7 +132,9 @@ const NewLabelPage = ({
     // manual-specific
     targetedHosts: [],
   });
-  const [formErrors, setFormErrors] = useState<INewLabelFormErrors>({});
+  const [formErrors, setFormErrors] = useState<INewLabelFormValidation>({
+    isValid: true,
+  });
 
   const {
     name,
@@ -250,36 +252,74 @@ const NewLabelPage = ({
     const newFormData = { ...formData, [fieldName]: value };
     setFormData(newFormData);
 
-    const newErrs = validateNewLabelFormData(newFormData);
-    // only set errors that are updates of existing errors
-    // new errors are only set onBlur or submit
-    const errsToSet: INewLabelFormErrors = {};
-    Object.keys(formErrors).forEach((k) => {
-      const key = k as keyof INewLabelFormErrors;
-      if (newErrs[key]) {
-        errsToSet[key] = newErrs[key];
+    const fullValidation = validateNewLabelFormData(newFormData);
+
+    setFormErrors((prev) => {
+      const next: INewLabelFormValidation = { ...prev, isValid: true };
+
+      // start from previous errors
+      if (prev.name) next.name = prev.name;
+      if (prev.description) next.description = prev.description;
+      if (prev.labelQuery) next.labelQuery = prev.labelQuery;
+      if (prev.criteria) next.criteria = prev.criteria;
+
+      // ONLY CLEAR existing error on this field if it is now valid.
+      if (fieldName === "name") {
+        if (prev.name && fullValidation.name?.isValid) {
+          next.name = undefined;
+        }
+      } else if (fieldName === "description") {
+        if (prev.description && fullValidation.description?.isValid) {
+          next.description = undefined;
+        }
+      } else if (fieldName === "vitalValue") {
+        if (prev.criteria && fullValidation.criteria?.isValid) {
+          next.criteria = undefined;
+        }
       }
-      // if newErrs[key] is falsy, we drop the existing error
+
+      const fields = [
+        next.name,
+        next.description,
+        next.labelQuery,
+        next.criteria,
+      ];
+      next.isValid = fields.every((f) => !f || f.isValid);
+
+      return next;
     });
-    setFormErrors(errsToSet);
   };
 
   const onTypeChange = (value: string): void => {
     const newFormData = {
       ...formData,
-      type: value as LabelMembershipType, // reconcile type differences between form data and radio component handler
+      type: value as LabelMembershipType,
     };
     setFormData(newFormData);
 
-    const newErrs = validateNewLabelFormData(newFormData);
-    const errsToSet: INewLabelFormErrors = {};
-    Object.keys(formErrors).forEach((k) => {
-      const key = k as keyof INewLabelFormErrors;
-      if (newErrs[key]) {
-        errsToSet[key] = newErrs[key];
-      }
+    const fullValidation = validateNewLabelFormData(newFormData);
+
+    setFormErrors((prev) => {
+      const next: INewLabelFormValidation = { ...prev, isValid: true };
+
+      if (prev.name) next.name = fullValidation.name ?? prev.name;
+      if (prev.description)
+        next.description = fullValidation.description ?? prev.description;
+      if (prev.labelQuery)
+        next.labelQuery = fullValidation.labelQuery ?? prev.labelQuery;
+      if (prev.criteria)
+        next.criteria = fullValidation.criteria ?? prev.criteria;
+
+      const fields = [
+        next.name,
+        next.description,
+        next.labelQuery,
+        next.criteria,
+      ];
+      next.isValid = fields.every((f) => !f || f.isValid);
+
+      return next;
     });
-    setFormErrors(errsToSet);
   };
 
   const onInputBlur = () => {
@@ -289,11 +329,12 @@ const NewLabelPage = ({
   const onSubmit = async (evt: React.FormEvent<HTMLFormElement>) => {
     evt.preventDefault();
 
-    const errs = validateNewLabelFormData(formData);
-    if (Object.keys(errs).length > 0) {
-      setFormErrors(errs);
+    const fullValidation = validateNewLabelFormData(formData);
+    setFormErrors(fullValidation);
+    if (!fullValidation.isValid) {
       return;
     }
+
     setIsUpdating(true);
     try {
       await labelsAPI.create(formData);
@@ -322,10 +363,34 @@ const NewLabelPage = ({
   }, 500);
 
   const onQueryChange = (newQuery: string) => {
-    setFormData((prevData) => ({
-      ...prevData,
-      labelQuery: newQuery,
-    }));
+    const newFormData = { ...formData, labelQuery: newQuery };
+    setFormData(newFormData);
+
+    const fullValidation = validateNewLabelFormData(newFormData);
+
+    setFormErrors((prev) => {
+      const next: INewLabelFormValidation = { ...prev, isValid: true };
+
+      if (prev.name) next.name = prev.name;
+      if (prev.description) next.description = prev.description;
+      if (prev.labelQuery) next.labelQuery = prev.labelQuery;
+      if (prev.criteria) next.criteria = prev.criteria;
+
+      if (prev.labelQuery && fullValidation.labelQuery?.isValid) {
+        next.labelQuery = undefined;
+      }
+
+      const fields = [
+        next.name,
+        next.description,
+        next.labelQuery,
+        next.criteria,
+      ];
+      next.isValid = fields.every((f) => !f || f.isValid);
+
+      return next;
+    });
+
     debounceValidateSQL(newQuery);
   };
 
@@ -374,7 +439,7 @@ const NewLabelPage = ({
         return (
           <>
             <SQLEditor
-              error={formErrors.labelQuery}
+              error={formErrors.labelQuery?.message}
               name="query"
               onChange={onQueryChange}
               onBlur={onInputBlur}
@@ -422,14 +487,14 @@ const NewLabelPage = ({
                 onChange={onInputChange}
                 parseTarget
                 value={vital}
-                error={formErrors.criteria}
+                error={formErrors.criteria?.message}
                 options={availableCriteria}
                 classname={`${baseClass}__criteria-dropdown`}
                 wrapperClassName={`${baseClass}__form-field ${baseClass}__form-field--criteria`}
               />
               <p>is equal to</p>
               <InputField
-                error={formErrors.criteria}
+                error={formErrors.criteria?.message}
                 name="vitalValue"
                 onChange={onInputChange}
                 onBlur={onInputBlur}
@@ -473,7 +538,7 @@ const NewLabelPage = ({
   const renderLabelForm = () => (
     <form className={`${baseClass}__label-form`} onSubmit={onSubmit}>
       <InputField
-        error={formErrors.name}
+        error={formErrors.name?.message}
         name="name"
         onChange={onInputChange}
         onBlur={onInputBlur}
@@ -484,6 +549,7 @@ const NewLabelPage = ({
         parseTarget
       />
       <InputField
+        error={formErrors.description?.message}
         name="description"
         onChange={onInputChange}
         onBlur={onInputBlur}
@@ -540,7 +606,7 @@ const NewLabelPage = ({
         <Button
           type="submit"
           isLoading={isUpdating}
-          disabled={isUpdating || !!Object.entries(formErrors).length}
+          disabled={isUpdating || !formErrors.isValid}
         >
           Save
         </Button>

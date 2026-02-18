@@ -71,20 +71,39 @@ export const validateLabelFormData = (
 ): ILabelFormValidation => {
   const formValidation: ILabelFormValidation = { isValid: true };
 
-  Object.keys(FORM_VALIDATIONS).forEach((key) => {
-    const objKey = key as keyof typeof FORM_VALIDATIONS;
+  (Object.keys(FORM_VALIDATIONS) as IFormValidationKey[]).forEach((objKey) => {
     const failedValidation = FORM_VALIDATIONS[objKey].validations.find(
       (validation) => !validation.isValid(formData, formValidation)
     );
 
     if (!failedValidation) {
-      formValidation[objKey] = { isValid: true };
+      switch (objKey) {
+        case "name":
+          formValidation.name = { isValid: true };
+          break;
+        case "description":
+          formValidation.description = { isValid: true };
+          break;
+        default: {
+          const _exhaustiveCheck: never = objKey;
+          break;
+        }
+      }
     } else {
       formValidation.isValid = false;
-      formValidation[objKey] = {
-        isValid: false,
-        message: getErrorMessage(formData, failedValidation.message),
-      };
+      const message = getErrorMessage(formData, failedValidation.message);
+      switch (objKey) {
+        case "name":
+          formValidation.name = { isValid: false, message };
+          break;
+        case "description":
+          formValidation.description = { isValid: false, message };
+          break;
+        default: {
+          const _exhaustiveCheck: never = objKey;
+          break;
+        }
+      }
     }
   });
 
