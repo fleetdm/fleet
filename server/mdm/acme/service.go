@@ -172,6 +172,11 @@ func newStepCA(root *x509.Certificate, intermediate *x509.Certificate, signer cr
 	stepCfg.Root = []string{filepath.Join(tmpPath, "root0.crt")}
 	stepCfg.IntermediateCert = filepath.Join(tmpPath, "int0.crt")
 	stepCfg.IntermediateKey = filepath.Join(tmpPath, "int0.key")
+	if len(stepCfg.AuthorityConfig.Provisioners) != 1 {
+		return nil, fmt.Errorf("expected exactly one provisioner in step-ca config, got %d", len(stepCfg.AuthorityConfig.Provisioners))
+	}
+	// TODO: if we're going to stick with the approach of standalone step-ca instance, we'll want to
+	// flesh out the config more with appropriate secrets/tokens for the webhook provisioner.
 
 	return stepca.New(&stepCfg)
 }

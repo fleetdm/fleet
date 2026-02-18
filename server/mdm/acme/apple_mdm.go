@@ -165,7 +165,6 @@ var acmeEnrollmentProfileMobileconfigTemplate = template.Must(template.New("").F
 // 	if err != nil {
 // 		return nil, fmt.Errorf("resolve Apple SCEP url: %w", err)
 // 	}
-
 // 	var buf bytes.Buffer
 // 	if err := acmeOTAProfileTemplate.Funcs(funcMap).Execute(&buf, struct {
 // 		DirectoryURL     string
@@ -178,7 +177,6 @@ var acmeEnrollmentProfileMobileconfigTemplate = template.Must(template.New("").F
 // 	}); err != nil {
 // 		return nil, fmt.Errorf("execute template: %w", err)
 // 	}
-
 // 	return bytes.Replace(buf.Bytes(), []byte("&lt;"), []byte("<"), 1), nil
 // }
 

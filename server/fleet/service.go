@@ -782,6 +782,9 @@ type Service interface {
 	// [1]: https://developer.apple.com/library/archive/documentation/NetworkingInternet/Conceptual/iPhoneOTAConfiguration/Introduction/Introduction.html#//apple_ref/doc/uid/TP40009505-CH1-SW1
 	MDMAppleProcessOTAEnrollment(ctx context.Context, certificates []*x509.Certificate, rootSigner *x509.Certificate, enrollSecret, idpUUID string, deviceInfo MDMAppleMachineInfo) ([]byte, error)
 
+	// MaybeAllowMDMACMEWebhook determines whether an MDM ACME webhook request should be allowed.
+	MaybeAllowMDMACMEWebhook(ctx context.Context, permanentIdentifier string) (allow bool, data any, err error)
+
 	// /////////////////////////////////////////////////////////////////////////////
 	// Vulnerabilities
 

@@ -1858,10 +1858,15 @@ func (svc *Service) GetHostMDMIdentifiersFromMachineInfo(ctx context.Context, ma
 		}
 	}
 
-	idents, err := svc.ds.GetHostMDMIdentifiers(ctx, machineInfo.Serial, fleet.TeamFilter{User: &fleet.User{
-		Name:       fleet.ActivityAutomationAuthor,
-		GlobalRole: ptr.String(fleet.RoleAdmin),
-	}})
+	// TODO: make this datastore call plus switch into a service method that can be mocked and tested more easily; we want to be able to test various scenarios around the returned idents and how we handle them in the enrollment flow
+	idents, err := svc.ds.GetHostMDMIdentifiers(ctx, machineInfo.Serial, fleet.TeamFilter{
+		// TODO: do we have specific team filter for system users (e.g., cron, MDM enroll handlers, ACME
+		// webhook, etc.)
+		User: &fleet.User{
+			Name:       fleet.ActivityAutomationAuthor,
+			GlobalRole: ptr.String(fleet.RoleAdmin),
+		},
+	})
 	switch {
 	case err != nil:
 		return nil, &fleet.BadRequestError{

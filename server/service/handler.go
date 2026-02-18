@@ -963,6 +963,8 @@ func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetC
 	ne.WithAltPaths("/api/v1/osquery/enroll").
 		POST("/api/osquery/enroll", enrollAgentEndpoint, contract.EnrollOsqueryAgentRequest{})
 
+	ne.POST("/api/_version_/fleet/mdm/acme/webhook", mdmACMEWebhookEndpoint, mdmACMEWebhookRequest{})
+
 	// These endpoint are token authenticated.
 	// NOTE: remember to update
 	// `service.mdmConfigurationRequiredEndpoints` when you add an

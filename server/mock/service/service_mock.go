@@ -491,6 +491,8 @@ type GetInHouseAppPackageFunc func(ctx context.Context, titleID uint, teamID *ui
 
 type MDMAppleProcessOTAEnrollmentFunc func(ctx context.Context, certificates []*x509.Certificate, rootSigner *x509.Certificate, enrollSecret string, idpUUID string, deviceInfo fleet.MDMAppleMachineInfo) ([]byte, error)
 
+type MaybeAllowMDMACMEWebhookFunc func(ctx context.Context, permanentIdentifier string) (allow bool, data any, err error)
+
 type ListVulnerabilitiesFunc func(ctx context.Context, opt fleet.VulnListOptions) ([]fleet.VulnerabilityWithMetadata, *fleet.PaginationMetadata, error)
 
 type VulnerabilityFunc func(ctx context.Context, cve string, teamID *uint, useCVSScores bool) (vuln *fleet.VulnerabilityWithMetadata, known bool, err error)
@@ -1589,6 +1591,9 @@ type Service struct {
 
 	MDMAppleProcessOTAEnrollmentFunc        MDMAppleProcessOTAEnrollmentFunc
 	MDMAppleProcessOTAEnrollmentFuncInvoked bool
+
+	MaybeAllowMDMACMEWebhookFunc        MaybeAllowMDMACMEWebhookFunc
+	MaybeAllowMDMACMEWebhookFuncInvoked bool
 
 	ListVulnerabilitiesFunc        ListVulnerabilitiesFunc
 	ListVulnerabilitiesFuncInvoked bool
@@ -3828,6 +3833,13 @@ func (s *Service) MDMAppleProcessOTAEnrollment(ctx context.Context, certificates
 	s.MDMAppleProcessOTAEnrollmentFuncInvoked = true
 	s.mu.Unlock()
 	return s.MDMAppleProcessOTAEnrollmentFunc(ctx, certificates, rootSigner, enrollSecret, idpUUID, deviceInfo)
+}
+
+func (s *Service) MaybeAllowMDMACMEWebhook(ctx context.Context, permanentIdentifier string) (allow bool, data any, err error) {
+	s.mu.Lock()
+	s.MaybeAllowMDMACMEWebhookFuncInvoked = true
+	s.mu.Unlock()
+	return s.MaybeAllowMDMACMEWebhookFunc(ctx, permanentIdentifier)
 }
 
 func (s *Service) ListVulnerabilities(ctx context.Context, opt fleet.VulnListOptions) ([]fleet.VulnerabilityWithMetadata, *fleet.PaginationMetadata, error) {
