@@ -129,8 +129,7 @@ func getOrInsertTitleID(txx sqlx.Tx, name, bundleIdentifier, source string) (uin
 				return 0, errors.Wrap(err, "inserting new software title")
 			}
 			id, _ := res.LastInsertId()
-			return uint(id), nil
-
+			return uint(id), nil //nolint:gosec // dismiss G115
 		}
 		return 0, errors.Wrapf(err, "find title for software with bundle identifier %s", bundleIdentifier)
 	}
