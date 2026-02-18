@@ -990,6 +990,7 @@ module.exports.routes = {
   'GET /software-catalog/vnc-viewer': '/software-catalog/vnc-viewer-darwin',
   'GET /apps': '/software-catalog',// This is mostly for mikermcneil who keeps trying to type the old url.
   'GET /register': '/login#register',
+  'GET /handbook/finance/security': '/handbook/it/security',
   //  ╔╦╗╦╔═╗╔═╗  ╦═╗╔═╗╔╦╗╦╦═╗╔═╗╔═╗╔╦╗╔═╗   ┬   ╔╦╗╔═╗╦ ╦╔╗╔╦  ╔═╗╔═╗╔╦╗╔═╗
   //  ║║║║╚═╗║    ╠╦╝║╣  ║║║╠╦╝║╣ ║   ║ ╚═╗  ┌┼─   ║║║ ║║║║║║║║  ║ ║╠═╣ ║║╚═╗
   //  ╩ ╩╩╚═╝╚═╝  ╩╚═╚═╝═╩╝╩╩╚═╚═╝╚═╝ ╩ ╚═╝  └┘   ═╩╝╚═╝╚╩╝╝╚╝╩═╝╚═╝╩ ╩═╩╝╚═╝

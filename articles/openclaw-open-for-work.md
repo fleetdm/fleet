@@ -31,7 +31,7 @@ The biggest potential risk given how OpenClaw works is [prompt injection](https:
 
 Shared computing systems from the time of Unix in the 1970s until now have always had built-in protections and layers of security. Many of the original ideas created to keep operating systems secure (e.g., the [sudo](https://www.sudo.ws/) command) still work well.
 
-But, OpenClaw's capabilities run with an unprecedented level of autonomy, in the user space user, with root privilege (if given). No human interaction, know-how, skill, or experience is required - just a text message.
+But, OpenClaw's capabilities run with an unprecedented level of autonomy. In the user space, with root privilege (if given). No human interaction, know-how, skill, or experience is required - just a text message.
 
 The real danger of prompt injection is that if someone other than the intended user can send text messages to an OpenClaw agent, even with its "intelligence", the system has virtually no ability to discern an order coming from you versus an order from someone pretending to be "you". 
 
@@ -39,11 +39,11 @@ Prompt injections can also be indirect, meaning an autonomous agent may encounte
 
 ## Can device management help?
 
-The next article in this series will explore how threat hunting and device management with Fleet can help to secure OpenClaw or detect it to prevent its use.  
+The [next article](/articles/threat-hunting-ai-agents-like-openclaw-with-automated-tooling.md) in this series will explore how threat hunting and device management with Fleet can help to secure OpenClaw or detect it to prevent its use.  
 
 <meta name="articleTitle" value="OpenClaw: Open for work?">
 <meta name="authorFullName" value="Brock Walters">
 <meta name="authorGitHubUsername" value="nonpunctual">
 <meta name="category" value="articles">
 <meta name="publishedOn" value="2026-02-04">
-<meta name="description" value="An overview of OpenClaw, how it works, and the security risks of running autonomous AI agents on user devices.">
+<meta name="description" value="Part 1 of the OpenClaw series: An overview of OpenClaw, how it works, and the security risks of autonomous AI agents on user devices.">
