@@ -133,7 +133,7 @@ Organizations that implement detection frameworks now will be better positioned 
 - Protect intellectual property and sensitive information
 - Make informed decisions about AI tool adoption and governance
 
-The time to establish control is before shadow AI tools become entrenched. With a comprehensive detection framework in place, leadership can enable innovation while maintaining visibility and control.
+The time to establish control is before shadow AI tools become entrenched. With a comprehensive detection framework in place, leadership can enable innovation while maintaining visibility and control. For more on this topic for leaders, check out [Threat Hunting AI Agents and Autonomous Tooling: What Your Board Needs to Know](https://www.linkedin.com/pulse/threat-hunting-ai-agents-autonomous-tooling-what-your-dhruv-majumdar-ia49c/?trackingId=jc1qB6wobL0xVUGoy5al%2Fg%3D%3D) from our very own VP of Security Solutions, [Dhruv Majumdar](https://www.linkedin.com/in/neondhruv/).
 
 
 <meta name="articleTitle" value="Threat hunting AI agents like OpenClaw with automated tooling">
