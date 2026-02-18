@@ -2,7 +2,6 @@ package tables
 
 import (
 	"database/sql"
-	"fmt"
 
 	"github.com/jmoiron/sqlx"
 	"github.com/jmoiron/sqlx/reflectx"
@@ -14,7 +13,6 @@ func init() {
 }
 
 func Up_20260218165545(tx *sql.Tx) error {
-
 	txx := sqlx.Tx{Tx: tx, Mapper: reflectx.NewMapperFunc("db", sqlx.NameMapper)}
 
 	const findMismatchedSoftwareStmt = `
@@ -32,13 +30,6 @@ func Up_20260218165545(tx *sql.Tx) error {
 		AND software.bundle_identifier != '' -- limit scope to apple software
 `
 
-	// find the mismatched software
-	rows, err := tx.Query(findMismatchedSoftwareStmt)
-	if err != nil {
-		return errors.Wrap(err, "finding mismatched software")
-	}
-	defer rows.Close()
-
 	type badSoftware struct {
 		SoftwareID       uint   `db:"id"`
 		SoftwareName     string `db:"name"`
@@ -46,12 +37,11 @@ func Up_20260218165545(tx *sql.Tx) error {
 		BundleIdentifier string `db:"bundle_identifier"`
 		TitleID          uint   `db:"title_id"`
 		TitleSource      string `db:"title_source"`
-		newTitleID       uint
 	}
-
 	softwareList := make([]badSoftware, 0)
 
-	err = txx.Select(&softwareList, findMismatchedSoftwareStmt)
+	// find the mismatched software
+	err := txx.Select(&softwareList, findMismatchedSoftwareStmt)
 	if err != nil {
 		return errors.Wrap(err, "find mismatched software")
 	}
@@ -60,24 +50,26 @@ func Up_20260218165545(tx *sql.Tx) error {
 		return nil // nothing to do
 	}
 
-	// Find matching titles, or create new ones
-
 	for _, s := range softwareList {
-		// we want to find a title id that has the correct SOURCE from s. software.source. I think that's right
-
+		// find or create a title with the correct source
 		newID, err := getOrInsertTitleID(txx, s.SoftwareName, s.BundleIdentifier, s.SoftwareSource)
 		if err != nil {
-			return errors.Wrap(err, "get or insert software title")
+			return errors.Wrap(err, "getting or inserting software title")
 		}
-		fmt.Println(newID)
+
+		// update the software entry to use the correct title id
+		const updateSoftwareTitleIDStmt = `UPDATE software SET title_id = ? WHERE id = ?`
+		_, err = txx.Exec(updateSoftwareTitleIDStmt, newID, s.SoftwareID)
+		if err != nil {
+			return errors.Wrap(err, "updating software to use correct title id")
+		}
 	}
 
 	return nil
 }
 
-// should be similar to ds.getOrGenerateSoftwareTitleID
+// should be similar to ds.getOrGenerateSoftwareInstallerTitleID
 func getOrInsertTitleID(txx sqlx.Tx, name, bundleIdentifier, source string) (uint, error) {
-
 	const findTitleStmt = `
 	SELECT id
 	FROM software_titles 
@@ -106,16 +98,3 @@ func getOrInsertTitleID(txx sqlx.Tx, name, bundleIdentifier, source string) (uin
 func Down_20260218165545(tx *sql.Tx) error {
 	return nil
 }
-
-//
-// > select whatever ;software join software_titles on title_id; where software.source != software_title.source
-//
-// > maybe just that can be the first list we gather
-//
-// > for each mismatched title, try to find the appropriate one
-//     > if not found, create a new title
-//
-// > we can try to find a title id that matches software.bundle_id and software.source
-// > if that's not found, create one. we can use just the title_id and copy values from there!
-//
-// > after this, all software should be fixed!
