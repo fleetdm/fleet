@@ -390,9 +390,6 @@ const ManagePolicyPage = ({
     staleTime: 5000,
   });
 
-  // Derived from query data, but can be manually updated after PATCH to avoid
-  // stale reads from MySQL replicas (setQueryData alone doesn't trigger
-  // re-renders through react-query v3's select transform)
   const queryAutomationsConfig = isAllTeamsSelected ? globalConfig : teamConfig;
   const [automationsConfig, setAutomationsConfig] = useState(
     queryAutomationsConfig
