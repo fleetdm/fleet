@@ -94,8 +94,8 @@ const LockModal = ({
           </p>
           <p> It can only be unlocked through Fleet.</p>
           <p>
-            If the device is turned off or restarted while locked, it will
-            disconnect from WiFi and you won&apos;t be able to unlock the host
+            If the host is turned off or restarted while locked, it will
+            disconnect from Wi-Fi, and you won&apos;t be able to unlock it
             remotely.{" "}
             <CustomLink
               newTab
