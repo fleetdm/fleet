@@ -349,7 +349,7 @@ export const useTeamIdParam = ({
   location?: {
     pathname: string;
     search: string;
-    query: { fleet_id?: string };
+    query: { fleet_id?: string; team_id?: string };
     hash?: string;
     [key: string]: any; // for other location properties that may be passed in
   };
@@ -397,8 +397,11 @@ export const useTeamIdParam = ({
 
   const currentTeam = useMemo(
     () =>
-      userTeams?.find((t) => t.id === coerceAllTeamsId(query?.fleet_id || "")),
-    [query?.fleet_id, userTeams]
+      userTeams?.find(
+        (t) =>
+          t.id === coerceAllTeamsId(query?.fleet_id || query?.team_id || "")
+      ),
+    [query?.fleet_id, query?.team_id, userTeams]
   );
 
   const handleTeamChange = useCallback(

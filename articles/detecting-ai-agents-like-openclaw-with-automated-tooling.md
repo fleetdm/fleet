@@ -139,7 +139,7 @@ For more on this topic, check out [Threat Hunting AI Agents and Autonomous Tooli
 
 In our next article, part 3 of this series, Fleet's [Adam Baali](https://www.linkedin.com/in/adambaali/) will go beyond the overview given here and provide actual mitigations security teams can use today. 
 
-<meta name="articleTitle" value="Threat hunting AI agents like OpenClaw with automated tooling">
+<meta name="articleTitle" value="Detecting AI agents like OpenClaw with automated tooling">
 <meta name="authorFullName" value="Brock Walters">
 <meta name="authorGitHubUsername" value="nonpunctual">
 <meta name="category" value="articles">
