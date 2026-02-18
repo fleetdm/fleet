@@ -456,7 +456,13 @@ func (ds *Datastore) getHostScriptExecutionResultDB(ctx context.Context, q sqlx.
 			// try with upcoming activities
 			err = sqlx.GetContext(ctx, q, &result, getUpcomingStmt, execID)
 			if errors.Is(err, sql.ErrNoRows) {
-				return nil, ctxerr.Wrap(ctx, notFound("HostScriptResult").WithName(execID))
+				// Log instead of returning an error to avoid breaking the host
+				// details page when there's an orphan reference in the database
+				// (e.g. host_mdm_actions pointing to a deleted host_script_results row).
+				// To fix the orphan, run:
+				// UPDATE host_mdm_actions SET unlock_ref = NULL WHERE unlock_ref = '<execID>';
+				level.Error(ds.logger).Log("msg", "orphan script execution reference, HostScriptResult not found", "execution_id", execID)
+				return nil, nil
 			}
 		}
 		if err != nil {
