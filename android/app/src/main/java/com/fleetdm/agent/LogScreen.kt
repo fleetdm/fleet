@@ -11,10 +11,13 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.ContentCopy
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -31,10 +34,19 @@ import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
+private enum class LogLevel(val label: String, val logcatCode: String) {
+    VERBOSE("Verbose", "V"),
+    DEBUG("Debug", "D"),
+    INFO("Info", "I"),
+    WARNING("Warning", "W"),
+    ERROR("Error", "E"),
+}
 
 @Composable
 fun LogsScreen(onNavigateBack: () -> Unit) {
     var logs by remember { mutableStateOf<String?>(null) }
+    var selectedLevel by remember { mutableStateOf(LogLevel.INFO) }
+    var levelMenuExpanded by remember { mutableStateOf(false) }
     val context = LocalContext.current
     val scrollState = rememberScrollState()
 
@@ -42,7 +54,8 @@ fun LogsScreen(onNavigateBack: () -> Unit) {
         if (logs != null) scrollState.scrollTo(scrollState.maxValue)
     }
 
-    LaunchedEffect(Unit) {
+    LaunchedEffect(selectedLevel) {
+        logs = null
         logs = withContext(Dispatchers.IO) {
             try {
                 val fleetTags = listOf(
@@ -50,7 +63,7 @@ fun LogsScreen(onNavigateBack: () -> Unit) {
                     "fleet-CertificateOrchestrator", "fleet-AndroidCertInstaller",
                     "fleet-DeviceKeystoreManager", "fleet-boot", "fleet-RoleNotificationReceiverService",
                 )
-                val filterArgs = fleetTags.map { "$it:V" } + listOf("*:S")
+                val filterArgs = fleetTags.map { "$it:${selectedLevel.logcatCode}" } + listOf("*:S")
                 val uid = context.applicationInfo.uid
                 val command = listOf("logcat", "-d", "--uid=$uid") + filterArgs
                 val process = ProcessBuilder(command).redirectErrorStream(true).start()
@@ -72,6 +85,25 @@ fun LogsScreen(onNavigateBack: () -> Unit) {
                     }
                 },
                 actions = {
+                    Box {
+                        TextButton(onClick = { levelMenuExpanded = true }) {
+                            Text(selectedLevel.label)
+                        }
+                        DropdownMenu(
+                            expanded = levelMenuExpanded,
+                            onDismissRequest = { levelMenuExpanded = false },
+                        ) {
+                            LogLevel.entries.forEach { level ->
+                                DropdownMenuItem(
+                                    text = { Text(level.label) },
+                                    onClick = {
+                                        selectedLevel = level
+                                        levelMenuExpanded = false
+                                    },
+                                )
+                            }
+                        }
+                    }
                     IconButton(onClick = {
                         val clipboard = context.getSystemService(ClipboardManager::class.java)
                             ?: return@IconButton

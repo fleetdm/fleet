@@ -52,6 +52,30 @@ import kotlinx.serialization.json.Json
 
 private val jsonPretty = Json { prettyPrint = true }
 
+data class LastError(val timestamp: String, val tag: String, val message: String)
+
+fun readLastError(): LastError? {
+    val fleetTags = listOf(
+        "fleet-app", "fleet-ApiClient", "fleet-CertificateEnrollmentWorker",
+        "fleet-CertificateOrchestrator", "fleet-AndroidCertInstaller",
+        "fleet-DeviceKeystoreManager", "fleet-boot", "fleet-RoleNotificationReceiverService",
+    )
+    val filterArgs = fleetTags.map { "$it:E" } + listOf("*:S")
+    val command = listOf("logcat", "-d", "-v", "time") + filterArgs
+    val output = ProcessBuilder(command).redirectErrorStream(true).start()
+        .inputStream.bufferedReader().readText()
+
+    // logcat -v time format: "MM-DD HH:MM:SS.mmm  PID  TID E TAG: message"
+    val lineRegex = Regex("""^(\d{2}-\d{2} \d{2}:\d{2}:\d{2}\.\d+)\s+\d+\s+\d+\s+E\s+([\w-]+)\s*:\s*(.*)$""")
+    return output.lines()
+        .lastOrNull { lineRegex.matches(it.trim()) }
+        ?.let { line ->
+            val match = lineRegex.find(line.trim()) ?: return null
+            val (timestamp, tag, message) = match.destructured
+            LastError(timestamp = timestamp, tag = tag, message = message)
+        }
+}
+
 @Composable
 fun DebugScreen(onNavigateBack: () -> Unit, onNavigateToLogs: () -> Unit) {
     val context = LocalContext.current
@@ -76,6 +100,14 @@ fun DebugScreen(onNavigateBack: () -> Unit, onNavigateToLogs: () -> Unit) {
     }
     val baseUrl by ApiClient.baseUrlFlow.collectAsStateWithLifecycle(initialValue = null)
     val installedCerts by orchestrator.installedCertsFlow(context).collectAsStateWithLifecycle(initialValue = emptyMap())
+
+    var lastError by remember { mutableStateOf<LastError?>(null) }
+
+    LaunchedEffect(Unit) {
+        lastError = withContext(Dispatchers.IO) {
+            try { readLastError() } catch (e: Exception) { null }
+        }
+    }
 
     val margin = Modifier.padding(horizontal = 20.dp)
 
@@ -134,37 +166,50 @@ fun DebugScreen(onNavigateBack: () -> Unit, onNavigateToLogs: () -> Unit) {
                     modifier = margin,
                     permissionsList = permissionsList,
                 )
+                LastErrorSection(modifier = margin, lastError = lastError)
             }
         },
     )
 }
 
 @Composable
+fun LastErrorSection(modifier: Modifier = Modifier, lastError: LastError?) {
+    Column(modifier = modifier) {
+        Text("Last error:", fontWeight = FontWeight.Bold)
+        if (lastError == null) {
+            Text("None")
+        } else {
+            Text(lastError.timestamp)
+            Text(lastError.tag, fontWeight = FontWeight.Bold)
+            Text(lastError.message)
+        }
+    }
+}
+
+@Composable
 fun DebugCertificateList(modifier: Modifier = Modifier, certificates: CertificateStateMap) {
-    Column {
-        Column(modifier = modifier) {
-            Text("Certificate states:", fontWeight = FontWeight.Bold)
-            certificates.forEach { (key, value) ->
-                Row(modifier = Modifier.padding(bottom = 5.dp, start = 10.dp)) {
-                    Text(
-                        text = key.toString(),
-                        fontWeight = FontWeight.Bold,
-                        modifier = Modifier.padding(end = 5.dp),
-                    )
-                    Column {
-                        Text(text = "alias: ${value.alias}")
-                        Text(text = "status: ${value.status}")
-                        Text(text = "retries: ${value.retries}")
-                        Text(text = "uuid: ${value.uuid}")
-                        Text(text = "notBefore: ${value.notBefore}")
-                        Text(text = "notAfter: ${value.notAfter}")
-                        Text(text = "serial: ${value.serialNumber}")
-                    }
+    Column(modifier = modifier) {
+        Text("Certificate states:", fontWeight = FontWeight.Bold)
+        certificates.forEach { (key, value) ->
+            Row(modifier = Modifier.padding(bottom = 5.dp, start = 10.dp)) {
+                Text(
+                    text = key.toString(),
+                    fontWeight = FontWeight.Bold,
+                    modifier = Modifier.padding(end = 5.dp),
+                )
+                Column {
+                    Text(text = "alias: ${value.alias}")
+                    Text(text = "status: ${value.status}")
+                    Text(text = "retries: ${value.retries}")
+                    Text(text = "uuid: ${value.uuid}")
+                    Text(text = "notBefore: ${value.notBefore}")
+                    Text(text = "notAfter: ${value.notAfter}")
+                    Text(text = "serial: ${value.serialNumber}")
                 }
             }
         }
-        HorizontalDivider()
     }
+    HorizontalDivider()
 }
 
 @Composable
@@ -178,6 +223,7 @@ fun PermissionList(modifier: Modifier = Modifier, permissionsList: List<String>)
             }
         }
     }
+    HorizontalDivider()
 }
 
 @Composable
