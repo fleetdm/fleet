@@ -4939,7 +4939,7 @@ Rotates the Recovery Lock password for a host.
 
 | Name                          | Type    | In    | Description                                                                                        |
 | ----------------------------- | ------  | ----  | --------------------------------------------------------------------------------------             |
-| id                            | integer | body  | The host ID to rotate Recovery Lock password for.                                                  |
+| id                            | integer | path  | The host ID to rotate Recovery Lock password for.                                                  |
 
 #### Example
 
