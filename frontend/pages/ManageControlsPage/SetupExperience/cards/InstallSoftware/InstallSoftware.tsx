@@ -23,6 +23,7 @@ import {
 } from "interfaces/platform";
 
 import SectionHeader from "components/SectionHeader";
+import PageDescription from "components/PageDescription";
 import DataError from "components/DataError";
 import Spinner from "components/Spinner";
 import TabNav from "components/TabNav";
@@ -31,7 +32,6 @@ import GenericMsgWithNavButton from "components/GenericMsgWithNavButton";
 import CustomLink from "components/CustomLink";
 
 import AddInstallSoftware from "./components/AddInstallSoftware";
-import SelectSoftwareModal from "./components/SelectSoftwareModal";
 import SetupExperienceContentContainer from "../../components/SetupExperienceContentContainer";
 import { ISetupExperienceCardProps } from "../../SetupExperienceNavItems";
 import getManualAgentInstallSetting from "../../helpers";
@@ -170,37 +170,38 @@ const InstallSoftware = ({
 
       const turnOnMdm = turnOnAppleMdm || turnOnWindowsMdm || turnOnAndroidMdm;
 
-      if (turnOnMdm) {
-        return (
-          <GenericMsgWithNavButton
-            header={`${
-              platform === "android"
-                ? "Turn on Android MDM"
-                : "Additional configuration required"
-            }`}
-            info={`To customize, first turn on ${
-              platform === "android" ? "Android MDM" : "automatic enrollment"
-            }.`}
-            buttonText="Turn on"
-            path={PATHS.ADMIN_INTEGRATIONS_MDM}
-            router={router}
-          />
-        );
-      }
       return (
         <SetupExperienceContentContainer>
-          <AddInstallSoftware
-            currentTeamId={currentTeamId}
-            hasManualAgentInstall={hasManualAgentInstall}
-            softwareTitles={softwareTitles}
-            onAddSoftware={() => setShowSelectSoftwareModal(true)}
-            platform={platform}
-            savedRequireAllSoftwareMacOS={
-              currentTeamId
-                ? teamConfig?.mdm?.macos_setup?.require_all_software_macos
-                : globalConfig?.mdm?.macos_setup?.require_all_software_macos
-            }
-          />
+          <PageDescription content="Install software on hosts that automatically enroll to Fleet." />
+          {turnOnMdm ? (
+            <GenericMsgWithNavButton
+              header={`${
+                platform === "android"
+                  ? "Turn on Android MDM"
+                  : "Additional configuration required"
+              }`}
+              info={`To customize, first turn on ${
+                platform === "android" ? "Android MDM" : "automatic enrollment"
+              }.`}
+              buttonText="Turn on"
+              path={PATHS.ADMIN_INTEGRATIONS_MDM}
+              router={router}
+            />
+          ) : (
+            <AddInstallSoftware
+              currentTeamId={currentTeamId}
+              hasManualAgentInstall={hasManualAgentInstall}
+              softwareTitles={softwareTitles}
+              onAddSoftware={() => setShowSelectSoftwareModal(true)}
+              platform={platform}
+              savedRequireAllSoftwareMacOS={
+                currentTeamId
+                  ? teamConfig?.mdm?.macos_setup?.require_all_software_macos
+                  : globalConfig?.mdm?.macos_setup?.require_all_software_macos
+              }
+              router={router}
+            />
+          )}
         </SetupExperienceContentContainer>
       );
     }
@@ -255,15 +256,6 @@ const InstallSoftware = ({
             })}
           </Tabs>
         </TabNav>
-      )}
-      {showSelectSoftwareModal && softwareTitles && (
-        <SelectSoftwareModal
-          currentTeamId={currentTeamId}
-          softwareTitles={softwareTitles}
-          platform={selectedPlatform}
-          onSave={onSave}
-          onExit={() => setShowSelectSoftwareModal(false)}
-        />
       )}
     </section>
   );

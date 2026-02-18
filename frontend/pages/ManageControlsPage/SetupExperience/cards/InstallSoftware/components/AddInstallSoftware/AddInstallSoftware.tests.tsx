@@ -1,6 +1,6 @@
 import React from "react";
 import { render, screen, waitFor } from "@testing-library/react";
-import { renderWithSetup } from "test/test-utils";
+import { createMockRouter, renderWithSetup } from "test/test-utils";
 import { noop } from "lodash";
 import { SETUP_EXPERIENCE_PLATFORMS } from "interfaces/platform";
 
@@ -21,6 +21,7 @@ describe("AddInstallSoftware", () => {
         onAddSoftware={noop}
         hasManualAgentInstall={false}
         platform="macos"
+        router={createMockRouter()}
       />
     );
 
@@ -36,6 +37,7 @@ describe("AddInstallSoftware", () => {
         onAddSoftware={noop}
         hasManualAgentInstall={false}
         platform="macos"
+        router={createMockRouter()}
       />
     );
 
@@ -66,6 +68,7 @@ describe("AddInstallSoftware", () => {
         onAddSoftware={noop}
         hasManualAgentInstall={false}
         platform="macos"
+        router={createMockRouter()}
       />
     );
 
@@ -113,6 +116,7 @@ describe("AddInstallSoftware", () => {
         onAddSoftware={noop}
         hasManualAgentInstall={false}
         platform="android"
+        router={createMockRouter()}
       />
     );
 
@@ -158,14 +162,10 @@ describe("AddInstallSoftware", () => {
         onAddSoftware={noop}
         hasManualAgentInstall={false}
         platform="macos"
+        router={createMockRouter()}
       />
     );
 
-    const showAdvancedOptionsButton = screen.getByRole("button", {
-      name: "Show advanced options",
-    });
-    expect(showAdvancedOptionsButton).toBeVisible();
-    showAdvancedOptionsButton.click();
     await waitFor(() => {
       const checkbox = screen.getByRole("checkbox", {
         name: /Cancel setup if software install fails/,
@@ -184,6 +184,7 @@ describe("AddInstallSoftware", () => {
         onAddSoftware={noop}
         hasManualAgentInstall
         platform="macos"
+        router={createMockRouter()}
       />
     );
 
@@ -208,6 +209,7 @@ describe("AddInstallSoftware", () => {
           onAddSoftware={noop}
           hasManualAgentInstall
           platform={platform}
+          router={createMockRouter()}
         />
       );
 

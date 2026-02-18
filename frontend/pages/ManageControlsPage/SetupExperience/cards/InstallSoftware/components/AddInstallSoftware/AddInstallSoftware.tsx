@@ -1,10 +1,12 @@
-import React, { useContext, useState } from "react";
-import { capitalize } from "lodash";
+import React, { useCallback, useContext, useState, useMemo } from "react";
+import { capitalize, isEqual } from "lodash";
+import { InjectedRouter } from "react-router";
 
 import PATHS from "router/paths";
 import { buildQueryStringFromParams } from "utilities/url";
 import { isMacOS, SetupExperiencePlatform } from "interfaces/platform";
 import { ISoftwareTitle } from "interfaces/software";
+import { INotification } from "interfaces/notification";
 
 import { AppContext } from "context/app";
 import { NotificationContext } from "context/notification";
@@ -12,17 +14,25 @@ import mdmAPI from "services/entities/mdm";
 
 import Button from "components/buttons/Button";
 import Checkbox from "components/forms/fields/Checkbox";
-import CustomLink from "components/CustomLink";
-import RevealButton from "components/buttons/RevealButton";
+import EmptyTable from "components/EmptyTable";
 import TooltipWrapper from "components/TooltipWrapper";
 import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
-
-import {
-  getInstallSoftwareDuringSetupCount,
-  hasNoSoftwareUploaded,
-} from "./helpers";
+import SelectSoftwareTable from "../SelectSoftwareTable";
+import { hasNoSoftwareUploaded } from "./helpers";
 
 const baseClass = "add-install-software";
+
+const initializeSelectedSoftwareIds = (softwareTitles: ISoftwareTitle[]) => {
+  return softwareTitles.reduce<number[]>((acc, software) => {
+    if (
+      software.software_package?.install_during_setup ||
+      software.app_store_app?.install_during_setup
+    ) {
+      acc.push(software.id);
+    }
+    return acc;
+  }, []);
+};
 
 const getPlatformLabel = (platform: SetupExperiencePlatform) => {
   switch (platform) {
@@ -71,6 +81,7 @@ interface IAddInstallSoftwareProps {
   onAddSoftware: () => void;
   platform: SetupExperiencePlatform;
   savedRequireAllSoftwareMacOS?: boolean | null;
+  router: InjectedRouter;
 }
 
 const AddInstallSoftware = ({
@@ -80,66 +91,141 @@ const AddInstallSoftware = ({
   onAddSoftware,
   platform,
   savedRequireAllSoftwareMacOS,
+  router,
 }: IAddInstallSoftwareProps) => {
   const noSoftwareUploaded = hasNoSoftwareUploaded(softwareTitles);
-  const installSoftwareDuringSetupCount = getInstallSoftwareDuringSetupCount(
-    softwareTitles
-  );
-  const { renderFlash } = useContext(NotificationContext);
+  const { renderFlash, renderMultiFlash } = useContext(NotificationContext);
   const { config } = useContext(AppContext);
-  const [showMacOSOptions, setShowMacOSOptions] = useState(false);
   const [requireAllSoftwareMacOS, setRequireAllSoftwareMacOS] = useState(
     savedRequireAllSoftwareMacOS || false
   );
-  const [isUpdating, setIsUpdating] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
 
-  // Handle clicking Save button for "Cancel setup if software install fails" option.
-  const onClickSave = async () => {
-    setIsUpdating(true);
-    try {
-      await mdmAPI.updateRequireAllSoftwareMacOS(
-        currentTeamId,
-        requireAllSoftwareMacOS
-      );
-      renderFlash("success", "Successfully updated.");
-    } catch {
-      renderFlash("error", "Couldn't update. Please try again.");
-    } finally {
-      setIsUpdating(false);
+  const initialSelectedSoftware = useMemo(
+    () => (softwareTitles ? initializeSelectedSoftwareIds(softwareTitles) : []),
+    [softwareTitles]
+  );
+
+  const initialRequireAllSoftwareMacOS = useMemo(
+    () => savedRequireAllSoftwareMacOS || false,
+    [savedRequireAllSoftwareMacOS]
+  );
+
+  const [selectedSoftwareIds, setSelectedSoftwareIds] = useState<number[]>(
+    initialSelectedSoftware
+  );
+
+  const installSoftwareDuringSetupCount = selectedSoftwareIds.length;
+
+  const onChangeSoftwareSelect = useCallback((select: boolean, id: number) => {
+    setSelectedSoftwareIds((prev) => {
+      if (select) {
+        if (prev.includes(id)) return prev;
+        return [...prev, id];
+      }
+      return prev.filter((selectedId) => selectedId !== id);
+    });
+  }, []);
+
+  const isSoftwareSelectionDirty = useMemo(
+    () =>
+      !isEqual(
+        selectedSoftwareIds.slice().sort(),
+        initialSelectedSoftware.slice().sort()
+      ),
+    [selectedSoftwareIds, initialSelectedSoftware]
+  );
+
+  const isRequireAllSoftwareDirty = useMemo(
+    () => requireAllSoftwareMacOS !== initialRequireAllSoftwareMacOS,
+    [requireAllSoftwareMacOS, initialRequireAllSoftwareMacOS]
+  );
+
+  const shouldUpdateSoftware = isSoftwareSelectionDirty;
+  const shouldUpdateRequireAll =
+    platform === "macos" && isRequireAllSoftwareDirty;
+  const shouldDisableSave = !shouldUpdateSoftware && !shouldUpdateRequireAll;
+
+  const onSaveSelectedSoftware = async () => {
+    if (!shouldUpdateSoftware && !shouldUpdateRequireAll) return;
+    if (!softwareTitles) return;
+
+    setIsSaving(true);
+
+    const errorNotifications: INotification[] = [];
+    let hadSuccess = false;
+
+    // 1. Software selection update
+    if (shouldUpdateSoftware) {
+      try {
+        await mdmAPI.updateSetupExperienceSoftware(
+          platform,
+          currentTeamId,
+          selectedSoftwareIds
+        );
+        hadSuccess = true;
+        // Still let parent refetch even if the macOS call later fails
+        await onAddSoftware();
+      } catch (e) {
+        errorNotifications.push({
+          id: "update-software",
+          alertType: "error",
+          isVisible: true,
+          // You can make this more specific if you want to inspect `e`
+          message: "Couldn't save software. Please try again.",
+          persistOnPageChange: false,
+        });
+      }
     }
+
+    // 2. macOS “require all software” update
+    if (shouldUpdateRequireAll) {
+      try {
+        await mdmAPI.updateRequireAllSoftwareMacOS(
+          currentTeamId,
+          requireAllSoftwareMacOS
+        );
+        hadSuccess = true;
+      } catch (e) {
+        errorNotifications.push({
+          id: "update-require-all",
+          alertType: "error",
+          isVisible: true,
+          message:
+            "Couldn't update 'Cancel setup if software install fails'. Please try again.",
+          persistOnPageChange: false,
+        });
+      }
+    }
+
+    // 3. Render flashes
+    if (errorNotifications.length > 0) {
+      renderMultiFlash({ notifications: errorNotifications });
+    } else if (hadSuccess) {
+      renderFlash("success", "Successfully updated.");
+    }
+
+    setIsSaving(false);
   };
 
-  const renderAddedText = () => {
-    if (noSoftwareUploaded) {
-      return (
-        <>
-          No {getPlatformLabel(platform)} software available. You can add
-          software on the{" "}
-          <CustomLink
-            url={getAddSoftwareUrl(platform, currentTeamId)}
-            text="Software page"
-          />
-          .
-        </>
-      );
-    }
-
+  const renderCustomCount = () => {
     const orderTooltip =
       platform === "android"
         ? "Software order will vary."
         : "Installation order will depend on software name, starting with 0-9 then A-Z.";
 
-    return installSoftwareDuringSetupCount === 0 ? (
-      "No software selected."
-    ) : (
-      <>
-        {installSoftwareDuringSetupCount} software item
-        {installSoftwareDuringSetupCount > 1 && "s"} will be{" "}
+    return (
+      <div>
+        <strong>
+          {installSoftwareDuringSetupCount} software item
+          {installSoftwareDuringSetupCount !== 1 && "s"}
+        </strong>{" "}
+        will be{" "}
         <TooltipWrapper tipContent={orderTooltip}>
           installed during setup
         </TooltipWrapper>
         .
-      </>
+      </div>
     );
   };
 
@@ -154,79 +240,70 @@ const AddInstallSoftware = ({
   const manualAgentInstallBlockingSoftware =
     hasManualAgentInstall && isMacOS(platform);
 
+  const onClickAddSoftware = (evt: React.MouseEvent<HTMLButtonElement>) => {
+    evt.preventDefault();
+
+    router.push(getAddSoftwareUrl(platform, currentTeamId));
+  };
+
+  const renderEmptyState = () => {
+    return (
+      <EmptyTable
+        className={`${baseClass}__empty-table`}
+        header="No software available to install"
+        primaryButton={
+          <Button
+            className={`${baseClass}__button`}
+            onClick={onClickAddSoftware}
+          >
+            Add software
+          </Button>
+        }
+      />
+    );
+  };
+
+  if (noSoftwareUploaded || !softwareTitles) {
+    return <div className={baseClass}>{renderEmptyState()}</div>;
+  }
+
   return (
     <div className={baseClass}>
-      <div className={`${baseClass}__description-container`}>
-        <p className={`${baseClass}__description`}>
-          Install software on hosts that automatically enroll to Fleet.
-        </p>
-      </div>
-      <span className={`${baseClass}__added-text`}>{renderAddedText()}</span>
-      {!noSoftwareUploaded && (
-        <div>
-          <GitOpsModeTooltipWrapper
-            renderChildren={(disableChildren) => (
-              <TooltipWrapper
-                className={`${baseClass}__manual-install-tooltip`}
-                tipContent={manuallyInstallTooltipText}
-                disableTooltip={
-                  disableChildren || !manualAgentInstallBlockingSoftware
-                }
-                position="top"
-                showArrow
-                underline={false}
-              >
-                <Button
-                  className={`${baseClass}__button`}
-                  onClick={onAddSoftware}
-                  disabled={
-                    disableChildren ||
-                    manualAgentInstallBlockingSoftware ||
-                    noSoftwareUploaded
-                  }
-                >
-                  Select software
-                </Button>
-              </TooltipWrapper>
-            )}
-          />
-        </div>
-      )}
+      <SelectSoftwareTable
+        softwareTitles={softwareTitles}
+        onChangeSoftwareSelect={onChangeSoftwareSelect}
+        platform={platform}
+        renderCustomCount={renderCustomCount}
+      />
       {platform === "macos" && (
         <div className={`${baseClass}__macos_options_form`}>
-          <RevealButton
-            isShowing={showMacOSOptions}
-            showText="Show advanced options"
-            hideText="Hide advanced options"
-            caretPosition="after"
-            onClick={() => setShowMacOSOptions(!showMacOSOptions)}
-          />
-          {showMacOSOptions && (
-            <form>
-              <Checkbox
-                disabled={config?.gitops.gitops_mode_enabled}
-                value={requireAllSoftwareMacOS}
-                onChange={setRequireAllSoftwareMacOS}
-              >
-                <TooltipWrapper tipContent="If any software fails, the end user won't be let through, and will see a prompt to contact their IT admin. Remaining software installs will be canceled.">
-                  Cancel setup if software install fails
-                </TooltipWrapper>
-              </Checkbox>
-              <GitOpsModeTooltipWrapper
-                renderChildren={(disableChildren) => (
-                  <Button
-                    disabled={disableChildren}
-                    isLoading={isUpdating}
-                    onClick={onClickSave}
-                  >
-                    Save
-                  </Button>
-                )}
-              />
-            </form>
-          )}
+          <form>
+            <Checkbox
+              disabled={config?.gitops.gitops_mode_enabled}
+              value={requireAllSoftwareMacOS}
+              onChange={setRequireAllSoftwareMacOS}
+            >
+              <TooltipWrapper tipContent="If any software fails, the end user won't be let through, and will see a prompt to contact their IT admin. Remaining software installs will be canceled.">
+                Cancel setup if software install fails
+              </TooltipWrapper>
+            </Checkbox>
+          </form>
         </div>
       )}
+      <div className={`${baseClass}__button-container`}>
+        <GitOpsModeTooltipWrapper
+          tipOffset={6}
+          renderChildren={(disableChildren) => (
+            <Button
+              disabled={disableChildren || isSaving || shouldDisableSave}
+              onClick={onSaveSelectedSoftware}
+              isLoading={isSaving}
+            >
+              Save
+            </Button>
+          )}
+        />
+      </div>
     </div>
   );
 };

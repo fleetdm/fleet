@@ -27,12 +27,14 @@ interface ISelectSoftwareTableProps {
   softwareTitles: ISoftwareTitle[];
   onChangeSoftwareSelect: (select: boolean, id: number) => void;
   platform: SetupExperiencePlatform;
+  renderCustomCount?: () => JSX.Element;
 }
 
 const SelectSoftwareTable = ({
   softwareTitles,
   onChangeSoftwareSelect,
   platform,
+  renderCustomCount,
 }: ISelectSoftwareTableProps) => {
   const tableConfig = useMemo(() => {
     return generateTableConfig(platform, onChangeSoftwareSelect);
@@ -40,14 +42,6 @@ const SelectSoftwareTable = ({
 
   const initialSelectedSoftwareRows = useMemo(() => {
     return generateSelectedRows(softwareTitles);
-  }, [softwareTitles]);
-
-  const renderCount = useCallback(() => {
-    if (softwareTitles.length === 0) {
-      return <></>;
-    }
-
-    return <TableCount name="items" count={softwareTitles?.length} />;
   }, [softwareTitles]);
 
   return (
@@ -63,7 +57,7 @@ const SelectSoftwareTable = ({
           className={baseClass}
         />
       )}
-      renderCount={renderCount}
+      renderCount={renderCustomCount}
       defaultSelectedRows={initialSelectedSoftwareRows}
       showMarkAllPages
       isAllPagesSelected={false}
