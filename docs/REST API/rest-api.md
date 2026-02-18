@@ -3926,7 +3926,7 @@ This endpoint doesn't require API token authentication. Authentication on macOS,
 
 | Name  | Type   | In   | Description                        |
 | ----- | ------ | ---- | ---------------------------------- |
-| token | string | path | The host's [device authentication token](https://fleetdm.com/guides/fleet-desktop#secure-fleet-desktop). For macOS, Windows, and Linux, this is a random UUID that rotates hourly. For iOS and iPadOS, this is the host's hardware UUID. |
+| token | string | path | The host's [Fleet Desktop token](https://fleetdm.com/guides/fleet-desktop#secure-fleet-desktop). For macOS, Windows, and Linux, this is a random UUID that rotates hourly. For iOS and iPadOS, this is the host's hardware UUID. |
 
 #### Request headers
 
@@ -4145,13 +4145,14 @@ Deletes the specified host from Fleet. Note that a deleted host will fail authen
 
 Flags the host details, labels and policies to be refetched the next time the host checks in for distributed queries. Note that we cannot be certain when the host will actually check in and update the query results. Further requests to the host APIs will indicate that the refetch has been requested through the `refetch_requested` field on the host object.
 
-`POST /api/v1/fleet/hosts/:id/refetch`
+`POST /api/v1/fleet/hosts/:id/refetch` or `POST /api/v1/fleet/device/:token/refetch`
 
 #### Parameters
 
 | Name | Type    | In   | Description                  |
 | ---- | ------- | ---- | ---------------------------- |
-| id   | integer | path | **Required**. The host's id. |
+| id   | integer | path | The host's id. Required if `token` not specified. |
+| token | string | path | The host's [Fleet Desktop token](https://fleetdm.com/guides/fleet-desktop#secure-fleet-desktop). Required if `id` not specified. |
 
 #### Example
 
@@ -4160,7 +4161,6 @@ Flags the host details, labels and policies to be refetched the next time the ho
 ##### Default response
 
 `Status: 200`
-
 
 ### Update hosts' team
 
@@ -6336,7 +6336,7 @@ Resends a configuration profile for the specified host. Currently, only macOS co
 
 | Name | Type | In | Description |
 | ---- | ---- | -- | ----------- |
-| token   | string | path | **Required.** The host's [device authentication token](https://fleetdm.com/guides/fleet-desktop#secure-fleet-desktop). |
+| token   | string | path | **Required.** The host's [Fleet Desktop token](https://fleetdm.com/guides/fleet-desktop#secure-fleet-desktop). |
 | profile_uuid   | string | path | **Required.** The UUID of the configuration profile to resend to the host. |
 
 #### Example
