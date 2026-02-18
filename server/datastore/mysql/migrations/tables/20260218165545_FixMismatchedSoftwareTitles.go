@@ -15,6 +15,48 @@ func init() {
 func Up_20260218165545(tx *sql.Tx) error {
 	txx := sqlx.Tx{Tx: tx, Mapper: reflectx.NewMapperFunc("db", sqlx.NameMapper)}
 
+	// find mismatched software INSTALLERS. for PKG type ONLY!!!!
+	const findMismatchedPkgInstallersStmt = `
+	SELECT 
+		software_installers.id id, 
+		software_titles.id title_id, 
+		software_titles.name name, 
+		software_titles.bundle_identifier bundle_identifier
+	FROM software_installers
+		JOIN software_titles ON software_installers.title_id = software_titles.id
+	WHERE 
+		software_installers.platform = 'darwin' 
+		AND software_titles.source != 'apps' AND software_titles.bundle_identifier != ''
+	`
+
+	type badInstaller struct {
+		InstallerID      uint   `db:"id"`
+		TitleID          uint   `db:"title_id"`
+		TitleName        string `db:"name"`
+		BundleIdentifier string `db:"bundle_identifier"`
+	}
+	installerList := make([]badInstaller, 0)
+
+	err := txx.Select(&installerList, findMismatchedPkgInstallersStmt)
+	if err != nil {
+		return errors.Wrap(err, "find mismatched installers")
+	}
+
+	for _, installer := range installerList {
+		// find or create a title with the correct source
+		newID, err := getOrInsertTitleID(txx, installer.TitleName, installer.BundleIdentifier, "apps")
+		if err != nil {
+			return errors.Wrap(err, "getting or inserting software title")
+		}
+
+		// update the installer entry to use the correct title id
+		const updateInstallerTitleIDStmt = `UPDATE software_installers SET title_id = ? WHERE id = ?`
+		_, err = txx.Exec(updateInstallerTitleIDStmt, newID, installer.InstallerID)
+		if err != nil {
+			return errors.Wrap(err, "updating installer to use correct title id")
+		}
+	}
+
 	const findMismatchedSoftwareStmt = `
 	SELECT 
 		software.id id,
@@ -34,20 +76,20 @@ func Up_20260218165545(tx *sql.Tx) error {
 		SoftwareID       uint   `db:"id"`
 		SoftwareName     string `db:"name"`
 		SoftwareSource   string `db:"source"`
-		BundleIdentifier string `db:"bundle_identifier"`
-		TitleID          uint   `db:"title_id"`
-		TitleSource      string `db:"title_source"`
+		BundleIdentifier string `db:"bundle_identifier"` // TODO: what if the bundle identifier doesnt match? seems unlikely...
+		TitleID          uint   `db:"title_id"`          // TODO: remove?
+		TitleSource      string `db:"title_source"`      // TODO: remove?
 	}
 	softwareList := make([]badSoftware, 0)
 
 	// find the mismatched software
-	err := txx.Select(&softwareList, findMismatchedSoftwareStmt)
+	err = txx.Select(&softwareList, findMismatchedSoftwareStmt)
 	if err != nil {
 		return errors.Wrap(err, "find mismatched software")
 	}
 
 	if len(softwareList) == 0 {
-		return nil // nothing to do
+		return nil // nothing left to do
 	}
 
 	for _, s := range softwareList {
