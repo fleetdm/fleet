@@ -205,9 +205,9 @@ export default PackComposerPage;
 ## Forms
 
 ### Form submission
-When building a React‑controlled form:
 
-- Use the native HTML form element to wrap the form
+When building a React‑controlled form:
+- Use the native HTML `form` element to wrap the form.
 - Use a `Button` component with `type="submit"` for its submit button.
 - Write a submit handler, e.g. `handleSubmit`, that accepts an `evt: React.FormEvent<HTMLFormElement>` argument and:
   - calls `evt.preventDefault() `in its body, to prevent the HTML `form` default submit behavior from interfering with your logic.
@@ -217,7 +217,7 @@ Assign that handler to the form’s `onSubmit` property (not the submit button�
 
 Example:
 
-```
+```tsx
 const handleSubmit = async (evt: React.FormEvent<HTMLFormElement>) => {
   evt.preventDefault();
 
@@ -236,14 +236,14 @@ const handleSubmit = async (evt: React.FormEvent<HTMLFormElement>) => {
 
 #### How to validate
 
-Forms should make use of a pure validate function whose input(s) correspond to form data (may include
+Forms should make use of a pure `validate` function whose input(s) correspond to form data (may include
 new and possibly former form data) and whose output is a structured validation result with:
 - a top‑level `isValid` flag, and
 - optional per‑field entries of the form `{ isValid: boolean; message?: string }`.
 
 For example:
 
-```
+```tsx
 interface IFieldValidation {
   isValid: boolean;
   message?: string;
@@ -286,21 +286,19 @@ const validateFormData = (formData: IFormData): IFormValidation => {
 ```
 
 The output of `validateFormData` should be stored in a `formValidation` state object and used both to:
-
-- display error messages (fieldValidation.message), and
-- decide whether the form as a whole is valid (formValidation.isValid).
+- display error messages (`fieldValidation.message`), and
+- decide whether the form as a whole is valid (`formValidation.isValid`).
 
 #### When to validate
 
 Form fields should only clear existing errors on change, and set all current errors on blur and on save. This provides
 an optimistic user experience:
-
 - The user is only told they have an error once they navigate away from a field or hit enter (blur/submit).
 - They are informed they have fixed an error as soon as possible, i.e., as soon as they make the fixing change.
 
 On change (clear errors only for the edited field):
 
-```
+```tsx
 const onInputChange = ({ name, value }: IInputFieldParseTarget) => {
   const newFormData = { ...formData, [name]: value };
   setFormData(newFormData);
@@ -337,13 +335,15 @@ const onInputChange = ({ name, value }: IInputFieldParseTarget) => {
 
 On blur (set all current errors for all fields):
 
-```
+```tsx
 const onInputBlur = () => {
   setFormValidation(validateFormData(formData));
 };
+```
+
 On submit (set all errors and block when invalid):
 
-tsx
+```tsx
 const onFormSubmit = (evt: React.FormEvent<HTMLFormElement>) => {
   evt.preventDefault();
 
@@ -360,7 +360,7 @@ const onFormSubmit = (evt: React.FormEvent<HTMLFormElement>) => {
 
 The Save button should be driven purely from the validation state:
 
-```
+```tsx
 <Button
   type="submit"
   isLoading={isSubmitting}
