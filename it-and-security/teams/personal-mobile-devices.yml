@@ -29,6 +29,13 @@ queries:
 software:
   app_store_apps:
     # iOS apps
+    - app_store_id: "6471268530" # incident.io
+      display_name: "incident.io"
+      self_service: true
+      setup_experience: false
+      platform: ios
+      categories:
+        - "Communication"
     - app_store_id: "618783545" # Slack
       display_name: "Slack"
       self_service: true
