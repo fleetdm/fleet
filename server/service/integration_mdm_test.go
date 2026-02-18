@@ -18,6 +18,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log/slog"
 	"math/big"
 	"mime/multipart"
 	"net/http"
@@ -225,7 +226,7 @@ func (s *integrationMDMTestSuite) SetupSuite() {
 	androidMockClient.SetAuthenticationSecretFunc = func(secret string) error {
 		return nil
 	}
-	androidSvc, err := android_service.NewServiceWithClient(wlog, s.ds, androidMockClient, "test-private-key", s.ds, activityModule, config.AndroidAgentConfig{
+	androidSvc, err := android_service.NewServiceWithClient(wlog.SlogLogger(), s.ds, androidMockClient, "test-private-key", s.ds, activityModule, config.AndroidAgentConfig{
 		Package:       "com.fleetdm.agent",
 		SigningSHA256: "abc123def456",
 	})
@@ -410,7 +411,7 @@ func (s *integrationMDMTestSuite) SetupSuite() {
 							if s.onCleanupScheduleDone != nil {
 								defer s.onCleanupScheduleDone()
 							}
-							return android_service.RenewCertificateTemplates(ctx, ds, logger)
+							return android_service.RenewCertificateTemplates(ctx, ds, logger.SlogLogger())
 						}),
 					)
 					return cleanupsSchedule, nil
@@ -432,7 +433,7 @@ func (s *integrationMDMTestSuite) SetupSuite() {
 									s.onAndroidProfileJobDone()
 								}()
 							}
-							err := android_service.ReconcileProfilesWithClient(ctx, ds, logger, "", androidMockClient, config.AndroidAgentConfig{
+							err := android_service.ReconcileProfilesWithClient(ctx, ds, logger.SlogLogger(), "", androidMockClient, config.AndroidAgentConfig{
 								Package:       "com.fleetdm.agent",
 								SigningSHA256: "abc123def456",
 							})
@@ -957,7 +958,7 @@ func (s *integrationMDMTestSuite) awaitTriggerProfileSchedule(t *testing.T) {
 		err        error
 	)
 	for range 10 {
-		_, didTrigger, err = s.profileSchedule.Trigger()
+		_, didTrigger, err = s.profileSchedule.Trigger(t.Context())
 		require.NoError(t, err)
 		if didTrigger {
 			break
@@ -994,7 +995,7 @@ func (s *integrationMDMTestSuite) awaitTriggerAndroidProfileSchedule(t *testing.
 		err        error
 	)
 	for range 10 {
-		_, didTrigger, err = s.androidProfileSchedule.Trigger()
+		_, didTrigger, err = s.androidProfileSchedule.Trigger(t.Context())
 		require.NoError(t, err)
 		if didTrigger {
 			break
@@ -6144,7 +6145,7 @@ func (s *integrationMDMTestSuite) TestSSO() {
 	}
 	err = detailQueries["mdm"].DirectIngestFunc(
 		context.Background(),
-		logging.NewNopLogger(),
+		slog.New(slog.DiscardHandler),
 		&fleet.Host{ID: hostResp.Host.ID},
 		s.ds,
 		rows,
@@ -6175,7 +6176,7 @@ func (s *integrationMDMTestSuite) TestSSO() {
 	}
 	err = detailQueries["google_chrome_profiles"].DirectIngestFunc(
 		context.Background(),
-		logging.NewNopLogger(),
+		slog.New(slog.DiscardHandler),
 		&fleet.Host{ID: hostResp.Host.ID},
 		s.ds,
 		rows,
@@ -6241,7 +6242,7 @@ func (s *integrationMDMTestSuite) TestSSO() {
 	// reporting google chrome profiles only clears chrome profiles from device mapping
 	err = detailQueries["google_chrome_profiles"].DirectIngestFunc(
 		context.Background(),
-		logging.NewNopLogger(),
+		slog.New(slog.DiscardHandler),
 		&fleet.Host{ID: hostResp.Host.ID},
 		s.ds,
 		[]map[string]string{},
@@ -6488,7 +6489,7 @@ func (s *integrationMDMTestSuite) TestSSOWithSCIM() {
 	}
 	err = detailQueries["mdm"].DirectIngestFunc(
 		context.Background(),
-		logging.NewNopLogger(),
+		slog.New(slog.DiscardHandler),
 		&fleet.Host{ID: hostResp.Host.ID},
 		s.ds,
 		rows,
@@ -6509,7 +6510,7 @@ func (s *integrationMDMTestSuite) TestSSOWithSCIM() {
 	}
 	err = detailQueries["google_chrome_profiles"].DirectIngestFunc(
 		context.Background(),
-		logging.NewNopLogger(),
+		slog.New(slog.DiscardHandler),
 		&fleet.Host{ID: hostResp.Host.ID},
 		s.ds,
 		rows,
@@ -10355,7 +10356,7 @@ func (s *integrationMDMTestSuite) runIntegrationsSchedule() {
 		err        error
 	)
 	for range 10 {
-		_, didTrigger, err = s.integrationsSchedule.Trigger()
+		_, didTrigger, err = s.integrationsSchedule.Trigger(s.T().Context())
 		require.NoError(s.T(), err)
 		if didTrigger {
 			break
@@ -10377,7 +10378,7 @@ func (s *integrationMDMTestSuite) awaitRunCleanupSchedule() {
 		err        error
 	)
 	for range 10 {
-		_, didTrigger, err = s.cleanupsSchedule.Trigger()
+		_, didTrigger, err = s.cleanupsSchedule.Trigger(s.T().Context())
 		require.NoError(s.T(), err)
 		if didTrigger {
 			break

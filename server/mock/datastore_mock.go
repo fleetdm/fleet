@@ -719,6 +719,8 @@ type InsertCronStatsFunc func(ctx context.Context, statsType fleet.CronStatsType
 
 type UpdateCronStatsFunc func(ctx context.Context, id int, status fleet.CronStatsStatus, cronErrors *fleet.CronScheduleErrors) error
 
+type ClaimCronStatsFunc func(ctx context.Context, id int, instance string, status fleet.CronStatsStatus) error
+
 type UpdateAllCronStatsForInstanceFunc func(ctx context.Context, instance string, fromStatus fleet.CronStatsStatus, toStatus fleet.CronStatsStatus) error
 
 type CleanupCronStatsFunc func(ctx context.Context) error
@@ -2815,6 +2817,9 @@ type DataStore struct {
 
 	UpdateCronStatsFunc        UpdateCronStatsFunc
 	UpdateCronStatsFuncInvoked bool
+
+	ClaimCronStatsFunc        ClaimCronStatsFunc
+	ClaimCronStatsFuncInvoked bool
 
 	UpdateAllCronStatsForInstanceFunc        UpdateAllCronStatsForInstanceFunc
 	UpdateAllCronStatsForInstanceFuncInvoked bool
@@ -6831,6 +6836,13 @@ func (s *DataStore) UpdateCronStats(ctx context.Context, id int, status fleet.Cr
 	s.UpdateCronStatsFuncInvoked = true
 	s.mu.Unlock()
 	return s.UpdateCronStatsFunc(ctx, id, status, cronErrors)
+}
+
+func (s *DataStore) ClaimCronStats(ctx context.Context, id int, instance string, status fleet.CronStatsStatus) error {
+	s.mu.Lock()
+	s.ClaimCronStatsFuncInvoked = true
+	s.mu.Unlock()
+	return s.ClaimCronStatsFunc(ctx, id, instance, status)
 }
 
 func (s *DataStore) UpdateAllCronStatsForInstance(ctx context.Context, instance string, fromStatus fleet.CronStatsStatus, toStatus fleet.CronStatsStatus) error {

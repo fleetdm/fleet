@@ -223,7 +223,7 @@ func RegisterSCIM(
 		handler = AuthorizationMiddleware(authorizer, scimLogger, handler)
 		handler = auth.AuthenticatedUserMiddleware(svc, scimErrorHandler, handler)
 		handler = LastRequestMiddleware(ds, scimLogger, handler)
-		handler = log.LogResponseEndMiddleware(scimLogger, handler)
+		handler = log.LogResponseEndMiddleware(scimLogger.SlogLogger(), handler)
 		handler = auth.SetRequestsContextMiddleware(svc, handler)
 		return handler
 	}

@@ -54,6 +54,7 @@ func (svc *Service) BatchAssociateVPPApps(ctx context.Context, teamName string, 
 	}
 
 	var teamID *uint
+	var manualAgentInstall bool
 	if teamName != "" {
 		tm, err := svc.ds.TeamByName(ctx, teamName)
 		if err != nil {
@@ -64,6 +65,13 @@ func (svc *Service) BatchAssociateVPPApps(ctx context.Context, teamName string, 
 			return nil, err
 		}
 		teamID = &tm.ID
+		manualAgentInstall = tm.Config.MDM.MacOSSetup.ManualAgentInstall.Value
+	} else {
+		ac, err := svc.ds.AppConfig(ctx)
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "getting app config")
+		}
+		manualAgentInstall = ac.MDM.MacOSSetup.ManualAgentInstall.Value
 	}
 
 	if err := svc.authz.Authorize(ctx, &fleet.SoftwareInstaller{TeamID: teamID}, fleet.ActionWrite); err != nil {
@@ -155,6 +163,12 @@ func (svc *Service) BatchAssociateVPPApps(ctx context.Context, teamName string, 
 			if payload.Platform == fleet.AndroidPlatform && strings.HasPrefix(payload.AppStoreID, fleetAgentPackagePrefix) {
 				return nil, fleet.NewInvalidArgumentError("app_store_id", "The Fleet agent cannot be added manually. "+
 					"It is automatically managed by Fleet when Android MDM is enabled.")
+			}
+
+			if payload.Platform == fleet.MacOSPlatform && ptr.ValOrZero(payload.InstallDuringSetup) && manualAgentInstall {
+				return nil, fleet.NewUserMessageError(
+					errors.New(`Couldn't edit software. "setup_experience" cannot be used for macOS software if "manual_agent_install" is enabled.`),
+					http.StatusUnprocessableEntity)
 			}
 
 			var err error

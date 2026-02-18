@@ -28,13 +28,13 @@ const DiscardDataOption = ({
     <div className="help-text">
       {disable ? (
         <>
-          This setting is ignored because query reports in Fleet have been{" "}
+          This setting is ignored because reports in Fleet have been{" "}
           <TooltipWrapper
             tipContent={
               <>
-                A Fleet administrator can enable query reports under <br />
+                A Fleet administrator can enable reports under <br />
                 <b>
-                  Organization settings &gt; Advanced options &gt; Disable query
+                  Organization settings &gt; Advanced options &gt; Disable
                   reports
                 </b>
                 .
@@ -74,7 +74,7 @@ const DiscardDataOption = ({
         <>
           <InfoBanner color="purple">
             The <b>Discard data</b> setting is ignored when differential logging
-            is enabled. This query&apos;s results will not be saved in Fleet.
+            is enabled. This report&apos;s results will not be saved in Fleet.
           </InfoBanner>
         </>
       )}

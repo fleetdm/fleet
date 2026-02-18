@@ -135,7 +135,7 @@ func (lr *LuksRunner) getEscrowKey(ctx context.Context, devicePath string) ([]by
 	device := luksdevice.New(luksdevice.AESXTSPlain64Cipher)
 
 	// Prompt user for existing LUKS passphrase
-	passphrase, err := lr.entryPrompt(ctx, entryDialogTitle, entryDialogText)
+	passphrase, err := lr.entryPrompt(entryDialogTitle, entryDialogText)
 	if err != nil {
 		return nil, nil, fmt.Errorf("Failed to show passphrase entry prompt: %w", err)
 	}
@@ -157,7 +157,7 @@ func (lr *LuksRunner) getEscrowKey(ctx context.Context, devicePath string) ([]by
 			break
 		}
 
-		passphrase, err = lr.entryPrompt(ctx, entryDialogTitle, retryEntryDialogText)
+		passphrase, err = lr.entryPrompt(entryDialogTitle, retryEntryDialogText)
 		if err != nil {
 			return nil, nil, fmt.Errorf("Failed re-prompting for passphrase: %w", err)
 		}
@@ -275,7 +275,7 @@ func generateRandomPassphrase() ([]byte, error) {
 	return passphrase, nil
 }
 
-func (lr *LuksRunner) entryPrompt(ctx context.Context, title, text string) ([]byte, error) {
+func (lr *LuksRunner) entryPrompt(title, text string) ([]byte, error) {
 	passphrase, err := lr.notifier.ShowEntry(dialog.EntryOptions{
 		Title:    title,
 		Text:     text,

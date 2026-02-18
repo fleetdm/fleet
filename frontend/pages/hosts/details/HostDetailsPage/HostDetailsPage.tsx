@@ -163,6 +163,7 @@ interface IHostDetailsProps {
       query?: string;
       order_key?: string;
       order_direction?: "asc" | "desc";
+      fleet_id?: string;
     };
     search?: string;
   };
@@ -906,7 +907,7 @@ const HostDetailsPage = ({
 
       const successMessage =
         teamId === null
-          ? `Host successfully removed from teams.`
+          ? `Host successfully removed from fleets.`
           : `Host successfully transferred to  ${team.name}.`;
 
       renderFlash("success", successMessage);
@@ -973,7 +974,7 @@ const HostDetailsPage = ({
   const onClickAddQuery = () => {
     router.push(
       getPathWithQueryParams(PATHS.NEW_QUERY, {
-        team_id: currentTeam?.id,
+        fleet_id: currentTeam?.id || location.query.fleet_id,
         host_id: hostIdFromURL,
       })
     );
@@ -1097,12 +1098,20 @@ const HostDetailsPage = ({
 
   const navigateToNav = (i: number): void => {
     const navPath = hostDetailsSubNav[i].pathname;
-    router.push(navPath);
+    router.push(
+      getPathWithQueryParams(navPath, {
+        fleet_id: currentTeam?.id || location.query.fleet_id,
+      })
+    );
   };
 
   const navigateToSoftwareTab = (i: number): void => {
     const navPath = hostSoftwareSubNav[i].pathname;
-    router.push(navPath);
+    router.push(
+      getPathWithQueryParams(navPath, {
+        fleet_id: currentTeam?.id || location.query.fleet_id,
+      })
+    );
   };
 
   const isHostTeamAdmin = permissions.isTeamAdmin(currentUser, host?.team_id);
@@ -1285,7 +1294,12 @@ const HostDetailsPage = ({
           <div className={`${baseClass}__header-links`}>
             <BackButton
               text="Back to all hosts"
-              path={filteredHostsPath || PATHS.MANAGE_HOSTS}
+              path={
+                filteredHostsPath ||
+                getPathWithQueryParams(PATHS.MANAGE_HOSTS, {
+                  fleet_id: location.query.fleet_id,
+                })
+              }
             />
           </div>
           <div className={`${baseClass}__header-summary`}>

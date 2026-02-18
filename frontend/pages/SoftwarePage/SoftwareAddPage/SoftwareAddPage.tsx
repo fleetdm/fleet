@@ -47,7 +47,7 @@ const getTabIndex = (path: string): number => {
 };
 
 export interface ISoftwareAddPageQueryParams {
-  team_id?: string;
+  fleet_id?: string;
   query?: string;
   page?: string;
   order_key?: string;
@@ -75,20 +75,20 @@ const SoftwareAddPage = ({
       setSidePanelOpen(false);
       // Only query param to persist between tabs is team id
       const navPath = getPathWithQueryParams(addSoftwareSubNav[i].pathname, {
-        team_id: location.query.team_id,
+        fleet_id: location.query.fleet_id,
       });
       router.replace(navPath);
     },
-    [location.query.team_id, router, setSidePanelOpen]
+    [location.query.fleet_id, router, setSidePanelOpen]
   );
 
-  // Quick exit if no team_id param. This page must have a team id to function
+  // Quick exit if no fleet_id param. This page must have a team id to function
   // correctly. We redirect to the same page with the "No team" context if it
   // is not provieded.
-  if (!location.query.team_id) {
+  if (!location.query.fleet_id) {
     router.replace(
       getPathWithQueryParams(location.pathname, {
-        team_id: APP_CONTEXT_NO_TEAM_ID,
+        fleet_id: APP_CONTEXT_NO_TEAM_ID,
       })
     );
     return null;
@@ -99,7 +99,7 @@ const SoftwareAddPage = ({
   };
 
   const backUrl = getPathWithQueryParams(PATHS.SOFTWARE_TITLES, {
-    team_id: location.query.team_id,
+    fleet_id: location.query.fleet_id,
   });
 
   return (
@@ -132,7 +132,7 @@ const SoftwareAddPage = ({
           </TabNav>
           {React.cloneElement(children, {
             router,
-            currentTeamId: parseInt(location.query.team_id, 10),
+            currentTeamId: parseInt(location.query.fleet_id, 10),
             isSidePanelOpen,
             setSidePanelOpen,
           })}

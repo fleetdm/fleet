@@ -679,7 +679,7 @@ func (ts *withServer) listActivities() []*fleet.Activity {
 	t := ts.s.T()
 	var resp listActivitiesResponse
 	ts.DoJSON("GET", "/api/latest/fleet/activities", nil, http.StatusOK, &resp,
-		"order_key", "a.id", "order_direction", "asc", "per_page", "1000000")
+		"order_key", "a.id", "order_direction", "asc", "per_page", "10000")
 	require.NotNil(t, resp.Activities)
 	return resp.Activities
 }
