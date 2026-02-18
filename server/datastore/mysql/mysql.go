@@ -6,6 +6,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"log/slog"
 	"net"
 	"os"
 	"regexp"
@@ -182,7 +183,7 @@ func (ds *Datastore) NewSCEPDepot() (scep_depot.Depot, error) {
 
 // NewHostIdentitySCEPDepot returns a scep_depot.Depot for host identity certs that uses the Datastore
 // underlying MySQL writer *sql.DB.
-func (ds *Datastore) NewHostIdentitySCEPDepot(logger log.Logger, cfg *config.FleetConfig) (scep_depot.Depot, error) {
+func (ds *Datastore) NewHostIdentitySCEPDepot(logger *slog.Logger, cfg *config.FleetConfig) (scep_depot.Depot, error) {
 	return hostidscepdepot.NewHostIdentitySCEPDepot(ds.primary, ds, logger, cfg)
 }
 
@@ -206,12 +207,12 @@ var (
 )
 
 func (ds *Datastore) withRetryTxx(ctx context.Context, fn common_mysql.TxFn) (err error) {
-	return common_mysql.WithRetryTxx(ctx, ds.writer(ctx), fn, ds.logger)
+	return common_mysql.WithRetryTxx(ctx, ds.writer(ctx), fn, ds.logger.SlogLogger())
 }
 
 // withTx provides a common way to commit/rollback a txFn
 func (ds *Datastore) withTx(ctx context.Context, fn common_mysql.TxFn) (err error) {
-	return common_mysql.WithTxx(ctx, ds.writer(ctx), fn, ds.logger)
+	return common_mysql.WithTxx(ctx, ds.writer(ctx), fn, ds.logger.SlogLogger())
 }
 
 // withReadTx runs fn in a read-only transaction with a consistent snapshot of the DB
@@ -224,7 +225,7 @@ func (ds *Datastore) withReadTx(ctx context.Context, fn common_mysql.ReadTxFn) (
 	if !ok {
 		return ctxerr.New(ctx, "failed to cast reader to *sqlx.DB")
 	}
-	return common_mysql.WithReadOnlyTxx(ctx, readerDB, fn, ds.logger)
+	return common_mysql.WithReadOnlyTxx(ctx, readerDB, fn, ds.logger.SlogLogger())
 }
 
 // NewDBConnections creates database connections from config.
