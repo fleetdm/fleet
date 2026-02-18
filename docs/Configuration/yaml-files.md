@@ -116,11 +116,23 @@ Policies can be specified inline in your `default.yml`, `teams/team-name.yml`, o
 
 ### Options
 
-For possible options, see the parameters for the [Add policy API endpoint](https://fleetdm.com/docs/rest-api/rest-api#add-policy)
+For available options, see the parameters for the [Add policy](https://fleetdm.com/docs/rest-api/rest-api#create-policy) and [Add team policy](https://fleetdm.com/docs/rest-api/rest-api#create-team-policy) API endpoints.
 
-In Fleet Premium you can trigger software installs or script runs on policy failure:
+#### Patch policy
 
-- For software installs, specify either `install_software.package_path` or `install_software.hash_sha256` in your YAML. If `install_software.package_path` only one package can be specified in the package YAML.
+_Available in Fleet Premium_
+
+You can create a patch policy by setting `type` to `patch` and specifying `fleet_maintained_app_slug`.
+
+This type of policy automatically updates a query to check if the host runs the latest Fleet-maintained app version. Fleet automatically downloads the latest version found in [the app's metadata on GitHub](https://github.com/fleetdm/fleet/tree/main/ee/maintained-apps/outputs). If `version` is specified for Fleet-maintained app, then the specified version will be included in the query.
+
+#### Automations
+
+_Available in Fleet Premium_
+
+You can trigger software installs or script runs when policy fails:
+
+- For software install, specify either `install_software.package_path` or `install_software.hash_sha256` in your YAML. If `install_software.package_path` only one package can be specified in the package YAML.
 - For script runs, specify `run_script.path`.
 
 > Specifying one package without a list is deprecated as of Fleet 4.73. It is maintained for backwards compatibility. Please use a list instead even if you're only specifying one package.
@@ -191,7 +203,7 @@ policies:
   install_software: true
 ```
 
-`default.yml` (for policies that neither install software nor run scripts), `teams/team-name.yml`, or `teams/no-team.yml`
+`default.yml`, `teams/team-name.yml`, or `teams/no-team.yml`
 
 ```yaml
 policies:
