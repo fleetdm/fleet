@@ -16,11 +16,11 @@ import (
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/platform/logging"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/test"
 	"github.com/fleetdm/fleet/v4/server/vulnerabilities/nvd"
 	"github.com/fleetdm/fleet/v4/server/vulnerabilities/oval"
-	kitlog "github.com/go-kit/log"
 	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
 	"github.com/stretchr/testify/assert"
@@ -1362,7 +1362,7 @@ func testSoftwareSyncHostsSoftware(t *testing.T, ds *Datastore) {
 	// this call will remove team2 from the software host counts table,
 	// and would normally log because we have a zero software_id
 	realLogger := ds.logger
-	ds.logger = kitlog.NewNopLogger()
+	ds.logger = logging.NewNopLogger()
 	require.NoError(t, ds.SyncHostsSoftware(ctx, time.Now()))
 	ds.logger = realLogger
 
@@ -2012,8 +2012,7 @@ func testUpdateHostSoftware(t *testing.T, ds *Datastore) {
 	// Test logging criteria for LastOpenedAt == nil
 	oldLogger := ds.logger
 	buf := &bytes.Buffer{}
-	newLogger := kitlog.NewLogfmtLogger(buf)
-	ds.logger = newLogger
+	ds.logger = logging.NewLogfmtLogger(buf)
 
 	sw = []fleet.Software{
 		{Name: "foo", Version: "0.0.1", Source: "test"},
