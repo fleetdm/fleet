@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log/slog"
 	"net"
 	"net/http"
 	"net/url"
@@ -23,8 +24,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/platform/middleware/ratelimit"
 	"github.com/go-kit/kit/endpoint"
 	kithttp "github.com/go-kit/kit/transport/http"
-	"github.com/go-kit/log"
-	"github.com/go-kit/log/level"
 	"github.com/gorilla/mux"
 )
 
@@ -299,43 +298,45 @@ func extractIP(r *http.Request) string {
 }
 
 type ErrorHandler struct {
-	Logger log.Logger
+	Logger *slog.Logger
 }
 
 func (h *ErrorHandler) Handle(ctx context.Context, err error) {
-	// get the request path
 	path, _ := ctx.Value(kithttp.ContextKeyRequestPath).(string)
-	logger := level.Info(log.With(h.Logger, "path", path))
+
+	attrs := []any{"path", path}
 
 	if startTime, ok := logging.StartTime(ctx); ok && !startTime.IsZero() {
-		logger = log.With(logger, "took", time.Since(startTime))
+		attrs = append(attrs, "took", time.Since(startTime))
 	}
 
 	var ewi platform_http.ErrWithInternal
 	if errors.As(err, &ewi) {
-		logger = log.With(logger, "internal", ewi.Internal())
+		attrs = append(attrs, "internal", ewi.Internal())
 	}
 
 	var ewlf platform_http.ErrWithLogFields
 	if errors.As(err, &ewlf) {
-		logger = log.With(logger, ewlf.LogFields()...)
+		attrs = append(attrs, ewlf.LogFields()...)
 	}
 
 	var uuider platform_http.ErrorUUIDer
 	if errors.As(err, &uuider) {
-		logger = log.With(logger, "uuid", uuider.UUID())
+		attrs = append(attrs, "uuid", uuider.UUID())
 	}
 
 	var rle ratelimit.Error
 	if errors.As(err, &rle) {
 		res := rle.Result()
 		if res.RetryAfter > 0 {
-			logger = log.With(logger, "retry_after", res.RetryAfter)
+			attrs = append(attrs, "retry_after", res.RetryAfter)
 		}
-		logger.Log("err", "limit exceeded")
+		attrs = append(attrs, "err", "limit exceeded")
 	} else {
-		logger.Log("err", err)
+		attrs = append(attrs, "err", err)
 	}
+
+	h.Logger.InfoContext(ctx, "request error", attrs...)
 }
 
 // A value that implements RequestDecoder takes control of decoding the request
