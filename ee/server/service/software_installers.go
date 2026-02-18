@@ -2035,10 +2035,6 @@ func (svc *Service) softwareInstallerPayloadFromSlug(ctx context.Context, payloa
 		return nil
 	}
 
-	// TODO: check that version is available for rollback
-	// if payload.RollbackVersion != "" {
-	// }
-
 	app, err := svc.ds.GetMaintainedAppBySlug(ctx, *slug, teamID)
 	if err != nil {
 		// Return user-friendly message for generic not found error
@@ -2051,7 +2047,7 @@ func (svc *Service) softwareInstallerPayloadFromSlug(ctx context.Context, payloa
 		}
 		return err
 	}
-	_, err = maintained_apps.Hydrate(ctx, app)
+	_, err = maintained_apps.Hydrate(ctx, app, payload.RollbackVersion, teamID, svc.ds)
 	if err != nil {
 		return err
 	}
@@ -2244,6 +2240,7 @@ func (svc *Service) softwareBatchUpload(
 				ValidatedLabels:    p.ValidatedLabels,
 				Categories:         p.Categories,
 				DisplayName:        p.DisplayName,
+				RollbackVersion:    p.RollbackVersion,
 			}
 
 			var extraInstallers []*fleet.UploadSoftwareInstallerPayload
@@ -2343,16 +2340,27 @@ func (svc *Service) softwareBatchUpload(
 				}
 			}
 
+			// For FMA installers, check if this version is already cached for this team.
+			var fmaVersionCached bool
+			if p.Slug != nil && *p.Slug != "" && p.MaintainedApp != nil && p.MaintainedApp.Version != "" {
+				cached, err := svc.ds.HasFMAInstallerVersion(ctx, teamID, p.MaintainedApp.ID, p.MaintainedApp.Version)
+				if err != nil {
+					return ctxerr.Wrap(ctx, err, "check cached FMA version")
+				}
+				fmaVersionCached = cached
+				installer.FMAVersionCached = cached
+			}
+
 			var installerBytesExist bool
-			if p.SHA256 != "" {
+			if !fmaVersionCached && p.SHA256 != "" {
 				installerBytesExist, err = svc.softwareInstallStore.Exists(ctx, installer.StorageID)
 				if err != nil {
-					return err
+					return ctxerr.Wrap(ctx, err, "check if installer exists in store")
 				}
 			}
 
 			// no accessible matching installer was found, so attempt to download it from URL.
-			if installer.StorageID == "" || !installerBytesExist {
+			if !fmaVersionCached && (installer.StorageID == "" || !installerBytesExist) {
 				if p.SHA256 != "" && p.URL == "" {
 					return fmt.Errorf("package not found with hash %s", p.SHA256)
 				}
@@ -2403,8 +2411,9 @@ func (svc *Service) softwareBatchUpload(
 				}
 				// noCheckHash is used by homebrew to signal that a hash shouldn't be checked
 				// This comes from the manifest and is a special case for maintained apps
-				// we need to generate the SHA256 from the installer file
-				if p.MaintainedApp.SHA256 == noCheckHash {
+				// we need to generate the SHA256 from the installer file.
+				// Skip when version is cached — the existing row already has the computed hash.
+				if !fmaVersionCached && p.MaintainedApp.SHA256 == noCheckHash {
 					// generate the SHA256 from the installer file
 					if installer.InstallerFile == nil {
 						return fmt.Errorf("maintained app %s requires hash to be generated but no installer file found", p.MaintainedApp.UniqueIdentifier)
@@ -2420,7 +2429,8 @@ func (svc *Service) softwareBatchUpload(
 
 				// Some FMAs (e.g. Chrome for macOS) aren't version-pinned by URL, so we have to extract the
 				// version from the package once we download it.
-				if installer.Version == "latest" && installer.InstallerFile != nil {
+				// Skip when version is cached — the existing row already has the correct version.
+				if !fmaVersionCached && installer.Version == "latest" && installer.InstallerFile != nil {
 					meta, err := file.ExtractInstallerMetadata(installer.InstallerFile)
 					if err != nil {
 						return ctxerr.Wrap(ctx, err, "extracting installer metadata")
@@ -2556,9 +2566,11 @@ func (svc *Service) softwareBatchUpload(
 	var inHouseInstallers, softwareInstallers []*fleet.UploadSoftwareInstallerPayload
 	for _, payloadWithExtras := range installers {
 		payload := payloadWithExtras.UploadSoftwareInstallerPayload
-		if err := svc.storeSoftware(ctx, payload); err != nil {
-			batchErr = fmt.Errorf("storing software installer %q: %w", payload.Filename, err)
-			return
+		if !payload.FMAVersionCached {
+			if err := svc.storeSoftware(ctx, payload); err != nil {
+				batchErr = fmt.Errorf("storing software installer %q: %w", payload.Filename, err)
+				return
+			}
 		}
 		if payload.Extension == "ipa" {
 			inHouseInstallers = append(inHouseInstallers, payload)
