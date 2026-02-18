@@ -407,7 +407,7 @@ Estimation points represent the effort required to complete a task. After access
 All issues are treated as standard priority by default. Some issues are assigned a priority label to indicate the level of urgency.
 
 - Emergency: `P0`
-  - Examples: Customer outage, inability to modify Fleet configuration, extended confirmed critical security vulnerability ([critical bug](https://fleetdm.com/handbook/company/product-groups#release-testing)), a new feature is needed to address an immediate Fleet emergency.
+  - Examples: Customer outage, inability to modify Fleet configuration, confirmed critical security vulnerability ([critical bug](https://fleetdm.com/handbook/company/product-groups#release-testing)), a new feature is needed to address an immediate Fleet emergency.
   - Response: Immediately stop other work to swarm the issue. Work 24/7 in shifts until resolved.
   - Impact: Significant impact. May void current sprint.
 
