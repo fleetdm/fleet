@@ -273,7 +273,6 @@ All campaigns must utilize the following status values. Custom statuses outside 
 - **Registered:** Clicked a link and filled out the resulting form.  
 - **Engaged:** Replied to the email directly.
 
-Here is the revised handbook entry. I have added a dedicated section defining the **Marketing Status** values to ensure there is no ambiguity between Sales and Marketing regarding who can be emailed and how.
 
 ---
 
