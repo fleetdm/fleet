@@ -22,9 +22,9 @@ import (
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxdb"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/platform/logging"
 	"github.com/fleetdm/fleet/v4/server/platform/mysql/testing_utils"
 	"github.com/fleetdm/fleet/v4/server/ptr"
-	"github.com/go-kit/log"
 	"github.com/go-sql-driver/mysql"
 	"github.com/jmoiron/sqlx"
 	"github.com/stretchr/testify/assert"
@@ -247,7 +247,7 @@ func mockDatastore(t *testing.T) (sqlmock.Sqlmock, *Datastore) {
 	ds := &Datastore{
 		primary: dbmock,
 		replica: dbmock,
-		logger:  log.NewNopLogger(),
+		logger:  logging.NewNopLogger(),
 	}
 
 	return mock, ds
@@ -596,7 +596,7 @@ func TestWhereFilterHostsByTeams(t *testing.T) {
 	for _, tt := range testCases {
 		tt := tt
 		t.Run("", func(t *testing.T) {
-			ds := &Datastore{logger: log.NewNopLogger()}
+			ds := &Datastore{logger: logging.NewNopLogger()}
 			sql := ds.whereFilterHostsByTeams(tt.filter, "hosts")
 			assert.Equal(t, tt.expected, sql)
 		})
@@ -631,7 +631,7 @@ func TestWhereOmitIDs(t *testing.T) {
 	for _, tt := range testCases {
 		tt := tt
 		t.Run("", func(t *testing.T) {
-			ds := &Datastore{logger: log.NewNopLogger()}
+			ds := &Datastore{logger: logging.NewNopLogger()}
 			sql := ds.whereOmitIDs("id", tt.omits)
 			assert.Equal(t, tt.expected, sql)
 		})
@@ -702,6 +702,25 @@ func TestWithTxWillRollbackWhenPanic(t *testing.T) {
 	require.NoError(t, mock.ExpectationsWereMet())
 }
 
+func TestHealthCheckDetectsReadOnly(t *testing.T) {
+	mock, ds := mockDatastore(t)
+	defer ds.Close()
+
+	// Healthy: primary is writable.
+	mock.ExpectQuery("SELECT @@read_only").
+		WillReturnRows(sqlmock.NewRows([]string{"@@read_only"}).AddRow(0))
+	require.NoError(t, ds.HealthCheck())
+
+	// Unhealthy: primary is read-only (failover scenario).
+	mock.ExpectQuery("SELECT @@read_only").
+		WillReturnRows(sqlmock.NewRows([]string{"@@read_only"}).AddRow(1))
+	err := ds.HealthCheck()
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "read-only")
+
+	require.NoError(t, mock.ExpectationsWereMet())
+}
+
 func TestNewReadsPasswordFromDisk(t *testing.T) {
 	passwordFile, err := os.CreateTemp(t.TempDir(), "*.passwordtest")
 	require.NoError(t, err)
@@ -736,7 +755,7 @@ func newDSWithConfig(t *testing.T, dbName string, config config.MysqlConfig) (*D
 	_, err = db.Exec(fmt.Sprintf("DROP DATABASE IF EXISTS %s; CREATE DATABASE %s;", dbName, dbName))
 	require.NoError(t, err)
 
-	ds, err := New(config, clock.NewMockClock(), Logger(log.NewNopLogger()), LimitAttempts(1))
+	ds, err := New(config, clock.NewMockClock(), Logger(logging.NewNopLogger()), LimitAttempts(1))
 	return ds, err
 }
 
@@ -856,7 +875,7 @@ func TestWhereFilterTeams(t *testing.T) {
 	for _, tt := range testCases {
 		tt := tt
 		t.Run("", func(t *testing.T) {
-			ds := &Datastore{logger: log.NewNopLogger()}
+			ds := &Datastore{logger: logging.NewNopLogger()}
 			sql := ds.whereFilterTeams(tt.filter, "t")
 			assert.Equal(t, tt.expected, sql)
 		})
@@ -1242,7 +1261,7 @@ func TestWhereFilterTeamWithGlobalStats(t *testing.T) {
 		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
-			ds := &Datastore{logger: log.NewNopLogger()}
+			ds := &Datastore{logger: logging.NewNopLogger()}
 			sql := ds.whereFilterTeamWithGlobalStats(tt.filter, "hosts")
 			assert.Equal(t, tt.expected, sql)
 		})
@@ -1381,4 +1400,127 @@ func TestGetContextTryStmt(t *testing.T) {
 		require.NotNil(t, stmt)
 	})
 
+}
+
+// createTestDatabase creates a temporary test database with the given name and
+// registers cleanup logic to drop it and close the connection when the test
+// completes.
+func createTestDatabase(t *testing.T, dbName string) {
+	t.Helper()
+	db, err := sql.Open(
+		"mysql",
+		fmt.Sprintf("%s:%s@tcp(%s)/?multiStatements=true", testing_utils.TestUsername, testing_utils.TestPassword,
+			testing_utils.TestAddress),
+	)
+	require.NoError(t, err)
+
+	_, err = db.Exec(fmt.Sprintf("DROP DATABASE IF EXISTS %s; CREATE DATABASE %s;", dbName, dbName))
+	require.NoError(t, err)
+
+	t.Cleanup(func() {
+		_, _ = db.Exec(fmt.Sprintf("DROP DATABASE IF EXISTS %s", dbName))
+		db.Close()
+	})
+}
+
+// TestReplicaPasswordReadFromDisk verifies that when a replica config uses PasswordPath,
+// the password read from disk by checkAndModifyConfig is preserved for the actual DB connection.
+//
+// This is a regression test for https://github.com/fleetdm/fleet/pull/39689.
+// Before the fix, NewDBConnections called fromCommonMysqlConfig twice for the replica config,
+// and the second call created a fresh config where Password was empty (the mutation from
+// checkAndModifyConfig reading PasswordPath was lost). This caused the replica to connect
+// with an empty password instead of the one from disk.
+func TestReplicaPasswordReadFromDisk(t *testing.T) {
+	// Write the correct password to a temp file.
+	passwordFile, err := os.CreateTemp(t.TempDir(), "*.passwordtest")
+	require.NoError(t, err)
+	_, err = passwordFile.WriteString(testing_utils.TestPassword)
+	require.NoError(t, err)
+	require.NoError(t, passwordFile.Close())
+
+	dbName := t.Name()
+
+	// Create the test database using a direct connection.
+	createTestDatabase(t, dbName)
+
+	// Primary config uses Password directly — this always works.
+	primaryConfig := config.MysqlConfig{
+		Username: testing_utils.TestUsername,
+		Password: testing_utils.TestPassword,
+		Address:  testing_utils.TestAddress,
+		Database: dbName,
+	}
+
+	// Replica config uses PasswordPath instead of Password.
+	// checkAndModifyConfig must read the file and set Password on the config
+	// that is later passed to NewDB. Before the fix the mutation was discarded.
+	replicaConfig := config.MysqlConfig{
+		Username:     testing_utils.TestUsername,
+		PasswordPath: passwordFile.Name(),
+		Address:      testing_utils.TestAddress,
+		Database:     dbName,
+	}
+
+	conns, err := NewDBConnections(primaryConfig, Replica(&replicaConfig), LimitAttempts(1), Logger(logging.NewNopLogger()))
+	require.NoError(t, err, "replica connection should succeed when PasswordPath is used — "+
+		"if this fails with 'Access denied' the password read from disk was not preserved for the replica")
+	defer conns.Primary.Close()
+	defer conns.Replica.Close()
+
+	// Verify the replica connection actually works.
+	require.NoError(t, conns.Replica.Ping())
+}
+
+// TestReplicaTLSConfigPreserved verifies that when a replica config has TLSCA set,
+// the TLSConfig="custom" mutation from checkAndModifyConfig is preserved so the
+// replica actually connects with TLS.
+//
+// This is a regression test for https://github.com/fleetdm/fleet/pull/39689.
+// Before the fix, NewDBConnections called fromCommonMysqlConfig twice for the replica config.
+// The first call's config got TLSConfig="custom" via checkAndModifyConfig, but that config was
+// block-scoped and discarded. The second call created a fresh config where TLSConfig was
+// empty, so the replica silently connected without TLS.
+func TestReplicaTLSConfigPreserved(t *testing.T) {
+	dbName := t.Name()
+
+	// Create the test database using a direct connection.
+	createTestDatabase(t, dbName)
+
+	// Generate a test CA cert that does NOT match the MySQL server's cert.
+	ca, _ := generateTestCert(t)
+	cert, key := generateTestCert(t)
+
+	// Primary config without TLS — connects normally.
+	primaryConfig := config.MysqlConfig{
+		Username: testing_utils.TestUsername,
+		Password: testing_utils.TestPassword,
+		Address:  testing_utils.TestAddress,
+		Database: dbName,
+	}
+
+	// Replica config with TLS — checkAndModifyConfig should set TLSConfig="custom"
+	// and register the TLS profile. When NewDB builds the DSN it must include
+	// tls=custom so the driver actually uses TLS with our test CA.
+	replicaConfig := config.MysqlConfig{
+		Username: testing_utils.TestUsername,
+		Password: testing_utils.TestPassword,
+		Address:  testing_utils.TestAddress,
+		Database: dbName,
+		TLSCA:    ca,
+		TLSCert:  cert,
+		TLSKey:   key,
+	}
+
+	// After the fix the replica connection attempt uses TLS with our test CA,
+	// which doesn't match the MySQL server's certificate, so we expect a TLS error.
+	//
+	// Before the fix TLSConfig was empty for the replica's NewDB call, so the
+	// replica connected without TLS (no error) — meaning this assertion would fail.
+	_, err := NewDBConnections(primaryConfig, Replica(&replicaConfig), LimitAttempts(1), Logger(logging.NewNopLogger()))
+	require.Error(t, err, "replica connection should fail with a TLS error when TLSCA is set — "+
+		"if this succeeds, TLS was silently not applied to the replica")
+	require.Regexp(t, "(x509|tls|EOF)", err.Error())
+	// Ensure the failure is due to the TLS handshake/connection and not TLS config registration.
+	assert.NotContains(t, err.Error(), "RegisterTLSConfig")
 }

@@ -194,13 +194,6 @@ When the Fleet server is running, the Fleet UI is accessible by default at
 
 By default, Fleet will try to connect to servers running on default ports on `localhost`. Depending on your browser's settings, you may have to click through a security warning.
 
-If you're using the Google Chrome web browser, you can always automatically bypass the security warning. Visit [chrome://flags/#allow-insecure-localhost](chrome://flags/#allow-insecure-localhost) and set the "Allow invalid certificates for resources loaded from localhost." flag to "Enabled."
-
-> Note: in Chrome version 88, there is a bug where you must first enable
-> [chrome://flags/#temporary-unexpire-flags-m87](chrome://flags/#temporary-unexpire-flags-m87). The
-> [chrome://flags/#allow-insecure-localhost](chrome://flags/#allow-insecure-localhost) flag will
-> then be visible again.
-
 The Fleet UI is developed with [Typescript](https://www.typescriptlang.org/) using the [React library](https://reactjs.org/docs/getting-started.html) and [SCSS](https://sass-lang.com/) for styling.
 The source code can be found in the [frontend](https://github.com/fleetdm/fleet/tree/main/frontend) directory.
 

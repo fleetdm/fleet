@@ -10,7 +10,7 @@
     "@sailshq/lodash": "^3.10.7",
     "@sailshq/socket.io-redis": "^6.1.2",
     "googleapis": "^165.0.0",
-    "jsforce": "1.11.1",
+    "jsforce": "3.10.14",
     "jsonwebtoken": "9.0.2",
     "jsrsasign": "11.1.0",
     "moment": "2.29.4",

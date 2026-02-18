@@ -65,6 +65,7 @@ const PreviewPayloadModal = ({
     delete json.vulnerability.epss_probability;
     delete json.vulnerability.cvss_score;
     delete json.vulnerability.cisa_known_exploit;
+    delete json.vulnerability.cve_published;
   }
 
   return (
