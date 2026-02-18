@@ -67,7 +67,7 @@ jobs:
       with:
         go-version-file: 'go.mod'
 
-    # 2025-08-07: The Storybook steps in website workflows have been temporarily disabled until a compatability issue with the @storybook/test-runner has been resolved. See https://github.com/fleetdm/fleet/issues/31720 for more information.
+    # 2025-08-07: The Storybook steps in website workflows have been temporarily disabled until a compatibility issue with the @storybook/test-runner has been resolved. See https://github.com/fleetdm/fleet/issues/31720 for more information.
     # # Download top-level dependencies and build Storybook in the website's assets/ folder
     # - run: npm install --legacy-peer-deps && npm run build-storybook -- -o ./website/assets/storybook --loglevel verbose
 
