@@ -15,7 +15,7 @@ team_settings:
     host_expiry_enabled: false
     host_expiry_window: 0
   secrets:
-    - secret: $DOGFOOD_WORKSTATIONS_ENROLL_SECRET
+    - secret: "12345678901234567890123456789012"
   integrations:
     conditional_access_enabled: true
     google_calendar:
