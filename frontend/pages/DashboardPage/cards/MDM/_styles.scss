@@ -2,6 +2,16 @@
   position: relative;
   height: 100%; // centers loading spinner
 
+  &__mdm-status-table {
+    .data-table-block {
+      .data-table__wrapper {
+        // this handles an edge case where the table is too wide for the
+        // container at a smaller viewport width.
+        overflow: auto;
+      }
+    }
+  }
+
   .tab-nav .table-container__header {
     display: none;
   }
@@ -12,6 +22,12 @@
         thead {
           .status__header {
             width: 30%;
+          }
+        }
+        tbody {
+          .status-cell .component__tooltip-wrapper__element {
+            // prevent status name from wrapping to multiple lines
+            white-space: nowrap;
           }
         }
       }
