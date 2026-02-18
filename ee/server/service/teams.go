@@ -31,6 +31,7 @@ func obfuscateSecrets(user *fleet.User, teams []*fleet.Team) error {
 	}
 
 	isGlobalObs := user.IsGlobalObserver()
+	isGlobalTechnician := user.GlobalRole != nil && *user.GlobalRole == fleet.RoleTechnician
 
 	teamMemberships := user.TeamMembership(func(t fleet.UserTeam) bool {
 		return true
@@ -38,13 +39,20 @@ func obfuscateSecrets(user *fleet.User, teams []*fleet.Team) error {
 	obsMembership := user.TeamMembership(func(t fleet.UserTeam) bool {
 		return t.Role == fleet.RoleObserver || t.Role == fleet.RoleObserverPlus
 	})
+	isTeamTechnician := user.TeamMembership(func(t fleet.UserTeam) bool {
+		return t.Role == fleet.RoleTechnician
+	})
 
 	for _, t := range teams {
 		if t == nil {
 			continue
 		}
-		// User does not belong to the team or is a global/team observer/observer+
-		if isGlobalObs || user.GlobalRole == nil && (!teamMemberships[t.ID] || obsMembership[t.ID]) {
+		// We mask the password for the following users:
+		// - User has no roles.
+		// - User is a global observer/observer+/technician.
+		// - User does not belong to the team or is a team observer/observer+/technician.
+		if isGlobalObs || isGlobalTechnician ||
+			user.GlobalRole == nil && (!teamMemberships[t.ID] || obsMembership[t.ID] || isTeamTechnician[t.ID]) {
 			for _, s := range t.Secrets {
 				s.Secret = fleet.MaskedPassword
 			}

@@ -41,7 +41,7 @@ type Schedule struct {
 	schedInterval     time.Duration
 	intervalStartedAt time.Time // start time of the most recent run of the scheduled jobs
 
-	trigger chan struct{}
+	trigger chan int // 0 for in-process trigger, >0 for claimed stats ID from DB poll
 	done    chan struct{}
 
 	configReloadInterval   time.Duration
@@ -55,6 +55,8 @@ type Schedule struct {
 	errors fleet.CronScheduleErrors
 
 	statsStore CronStatsStore
+
+	triggerPollInterval time.Duration
 
 	runOnce bool
 }
@@ -86,6 +88,9 @@ type CronStatsStore interface {
 	InsertCronStats(ctx context.Context, statsType fleet.CronStatsType, name string, instance string, status fleet.CronStatsStatus) (int, error)
 	// UpdateCronStats updates the status of the identified cron stats record
 	UpdateCronStats(ctx context.Context, id int, status fleet.CronStatsStatus, cronErrors *fleet.CronScheduleErrors) error
+	// ClaimCronStats transitions a queued cron stats record to the given status
+	// and updates the instance to the worker that is claiming it.
+	ClaimCronStats(ctx context.Context, id int, instance string, status fleet.CronStatsStatus) error
 }
 
 // Option allows configuring a Schedule.
@@ -148,6 +153,16 @@ func WithDefaultPrevRunCreatedAt(tm time.Time) Option {
 	}
 }
 
+// WithTriggerPollInterval enables polling for externally-queued trigger requests.
+// When set, the schedule periodically checks the stats store for records with
+// "queued" status and executes them. This enables cross-server triggering when
+// the schedule runs on a different server than the one receiving the API request.
+func WithTriggerPollInterval(interval time.Duration) Option {
+	return func(s *Schedule) {
+		s.triggerPollInterval = interval
+	}
+}
+
 // New creates and returns a Schedule.
 // Jobs are added with the WithJob Option.
 //
@@ -169,7 +184,7 @@ func New(
 		name:                 name,
 		instanceID:           instanceID,
 		logger:               logging.NewNopLogger(),
-		trigger:              make(chan struct{}),
+		trigger:              make(chan int),
 		done:                 make(chan struct{}),
 		configReloadInterval: 1 * time.Hour, // by default we will check for updated config once per hour
 		schedInterval:        truncateSecondsWithFloor(interval),
@@ -230,11 +245,10 @@ func (s *Schedule) Start() {
 
 			select {
 			case <-s.ctx.Done():
-				close(s.trigger)
 				schedTicker.Stop()
 				return
 
-			case <-s.trigger:
+			case claimedStatsID := <-s.trigger:
 				// Create a root span for the entire triggered execution
 				ctx, span := startRootSpan(s.ctx, "cron.triggered."+s.name,
 					attribute.String("cron.name", s.name),
@@ -251,7 +265,19 @@ func (s *Schedule) Start() {
 					continue
 				}
 
-				s.runWithStats(ctx, fleet.CronStatsTypeTriggered)
+				// If this is a DB-polled trigger, claim the queued record now
+				// that we hold the lock and are ready to run. This updates the
+				// instance to the actual worker instance ID.
+				if claimedStatsID > 0 {
+					if err := s.statsStore.ClaimCronStats(ctx, claimedStatsID, s.instanceID, fleet.CronStatsStatusPending); err != nil {
+						level.Error(s.logger).Log("err", "claiming queued trigger", "details", err)
+						ctxerr.Handle(ctx, err)
+						// there is an issue with this stats record; fall through to create a new stats record
+						claimedStatsID = 0
+					}
+				}
+
+				s.runWithStats(ctx, fleet.CronStatsTypeTriggered, claimedStatsID)
 
 				prevScheduledRun, _, err := s.GetLatestStats(ctx)
 				if err != nil {
@@ -349,7 +375,7 @@ func (s *Schedule) Start() {
 				newStart := time.Now()
 				s.setIntervalStartedAt(newStart)
 
-				s.runWithStats(ctx, fleet.CronStatsTypeScheduled)
+				s.runWithStats(ctx, fleet.CronStatsTypeScheduled, 0)
 
 				// we need to re-synchronize this schedule instance so that the next scheduled run
 				// starts at the beginning of the next full interval
@@ -421,6 +447,21 @@ func (s *Schedule) Start() {
 		}()
 	}
 
+	if s.triggerPollInterval > 0 {
+		g.Go(func() {
+			pollTicker := time.NewTicker(s.triggerPollInterval)
+			for {
+				select {
+				case <-s.ctx.Done():
+					pollTicker.Stop()
+					return
+				case <-pollTicker.C:
+					s.pollForQueuedTrigger()
+				}
+			}
+		})
+	}
+
 	go func() {
 		g.Wait()
 		level.Debug(s.logger).Log("msg", "close schedule")
@@ -437,21 +478,21 @@ func (s *Schedule) Start() {
 // case where the signal is published to the trigger channel and the case where the trigger channel
 // is blocked or otherwise unavailable to publish the signal. From the caller's perspective, both
 // cases are deemed to be equivalent.
-func (s *Schedule) Trigger() (stats *fleet.CronStats, didTrigger bool, err error) {
-	sched, trig, err := s.GetLatestStats(s.ctx)
+func (s *Schedule) Trigger(ctx context.Context) (stats *fleet.CronStats, didTrigger bool, err error) {
+	sched, trig, err := s.GetLatestStats(ctx)
 	switch {
 	case err != nil:
 		return nil, false, err
 	case sched.Status == fleet.CronStatsStatusPending:
 		return &sched, false, nil
-	case trig.Status == fleet.CronStatsStatusPending:
+	case trig.Status == fleet.CronStatsStatusPending || trig.Status == fleet.CronStatsStatusQueued:
 		return &trig, false, nil
 	default:
 		// ok
 	}
 
 	select {
-	case s.trigger <- struct{}{}:
+	case s.trigger <- 0:
 		didTrigger = true
 	default:
 		level.Debug(s.logger).Log("msg", "trigger channel not available")
@@ -464,16 +505,21 @@ func (s *Schedule) Name() string {
 	return s.name
 }
 
-// runWithStats runs all jobs in the schedule. Prior to starting the run, it creates a
-// record in the database for the provided stats type with "pending" status. After completing the
-// run, the stats record is updated to "completed" status.
-func (s *Schedule) runWithStats(ctx context.Context, statsType fleet.CronStatsType) {
-	statsID, err := s.insertStats(ctx, statsType, fleet.CronStatsStatusPending)
-	if err != nil {
-		level.Error(s.logger).Log("err", fmt.Sprintf("insert cron stats %s", s.name), "details", err)
-		ctxerr.Handle(ctx, err)
+// runWithStats runs all jobs in the schedule. If existingStatsID is > 0, it
+// uses that record (already claimed by the poll goroutine). Otherwise, it
+// creates a new record with "pending" status. After completing the run, the
+// stats record is updated to "completed" status.
+func (s *Schedule) runWithStats(ctx context.Context, statsType fleet.CronStatsType, existingStatsID int) {
+	statsID := existingStatsID
+	if statsID == 0 {
+		var err error
+		statsID, err = s.insertStats(ctx, statsType, fleet.CronStatsStatusPending)
+		if err != nil {
+			level.Error(s.logger).Log("err", fmt.Sprintf("insert cron stats %s", s.name), "details", err)
+			ctxerr.Handle(ctx, err)
+		}
+		level.Info(s.logger).Log("status", "pending")
 	}
-	level.Info(s.logger).Log("status", "pending")
 
 	s.runAllJobs(ctx)
 
@@ -494,6 +540,33 @@ func (s *Schedule) runAllJobs(ctx context.Context) {
 			s.errors[job.ID] = err
 			level.Error(s.logger).Log("err", "running job", "details", err, "jobID", job.ID)
 			ctxerr.Handle(ctx, err)
+		}
+	}
+}
+
+// pollForQueuedTrigger checks for a queued trigger record and signals the
+// trigger handler if one is found.
+func (s *Schedule) pollForQueuedTrigger() {
+	ctx, span := startRootSpan(s.ctx, "cron.trigger_poll."+s.name,
+		attribute.String("cron.name", s.name),
+		attribute.String("cron.instance", s.instanceID),
+		attribute.String("cron.type", "trigger_poll"),
+	)
+	defer span.End()
+
+	_, trig, err := s.GetLatestStats(ctx)
+	if err != nil {
+		level.Error(s.logger).Log("err", "trigger poll get cron stats", "details", err)
+		ctxerr.Handle(ctx, err)
+		return
+	}
+	if trig.Status == fleet.CronStatsStatusQueued {
+		// Signal the trigger handler; it will claim the record when ready.
+		// Non-blocking: if the handler is busy, the record stays queued and the next poll will try again.
+		select {
+		case s.trigger <- trig.ID:
+			level.Info(s.logger).Log("msg", "picked up queued trigger", "stats_id", trig.ID)
+		default:
 		}
 	}
 }
@@ -670,7 +743,7 @@ func (s *Schedule) getLockName() string {
 // clearScheduleChannels performs a non-blocking select on the ticker and trigger channel in order
 // to drain each channel. It is intended for use in cases where a signal may have been published to
 // a channel during a pending run, in which case the expected behavior is for the signal to be dropped.
-func clearScheduleChannels(trigger chan struct{}, ticker <-chan time.Time) {
+func clearScheduleChannels(trigger chan int, ticker <-chan time.Time) {
 	for {
 		select {
 		case <-trigger:
@@ -719,3 +792,61 @@ func startSpan(ctx context.Context, name string, attrs ...attribute.KeyValue) (c
 		trace.WithSpanKind(trace.SpanKindInternal),
 		trace.WithAttributes(attrs...))
 }
+
+// RemoteTriggerSchedule implements fleet.CronSchedule for schedules that run on
+// a remote server. Instead of running jobs locally, Trigger() inserts a "queued"
+// record in the database that the remote server's poll goroutine picks up.
+// This is registered on servers where the actual schedule is disabled (e.g.,
+// when FLEET_VULNERABILITIES_DISABLE_SCHEDULE=true).
+type RemoteTriggerSchedule struct {
+	name       string
+	statsStore CronStatsStore
+}
+
+// NewRemoteTriggerSchedule creates a RemoteTriggerSchedule for the given
+// schedule name, using the provided stats store for DB operations.
+func NewRemoteTriggerSchedule(name string, statsStore CronStatsStore) *RemoteTriggerSchedule {
+	return &RemoteTriggerSchedule{name: name, statsStore: statsStore}
+}
+
+// Trigger inserts a "queued" record in the database for the remote server to
+// pick up. It returns a conflict if there is already a pending or queued run.
+func (r *RemoteTriggerSchedule) Trigger(ctx context.Context) (*fleet.CronStats, bool, error) {
+	ctx, span := startSpan(ctx, "cron.remote_trigger",
+		attribute.String("cron.name", r.name),
+	)
+	defer span.End()
+
+	// NOTE: The read-then-insert below is not atomic, so concurrent trigger
+	// requests could race and insert duplicate queued rows. This is acceptable
+	// because triggering is a low-frequency manual admin operation, and the
+	// worst-case outcome is the schedule running twice.
+	latestStats, err := r.statsStore.GetLatestCronStats(ctx, r.name)
+	if err != nil {
+		return nil, false, err
+	}
+	for _, s := range latestStats {
+		switch {
+		case s.Status == fleet.CronStatsStatusPending:
+			// A scheduled or triggered run is already in progress.
+			return &s, false, nil
+		case s.StatsType == fleet.CronStatsTypeTriggered && s.Status == fleet.CronStatsStatusQueued:
+			// A triggered run is already queued and waiting to be picked up.
+			return &s, false, nil
+		}
+	}
+
+	_, err = r.statsStore.InsertCronStats(ctx, fleet.CronStatsTypeTriggered, r.name, "trigger-api", fleet.CronStatsStatusQueued)
+	if err != nil {
+		return nil, false, err
+	}
+	return nil, true, nil
+}
+
+// Name returns the schedule name.
+func (r *RemoteTriggerSchedule) Name() string {
+	return r.name
+}
+
+// Start is a no-op since the actual schedule runs on a remote server.
+func (r *RemoteTriggerSchedule) Start() {}

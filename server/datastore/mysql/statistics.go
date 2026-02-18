@@ -164,6 +164,12 @@ func (ds *Datastore) ShouldSendStatistics(ctx context.Context, frequency time.Du
 		}
 		stats.NumHostsFleetDesktopEnabled = numHostsFleetDesktopEnabled
 		stats.NumQueries = numQueries
+
+		if appConfig.ConditionalAccess != nil {
+			stats.OktaConditionalAccessConfigured = appConfig.ConditionalAccess.OktaConfigured()
+			stats.ConditionalAccessBypassDisabled = !appConfig.ConditionalAccess.BypassEnabled()
+		}
+
 		return nil
 	}
 

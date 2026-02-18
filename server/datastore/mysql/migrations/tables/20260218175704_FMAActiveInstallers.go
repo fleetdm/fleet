@@ -6,10 +6,10 @@ import (
 )
 
 func init() {
-	MigrationClient.AddMigration(Up_20260212202406, Down_20260212202406)
+	MigrationClient.AddMigration(Up_20260218175704, Down_20260218175704)
 }
 
-func Up_20260212202406(tx *sql.Tx) error {
+func Up_20260218175704(tx *sql.Tx) error {
 	_, err := tx.Exec(`
 		ALTER TABLE software_installers
 			DROP INDEX idx_software_installers_team_id_title_id,
@@ -31,6 +31,6 @@ func Up_20260212202406(tx *sql.Tx) error {
 	return nil
 }
 
-func Down_20260212202406(tx *sql.Tx) error {
+func Down_20260218175704(tx *sql.Tx) error {
 	return nil
 }

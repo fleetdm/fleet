@@ -78,6 +78,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/service/redis_key_value"
 	"github.com/fleetdm/fleet/v4/server/service/redis_lock"
 	"github.com/fleetdm/fleet/v4/server/service/redis_policy_set"
+	"github.com/fleetdm/fleet/v4/server/service/schedule"
 	"github.com/fleetdm/fleet/v4/server/sso"
 	"github.com/fleetdm/fleet/v4/server/version"
 	"github.com/getsentry/sentry-go"
@@ -823,6 +824,16 @@ the way that the Fleet server works.
 			ctx, cancelFunc := context.WithCancel(baseCtx)
 			defer cancelFunc()
 
+			// Channel used to trigger graceful shutdown on fatal DB errors (e.g. Aurora failover).
+			dbFatalCh := make(chan error, 1)
+			common_mysql.SetFatalErrorHandler(func(err error) {
+				level.Error(logger).Log("msg", "fatal database error detected, initiating graceful shutdown", "err", err)
+				select {
+				case dbFatalCh <- err:
+				default:
+				}
+			})
+
 			var conditionalAccessMicrosoftProxy *conditional_access_microsoft_proxy.Proxy
 			if config.MicrosoftCompliancePartner.IsSet() {
 				var err error
@@ -1123,6 +1134,14 @@ the way that the Fleet server works.
 					return newVulnerabilitiesSchedule(ctx, instanceID, ds, logger, &config.Vulnerabilities)
 				}); err != nil {
 					initFatal(err, "failed to register vulnerabilities schedule")
+				}
+			} else {
+				// Register a remote trigger proxy so triggering still works
+				// when the vulnerability schedule runs on a separate server.
+				if err := cronSchedules.StartCronSchedule(func() (fleet.CronSchedule, error) {
+					return schedule.NewRemoteTriggerSchedule(string(fleet.CronVulnerabilities), ds), nil
+				}); err != nil {
+					initFatal(err, "failed to register remote vulnerability trigger")
 				}
 			}
 
@@ -1718,7 +1737,10 @@ the way that the Fleet server works.
 			go func() {
 				sig := make(chan os.Signal, 1)
 				signal.Notify(sig, syscall.SIGINT, syscall.SIGTERM)
-				<-sig // block on signal
+				select {
+				case <-sig:
+				case <-dbFatalCh:
+				}
 				ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 				defer cancel()
 				errs <- func() error {

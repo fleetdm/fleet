@@ -106,7 +106,7 @@ const OSUpdates = ({ router, teamIdForApi, queryParams }: IOSUpdates) => {
   if (!isGlobalAdmin && !isTeamAdmin) {
     router.replace(
       getPathWithQueryParams(PATHS.CONTROLS_OS_SETTINGS, {
-        team_id: teamIdForApi,
+        fleet_id: teamIdForApi,
       })
     );
   }

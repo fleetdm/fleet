@@ -66,7 +66,7 @@ type SoftwareInstallerURL struct {
 type SoftwareInstaller struct {
 	// TeamID is the ID of the team. A value of nil means it is scoped to hosts that are assigned to
 	// no team.
-	TeamID *uint `json:"team_id" db:"team_id"`
+	TeamID *uint `json:"team_id" renameto:"fleet_id" db:"team_id"`
 	// TitleID is the id of the software title associated with the software installer.
 	TitleID *uint `json:"title_id" db:"title_id"`
 	// Name is the name of the software package.
@@ -138,7 +138,7 @@ type SoftwareInstaller struct {
 type SoftwarePackageResponse struct {
 	// TeamID is the ID of the team.
 	// A value of nil means it is scoped to hosts that are assigned to "No team".
-	TeamID *uint `json:"team_id" db:"team_id"`
+	TeamID *uint `json:"team_id" renameto:"fleet_id" db:"team_id"`
 	// TitleID is the id of the software title associated with the software installer.
 	TitleID *uint `json:"title_id" db:"title_id"`
 	// URL is the source URL for this installer (set when uploading via batch/gitops).
@@ -178,7 +178,7 @@ func (p SoftwarePackageResponse) GetLocalIconPath() string { return p.LocalIconP
 type VPPAppResponse struct {
 	// TeamID is the ID of the team.
 	// A value of nil means it is scoped to hosts that are assigned to "No team".
-	TeamID *uint `json:"team_id" db:"team_id"`
+	TeamID *uint `json:"team_id" renameto:"fleet_id" db:"team_id"`
 	// TitleID is the id of the software title associated with the software installer.
 	TitleID *uint `json:"title_id" db:"title_id"`
 	// AppStoreID is the ADAM ID for this app (set when uploading via batch/gitops).
@@ -483,7 +483,7 @@ func (h *HostSoftwareInstallerResult) EnhanceOutputDetails() {
 }
 
 type HostSoftwareInstallerResultAuthz struct {
-	HostTeamID *uint `json:"host_team_id"`
+	HostTeamID *uint `json:"host_team_id" renameto:"host_fleet_id"`
 }
 
 // AuthzType implements authz.AuthzTyper.
@@ -994,7 +994,7 @@ const (
 // SoftwareInstallerTokenMetadata is the metadata stored in Redis for a software installer token.
 type SoftwareInstallerTokenMetadata struct {
 	TitleID uint `json:"title_id"`
-	TeamID  uint `json:"team_id"`
+	TeamID  uint `json:"team_id" renameto:"fleet_id"`
 }
 
 const SoftwareInstallerURLMaxLength = 4000
