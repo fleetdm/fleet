@@ -4962,6 +4962,28 @@ The host will only return a password if its Recovery Lock password status is "Ve
 }
 ```
 
+### Rotate host's Recovery Lock password
+
+_Available in Fleet Premium_
+
+Rotates the Recovery Lock password for a host.
+
+`POST /api/v1/fleet/hosts/:id/recovery_lock_password/rotate`
+
+#### Parameters
+
+| Name                          | Type    | In    | Description                                                                                        |
+| ----------------------------- | ------  | ----  | --------------------------------------------------------------------------------------             |
+| id                            | integer | path  | The host ID to rotate Recovery Lock password for.                                                  |
+
+#### Example
+
+`POST /api/v1/fleet/hosts/123/recovery_lock_password/rotate`
+
+##### Default response
+
+`204`
+
 ### Get host's certificates
 
 Available for macOS, iOS, iPadOS, and Windows hosts only. Requires Fleet's MDM to be [enabled and configured](https://fleetdm.com/docs/using-fleet/mdm-setup).
