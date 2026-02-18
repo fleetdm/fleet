@@ -13,6 +13,7 @@
 .externalNativeBuild
 .cxx
 local.properties
+gradle.properties.local
 
 # Keystore files - never commit these!
 keystore.properties

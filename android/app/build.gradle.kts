@@ -2,6 +2,28 @@ import org.gradle.testing.jacoco.plugins.JacocoTaskExtension
 import java.io.FileInputStream
 import java.util.Properties
 
+fun Project.fleetProp(key: String): String {
+    // 1) -Pfleet.* (or gradle.properties)
+    val fromProject = findProperty(key)?.toString()
+    if (!fromProject.isNullOrBlank()) return fromProject
+
+    // 2) android/gradle.properties.local (uncommitted)
+    val localFile = rootProject.file("gradle.properties.local")
+    if (localFile.exists()) {
+        val props = Properties().apply { localFile.inputStream().use { load(it) } }
+        val fromLocal = props.getProperty(key)
+        if (!fromLocal.isNullOrBlank()) return fromLocal
+    }
+
+    // 3) Environment variables (optional)
+    val envKey = key.uppercase().replace('.', '_') // fleet.server_url -> FLEET_SERVER_URL
+    val fromEnv = System.getenv(envKey)
+    if (!fromEnv.isNullOrBlank()) return fromEnv
+
+    return ""
+}
+
+
 // ==================== PLUGINS ====================
 
 plugins {
@@ -19,6 +41,10 @@ plugins {
 android {
     namespace = "com.fleetdm.agent"
     compileSdk = 36
+
+    buildFeatures {
+        buildConfig = true
+    }
 
     defaultConfig {
         applicationId = "com.fleetdm.agent"
@@ -148,20 +174,21 @@ android {
 
     buildTypes {
         getByName("debug") {
+            println("fleetProp debug: server_url_present=${fleetProp("fleet.server_url").isNotBlank()}")
             buildConfigField(
                 "String",
                 "DEBUG_FLEET_SERVER_URL",
-                "\"${project.findProperty("fleet.server_url") ?: ""}\""
+                "\"${fleetProp("fleet.server_url")}\""
             )
             buildConfigField(
                 "String",
                 "DEBUG_FLEET_ENROLL_SECRET",
-                "\"${project.findProperty("fleet.enroll_secret") ?: ""}\""
+                "\"${fleetProp("fleet.enroll_secret")}\""
             )
             buildConfigField(
                 "String",
                 "DEBUG_FLEET_HOST_UUID",
-                "\"${project.findProperty("fleet.host_uuid") ?: ""}\""
+                "\"${fleetProp("fleet.host_uuid")}\""
             )
         }
     }
