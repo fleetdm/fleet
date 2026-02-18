@@ -51,6 +51,11 @@ policies:
 queries:
 software:
   packages:
+    # macOS apps
+    - path: ../lib/macos/software/fleet-desktop.yml # Fleet Desktop for macOS
+      self_service: true
+      categories:
+        - Utilities
     # Linux apps
   fleet_maintained_apps:
     # macOS apps
