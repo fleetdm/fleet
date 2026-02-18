@@ -1614,7 +1614,12 @@ func (svc *Service) SaveHostSoftwareInstallResult(ctx context.Context, result *f
 			}
 		}
 
-		// Non-policy install retry (host details, self-service, setup experience)
+		// Non-policy install retry (host details, self-service, setup experience).
+		// Errors here are logged but do not abort the handler. The primary
+		// action, recording the install result from the device, must succeed
+		// regardless of whether a retry can be scheduled. If retry scheduling
+		// fails, the install is marked as failed (no retry) and the admin can
+		// manually re-trigger.
 		if hsi.PolicyID == nil && status == fleet.SoftwareInstallFailed {
 			shouldRetry, retryErr := svc.shouldRetrySoftwareInstall(ctx, hsi)
 			if retryErr != nil {

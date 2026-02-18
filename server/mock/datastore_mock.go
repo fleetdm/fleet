@@ -701,8 +701,6 @@ type IsPolicyFailingFunc func(ctx context.Context, policyID uint, hostID uint) (
 
 type CountHostSoftwareInstallAttemptsFunc func(ctx context.Context, hostID uint, softwareInstallerID uint, policyID uint) (int, error)
 
-type CountHostSoftwareInstallAttemptsWithoutPolicyFunc func(ctx context.Context, hostID uint, softwareInstallerID uint) (int, error)
-
 type ResetNonPolicyInstallAttemptsFunc func(ctx context.Context, hostID uint, softwareInstallerID uint) error
 
 type CountHostScriptAttemptsFunc func(ctx context.Context, hostID uint, scriptID uint, policyID uint) (int, error)
@@ -2792,9 +2790,6 @@ type DataStore struct {
 
 	CountHostSoftwareInstallAttemptsFunc        CountHostSoftwareInstallAttemptsFunc
 	CountHostSoftwareInstallAttemptsFuncInvoked bool
-
-	CountHostSoftwareInstallAttemptsWithoutPolicyFunc        CountHostSoftwareInstallAttemptsWithoutPolicyFunc
-	CountHostSoftwareInstallAttemptsWithoutPolicyFuncInvoked bool
 
 	ResetNonPolicyInstallAttemptsFunc        ResetNonPolicyInstallAttemptsFunc
 	ResetNonPolicyInstallAttemptsFuncInvoked bool
@@ -6778,13 +6773,6 @@ func (s *DataStore) CountHostSoftwareInstallAttempts(ctx context.Context, hostID
 	s.CountHostSoftwareInstallAttemptsFuncInvoked = true
 	s.mu.Unlock()
 	return s.CountHostSoftwareInstallAttemptsFunc(ctx, hostID, softwareInstallerID, policyID)
-}
-
-func (s *DataStore) CountHostSoftwareInstallAttemptsWithoutPolicy(ctx context.Context, hostID uint, softwareInstallerID uint) (int, error) {
-	s.mu.Lock()
-	s.CountHostSoftwareInstallAttemptsWithoutPolicyFuncInvoked = true
-	s.mu.Unlock()
-	return s.CountHostSoftwareInstallAttemptsWithoutPolicyFunc(ctx, hostID, softwareInstallerID)
 }
 
 func (s *DataStore) ResetNonPolicyInstallAttempts(ctx context.Context, hostID uint, softwareInstallerID uint) error {

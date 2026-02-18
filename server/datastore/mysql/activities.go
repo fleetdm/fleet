@@ -1275,6 +1275,11 @@ SELECT
 	COALESCE(si.version, ua.payload->>'$.version', 'unknown'),
 	COALESCE(si.title_id, siua.software_title_id),
 	COALESCE(st.name, ua.payload->>'$.software_title_name', '[deleted title]'),
+	-- Compute the attempt number for this activation. Each retry creates a
+	-- new upcoming_activity (via InsertSoftwareInstallRequest), so when that
+	-- new activity activates, COUNT(*) of previous completed attempts gives
+	-- the number of prior tries. +1 makes this the next attempt in sequence:
+	-- first install = 1, first retry = 2, second retry = 3, etc.
 	CASE
 		WHEN siua.policy_id IS NULL AND COALESCE(ua.payload->'$.with_retries', 0) = 1 THEN (
 			SELECT COUNT(*) + 1

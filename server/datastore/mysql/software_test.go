@@ -109,7 +109,6 @@ func TestSoftware(t *testing.T) {
 		{"ListHostSoftwareInHouseApps", testListHostSoftwareInHouseApps},
 		{"ListHostSoftwareAndroidVPPAppMatching", testListHostSoftwareAndroidVPPAppMatching},
 		{"CountHostSoftwareInstallAttempts", testCountHostSoftwareInstallAttempts},
-		{"CountHostSoftwareInstallAttemptsWithoutPolicy", testCountHostSoftwareInstallAttemptsWithoutPolicy},
 		{"ResetNonPolicyInstallAttempts", testResetNonPolicyInstallAttempts},
 		{"ListSoftwareVersionsSearchByTitleName", testListSoftwareVersionsSearchByTitleName},
 		{"ListSoftwareInventoryDeletedHost", testListSoftwareInventoryDeletedHost},
@@ -11078,98 +11077,6 @@ func testCountHostSoftwareInstallAttempts(t *testing.T, ds *Datastore) {
 	require.Equal(t, 0, count)
 }
 
-func testCountHostSoftwareInstallAttemptsWithoutPolicy(t *testing.T, ds *Datastore) {
-	ctx := context.Background()
-
-	host := test.NewHost(t, ds, "host-nopol-1", "10.0.0.10", "hostNopol1Key", "hostNopol1UUID", time.Now())
-	user := test.NewUser(t, ds, "NopolUser", "nopol@example.com", true)
-
-	// Create a software installer
-	tfr, err := fleet.NewTempFileReader(strings.NewReader("nopol content"), t.TempDir)
-	require.NoError(t, err)
-	installerID, _, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
-		InstallScript:   "echo installing",
-		InstallerFile:   tfr,
-		StorageID:       "storage-nopol-1",
-		Filename:        "nopol-installer.pkg",
-		Title:           "NopolSoftware",
-		Version:         "1.0",
-		Source:          "apps",
-		UserID:          user.ID,
-		ValidatedLabels: &fleet.LabelIdentsWithScope{},
-	})
-	require.NoError(t, err)
-
-	// No attempts yet
-	count, err := ds.CountHostSoftwareInstallAttemptsWithoutPolicy(ctx, host.ID, installerID)
-	require.NoError(t, err)
-	require.Equal(t, 0, count)
-
-	// Insert a non-policy install request
-	install1UUID, err := ds.InsertSoftwareInstallRequest(ctx, host.ID, installerID, fleet.HostSoftwareInstallOptions{})
-	require.NoError(t, err)
-	require.NotEmpty(t, install1UUID)
-
-	// Set result (failed)
-	_, err = ds.SetHostSoftwareInstallResult(ctx, &fleet.HostSoftwareInstallResultPayload{
-		HostID:                host.ID,
-		InstallUUID:           install1UUID,
-		InstallScriptExitCode: ptr.Int(1),
-		InstallScriptOutput:   ptr.String("failed"),
-	}, nil)
-	require.NoError(t, err)
-
-	// Count should be 1
-	count, err = ds.CountHostSoftwareInstallAttemptsWithoutPolicy(ctx, host.ID, installerID)
-	require.NoError(t, err)
-	require.Equal(t, 1, count)
-
-	// Insert a second non-policy install
-	install2UUID, err := ds.InsertSoftwareInstallRequest(ctx, host.ID, installerID, fleet.HostSoftwareInstallOptions{})
-	require.NoError(t, err)
-	_, err = ds.SetHostSoftwareInstallResult(ctx, &fleet.HostSoftwareInstallResultPayload{
-		HostID:                host.ID,
-		InstallUUID:           install2UUID,
-		InstallScriptExitCode: ptr.Int(1),
-		InstallScriptOutput:   ptr.String("failed again"),
-	}, ptr.Int(2))
-	require.NoError(t, err)
-
-	count, err = ds.CountHostSoftwareInstallAttemptsWithoutPolicy(ctx, host.ID, installerID)
-	require.NoError(t, err)
-	require.Equal(t, 2, count)
-
-	// Policy install should NOT be counted
-	policy, err := ds.NewGlobalPolicy(ctx, &user.ID, fleet.PolicyPayload{
-		Name:  "nopol-test-policy",
-		Query: "SELECT 1;",
-	})
-	require.NoError(t, err)
-
-	install3UUID, err := ds.InsertSoftwareInstallRequest(ctx, host.ID, installerID, fleet.HostSoftwareInstallOptions{
-		PolicyID: &policy.ID,
-	})
-	require.NoError(t, err)
-	_, err = ds.SetHostSoftwareInstallResult(ctx, &fleet.HostSoftwareInstallResultPayload{
-		HostID:                host.ID,
-		InstallUUID:           install3UUID,
-		InstallScriptExitCode: ptr.Int(1),
-		InstallScriptOutput:   ptr.String("policy install failed"),
-	}, ptr.Int(1))
-	require.NoError(t, err)
-
-	// Count should still be 2 (policy install not counted)
-	count, err = ds.CountHostSoftwareInstallAttemptsWithoutPolicy(ctx, host.ID, installerID)
-	require.NoError(t, err)
-	require.Equal(t, 2, count)
-
-	// Different host should have 0
-	host2 := test.NewHost(t, ds, "host-nopol-2", "10.0.0.11", "hostNopol2Key", "hostNopol2UUID", time.Now())
-	count, err = ds.CountHostSoftwareInstallAttemptsWithoutPolicy(ctx, host2.ID, installerID)
-	require.NoError(t, err)
-	require.Equal(t, 0, count)
-}
-
 func testResetNonPolicyInstallAttempts(t *testing.T, ds *Datastore) {
 	ctx := context.Background()
 
@@ -11232,10 +11139,21 @@ func testResetNonPolicyInstallAttempts(t *testing.T, ds *Datastore) {
 	}, ptr.Int(1))
 	require.NoError(t, err)
 
+	// Helper to count non-policy install attempts (where attempt_number > 0 or IS NULL)
+	countNonPolicyAttempts := func() int {
+		var count int
+		err := sqlx.GetContext(ctx, ds.reader(ctx), &count, `
+			SELECT COUNT(*) FROM host_software_installs
+			WHERE host_id = ? AND software_installer_id = ? AND policy_id IS NULL
+			  AND removed = 0 AND canceled = 0 AND host_deleted_at IS NULL
+			  AND (attempt_number > 0 OR attempt_number IS NULL)
+		`, host.ID, installerID)
+		require.NoError(t, err)
+		return count
+	}
+
 	// Verify non-policy count before reset
-	count, err := ds.CountHostSoftwareInstallAttemptsWithoutPolicy(ctx, host.ID, installerID)
-	require.NoError(t, err)
-	require.Equal(t, 2, count)
+	require.Equal(t, 2, countNonPolicyAttempts())
 
 	// Verify policy count before reset
 	policyCount, err := ds.CountHostSoftwareInstallAttempts(ctx, host.ID, installerID, policy.ID)
@@ -11246,10 +11164,8 @@ func testResetNonPolicyInstallAttempts(t *testing.T, ds *Datastore) {
 	err = ds.ResetNonPolicyInstallAttempts(ctx, host.ID, installerID)
 	require.NoError(t, err)
 
-	// Non-policy count should be 0 (all reset)
-	count, err = ds.CountHostSoftwareInstallAttemptsWithoutPolicy(ctx, host.ID, installerID)
-	require.NoError(t, err)
-	require.Equal(t, 0, count)
+	// Non-policy count should be 0 (all reset to attempt_number=0)
+	require.Equal(t, 0, countNonPolicyAttempts())
 
 	// Policy count should be unchanged
 	policyCount, err = ds.CountHostSoftwareInstallAttempts(ctx, host.ID, installerID, policy.ID)

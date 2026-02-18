@@ -756,51 +756,68 @@ func (ds *Datastore) resetInstallerPolicyAutomationAttempts(ctx context.Context,
 // installs. This is called before user-initiated installs to ensure a fresh
 // retry sequence and to allow the new install to proceed without being
 // blocked by a pending retry.
+//
+// After deleting upcoming activities, activateNextUpcomingActivity is called
+// to prevent the queue from getting stuck.
 func (ds *Datastore) ResetNonPolicyInstallAttempts(ctx context.Context, hostID, softwareInstallerID uint) error {
-	// Reset attempt_number for old installs
-	_, err := ds.writer(ctx).ExecContext(ctx, `
-		UPDATE host_software_installs
-		SET attempt_number = 0
-		WHERE host_id = ?
-		  AND software_installer_id = ?
-		  AND policy_id IS NULL
-		  AND (attempt_number > 0 OR attempt_number IS NULL)
-	`, hostID, softwareInstallerID)
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "reset non-policy install attempts")
-	}
+	return ds.withTx(ctx, func(tx sqlx.ExtContext) error {
+		// Reset attempt_number for old installs. Setting attempt_number to 0
+		// marks these records as superseded by a new install request. The
+		// filters (attempt_number > 0 OR attempt_number IS NULL) throughout
+		// the codebase skip these records when counting attempts.
+		_, err := tx.ExecContext(ctx, `
+			UPDATE host_software_installs
+			SET attempt_number = 0
+			WHERE host_id = ?
+			  AND software_installer_id = ?
+			  AND policy_id IS NULL
+			  AND (attempt_number > 0 OR attempt_number IS NULL)
+		`, hostID, softwareInstallerID)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "reset non-policy install attempts")
+		}
 
-	// Cancel any pending retry installs in the upcoming_activities queue.
-	// The CASCADE FK on software_install_upcoming_activities handles cleanup.
-	_, err = ds.writer(ctx).ExecContext(ctx, `
-		DELETE ua FROM upcoming_activities ua
-		INNER JOIN software_install_upcoming_activities siua
-			ON ua.id = siua.upcoming_activity_id
-		WHERE ua.host_id = ?
-		  AND siua.software_installer_id = ?
-		  AND siua.policy_id IS NULL
-		  AND ua.activity_type = 'software_install'
-	`, hostID, softwareInstallerID)
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "cancel pending non-policy install retries")
-	}
+		// Cancel any activated pending retry installs in the upcoming_activities
+		// queue. Only delete activities that have been activated (activated_at IS
+		// NOT NULL); non-activated upcoming activities should be left unchanged.
+		// The CASCADE FK on software_install_upcoming_activities handles cleanup.
+		_, err = tx.ExecContext(ctx, `
+			DELETE ua FROM upcoming_activities ua
+			INNER JOIN software_install_upcoming_activities siua
+				ON ua.id = siua.upcoming_activity_id
+			WHERE ua.host_id = ?
+			  AND siua.software_installer_id = ?
+			  AND siua.policy_id IS NULL
+			  AND ua.activity_type = 'software_install'
+			  AND ua.activated_at IS NOT NULL
+		`, hostID, softwareInstallerID)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "cancel pending non-policy install retries")
+		}
 
-	// Cancel any activated but pending installs in host_software_installs.
-	// Setting canceled = 1 updates the generated status column to
-	// 'canceled_install' automatically.
-	_, err = ds.writer(ctx).ExecContext(ctx, `
-		UPDATE host_software_installs
-		SET canceled = 1
-		WHERE host_id = ?
-		  AND software_installer_id = ?
-		  AND policy_id IS NULL
-		  AND status = 'pending_install'
-	`, hostID, softwareInstallerID)
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "cancel activated pending non-policy installs")
-	}
+		// Cancel any activated but pending installs in host_software_installs.
+		// Setting canceled = 1 updates the generated status column to
+		// 'canceled_install' automatically.
+		_, err = tx.ExecContext(ctx, `
+			UPDATE host_software_installs
+			SET canceled = 1
+			WHERE host_id = ?
+			  AND software_installer_id = ?
+			  AND policy_id IS NULL
+			  AND status = 'pending_install'
+		`, hostID, softwareInstallerID)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "cancel activated pending non-policy installs")
+		}
 
-	return nil
+		// Activate the next upcoming activity for this host to prevent the
+		// queue from getting stuck after deleting activities above.
+		if _, err := ds.activateNextUpcomingActivity(ctx, tx, hostID, ""); err != nil {
+			return ctxerr.Wrap(ctx, err, "activate next upcoming activity after reset")
+		}
+
+		return nil
+	})
 }
 
 func (ds *Datastore) ValidateOrbitSoftwareInstallerAccess(ctx context.Context, hostID uint, installerID uint) (bool, error) {
