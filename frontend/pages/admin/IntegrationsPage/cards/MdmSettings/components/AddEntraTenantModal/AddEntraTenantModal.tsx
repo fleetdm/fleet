@@ -47,14 +47,25 @@ const AddEntraTenantModal = ({ onExit }: IAddEntraTenantModalProps) => {
   };
 
   const onAddTenant = async () => {
-    const validation = validateFormData({ tenantId: formData.tenantId });
-    if (validation.isValid) {
+    const { tenantId } = formData;
+
+    const validation = validateFormData({ tenantId });
+
+    // do an additional validation to check if the tenant id already exists in the config
+    const tenantIdExists =
+      config?.mdm.windows_entra_tenant_ids?.includes(tenantId ?? "") ?? false;
+    if (tenantIdExists) {
+      renderFlash("error", "Couldn't add tenant. Tenant ID already exists.");
+      return;
+    }
+
+    if (validation.isValid && !tenantIdExists) {
       setIsAdding(true);
       const currentTenantIds = config?.mdm.windows_entra_tenant_ids ?? [];
       try {
         const updateData = await configAPI.update({
           mdm: {
-            windows_entra_tenant_ids: [...currentTenantIds, formData.tenantId],
+            windows_entra_tenant_ids: [...currentTenantIds, tenantId],
           },
         });
         setConfig(updateData);
