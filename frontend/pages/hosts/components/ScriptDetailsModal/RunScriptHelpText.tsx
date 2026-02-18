@@ -18,7 +18,7 @@ const RunScriptHelpText = ({
   teamId,
 }: IRunScriptHelpTextProps) => {
   const hostsUrl = getPathWithQueryParams(paths.MANAGE_HOSTS, {
-    team_id: teamId,
+    fleet_id: teamId,
   });
 
   if (isTechnician) {
@@ -43,7 +43,7 @@ const RunScriptHelpText = ({
           <CustomLink
             text="Policies"
             url={getPathWithQueryParams(paths.MANAGE_POLICIES, {
-              team_id: teamId,
+              fleet_id: teamId,
             })}
           />{" "}
           page.

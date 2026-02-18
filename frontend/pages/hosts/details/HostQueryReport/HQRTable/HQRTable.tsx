@@ -21,7 +21,7 @@ import { ISchedulableQueryStats } from "interfaces/schedulable_query";
 import generateColumnConfigs from "./HQRTableConfig";
 
 const baseClass = "hqr-table";
-const DEFAULT_CSV_TITLE = "Host-Specific Query Report";
+const DEFAULT_CSV_TITLE = "Host-Specific Report";
 
 type PerformanceImpactProps = {
   queryStats?: ISchedulableQueryStats;
@@ -135,7 +135,7 @@ const HQRTable = ({
           className={`${baseClass}__report-clipped`}
           graphicName="empty-software"
           header="Report clipped"
-          info="This query has paused reporting in Fleet, and no results were saved for this host."
+          info="This report has paused reporting in Fleet, and no results were saved for this host."
         />
       );
     }
@@ -146,7 +146,7 @@ const HQRTable = ({
           className={`${baseClass}__collecting-results`}
           graphicName="collecting-results"
           header="Collecting results..."
-          info={`Fleet is collecting query results from ${hostName}. Check back later.`}
+          info={`Fleet is collecting report results from ${hostName}. Check back later.`}
         />
       );
     }
@@ -156,7 +156,7 @@ const HQRTable = ({
         className={`${baseClass}__nothing-to-report`}
         graphicName="empty-software"
         header="Nothing to report"
-        info={`This query has run on ${hostName}, but returned no data for this host.`}
+        info={`This report has run on ${hostName}, but returned no data for this host.`}
       />
     );
   }, [lastFetched, hostName, reportClipped]);
