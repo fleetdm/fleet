@@ -7,7 +7,6 @@ import android.content.RestrictionsManager
 import android.content.pm.PackageInfo
 import android.content.pm.PackageManager
 import android.widget.Toast
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
@@ -30,17 +29,14 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
-import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.fleetdm.agent.ui.theme.MyApplicationTheme
 import kotlinx.coroutines.Dispatchers
@@ -52,7 +48,15 @@ import kotlinx.serialization.json.Json
 
 private val jsonPretty = Json { prettyPrint = true }
 
-data class LastError(val timestamp: String, val tag: String, val message: String)
+@Serializable
+data class LastError(
+    @SerialName("timestamp")
+    val timestamp: String,
+    @SerialName("tag")
+    val tag: String,
+    @SerialName("message")
+    val message: String
+)
 
 fun readLastError(): LastError? {
     val text = FleetLog.readErrors()
@@ -132,6 +136,7 @@ fun DebugScreen(onNavigateBack: () -> Unit, onNavigateToLogs: () -> Unit) {
                             serverUrl = baseUrl,
                             certificateStatus = installedCerts,
                             permissionList = permissionsList,
+                            lastError = lastError,
                         )
                         val infoJson = jsonPretty.encodeToString(info)
                         clipboard.setPrimaryClip(ClipData.newPlainText("fleet debug information", infoJson))
@@ -169,12 +174,14 @@ fun DebugScreen(onNavigateBack: () -> Unit, onNavigateToLogs: () -> Unit) {
 fun LastErrorSection(modifier: Modifier = Modifier, lastError: LastError?) {
     Column(modifier = modifier) {
         Text("Last error:", fontWeight = FontWeight.Bold)
-        if (lastError == null) {
-            Text("None")
-        } else {
-            Text(lastError.timestamp)
-            Text(lastError.tag, fontWeight = FontWeight.Bold)
-            Text(lastError.message)
+        Column(modifier = Modifier.padding(start = 20.dp)) {
+            if (lastError == null) {
+                Text("None")
+            } else {
+                Text("time: " + lastError.timestamp)
+                Text("tag: " + lastError.tag)
+                Text("message: " + lastError.message)
+            }
         }
     }
 }
@@ -261,5 +268,7 @@ data class DebugInformation (
     @SerialName("certificate_status")
     val certificateStatus: CertificateStateMap,
     @SerialName("permission_list")
-    val permissionList: List<String>
+    val permissionList: List<String>,
+    @SerialName("last_error")
+    val lastError: LastError?
 )
