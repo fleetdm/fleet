@@ -37,6 +37,10 @@ func (e lockConflictError) IsConflict() bool {
 	return true
 }
 
+func (e lockConflictError) IsClientError() bool {
+	return true
+}
+
 // isConflict checks if an error implements the IsConflict() interface
 func isConflict(err error) bool {
 	type conflictInterface interface {
