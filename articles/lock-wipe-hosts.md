@@ -66,6 +66,10 @@ Example URL:
 
 > **Linux hosts**: The system will automatically reboot after approximately 10 seconds to complete the unlock process and ensure the user interface is properly restored. If the host loses connection to Fleet, the unlock process may run again, causing the host to reboot again.
 
+### How to unlock offline iOS and iPadOS hosts
+
+If an iPhone/iPad is turned off or restarted while locked, it will disconnect from Wi-Fi and can't be unlocked remotely. Connect your iPhone/iPad to your Mac with a USB and [share the network](https://support.apple.com/en-gb/guide/mac-help/mchlp1540/mac). After connecting your iPhone/iPad to the internet, in Fleet, head to the **Host details** page and select **Actions > Unlock**.
+
 ## Lock and wipe using `fleetctl`
 
 You can lock, unlock, and wipe hosts using Fleet's command-line tool `fleetctl`:
