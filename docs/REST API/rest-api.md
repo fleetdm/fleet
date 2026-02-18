@@ -4933,7 +4933,7 @@ _Available in Fleet Premium_
 
 Rotates the Recovery Lock password for a host.
 
-`POST /api/v1/fleet/hosts/:id/rotate_recovery_lock_password`
+`POST /api/v1/fleet/hosts/:id/recovery_lock_password/rotate`
 
 #### Parameters
 
