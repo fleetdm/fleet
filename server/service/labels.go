@@ -58,6 +58,10 @@ func (svc *Service) NewLabel(ctx context.Context, p fleet.LabelPayload) (*fleet.
 		return nil, nil, fleet.ErrNoContext
 	}
 
+	if _, ok := fleet.ValidLabelPlatformVariants[p.Platform]; !ok {
+		return nil, nil, fleet.NewInvalidArgumentError("platform", fmt.Sprintf("invalid platform: %s", p.Platform))
+	}
+
 	if len(p.Hosts) > 0 && len(p.HostIDs) > 0 {
 		return nil, nil, fleet.NewInvalidArgumentError("hosts", `Only one of either "hosts" or "host_ids" can be included in the request.`)
 	}
@@ -668,6 +672,12 @@ func (svc *Service) ApplyLabelSpecs(ctx context.Context, specs []*fleet.LabelSpe
 	var specLabelNamesNeedingMoving []string // should match namesToMove once specs have been checked
 
 	for _, spec := range specs {
+		if _, ok := fleet.ValidLabelPlatformVariants[spec.Platform]; !ok {
+			return fleet.NewUserMessageError(
+				ctxerr.Errorf(ctx, "invalid platform: %s", spec.Platform), http.StatusUnprocessableEntity,
+			)
+		}
+
 		if spec.LabelMembershipType == fleet.LabelMembershipTypeDynamic && len(spec.Hosts) > 0 {
 			return fleet.NewUserMessageError(
 				ctxerr.Errorf(ctx, "label %s is declared as dynamic but contains `hosts` key", spec.Name), http.StatusUnprocessableEntity,

@@ -104,6 +104,7 @@ func TestMysqlPackageDependencies(t *testing.T) {
 			m+"/server/platform/mysql...",
 			// Other infra packages
 			m+"/server/platform/http",
+			m+"/server/platform/logging",
 			m+"/server/contexts/ctxerr",
 		).
 		Check()

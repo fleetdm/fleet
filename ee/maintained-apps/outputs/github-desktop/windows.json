@@ -1,14 +1,14 @@
 {
   "versions": [
     {
-      "version": "3.5.4",
+      "version": "3.5.5",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name = 'GitHub Desktop' AND publisher = 'GitHub, Inc.';"
       },
-      "installer_url": "https://desktop.githubusercontent.com/releases/3.5.4-9dfb8d8d/GitHubDesktopSetup-x64.msi",
+      "installer_url": "https://desktop.githubusercontent.com/releases/3.5.5-95c667e3/GitHubDesktopSetup-x64.msi",
       "install_script_ref": "8959087b",
       "uninstall_script_ref": "b336b955",
-      "sha256": "ecf65cb2074b5b4be2f1c7e087de7551d38d57fdefc68a6c0697e708d6cf8eab",
+      "sha256": "d8fa3446113230637927dc70e8e0f4f6cd54332177586670f92d8aa1b148da13",
       "default_categories": [
         "Developer tools"
       ],

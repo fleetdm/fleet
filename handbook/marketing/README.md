@@ -34,6 +34,8 @@ This list is in chronological order as assets are created.
 
 | Asset | Use For | Date created | Last updated |
 | :--- | :--- | :--- | :--- |
+| [OpenClaw: Open for work?](https://fleetdm.com/articles/openclaw-open-for-work)| OpenClaw, 1 of 2: awareness & threat landscape overview | 2026-02-04 | - |
+| [Threat hunting AI agents like OpenClaw with automated tooling](https://fleetdm.com/articles/threat-hunting-ai-agents-like-openclaw-with-automated-tooling)| OpenClaw, 2 of 2: threat hunting and mitigation  | 2026-02-18 | - |
 | [The GitOps idea](https://fleetdm.com/articles/the-gitops-idea) | Blog explaining what is GitOps | 2026-02-04 | 2026-02-04 |
 | [Fleet vs. Jamf comparison](https://fleetdm.com/compare/jamf) | Part of a series on competitor analysis | 2026-01-27 | 2026-01-28 |
 | [Redefining endpoint management at scale: Fleet’s momentum in the 2026 Gartner reports](https://fleetdm.com/announcements/redefining-endpoint-management-at-scale) | Fleet Gartner Magic Quadrant recognition | 2026-01-23 | 2026-01-23 |

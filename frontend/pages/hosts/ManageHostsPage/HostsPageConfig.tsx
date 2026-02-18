@@ -2,7 +2,7 @@ import { HOSTS_QUERY_PARAMS } from "services/entities/hosts";
 
 export const MANAGE_HOSTS_PAGE_FILTER_KEYS = [
   "query",
-  "team_id",
+  "fleet_id",
   "policy_id",
   "policy_response",
   "macos_settings",
@@ -69,13 +69,13 @@ export const hostSelectStatuses = [
     disabled: false,
     label: "Online hosts",
     value: "online",
-    helpText: "Hosts that will respond to a live query.",
+    helpText: "Hosts that will respond to a live report.",
   },
   {
     disabled: false,
     label: "Offline hosts",
     value: "offline",
-    helpText: "Hosts that won’t respond to a live query.",
+    helpText: "Hosts that won't respond to a live report.",
   },
   {
     disabled: false,

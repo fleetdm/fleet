@@ -4681,6 +4681,19 @@ func (s *integrationTestSuite) TestLabels() {
 			s.DoJSON("POST", "/api/latest/fleet/labels", &fleet.LabelPayload{Name: n, Query: "select 1"}, http.StatusUnprocessableEntity, &createResp)
 		}
 
+		// try to create a label with an invalid platform
+		s.DoJSON(
+			"POST",
+			"/api/latest/fleet/labels",
+			&fleet.LabelPayload{
+				Name:     "amazing label",
+				Query:    "select 1",
+				Platform: "linux",
+			},
+			http.StatusUnprocessableEntity,
+			&createResp,
+		)
+
 		// create a valid dynamic label
 		s.DoJSON("POST", "/api/latest/fleet/labels", &fleet.LabelPayload{Name: t.Name(), Query: "select 1"}, http.StatusOK, &createResp)
 		assert.NotZero(t, createResp.Label.ID)
@@ -5400,6 +5413,24 @@ func (s *integrationTestSuite) TestLabelSpecs() {
 	}, http.StatusUnprocessableEntity, &applyResp,
 	)
 
+	// apply an invalid label spec - invalid platform
+	s.DoJSON(
+		"POST",
+		"/api/latest/fleet/spec/labels",
+		applyLabelSpecsRequest{
+			Specs: []*fleet.LabelSpec{
+				{
+					Name:                name,
+					Query:               "select 1",
+					Platform:            "linux",
+					LabelMembershipType: fleet.LabelMembershipTypeDynamic,
+				},
+			},
+		},
+		http.StatusUnprocessableEntity,
+		&applyResp,
+	)
+
 	// apply an invalid label spec - manual membership without a host specified
 	s.DoJSON("POST", "/api/latest/fleet/spec/labels", applyLabelSpecsRequest{
 		Specs: []*fleet.LabelSpec{
@@ -5446,7 +5477,7 @@ func (s *integrationTestSuite) TestLabelSpecs() {
 			{
 				Name:                name,
 				Query:               "select 1",
-				Platform:            "linux",
+				Platform:            "centos",
 				LabelMembershipType: fleet.LabelMembershipTypeDynamic,
 			},
 		},

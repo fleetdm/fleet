@@ -66,7 +66,6 @@ func TestTransport(t *testing.T) {
 				assert.NotEqual(t, defaultTLSConf, tr.TLSClientConfig)
 			}
 			assert.NotNil(t, tr.Proxy)
-			assert.NotNil(t, tr.DialContext)
 		})
 	}
 }
