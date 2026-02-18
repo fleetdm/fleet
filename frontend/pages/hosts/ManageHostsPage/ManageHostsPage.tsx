@@ -1907,7 +1907,6 @@ const ManageHostsPage = ({
         (canEnrollGlobalHosts && noGlobalEnrollSecrets)) && (
         <InfoBanner
           className={`${baseClass}__no-enroll-secret-banner`}
-          pageLevel
           color="yellow"
         >
           <div>
