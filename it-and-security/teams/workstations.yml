@@ -144,6 +144,7 @@ policies:
   - path: ../lib/macos/policies/entra-conditional-access-check.yml
   - path: ../lib/macos/policies/install-nudge.yml
   # Windows policies
+  - path: ../lib/windows/policies/update-firefox.yml
   - path: ../lib/windows/policies/antivirus-signatures-up-to-date.yml
   - path: ../lib/windows/policies/all-windows-updates-installed.yml
   - path: ../lib/windows/policies/disk-encryption-check.yml
@@ -263,6 +264,10 @@ software:
     - path: ../lib/windows/software/1password.yml # 1Password for Windows
       self_service: true
       setup_experience: true
+    - path: ../lib/windows/software/mozilla-firefox.yml # Mozilla Firefox for Windows
+      self_service: true
+      categories:
+        - Browsers
   app_store_apps:
     - app_store_id: "361285480" # Keynote
       display_name: "Keynote"
