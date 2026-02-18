@@ -401,6 +401,17 @@ const ManagePolicyPage = ({
     setAutomationsConfig(queryAutomationsConfig);
   }, [queryAutomationsConfig]);
 
+  const updateGlobalConfig = (updatedConfig: IConfig) => {
+    queryClient.setQueryData(["config"], updatedConfig);
+    setConfig(updatedConfig);
+    setAutomationsConfig(updatedConfig);
+  };
+
+  const updateTeamConfig = (updatedTeamResponse: ILoadTeamResponse) => {
+    queryClient.setQueryData(["teams", teamIdForApi], updatedTeamResponse);
+    setAutomationsConfig(updatedTeamResponse.team);
+  };
+
   const refetchPolicies = (teamId?: number) => {
     if (teamId !== undefined) {
       refetchTeamPolicies();
@@ -526,19 +537,14 @@ const ManagePolicyPage = ({
     try {
       if (isAllTeamsSelected) {
         const updatedConfig = await configAPI.update(requestBody);
-        // Update cache and local state directly with the PATCH response to
-        // avoid stale reads from MySQL replicas
-        queryClient.setQueryData(["config"], updatedConfig);
-        setConfig(updatedConfig);
-        setAutomationsConfig(updatedConfig);
+        updateGlobalConfig(updatedConfig);
       } else {
         // For any team including "No team" (team ID 0), use the teams API
         const updatedTeamResponse = await teamsAPI.update(
           requestBody,
           teamIdForApi
         );
-        queryClient.setQueryData(["teams", teamIdForApi], updatedTeamResponse);
-        setAutomationsConfig(updatedTeamResponse.team);
+        updateTeamConfig(updatedTeamResponse);
       }
       renderFlash("success", DEFAULT_AUTOMATION_UPDATE_SUCCESS_MSG);
     } catch {
@@ -733,12 +739,9 @@ const ManagePolicyPage = ({
 
       await Promise.all([teamConfigPromise, ...policyPromises].filter(Boolean));
 
-      // Update cache and local state directly with the PATCH response to
-      // avoid stale reads from MySQL replicas
       if (teamConfigPromise) {
-        const updatedTeamResponse = await teamConfigPromise; // already resolved
-        queryClient.setQueryData(["teams", teamIdForApi], updatedTeamResponse);
-        setAutomationsConfig(updatedTeamResponse.team);
+        const updatedTeamResponse = await teamConfigPromise;
+        updateTeamConfig(updatedTeamResponse);
       }
 
       await wait(100); // Wait 100ms to avoid race conditions with refetch
@@ -809,18 +812,13 @@ const ManagePolicyPage = ({
         )
       );
 
-      // Update cache and local state directly with the PATCH response to
-      // avoid stale reads from MySQL replicas
       if (globalConfigPromise) {
-        const updatedConfig = await globalConfigPromise; // already resolved
-        queryClient.setQueryData(["config"], updatedConfig);
-        setConfig(updatedConfig);
-        setAutomationsConfig(updatedConfig);
+        const updatedConfig = await globalConfigPromise;
+        updateGlobalConfig(updatedConfig);
       }
       if (teamConfigPromise) {
-        const updatedTeamResponse = await teamConfigPromise; // already resolved
-        queryClient.setQueryData(["teams", teamIdForApi], updatedTeamResponse);
-        setAutomationsConfig(updatedTeamResponse.team);
+        const updatedTeamResponse = await teamConfigPromise;
+        updateTeamConfig(updatedTeamResponse);
       }
       renderFlash(
         "success",
