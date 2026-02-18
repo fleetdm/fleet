@@ -49,6 +49,13 @@ To run a demo for a prospect, follow the relevant steps in ["Why Fleet?"](https:
 To get the CEO's attention and introduce him to an account, @-mention his Executive Assistant (`@SFriendLee`) in the [#help-ea Slack channel](https://fleetdm.slack.com/archives/C08HKQ84UCD) with the LinkedIn URL(s) of the people you would like the CEO to connect with. The EA will send all connect requests within the same business day. 
 
 
+### Request executive involvement in an opportunity
+
+When executive involvement (e.g. from the CEO, CRO, or another Fleet executive) would meaningfully increase the probability of closing a deal, the AE submits a request in the [#help-sales](https://fleetdm.slack.com/archives/C030A767HQV) Slack channel at least 48 hours before the requested call. The request must include:
+- A brief opportunity overview: company name, incumbent solution, objective, what the AE needs the executive to say, and what the executive should **not** say.
+- Confirmed attendees on both sides.
+
+
 ### Track an objection
 
 To track an objection you heard from a prospect, follow the relevant steps in ["Why Fleet?"](https://docs.google.com/document/d/1E0VU4AcB6UTVRd4JKD45Saxh9Gz-mkO3LnGSTBDLEZo/edit#heading=h.vfxwnwufxzzi)
