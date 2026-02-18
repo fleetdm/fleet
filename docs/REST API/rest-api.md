@@ -4943,7 +4943,7 @@ Rotates the Recovery Lock password for a host.
 
 #### Example
 
-`POST /api/v1/fleet/hosts/:id/rotate_recovery_lock_password`
+`POST /api/v1/fleet/hosts/123/recovery_lock_password/rotate`
 
 ##### Default response
 
