@@ -170,16 +170,12 @@ func CheckCustomVulnerabilities(ctx context.Context, ds fleet.Datastore, logger 
 		vulns = append(vulns, v...)
 	}
 
-	var newVulns []fleet.SoftwareVulnerability
-	for _, v := range vulns {
-		ok, err := ds.InsertSoftwareVulnerability(ctx, v, fleet.CustomSource)
-		if err != nil {
-			level.Error(logger).Log("msg", "Error inserting software vulnerability", "err", err)
-			continue
-		}
-		if ok {
-			newVulns = append(newVulns, v)
-		}
+	newVulns, err := ds.InsertSoftwareVulnerabilities(ctx, vulns, fleet.CustomSource)
+	if err != nil {
+		// Return early so DeleteOutOfDateVulnerabilities doesn't run.
+		// Otherwise, without the insert refreshing updated_at, all existing vulns would look stale and be deleted.
+		level.Error(logger).Log("msg", "Error inserting software vulnerabilities", "err", err)
+		return nil, err
 	}
 
 	if err := ds.DeleteOutOfDateVulnerabilities(ctx, fleet.CustomSource, startTime); err != nil {
