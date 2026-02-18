@@ -1,8 +1,8 @@
-# Threat hunting AI agents like OpenClaw with automated tooling
+# Detecting AI agents like OpenClaw with automated tooling
 
-AI-powered coding assistants, autonomous security agents, and extension-based development tools are transforming how engineering teams operate. But this innovation introduces a new category of shadow IT with significant security and compliance implications.
+AI-powered coding assistants, autonomous security agents, and extension-based development tools are transforming how engineering teams operate. The innovations are real, but they introduce a new category of shadow IT with significant security and compliance implications.
 
-For CTOs, CIOs, and CISOs, understanding and controlling this risk is now a board-level priority.
+For CTOs, CIOs, and CISOs, understanding and controlling this risk must become a priority.
 
 ## The challenge: multi-vector AI tool usage
 
@@ -133,8 +133,11 @@ Organizations that implement detection frameworks now will be better positioned 
 - Protect intellectual property and sensitive information
 - Make informed decisions about AI tool adoption and governance
 
-The time to establish control is before shadow AI tools become entrenched. With a comprehensive detection framework in place, leadership can enable innovation while maintaining visibility and control. For more on this topic for leaders, check out [Threat Hunting AI Agents and Autonomous Tooling: What Your Board Needs to Know](https://www.linkedin.com/pulse/threat-hunting-ai-agents-autonomous-tooling-what-your-dhruv-majumdar-ia49c/?trackingId=jc1qB6wobL0xVUGoy5al%2Fg%3D%3D) from our very own VP of Security Solutions, [Dhruv Majumdar](https://www.linkedin.com/in/neondhruv/).
+The time to establish control is now, before AI tools become entrenched. With a comprehensive detection framework in place, leadership can enable innovation while maintaining visibility and control. 
 
+For more on this topic, check out [Threat Hunting AI Agents and Autonomous Tooling: What Your Board Needs to Know](https://www.linkedin.com/pulse/threat-hunting-ai-agents-autonomous-tooling-what-your-dhruv-majumdar-ia49c/?trackingId=jc1qB6wobL0xVUGoy5al%2Fg%3D%3D) from our very own VP of Security Solutions, [Dhruv Majumdar](https://www.linkedin.com/in/neondhruv/).
+
+In our next article, part 3 of this series, Fleet's [Adam Baali](https://www.linkedin.com/in/adambaali/) will go beyond the overview given here and provide actual mitigations security teams can use today. 
 
 <meta name="articleTitle" value="Threat hunting AI agents like OpenClaw with automated tooling">
 <meta name="authorFullName" value="Brock Walters">
