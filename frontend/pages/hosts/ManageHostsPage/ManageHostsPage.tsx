@@ -225,9 +225,6 @@ const ManageHostsPage = ({
     queryParams && queryParams.page ? parseInt(queryParams?.page, 10) : 0)();
 
   // ========= states
-  const [showNoEnrollSecretBanner, setShowNoEnrollSecretBanner] = useState(
-    true
-  );
   const [showDeleteSecretModal, setShowDeleteSecretModal] = useState(false);
   const [showSecretEditorModal, setShowSecretEditorModal] = useState(false);
   const [showEnrollSecretModal, setShowEnrollSecretModal] = useState(false);
@@ -711,11 +708,6 @@ const ManageHostsPage = ({
       setIsAllMatchingHostsSelected(!isAllMatchingHostsSelected);
     }
   };
-
-  // TODO: cleanup this effect
-  useEffect(() => {
-    setShowNoEnrollSecretBanner(true);
-  }, [teamIdForApi]);
 
   // TODO: cleanup this effect
   useEffect(() => {
@@ -1912,13 +1904,11 @@ const ManageHostsPage = ({
 
     return (
       ((canEnrollHosts && noTeamEnrollSecrets) ||
-        (canEnrollGlobalHosts && noGlobalEnrollSecrets)) &&
-      showNoEnrollSecretBanner && (
+        (canEnrollGlobalHosts && noGlobalEnrollSecrets)) && (
         <InfoBanner
           className={`${baseClass}__no-enroll-secret-banner`}
           pageLevel
-          closable
-          color="grey"
+          color="yellow"
         >
           <div>
             <span>
