@@ -135,7 +135,7 @@ var aliasRules = map[string]string{
 	"query_ids":              "report_ids",
 	"query_name":             "report_name",
 	"query_report_cap":       "report_cap",
-	"query_reports_disabled": "reports_disabled",
+	"query_reports_disabled": "discard_reports_data",
 	"query_stats":            "report_stats",
 	// Deliberately not aliasing "query" as it is used exclusively to refer to SQL in GitOps.
 	// "query":                          "report",

@@ -826,11 +826,11 @@ func TestGetConfig(t *testing.T) {
 		require.True(t, ok)
 		serverSettings, ok := spec["server_settings"].(map[string]any)
 		require.True(t, ok)
-		require.Contains(t, serverSettings, "live_report_disabled", "should contain canonical key 'live_report_disabled'")
+		require.Contains(t, serverSettings, "live_reporting_disabled", "should contain canonical key 'live_reporting_disabled'")
 		require.NotContains(t, serverSettings, "live_query_disabled", "should not contain deprecated key 'live_query_disabled' with --remove-deprecated-keys")
 		require.Contains(t, serverSettings, "report_cap", "should contain canonical key 'report_cap'")
 		require.NotContains(t, serverSettings, "query_report_cap", "should not contain deprecated key 'query_report_cap' with --remove-deprecated-keys")
-		require.Contains(t, serverSettings, "reports_disabled", "should contain canonical key 'reports_disabled'")
+		require.Contains(t, serverSettings, "discard_reports_data", "should contain canonical key 'discard_reports_data'")
 		require.NotContains(t, serverSettings, "query_reports_disabled", "should not contain deprecated key 'query_reports_disabled' with --remove-deprecated-keys")
 	})
 }
