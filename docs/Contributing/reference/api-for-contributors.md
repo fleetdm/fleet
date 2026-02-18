@@ -3149,7 +3149,6 @@ currently pending.
 
 Device-authenticated routes are routes used by the Fleet Desktop application. Unlike most other routes, Fleet user's API token does not authenticate them. They use a device-specific token.
 
-- [Refetch device's host](#refetch-devices-host)
 - [Get device's Google Chrome profiles](#get-devices-google-chrome-profiles)
 - [Get device's mobile device management (MDM) and Munki information](#get-devices-mobile-device-management-mdm-and-munki-information)
 - [Get Fleet Desktop information](#get-fleet-desktop-information)
@@ -3167,28 +3166,6 @@ Device-authenticated routes are routes used by the Fleet Desktop application. Un
 - [Migrate device to Fleet from another MDM solution](#migrate-device-to-fleet-from-another-mdm-solution)
 - [Trigger Linux disk encryption escrow](#trigger-linux-disk-encryption-escrow)
 - [Report an agent error](#report-an-agent-error)
-
-#### Refetch device's host
-
-Same as [Refetch host route](https://fleetdm.com/docs/using-fleet/rest-api#refetch-host) for the current device.
-
-`POST /api/v1/fleet/device/{token}/refetch`
-
-##### Parameters
-
-| Name  | Type   | In   | Description                        |
-| ----- | ------ | ---- | ---------------------------------- |
-| token | string | path | The device's authentication token. |
-
-#### Request headers
-
-This endpoint accepts the `X-Client-Cert-Serial` header for authentication in addition to device token authentication.
-
-The `Authorization` header must be formatted as follows:
-
-```
-X-Client-Cert-Serial: <fleet_identity_scep_cert_serial>
-```
 
 #### Get device's Google Chrome profiles
 
