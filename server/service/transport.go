@@ -144,8 +144,7 @@ func hostListOptionsFromRequest(r *http.Request) (fleet.HostListOptions, error) 
 	if teamID == "" {
 		teamID = r.URL.Query().Get("team_id")
 		if teamID != "" {
-			// warn about deprecated fleet_id parameter
-			return hopt, ctxerr.Wrap(r.Context(), badRequest("team_id is deprecated, please use fleet_id instead"))
+			// TODO: warn about deprecated team_id parameter
 		}
 	}
 	if teamID != "" {
