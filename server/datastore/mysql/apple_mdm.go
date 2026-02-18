@@ -3186,14 +3186,22 @@ func generateDesiredStateQuery(entityType string) string {
 // installation.
 // It's possible to query for entities to install for a single given host, by passing in a host UUID.
 func generateEntitiesToInstallQuery(entityType string, hostUUID string) string {
+	hostCondition := "TRUE"
+	if hostUUID != "" {
+		hostCondition = fmt.Sprintf("h.uuid = '%s'", hostUUID)
+	}
+	desiredState := fmt.Sprintf(generateDesiredStateQuery(entityType), hostCondition, hostCondition, hostCondition, hostCondition)
+	return generateEntitiesToInstallQueryFromDesiredState(entityType, desiredState)
+}
+
+// generateEntitiesToInstallQueryFromDesiredState builds the install-side set difference
+// using a caller-supplied desired state subquery. This allows scoped callers to inject
+// host filtering conditions (e.g. h.uuid IN (?)) into the desired state before the
+// LEFT JOIN, avoiding a full table scan.
+func generateEntitiesToInstallQueryFromDesiredState(entityType string, desiredState string) string {
 	dynamicNames := mdmEntityTypeToDynamicNames[entityType]
 	if dynamicNames == nil {
 		panic(fmt.Sprintf("unknown entity type %q", entityType))
-	}
-
-	hostCondition := "TRUE" // We specify true here as it gets passed to the AND (%s) later, and is the default value.
-	if hostUUID != "" {
-		hostCondition = fmt.Sprintf("h.uuid = '%s'", hostUUID)
 	}
 
 	return fmt.Sprintf(os.Expand(`
@@ -3210,7 +3218,7 @@ func generateEntitiesToInstallQuery(entityType string, hostUUID string) string {
 		-- entities in A and B with operation type "install" and NULL status
 		( hmae.host_uuid IS NOT NULL AND hmae.operation_type = ? AND hmae.status IS NULL )
 `, func(s string) string { return dynamicNames[s] }),
-		fmt.Sprintf(generateDesiredStateQuery(entityType), hostCondition, hostCondition, hostCondition, hostCondition),
+		desiredState,
 	)
 }
 
@@ -3241,71 +3249,25 @@ func generateEntitiesToInstallQuery(entityType string, hostUUID string) string {
 // entity but no longer does (and that label-based entity is not "broken"),
 // the entity will be removed from the host.
 func generateEntitiesToRemoveQuery(entityType string) string {
-	dynamicNames := mdmEntityTypeToDynamicNames[entityType]
-	if dynamicNames == nil {
-		panic(fmt.Sprintf("unknown entity type %q", entityType))
-	}
-
-	// NOTE(mna): there is no check for an existing user-enrollment here, because
-	// if a user-scoped profile is identified as "to remove", it has to have been
-	// delivered at some point, either because a user-channel did exist, or
-	// because it was delivered to the device-channel after the maximum wait
-	// delay. Either way, it should proceed with removal.
-	return fmt.Sprintf(os.Expand(`
-	( %s ) as ds
-		RIGHT JOIN ${hostMDMAppleEntityTable} hmae
-			ON hmae.${entityUUIDColumn} = ds.${entityUUIDColumn} AND hmae.host_uuid = ds.host_uuid
-	WHERE
-		-- entities that are in B but not in A
-		ds.${entityUUIDColumn} IS NULL AND ds.host_uuid IS NULL AND
-		-- except "remove" operations in a terminal state or already pending
-		( hmae.operation_type IS NULL OR hmae.operation_type != ? OR hmae.status IS NULL ) AND
-		-- except "would be removed" entities if they are a broken label-based entities
-		-- (regardless of if it is an include-all or exclude-any label)
-		NOT EXISTS (
-			SELECT 1
-			FROM ${mdmEntityLabelsTable} mcpl
-			WHERE
-				mcpl.${appleEntityUUIDColumn} = hmae.${entityUUIDColumn} AND
-				mcpl.label_id IS NULL
-		)
-`, func(s string) string { return dynamicNames[s] }), fmt.Sprintf(generateDesiredStateQuery(entityType), "TRUE", "TRUE", "TRUE", "TRUE"))
+	desiredState := fmt.Sprintf(generateDesiredStateQuery(entityType), "TRUE", "TRUE", "TRUE", "TRUE")
+	return generateEntitiesToRemoveQueryFromDesiredState(entityType, desiredState)
 }
 
-// generateEntitiesToInstallQueryWithDesiredState is like generateEntitiesToInstallQuery but accepts
-// a pre-built desired state subquery. This allows callers to provide a desired state query that
-// already has host filtering conditions applied (e.g., h.uuid IN (?)).
-func generateEntitiesToInstallQueryWithDesiredState(entityType string, desiredState string) string {
+// generateEntitiesToRemoveQueryFromDesiredState builds the remove-side set difference
+// using a caller-supplied desired state subquery. See generateEntitiesToInstallQueryFromDesiredState
+// for the rationale.
+//
+// NOTE(mna): there is no check for an existing user-enrollment here, because
+// if a user-scoped profile is identified as "to remove", it has to have been
+// delivered at some point, either because a user-channel did exist, or
+// because it was delivered to the device-channel after the maximum wait
+// delay. Either way, it should proceed with removal.
+func generateEntitiesToRemoveQueryFromDesiredState(entityType string, desiredState string) string {
 	dynamicNames := mdmEntityTypeToDynamicNames[entityType]
 	if dynamicNames == nil {
 		panic(fmt.Sprintf("unknown entity type %q", entityType))
 	}
-	return fmt.Sprintf(os.Expand(`
-	( %s ) as ds
-		LEFT JOIN ${hostMDMAppleEntityTable} hmae
-			ON hmae.${entityUUIDColumn} = ds.${entityUUIDColumn} AND hmae.host_uuid = ds.host_uuid
-	WHERE
-		-- entity has been updated
-		( hmae.${checksumColumn} != ds.${checksumColumn} ) OR IFNULL(hmae.secrets_updated_at < ds.secrets_updated_at, FALSE) OR
-		-- entity in A but not in B
-		( hmae.${entityUUIDColumn} IS NULL AND hmae.host_uuid IS NULL ) OR
-		-- entities in A and B but with operation type "remove"
-		( hmae.host_uuid IS NOT NULL AND ( hmae.operation_type = ? OR hmae.operation_type IS NULL ) ) OR
-		-- entities in A and B with operation type "install" and NULL status
-		( hmae.host_uuid IS NOT NULL AND hmae.operation_type = ? AND hmae.status IS NULL )
-`, func(s string) string { return dynamicNames[s] }),
-		desiredState,
-	)
-}
 
-// generateEntitiesToRemoveQueryWithDesiredState is like generateEntitiesToRemoveQuery but accepts
-// a pre-built desired state subquery. This allows callers to provide a desired state query that
-// already has host filtering conditions applied (e.g., h.uuid IN (?)).
-func generateEntitiesToRemoveQueryWithDesiredState(entityType string, desiredState string) string {
-	dynamicNames := mdmEntityTypeToDynamicNames[entityType]
-	if dynamicNames == nil {
-		panic(fmt.Sprintf("unknown entity type %q", entityType))
-	}
 	return fmt.Sprintf(os.Expand(`
 	( %s ) as ds
 		RIGHT JOIN ${hostMDMAppleEntityTable} hmae
@@ -5942,7 +5904,7 @@ func mdmAppleGetHostsWithChangedDeclarationsDB(ctx context.Context, tx sqlx.ExtC
 			ds.declaration_identifier,
 			ds.declaration_name
 		FROM %s`,
-		generateEntitiesToInstallQueryWithDesiredState("declaration", filteredDesiredState),
+		generateEntitiesToInstallQueryFromDesiredState("declaration", filteredDesiredState),
 	)
 
 	toRemoveStmt := fmt.Sprintf(`
@@ -5955,7 +5917,7 @@ func mdmAppleGetHostsWithChangedDeclarationsDB(ctx context.Context, tx sqlx.ExtC
 			hmae.declaration_identifier,
 			hmae.declaration_name
 		FROM %s AND hmae.host_uuid IN (?)`,
-		generateEntitiesToRemoveQueryWithDesiredState("declaration", filteredDesiredState),
+		generateEntitiesToRemoveQueryFromDesiredState("declaration", filteredDesiredState),
 	)
 
 	const selectBatchSize = 10_000
