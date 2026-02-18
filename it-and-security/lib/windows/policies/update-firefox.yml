@@ -1,5 +1,5 @@
 - name: Windows - Firefox up to date
-  query: SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'Mozilla Firefox%' AND version_compare(version, '135.0') < 0);
+  query: SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'Mozilla Firefox%' AND version_compare(version, '147.0.4') < 0);
   critical: false
   description: The host may have an outdated version of Firefox, potentially risking security vulnerabilities or compatibility issues.
   resolution: Check for updates using Firefox's built-in update functionality or download the latest version from self-service. You can also uninstall Firefox if you are no longer using it.

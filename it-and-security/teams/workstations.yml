@@ -264,10 +264,6 @@ software:
     - path: ../lib/windows/software/1password.yml # 1Password for Windows
       self_service: true
       setup_experience: true
-    - path: ../lib/windows/software/mozilla-firefox.yml # Mozilla Firefox for Windows
-      self_service: true
-      categories:
-        - Browsers
   app_store_apps:
     - app_store_id: "361285480" # Keynote
       display_name: "Keynote"
@@ -324,5 +320,11 @@ software:
         - "x86-based Windows hosts"
     - slug: brave-browser/windows # Brave for Windows
       self_service: true
+    - slug: firefox/windows # Mozilla Firefox for Windows
+      self_service: true
+      categories:
+        - Browsers
+      labels_include_any:
+        - "x86-based Windows hosts"
     - slug: visual-studio-code/windows # Microsoft Visual Studio for Windows
       self_service: true
