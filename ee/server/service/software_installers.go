@@ -872,11 +872,12 @@ func (svc *Service) deleteSoftwareInstaller(ctx context.Context, meta *fleet.Sof
 		return fleet.ErrNoContext
 	}
 
-	if meta.Extension == "ipa" {
+	switch {
+	case meta.Extension == "ipa":
 		if err := svc.ds.DeleteInHouseApp(ctx, meta.InstallerID); err != nil {
 			return ctxerr.Wrap(ctx, err, "deleting in house app")
 		}
-	} else if meta.FleetMaintainedAppID != nil {
+	case meta.FleetMaintainedAppID != nil:
 		// For FMA installers there may be multiple cached versions (active + up to
 		// N-1 inactive ones). Delete the active version first so that the
 		// policy-automation and setup-experience guard-rails are enforced, then
@@ -898,7 +899,7 @@ func (svc *Service) deleteSoftwareInstaller(ctx context.Context, meta *fleet.Sof
 				}
 			}
 		}
-	} else {
+	default:
 		if err := svc.ds.DeleteSoftwareInstaller(ctx, meta.InstallerID); err != nil {
 			return ctxerr.Wrap(ctx, err, "deleting software installer")
 		}
