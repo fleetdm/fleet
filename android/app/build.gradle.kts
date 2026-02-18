@@ -145,6 +145,26 @@ android {
                 )
         }
     }
+
+    buildTypes {
+        getByName("debug") {
+            buildConfigField(
+                "String",
+                "DEBUG_FLEET_SERVER_URL",
+                "\"${project.findProperty("fleet.server_url") ?: ""}\""
+            )
+            buildConfigField(
+                "String",
+                "DEBUG_FLEET_ENROLL_SECRET",
+                "\"${project.findProperty("fleet.enroll_secret") ?: ""}\""
+            )
+            buildConfigField(
+                "String",
+                "DEBUG_FLEET_HOST_UUID",
+                "\"${project.findProperty("fleet.host_uuid") ?: ""}\""
+            )
+        }
+    }
 }
 
 // ==================== KOTLIN & JAVA TOOLCHAIN ====================
