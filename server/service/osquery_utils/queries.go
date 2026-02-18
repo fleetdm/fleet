@@ -2799,6 +2799,17 @@ func directIngestMDMDeviceIDWindows(ctx context.Context, logger log.Logger, host
 				if err != nil {
 					return ctxerr.Wrap(ctx, err, "updating windows mdm installed from dep flag")
 				}
+			} else {
+				teamId := uint(0)
+				if host.TeamID != nil {
+					teamId = *host.TeamID
+				}
+				// here we know we are in OOBE and has a user driven flow (valid UPN)
+				// TODO: Best place to enqueue setup experience items? We need the host_uuid so we can't do it before this step.
+				_, err = ds.EnqueueSetupExperienceItems(ctx, "windows", host.UUID, teamId)
+				if err != nil {
+					return ctxerr.Wrap(ctx, err, "enqueuing windows setup experience items after mdm enrollment")
+				}
 			}
 
 			mapping := []*fleet.HostDeviceMapping{

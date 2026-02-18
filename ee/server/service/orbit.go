@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"fmt"
 	"strings"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
@@ -20,6 +21,10 @@ func (svc *Service) GetOrbitSetupExperienceStatus(ctx context.Context, orbitNode
 	if !ok {
 		err := ctxerr.Wrap(ctx, fleet.NewAuthRequiredError("internal error: missing host from request context"))
 		return nil, err
+	}
+
+	if host.Platform == "windows" {
+		return svc.getWindowsSetupExperienceStatus(ctx, host)
 	}
 
 	if fleet.IsLinux(host.Platform) || host.Platform == "windows" {
@@ -226,6 +231,167 @@ func (svc *Service) GetOrbitSetupExperienceStatus(ctx context.Context, orbitNode
 
 		// Host will be marked as no longer "awaiting configuration" in the command handler
 		if err := svc.mdmAppleCommander.DeviceConfigured(ctx, host.UUID, uuid.NewString()); err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "failed to enqueue DeviceConfigured command")
+		}
+	}
+
+	_, err = svc.SetupExperienceNextStep(ctx, host)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "getting next step for host setup experience")
+	}
+
+	return payload, nil
+}
+
+func (svc *Service) getWindowsSetupExperienceStatus(ctx context.Context, host *fleet.Host) (*fleet.SetupExperienceStatusPayload, error) {
+	fmt.Println("Windows setup")
+	appCfg, err := svc.ds.AppConfig(ctx)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "getting app config")
+	}
+
+	// get the status of the configuration profiles
+	cfgProfs, err := svc.ds.GetHostMDMWindowsProfiles(ctx, host.UUID)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "get configuration profiles status")
+	}
+	var cfgProfResults []*fleet.SetupExperienceConfigurationProfileResult
+	for _, prof := range cfgProfs {
+
+		status := fleet.MDMDeliveryPending
+		if prof.Status != nil {
+			status = *prof.Status
+		}
+		cfgProfResults = append(cfgProfResults, &fleet.SetupExperienceConfigurationProfileResult{
+			ProfileUUID: prof.ProfileUUID,
+			Name:        prof.Name,
+			Status:      status,
+		})
+	}
+
+	profilesMissingInstallation, err := svc.ds.ListMDMWindowsProfilesToInstall(ctx)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "listing windows config profiles to install")
+	}
+
+	// Filter for this host only
+	// TODO: Maybe an optimized query for inidividual host
+	filteredMissingInstallation := make([]*fleet.MDMWindowsProfilePayload, 0, len(profilesMissingInstallation))
+	for _, prof := range profilesMissingInstallation {
+		if prof.HostUUID != host.UUID {
+			continue
+		}
+
+		filteredMissingInstallation = append(filteredMissingInstallation, prof)
+	}
+
+	profilesMissingInstallation = filteredMissingInstallation
+
+	if len(profilesMissingInstallation) > 0 {
+		for _, prof := range profilesMissingInstallation {
+			cfgProfResults = append(cfgProfResults, &fleet.SetupExperienceConfigurationProfileResult{
+				ProfileUUID: prof.ProfileUUID,
+				Name:        prof.ProfileName,
+				Status:      fleet.MDMDeliveryPending, // Default to pending as it's not installed yet.
+			})
+		}
+	}
+
+	if len(profilesMissingInstallation) == 0 {
+		// Remove blocking ESP page to show browser window
+		if err := svc.RemoveBlockingESP(ctx, host.UUID); err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "failed to remove blocking ESP for windows setup experience")
+		}
+	}
+
+	// get status of software installs and script execution
+	res, err := svc.ds.ListSetupExperienceResultsByHostUUID(ctx, host.UUID)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "listing setup experience results")
+	}
+
+	// Check if "require all software" is configured for the host's team.
+	// TODO: Update or create a windows equivalent
+	requireAllSoftware, err := svc.IsAllSetupExperienceSoftwareRequired(ctx, host)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "checking if all software is required")
+	}
+
+	hasFailedSoftwareInstall := false
+	for _, r := range res {
+		if r.IsForSoftware() && r.Status == fleet.SetupExperienceStatusFailure {
+			hasFailedSoftwareInstall = true
+			break
+		}
+	}
+
+	fmt.Println("Require all software", requireAllSoftware, "| has failed software", hasFailedSoftwareInstall)
+	// If we have a failed software install,
+	// AND "require all software" is configured for the host's team,
+	// AND the resetFailedSetupSteps flag is set,
+	// then re-enqueue any cancelled setup experience steps.
+	if hasFailedSoftwareInstall {
+		// if resetFailedSetupSteps {
+		teamID := uint(0)
+		if host.TeamID != nil {
+			teamID = *host.TeamID
+		}
+		// If so, call the enqueue function with a flag to retain successful steps.
+		if requireAllSoftware {
+			level.Info(svc.logger).Log("msg", "re-enqueueing cancelled setup experience steps after a previous software install failure", "host_uuid", host.UUID)
+			platform := host.PlatformLike
+			if platform == "" {
+				platform = host.Platform
+			}
+			_, err := svc.ds.ResetSetupExperienceItemsAfterFailure(ctx, platform, host.UUID, teamID)
+			if err != nil {
+				return nil, ctxerr.Wrap(ctx, err, "re-enqueueing cancelled setup experience steps after a previous software install failure")
+			}
+			// Re-fetch the setup experience results after re-enqueuing.
+			res, err = svc.ds.ListSetupExperienceResultsByHostUUID(ctx, host.UUID)
+			if err != nil {
+				return nil, ctxerr.Wrap(ctx, err, "listing setup experience results")
+			}
+		}
+		//}
+	}
+
+	err = svc.failCancelledSetupExperienceInstalls(ctx, host.ID, host.UUID, host.DisplayName(), res)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "failing cancelled setup experience installs")
+	}
+
+	payload := &fleet.SetupExperienceStatusPayload{
+		BootstrapPackage:      nil,
+		ConfigurationProfiles: cfgProfResults,
+		AccountConfiguration:  nil,
+		Software:              make([]*fleet.SetupExperienceStatusResult, 0),
+		OrgLogoURL:            appCfg.OrgInfo.OrgLogoURLLightBackground,
+		RequireAllSoftware:    requireAllSoftware,
+	}
+	for _, r := range res {
+		if r.IsForScript() {
+			payload.Script = r
+		}
+
+		if r.IsForSoftware() {
+			payload.Software = append(payload.Software, r)
+		}
+	}
+
+	fmt.Println("Has failed", hasFailedSoftwareInstall, "require all", requireAllSoftware)
+	fmt.Printf("%#v", payload)
+	// If we have failed software, and all software is required,
+	// we can go ahead and return now.
+	if hasFailedSoftwareInstall && requireAllSoftware {
+		return payload, nil
+	}
+
+	if isDeviceReadyForRelease(payload) {
+		level.Info(svc.logger).Log("msg", "releasing device, all DEP enrollment commands, profiles, software installs and script execution have completed", "host_uuid", host.UUID)
+
+		// Host will be marked as no longer "awaiting configuration" in the command handler
+		if err := svc.ReleaseWindowsDevice(ctx, host.UUID); err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "failed to enqueue DeviceConfigured command")
 		}
 	}

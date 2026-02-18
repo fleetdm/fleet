@@ -203,9 +203,11 @@ func (svc *Service) EnrollOrbit(ctx context.Context, hostInfo fleet.OrbitHostInf
 				PlatformLike: hostInfo.PlatformLike,
 			}
 			platform := h.FleetPlatform()
+
 			// Orbit enrollment is only gated by end user auth for Linux and Windows hosts.
 			// For macOS hosts the MDM enrollment process handles end user auth.
 			if platform == "linux" || platform == "windows" {
+
 				// If the Orbit client doesn't support end user auth, complain loudly and let the host enroll.
 				mp, ok := capabilities.FromContext(ctx)
 				//nolint:gocritic // ignore ifElseChain
@@ -214,8 +216,22 @@ func (svc *Service) EnrollOrbit(ctx context.Context, hostInfo fleet.OrbitHostInf
 				} else if !mp.Has(fleet.CapabilityEndUserAuth) {
 					level.Warn(svc.logger).Log("msg", "!!! ERR_ALLOWING_UNAUTHENTICATED: host is not authenticated, but connected with an orbit version that does not support end user authentication. proceeding with enrollment. !!! ", "host_uuid", hostInfo.HardwareUUID)
 				} else {
-					// Otherwise report the unauthenticated host and let Orbit handle it (e.g. by prompting the user to authenticate).
-					return "", fleet.NewOrbitIDPAuthRequiredError()
+					if platform == "windows" {
+						// Check for setup experience, and if so, then allow it to enroll, we'll associate the UPN once we have a hostUUID
+						// TODO: Is Computer name distinct enough, not sure we have access to better attributes here
+						awaitingConfig, err := svc.ds.MDMWindowsAwaitingConfigurationByComputerName(ctx, hostInfo.ComputerName)
+						if err != nil {
+							return "", fleet.OrbitError{Message: "failed to check if device is awaiting configuration: " + err.Error()}
+						}
+						if awaitingConfig != nil && (*awaitingConfig == fleet.NotStartedWindowsSetupConfiguration || *awaitingConfig == fleet.InProgressWindowsSetupConfiguration) {
+							level.Info(svc.logger).Log("msg", "Allowing Windows Setup experience through orbit enroll without IDP account")
+						} else {
+							return "", fleet.NewOrbitIDPAuthRequiredError()
+						}
+					} else {
+						// Otherwise report the unauthenticated host and let Orbit handle it (e.g. by prompting the user to authenticate).
+						return "", fleet.NewOrbitIDPAuthRequiredError()
+					}
 				}
 			}
 		}
@@ -376,6 +392,17 @@ func (svc *Service) GetOrbitConfig(ctx context.Context) (fleet.OrbitConfig, erro
 				}
 			}
 		}
+
+		configState, err := svc.ds.MDMWindowsAwaitingConfigurationByUUID(ctx, host.UUID)
+		if err != nil {
+			return fleet.OrbitConfig{}, ctxerr.Wrap(ctx, err, "checking if host is awaiting Windows setup configuration")
+		}
+
+		if configState != nil && *configState == fleet.InProgressWindowsSetupConfiguration {
+			// TODO: Gate this check better, to only run for the correct cases
+			notifs.RunSetupExperience = true
+		}
+
 	}
 	if !appConfig.MDM.WindowsEnabledAndConfigured {
 		if host.IsEligibleForWindowsMDMUnenrollment(isConnectedToFleetMDM) {

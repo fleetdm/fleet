@@ -1473,7 +1473,8 @@ func (svc *Service) enqueueInstallFleetdCommand(ctx context.Context, deviceID st
 	// it's okay to skip the installation if we're not able to retrieve the
 	// metadata, we don't want to completely error the SyncML transaction
 	// and we'll try again the next time the host checks in
-	fleetdMetadata, err := fleetdbase.GetMetadata()
+	// TODO: Not sure for dev, I hardcoded a link and the SHA256 of the built version (Not sure if we can push a local TUF update that it will install while in EPS)
+	_, err = fleetdbase.GetMetadata()
 	if err != nil {
 		level.Warn(svc.logger).Log("msg", "unable to get fleetd-base metadata")
 		return nil
@@ -1513,11 +1514,11 @@ func (svc *Service) enqueueInstallFleetdCommand(ctx context.Context, deviceID st
 			<Product Version="1.0.0.0">
 				<Download>
 					<ContentURLList>
-						<ContentURL>` + fleetdMetadata.MSIURL + `</ContentURL>
+						<ContentURL>` + "https://tuf.magnusjensen.dk/fleet-osquery-arm64.msi" + `</ContentURL>
 					</ContentURLList>
 				</Download>
 				<Validation>
-					<FileHash>` + fleetdMetadata.MSISha256 + `</FileHash>
+					<FileHash>` + "26f91745ddc6da1db9abbf1380e14ddb53feaf4c5eff93dd2acd4f86a7aa08eb" + `</FileHash>
 				</Validation>
 				<Enforcement>
 					<CommandLine>/quiet FLEET_URL="` + fleetURL + `" FLEET_SECRET="` + globalEnrollSecret + `" ENABLE_SCRIPTS="True"</CommandLine>
@@ -1874,17 +1875,24 @@ func (svc *Service) getManagementResponse(ctx context.Context, reqMsg *fleet.Syn
 	resPendingCmds := []*mdm_types.SyncMLCmd{}
 
 	if requestAuthState == RequestAuthStateTrusted {
-		var isAwaitingConfiguration bool
-		// We should never really have a not nil device, but let's gate it for safety
+
+		device, err := svc.ds.MDMWindowsGetEnrolledDeviceWithDeviceID(ctx, deviceID)
+		if err != nil {
+			return nil, fmt.Errorf("getting enrolled device with device ID: %w", err)
+		}
+		if device == nil {
+			return nil, errors.New("enrolled device not found for device ID")
+		}
 
 		// lookup the device and check if we should block enrollment, that should happen when we have an mdm_windows_enrollment entry
 		// but no hosts entry // TODO: Is this the correct state? Do we have an awaiting setup_experience
-		isAwaitingConfiguration, err = svc.ds.MDMWindowsAwaitingConfiguration(ctx, deviceID)
+		setupConfiguration, err := svc.ds.MDMWindowsAwaitingConfiguration(ctx, deviceID)
 		if err != nil {
 			return nil, fmt.Errorf("checking if device is awaiting configuration %w", err)
 		}
 
-		if isAwaitingConfiguration {
+		// Only send the blocking commands if the device is awaiting configuration but not started yet
+		if setupConfiguration != nil && *setupConfiguration == fleet.NotStartedWindowsSetupConfiguration {
 			// TODO: We don't have to check for FleetD install, as we already do that on every session open.
 
 			/* if isPresent, err := svc.isFleetdPresentOnDevice(ctx, deviceID); err == nil && !isPresent {
@@ -1950,7 +1958,12 @@ func (svc *Service) getManagementResponse(ctx context.Context, reqMsg *fleet.Syn
 			if err != nil {
 				return nil, fmt.Errorf("insert command to mark device as awaiting configuration: %w", err)
 			}
-			// TODO: Short circuit here and check on setup experience items missing, if not missing we can send the providerID and mark it as Completed (3)
+
+			// Set to 2 (started)
+			err = svc.ds.MDMWindowsSetAwaitingConfiguration(ctx, deviceID, fleet.InProgressWindowsSetupConfiguration)
+			if err != nil {
+				return nil, fmt.Errorf("mark device as in progress for configuration: %w", err)
+			}
 		}
 
 		// Process the pending operations and get the MDM response protocol commands
@@ -2155,6 +2168,27 @@ func (svc *Service) storeWindowsMDMEnrolledDevice(ctx context.Context, userID st
 
 	if err := svc.ds.MDMWindowsInsertEnrolledDevice(ctx, enrolledDevice); err != nil {
 		return err
+	}
+
+	// TODO Maybe the userID is already validated, but we are just making sure here
+	if !enrolledDevice.MDMNotInOOBE && microsoft_mdm.IsValidUPN(userID) {
+		// store the user in MDM IDP accounts, to allow Orbit to enroll
+		mdmIdpAccountUUID := uuid.NewString()
+		err = svc.ds.InsertMDMIdPAccount(ctx, &mdm_types.MDMIdPAccount{
+			UUID:     mdmIdpAccountUUID,
+			Email:    userID,
+			Username: "",
+			Fullname: "",
+		})
+		if err != nil {
+			return fmt.Errorf("%s: failed to insert MDM IDP account for user %s: %w", error_tag, userID, err)
+		}
+		// TODO: Is MDMHardwareID the same as orbitInfo.HardwareUUID
+		fmt.Println("Associating account with", enrolledDevice.MDMHardwareID, "device ID", enrolledDevice.MDMDeviceID)
+		err = svc.ds.AssociateHostMDMIdPAccountDB(ctx, enrolledDevice.MDMHardwareID, mdmIdpAccountUUID)
+		if err != nil {
+			return fmt.Errorf("%s: failed to associate MDM IDP account %s to host %s: %w", error_tag, mdmIdpAccountUUID, enrolledDevice.MDMHardwareID, err)
+		}
 	}
 
 	// TODO: azure enrollments come with an empty uuid, I haven't figured
@@ -2876,4 +2910,168 @@ func truncateString(s string, maxLen int) string {
 		return s
 	}
 	return s[:maxLen] + "..."
+}
+
+func (svc *Service) ReleaseWindowsDevice(ctx context.Context, hostUUID string) error {
+	device, err := svc.ds.MDMWindowsGetEnrolledDeviceWithHostUUID(ctx, hostUUID)
+	if err != nil {
+		return fmt.Errorf("getting enrolled device for host UUID %s: %w", hostUUID, err)
+	}
+	if device == nil {
+		return fmt.Errorf("no enrolled device found for host UUID %s", hostUUID)
+	}
+
+	// Here we want to update the ESP page to complete, so we release the device to the user
+	// TODO: Should we clear out the row instead?
+	err = svc.ds.MDMWindowsSetAwaitingConfiguration(ctx, device.MDMDeviceID, fleet.CompletedWindowsSetupConfiguration)
+	if err != nil {
+		return fmt.Errorf("mark device as in progress for configuration: %w", err)
+	}
+
+	espCmdId := uuid.NewString()
+	espCmd := newSyncMLCmdInt("Replace", "./Device/Vendor/MSFT/EnrollmentStatusTracking/DevicePreparation/PolicyProviders/FLEET/InstallationState", "3")
+	espCmd.CmdID = mdm_types.CmdID{
+		Value:               espCmdId,
+		IncludeFleetComment: true,
+	}
+	espCmdRaw, err := espCmd.Raw()
+	if err != nil {
+		return fmt.Errorf("error creating raw command: %w", err)
+	}
+
+	err = svc.ds.MDMWindowsInsertCommandForHosts(ctx, []string{device.MDMDeviceID}, &mdm_types.MDMWindowsCommand{
+		CommandUUID: espCmdId,
+		RawCommand:  espCmdRaw,
+	})
+	if err != nil {
+		return fmt.Errorf("insert command to mark device as awaiting configuration: %w", err)
+	}
+
+	espTrackingUserId := uuid.NewString()
+	espTrackingUserCmd := newSyncMLCmdBool("Replace", "./User/Vendor/MSFT/EnrollmentStatusTracking/Setup/Apps/PolicyProviders/FLEET/TrackingPoliciesCreated", "true")
+	espTrackingUserCmd.CmdID = mdm_types.CmdID{
+		Value:               espTrackingUserId,
+		IncludeFleetComment: true,
+	}
+	espTrackingUserCmdRaw, err := espTrackingUserCmd.Raw()
+	if err != nil {
+		return fmt.Errorf("error creating raw command: %w", err)
+	}
+
+	err = svc.ds.MDMWindowsInsertCommandForHosts(ctx, []string{device.MDMDeviceID}, &mdm_types.MDMWindowsCommand{
+		CommandUUID: espTrackingUserId,
+		RawCommand:  espTrackingUserCmdRaw,
+	})
+	if err != nil {
+		return fmt.Errorf("insert command to mark device as awaiting configuration: %w", err)
+	}
+
+	espTrackingDeviceId := uuid.NewString()
+	espTrackingDeviceCmd := newSyncMLCmdBool("Replace", "./Device/Vendor/MSFT/EnrollmentStatusTracking/Setup/Apps/PolicyProviders/FLEET/TrackingPoliciesCreated", "true")
+	espTrackingDeviceCmd.CmdID = mdm_types.CmdID{
+		Value:               espTrackingDeviceId,
+		IncludeFleetComment: true,
+	}
+	espTrackingDeviceCmdRaw, err := espTrackingDeviceCmd.Raw()
+	if err != nil {
+		return fmt.Errorf("error creating raw command: %w", err)
+	}
+
+	err = svc.ds.MDMWindowsInsertCommandForHosts(ctx, []string{device.MDMDeviceID}, &mdm_types.MDMWindowsCommand{
+		CommandUUID: espTrackingDeviceId,
+		RawCommand:  espTrackingDeviceCmdRaw,
+	})
+	if err != nil {
+		return fmt.Errorf("insert command to mark device as awaiting configuration: %w", err)
+	}
+
+	serverProvCmdId := uuid.NewString()
+	serverProvCmd := newSyncMLCmdBool("Replace", fmt.Sprintf("./Device/Vendor/MSFT/DMClient/Provider/%s/FirstSyncStatus/ServerHasFinishedProvisioning", syncml.DocProvisioningAppProviderID), "true")
+	serverProvCmd.CmdID = mdm_types.CmdID{
+		Value:               serverProvCmdId,
+		IncludeFleetComment: true,
+	}
+	serverProvCmdRaw, err := serverProvCmd.Raw()
+	if err != nil {
+		return fmt.Errorf("error creating raw command: %w", err)
+	}
+
+	err = svc.ds.MDMWindowsInsertCommandForHosts(ctx, []string{device.MDMDeviceID}, &mdm_types.MDMWindowsCommand{
+		CommandUUID: serverProvCmdId,
+		RawCommand:  serverProvCmdRaw,
+	})
+	if err != nil {
+		return fmt.Errorf("insert command to mark server provisioning as done: %w", err)
+	}
+
+	userServerProvCmdId := uuid.NewString()
+	userServerProvCmd := newSyncMLCmdBool("Replace", fmt.Sprintf("./User/Vendor/MSFT/DMClient/Provider/%s/FirstSyncStatus/ServerHasFinishedProvisioning", syncml.DocProvisioningAppProviderID), "true")
+	userServerProvCmd.CmdID = mdm_types.CmdID{
+		Value:               userServerProvCmdId,
+		IncludeFleetComment: true,
+	}
+	userServerProvCmdRaw, err := userServerProvCmd.Raw()
+	if err != nil {
+		return fmt.Errorf("error creating raw command: %w", err)
+	}
+
+	err = svc.ds.MDMWindowsInsertCommandForHosts(ctx, []string{device.MDMDeviceID}, &mdm_types.MDMWindowsCommand{
+		CommandUUID: userServerProvCmdId,
+		RawCommand:  userServerProvCmdRaw,
+	})
+	if err != nil {
+		return fmt.Errorf("insert command to mark server provisioning as done for user: %w", err)
+	}
+
+	return nil
+}
+
+func (svc *Service) RemoveBlockingESP(ctx context.Context, hostUUID string) error {
+	device, err := svc.ds.MDMWindowsGetEnrolledDeviceWithHostUUID(ctx, hostUUID)
+	if err != nil {
+		return fmt.Errorf("getting enrolled device for host UUID %s: %w", hostUUID, err)
+	}
+	if device == nil {
+		return fmt.Errorf("no enrolled device found for host UUID %s", hostUUID)
+	}
+
+	skipDeviceCmdId := uuid.NewString()
+	skipDeviceCmd := newSyncMLCmdBool("Replace", fmt.Sprintf("./Device/Vendor/MSFT/DMClient/Provider/%s/FirstSyncStatus/SkipDeviceStatusPage", syncml.DocProvisioningAppProviderID), "true")
+	skipDeviceCmd.CmdID = mdm_types.CmdID{
+		Value:               skipDeviceCmdId,
+		IncludeFleetComment: true,
+	}
+	skipDeviceCmdRaw, err := skipDeviceCmd.Raw()
+	if err != nil {
+		return fmt.Errorf("error creating raw command: %w", err)
+	}
+
+	err = svc.ds.MDMWindowsInsertCommandForHosts(ctx, []string{device.MDMDeviceID}, &mdm_types.MDMWindowsCommand{
+		CommandUUID: skipDeviceCmdId,
+		RawCommand:  skipDeviceCmdRaw,
+	})
+	if err != nil {
+		return fmt.Errorf("insert command to skip device setup experience: %w", err)
+	}
+
+	skipUserCmdId := uuid.NewString()
+	skipUserCmd := newSyncMLCmdBool("Replace", fmt.Sprintf("./Device/Vendor/MSFT/DMClient/Provider/%s/FirstSyncStatus/SkipUserStatusPage", syncml.DocProvisioningAppProviderID), "true")
+	skipUserCmd.CmdID = mdm_types.CmdID{
+		Value:               skipUserCmdId,
+		IncludeFleetComment: true,
+	}
+	skipUserCmdRaw, err := skipUserCmd.Raw()
+	if err != nil {
+		return fmt.Errorf("error creating raw command: %w", err)
+	}
+
+	err = svc.ds.MDMWindowsInsertCommandForHosts(ctx, []string{device.MDMDeviceID}, &mdm_types.MDMWindowsCommand{
+		CommandUUID: skipUserCmdId,
+		RawCommand:  skipUserCmdRaw,
+	})
+	if err != nil {
+		return fmt.Errorf("insert command to skip user setup experience: %w", err)
+	}
+
+	return nil
 }

@@ -7,9 +7,13 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"regexp"
+	"runtime"
 	"time"
 
 	"github.com/fleetdm/fleet/v4/orbit/pkg/constant"
+	"github.com/fleetdm/fleet/v4/orbit/pkg/execuser"
+	"github.com/fleetdm/fleet/v4/orbit/pkg/platform"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/swiftdialog"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/token"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/update"
@@ -686,4 +690,173 @@ func resultToListItem(result *fleet.SetupExperienceStatusResult) swiftdialog.Lis
 		Status:     status,
 		StatusText: statusText,
 	}
+}
+
+type SetupExperiencerWindows struct {
+	OrbitClient  OrbitClient
+	DeviceClient DeviceClient
+	closeChan    chan struct{}
+	rootDirPath  string
+	// Note: this object is not safe for concurrent use. Since the SetupExperiencer is a singleton,
+	// its Run method is called within a WaitGroup,
+	// and no other parts of Orbit need access to this field (or any other parts of the
+	// SetupExperiencer), it's OK to not protect this with a lock.
+	started           bool
+	trw               *token.ReadWriter
+	stopTokenRotation func()
+
+	didOpenBrowser bool
+}
+
+func NewWindowsSetupExperiencer(orbitClient OrbitClient, deviceClient DeviceClient, rootDirPath string, trw *token.ReadWriter) *SetupExperiencerWindows {
+	return &SetupExperiencerWindows{
+		OrbitClient:  orbitClient,
+		DeviceClient: deviceClient,
+		closeChan:    make(chan struct{}),
+		rootDirPath:  rootDirPath,
+		trw:          trw,
+	}
+}
+
+func (s *SetupExperiencerWindows) Run(oc *fleet.OrbitConfig) error {
+	fmt.Println("Running windows setup experience check: ")
+	// TODO: Implement a better way to ensure we don't skip running this if we got the config to no longer run, but we didn't finish up and closed the browser window
+	if !oc.Notifications.RunSetupExperience && !s.didOpenBrowser {
+		log.Debug().Msg("skipping setup experience: notification flag is not set")
+		return nil
+	}
+
+	// Ensure that the token rotation checker is started, so that we have a valid token
+	// when we need to show or refresh the My Device URL in the webview.
+	if s.stopTokenRotation == nil {
+		s.stopTokenRotation = s.trw.StartRotation()
+	}
+
+	fmt.Println("CHecking setup experience status")
+	log.Info().Msg("checking setup experience status")
+
+	// Poll the status endpoint. This also releases the device if we're done.
+	payload, err := s.OrbitClient.GetSetupExperienceStatus(!s.started)
+	if err != nil {
+		return err
+	}
+	// Marshall the payload for logging
+	payloadBytes, err := json.Marshal(payload)
+	if err != nil {
+		log.Error().Err(err).Msg("marshalling setup experience payload for logging")
+	} else {
+		log.Debug().Msgf("setup experience payload: %s", string(payloadBytes))
+	}
+
+	fmt.Printf("setup experience payload: %s\n", string(payloadBytes))
+
+	// Defer this so that s.started is only false the first time this function runs.
+	defer func() { s.started = true }()
+
+	select {
+	case <-s.closeChan:
+		log.Info().Str("receiver", "setup_experiencer").Msg("swiftDialog closed")
+		return nil
+	default:
+		// ok
+	}
+
+	// We're waiting for profiles to install and showing the normal ESP interface
+	log.Info().Msg("setup experience: checking for pending statuses")
+	fmt.Println("setup experience: checking for pending statuses")
+
+	if isPending, name := anyProfilePending(payload.ConfigurationProfiles); isPending {
+		fmt.Printf("setup experience: profile pending: %s\n", name)
+		log.Info().Msg(fmt.Sprintf("setup experience: profile pending: %s", name))
+		return nil
+	}
+
+	// TODO: Check if we have software/script before opening the browser window.
+
+	if !s.didOpenBrowser {
+
+		// Only open browser once
+		// Get the device token.
+		token, err := s.trw.Read()
+		if err != nil {
+			return fmt.Errorf("getting device token: %w", err)
+		}
+		// Get the My Device URL.
+		browserURL := s.DeviceClient.BrowserDeviceURL(token)
+		// log out the url
+		log.Debug().Msgf("setup experience: opening web content URL: %s", browserURL)
+		// Set the web content URL.
+		/* // TODO: But first kill all msedge.exe processes, if we don't I've seen the behaviour to not work most times
+		killEdgeBrowser() */
+		if err := openBrowserWindow(browserURL + "?setup_only=1"); err != nil {
+			log.Error().Err(err).Msg("setting web content URL in setup experience UI")
+			return nil
+		}
+		s.didOpenBrowser = true
+	}
+
+	// Note that we are setting this based on the current payload only just in case something
+	// was removed from the payload that was there earlier(e.g. a deleted software title).
+	allStepsDone := true
+
+	// Now render the UI for the software and script.
+	if len(payload.Software) > 0 || payload.Script != nil {
+		log.Info().Msg("setup experience: rendering software and script UI")
+
+		if len(payload.Software) > 0 {
+			for _, step := range payload.Software {
+				// If any step is not in a terminal state, then we're not done.
+				if (step.Status != fleet.SetupExperienceStatusFailure && step.Status != fleet.SetupExperienceStatusSuccess) ||
+					// If any software failed, and we're requiring all software to succeed, then we'll block completion.
+					(step.Status == fleet.SetupExperienceStatusFailure && payload.RequireAllSoftware) {
+					allStepsDone = false
+				}
+			}
+		}
+
+		// If a script is still running, then we're not done.
+		if payload.Script != nil && payload.Script.Status != fleet.SetupExperienceStatusFailure && payload.Script.Status != fleet.SetupExperienceStatusSuccess {
+			allStepsDone = false
+		}
+	}
+
+	// If we get here, we can close the webview.
+	// It will likely already be displaying a "done" message.
+	if allStepsDone {
+		log.Info().Msg("All steps is done, killing msedge.exe")
+		killEdgeBrowser()
+		s.stopTokenRotation()
+		s.didOpenBrowser = false // To stop running
+	}
+
+	return nil
+}
+
+func killEdgeBrowser() {
+	killedProcesses, err := platform.KillAllProcessByName("msedge")
+	if err != nil {
+		log.Error().Err(err).Msg("Failed to kill msedge.exe processes")
+		return
+	}
+	log.Info().Msgf("Killed msedge.exe (%d) processes", len(killedProcesses))
+}
+
+func openBrowserWindow(browserURL string) error {
+	switch runtime.GOOS {
+	case "windows":
+		unescapedAmpsRegex := regexp.MustCompile(`([^\\^])&`)
+		browserURL = unescapedAmpsRegex.ReplaceAllString(browserURL, "${1}^&")
+		cmdLine := fmt.Sprintf("--new-window --force-device-enrollment --no-first-run --kiosk %s --edge-kiosk-type=fullscreen", browserURL)
+		opts := []execuser.Option{
+			execuser.WithArg(cmdLine, ""),
+		}
+		if _, err := execuser.Run(`C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe`, opts...); err != nil {
+			return fmt.Errorf("opening windows browser: %w", err)
+		}
+
+	default:
+		log.Debug().Msg("could not open browser, unsupported OS: " + runtime.GOOS)
+		return errors.New("opening setup experience browser page not supported on " + runtime.GOOS)
+	}
+	return nil
 }

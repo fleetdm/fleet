@@ -260,10 +260,13 @@ func (oc *OrbitClient) closeIdleConnections() {
 }
 
 func (oc *OrbitClient) RunConfigReceivers() error {
+	log.Info().Msg("running config receivers")
 	config, err := oc.GetConfig()
 	if err != nil {
 		return fmt.Errorf("RunConfigReceivers get config: %w", err)
 	}
+
+	log.Info().Msgf("got config %#v", *config)
 
 	var errs []error
 	var errMu sync.Mutex
@@ -272,6 +275,7 @@ func (oc *OrbitClient) RunConfigReceivers() error {
 
 	for _, receiver := range oc.ConfigReceivers {
 		receiver := receiver
+		log.Info().Msgf("starting config receiver: %T", receiver)
 		go func() {
 			defer func() {
 				if err := recover(); err != nil {

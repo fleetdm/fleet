@@ -168,7 +168,7 @@ func (ds *Datastore) MDMWindowsInsertEnrolledDevice(ctx context.Context, device 
 
 	if !device.MDMNotInOOBE {
 		// Insert entry into mdm_windows_awaiting_configuration if we are in OOBE
-		_, err = ds.writer(ctx).ExecContext(ctx, `INSERT INTO mdm_windows_awaiting_configuration (device_id, awaiting_configuration) VALUES (?, true) ON DUPLICATE KEY UPDATE awaiting_configuration = VALUES(awaiting_configuration)`, device.MDMDeviceID)
+		_, err = ds.writer(ctx).ExecContext(ctx, `INSERT INTO mdm_windows_awaiting_configuration (device_id, awaiting_configuration) VALUES (?, ?) ON DUPLICATE KEY UPDATE awaiting_configuration = VALUES(awaiting_configuration)`, device.MDMDeviceID, fleet.NotStartedWindowsSetupConfiguration)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "inserting mdm_windows_awaiting_configuration")
 		}
@@ -2568,12 +2568,12 @@ func (ds *Datastore) MDMWindowsAcknowledgeEnrolledDeviceCredentials(ctx context.
 	return err
 }
 
-func (ds *Datastore) MDMWindowsAwaitingConfiguration(ctx context.Context, deviceId string) (bool, error) {
+func (ds *Datastore) MDMWindowsAwaitingConfiguration(ctx context.Context, deviceId string) (*fleet.WindowsSetupConfiguration, error) {
 	if deviceId == "" {
-		return false, nil
+		return nil, errors.New("deviceId can not be empty")
 	}
 
-	var awaitingConfig bool
+	var awaitingConfig byte
 	err := sqlx.GetContext(ctx, ds.reader(ctx), &awaitingConfig, `
 		SELECT awaiting_configuration
 		FROM mdm_windows_awaiting_configuration
@@ -2581,7 +2581,63 @@ func (ds *Datastore) MDMWindowsAwaitingConfiguration(ctx context.Context, device
 		deviceId,
 	)
 	if err != nil {
-		return false, ctxerr.Wrap(ctx, err, "querying awaiting configuration status")
+		return nil, ctxerr.Wrap(ctx, err, "querying awaiting configuration status")
 	}
-	return awaitingConfig, nil
+	config := fleet.WindowsSetupConfiguration(awaitingConfig)
+	return &config, nil
+}
+
+func (ds *Datastore) MDMWindowsAwaitingConfigurationByUUID(ctx context.Context, hostUUID string) (*fleet.WindowsSetupConfiguration, error) {
+	if hostUUID == "" {
+		return nil, errors.New("hostUUID can not be empty")
+	}
+
+	var awaitingConfig byte
+	err := sqlx.GetContext(ctx, ds.reader(ctx), &awaitingConfig, `
+		SELECT awaiting_configuration
+		FROM mdm_windows_awaiting_configuration
+		WHERE device_id = (SELECT mdm_device_id FROM mdm_windows_enrollments WHERE host_uuid = ?)`,
+		hostUUID,
+	)
+	if err == sql.ErrNoRows {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "querying awaiting configuration status")
+	}
+	config := fleet.WindowsSetupConfiguration(awaitingConfig)
+	return &config, nil
+}
+
+func (ds *Datastore) MDMWindowsAwaitingConfigurationByComputerName(ctx context.Context, computerName string) (*fleet.WindowsSetupConfiguration, error) {
+	if computerName == "" {
+		return nil, errors.New("computerName can not be empty")
+	}
+
+	var awaitingConfig byte
+	err := sqlx.GetContext(ctx, ds.reader(ctx), &awaitingConfig, `
+		SELECT awaiting_configuration
+		FROM mdm_windows_awaiting_configuration
+		WHERE device_id = (SELECT mdm_device_id FROM mdm_windows_enrollments WHERE device_name = ?)`,
+		computerName,
+	)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "querying awaiting configuration status")
+	}
+	config := fleet.WindowsSetupConfiguration(awaitingConfig)
+	return &config, nil
+}
+
+func (ds *Datastore) MDMWindowsSetAwaitingConfiguration(ctx context.Context, deviceId string, config fleet.WindowsSetupConfiguration) error {
+	if deviceId == "" {
+		return errors.New("deviceId can not be empty")
+	}
+
+	_, err := ds.writer(ctx).ExecContext(ctx, `
+		UPDATE mdm_windows_awaiting_configuration
+		SET awaiting_configuration = ?
+		WHERE device_id = ?`,
+		byte(config), deviceId,
+	)
+	return err
 }

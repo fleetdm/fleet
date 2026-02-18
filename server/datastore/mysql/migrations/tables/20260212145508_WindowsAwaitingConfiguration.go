@@ -11,7 +11,7 @@ func init() {
 func Up_20260212145508(tx *sql.Tx) error {
 	_, err := tx.Exec(`CREATE TABLE mdm_windows_awaiting_configuration (
 	device_id VARCHAR(255) NOT NULL PRIMARY KEY,
-	awaiting_configuration BOOLEAN NOT NULL,
+	awaiting_configuration TINYINT NOT NULL,
 	created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
 	updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 	)`)

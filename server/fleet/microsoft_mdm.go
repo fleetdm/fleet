@@ -1723,3 +1723,11 @@ func UnmarshallMultiTopLevelXMLProfile(profileBytes []byte) ([]SyncMLCmd, error)
 
 	return root.Commands, nil
 }
+
+type WindowsSetupConfiguration int
+
+const (
+	CompletedWindowsSetupConfiguration  WindowsSetupConfiguration = 0
+	NotStartedWindowsSetupConfiguration WindowsSetupConfiguration = 1
+	InProgressWindowsSetupConfiguration WindowsSetupConfiguration = 2
+)
