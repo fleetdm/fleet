@@ -1,1 +1,0 @@
-* Updated fleetd to ignore the `gdm-greeter` user in GNOME 49 sessions when starting Fleet Desktop.

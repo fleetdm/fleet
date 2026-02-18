@@ -2690,6 +2690,9 @@ func (c *Client) doGitOpsLabels(
 	nToUpdate := len(config.LabelChangesSummary.LabelsToUpdate)
 
 	if dryRun {
+		if len(toDelete) > 0 {
+			logFn("[-] would've deleted %s (This includes renames, since labels are identified by name in YAML.)\n", numberWithPluralization(len(toDelete), "label", "labels"))
+		}
 		for _, labelToDelete := range toDelete {
 			logFn("[-] would've deleted label '%s'\n", labelToDelete)
 		}
@@ -2705,6 +2708,9 @@ func (c *Client) doGitOpsLabels(
 		return nil
 	}
 
+	if len(toDelete) > 0 {
+		logFn("[-] deleting %s (This includes renames, since labels are identified by name in YAML.)\n", numberWithPluralization(len(toDelete), "label", "labels"))
+	}
 	for _, l := range toDelete {
 		logFn("[-] deleting label '%s'\n", l)
 	}

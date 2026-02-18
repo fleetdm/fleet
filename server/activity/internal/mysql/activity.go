@@ -6,14 +6,13 @@ import (
 	"database/sql"
 	"encoding/json"
 	"errors"
+	"log/slog"
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server/activity/api"
 	"github.com/fleetdm/fleet/v4/server/activity/internal/types"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	platform_mysql "github.com/fleetdm/fleet/v4/server/platform/mysql"
-	kitlog "github.com/go-kit/log"
-	"github.com/go-kit/log/level"
 	"github.com/jmoiron/sqlx"
 	"go.opentelemetry.io/otel"
 )
@@ -25,11 +24,11 @@ var tracer = otel.Tracer("github.com/fleetdm/fleet/v4/server/activity/internal/m
 type Datastore struct {
 	primary *sqlx.DB
 	replica *sqlx.DB
-	logger  kitlog.Logger
+	logger  *slog.Logger
 }
 
 // NewDatastore creates a new MySQL datastore for activities.
-func NewDatastore(conns *platform_mysql.DBConnections, logger kitlog.Logger) *Datastore {
+func NewDatastore(conns *platform_mysql.DBConnections, logger *slog.Logger) *Datastore {
 	return &Datastore{primary: conns.Primary, replica: conns.Replica, logger: logger}
 }
 
@@ -228,7 +227,7 @@ func (ds *Datastore) fetchActivityDetails(ctx context.Context, activities []*api
 	for _, a := range activities {
 		det, ok := detailsLookup[a.ID]
 		if !ok {
-			level.Warn(ds.logger).Log("msg", "Activity details not found", "activity_id", a.ID)
+			ds.logger.WarnContext(ctx, "Activity details not found", "activity_id", a.ID)
 			continue
 		}
 		a.Details = det

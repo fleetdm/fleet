@@ -84,7 +84,7 @@ interface IManagePoliciesPageProps {
     key: string;
     pathname: string;
     query: {
-      team_id?: string;
+      fleet_id?: string;
       query?: string;
       order_key?: string;
       order_direction?: "asc" | "desc";
@@ -446,7 +446,7 @@ const ManagePolicyPage = ({
       }
 
       if (isRouteOk && teamIdForApi !== undefined) {
-        newQueryParams.team_id = teamIdForApi;
+        newQueryParams.fleet_id = teamIdForApi;
       }
 
       const locationPath = getNextLocationPath({
@@ -817,7 +817,7 @@ const ManagePolicyPage = ({
     router.push(
       currentTeamId === API_ALL_TEAMS_ID
         ? PATHS.NEW_POLICY
-        : `${PATHS.NEW_POLICY}?team_id=${currentTeamId}`
+        : `${PATHS.NEW_POLICY}?fleet_id=${currentTeamId}`
     );
   };
 
@@ -1094,28 +1094,28 @@ const ManagePolicyPage = ({
     } else if (isAllTeamsSelected) {
       disabledInstallTooltipContent = (
         <>
-          Select a team to manage
+          Select a fleet to manage
           <br />
           install software automation.
         </>
       );
       disabledCalendarTooltipContent = (
         <>
-          Select a team to manage
+          Select a fleet to manage
           <br />
           calendar events.
         </>
       );
       disabledRunScriptTooltipContent = (
         <>
-          Select a team to manage
+          Select a fleet to manage
           <br />
           run script automation.
         </>
       );
       disabledConditionalAccessTooltipContent = (
         <>
-          Select a team to manage
+          Select a fleet to manage
           <br />
           conditional access.
         </>
@@ -1208,9 +1208,9 @@ const ManagePolicyPage = ({
         currentTeamId !== APP_CONTEXT_ALL_TEAMS_ID &&
         !globalConfigFromContext?.partnerships?.enable_primo ? (
           <div className={`${baseClass}__header__tooltip`}>
-            To manage automations add a policy to this team.
+            To manage automations add a policy to this fleet.
             <br />
-            For inherited policies select &ldquo;All teams&rdquo;.
+            For inherited policies select &ldquo;All fleets&rdquo;.
           </div>
         ) : (
           <div className={`${baseClass}__header__tooltip`}>
@@ -1255,20 +1255,6 @@ const ManagePolicyPage = ({
     return <h1>Policies</h1>;
   };
 
-  let teamsDropdownHelpText: string;
-  if (teamIdForApi === API_NO_TEAM_ID) {
-    teamsDropdownHelpText = `Detect device health issues${
-      globalConfigFromContext?.partnerships?.enable_primo
-        ? ""
-        : " for hosts that are not on a team"
-    }.`;
-  } else if (teamIdForApi === API_ALL_TEAMS_ID) {
-    teamsDropdownHelpText = "Detect device health issues for all hosts.";
-  } else {
-    // a team is selected
-    teamsDropdownHelpText =
-      "Detect device health issues for all hosts assigned to this team.";
-  }
   return (
     <MainContent className={baseClass}>
       <>
@@ -1294,7 +1280,7 @@ const ManagePolicyPage = ({
               </div>
             )}
           </div>
-          <PageDescription content={teamsDropdownHelpText} />
+          <PageDescription content={"Detect device health issues."} />
         </div>
         {renderMainTable()}
         {automationsConfig && showOtherWorkflowsModal && (

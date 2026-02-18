@@ -56,7 +56,7 @@ const getAddSoftwareUrl = (
   }
 
   const params = {
-    team_id: teamId,
+    fleet_id: teamId,
     // Add android param to preselect Android dropdown on the Add App store page
     ...(platform === "android" && { platform }),
   };
