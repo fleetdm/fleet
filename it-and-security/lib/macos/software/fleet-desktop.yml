@@ -1,8 +1,2 @@
 # Fleet Desktop (fleet_desktop-v1.0.0.pkg) version 1.0.0
 hash_sha256: 9132f07b6d47a89da8dbc1e4d3515a5956c2f3c6a86f789221268c9b6c4c3c49
-install_script:
-  path: ../scripts/install-fleet-desktop.sh
-uninstall_script:
-  path: ../scripts/uninstall-fleet-desktop.sh
-icon:
-  path: ../../all/icons/fleet-desktop-icon.png
