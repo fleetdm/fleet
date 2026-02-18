@@ -59,7 +59,7 @@ pbpaste | base64 -d
 
 ## MDM troubleshooting
 
-Fleet's MDM software engineering team has created resource they use for MDM support escalations. The [MDM troubleshooting checklist](https://github.com/fleetdm/fleet/blob/8c8f1dac4857e73804c1dc720efdacc14d0d3d6c/docs/Contributing/product-groups/mdm/mdm-bug-checklist.md?plain=1) lives as a plain-text document in the public Fleet GitHub repository so that anyone can keep it up-to-date as needed. 
+Fleet's MDM software engineering team has created a resource they use for MDM support escalations. The [MDM troubleshooting checklist](https://github.com/fleetdm/fleet/blob/8c8f1dac4857e73804c1dc720efdacc14d0d3d6c/docs/Contributing/product-groups/mdm/mdm-bug-checklist.md?plain=1) lives as a plain-text document in the public Fleet GitHub repository so that anyone can keep it up-to-date as needed. 
 
 ## Server-side logs
 
