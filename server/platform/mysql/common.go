@@ -135,17 +135,16 @@ func generateMysqlConnectionString(conf MysqlConfig) string {
 		"group_concat_max_len": []string{"4194304"},
 		"multiStatements":      []string{"true"},
 	}
+	if conf.TLSConfig != "" {
+		params.Set("tls", conf.TLSConfig)
+	}
 	if conf.Password == "" && conf.PasswordPath == "" && conf.Region != "" {
 		params.Set("allowCleartextPasswords", "true")
 		// IAM authentication requires cleartext auth over TLS. If TLS config is
 		// provided (e.g. custom CA bundle), use it; otherwise default to rdsmysql.
-		if conf.TLSConfig != "" {
-			params.Set("tls", conf.TLSConfig)
-		} else {
+		if conf.TLSConfig == "" {
 			params.Set("tls", "rdsmysql")
 		}
-	} else if conf.TLSConfig != "" {
-		params.Set("tls", conf.TLSConfig)
 	}
 	if conf.SQLMode != "" {
 		params.Set("sql_mode", conf.SQLMode)
