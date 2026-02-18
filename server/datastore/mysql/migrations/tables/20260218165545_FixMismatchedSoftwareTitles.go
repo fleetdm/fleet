@@ -19,7 +19,7 @@ func Up_20260218165545(tx *sql.Tx) error {
 	SELECT 
 		software.id id,
 		software.source source,
-		software.name name.
+		software.name name,
 		software.bundle_identifier bundle_identifier,
 		software.title_id title_id, 
 		software_titles.source title_source
