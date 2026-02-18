@@ -101,7 +101,7 @@ object ApiClient : CertificateApiClient {
         return try {
             KeystoreManager.decrypt(encrypted)
         } catch (e: Exception) {
-            Log.e(TAG, "Failed to decrypt API key", e)
+            FleetLog.e(TAG, "Failed to decrypt API key", e)
             null
         }
     }
@@ -287,7 +287,7 @@ object ApiClient : CertificateApiClient {
                 Result.success(CertificateTemplateResult(template, scepUrl))
             },
             onFailure = { throwable ->
-                Log.e(TAG, "failed to get certificate template $certificateId")
+                FleetLog.e(TAG, "failed to get certificate template $certificateId")
                 Result.failure(throwable)
             },
         )
@@ -318,7 +318,7 @@ object ApiClient : CertificateApiClient {
         ).fold(
             onSuccess = { response ->
                 if (response.error != null) {
-                    Log.e(TAG, "failed to update certificate status $certificateId: ${response.error}")
+                    FleetLog.e(TAG, "failed to update certificate status $certificateId: ${response.error}")
                     Result.failure(Exception(response.error))
                 } else {
                     Log.i(TAG, "successfully updated certificate status for $certificateId to $status")
@@ -326,7 +326,7 @@ object ApiClient : CertificateApiClient {
                 }
             },
             onFailure = { throwable ->
-                Log.e(TAG, "failed to update certificate status $certificateId: ${throwable.message}")
+                FleetLog.e(TAG, "failed to update certificate status $certificateId: ${throwable.message}")
                 Result.failure(throwable)
             },
         )
@@ -371,7 +371,7 @@ object ApiClient : CertificateApiClient {
                     Result.success(response.orbitNodeKey)
                 },
                 onFailure = { error ->
-                    Log.e(TAG, "Auto-enrollment failed: ${error.message}")
+                    FleetLog.e(TAG, "Auto-enrollment failed: ${error.message}")
                     Result.failure(error)
                 },
             )

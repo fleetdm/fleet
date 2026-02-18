@@ -55,22 +55,15 @@ private val jsonPretty = Json { prettyPrint = true }
 data class LastError(val timestamp: String, val tag: String, val message: String)
 
 fun readLastError(): LastError? {
-    val fleetTags = listOf(
-        "fleet-app", "fleet-ApiClient", "fleet-CertificateEnrollmentWorker",
-        "fleet-CertificateOrchestrator", "fleet-AndroidCertInstaller",
-        "fleet-DeviceKeystoreManager", "fleet-boot", "fleet-RoleNotificationReceiverService",
-    )
-    val filterArgs = fleetTags.map { "$it:E" } + listOf("*:S")
-    val command = listOf("logcat", "-d", "-v", "time") + filterArgs
-    val output = ProcessBuilder(command).redirectErrorStream(true).start()
-        .inputStream.bufferedReader().readText()
+    val text = FleetLog.readErrors()
+    if (text.isBlank()) return null
 
-    // logcat -v time format: "MM-DD HH:MM:SS.mmm  PID  TID E TAG: message"
-    val lineRegex = Regex("""^(\d{2}-\d{2} \d{2}:\d{2}:\d{2}\.\d+)\s+\d+\s+\d+\s+E\s+([\w-]+)\s*:\s*(.*)$""")
-    return output.lines()
-        .lastOrNull { lineRegex.matches(it.trim()) }
+    // FleetLog line format: "2026-02-18T12:34:56Z E fleet-tag message"
+    val lineRegex = Regex("""^(\S+)\s+E\s+(\S+)\s+(.*)$""")
+    return text.lines()
+        .lastOrNull { lineRegex.matches(it) }
         ?.let { line ->
-            val match = lineRegex.find(line.trim()) ?: return null
+            val match = lineRegex.find(line) ?: return null
             val (timestamp, tag, message) = match.destructured
             LastError(timestamp = timestamp, tag = tag, message = message)
         }
