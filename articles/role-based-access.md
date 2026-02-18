@@ -13,7 +13,7 @@ Users with the admin role receive all permissions.
 Maintainers can manage most entities in Fleet, like queries, policies, and labels.
 Unlike admins, maintainers cannot edit higher level settings like application configuration, teams or users.
 
-### Technician ([Coming soon](https://github.com/fleetdm/fleet/issues/35696))
+### Technician ([coming soon](https://github.com/fleetdm/fleet/issues/35696))
 
 `Applies only to Fleet Premium`
 
