@@ -9,18 +9,18 @@ import (
 func TestUp_20260218165545(t *testing.T) {
 	db := applyUpToPrev(t)
 
-	// Test 1
+	// Test 1 - mismatched software, no existing title with correct source
 	test1_macOSTitleID := execNoErrLastID(t, db, `
 		INSERT INTO software_titles (name, source, bundle_identifier) 
 		VALUES ('App 1', 'apps', 'com.example')
 	`)
-	test1_iosSoftwareID := execNoErrLastID(t, db, `
+	test1_iOSSoftwareID := execNoErrLastID(t, db, `
 		INSERT INTO software (name, source, bundle_identifier, title_id, checksum)
 		VALUES ('App 1', 'ios_apps', 'com.example', ?, ?)
 	`, test1_macOSTitleID, []byte("App 1"))
-	require.NotZero(t, test1_iosSoftwareID)
+	require.NotZero(t, test1_iOSSoftwareID)
 
-	// Test 2
+	// Test 2 -  mismatched software, existing title with correct source
 	test2_macOSTitleID := execNoErrLastID(t, db, `
 		INSERT INTO software_titles (name, source, bundle_identifier) 
 		VALUES ('App 2', 'apps', 'com.example2')
@@ -35,7 +35,7 @@ func TestUp_20260218165545(t *testing.T) {
 	`, test2_macOSTitleID, []byte("App 2"))
 	require.NotZero(t, test2_iosSoftwareID)
 
-	// Test 3
+	// Test 3 - software installer, no existing title with correct source
 	test3_iOSTitleID := execNoErrLastID(t, db, `
 		INSERT INTO software_titles (name, source, bundle_identifier) 
 		VALUES ('App 3', 'ios_apps', 'com.example3')
@@ -58,6 +58,17 @@ func TestUp_20260218165545(t *testing.T) {
 	`, test3_iOSTitleID, scriptID, scriptID)
 	require.NotZero(t, test3_installerID)
 
+	// Test 4 - correct software, not mismatched
+	test4_macOSTitleID := execNoErrLastID(t, db, `
+		INSERT INTO software_titles (name, source, bundle_identifier) 
+		VALUES ('App 4', 'apps', 'com.example4')
+	`)
+	test4_macOSSoftwareID := execNoErrLastID(t, db, `
+		INSERT INTO software (name, source, bundle_identifier, title_id, checksum)
+		VALUES ('App 4', 'apps', 'com.example4', ?, ?)
+	`, test4_macOSTitleID, []byte("App 4"))
+	require.NotZero(t, test4_macOSSoftwareID)
+
 	// Apply current migration.
 	applyNext(t, db)
 
@@ -68,7 +79,7 @@ func TestUp_20260218165545(t *testing.T) {
 
 	// iosSoftwareID should now be using the new software title
 	var exists bool
-	err = db.Get(&exists, `SELECT 1 FROM software WHERE id = ? AND title_id = ?`, test1_iosSoftwareID, test1_newTitleID)
+	err = db.Get(&exists, `SELECT 1 FROM software WHERE id = ? AND title_id = ?`, test1_iOSSoftwareID, test1_newTitleID)
 	require.NoError(t, err)
 
 	// Test 2
@@ -84,4 +95,8 @@ func TestUp_20260218165545(t *testing.T) {
 	err = db.Get(&exists, `SELECT 1 FROM software_installers WHERE id = ? AND title_id = ?`, test3_installerID, test3_newTitleID)
 	require.NoError(t, err)
 
+	// Test 4
+	// iosSoftwareID should now be using the new software title
+	err = db.Get(&exists, `SELECT 1 FROM software WHERE id = ? AND title_id = ?`, test4_macOSSoftwareID, test4_macOSTitleID)
+	require.NoError(t, err)
 }
