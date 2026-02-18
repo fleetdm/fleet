@@ -106,6 +106,9 @@ func (mc Mobileconfig) ParseConfigProfile() (*Parsed, error) {
 	}
 	var p Parsed
 	if _, err := plist.Unmarshal(mcBytes, &p); err != nil {
+		if strings.Contains(err.Error(), "illegal base64 data") {
+			return nil, errors.New("invalid character (&<'>) detected in mobileconfig profile")
+		}
 		return nil, err
 	}
 	if p.PayloadType != "Configuration" {
@@ -158,6 +161,9 @@ func (mc Mobileconfig) payloadSummary() ([]payloadSummary, error) {
 	}
 	_, err := plist.Unmarshal(mcBytes, &tlo)
 	if err != nil {
+		if strings.Contains(err.Error(), "illegal base64 data") {
+			return nil, errors.New("invalid character (&<'>) detected in mobileconfig profile")
+		}
 		return nil, err
 	}
 	// confirm that the top-level payload type matches the expected value
