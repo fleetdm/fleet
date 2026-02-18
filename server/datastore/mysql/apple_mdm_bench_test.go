@@ -62,7 +62,7 @@ func TestScopedDeclarationProcessing(t *testing.T) {
 	// Create 5 hosts in team A and 5 hosts in team B
 	var teamAHosts []*fleet.Host
 	var teamBHosts []*fleet.Host
-	for i := 0; i < 5; i++ {
+	for i := range 5 {
 		h, err := ds.NewHost(ctx, &fleet.Host{
 			Hostname:      fmt.Sprintf("scope-host-a-%d", i),
 			OsqueryHostID: ptr.String(fmt.Sprintf("scope-osquery-a-%d", i)),
@@ -75,7 +75,7 @@ func TestScopedDeclarationProcessing(t *testing.T) {
 		nanoEnroll(t, ds, h, false)
 		teamAHosts = append(teamAHosts, h)
 	}
-	for i := 0; i < 5; i++ {
+	for i := range 5 {
 		h, err := ds.NewHost(ctx, &fleet.Host{
 			Hostname:      fmt.Sprintf("scope-host-b-%d", i),
 			OsqueryHostID: ptr.String(fmt.Sprintf("scope-osquery-b-%d", i)),
@@ -90,22 +90,22 @@ func TestScopedDeclarationProcessing(t *testing.T) {
 	}
 
 	// Create 3 declarations for team A
-	for i := 0; i < 3; i++ {
+	for i := range 3 {
 		_, err := ds.NewMDMAppleDeclaration(ctx, &fleet.MDMAppleDeclaration{
 			Identifier: fmt.Sprintf("com.fleet.scope-test.team-a.%d", i),
 			Name:       fmt.Sprintf("scope-decl-a-%d", i),
-			RawJSON:    []byte(fmt.Sprintf(`{"Type":"com.apple.configuration.decl.a.%d","Identifier":"com.fleet.scope-test.team-a.%d","Payload":{"ServiceType":"com.apple.service.a.%d"}}`, i, i, i)),
+			RawJSON:    fmt.Appendf(nil, `{"Type":"com.apple.configuration.decl.a.%d","Identifier":"com.fleet.scope-test.team-a.%d","Payload":{"ServiceType":"com.apple.service.a.%d"}}`, i, i, i),
 			TeamID:     &teamA.ID,
 		})
 		require.NoError(t, err)
 	}
 
 	// Create 3 declarations for team B
-	for i := 0; i < 3; i++ {
+	for i := range 3 {
 		_, err := ds.NewMDMAppleDeclaration(ctx, &fleet.MDMAppleDeclaration{
 			Identifier: fmt.Sprintf("com.fleet.scope-test.team-b.%d", i),
 			Name:       fmt.Sprintf("scope-decl-b-%d", i),
-			RawJSON:    []byte(fmt.Sprintf(`{"Type":"com.apple.configuration.decl.b.%d","Identifier":"com.fleet.scope-test.team-b.%d","Payload":{"ServiceType":"com.apple.service.b.%d"}}`, i, i, i)),
+			RawJSON:    fmt.Appendf(nil, `{"Type":"com.apple.configuration.decl.b.%d","Identifier":"com.fleet.scope-test.team-b.%d","Payload":{"ServiceType":"com.apple.service.b.%d"}}`, i, i, i),
 			TeamID:     &teamB.ID,
 		})
 		require.NoError(t, err)
@@ -301,7 +301,7 @@ func createBenchmarkTeamWithHosts(tb testing.TB, ds *Datastore, teamName string,
 	teamID = team.ID
 
 	hostUUIDs = make([]string, numHosts)
-	for i := 0; i < numHosts; i++ {
+	for i := range numHosts {
 		hostUUID := fmt.Sprintf("%s-uuid-%d", teamName, i)
 		h, err := ds.NewHost(ctx, &fleet.Host{
 			Hostname:      fmt.Sprintf("%s-host-%d", teamName, i),
@@ -316,11 +316,11 @@ func createBenchmarkTeamWithHosts(tb testing.TB, ds *Datastore, teamName string,
 		hostUUIDs[i] = hostUUID
 	}
 
-	for i := 0; i < numDecls; i++ {
+	for i := range numDecls {
 		_, err := ds.NewMDMAppleDeclaration(ctx, &fleet.MDMAppleDeclaration{
 			Identifier: fmt.Sprintf("com.fleet.bench.%s.%d", teamName, i),
 			Name:       fmt.Sprintf("%s-decl-%d", teamName, i),
-			RawJSON:    []byte(fmt.Sprintf(`{"Type":"com.apple.configuration.decl.%d","Identifier":"com.fleet.bench.%s.%d","Payload":{"ServiceType":"com.apple.svc.%d"}}`, i, teamName, i, i)),
+			RawJSON:    fmt.Appendf(nil, `{"Type":"com.apple.configuration.decl.%d","Identifier":"com.fleet.bench.%s.%d","Payload":{"ServiceType":"com.apple.svc.%d"}}`, i, teamName, i, i),
 			TeamID:     &team.ID,
 		})
 		require.NoError(tb, err)
@@ -369,7 +369,7 @@ func TestScopedVsUnscopedPerformance(t *testing.T) {
 	_, targetUUIDs := createBenchmarkTeamWithHosts(t, ds, "target", hostsPerTeam, declsPerTeam)
 
 	// Create bystander teams (these make the unscoped path slow)
-	for i := 0; i < numBystanderTeams; i++ {
+	for i := range numBystanderTeams {
 		createBenchmarkTeamWithHosts(t, ds, fmt.Sprintf("bystander-%02d", i), hostsPerTeam, declsPerTeam)
 	}
 
@@ -465,15 +465,12 @@ func bulkInsertHosts(tb testing.TB, ds *Datastore, teamID uint, prefix string, c
 	const batchSize = 1000
 
 	for start := 0; start < count; start += batchSize {
-		end := start + batchSize
-		if end > count {
-			end = count
-		}
+		end := min(start+batchSize, count)
 		batch := end - start
 
 		// Build multi-row INSERT for hosts
 		hostVals := make([]string, 0, batch)
-		hostArgs := make([]interface{}, 0, batch*10)
+		hostArgs := make([]any, 0, batch*10)
 		for i := start; i < end; i++ {
 			uuid := fmt.Sprintf("%s-uuid-%d", prefix, i)
 			uuids[i] = uuid
@@ -508,7 +505,7 @@ func bulkInsertHosts(tb testing.TB, ds *Datastore, teamID uint, prefix string, c
 
 		// Bulk insert host_seen_times
 		seenVals := make([]string, 0, len(insertedHosts))
-		seenArgs := make([]interface{}, 0, len(insertedHosts)*2)
+		seenArgs := make([]any, 0, len(insertedHosts)*2)
 		for _, h := range insertedHosts {
 			seenVals = append(seenVals, "(?, ?)")
 			seenArgs = append(seenArgs, h.ID, now)
@@ -520,7 +517,7 @@ func bulkInsertHosts(tb testing.TB, ds *Datastore, teamID uint, prefix string, c
 
 		// Bulk insert nano_devices
 		nanoDevVals := make([]string, 0, len(insertedHosts))
-		nanoDevArgs := make([]interface{}, 0, len(insertedHosts)*3)
+		nanoDevArgs := make([]any, 0, len(insertedHosts)*3)
 		for _, h := range insertedHosts {
 			nanoDevVals = append(nanoDevVals, "(?, 'test', ?, ?)")
 			nanoDevArgs = append(nanoDevArgs, h.UUID, "darwin", teamID)
@@ -532,7 +529,7 @@ func bulkInsertHosts(tb testing.TB, ds *Datastore, teamID uint, prefix string, c
 
 		// Bulk insert nano_enrollments
 		nanoEnrVals := make([]string, 0, len(insertedHosts))
-		nanoEnrArgs := make([]interface{}, 0, len(insertedHosts)*5)
+		nanoEnrArgs := make([]any, 0, len(insertedHosts)*5)
 		enrollTime := now.Add(-2 * time.Second).Truncate(time.Second)
 		for _, h := range insertedHosts {
 			nanoEnrVals = append(nanoEnrVals, "(?, ?, 'Device', ?, ?, ?, 1, ?)")
@@ -614,27 +611,27 @@ func TestReproduceIssue39921(t *testing.T) {
 	targetTeam, err := ds.NewTeam(ctx, &fleet.Team{Name: "repro-target"})
 	require.NoError(t, err)
 	targetUUIDs := bulkInsertHosts(t, ds, targetTeam.ID, "repro-target", targetTeamHosts)
-	for d := 0; d < declsPerTeam; d++ {
+	for d := range declsPerTeam {
 		_, err := ds.NewMDMAppleDeclaration(ctx, &fleet.MDMAppleDeclaration{
 			Identifier: fmt.Sprintf("com.fleet.repro.target.%d", d),
 			Name:       fmt.Sprintf("repro-target-decl-%d", d),
-			RawJSON:    []byte(fmt.Sprintf(`{"Type":"com.apple.configuration.decl.%d","Identifier":"com.fleet.repro.target.%d","Payload":{"ServiceType":"com.apple.svc.%d"}}`, d, d, d)),
+			RawJSON:    fmt.Appendf(nil, `{"Type":"com.apple.configuration.decl.%d","Identifier":"com.fleet.repro.target.%d","Payload":{"ServiceType":"com.apple.svc.%d"}}`, d, d, d),
 			TeamID:     &targetTeam.ID,
 		})
 		require.NoError(t, err)
 	}
 
 	// Create bystander teams (these create the load that the old code scanned needlessly)
-	for i := 0; i < numBystanderTeams; i++ {
+	for i := range numBystanderTeams {
 		teamName := fmt.Sprintf("repro-bystander-%02d", i)
 		team, err := ds.NewTeam(ctx, &fleet.Team{Name: teamName})
 		require.NoError(t, err)
 		bulkInsertHosts(t, ds, team.ID, teamName, bystanderHosts)
-		for d := 0; d < declsPerTeam; d++ {
+		for d := range declsPerTeam {
 			_, err := ds.NewMDMAppleDeclaration(ctx, &fleet.MDMAppleDeclaration{
 				Identifier: fmt.Sprintf("com.fleet.repro.%s.%d", teamName, d),
 				Name:       fmt.Sprintf("%s-decl-%d", teamName, d),
-				RawJSON:    []byte(fmt.Sprintf(`{"Type":"com.apple.configuration.decl.%d","Identifier":"com.fleet.repro.%s.%d","Payload":{"ServiceType":"com.apple.svc.%d"}}`, d, teamName, d, d)),
+				RawJSON:    fmt.Appendf(nil, `{"Type":"com.apple.configuration.decl.%d","Identifier":"com.fleet.repro.%s.%d","Payload":{"ServiceType":"com.apple.svc.%d"}}`, d, teamName, d, d),
 				TeamID:     &team.ID,
 			})
 			require.NoError(t, err)
@@ -755,27 +752,27 @@ func BenchmarkDeclarationProcessingAtScale(b *testing.B) {
 			targetTeam, err := ds.NewTeam(ctx, &fleet.Team{Name: fmt.Sprintf("target-%s", tier.name)})
 			require.NoError(b, err)
 			targetUUIDs := bulkInsertHosts(b, ds, targetTeam.ID, fmt.Sprintf("target-%s", tier.name), tier.hostsPerTeam)
-			for d := 0; d < declsPerTeam; d++ {
+			for d := range declsPerTeam {
 				_, err := ds.NewMDMAppleDeclaration(ctx, &fleet.MDMAppleDeclaration{
 					Identifier: fmt.Sprintf("com.fleet.bench.target-%s.%d", tier.name, d),
 					Name:       fmt.Sprintf("target-%s-decl-%d", tier.name, d),
-					RawJSON:    []byte(fmt.Sprintf(`{"Type":"com.apple.configuration.decl.%d","Identifier":"com.fleet.bench.target-%s.%d","Payload":{}}`, d, tier.name, d)),
+					RawJSON:    fmt.Appendf(nil, `{"Type":"com.apple.configuration.decl.%d","Identifier":"com.fleet.bench.target-%s.%d","Payload":{}}`, d, tier.name, d),
 					TeamID:     &targetTeam.ID,
 				})
 				require.NoError(b, err)
 			}
 
 			// Create bystander teams
-			for i := 0; i < tier.numBystanderTeams; i++ {
+			for i := range tier.numBystanderTeams {
 				name := fmt.Sprintf("bystander-%s-%02d", tier.name, i)
 				team, err := ds.NewTeam(ctx, &fleet.Team{Name: name})
 				require.NoError(b, err)
 				bulkInsertHosts(b, ds, team.ID, name, tier.hostsPerTeam)
-				for d := 0; d < declsPerTeam; d++ {
+				for d := range declsPerTeam {
 					_, err := ds.NewMDMAppleDeclaration(ctx, &fleet.MDMAppleDeclaration{
 						Identifier: fmt.Sprintf("com.fleet.bench.%s.%d", name, d),
 						Name:       fmt.Sprintf("%s-decl-%d", name, d),
-						RawJSON:    []byte(fmt.Sprintf(`{"Type":"com.apple.configuration.decl.%d","Identifier":"com.fleet.bench.%s.%d","Payload":{}}`, d, name, d)),
+						RawJSON:    fmt.Appendf(nil, `{"Type":"com.apple.configuration.decl.%d","Identifier":"com.fleet.bench.%s.%d","Payload":{}}`, d, name, d),
 						TeamID:     &team.ID,
 					})
 					require.NoError(b, err)
@@ -786,7 +783,7 @@ func BenchmarkDeclarationProcessingAtScale(b *testing.B) {
 
 			b.Run(fmt.Sprintf("Scoped_%dhosts", tier.hostsPerTeam), func(b *testing.B) {
 				b.ResetTimer()
-				for i := 0; i < b.N; i++ {
+				for range b.N {
 					ExecAdhocSQL(b, ds, func(q sqlx.ExtContext) error {
 						_, err := mdmAppleGetHostsWithChangedDeclarationsDB(ctx, q, targetUUIDs)
 						return err
@@ -796,7 +793,7 @@ func BenchmarkDeclarationProcessingAtScale(b *testing.B) {
 
 			b.Run(fmt.Sprintf("Unscoped_%dhosts", totalHosts), func(b *testing.B) {
 				b.ResetTimer()
-				for i := 0; i < b.N; i++ {
+				for range b.N {
 					ExecAdhocSQL(b, ds, func(q sqlx.ExtContext) error {
 						_, err := mdmAppleGetHostsWithChangedDeclarationsDB(ctx, q, nil)
 						return err

@@ -5962,10 +5962,7 @@ func mdmAppleGetHostsWithChangedDeclarationsDB(ctx context.Context, tx sqlx.ExtC
 	var allDecls []*fleet.MDMAppleHostDeclaration
 
 	for i := 0; i < len(hostUUIDs); i += selectBatchSize {
-		end := i + selectBatchSize
-		if end > len(hostUUIDs) {
-			end = len(hostUUIDs)
-		}
+		end := min(i+selectBatchSize, len(hostUUIDs))
 		batch := hostUUIDs[i:end]
 
 		// Install query: 4x batch (one per UNION branch) + 2 operation type args
