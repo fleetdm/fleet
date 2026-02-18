@@ -115,7 +115,8 @@ func (ts *WithServer) SetupSuite(t *testing.T, dbName string) {
 	logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
 	kitLogger := logging.NewLogger(logger)
 	activityModule := activities.NewActivityModule(&ts.DS.DataStore, kitLogger)
-	svc, err := service.NewServiceWithClient(logger, &ts.DS, &ts.AndroidAPIClient, "test-private-key", ts.DS.Datastore, activityModule, config.AndroidAgentConfig{})
+	svc, err := service.NewServiceWithClient(logger, &ts.DS, &ts.AndroidAPIClient, "test-private-key", ts.DS.Datastore, activityModule,
+		config.AndroidAgentConfig{})
 	require.NoError(t, err)
 	ts.Svc = svc
 
@@ -219,11 +220,11 @@ func runServerForTests(t *testing.T, logger *logging.Logger, fleetSvc fleet.Serv
 			kithttp.PopulateRequestContext,
 			auth.SetRequestsContexts(fleetSvc),
 		),
-		kithttp.ServerErrorHandler(&endpointer.ErrorHandler{Logger: logger}),
+		kithttp.ServerErrorHandler(&endpointer.ErrorHandler{Logger: logger.SlogLogger()}),
 		kithttp.ServerErrorEncoder(androidErrorEncoder),
 		kithttp.ServerAfter(
 			kithttp.SetContentType("application/json; charset=utf-8"),
-			log.LogRequestEnd(logger),
+			log.LogRequestEnd(logger.SlogLogger()),
 		),
 	}
 

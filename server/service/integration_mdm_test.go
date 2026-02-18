@@ -18,6 +18,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log/slog"
 	"math/big"
 	"mime/multipart"
 	"net/http"
@@ -957,7 +958,7 @@ func (s *integrationMDMTestSuite) awaitTriggerProfileSchedule(t *testing.T) {
 		err        error
 	)
 	for range 10 {
-		_, didTrigger, err = s.profileSchedule.Trigger()
+		_, didTrigger, err = s.profileSchedule.Trigger(t.Context())
 		require.NoError(t, err)
 		if didTrigger {
 			break
@@ -994,7 +995,7 @@ func (s *integrationMDMTestSuite) awaitTriggerAndroidProfileSchedule(t *testing.
 		err        error
 	)
 	for range 10 {
-		_, didTrigger, err = s.androidProfileSchedule.Trigger()
+		_, didTrigger, err = s.androidProfileSchedule.Trigger(t.Context())
 		require.NoError(t, err)
 		if didTrigger {
 			break
@@ -6144,7 +6145,7 @@ func (s *integrationMDMTestSuite) TestSSO() {
 	}
 	err = detailQueries["mdm"].DirectIngestFunc(
 		context.Background(),
-		logging.NewNopLogger(),
+		slog.New(slog.DiscardHandler),
 		&fleet.Host{ID: hostResp.Host.ID},
 		s.ds,
 		rows,
@@ -6175,7 +6176,7 @@ func (s *integrationMDMTestSuite) TestSSO() {
 	}
 	err = detailQueries["google_chrome_profiles"].DirectIngestFunc(
 		context.Background(),
-		logging.NewNopLogger(),
+		slog.New(slog.DiscardHandler),
 		&fleet.Host{ID: hostResp.Host.ID},
 		s.ds,
 		rows,
@@ -6241,7 +6242,7 @@ func (s *integrationMDMTestSuite) TestSSO() {
 	// reporting google chrome profiles only clears chrome profiles from device mapping
 	err = detailQueries["google_chrome_profiles"].DirectIngestFunc(
 		context.Background(),
-		logging.NewNopLogger(),
+		slog.New(slog.DiscardHandler),
 		&fleet.Host{ID: hostResp.Host.ID},
 		s.ds,
 		[]map[string]string{},
@@ -6488,7 +6489,7 @@ func (s *integrationMDMTestSuite) TestSSOWithSCIM() {
 	}
 	err = detailQueries["mdm"].DirectIngestFunc(
 		context.Background(),
-		logging.NewNopLogger(),
+		slog.New(slog.DiscardHandler),
 		&fleet.Host{ID: hostResp.Host.ID},
 		s.ds,
 		rows,
@@ -6509,7 +6510,7 @@ func (s *integrationMDMTestSuite) TestSSOWithSCIM() {
 	}
 	err = detailQueries["google_chrome_profiles"].DirectIngestFunc(
 		context.Background(),
-		logging.NewNopLogger(),
+		slog.New(slog.DiscardHandler),
 		&fleet.Host{ID: hostResp.Host.ID},
 		s.ds,
 		rows,
@@ -10355,7 +10356,7 @@ func (s *integrationMDMTestSuite) runIntegrationsSchedule() {
 		err        error
 	)
 	for range 10 {
-		_, didTrigger, err = s.integrationsSchedule.Trigger()
+		_, didTrigger, err = s.integrationsSchedule.Trigger(s.T().Context())
 		require.NoError(s.T(), err)
 		if didTrigger {
 			break
@@ -10377,7 +10378,7 @@ func (s *integrationMDMTestSuite) awaitRunCleanupSchedule() {
 		err        error
 	)
 	for range 10 {
-		_, didTrigger, err = s.cleanupsSchedule.Trigger()
+		_, didTrigger, err = s.cleanupsSchedule.Trigger(s.T().Context())
 		require.NoError(s.T(), err)
 		if didTrigger {
 			break
@@ -20859,10 +20860,20 @@ func (s *integrationMDMTestSuite) TestTechnicianPermissions() {
 	require.NoError(t, err)
 	t2, err := s.ds.NewTeam(ctx, &fleet.Team{
 		Name: "Bar",
+		Secrets: []*fleet.EnrollSecret{
+			{
+				Secret: "super secret 2",
+			},
+		},
 	})
 	require.NoError(t, err)
 	t3, err := s.ds.NewTeam(ctx, &fleet.Team{
 		Name: "Zoo",
+		Secrets: []*fleet.EnrollSecret{
+			{
+				Secret: "super secret 3",
+			},
+		},
 	})
 	require.NoError(t, err)
 	team1Host, err := s.ds.NewHost(ctx, &fleet.Host{
@@ -21082,6 +21093,48 @@ func (s *integrationMDMTestSuite) TestTechnicianPermissions() {
 	})
 	require.NoError(t, err)
 
+	// Set SMTP, agent options, and SSO settings, and check they are not available for Technicians.
+	acSetup := appConfigResponse{}
+	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
+		"smtp_settings": {
+			"enable_smtp": true,
+			"sender_address": "test@example.com",
+			"server": "localhost",
+			"port": 1025,
+			"authentication_type": "authtype_username_password",
+			"user_name": "smtpuser",
+			"password": "smtpsecretpassword"
+		},
+		"sso_settings": {
+			"enable_sso": true,
+			"entity_id": "https://localhost:8080",
+			"idp_name": "SimpleSAML",
+			"metadata_url": "http://localhost:9080/simplesaml/saml2/idp/metadata.php",
+			"enable_jit_provisioning": false
+		},
+		"agent_options": {
+			"config": {
+				"options": {
+					"pack_delimiter": "/",
+					"logger_tls_period": 10,
+					"distributed_plugin": "tls",
+					"disable_distributed": false,
+					"logger_tls_endpoint": "/api/osquery/log",
+					"distributed_interval": 10,
+					"distributed_tls_max_attempts": 3
+				}
+			}
+		}
+	}`), http.StatusOK, &acSetup)
+	t.Cleanup(func() {
+		acSetup := appConfigResponse{}
+		s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
+			"smtp_settings": {},
+			"sso_settings": {},
+			"agent_options": {}
+		}`), http.StatusOK, &acSetup)
+	})
+
 	//
 	// Start running permission tests with user global-technician@example.com.
 	//
@@ -21149,8 +21202,12 @@ func (s *integrationMDMTestSuite) TestTechnicianPermissions() {
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/software/%d", lsr.Software[0].ID), getSoftwareRequest{}, http.StatusOK, &getSoftwareResponse{})
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/software/versions/%d", lsr.Software[0].ID), getSoftwareRequest{}, http.StatusOK, &getSoftwareResponse{})
 
-	// Attempt to read app config, should pass.
-	s.DoJSON("GET", "/api/latest/fleet/config", nil, http.StatusOK, &appConfigResponse{})
+	// Attempt to read app config, only global admins get SMTP settings.
+	var globalTechConfigResp appConfigResponse
+	s.DoJSON("GET", "/api/latest/fleet/config", nil, http.StatusOK, &globalTechConfigResp)
+	require.Nil(t, globalTechConfigResp.SMTPSettings)
+	require.Nil(t, globalTechConfigResp.SSOSettings)
+	require.Nil(t, globalTechConfigResp.AgentOptions)
 
 	// Attempt to write app config, should fail.
 	acr := appConfigResponse{}
@@ -21379,8 +21436,20 @@ func (s *integrationMDMTestSuite) TestTechnicianPermissions() {
 		}
 	}`), http.StatusForbidden, &teamResponse{})
 
-	// Attempt to view a team, should allow.
-	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/teams/%d", t1.ID), getTeamRequest{}, http.StatusOK, &teamResponse{})
+	// Attempt to view a team, should allow, but enroll secrets should be masked.
+	var teamRes teamResponse
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/teams/%d", t1.ID), getTeamRequest{}, http.StatusOK, &teamRes)
+	require.Len(t, teamRes.Team.Secrets, 1)
+	require.Equal(t, fleet.MaskedPassword, teamRes.Team.Secrets[0].Secret)
+
+	// Attempt to list teams, should allow, but all enroll secrets should be masked.
+	var ltr listTeamsResponse
+	s.DoJSON("GET", "/api/latest/fleet/teams", listTeamsRequest{}, http.StatusOK, &ltr)
+	require.Len(t, ltr.Teams, 3)
+	for _, team := range ltr.Teams {
+		require.Len(t, team.Secrets, 1)
+		require.Equal(t, fleet.MaskedPassword, team.Secrets[0].Secret)
+	}
 
 	// Attempt to delete a team, should fail.
 	dtr := deleteTeamResponse{}
@@ -21522,6 +21591,13 @@ func (s *integrationMDMTestSuite) TestTechnicianPermissions() {
 	//
 
 	s.setTokenForTest(t, "t1-t3-technician@example.com", test.GoodPassword)
+
+	// Attempt to read app config, should pass and secrets should be obfuscated.
+	var teamTechConfigResp appConfigResponse
+	s.DoJSON("GET", "/api/latest/fleet/config", nil, http.StatusOK, &teamTechConfigResp)
+	require.Nil(t, teamTechConfigResp.SMTPSettings)
+	require.Nil(t, teamTechConfigResp.SSOSettings)
+	require.Nil(t, teamTechConfigResp.AgentOptions)
 
 	// Attempt to create queries in global domain, should allow.
 	tcqr := createQueryResponse{}
@@ -21675,6 +21751,21 @@ func (s *integrationMDMTestSuite) TestTechnicianPermissions() {
 	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/teams/%d/policies/delete", t1.ID), deleteTeamPoliciesRequest{
 		IDs: []uint{t1p.ID},
 	}, http.StatusForbidden, &deleteTeamPoliciesResponse{})
+
+	// Attempt to view own team, should allow, but enroll secrets should be masked.
+	teamRes = teamResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/teams/%d", t1.ID), getTeamRequest{}, http.StatusOK, &teamRes)
+	require.Len(t, teamRes.Team.Secrets, 1)
+	require.Equal(t, fleet.MaskedPassword, teamRes.Team.Secrets[0].Secret)
+
+	// Attempt to list teams, should allow, but all enroll secrets should be masked.
+	ltr = listTeamsResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/teams", listTeamsRequest{}, http.StatusOK, &ltr)
+	require.Len(t, ltr.Teams, 2)
+	for _, team := range ltr.Teams {
+		require.Len(t, team.Secrets, 1)
+		require.Equal(t, fleet.MaskedPassword, team.Secrets[0].Secret)
+	}
 
 	// Attempt to edit own team, should fail.
 	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", t1.ID), modifyTeamRequest{

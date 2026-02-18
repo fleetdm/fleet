@@ -14,6 +14,7 @@ import (
 	"html"
 	"html/template"
 	"io"
+	"log/slog"
 	"net"
 	"net/http"
 	"net/url"
@@ -2202,7 +2203,7 @@ func (svc *Service) GetAuthorizedSoapFault(ctx context.Context, eType string, or
 	if errors.As(errorMsg, &ne) || errors.As(errorMsg, &me) {
 		logging.WithErr(ctx, ctxerr.Wrap(ctx, errorMsg, "soap fault"))
 	} else {
-		logging.WithLevel(ctx, level.Info)
+		logging.WithLevel(ctx, slog.LevelInfo)
 		logging.WithExtras(ctx, "soap_fault", errorMsg.Error())
 	}
 	soapFault := NewSoapFault(eType, origMsg, errorMsg)
