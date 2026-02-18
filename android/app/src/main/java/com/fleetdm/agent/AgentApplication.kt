@@ -64,12 +64,50 @@ class AgentApplication : Application() {
                 val hostUUID = appRestrictions.getString("host_uuid")
                 val serverURL = appRestrictions.getString("server_url")
 
-                if (enrollSecret != null && hostUUID != null && serverURL != null) {
+
+
+
+
+
+
+
+
+
+
+
+
+// Debug-only fallback when Managed Config (MDM) isn't present.
+
+                val debugEnrollSecret =
+                    if (BuildConfig.DEBUG) DebugEnrollmentConfig.ENROLL_SECRET else null
+                val debugHostUUID =
+                    if (BuildConfig.DEBUG) DebugEnrollmentConfig.HOST_UUID else null
+                val debugServerURL =
+                    if (BuildConfig.DEBUG) DebugEnrollmentConfig.SERVER_URL else null
+
+
+
+                val effectiveEnrollSecret = enrollSecret ?: debugEnrollSecret
+                val effectiveHostUUID = hostUUID ?: debugHostUUID
+                val effectiveServerURL = serverURL ?: debugServerURL
+
+
+
+                android.util.Log.d(
+                    "fleet-app",
+                    "Effective config: server=${effectiveServerURL != null}, secret=${effectiveEnrollSecret != null}, uuid=${effectiveHostUUID != null}"
+                )
+
+
+
+
+
+                if (effectiveEnrollSecret != null && effectiveHostUUID != null && effectiveServerURL != null) {
                     Log.d(TAG, "Refreshing enrollment credentials from MDM config")
                     ApiClient.setEnrollmentCredentials(
-                        enrollSecret = enrollSecret,
-                        hardwareUUID = hostUUID,
-                        serverUrl = serverURL,
+                        enrollSecret = effectiveEnrollSecret,
+                        hardwareUUID = effectiveHostUUID,
+                        serverUrl = effectiveServerURL,
                         computerName = "${Build.BRAND} ${Build.MODEL}",
                     )
 
