@@ -15,11 +15,10 @@ func init() {
 func Up_20260218165545(tx *sql.Tx) error {
 	txx := sqlx.Tx{Tx: tx, Mapper: reflectx.NewMapperFunc("db", sqlx.NameMapper)}
 
-	// find mismatched software INSTALLERS. for PKG type ONLY!!!!
+	// find and fix mismatched software installers
 	const findMismatchedPkgInstallersStmt = `
 	SELECT 
 		software_installers.id id, 
-		software_titles.id title_id, 
 		software_titles.name name, 
 		software_titles.bundle_identifier bundle_identifier
 	FROM software_installers
@@ -31,7 +30,6 @@ func Up_20260218165545(tx *sql.Tx) error {
 
 	type badInstaller struct {
 		InstallerID      uint   `db:"id"`
-		TitleID          uint   `db:"title_id"`
 		TitleName        string `db:"name"`
 		BundleIdentifier string `db:"bundle_identifier"`
 	}
@@ -62,9 +60,7 @@ func Up_20260218165545(tx *sql.Tx) error {
 		software.id id,
 		software.source source,
 		software.name name,
-		software.bundle_identifier bundle_identifier,
-		software.title_id title_id, 
-		software_titles.source title_source
+		software.bundle_identifier bundle_identifier
 	FROM software 
 		JOIN software_titles ON software.title_id = software_titles.id
 	WHERE
@@ -76,9 +72,7 @@ func Up_20260218165545(tx *sql.Tx) error {
 		SoftwareID       uint   `db:"id"`
 		SoftwareName     string `db:"name"`
 		SoftwareSource   string `db:"source"`
-		BundleIdentifier string `db:"bundle_identifier"` // TODO: what if the bundle identifier doesnt match? seems unlikely...
-		TitleID          uint   `db:"title_id"`          // TODO: remove?
-		TitleSource      string `db:"title_source"`      // TODO: remove?
+		BundleIdentifier string `db:"bundle_identifier"`
 	}
 	softwareList := make([]badSoftware, 0)
 
