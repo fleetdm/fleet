@@ -3186,14 +3186,22 @@ func generateDesiredStateQuery(entityType string) string {
 // installation.
 // It's possible to query for entities to install for a single given host, by passing in a host UUID.
 func generateEntitiesToInstallQuery(entityType string, hostUUID string) string {
+	hostCondition := "TRUE"
+	if hostUUID != "" {
+		hostCondition = fmt.Sprintf("h.uuid = '%s'", hostUUID)
+	}
+	desiredState := fmt.Sprintf(generateDesiredStateQuery(entityType), hostCondition, hostCondition, hostCondition, hostCondition)
+	return generateEntitiesToInstallQueryFromDesiredState(entityType, desiredState)
+}
+
+// generateEntitiesToInstallQueryFromDesiredState builds the install-side set difference
+// using a caller-supplied desired state subquery. This allows scoped callers to inject
+// host filtering conditions (e.g. h.uuid IN (?)) into the desired state before the
+// LEFT JOIN, avoiding a full table scan.
+func generateEntitiesToInstallQueryFromDesiredState(entityType string, desiredState string) string {
 	dynamicNames := mdmEntityTypeToDynamicNames[entityType]
 	if dynamicNames == nil {
 		panic(fmt.Sprintf("unknown entity type %q", entityType))
-	}
-
-	hostCondition := "TRUE" // We specify true here as it gets passed to the AND (%s) later, and is the default value.
-	if hostUUID != "" {
-		hostCondition = fmt.Sprintf("h.uuid = '%s'", hostUUID)
 	}
 
 	return fmt.Sprintf(os.Expand(`
@@ -3210,7 +3218,7 @@ func generateEntitiesToInstallQuery(entityType string, hostUUID string) string {
 		-- entities in A and B with operation type "install" and NULL status
 		( hmae.host_uuid IS NOT NULL AND hmae.operation_type = ? AND hmae.status IS NULL )
 `, func(s string) string { return dynamicNames[s] }),
-		fmt.Sprintf(generateDesiredStateQuery(entityType), hostCondition, hostCondition, hostCondition, hostCondition),
+		desiredState,
 	)
 }
 
@@ -3241,16 +3249,25 @@ func generateEntitiesToInstallQuery(entityType string, hostUUID string) string {
 // entity but no longer does (and that label-based entity is not "broken"),
 // the entity will be removed from the host.
 func generateEntitiesToRemoveQuery(entityType string) string {
+	desiredState := fmt.Sprintf(generateDesiredStateQuery(entityType), "TRUE", "TRUE", "TRUE", "TRUE")
+	return generateEntitiesToRemoveQueryFromDesiredState(entityType, desiredState)
+}
+
+// generateEntitiesToRemoveQueryFromDesiredState builds the remove-side set difference
+// using a caller-supplied desired state subquery. See generateEntitiesToInstallQueryFromDesiredState
+// for the rationale.
+//
+// NOTE(mna): there is no check for an existing user-enrollment here, because
+// if a user-scoped profile is identified as "to remove", it has to have been
+// delivered at some point, either because a user-channel did exist, or
+// because it was delivered to the device-channel after the maximum wait
+// delay. Either way, it should proceed with removal.
+func generateEntitiesToRemoveQueryFromDesiredState(entityType string, desiredState string) string {
 	dynamicNames := mdmEntityTypeToDynamicNames[entityType]
 	if dynamicNames == nil {
 		panic(fmt.Sprintf("unknown entity type %q", entityType))
 	}
 
-	// NOTE(mna): there is no check for an existing user-enrollment here, because
-	// if a user-scoped profile is identified as "to remove", it has to have been
-	// delivered at some point, either because a user-channel did exist, or
-	// because it was delivered to the device-channel after the maximum wait
-	// delay. Either way, it should proceed with removal.
 	return fmt.Sprintf(os.Expand(`
 	( %s ) as ds
 		RIGHT JOIN ${hostMDMAppleEntityTable} hmae
@@ -3269,7 +3286,7 @@ func generateEntitiesToRemoveQuery(entityType string) string {
 				mcpl.${appleEntityUUIDColumn} = hmae.${entityUUIDColumn} AND
 				mcpl.label_id IS NULL
 		)
-`, func(s string) string { return dynamicNames[s] }), fmt.Sprintf(generateDesiredStateQuery(entityType), "TRUE", "TRUE", "TRUE", "TRUE"))
+`, func(s string) string { return dynamicNames[s] }), desiredState)
 }
 
 // Optional hostUUID to list profiles to install for a single host instead of all.
@@ -5626,7 +5643,7 @@ func (ds *Datastore) MDMAppleBatchSetHostDeclarationState(ctx context.Context) (
 
 	err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
 		var err error
-		uuids, _, err = mdmAppleBatchSetHostDeclarationStateDB(ctx, tx, batchSize, &fleet.MDMDeliveryPending)
+		uuids, _, err = mdmAppleBatchSetHostDeclarationStateDB(ctx, tx, batchSize, &fleet.MDMDeliveryPending, nil)
 		return err
 	})
 
@@ -5634,11 +5651,11 @@ func (ds *Datastore) MDMAppleBatchSetHostDeclarationState(ctx context.Context) (
 }
 
 func mdmAppleBatchSetHostDeclarationStateDB(ctx context.Context, tx sqlx.ExtContext, batchSize int,
-	status *fleet.MDMDeliveryStatus,
+	status *fleet.MDMDeliveryStatus, hostUUIDs []string,
 ) ([]string, bool, error) {
 	// once all the declarations are in place, compute the desired state
 	// and find which hosts need a DDM sync.
-	changedDeclarations, err := mdmAppleGetHostsWithChangedDeclarationsDB(ctx, tx)
+	changedDeclarations, err := mdmAppleGetHostsWithChangedDeclarationsDB(ctx, tx, hostUUIDs)
 	if err != nil {
 		return nil, false, ctxerr.Wrap(ctx, err, "find hosts with changed declarations")
 	}
@@ -5863,7 +5880,89 @@ func cleanUpDuplicateRemoveInstall(ctx context.Context, tx sqlx.ExtContext, prof
 // We should optimize this method to only return the rows that need to be updated.
 // Then we can eliminate the subsequent check for updates in the caller.
 // The check for updates is needed to log the correct activity item -- whether declarations were updated or not.
-func mdmAppleGetHostsWithChangedDeclarationsDB(ctx context.Context, tx sqlx.ExtContext) ([]*fleet.MDMAppleHostDeclaration, error) {
+func mdmAppleGetHostsWithChangedDeclarationsDB(ctx context.Context, tx sqlx.ExtContext, hostUUIDs []string) ([]*fleet.MDMAppleHostDeclaration, error) {
+	if len(hostUUIDs) == 0 {
+		// No host filter: original behavior, scan all hosts.
+		return mdmAppleGetAllHostsWithChangedDeclarationsDB(ctx, tx)
+	}
+
+	// With host filter: batch process to avoid scanning all hosts.
+	// This uses the same pattern as bulkSetPendingMDMAppleHostProfilesDB
+	// for profiles, building the desired state query with h.uuid IN (?)
+	// conditions to scope the work to only the affected hosts.
+	desiredStateQuery := generateDesiredStateQuery("declaration")
+	hostCondition := "h.uuid IN (?)"
+	filteredDesiredState := fmt.Sprintf(desiredStateQuery, hostCondition, hostCondition, hostCondition, hostCondition)
+
+	toInstallStmt := fmt.Sprintf(`
+		SELECT
+			ds.host_uuid,
+			'install' as operation_type,
+			ds.token,
+			ds.secrets_updated_at,
+			ds.declaration_uuid,
+			ds.declaration_identifier,
+			ds.declaration_name
+		FROM %s`,
+		generateEntitiesToInstallQueryFromDesiredState("declaration", filteredDesiredState),
+	)
+
+	toRemoveStmt := fmt.Sprintf(`
+		SELECT
+			hmae.host_uuid,
+			'remove' as operation_type,
+			hmae.token,
+			hmae.secrets_updated_at,
+			hmae.declaration_uuid,
+			hmae.declaration_identifier,
+			hmae.declaration_name
+		FROM %s AND hmae.host_uuid IN (?)`,
+		generateEntitiesToRemoveQueryFromDesiredState("declaration", filteredDesiredState),
+	)
+
+	const selectBatchSize = 10_000
+	var allDecls []*fleet.MDMAppleHostDeclaration
+
+	for i := 0; i < len(hostUUIDs); i += selectBatchSize {
+		end := min(i+selectBatchSize, len(hostUUIDs))
+		batch := hostUUIDs[i:end]
+
+		// Install query: 4x batch (one per UNION branch) + 2 operation type args
+		installStmt, installArgs, err := sqlx.In(toInstallStmt,
+			batch, batch, batch, batch,
+			fleet.MDMOperationTypeRemove, fleet.MDMOperationTypeInstall,
+		)
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "building install query for changed declarations")
+		}
+		var installDecls []*fleet.MDMAppleHostDeclaration
+		if err := sqlx.SelectContext(ctx, tx, &installDecls, installStmt, installArgs...); err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "selecting declarations to install")
+		}
+		allDecls = append(allDecls, installDecls...)
+
+		// Remove query: 4x batch (one per UNION branch) + 1 remove op + 1x batch for hmae filter
+		removeStmt, removeArgs, err := sqlx.In(toRemoveStmt,
+			batch, batch, batch, batch,
+			fleet.MDMOperationTypeRemove,
+			batch,
+		)
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "building remove query for changed declarations")
+		}
+		var removeDecls []*fleet.MDMAppleHostDeclaration
+		if err := sqlx.SelectContext(ctx, tx, &removeDecls, removeStmt, removeArgs...); err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "selecting declarations to remove")
+		}
+		allDecls = append(allDecls, removeDecls...)
+	}
+
+	return allDecls, nil
+}
+
+// mdmAppleGetAllHostsWithChangedDeclarationsDB is the original unfiltered
+// implementation used by the cron job to process all hosts.
+func mdmAppleGetAllHostsWithChangedDeclarationsDB(ctx context.Context, tx sqlx.ExtContext) ([]*fleet.MDMAppleHostDeclaration, error) {
 	stmt := fmt.Sprintf(`
         (
             SELECT
