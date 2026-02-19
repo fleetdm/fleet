@@ -262,10 +262,7 @@ const InstallSoftware = ({
         {platform === "macos" && (
           <div className={`${baseClass}__macos_options`}>
             <Checkbox
-              disabled={
-                config?.gitops.gitops_mode_enabled ||
-                !manualAgentInstallBlockingSoftware
-              }
+              disabled={config?.gitops.gitops_mode_enabled}
               value={requireAllSoftwareMacOS}
               onChange={setRequireAllSoftwareMacOS}
             >
@@ -278,25 +275,13 @@ const InstallSoftware = ({
         <GitOpsModeTooltipWrapper
           tipOffset={6}
           renderChildren={(disableChildren) => (
-            <TooltipWrapper
-              className={"select-software-table__manual-install-tooltip"}
-              tipContent={manuallyInstallTooltipText}
-              disableTooltip={
-                manualAgentInstallBlockingSoftware && platform === "macos"
-              }
-              position="top"
-              showArrow
-              underline={false}
-              tipOffset={12}
+            <Button
+              disabled={disableChildren || isSaving || shouldDisableSave}
+              isLoading={isSaving}
+              type="submit"
             >
-              <Button
-                disabled={disableChildren || isSaving || shouldDisableSave}
-                isLoading={isSaving}
-                type="submit"
-              >
-                Save
-              </Button>
-            </TooltipWrapper>
+              Save
+            </Button>
           )}
         />
       </form>

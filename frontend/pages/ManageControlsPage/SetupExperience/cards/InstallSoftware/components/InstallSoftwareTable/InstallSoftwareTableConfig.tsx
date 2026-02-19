@@ -67,7 +67,7 @@ const generateTableConfig = (
                 className={"select-software-table__manual-install-tooltip"}
                 tipContent={manuallyInstallTooltipText}
                 disableTooltip={
-                  disableChildren || manualAgentInstallBlockingSoftware
+                  disableChildren || !manualAgentInstallBlockingSoftware
                 }
                 position="top"
                 showArrow
@@ -76,7 +76,7 @@ const generateTableConfig = (
               >
                 <Checkbox
                   disabled={
-                    disableChildren || !manualAgentInstallBlockingSoftware
+                    disableChildren || manualAgentInstallBlockingSoftware
                   }
                   {...checkboxProps}
                 />
