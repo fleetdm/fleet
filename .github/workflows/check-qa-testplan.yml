@@ -144,7 +144,7 @@ jobs:
 
               const commentBody = "⚠️ This issue has been moved to **" + awaitingQAColumn + "** but the QA test plan confirmation checklist item is not checked.\n\n" +
                 "Please ensure the following checklist item is checked before QA begins:\n\n" +
-                "- [x] " + checkText;
+                "* " + checkText;
 
               await github.rest.issues.createComment({
                 owner: context.repo.owner,
