@@ -46,6 +46,16 @@ func TestTopicHandler_DisabledTopic(t *testing.T) {
 	assert.Empty(t, buf.String())
 }
 
+func TestTopicHandler_DisabledTopicByAttr(t *testing.T) {
+	t.Cleanup(ResetTopics)
+	var buf bytes.Buffer
+	logger := newTopicTestLogger(&buf)
+
+	DisableTopic("my-topic")
+	logger.InfoContext(context.Background(), "should not appear", "log_topic", "my-topic")
+	assert.Empty(t, buf.String())
+}
+
 func TestTopicHandler_RespectsBaseLevel(t *testing.T) {
 	t.Cleanup(ResetTopics)
 	var buf bytes.Buffer

@@ -5,6 +5,8 @@ import (
 	"log/slog"
 )
 
+const logTopicAttrKey = "log_topic"
+
 // TopicFilterHandler is a slog.Handler that filters log records based on
 // the topic attached to the context. If a context carries a disabled topic,
 // the record is silently dropped.
@@ -34,6 +36,17 @@ func (h *TopicFilterHandler) Enabled(ctx context.Context, level slog.Level) bool
 // topic before delegating to the base handler.
 func (h *TopicFilterHandler) Handle(ctx context.Context, r slog.Record) error {
 	if topic := TopicFromContext(ctx); topic != "" && !TopicEnabled(topic) {
+		return nil
+	}
+	var topic string
+	r.Attrs(func(a slog.Attr) bool {
+		if a.Key == logTopicAttrKey {
+			topic = a.Value.String()
+			return false
+		}
+		return true
+	})
+	if topic != "" && !TopicEnabled(topic) {
 		return nil
 	}
 	return h.base.Handle(ctx, r)
