@@ -31,7 +31,7 @@ const getSetupExperienceLinuxPackageCopy = (source: SoftwareSource) => {
 
 const generateTableConfig = (
   platform: SetupExperiencePlatform,
-  onInstallSoftware: (select: boolean, id: number) => void,
+  onSelectSoftware: (select: boolean, id: number) => void,
   manualAgentInstallBlockingSoftware = false
 ): IInstallSoftwareTableConfig[] => {
   const headerConfigs: IInstallSoftwareTableConfig[] = [
@@ -43,7 +43,7 @@ const generateTableConfig = (
         const checkboxProps = {
           value: checked,
           onChange: () => {
-            onInstallSoftware(!checked, cellProps.row.original.id);
+            onSelectSoftware(!checked, cellProps.row.original.id);
             cellProps.row.toggleRowSelected();
           },
         };
