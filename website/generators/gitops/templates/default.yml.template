@@ -16,21 +16,47 @@ labels:
   - path: ./labels/arm-based-windows-hosts.yml
   - path: ./labels/debian-based-linux-hosts.yml
   - path: ./labels/x86-based-windows-hosts.yml
-policies:
-reports:
-controls:
-  enable_disk_encryption: true  # TODO: (*)
-  macos_migration: # TODO: (*) Probably worth having this commented out.
-    enable: true
-    mode: voluntary
-    # webhook_url: $DOGFOOD_MACOS_MIGRATION_WEBHOOK_URL #TODO: Instead of 'DOGFOOD' prefix for these, lets use something that works for every Fleet user and include it in comments by default
-  windows_enabled_and_configured: true # TODO: Redundant.  If URL is there, it is enabled.  If you want to keep URL and disable it, then you can add this, but let's omit it from boilerplate.
-  windows_migration_enabled: true # TODO: What is the default?  If this, then omit.  If 50%+ it has to be changed, then default to quickstart behavior and then leave commented-out hint
-agent_options:  # TODO: Guessing we're using defaults, right?  If so, can omit.  Else try inlining them (though list key at the bottom so it doesn't distract from other more important parts of this file)
-org_settings: # TODO: apply updates from dogfood's it-and-security/default.yml
-  server_settings:
-    server_url: $FLEET_URL
+  # - paths: ./labels/*.yml #FUTURE
+policies: # FUTURE: This key will not be required in default.yml and will be omitted by default. (Will still be required in fleet manifests.)
+reports: # FUTURE: This key will not be required in default.yml and will be omitted by default. (Will still be required in fleet manifests.)
+org_settings: 
   org_info:
-    org_name: Fleet
-  secrets:
-    - secret: "$FLEET_GLOBAL_ENROLL_SECRET" # TODO delete?
+    org_name: "My organization"
+    # org_logo_url: ""
+  server_settings:
+    server_url: https://dogfood.fleetdm.com # This seems important and something everyone MUST configure, right?   Needs to be emphasized.  What happens if omitted?  Probably bad thigns.  This should warn if you don't have it set.
+  # To use single-sign on, todo finish  (also mention you have to go into workstations and turn this on too)
+  # sso_settings:
+  #   idp_name: "Google Workspace" # This appears to admins on the login screen as a "Sign in with ________" button.
+  #   metadata_url: "" # A URL provided by your IdP when you set up Fleet.
+  #   enable_sso: true # FUTURE: Get rid of redundancy just have this always true by default if sso_settings is there
+  #   enable_sso_idp_login: true # FUTURE: Verify this isn't already defaulted to "on".  If not, make it default to "on". (it's for sso login initiated by the IdP -- i.e. when you click a button in otka, like heeroku dashboard)
+  #   entity_id: "fleet-admins" # for now, just write up what this is forFUTURE: Omit this from boilerplate once sure that it is not required.  (What is it?  A required field in your IdP during setup that has to match this string.  # TODO: Why is this separate from end user authentication?  Why aren't things like entity_id required in the other place?)
+  mdm:
+    end_user_authentication:
+      idp_name: Google Workspace # TODO: What is the purpose of this?  I think it's for end user auth
+      entity_id: "fleet-end-users" # write up what this is for
+      metadata: |-
+        $DOGFOOD_END_USER_SSO_METADATA
+      # TODO: ^Need to understand what this is and why we have to have a variable for it
+      metadata_url: "" #TODO: Should be omitted, no reason to include an empty state here (if we do, it should be commented out, just like in sailsjs)
+    # Uncomment to start using zero touch enrollment with Apple devices with Apple Business Manager (ABM)
+    apple_business_manager:
+      - organization_name: Fleet Device Management Inc. # The name of your organization in Apple Business Manager.    (………TODO: why does the organization name need to be specified?  (It has to match something in ABM.  Why?  You can't actually set up ABM with gitops because of pubkey downloading and things.  This is telling gitops that, once you create the record in the UI, don't override it)
+        macos_fleet: "💻 Workstations"  #TODO: This could default to "Unassigned" if unspecified, and then it could be omitted.
+        ios_fleet: "📱🏢 Employee-issued mobile devices"
+        ipados_fleet: "📱🏢 Employee-issued mobile devices"
+    # Uncomment to…
+    volume_purchasing_program: # TODO: does this need to be specified? can we just turn them all on by default? and then this can be omitted
+      - location: Fleet Device Management Inc. # The name of your organization in Apple Business Manager.
+        fleets:
+          - "💻 Workstations"
+          - "📱🏢 Employee-issued mobile devices"
+          - "📱🔐 Personal mobile devices"
+controls:
+  # (This is a system-wide setting that must be configured at the top level. uncomment to…
+    # TODO finish
+  # macos_migration:
+  #   enable: true
+  #   mode: voluntary # Change this to "forced" closer to the deadline.
+  #   webhook_url: "https://your-custom-webhook-or-one-provided-off-the-shelf-by-fleet-for-the-mdm-you-are-coming-from.example.com" # Only relevant for devices running macOS <v26: When end users click "Migrate to Fleet", this webhook is triggered.  By convention it looks up the device and unmanages it in the old MDM, then enrolls the device in Fleet.

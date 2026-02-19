@@ -1,2 +1,15 @@
 # todo
 # TODO: apply updates from dogfood's it-and-security/fleets/*.yml
+
+
+controls:
+  # to enable…
+  enable_disk_encryption: true
+
+  # to enable… (for os stuff)
+
+  macos_setup:
+    # To enable SSO, uncomment this
+    enable_end_user_authentication: true
+    bootstrap_package: "" # remove it and make sure it works
+    macos_setup_assistant: ../lib/macos/enrollment-profiles/automatic-enrollment.dep.json # TODO: include this by default
