@@ -478,7 +478,7 @@ The `macos_setup` section lets you control the out-of-the-box [setup experience]
 - `bootstrap_package` is the URL to a bootstrap package. Fleet will download the bootstrap package. Applies to macOS only (default: `""`).
 - `manual_agent_install` specifies whether Fleet's agent (fleetd) will be installed as part of setup experience. Applies to macOS only (default: `false`)
 - `enable_end_user_authentication` specifies whether or not to require end user authentication when the user first sets up their host. Applies to macOS, Windows, Linux, iOS/iPadOS, and Android.
-- `lock_end_user_info` specifies whether or not to enable end user to edit the local account Account Name and Full Name in macOS Setup Assistant.
+- `lock_end_user_info` specifies whether or not to enable end user to edit the local account Account Name and Full Name in macOS Setup Assistant. (default: `true`)
 - `require_all_software` specifies whether to cancel setup on a macOS host if any software installs fail.
 - `enable_release_device_manually` when enabled, you're responsible for sending the [`DeviceConfigured` command](https://developer.apple.com/documentation/devicemanagement/device-configured-command). End users will be stuck in Setup Assistant until this command is sent. Applies to Apple (macOS, iOS, iPadOS) hosts that automatically enroll via Apple Business Manager (ABM).
 - `macos_setup_assistant` is a path to a custom automatic enrollment (ADE) profile (.json). Applies to macOS and iOS/iPadOS hosts.
