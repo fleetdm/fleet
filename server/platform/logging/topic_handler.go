@@ -41,6 +41,17 @@ func (h *TopicFilterHandler) Handle(ctx context.Context, r slog.Record) error {
 	if topic != "" && !TopicEnabled(topic) {
 		return nil
 	}
+	var topic string
+	r.Attrs(func(a slog.Attr) bool {
+		if a.Key == logTopicAttrKey {
+			topic = a.Value.String()
+			return false
+		}
+		return true
+	})
+	if topic != "" && !TopicEnabled(topic) {
+		return nil
+	}
 	return h.base.Handle(ctx, r)
 }
 
