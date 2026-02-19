@@ -29230,7 +29230,7 @@
   },
   {
     "name": "users",
-    "description": "Local user accounts (including domain accounts that have logged on locally (Windows)).",
+    "description": "Local user accounts (including domain accounts that have logged on locally on Windows).",
     "url": "https://fleetdm.com/tables/users",
     "platforms": [
       "darwin",
