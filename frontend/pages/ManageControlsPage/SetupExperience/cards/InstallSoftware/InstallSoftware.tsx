@@ -4,6 +4,7 @@ import { AxiosError } from "axios";
 import { Tab, TabList, TabPanel, Tabs } from "react-tabs";
 
 import PATHS from "router/paths";
+import { getPathWithQueryParams } from "utilities/url";
 
 import mdmAPI, {
   IGetSetupExperienceSoftwareResponse,
@@ -51,7 +52,6 @@ export const PLATFORM_BY_INDEX: SetupExperiencePlatform[] = [
   "android",
 ];
 export interface InstallSoftwareLocation {
-  search: string;
   pathname: string;
   query: {
     fleet_id?: string;
@@ -114,9 +114,9 @@ const InstallSoftware = ({
     (index: number) => {
       const newPlatform = PLATFORM_BY_INDEX[index];
       router.push(
-        PATHS.CONTROLS_INSTALL_SOFTWARE(newPlatform).concat(
-          location?.search ?? ""
-        )
+        getPathWithQueryParams(PATHS.CONTROLS_INSTALL_SOFTWARE(newPlatform), {
+          fleet_id: currentTeamId,
+        })
       );
     },
     [router]
@@ -124,7 +124,9 @@ const InstallSoftware = ({
 
   if (!isValidPlatform) {
     router.replace(
-      PATHS.CONTROLS_INSTALL_SOFTWARE("macos").concat(location?.search ?? "")
+      getPathWithQueryParams(PATHS.CONTROLS_INSTALL_SOFTWARE("macos"), {
+        fleet_id: currentTeamId,
+      })
     );
   }
 

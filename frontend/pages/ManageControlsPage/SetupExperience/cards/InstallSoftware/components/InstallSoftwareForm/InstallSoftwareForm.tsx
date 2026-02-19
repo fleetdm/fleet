@@ -69,7 +69,7 @@ const getAddSoftwareUrl = (
   return `${path}?${buildQueryStringFromParams(params)}`;
 };
 
-interface IInstallSoftwareProps {
+interface IInstallSoftwareFormProps {
   currentTeamId: number;
   hasManualAgentInstall: boolean;
   softwareTitles: ISoftwareTitle[] | null;
@@ -79,7 +79,7 @@ interface IInstallSoftwareProps {
   refetchSoftwareTitles: () => void;
 }
 
-const InstallSoftware = ({
+const InstallSoftwareForm = ({
   currentTeamId,
   hasManualAgentInstall,
   softwareTitles,
@@ -87,7 +87,7 @@ const InstallSoftware = ({
   savedRequireAllSoftwareMacOS,
   router,
   refetchSoftwareTitles,
-}: IInstallSoftwareProps) => {
+}: IInstallSoftwareFormProps) => {
   const noSoftwareUploaded = hasNoSoftwareUploaded(softwareTitles);
   const { renderFlash, renderMultiFlash } = useContext(NotificationContext);
   const { config } = useContext(AppContext);
@@ -140,7 +140,9 @@ const InstallSoftware = ({
   const shouldUpdateRequireAll =
     platform === "macos" && isRequireAllSoftwareDirty;
 
-  const onClickSave = async () => {
+  const onClickSave = async (evt: React.FormEvent) => {
+    evt.preventDefault();
+
     if (!softwareTitles) return;
 
     setIsSaving(true);
@@ -306,4 +308,4 @@ const InstallSoftware = ({
   );
 };
 
-export default InstallSoftware;
+export default InstallSoftwareForm;
