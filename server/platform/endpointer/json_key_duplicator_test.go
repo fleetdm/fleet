@@ -471,16 +471,13 @@ func TestDuplicateJSONKeysCompact(t *testing.T) {
 
 	t.Run("default (no opts) is indented", func(t *testing.T) {
 		input := `{"team_id": 42}`
+		expected := `{
+  "team_id": 42,
+  "fleet_id": 42
+}
+`
 		result := DuplicateJSONKeys([]byte(input), rules)
-
-		// Default output should contain indentation.
-		assert.Contains(t, string(result), "\n")
-		assert.Contains(t, string(result), "  ")
-
-		var m map[string]any
-		require.NoError(t, json.Unmarshal(result, &m))
-		assert.Equal(t, float64(42), m["team_id"])
-		assert.Equal(t, float64(42), m["fleet_id"])
+		assert.Equal(t, expected, string(result))
 	})
 }
 
@@ -492,18 +489,17 @@ func TestDuplicateJSONKeysIdempotent(t *testing.T) {
 	}
 
 	input := `{"team_id": 42}`
+	expected := `{
+  "team_id": 42,
+  "fleet_id": 42
+}
+`
+
 	first := DuplicateJSONKeys([]byte(input), rules)
 
-	var m1 map[string]any
-	require.NoError(t, json.Unmarshal(first, &m1))
-	assert.Equal(t, float64(42), m1["team_id"])
-	assert.Equal(t, float64(42), m1["fleet_id"])
+	assert.Equal(t, expected, string(first))
 
 	// Second pass should not add anything new.
 	second := DuplicateJSONKeys(first, rules)
-	var m2 map[string]any
-	require.NoError(t, json.Unmarshal(second, &m2))
-	assert.Equal(t, float64(42), m2["team_id"])
-	assert.Equal(t, float64(42), m2["fleet_id"])
-	assert.Len(t, m2, 2)
+	assert.Equal(t, expected, string(second))
 }

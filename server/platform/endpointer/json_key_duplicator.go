@@ -34,8 +34,10 @@ func DuplicateJSONKeys(data []byte, rules []AliasRule, opts ...DuplicateJSONKeys
 	}
 
 	oldToNew := make(map[string]string, len(rules))
+	newToOld := make(map[string]string, len(rules))
 	for _, r := range rules {
 		oldToNew[r.OldKey] = r.NewKey
+		newToOld[r.NewKey] = r.OldKey
 	}
 
 	var buf bytes.Buffer
@@ -117,15 +119,11 @@ func DuplicateJSONKeys(data []byte, rules []AliasRule, opts ...DuplicateJSONKeys
 				keyName := tok.String()
 
 				// Track new keys that appear naturally.
-				if len(scopes) > 0 {
-					for _, newKey := range oldToNew {
-						if keyName == newKey {
-							scopes[len(scopes)-1].naturalNew[newKey] = true
-						}
-					}
+				if len(scopes) > 0 && newToOld[keyName] != "" {
+					scopes[len(scopes)-1].naturalNew[keyName] = true
 				}
 
-				// Check if this old key should generate a duplicate.
+				// Check if this key is deprecated and should generate a duplicate.
 				newKey, shouldDuplicate := oldToNew[keyName]
 				if shouldDuplicate {
 					// Write the old key.
@@ -154,13 +152,12 @@ func DuplicateJSONKeys(data []byte, rules []AliasRule, opts ...DuplicateJSONKeys
 							pendingDup{newKey: newKey, value: jsontext.Value(processedVal)},
 						)
 					}
-				} else {
+				} else { // !shouldDuplicate (no old key match) — just write the key as-is
 					if err := enc.WriteToken(tok); err != nil {
 						return data
 					}
 				}
-			} else {
-				// String value — pass through.
+			} else { // !isKey — string value, not a key — just write as-is
 				if err := enc.WriteToken(tok); err != nil {
 					return data
 				}

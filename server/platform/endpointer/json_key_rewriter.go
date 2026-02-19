@@ -30,7 +30,7 @@ type AliasRule struct {
 	NewKey string
 }
 
-// JSONKeyRewriteReader is a streaming io.Reader that handles bidirectional
+// JSONKeyRewriteReader is a streaming io.Reader that handles
 // JSON key aliasing while reading. It:
 //
 //   - Passes through OldKey (deprecated) names as-is (the struct expects them)
@@ -110,7 +110,7 @@ func (r *JSONKeyRewriteReader) Read(p []byte) (int, error) {
 	return r.reader.Read(p)
 }
 
-// RewriteDeprecatedKeys handles bidirectional JSON key aliasing in data using
+// RewriteDeprecatedKeys handles JSON key aliasing in data using
 // the provided alias rules. It rewrites NewKey→OldKey (so the struct can
 // deserialize), passes through OldKey as-is, and returns an error if both
 // appear in the same scope (alias conflict) or the JSON is malformed.
