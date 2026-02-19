@@ -41,7 +41,7 @@ jobs:
     environment: Docker Hub
     steps:
       - name: Harden Runner
-        uses: step-security/harden-runner@63c24ba6bd7ba022e95695ff85de572c04a18142 # v2.7.0
+        uses: step-security/harden-runner@20cf305ff2072d973412fa9b1e3a4f227bda3c76 # v2.14.0
         with:
           egress-policy: audit
 
@@ -69,6 +69,18 @@ jobs:
       - name: Install Dependencies
         run: make deps
 
+      - name: Compute version from branch
+        id: compute_version
+        env:
+          BRANCH: ${{ github.head_ref || github.ref_name }}
+        run: |
+          VERSION=$(tools/version-from-branch.sh "$BRANCH" 2>/dev/null)
+          if [ -z "$VERSION" ]; then
+            # Fall back to default snapshot version
+            VERSION="0.0.0-SNAPSHOT-$(git rev-parse --short HEAD)"
+          fi
+          echo "FLEET_VERSION=$VERSION" >> $GITHUB_OUTPUT
+
       - name: Run GoReleaser
         uses: goreleaser/goreleaser-action@90a3faa9d0182683851fbfa97ca1a2cb983bfca3 # v6.2.1
         with:
@@ -77,6 +89,7 @@ jobs:
           args: release --snapshot --clean -f .goreleaser-snapshot.yml
         env:
           GORELEASER_KEY: ${{ secrets.GORELEASER_KEY }}
+          FLEET_VERSION: ${{ steps.compute_version.outputs.FLEET_VERSION }}
 
       - name: Tag image with branch name
         run: docker tag fleetdm/fleet:$(git rev-parse --short HEAD) fleetdm/fleet:$(git rev-parse --abbrev-ref HEAD)
@@ -127,7 +140,7 @@ jobs:
           write-comment: false
           vex-location: ./security/vex/fleet
           exit-code: true
-            
+
       # Explicitly push the docker images as GoReleaser will not do so in snapshot mode
       - name: Publish Docker images
         run: docker push fleetdm/fleet --all-tags

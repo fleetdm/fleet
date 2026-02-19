@@ -1,14 +1,14 @@
 {
   "versions": [
     {
-      "version": "2.60.4",
+      "version": "2.62.1",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.DanPristupov.Fork';"
       },
-      "installer_url": "https://cdn.fork.dev/mac/Fork-2.60.4.dmg",
+      "installer_url": "https://cdn.fork.dev/mac/Fork-2.62.1.dmg",
       "install_script_ref": "c1ad3b0f",
       "uninstall_script_ref": "92b40975",
-      "sha256": "5dbf9cfdef2d89de3251d6b2669ca77138e15be170a5ab7f43e76cfc9062ff5f",
+      "sha256": "fa72fd67a8e989946f977a1303974a5750ffb3a8678e5a279aaf3638b491f6e9",
       "default_categories": [
         "Developer tools"
       ]

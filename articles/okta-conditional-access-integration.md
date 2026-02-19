@@ -14,6 +14,8 @@ If your Fleet server is hosted by Fleet, contact your Fleet representative to se
 
 ### Self-hosted servers
 
+> If you would like to set up a testing environment, see the [Okta conditional access testing guide](https://github.com/fleetdm/fleet/tree/main/docs/contributing/guides/okta-conditional-access-testing).
+
 If you use [fleet-terraform](https://github.com/fleetdm/fleet-terraform) modules for AWS hosting, see the [okta-conditional-access addon](https://github.com/fleetdm/fleet-terraform/tree/main/addons/okta-conditional-access) for streamlined mTLS proxy setup.
 
 Otherwise, you'll need to:
@@ -108,7 +110,7 @@ Once you've created the identity provider in Okta, click on the Fleet identity p
 2. Click **Add authenticator**.
 3. Find **IdP Authenticator** and click **Add**.
 4. In the **Identity Provider** dropdown, select **Fleet**.
-5. For the logo, download the [Fleet logo](https://raw.githubusercontent.com/fleetdm/fleet/main/orbit/cmd/desktop/fleet-logo.svg) and upload it.
+5. For the logo, download the [Fleet logo](http://fleetdm.com/images/press-kit/fleet-logo-mark.svg) and upload it.
 6. Click **Add**.
 
 ### Step 6: Add Fleet to an authentication policy
@@ -145,6 +147,18 @@ To disable conditional access on the Okta side:
 2. Either delete the authentication policy rule that requires Fleet, or remove the policy from all apps by going to **Applications** > select an app > **Sign On** tab > **Authentication policy** and assigning a different policy.
 
 Once disabled on the Okta side, you can delete the conditional access configuration on Fleet's side from **Settings** > **Integrations** > **Conditional access** > **Okta** and clicking the delete button.
+
+## Bypassing conditional access
+
+End users can temporarily bypass conditional access from their **My device** page if their host is failing a policy. To trigger a bypass, click a failing policy labeled **Action required**, select **Resolve later**, and confirm in the following modal. The bypass allows the user to complete a single login even with failing policies and is consumed immediately upon successful login.
+
+This feature is enabled by default, but can be disabled by checking the **Disable bypass** checkbox in **Settings** > **Integrations** > **Conditional access**.
+
+### Per-policy bypass
+
+By default, all conditional access policies allow bypassing. You can control which policies allow bypass individually in **Manage automations** > **Conditional access**. Each policy with conditional access enabled has an additional checkbox to allow or disallow bypass.
+
+If a host is failing multiple conditional access policies, the bypass option is only available if **every** failing policy allows bypass. If any one of the failing policies does not allow bypass, the end user will not see the option to bypass and must resolve the issue to regain access.
 
 
 <meta name="articleTitle" value="Conditional access: Okta">

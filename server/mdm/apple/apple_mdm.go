@@ -28,7 +28,7 @@ import (
 	depclient "github.com/fleetdm/fleet/v4/server/mdm/nanodep/client"
 	nanodep_storage "github.com/fleetdm/fleet/v4/server/mdm/nanodep/storage"
 	depsync "github.com/fleetdm/fleet/v4/server/mdm/nanodep/sync"
-	kitlog "github.com/go-kit/log"
+	platformlogging "github.com/fleetdm/fleet/v4/server/platform/logging"
 )
 
 const (
@@ -57,6 +57,8 @@ const (
 	// SCEPProxyPath is the HTTP path that serves the SCEP proxy service. The path is followed by identifier.
 	SCEPProxyPath = "/mdm/scep/proxy/"
 
+	// It's important we don't sync more than 1000 at a time,
+	// as we also process DEP cooldowns and limit how many we process with this variable
 	DEPSyncLimit = 200
 
 	VPPLicenseNotFound = 9610
@@ -90,7 +92,7 @@ type DEPService struct {
 	ds         fleet.Datastore
 	depStorage nanodep_storage.AllDEPStorage
 	depClient  *godep.Client
-	logger     kitlog.Logger
+	logger     *platformlogging.Logger
 }
 
 // getDefaultProfile returns a godep.Profile with default values set.
@@ -441,7 +443,7 @@ func (d *DEPService) EnsureCustomSetupAssistantIfExists(ctx context.Context, tea
 }
 
 func (d *DEPService) RunAssigner(ctx context.Context) error {
-	syncerLogger := logging.NewNanoDEPLogger(kitlog.With(d.logger, "component", "nanodep-syncer"))
+	syncerLogger := logging.NewNanoDEPLogger(d.logger.With("component", "nanodep-syncer"))
 	teams, err := d.ds.ListTeams(
 		ctx, fleet.TeamFilter{
 			User: &fleet.User{
@@ -570,7 +572,7 @@ func (d *DEPService) AssignMDMAppleServiceDiscoveryURL(ctx context.Context, toke
 func NewDEPService(
 	ds fleet.Datastore,
 	depStorage nanodep_storage.AllDEPStorage,
-	logger kitlog.Logger,
+	logger *platformlogging.Logger,
 ) *DEPService {
 	depSvc := &DEPService{
 		depStorage: depStorage,
@@ -623,13 +625,15 @@ func (d *DEPService) processDeviceResponse(
 		if device.MDMMigrationDeadline != nil {
 			deadline = device.MDMMigrationDeadline.String()
 		}
-		level.Debug(d.logger).Log( // Keeping this at Debug level since this could generate a lot of log traffic (one per device)
-			"msg", "device",
+		// FIXME: Move this log back to debug level after we've added/improved functionality for accessing DEP status.
+		level.Info(d.logger).Log(
+			"msg", "process device response",
 			"serial_number", device.SerialNumber,
 			"device_assigned_by", device.DeviceAssignedBy,
 			"device_assigned_date", device.DeviceAssignedDate,
 			"op_date", device.OpDate,
 			"op_type", device.OpType,
+			"profile_status", device.ProfileStatus,
 			"profile_assign_time", device.ProfileAssignTime,
 			"push_push_time", device.ProfilePushTime,
 			"profile_uuid", device.ProfileUUID,
@@ -658,6 +662,9 @@ func (d *DEPService) processDeviceResponse(
 	// Remove added/modified devices if they have been subsequently deleted
 	// Remove deleted devices if they have been subsequently added (or re-added)
 	for _, deletedDevice := range deletedDevices {
+		// FIXME: Shouldn't the logic for modified devices follow the if/else pattern used for added
+		// devices? It seems like it should, but it doesn't seem to be making a difference in
+		// practice. Presumably, we're catching this sommewhere else, but it isn't obvious where.
 		modifiedDevice, ok := modifiedDevices[deletedDevice.SerialNumber]
 		if ok && deletedDevice.OpDate.After(modifiedDevice.OpDate) {
 			delete(modifiedDevices, deletedDevice.SerialNumber)
@@ -681,6 +688,7 @@ func (d *DEPService) processDeviceResponse(
 		needProfileAssign[addedDevice.SerialNumber] = struct{}{}
 	}
 	for _, modifiedDevice := range modifiedDevices {
+		// FIXME: Are we properly determining whether a modified device needs a profile assigned?
 		modifiedSerials = append(modifiedSerials, modifiedDevice.SerialNumber)
 	}
 	for _, deletedDevice := range deletedDevices {
@@ -701,10 +709,13 @@ func (d *DEPService) processDeviceResponse(
 	// if the IT admin changes the MDM server assignment in the ABM UI. In
 	// these cases, the device is new ("added") to us, but it comes with
 	// the wrong op_type.
-	for _, d := range modifiedDevices {
-		if _, ok := existingSerials[d.SerialNumber]; !ok {
-			addedDevicesSlice = append(addedDevicesSlice, d)
+	for _, md := range modifiedDevices {
+		if _, ok := existingSerials[md.SerialNumber]; !ok {
+			level.Info(d.logger).Log("msg", "treating device with op_type modified as added device", "serial_number", md.SerialNumber)
+			addedDevicesSlice = append(addedDevicesSlice, md)
 		}
+		// FIXME: addedDevicesSlice is used in part to determine if a profile assignment is needed.
+		// Should be be checking if the modified device has the right profile UUID and current timestamp?
 	}
 
 	// Check if added devices belong to another ABM server. If so, we must delete them before adding them.
@@ -736,16 +747,19 @@ func (d *DEPService) processDeviceResponse(
 	n, err := d.ds.IngestMDMAppleDevicesFromDEPSync(ctx, addedDevicesSlice, abmTokenID, macOSTeam, iosTeam, ipadTeam)
 	switch {
 	case err != nil:
-		level.Error(kitlog.With(d.logger)).Log("err", err)
+		level.Error(d.logger).Log("err", err)
 		ctxerr.Handle(ctx, err)
 	case n > 0:
-		level.Info(kitlog.With(d.logger)).Log("msg", fmt.Sprintf("added %d new mdm device(s) to pending hosts", n))
+		level.Info(d.logger).Log("msg", fmt.Sprintf("added %d new mdm device(s) to pending hosts", n))
 	case n == 0:
-		level.Debug(kitlog.With(d.logger)).Log("msg", "no DEP hosts to add")
+		level.Debug(d.logger).Log("msg", "no DEP hosts to add")
 	}
 
-	level.Info(kitlog.With(d.logger)).Log("msg", "devices to assign DEP profiles", "to_add", len(addedDevicesSlice), "to_remove",
-		strings.Join(deletedSerials, ", "), "to_modify", strings.Join(modifiedSerials, ", "))
+	level.Info(d.logger).Log("msg", "devices to assign DEP profiles",
+		"to_add", strings.Join(addedSerials, ", "),
+		"to_remove", strings.Join(deletedSerials, ", "),
+		"to_modify", strings.Join(modifiedSerials, ", "),
+	)
 
 	// at this point, the hosts rows are created for the devices, with the
 	// correct team_id, so we know what team-specific profile needs to be applied.
@@ -769,7 +783,7 @@ func (d *DEPService) processDeviceResponse(
 	for _, newDevice := range addedDevicesSlice {
 		var teamID *uint
 		switch newDevice.DeviceFamily {
-		case "iPhone":
+		case "iPhone", "iPod":
 			teamID = iosTeamID
 		case "iPad":
 			teamID = ipadTeamID
@@ -784,18 +798,19 @@ func (d *DEPService) processDeviceResponse(
 	existingHosts := []fleet.Host{}
 	existingHostMigrationDeadlines := make(map[uint]time.Time)
 	for _, existingHost := range existingSerials {
-		dd, ok := modifiedDevices[existingHost.HardwareSerial]
+		level.Info(d.logger).Log("msg", "preparing to upsert DEP assignment for existing host", "serial", existingHost.HardwareSerial, "host_id", existingHost.ID)
+		md, ok := modifiedDevices[existingHost.HardwareSerial]
 		if !ok {
-			level.Error(kitlog.With(d.logger)).Log("msg",
+			level.Error(d.logger).Log("msg",
 				"serial coming from ABM is in the database, but it's not in the list of modified devices", "serial",
 				existingHost.HardwareSerial)
 			continue
 		}
-		if dd.MDMMigrationDeadline != nil {
-			existingHostMigrationDeadlines[existingHost.ID] = *dd.MDMMigrationDeadline
+		if md.MDMMigrationDeadline != nil {
+			existingHostMigrationDeadlines[existingHost.ID] = *md.MDMMigrationDeadline
 		}
 		existingHosts = append(existingHosts, *existingHost)
-		devicesByTeam[existingHost.TeamID] = append(devicesByTeam[existingHost.TeamID], dd)
+		devicesByTeam[existingHost.TeamID] = append(devicesByTeam[existingHost.TeamID], md)
 	}
 
 	// Upsert the host DEP assignment records now so that the team is properly linked to the ABM
@@ -808,6 +823,7 @@ func (d *DEPService) processDeviceResponse(
 
 	// assign the profile to each device
 	for team, devices := range devicesByTeam {
+		// FIXME: Do we have replication issues or races? There seem to be alot of calls going on inside this function.
 		profUUID, err := d.getProfileUUIDForTeam(ctx, team, abmOrganizationName)
 		if err != nil {
 			return ctxerr.Wrapf(ctx, err, "getting profile for team with id: %v", team)
@@ -824,7 +840,7 @@ func (d *DEPService) processDeviceResponse(
 		for _, device := range devices {
 			_, deleted := existingDeletedSerials[device.SerialNumber]
 			_, needsProfile := needProfileAssign[device.SerialNumber]
-			if device.ProfileUUID == profUUID && !deleted && !needsProfile {
+			if device.ProfileUUID == profUUID && device.ProfileStatus != "removed" && !deleted && !needsProfile {
 				skippedSerials = append(skippedSerials, device.SerialNumber)
 				continue
 			}
@@ -835,7 +851,7 @@ func (d *DEPService) processDeviceResponse(
 			continue
 		}
 
-		logger := kitlog.With(d.logger, "profile_uuid", profUUID)
+		logger := d.logger.With("profile_uuid", profUUID)
 
 		skipSerials, assignSerials, err := d.ds.ScreenDEPAssignProfileSerialsForCooldown(ctx, serials)
 		if err != nil {
@@ -900,7 +916,7 @@ func (d *DEPService) processDeviceResponse(
 	}
 
 	if len(skippedSerials) > 0 {
-		level.Info(kitlog.With(d.logger)).Log("msg", "found devices that already have the right profile, skipping assignment", "serials",
+		level.Info(d.logger).Log("msg", "found devices that already have the right profile, skipping assignment", "serials",
 			fmt.Sprintf("%s", skippedSerials))
 	}
 
@@ -934,7 +950,7 @@ func (d *DEPService) getProfileUUIDForTeam(ctx context.Context, tmID *uint, abmT
 
 // logCountsForResults tries to aggregate the result types and log the counts.
 func logCountsForResults(deviceResults map[string]string) (out []interface{}) {
-	results := map[string]int{"success": 0, "not_accessible": 0, "failed": 0, "other": 0}
+	results := map[string]int{"success": 0, "not_accessible": 0, "failed": 0, "throttled": 0, "other": 0}
 	for _, result := range deviceResults {
 		l := strings.ToLower(result)
 		if _, ok := results[l]; !ok {
@@ -954,7 +970,7 @@ func logCountsForResults(deviceResults map[string]string) (out []interface{}) {
 // storage that will flag the ABM token's terms expired field and the
 // AppConfig's AppleBMTermsExpired field whenever the status of the terms
 // changes.
-func NewDEPClient(storage godep.ClientStorage, updater fleet.ABMTermsUpdater, logger kitlog.Logger) *godep.Client {
+func NewDEPClient(storage godep.ClientStorage, updater fleet.ABMTermsUpdater, logger *platformlogging.Logger) *godep.Client {
 	return godep.NewClient(storage, fleethttp.NewClient(), godep.WithAfterHook(func(ctx context.Context, reqErr error) error {
 		// to check for ABM terms expired, we must have an ABM token organization
 		// name and NOT a raw ABM token in the context (as the presence of a raw
@@ -1384,7 +1400,9 @@ func (pb *ProfileBimap) add(wantedProfile, currentProfile *fleet.MDMAppleProfile
 // NewActivityFunc is the function signature for creating a new activity.
 type NewActivityFunc func(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails) error
 
-func IOSiPadOSRefetch(ctx context.Context, ds fleet.Datastore, commander *MDMAppleCommander, logger kitlog.Logger, newActivityFn NewActivityFunc) error {
+func IOSiPadOSRefetch(ctx context.Context, ds fleet.Datastore, commander *MDMAppleCommander, logger *platformlogging.Logger,
+	newActivityFn NewActivityFunc,
+) error {
 	appCfg, err := ds.AppConfig(ctx)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "fetching app config")
@@ -1497,7 +1515,9 @@ func IOSiPadOSRefetch(ctx context.Context, ds fleet.Datastore, commander *MDMApp
 
 // turnOffMDMIfAPNSFailed checks if the error is an APNSDeliveryError and turns off MDM for the failed devices.
 // Returns a boolean value to indicate whether or not MDM was turned off.
-func turnOffMDMIfAPNSFailed(ctx context.Context, ds fleet.Datastore, err error, logger kitlog.Logger, newActivityFn NewActivityFunc) (bool, error) {
+func turnOffMDMIfAPNSFailed(ctx context.Context, ds fleet.Datastore, err error, logger *platformlogging.Logger, newActivityFn NewActivityFunc) (bool,
+	error,
+) {
 	var e *APNSDeliveryError
 	if !errors.As(err, &e) {
 		return false, nil
@@ -1562,7 +1582,7 @@ func GenerateOTAEnrollmentProfileMobileconfig(orgName, fleetURL, enrollSecret, i
 	return profileBuf.Bytes(), nil
 }
 
-func IOSiPadOSRevive(ctx context.Context, ds fleet.Datastore, commander *MDMAppleCommander, logger kitlog.Logger) error {
+func IOSiPadOSRevive(ctx context.Context, ds fleet.Datastore, commander *MDMAppleCommander, logger *platformlogging.Logger) error {
 	appCfg, err := ds.AppConfig(ctx)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "fetching app config")

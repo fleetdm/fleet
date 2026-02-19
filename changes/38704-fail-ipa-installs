@@ -1,0 +1,1 @@
+* Added a check to fail any pending in-house app installs and cancel upcoming activities when unenrolling a host.

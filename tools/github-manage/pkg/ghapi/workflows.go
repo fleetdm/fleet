@@ -18,6 +18,7 @@ const (
 	ATSetStatus              ActionType = "set_status"
 	ATSyncEstimate           ActionType = "sync_estimate"
 	ATSetSprint              ActionType = "set_sprint"
+	ATCloseIssue             ActionType = "close_issue"
 )
 
 // Action represents a single action to be performed on an issue.
@@ -167,13 +168,45 @@ func CreateBulkSprintKickoffActions(issues []Issue, sourceProjectID, projectID i
 
 func CreateBulkMilestoneCloseActions(issues []Issue) []Action {
 	logger.Infof("Creating milestone close actions for %d issues", len(issues))
+	// Split issues by type
+	var storyIssues []Issue
+	var closeIssues []Issue
+	for _, is := range issues {
+		isStory := false
+		isBug := false
+		isSubTask := false
+		for _, l := range is.Labels {
+			name := strings.ToLower(strings.TrimSpace(l.Name))
+			if name == "story" {
+				isStory = true
+			} else if name == "bug" {
+				isBug = true
+			} else if name == "~sub-task" {
+				isSubTask = true
+			}
+		}
+		if isStory {
+			storyIssues = append(storyIssues, is)
+		} else if isBug || isSubTask {
+			closeIssues = append(closeIssues, is)
+		} else {
+			// default: treat as story to keep previous behavior
+			storyIssues = append(storyIssues, is)
+		}
+	}
 
-	actions := CreateBulkAddIssueToProjectAction(issues, Aliases["draft"])
-	actions = append(actions, CreateBulkAddLableAction(issues, ":product")...)
-	actions = append(actions, CreateBulkSetStatusAction(issues, Aliases["draft"], "confirm and")...)
-	actions = append(actions, CreateBulkRemoveLabelAction(issues, ":release")...)
+	var actions []Action
+	if len(storyIssues) > 0 {
+		actions = append(actions, CreateBulkAddIssueToProjectAction(storyIssues, Aliases["draft"])...)
+		actions = append(actions, CreateBulkAddLableAction(storyIssues, ":product")...)
+		actions = append(actions, CreateBulkSetStatusAction(storyIssues, Aliases["draft"], "confirm and")...)
+		actions = append(actions, CreateBulkRemoveLabelAction(storyIssues, ":release")...)
+	}
+	for _, is := range closeIssues {
+		actions = append(actions, Action{Type: ATCloseIssue, Issue: is})
+	}
 
-	logger.Infof("Created %d milestone close actions", len(actions))
+	logger.Infof("Created %d milestone close actions (stories=%d, close=%d)", len(actions), len(storyIssues), len(closeIssues))
 	return actions
 }
 
@@ -271,6 +304,15 @@ func AsyncManager(actions []Action, statusChan chan<- Status) {
 				continue
 			}
 			logger.Infof("Successfully set current sprint for issue #%d in project %d", action.Issue.Number, action.Project)
+			statusChan <- Status{Index: i, State: "success"}
+		case ATCloseIssue:
+			err := CloseIssue(action.Issue.Number)
+			if err != nil {
+				logger.Errorf("Failed to close issue #%d: %v", action.Issue.Number, err)
+				statusChan <- Status{Index: i, State: "error"}
+				continue
+			}
+			logger.Infof("Successfully closed issue #%d", action.Issue.Number)
 			statusChan <- Status{Index: i, State: "success"}
 		default:
 			logger.Errorf("Unknown action type: %s for issue #%d", action.Type, action.Issue.Number)
@@ -388,42 +430,70 @@ func BulkSprintKickoff(issues []Issue, sourceProjectID, projectID int) error {
 // This includes moving issues back to the drafting project and removing them from product group projects.
 func BulkMilestoneClose(issues []Issue) error {
 	logger.Infof("Starting milestone close workflow for %d issues", len(issues))
-
-	// Add ticket to the drafting project
-	logger.Info("Step 1/4: Adding issues to drafting project")
 	draftingProjectID := Aliases["draft"]
-	for _, issue := range issues {
-		err := AddIssueToProject(issue.Number, draftingProjectID)
-		if err != nil {
-			logger.Errorf("Failed to add issue #%d to drafting project: %v", issue.Number, err)
+	var storyIssues []Issue
+	var closeIssues []Issue
+	for _, is := range issues {
+		isStory := false
+		isBug := false
+		isSubTask := false
+		for _, l := range is.Labels {
+			name := strings.ToLower(strings.TrimSpace(l.Name))
+			if name == "story" {
+				isStory = true
+			} else if name == "bug" {
+				isBug = true
+			} else if name == "~sub-task" {
+				isSubTask = true
+			}
+		}
+		if isStory {
+			storyIssues = append(storyIssues, is)
+		} else if isBug || isSubTask {
+			closeIssues = append(closeIssues, is)
+		} else {
+			storyIssues = append(storyIssues, is)
+		}
+	}
+
+	// Process story issues: move to drafting, add :product, set status, remove :release
+	if len(storyIssues) > 0 {
+		logger.Infof("Processing %d story issues for milestone close", len(storyIssues))
+		// Step 1: Add to drafting
+		for _, issue := range storyIssues {
+			err := AddIssueToProject(issue.Number, draftingProjectID)
+			if err != nil {
+				logger.Errorf("Failed to add issue #%d to drafting project: %v", issue.Number, err)
+				return err
+			}
+		}
+		// Step 2: Add :product
+		if err := BulkAddLabel(storyIssues, ":product"); err != nil {
 			return err
 		}
-		logger.Debugf("Added issue #%d to drafting project", issue.Number)
-	}
-
-	// Add the `:product` label to each issue
-	logger.Info("Step 2/4: Adding product labels")
-	err := BulkAddLabel(issues, ":product")
-	if err != nil {
-		return err
-	}
-
-	// Set the status to "confirm and celebrate"
-	logger.Info("Step 3/4: Setting status to 'confirm and celebrate'")
-	for _, issue := range issues {
-		err := SetIssueStatus(issue.Number, draftingProjectID, "confirm and celebrate")
-		if err != nil {
-			logger.Errorf("Failed to set status for issue #%d: %v", issue.Number, err)
+		// Step 3: Set status to confirm and celebrate
+		for _, issue := range storyIssues {
+			err := SetIssueStatus(issue.Number, draftingProjectID, "confirm and celebrate")
+			if err != nil {
+				logger.Errorf("Failed to set status for issue #%d: %v", issue.Number, err)
+				return err
+			}
+		}
+		// Step 4: Remove :release
+		if err := BulkRemoveLabel(storyIssues, ":release"); err != nil {
 			return err
 		}
-		logger.Debugf("Set status for issue #%d", issue.Number)
 	}
 
-	// Remove the `:release` label from each issue
-	logger.Info("Step 4/4: Removing release labels")
-	err = BulkRemoveLabel(issues, ":release")
-	if err != nil {
-		return err
+	// Process bug/sub-task issues: close them
+	if len(closeIssues) > 0 {
+		logger.Infof("Closing %d bug/sub-task issues for milestone close", len(closeIssues))
+		for _, issue := range closeIssues {
+			if err := CloseIssue(issue.Number); err != nil {
+				logger.Errorf("Failed to close issue #%d: %v", issue.Number, err)
+				return err
+			}
+		}
 	}
 
 	logger.Info("Milestone close workflow completed successfully")

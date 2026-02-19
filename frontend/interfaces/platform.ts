@@ -150,7 +150,7 @@ export const isWindows = (platform: string | HostPlatform) =>
   platform === "windows";
 
 export const isMacOS = (platform: string | HostPlatform) =>
-  platform === "darwin";
+  ["darwin", "macos"].includes(platform);
 
 export const isIPadOrIPhone = (platform: string | HostPlatform) =>
   ["ios", "ipados"].includes(platform);

@@ -35,6 +35,7 @@ interface ICreateQueryResponse {
 export interface IQueriesResponse {
   queries: ISchedulableQuery[];
   count: number;
+  inherited_query_count: number;
   meta: {
     has_next_results: boolean;
     has_previous_results: boolean;

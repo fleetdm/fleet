@@ -43,12 +43,12 @@ module.exports = {
         'Website - Contact forms - Demo - ICP',
         'Website - Sign up',
         'Website - Newsletter',
+        'Website - GitOps',
         'LinkedIn - Comment',
         'LinkedIn - Reaction',
         'LinkedIn - Share',
         'LinkedIn - Liked the LinkedIn company page',
-        'Event - Marketing-led event',
-        'Event - Sales-led event',
+        'Event',
         'GitHub - Stared fleetdm/fleet',
         'GitHub - Forked fleetdm/fleet',
         'GitHub - Contributed to fleetdm/fleet',
@@ -171,11 +171,11 @@ module.exports = {
         // wr: 'Web referral',
         // soc: 'Organic social',
         // "Digital" sources:
-        ps: 'Paid search',
-        so: 'Paid social',
-        pm: 'Paid media',
-        cs: 'Content syndication',
-        em: 'Email marketing',
+        ps: 'Paid search (PS)',
+        so: 'Paid social (SO)',
+        pm: 'Paid media (PM)',
+        cs: 'Content syndication (CS)',
+        em: 'Email marketing (EM)',
       };
 
       attributionDetails.sourceChannelDetails = sourceFriendlyNameByCodeName[lowerCaseMediumValue] ? sourceFriendlyNameByCodeName[lowerCaseMediumValue] : undefined;
@@ -192,7 +192,7 @@ module.exports = {
 
         if(!marketingAttributionCookie.referrer || marketingAttributionCookie.referrer === 'https://fleetdm.com/') {
           // If no referrer is set, or the referrer is set to the Fleet website, we'll assume this user came to the website directly
-          attributionDetails.sourceChannelDetails = 'Direct Traffic';
+          attributionDetails.sourceChannelDetails = 'Direct traffic (DT)';
           attributionDetails.campaign = 'Default-DT-Direct';
         } else {
           // Otherwise, we'll check the referer value and attempt to categorize the referer.
@@ -223,15 +223,15 @@ module.exports = {
 
           if(REFERRER_DOMAINS_FOR_ORGANIC_SEARCH.includes(marketingAttributionCookie.referrer)) {
             // If search engine » Organic search
-            attributionDetails.sourceChannelDetails = 'Organic search';
+            attributionDetails.sourceChannelDetails = 'Organic search (OS)';
             attributionDetails.campaign = 'Default-OS-Organic';
           } else if(REFERRER_DOMAINS_FOR_ORGANIC_SOCIAL.includes(marketingAttributionCookie.referrer)) {
             // If social media » Organic social
-            attributionDetails.sourceChannelDetails = 'Organic social';
+            attributionDetails.sourceChannelDetails = 'Organic social (SOC)';
             attributionDetails.campaign = 'Default-SOC-Social';
           } else {
             // If not either of those » Web referral
-            attributionDetails.sourceChannelDetails = 'Web referral';
+            attributionDetails.sourceChannelDetails = 'Web referral (WR)';
             attributionDetails.campaign = 'Default-WR-Referral';
           }
         }
@@ -408,7 +408,7 @@ module.exports = {
       })// If Salesforce returns a duplicates_detected error message, use the first duplicate record returned in the error.
       .tolerate({errorCode: 'DUPLICATES_DETECTED'}, (err)=>{
         // Get the first matched duplicate record returned in the error returned by Salesforce.
-        let firstContactRecordMatchedByDuplicateRule = _.get(err, 'duplicateResult.matchResults[0].matchRecords[0].record.Id');
+        let firstContactRecordMatchedByDuplicateRule = _.get(err.data, 'duplicateResult.matchResults[0].matchRecords[0].record.Id');
         if(firstContactRecordMatchedByDuplicateRule) {
           duplicateContactWasFound = true;
           return {id: firstContactRecordMatchedByDuplicateRule};
@@ -541,4 +541,3 @@ module.exports = {
 
 
 };
-

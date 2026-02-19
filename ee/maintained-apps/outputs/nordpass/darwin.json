@@ -1,7 +1,7 @@
 {
   "versions": [
     {
-      "version": "7.2.15",
+      "version": "7.3.14",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.nordsec.nordpass';"
       },

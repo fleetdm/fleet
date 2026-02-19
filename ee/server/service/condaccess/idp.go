@@ -13,15 +13,19 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/crewjam/saml"
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
+	"github.com/fleetdm/fleet/v4/server/dev_mode"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/platform/logging"
 	"github.com/fleetdm/fleet/v4/server/service/middleware/log"
 	"github.com/fleetdm/fleet/v4/server/service/middleware/otel"
 	kitlog "github.com/go-kit/log"
 	"github.com/go-kit/log/level"
+	"github.com/google/uuid"
 	dsig "github.com/russellhaering/goxmldsig"
 )
 
@@ -58,15 +62,16 @@ func (e *notFoundError) IsNotFound() bool {
 
 // idpService implements the Okta conditional access IdP functionality.
 type idpService struct {
-	ds     fleet.Datastore
-	logger kitlog.Logger
+	ds               fleet.Datastore
+	logger           *logging.Logger
+	certSerialFormat string
 }
 
 // RegisterIdP registers the HTTP handlers for Okta conditional access IdP endpoints.
 func RegisterIdP(
 	mux *http.ServeMux,
 	ds fleet.Datastore,
-	logger kitlog.Logger,
+	logger *logging.Logger,
 	fleetConfig *config.FleetConfig,
 ) error {
 	if fleetConfig == nil {
@@ -74,12 +79,13 @@ func RegisterIdP(
 	}
 
 	svc := &idpService{
-		ds:     ds,
-		logger: kitlog.With(logger, "component", "conditional-access-idp"),
+		ds:               ds,
+		logger:           logger.With("component", "conditional-access-idp"),
+		certSerialFormat: fleetConfig.ConditionalAccess.CertSerialFormat,
 	}
 
 	// Create logging middleware
-	loggingMiddleware := log.NewLoggingMiddleware(svc.logger)
+	loggingMiddleware := log.NewLoggingMiddleware(svc.logger.SlogLogger())
 
 	// Register handlers with logging and OpenTelemetry middleware
 	// Order: OTEL wraps logging to capture full request lifecycle
@@ -164,10 +170,10 @@ func (s *idpService) serveSSO(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Parse serial number (hex string to uint64)
-	serial, err := parseSerialNumber(serialStr)
+	// Parse serial number (hex or decimal string to uint64, based on config)
+	serial, err := parseSerialNumber(serialStr, s.certSerialFormat)
 	if err != nil {
-		level.Error(s.logger).Log("msg", "invalid certificate serial format", "serial", serialStr, "err", err)
+		level.Error(s.logger).Log("msg", "invalid certificate serial format", "serial", serialStr, "format", s.certSerialFormat, "err", err)
 		http.Redirect(w, r, certificateErrorURL, http.StatusSeeOther)
 		return
 	}
@@ -257,22 +263,26 @@ func (w *statusInterceptingWriter) WriteHeader(statusCode int) {
 	w.ResponseWriter.WriteHeader(statusCode)
 }
 
-// parseSerialNumber parses a certificate serial number from hex string to uint64.
+// parseSerialNumber parses a certificate serial number from hex or decimal string to uint64.
 // The serial number is provided by the load balancer in the X-Client-Cert-Serial header.
 //
 // SECURITY NOTE: This function only supports certificate serial numbers up to uint64 max
 // (18,446,744,073,709,551,615). While X.509 allows serial numbers up to 160 bits, this
 // limitation is acceptable because Fleet controls the Certificate Authority and generates
 // all certificates via SCEP
-func parseSerialNumber(serialStr string) (uint64, error) {
-	// Remove any colons or spaces that might be in the serial number
+func parseSerialNumber(serialStr string, format string) (uint64, error) {
+	// Remove any colons or spaces that might be in the serial number (common in hex format)
 	serialStr = strings.ReplaceAll(serialStr, ":", "")
 	serialStr = strings.ReplaceAll(serialStr, " ", "")
 
-	// Parse as hex (base 16) to uint64
-	serial, err := strconv.ParseUint(serialStr, 16, 64)
+	base := 16 // default to hex
+	if format == config.CertSerialFormatDecimal {
+		base = 10
+	}
+
+	serial, err := strconv.ParseUint(serialStr, base, 64)
 	if err != nil {
-		return 0, fmt.Errorf("parse serial number: %w", err)
+		return 0, fmt.Errorf("parse serial number (format=%s): %w", format, err)
 	}
 
 	return serial, nil
@@ -352,6 +362,7 @@ func (p *deviceHealthSessionProvider) GetSession(w http.ResponseWriter, r *http.
 
 	// Check if device has failing conditional access policies
 	failingConditionalAccessCount := 0
+	failingWithoutBypass := 0
 	for _, policy := range policies {
 		// Only check policies that are marked for conditional access
 		if _, isConditionalAccessPolicy := conditionalAccessPolicyIDsSet[policy.ID]; !isConditionalAccessPolicy {
@@ -360,6 +371,9 @@ func (p *deviceHealthSessionProvider) GetSession(w http.ResponseWriter, r *http.
 		// Check if policy is failing
 		if policy.Response == policyResponseFail {
 			failingConditionalAccessCount++
+			if !(policy.ConditionalAccessBypassEnabled != nil && *policy.ConditionalAccessBypassEnabled) {
+				failingWithoutBypass++
+			}
 		}
 	}
 
@@ -369,18 +383,56 @@ func (p *deviceHealthSessionProvider) GetSession(w http.ResponseWriter, r *http.
 			"host_id", p.hostID,
 			"failing_conditional_access_policies_count", failingConditionalAccessCount,
 		)
-		authToken, err := p.ds.GetDeviceAuthToken(ctx, host.ID)
-		if err != nil {
-			// The auth token is unavailable for some reason, redirect to the non-device-specific
-			// remediation page and log the error. Could happen if fleet desktop was never able to
-			// create a token?
+		authToken, getErr := p.ds.GetDeviceAuthToken(ctx, host.ID)
+
+		var needNewToken bool
+		switch {
+		case getErr == nil:
+			// Token exists. Check if it's expired. Use the same TTL as device authentication.
+			// In practice, Orbit rotates tokens proactively (before expiration), so an expired
+			// token here means Orbit is not running (crashed, not installed, or can't reach the
+			// server). Even if Orbit rotates concurrently, the previous_token mechanism ensures
+			// the old token remains valid after rotation.
+			const deviceAuthTokenTTL = time.Hour
+			if _, loadErr := p.ds.LoadHostByDeviceAuthToken(ctx, authToken, deviceAuthTokenTTL); loadErr != nil {
+				if fleet.IsNotFound(loadErr) {
+					needNewToken = true // Case 1: token exists but is expired
+				} else {
+					level.Error(p.logger).Log("msg", "failed to validate device auth token", "err", loadErr, "host_id", p.hostID)
+					ctxerr.Handle(ctx, loadErr)
+					http.Redirect(w, r, remediateURL, http.StatusSeeOther)
+					return nil
+				}
+			}
+		case fleet.IsNotFound(getErr):
+			needNewToken = true // Case 2: no token exists (e.g. fresh install without Fleet Desktop)
+		default:
+			// Unexpected error. Log and redirect to generic remediation page.
 			level.Error(p.logger).Log(
-				"msg", "device auth token not found",
-				"err", err,
+				"msg", "failed to get device auth token",
+				"err", getErr,
 				"host_id", p.hostID,
 			)
+			ctxerr.Handle(ctx, getErr)
 			http.Redirect(w, r, remediateURL, http.StatusSeeOther)
 			return nil
+		}
+
+		if needNewToken {
+			// Create a server-side token so the redirect URL works.
+			// If Fleet Desktop is running, Orbit will overwrite this with a client-generated
+			// token on its next rotation, but this token will remain valid as
+			// previous_token for one rotation cycle.
+			authToken = uuid.NewString()
+			if setErr := p.ds.SetOrUpdateDeviceAuthToken(ctx, host.ID, authToken); setErr != nil {
+				level.Error(p.logger).Log(
+					"msg", "failed to create device auth token",
+					"err", setErr,
+					"host_id", p.hostID,
+				)
+				http.Redirect(w, r, remediateURL, http.StatusSeeOther)
+				return nil
+			}
 		}
 
 		config, err := p.ds.AppConfig(ctx)
@@ -389,8 +441,31 @@ func (p *deviceHealthSessionProvider) GetSession(w http.ResponseWriter, r *http.
 			return nil
 		}
 
-		http.Redirect(w, r, fmt.Sprintf("%s/device/%s/policies", config.ServerSettings.ServerURL, authToken), http.StatusSeeOther)
-		return nil
+		hostRemediationUrl := fmt.Sprintf("%s/device/%s/policies", config.ServerSettings.ServerURL, authToken)
+
+		bypassEnabled := config.ConditionalAccess == nil || config.ConditionalAccess.BypassEnabled()
+
+		var bypassedAt *time.Time
+		if bypassEnabled && failingWithoutBypass == 0 {
+			bypassedAt, err = p.ds.ConditionalAccessConsumeBypass(ctx, host.ID)
+			if err != nil {
+				ctxerr.Handle(ctx, fmt.Errorf("failed to check conditional access host bypass for host %d: %w", p.hostID, err))
+				http.Redirect(w, r, hostRemediationUrl, http.StatusSeeOther)
+				return nil
+			}
+		}
+
+		if bypassedAt == nil {
+			// No bypass, fail as usual
+			http.Redirect(w, r, hostRemediationUrl, http.StatusSeeOther)
+			return nil
+		}
+
+		// Host has clicked "bypass" for this check, we have consumed it and will let them through
+		level.Info(p.logger).Log(
+			"msg", "device has bypassed conditional access checks",
+			"host_id", p.hostID,
+		)
 	}
 
 	// Device is compliant - return session for SAML assertion
@@ -534,7 +609,7 @@ func (s *idpService) buildIdentityProvider(ctx context.Context, serverURL string
 	ssoURL = ssoURL.JoinPath(idpSSOPath)
 
 	// Create kitlog adapter for SAML library
-	samlLogger := &kitlogAdapter{logger: kitlog.With(s.logger, "component", "saml-idp")}
+	samlLogger := &kitlogAdapter{logger: s.logger.With("component", "saml-idp")}
 
 	// Build IdentityProvider
 	// Note: SessionProvider is set dynamically in serveSSO based on the authenticated device
@@ -561,7 +636,7 @@ func (s *idpService) buildSSOServerURL(ctx context.Context) (string, error) {
 	}
 
 	// Use the AppConfig method to build the SSO URL
-	ssoURL, err := appConfig.ConditionalAccessIdPSSOURL(os.Getenv)
+	ssoURL, err := appConfig.ConditionalAccessIdPSSOURL(dev_mode.Env)
 	if err != nil {
 		return "", ctxerr.Wrap(ctx, err, "build conditional access SSO URL")
 	}

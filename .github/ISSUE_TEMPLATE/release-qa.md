@@ -3,7 +3,7 @@ name:  Release QA
 about: Checklist of required tests prior to release
 title: 'Release QA:'
 labels: '#g-mdm,#g-orchestration,#g-software,#g-security-compliance,:release'
-assignees: 'xpkoala,andreykizimenko'
+assignees: 'xpkoala,andreykizimenko,chrstphr84,Brajim20,Ravenstencil'
 
 ---
 
@@ -47,7 +47,8 @@ Smoke tests are limited to core functionality and serve as a pre-release final r
 2. run `fleetctl preview` with no tag for latest stable
 3. create a host/query to later confirm upgrade with
 4. STOP fleet-preview-server instances in containers/apps on Docker
-5. run `fleetctl preview` with appropriate testing tag </td><td>All previously created hosts/queries are verified to still exist</td><td>pass/fail</td></tr>
+5. run `fleetctl preview` with appropriate testing tag
+6. Navigate through all new UI flows and confirm dashboard, hosts, controls, queries, policies, and settings pages are working as expected. </td><td>All previously created hosts/queries are verified to still exist</td><td>pass/fail</td></tr>
 <tr><td>Login flow</td><td>
 
 1. navigate to the login page and attempt to login with both valid and invalid credentials to verify some combination of expected results.
@@ -311,14 +312,15 @@ List versions changes for any component updates below:
 
 ### Goal: Ensure new `fleetd` is tested and promoted from local > edge > stable channels
 
-1. Build a new `fleetd` from the release candidate branch as needed for Orbit, Desktop, and Chrome Extension.
+1. Build a new `fleetd` from the release candidate branch as needed for Orbit, Desktop, and Chrome Extension (e.g. `rc-minor-fleet-v4.80.0`).
+IMPORTANT: Do not build fleetd from `main` as it is a moving target and new fleetd changes from future releases might be already merged.
 
 <table>
 <tr><th>Test name</th><th>Step instructions</th><th>Expected result</th><th>pass/fail</td></tr>
 <tr><td>$Name</td><td>{what a tester should do}</td><td>{what a tester should see when they do that}</td><td>pass/fail</td></tr>
 <tr><td>`fleetd` local testing</td>
 <td>
-1. Following [Testing TUF]([url](https://github.com/fleetdm/fleet/blob/main/tools/tuf/test/README.md)) instructions create binaries for Mac, Windows, and Ubuntu using your local TUF repository and install on macOS, Linux, and Windows hosts.<br>
+1. Following [Testing TUF]([url](https://github.com/fleetdm/fleet/blob/main/tools/tuf/test/README.md)) instructions create binaries for Mac, Windows, and Ubuntu using your local TUF repository and install on macOS, Linux, and Windows hosts. IMPORTANT: Reminder to use an RC branch and not `main`<br>
 </td>
 <td>
 1. Confirm the hosts install with the updated version and are working correctly.<br>

@@ -6,10 +6,7 @@ import PATHS from "router/paths";
 import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
 import { getFileDetails, IFileDetails } from "utilities/file/fileUtils";
 import { getPathWithQueryParams, QueryParams } from "utilities/url";
-import softwareAPI, {
-  MAX_FILE_SIZE_BYTES,
-  MAX_FILE_SIZE_MB,
-} from "services/entities/software";
+import softwareAPI from "services/entities/software";
 import labelsAPI, { getCustomLabels } from "services/entities/labels";
 
 import { NotificationContext } from "context/notification";
@@ -102,7 +99,7 @@ const SoftwareCustomPackage = ({
   const onCancel = () => {
     router.push(
       getPathWithQueryParams(PATHS.SOFTWARE_TITLES, {
-        team_id: currentTeamId,
+        fleet_id: currentTeamId,
       })
     );
   };
@@ -116,15 +113,7 @@ const SoftwareCustomPackage = ({
       return;
     }
 
-    if (formData.software && formData.software.size > MAX_FILE_SIZE_BYTES) {
-      renderFlash(
-        "error",
-        `Couldn't add. The maximum file size is ${MAX_FILE_SIZE_MB} MB.`
-      );
-      return;
-    }
-
-    setUploadDetails(getFileDetails(formData.software, true));
+    setUploadDetails(getFileDetails(formData.software));
 
     // Note: This TODO is copied to onSaveSoftwareChanges in EditSoftwareModal
     // TODO: confirm we are deleting the second sentence (not modifying it) for non-self-service installers
@@ -155,7 +144,7 @@ const SoftwareCustomPackage = ({
       }
 
       const newQueryParams: QueryParams = {
-        team_id: currentTeamId,
+        fleet_id: currentTeamId,
         gitops_yaml: gitOpsModeEnabled ? "true" : undefined,
       };
       router.push(

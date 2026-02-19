@@ -81,7 +81,6 @@ func TestDeviceClientGetDesktopPayload(t *testing.T) {
 		require.EqualValues(t, "gogetit.com:6969", client.fleetAlternativeBrowserHostFromServer)
 	})
 }
-
 func TestDeviceClientGetFleetHost(t *testing.T) {
 	testCases := []struct {
 		alternativeBrowserHostFromEnv    string
@@ -114,7 +113,7 @@ func TestDeviceClientGetFleetHost(t *testing.T) {
 		client, err := NewDeviceClient("", true, "", nil, tc.alternativeBrowserHostFromEnv)
 		require.NoError(t, err)
 		client.fleetAlternativeBrowserHostFromServer = tc.alternativeBrowserHostFromServer
-		require.Equal(t, tc.expected, client.getAlternativeBrowserHost())
+		require.Equal(t, tc.expected, client.getAlternativeBrowserHostSetting())
 	}
 }
 

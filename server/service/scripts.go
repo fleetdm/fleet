@@ -14,8 +14,9 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/docker/go-units"
 	"github.com/fleetdm/fleet/v4/pkg/file"
+	platform_http "github.com/fleetdm/fleet/v4/server/platform/http"
+
 	"github.com/fleetdm/fleet/v4/pkg/scripts"
 	"github.com/fleetdm/fleet/v4/server/authz"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
@@ -35,7 +36,7 @@ type runScriptRequest struct {
 	ScriptID       *uint  `json:"script_id"`
 	ScriptContents string `json:"script_contents"`
 	ScriptName     string `json:"script_name"`
-	TeamID         uint   `json:"team_id"`
+	TeamID         uint   `json:"team_id" renameto:"fleet_id"`
 }
 
 type runScriptResponse struct {
@@ -73,7 +74,7 @@ type runScriptSyncRequest struct {
 	ScriptID       *uint  `json:"script_id"`
 	ScriptContents string `json:"script_contents"`
 	ScriptName     string `json:"script_name"`
-	TeamID         uint   `json:"team_id"`
+	TeamID         uint   `json:"team_id" renameto:"fleet_id"`
 }
 
 type runScriptSyncResponse struct {
@@ -459,7 +460,7 @@ type createScriptRequest struct {
 func (createScriptRequest) DecodeRequest(ctx context.Context, r *http.Request) (interface{}, error) {
 	var decoded createScriptRequest
 
-	err := r.ParseMultipartForm(512 * units.MiB) // same in-memory size as for other multipart requests we have
+	err := r.ParseMultipartForm(platform_http.MaxMultipartFormSize)
 	if err != nil {
 		return nil, &fleet.BadRequestError{
 			Message:     "failed to parse multipart form",
@@ -633,7 +634,7 @@ func (svc *Service) DeleteScript(ctx context.Context, scriptID uint) error {
 ////////////////////////////////////////////////////////////////////////////////
 
 type listScriptsRequest struct {
-	TeamID      *uint             `query:"team_id,optional"`
+	TeamID      *uint             `query:"team_id,optional" renameto:"fleet_id"`
 	ListOptions fleet.ListOptions `url:"list_options"`
 }
 
@@ -764,7 +765,7 @@ type updateScriptRequest struct {
 func (updateScriptRequest) DecodeRequest(ctx context.Context, r *http.Request) (interface{}, error) {
 	var decoded updateScriptRequest
 
-	err := r.ParseMultipartForm(512 * units.MiB) // same in-memory size as for other multipart requests we have
+	err := r.ParseMultipartForm(platform_http.MaxMultipartFormSize)
 	if err != nil {
 		return nil, &fleet.BadRequestError{
 			Message:     "failed to parse multipart form",
@@ -940,8 +941,8 @@ func (svc *Service) GetHostScriptDetails(ctx context.Context, hostID uint, opt f
 ////////////////////////////////////////////////////////////////////////////////
 
 type batchSetScriptsRequest struct {
-	TeamID   *uint                 `json:"-" query:"team_id,optional"`
-	TeamName *string               `json:"-" query:"team_name,optional"`
+	TeamID   *uint                 `json:"-" query:"team_id,optional" renameto:"fleet_id"`
+	TeamName *string               `json:"-" query:"team_name,optional" renameto:"fleet_name"`
 	DryRun   bool                  `json:"-" query:"dry_run,optional"` // if true, apply validation but do not save changes
 	Scripts  []fleet.ScriptPayload `json:"scripts"`
 }
@@ -958,7 +959,7 @@ type batchScriptExecutionStatusRequest struct {
 }
 
 type batchScriptExecutionListRequest struct {
-	TeamID  uint    `query:"team_id,required"`
+	TeamID  uint    `query:"team_id,required" renameto:"fleet_id"`
 	Status  *string `query:"status,optional"`
 	Page    *uint   `query:"page,optional"`
 	PerPage *uint   `query:"per_page,optional"`
@@ -975,7 +976,7 @@ type (
 	batchScriptExecutionSummaryResponse struct {
 		ScriptID    uint      `json:"script_id" db:"script_id"`
 		ScriptName  string    `json:"script_name" db:"script_name"`
-		TeamID      *uint     `json:"team_id" db:"team_id"`
+		TeamID      *uint     `json:"team_id" db:"team_id" renameto:"fleet_id"`
 		CreatedAt   time.Time `json:"created_at" db:"created_at"`
 		NumTargeted *uint     `json:"targeted" db:"num_targeted"`
 		NumPending  *uint     `json:"pending" db:"num_pending"`

@@ -88,6 +88,7 @@
         "created_at": "0001-01-01T00:00:00Z",
         "critical": false,
         "calendar_events_enabled": true,
+        "conditional_access_bypass_enabled": true,
         "conditional_access_enabled": false
       },
       {
@@ -105,11 +106,13 @@
         "created_at": "0001-01-01T00:00:00Z",
         "critical": false,
         "calendar_events_enabled": false,
+        "conditional_access_bypass_enabled": false,
         "conditional_access_enabled": false
       }
     ],
     "status": "offline",
     "display_text": "test_host",
-    "display_name": "test_host"
+    "display_name": "test_host",
+    "conditional_access_bypassed": false
   }
 }

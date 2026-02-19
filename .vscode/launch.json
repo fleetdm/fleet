@@ -109,7 +109,7 @@
             "program": "${workspaceRoot}/node_modules/.bin/jest",
             "args": [
                 "--config",
-                "./frontend/test/jest.config.ts",
+                "./frontend/test/jest.config.js",
                 "${relativeFile}"
             ],
             "console": "integratedTerminal",
@@ -122,7 +122,7 @@
             "program": "${workspaceRoot}/node_modules/.bin/jest",
             "args": [
                 "--config",
-                "./frontend/test/jest.config.ts"
+                "./frontend/test/jest.config.js"
             ],
             "console": "integratedTerminal",
             "internalConsoleOptions": "neverOpen"

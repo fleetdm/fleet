@@ -6,8 +6,8 @@ import React, {
   useContext,
   forwardRef,
   Ref,
+  ReactElement,
 } from "react";
-import { ReactElement } from "react-markdown/lib/react-markdown";
 import { AppContext } from "context/app";
 import PaginatedList, { IPaginatedListHandle } from "components/PaginatedList";
 import { useQuery } from "react-query";

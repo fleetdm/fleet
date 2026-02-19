@@ -576,9 +576,9 @@ func expandCPEAliases(cpeItem *wfn.Attributes) []*wfn.Attributes {
 		}
 	}
 
-	// The python extension is defined in two ways in the CPE database:
 	// 	cpe:2.3:a:microsoft:python_extension:2024.2.1:*:*:*:*:visual_studio_code:*:*
 	//	cpe:2.3:a:microsoft:visual_studio_code:2024.2.1:*:*:*:*:python:*:*
+	//	cpe:2.3:a:microsoft:python:2020.4.0:*:*:*:*:visual_studio_code:*:*
 	for _, cpeItem := range cpeItems {
 		if cpeItem.TargetSW == "visual_studio_code" &&
 			cpeItem.Vendor == "microsoft" &&
@@ -587,6 +587,10 @@ func expandCPEAliases(cpeItem *wfn.Attributes) []*wfn.Attributes {
 			cpeItem2.Product = "visual_studio_code"
 			cpeItem2.TargetSW = "python"
 			cpeItems = append(cpeItems, &cpeItem2)
+
+			cpeItem3 := *cpeItem
+			cpeItem3.Product = "python"
+			cpeItems = append(cpeItems, &cpeItem3)
 		}
 	}
 
@@ -595,6 +599,24 @@ func expandCPEAliases(cpeItem *wfn.Attributes) []*wfn.Attributes {
 			cpeItem2 := *cpeItem
 			cpeItem2.Product = "vm_virtualbox"
 			cpeItems = append(cpeItems, &cpeItem2)
+		}
+	}
+
+	// pgAdmin CVEs in NVD use target_sw=postgresql and product=pgadmin_4, but Fleet generates
+	// CPEs with platform-based target_sw (macos, windows) and may use different product
+	// names (pgadmin, pgadmin4). Add aliases with target_sw=postgresql and product name
+	// variations to match NVD's criteria.
+	// See https://github.com/fleetdm/fleet/issues/37957.
+	for _, cpeItem := range cpeItems {
+		if cpeItem.Vendor == "pgadmin" &&
+			(cpeItem.Product == "pgadmin_4" || cpeItem.Product == "pgadmin" || cpeItem.Product == "pgadmin4") {
+			// Add aliases with product name variations and target_sw=postgresql
+			for _, productName := range []string{"pgadmin", "pgadmin_4", "pgadmin4"} {
+				newItem := *cpeItem
+				newItem.Product = productName
+				newItem.TargetSW = "postgresql"
+				cpeItems = append(cpeItems, &newItem)
+			}
 		}
 	}
 

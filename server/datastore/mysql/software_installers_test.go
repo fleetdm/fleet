@@ -2085,6 +2085,46 @@ func testHasSelfServiceSoftwareInstallers(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	assert.True(t, hasSelfService)
 
+	// Create a new team for .sh testing
+	teamSh, err := ds.NewTeam(ctx, &fleet.Team{Name: "team sh darwin test"})
+	require.NoError(t, err)
+
+	// Initially, darwin should not see any self-service installers in this team
+	hasSelfService, err = ds.HasSelfServiceSoftwareInstallers(ctx, "darwin", &teamSh.ID)
+	require.NoError(t, err)
+	assert.False(t, hasSelfService, "darwin should not see self-service before .sh is created")
+
+	// Create a self-service .sh installer (stored as platform='linux', extension='sh')
+	// This should be visible to darwin hosts due to the .sh exception
+	_, _, err = ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
+		Title:           "sh script for darwin",
+		Source:          "sh_packages",
+		InstallScript:   "#!/bin/bash\necho install",
+		TeamID:          &teamSh.ID,
+		Filename:        "script.sh",
+		Platform:        "linux", // .sh files are stored as linux
+		Extension:       "sh",
+		SelfService:     true,
+		UserID:          user1.ID,
+		ValidatedLabels: &fleet.LabelIdentsWithScope{},
+	})
+	require.NoError(t, err)
+
+	// Darwin host should now see self-service .sh package
+	hasSelfService, err = ds.HasSelfServiceSoftwareInstallers(ctx, "darwin", &teamSh.ID)
+	require.NoError(t, err)
+	assert.True(t, hasSelfService, "darwin host should see self-service .sh packages")
+
+	// Linux host should also see it
+	hasSelfService, err = ds.HasSelfServiceSoftwareInstallers(ctx, "linux", &teamSh.ID)
+	require.NoError(t, err)
+	assert.True(t, hasSelfService, "linux host should see self-service .sh packages")
+
+	// Windows host shouldn't see .sh packages
+	hasSelfService, err = ds.HasSelfServiceSoftwareInstallers(ctx, "windows", &teamSh.ID)
+	require.NoError(t, err)
+	assert.False(t, hasSelfService, "windows host should NOT see .sh packages")
+
 	// Create a self-service VPP for team/darwin
 	_, err = ds.InsertVPPAppWithTeam(ctx, &fleet.VPPApp{VPPAppTeam: fleet.VPPAppTeam{VPPAppID: fleet.VPPAppID{AdamID: "adam_vpp_3", Platform: fleet.MacOSPlatform}, SelfService: true}, Name: "vpp3", BundleIdentifier: "com.app.vpp3"}, &team.ID)
 	require.NoError(t, err)
@@ -2511,6 +2551,22 @@ func testGetOrGenerateSoftwareInstallerTitleID(t *testing.T, ds *Datastore) {
 				BundleIdentifier: "com.new.bundle",
 			},
 		},
+		{
+			name: "title that already exists with bundle identifier",
+			payload: &fleet.UploadSoftwareInstallerPayload{
+				Title:            "Existing Title",
+				Source:           "apps",
+				BundleIdentifier: "existing.title",
+			},
+		},
+		{
+			name: "title that already exists with bundle identifier, different source",
+			payload: &fleet.UploadSoftwareInstallerPayload{
+				Title:            "Existing Title",
+				Source:           "ios_apps",
+				BundleIdentifier: "existing.title",
+			},
+		},
 	}
 
 	for _, tt := range tests {
@@ -2518,6 +2574,15 @@ func testGetOrGenerateSoftwareInstallerTitleID(t *testing.T, ds *Datastore) {
 			id, err := ds.getOrGenerateSoftwareInstallerTitleID(ctx, tt.payload)
 			require.NoError(t, err)
 			require.NotEmpty(t, id)
+
+			var titleSource string
+			ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+				err := sqlx.GetContext(ctx, q, &titleSource, `SELECT source FROM software_titles WHERE id = ?`, id)
+				require.NoError(t, err)
+				return nil
+			})
+			require.Equal(t, tt.payload.Source, titleSource)
+
 		})
 	}
 }

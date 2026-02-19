@@ -1,0 +1,1 @@
+* Added logic to .pkg metadata extraction to match the root bundle identifier.

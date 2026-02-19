@@ -1,0 +1,1 @@
+* Fixed unnecessary error logging when no CPE match is found for software items like VSCode extensions and JetBrains plugins.

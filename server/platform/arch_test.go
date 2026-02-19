@@ -104,7 +104,21 @@ func TestMysqlPackageDependencies(t *testing.T) {
 			m+"/server/platform/mysql...",
 			// Other infra packages
 			m+"/server/platform/http",
+			m+"/server/platform/logging",
 			m+"/server/contexts/ctxerr",
+		).
+		Check()
+}
+
+func TestLoggingPackageDependencies(t *testing.T) {
+	t.Parallel()
+	archtest.NewPackageTest(t, m+"/server/platform/logging...").
+		OnlyInclude(regexp.MustCompile(`^github\.com/fleetdm/`)).
+		WithTests().
+		ShouldNotDependOn(m + "/...").
+		IgnoreDeps(
+			// Ignore our own packages
+			m + "/server/platform/logging...",
 		).
 		Check()
 }

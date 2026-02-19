@@ -12,6 +12,15 @@ import (
 	"golang.org/x/crypto/bcrypt"
 )
 
+// UserSummary contains the minimal user fields.
+type UserSummary struct {
+	ID          uint   `db:"id"`
+	Name        string `db:"name"`
+	Email       string `db:"email"`
+	GravatarURL string `db:"gravatar_url"`
+	APIOnly     bool   `db:"api_only"`
+}
+
 // User is the model struct that represents a Fleet user.
 type User struct {
 	UpdateCreateTimestamps
@@ -31,7 +40,7 @@ type User struct {
 	APIOnly    bool    `json:"api_only" db:"api_only"`
 
 	// Teams is the teams this user has roles in. For users with a global role, Teams is expected to be empty.
-	Teams []UserTeam `json:"teams"`
+	Teams []UserTeam `json:"teams" renameto:"fleets"`
 
 	// Only used to to prevent duplicate invite acceptance
 	InviteID *uint `json:"-" db:"invite_id"`
@@ -184,7 +193,7 @@ type UserPayload struct {
 	GlobalRole               *string       `json:"global_role,omitempty"`
 	AdminForcedPasswordReset *bool         `json:"admin_forced_password_reset,omitempty"`
 	APIOnly                  *bool         `json:"api_only,omitempty"`
-	Teams                    *[]UserTeam   `json:"teams,omitempty"`
+	Teams                    *[]UserTeam   `json:"teams,omitempty" renameto:"fleets"`
 	NewPassword              *string       `json:"new_password,omitempty"`
 	Settings                 *UserSettings `json:"settings,omitempty"`
 	InviteID                 *uint         `json:"-"`

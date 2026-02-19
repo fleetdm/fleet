@@ -13,6 +13,7 @@ import {
   IAppStoreApp,
 } from "interfaces/software";
 
+import { getDisplayedSoftwareName } from "pages/SoftwarePage/helpers";
 import Card from "components/Card";
 import SoftwareDetailsSummary from "pages/SoftwarePage/components/cards/SoftwareDetailsSummary";
 import TitleVersionsTable from "./TitleVersionsTable";
@@ -57,6 +58,11 @@ const SoftwareSummaryCard = ({
     setShowEditAutoUpdateConfigModal,
   ] = useState(false);
 
+  const softwareDisplayName = getDisplayedSoftwareName(
+    softwareTitle.name,
+    softwareTitle.display_name
+  );
+
   // Hide versions table for tgz_packages, sh_packages, & ps1_packages and when no hosts have the
   // software installed
   const showVersionsTable =
@@ -70,12 +76,12 @@ const SoftwareSummaryCard = ({
       <>
         <Card borderRadiusSize="xxlarge" className={baseClass}>
           <SoftwareDetailsSummary
-            displayName={softwareTitle.display_name || softwareTitle.name}
+            displayName={softwareDisplayName}
             type={formatSoftwareType(softwareTitle)}
             versions={softwareTitle.versions?.length ?? 0}
             hostCount={softwareTitle.hosts_count}
             countsUpdatedAt={softwareTitle.counts_updated_at}
-            queryParams={{ software_title_id: softwareId, team_id: teamId }}
+            queryParams={{ software_title_id: softwareId, fleet_id: teamId }}
             name={softwareTitle.name}
             source={softwareTitle.source}
             iconUrl={softwareTitle.icon_url}
@@ -104,6 +110,7 @@ const SoftwareSummaryCard = ({
     softwareInstaller,
     installerType,
     isIosOrIpadosApp,
+    isFleetMaintainedApp,
     isAndroidPlayStoreApp,
     canManageSoftware,
   } = meta;
@@ -128,14 +135,14 @@ const SoftwareSummaryCard = ({
     <>
       <Card borderRadiusSize="xxlarge" className={baseClass}>
         <SoftwareDetailsSummary
-          displayName={softwareTitle.display_name || softwareTitle.name}
+          displayName={softwareDisplayName}
           type={formatSoftwareType(softwareTitle)}
           versions={softwareTitle.versions?.length ?? 0}
           hostCount={softwareTitle.hosts_count}
           countsUpdatedAt={softwareTitle.counts_updated_at}
           queryParams={{
             software_title_id: softwareId,
-            team_id: teamId,
+            fleet_id: teamId,
           }}
           name={softwareTitle.name}
           source={softwareTitle.source}
@@ -178,7 +185,7 @@ const SoftwareSummaryCard = ({
           setIconUploadedAt={setIconUploadedAt}
           installerType={installerType}
           previewInfo={{
-            name: softwareTitle.display_name || softwareTitle.name,
+            name: softwareDisplayName,
             titleName: softwareTitle.name,
             type: formatSoftwareType(softwareTitle),
             source: softwareTitle.source,
@@ -199,9 +206,10 @@ const SoftwareSummaryCard = ({
           refetchSoftwareTitle={refetchSoftwareTitle}
           installerType={installerType}
           openViewYamlModal={onToggleViewYaml}
+          isFleetMaintainedApp={isFleetMaintainedApp}
           isIosOrIpadosApp={isIosOrIpadosApp}
           name={softwareTitle.name}
-          displayName={softwareTitle.display_name || softwareTitle.name}
+          displayName={softwareDisplayName}
           source={softwareTitle.source}
           iconUrl={softwareTitle.icon_url}
         />

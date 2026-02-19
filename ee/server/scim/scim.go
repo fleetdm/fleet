@@ -16,6 +16,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/authz"
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/platform/logging"
 	"github.com/fleetdm/fleet/v4/server/service/middleware/auth"
 	"github.com/fleetdm/fleet/v4/server/service/middleware/log"
 	kitlog "github.com/go-kit/log"
@@ -31,7 +32,7 @@ func RegisterSCIM(
 	mux *http.ServeMux,
 	ds fleet.Datastore,
 	svc fleet.Service,
-	logger kitlog.Logger,
+	logger *logging.Logger,
 	fleetConfig *config.FleetConfig,
 ) error {
 	if fleetConfig == nil {
@@ -158,7 +159,7 @@ func RegisterSCIM(
 		},
 	}
 
-	scimLogger := kitlog.With(logger, "component", "SCIM")
+	scimLogger := logger.With("component", "SCIM")
 	resourceTypes := []scim.ResourceType{
 		{
 			ID:          optional.NewString("User"),
@@ -182,7 +183,7 @@ func RegisterSCIM(
 					Required: false,
 				},
 			},
-			Handler: NewUserHandler(ds, scimLogger),
+			Handler: NewUserHandler(ds, svc, scimLogger),
 		},
 		{
 			ID:          optional.NewString("Group"),
@@ -222,7 +223,7 @@ func RegisterSCIM(
 		handler = AuthorizationMiddleware(authorizer, scimLogger, handler)
 		handler = auth.AuthenticatedUserMiddleware(svc, scimErrorHandler, handler)
 		handler = LastRequestMiddleware(ds, scimLogger, handler)
-		handler = log.LogResponseEndMiddleware(scimLogger, handler)
+		handler = log.LogResponseEndMiddleware(scimLogger.SlogLogger(), handler)
 		handler = auth.SetRequestsContextMiddleware(svc, handler)
 		return handler
 	}

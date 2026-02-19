@@ -11,17 +11,11 @@ import (
 	"strings"
 	"time"
 
-	"github.com/docker/go-units"
 	"github.com/fleetdm/fleet/v4/pkg/optjson"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 )
 
-// MaxSoftwareInstallerSize is the maximum size allowed for software
-// installers. This is enforced by the endpoints that upload installers.
-const (
-	MaxSoftwareInstallerSize         = 3000 * units.MiB
-	SoftwareInstallerSignedURLExpiry = 6 * time.Hour
-)
+const SoftwareInstallerSignedURLExpiry = 6 * time.Hour
 
 // SoftwareInstallerStore is the interface to store and retrieve software
 // installer files. Fleet supports storing to the local filesystem and to an
@@ -72,7 +66,7 @@ type SoftwareInstallerURL struct {
 type SoftwareInstaller struct {
 	// TeamID is the ID of the team. A value of nil means it is scoped to hosts that are assigned to
 	// no team.
-	TeamID *uint `json:"team_id" db:"team_id"`
+	TeamID *uint `json:"team_id" renameto:"fleet_id" db:"team_id"`
 	// TitleID is the id of the software title associated with the software installer.
 	TitleID *uint `json:"title_id" db:"title_id"`
 	// Name is the name of the software package.
@@ -143,7 +137,7 @@ type SoftwareInstaller struct {
 type SoftwarePackageResponse struct {
 	// TeamID is the ID of the team.
 	// A value of nil means it is scoped to hosts that are assigned to "No team".
-	TeamID *uint `json:"team_id" db:"team_id"`
+	TeamID *uint `json:"team_id" renameto:"fleet_id" db:"team_id"`
 	// TitleID is the id of the software title associated with the software installer.
 	TitleID *uint `json:"title_id" db:"title_id"`
 	// URL is the source URL for this installer (set when uploading via batch/gitops).
@@ -152,6 +146,8 @@ type SoftwarePackageResponse struct {
 	HashSHA256 string `json:"hash_sha256" db:"hash_sha256"`
 	// ID of the Fleet Maintained App this package uses, if any
 	FleetMaintainedAppID *uint `json:"fleet_maintained_app_id" db:"fleet_maintained_app_id"`
+	// Slug of the Fleet Maintained App this package uses, if any
+	Slug string `json:"fleet_maintained_app_slug"`
 
 	//// Custom icon fields (blank if not set)
 
@@ -181,7 +177,7 @@ func (p SoftwarePackageResponse) GetLocalIconPath() string { return p.LocalIconP
 type VPPAppResponse struct {
 	// TeamID is the ID of the team.
 	// A value of nil means it is scoped to hosts that are assigned to "No team".
-	TeamID *uint `json:"team_id" db:"team_id"`
+	TeamID *uint `json:"team_id" renameto:"fleet_id" db:"team_id"`
 	// TitleID is the id of the software title associated with the software installer.
 	TitleID *uint `json:"title_id" db:"title_id"`
 	// AppStoreID is the ADAM ID for this app (set when uploading via batch/gitops).
@@ -486,7 +482,7 @@ func (h *HostSoftwareInstallerResult) EnhanceOutputDetails() {
 }
 
 type HostSoftwareInstallerResultAuthz struct {
-	HostTeamID *uint `json:"host_team_id"`
+	HostTeamID *uint `json:"host_team_id" renameto:"host_fleet_id"`
 }
 
 // AuthzType implements authz.AuthzTyper.
@@ -613,7 +609,8 @@ type UpdateSoftwareInstallerPayload struct {
 func (u *UpdateSoftwareInstallerPayload) IsNoopPayload(existing *SoftwareTitle) bool {
 	return u.SelfService == nil && u.InstallerFile == nil && u.PreInstallQuery == nil &&
 		u.InstallScript == nil && u.PostInstallScript == nil && u.UninstallScript == nil &&
-		u.LabelsIncludeAny == nil && u.LabelsExcludeAny == nil && u.DisplayName == nil
+		u.LabelsIncludeAny == nil && u.LabelsExcludeAny == nil && u.DisplayName == nil &&
+		u.CategoryIDs == nil
 }
 
 // DownloadSoftwareInstallerPayload is the payload for downloading a software installer.
@@ -986,7 +983,7 @@ const (
 // SoftwareInstallerTokenMetadata is the metadata stored in Redis for a software installer token.
 type SoftwareInstallerTokenMetadata struct {
 	TitleID uint `json:"title_id"`
-	TeamID  uint `json:"team_id"`
+	TeamID  uint `json:"team_id" renameto:"fleet_id"`
 }
 
 const SoftwareInstallerURLMaxLength = 4000

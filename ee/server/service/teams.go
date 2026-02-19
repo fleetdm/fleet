@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"maps"
 	"net/http"
 	"net/url"
 	"strings"
@@ -30,6 +31,7 @@ func obfuscateSecrets(user *fleet.User, teams []*fleet.Team) error {
 	}
 
 	isGlobalObs := user.IsGlobalObserver()
+	isGlobalTechnician := user.GlobalRole != nil && *user.GlobalRole == fleet.RoleTechnician
 
 	teamMemberships := user.TeamMembership(func(t fleet.UserTeam) bool {
 		return true
@@ -37,13 +39,20 @@ func obfuscateSecrets(user *fleet.User, teams []*fleet.Team) error {
 	obsMembership := user.TeamMembership(func(t fleet.UserTeam) bool {
 		return t.Role == fleet.RoleObserver || t.Role == fleet.RoleObserverPlus
 	})
+	isTeamTechnician := user.TeamMembership(func(t fleet.UserTeam) bool {
+		return t.Role == fleet.RoleTechnician
+	})
 
 	for _, t := range teams {
 		if t == nil {
 			continue
 		}
-		// User does not belong to the team or is a global/team observer/observer+
-		if isGlobalObs || user.GlobalRole == nil && (!teamMemberships[t.ID] || obsMembership[t.ID]) {
+		// We mask the password for the following users:
+		// - User has no roles.
+		// - User is a global observer/observer+/technician.
+		// - User does not belong to the team or is a team observer/observer+/technician.
+		if isGlobalObs || isGlobalTechnician ||
+			user.GlobalRole == nil && (!teamMemberships[t.ID] || obsMembership[t.ID] || isTeamTechnician[t.ID]) {
 			for _, s := range t.Secrets {
 				s.Secret = fleet.MaskedPassword
 			}
@@ -841,18 +850,20 @@ func (svc *Service) TeamEnrollSecrets(ctx context.Context, teamID uint) ([]*flee
 	}
 
 	isGlobalObs := vc.User.IsGlobalObserver()
+	isGlobalTechnician := vc.User.GlobalRole != nil && *vc.User.GlobalRole == fleet.RoleTechnician
 	teamMemberships := vc.User.TeamMembership(func(t fleet.UserTeam) bool {
 		return true
 	})
-	obsMembership := vc.User.TeamMembership(func(t fleet.UserTeam) bool {
-		return t.Role == fleet.RoleObserver || t.Role == fleet.RoleObserverPlus
+	// These roles are not allowed to see enroll secrets.
+	notAllowedTeamMembership := vc.User.TeamMembership(func(t fleet.UserTeam) bool {
+		return t.Role == fleet.RoleObserver || t.Role == fleet.RoleObserverPlus || t.Role == fleet.RoleTechnician
 	})
 
 	for _, s := range secrets {
 		if s == nil {
 			continue
 		}
-		if isGlobalObs || vc.User.GlobalRole == nil && (!teamMemberships[*s.TeamID] || obsMembership[*s.TeamID]) {
+		if isGlobalObs || isGlobalTechnician || (vc.User.GlobalRole == nil && (!teamMemberships[*s.TeamID] || notAllowedTeamMembership[*s.TeamID])) {
 			s.Secret = fleet.MaskedPassword
 		}
 	}
@@ -871,14 +882,62 @@ func (svc *Service) ModifyTeamEnrollSecrets(ctx context.Context, teamID uint, se
 		return nil, fleet.NewInvalidArgumentError("secrets", "too many secrets")
 	}
 
+	oldSecrets, err := svc.ds.GetEnrollSecrets(ctx, ptr.Uint(teamID))
+	if err != nil {
+		return nil, err
+	}
+
+	newSecretsValues := make(map[string]struct{}, len(secrets))
+
 	var newSecrets []*fleet.EnrollSecret
 	for _, secret := range secrets {
+		newSecretsValues[secret.Secret] = struct{}{}
+
 		newSecrets = append(newSecrets, &fleet.EnrollSecret{
 			Secret: secret.Secret,
 		})
 	}
 	if err := svc.ds.ApplyEnrollSecrets(ctx, ptr.Uint(teamID), newSecrets); err != nil {
 		return nil, err
+	}
+
+	// Check whether there were any mutations around the provided secrets ... if true, then register
+	// an activity.
+	oldSecretValues := make(map[string]struct{}, len(oldSecrets))
+	for _, s := range oldSecrets {
+		oldSecretValues[s.Secret] = struct{}{}
+	}
+
+	if !maps.Equal(oldSecretValues, newSecretsValues) {
+		activity := fleet.ActivityTypeEditedEnrollSecrets{}
+		team, err := svc.ds.TeamLite(ctx, teamID)
+		if err != nil {
+			level.Error(svc.logger).Log(
+				"err", err,
+				"teamID", teamID,
+				"msg", "error while fetching team for edited enroll secret activity",
+			)
+		}
+		if team != nil {
+			activity = fleet.ActivityTypeEditedEnrollSecrets{
+				TeamID:   &team.ID,
+				TeamName: &team.Name,
+			}
+		} else {
+			level.Error(svc.logger).Log(
+				"teamID", teamID,
+				"msg", "team not found for edited enroll secret activity",
+			)
+		}
+
+		if err := svc.NewActivity(
+			ctx,
+			authz.UserFromContext(ctx),
+			activity,
+		); err != nil {
+			errMsg := fmt.Sprintf("creating edited enroll secret activity for team %d", teamID)
+			return nil, ctxerr.Wrap(ctx, err, errMsg)
+		}
 	}
 
 	return newSecrets, nil

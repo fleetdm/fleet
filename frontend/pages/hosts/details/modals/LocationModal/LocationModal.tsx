@@ -27,10 +27,10 @@ const getLocationMessage = (
   hasLocation: boolean
 ): JSX.Element | null => {
   const FETCH_LATEST_LOCATION_MESSAGE = (
-    <>
+    <div>
       Close this modal and select <strong>Refetch</strong> to fetch new
       location.
-    </>
+    </div>
   );
   const IOS_LOCK_REQUIRED_MESSAGE = (
     <>
@@ -51,12 +51,12 @@ const getLocationMessage = (
 
     case "locking":
       return (
-        <div>
+        <>
           <p>{IOS_LOCK_REQUIRED_MESSAGE}</p>
           <p>
             Lock is pending. Host will lock the next time it checks in to Fleet.
           </p>
-        </div>
+        </>
       );
 
     case "locating":
@@ -86,7 +86,7 @@ const buildGoogleMapsLinkFromGeo = (loc: IGeoLocation): string | null => {
     Array.isArray(geometry.coordinates) &&
     geometry.coordinates.length >= 2
   ) {
-    const [lng, lat] = geometry.coordinates; // GeoJSON is [lng, lat]
+    const [lat, lng] = geometry.coordinates; // GeoJSON is [lat, lng]
     if (lat != null && lng != null) {
       return `https://www.google.com/maps?q=${lat},${lng}`;
     }
@@ -139,19 +139,21 @@ const LocationModal = ({
   const renderContent = () => {
     return (
       <>
-        <div className={`${baseClass}__location`}>
-          {hostGeolocation && getCityCountryLocation(hostGeolocation)}{" "}
-          {googleMapsUrl && (
-            <div className={`${baseClass}__link`}>
-              <CustomLink
-                url={googleMapsUrl}
-                text="Open in Google Maps"
-                newTab
-                multiline
-              />
-            </div>
-          )}
-        </div>
+        {hostGeolocation && (
+          <div className={`${baseClass}__location`}>
+            {hostGeolocation && getCityCountryLocation(hostGeolocation)}{" "}
+            {googleMapsUrl && (
+              <div className={`${baseClass}__link`}>
+                <CustomLink
+                  url={googleMapsUrl}
+                  text="Open in Google Maps"
+                  newTab
+                  multiline
+                />
+              </div>
+            )}
+          </div>
+        )}
         <div className={`${baseClass}__message`}>
           {getLocationMessage(iosOrIpadosDetails, Boolean(hostGeolocation))}
           {shouldShowLastUpdatedAt && renderLastUpdatedAt()}

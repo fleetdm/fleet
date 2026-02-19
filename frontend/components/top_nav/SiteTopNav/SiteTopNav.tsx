@@ -118,6 +118,8 @@ const SiteTopNav = ({
     isGlobalAdmin,
     isGlobalMaintainer,
     isAnyTeamMaintainer,
+    isGlobalTechnician,
+    isAnyTeamTechnician,
     isNoAccess,
   } = useContext(AppContext);
 
@@ -127,9 +129,9 @@ const SiteTopNav = ({
   const currentQueryParams = { ...query };
   if (isActiveGlobalPage || isActiveDetailPage) {
     // detail pages (e.g., host details) and some manage pages (e.g., queries) aren't guaranteed to
-    // have a team_id in the URL that we can simply append to the top nav links so instead we need grab the team
+    // have a fleet_id in the URL that we can simply append to the top nav links so instead we need grab the team
     // id from context
-    currentQueryParams.team_id =
+    currentQueryParams.fleet_id =
       currentTeam?.id === APP_CONTEXT_ALL_TEAMS_ID
         ? API_ALL_TEAMS_ID
         : currentTeam?.id;
@@ -153,7 +155,7 @@ const SiteTopNav = ({
             className={`${navItemBaseClass}__logo-wrapper`}
             currentQueryParams={currentQueryParams}
             to={navItem.location.pathname}
-            withParams={{ type: "query", names: ["team_id"] }}
+            withParams={{ type: "query", names: ["fleet_id"] }}
           >
             <div className={`${navItemBaseClass}__logo`}>
               <OrgLogoIcon className="logo" src={orgLogoURL} />
@@ -168,9 +170,9 @@ const SiteTopNav = ({
         ? navItem.location.pathname
         : currentPath;
 
-      if (currentQueryParams.team_id !== API_ALL_TEAMS_ID) {
+      if (currentQueryParams.fleet_id !== API_ALL_TEAMS_ID) {
         path = getPathWithQueryParams(path, {
-          team_id: currentQueryParams.team_id,
+          fleet_id: currentQueryParams.fleet_id,
         });
       }
 
@@ -198,7 +200,7 @@ const SiteTopNav = ({
           <LinkWithContext
             className={`${navItemBaseClass}__link`}
             withParams={withParams}
-            currentQueryParams={{ team_id: currentQueryParams.team_id }}
+            currentQueryParams={{ fleet_id: currentQueryParams.fleet_id }}
             to={navItem.location.pathname}
           >
             <span
@@ -231,7 +233,9 @@ const SiteTopNav = ({
     isAnyTeamAdmin,
     isAnyTeamMaintainer,
     isGlobalMaintainer,
-    isNoAccess
+    isNoAccess,
+    isGlobalTechnician,
+    isAnyTeamTechnician
   );
 
   const renderNavItems = () => {

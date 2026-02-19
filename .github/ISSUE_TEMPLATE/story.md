@@ -19,20 +19,6 @@ It is [planned and ready](https://fleetdm.com/handbook/company/development-group
 | I want to _________________________________________
 | so that I can _________________________________________.
 
-## Roadmap item
-
-<!-- Paste the roadmap item, from the current quarter's roadmap preview article, this story contributes to. Put "None" if it doesn't contribute to a roadmap item. -->
-
-## Original requests
-
-<!-- Insert the link to the feature request that this story contributes to and add the feature request as this story's parent issue. Put "None" if it doesn't contribute to a request. For customer requests, add the `customer-xyz` label(s). -->
-
-## Resources
-  
-<!--
-Provide links to any research or helpful resources (ex. Apple documentation). Put "None" if there are no resources.
--->
-
 ## Changes
 
 ### Product
@@ -46,8 +32,8 @@ Provide links to any research or helpful resources (ex. Apple documentation). Pu
 - [ ] fleetdm.com changes: TODO <!-- Does this story include changes to fleetdm.com? (e.g. new API endpoints) If yes, create a blank subtask with the #g-website label, assign @eashaw, and add @eashaw and @lukeheath to the next design review meeting. fleetdm.com changes are up to @eashaw -->
 - [ ] GitOps mode UI changes: TODO <!-- Specify UI changes for read-only GitOps mode. Put "No changes" if there are no changes necessary. -->
 - [ ] GitOps generation changes: TODO <!-- Specify changes to results from the fleetctl generate-gitops command. Put "No changes" if there are no changes necessary. -->
-- [ ] Activity changes: TODO <!-- Specify the changes to the Audit log page in the contributor docs and the display name that will appear on the dashboard ("type" filter). Add Put "No changes" if there are no changes necessary. -->
-- [ ] Permissions changes: TODO <!-- Specify changes in the Manage access doc page as a PR to the reference docs release branch. If doc changes aren't necessary, explicitly mention no changes to the doc page. Put "No changes" if there are no permissions changes. -->
+- [ ] Activity changes: TODO <!-- Specify the display name that will appear on the dashboard ("type" filter) and changes to the Audit log page in the contributor docs as a PR to reference docs release branch following the guidelines in the handbook here: https://fleetdm.com/handbook/product-design#drafting Put "No changes" if there are no changes necessary. -->
+- [ ] Permissions changes: TODO <!-- Specify changes in the permissions doc page here: https://fleetdm.com/docs/using-fleet/manage-access as a PR to the reference docs release branch. If doc changes aren't necessary, explicitly mention no changes to the doc page. Put "No changes" if there are no permissions changes. -->
 - [ ] Changes to paid features or tiers: TODO  <!-- Specify changes in pricing-features-table.yml as a PR to reference docs release branch. Specify "Fleet Free" and/or "Fleet Premium" if there are no changes to the pricing page necessary. -->
 - [ ] My device and fleetdm.com/better changes: TODO <!-- If there are changes to the personal information Fleet can see on end user workstations, make sure wireframes include changes to the My device page. Also, specify changes as a PR to the fleetdm.com/better (aka Transparency page). Put "No changes" if there are no changes necessary. -->
 - [ ] Usage statistics: TODO <!-- Specify changes in the Fleet usage statistics guide as a PR to reference docs release branch. Put "No changes" if there are no changes necessary. -->
@@ -82,9 +68,9 @@ Provide links to any research or helpful resources (ex. Apple documentation). Pu
 
 > Make sure to go through [the list](https://github.com/fleetdm/fleet/blob/main/docs/Contributing/guides/ui/design-qa-considerations.md) and consider all events that might be related to this story, so we catch edge cases earlier.
 
-1. TODO
-2. TODO
-3. TODO
+- TODO
+- TODO
+- TODO
 
 <!-- Consider: Do the steps above apply to all global access roles, including admin, maintainer, observer, observer+, and GitOps?  Do the steps above apply to all team-level access roles?  If not, write the steps used to test each variation.
 -->
@@ -93,7 +79,7 @@ Provide links to any research or helpful resources (ex. Apple documentation). Pu
 <!-- Any additional testing notes relevant to this story or tools required for testing. -->
 
 ### Confirmation
-<!-- The engineer responsible for implementing this user story completes the test plan before moving to the "Ready for QA" column. -->
+<!-- The engineer responsible for implementing this user story completes the test plan before moving to the "Awaiting QA" column. -->
 
 1. [ ] Engineer: Added comment to user story confirming successful completion of test plan.
 2. [ ] QA: Added comment to user story confirming successful completion of test plan.

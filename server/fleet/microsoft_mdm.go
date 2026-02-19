@@ -15,6 +15,11 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mdm/microsoft/syncml"
 )
 
+const (
+	WINDOWS_SCEP_LOC_URI_PART = "/Vendor/MSFT/ClientCertificateInstall/SCEP"
+	WindowsMDMAuthNoncePrefix = "mwenonce:"
+)
+
 //////////////////////////////////////////////////////////////////////////////////////////////////////////
 // MS-MDE2 XML types used by the SOAP protocol
 // MS-MDE2 is a client-to-server protocol that consists of a SOAP-based Web service.
@@ -26,12 +31,12 @@ import (
 // SoapResponse is the Soap Envelope Response type for MS-MDE2 responses from the server
 // This envelope XML message is composed by a mandatory SOAP envelope, a SOAP header, and a SOAP body
 type SoapResponse struct {
-	XMLName xml.Name       `xml:"s:Envelope"`
+	XMLName xml.Name       `xml:"http://schemas.xmlsoap.org/soap/envelope/ Envelope"`
 	XMLNSS  string         `xml:"xmlns:s,attr"`
 	XMLNSA  string         `xml:"xmlns:a,attr"`
 	XMLNSU  *string        `xml:"xmlns:u,attr,omitempty"`
-	Header  ResponseHeader `xml:"s:Header"`
-	Body    BodyResponse   `xml:"s:Body"`
+	Header  ResponseHeader `xml:"http://schemas.xmlsoap.org/soap/envelope/ Header"`
+	Body    BodyResponse   `xml:"http://schemas.xmlsoap.org/soap/envelope/ Body"`
 }
 
 // SoapRequest is the Soap Envelope Request type for MS-MDE2 responses to the server
@@ -815,20 +820,22 @@ func (msg WapProvisioningDoc) GetEncodedB64Representation() (string, error) {
 /// Contains the information of the enrolled Windows host
 
 type MDMWindowsEnrolledDevice struct {
-	ID                     uint      `db:"id"`
-	HostUUID               string    `db:"host_uuid"`
-	MDMDeviceID            string    `db:"mdm_device_id"`
-	MDMHardwareID          string    `db:"mdm_hardware_id"`
-	MDMDeviceState         string    `db:"device_state"`
-	MDMDeviceType          string    `db:"device_type"`
-	MDMDeviceName          string    `db:"device_name"`
-	MDMEnrollType          string    `db:"enroll_type"`
-	MDMEnrollUserID        string    `db:"enroll_user_id"`
-	MDMEnrollProtoVersion  string    `db:"enroll_proto_version"`
-	MDMEnrollClientVersion string    `db:"enroll_client_version"`
-	MDMNotInOOBE           bool      `db:"not_in_oobe"`
-	CreatedAt              time.Time `db:"created_at"`
-	UpdatedAt              time.Time `db:"updated_at"`
+	ID                      uint      `db:"id"`
+	HostUUID                string    `db:"host_uuid"`
+	MDMDeviceID             string    `db:"mdm_device_id"`
+	MDMHardwareID           string    `db:"mdm_hardware_id"`
+	MDMDeviceState          string    `db:"device_state"`
+	MDMDeviceType           string    `db:"device_type"`
+	MDMDeviceName           string    `db:"device_name"`
+	MDMEnrollType           string    `db:"enroll_type"`
+	MDMEnrollUserID         string    `db:"enroll_user_id"`
+	MDMEnrollProtoVersion   string    `db:"enroll_proto_version"`
+	MDMEnrollClientVersion  string    `db:"enroll_client_version"`
+	MDMNotInOOBE            bool      `db:"not_in_oobe"`
+	CredentialsHash         *[]byte   `db:"credentials_hash"`
+	CredentialsAcknowledged bool      `db:"credentials_acknowledged"`
+	CreatedAt               time.Time `db:"created_at"`
+	UpdatedAt               time.Time `db:"updated_at"`
 }
 
 func (e MDMWindowsEnrolledDevice) AuthzType() string {
@@ -902,10 +909,16 @@ type SyncHdr struct {
 	Target    *LocURI  `xml:"Target,omitempty"`
 	Source    *LocURI  `xml:"Source,omitempty"`
 	Meta      *MetaHdr `xml:"Meta,omitempty"`
+	Cred      *CredHdr `xml:"Cred,omitempty"`
 }
 
 type MetaHdr struct {
 	MaxMsgSize *string `xml:"MaxMsgSize,omitempty"`
+}
+
+type CredHdr struct {
+	Meta Meta   `xml:"Meta"`
+	Data string `xml:"Data"`
 }
 
 // ProtoCmds contains a slice of SyncML protocol commands
@@ -994,13 +1007,14 @@ func (c *CmdID) UnmarshalXML(d *xml.Decoder, start xml.StartElement) error {
 
 // Protocol Command
 type SyncMLCmd struct {
-	XMLName xml.Name  `xml:",omitempty"`
-	CmdID   CmdID     `xml:"CmdID"`
-	MsgRef  *string   `xml:"MsgRef,omitempty"`
-	CmdRef  *string   `xml:"CmdRef,omitempty"`
-	Cmd     *string   `xml:"Cmd,omitempty"`
-	Data    *string   `xml:"Data,omitempty"`
-	Items   []CmdItem `xml:"Item,omitempty"`
+	XMLName xml.Name         `xml:",omitempty"`
+	CmdID   CmdID            `xml:"CmdID"`
+	MsgRef  *string          `xml:"MsgRef,omitempty"`
+	CmdRef  *string          `xml:"CmdRef,omitempty"`
+	Cmd     *string          `xml:"Cmd,omitempty"`
+	Data    *string          `xml:"Data,omitempty"`
+	Items   []CmdItem        `xml:"Item,omitempty"`
+	Chal    *SyncMLChallenge `xml:"Chal,omitempty"`
 
 	// ReplaceCommands is a catch-all for any nested <Replace> commands,
 	// which can be found under <Atomic> elements.
@@ -1016,6 +1030,15 @@ type SyncMLCmd struct {
 	// ExecCommands is a catch-all for any nested <Exec> commands,
 	// which can be found under <Atomic> elements.
 	ExecCommands []SyncMLCmd `xml:"Exec,omitempty"`
+}
+
+type SyncMLChallenge struct {
+	Meta ChallengeMeta `xml:"Meta"`
+}
+
+type ChallengeMeta struct {
+	Meta
+	NextNonce MetaAttr `xml:"NextNonce,omitempty"`
 }
 
 // ParseWindowsMDMCommand parses the raw XML as a single Windows MDM command.
@@ -1508,13 +1531,14 @@ func (p HostMDMWindowsProfile) ToHostMDMProfile() HostMDMProfile {
 // MDMWindowsProfilePayload for a command that was used to deliver a
 // configuration profile.
 //
-// Profiles are groups of `<Replace>` or `<Add>` commands wrapped in an `<Atomic>`, both
-// the top-level atomic and each replace have different CmdID values and Status
+// Profiles are either groups of `<Replace>` or `<Add>` commands at the top-level or wrapped in an `<Atomic>`,
+// all commands, whether nested or not has their own CmdID, and therefore their own status in the MDM server
 // responses. For example a profile might look like:
 //
 // <Atomic>
 //
 //	<CmdID>foo</CmdID>
+//
 //	<Replace>
 //	  <CmdID>bar</CmdID>
 //	  ...
@@ -1557,43 +1581,84 @@ func (p HostMDMWindowsProfile) ToHostMDMProfile() HostMDMProfile {
 // </SyncBody>
 //
 // As currently specified:
-//   - The status of the resulting command should be the status of the
-//     top-level `<Atomic>` operation
+//   - The status of the resulting command is:
+//   - If atomic: the status of the atomic command
+//   - If not atomic: then any failed commands will result in a failed profile delivery
+//   - If any command is pending, then the profile delivery is pending
+//   - Otherwise the profile delivery is verifying
 //   - The detail of the resulting command should be an aggregate of all the
-//     status responses of every nested `Replace` operation
+//     status responses for that given command
 func BuildMDMWindowsProfilePayloadFromMDMResponse(
 	// IMPORTANT: The cmdWithSecret.RawCommand may contain a Fleet secret variable value, so it should never be exposed or saved.
 	cmdWithSecret MDMWindowsCommand,
 	statuses map[string]SyncMLCmd,
 	hostUUID string,
 ) (*MDMWindowsProfilePayload, error) {
-	status, ok := statuses[cmdWithSecret.CommandUUID]
-	if !ok {
-		return nil, fmt.Errorf("missing status for root command %s", cmdWithSecret.CommandUUID)
+	cmds, err := UnmarshallMultiTopLevelXMLProfile(cmdWithSecret.RawCommand)
+	if err != nil {
+		return nil, err
 	}
-	commandStatus := WindowsResponseToDeliveryStatus(*status.Data)
-	var details []string
-	if status.Data != nil && commandStatus == MDMDeliveryFailed {
-		syncML := new(SyncMLCmd)
-		if err := xml.Unmarshal(cmdWithSecret.RawCommand, syncML); err != nil {
-			return nil, err
+
+	var commandStatus MDMDeliveryStatus
+	if len(cmds) == 0 { // nolint: gocritic // Switch does not make sense for the else-if where we also check the Cmd name
+		commandStatus = MDMDeliveryPending
+	} else if len(cmds) == 1 && cmds[0].XMLName.Local == CmdAtomic {
+		status, ok := statuses[cmdWithSecret.CommandUUID]
+		if !ok {
+			return nil, fmt.Errorf("missing status for root command %s", cmdWithSecret.CommandUUID)
 		}
-		for _, nested := range syncML.ReplaceCommands {
-			if status, ok := statuses[nested.CmdID.Value]; ok && status.Data != nil {
-				details = append(details, fmt.Sprintf("%s: status %s", nested.GetTargetURI(), *status.Data))
+		commandStatus = WindowsResponseToDeliveryStatus(*status.Data)
+	} else {
+		// non atomic profile, loop over all commands to determine overall status
+		for _, cmd := range cmds {
+			status, ok := statuses[cmd.CmdID.Value]
+			if !ok {
+				return nil, fmt.Errorf("missing status for command %s", cmd.CmdID.Value)
+			}
+			cmdStatus := WindowsResponseToDeliveryStatus(*status.Data)
+			if cmdStatus == MDMDeliveryFailed {
+				// Failed always take precedence
+				commandStatus = MDMDeliveryFailed
+				break
+			} else if cmdStatus == MDMDeliveryPending && commandStatus != MDMDeliveryFailed {
+				// If we get pending, we set to pending unless we already have failed
+				commandStatus = MDMDeliveryPending
 			}
 		}
+		if commandStatus == "" {
+			// Only if command status was not set by failed or pending do we mark it as verifying
+			commandStatus = MDMDeliveryVerifying
+		}
+	}
 
-		for _, nested := range syncML.AddCommands {
-			if status, ok := statuses[nested.CmdID.Value]; ok && status.Data != nil {
-				details = append(details, fmt.Sprintf("%s: status %s", nested.GetTargetURI(), *status.Data))
+	var details []string
+	if commandStatus == MDMDeliveryFailed {
+		if len(cmds) == 1 && cmds[0].XMLName.Local == CmdAtomic {
+			// atomic profile
+			for _, nested := range cmds[0].ReplaceCommands {
+				if status, ok := statuses[nested.CmdID.Value]; ok && status.Data != nil {
+					details = append(details, fmt.Sprintf("%s: status %s", nested.GetTargetURI(), *status.Data))
+				}
+			}
+
+			for _, nested := range cmds[0].AddCommands {
+				if status, ok := statuses[nested.CmdID.Value]; ok && status.Data != nil {
+					details = append(details, fmt.Sprintf("%s: status %s", nested.GetTargetURI(), *status.Data))
+				}
+			}
+		} else {
+			// non atomic profile, loop over all commands
+			for _, cmd := range cmds {
+				if status, ok := statuses[cmd.CmdID.Value]; ok && status.Data != nil {
+					details = append(details, fmt.Sprintf("%s: status %s", cmd.GetTargetURI(), *status.Data))
+				}
 			}
 		}
 	}
 
 	if commandStatus == MDMDeliveryVerifying {
 		// Check a single LocURI for SCEP path, and move straight to verified.
-		if strings.Contains(string(cmdWithSecret.RawCommand), "/Vendor/MSFT/ClientCertificateInstall/SCEP") {
+		if strings.Contains(string(cmdWithSecret.RawCommand), WINDOWS_SCEP_LOC_URI_PART) {
 			commandStatus = MDMDeliveryVerified
 		}
 
@@ -1630,4 +1695,26 @@ func WindowsResponseToDeliveryStatus(resp string) MDMDeliveryStatus {
 	}
 
 	return MDMDeliveryFailed
+}
+
+// xml.Unmarshal expects a single top-level element, or all top-level elements to have the same <Tag>
+// We therefore wrap the incoming profile bytes with Root, and then parse the individual commands into an array for further processing.
+func UnmarshallMultiTopLevelXMLProfile(profileBytes []byte) ([]SyncMLCmd, error) {
+	// Wrap the profile bytes in a root element to handle multiple top-level commands
+	wrappedXML := "<root>" + string(profileBytes) + "</root>"
+
+	// Parse the XML to extract individual command elements
+	var root struct {
+		Commands []SyncMLCmd `xml:",any"`
+	}
+
+	if err := xml.Unmarshal([]byte(wrappedXML), &root); err != nil {
+		return nil, fmt.Errorf("unmarshalling wrapped profile: %w", err)
+	}
+
+	if len(root.Commands) == 0 {
+		return nil, errors.New("no commands found in profile")
+	}
+
+	return root.Commands, nil
 }

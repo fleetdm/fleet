@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"os"
 	"strings"
 	"time"
 
@@ -160,7 +161,13 @@ func (a *AppleMDM) runPostDEPEnrollment(ctx context.Context, args appleMDMArgs) 
 			awaitCmdUUIDs = append(awaitCmdUUIDs, fleetdCmdUUID)
 		}
 
-		if args.FromMDMMigration {
+		allowBootstrapDuringMigration := false
+		allowBootstrapDuringMigrationEV := os.Getenv("FLEET_ALLOW_BOOTSTRAP_PACKAGE_DURING_MIGRATION")
+		if allowBootstrapDuringMigrationEV == "1" || strings.EqualFold(allowBootstrapDuringMigrationEV, "true") {
+			allowBootstrapDuringMigration = true
+		}
+
+		if args.FromMDMMigration && !allowBootstrapDuringMigration {
 			level.Info(a.Log).Log("info", "skipping bootstrap package installation during MDM migration", "host_uuid", args.HostUUID)
 			err = a.Datastore.RecordSkippedHostBootstrapPackage(ctx, args.HostUUID)
 			if err != nil {
@@ -360,6 +367,9 @@ func (a *AppleMDM) runPostDEPReleaseDevice(ctx context.Context, args appleMDMArg
 		return err
 	}
 
+	// used to cross reference against the setup experience statuses below
+	notNowCmdUUIDs := make(map[string]any)
+
 	for _, cmdUUID := range args.EnrollmentCommands {
 		if cmdUUID == "" {
 			continue
@@ -372,9 +382,14 @@ func (a *AppleMDM) runPostDEPReleaseDevice(ctx context.Context, args appleMDMArg
 
 		var completed bool
 		for _, r := range res {
-			// succeeded or failed, it is done (final state)
-			if r.Status == fleet.MDMAppleStatusAcknowledged || r.Status == fleet.MDMAppleStatusError ||
-				r.Status == fleet.MDMAppleStatusCommandFormatError {
+			if r.Status == fleet.MDMAppleStatusNotNow {
+				notNowCmdUUIDs[cmdUUID] = ""
+			}
+
+			// succeeded or failed, it is done (final state). We also consider "NotNow"
+			// as completed, as it means the device is not going to process that command
+			// now, and we don't want to block the DEP device release because of that.
+			if r.Status == fleet.MDMAppleStatusAcknowledged || r.Status == fleet.MDMAppleStatusError || r.Status == fleet.MDMAppleStatusNotNow || r.Status == fleet.MDMAppleStatusCommandFormatError {
 				completed = true
 				break
 			}
@@ -453,6 +468,14 @@ func (a *AppleMDM) runPostDEPReleaseDevice(ctx context.Context, args appleMDMArg
 			return ctxerr.Wrap(ctx, err, "retrieving setup experience status results for host pending DEP release")
 		}
 		for _, status := range setupExperienceStatuses {
+			// skip items that had the command response of "NotNow" as those setup exp statuses will be pending/running
+			// and we have decided to not block the device release for NotNow status so we dont want to reenqueue these.
+			if status.NanoCommandUUID != nil {
+				if _, ok := notNowCmdUUIDs[*status.NanoCommandUUID]; ok {
+					continue
+				}
+			}
+
 			if status.Status == fleet.SetupExperienceStatusPending || status.Status == fleet.SetupExperienceStatusRunning {
 				level.Info(a.Log).Log("msg", "re-enqueuing due to setup experience items still pending or running", "host_uuid", args.HostUUID, "status_id", status.ID)
 				if err := reenqueueTask(); err != nil {

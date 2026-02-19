@@ -6,7 +6,8 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
-	"os"
+
+	"github.com/fleetdm/fleet/v4/server/dev_mode"
 )
 
 type Metadata struct {
@@ -19,7 +20,7 @@ type Metadata struct {
 }
 
 func getBaseURL() string {
-	devURL := os.Getenv("FLEET_DEV_DOWNLOAD_FLEETDM_URL")
+	devURL := dev_mode.Env("FLEET_DEV_DOWNLOAD_FLEETDM_URL")
 	if devURL != "" {
 		return devURL
 	}

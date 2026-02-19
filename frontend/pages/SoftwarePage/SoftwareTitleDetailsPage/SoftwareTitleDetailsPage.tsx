@@ -52,6 +52,7 @@ const SoftwareTitleDetailsPage = ({
     isTeamAdmin,
     isTeamMaintainer,
     isTeamObserver,
+    isTeamTechnician,
     config,
   } = useContext(AppContext);
   const handlePageError = useErrorHandler();
@@ -120,7 +121,7 @@ const SoftwareTitleDetailsPage = ({
     // redirect to software titles page if no versions are available
     router.push(
       getPathWithQueryParams(paths.SOFTWARE_TITLES, {
-        team_id: teamIdForApi,
+        fleet_id: teamIdForApi,
       })
     );
   }, [refetchSoftwareTitle, router, softwareTitle, teamIdForApi]);
@@ -134,7 +135,11 @@ const SoftwareTitleDetailsPage = ({
 
   const renderSoftwareInstallerCard = (title: ISoftwareTitleDetails) => {
     const hasPermission = Boolean(
-      isOnGlobalTeam || isTeamAdmin || isTeamMaintainer || isTeamObserver
+      isOnGlobalTeam ||
+        isTeamAdmin ||
+        isTeamMaintainer ||
+        isTeamObserver ||
+        isTeamTechnician
     );
 
     const showInstallerCard =

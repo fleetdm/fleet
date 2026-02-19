@@ -7,11 +7,11 @@ import (
 	"mime/multipart"
 	"net/http"
 
-	"github.com/docker/go-units"
 	"github.com/fleetdm/fleet/v4/server/authz"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/platform/endpointer"
+	platform_http "github.com/fleetdm/fleet/v4/server/platform/http"
 )
 
 //////////////////////////////////////////////////////////////////////////////
@@ -19,7 +19,7 @@ import (
 //////////////////////////////////////////////////////////////////////////////
 
 type getAppStoreAppsRequest struct {
-	TeamID uint `query:"team_id"`
+	TeamID uint `query:"team_id" renameto:"fleet_id"`
 }
 
 type getAppStoreAppsResponse struct {
@@ -52,7 +52,7 @@ func (svc *Service) GetAppStoreApps(ctx context.Context, teamID *uint) ([]*fleet
 //////////////////////////////////////////////////////////////////////////////
 
 type addAppStoreAppRequest struct {
-	TeamID           *uint                           `json:"team_id"`
+	TeamID           *uint                           `json:"team_id" renameto:"fleet_id"`
 	AppStoreID       string                          `json:"app_store_id"`
 	Platform         fleet.InstallableDevicePlatform `json:"platform"`
 	SelfService      bool                            `json:"self_service"`
@@ -102,7 +102,7 @@ func (svc *Service) AddAppStoreApp(ctx context.Context, _ *uint, _ fleet.VPPAppT
 
 type updateAppStoreAppRequest struct {
 	TitleID           uint            `url:"title_id"`
-	TeamID            *uint           `json:"team_id"`
+	TeamID            *uint           `json:"team_id" renameto:"fleet_id"`
 	SelfService       *bool           `json:"self_service"`
 	LabelsIncludeAny  []string        `json:"labels_include_any"`
 	LabelsExcludeAny  []string        `json:"labels_exclude_any"`
@@ -197,7 +197,7 @@ type uploadVPPTokenRequest struct {
 func (uploadVPPTokenRequest) DecodeRequest(ctx context.Context, r *http.Request) (interface{}, error) {
 	decoded := uploadVPPTokenRequest{}
 
-	err := r.ParseMultipartForm(512 * units.MiB)
+	err := r.ParseMultipartForm(platform_http.MaxMultipartFormSize)
 	if err != nil {
 		return nil, &fleet.BadRequestError{
 			Message:     "failed to parse multipart form",
@@ -264,7 +264,7 @@ type patchVPPTokenRenewRequest struct {
 func (patchVPPTokenRenewRequest) DecodeRequest(ctx context.Context, r *http.Request) (interface{}, error) {
 	decoded := patchVPPTokenRenewRequest{}
 
-	err := r.ParseMultipartForm(512 * units.MiB)
+	err := r.ParseMultipartForm(platform_http.MaxMultipartFormSize)
 	if err != nil {
 		return nil, &fleet.BadRequestError{
 			Message:     "failed to parse multipart form",
@@ -332,7 +332,7 @@ func (svc *Service) UpdateVPPToken(ctx context.Context, tokenID uint, token io.R
 
 type patchVPPTokensTeamsRequest struct {
 	ID      uint   `url:"id"`
-	TeamIDs []uint `json:"teams"`
+	TeamIDs []uint `json:"teams" renameto:"fleets"`
 }
 
 type patchVPPTokensTeamsResponse struct {

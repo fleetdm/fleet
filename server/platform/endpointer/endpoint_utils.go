@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log/slog"
 	"net"
 	"net/http"
 	"net/url"
@@ -23,10 +24,19 @@ import (
 	"github.com/fleetdm/fleet/v4/server/platform/middleware/ratelimit"
 	"github.com/go-kit/kit/endpoint"
 	kithttp "github.com/go-kit/kit/transport/http"
-	"github.com/go-kit/log"
-	"github.com/go-kit/log/level"
 	"github.com/gorilla/mux"
 )
+
+// We use our own wrapper here, to preserve the Close method of the original io.ReadCloser
+// But also allows us to modify the limit at a laterp oint.
+type LimitedReadCloser struct {
+	*io.LimitedReader
+	Closer io.Closer
+}
+
+func (lrc *LimitedReadCloser) Close() error {
+	return lrc.Closer.Close()
+}
 
 type HandlerRoutesFunc func(r *mux.Router, opts []kithttp.ServerOption)
 
@@ -246,7 +256,7 @@ var (
 	xRealIP       = http.CanonicalHeaderKey("X-Real-IP")
 )
 
-func ExtractIP(r *http.Request) string {
+func extractIP(r *http.Request) string {
 	ip := r.RemoteAddr
 	if i := strings.LastIndexByte(ip, ':'); i != -1 {
 		ip = ip[:i]
@@ -288,43 +298,45 @@ func ExtractIP(r *http.Request) string {
 }
 
 type ErrorHandler struct {
-	Logger log.Logger
+	Logger *slog.Logger
 }
 
 func (h *ErrorHandler) Handle(ctx context.Context, err error) {
-	// get the request path
 	path, _ := ctx.Value(kithttp.ContextKeyRequestPath).(string)
-	logger := level.Info(log.With(h.Logger, "path", path))
+
+	attrs := []any{"path", path}
 
 	if startTime, ok := logging.StartTime(ctx); ok && !startTime.IsZero() {
-		logger = log.With(logger, "took", time.Since(startTime))
+		attrs = append(attrs, "took", time.Since(startTime))
 	}
 
 	var ewi platform_http.ErrWithInternal
 	if errors.As(err, &ewi) {
-		logger = log.With(logger, "internal", ewi.Internal())
+		attrs = append(attrs, "internal", ewi.Internal())
 	}
 
 	var ewlf platform_http.ErrWithLogFields
 	if errors.As(err, &ewlf) {
-		logger = log.With(logger, ewlf.LogFields()...)
+		attrs = append(attrs, ewlf.LogFields()...)
 	}
 
 	var uuider platform_http.ErrorUUIDer
 	if errors.As(err, &uuider) {
-		logger = log.With(logger, "uuid", uuider.UUID())
+		attrs = append(attrs, "uuid", uuider.UUID())
 	}
 
 	var rle ratelimit.Error
 	if errors.As(err, &rle) {
 		res := rle.Result()
 		if res.RetryAfter > 0 {
-			logger = log.With(logger, "retry_after", res.RetryAfter)
+			attrs = append(attrs, "retry_after", res.RetryAfter)
 		}
-		logger.Log("err", "limit exceeded")
+		attrs = append(attrs, "err", "limit exceeded")
 	} else {
-		logger.Log("err", err)
+		attrs = append(attrs, "err", err)
 	}
+
+	h.Logger.InfoContext(ctx, "request error", attrs...)
 }
 
 // A value that implements RequestDecoder takes control of decoding the request
@@ -360,6 +372,8 @@ type requestValidator interface {
 //
 // The customQueryDecoder parameter allows services to inject domain-specific
 // query parameter decoding logic.
+//
+// If adding a new way to parse/decode the requset, make sure to wrap the body in a limited reader with the maxRequestBodySize
 func MakeDecoder(
 	iface interface{},
 	jsonUnmarshal func(body io.Reader, req any) error,
@@ -367,6 +381,7 @@ func MakeDecoder(
 	isBodyDecoder func(reflect.Value) bool,
 	decodeBody func(ctx context.Context, r *http.Request, v reflect.Value, body io.Reader) error,
 	customQueryDecoder DomainQueryFieldDecoder,
+	maxRequestBodySize int64,
 ) kithttp.DecodeRequestFunc {
 	if iface == nil {
 		return func(ctx context.Context, r *http.Request) (interface{}, error) {
@@ -375,7 +390,19 @@ func MakeDecoder(
 	}
 	if rd, ok := iface.(RequestDecoder); ok {
 		return func(ctx context.Context, r *http.Request) (interface{}, error) {
-			return rd.DecodeRequest(ctx, r)
+			if maxRequestBodySize != -1 {
+				limitedReader := io.LimitReader(r.Body, maxRequestBodySize).(*io.LimitedReader)
+
+				r.Body = &LimitedReadCloser{
+					LimitedReader: limitedReader,
+					Closer:        r.Body,
+				}
+			}
+			ret, err := rd.DecodeRequest(ctx, r)
+			if err != nil && errors.Is(err, io.ErrUnexpectedEOF) {
+				return nil, platform_http.PayloadTooLargeError{ContentLength: r.Header.Get("Content-Length"), MaxRequestSize: maxRequestBodySize}
+			}
+			return ret, err
 		}
 	}
 
@@ -387,6 +414,15 @@ func MakeDecoder(
 	return func(ctx context.Context, r *http.Request) (interface{}, error) {
 		v := reflect.New(t)
 		nilBody := false
+
+		if maxRequestBodySize != -1 {
+			limitedReader := io.LimitReader(r.Body, maxRequestBodySize).(*io.LimitedReader)
+
+			r.Body = &LimitedReadCloser{
+				LimitedReader: limitedReader,
+				Closer:        r.Body,
+			}
+		}
 
 		buf := bufio.NewReader(r.Body)
 		var body io.Reader = buf
@@ -406,6 +442,10 @@ func MakeDecoder(
 				req := v.Interface()
 				err := jsonUnmarshal(body, req)
 				if err != nil {
+					if errors.Is(err, io.ErrUnexpectedEOF) {
+						return nil, platform_http.PayloadTooLargeError{ContentLength: r.Header.Get("Content-Length"), MaxRequestSize: maxRequestBodySize}
+					}
+
 					return nil, BadRequestErr("json decoder error", err)
 				}
 				v = reflect.ValueOf(req)
@@ -463,6 +503,9 @@ func MakeDecoder(
 		if isBodyDecoder != nil && isBodyDecoder(v) {
 			err := decodeBody(ctx, r, v, body)
 			if err != nil {
+				if errors.Is(err, io.ErrUnexpectedEOF) {
+					return nil, platform_http.PayloadTooLargeError{ContentLength: r.Header.Get("Content-Length"), MaxRequestSize: maxRequestBodySize}
+				}
 				return nil, err
 			}
 		}
@@ -514,7 +557,7 @@ func WriteBrowserSecurityHeaders(w http.ResponseWriter) {
 
 type CommonEndpointer[H any] struct {
 	EP            Endpointer[H]
-	MakeDecoderFn func(iface any) kithttp.DecodeRequestFunc
+	MakeDecoderFn func(iface any, requestBodyLimit int64) kithttp.DecodeRequestFunc
 	EncodeFn      kithttp.EncodeResponseFunc
 	Opts          []kithttp.ServerOption
 	Router        *mux.Router
@@ -532,6 +575,9 @@ type CommonEndpointer[H any] struct {
 	endingAtVersion   string
 	alternativePaths  []string
 	usePathPrefix     bool
+
+	// The limit of the request body size in bytes, if set to -1 there is no limit.
+	requestBodySizeLimit int64
 }
 
 type Endpointer[H any] interface {
@@ -595,7 +641,13 @@ func (e *CommonEndpointer[H]) makeEndpoint(f H, v interface{}) http.Handler {
 		endp = mw(endp)
 	}
 
-	return newServer(endp, e.MakeDecoderFn(v), e.EncodeFn, e.Opts)
+	// Default to MaxRequestBodySize if no limit is set, this ensures no endpointers are forgot
+	// -1 = no limit, so don't default to anything if that is set, which can only be set with the appropriate SKIP method.
+	if e.requestBodySizeLimit != -1 && (e.requestBodySizeLimit == 0 || e.requestBodySizeLimit < platform_http.MaxRequestBodySize) {
+		// If no value is configured set default, or if the set endpoint value is less than global default use default.
+		e.requestBodySizeLimit = platform_http.MaxRequestBodySize
+	}
+	return newServer(endp, e.MakeDecoderFn(v, e.requestBodySizeLimit), e.EncodeFn, e.Opts)
 }
 
 func newServer(e endpoint.Endpoint, decodeFn kithttp.DecodeRequestFunc, encodeFn kithttp.EncodeResponseFunc,
@@ -648,6 +700,21 @@ func (e *CommonEndpointer[H]) WithCustomMiddlewareAfterAuth(mws ...endpoint.Midd
 func (e *CommonEndpointer[H]) UsePathPrefix() *CommonEndpointer[H] {
 	ae := *e
 	ae.usePathPrefix = true
+	return &ae
+}
+
+func (e *CommonEndpointer[H]) WithRequestBodySizeLimit(limit int64) *CommonEndpointer[H] {
+	ae := *e
+	if limit > 0 {
+		// Only set it when the limit is more than 0
+		ae.requestBodySizeLimit = limit
+	}
+	return &ae
+}
+
+func (e *CommonEndpointer[H]) SkipRequestBodySizeLimit() *CommonEndpointer[H] {
+	ae := *e
+	ae.requestBodySizeLimit = -1
 	return &ae
 }
 
