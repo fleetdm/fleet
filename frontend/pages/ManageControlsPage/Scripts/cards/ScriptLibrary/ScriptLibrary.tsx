@@ -19,7 +19,7 @@ import Spinner from "components/Spinner";
 import Pagination from "components/Pagination";
 import SectionHeader from "components/SectionHeader";
 
-import UploadList from "../../../components/UploadList";
+import UploadList from "../../../../../components/UploadList";
 import DeleteScriptModal from "../../components/DeleteScriptModal";
 import EditScriptModal from "../../components/EditScriptModal";
 import ScriptUploadModal from "../../components/ScriptUploadModal";
