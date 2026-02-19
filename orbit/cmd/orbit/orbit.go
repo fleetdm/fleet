@@ -1214,7 +1214,6 @@ func main() {
 		case "windows":
 			orbitClient.RegisterConfigReceiver(update.ApplyWindowsMDMEnrollmentFetcherMiddleware(windowsMDMEnrollmentCommandFrequency, orbitHostInfo.HardwareUUID, orbitClient))
 			orbitClient.RegisterConfigReceiver(update.ApplyWindowsMDMBitlockerFetcherMiddleware(windowsMDMBitlockerCommandFrequency, orbitClient))
-			orbitClient.RegisterConfigReceiver(setupexperience.NewWindowsSetupExperiencer(orbitClient, deviceClient, c.String("root-dir"), trw))
 		case "linux":
 			orbitClient.RegisterConfigReceiver(luks.New(orbitClient))
 		}
@@ -1509,7 +1508,7 @@ func main() {
 
 		go sigusrListener(c.String("root-dir"))
 
-		setupExperienceOS := runtime.GOOS == "linux" // TODO: Support both this flow (open software page on enrollment and setup_experience runner) || runtime.GOOS == "windows"
+		setupExperienceOS := runtime.GOOS == "linux" || runtime.GOOS == "windows"
 		setupExperienceNotDisabled := !c.Bool("disable-setup-experience")
 		runSetupExperience := setupExperienceOS && setupExperienceNotDisabled
 		log.Debug().

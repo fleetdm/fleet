@@ -1474,7 +1474,7 @@ func (svc *Service) enqueueInstallFleetdCommand(ctx context.Context, deviceID st
 	// metadata, we don't want to completely error the SyncML transaction
 	// and we'll try again the next time the host checks in
 	// TODO: Not sure for dev, I hardcoded a link and the SHA256 of the built version (Not sure if we can push a local TUF update that it will install while in EPS)
-	_, err = fleetdbase.GetMetadata()
+	metadata, err := fleetdbase.GetMetadata()
 	if err != nil {
 		level.Warn(svc.logger).Log("msg", "unable to get fleetd-base metadata")
 		return nil
@@ -1514,11 +1514,11 @@ func (svc *Service) enqueueInstallFleetdCommand(ctx context.Context, deviceID st
 			<Product Version="1.0.0.0">
 				<Download>
 					<ContentURLList>
-						<ContentURL>` + "https://tuf.magnusjensen.dk/fleet-osquery-arm64.msi" + `</ContentURL>
+						<ContentURL>` + metadata.MSIURL + `</ContentURL>
 					</ContentURLList>
 				</Download>
 				<Validation>
-					<FileHash>` + "26f91745ddc6da1db9abbf1380e14ddb53feaf4c5eff93dd2acd4f86a7aa08eb" + `</FileHash>
+					<FileHash>` + metadata.MSISha256 + `</FileHash>
 				</Validation>
 				<Enforcement>
 					<CommandLine>/quiet FLEET_URL="` + fleetURL + `" FLEET_SECRET="` + globalEnrollSecret + `" ENABLE_SCRIPTS="True"</CommandLine>
