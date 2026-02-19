@@ -16,6 +16,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	eu "github.com/fleetdm/fleet/v4/server/platform/endpointer"
 	platform_http "github.com/fleetdm/fleet/v4/server/platform/http"
+	platform_logging "github.com/fleetdm/fleet/v4/server/platform/logging"
 	"github.com/fleetdm/fleet/v4/server/service/middleware/auth"
 	"github.com/go-kit/kit/endpoint"
 	kithttp "github.com/go-kit/kit/transport/http"
@@ -320,11 +321,13 @@ func parseMultipartForm(ctx context.Context, r *http.Request, maxMemory int64) e
 	teamIDs, teamIDPresent := r.Form["team_id"]
 	if teamIDPresent && len(teamIDs) > 0 {
 		teamID := teamIDs[0]
-		logging.WithExtras(ctx,
-			"deprecated_param", "team_id",
-			"deprecation_warning", "'team_id' is deprecated, use 'fleet_id' instead",
-		)
-		logging.WithLevel(ctx, slog.LevelWarn)
+		if platform_logging.TopicEnabled("deprecated-field-names") {
+			logging.WithExtras(ctx,
+				"deprecated_param", "team_id",
+				"deprecation_warning", "'team_id' is deprecated, use 'fleet_id' instead",
+			)
+			logging.WithLevel(ctx, slog.LevelWarn)
+		}
 		r.Form.Set("fleet_id", teamID)
 		r.Form.Del("team_id")
 		r.MultipartForm.Value["fleet_id"] = []string{teamID}
