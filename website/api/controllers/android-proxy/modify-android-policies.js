@@ -25,7 +25,7 @@ module.exports = {
     unauthorized: { description: 'Invalid authentication token.', responseType: 'unauthorized'},
     notFound: { description: 'No Android enterprise found for this Fleet server.', responseType: 'notFound'},
     invalidPolicy: { description: 'Invalid patch policy request', responseType: 'badRequest' },
-    policyNotFound: { description: 'Invalid patch policy request', responseType: 'notFound' },
+    policyNotFound: { description: 'The specified policy was not found on this Android enterprise', responseType: 'notFound' },
   },
 
 
