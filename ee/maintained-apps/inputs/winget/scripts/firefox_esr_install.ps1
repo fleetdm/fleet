@@ -2,46 +2,28 @@
 # http://fleetdm.com/learn-more-about/exe-install-scripts
 
 $exeFilePath = "${env:INSTALLER_PATH}"
-$timeoutSeconds = 240
+$installDir = "C:\Program Files\Mozilla Firefox"
+$maxWaitSeconds = 120
 
 try {
 
-Write-Host "Installer path: $exeFilePath"
-Write-Host "File exists: $(Test-Path $exeFilePath)"
+# Start silent install without -Wait; the Firefox ESR installer launches the
+# browser after installing and blocks until it is closed.
+Start-Process -FilePath "$exeFilePath" -ArgumentList "/S"
 
-# Check for any Firefox-related processes
-$mozProcs = Get-Process | Where-Object { $_.Name -match "firefox|mozilla|maintenance" } | Select-Object Name, Id
-if ($mozProcs) {
-    Write-Host "Found Mozilla-related processes:"
-    $mozProcs | ForEach-Object { Write-Host "  $($_.Name) (PID: $($_.Id))" }
-} else {
-    Write-Host "No Mozilla-related processes found"
-}
-
-# Check for existing Firefox directories
-$ffDir = "C:\Program Files\Mozilla Firefox"
-Write-Host "Existing Firefox dir present: $(Test-Path $ffDir)"
-
-Write-Host "Starting installer with /S flag..."
-$process = Start-Process -FilePath "$exeFilePath" -ArgumentList "/S" -PassThru
-Write-Host "Installer PID: $($process.Id)"
-
-$completed = $process.WaitForExit($timeoutSeconds * 1000)
-
-if (-not $completed) {
-    Write-Host "Timed out after $timeoutSeconds seconds"
-    # Dump what processes are running
-    Write-Host "Mozilla-related processes still running:"
-    Get-Process | Where-Object { $_.Name -match "firefox|mozilla|setup|maintenance" } | ForEach-Object {
-        Write-Host "  $($_.Name) (PID: $($_.Id))"
+# Poll for installation to complete
+$elapsed = 0
+while ($elapsed -lt $maxWaitSeconds) {
+    Start-Sleep -Seconds 5
+    $elapsed += 5
+    if (Test-Path "$installDir\firefox.exe") {
+        Write-Host "Firefox ESR installed successfully after $elapsed seconds"
+        Exit 0
     }
-    $process.Kill()
-    Exit 1
 }
 
-$exitCode = $process.ExitCode
-Write-Host "Install exit code: $exitCode"
-Exit $exitCode
+Write-Host "Timed out waiting for Firefox ESR to install"
+Exit 1
 
 } catch {
   Write-Host "Error: $_"
