@@ -2071,7 +2071,7 @@ func parseLogTopics(s string) []string {
 		return nil
 	}
 	var topics []string
-	for _, t := range strings.Split(s, ",") {
+	for t := range strings.SplitSeq(s, ",") {
 		t = strings.TrimSpace(t)
 		if t != "" {
 			topics = append(topics, t)
