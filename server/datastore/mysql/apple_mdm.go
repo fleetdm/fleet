@@ -5907,7 +5907,7 @@ func mdmAppleGetHostsWithChangedDeclarationsDB(ctx context.Context, tx sqlx.ExtC
 	)
 
 	var decls []*fleet.MDMAppleHostDeclaration
-	args := append(entitiesToInstallArgs, entitiesToRemoveArgs...)
+	args := slices.Concat(entitiesToInstallArgs, entitiesToRemoveArgs)
 	if err := sqlx.SelectContext(ctx, tx, &decls, stmt, args...); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "running sql statement")
 	}
