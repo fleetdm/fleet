@@ -12,7 +12,6 @@ import (
 	common_mysql "github.com/fleetdm/fleet/v4/server/platform/mysql"
 	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
-	"github.com/micromdm/nanolib/log"
 )
 
 func enqueue(ctx context.Context, tx sqlx.ExtContext, ids []string, cmd *mdm.CommandWithSubtype) error {
@@ -53,22 +52,13 @@ func enqueue(ctx context.Context, tx sqlx.ExtContext, ids []string, cmd *mdm.Com
 	return nil
 }
 
-type loggerWrapper struct {
-	logger log.Logger
-}
-
-func (l loggerWrapper) Log(keyvals ...interface{}) error {
-	l.logger.Info(keyvals...)
-	return nil
-}
-
 func (m *MySQLStorage) EnqueueCommand(ctx context.Context, ids []string, cmd *mdm.CommandWithSubtype) (map[string]error,
 	error) {
 	// We need to retry because this transaction may deadlock with updates to nano_enrollment.last_seen_at
 	// Deadlock seen in 2024/12/12 loadtest: https://docs.google.com/document/d/1-Q6qFTd7CDm-lh7MVRgpNlNNJijk6JZ4KO49R1fp80U
 	err := common_mysql.WithRetryTxx(ctx, sqlx.NewDb(m.db, ""), func(tx sqlx.ExtContext) error {
 		return enqueue(ctx, tx, ids, cmd)
-	}, loggerWrapper{m.logger})
+	}, m.logger)
 	return nil, err
 }
 
@@ -270,7 +260,7 @@ func (m *MySQLStorage) BulkDeleteHostUserCommandsWithoutResults(ctx context.Cont
 	}
 	return common_mysql.WithRetryTxx(ctx, sqlx.NewDb(m.db, ""), func(tx sqlx.ExtContext) error {
 		return m.bulkDeleteHostUserCommandsWithoutResults(ctx, tx, commandToIDs)
-	}, loggerWrapper{m.logger})
+	}, m.logger)
 }
 
 func (m *MySQLStorage) bulkDeleteHostUserCommandsWithoutResults(ctx context.Context, tx sqlx.ExtContext,

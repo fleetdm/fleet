@@ -34,6 +34,9 @@ This list is in chronological order as assets are created.
 
 | Asset | Use For | Date created | Last updated |
 | :--- | :--- | :--- | :--- |
+| [Leave Behind Deck](https://docs.google.com/presentation/d/1Wxb4IedJ0cEXJQwvKCdYf8OatXk4sG1QTkiNLB3h11E/edit?slide=id.g3b97d0adfb7_1_4#slide=id.g3b97d0adfb7_1_4) |  | 2026-02-18 | 2026-02-18 |
+| [Additional slides for pitch deck](https://docs.google.com/presentation/d/1l6eh1ow4Izi9lv-IrrYV1UjNT4VKbfk5lJHDJUgnDVM/edit?slide=id.g3c95d5692ec_0_398#slide=id.g3c95d5692ec_0_398) |  | 2026-02-18 | 2026-02-18 |
+| [Sagetap Deck](https://docs.google.com/presentation/d/10DbaNaMBxeYN8PcrxE-5XNX04N_v_lKJxSxHbPjoCXc/edit?slide=id.g3b97d0adfb7_1_4#slide=id.g3b97d0adfb7_1_4) |  | 2026-02-18 | 2026-02-18 |
 | [OpenClaw: Open for work?](https://fleetdm.com/articles/openclaw-open-for-work)| OpenClaw, 1 of 2: awareness & threat landscape overview | 2026-02-04 | - |
 | [Threat hunting AI agents like OpenClaw with automated tooling](https://fleetdm.com/articles/threat-hunting-ai-agents-like-openclaw-with-automated-tooling)| OpenClaw, 2 of 2: threat hunting and mitigation  | 2026-02-18 | - |
 | [The GitOps idea](https://fleetdm.com/articles/the-gitops-idea) | Blog explaining what is GitOps | 2026-02-04 | 2026-02-04 |

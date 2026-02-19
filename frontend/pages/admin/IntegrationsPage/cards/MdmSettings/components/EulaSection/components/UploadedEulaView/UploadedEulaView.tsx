@@ -3,7 +3,7 @@ import React from "react";
 import { IEulaMetadataResponse } from "services/entities/mdm";
 
 import CustomLink from "components/CustomLink";
-import UploadList from "pages/ManageControlsPage/components/UploadList";
+import UploadList from "components/UploadList";
 import EulaListItem from "../EulaListItem/EulaListItem";
 
 const baseClass = "uploaded-eula-view";

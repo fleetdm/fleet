@@ -767,8 +767,8 @@ func newWorkerIntegrationsSchedule(
 	// we leave depSvc and deCli nil and macos setup assistants jobs will be
 	// no-ops.
 	if depStorage != nil {
-		depSvc = apple_mdm.NewDEPService(ds, depStorage, logger)
-		depCli = apple_mdm.NewDEPClient(depStorage, ds, logger)
+		depSvc = apple_mdm.NewDEPService(ds, depStorage, logger.SlogLogger())
+		depCli = apple_mdm.NewDEPClient(depStorage, ds, logger.SlogLogger())
 	}
 	macosSetupAsst := &worker.MacosSetupAssistant{
 		Datastore:  ds,
@@ -1385,7 +1385,7 @@ func appleMDMDEPSyncerJob(
 		}
 		if incompleteToken != nil {
 			logger.Log("msg", "migrated ABM token found, updating its metadata")
-			if err := apple_mdm.SetABMTokenMetadata(ctx, incompleteToken, depStorage, ds, logger, false); err != nil {
+			if err := apple_mdm.SetABMTokenMetadata(ctx, incompleteToken, depStorage, ds, logger.SlogLogger(), false); err != nil {
 				return ctxerr.Wrap(ctx, err, "updating migrated ABM token metadata")
 			}
 			if err := ds.SaveABMToken(ctx, incompleteToken); err != nil {
@@ -1395,7 +1395,7 @@ func appleMDMDEPSyncerJob(
 		}
 
 		if fleetSyncer == nil {
-			fleetSyncer = apple_mdm.NewDEPService(ds, depStorage, logger)
+			fleetSyncer = apple_mdm.NewDEPService(ds, depStorage, logger.SlogLogger())
 		}
 
 		return fleetSyncer.RunAssigner(ctx)
@@ -1451,7 +1451,7 @@ func newWindowsMDMProfileManagerSchedule(
 		ctx, name, instanceID, defaultInterval, ds, ds,
 		schedule.WithLogger(logger),
 		schedule.WithJob("manage_windows_profiles", func(ctx context.Context) error {
-			return service.ReconcileWindowsProfiles(ctx, ds, logger)
+			return service.ReconcileWindowsProfiles(ctx, ds, logger.SlogLogger())
 		}),
 	)
 
@@ -1699,7 +1699,7 @@ func newIPhoneIPadRefetcher(
 		ctx, name, instanceID, periodicity, ds, ds,
 		schedule.WithLogger(logger),
 		schedule.WithJob("cron_iphone_ipad_refetcher", func(ctx context.Context) error {
-			return apple_mdm.IOSiPadOSRefetch(ctx, ds, commander, logger, newActivityFn)
+			return apple_mdm.IOSiPadOSRefetch(ctx, ds, commander, logger.SlogLogger(), newActivityFn)
 		}),
 	)
 
@@ -1778,7 +1778,7 @@ func newMaintainedAppSchedule(
 		// ensures it runs a few seconds after Fleet is started
 		schedule.WithDefaultPrevRunCreatedAt(time.Now().Add(priorJobDiff)),
 		schedule.WithJob("refresh_maintained_apps", func(ctx context.Context) error {
-			return maintained_apps.Refresh(ctx, ds, logger)
+			return maintained_apps.Refresh(ctx, ds, logger.SlogLogger())
 		}),
 	)
 
@@ -1826,7 +1826,7 @@ func newIPhoneIPadReviver(
 		ctx, name, instanceID, 1*time.Hour, ds, ds,
 		schedule.WithLogger(logger),
 		schedule.WithJob("cron_iphone_ipad_reviver", func(ctx context.Context) error {
-			return apple_mdm.IOSiPadOSRevive(ctx, ds, commander, logger)
+			return apple_mdm.IOSiPadOSRevive(ctx, ds, commander, logger.SlogLogger())
 		}),
 	)
 

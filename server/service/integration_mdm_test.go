@@ -239,8 +239,8 @@ func (s *integrationMDMTestSuite) SetupSuite() {
 	macosJob := &worker.MacosSetupAssistant{
 		Datastore:  s.ds,
 		Log:        wlog,
-		DEPService: apple_mdm.NewDEPService(s.ds, depStorage, wlog),
-		DEPClient:  apple_mdm.NewDEPClient(depStorage, s.ds, wlog),
+		DEPService: apple_mdm.NewDEPService(s.ds, depStorage, wlog.SlogLogger()),
+		DEPClient:  apple_mdm.NewDEPClient(depStorage, s.ds, wlog.SlogLogger()),
 	}
 	appleMDMJob := &worker.AppleMDM{
 		Datastore: s.ds,
@@ -362,7 +362,7 @@ func (s *integrationMDMTestSuite) SetupSuite() {
 									s.onProfileJobDone()
 								}()
 							}
-							err := ReconcileWindowsProfiles(ctx, ds, logger)
+							err := ReconcileWindowsProfiles(ctx, ds, logger.SlogLogger())
 							require.NoError(s.T(), err)
 							return err
 						}),
@@ -452,7 +452,7 @@ func (s *integrationMDMTestSuite) SetupSuite() {
 						ctx, name, s.T().Name(), 1*time.Hour, ds, ds,
 						schedule.WithLogger(logger),
 						schedule.WithJob("cron_iphone_ipad_refetcher", func(ctx context.Context) error {
-							return apple_mdm.IOSiPadOSRefetch(ctx, ds, mdmCommander, logger, func(ctx context.Context, user *fleet.User, act fleet.ActivityDetails) error {
+							return apple_mdm.IOSiPadOSRefetch(ctx, ds, mdmCommander, logger.SlogLogger(), func(ctx context.Context, user *fleet.User, act fleet.ActivityDetails) error {
 								return newActivity(ctx, user, act, ds, logger)
 							})
 						}),
@@ -935,7 +935,7 @@ func (s *integrationMDMTestSuite) mockDEPResponse(orgName string, handler http.H
 	t := s.T()
 	srv := httptest.NewServer(handler)
 	err := s.depStorage.StoreConfig(context.Background(), orgName, &nanodep_client.Config{BaseURL: srv.URL})
-	depSvc := apple_mdm.NewDEPService(s.ds, s.depStorage, s.logger)
+	depSvc := apple_mdm.NewDEPService(s.ds, s.depStorage, s.logger.SlogLogger())
 	require.NoError(t, depSvc.CreateDefaultAutomaticProfile(context.Background()))
 	require.NoError(t, err)
 	t.Cleanup(func() {
@@ -1317,7 +1317,7 @@ func (s *integrationMDMTestSuite) TestABMExpiredToken() {
 	require.False(t, config.MDM.AppleBMTermsExpired)
 
 	ctx := context.Background()
-	fleetSyncer := apple_mdm.NewDEPService(s.ds, s.depStorage, s.logger)
+	fleetSyncer := apple_mdm.NewDEPService(s.ds, s.depStorage, s.logger.SlogLogger())
 
 	// not signed error flips the AppleBMTermsExpired flag
 	returnType = "not_signed"
@@ -10339,7 +10339,7 @@ func (s *integrationMDMTestSuite) runWorkerUntilDoneWithChecks(failIfFailedJobs 
 
 func (s *integrationMDMTestSuite) runDEPSchedule() {
 	ctx := context.Background()
-	fleetSyncer := apple_mdm.NewDEPService(s.ds, s.depStorage, s.logger)
+	fleetSyncer := apple_mdm.NewDEPService(s.ds, s.depStorage, s.logger.SlogLogger())
 	err := fleetSyncer.RunAssigner(ctx)
 	require.NoError(s.T(), err)
 }
@@ -11425,7 +11425,7 @@ func (s *integrationMDMTestSuite) enableABM(orgName string) *fleet.ABMToken {
 			_, _ = w.Write([]byte(`{}`))
 		}
 	}))
-	depClient := apple_mdm.NewDEPClient(s.depStorage, s.ds, s.logger)
+	depClient := apple_mdm.NewDEPClient(s.depStorage, s.ds, s.logger.SlogLogger())
 	_, err = depClient.AccountDetail(ctx, orgName)
 	require.NoError(t, err)
 	return tok
@@ -18766,7 +18766,7 @@ func (s *integrationMDMTestSuite) TestRecreateDeletedIPhoneBYOD() {
 		pushMutex.Unlock()
 		return mockSuccessfulPush(ctx, pushes)
 	}
-	err := apple_mdm.IOSiPadOSRevive(context.Background(), s.ds, s.mdmCommander, s.logger)
+	err := apple_mdm.IOSiPadOSRevive(context.Background(), s.ds, s.mdmCommander, s.logger.SlogLogger())
 	require.NoError(t, err)
 	pushMutex.Lock()
 	require.Len(t, recordedPushes, 1)
@@ -19729,7 +19729,7 @@ func (s *integrationMDMTestSuite) TestIOSiPadOSRefetch() {
 		return nil, errors.New("unknown device")
 	}
 
-	err = apple_mdm.IOSiPadOSRefetch(ctx, s.ds, s.mdmCommander, s.logger, func(ctx context.Context, user *fleet.User, act fleet.ActivityDetails) error {
+	err = apple_mdm.IOSiPadOSRefetch(ctx, s.ds, s.mdmCommander, s.logger.SlogLogger(), func(ctx context.Context, user *fleet.User, act fleet.ActivityDetails) error {
 		return newActivity(ctx, user, act, s.ds, s.logger)
 	})
 	require.NoError(s.T(), err) // Verify it not longer throws an error
@@ -20745,7 +20745,7 @@ func (s *integrationMDMTestSuite) TestInstalledApplicationListCommandForBYODiDev
 	checkExpectedCommands(mdmClientDEP, false, 1)
 
 	// run the cron-based refetch, will not do anything as the devices were just refetched
-	err = apple_mdm.IOSiPadOSRefetch(ctx, s.ds, s.mdmCommander, s.logger, func(ctx context.Context, user *fleet.User, act fleet.ActivityDetails) error {
+	err = apple_mdm.IOSiPadOSRefetch(ctx, s.ds, s.mdmCommander, s.logger.SlogLogger(), func(ctx context.Context, user *fleet.User, act fleet.ActivityDetails) error {
 		return newActivity(ctx, user, act, s.ds, s.logger)
 	})
 	require.NoError(t, err)
@@ -20760,7 +20760,7 @@ func (s *integrationMDMTestSuite) TestInstalledApplicationListCommandForBYODiDev
 	require.NoError(t, s.ds.UpdateHost(ctx, hostDEP))
 
 	// run the cron-based refetch again, will enqueue the commands with the correct managed only flag
-	err = apple_mdm.IOSiPadOSRefetch(ctx, s.ds, s.mdmCommander, s.logger, func(ctx context.Context, user *fleet.User, act fleet.ActivityDetails) error {
+	err = apple_mdm.IOSiPadOSRefetch(ctx, s.ds, s.mdmCommander, s.logger.SlogLogger(), func(ctx context.Context, user *fleet.User, act fleet.ActivityDetails) error {
 		return newActivity(ctx, user, act, s.ds, s.logger)
 	})
 	require.NoError(t, err)
