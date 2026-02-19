@@ -56,6 +56,7 @@ func TestSoftwareInstallers(t *testing.T) {
 		{"SaveInstallerUpdatesClearsFleetMaintainedAppID", testSaveInstallerUpdatesClearsFleetMaintainedAppID},
 		{"SoftwareInstallerReplicaLag", testSoftwareInstallerReplicaLag},
 		{"SoftwareTitleDisplayName", testSoftwareTitleDisplayName},
+		{"AddSoftwareTitleToMatchingSoftware", testAddSoftwareTitleToMatchingSoftware},
 	}
 
 	for _, c := range cases {
@@ -4251,4 +4252,39 @@ func testMatchOrCreateSoftwareInstallerDuplicateHash(t *testing.T, ds *Datastore
 	// Binary packages with same title on same team → reject
 	_, _, err = ds.MatchOrCreateSoftwareInstaller(ctx, mkPayload(&teamA.ID, "a.sh", "title-a"))
 	require.ErrorContainsf(t, err, `"title-a" already exists with team "Team A".`, "expected existsError for same-team duplicate title, got: %T: %v", err, err)
+}
+
+func testAddSoftwareTitleToMatchingSoftware(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+	host1 := test.NewHost(t, ds, "host1", "", "host1key", "host1uuid", time.Now())
+	software1 := []fleet.Software{
+		{Name: "Win Title", Version: "0.0.1", Source: "programs", UpgradeCode: ptr.String("CODE_1")},
+	}
+
+	_, err := ds.UpdateHostSoftware(ctx, host1.ID, software1)
+	require.NoError(t, err)
+	require.NoError(t, ds.SyncHostsSoftware(ctx, time.Now()))
+	require.NoError(t, ds.SyncHostsSoftwareTitles(ctx, time.Now()))
+
+	// creates a second software title with the same name
+	payload := &fleet.UploadSoftwareInstallerPayload{
+		Title:       "Win Title",
+		Source:      "programs",
+		UpgradeCode: "CODE_2",
+	}
+	titleID, err := ds.getOrGenerateSoftwareInstallerTitleID(ctx, payload)
+	require.NoError(t, err)
+	require.NotEmpty(t, titleID)
+
+	err = ds.addSoftwareTitleToMatchingSoftware(ctx, titleID, payload)
+	require.NoError(t, err)
+
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		var gotTitleID uint
+		err := sqlx.GetContext(ctx, q, &gotTitleID, `SELECT title_id FROM software WHERE name = ?`, "Win Title")
+		require.NoError(t, err)
+		require.NotEqual(t, titleID, gotTitleID)
+		return nil
+	})
+
 }
