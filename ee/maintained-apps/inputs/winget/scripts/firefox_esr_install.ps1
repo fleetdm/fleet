@@ -5,11 +5,10 @@ $exeFilePath = "${env:INSTALLER_PATH}"
 
 try {
 
-# Add argument to install silently
-# NSIS (Nullsoft) installers require /S flag for silent installation
+# Silent install per winget manifest: /S /PreventRebootRequired=true
 $processOptions = @{
   FilePath = "$exeFilePath"
-  ArgumentList = "/S"
+  ArgumentList = "/S", "/PreventRebootRequired=true"
   PassThru = $true
   Wait = $true
 }
