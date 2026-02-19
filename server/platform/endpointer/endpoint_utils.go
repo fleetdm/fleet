@@ -143,19 +143,15 @@ func extractAliasRulesFromType(t reflect.Type, seen map[AliasRule]bool, rules *[
 // elemType dereferences pointer, slice, array, and map types to find the
 // underlying (possibly struct) element type.
 func elemType(t reflect.Type) reflect.Type {
-	for {
-		switch t.Kind() {
-		case reflect.Ptr, reflect.Slice, reflect.Array:
-			t = t.Elem()
-		case reflect.Map:
-			// For maps, the values may contain structs with renameto tags.
-			t = t.Elem()
-		default:
-			return t
-		}
+	elemKind := t.Kind()
+	if elemKind == reflect.Ptr || elemKind == reflect.Slice || elemKind == reflect.Array || elemKind == reflect.Map {
+		return t.Elem()
 	}
+	return t
 }
 
+// Recursively extract alias rules from the type t.
+// This should only be called on struct types.
 func extractAliasRulesRecursive(t reflect.Type, seen map[AliasRule]bool, rules *[]AliasRule, visited map[reflect.Type]bool) {
 	if visited[t] {
 		return
@@ -163,12 +159,12 @@ func extractAliasRulesRecursive(t reflect.Type, seen map[AliasRule]bool, rules *
 	visited[t] = true
 
 	for i := 0; i < t.NumField(); i++ {
-		sf := t.Field(i)
+		structField := t.Field(i)
 
 		// Check this field for a renameto tag.
-		renameTo, hasRenameTo := sf.Tag.Lookup("renameto")
+		renameTo, hasRenameTo := structField.Tag.Lookup("renameto")
 		if hasRenameTo && renameTo != "" {
-			jsonTag, hasJSON := sf.Tag.Lookup("json")
+			jsonTag, hasJSON := structField.Tag.Lookup("json")
 			if hasJSON && jsonTag != "" && jsonTag != "-" {
 				// Strip options like ",omitempty" from the json tag.
 				jsonFieldName, _, _ := strings.Cut(jsonTag, ",")
@@ -184,9 +180,9 @@ func extractAliasRulesRecursive(t reflect.Type, seen map[AliasRule]bool, rules *
 
 		// Recurse into any struct type reachable from this field
 		// (through pointers, slices, arrays, maps, or directly).
-		ft := elemType(sf.Type)
-		if ft.Kind() == reflect.Struct {
-			extractAliasRulesRecursive(ft, seen, rules, visited)
+		fieldType := elemType(structField.Type)
+		if fieldType.Kind() == reflect.Struct {
+			extractAliasRulesRecursive(fieldType, seen, rules, visited)
 		}
 	}
 }
@@ -315,14 +311,12 @@ func DecodeQueryTagValue(r *http.Request, fp fieldPair, customDecoder DomainQuer
 					"deprecation_warning", fmt.Sprintf("'%s' is deprecated, use '%s' instead", queryTagValue, renameTo),
 				)
 			}
-		} else {
-			if renameTo, hasRenameTo := fp.Sf.Tag.Lookup("renameto"); hasRenameTo {
-				renameTo, _, err = ParseTag(renameTo)
-				if err != nil {
-					return err
-				}
-				queryVal = r.URL.Query().Get(renameTo)
+		} else if renameTo, hasRenameTo := fp.Sf.Tag.Lookup("renameto"); hasRenameTo {
+			renameTo, _, err = ParseTag(renameTo)
+			if err != nil {
+				return err
 			}
+			queryVal = r.URL.Query().Get(renameTo)
 		}
 		// If we still don't have a value, return if this is optional, otherwise error.
 		if queryVal == "" {
