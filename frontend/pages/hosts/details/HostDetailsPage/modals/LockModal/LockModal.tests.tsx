@@ -55,11 +55,8 @@ describe("LockModal", () => {
 
     expect(
       screen.getByText(
-        /If the device is turned off or restarted while locked, it will disconnect from WiFi/i
+        /If the host is turned off or restarted while locked, it will disconnect from Wi-Fi, and you won't be able to unlock it remotely/i
       )
-    ).toBeInTheDocument();
-    expect(
-      screen.getByText(/won't be able to unlock the host remotely/i)
     ).toBeInTheDocument();
   });
 
