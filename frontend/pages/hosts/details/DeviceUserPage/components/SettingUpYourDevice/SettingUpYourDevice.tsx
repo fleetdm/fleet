@@ -1,3 +1,5 @@
+import { getDisplayedSoftwareName } from "pages/SoftwarePage/helpers";
+
 import Card from "components/Card";
 import { ISetupStep } from "interfaces/setup";
 import Icon from "components/Icon";
@@ -12,7 +14,6 @@ import {
   hasRemainingSetupSteps,
   getFailedSoftwareInstall,
 } from "../../helpers";
-import { getDisplayedSoftwareName } from "pages/SoftwarePage/helpers";
 
 const baseClass = "setting-up-your-device";
 

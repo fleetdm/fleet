@@ -1,13 +1,13 @@
 import React, { useEffect, useRef, useState } from "react";
 
 import { IHostSoftware } from "interfaces/software";
+import { getDisplayedSoftwareName } from "pages/SoftwarePage/helpers";
 
 import Modal from "components/Modal";
 import ModalFooter from "components/ModalFooter";
 import Button from "components/buttons/Button";
 
 import InventoryVersions from "../../components/InventoryVersions";
-import { getDisplayedSoftwareName } from "pages/SoftwarePage/helpers";
 
 const baseClass = "inventory-versions-modal";
 
