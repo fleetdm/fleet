@@ -8787,3 +8787,333 @@ func (s *integrationMDMTestSuite) TestHostMDMAndroidProfilesStatus() {
 	// Profiles that failed because they were overriden should stay failed
 	getHostProfiles(host1.ID, []string{string(fleet.MDMDeliveryVerified), string(fleet.MDMDeliveryVerified), string(fleet.MDMDeliveryFailed)})
 }
+
+// TestSpecTeamsOSUpdatesDeployToHosts verifies that POST /api/latest/fleet/spec/teams
+// deploys OS updates declarations/profiles to enrolled Windows, iOS, iPadOS, and macOS
+// hosts when OS update settings are initially set or when deadline/minimum version changes.
+func (s *integrationMDMTestSuite) TestSpecTeamsOSUpdatesDeployToHosts() {
+	t := s.T()
+	ctx := context.Background()
+
+	// Create a team via the API so agent ops are initialized.
+	teamName := t.Name() + "team1"
+	var createTeamResp teamResponse
+	s.DoJSON("POST", "/api/latest/fleet/teams", &fleet.Team{Name: teamName}, http.StatusOK, &createTeamResp)
+	require.NotZero(t, createTeamResp.Team.ID)
+	teamID := createTeamResp.Team.ID
+
+	// Enroll one host per platform.
+	macOSHost, macOSDevice := createHostThenEnrollMDM(s.ds, s.server.URL, t)
+	windowsHost, _ := createWindowsHostThenEnrollMDM(s.ds, s.server.URL, t)
+	iOSHost, iOSDevice := s.createAppleMobileHostThenEnrollMDM("ios")
+	iPadOSHost, iPadOSDevice := s.createAppleMobileHostThenEnrollMDM("ipados")
+
+	// Add all hosts to the team.
+	s.Do("POST", "/api/v1/fleet/hosts/transfer",
+		addHostsToTeamRequest{TeamID: &teamID, HostIDs: []uint{macOSHost.ID, windowsHost.ID, iOSHost.ID, iPadOSHost.ID}},
+		http.StatusOK)
+
+	// OS update declarations are scoped to platform-specific built-in labels:
+	// - macOS: "macOS 14+ (Sonoma+)" (dynamic label)
+	// - iOS:   "iOS" (manual label)
+	// - iPadOS: "iPadOS" (manual label)
+	// Add each host to the appropriate label so the declarations/profiles are queued.
+	lblIDs, err := s.ds.LabelIDsByName(ctx,
+		[]string{fleet.BuiltinLabelMacOS14Plus, fleet.BuiltinLabelIOS, fleet.BuiltinLabelIPadOS},
+		fleet.TeamFilter{})
+	require.NoError(t, err)
+
+	// macOS 14+ is a dynamic label; use RecordLabelQueryExecutions to simulate osquery results.
+	require.Contains(t, lblIDs, fleet.BuiltinLabelMacOS14Plus)
+	require.NoError(t, s.ds.RecordLabelQueryExecutions(ctx, macOSHost,
+		map[uint]*bool{lblIDs[fleet.BuiltinLabelMacOS14Plus]: ptr.Bool(true)}, time.Now(), false))
+
+	// iOS and iPadOS are manual labels; insert label membership directly.
+	require.Contains(t, lblIDs, fleet.BuiltinLabelIOS)
+	require.Contains(t, lblIDs, fleet.BuiltinLabelIPadOS)
+	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx,
+			`INSERT IGNORE INTO label_membership (host_id, label_id) VALUES (?, ?), (?, ?)`,
+			iOSHost.ID, lblIDs[fleet.BuiltinLabelIOS],
+			iPadOSHost.ID, lblIDs[fleet.BuiltinLabelIPadOS])
+		return err
+	})
+
+	// assertAppleDeclarationQueued verifies that the declaration row for a host
+	// has been created with NULL status, meaning it has been queued for sync by
+	// BulkSetPendingMDMHostProfiles but not yet processed by ReconcileAppleDeclarations.
+	assertAppleDeclarationQueued := func(hostUUID, identifier string) {
+		t.Helper()
+		var count int
+		mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+			return sqlx.GetContext(ctx, q, &count,
+				`SELECT COUNT(*) FROM host_mdm_apple_declarations WHERE host_uuid = ? AND declaration_identifier = ?`,
+				hostUUID, identifier)
+		})
+		require.Equal(t, 1, count, "expected declaration row to exist for host %s identifier %s", hostUUID, identifier)
+	}
+
+	// assertAppleDeclarationGone verifies that the declaration row for a host
+	// has been removed from host_mdm_apple_declarations (i.e. the removal was
+	// processed by MDMAppleStoreDDMStatusReport).
+	assertAppleDeclarationGone := func(hostUUID, identifier string) {
+		t.Helper()
+		var count int
+		mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+			return sqlx.GetContext(ctx, q, &count,
+				`SELECT COUNT(*) FROM host_mdm_apple_declarations WHERE host_uuid = ? AND declaration_identifier = ?`,
+				hostUUID, identifier)
+		})
+		require.Equal(t, 0, count, "expected declaration row to be gone for host %s identifier %s", hostUUID, identifier)
+	}
+
+	// assertAppleDeclarationVerifying verifies that the declaration for a host
+	// is in the verifying state (device has acknowledged the DDM sync command).
+	assertAppleDeclarationVerifying := func(hostUUID, identifier string) {
+		t.Helper()
+		var gotStatus *fleet.MDMDeliveryStatus
+		mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+			return sqlx.GetContext(ctx, q, &gotStatus,
+				`SELECT status FROM host_mdm_apple_declarations WHERE host_uuid = ? AND declaration_identifier = ?`,
+				hostUUID, identifier)
+		})
+		require.NotNil(t, gotStatus)
+		require.Equal(t, fleet.MDMDeliveryVerifying, *gotStatus)
+	}
+
+	// checkWindowsProfileQueued verifies that the Windows OS updates profile
+	// has been queued for the host (inserted into host_mdm_windows_profiles).
+	checkWindowsProfileQueued := func(profUUID string) {
+		t.Helper()
+		var count int
+		mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+			return sqlx.GetContext(ctx, q, &count,
+				`SELECT COUNT(*) FROM host_mdm_windows_profiles WHERE host_uuid = ? AND profile_uuid = ?`,
+				windowsHost.UUID, profUUID)
+		})
+		require.Equal(t, 1, count)
+	}
+
+	// ackAllCmds is used to ack commands sent during enrollment (like fleetd configuration).
+	ackAllCmds := func(device *mdmtest.TestAppleMDMClient) {
+		t.Helper()
+
+		cmd, err := device.Idle()
+		require.NoError(t, err)
+
+		for cmd != nil {
+			cmd, err = device.Acknowledge(cmd.CommandUUID)
+			require.NoError(t, err)
+		}
+	}
+
+	// checkDDMSync verifies that a DDM (DeclarativeManagement) sync command
+	// is pending for the Apple device and acknowledges it.
+	checkDDMSync := func(device *mdmtest.TestAppleMDMClient) {
+		t.Helper()
+
+		cmd, err := device.Idle()
+		require.NoError(t, err)
+		require.NotNil(t, cmd, "expected a DDM sync command to be pending (DeclarativeManagement)")
+		require.Equal(t, "DeclarativeManagement", cmd.Command.RequestType, "%s", cmd.Raw)
+		cmd, err = device.Acknowledge(cmd.CommandUUID)
+		require.NoError(t, err)
+		require.Nil(t, cmd)
+	}
+
+	s.awaitTriggerProfileSchedule(t)
+
+	// Acknowledge all commands to clear the command queue.
+	ackAllCmds(macOSDevice)
+	ackAllCmds(iOSDevice)
+	ackAllCmds(iPadOSDevice)
+
+	// OS update declaration identifiers used by Fleet (suffix is fixed in the service code).
+	const (
+		macOSUpdateIdent  = "macos-software-update-94f4bbdf-f439-4fb1-8d27-ae1bb793e105"
+		iOSUpdateIdent    = "ios-software-update-94f4bbdf-f439-4fb1-8d27-ae1bb793e105"
+		iPadOSUpdateIdent = "ipados-software-update-94f4bbdf-f439-4fb1-8d27-ae1bb793e105"
+	)
+
+	// -------------------------------------------------------------------------
+	// Step 1: Set initial OS updates for all platforms via POST /spec/teams.
+	// -------------------------------------------------------------------------
+	var applyResp applyTeamSpecsResponse
+	s.DoJSON("POST", "/api/latest/fleet/spec/teams", applyTeamSpecsRequest{Specs: []*fleet.TeamSpec{{
+		Name: teamName,
+		MDM: fleet.TeamSpecMDM{
+			MacOSUpdates: fleet.AppleOSUpdateSettings{
+				MinimumVersion: optjson.SetString("14.1.0"),
+				Deadline:       optjson.SetString("2024-03-01"),
+			},
+			IOSUpdates: fleet.AppleOSUpdateSettings{
+				MinimumVersion: optjson.SetString("17.1.0"),
+				Deadline:       optjson.SetString("2024-03-01"),
+			},
+			IPadOSUpdates: fleet.AppleOSUpdateSettings{
+				MinimumVersion: optjson.SetString("17.1.0"),
+				Deadline:       optjson.SetString("2024-03-01"),
+			},
+			WindowsUpdates: fleet.WindowsUpdates{
+				DeadlineDays:    optjson.SetInt(5),
+				GracePeriodDays: optjson.SetInt(1),
+			},
+		},
+	}}}, http.StatusOK, &applyResp)
+	require.Len(t, applyResp.TeamIDsByName, 1)
+
+	// Verify that OS update declarations/profiles were created for the team.
+	s.assertMacOSDeclarationsByName(&teamID, servermdm.FleetMacOSUpdatesProfileName, true)
+	s.assertMacOSDeclarationsByName(&teamID, servermdm.FleetIOSUpdatesProfileName, true)
+	s.assertMacOSDeclarationsByName(&teamID, servermdm.FleetIPadOSUpdatesProfileName, true)
+	windowsOSUpdatesProfileUUID := checkWindowsOSUpdatesProfile(t, s.ds, &teamID,
+		&fleet.WindowsUpdates{DeadlineDays: optjson.SetInt(5), GracePeriodDays: optjson.SetInt(1)})
+
+	// Verify that the Apple declarations are immediately queued for the enrolled
+	// hosts in the team. BulkSetPendingMDMHostProfiles is called synchronously
+	// when OS updates are edited via spec/teams. The status is NULL at this point
+	// (set to pending by ReconcileAppleDeclarations on the next run).
+	assertAppleDeclarationQueued(macOSHost.UUID, macOSUpdateIdent)
+	assertAppleDeclarationQueued(iOSHost.UUID, iOSUpdateIdent)
+	assertAppleDeclarationQueued(iPadOSHost.UUID, iPadOSUpdateIdent)
+
+	// Trigger the profile schedule so that:
+	//   - ReconcileAppleDeclarations sends DDM sync commands to Apple hosts.
+	//   - ReconcileWindowsProfiles queues the OS updates profile for the Windows host.
+	s.awaitTriggerProfileSchedule(t)
+
+	// Each Apple device should now have a pending DeclarativeManagement command.
+	// Acknowledging the command transitions the declaration to "verifying".
+	checkDDMSync(macOSDevice)
+	assertAppleDeclarationVerifying(macOSHost.UUID, macOSUpdateIdent)
+
+	checkDDMSync(iOSDevice)
+	assertAppleDeclarationVerifying(iOSHost.UUID, iOSUpdateIdent)
+
+	checkDDMSync(iPadOSDevice)
+	assertAppleDeclarationVerifying(iPadOSHost.UUID, iPadOSUpdateIdent)
+
+	// The Windows OS updates profile should be queued for the Windows host.
+	checkWindowsProfileQueued(windowsOSUpdatesProfileUUID)
+
+	// -------------------------------------------------------------------------
+	// Step 2: Update deadline and minimum version via POST /spec/teams.
+	// -------------------------------------------------------------------------
+	s.DoJSON("POST", "/api/latest/fleet/spec/teams", applyTeamSpecsRequest{Specs: []*fleet.TeamSpec{{
+		Name: teamName,
+		MDM: fleet.TeamSpecMDM{
+			MacOSUpdates: fleet.AppleOSUpdateSettings{
+				MinimumVersion: optjson.SetString("14.3.0"),
+				Deadline:       optjson.SetString("2025-06-01"),
+			},
+			IOSUpdates: fleet.AppleOSUpdateSettings{
+				MinimumVersion: optjson.SetString("17.3.0"),
+				Deadline:       optjson.SetString("2025-06-01"),
+			},
+			IPadOSUpdates: fleet.AppleOSUpdateSettings{
+				MinimumVersion: optjson.SetString("17.3.0"),
+				Deadline:       optjson.SetString("2025-06-01"),
+			},
+			WindowsUpdates: fleet.WindowsUpdates{
+				DeadlineDays:    optjson.SetInt(7),
+				GracePeriodDays: optjson.SetInt(2),
+			},
+		},
+	}}}, http.StatusOK, &applyResp)
+	require.Len(t, applyResp.TeamIDsByName, 1)
+
+	// Verify that the OS update declarations/profiles were updated for the team.
+	s.assertMacOSDeclarationsByName(&teamID, servermdm.FleetMacOSUpdatesProfileName, true)
+	s.assertMacOSDeclarationsByName(&teamID, servermdm.FleetIOSUpdatesProfileName, true)
+	s.assertMacOSDeclarationsByName(&teamID, servermdm.FleetIPadOSUpdatesProfileName, true)
+	checkWindowsOSUpdatesProfile(t, s.ds, &teamID,
+		&fleet.WindowsUpdates{DeadlineDays: optjson.SetInt(7), GracePeriodDays: optjson.SetInt(2)})
+
+	// The updated OS update settings should cause the Apple declarations to be
+	// re-queued (status reset to NULL) for all enrolled hosts.
+	assertAppleDeclarationQueued(macOSHost.UUID, macOSUpdateIdent)
+	assertAppleDeclarationQueued(iOSHost.UUID, iOSUpdateIdent)
+	assertAppleDeclarationQueued(iPadOSHost.UUID, iPadOSUpdateIdent)
+
+	// Trigger the profile schedule again to reconcile the updated declarations
+	// and the updated Windows profile.
+	s.awaitTriggerProfileSchedule(t)
+
+	// Each Apple device should receive another DDM sync command for the updated
+	// declaration content, and transition back to "verifying" after acknowledging.
+	checkDDMSync(macOSDevice)
+	assertAppleDeclarationVerifying(macOSHost.UUID, macOSUpdateIdent)
+
+	checkDDMSync(iOSDevice)
+	assertAppleDeclarationVerifying(iOSHost.UUID, iOSUpdateIdent)
+
+	checkDDMSync(iPadOSDevice)
+	assertAppleDeclarationVerifying(iPadOSHost.UUID, iPadOSUpdateIdent)
+
+	// The Windows OS updates profile (same UUID, updated content) should be
+	// re-queued for the Windows host with the new deadline/grace period.
+	checkWindowsProfileQueued(windowsOSUpdatesProfileUUID)
+
+	// -------------------------------------------------------------------------
+	// Step 3: Clear deadline and minimum version via POST /spec/teams.
+	// -------------------------------------------------------------------------
+	s.DoJSON("POST", "/api/latest/fleet/spec/teams", applyTeamSpecsRequest{Specs: []*fleet.TeamSpec{{
+		Name: teamName,
+		MDM: fleet.TeamSpecMDM{
+			MacOSUpdates: fleet.AppleOSUpdateSettings{
+				MinimumVersion: optjson.SetString(""),
+				Deadline:       optjson.SetString(""),
+			},
+			IOSUpdates: fleet.AppleOSUpdateSettings{
+				MinimumVersion: optjson.SetString(""),
+				Deadline:       optjson.SetString(""),
+			},
+			IPadOSUpdates: fleet.AppleOSUpdateSettings{
+				MinimumVersion: optjson.SetString(""),
+				Deadline:       optjson.SetString(""),
+			},
+			WindowsUpdates: fleet.WindowsUpdates{
+				DeadlineDays:    optjson.Int{},
+				GracePeriodDays: optjson.Int{},
+			},
+		},
+	}}}, http.StatusOK, &applyResp)
+	require.Len(t, applyResp.TeamIDsByName, 1)
+
+	// Verify that the OS update declarations/profiles were removed for the team.
+	s.assertMacOSDeclarationsByName(&teamID, servermdm.FleetMacOSUpdatesProfileName, false)
+	s.assertMacOSDeclarationsByName(&teamID, servermdm.FleetIOSUpdatesProfileName, false)
+	s.assertMacOSDeclarationsByName(&teamID, servermdm.FleetIPadOSUpdatesProfileName, false)
+	checkWindowsOSUpdatesProfile(t, s.ds, &teamID, nil)
+
+	// The updated OS update settings should cause the Apple declarations to be
+	// re-queued (status reset to NULL) for all enrolled hosts.
+	assertAppleDeclarationQueued(macOSHost.UUID, macOSUpdateIdent)
+	assertAppleDeclarationQueued(iOSHost.UUID, iOSUpdateIdent)
+	assertAppleDeclarationQueued(iPadOSHost.UUID, iPadOSUpdateIdent)
+
+	// Trigger the profile schedule again to reconcile the removed declarations.
+	s.awaitTriggerProfileSchedule(t)
+
+	// Each Apple device should receive a DDM sync command to remove the OS update
+	// declaration. After acknowledging, the device sends an empty status report,
+	// which causes Fleet to delete the pending remove rows via deletePendingRemovesStmt
+	// in MDMAppleStoreDDMStatusReport.
+	checkDDMSync(macOSDevice)
+	resp, err := macOSDevice.DeclarativeManagement("status", fleet.MDMAppleDDMStatusReport{})
+	require.NoError(t, err)
+	resp.Body.Close()
+	assertAppleDeclarationGone(macOSHost.UUID, macOSUpdateIdent)
+
+	checkDDMSync(iOSDevice)
+	resp, err = iOSDevice.DeclarativeManagement("status", fleet.MDMAppleDDMStatusReport{})
+	require.NoError(t, err)
+	resp.Body.Close()
+	assertAppleDeclarationGone(iOSHost.UUID, iOSUpdateIdent)
+
+	checkDDMSync(iPadOSDevice)
+	resp, err = iPadOSDevice.DeclarativeManagement("status", fleet.MDMAppleDDMStatusReport{})
+	require.NoError(t, err)
+	resp.Body.Close()
+	assertAppleDeclarationGone(iPadOSHost.UUID, iPadOSUpdateIdent)
+}
