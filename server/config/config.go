@@ -1324,9 +1324,9 @@ func (man Manager) addConfigs() {
 		"Select the kind of tracing, defaults to OpenTelemetry, can also be elasticapm")
 	man.addConfigBool("logging.otel_logs_enabled", false,
 		"Enable exporting logs to an OpenTelemetry collector (requires tracing_enabled)")
-	man.addConfigString("logging.enable_log_topics", "",
+	man.addConfigString("logging.enable_topics", "",
 		"Comma-separated log topics to enable (overrides code defaults)")
-	man.addConfigString("logging.disable_log_topics", "",
+	man.addConfigString("logging.disable_topics", "",
 		"Comma-separated log topics to disable (overrides code defaults)")
 
 	// Email
@@ -1758,8 +1758,8 @@ func (man Manager) LoadConfig() FleetConfig {
 			TracingEnabled:       man.getConfigBool("logging.tracing_enabled"),
 			TracingType:          man.getConfigString("logging.tracing_type"),
 			OtelLogsEnabled:      man.getConfigBool("logging.otel_logs_enabled"),
-			EnableLogTopics:      man.getConfigString("logging.enable_log_topics"),
-			DisableLogTopics:     man.getConfigString("logging.disable_log_topics"),
+			EnableLogTopics:      man.getConfigString("logging.enable_topics"),
+			DisableLogTopics:     man.getConfigString("logging.disable_topics"),
 		},
 		Firehose: FirehoseConfig{
 			Region:           man.getConfigString("firehose.region"),
