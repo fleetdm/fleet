@@ -50,7 +50,11 @@ class AgentApplication : Application() {
         val defaultHandler = Thread.getDefaultUncaughtExceptionHandler()
         Thread.setDefaultUncaughtExceptionHandler { thread, throwable ->
             FleetLog.e("fleet-crash", "Uncaught exception on thread ${thread.name}", throwable)
-            defaultHandler?.uncaughtException(thread, throwable)
+            if (defaultHandler != null) {
+                defaultHandler.uncaughtException(thread, throwable)
+            } else {
+                android.os.Process.killProcess(android.os.Process.myPid())
+            }
         }
 
         // Initialize dependencies
