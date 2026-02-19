@@ -1,7 +1,6 @@
 package logging
 
 import (
-	"context"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -43,12 +42,4 @@ func TestResetTopics(t *testing.T) {
 	ResetTopics()
 	assert.True(t, TopicEnabled("a"))
 	assert.True(t, TopicEnabled("b"))
-}
-
-func TestContextWithTopicRoundTrip(t *testing.T) {
-	ctx := context.Background()
-	assert.Equal(t, "", TopicFromContext(ctx))
-
-	ctx = ContextWithTopic(ctx, "my-topic")
-	assert.Equal(t, "my-topic", TopicFromContext(ctx))
 }

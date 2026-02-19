@@ -25,27 +25,6 @@ func TestTopicHandler_NoTopic(t *testing.T) {
 	assert.Contains(t, buf.String(), "hello")
 }
 
-func TestTopicHandler_EnabledTopic(t *testing.T) {
-	t.Cleanup(ResetTopics)
-	var buf bytes.Buffer
-	logger := newTopicTestLogger(&buf)
-
-	ctx := ContextWithTopic(context.Background(), "my-topic")
-	logger.InfoContext(ctx, "hello from enabled topic")
-	assert.Contains(t, buf.String(), "hello from enabled topic")
-}
-
-func TestTopicHandler_DisabledTopic(t *testing.T) {
-	t.Cleanup(ResetTopics)
-	var buf bytes.Buffer
-	logger := newTopicTestLogger(&buf)
-
-	DisableTopic("my-topic")
-	ctx := ContextWithTopic(context.Background(), "my-topic")
-	logger.InfoContext(ctx, "should not appear")
-	assert.Empty(t, buf.String())
-}
-
 func TestTopicHandler_DisabledTopicByAttr(t *testing.T) {
 	t.Cleanup(ResetTopics)
 	var buf bytes.Buffer

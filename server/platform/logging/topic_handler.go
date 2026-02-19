@@ -20,13 +20,8 @@ func NewTopicFilterHandler(base slog.Handler) *TopicFilterHandler {
 }
 
 // Enabled reports whether the handler handles records at the given level.
-// Returns false early if the base handler wouldn't handle this level,
-// or if the context carries a disabled topic.
 func (h *TopicFilterHandler) Enabled(ctx context.Context, level slog.Level) bool {
 	if !h.base.Enabled(ctx, level) {
-		return false
-	}
-	if topic := TopicFromContext(ctx); topic != "" && !TopicEnabled(topic) {
 		return false
 	}
 	return true
@@ -35,9 +30,6 @@ func (h *TopicFilterHandler) Enabled(ctx context.Context, level slog.Level) bool
 // Handle processes the log record. It performs a defensive re-check of the
 // topic before delegating to the base handler.
 func (h *TopicFilterHandler) Handle(ctx context.Context, r slog.Record) error {
-	if topic := TopicFromContext(ctx); topic != "" && !TopicEnabled(topic) {
-		return nil
-	}
 	var topic string
 	r.Attrs(func(a slog.Attr) bool {
 		if a.Key == logTopicAttrKey {

@@ -1,15 +1,8 @@
 package logging
 
 import (
-	"context"
 	"sync"
 )
-
-// topicKeyType is an unexported type for the context key, ensuring no collisions.
-type topicKeyType struct{}
-
-// topicKey is the context key for storing a log topic.
-var topicKey topicKeyType
 
 // disabledTopics tracks which topics have been explicitly disabled.
 // Topics are enabled by default — only topics in this map are disabled.
@@ -55,18 +48,4 @@ func ResetTopics() {
 	disabledTopicsMu.Lock()
 	disabledTopics = make(map[string]bool)
 	disabledTopicsMu.Unlock()
-}
-
-// ContextWithTopic returns a new context with the given log topic attached.
-func ContextWithTopic(ctx context.Context, topic string) context.Context {
-	return context.WithValue(ctx, topicKey, topic)
-}
-
-// TopicFromContext retrieves the log topic from the context.
-// Returns an empty string if no topic is set.
-func TopicFromContext(ctx context.Context) string {
-	if topic, ok := ctx.Value(topicKey).(string); ok {
-		return topic
-	}
-	return ""
 }
