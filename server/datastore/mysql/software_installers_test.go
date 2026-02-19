@@ -2502,14 +2502,6 @@ func testGetOrGenerateSoftwareInstallerTitleID(t *testing.T, ds *Datastore) {
 		{Name: "Win Title 4", Version: "11.0", Source: "programs", UpgradeCode: ptr.String("12345")},
 		{Name: "Win Title 5", Version: "11.0", Source: "programs", UpgradeCode: ptr.String("ABCDEF")},
 		{Name: "Win Title 6", Version: "11.0", Source: "programs", UpgradeCode: ptr.String("GHIJKL")},
-
-		// WINDOWS software
-		// installer: no upgrade code,  existing title: same name, no upgrade code
-		// installer: no upgrade code,  existing title: same name, has upgrade code
-		// installer: has upgrade code, existing title: same name, no upgrade code
-		// installer: has upgrade code, existing title: same name, different upgrade code
-		// installer: has upgrade code, existing title: same name, same upgrade code
-		// installer: has upgrade code, existing title: different name, same upgrade code
 	}
 
 	_, err := ds.UpdateHostSoftware(ctx, host1.ID, software1)

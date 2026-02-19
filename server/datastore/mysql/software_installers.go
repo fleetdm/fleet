@@ -513,10 +513,8 @@ func (ds *Datastore) getOrGenerateSoftwareInstallerTitleID(ctx context.Context, 
 	// upgrade_code should be set to NULL for non-Windows software, empty or non-empty string for Windows software
 	if payload.Source == "programs" {
 		// try to find by either name or upgrade code, preferring upgrade code
-		// TODO(JK): actually, do we want to match titles that don't have an upgrade code and give it a new one?
 		if payload.UpgradeCode != "" {
-			// TODO(JK): maybe (name = ? AND upgrade_code = '') ??? is this necessary?
-			selectStmt = `SELECT id FROM software_titles WHERE (name = ? AND source = ? AND upgrade_code = '') OR upgrade_code = ? ORDER BY upgrade_code = ? DESC LIMIT 1`
+			selectStmt = `SELECT id FROM software_titles WHERE (name = ? AND source = ? AND extension_for = '' AND upgrade_code = '') OR upgrade_code = ? ORDER BY upgrade_code = ? DESC LIMIT 1`
 			selectArgs = []any{payload.Title, payload.Source, payload.UpgradeCode, payload.UpgradeCode}
 		}
 		insertStmt = `INSERT INTO software_titles (name, source, extension_for, upgrade_code) VALUES (?, ?, '', ?)`
@@ -545,7 +543,7 @@ func (ds *Datastore) getOrGenerateSoftwareInstallerTitleID(ctx context.Context, 
 		return 0, err
 	}
 
-	// update the upgrade code for a title, and potentially name if a fleet maintained app is available
+	// update the upgrade code for a title, and name if this installer is a fleet maintained app
 	if payload.Source == "programs" && payload.UpgradeCode != "" {
 		updateStmt := `UPDATE software_titles SET upgrade_code = ? WHERE id = ?`
 		updateArgs := []any{payload.UpgradeCode, titleID}
@@ -560,10 +558,6 @@ func (ds *Datastore) getOrGenerateSoftwareInstallerTitleID(ctx context.Context, 
 }
 
 func (ds *Datastore) addSoftwareTitleToMatchingSoftware(ctx context.Context, titleID uint, payload *fleet.UploadSoftwareInstallerPayload) error {
-	// not considering upgrade_code, so inventory software will match this Title by this clause, even
-	// if upgrade_code doesn't match - TODO: enforce matching upgrade_code between software and
-	// incoming title?
-
 	whereClause := "WHERE (s.name, s.source, s.extension_for) = (?, ?, '')"
 	whereArgs := []any{payload.Title, payload.Source}
 	if payload.BundleIdentifier != "" {
@@ -571,7 +565,8 @@ func (ds *Datastore) addSoftwareTitleToMatchingSoftware(ctx context.Context, tit
 		whereArgs = []any{payload.BundleIdentifier}
 	}
 	if payload.UpgradeCode != "" {
-		whereClause = "OR s.upgrade_code = ?" // OR or AND? how guaranteed is it for the software to have an upgrade code
+		// match only by upgrade code
+		whereClause = "WHERE s.upgrade_code = ?"
 		whereArgs = []any{payload.UpgradeCode}
 	}
 
