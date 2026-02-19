@@ -240,6 +240,7 @@ the way that the Fleet server works.
 			//
 			// For example:
 			// platform_logging.DisableTopic("deprecated-api-keys")
+			platform_logging.DisableTopic("deprecated-field-names")
 
 			// Apply log topic overrides from config. Enables run first, then
 			// disables, so disable wins on conflict.
