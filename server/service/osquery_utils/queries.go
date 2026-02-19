@@ -2812,6 +2812,17 @@ func directIngestMDMDeviceIDWindows(ctx context.Context, logger log.Logger, host
 				}
 			}
 
+			mdmIdpAccount, err := ds.GetMDMIdPAccountByEmail(ctx, device.MDMEnrollUserID)
+			if err != nil && !fleet.IsNotFound(err) {
+				return ctxerr.Wrap(ctx, err, "getting mdm idp account by host uuid for windows mdm enrollment")
+			}
+			if mdmIdpAccount != nil {
+				err = ds.AssociateHostMDMIdPAccount(ctx, host.UUID, mdmIdpAccount.UUID)
+				if err != nil {
+					return ctxerr.Wrap(ctx, err, "associating host with MDM IDP account for windows mdm enrollment")
+				}
+			}
+
 			mapping := []*fleet.HostDeviceMapping{
 				{
 					HostID: host.ID,

@@ -70,6 +70,8 @@ type AzureData struct {
 	TenantID   string
 	UniqueName string
 	SCP        string
+	GivenName  string
+	FamilyName string
 }
 
 type manager struct {
@@ -332,11 +334,23 @@ func GetAzureAuthTokenClaims(ctx context.Context, tokenStr string) (AzureData, e
 		return AzureData{}, ctxerr.New(ctx, "invalid SCP claim")
 	}
 
+	givenNameClaim, ok := claims["given_name"].(string)
+	if !ok {
+		return AzureData{}, ctxerr.New(ctx, "invalid given_name claim")
+	}
+
+	familyNameClaim, ok := claims["family_name"].(string)
+	if !ok {
+		return AzureData{}, ctxerr.New(ctx, "invalid family_name claim")
+	}
+
 	return AzureData{
 		UPN:        upnClaim,
 		TenantID:   tenantIDClaim,
 		UniqueName: uniqueNameClaim,
 		SCP:        azureSCPClaim,
+		GivenName:  givenNameClaim,
+		FamilyName: familyNameClaim,
 	}, nil
 }
 
