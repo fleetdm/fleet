@@ -3776,12 +3776,15 @@ func (svc *MDMAppleCheckinAndCommandService) CommandAndReportResults(r *mdm.Requ
 		if cmdResult.Status == fleet.MDMAppleStatusError ||
 			cmdResult.Status == fleet.MDMAppleStatusCommandFormatError {
 
-			// Retry VPP install on any MDM error (up to MaxSoftwareInstallRetries attempts)
+			// Retry VPP install on any MDM error (up to MaxSoftwareInstallAttempts).
+			// N.b., VPP uses 0-based retry_count, so this comparison gives
+			// MaxSoftwareInstallAttempts retries (not attempts). This pre-dates
+			// the non-policy retry feature and is intentionally left as-is.
 			vppInstall, err := svc.ds.GetHostVPPInstallByCommandUUID(r.Context, cmdResult.CommandUUID)
 			if err != nil {
 				return nil, ctxerr.Wrap(r.Context, err, "fetching host vpp install by command uuid")
 			}
-			if vppInstall != nil && vppInstall.RetryCount < fleet.MaxSoftwareInstallRetries {
+			if vppInstall != nil && vppInstall.RetryCount < fleet.MaxSoftwareInstallAttempts {
 				if err := svc.ds.RetryVPPInstall(r.Context, vppInstall); err != nil {
 					return nil, ctxerr.Wrap(r.Context, err, "retrying VPP install for host")
 				}

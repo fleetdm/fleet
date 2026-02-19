@@ -1520,7 +1520,7 @@ func (svc *Service) SaveHostSoftwareInstallResult(ctx context.Context, result *f
 	// Check if a non-policy install failure will be retried so we can skip
 	// updating setup experience status during intermediate retries.
 	willRetryNonPolicyOnFailure := false
-	if attemptNumber != nil && *attemptNumber < fleet.MaxSoftwareInstallRetries && result.Status() == fleet.SoftwareInstallFailed {
+	if attemptNumber != nil && *attemptNumber < fleet.MaxSoftwareInstallAttempts && result.Status() == fleet.SoftwareInstallFailed {
 		currentInstall, checkErr := svc.ds.GetSoftwareInstallResults(ctx, result.InstallUUID)
 		if checkErr == nil && currentInstall != nil && currentInstall.PolicyID == nil {
 			willRetryNonPolicyOnFailure = true
@@ -1716,7 +1716,7 @@ func (svc *Service) shouldRetrySoftwareInstall(ctx context.Context, hsi *fleet.H
 	if hsi.AttemptNumber == nil {
 		return false, nil
 	}
-	return *hsi.AttemptNumber < fleet.MaxSoftwareInstallRetries, nil
+	return *hsi.AttemptNumber < fleet.MaxSoftwareInstallAttempts, nil
 }
 
 // retrySoftwareInstall queues a retry for a non-policy software install.

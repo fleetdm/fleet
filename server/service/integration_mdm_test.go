@@ -13644,10 +13644,10 @@ func (s *integrationMDMTestSuite) TestVPPApps() {
 		fmt.Sprint(team.ID), "software_title_id", fmt.Sprint(errTitleID))
 	require.Equal(t, 1, countResp.Count)
 
-	// Simulate failed installation on the host, exhaust retries (MaxSoftwareInstallRetries = 3)
+	// Simulate failed installation on the host, exhaust retries (MaxSoftwareInstallAttempts = 3)
 	// First error triggers retry 1, second triggers retry 2, third triggers retry 3,
 	// fourth exhausts retries and marks as failed.
-	for range fleet.MaxSoftwareInstallRetries + 1 {
+	for range fleet.MaxSoftwareInstallAttempts + 1 {
 		errorOnInstallApplicationCommand(1234)
 	}
 
@@ -19008,8 +19008,8 @@ func (s *integrationMDMTestSuite) TestCancelUpcomingActivity() {
 		}`, *mdmHost.OrbitNodeKey, hostActivitiesResp.Activities[1].UUID)), http.StatusNoContent)
 
 	// Exhaust automatic retries for the failed software install.
-	// Server-side retries queue up to MaxSoftwareInstallRetries attempts.
-	for attempt := 2; attempt <= fleet.MaxSoftwareInstallRetries; attempt++ {
+	// Server-side retries queue up to MaxSoftwareInstallAttempts attempts.
+	for attempt := 2; attempt <= fleet.MaxSoftwareInstallAttempts; attempt++ {
 		hostActivitiesResp = listHostUpcomingActivitiesResponse{}
 		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/activities/upcoming", mdmHost.ID), nil, http.StatusOK, &hostActivitiesResp)
 		require.Len(t, hostActivitiesResp.Activities, 1, "should have pending retry (attempt %d)", attempt)

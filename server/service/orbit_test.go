@@ -726,7 +726,7 @@ func TestShouldRetrySoftwareInstall(t *testing.T) {
 
 	t.Run("attempt at max returns false", func(t *testing.T) {
 		hsi := &fleet.HostSoftwareInstallerResult{
-			AttemptNumber: ptr.Int(fleet.MaxSoftwareInstallRetries),
+			AttemptNumber: ptr.Int(fleet.MaxSoftwareInstallAttempts),
 		}
 		shouldRetry, err := svc.shouldRetrySoftwareInstall(ctx, hsi)
 		require.NoError(t, err)
@@ -735,7 +735,7 @@ func TestShouldRetrySoftwareInstall(t *testing.T) {
 
 	t.Run("attempt above max returns false", func(t *testing.T) {
 		hsi := &fleet.HostSoftwareInstallerResult{
-			AttemptNumber: ptr.Int(fleet.MaxSoftwareInstallRetries + 1),
+			AttemptNumber: ptr.Int(fleet.MaxSoftwareInstallAttempts + 1),
 		}
 		shouldRetry, err := svc.shouldRetrySoftwareInstall(ctx, hsi)
 		require.NoError(t, err)

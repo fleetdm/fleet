@@ -1070,8 +1070,8 @@ type SoftwareScopeLabel struct {
 	TitleID   uint   `db:"title_id" json:"-"`  // not rendered in JSON, used to store the associated title ID (may be the empty value in some cases)
 }
 
-// Max times a non-policy software install will be retried on failure.
-const MaxSoftwareInstallRetries = 3
+// Max total attempts (including initial) for a non-policy software install.
+const MaxSoftwareInstallAttempts = 3
 
 // HostSoftwareInstallOptions contains options that apply to a software or VPP
 // app install request.
@@ -1085,8 +1085,8 @@ type HostSoftwareInstallOptions struct {
 	// UserID is an explicit user ID for retries (overrides context user when set).
 	UserID *uint
 	// WithRetries indicates the install should be retried on failure (up to
-	// MaxSoftwareInstallRetries). Set by host details, self-service, and
-	// setup experience install paths.
+	// MaxSoftwareInstallAttempts total). Set by host details, self-service,
+	// and setup experience install paths.
 	WithRetries bool
 }
 

@@ -14516,8 +14516,8 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareInstallerHostRequests() {
 	require.False(t, hostRespFailed.Host.RefetchRequested, "RefetchRequested should be false after failed software install")
 
 	// Exhaust automatic retries for h3 so it reaches terminal "failed" state.
-	// Server-side retries queue up to MaxSoftwareInstallRetries attempts.
-	for attempt := 2; attempt <= fleet.MaxSoftwareInstallRetries; attempt++ {
+	// Server-side retries queue up to MaxSoftwareInstallAttempts attempts.
+	for attempt := 2; attempt <= fleet.MaxSoftwareInstallAttempts; attempt++ {
 		getHostSoftwareResp = getHostSoftwareResponse{}
 		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/software", h3.ID), nil, http.StatusOK, &getHostSoftwareResp)
 		require.Len(t, getHostSoftwareResp.Software, 1)
@@ -14551,7 +14551,7 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareInstallerHostRequests() {
 	require.False(t, hostRespPreInstallFailed.Host.RefetchRequested, "RefetchRequested should be false after failed pre-install condition")
 
 	// Exhaust automatic retries for h4 so it reaches terminal "failed" state.
-	for attempt := 2; attempt <= fleet.MaxSoftwareInstallRetries; attempt++ {
+	for attempt := 2; attempt <= fleet.MaxSoftwareInstallAttempts; attempt++ {
 		getHostSoftwareResp = getHostSoftwareResponse{}
 		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/software", h4.ID), nil, http.StatusOK, &getHostSoftwareResp)
 		require.Len(t, getHostSoftwareResp.Software, 1)
