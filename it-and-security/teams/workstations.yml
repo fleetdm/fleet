@@ -156,6 +156,7 @@ policies:
 queries:
   - path: ../lib/macos/queries/detect-apple-intelligence.yml
   - path: ../lib/macos/queries/collect-santa-denied-logs.yml
+  - path: ../lib/all/queries/dex-queries.yml
 software:
   packages:
     # macOS apps

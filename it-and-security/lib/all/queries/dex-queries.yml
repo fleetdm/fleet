@@ -1,0 +1,69 @@
+- name: DEX - Hardware Inventory - System Information
+  description: Comprehensive system hardware identification including model, serial, manufacturer, and form factor.
+  query: |
+    SELECT
+      si.hostname,
+      si.computer_name,
+      si.hardware_vendor,
+      si.hardware_model,
+      si.hardware_serial,
+      si.cpu_type,
+      si.cpu_brand,
+      si.cpu_physical_cores,
+      si.cpu_logical_cores,
+      si.physical_memory,
+      ROUND(CAST(si.physical_memory AS REAL) / 1073741824, 2) AS memory_gb,
+      si.hardware_version,
+      si.board_vendor,
+      si.board_model
+    FROM system_info si;
+  platform: darwin,linux,windows
+  automations_enabled: true
+  logging: snapshot
+  interval: 300
+- name: DEX - Application Experience - macOS Running Apps
+  description: Currently running macOS applications and their activity status. Joined with processes for resource details.
+  query: |
+    SELECT
+      ra.pid,
+      ra.bundle_identifier,
+      ra.is_active,
+      p.name,
+      p.path,
+      ROUND(p.resident_size / 1048576.0, 2) AS memory_mb,
+      p.threads
+    FROM running_apps ra
+    JOIN processes p ON ra.pid = p.pid;
+  platform: darwin
+  automations_enabled: true
+  logging: snapshot
+  interval: 300
+- name: DEX - Network Experience - WiFi Signal Quality
+  description: WiFi connection signal strength and quality metrics. Poor WiFi directly impacts cloud application performance and user experience.
+  query: |
+    SELECT
+        interface,
+        ssid,
+        bssid,
+        network_name,
+        country_code,
+        rssi,
+        noise,
+        (rssi - noise) AS signal_to_noise_ratio,
+        channel,
+        channel_width,
+        channel_band,
+        transmit_rate,
+        security_type,
+        CASE
+          WHEN rssi >= -50 THEN 'excellent'
+          WHEN rssi >= -60 THEN 'good'
+          WHEN rssi >= -70 THEN 'fair'
+          WHEN rssi >= -80 THEN 'weak'
+          ELSE 'very_weak'
+        END AS signal_quality
+      FROM wifi_status
+  platform: darwin
+  automations_enabled: true
+  logging: snapshot
+  interval: 300
