@@ -3,6 +3,8 @@ package com.fleetdm.agent
 import android.content.Context
 import android.util.Log
 import java.io.File
+import java.nio.file.Files
+import java.nio.file.StandardCopyOption
 import java.time.Instant
 
 /**
@@ -18,7 +20,7 @@ object FleetLog {
     private const val LOG_FILE_NAME = "fleet_errors.log"
     private const val MAX_SIZE_BYTES = 512 * 1024L // 512 KB
 
-    private var logFile: File? = null
+    @Volatile private var logFile: File? = null
 
     fun initialize(context: Context) {
         logFile = File(context.filesDir, LOG_FILE_NAME)
@@ -31,6 +33,7 @@ object FleetLog {
 
     fun readErrors(): String = logFile?.takeIf { it.exists() }?.readText() ?: ""
 
+    @Synchronized
     private fun appendToFile(tag: String, msg: String, throwable: Throwable?) {
         val file = logFile ?: return
         try {

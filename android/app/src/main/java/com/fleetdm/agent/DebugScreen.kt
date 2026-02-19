@@ -78,10 +78,14 @@ fun DebugScreen(onNavigateBack: () -> Unit, onNavigateToLogs: () -> Unit) {
     val context = LocalContext.current
 
     val restrictionsManager = context.getSystemService(RestrictionsManager::class.java)
-        ?: error("RestrictionsManager not available")
-    val appRestrictions = restrictionsManager.applicationRestrictions
     val dpm = context.getSystemService(DevicePolicyManager::class.java)
-        ?: error("DevicePolicyManager not available")
+
+    if (restrictionsManager == null || dpm == null) {
+        Text("Debug information unavailable: system services not available")
+        return
+    }
+
+    val appRestrictions = restrictionsManager.applicationRestrictions
 
     val orchestrator = remember { AgentApplication.getCertificateOrchestrator(context) }
     val delegatedScopes = remember { dpm.getDelegatedScopes(null, context.packageName).toList() }
@@ -127,13 +131,17 @@ fun DebugScreen(onNavigateBack: () -> Unit, onNavigateToLogs: () -> Unit) {
                     }
                     IconButton(onClick = {
                         val clipboard = context.getSystemService(ClipboardManager::class.java)
-                            ?: error("ClipboardManager not available")
+                        if (clipboard == null) {
+                            Toast.makeText(context, "Clipboard not available", Toast.LENGTH_SHORT).show()
+                            return@IconButton
+                        }
                         val info = DebugInformation(
                             packageName = context.packageName,
                             versionName = BuildConfig.VERSION_NAME,
-                            longVersionCode = BuildConfig.VERSION_CODE,
+                            longVersionCode = BuildConfig.VERSION_CODE.toLong(),
                             delegatedScopes = delegatedScopes,
                             serverUrl = baseUrl,
+                            hostUuidMasked = enrollmentSpecificID,
                             certificateStatus = installedCerts,
                             permissionList = permissionsList,
                             lastError = lastError,
@@ -260,11 +268,13 @@ data class DebugInformation(
     @SerialName("version_name")
     val versionName: String,
     @SerialName("long_version_code")
-    val longVersionCode: Int,
+    val longVersionCode: Long,
     @SerialName("delegated_scopes")
     val delegatedScopes: List<String>,
     @SerialName("server_url")
     val serverUrl: String?,
+    @SerialName("host_uuid_masked")
+    val hostUuidMasked: String?,
     @SerialName("certificate_status")
     val certificateStatus: CertificateStateMap,
     @SerialName("permission_list")
