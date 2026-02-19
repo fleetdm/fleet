@@ -396,7 +396,7 @@ func (g *GroupHandler) Patch(r *http.Request, id string, operations []scim.Patch
 	return createGroupResource(group), nil
 }
 
-func (g *GroupHandler) patchExternalId(ctx context.Context, op string, v interface{}, group *fleet.ScimGroup) error {
+func (g *GroupHandler) patchExternalId(ctx context.Context, op string, v any, group *fleet.ScimGroup) error {
 	if op == scim.PatchOperationRemove || v == nil {
 		group.ExternalID = nil
 		return nil
@@ -410,7 +410,7 @@ func (g *GroupHandler) patchExternalId(ctx context.Context, op string, v interfa
 	return nil
 }
 
-func (g *GroupHandler) patchDisplayName(ctx context.Context, op string, v interface{}, group *fleet.ScimGroup) error {
+func (g *GroupHandler) patchDisplayName(ctx context.Context, op string, v any, group *fleet.ScimGroup) error {
 	if op == scim.PatchOperationRemove {
 		g.logger.InfoContext(ctx, "cannot remove required attribute", "attribute", displayNameAttr)
 		return errors.ScimErrorBadParams([]string{fmt.Sprintf("%v", op)})

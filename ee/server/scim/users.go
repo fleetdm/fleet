@@ -958,7 +958,7 @@ func (u *UserHandler) getEmailType(ctx context.Context, op scim.PatchOperation) 
 	return emailType, nil
 }
 
-func getConcreteType[T string | bool](ctx context.Context, u *UserHandler, v interface{}, name string) (T, error) {
+func getConcreteType[T string | bool](ctx context.Context, u *UserHandler, v any, name string) (T, error) {
 	concreteType, ok := v.(T)
 	if !ok {
 		var zeroValue T
@@ -968,7 +968,7 @@ func getConcreteType[T string | bool](ctx context.Context, u *UserHandler, v int
 	return concreteType, nil
 }
 
-func (u *UserHandler) patchFamilyName(ctx context.Context, op string, v interface{}, user *fleet.ScimUser) error {
+func (u *UserHandler) patchFamilyName(ctx context.Context, op string, v any, user *fleet.ScimUser) error {
 	if op == scim.PatchOperationRemove {
 		u.logger.InfoContext(ctx, "cannot remove required attribute", "attribute", nameAttr+"."+familyNameAttr)
 		return errors.ScimErrorBadParams([]string{fmt.Sprintf("%v", op)})
@@ -981,7 +981,7 @@ func (u *UserHandler) patchFamilyName(ctx context.Context, op string, v interfac
 	return nil
 }
 
-func (u *UserHandler) patchGivenName(ctx context.Context, op string, v interface{}, user *fleet.ScimUser) error {
+func (u *UserHandler) patchGivenName(ctx context.Context, op string, v any, user *fleet.ScimUser) error {
 	if op == scim.PatchOperationRemove {
 		u.logger.InfoContext(ctx, "cannot remove required attribute", "attribute", nameAttr+"."+givenNameAttr)
 		return errors.ScimErrorBadParams([]string{fmt.Sprintf("%v", op)})
@@ -994,7 +994,7 @@ func (u *UserHandler) patchGivenName(ctx context.Context, op string, v interface
 	return nil
 }
 
-func (u *UserHandler) patchActive(ctx context.Context, op string, v interface{}, user *fleet.ScimUser) error {
+func (u *UserHandler) patchActive(ctx context.Context, op string, v any, user *fleet.ScimUser) error {
 	if op == scim.PatchOperationRemove || v == nil {
 		user.Active = nil
 		return nil
@@ -1007,7 +1007,7 @@ func (u *UserHandler) patchActive(ctx context.Context, op string, v interface{},
 	return nil
 }
 
-func (u *UserHandler) patchExternalId(ctx context.Context, op string, v interface{}, user *fleet.ScimUser) error {
+func (u *UserHandler) patchExternalId(ctx context.Context, op string, v any, user *fleet.ScimUser) error {
 	if op == scim.PatchOperationRemove || v == nil {
 		user.ExternalID = nil
 		return nil
@@ -1020,7 +1020,7 @@ func (u *UserHandler) patchExternalId(ctx context.Context, op string, v interfac
 	return nil
 }
 
-func (u *UserHandler) patchUserName(ctx context.Context, op string, v interface{}, user *fleet.ScimUser) error {
+func (u *UserHandler) patchUserName(ctx context.Context, op string, v any, user *fleet.ScimUser) error {
 	if op == scim.PatchOperationRemove {
 		u.logger.InfoContext(ctx, "cannot remove required attribute", "attribute", userNameAttr)
 		return errors.ScimErrorBadParams([]string{fmt.Sprintf("%v", op)})
@@ -1037,7 +1037,7 @@ func (u *UserHandler) patchUserName(ctx context.Context, op string, v interface{
 	return nil
 }
 
-func (u *UserHandler) patchDepartment(ctx context.Context, op string, v interface{}, user *fleet.ScimUser) error {
+func (u *UserHandler) patchDepartment(ctx context.Context, op string, v any, user *fleet.ScimUser) error {
 	if op == scim.PatchOperationRemove || v == nil {
 		user.Department = nil
 		return nil
@@ -1059,7 +1059,7 @@ func clearPrimaryFlagFromEmails(user *fleet.ScimUser) {
 }
 
 func (u *UserHandler) patchEmails(
-	ctx context.Context, v interface{}, op scim.PatchOperation, user *fleet.ScimUser,
+	ctx context.Context, v any, op scim.PatchOperation, user *fleet.ScimUser,
 ) error {
 	if op.Op == scim.PatchOperationRemove {
 		user.Emails = nil
@@ -1127,7 +1127,7 @@ func (u *UserHandler) checkEmailPrimary(ctx context.Context, userEmails []fleet.
 }
 
 func (u *UserHandler) extractEmail(
-	ctx context.Context, emailIntf interface{}, op scim.PatchOperation,
+	ctx context.Context, emailIntf any, op scim.PatchOperation,
 ) (fleet.ScimUserEmail, error) {
 	emailMap, ok := emailIntf.(map[string]interface{})
 	if !ok {
@@ -1168,7 +1168,7 @@ func (u *UserHandler) extractEmail(
 	return userEmail, nil
 }
 
-func (u *UserHandler) patchName(ctx context.Context, v interface{}, op scim.PatchOperation, user *fleet.ScimUser) error {
+func (u *UserHandler) patchName(ctx context.Context, v any, op scim.PatchOperation, user *fleet.ScimUser) error {
 	if op.Op == scim.PatchOperationRemove {
 		u.logger.InfoContext(ctx, "cannot remove required attribute", "attribute", nameAttr)
 		return errors.ScimErrorBadParams([]string{fmt.Sprintf("%v", op)})
