@@ -1,1 +1,36 @@
-# todo
+# # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
+#
+# default.yml
+# 
+# Use default.yml to configure top-level settings for your
+# organization as a whole, and controls/reports/etc that
+# apply to all of your fleets. 
+#
+# For more, see:
+#   https://fleetdm.com/docs/anatomy/default.yml
+#
+# # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
+
+labels:
+  - path: ./labels/apple-silicon-macos-hosts.yml
+  - path: ./labels/arm-based-windows-hosts.yml
+  - path: ./labels/debian-based-linux-hosts.yml
+  - path: ./labels/x86-based-windows-hosts.yml
+policies:
+reports:
+controls:
+  enable_disk_encryption: true  # TODO: (*)
+  macos_migration: # TODO: (*) Probably worth having this commented out.
+    enable: true
+    mode: voluntary
+    # webhook_url: $DOGFOOD_MACOS_MIGRATION_WEBHOOK_URL #TODO: Instead of 'DOGFOOD' prefix for these, lets use something that works for every Fleet user and include it in comments by default
+  windows_enabled_and_configured: true # TODO: Redundant.  If URL is there, it is enabled.  If you want to keep URL and disable it, then you can add this, but let's omit it from boilerplate.
+  windows_migration_enabled: true # TODO: What is the default?  If this, then omit.  If 50%+ it has to be changed, then default to quickstart behavior and then leave commented-out hint
+agent_options:  # TODO: Guessing we're using defaults, right?  If so, can omit.  Else try inlining them (though list key at the bottom so it doesn't distract from other more important parts of this file)
+org_settings: # TODO: apply updates from dogfood's it-and-security/default.yml
+  server_settings:
+    server_url: $FLEET_URL
+  org_info:
+    org_name: Fleet
+  secrets:
+    - secret: "$FLEET_GLOBAL_ENROLL_SECRET" # TODO delete?
