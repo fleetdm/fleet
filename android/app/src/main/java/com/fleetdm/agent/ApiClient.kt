@@ -171,7 +171,7 @@ object ApiClient : CertificateApiClient {
                     ?: "HTTP $responseCode"
             }
 
-            Log.d(TAG, "server response from $method $endpoint ($responseCode): $response")
+            Log.d(TAG, "server response from $method $endpoint ($responseCode)")
 
             if (responseCode in 200..299) {
                 val parsed = json.decodeFromString(string = response, deserializer = responseSerializer)
