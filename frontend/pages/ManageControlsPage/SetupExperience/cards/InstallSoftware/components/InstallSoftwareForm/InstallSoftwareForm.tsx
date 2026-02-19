@@ -294,7 +294,11 @@ const InstallSoftwareForm = ({
               tipOffset={12}
             >
               <Button
-                disabled={disableChildren || isSaving}
+                disabled={
+                  disableChildren ||
+                  isSaving ||
+                  manualAgentInstallBlockingSoftware
+                }
                 isLoading={isSaving}
                 type="submit"
               >

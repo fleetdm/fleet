@@ -1,6 +1,6 @@
 import React from "react";
-import { render, screen, waitFor } from "@testing-library/react";
-import { createMockRouter, renderWithSetup } from "test/test-utils";
+import { screen, waitFor } from "@testing-library/react";
+import { createMockRouter, createCustomRenderer } from "test/test-utils";
 import { noop } from "lodash";
 import { SETUP_EXPERIENCE_PLATFORMS } from "interfaces/platform";
 
@@ -10,6 +10,8 @@ import {
 } from "__mocks__/softwareMock";
 
 import InstallSoftwareForm from "./InstallSoftwareForm";
+
+const render = createCustomRenderer({ withBackendMock: true });
 
 describe("InstallSoftware", () => {
   it("should render the expected message if there are no software titles to select from", () => {
@@ -25,7 +27,8 @@ describe("InstallSoftware", () => {
       />
     );
 
-    expect(screen.getByText(/you can add software on the/i)).toBeVisible();
+    expect(screen.getByText(/No software available to install/i)).toBeVisible();
+    expect(screen.getByRole("button", { name: "Add software" })).toBeVisible();
   });
 
   it("should render the correct messaging when there are software titles but none have been selected to install at setup", () => {
@@ -41,12 +44,12 @@ describe("InstallSoftware", () => {
       />
     );
 
-    expect(screen.getByText(/No software selected/)).toBeVisible();
-    expect(screen.queryByRole("button", { name: "Add software" })).toBeNull();
+    expect(screen.getByText(/0 software items/)).toBeVisible();
+    expect(screen.getByText(/installed during setup/)).toBeVisible();
   });
 
   it("should render the correct messaging when there are software titles that have been selected to install at setup", async () => {
-    const { user } = renderWithSetup(
+    const { user } = render(
       <InstallSoftwareForm
         savedRequireAllSoftwareMacOS={false}
         currentTeamId={1}
@@ -72,16 +75,8 @@ describe("InstallSoftware", () => {
       />
     );
 
-    expect(
-      screen.getByText(
-        (_, element) =>
-          element?.textContent ===
-          "2 software items will be installed during setup."
-      )
-    ).toBeVisible();
-    expect(
-      screen.getByRole("button", { name: "Select software" })
-    ).toBeVisible();
+    expect(screen.getByText(/2 software items/)).toBeVisible();
+    expect(screen.getByText(/installed during setup/)).toBeVisible();
 
     await user.hover(screen.getByText("installed during setup"));
 
@@ -94,7 +89,7 @@ describe("InstallSoftware", () => {
   });
 
   it("should render the correct messaging for Android when there are software titles that have been selected to install at setup", async () => {
-    const { user } = renderWithSetup(
+    const { user } = render(
       <InstallSoftwareForm
         savedRequireAllSoftwareMacOS={false}
         currentTeamId={1}
@@ -120,16 +115,8 @@ describe("InstallSoftware", () => {
       />
     );
 
-    expect(
-      screen.getByText(
-        (_, element) =>
-          element?.textContent ===
-          "2 software items will be installed during setup."
-      )
-    ).toBeVisible();
-    expect(
-      screen.getByRole("button", { name: "Select software" })
-    ).toBeVisible();
+    expect(screen.getByText(/2 software items/)).toBeVisible();
+    expect(screen.getByText(/installed during setup/)).toBeVisible();
 
     await user.hover(screen.getByText("installed during setup"));
 
@@ -188,11 +175,11 @@ describe("InstallSoftware", () => {
       />
     );
 
-    const addSoftwareButton = screen.getByRole("button", {
-      name: "Select software",
+    const saveButton = screen.getByRole("button", {
+      name: "Save",
     });
-    expect(addSoftwareButton).toBeVisible();
-    expect(addSoftwareButton).toBeDisabled();
+    expect(saveButton).toBeVisible();
+    expect(saveButton).toBeDisabled();
   });
 
   it.each(SETUP_EXPERIENCE_PLATFORMS.filter((val) => val !== "macos"))(
@@ -213,11 +200,11 @@ describe("InstallSoftware", () => {
         />
       );
 
-      const addSoftwareButton = screen.getByRole("button", {
-        name: "Select software",
+      const saveButton = screen.getByRole("button", {
+        name: "Save",
       });
-      expect(addSoftwareButton).toBeVisible();
-      expect(addSoftwareButton).not.toBeDisabled();
+      expect(saveButton).toBeVisible();
+      expect(saveButton).not.toBeDisabled();
     }
   );
 });
