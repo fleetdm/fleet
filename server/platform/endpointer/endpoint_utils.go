@@ -143,9 +143,8 @@ func extractAliasRulesFromType(t reflect.Type, seen map[AliasRule]bool, rules *[
 // elemType dereferences pointer, slice, array, and map types to find the
 // underlying (possibly struct) element type.
 func elemType(t reflect.Type) reflect.Type {
-	elemKind := t.Kind()
-	if elemKind == reflect.Ptr || elemKind == reflect.Slice || elemKind == reflect.Array || elemKind == reflect.Map {
-		return t.Elem()
+	for t.Kind() == reflect.Ptr || t.Kind() == reflect.Slice || t.Kind() == reflect.Array || t.Kind() == reflect.Map {
+		t = t.Elem()
 	}
 	return t
 }
