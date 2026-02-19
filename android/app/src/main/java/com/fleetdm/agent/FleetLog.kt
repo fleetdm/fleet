@@ -37,7 +37,9 @@ object FleetLog {
             if (file.exists() && file.length() > MAX_SIZE_BYTES) {
                 val backup = File(file.parent, "$LOG_FILE_NAME.1")
                 backup.delete()
-                file.renameTo(backup)
+                if (!file.renameTo(backup)) {
+                    Log.w(TAG, "Failed to rotate log file; continuing to append to existing file")
+                }
             }
 
             val timestamp = Instant.now().toString()
