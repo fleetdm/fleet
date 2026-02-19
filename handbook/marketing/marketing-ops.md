@@ -281,11 +281,11 @@ At Fleet, we maintain a strict separation between contacts we *can* legally emai
 
 We do not rely on "implied" logic (e.g., "If they have an email, email them"). Instead, we use a dedicated status field on the Contact object to act as the single source of truth.
 
-### The "Marketing Status" definitions
+### The "marketing status" definitions
 
 The `Marketing_Status__c` picklist is the master switch for a contact's eligibility. Every contact in Salesforce must fall into one of the following buckets:
 
-| Status Value | Definition | Can Marketing Email? | Can Sales Email? |
+| Status value | Definition | Can marketing email? | Can sales email? |
 | --- | --- | --- | --- |
 | **Marketable** | The contact has **explicitly opted in** (e.g., Trial signup, Webinar reg, Newsletter form) or is an active customer with marketing consent. | ✅ **Yes** | ✅ **Yes** |
 | **Transactional Only** | The contact is a user or customer (e.g., Fleet Free tier) but has **not** opted into marketing. They receive *only* critical system alerts, billing, or security notices. | ❌ **No** | ✅ **Yes** (Contextual) |
@@ -316,30 +316,30 @@ To support this status, we use three additional fields to track the "Who, When, 
 
 We generally do not manually update these fields. A Salesforce Flow acts as a "Traffic Cop" to standardize data entering from different sources.
 
-**1. Inbound Sources (Marketable)**
+**1. Inbound sources (marketable)**
 
-* **Triggers:** Website forms, Trial signups, Event badge scans.
-* **Result:** Status  `Marketable`.
-* **Reason Stamped:** "Inbound Form Fill: [Form Name]"
+- **Triggers:** Website forms, Trial signups, Event badge scans.
+- **Result:** Status  `Marketable`.
+- **Reason Stamped:** "Inbound Form Fill: [Form Name]"
 
-**2. Outbound/Enrichment Sources (Cold)**
+**2. Outbound/enrichment sources (cold)**
 
-* **Triggers:** Clay enrichment, Snitcher identification, ZoomInfo imports.
-* **Result:** Status  `Cold/Prospect`.
-* **Reason Stamped:** "Enriched via Clay - Cold"
-* **Note:** These contacts are synced to sales tools (Outreach/Apollo) for 1:1 prospecting but are **excluded** from marketing newsletters.
+- **Triggers:** Clay enrichment, Snitcher identification, ZoomInfo imports.
+- **Result:** Status  `Cold/Prospect`.
+- **Reason stamped:** "Enriched via Clay - Cold"
+- **Note:** These contacts are synced to sales tools (Outreach/Apollo) for 1:1 prospecting but are **excluded** from marketing newsletters.
 
 **3. Opt-Outs (Unsubscribed)**
 
-* **Triggers:** User clicks "Unsubscribe" in email, or `HasOptedOutOfEmail` is checked in SFDC.
-* **Result:** Status  `Unsubscribed`.
-* **Rule:** This is permanent. A "Cold" lead can become "Marketable" (by filling a form), but an "Unsubscribed" contact is locked unless they manually re-subscribe.
+- **Triggers:** User clicks "Unsubscribe" in email, or `HasOptedOutOfEmail` is checked in SFDC.
+- **Result:** Status  `Unsubscribed`.
+- **Rule:** This is permanent. A "Cold" lead can become "Marketable" (by filling a form), but an "Unsubscribed" contact is locked unless they manually re-subscribe.
 
 ### Why this matters
 
-* **Compliance:** We must be able to prove *when* and *how* someone consented to receive emails.
-* **Deliverability:** Sending marketing blasts to "Cold" data (Clay lists) ruins domain reputation. We keep those lists separate for low-volume, high-relevance sales outreach only.
-* **Debugging:** If a VIP prospect stops receiving emails, the `Status Reason` tells us if it was a system error (Bounce) or human error (Sales marked "Do Not Contact").
+- **Compliance:** We must be able to prove *when* and *how* someone consented to receive emails.
+- **Deliverability:** Sending marketing blasts to "Cold" data (Clay lists) ruins domain reputation. We keep those lists separate for low-volume, high-relevance sales outreach only.
+- **Debugging:** If a VIP prospect stops receiving emails, the `Status Reason` tells us if it was a system error (Bounce) or human error (Sales marked "Do Not Contact").
 
 <meta name="maintainedBy" value="johnjeremiah">
 <meta name="title" value="🫧 Marketing Ops">
