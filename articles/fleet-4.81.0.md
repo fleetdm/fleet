@@ -24,7 +24,9 @@ When a user is removed from your identitify provider (IdP), like Okta, they’re
 
 ### Okta as a certificate authority (CA) with a dynamic challenge
 
-Fleet now supports dynamic challenges when deploying certificates for Okta Verify. Each host gets a unique secret at enrollment, strengthening security. [Learn how](TODO).
+Fleet now supports dynamic challenges when deploying certificates for Okta Verify. Each host gets a unique secret at enrollment, strengthening security. 
+
+To configure Okta as a CA, in Fleet, head to **Settings > Integrations > Certificate authorities**, select **Add CA**, and choose **Okta CA or Microsoft Device Enrollment service (NDES)**. Okta uses NDES under the hood. If you're using static challenges with Okta's CA, choose **Custom Simple Certificate Enrollment Protocol (SCEP)** instead.
 
 ### Proxy-ready Fleet Desktop configuration
 
