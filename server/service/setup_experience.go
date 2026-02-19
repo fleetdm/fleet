@@ -138,7 +138,7 @@ type setSetupExperienceScriptRequest struct {
 func (setSetupExperienceScriptRequest) DecodeRequest(ctx context.Context, r *http.Request) (interface{}, error) {
 	var decoded setSetupExperienceScriptRequest
 
-	err := r.ParseMultipartForm(platform_http.MaxMultipartFormSize)
+	err := parseMultipartForm(ctx, r, platform_http.MaxMultipartFormSize)
 	if err != nil {
 		return nil, &fleet.BadRequestError{
 			Message:     "failed to parse multipart form",
@@ -146,15 +146,15 @@ func (setSetupExperienceScriptRequest) DecodeRequest(ctx context.Context, r *htt
 		}
 	}
 
-	val := r.MultipartForm.Value["team_id"]
+	val := r.MultipartForm.Value["fleet_id"]
 	if len(val) > 0 {
-		teamID, err := strconv.ParseUint(val[0], 10, 64)
+		fleetID, err := strconv.ParseUint(val[0], 10, 64)
 		if err != nil {
-			return nil, &fleet.BadRequestError{Message: fmt.Sprintf("failed to decode team_id in multipart form: %s", err.Error())}
+			return nil, &fleet.BadRequestError{Message: fmt.Sprintf("failed to decode fleet_id in multipart form: %s", err.Error())}
 		}
 		// // TODO: do we want to allow end users to specify team_id=0? if so, we'll need to convert it to nil here so that we can
 		// // use it in the auth layer where team_id=0 is not allowed?
-		decoded.TeamID = ptr.Uint(uint(teamID))
+		decoded.TeamID = ptr.Uint(uint(fleetID)) // nolint:gosec // ignore G115
 	}
 
 	fhs, ok := r.MultipartForm.File["script"]
