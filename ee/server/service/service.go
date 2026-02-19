@@ -75,7 +75,7 @@ func NewService(
 		depStorage:             depStorage,
 		mdmAppleCommander:      mdmAppleCommander,
 		ssoSessionStore:        sso,
-		depService:             apple_mdm.NewDEPService(ds, depStorage, logger),
+		depService:             apple_mdm.NewDEPService(ds, depStorage, logger.SlogLogger()),
 		profileMatcher:         profileMatcher,
 		softwareInstallStore:   softwareInstallStore,
 		bootstrapPackageStore:  bootstrapPackageStore,
