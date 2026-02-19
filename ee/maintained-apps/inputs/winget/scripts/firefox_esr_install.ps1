@@ -2,22 +2,44 @@
 # http://fleetdm.com/learn-more-about/exe-install-scripts
 
 $exeFilePath = "${env:INSTALLER_PATH}"
+$timeoutSeconds = 240
 
 try {
 
-# Silent install flags from winget manifest for Mozilla.Firefox.ESR (nullsoft installer)
-$processOptions = @{
-  FilePath = "$exeFilePath"
-  ArgumentList = "/S"
-  PassThru = $true
-  Wait = $true
+Write-Host "Installer path: $exeFilePath"
+Write-Host "File exists: $(Test-Path $exeFilePath)"
+
+# Check for any Firefox-related processes
+$mozProcs = Get-Process | Where-Object { $_.Name -match "firefox|mozilla|maintenance" } | Select-Object Name, Id
+if ($mozProcs) {
+    Write-Host "Found Mozilla-related processes:"
+    $mozProcs | ForEach-Object { Write-Host "  $($_.Name) (PID: $($_.Id))" }
+} else {
+    Write-Host "No Mozilla-related processes found"
 }
 
-# Start process and track exit code
-$process = Start-Process @processOptions
-$exitCode = $process.ExitCode
+# Check for existing Firefox directories
+$ffDir = "C:\Program Files\Mozilla Firefox"
+Write-Host "Existing Firefox dir present: $(Test-Path $ffDir)"
 
-# Prints the exit code
+Write-Host "Starting installer with /S flag..."
+$process = Start-Process -FilePath "$exeFilePath" -ArgumentList "/S" -PassThru
+Write-Host "Installer PID: $($process.Id)"
+
+$completed = $process.WaitForExit($timeoutSeconds * 1000)
+
+if (-not $completed) {
+    Write-Host "Timed out after $timeoutSeconds seconds"
+    # Dump what processes are running
+    Write-Host "Mozilla-related processes still running:"
+    Get-Process | Where-Object { $_.Name -match "firefox|mozilla|setup|maintenance" } | ForEach-Object {
+        Write-Host "  $($_.Name) (PID: $($_.Id))"
+    }
+    $process.Kill()
+    Exit 1
+}
+
+$exitCode = $process.ExitCode
 Write-Host "Install exit code: $exitCode"
 Exit $exitCode
 
