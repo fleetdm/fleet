@@ -116,7 +116,7 @@ describe("Host Actions Dropdown", () => {
 
       expect(
         screen.getByText("Live report").parentElement?.parentElement?.parentElement
-        ).toHaveClass("actions-dropdown-select__option--is-disabled");
+      ).toHaveClass("actions-dropdown-select__option--is-disabled");
 
       await waitFor(() => {
         waitFor(() => {
