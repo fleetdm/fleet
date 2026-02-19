@@ -1,0 +1,2 @@
+- Fixed adding Windows Fleet maintained apps failing when a software title with the same upgrade code already exists.
+- Added ability for Fleet maintained apps to update software title names if an upgrade code is present.
