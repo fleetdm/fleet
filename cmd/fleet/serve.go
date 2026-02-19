@@ -423,9 +423,9 @@ the way that the Fleet server works.
 			ds = redisWrapperDS
 
 			resultStore := pubsub.NewRedisQueryResults(redisPool, config.Redis.DuplicateResults,
-				logger.With("component", "query-results"),
+				logger.SlogLogger().With("component", "query-results"),
 			)
-			liveQueryStore := live_query.NewRedisLiveQuery(redisPool, logger, liveQueryMemCacheDuration)
+			liveQueryStore := live_query.NewRedisLiveQuery(redisPool, logger.SlogLogger(), liveQueryMemCacheDuration)
 			ssoSessionStore := sso.NewSessionStore(redisPool)
 
 			// Set common configuration for all logging.
@@ -557,7 +557,7 @@ the way that the Fleet server works.
 			var geoIP fleet.GeoIP
 			geoIP = &fleet.NoOpGeoIP{}
 			if config.GeoIP.DatabasePath != "" {
-				maxmind, err := fleet.NewMaxMindGeoIP(logger, config.GeoIP.DatabasePath)
+				maxmind, err := fleet.NewMaxMindGeoIP(logger.SlogLogger(), config.GeoIP.DatabasePath)
 				if err != nil {
 					level.Error(logger).Log("msg", "failed to initialize maxmind geoip, check database path", "database_path",
 						config.GeoIP.DatabasePath, "error", err)
@@ -853,7 +853,7 @@ the way that the Fleet server works.
 				}
 			}
 
-			eh := errorstore.NewHandler(ctx, redisPool, logger, config.Logging.ErrorRetentionPeriod)
+			eh := errorstore.NewHandler(ctx, redisPool, logger.SlogLogger(), config.Logging.ErrorRetentionPeriod)
 			scepConfigMgr := eeservice.NewSCEPConfigService(logger, nil)
 			digiCertService := digicert.NewService(digicert.WithLogger(logger))
 			ctx = ctxerr.NewContext(ctx, eh)
@@ -1497,7 +1497,7 @@ the way that the Fleet server works.
 				if err = service.RegisterSCEPProxy(rootMux, ds, logger, nil, &config); err != nil {
 					initFatal(err, "setup SCEP proxy")
 				}
-				if err = scim.RegisterSCIM(rootMux, ds, svc, logger, &config); err != nil {
+				if err = scim.RegisterSCIM(rootMux, ds, svc, logger.SlogLogger(), &config); err != nil {
 					initFatal(err, "setup SCIM")
 				}
 				// Host identify and conditional access SCEP feature only works if a private key has been set up
