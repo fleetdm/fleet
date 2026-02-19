@@ -67,6 +67,7 @@ fun LogsScreen(onNavigateBack: () -> Unit) {
                     "fleet-DeviceKeystoreManager",
                     "fleet-boot",
                     "fleet-RoleNotificationReceiverService",
+                    "fleet-crash",
                 )
                 val filterArgs = fleetTags.map { "$it:${selectedLevel.logcatCode}" } + listOf("*:S")
                 val command = listOf("logcat", "-d") + filterArgs
