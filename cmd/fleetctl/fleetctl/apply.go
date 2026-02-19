@@ -49,6 +49,8 @@ func applyCommand() *cli.Command {
 			configFlag(),
 			contextFlag(),
 			debugFlag(),
+			enableLogTopicsFlag(),
+			disableLogTopicsFlag(),
 		},
 		Action: func(c *cli.Context) error {
 			if flFilename == "" {
@@ -72,12 +74,15 @@ func applyCommand() *cli.Command {
 				return fmt.Errorf("Invalid file extension %s: only .yml or .yaml files can be applied", ext)
 			}
 
-			specs, err := spec.GroupFromBytes(b)
-			if err != nil {
-				return err
-			}
 			logf := func(format string, a ...interface{}) {
 				fmt.Fprintf(c.App.Writer, format, a...)
+			}
+
+			specs, err := spec.GroupFromBytes(b, spec.GroupFromBytesOpts{
+				LogFn: logf,
+			})
+			if err != nil {
+				return err
 			}
 
 			opts := fleet.ApplyClientSpecOptions{
