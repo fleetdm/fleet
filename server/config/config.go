@@ -277,8 +277,8 @@ type LoggingConfig struct {
 	// OtelLogsEnabled enables exporting logs to an OpenTelemetry collector.
 	// When enabled, logs are sent to both stderr and the OTLP endpoint.
 	OtelLogsEnabled  bool   `yaml:"otel_logs_enabled"`
-	EnableLogTopics  string `yaml:"enable_log_topics"`
-	DisableLogTopics string `yaml:"disable_log_topics"`
+	EnableLogTopics  string `yaml:"enable_topics"`
+	DisableLogTopics string `yaml:"disable_topics"`
 }
 
 // ActivityConfig defines configs related to activities.
