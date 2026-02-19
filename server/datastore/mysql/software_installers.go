@@ -510,9 +510,15 @@ func (ds *Datastore) getOrGenerateSoftwareInstallerTitleID(ctx context.Context, 
 	insertStmt := `INSERT INTO software_titles (name, source, extension_for) VALUES (?, ?, '')`
 	insertArgs := []any{payload.Title, payload.Source}
 
-	// upgrade_code should be NULL for non-Windows software, empty or non-empty string for Windows
-	// software
+	// upgrade_code should be set to NULL for non-Windows software, empty or non-empty string for Windows software
 	if payload.Source == "programs" {
+		// try to find by either name or upgrade code, preferring upgrade code
+		// TODO(JK): actually, do we want to match titles that don't have an upgrade code and give it a new one?
+		if payload.UpgradeCode != "" {
+			// TODO(JK): maybe (name = ? AND upgrade_code = '') ??? is this necessary?
+			selectStmt = `SELECT id FROM software_titles WHERE (name = ? AND source = ? AND upgrade_code = '') OR upgrade_code = ? ORDER BY upgrade_code = ? DESC LIMIT 1`
+			selectArgs = []any{payload.Title, payload.Source, payload.UpgradeCode, payload.UpgradeCode}
+		}
 		insertStmt = `INSERT INTO software_titles (name, source, extension_for, upgrade_code) VALUES (?, ?, '', ?)`
 		insertArgs = []any{payload.Title, payload.Source, payload.UpgradeCode}
 	}
@@ -521,9 +527,8 @@ func (ds *Datastore) getOrGenerateSoftwareInstallerTitleID(ctx context.Context, 
 		// match by bundle identifier and source first, or standard matching if we don't have a bundle identifier match
 		selectStmt = `SELECT id FROM software_titles WHERE (bundle_identifier = ? AND source = ?) OR (name = ? AND source = ? AND extension_for = '') ORDER BY bundle_identifier = ? DESC LIMIT 1`
 		selectArgs = []any{payload.BundleIdentifier, payload.Source, payload.Title, payload.Source, payload.BundleIdentifier}
-		// omit upgrade_code, since title.upgrade_code should be NULL for non-Windows software
 		insertStmt = `INSERT INTO software_titles (name, source, bundle_identifier, extension_for) VALUES (?, ?, ?, '')`
-		insertArgs = append(insertArgs, payload.BundleIdentifier)
+		insertArgs = []any{payload.Title, payload.Source, payload.BundleIdentifier}
 	}
 
 	titleID, err := ds.optimisticGetOrInsert(ctx,
@@ -539,6 +544,18 @@ func (ds *Datastore) getOrGenerateSoftwareInstallerTitleID(ctx context.Context, 
 	if err != nil {
 		return 0, err
 	}
+
+	// update the upgrade code for a title, and potentially name if a fleet maintained app is available
+	if payload.Source == "programs" && payload.UpgradeCode != "" {
+		updateStmt := `UPDATE software_titles SET upgrade_code = ? WHERE id = ?`
+		updateArgs := []any{payload.UpgradeCode, titleID}
+		if payload.FleetMaintainedAppID != nil {
+			updateStmt = `UPDATE software_titles SET name = ?, upgrade_code = ? WHERE id = ?`
+			updateArgs = []any{payload.Title, payload.UpgradeCode, titleID}
+		}
+		ds.writer(ctx).ExecContext(ctx, updateStmt, updateArgs...)
+	}
+
 	return titleID, nil
 }
 
@@ -546,11 +563,16 @@ func (ds *Datastore) addSoftwareTitleToMatchingSoftware(ctx context.Context, tit
 	// not considering upgrade_code, so inventory software will match this Title by this clause, even
 	// if upgrade_code doesn't match - TODO: enforce matching upgrade_code between software and
 	// incoming title?
+
 	whereClause := "WHERE (s.name, s.source, s.extension_for) = (?, ?, '')"
 	whereArgs := []any{payload.Title, payload.Source}
 	if payload.BundleIdentifier != "" {
-		whereClause = "WHERE s.bundle_identifier = ?"
+		whereClause += "WHERE s.bundle_identifier = ?"
 		whereArgs = []any{payload.BundleIdentifier}
+	}
+	if payload.UpgradeCode != "" {
+		whereClause = "OR s.upgrade_code = ?" // OR or AND? how guaranteed is it for the software to have an upgrade code
+		whereArgs = []any{payload.UpgradeCode}
 	}
 
 	args := make([]any, 0, len(whereArgs))
