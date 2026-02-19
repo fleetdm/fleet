@@ -1,6 +1,6 @@
 # Marketing
 
-This handbook page details processes specific to working [with](#contact-us) and [within](#responsibilities) this department.  If you are looking for details about GTM and Marketing Operations, review the [Marketing-Operations](https://www.fleetdm.com/handbook/marketing/marketing-ops) page.
+This handbook page details processes specific to working [with](#contact-us) and [within](#responsibilities) this department.
 
 ## Team
 
