@@ -43,7 +43,7 @@ const DeleteCertificateModal = ({
       <>
         <p>
           This action will remove the <b>{name}</b> certificate from all hosts
-          assigned to this team.
+          assigned to this fleet.
         </p>
         <div className="modal-cta-wrap">
           <Button

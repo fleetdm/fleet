@@ -838,7 +838,7 @@ func (d *DEPService) processDeviceResponse(
 		for _, device := range devices {
 			_, deleted := existingDeletedSerials[device.SerialNumber]
 			_, needsProfile := needProfileAssign[device.SerialNumber]
-			if device.ProfileUUID == profUUID && !deleted && !needsProfile {
+			if device.ProfileUUID == profUUID && device.ProfileStatus != "removed" && !deleted && !needsProfile {
 				skippedSerials = append(skippedSerials, device.SerialNumber)
 				continue
 			}

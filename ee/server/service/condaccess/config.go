@@ -37,6 +37,7 @@ func initAssets(ctx context.Context, ds fleet.Datastore) error {
 			depot.WithCommonName("Fleet conditional access CA"),
 			// Signal that the CA is local to the deployment and not necessarily managed by Fleet or another external vendor
 			depot.WithOrganization("Local certificate authority"),
+			depot.WithCountry("US"),
 		)
 		scepCert, scepKey, err := depot.NewCACertKey(caCert)
 		if err != nil {
@@ -69,6 +70,7 @@ func initAssets(ctx context.Context, ds fleet.Datastore) error {
 			depot.WithYears(10),
 			depot.WithCommonName("Fleet conditional access IdP"),
 			depot.WithOrganization("Local certificate authority"),
+			depot.WithCountry("US"),
 		)
 		idpCertX509, idpKey, err := depot.NewCACertKey(idpCert)
 		if err != nil {

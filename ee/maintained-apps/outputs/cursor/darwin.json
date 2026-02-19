@@ -1,14 +1,14 @@
 {
   "versions": [
     {
-      "version": "2.4.37",
+      "version": "2.5.17",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.todesktop.230313mzl4w4u92';"
       },
-      "installer_url": "https://downloads.cursor.com/production/7b9c34466f5c119e93c3e654bb80fe9306b6cc79/darwin/arm64/Cursor-darwin-arm64.zip",
+      "installer_url": "https://downloads.cursor.com/production/7b98dcb824ea96c9c62362a5e80dbf0d1aae4775/darwin/arm64/Cursor-darwin-arm64.zip",
       "install_script_ref": "2db624c4",
       "uninstall_script_ref": "f7561d44",
-      "sha256": "5c6289bd2bcd5b23ba4435c5124a686eed0cd902affca866470d2f8cea863e59",
+      "sha256": "feb4176d369c033ca44b586681b5dc43d20328c230b7523bca2f78d6f1f7e4ae",
       "default_categories": [
         "Developer tools"
       ]

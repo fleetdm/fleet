@@ -5,13 +5,13 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"log/slog"
 	"sync"
 	"time"
 
 	"github.com/VividCortex/mysqlerr"
 	"github.com/cenkalti/backoff/v4"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
-	"github.com/go-kit/log"
 	"github.com/go-sql-driver/mysql"
 	"github.com/jmoiron/sqlx"
 )
@@ -58,7 +58,7 @@ type TxFn func(tx sqlx.ExtContext) error
 type ReadTxFn func(tx DBReadTx) error
 
 // WithRetryTxx provides a common way to commit/rollback a txFn wrapped in a retry with exponential backoff
-func WithRetryTxx(ctx context.Context, db *sqlx.DB, fn TxFn, logger log.Logger) error {
+func WithRetryTxx(ctx context.Context, db *sqlx.DB, fn TxFn, logger *slog.Logger) error {
 	operation := func() error {
 		tx, err := db.BeginTxx(ctx, nil)
 		if err != nil {
@@ -68,7 +68,7 @@ func WithRetryTxx(ctx context.Context, db *sqlx.DB, fn TxFn, logger log.Logger) 
 		defer func() {
 			if p := recover(); p != nil {
 				if err := tx.Rollback(); err != nil {
-					logger.Log("err", err, "msg", "error encountered during transaction panic rollback")
+					logger.ErrorContext(ctx, "error encountered during transaction panic rollback", "err", err)
 				}
 				panic(p)
 			}

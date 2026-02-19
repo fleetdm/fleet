@@ -30,6 +30,7 @@ func initAssets(ds fleet.Datastore) error {
 			depot.WithCommonName("Fleet Host Identity CA"),
 			// Signal that the CA is local to the deployment and not necessarily managed by Fleet or another external vendor
 			depot.WithOrganization("Local Certificate Authority"),
+			depot.WithCountry("US"),
 		)
 		scepCert, scepKey, err := depot.NewCACertKey(caCert)
 		if err != nil {

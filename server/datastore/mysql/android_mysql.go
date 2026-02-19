@@ -7,20 +7,20 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxdb"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm/android"
+	"github.com/fleetdm/fleet/v4/server/platform/logging"
 	common_mysql "github.com/fleetdm/fleet/v4/server/platform/mysql"
-	"github.com/go-kit/log"
 	"github.com/jmoiron/sqlx"
 )
 
 // AndroidDatastore is an implementation of android.Datastore interface backed by MySQL
 type AndroidDatastore struct {
-	logger  log.Logger
+	logger  *logging.Logger
 	primary *sqlx.DB
 	replica fleet.DBReader // so it cannot be used to perform writes
 }
 
 // NewAndroidDatastore creates a new Android Datastore
-func NewAndroidDatastore(logger log.Logger, primary *sqlx.DB, replica fleet.DBReader) android.Datastore {
+func NewAndroidDatastore(logger *logging.Logger, primary *sqlx.DB, replica fleet.DBReader) android.Datastore {
 	return &AndroidDatastore{
 		logger:  logger,
 		primary: primary,
@@ -45,9 +45,9 @@ func (ds *AndroidDatastore) Writer(_ context.Context) *sqlx.DB {
 }
 
 func (ds *AndroidDatastore) WithRetryTxx(ctx context.Context, fn common_mysql.TxFn) (err error) {
-	return common_mysql.WithRetryTxx(ctx, ds.Writer(ctx), fn, ds.logger)
+	return common_mysql.WithRetryTxx(ctx, ds.Writer(ctx), fn, ds.logger.SlogLogger())
 }
 
 func (ds *AndroidDatastore) WithTxx(ctx context.Context, fn common_mysql.TxFn) (err error) {
-	return common_mysql.WithTxx(ctx, ds.Writer(ctx), fn, ds.logger)
+	return common_mysql.WithTxx(ctx, ds.Writer(ctx), fn, ds.logger.SlogLogger())
 }
