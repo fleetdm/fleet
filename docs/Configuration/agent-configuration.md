@@ -293,7 +293,7 @@ You can use Fleet to query local SQLite databases as tables. For more informatio
 
 ## script_execution_timeout
 
-The `script_execution_timeout` allows you to change the default script execution timeout (default: `300` seconds, maximum: `18000`).
+The `script_execution_timeout` allows you to change the default script execution timeout (default: `300` seconds, maximum: `3600`).
 
 #### Example
 
