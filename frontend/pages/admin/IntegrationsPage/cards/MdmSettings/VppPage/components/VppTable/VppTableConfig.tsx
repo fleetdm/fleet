@@ -22,7 +22,7 @@ type ITeamsCellProps = CellProps<IMdmVppToken, IMdmVppToken["teams"]>;
 type ITableHeaderProps = IHeaderProps<IMdmVppToken>;
 
 const DEFAULT_ACTION_OPTIONS: IDropdownOption[] = [
-  { value: "editTeams", label: "Edit teams", disabled: false },
+  { value: "editTeams", label: "Edit fleets", disabled: false },
   { value: "renew", label: "Renew", disabled: false },
   { value: "delete", label: "Delete", disabled: false },
 ];
@@ -108,7 +108,7 @@ export const generateTableConfig = (
 
     {
       accessor: "teams",
-      Header: "Teams",
+      Header: "Fleets",
       disableSortBy: true,
       Cell: (cellProps: ITeamsCellProps) => (
         <TeamsCell teams={cellProps.cell.value} className="vpp-teams-cell" />

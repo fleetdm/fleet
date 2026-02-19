@@ -309,6 +309,20 @@ func TestCheckCustomVulnerabilities(t *testing.T) {
 			Version: "2.2601.6000.0",
 			Source:  "programs",
 		},
+		// Windows Notepad vulnerable version should match CVE-2026-20841
+		{
+			ID:      8,
+			Name:    "Microsoft.WindowsNotepad",
+			Version: "11.2409.10.0",
+			Source:  "programs",
+		},
+		// Windows Notepad patched version should not match CVE-2026-20841
+		{
+			ID:      9,
+			Name:    "Microsoft.WindowsNotepad",
+			Version: "11.2510.14.0",
+			Source:  "programs",
+		},
 	}
 
 	t.Run("New Vulns return all inserted", func(t *testing.T) {
@@ -319,15 +333,18 @@ func TestCheckCustomVulnerabilities(t *testing.T) {
 			if filter.Name == "git-gui" && filter.Source == "homebrew_packages" {
 				return []fleet.Software{sw[4], sw[5]}, nil
 			}
+			if filter.Name == "Microsoft.WindowsNotepad" && filter.Source == "programs" {
+				return []fleet.Software{sw[7], sw[8]}, nil
+			}
 			return nil, nil
 		}
 
-		var insertCount int
-		ds.InsertSoftwareVulnerabilityFunc = func(ctx context.Context, vuln fleet.SoftwareVulnerability, source fleet.VulnerabilitySource) (bool, error) {
-			insertCount++
+		ds.InsertSoftwareVulnerabilitiesFunc = func(ctx context.Context, vulns []fleet.SoftwareVulnerability, source fleet.VulnerabilitySource) ([]fleet.SoftwareVulnerability, error) {
 			require.Equal(t, fleet.CustomSource, source)
-			require.NotEqual(t, uint(7), vuln.SoftwareID, "Microsoft 365 companion apps should be excluded from CVE matching")
-			return true, nil
+			for _, v := range vulns {
+				require.NotEqual(t, uint(7), v.SoftwareID, "Microsoft 365 companion apps should be excluded from CVE matching")
+			}
+			return vulns, nil // all inserted vulns are "new"
 		}
 
 		ds.DeleteOutOfDateVulnerabilitiesFunc = func(ctx context.Context, source fleet.VulnerabilitySource, olderThan time.Time) error {
@@ -338,8 +355,7 @@ func TestCheckCustomVulnerabilities(t *testing.T) {
 		ctx := context.Background()
 		vulns, err := CheckCustomVulnerabilities(ctx, ds, log.NewNopLogger(), time.Now().UTC().Add(-time.Hour))
 		require.NoError(t, err)
-		require.Equal(t, 34, insertCount)
-		require.Len(t, vulns, 34)
+		require.Len(t, vulns, 35)
 		require.True(t, ds.DeleteOutOfDateVulnerabilitiesFuncInvoked)
 
 		expected := []fleet.SoftwareVulnerability{
@@ -513,6 +529,11 @@ func TestCheckCustomVulnerabilities(t *testing.T) {
 				CVE:               "CVE-2025-46835",
 				ResolvedInVersion: ptr.String("2.50.1"),
 			},
+			{
+				SoftwareID:        8,
+				CVE:               "CVE-2026-20841",
+				ResolvedInVersion: ptr.String("11.2510"),
+			},
 		}
 
 		cmpSoftwareVulnerability := func(v []fleet.SoftwareVulnerability) func(i, j int) bool {
@@ -541,15 +562,19 @@ func TestCheckCustomVulnerabilities(t *testing.T) {
 			if filter.Name == "git-gui" && filter.Source == "homebrew_packages" {
 				return []fleet.Software{sw[4], sw[5]}, nil
 			}
+			if filter.Name == "Microsoft.WindowsNotepad" && filter.Source == "programs" {
+				return []fleet.Software{sw[7], sw[8]}, nil
+			}
 			return nil, nil
 		}
 
-		var insertCount int
-		ds.InsertSoftwareVulnerabilityFunc = func(ctx context.Context, vuln fleet.SoftwareVulnerability, source fleet.VulnerabilitySource) (bool, error) {
-			insertCount++
+		// Simulate all vulns already existing: InsertSoftwareVulnerabilities returns empty (no new vulns).
+		ds.InsertSoftwareVulnerabilitiesFunc = func(ctx context.Context, vulns []fleet.SoftwareVulnerability, source fleet.VulnerabilitySource) ([]fleet.SoftwareVulnerability, error) {
 			require.Equal(t, fleet.CustomSource, source)
-			require.NotEqual(t, uint(7), vuln.SoftwareID, "Microsoft 365 companion apps should be excluded from CVE matching")
-			return false, nil
+			for _, v := range vulns {
+				require.NotEqual(t, uint(7), v.SoftwareID, "Microsoft 365 companion apps should be excluded from CVE matching")
+			}
+			return nil, nil
 		}
 
 		ds.DeleteOutOfDateVulnerabilitiesFunc = func(ctx context.Context, source fleet.VulnerabilitySource, olderThan time.Time) error {
@@ -557,11 +582,10 @@ func TestCheckCustomVulnerabilities(t *testing.T) {
 			return nil
 		}
 
-		ctx := context.Background()
+		ctx := t.Context()
 		vulns, err := CheckCustomVulnerabilities(ctx, ds, log.NewNopLogger(), time.Now().UTC().Add(-time.Hour))
 		require.NoError(t, err)
 		require.True(t, ds.DeleteOutOfDateVulnerabilitiesFuncInvoked)
-		require.Equal(t, 34, insertCount)
 		require.Len(t, vulns, 0)
 	})
 }

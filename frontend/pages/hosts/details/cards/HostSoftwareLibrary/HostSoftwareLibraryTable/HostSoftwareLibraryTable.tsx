@@ -87,7 +87,7 @@ const HostSoftwareLibraryTable = ({
         order_direction: newTableQuery.sortDirection,
         order_key: newTableQuery.sortHeader,
         page: changedParam === "pageIndex" ? newTableQuery.pageIndex : 0,
-        team_id: teamId,
+        fleet_id: teamId,
         ...(selfService && { self_service: "true" }),
       };
 

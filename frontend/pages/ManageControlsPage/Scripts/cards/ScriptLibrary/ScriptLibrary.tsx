@@ -82,7 +82,7 @@ const ScriptLibrary = ({ router, teamId, location }: IScriptLibraryProps) => {
 
   // pagination controls
   const path = PATHS.CONTROLS_SCRIPTS_LIBRARY;
-  const queryString = isPremiumTier ? `?team_id=${teamId}&` : "?";
+  const queryString = isPremiumTier ? `?fleet_id=${teamId}&` : "?";
   const onPrevPage = useCallback(() => {
     router.push(path.concat(`${queryString}page=${currentPage - 1}`));
   }, [router, path, currentPage, queryString]);

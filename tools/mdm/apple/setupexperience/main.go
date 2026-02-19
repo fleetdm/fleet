@@ -18,9 +18,8 @@ import (
 	"github.com/WatchBeam/clock"
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
+	"github.com/fleetdm/fleet/v4/server/platform/logging"
 	"github.com/jmoiron/sqlx"
-
-	kitlog "github.com/go-kit/log"
 )
 
 func main() {
@@ -145,7 +144,7 @@ func main() {
 		}
 	}
 
-	logger := kitlog.NewLogfmtLogger(os.Stderr)
+	logger := logging.NewLogfmtLogger(os.Stderr)
 	opts := []mysql.DBOption{
 		mysql.Logger(logger),
 		mysql.WithFleetConfig(&config.FleetConfig{
