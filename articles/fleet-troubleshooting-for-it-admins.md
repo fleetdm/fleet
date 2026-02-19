@@ -43,7 +43,7 @@ If you're trying to troubleshoot macOS hosts, you can [run a script](https://git
 
 ## Checking MDM commands
 
-If you suspect something went wrong with an MDM command for a device (such as locking, wiping, installing an app, etc.), you can use the UI or API to view the MDM command results.
+If you suspect something went wrong with an [MDM command](https://fleetdm.com/guides/mdm-commands#basic-article) for a device (such as locking, wiping, installing an app, etc.), you can use the UI or API to view the MDM command results.
 
 For the UI, open the host details page and under **Activity** toggle the switch for **Show MDM commands**.
 
