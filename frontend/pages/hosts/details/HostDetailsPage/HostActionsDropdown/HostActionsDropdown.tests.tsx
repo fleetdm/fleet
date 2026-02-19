@@ -153,7 +153,7 @@ describe("Host Actions Dropdown", () => {
       await user.click(screen.getByText("Actions"));
       expect(
         screen.getByText("Live report").parentElement?.parentElement?.parentElement
-        ).toHaveClass("actions-dropdown-select__option--is-disabled");
+      ).toHaveClass("actions-dropdown-select__option--is-disabled");
     });
 
     it("renders the Query action as disabled when a host is updating", async () => {
