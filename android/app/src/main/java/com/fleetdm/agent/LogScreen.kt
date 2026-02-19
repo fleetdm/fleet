@@ -59,9 +59,14 @@ fun LogsScreen(onNavigateBack: () -> Unit) {
         logs = withContext(Dispatchers.IO) {
             try {
                 val fleetTags = listOf(
-                    "fleet-app", "fleet-ApiClient", "fleet-CertificateEnrollmentWorker",
-                    "fleet-CertificateOrchestrator", "fleet-AndroidCertInstaller",
-                    "fleet-DeviceKeystoreManager", "fleet-boot", "fleet-RoleNotificationReceiverService",
+                    "fleet-app",
+                    "fleet-ApiClient",
+                    "fleet-CertificateEnrollmentWorker",
+                    "fleet-CertificateOrchestrator",
+                    "fleet-AndroidCertInstaller",
+                    "fleet-DeviceKeystoreManager",
+                    "fleet-boot",
+                    "fleet-RoleNotificationReceiverService",
                 )
                 val filterArgs = fleetTags.map { "$it:${selectedLevel.logcatCode}" } + listOf("*:S")
                 val command = listOf("logcat", "-d") + filterArgs

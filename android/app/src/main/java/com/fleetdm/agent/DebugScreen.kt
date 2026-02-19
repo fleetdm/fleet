@@ -6,6 +6,7 @@ import android.content.ClipboardManager
 import android.content.RestrictionsManager
 import android.content.pm.PackageInfo
 import android.content.pm.PackageManager
+import android.util.Log
 import android.widget.Toast
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -45,7 +46,6 @@ import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 
-
 private val jsonPretty = Json { prettyPrint = true }
 
 @Serializable
@@ -55,7 +55,7 @@ data class LastError(
     @SerialName("tag")
     val tag: String,
     @SerialName("message")
-    val message: String
+    val message: String,
 )
 
 fun readLastError(): LastError? {
@@ -102,7 +102,7 @@ fun DebugScreen(onNavigateBack: () -> Unit, onNavigateToLogs: () -> Unit) {
 
     LaunchedEffect(Unit) {
         lastError = withContext(Dispatchers.IO) {
-            try { readLastError() } catch (e: Exception) { null }
+            runCatching { readLastError() }.getOrNull()
         }
     }
 
@@ -151,7 +151,7 @@ fun DebugScreen(onNavigateBack: () -> Unit, onNavigateToLogs: () -> Unit) {
             Column(
                 Modifier
                     .padding(paddingValues = paddingValues)
-                    .verticalScroll(rememberScrollState())
+                    .verticalScroll(rememberScrollState()),
             ) {
                 KeyValue(modifier = margin, key = "Package name", value = context.packageName)
                 KeyValue(modifier = margin, key = "Version name", value = BuildConfig.VERSION_NAME)
@@ -254,7 +254,7 @@ fun DebugCertificateListPreview() {
 }
 
 @Serializable
-data class DebugInformation (
+data class DebugInformation(
     @SerialName("package_name")
     val packageName: String,
     @SerialName("version_name")
@@ -270,5 +270,5 @@ data class DebugInformation (
     @SerialName("permission_list")
     val permissionList: List<String>,
     @SerialName("last_error")
-    val lastError: LastError?
+    val lastError: LastError?,
 )
