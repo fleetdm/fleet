@@ -16,7 +16,7 @@ The Gateway also broadcasts its presence via mDNS using the service type `_openc
 
 ### CVE-2026-25253
 
-In late January 2026, security researcher Mav Levin disclosed CVE-2026-25253 (CVSS 8.8), a 1-click remote code execution vulnerability in OpenClaw's WebSocket gateway. The Control UI accepted a `gatewayUrl` query parameter without validation and auto-connected on page load, sending the stored auth token to whichever server was specified. An attacker could steal the token, connect back to the victim's local gateway (the victim's own browser bridges the connection even when bound to localhost), disable sandboxing via the API, and execute arbitrary commands.
+In late January 2026, security researcher Mav Levin disclosed [CVE-2026-25253](https://github.com/advisories/GHSA-g8p2-7wf7-98mq) (CVSS 8.8), a 1-click remote code execution vulnerability in OpenClaw's WebSocket gateway. The Control UI accepted a `gatewayUrl` query parameter without validation and auto-connected on page load, sending the stored auth token to whichever server was specified. An attacker could steal the token, connect back to the victim's local gateway (the victim's own browser bridges the connection even when bound to localhost), disable sandboxing via the API, and execute arbitrary commands.
 
 The flaw was patched in version 2026.1.29, which also removed gateway auth mode "none" as a breaking change. SecurityScorecard's STRIKE team found over 42,000 exposed instances, 15,200 of them vulnerable. Hunt.io identified 17,500 more across Clawdbot and Moltbot forks.
 
@@ -389,9 +389,9 @@ osquery tables like `docker_images`, `docker_containers`, and `npm_packages` ret
 
 The goal is to understand what's running across your fleet so you can make informed decisions. Personal AI assistants are here to stay. The organisations that do well will be the ones with visibility and good policy around their use.
 
-<meta name="articleTitle" value="Detect personal AI assistants like OpenClaw with Fleet policies">
-<meta name="authorFullName" value="Brock Walters, Adam Baali, Dhruv Majumdar">
-<meta name="authorGitHubUsername" value="fleet-release">
+<meta name="articleTitle" value="Mitigation assets and detection patterns for AI agents like OpenClaw">
+<meta name="authorFullName" value="Adam Baali">
+<meta name="authorGitHubUsername" value="adambaali">
 <meta name="category" value="guides">
 <meta name="publishedOn" value="2026-02-11">
-<meta name="description" value="Use Fleet policies and osquery to detect and threat hunt OpenClaw (and its previous names Clawdbot, Moltbot, Clawd) across macOS, Windows, and Linux. Covers CVE-2026-25253, exact launchd labels and systemd units, the ClawHavoc and AuthTool campaigns, session transcript exposure, credential hunting, and 23 ready-to-deploy queries with precise fingerprints sourced from the project's own documentation.">
+<meta name="description" value="OpenClaw part 3 series.">
