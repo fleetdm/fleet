@@ -139,7 +139,7 @@ func TestMaybeSendStatistics(t *testing.T) {
 	require.NoError(t, err)
 	assert.True(t, recorded)
 	require.True(t, cleanedup)
-	assert.Equal(t, `{"anonymousIdentifier":"ident","fleetVersion":"1.2.3","licenseTier":"premium","organization":"Fleet","numHostsEnrolled":999,"numHostsABMPending":888,"numUsers":99,"numSoftwareVersions":100,"numHostSoftwares":101,"numSoftwareTitles":102,"numHostSoftwareInstalledPaths":103,"numSoftwareCPEs":104,"numSoftwareCVEs":105,"numTeams":9,"numPolicies":0,"numQueries":200,"numLabels":3,"softwareInventoryEnabled":true,"vulnDetectionEnabled":true,"systemUsersEnabled":true,"hostsStatusWebHookEnabled":true,"mdmMacOsEnabled":false,"hostExpiryEnabled":false,"mdmWindowsEnabled":false,"liveQueryDisabled":false,"numWeeklyActiveUsers":111,"numWeeklyPolicyViolationDaysActual":0,"numWeeklyPolicyViolationDaysPossible":0,"hostsEnrolledByOperatingSystem":{"linux":[{"version":"1.2.3","numEnrolled":22}]},"hostsEnrolledByOrbitVersion":[],"hostsEnrolledByOsqueryVersion":[],"storedErrors":[],"numHostsNotResponding":0,"aiFeaturesDisabled":true,"maintenanceWindowsEnabled":true,"maintenanceWindowsConfigured":true,"numHostsFleetDesktopEnabled":1984}`, requestBody)
+	assert.Equal(t, `{"anonymousIdentifier":"ident","fleetVersion":"1.2.3","licenseTier":"premium","organization":"Fleet","numHostsEnrolled":999,"numHostsABMPending":888,"numUsers":99,"numSoftwareVersions":100,"numHostSoftwares":101,"numSoftwareTitles":102,"numHostSoftwareInstalledPaths":103,"numSoftwareCPEs":104,"numSoftwareCVEs":105,"numTeams":9,"numPolicies":0,"numQueries":200,"numLabels":3,"softwareInventoryEnabled":true,"vulnDetectionEnabled":true,"systemUsersEnabled":true,"hostsStatusWebHookEnabled":true,"mdmMacOsEnabled":false,"hostExpiryEnabled":false,"mdmWindowsEnabled":false,"liveQueryDisabled":false,"numWeeklyActiveUsers":111,"numWeeklyPolicyViolationDaysActual":0,"numWeeklyPolicyViolationDaysPossible":0,"hostsEnrolledByOperatingSystem":{"linux":[{"version":"1.2.3","numEnrolled":22}]},"hostsEnrolledByOrbitVersion":[],"hostsEnrolledByOsqueryVersion":[],"storedErrors":[],"numHostsNotResponding":0,"aiFeaturesDisabled":true,"maintenanceWindowsEnabled":true,"maintenanceWindowsConfigured":true,"numHostsFleetDesktopEnabled":1984,"oktaConditionalAccessConfigured":false,"conditionalAccessBypassDisabled":false}`, requestBody)
 }
 
 func TestMaybeSendStatisticsSkipsSendingIfNotNeeded(t *testing.T) {
@@ -271,6 +271,7 @@ func TestAutomationsSchedule(t *testing.T) {
 	ds.GetLatestCronStatsFunc = mockStatsStore.GetLatestCronStats
 	ds.InsertCronStatsFunc = mockStatsStore.InsertCronStats
 	ds.UpdateCronStatsFunc = mockStatsStore.UpdateCronStats
+	ds.ClaimCronStatsFunc = mockStatsStore.ClaimCronStats
 
 	calledOnce := make(chan struct{})
 	calledTwice := make(chan struct{})
@@ -341,6 +342,7 @@ func TestCronVulnerabilitiesCreatesDatabasesPath(t *testing.T) {
 	ds.GetLatestCronStatsFunc = mockStatsStore.GetLatestCronStats
 	ds.InsertCronStatsFunc = mockStatsStore.InsertCronStats
 	ds.UpdateCronStatsFunc = mockStatsStore.UpdateCronStats
+	ds.ClaimCronStatsFunc = mockStatsStore.ClaimCronStats
 
 	vulnPath := filepath.Join(t.TempDir(), "something")
 	require.NoDirExists(t, vulnPath)
@@ -486,14 +488,20 @@ func TestScanVulnerabilities(t *testing.T) {
 			},
 		}, nil
 	}
-	ds.InsertSoftwareVulnerabilityFunc = func(ctx context.Context, vuln fleet.SoftwareVulnerability, src fleet.VulnerabilitySource) (bool, error) {
-		return true, nil
+	ds.InsertSoftwareVulnerabilitiesFunc = func(ctx context.Context, vulns []fleet.SoftwareVulnerability, src fleet.VulnerabilitySource) ([]fleet.SoftwareVulnerability, error) {
+		// Return the vuln that triggers the webhook.
+		return []fleet.SoftwareVulnerability{
+			{SoftwareID: 1, CVE: "CVE-2022-39348"},
+		}, nil
 	}
 	ds.UpsertSoftwareCPEsFunc = func(ctx context.Context, cpes []fleet.SoftwareCPE) (int64, error) {
 		return int64(0), nil
 	}
 	ds.DeleteSoftwareCPEsFunc = func(ctx context.Context, cpes []fleet.SoftwareCPE) (int64, error) {
 		return int64(0), nil
+	}
+	ds.InsertOSVulnerabilitiesFunc = func(ctx context.Context, vulns []fleet.OSVulnerability, src fleet.VulnerabilitySource) (int64, error) {
+		return 0, nil
 	}
 	ds.DeleteOutOfDateVulnerabilitiesFunc = func(ctx context.Context, source fleet.VulnerabilitySource, olderThan time.Time) error {
 		return nil
@@ -667,8 +675,11 @@ func TestScanVulnerabilitiesFreeTier(t *testing.T) {
 			},
 		}, nil
 	}
-	ds.InsertSoftwareVulnerabilityFunc = func(ctx context.Context, vuln fleet.SoftwareVulnerability, src fleet.VulnerabilitySource) (bool, error) {
-		return true, nil
+	ds.InsertSoftwareVulnerabilitiesFunc = func(ctx context.Context, vulns []fleet.SoftwareVulnerability, src fleet.VulnerabilitySource) ([]fleet.SoftwareVulnerability, error) {
+		return vulns, nil
+	}
+	ds.InsertOSVulnerabilitiesFunc = func(ctx context.Context, vulns []fleet.OSVulnerability, src fleet.VulnerabilitySource) (int64, error) {
+		return 0, nil
 	}
 	ds.UpsertSoftwareCPEsFunc = func(ctx context.Context, cpes []fleet.SoftwareCPE) (int64, error) {
 		return int64(0), nil
@@ -871,6 +882,7 @@ func TestCronVulnerabilitiesSkipMkdirIfDisabled(t *testing.T) {
 	ds.GetLatestCronStatsFunc = mockStatsStore.GetLatestCronStats
 	ds.InsertCronStatsFunc = mockStatsStore.InsertCronStats
 	ds.UpdateCronStatsFunc = mockStatsStore.UpdateCronStats
+	ds.ClaimCronStatsFunc = mockStatsStore.ClaimCronStats
 
 	vulnPath := filepath.Join(t.TempDir(), "something")
 	require.NoDirExists(t, vulnPath)
@@ -964,6 +976,7 @@ func TestAutomationsScheduleLockDuration(t *testing.T) {
 	ds.GetLatestCronStatsFunc = mockStatsStore.GetLatestCronStats
 	ds.InsertCronStatsFunc = mockStatsStore.InsertCronStats
 	ds.UpdateCronStatsFunc = mockStatsStore.UpdateCronStats
+	ds.ClaimCronStatsFunc = mockStatsStore.ClaimCronStats
 
 	ctx, cancelFunc := context.WithCancel(context.Background())
 	defer cancelFunc()
@@ -1030,6 +1043,7 @@ func TestAutomationsScheduleIntervalChange(t *testing.T) {
 	ds.GetLatestCronStatsFunc = mockStatsStore.GetLatestCronStats
 	ds.InsertCronStatsFunc = mockStatsStore.InsertCronStats
 	ds.UpdateCronStatsFunc = mockStatsStore.UpdateCronStats
+	ds.ClaimCronStatsFunc = mockStatsStore.ClaimCronStats
 
 	ctx, cancelFunc := context.WithCancel(context.Background())
 	defer cancelFunc()

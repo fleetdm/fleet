@@ -285,25 +285,38 @@ func (ds *Datastore) listVulnsWithoutCVSS(ctx context.Context, linuxTeamFilter s
 }
 
 func (ds *Datastore) InsertOSVulnerabilities(ctx context.Context, vulnerabilities []fleet.OSVulnerability, source fleet.VulnerabilitySource) (int64, error) {
-	var args []interface{}
-
 	if len(vulnerabilities) == 0 {
 		return 0, nil
 	}
 
-	values := strings.TrimSuffix(strings.Repeat("(?,?,?,?),", len(vulnerabilities)), ",")
-	sql := fmt.Sprintf(`INSERT IGNORE INTO operating_system_vulnerabilities (operating_system_id, cve, source, resolved_in_version) VALUES %s`, values)
+	var totalAffected int64
+	err := common_mysql.BatchProcessSimple(vulnerabilities, vulnBatchSize, func(batch []fleet.OSVulnerability) error {
+		values := strings.TrimSuffix(strings.Repeat("(?,?,?,?),", len(batch)), ",")
+		stmt := fmt.Sprintf(`
+			INSERT INTO operating_system_vulnerabilities (operating_system_id, cve, source, resolved_in_version)
+			VALUES %s
+			ON DUPLICATE KEY UPDATE
+				source = VALUES(source),
+				resolved_in_version = VALUES(resolved_in_version),
+				updated_at = NOW()
+		`, values)
 
-	for _, v := range vulnerabilities {
-		args = append(args, v.OSID, v.CVE, source, v.ResolvedInVersion)
-	}
-	res, err := ds.writer(ctx).ExecContext(ctx, sql, args...)
-	if err != nil {
-		return 0, ctxerr.Wrap(ctx, err, "insert operating system vulnerabilities")
-	}
-	count, _ := res.RowsAffected()
+		var args []any
+		for _, v := range batch {
+			args = append(args, v.OSID, v.CVE, source, v.ResolvedInVersion)
+		}
 
-	return count, nil
+		res, err := ds.writer(ctx).ExecContext(ctx, stmt, args...)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "batch insert operating system vulnerabilities")
+		}
+
+		affected, _ := res.RowsAffected()
+		totalAffected += affected
+		return nil
+	})
+
+	return totalAffected, err
 }
 
 func (ds *Datastore) InsertOSVulnerability(ctx context.Context, v fleet.OSVulnerability, s fleet.VulnerabilitySource) (bool, error) {

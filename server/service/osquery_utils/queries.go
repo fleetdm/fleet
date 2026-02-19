@@ -1344,6 +1344,44 @@ FROM chrome_extensions`,
 // Software queries expect specific columns to be present.  Reference the
 // software_{macos|windows|linux} queries for the expected columns.
 var SoftwareOverrideQueries = map[string]DetailQuery{
+	// windows_jetbrains uses the version contained in the product-info.json file as exe installers
+	// provide an unconvertible build number in the programs table not used in vulnerability matching.
+	"windows_jetbrains": {
+		Description: "A software override query to use the version from the product-info.json file for JetBrains programs on Windows.",
+		Query: `
+		SELECT
+		p.name AS name,
+
+		COALESCE(
+			trim(json_extract(fc.contents, '$.version'), '"'),
+			p.version
+		) AS version,
+
+		'' AS extension_id,
+		'' AS extension_for,
+		'programs' AS source,
+		p.publisher AS vendor,
+		p.install_location AS installed_path,
+		p.upgrade_code AS upgrade_code
+
+		FROM programs p
+		LEFT JOIN file_contents fc
+		ON fc.path = CASE
+			WHEN p.install_location IS NULL OR p.install_location = ''
+			THEN NULL
+			ELSE rtrim(p.install_location, '\') || '\product-info.json'
+		END
+
+		WHERE p.publisher LIKE '%JetBrains%'
+		AND p.name NOT LIKE '%Toolbox%'
+`,
+		Platforms:        []string{"windows"},
+		DirectIngestFunc: directIngestSoftware,
+		Discovery:        discoveryTable("file_contents"),
+		SoftwareOverrideMatch: func(row map[string]string) bool {
+			return strings.Contains(row["vendor"], "JetBrains") && !strings.Contains(row["name"], "Toolbox")
+		},
+	},
 	// windows_acrobat_dc checks the Windows registry to determine if "DC" should be appended to the Adobe Acrobat
 	// product name. While Adobe recently rebranded the free version to "Adobe Acrobat (64-bit)" — matching
 	// the naming convention of the paid product — our vulnerability detection engine requires the "DC" postfix for accurate

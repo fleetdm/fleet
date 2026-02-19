@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
+	"github.com/fleetdm/fleet/v4/server/platform/logging"
 	"github.com/go-kit/log"
 	"github.com/go-sql-driver/mysql"
 	"github.com/jmoiron/sqlx"
@@ -30,7 +31,7 @@ const TestSQLMode = "'REAL_AS_FLOAT,PIPES_AS_CONCAT,ANSI_QUOTES,IGNORE_SPACE,ONL
 type DBOptions struct {
 	// MaxAttempts configures the number of retries to connect to the DB
 	MaxAttempts         int
-	Logger              log.Logger
+	Logger              *logging.Logger
 	ReplicaConfig       *MysqlConfig
 	Interceptor         sqlmw.Interceptor
 	TracingConfig       *LoggingConfig
@@ -135,13 +136,16 @@ func generateMysqlConnectionString(conf MysqlConfig) string {
 		"group_concat_max_len": []string{"4194304"},
 		"multiStatements":      []string{"true"},
 	}
+	if conf.TLSConfig != "" {
+		params.Set("tls", conf.TLSConfig)
+	}
 	if conf.Password == "" && conf.PasswordPath == "" && conf.Region != "" {
 		params.Set("allowCleartextPasswords", "true")
+		// IAM authentication requires cleartext auth over TLS. If TLS config is
+		// provided (e.g. custom CA bundle), use it; otherwise default to rdsmysql.
 		if conf.TLSConfig == "" {
 			params.Set("tls", "rdsmysql")
 		}
-	} else if conf.TLSConfig != "" {
-		params.Set("tls", conf.TLSConfig)
 	}
 	if conf.SQLMode != "" {
 		params.Set("sql_mode", conf.SQLMode)

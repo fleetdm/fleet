@@ -498,6 +498,10 @@ team_settings:
 // At the same time, GitOps uploads Apple profiles that use the newly configured CAs.
 func (s *enterpriseIntegrationGitopsTestSuite) TestCAIntegrations() {
 	t := s.T()
+
+	dev_mode.IsEnabled = true
+	t.Cleanup(func() { dev_mode.IsEnabled = false })
+
 	user := s.createGitOpsUser(t)
 	fleetctlConfig := s.createFleetctlConfig(t, user)
 
@@ -3477,7 +3481,6 @@ team_settings:
 			} else {
 				require.NoError(t, err)
 			}
-
 		})
 	}
 }

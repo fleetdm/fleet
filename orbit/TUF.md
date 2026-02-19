@@ -7,8 +7,8 @@ Following are the currently deployed versions of fleetd components on the `stabl
 
 | Component\OS |    macOS     | Linux  | Windows | Linux (arm64) | Windows (arm64) |
 |--------------|--------------|--------|---------|---------------|-----------------|
-| orbit        | 1.51.1       | 1.51.1 | 1.51.1  | 1.51.1        | 1.51.1          |
-| desktop      | 1.51.1       | 1.51.1 | 1.51.1  | 1.51.1        | 1.51.1          |
+| orbit        | 1.52.0       | 1.52.0 | 1.52.0  | 1.52.0        | 1.52.0          |
+| desktop      | 1.52.0       | 1.52.0 | 1.52.0  | 1.52.0        | 1.52.0          |
 | osqueryd     | 5.21.0       | 5.21.0 | 5.21.0  | 5.21.0        | 5.21.0          |
 | nudge        | 1.1.10.81462 | -      | -       | -             | -               |
 | swiftDialog  | 2.5.6        | -      | -       | -             | -               |

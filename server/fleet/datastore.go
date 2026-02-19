@@ -655,6 +655,10 @@ type Datastore interface {
 	// case it will return true) or if a matching record already exists it will update its
 	// updated_at timestamp (in which case it will return false).
 	InsertSoftwareVulnerability(ctx context.Context, vuln SoftwareVulnerability, source VulnerabilitySource) (bool, error)
+	// InsertSoftwareVulnerabilities inserts a batch of vulnerabilities into the datastore.
+	// It checks which vulnerabilities are new (not already present) before inserting, and
+	// returns only the newly inserted vulnerabilities.
+	InsertSoftwareVulnerabilities(ctx context.Context, vulns []SoftwareVulnerability, source VulnerabilitySource) ([]SoftwareVulnerability, error)
 	SoftwareByID(ctx context.Context, id uint, teamID *uint, includeCVEScores bool, tmFilter *TeamFilter) (*Software, error)
 	// ListSoftwareByHostIDShort lists software by host ID, but does not include CPEs or vulnerabilites.
 	// It is meant to be used when only minimal software fields are required eg when updating host software.
@@ -942,6 +946,9 @@ type Datastore interface {
 	InsertCronStats(ctx context.Context, statsType CronStatsType, name string, instance string, status CronStatsStatus) (int, error)
 	// UpdateCronStats updates the status of the identified cron stats record.
 	UpdateCronStats(ctx context.Context, id int, status CronStatsStatus, cronErrors *CronScheduleErrors) error
+	// ClaimCronStats transitions a queued cron stats record to the given status
+	// and updates the instance to the worker that claimed it.
+	ClaimCronStats(ctx context.Context, id int, instance string, status CronStatsStatus) error
 	// UpdateAllCronStatsForInstance updates all records for the identified instance with the
 	// specified statuses
 	UpdateAllCronStatsForInstance(ctx context.Context, instance string, fromStatus CronStatsStatus, toStatus CronStatsStatus) error
