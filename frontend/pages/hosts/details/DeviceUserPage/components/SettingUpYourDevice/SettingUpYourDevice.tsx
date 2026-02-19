@@ -12,6 +12,7 @@ import {
   hasRemainingSetupSteps,
   getFailedSoftwareInstall,
 } from "../../helpers";
+import { getDisplayedSoftwareName } from "pages/SoftwarePage/helpers";
 
 const baseClass = "setting-up-your-device";
 
@@ -40,7 +41,14 @@ const SettingUpYourDevice = ({
       <>
         <p>
           Your organization requires that critical software be installed before
-          you use your device. <b>{failedSoftware.name}</b> failed to install.
+          you use your device.{" "}
+          <b>
+            {getDisplayedSoftwareName(
+              failedSoftware.name,
+              failedSoftware.display_name
+            )}
+          </b>{" "}
+          failed to install.
         </p>
         <p>
           <Icon name="error-outline" color="status-error" size="small" />{" "}

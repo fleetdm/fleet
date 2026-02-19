@@ -7,6 +7,7 @@ import ModalFooter from "components/ModalFooter";
 import Button from "components/buttons/Button";
 
 import InventoryVersions from "../../components/InventoryVersions";
+import { getDisplayedSoftwareName } from "pages/SoftwarePage/helpers";
 
 const baseClass = "inventory-versions-modal";
 
@@ -57,7 +58,10 @@ const InventoryVersionsModal = ({
 
   return (
     <Modal
-      title={hostSoftware.name}
+      title={getDisplayedSoftwareName(
+        hostSoftware.name,
+        hostSoftware.display_name
+      )}
       className={baseClass}
       onExit={onExit}
       width="large"
