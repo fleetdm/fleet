@@ -19,6 +19,30 @@ type User struct {
 	ID   int64
 }
 
+func getDisplaySessionFor(user User) *UserDisplaySession {
+	// Skip system/display manager users since they aren't GUI users.
+	// User gdm-greeter is active during the GUI log-in prompt (GNOME 49).
+	if user.Name == "gdm" || user.Name == "root" || user.Name == "gdm-greeter" {
+		return nil
+	}
+	// Check if the user has an active GUI session.
+	userID := strconv.FormatInt(user.ID, 10)
+	session, err := GetUserDisplaySessionType(userID)
+	if err != nil {
+		log.Debug().Err(err).Msgf("failed to get user display session for user %s", user.Name)
+		return nil
+	}
+	if !session.Active {
+		log.Debug().Msgf("user %s has an inactive display session, skipping", user.Name)
+		return nil
+	}
+	if session.Type == GuiSessionTypeTty {
+		log.Debug().Msgf("user %s is logged in via TTY, not GUI", user.Name)
+		return nil
+	}
+	return session
+}
+
 // UserLoggedInViaGui returns the username that has an active GUI session.
 // It returns nil, nil if there's no user with an active GUI session.
 func UserLoggedInViaGui() (*string, error) {
@@ -28,26 +52,25 @@ func UserLoggedInViaGui() (*string, error) {
 	}
 
 	for _, user := range users {
-		// Skip system/display manager users since they aren't GUI users.
-		// User gdm-greeter is active during the GUI log-in prompt (GNOME 49).
-		if user.Name == "gdm" || user.Name == "root" || user.Name == "gdm-greeter" {
-			continue
+		if session := getDisplaySessionFor(user); session != nil {
+			return &user.Name, nil
 		}
-		// Check if the user has an active GUI session.
-		session, err := GetUserDisplaySessionType(strconv.FormatInt(user.ID, 10))
-		if err != nil {
-			log.Debug().Err(err).Msgf("failed to get user display session for user %s", user.Name)
-			continue
+	}
+
+	// No valid user found
+	return nil, nil
+}
+
+func GetLoggedInUserDisplaySession() (*UserDisplaySession, error) {
+	users, err := getLoginUsers()
+	if err != nil {
+		return nil, fmt.Errorf("get login users: %w", err)
+	}
+
+	for _, user := range users {
+		if session := getDisplaySessionFor(user); session != nil {
+			return session, nil
 		}
-		if !session.Active {
-			log.Debug().Msgf("user %s has an inactive display session, skipping", user.Name)
-			continue
-		}
-		if session.Type == GuiSessionTypeTty {
-			log.Debug().Msgf("user %s is logged in via TTY, not GUI", user.Name)
-			continue
-		}
-		return &user.Name, nil
 	}
 
 	// No valid user found
@@ -95,12 +118,13 @@ func parseLoginctlUsersOutput(s string) ([]User, error) {
 
 // UserDisplaySession holds the display session type and active status for a user.
 type UserDisplaySession struct {
-	Type   GuiSessionType
-	Active bool
+	Type    GuiSessionType
+	Active  bool
+	Desktop string
 }
 
-// GetUserDisplaySessionType returns the display session type (X11 or Wayland)
-// and active status of the given user. Returns an error if the user doesn't have
+// GetUserDisplaySessionType returns the display session type (X11 or Wayland),
+// active status and session env vars of the given user. Returns an error if the user doesn't have
 // a Display session.
 func GetUserDisplaySessionType(uid string) (*UserDisplaySession, error) {
 	// Get the "Display" session ID of the user.
@@ -144,10 +168,38 @@ func GetUserDisplaySessionType(uid string) (*UserDisplaySession, error) {
 		return nil, fmt.Errorf("run 'loginctl' to get session active status: %w", err)
 	}
 	active := strings.TrimSpace(stdout.String()) == "yes"
+
+	// Get the "Environment" property of the session.
+	cmd = exec.Command("loginctl", "show-session", guiSessionID, "-p", "Desktop", "--value")
+	stdout.Reset()
+	cmd.Stdout = &stdout
+	if err := cmd.Run(); err != nil {
+		return nil, fmt.Errorf("run 'loginctl' to get session environment: %w", err)
+	}
 	return &UserDisplaySession{
-		Type:   sessionType,
-		Active: active,
+		Type:    sessionType,
+		Active:  active,
+		Desktop: strings.TrimSpace(stdout.String()),
 	}, nil
+}
+
+func parseLoginctlSessionEnvironment(out string) map[string]string {
+	env := make(map[string]string)
+	for _, line := range strings.Split(strings.TrimSpace(out), "\n") {
+		line = strings.TrimSpace(line)
+		if line == "" {
+			continue
+		}
+		key, value, ok := strings.Cut(line, "=")
+		if !ok || key == "" {
+			continue
+		}
+		env[key] = value
+	}
+	if len(env) == 0 {
+		return nil
+	}
+	return env
 }
 
 type GuiSessionType int

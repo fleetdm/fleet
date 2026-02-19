@@ -5,13 +5,35 @@ import (
 	"fmt"
 	"os"
 	"slices"
+	"strings"
 
+	"github.com/fleetdm/fleet/v4/orbit/pkg/user"
 	"github.com/godbus/dbus/v5"
 	"github.com/rs/zerolog/log"
 )
 
 //go:embed icon_dark.png
-var iconDark []byte
+var iconDarkDefault []byte
+
+//go:embed icon_dark_kde.png
+var iconDarkKDE []byte
+
+var iconDark = getIcon()
+
+func getIcon() []byte {
+	if isKDE() {
+		return iconDarkKDE
+	}
+	return iconDarkDefault
+}
+
+func isKDE() bool {
+	session, err := user.GetLoggedInUserDisplaySession()
+	if err != nil {
+		return false
+	}
+	return session != nil && strings.ToLower(session.Desktop) == "kde"
+}
 
 func blockWaitForStopEvent(_ string) error {
 	log.Debug().Msg("communication channel helpers are not implemented for this platform")
