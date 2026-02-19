@@ -2,24 +2,25 @@ module.exports = {
 
   targets: {
 
-    './it-and-security/README.md': { copy: './default.yml.template' },
+    './it-and-security/README.md': { copy: './README.md.template' },
     './it-and-security/.github': { folder: {} },
-    './it-and-security/.github/gitops-action': { folder: {} },
-    './it-and-security/.github/gitops-action/action.yml': { copy: './action.yml.template' }, // TODO: Make sure to grab latest version from fleet-gitops before retiring that repo
+    './it-and-security/.github/fleet-gitops': { folder: {} },
+    './it-and-security/.github/fleet-gitops/action.yml': { copy: './github/fleet-gitops/action.yml.template' },
+    './it-and-security/.github/fleet-gitops/gitops.sh': { copy: './github/fleet-gitops/gitops.sh.template' },
     './it-and-security/.github/workflows': { folder: {} },
-    './it-and-security/.github/workflows/workflow.yml': { copy: './workflow.yml.template' }, // TODO: Make sure to grab latest version from fleet-gitops before retiring that repo
-    './it-and-security/.gitlab-ci.yml': { copy: './gitlab-ci.yml.template' }, // TODO: Make sure to grab latest version from fleet-gitops before retiring that repo
+    './it-and-security/.github/workflows/fleet-gitops-workflow.yml': { copy: './github/workflows/fleet-gitops-workflow.yml.template' },
+    './it-and-security/.gitlab-ci.yml': { copy: './gitlab-ci.yml.template' },
     './it-and-security/.gitignore': { copy: './gitignore.template' },
     './it-and-security/default.yml': { copy: './default.yml.template' },
     './it-and-security/fleets/': { folder: {} },
-    './it-and-security/fleets/workstations.yml': { copy: './default.yml.template' },
-    './it-and-security/fleets/personal-mobile-devices.yml': { copy: './default.yml.template' },
-    './it-and-security/fleets/company-owned-mobile-devices.yml': { copy: './default.yml.template' },
+    './it-and-security/fleets/workstations.yml': { copy: './fleets/workstations.yml.template' },
+    './it-and-security/fleets/personal-mobile-devices.yml': { copy: './fleets/personal-mobile-devices.yml.template' },
+    './it-and-security/fleets/company-owned-mobile-devices.yml': { copy: './fleets/company-owned-mobile-devices.yml.template' },
     './it-and-security/labels/': { folder: {} },
-    './it-and-security/labels/apple-silicon-macos-hosts': { copy: './default.yml.template' },
-    './it-and-security/labels/x86-based-windows-hosts': { copy: './default.yml.template' },
-    './it-and-security/labels/arm-based-windows-hosts': { copy: './default.yml.template' },
-    './it-and-security/labels/debian-based-linux-hosts': { copy: './default.yml.template' },
+    './it-and-security/labels/apple-silicon-macos-hosts': { copy: './labels/apple-silicon-macos-hosts.yml.template' },
+    './it-and-security/labels/x86-based-windows-hosts': { copy: './labels/x86-based-windows-hosts.yml.template' },
+    './it-and-security/labels/arm-based-windows-hosts': { copy: './labels/arm-based-windows-hosts.yml.template' },
+    './it-and-security/labels/debian-based-linux-hosts': { copy: './labels/debian-based-linux-hosts.yml.template' },
     './it-and-security/icons/': { folder: {} },
     './it-and-security/icons/.gitkeep': { copy: './gitkeep.template' },
     './it-and-security/platforms/': { folder: {} },
@@ -58,7 +59,6 @@ module.exports = {
     './it-and-security/platforms/all/reports/.gitkeep': { copy: './gitkeep.template' },
     './it-and-security/platforms/all/policies/.gitkeep': { copy: './gitkeep.template' },
     './it-and-security/default.yml': { copy: './default.yml.template' },
-    // './it-and-security/eula.pdf': { copy: './default.yml.template' },
 
     // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
     // • e.g. create a folder:

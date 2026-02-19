@@ -24,4 +24,4 @@ fleet-gitops:
         npm install -g fleetctl
       fi
     - fleetctl config set --address $FLEET_URL --token $FLEET_API_TOKEN
-    - ./gitops.sh
+    - ./.github/fleet-gitops/gitops.sh
