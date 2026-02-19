@@ -3307,7 +3307,6 @@ func (ds *Datastore) listMDMAppleProfilesToInstallTransaction(ctx context.Contex
 	FROM ` + entitiesToInstallQuery
 
 	var profiles []*fleet.MDMAppleProfilePayload
-	fmt.Printf("listMDMAppleProfilesToInstallTransaction query: %s\nargs: %v\n", query, entitiesToInstallArgs)
 	err := sqlx.SelectContext(ctx, tx, &profiles, query, entitiesToInstallArgs...)
 	return profiles, err
 }
