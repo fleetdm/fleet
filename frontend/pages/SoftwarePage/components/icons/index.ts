@@ -4,6 +4,7 @@
 import { HOST_LINUX_PLATFORMS } from "interfaces/platform";
 import { ISoftware } from "interfaces/software";
 
+import BetterDisplay from "./BetterDisplay";
 import ConnectFonts from "./ConnectFonts";
 import CrashPlan from "./CrashPlan";
 import Nextcloud from "./Nextcloud";
@@ -266,6 +267,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   "aws client vpn": AwsVpnClient,
   balenaetcher: BalenaEtcher,
   bbedit: BBEdit,
+  betterdisplay: BetterDisplay,
   "beyond compare": BeyondCompare,
   bitwarden: Bitwarden,
   blender: Blender,

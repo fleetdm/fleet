@@ -2,13 +2,16 @@ package service
 
 import (
 	"context"
+	"crypto/x509"
 	"database/sql"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"log/slog"
 	"net/http"
 	"net/url"
+	"os"
 
 	"github.com/fleetdm/fleet/v4/ee/server/service/hostidentity/httpsig"
 	"github.com/fleetdm/fleet/v4/server"
@@ -46,6 +49,22 @@ func (r *orbitGetConfigRequest) setOrbitNodeKey(nodeKey string) {
 
 func (r *orbitGetConfigRequest) orbitHostNodeKey() string {
 	return r.OrbitNodeKey
+}
+
+// DecodeBody implements the bodyDecoder interface for custom request body decoding.
+// This endpoint is susceptible to client read timeouts (poll.DeadlineExceededError).
+// By implementing DecodeBody, we classify those network errors as client errors.
+func (r *orbitGetConfigRequest) DecodeBody(_ context.Context, reader io.Reader, _ url.Values, _ []*x509.Certificate) error {
+	if err := json.NewDecoder(reader).Decode(r); err != nil {
+		if errors.Is(err, os.ErrDeadlineExceeded) {
+			return &fleet.BadRequestError{
+				Message:     "request body read timeout",
+				InternalErr: err,
+			}
+		}
+		return err
+	}
+	return nil
 }
 
 type orbitGetConfigResponse struct {

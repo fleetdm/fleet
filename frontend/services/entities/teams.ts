@@ -115,7 +115,7 @@ export default {
       host_expiry_settings,
     }: Partial<IUpdateTeamFormData>,
     teamId?: number
-  ): Promise<ITeamConfig> => {
+  ): Promise<ILoadTeamResponse> => {
     if (typeof teamId === "undefined") {
       return Promise.reject("Invalid usage: missing team id");
     }

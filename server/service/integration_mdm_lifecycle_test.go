@@ -1116,7 +1116,7 @@ func (s *integrationMDMTestSuite) TestLifecycleSCEPCertExpiration() {
 	require.Empty(t, getEnrollRef(iPadMdmDevice.UUID))
 
 	// enqueue refetch commands and report results
-	require.NoError(t, apple_mdm.IOSiPadOSRefetch(ctx, s.ds, s.mdmCommander, s.logger, func(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails) error {
+	require.NoError(t, apple_mdm.IOSiPadOSRefetch(ctx, s.ds, s.mdmCommander, s.logger.SlogLogger(), func(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails) error {
 		return nil
 	}))
 	require.True(t, existsRefetchCmd(iPadMdmDevice.UUID))
@@ -1212,7 +1212,7 @@ func (s *integrationMDMTestSuite) TestLifecycleSCEPCertExpiration() {
 	})
 
 	// enqueue refetch commands and report results
-	require.NoError(t, apple_mdm.IOSiPadOSRefetch(ctx, s.ds, s.mdmCommander, s.logger, func(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails) error {
+	require.NoError(t, apple_mdm.IOSiPadOSRefetch(ctx, s.ds, s.mdmCommander, s.logger.SlogLogger(), func(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails) error {
 		return nil
 	}))
 	require.True(t, existsRefetchCmd(iPadMdmDevice.UUID))

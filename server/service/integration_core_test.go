@@ -3520,8 +3520,8 @@ func (s *integrationTestSuite) TestHostsAddToTeam() {
 	}, http.StatusOK, &addResp)
 	s.lastActivityOfTypeMatches(
 		fleet.ActivityTypeTransferredHostsToTeam{}.ActivityName(),
-		fmt.Sprintf(`{"team_id": %d, "team_name": %q, "host_ids": [%d, %d], "host_display_names": [%q, %q]}`,
-			tm1.ID, tm1.Name, hosts[0].ID, hosts[1].ID, hosts[0].DisplayName(), hosts[1].DisplayName()),
+		fmt.Sprintf(`{"fleet_id": %d, "fleet_name": %q, "team_id": %d, "team_name": %q, "host_ids": [%d, %d], "host_display_names": [%q, %q]}`,
+			tm1.ID, tm1.Name, tm1.ID, tm1.Name, hosts[0].ID, hosts[1].ID, hosts[0].DisplayName(), hosts[1].DisplayName()),
 		0,
 	)
 
@@ -3552,8 +3552,8 @@ func (s *integrationTestSuite) TestHostsAddToTeam() {
 	s.DoJSON("POST", "/api/latest/fleet/hosts/transfer/filter", req, http.StatusOK, &addfResp)
 	s.lastActivityOfTypeMatches(
 		fleet.ActivityTypeTransferredHostsToTeam{}.ActivityName(),
-		fmt.Sprintf(`{"team_id": %d, "team_name": %q, "host_ids": [%d], "host_display_names": [%q]}`,
-			tm2.ID, tm2.Name, hosts[2].ID, hosts[2].DisplayName()),
+		fmt.Sprintf(`{"team_id": %d, "team_name": %q, "fleet_id": %d, "fleet_name": %q, "host_ids": [%d], "host_display_names": [%q]}`,
+			tm2.ID, tm2.Name, tm2.ID, tm2.Name, hosts[2].ID, hosts[2].DisplayName()),
 		0,
 	)
 
@@ -3622,7 +3622,7 @@ func (s *integrationTestSuite) TestHostsAddToTeam() {
 	}, http.StatusOK, &addResp)
 	s.lastActivityOfTypeMatches(
 		fleet.ActivityTypeTransferredHostsToTeam{}.ActivityName(),
-		fmt.Sprintf(`{"team_id": null, "team_name": null, "host_ids": [%d], "host_display_names": [%q]}`,
+		fmt.Sprintf(`{"team_id": null, "team_name": null, "fleet_id": null, "fleet_name": null, "host_ids": [%d], "host_display_names": [%q]}`,
 			hosts[1].ID, hosts[1].DisplayName()),
 		0,
 	)
@@ -4681,6 +4681,19 @@ func (s *integrationTestSuite) TestLabels() {
 			s.DoJSON("POST", "/api/latest/fleet/labels", &fleet.LabelPayload{Name: n, Query: "select 1"}, http.StatusUnprocessableEntity, &createResp)
 		}
 
+		// try to create a label with an invalid platform
+		s.DoJSON(
+			"POST",
+			"/api/latest/fleet/labels",
+			&fleet.LabelPayload{
+				Name:     "amazing label",
+				Query:    "select 1",
+				Platform: "linux",
+			},
+			http.StatusUnprocessableEntity,
+			&createResp,
+		)
+
 		// create a valid dynamic label
 		s.DoJSON("POST", "/api/latest/fleet/labels", &fleet.LabelPayload{Name: t.Name(), Query: "select 1"}, http.StatusOK, &createResp)
 		assert.NotZero(t, createResp.Label.ID)
@@ -5400,6 +5413,24 @@ func (s *integrationTestSuite) TestLabelSpecs() {
 	}, http.StatusUnprocessableEntity, &applyResp,
 	)
 
+	// apply an invalid label spec - invalid platform
+	s.DoJSON(
+		"POST",
+		"/api/latest/fleet/spec/labels",
+		applyLabelSpecsRequest{
+			Specs: []*fleet.LabelSpec{
+				{
+					Name:                name,
+					Query:               "select 1",
+					Platform:            "linux",
+					LabelMembershipType: fleet.LabelMembershipTypeDynamic,
+				},
+			},
+		},
+		http.StatusUnprocessableEntity,
+		&applyResp,
+	)
+
 	// apply an invalid label spec - manual membership without a host specified
 	s.DoJSON("POST", "/api/latest/fleet/spec/labels", applyLabelSpecsRequest{
 		Specs: []*fleet.LabelSpec{
@@ -5446,7 +5477,7 @@ func (s *integrationTestSuite) TestLabelSpecs() {
 			{
 				Name:                name,
 				Query:               "select 1",
-				Platform:            "linux",
+				Platform:            "centos",
 				LabelMembershipType: fleet.LabelMembershipTypeDynamic,
 			},
 		},
@@ -7728,7 +7759,7 @@ func (s *integrationTestSuite) TestAppConfig() {
 	require.True(t, len(listActivities.Activities) > 1)
 	require.Equal(t, fleet.ActivityTypeEditedAgentOptions{}.ActivityName(), listActivities.Activities[0].Type)
 	require.NotNil(t, listActivities.Activities[0].Details)
-	assert.JSONEq(t, `{"global": true, "team_id": null, "team_name": null}`, string(*listActivities.Activities[0].Details))
+	assert.JSONEq(t, `{"global": true, "fleet_id": null, "fleet_name": null, "team_id": null, "team_name": null}`, string(*listActivities.Activities[0].Details))
 
 	// try to set invalid agent options
 	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
@@ -8135,7 +8166,7 @@ func (s *integrationTestSuite) TestCertificatesSpecs() {
 	require.Len(t, activitiesAfterInsert, len(activitiesBeforeInsert)+1, "expected exactly one new activity for the team")
 	s.lastActivityMatches(
 		fleet.ActivityTypeEditedAndroidCertificate{}.ActivityName(),
-		fmt.Sprintf(`{"team_id": %d, "team_name": %q}`, team.ID, team.Name),
+		fmt.Sprintf(`{"fleet_id": %d, "fleet_name": %q, "team_id": %d, "team_name": %q}`, team.ID, team.Name, team.ID, team.Name),
 		0,
 	)
 
@@ -8255,7 +8286,7 @@ func (s *integrationTestSuite) TestCertificatesSpecs() {
 	// Verify activity was created for deleting certificates
 	s.lastActivityMatches(
 		fleet.ActivityTypeEditedAndroidCertificate{}.ActivityName(),
-		fmt.Sprintf(`{"team_id": %d, "team_name": %q}`, team.ID, team.Name),
+		fmt.Sprintf(`{"fleet_id": %d, "fleet_name": %q, "team_id": %d, "team_name": %q}`, team.ID, team.Name, team.ID, team.Name),
 		0,
 	)
 
@@ -8294,7 +8325,7 @@ func (s *integrationTestSuite) TestCertificatesSpecs() {
 	require.Len(t, activitiesAfterNoTeam, len(activitiesBeforeNoTeam)+1, "expected exactly one new activity for no team")
 	s.lastActivityMatches(
 		fleet.ActivityTypeEditedAndroidCertificate{}.ActivityName(),
-		`{"team_id": null, "team_name": null}`,
+		`{"fleet_id": null, "fleet_name": null, "team_id": null, "team_name": null}`,
 		0,
 	)
 
@@ -14149,6 +14180,12 @@ func (s *integrationTestSuite) TestDebugDB() {
 
 func (s *integrationTestSuite) TestAutofillPolicies() {
 	t := s.T()
+
+	// Ensure AI features are enabled (may have been disabled by a previous test).
+	s.Do("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
+		"server_settings": {"ai_features_disabled": false}
+	}`), http.StatusOK)
+
 	startMockServer := func(t *testing.T) string {
 		// create a test http server
 		srv := httptest.NewServer(

@@ -233,6 +233,13 @@
       "description": "BBEdit is a text, code, and markup editor."
     },
     {
+      "name": "BetterDisplay",
+      "slug": "betterdisplay/darwin",
+      "platform": "darwin",
+      "unique_identifier": "pro.betterdisplay.BetterDisplay",
+      "description": "BetterDisplay is a display management tool."
+    },
+    {
       "name": "Beyond Compare",
       "slug": "beyond-compare/darwin",
       "platform": "darwin",
