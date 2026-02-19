@@ -681,6 +681,20 @@
       "description": "Firefox is a powerful, open-source web browser built for speed, privacy, and customization."
     },
     {
+      "name": "Mozilla Firefox ESR",
+      "slug": "firefox@esr/darwin",
+      "platform": "darwin",
+      "unique_identifier": "org.mozilla.firefox",
+      "description": "Mozilla Firefox ESR is the Extended Support Release version of the popular web browser Firefox."
+    },
+    {
+      "name": "Mozilla Firefox ESR",
+      "slug": "firefox@esr/windows",
+      "platform": "windows",
+      "unique_identifier": "Mozilla Firefox 140.7.1 ESR (x64 en-US)",
+      "description": "Mozilla Firefox ESR is the Extended Support Release version of the popular web browser Firefox."
+    },
+    {
       "name": "Fork",
       "slug": "fork/darwin",
       "platform": "darwin",
