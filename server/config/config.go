@@ -276,7 +276,9 @@ type LoggingConfig struct {
 	TracingType string `yaml:"tracing_type"`
 	// OtelLogsEnabled enables exporting logs to an OpenTelemetry collector.
 	// When enabled, logs are sent to both stderr and the OTLP endpoint.
-	OtelLogsEnabled bool `yaml:"otel_logs_enabled"`
+	OtelLogsEnabled  bool   `yaml:"otel_logs_enabled"`
+	EnableLogTopics  string `yaml:"enable_log_topics"`
+	DisableLogTopics string `yaml:"disable_log_topics"`
 }
 
 // ActivityConfig defines configs related to activities.
@@ -1322,6 +1324,10 @@ func (man Manager) addConfigs() {
 		"Select the kind of tracing, defaults to OpenTelemetry, can also be elasticapm")
 	man.addConfigBool("logging.otel_logs_enabled", false,
 		"Enable exporting logs to an OpenTelemetry collector (requires tracing_enabled)")
+	man.addConfigString("logging.enable_log_topics", "",
+		"Comma-separated log topics to enable (overrides code defaults)")
+	man.addConfigString("logging.disable_log_topics", "",
+		"Comma-separated log topics to disable (overrides code defaults)")
 
 	// Email
 	man.addConfigString("email.backend", "", "Provide the email backend type, acceptable values are currently \"ses\" and \"default\" or empty string which will default to SMTP")
@@ -1752,6 +1758,8 @@ func (man Manager) LoadConfig() FleetConfig {
 			TracingEnabled:       man.getConfigBool("logging.tracing_enabled"),
 			TracingType:          man.getConfigString("logging.tracing_type"),
 			OtelLogsEnabled:      man.getConfigBool("logging.otel_logs_enabled"),
+			EnableLogTopics:      man.getConfigString("logging.enable_log_topics"),
+			DisableLogTopics:     man.getConfigString("logging.disable_log_topics"),
 		},
 		Firehose: FirehoseConfig{
 			Region:           man.getConfigString("firehose.region"),

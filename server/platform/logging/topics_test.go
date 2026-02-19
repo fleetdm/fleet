@@ -1,0 +1,54 @@
+package logging
+
+import (
+	"context"
+	"testing"
+
+	"github.com/stretchr/testify/assert"
+)
+
+func TestTopicEnabledByDefault(t *testing.T) {
+	t.Cleanup(ResetTopics)
+	assert.True(t, TopicEnabled("unknown-topic"))
+}
+
+func TestDisableTopic(t *testing.T) {
+	t.Cleanup(ResetTopics)
+	DisableTopic("my-topic")
+	assert.False(t, TopicEnabled("my-topic"))
+}
+
+func TestEnableTopicReenables(t *testing.T) {
+	t.Cleanup(ResetTopics)
+	DisableTopic("my-topic")
+	assert.False(t, TopicEnabled("my-topic"))
+	EnableTopic("my-topic")
+	assert.True(t, TopicEnabled("my-topic"))
+}
+
+func TestSetTopicEnabled(t *testing.T) {
+	t.Cleanup(ResetTopics)
+
+	SetTopicEnabled("my-topic", false)
+	assert.False(t, TopicEnabled("my-topic"))
+
+	SetTopicEnabled("my-topic", true)
+	assert.True(t, TopicEnabled("my-topic"))
+}
+
+func TestResetTopics(t *testing.T) {
+	t.Cleanup(ResetTopics)
+	DisableTopic("a")
+	DisableTopic("b")
+	ResetTopics()
+	assert.True(t, TopicEnabled("a"))
+	assert.True(t, TopicEnabled("b"))
+}
+
+func TestContextWithTopicRoundTrip(t *testing.T) {
+	ctx := context.Background()
+	assert.Equal(t, "", TopicFromContext(ctx))
+
+	ctx = ContextWithTopic(ctx, "my-topic")
+	assert.Equal(t, "my-topic", TopicFromContext(ctx))
+}

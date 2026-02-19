@@ -67,6 +67,7 @@ import (
 	nanomdm_pushsvc "github.com/fleetdm/fleet/v4/server/mdm/nanomdm/push/service"
 	"github.com/fleetdm/fleet/v4/server/platform/endpointer"
 	platform_http "github.com/fleetdm/fleet/v4/server/platform/http"
+	platform_logging "github.com/fleetdm/fleet/v4/server/platform/logging"
 	common_mysql "github.com/fleetdm/fleet/v4/server/platform/mysql"
 	"github.com/fleetdm/fleet/v4/server/pubsub"
 	"github.com/fleetdm/fleet/v4/server/service"
@@ -233,6 +234,22 @@ the way that the Fleet server works.
 			}
 
 			logger := initLogger(config, loggerProvider)
+
+			// If you want to disable any logs by default, this is where to do it.
+			//
+			// For example:
+			// platform_logging.DisableTopic("deprecated-api-keys")
+
+			// Apply log topic overrides from config. Enables run first, then
+			// disables, so disable wins on conflict.
+			// Note that any topic not included in these lists will be considered
+			// enabled if it's encountered in a log.
+			for _, topic := range parseLogTopics(config.Logging.EnableLogTopics) {
+				platform_logging.EnableTopic(topic)
+			}
+			for _, topic := range parseLogTopics(config.Logging.DisableLogTopics) {
+				platform_logging.DisableTopic(topic)
+			}
 
 			if dev_mode.IsEnabled {
 				createTestBuckets(&config, logger)
@@ -2046,4 +2063,19 @@ func createTestBuckets(config *configpkg.FleetConfig, logger log.Logger) {
 			"name", config.S3.CarvesBucket,
 		)
 	}
+}
+
+// parseLogTopics splits a comma-separated string into trimmed, non-empty topic names.
+func parseLogTopics(s string) []string {
+	if s == "" {
+		return nil
+	}
+	var topics []string
+	for _, t := range strings.Split(s, ",") {
+		t = strings.TrimSpace(t)
+		if t != "" {
+			topics = append(topics, t)
+		}
+	}
+	return topics
 }
