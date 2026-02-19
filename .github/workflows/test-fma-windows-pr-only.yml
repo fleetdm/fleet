@@ -298,7 +298,32 @@ jobs:
             Write-Host "Firefox not found in registry"
           }
 
-          Start-Sleep -Seconds 5
+          # Kill any lingering Firefox/Mozilla processes
+          Write-Host "Stopping any lingering Firefox processes..."
+          Get-Process -Name "firefox","plugin-container","updater","maintenanceservice*","helper" -ErrorAction SilentlyContinue | ForEach-Object {
+            Write-Host "  Killing process: $($_.Name) (PID: $($_.Id))"
+            Stop-Process -Id $_.Id -Force -ErrorAction SilentlyContinue
+          }
+
+          Start-Sleep -Seconds 10
+
+          # Force-remove leftover Firefox directories from Program Files
+          $firefoxDirs = @(
+            "C:\Program Files\Mozilla Firefox",
+            "C:\Program Files (x86)\Mozilla Firefox",
+            "C:\Program Files\Mozilla Maintenance Service"
+          )
+          foreach ($dir in $firefoxDirs) {
+            if (Test-Path $dir) {
+              Write-Host "Removing leftover directory: $dir"
+              Remove-Item -Path $dir -Recurse -Force -ErrorAction SilentlyContinue
+              if (Test-Path $dir) {
+                Write-Host "WARNING: Failed to fully remove $dir"
+              } else {
+                Write-Host "Removed $dir"
+              }
+            }
+          }
         shell: pwsh
 
       - name: Filter apps.json and verify changed apps

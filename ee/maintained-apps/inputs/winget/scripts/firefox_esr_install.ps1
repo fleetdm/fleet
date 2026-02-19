@@ -5,27 +5,19 @@ $exeFilePath = "${env:INSTALLER_PATH}"
 
 try {
 
-# Check for any existing Firefox processes before install
-$firefoxProcs = Get-Process -Name "firefox" -ErrorAction SilentlyContinue
-if ($firefoxProcs) {
-    Write-Host "Found running Firefox processes, stopping them..."
-    $firefoxProcs | Stop-Process -Force
-    Start-Sleep -Seconds 2
-}
-
-# Use Mozilla's -ms flag for silent enterprise installation
-# https://firefox-source-docs.mozilla.org/browser/installer/windows/installer/FullConfig.html
+# Silent install flags from winget manifest for Mozilla.Firefox.ESR (nullsoft installer)
 $processOptions = @{
   FilePath = "$exeFilePath"
-  ArgumentList = "-ms"
+  ArgumentList = "/S"
   PassThru = $true
   Wait = $true
 }
 
-Write-Host "Starting Firefox ESR install with -ms flag..."
+# Start process and track exit code
 $process = Start-Process @processOptions
 $exitCode = $process.ExitCode
 
+# Prints the exit code
 Write-Host "Install exit code: $exitCode"
 Exit $exitCode
 
