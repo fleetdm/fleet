@@ -71,7 +71,11 @@ fun LogsScreen(onNavigateBack: () -> Unit) {
                 val filterArgs = fleetTags.map { "$it:${selectedLevel.logcatCode}" } + listOf("*:S")
                 val command = listOf("logcat", "-d") + filterArgs
                 val process = ProcessBuilder(command).redirectErrorStream(true).start()
-                process.inputStream.bufferedReader().readText()
+                try {
+                    process.inputStream.bufferedReader().readText()
+                } finally {
+                    process.destroy()
+                }
             } catch (e: Exception) {
                 "Failed to read logs: ${e.message}"
             }
