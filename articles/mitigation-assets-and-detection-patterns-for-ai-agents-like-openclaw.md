@@ -1,5 +1,11 @@
 # Mitigation assets and detection patterns for AI agents like OpenClaw
 
+### Links to article series:
+
+- Part 1: [OpenClaw: Open for work?](https://fleetdm.com/articles/openclaw-open-for-work)
+- Part 2: [Detecting AI agents like OpenClaw with automated tooling](https://fleetdm.com/articles/detecting-ai-agents-like-openclaw-with-automated-tooling)
+- Part 3: Mitigation assets and detection patterns for AI agents like OpenClaw
+
 Right now, at least one person on your team is using a personal AI assistant. Tools like OpenClaw connect to local files, messaging apps, calendars, and anything else on a device. They're showing up fast.
 
 You don't need to ban these tools to want visibility. They seek broad system access by design. They interact with files, processes, and network resources. They install persistence mechanisms and drop binaries across multiple paths. Listening ports extend the attack surface of any device they run on.
@@ -387,11 +393,11 @@ fleetctl apply -f openclaw-detection.queries.yml
 
 osquery tables like `docker_images`, `docker_containers`, and `npm_packages` return zero rows when Docker or Node.js isn't installed rather than erroring. The CTEs that check those tables simply contribute 0 to the score. On Linux, `deb_packages` returns nothing on RPM-based distros and vice versa; both are included so the policy works across all distributions. Test against a canary team first to confirm behaviour in your environment.
 
-The goal is to understand what's running across your fleet so you can make informed decisions. Personal AI assistants are here to stay. The organisations that do well will be the ones with visibility and good policy around their use.
+Personal AI assistants are here to stay. The goal in a managed environment is to understand what's running to make informed decisions on governance and use. Get in touch with [Fleet](https://fleetdm.com/) to learn more about how our modern, powerful device management and data observation capabilities can help any organization navigate the challenges IT faces today.
 
 <meta name="articleTitle" value="Mitigation assets and detection patterns for AI agents like OpenClaw">
 <meta name="authorFullName" value="Adam Baali">
 <meta name="authorGitHubUsername" value="adambaali">
 <meta name="category" value="guides">
-<meta name="publishedOn" value="2026-02-11">
-<meta name="description" value="OpenClaw part 3 series.">
+<meta name="publishedOn" value="2026-02-19">
+<meta name="description" value="Part 3 of 3 - OpenClaw: Mitigations and patterns to help investigate autonomous AI agent use on managed endpoints.">
