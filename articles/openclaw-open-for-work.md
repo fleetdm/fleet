@@ -1,5 +1,11 @@
 # OpenClaw: Open for work?
 
+### Links to article series:
+
+- Part 1: OpenClaw: Open for work?
+- Part 2: [Detecting AI agents like OpenClaw with automated tooling](https://fleetdm.com/articles/detecting-ai-agents-like-openclaw-with-automated-tooling)
+- Part 3: [Mitigation assets and detection patterns for AI agents like OpenClaw](https://fleetdm.com/articles/mitigation-assets-and-detection-patterns-for-ai-agents-like-openclaw)
+
 The amount of recent chatter about [OpenClaw](https://openclaw.im/) seems to be highlighting a [cultural inflection point](https://www.jakequist.com/thoughts/openclaw-is-what-apple-intelligence-should-have-been). Like the point at which everyone switched off AOL and on to the regular old internet. The point at which everyone suddenly had an iPod. The point at which everyone had a Gmail account. 
 
 This may be the point at which useful AI technology has finally become attainable for people who would not consider themselves technology-savvy. Powerful, connected, practical. Easy to set up, use and understand. 
@@ -39,11 +45,11 @@ Prompt injections can also be indirect, meaning an autonomous agent may encounte
 
 ## Can device management help?
 
-The [next article](/articles/detecting-ai-agents-like-openclaw-with-automated-tooling.md) in this series will explore how threat hunting and device management with Fleet can help to secure OpenClaw or detect it to prevent its use.  
+Our [next article](https://fleetdm.com/articles/detecting-ai-agents-like-openclaw-with-automated-tooling) (part 2 of this series) will explore how to understand this new threat and what IT leaders should know about protecting their environments when autonomous AI agents are in use.
 
 <meta name="articleTitle" value="OpenClaw: Open for work?">
 <meta name="authorFullName" value="Brock Walters">
 <meta name="authorGitHubUsername" value="nonpunctual">
 <meta name="category" value="articles">
 <meta name="publishedOn" value="2026-02-04">
-<meta name="description" value="Part 1 of the OpenClaw series: An overview of OpenClaw, how it works, and the security risks of autonomous AI agents on user devices.">
+<meta name="description" value="Part 1 of 3 - OpenClaw: An overview, how it works, and the security risks of autonomous AI agents on user devices.">
