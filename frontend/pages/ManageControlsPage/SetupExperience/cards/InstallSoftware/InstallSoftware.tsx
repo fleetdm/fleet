@@ -1,4 +1,4 @@
-import React, { useCallback, useState } from "react";
+import React, { useCallback } from "react";
 import { useQuery } from "react-query";
 import { AxiosError } from "axios";
 import { Tab, TabList, TabPanel, Tabs } from "react-tabs";
@@ -31,7 +31,7 @@ import TabText from "components/TabText";
 import GenericMsgWithNavButton from "components/GenericMsgWithNavButton";
 import CustomLink from "components/CustomLink";
 
-import AddInstallSoftware from "./components/AddInstallSoftware";
+import InstallSoftwareForm from "./components/InstallSoftwareForm";
 import SetupExperienceContentContainer from "../../components/SetupExperienceContentContainer";
 import { ISetupExperienceCardProps } from "../../SetupExperienceNavItems";
 import getManualAgentInstallSetting from "../../helpers";
@@ -67,8 +67,6 @@ const InstallSoftware = ({
 
   // all uses of selectedPlatform are gated by above boolean
   const selectedPlatform = urlPlatformParam as SetupExperiencePlatform;
-
-  const [showSelectSoftwareModal, setShowSelectSoftwareModal] = useState(false);
 
   const {
     data: softwareTitles,
@@ -130,11 +128,6 @@ const InstallSoftware = ({
     );
   }
 
-  const onSave = async () => {
-    setShowSelectSoftwareModal(false);
-    refetchSoftwareTitles();
-  };
-
   const hasManualAgentInstall = getManualAgentInstallSetting(
     currentTeamId,
     globalConfig,
@@ -188,11 +181,10 @@ const InstallSoftware = ({
               router={router}
             />
           ) : (
-            <AddInstallSoftware
+            <InstallSoftwareForm
               currentTeamId={currentTeamId}
               hasManualAgentInstall={hasManualAgentInstall}
               softwareTitles={softwareTitles}
-              onAddSoftware={() => setShowSelectSoftwareModal(true)}
               platform={platform}
               savedRequireAllSoftwareMacOS={
                 currentTeamId
@@ -200,6 +192,7 @@ const InstallSoftware = ({
                   : globalConfig?.mdm?.macos_setup?.require_all_software_macos
               }
               router={router}
+              refetchSoftwareTitles={refetchSoftwareTitles}
             />
           )}
         </SetupExperienceContentContainer>

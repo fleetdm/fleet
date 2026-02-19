@@ -1,13 +1,12 @@
-import React, { useCallback, useMemo } from "react";
+import React, { useMemo } from "react";
 
 import { ISoftwareTitle } from "interfaces/software";
 import { SetupExperiencePlatform } from "interfaces/platform";
 
 import TableContainer from "components/TableContainer";
 import EmptyTable from "components/EmptyTable";
-import TableCount from "components/TableContainer/TableCount";
 
-import generateTableConfig from "./SelectSoftwareTableConfig";
+import generateTableConfig from "./InstallSoftwareTableConfig";
 
 const baseClass = "select-software-table";
 
@@ -23,22 +22,28 @@ const generateSelectedRows = (softwareTitles: ISoftwareTitle[]) => {
   }, {});
 };
 
-interface ISelectSoftwareTableProps {
+interface IInstallSoftwareTableProps {
   softwareTitles: ISoftwareTitle[];
   onChangeSoftwareSelect: (select: boolean, id: number) => void;
   platform: SetupExperiencePlatform;
   renderCustomCount?: () => JSX.Element;
+  manualAgentInstallBlockingSoftware?: boolean;
 }
 
-const SelectSoftwareTable = ({
+const InstallSoftwareTable = ({
   softwareTitles,
   onChangeSoftwareSelect,
   platform,
   renderCustomCount,
-}: ISelectSoftwareTableProps) => {
+  manualAgentInstallBlockingSoftware = false,
+}: IInstallSoftwareTableProps) => {
   const tableConfig = useMemo(() => {
-    return generateTableConfig(platform, onChangeSoftwareSelect);
-  }, [onChangeSoftwareSelect, platform]);
+    return generateTableConfig(
+      platform,
+      onChangeSoftwareSelect,
+      manualAgentInstallBlockingSoftware
+    );
+  }, [onChangeSoftwareSelect, platform, manualAgentInstallBlockingSoftware]);
 
   const initialSelectedSoftwareRows = useMemo(() => {
     return generateSelectedRows(softwareTitles);
@@ -79,4 +84,4 @@ const SelectSoftwareTable = ({
   );
 };
 
-export default SelectSoftwareTable;
+export default InstallSoftwareTable;

@@ -1,5 +1,5 @@
 import React, { useCallback, useContext, useState, useMemo } from "react";
-import { capitalize, isEqual } from "lodash";
+import { isEqual } from "lodash";
 import { InjectedRouter } from "react-router";
 
 import PATHS from "router/paths";
@@ -17,10 +17,11 @@ import Checkbox from "components/forms/fields/Checkbox";
 import EmptyTable from "components/EmptyTable";
 import TooltipWrapper from "components/TooltipWrapper";
 import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
-import SelectSoftwareTable from "../SelectSoftwareTable";
+import InstallSoftwareTable from "../InstallSoftwareTable";
 import { hasNoSoftwareUploaded } from "./helpers";
+import { manuallyInstallTooltipText } from "../InstallSoftwareTable/InstallSoftwareTableConfig";
 
-const baseClass = "add-install-software";
+const baseClass = "install-software-form";
 
 const initializeSelectedSoftwareIds = (softwareTitles: ISoftwareTitle[]) => {
   return softwareTitles.reduce<number[]>((acc, software) => {
@@ -32,19 +33,6 @@ const initializeSelectedSoftwareIds = (softwareTitles: ISoftwareTitle[]) => {
     }
     return acc;
   }, []);
-};
-
-const getPlatformLabel = (platform: SetupExperiencePlatform) => {
-  switch (platform) {
-    case "macos":
-      return "macOS";
-    case "ios":
-      return "iOS";
-    case "ipados":
-      return "iPadOS";
-    default:
-      return capitalize(platform);
-  }
 };
 
 const getAddSoftwareUrl = (
@@ -74,25 +62,25 @@ const getAddSoftwareUrl = (
   return `${path}?${buildQueryStringFromParams(params)}`;
 };
 
-interface IAddInstallSoftwareProps {
+interface IInstallSoftwareProps {
   currentTeamId: number;
   hasManualAgentInstall: boolean;
   softwareTitles: ISoftwareTitle[] | null;
-  onAddSoftware: () => void;
   platform: SetupExperiencePlatform;
   savedRequireAllSoftwareMacOS?: boolean | null;
   router: InjectedRouter;
+  refetchSoftwareTitles: () => void;
 }
 
-const AddInstallSoftware = ({
+const InstallSoftware = ({
   currentTeamId,
   hasManualAgentInstall,
   softwareTitles,
-  onAddSoftware,
   platform,
   savedRequireAllSoftwareMacOS,
   router,
-}: IAddInstallSoftwareProps) => {
+  refetchSoftwareTitles,
+}: IInstallSoftwareProps) => {
   const noSoftwareUploaded = hasNoSoftwareUploaded(softwareTitles);
   const { renderFlash, renderMultiFlash } = useContext(NotificationContext);
   const { config } = useContext(AppContext);
@@ -165,7 +153,6 @@ const AddInstallSoftware = ({
         );
         hadSuccess = true;
         // Still let parent refetch even if the macOS call later fails
-        await onAddSoftware();
       } catch (e) {
         errorNotifications.push({
           id: "update-software",
@@ -205,6 +192,7 @@ const AddInstallSoftware = ({
       renderFlash("success", "Successfully updated.");
     }
 
+    refetchSoftwareTitles();
     setIsSaving(false);
   };
 
@@ -228,14 +216,6 @@ const AddInstallSoftware = ({
       </div>
     );
   };
-
-  const manuallyInstallTooltipText = (
-    <>
-      Disabled because you manually install Fleet&apos;s agent (
-      <b>Bootstrap package {">"} Advanced options</b>). Use your bootstrap
-      package to install software during the setup experience.
-    </>
-  );
 
   const manualAgentInstallBlockingSoftware =
     hasManualAgentInstall && isMacOS(platform);
@@ -269,17 +249,23 @@ const AddInstallSoftware = ({
 
   return (
     <div className={baseClass}>
-      <SelectSoftwareTable
-        softwareTitles={softwareTitles}
-        onChangeSoftwareSelect={onChangeSoftwareSelect}
-        platform={platform}
-        renderCustomCount={renderCustomCount}
-      />
-      {platform === "macos" && (
-        <div className={`${baseClass}__macos_options_form`}>
-          <form>
+      <form onSubmit={onSaveSelectedSoftware}>
+        <InstallSoftwareTable
+          softwareTitles={softwareTitles}
+          onChangeSoftwareSelect={onChangeSoftwareSelect}
+          platform={platform}
+          renderCustomCount={renderCustomCount}
+          manualAgentInstallBlockingSoftware={
+            manualAgentInstallBlockingSoftware
+          }
+        />
+        {platform === "macos" && (
+          <div className={`${baseClass}__macos_options`}>
             <Checkbox
-              disabled={config?.gitops.gitops_mode_enabled}
+              disabled={
+                config?.gitops.gitops_mode_enabled ||
+                !manualAgentInstallBlockingSoftware
+              }
               value={requireAllSoftwareMacOS}
               onChange={setRequireAllSoftwareMacOS}
             >
@@ -287,25 +273,35 @@ const AddInstallSoftware = ({
                 Cancel setup if software install fails
               </TooltipWrapper>
             </Checkbox>
-          </form>
-        </div>
-      )}
-      <div className={`${baseClass}__button-container`}>
+          </div>
+        )}
         <GitOpsModeTooltipWrapper
           tipOffset={6}
           renderChildren={(disableChildren) => (
-            <Button
-              disabled={disableChildren || isSaving || shouldDisableSave}
-              onClick={onSaveSelectedSoftware}
-              isLoading={isSaving}
+            <TooltipWrapper
+              className={"select-software-table__manual-install-tooltip"}
+              tipContent={manuallyInstallTooltipText}
+              disableTooltip={
+                manualAgentInstallBlockingSoftware && platform === "macos"
+              }
+              position="top"
+              showArrow
+              underline={false}
+              tipOffset={12}
             >
-              Save
-            </Button>
+              <Button
+                disabled={disableChildren || isSaving || shouldDisableSave}
+                isLoading={isSaving}
+                type="submit"
+              >
+                Save
+              </Button>
+            </TooltipWrapper>
           )}
         />
-      </div>
+      </form>
     </div>
   );
 };
 
-export default AddInstallSoftware;
+export default InstallSoftware;

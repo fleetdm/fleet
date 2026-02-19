@@ -11,10 +11,19 @@ import Checkbox from "components/forms/fields/Checkbox";
 import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
 import { SetupExperiencePlatform } from "interfaces/platform";
 import AndroidLatestVersionWithTooltip from "components/MDM/AndroidLatestVersionWithTooltip";
+import TooltipWrapper from "components/TooltipWrapper";
 
-type ISelectSoftwareTableConfig = Column<ISoftwareTitle>;
+type IInstallSoftwareTableConfig = Column<ISoftwareTitle>;
 type ITableStringCellProps = IStringCellProps<ISoftwareTitle>;
 type ISelectionCellProps = CellProps<ISoftwareTitle>;
+
+export const manuallyInstallTooltipText = (
+  <>
+    Disabled because you manually install Fleet&apos;s agent (
+    <b>Bootstrap package {">"} Advanced options</b>). Use your bootstrap package
+    to install software during the setup experience.
+  </>
+);
 
 const getSetupExperienceLinuxPackageCopy = (source: SoftwareSource) => {
   switch (source) {
@@ -31,9 +40,10 @@ const getSetupExperienceLinuxPackageCopy = (source: SoftwareSource) => {
 
 const generateTableConfig = (
   platform: SetupExperiencePlatform,
-  onSelectSoftware: (select: boolean, id: number) => void
-): ISelectSoftwareTableConfig[] => {
-  const headerConfigs: ISelectSoftwareTableConfig[] = [
+  onInstallSoftware: (select: boolean, id: number) => void,
+  manualAgentInstallBlockingSoftware = false
+): IInstallSoftwareTableConfig[] => {
+  const headerConfigs: IInstallSoftwareTableConfig[] = [
     {
       id: "selection",
       disableSortBy: true,
@@ -42,17 +52,35 @@ const generateTableConfig = (
         const checkboxProps = {
           value: checked,
           onChange: () => {
-            onSelectSoftware(!checked, cellProps.row.original.id);
+            onInstallSoftware(!checked, cellProps.row.original.id);
             cellProps.row.toggleRowSelected();
           },
         };
+
         return (
           <GitOpsModeTooltipWrapper
             position="right"
             tipOffset={6}
             fixedPositionStrategy
             renderChildren={(disableChildren) => (
-              <Checkbox disabled={disableChildren} {...checkboxProps} />
+              <TooltipWrapper
+                className={"select-software-table__manual-install-tooltip"}
+                tipContent={manuallyInstallTooltipText}
+                disableTooltip={
+                  disableChildren || manualAgentInstallBlockingSoftware
+                }
+                position="top"
+                showArrow
+                underline={false}
+                tipOffset={12}
+              >
+                <Checkbox
+                  disabled={
+                    disableChildren || !manualAgentInstallBlockingSoftware
+                  }
+                  {...checkboxProps}
+                />
+              </TooltipWrapper>
             )}
           />
         );

@@ -9,19 +9,19 @@ import {
   createMockSoftwareTitle,
 } from "__mocks__/softwareMock";
 
-import AddInstallSoftware from "./AddInstallSoftware";
+import InstallSoftwareForm from "./InstallSoftwareForm";
 
-describe("AddInstallSoftware", () => {
+describe("InstallSoftware", () => {
   it("should render the expected message if there are no software titles to select from", () => {
     render(
-      <AddInstallSoftware
+      <InstallSoftwareForm
         savedRequireAllSoftwareMacOS={false}
         currentTeamId={1}
         softwareTitles={null}
-        onAddSoftware={noop}
         hasManualAgentInstall={false}
         platform="macos"
         router={createMockRouter()}
+        refetchSoftwareTitles={noop}
       />
     );
 
@@ -30,14 +30,14 @@ describe("AddInstallSoftware", () => {
 
   it("should render the correct messaging when there are software titles but none have been selected to install at setup", () => {
     render(
-      <AddInstallSoftware
+      <InstallSoftwareForm
         savedRequireAllSoftwareMacOS={false}
         currentTeamId={1}
         softwareTitles={[createMockSoftwareTitle(), createMockSoftwareTitle()]}
-        onAddSoftware={noop}
         hasManualAgentInstall={false}
         platform="macos"
         router={createMockRouter()}
+        refetchSoftwareTitles={noop}
       />
     );
 
@@ -47,7 +47,7 @@ describe("AddInstallSoftware", () => {
 
   it("should render the correct messaging when there are software titles that have been selected to install at setup", async () => {
     const { user } = renderWithSetup(
-      <AddInstallSoftware
+      <InstallSoftwareForm
         savedRequireAllSoftwareMacOS={false}
         currentTeamId={1}
         softwareTitles={[
@@ -65,10 +65,10 @@ describe("AddInstallSoftware", () => {
           ),
           createMockSoftwareTitle(),
         ]}
-        onAddSoftware={noop}
         hasManualAgentInstall={false}
         platform="macos"
         router={createMockRouter()}
+        refetchSoftwareTitles={noop}
       />
     );
 
@@ -95,7 +95,7 @@ describe("AddInstallSoftware", () => {
 
   it("should render the correct messaging for Android when there are software titles that have been selected to install at setup", async () => {
     const { user } = renderWithSetup(
-      <AddInstallSoftware
+      <InstallSoftwareForm
         savedRequireAllSoftwareMacOS={false}
         currentTeamId={1}
         softwareTitles={[
@@ -113,10 +113,10 @@ describe("AddInstallSoftware", () => {
           ),
           createMockSoftwareTitle(),
         ]}
-        onAddSoftware={noop}
         hasManualAgentInstall={false}
         platform="android"
         router={createMockRouter()}
+        refetchSoftwareTitles={noop}
       />
     );
 
@@ -141,7 +141,7 @@ describe("AddInstallSoftware", () => {
 
   it('should render the "Cancel setup if software install fails" form for macos platform', async () => {
     render(
-      <AddInstallSoftware
+      <InstallSoftwareForm
         savedRequireAllSoftwareMacOS
         currentTeamId={1}
         softwareTitles={[
@@ -159,10 +159,10 @@ describe("AddInstallSoftware", () => {
           ),
           createMockSoftwareTitle(),
         ]}
-        onAddSoftware={noop}
         hasManualAgentInstall={false}
         platform="macos"
         router={createMockRouter()}
+        refetchSoftwareTitles={noop}
       />
     );
 
@@ -177,14 +177,14 @@ describe("AddInstallSoftware", () => {
 
   it("should disable adding software for macos with manual agent install", async () => {
     render(
-      <AddInstallSoftware
+      <InstallSoftwareForm
         savedRequireAllSoftwareMacOS={false}
         currentTeamId={1}
         softwareTitles={[createMockSoftwareTitle(), createMockSoftwareTitle()]}
-        onAddSoftware={noop}
         hasManualAgentInstall
         platform="macos"
         router={createMockRouter()}
+        refetchSoftwareTitles={noop}
       />
     );
 
@@ -199,17 +199,17 @@ describe("AddInstallSoftware", () => {
     "should allow adding software for %s platform with manual agent install",
     async (platform) => {
       render(
-        <AddInstallSoftware
+        <InstallSoftwareForm
           savedRequireAllSoftwareMacOS={false}
           currentTeamId={1}
           softwareTitles={[
             createMockSoftwareTitle(),
             createMockSoftwareTitle(),
           ]}
-          onAddSoftware={noop}
           hasManualAgentInstall
           platform={platform}
           router={createMockRouter()}
+          refetchSoftwareTitles={noop}
         />
       );
 
