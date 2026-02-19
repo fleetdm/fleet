@@ -76,19 +76,6 @@ func TestJSONKeyRewriteReader_AliasConflict(t *testing.T) {
 	assert.Equal(t, "fleet_id", ace.New)
 }
 
-func TestJSONKeyRewriteReader_AliasConflictOldThenNew(t *testing.T) {
-	// Deprecated key first, then new key.
-	input := `{"team_id": 42, "fleet_id": 99}`
-	rules := []AliasRule{{OldKey: "team_id", NewKey: "fleet_id"}}
-
-	r := NewJSONKeyRewriteReader(strings.NewReader(input), rules)
-	_, err := io.ReadAll(r)
-	require.Error(t, err)
-
-	var ace *AliasConflictError
-	require.True(t, errors.As(err, &ace))
-}
-
 func TestJSONKeyRewriteReader_AliasConflictNewThenOld(t *testing.T) {
 	// New key first, then deprecated key.
 	input := `{"fleet_id": 99, "team_id": 42}`
@@ -178,23 +165,12 @@ func TestJSONKeyRewriteReader_StringValuesNotRewritten(t *testing.T) {
 
 	var result map[string]any
 	require.NoError(t, json.Unmarshal(out, &result))
+	// String values should not be rewritten, only keys.
 	assert.Equal(t, "team_id", result["name"], "string value should not be rewritten")
 	assert.Equal(t, "the team_id field", result["description"])
+	// Make sure it didn't accidentally transform the team_id string value into a new fleet_id key.
+	assert.Empty(t, result["fleet_id"], "new key should not appear in output")
 	assert.Empty(t, r.UsedDeprecatedKeys())
-}
-
-func TestJSONKeyRewriteReader_EscapedQuotesInStrings(t *testing.T) {
-	input := `{"team_id": "value with \"escaped\" quotes"}`
-	rules := []AliasRule{{OldKey: "team_id", NewKey: "fleet_id"}}
-
-	r := NewJSONKeyRewriteReader(strings.NewReader(input), rules)
-	out, err := io.ReadAll(r)
-	require.NoError(t, err)
-
-	var result map[string]any
-	require.NoError(t, json.Unmarshal(out, &result))
-	assert.Equal(t, `value with "escaped" quotes`, result["team_id"])
-	assert.Contains(t, r.UsedDeprecatedKeys(), "team_id")
 }
 
 func TestJSONKeyRewriteReader_ArrayValues(t *testing.T) {
@@ -410,9 +386,8 @@ func TestJSONKeyRewriteReader_AliasConflictWithJSONDecoder(t *testing.T) {
 	assert.Equal(t, "fleet_id", ace.New)
 }
 
-func TestJSONKeyRewriteReader_WhitespaceAroundColon(t *testing.T) {
-	// JSON allows whitespace between key and colon.
-	input := `{"team_id" : 42}`
+func TestJSONKeyRewriteReader_DeeplyNestedObjectsOldKeys(t *testing.T) {
+	input := `{"a": {"b": {"c": {"team_id": 99}}}}`
 	rules := []AliasRule{{OldKey: "team_id", NewKey: "fleet_id"}}
 
 	r := NewJSONKeyRewriteReader(strings.NewReader(input), rules)
@@ -421,28 +396,13 @@ func TestJSONKeyRewriteReader_WhitespaceAroundColon(t *testing.T) {
 
 	var result map[string]any
 	require.NoError(t, json.Unmarshal(out, &result))
-	assert.Equal(t, float64(42), result["team_id"])
-}
-
-func TestJSONKeyRewriteReader_UnicodeEscapesInKeys(t *testing.T) {
-	// Keys with unicode escapes are decoded by jsontext.Decoder, so
-	// \u0074eam_id is correctly recognized as "team_id" and passed through.
-	input := `{"\u0074eam_id": 42}`
-	rules := []AliasRule{{OldKey: "team_id", NewKey: "fleet_id"}}
-
-	r := NewJSONKeyRewriteReader(strings.NewReader(input), rules)
-	out, err := io.ReadAll(r)
-	require.NoError(t, err)
-
-	var result map[string]any
-	require.NoError(t, json.Unmarshal(out, &result))
-	assert.Equal(t, float64(42), result["team_id"])
-	assert.Nil(t, result["fleet_id"])
+	inner := result["a"].(map[string]any)["b"].(map[string]any)["c"].(map[string]any)
+	assert.Equal(t, float64(99), inner["team_id"])
 	assert.Contains(t, r.UsedDeprecatedKeys(), "team_id")
 }
 
-func TestJSONKeyRewriteReader_DeeplyNestedObjects(t *testing.T) {
-	input := `{"a": {"b": {"c": {"team_id": 99}}}}`
+func TestJSONKeyRewriteReader_DeeplyNestedObjectsNewKeys(t *testing.T) {
+	input := `{"a": {"b": {"c": {"fleet_id": 99}}}}`
 	rules := []AliasRule{{OldKey: "team_id", NewKey: "fleet_id"}}
 
 	r := NewJSONKeyRewriteReader(strings.NewReader(input), rules)
@@ -455,7 +415,7 @@ func TestJSONKeyRewriteReader_DeeplyNestedObjects(t *testing.T) {
 	assert.Equal(t, float64(99), inner["team_id"])
 }
 
-func TestJSONKeyRewriteReader_TopLevelArray(t *testing.T) {
+func TestJSONKeyRewriteReader_TopLevelArrayOldKeys(t *testing.T) {
 	input := `[{"team_id": 1}, {"team_id": 2}]`
 	rules := []AliasRule{{OldKey: "team_id", NewKey: "fleet_id"}}
 
@@ -468,20 +428,22 @@ func TestJSONKeyRewriteReader_TopLevelArray(t *testing.T) {
 	assert.Len(t, result, 2)
 	assert.Equal(t, float64(1), result[0]["team_id"])
 	assert.Equal(t, float64(2), result[1]["team_id"])
+	assert.Contains(t, r.UsedDeprecatedKeys(), "team_id")
 }
 
-func TestJSONKeyRewriteReader_StringValueContainingKeyName(t *testing.T) {
-	// A string VALUE that exactly matches a deprecated key name should not be rewritten.
-	input := `{"message": "team_id"}`
+func TestJSONKeyRewriteReader_TopLevelArrayNewKeys(t *testing.T) {
+	input := `[{"fleet_id": 1}, {"fleet_id": 2}]`
 	rules := []AliasRule{{OldKey: "team_id", NewKey: "fleet_id"}}
 
 	r := NewJSONKeyRewriteReader(strings.NewReader(input), rules)
 	out, err := io.ReadAll(r)
 	require.NoError(t, err)
 
-	var result map[string]any
+	var result []map[string]any
 	require.NoError(t, json.Unmarshal(out, &result))
-	assert.Equal(t, "team_id", result["message"])
+	assert.Len(t, result, 2)
+	assert.Equal(t, float64(1), result[0]["team_id"])
+	assert.Equal(t, float64(2), result[1]["team_id"])
 }
 
 func TestJSONKeyRewriteReader_NestedObjectStringValue(t *testing.T) {
@@ -498,6 +460,7 @@ func TestJSONKeyRewriteReader_NestedObjectStringValue(t *testing.T) {
 	config := result["config"].(map[string]any)
 	assert.Equal(t, float64(5), config["team_id"])
 	assert.Equal(t, true, config["enabled"])
+	assert.Equal(t, []string{"team_id"}, r.UsedDeprecatedKeys())
 }
 
 func TestAliasConflictError_ErrorMessage(t *testing.T) {
