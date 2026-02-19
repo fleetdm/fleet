@@ -83,15 +83,6 @@ func removeDeprecatedKeysFlag() cli.Flag {
 	}
 }
 
-func printJSON(spec interface{}, writer io.Writer) error {
-	b, err := json.Marshal(spec)
-	if err != nil {
-		return err
-	}
-	fmt.Fprintf(writer, "%s\n", b)
-	return nil
-}
-
 func printYaml(spec interface{}, writer io.Writer) error {
 	b, err := yaml.Marshal(spec)
 	if err != nil {
