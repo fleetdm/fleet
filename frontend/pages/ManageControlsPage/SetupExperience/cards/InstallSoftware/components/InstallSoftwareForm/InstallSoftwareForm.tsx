@@ -140,8 +140,7 @@ const InstallSoftware = ({
   const shouldUpdateRequireAll =
     platform === "macos" && isRequireAllSoftwareDirty;
 
-  const onSaveSelectedSoftware = async () => {
-    if (!shouldUpdateSoftware && !shouldUpdateRequireAll) return;
+  const onClickSave = async () => {
     if (!softwareTitles) return;
 
     setIsSaving(true);
@@ -255,7 +254,7 @@ const InstallSoftware = ({
 
   return (
     <div className={baseClass}>
-      <form onSubmit={onSaveSelectedSoftware}>
+      <form onSubmit={onClickSave}>
         <InstallSoftwareTable
           softwareTitles={softwareTitles}
           onChangeSoftwareSelect={onChangeSoftwareSelect}
