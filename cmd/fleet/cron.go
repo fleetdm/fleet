@@ -299,7 +299,7 @@ func checkCustomVulnerabilities(
 	ctx, span := tracer.Start(ctx, "vuln.check_custom")
 	defer span.End()
 
-	vulns, err := customcve.CheckCustomVulnerabilities(ctx, ds, logger, startTime)
+	vulns, err := customcve.CheckCustomVulnerabilities(ctx, ds, logger.SlogLogger(), startTime)
 	if err != nil {
 		errHandler(ctx, logger, "checking custom vulnerabilities", err)
 	}
@@ -352,7 +352,7 @@ func checkWinVulnerabilities(
 			}
 
 			start := time.Now()
-			r, err := msrc.Analyze(analyzeCtx, ds, o, vulnPath, collectVulns, logger)
+			r, err := msrc.Analyze(analyzeCtx, ds, o, vulnPath, collectVulns, logger.SlogLogger())
 			elapsed := time.Since(start)
 			level.Debug(logger).Log(
 				"msg", "msrc-analysis-done",
@@ -455,7 +455,7 @@ func checkGovalDictionaryVulnerabilities(
 	if !config.DisableDataSync {
 		// Sync on disk goval_dictionary sqlite with current OS Versions.
 		refreshCtx, refreshSpan := tracer.Start(ctx, "vuln.goval_dictionary.refresh")
-		downloaded, err := goval_dictionary.Refresh(versions, vulnPath, logger)
+		downloaded, err := goval_dictionary.Refresh(refreshCtx, versions, vulnPath, logger.SlogLogger())
 		if err != nil {
 			errHandler(refreshCtx, logger, "updating goval_dictionary databases", err)
 		}
@@ -470,7 +470,7 @@ func checkGovalDictionaryVulnerabilities(
 		trace.WithAttributes(attribute.Int("os_count", len(versions.OSVersions))))
 	for _, version := range versions.OSVersions {
 		start := time.Now()
-		r, err := goval_dictionary.Analyze(analyzeCtx, ds, version, vulnPath, collectVulns, logger)
+		r, err := goval_dictionary.Analyze(analyzeCtx, ds, version, vulnPath, collectVulns, logger.SlogLogger())
 		if err != nil && errors.Is(err, goval_dictionary.ErrUnsupportedPlatform) {
 			level.Debug(logger).Log("msg", "goval_dictionary-analysis-unsupported", "platform", version.Name)
 			continue
@@ -512,7 +512,7 @@ func checkNVDVulnerabilities(
 			CVEFeedPrefixURL:     config.CVEFeedPrefixURL,
 			CISAKnownExploitsURL: config.CISAKnownExploitsURL,
 		}
-		err := nvd.Sync(opts, logger)
+		err := nvd.Sync(syncCtx, opts, logger.SlogLogger())
 		if err != nil {
 			errHandler(syncCtx, logger, "syncing vulnerability database", err)
 			// don't return, continue on ...
@@ -521,14 +521,14 @@ func checkNVDVulnerabilities(
 	}
 
 	loadCtx, loadSpan := tracer.Start(ctx, "vuln.nvd.load_cve_meta")
-	if err := nvd.LoadCVEMeta(loadCtx, logger, vulnPath, ds); err != nil {
+	if err := nvd.LoadCVEMeta(loadCtx, logger.SlogLogger(), vulnPath, ds); err != nil {
 		errHandler(loadCtx, logger, "load cve meta", err)
 		// don't return, continue on ...
 	}
 	loadSpan.End()
 
 	cpeCtx, cpeSpan := tracer.Start(ctx, "vuln.nvd.translate_software_to_cpe")
-	err := nvd.TranslateSoftwareToCPE(cpeCtx, ds, vulnPath, logger)
+	err := nvd.TranslateSoftwareToCPE(cpeCtx, ds, vulnPath, logger.SlogLogger())
 	if err != nil {
 		errHandler(cpeCtx, logger, "analyzing vulnerable software: Software->CPE", err)
 		cpeSpan.End()
@@ -537,7 +537,7 @@ func checkNVDVulnerabilities(
 	cpeSpan.End()
 
 	cveCtx, cveSpan := tracer.Start(ctx, "vuln.nvd.translate_cpe_to_cve")
-	vulns, err := nvd.TranslateCPEToCVE(cveCtx, ds, vulnPath, logger, collectVulns, startTime)
+	vulns, err := nvd.TranslateCPEToCVE(cveCtx, ds, vulnPath, logger.SlogLogger(), collectVulns, startTime)
 	if err != nil {
 		errHandler(cveCtx, logger, "analyzing vulnerable software: CPE->CVE", err)
 		cveSpan.End()

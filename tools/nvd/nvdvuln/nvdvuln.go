@@ -4,6 +4,7 @@ import (
 	"context"
 	"flag"
 	"fmt"
+	"log/slog"
 	"os"
 	"path/filepath"
 	"sort"
@@ -14,8 +15,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mock"
 	"github.com/fleetdm/fleet/v4/server/service"
 	"github.com/fleetdm/fleet/v4/server/vulnerabilities/nvd"
-	"github.com/go-kit/log"
-	"github.com/go-kit/log/level"
 	"github.com/google/go-cmp/cmp"
 	"github.com/shirou/gopsutil/v3/process"
 )
@@ -108,25 +107,23 @@ func main() {
 		}()
 	}
 
-	logger := log.NewJSONLogger(os.Stdout)
-	logger = log.With(logger, "ts", log.DefaultTimestampUTC)
+	logLevel := slog.LevelInfo
 	if *debug {
-		logger = level.NewFilter(logger, level.AllowDebug())
-	} else {
-		logger = level.NewFilter(logger, level.AllowInfo())
+		logLevel = slog.LevelDebug
 	}
+	logger := slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: logLevel}))
+
+	ctx := context.Background()
 
 	if *sync {
 		printf("Syncing into %s...\n", *dbDir)
-		if err := vulnDBSync(*dbDir, *debug, logger); err != nil {
+		if err := vulnDBSync(ctx, *dbDir, *debug, logger); err != nil {
 			panic(err)
 		}
 		if !singleSoftwareSet && !softwareFromURLSet {
 			return
 		}
 	}
-
-	ctx := context.Background()
 
 	var software []fleet.Software
 	if singleSoftwareSet {
@@ -296,12 +293,12 @@ func (s *softwareIterator) Close() error {
 	return nil
 }
 
-func vulnDBSync(vulnDBDir string, debug bool, logger log.Logger) error {
+func vulnDBSync(ctx context.Context, vulnDBDir string, debug bool, logger *slog.Logger) error {
 	opts := nvd.SyncOptions{
 		VulnPath: vulnDBDir,
 		Debug:    debug,
 	}
-	err := nvd.Sync(opts, logger)
+	err := nvd.Sync(ctx, opts, logger)
 	if err != nil {
 		return err
 	}
