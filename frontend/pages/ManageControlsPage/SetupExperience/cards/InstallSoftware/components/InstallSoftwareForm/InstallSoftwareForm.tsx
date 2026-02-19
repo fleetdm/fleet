@@ -19,9 +19,16 @@ import TooltipWrapper from "components/TooltipWrapper";
 import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
 import InstallSoftwareTable from "../InstallSoftwareTable";
 import { hasNoSoftwareUploaded } from "./helpers";
-import { manuallyInstallTooltipText } from "../InstallSoftwareTable/InstallSoftwareTableConfig";
 
 const baseClass = "install-software-form";
+
+const manuallyInstallTooltipText = (
+  <>
+    Disabled because you manually install Fleet&apos;s agent (
+    <b>Bootstrap package {">"} Advanced options</b>). Use your bootstrap package
+    to install software during the setup experience.
+  </>
+);
 
 const initializeSelectedSoftwareIds = (softwareTitles: ISoftwareTitle[]) => {
   return softwareTitles.reduce<number[]>((acc, software) => {
@@ -132,7 +139,6 @@ const InstallSoftware = ({
   const shouldUpdateSoftware = isSoftwareSelectionDirty;
   const shouldUpdateRequireAll =
     platform === "macos" && isRequireAllSoftwareDirty;
-  const shouldDisableSave = !shouldUpdateSoftware && !shouldUpdateRequireAll;
 
   const onSaveSelectedSoftware = async () => {
     if (!shouldUpdateSoftware && !shouldUpdateRequireAll) return;
@@ -275,13 +281,25 @@ const InstallSoftware = ({
         <GitOpsModeTooltipWrapper
           tipOffset={6}
           renderChildren={(disableChildren) => (
-            <Button
-              disabled={disableChildren || isSaving || shouldDisableSave}
-              isLoading={isSaving}
-              type="submit"
+            <TooltipWrapper
+              className={"select-software-table__manual-install-tooltip"}
+              tipContent={manuallyInstallTooltipText}
+              disableTooltip={
+                disableChildren || !manualAgentInstallBlockingSoftware
+              }
+              position="top"
+              showArrow
+              underline={false}
+              tipOffset={12}
             >
-              Save
-            </Button>
+              <Button
+                disabled={disableChildren || isSaving}
+                isLoading={isSaving}
+                type="submit"
+              >
+                Save
+              </Button>
+            </TooltipWrapper>
           )}
         />
       </form>
