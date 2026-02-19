@@ -22,6 +22,17 @@ import (
 	"github.com/jmoiron/sqlx"
 )
 
+// policyAllowedOrderKeys defines the allowed order keys for ListTeamPolicies.
+// SECURITY: This prevents information disclosure via arbitrary column sorting.
+var policyAllowedOrderKeys = common_mysql.OrderKeyAllowlist{
+	"id":                 "p.id",
+	"name":               "p.name",
+	"created_at":         "p.created_at",
+	"updated_at":         "p.updated_at",
+	"failing_host_count": "COALESCE(ps.failing_host_count, 0)",
+	"passing_host_count": "COALESCE(ps.passing_host_count, 0)",
+}
+
 const policyCols = `
 	p.id, p.team_id, p.resolution, p.name, p.query, p.description,
 	p.author_id, p.platforms, p.created_at, p.updated_at, p.critical,
@@ -778,10 +789,13 @@ func listPoliciesDB(ctx context.Context, q sqlx.QueryerContext, teamID *uint, op
 	// We must normalize the name for full Unicode support (Unicode equivalence).
 	match := norm.NFC.String(opts.MatchQuery)
 	query, args = searchLike(query, args, match, policySearchColumns...)
-	query, args = appendListOptionsWithCursorToSQL(query, args, &opts)
+	query, args, err := appendListOptionsWithCursorToSQLSecure(query, args, &opts, policyAllowedOrderKeys)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "apply list options")
+	}
 
 	var policies []*fleet.Policy
-	err := sqlx.SelectContext(ctx, q, &policies, query, args...)
+	err = sqlx.SelectContext(ctx, q, &policies, query, args...)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "listing policies")
 	}
@@ -817,10 +831,13 @@ func getInheritedPoliciesForTeam(ctx context.Context, q sqlx.QueryerContext, tea
 	// We must normalize the name for full Unicode support (Unicode equivalence).
 	match := norm.NFC.String(opts.MatchQuery)
 	query, args = searchLike(query, args, match, policySearchColumns...)
-	query, _ = appendListOptionsToSQL(query, &opts)
+	query, _, err := appendListOptionsToSQLSecure(query, &opts, policyAllowedOrderKeys)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "apply list options")
+	}
 
 	var policies []*fleet.Policy
-	err := sqlx.SelectContext(ctx, q, &policies, query, args...)
+	err = sqlx.SelectContext(ctx, q, &policies, query, args...)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "listing inherited policies")
 	}
@@ -1143,10 +1160,13 @@ func (ds *Datastore) ListMergedTeamPolicies(ctx context.Context, teamID uint, op
 	// We must normalize the name for full Unicode support (Unicode equivalence).
 	match := norm.NFC.String(opts.MatchQuery)
 	query, args = searchLike(query, args, match, policySearchColumns...)
-	query, _ = appendListOptionsToSQL(query, &opts)
+	query, _, err := appendListOptionsToSQLSecure(query, &opts, policyAllowedOrderKeys)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "apply list options")
+	}
 
 	var policies []*fleet.Policy
-	err := sqlx.SelectContext(ctx, ds.reader(ctx), &policies, query, args...)
+	err = sqlx.SelectContext(ctx, ds.reader(ctx), &policies, query, args...)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "listing merged team policies")
 	}

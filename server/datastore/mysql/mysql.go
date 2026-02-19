@@ -847,17 +847,42 @@ func sanitizeColumn(col string) string {
 }
 
 // appendListOptionsToSQL is a facade that calls common_mysql.AppendListOptions.
+//
+// Deprecated: this method will be removed in favor of appendListOptionsWithCursorToSQL
 func appendListOptionsToSQL(sql string, opts *fleet.ListOptions) (string, []any) {
 	return appendListOptionsWithCursorToSQL(sql, nil, opts)
 }
 
+// appendListOptionsToSQLSecure is a facade that calls common_mysql.AppendListOptionsWithParamsSecure.
+// The allowlist parameter maps user-facing order key names to actual SQL column expressions.
+// This prevents SQL injection and information disclosure via arbitrary column sorting.
+// See common_mysql.OrderKeyAllowlist for details.
+func appendListOptionsToSQLSecure(sql string, opts *fleet.ListOptions, allowlist common_mysql.OrderKeyAllowlist) (string, []any, error) {
+	return appendListOptionsWithCursorToSQLSecure(sql, nil, opts, allowlist)
+}
+
 // appendListOptionsWithCursorToSQL is a facade that calls common_mysql.AppendListOptionsWithParams.
 // NOTE: this method will mutate opts.PerPage if it is 0, setting it to the default value.
+//
+// Deprecated: this method will be removed in favor of appendListOptionsWithCursorToSQLSecure
 func appendListOptionsWithCursorToSQL(sql string, params []any, opts *fleet.ListOptions) (string, []any) {
 	if opts.PerPage == 0 {
 		opts.PerPage = fleet.DefaultPerPage
 	}
 	return common_mysql.AppendListOptionsWithParams(sql, params, opts)
+}
+
+// appendListOptionsWithCursorToSQLSecure is a facade that calls common_mysql.AppendListOptionsWithParamsSecure.
+// NOTE: this method will mutate opts.PerPage if it is 0, setting it to the default value.
+//
+// The allowlist parameter maps user-facing order key names to actual SQL column expressions.
+// This prevents SQL injection and information disclosure via arbitrary column sorting.
+// See common_mysql.OrderKeyAllowlist for details.
+func appendListOptionsWithCursorToSQLSecure(sql string, params []any, opts *fleet.ListOptions, allowlist common_mysql.OrderKeyAllowlist) (string, []any, error) {
+	if opts.PerPage == 0 {
+		opts.PerPage = fleet.DefaultPerPage
+	}
+	return common_mysql.AppendListOptionsWithParamsSecure(sql, params, opts, allowlist)
 }
 
 // whereFilterHostsByTeams returns the appropriate condition to use in the WHERE
