@@ -5,16 +5,14 @@ $exeFilePath = "${env:INSTALLER_PATH}"
 
 try {
 
-# Add argument to install silently
-# Argument to make install silent depends on installer,
-# each installer might use different argument (usually it's "/S" or "/s")
+# Silent install flags from winget manifest for Mozilla.Firefox.ESR (nullsoft installer)
 $processOptions = @{
   FilePath = "$exeFilePath"
-  ArgumentList = "/S"
+  ArgumentList = "/S /PreventRebootRequired=true"
   PassThru = $true
   Wait = $true
 }
-    
+
 # Start process and track exit code
 $process = Start-Process @processOptions
 $exitCode = $process.ExitCode
