@@ -112,7 +112,7 @@ fun DebugScreen(onNavigateBack: () -> Unit, onNavigateToLogs: () -> Unit) {
         modifier = Modifier.fillMaxSize(),
         topBar = {
             TopAppBar(
-                title = { Text("Debug Information") },
+                title = { Text("Debug information") },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
                         Icon(
