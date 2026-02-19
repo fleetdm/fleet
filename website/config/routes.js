@@ -586,6 +586,14 @@ module.exports.routes = {
     }
   },
 
+  'GET /deployment': {
+    action: 'landing-pages/view-deployment',
+    locals: {
+      pageTitleForMeta: 'Deployment',
+      pageDescriptionForMeta: 'TODO',
+    }
+  },
+
   //  ╦  ╔═╗╔═╗╔═╗╔═╗╦ ╦  ╦═╗╔═╗╔╦╗╦╦═╗╔═╗╔═╗╔╦╗╔═╗
   //  ║  ║╣ ║ ╦╠═╣║  ╚╦╝  ╠╦╝║╣  ║║║╠╦╝║╣ ║   ║ ╚═╗
   //  ╩═╝╚═╝╚═╝╩ ╩╚═╝ ╩   ╩╚═╚═╝═╩╝╩╩╚═╚═╝╚═╝ ╩ ╚═╝
