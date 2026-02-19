@@ -11,7 +11,7 @@ Fleet Desktop unlocks two key benefits:
    <iframe src="https://www.youtube.com/embed/cI2vDG3PbVo" allowfullscreen></iframe>
 </div>
 
-If your end users have a hard time finding Fleet Desktop in the macOS menu bar, you can deploy [this Fleet Desktop app](TODO).
+If your end users have a hard time finding Fleet Desktop in the macOS menu bar, you can deploy [this Fleet Desktop app](https://github.com/allenhouchins/fleet-desktop/releases).
 
 ## Install Fleet Desktop
 For information on how to install Fleet Desktop, visit: [Adding Hosts](https://fleetdm.com/docs/using-fleet/adding-hosts#fleet-desktop).
