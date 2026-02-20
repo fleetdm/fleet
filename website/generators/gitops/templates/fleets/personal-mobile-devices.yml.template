@@ -20,8 +20,8 @@ controls:
   # Setup experience
   ##########################################
   macos_setup: # TODO: wtf this is not the right name
-    # To enable SSO, uncomment this
-    enable_end_user_authentication: true
+  # To enable SSO, uncomment this
+  # enable_end_user_authentication: true
 
   ##########################################
   # Presets, restrictions, and configs
