@@ -1,13 +1,13 @@
 # Automated provisioning for Linux desktop in the enterprise
 
-## The Linux provisioning gap
-
 Linux users love the power and flexibility of their systems that include features like: 
 
 * Built-in package managers (e.g., `apt` and `yum`) for installing software  
 * Deep OS customization  
 * Native tooling for development, infrastructure and server management  
 * Scriptable kernel-level access for crafting complex workflows
+
+## The Linux provisioning gap
 
 But, this power and flexibility widens a critical gap for enterprise organizations that must control and manage Linux devices: Linux “MDM” is a term of art, not a real protocol. While there is no framework built into Linux for enrolling, provisioning and configuring Linux desktop computers in the enterprise that ensures a seamless “out of the box” (OOB) experience for end users while guaranteeing device compliance and security, there are more Linux management options than ever. Let’s look at some of the history, the challenges and a modern Linux provisioning / management solution. 
 

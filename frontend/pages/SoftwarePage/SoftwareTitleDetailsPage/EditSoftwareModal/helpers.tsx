@@ -4,7 +4,10 @@ import { isAxiosError } from "axios";
 import { getErrorReason } from "interfaces/errors";
 import { IAppStoreApp, ISoftwarePackage } from "interfaces/software";
 
-import { generateSecretErrMsg } from "pages/SoftwarePage/helpers";
+import {
+  generateSecretErrMsg,
+  getDisplayedSoftwareName,
+} from "pages/SoftwarePage/helpers";
 
 const DEFAULT_ERROR_MESSAGE = "Couldn't edit software. Please try again.";
 
@@ -23,7 +26,9 @@ export const getErrorMessage = (
   } else if (reason.includes("selected package is")) {
     return (
       <>
-        Couldn&apos;t edit <b>{software.name}</b>. {reason}
+        Couldn&apos;t edit{" "}
+        <b>{getDisplayedSoftwareName(software.name, software.display_name)}</b>.{" "}
+        {reason}
       </>
     );
   } else if (reason.includes("Secret variable")) {

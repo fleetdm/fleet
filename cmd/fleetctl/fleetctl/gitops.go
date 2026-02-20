@@ -76,11 +76,16 @@ func gitopsCommand() *cli.Command {
 			configFlag(),
 			contextFlag(),
 			debugFlag(),
+			enableLogTopicsFlag(),
+			disableLogTopicsFlag(),
 		},
 		Action: func(c *cli.Context) error {
 			logf := func(format string, a ...interface{}) {
 				_, _ = fmt.Fprintf(c.App.Writer, format, a...)
 			}
+
+			// Apply log topic overrides from CLI flags.
+			applyLogTopicFlags(c)
 
 			if len(c.Args().Slice()) != 0 {
 				return errors.New("No positional arguments are allowed. To load multiple config files, use one -f flag per file.")
@@ -866,7 +871,7 @@ func checkABMTeamAssignments(config *spec.GitOps, fleetClient *service.Client) (
 				if settingMap, ok := appleBM.([]any); ok {
 					for _, item := range settingMap {
 						if cfg, ok := item.(map[string]any); ok {
-							for _, teamConfigKey := range []string{"macos_team", "ios_team", "ipados_team"} {
+							for _, teamConfigKey := range []string{"macos_fleet", "ios_fleet", "ipados_fleet"} {
 								if team, ok := cfg[teamConfigKey].(string); ok && team != "" {
 									// normalize for Unicode support
 									team = norm.NFC.String(team)
@@ -957,7 +962,7 @@ func checkVPPTeamAssignments(config *spec.GitOps, fleetClient *service.Client) (
 				if vppInterfaces, ok := vpp.([]any); ok {
 					for _, item := range vppInterfaces {
 						if itemMap, ok := item.(map[string]any); ok {
-							if teams, ok := itemMap["teams"].([]any); ok {
+							if teams, ok := itemMap["fleets"].([]any); ok {
 								for _, team := range teams {
 									if teamStr, ok := team.(string); ok {
 										// normalize for Unicode support

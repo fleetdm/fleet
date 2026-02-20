@@ -177,9 +177,9 @@ If you're running into issues when enrolling hosts, the best practice is to look
 
 Fleet supports the [latest version of osquery](https://github.com/osquery/osquery/tags). 
 
-### Best practice for dual-boot workstations
+### Best practice for dual-boot workstations or VMs with duplicate hardware identifiers
 
-When end users want to have a dual-boot environment (e.g. Windows and Linux on one computer), the best practice is to install fleetd, that uses `--host-identifier=instance`, on both operating systems. This enrolls two hosts, one per operating system, in Fleet.
+When end users want to have a dual-boot environment (e.g. Windows and Linux on one computer) or have VMs that share hardware identifiers (UUIDs), the best practice is to install fleetd, that uses `--host-identifier=instance`, on both operating systems. This enrolls two hosts, one per operating system, in Fleet.
 
 ### fleetd components
 

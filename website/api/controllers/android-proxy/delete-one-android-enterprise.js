@@ -88,7 +88,7 @@ module.exports = {
         sails.log.warn(`p1: Android management API rate limit exceeded! Error: ${require('util').inspect(err)}`);
         return new Error(`When attempting to delete android enterprise from Google (${androidEnterpriseId}), an error occurred. Error: ${err}`);
       }).intercept((err)=>{
-        return new Error(`When attempting to delete android enterprise from Google (${androidEnterpriseId}), an error occurred. Error: ${err}`);
+        return new Error(`When attempting to delete android enterprise from Google (${androidEnterpriseId}), an error occurred. Error: ${require('util').inspect(err)}`);
       });
     } catch (unusedErr) {
       // If Google API deletion fails (e.g., enterprise already deleted), continue with proxy cleanup

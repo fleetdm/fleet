@@ -64,7 +64,8 @@ func processWebhook(ctx context.Context, ds fleet.Datastore, teamID *uint, setti
 			},
 		}
 		if teamID != nil {
-			payload["data"].(map[string]interface{})["team_id"] = *teamID
+			payload["data"].(map[string]any)["fleet_id"] = *teamID
+			payload["data"].(map[string]any)["team_id"] = *teamID
 		}
 
 		err = server.PostJSONWithTimeout(ctx, url, &payload)
@@ -77,7 +78,6 @@ func processWebhook(ctx context.Context, ds fleet.Datastore, teamID *uint, setti
 }
 
 func triggerTeamHostStatusWebhook(ctx context.Context, ds fleet.Datastore, logger kitlog.Logger) error {
-
 	teams, err := ds.TeamsSummary(ctx)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "getting teams summary")

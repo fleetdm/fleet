@@ -45,9 +45,9 @@ func (ds *AndroidDatastore) Writer(_ context.Context) *sqlx.DB {
 }
 
 func (ds *AndroidDatastore) WithRetryTxx(ctx context.Context, fn common_mysql.TxFn) (err error) {
-	return common_mysql.WithRetryTxx(ctx, ds.Writer(ctx), fn, ds.logger)
+	return common_mysql.WithRetryTxx(ctx, ds.Writer(ctx), fn, ds.logger.SlogLogger())
 }
 
 func (ds *AndroidDatastore) WithTxx(ctx context.Context, fn common_mysql.TxFn) (err error) {
-	return common_mysql.WithTxx(ctx, ds.Writer(ctx), fn, ds.logger)
+	return common_mysql.WithTxx(ctx, ds.Writer(ctx), fn, ds.logger.SlogLogger())
 }

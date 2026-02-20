@@ -507,6 +507,8 @@ type ListSoftwareCPEsFunc func(ctx context.Context) ([]fleet.SoftwareCPE, error)
 
 type InsertSoftwareVulnerabilityFunc func(ctx context.Context, vuln fleet.SoftwareVulnerability, source fleet.VulnerabilitySource) (bool, error)
 
+type InsertSoftwareVulnerabilitiesFunc func(ctx context.Context, vulns []fleet.SoftwareVulnerability, source fleet.VulnerabilitySource) ([]fleet.SoftwareVulnerability, error)
+
 type SoftwareByIDFunc func(ctx context.Context, id uint, teamID *uint, includeCVEScores bool, tmFilter *fleet.TeamFilter) (*fleet.Software, error)
 
 type ListSoftwareByHostIDShortFunc func(ctx context.Context, hostID uint) ([]fleet.Software, error)
@@ -2499,6 +2501,9 @@ type DataStore struct {
 
 	InsertSoftwareVulnerabilityFunc        InsertSoftwareVulnerabilityFunc
 	InsertSoftwareVulnerabilityFuncInvoked bool
+
+	InsertSoftwareVulnerabilitiesFunc        InsertSoftwareVulnerabilitiesFunc
+	InsertSoftwareVulnerabilitiesFuncInvoked bool
 
 	SoftwareByIDFunc        SoftwareByIDFunc
 	SoftwareByIDFuncInvoked bool
@@ -6094,6 +6099,13 @@ func (s *DataStore) InsertSoftwareVulnerability(ctx context.Context, vuln fleet.
 	s.InsertSoftwareVulnerabilityFuncInvoked = true
 	s.mu.Unlock()
 	return s.InsertSoftwareVulnerabilityFunc(ctx, vuln, source)
+}
+
+func (s *DataStore) InsertSoftwareVulnerabilities(ctx context.Context, vulns []fleet.SoftwareVulnerability, source fleet.VulnerabilitySource) ([]fleet.SoftwareVulnerability, error) {
+	s.mu.Lock()
+	s.InsertSoftwareVulnerabilitiesFuncInvoked = true
+	s.mu.Unlock()
+	return s.InsertSoftwareVulnerabilitiesFunc(ctx, vulns, source)
 }
 
 func (s *DataStore) SoftwareByID(ctx context.Context, id uint, teamID *uint, includeCVEScores bool, tmFilter *fleet.TeamFilter) (*fleet.Software, error) {

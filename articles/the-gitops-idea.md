@@ -20,13 +20,13 @@ Files can be added to a repo and modified non-destructively by one or many contr
 
 The result? A repository that represents a "source of truth", logically composed of all up-to-date commits. 
 
-### Continuous delivery and integration (CI/CD)
+### Continuous integration and delivery (CI/CD)
 
-CI/CD has a less-than-catchy name tag, but it's a relatively simple idea:
+An extremely powerful yet relatively simple concept with a not-so-catchy name.
 
-Assuming there is a logical, frictionless way for a group of contributors to work on a set of files together without overwriting or messing up the contributions (e.g., git, but really any version-control system), the contributors, theoretically, should be able to work faster, commit more often, and continuously.
+Basically, assuming there is a logical, frictionless way for a group of contributors to work on a set of files together (e.g., by using git, or any version-control system) without overwriting each other's work, the contributors theoretically should be able to work faster, commit more often, and do so continuously.
 
-Small, iterative changes that are tested in real-time and shipped quickly to production are preferred over years-long refactoring projects that don't go out into the world until they are perfect. The impact this way of thinking and the practice can have on a team, a product, an organization, and on work itself should not be underestimated.
+Small, iterative changes tested in real-time and shipped quickly to production are preferred over years-long refactoring projects that don't go out into the world until they are perfect. The impact this way of thinking and this practice can have on a team, a [product](https://fleetdm.com/fleet-gitops), an [organization](https://fleetdm.com/handbook/company#values), and generally on work itself should not be underestimated.
 
 ### Automation 
 
@@ -34,7 +34,7 @@ By using git combined with CI/CD concepts and making use of git repository manag
 
 ## GitOps benefits
 
-A discussion of GitOps benefits is somewhat elusive outside the context of a specific use case, but there is no question that its widespread adoption is proof of its value. Here are some of the most important general benefits:
+The widespread adoption of GitOps is proof of its value. Here are some of the most important general benefits:
 
 ### Principle of least privilege 
 
@@ -46,7 +46,7 @@ Because changes that are submitted to the repository can be seen by other contri
 
 ### Testing and validation
 
-The sky is the limit when it comes to what can happen on a git repository management solution automation runner like GitHub Actions or GitLab CI/CD. Any script, any code, any binary can run in the cloud on almost any computing platform: pre-deployment checks, code linting, security compliance, and organizational standards checks. The ability to execute on a CI/CD runner is the behind-the-scenes magic of GitOps.
+The sky is the limit when it comes to what can happen on a git repository management solution automation runner like GitHub Actions or GitLab CI/CD. Any script, any code, any binary can run in the cloud on almost any computing platform: pre-deployment checks, code linting, security compliance, organizational standards checks and more. The ability to execute on a CI/CD runner is the behind-the-scenes magic of GitOps.
 
 ### Confidence and resilience
 
@@ -58,9 +58,11 @@ You don't need specific reasons or products to apply GitOps thinking to your wor
 
 To get a feel for how GitOps fits with device management, Allen Houchins has written an excellent article about his journey to GitOps adoption as head of IT for Fleet: [What I have learned from managing devices with GitOps](https://fleetdm.com/guides/what-i-have-learned-from-managing-devices-with-gitops).
 
+Want to learn even more? Check out the source: https://www.gitops.tech/
+
 <meta name="articleTitle" value="The GitOps idea">
 <meta name="authorFullName" value="Brock Walters">
 <meta name="authorGitHubUsername" value="nonpunctual">
 <meta name="category" value="articles">
 <meta name="publishedOn" value="2026-02-04">
-<meta name="description" value="An introduction to GitOps, explaining how version control and automation are used to manage systems reliably.">
+<meta name="description" value="An introduction to GitOps concepts and components.">

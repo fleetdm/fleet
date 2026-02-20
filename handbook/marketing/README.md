@@ -6,7 +6,7 @@ This handbook page details processes specific to working [with](#contact-us) and
 
 | Role                               | Contributor(s)
 |:-----------------------------------|:------------------------------------------------------------------------------------------------------------------------|
-| Chief  Marketing Officer          | [Ashish Kuthiala](https://www.linkedin.com/in/ashishkuthiala) _([@akuthiala](https://github.com/akuthiala))_
+| Chief  Marketing Officer          | [Ashish](https://www.linkedin.com/in/ashishkuthiala) _([@akuthiala](https://github.com/akuthiala))_
 | Content Specialist                 | [Irena Reedy](https://www.linkedin.com/in/irena-reedy-520ab9354/) _([@irenareedy](https://github.com/irenareedy))_
 | Head of Demand Generation                  | [John Jeremiah](https://www.linkedin.com/in/johnjeremiah/) _([@johnjeremiah](https://github.com/johnjeremiah))_
 | Product Education Manager     | [Brock Walters](https://www.linkedin.com/in/brock-walters-247a2990/) _([@nonpunctual](https://github.com/nonpunctual))_
@@ -32,10 +32,14 @@ This list is in chronological order as assets are created.
 
 ### Marketing assets
 
-| Asset | Use For | Date created | Last updated |
+| Asset | Use For | Date&nbsp;created&nbsp;&nbsp;&nbsp; | Last&nbsp;updated&nbsp;&nbsp;&nbsp; |
 | :--- | :--- | :--- | :--- |
-| [OpenClaw: Open for work?](https://fleetdm.com/articles/openclaw-open-for-work)| OpenClaw, 1 of 2: awareness & threat landscape overview | 2026-02-04 | - |
-| [Threat hunting AI agents like OpenClaw with automated tooling](https://fleetdm.com/articles/threat-hunting-ai-agents-like-openclaw-with-automated-tooling)| OpenClaw, 2 of 2: threat hunting and mitigation  | 2026-02-18 | - |
+| [OpenClaw: Open for work?](https://fleetdm.com/articles/openclaw-open-for-work)| Part 1 of 3 - OpenClaw: An overview, how it works, and the security risks of autonomous AI agents on user devices. | 2026-02-04 | - |
+| [Detecting AI agents like OpenClaw with automated tooling](https://fleetdm.com/articles/detecting-ai-agents-like-openclaw-with-automated-tooling)| Part 2 of 3 - OpenClaw: What governance over autonomous AI agents looks like and what IT leaders should know about them.  | 2026-02-18 | - |
+| [Mitigation assets and detection patterns for AI agents like OpenClaw](https://fleetdm.com/guides/mitigation-assets-and-detection-patterns-for-ai-agents-like-openclaw)| Part 3 of 3 - OpenClaw: Mitigations and patterns to help investigate autonomous AI agent use on managed endpoints. | 2026-02-19 | - |
+| [Leave Behind Deck](https://docs.google.com/presentation/d/1Wxb4IedJ0cEXJQwvKCdYf8OatXk4sG1QTkiNLB3h11E/edit?slide=id.g3b97d0adfb7_1_4#slide=id.g3b97d0adfb7_1_4) | Leave behind deck that prospect or customer teams can use to present the business value of Fleet to internal teams | 2026-02-18 | 2026-02-18 |
+| [Additional slides for pitch deck](https://docs.google.com/presentation/d/1l6eh1ow4Izi9lv-IrrYV1UjNT4VKbfk5lJHDJUgnDVM/edit?slide=id.g3c95d5692ec_0_398#slide=id.g3c95d5692ec_0_398) | Additional slides to pick for customized presentation to prospects  | 2026-02-18 | 2026-02-18 |
+| [Sagetap Deck](https://docs.google.com/presentation/d/10DbaNaMBxeYN8PcrxE-5XNX04N_v_lKJxSxHbPjoCXc/edit?slide=id.g3b97d0adfb7_1_4#slide=id.g3b97d0adfb7_1_4) | Deck to use to test messaging and positioning | 2026-02-18 | 2026-02-18 |
 | [The GitOps idea](https://fleetdm.com/articles/the-gitops-idea) | Blog explaining what is GitOps | 2026-02-04 | 2026-02-04 |
 | [Fleet vs. Jamf comparison](https://fleetdm.com/compare/jamf) | Part of a series on competitor analysis | 2026-01-27 | 2026-01-28 |
 | [Redefining endpoint management at scale: Fleet’s momentum in the 2026 Gartner reports](https://fleetdm.com/announcements/redefining-endpoint-management-at-scale) | Fleet Gartner Magic Quadrant recognition | 2026-01-23 | 2026-01-23 |
@@ -325,6 +329,17 @@ Here are some links that filter relevant conversations on each platform:
 2. Reply to threads looking for solutions Fleet can solve with helpful information. If additional information is needed, find help in [#help-engineering](https://fleetdm.slack.com/archives/C019WG4GH0A) for accurate information.
 3. Leave a like on threads and posts that are interesting, cool, celebratory, funny, etc. within our communities.
 4. If a post is helpful to our audience, reshare it.
+
+
+### Publish sprint demo video
+
+After each sprint demo, the marketing team is responsible for doing a quick post-production pass on the recording before publishing it. Because different presenters have different microphone setups and speaking volumes, the raw recording often has inconsistent audio levels. To fix this:
+
+1. Download the sprint demo recording.
+2. Upload the recording to [Kapwing](https://www.kapwing.com), a free browser-based video editor.
+3. Apply audio compression to even out the volume levels across all presenters.
+4. Export and download the processed video.
+5. Follow the steps to [upload the video to YouTube](#upload-to-youtube).
 
 
 ### Upload to YouTube
