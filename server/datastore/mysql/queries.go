@@ -7,6 +7,7 @@ import (
 	"maps"
 	"slices"
 	"strings"
+	"time"
 
 	"golang.org/x/text/unicode/norm"
 
@@ -290,6 +291,9 @@ func (ds *Datastore) NewQuery(
 	id, _ := result.LastInsertId()
 	query.ID = uint(id) //nolint:gosec // dismiss G115
 	query.Packs = []fleet.Pack{}
+	now := time.Now().UTC().Truncate(time.Second)
+	query.CreatedAt = now
+	query.UpdatedAt = now
 
 	if err := ds.updateQueryLabels(ctx, query); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "saving labels for query")
