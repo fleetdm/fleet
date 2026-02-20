@@ -6,7 +6,7 @@ that are missing or have an unchecked QA confirmation checklist.
 ## Build
 
 export GITHUB_TOKEN=...
-go mod tidy
+cd tools/qacheck
 go build -o qacheck .
 
 ## Run
