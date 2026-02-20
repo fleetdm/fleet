@@ -4,13 +4,12 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"log/slog"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanodep/godep"
-	kitlog "github.com/go-kit/log"
-	"github.com/go-kit/log/level"
 )
 
 // Name of the macos setup assistant job as registered in the worker. Note that
@@ -34,7 +33,7 @@ const (
 // MacosSetupAssistant is the job processor for the macos_setup_assistant job.
 type MacosSetupAssistant struct {
 	Datastore  fleet.Datastore
-	Log        kitlog.Logger
+	Log        *slog.Logger
 	DEPService *apple_mdm.DEPService
 	DEPClient  *godep.Client
 }
@@ -110,10 +109,10 @@ func (m *MacosSetupAssistant) runProfileChanged(ctx context.Context, args macosS
 		if len(skipSerials) > 0 {
 			// NOTE: the `dep_cooldown` job of the `integrations`` cron picks up the assignments
 			// after the cooldown period is over
-			level.Info(m.Log).Log("msg", "run profile changed: skipping assign profile for devices on cooldown", "serials", fmt.Sprintf("%s", skipSerials))
+			m.Log.InfoContext(ctx, "run profile changed: skipping assign profile for devices on cooldown", "serials", fmt.Sprintf("%s", skipSerials))
 		}
 		if len(assignSerials) == 0 {
-			level.Info(m.Log).Log("msg", "run profile changed: no devices to assign profile")
+			m.Log.InfoContext(ctx, "run profile changed: no devices to assign profile")
 			return nil
 		}
 
@@ -183,10 +182,10 @@ func (m *MacosSetupAssistant) runProfileDeleted(ctx context.Context, args macosS
 		if len(skipSerials) > 0 {
 			// NOTE: the `dep_cooldown` job of the `integrations`` cron picks up the assignments
 			// after the cooldown period is over
-			level.Info(m.Log).Log("msg", "run profile deleted: skipping assign profile for devices on cooldown", "serials", fmt.Sprintf("%s", skipSerials))
+			m.Log.InfoContext(ctx, "run profile deleted: skipping assign profile for devices on cooldown", "serials", fmt.Sprintf("%s", skipSerials))
 		}
 		if len(assignSerials) == 0 {
-			level.Info(m.Log).Log("msg", "run profile deleted: no devices to assign profile")
+			m.Log.InfoContext(ctx, "run profile deleted: no devices to assign profile")
 			return nil
 		}
 
@@ -242,11 +241,11 @@ func (m *MacosSetupAssistant) runHostsTransferred(ctx context.Context, args maco
 	} else if len(cooldownSerials) > 0 {
 		// NOTE: the `dep_cooldown` job of the `integrations` cron picks up the assignments
 		// after the cooldown period is over
-		level.Info(m.Log).Log("msg", "run hosts transferred: skipping assign profile for devices on cooldown", "serials", fmt.Sprintf("%s", cooldownSerials))
+		m.Log.InfoContext(ctx, "run hosts transferred: skipping assign profile for devices on cooldown", "serials", fmt.Sprintf("%s", cooldownSerials))
 	}
 
 	if len(assignSerials) == 0 {
-		level.Info(m.Log).Log("msg", "run hosts transferred: no devices to assign profile")
+		m.Log.InfoContext(ctx, "run hosts transferred: no devices to assign profile")
 		return nil
 	}
 
@@ -362,12 +361,12 @@ func (m *MacosSetupAssistant) getTeamNoTeam(ctx context.Context, tmID *uint) (*f
 func QueueMacosSetupAssistantJob(
 	ctx context.Context,
 	ds fleet.Datastore,
-	logger kitlog.Logger,
+	logger *slog.Logger,
 	task MacosSetupAssistantTask,
 	teamID *uint,
 	serialNumbers ...string,
 ) (uint, error) {
-	attrs := []interface{}{
+	attrs := []any{
 		"enabled", "true",
 		macosSetupAssistantJobName, task,
 		"hosts_count", len(serialNumbers),
@@ -375,7 +374,7 @@ func QueueMacosSetupAssistantJob(
 	if teamID != nil {
 		attrs = append(attrs, "team_id", *teamID)
 	}
-	level.Info(logger).Log(attrs...)
+	logger.InfoContext(ctx, "queueing macOS setup assistant job", attrs...)
 
 	args := &macosSetupAssistantArgs{
 		Task:              task,
@@ -386,27 +385,27 @@ func QueueMacosSetupAssistantJob(
 	if err != nil {
 		return 0, ctxerr.Wrap(ctx, err, "queueing job")
 	}
-	level.Debug(logger).Log("job_id", job.ID)
+	logger.DebugContext(ctx, "queued macOS setup assistant job", "job_id", job.ID)
 	return job.ID, nil
 }
 
-func ProcessDEPCooldowns(ctx context.Context, ds fleet.Datastore, logger kitlog.Logger) error {
+func ProcessDEPCooldowns(ctx context.Context, ds fleet.Datastore, logger *slog.Logger) error {
 	serialsByTeamID, err := ds.GetDEPAssignProfileExpiredCooldowns(ctx)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "getting cooldowns")
 	}
 	if len(serialsByTeamID) == 0 {
-		level.Info(logger).Log("msg", "no cooldowns to process")
+		logger.InfoContext(ctx, "no cooldowns to process")
 		return nil
 	}
 
 	// queue job for each team so that macOS setup assistant worker can pick it up and process it
 	for teamID, serials := range serialsByTeamID {
 		if len(serials) == 0 {
-			logger.Log("msg", "no cooldowns", "team_id", teamID)
+			logger.InfoContext(ctx, "no cooldowns", "team_id", teamID)
 			continue
 		}
-		level.Info(logger).Log("msg", "processing cooldowns", "team_id", teamID, "serials", serials)
+		logger.InfoContext(ctx, "processing cooldowns", "team_id", teamID, "serials", serials)
 
 		var tid *uint
 		if teamID != 0 {
