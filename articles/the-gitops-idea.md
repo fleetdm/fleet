@@ -22,11 +22,11 @@ The result? A repository that represents a "source of truth", logically composed
 
 ### Continuous integration and delivery (CI/CD)
 
-CI/CD: an extremely powerful yet relatively simple concept with a not-so-catchy name:
+Continuous integration and delivery - an extremely powerful yet relatively simple concept with a not-so-catchy name:
 
-Assuming there is a logical, frictionless way for a group of contributors to work on a set of files together without overwriting each other's work (e.g., git, but really any version-control system), the contributors, theoretically, should be able to work faster, commit more often, and do so continuously.
+Assuming there is a logical, frictionless way for a group of contributors to work on a set of files together without overwriting each other's work (e.g., git, or any version-control system), the contributors, theoretically, should be able to work faster, commit more often, and do so continuously.
 
-Small, iterative changes tested in real-time and shipped quickly to production are preferred over years-long refactoring projects that don't go out into the world until they are perfect. The impact that this way of thinking and the practice of shipping samll iterations can have on a team, a [product](https://fleetdm.com/fleet-gitops), an [organization](https://fleetdm.com/handbook/company#values), and generally on work itself should not be underestimated.
+Small, iterative changes tested in real-time and shipped quickly to production are preferred over years-long refactoring projects that don't go out into the world until they are perfect. The impact this way of thinking and this practice can have on a team, a [product](https://fleetdm.com/fleet-gitops), an [organization](https://fleetdm.com/handbook/company#values), and generally on work itself should not be underestimated.
 
 ### Automation 
 
@@ -34,7 +34,7 @@ By using git combined with CI/CD concepts and making use of git repository manag
 
 ## GitOps benefits
 
-A discussion of GitOps benefits is a bit elusive outside the context of a specific use case, but there is no question that its widespread adoption is proof of its value. Here are some of the most important general benefits:
+The widespread adoption of GitOps is proof of its value. Here are some of the most important general benefits:
 
 ### Principle of least privilege 
 
@@ -65,4 +65,4 @@ Want to learn even more? Check out the source: https://www.gitops.tech/
 <meta name="authorGitHubUsername" value="nonpunctual">
 <meta name="category" value="articles">
 <meta name="publishedOn" value="2026-02-04">
-<meta name="description" value="An introduction to GitOps, explaining how version control and automation are used to manage systems reliably.">
+<meta name="description" value="An introduction to GitOps concepts and components.">
