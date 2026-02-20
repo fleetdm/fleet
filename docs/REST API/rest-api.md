@@ -4151,7 +4151,7 @@ Flags the host details, labels and policies to be refetched the next time the ho
 
 | Name | Type    | In   | Description                  |
 | ---- | ------- | ---- | ---------------------------- |
-| id   | integer | path | **Required** The host's id.  |
+| id   | integer | path | **Required**. The host's id. |
 
 #### Example
 
