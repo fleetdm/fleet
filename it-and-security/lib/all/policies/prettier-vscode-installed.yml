@@ -1,0 +1,28 @@
+- name: Prettier VS Code extension (esbenp.prettier-vscode) installed
+  critical: false
+  description: Fails if the esbenp.prettier-vscode VS Code extension is installed.
+  resolution: Uninstall the Prettier VS Code extension (esbenp.prettier-vscode) from VS Code by running `code --uninstall-extension esbenp.prettier-vscode` in a terminal, or by removing it from the Extensions panel in VS Code.
+  platform: darwin,linux,windows
+  query: >-
+    SELECT 1 WHERE NOT EXISTS (
+      SELECT 1 FROM users CROSS JOIN vscode_extensions USING (uid)
+      WHERE publisher = 'esbenp' AND name = 'prettier-vscode'
+    );
+  # To trigger a Slack webhook notification when this policy fails (i.e., when the
+  # Prettier extension is detected on a host), configure the failing_policies_webhook
+  # in your Fleet GitOps YAML (default.yml or teams/team-name.yml) as follows:
+  #
+  # org_settings:           # or team_settings: for a team-scoped policy
+  #   webhook_settings:
+  #     failing_policies_webhook:
+  #       enable_failing_policies_webhook: true
+  #       destination_url: https://hooks.slack.com/services/YOUR/SLACK/WEBHOOK
+  #       host_batch_size: 0
+  #       policy_ids:
+  #         - <id of this policy>   # Replace with the numeric ID assigned by Fleet
+  #
+  # The destination_url above should be your Slack incoming webhook URL.
+  # Fleet will POST a JSON payload to that URL whenever failing_host_count > 0
+  # for this policy (checked on the webhook_settings.interval schedule, default 24h).
+  # See https://fleetdm.com/docs/configuration/yaml-files#failing-policies-webhook
+  # for full documentation.
