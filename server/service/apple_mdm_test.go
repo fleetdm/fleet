@@ -49,10 +49,10 @@ import (
 	mdmmock "github.com/fleetdm/fleet/v4/server/mock/mdm"
 	nanodep_mock "github.com/fleetdm/fleet/v4/server/mock/nanodep"
 	scep_mock "github.com/fleetdm/fleet/v4/server/mock/scep"
+	"github.com/fleetdm/fleet/v4/server/platform/logging"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/service/redis_key_value"
 	"github.com/fleetdm/fleet/v4/server/test"
-	kitlog "github.com/go-kit/log"
 	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
 	micromdm "github.com/micromdm/micromdm/mdm/mdm"
@@ -104,7 +104,7 @@ func setupAppleMDMService(t *testing.T, license *fleet.LicenseInfo) (fleet.Servi
 		mdmStorage,
 		mdmStorage,
 		pushFactory,
-		NewNanoMDMLogger(kitlog.NewJSONLogger(os.Stdout)),
+		NewNanoMDMLogger(logging.NewJSONLogger(os.Stdout)),
 	)
 
 	opts := &TestServerOpts{
@@ -1190,12 +1190,12 @@ func TestMDMCommandAuthz(t *testing.T) {
 
 func TestMDMAuthenticateManualEnrollment(t *testing.T) {
 	ds := new(mock.Store)
-	mdmLifecycle := mdmlifecycle.New(ds, kitlog.NewNopLogger(), func(_ context.Context, _ *fleet.User, _ fleet.ActivityDetails) error { return nil })
+	mdmLifecycle := mdmlifecycle.New(ds, logging.NewNopLogger(), func(_ context.Context, _ *fleet.User, _ fleet.ActivityDetails) error { return nil })
 	svc := MDMAppleCheckinAndCommandService{
 		ds:            ds,
 		mdmLifecycle:  mdmLifecycle,
 		keyValueStore: redis_key_value.New(redistest.NopRedis()),
-		logger:        kitlog.NewNopLogger(),
+		logger:        logging.NewNopLogger(),
 	}
 	ctx := context.Background()
 	uuid, serial, model := "ABC-DEF-GHI", "XYZABC", "MacBookPro 16,1"
@@ -1240,12 +1240,12 @@ func TestMDMAuthenticateManualEnrollment(t *testing.T) {
 
 func TestMDMAuthenticateADE(t *testing.T) {
 	ds := new(mock.Store)
-	mdmLifecycle := mdmlifecycle.New(ds, kitlog.NewNopLogger(), func(_ context.Context, _ *fleet.User, _ fleet.ActivityDetails) error { return nil })
+	mdmLifecycle := mdmlifecycle.New(ds, logging.NewNopLogger(), func(_ context.Context, _ *fleet.User, _ fleet.ActivityDetails) error { return nil })
 	svc := MDMAppleCheckinAndCommandService{
 		ds:            ds,
 		mdmLifecycle:  mdmLifecycle,
 		keyValueStore: redis_key_value.New(redistest.NopRedis()),
-		logger:        kitlog.NewNopLogger(),
+		logger:        logging.NewNopLogger(),
 	}
 	ctx := context.Background()
 	uuid, serial, model := "ABC-DEF-GHI", "XYZABC", "MacBookPro 16,1"
@@ -1291,14 +1291,14 @@ func TestMDMAuthenticateADE(t *testing.T) {
 func TestMDMAuthenticateSCEPRenewal(t *testing.T) {
 	ds := new(mock.Store)
 	var newActivityInvoked bool
-	mdmLifecycle := mdmlifecycle.New(ds, kitlog.NewNopLogger(), func(_ context.Context, _ *fleet.User, _ fleet.ActivityDetails) error {
+	mdmLifecycle := mdmlifecycle.New(ds, logging.NewNopLogger(), func(_ context.Context, _ *fleet.User, _ fleet.ActivityDetails) error {
 		newActivityInvoked = true
 		return nil
 	})
 	svc := MDMAppleCheckinAndCommandService{
 		ds:           ds,
 		mdmLifecycle: mdmLifecycle,
-		logger:       kitlog.NewNopLogger(),
+		logger:       logging.NewNopLogger(),
 	}
 	ctx := context.Background()
 	uuid, serial, model := "ABC-DEF-GHI", "XYZABC", "MacBookPro 16,1"
@@ -1400,12 +1400,12 @@ func TestMDMTokenUpdate(t *testing.T) {
 		mdmStorage,
 		mdmStorage,
 		pushFactory,
-		NewNanoMDMLogger(kitlog.NewJSONLogger(os.Stdout)),
+		NewNanoMDMLogger(logging.NewJSONLogger(os.Stdout)),
 	)
 	cmdr := apple_mdm.NewMDMAppleCommander(mdmStorage, pusher)
 	uuid, serial, model, wantTeamID := "ABC-DEF-GHI", "XYZABC", "MacBookPro 16,1", uint(12)
 	var newActivityFuncInvoked bool
-	mdmLifecycle := mdmlifecycle.New(ds, kitlog.NewNopLogger(), func(_ context.Context, user *fleet.User, activity fleet.ActivityDetails) error {
+	mdmLifecycle := mdmlifecycle.New(ds, logging.NewNopLogger(), func(_ context.Context, user *fleet.User, activity fleet.ActivityDetails) error {
 		newActivityFuncInvoked = true
 		a, ok := activity.(*fleet.ActivityTypeMDMEnrolled)
 		require.True(t, ok)
@@ -1423,7 +1423,7 @@ func TestMDMTokenUpdate(t *testing.T) {
 		ds:           ds,
 		mdmLifecycle: mdmLifecycle,
 		commander:    cmdr,
-		logger:       kitlog.NewNopLogger(),
+		logger:       logging.NewNopLogger(),
 	}
 
 	ds.AppConfigFunc = func(context.Context) (*fleet.AppConfig, error) {
@@ -1586,15 +1586,15 @@ func TestMDMTokenUpdateIOS(t *testing.T) {
 		mdmStorage,
 		mdmStorage,
 		pushFactory,
-		NewNanoMDMLogger(kitlog.NewJSONLogger(os.Stdout)),
+		NewNanoMDMLogger(logging.NewJSONLogger(os.Stdout)),
 	)
 	cmdr := apple_mdm.NewMDMAppleCommander(mdmStorage, pusher)
-	mdmLifecycle := mdmlifecycle.New(ds, kitlog.NewNopLogger(), func(_ context.Context, _ *fleet.User, _ fleet.ActivityDetails) error { return nil })
+	mdmLifecycle := mdmlifecycle.New(ds, logging.NewNopLogger(), func(_ context.Context, _ *fleet.User, _ fleet.ActivityDetails) error { return nil })
 	svc := MDMAppleCheckinAndCommandService{
 		ds:           ds,
 		mdmLifecycle: mdmLifecycle,
 		commander:    cmdr,
-		logger:       kitlog.NewNopLogger(),
+		logger:       logging.NewNopLogger(),
 	}
 	uuid, serial, model, wantTeamID := "ABC-DEF-GHI", "XYZABC", "MacBookPro 16,1", uint(12)
 
@@ -1741,12 +1741,12 @@ func TestMDMTokenUpdateIOS(t *testing.T) {
 
 func TestMDMCheckout(t *testing.T) {
 	ds := new(mock.Store)
-	mdmLifecycle := mdmlifecycle.New(ds, kitlog.NewNopLogger(), func(_ context.Context, _ *fleet.User, _ fleet.ActivityDetails) error { return nil })
+	mdmLifecycle := mdmlifecycle.New(ds, logging.NewNopLogger(), func(_ context.Context, _ *fleet.User, _ fleet.ActivityDetails) error { return nil })
 	var newActivityFuncInvoked bool
 	svc := MDMAppleCheckinAndCommandService{
 		ds:           ds,
 		mdmLifecycle: mdmLifecycle,
-		logger:       kitlog.NewNopLogger(),
+		logger:       logging.NewNopLogger(),
 	}
 	ctx := context.Background()
 	uuid, serial, installedFromDEP, displayName, platform := "ABC-DEF-GHI", "XYZABC", true, "Test's MacBook", "darwin"
@@ -1888,7 +1888,7 @@ func TestMDMCommandAndReportResultsProfileHandling(t *testing.T) {
 	for i, c := range cases {
 		t.Run(fmt.Sprintf("%s%s-%d", c.requestType, c.status, i), func(t *testing.T) {
 			ds := new(mock.Store)
-			svc := MDMAppleCheckinAndCommandService{ds: ds, logger: kitlog.NewNopLogger()}
+			svc := MDMAppleCheckinAndCommandService{ds: ds, logger: logging.NewNopLogger()}
 			ds.GetMDMAppleCommandRequestTypeFunc = func(ctx context.Context, targetCmd string) (string, error) {
 				require.Equal(t, commandUUID, targetCmd)
 				return c.requestType, nil
@@ -2635,7 +2635,7 @@ func TestMDMAppleReconcileAppleProfiles(t *testing.T) {
 		mdmStorage,
 		mdmStorage,
 		pushFactory,
-		NewNanoMDMLogger(kitlog.NewNopLogger()),
+		NewNanoMDMLogger(logging.NewNopLogger()),
 	)
 	mdmConfig := config.MDMConfig{
 		AppleSCEPCert: "./testdata/server.pem",
@@ -2983,7 +2983,7 @@ func TestMDMAppleReconcileAppleProfiles(t *testing.T) {
 			failedCount++
 			require.Len(t, payload, 0)
 		}
-		err := ReconcileAppleProfiles(ctx, ds, cmdr, kitlog.NewNopLogger())
+		err := ReconcileAppleProfiles(ctx, ds, cmdr, logging.NewNopLogger())
 		require.NoError(t, err)
 		require.Equal(t, 1, failedCount)
 		checkAndReset(t, true, &ds.ListMDMAppleProfilesToInstallAndRemoveFuncInvoked)
@@ -3030,7 +3030,7 @@ func TestMDMAppleReconcileAppleProfiles(t *testing.T) {
 		}
 
 		enqueueFailForOp = fleet.MDMOperationTypeRemove
-		err := ReconcileAppleProfiles(ctx, ds, cmdr, kitlog.NewNopLogger())
+		err := ReconcileAppleProfiles(ctx, ds, cmdr, logging.NewNopLogger())
 		require.NoError(t, err)
 		require.Equal(t, 1, failedCount)
 		checkAndReset(t, true, &ds.ListMDMAppleProfilesToInstallAndRemoveFuncInvoked)
@@ -3103,7 +3103,7 @@ func TestMDMAppleReconcileAppleProfiles(t *testing.T) {
 		}
 
 		enqueueFailForOp = fleet.MDMOperationTypeInstall
-		err := ReconcileAppleProfiles(ctx, ds, cmdr, kitlog.NewNopLogger())
+		err := ReconcileAppleProfiles(ctx, ds, cmdr, logging.NewNopLogger())
 		require.NoError(t, err)
 		require.Equal(t, 1, failedCount)
 		checkAndReset(t, true, &ds.ListMDMAppleProfilesToInstallAndRemoveFuncInvoked)
@@ -3277,7 +3277,7 @@ func TestMDMAppleReconcileAppleProfiles(t *testing.T) {
 			contents1 = originalContents1
 			expectedContents1 = originalExpectedContents1
 		})
-		err := ReconcileAppleProfiles(ctx, ds, cmdr, kitlog.NewNopLogger())
+		err := ReconcileAppleProfiles(ctx, ds, cmdr, logging.NewNopLogger())
 		require.NoError(t, err)
 		assert.Equal(t, 2, upsertCount)
 		// checkAndReset(t, true, &ds.GetAllCertificateAuthoritiesFuncInvoked)
@@ -3305,7 +3305,7 @@ func TestMDMAppleReconcileAppleProfiles(t *testing.T) {
 		ds.GetHostEmailsFunc = func(ctx context.Context, hostUUID string, source string) ([]string, error) {
 			return nil, errors.New("GetHostEmailsFuncError")
 		}
-		err := ReconcileAppleProfiles(ctx, ds, cmdr, kitlog.NewNopLogger())
+		err := ReconcileAppleProfiles(ctx, ds, cmdr, logging.NewNopLogger())
 		assert.ErrorContains(t, err, "GetHostEmailsFuncError")
 		// checkAndReset(t, true, &ds.GetAllCertificateAuthoritiesFuncInvoked)
 		checkAndReset(t, true, &ds.ListMDMAppleProfilesToInstallAndRemoveFuncInvoked)
@@ -3367,7 +3367,7 @@ func TestMDMAppleReconcileAppleProfiles(t *testing.T) {
 			hostUUIDs = append(hostUUIDs, p.HostUUID)
 		}
 
-		err := ReconcileAppleProfiles(ctx, ds, cmdr, kitlog.NewNopLogger())
+		err := ReconcileAppleProfiles(ctx, ds, cmdr, logging.NewNopLogger())
 		require.NoError(t, err)
 		assert.Empty(t, hostUUIDs, "all host+profile combinations should be updated")
 		require.Equal(t, 5, failedCount, "number of profiles with bad content")
@@ -3383,7 +3383,7 @@ func TestMDMAppleReconcileAppleProfiles(t *testing.T) {
 
 func TestPreprocessProfileContents(t *testing.T) {
 	ctx := context.Background()
-	logger := kitlog.NewNopLogger()
+	logger := logging.NewNopLogger()
 	appCfg := &fleet.AppConfig{}
 	appCfg.ServerSettings.ServerURL = "https://test.example.com"
 	appCfg.MDM.EnabledAndConfigured = true
@@ -3878,7 +3878,7 @@ func TestEnsureFleetdConfig(t *testing.T) {
 	testError := errors.New("test error")
 	testURL := "https://example.com"
 	testTeamName := "test-team"
-	logger := kitlog.NewNopLogger()
+	logger := logging.NewNopLogger()
 	mdmConfig := config.MDMConfig{
 		AppleSCEPCert: "./testdata/server.pem",
 		AppleSCEPKey:  "./testdata/server.key",
@@ -4349,9 +4349,10 @@ func generateCertWithAPNsTopic() ([]byte, []byte, error) {
 	return certPEM, keyPEM, nil
 }
 
-func setupTest(t *testing.T) (context.Context, kitlog.Logger, *mock.Store, *config.FleetConfig, *mdmmock.MDMAppleStore, *apple_mdm.MDMAppleCommander) {
+func setupTest(t *testing.T) (context.Context, *logging.Logger, *mock.Store, *config.FleetConfig, *mdmmock.MDMAppleStore,
+	*apple_mdm.MDMAppleCommander) {
 	ctx := context.Background()
-	logger := kitlog.NewNopLogger()
+	logger := logging.NewNopLogger()
 	cfg := config.TestConfig()
 	ds := new(mock.Store)
 	mdmStorage := &mdmmock.MDMAppleStore{}
@@ -4747,7 +4748,7 @@ func TestMDMCommandAndReportResultsIOSIPadOSRefetch(t *testing.T) {
 	lostModeCommandUUID := uuid.NewString()
 
 	ds := new(mock.Store)
-	svc := MDMAppleCheckinAndCommandService{ds: ds, logger: kitlog.NewNopLogger()}
+	svc := MDMAppleCheckinAndCommandService{ds: ds, logger: logging.NewNopLogger()}
 
 	ds.HostByIdentifierFunc = func(ctx context.Context, identifier string) (*fleet.Host, error) {
 		return &fleet.Host{
@@ -5061,7 +5062,7 @@ func TestNeedsOSUpdateForDEPEnrollment(t *testing.T) {
 			return tt.platform, &tt.appleOSUpdateSettings, tt.returnedErr
 		}
 
-		svc := &Service{ds: ds, logger: kitlog.NewNopLogger()}
+		svc := &Service{ds: ds, logger: logging.NewNopLogger()}
 
 		t.Run(tt.name, func(t *testing.T) {
 			result, err := svc.needsOSUpdateForDEPEnrollment(ctx, tt.appleMachineInfo)
@@ -5408,7 +5409,7 @@ func TestCheckMDMAppleEnrollmentWithMinimumOSVersion(t *testing.T) {
 
 func TestPreprocessProfileContentsEndUserIDP(t *testing.T) {
 	ctx := context.Background()
-	logger := kitlog.NewNopLogger()
+	logger := logging.NewNopLogger()
 	appCfg := &fleet.AppConfig{}
 	appCfg.ServerSettings.ServerURL = "https://test.example.com"
 	appCfg.MDM.EnabledAndConfigured = true

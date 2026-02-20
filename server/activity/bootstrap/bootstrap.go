@@ -4,6 +4,7 @@ package bootstrap
 
 import (
 	"context"
+	"log/slog"
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server/activity"
@@ -15,7 +16,6 @@ import (
 	eu "github.com/fleetdm/fleet/v4/server/platform/endpointer"
 	platform_mysql "github.com/fleetdm/fleet/v4/server/platform/mysql"
 	"github.com/go-kit/kit/endpoint"
-	kitlog "github.com/go-kit/log"
 )
 
 // New creates a new activity bounded context and returns its service and route handler.
@@ -23,7 +23,7 @@ func New(
 	dbConns *platform_mysql.DBConnections,
 	authorizer platform_authz.Authorizer,
 	providers activity.DataProviders,
-	logger kitlog.Logger,
+	logger *slog.Logger,
 ) (api.Service, func(authMiddleware endpoint.Middleware) eu.HandlerRoutesFunc) {
 	ds := mysql.NewDatastore(dbConns, logger)
 	svc := service.NewService(authorizer, ds, providers, logger)
@@ -40,7 +40,7 @@ func New(
 // without a real database connection.
 func NewForUnitTests(
 	providers activity.DataProviders,
-	logger kitlog.Logger,
+	logger *slog.Logger,
 ) api.NewActivityService {
 	return service.NewService(&noopAuthorizer{}, &noopStore{}, providers, logger)
 }

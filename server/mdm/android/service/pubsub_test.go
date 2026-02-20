@@ -5,6 +5,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"errors"
+	"log/slog"
 	"net/http"
 	"os"
 	"strconv"
@@ -18,7 +19,6 @@ import (
 	android_mock "github.com/fleetdm/fleet/v4/server/mdm/android/mock"
 	common_mysql "github.com/fleetdm/fleet/v4/server/platform/mysql"
 	"github.com/fleetdm/fleet/v4/server/ptr"
-	kitlog "github.com/go-kit/log"
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/api/androidmanagement/v1"
@@ -30,7 +30,7 @@ const testBrandTestSerialHashed = "9c311e05af14f958bd65188796e41fcc8a7b0ff913bfe
 func createAndroidService(t *testing.T) (android.Service, *AndroidMockDS) {
 	androidAPIClient := android_mock.Client{}
 	androidAPIClient.InitCommonMocks()
-	logger := kitlog.NewLogfmtLogger(os.Stdout)
+	logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
 	mockDS := InitCommonDSMocks()
 	activityModule := &noopActivityModule{}
 	svc, err := NewServiceWithClient(logger, mockDS, &androidAPIClient, "test-private-key", &mockDS.DataStore, activityModule, config.AndroidAgentConfig{})

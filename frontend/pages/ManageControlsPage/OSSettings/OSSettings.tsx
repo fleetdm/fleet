@@ -1,4 +1,4 @@
-import React, { useContext } from "react";
+import React, { useContext, useMemo } from "react";
 import { InjectedRouter, Params } from "react-router/lib/Router";
 import { useQuery } from "react-query";
 
@@ -28,7 +28,9 @@ const OSSettings = ({
   params,
 }: IOSSettingsProps) => {
   const { section } = params;
-  const { currentTeam } = useContext(AppContext);
+  const { currentTeam, isTeamTechnician, isGlobalTechnician } = useContext(
+    AppContext
+  );
 
   // TODO: consider using useTeamIdParam hook here instead in the future
   const teamId =
@@ -50,18 +52,37 @@ const OSSettings = ({
     }
   );
 
-  const DEFAULT_SETTINGS_SECTION = OS_SETTINGS_NAV_ITEMS[0];
+  const filteredNavItems = useMemo(() => {
+    if (isTeamTechnician || isGlobalTechnician) {
+      return OS_SETTINGS_NAV_ITEMS.filter(
+        (item) => item.title !== "Certificates"
+      );
+    }
+    return OS_SETTINGS_NAV_ITEMS;
+  }, [isTeamTechnician, isGlobalTechnician]);
+
+  const DEFAULT_SETTINGS_SECTION = filteredNavItems[0];
 
   const currentFormSection =
-    OS_SETTINGS_NAV_ITEMS.find((item) => item.urlSection === section) ??
+    filteredNavItems.find((item) => item.urlSection === section) ??
     DEFAULT_SETTINGS_SECTION;
+
+  // Redirect to the default section if the URL section is not in the filtered list
+  if (
+    section &&
+    currentFormSection === DEFAULT_SETTINGS_SECTION &&
+    section !== DEFAULT_SETTINGS_SECTION.urlSection
+  ) {
+    router.replace(DEFAULT_SETTINGS_SECTION.path.concat(queryString));
+    return null;
+  }
 
   const CurrentCard = currentFormSection.Card;
 
   return (
     <div className={baseClass}>
       <p className={`${baseClass}__description`}>
-        Remotely enforce OS settings on hosts assigned to this team.
+        Remotely enforce OS settings on hosts assigned to this fleet.
       </p>
       <ProfileStatusAggregate
         isLoading={isLoadingAggregateProfileStatus}
@@ -71,7 +92,7 @@ const OSSettings = ({
       />
       <SideNav
         className={`${baseClass}__side-nav`}
-        navItems={OS_SETTINGS_NAV_ITEMS.map((navItem) => ({
+        navItems={filteredNavItems.map((navItem) => ({
           ...navItem,
           path: navItem.path.concat(queryString),
         }))}

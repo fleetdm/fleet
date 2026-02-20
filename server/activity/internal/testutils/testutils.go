@@ -3,12 +3,12 @@ package testutils
 
 import (
 	"encoding/json"
+	"log/slog"
 	"testing"
 	"time"
 
 	common_mysql "github.com/fleetdm/fleet/v4/server/platform/mysql"
 	mysql_testing_utils "github.com/fleetdm/fleet/v4/server/platform/mysql/testing_utils"
-	"github.com/go-kit/log"
 	"github.com/jmoiron/sqlx"
 	"github.com/stretchr/testify/require"
 )
@@ -16,7 +16,7 @@ import (
 // TestDB holds the database connection for tests.
 type TestDB struct {
 	DB     *sqlx.DB
-	Logger log.Logger
+	Logger *slog.Logger
 }
 
 // SetupTestDB creates a test database with the Fleet schema loaded.
@@ -36,7 +36,7 @@ func SetupTestDB(t *testing.T, testNamePrefix string) *TestDB {
 
 	return &TestDB{
 		DB:     db,
-		Logger: log.NewNopLogger(),
+		Logger: slog.New(slog.DiscardHandler),
 	}
 }
 

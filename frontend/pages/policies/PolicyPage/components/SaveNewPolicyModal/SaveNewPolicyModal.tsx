@@ -308,7 +308,6 @@ const SaveNewPolicyModal = ({
                 name="critical-policy"
                 onChange={(value: boolean) => setLastEditedQueryCritical(value)}
                 value={lastEditedQueryCritical}
-                isLeftLabel
                 disabled={disableForm}
               >
                 <TooltipWrapper
@@ -319,7 +318,7 @@ const SaveNewPolicyModal = ({
                     </p>
                   }
                 >
-                  Critical:
+                  Critical
                 </TooltipWrapper>
               </Checkbox>
             </div>

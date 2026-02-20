@@ -33,17 +33,18 @@ func TestTriggerFailingPoliciesWebhookBasic(t *testing.T) {
 		if id == policyID1 {
 			return &fleet.Policy{
 				PolicyData: fleet.PolicyData{
-					ID:          policyID1,
-					Name:        "policy1",
-					Query:       "select 42",
-					Description: "policy1 description",
-					AuthorID:    ptr.Uint(1),
-					AuthorName:  "Alice",
-					AuthorEmail: "alice@example.com",
-					TeamID:      nil,
-					Resolution:  ptr.String("policy1 resolution"),
-					Platform:    "darwin",
-					Critical:    true,
+					ID:                             policyID1,
+					Name:                           "policy1",
+					Query:                          "select 42",
+					Description:                    "policy1 description",
+					AuthorID:                       ptr.Uint(1),
+					AuthorName:                     "Alice",
+					AuthorEmail:                    "alice@example.com",
+					TeamID:                         nil,
+					Resolution:                     ptr.String("policy1 resolution"),
+					Platform:                       "darwin",
+					Critical:                       true,
+					ConditionalAccessBypassEnabled: ptr.Bool(true),
 				},
 			}, nil
 		}
@@ -117,6 +118,7 @@ func TestTriggerFailingPoliciesWebhookBasic(t *testing.T) {
         "author_name": "Alice",
         "author_email": "alice@example.com",
         "team_id": null,
+		"fleet_id": null,
         "resolution": "policy1 resolution",
         "platform": "darwin",
         "created_at": "0001-01-01T00:00:00Z",
@@ -126,7 +128,8 @@ func TestTriggerFailingPoliciesWebhookBasic(t *testing.T) {
         "host_count_updated_at": null,
 		"critical": true,
 		"calendar_events_enabled": false,
-		"conditional_access_enabled": false
+		"conditional_access_enabled": false,
+		"conditional_access_bypass_enabled": true
     },
     "hosts": [
         {
@@ -185,45 +188,48 @@ func TestTriggerFailingPoliciesWebhookTeam(t *testing.T) {
 	policiesByID := map[uint]*fleet.Policy{
 		1: {
 			PolicyData: fleet.PolicyData{
-				ID:                    1,
-				Name:                  "policy1",
-				Query:                 "select 1",
-				Description:           "policy1 description",
-				AuthorID:              ptr.Uint(1),
-				AuthorName:            "Alice",
-				AuthorEmail:           "alice@example.com",
-				TeamID:                &teamID,
-				Resolution:            ptr.String("policy1 resolution"),
-				Platform:              "darwin",
-				CalendarEventsEnabled: true,
+				ID:                             1,
+				Name:                           "policy1",
+				Query:                          "select 1",
+				Description:                    "policy1 description",
+				AuthorID:                       ptr.Uint(1),
+				AuthorName:                     "Alice",
+				AuthorEmail:                    "alice@example.com",
+				TeamID:                         &teamID,
+				Resolution:                     ptr.String("policy1 resolution"),
+				Platform:                       "darwin",
+				CalendarEventsEnabled:          true,
+				ConditionalAccessBypassEnabled: ptr.Bool(true),
 			},
 		},
 		2: {
 			PolicyData: fleet.PolicyData{
-				ID:          2,
-				Name:        "policy2",
-				Query:       "select 2",
-				Description: "policy2 description",
-				AuthorID:    ptr.Uint(1),
-				AuthorName:  "Alice",
-				AuthorEmail: "alice@example.com",
-				TeamID:      &teamID,
-				Resolution:  ptr.String("policy2 resolution"),
-				Platform:    "darwin",
+				ID:                             2,
+				Name:                           "policy2",
+				Query:                          "select 2",
+				Description:                    "policy2 description",
+				AuthorID:                       ptr.Uint(1),
+				AuthorName:                     "Alice",
+				AuthorEmail:                    "alice@example.com",
+				TeamID:                         &teamID,
+				Resolution:                     ptr.String("policy2 resolution"),
+				Platform:                       "darwin",
+				ConditionalAccessBypassEnabled: ptr.Bool(true),
 			},
 		},
 		3: {
 			PolicyData: fleet.PolicyData{
-				ID:          2,
-				Name:        "policy3",
-				Query:       "select 3",
-				Description: "policy3 description",
-				AuthorID:    ptr.Uint(1),
-				AuthorName:  "Alice",
-				AuthorEmail: "alice@example.com",
-				TeamID:      nil, // global policy
-				Resolution:  ptr.String("policy3 resolution"),
-				Platform:    "darwin",
+				ID:                             2,
+				Name:                           "policy3",
+				Query:                          "select 3",
+				Description:                    "policy3 description",
+				AuthorID:                       ptr.Uint(1),
+				AuthorName:                     "Alice",
+				AuthorEmail:                    "alice@example.com",
+				TeamID:                         nil, // global policy
+				Resolution:                     ptr.String("policy3 resolution"),
+				Platform:                       "darwin",
+				ConditionalAccessBypassEnabled: ptr.Bool(true),
 			},
 		},
 	}
@@ -305,6 +311,7 @@ func TestTriggerFailingPoliciesWebhookTeam(t *testing.T) {
         "author_name": "Alice",
         "author_email": "alice@example.com",
         "team_id": 1,
+		"fleet_id": 1,
         "resolution": "policy1 resolution",
         "platform": "darwin",
         "created_at": "0001-01-01T00:00:00Z",
@@ -314,7 +321,8 @@ func TestTriggerFailingPoliciesWebhookTeam(t *testing.T) {
         "host_count_updated_at": null,
 		"critical": false,
 		"calendar_events_enabled": true,
-		"conditional_access_enabled": false
+		"conditional_access_enabled": false,
+		"conditional_access_bypass_enabled": true
     },
     "hosts": [
         {

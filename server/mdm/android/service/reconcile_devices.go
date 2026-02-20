@@ -3,17 +3,16 @@ package service
 import (
 	"context"
 	"fmt"
+	"log/slog"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
-	kitlog "github.com/go-kit/log"
-	"github.com/go-kit/log/level"
 )
 
 // ReconcileAndroidDevices polls AMAPI for devices that Fleet still considers enrolled
 // and flips them to unenrolled if Google reports them missing (404).
 // This complements (does not replace) Pub/Sub DELETED handling.
-func ReconcileAndroidDevices(ctx context.Context, ds fleet.Datastore, logger kitlog.Logger, licenseKey string, newActivityFn func(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails) error) error {
+func ReconcileAndroidDevices(ctx context.Context, ds fleet.Datastore, logger *slog.Logger, licenseKey string, newActivityFn func(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails) error) error {
 	appConfig, err := ds.AppConfig(ctx)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "get app config")
@@ -79,7 +78,7 @@ func ReconcileAndroidDevices(ctx context.Context, ds fleet.Datastore, logger kit
 			continue
 		case !ok:
 			if _, derr := ds.SetAndroidHostUnenrolled(ctx, dev.HostID); derr != nil {
-				level.Error(logger).Log("msg", "failed to mark android host unenrolled during reconcile", "host_id", dev.HostID, "err", derr)
+				logger.ErrorContext(ctx, "failed to mark android host unenrolled during reconcile", "host_id", dev.HostID, "err", derr)
 				continue
 			}
 			// Emit system activity to mirror Pub/Sub DELETED handling.
@@ -94,13 +93,13 @@ func ReconcileAndroidDevices(ctx context.Context, ds fleet.Datastore, logger kit
 				InstalledFromDEP: false,
 				Platform:         "android",
 			}); aerr != nil {
-				level.Debug(logger).Log("msg", "failed to create mdm_unenrolled activity during android reconcile", "host_id", dev.HostID, "err", aerr)
+				logger.DebugContext(ctx, "failed to create mdm_unenrolled activity during android reconcile", "host_id", dev.HostID, "err", aerr)
 			}
 			unenrolled++
-			level.Debug(logger).Log("msg", "android device missing in Google; marked unenrolled", "host_id", dev.HostID, "device", deviceName)
+			logger.DebugContext(ctx, "android device missing in Google; marked unenrolled", "host_id", dev.HostID, "device", deviceName)
 		}
 	}
 
-	level.Debug(logger).Log("msg", "android reconcile complete", "checked", checked, "unenrolled", unenrolled)
+	logger.DebugContext(ctx, "android reconcile complete", "checked", checked, "unenrolled", unenrolled)
 	return nil
 }

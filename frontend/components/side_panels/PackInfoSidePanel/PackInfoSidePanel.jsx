@@ -23,7 +23,7 @@ const PackInfoSidePanel = () => {
           (interval = 3600s).
         </p>
 
-        <p>Queries can be run in two modes:</p>
+        <p>Reports can be run in two modes:</p>
 
         <dl>
           <dt>
@@ -44,7 +44,7 @@ const PackInfoSidePanel = () => {
           hosts or groups of hosts called labels.
         </p>
         <p>
-          The results of queries run via query packs are stored in log files for
+          The results of reports run via query packs are stored in log files for
           your convenience. We recommend forwarding these logs to a log
           aggregation tool or other actionable tool for further analysis. These
           logs can be found in the following locations:

@@ -19,9 +19,9 @@ import (
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/live_query/live_query_mock"
+	"github.com/fleetdm/fleet/v4/server/platform/logging"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/pubsub"
-	kitlog "github.com/go-kit/log"
 	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
 	"github.com/stretchr/testify/assert"
@@ -61,7 +61,7 @@ func (s *liveQueriesTestSuite) SetupSuite() {
 
 	opts := &TestServerOpts{Lq: lq, Rs: rs, DBConns: s.dbConns}
 	if os.Getenv("FLEET_INTEGRATION_TESTS_DISABLE_LOG") != "" {
-		opts.Logger = kitlog.NewNopLogger()
+		opts.Logger = logging.NewNopLogger()
 	}
 	users, server := RunServerForTestsWithDS(s.T(), s.ds, opts)
 	s.server = server

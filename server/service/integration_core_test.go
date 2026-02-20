@@ -11,6 +11,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log/slog"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -32,13 +33,13 @@ import (
 	"github.com/fleetdm/fleet/v4/server/live_query/live_query_mock"
 	"github.com/fleetdm/fleet/v4/server/mdm/android"
 	"github.com/fleetdm/fleet/v4/server/platform/endpointer"
+	logtestutils "github.com/fleetdm/fleet/v4/server/platform/logging/testutils"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/service/async"
 	"github.com/fleetdm/fleet/v4/server/service/contract"
 	"github.com/fleetdm/fleet/v4/server/service/osquery_utils"
 	"github.com/fleetdm/fleet/v4/server/test"
 	"github.com/ghodss/yaml"
-	"github.com/go-kit/log"
 	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
 	"github.com/stretchr/testify/assert"
@@ -453,6 +454,43 @@ func (s *integrationTestSuite) TestActivityUserEmailPersistsAfterDeletion() {
 
 	// ensure that on exit, the admin token is used
 	s.token = s.getTestAdminToken()
+}
+
+func (s *integrationTestSuite) TestPremiumOnlyRoles() {
+	t := s.T()
+
+	for _, role := range []string{fleet.RoleTechnician, fleet.RoleGitOps, fleet.RoleObserverPlus} {
+		t.Run(role, func(t *testing.T) {
+			t.Run("login", func(t *testing.T) {
+				user := &fleet.User{
+					Name:       role,
+					Email:      fmt.Sprintf("%s@example.com", role),
+					GlobalRole: ptr.String(role),
+				}
+				err := user.SetPassword(test.GoodPassword, 10, 10)
+				require.NoError(t, err)
+				_, err = s.ds.NewUser(t.Context(), user)
+				require.NoError(t, err)
+
+				var loginResp loginResponse
+				s.DoJSON("POST", "/api/latest/fleet/login", contract.LoginRequest{
+					Email:    fmt.Sprintf("%s@example.com", role),
+					Password: test.GoodPassword,
+				}, http.StatusPaymentRequired, &loginResp)
+			})
+
+			t.Run("create", func(t *testing.T) {
+				var createResp createUserResponse
+				params := fleet.UserPayload{
+					Name:       ptr.String(role),
+					Email:      ptr.String(fmt.Sprintf("%s@example.com", role)),
+					Password:   ptr.String(test.GoodPassword),
+					GlobalRole: ptr.String(role),
+				}
+				s.DoJSON("POST", "/api/latest/fleet/users/admin", params, http.StatusPaymentRequired, &createResp)
+			})
+		})
+	}
 }
 
 func (s *integrationTestSuite) TestPolicyDeletionLogsActivity() {
@@ -3483,8 +3521,8 @@ func (s *integrationTestSuite) TestHostsAddToTeam() {
 	}, http.StatusOK, &addResp)
 	s.lastActivityOfTypeMatches(
 		fleet.ActivityTypeTransferredHostsToTeam{}.ActivityName(),
-		fmt.Sprintf(`{"team_id": %d, "team_name": %q, "host_ids": [%d, %d], "host_display_names": [%q, %q]}`,
-			tm1.ID, tm1.Name, hosts[0].ID, hosts[1].ID, hosts[0].DisplayName(), hosts[1].DisplayName()),
+		fmt.Sprintf(`{"fleet_id": %d, "fleet_name": %q, "team_id": %d, "team_name": %q, "host_ids": [%d, %d], "host_display_names": [%q, %q]}`,
+			tm1.ID, tm1.Name, tm1.ID, tm1.Name, hosts[0].ID, hosts[1].ID, hosts[0].DisplayName(), hosts[1].DisplayName()),
 		0,
 	)
 
@@ -3515,8 +3553,8 @@ func (s *integrationTestSuite) TestHostsAddToTeam() {
 	s.DoJSON("POST", "/api/latest/fleet/hosts/transfer/filter", req, http.StatusOK, &addfResp)
 	s.lastActivityOfTypeMatches(
 		fleet.ActivityTypeTransferredHostsToTeam{}.ActivityName(),
-		fmt.Sprintf(`{"team_id": %d, "team_name": %q, "host_ids": [%d], "host_display_names": [%q]}`,
-			tm2.ID, tm2.Name, hosts[2].ID, hosts[2].DisplayName()),
+		fmt.Sprintf(`{"team_id": %d, "team_name": %q, "fleet_id": %d, "fleet_name": %q, "host_ids": [%d], "host_display_names": [%q]}`,
+			tm2.ID, tm2.Name, tm2.ID, tm2.Name, hosts[2].ID, hosts[2].DisplayName()),
 		0,
 	)
 
@@ -3585,7 +3623,7 @@ func (s *integrationTestSuite) TestHostsAddToTeam() {
 	}, http.StatusOK, &addResp)
 	s.lastActivityOfTypeMatches(
 		fleet.ActivityTypeTransferredHostsToTeam{}.ActivityName(),
-		fmt.Sprintf(`{"team_id": null, "team_name": null, "host_ids": [%d], "host_display_names": [%q]}`,
+		fmt.Sprintf(`{"team_id": null, "team_name": null, "fleet_id": null, "fleet_name": null, "host_ids": [%d], "host_display_names": [%q]}`,
 			hosts[1].ID, hosts[1].DisplayName()),
 		0,
 	)
@@ -4644,6 +4682,19 @@ func (s *integrationTestSuite) TestLabels() {
 			s.DoJSON("POST", "/api/latest/fleet/labels", &fleet.LabelPayload{Name: n, Query: "select 1"}, http.StatusUnprocessableEntity, &createResp)
 		}
 
+		// try to create a label with an invalid platform
+		s.DoJSON(
+			"POST",
+			"/api/latest/fleet/labels",
+			&fleet.LabelPayload{
+				Name:     "amazing label",
+				Query:    "select 1",
+				Platform: "linux",
+			},
+			http.StatusUnprocessableEntity,
+			&createResp,
+		)
+
 		// create a valid dynamic label
 		s.DoJSON("POST", "/api/latest/fleet/labels", &fleet.LabelPayload{Name: t.Name(), Query: "select 1"}, http.StatusOK, &createResp)
 		assert.NotZero(t, createResp.Label.ID)
@@ -5363,6 +5414,24 @@ func (s *integrationTestSuite) TestLabelSpecs() {
 	}, http.StatusUnprocessableEntity, &applyResp,
 	)
 
+	// apply an invalid label spec - invalid platform
+	s.DoJSON(
+		"POST",
+		"/api/latest/fleet/spec/labels",
+		applyLabelSpecsRequest{
+			Specs: []*fleet.LabelSpec{
+				{
+					Name:                name,
+					Query:               "select 1",
+					Platform:            "linux",
+					LabelMembershipType: fleet.LabelMembershipTypeDynamic,
+				},
+			},
+		},
+		http.StatusUnprocessableEntity,
+		&applyResp,
+	)
+
 	// apply an invalid label spec - manual membership without a host specified
 	s.DoJSON("POST", "/api/latest/fleet/spec/labels", applyLabelSpecsRequest{
 		Specs: []*fleet.LabelSpec{
@@ -5409,7 +5478,7 @@ func (s *integrationTestSuite) TestLabelSpecs() {
 			{
 				Name:                name,
 				Query:               "select 1",
-				Platform:            "linux",
+				Platform:            "centos",
 				LabelMembershipType: fleet.LabelMembershipTypeDynamic,
 			},
 		},
@@ -7691,7 +7760,7 @@ func (s *integrationTestSuite) TestAppConfig() {
 	require.True(t, len(listActivities.Activities) > 1)
 	require.Equal(t, fleet.ActivityTypeEditedAgentOptions{}.ActivityName(), listActivities.Activities[0].Type)
 	require.NotNil(t, listActivities.Activities[0].Details)
-	assert.JSONEq(t, `{"global": true, "team_id": null, "team_name": null}`, string(*listActivities.Activities[0].Details))
+	assert.JSONEq(t, `{"global": true, "fleet_id": null, "fleet_name": null, "team_id": null, "team_name": null}`, string(*listActivities.Activities[0].Details))
 
 	// try to set invalid agent options
 	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
@@ -8098,7 +8167,7 @@ func (s *integrationTestSuite) TestCertificatesSpecs() {
 	require.Len(t, activitiesAfterInsert, len(activitiesBeforeInsert)+1, "expected exactly one new activity for the team")
 	s.lastActivityMatches(
 		fleet.ActivityTypeEditedAndroidCertificate{}.ActivityName(),
-		fmt.Sprintf(`{"team_id": %d, "team_name": %q}`, team.ID, team.Name),
+		fmt.Sprintf(`{"fleet_id": %d, "fleet_name": %q, "team_id": %d, "team_name": %q}`, team.ID, team.Name, team.ID, team.Name),
 		0,
 	)
 
@@ -8218,7 +8287,7 @@ func (s *integrationTestSuite) TestCertificatesSpecs() {
 	// Verify activity was created for deleting certificates
 	s.lastActivityMatches(
 		fleet.ActivityTypeEditedAndroidCertificate{}.ActivityName(),
-		fmt.Sprintf(`{"team_id": %d, "team_name": %q}`, team.ID, team.Name),
+		fmt.Sprintf(`{"fleet_id": %d, "fleet_name": %q, "team_id": %d, "team_name": %q}`, team.ID, team.Name, team.ID, team.Name),
 		0,
 	)
 
@@ -8257,7 +8326,7 @@ func (s *integrationTestSuite) TestCertificatesSpecs() {
 	require.Len(t, activitiesAfterNoTeam, len(activitiesBeforeNoTeam)+1, "expected exactly one new activity for no team")
 	s.lastActivityMatches(
 		fleet.ActivityTypeEditedAndroidCertificate{}.ActivityName(),
-		`{"team_id": null, "team_name": null}`,
+		`{"fleet_id": null, "fleet_name": null, "team_id": null, "team_name": null}`,
 		0,
 	)
 
@@ -11722,7 +11791,7 @@ func (s *integrationTestSuite) TestDirectIngestScheduledQueryStats() {
 	task := async.NewTask(s.ds, nil, clock.C, nil)
 	err = detailQueries["scheduled_query_stats"].DirectTaskIngestFunc(
 		context.Background(),
-		log.NewNopLogger(),
+		slog.New(slog.DiscardHandler),
 		team1Host,
 		task,
 		rows,
@@ -11799,7 +11868,7 @@ func (s *integrationTestSuite) TestDirectIngestScheduledQueryStats() {
 
 	err = detailQueries["scheduled_query_stats"].DirectTaskIngestFunc(
 		context.Background(),
-		log.NewNopLogger(),
+		slog.New(slog.DiscardHandler),
 		globalHost,
 		task,
 		rows,
@@ -11876,7 +11945,7 @@ func (s *integrationTestSuite) TestDirectIngestSoftwareWithLongFields() {
 	detailQueries := osquery_utils.GetDetailQueries(context.Background(), config.FleetConfig{}, appConfig, &appConfig.Features, osquery_utils.Integrations{}, nil)
 	err = detailQueries["software_windows"].DirectIngestFunc(
 		context.Background(),
-		log.NewNopLogger(),
+		slog.New(slog.DiscardHandler),
 		globalHost,
 		s.ds,
 		rows,
@@ -11907,7 +11976,7 @@ func (s *integrationTestSuite) TestDirectIngestSoftwareWithLongFields() {
 	// We now check that the same software is not created again as a new row when it is received again during software ingestion.
 	err = detailQueries["software_windows"].DirectIngestFunc(
 		context.Background(),
-		log.NewNopLogger(),
+		slog.New(slog.DiscardHandler),
 		globalHost,
 		s.ds,
 		rows,
@@ -11938,7 +12007,7 @@ func (s *integrationTestSuite) TestDirectIngestSoftwareWithLongFields() {
 
 	err = detailQueries["software_windows"].DirectIngestFunc(
 		context.Background(),
-		log.NewNopLogger(),
+		slog.New(slog.DiscardHandler),
 		globalHost,
 		s.ds,
 		rows,
@@ -11962,7 +12031,7 @@ func (s *integrationTestSuite) TestDirectIngestSoftwareWithLongFields() {
 	// We now check that the same software with long (to be trimmed) fields is not created again as a new row.
 	err = detailQueries["software_windows"].DirectIngestFunc(
 		context.Background(),
-		log.NewNopLogger(),
+		slog.New(slog.DiscardHandler),
 		globalHost,
 		s.ds,
 		rows,
@@ -12007,8 +12076,8 @@ func (s *integrationTestSuite) TestDirectIngestSoftwareWithInvalidFields() {
 			"last_opened_at": "foobar",
 		},
 	}
-	var w1 bytes.Buffer
-	logger1 := log.NewJSONLogger(&w1)
+	handler1 := logtestutils.NewTestHandler()
+	logger1 := slog.New(handler1)
 	detailQueries := osquery_utils.GetDetailQueries(context.Background(), config.FleetConfig{}, appConfig, &appConfig.Features, osquery_utils.Integrations{}, nil)
 	err = detailQueries["software_windows"].DirectIngestFunc(
 		context.Background(),
@@ -12018,10 +12087,23 @@ func (s *integrationTestSuite) TestDirectIngestSoftwareWithInvalidFields() {
 		rows,
 	)
 	require.NoError(t, err)
-	logs1, err := io.ReadAll(&w1)
-	require.NoError(t, err)
-	require.Contains(t, string(logs1), "host reported software with empty name", string(logs1))
-	require.Contains(t, string(logs1), "debug")
+	records1 := handler1.Records()
+	require.NotEmpty(t, records1)
+	// The "empty name" error is returned by SoftwareFromOsqueryRow and logged as an attribute
+	// of the "failed to parse software row" debug message.
+	var foundEmptyName bool
+	for _, r := range records1 {
+		if r.Level == slog.LevelDebug && r.Message == "failed to parse software row" {
+			attrs := logtestutils.RecordAttrs(&r)
+			if err, ok := attrs["err"]; ok {
+				if errStr := fmt.Sprint(err); strings.Contains(errStr, "host reported software with empty name") {
+					foundEmptyName = true
+					break
+				}
+			}
+		}
+	}
+	require.True(t, foundEmptyName, "expected a debug log about software with empty name")
 
 	// Check that the software was not ingested.
 	softwareQueryByVendor := "SELECT id, name, version, source, bundle_identifier, `release`, arch, vendor FROM software WHERE vendor = ?;"
@@ -12045,8 +12127,8 @@ func (s *integrationTestSuite) TestDirectIngestSoftwareWithInvalidFields() {
 		},
 	}
 	detailQueries = osquery_utils.GetDetailQueries(context.Background(), config.FleetConfig{}, appConfig, &appConfig.Features, osquery_utils.Integrations{}, nil)
-	var w2 bytes.Buffer
-	logger2 := log.NewJSONLogger(&w2)
+	handler2 := logtestutils.NewTestHandler()
+	logger2 := slog.New(handler2)
 	err = detailQueries["software_windows"].DirectIngestFunc(
 		context.Background(),
 		logger2,
@@ -12055,10 +12137,21 @@ func (s *integrationTestSuite) TestDirectIngestSoftwareWithInvalidFields() {
 		rows,
 	)
 	require.NoError(t, err)
-	logs2, err := io.ReadAll(&w2)
-	require.NoError(t, err)
-	require.Contains(t, string(logs2), "host reported software with empty source")
-	require.Contains(t, string(logs2), "debug")
+	records2 := handler2.Records()
+	require.NotEmpty(t, records2)
+	var foundEmptySource bool
+	for _, r := range records2 {
+		if r.Level == slog.LevelDebug && r.Message == "failed to parse software row" {
+			attrs := logtestutils.RecordAttrs(&r)
+			if err, ok := attrs["err"]; ok {
+				if errStr := fmt.Sprint(err); strings.Contains(errStr, "host reported software with empty source") {
+					foundEmptySource = true
+					break
+				}
+			}
+		}
+	}
+	require.True(t, foundEmptySource, "expected a debug log about software with empty source")
 
 	// Check that the software was not ingested.
 	softwareQueryByName := "SELECT id, name, version, source, bundle_identifier, `release`, arch, vendor FROM software WHERE name = ?;"
@@ -12082,8 +12175,8 @@ func (s *integrationTestSuite) TestDirectIngestSoftwareWithInvalidFields() {
 			"last_opened_at": "foobar",
 		},
 	}
-	var w3 bytes.Buffer
-	logger3 := log.NewJSONLogger(&w3)
+	handler3 := logtestutils.NewTestHandler()
+	logger3 := slog.New(handler3)
 	detailQueries = osquery_utils.GetDetailQueries(context.Background(), config.FleetConfig{}, appConfig, &appConfig.Features, osquery_utils.Integrations{}, nil)
 	err = detailQueries["software_windows"].DirectIngestFunc(
 		context.Background(),
@@ -12093,10 +12186,16 @@ func (s *integrationTestSuite) TestDirectIngestSoftwareWithInvalidFields() {
 		rows,
 	)
 	require.NoError(t, err)
-	logs3, err := io.ReadAll(&w3)
-	require.NoError(t, err)
-	require.Contains(t, string(logs3), "host reported software with invalid last opened timestamp")
-	require.Contains(t, string(logs3), "debug")
+	records3 := handler3.Records()
+	require.NotEmpty(t, records3)
+	var foundInvalidTimestamp bool
+	for _, r := range records3 {
+		if r.Level == slog.LevelDebug && r.Message == "host reported software with invalid last opened timestamp" {
+			foundInvalidTimestamp = true
+			break
+		}
+	}
+	require.True(t, foundInvalidTimestamp, "expected a debug log about software with invalid last opened timestamp")
 
 	// Check that the software was properly ingested.
 	var wiresharkSoftware fleet.Software
@@ -14082,6 +14181,12 @@ func (s *integrationTestSuite) TestDebugDB() {
 
 func (s *integrationTestSuite) TestAutofillPolicies() {
 	t := s.T()
+
+	// Ensure AI features are enabled (may have been disabled by a previous test).
+	s.Do("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
+		"server_settings": {"ai_features_disabled": false}
+	}`), http.StatusOK)
+
 	startMockServer := func(t *testing.T) string {
 		// create a test http server
 		srv := httptest.NewServer(
@@ -14361,11 +14466,11 @@ func (s *integrationTestSuite) TestSecretVariablesGitOps() {
 	t := s.T()
 	ctx := context.Background()
 
-	// Create the global GitOps user we'll use in tests.
 	u := &fleet.User{
-		Name:       "GitOps",
-		Email:      "gitops1@example.com",
-		GlobalRole: ptr.String(fleet.RoleGitOps),
+		Name:  "GitOps",
+		Email: "gitops1@example.com",
+		// GitOps role is premium only, so we use the global admin role.
+		GlobalRole: ptr.String(fleet.RoleAdmin),
 	}
 	require.NoError(t, u.SetPassword(test.GoodPassword, 10, 10))
 	_, err := s.ds.NewUser(ctx, u)

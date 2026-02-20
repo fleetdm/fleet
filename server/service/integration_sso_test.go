@@ -23,9 +23,9 @@ import (
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
 	"github.com/fleetdm/fleet/v4/server/datastore/redis/redistest"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/platform/logging"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/test"
-	kitlog "github.com/go-kit/log"
 	"github.com/jmoiron/sqlx"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -43,7 +43,7 @@ func (s *integrationSSOTestSuite) SetupSuite() {
 	pool := redistest.SetupRedis(s.T(), "zz", false, false, false)
 	opts := &TestServerOpts{Pool: pool, DBConns: s.dbConns}
 	if os.Getenv("FLEET_INTEGRATION_TESTS_DISABLE_LOG") != "" {
-		opts.Logger = kitlog.NewNopLogger()
+		opts.Logger = logging.NewNopLogger()
 	}
 	users, server := RunServerForTestsWithDS(s.T(), s.ds, opts)
 	s.server = server
@@ -263,6 +263,62 @@ func (s *integrationSSOTestSuite) TestSSOLogin() {
 			}
 		}
 		return false
+	})
+}
+
+func (s *integrationSSOTestSuite) TestSSOLoginDisallowedWithPremiumRoles() {
+	t := s.T()
+
+	acResp := appConfigResponse{}
+	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
+        "server_settings": {
+          "server_url": "https://localhost:8080"
+        },
+		"sso_settings": {
+			"enable_sso": true,
+			"entity_id": "https://localhost:8080",
+			"idp_name": "SimpleSAML",
+			"metadata_url": "http://localhost:9080/simplesaml/saml2/idp/metadata.php"
+		}
+	}`), http.StatusOK, &acResp)
+	require.NotNil(t, acResp)
+
+	user, err := s.ds.UserByEmail(t.Context(), "sso_user2@example.com")
+	switch {
+	case fleet.IsNotFound(err):
+		// OK, proceed.
+	case err == nil:
+		// Cleanup (probably created by other tests)
+		err = s.ds.DeleteUser(t.Context(), user.ID)
+		require.NoError(t, err)
+	default:
+		require.NoError(t, err)
+	}
+
+	t.Run("global premium roles", func(t *testing.T) {
+		for _, role := range []string{fleet.RoleTechnician, fleet.RoleGitOps, fleet.RoleObserverPlus} {
+			// Create user.
+			u := &fleet.User{
+				Name:       "SSO User 2",
+				Email:      "sso_user2@example.com",
+				GlobalRole: ptr.String(role),
+				SSOEnabled: true,
+			}
+			password := test.GoodPassword
+			require.NoError(t, u.SetPassword(password, 10, 10))
+			u, err := s.ds.NewUser(t.Context(), u)
+			require.NoError(t, err)
+
+			// Attempt to log in.
+			res := s.loginSSOUser("sso_user2", "user123#", "/api/v1/fleet/sso", http.StatusPaymentRequired)
+			t.Cleanup(func() {
+				res.Body.Close()
+			})
+
+			// Cleanup user.
+			err = s.ds.DeleteUser(t.Context(), u.ID)
+			require.NoError(t, err)
+		}
 	})
 }
 

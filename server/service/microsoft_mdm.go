@@ -14,6 +14,7 @@ import (
 	"html"
 	"html/template"
 	"io"
+	"log/slog"
 	"net"
 	"net/http"
 	"net/url"
@@ -32,7 +33,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mdm/microsoft/syncml"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/variables"
-	kitlog "github.com/go-kit/log"
 	"github.com/go-kit/log/level"
 	mysql_driver "github.com/go-sql-driver/mysql"
 
@@ -1007,7 +1007,6 @@ func (svc *Service) authBinarySecurityToken(ctx context.Context, authToken *flee
 
 		// Validating the Binary Security Token Type used on Automatic Enrollments (returned by STS Auth Endpoint)
 		if binSecToken.Type == mdm_types.WindowsMDMAutomaticEnrollmentType {
-
 			upnToken, err := svc.wstepCertManager.GetSTSAuthTokenUPNClaim(binSecToken.Payload.AuthToken)
 			if err != nil {
 				return "", "", ctxerr.Wrap(ctx, err, "issue retrieving UPN from Auth token")
@@ -1020,6 +1019,20 @@ func (svc *Service) authBinarySecurityToken(ctx context.Context, authToken *flee
 
 	// Validating the Binary Security Token Type used on Automatic Enrollments
 	if authToken.IsAzureJWTToken() {
+		appConfig, err := svc.ds.AppConfig(ctx)
+		if err != nil {
+			return "", "", ctxerr.Wrap(ctx, err, "retrieving app config for auth token validation")
+		}
+
+		entraTenantIDs := appConfig.MDM.WindowsEntraTenantIDs.Value
+		if len(entraTenantIDs) == 0 {
+			return "", "", ctxerr.New(ctx, "no entra tenant IDs configured for automatic enrollment")
+		}
+		expectedURL := appConfig.ServerSettings.ServerURL
+		expectedURLParsed, err := url.Parse(expectedURL)
+		if err != nil {
+			return "", "", ctxerr.Wrap(ctx, err, "parsing server URL for auth token validation")
+		}
 
 		// Validate the JWT Auth token by retreving its claims
 		tokenData, err := microsoft_mdm.GetAzureAuthTokenClaims(ctx, authToken.Content)
@@ -1027,11 +1040,40 @@ func (svc *Service) authBinarySecurityToken(ctx context.Context, authToken *flee
 			return "", "", fmt.Errorf("binary security token claim failed: %v", err)
 		}
 
+		hasExpectedAudience := false
+		for _, aud := range tokenData.Audience {
+			audURL, err := url.Parse(aud)
+			// The Audience may have multiple values and not everything in the aud will be a URL and that's OK
+			if err != nil {
+				continue
+			}
+			if audURL.Host == expectedURLParsed.Host {
+				hasExpectedAudience = true
+				break
+			}
+		}
+		if !hasExpectedAudience {
+			// Log bad audiences here for debugging
+			level.Error(svc.logger).Log(
+				"msg", "unexpected token audience in AzureAD Binary Security Token",
+				"expected_host", expectedURLParsed.Host,
+				"token_audiences", strings.Join(tokenData.Audience, ","),
+			)
+			return "", "", ctxerr.Errorf(ctx, "token audience is not authorized")
+		}
+		if !slices.Contains(entraTenantIDs, tokenData.TenantID) {
+			level.Error(svc.logger).Log(
+				"msg", "unexpected token tenant in AzureAD Binary Security Token",
+				"token_tenant", tokenData.TenantID,
+			)
+			return "", "", ctxerr.New(ctx, "token tenant is not authorized")
+		}
+
 		// No errors, token is authorized
 		return tokenData.UPN, "", nil
 	}
 
-	return "", "", errors.New("token is not authorized")
+	return "", "", ctxerr.New(ctx, "token is not authorized")
 }
 
 // ProcessMDMMicrosoftDiscovery handles the Discovery message validation and response
@@ -2160,7 +2202,7 @@ func (svc *Service) GetAuthorizedSoapFault(ctx context.Context, eType string, or
 	if errors.As(errorMsg, &ne) || errors.As(errorMsg, &me) {
 		logging.WithErr(ctx, ctxerr.Wrap(ctx, errorMsg, "soap fault"))
 	} else {
-		logging.WithLevel(ctx, level.Info)
+		logging.WithLevel(ctx, slog.LevelInfo)
 		logging.WithExtras(ctx, "soap_fault", errorMsg.Error())
 	}
 	soapFault := NewSoapFault(eType, origMsg, errorMsg)
@@ -2484,7 +2526,7 @@ func (svc *Service) GetMDMWindowsProfilesSummary(ctx context.Context, teamID *ui
 	return ps, nil
 }
 
-func ReconcileWindowsProfiles(ctx context.Context, ds fleet.Datastore, logger kitlog.Logger) error {
+func ReconcileWindowsProfiles(ctx context.Context, ds fleet.Datastore, logger *slog.Logger) error {
 	appConfig, err := ds.AppConfig(ctx)
 	if err != nil {
 		return fmt.Errorf("reading app config: %w", err)
@@ -2552,7 +2594,7 @@ func ReconcileWindowsProfiles(ctx context.Context, ds fleet.Datastore, logger ki
 		hostProfilesToUpdate = append(hostProfilesToUpdate, hp)
 		// Add to map for fast lookup
 		hostProfilesMap[p.HostUUID+"|"+p.ProfileUUID] = hp
-		level.Debug(logger).Log("msg", "installing profile", "profile_uuid", p.ProfileUUID, "host_id", p.HostUUID, "name", p.ProfileName)
+		logger.DebugContext(ctx, "installing profile", "profile_uuid", p.ProfileUUID, "host_id", p.HostUUID, "name", p.ProfileName)
 	}
 
 	// Grab the contents of all the profiles we need to install
@@ -2594,7 +2636,7 @@ func ReconcileWindowsProfiles(ctx context.Context, ds fleet.Datastore, logger ki
 			// No Fleet variables, send the same command to all hosts
 			command, err := buildCommandFromProfileBytes(p.SyncML, target.cmdUUID)
 			if err != nil {
-				level.Info(logger).Log("err", err, "profile_uuid", profUUID)
+				logger.InfoContext(ctx, "error building command from profile", "err", err, "profile_uuid", profUUID)
 				continue
 			}
 			if err := ds.MDMWindowsInsertCommandForHosts(ctx, target.hostUUIDs, command); err != nil {
@@ -2607,7 +2649,7 @@ func ReconcileWindowsProfiles(ctx context.Context, ds fleet.Datastore, logger ki
 				hp := hostProfilesMap[mapKey]
 				if hp == nil {
 					// This should never happen, but handle gracefully
-					level.Error(logger).Log("msg", "host profile not found in map", "profile_uuid", profUUID, "host_uuid", hostUUID)
+					logger.ErrorContext(ctx, "host profile not found in map", "profile_uuid", profUUID, "host_uuid", hostUUID)
 					continue
 				}
 
@@ -2632,7 +2674,7 @@ func ReconcileWindowsProfiles(ctx context.Context, ds fleet.Datastore, logger ki
 				// Build the command with the processed content
 				command, err := buildCommandFromProfileBytes([]byte(processedContent), hostCmdUUID)
 				if err != nil {
-					level.Info(logger).Log("err", err, "profile_uuid", profUUID, "host_uuid", hostUUID)
+					logger.InfoContext(ctx, "error building command from profile", "err", err, "profile_uuid", profUUID, "host_uuid", hostUUID)
 					// Mark this host's profile as failed
 					hp.Status = &fleet.MDMDeliveryFailed
 					hp.Detail = fmt.Sprintf("Failed to build command from profile: %s", err.Error())
@@ -2641,7 +2683,7 @@ func ReconcileWindowsProfiles(ctx context.Context, ds fleet.Datastore, logger ki
 
 				// Insert the command for this specific host
 				if err := ds.MDMWindowsInsertCommandForHosts(ctx, []string{hostUUID}, command); err != nil {
-					level.Error(logger).Log("err", err, "msg", "inserting command for host", "host_uuid", hostUUID)
+					logger.ErrorContext(ctx, "inserting command for host", "err", err, "host_uuid", hostUUID)
 					// Mark this host's profile as failed
 					hp.Status = &fleet.MDMDeliveryFailed
 					hp.Detail = fmt.Sprintf("Failed to insert command for host: %s", err.Error())

@@ -108,6 +108,65 @@ spec:
   roles:
     admin1@example.com:
       global_role: admin
+      fleets: null
+    admin2@example.com:
+      global_role: null
+      fleets:
+      - role: maintainer
+        fleet: team1
+`)
+	require.NoError(t, err)
+	assert.Equal(t, "[+] applied user roles\n", RunAppForTest(t, []string{"apply", "-f", tmpFile.Name()}))
+	require.Len(t, userRoleSpecList[1].Teams, 1)
+	assert.Equal(t, fleet.RoleMaintainer, userRoleSpecList[1].Teams[0].Role)
+}
+
+func TestApplyUserRolesDeprecated(t *testing.T) {
+	_, ds := testing_utils.RunServerWithMockedDS(t)
+
+	ds.ListUsersFunc = func(ctx context.Context, opt fleet.UserListOptions) ([]*fleet.User, error) {
+		return userRoleSpecList, nil
+	}
+
+	ds.UserByEmailFunc = func(ctx context.Context, email string) (*fleet.User, error) {
+		if email == "admin1@example.com" {
+			return userRoleSpecList[0], nil
+		}
+		return userRoleSpecList[1], nil
+	}
+
+	ds.TeamByNameFunc = func(ctx context.Context, name string) (*fleet.Team, error) {
+		return &fleet.Team{
+			ID:        1,
+			CreatedAt: time.Now(),
+			Name:      "team1",
+		}, nil
+	}
+
+	ds.SaveUsersFunc = func(ctx context.Context, users []*fleet.User) error {
+		for _, u := range users {
+			switch u.Email {
+			case "admin1@example.com":
+				userRoleList[0] = u
+			case "admin2@example.com":
+				userRoleList[1] = u
+			}
+		}
+		return nil
+	}
+
+	tmpFile, err := os.CreateTemp(os.TempDir(), "*.yml")
+	require.NoError(t, err)
+	defer os.Remove(tmpFile.Name())
+
+	_, err = tmpFile.WriteString(`
+---
+apiVersion: v1
+kind: user_roles
+spec:
+  roles:
+    admin1@example.com:
+      global_role: admin
       teams: null
     admin2@example.com:
       global_role: null
@@ -994,7 +1053,7 @@ spec:
   description: Checks to make sure that the Gatekeeper feature is enabled on macOS devices. Gatekeeper tries to ensure only trusted software is run on a mac machine.
   resolution: "Run the following command in the Terminal app: /usr/sbin/spctl --master-enable"
   platform: darwin
-  team: Team1
+  fleet: Team1
 ---
 apiVersion: v1
 kind: policy
@@ -1023,7 +1082,7 @@ spec:
   description: Checks to make sure that the Gatekeeper feature is enabled on macOS devices. Gatekeeper tries to ensure only trusted software is run on a mac machine.
   resolution: "Run the following command in the Terminal app: /usr/sbin/spctl --master-enable"
   platform: darwin
-  team: Team1
+  fleet: Team1
 ---
 apiVersion: v1
 kind: policy
@@ -1033,7 +1092,7 @@ spec:
   description: Checks to make sure that the Gatekeeper feature is enabled on macOS devices. Gatekeeper tries to ensure only trusted software is run on a mac machine.
   resolution: "Run the following command in the Terminal app: /usr/sbin/spctl --master-enable"
   platform: darwin
-  team: Team1
+  fleet: Team1
 `
 	duplicateGlobalPolicySpec = `---
 apiVersion: v1
@@ -1120,7 +1179,7 @@ apiVersion: v1
 kind: pack
 spec:
   name: osquery_monitoring
-  queries:
+  reports:
     - query: osquery_version
       name: osquery_version_snapshot
       interval: 7200
@@ -1847,7 +1906,7 @@ apiVersion: v1
 kind: pack
 spec:
   name: test_bad_interval
-  queries:
+  reports:
     - query: good_interval
       name: good_interval
       interval: 7200
@@ -2381,7 +2440,7 @@ spec:
 
 		b, err = os.ReadFile(filepath.Join("testdata", "macosSetupExpectedTeam1Set.yml"))
 		require.NoError(t, err)
-		expectedTm1Set := fmt.Sprintf(string(b), "", "")
+		expectedTm1Set := fmt.Sprintf(string(b), "", "", "", "")
 		expectedTm1SetReleaseAndRequireEnabled := strings.ReplaceAll(expectedTm1Set, `enable_release_device_manually: false`, `enable_release_device_manually: true`)
 		expectedTm1SetReleaseAndRequireEnabled = strings.ReplaceAll(expectedTm1SetReleaseAndRequireEnabled, `require_all_software_macos: false`, `require_all_software_macos: true`)
 
@@ -2391,7 +2450,7 @@ spec:
 
 		b, err = os.ReadFile(filepath.Join("testdata", "macosSetupExpectedTeam1And2Set.yml"))
 		require.NoError(t, err)
-		expectedTm1And2Set := fmt.Sprintf(string(b), "", emptyMacosSetup)
+		expectedTm1And2Set := fmt.Sprintf(string(b), "", emptyMacosSetup, "", emptyMacosSetup, "", emptyMacosSetup, "", emptyMacosSetup)
 
 		// get without setup assistant set
 		assert.YAMLEq(t, expectedEmptyAppCfg, RunAppForTest(t, []string{"get", "config", "--yaml"}))

@@ -8,11 +8,12 @@ import (
 	"net/http"
 	"time"
 
+	"log/slog"
+
 	"github.com/cenkalti/backoff/v4"
 	"github.com/fleetdm/fleet/v4/server/activity/api"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	kithttp "github.com/go-kit/kit/transport/http"
-	"github.com/go-kit/log/level"
 )
 
 // NewActivity creates a new activity record and fires the webhook if configured.
@@ -88,7 +89,7 @@ func (s *Service) fireActivityWebhook(user *api.User, activity api.ActivityDetai
 				); err != nil {
 					var statusCoder kithttp.StatusCoder
 					if errors.As(err, &statusCoder) && statusCoder.StatusCode() == http.StatusTooManyRequests {
-						level.Debug(s.logger).Log("msg", "fire activity webhook", "err", err)
+						s.logger.Debug("fire activity webhook", slog.String("err", err.Error()))
 						return err
 					}
 					return backoff.Permanent(err)
@@ -97,9 +98,9 @@ func (s *Service) fireActivityWebhook(user *api.User, activity api.ActivityDetai
 			}, retryStrategy,
 		)
 		if err != nil {
-			level.Error(s.logger).Log(
-				"msg", fmt.Sprintf("fire activity webhook to %s", s.providers.MaskSecretURLParams(webhookURL)),
-				"err", s.providers.MaskURLError(err).Error(),
+			s.logger.Error(
+				fmt.Sprintf("fire activity webhook to %s", s.providers.MaskSecretURLParams(webhookURL)),
+				slog.String("err", s.providers.MaskURLError(err).Error()),
 			)
 		}
 	}()

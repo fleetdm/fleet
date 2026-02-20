@@ -2,12 +2,16 @@ package service
 
 import (
 	"context"
+	"crypto/x509"
 	"database/sql"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
+	"log/slog"
 	"net/http"
 	"net/url"
+	"os"
 
 	"github.com/fleetdm/fleet/v4/ee/server/service/hostidentity/httpsig"
 	"github.com/fleetdm/fleet/v4/server"
@@ -45,6 +49,22 @@ func (r *orbitGetConfigRequest) setOrbitNodeKey(nodeKey string) {
 
 func (r *orbitGetConfigRequest) orbitHostNodeKey() string {
 	return r.OrbitNodeKey
+}
+
+// DecodeBody implements the bodyDecoder interface for custom request body decoding.
+// This endpoint is susceptible to client read timeouts (poll.DeadlineExceededError).
+// By implementing DecodeBody, we classify those network errors as client errors.
+func (r *orbitGetConfigRequest) DecodeBody(_ context.Context, reader io.Reader, _ url.Values, _ []*x509.Certificate) error {
+	if err := json.NewDecoder(reader).Decode(r); err != nil {
+		if errors.Is(err, os.ErrDeadlineExceeded) {
+			return &fleet.BadRequestError{
+				Message:     "request body read timeout",
+				InternalErr: err,
+			}
+		}
+		return err
+	}
+	return nil
 }
 
 type orbitGetConfigResponse struct {
@@ -130,7 +150,7 @@ func (svc *Service) EnrollOrbit(ctx context.Context, hostInfo fleet.OrbitHostInf
 			"computer_name", hostInfo.ComputerName,
 			"hardware_model", hostInfo.HardwareModel,
 		),
-		level.Info,
+		slog.LevelInfo,
 	)
 
 	secret, err := svc.ds.VerifyEnrollSecret(ctx, enrollSecret)
@@ -1173,7 +1193,7 @@ func (svc *Service) SetOrUpdateDiskEncryptionKey(ctx context.Context, encryption
 	}
 
 	// Only archive the key if disk encryption is enabled for this host (team/globally)
-	if !osquery_utils.IsDiskEncryptionEnabledForHost(ctx, svc.logger, svc.ds, host) {
+	if !osquery_utils.IsDiskEncryptionEnabledForHost(ctx, svc.logger.SlogLogger(), svc.ds, host) {
 		level.Debug(svc.logger).Log(
 			"msg", "skipping key archival, disk encryption not enabled for host team/globally",
 			"host_id", host.ID,
@@ -1281,7 +1301,7 @@ func (svc *Service) EscrowLUKSData(ctx context.Context, passphrase string, salt 
 	}
 
 	// Only archive the key if disk encryption is enabled for this host (team/globally)
-	if !osquery_utils.IsDiskEncryptionEnabledForHost(ctx, svc.logger, svc.ds, host) {
+	if !osquery_utils.IsDiskEncryptionEnabledForHost(ctx, svc.logger.SlogLogger(), svc.ds, host) {
 		level.Debug(svc.logger).Log(
 			"msg", "skipping LUKS key archival, disk encryption not enabled for host team/globally",
 			"host_id", host.ID,

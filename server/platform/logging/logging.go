@@ -148,3 +148,21 @@ func (h *OtelTracingHandler) WithGroup(name string) slog.Handler {
 
 // Ensure OtelTracingHandler implements slog.Handler at compile time.
 var _ slog.Handler = (*OtelTracingHandler)(nil)
+
+// NewNopLogger returns a no-op *Logger that discards all log output.
+// Use this in tests instead of kitlog.NewNopLogger() to maintain type safety.
+func NewNopLogger() *Logger {
+	return NewLogger(slog.New(slog.DiscardHandler))
+}
+
+// NewLogfmtLogger creates a *Logger that outputs text-formatted logs to the given writer.
+// This is a drop-in replacement for kitlog.NewLogfmtLogger().
+func NewLogfmtLogger(output io.Writer) *Logger {
+	return NewLogger(NewSlogLogger(Options{Output: output, Debug: true}))
+}
+
+// NewJSONLogger creates a *Logger that outputs JSON-formatted logs to the given writer.
+// This is a drop-in replacement for kitlog.NewJSONLogger().
+func NewJSONLogger(output io.Writer) *Logger {
+	return NewLogger(NewSlogLogger(Options{Output: output, JSON: true, Debug: true}))
+}

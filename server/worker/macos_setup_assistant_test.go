@@ -17,8 +17,8 @@ import (
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
 	nanodep_client "github.com/fleetdm/fleet/v4/server/mdm/nanodep/client"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanodep/godep"
+	"github.com/fleetdm/fleet/v4/server/platform/logging"
 	"github.com/fleetdm/fleet/v4/server/ptr"
-	kitlog "github.com/go-kit/log"
 	"github.com/stretchr/testify/require"
 )
 
@@ -73,14 +73,14 @@ func TestMacosSetupAssistant(t *testing.T) {
 	err = ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&tm2.ID, []uint{hosts[4].ID, hosts[5].ID}))
 	require.NoError(t, err)
 
-	logger := kitlog.NewNopLogger()
+	logger := logging.NewNopLogger()
 	depStorage, err := ds.NewMDMAppleDEPStorage()
 	require.NoError(t, err)
 	macosJob := &MacosSetupAssistant{
 		Datastore:  ds,
 		Log:        logger,
-		DEPService: apple_mdm.NewDEPService(ds, depStorage, logger),
-		DEPClient:  apple_mdm.NewDEPClient(depStorage, ds, logger),
+		DEPService: apple_mdm.NewDEPService(ds, depStorage, logger.SlogLogger()),
+		DEPClient:  apple_mdm.NewDEPClient(depStorage, ds, logger.SlogLogger()),
 	}
 
 	const defaultProfileName = "Fleet default enrollment profile"

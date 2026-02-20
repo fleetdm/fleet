@@ -35,6 +35,7 @@
     "lodash": "4.17.23",
     "memoize-one": "5.2.1",
     "normalizr": "3.6.2",
+    "postcss": "^8.4.31",
     "prop-types": "15.8.1",
     "proxy-middleware": "0.15.0",
     "rc-pagination": "1.16.3",
@@ -91,8 +92,8 @@
     "@storybook/addon-links": "8.4.7",
     "@storybook/addon-mdx-gfm": "8.4.7",
     "@storybook/addon-webpack5-compiler-babel": "3.0.5",
-    "@storybook/react": "8.4.7",
-    "@storybook/react-webpack5": "8.4.7",
+    "@storybook/react": "8.6.15",
+    "@storybook/react-webpack5": "8.6.15",
     "@storybook/test-runner": "0.23.0",
     "@testing-library/jest-dom": "6.4.2",
     "@testing-library/react": "15.0.2",
@@ -133,7 +134,7 @@
     "classnames": "2.2.5",
     "compare-versions": "6.1.1",
     "css-loader": "6.7.3",
-    "esbuild-loader": "2.18.0",
+    "esbuild-loader": "4.4.2",
     "eslint": "7.32.0",
     "eslint-config-airbnb": "15.1.0",
     "eslint-config-prettier": "8.5.0",
@@ -164,7 +165,7 @@
     "react-docgen-typescript-plugin": "1.0.5",
     "regenerator-runtime": "0.13.9",
     "sass-loader": "13.2.2",
-    "storybook": "8.4.7",
+    "storybook": "8.6.15",
     "trace-unhandled": "2.0.1",
     "ts-loader": "6.2.2",
     "typescript": "4.7",
@@ -176,7 +177,9 @@
     "**/css-node-extract": "~3.0.4",
     "**/css-node-extract/postcss": "^8.4.31",
     "**/css-selector-extract": "~4.0.1",
-    "**/wait-on/axios": "^0.28.0"
+    "**/wait-on/axios": "^0.28.0",
+    "@types/react": "18.3.12",
+    "@types/react-dom": "18.2.0"
   },
   "browserslist": [
     "defaults"

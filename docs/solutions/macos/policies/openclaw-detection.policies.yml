@@ -1,0 +1,346 @@
+- name: macOS - No unauthorised AI assistants (OpenClaw) detected
+  query: |
+    WITH process_hits AS (
+        SELECT COUNT(*) AS total
+        FROM processes
+        WHERE name LIKE '%openclaw%'
+            OR name LIKE '%clawdbot%'
+            OR name LIKE '%moltbot%'
+            OR name LIKE '%clawd%'
+            OR cmdline LIKE '%openclaw%'
+            OR cmdline LIKE '%clawdbot%'
+            OR cmdline LIKE '%moltbot%'
+    ),
+    port_hits AS (
+        SELECT COUNT(*) AS total
+        FROM listening_ports
+        WHERE port IN (18789, 18793)
+    ),
+    file_hits AS (
+        SELECT COUNT(*) AS total
+        FROM file
+        WHERE path LIKE '/Users/%%/.openclaw/%'
+            OR path LIKE '/Users/%%/.clawdbot/%'
+            OR path LIKE '/Users/%%/.moltbot/%'
+            OR path LIKE '/Users/%%/clawd/%'
+            OR path LIKE '/usr/local/bin/openclaw'
+            OR path LIKE '/usr/local/bin/clawdbot'
+            OR path LIKE '/usr/local/bin/moltbot'
+            OR path LIKE '/opt/homebrew/bin/openclaw'
+            OR path LIKE '/opt/homebrew/bin/clawdbot'
+            OR path LIKE '/opt/homebrew/bin/moltbot'
+            OR path LIKE '/Applications/OpenClaw.app'
+    ),
+    npm_hits AS (
+        SELECT COUNT(*) AS total
+        FROM npm_packages
+        WHERE name LIKE '%openclaw%'
+            OR name LIKE '%clawdbot%'
+            OR name LIKE '%moltbot%'
+    ),
+    brew_hits AS (
+        SELECT COUNT(*) AS total
+        FROM homebrew_packages
+        WHERE name LIKE '%openclaw%'
+            OR name LIKE '%clawdbot%'
+            OR name LIKE '%moltbot%'
+    ),
+    launchd_hits AS (
+        SELECT COUNT(*) AS total
+        FROM launchd
+        WHERE label = 'ai.openclaw.gateway'
+            OR label = 'com.clawdbot.gateway'
+            OR label = 'bot.molt.gateway'
+            OR label LIKE 'ai.openclaw.%'
+            OR label LIKE 'com.clawdbot.%'
+            OR label LIKE 'bot.molt.%'
+            OR name LIKE '%openclaw%'
+            OR name LIKE '%clawdbot%'
+            OR name LIKE '%moltbot%'
+            OR program LIKE '%openclaw%'
+            OR program LIKE '%clawdbot%'
+            OR program LIKE '%moltbot%'
+    ),
+    app_hits AS (
+        SELECT COUNT(*) AS total
+        FROM apps
+        WHERE name LIKE '%openclaw%'
+            OR name LIKE '%clawdbot%'
+            OR name LIKE '%moltbot%'
+            OR bundle_identifier LIKE 'bot.molt.%'
+            OR bundle_identifier LIKE 'com.clawdbot.%'
+            OR bundle_identifier LIKE '%openclaw%'
+    ),
+    docker_img_hits AS (
+        SELECT COUNT(*) AS total
+        FROM docker_images
+        WHERE tags LIKE '%openclaw%'
+            OR tags LIKE '%clawdbot%'
+            OR tags LIKE '%moltbot%'
+    ),
+    docker_ctr_hits AS (
+        SELECT COUNT(*) AS total
+        FROM docker_containers
+        WHERE image LIKE '%openclaw%'
+            OR image LIKE '%clawdbot%'
+            OR image LIKE '%moltbot%'
+    ),
+    score AS (
+        SELECT
+            process_hits.total
+            + port_hits.total
+            + file_hits.total
+            + npm_hits.total
+            + brew_hits.total
+            + launchd_hits.total
+            + app_hits.total
+            + docker_img_hits.total
+            + docker_ctr_hits.total
+            AS total
+        FROM process_hits, port_hits, file_hits, npm_hits, brew_hits,
+             launchd_hits, app_hits, docker_img_hits, docker_ctr_hits
+    )
+    SELECT 1 AS passing
+    FROM score
+    WHERE total <= 2;
+  critical: false
+  description: >-
+    Checks for the presence of OpenClaw (and its previous names Clawdbot,
+    Moltbot, Clawd) on macOS. Inspects processes, listening ports, config
+    directories, npm packages, Homebrew packages, launchd services, installed
+    apps, and Docker containers. A score above 2 indicates the tool is present.
+  resolution: |-
+    If this policy fails, the device has indicators of an OpenClaw installation.
+    Check with the device owner and your organisation's policy on personal AI assistants.
+    Run the OpenClaw investigation queries in Fleet to determine what is installed.
+    On the device itself, running 'openclaw security audit --deep' produces a
+    detailed security posture report including exposed credentials, insecure
+    permissions, and misconfigured bindings.
+  platform: darwin
+- name: Linux - No unauthorised AI assistants (OpenClaw) detected
+  query: |
+    WITH process_hits AS (
+        SELECT COUNT(*) AS total
+        FROM processes
+        WHERE name LIKE '%openclaw%'
+            OR name LIKE '%clawdbot%'
+            OR name LIKE '%moltbot%'
+            OR name LIKE '%clawd%'
+            OR cmdline LIKE '%openclaw%'
+            OR cmdline LIKE '%clawdbot%'
+            OR cmdline LIKE '%moltbot%'
+    ),
+    port_hits AS (
+        SELECT COUNT(*) AS total
+        FROM listening_ports
+        WHERE port IN (18789, 18793)
+    ),
+    file_hits AS (
+        SELECT COUNT(*) AS total
+        FROM file
+        WHERE path LIKE '/home/%%/.openclaw/%'
+            OR path LIKE '/home/%%/.clawdbot/%'
+            OR path LIKE '/home/%%/.moltbot/%'
+            OR path LIKE '/home/%%/clawd/%'
+            OR path LIKE '/root/.openclaw/%'
+            OR path LIKE '/root/.clawdbot/%'
+            OR path LIKE '/root/.moltbot/%'
+            OR path LIKE '/usr/local/bin/openclaw'
+            OR path LIKE '/usr/local/bin/clawdbot'
+            OR path LIKE '/usr/local/bin/moltbot'
+            OR path LIKE '/usr/bin/openclaw'
+            OR path LIKE '/usr/bin/clawdbot'
+            OR path LIKE '/usr/bin/moltbot'
+    ),
+    npm_hits AS (
+        SELECT COUNT(*) AS total
+        FROM npm_packages
+        WHERE name LIKE '%openclaw%'
+            OR name LIKE '%clawdbot%'
+            OR name LIKE '%moltbot%'
+    ),
+    systemd_hits AS (
+        SELECT COUNT(*) AS total
+        FROM systemd_units
+        WHERE id = 'openclaw-gateway.service'
+            OR id LIKE 'openclaw-gateway-%.service'
+            OR id LIKE '%openclaw%'
+            OR id LIKE '%clawdbot%'
+            OR id LIKE '%moltbot%'
+            OR description LIKE '%openclaw%'
+            OR description LIKE '%clawdbot%'
+            OR description LIKE '%moltbot%'
+    ),
+    deb_hits AS (
+        SELECT COUNT(*) AS total
+        FROM deb_packages
+        WHERE name LIKE '%openclaw%'
+            OR name LIKE '%clawdbot%'
+            OR name LIKE '%moltbot%'
+    ),
+    rpm_hits AS (
+        SELECT COUNT(*) AS total
+        FROM rpm_packages
+        WHERE name LIKE '%openclaw%'
+            OR name LIKE '%clawdbot%'
+            OR name LIKE '%moltbot%'
+    ),
+    docker_img_hits AS (
+        SELECT COUNT(*) AS total
+        FROM docker_images
+        WHERE tags LIKE '%openclaw%'
+            OR tags LIKE '%clawdbot%'
+            OR tags LIKE '%moltbot%'
+    ),
+    docker_ctr_hits AS (
+        SELECT COUNT(*) AS total
+        FROM docker_containers
+        WHERE image LIKE '%openclaw%'
+            OR image LIKE '%clawdbot%'
+            OR image LIKE '%moltbot%'
+    ),
+    score AS (
+        SELECT
+            process_hits.total
+            + port_hits.total
+            + file_hits.total
+            + npm_hits.total
+            + systemd_hits.total
+            + deb_hits.total
+            + rpm_hits.total
+            + docker_img_hits.total
+            + docker_ctr_hits.total
+            AS total
+        FROM process_hits, port_hits, file_hits, npm_hits, systemd_hits,
+             deb_hits, rpm_hits, docker_img_hits, docker_ctr_hits
+    )
+    SELECT 1 AS passing
+    FROM score
+    WHERE total <= 2;
+  critical: false
+  description: >-
+    Checks for the presence of OpenClaw (and its previous names Clawdbot,
+    Moltbot, Clawd) on Linux. Inspects processes, listening ports, config
+    directories, npm packages, systemd units, deb/rpm packages, and Docker
+    containers. A score above 2 indicates the tool is present.
+  resolution: |-
+    If this policy fails, the device has indicators of an OpenClaw installation.
+    Check with the device owner and your organisation's policy on personal AI assistants.
+    Run the OpenClaw investigation queries in Fleet to determine what is installed.
+    On the device itself, running 'openclaw security audit --deep' produces a
+    detailed security posture report including exposed credentials, insecure
+    permissions, and misconfigured bindings.
+  platform: linux
+- name: Windows - No unauthorised AI assistants (OpenClaw) detected
+  query: |
+    WITH process_hits AS (
+        SELECT COUNT(*) AS total
+        FROM processes
+        WHERE name LIKE '%openclaw%'
+            OR name LIKE '%clawdbot%'
+            OR name LIKE '%moltbot%'
+            OR name LIKE '%clawd%'
+            OR cmdline LIKE '%openclaw%'
+            OR cmdline LIKE '%clawdbot%'
+            OR cmdline LIKE '%moltbot%'
+    ),
+    port_hits AS (
+        SELECT COUNT(*) AS total
+        FROM listening_ports
+        WHERE port IN (18789, 18793)
+    ),
+    file_hits AS (
+        SELECT COUNT(*) AS total
+        FROM file
+        WHERE path LIKE 'C:\Users\%%\.openclaw\%'
+            OR path LIKE 'C:\Users\%%\.clawdbot\%'
+            OR path LIKE 'C:\Users\%%\.moltbot\%'
+            OR path LIKE 'C:\Users\%%\clawd\%'
+            OR path LIKE 'C:\Users\%%\AppData\%openclaw%'
+            OR path LIKE 'C:\Users\%%\AppData\%clawdbot%'
+            OR path LIKE 'C:\Users\%%\AppData\%moltbot%'
+    ),
+    npm_hits AS (
+        SELECT COUNT(*) AS total
+        FROM npm_packages
+        WHERE name LIKE '%openclaw%'
+            OR name LIKE '%clawdbot%'
+            OR name LIKE '%moltbot%'
+    ),
+    service_hits AS (
+        SELECT COUNT(*) AS total
+        FROM services
+        WHERE name LIKE '%openclaw%'
+            OR name LIKE '%clawdbot%'
+            OR name LIKE '%moltbot%'
+            OR display_name LIKE '%openclaw%'
+            OR display_name LIKE '%clawdbot%'
+            OR display_name LIKE '%moltbot%'
+            OR path LIKE '%openclaw%'
+            OR path LIKE '%clawdbot%'
+            OR path LIKE '%moltbot%'
+    ),
+    task_hits AS (
+        SELECT COUNT(*) AS total
+        FROM scheduled_tasks
+        WHERE name LIKE '%openclaw%'
+            OR name LIKE '%clawdbot%'
+            OR name LIKE '%moltbot%'
+            OR action LIKE '%openclaw%'
+            OR action LIKE '%clawdbot%'
+            OR action LIKE '%moltbot%'
+    ),
+    program_hits AS (
+        SELECT COUNT(*) AS total
+        FROM programs
+        WHERE name LIKE '%openclaw%'
+            OR name LIKE '%clawdbot%'
+            OR name LIKE '%moltbot%'
+    ),
+    docker_img_hits AS (
+        SELECT COUNT(*) AS total
+        FROM docker_images
+        WHERE tags LIKE '%openclaw%'
+            OR tags LIKE '%clawdbot%'
+            OR tags LIKE '%moltbot%'
+    ),
+    docker_ctr_hits AS (
+        SELECT COUNT(*) AS total
+        FROM docker_containers
+        WHERE image LIKE '%openclaw%'
+            OR image LIKE '%clawdbot%'
+            OR image LIKE '%moltbot%'
+    ),
+    score AS (
+        SELECT
+            process_hits.total
+            + port_hits.total
+            + file_hits.total
+            + npm_hits.total
+            + service_hits.total
+            + task_hits.total
+            + program_hits.total
+            + docker_img_hits.total
+            + docker_ctr_hits.total
+            AS total
+        FROM process_hits, port_hits, file_hits, npm_hits, service_hits,
+             task_hits, program_hits, docker_img_hits, docker_ctr_hits
+    )
+    SELECT 1 AS passing
+    FROM score
+    WHERE total <= 2;
+  critical: false
+  description: >-
+    Checks for the presence of OpenClaw (and its previous names Clawdbot,
+    Moltbot, Clawd) on Windows. Inspects processes, listening ports, config
+    directories, npm packages, Windows services, scheduled tasks, installed
+    programs, and Docker containers. OpenClaw on Windows typically runs inside
+    WSL2. A score above 2 indicates the tool is present.
+  resolution: |-
+    If this policy fails, the device has indicators of an OpenClaw installation.
+    Check with the device owner and your organisation's policy on personal AI assistants.
+    Run the OpenClaw investigation queries in Fleet to determine what is installed.
+    On the device itself, running 'openclaw security audit --deep' produces a
+    detailed security posture report including exposed credentials, insecure
+    permissions, and misconfigured bindings.
+  platform: windows

@@ -2007,16 +2007,20 @@ func TestMDMResendConfigProfileAuthz(t *testing.T) {
 	svc, ctx := newTestService(t, ds, nil, nil, &TestServerOpts{License: license, SkipCreateTestUsers: true})
 
 	testCases := []struct {
-		name                  string
-		user                  *fleet.User
-		shouldFailGlobalRead  bool
-		shouldFailTeamRead    bool
-		shouldFailGlobalWrite bool
-		shouldFailTeamWrite   bool
+		name                               string
+		user                               *fleet.User
+		shouldFailGlobalRead               bool
+		shouldFailTeamRead                 bool
+		shouldFailGlobalWrite              bool // this write action includes batch resend to multiple hosts
+		shouldFailTeamWrite                bool // this write action includes batch resend to multiple hosts
+		shouldFailGlobalResendToSingleHost bool
+		shouldFailTeamResendToSingleHost   bool
 	}{
 		{
 			"global admin",
 			&fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)},
+			false,
+			false,
 			false,
 			false,
 			false,
@@ -2029,10 +2033,14 @@ func TestMDMResendConfigProfileAuthz(t *testing.T) {
 			false,
 			false,
 			false,
+			false,
+			false,
 		},
 		{
 			"global observer",
 			&fleet.User{GlobalRole: ptr.String(fleet.RoleObserver)},
+			true,
+			true,
 			true,
 			true,
 			true,
@@ -2045,21 +2053,27 @@ func TestMDMResendConfigProfileAuthz(t *testing.T) {
 			true,
 			true,
 			true,
+			true,
+			true,
 		},
 		{
-			// this is authorized because gitops can access hosts by identifier (the
-			// first authorization check) and then gitops have write-access the
-			// profiles.
 			"global gitops",
 			&fleet.User{GlobalRole: ptr.String(fleet.RoleGitOps)},
 			false,
 			false,
 			false,
 			false,
+			// GitOps doesn't really need permissions to resend to specific hosts,
+			// but we will keep this as-is to not break any workflows that might be using a
+			// GitOps token to do a resend.
+			false,
+			false,
 		},
 		{
 			"team admin, belongs to team",
 			&fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 1}, Role: fleet.RoleAdmin}}},
+			true,
+			false,
 			true,
 			false,
 			true,
@@ -2072,10 +2086,14 @@ func TestMDMResendConfigProfileAuthz(t *testing.T) {
 			true,
 			true,
 			true,
+			true,
+			true,
 		},
 		{
 			"team maintainer, belongs to team",
 			&fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 1}, Role: fleet.RoleMaintainer}}},
+			true,
+			false,
 			true,
 			false,
 			true,
@@ -2088,10 +2106,14 @@ func TestMDMResendConfigProfileAuthz(t *testing.T) {
 			true,
 			true,
 			true,
+			true,
+			true,
 		},
 		{
 			"team observer, belongs to team",
 			&fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 1}, Role: fleet.RoleObserver}}},
+			true,
+			true,
 			true,
 			true,
 			true,
@@ -2104,10 +2126,14 @@ func TestMDMResendConfigProfileAuthz(t *testing.T) {
 			true,
 			true,
 			true,
+			true,
+			true,
 		},
 		{
 			"team observer+, belongs to team",
 			&fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 1}, Role: fleet.RoleObserverPlus}}},
+			true,
+			true,
 			true,
 			true,
 			true,
@@ -2120,16 +2146,20 @@ func TestMDMResendConfigProfileAuthz(t *testing.T) {
 			true,
 			true,
 			true,
+			true,
+			true,
 		},
 		{
-			// this is authorized because gitops can access hosts by identifier (the
-			// first authorization check) and then gitops have write-access the
-			// profiles.
 			"team gitops, belongs to team",
 			&fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 1}, Role: fleet.RoleGitOps}}},
 			true,
 			false,
 			true,
+			false,
+			true,
+			// GitOps doesn't really need permissions to resend to specific hosts,
+			// but we will keep this as-is to not break any workflows that might be using a
+			// GitOps token to do a resend.
 			false,
 		},
 		{
@@ -2139,10 +2169,14 @@ func TestMDMResendConfigProfileAuthz(t *testing.T) {
 			true,
 			true,
 			true,
+			true,
+			true,
 		},
 		{
 			"user no roles",
 			&fleet.User{ID: 1337},
+			true,
+			true,
 			true,
 			true,
 			true,
@@ -2203,13 +2237,13 @@ func TestMDMResendConfigProfileAuthz(t *testing.T) {
 
 			// test authz resend config profile (no team)
 			err := svc.ResendHostMDMProfile(ctx, 1337, "a-no-team-profile")
-			checkShouldFail(t, err, tt.shouldFailGlobalWrite)
+			checkShouldFail(t, err, tt.shouldFailGlobalResendToSingleHost)
 			err = svc.BatchResendMDMProfileToHosts(ctx, "a-no-team-profile", fleet.BatchResendMDMProfileFilters{ProfileStatus: fleet.MDMDeliveryFailed})
 			checkShouldFail(t, err, tt.shouldFailGlobalWrite)
 
 			// test authz resend config profile (team 1)
 			err = svc.ResendHostMDMProfile(ctx, 1, "a-team-1-profile")
-			checkShouldFail(t, err, tt.shouldFailTeamWrite)
+			checkShouldFail(t, err, tt.shouldFailTeamResendToSingleHost)
 			err = svc.BatchResendMDMProfileToHosts(ctx, "a-team-1-profile", fleet.BatchResendMDMProfileFilters{ProfileStatus: fleet.MDMDeliveryFailed})
 			checkShouldFail(t, err, tt.shouldFailTeamWrite)
 		})

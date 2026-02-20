@@ -31,6 +31,7 @@ import (
 	"github.com/fleetdm/fleet/v4/pkg/optjson"
 	"github.com/fleetdm/fleet/v4/server"
 	platform_http "github.com/fleetdm/fleet/v4/server/platform/http"
+	platformlogging "github.com/fleetdm/fleet/v4/server/platform/logging"
 
 	"github.com/fleetdm/fleet/v4/server/authz"
 	"github.com/fleetdm/fleet/v4/server/config"
@@ -57,7 +58,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/platform/endpointer"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/variables"
-	kitlog "github.com/go-kit/log"
 	"github.com/go-kit/log/level"
 	"github.com/google/uuid"
 	"github.com/micromdm/plist"
@@ -312,7 +312,7 @@ type newMDMAppleConfigProfileResponse struct {
 func (newMDMAppleConfigProfileRequest) DecodeRequest(ctx context.Context, r *http.Request) (interface{}, error) {
 	decoded := newMDMAppleConfigProfileRequest{}
 
-	err := r.ParseMultipartForm(platform_http.MaxMultipartFormSize)
+	err := parseMultipartForm(ctx, r, platform_http.MaxMultipartFormSize)
 	if err != nil {
 		return nil, &fleet.BadRequestError{
 			Message:     "failed to parse multipart form",
@@ -320,16 +320,16 @@ func (newMDMAppleConfigProfileRequest) DecodeRequest(ctx context.Context, r *htt
 		}
 	}
 
-	val, ok := r.MultipartForm.Value["team_id"]
+	val, ok := r.MultipartForm.Value["fleet_id"]
 	if !ok || len(val) < 1 {
 		// default is no team
 		decoded.TeamID = 0
 	} else {
-		teamID, err := strconv.Atoi(val[0])
+		fleetID, err := strconv.Atoi(val[0])
 		if err != nil {
-			return nil, &fleet.BadRequestError{Message: fmt.Sprintf("failed to decode team_id in multipart form: %s", err.Error())}
+			return nil, &fleet.BadRequestError{Message: fmt.Sprintf("failed to decode fleet_id in multipart form: %s", err.Error())}
 		}
-		decoded.TeamID = uint(teamID) //nolint:gosec // dismiss G115
+		decoded.TeamID = uint(fleetID) //nolint:gosec // dismiss G115
 	}
 
 	fhs, ok := r.MultipartForm.File["profile"]
@@ -1007,7 +1007,7 @@ func (svc *Service) validateDeclarationLabels(ctx context.Context, labelNames []
 }
 
 type listMDMAppleConfigProfilesRequest struct {
-	TeamID uint `query:"team_id,optional"`
+	TeamID uint `query:"team_id,optional" renameto:"fleet_id"`
 }
 
 type listMDMAppleConfigProfilesResponse struct {
@@ -1328,7 +1328,7 @@ func (svc *Service) DeleteMDMAppleDeclaration(ctx context.Context, declUUID stri
 }
 
 type getMDMAppleFileVaultSummaryRequest struct {
-	TeamID *uint `query:"team_id,optional"`
+	TeamID *uint `query:"team_id,optional" renameto:"fleet_id"`
 }
 
 type getMDMAppleFileVaultSummaryResponse struct {
@@ -1365,7 +1365,7 @@ func (svc *Service) GetMDMAppleFileVaultSummary(ctx context.Context, teamID *uin
 }
 
 type getMDMAppleProfilesSummaryRequest struct {
-	TeamID *uint `query:"team_id,optional"`
+	TeamID *uint `query:"team_id,optional" renameto:"fleet_id"`
 }
 
 type getMDMAppleProfilesSummaryResponse struct {
@@ -2465,8 +2465,8 @@ func (svc *Service) MDMListHostConfigurationProfiles(ctx context.Context, hostID
 ////////////////////////////////////////////////////////////////////////////////
 
 type batchSetMDMAppleProfilesRequest struct {
-	TeamID   *uint    `json:"-" query:"team_id,optional"`
-	TeamName *string  `json:"-" query:"team_name,optional"`
+	TeamID   *uint    `json:"-" query:"team_id,optional" renameto:"fleet_id"`
+	TeamName *string  `json:"-" query:"team_name,optional" renameto:"fleet_name"`
 	DryRun   bool     `json:"-" query:"dry_run,optional"` // if true, apply validation but do not save changes
 	Profiles [][]byte `json:"profiles"`
 }
@@ -2788,7 +2788,7 @@ type uploadBootstrapPackageResponse struct {
 // An authenticated but unauthorized user could abuse this.
 func (uploadBootstrapPackageRequest) DecodeRequest(ctx context.Context, r *http.Request) (interface{}, error) {
 	decoded := uploadBootstrapPackageRequest{}
-	err := r.ParseMultipartForm(platform_http.MaxMultipartFormSize)
+	err := parseMultipartForm(ctx, r, platform_http.MaxMultipartFormSize)
 	if err != nil {
 		return nil, &fleet.BadRequestError{
 			Message:     "failed to parse multipart form",
@@ -2813,13 +2813,13 @@ func (uploadBootstrapPackageRequest) DecodeRequest(ctx context.Context, r *http.
 
 	// default is no team
 	decoded.TeamID = 0
-	val, ok := r.MultipartForm.Value["team_id"]
+	val, ok := r.MultipartForm.Value["fleet_id"]
 	if ok && len(val) > 0 {
-		teamID, err := strconv.Atoi(val[0])
+		fleetID, err := strconv.Atoi(val[0])
 		if err != nil {
-			return nil, &fleet.BadRequestError{Message: fmt.Sprintf("failed to decode team_id in multipart form: %s", err.Error())}
+			return nil, &fleet.BadRequestError{Message: fmt.Sprintf("failed to decode fleet_id in multipart form: %s", err.Error())}
 		}
-		decoded.TeamID = uint(teamID) //nolint:gosec // dismiss G115
+		decoded.TeamID = uint(fleetID) //nolint:gosec // dismiss G115
 	}
 
 	// Dry run
@@ -2905,7 +2905,7 @@ func (svc *Service) GetMDMAppleBootstrapPackageBytes(ctx context.Context, token 
 ////////////////////////////////////////////////////////////////////////////////
 
 type bootstrapPackageMetadataRequest struct {
-	TeamID uint `url:"team_id"`
+	TeamID uint `url:"fleet_id"`
 
 	// ForUpdate is used to indicate that the authorization should be for a
 	// "write" instead of a "read", this is needed specifically for the gitops
@@ -2951,7 +2951,7 @@ func (svc *Service) GetMDMAppleBootstrapPackageMetadata(ctx context.Context, tea
 ////////////////////////////////////////////////////////////////////////////////
 
 type deleteBootstrapPackageRequest struct {
-	TeamID uint `url:"team_id"`
+	TeamID uint `url:"fleet_id"`
 	DryRun bool `query:"dry_run,optional"` // if true, apply validation but do not delete
 }
 
@@ -2982,7 +2982,7 @@ func (svc *Service) DeleteMDMAppleBootstrapPackage(ctx context.Context, teamID *
 ////////////////////////////////////////////////////////////////////////////////
 
 type getMDMAppleBootstrapPackageSummaryRequest struct {
-	TeamID *uint `query:"team_id,optional"`
+	TeamID *uint `query:"team_id,optional" renameto:"fleet_id"`
 }
 
 type getMDMAppleBootstrapPackageSummaryResponse struct {
@@ -3014,7 +3014,7 @@ func (svc *Service) GetMDMAppleBootstrapPackageSummary(ctx context.Context, team
 ////////////////////////////////////////////////////////////////////////////////
 
 type createMDMAppleSetupAssistantRequest struct {
-	TeamID            *uint           `json:"team_id"`
+	TeamID            *uint           `json:"team_id" renameto:"fleet_id"`
 	Name              string          `json:"name"`
 	EnrollmentProfile json.RawMessage `json:"enrollment_profile"`
 }
@@ -3052,7 +3052,7 @@ func (svc *Service) SetOrUpdateMDMAppleSetupAssistant(ctx context.Context, asst 
 ////////////////////////////////////////////////////////////////////////////////
 
 type getMDMAppleSetupAssistantRequest struct {
-	TeamID *uint `query:"team_id,optional"`
+	TeamID *uint `query:"team_id,optional" renameto:"fleet_id"`
 }
 
 type getMDMAppleSetupAssistantResponse struct {
@@ -3084,7 +3084,7 @@ func (svc *Service) GetMDMAppleSetupAssistant(ctx context.Context, teamID *uint)
 ////////////////////////////////////////////////////////////////////////////////
 
 type deleteMDMAppleSetupAssistantRequest struct {
-	TeamID *uint `query:"team_id,optional"`
+	TeamID *uint `query:"team_id,optional" renameto:"fleet_id"`
 }
 
 type deleteMDMAppleSetupAssistantResponse struct {
@@ -3321,7 +3321,7 @@ func (svc *Service) MDMAppleDisableFileVaultAndEscrow(ctx context.Context, teamI
 
 type MDMAppleCheckinAndCommandService struct {
 	ds              fleet.Datastore
-	logger          kitlog.Logger
+	logger          *platformlogging.Logger
 	commander       *apple_mdm.MDMAppleCommander
 	vppInstaller    fleet.AppleMDMVPPInstaller
 	mdmLifecycle    *mdmlifecycle.HostLifecycle
@@ -3336,7 +3336,7 @@ func NewMDMAppleCheckinAndCommandService(
 	commander *apple_mdm.MDMAppleCommander,
 	vppInstaller fleet.AppleMDMVPPInstaller,
 	isPremium bool,
-	logger kitlog.Logger,
+	logger *platformlogging.Logger,
 	keyValueStore fleet.KeyValueStore,
 	newActivityFn mdmlifecycle.NewActivityFunc,
 ) *MDMAppleCheckinAndCommandService {
@@ -4068,7 +4068,7 @@ func (svc *MDMAppleCheckinAndCommandService) handleScheduledUpdates(
 	host *fleet.Host,
 	softwares []fleet.Software,
 ) error {
-	logger := kitlog.With(svc.logger,
+	logger := svc.logger.With(
 		"method", "handle_scheduled_updates",
 		"host_id", host.ID,
 	)
@@ -4147,7 +4147,7 @@ func (svc *MDMAppleCheckinAndCommandService) handleScheduledUpdates(
 	// 1. Filter out software that is not within the configured update window in the host timezone.
 	var softwaresWithinUpdateSchedule []fleet.SoftwareAutoUpdateSchedule
 	for _, softwareWithAutoUpdateSchedule := range softwaresWithAutoUpdateSchedule {
-		logger := kitlog.With(logger,
+		logger := logger.With(
 			"software_title_id", softwareWithAutoUpdateSchedule.TitleID,
 			"team_id", softwareWithAutoUpdateSchedule.TeamID,
 			"update_window_start", softwareWithAutoUpdateSchedule.AutoUpdateStartTime,
@@ -4204,7 +4204,7 @@ func (svc *MDMAppleCheckinAndCommandService) handleScheduledUpdates(
 			)
 			continue
 		}
-		logger := kitlog.With(logger,
+		logger := logger.With(
 			"name", softwareTitle.Name,
 			"bundle_identifier", softwareTitle.BundleIdentifier,
 			"source", softwareTitle.Source,
@@ -4389,7 +4389,7 @@ func (svc *MDMAppleCheckinAndCommandService) handleScheduledUpdates(
 		if softwareTitle.BundleIdentifier != nil {
 			bundleIdentifier = *softwareTitle.BundleIdentifier
 		}
-		logger := kitlog.With(logger,
+		logger := logger.With(
 			"software_title_id", softwareTitle.ID,
 			"team_id", host.TeamID,
 			"adam_id", softwareTitle.AppStoreApp.AdamID,
@@ -4731,7 +4731,7 @@ func mdmAppleDeliveryStatusFromCommandStatus(cmdStatus string) *fleet.MDMDeliver
 // This profile will be installed to all hosts in the team (or "no team",) but it
 // will only be used by hosts that have a fleetd installation without an enroll
 // secret and fleet URL (mainly DEP enrolled hosts).
-func ensureFleetProfiles(ctx context.Context, ds fleet.Datastore, logger kitlog.Logger, signingCertDER []byte) error {
+func ensureFleetProfiles(ctx context.Context, ds fleet.Datastore, logger *platformlogging.Logger, signingCertDER []byte) error {
 	appCfg, err := ds.AppConfig(ctx)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "fetching app config")
@@ -4813,7 +4813,7 @@ func SendPushesToPendingDevices(
 	ctx context.Context,
 	ds fleet.Datastore,
 	commander *apple_mdm.MDMAppleCommander,
-	logger kitlog.Logger,
+	logger *platformlogging.Logger,
 ) error {
 	enrollmentIDs, err := ds.GetEnrollmentIDsWithPendingMDMAppleCommands(ctx)
 	if err != nil {
@@ -4842,7 +4842,7 @@ func ReconcileAppleDeclarations(
 	ctx context.Context,
 	ds fleet.Datastore,
 	commander *apple_mdm.MDMAppleCommander,
-	logger kitlog.Logger,
+	logger *platformlogging.Logger,
 ) error {
 	appConfig, err := ds.AppConfig(ctx)
 	if err != nil {
@@ -4912,7 +4912,7 @@ func ReconcileAppleProfiles(
 	ctx context.Context,
 	ds fleet.Datastore,
 	commander *apple_mdm.MDMAppleCommander,
-	logger kitlog.Logger,
+	logger *platformlogging.Logger,
 ) error {
 	appConfig, err := ds.AppConfig(ctx)
 	if err != nil {
@@ -5346,7 +5346,7 @@ func ReconcileAppleProfiles(
 }
 
 func findProfilesWithSecrets(
-	logger kitlog.Logger,
+	logger *platformlogging.Logger,
 	installTargets map[string]*cmdTarget,
 	profileContents map[string]mobileconfig.Mobileconfig,
 ) (map[string]struct{}, error) {
@@ -5372,7 +5372,7 @@ func preprocessProfileContents(
 	ds fleet.Datastore,
 	scepConfig fleet.SCEPConfigService,
 	digiCertService fleet.DigiCertService,
-	logger kitlog.Logger,
+	logger *platformlogging.Logger,
 	targets map[string]*cmdTarget,
 	profileContents map[string]mobileconfig.Mobileconfig,
 	hostProfilesToInstallMap map[hostProfileUUID]*fleet.MDMAppleBulkUpsertHostProfilePayload,
@@ -5637,7 +5637,7 @@ func preprocessProfileContents(
 					hostContents = profiles.ReplaceFleetVariableInXML(fleetVarSCEPRenewalIDRegexp, hostContents, fleetRenewalID)
 
 				case strings.HasPrefix(fleetVar, string(fleet.FleetVarCustomSCEPChallengePrefix)):
-					replacedContents, replacedVariable, err := profiles.ReplaceCustomSCEPChallengeVariable(ctx, logger, fleetVar, customSCEPCAs, hostContents)
+					replacedContents, replacedVariable, err := profiles.ReplaceCustomSCEPChallengeVariable(ctx, logger.SlogLogger(), fleetVar, customSCEPCAs, hostContents)
 					if err != nil {
 						return ctxerr.Wrap(ctx, err, "replacing custom SCEP challenge variable")
 					}
@@ -5647,7 +5647,7 @@ func preprocessProfileContents(
 					hostContents = replacedContents
 
 				case strings.HasPrefix(fleetVar, string(fleet.FleetVarCustomSCEPProxyURLPrefix)):
-					replacedContents, managedCertificate, replacedVariable, err := profiles.ReplaceCustomSCEPProxyURLVariable(ctx, logger, ds, appConfig, fleetVar, customSCEPCAs, hostContents, hostUUID, profUUID)
+					replacedContents, managedCertificate, replacedVariable, err := profiles.ReplaceCustomSCEPProxyURLVariable(ctx, logger.SlogLogger(), ds, appConfig, fleetVar, customSCEPCAs, hostContents, hostUUID, profUUID)
 					if err != nil {
 						return ctxerr.Wrap(ctx, err, "replacing custom SCEP proxy URL variable")
 					}
@@ -6119,7 +6119,7 @@ const maxCertsRenewalPerRun = 100
 
 func RenewSCEPCertificates(
 	ctx context.Context,
-	logger kitlog.Logger,
+	logger *platformlogging.Logger,
 	ds fleet.Datastore,
 	config *config.FleetConfig,
 	commander *apple_mdm.MDMAppleCommander,
@@ -6304,7 +6304,7 @@ func renewSCEPWithProfile(
 	ctx context.Context,
 	ds fleet.Datastore,
 	commander *apple_mdm.MDMAppleCommander,
-	logger kitlog.Logger,
+	logger *platformlogging.Logger,
 	assocs []fleet.SCEPIdentityAssociation,
 	profile []byte,
 ) error {
@@ -6342,10 +6342,10 @@ func renewSCEPWithProfile(
 // [1]: https://developer.apple.com/documentation/devicemanagement/declarative_management_checkin
 type MDMAppleDDMService struct {
 	ds     fleet.Datastore
-	logger kitlog.Logger
+	logger *platformlogging.Logger
 }
 
-func NewMDMAppleDDMService(ds fleet.Datastore, logger kitlog.Logger) *MDMAppleDDMService {
+func NewMDMAppleDDMService(ds fleet.Datastore, logger *platformlogging.Logger) *MDMAppleDDMService {
 	return &MDMAppleDDMService{
 		ds:     ds,
 		logger: logger,
@@ -6886,9 +6886,9 @@ func (svc *Service) CountABMTokens(ctx context.Context) (int, error) {
 
 type updateABMTokenTeamsRequest struct {
 	TokenID      uint  `url:"id"`
-	MacOSTeamID  *uint `json:"macos_team_id"`
-	IOSTeamID    *uint `json:"ios_team_id"`
-	IPadOSTeamID *uint `json:"ipados_team_id"`
+	MacOSTeamID  *uint `json:"macos_team_id" renameto:"macos_fleet_id"`
+	IOSTeamID    *uint `json:"ios_team_id" renameto:"ios_fleet_id"`
+	IPadOSTeamID *uint `json:"ipados_team_id" renameto:"ipados_fleet_id"`
 }
 
 type updateABMTokenTeamsResponse struct {
@@ -7272,8 +7272,10 @@ func (svc *Service) MDMAppleProcessOTAEnrollment(
 
 // EnsureMDMAppleServiceDiscovery checks if the service discovery URL is set up correctly with Apple
 // and assigns it if necessary.
-func EnsureMDMAppleServiceDiscovery(ctx context.Context, ds fleet.Datastore, depStorage storage.AllDEPStorage, logger kitlog.Logger, urlPrefix string) error {
-	depSvc := apple_mdm.NewDEPService(ds, depStorage, logger)
+func EnsureMDMAppleServiceDiscovery(ctx context.Context, ds fleet.Datastore, depStorage storage.AllDEPStorage, logger *platformlogging.Logger,
+	urlPrefix string,
+) error {
+	depSvc := apple_mdm.NewDEPService(ds, depStorage, logger.SlogLogger())
 
 	ac, err := ds.AppConfig(ctx)
 	if err != nil {

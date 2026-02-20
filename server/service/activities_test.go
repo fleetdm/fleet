@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"encoding/json"
+	"log/slog"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -16,7 +17,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mock"
 	"github.com/fleetdm/fleet/v4/server/ptr"
-	kitlog "github.com/go-kit/log"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -217,7 +217,7 @@ func TestActivityWebhooks(t *testing.T) {
 			}, nil
 		},
 	}
-	realActivitySvc := activity_bootstrap.NewForUnitTests(providers, kitlog.NewNopLogger())
+	realActivitySvc := activity_bootstrap.NewForUnitTests(providers, slog.New(slog.DiscardHandler))
 	opts.ActivityMock.Delegate = realActivitySvc
 
 	var activityUser *activity_api.User

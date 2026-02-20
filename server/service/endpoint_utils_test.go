@@ -4,6 +4,8 @@ import (
 	"bytes"
 	"context"
 	"io"
+	"log/slog"
+	"mime/multipart"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -12,6 +14,7 @@ import (
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/installersize"
+	"github.com/fleetdm/fleet/v4/server/contexts/logging"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mock"
 	"github.com/fleetdm/fleet/v4/server/platform/endpointer"
@@ -21,7 +24,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/service/middleware/log"
 	"github.com/go-kit/kit/endpoint"
 	kithttp "github.com/go-kit/kit/transport/http"
-	kitlog "github.com/go-kit/log"
 	"github.com/gorilla/mux"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -314,11 +316,11 @@ func TestEndpointer(t *testing.T) {
 			kithttp.PopulateRequestContext, // populate the request context with common fields
 			auth.SetRequestsContexts(svc),
 		),
-		kithttp.ServerErrorHandler(&endpointer.ErrorHandler{Logger: kitlog.NewNopLogger()}),
+		kithttp.ServerErrorHandler(&endpointer.ErrorHandler{Logger: slog.New(slog.DiscardHandler)}),
 		kithttp.ServerErrorEncoder(fleetErrorEncoder),
 		kithttp.ServerAfter(
 			kithttp.SetContentType("application/json; charset=utf-8"),
-			log.LogRequestEnd(kitlog.NewNopLogger()),
+			log.LogRequestEnd(slog.New(slog.DiscardHandler)),
 			checkLicenseExpiration(svc),
 		),
 	}
@@ -434,11 +436,11 @@ func TestEndpointerCustomMiddleware(t *testing.T) {
 			kithttp.PopulateRequestContext,
 			auth.SetRequestsContexts(svc),
 		),
-		kithttp.ServerErrorHandler(&endpointer.ErrorHandler{Logger: kitlog.NewNopLogger()}),
+		kithttp.ServerErrorHandler(&endpointer.ErrorHandler{Logger: slog.New(slog.DiscardHandler)}),
 		kithttp.ServerErrorEncoder(fleetErrorEncoder),
 		kithttp.ServerAfter(
 			kithttp.SetContentType("application/json; charset=utf-8"),
-			log.LogRequestEnd(kitlog.NewNopLogger()),
+			log.LogRequestEnd(slog.New(slog.DiscardHandler)),
 			checkLicenseExpiration(svc),
 		),
 	}
@@ -507,4 +509,81 @@ func TestWriteBrowserSecurityHeaders(t *testing.T) {
 		},
 		headers,
 	)
+}
+
+// newMultipartRequest creates an *http.Request with multipart/form-data body
+// containing the given field key/value pairs.
+func newMultipartRequest(t *testing.T, fields map[string]string) *http.Request {
+	t.Helper()
+	var buf bytes.Buffer
+	w := multipart.NewWriter(&buf)
+	for k, v := range fields {
+		require.NoError(t, w.WriteField(k, v))
+	}
+	require.NoError(t, w.Close())
+	req := httptest.NewRequest("POST", "/target", &buf)
+	req.Header.Set("Content-Type", w.FormDataContentType())
+	return req
+}
+
+func TestParseMultipartForm(t *testing.T) {
+	t.Run("passes through fleet_id unchanged", func(t *testing.T) {
+		req := newMultipartRequest(t, map[string]string{"fleet_id": "42"})
+		logCtx := &logging.LoggingContext{}
+		ctx := logging.NewContext(context.Background(), logCtx)
+
+		err := parseMultipartForm(ctx, req, platform_http.MaxMultipartFormSize)
+		require.NoError(t, err)
+
+		assert.Equal(t, []string{"42"}, req.MultipartForm.Value["fleet_id"])
+		assert.Empty(t, req.MultipartForm.Value["team_id"])
+		assert.Nil(t, logCtx.ForceLevel)
+		assert.Empty(t, logCtx.Extras)
+	})
+
+	t.Run("rewrites team_id to fleet_id and logs deprecation", func(t *testing.T) {
+		req := newMultipartRequest(t, map[string]string{"team_id": "7"})
+		logCtx := &logging.LoggingContext{}
+		ctx := logging.NewContext(context.Background(), logCtx)
+
+		err := parseMultipartForm(ctx, req, platform_http.MaxMultipartFormSize)
+		require.NoError(t, err)
+
+		// team_id should be removed, fleet_id should be set
+		assert.Equal(t, []string{"7"}, req.MultipartForm.Value["fleet_id"])
+		assert.Empty(t, req.MultipartForm.Value["team_id"])
+
+		// r.Form should also be updated
+		assert.Equal(t, "7", req.Form.Get("fleet_id"))
+		assert.Empty(t, req.Form.Get("team_id"))
+
+		// deprecation should be logged
+		require.NotNil(t, logCtx.ForceLevel)
+		assert.Equal(t, slog.LevelWarn, *logCtx.ForceLevel)
+		assert.Contains(t, logCtx.Extras, "deprecated_param")
+		assert.Contains(t, logCtx.Extras, "team_id")
+	})
+
+	t.Run("no team_id or fleet_id", func(t *testing.T) {
+		req := newMultipartRequest(t, map[string]string{"other_field": "hello"})
+		logCtx := &logging.LoggingContext{}
+		ctx := logging.NewContext(context.Background(), logCtx)
+
+		err := parseMultipartForm(ctx, req, platform_http.MaxMultipartFormSize)
+		require.NoError(t, err)
+
+		assert.Empty(t, req.MultipartForm.Value["fleet_id"])
+		assert.Empty(t, req.MultipartForm.Value["team_id"])
+		assert.Equal(t, []string{"hello"}, req.MultipartForm.Value["other_field"])
+		assert.Nil(t, logCtx.ForceLevel)
+		assert.Empty(t, logCtx.Extras)
+	})
+
+	t.Run("invalid body returns error", func(t *testing.T) {
+		req := httptest.NewRequest("POST", "/target", strings.NewReader("not multipart"))
+		req.Header.Set("Content-Type", "multipart/form-data; boundary=bogus")
+
+		err := parseMultipartForm(context.Background(), req, platform_http.MaxMultipartFormSize)
+		require.Error(t, err)
+	})
 }

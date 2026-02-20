@@ -114,6 +114,17 @@ func (svc *Service) CreateUser(ctx context.Context, p fleet.UserPayload) (*fleet
 		}
 	}
 
+	// Do not allow creating a user with a Premium-only role on Fleet Free.
+	if !license.IsPremium(ctx) {
+		var teamRoles []fleet.UserTeam
+		if p.Teams != nil {
+			teamRoles = *p.Teams
+		}
+		if fleet.PremiumRolesPresent(p.GlobalRole, teamRoles) {
+			return nil, nil, fleet.ErrMissingLicense
+		}
+	}
+
 	user, err := svc.NewUser(ctx, p)
 	if err != nil {
 		return nil, nil, ctxerr.Wrap(ctx, err, "create user")
@@ -300,7 +311,7 @@ type getUserRequest struct {
 
 type getUserResponse struct {
 	User           *fleet.User          `json:"user,omitempty"`
-	AvailableTeams []*fleet.TeamSummary `json:"available_teams"`
+	AvailableTeams []*fleet.TeamSummary `json:"available_teams" renameto:"available_fleets"`
 	Settings       *fleet.UserSettings  `json:"settings,omitempty"`
 	Err            error                `json:"error,omitempty"`
 }
@@ -400,6 +411,17 @@ func (svc *Service) ModifyUser(ctx context.Context, userID uint, p fleet.UserPay
 
 	if err := svc.authz.Authorize(ctx, user, fleet.ActionWrite); err != nil {
 		return nil, err
+	}
+
+	// Do not allow setting a Premium-only role on Fleet Free.
+	if !license.IsPremium(ctx) {
+		var teamRoles []fleet.UserTeam
+		if p.Teams != nil {
+			teamRoles = *p.Teams
+		}
+		if fleet.PremiumRolesPresent(p.GlobalRole, teamRoles) {
+			return nil, fleet.ErrMissingLicense
+		}
 	}
 
 	vc, ok := viewer.FromContext(ctx)

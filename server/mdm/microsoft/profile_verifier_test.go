@@ -5,6 +5,7 @@ import (
 	"encoding/xml"
 	"fmt"
 	"io"
+	"log/slog"
 	"strings"
 	"testing"
 	"time"
@@ -15,7 +16,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mdm/microsoft/wlanxml"
 	"github.com/fleetdm/fleet/v4/server/mock"
 	"github.com/fleetdm/fleet/v4/server/ptr"
-	"github.com/go-kit/log"
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -68,7 +68,7 @@ func TestLoopHostMDMLocURIs(t *testing.T) {
 		uniqueHash  string
 	}
 	got := []wantStruct{}
-	err := LoopOverExpectedHostProfiles(ctx, log.NewNopLogger(), ds, &fleet.Host{}, func(profile *fleet.ExpectedMDMProfile, hash, locURI, data string) {
+	err := LoopOverExpectedHostProfiles(ctx, slog.New(slog.DiscardHandler), ds, &fleet.Host{}, func(profile *fleet.ExpectedMDMProfile, hash, locURI, data string) {
 		got = append(got, wantStruct{
 			locURI:      locURI,
 			data:        data,
@@ -145,7 +145,7 @@ func TestVerifyHostMDMProfilesErrors(t *testing.T) {
 	ctx := context.Background()
 	host := &fleet.Host{}
 
-	err := VerifyHostMDMProfiles(ctx, log.NewNopLogger(), ds, host, []byte{})
+	err := VerifyHostMDMProfiles(ctx, slog.New(slog.DiscardHandler), ds, host, []byte{})
 	require.ErrorIs(t, err, io.EOF)
 }
 
@@ -870,7 +870,7 @@ func TestVerifyHostMDMProfilesHappyPaths(t *testing.T) {
 			out, err := xml.Marshal(msg)
 			require.NoError(t, err)
 			require.NoError(t,
-				VerifyHostMDMProfiles(context.Background(), log.NewNopLogger(), ds, &fleet.Host{DetailUpdatedAt: time.Now()}, out))
+				VerifyHostMDMProfiles(context.Background(), slog.New(slog.DiscardHandler), ds, &fleet.Host{DetailUpdatedAt: time.Now()}, out))
 			require.True(t, ds.UpdateHostMDMProfilesVerificationFuncInvoked)
 			require.True(t, ds.GetHostMDMProfilesExpectedForVerificationFuncInvoked)
 			require.True(t, ds.GetHostMDMWindowsProfilesFuncInvoked)
@@ -1090,7 +1090,7 @@ func TestPreprocessWindowsProfileContentsForVerification(t *testing.T) {
 
 	deps := ProfilePreprocessDependenciesForVerify{
 		Context:            t.Context(),
-		Logger:             log.NewNopLogger(),
+		Logger:             slog.New(slog.DiscardHandler),
 		DataStore:          ds,
 		HostIDForUUIDCache: make(map[string]uint),
 	}
@@ -1414,7 +1414,7 @@ func TestPreprocessWindowsProfileContentsForDeployment(t *testing.T) {
 			deps := ProfilePreprocessDependenciesForDeploy{
 				ProfilePreprocessDependenciesForVerify: ProfilePreprocessDependenciesForVerify{
 					Context:            ctx,
-					Logger:             log.NewNopLogger(),
+					Logger:             slog.New(slog.DiscardHandler),
 					DataStore:          ds,
 					HostIDForUUIDCache: hostIDForUUIDCache,
 				},

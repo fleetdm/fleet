@@ -37,8 +37,8 @@ import (
 	"github.com/fleetdm/fleet/v4/server/service/middleware/otel"
 
 	"github.com/docker/go-units"
+	"github.com/fleetdm/fleet/v4/server/platform/logging"
 	kithttp "github.com/go-kit/kit/transport/http"
-	kitlog "github.com/go-kit/log"
 	"github.com/go-kit/log/level"
 	"github.com/gorilla/mux"
 	"github.com/klauspost/compress/gzhttp"
@@ -103,7 +103,7 @@ func setCarveStoreInRequestContext(carveStore fleet.CarveStore) kithttp.RequestF
 func MakeHandler(
 	svc fleet.Service,
 	config config.FleetConfig,
-	logger kitlog.Logger,
+	logger *logging.Logger,
 	limitStore throttled.GCRAStore,
 	redisPool fleet.RedisPool,
 	carveStore fleet.CarveStore,
@@ -127,11 +127,11 @@ func MakeHandler(
 			auth.SetRequestsContexts(svc),
 			setCarveStoreInRequestContext(carveStore),
 		),
-		kithttp.ServerErrorHandler(&endpointer.ErrorHandler{Logger: logger}),
+		kithttp.ServerErrorHandler(&endpointer.ErrorHandler{Logger: logger.SlogLogger()}),
 		kithttp.ServerErrorEncoder(fleetErrorEncoder),
 		kithttp.ServerAfter(
 			kithttp.SetContentType("application/json; charset=utf-8"),
-			log.LogRequestEnd(logger),
+			log.LogRequestEnd(logger.SlogLogger()),
 			checkLicenseExpiration(svc),
 		),
 	}
@@ -278,7 +278,7 @@ const (
 )
 
 func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetConfig,
-	logger kitlog.Logger, limitStore throttled.GCRAStore, redisPool fleet.RedisPool, opts []kithttp.ServerOption,
+	logger *logging.Logger, limitStore throttled.GCRAStore, redisPool fleet.RedisPool, opts []kithttp.ServerOption,
 	extra extraHandlerOpts,
 ) {
 	apiVersions := []string{"v1", "2022-04"}
@@ -301,18 +301,18 @@ func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetC
 
 	ue.POST("/api/_version_/fleet/users/roles/spec", applyUserRoleSpecsEndpoint, applyUserRoleSpecsRequest{})
 	ue.POST("/api/_version_/fleet/translate", translatorEndpoint, translatorRequest{})
-	ue.WithRequestBodySizeLimit(5*units.MiB).POST("/api/_version_/fleet/spec/teams", applyTeamSpecsEndpoint, applyTeamSpecsRequest{})
-	ue.PATCH("/api/_version_/fleet/teams/{team_id:[0-9]+}/secrets", modifyTeamEnrollSecretsEndpoint, modifyTeamEnrollSecretsRequest{})
-	ue.POST("/api/_version_/fleet/teams", createTeamEndpoint, createTeamRequest{})
-	ue.GET("/api/_version_/fleet/teams", listTeamsEndpoint, listTeamsRequest{})
-	ue.GET("/api/_version_/fleet/teams/{id:[0-9]+}", getTeamEndpoint, getTeamRequest{})
-	ue.PATCH("/api/_version_/fleet/teams/{id:[0-9]+}", modifyTeamEndpoint, modifyTeamRequest{})
-	ue.DELETE("/api/_version_/fleet/teams/{id:[0-9]+}", deleteTeamEndpoint, deleteTeamRequest{})
-	ue.WithRequestBodySizeLimit(2*units.MiB).POST("/api/_version_/fleet/teams/{id:[0-9]+}/agent_options", modifyTeamAgentOptionsEndpoint, modifyTeamAgentOptionsRequest{})
-	ue.GET("/api/_version_/fleet/teams/{id:[0-9]+}/users", listTeamUsersEndpoint, listTeamUsersRequest{})
-	ue.PATCH("/api/_version_/fleet/teams/{id:[0-9]+}/users", addTeamUsersEndpoint, modifyTeamUsersRequest{})
-	ue.DELETE("/api/_version_/fleet/teams/{id:[0-9]+}/users", deleteTeamUsersEndpoint, modifyTeamUsersRequest{})
-	ue.GET("/api/_version_/fleet/teams/{id:[0-9]+}/secrets", teamEnrollSecretsEndpoint, teamEnrollSecretsRequest{})
+	ue.WithAltPaths("/api/_version_/fleet/spec/teams").WithRequestBodySizeLimit(5*units.MiB).POST("/api/_version_/fleet/spec/fleets", applyTeamSpecsEndpoint, applyTeamSpecsRequest{})
+	ue.WithAltPaths("/api/_version_/fleet/teams/{fleet_id:[0-9]+}/secrets").PATCH("/api/_version_/fleet/fleets/{fleet_id:[0-9]+}/secrets", modifyTeamEnrollSecretsEndpoint, modifyTeamEnrollSecretsRequest{})
+	ue.WithAltPaths("/api/_version_/fleet/teams").POST("/api/_version_/fleet/fleets", createTeamEndpoint, createTeamRequest{})
+	ue.WithAltPaths("/api/_version_/fleet/teams").GET("/api/_version_/fleet/fleets", listTeamsEndpoint, listTeamsRequest{})
+	ue.WithAltPaths("/api/_version_/fleet/teams/{id:[0-9]+}").GET("/api/_version_/fleet/fleets/{id:[0-9]+}", getTeamEndpoint, getTeamRequest{})
+	ue.WithAltPaths("/api/_version_/fleet/teams/{id:[0-9]+}").PATCH("/api/_version_/fleet/fleets/{id:[0-9]+}", modifyTeamEndpoint, modifyTeamRequest{})
+	ue.WithAltPaths("/api/_version_/fleet/teams/{id:[0-9]+}").DELETE("/api/_version_/fleet/fleets/{id:[0-9]+}", deleteTeamEndpoint, deleteTeamRequest{})
+	ue.WithRequestBodySizeLimit(2*units.MiB).WithAltPaths("/api/_version_/fleet/teams/{id:[0-9]+}/agent_options").POST("/api/_version_/fleet/fleets/{id:[0-9]+}/agent_options", modifyTeamAgentOptionsEndpoint, modifyTeamAgentOptionsRequest{})
+	ue.WithAltPaths("/api/_version_/fleet/teams/{id:[0-9]+}/users").GET("/api/_version_/fleet/fleets/{id:[0-9]+}/users", listTeamUsersEndpoint, listTeamUsersRequest{})
+	ue.WithAltPaths("/api/_version_/fleet/teams/{id:[0-9]+}/users").PATCH("/api/_version_/fleet/fleets/{id:[0-9]+}/users", addTeamUsersEndpoint, modifyTeamUsersRequest{})
+	ue.WithAltPaths("/api/_version_/fleet/teams/{id:[0-9]+}/users").DELETE("/api/_version_/fleet/fleets/{id:[0-9]+}/users", deleteTeamUsersEndpoint, modifyTeamUsersRequest{})
+	ue.WithAltPaths("/api/_version_/fleet/teams/{id:[0-9]+}/secrets").GET("/api/_version_/fleet/fleets/{id:[0-9]+}/secrets", teamEnrollSecretsEndpoint, teamEnrollSecretsRequest{})
 
 	ue.GET("/api/_version_/fleet/users", listUsersEndpoint, listUsersRequest{})
 	ue.POST("/api/_version_/fleet/users/admin", createUserEndpoint, createUserRequest{})
@@ -348,17 +348,17 @@ func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetC
 	ue.POST("/api/_version_/fleet/automations/reset", resetAutomationEndpoint, resetAutomationRequest{})
 
 	// Alias /api/_version_/fleet/team/ -> /api/_version_/fleet/teams/
-	ue.WithAltPaths("/api/_version_/fleet/team/{team_id}/policies").
-		POST("/api/_version_/fleet/teams/{team_id}/policies", teamPolicyEndpoint, teamPolicyRequest{})
-	ue.WithAltPaths("/api/_version_/fleet/team/{team_id}/policies").
-		GET("/api/_version_/fleet/teams/{team_id}/policies", listTeamPoliciesEndpoint, listTeamPoliciesRequest{})
-	ue.WithAltPaths("/api/_version_/fleet/team/{team_id}/policies/count").
-		GET("/api/_version_/fleet/teams/{team_id}/policies/count", countTeamPoliciesEndpoint, countTeamPoliciesRequest{})
-	ue.WithAltPaths("/api/_version_/fleet/team/{team_id}/policies/{policy_id}").
-		GET("/api/_version_/fleet/teams/{team_id}/policies/{policy_id}", getTeamPolicyByIDEndpoint, getTeamPolicyByIDRequest{})
-	ue.WithAltPaths("/api/_version_/fleet/team/{team_id}/policies/delete").
-		POST("/api/_version_/fleet/teams/{team_id}/policies/delete", deleteTeamPoliciesEndpoint, deleteTeamPoliciesRequest{})
-	ue.PATCH("/api/_version_/fleet/teams/{team_id}/policies/{policy_id}", modifyTeamPolicyEndpoint, modifyTeamPolicyRequest{})
+	ue.WithAltPaths("/api/_version_/fleet/team/{fleet_id}/policies", "/api/_version_/fleet/teams/{fleet_id}/policies").
+		POST("/api/_version_/fleet/fleets/{fleet_id}/policies", teamPolicyEndpoint, teamPolicyRequest{})
+	ue.WithAltPaths("/api/_version_/fleet/team/{fleet_id}/policies", "/api/_version_/fleet/teams/{fleet_id}/policies").
+		GET("/api/_version_/fleet/fleets/{fleet_id}/policies", listTeamPoliciesEndpoint, listTeamPoliciesRequest{})
+	ue.WithAltPaths("/api/_version_/fleet/team/{fleet_id}/policies/count", "/api/_version_/fleet/teams/{fleet_id}/policies/count").
+		GET("/api/_version_/fleet/fleets/{fleet_id}/policies/count", countTeamPoliciesEndpoint, countTeamPoliciesRequest{})
+	ue.WithAltPaths("/api/_version_/fleet/team/{fleet_id}/policies/{policy_id}", "/api/_version_/fleet/teams/{fleet_id}/policies/{policy_id}").
+		GET("/api/_version_/fleet/fleets/{fleet_id}/policies/{policy_id}", getTeamPolicyByIDEndpoint, getTeamPolicyByIDRequest{})
+	ue.WithAltPaths("/api/_version_/fleet/team/{fleet_id}/policies/delete", "/api/_version_/fleet/teams/{fleet_id}/policies/delete").
+		POST("/api/_version_/fleet/fleets/{fleet_id}/policies/delete", deleteTeamPoliciesEndpoint, deleteTeamPoliciesRequest{})
+	ue.WithAltPaths("/api/_version_/fleet/teams/{fleet_id}/policies/{policy_id}").PATCH("/api/_version_/fleet/fleets/{fleet_id}/policies/{policy_id}", modifyTeamPolicyEndpoint, modifyTeamPolicyRequest{})
 	ue.WithRequestBodySizeLimit(fleet.MaxSpecSize).POST("/api/_version_/fleet/spec/policies", applyPolicySpecsEndpoint, applyPolicySpecsRequest{})
 
 	ue.POST("/api/_version_/fleet/certificates", createCertificateTemplateEndpoint, createCertificateTemplateRequest{})
@@ -368,17 +368,17 @@ func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetC
 	ue.POST("/api/_version_/fleet/spec/certificates", applyCertificateTemplateSpecsEndpoint, applyCertificateTemplateSpecsRequest{})
 	ue.DELETE("/api/_version_/fleet/spec/certificates", deleteCertificateTemplateSpecsEndpoint, deleteCertificateTemplateSpecsRequest{})
 
-	ue.GET("/api/_version_/fleet/queries/{id:[0-9]+}", getQueryEndpoint, getQueryRequest{})
-	ue.GET("/api/_version_/fleet/queries", listQueriesEndpoint, listQueriesRequest{})
-	ue.GET("/api/_version_/fleet/queries/{id:[0-9]+}/report", getQueryReportEndpoint, getQueryReportRequest{})
-	ue.POST("/api/_version_/fleet/queries", createQueryEndpoint, createQueryRequest{})
-	ue.PATCH("/api/_version_/fleet/queries/{id:[0-9]+}", modifyQueryEndpoint, modifyQueryRequest{})
-	ue.DELETE("/api/_version_/fleet/queries/{name}", deleteQueryEndpoint, deleteQueryRequest{})
-	ue.DELETE("/api/_version_/fleet/queries/id/{id:[0-9]+}", deleteQueryByIDEndpoint, deleteQueryByIDRequest{})
-	ue.POST("/api/_version_/fleet/queries/delete", deleteQueriesEndpoint, deleteQueriesRequest{})
-	ue.WithRequestBodySizeLimit(fleet.MaxSpecSize).POST("/api/_version_/fleet/spec/queries", applyQuerySpecsEndpoint, applyQuerySpecsRequest{})
-	ue.GET("/api/_version_/fleet/spec/queries", getQuerySpecsEndpoint, getQuerySpecsRequest{})
-	ue.GET("/api/_version_/fleet/spec/queries/{name}", getQuerySpecEndpoint, getQuerySpecRequest{})
+	ue.WithAltPaths("/api/_version_/fleet/queries/{id:[0-9]+}").GET("/api/_version_/fleet/reports/{id:[0-9]+}", getQueryEndpoint, getQueryRequest{})
+	ue.WithAltPaths("/api/_version_/fleet/queries").GET("/api/_version_/fleet/reports", listQueriesEndpoint, listQueriesRequest{})
+	ue.WithAltPaths("/api/_version_/fleet/queries/{id:[0-9]+}/report").GET("/api/_version_/fleet/reports/{id:[0-9]+}/report", getQueryReportEndpoint, getQueryReportRequest{})
+	ue.WithAltPaths("/api/_version_/fleet/queries").POST("/api/_version_/fleet/reports", createQueryEndpoint, createQueryRequest{})
+	ue.WithAltPaths("/api/_version_/fleet/queries/{id:[0-9]+}").PATCH("/api/_version_/fleet/reports/{id:[0-9]+}", modifyQueryEndpoint, modifyQueryRequest{})
+	ue.WithAltPaths("/api/_version_/fleet/queries/{name}").DELETE("/api/_version_/fleet/reports/{name}", deleteQueryEndpoint, deleteQueryRequest{})
+	ue.WithAltPaths("/api/_version_/fleet/queries/id/{id:[0-9]+}").DELETE("/api/_version_/fleet/reports/id/{id:[0-9]+}", deleteQueryByIDEndpoint, deleteQueryByIDRequest{})
+	ue.WithAltPaths("/api/_version_/fleet/queries/delete").POST("/api/_version_/fleet/reports/delete", deleteQueriesEndpoint, deleteQueriesRequest{})
+	ue.WithAltPaths("/api/_version_/fleet/spec/queries").WithRequestBodySizeLimit(fleet.MaxSpecSize).POST("/api/_version_/fleet/spec/reports", applyQuerySpecsEndpoint, applyQuerySpecsRequest{})
+	ue.WithAltPaths("/api/_version_/fleet/spec/queries").GET("/api/_version_/fleet/spec/reports", getQuerySpecsEndpoint, getQuerySpecsRequest{})
+	ue.WithAltPaths("/api/_version_/fleet/spec/queries/{name}").GET("/api/_version_/fleet/spec/reports/{name}", getQuerySpecEndpoint, getQuerySpecRequest{})
 
 	ue.GET("/api/_version_/fleet/packs/{id:[0-9]+}", getPackEndpoint, getPackRequest{})
 	ue.POST("/api/_version_/fleet/packs", createPackEndpoint, createPackRequest{})
@@ -475,7 +475,7 @@ func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetC
 	ue.GET("/api/_version_/fleet/hosts/report", hostsReportEndpoint, hostsReportRequest{})
 	ue.GET("/api/_version_/fleet/os_versions", osVersionsEndpoint, osVersionsRequest{})
 	ue.GET("/api/_version_/fleet/os_versions/{id:[0-9]+}", getOSVersionEndpoint, getOSVersionRequest{})
-	ue.GET("/api/_version_/fleet/hosts/{id:[0-9]+}/queries/{query_id:[0-9]+}", getHostQueryReportEndpoint, getHostQueryReportRequest{})
+	ue.WithAltPaths("/api/_version_/fleet/hosts/{id:[0-9]+}/queries/{report_id:[0-9]+}").GET("/api/_version_/fleet/hosts/{id:[0-9]+}/reports/{report_id:[0-9]+}", getHostQueryReportEndpoint, getHostQueryReportRequest{})
 	ue.GET("/api/_version_/fleet/hosts/{id:[0-9]+}/health", getHostHealthEndpoint, getHostHealthRequest{})
 	ue.POST("/api/_version_/fleet/hosts/{id:[0-9]+}/labels", addLabelsToHostEndpoint, addLabelsToHostRequest{})
 	ue.DELETE("/api/_version_/fleet/hosts/{id:[0-9]+}/labels", removeLabelsFromHostEndpoint, removeLabelsFromHostRequest{})
@@ -498,16 +498,16 @@ func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetC
 	ue.GET("/api/_version_/fleet/spec/labels/{name}", getLabelSpecEndpoint, getGenericSpecRequest{})
 
 	// This endpoint runs live queries synchronously (with a configured timeout).
-	ue.POST("/api/_version_/fleet/queries/{id:[0-9]+}/run", runOneLiveQueryEndpoint, runOneLiveQueryRequest{})
+	ue.WithAltPaths("/api/_version_/fleet/queries/{id:[0-9]+}/run").POST("/api/_version_/fleet/reports/{id:[0-9]+}/run", runOneLiveQueryEndpoint, runOneLiveQueryRequest{})
 	// Old endpoint, removed from docs. This GET endpoint runs live queries synchronously (with a configured timeout).
-	ue.GET("/api/_version_/fleet/queries/run", runLiveQueryEndpoint, runLiveQueryRequest{})
+	ue.WithAltPaths("/api/_version_/fleet/queries/run").GET("/api/_version_/fleet/reports/run", runLiveQueryEndpoint, runLiveQueryRequest{})
 	// The following two POST APIs are the asynchronous way to run live queries.
 	// The live queries are created with these two endpoints and their results can be queried via
 	// websockets via the `GET /api/_version_/fleet/results/` endpoint.
-	ue.POST("/api/_version_/fleet/queries/run", createDistributedQueryCampaignEndpoint, createDistributedQueryCampaignRequest{})
-	ue.POST("/api/_version_/fleet/queries/run_by_identifiers", createDistributedQueryCampaignByIdentifierEndpoint, createDistributedQueryCampaignByIdentifierRequest{})
+	ue.WithAltPaths("/api/_version_/fleet/queries/run").POST("/api/_version_/fleet/reports/run", createDistributedQueryCampaignEndpoint, createDistributedQueryCampaignRequest{})
+	ue.WithAltPaths("/api/_version_/fleet/queries/run_by_identifiers").POST("/api/_version_/fleet/reports/run_by_identifiers", createDistributedQueryCampaignByIdentifierEndpoint, createDistributedQueryCampaignByIdentifierRequest{})
 	// This endpoint is deprecated and maintained for backwards compatibility. This and above endpoint are functionally equivalent
-	ue.POST("/api/_version_/fleet/queries/run_by_names", createDistributedQueryCampaignByIdentifierEndpoint, createDistributedQueryCampaignByIdentifierRequest{})
+	ue.WithAltPaths("/api/_version_/fleet/queries/run_by_names").POST("/api/_version_/fleet/reports/run_by_names", createDistributedQueryCampaignByIdentifierEndpoint, createDistributedQueryCampaignByIdentifierRequest{})
 
 	ue.GET("/api/_version_/fleet/packs/{id:[0-9]+}/scheduled", getScheduledQueriesInPackEndpoint, getScheduledQueriesInPackRequest{})
 	ue.EndingAtVersion("v1").POST("/api/_version_/fleet/schedule", scheduleQueryEndpoint, scheduleQueryRequest{})
@@ -528,14 +528,14 @@ func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetC
 	ue.StartingAtVersion("2022-04").DELETE("/api/_version_/fleet/schedule/{id:[0-9]+}", deleteGlobalScheduleEndpoint, deleteGlobalScheduleRequest{})
 
 	// Alias /api/_version_/fleet/team/ -> /api/_version_/fleet/teams/
-	ue.WithAltPaths("/api/_version_/fleet/team/{team_id}/schedule").
-		GET("/api/_version_/fleet/teams/{team_id}/schedule", getTeamScheduleEndpoint, getTeamScheduleRequest{})
-	ue.WithAltPaths("/api/_version_/fleet/team/{team_id}/schedule").
-		POST("/api/_version_/fleet/teams/{team_id}/schedule", teamScheduleQueryEndpoint, teamScheduleQueryRequest{})
-	ue.WithAltPaths("/api/_version_/fleet/team/{team_id}/schedule/{scheduled_query_id}").
-		PATCH("/api/_version_/fleet/teams/{team_id}/schedule/{scheduled_query_id}", modifyTeamScheduleEndpoint, modifyTeamScheduleRequest{})
-	ue.WithAltPaths("/api/_version_/fleet/team/{team_id}/schedule/{scheduled_query_id}").
-		DELETE("/api/_version_/fleet/teams/{team_id}/schedule/{scheduled_query_id}", deleteTeamScheduleEndpoint, deleteTeamScheduleRequest{})
+	ue.WithAltPaths("/api/_version_/fleet/team/{fleet_id}/schedule", "/api/_version_/fleet/teams/{fleet_id}/schedule").
+		GET("/api/_version_/fleet/fleets/{fleet_id}/schedule", getTeamScheduleEndpoint, getTeamScheduleRequest{})
+	ue.WithAltPaths("/api/_version_/fleet/team/{fleet_id}/schedule", "/api/_version_/fleet/teams/{fleet_id}/schedule").
+		POST("/api/_version_/fleet/fleets/{fleet_id}/schedule", teamScheduleQueryEndpoint, teamScheduleQueryRequest{})
+	ue.WithAltPaths("/api/_version_/fleet/team/{fleet_id}/schedule/{report_id}", "/api/_version_/fleet/teams/{fleet_id}/schedule/{report_id}").
+		PATCH("/api/_version_/fleet/fleets/{fleet_id}/schedule/{report_id}", modifyTeamScheduleEndpoint, modifyTeamScheduleRequest{})
+	ue.WithAltPaths("/api/_version_/fleet/team/{fleet_id}/schedule/{report_id}", "/api/_version_/fleet/teams/{fleet_id}/schedule/{report_id}").
+		DELETE("/api/_version_/fleet/fleets/{fleet_id}/schedule/{report_id}", deleteTeamScheduleEndpoint, deleteTeamScheduleRequest{})
 
 	ue.GET("/api/_version_/fleet/carves", listCarvesEndpoint, listCarvesRequest{})
 	ue.GET("/api/_version_/fleet/carves/{id:[0-9]+}", getCarveEndpoint, getCarveRequest{})
@@ -676,13 +676,13 @@ func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetC
 
 	// Deprecated: GET /mdm/bootstrap/:team_id/metadata is now deprecated, replaced by the
 	// GET /bootstrap/:team_id/metadata endpoint.
-	mdmAppleMW.GET("/api/_version_/fleet/mdm/bootstrap/{team_id:[0-9]+}/metadata", bootstrapPackageMetadataEndpoint, bootstrapPackageMetadataRequest{})
-	mdmAppleMW.GET("/api/_version_/fleet/bootstrap/{team_id:[0-9]+}/metadata", bootstrapPackageMetadataEndpoint, bootstrapPackageMetadataRequest{})
+	mdmAppleMW.GET("/api/_version_/fleet/mdm/bootstrap/{fleet_id:[0-9]+}/metadata", bootstrapPackageMetadataEndpoint, bootstrapPackageMetadataRequest{})
+	mdmAppleMW.GET("/api/_version_/fleet/bootstrap/{fleet_id:[0-9]+}/metadata", bootstrapPackageMetadataEndpoint, bootstrapPackageMetadataRequest{})
 
 	// Deprecated: DELETE /mdm/bootstrap/:team_id is now deprecated, replaced by the
 	// DELETE /bootstrap/:team_id endpoint.
-	mdmAppleMW.DELETE("/api/_version_/fleet/mdm/bootstrap/{team_id:[0-9]+}", deleteBootstrapPackageEndpoint, deleteBootstrapPackageRequest{})
-	mdmAppleMW.DELETE("/api/_version_/fleet/bootstrap/{team_id:[0-9]+}", deleteBootstrapPackageEndpoint, deleteBootstrapPackageRequest{})
+	mdmAppleMW.DELETE("/api/_version_/fleet/mdm/bootstrap/{fleet_id:[0-9]+}", deleteBootstrapPackageEndpoint, deleteBootstrapPackageRequest{})
+	mdmAppleMW.DELETE("/api/_version_/fleet/bootstrap/{fleet_id:[0-9]+}", deleteBootstrapPackageEndpoint, deleteBootstrapPackageRequest{})
 
 	// Deprecated: GET /mdm/bootstrap/summary is now deprecated, replaced by the
 	// GET /bootstrap/summary endpoint.
@@ -693,9 +693,9 @@ func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetC
 	// Bootstrap endpoints are already max size limited to installer size in serve.go
 	mdmAppleMW.SkipRequestBodySizeLimit().POST("/api/_version_/fleet/mdm/apple/bootstrap", uploadBootstrapPackageEndpoint, uploadBootstrapPackageRequest{})
 	// Deprecated: GET /mdm/apple/bootstrap/:team_id/metadata is now deprecated, replaced by the platform agnostic /mdm/bootstrap/:team_id/metadata
-	mdmAppleMW.GET("/api/_version_/fleet/mdm/apple/bootstrap/{team_id:[0-9]+}/metadata", bootstrapPackageMetadataEndpoint, bootstrapPackageMetadataRequest{})
+	mdmAppleMW.GET("/api/_version_/fleet/mdm/apple/bootstrap/{fleet_id:[0-9]+}/metadata", bootstrapPackageMetadataEndpoint, bootstrapPackageMetadataRequest{})
 	// Deprecated: DELETE /mdm/apple/bootstrap/:team_id is now deprecated, replaced by the platform agnostic /mdm/bootstrap/:team_id
-	mdmAppleMW.DELETE("/api/_version_/fleet/mdm/apple/bootstrap/{team_id:[0-9]+}", deleteBootstrapPackageEndpoint, deleteBootstrapPackageRequest{})
+	mdmAppleMW.DELETE("/api/_version_/fleet/mdm/apple/bootstrap/{fleet_id:[0-9]+}", deleteBootstrapPackageEndpoint, deleteBootstrapPackageRequest{})
 	// Deprecated: GET /mdm/apple/bootstrap/summary is now deprecated, replaced by the platform agnostic /mdm/bootstrap/summary
 	mdmAppleMW.GET("/api/_version_/fleet/mdm/apple/bootstrap/summary", getMDMAppleBootstrapPackageSummaryEndpoint, getMDMAppleBootstrapPackageSummaryRequest{})
 
@@ -829,7 +829,7 @@ func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetC
 	ue.DELETE("/api/_version_/fleet/abm_tokens/{id:[0-9]+}", deleteABMTokenEndpoint, deleteABMTokenRequest{})
 	ue.GET("/api/_version_/fleet/abm_tokens", listABMTokensEndpoint, nil)
 	ue.GET("/api/_version_/fleet/abm_tokens/count", countABMTokensEndpoint, nil)
-	ue.PATCH("/api/_version_/fleet/abm_tokens/{id:[0-9]+}/teams", updateABMTokenTeamsEndpoint, updateABMTokenTeamsRequest{})
+	ue.WithAltPaths("/api/_version_/fleet/abm_tokens/{id:[0-9]+}/teams").PATCH("/api/_version_/fleet/abm_tokens/{id:[0-9]+}/fleets", updateABMTokenTeamsEndpoint, updateABMTokenTeamsRequest{})
 	ue.PATCH("/api/_version_/fleet/abm_tokens/{id:[0-9]+}/renew", renewABMTokenEndpoint, renewABMTokenRequest{})
 
 	ue.GET("/api/_version_/fleet/mdm/apple/request_csr", getMDMAppleCSREndpoint, getMDMAppleCSRRequest{})
@@ -839,7 +839,7 @@ func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetC
 	// VPP Tokens
 	ue.GET("/api/_version_/fleet/vpp_tokens", getVPPTokens, getVPPTokensRequest{})
 	ue.POST("/api/_version_/fleet/vpp_tokens", uploadVPPTokenEndpoint, uploadVPPTokenRequest{})
-	ue.PATCH("/api/_version_/fleet/vpp_tokens/{id}/teams", patchVPPTokensTeams, patchVPPTokensTeamsRequest{})
+	ue.WithAltPaths("/api/_version_/fleet/vpp_tokens/{id}/teams").PATCH("/api/_version_/fleet/vpp_tokens/{id}/fleets", patchVPPTokensTeams, patchVPPTokensTeamsRequest{})
 	ue.PATCH("/api/_version_/fleet/vpp_tokens/{id}/renew", patchVPPTokenRenewEndpoint, patchVPPTokenRenewRequest{})
 	ue.DELETE("/api/_version_/fleet/vpp_tokens/{id}", deleteVPPToken, deleteVPPTokenRequest{})
 
@@ -881,7 +881,7 @@ func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetC
 		deviceIPAllowedConsecutiveFailingRequestsTimeWindow,
 		deviceIPBanTime,
 	)
-	errorLimiter := ratelimit.NewErrorMiddleware(ipBanner).Limit(logger)
+	errorLimiter := ratelimit.NewErrorMiddleware(ipBanner).Limit(logger.SlogLogger())
 
 	// Device-authenticated endpoints.
 	de := newDeviceAuthenticatedEndpointer(svc, logger, opts, r, apiVersions...)
@@ -926,7 +926,7 @@ func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetC
 		POST("/api/osquery/config", getClientConfigEndpoint, getClientConfigRequest{})
 	he.WithAltPaths("/api/v1/osquery/distributed/read").
 		POST("/api/osquery/distributed/read", getDistributedQueriesEndpoint, getDistributedQueriesRequest{})
-	he.WithAltPaths("/api/v1/osquery/distributed/write").
+	he.WithRequestBodySizeLimit(fleet.MaxOsqueryDistributedWriteSize).WithAltPaths("/api/v1/osquery/distributed/write").
 		POST("/api/osquery/distributed/write", submitDistributedQueryResultsEndpoint, submitDistributedQueryResultsRequestShim{})
 	he.WithAltPaths("/api/v1/osquery/carve/begin").
 		POST("/api/osquery/carve/begin", carveBeginEndpoint, carveBeginRequest{})
@@ -1108,7 +1108,7 @@ func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetC
 // WithSetup is an http middleware that checks if setup procedures have been completed.
 // If setup hasn't been completed it serves the API with a setup middleware.
 // If the server is already configured, the default API handler is exposed.
-func WithSetup(svc fleet.Service, logger kitlog.Logger, next http.Handler) http.HandlerFunc {
+func WithSetup(svc fleet.Service, logger *logging.Logger, next http.Handler) http.HandlerFunc {
 	rxOsquery := regexp.MustCompile(`^/api/[^/]+/osquery`)
 	return func(w http.ResponseWriter, r *http.Request) {
 		configRouter := http.NewServeMux()
@@ -1143,7 +1143,7 @@ func WithSetup(svc fleet.Service, logger kitlog.Logger, next http.Handler) http.
 
 // RedirectLoginToSetup detects if the setup endpoint should be used. If setup is required it redirect all
 // frontend urls to /setup, otherwise the frontend router is used.
-func RedirectLoginToSetup(svc fleet.Service, logger kitlog.Logger, next http.Handler, urlPrefix string) http.HandlerFunc {
+func RedirectLoginToSetup(svc fleet.Service, logger *logging.Logger, next http.Handler, urlPrefix string) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		redirect := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			if r.URL.Path == "/setup" {
@@ -1171,7 +1171,7 @@ func RedirectLoginToSetup(svc fleet.Service, logger kitlog.Logger, next http.Han
 
 // RedirectSetupToLogin forces the /setup path to be redirected to login. This middleware is used after
 // the app has been setup.
-func RedirectSetupToLogin(svc fleet.Service, logger kitlog.Logger, next http.Handler, urlPrefix string) http.HandlerFunc {
+func RedirectSetupToLogin(svc fleet.Service, logger *logging.Logger, next http.Handler, urlPrefix string) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path == "/setup" {
 			newURL := r.URL
@@ -1190,7 +1190,7 @@ func RegisterAppleMDMProtocolServices(
 	scepConfig config.MDMConfig,
 	mdmStorage fleet.MDMAppleStore,
 	scepStorage scep_depot.Depot,
-	logger kitlog.Logger,
+	logger *logging.Logger,
 	checkinAndCommandService nanomdm_service.CheckinAndCommandService,
 	ddmService nanomdm_service.DeclarativeManagement,
 	profileService nanomdm_service.ProfileService,
@@ -1211,11 +1211,11 @@ func RegisterAppleMDMProtocolServices(
 
 func registerMDMServiceDiscovery(
 	mux *http.ServeMux,
-	logger kitlog.Logger,
+	logger *logging.Logger,
 	serverURLPrefix string,
 	fleetConfig config.FleetConfig,
 ) error {
-	serviceDiscoveryLogger := kitlog.With(logger, "component", "mdm-apple-service-discovery")
+	serviceDiscoveryLogger := logger.With("component", "mdm-apple-service-discovery")
 	fullMDMEnrollmentURL := fmt.Sprintf("%s%s", serverURLPrefix, apple_mdm.AccountDrivenEnrollPath)
 	serviceDiscoveryHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		serviceDiscoveryLogger.Log("msg", "serving MDM service discovery response", "url", fullMDMEnrollmentURL)
@@ -1238,7 +1238,7 @@ func registerSCEP(
 	scepConfig config.MDMConfig,
 	scepStorage scep_depot.Depot,
 	mdmStorage fleet.MDMAppleStore,
-	logger kitlog.Logger,
+	logger *logging.Logger,
 	fleetConfig config.FleetConfig,
 ) error {
 	var signer scepserver.CSRSignerContext = scepserver.SignCSRAdapter(scep_depot.NewSigner(
@@ -1256,10 +1256,10 @@ func registerSCEP(
 	scepService := NewSCEPService(
 		mdmStorage,
 		signer,
-		kitlog.With(logger, "component", "mdm-apple-scep"),
+		logger.With("component", "mdm-apple-scep"),
 	)
 
-	scepLogger := kitlog.With(logger, "component", "http-mdm-apple-scep")
+	scepLogger := logger.With("component", "http-mdm-apple-scep")
 	e := scepserver.MakeServerEndpoints(scepService)
 	e.GetEndpoint = scepserver.EndpointLoggingMiddleware(scepLogger)(e.GetEndpoint)
 	e.PostEndpoint = scepserver.EndpointLoggingMiddleware(scepLogger)(e.PostEndpoint)
@@ -1271,7 +1271,7 @@ func registerSCEP(
 func RegisterSCEPProxy(
 	rootMux *http.ServeMux,
 	ds fleet.Datastore,
-	logger kitlog.Logger,
+	logger *logging.Logger,
 	timeout *time.Duration,
 	fleetConfig *config.FleetConfig,
 ) error {
@@ -1280,10 +1280,10 @@ func RegisterSCEPProxy(
 	}
 	scepService := eeservice.NewSCEPProxyService(
 		ds,
-		kitlog.With(logger, "component", "scep-proxy-service"),
+		logger.With("component", "scep-proxy-service"),
 		timeout,
 	)
-	scepLogger := kitlog.With(logger, "component", "http-scep-proxy")
+	scepLogger := logger.With("component", "http-scep-proxy")
 	e := scepserver.MakeServerEndpointsWithIdentifier(scepService)
 	e.GetEndpoint = scepserver.EndpointLoggingMiddleware(scepLogger)(e.GetEndpoint)
 	e.PostEndpoint = scepserver.EndpointLoggingMiddleware(scepLogger)(e.PostEndpoint)
@@ -1296,10 +1296,10 @@ func RegisterSCEPProxy(
 
 // NanoMDMLogger is a logger adapter for nanomdm.
 type NanoMDMLogger struct {
-	logger kitlog.Logger
+	logger *logging.Logger
 }
 
-func NewNanoMDMLogger(logger kitlog.Logger) *NanoMDMLogger {
+func NewNanoMDMLogger(logger *logging.Logger) *NanoMDMLogger {
 	return &NanoMDMLogger{
 		logger: logger,
 	}
@@ -1314,9 +1314,8 @@ func (l *NanoMDMLogger) Debug(keyvals ...interface{}) {
 }
 
 func (l *NanoMDMLogger) With(keyvals ...interface{}) nanomdm_log.Logger {
-	newLogger := kitlog.With(l.logger, keyvals...)
 	return &NanoMDMLogger{
-		logger: newLogger,
+		logger: l.logger.With(keyvals...),
 	}
 }
 
@@ -1327,11 +1326,11 @@ func registerMDM(
 	checkinAndCommandService nanomdm_service.CheckinAndCommandService,
 	ddmService nanomdm_service.DeclarativeManagement,
 	profileService nanomdm_service.ProfileService,
-	logger kitlog.Logger,
+	logger *logging.Logger,
 	fleetConfig config.FleetConfig,
 ) error {
 	certVerifier := mdmcrypto.NewSCEPVerifier(mdmStorage)
-	mdmLogger := NewNanoMDMLogger(kitlog.With(logger, "component", "http-mdm-apple-mdm"))
+	mdmLogger := NewNanoMDMLogger(logger.With("component", "http-mdm-apple-mdm"))
 
 	// As usual, handlers are applied from bottom to top:
 	// 1. Extract and verify MDM signature.
@@ -1364,7 +1363,7 @@ func registerMDM(
 	return nil
 }
 
-func WithMDMEnrollmentMiddleware(svc fleet.Service, logger kitlog.Logger, next http.Handler) http.HandlerFunc {
+func WithMDMEnrollmentMiddleware(svc fleet.Service, logger *logging.Logger, next http.Handler) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path != "/mdm/sso" && r.URL.Path != "/account_driven_enroll/sso" {
 			// TODO: redirects for non-SSO config web url?

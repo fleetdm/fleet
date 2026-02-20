@@ -170,9 +170,15 @@ Every two weeks, our CEO Mike has a meeting with Sid Sijbrandij. The CEO uses de
 3. In the ¶¶¶¶🦿🌪️CEO Roundup doc, update the URL in `Sam: FYI: Agenda from last time:` [LINK](link).
 
 
-### Process and backup E-group agenda 
+### Prepare for the e-group meeting
 
-Follow these steps to process and backup the E-group agenda: 
+Before each e-group meeting, the Executive Assistant will complete the following steps to ensure pipeline progress is front and center at the start of the meeting:
+1. Using the CEO's browser, open Salesforce and pull up the current pipeline creation actuals vs. goals report (showing the gap clearly).
+2. Take a screenshot of the report and add it as the first item in the e-group meeting agenda doc.
+
+### Process and backup E-group agenda
+
+Follow these steps to process and backup the E-group agenda:
 1. [Archive the E-group agenda](https://fleetdm.com/handbook/ceo#archive-a-document) after each meeting, moving it to the ["¶¶ E-group archive"](https://drive.google.com/drive/u/0/folders/1IsSGMgbt4pDcP8gSnLj8Z8NGY7_6UTt6) folder in Google Drive.
 2. **In the backup copy**, leave Google Doc comments assigning all TODOs to the correct DRI.  
 3. If the "All hands" meeting has happened today remove any spotlights covered in the current "All hands" presentation.
@@ -182,8 +188,9 @@ Follow these steps to process and backup the E-group agenda:
 
 The Executive Assistant will perform the following steps to process all communication from the CEO in the [help-being-ceo Slack channel](https://fleetdm.slack.com/archives/C03U703J0G5).
 1. As soon as the message is received in the channel, add the "`:eyes:` (👀)" emoji to the Slack message to signify that you have seen and understood the task or question.
-2. Start a Slack thread to add any context or let the stakeholders know the status of the task. 
-3. After each task is completed, apply the "`:white_check_mark:`" (✅) to the slack message.
+2. If the message is prefixed with "ASAP", complete the task within 2 hours. If you are unable to, get another fleetie's help.
+3. Start a Slack thread to add any context or let the stakeholders know the status of the task.
+4. After each task is completed, apply the "`:white_check_mark:`" (✅) to the slack message.
 
 
 ### Unroll a Slack thread

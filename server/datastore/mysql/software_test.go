@@ -16,11 +16,11 @@ import (
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/platform/logging"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/test"
 	"github.com/fleetdm/fleet/v4/server/vulnerabilities/nvd"
 	"github.com/fleetdm/fleet/v4/server/vulnerabilities/oval"
-	kitlog "github.com/go-kit/log"
 	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
 	"github.com/stretchr/testify/assert"
@@ -63,6 +63,7 @@ func TestSoftware(t *testing.T) {
 		{"ListSoftwareByHostIDShort", testListSoftwareByHostIDShort},
 		{"ListSoftwareVulnerabilitiesByHostIDsSource", testListSoftwareVulnerabilitiesByHostIDsSource},
 		{"InsertSoftwareVulnerability", testInsertSoftwareVulnerability},
+		{"InsertSoftwareVulnerabilities", testInsertSoftwareVulnerabilities},
 		{"ListCVEs", testListCVEs},
 		{"ListSoftwareForVulnDetection", testListSoftwareForVulnDetection},
 		{"AllSoftwareIterator", testAllSoftwareIterator},
@@ -1362,7 +1363,7 @@ func testSoftwareSyncHostsSoftware(t *testing.T, ds *Datastore) {
 	// this call will remove team2 from the software host counts table,
 	// and would normally log because we have a zero software_id
 	realLogger := ds.logger
-	ds.logger = kitlog.NewNopLogger()
+	ds.logger = logging.NewNopLogger()
 	require.NoError(t, ds.SyncHostsSoftware(ctx, time.Now()))
 	ds.logger = realLogger
 
@@ -2012,8 +2013,7 @@ func testUpdateHostSoftware(t *testing.T, ds *Datastore) {
 	// Test logging criteria for LastOpenedAt == nil
 	oldLogger := ds.logger
 	buf := &bytes.Buffer{}
-	newLogger := kitlog.NewLogfmtLogger(buf)
-	ds.logger = newLogger
+	ds.logger = logging.NewLogfmtLogger(buf)
 
 	sw = []fleet.Software{
 		{Name: "foo", Version: "0.0.1", Source: "test"},
@@ -2718,6 +2718,72 @@ func testInsertSoftwareVulnerability(t *testing.T, ds *Datastore) {
 	})
 }
 
+func testInsertSoftwareVulnerabilities(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	host := test.NewHost(t, ds, "hostBatch", "", "hostBatchkey", "hostBatchuuid", time.Now())
+	software := fleet.Software{Name: "batchApp", Version: "1.0.0", Source: "apps"}
+	_, err := ds.UpdateHostSoftware(ctx, host.ID, []fleet.Software{software})
+	require.NoError(t, err)
+	require.NoError(t, ds.LoadHostSoftware(ctx, host, false))
+	swID := host.Software[0].ID
+
+	t.Run("empty and filtered input returns nil", func(t *testing.T) {
+		newVulns, err := ds.InsertSoftwareVulnerabilities(ctx, nil, fleet.NVDSource)
+		require.NoError(t, err)
+		require.Nil(t, newVulns)
+
+		newVulns, err = ds.InsertSoftwareVulnerabilities(ctx, []fleet.SoftwareVulnerability{
+			{SoftwareID: swID, CVE: ""},
+		}, fleet.NVDSource)
+		require.NoError(t, err)
+		require.Nil(t, newVulns)
+	})
+
+	t.Run("new vulns returned on insert, not on re-insert", func(t *testing.T) {
+		vulns := []fleet.SoftwareVulnerability{
+			{SoftwareID: swID, CVE: "CVE-2024-0001"},
+			{SoftwareID: swID, CVE: "CVE-2024-0002", ResolvedInVersion: ptr.String("1.1.0")},
+		}
+
+		// First insert: both are new.
+		newVulns, err := ds.InsertSoftwareVulnerabilities(ctx, vulns, fleet.NVDSource)
+		require.NoError(t, err)
+		require.Len(t, newVulns, 2)
+
+		// Second insert: none are new.
+		newVulns, err = ds.InsertSoftwareVulnerabilities(ctx, vulns, fleet.NVDSource)
+		require.NoError(t, err)
+		require.Empty(t, newVulns)
+
+		// Mixed: one existing, one new.
+		vulns = append(vulns, fleet.SoftwareVulnerability{SoftwareID: swID, CVE: "CVE-2024-0003"})
+		newVulns, err = ds.InsertSoftwareVulnerabilities(ctx, vulns, fleet.NVDSource)
+		require.NoError(t, err)
+		require.Len(t, newVulns, 1)
+		assert.Equal(t, "CVE-2024-0003", newVulns[0].CVE)
+	})
+
+	t.Run("upsert refreshes updated_at", func(t *testing.T) {
+		pastTime := time.Now().Add(-24 * time.Hour)
+		_, err := ds.writer(ctx).ExecContext(ctx,
+			`UPDATE software_cve SET updated_at = ? WHERE software_id = ? AND cve = ?`,
+			pastTime, swID, "CVE-2024-0001")
+		require.NoError(t, err)
+
+		_, err = ds.InsertSoftwareVulnerabilities(ctx, []fleet.SoftwareVulnerability{
+			{SoftwareID: swID, CVE: "CVE-2024-0001"},
+		}, fleet.NVDSource)
+		require.NoError(t, err)
+
+		var afterTS time.Time
+		err = sqlx.GetContext(ctx, ds.reader(ctx), &afterTS,
+			`SELECT updated_at FROM software_cve WHERE software_id = ? AND cve = ?`, swID, "CVE-2024-0001")
+		require.NoError(t, err)
+		assert.True(t, afterTS.After(pastTime), "updated_at should be refreshed on upsert")
+	})
+}
+
 func testListCVEs(t *testing.T, ds *Datastore) {
 	ctx := context.Background()
 
@@ -2803,6 +2869,36 @@ func testListSoftwareForVulnDetection(t *testing.T, ds *Datastore) {
 		require.Len(t, result, 2)
 		require.Equal(t, "baz", result[0].Name)
 		require.Equal(t, "biz", result[1].Name)
+	})
+
+	t.Run("KernelsOnly filter returns only kernel software", func(t *testing.T) {
+		ctx := context.Background()
+
+		host := test.NewHost(t, ds, "host_kernel_test", "", "hostkernelkey", "hostkerneluuid", time.Now())
+		host.Platform = "rhel"
+		require.NoError(t, ds.UpdateHost(ctx, host))
+
+		software := []fleet.Software{
+			{Name: "kernel", Version: "5.14.0-503.38.1.el9_5", Release: "", Arch: "x86_64", Source: "rpm_packages", IsKernel: true},
+			{Name: "kernel-modules", Version: "5.14.0", Release: "503.38.1.el9_5", Arch: "x86_64", Source: "rpm_packages", IsKernel: false},
+			{Name: "bash", Version: "5.1.8", Release: "6.el9_1", Arch: "x86_64", Source: "rpm_packages", IsKernel: false},
+			{Name: "openssl", Version: "3.0.7", Release: "18.el9_2", Arch: "x86_64", Source: "rpm_packages", IsKernel: false},
+		}
+		_, err := ds.UpdateHostSoftware(ctx, host.ID, software)
+		require.NoError(t, err)
+
+		// Test KernelsOnly filter
+		filter := fleet.VulnSoftwareFilter{HostID: &host.ID, KernelsOnly: true}
+		result, err := ds.ListSoftwareForVulnDetection(ctx, filter)
+		require.NoError(t, err)
+		require.Len(t, result, 1)
+		require.Equal(t, "kernel", result[0].Name)
+
+		// Verify non-kernel filter returns all software
+		filter = fleet.VulnSoftwareFilter{HostID: &host.ID, KernelsOnly: false}
+		result, err = ds.ListSoftwareForVulnDetection(ctx, filter)
+		require.NoError(t, err)
+		require.Len(t, result, 4)
 	})
 }
 

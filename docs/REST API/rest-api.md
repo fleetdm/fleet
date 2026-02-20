@@ -2841,7 +2841,7 @@ None.
 - [Get hosts summary](#get-hosts-summary)
 - [Get host](#get-host)
 - [Get host by identifier](#get-host-by-identifier)
-- [Get host by device token](#get-host-by-device-token)
+- [Get host by Fleet Desktop token](#get-host-by-fleet-desktop-token)
 - [Delete host](#delete-host)
 - [Refetch host](#refetch-host)
 - [Update hosts' team](#update-hosts-team)
@@ -2960,6 +2960,7 @@ If `after` is being used with `created_at` or `updated_at`, the table must be sp
 
 If `include_device_status` is set to `true`, `device_status` and `pending_action` are included in the MDM information for each host. `device_status` indicates the current lock/wipe state of the device with possible values: `unlocked`, `locked`, `locking`, `unlocking`, `wiped`, `wiping`. `pending_action` indicates if a lock, unlock, or wipe command is pending with possible values: `lock`, `unlock`, `wipe`, or an empty string (no pending action).
 
+To filter hosts by platform (macOS, Windows, Linux), use the ["List label's hosts" API endpoint](https://fleetdm.com/docs/rest-api/rest-api#list-labels-hosts). Find the label ID by filtering in the **Hosts** page of the Fleet UI and copying the ID from the URL (for example: `7` for `/hosts/manage/labels/7`).
 
 #### Example
 
@@ -3086,6 +3087,7 @@ If `include_device_status` is set to `true`, `device_status` and `pending_action
           "version": "2.12",
           "source": "rpm_packages",
           "generated_cpe": "cpe:2.3:a:gnu:glibc:2.12:*:*:*:*:*:*:*",
+          "last_opened_at": "2021-08-18T21:14:00Z",
           "vulnerabilities": [
             {
               "cve": "CVE-2009-5155",
@@ -3585,7 +3587,6 @@ Returns the information of the specified host.
         "platform": "darwin",
         "response": "fail",
         "critical": false,
-        "fleet_maintained": false
       },
       {
         "id": 3,
@@ -3596,7 +3597,6 @@ Returns the information of the specified host.
         "platform": "",
         "response": "",
         "critical": false,
-        "fleet_maintained": false
       },
       {
         "id": 1,
@@ -3607,7 +3607,6 @@ Returns the information of the specified host.
         "platform": "windows,linux",
         "response": "pass",
         "critical": false,
-        "fleet_maintained": false
       }
     ],
     "software": [
@@ -3855,7 +3854,6 @@ If `hostname` is specified when there is more than one host with the same hostna
         "updated_at": "2022-09-02T18:52:19Z",
         "response": "fail",
         "critical": false,
-        "fleet_maintained": false
       }
     ],
     "software": [
@@ -3914,7 +3912,7 @@ If `hostname` is specified when there is more than one host with the same hostna
 
 `browser` and `extension_for` fields are included when set and when empty. `extension_for` will show the browser or Visual Studio Code fork associated with the extension, allowing for differentiation between e.g. an extension installed on Visual Studio Code and one installed on Cursor. `browser` is deprecated, and only shows this information for browser plugins.
 
-#### Get host by device token
+#### Get host by Fleet Desktop token
 
 Returns a subset of information about the host specified by `token`. To get all information about a host, use the ["Get host"](#get-host) endpoint.
 
@@ -3928,11 +3926,11 @@ This endpoint doesn't require API token authentication. Authentication on macOS,
 
 | Name  | Type   | In   | Description                        |
 | ----- | ------ | ---- | ---------------------------------- |
-| token | string | path | The host's [device authentication token](https://fleetdm.com/guides/fleet-desktop#secure-fleet-desktop). For macOS, Windows, and Linux, this is a random UUID that rotates hourly. For iOS and iPadOS, this is the host's hardware UUID. |
+| token | string | path | The host's [Fleet Desktop token](https://fleetdm.com/guides/fleet-desktop#secure-fleet-desktop). For macOS, Windows, and Linux, this is a random UUID that rotates hourly. For iOS and iPadOS, this is the host's hardware UUID. |
 
 #### Request headers
 
-This endpoint accepts the `X-Client-Cert-Serial` header for authentication in addition to device token authentication.
+This endpoint accepts the `X-Client-Cert-Serial` header for authentication in addition to token authentication.
 
 The `Authorization` header must be formatted as follows:
 
@@ -4424,7 +4422,6 @@ This report includes a subset of host vitals, and simplified policy and vulnerab
         "name": "Google Chrome is up to date",
         "critical": true, // Fleet Premium only
         "resolution": "Follow the Update Google Chrome instructions here: https://support.google.com/chrome/answer/95414?sjid=6534253818042437614-NA",
-        "fleet_maintained": false
       }
     ],
     "vulnerable_software": [
@@ -6329,7 +6326,7 @@ For each `profile`, only one of `labels_include_all`, `labels_include_any`, or `
 
 `204`
 
-### Resend custom OS setting (configuration profile) by device token
+### Resend custom OS setting (configuration profile) by Fleet Desktop token
 
 Resends a configuration profile for the specified host. Currently, only macOS configuration profiles (.mobileconfig) are supported.
 
@@ -6339,7 +6336,7 @@ Resends a configuration profile for the specified host. Currently, only macOS co
 
 | Name | Type | In | Description |
 | ---- | ---- | -- | ----------- |
-| token   | string | path | **Required.** The host's [device authentication token](https://fleetdm.com/guides/fleet-desktop#secure-fleet-desktop). |
+| token   | string | path | **Required.** The host's [Fleet Desktop token](https://fleetdm.com/guides/fleet-desktop#secure-fleet-desktop). |
 | profile_uuid   | string | path | **Required.** The UUID of the configuration profile to resend to the host. |
 
 #### Example
@@ -7338,7 +7335,7 @@ This endpoint returns the results for a specific custom MDM command.
 In the response, the possible `status` values for macOS, iOS, and iPadOS hosts are the following:
 
 * Pending: the command has yet to run on the host. The host will run the command the next time it comes online.
-* NotNow: the host responded with "NotNow" status via the MDM protocol: the host received the command, but couldn’t execute it. The host will try to run the command the next time it comes online.
+* NotNow: the host acknowledged the MDM command but couldn’t run for one of [Apple's documented reasons](https://developer.apple.com/documentation/devicemanagement/handling-notnow-status-responses#Handle-NotNow-Responses). Per Apple, the host retries automatically. Apple doesn’t specify when the retries happen, or whether they depend on clearing _all_ blocking reasons or just one.
 * Acknowledged: the host responded with "Acknowledged" status via the MDM protocol: the host processed the command successfully.
 * Error: the host responded with "Error" status via the MDM protocol: an error occurred. Run the `fleetctl get mdm-command-results --id=<insert-command-id` to view the error.
 * CommandFormatError: the host responded with "CommandFormatError" status via the MDM protocol: a protocol error occurred, which can result from a malformed command. Run the `fleetctl get mdm-command-results --id=<insert-command-id` to view the error.
@@ -7766,7 +7763,6 @@ _Available in Fleet Premium_
       "host_count_updated_at": "2023-12-20T15:23:57Z",
       "calendar_events_enabled": true,
       "conditional_access_enabled": true,
-      "fleet_maintained": false,
       "labels_include_any": ["Macs on Sonoma"]
     },
     {
@@ -7788,7 +7784,6 @@ _Available in Fleet Premium_
       "host_count_updated_at": "2023-12-20T15:23:57Z",
       "calendar_events_enabled": false,
       "conditional_access_enabled": false,
-      "fleet_maintained": false,
       "labels_exclude_any": ["Compliance exclusions", "Workstations (Canary)"],
       "run_script": {
         "name": "Encrypt Windows disk with BitLocker",
@@ -7814,7 +7809,6 @@ _Available in Fleet Premium_
       "host_count_updated_at": "2023-12-20T15:23:57Z",
       "calendar_events_enabled": false,
       "conditional_access_enabled": false,
-      "fleet_maintained": false,
       "install_software": {
         "name": "Adobe Acrobat.app",
         "software_title_id": 1234
@@ -8063,7 +8057,6 @@ _Available in Fleet Premium_
     "host_count_updated_at": null,
     "calendar_events_enabled": true,
     "conditional_access_enabled": false,
-    "fleet_maintained": false,
     "labels_include_any": ["Macs on Sonoma"],
     "install_software": {
       "name": "Adobe Acrobat.app",
@@ -8217,7 +8210,6 @@ Only one of `labels_include_any` or `labels_exclude_any` can be specified. If ne
     "failing_host_count": 0,
     "host_count_updated_at": null,
     "calendar_events_enabled": false,
-    "fleet_maintained": false,
     "labels_include_any": ["Macs on Sonoma"],
     "install_software": {
       "name": "Adobe Acrobat.app",
@@ -8442,7 +8434,6 @@ Only one of `labels_include_any` or `labels_exclude_any` can be specified. If ne
     "host_count_updated_at": null,
     "calendar_events_enabled": true,
     "conditional_access_enabled": false,
-    "fleet_maintained": false,
     "install_software": {
       "name": "Adobe Acrobat.app",
       "software_title_id": 1234
@@ -9866,7 +9857,6 @@ Get a list of all software.
           {
             "id": 343,
             "name": "[Install software] Firefox.app",
-            "fleet_maintained": false
           }
         ],
       },
@@ -10218,7 +10208,6 @@ Returns information about the specified software. By default, `versions` are sor
         {
           "id": 343,
           "name": "[Install software] Crowdstrike Agent",
-          "fleet_maintained": false
         }
       ],
       "status": {
@@ -10292,7 +10281,6 @@ Returns information about the specified software. By default, `versions` are sor
         {
           "id": 345,
           "name": "[Install software] Logic Pro",
-          "fleet_maintained": false
         }
       ],
       "status": {
@@ -11051,7 +11039,6 @@ Only one of `labels_include_any` or `labels_exclude_any` can be specified. If ne
       {
         "id": 345,
         "name": "[Install software] Logic Pro",
-        "fleet_maintained": false
       }
     ],
     "status": {

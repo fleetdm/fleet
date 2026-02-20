@@ -11,6 +11,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log/slog"
 	"net/http"
 	"net/url"
 	"reflect"
@@ -31,7 +32,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mdm/nanodep/client"
 	"github.com/fleetdm/fleet/v4/server/sso"
 	"github.com/fleetdm/fleet/v4/server/worker"
-	"github.com/go-kit/log/level"
 	"github.com/google/uuid"
 )
 
@@ -736,7 +736,7 @@ func (svc *Service) InitiateMDMSSO(ctx context.Context, initiator, customOrigina
 	// initiate SSO.
 	svc.authz.SkipAuthorization(ctx)
 
-	logging.WithLevel(logging.WithNoUser(ctx), level.Info)
+	logging.WithLevel(logging.WithNoUser(ctx), slog.LevelInfo)
 
 	appConfig, err := svc.ds.AppConfig(ctx)
 	if err != nil {
@@ -807,7 +807,7 @@ func (svc *Service) MDMSSOCallback(ctx context.Context, sessionID string, samlRe
 	// hit the SSO callback.
 	svc.authz.SkipAuthorization(ctx)
 
-	logging.WithLevel(logging.WithNoUser(ctx), level.Info)
+	logging.WithLevel(logging.WithNoUser(ctx), slog.LevelInfo)
 
 	profileToken, enrollmentRef, eulaToken, originalURL, ssoRequestData, err := svc.mdmSSOHandleCallbackAuth(ctx, sessionID, samlResponse)
 	if err != nil {
@@ -1283,19 +1283,9 @@ func (svc *Service) mdmAppleEditedAppleOSUpdates(ctx context.Context, teamID *ui
 	}
 
 	if updates.MinimumVersion.Value == "" {
-		// OS updates disabled, remove the profile
+		// OS updates disabled, remove the declaration.
 		if err := svc.ds.DeleteMDMAppleDeclarationByName(ctx, teamID, osUpdatesProfileName); err != nil {
 			return err
-		}
-		var globalOrTeamID uint
-		if teamID != nil {
-			globalOrTeamID = *teamID
-		}
-		// This only sets profiles that haven't been queued by the cron to 'pending' (both removes and installs, which includes
-		// the OS updates we just deleted). It doesn't have a functional difference because if you don't call this function
-		// the cron will catch up, but it's important for the UX to mark them as pending immediately so it's reflected in the UI.
-		if _, err := svc.ds.BulkSetPendingMDMHostProfiles(ctx, nil, []uint{globalOrTeamID}, nil, nil); err != nil {
-			return ctxerr.Wrap(ctx, err, "bulk set pending host profiles")
 		}
 		return nil
 	}
@@ -1415,7 +1405,7 @@ func (svc *Service) UploadABMToken(ctx context.Context, token io.Reader) (*fleet
 		EncryptedToken: encryptedToken,
 	}
 
-	if err := apple_mdm.SetDecryptedABMTokenMetadata(ctx, tok, decryptedToken, svc.depStorage, svc.ds, svc.logger, false); err != nil {
+	if err := apple_mdm.SetDecryptedABMTokenMetadata(ctx, tok, decryptedToken, svc.depStorage, svc.ds, svc.logger.SlogLogger(), false); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "setting ABM token metadata")
 	}
 
@@ -1576,7 +1566,7 @@ func (svc *Service) RenewABMToken(ctx context.Context, token io.Reader, tokenID 
 		return nil, ctxerr.Wrap(ctx, err, "decrypting ABM token for renewal")
 	}
 
-	if err := apple_mdm.SetDecryptedABMTokenMetadata(ctx, oldTok, decryptedToken, svc.depStorage, svc.ds, svc.logger, true); err != nil {
+	if err := apple_mdm.SetDecryptedABMTokenMetadata(ctx, oldTok, decryptedToken, svc.depStorage, svc.ds, svc.logger.SlogLogger(), true); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "setting ABM token metadata")
 	}
 

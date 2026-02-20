@@ -1494,8 +1494,8 @@ func TestModifyAppConfigSMTPSSOAgentOptions(t *testing.T) {
 	require.True(t, dsAppConfig.SMTPSettings.SMTPEnabled)
 	require.True(t, updatedAppConfig.SSOSettings.EnableSSO)
 	require.True(t, dsAppConfig.SSOSettings.EnableSSO)
-	require.Equal(t, agentOptions, *updatedAppConfig.AgentOptions)
-	require.Equal(t, agentOptions, *dsAppConfig.AgentOptions)
+	require.JSONEq(t, string(agentOptions), string(*updatedAppConfig.AgentOptions))
+	require.JSONEq(t, string(agentOptions), string(*dsAppConfig.AgentOptions))
 
 	// Not sending sso_settings or agent settings will not change them, and
 	// sending SMTP settings will change them.
@@ -1507,8 +1507,8 @@ func TestModifyAppConfigSMTPSSOAgentOptions(t *testing.T) {
 	require.False(t, dsAppConfig.SMTPSettings.SMTPEnabled)
 	require.True(t, updatedAppConfig.SSOSettings.EnableSSO)
 	require.True(t, dsAppConfig.SSOSettings.EnableSSO)
-	require.Equal(t, agentOptions, *updatedAppConfig.AgentOptions)
-	require.Equal(t, agentOptions, *dsAppConfig.AgentOptions)
+	require.JSONEq(t, string(agentOptions), string(*updatedAppConfig.AgentOptions))
+	require.JSONEq(t, string(agentOptions), string(*dsAppConfig.AgentOptions))
 
 	// Not sending smtp_settings or agent settings will not change them, and
 	// sending SSO settings will change them.
@@ -1520,8 +1520,8 @@ func TestModifyAppConfigSMTPSSOAgentOptions(t *testing.T) {
 	require.False(t, dsAppConfig.SMTPSettings.SMTPEnabled)
 	require.False(t, updatedAppConfig.SSOSettings.EnableSSO)
 	require.False(t, dsAppConfig.SSOSettings.EnableSSO)
-	require.Equal(t, agentOptions, *updatedAppConfig.AgentOptions)
-	require.Equal(t, agentOptions, *dsAppConfig.AgentOptions)
+	require.JSONEq(t, string(agentOptions), string(*updatedAppConfig.AgentOptions))
+	require.JSONEq(t, string(agentOptions), string(*dsAppConfig.AgentOptions))
 
 	// Not sending smtp_settings or sso_settings will not change them, and
 	// sending agent options will change them.
@@ -1549,8 +1549,7 @@ func TestModifyAppConfigSMTPSSOAgentOptions(t *testing.T) {
 	require.False(t, dsAppConfig.SMTPSettings.SMTPEnabled)
 	require.False(t, updatedAppConfig.SSOSettings.EnableSSO)
 	require.False(t, dsAppConfig.SSOSettings.EnableSSO)
-	require.Equal(t, newAgentOptions, *dsAppConfig.AgentOptions)
-	require.Equal(t, newAgentOptions, *dsAppConfig.AgentOptions)
+	require.JSONEq(t, string(newAgentOptions), string(*dsAppConfig.AgentOptions))
 }
 
 // TestModifyEnableAnalytics tests that a premium customer cannot set ServerSettings.EnableAnalytics to be false.

@@ -286,6 +286,54 @@ describe("getUiStatus", () => {
     );
   });
 
+  it("does not return 'recently_installed' for tgz_packages even when lastInstallDate is newer than hostSoftwareUpdatedAt", () => {
+    const now = new Date();
+    const lastInstallDate = new Date(now.getTime() + 60 * 1000).toISOString();
+    const hostSoftwareUpdatedAt = now.toISOString();
+
+    const sw = createMockHostSoftware({
+      status: "installed",
+      source: "tgz_packages",
+      // Tarballs never return a version in software_package, and don't participate in inventory-based checks
+      software_package: createMockHostSoftwarePackage({
+        version: undefined,
+        last_install: {
+          install_uuid: "abc",
+          installed_at: lastInstallDate,
+        },
+      }),
+      installed_versions: [], // inventory wouldn't show this anyway for tarballs
+    });
+
+    // Even though lastInstallDate is newer than hostSoftwareUpdatedAt,
+    // tarballs should not show 'recently_installed' and immediately show 'installed' since they don't participate in inventory-based update checks.
+    expect(getUiStatus(sw, true, hostSoftwareUpdatedAt)).toBe("installed");
+  });
+
+  it("does not return 'recently_uninstalled' for tgz_packages even when lastUninstallDate is newer than hostSoftwareUpdatedAt", () => {
+    const now = new Date();
+    const lastUninstallDate = new Date(now.getTime() + 60 * 1000).toISOString();
+    const hostSoftwareUpdatedAt = now.toISOString();
+
+    const sw = createMockHostSoftware({
+      status: null,
+      source: "tgz_packages",
+      // Tarballs never return a version in software_package, and don't participate in inventory-based checks
+      software_package: createMockHostSoftwarePackage({
+        version: undefined,
+        last_uninstall: {
+          script_execution_id: "def",
+          uninstalled_at: lastUninstallDate,
+        },
+      }),
+      installed_versions: [],
+    });
+
+    // Even though lastUninstallDate is newer than hostSoftwareUpdatedAt,
+    // tarballs should not show 'recently_uninstalled' and immediately show 'uninstalled' since they don't participate in inventory-based update checks.
+    expect(getUiStatus(sw, true, hostSoftwareUpdatedAt)).toBe("uninstalled");
+  });
+
   // Extra verification: recently_uninstalled takes precedence over update_available
   it("does NOT return 'update_available' if status is null and recently uninstalled, even if update available", () => {
     const now = new Date();

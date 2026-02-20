@@ -57,7 +57,6 @@ interface IInstallSoftwareModal {
   onSubmit: (formData: IInstallSoftwareFormData) => void;
   isUpdating: boolean;
   teamId: number;
-  gitOpsModeEnabled?: boolean;
 }
 
 const generateSoftwareOptionHelpText = (title: IEnhancedSoftwareTitle) => {
@@ -118,7 +117,6 @@ const InstallSoftwareModal = ({
   onSubmit,
   isUpdating,
   teamId,
-  gitOpsModeEnabled = false,
 }: IInstallSoftwareModal) => {
   const paginatedListRef = useRef<IPaginatedListHandle<IFormPolicy>>(null);
 
@@ -272,11 +270,11 @@ const InstallSoftwareModal = ({
             Go to{" "}
             <CustomLink
               url={getPathWithQueryParams(paths.SOFTWARE_TITLES, {
-                team_id: teamId,
+                fleet_id: teamId,
               })}
               text="Software"
             />{" "}
-            to add software to this team.
+            to add software to this fleet.
           </div>
         </div>
       );

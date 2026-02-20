@@ -1863,6 +1863,53 @@ func testListHostMDMAndroidProfilesPendingInstallWithVersion(t *testing.T, ds *D
 		require.Equal(t, fleet.MDMOperationTypeInstall, hostProfiles[0].OperationType)
 		require.EqualValues(t, policyVersion, hostProfiles[0].IncludedInPolicyVersion)
 	})
+
+	t.Run("Does list pending install profiles and failed install profiles with can_reverify", func(t *testing.T) {
+		// Arrange
+		policyVersion := ptr.Int(1)
+		err := ds.BulkUpsertMDMAndroidHostProfiles(ctx, []*fleet.MDMAndroidProfilePayload{
+			{
+				HostUUID:                hostUUID,
+				ProfileUUID:             profiles[0].ProfileUUID,
+				ProfileName:             profiles[0].Name,
+				OperationType:           fleet.MDMOperationTypeInstall,
+				Status:                  &fleet.MDMDeliveryPending,
+				IncludedInPolicyVersion: policyVersion,
+			},
+			{
+				HostUUID:                hostUUID,
+				ProfileUUID:             profiles[1].ProfileUUID,
+				ProfileName:             profiles[1].Name,
+				OperationType:           fleet.MDMOperationTypeInstall,
+				Status:                  &fleet.MDMDeliveryFailed,
+				IncludedInPolicyVersion: policyVersion,
+				CanReverify:             true,
+			},
+			{
+				HostUUID:                hostUUID,
+				ProfileUUID:             profiles[2].ProfileUUID,
+				ProfileName:             profiles[2].Name,
+				OperationType:           fleet.MDMOperationTypeInstall,
+				Status:                  &fleet.MDMDeliveryFailed,
+				IncludedInPolicyVersion: policyVersion,
+				CanReverify:             false,
+			},
+		})
+		require.NoError(t, err)
+		t.Cleanup(clearOutHostMDMAndroidProfilesTable)
+
+		hostProfiles, err := ds.ListHostMDMAndroidProfilesPendingOrFailedInstallWithVersion(ctx, hostUUID, int64(*policyVersion))
+		require.NoError(t, err)
+		require.Len(t, hostProfiles, 2)
+		require.ElementsMatch(t,
+			[]*fleet.MDMDeliveryStatus{&fleet.MDMDeliveryPending, &fleet.MDMDeliveryFailed},
+			[]*fleet.MDMDeliveryStatus{hostProfiles[0].Status, hostProfiles[1].Status},
+		)
+		require.Equal(t, fleet.MDMOperationTypeInstall, hostProfiles[0].OperationType)
+		require.EqualValues(t, policyVersion, hostProfiles[0].IncludedInPolicyVersion)
+		require.Equal(t, fleet.MDMOperationTypeInstall, hostProfiles[1].OperationType)
+		require.EqualValues(t, policyVersion, hostProfiles[1].IncludedInPolicyVersion)
+	})
 }
 
 func testBulkDeleteMDMAndroidHostProfiles(t *testing.T, ds *Datastore) {
