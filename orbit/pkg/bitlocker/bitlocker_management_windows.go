@@ -9,7 +9,6 @@ import (
 
 	"github.com/go-ole/go-ole"
 	"github.com/go-ole/go-ole/oleutil"
-	"github.com/scjalliance/comshim"
 )
 
 // Encryption Methods
@@ -117,7 +116,6 @@ func (v *Volume) bitlockerClose() {
 		v.wmiSvc.Release()
 	}
 
-	comshim.Done()
 }
 
 // encrypt encrypts the volume
@@ -282,19 +280,16 @@ func (v *Volume) getProtectorsKeys() (map[string]string, error) {
 
 // bitlockerConnect connects to an encryptable volume in order to manage it.
 func bitlockerConnect(driveLetter string) (Volume, error) {
-	comshim.Add(1)
 	v := Volume{letter: driveLetter}
 
 	unknown, err := oleutil.CreateObject("WbemScripting.SWbemLocator")
 	if err != nil {
-		comshim.Done()
 		return v, fmt.Errorf("createObject: %w", err)
 	}
 	defer unknown.Release()
 
 	v.wmiIntf, err = unknown.QueryInterface(ole.IID_IDispatch)
 	if err != nil {
-		comshim.Done()
 		return v, fmt.Errorf("queryInterface: %w", err)
 	}
 	serviceRaw, err := oleutil.CallMethod(v.wmiIntf, "ConnectServer", nil, `\\.\ROOT\CIMV2\Security\MicrosoftVolumeEncryption`)
@@ -411,7 +406,7 @@ func getBitlockerStatus(targetVolume string) (*EncryptionStatus, error) {
 // Bitlocker Management interface implementation
 /////////////////////////////////////////////////////
 
-func GetRecoveryKeys(targetVolume string) (map[string]string, error) {
+func getRecoveryKeysOnCOMThread(targetVolume string) (map[string]string, error) {
 	// Connect to the volume
 	vol, err := bitlockerConnect(targetVolume)
 	if err != nil {
@@ -428,7 +423,7 @@ func GetRecoveryKeys(targetVolume string) (map[string]string, error) {
 	return keys, nil
 }
 
-func EncryptVolume(targetVolume string) (string, error) {
+func encryptVolumeOnCOMThread(targetVolume string) (string, error) {
 	// Connect to the volume
 	vol, err := bitlockerConnect(targetVolume)
 	if err != nil {
@@ -460,7 +455,7 @@ func EncryptVolume(targetVolume string) (string, error) {
 	return recoveryKey, nil
 }
 
-func DecryptVolume(targetVolume string) error {
+func decryptVolumeOnCOMThread(targetVolume string) error {
 	// Connect to the volume
 	vol, err := bitlockerConnect(targetVolume)
 	if err != nil {
@@ -476,7 +471,7 @@ func DecryptVolume(targetVolume string) error {
 	return nil
 }
 
-func GetEncryptionStatus() ([]VolumeStatus, error) {
+func getEncryptionStatusOnCOMThread() ([]VolumeStatus, error) {
 	drives, err := getLogicalVolumes()
 	if err != nil {
 		return nil, fmt.Errorf("logical volumen enumeration %w", err)
