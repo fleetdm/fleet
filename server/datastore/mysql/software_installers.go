@@ -512,7 +512,7 @@ func (ds *Datastore) getOrGenerateSoftwareInstallerTitleID(ctx context.Context, 
 
 	// upgrade_code should be set to NULL for non-Windows software, empty or non-empty string for Windows software
 	if payload.Source == "programs" {
-		// try to find by either name or upgrade code, preferring upgrade code
+		// select by either name or upgrade code, preferring upgrade code
 		if payload.UpgradeCode != "" {
 			selectStmt = `SELECT id FROM software_titles WHERE (name = ? AND source = ? AND extension_for = '' AND upgrade_code = '') OR upgrade_code = ? ORDER BY upgrade_code = ? DESC LIMIT 1`
 			selectArgs = []any{payload.Title, payload.Source, payload.UpgradeCode, payload.UpgradeCode}
@@ -551,7 +551,10 @@ func (ds *Datastore) getOrGenerateSoftwareInstallerTitleID(ctx context.Context, 
 			updateStmt = `UPDATE software_titles SET name = ?, upgrade_code = ? WHERE id = ?`
 			updateArgs = []any{payload.Title, payload.UpgradeCode, titleID}
 		}
-		ds.writer(ctx).ExecContext(ctx, updateStmt, updateArgs...)
+		_, err := ds.writer(ctx).ExecContext(ctx, updateStmt, updateArgs...)
+		if err != nil {
+			return 0, err
+		}
 	}
 
 	return titleID, nil
