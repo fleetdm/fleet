@@ -4677,6 +4677,24 @@ func BenchmarkPreprocessUbuntuPythonPackageFilter(b *testing.B) {
 	}
 }
 
+func TestPythonPackageFilterDuplicateUserDirs(t *testing.T) {
+	const swLinux = hostDetailQueryPrefix + "software_linux"
+
+	results := fleet.OsqueryDistributedQueryResults{
+		swLinux: []map[string]string{
+			{"name": "python3-cryptography", "version": "41.0.7-4ubuntu0.1", "source": "deb_packages"},
+			{"name": "cryptography", "version": "41.0.7", "source": "python_packages"},
+			{"name": "cryptography", "version": "41.0.7", "source": "python_packages"},
+		},
+	}
+	statuses := map[string]fleet.OsqueryStatus{swLinux: fleet.StatusOK}
+
+	pythonPackageFilter("ubuntu", results, statuses)
+
+	require.Len(t, results[swLinux], 1, "both duplicate python_packages entries should be removed")
+	require.Equal(t, "python3-cryptography", results[swLinux][0]["name"])
+}
+
 func TestUpdateFleetdVersion(t *testing.T) {
 	const (
 		orbitInfoQuery     = hostDetailQueryPrefix + "orbit_info"
