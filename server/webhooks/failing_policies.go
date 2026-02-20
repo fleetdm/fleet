@@ -3,6 +3,7 @@ package webhooks
 import (
 	"context"
 	"encoding/json"
+	"log/slog"
 	"net/url"
 	"path"
 	"sort"
@@ -13,8 +14,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/platform/endpointer"
-	kitlog "github.com/go-kit/log"
-	"github.com/go-kit/log/level"
 )
 
 // SendFailingPoliciesBatchedPOSTs sends a failing policy to the provided
@@ -28,14 +27,14 @@ func SendFailingPoliciesBatchedPOSTs(
 	serverURL *url.URL,
 	webhookURL *url.URL,
 	now time.Time,
-	logger kitlog.Logger,
+	logger *slog.Logger,
 ) error {
 	hosts, err := failingPoliciesSet.ListHosts(policy.ID)
 	if err != nil {
 		return ctxerr.Wrapf(ctx, err, "listing hosts for failing policies set %d", policy.ID)
 	}
 	if len(hosts) == 0 {
-		level.Debug(logger).Log("msg", "no hosts", "policyID", policy.ID)
+		logger.DebugContext(ctx, "no hosts", "policyID", policy.ID)
 		return nil
 	}
 	// The count may be out of date since it is only updated during the hourly cleanups_then_aggregation cron.
@@ -68,7 +67,7 @@ func SendFailingPoliciesBatchedPOSTs(
 			Policy:       policy,
 			FailingHosts: failingHosts,
 		}
-		level.Debug(logger).Log("payload", payload, "url", server.MaskSecretURLParams(webhookURL.String()), "batch", len(batch))
+		logger.DebugContext(ctx, "sending failing policy batch", "url", server.MaskSecretURLParams(webhookURL.String()), "batch", len(batch))
 
 		// Marshal and duplicate renamed JSON keys (e.g. fleet_id → also team_id)
 		// so that webhook consumers see both the new and deprecated field names.

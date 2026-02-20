@@ -249,7 +249,7 @@ func scanVulnerabilities(
 			if err := webhooks.TriggerVulnerabilitiesWebhook(
 				automationCtx,
 				ds,
-				logger.With("webhook", "vulnerabilities"),
+				logger.SlogLogger().With("webhook", "vulnerabilities"),
 				args,
 				mapper,
 			); err != nil {
@@ -620,7 +620,7 @@ func newAutomationsSchedule(
 			"host_status_webhook",
 			func(ctx context.Context) error {
 				return webhooks.TriggerHostStatusWebhook(
-					ctx, ds, logger.With("automation", "host_status"),
+					ctx, ds, logger.SlogLogger().With("automation", "host_status"),
 				)
 			},
 		),
@@ -680,11 +680,12 @@ func triggerFailingPoliciesAutomation(
 		return fmt.Errorf("parsing appConfig.ServerSettings.ServerURL: %w", err)
 	}
 
-	err = policies.TriggerFailingPoliciesAutomation(ctx, ds, logger, failingPoliciesSet, func(policy *fleet.Policy, cfg policies.FailingPolicyAutomationConfig) error {
+	slogLogger := logger.SlogLogger()
+	err = policies.TriggerFailingPoliciesAutomation(ctx, ds, slogLogger, failingPoliciesSet, func(policy *fleet.Policy, cfg policies.FailingPolicyAutomationConfig) error {
 		switch cfg.AutomationType {
 		case policies.FailingPolicyWebhook:
 			return webhooks.SendFailingPoliciesBatchedPOSTs(
-				ctx, policy, failingPoliciesSet, cfg.HostBatchSize, serverURL, cfg.WebhookURL, time.Now(), logger)
+				ctx, policy, failingPoliciesSet, cfg.HostBatchSize, serverURL, cfg.WebhookURL, time.Now(), slogLogger)
 
 		case policies.FailingPolicyJira:
 			hosts, err := failingPoliciesSet.ListHosts(policy.ID)
