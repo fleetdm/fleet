@@ -3200,18 +3200,6 @@ func GetDetailQueries(
 	return generatedMap
 }
 
-func splitCleanSemicolonSeparated(s string) []string {
-	parts := strings.Split(s, ";")
-	cleaned := make([]string, 0, len(parts))
-	for _, part := range parts {
-		part = strings.TrimSpace(part)
-		if part != "" {
-			cleaned = append(cleaned, part)
-		}
-	}
-	return cleaned
-}
-
 func buildConfigProfilesWindowsQuery(
 	ctx context.Context,
 	logger *slog.Logger,
