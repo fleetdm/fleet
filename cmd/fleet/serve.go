@@ -32,6 +32,7 @@ import (
 	"github.com/fleetdm/fleet/v4/ee/server/service/hostidentity/httpsig"
 	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
 	"github.com/fleetdm/fleet/v4/pkg/scripts"
+	"github.com/fleetdm/fleet/v4/pkg/str"
 	"github.com/fleetdm/fleet/v4/server"
 	"github.com/fleetdm/fleet/v4/server/acl/activityacl"
 	activity_api "github.com/fleetdm/fleet/v4/server/activity/api"
@@ -67,6 +68,7 @@ import (
 	nanomdm_pushsvc "github.com/fleetdm/fleet/v4/server/mdm/nanomdm/push/service"
 	"github.com/fleetdm/fleet/v4/server/platform/endpointer"
 	platform_http "github.com/fleetdm/fleet/v4/server/platform/http"
+	platform_logging "github.com/fleetdm/fleet/v4/server/platform/logging"
 	common_mysql "github.com/fleetdm/fleet/v4/server/platform/mysql"
 	"github.com/fleetdm/fleet/v4/server/pubsub"
 	"github.com/fleetdm/fleet/v4/server/service"
@@ -233,6 +235,22 @@ the way that the Fleet server works.
 			}
 
 			logger := initLogger(config, loggerProvider)
+
+			// If you want to disable any logs by default, this is where to do it.
+			//
+			// For example:
+			// platform_logging.DisableTopic("deprecated-api-keys")
+
+			// Apply log topic overrides from config. Enables run first, then
+			// disables, so disable wins on conflict.
+			// Note that any topic not included in these lists will be considered
+			// enabled if it's encountered in a log.
+			for _, topic := range str.SplitAndTrim(config.Logging.EnableLogTopics, ",", true) {
+				platform_logging.EnableTopic(topic)
+			}
+			for _, topic := range str.SplitAndTrim(config.Logging.DisableLogTopics, ",", true) {
+				platform_logging.DisableTopic(topic)
+			}
 
 			if dev_mode.IsEnabled {
 				createTestBuckets(&config, logger)
