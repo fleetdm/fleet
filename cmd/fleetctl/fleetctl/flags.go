@@ -73,7 +73,7 @@ func enableLogTopicsFlag() cli.Flag {
 	}
 }
 
-func getEnableLogTopics(c *cli.Context) string {
+func getEnabledLogTopics(c *cli.Context) string {
 	return c.String(enableLogTopicsFlagName)
 }
 
@@ -85,17 +85,17 @@ func disableLogTopicsFlag() cli.Flag {
 	}
 }
 
-func getDisableLogTopics(c *cli.Context) string {
+func getDisabledLogTopics(c *cli.Context) string {
 	return c.String(disableLogTopicsFlagName)
 }
 
 // applyLogTopicFlags parses the enable/disable log topic flags and applies them.
 // Enables run first, then disables, so disable wins on conflict.
 func applyLogTopicFlags(c *cli.Context) {
-	for _, topic := range parseLogTopicsList(getEnableLogTopics(c)) {
+	for _, topic := range parseLogTopicsList(getEnabledLogTopics(c)) {
 		logging.EnableTopic(topic)
 	}
-	for _, topic := range parseLogTopicsList(getDisableLogTopics(c)) {
+	for _, topic := range parseLogTopicsList(getDisabledLogTopics(c)) {
 		logging.DisableTopic(topic)
 	}
 }

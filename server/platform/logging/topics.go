@@ -25,15 +25,6 @@ func DisableTopic(name string) {
 	disabledTopicsMu.Unlock()
 }
 
-// SetTopicEnabled enables or disables a topic based on the enabled parameter.
-func SetTopicEnabled(name string, enabled bool) {
-	if enabled {
-		EnableTopic(name)
-	} else {
-		DisableTopic(name)
-	}
-}
-
 // TopicEnabled returns true unless the topic has been explicitly disabled.
 func TopicEnabled(name string) bool {
 	disabledTopicsMu.RLock()

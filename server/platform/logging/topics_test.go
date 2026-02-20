@@ -25,16 +25,6 @@ func TestEnableTopicReenables(t *testing.T) {
 	assert.True(t, TopicEnabled("my-topic"))
 }
 
-func TestSetTopicEnabled(t *testing.T) {
-	t.Cleanup(ResetTopics)
-
-	SetTopicEnabled("my-topic", false)
-	assert.False(t, TopicEnabled("my-topic"))
-
-	SetTopicEnabled("my-topic", true)
-	assert.True(t, TopicEnabled("my-topic"))
-}
-
 func TestResetTopics(t *testing.T) {
 	t.Cleanup(ResetTopics)
 	DisableTopic("a")

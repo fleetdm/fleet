@@ -107,8 +107,6 @@ func TestKitlogAdapterLevels(t *testing.T) {
 }
 
 func TestKitlogSlogWrappers(t *testing.T) {
-	t.Parallel()
-
 	handler := testutils.NewTestHandler()
 	adapter := NewLogger(slog.New(handler))
 

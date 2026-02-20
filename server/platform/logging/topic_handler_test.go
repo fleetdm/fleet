@@ -35,6 +35,21 @@ func TestTopicHandler_DisabledTopicByAttr(t *testing.T) {
 	assert.Empty(t, buf.String())
 }
 
+func TestTopicHandler_DisabledTopicByWithAttr(t *testing.T) {
+	t.Cleanup(ResetTopics)
+	var buf bytes.Buffer
+	logger := newTopicTestLogger(&buf)
+
+	DisableTopic("my-topic")
+	logger = logger.With("log_topic", "my-topic")
+	logger.InfoContext(context.Background(), "should not appear")
+	assert.Empty(t, buf.String())
+
+	// Test overriding the handler topic with a different per-log topic.
+	logger.InfoContext(context.Background(), "should appear", "log_topic", "other-topic")
+	assert.Contains(t, buf.String(), "should appear")
+}
+
 func TestTopicHandler_RespectsBaseLevel(t *testing.T) {
 	t.Cleanup(ResetTopics)
 	var buf bytes.Buffer
