@@ -10,8 +10,6 @@ The amount of recent chatter about [OpenClaw](https://openclaw.im/) seems to be 
 
 This may be the point at which AI technology has finally become attainable and useful for people who would not consider themselves technology-savvy. Powerful, connected, practical. Easy to set up and understand. 
 
-The rush to adoption and enthusiasm is also generating some [healthy skepticism](https://kitzy.com/blog/openclaw-security-dangers/).
-
 ## How OpenClaw works
 
 OpenClaw integrates out-of-the-box with [WhatsApp](https://www.whatsapp.com/), [Telegram](https://telegram.org/), [Discord](https://discord.com/), and Apple's [iMessage](https://support.apple.com/guide/iphone/about-imessage-iph4e9799206/ios). Users talk to their OpenClaw agent via chat. That's not new. What is new is how easy it is to integrate OpenClaw with systems that have never been easy to connect before using only chat (or pictures or audio) as input for AI agents and skills.
@@ -26,6 +24,8 @@ Other OpenClaw benefits:
 - The documentation includes hundreds of pre-built, easy-to-load skills that integrate the agent into 1000's of possible workflows
 
 ## What are the risks of OpenClaw? 
+
+The rush to adoption and enthusiasm is also generating some [healthy skepticism](https://kitzy.com/blog/openclaw-security-dangers/).
 
 Running OpenClaw in your own home on a dedicated computer does provide a basic security advantage. But easing the barrier to entry for technology always presents risks. This is true for individuals running OpenClaw at home and especially true for anyone considering using OpenClaw in the enterprise, where organizations try to limit liability, comply with regulations and laws, and protect investments in assets and people.  
 
