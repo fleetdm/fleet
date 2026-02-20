@@ -3,7 +3,6 @@
 package bitlocker
 
 import (
-	"errors"
 	"fmt"
 	"syscall"
 
@@ -250,30 +249,6 @@ func (v *Volume) getBitlockerStatus() (*EncryptionStatus, error) {
 	return encStatus, nil
 }
 
-// getProtectorsKeys returns the recovery keys for the volume
-// https://learn.microsoft.com/en-us/windows/win32/secprov/getkeyprotectornumericalpassword-win32-encryptablevolume
-func (v *Volume) getProtectorsKeys() (map[string]string, error) {
-	keys, err := getKeyProtectors(v.handle)
-	if err != nil {
-		return nil, fmt.Errorf("getKeyProtectors: %w", err)
-	}
-
-	recoveryKeys := make(map[string]string)
-	for _, k := range keys {
-		var recoveryKey ole.VARIANT
-		_ = ole.VariantInit(&recoveryKey)
-		recoveryKeyResultRaw, err := oleutil.CallMethod(v.handle, "GetKeyProtectorNumericalPassword", k, &recoveryKey)
-		if err != nil {
-			continue // No recovery key for this protector
-		} else if val, ok := recoveryKeyResultRaw.Value().(int32); val != 0 || !ok {
-			continue // No recovery key for this protector
-		}
-		recoveryKeys[k] = recoveryKey.ToString()
-	}
-
-	return recoveryKeys, nil
-}
-
 /////////////////////////////////////////////////////
 // Helper functions
 /////////////////////////////////////////////////////
@@ -321,32 +296,6 @@ func bitlockerConnect(driveLetter string) (Volume, error) {
 func intToPercentage(num int32) string {
 	percentage := float64(num) / 10000.0
 	return fmt.Sprintf("%.2f%%", percentage)
-}
-
-// getKeyProtectors returns the key protectors for the volume
-// https://learn.microsoft.com/en-us/windows/win32/secprov/getkeyprotectors-win32-encryptablevolume
-func getKeyProtectors(item *ole.IDispatch) ([]string, error) {
-	kp := []string{}
-	var keyProtectorResults ole.VARIANT
-	_ = ole.VariantInit(&keyProtectorResults)
-
-	keyIDResultRaw, err := oleutil.CallMethod(item, "GetKeyProtectors", 3, &keyProtectorResults)
-	if err != nil {
-		return nil, fmt.Errorf("unable to get Key Protectors while getting BitLocker info. %s", err.Error())
-	} else if val, ok := keyIDResultRaw.Value().(int32); val != 0 || !ok {
-		return nil, fmt.Errorf("unable to get Key Protectors while getting BitLocker info. Return code %d", val)
-	}
-
-	keyProtectorValues := keyProtectorResults.ToArray().ToValueArray()
-	for _, keyIDItemRaw := range keyProtectorValues {
-		keyIDItem, ok := keyIDItemRaw.(string)
-		if !ok {
-			return nil, errors.New("keyProtectorID wasn't a string")
-		}
-		kp = append(kp, keyIDItem)
-	}
-
-	return kp, nil
 }
 
 // bitsToDrives converts a bit map to a list of drives
@@ -405,23 +354,6 @@ func getBitlockerStatus(targetVolume string) (*EncryptionStatus, error) {
 /////////////////////////////////////////////////////
 // Bitlocker Management interface implementation
 /////////////////////////////////////////////////////
-
-func getRecoveryKeysOnCOMThread(targetVolume string) (map[string]string, error) {
-	// Connect to the volume
-	vol, err := bitlockerConnect(targetVolume)
-	if err != nil {
-		return nil, fmt.Errorf("connecting to the volume: %w", err)
-	}
-	defer vol.bitlockerClose()
-
-	// Get recovery keys
-	keys, err := vol.getProtectorsKeys()
-	if err != nil {
-		return nil, fmt.Errorf("retreving protection keys: %w", err)
-	}
-
-	return keys, nil
-}
 
 func encryptVolumeOnCOMThread(targetVolume string) (string, error) {
 	// Connect to the volume

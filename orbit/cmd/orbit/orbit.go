@@ -1222,12 +1222,11 @@ func main() {
 			orbitClient.RegisterConfigReceiver(update.ApplyWindowsMDMEnrollmentFetcherMiddleware(windowsMDMEnrollmentCommandFrequency, orbitHostInfo.HardwareUUID, orbitClient))
 			comWorker, err := bitlocker.NewCOMWorker()
 			if err != nil {
-				log.Error().Err(err).Msg("failed to create BitLocker COM worker, skipping BitLocker enforcement")
-			} else {
-				defer comWorker.Close()
-				orbitClient.RegisterConfigReceiver(update.ApplyWindowsMDMBitlockerFetcherMiddleware(
-					windowsMDMBitlockerCommandFrequency, orbitClient, comWorker))
+				return fmt.Errorf("create BitLocker COM worker: %w", err)
 			}
+			defer comWorker.Close()
+			orbitClient.RegisterConfigReceiver(update.ApplyWindowsMDMBitlockerFetcherMiddleware(
+				windowsMDMBitlockerCommandFrequency, orbitClient, comWorker))
 		case "linux":
 			orbitClient.RegisterConfigReceiver(luks.New(orbitClient))
 		}
