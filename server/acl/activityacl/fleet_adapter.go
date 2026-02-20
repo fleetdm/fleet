@@ -32,7 +32,6 @@ var (
 	_ activity.AppConfigProvider         = (*FleetServiceAdapter)(nil)
 	_ activity.UpcomingActivityActivator = (*FleetServiceAdapter)(nil)
 	_ activity.WebhookSender             = (*FleetServiceAdapter)(nil)
-	_ activity.URLMasker                 = (*FleetServiceAdapter)(nil)
 )
 
 // UsersByIDs fetches users by their IDs from the Fleet service.
@@ -120,14 +119,4 @@ func (a *FleetServiceAdapter) ActivateNextUpcomingActivity(ctx context.Context, 
 // SendWebhookPayload sends a JSON payload to the given URL using the server's HTTP utility.
 func (a *FleetServiceAdapter) SendWebhookPayload(ctx context.Context, url string, payload any) error {
 	return server.PostJSONWithTimeout(ctx, url, payload)
-}
-
-// MaskSecretURLParams masks sensitive parameters in a URL for safe logging.
-func (a *FleetServiceAdapter) MaskSecretURLParams(rawURL string) string {
-	return server.MaskSecretURLParams(rawURL)
-}
-
-// MaskURLError masks sensitive URL information in an error for safe logging.
-func (a *FleetServiceAdapter) MaskURLError(err error) error {
-	return server.MaskURLError(err)
 }

@@ -8,5 +8,4 @@ type DataProviders interface {
 	AppConfigProvider
 	UpcomingActivityActivator
 	WebhookSender
-	URLMasker
 }

@@ -111,10 +111,6 @@ func (m *mockDataProviders) SendWebhookPayload(ctx context.Context, url string, 
 	return nil
 }
 
-func (m *mockDataProviders) MaskSecretURLParams(rawURL string) string { return rawURL }
-
-func (m *mockDataProviders) MaskURLError(err error) error { return err }
-
 // testSetup holds test dependencies with pre-configured mocks
 type testSetup struct {
 	svc       *Service

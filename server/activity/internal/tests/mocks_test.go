@@ -99,7 +99,3 @@ func (m *mockDataProviders) ActivateNextUpcomingActivity(ctx context.Context, ho
 func (m *mockDataProviders) SendWebhookPayload(ctx context.Context, url string, payload any) error {
 	return nil
 }
-
-func (m *mockDataProviders) MaskSecretURLParams(rawURL string) string { return rawURL }
-
-func (m *mockDataProviders) MaskURLError(err error) error { return err }

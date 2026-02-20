@@ -13,6 +13,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/activity/api"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	eu "github.com/fleetdm/fleet/v4/server/platform/endpointer"
+	platformhttp "github.com/fleetdm/fleet/v4/server/platform/http"
 	kithttp "github.com/go-kit/kit/transport/http"
 )
 
@@ -104,8 +105,8 @@ func (s *Service) fireActivityWebhook(user *api.User, activity api.ActivityDetai
 		)
 		if err != nil {
 			s.logger.Error(
-				fmt.Sprintf("fire activity webhook to %s", s.providers.MaskSecretURLParams(webhookURL)),
-				slog.String("err", s.providers.MaskURLError(err).Error()),
+				fmt.Sprintf("fire activity webhook to %s", platformhttp.MaskSecretURLParams(webhookURL)),
+				slog.String("err", platformhttp.MaskURLError(err).Error()),
 			)
 		}
 	}()

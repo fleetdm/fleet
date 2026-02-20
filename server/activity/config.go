@@ -25,9 +25,3 @@ type UpcomingActivityActivator interface {
 type WebhookSender interface {
 	SendWebhookPayload(ctx context.Context, url string, payload any) error
 }
-
-// URLMasker masks sensitive URL parameters and errors for logging.
-type URLMasker interface {
-	MaskSecretURLParams(rawURL string) string
-	MaskURLError(err error) error
-}
