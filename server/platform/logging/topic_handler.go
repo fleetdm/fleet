@@ -22,10 +22,7 @@ func NewTopicFilterHandler(base slog.Handler) *TopicFilterHandler {
 
 // Enabled reports whether the handler handles records at the given level.
 func (h *TopicFilterHandler) Enabled(ctx context.Context, level slog.Level) bool {
-	if !h.base.Enabled(ctx, level) {
-		return false
-	}
-	return true
+	return h.base.Enabled(ctx, level)
 }
 
 // Handle processes the log record. It performs a defensive re-check of the
