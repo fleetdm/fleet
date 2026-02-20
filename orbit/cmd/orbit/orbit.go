@@ -33,6 +33,7 @@ import (
 	httpsigproxy "github.com/fleetdm/fleet/v4/ee/orbit/pkg/httpsigproxy"
 	"github.com/fleetdm/fleet/v4/ee/orbit/pkg/securehw"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/augeas"
+	"github.com/fleetdm/fleet/v4/orbit/pkg/bitlocker"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/build"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/constant"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/execuser"
@@ -1219,7 +1220,13 @@ func main() {
 
 		case "windows":
 			orbitClient.RegisterConfigReceiver(update.ApplyWindowsMDMEnrollmentFetcherMiddleware(windowsMDMEnrollmentCommandFrequency, orbitHostInfo.HardwareUUID, orbitClient))
-			orbitClient.RegisterConfigReceiver(update.ApplyWindowsMDMBitlockerFetcherMiddleware(windowsMDMBitlockerCommandFrequency, orbitClient))
+			comWorker, err := bitlocker.NewCOMWorker()
+			if err != nil {
+				return fmt.Errorf("create BitLocker COM worker: %w", err)
+			}
+			defer comWorker.Close()
+			orbitClient.RegisterConfigReceiver(update.ApplyWindowsMDMBitlockerFetcherMiddleware(
+				windowsMDMBitlockerCommandFrequency, orbitClient, comWorker))
 		case "linux":
 			orbitClient.RegisterConfigReceiver(luks.New(orbitClient))
 		}
