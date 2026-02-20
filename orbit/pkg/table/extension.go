@@ -13,6 +13,7 @@ import (
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/filecontents"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/firefox_preferences"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/fleetd_logs"
+	"github.com/fleetdm/fleet/v4/orbit/pkg/table/fleetd_macadmins_extensions"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/mcp_listening_servers"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/sntp_request"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/yaml_to_json"
@@ -147,6 +148,7 @@ func OrbitDefaultTables(opts PluginOpts) []osquery.OsqueryPlugin {
 		// Orbit extensions.
 		table.NewPlugin("sntp_request", sntp_request.Columns(), sntp_request.GenerateFunc),
 		fleetd_logs.TablePlugin(),
+		fleetd_macadmins_extensions.TablePlugin(),
 
 		// Note: the logger passed here and to all other tables is the global logger from zerolog.
 		// This logger has already been configured with some required settings in

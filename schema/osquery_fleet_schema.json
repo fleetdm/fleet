@@ -11897,6 +11897,27 @@
     "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/fleetd_logs.yml"
   },
   {
+    "name": "fleetd_macadmins_extensions",
+    "platforms": [
+      "darwin",
+      "linux",
+      "windows"
+    ],
+    "description": "Returns the version of the [macadmins/osquery-extension](https://github.com/macadmins/osquery-extension) that fleetd was built with.",
+    "columns": [
+      {
+        "name": "version",
+        "type": "text",
+        "required": false,
+        "description": "Version of the macadmins/osquery-extension module built into fleetd."
+      }
+    ],
+    "notes": "This table is not a core osquery table. It is included as part of Fleet's agent ([fleetd](https://fleetdm.com/docs/get-started/anatomy#fleetd)).",
+    "evented": false,
+    "url": "https://fleetdm.com/tables/fleetd_macadmins_extensions",
+    "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/fleetd_macadmins_extensions.yml"
+  },
+  {
     "name": "fleetd_pacman_packages",
     "platforms": [
       "linux"
