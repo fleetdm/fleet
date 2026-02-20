@@ -17,6 +17,9 @@ org_settings:
   org_info:
     org_name: "My organization"
     # org_logo_url: ""
+  #TODO: turn on gitops mode
+  # TODO: in `labels`, include example of how to turn on exception for gitops mode if labels are managed outside of git
+  # TODO: in `software`, include example of how to turn on exception for gitops mode if labels are managed outside of git
   server_settings:
     server_url: https://dogfood.fleetdm.com # This seems important and something everyone MUST configure, right?   Needs to be emphasized.  What happens if omitted?  Probably bad thigns.  This should warn if you don't have it set.
   # To use single-sign on, todo finish  (also mention you have to go into workstations and turn this on too)
