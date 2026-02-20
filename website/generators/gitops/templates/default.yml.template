@@ -11,14 +11,6 @@
 #
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
 
-labels:
-  - path: ./labels/apple-silicon-macos-hosts.yml
-  - path: ./labels/arm-based-windows-hosts.yml
-  - path: ./labels/debian-based-linux-hosts.yml
-  - path: ./labels/x86-based-windows-hosts.yml
-  # - paths: ./labels/*.yml #FUTURE
-policies: # FUTURE: This key will not be required in default.yml and will be omitted by default. (Will still be required in fleet manifests.)
-reports: # FUTURE: This key will not be required in default.yml and will be omitted by default. (Will still be required in fleet manifests.)
 org_settings: 
   org_info:
     org_name: "My organization"
@@ -53,10 +45,22 @@ org_settings:
           - "💻 Workstations"
           - "📱🏢 Employee-issued mobile devices"
           - "📱🔐 Personal mobile devices"
-controls:
-  # (This is a system-wide setting that must be configured at the top level. uncomment to…
-    # TODO finish
-  # macos_migration:
-  #   enable: true
-  #   mode: voluntary # Change this to "forced" closer to the deadline.
-  #   webhook_url: "https://your-custom-webhook-or-one-provided-off-the-shelf-by-fleet-for-the-mdm-you-are-coming-from.example.com" # Only relevant for devices running macOS <v26: When end users click "Migrate to Fleet", this webhook is triggered.  By convention it looks up the device and unmanages it in the old MDM, then enrolls the device in Fleet.
+  secrets: # « FUTURE: Eliminate the need for this required key.
+    - secret: "" # TODO: What happens if omitted?
+# Uncomment to…
+# controls:
+#   # (This is a system-wide setting that must be configured at the top level. uncomment to…
+#     # TODO finish
+#   # macos_migration:
+#   #   enable: true
+#   #   mode: voluntary # Change this to "forced" closer to the deadline.
+#   #   webhook_url: "https://your-custom-webhook-or-one-provided-off-the-shelf-by-fleet-for-the-mdm-you-are-coming-from.example.com" # Only relevant for devices running macOS <v26: When end users click "Migrate to Fleet", this webhook is triggered.  By convention it looks up the device and unmanages it in the old MDM, then enrolls the device in Fleet.
+labels:
+  # - yml_files_in_folder: ./labels #FUTURE: stat disk and auto-include all yml files (maybe slightly easier, since fewer edge cases)
+                                    #        …or else support globs in separate `paths` directive (e.g. `- paths: ./labels/*.yml`)
+  - path: ./labels/apple-silicon-macos-hosts.yml
+  - path: ./labels/arm-based-windows-hosts.yml
+  - path: ./labels/debian-based-linux-hosts.yml
+  - path: ./labels/x86-based-windows-hosts.yml
+policies: # FUTURE: This key will not be required in default.yml and will be omitted by default. (Will still be required in fleet manifests.)
+reports: # FUTURE: This key will not be required in default.yml and will be omitted by default. (Will still be required in fleet manifests.)

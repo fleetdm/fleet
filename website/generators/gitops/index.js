@@ -58,7 +58,6 @@ module.exports = {
     './it-and-security/platforms/all/': { folder: {} },
     './it-and-security/platforms/all/reports/.gitkeep': { copy: './gitkeep.template' },
     './it-and-security/platforms/all/policies/.gitkeep': { copy: './gitkeep.template' },
-    './it-and-security/default.yml': { copy: './default.yml.template' },
 
     // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
     // • e.g. create a folder:

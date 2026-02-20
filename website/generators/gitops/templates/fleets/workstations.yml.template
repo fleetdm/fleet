@@ -7,6 +7,10 @@ controls:
   enable_disk_encryption: true
 
   # to enable… (for os stuff)
+  macos_updates:
+    deadline:
+    minimum_version:
+    update_new_hosts: true
 
   macos_setup:
     # To enable SSO, uncomment this
