@@ -244,6 +244,10 @@ func (ds *Datastore) NewQuery(
 	if err := query.Verify(); err != nil {
 		return nil, ctxerr.Wrap(ctx, err)
 	}
+	now := time.Now().UTC().Truncate(time.Second)
+	query.CreatedAt = now
+	query.UpdatedAt = now
+
 	queryStatement := `
 		INSERT INTO queries (
 			name,
@@ -259,8 +263,10 @@ func (ds *Datastore) NewQuery(
 			schedule_interval,
 			automations_enabled,
 			logging_type,
-			discard_data
-		) VALUES ( ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ? )
+			discard_data,
+			created_at,
+			updated_at
+		) VALUES ( ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ? )
 	`
 
 	result, err := ds.writer(ctx).ExecContext(
@@ -280,6 +286,8 @@ func (ds *Datastore) NewQuery(
 		query.AutomationsEnabled,
 		query.Logging,
 		query.DiscardData,
+		query.CreatedAt,
+		query.UpdatedAt,
 	)
 
 	if err != nil && IsDuplicate(err) {
@@ -291,9 +299,6 @@ func (ds *Datastore) NewQuery(
 	id, _ := result.LastInsertId()
 	query.ID = uint(id) //nolint:gosec // dismiss G115
 	query.Packs = []fleet.Pack{}
-	now := time.Now().UTC().Truncate(time.Second)
-	query.CreatedAt = now
-	query.UpdatedAt = now
 
 	if err := ds.updateQueryLabels(ctx, query); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "saving labels for query")
