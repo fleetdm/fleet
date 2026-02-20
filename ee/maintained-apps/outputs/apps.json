@@ -1262,6 +1262,13 @@
       "description": "Proxifier is an app that allows network applications that do not support working through proxy servers to operate through a SOCKS or HTTPS proxy and chains."
     },
     {
+      "name": "PuTTY",
+      "slug": "putty/windows",
+      "platform": "windows",
+      "unique_identifier": "PuTTY release 0.83 (x64)",
+      "description": "PuTTY is a free, open-source SSH and Telnet client for Windows."
+    },
+    {
       "name": "PyCharm Community Edition",
       "slug": "pycharm-ce/darwin",
       "platform": "darwin",
