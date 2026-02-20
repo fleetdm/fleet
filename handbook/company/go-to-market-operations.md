@@ -47,6 +47,15 @@ The goal of the 🌐 Buy online group is to provide the best possible customer e
 | DRI                               | [Sam Pfluger](https://www.linkedin.com/in/sampfluger88/) _([@sampfluger88](https://github.com/sampfluger88))_
 
 
+## Go-To-Market tools
+
+Go-To-Market tools at Fleet will be vetted by the Head of GTM Architecture, onboarded by the company, and made available to all necessary stakeholders.
+
+Any GTM tool that someone wants to explore using in Sales, Marketing, or Customer Success — including any tool we want to integrate with Salesforce or use its data in Salesforce — must first be approved by the Head of GTM Architecture before use or evaluation begins.
+
+To request approval for a new GTM tool, [create a GitHub issue](https://github.com/fleetdm/confidential/issues/new?assignees=sampfluger88&labels=&title=GTM+tool+approval+request%3A+%5Btool+name%5D&body=**Tool+name**%3A%0A**Use+case**%3A%0A**Requested+by**%3A%0A**Salesforce+integration+needed%3F**%3A) and assign it to @sampfluger88.
+
+
 ## Customer support service level objectives (SLOs)
 
 **Fleet Free:**
