@@ -297,13 +297,6 @@ func (svc *Service) getWindowsSetupExperienceStatus(ctx context.Context, host *f
 		}
 	}
 
-	if len(profilesMissingInstallation) == 0 {
-		// Remove blocking ESP page to show browser window
-		if err := svc.RemoveBlockingESP(ctx, host.UUID); err != nil {
-			return nil, ctxerr.Wrap(ctx, err, "failed to remove blocking ESP for windows setup experience")
-		}
-	}
-
 	// get status of software installs and script execution
 	res, err := svc.ds.ListSetupExperienceResultsByHostUUID(ctx, host.UUID)
 	if err != nil {

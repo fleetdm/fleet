@@ -1423,7 +1423,6 @@ type Service interface {
 	UnenrollMDM(ctx context.Context, hostID uint) error
 
 	ReleaseWindowsDevice(ctx context.Context, hostUUID string) error
-	RemoveBlockingESP(ctx context.Context, hostUUID string) error
 }
 
 type KeyValueStore interface {
