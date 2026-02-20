@@ -10,7 +10,7 @@ The amount of recent chatter about [OpenClaw](https://openclaw.im/) seems to be 
 
 This may be the point at which AI technology has finally become attainable and useful for people who would not consider themselves technology-savvy. Powerful, connected, practical. Easy to set up and understand. 
 
-But, the rush to adoption and enthusiasm is also generating some [healthy skepticism](https://kitzy.com/blog/openclaw-security-dangers/).
+The rush to adoption and enthusiasm is also generating some [healthy skepticism](https://kitzy.com/blog/openclaw-security-dangers/).
 
 ## How OpenClaw works
 
