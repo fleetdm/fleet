@@ -840,6 +840,7 @@ const DeviceUserPage = ({
             onResolveLater={
               globalConfig?.features?.enable_conditional_access &&
               globalConfig.features?.enable_conditional_access_bypass &&
+              // this should be if ANY of the host's policies are failing and this is true(?)
               selectedPolicy?.conditional_access_bypass_enabled
                 ? () => {
                     onCancelPolicyDetailsModal();
