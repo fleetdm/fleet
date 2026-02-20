@@ -543,14 +543,10 @@ func (ds *Datastore) getOrGenerateSoftwareInstallerTitleID(ctx context.Context, 
 		return 0, err
 	}
 
-	// update the upgrade code for a title, and name if this installer is a fleet maintained app
+	// update the upgrade code for a title, since optimisticGetOrInsert uses only the select if it already exists
 	if payload.Source == "programs" && payload.UpgradeCode != "" {
 		updateStmt := `UPDATE software_titles SET upgrade_code = ? WHERE id = ?`
 		updateArgs := []any{payload.UpgradeCode, titleID}
-		if payload.FleetMaintainedAppID != nil {
-			updateStmt = `UPDATE software_titles SET name = ?, upgrade_code = ? WHERE id = ?`
-			updateArgs = []any{payload.Title, payload.UpgradeCode, titleID}
-		}
 		_, err := ds.writer(ctx).ExecContext(ctx, updateStmt, updateArgs...)
 		if err != nil {
 			return 0, err

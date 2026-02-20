@@ -2502,7 +2502,6 @@ func testGetOrGenerateSoftwareInstallerTitleID(t *testing.T, ds *Datastore) {
 		{Name: "Win Title 3", Version: "11.0", Source: "programs", UpgradeCode: ptr.String("")},
 		{Name: "Win Title 4", Version: "11.0", Source: "programs", UpgradeCode: ptr.String("12345")},
 		{Name: "Win Title 5", Version: "11.0", Source: "programs", UpgradeCode: ptr.String("ABCDEF")},
-		{Name: "Win Title 6", Version: "11.0", Source: "programs", UpgradeCode: ptr.String("GHIJKL")},
 	}
 
 	_, err := ds.UpdateHostSoftware(ctx, host1.ID, software1)
@@ -2642,18 +2641,6 @@ func testGetOrGenerateSoftwareInstallerTitleID(t *testing.T, ds *Datastore) {
 			expectedName:        "Win Title 5",
 			expectedSource:      "programs",
 			expectedUpgradeCode: ptr.String("ABCDEF"),
-		},
-		{
-			name: "installer: has upgrade code and FMA, existing title: different name, same upgrade code",
-			payload: &fleet.UploadSoftwareInstallerPayload{
-				Title:                "New Name",
-				Source:               "programs",
-				UpgradeCode:          "GHIJKL",
-				FleetMaintainedAppID: ptr.Uint(1), // FMAs should overwrite name for upgrade code
-			},
-			expectedName:        "New Name",
-			expectedSource:      "programs",
-			expectedUpgradeCode: ptr.String("GHIJKL"),
 		},
 	}
 
