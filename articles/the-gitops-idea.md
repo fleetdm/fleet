@@ -58,6 +58,8 @@ You don't need specific reasons or products to apply GitOps thinking to your wor
 
 To get a feel for how GitOps fits with device management, Allen Houchins has written an excellent article about his journey to GitOps adoption as head of IT for Fleet: [What I have learned from managing devices with GitOps](https://fleetdm.com/guides/what-i-have-learned-from-managing-devices-with-gitops).
 
+Want to learn even more? Check out the source: https://www.gitops.tech/
+
 <meta name="articleTitle" value="The GitOps idea">
 <meta name="authorFullName" value="Brock Walters">
 <meta name="authorGitHubUsername" value="nonpunctual">
