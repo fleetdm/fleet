@@ -5,14 +5,14 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log/slog"
 	"net/http"
 	"time"
-
-	"log/slog"
 
 	"github.com/cenkalti/backoff/v4"
 	"github.com/fleetdm/fleet/v4/server/activity/api"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
+	eu "github.com/fleetdm/fleet/v4/server/platform/endpointer"
 	kithttp "github.com/go-kit/kit/transport/http"
 )
 
@@ -21,6 +21,11 @@ func (s *Service) NewActivity(ctx context.Context, user *api.User, activity api.
 	detailsBytes, err := json.Marshal(activity)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "marshaling activity details")
+	}
+	// Duplicate JSON keys so that stored activity details include both the
+	// old and new field names (e.g. team_id and fleet_id).
+	if rules := eu.ExtractAliasRules(activity); len(rules) > 0 {
+		detailsBytes = eu.DuplicateJSONKeys(detailsBytes, rules, eu.DuplicateJSONKeysOpts{Compact: true})
 	}
 	timestamp := time.Now()
 

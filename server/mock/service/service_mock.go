@@ -12,7 +12,7 @@ import (
 	"sync"
 	"time"
 
-	activity_api "github.com/fleetdm/fleet/v4/server/activity/api"
+	"github.com/fleetdm/fleet/v4/server/activity/api"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/version"
 	"github.com/fleetdm/fleet/v4/server/websocket"
@@ -390,7 +390,7 @@ type ModifyTeamEnrollSecretsFunc func(ctx context.Context, teamID uint, secrets 
 
 type ApplyTeamSpecsFunc func(ctx context.Context, specs []*fleet.TeamSpec, applyOpts fleet.ApplyTeamSpecOptions) (map[string]uint, error)
 
-type SetActivityServiceFunc func(activitySvc activity_api.NewActivityService)
+type SetActivityServiceFunc func(activitySvc api.NewActivityService)
 
 type NewActivityFunc func(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails) error
 
@@ -3479,7 +3479,7 @@ func (s *Service) ApplyTeamSpecs(ctx context.Context, specs []*fleet.TeamSpec, a
 	return s.ApplyTeamSpecsFunc(ctx, specs, applyOpts)
 }
 
-func (s *Service) SetActivityService(activitySvc activity_api.NewActivityService) {
+func (s *Service) SetActivityService(activitySvc api.NewActivityService) {
 	s.mu.Lock()
 	s.SetActivityServiceFuncInvoked = true
 	s.mu.Unlock()
