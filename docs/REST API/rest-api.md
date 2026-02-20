@@ -2844,6 +2844,7 @@ None.
 - [Get host by device token](#get-host-by-device-token)
 - [Delete host](#delete-host)
 - [Refetch host](#refetch-host)
+- [Refetch host by Fleet Desktop token](#refetch-host-by-fleet-desktop-token)
 - [Update hosts' team](#update-hosts-team)
 - [Update hosts' team by filter](#update-hosts-team-by-filter)
 - [Turn off host's MDM](#turn-off-hosts-mdm)
@@ -4140,23 +4141,41 @@ Deletes the specified host from Fleet. Note that a deleted host will fail authen
 
 `Status: 200`
 
-
 ### Refetch host
 
 Flags the host details, labels and policies to be refetched the next time the host checks in for distributed queries. Note that we cannot be certain when the host will actually check in and update the query results. Further requests to the host APIs will indicate that the refetch has been requested through the `refetch_requested` field on the host object.
 
-`POST /api/v1/fleet/hosts/:id/refetch` or `POST /api/v1/fleet/device/:token/refetch`
+`POST /api/v1/fleet/hosts/:id/refetch`
 
 #### Parameters
 
 | Name | Type    | In   | Description                  |
 | ---- | ------- | ---- | ---------------------------- |
-| id   | integer | path | The host's id. Required if `token` not specified. |
-| token | string | path | The host's [Fleet Desktop token](https://fleetdm.com/guides/fleet-desktop#secure-fleet-desktop). Required if `id` not specified. |
+| id   | integer | path | **Required** The host's id.  |
 
 #### Example
 
 `POST /api/v1/fleet/hosts/121/refetch`
+
+##### Default response
+
+`Status: 200`
+
+### Refetch host by Fleet Desktop token
+
+Same as [Refetch host](#refetch-host) except with the Fleet Desktop token instead the host ID.
+
+`POST /api/v1/fleet/device/:token/refetch`
+
+#### Parameters
+
+| Name | Type    | In   | Description                  |
+| ---- | ------- | ---- | ---------------------------- |
+| token | string | path | **Required**. The host's [Fleet Desktop token](https://fleetdm.com/guides/fleet-desktop#secure-fleet-desktop). |
+
+#### Example
+
+`POST /api/v1/fleet/device/121/refetch`
 
 ##### Default response
 
