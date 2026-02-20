@@ -309,38 +309,34 @@ const Vitals = ({
     }
 
     // Device identity
-    if (!(isAndroidHost && mdm && mdm.enrollment_status !== "On (personal)")) {
-      if (mdm && isBYODAccountDrivenUserEnrollment(mdm.enrollment_status)) {
-        //  Personal (BYOD) devices do not report their serial numbers, so show the enrollment id instead.
-        vitals.push({
-          sortKey: "Enrollment ID",
-          element: (
-            <DataSet
-              key="enrollment-id"
-              title={
-                <TooltipWrapper tipContent="Enrollment ID is a unique identifier for personal hosts. Personal (BYOD) devices don't report their serial numbers. The Enrollment ID changes with each enrollment.">
-                  Enrollment ID
-                </TooltipWrapper>
-              }
-              value={<TooltipTruncatedText value={vitalsData.uuid} />}
-            />
-          ),
-        });
-      } else {
-        // for all other host types, show the serial number
-        vitals.push({
-          sortKey: "Serial number",
-          element: (
-            <DataSet
-              key="serial-number"
-              title="Serial number"
-              value={
-                <TooltipTruncatedText value={vitalsData.hardware_serial} />
-              }
-            />
-          ),
-        });
-      }
+    if (mdm && isBYODAccountDrivenUserEnrollment(mdm.enrollment_status)) {
+      //  Personal (BYOD) devices do not report their serial numbers, so show the enrollment id instead.
+      vitals.push({
+        sortKey: "Enrollment ID",
+        element: (
+          <DataSet
+            key="enrollment-id"
+            title={
+              <TooltipWrapper tipContent="Enrollment ID is a unique identifier for personal hosts. Personal (BYOD) devices don't report their serial numbers. The Enrollment ID changes with each enrollment.">
+                Enrollment ID
+              </TooltipWrapper>
+            }
+            value={<TooltipTruncatedText value={vitalsData.uuid} />}
+          />
+        ),
+      });
+    } else {
+      // for all other host types, show the serial number
+      vitals.push({
+        sortKey: "Serial number",
+        element: (
+          <DataSet
+            key="serial-number"
+            title="Serial number"
+            value={<TooltipTruncatedText value={vitalsData.hardware_serial} />}
+          />
+        ),
+      });
     }
 
     // Hardware model
