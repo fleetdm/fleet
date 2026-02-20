@@ -218,8 +218,8 @@ func TestHostSearchLike(t *testing.T) {
 			inParams:  []interface{}{},
 			match:     "foobar",
 			columns:   []string{"hostname"},
-			outSQL:    "SELECT * FROM HOSTS h WHERE TRUE AND (hostname LIKE ?)",
-			outParams: []interface{}{"%foobar%"},
+			outSQL:    "SELECT * FROM HOSTS h WHERE TRUE AND (hostname LIKE ? OR ( EXISTS (SELECT 1 FROM host_emails he WHERE he.host_id = h.id AND he.email LIKE ?)))",
+			outParams: []interface{}{"%foobar%", "%foobar%"},
 		},
 		{
 			inSQL:     "SELECT * FROM HOSTS h WHERE 1=1",
@@ -233,7 +233,7 @@ func TestHostSearchLike(t *testing.T) {
 
 	for _, tt := range testCases {
 		t.Run("", func(t *testing.T) {
-			sql, params, _ := hostSearchLike(tt.inSQL, tt.inParams, tt.match, tt.columns...)
+			sql, params := hostSearchLike(tt.inSQL, tt.inParams, tt.match, tt.columns...)
 			assert.Equal(t, tt.outSQL, sql)
 			assert.Equal(t, tt.outParams, params)
 		})
