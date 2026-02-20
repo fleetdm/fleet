@@ -1,7 +1,7 @@
 {
   "versions": [
     {
-      "version": "4.6",
+      "version": "4.6.1",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.mothersruin.SuspiciousPackage';"
       },
