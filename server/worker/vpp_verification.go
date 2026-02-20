@@ -86,6 +86,6 @@ func QueueVPPInstallVerificationJob(ctx context.Context, ds fleet.Datastore, log
 		return ctxerr.Wrap(ctx, err, "queueing job")
 	}
 
-	logger.DebugContext(ctx, "queued VPP install verification job", "job_id", job.ID, "job_name", appleMDMJobName, "task", args.Task)
+	logger.DebugContext(ctx, "queued VPP install verification job", "job_id", job.ID, "job_name", AppleSoftwareJobName, "task", args.Task)
 	return nil
 }
