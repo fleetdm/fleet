@@ -12,7 +12,7 @@ import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
 import { SetupExperiencePlatform } from "interfaces/platform";
 import AndroidLatestVersionWithTooltip from "components/MDM/AndroidLatestVersionWithTooltip";
 
-type ISelectSoftwareTableConfig = Column<ISoftwareTitle>;
+type IInstallSoftwareTableConfig = Column<ISoftwareTitle>;
 type ITableStringCellProps = IStringCellProps<ISoftwareTitle>;
 type ISelectionCellProps = CellProps<ISoftwareTitle>;
 
@@ -31,9 +31,10 @@ const getSetupExperienceLinuxPackageCopy = (source: SoftwareSource) => {
 
 const generateTableConfig = (
   platform: SetupExperiencePlatform,
-  onSelectSoftware: (select: boolean, id: number) => void
-): ISelectSoftwareTableConfig[] => {
-  const headerConfigs: ISelectSoftwareTableConfig[] = [
+  onSelectSoftware: (select: boolean, id: number) => void,
+  manualAgentInstallBlockingSoftware = false
+): IInstallSoftwareTableConfig[] => {
+  const headerConfigs: IInstallSoftwareTableConfig[] = [
     {
       id: "selection",
       disableSortBy: true,
@@ -46,13 +47,17 @@ const generateTableConfig = (
             cellProps.row.toggleRowSelected();
           },
         };
+
         return (
           <GitOpsModeTooltipWrapper
             position="right"
             tipOffset={6}
             fixedPositionStrategy
             renderChildren={(disableChildren) => (
-              <Checkbox disabled={disableChildren} {...checkboxProps} />
+              <Checkbox
+                disabled={disableChildren || manualAgentInstallBlockingSoftware}
+                {...checkboxProps}
+              />
             )}
           />
         );

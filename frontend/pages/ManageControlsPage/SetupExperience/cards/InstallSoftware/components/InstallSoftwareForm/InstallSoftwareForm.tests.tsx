@@ -1,6 +1,6 @@
 import React from "react";
-import { render, screen, waitFor } from "@testing-library/react";
-import { renderWithSetup } from "test/test-utils";
+import { screen, waitFor } from "@testing-library/react";
+import { createMockRouter, createCustomRenderer } from "test/test-utils";
 import { noop } from "lodash";
 import { SETUP_EXPERIENCE_PLATFORMS } from "interfaces/platform";
 
@@ -9,43 +9,48 @@ import {
   createMockSoftwareTitle,
 } from "__mocks__/softwareMock";
 
-import AddInstallSoftware from "./AddInstallSoftware";
+import InstallSoftwareForm from "./InstallSoftwareForm";
 
-describe("AddInstallSoftware", () => {
+const render = createCustomRenderer({ withBackendMock: true });
+
+describe("InstallSoftware", () => {
   it("should render the expected message if there are no software titles to select from", () => {
     render(
-      <AddInstallSoftware
+      <InstallSoftwareForm
         savedRequireAllSoftwareMacOS={false}
         currentTeamId={1}
         softwareTitles={null}
-        onAddSoftware={noop}
         hasManualAgentInstall={false}
         platform="macos"
+        router={createMockRouter()}
+        refetchSoftwareTitles={noop}
       />
     );
 
-    expect(screen.getByText(/you can add software on the/i)).toBeVisible();
+    expect(screen.getByText(/No software available to install/i)).toBeVisible();
+    expect(screen.getByRole("button", { name: "Add software" })).toBeVisible();
   });
 
   it("should render the correct messaging when there are software titles but none have been selected to install at setup", () => {
     render(
-      <AddInstallSoftware
+      <InstallSoftwareForm
         savedRequireAllSoftwareMacOS={false}
         currentTeamId={1}
         softwareTitles={[createMockSoftwareTitle(), createMockSoftwareTitle()]}
-        onAddSoftware={noop}
         hasManualAgentInstall={false}
         platform="macos"
+        router={createMockRouter()}
+        refetchSoftwareTitles={noop}
       />
     );
 
-    expect(screen.getByText(/No software selected/)).toBeVisible();
-    expect(screen.queryByRole("button", { name: "Add software" })).toBeNull();
+    expect(screen.getByText(/0 software items/)).toBeVisible();
+    expect(screen.getByText(/installed during setup/)).toBeVisible();
   });
 
   it("should render the correct messaging when there are software titles that have been selected to install at setup", async () => {
-    const { user } = renderWithSetup(
-      <AddInstallSoftware
+    const { user } = render(
+      <InstallSoftwareForm
         savedRequireAllSoftwareMacOS={false}
         currentTeamId={1}
         softwareTitles={[
@@ -63,22 +68,15 @@ describe("AddInstallSoftware", () => {
           ),
           createMockSoftwareTitle(),
         ]}
-        onAddSoftware={noop}
         hasManualAgentInstall={false}
         platform="macos"
+        router={createMockRouter()}
+        refetchSoftwareTitles={noop}
       />
     );
 
-    expect(
-      screen.getByText(
-        (_, element) =>
-          element?.textContent ===
-          "2 software items will be installed during setup."
-      )
-    ).toBeVisible();
-    expect(
-      screen.getByRole("button", { name: "Select software" })
-    ).toBeVisible();
+    expect(screen.getByText(/2 software items/)).toBeVisible();
+    expect(screen.getByText(/installed during setup/)).toBeVisible();
 
     await user.hover(screen.getByText("installed during setup"));
 
@@ -91,8 +89,8 @@ describe("AddInstallSoftware", () => {
   });
 
   it("should render the correct messaging for Android when there are software titles that have been selected to install at setup", async () => {
-    const { user } = renderWithSetup(
-      <AddInstallSoftware
+    const { user } = render(
+      <InstallSoftwareForm
         savedRequireAllSoftwareMacOS={false}
         currentTeamId={1}
         softwareTitles={[
@@ -110,22 +108,15 @@ describe("AddInstallSoftware", () => {
           ),
           createMockSoftwareTitle(),
         ]}
-        onAddSoftware={noop}
         hasManualAgentInstall={false}
         platform="android"
+        router={createMockRouter()}
+        refetchSoftwareTitles={noop}
       />
     );
 
-    expect(
-      screen.getByText(
-        (_, element) =>
-          element?.textContent ===
-          "2 software items will be installed during setup."
-      )
-    ).toBeVisible();
-    expect(
-      screen.getByRole("button", { name: "Select software" })
-    ).toBeVisible();
+    expect(screen.getByText(/2 software items/)).toBeVisible();
+    expect(screen.getByText(/installed during setup/)).toBeVisible();
 
     await user.hover(screen.getByText("installed during setup"));
 
@@ -137,7 +128,7 @@ describe("AddInstallSoftware", () => {
 
   it('should render the "Cancel setup if software install fails" form for macos platform', async () => {
     render(
-      <AddInstallSoftware
+      <InstallSoftwareForm
         savedRequireAllSoftwareMacOS
         currentTeamId={1}
         softwareTitles={[
@@ -155,17 +146,13 @@ describe("AddInstallSoftware", () => {
           ),
           createMockSoftwareTitle(),
         ]}
-        onAddSoftware={noop}
         hasManualAgentInstall={false}
         platform="macos"
+        router={createMockRouter()}
+        refetchSoftwareTitles={noop}
       />
     );
 
-    const showAdvancedOptionsButton = screen.getByRole("button", {
-      name: "Show advanced options",
-    });
-    expect(showAdvancedOptionsButton).toBeVisible();
-    showAdvancedOptionsButton.click();
     await waitFor(() => {
       const checkbox = screen.getByRole("checkbox", {
         name: /Cancel setup if software install fails/,
@@ -177,45 +164,47 @@ describe("AddInstallSoftware", () => {
 
   it("should disable adding software for macos with manual agent install", async () => {
     render(
-      <AddInstallSoftware
+      <InstallSoftwareForm
         savedRequireAllSoftwareMacOS={false}
         currentTeamId={1}
         softwareTitles={[createMockSoftwareTitle(), createMockSoftwareTitle()]}
-        onAddSoftware={noop}
         hasManualAgentInstall
         platform="macos"
+        router={createMockRouter()}
+        refetchSoftwareTitles={noop}
       />
     );
 
-    const addSoftwareButton = screen.getByRole("button", {
-      name: "Select software",
+    const saveButton = screen.getByRole("button", {
+      name: "Save",
     });
-    expect(addSoftwareButton).toBeVisible();
-    expect(addSoftwareButton).toBeDisabled();
+    expect(saveButton).toBeVisible();
+    expect(saveButton).toBeDisabled();
   });
 
   it.each(SETUP_EXPERIENCE_PLATFORMS.filter((val) => val !== "macos"))(
     "should allow adding software for %s platform with manual agent install",
     async (platform) => {
       render(
-        <AddInstallSoftware
+        <InstallSoftwareForm
           savedRequireAllSoftwareMacOS={false}
           currentTeamId={1}
           softwareTitles={[
             createMockSoftwareTitle(),
             createMockSoftwareTitle(),
           ]}
-          onAddSoftware={noop}
           hasManualAgentInstall
           platform={platform}
+          router={createMockRouter()}
+          refetchSoftwareTitles={noop}
         />
       );
 
-      const addSoftwareButton = screen.getByRole("button", {
-        name: "Select software",
+      const saveButton = screen.getByRole("button", {
+        name: "Save",
       });
-      expect(addSoftwareButton).toBeVisible();
-      expect(addSoftwareButton).not.toBeDisabled();
+      expect(saveButton).toBeVisible();
+      expect(saveButton).not.toBeDisabled();
     }
   );
 });
