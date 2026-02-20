@@ -2841,7 +2841,7 @@ None.
 - [Get hosts summary](#get-hosts-summary)
 - [Get host](#get-host)
 - [Get host by identifier](#get-host-by-identifier)
-- [Get host by device token](#get-host-by-device-token)
+- [Get host by Fleet Desktop token](#get-host-by-fleet-desktop-token)
 - [Delete host](#delete-host)
 - [Refetch host](#refetch-host)
 - [Update hosts' team](#update-hosts-team)
@@ -3912,7 +3912,7 @@ If `hostname` is specified when there is more than one host with the same hostna
 
 `browser` and `extension_for` fields are included when set and when empty. `extension_for` will show the browser or Visual Studio Code fork associated with the extension, allowing for differentiation between e.g. an extension installed on Visual Studio Code and one installed on Cursor. `browser` is deprecated, and only shows this information for browser plugins.
 
-#### Get host by device token
+#### Get host by Fleet Desktop token
 
 Returns a subset of information about the host specified by `token`. To get all information about a host, use the ["Get host"](#get-host) endpoint.
 
@@ -3926,11 +3926,11 @@ This endpoint doesn't require API token authentication. Authentication on macOS,
 
 | Name  | Type   | In   | Description                        |
 | ----- | ------ | ---- | ---------------------------------- |
-| token | string | path | The host's [device authentication token](https://fleetdm.com/guides/fleet-desktop#secure-fleet-desktop). For macOS, Windows, and Linux, this is a random UUID that rotates hourly. For iOS and iPadOS, this is the host's hardware UUID. |
+| token | string | path | The host's [Fleet Desktop token](https://fleetdm.com/guides/fleet-desktop#secure-fleet-desktop). For macOS, Windows, and Linux, this is a random UUID that rotates hourly. For iOS and iPadOS, this is the host's hardware UUID. |
 
 #### Request headers
 
-This endpoint accepts the `X-Client-Cert-Serial` header for authentication in addition to device token authentication.
+This endpoint accepts the `X-Client-Cert-Serial` header for authentication in addition to token authentication.
 
 The `Authorization` header must be formatted as follows:
 
@@ -6326,7 +6326,7 @@ For each `profile`, only one of `labels_include_all`, `labels_include_any`, or `
 
 `204`
 
-### Resend custom OS setting (configuration profile) by device token
+### Resend custom OS setting (configuration profile) by Fleet Desktop token
 
 Resends a configuration profile for the specified host. Currently, only macOS configuration profiles (.mobileconfig) are supported.
 
@@ -6336,7 +6336,7 @@ Resends a configuration profile for the specified host. Currently, only macOS co
 
 | Name | Type | In | Description |
 | ---- | ---- | -- | ----------- |
-| token   | string | path | **Required.** The host's [device authentication token](https://fleetdm.com/guides/fleet-desktop#secure-fleet-desktop). |
+| token   | string | path | **Required.** The host's [Fleet Desktop token](https://fleetdm.com/guides/fleet-desktop#secure-fleet-desktop). |
 | profile_uuid   | string | path | **Required.** The UUID of the configuration profile to resend to the host. |
 
 #### Example

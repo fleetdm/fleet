@@ -1563,7 +1563,7 @@ type newMDMConfigProfileRequest struct {
 func (newMDMConfigProfileRequest) DecodeRequest(ctx context.Context, r *http.Request) (interface{}, error) {
 	decoded := newMDMConfigProfileRequest{}
 
-	err := r.ParseMultipartForm(platform_http.MaxMultipartFormSize)
+	err := parseMultipartForm(ctx, r, platform_http.MaxMultipartFormSize)
 	if err != nil {
 		return nil, &fleet.BadRequestError{
 			Message:     "failed to parse multipart form",
@@ -1571,17 +1571,17 @@ func (newMDMConfigProfileRequest) DecodeRequest(ctx context.Context, r *http.Req
 		}
 	}
 
-	// add team_id
-	val, ok := r.MultipartForm.Value["team_id"]
+	// add fleet_id
+	val, ok := r.MultipartForm.Value["fleet_id"]
 	if !ok || len(val) < 1 {
 		// default is no team
 		decoded.TeamID = 0
 	} else {
-		teamID, err := strconv.Atoi(val[0])
+		fleetID, err := strconv.Atoi(val[0])
 		if err != nil {
-			return nil, &fleet.BadRequestError{Message: fmt.Sprintf("failed to decode team_id in multipart form: %s", err.Error())}
+			return nil, &fleet.BadRequestError{Message: fmt.Sprintf("failed to decode fleet_id in multipart form: %s", err.Error())}
 		}
-		decoded.TeamID = uint(teamID) //nolint:gosec // dismiss G115
+		decoded.TeamID = uint(fleetID) //nolint:gosec // dismiss G115
 	}
 
 	// add profile

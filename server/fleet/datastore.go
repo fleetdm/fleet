@@ -1278,6 +1278,8 @@ type Datastore interface {
 
 	// DeleteMDMAppleDeclartionByName deletes a DDM profile by its name for the
 	// specified team (or no team).
+	//
+	// Returns nil, nil if the declaration with name on teamID doesn't exist.
 	DeleteMDMAppleDeclarationByName(ctx context.Context, teamID *uint, name string) error
 
 	BulkDeleteMDMAppleHostsConfigProfiles(ctx context.Context, payload []*MDMAppleProfilePayload) error

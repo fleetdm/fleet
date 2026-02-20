@@ -312,7 +312,7 @@ type newMDMAppleConfigProfileResponse struct {
 func (newMDMAppleConfigProfileRequest) DecodeRequest(ctx context.Context, r *http.Request) (interface{}, error) {
 	decoded := newMDMAppleConfigProfileRequest{}
 
-	err := r.ParseMultipartForm(platform_http.MaxMultipartFormSize)
+	err := parseMultipartForm(ctx, r, platform_http.MaxMultipartFormSize)
 	if err != nil {
 		return nil, &fleet.BadRequestError{
 			Message:     "failed to parse multipart form",
@@ -320,16 +320,16 @@ func (newMDMAppleConfigProfileRequest) DecodeRequest(ctx context.Context, r *htt
 		}
 	}
 
-	val, ok := r.MultipartForm.Value["team_id"]
+	val, ok := r.MultipartForm.Value["fleet_id"]
 	if !ok || len(val) < 1 {
 		// default is no team
 		decoded.TeamID = 0
 	} else {
-		teamID, err := strconv.Atoi(val[0])
+		fleetID, err := strconv.Atoi(val[0])
 		if err != nil {
-			return nil, &fleet.BadRequestError{Message: fmt.Sprintf("failed to decode team_id in multipart form: %s", err.Error())}
+			return nil, &fleet.BadRequestError{Message: fmt.Sprintf("failed to decode fleet_id in multipart form: %s", err.Error())}
 		}
-		decoded.TeamID = uint(teamID) //nolint:gosec // dismiss G115
+		decoded.TeamID = uint(fleetID) //nolint:gosec // dismiss G115
 	}
 
 	fhs, ok := r.MultipartForm.File["profile"]
@@ -2788,7 +2788,7 @@ type uploadBootstrapPackageResponse struct {
 // An authenticated but unauthorized user could abuse this.
 func (uploadBootstrapPackageRequest) DecodeRequest(ctx context.Context, r *http.Request) (interface{}, error) {
 	decoded := uploadBootstrapPackageRequest{}
-	err := r.ParseMultipartForm(platform_http.MaxMultipartFormSize)
+	err := parseMultipartForm(ctx, r, platform_http.MaxMultipartFormSize)
 	if err != nil {
 		return nil, &fleet.BadRequestError{
 			Message:     "failed to parse multipart form",
@@ -2813,13 +2813,13 @@ func (uploadBootstrapPackageRequest) DecodeRequest(ctx context.Context, r *http.
 
 	// default is no team
 	decoded.TeamID = 0
-	val, ok := r.MultipartForm.Value["team_id"]
+	val, ok := r.MultipartForm.Value["fleet_id"]
 	if ok && len(val) > 0 {
-		teamID, err := strconv.Atoi(val[0])
+		fleetID, err := strconv.Atoi(val[0])
 		if err != nil {
-			return nil, &fleet.BadRequestError{Message: fmt.Sprintf("failed to decode team_id in multipart form: %s", err.Error())}
+			return nil, &fleet.BadRequestError{Message: fmt.Sprintf("failed to decode fleet_id in multipart form: %s", err.Error())}
 		}
-		decoded.TeamID = uint(teamID) //nolint:gosec // dismiss G115
+		decoded.TeamID = uint(fleetID) //nolint:gosec // dismiss G115
 	}
 
 	// Dry run
@@ -5634,7 +5634,7 @@ func preprocessProfileContents(
 					hostContents = profiles.ReplaceFleetVariableInXML(fleetVarSCEPRenewalIDRegexp, hostContents, fleetRenewalID)
 
 				case strings.HasPrefix(fleetVar, string(fleet.FleetVarCustomSCEPChallengePrefix)):
-					replacedContents, replacedVariable, err := profiles.ReplaceCustomSCEPChallengeVariable(ctx, logger, fleetVar, customSCEPCAs, hostContents)
+					replacedContents, replacedVariable, err := profiles.ReplaceCustomSCEPChallengeVariable(ctx, logger.SlogLogger(), fleetVar, customSCEPCAs, hostContents)
 					if err != nil {
 						return ctxerr.Wrap(ctx, err, "replacing custom SCEP challenge variable")
 					}
@@ -5644,7 +5644,7 @@ func preprocessProfileContents(
 					hostContents = replacedContents
 
 				case strings.HasPrefix(fleetVar, string(fleet.FleetVarCustomSCEPProxyURLPrefix)):
-					replacedContents, managedCertificate, replacedVariable, err := profiles.ReplaceCustomSCEPProxyURLVariable(ctx, logger, ds, appConfig, fleetVar, customSCEPCAs, hostContents, hostUUID, profUUID)
+					replacedContents, managedCertificate, replacedVariable, err := profiles.ReplaceCustomSCEPProxyURLVariable(ctx, logger.SlogLogger(), ds, appConfig, fleetVar, customSCEPCAs, hostContents, hostUUID, profUUID)
 					if err != nil {
 						return ctxerr.Wrap(ctx, err, "replacing custom SCEP proxy URL variable")
 					}
@@ -7270,8 +7270,9 @@ func (svc *Service) MDMAppleProcessOTAEnrollment(
 // EnsureMDMAppleServiceDiscovery checks if the service discovery URL is set up correctly with Apple
 // and assigns it if necessary.
 func EnsureMDMAppleServiceDiscovery(ctx context.Context, ds fleet.Datastore, depStorage storage.AllDEPStorage, logger *platformlogging.Logger,
-	urlPrefix string) error {
-	depSvc := apple_mdm.NewDEPService(ds, depStorage, logger)
+	urlPrefix string,
+) error {
+	depSvc := apple_mdm.NewDEPService(ds, depStorage, logger.SlogLogger())
 
 	ac, err := ds.AppConfig(ctx)
 	if err != nil {
