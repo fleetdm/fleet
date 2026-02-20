@@ -3,11 +3,15 @@
 package bitlocker
 
 import (
+	"errors"
 	"runtime"
 	"sync"
 
 	"github.com/go-ole/go-ole"
 )
+
+// ErrWorkerClosed is returned when an operation is attempted on a closed COMWorker.
+var ErrWorkerClosed = errors.New("COM worker is closed")
 
 type comWorkItem struct {
 	fn     func() (any, error)
@@ -72,8 +76,12 @@ func (w *COMWorker) Close() {
 
 func (w *COMWorker) exec(fn func() (any, error)) comWorkResult {
 	ch := make(chan comWorkResult, 1)
-	w.workCh <- comWorkItem{fn: fn, result: ch}
-	return <-ch
+	select {
+	case w.workCh <- comWorkItem{fn: fn, result: ch}:
+		return <-ch
+	case <-w.done:
+		return comWorkResult{err: ErrWorkerClosed}
+	}
 }
 
 // GetEncryptionStatus returns the BitLocker encryption status for all logical volumes.
