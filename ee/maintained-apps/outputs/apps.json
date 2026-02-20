@@ -891,6 +891,13 @@
       "description": "Keka is a file archiver."
     },
     {
+      "name": "LastPass",
+      "slug": "lastpass/windows",
+      "platform": "windows",
+      "unique_identifier": "LastPass",
+      "description": "LastPass is a password manager."
+    },
+    {
       "name": "Lens",
       "slug": "lens/darwin",
       "platform": "darwin",
