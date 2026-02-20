@@ -1,15 +1,12 @@
 ################################################
 # .gitignore
-# 
-# > Files to exclude from your repo.
 #
-# This file (`.gitignore`) exists to signify to
-# git that certain files and/or directories
-# should be ignored for the purposes of version
-# control.
+# This file (`.gitignore`) exists to tell git
+# that certain files and/or directories should
+# be ignored for the purposes of version control.
 #
-# This keeps tmp files and sensitive credentials
-# from being uploaded to your repository.
+# This keeps tmp files from being accidentally
+# uploaded to github.com/gitlab.com/etc.
 #
 ################################################
 
