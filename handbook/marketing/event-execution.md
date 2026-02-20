@@ -51,3 +51,6 @@ Once an event is approved, a Marketing directly responsible individual (DRI) is 
 ## **Definition of done**
 
 An event's execution is not complete until the **Definition of Done** is met: the Event Overview Doc must be fully updated with post-event outcomes, notes, and final details.
+
+<meta name="maintainedBy" value="johnjeremiah">
+<meta name="title" value="🫧 Marketing Event Execution">
