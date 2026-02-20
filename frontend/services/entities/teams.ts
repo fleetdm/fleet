@@ -210,9 +210,10 @@ export default {
     return sendRequest("GET", path);
   },
   modifyEnrollSecrets: (teamId: number, secrets: IEnrollSecret[]) => {
+    const stripped = secrets.map((s) => pick(s, ["secret"]));
     const { TEAMS_ENROLL_SECRETS } = endpoints;
     const path = TEAMS_ENROLL_SECRETS(teamId);
 
-    return sendRequest("PATCH", path, { secrets });
+    return sendRequest("PATCH", path, { secrets: stripped });
   },
 };
