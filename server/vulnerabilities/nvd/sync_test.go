@@ -2,16 +2,15 @@ package nvd
 
 import (
 	"context"
+	"log/slog"
 	"path/filepath"
 	"strings"
 	"testing"
 
-	"github.com/fleetdm/fleet/v4/server/contexts/license"
-
 	"github.com/fleetdm/fleet/v4/pkg/nettest"
+	"github.com/fleetdm/fleet/v4/server/contexts/license"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mock"
-	"github.com/go-kit/log"
 	"github.com/stretchr/testify/require"
 	"github.com/tj/assert"
 )
@@ -58,7 +57,7 @@ func TestLoadCVEMeta(t *testing.T) {
 		return nil
 	}
 
-	logger := log.NewNopLogger()
+	logger := slog.New(slog.DiscardHandler)
 	err := LoadCVEMeta(license.NewContext(context.Background(), &fleet.LicenseInfo{
 		Tier: "premium",
 	}), logger, "../testdata", ds)

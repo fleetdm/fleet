@@ -6,7 +6,7 @@ This handbook page details processes specific to working [with](#contact-us) and
 
 | Role                               | Contributor(s)
 |:-----------------------------------|:------------------------------------------------------------------------------------------------------------------------|
-| Chief  Marketing Officer          | [Ashish Kuthiala](https://www.linkedin.com/in/ashishkuthiala) _([@akuthiala](https://github.com/akuthiala))_
+| Chief  Marketing Officer          | [Ashish](https://www.linkedin.com/in/ashishkuthiala) _([@akuthiala](https://github.com/akuthiala))_
 | Content Specialist                 | [Irena Reedy](https://www.linkedin.com/in/irena-reedy-520ab9354/) _([@irenareedy](https://github.com/irenareedy))_
 | Head of Demand Generation                  | [John Jeremiah](https://www.linkedin.com/in/johnjeremiah/) _([@johnjeremiah](https://github.com/johnjeremiah))_
 | Product Education Manager     | [Brock Walters](https://www.linkedin.com/in/brock-walters-247a2990/) _([@nonpunctual](https://github.com/nonpunctual))_
@@ -329,6 +329,17 @@ Here are some links that filter relevant conversations on each platform:
 2. Reply to threads looking for solutions Fleet can solve with helpful information. If additional information is needed, find help in [#help-engineering](https://fleetdm.slack.com/archives/C019WG4GH0A) for accurate information.
 3. Leave a like on threads and posts that are interesting, cool, celebratory, funny, etc. within our communities.
 4. If a post is helpful to our audience, reshare it.
+
+
+### Publish sprint demo video
+
+After each sprint demo, the marketing team is responsible for doing a quick post-production pass on the recording before publishing it. Because different presenters have different microphone setups and speaking volumes, the raw recording often has inconsistent audio levels. To fix this:
+
+1. Download the sprint demo recording.
+2. Upload the recording to [Kapwing](https://www.kapwing.com), a free browser-based video editor.
+3. Apply audio compression to even out the volume levels across all presenters.
+4. Export and download the processed video.
+5. Follow the steps to [upload the video to YouTube](#upload-to-youtube).
 
 
 ### Upload to YouTube

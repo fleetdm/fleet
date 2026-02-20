@@ -1,1 +1,0 @@
-* Added `--with-table-sizes` option to `prepare` command to get approximate row counts of all database tables after a migration completes.
