@@ -22,9 +22,9 @@ The result? A repository that represents a "source of truth", logically composed
 
 ### Continuous integration and delivery (CI/CD)
 
-Continuous integration and delivery - an extremely powerful yet relatively simple concept with a not-so-catchy name:
+An extremely powerful yet relatively simple concept with a not-so-catchy name.
 
-Assuming there is a logical, frictionless way for a group of contributors to work on a set of files together without overwriting each other's work (e.g., git, or any version-control system), the contributors, theoretically, should be able to work faster, commit more often, and do so continuously.
+Basically, assuming there is a logical, frictionless way for a group of contributors to work on a set of files together (e.g., by using git, or any version-control system) without overwriting each other's work, the contributors theoretically should be able to work faster, commit more often, and do so continuously.
 
 Small, iterative changes tested in real-time and shipped quickly to production are preferred over years-long refactoring projects that don't go out into the world until they are perfect. The impact this way of thinking and this practice can have on a team, a [product](https://fleetdm.com/fleet-gitops), an [organization](https://fleetdm.com/handbook/company#values), and generally on work itself should not be underestimated.
 
