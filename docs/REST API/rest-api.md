@@ -4175,7 +4175,7 @@ Same as [Refetch host](#refetch-host) except with the Fleet Desktop token instea
 
 #### Example
 
-`POST /api/v1/fleet/device/121/refetch`
+`POST /api/v1/fleet/device/6d3e95ca-6783-4d0d-93b8-a5ffdb207867/refetch`
 
 ##### Default response
 
