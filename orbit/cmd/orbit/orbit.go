@@ -1516,6 +1516,7 @@ func main() {
 			Bool("notDisabled", setupExperienceNotDisabled).
 			Msg("checking setup experience preflight values")
 
+		// TODO: Maybe this needs to be skipped in OOBE, to avoid issues, but maybe it doesn't matter.
 		openMyDevicePage := func() error {
 			if !c.Bool("fleet-desktop") {
 				log.Debug().Msg("fleet desktop disabled, not launching my device page")
