@@ -9,18 +9,19 @@ import { DEFAULT_EMPTY_CELL_VALUE } from "utilities/constants";
 import Vitals from "./Vitals";
 
 describe("Vitals Card component", () => {
-  it("renders only the device Hardware model for Android hosts that were not enrolled in MDM personally", () => {
+  it("renders the device Hardware model and Serial number for Android hosts that were not enrolled in MDM personally", () => {
     const mockHost = createMockHost({
       platform: "android",
       hardware_model: "Pixel 6",
-      hardware_serial: "",
+      hardware_serial: "1234567890",
     });
 
     render(<Vitals vitalsData={mockHost} mdm={mockHost.mdm} />);
 
     expect(screen.getByText("Hardware model")).toBeInTheDocument();
     expect(screen.getByText("Pixel 6")).toBeInTheDocument();
-    expect(screen.queryByText("Serial number")).not.toBeInTheDocument();
+    expect(screen.getByText("Serial number")).toBeInTheDocument();
+    expect(screen.getByText("1234567890")).toBeInTheDocument();
     expect(screen.queryByText("Enrollment ID")).not.toBeInTheDocument();
     expect(screen.queryByText("Private IP address")).not.toBeInTheDocument();
     expect(screen.queryByText("Public IP address")).not.toBeInTheDocument();
