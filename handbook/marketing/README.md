@@ -32,7 +32,7 @@ This list is in chronological order as assets are created.
 
 ### Marketing assets
 
-| Asset | Use For | Date created | Last updated |
+| Asset | Use For | Date&nbsp;created&nbsp;&nbsp;&nbsp; | Last&nbsp;updated&nbsp;&nbsp;&nbsp; |
 | :--- | :--- | :--- | :--- |
 | [OpenClaw: Open for work?](https://fleetdm.com/articles/openclaw-open-for-work)| Part 1 of 3 - OpenClaw: An overview, how it works, and the security risks of autonomous AI agents on user devices. | 2026-02-04 | - |
 | [Detecting AI agents like OpenClaw with automated tooling](https://fleetdm.com/articles/detecting-ai-agents-like-openclaw-with-automated-tooling)| Part 2 of 3 - OpenClaw: What governance over autonomous AI agents looks like and what IT leaders should know about them.  | 2026-02-18 | - |
