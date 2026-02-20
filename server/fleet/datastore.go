@@ -2693,6 +2693,7 @@ type Datastore interface {
 	MDMWindowsAwaitingConfigurationByUUID(ctx context.Context, hostUUID string) (*WindowsSetupConfiguration, error)
 	MDMWindowsAwaitingConfigurationByComputerName(ctx context.Context, computerName string) (*WindowsSetupConfiguration, error)
 	MDMWindowsSetAwaitingConfiguration(ctx context.Context, deviceId string, config WindowsSetupConfiguration) error
+	ListMDMWindowsConfigProfiles(ctx context.Context, teamId uint) ([]*MDMWindowsConfigProfile, error)
 }
 
 type AndroidDatastore interface {

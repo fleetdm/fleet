@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"encoding/base64"
 	"encoding/hex"
+	"encoding/xml"
 	"fmt"
 	"net"
 	"net/url"
@@ -2809,6 +2810,202 @@ func directIngestMDMDeviceIDWindows(ctx context.Context, logger log.Logger, host
 				_, err = ds.EnqueueSetupExperienceItems(ctx, "windows", host.UUID, teamId)
 				if err != nil {
 					return ctxerr.Wrap(ctx, err, "enqueuing windows setup experience items after mdm enrollment")
+				}
+
+				// TODO: This does not seem to work as expected, showing up as tracking in the ESP page.
+				// TODO: Might be a bit late here, but we need the team id
+				// Enqueue to the ESP tracking all Windows config profiles
+				profiles, err := ds.ListMDMWindowsConfigProfiles(ctx, teamId)
+				if err != nil {
+					return ctxerr.Wrap(ctx, err, "listing mdm config profiles for windows mdm enrolled host")
+				}
+				var expectedPoliciesString string
+				for i := 0; i < len(profiles); i++ {
+					profile := profiles[i]
+					var parsedProfile fleet.SyncMLCmd
+					err = xml.Unmarshal([]byte(profile.SyncML), &parsedProfile)
+					if err != nil {
+						return ctxerr.Wrap(ctx, err, "parsing mdm config profile xml for windows mdm enrolled host")
+					}
+
+					if parsedProfile.GetTargetURI() == "" {
+						fmt.Println("Skipping profile since it does not have a target URI", profile.ProfileUUID)
+						continue
+					}
+					// Get top most LocURI to give to the ESP page
+					expectedPoliciesString += fmt.Sprintf("%s\\xF000", parsedProfile.GetTargetURI())
+				}
+				// Remove last delimiter
+				expectedPoliciesString = strings.TrimSuffix(expectedPoliciesString, "\\xF000")
+				espTrackingPoliciesId := uuid.NewString()
+				espTrackingPoliciesCmd := fleet.SyncMLCmd{
+					XMLName: xml.Name{Local: "Replace"},
+					Items: []fleet.CmdItem{
+						{
+							Meta: &fleet.Meta{
+								Format: &fleet.MetaAttr{
+									Content: ptr.String("chr"),
+									XMLNS:   "syncml:metinf",
+								},
+								Type: &fleet.MetaAttr{
+									Content: ptr.String("text/plain"),
+									XMLNS:   "syncml:metinf",
+								},
+							},
+							Target: ptr.String("./Device/Vendor/MSFT/DMClient/Provider/Fleet/FirstSyncStatus/ExpectedPolicies"),
+							Data: &fleet.RawXmlData{
+								Content: expectedPoliciesString,
+							},
+						},
+					},
+				}
+				espTrackingPoliciesCmd.CmdID = fleet.CmdID{
+					Value:               espTrackingPoliciesId,
+					IncludeFleetComment: true,
+				}
+				espTrackingPoliciesCmdRaw, err := espTrackingPoliciesCmd.Raw()
+				if err != nil {
+					return fmt.Errorf("error creating raw command: %w", err)
+				}
+
+				err = ds.MDMWindowsInsertCommandForHosts(ctx, []string{device.MDMDeviceID}, &fleet.MDMWindowsCommand{
+					CommandUUID: espTrackingPoliciesId,
+					RawCommand:  espTrackingPoliciesCmdRaw,
+				})
+				if err != nil {
+					return fmt.Errorf("insert command to track ESP policies: %w", err)
+				}
+
+				// Enqueue ESP tracking for setup experience software titles
+				// For user-driven Autopilot, Account Setup phase uses User scope
+				titles, count, _, err := ds.ListSetupExperienceSoftwareTitles(ctx, host.Platform, teamId, fleet.ListOptions{PerPage: 100})
+				if err != nil {
+					return ctxerr.Wrap(ctx, err, "listing setup experience software titles for windows mdm enrolled host")
+				}
+				if count > 0 {
+					for _, t := range titles {
+						// Send one command for each software title, using ID as identifier (names can have special characters)
+						espTrackingId := uuid.NewString()
+						// Use software title ID as the tracking identifier - safe for URI paths
+						trackingIdentifier := fmt.Sprintf("software_%d", t.ID)
+						// Use User scope for Account Setup phase tracking
+						espTrackingCmd := fleet.SyncMLCmd{
+							XMLName: xml.Name{Local: "Replace"},
+							Items: []fleet.CmdItem{
+								{
+									Meta: &fleet.Meta{
+										Format: &fleet.MetaAttr{
+											Content: ptr.String("int"),
+											XMLNS:   "syncml:metinf",
+										},
+										Type: &fleet.MetaAttr{
+											Content: ptr.String("text/plain"),
+											XMLNS:   "syncml:metinf",
+										},
+									},
+									Target: ptr.String(fmt.Sprintf("./User/Vendor/MSFT/EnrollmentStatusTracking/Setup/Apps/Tracking/FLEET/%s/InstallationState", trackingIdentifier)),
+									Data: &fleet.RawXmlData{
+										Content: "1",
+									},
+								},
+							},
+						}
+						espTrackingCmd.CmdID = fleet.CmdID{
+							Value:               espTrackingId,
+							IncludeFleetComment: true,
+						}
+						espTrackingCmdRaw, err := espTrackingCmd.Raw()
+						if err != nil {
+							return fmt.Errorf("error creating raw command: %w", err)
+						}
+
+						err = ds.MDMWindowsInsertCommandForHosts(ctx, []string{device.MDMDeviceID}, &fleet.MDMWindowsCommand{
+							CommandUUID: espTrackingId,
+							RawCommand:  espTrackingCmdRaw,
+						})
+						if err != nil {
+							return fmt.Errorf("insert command to track ESP software installs: %w", err)
+						}
+					}
+				}
+
+				// Signal that we've finished creating tracking entries (User scope for Account Setup)
+				espTrackingPoliciesCreatedId := uuid.NewString()
+				espTrackingPoliciesCreatedCmd := fleet.SyncMLCmd{
+					XMLName: xml.Name{Local: "Replace"},
+					Items: []fleet.CmdItem{
+						{
+							Meta: &fleet.Meta{
+								Format: &fleet.MetaAttr{
+									Content: ptr.String("bool"),
+									XMLNS:   "syncml:metinf",
+								},
+								Type: &fleet.MetaAttr{
+									Content: ptr.String("text/plain"),
+									XMLNS:   "syncml:metinf",
+								},
+							},
+							Target: ptr.String("./User/Vendor/MSFT/EnrollmentStatusTracking/Setup/Apps/PolicyProviders/FLEET/TrackingPoliciesCreated"),
+							Data: &fleet.RawXmlData{
+								Content: "true",
+							},
+						},
+					},
+				}
+				espTrackingPoliciesCreatedCmd.CmdID = fleet.CmdID{
+					Value:               espTrackingPoliciesCreatedId,
+					IncludeFleetComment: true,
+				}
+				espTrackingPoliciesCreatedCmdRaw, err := espTrackingPoliciesCreatedCmd.Raw()
+				if err != nil {
+					return fmt.Errorf("error creating raw command: %w", err)
+				}
+
+				err = ds.MDMWindowsInsertCommandForHosts(ctx, []string{device.MDMDeviceID}, &fleet.MDMWindowsCommand{
+					CommandUUID: espTrackingPoliciesCreatedId,
+					RawCommand:  espTrackingPoliciesCreatedCmdRaw,
+				})
+				if err != nil {
+					return fmt.Errorf("insert command to mark tracking policies as created: %w", err)
+				}
+
+				espCmdId := uuid.NewString()
+				espCmd := fleet.SyncMLCmd{
+					XMLName: xml.Name{Local: "Replace"},
+					Items: []fleet.CmdItem{
+						{
+							Meta: &fleet.Meta{
+								Format: &fleet.MetaAttr{
+									Content: ptr.String("int"),
+									XMLNS:   "syncml:metinf",
+								},
+								Type: &fleet.MetaAttr{
+									Content: ptr.String("text/plain"),
+									XMLNS:   "syncml:metinf",
+								},
+							},
+							Target: ptr.String("./Device/Vendor/MSFT/EnrollmentStatusTracking/DevicePreparation/PolicyProviders/FLEET/InstallationState"),
+							Data: &fleet.RawXmlData{
+								Content: "3",
+							},
+						},
+					},
+				}
+				espCmd.CmdID = fleet.CmdID{
+					Value:               espCmdId,
+					IncludeFleetComment: true,
+				}
+				espCmdRaw, err := espCmd.Raw()
+				if err != nil {
+					return fmt.Errorf("error creating raw command: %w", err)
+				}
+
+				err = ds.MDMWindowsInsertCommandForHosts(ctx, []string{device.MDMDeviceID}, &fleet.MDMWindowsCommand{
+					CommandUUID: espCmdId,
+					RawCommand:  espCmdRaw,
+				})
+				if err != nil {
+					return fmt.Errorf("insert command to mark device as awaiting configuration: %w", err)
 				}
 			}
 

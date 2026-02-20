@@ -1889,8 +1889,9 @@ func (svc *Service) getManagementResponse(ctx context.Context, reqMsg *fleet.Syn
 			return nil, errors.New("enrolled device not found for device ID")
 		}
 
+		// TODO: Is a awaiting config with multiple int values the best approach here? We need to determine when it's not started so we only fire of the MDM commands once.
 		// lookup the device and check if we should block enrollment, that should happen when we have an mdm_windows_enrollment entry
-		// but no hosts entry // TODO: Is this the correct state? Do we have an awaiting setup_experience
+		// but no hosts entry
 		setupConfiguration, err := svc.ds.MDMWindowsAwaitingConfiguration(ctx, deviceID)
 		if err != nil {
 			return nil, fmt.Errorf("checking if device is awaiting configuration %w", err)
@@ -2925,63 +2926,6 @@ func (svc *Service) ReleaseWindowsDevice(ctx context.Context, hostUUID string) e
 	err = svc.ds.MDMWindowsSetAwaitingConfiguration(ctx, device.MDMDeviceID, fleet.CompletedWindowsSetupConfiguration)
 	if err != nil {
 		return fmt.Errorf("mark device as in progress for configuration: %w", err)
-	}
-
-	espCmdId := uuid.NewString()
-	espCmd := newSyncMLCmdInt("Replace", "./Device/Vendor/MSFT/EnrollmentStatusTracking/DevicePreparation/PolicyProviders/FLEET/InstallationState", "3")
-	espCmd.CmdID = mdm_types.CmdID{
-		Value:               espCmdId,
-		IncludeFleetComment: true,
-	}
-	espCmdRaw, err := espCmd.Raw()
-	if err != nil {
-		return fmt.Errorf("error creating raw command: %w", err)
-	}
-
-	err = svc.ds.MDMWindowsInsertCommandForHosts(ctx, []string{device.MDMDeviceID}, &mdm_types.MDMWindowsCommand{
-		CommandUUID: espCmdId,
-		RawCommand:  espCmdRaw,
-	})
-	if err != nil {
-		return fmt.Errorf("insert command to mark device as awaiting configuration: %w", err)
-	}
-
-	espTrackingUserId := uuid.NewString()
-	espTrackingUserCmd := newSyncMLCmdBool("Replace", "./User/Vendor/MSFT/EnrollmentStatusTracking/Setup/Apps/PolicyProviders/FLEET/TrackingPoliciesCreated", "true")
-	espTrackingUserCmd.CmdID = mdm_types.CmdID{
-		Value:               espTrackingUserId,
-		IncludeFleetComment: true,
-	}
-	espTrackingUserCmdRaw, err := espTrackingUserCmd.Raw()
-	if err != nil {
-		return fmt.Errorf("error creating raw command: %w", err)
-	}
-
-	err = svc.ds.MDMWindowsInsertCommandForHosts(ctx, []string{device.MDMDeviceID}, &mdm_types.MDMWindowsCommand{
-		CommandUUID: espTrackingUserId,
-		RawCommand:  espTrackingUserCmdRaw,
-	})
-	if err != nil {
-		return fmt.Errorf("insert command to mark device as awaiting configuration: %w", err)
-	}
-
-	espTrackingDeviceId := uuid.NewString()
-	espTrackingDeviceCmd := newSyncMLCmdBool("Replace", "./Device/Vendor/MSFT/EnrollmentStatusTracking/Setup/Apps/PolicyProviders/FLEET/TrackingPoliciesCreated", "true")
-	espTrackingDeviceCmd.CmdID = mdm_types.CmdID{
-		Value:               espTrackingDeviceId,
-		IncludeFleetComment: true,
-	}
-	espTrackingDeviceCmdRaw, err := espTrackingDeviceCmd.Raw()
-	if err != nil {
-		return fmt.Errorf("error creating raw command: %w", err)
-	}
-
-	err = svc.ds.MDMWindowsInsertCommandForHosts(ctx, []string{device.MDMDeviceID}, &mdm_types.MDMWindowsCommand{
-		CommandUUID: espTrackingDeviceId,
-		RawCommand:  espTrackingDeviceCmdRaw,
-	})
-	if err != nil {
-		return fmt.Errorf("insert command to mark device as awaiting configuration: %w", err)
 	}
 
 	serverProvCmdId := uuid.NewString()

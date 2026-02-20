@@ -2641,3 +2641,15 @@ func (ds *Datastore) MDMWindowsSetAwaitingConfiguration(ctx context.Context, dev
 	)
 	return err
 }
+
+func (ds *Datastore) ListMDMWindowsConfigProfiles(ctx context.Context, teamId uint) ([]*fleet.MDMWindowsConfigProfile, error) {
+	stmt := `
+	SELECT profile_uuid, team_id, name, syncml, uploaded_at
+	FROM mdm_windows_configuration_profiles
+	WHERE team_id = ?`
+	var profiles []*fleet.MDMWindowsConfigProfile
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &profiles, stmt, teamId); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "querying windows mdm configuration profiles")
+	}
+	return profiles, nil
+}
