@@ -15,6 +15,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/fleetdm/fleet/v4/pkg/str"
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/contexts/logging"
@@ -2552,7 +2553,7 @@ func directIngestMunkiInfo(ctx context.Context, logger *slog.Logger, host *fleet
 	}
 
 	errors, warnings := rows[0]["errors"], rows[0]["warnings"]
-	errList, warnList := splitCleanSemicolonSeparated(errors), splitCleanSemicolonSeparated(warnings)
+	errList, warnList := str.SplitAndTrim(errors, ";", true), str.SplitAndTrim(warnings, ";", true)
 	return ds.SetOrUpdateMunkiInfo(ctx, host.ID, rows[0]["version"], errList, warnList)
 }
 

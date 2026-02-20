@@ -1,8 +1,7 @@
 package fleetctl
 
 import (
-	"strings"
-
+	"github.com/fleetdm/fleet/v4/pkg/str"
 	"github.com/fleetdm/fleet/v4/server/platform/logging"
 	"github.com/urfave/cli/v2"
 )
@@ -92,27 +91,12 @@ func getDisabledLogTopics(c *cli.Context) string {
 // applyLogTopicFlags parses the enable/disable log topic flags and applies them.
 // Enables run first, then disables, so disable wins on conflict.
 func applyLogTopicFlags(c *cli.Context) {
-	for _, topic := range parseLogTopicsList(getEnabledLogTopics(c)) {
+	for _, topic := range str.SplitAndTrim(getEnabledLogTopics(c), ",", true) {
 		logging.EnableTopic(topic)
 	}
-	for _, topic := range parseLogTopicsList(getDisabledLogTopics(c)) {
+	for _, topic := range str.SplitAndTrim(getDisabledLogTopics(c), ",", true) {
 		logging.DisableTopic(topic)
 	}
-}
-
-// parseLogTopicsList splits a comma-separated string into trimmed, non-empty topic names.
-func parseLogTopicsList(s string) []string {
-	if s == "" {
-		return nil
-	}
-	var topics []string
-	for t := range strings.SplitSeq(s, ",") {
-		t = strings.TrimSpace(t)
-		if t != "" {
-			topics = append(topics, t)
-		}
-	}
-	return topics
 }
 
 func byHostIdentifier() cli.Flag {

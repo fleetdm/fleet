@@ -32,6 +32,7 @@ import (
 	"github.com/fleetdm/fleet/v4/ee/server/service/hostidentity/httpsig"
 	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
 	"github.com/fleetdm/fleet/v4/pkg/scripts"
+	"github.com/fleetdm/fleet/v4/pkg/str"
 	"github.com/fleetdm/fleet/v4/server"
 	"github.com/fleetdm/fleet/v4/server/acl/activityacl"
 	activity_api "github.com/fleetdm/fleet/v4/server/activity/api"
@@ -244,10 +245,10 @@ the way that the Fleet server works.
 			// disables, so disable wins on conflict.
 			// Note that any topic not included in these lists will be considered
 			// enabled if it's encountered in a log.
-			for _, topic := range parseLogTopics(config.Logging.EnableLogTopics) {
+			for _, topic := range str.SplitAndTrim(config.Logging.EnableLogTopics, ",", true) {
 				platform_logging.EnableTopic(topic)
 			}
-			for _, topic := range parseLogTopics(config.Logging.DisableLogTopics) {
+			for _, topic := range str.SplitAndTrim(config.Logging.DisableLogTopics, ",", true) {
 				platform_logging.DisableTopic(topic)
 			}
 
@@ -2063,19 +2064,4 @@ func createTestBuckets(config *configpkg.FleetConfig, logger log.Logger) {
 			"name", config.S3.CarvesBucket,
 		)
 	}
-}
-
-// parseLogTopics splits a comma-separated string into trimmed, non-empty topic names.
-func parseLogTopics(s string) []string {
-	if s == "" {
-		return nil
-	}
-	var topics []string
-	for t := range strings.SplitSeq(s, ",") {
-		t = strings.TrimSpace(t)
-		if t != "" {
-			topics = append(topics, t)
-		}
-	}
-	return topics
 }
