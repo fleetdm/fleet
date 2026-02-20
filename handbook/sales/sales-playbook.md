@@ -17,8 +17,14 @@ Owning a parent account does not automatically grant ownership of its subsidiari
 
 - If an opportunity is ~50% through the sales process, ownership of execution should be reassigned to maintain momentum, with a commission split and quota relief reflecting remaining work.
 
-- The originating AE retains credit for work completed; the covering AE earns commission and quota relief proportional to what’s left (e.g., a deal at 75% → 25% split to the support AE).
+- The originating AE retains credit for work completed; the covering AE earns commission and quota relief proportional to what's left (e.g., a deal at 75% → 25% split to the support AE).
 
+
+### AE expansion ownership guardrail
+
+If an AE has identified and started working multiple opportunities in an account at the time the first one closes, they retain ownership of those additional opportunities for up to 12 months. After 12 months, any remaining open opportunities are either closed or transferred to the CSM.
+
+Exceptions — where the CS team surfaces a real expansion opportunity in a part of the account far removed from the AE's current customer contacts — may be assigned to the original AE at the discretion of the CCO and/or SVP Sales.
 
 
 <meta name="maintainedBy" value="chazmac6">
