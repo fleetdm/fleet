@@ -1,1 +1,1 @@
-* Fixed python package false positives on Ubuntu, such as `python3-setuptools` on Ubuntu 20.04 with version 68.1.2-2ubuntu1.2
+* Fixed python package false positives on Ubuntu, such as `python3-setuptools` on Ubuntu 24.04 with version 68.1.2-2ubuntu1.2
