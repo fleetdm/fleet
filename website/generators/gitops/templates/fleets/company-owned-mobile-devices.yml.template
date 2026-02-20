@@ -1,2 +1,74 @@
-# todo
-# TODO: apply updates from dogfood's it-and-security/fleets/*.yml
+# TODO: fancy comment header
+name: 📱🏢 Employee-issued mobile devices # TODO: decide name for file and make this match
+settings: # « FUTURE: Eliminate the need for this required key.
+  secrets: # « FUTURE: Eliminate the need for this required key.
+    - secret: "" # TODO: What happens if omitted?
+controls:
+
+  ##########################################
+  # Managed OS updates
+  ##########################################
+  # to enable… (for os updates)
+  # ios_updates:
+  #   deadline: "2025-06-01"
+  #   minimum_version: "18.5"
+  # ipados_updates:
+  #   deadline: "2025-06-01"
+  #   minimum_version: "18.5"
+
+  ##########################################
+  # Setup experience
+  ##########################################
+  macos_setup: # TODO: wtf this is not the right name
+    # To enable SSO, uncomment this
+    enable_end_user_authentication: true
+
+  ##########################################
+  # Presets, restrictions, and configs
+  ##########################################
+  macos_settings: # TODO: wtf this is not the right name
+    custom_settings: #FUTURE: stat disk and auto-include all via glob
+      # - paths: ../platforms/ios/declaration-profiles/*.json
+      # - paths: ../platforms/ios/configuration-profiles/*.mobileconfig
+      # - paths: ../platforms/ipados/declaration-profiles/*.json
+      # - paths: ../platforms/ipados/configuration-profiles/*.mobileconfig
+
+  scripts: #TODO: Ensure this can be excluded.  Doesn't mean anything for iOS.
+reports: #TODO: Ensure this can be excluded.  Doesn't mean anything for iOS.
+policies: #TODO: Ensure this can be excluded.  Doesn't mean anything for iOS.
+
+##########################################
+# Software available for install
+#
+# (company-owned mobile devices)
+##########################################
+software:
+  app_store_apps: app_store_apps: # Apps to make available from the Apple App Store or Google Play
+    # iOS apps
+    # …
+    # - app_store_id: "618783545" # Slack
+    #   display_name: "Slack"
+    #   self_service: true
+    #   setup_experience: true
+    #   platform: ios
+    #   categories:
+    #     - "Communication"
+
+    # iPadOS apps
+    # …
+    # - app_store_id: "618783545" # Slack
+    #   display_name: "Slack"
+    #   self_service: true
+    #   setup_experience: true
+    #   platform: ipados
+    #   categories:
+    #     - "Productivity"
+    #     - "Communication"
+
+    # Android apps
+    # …
+    # - app_store_id: "com.Slack" # Slack
+    #   platform: android
+    #   display_name: "Slack"
+    #   self_service: true
+    #   setup_experience: true
