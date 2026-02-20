@@ -15,7 +15,7 @@ module.exports = {
     './it-and-security/fleets/': { folder: {} },
     './it-and-security/fleets/workstations.yml': { copy: './fleets/workstations.yml.template' },
     './it-and-security/fleets/personal-mobile-devices.yml': { copy: './fleets/personal-mobile-devices.yml.template' },
-    './it-and-security/fleets/company-owned-mobile-devices.yml': { copy: './fleets/company-owned-mobile-devices.yml.template' },
+    './it-and-security/fleets/employee-issued-mobile-devices.yml': { copy: './fleets/employee-issued-mobile-devices.yml.template' },
     './it-and-security/labels/': { folder: {} },
     './it-and-security/labels/apple-silicon-macos-hosts.yml': { copy: './labels/apple-silicon-macos-hosts.yml.template' },
     './it-and-security/labels/x86-based-windows-hosts.yml': { copy: './labels/x86-based-windows-hosts.yml.template' },
