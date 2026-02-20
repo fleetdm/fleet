@@ -1506,9 +1506,11 @@ func (a ActivityEditedSmallstep) ActivityName() string {
 type ActivityTypeEnabledAndroidMDM struct{}
 
 func (a ActivityTypeEnabledAndroidMDM) ActivityName() string { return "enabled_android_mdm" }
+
 type ActivityTypeDisabledAndroidMDM struct{}
 
 func (a ActivityTypeDisabledAndroidMDM) ActivityName() string { return "disabled_android_mdm" }
+
 type ActivityTypeCanceledRunScript struct {
 	HostID          uint   `json:"host_id"`
 	HostDisplayName string `json:"host_display_name"`

@@ -569,7 +569,7 @@ func TestGetHosts(t *testing.T) {
 				part = "{" + part
 			}
 			if i < len(parts)-1 {
-				part = part + "}"
+				part += "}"
 			}
 			var obj map[string]any
 			require.NoError(t, json.Unmarshal([]byte(part), &obj))
