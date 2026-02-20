@@ -1152,11 +1152,11 @@ const DefaultOrgInfoContactURL = "https://fleetdm.com/company/contact"
 // ServerSettings contains general settings about the Fleet application.
 type ServerSettings struct {
 	ServerURL            string `json:"server_url"`
-	LiveQueryDisabled    bool   `json:"live_query_disabled" renameto:"live_report_disabled"`
+	LiveQueryDisabled    bool   `json:"live_query_disabled" renameto:"live_reporting_disabled"`
 	EnableAnalytics      bool   `json:"enable_analytics"`
 	DebugHostIDs         []uint `json:"debug_host_ids,omitempty"`
 	DeferredSaveHost     bool   `json:"deferred_save_host"`
-	QueryReportsDisabled bool   `json:"query_reports_disabled" renameto:"reports_disabled"`
+	QueryReportsDisabled bool   `json:"query_reports_disabled" renameto:"discard_reports_data"`
 	ScriptsDisabled      bool   `json:"scripts_disabled"`
 	AIFeaturesDisabled   bool   `json:"ai_features_disabled"`
 	QueryReportCap       int    `json:"query_report_cap" renameto:"report_cap"`

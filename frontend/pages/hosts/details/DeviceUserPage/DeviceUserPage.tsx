@@ -931,7 +931,7 @@ const DeviceUserPage = ({
           {isMobileView && (
             <div className="site-nav-better-link">
               <CustomLink
-                url="https://www.fleetdm.com/better"
+                url={PATHS.DEVICE_TRANSPARENCY(deviceAuthToken)}
                 text="About Fleet"
                 newTab
               />
@@ -949,7 +949,12 @@ const DeviceUserPage = ({
       ) : (
         <div className={coreWrapperClassnames}>{renderDeviceUserPage()}</div>
       )}
-      {showInfoModal && <InfoModal onCancel={toggleInfoModal} />}
+      {showInfoModal && (
+        <InfoModal
+          onCancel={toggleInfoModal}
+          transparencyURL={PATHS.DEVICE_TRANSPARENCY(deviceAuthToken)}
+        />
+      )}
       {showBypassModal && (
         <BypassModal
           onCancel={toggleShowBypassModal}

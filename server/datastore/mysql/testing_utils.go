@@ -469,7 +469,7 @@ func TruncateTables(t testing.TB, ds *Datastore, tables ...string) {
 		"osquery_options":                  true,
 		"software_categories":              true,
 	}
-	testing_utils.TruncateTables(t, ds.writer(context.Background()), ds.logger, nonEmptyTables, tables...)
+	testing_utils.TruncateTables(t, ds.writer(context.Background()), ds.logger.SlogLogger(), nonEmptyTables, tables...)
 }
 
 // this is meant to be used for debugging/testing that statement uses an efficient

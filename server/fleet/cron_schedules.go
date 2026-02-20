@@ -148,6 +148,10 @@ func (e triggerConflictError) IsConflict() bool {
 	return true
 }
 
+func (e triggerConflictError) IsClientError() bool {
+	return true
+}
+
 func (e triggerConflictError) StatusCode() int {
 	return http.StatusConflict
 }
@@ -162,6 +166,10 @@ func (e triggerNotFoundError) Error() string {
 }
 
 func (e triggerNotFoundError) IsNotFound() bool {
+	return true
+}
+
+func (e triggerNotFoundError) IsClientError() bool {
 	return true
 }
 

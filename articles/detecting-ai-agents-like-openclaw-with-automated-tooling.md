@@ -1,8 +1,14 @@
-# Threat hunting AI agents like OpenClaw with automated tooling
+# Detecting AI agents like OpenClaw with automated tooling
 
-AI-powered coding assistants, autonomous security agents, and extension-based development tools are transforming how engineering teams operate. But this innovation introduces a new category of shadow IT with significant security and compliance implications.
+### Links to article series:
 
-For CTOs, CIOs, and CISOs, understanding and controlling this risk is now a board-level priority.
+- Part 1: [OpenClaw: Open for work?](https://fleetdm.com/articles/openclaw-open-for-work)
+- Part 2: Detecting AI agents like OpenClaw with automated tooling
+- Part 3: [Mitigation assets and detection patterns for AI agents like OpenClaw](https://fleetdm.com/guides/mitigation-assets-and-detection-patterns-for-ai-agents-like-openclaw)
+
+AI-powered coding assistants, autonomous security agents, and extension-based development tools are transforming how engineering teams operate. The innovations are real, but they introduce a new category of shadow IT with significant security and compliance implications.
+
+For CTOs, CIOs, and CISOs, understanding and controlling this risk must become a priority.
 
 ## The challenge: multi-vector AI tool usage
 
@@ -133,12 +139,15 @@ Organizations that implement detection frameworks now will be better positioned 
 - Protect intellectual property and sensitive information
 - Make informed decisions about AI tool adoption and governance
 
-The time to establish control is before shadow AI tools become entrenched. With a comprehensive detection framework in place, leadership can enable innovation while maintaining visibility and control. For more on this topic for leaders, check out [Threat Hunting AI Agents and Autonomous Tooling: What Your Board Needs to Know](https://www.linkedin.com/pulse/threat-hunting-ai-agents-autonomous-tooling-what-your-dhruv-majumdar-ia49c/?trackingId=jc1qB6wobL0xVUGoy5al%2Fg%3D%3D) from our very own VP of Security Solutions, [Dhruv Majumdar](https://www.linkedin.com/in/neondhruv/).
+The time to establish control is now, before AI tools become entrenched. With a comprehensive detection framework in place, leadership can enable innovation while maintaining visibility and control. 
 
+For more on this topic, check out [Threat Hunting AI Agents and Autonomous Tooling: What Your Board Needs to Know](https://www.linkedin.com/pulse/threat-hunting-ai-agents-autonomous-tooling-what-your-dhruv-majumdar-ia49c/?trackingId=jc1qB6wobL0xVUGoy5al%2Fg%3D%3D) from our very own VP of Security Solutions, [Dhruv Majumdar](https://www.linkedin.com/in/neondhruv/).
 
-<meta name="articleTitle" value="Threat hunting AI agents like OpenClaw with automated tooling">
+In our [next article](https://fleetdm.com/guides/mitigation-assets-and-detection-patterns-for-ai-agents-like-openclaw) (part 3 of this series) Fleet's [Adam Baali](https://www.linkedin.com/in/adambaali/) will go beyond the overview given here and provide mitigations that security teams can use today. 
+
+<meta name="articleTitle" value="Detecting AI agents like OpenClaw with automated tooling">
 <meta name="authorFullName" value="Brock Walters">
 <meta name="authorGitHubUsername" value="nonpunctual">
 <meta name="category" value="articles">
 <meta name="publishedOn" value="2026-02-18">
-<meta name="description" value="Part 2 of the OpenClaw series: Detect and govern AI coding agents and extensions to reduce enterprise security and compliance risk.">
+<meta name="description" value="Part 2 of 3 - OpenClaw: What governance over autonomous AI agents looks like and what IT leaders should know about them.">

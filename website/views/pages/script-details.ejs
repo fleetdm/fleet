@@ -23,9 +23,9 @@
                 </div>
               </div>
               <%if(thisScript.platform === 'windows'){%>
-                <pre><code class="hljs ps has-linebreaks"><%= _.unescape(thisScript.script) %></code></pre>
+                <pre><code class="hljs ps has-linebreaks"><%= thisScript.script %></code></pre>
               <%} else {%>
-                <pre><code class="hljs sh has-linebreaks"><%= _.unescape(thisScript.script) %></code></pre>
+                <pre><code class="hljs sh has-linebreaks"><%= thisScript.script %></code></pre>
               <%}%>
             </div>
           </div>
