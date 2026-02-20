@@ -33,10 +33,9 @@ org_settings:
     
     # To use single-sign on, todo finish
     end_user_authentication:
-      #   idp_name: "Google Workspace" # This appears to admins on the login screen as a "Sign in with ________" button.
-      #   metadata_url: "" # A URL provided by your IdP when you set up Fleet.
+      # idp_name: "Google Workspace" # This appears to admins on the login screen as a "Sign in with ________" button.
+      # metadata_url: "" # A URL provided by your IdP when you set up Fleet.
       # entity_id: "fleet-end-users" # write up what this is for
-      metadata_url: "" #TODO: Should be omitted, no reason to include an empty state here (if we do, it should be commented out, just like in sailsjs)
     
     # Uncomment to start using zero touch enrollment with Apple devices with Apple Business Manager (ABM)
     apple_business_manager:
