@@ -63,6 +63,7 @@ func TestSoftware(t *testing.T) {
 		{"ListSoftwareByHostIDShort", testListSoftwareByHostIDShort},
 		{"ListSoftwareVulnerabilitiesByHostIDsSource", testListSoftwareVulnerabilitiesByHostIDsSource},
 		{"InsertSoftwareVulnerability", testInsertSoftwareVulnerability},
+		{"InsertSoftwareVulnerabilities", testInsertSoftwareVulnerabilities},
 		{"ListCVEs", testListCVEs},
 		{"ListSoftwareForVulnDetection", testListSoftwareForVulnDetection},
 		{"AllSoftwareIterator", testAllSoftwareIterator},
@@ -2714,6 +2715,72 @@ func testInsertSoftwareVulnerability(t *testing.T, ds *Datastore) {
 		require.Equal(t, "1.2.3", *storedVulns[host.ID][0].ResolvedInVersion)
 		require.Equal(t, "cve-4", storedVulns[host.ID][1].CVE)
 		require.Nil(t, storedVulns[host.ID][1].ResolvedInVersion)
+	})
+}
+
+func testInsertSoftwareVulnerabilities(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	host := test.NewHost(t, ds, "hostBatch", "", "hostBatchkey", "hostBatchuuid", time.Now())
+	software := fleet.Software{Name: "batchApp", Version: "1.0.0", Source: "apps"}
+	_, err := ds.UpdateHostSoftware(ctx, host.ID, []fleet.Software{software})
+	require.NoError(t, err)
+	require.NoError(t, ds.LoadHostSoftware(ctx, host, false))
+	swID := host.Software[0].ID
+
+	t.Run("empty and filtered input returns nil", func(t *testing.T) {
+		newVulns, err := ds.InsertSoftwareVulnerabilities(ctx, nil, fleet.NVDSource)
+		require.NoError(t, err)
+		require.Nil(t, newVulns)
+
+		newVulns, err = ds.InsertSoftwareVulnerabilities(ctx, []fleet.SoftwareVulnerability{
+			{SoftwareID: swID, CVE: ""},
+		}, fleet.NVDSource)
+		require.NoError(t, err)
+		require.Nil(t, newVulns)
+	})
+
+	t.Run("new vulns returned on insert, not on re-insert", func(t *testing.T) {
+		vulns := []fleet.SoftwareVulnerability{
+			{SoftwareID: swID, CVE: "CVE-2024-0001"},
+			{SoftwareID: swID, CVE: "CVE-2024-0002", ResolvedInVersion: ptr.String("1.1.0")},
+		}
+
+		// First insert: both are new.
+		newVulns, err := ds.InsertSoftwareVulnerabilities(ctx, vulns, fleet.NVDSource)
+		require.NoError(t, err)
+		require.Len(t, newVulns, 2)
+
+		// Second insert: none are new.
+		newVulns, err = ds.InsertSoftwareVulnerabilities(ctx, vulns, fleet.NVDSource)
+		require.NoError(t, err)
+		require.Empty(t, newVulns)
+
+		// Mixed: one existing, one new.
+		vulns = append(vulns, fleet.SoftwareVulnerability{SoftwareID: swID, CVE: "CVE-2024-0003"})
+		newVulns, err = ds.InsertSoftwareVulnerabilities(ctx, vulns, fleet.NVDSource)
+		require.NoError(t, err)
+		require.Len(t, newVulns, 1)
+		assert.Equal(t, "CVE-2024-0003", newVulns[0].CVE)
+	})
+
+	t.Run("upsert refreshes updated_at", func(t *testing.T) {
+		pastTime := time.Now().Add(-24 * time.Hour)
+		_, err := ds.writer(ctx).ExecContext(ctx,
+			`UPDATE software_cve SET updated_at = ? WHERE software_id = ? AND cve = ?`,
+			pastTime, swID, "CVE-2024-0001")
+		require.NoError(t, err)
+
+		_, err = ds.InsertSoftwareVulnerabilities(ctx, []fleet.SoftwareVulnerability{
+			{SoftwareID: swID, CVE: "CVE-2024-0001"},
+		}, fleet.NVDSource)
+		require.NoError(t, err)
+
+		var afterTS time.Time
+		err = sqlx.GetContext(ctx, ds.reader(ctx), &afterTS,
+			`SELECT updated_at FROM software_cve WHERE software_id = ? AND cve = ?`, swID, "CVE-2024-0001")
+		require.NoError(t, err)
+		assert.True(t, afterTS.After(pastTime), "updated_at should be refreshed on upsert")
 	})
 }
 

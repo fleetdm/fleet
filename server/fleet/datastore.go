@@ -655,6 +655,10 @@ type Datastore interface {
 	// case it will return true) or if a matching record already exists it will update its
 	// updated_at timestamp (in which case it will return false).
 	InsertSoftwareVulnerability(ctx context.Context, vuln SoftwareVulnerability, source VulnerabilitySource) (bool, error)
+	// InsertSoftwareVulnerabilities inserts a batch of vulnerabilities into the datastore.
+	// It checks which vulnerabilities are new (not already present) before inserting, and
+	// returns only the newly inserted vulnerabilities.
+	InsertSoftwareVulnerabilities(ctx context.Context, vulns []SoftwareVulnerability, source VulnerabilitySource) ([]SoftwareVulnerability, error)
 	SoftwareByID(ctx context.Context, id uint, teamID *uint, includeCVEScores bool, tmFilter *TeamFilter) (*Software, error)
 	// ListSoftwareByHostIDShort lists software by host ID, but does not include CPEs or vulnerabilites.
 	// It is meant to be used when only minimal software fields are required eg when updating host software.
@@ -1274,6 +1278,8 @@ type Datastore interface {
 
 	// DeleteMDMAppleDeclartionByName deletes a DDM profile by its name for the
 	// specified team (or no team).
+	//
+	// Returns nil, nil if the declaration with name on teamID doesn't exist.
 	DeleteMDMAppleDeclarationByName(ctx context.Context, teamID *uint, name string) error
 
 	BulkDeleteMDMAppleHostsConfigProfiles(ctx context.Context, payload []*MDMAppleProfilePayload) error

@@ -80,7 +80,7 @@ module.exports = {
       sails.log.warn(`p1: Android management API rate limit exceeded!`);
       return new Error(`When attempting to create a singup url for a new Android enterprise, an error occurred. Error: ${err}`);
     }).intercept((err)=>{
-      return new Error(`When attempting to create a singup url for a new Android enterprise, an error occurred. Error: ${err}`);
+      return new Error(`When attempting to create a singup url for a new Android enterprise, an error occurred. Error: ${require('util').inspect(err)}`);
     });
 
 

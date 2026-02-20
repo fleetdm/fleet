@@ -2986,6 +2986,91 @@ func (ds *Datastore) InsertSoftwareVulnerability(
 	return insertOnDuplicateDidInsertOrUpdate(res), nil
 }
 
+// vulnBatchSize is the batch size used for vulnerability insert and existence-check queries.
+const vulnBatchSize = 500
+
+func (ds *Datastore) InsertSoftwareVulnerabilities(
+	ctx context.Context,
+	vulns []fleet.SoftwareVulnerability,
+	source fleet.VulnerabilitySource,
+) ([]fleet.SoftwareVulnerability, error) {
+	// Filter out entries with empty CVEs.
+	filtered := make([]fleet.SoftwareVulnerability, 0, len(vulns))
+	for _, v := range vulns {
+		if v.CVE != "" {
+			filtered = append(filtered, v)
+		}
+	}
+	if len(filtered) == 0 {
+		return nil, nil
+	}
+
+	// Step 1: Batch-check which vulns already exist so we can identify truly new ones.
+	existing := make(map[string]struct{}, len(filtered))
+	if err := common_mysql.BatchProcessSimple(filtered, vulnBatchSize, func(batch []fleet.SoftwareVulnerability) error {
+		tuples := strings.TrimSuffix(strings.Repeat("(?,?),", len(batch)), ",")
+		query := fmt.Sprintf(
+			`SELECT software_id, cve FROM software_cve WHERE (software_id, cve) IN (%s)`,
+			tuples,
+		)
+		var args []any
+		for _, v := range batch {
+			args = append(args, v.SoftwareID, v.CVE)
+		}
+		var rows []struct {
+			SoftwareID uint   `db:"software_id"`
+			CVE        string `db:"cve"`
+		}
+		if err := sqlx.SelectContext(ctx, ds.reader(ctx), &rows, query, args...); err != nil {
+			return ctxerr.Wrap(ctx, err, "batch check existing software vulnerabilities")
+		}
+		for _, r := range rows {
+			existing[fmt.Sprintf("%d:%s", r.SoftwareID, r.CVE)] = struct{}{}
+		}
+		return nil
+	}); err != nil {
+		return nil, err
+	}
+
+	// Step 2: Identify new vulns (not already in the database).
+	var newVulns []fleet.SoftwareVulnerability
+	for _, v := range filtered {
+		if _, ok := existing[fmt.Sprintf("%d:%s", v.SoftwareID, v.CVE)]; !ok {
+			newVulns = append(newVulns, v)
+		}
+	}
+
+	// Step 3: Batch INSERT (ON DUPLICATE KEY UPDATE for concurrent-safe upsert).
+	// Use an explicit Go-side UTC timestamp to match the legacy InsertSoftwareVulnerability behavior.
+	now := time.Now().UTC()
+	if err := common_mysql.BatchProcessSimple(filtered, vulnBatchSize, func(batch []fleet.SoftwareVulnerability) error {
+		values := strings.TrimSuffix(strings.Repeat("(?,?,?,?),", len(batch)), ",")
+		stmt := fmt.Sprintf(`
+			INSERT INTO software_cve (cve, source, software_id, resolved_in_version)
+			VALUES %s
+			ON DUPLICATE KEY UPDATE
+				source = VALUES(source),
+				resolved_in_version = VALUES(resolved_in_version),
+				updated_at = ?
+		`, values)
+
+		var args []any
+		for _, v := range batch {
+			args = append(args, v.CVE, source, v.SoftwareID, v.ResolvedInVersion)
+		}
+		args = append(args, now)
+
+		if _, err := ds.writer(ctx).ExecContext(ctx, stmt, args...); err != nil {
+			return ctxerr.Wrap(ctx, err, "batch insert software vulnerabilities")
+		}
+		return nil
+	}); err != nil {
+		return nil, err
+	}
+
+	return newVulns, nil
+}
+
 func (ds *Datastore) ListSoftwareVulnerabilitiesByHostIDsSource(
 	ctx context.Context,
 	hostIDs []uint,

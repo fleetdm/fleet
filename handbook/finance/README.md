@@ -452,7 +452,7 @@ When reviewing contracts from a vendor, Fleet is concerned about the following:
 
 Within 1 business day, at a minimum, [Deal Desk](https://fleetdm.com/handbook/finance#team) will review order forms to be sent. 
 
-Using the this [order form review](https://fleetdm.zoom.us/clips/share/M79m0GZUS_GmF1R7go5T7A) and the [TEMPLATE - Subscription order form (confidential document)](https://docs.google.com/document/d/1X4fh2LsuFtAVyQDnU1ZGBggqg-Ec00vYHACyckEooqA/edit?tab=t.0) as an examples, check the document for correct format, pricing info, terms, "Fast-track deployment services" info, or any other missing details. 
+Using this [order form review](https://fleetdm.zoom.us/clips/share/M79m0GZUS_GmF1R7go5T7A) and the [TEMPLATE - Subscription order form (confidential document)](https://docs.google.com/document/d/1X4fh2LsuFtAVyQDnU1ZGBggqg-Ec00vYHACyckEooqA/edit?tab=t.0) as an examples, check the document for correct format, pricing info, terms, "Fast-track deployment services" info, or any other missing details. 
 1. Navigate to the [#help-order-forms Slack channel](https://fleetdm.slack.com/archives/C09G32R99M2) to review any order forms pending approval.
 2. Be sure the order form includes a quality logo that matches the customer company and is correctly sized.
 3. Navigate to the future customer's opportunity in Salesforce and verify the contact information + billing address and information so that Fleet knows how and who to invoice for payment.
