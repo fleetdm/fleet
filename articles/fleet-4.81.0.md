@@ -120,6 +120,6 @@ Visit our [Upgrade guide](https://fleetdm.com/docs/deploying/upgrading-fleet) in
 <meta name="category" value="releases">
 <meta name="authorFullName" value="Noah Talerman">
 <meta name="authorGitHubUsername" value="noahtalerman">
-<meta name="publishedOn" value="2026-02-18">
+<meta name="publishedOn" value="2026-02-20">
 <meta name="articleTitle" value="Fleet 4.81.0 | Lower AWS costs, automatic IdP deprovisioning, and more...">
 <meta name="articleImageUrl" value="../website/assets/images/articles/fleet-4.81.0-1600x900@2x.png">
