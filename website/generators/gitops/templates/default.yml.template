@@ -59,6 +59,7 @@ controls:
   #   mode: voluntary # Change this to "forced" closer to the deadline.
   #   webhook_url: "https://your-custom-webhook-or-one-provided-off-the-shelf-by-fleet-for-the-mdm-you-are-coming-from.example.com" # Only relevant for devices running macOS <v26: When end users click "Migrate to Fleet", this webhook is triggered.  By convention it looks up the device and unmanages it in the old MDM, then enrolls the device in Fleet.
 labels:
+  # TODO: Decide whether or not we'll include label in gitops template by default (same for software)
   # - paths: ./labels/.yml #FUTURE: stat disk and auto-include all via glob
   - path: ./labels/apple-silicon-macos-hosts.yml
   - path: ./labels/arm-based-windows-hosts.yml
