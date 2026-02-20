@@ -32,25 +32,25 @@ org_settings:
   mdm:
     
     # To use single-sign on, todo finish
-    end_user_authentication:
-      # idp_name: "Google Workspace" # This appears to admins on the login screen as a "Sign in with ________" button.
-      # metadata_url: "" # A URL provided by your IdP when you set up Fleet.
-      # entity_id: "fleet-end-users" # write up what this is for
+    # end_user_authentication:
+    #   idp_name: "Google Workspace" # This appears to admins on the login screen as a "Sign in with ________" button.
+    #   metadata_url: "" # A URL provided by your IdP when you set up Fleet.
+    #   entity_id: "fleet-end-users" # write up what this is for
     
     # Uncomment to start using zero touch enrollment with Apple devices with Apple Business Manager (ABM)
-    apple_business_manager:
-      - organization_name: Fleet Device Management Inc. # The name of your organization in Apple Business Manager.    (………TODO: why does the organization name need to be specified?  (It has to match something in ABM.  Why?  You can't actually set up ABM with gitops because of pubkey downloading and things.  This is telling gitops that, once you create the record in the UI, don't override it)
-        macos_fleet: "💻 Workstations"  #TODO: This could default to "Unassigned" if unspecified, and then it could be omitted.
-        ios_fleet: "📱🏢 Employee-issued mobile devices"
-        ipados_fleet: "📱🏢 Employee-issued mobile devices"
+    # apple_business_manager:
+    #   - organization_name: "My organization" # The name of your organization in Apple Business Manager.    (………TODO: why does the organization name need to be specified?  (It has to match something in ABM.  Why?  You can't actually set up ABM with gitops because of pubkey downloading and things.  This is telling gitops that, once you create the record in the UI, don't override it)
+    #     macos_fleet: "💻 Workstations"  #TODO: This could default to "Unassigned" if unspecified, and then it could be omitted.
+    #     ios_fleet: "📱🏢 Employee-issued mobile devices"
+    #     ipados_fleet: "📱🏢 Employee-issued mobile devices"
     
     # Uncomment to…
-    volume_purchasing_program: # TODO: does this need to be specified? can we just turn them all on by default? and then this can be omitted
-      - location: Fleet Device Management Inc. # The name of your organization in Apple Business Manager.
-        fleets:
-          - "💻 Workstations"
-          - "📱🏢 Employee-issued mobile devices"
-          - "📱🔐 Personal mobile devices"
+    # volume_purchasing_program: # TODO: does this need to be specified? can we just turn them all on by default? and then this can be omitted
+    #   - location: "My organization" # The name of your organization in Apple Business Manager.
+    #     fleets:
+    #       - "💻 Workstations"
+    #       - "📱🏢 Employee-issued mobile devices"
+    #       - "📱🔐 Personal mobile devices"
 controls:
   # Uncomment to… # TODO finish
   # (This is a system-wide setting that must be configured at the top level. uncomment to…
