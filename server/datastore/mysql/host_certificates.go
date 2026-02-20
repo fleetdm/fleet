@@ -21,7 +21,7 @@ import (
 // SECURITY: This prevents information disclosure via arbitrary column sorting.
 var hostCertificateAllowedOrderKeys = common_mysql.OrderKeyAllowlist{
 	"not_valid_after": "hc.not_valid_after",
-	"common_name":     "hc.subject_common_name",
+	"common_name":     "hc.common_name",
 }
 
 func (ds *Datastore) ListHostCertificates(ctx context.Context, hostID uint, opts fleet.ListOptions) ([]*fleet.HostCertificateRecord, *fleet.PaginationMetadata, error) {

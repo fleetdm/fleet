@@ -372,18 +372,18 @@ func TestAppendListOptionsToSQLSecure(t *testing.T) {
 
 	actual, _, err := appendListOptionsToSQLSecure(sql, &opts, testAllowlist)
 	require.NoError(t, err)
-	expected := "SELECT * FROM my_table ORDER BY `name` ASC LIMIT 1000000"
+	expected := "SELECT * FROM my_table ORDER BY name ASC LIMIT 1000000"
 	if actual != expected {
-		t.Error("Expected", expected, "Actual", actual)
+		t.Errorf("got %q, want %q", actual, expected)
 	}
 
 	sql = "SELECT * FROM my_table"
 	opts.OrderDirection = fleet.OrderDescending
 	actual, _, err = appendListOptionsToSQLSecure(sql, &opts, testAllowlist)
 	require.NoError(t, err)
-	expected = "SELECT * FROM my_table ORDER BY `name` DESC LIMIT 1000000"
+	expected = "SELECT * FROM my_table ORDER BY name DESC LIMIT 1000000"
 	if actual != expected {
-		t.Error("Expected", expected, "Actual", actual)
+		t.Errorf("got %q, want %q", actual, expected)
 	}
 
 	opts = fleet.ListOptions{

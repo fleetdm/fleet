@@ -27,6 +27,7 @@ import (
 var policyAllowedOrderKeys = common_mysql.OrderKeyAllowlist{
 	"id":                 "p.id",
 	"name":               "p.name",
+	"team_id":            "p.team_id",
 	"created_at":         "p.created_at",
 	"updated_at":         "p.updated_at",
 	"failing_host_count": "COALESCE(ps.failing_host_count, 0)",
