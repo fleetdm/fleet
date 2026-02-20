@@ -2878,6 +2878,7 @@ func directIngestMDMDeviceIDWindows(ctx context.Context, logger log.Logger, host
 
 				// Enqueue ESP tracking for setup experience software titles
 				// For user-driven Autopilot, Account Setup phase uses User scope
+				// ! FIXME: This is incorrect, as it tries to send all apps that are available for setup experience, and not the ones configured to actually get installed.
 				titles, count, _, err := ds.ListSetupExperienceSoftwareTitles(ctx, host.Platform, teamId, fleet.ListOptions{PerPage: 100})
 				if err != nil {
 					return ctxerr.Wrap(ctx, err, "listing setup experience software titles for windows mdm enrolled host")
