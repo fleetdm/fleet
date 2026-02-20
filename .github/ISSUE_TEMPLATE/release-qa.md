@@ -412,6 +412,15 @@ After repointing a Fleet Desktop install at a server running Fleet Free:
 3. Styling and padding appears correct. 
 </td><td>pass/fail</td></tr>
 
+<tr><td>Auto-updates disabled</td><td>Verify 
+that fleetd works on when the installer package is built with `--disable-updates`.</td><td>
+
+1. Generate package with `fleetctl package [...] --updates-disabled`<br>
+2. Install packages on macOS, Windows, and Linux <br>
+3. Smoke test orbit and Fleet Desktop functionality, and osquery tables.
+
+</td><td>pass/fail</td></tr>
+
 </table>
   
 # Notes
