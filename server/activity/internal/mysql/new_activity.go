@@ -13,9 +13,6 @@ import (
 	"github.com/jmoiron/sqlx"
 )
 
-// Ensure Datastore implements types.NewActivityDatastore
-// (compile-time check is in activity.go with types.Datastore)
-
 // NewActivity stores an activity record in the database.
 // The webhook context key must be set in the context before calling this method.
 func (ds *Datastore) NewActivity(
