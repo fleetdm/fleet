@@ -19,9 +19,9 @@ Fleet Desktop is a menu bar icon that gives end users visibility into the securi
 ## Host
 A host is a computer, server, or other endpoint. Fleet gathers information from Fleet's agent (fleetd) installed on each of your hosts. [Docs](https://fleetdm.com/docs/using-fleet/adding-hosts).
 
-## Team
+## Fleet
 
-A team is a group of hosts. Organize hosts into teams to apply queries, policies, scripts, and other configurations tailored to their specific risk and compliance requirements. [Read the guide](https://fleetdm.com/guides/teams).
+A fleet is a group of hosts. Organize hosts into fleets to apply queries, policies, scripts, and other configurations tailored to their specific risk and compliance requirements. [Read the guide](https://fleetdm.com/guides/fleets).
 
 ## Query
 A query in Fleet refers to an osquery query. Osquery uses basic SQL commands to request data from hosts. Use queries to manage, monitor, and identify threats on your devices. [Docs](https://fleetdm.com/docs/using-fleet/fleet-ui).
