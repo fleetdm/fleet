@@ -429,14 +429,7 @@ func CreateNamedMySQLDSWithConns(t *testing.T, name string) (*Datastore, *common
 	ds := initializeDatabase(t, name, new(testing_utils.DatastoreTestOptions))
 	t.Cleanup(func() { ds.Close() })
 
-	replica, ok := ds.replica.(*sqlx.DB)
-	require.True(t, ok, "ds.replica should be *sqlx.DB in tests")
-	dbConns := &common_mysql.DBConnections{
-		Primary: ds.primary,
-		Replica: replica,
-	}
-
-	return ds, dbConns
+	return ds, TestDBConnections(t, ds)
 }
 
 func ExecAdhocSQL(tb testing.TB, ds *Datastore, fn func(q sqlx.ExtContext) error) {
@@ -1018,15 +1011,20 @@ func (t *testingLookupService) ActivateNextUpcomingActivityForHost(ctx context.C
 	return t.ds.ActivateNextUpcomingActivityForHost(ctx, hostID, fromCompletedExecID)
 }
 
+// TestDBConnections extracts the underlying DB connections from a test Datastore.
+func TestDBConnections(t testing.TB, ds *Datastore) *common_mysql.DBConnections {
+	t.Helper()
+	replica, ok := ds.replica.(*sqlx.DB)
+	require.True(t, ok, "ds.replica should be *sqlx.DB in tests")
+	return &common_mysql.DBConnections{Primary: ds.primary, Replica: replica}
+}
+
 // NewTestActivityService creates an activity service. This allows tests to call the activity bounded context API.
 // User data is fetched from the same database to support tests that verify user info in activities.
 func NewTestActivityService(t testing.TB, ds *Datastore) activity_api.Service {
 	t.Helper()
 
-	// Extract DB connections
-	replica, ok := ds.replica.(*sqlx.DB)
-	require.True(t, ok, "ds.replica should be *sqlx.DB in tests")
-	dbConns := &common_mysql.DBConnections{Primary: ds.primary, Replica: replica}
+	dbConns := TestDBConnections(t, ds)
 
 	// Use the real ACL adapter with a testing lookup service
 	lookupSvc := &testingLookupService{ds: ds}
