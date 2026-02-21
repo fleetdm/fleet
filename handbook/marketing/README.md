@@ -6,7 +6,7 @@ This handbook page details processes specific to working [with](#contact-us) and
 
 | Role                               | Contributor(s)
 |:-----------------------------------|:------------------------------------------------------------------------------------------------------------------------|
-| Chief  Marketing Officer          | [Ashish](https://www.linkedin.com/in/ashishkuthiala) _([@akuthiala](https://github.com/akuthiala))_
+| Chief  Marketing Officer          | [Ashish Kuthiala](https://www.linkedin.com/in/ashishkuthiala) _([@akuthiala](https://github.com/akuthiala))_
 | Content Specialist                 | [Irena Reedy](https://www.linkedin.com/in/irena-reedy-520ab9354/) _([@irenareedy](https://github.com/irenareedy))_
 | Head of Demand Generation                  | [John Jeremiah](https://www.linkedin.com/in/johnjeremiah/) _([@johnjeremiah](https://github.com/johnjeremiah))_
 | Product Education Manager     | [Brock Walters](https://www.linkedin.com/in/brock-walters-247a2990/) _([@nonpunctual](https://github.com/nonpunctual))_
@@ -23,7 +23,7 @@ This handbook page details processes specific to working [with](#contact-us) and
 
 ## Responsibilities
 
-The Marketing department is directly responsible for achieving revenue pipeline targets, increasing awareness and interest in the open-source project, customer training curriculums, prospect enablement, and nurturing the Fleet community through participation in video, sponsored events, and other [programs](https://fleetdm.com/handbook/company/communications#programs).
+The Marketing department is directly responsible for achieving revenue pipeline targets, increasing market awareness about Fleet, customer training curriculums, prospect enablement, and nurturing the Fleet community through participation in video, sponsored events, and other [programs](https://fleetdm.com/handbook/company/communications#programs).
 
 
 ### Marketing & Enablement Assets
@@ -66,18 +66,18 @@ The Marketing department is directly responsible for achieving revenue pipeline�
 
 | Asset | Use for | Date&nbsp;updated&nbsp;&nbsp;&nbsp; |
 | :--- | :--- | :--- |
-| [OpenClaw: Open for work?](https://fleetdm.com/blog/openclaw-open-for-work) | Overview of OpenClaw and security risks of AI agents. | Feb 04, 2026 |
-| [The GitOps idea](https://fleetdm.com/blog/the-gitops-idea) | Managing systems reliably via version control and code. | Feb 04, 2026 |
-| [Fleet vs. Jamf comparison](https://fleetdm.com/blog/fleet-vs-jamf) | Side-by-side comparison of capabilities and criteria. | Jan 27, 2026 |
-| [Redefining endpoint management](https://fleetdm.com/blog/redefining-endpoint-management-at-scale-gartner-2026) | Analysis of Fleet in the 2026 Gartner reports. | Jan 23, 2026 |
-| [Why enterprise Linux is important](https://fleetdm.com/blog/why-enterprise-linux-is-important-in-2026) | Security strategy for modern Linux endpoints. | Jan 21, 2026 |
-| [6 business benefits of Apple MDM](https://fleetdm.com/blog/6-business-benefits-of-apple-mdm-explained) | Business ROI for security and IT operations. | Jan 11, 2026 |
-| [Declarative device management](https://fleetdm.com/blog/declarative-device-management-a-primer) | Introduction to modern Apple DDM protocol. | Jan 11, 2026 |
-| [iPad MDM: a complete guide](https://fleetdm.com/blog/ipad-mdm-a-complete-guide) | Deployment models and management for iPadOS. | Jan 11, 2026 |
-| [Roadmap preview, January 2026](https://fleetdm.com/blog/roadmap-preview-january-2026) | Product vision and platform opportunities. | Jan 05, 2026 |
-| [The MDM migration reality](https://fleetdm.com/blog/the-mdm-migration-reality) | Insights into executing smoother MDM migrations. | Nov 26, 2025 |
+| [OpenClaw: Open for work?](https://fleetdm.com/articles/openclaw-open-for-work) | Overview of OpenClaw and security risks of AI agents. | Feb 04, 2026 |
+| [The GitOps idea](https://fleetdm.com/articles/the-gitops-idea) | Managing systems reliably via version control and code. | Feb 04, 2026 |
+| [Fleet vs. Jamf comparison](https://fleetdm.com/articles/fleet-vs-jamf) | Side-by-side comparison of capabilities and criteria. | Jan 27, 2026 |
+| [Redefining endpoint management](https://fleetdm.com/articles/redefining-endpoint-management-at-scale-gartner-2026) | Analysis of Fleet in the 2026 Gartner reports. | Jan 23, 2026 |
+| [Why enterprise Linux is important](https://fleetdm.com/articles/why-enterprise-linux-is-important-in-2026) | Security strategy for modern Linux endpoints. | Jan 21, 2026 |
+| [6 business benefits of Apple MDM](https://fleetdm.com/articles/6-business-benefits-of-apple-mdm-explained) | Business ROI for security and IT operations. | Jan 11, 2026 |
+| [Declarative device management](https://fleetdm.com/articles/declarative-device-management-a-primer) | Introduction to modern Apple DDM protocol. | Jan 11, 2026 |
+| [iPad MDM: a complete guide](https://fleetdm.com/articles/ipad-mdm-a-complete-guide) | Deployment models and management for iPadOS. | Jan 11, 2026 |
+| [Roadmap preview, January 2026](https://fleetdm.com/articles/roadmap-preview-january-2026) | Product vision and platform opportunities. | Jan 05, 2026 |
+| [The MDM migration reality](https://fleetdm.com/articles/the-mdm-migration-reality) | Insights into executing smoother MDM migrations. | Nov 26, 2025 |
 | [9to5mac: Scripting features](https://9to5mac.com/2023/10/17/fleet-releases-open-source-cross-platform-scripting-based-on-osquery/) | External coverage of Fleet's scripting. | Oct 06, 2024 |
-| [Detect Log4j with osquery](https://fleetdm.com/blog/detect-log4j-with-osquery) | Rapid response patterns for critical vulnerabilities. | Dec 15, 2021 |
+| [Detect Log4j with osquery](https://fleetdm.com/articles/detect-log4j-with-osquery) | Rapid response patterns for critical vulnerabilities. | Dec 15, 2021 |
 
 ### Guides
 
