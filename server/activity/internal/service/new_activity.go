@@ -11,6 +11,7 @@ import (
 
 	"github.com/cenkalti/backoff/v4"
 	"github.com/fleetdm/fleet/v4/server/activity/api"
+	"github.com/fleetdm/fleet/v4/server/activity/internal/types"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	eu "github.com/fleetdm/fleet/v4/server/platform/endpointer"
 	platformhttp "github.com/fleetdm/fleet/v4/server/platform/http"
@@ -53,7 +54,7 @@ func (s *Service) NewActivity(ctx context.Context, user *api.User, activity api.
 	}
 
 	// Mark context as webhook processed
-	ctx = context.WithValue(ctx, api.ActivityWebhookContextKey, true)
+	ctx = context.WithValue(ctx, types.ActivityWebhookContextKey, true)
 
 	return s.store.NewActivity(ctx, user, activity, detailsBytes, timestamp)
 }
@@ -79,7 +80,7 @@ func (s *Service) fireActivityWebhook(
 		userName = &user.Name
 		userEmail = &user.Email
 	} else if automatableActivity, ok := activity.(api.AutomatableActivity); ok && automatableActivity.WasFromAutomation() {
-		automationAuthor := api.ActivityAutomationAuthor
+		automationAuthor := types.ActivityAutomationAuthor
 		userName = &automationAuthor
 	}
 

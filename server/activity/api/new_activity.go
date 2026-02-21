@@ -6,19 +6,6 @@ import (
 	"time"
 )
 
-// ActivityAutomationAuthor is the name used for the actor when an activity
-// is recorded as a result of an automated action (cron job, webhook, etc.)
-// or policy automation (i.e. triggered by a failing policy).
-const ActivityAutomationAuthor = "Fleet"
-
-// ActivityWebhookContextKey is the context key used to indicate that the activity webhook
-// has been processed. This is a sanity check to ensure callers use the service layer
-// (which handles webhooks) rather than calling the datastore directly.
-type activityWebhookContextKeyType struct{}
-
-// ActivityWebhookContextKey is used to mark that the webhook was processed before storing the activity.
-var ActivityWebhookContextKey = activityWebhookContextKeyType{}
-
 // User represents user information for activity recording.
 type User struct {
 	ID      uint
@@ -28,7 +15,6 @@ type User struct {
 }
 
 // ActivityDetails defines the interface for activity detail types.
-// This is satisfied by fleet.ActivityDetails types.
 type ActivityDetails interface {
 	ActivityName() string
 }

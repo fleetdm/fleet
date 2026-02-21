@@ -8,6 +8,19 @@ import (
 	"github.com/fleetdm/fleet/v4/server/activity/api"
 )
 
+// activityWebhookContextKeyType is the context key type used to indicate that the activity webhook
+// has been processed. This is a sanity check to ensure callers use the service layer
+// (which handles webhooks) rather than calling the datastore directly.
+type activityWebhookContextKeyType struct{}
+
+// ActivityWebhookContextKey is used to mark that the webhook was processed before storing the activity.
+var ActivityWebhookContextKey = activityWebhookContextKeyType{}
+
+// ActivityAutomationAuthor is the name used for the actor when an activity
+// is recorded as a result of an automated action (cron job, webhook, etc.)
+// or policy automation (i.e. triggered by a failing policy).
+const ActivityAutomationAuthor = "Fleet"
+
 // ListOptions extends api.ListOptions with internal fields used by the datastore.
 type ListOptions struct {
 	api.ListOptions

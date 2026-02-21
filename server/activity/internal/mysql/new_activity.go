@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server/activity/api"
+	"github.com/fleetdm/fleet/v4/server/activity/internal/types"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	platform_mysql "github.com/fleetdm/fleet/v4/server/platform/mysql"
 	"github.com/jmoiron/sqlx"
@@ -24,7 +25,7 @@ func (ds *Datastore) NewActivity(
 	defer span.End()
 
 	// Sanity check to ensure we processed activity webhook before storing the activity
-	processed, _ := ctx.Value(api.ActivityWebhookContextKey).(bool)
+	processed, _ := ctx.Value(types.ActivityWebhookContextKey).(bool)
 	if !processed {
 		return ctxerr.New(
 			ctx, "activity webhook not processed. Please use svc.NewActivity instead of ds.NewActivity. This is a Fleet server bug.",
@@ -49,7 +50,7 @@ func (ds *Datastore) NewActivity(
 	}
 
 	if automatableActivity, ok := activity.(api.AutomatableActivity); ok && automatableActivity.WasFromAutomation() {
-		automationAuthor := api.ActivityAutomationAuthor
+		automationAuthor := types.ActivityAutomationAuthor
 		userName = &automationAuthor
 		fleetInitiated = true
 	}
