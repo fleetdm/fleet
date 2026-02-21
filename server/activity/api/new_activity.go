@@ -2,8 +2,6 @@ package api
 
 import (
 	"context"
-	"encoding/json"
-	"time"
 )
 
 // User represents user information for activity recording.
@@ -19,38 +17,7 @@ type ActivityDetails interface {
 	ActivityName() string
 }
 
-// AutomatableActivity indicates the activity was initiated by automation.
-type AutomatableActivity interface {
-	WasFromAutomation() bool
-}
-
-// ActivityHosts indicates the activity is associated with specific hosts.
-type ActivityHosts interface {
-	HostIDs() []uint
-}
-
-// ActivityHostOnly indicates the activity is host-scoped only.
-type ActivityHostOnly interface {
-	HostOnly() bool
-}
-
-// ActivityActivator indicates the activity should activate the next upcoming activity.
-type ActivityActivator interface {
-	MustActivateNextUpcomingActivity() bool
-	ActivateNextUpcomingActivityArgs() (hostID uint, cmdUUID string)
-}
-
-// WebhookPayload is the payload sent to the activities webhook.
-type WebhookPayload struct {
-	Timestamp     time.Time        `json:"timestamp"`
-	ActorFullName *string          `json:"actor_full_name"`
-	ActorID       *uint            `json:"actor_id"`
-	ActorEmail    *string          `json:"actor_email"`
-	Type          string           `json:"type"`
-	Details       *json.RawMessage `json:"details"`
-}
-
-// NewActivityService is implemented by the activity bounded context for creating activities.
+// NewActivityService is for creating activities.
 type NewActivityService interface {
 	// NewActivity creates a new activity record and fires the webhook if configured.
 	// user can be nil for automation-initiated activities.

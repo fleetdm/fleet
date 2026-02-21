@@ -20,6 +20,16 @@ import (
 	"go.opentelemetry.io/otel/trace"
 )
 
+// webhookPayload is the payload sent to the activities webhook.
+type webhookPayload struct {
+	Timestamp     time.Time        `json:"timestamp"`
+	ActorFullName *string          `json:"actor_full_name"`
+	ActorID       *uint            `json:"actor_id"`
+	ActorEmail    *string          `json:"actor_email"`
+	Type          string           `json:"type"`
+	Details       *json.RawMessage `json:"details"`
+}
+
 // NewActivity creates a new activity record and fires the webhook if configured.
 func (s *Service) NewActivity(ctx context.Context, user *api.User, activity api.ActivityDetails) error {
 	detailsBytes, err := json.Marshal(activity)
@@ -46,7 +56,7 @@ func (s *Service) NewActivity(ctx context.Context, user *api.User, activity api.
 	// Activate the next upcoming activity if requested by the activity type.
 	// This is done before storing to avoid holding a DB transaction open during
 	// potentially slow operations.
-	if aa, ok := activity.(api.ActivityActivator); ok && aa.MustActivateNextUpcomingActivity() {
+	if aa, ok := activity.(types.ActivityActivator); ok && aa.MustActivateNextUpcomingActivity() {
 		hostID, cmdUUID := aa.ActivateNextUpcomingActivityArgs()
 		if err := s.providers.ActivateNextUpcomingActivity(ctx, hostID, cmdUUID); err != nil {
 			return ctxerr.Wrap(ctx, err, "activate next upcoming activity")
@@ -79,7 +89,7 @@ func (s *Service) fireActivityWebhook(
 		}
 		userName = &user.Name
 		userEmail = &user.Email
-	} else if automatableActivity, ok := activity.(api.AutomatableActivity); ok && automatableActivity.WasFromAutomation() {
+	} else if automatableActivity, ok := activity.(types.AutomatableActivity); ok && automatableActivity.WasFromAutomation() {
 		automationAuthor := types.ActivityAutomationAuthor
 		userName = &automationAuthor
 	}
@@ -109,7 +119,7 @@ func (s *Service) fireActivityWebhook(
 		err := backoff.Retry(
 			func() error {
 				if err := s.providers.SendWebhookPayload(
-					spanCtx, webhookURL, &api.WebhookPayload{
+					spanCtx, webhookURL, &webhookPayload{
 						Timestamp:     timestamp,
 						ActorFullName: userName,
 						ActorID:       userID,

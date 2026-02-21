@@ -49,13 +49,13 @@ func (ds *Datastore) NewActivity(
 		userEmail = &user.Email
 	}
 
-	if automatableActivity, ok := activity.(api.AutomatableActivity); ok && automatableActivity.WasFromAutomation() {
+	if automatableActivity, ok := activity.(types.AutomatableActivity); ok && automatableActivity.WasFromAutomation() {
 		automationAuthor := types.ActivityAutomationAuthor
 		userName = &automationAuthor
 		fleetInitiated = true
 	}
 
-	if hostOnlyActivity, ok := activity.(api.ActivityHostOnly); ok && hostOnlyActivity.HostOnly() {
+	if hostOnlyActivity, ok := activity.(types.ActivityHostOnly); ok && hostOnlyActivity.HostOnly() {
 		hostOnly = true
 	}
 
@@ -86,7 +86,7 @@ func (ds *Datastore) NewActivity(
 		// Insert into host_activities table if the activity is associated with hosts.
 		// This supposes a reasonable amount of hosts per activity, to revisit if we
 		// get in the 10K+.
-		if ah, ok := activity.(api.ActivityHosts); ok {
+		if ah, ok := activity.(types.ActivityHosts); ok {
 			const insertActHostStmt = `INSERT INTO host_activities (host_id, activity_id) VALUES `
 
 			var sb strings.Builder

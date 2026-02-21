@@ -21,6 +21,27 @@ var ActivityWebhookContextKey = activityWebhookContextKeyType{}
 // or policy automation (i.e. triggered by a failing policy).
 const ActivityAutomationAuthor = "Fleet"
 
+// AutomatableActivity indicates the activity was initiated by automation.
+type AutomatableActivity interface {
+	WasFromAutomation() bool
+}
+
+// ActivityHosts indicates the activity is associated with specific hosts.
+type ActivityHosts interface {
+	HostIDs() []uint
+}
+
+// ActivityHostOnly indicates the activity is host-scoped only.
+type ActivityHostOnly interface {
+	HostOnly() bool
+}
+
+// ActivityActivator indicates the activity should activate the next upcoming activity.
+type ActivityActivator interface {
+	MustActivateNextUpcomingActivity() bool
+	ActivateNextUpcomingActivityArgs() (hostID uint, cmdUUID string)
+}
+
 // ListOptions extends api.ListOptions with internal fields used by the datastore.
 type ListOptions struct {
 	api.ListOptions
