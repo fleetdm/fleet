@@ -67,7 +67,7 @@ func SendFailingPoliciesBatchedPOSTs(
 			Policy:       policy,
 			FailingHosts: failingHosts,
 		}
-		logger.DebugContext(ctx, "sending failing policy batch", "url", server.MaskSecretURLParams(webhookURL.String()), "batch", len(batch))
+		logger.DebugContext(ctx, "sending failing policy batch", "payload", payload, "url", server.MaskSecretURLParams(webhookURL.String()), "batch", len(batch))
 
 		// Marshal and duplicate renamed JSON keys (e.g. fleet_id → also team_id)
 		// so that webhook consumers see both the new and deprecated field names.

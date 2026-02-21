@@ -32,7 +32,7 @@ func triggerGlobalHostStatusWebhook(ctx context.Context, ds fleet.Datastore, log
 		return nil
 	}
 
-	logger.DebugContext(ctx, "host status webhook enabled", "global", true)
+	logger.DebugContext(ctx, "host status webhook triggered", "global", true)
 
 	return processWebhook(ctx, ds, nil, appConfig.WebhookSettings.HostStatusWebhook)
 }
@@ -93,7 +93,7 @@ func triggerTeamHostStatusWebhook(ctx context.Context, ds fleet.Datastore, logge
 		if team.Config.WebhookSettings.HostStatusWebhook == nil || !team.Config.WebhookSettings.HostStatusWebhook.Enable {
 			continue
 		}
-		logger.DebugContext(ctx, "host status webhook enabled", "team_id", id)
+		logger.DebugContext(ctx, "host status webhook triggered", "fleet_id", id)
 		err = processWebhook(ctx, ds, &id, *team.Config.WebhookSettings.HostStatusWebhook)
 		if err != nil {
 			multiErr = multierror.Append(multiErr, ctxerr.Wrap(ctx, err, "processing webhook"))

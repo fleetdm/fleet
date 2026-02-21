@@ -25,7 +25,7 @@ func TriggerVulnerabilitiesWebhook(
 		return nil
 	}
 
-	logger.DebugContext(ctx, "vulnerability webhook enabled", "recent_vulns", len(args.Vulnerablities))
+	logger.DebugContext(ctx, "vulnerability webhook triggered", "recent_vulns", len(args.Vulnerablities))
 
 	serverURL, err := url.Parse(args.AppConfig.ServerSettings.ServerURL)
 	if err != nil {
