@@ -121,6 +121,7 @@ func testNewActivityBasicWithUser(t *testing.T, env *testEnv) {
 	require.NoError(t, err)
 	require.Len(t, activities, 1)
 	assert.Equal(t, "fullname", *activities[0].ActorFullName)
+	assert.Equal(t, "email@example.com", *activities[0].ActorEmail)
 	assert.Equal(t, "test_one", activities[0].Type)
 
 	// Second page
@@ -147,6 +148,9 @@ func testNewActivityNilUser(t *testing.T, env *testEnv) {
 	require.Len(t, activities, 1)
 	assert.Nil(t, activities[0].ActorID)
 	assert.Nil(t, activities[0].ActorFullName)
+	// user_email defaults to empty string (NOT NULL DEFAULT '') when no user is provided
+	require.NotNil(t, activities[0].ActorEmail)
+	assert.Empty(t, *activities[0].ActorEmail)
 	assert.Equal(t, "system_task", activities[0].Type)
 }
 
@@ -189,6 +193,8 @@ func testNewActivityHostAssociation(t *testing.T, env *testEnv) {
 	assert.Equal(t, "ran_script", acts[0].Type)
 	require.NotNil(t, acts[0].ActorFullName)
 	assert.Equal(t, "testuser", *acts[0].ActorFullName)
+	require.NotNil(t, acts[0].ActorEmail)
+	assert.Equal(t, "test@example.com", *acts[0].ActorEmail)
 }
 
 func testNewActivityHostOnly(t *testing.T, env *testEnv) {
@@ -227,6 +233,8 @@ func testNewActivityDeletedUser(t *testing.T, env *testEnv) {
 	assert.Nil(t, activities[0].ActorID)
 	require.NotNil(t, activities[0].ActorFullName)
 	assert.Equal(t, "deleted_user", *activities[0].ActorFullName)
+	require.NotNil(t, activities[0].ActorEmail)
+	assert.Equal(t, "deleted@example.com", *activities[0].ActorEmail)
 }
 
 // mustJSON marshals v and fails the test on error.
