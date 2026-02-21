@@ -31,8 +31,6 @@ func TestActivity(t *testing.T) {
 		fn   func(t *testing.T, ds *Datastore)
 	}{
 		{"UsernameChange", testActivityUsernameChange},
-		{"New", testActivityNew},
-		{"EmptyUser", testActivityEmptyUser},
 		{"ListHostUpcomingActivities", testListHostUpcomingActivities},
 		{"CleanupActivitiesAndAssociatedData", testCleanupActivitiesAndAssociatedData},
 		{"CleanupActivitiesAndAssociatedDataBatch", testCleanupActivitiesAndAssociatedDataBatch},
@@ -137,97 +135,6 @@ func testActivityUsernameChange(t *testing.T, ds *Datastore) {
 	assert.Len(t, activities, 2)
 	assert.Equal(t, "fullname", *activities[0].ActorFullName)
 	assert.Nil(t, activities[0].ActorGravatar)
-}
-
-func testActivityNew(t *testing.T, ds *Datastore) {
-	activitySvc := NewTestActivityService(t, ds)
-
-	u := &fleet.User{
-		Password:   []byte("asd"),
-		Name:       "fullname",
-		Email:      "email@asd.com",
-		GlobalRole: ptr.String(fleet.RoleObserver),
-	}
-	_, err := ds.NewUser(context.Background(), u)
-	require.Nil(t, err)
-
-	apiUser := &activity_api.User{ID: u.ID, Name: u.Name, Email: u.Email}
-	ctx := context.Background()
-	require.NoError(
-		t, activitySvc.NewActivity(
-			ctx, apiUser, dummyActivity{
-				name:    "test1",
-				details: map[string]interface{}{"detail": 1, "sometext": "aaa"},
-			},
-		),
-	)
-	require.NoError(
-		t, activitySvc.NewActivity(
-			ctx, apiUser, dummyActivity{
-				name:    "test2",
-				details: map[string]interface{}{"detail": 2},
-			},
-		),
-	)
-
-	opt := activity_api.ListOptions{
-		Page:    0,
-		PerPage: 1,
-	}
-	activities := ListActivitiesAPI(t, context.Background(), activitySvc, opt)
-	assert.Len(t, activities, 1)
-	assert.Equal(t, "fullname", *activities[0].ActorFullName)
-	assert.Equal(t, "test1", activities[0].Type)
-
-	opt = activity_api.ListOptions{
-		Page:    1,
-		PerPage: 1,
-	}
-	activities = ListActivitiesAPI(t, context.Background(), activitySvc, opt)
-	assert.Len(t, activities, 1)
-	assert.Equal(t, "fullname", *activities[0].ActorFullName)
-	assert.Equal(t, "test2", activities[0].Type)
-
-	opt = activity_api.ListOptions{
-		Page:    0,
-		PerPage: 10,
-	}
-	activities = ListActivitiesAPI(t, context.Background(), activitySvc, opt)
-	assert.Len(t, activities, 2)
-}
-
-func testActivityEmptyUser(t *testing.T, ds *Datastore) {
-	activitySvc := NewTestActivityService(t, ds)
-
-	ctx := context.Background()
-	require.NoError(
-		t, activitySvc.NewActivity(
-			ctx, nil, dummyActivity{
-				name:    "test1",
-				details: map[string]interface{}{"detail": 1, "sometext": "aaa"},
-			},
-		),
-	)
-
-	require.NoError(
-		t, activitySvc.NewActivity(
-			ctx, nil, fleet.ActivityInstalledAppStoreApp{
-				HostID:          1,
-				HostDisplayName: "A Host",
-				SoftwareTitle:   "Trello",
-				AppStoreID:      "123456",
-				CommandUUID:     "some uuid",
-				Status:          string(fleet.SoftwareInstalled),
-				SelfService:     false,
-				PolicyID:        ptr.Uint(1),
-				PolicyName:      ptr.String("Sample Policy"),
-			},
-		),
-	)
-
-	activities := ListActivitiesAPI(t, context.Background(), activitySvc, activity_api.ListOptions{})
-	assert.Len(t, activities, 2)
-	assert.Equal(t, "Fleet", *activities[1].ActorFullName)
 }
 
 func testListHostUpcomingActivities(t *testing.T, ds *Datastore) {

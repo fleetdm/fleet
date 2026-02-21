@@ -239,6 +239,36 @@ func TestListActivitiesWithUserEnrichment(t *testing.T) {
 	assert.Nil(t, activities[2].ActorAPIOnly)
 }
 
+func TestListActivitiesDeletedUserFallsBackToStoredName(t *testing.T) {
+	t.Parallel()
+	ctx := t.Context()
+
+	storedName := "original_name"
+	storedEmail := "original@example.com"
+	deletedUserID := uint(999)
+
+	ts := setupTest(
+		withActivities([]*api.Activity{
+			{ID: 1, Type: "test_activity", ActorID: ptr.Uint(deletedUserID), ActorFullName: &storedName, ActorEmail: &storedEmail},
+		}),
+		// UsersByIDs returns nothing for the deleted user
+		withUsers(nil),
+	)
+
+	activities, _, err := ts.svc.ListActivities(ctx, api.ListOptions{})
+	require.NoError(t, err)
+	require.Len(t, activities, 1)
+
+	// Enrichment found no user, so the stored values from the DB are preserved
+	require.NotNil(t, activities[0].ActorFullName)
+	assert.Equal(t, "original_name", *activities[0].ActorFullName)
+	require.NotNil(t, activities[0].ActorEmail)
+	assert.Equal(t, "original@example.com", *activities[0].ActorEmail)
+	// Gravatar and API-only are not stored in the activity table, so they remain nil
+	assert.Nil(t, activities[0].ActorGravatar)
+	assert.Nil(t, activities[0].ActorAPIOnly)
+}
+
 // TestListActivitiesWithMatchQuery verifies that user search queries are properly
 // translated into user ID filters for the datastore.
 //
