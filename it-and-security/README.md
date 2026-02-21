@@ -16,6 +16,7 @@
 - TODO: Ship `fleetctl new` and retire the boilerplate in fleet's github action, updating curriculum for gitops certification and making `fleetctl new` + actually deploying the repo a part of smoketesting every release
 - MAYBE: Ship equivalent of https://sailsjs.com/documentation/anatomy linking to it from code comments - https://fleetdm.slack.com/archives/C0ACJ8L1FD0/p1770812933638829
 - TODO: As a user opening Fleet by default, I shoudl be able to click aroudn to all the main tabs and it not look broken when I click "Controls" and then proceed to click other things.  Fix the weird flickering around when you click between tabs.  When you visit "Controls" page as "All teams", instead of going in a weird loop with unassigned and jumping around all over, show a different view of all of the fleets and their controls (or something)
+- TODO: As a user on the "Hosts" page, viewing a fleet of mobile devices, I don't want it to look broken and everything say "Unsupported" by default.
 - TODO: Get rid of policy IDs for webhooks
 
 - Deliver: Mar 14, 2026
