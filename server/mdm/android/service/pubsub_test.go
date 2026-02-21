@@ -32,7 +32,7 @@ func createAndroidService(t *testing.T) (android.Service, *AndroidMockDS) {
 	androidAPIClient.InitCommonMocks()
 	logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
 	mockDS := InitCommonDSMocks()
-	activityModule := &noopActivityModule{}
+	activityModule := &noopActivityModule{} // This test does not verify activity creation.
 	svc, err := NewServiceWithClient(logger, mockDS, &androidAPIClient, "test-private-key", &mockDS.DataStore, activityModule, config.AndroidAgentConfig{})
 	require.NoError(t, err)
 

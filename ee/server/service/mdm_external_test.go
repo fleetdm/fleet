@@ -103,6 +103,7 @@ func setupMockDatastorePremiumService(t testing.TB) (*mock.Store, *eeservice.Ser
 	if err != nil {
 		panic(err)
 	}
+	// Using a noop activity service since this test does not currently verify activity creation.
 	freeSvc.SetActivityService(&mock.MockNewActivityService{
 		NewActivityFunc: mock.NoopNewActivityFunc,
 	})

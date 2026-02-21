@@ -119,7 +119,7 @@ func (ts *WithServer) SetupSuite(t *testing.T, dbName string) {
 
 	logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
 	kitLogger := logging.NewLogger(logger)
-	activityModule := &noopActivityModule{}
+	activityModule := &noopActivityModule{} // This test does not verify activity creation.
 	svc, err := service.NewServiceWithClient(logger, &ts.DS, &ts.AndroidAPIClient, "test-private-key", ts.DS.Datastore, activityModule, config.AndroidAgentConfig{})
 	require.NoError(t, err)
 	ts.Svc = svc

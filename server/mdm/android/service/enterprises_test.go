@@ -28,7 +28,7 @@ func TestEnterprisesAuth(t *testing.T) {
 	androidAPIClient.InitCommonMocks()
 	logger := logging.NewLogfmtLogger(os.Stdout)
 	fleetDS := InitCommonDSMocks()
-	activityModule := &noopActivityModule{}
+	activityModule := &noopActivityModule{} // This test does not verify activity creation.
 	svc, err := NewServiceWithClient(logger.SlogLogger(), fleetDS, &androidAPIClient, "test-private-key", &fleetDS.DataStore, activityModule, config.AndroidAgentConfig{})
 	require.NoError(t, err)
 
@@ -126,7 +126,7 @@ func TestEnterpriseSignupMissingPrivateKey(t *testing.T) {
 	androidAPIClient.InitCommonMocks()
 	logger := logging.NewLogfmtLogger(os.Stdout)
 	fleetDS := InitCommonDSMocks()
-	activityModule := &noopActivityModule{}
+	activityModule := &noopActivityModule{} // This test does not verify activity creation.
 
 	svc, err := NewServiceWithClient(logger.SlogLogger(), fleetDS, &androidAPIClient, "test-private-key", &fleetDS.DataStore, activityModule, config.AndroidAgentConfig{})
 	require.NoError(t, err)
@@ -231,7 +231,7 @@ type notFoundError struct{}
 func (e *notFoundError) Error() string    { return "not found" }
 func (e *notFoundError) IsNotFound() bool { return true }
 
-// noopActivityModule is a no-op implementation of the ActivityModule interface for tests.
+// noopActivityModule is a no-op implementation of the ActivityModule interface.
 type noopActivityModule struct{}
 
 func (n *noopActivityModule) NewActivity(_ context.Context, _ *fleet.User, _ fleet.ActivityDetails) error {
@@ -248,7 +248,7 @@ func TestGetEnterprise(t *testing.T) {
 		androidAPIClient.InitCommonMocks()
 
 		fleetDS := InitCommonDSMocks()
-		activityModule := &noopActivityModule{}
+		activityModule := &noopActivityModule{} // This test does not verify activity creation.
 		svc, err := NewServiceWithClient(logger.SlogLogger(), fleetDS, &androidAPIClient, "test-private-key", &fleetDS.DataStore, activityModule, config.AndroidAgentConfig{})
 		require.NoError(t, err)
 
@@ -268,7 +268,7 @@ func TestGetEnterprise(t *testing.T) {
 			return nil, &notFoundError{}
 		}
 
-		activityModule := &noopActivityModule{}
+		activityModule := &noopActivityModule{} // This test does not verify activity creation.
 		svc, err := NewServiceWithClient(logger.SlogLogger(), fleetDS, &androidAPIClient, "test-private-key", &fleetDS.DataStore, activityModule, config.AndroidAgentConfig{})
 		require.NoError(t, err)
 
@@ -314,7 +314,7 @@ func TestVerifyExistingEnterpriseIfAny(t *testing.T) {
 			}, nil
 		}
 
-		activityModule := &noopActivityModule{}
+		activityModule := &noopActivityModule{} // This test does not verify activity creation.
 		svc, err := NewServiceWithClient(logger.SlogLogger(), fleetDS, &androidAPIClient, "test-private-key", &fleetDS.DataStore, activityModule, config.AndroidAgentConfig{})
 		require.NoError(t, err)
 
@@ -363,7 +363,7 @@ func TestVerifyExistingEnterpriseIfAny(t *testing.T) {
 			}, nil
 		}
 
-		activityModule := &noopActivityModule{}
+		activityModule := &noopActivityModule{} // This test does not verify activity creation.
 		svc, err := NewServiceWithClient(logger.SlogLogger(), fleetDS, &androidAPIClient, "test-private-key", &fleetDS.DataStore, activityModule, config.AndroidAgentConfig{})
 		require.NoError(t, err)
 
@@ -404,7 +404,7 @@ func TestVerifyExistingEnterpriseIfAny(t *testing.T) {
 			}
 		}
 
-		activityModule := &noopActivityModule{}
+		activityModule := &noopActivityModule{} // This test does not verify activity creation.
 		svc, err := NewServiceWithClient(logger.SlogLogger(), fleetDS, &androidAPIClient, "test-private-key", &fleetDS.DataStore, activityModule, config.AndroidAgentConfig{})
 		require.NoError(t, err)
 
@@ -445,7 +445,7 @@ func TestVerifyExistingEnterpriseIfAny(t *testing.T) {
 			return []*androidmanagement.Enterprise{}, nil
 		}
 
-		activityModule := &noopActivityModule{}
+		activityModule := &noopActivityModule{} // This test does not verify activity creation.
 		svc, err := NewServiceWithClient(logger.SlogLogger(), fleetDS, &androidAPIClient, "test-private-key", &fleetDS.DataStore, activityModule, config.AndroidAgentConfig{})
 		require.NoError(t, err)
 
@@ -512,7 +512,7 @@ func TestVerifyExistingEnterpriseIfAny(t *testing.T) {
 					}, nil
 				}
 
-				activityModule := &noopActivityModule{}
+				activityModule := &noopActivityModule{} // This test does not verify activity creation.
 				svc, err := NewServiceWithClient(logger.SlogLogger(), fleetDS, &androidAPIClient, "test-private-key", &fleetDS.DataStore, activityModule, config.AndroidAgentConfig{})
 				require.NoError(t, err)
 
@@ -542,7 +542,7 @@ func TestVerifyExistingEnterpriseIfAny(t *testing.T) {
 			return nil, &notFoundError{}
 		}
 
-		activityModule := &noopActivityModule{}
+		activityModule := &noopActivityModule{} // This test does not verify activity creation.
 		svc, err := NewServiceWithClient(logger.SlogLogger(), fleetDS, &androidAPIClient, "test-private-key", &fleetDS.DataStore, activityModule, config.AndroidAgentConfig{})
 		require.NoError(t, err)
 

@@ -33,7 +33,7 @@ func SetUpSuite(t *testing.T, uniqueTestName string) *Suite {
 	logger := logging.NewLogfmtLogger(os.Stdout)
 	proxy := android_mock.Client{}
 	proxy.InitCommonMocks()
-	activityModule := &noopActivityModule{}
+	activityModule := &noopActivityModule{} // This test does not verify activity creation.
 	androidSvc, err := android_service.NewServiceWithClient(
 		logger.SlogLogger(),
 		ds,
