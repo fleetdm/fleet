@@ -68,31 +68,34 @@ The Marketing department is directly responsible for achieving revenue pipelineÂ
 | :--- | :--- | :--- |
 | [OpenClaw: Open for work?](https://fleetdm.com/articles/openclaw-open-for-work) | Overview of OpenClaw and security risks of AI agents. | Feb 04, 2026 |
 | [The GitOps idea](https://fleetdm.com/articles/the-gitops-idea) | Managing systems reliably via version control and code. | Feb 04, 2026 |
-| [Fleet vs. Jamf comparison](https://fleetdm.com/articles/fleet-vs-jamf) | Side-by-side comparison of capabilities and criteria. | Jan 27, 2026 |
-| [Redefining endpoint management](https://fleetdm.com/articles/redefining-endpoint-management-at-scale-gartner-2026) | Analysis of Fleet in the 2026 Gartner reports. | Jan 23, 2026 |
+| [Fleet vs. Jamf comparison](https://fleetdm.com/compare/jamf) | Side-by-side comparison of capabilities and criteria. | Jan 27, 2026 |
+| [Redefining endpoint management](https://fleetdm.com/announcements/redefining-endpoint-management-at-scale) | Analysis of Fleet in the 2026 Gartner reports. | Jan 23, 2026 |
 | [Why enterprise Linux is important](https://fleetdm.com/articles/why-enterprise-linux-is-important-in-2026) | Security strategy for modern Linux endpoints. | Jan 21, 2026 |
-| [6 business benefits of Apple MDM](https://fleetdm.com/articles/6-business-benefits-of-apple-mdm-explained) | Business ROI for security and IT operations. | Jan 11, 2026 |
+| [6 business benefits of Apple MDM](https://fleetdm.com/articles/business-benefits-of-apple-mdm-explained) | Business ROI for security and IT operations. | Jan 11, 2026 |
 | [Declarative device management](https://fleetdm.com/articles/declarative-device-management-a-primer) | Introduction to modern Apple DDM protocol. | Jan 11, 2026 |
 | [iPad MDM: a complete guide](https://fleetdm.com/articles/ipad-mdm-a-complete-guide) | Deployment models and management for iPadOS. | Jan 11, 2026 |
-| [Roadmap preview, January 2026](https://fleetdm.com/articles/roadmap-preview-january-2026) | Product vision and platform opportunities. | Jan 05, 2026 |
-| [The MDM migration reality](https://fleetdm.com/articles/the-mdm-migration-reality) | Insights into executing smoother MDM migrations. | Nov 26, 2025 |
+| [Roadmap preview, January 2026](https://fleetdm.com/announcements/roadmap-preview-january-2026) | Product vision and platform opportunities. | Jan 05, 2026 |
+| [The MDM migration reality](https://fleetdm.com/articles/the-mdm-mirgration-reality) | Insights into executing smoother MDM migrations. | Nov 26, 2025 |
 | [9to5mac: Scripting features](https://9to5mac.com/2023/10/17/fleet-releases-open-source-cross-platform-scripting-based-on-osquery/) | External coverage of Fleet's scripting. | Oct 06, 2024 |
-| [Detect Log4j with osquery](https://fleetdm.com/articles/detect-log4j-with-osquery) | Rapid response patterns for critical vulnerabilities. | Dec 15, 2021 |
+| [Detect Log4j with osquery](https://fleetdm.com/securing/detect-log4j-with-osquery-and-fleet) | Rapid response patterns for critical vulnerabilities. | Dec 15, 2021 |
 
 ### Guides
 
 | Asset | Use for | Date&nbsp;updated&nbsp;&nbsp;&nbsp; |
 | :--- | :--- | :--- |
 | [Fleet troubleshooting guide](https://fleetdm.com/guides/fleet-troubleshooting-for-it-admins) | IT troubleshooting best practices. | Feb 13, 2026 |
-| [Okta Desktop MFA for Windows](https://fleetdm.com/guides/deploying-okta-desktop-mfa-for-windows) | Configuring Okta MFA using Fleet MDM. | Feb 06, 2026 |
-| [Migrate Fleet server](https://fleetdm.com/guides/migrate-fleet-server-to-a-new-deployment) | Steps for moving server environments. | Feb 06, 2026 |
-| [Deploy custom Android apps](https://fleetdm.com/guides/deploy-custom-android-apps-apk) | Distributing APKs via Play Console and Fleet. | Feb 04, 2026 |
-| [Set hostname via Fleet API](https://fleetdm.com/guides/set-a-device-hostname-via-the-fleet-api) | API-driven hostname management for Apple. | Jan 26, 2026 |
-| [Manage bootstrap packages](https://fleetdm.com/guides/manage-bootstrap-packages-with-gitops) | Automated setup for new enrollments via code. | Jan 12, 2026 |
-| [Deploy with Docker Compose](https://fleetdm.com/guides/deploy-fleet-with-docker-compose) | Quick container-based Fleet deployment. | Dec 01, 2025 |
+| [Okta Desktop MFA for Windows](https://fleetdm.com/guides/deploying-okta-desktop-mfa-with-fleet) | Configuring Okta MFA using Fleet MDM. | Feb 06, 2026 |
+| [Migrate Fleet server to a new deployment](https://fleetdm.com/guides/migrate-fleet-server) | Steps for moving server environments. | Feb 06, 2026 |
+| [Deploy custom Android apps (APK)](https://fleetdm.com/guides/deploy-custom-android-app-apk) | Distributing APKs via Play Console and Fleet. | Feb 04, 2026 |
+| [Set hostname via Fleet API](https://fleetdm.com/guides/set-device-hostname-via-fleet-api) | API-driven hostname management for Apple. | Jan 26, 2026 |
+| [Manage bootstrap packages with GitOps](https://fleetdm.com/guides/manage-boostrap-package-with-gitops) | Automated setup for new enrollments via code. | Jan 12, 2026 |
+| [Deploy Fleet with Docker Compose](https://fleetdm.com/guides/deploy-fleet-on-docker-compose) | Quick container-based Fleet deployment. | Dec 01, 2025 |
 | [Software self-service](https://fleetdm.com/guides/software-self-service) | Building an app store portal for end users. | Jun 20, 2025 |
 | [MITRE ATT&CK library](https://github.com/teoseller/osquery-attck/blob/master/README.md) | Mapping security results to MITRE. | Jan 30, 2023 |
-| [How to install osquery](https://fleetdm.com/guides/how-to-install-osquery-and-enroll-macos-devices) | Enrollment for macOS, Windows, and Linux. | Jan 13, 2022 |
+| [How to install osquery and enroll macOS devices into Fleet](https://fleetdm.com/guides/how-to-install-osquery-and-enroll-macos-devices-into-fleet) | Enrollment for macOS | Jan 13, 2022 |
+| [How to install osquery and enroll Linux devices into Fleet]([and-enroll-macos-devices-into-fleet](https://fleetdm.com/guides/how-to-install-osquery-and-enroll-linux-devices-into-fleet)) | Enrollment for Linux | Jan 13, 2022 |
+| [How to install osquery and enroll Windows devices into Fleet](https://fleetdm.com/guides/how-to-install-osquery-and-enroll-windows-devices-into-fleet) | Enrollment for windows | Jan 13, 2022 |
+
 
 ### Release Notes
 
