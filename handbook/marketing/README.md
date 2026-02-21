@@ -83,7 +83,7 @@ The Marketing department is directly responsible for achieving revenue pipelineÂ
 
 | Asset | Use for | Date&nbsp;updated&nbsp;&nbsp;&nbsp; |
 | :--- | :--- | :--- |
-| [Fleet troubleshooting guide](https://fleetdm.com/guides/fleet-troubleshooting-for-it-admins) | IT troubleshooting best practices. | Feb 13, 2026 |
+| [Fleet troubleshooting for IT admins](https://fleetdm.com/guides/fleet-troubleshooting-for-it-admins) | IT troubleshooting best practices. | Feb 13, 2026 |
 | [Okta Desktop MFA for Windows](https://fleetdm.com/guides/deploying-okta-desktop-mfa-with-fleet) | Configuring Okta MFA using Fleet MDM. | Feb 06, 2026 |
 | [Migrate Fleet server to a new deployment](https://fleetdm.com/guides/migrate-fleet-server) | Steps for moving server environments. | Feb 06, 2026 |
 | [Deploy custom Android apps (APK)](https://fleetdm.com/guides/deploy-custom-android-app-apk) | Distributing APKs via Play Console and Fleet. | Feb 04, 2026 |
@@ -93,7 +93,7 @@ The Marketing department is directly responsible for achieving revenue pipelineÂ
 | [Software self-service](https://fleetdm.com/guides/software-self-service) | Building an app store portal for end users. | Jun 20, 2025 |
 | [MITRE ATT&CK library](https://github.com/teoseller/osquery-attck/blob/master/README.md) | Mapping security results to MITRE. | Jan 30, 2023 |
 | [How to install osquery and enroll macOS devices into Fleet](https://fleetdm.com/guides/how-to-install-osquery-and-enroll-macos-devices-into-fleet) | Enrollment for macOS | Jan 13, 2022 |
-| [How to install osquery and enroll Linux devices into Fleet]([and-enroll-macos-devices-into-fleet](https://fleetdm.com/guides/how-to-install-osquery-and-enroll-linux-devices-into-fleet)) | Enrollment for Linux | Jan 13, 2022 |
+| [How to install osquery and enroll Linux devices into Fleet](https://fleetdm.com/guides/how-to-install-osquery-and-enroll-linux-devices-into-fleet) | Enrollment for Linux | Jan 13, 2022 |
 | [How to install osquery and enroll Windows devices into Fleet](https://fleetdm.com/guides/how-to-install-osquery-and-enroll-windows-devices-into-fleet) | Enrollment for windows | Jan 13, 2022 |
 
 
