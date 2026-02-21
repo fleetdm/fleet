@@ -15,6 +15,7 @@
   - TODO: Variable gitops-mode (labels+software -- and then explore whether it makes sense per fleet?)
 - TODO: Ship `fleetctl new` and retire the boilerplate in fleet's github action, updating curriculum for gitops certification and making `fleetctl new` + actually deploying the repo a part of smoketesting every release
 - MAYBE: Ship equivalent of https://sailsjs.com/documentation/anatomy linking to it from code comments - https://fleetdm.slack.com/archives/C0ACJ8L1FD0/p1770812933638829
-- Deliver: Mar 14, 2026
+- TODO: Fix the weird flickering around when you click between tabs.  When you visit "Controls" page as "All teams", instead of going in a weird loop with unassigned and jumping around all over, show a different view of all of the fleets and their controls (or something)
 - TODO: Get rid of policy IDs for webhooks
 
+- Deliver: Mar 14, 2026
