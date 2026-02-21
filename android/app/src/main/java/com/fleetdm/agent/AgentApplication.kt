@@ -18,11 +18,16 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
 
+// 🔹 NEW imports
+import com.fleetdm.agent.device.Storage
+import com.fleetdm.agent.device.DeviceIdManager
+
 /**
  * Custom Application class for Fleet Agent.
  * Runs when the app process starts (triggered by broadcasts, not by user).
  */
 class AgentApplication : Application() {
+
     /** Certificate orchestrator instance for the app */
     lateinit var certificateOrchestrator: CertificateOrchestrator
         private set
@@ -30,11 +35,6 @@ class AgentApplication : Application() {
     companion object {
         private const val TAG = "fleet-app"
 
-        /**
-         * Gets the CertificateOrchestrator instance from the Application.
-         * @param context Any context (will use applicationContext)
-         * @return The shared CertificateOrchestrator instance
-         */
         fun getCertificateOrchestrator(context: Context): CertificateOrchestrator =
             (context.applicationContext as AgentApplication).certificateOrchestrator
     }
@@ -47,6 +47,11 @@ class AgentApplication : Application() {
 
         FleetLog.initialize(this)
 
+        // 🔹 NEW: initialize storage + device ID
+        Storage.init(this)
+        val deviceId = DeviceIdManager.getOrCreateDeviceId()
+        Log.i(TAG, "DeviceId=$deviceId")
+
         val defaultHandler = Thread.getDefaultUncaughtExceptionHandler()
         Thread.setDefaultUncaughtExceptionHandler { thread, throwable ->
             FleetLog.e("fleet-crash", "Uncaught exception on thread ${thread.name}", throwable)
@@ -57,7 +62,6 @@ class AgentApplication : Application() {
             }
         }
 
-        // Initialize dependencies
         ApiClient.initialize(this)
         certificateOrchestrator = CertificateOrchestrator()
 
@@ -85,7 +89,6 @@ class AgentApplication : Application() {
                         computerName = "${Build.BRAND} ${Build.MODEL}",
                     )
 
-                    // Only enroll if not already enrolled
                     if (ApiClient.getApiKey() == null) {
                         val configResult = ApiClient.getOrbitConfig()
                         configResult.onSuccess {
@@ -105,7 +108,7 @@ class AgentApplication : Application() {
 
     private fun schedulePeriodicCertificateEnrollment() {
         val workRequest = PeriodicWorkRequestBuilder<CertificateEnrollmentWorker>(
-            15, // 15 minutes is the minimum
+            15,
             TimeUnit.MINUTES,
         ).setBackoffCriteria(
             BackoffPolicy.EXPONENTIAL,
