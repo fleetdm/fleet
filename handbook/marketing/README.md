@@ -48,18 +48,19 @@ The Marketing department is directly responsible for achieving revenue pipelineÂ
 
 | Asset | Use for | Date&nbsp;updated&nbsp;&nbsp;&nbsp; |
 | :--- | :--- | :--- |
+| [Fastly Visibility Case Study](https://fleetdm.com/case-study/fastly) | Unified endpoint and infrastructure visibility. | Jan 29, 2025 |
 | [Foursquare ROI Case Study](https://fleetdm.com/case-study/foursquare) | Proving 114% ROI and rapid MDM migration. | Dec 11, 2025 |
 | [Stripe: Scaling to 10k Macs Case Study](https://fleetdm.com/case-study/stripe) | Massive cost savings for large-scale migrations. | Dec 11, 2025 |
 | [Faire: CIS Benchmark Security Case Study](https://fleetdm.com/case-study/faire) | Securing Macs with GitOps and compliance. | Dec 11, 2025 |
-| [Fastly Visibility Case Study](https://fleetdm.com/case-study/fastly) | Unified endpoint and infrastructure visibility. | Jan 29, 2025 |
-| [Deputy: Global workforce management software Case Study]([https://fleetdm.com/case-study/deputy-success-story](https://fleetdm.com/announcements/global-workforce-management-company-achieves-compliance-and-clarity-with-fleet)) | Managing shift-work devices at global scale. | Dec 17, 2024 |
-| [Security and authentication platform Case Study](https://fleetdm.com/blog/worldwide-security-and-authentication-platform-chooses-fleet-for-linux-management) | Scaling Linux management for security organizations. | Dec 10, 2024 |
-| [Online Gaming Company Case Study](https://fleetdm.com/blog/large-gaming-company-enhances-server-observability-with-fleet) | Server observability in high-concurrency gaming. | Dec 11, 2024 |
-| [Electric Vehicle Manufacturer Case Study](https://fleetdm.com/blog/vehicle-manufacturer-transitions-to-fleet-for-endpoint-security) | Improved endpoint security posture for manufacturing. | Dec 12, 2024 |
-| [Global Social Media Case Study](https://fleetdm.com/blog/global-social-media-platform-migrates-to-fleet) | High-scale network migration. | Dec 16, 2024 |
-| [Interactive Entertainment Case Study](https://fleetdm.com/blog/leading-interactive-entertainment-company-adopts-fleet-for-mdm) | Cross-platform MDM adoption. | Dec 23, 2024 |
-| [Cloud-based Data Leader Case Study](https://fleetdm.com/blog/cloud-based-data-leader-chooses-fleet-for-orchestration) | Scaling global orchestration. | Dec 20, 2024 |
-| [Financial Services Case Study](https://fleetdm.com/blog/american-financial-services-company-migrates-to-fleet-for-mdm) | MDM and change management for regulated finance. | Dec 19, 2024 |
+| [Interactive Entertainment Case Study](https://fleetdm.com/announcements/interactive-entertainment-company-adopts-fleet-for-mdm) | Cross-platform MDM adoption. | Dec 23, 2024 |
+| [Cloud-based Data Leader Case Study](https://fleetdm.com/announcements/cloud-based-data-leader-choosed-fleet-for-orchestration) | Scaling global orchestration. | Dec 20, 2024 |
+| [Financial Services Case Study](https://fleetdm.com/announcements/fintech-company-migrates-to-fleet) | MDM and change management for regulated finance. | Dec 19, 2024 |
+| [Deputy: Global workforce management software Case Study](https://fleetdm.com/announcements/global-workforce-management-company-achieves-compliance-and-clarity-with-fleet) | Managing shift-work devices at global scale. | Dec 17, 2024 |
+| [Global Social Media Case Study](https://fleetdm.com/announcements/global-social-media-platform-switches-to-fleet) | High-scale network migration. | Dec 16, 2024 |
+| [Electric Vehicle Manufacturer Case Study](https://fleetdm.com/announcements/vehicle-manufacturer-transitions-to-fleet-for-endpoint-security) | Improved endpoint security posture for manufacturing. | Dec 12, 2024 |
+| [Online Gaming Company Case Study](https://fleetdm.com/announcements/large-gaming-company-enhances-server-observability-with-fleet) | Server observability in high-concurrency gaming. | Dec 11, 2024 |
+| [Security and authentication platform Case Study](https://fleetdm.com/announcements/worldwide-security-and-authentication-platform-chooses-fleet-for-linux) | Scaling Linux management for security organizations. | Dec 10, 2024 |
+
 
 ### Articles & Blog Posts
 
