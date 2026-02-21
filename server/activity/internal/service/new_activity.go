@@ -15,6 +15,8 @@ import (
 	eu "github.com/fleetdm/fleet/v4/server/platform/endpointer"
 	platformhttp "github.com/fleetdm/fleet/v4/server/platform/http"
 	kithttp "github.com/go-kit/kit/transport/http"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/trace"
 )
 
 // NewActivity creates a new activity record and fires the webhook if configured.
@@ -37,7 +39,7 @@ func (s *Service) NewActivity(ctx context.Context, user *api.User, activity api.
 	}
 
 	if webhookConfig != nil && webhookConfig.Enable {
-		s.fireActivityWebhook(user, activity, detailsBytes, timestamp, webhookConfig.DestinationURL)
+		s.fireActivityWebhook(ctx, user, activity, detailsBytes, timestamp, webhookConfig.DestinationURL)
 	}
 
 	// Activate the next upcoming activity if requested by the activity type.
@@ -58,7 +60,10 @@ func (s *Service) NewActivity(ctx context.Context, user *api.User, activity api.
 
 // fireActivityWebhook sends the activity to the configured webhook URL asynchronously.
 // It uses exponential backoff with a max elapsed time of 30 minutes for retries.
-func (s *Service) fireActivityWebhook(user *api.User, activity api.ActivityDetails, detailsBytes []byte, timestamp time.Time, webhookURL string) {
+func (s *Service) fireActivityWebhook(
+	ctx context.Context, user *api.User, activity api.ActivityDetails,
+	detailsBytes []byte, timestamp time.Time, webhookURL string,
+) {
 	var userID *uint
 	var userName *string
 	var userEmail *string
@@ -78,13 +83,32 @@ func (s *Service) fireActivityWebhook(user *api.User, activity api.ActivityDetai
 		userName = &automationAuthor
 	}
 
+	// Capture the parent span for linking before launching the goroutine.
+	parentSpanCtx := trace.SpanContextFromContext(ctx)
+
 	go func() {
+		// Create a root span for this async webhook delivery, linked back to the
+		// originating request so traces can be correlated.
+		var linkOpts []trace.SpanStartOption
+		if parentSpanCtx.IsValid() {
+			linkOpts = append(linkOpts, trace.WithLinks(trace.Link{SpanContext: parentSpanCtx}))
+		}
+		spanCtx, span := tracer.Start(
+			context.Background(), "activity.webhook",
+			append(linkOpts,
+				trace.WithNewRoot(),
+				trace.WithSpanKind(trace.SpanKindClient),
+				trace.WithAttributes(attribute.String("activity.type", activityType)),
+			)...,
+		)
+		defer span.End()
+
 		retryStrategy := backoff.NewExponentialBackOff()
 		retryStrategy.MaxElapsedTime = 30 * time.Minute
 		err := backoff.Retry(
 			func() error {
 				if err := s.providers.SendWebhookPayload(
-					context.Background(), webhookURL, &api.WebhookPayload{
+					spanCtx, webhookURL, &api.WebhookPayload{
 						Timestamp:     timestamp,
 						ActorFullName: userName,
 						ActorID:       userID,
@@ -95,7 +119,7 @@ func (s *Service) fireActivityWebhook(user *api.User, activity api.ActivityDetai
 				); err != nil {
 					var statusCoder kithttp.StatusCoder
 					if errors.As(err, &statusCoder) && statusCoder.StatusCode() == http.StatusTooManyRequests {
-						s.logger.Debug("fire activity webhook", slog.String("err", err.Error()))
+						s.logger.DebugContext(spanCtx, "fire activity webhook", slog.String("err", err.Error()))
 						return err
 					}
 					return backoff.Permanent(err)
@@ -104,9 +128,11 @@ func (s *Service) fireActivityWebhook(user *api.User, activity api.ActivityDetai
 			}, retryStrategy,
 		)
 		if err != nil {
-			s.logger.Error(
+			maskedErr := platformhttp.MaskURLError(err)
+			span.RecordError(maskedErr)
+			s.logger.ErrorContext(spanCtx,
 				fmt.Sprintf("fire activity webhook to %s", platformhttp.MaskSecretURLParams(webhookURL)),
-				slog.String("err", platformhttp.MaskURLError(err).Error()),
+				slog.String("err", maskedErr.Error()),
 			)
 		}
 	}()

@@ -16,7 +16,10 @@ import (
 	platform_authz "github.com/fleetdm/fleet/v4/server/platform/authz"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/hashicorp/go-multierror"
+	"go.opentelemetry.io/otel"
 )
+
+var tracer = otel.Tracer("github.com/fleetdm/fleet/v4/server/activity/internal/service")
 
 // streamBatchSize is the number of activities to fetch per batch when streaming.
 const streamBatchSize uint = 500
