@@ -27,6 +27,7 @@ import kotlinx.serialization.Serializable
 import kotlinx.serialization.Transient
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonElement
+import com.fleetdm.agent.device.DeviceIdManager
 
 /**
  * Converts a java.util.Date to ISO8601 format string.
@@ -144,6 +145,7 @@ object ApiClient : CertificateApiClient {
                 useCaches = false
                 doInput = true
                 setRequestProperty("Content-Type", "application/json")
+                setRequestProperty("X-Fleet-Device-Id", DeviceIdManager.getOrCreateDeviceId())
                 if (authorized) {
                     getNodeKeyOrEnroll().fold(
                         onFailure = { throwable -> return@withContext Result.failure(throwable) },

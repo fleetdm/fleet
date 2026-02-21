@@ -12,22 +12,19 @@ import androidx.work.NetworkType
 import androidx.work.PeriodicWorkRequestBuilder
 import androidx.work.WorkManager
 import androidx.work.WorkRequest
+import com.fleetdm.agent.device.DeviceIdManager
 import java.util.concurrent.TimeUnit
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
-
-// 🔹 NEW imports
 import com.fleetdm.agent.device.Storage
-import com.fleetdm.agent.device.DeviceIdManager
 
 /**
  * Custom Application class for Fleet Agent.
  * Runs when the app process starts (triggered by broadcasts, not by user).
  */
 class AgentApplication : Application() {
-
     /** Certificate orchestrator instance for the app */
     lateinit var certificateOrchestrator: CertificateOrchestrator
         private set
@@ -46,9 +43,9 @@ class AgentApplication : Application() {
         Log.i(TAG, "Fleet agent process started")
 
         FleetLog.initialize(this)
-
-        // 🔹 NEW: initialize storage + device ID
         Storage.init(this)
+
+        // Log device id (safe; not a secret)
         val deviceId = DeviceIdManager.getOrCreateDeviceId()
         Log.i(TAG, "DeviceId=$deviceId")
 
@@ -62,6 +59,7 @@ class AgentApplication : Application() {
             }
         }
 
+        // Initialize dependencies
         ApiClient.initialize(this)
         certificateOrchestrator = CertificateOrchestrator()
 
@@ -69,36 +67,62 @@ class AgentApplication : Application() {
         schedulePeriodicCertificateEnrollment()
     }
 
+    /**
+     * Production path: MDM managed configuration (RestrictionsManager).
+     * Debug-only fallback: BuildConfig.DEBUG_* values, ONLY if MDM values are missing.
+     */
     private fun refreshEnrollmentCredentials() {
         applicationScope.launch {
             try {
-                val restrictionsManager = getSystemService(Context.RESTRICTIONS_SERVICE)
-                    as? RestrictionsManager
-                val appRestrictions = restrictionsManager?.applicationRestrictions ?: return@launch
+                val restrictionsManager =
+                    getSystemService(Context.RESTRICTIONS_SERVICE) as? RestrictionsManager
+                val appRestrictions = restrictionsManager?.applicationRestrictions
 
-                val enrollSecret = appRestrictions.getString("enroll_secret")
-                val hostUUID = appRestrictions.getString("host_uuid")
-                val serverURL = appRestrictions.getString("server_url")
+                val mdmEnrollSecret = appRestrictions?.getString("enroll_secret")
+                val mdmHostUUID = appRestrictions?.getString("host_uuid")
+                val mdmServerURL = appRestrictions?.getString("server_url")
 
-                if (enrollSecret != null && hostUUID != null && serverURL != null) {
-                    Log.d(TAG, "Refreshing enrollment credentials from MDM config")
-                    ApiClient.setEnrollmentCredentials(
-                        enrollSecret = enrollSecret,
-                        hardwareUUID = hostUUID,
-                        serverUrl = serverURL,
-                        computerName = "${Build.BRAND} ${Build.MODEL}",
-                    )
+                val (enrollSecret, hostUUID, serverURL) = if (
+                    !mdmEnrollSecret.isNullOrBlank() &&
+                    !mdmHostUUID.isNullOrBlank() &&
+                    !mdmServerURL.isNullOrBlank()
+                ) {
+                    Log.d(TAG, "Using MDM enrollment credentials (managed config)")
+                    Triple(mdmEnrollSecret, mdmHostUUID, mdmServerURL)
+                } else if (BuildConfig.DEBUG) {
+                    val debugUrl = BuildConfig.DEBUG_FLEET_SERVER_URL
+                    val debugSecret = BuildConfig.DEBUG_FLEET_ENROLL_SECRET
 
-                    if (ApiClient.getApiKey() == null) {
-                        val configResult = ApiClient.getOrbitConfig()
-                        configResult.onSuccess {
-                            Log.d(TAG, "Successfully enrolled host with Fleet server")
-                        }.onFailure { error ->
-                            Log.w(TAG, "Host enrollment failed: ${error.message}")
-                        }
+                    if (!debugUrl.isNullOrBlank() && !debugSecret.isNullOrBlank()) {
+                        // Debug fallback host UUID: stable per app install (acceptable for dev)
+                        val debugHostUUID = DeviceIdManager.getOrCreateDeviceId()
+
+                        Log.w(TAG, "MDM config missing; using DEBUG enrollment credentials")
+                        Triple(debugSecret, debugHostUUID, debugUrl)
+                    } else {
+                        Log.d(TAG, "MDM config missing and DEBUG values not set")
+                        return@launch
                     }
                 } else {
                     Log.d(TAG, "MDM enrollment credentials not available")
+                    return@launch
+                }
+
+                ApiClient.setEnrollmentCredentials(
+                    enrollSecret = enrollSecret,
+                    hardwareUUID = hostUUID,
+                    serverUrl = serverURL,
+                    computerName = "${Build.BRAND} ${Build.MODEL}",
+                )
+
+                // Only enroll if not already enrolled
+                if (ApiClient.getApiKey() == null) {
+                    val configResult = ApiClient.getOrbitConfig()
+                    configResult.onSuccess {
+                        Log.d(TAG, "Successfully enrolled host with Fleet server")
+                    }.onFailure { error ->
+                        Log.w(TAG, "Host enrollment failed: ${error.message}")
+                    }
                 }
             } catch (e: Exception) {
                 FleetLog.e(TAG, "Error refreshing enrollment credentials", e)
@@ -108,7 +132,7 @@ class AgentApplication : Application() {
 
     private fun schedulePeriodicCertificateEnrollment() {
         val workRequest = PeriodicWorkRequestBuilder<CertificateEnrollmentWorker>(
-            15,
+            15, // 15 minutes is the minimum
             TimeUnit.MINUTES,
         ).setBackoffCriteria(
             BackoffPolicy.EXPONENTIAL,
