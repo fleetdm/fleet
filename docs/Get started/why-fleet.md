@@ -1,12 +1,14 @@
 # Why Fleet
 
-Fleet is an open-source device management platform for Linux, macOS, Windows, Chromebooks, and iOS devices (BYOD or corporate owned.)
+Fleet is an open-source single endpoint management platform for macOS, iOS, Android, Windows, Linux, ChromeOS, and cloud infrastructure. Trusted by over 1,300 organizations, Fleet empowers IT and Security teams to accelerate productivity, build verifiable trust, and optimize costs.
+
+By bringing infrastructure-as-code (IaC) practices to device management, Fleet ensures endpoints remain secure and operational, freeing engineering teams to focus on strategic initiatives.
 
 ## What's it for?
 
 Managing computers today is getting harder. You have to juggle a mix of operating systems and devices, with a bunch of middleman vendors in between. 
 
-Fleet makes things easier by giving you a single system to secure and maintain all your computing devices over the air. You can do MDM, patch stuff, and verify anything—all from one system. It's like having a universal remote control for all your organization's computers.
+Fleet makes things easier by giving you a single system to secure and maintain all your computing devices over the air. You can do MDM, patch stuff, and verify anything — all from one system. It's like having a universal remote control for all your organization's computers.
 
 Fleet is open source, and free features will always be free.
 
@@ -29,6 +31,10 @@ This way, users and teams share the same understanding of how devices are monito
 
 ## Ready to get started?
 
-Deploying Fleet is easy. [Install it](https://fleetdm.com/docs/deploy/deploy-fleet) on a server, or [we can host it](https://fleetdm.com/register) for you. Enroll your devices, and you're set.
+Deploying Fleet is easy. 
+
+Fleet offers total deployment flexibility: on-premises, air-gapped, container-native (Docker and Kubernetes), or cloud-agnostic (AWS, Azure, GCP, DigitalOcean). Organizations can also choose fully managed SaaS via Fleet Cloud, ensuring complete control over data residency and legal jurisdiction.
+
+[Install it](https://fleetdm.com/docs/deploy/deploy-fleet) on a server, or [we can host it](https://fleetdm.com/register) for you. Enroll your devices, and you're set.
 
 <meta name="pageOrderInSection" value="100">
