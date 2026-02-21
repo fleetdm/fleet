@@ -12,9 +12,7 @@ import (
 	platform_authz "github.com/fleetdm/fleet/v4/server/platform/authz"
 )
 
-// NewForUnitTests creates an activity NewActivityService backed by a noop store
-// (no database required). This is useful for unit tests that need webhook behavior
-// without a real database connection.
+// NewForUnitTests creates an activity NewActivityService backed by a noop store (no database required).
 func NewForUnitTests(
 	providers activity.DataProviders,
 	logger *slog.Logger,
@@ -29,8 +27,7 @@ func (a *noopAuthorizer) Authorize(_ context.Context, _ platform_authz.AuthzType
 	return nil
 }
 
-// noopStore is a datastore that does nothing (appropriate for unit tests that
-// only need webhook behavior).
+// noopStore is a datastore that does nothing (appropriate for unit tests that only need webhook behavior).
 type noopStore struct{}
 
 func (s *noopStore) ListActivities(_ context.Context, _ types.ListOptions) ([]*api.Activity, *api.PaginationMetadata, error) {
