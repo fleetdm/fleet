@@ -200,6 +200,12 @@ parasails.registerPage('basic-documentation', {
     clickSwagRequestCTA: function () {
       if(window.gtag !== undefined){
         gtag('event','fleet_website__swag_request');
+       // Additional conversion tracking
+        gtag('event', 'conversion', {
+          'send_to': 'AW-10788733823/GvP3CNqYrPobEP-GvJgo',
+          'value': 1.0,
+          'currency': 'USD'
+        });
       }
       if(window.lintrk !== undefined) {
         window.lintrk('track', { conversion_id: 18587105 });// eslint-disable-line camelcase
