@@ -90,8 +90,8 @@ class AgentApplication : Application() {
                     Log.d(TAG, "Using MDM enrollment credentials (managed config)")
                     Triple(mdmEnrollSecret, mdmHostUUID, mdmServerURL)
                 } else if (BuildConfig.DEBUG) {
-                    val debugUrl = BuildConfig.DEBUG_FLEET_SERVER_URL
-                    val debugSecret = BuildConfig.DEBUG_FLEET_ENROLL_SECRET
+                    val debugUrl = getOptionalBuildConfigString("DEBUG_FLEET_SERVER_URL")
+                    val debugSecret = getOptionalBuildConfigString("DEBUG_FLEET_ENROLL_SECRET")
 
                     if (!debugUrl.isNullOrBlank() && !debugSecret.isNullOrBlank()) {
                         // Debug fallback host UUID: stable per app install (acceptable for dev)
@@ -99,8 +99,7 @@ class AgentApplication : Application() {
 
                         Log.w(TAG, "MDM config missing; using DEBUG enrollment credentials")
                         Triple(debugSecret, debugHostUUID, debugUrl)
-                    } else {
-                        Log.d(TAG, "MDM config missing and DEBUG values not set")
+                    } else {                        Log.d(TAG, "MDM config missing and DEBUG values not set")
                         return@launch
                     }
                 } else {
@@ -127,6 +126,17 @@ class AgentApplication : Application() {
             } catch (e: Exception) {
                 FleetLog.e(TAG, "Error refreshing enrollment credentials", e)
             }
+        }
+    }
+
+
+    private fun getOptionalBuildConfigString(fieldName: String): String? {
+        return try {
+            val clazz = Class.forName("${packageName}.BuildConfig")
+            val field = clazz.getField(fieldName)
+            (field.get(null) as? String)?.takeIf { it.isNotBlank() }
+        } catch (_: Throwable) {
+            null
         }
     }
 
