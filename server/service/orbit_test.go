@@ -255,6 +255,7 @@ func TestOrbitLUKSDataSave(t *testing.T) {
 		require.NoError(t, err)
 		require.False(t, ds.ReportEscrowErrorFuncInvoked)
 		require.True(t, ds.SaveLUKSDataFuncInvoked)
+		require.True(t, opts.ActivityMock.NewActivityFuncInvoked)
 	})
 
 	t.Run("fail when no/invalid private key is set", func(t *testing.T) {

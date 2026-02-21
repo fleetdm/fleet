@@ -20,7 +20,7 @@ var NoopNewActivityFunc NewActivityFunc = func(_ context.Context, _ *activity_ap
 // When Delegate is set, it is called before the mock's NewActivityFunc,
 // allowing real behavior (e.g. webhooks) while still capturing calls.
 type MockNewActivityService struct {
-	NewActivityFunc        NewActivityFunc
+	NewActivityFunc        NewActivityFunc // defaults to NoopNewActivityFunc if nil
 	NewActivityFuncInvoked bool
 	Delegate               activity_api.NewActivityService
 }
@@ -35,5 +35,9 @@ func (m *MockNewActivityService) NewActivity(ctx context.Context, user *activity
 			return err
 		}
 	}
-	return m.NewActivityFunc(ctx, user, activity)
+	fn := m.NewActivityFunc
+	if fn == nil {
+		fn = NoopNewActivityFunc
+	}
+	return fn(ctx, user, activity)
 }

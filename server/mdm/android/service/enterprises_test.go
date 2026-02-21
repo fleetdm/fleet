@@ -231,7 +231,7 @@ type notFoundError struct{}
 func (e *notFoundError) Error() string    { return "not found" }
 func (e *notFoundError) IsNotFound() bool { return true }
 
-// noopActivityModule implements activities.ActivityModule with a no-op for tests.
+// noopActivityModule is a no-op implementation of the ActivityModule interface for tests.
 type noopActivityModule struct{}
 
 func (n *noopActivityModule) NewActivity(_ context.Context, _ *fleet.User, _ fleet.ActivityDetails) error {

@@ -68,6 +68,7 @@ func (ds *Datastore) NewActivity(
 		createdAt,
 		hostOnly,
 	}
+	// For system/automated activities (user == nil), user_email defaults to empty (not null).
 	if userEmail != nil {
 		args = append(args, userEmail)
 		cols = append(cols, "user_email")
