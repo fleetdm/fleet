@@ -24,7 +24,8 @@ var (
 	janeUser = &activity.User{ID: 200, Name: "Jane Smith", Email: "jane@example.com", Gravatar: "gravatar2", APIOnly: true}
 )
 
-// Mock implementations
+// Bare-bones mocks for testing service logic in isolation.
+// For richer mocks used in integration tests, see tests/mocks_test.go.
 
 type mockAuthorizer struct {
 	authErr error
