@@ -1,3 +1,83 @@
+## Fleet 4.82.0 (Feb 20, 2026)
+
+### Bug fixes
+
+* Addded CVE alias for python visual studio code extension
+- Improved the speed of a database query that runs every minute, to avoid database locking
+Reworked how we handle server/worker delays to fix flaky tests.
+- Disabled "Calendar" dropdown option in Policy > Manage automations for No team.
+* Fixed matching logic on App component for pages titles.
+- Fixed adding Windows Fleet maintained apps failing when a software title with the same upgrade code already exists.
+- Fixed an issue where GitOps would not respect the value set on `update_new_hosts` for macOS updates.
+- resolved issue where duplicate kernels were reported in the OS versions API for RHEL-family distributions (RHEL, AlmaLinux, CentOS, Rocky, Fedora)
+- fixed issue where Windows Jetbrains products would not report the correct version number
+Added Go slog logging infrastructure and migrated a portion of the code from go-kit/log to slog.
+* Updated logic to trigger vulnerability webhook when on fleet free tier
+- Fleet UI: Show CTA to turn on Android MDM for Android software setup experience if MDM is not configured
+- Fixed a bug where custom software installer display names and icons were not used in the setup experience UI.
+Fixed a bug where the list activities API endpoint would fail with a database error when there were more than 65,535 activities and no pagination parameters were specified. The maximum `per_page` for activities endpoints is now 10,000.
+- Left-aligned "Critical" checkbox in Save policy form.
+* Removed unnecessary calls to `svc.ds.BulkSetPendingMDMHostProfiles` in `POST /api/latest/fleet/spec/fleets`.
+* Increased the maximum script execution timeout from 1 hour (3600 seconds) to 5 hours (18000 seconds).
+- Improved spacing on the Controls > OS Settings page
+Improve error handling on AWS DB failover. Fleet will now fail health check if the primary DB is read-only, or trigger graceful shutdown when write operations encounter read-only errors.
+- Fleet UI: Do not allow editing Fleet-maintained app in the UI while GitOps mode is enabled
+- Accept the previous device authentication token for up to one rotation cycle, so the My Device page URL remains valid after token refresh.
+- Generate a server-side device token in the Okta conditional access flow when none exists or the current token is expired.
+Fixed issue where MySQL IAM authentication could fail when a custom TLS CA/TLS config was set (for example, GovCloud), by ensuring Fleet includes the configured TLS mode in IAM DSNs.
+- Deprecated certain API field names to reflect the renaming of "teams" to "fleets" and "queries" to "reports".
+- update UI to enable adding/removing multiple Microsoft Entra tenant ids
+* Added warning message on gitops label rename to clarify to users that renaming a label implies a delete operation.
+- Fixed some styling issues for the UI when no enroll secret is present on a fleet.
+Internal refactoring: moved `/api/_version_/fleet/hosts/{id:[0-9]+}/activities` endpoint and `MarkActivitiesAsStreamed` to new server/activity bounded context.
+* Fleet UI: Add filtering by platform and add status to the Software > Add Fleet-maintained apps table
+- Fixed an issue where some UI users saw a blank gutter on the right side of parts of the UI
+* Changed Android status reports to re-verify profiles that previously failed.
+Fixed a bug where certain macOS app names could be ingested as empty strings due to incorrect ".app" suffix removal.
+- Fleet UI: Fix install/uninstall tarballs package to skip recently updated status that is waiting for a change in software inventory
+- Dynamically alphabetized vitals on the host details page.
+- Implemented uninstall of Android apps on the device (and removal from self-service in the managed Google Play store) when an app is removed from Fleet.
+* Updated the DEP syncer to properly reassign a profile when ABM unilaterally removes it
+* Added deny list for checking external urls the fleet server will attempt to contact that are user submitted. Refer to pkg/fleethttp/ssrf.go for full list. In development, the --dev flag skips this check so that testing locally is not impacted. Certificate authorities is the first place this is implemented. 
+- Fixed a bug where software installers could create titles with the wrong platform.
+* Added support for enrolling fully managed Android hosts without a work profile
+Fixed a bug where 2 vulnerability jobs can run in parallel if one is taking longer than 2 hours.
+- Added additional logging for SCEP proxy requests and SCEP profile renewals.
+* Added automatic tagging of prerelease/post-release versions on local build based on branch name
+* Added AWS GovCloud RDS CA certificates to the RDS MySQL TLS bundle, enabling IAM authentication for Fleet deployments connecting to RDS in AWS GovCloud regions (us-gov-east-1, us-gov-west-1).
+* Added new activity for edited enroll secrets.
+- Renamed teams and queries to fleets and reports in the UI.
+- Fixed issue with hosts incorrectly reporting policy failures after policy label targets changed.
+- Moved the copy button for text areas out of the text area itself and in line with its label
+Updated Android MDM profiles to show up as pending on upload, the same as Apple MDM profiles.
+- Fixed client-side errors being incorrectly reported as server errors in OTEL telemetry.
+- fixed issue where the status name was wrapping at smaller viewport witdths on the mdm card on the Dashboard page
+- Added ability to enable/disable logs by topic
+Fixed false negative CVE-2026-20841 on Windows Notepad.
+- Fixed Android enrollment to associate hosts with SCIM users, populating full name, groups, and department in host vitals.
+* Fixed a hover style issue in the label filter close button
+* Updated the "Used by" column heading on the hosts page to "User email"
+* Added new Technician role.
+- Fixed mismatches between disk encryption summary counts vs hosts displayed.
+* Fixed false positive CVE for Nextcloud Desktop.
+* Fixed rare CPE error when software name sanitizes to empty (e.g. only special characters)
+* Added the ability to specify allowed Entra tenant IDs for enrollments
+* Fixed truncation of certificate fields containing non-ASCII characters.
+Added `logging.otel_logs_enabled` contributor config option to export server logs to OpenTelemetry.
+* Improved detection of `DISPLAY` variable in X11 sessions.
+* Refactored query used for deleting host_mdm_apple_profiles in bulk to use Primary keys only.
+- Fleet UI: Host details page includes team_id param in URL to allow retaining team on refresh
+- The "Manage automations" button on the Queries and Policies pages is now always visible, and disabled only when the current team has no queries of its own.
+- added ability to scan for kernel vulnerabilities on RHEL based hosts
+- Updated default macOS, iOS, and iPadOS update deadline time to 7PM (19:00) local time.
+- Added Country:US to new CA certs created by Fleet.
+- Fixed an issue where policy automation settings in the Other Workflows modal reverted to stale values after saving when using a MySQL read replica.
+- Implemented ability for Fleet users to allow or disallow end-users to bypass conditional access on a per-policy basis.
+- Improved host software inventory table's handling of long "Type" values.
+- Added error if GitOps/batch attempts to add setup experience software when manual agent install is enabled
+* Updated validation rules around the creation of labels to make sure only valid platforms are used.
+Added help text on the software details page, below the installer status table, to explain the meanings of the counts.
+
 ## Fleet 4.81.0 (Feb 20, 2026)
 
 ### IT Admins

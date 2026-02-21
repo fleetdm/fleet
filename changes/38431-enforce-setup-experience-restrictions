@@ -1,1 +1,0 @@
-- Added error if GitOps/batch attempts to add setup experience software when manual agent install is enabled
