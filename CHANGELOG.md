@@ -1,3 +1,9 @@
+## Fleet 4.80.3 (Feb 20, 2026)
+
+### Bug fixes
+
+- Fixed validation and error handling issues.
+
 ## Fleet 4.80.2 (Feb 11, 2026)
 
 ### Bug fixes
