@@ -124,7 +124,7 @@ type UserDisplaySession struct {
 }
 
 // GetUserDisplaySessionType returns the display session type (X11 or Wayland),
-// active status and session env vars of the given user. Returns an error if the user doesn't have
+// active status, and desktop session env var of the given user. Returns an error if the user doesn't have
 // a Display session.
 func GetUserDisplaySessionType(uid string) (*UserDisplaySession, error) {
 	// Get the "Display" session ID of the user.
