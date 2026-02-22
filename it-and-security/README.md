@@ -11,13 +11,30 @@
   - DONE: Could we eliminate the agent options folder?  Its hierarchical home makes it seem more important than it is for most folks.
   - DONE:  (MAYBE) Consider renaming `lib/` to `platforms/` (or something). If so, then pull out agent options, labels, and icons elsewhere
     <br/> <img width="329" height="151" alt="image" src="https://github.com/user-attachments/assets/c93cf1eb-aef2-40a9-895d-e5b8354b8d99" />
-  - TODO: Make this doable as a 1-step process by removing need to configure policy ids separately for webhook policy automations: https://github.com/fleetdm/fleet/pull/40214#issuecomment-3937276262
-  - TODO: Variable gitops-mode (labels+software -- and then explore whether it makes sense per fleet?)
-- TODO: Ship `fleetctl new` and retire the boilerplate in fleet's github action, updating curriculum for gitops certification and making `fleetctl new` + actually deploying the repo a part of smoketesting every release
-- MAYBE: Ship equivalent of https://sailsjs.com/documentation/anatomy linking to it from code comments - https://fleetdm.slack.com/archives/C0ACJ8L1FD0/p1770812933638829
-- TODO: As a user opening Fleet by default, I shoudl be able to click aroudn to all the main tabs and it not look broken when I click "Controls" and then proceed to click other things.  Fix the weird flickering around when you click between tabs.  When you visit "Controls" page as "All teams", instead of going in a weird loop with unassigned and jumping around all over, show a different view of all of the fleets and their controls (or something)
+
+
+### sprint begining feb 23
+- TODO: Exclude secrets by default
+- TODO: Variable gitops-mode (labels+software+secrets -- and then explore whether it makes sense per fleet?)
+  - TODO: Explore defaulting to this and excluding labels+software by default?
+  - WARNING: If we do this, it gives LLMs (and humans) reading git repos less context, making it less accurate when automatically scoping policies with natural language.  Yet at the moment, that isn't a thing that's being commonly done.  We should dogfood that first before adding complexity to the first time experience (it's simpler for users to exclude labels from what they see in their repo).
+- TODO: All the other todos in the default.yml template, particular keys that need renaming.
+- TODO: As a user opening Fleet by default, I shoudl be able to click aroudn
+  to all the main tabs and it not look broken when I click "Controls" and
+  then proceed to click other things.  Fix the weird flickering around when
+  you click between tabs.  When you visit "Controls" page as "All teams",
+  instead of going in a weird loop with unassigned and jumping around all
+  over, show a different view of all of the fleets and their controls
+  (or something)
 - TODO: As a user on the "Hosts" page, viewing a fleet of mobile devices, I don't want it to look broken and everything say "Unsupported" by default.
 - TODO: As a user on the "Hosts" page, viewing anything, I don't want to see the columns I care about the least first (i.e. private ip address which is almost always useless, or the osquery version which is almost never important, and certainly not one of the top 20 most important things about a host, especially at a glance)
-- TODO: Get rid of policy IDs for webhooks
-
+- TODO: Ship `fleetctl new` and retire the boilerplate in fleet's github action, updating curriculum for gitops certification and making `fleetctl new` + actually deploying the repo a part of smoketesting every release
+- TODO: Make this doable as a 1-step process by removing need to configure policy ids separately for webhook policy automations: https://github.com/fleetdm/fleet/pull/40214#issuecomment-3937276262
+  - i.e. Get rid of policy IDs for webhooks
 - Deliver: Mar 14, 2026
+
+
+- MAYBE: Ship equivalent of https://sailsjs.com/documentation/anatomy linking to it from code comments - https://fleetdm.slack.com/archives/C0ACJ8L1FD0/p1770812933638829
+- MAYBE: Make `fleetctl generate gitops` into `fleetctl new --template=export`
+- MAYBE: `fleetctl generate cis` to spit out cis policies
+
