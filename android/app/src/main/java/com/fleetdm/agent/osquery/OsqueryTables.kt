@@ -11,6 +11,7 @@ import com.fleetdm.agent.osquery.tables.NetworkInterfacesTable
 import com.fleetdm.agent.osquery.tables.BatteryTable
 import com.fleetdm.agent.osquery.tables.WifiNetworksTable
 import com.fleetdm.agent.osquery.tables.SystemPropertiesTable
+import com.fleetdm.agent.osquery.tables.AndroidLogcatTable
 
 
 
@@ -26,7 +27,7 @@ object OsqueryTables {
         TableRegistry.register(BatteryTable(context))
         TableRegistry.register(WifiNetworksTable(context))
         TableRegistry.register(SystemPropertiesTable())
-
+        TableRegistry.register(AndroidLogcatTable())
 
     }
 }

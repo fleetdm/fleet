@@ -1,6 +1,5 @@
 package com.fleetdm.agent.osquery.core
 
-import com.fleetdm.agent.osquery.tables.AndroidLogcatTable
 import org.json.JSONArray
 import org.json.JSONObject
 
@@ -15,8 +14,6 @@ object TableRegistry {
     fun ensureRegistered() {
         if (initialized) return
         initialized = true
-
-        register(AndroidLogcatTable())
     }
 
     fun register(table: TablePlugin) {
