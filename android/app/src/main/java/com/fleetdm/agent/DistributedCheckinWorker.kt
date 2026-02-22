@@ -25,6 +25,11 @@ class DistributedCheckinWorker(
                 onSuccess = { resp ->
                     val count = resp.queries.size
                     Log.d(TAG, "Distributed check-in: received $count query(ies)")
+
+                    // Print each query to Logcat (name + SQL)
+                    resp.queries.forEach { (name, sql) ->
+                        Log.i(TAG, "Distributed query [$name]:\n$sql")
+                    }
                 },
                 onFailure = { err ->
                     Log.w(TAG, "Distributed check-in: failed: ${err.message}")
