@@ -9,6 +9,7 @@ import androidx.work.NetworkType
 import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.WorkManager
 import androidx.work.WorkerParameters
+import com.fleetdm.agent.osquery.OsqueryQueryEngine
 import java.util.concurrent.TimeUnit
 
 class DistributedCheckinWorker(
@@ -20,19 +21,48 @@ class DistributedCheckinWorker(
         try {
             Log.d(TAG, "Distributed check-in: starting")
 
-            val result = ApiClient.distributedRead()
-            result.fold(
+            val readResult = ApiClient.distributedRead()
+            readResult.fold(
                 onSuccess = { resp ->
-                    val count = resp.queries.size
-                    Log.d(TAG, "Distributed check-in: received $count query(ies)")
+                    val queries = resp.queries
+                    Log.d(TAG, "Distributed check-in: received ${queries.size} query(ies)")
 
-                    // Print each query to Logcat (name + SQL)
-                    resp.queries.forEach { (name, sql) ->
+                    // 1) Log received queries
+                    queries.forEach { (name, sql) ->
                         Log.i(TAG, "Distributed query [$name]:\n$sql")
+                    }
+
+                    // 2) Execute what we can, and write results back
+                    val results = linkedMapOf<String, List<Map<String, String>>>()
+
+                    for ((name, sql) in queries) {
+                        if (sql.isBlank()) continue
+
+                        try {
+                            val rows = OsqueryQueryEngine.execute(sql)
+                            results[name] = rows
+                        } catch (e: Exception) {
+                            val msg = e.message ?: e.javaClass.simpleName
+                            Log.w(TAG, "Distributed query failed [$name]: $msg")
+
+                            // "clear" unknown/unsupported queries so Fleet stops re-sending them
+                            results[name] = emptyList()
+                        }
+                    }
+
+                    if (results.isNotEmpty()) {
+                        ApiClient.distributedWrite(results).fold(
+                            onSuccess = {
+                                Log.d(TAG, "Distributed check-in: wrote ${results.size} result set(s)")
+                            },
+                            onFailure = { err ->
+                                Log.w(TAG, "Distributed check-in: write failed: ${err.message}")
+                            },
+                        )
                     }
                 },
                 onFailure = { err ->
-                    Log.w(TAG, "Distributed check-in: failed: ${err.message}")
+                    Log.w(TAG, "Distributed check-in: read failed: ${err.message}")
                 },
             )
 
@@ -66,7 +96,7 @@ class DistributedCheckinWorker(
             WorkManager.getInstance(context)
                 .beginUniqueWork(
                     WORK_NAME_DEBUG,
-                    ExistingWorkPolicy.APPEND, // <-- critical: do NOT cancel running work
+                    ExistingWorkPolicy.APPEND, // do NOT cancel running work
                     request
                 )
                 .enqueue()

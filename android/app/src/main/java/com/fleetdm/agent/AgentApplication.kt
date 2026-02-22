@@ -58,9 +58,11 @@ class AgentApplication : Application() {
                 android.os.Process.killProcess(android.os.Process.myPid())
             }
         }
-
         // Initialize dependencies
         ApiClient.initialize(this)
+
+        // Register osquery table plugins
+        com.fleetdm.agent.osquery.OsqueryTables.registerAll(this)
 
         if (BuildConfig.DEBUG) {
             DistributedCheckinWorker.scheduleNextDebug(this)
