@@ -8,6 +8,9 @@ import (
 
 type ContextKey string
 
+// NewActivityFunc is the function signature for creating a new activity.
+type NewActivityFunc func(ctx context.Context, user *User, activity ActivityDetails) error
+
 type ActivityWebhookPayload struct {
 	Timestamp     time.Time        `json:"timestamp"`
 	ActorFullName *string          `json:"actor_full_name"`

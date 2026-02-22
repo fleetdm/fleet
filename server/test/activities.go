@@ -136,7 +136,7 @@ func CreateHostVPPAppInstallUpcomingActivity(t *testing.T, ds fleet.Datastore, h
 // The adamID is the one for the VPP app created by that call, and status is
 // one of the Apple MDM status string (Acknowledged, Error, CommandFormatError,
 // etc).
-func SetHostVPPAppInstallResult(t *testing.T, ds fleet.Datastore, nanods storage.CommandAndReportResultsStore, host *fleet.Host, execID, adamID, status string, newActivityFn func(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails) error) {
+func SetHostVPPAppInstallResult(t *testing.T, ds fleet.Datastore, nanods storage.CommandAndReportResultsStore, host *fleet.Host, execID, adamID, status string, newActivityFn fleet.NewActivityFunc) {
 	ctx := context.Background()
 	nanoCtx := &mdm.Request{EnrollID: &mdm.EnrollID{ID: host.UUID}, Context: ctx}
 
@@ -178,7 +178,7 @@ func CreateHostInHouseAppInstallUpcomingActivity(t *testing.T, ds fleet.Datastor
 	return execID
 }
 
-func SetHostInHouseAppInstallResult(t *testing.T, ds fleet.Datastore, nanods storage.CommandAndReportResultsStore, host *fleet.Host, execID, status string, newActivityFn func(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails) error) {
+func SetHostInHouseAppInstallResult(t *testing.T, ds fleet.Datastore, nanods storage.CommandAndReportResultsStore, host *fleet.Host, execID, status string, newActivityFn fleet.NewActivityFunc) {
 	ctx := context.Background()
 	nanoCtx := &mdm.Request{EnrollID: &mdm.EnrollID{ID: host.UUID}, Context: ctx}
 

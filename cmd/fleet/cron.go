@@ -1901,7 +1901,7 @@ func newAndroidMDMDeviceReconcilerSchedule(
 	ds fleet.Datastore,
 	logger *logging.Logger,
 	licenseKey string,
-	newActivityFn func(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails) error,
+	newActivityFn fleet.NewActivityFunc,
 ) (*schedule.Schedule, error) {
 	const (
 		name            = string(fleet.CronMDMAndroidDeviceReconciler)

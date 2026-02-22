@@ -12,7 +12,7 @@ import (
 // ReconcileAndroidDevices polls AMAPI for devices that Fleet still considers enrolled
 // and flips them to unenrolled if Google reports them missing (404).
 // This complements (does not replace) Pub/Sub DELETED handling.
-func ReconcileAndroidDevices(ctx context.Context, ds fleet.Datastore, logger *slog.Logger, licenseKey string, newActivityFn func(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails) error) error {
+func ReconcileAndroidDevices(ctx context.Context, ds fleet.Datastore, logger *slog.Logger, licenseKey string, newActivityFn fleet.NewActivityFunc) error {
 	appConfig, err := ds.AppConfig(ctx)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "get app config")
