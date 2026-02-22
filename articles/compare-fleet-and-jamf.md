@@ -2,7 +2,7 @@
 
 ### Fleet
 
-Fleet is an Apple-oriented, modern, transparent device management solution with cross-platform support for Linux, macOS, iOS, iPadOS, Windows, Android and Chromebook devices. Fleet has an API-first design with built-in GitOps console management. Fleet is based on open-source technology providing near real-time reporting, comprehensive device control and automated remediation capabilities.
+Fleet is an Apple-oriented, modern, transparent device management solution with multi-platform support for Linux, macOS, iOS, iPadOS, Windows, Android and Chromebook devices. Fleet has an API-first design with built-in GitOps console management. Fleet is based on open-source technology providing near real-time reporting, comprehensive device control and automated remediation capabilities.
 
 ### Jamf
 
@@ -56,27 +56,27 @@ Fleet approaches security and compliance through built-in software vulnerability
 
 These combined Fleet capabilities make it straight-forward to enforce compliance baselines using frameworks like [CIS](/guides/cis-benchmarks) or STIG. Threat detection in Fleet works through the creation of queries to find attributes, device processes, file systems, network configurations, malware detection via [YARA-based signature matching](/guides/remote-yara-rules), and vulnerability intelligence. Security monitoring, data collection, SIEM integration and all other Fleet capabilities are included under a single license at no additional cost. Fleet provides visibility into software inventories, file system events, connected hardware, firewall status and virtually any imaginable attribute of any device via the [Fleet osquery data table schema](/tables).
 
-## Single-platform vs. cross-platform support
+## Single-platform vs. multi-platform support
 
-Whether or not your device management solution has cross-platform support capability determines if consolidation of your device management tooling is possible. Maintaining multiple single-platform solutions can be complex and expensive. Multiple solutions may mean multiple, separate IT teams and it definitely means managing multiple contract renewals.
+Whether or not your device management solution has multi-platform support capability determines if consolidation of your device management tooling is possible. Maintaining multiple single-platform solutions can be complex and expensive. Multiple solutions may mean multiple, separate IT teams and it definitely means managing multiple contract renewals.
 
 Jamf provides purpose-built management capabilities across Apple's device range but really only specializes in Apple, with recently announced Android support.
 
-Fleet offers comprehensive cross-platform coverage for Linux, macOS, iOS, iPadOS, Windows, Android and Chromebook devices from a single console.
+Fleet offers comprehensive multi-platform coverage for Linux, macOS, iOS, iPadOS, Windows, Android and Chromebook devices from a single console.
 
 ## FAQ
 
-#### What's the main difference between a single-platform device management solution and a cross-platform device management solution?
+#### What's the main difference between a single-platform device management solution and a multi-platform device management solution?
 
-Specialized MDM solutions focus on one device ecosystem. Cross-platform MDM solutions provide unified management across different operating systems from a single console. [Try Fleet](/try-fleet) to see how cross-platform management can work in your environment.
+Specialized MDM solutions focus on one device ecosystem. multi-platform MDM solutions provide unified management across different operating systems from a single console. [Try Fleet](/try-fleet) to see how multi-platform management can work in your environment.
 
-#### Can cross-platform device management solutions manage Apple devices as effectively as Apple-specialized platforms?
+#### Can multi-platform device management solutions manage Apple devices as effectively as Apple-specialized platforms?
 
-Fleet is an Apple-oriented device management solution. Though it is cross-platform, Fleet provides management capabilities at parity with solutions like Jamf for most use cases including zero-touch, automated enrollment through Apple Business or School Manager, delivery of MDM Configuration Profiles, MDM commands, Declarative Device Management support, software management, script execution and strict control over scoping management objects to the right devices.
+Fleet is an Apple-oriented device management solution. Though it is multi-platform, Fleet provides management capabilities at parity with solutions like Jamf for most use cases including zero-touch, automated enrollment through Apple Business or School Manager, delivery of MDM Configuration Profiles, MDM commands, Declarative Device Management support, software management, script execution and strict control over scoping management objects to the right devices.
 
 #### What should I consider when comparing MDM costs?
 
-Both Fleet and Jamf Pro offer per-device subscription pricing with costs varying based on fleet size and requirements. Organizations should consider implementation effort, training needs, and ROI savings through tool consolidation when choosing to move to a new device management solution. More specialized training and support may be required when maintaining multiple device management solutions. Cross-platform device management solutions enable tool consolidation that can offset per-device costs.
+Both Fleet and Jamf Pro offer per-device subscription pricing with costs varying based on fleet size and requirements. Organizations should consider implementation effort, training needs, and ROI savings through tool consolidation when choosing to move to a new device management solution. More specialized training and support may be required when maintaining multiple device management solutions. multi-platform device management solutions enable tool consolidation that can offset per-device costs.
 
 In addition to device management feature parity with Jamf, Fleet includes capabilities that Jamf does not like GitOps console management, software vulnerability reporting, osquery data collection and SIEM integration under a single license per device at no additional cost. These inclusions may allow an organization to trim costs even further when consolidating tools by moving to Fleet.
 
@@ -91,7 +91,7 @@ Implementation and migration timelines vary based on fleet size and organization
 <meta name="authorFullName" value="Brock Walters">
 <meta name="authorGitHubUsername" value="nonpunctual">
 <meta name="articleSlugInCategory" value="jamf"> 
-<meta name="introductionTextBlockOne" value="Organizations managing Apple devices face a choice: pick one of a number of available Apple device management solutions, or, a solution with cross-platform capabilities."> 
+<meta name="introductionTextBlockOne" value="Organizations managing Apple devices face a choice: pick one of a number of available Apple device management solutions, or, a solution with multi-platform capabilities."> 
 <meta name="introductionTextBlockTwo" value="This guide compares and contrasts the capabilities of Fleet with Jamf Pro, highlighting deployment approaches and buying decision criteria."> 
 <meta name="category" value="comparison">
 <meta name="publishedOn" value="2026-01-27">

@@ -76,11 +76,16 @@ func gitopsCommand() *cli.Command {
 			configFlag(),
 			contextFlag(),
 			debugFlag(),
+			enableLogTopicsFlag(),
+			disableLogTopicsFlag(),
 		},
 		Action: func(c *cli.Context) error {
 			logf := func(format string, a ...interface{}) {
 				_, _ = fmt.Fprintf(c.App.Writer, format, a...)
 			}
+
+			// Apply log topic overrides from CLI flags.
+			applyLogTopicFlags(c)
 
 			if len(c.Args().Slice()) != 0 {
 				return errors.New("No positional arguments are allowed. To load multiple config files, use one -f flag per file.")

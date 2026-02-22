@@ -2143,7 +2143,7 @@ interface IActivityItemProps {
   isPremiumTier: boolean;
 
   /** A handler for handling clicking on the details of an activity. Not all
-   * activites have more details so this is optional. An example of additonal
+   * activites have more details so this is optional. An example of additional
    * details is showing the query for a live query action.
    */
   onDetailsClick?: ShowActivityDetailsHandler;

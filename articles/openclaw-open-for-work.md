@@ -8,7 +8,7 @@
 
 The amount of recent chatter about [OpenClaw](https://openclaw.im/) seems to be highlighting a [cultural inflection point](https://www.jakequist.com/thoughts/openclaw-is-what-apple-intelligence-should-have-been). Like the point at which everyone switched off AOL and on to the regular old internet. The point at which everyone suddenly had an iPod. The point at which everyone had a Gmail account. 
 
-This may be the point at which useful AI technology has finally become attainable for people who would not consider themselves technology-savvy. Powerful, connected, practical. Easy to set up, use and understand. 
+This may be the point at which AI technology has finally become attainable and useful for people who would not consider themselves technology-savvy. Powerful, connected, practical. Easy to set up and understand. 
 
 ## How OpenClaw works
 
@@ -24,6 +24,8 @@ Other OpenClaw benefits:
 - The documentation includes hundreds of pre-built, easy-to-load skills that integrate the agent into 1000's of possible workflows
 
 ## What are the risks of OpenClaw? 
+
+The rush to adoption and enthusiasm is also generating some [healthy skepticism](https://kitzy.com/blog/openclaw-security-dangers/).
 
 Running OpenClaw in your own home on a dedicated computer does provide a basic security advantage. But easing the barrier to entry for technology always presents risks. This is true for individuals running OpenClaw at home and especially true for anyone considering using OpenClaw in the enterprise, where organizations try to limit liability, comply with regulations and laws, and protect investments in assets and people.  
 

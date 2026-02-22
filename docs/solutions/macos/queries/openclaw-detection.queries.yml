@@ -1,0 +1,392 @@
+# === Investigation queries ===
+# Run these when a host fails an OpenClaw detection policy to see what's installed.
+- name: OpenClaw - Running processes
+  description: "Collects running processes matching OpenClaw, Clawdbot, Moltbot, or Clawd by name or command line"
+  query: |
+    SELECT pid, name, path, cmdline, uid
+    FROM processes
+    WHERE name LIKE '%openclaw%'
+        OR name LIKE '%clawdbot%'
+        OR name LIKE '%moltbot%'
+        OR name LIKE '%clawd%'
+        OR cmdline LIKE '%openclaw%'
+        OR cmdline LIKE '%clawdbot%'
+        OR cmdline LIKE '%moltbot%';
+  interval: 3600
+  observer_can_run: true
+  automations_enabled: false
+  logging: differential
+  platform: darwin,linux,windows
+- name: OpenClaw - Listening ports
+  description: "Collects processes listening on OpenClaw's known ports (18789 WebSocket gateway, 18793 canvas/A2UI host) with the binary behind each port"
+  query: |
+    SELECT lp.port, lp.address, lp.protocol, p.name, p.path AS binary_path, p.cmdline
+    FROM listening_ports lp
+    LEFT JOIN processes p USING (pid)
+    WHERE lp.port IN (18789, 18793)
+        OR p.name LIKE '%openclaw%'
+        OR p.name LIKE '%clawdbot%'
+        OR p.name LIKE '%moltbot%';
+  interval: 3600
+  observer_can_run: true
+  automations_enabled: false
+  logging: differential
+  platform: darwin,linux,windows
+- name: OpenClaw - Docker images
+  description: "Collects Docker images tagged with OpenClaw, Clawdbot, or Moltbot"
+  query: |
+    SELECT id, tags, size_bytes, created
+    FROM docker_images
+    WHERE tags LIKE '%openclaw%'
+        OR tags LIKE '%clawdbot%'
+        OR tags LIKE '%moltbot%';
+  interval: 86400
+  observer_can_run: true
+  automations_enabled: false
+  logging: differential
+  platform: darwin,linux,windows
+- name: OpenClaw - Docker containers
+  description: "Collects Docker containers running OpenClaw, Clawdbot, or Moltbot images"
+  query: |
+    SELECT id, name, image, status, started_at
+    FROM docker_containers
+    WHERE image LIKE '%openclaw%'
+        OR image LIKE '%clawdbot%'
+        OR image LIKE '%moltbot%';
+  interval: 3600
+  observer_can_run: true
+  automations_enabled: false
+  logging: differential
+  platform: darwin,linux,windows
+- name: OpenClaw - macOS launchd services
+  description: "Collects launchd services matching OpenClaw by exact label (ai.openclaw.gateway, com.clawdbot.gateway, bot.molt.gateway) and by pattern across legacy names"
+  query: |
+    SELECT name, label, program, path, run_at_load, keep_alive
+    FROM launchd
+    WHERE label = 'ai.openclaw.gateway'
+        OR label = 'com.clawdbot.gateway'
+        OR label = 'bot.molt.gateway'
+        OR label LIKE 'ai.openclaw.%'
+        OR label LIKE 'com.clawdbot.%'
+        OR label LIKE 'bot.molt.%'
+        OR name LIKE '%openclaw%'
+        OR name LIKE '%clawdbot%'
+        OR name LIKE '%moltbot%'
+        OR program LIKE '%openclaw%'
+        OR program LIKE '%clawdbot%'
+        OR program LIKE '%moltbot%';
+  interval: 86400
+  observer_can_run: true
+  automations_enabled: false
+  logging: differential
+  platform: darwin
+- name: OpenClaw - macOS installed apps
+  description: "Collects installed macOS applications matching OpenClaw by name or bundle identifier (bot.molt.* is the current domain, com.clawdbot.* is legacy)"
+  query: |
+    SELECT name, path, bundle_identifier, bundle_short_version
+    FROM apps
+    WHERE name LIKE '%openclaw%'
+        OR name LIKE '%clawdbot%'
+        OR name LIKE '%moltbot%'
+        OR bundle_identifier LIKE 'bot.molt.%'
+        OR bundle_identifier LIKE 'com.clawdbot.%'
+        OR bundle_identifier LIKE '%openclaw%';
+  interval: 86400
+  observer_can_run: true
+  automations_enabled: false
+  logging: differential
+  platform: darwin
+- name: OpenClaw - Linux systemd units
+  description: "Collects systemd units matching OpenClaw by exact unit ID (openclaw-gateway.service) and by pattern across legacy names"
+  query: |
+    SELECT id, description, load_state, active_state, sub_state, fragment_path
+    FROM systemd_units
+    WHERE id = 'openclaw-gateway.service'
+        OR id LIKE 'openclaw-gateway-%.service'
+        OR id LIKE '%openclaw%'
+        OR id LIKE '%clawdbot%'
+        OR id LIKE '%moltbot%';
+  interval: 86400
+  observer_can_run: true
+  automations_enabled: false
+  logging: differential
+  platform: linux
+- name: OpenClaw - Windows services
+  description: "Collects Windows services matching OpenClaw, Clawdbot, or Moltbot by name, display name, or binary path"
+  query: |
+    SELECT name, display_name, status, start_type, path
+    FROM services
+    WHERE name LIKE '%openclaw%'
+        OR name LIKE '%clawdbot%'
+        OR name LIKE '%moltbot%'
+        OR display_name LIKE '%openclaw%'
+        OR path LIKE '%openclaw%'
+        OR path LIKE '%clawdbot%'
+        OR path LIKE '%moltbot%';
+  interval: 86400
+  observer_can_run: true
+  automations_enabled: false
+  logging: differential
+  platform: windows
+- name: OpenClaw - Windows scheduled tasks
+  description: "Collects Windows scheduled tasks matching OpenClaw, Clawdbot, or Moltbot"
+  query: |
+    SELECT name, action, path, enabled, last_run_time, next_run_time
+    FROM scheduled_tasks
+    WHERE name LIKE '%openclaw%'
+        OR name LIKE '%clawdbot%'
+        OR name LIKE '%moltbot%'
+        OR action LIKE '%openclaw%'
+        OR action LIKE '%clawdbot%';
+  interval: 86400
+  observer_can_run: true
+  automations_enabled: false
+  logging: differential
+  platform: windows
+- name: OpenClaw - Homebrew packages
+  description: "Collects Homebrew packages matching OpenClaw, Clawdbot, or Moltbot. OpenClaw uses Homebrew for system-level dependencies on macOS."
+  query: |
+    SELECT name, path, version
+    FROM homebrew_packages
+    WHERE name LIKE '%openclaw%'
+        OR name LIKE '%clawdbot%'
+        OR name LIKE '%moltbot%';
+  interval: 86400
+  observer_can_run: true
+  automations_enabled: false
+  logging: differential
+  platform: darwin
+- name: OpenClaw - npm global packages
+  description: "Collects globally installed npm packages matching OpenClaw, Clawdbot, or Moltbot. npm is the primary installation method for OpenClaw."
+  query: |
+    SELECT name, version, directory
+    FROM npm_packages
+    WHERE name LIKE '%openclaw%'
+        OR name LIKE '%clawdbot%'
+        OR name LIKE '%moltbot%';
+  interval: 86400
+  observer_can_run: true
+  automations_enabled: false
+  logging: differential
+  platform: darwin,linux,windows
+# === Threat hunting queries ===
+# These detect active exploitation, misconfiguration, and ClawHavoc campaign indicators.
+- name: OpenClaw - Shell spawning from AI process
+  description: "Detects if an OpenClaw or Node.js process spawns a shell (sh, zsh, bash, sudo, python3). This is a strong indicator of prompt injection or malicious skill execution."
+  query: |
+    SELECT p.pid, p.name, p.cmdline,
+        pp.name AS parent_name, pp.cmdline AS parent_cmd
+    FROM processes p
+    JOIN processes pp ON p.parent = pp.pid
+    WHERE (pp.name = 'node'
+        OR pp.cmdline LIKE '%openclaw%'
+        OR pp.cmdline LIKE '%clawdbot%'
+        OR pp.cmdline LIKE '%moltbot%')
+    AND p.name IN ('sh', 'zsh', 'bash', 'sudo', 'python3');
+  interval: 60
+  observer_can_run: true
+  automations_enabled: false
+  logging: differential
+  platform: darwin,linux
+- name: OpenClaw - Exposed network bindings
+  description: "Checks if OpenClaw is bound to all interfaces (0.0.0.0 or ::) instead of localhost. Exposed bindings allow anyone on the network to reach the gateway."
+  query: |
+    SELECT p.name, p.pid, p.cmdline, lp.address, lp.port, lp.protocol,
+        CASE
+            WHEN lp.address = '0.0.0.0' THEN 'EXPOSED'
+            WHEN lp.address = '::' THEN 'EXPOSED (IPv6)'
+            ELSE 'LOCAL'
+        END AS exposure
+    FROM listening_ports lp
+    JOIN processes p ON lp.pid = p.pid
+    WHERE (p.name LIKE '%openclaw%'
+        OR p.name LIKE '%clawdbot%'
+        OR p.cmdline LIKE '%openclaw-gateway%')
+    AND lp.port NOT IN (22, 443, 80);
+  interval: 1800
+  observer_can_run: true
+  automations_enabled: false
+  logging: differential
+  platform: darwin,linux,windows
+- name: OpenClaw - Memory poisoning (SOUL.md and MEMORY.md)
+  description: "Detects recent modifications to SOUL.md or MEMORY.md files used by OpenClaw for persistent behavioural instructions. An attacker who modifies these files plants a backdoor that survives restarts."
+  query: |
+    SELECT path, filename, size,
+        datetime(mtime, 'unixepoch') AS modified
+    FROM file
+    WHERE (path LIKE '/Users/%/.clawdbot/%/SOUL.md'
+        OR path LIKE '/Users/%/.clawdbot/%/MEMORY.md'
+        OR path LIKE '/Users/%/.openclaw/%/SOUL.md'
+        OR path LIKE '/Users/%/.openclaw/%/MEMORY.md'
+        OR path LIKE '/home/%/.clawdbot/%/SOUL.md'
+        OR path LIKE '/home/%/.clawdbot/%/MEMORY.md'
+        OR path LIKE '/home/%/.openclaw/%/SOUL.md'
+        OR path LIKE '/home/%/.openclaw/%/MEMORY.md'
+        OR path LIKE '/root/.clawdbot/%/SOUL.md'
+        OR path LIKE '/root/.clawdbot/%/MEMORY.md'
+        OR path LIKE '/root/.openclaw/%/SOUL.md'
+        OR path LIKE '/root/.openclaw/%/MEMORY.md')
+    AND mtime > (strftime('%s', 'now') - 7200);
+  interval: 1800
+  observer_can_run: true
+  automations_enabled: false
+  logging: differential
+  platform: darwin,linux
+- name: OpenClaw - NPX execution
+  description: "Detects npx execution which is the primary supply chain vector for malicious OpenClaw skills. The npx -y flag runs packages without prompting for confirmation."
+  query: |
+    SELECT p.pid, p.name, p.cmdline, u.username
+    FROM processes p
+    LEFT JOIN users u ON p.uid = u.uid
+    WHERE p.name = 'npx'
+        OR p.cmdline LIKE '%npx -y%';
+  interval: 1800
+  observer_can_run: true
+  automations_enabled: false
+  logging: differential
+  platform: darwin,linux
+- name: OpenClaw - Pipe to bash delivery
+  description: "Detects curl or wget piped to bash or sh. This is the primary delivery mechanism for OpenClaw dropper payloads observed in the ClawHavoc campaign. Also matches the official install script (clawd.bot/install-cli.sh)."
+  query: |
+    SELECT p.pid, p.name, p.cmdline, u.username
+    FROM processes p
+    LEFT JOIN users u ON p.uid = u.uid
+    WHERE p.cmdline LIKE '%curl%|%bash%'
+        OR p.cmdline LIKE '%curl%|%sh%'
+        OR p.cmdline LIKE '%wget%|%bash%'
+        OR p.cmdline LIKE '%wget%|%sh%'
+        OR p.cmdline LIKE '%clawd.bot/install%';
+  interval: 1800
+  observer_can_run: true
+  automations_enabled: false
+  logging: differential
+  platform: darwin,linux
+- name: OpenClaw - mDNS auto-discovery broadcasting
+  description: "Detects processes communicating on UDP port 5353 (mDNS). OpenClaw gateways broadcast _openclaw-gw._tcp via mDNS, advertising their presence on the local network with TXT records that can expose filesystem paths, hostnames, and SSH availability. Attackers on the same LAN can use this for reconnaissance and lateral movement."
+  query: |
+    SELECT p.name, p.pid, u.username,
+        po.local_address, po.local_port,
+        po.remote_address, po.remote_port
+    FROM process_open_sockets po
+    JOIN processes p ON po.pid = p.pid
+    LEFT JOIN users u ON p.uid = u.uid
+    WHERE po.remote_port = 5353
+        AND po.protocol = 17;
+  interval: 14400
+  observer_can_run: true
+  automations_enabled: false
+  logging: differential
+  platform: darwin,linux
+- name: OpenClaw - ClawHavoc C2 indicators
+  description: "Detects network connections or command lines referencing known C2 infrastructure from the ClawHavoc campaign (Glot.io), AuthTool reverse shell (54.91.154.110), and AMOS stealer exfiltration (socifiapp.com)."
+  query: |
+    SELECT p.pid, p.name, p.cmdline, u.username,
+        po.remote_address, po.remote_port
+    FROM processes p
+    LEFT JOIN users u ON p.uid = u.uid
+    LEFT JOIN process_open_sockets po ON p.pid = po.pid
+    WHERE p.cmdline LIKE '%glot.io%'
+        OR p.cmdline LIKE '%socifiapp%'
+        OR po.remote_address = '91.92.242.30'
+        OR po.remote_address = '54.91.154.110';
+  interval: 1800
+  observer_can_run: true
+  automations_enabled: false
+  logging: differential
+  platform: darwin,linux,windows
+- name: OpenClaw - Config file permissions
+  description: "Checks if OpenClaw configuration files and API keys are world-readable. Insecure permissions on config directories expose credentials to any process on the host."
+  query: |
+    SELECT path, mode, uid, gid, size,
+        datetime(mtime, 'unixepoch') AS modified
+    FROM file
+    WHERE (path LIKE '/Users/%/.clawdbot/%'
+        OR path LIKE '/Users/%/.openclaw/%'
+        OR path LIKE '/home/%/.clawdbot/%'
+        OR path LIKE '/home/%/.openclaw/%'
+        OR path LIKE '/root/.clawdbot/%'
+        OR path LIKE '/root/.openclaw/%')
+    AND (mode LIKE '%7' OR mode LIKE '%5' OR mode LIKE '%4')
+    AND (filename LIKE '%.env%'
+        OR filename LIKE '%credentials%'
+        OR filename LIKE '%gateway.yaml%'
+        OR filename LIKE '%openclaw.json%');
+  interval: 86400
+  observer_can_run: true
+  automations_enabled: false
+  logging: differential
+  platform: darwin,linux
+- name: OpenClaw - Session transcript exposure
+  description: "Finds OpenClaw session transcript files (.jsonl) that contain full conversation history, tool invocations, and potentially sensitive data. These files persist on disk and are readable by any process with filesystem access."
+  query: |
+    SELECT path, filename, size,
+        datetime(mtime, 'unixepoch') AS modified,
+        datetime(ctime, 'unixepoch') AS created
+    FROM file
+    WHERE (path LIKE '/Users/%/.openclaw/agents/%/sessions/%.jsonl'
+        OR path LIKE '/Users/%/.clawdbot/agents/%/sessions/%.jsonl'
+        OR path LIKE '/home/%/.openclaw/agents/%/sessions/%.jsonl'
+        OR path LIKE '/home/%/.clawdbot/agents/%/sessions/%.jsonl'
+        OR path LIKE '/root/.openclaw/agents/%/sessions/%.jsonl'
+        OR path LIKE '/root/.clawdbot/agents/%/sessions/%.jsonl');
+  interval: 86400
+  observer_can_run: true
+  automations_enabled: false
+  logging: differential
+  platform: darwin,linux
+- name: OpenClaw - Credential and API key files
+  description: "Discovers .env files and credential stores in OpenClaw directories that typically contain plaintext API keys for OpenAI, Anthropic, AWS, and messaging platform tokens. Targeted by the ClawHavoc credential exfiltration campaign."
+  query: |
+    SELECT path, filename, size, mode,
+        datetime(mtime, 'unixepoch') AS modified
+    FROM file
+    WHERE (path LIKE '/Users/%/.clawdbot/.env'
+        OR path LIKE '/Users/%/.openclaw/.env'
+        OR path LIKE '/Users/%/.openclaw/credentials/%.json'
+        OR path LIKE '/Users/%/.clawdbot/credentials/%.json'
+        OR path LIKE '/Users/%/.openclaw/%/auth-profiles.json'
+        OR path LIKE '/Users/%/.clawdbot/%/auth-profiles.json'
+        OR path LIKE '/home/%/.clawdbot/.env'
+        OR path LIKE '/home/%/.openclaw/.env'
+        OR path LIKE '/home/%/.openclaw/credentials/%.json'
+        OR path LIKE '/home/%/.clawdbot/credentials/%.json'
+        OR path LIKE '/home/%/.openclaw/%/auth-profiles.json'
+        OR path LIKE '/home/%/.clawdbot/%/auth-profiles.json'
+        OR path LIKE '/root/.clawdbot/.env'
+        OR path LIKE '/root/.openclaw/.env'
+        OR path LIKE '/root/.openclaw/credentials/%.json'
+        OR path LIKE '/root/.clawdbot/credentials/%.json');
+  interval: 86400
+  observer_can_run: true
+  automations_enabled: false
+  logging: differential
+  platform: darwin,linux
+- name: OpenClaw - Gatekeeper quarantine bypass (macOS)
+  description: "Detects processes using xattr -c or xattr -d to clear macOS quarantine attributes. The ClawHavoc campaign uses this to bypass Gatekeeper after downloading the AMOS (Atomic Stealer) payload."
+  query: |
+    SELECT p.pid, p.name, p.cmdline, u.username
+    FROM processes p
+    LEFT JOIN users u ON p.uid = u.uid
+    WHERE p.cmdline LIKE '%xattr -c%'
+        OR p.cmdline LIKE '%xattr -d com.apple.quarantine%';
+  interval: 300
+  observer_can_run: true
+  automations_enabled: false
+  logging: differential
+  platform: darwin
+- name: OpenClaw - Reverse shell indicators
+  description: "Detects bash reverse shell patterns using /dev/tcp/ or nohup bash -i. The AuthTool campaign deploys a persistent reverse shell triggered by natural language interaction with a malicious OpenClaw skill."
+  query: |
+    SELECT p.pid, p.name, p.cmdline, u.username,
+        pp.name AS parent_name, pp.cmdline AS parent_cmd
+    FROM processes p
+    LEFT JOIN users u ON p.uid = u.uid
+    LEFT JOIN processes pp ON p.parent = pp.pid
+    WHERE p.cmdline LIKE '%/dev/tcp/%'
+        OR p.cmdline LIKE '%nohup%bash%-i%'
+        OR p.cmdline LIKE '%bash -i >%';
+  interval: 300
+  observer_can_run: true
+  automations_enabled: false
+  logging: differential
+  platform: darwin,linux
