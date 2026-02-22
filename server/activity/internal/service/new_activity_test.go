@@ -78,7 +78,8 @@ func (a activatorActivity) ActivateNextUpcomingActivityArgs() (uint, string) {
 }
 
 func newTestService(ds types.Datastore, providers activity.DataProviders) *Service {
-	return NewService(&mockAuthorizer{}, ds, providers, slog.New(slog.DiscardHandler))
+	noopWebhookSend := func(_ context.Context, _ string, _ any) error { return nil }
+	return NewService(&mockAuthorizer{}, ds, providers, noopWebhookSend, slog.New(slog.DiscardHandler))
 }
 
 func TestNewActivityStoresWithWebhookContextKey(t *testing.T) {

@@ -1796,6 +1796,7 @@ func createActivityBoundedContext(svc fleet.Service, dbConns *common_mysql.DBCon
 		dbConns,
 		activityAuthorizer,
 		activityACLAdapter,
+		server.PostJSONWithTimeout,
 		logger,
 	)
 	// Create auth middleware for activity bounded context

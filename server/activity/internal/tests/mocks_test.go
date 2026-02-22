@@ -95,7 +95,3 @@ func (m *mockDataProviders) GetActivitiesWebhookConfig(ctx context.Context) (*ac
 func (m *mockDataProviders) ActivateNextUpcomingActivity(ctx context.Context, hostID uint, fromCompletedExecID string) error {
 	return nil
 }
-
-func (m *mockDataProviders) SendWebhookPayload(ctx context.Context, url string, payload any) error {
-	return nil
-}

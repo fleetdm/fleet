@@ -15,9 +15,10 @@ import (
 // NewForUnitTests creates an activity NewActivityService backed by a noop store (no database required).
 func NewForUnitTests(
 	providers activity.DataProviders,
+	webhookSendFn activity.WebhookSendFunc,
 	logger *slog.Logger,
 ) api.NewActivityService {
-	return service.NewService(&noopAuthorizer{}, &noopStore{}, providers, logger)
+	return service.NewService(&noopAuthorizer{}, &noopStore{}, providers, webhookSendFn, logger)
 }
 
 // noopAuthorizer allows all actions (appropriate for unit tests).

@@ -26,6 +26,7 @@ import (
 	"time"
 
 	"github.com/WatchBeam/clock"
+	"github.com/fleetdm/fleet/v4/server"
 	"github.com/fleetdm/fleet/v4/server/acl/activityacl"
 	activity_api "github.com/fleetdm/fleet/v4/server/activity/api"
 	activity_bootstrap "github.com/fleetdm/fleet/v4/server/activity/bootstrap"
@@ -1031,7 +1032,7 @@ func NewTestActivityService(t testing.TB, ds *Datastore) activity_api.Service {
 	aclAdapter := activityacl.NewFleetServiceAdapter(lookupSvc)
 
 	// Create service via bootstrap (the public API for creating the bounded context)
-	svc, _ := activity_bootstrap.New(dbConns, &testingAuthorizer{}, aclAdapter, slog.New(slog.DiscardHandler))
+	svc, _ := activity_bootstrap.New(dbConns, &testingAuthorizer{}, aclAdapter, server.PostJSONWithTimeout, slog.New(slog.DiscardHandler))
 	return svc
 }
 

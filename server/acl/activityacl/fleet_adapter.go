@@ -9,7 +9,6 @@ package activityacl
 import (
 	"context"
 
-	"github.com/fleetdm/fleet/v4/server"
 	"github.com/fleetdm/fleet/v4/server/activity"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 )
@@ -31,7 +30,6 @@ var (
 	_ activity.HostProvider              = (*FleetServiceAdapter)(nil)
 	_ activity.AppConfigProvider         = (*FleetServiceAdapter)(nil)
 	_ activity.UpcomingActivityActivator = (*FleetServiceAdapter)(nil)
-	_ activity.WebhookSender             = (*FleetServiceAdapter)(nil)
 )
 
 // UsersByIDs fetches users by their IDs from the Fleet service.
@@ -114,9 +112,4 @@ func (a *FleetServiceAdapter) GetActivitiesWebhookConfig(ctx context.Context) (*
 // ActivateNextUpcomingActivity activates the next upcoming activity in the queue.
 func (a *FleetServiceAdapter) ActivateNextUpcomingActivity(ctx context.Context, hostID uint, fromCompletedExecID string) error {
 	return a.svc.ActivateNextUpcomingActivityForHost(ctx, hostID, fromCompletedExecID)
-}
-
-// SendWebhookPayload sends a JSON payload to the given URL using the server's HTTP utility.
-func (a *FleetServiceAdapter) SendWebhookPayload(ctx context.Context, url string, payload any) error {
-	return server.PostJSONWithTimeout(ctx, url, payload)
 }

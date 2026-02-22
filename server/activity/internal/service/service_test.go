@@ -108,10 +108,6 @@ func (m *mockDataProviders) ActivateNextUpcomingActivity(ctx context.Context, ho
 	return nil
 }
 
-func (m *mockDataProviders) SendWebhookPayload(ctx context.Context, url string, payload any) error {
-	return nil
-}
-
 // testSetup holds test dependencies with pre-configured mocks
 type testSetup struct {
 	svc       *Service
@@ -134,7 +130,8 @@ func setupTest(opts ...func(*testSetup)) *testSetup {
 	for _, opt := range opts {
 		opt(ts)
 	}
-	ts.svc = NewService(ts.authz, ts.ds, ts.providers, slog.New(slog.DiscardHandler))
+	noopWebhookSend := func(_ context.Context, _ string, _ any) error { return nil }
+	ts.svc = NewService(ts.authz, ts.ds, ts.providers, noopWebhookSend, slog.New(slog.DiscardHandler))
 	return ts
 }
 
@@ -535,8 +532,9 @@ func newTestActivity(id uint, actorName string, actorID uint, actType, details s
 func TestStreamActivities(t *testing.T) {
 	t.Parallel()
 
+	noopWebhookSend := func(_ context.Context, _ string, _ any) error { return nil }
 	newStreamingService := func(ds *mockStreamingDatastore) *Service {
-		return NewService(&mockAuthorizer{}, ds, &mockDataProviders{mockUserProvider: &mockUserProvider{}, mockHostProvider: &mockHostProvider{}}, slog.New(slog.DiscardHandler))
+		return NewService(&mockAuthorizer{}, ds, &mockDataProviders{mockUserProvider: &mockUserProvider{}, mockHostProvider: &mockHostProvider{}}, noopWebhookSend, slog.New(slog.DiscardHandler))
 	}
 
 	t.Run("basic streaming", func(t *testing.T) {

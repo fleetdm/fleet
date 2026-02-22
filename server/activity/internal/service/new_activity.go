@@ -118,7 +118,7 @@ func (s *Service) fireActivityWebhook(
 		retryStrategy.MaxElapsedTime = 30 * time.Minute
 		err := backoff.Retry(
 			func() error {
-				if err := s.providers.SendWebhookPayload(
+				if err := s.webhookSendFn(
 					spanCtx, webhookURL, &webhookPayload{
 						Timestamp:     timestamp,
 						ActorFullName: userName,

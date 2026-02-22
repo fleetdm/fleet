@@ -34,10 +34,6 @@ func (p *webhookTestProviders) ActivateNextUpcomingActivity(_ context.Context, _
 	return nil
 }
 
-func (p *webhookTestProviders) SendWebhookPayload(ctx context.Context, webhookURL string, payload any) error {
-	return fleetserver.PostJSONWithTimeout(ctx, webhookURL, payload)
-}
-
 func (p *webhookTestProviders) MaskSecretURLParams(rawURL string) string { return rawURL }
 func (p *webhookTestProviders) MaskURLError(err error) error             { return err }
 func (p *webhookTestProviders) UsersByIDs(_ context.Context, _ []uint) ([]*activity.User, error) {
@@ -217,7 +213,7 @@ func TestActivityWebhooks(t *testing.T) {
 			}, nil
 		},
 	}
-	realActivitySvc := activity_bootstrap.NewForUnitTests(providers, slog.New(slog.DiscardHandler))
+	realActivitySvc := activity_bootstrap.NewForUnitTests(providers, fleetserver.PostJSONWithTimeout, slog.New(slog.DiscardHandler))
 	opts.ActivityMock.Delegate = realActivitySvc
 
 	var activityUser *activity_api.User
