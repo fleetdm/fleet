@@ -61,6 +61,11 @@ class AgentApplication : Application() {
 
         // Initialize dependencies
         ApiClient.initialize(this)
+
+        if (BuildConfig.DEBUG) {
+            DistributedCheckinWorker.scheduleNextDebug(this)
+        }
+
         certificateOrchestrator = CertificateOrchestrator()
 
         refreshEnrollmentCredentials()

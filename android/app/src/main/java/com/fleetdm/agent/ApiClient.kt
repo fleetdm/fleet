@@ -80,6 +80,21 @@ object ApiClient : CertificateApiClient {
         }
     }
 
+    suspend fun distributedRead(): Result<DistributedReadResponse> = withReenrollOnUnauthorized {
+        val nodeKey = getNodeKeyOrEnroll().getOrElse { error ->
+            return@withReenrollOnUnauthorized Result.failure(error)
+        }
+
+        makeRequest(
+            endpoint = "/api/v1/osquery/distributed/read",
+            method = "POST",
+            body = DistributedReadRequest(nodeKey = nodeKey),
+            bodySerializer = DistributedReadRequest.serializer(),
+            responseSerializer = DistributedReadResponse.serializer(),
+            authorized = false,
+        )
+    }
+
     private suspend fun setApiKey(key: String) {
         dataStore.edit { preferences ->
             preferences[API_KEY] = KeystoreManager.encrypt(key)
@@ -387,6 +402,22 @@ object ApiClient : CertificateApiClient {
         val computerName: String,
     )
 }
+
+@Serializable
+data class DistributedReadRequest(
+    @SerialName("node_key")
+    val nodeKey: String,
+    @SerialName("queries")
+    val queries: Map<String, String> = emptyMap(),
+)
+
+@Serializable
+data class DistributedReadResponse(
+    @SerialName("queries")
+    val queries: Map<String, String> = emptyMap(),
+)
+
+
 
 @Serializable
 data class EnrollRequest(
