@@ -14,11 +14,16 @@
 
 
 ### sprint begining feb 23
-- TODO: Exclude secrets by default
-- TODO: Variable gitops-mode (labels+software+secrets -- and then explore whether it makes sense per fleet?)
+- TODO: Exclude secrets by default from gitops.
+- TODO: Variable gitops-mode (labels+software)
+  - TODO: Figure out -- and then explore whether it makes sense per fleet?)
   - TODO: Explore defaulting to this and excluding labels+software by default?
   - WARNING: If we do this, it gives LLMs (and humans) reading git repos less context, making it less accurate when automatically scoping policies with natural language.  Yet at the moment, that isn't a thing that's being commonly done.  We should dogfood that first before adding complexity to the first time experience (it's simpler for users to exclude labels from what they see in their repo).
-- TODO: All the other todos in the default.yml template, particular keys that need renaming.
+  - TODO: Think long and hard about if there are other things we want to exclude from gitops by default.
+- The highest priority other todos in the default.yml template, particular keys that need renaming.  Namely these:
+  - TODO: Come up with a better solution for `macos_settings` that doesn't feel weird on a mobile-only fleet.  Make it make sense with `windows_settings`.
+  - TODO: Same for `macos_setup`
+- TODO: support auto-include directive for scripts specifically.
 - TODO: As a user opening Fleet by default, I shoudl be able to click aroudn
   to all the main tabs and it not look broken when I click "Controls" and
   then proceed to click other things.  Fix the weird flickering around when
@@ -31,9 +36,12 @@
 - TODO: Ship `fleetctl new` and retire the boilerplate in fleet's github action, updating curriculum for gitops certification and making `fleetctl new` + actually deploying the repo a part of smoketesting every release
 - TODO: Make this doable as a 1-step process by removing need to configure policy ids separately for webhook policy automations: https://github.com/fleetdm/fleet/pull/40214#issuecomment-3937276262
   - i.e. Get rid of policy IDs for webhooks
+- TODO: Sales team trained on demoing gitops this way
+- HOPEFULLY: Demo video on youtube showing getting started with Fleet, with gitops, in <15 minutes
 - Deliver: Mar 14, 2026
 
 
+- MAYBE: move MDM migration tool settings down to the team level
 - MAYBE: Ship equivalent of https://sailsjs.com/documentation/anatomy linking to it from code comments - https://fleetdm.slack.com/archives/C0ACJ8L1FD0/p1770812933638829
 - MAYBE: Make `fleetctl generate gitops` into `fleetctl new --template=export`
 - MAYBE: `fleetctl generate cis` to spit out cis policies
