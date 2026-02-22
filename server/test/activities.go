@@ -151,7 +151,7 @@ func SetHostVPPAppInstallResult(t *testing.T, ds fleet.Datastore, nanods storage
 		HostID:      host.ID,
 		AppStoreID:  adamID,
 		CommandUUID: execID,
-		Status:      "Error",
+		Status:      status,
 	})
 	require.NoError(t, err)
 }
@@ -192,7 +192,7 @@ func SetHostInHouseAppInstallResult(t *testing.T, ds fleet.Datastore, nanods sto
 	err = newActivityFn(ctx, nil, fleet.ActivityTypeInstalledSoftware{
 		HostID:      host.ID,
 		CommandUUID: execID,
-		Status:      "Error",
+		Status:      status,
 	})
 	require.NoError(t, err)
 }
