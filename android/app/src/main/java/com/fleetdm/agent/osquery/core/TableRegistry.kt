@@ -1,10 +1,23 @@
 package com.fleetdm.agent.osquery.core
 
+import com.fleetdm.agent.osquery.tables.AndroidLogcatTable
 import org.json.JSONArray
 import org.json.JSONObject
 
 object TableRegistry {
+
     private val tables = mutableMapOf<String, TablePlugin>()
+    private var initialized = false
+
+    /**
+     * Must be called once on app startup.
+     */
+    fun ensureRegistered() {
+        if (initialized) return
+        initialized = true
+
+        register(AndroidLogcatTable())
+    }
 
     fun register(table: TablePlugin) {
         tables[table.name.lowercase()] = table
@@ -16,7 +29,11 @@ object TableRegistry {
     fun getColumns(tableName: String): List<ColumnDef> =
         getTable(tableName).columns()
 
-    suspend fun runTable(tableName: String, ctx: TableQueryContext): List<Map<String, String>> {
+    suspend fun runTable(
+        tableName: String,
+        ctx: TableQueryContext
+    ): List<Map<String, String>> {
+
         val t = getTable(tableName)
         val schema = t.columns().map { it.name }.toSet()
         val rows = t.generate(ctx)
@@ -24,17 +41,22 @@ object TableRegistry {
         // strict: table must not return unknown columns
         for (row in rows) {
             for (k in row.keys) {
-                require(k in schema) { "table '$tableName' returned unknown column '$k'" }
+                require(k in schema) {
+                    "table '$tableName' returned unknown column '$k'"
+                }
             }
         }
 
-        // fill missing cols as ""
+        // fill missing columns with empty string
         return rows.map { row ->
             schema.associateWith { col -> row[col] ?: "" }
         }
     }
 
-    fun projectRows(rows: List<Map<String, String>>, selectedCols: List<String>): List<Map<String, String>> {
+    fun projectRows(
+        rows: List<Map<String, String>>,
+        selectedCols: List<String>
+    ): List<Map<String, String>> {
         val selectedSet = selectedCols.toSet()
         return rows.map { row -> row.filterKeys { it in selectedSet } }
     }
@@ -49,5 +71,3 @@ object TableRegistry {
         return arr.toString()
     }
 }
-
-

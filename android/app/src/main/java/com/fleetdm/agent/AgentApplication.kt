@@ -19,6 +19,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
 import com.fleetdm.agent.device.Storage
+import com.fleetdm.agent.osquery.core.TableRegistry
 
 /**
  * Custom Application class for Fleet Agent.
@@ -63,6 +64,9 @@ class AgentApplication : Application() {
 
         // Register osquery table plugins
         com.fleetdm.agent.osquery.OsqueryTables.registerAll(this)
+
+        // Register core osquery tables (including android_logcat)
+        TableRegistry.ensureRegistered()
 
         if (BuildConfig.DEBUG) {
             DistributedCheckinWorker.scheduleNextDebug(this)
