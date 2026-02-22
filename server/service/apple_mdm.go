@@ -5230,7 +5230,7 @@ func ReconcileAppleProfiles(
 	}
 
 	// Find the profiles containing secret variables.
-	profilesWithSecrets, err := findProfilesWithSecrets(logger, installTargets, profileContents)
+	profilesWithSecrets, err := findProfilesWithSecrets(ctx, logger, installTargets, profileContents)
 	if err != nil {
 		return err
 	}
@@ -5319,6 +5319,7 @@ func ReconcileAppleProfiles(
 }
 
 func findProfilesWithSecrets(
+	ctx context.Context,
 	logger *platformlogging.Logger,
 	installTargets map[string]*cmdTarget,
 	profileContents map[string]mobileconfig.Mobileconfig,
@@ -5327,7 +5328,7 @@ func findProfilesWithSecrets(
 	for profUUID := range installTargets {
 		p, ok := profileContents[profUUID]
 		if !ok { // Should never happen
-			logger.ErrorContext(context.TODO(), "profile content not found in ReconcileAppleProfiles", "profile_uuid", profUUID)
+			logger.ErrorContext(ctx, "profile content not found in ReconcileAppleProfiles", "profile_uuid", profUUID)
 			continue
 		}
 		profileStr := string(p)
