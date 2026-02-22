@@ -6,7 +6,11 @@
 - Part 2: [Detecting AI agents like OpenClaw with automated tooling](https://fleetdm.com/articles/detecting-ai-agents-like-openclaw-with-automated-tooling)
 - Part 3: [Mitigation assets and detection patterns for AI agents like OpenClaw](https://fleetdm.com/guides/mitigation-assets-and-detection-patterns-for-ai-agents-like-openclaw)
 
-The amount of [recent chatter](https://www.a16z.news/p/charts-of-the-week-vertical-saas) about [OpenClaw](https://openclaw.im/) seems to be highlighting a [cultural inflection point](https://www.jakequist.com/thoughts/openclaw-is-what-apple-intelligence-should-have-been). Like the point at which everyone switched off AOL and on to the regular old internet. The point at which everyone suddenly had an iPod. The point at which everyone had a Gmail account. 
+The amount of recent chatter about [OpenClaw](https://openclaw.im/) seems to be highlighting a [cultural inflection point](https://www.jakequist.com/thoughts/openclaw-is-what-apple-intelligence-should-have-been). Like the point at which everyone switched off AOL and on to the regular old internet. The point at which everyone suddenly had an iPod. The point at which everyone had a Gmail account. 
+
+![OpenClaw on Mac mini](../website/assets/images/articles/openclaw.chart.1.png)
+
+![OpenClaw token use](../website/assets/images/articles/openclaw.chart.2.png)
 
 This may be the point at which AI technology has finally become attainable and useful for people who would not consider themselves technology-savvy. Powerful, connected, practical. Easy to set up and understand. 
 
