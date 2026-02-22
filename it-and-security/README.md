@@ -38,6 +38,7 @@
   instead of going in a weird loop with unassigned and jumping around all
   over, show a different view of all of the fleets and their controls
   (or something)
+- TODO: (noahtalerman) have a hard look at other immediate first impression things and prioritize 1-2 easy wins
 - TODO: (noahtalerman+lukeheath) As a user on the "Hosts" page, viewing a fleet of mobile devices, I don't want it to look broken and everything say "Unsupported" by default.
 - TODO: (noahtalerman+lukeheath)As a user on the "Hosts" page, viewing anything, I don't want to see the columns I care about the least first (i.e. private ip address which is almost always useless, or the osquery version which is almost never important, and certainly not one of the top 20 most important things about a host, especially at a glance)
 - TODO: (mikermcneil+sgress454) Ship `fleetctl new` and retire the boilerplate in fleet's github action, updating curriculum for gitops certification and making `fleetctl new` + actually deploying the repo a part of smoketesting every release
@@ -52,10 +53,24 @@
 <hr/>
 <br/><br/>
 
-- FUTURE: move MDM migration tool settings down to the team level
-- FUTURE: Ship equivalent of https://sailsjs.com/documentation/anatomy linking to it from code comments - https://fleetdm.slack.com/archives/C0ACJ8L1FD0/p1770812933638829
-- FUTURE: Make `fleetctl generate gitops` into `fleetctl new --template=export`
-- FUTURE: `fleetctl new --template=soc2` to spit out basic stuff you need for SOC2
-- FUTURE: Extrapolate template files so that every new Fleet environment gets spun up with included goodies, no matter whether it's for a customer PoV, a trial on the website, or a run of `fleetctl new`
-- FUTURE: `fleetctl generate cis` to spit out cis policies
+### sprints begining mar 16
 
+- ASAP: Get 🧑‍🎄 demo w/ wireframes a bit more baked (new IT vs old IT)
+- TODO: The somewhat secret innovation project previously discussed.
+- Deliver: ASAP
+
+
+<br/><br/>
+<hr/>
+<br/><br/>
+
+- FUTURE: "Enroll secret" is not actually a secret; more of a public key. Rename "enroll secret" in the UI, API, docs, and in gitops.
+- FUTURE: Ship equivalent of https://sailsjs.com/documentation/anatomy linking to it from code comments - https://fleetdm.slack.com/archives/C0ACJ8L1FD0/p1770812933638829
+- FUTURE: move MDM migration tool settings down to the team level
+  - FUTURE: Interactive prompt in `fleetctl new` to ask whether folks want to use an empty project, baselines for soc2, full cis benchmarks, or to export content from an existing Fleet instance
+  - FUTURE: Make `fleetctl generate gitops` into `fleetctl new --template=export`
+  - FUTURE: `fleetctl new --template=soc2` to spit out basic stuff you need for SOC2
+  - FUTURE: Extrapolate template files so that every new Fleet environment gets spun up with included goodies, no matter whether it's for a customer PoV, a trial on the website, or a run of `fleetctl new`
+  - FUTURE: Every free trial begins with `fleetctl new --template=soc2`
+  - FUTURE: `fleetctl generate cis` to spit out cis policies
+- 
