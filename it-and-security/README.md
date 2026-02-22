@@ -17,10 +17,18 @@
 <br/><br/>
 
 ### sprint begining feb 23
+- ASAP: (noahtalerman) Finish updating docs, delegating to any extra capacity on product design team
+  - (but we can't actually merge this until the latest stable release of fleectl works with "fleets" and "reports".  My understanding is that we aren't able to officially release this for a while since QA is still ≈3 weeks behind)
+- ASAP: (mikermcneil) Update the fleet-gitops repo to match the new conventions
+  - (but we can't actually merge this until the latest stable release of fleectl works with "fleets" and "reports".  My understanding is that we aren't able to officially release this for a while since QA is still ≈3 weeks behind)
+  - this is a short-term change until we retire the repo once `fleetctl new` is shipped
+- TODO: (mikermcneil+harry) Update gitops workshop curriculum with changes that already exist (and set Harry up to further update it based on changes expected Mar 21)
+  - (but this is blocked by the same things as merging the docs)
+  - ASAP: Discuss accelerating this for the upcoming gitops workshop in March.
 - TODO: (sgress454) Exclude secrets by default from gitops.
 - TODO: (mikermcneil) Finish fancy comments for global manifest, big 3 built-in fleet manifests, and 
 - TODO: (mikermcneil) Finish template README.md
-- TODO: (sgress454) Variable gitops-mode (labels+software)
+- TODO: (noahtalerman+sgress454) Variable gitops-mode (labels+software)
   - TODO: Figure out -- and then explore whether it makes sense per fleet?)
   - TODO: Explore defaulting to this and excluding labels+software by default?
   - WARNING: If we do this, it gives LLMs (and humans) reading git repos less context, making it less accurate when automatically scoping policies with natural language.  Yet at the moment, that isn't a thing that's being commonly done.  We should dogfood that first before adding complexity to the first time experience (it's simpler for users to exclude labels from what they see in their repo).
@@ -43,6 +51,9 @@
 - TODO: (noahtalerman+lukeheath)As a user on the "Hosts" page, viewing anything, I don't want to see the columns I care about the least first (i.e. private ip address which is almost always useless, or the osquery version which is almost never important, and certainly not one of the top 20 most important things about a host, especially at a glance)
 - TODO: (mikermcneil+sgress454) Ship `fleetctl new` and retire the boilerplate in fleet's github action, updating curriculum for gitops certification and making `fleetctl new` + actually deploying the repo a part of smoketesting every release
   - WARNING: First discuss feedback from customer on Feb 20 about how the current behavior of `fleetctl generate gitops` led to uncertainty about moving forward due to inconsistencies.  Deprecate `fleetctl generate gitops` as part of this (for now, see FUTURE below)
+  - TODO: Retire fleet-gitops repo
+  - TODO: Move official "seed" into the fleetdm/fleet repo (we still need this until the anatomy pages are live on the site)
+    - TODO: update handbook (no more exception for this repo) and docs (i.e. copy github action or run generator, instead of copying files that reference the 3rd party hosted github action)
 - TODO: Make this doable as a 1-step process by removing need to configure policy ids separately for webhook policy automations: https://github.com/fleetdm/fleet/pull/40214#issuecomment-3937276262
   - i.e. Get rid of policy IDs for webhooks
 - TODO: Sales team trained on demoing gitops this way
