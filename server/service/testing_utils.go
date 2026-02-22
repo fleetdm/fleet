@@ -440,8 +440,8 @@ type TestServerOpts struct {
 	ConditionalAccess               *ConditionalAccess
 	DBConns                         *common_mysql.DBConnections
 
-	// Output: populated by newTestServiceWithConfig with the mock activity service.
-	// Tests can use this to set expectations on activity creation.
+	// ActivityMock is populated automatically by newTestServiceWithConfig.
+	// After setup, tests can use it to intercept or assert on activity creation.
 	ActivityMock *fleet_mock.MockNewActivityService
 }
 
