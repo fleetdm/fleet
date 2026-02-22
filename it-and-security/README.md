@@ -20,10 +20,12 @@
   - TODO: Explore defaulting to this and excluding labels+software by default?
   - WARNING: If we do this, it gives LLMs (and humans) reading git repos less context, making it less accurate when automatically scoping policies with natural language.  Yet at the moment, that isn't a thing that's being commonly done.  We should dogfood that first before adding complexity to the first time experience (it's simpler for users to exclude labels from what they see in their repo).
   - TODO: Think long and hard about if there are other things we want to exclude from gitops by default.
+- TODO: support auto-include directive for scripts specifically.
 - The highest priority other todos in the default.yml template, particular keys that need renaming.  Namely these:
   - TODO: Come up with a better solution for `macos_settings` that doesn't feel weird on a mobile-only fleet.  Make it make sense with `windows_settings`.
   - TODO: Same for `macos_setup`
-- TODO: support auto-include directive for scripts specifically.
+  - TODO: MAke `policies` and `reports` not required in the global manifest
+  - PROBABLY: MAke them not required everywhere, with the convention that, if you exclude them, then that is not managed in gitops, so stuff in the database won't be deleted.
 - TODO: As a user opening Fleet by default, I shoudl be able to click aroudn
   to all the main tabs and it not look broken when I click "Controls" and
   then proceed to click other things.  Fix the weird flickering around when
@@ -40,6 +42,9 @@
 - HOPEFULLY: Demo video on youtube showing getting started with Fleet, with gitops, in <15 minutes
 - Deliver: Mar 14, 2026
 
+<br/><br/>
+<hr/>
+<br/><br/>
 
 - MAYBE: move MDM migration tool settings down to the team level
 - MAYBE: Ship equivalent of https://sailsjs.com/documentation/anatomy linking to it from code comments - https://fleetdm.slack.com/archives/C0ACJ8L1FD0/p1770812933638829
