@@ -183,25 +183,6 @@ func GetUserDisplaySessionType(uid string) (*UserDisplaySession, error) {
 	}, nil
 }
 
-func parseLoginctlSessionEnvironment(out string) map[string]string {
-	env := make(map[string]string)
-	for _, line := range strings.Split(strings.TrimSpace(out), "\n") {
-		line = strings.TrimSpace(line)
-		if line == "" {
-			continue
-		}
-		key, value, ok := strings.Cut(line, "=")
-		if !ok || key == "" {
-			continue
-		}
-		env[key] = value
-	}
-	if len(env) == 0 {
-		return nil
-	}
-	return env
-}
-
 type GuiSessionType int
 
 const (
