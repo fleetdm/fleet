@@ -10,7 +10,7 @@ projects:
             region: oregon
             ipAllowList: [] # Only allow internal connections
             postgresMajorVersion: "18"
-            diskSizeGB: 2
+            diskSizeGB: 5
           - name: grafana-db
             databaseName: grafana
             user: grafana
