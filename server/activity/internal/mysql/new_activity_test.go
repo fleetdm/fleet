@@ -116,8 +116,8 @@ func testNewActivityBasicWithUser(t *testing.T, env *testEnv) {
 	require.NoError(t, env.ds.NewActivity(ctx, user, dummyActivity{name: "test_one", details: details}, detailsJSON, time.Now()))
 	require.NoError(t, env.ds.NewActivity(ctx, user, dummyActivity{name: "test_two", details: map[string]any{"detail": 2}}, mustJSON(t, map[string]any{"detail": 2}), time.Now()))
 
-	// Verify via listing
-	activities, _, err := env.ds.ListActivities(t.Context(), listOpts(withPerPage(1)))
+	// Verify via listing (explicit ascending order for deterministic results)
+	activities, _, err := env.ds.ListActivities(t.Context(), listOpts(withPerPage(1), withOrder("id", api.OrderAscending)))
 	require.NoError(t, err)
 	require.Len(t, activities, 1)
 	assert.Equal(t, "fullname", *activities[0].ActorFullName)
@@ -125,13 +125,13 @@ func testNewActivityBasicWithUser(t *testing.T, env *testEnv) {
 	assert.Equal(t, "test_one", activities[0].Type)
 
 	// Second page
-	activities, _, err = env.ds.ListActivities(t.Context(), listOpts(withPerPage(1), withPage(1)))
+	activities, _, err = env.ds.ListActivities(t.Context(), listOpts(withPerPage(1), withPage(1), withOrder("id", api.OrderAscending)))
 	require.NoError(t, err)
 	require.Len(t, activities, 1)
 	assert.Equal(t, "test_two", activities[0].Type)
 
 	// All results
-	activities, _, err = env.ds.ListActivities(t.Context(), listOpts())
+	activities, _, err = env.ds.ListActivities(t.Context(), listOpts(withOrder("id", api.OrderAscending)))
 	require.NoError(t, err)
 	assert.Len(t, activities, 2)
 }
