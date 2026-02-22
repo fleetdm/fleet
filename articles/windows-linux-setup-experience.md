@@ -25,6 +25,8 @@ Below is the end user experience for Linux. Check out the separate video for [Wi
 Fleet automatically opens the default web browser and directs the end user to log in before the setup process can continue.
 Learn how to enforce authentication in the [setup experience guide](https://fleetdm.com/guides/setup-experience#end-user-authentication).
 
+When wiping and re-enrolling a host, delete the host from Fleet as well. Otherwise, end user authentication won’t be enforced when it re-enrolls.
+
 > If the Fleet agent (fleetd) installed on the host is older than version 1.50.0, end user authentication won't be enforced.
 
 ## Install software
