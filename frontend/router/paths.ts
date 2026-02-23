@@ -179,6 +179,9 @@ export default {
   DEVICE_USER_DETAILS_POLICIES: (deviceAuthToken: string): string => {
     return `${URL_PREFIX}/device/${deviceAuthToken}/policies`;
   },
+  DEVICE_TRANSPARENCY: (deviceAuthToken: string): string => {
+    return `${URL_PREFIX}/api/v1/fleet/device/${deviceAuthToken}/transparency`;
+  },
 
   TEAM_DETAILS_USERS: (teamId?: number): string => {
     if (teamId !== undefined && teamId > 0) {

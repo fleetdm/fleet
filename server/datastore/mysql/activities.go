@@ -1263,7 +1263,7 @@ func (ds *Datastore) activateNextSoftwareInstallActivity(ctx context.Context, tx
 	const insStmt = `
 INSERT INTO host_software_installs
 	(execution_id, host_id, software_installer_id, user_id, self_service,
-		policy_id, installer_filename, version, software_title_id, software_title_name)
+		policy_id, installer_filename, version, software_title_id, software_title_name, attempt_number)
 SELECT
 	ua.execution_id,
 	ua.host_id,
@@ -1274,7 +1274,24 @@ SELECT
 	COALESCE(si.filename, ua.payload->>'$.installer_filename', '[deleted installer]'),
 	COALESCE(si.version, ua.payload->>'$.version', 'unknown'),
 	COALESCE(si.title_id, siua.software_title_id),
-	COALESCE(st.name, ua.payload->>'$.software_title_name', '[deleted title]')
+	COALESCE(st.name, ua.payload->>'$.software_title_name', '[deleted title]'),
+	-- Compute the attempt number for this activation. Each retry creates a
+	-- new upcoming_activity (via InsertSoftwareInstallRequest), so when that
+	-- new activity activates, COUNT(*) of previous completed attempts gives
+	-- the number of prior tries. +1 makes this the next attempt in sequence:
+	-- first install = 1, first retry = 2, second retry = 3, etc.
+	CASE
+		WHEN siua.policy_id IS NULL AND COALESCE(ua.payload->'$.with_retries', 0) = 1 THEN (
+			SELECT COUNT(*) + 1
+			FROM host_software_installs hsi2
+			WHERE hsi2.host_id = ua.host_id
+			AND hsi2.software_installer_id = siua.software_installer_id
+			AND hsi2.policy_id IS NULL
+			AND hsi2.removed = 0 AND hsi2.canceled = 0 AND hsi2.host_deleted_at IS NULL
+			AND (hsi2.attempt_number > 0 OR hsi2.attempt_number IS NULL)
+		)
+		ELSE NULL
+	END
 FROM
 	upcoming_activities ua
 	INNER JOIN software_install_upcoming_activities siua

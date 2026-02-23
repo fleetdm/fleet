@@ -1,14 +1,14 @@
 {
   "versions": [
     {
-      "version": "2025.3.2",
+      "version": "2025.3.3",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.tableausoftware.Desktop.app';"
       },
-      "installer_url": "https://downloads.tableau.com/esdalt/2025.3.2/TableauDesktop-2025-3-2-arm64.dmg",
+      "installer_url": "https://downloads.tableau.com/esdalt/2025.3.3/TableauDesktop-2025-3-3-arm64.dmg",
       "install_script_ref": "6d9a302f",
       "uninstall_script_ref": "ff6f427b",
-      "sha256": "e725b0db1ea01ad2aeede627f078fd0f58a825cf4e87d2d68acb357a25813ee1",
+      "sha256": "649de1f8c600a7f0ce517570067bb7808c8677a9ecdd298c6f4e102f29cc9e89",
       "default_categories": [
         "Productivity"
       ]

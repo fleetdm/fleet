@@ -500,17 +500,19 @@ func (ds *Datastore) DeleteMDMAppleConfigProfileByDeprecatedID(ctx context.Conte
 
 func (ds *Datastore) DeleteMDMAppleDeclaration(ctx context.Context, declUUID string) error {
 	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
-		if err := deleteMDMAppleDeclaration(ctx, tx, declUUID); err != nil {
-			return err
-		}
-
-		// cancel any pending host installs immediately for this declaration
-		if err := cancelAppleHostInstallsForDeletedMDMDeclarations(ctx, tx, []string{declUUID}); err != nil {
-			return err
-		}
-
-		return nil
+		return deleteMDMAppleDeclarationAndPostProcessing(ctx, tx, declUUID)
 	})
+}
+
+func deleteMDMAppleDeclarationAndPostProcessing(ctx context.Context, tx sqlx.ExtContext, declUUID string) error {
+	if err := deleteMDMAppleDeclaration(ctx, tx, declUUID); err != nil {
+		return err
+	}
+	// cancel any pending host installs immediately for this declaration
+	if err := cancelAppleHostInstallsForDeletedMDMDeclarations(ctx, tx, []string{declUUID}); err != nil {
+		return err
+	}
+	return nil
 }
 
 func (ds *Datastore) DeleteMDMAppleConfigProfile(ctx context.Context, profileUUID string) error {
@@ -688,17 +690,25 @@ func cancelAppleHostInstallsForDeletedMDMDeclarations(ctx context.Context, tx sq
 }
 
 func (ds *Datastore) DeleteMDMAppleDeclarationByName(ctx context.Context, teamID *uint, name string) error {
-	const stmt = `DELETE FROM mdm_apple_declarations WHERE team_id = ? AND name = ?`
-
-	var globalOrTmID uint
-	if teamID != nil {
-		globalOrTmID = *teamID
-	}
-	_, err := ds.writer(ctx).ExecContext(ctx, stmt, globalOrTmID, name)
-	if err != nil {
-		return ctxerr.Wrap(ctx, err)
-	}
-	return nil
+	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		const loadStmt = `SELECT declaration_uuid FROM mdm_apple_declarations WHERE team_id = ? AND name = ?`
+		var globalOrTmID uint
+		if teamID != nil {
+			globalOrTmID = *teamID
+		}
+		var declUUID string
+		err := sqlx.GetContext(ctx, tx, &declUUID, loadStmt, globalOrTmID, name)
+		switch {
+		case err == nil:
+			// Declaration exists, delete it.
+			return deleteMDMAppleDeclarationAndPostProcessing(ctx, tx, declUUID)
+		case errors.Is(err, sql.ErrNoRows):
+			// Declaration doesn't exist, nothing to do.
+			return nil
+		default:
+			return ctxerr.Wrap(ctx, err, "load apple mdm declaration")
+		}
+	})
 }
 
 func deleteMDMAppleDeclaration(ctx context.Context, tx sqlx.ExtContext, uuid string) error {
@@ -3185,16 +3195,21 @@ func generateDesiredStateQuery(entityType string) string {
 // where one of the labels does not exist anymore, will not be considered for
 // installation.
 // It's possible to query for entities to install for a single given host, by passing in a host UUID.
-func generateEntitiesToInstallQuery(entityType string, hostUUID string) string {
+func generateEntitiesToInstallQuery(entityType string, hostUUID string) (string, []any) {
 	dynamicNames := mdmEntityTypeToDynamicNames[entityType]
 	if dynamicNames == nil {
 		panic(fmt.Sprintf("unknown entity type %q", entityType))
 	}
 
+	args := []any{}
+
 	hostCondition := "TRUE" // We specify true here as it gets passed to the AND (%s) later, and is the default value.
 	if hostUUID != "" {
-		hostCondition = fmt.Sprintf("h.uuid = '%s'", hostUUID)
+		hostCondition = "h.uuid = ?"
+		args = append(args, hostUUID, hostUUID, hostUUID, hostUUID)
 	}
+
+	args = append(args, fleet.MDMOperationTypeRemove, fleet.MDMOperationTypeInstall)
 
 	return fmt.Sprintf(os.Expand(`
 	( %s ) as ds
@@ -3210,8 +3225,9 @@ func generateEntitiesToInstallQuery(entityType string, hostUUID string) string {
 		-- entities in A and B with operation type "install" and NULL status
 		( hmae.host_uuid IS NOT NULL AND hmae.operation_type = ? AND hmae.status IS NULL )
 `, func(s string) string { return dynamicNames[s] }),
+		// if more instances of hostCondition are added to the query, they should also be added to the args above
 		fmt.Sprintf(generateDesiredStateQuery(entityType), hostCondition, hostCondition, hostCondition, hostCondition),
-	)
+	), args
 }
 
 // generateEntitiesToRemoveQuery is a set difference between:
@@ -3240,11 +3256,12 @@ func generateEntitiesToInstallQuery(entityType string, hostUUID string) string {
 // previously installed. However, if a host used to satisfy a label-based
 // entity but no longer does (and that label-based entity is not "broken"),
 // the entity will be removed from the host.
-func generateEntitiesToRemoveQuery(entityType string) string {
+func generateEntitiesToRemoveQuery(entityType string) (string, []any) {
 	dynamicNames := mdmEntityTypeToDynamicNames[entityType]
 	if dynamicNames == nil {
 		panic(fmt.Sprintf("unknown entity type %q", entityType))
 	}
+	args := []any{fleet.MDMOperationTypeRemove}
 
 	// NOTE(mna): there is no check for an existing user-enrollment here, because
 	// if a user-scoped profile is identified as "to remove", it has to have been
@@ -3269,7 +3286,7 @@ func generateEntitiesToRemoveQuery(entityType string) string {
 				mcpl.${appleEntityUUIDColumn} = hmae.${entityUUIDColumn} AND
 				mcpl.label_id IS NULL
 		)
-`, func(s string) string { return dynamicNames[s] }), fmt.Sprintf(generateDesiredStateQuery(entityType), "TRUE", "TRUE", "TRUE", "TRUE"))
+`, func(s string) string { return dynamicNames[s] }), fmt.Sprintf(generateDesiredStateQuery(entityType), "TRUE", "TRUE", "TRUE", "TRUE")), args
 }
 
 // Optional hostUUID to list profiles to install for a single host instead of all.
@@ -3285,7 +3302,8 @@ func (ds *Datastore) ListMDMAppleProfilesToInstall(ctx context.Context, hostUUID
 }
 
 func (ds *Datastore) listMDMAppleProfilesToInstallTransaction(ctx context.Context, tx common_mysql.DBReadTx, hostUUID string) ([]*fleet.MDMAppleProfilePayload, error) {
-	query := fmt.Sprintf(`
+	entitiesToInstallQuery, entitiesToInstallArgs := generateEntitiesToInstallQuery("profile", hostUUID)
+	query := `
 	SELECT
 		ds.profile_uuid,
 		ds.host_uuid,
@@ -3296,10 +3314,10 @@ func (ds *Datastore) listMDMAppleProfilesToInstallTransaction(ctx context.Contex
 		ds.secrets_updated_at,
 		ds.scope,
 		ds.device_enrolled_at
-	FROM %s `,
-		generateEntitiesToInstallQuery("profile", hostUUID))
+	FROM ` + entitiesToInstallQuery
+
 	var profiles []*fleet.MDMAppleProfilePayload
-	err := sqlx.SelectContext(ctx, tx, &profiles, query, fleet.MDMOperationTypeRemove, fleet.MDMOperationTypeInstall)
+	err := sqlx.SelectContext(ctx, tx, &profiles, query, entitiesToInstallArgs...)
 	return profiles, err
 }
 
@@ -3317,7 +3335,8 @@ func (ds *Datastore) ListMDMAppleProfilesToRemove(ctx context.Context) ([]*fleet
 func (ds *Datastore) listMDMAppleProfilesToRemoveTransaction(ctx context.Context, tx common_mysql.DBReadTx) ([]*fleet.MDMAppleProfilePayload, error) {
 	// Note: although some of these values (like secrets_updated_at) are not strictly necessary for profile removal,
 	// we are keeping them here for consistency.
-	query := fmt.Sprintf(`
+	entitiesToRemoveQuery, entitiesToRemoveArgs := generateEntitiesToRemoveQuery("profile")
+	query := `
 	SELECT
 		hmae.profile_uuid,
 		hmae.profile_identifier,
@@ -3330,9 +3349,9 @@ func (ds *Datastore) listMDMAppleProfilesToRemoveTransaction(ctx context.Context
 		hmae.status,
 		hmae.command_uuid,
 		hmae.scope
-	FROM %s`, generateEntitiesToRemoveQuery("profile"))
+	FROM ` + entitiesToRemoveQuery
 	var profiles []*fleet.MDMAppleProfilePayload
-	err := sqlx.SelectContext(ctx, tx, &profiles, query, fleet.MDMOperationTypeRemove)
+	err := sqlx.SelectContext(ctx, tx, &profiles, query, entitiesToRemoveArgs...)
 
 	return profiles, err
 }
@@ -5864,6 +5883,8 @@ func cleanUpDuplicateRemoveInstall(ctx context.Context, tx sqlx.ExtContext, prof
 // Then we can eliminate the subsequent check for updates in the caller.
 // The check for updates is needed to log the correct activity item -- whether declarations were updated or not.
 func mdmAppleGetHostsWithChangedDeclarationsDB(ctx context.Context, tx sqlx.ExtContext) ([]*fleet.MDMAppleHostDeclaration, error) {
+	entitiesToInstallQuery, entitiesToInstallArgs := generateEntitiesToInstallQuery("declaration", "")
+	entitiesToRemoveQuery, entitiesToRemoveArgs := generateEntitiesToRemoveQuery("declaration")
 	stmt := fmt.Sprintf(`
         (
             SELECT
@@ -5891,12 +5912,13 @@ func mdmAppleGetHostsWithChangedDeclarationsDB(ctx context.Context, tx sqlx.ExtC
                 %s
         )
     `,
-		generateEntitiesToInstallQuery("declaration", ""),
-		generateEntitiesToRemoveQuery("declaration"),
+		entitiesToInstallQuery,
+		entitiesToRemoveQuery,
 	)
 
 	var decls []*fleet.MDMAppleHostDeclaration
-	if err := sqlx.SelectContext(ctx, tx, &decls, stmt, fleet.MDMOperationTypeRemove, fleet.MDMOperationTypeInstall, fleet.MDMOperationTypeRemove); err != nil {
+	args := slices.Concat(entitiesToInstallArgs, entitiesToRemoveArgs)
+	if err := sqlx.SelectContext(ctx, tx, &decls, stmt, args...); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "running sql statement")
 	}
 	return decls, nil

@@ -23,66 +23,91 @@ This handbook page details processes specific to working [with](#contact-us) and
 
 ## Responsibilities
 
-The Marketing department is directly responsible for achieving revenue pipeline targets, increasing awareness and interest in the open-source project, customer training curriculums, prospect enablement, and nurturing the Fleet community through participation in video, sponsored events, and other [programs](https://fleetdm.com/handbook/company/communications#programs).
+The Marketing department is directly responsible for achieving revenue pipeline targets, increasing market awareness about Fleet, customer training curriculums, prospect enablement, and nurturing the Fleet community through participation in video, sponsored events, and other [programs](https://fleetdm.com/handbook/company/communications#programs).
 
 
-## Marketing assets
+### Marketing & Enablement Assets
 
-This list is in chronological order as assets are created.
+| Asset | Use for | Date&nbsp;updated&nbsp;&nbsp;&nbsp; |
+| :--- | :--- | :--- |
+| [Leave Behind Deck](https://docs.google.com/presentation/d/1Wxb4IedJ0cEXJQwvKCdYf8OatXk4sG1QTkiNLB3h11E/edit) | Presentation tool for internal teams to present Fleet's value. | Feb 18, 2026 |
+| [Additional slides for pitch deck](https://docs.google.com/presentation/d/1l6eh1ow4Izi9lv-IrrYV1UjNT4VKbfk5lJHDJUgnDVM/edit) | Customizable slides for tailored prospect presentations. | Feb 18, 2026 |
+| [Sagetap Deck](https://docs.google.com/presentation/d/10DbaNaMBxeYN8PcrxE-5XNX04N_v_lKJxSxHbPjoCXc/edit) | Messaging and positioning test deck for market validation. | Feb 18, 2026 |
+| [Safe Enough to Switch](https://docs.google.com/document/d/1JsHEzUru2KKs6h7SKYEI6OjunwrRWmeUDTOtl57Shv4/edit) | Overview of Fleet’s maturity for organizations switching tools. | Sep 15, 2025 |
+| [Jamf vs. Fleet terminology](https://docs.google.com/document/d/1RKojfpUMUiITPce5O7znYmxdQR9U6f5sVnVzQpPpp8Y/edit) | Mapping concepts between Jamf and Fleet for easier migration. | Sep 09, 2025 |
+| [Gartner IT Symposium Summary](https://drive.google.com/file/d/1HK1QXA2kOCeOoOG1E0-tk7-xwBhQ2QMa/view) | Executive summary of outcomes and value achieved via GitOps. | Oct 21, 2024 |
+| [ROI Spreadsheet](https://docs.google.com/spreadsheets/d/14Cfj77ynOB6z4pmb9DD7HNRGo0kcKJuEIifgnz-YO50/edit) | Financial value justification and ROI calculator. | Aug 14, 2023 |
+| [Battle card - Workspace ONE](https://docs.google.com/document/d/1dV9zooPnCnHa0UfZqXKWAi6Zmye2jfqRIr_UnX70Sq4/edit) | Strategic insights for VMware Workspace ONE competitive scenarios. | Sep 12, 2023 |
+| [Death to Extension Attributes](https://github.com/allenhouchins/death-to-extension-attributes) | Comparing Fleet queries to Jamf EA for technical simplicity. | Jun 15, 2023 |
+| [Fleet capabilities one-pager](https://docs.google.com/document/d/15nVnn2dalLnyJgfX3o-96jvFAzZPS9vrTaNo_lYNick/edit) | High-level summary of the platform's core capabilities. | Feb 14, 2022 |
+| [Fleet for IT Product Brochure](https://docs.google.com/document/d/1d_53iYU6O-uzaXnzjlXXGwByGRmpz3VMG6kWT6hMCkU/edit) | Marketing overview for IT teams in early sales cycles. | Oct 20, 2021 |
+| [Fleet for Security Product Brochure](https://docs.google.com/document/d/18ocTpuQlwd8RwZA-KsqzEmQkAEvKvV8LngeFbkJdFj4/edit) | Marketing overview for security teams in early sales cycles. | Oct 20, 2021 |
+| [Product Roadmap](https://docs.google.com/document/d/16si8Nkh0F25opUMpZYm6XwU8LEhGd7H4eOzPKFz8jGw/edit) | Future development vision and open roadmap opportunities. | Jan 20, 2021 |
 
-### Marketing assets
+### Case Studies & Success Stories
 
-| Asset | Use For | Date created | Last updated |
-| :--- | :--- | :--- | :--- |
-| [The GitOps idea](https://fleetdm.com/articles/the-gitops-idea) | Blog explaining what is GitOps | 2026-02-04 | 2026-02-04 |
-| [Fleet vs. Jamf comparison](https://fleetdm.com/compare/jamf) | Part of a series on competitor analysis | 2026-01-27 | 2026-01-28 |
-| [Redefining endpoint management at scale: Fleet’s momentum in the 2026 Gartner reports](https://fleetdm.com/announcements/redefining-endpoint-management-at-scale) | Fleet Gartner Magic Quadrant recognition | 2026-01-23 | 2026-01-23 |
-| [Why enterprise Linux is important in 2026](https://fleetdm.com/articles/why-enterprise-linux-is-important-in-2026) | Part of a series of articles on enterprise Linux | 2026-01-21 | 2026-01-21 |
-| [Linux endpoint management for Enterprise IT](https://www.linkedin.com/events/7361776596396957696/) | Workstation Linux MDM focus (not servers/observability) | 2026-01-21 | — |
-| [Targeting with predicates in Declarative Device Management](https://www.youtube.com/watch?v=Ul2q_RdDZCc) | IT teams interested in DDM or if they’re using WS1 | 2026-01-11 | — |
-| [Deploy CrowdStrike with Fleet](https://fleetdm.com/guides/deploying-crowdstrike-with-fleet#basic-article) | Guide for deploying CrowdStrike Falcon on macOS, Linux and Windows using Fleet | 2025-11-05 | 2025-11-05 |
-| [Fleet GitOps workshop](https://fleetdm.com/gitops-workshop) | 1-page explainer & FAQ for GitOps workshop | 2025-10-15 | 2026-01-28 |
-| [Safe Enough to Switch](https://docs.google.com/document/d/1JsHEzUru2KKs6h7SKYEI6OjunwrRWmeUDTOtl57Shv4/edit?tab=t.0#heading=h.17iy1zaasfs7) | A 1-pager providing an overview of Fleet’s maturity | 2025-09-15 | 2025-09-15 |
-| [Fleet vs. Jamf terminology](https://docs.google.com/document/d/1RKojfpUMUiITPce5O7znYmxdQR9U6f5sVnVzQpPpp8Y/edit?tab=t.0#heading=h.2gzpleeudtbf) | Comparison of Jamf and Fleet terms and functions | 2025-09-09 | 2025-09-09 |
-| [Faire - customer migration blog](https://craft.faire.com/using-observability-to-reduce-chaos-in-an-mdm-migration-20a0056a48e7) | Demonstrating simplicity of customer migrations, written by happy customer | 2025-08-12 | 2025-08-12 |
-| [Fleet GitOps - The future of device management is declarative](https://fleetdm.com/fleet-gitops) | Fleet GitOps product page | 2025-03-14 | 2026-01-29 |
-| [Fastly gains visibility into all endpoints and critical infrastructure worldwide](https://fleetdm.com/case-study/fastly) | Customer case study: Fastly | 2025-01-29 | 2026-01-30 |
-| [2025 - Gartner IT Symposium Updated (1).pdf](https://drive.google.com/file/d/1HK1QXA2kOCeOoOG1E0-tk7-xwBhQ2QMa/view?usp=sharing) | Executive summary of value / outcomes from GitOps | 2024-10-21 | — |
-| [9to5mac article: Latest scripting features](https://9to5mac.com/2023/10/17/fleet-releases-open-source-cross-platform-scripting-based-on-osquery/) | Coverage of latest scripting features | 2024-10-06 | — |
-| [Recorded demo of vulnerability management dashboard](https://play.goconsensus.com/s3130001d) | Good to use in VM buying scenario, even with non-coding elves/christmas trees | 2024-05-10 | — |
-| [Deploying Puppet with Fleet](https://www.linkedin.com/feed/update/urn:li:activity:7364294459569696784/) | Showing how Fleet can control Puppet for settings | 2024-04-01 | 2025-08-26 |
-| [Performance measuring with OTEL](https://docs.google.com/document/d/1nUVZP3JBLgcLDhBUV_YvIqsFreg9QDARxby-TWEia-A/edit?usp=sharing) | Summary of discussion with Fastly about how they measure | 2024-03-05 | — |
-| [Fleet VM architecture video](https://www.youtube.com/watch?v=X9cQP60kD3c) | Show how VM works - good for IT, VM and security teams | 2024-02-15 | — |
-| [Trends in cyber blog post](https://ventureinsecurity.net/p/the-rise-of-security-engineering) | Where Fleet fits in to today’s security engineering world | 2024-01-15 | — |
-| [MDM UI dashboard](https://drive.google.com/drive/folders/1fjwbl_XmrCi1HtehFFGdKA0AYhy9AIpC) | Showing the UI of the MDM Dashboard (Windows) | 2023-11-01 | — |
-| [Battle card - WS1](https://docs.google.com/document/d/1dV9zooPnCnHa0UfZqXKWAi6Zmye2jfqRIr_UnX70Sq4/edit) | WS1 Battle Card | 2023-09-12 | — |
-| [ROI Spreadsheet](https://docs.google.com/spreadsheets/d/14Cfj77ynOB6z4pmb9DD7HNRGo0kcKJuEIifgnz-YO50/edit?usp=sharing) | Financial value justification | 2023-08-14 | — |
-| [Death to Extension Attributes](https://github.com/allenhouchins/death-to-extension-attributes) | Demonstrating to Jamf users how simple Fleet queries are compared to Jamf EA | 2023-06-15 | — |
-| [Competitive Matrix - Jamf & Intune](https://docs.google.com/spreadsheets/d/1-DcJ9kPd8Pm1ExuMTynO2owrix37ddkDseuXMtgLevQ/edit?gid=0#gid=0) | Competitive Matrix Jamf & Intune | 2023-05-22 | — |
-| [Reports— SODM](https://fleetdm.com/reports/state-of-device-management) | Grow authority | 2023-04-12 | — |
-| [Using Custom MDM Payloads for FleetDM Labels](https://t-lark.github.io/posts/using-custom-mdm-payloads-for-fleet-labels/) | Link: https://t-lark.github.io/posts/using-custom-mdm-payloads-for-fleet-labels/ | 2023-04-18 | — |
-| [Computer World article from MDM release](https://www.computerworld.com/article/3692916/fleet-announces-open-source-cross-platform-mdm-solution.html) | Coverage from MDM release | 2023-03-15 | — |
-| [MITRE ATT&CK framework osquery query library](https://github.com/teoseller/osquery-attck/blob/master/README.md) | Mapping results to MITRE via Splunk | 2023-01-30 | — |
-| [Understanding objections and when we see them](https://docs.google.com/document/d/1UFjHaIBdoSGDiqNqwgxRdwRz9Wn9SqP7h-g2OM8Runk/edit) | Understanding objections and when they’ll come up | 2022-11-10 | — |
-| [Charles from Roblox talking about Fleet’s performance and scale](https://www.linkedin.com/posts/zacharywasserman_charles-zaffery-rolled-out-fleet-device-management-activity-7196618547131793409-vLSE?utm_source=share&utm_medium=member_desktop) | Customer proof point of scale and performance | 2022-10-28 | — |
-| [Keyboard crunch](https://keyboardcrunch.com/posts/FleetDM/) | 3rd party overview of Fleet | 2022-09-22 | — |
-| [How to preview Fleet and osquery](https://www.youtube.com/watch?v=rVxSgvKjrWo) | Help people get started w/ Fleet (in this case before buying) | 2022-08-12 | 2022-08-12 |
-| [IR Article 1](https://fleetdm.com/securing/osquery-as-a-threat-hunting-platform) & [IR Article 2](https://fleetdm.com/securing/how-osquery-can-help-cyber-responders) | When nurturing or educating how IR teams use Fleet | 2022-07-15 | — |
-| [Fleet capabilities one-pager](https://docs.google.com/document/d/15nVnn2dalLnyJgfX3o-96jvFAzZPS9vrTaNo_lYNick/edit?tab=t.0) | High level overview of what Fleet does | 2022-02-14 | — |
-| [Tom Larkin, Snowflake blog post](https://fleetdm.com/guides/delivering-data-to-snowflake-from-fleet-and-osquery) | Delivering data to Snowflake from Fleet ([1st post](https://t-lark.github.io/posts/snowflake-osquery-fleet-magic/), [2nd post](https://t-lark.github.io/posts/osquery-data-in-snowflake/)) | 2022-02-01 | — |
-| [What are Fleet policies?](https://fleetdm.com/securing/what-are-fleet-policies#basic-article) | Overview of Fleet policies | 2022-03-09 | 2022-05-20 |
-| [Fleet vs MDM and EDR](https://docs.google.com/presentation/d/1xb0OvkCta262v73_-kvSjjuJlxTsbUtMVGIKeFG4CZ4/edit?usp=sharing) | When a prospect wants to know what Fleet does in addition to MDM/EDR | 2022-11-20 | — |
-| [Detect Log4j with osquery and Fleet](https://fleetdm.com/securing/detect-log4j-with-osquery-and-fleet) | Example of how to leverage Fleet/osquery for quick response | 2021-12-15 | 2021-12-15 |
-| [Log4j blog post](https://fleetdm.com/securing/detect-log4j-with-osquery-and-fleet) | Example of how to leverage the flexibility of Fleet and osquery for quick response | 2021-12-15 | — |
-| [Fleet for IT product brochure](https://docs.google.com/document/d/1d_53iYU6O-uzaXnzjlXXGwByGRmpz3VMG6kWT6hMCkU/edit?usp=sharing) | Early marketing/sales cycle learning - for “One pager” or “Overview” requests | 2021-10-20 | — |
-| [Fleet for Security product brochure](https://docs.google.com/document/d/18ocTpuQlwd8RwZA-KsqzEmQkAEvKvV8LngeFbkJdFj4/edit?usp=sharing) | Early marketing/sales cycle learning - for “One pager” or “Overview” requests | 2021-10-20 | — |
-| [Swag typeform](https://kqphpqst851.typeform.com/to/ZfA3sOu0?typeform-source=fleetdm.com) | Build goodwill | 2021-06-30 | — |
-| [Sales one-pager](https://docs.google.com/document/d/15nVnn2dalLnyJgfX3o-96jvFAzZPS9vrTaNo_lYNick/edit?usp=sharing) | Introduction to Fleet; best for printing and folding | 2021-05-12 | — |
-| [Customer use cases](https://docs.google.com/document/d/1zz74xL12KB2Re-I06Ongg7giZ2obZAQdTFV_FdlULws/edit?usp=sharing) | Outbound, discussion/presentation | 2021-03-05 | — |
-| [Customers page](https://fleetdm.com/customers) | Customer testimonials & logos | 2021-02-15 | 2026-02-01 |
-| [Red Hat post about Fleet](https://www.redhat.com/sysadmin/fleetdm-get-started) | How Fleet makes osquery better, and how to get started | 2021-02-10 | — |
-| [Queries/create a query](https://fleetdm.com/guides/queries#create-a-query) | Explaining what Queries are and how to create them | 2021-01-25 | — |
-| [Product roadmap](https://docs.google.com/document/d/16si8Nkh0F25opUMpZYm6XwU8LEhGd7H4eOzPKFz8jGw/edit?usp=sharing) | Future vision and open opportunities | 2021-01-20 | — |
+| Asset | Use for | Date&nbsp;updated&nbsp;&nbsp;&nbsp; |
+| :--- | :--- | :--- |
+| [Fastly Visibility Case Study](https://fleetdm.com/case-study/fastly) | Unified endpoint and infrastructure visibility. | Jan 29, 2025 |
+| [Foursquare ROI Case Study](https://fleetdm.com/case-study/foursquare) | Proving 114% ROI and rapid MDM migration. | Dec 11, 2025 |
+| [Stripe: Scaling to 10k Macs Case Study](https://fleetdm.com/case-study/stripe) | Massive cost savings for large-scale migrations. | Dec 11, 2025 |
+| [Faire: CIS Benchmark Security Case Study](https://fleetdm.com/case-study/faire) | Securing Macs with GitOps and compliance. | Dec 11, 2025 |
+| [Interactive Entertainment Case Study](https://fleetdm.com/announcements/interactive-entertainment-company-adopts-fleet-for-mdm) | Cross-platform MDM adoption. | Dec 23, 2024 |
+| [Cloud-based Data Leader Case Study](https://fleetdm.com/announcements/cloud-based-data-leader-choosed-fleet-for-orchestration) | Scaling global orchestration. | Dec 20, 2024 |
+| [Financial Services Case Study](https://fleetdm.com/announcements/fintech-company-migrates-to-fleet) | MDM and change management for regulated finance. | Dec 19, 2024 |
+| [Deputy: Global workforce management software Case Study](https://fleetdm.com/announcements/global-workforce-management-company-achieves-compliance-and-clarity-with-fleet) | Managing shift-work devices at global scale. | Dec 17, 2024 |
+| [Global Social Media Case Study](https://fleetdm.com/announcements/global-social-media-platform-switches-to-fleet) | High-scale network migration. | Dec 16, 2024 |
+| [Electric Vehicle Manufacturer Case Study](https://fleetdm.com/announcements/vehicle-manufacturer-transitions-to-fleet-for-endpoint-security) | Improved endpoint security posture for manufacturing. | Dec 12, 2024 |
+| [Online Gaming Company Case Study](https://fleetdm.com/announcements/large-gaming-company-enhances-server-observability-with-fleet) | Server observability in high-concurrency gaming. | Dec 11, 2024 |
+| [Security and authentication platform Case Study](https://fleetdm.com/announcements/worldwide-security-and-authentication-platform-chooses-fleet-for-linux) | Scaling Linux management for security organizations. | Dec 10, 2024 |
+
+
+### Articles & Blog Posts
+
+| Asset | Use for | Date&nbsp;updated&nbsp;&nbsp;&nbsp; |
+| :--- | :--- | :--- |
+| [OpenClaw: Open for work?](https://fleetdm.com/articles/openclaw-open-for-work) | Overview of OpenClaw and security risks of AI agents. | Feb 04, 2026 |
+| [The GitOps idea](https://fleetdm.com/articles/the-gitops-idea) | Managing systems reliably via version control and code. | Feb 04, 2026 |
+| [Fleet vs. Jamf comparison](https://fleetdm.com/compare/jamf) | Side-by-side comparison of capabilities and criteria. | Jan 27, 2026 |
+| [Redefining endpoint management](https://fleetdm.com/announcements/redefining-endpoint-management-at-scale) | Analysis of Fleet in the 2026 Gartner reports. | Jan 23, 2026 |
+| [Why enterprise Linux is important](https://fleetdm.com/articles/why-enterprise-linux-is-important-in-2026) | Security strategy for modern Linux endpoints. | Jan 21, 2026 |
+| [6 business benefits of Apple MDM](https://fleetdm.com/articles/business-benefits-of-apple-mdm-explained) | Business ROI for security and IT operations. | Jan 11, 2026 |
+| [Declarative device management](https://fleetdm.com/articles/declarative-device-management-a-primer) | Introduction to modern Apple DDM protocol. | Jan 11, 2026 |
+| [iPad MDM: a complete guide](https://fleetdm.com/articles/ipad-mdm-a-complete-guide) | Deployment models and management for iPadOS. | Jan 11, 2026 |
+| [Roadmap preview, January 2026](https://fleetdm.com/announcements/roadmap-preview-january-2026) | Product vision and platform opportunities. | Jan 05, 2026 |
+| [The MDM migration reality](https://fleetdm.com/articles/the-mdm-mirgration-reality) | Insights into executing smoother MDM migrations. | Nov 26, 2025 |
+| [9to5mac: Scripting features](https://9to5mac.com/2023/10/17/fleet-releases-open-source-cross-platform-scripting-based-on-osquery/) | External coverage of Fleet's scripting. | Oct 06, 2024 |
+| [Detect Log4j with osquery](https://fleetdm.com/securing/detect-log4j-with-osquery-and-fleet) | Rapid response patterns for critical vulnerabilities. | Dec 15, 2021 |
+
+### Guides
+
+| Asset | Use for | Date&nbsp;updated&nbsp;&nbsp;&nbsp; |
+| :--- | :--- | :--- |
+| [Fleet troubleshooting for IT admins](https://fleetdm.com/guides/fleet-troubleshooting-for-it-admins) | IT troubleshooting best practices. | Feb 13, 2026 |
+| [Okta Desktop MFA for Windows](https://fleetdm.com/guides/deploying-okta-desktop-mfa-with-fleet) | Configuring Okta MFA using Fleet MDM. | Feb 06, 2026 |
+| [Migrate Fleet server to a new deployment](https://fleetdm.com/guides/migrate-fleet-server) | Steps for moving server environments. | Feb 06, 2026 |
+| [Deploy custom Android apps (APK)](https://fleetdm.com/guides/deploy-custom-android-app-apk) | Distributing APKs via Play Console and Fleet. | Feb 04, 2026 |
+| [Set hostname via Fleet API](https://fleetdm.com/guides/set-device-hostname-via-fleet-api) | API-driven hostname management for Apple. | Jan 26, 2026 |
+| [Manage bootstrap packages with GitOps](https://fleetdm.com/guides/manage-boostrap-package-with-gitops) | Automated setup for new enrollments via code. | Jan 12, 2026 |
+| [Deploy Fleet with Docker Compose](https://fleetdm.com/guides/deploy-fleet-on-docker-compose) | Quick container-based Fleet deployment. | Dec 01, 2025 |
+| [Software self-service](https://fleetdm.com/guides/software-self-service) | Building an app store portal for end users. | Jun 20, 2025 |
+| [MITRE ATT&CK library](https://github.com/teoseller/osquery-attck/blob/master/README.md) | Mapping security results to MITRE. | Jan 30, 2023 |
+| [How to install osquery and enroll macOS devices into Fleet](https://fleetdm.com/guides/how-to-install-osquery-and-enroll-macos-devices-into-fleet) | Enrollment for macOS | Jan 13, 2022 |
+| [How to install osquery and enroll Linux devices into Fleet](https://fleetdm.com/guides/how-to-install-osquery-and-enroll-linux-devices-into-fleet) | Enrollment for Linux | Jan 13, 2022 |
+| [How to install osquery and enroll Windows devices into Fleet](https://fleetdm.com/guides/how-to-install-osquery-and-enroll-windows-devices-into-fleet) | Enrollment for windows | Jan 13, 2022 |
+
+
+### Release Notes
+
+| Asset | Use for | Date&nbsp;updated&nbsp;&nbsp;&nbsp; |
+| :--- | :--- | :--- |
+| [Fleet 4.80.0 Release](https://fleetdm.com/releases/fleet-4-80-0) | App updates and offboarding improvements. | Feb 02, 2026 |
+| [Fleet 4.79.0 Release](https://fleetdm.com/releases/fleet-4-79-0) | macOS updates and MDM history. | Jan 14, 2026 |
+| [Fleet 4.78.0 Release](https://fleetdm.com/releases/fleet-4-78-0) | iOS/Android self-service and cert deployment. | Dec 19, 2025 |
+| [Fleet 4.77.0 Release](https://fleetdm.com/releases/fleet-4-77-0) | Enterprise packages for mobile devices. | Dec 04, 2025 |
+| [Fleet 4.75.0 Release](https://fleetdm.com/releases/fleet-4-75-0) | Omarchy Linux and Android profiles. | Oct 17, 2025 |
+| [Fleet 4.65.0 Release](https://fleetdm.com/releases/fleet-4-65-0) | GitOps mode and automatic installation. | Mar 14, 2025 |
+| [Fleet 4.60.0 Release](https://fleetdm.com/releases/fleet-4-60-0) | Escrow Linux disk encryption keys. | Nov 27, 2024 |
 
 ### Press boilerplate text
 
@@ -323,6 +348,17 @@ Here are some links that filter relevant conversations on each platform:
 2. Reply to threads looking for solutions Fleet can solve with helpful information. If additional information is needed, find help in [#help-engineering](https://fleetdm.slack.com/archives/C019WG4GH0A) for accurate information.
 3. Leave a like on threads and posts that are interesting, cool, celebratory, funny, etc. within our communities.
 4. If a post is helpful to our audience, reshare it.
+
+
+### Publish sprint demo video
+
+After each sprint demo, the marketing team is responsible for doing a quick post-production pass on the recording before publishing it. Because different presenters have different microphone setups and speaking volumes, the raw recording often has inconsistent audio levels. To fix this:
+
+1. Download the sprint demo recording.
+2. Upload the recording to [Kapwing](https://www.kapwing.com), a free browser-based video editor.
+3. Apply audio compression to even out the volume levels across all presenters.
+4. Export and download the processed video.
+5. Follow the steps to [upload the video to YouTube](#upload-to-youtube).
 
 
 ### Upload to YouTube

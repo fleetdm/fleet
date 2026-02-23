@@ -33,8 +33,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mdm/microsoft/syncml"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/variables"
-	kitlog "github.com/go-kit/log"
-	"github.com/go-kit/log/level"
 	mysql_driver "github.com/go-sql-driver/mysql"
 
 	mdm_types "github.com/fleetdm/fleet/v4/server/fleet"
@@ -1055,16 +1053,14 @@ func (svc *Service) authBinarySecurityToken(ctx context.Context, authToken *flee
 		}
 		if !hasExpectedAudience {
 			// Log bad audiences here for debugging
-			level.Error(svc.logger).Log(
-				"msg", "unexpected token audience in AzureAD Binary Security Token",
+			svc.logger.ErrorContext(ctx, "unexpected token audience in AzureAD Binary Security Token",
 				"expected_host", expectedURLParsed.Host,
 				"token_audiences", strings.Join(tokenData.Audience, ","),
 			)
 			return "", "", ctxerr.Errorf(ctx, "token audience is not authorized")
 		}
 		if !slices.Contains(entraTenantIDs, tokenData.TenantID) {
-			level.Error(svc.logger).Log(
-				"msg", "unexpected token tenant in AzureAD Binary Security Token",
+			svc.logger.ErrorContext(ctx, "unexpected token tenant in AzureAD Binary Security Token",
 				"token_tenant", tokenData.TenantID,
 			)
 			return "", "", ctxerr.New(ctx, "token tenant is not authorized")
@@ -1082,8 +1078,7 @@ func (svc *Service) ProcessMDMMicrosoftDiscovery(ctx context.Context, req *fleet
 	// Checking first if Discovery message is valid and returning error if this is not the case
 	if err := req.IsValidDiscoveryMsg(); err != nil {
 		// Log the raw XML request for debugging invalid messages
-		level.Debug(svc.logger).Log(
-			"msg", "invalid discover message",
+		svc.logger.DebugContext(ctx, "invalid discover message",
 			"err", err.Error(),
 			"request_xml", string(req.Raw),
 		)
@@ -1509,7 +1504,7 @@ func (svc *Service) enqueueInstallFleetdCommand(ctx context.Context, deviceID st
 	}
 
 	if len(secrets) == 0 {
-		level.Warn(svc.logger).Log("msg", "unable to find a global enroll secret to install fleetd")
+		svc.logger.WarnContext(ctx, "unable to find a global enroll secret to install fleetd")
 		return nil
 	}
 
@@ -1518,7 +1513,7 @@ func (svc *Service) enqueueInstallFleetdCommand(ctx context.Context, deviceID st
 	// and we'll try again the next time the host checks in
 	fleetdMetadata, err := fleetdbase.GetMetadata()
 	if err != nil {
-		level.Warn(svc.logger).Log("msg", "unable to get fleetd-base metadata")
+		svc.logger.WarnContext(ctx, "unable to get fleetd-base metadata")
 		return nil
 	}
 
@@ -2527,7 +2522,7 @@ func (svc *Service) GetMDMWindowsProfilesSummary(ctx context.Context, teamID *ui
 	return ps, nil
 }
 
-func ReconcileWindowsProfiles(ctx context.Context, ds fleet.Datastore, logger kitlog.Logger) error {
+func ReconcileWindowsProfiles(ctx context.Context, ds fleet.Datastore, logger *slog.Logger) error {
 	appConfig, err := ds.AppConfig(ctx)
 	if err != nil {
 		return fmt.Errorf("reading app config: %w", err)
@@ -2595,7 +2590,7 @@ func ReconcileWindowsProfiles(ctx context.Context, ds fleet.Datastore, logger ki
 		hostProfilesToUpdate = append(hostProfilesToUpdate, hp)
 		// Add to map for fast lookup
 		hostProfilesMap[p.HostUUID+"|"+p.ProfileUUID] = hp
-		level.Debug(logger).Log("msg", "installing profile", "profile_uuid", p.ProfileUUID, "host_id", p.HostUUID, "name", p.ProfileName)
+		logger.DebugContext(ctx, "installing profile", "profile_uuid", p.ProfileUUID, "host_id", p.HostUUID, "name", p.ProfileName)
 	}
 
 	// Grab the contents of all the profiles we need to install
@@ -2637,7 +2632,7 @@ func ReconcileWindowsProfiles(ctx context.Context, ds fleet.Datastore, logger ki
 			// No Fleet variables, send the same command to all hosts
 			command, err := buildCommandFromProfileBytes(p.SyncML, target.cmdUUID)
 			if err != nil {
-				level.Info(logger).Log("err", err, "profile_uuid", profUUID)
+				logger.InfoContext(ctx, "error building command from profile", "err", err, "profile_uuid", profUUID)
 				continue
 			}
 			if err := ds.MDMWindowsInsertCommandForHosts(ctx, target.hostUUIDs, command); err != nil {
@@ -2650,7 +2645,7 @@ func ReconcileWindowsProfiles(ctx context.Context, ds fleet.Datastore, logger ki
 				hp := hostProfilesMap[mapKey]
 				if hp == nil {
 					// This should never happen, but handle gracefully
-					level.Error(logger).Log("msg", "host profile not found in map", "profile_uuid", profUUID, "host_uuid", hostUUID)
+					logger.ErrorContext(ctx, "host profile not found in map", "profile_uuid", profUUID, "host_uuid", hostUUID)
 					continue
 				}
 
@@ -2675,7 +2670,7 @@ func ReconcileWindowsProfiles(ctx context.Context, ds fleet.Datastore, logger ki
 				// Build the command with the processed content
 				command, err := buildCommandFromProfileBytes([]byte(processedContent), hostCmdUUID)
 				if err != nil {
-					level.Info(logger).Log("err", err, "profile_uuid", profUUID, "host_uuid", hostUUID)
+					logger.InfoContext(ctx, "error building command from profile", "err", err, "profile_uuid", profUUID, "host_uuid", hostUUID)
 					// Mark this host's profile as failed
 					hp.Status = &fleet.MDMDeliveryFailed
 					hp.Detail = fmt.Sprintf("Failed to build command from profile: %s", err.Error())
@@ -2684,7 +2679,7 @@ func ReconcileWindowsProfiles(ctx context.Context, ds fleet.Datastore, logger ki
 
 				// Insert the command for this specific host
 				if err := ds.MDMWindowsInsertCommandForHosts(ctx, []string{hostUUID}, command); err != nil {
-					level.Error(logger).Log("err", err, "msg", "inserting command for host", "host_uuid", hostUUID)
+					logger.ErrorContext(ctx, "inserting command for host", "err", err, "host_uuid", hostUUID)
 					// Mark this host's profile as failed
 					hp.Status = &fleet.MDMDeliveryFailed
 					hp.Detail = fmt.Sprintf("Failed to insert command for host: %s", err.Error())

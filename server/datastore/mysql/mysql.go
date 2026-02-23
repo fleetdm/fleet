@@ -6,6 +6,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"log/slog"
 	"net"
 	"os"
 	"regexp"
@@ -182,7 +183,7 @@ func (ds *Datastore) NewSCEPDepot() (scep_depot.Depot, error) {
 
 // NewHostIdentitySCEPDepot returns a scep_depot.Depot for host identity certs that uses the Datastore
 // underlying MySQL writer *sql.DB.
-func (ds *Datastore) NewHostIdentitySCEPDepot(logger log.Logger, cfg *config.FleetConfig) (scep_depot.Depot, error) {
+func (ds *Datastore) NewHostIdentitySCEPDepot(logger *slog.Logger, cfg *config.FleetConfig) (scep_depot.Depot, error) {
 	return hostidscepdepot.NewHostIdentitySCEPDepot(ds.primary, ds, logger, cfg)
 }
 
@@ -206,12 +207,12 @@ var (
 )
 
 func (ds *Datastore) withRetryTxx(ctx context.Context, fn common_mysql.TxFn) (err error) {
-	return common_mysql.WithRetryTxx(ctx, ds.writer(ctx), fn, ds.logger)
+	return common_mysql.WithRetryTxx(ctx, ds.writer(ctx), fn, ds.logger.SlogLogger())
 }
 
 // withTx provides a common way to commit/rollback a txFn
 func (ds *Datastore) withTx(ctx context.Context, fn common_mysql.TxFn) (err error) {
-	return common_mysql.WithTxx(ctx, ds.writer(ctx), fn, ds.logger)
+	return common_mysql.WithTxx(ctx, ds.writer(ctx), fn, ds.logger.SlogLogger())
 }
 
 // withReadTx runs fn in a read-only transaction with a consistent snapshot of the DB
@@ -224,7 +225,7 @@ func (ds *Datastore) withReadTx(ctx context.Context, fn common_mysql.ReadTxFn) (
 	if !ok {
 		return ctxerr.New(ctx, "failed to cast reader to *sqlx.DB")
 	}
-	return common_mysql.WithReadOnlyTxx(ctx, readerDB, fn, ds.logger)
+	return common_mysql.WithReadOnlyTxx(ctx, readerDB, fn, ds.logger.SlogLogger())
 }
 
 // NewDBConnections creates database connections from config.
@@ -848,17 +849,42 @@ func sanitizeColumn(col string) string {
 }
 
 // appendListOptionsToSQL is a facade that calls common_mysql.AppendListOptions.
+//
+// Deprecated: this method will be removed in favor of appendListOptionsWithCursorToSQL
 func appendListOptionsToSQL(sql string, opts *fleet.ListOptions) (string, []any) {
 	return appendListOptionsWithCursorToSQL(sql, nil, opts)
 }
 
+// appendListOptionsToSQLSecure is a facade that calls common_mysql.AppendListOptionsWithParamsSecure.
+// The allowlist parameter maps user-facing order key names to actual SQL column expressions.
+// This prevents SQL injection and information disclosure via arbitrary column sorting.
+// See common_mysql.OrderKeyAllowlist for details.
+func appendListOptionsToSQLSecure(sql string, opts *fleet.ListOptions, allowlist common_mysql.OrderKeyAllowlist) (string, []any, error) {
+	return appendListOptionsWithCursorToSQLSecure(sql, nil, opts, allowlist)
+}
+
 // appendListOptionsWithCursorToSQL is a facade that calls common_mysql.AppendListOptionsWithParams.
 // NOTE: this method will mutate opts.PerPage if it is 0, setting it to the default value.
+//
+// Deprecated: this method will be removed in favor of appendListOptionsWithCursorToSQLSecure
 func appendListOptionsWithCursorToSQL(sql string, params []any, opts *fleet.ListOptions) (string, []any) {
 	if opts.PerPage == 0 {
 		opts.PerPage = fleet.DefaultPerPage
 	}
 	return common_mysql.AppendListOptionsWithParams(sql, params, opts)
+}
+
+// appendListOptionsWithCursorToSQLSecure is a facade that calls common_mysql.AppendListOptionsWithParamsSecure.
+// NOTE: this method will mutate opts.PerPage if it is 0, setting it to the default value.
+//
+// The allowlist parameter maps user-facing order key names to actual SQL column expressions.
+// This prevents SQL injection and information disclosure via arbitrary column sorting.
+// See common_mysql.OrderKeyAllowlist for details.
+func appendListOptionsWithCursorToSQLSecure(sql string, params []any, opts *fleet.ListOptions, allowlist common_mysql.OrderKeyAllowlist) (string, []any, error) {
+	if opts.PerPage == 0 {
+		opts.PerPage = fleet.DefaultPerPage
+	}
+	return common_mysql.AppendListOptionsWithParamsSecure(sql, params, opts, allowlist)
 }
 
 // whereFilterHostsByTeams returns the appropriate condition to use in the WHERE
