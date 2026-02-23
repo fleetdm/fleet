@@ -815,11 +815,11 @@ software:
 	t.Setenv("TEST_TEAM_NAME", "no TEam")
 	_, err = RunAppNoChecks([]string{"gitops", "-f", tmpFile.Name(), "--dry-run"})
 	require.Error(t, err)
-	assert.Contains(t, err.Error(), fmt.Sprintf("file %q for 'No team' must be named 'no-team.yml'", tmpFile.Name()))
+	assert.Contains(t, err.Error(), fmt.Sprintf("file %q for unassigned hosts must be named 'no-team.yml'", tmpFile.Name()))
 	t.Setenv("TEST_TEAM_NAME", "no TEam")
 	_, err = RunAppNoChecks([]string{"gitops", "-f", tmpFile.Name()})
 	require.Error(t, err)
-	assert.Contains(t, err.Error(), fmt.Sprintf("file %q for 'No team' must be named 'no-team.yml'", tmpFile.Name()))
+	assert.Contains(t, err.Error(), fmt.Sprintf("file %q for unassigned hosts must be named 'no-team.yml'", tmpFile.Name()))
 
 	t.Setenv("TEST_TEAM_NAME", "All teams")
 	_, err = RunAppNoChecks([]string{"gitops", "-f", tmpFile.Name(), "--dry-run"})
@@ -2277,14 +2277,14 @@ software:
 			noTeamFilePathPoliciesCalendar.Name(), "--dry-run",
 		})
 		require.Error(t, err)
-		assert.True(t, strings.Contains(err.Error(), "calendar events are not supported on \"No team\" policies: \"Foobar\""), err.Error())
+		assert.True(t, strings.Contains(err.Error(), "calendar events are not supported on policies in no-team.yml: \"Foobar\""), err.Error())
 		// Real run, both global and no-team.yml define controls.
 		_, err = RunAppNoChecks([]string{
 			"gitops", "-f", globalFileWithControls.Name(), "-f", teamFileBasic.Name(), "-f",
 			noTeamFilePathPoliciesCalendar.Name(),
 		})
 		require.Error(t, err)
-		assert.True(t, strings.Contains(err.Error(), "calendar events are not supported on \"No team\" policies: \"Foobar\""), err.Error())
+		assert.True(t, strings.Contains(err.Error(), "calendar events are not supported on policies in no-team.yml: \"Foobar\""), err.Error())
 	})
 
 	t.Run("global and no-team.yml DO NOT define controls -- should fail", func(t *testing.T) {

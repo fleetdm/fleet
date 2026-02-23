@@ -332,7 +332,7 @@ func GitOpsFromFile(filePath, baseDir string, appConfig *fleet.EnrichedAppConfig
 		multiError = parseName(teamRaw, result, filePath, multiError)
 		if result.IsNoTeam() {
 			if filepath.Base(filePath) != "no-team.yml" {
-				multiError = multierror.Append(multiError, fmt.Errorf("file %q for 'Unassigned' must be named 'no-team.yml'", filePath))
+				multiError = multierror.Append(multiError, fmt.Errorf("file %q for unassigned hosts must be named 'no-team.yml'", filePath))
 			}
 			// For No Team, we allow settings but only process webhook_settings from it
 			if settingsOk {
@@ -570,7 +570,7 @@ func parseNoTeamSettings(raw json.RawMessage, result *GitOps, filePath string, m
 	for key := range teamSettingsMap {
 		if key != "webhook_settings" {
 			multiError = multierror.Append(multiError,
-				fmt.Errorf("unsupported settings option '%s' for 'Unassigned' - only 'webhook_settings' is allowed", key))
+				fmt.Errorf("unsupported settings option '%s' in no-team.yml - only 'webhook_settings' is allowed", key))
 		}
 	}
 
@@ -593,7 +593,7 @@ func parseNoTeamSettings(raw json.RawMessage, result *GitOps, filePath string, m
 			for key := range webhookMap {
 				if key != "failing_policies_webhook" {
 					multiError = multierror.Append(multiError,
-						fmt.Errorf("unsupported webhook_settings option '%s' for 'Unassigned'; only 'failing_policies_webhook' is allowed", key))
+						fmt.Errorf("unsupported webhook_settings option '%s' in no-team.yml - only 'failing_policies_webhook' is allowed", key))
 				}
 			}
 			// If present, ensure failing_policies_webhook is an object or null
@@ -670,7 +670,7 @@ func parseAgentOptions(top map[string]json.RawMessage, result *GitOps, baseDir s
 	agentOptionsRaw, ok := top["agent_options"]
 	if result.IsNoTeam() {
 		if ok {
-			logFn("[!] 'agent_options' is not supported for \"Unassigned\". This key will be ignored.\n")
+			logFn("[!] 'agent_options' is not supported in no-team.yml. This key will be ignored.\n")
 		}
 		return multiError
 	} else if !ok {
@@ -1103,7 +1103,7 @@ func parsePolicies(top map[string]json.RawMessage, result *GitOps, baseDir strin
 			item.Team = ""
 		}
 		if item.CalendarEventsEnabled && result.IsNoTeam() {
-			multiError = multierror.Append(multiError, fmt.Errorf("calendar events are not supported on \"Unassigned\" policies: %q", item.Name))
+			multiError = multierror.Append(multiError, fmt.Errorf("calendar events are not supported on policies in no-team.yml: %q", item.Name))
 		}
 	}
 	duplicates := getDuplicateNames(
@@ -1228,7 +1228,7 @@ func parseQueries(top map[string]json.RawMessage, result *GitOps, baseDir string
 	reportsRaw, ok := top["reports"]
 	if result.IsNoTeam() {
 		if ok {
-			logFn("[!] 'reports' is not supported for \"Unassigned\". This key will be ignored.\n")
+			logFn("[!] 'reports' is not supported in no-team.yml. This key will be ignored.\n")
 		}
 		return multiError
 	} else if !ok {
