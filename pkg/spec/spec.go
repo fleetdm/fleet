@@ -11,6 +11,7 @@ import (
 	"fmt"
 	"os"
 	"regexp"
+	"sort"
 	"strings"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -193,8 +194,13 @@ func GroupFromBytes(b []byte, options ...GroupFromBytesOpts) (*Group, error) {
 		}
 
 		if logFn != nil && len(deprecatedKeysMap) > 0 && logging.TopicEnabled(logging.DeprecatedFieldTopic) {
-			for oldKey, newKey := range deprecatedKeysMap {
-				logFn(fmt.Sprintf("[!] In %s: `%s` is deprecated, please use `%s` instead.\n", kind, oldKey, newKey))
+			oldKeys := make([]string, 0, len(deprecatedKeysMap))
+			for oldKey := range deprecatedKeysMap {
+				oldKeys = append(oldKeys, oldKey)
+			}
+			sort.Strings(oldKeys)
+			for _, oldKey := range oldKeys {
+				logFn(fmt.Sprintf("[!] In %s: `%s` is deprecated, please use `%s` instead.\n", kind, oldKey, deprecatedKeysMap[oldKey]))
 			}
 		}
 	}
