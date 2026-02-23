@@ -1685,7 +1685,7 @@ func filterHostsByMacOSDiskEncryptionStatus(sql string, opt fleet.HostListOption
 	return sql + fmt.Sprintf(` AND EXISTS (%s) AND ne.id IS NOT NULL AND hmdm.enrolled = 1`, subquery), append(params, subqueryParams...)
 }
 
-func (ds *Datastore) filterHostsByOSSettingsStatus(ctx context.Context, sql string, opt fleet.HostListOptions, params []interface{}, diskEncryptionConfig fleet.DiskEncryptionConfig) (string, []interface{}, error) {
+func (ds *Datastore) filterHostsByOSSettingsStatus(ctx context.Context, sql string, opt fleet.HostListOptions, params []any, diskEncryptionConfig fleet.DiskEncryptionConfig) (string, []any, error) {
 	if !opt.OSSettingsFilter.IsValid() {
 		return sql, params, nil
 	}
@@ -1853,7 +1853,7 @@ AND (
 	return sql + fmt.Sprintf(sqlFmt, whereWindows, whereMacOS, whereAndroid, whereLinux), params, nil
 }
 
-func (ds *Datastore) filterHostsByOSSettingsDiskEncryptionStatus(ctx context.Context, sql string, opt fleet.HostListOptions, params []interface{}, diskEncryptionConfig fleet.DiskEncryptionConfig) (string, []interface{}) {
+func (ds *Datastore) filterHostsByOSSettingsDiskEncryptionStatus(ctx context.Context, sql string, opt fleet.HostListOptions, params []any, diskEncryptionConfig fleet.DiskEncryptionConfig) (string, []any) {
 	if !opt.OSSettingsDiskEncryptionFilter.IsValid() {
 		return sql, params
 	}
@@ -5390,7 +5390,7 @@ func updateHostRefetchRequestedDB(ctx context.Context, tx sqlx.ExtContext, id ui
 
 // UpdateHostRefetchCriticalQueriesUntil updates a host's refetch critical queries until field.
 func (ds *Datastore) UpdateHostRefetchCriticalQueriesUntil(ctx context.Context, id uint, until *time.Time) error {
-	debugLogs := []interface{}{"host_id", id}
+	debugLogs := []any{"host_id", id}
 	if until != nil {
 		debugLogs = append(debugLogs, "until", until.Format(time.RFC3339))
 	}
