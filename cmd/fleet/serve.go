@@ -78,6 +78,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/service/redis_key_value"
 	"github.com/fleetdm/fleet/v4/server/service/redis_lock"
 	"github.com/fleetdm/fleet/v4/server/service/redis_policy_set"
+	"github.com/fleetdm/fleet/v4/server/service/schedule"
 	"github.com/fleetdm/fleet/v4/server/sso"
 	"github.com/fleetdm/fleet/v4/server/version"
 	"github.com/getsentry/sentry-go"
@@ -422,9 +423,9 @@ the way that the Fleet server works.
 			ds = redisWrapperDS
 
 			resultStore := pubsub.NewRedisQueryResults(redisPool, config.Redis.DuplicateResults,
-				logger.With("component", "query-results"),
+				logger.SlogLogger().With("component", "query-results"),
 			)
-			liveQueryStore := live_query.NewRedisLiveQuery(redisPool, logger, liveQueryMemCacheDuration)
+			liveQueryStore := live_query.NewRedisLiveQuery(redisPool, logger.SlogLogger(), liveQueryMemCacheDuration)
 			ssoSessionStore := sso.NewSessionStore(redisPool)
 
 			// Set common configuration for all logging.
@@ -556,7 +557,7 @@ the way that the Fleet server works.
 			var geoIP fleet.GeoIP
 			geoIP = &fleet.NoOpGeoIP{}
 			if config.GeoIP.DatabasePath != "" {
-				maxmind, err := fleet.NewMaxMindGeoIP(logger, config.GeoIP.DatabasePath)
+				maxmind, err := fleet.NewMaxMindGeoIP(logger.SlogLogger(), config.GeoIP.DatabasePath)
 				if err != nil {
 					level.Error(logger).Log("msg", "failed to initialize maxmind geoip, check database path", "database_path",
 						config.GeoIP.DatabasePath, "error", err)
@@ -823,6 +824,16 @@ the way that the Fleet server works.
 			ctx, cancelFunc := context.WithCancel(baseCtx)
 			defer cancelFunc()
 
+			// Channel used to trigger graceful shutdown on fatal DB errors (e.g. Aurora failover).
+			dbFatalCh := make(chan error, 1)
+			common_mysql.SetFatalErrorHandler(func(err error) {
+				level.Error(logger).Log("msg", "fatal database error detected, initiating graceful shutdown", "err", err)
+				select {
+				case dbFatalCh <- err:
+				default:
+				}
+			})
+
 			var conditionalAccessMicrosoftProxy *conditional_access_microsoft_proxy.Proxy
 			if config.MicrosoftCompliancePartner.IsSet() {
 				var err error
@@ -842,7 +853,7 @@ the way that the Fleet server works.
 				}
 			}
 
-			eh := errorstore.NewHandler(ctx, redisPool, logger, config.Logging.ErrorRetentionPeriod)
+			eh := errorstore.NewHandler(ctx, redisPool, logger.SlogLogger(), config.Logging.ErrorRetentionPeriod)
 			scepConfigMgr := eeservice.NewSCEPConfigService(logger, nil)
 			digiCertService := digicert.NewService(digicert.WithLogger(logger))
 			ctx = ctxerr.NewContext(ctx, eh)
@@ -1123,6 +1134,14 @@ the way that the Fleet server works.
 					return newVulnerabilitiesSchedule(ctx, instanceID, ds, logger, &config.Vulnerabilities)
 				}); err != nil {
 					initFatal(err, "failed to register vulnerabilities schedule")
+				}
+			} else {
+				// Register a remote trigger proxy so triggering still works
+				// when the vulnerability schedule runs on a separate server.
+				if err := cronSchedules.StartCronSchedule(func() (fleet.CronSchedule, error) {
+					return schedule.NewRemoteTriggerSchedule(string(fleet.CronVulnerabilities), ds), nil
+				}); err != nil {
+					initFatal(err, "failed to register remote vulnerability trigger")
 				}
 			}
 
@@ -1478,12 +1497,12 @@ the way that the Fleet server works.
 				if err = service.RegisterSCEPProxy(rootMux, ds, logger, nil, &config); err != nil {
 					initFatal(err, "setup SCEP proxy")
 				}
-				if err = scim.RegisterSCIM(rootMux, ds, svc, logger, &config); err != nil {
+				if err = scim.RegisterSCIM(rootMux, ds, svc, logger.SlogLogger(), &config); err != nil {
 					initFatal(err, "setup SCIM")
 				}
 				// Host identify and conditional access SCEP feature only works if a private key has been set up
 				if len(config.Server.PrivateKey) > 0 {
-					hostIdentitySCEPDepot, err := mds.NewHostIdentitySCEPDepot(logger.With("component", "host-id-scep-depot"), &config)
+					hostIdentitySCEPDepot, err := mds.NewHostIdentitySCEPDepot(logger.SlogLogger().With("component", "host-id-scep-depot"), &config)
 					if err != nil {
 						initFatal(err, "setup host identity SCEP depot")
 					}
@@ -1718,7 +1737,10 @@ the way that the Fleet server works.
 			go func() {
 				sig := make(chan os.Signal, 1)
 				signal.Notify(sig, syscall.SIGINT, syscall.SIGTERM)
-				<-sig // block on signal
+				select {
+				case <-sig:
+				case <-dbFatalCh:
+				}
 				ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 				defer cancel()
 				errs <- func() error {

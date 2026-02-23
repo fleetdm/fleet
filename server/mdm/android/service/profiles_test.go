@@ -17,7 +17,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mdm/android"
 	"github.com/fleetdm/fleet/v4/server/mdm/android/mock"
 	"github.com/fleetdm/fleet/v4/server/mdm/android/service/androidmgmt"
-	"github.com/fleetdm/fleet/v4/server/platform/logging"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/test"
 	"github.com/google/uuid"
@@ -101,7 +100,7 @@ func TestReconcileProfiles(t *testing.T) {
 					Package:       "com.fleetdm.agent",
 					SigningSHA256: "abc123def456",
 				},
-				Logger: slog.New(logging.DiscardHandler{}),
+				Logger: slog.New(slog.DiscardHandler),
 			}
 
 			c.fn(t, ds, client, reconciler)
@@ -1008,7 +1007,7 @@ func testBuildAndSendFleetAgentConfigForEnrollment(t *testing.T, ds fleet.Datast
 	// Create service and call BuildAndSendFleetAgentConfig with skipHostsWithoutNewCerts=false
 	// This simulates the enrollment flow from software_worker.go
 	svc := &Service{
-		logger:           slog.New(logging.DiscardHandler{}),
+		logger:           slog.New(slog.DiscardHandler),
 		fleetDS:          ds,
 		ds:               ds.(fleet.AndroidDatastore),
 		androidAPIClient: client,

@@ -24,7 +24,6 @@ import (
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/mobileconfig"
 	microsoft_mdm "github.com/fleetdm/fleet/v4/server/mdm/microsoft"
-	platformlogging "github.com/fleetdm/fleet/v4/server/platform/logging"
 
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/service/async"
@@ -1344,6 +1343,44 @@ FROM chrome_extensions`,
 // Software queries expect specific columns to be present.  Reference the
 // software_{macos|windows|linux} queries for the expected columns.
 var SoftwareOverrideQueries = map[string]DetailQuery{
+	// windows_jetbrains uses the version contained in the product-info.json file as exe installers
+	// provide an unconvertible build number in the programs table not used in vulnerability matching.
+	"windows_jetbrains": {
+		Description: "A software override query to use the version from the product-info.json file for JetBrains programs on Windows.",
+		Query: `
+		SELECT
+		p.name AS name,
+
+		COALESCE(
+			trim(json_extract(fc.contents, '$.version'), '"'),
+			p.version
+		) AS version,
+
+		'' AS extension_id,
+		'' AS extension_for,
+		'programs' AS source,
+		p.publisher AS vendor,
+		p.install_location AS installed_path,
+		p.upgrade_code AS upgrade_code
+
+		FROM programs p
+		LEFT JOIN file_contents fc
+		ON fc.path = CASE
+			WHEN p.install_location IS NULL OR p.install_location = ''
+			THEN NULL
+			ELSE rtrim(p.install_location, '\') || '\product-info.json'
+		END
+
+		WHERE p.publisher LIKE '%JetBrains%'
+		AND p.name NOT LIKE '%Toolbox%'
+`,
+		Platforms:        []string{"windows"},
+		DirectIngestFunc: directIngestSoftware,
+		Discovery:        discoveryTable("file_contents"),
+		SoftwareOverrideMatch: func(row map[string]string) bool {
+			return strings.Contains(row["vendor"], "JetBrains") && !strings.Contains(row["name"], "Toolbox")
+		},
+	},
 	// windows_acrobat_dc checks the Windows registry to determine if "DC" should be appended to the Adobe Acrobat
 	// product name. While Adobe recently rebranded the free version to "Adobe Acrobat (64-bit)" — matching
 	// the naming convention of the paid product — our vulnerability detection engine requires the "DC" postfix for accurate
@@ -3183,7 +3220,7 @@ func buildConfigProfilesWindowsQuery(
 	var sb strings.Builder
 	sb.WriteString("<SyncBody>")
 	gotProfiles := false
-	err := microsoft_mdm.LoopOverExpectedHostProfiles(ctx, platformlogging.NewLogger(logger), ds, host, func(profile *fleet.ExpectedMDMProfile, hash, locURI, data string) {
+	err := microsoft_mdm.LoopOverExpectedHostProfiles(ctx, logger, ds, host, func(profile *fleet.ExpectedMDMProfile, hash, locURI, data string) {
 		// Per the [docs][1], to `<Get>` configurations you must
 		// replace `/Policy/Config/` with `Policy/Result/`
 		// [1]: https://learn.microsoft.com/en-us/windows/client-management/mdm/policy-configuration-service-provider
@@ -3234,7 +3271,7 @@ func directIngestWindowsProfiles(
 	if len(rawResponse) == 0 {
 		return ctxerr.Errorf(ctx, "directIngestWindowsProfiles host %s got an empty SyncML response", host.UUID)
 	}
-	return microsoft_mdm.VerifyHostMDMProfiles(ctx, platformlogging.NewLogger(logger), ds, host, rawResponse)
+	return microsoft_mdm.VerifyHostMDMProfiles(ctx, logger, ds, host, rawResponse)
 }
 
 var rxExtractUsernameFromHostCertPath = regexp.MustCompile(`^/Users/([^/]+)/Library/Keychains/login\.keychain\-db$`)
@@ -3254,6 +3291,12 @@ func directIngestHostCertificatesDarwin(
 
 	certs := make([]*fleet.HostCertificateRecord, 0, len(rows))
 	for _, row := range rows {
+		// Unescape \xHH sequences in fields that may contain non-ASCII
+		// characters (e.g. Cyrillic) in the certificate's distinguished name.
+		row["common_name"] = fleet.DecodeHexEscapes(row["common_name"])
+		row["subject"] = fleet.DecodeHexEscapes(row["subject"])
+		row["issuer"] = fleet.DecodeHexEscapes(row["issuer"])
+
 		csum, err := hex.DecodeString(row["sha1"])
 		if err != nil {
 			logger.ErrorContext(ctx, "decoding sha1", "component", "service", "method", "directIngestHostCertificates", "err", err)
@@ -3341,6 +3384,12 @@ func directIngestHostCertificatesWindows(
 	// SHA1 sum + username
 	existsSha1User := make(map[string]bool, len(rows))
 	for _, row := range rows {
+		// Unescape \xHH sequences in fields that may contain non-ASCII
+		// characters (e.g. Cyrillic) in the certificate's distinguished name.
+		row["common_name"] = fleet.DecodeHexEscapes(row["common_name"])
+		row["subject"] = fleet.DecodeHexEscapes(row["subject"])
+		row["issuer"] = fleet.DecodeHexEscapes(row["issuer"])
+
 		csum, err := hex.DecodeString(row["sha1"])
 		if err != nil {
 			logger.ErrorContext(ctx, "decoding sha1", "component", "service", "method", "directIngestHostCertificates", "err", err)

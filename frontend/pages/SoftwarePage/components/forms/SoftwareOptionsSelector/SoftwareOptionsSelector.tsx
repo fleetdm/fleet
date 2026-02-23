@@ -244,7 +244,7 @@ const SoftwareOptionsSelector = ({
         <InfoBanner color="yellow">
           Installing software over existing installations might cause issues.
           Fleet&apos;s policy may not detect these existing installations.
-          Please create a test team in Fleet to verify a smooth installation.{" "}
+          Please create a test fleet in Fleet to verify a smooth installation.{" "}
           <CustomLink
             url={`${LEARN_MORE_ABOUT_BASE_LINK}/query-templates-for-automatic-software-install`}
             text="Learn more"

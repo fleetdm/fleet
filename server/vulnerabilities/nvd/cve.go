@@ -299,28 +299,29 @@ func TranslateCPEToCVE(
 		}
 	}
 
-	var newVulns []fleet.SoftwareVulnerability
+	// Batch insert software vulnerabilities.
+	allSoftwareVulns := make([]fleet.SoftwareVulnerability, 0, len(softwareVulns))
 	for _, vuln := range softwareVulns {
-		ok, err := ds.InsertSoftwareVulnerability(ctx, vuln, fleet.NVDSource)
-		if err != nil {
-			level.Error(logger).Log("cpe processing", "error", "err", err)
-			continue
-		}
-
-		// collect vuln only if inserted, otherwise we would send
-		// webhook requests for the same vulnerability over and over again until
-		// it is older than 2 days.
-		if collectVulns && ok {
-			newVulns = append(newVulns, vuln)
-		}
+		allSoftwareVulns = append(allSoftwareVulns, vuln)
 	}
 
+	newVulns, softwareInsertErr := ds.InsertSoftwareVulnerabilities(ctx, allSoftwareVulns, fleet.NVDSource)
+	if softwareInsertErr != nil {
+		level.Error(logger).Log("cpe processing", "error", "err", softwareInsertErr)
+	}
+	if !collectVulns {
+		newVulns = nil
+	}
+
+	// Batch insert OS vulnerabilities.
+	allOSVulns := make([]fleet.OSVulnerability, 0, len(osVulns))
 	for _, vuln := range osVulns {
-		_, err := ds.InsertOSVulnerability(ctx, vuln, fleet.NVDSource)
-		if err != nil {
-			level.Error(logger).Log("cpe processing", "error", "err", err)
-			continue
-		}
+		allOSVulns = append(allOSVulns, vuln)
+	}
+	osInsertErr := false
+	if _, err := ds.InsertOSVulnerabilities(ctx, allOSVulns, fleet.NVDSource); err != nil {
+		level.Error(logger).Log("cpe processing", "error", "err", err)
+		osInsertErr = true
 	}
 
 	// Delete any stale vulnerabilities. A vulnerability is stale iff the last time it was
@@ -328,11 +329,16 @@ func TranslateCPEToCVE(
 	// process completes in less than `periodicity` units of time.
 	//
 	// This is used to get rid of false positives once they are fixed and no longer detected as vulnerabilities.
-	if err = ds.DeleteOutOfDateVulnerabilities(ctx, fleet.NVDSource, startTime); err != nil {
-		level.Error(logger).Log("msg", "error deleting out of date vulnerabilities", "err", err)
+	// Skip cleanup when the corresponding insert failed to avoid deleting data with nothing to replace it.
+	if softwareInsertErr == nil {
+		if err = ds.DeleteOutOfDateVulnerabilities(ctx, fleet.NVDSource, startTime); err != nil {
+			level.Error(logger).Log("msg", "error deleting out of date vulnerabilities", "err", err)
+		}
 	}
-	if err = ds.DeleteOutOfDateOSVulnerabilities(ctx, fleet.NVDSource, startTime); err != nil {
-		level.Error(logger).Log("msg", "error deleting out of date OS vulnerabilities", "err", err)
+	if !osInsertErr {
+		if err = ds.DeleteOutOfDateOSVulnerabilities(ctx, fleet.NVDSource, startTime); err != nil {
+			level.Error(logger).Log("msg", "error deleting out of date OS vulnerabilities", "err", err)
+		}
 	}
 
 	return newVulns, nil

@@ -1,3 +1,5 @@
 .setup-experience-content-container {
   max-width: $break-xxl;
+
+  @include vertical-page-tab-panel-layout;
 }

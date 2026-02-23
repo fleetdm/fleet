@@ -7,10 +7,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/fleetdm/fleet/v4/server/platform/logging"
 	common_mysql "github.com/fleetdm/fleet/v4/server/platform/mysql"
 	mysql_testing_utils "github.com/fleetdm/fleet/v4/server/platform/mysql/testing_utils"
-	kitlog "github.com/go-kit/log"
 	"github.com/jmoiron/sqlx"
 	"github.com/stretchr/testify/require"
 )
@@ -38,7 +36,7 @@ func SetupTestDB(t *testing.T, testNamePrefix string) *TestDB {
 
 	return &TestDB{
 		DB:     db,
-		Logger: slog.New(logging.DiscardHandler{}),
+		Logger: slog.New(slog.DiscardHandler),
 	}
 }
 
@@ -50,7 +48,7 @@ func (tdb *TestDB) Conns() *common_mysql.DBConnections {
 // TruncateTables clears the tables used by activity bounded context.
 func (tdb *TestDB) TruncateTables(t *testing.T) {
 	t.Helper()
-	mysql_testing_utils.TruncateTables(t, tdb.DB, kitlog.NewNopLogger(), nil, "host_activities", "activities", "hosts", "users")
+	mysql_testing_utils.TruncateTables(t, tdb.DB, tdb.Logger, nil, "host_activities", "activities", "hosts", "users")
 }
 
 // InsertUser creates a user in the database and returns the user ID.

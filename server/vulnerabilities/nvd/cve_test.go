@@ -130,6 +130,12 @@ func (d *threadSafeDSMock) InsertSoftwareVulnerability(ctx context.Context, vuln
 	return d.Store.InsertSoftwareVulnerability(ctx, vuln, src)
 }
 
+func (d *threadSafeDSMock) InsertSoftwareVulnerabilities(ctx context.Context, vulns []fleet.SoftwareVulnerability, src fleet.VulnerabilitySource) ([]fleet.SoftwareVulnerability, error) {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+	return d.Store.InsertSoftwareVulnerabilities(ctx, vulns, src)
+}
+
 func TestTranslateCPEToCVE(t *testing.T) {
 	t.Parallel()
 	ctx := context.Background()
@@ -841,31 +847,33 @@ func TestTranslateCPEToCVE(t *testing.T) {
 
 		cveLock := &sync.Mutex{}
 		cvesFound := make(map[string][]cve)
-		ds.InsertSoftwareVulnerabilityFunc = func(ctx context.Context, vuln fleet.SoftwareVulnerability, src fleet.VulnerabilitySource) (bool, error) {
+		ds.InsertSoftwareVulnerabilitiesFunc = func(ctx context.Context, vulns []fleet.SoftwareVulnerability, src fleet.VulnerabilitySource) ([]fleet.SoftwareVulnerability, error) {
 			cveLock.Lock()
 			defer cveLock.Unlock()
 
-			cpe, ok := softwareIDToCPEs[vuln.SoftwareID]
-			if !ok {
-				return false, fmt.Errorf("software id -> cpe not found: %d", vuln.SoftwareID)
+			for _, vuln := range vulns {
+				cpe, ok := softwareIDToCPEs[vuln.SoftwareID]
+				if !ok {
+					return nil, fmt.Errorf("software id -> cpe not found: %d", vuln.SoftwareID)
+				}
+				c := cve{ID: vuln.CVE}
+				if vuln.ResolvedInVersion != nil {
+					c.resolvedInVersion = *vuln.ResolvedInVersion
+				}
+				cvesFound[cpe] = append(cvesFound[cpe], c)
 			}
-			cve := cve{
-				ID:                vuln.CVE,
-				resolvedInVersion: *vuln.ResolvedInVersion,
-			}
-			cvesFound[cpe] = append(cvesFound[cpe], cve)
-			return false, nil
+			return nil, nil
 		}
 
-		osCVELock := &sync.Mutex{}
 		osCVEsFound := make(map[uint][]string)
-		ds.InsertOSVulnerabilityFunc = func(ctx context.Context, vuln fleet.OSVulnerability, src fleet.VulnerabilitySource) (bool, error) {
-			osCVELock.Lock()
-			defer osCVELock.Unlock()
+		ds.InsertOSVulnerabilitiesFunc = func(ctx context.Context, vulns []fleet.OSVulnerability, src fleet.VulnerabilitySource) (int64, error) {
+			cveLock.Lock()
+			defer cveLock.Unlock()
 
-			osCVEsFound[vuln.OSID] = append(osCVEsFound[vuln.OSID], vuln.CVE)
-
-			return false, nil
+			for _, vuln := range vulns {
+				osCVEsFound[vuln.OSID] = append(osCVEsFound[vuln.OSID], vuln.CVE)
+			}
+			return int64(len(vulns)), nil
 		}
 
 		ds.DeleteOutOfDateVulnerabilitiesFunc = func(ctx context.Context, source fleet.VulnerabilitySource, olderThan time.Time) error {
@@ -928,14 +936,18 @@ func TestTranslateCPEToCVE(t *testing.T) {
 		ds.ListSoftwareCPEsFunc = func(ctx context.Context) ([]fleet.SoftwareCPE, error) {
 			return softwareCPEs, nil
 		}
-		ds.InsertSoftwareVulnerabilityFunc = func(ctx context.Context, vuln fleet.SoftwareVulnerability, src fleet.VulnerabilitySource) (bool, error) {
-			return true, nil
+		// First call: all vulns are new, return whatever was inserted.
+		ds.InsertSoftwareVulnerabilitiesFunc = func(ctx context.Context, vulns []fleet.SoftwareVulnerability, src fleet.VulnerabilitySource) ([]fleet.SoftwareVulnerability, error) {
+			return vulns, nil
 		}
 		ds.ListOperatingSystemsForPlatformFunc = func(ctx context.Context, p string) ([]fleet.OperatingSystem, error) {
 			return nil, nil
 		}
 		ds.DeleteOutOfDateOSVulnerabilitiesFunc = func(ctx context.Context, source fleet.VulnerabilitySource, olderThan time.Time) error {
 			return nil
+		}
+		ds.InsertOSVulnerabilitiesFunc = func(ctx context.Context, vulns []fleet.OSVulnerability, src fleet.VulnerabilitySource) (int64, error) {
+			return 0, nil
 		}
 
 		recent, err := TranslateCPEToCVE(ctx, safeDS, tempDir, kitlog.NewNopLogger(), true, time.Now().Add(-time.Hour))
@@ -953,10 +965,9 @@ func TestTranslateCPEToCVE(t *testing.T) {
 		assert.Greater(t, byCPE[softwareCPEs[1].SoftwareID], 280, "mozilla firefox CVEs")
 		assert.Greater(t, byCPE[softwareCPEs[2].SoftwareID], 10, "curl CVEs")
 
-		// call it again but now return false from this call, simulating CVE-CPE pairs
-		// that already existed in the DB.
-		ds.InsertSoftwareVulnerabilityFunc = func(ctx context.Context, vuln fleet.SoftwareVulnerability, src fleet.VulnerabilitySource) (bool, error) {
-			return false, nil
+		// Call it again but now return no new vulns (all already existed in the DB).
+		ds.InsertSoftwareVulnerabilitiesFunc = func(ctx context.Context, vulns []fleet.SoftwareVulnerability, src fleet.VulnerabilitySource) ([]fleet.SoftwareVulnerability, error) {
+			return nil, nil
 		}
 		recent, err = TranslateCPEToCVE(ctx, safeDS, tempDir, kitlog.NewNopLogger(), true, time.Now().UTC().Add(-time.Hour))
 		require.NoError(t, err)

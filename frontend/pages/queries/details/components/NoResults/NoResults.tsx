@@ -47,7 +47,7 @@ const NoResults = ({
   if (collectingResults && !disabledCaching) {
     const collectingResultsInfo = () => (
       <>
-        Fleet is collecting query results. <br />
+        Fleet is collecting report results. <br />
         Check back in about {readableCheckbackTime}.
       </>
     );
@@ -69,12 +69,11 @@ const NoResults = ({
           return (
             <>
               <div>
-                The following setting prevents saving this query&apos;s results
+                The following setting prevents saving this report&apos;s results
                 in Fleet:
               </div>
               <div>
-                &nbsp; • Query reports are globally disabled in organization
-                settings.
+                &nbsp; • Reports are globally disabled in organization settings.
               </div>
             </>
           );
@@ -83,11 +82,11 @@ const NoResults = ({
           return (
             <>
               <div>
-                The following setting prevents saving this query&apos;s results
+                The following setting prevents saving this report&apos;s results
                 in Fleet:
               </div>
               <div>
-                &nbsp; • This query has <b>Discard data</b> enabled.
+                &nbsp; • This report has <b>Discard data</b> enabled.
               </div>
             </>
           );
@@ -96,11 +95,11 @@ const NoResults = ({
           return (
             <>
               <div>
-                The following setting prevents saving this query&apos;s results
+                The following setting prevents saving this report&apos;s results
                 in Fleet:
               </div>
               <div>
-                &nbsp; • The logging setting for this query is not{" "}
+                &nbsp; • The logging setting for this report is not{" "}
                 <b>Snapshot</b>.
               </div>
             </>
@@ -111,7 +110,7 @@ const NoResults = ({
       return [
         "Nothing to report",
         <>
-          Results from this query are{" "}
+          Results from this report are{" "}
           <TooltipWrapper tipContent={tipContent()}>
             not reported in Fleet
           </TooltipWrapper>
@@ -123,8 +122,8 @@ const NoResults = ({
       return [
         "Nothing to report",
         <>
-          This query does not collect data on a schedule. Add <br />
-          an <strong>interval</strong> or run this as a live query to see
+          This report does not collect data on a schedule. Add <br />
+          an <strong>interval</strong> or run this as a live report to see
           results.
         </>,
       ];
@@ -141,8 +140,8 @@ const NoResults = ({
     return [
       "Nothing to report yet",
       <>
-        This query has returned no data so far. If you&apos;re <br />
-        expecting to see results, try running a live query to
+        This report has returned no data so far. If you&apos;re <br />
+        expecting to see results, try running a live report to
         <br />
         get diagnostics.
       </>,
