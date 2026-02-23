@@ -2568,7 +2568,7 @@ func (ds *Datastore) EnrollOsquery(ctx context.Context, opts ...fleet.DatastoreE
 			`
 			result, err := tx.ExecContext(ctx, sqlInsert, zeroTime, zeroTime, zeroTime, osqueryHostID, nodeKey, teamID, hardwareUUID, hardwareSerial)
 			if err != nil {
-				ds.logger.InfoContext(ctx, "host insert error", "err", err.Error())
+				ds.logger.InfoContext(ctx, "host insert error", "err", err)
 				return ctxerr.Wrap(ctx, err, "insert host")
 			}
 			lastInsertID, _ := result.LastInsertId()
