@@ -1162,7 +1162,7 @@ var (
 
 // hostSearchLike searches hosts based on the given columns plus searching in hosts_emails. Note:
 // the host from the `hosts` table must be aliased to `h` in `sql`.
-func hostSearchLike(sql string, params []interface{}, match string, columns ...string) (string, []interface{}) {
+func hostSearchLike(sql string, params []any, match string, columns ...string) (string, []any) {
 	base, args := searchLike(sql, params, match, columns...)
 
 	// Always search in host_emails table in addition to the provided columns,
