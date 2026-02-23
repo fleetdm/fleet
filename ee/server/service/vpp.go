@@ -1263,6 +1263,13 @@ func (svc *Service) CreateAndroidWebApp(ctx context.Context, title, startURL str
 	if err != nil {
 		return "", ctxerr.Wrap(ctx, err, "get android enterprise")
 	}
+
+	client = newAMAPIClient(ctx, logger, licenseKey)
+	authSecret, err := getClientAuthenticationSecret(ctx, ds)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "getting Android client authentication secret for profile reconciler")
+	}
+	err = client.SetAuthenticationSecret(authSecret)
 	// TODO(mna): call the AMAPI endpoint
 
 	return "", nil
