@@ -66,7 +66,7 @@ SELECT
 FROM software_titles st
 %s
 LEFT JOIN software_titles_host_counts sthc ON sthc.software_title_id = st.id AND sthc.hosts_count > 0 AND (%s)
-LEFT JOIN software_installers si ON si.title_id = st.id AND %s
+LEFT JOIN software_installers si ON si.title_id = st.id AND si.is_active = TRUE AND %s
 LEFT JOIN vpp_apps vap ON vap.title_id = st.id
 LEFT JOIN vpp_apps_teams vat ON vat.adam_id = vap.adam_id AND vat.platform = vap.platform AND %s
 LEFT JOIN in_house_apps iha ON iha.title_id = st.id AND %s

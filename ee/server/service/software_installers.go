@@ -872,11 +872,34 @@ func (svc *Service) deleteSoftwareInstaller(ctx context.Context, meta *fleet.Sof
 		return fleet.ErrNoContext
 	}
 
-	if meta.Extension == "ipa" {
+	switch {
+	case meta.Extension == "ipa":
 		if err := svc.ds.DeleteInHouseApp(ctx, meta.InstallerID); err != nil {
 			return ctxerr.Wrap(ctx, err, "deleting in house app")
 		}
-	} else {
+	case meta.FleetMaintainedAppID != nil:
+		// For FMA installers there may be multiple cached versions (active + up to
+		// N-1 inactive ones). Delete the active version first so that the
+		// policy-automation and setup-experience guard-rails are enforced, then
+		// sweep up any remaining inactive cached versions.
+		if err := svc.ds.DeleteSoftwareInstaller(ctx, meta.InstallerID); err != nil {
+			return ctxerr.Wrap(ctx, err, "deleting active FMA installer version")
+		}
+		// After the active row is gone, fetch whatever cached versions remain and
+		// delete them.  GetFleetMaintainedVersionsByTitleID queries the live DB, so
+		// it will not return the row we just deleted.
+		if meta.TitleID != nil {
+			cachedVersions, err := svc.ds.GetFleetMaintainedVersionsByTitleID(ctx, meta.TeamID, *meta.TitleID)
+			if err != nil {
+				return ctxerr.Wrap(ctx, err, "getting cached FMA versions for cleanup")
+			}
+			for _, v := range cachedVersions {
+				if err := svc.ds.DeleteSoftwareInstaller(ctx, v.ID); err != nil && !fleet.IsNotFound(err) {
+					return ctxerr.Wrap(ctx, err, "deleting cached FMA version")
+				}
+			}
+		}
+	default:
 		if err := svc.ds.DeleteSoftwareInstaller(ctx, meta.InstallerID); err != nil {
 			return ctxerr.Wrap(ctx, err, "deleting software installer")
 		}
