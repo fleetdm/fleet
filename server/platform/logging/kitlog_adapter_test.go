@@ -1,6 +1,7 @@
 package logging
 
 import (
+	"context"
 	"log/slog"
 	"testing"
 
@@ -56,7 +57,6 @@ func TestKitlogAdapter(t *testing.T) {
 		attrs := testutils.RecordAttrs(record)
 		assert.Equal(t, "test-component", attrs["component"])
 	})
-
 }
 
 func TestKitlogAdapterLevels(t *testing.T) {
@@ -102,6 +102,53 @@ func TestKitlogAdapterLevels(t *testing.T) {
 			require.NotNil(t, record)
 			assert.Equal(t, tc.name+" message", record.Message)
 			assert.Equal(t, tc.expectedLevel, record.Level)
+		})
+	}
+}
+
+func TestKitlogSlogWrappers(t *testing.T) {
+	t.Parallel()
+	handler := testutils.NewTestHandler()
+	adapter := NewLogger(slog.New(handler))
+
+	tests := []struct {
+		name          string
+		logFunc       func(ctx context.Context, msg string, keyvals ...any)
+		expectedLevel slog.Level
+	}{
+		{
+			name:          "error",
+			logFunc:       adapter.ErrorContext,
+			expectedLevel: slog.LevelError,
+		},
+		{
+			name:          "warn",
+			logFunc:       adapter.WarnContext,
+			expectedLevel: slog.LevelWarn,
+		},
+		{
+			name:          "info",
+			logFunc:       adapter.InfoContext,
+			expectedLevel: slog.LevelInfo,
+		},
+		{
+			name:          "debug",
+			logFunc:       adapter.DebugContext,
+			expectedLevel: slog.LevelDebug,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			tc.logFunc(t.Context(), tc.name+" message", "key", "value")
+
+			record := handler.LastRecord()
+			require.NotNil(t, record)
+			assert.Equal(t, tc.name+" message", record.Message)
+			assert.Equal(t, tc.expectedLevel, record.Level)
+
+			attrs := testutils.RecordAttrs(record)
+			assert.Equal(t, "value", attrs["key"])
 		})
 	}
 }

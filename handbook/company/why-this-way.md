@@ -363,6 +363,11 @@ Avoid using too many unnecessary words or superlatives, so your writing is short
  There exists an exceptionally significant rationale that unequivocally warrants refraining from the utilization of an exceptionally vast multitude of gratuitous, superfluous, surplus verbiage, or excessive superlatives when one is tasked with the composition of official documentation that is destined for perusal and comprehension by our distinguished and highly regarded clientele. When the writer in question opts to employ an excessively copious quantity, or even a modicum of superfluous verbiage that, in truth, does not contribute substantively to the essence and signification of the text, it invariably leads to an undue lengthening of the document and an exponentially augmented level of complexity in terms of comprehensibility.
 </blockquote>
 
+## Why roles instead of fully custom RBAC for UI permissions?
+
+Fleet won’t offer fully custom, per-action role-based access control (RBAC) in the UI. Instead, we ship a small set of roles that match real job functions (IT Admin, Security Analyst, Help Desk, etc.). Most teams don’t want to design and maintain a permission matrix. They want clear responsibilities, fast onboarding, simpler audits, and fewer ways to misconfigure access. Opinionated roles keep the product easier to use, document, support, and evolve without breaking bespoke setups.
+
+For strict least-privilege needs, Fleet will provide granular API-only permissions (coming soon). This way, Security teams can issue tightly scoped API tokens for automation and integrations while the UI stays simple and human-friendly.
 
 ## Why does Fleet use "MDM on/off" instead of "MDM enrolled/unenrolled"?
 

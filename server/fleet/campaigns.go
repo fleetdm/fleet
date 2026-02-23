@@ -39,7 +39,7 @@ type DistributedQueryCampaignTarget struct {
 // thus it should be kept as small as possible.
 type DistributedQueryResult struct {
 	// DistributedQueryCampaignID is the unique ID of the live query campaign.
-	DistributedQueryCampaignID uint `json:"distributed_query_execution_id" renameto:"distributed_report_execution_id"`
+	DistributedQueryCampaignID uint `json:"distributed_query_execution_id"`
 	// Host holds the host's data from where the query result comes from.
 	Host  ResultHostData      `json:"host"`
 	Rows  []map[string]string `json:"rows"`

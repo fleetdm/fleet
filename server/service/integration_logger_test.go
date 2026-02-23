@@ -68,10 +68,11 @@ func (s *integrationLoggerTestSuite) TestLogger() {
 
 	s.getConfig()
 
-	params := fleet.QueryPayload{
-		Name:        ptr.String("somequery"),
-		Description: ptr.String("desc"),
-		Query:       ptr.String("select 1 from osquery;"),
+	params := map[string]any{
+		"name":        "somequery",
+		"description": "desc",
+		"query":       "select 1 from osquery;",
+		"fleet_id":    nil,
 	}
 	var createResp createQueryResponse
 	s.DoJSON("POST", "/api/latest/fleet/queries", params, http.StatusOK, &createResp)

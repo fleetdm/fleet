@@ -2,11 +2,11 @@ package goval_dictionary
 
 import (
 	"database/sql"
+	"log/slog"
 	"testing"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/vulnerabilities/oval"
-	kitlog "github.com/go-kit/log"
 	"github.com/stretchr/testify/require"
 )
 
@@ -59,26 +59,26 @@ func TestDatabase(t *testing.T) {
 		}
 	}
 	db := NewDB(sqlite, oval.NewPlatform("amzn", "Amazon Linux 2.0.0"))
-	logger := kitlog.NewNopLogger()
+	logger := slog.New(slog.DiscardHandler)
 
 	t.Run("Non-matching architecture", func(t *testing.T) {
-		require.Len(t, db.Eval([]fleet.Software{{Name: "expat", Version: "2.1.0", Release: "", Arch: "x86_64"}}, logger), 0)
+		require.Len(t, db.Eval(t.Context(), []fleet.Software{{Name: "expat", Version: "2.1.0", Release: "", Arch: "x86_64"}}, logger), 0)
 	})
 
 	t.Run("Non-matching package name", func(t *testing.T) {
-		require.Len(t, db.Eval([]fleet.Software{{Name: "expath", Version: "2.1.0", Release: "", Arch: "aarch64"}}, logger), 0)
+		require.Len(t, db.Eval(t.Context(), []fleet.Software{{Name: "expath", Version: "2.1.0", Release: "", Arch: "aarch64"}}, logger), 0)
 	})
 
 	t.Run("Fixed version", func(t *testing.T) {
-		require.Len(t, db.Eval([]fleet.Software{{Name: "expath", Version: "2.1.0", Release: "15.amzn2.0.3", Arch: "aarch64"}}, logger), 0)
+		require.Len(t, db.Eval(t.Context(), []fleet.Software{{Name: "expath", Version: "2.1.0", Release: "15.amzn2.0.3", Arch: "aarch64"}}, logger), 0)
 	})
 
 	t.Run("Newer than fixed version", func(t *testing.T) {
-		require.Len(t, db.Eval([]fleet.Software{{Name: "expath", Version: "2.1.0", Release: "15.amzn2.0.5", Arch: "aarch64"}}, logger), 0)
+		require.Len(t, db.Eval(t.Context(), []fleet.Software{{Name: "expath", Version: "2.1.0", Release: "15.amzn2.0.5", Arch: "aarch64"}}, logger), 0)
 	})
 
 	t.Run("Older than fixed version", func(t *testing.T) {
-		vulns := db.Eval([]fleet.Software{{Name: "expat", Version: "2.1.0", Release: "", Arch: "aarch64", ID: 123}}, logger)
+		vulns := db.Eval(t.Context(), []fleet.Software{{Name: "expat", Version: "2.1.0", Release: "", Arch: "aarch64", ID: 123}}, logger)
 		require.Len(t, vulns, 2)
 		require.Equal(t, "2.1.0-15.amzn2.0.3", *vulns[0].ResolvedInVersion)
 		require.Equal(t, "2.1.0-15.amzn2.0.3", *vulns[1].ResolvedInVersion)
@@ -89,14 +89,14 @@ func TestDatabase(t *testing.T) {
 	})
 
 	t.Run("Multiple packages, fixed version", func(t *testing.T) {
-		require.Len(t, db.Eval([]fleet.Software{
+		require.Len(t, db.Eval(t.Context(), []fleet.Software{
 			{Name: "expat", Version: "2.1.0", Release: "15.amzn2.1.0", Arch: "aarch64"},
 			{Name: "krb5-server", Version: "1.15.1", Release: "55.amzn2.2.8", Arch: "aarch64"},
 		}, logger), 0)
 	})
 
 	t.Run("Multiple packages, multiple vulnerabilities", func(t *testing.T) {
-		vulns := db.Eval([]fleet.Software{
+		vulns := db.Eval(t.Context(), []fleet.Software{
 			{Name: "expat", Version: "2.1.0", Release: "15.amzn2.0.2", Arch: "aarch64", ID: 234},
 			{Name: "krb5-server", Version: "1.15.1", Release: "55.amzn2.2.7", Arch: "aarch64", ID: 235},
 		}, logger)
