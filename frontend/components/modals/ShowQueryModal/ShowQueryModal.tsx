@@ -21,7 +21,7 @@ const ShowQueryModal = ({
 }: IShowQueryModalProps): JSX.Element => {
   return (
     <Modal
-      title="Query"
+      title="Report"
       onExit={onCancel}
       onEnter={onCancel}
       className={baseClass}
@@ -29,7 +29,7 @@ const ShowQueryModal = ({
       <div className={baseClass}>
         <SQLEditor
           value={query}
-          name="Query"
+          name="Report"
           wrapperClassName={`${baseClass}__text-editor-wrapper`}
           wrapEnabled
           readOnly

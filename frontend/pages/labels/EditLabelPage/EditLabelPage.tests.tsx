@@ -50,7 +50,7 @@ describe("EditLabelPage", () => {
     render(<EditLabelPage {...routerProps} />);
 
     // waiting for the message to render
-    const queryLabel = await screen.findByText("Query");
+    const queryLabel = await screen.findByText("Report");
     const platformLabel = await screen.findByText("Platform");
 
     expect(queryLabel).toBeInTheDocument();

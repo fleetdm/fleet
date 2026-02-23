@@ -111,7 +111,7 @@ const HQRTable = ({
           variant="inverse"
         >
           <>
-            Show query <Icon name="eye" />
+            Show report <Icon name="eye" />
           </>
         </Button>
         <Button

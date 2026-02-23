@@ -45,7 +45,7 @@ const AdvancedOptionsModal = ({
               <SQLEditor
                 readOnly
                 value={preInstallQuery}
-                label="Query"
+                label="Report"
                 name="preInstallQuery"
                 maxLines={10}
                 helpText={
@@ -53,7 +53,7 @@ const AdvancedOptionsModal = ({
                     Software will be installed only if the{" "}
                     <CustomLink
                       className={`${baseClass}__table-link`}
-                      text="query returns results"
+                      text="report returns results"
                       url="https://fleetdm.com/tables"
                       newTab
                     />

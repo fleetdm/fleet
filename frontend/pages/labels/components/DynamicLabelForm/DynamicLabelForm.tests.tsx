@@ -10,7 +10,7 @@ describe("DynamicLabelForm", () => {
   it("should render the Fleet Ace and Select Platform input", () => {
     render(<DynamicLabelForm onSave={noop} onCancel={noop} teamName={null} />);
 
-    expect(screen.getByText("Query")).toBeInTheDocument();
+    expect(screen.getByText("Report")).toBeInTheDocument();
     expect(screen.getByText("All platforms")).toBeInTheDocument();
   });
 

@@ -444,7 +444,7 @@ const NewLabelPage = ({
               onChange={onQueryChange}
               onBlur={onInputBlur}
               value={labelQuery}
-              label="Query"
+              label="Report"
               labelActionComponent={
                 showOpenSidebarButton ? (
                   <Button variant="inverse" onClick={onOpenSidebar}>
