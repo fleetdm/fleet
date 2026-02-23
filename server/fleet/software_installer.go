@@ -1070,6 +1070,9 @@ type SoftwareScopeLabel struct {
 	TitleID   uint   `db:"title_id" json:"-"`  // not rendered in JSON, used to store the associated title ID (may be the empty value in some cases)
 }
 
+// Max total attempts (including initial) for a non-policy software install.
+const MaxSoftwareInstallAttempts = 3
+
 // HostSoftwareInstallOptions contains options that apply to a software or VPP
 // app install request.
 type HostSoftwareInstallOptions struct {
@@ -1079,6 +1082,12 @@ type HostSoftwareInstallOptions struct {
 	// ForScheduledUpdates means the install request is for iOS/iPadOS
 	// scheduled updates, which means it was Fleet-initiated.
 	ForScheduledUpdates bool
+	// UserID is an explicit user ID for retries (overrides context user when set).
+	UserID *uint
+	// WithRetries indicates the install should be retried on failure (up to
+	// MaxSoftwareInstallAttempts total). Set by host details, self-service,
+	// and setup experience install paths.
+	WithRetries bool
 }
 
 // IsFleetInitiated returns true if the software install is initiated by Fleet.

@@ -7,14 +7,26 @@ import (
 	"maps"
 	"slices"
 	"strings"
+	"time"
 
 	"golang.org/x/text/unicode/norm"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	common_mysql "github.com/fleetdm/fleet/v4/server/platform/mysql"
 	"github.com/go-kit/log/level"
 	"github.com/jmoiron/sqlx"
 )
+
+// queryAllowedOrderKeys defines the allowed order keys for ListQueries.
+// SECURITY: This prevents information disclosure via arbitrary column sorting.
+var queryAllowedOrderKeys = common_mysql.OrderKeyAllowlist{
+	"id":         "q.id",
+	"name":       "q.name",
+	"team_id":    "q.team_id",
+	"created_at": "q.created_at",
+	"updated_at": "q.updated_at",
+}
 
 const (
 	statsScheduledQueryType = iota
@@ -243,6 +255,10 @@ func (ds *Datastore) NewQuery(
 	if err := query.Verify(); err != nil {
 		return nil, ctxerr.Wrap(ctx, err)
 	}
+	now := time.Now().UTC().Truncate(time.Second)
+	query.CreatedAt = now
+	query.UpdatedAt = now
+
 	queryStatement := `
 		INSERT INTO queries (
 			name,
@@ -258,8 +274,10 @@ func (ds *Datastore) NewQuery(
 			schedule_interval,
 			automations_enabled,
 			logging_type,
-			discard_data
-		) VALUES ( ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ? )
+			discard_data,
+			created_at,
+			updated_at
+		) VALUES ( ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ? )
 	`
 
 	result, err := ds.writer(ctx).ExecContext(
@@ -279,6 +297,8 @@ func (ds *Datastore) NewQuery(
 		query.AutomationsEnabled,
 		query.Logging,
 		query.DiscardData,
+		query.CreatedAt,
+		query.UpdatedAt,
 	)
 
 	if err != nil && IsDuplicate(err) {
@@ -714,7 +734,10 @@ func (ds *Datastore) ListQueries(ctx context.Context, opt fleet.ListQueryOptions
 		getQueriesCountStmt = fmt.Sprintf("SELECT COUNT(DISTINCT id) AS total, 0 AS inherited FROM (%s) AS s", getQueriesStmt)
 	}
 
-	getQueriesStmt, args = appendListOptionsWithCursorToSQL(getQueriesStmt, args, &opt.ListOptions)
+	getQueriesStmt, args, err = appendListOptionsWithCursorToSQLSecure(getQueriesStmt, args, &opt.ListOptions, queryAllowedOrderKeys)
+	if err != nil {
+		return nil, 0, 0, nil, ctxerr.Wrap(ctx, err, "apply list options")
+	}
 
 	dbReader := ds.reader(ctx)
 	queries = []*fleet.Query{}

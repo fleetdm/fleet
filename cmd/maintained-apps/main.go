@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
+	"log/slog"
 	"os"
 	"path"
 	"slices"
@@ -16,8 +17,6 @@ import (
 	"github.com/fleetdm/fleet/v4/ee/maintained-apps/ingesters/winget"
 	"github.com/fleetdm/fleet/v4/pkg/file"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
-	kitlog "github.com/go-kit/log"
-	"github.com/go-kit/log/level"
 )
 
 func main() {
@@ -25,15 +24,13 @@ func main() {
 	debugPtr := flag.Bool("debug", false, "enable debug logging")
 	flag.Parse()
 	ctx := context.Background()
-	logger := kitlog.NewJSONLogger(os.Stderr)
-	lvl := level.AllowInfo()
+	logLevel := slog.LevelInfo
 	if *debugPtr {
-		lvl = level.AllowDebug()
+		logLevel = slog.LevelDebug
 	}
-	logger = level.NewFilter(logger, lvl)
-	logger = kitlog.With(logger, "ts", kitlog.DefaultTimestampUTC)
+	logger := slog.New(slog.NewJSONHandler(os.Stderr, &slog.HandlerOptions{Level: logLevel}))
 
-	level.Info(logger).Log("msg", "starting maintained app ingestion")
+	logger.InfoContext(ctx, "starting maintained app ingestion")
 
 	ingesters := map[string]maintained_apps.Ingester{
 		"ee/maintained-apps/inputs/homebrew": homebrew.IngestApps,
@@ -49,12 +46,12 @@ func main() {
 		for _, app := range apps {
 
 			if app.IsEmpty() {
-				level.Info(logger).Log("msg", "skipping manifest update due to empty output", "slug", app.Slug)
+				logger.InfoContext(ctx, "skipping manifest update due to empty output", "slug", app.Slug)
 				continue
 			}
 
 			if err := processOutput(ctx, app); err != nil {
-				level.Error(logger).Log("msg", "failed to process maintained app output", "err", err)
+				logger.ErrorContext(ctx, "failed to process maintained app output", "err", err)
 			}
 		}
 	}

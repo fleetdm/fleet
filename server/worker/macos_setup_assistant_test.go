@@ -78,7 +78,7 @@ func TestMacosSetupAssistant(t *testing.T) {
 	require.NoError(t, err)
 	macosJob := &MacosSetupAssistant{
 		Datastore:  ds,
-		Log:        logger,
+		Log:        logger.SlogLogger(),
 		DEPService: apple_mdm.NewDEPService(ds, depStorage, logger.SlogLogger()),
 		DEPClient:  apple_mdm.NewDEPClient(depStorage, ds, logger.SlogLogger()),
 	}
@@ -144,7 +144,7 @@ func TestMacosSetupAssistant(t *testing.T) {
 	err = depStorage.StoreConfig(ctx, org2Name, &nanodep_client.Config{BaseURL: srv.URL})
 	require.NoError(t, err)
 
-	w := NewWorker(ds, logger)
+	w := NewWorker(ds, logger.SlogLogger())
 	w.Register(macosJob)
 
 	runCheckDone := func() {
@@ -166,7 +166,7 @@ func TestMacosSetupAssistant(t *testing.T) {
 	start := time.Now().Truncate(time.Second)
 
 	// enqueue a regenerate all and process the jobs
-	_, err = QueueMacosSetupAssistantJob(ctx, ds, logger, MacosSetupAssistantUpdateAllProfiles, nil)
+	_, err = QueueMacosSetupAssistantJob(ctx, ds, logger.SlogLogger(), MacosSetupAssistantUpdateAllProfiles, nil)
 	require.NoError(t, err)
 	runCheckDone()
 
@@ -209,7 +209,7 @@ func TestMacosSetupAssistant(t *testing.T) {
 	})
 	require.NoError(t, err)
 	require.NotZero(t, tm1Asst.ID)
-	_, err = QueueMacosSetupAssistantJob(ctx, ds, logger, MacosSetupAssistantProfileChanged, &tm1.ID)
+	_, err = QueueMacosSetupAssistantJob(ctx, ds, logger.SlogLogger(), MacosSetupAssistantProfileChanged, &tm1.ID)
 	require.NoError(t, err)
 	runCheckDone()
 
@@ -248,7 +248,7 @@ func TestMacosSetupAssistant(t *testing.T) {
 	tm2, err = ds.SaveTeam(ctx, tm2)
 	require.NoError(t, err)
 
-	_, err = QueueMacosSetupAssistantJob(ctx, ds, logger, MacosSetupAssistantUpdateProfile, &tm2.ID)
+	_, err = QueueMacosSetupAssistantJob(ctx, ds, logger.SlogLogger(), MacosSetupAssistantUpdateProfile, &tm2.ID)
 	require.NoError(t, err)
 	runCheckDone()
 
@@ -278,11 +278,11 @@ func TestMacosSetupAssistant(t *testing.T) {
 	require.NotZero(t, tm3Asst.ID)
 	err = ds.DeleteMDMAppleSetupAssistant(ctx, &tm1.ID)
 	require.NoError(t, err)
-	_, err = QueueMacosSetupAssistantJob(ctx, ds, logger, MacosSetupAssistantProfileChanged, &tm2.ID)
+	_, err = QueueMacosSetupAssistantJob(ctx, ds, logger.SlogLogger(), MacosSetupAssistantProfileChanged, &tm2.ID)
 	require.NoError(t, err)
-	_, err = QueueMacosSetupAssistantJob(ctx, ds, logger, MacosSetupAssistantProfileChanged, &tm3.ID)
+	_, err = QueueMacosSetupAssistantJob(ctx, ds, logger.SlogLogger(), MacosSetupAssistantProfileChanged, &tm3.ID)
 	require.NoError(t, err)
-	_, err = QueueMacosSetupAssistantJob(ctx, ds, logger, MacosSetupAssistantProfileDeleted, &tm1.ID)
+	_, err = QueueMacosSetupAssistantJob(ctx, ds, logger.SlogLogger(), MacosSetupAssistantProfileDeleted, &tm1.ID)
 	require.NoError(t, err)
 	runCheckDone()
 
@@ -300,7 +300,7 @@ func TestMacosSetupAssistant(t *testing.T) {
 	tm2, err = ds.SaveTeam(ctx, tm2)
 	require.NoError(t, err)
 
-	_, err = QueueMacosSetupAssistantJob(ctx, ds, logger, MacosSetupAssistantUpdateProfile, &tm2.ID)
+	_, err = QueueMacosSetupAssistantJob(ctx, ds, logger.SlogLogger(), MacosSetupAssistantUpdateProfile, &tm2.ID)
 	require.NoError(t, err)
 	runCheckDone()
 
@@ -319,9 +319,9 @@ func TestMacosSetupAssistant(t *testing.T) {
 	err = ds.DeleteTeam(ctx, tm2.ID)
 	require.NoError(t, err)
 
-	_, err = QueueMacosSetupAssistantJob(ctx, ds, logger, MacosSetupAssistantHostsTransferred, &tm3.ID, "serial-2", "serial-4")
+	_, err = QueueMacosSetupAssistantJob(ctx, ds, logger.SlogLogger(), MacosSetupAssistantHostsTransferred, &tm3.ID, "serial-2", "serial-4")
 	require.NoError(t, err)
-	_, err = QueueMacosSetupAssistantJob(ctx, ds, logger, MacosSetupAssistantTeamDeleted, nil, "serial-5") // hosts[5] was in team 2
+	_, err = QueueMacosSetupAssistantJob(ctx, ds, logger.SlogLogger(), MacosSetupAssistantTeamDeleted, nil, "serial-5") // hosts[5] was in team 2
 	require.NoError(t, err)
 	runCheckDone()
 
@@ -343,7 +343,7 @@ func TestMacosSetupAssistant(t *testing.T) {
 	require.NoError(t, err)
 	require.NotZero(t, noTmAsst.ID)
 
-	_, err = QueueMacosSetupAssistantJob(ctx, ds, logger, MacosSetupAssistantProfileChanged, nil)
+	_, err = QueueMacosSetupAssistantJob(ctx, ds, logger.SlogLogger(), MacosSetupAssistantProfileChanged, nil)
 	require.NoError(t, err)
 	runCheckDone()
 
@@ -358,7 +358,7 @@ func TestMacosSetupAssistant(t *testing.T) {
 
 	// check that profiles get re-generated (note that timestamps are not
 	// impacted as the content of the profiles did not change)
-	_, err = QueueMacosSetupAssistantJob(ctx, ds, logger, MacosSetupAssistantUpdateAllProfiles, nil)
+	_, err = QueueMacosSetupAssistantJob(ctx, ds, logger.SlogLogger(), MacosSetupAssistantUpdateAllProfiles, nil)
 	require.NoError(t, err)
 	runCheckDone()
 
