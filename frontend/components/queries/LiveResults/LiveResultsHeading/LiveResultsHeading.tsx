@@ -61,8 +61,8 @@ interface ILiveResultsHeadingProps {
   onClickDone: (evt: React.MouseEvent<HTMLButtonElement>) => void;
   onClickRunAgain: (evt: React.MouseEvent<HTMLButtonElement>) => void;
   onClickStop: (evt: React.MouseEvent<HTMLButtonElement>) => void;
-  /** Whether this is a live run of a policy or a query */
-  resultsType?: "query" | "policy";
+  /** Whether this is a live run of a policy or a report */
+  resultsType?: "report" | "policy";
 }
 
 const LiveResultsHeading = ({
@@ -75,7 +75,7 @@ const LiveResultsHeading = ({
   onClickDone,
   onClickRunAgain,
   onClickStop,
-  resultsType = "query",
+  resultsType = "report",
 }: ILiveResultsHeadingProps) => {
   const percentResponded =
     numHostsTargeted > 0
