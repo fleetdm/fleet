@@ -254,34 +254,6 @@ func IssueHadLabel(repo string, issueNumber int, labelName string, verbose bool)
 	return false, nil
 }
 
-// APIIssue represents the JSON structure returned by the GitHub REST API.
-type APIIssue struct {
-	Number      int              `json:"number"`
-	Title       string           `json:"title"`
-	State       string           `json:"state"`
-	CreatedAt   string           `json:"created_at"`
-	UpdatedAt   string           `json:"updated_at"`
-	Body        string           `json:"body"`
-	User        APIUser          `json:"user"`
-	Labels      []APILabel       `json:"labels"`
-	PullRequest *PullRequestInfo `json:"pull_request,omitempty"` // If present, this is a PR not an issue
-}
-
-// PullRequestInfo is used to detect if an item is a PR (issues don't have this field).
-type PullRequestInfo struct {
-	URL string `json:"url"`
-}
-
-// APIUser represents the author in the GitHub REST API response.
-type APIUser struct {
-	Login string `json:"login"`
-}
-
-// APILabel represents a label in the GitHub REST API response.
-type APILabel struct {
-	Name string `json:"name"`
-}
-
 // GetIssuesCreatedSinceWithLabel finds issues created since a given date that had a specific label at any point.
 func GetIssuesCreatedSinceWithLabel(repo string, sinceDate string, labelName string, verbose bool, concurrency int, olderThan int) ([]Issue, error) {
 	if verbose {
@@ -295,6 +267,34 @@ func GetIssuesCreatedSinceWithLabel(repo string, sinceDate string, labelName str
 	perPage := 100
 	sinceTimestamp := sinceDate + "T00:00:00Z"
 
+	// PullRequestInfo is used to detect if an item is a PR (issues don't have this field).
+	type pullRequestInfo struct {
+		URL string `json:"url"`
+	}
+
+	// APIUser represents the author in the GitHub REST API response.
+	type apiUser struct {
+		Login string `json:"login"`
+	}
+
+	// APILabel represents a label in the GitHub REST API response.
+	type apiLabel struct {
+		Name string `json:"name"`
+	}
+
+	// APIIssue represents the JSON structure returned by the GitHub REST API.
+	type apiIssue struct {
+		Number      int              `json:"number"`
+		Title       string           `json:"title"`
+		State       string           `json:"state"`
+		CreatedAt   string           `json:"created_at"`
+		UpdatedAt   string           `json:"updated_at"`
+		Body        string           `json:"body"`
+		User        apiUser          `json:"user"`
+		Labels      []apiLabel       `json:"labels"`
+		PullRequest *pullRequestInfo `json:"pull_request,omitempty"` // If present, this is a PR not an issue
+	}
+
 listLoop:
 	for {
 		command := fmt.Sprintf("gh api repos/%s/issues -X GET -f state=all -f per_page=%d -f page=%d -f sort=created -f direction=desc", repo, perPage, page)
@@ -303,7 +303,7 @@ listLoop:
 			return nil, err
 		}
 
-		var apiIssues []APIIssue
+		var apiIssues []apiIssue
 		err = json.Unmarshal(results, &apiIssues)
 		if err != nil {
 			return nil, err
