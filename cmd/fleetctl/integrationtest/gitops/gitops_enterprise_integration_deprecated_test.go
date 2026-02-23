@@ -19,6 +19,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
 	"github.com/fleetdm/fleet/v4/server/dev_mode"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/platform/logging"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/test"
 	"github.com/go-git/go-git/v5"
@@ -29,6 +30,9 @@ import (
 )
 
 func (s *enterpriseIntegrationGitopsTestSuite) TestDeleteMacOSSetupDeprecated() {
+	os.Setenv("FLEET_ENABLE_LOG_TOPICS", logging.DeprecatedFieldTopic)
+	defer os.Unsetenv("FLEET_ENABLE_LOG_TOPICS")
+
 	t := s.T()
 
 	user := s.createGitOpsUser(t)
@@ -146,6 +150,9 @@ team_settings:
 }
 
 func (s *enterpriseIntegrationGitopsTestSuite) TestUnsetConfigurationProfileLabelsDeprecated() {
+	os.Setenv("FLEET_ENABLE_LOG_TOPICS", logging.DeprecatedFieldTopic)
+	defer os.Unsetenv("FLEET_ENABLE_LOG_TOPICS")
+
 	t := s.T()
 	ctx := context.Background()
 
@@ -269,6 +276,9 @@ team_settings:
 }
 
 func (s *enterpriseIntegrationGitopsTestSuite) TestUnsetSoftwareInstallerLabelsDeprecated() {
+	os.Setenv("FLEET_ENABLE_LOG_TOPICS", logging.DeprecatedFieldTopic)
+	defer os.Unsetenv("FLEET_ENABLE_LOG_TOPICS")
+
 	t := s.T()
 	ctx := context.Background()
 
@@ -415,6 +425,9 @@ team_settings:
 }
 
 func (s *enterpriseIntegrationGitopsTestSuite) TestNoTeamWebhookSettingsDeprecated() {
+	os.Setenv("FLEET_ENABLE_LOG_TOPICS", logging.DeprecatedFieldTopic)
+	defer os.Unsetenv("FLEET_ENABLE_LOG_TOPICS")
+
 	t := s.T()
 	ctx := t.Context()
 
@@ -680,6 +693,9 @@ team_settings:
 }
 
 func (s *enterpriseIntegrationGitopsTestSuite) TestMacOSSetupDeprecated() {
+	os.Setenv("FLEET_ENABLE_LOG_TOPICS", logging.DeprecatedFieldTopic)
+	defer os.Unsetenv("FLEET_ENABLE_LOG_TOPICS")
+
 	t := s.T()
 	ctx := context.Background()
 
@@ -819,6 +835,9 @@ team_settings:
 }
 
 func (s *enterpriseIntegrationGitopsTestSuite) TestIPASoftwareInstallersDeprecated() {
+	os.Setenv("FLEET_ENABLE_LOG_TOPICS", logging.DeprecatedFieldTopic)
+	defer os.Unsetenv("FLEET_ENABLE_LOG_TOPICS")
+
 	t := s.T()
 	ctx := context.Background()
 
@@ -1032,6 +1051,9 @@ team_settings:
 // TestGitOpsSoftwareDisplayNameDeprecated tests that display names for software packages and VPP apps
 // are properly applied via GitOps.
 func (s *enterpriseIntegrationGitopsTestSuite) TestGitOpsSoftwareDisplayNameDeprecated() {
+	os.Setenv("FLEET_ENABLE_LOG_TOPICS", logging.DeprecatedFieldTopic)
+	defer os.Unsetenv("FLEET_ENABLE_LOG_TOPICS")
+
 	t := s.T()
 	ctx := context.Background()
 
@@ -1150,6 +1172,9 @@ team_settings:
 // TestGitOpsSoftwareIconsDeprecated tests that custom icons for software packages
 // and fleet maintained apps are properly applied via GitOps.
 func (s *enterpriseIntegrationGitopsTestSuite) TestGitOpsSoftwareIconsDeprecated() {
+	os.Setenv("FLEET_ENABLE_LOG_TOPICS", logging.DeprecatedFieldTopic)
+	defer os.Unsetenv("FLEET_ENABLE_LOG_TOPICS")
+
 	t := s.T()
 	ctx := context.Background()
 
@@ -1335,6 +1360,9 @@ team_settings:
 }
 
 func (s *enterpriseIntegrationGitopsTestSuite) TestGitOpsTeamLabelsDeprecated() {
+	os.Setenv("FLEET_ENABLE_LOG_TOPICS", logging.DeprecatedFieldTopic)
+	defer os.Unsetenv("FLEET_ENABLE_LOG_TOPICS")
+
 	t := s.T()
 	ctx := context.Background()
 
@@ -1526,6 +1554,9 @@ labels:
 // TestGitOpsTeamLabelsMultipleReposDeprecated tests a gitops setup where every team runs from an independent repo.
 // Multiple repos are simulated by copying over the example repository multiple times.
 func (s *enterpriseIntegrationGitopsTestSuite) TestGitOpsTeamLabelsMultipleReposDeprecated() {
+	os.Setenv("FLEET_ENABLE_LOG_TOPICS", logging.DeprecatedFieldTopic)
+	defer os.Unsetenv("FLEET_ENABLE_LOG_TOPICS")
+
 	t := s.T()
 	ctx := context.Background()
 
