@@ -1177,7 +1177,7 @@ func (svc *Service) authorizeHostSourceTeams(ctx context.Context, dstTeamID *uin
 	var noTeam bool
 	for _, h := range hosts {
 		srcTeamID := h.TeamID
-		if (srcTeamID == nil) == (dstTeamID == nil) && (srcTeamID == nil || *srcTeamID == *dstTeamID) {
+		if srcTeamID == nil && dstTeamID == nil || (srcTeamID != nil && dstTeamID != nil && *srcTeamID == *dstTeamID) {
 			// noop: host is already in the destination team
 			continue
 		}

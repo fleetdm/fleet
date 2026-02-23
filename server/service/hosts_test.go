@@ -1908,7 +1908,7 @@ func TestAddHostsToTeamByFilterSourceTeamAuth(t *testing.T) {
 		}
 
 		userCtx := test.UserContext(ctx, test.UserTeamMaintainerTeam1)
-		emptyFilter := &map[string]interface{}{}
+		emptyFilter := &map[string]any{}
 		err := svc.AddHostsToTeamByFilter(userCtx, ptr.Uint(1), emptyFilter)
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "forbidden")
@@ -1924,7 +1924,7 @@ func TestAddHostsToTeamByFilterSourceTeamAuth(t *testing.T) {
 		}
 
 		userCtx := test.UserContext(ctx, test.UserAdmin)
-		emptyFilter := &map[string]interface{}{}
+		emptyFilter := &map[string]any{}
 		err := svc.AddHostsToTeamByFilter(userCtx, ptr.Uint(1), emptyFilter)
 		require.NoError(t, err)
 		assert.True(t, ds.AddHostsToTeamFuncInvoked)
