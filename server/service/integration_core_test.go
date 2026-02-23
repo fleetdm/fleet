@@ -346,6 +346,10 @@ func (s *integrationTestSuite) TestQueryCreationLogsActivity() {
 	var createQueryResp createQueryResponse
 	s.DoJSON("POST", "/api/latest/fleet/queries", &params, http.StatusOK, &createQueryResp)
 	defer s.cleanupQuery(createQueryResp.Query.ID)
+	assert.False(t, createQueryResp.Query.CreatedAt.IsZero())
+	assert.WithinDuration(t, time.Now(), createQueryResp.Query.CreatedAt, time.Minute)
+	assert.False(t, createQueryResp.Query.UpdatedAt.IsZero())
+	assert.WithinDuration(t, time.Now(), createQueryResp.Query.UpdatedAt, time.Minute)
 
 	activities := listActivitiesResponse{}
 	s.DoJSON("GET", "/api/latest/fleet/activities", nil, http.StatusOK, &activities)

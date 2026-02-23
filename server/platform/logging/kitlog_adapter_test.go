@@ -107,6 +107,7 @@ func TestKitlogAdapterLevels(t *testing.T) {
 }
 
 func TestKitlogSlogWrappers(t *testing.T) {
+	t.Parallel()
 	handler := testutils.NewTestHandler()
 	adapter := NewLogger(slog.New(handler))
 
@@ -139,9 +140,7 @@ func TestKitlogSlogWrappers(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			t.Parallel()
-
-			tc.logFunc(context.Background(), tc.name+" message", "key", "value")
+			tc.logFunc(t.Context(), tc.name+" message", "key", "value")
 
 			record := handler.LastRecord()
 			require.NotNil(t, record)

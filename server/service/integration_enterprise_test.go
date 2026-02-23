@@ -14522,6 +14522,26 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareInstallerHostRequests() {
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", h3.ID), nil, http.StatusOK, &hostRespFailed)
 	require.False(t, hostRespFailed.Host.RefetchRequested, "RefetchRequested should be false after failed software install")
 
+	// Exhaust automatic retries for h3 so it reaches terminal "failed" state.
+	// Server-side retries queue up to MaxSoftwareInstallAttempts attempts.
+	for attempt := 2; attempt <= fleet.MaxSoftwareInstallAttempts; attempt++ {
+		getHostSoftwareResp = getHostSoftwareResponse{}
+		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/software", h3.ID), nil, http.StatusOK, &getHostSoftwareResp)
+		require.Len(t, getHostSoftwareResp.Software, 1)
+		require.NotNil(t, getHostSoftwareResp.Software[0].SoftwarePackage)
+		require.NotNil(t, getHostSoftwareResp.Software[0].SoftwarePackage.LastInstall)
+		retryUUID := getHostSoftwareResp.Software[0].SoftwarePackage.LastInstall.InstallUUID
+		require.NotEqual(t, installUUID3, retryUUID, "retry should have a new install UUID (attempt %d)", attempt)
+		s.Do("POST", "/api/fleet/orbit/software_install/result", json.RawMessage(fmt.Sprintf(`{
+				"orbit_node_key": %q,
+				"install_uuid": %q,
+				"pre_install_condition_output": "ok",
+				"install_script_exit_code": 1,
+				"install_script_output": "retry %d failed"
+			}`, *h3.OrbitNodeKey, retryUUID, attempt)), http.StatusNoContent)
+		installUUID3 = retryUUID
+	}
+
 	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/software/%d/install", h4.ID, titleID), nil, http.StatusAccepted, &resp)
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/software", h4.ID), nil, http.StatusOK, &getHostSoftwareResp)
 	require.Len(t, getHostSoftwareResp.Software, 1)
@@ -14536,6 +14556,23 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareInstallerHostRequests() {
 	var hostRespPreInstallFailed getHostResponse
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", h4.ID), nil, http.StatusOK, &hostRespPreInstallFailed)
 	require.False(t, hostRespPreInstallFailed.Host.RefetchRequested, "RefetchRequested should be false after failed pre-install condition")
+
+	// Exhaust automatic retries for h4 so it reaches terminal "failed" state.
+	for attempt := 2; attempt <= fleet.MaxSoftwareInstallAttempts; attempt++ {
+		getHostSoftwareResp = getHostSoftwareResponse{}
+		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/software", h4.ID), nil, http.StatusOK, &getHostSoftwareResp)
+		require.Len(t, getHostSoftwareResp.Software, 1)
+		require.NotNil(t, getHostSoftwareResp.Software[0].SoftwarePackage)
+		require.NotNil(t, getHostSoftwareResp.Software[0].SoftwarePackage.LastInstall)
+		retryUUID := getHostSoftwareResp.Software[0].SoftwarePackage.LastInstall.InstallUUID
+		require.NotEqual(t, installUUID4a, retryUUID, "retry should have a new install UUID (attempt %d)", attempt)
+		s.Do("POST", "/api/fleet/orbit/software_install/result", json.RawMessage(fmt.Sprintf(`{
+				"orbit_node_key": %q,
+				"install_uuid": %q,
+				"pre_install_condition_output": ""
+			}`, *h4.OrbitNodeKey, retryUUID)), http.StatusNoContent)
+		installUUID4a = retryUUID
+	}
 
 	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/software/%d/install", h4.ID, titleID), nil, http.StatusAccepted, &resp)
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/software", h4.ID), nil, http.StatusOK, &getHostSoftwareResp)
@@ -17921,6 +17958,247 @@ func (s *integrationEnterpriseTestSuite) TestPolicyAutomationSoftwareInstallRetr
 	require.GreaterOrEqual(t, attemptCounts.ZeroCount, 5, "should have at least 5 rows with attempt_number=0 (old sequences)")
 	require.Equal(t, 1, attemptCounts.PositiveCount, "should have exactly 1 row with attempt_number > 0 (new sequence)")
 	require.Equal(t, 1, attemptCounts.NullCount, "should have exactly 1 row with attempt_number IS NULL (pending)")
+}
+
+func (s *integrationEnterpriseTestSuite) TestNonPolicySoftwareInstallRetries() {
+	t := s.T()
+	ctx := context.Background()
+
+	team, err := s.ds.NewTeam(ctx, &fleet.Team{Name: t.Name()})
+	require.NoError(t, err)
+
+	host, err := s.ds.NewHost(ctx, &fleet.Host{
+		DetailUpdatedAt: time.Now(),
+		LabelUpdatedAt:  time.Now(),
+		PolicyUpdatedAt: time.Now(),
+		SeenTime:        time.Now().Add(-1 * time.Minute),
+		OsqueryHostID:   ptr.String(t.Name()),
+		NodeKey:         ptr.String(t.Name()),
+		UUID:            uuid.New().String(),
+		Hostname:        fmt.Sprintf("%s.local", t.Name()),
+		Platform:        "darwin",
+		TeamID:          &team.ID,
+	})
+	require.NoError(t, err)
+	orbitKey := setOrbitEnrollment(t, host, s.ds)
+	host.OrbitNodeKey = &orbitKey
+
+	pkgPayload := &fleet.UploadSoftwareInstallerPayload{
+		InstallScript: "install script",
+		Filename:      "dummy_installer.pkg",
+		TeamID:        &team.ID,
+	}
+	s.uploadSoftwareInstaller(t, pkgPayload, http.StatusOK, "")
+
+	var resp listSoftwareTitlesResponse
+	s.DoJSON("GET", "/api/latest/fleet/software/titles", listSoftwareTitlesRequest{},
+		http.StatusOK, &resp, "query", "DummyApp", "team_id", fmt.Sprintf("%d", team.ID))
+	require.Len(t, resp.SoftwareTitles, 1)
+	require.NotNil(t, resp.SoftwareTitles[0].SoftwarePackage)
+	softwareTitleID := resp.SoftwareTitles[0].ID
+
+	var installerID uint
+	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q, &installerID,
+			`SELECT id FROM software_installers WHERE global_or_team_id = ? AND filename = ?`,
+			team.ID, "dummy_installer.pkg")
+	})
+	require.NotZero(t, installerID)
+
+	getPendingInstall := func() *fleet.HostSoftwareInstallerResult {
+		var results []*fleet.HostSoftwareInstallerResult
+		mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+			return sqlx.SelectContext(ctx, q, &results, `
+				SELECT
+					id,
+					execution_id,
+					host_id,
+					software_installer_id,
+					self_service,
+					install_script_exit_code,
+					attempt_number
+				FROM host_software_installs
+				WHERE host_id = ? AND install_script_exit_code IS NULL AND policy_id IS NULL
+				ORDER BY id ASC
+			`, host.ID)
+		})
+		if len(results) == 0 {
+			return nil
+		}
+		return results[0]
+	}
+	submitInstallResult := func(installUUID string, exitCode int) {
+		s.Do("POST", "/api/fleet/orbit/software_install/result", json.RawMessage(
+			fmt.Sprintf(`{
+				"orbit_node_key": %q,
+				"install_uuid": %q,
+				"install_script_exit_code": %d,
+				"install_script_output": "install output"
+			}`, *host.OrbitNodeKey, installUUID, exitCode),
+		), http.StatusNoContent)
+	}
+	getInstallResults := func() []*fleet.HostSoftwareInstallerResult {
+		var results []*fleet.HostSoftwareInstallerResult
+		mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+			return sqlx.SelectContext(ctx, q, &results, `
+				SELECT id, execution_id, host_id, software_installer_id, self_service,
+					install_script_exit_code, attempt_number
+				FROM host_software_installs
+				WHERE host_id = ? AND software_installer_id = ? AND policy_id IS NULL
+				ORDER BY id ASC
+			`, host.ID, installerID)
+		})
+		return results
+	}
+	countActivities := func() int {
+		var count int
+		mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+			return sqlx.GetContext(ctx, q, &count, `
+				SELECT COUNT(*)
+				FROM activities
+				WHERE activity_type = 'installed_software'
+					AND JSON_EXTRACT(details, '$.host_id') = ?
+					AND JSON_EXTRACT(details, '$.status') = 'failed_install'
+			`, host.ID)
+		})
+		return count
+	}
+
+	// Trigger install from host details (admin-initiated, non-policy)
+	s.Do("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/software/%d/install", host.ID, softwareTitleID),
+		nil, http.StatusAccepted)
+
+	// Wait for install to be queued
+	require.EventuallyWithT(t, func(t *assert.CollectT) {
+		pendingInstall := getPendingInstall()
+		assert.NotNil(t, pendingInstall, "install should be queued")
+	}, 5*time.Second, 100*time.Millisecond)
+
+	// Fail the first attempt
+	pendingInstall := getPendingInstall()
+	require.NotNil(t, pendingInstall)
+	installUUID1 := pendingInstall.InstallUUID
+	submitInstallResult(installUUID1, 1)
+
+	// Verify attempt 1 and retry queued
+	require.EventuallyWithT(t, func(t *assert.CollectT) {
+		results := getInstallResults()
+		assert.GreaterOrEqual(t, len(results), 2, "should have completed attempt and pending retry")
+		if len(results) >= 2 {
+			assert.NotNil(t, results[0].AttemptNumber)
+			assert.Equal(t, 1, *results[0].AttemptNumber)
+			assert.NotNil(t, results[0].InstallScriptExitCode)
+			assert.Nil(t, results[1].InstallScriptExitCode)
+		}
+	}, 5*time.Second, 100*time.Millisecond)
+
+	// Activity created for each failure
+	require.EventuallyWithT(t, func(t *assert.CollectT) {
+		assert.Equal(t, 1, countActivities(), "activity should be created for attempt 1")
+	}, 5*time.Second, 100*time.Millisecond)
+
+	// Wait for pending retry
+	require.EventuallyWithT(t, func(t *assert.CollectT) {
+		pendingInstall := getPendingInstall()
+		assert.NotNil(t, pendingInstall)
+		if pendingInstall != nil {
+			assert.NotEqual(t, installUUID1, pendingInstall.InstallUUID)
+		}
+	}, 5*time.Second, 100*time.Millisecond)
+
+	// Fail attempt 2
+	pendingInstall = getPendingInstall()
+	require.NotNil(t, pendingInstall)
+	installUUID2 := pendingInstall.InstallUUID
+	submitInstallResult(installUUID2, 1)
+
+	// Verify attempt 2 and retry queued
+	require.EventuallyWithT(t, func(t *assert.CollectT) {
+		results := getInstallResults()
+		assert.GreaterOrEqual(t, len(results), 3)
+		if len(results) >= 3 {
+			assert.NotNil(t, results[1].AttemptNumber)
+			assert.Equal(t, 2, *results[1].AttemptNumber)
+			assert.Nil(t, results[2].InstallScriptExitCode)
+		}
+	}, 5*time.Second, 100*time.Millisecond)
+	require.Equal(t, 2, countActivities())
+
+	// Wait for second retry
+	require.EventuallyWithT(t, func(t *assert.CollectT) {
+		pendingInstall := getPendingInstall()
+		assert.NotNil(t, pendingInstall)
+	}, 5*time.Second, 100*time.Millisecond)
+
+	// Fail attempt 3 (final)
+	pendingInstall = getPendingInstall()
+	require.NotNil(t, pendingInstall)
+	installUUID3 := pendingInstall.InstallUUID
+	submitInstallResult(installUUID3, 1)
+
+	// Verify attempt 3 is final — no more retries
+	results := getInstallResults()
+	require.Len(t, results, 3, "should have exactly 3 completed attempts")
+	require.NotNil(t, results[2].AttemptNumber)
+	require.Equal(t, 3, *results[2].AttemptNumber)
+	require.NotNil(t, results[2].InstallScriptExitCode)
+
+	// All 3 attempts create activities
+	require.EventuallyWithT(t, func(t *assert.CollectT) {
+		assert.Equal(t, 3, countActivities(), "activity should be created for each attempt")
+	}, 5*time.Second, 100*time.Millisecond)
+
+	// No more retries
+	time.Sleep(2 * time.Second)
+	pendingInstall = getPendingInstall()
+	require.Nil(t, pendingInstall)
+
+	// Verify exactly 3 attempts
+	results = getInstallResults()
+	require.Len(t, results, 3)
+	require.Equal(t, 1, *results[0].AttemptNumber)
+	require.Equal(t, 2, *results[1].AttemptNumber)
+	require.Equal(t, 3, *results[2].AttemptNumber)
+
+	// Manual re-install resets retry count
+	s.Do("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/software/%d/install", host.ID, softwareTitleID),
+		nil, http.StatusAccepted)
+
+	require.EventuallyWithT(t, func(t *assert.CollectT) {
+		pendingInstall := getPendingInstall()
+		assert.NotNil(t, pendingInstall)
+	}, 5*time.Second, 100*time.Millisecond)
+
+	// Fail the new first attempt
+	pendingInstall = getPendingInstall()
+	require.NotNil(t, pendingInstall)
+	submitInstallResult(pendingInstall.InstallUUID, 1)
+
+	// Verify retry is queued (fresh sequence starts at attempt 1)
+	require.EventuallyWithT(t, func(t *assert.CollectT) {
+		results := getInstallResults()
+		// Find the last completed result
+		for i := len(results) - 1; i >= 0; i-- {
+			if results[i].InstallScriptExitCode != nil {
+				assert.NotNil(t, results[i].AttemptNumber)
+				assert.Equal(t, 1, *results[i].AttemptNumber, "fresh sequence should start at attempt 1")
+				break
+			}
+		}
+		// Should have a pending retry
+		pendingInstall := getPendingInstall()
+		assert.NotNil(t, pendingInstall, "retry should be queued for fresh sequence")
+	}, 5*time.Second, 100*time.Millisecond)
+
+	// Succeed the retry
+	pendingInstall = getPendingInstall()
+	require.NotNil(t, pendingInstall)
+	submitInstallResult(pendingInstall.InstallUUID, 0) // exit code 0 = success
+
+	// No more retries after success
+	time.Sleep(2 * time.Second)
+	pendingInstall = getPendingInstall()
+	require.Nil(t, pendingInstall)
 }
 
 func (s *integrationEnterpriseTestSuite) TestPolicyAutomationsSoftwareInstallersLabelScoping() {
