@@ -21,7 +21,7 @@ const ShowQueryModal = ({
 }: IShowQueryModalProps): JSX.Element => {
   return (
     <Modal
-      title="Report"
+      title="Query"
       onExit={onCancel}
       onEnter={onCancel}
       className={baseClass}

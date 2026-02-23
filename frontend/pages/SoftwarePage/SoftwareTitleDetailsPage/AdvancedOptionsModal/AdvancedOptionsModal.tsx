@@ -53,7 +53,7 @@ const AdvancedOptionsModal = ({
                     Software will be installed only if the{" "}
                     <CustomLink
                       className={`${baseClass}__table-link`}
-                      text="report returns results"
+                      text="query returns results"
                       url="https://fleetdm.com/tables"
                       newTab
                     />
