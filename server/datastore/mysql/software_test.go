@@ -1300,7 +1300,7 @@ func testSoftwareSyncHostsSoftware(t *testing.T, ds *Datastore) {
 	cmpNameVersionCount(want, team1Counts)
 
 	// composite pk (software_id, team_id, global_stats), so we expect more rows
-	checkTableTotalCount(11)
+	checkTableTotalCount(10)
 
 	soft1ByID, err := ds.SoftwareByID(context.Background(), host1.HostSoftware.Software[0].ID, &team1.ID, false, nil)
 	require.NoError(t, err)
@@ -1346,7 +1346,7 @@ func testSoftwareSyncHostsSoftware(t *testing.T, ds *Datastore) {
 	}
 	cmpNameVersionCount(want, team2Counts)
 
-	checkTableTotalCount(9)
+	checkTableTotalCount(8)
 
 	// update host4 (team2), remove all software and delete team
 	software4 = []fleet.Software{}
@@ -1384,7 +1384,7 @@ func testSoftwareSyncHostsSoftware(t *testing.T, ds *Datastore) {
 	cmpNameVersionCount(want, team1Counts)
 
 	listSoftwareCheckCount(t, ds, 0, 0, team2Opts, false)
-	checkTableTotalCount(8)
+	checkTableTotalCount(7)
 }
 
 // softwareChecksumComputedColumn computes the checksum for a software entry

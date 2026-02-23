@@ -724,9 +724,8 @@ GROUP BY s.id`
 // table.
 func (ds *Datastore) SyncHostsSoftwareTitles(ctx context.Context, updatedAt time.Time) error {
 	const (
-		resetStmt = `
-            UPDATE software_titles_host_counts
-            SET hosts_count = 0, updated_at = ?`
+		swapTable       = "software_titles_host_counts_swap"
+		swapTableCreate = "CREATE TABLE IF NOT EXISTS " + swapTable + " LIKE software_titles_host_counts"
 
 		globalCountsStmt = `
             SELECT
@@ -766,7 +765,7 @@ func (ds *Datastore) SyncHostsSoftwareTitles(ctx context.Context, updatedAt time
 			GROUP BY st.id`
 
 		insertStmt = `
-            INSERT INTO software_titles_host_counts
+            INSERT INTO ` + swapTable + `
                 (software_title_id, hosts_count, team_id, global_stats, updated_at)
             VALUES
                 %s
@@ -775,30 +774,18 @@ func (ds *Datastore) SyncHostsSoftwareTitles(ctx context.Context, updatedAt time
                 updated_at = VALUES(updated_at)`
 
 		valuesPart = `(?, ?, ?, ?, ?),`
-
-		cleanupOrphanedStmt = `
-            DELETE sthc
-            FROM
-                software_titles_host_counts sthc
-                LEFT JOIN software_titles st ON st.id = sthc.software_title_id
-            WHERE
-                st.id IS NULL`
-
-		cleanupTeamStmt = `
-            DELETE sthc
-            FROM software_titles_host_counts sthc
-            LEFT JOIN teams t ON t.id = sthc.team_id
-            WHERE
-                sthc.team_id > 0 AND
-                t.id IS NULL`
 	)
 
-	// first, reset all counts to 0
-	if _, err := ds.writer(ctx).ExecContext(ctx, resetStmt, updatedAt); err != nil {
-		return ctxerr.Wrap(ctx, err, "reset all software_titles_host_counts to 0")
+	// Create a fresh swap table to populate with new counts. If a previous run left a partial swap table, drop it first.
+	w := ds.writer(ctx)
+	if _, err := w.ExecContext(ctx, "DROP TABLE IF EXISTS "+swapTable); err != nil {
+		return ctxerr.Wrap(ctx, err, "drop existing swap table")
+	}
+	if _, err := w.ExecContext(ctx, swapTableCreate); err != nil {
+		return ctxerr.Wrap(ctx, err, "create swap table")
 	}
 
-	// next get a cursor for the global and team counts for each software
+	// Get a cursor for the global and team counts for each software title.
 	stmtLabel := []string{"global", "team", "no_team"}
 	for i, countStmt := range []string{globalCountsStmt, teamCountsStmt, noTeamCountsStmt} {
 		rows, err := ds.reader(ctx).QueryContext(ctx, countStmt)
@@ -850,16 +837,25 @@ func (ds *Datastore) SyncHostsSoftwareTitles(ctx context.Context, updatedAt time
 		rows.Close()
 	}
 
-	// remove any software count row for software that don't exist anymore
-	if _, err := ds.writer(ctx).ExecContext(ctx, cleanupOrphanedStmt); err != nil {
-		return ctxerr.Wrap(ctx, err, "delete software_titles_host_counts for non-existing software")
-	}
-
-	// remove any software count row for teams that don't exist anymore
-	if _, err := ds.writer(ctx).ExecContext(ctx, cleanupTeamStmt); err != nil {
-		return ctxerr.Wrap(ctx, err, "delete software_titles_host_counts for non-existing teams")
-	}
-	return nil
+	// Atomic table swap: rename the swap table to the real table, drop the old one.
+	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		_, err := tx.ExecContext(ctx, "DROP TABLE IF EXISTS software_titles_host_counts_old")
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "drop leftover old table")
+		}
+		_, err = tx.ExecContext(ctx, `
+			RENAME TABLE
+				software_titles_host_counts TO software_titles_host_counts_old,
+				`+swapTable+` TO software_titles_host_counts`)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "atomic table swap")
+		}
+		_, err = tx.ExecContext(ctx, "DROP TABLE IF EXISTS software_titles_host_counts_old")
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "drop old table after swap")
+		}
+		return nil
+	})
 }
 
 func (ds *Datastore) UpdateSoftwareTitleAutoUpdateConfig(ctx context.Context, titleID uint, teamID uint, config fleet.SoftwareAutoUpdateConfig) error {

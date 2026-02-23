@@ -2620,9 +2620,8 @@ func (ds *Datastore) SoftwareByID(ctx context.Context, id uint, teamID *uint, in
 // on removed hosts, software uninstalled on hosts, etc.)
 func (ds *Datastore) SyncHostsSoftware(ctx context.Context, updatedAt time.Time) error {
 	const (
-		resetStmt = `
-      UPDATE software_host_counts
-      SET hosts_count = 0, updated_at = ?`
+		swapTable       = "software_host_counts_swap"
+		swapTableCreate = "CREATE TABLE IF NOT EXISTS " + swapTable + " LIKE software_host_counts"
 
 		// team_id is added to the select list to have the same structure as
 		// the teamCountsStmt, making it easier to use a common implementation
@@ -2649,7 +2648,7 @@ func (ds *Datastore) SyncHostsSoftware(ctx context.Context, updatedAt time.Time)
       GROUP BY hs.software_id`
 
 		insertStmt = `
-      INSERT INTO software_host_counts
+      INSERT INTO ` + swapTable + `
         (software_id, hosts_count, team_id, global_stats, updated_at)
       VALUES
         %s
@@ -2668,33 +2667,18 @@ func (ds *Datastore) SyncHostsSoftware(ctx context.Context, updatedAt time.Time)
       LEFT JOIN software_host_counts shc
       ON s.id = shc.software_id
       WHERE
-        (shc.software_id IS NULL OR
-        (shc.team_id = 0 AND shc.hosts_count = 0)) AND
-		NOT EXISTS (SELECT 1 FROM host_software hsw WHERE hsw.software_id = s.id)
+        shc.software_id IS NULL AND
+        NOT EXISTS (SELECT 1 FROM host_software hsw WHERE hsw.software_id = s.id)
 	  `
-
-		cleanupOrphanedStmt = `
-		  DELETE shc
-		  FROM
-		    software_host_counts shc
-		    LEFT JOIN software s ON s.id = shc.software_id
-		  WHERE
-		    s.id IS NULL
-		`
-
-		cleanupTeamStmt = `
-      DELETE shc
-      FROM software_host_counts shc
-      LEFT JOIN teams t
-      ON t.id = shc.team_id
-      WHERE
-        shc.team_id > 0 AND
-        t.id IS NULL`
 	)
 
-	// first, reset all counts to 0
-	if _, err := ds.writer(ctx).ExecContext(ctx, resetStmt, updatedAt); err != nil {
-		return ctxerr.Wrap(ctx, err, "reset all software_host_counts to 0")
+	// Create a fresh swap table to populate with new counts. If a previous run left a partial swap table, drop it first.
+	w := ds.writer(ctx)
+	if _, err := w.ExecContext(ctx, "DROP TABLE IF EXISTS "+swapTable); err != nil {
+		return ctxerr.Wrap(ctx, err, "drop existing swap table")
+	}
+	if _, err := w.ExecContext(ctx, swapTableCreate); err != nil {
+		return ctxerr.Wrap(ctx, err, "create swap table")
 	}
 
 	db := ds.reader(ctx)
@@ -2772,19 +2756,32 @@ func (ds *Datastore) SyncHostsSoftware(ctx context.Context, updatedAt time.Time)
 
 	}
 
-	// remove any unused software (global counts = 0)
+	// Atomic table swap: rename the swap table to the real table, drop the old one.
+	// Also drop any leftover old table from a previous failed swap.
+	if err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		_, err := tx.ExecContext(ctx, "DROP TABLE IF EXISTS software_host_counts_old")
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "drop leftover old table")
+		}
+		_, err = tx.ExecContext(ctx, `
+			RENAME TABLE
+				software_host_counts TO software_host_counts_old,
+				`+swapTable+` TO software_host_counts`)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "atomic table swap")
+		}
+		_, err = tx.ExecContext(ctx, "DROP TABLE IF EXISTS software_host_counts_old")
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "drop old table after swap")
+		}
+		return nil
+	}); err != nil {
+		return err
+	}
+
+	// Remove any unused software (those not in host_software).
 	if _, err := ds.writer(ctx).ExecContext(ctx, cleanupSoftwareStmt); err != nil {
 		return ctxerr.Wrap(ctx, err, "delete unused software")
-	}
-
-	// remove any software count row for software that don't exist anymore
-	if _, err := ds.writer(ctx).ExecContext(ctx, cleanupOrphanedStmt); err != nil {
-		return ctxerr.Wrap(ctx, err, "delete software_host_counts for non-existing software")
-	}
-
-	// remove any software count row for teams that don't exist anymore
-	if _, err := ds.writer(ctx).ExecContext(ctx, cleanupTeamStmt); err != nil {
-		return ctxerr.Wrap(ctx, err, "delete software_host_counts for non-existing teams")
 	}
 	return nil
 }
