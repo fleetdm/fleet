@@ -1531,14 +1531,24 @@ func (svc *Service) SaveHostSoftwareInstallResult(ctx context.Context, result *f
 		return nil
 	}
 
-	// Calculate attempt_number for policy automation retries by counting existing attempts
-	attemptNumber, err := svc.getPolicyAutomationSoftwareInstallerAttemptNumber(ctx, host, result.InstallUUID)
+	// Calculate attempt_number for retries by counting existing attempts
+	attemptNumber, err := svc.getSoftwareInstallerAttemptNumber(ctx, host, result.InstallUUID)
 	if err != nil {
 		return err
 	}
 
+	// Check if a non-policy install failure will be retried so we can skip
+	// updating setup experience status during intermediate retries.
+	willRetryNonPolicyOnFailure := false
+	if attemptNumber != nil && *attemptNumber < fleet.MaxSoftwareInstallAttempts && result.Status() == fleet.SoftwareInstallFailed {
+		currentInstall, checkErr := svc.ds.GetSoftwareInstallResults(ctx, result.InstallUUID)
+		if checkErr == nil && currentInstall != nil && currentInstall.PolicyID == nil {
+			willRetryNonPolicyOnFailure = true
+		}
+	}
+
 	var fromSetupExperience bool
-	if fleet.IsSetupExperienceSupported(host.Platform) {
+	if fleet.IsSetupExperienceSupported(host.Platform) && !willRetryNonPolicyOnFailure {
 		// This might be a setup experience software install result, so we attempt to update the
 		// "Setup experience" status for that item.
 		hostUUID, err := fleet.HostUUIDForSetupExperience(host)
@@ -1624,6 +1634,33 @@ func (svc *Service) SaveHostSoftwareInstallResult(ctx context.Context, result *f
 			}
 		}
 
+		// Non-policy install retry (host details, self-service, setup experience).
+		// Errors here are logged but do not abort the handler. The primary
+		// action, recording the install result from the device, must succeed
+		// regardless of whether a retry can be scheduled. If retry scheduling
+		// fails, the install is marked as failed (no retry) and the admin can
+		// manually re-trigger.
+		if hsi.PolicyID == nil && status == fleet.SoftwareInstallFailed {
+			shouldRetry, retryErr := svc.shouldRetrySoftwareInstall(ctx, hsi)
+			if retryErr != nil {
+				level.Error(svc.logger).Log(
+					"msg", "failed to check if software install should retry",
+					"host_id", host.ID,
+					"install_uuid", result.InstallUUID,
+					"err", retryErr,
+				)
+			} else if shouldRetry {
+				if retryErr := svc.retrySoftwareInstall(ctx, host, hsi, fromSetupExperience); retryErr != nil {
+					level.Error(svc.logger).Log(
+						"msg", "failed to queue software install retry",
+						"host_id", host.ID,
+						"install_uuid", result.InstallUUID,
+						"err", retryErr,
+					)
+				}
+			}
+		}
+
 		if shouldCreateActivity {
 			if err := svc.NewActivity(
 				ctx,
@@ -1694,6 +1731,32 @@ func (svc *Service) retryPolicyAutomationSoftwareInstall(ctx context.Context, ho
 	return err
 }
 
+// shouldRetrySoftwareInstall checks if a failed non-policy software install should be retried.
+func (svc *Service) shouldRetrySoftwareInstall(ctx context.Context, hsi *fleet.HostSoftwareInstallerResult) (bool, error) {
+	if hsi.AttemptNumber == nil {
+		return false, nil
+	}
+	return *hsi.AttemptNumber < fleet.MaxSoftwareInstallAttempts, nil
+}
+
+// retrySoftwareInstall queues a retry for a non-policy software install.
+func (svc *Service) retrySoftwareInstall(ctx context.Context, host *fleet.Host, hsi *fleet.HostSoftwareInstallerResult, fromSetupExperience bool) error {
+	level.Info(svc.logger).Log(
+		"msg", "queuing software install retry",
+		"host_id", host.ID,
+		"software_installer_id", *hsi.SoftwareInstallerID,
+		"self_service", hsi.SelfService,
+		"current_attempt", *hsi.AttemptNumber,
+	)
+	_, err := svc.ds.InsertSoftwareInstallRequest(ctx, host.ID, *hsi.SoftwareInstallerID, fleet.HostSoftwareInstallOptions{
+		SelfService:        hsi.SelfService,
+		UserID:             hsi.UserID,
+		ForSetupExperience: fromSetupExperience,
+		WithRetries:        true,
+	})
+	return err
+}
+
 // shouldRetryPolicyAutomationScript checks if a failed policy automation script should be retried.
 // Returns true if retry should be queued
 func (svc *Service) shouldRetryPolicyAutomationScript(ctx context.Context, host *fleet.Host, hsr *fleet.HostScriptResult) (bool, error) {
@@ -1757,24 +1820,32 @@ func (svc *Service) getPolicyAutomationScriptAttemptNumber(ctx context.Context, 
 	return nil, nil // nil for manual runs
 }
 
-// getPolicyAutomationSoftwareInstallerAttemptNumber calculates the attempt number for a policy automation software install.
-// Returns nil for manual/self-service installs (not triggered by policy automation).
-func (svc *Service) getPolicyAutomationSoftwareInstallerAttemptNumber(ctx context.Context, host *fleet.Host, installUUID string) (*int, error) {
+// getSoftwareInstallerAttemptNumber calculates the attempt number for a software install.
+// Returns nil for installs that don't have a software_installer_id.
+func (svc *Service) getSoftwareInstallerAttemptNumber(ctx context.Context, host *fleet.Host, installUUID string) (*int, error) {
 	currentInstall, err := svc.ds.GetSoftwareInstallResults(ctx, installUUID)
 	if err != nil && !fleet.IsNotFound(err) {
 		return nil, ctxerr.Wrap(ctx, err, "get current install info for attempt number calculation")
 	}
 
-	// Only calculate attempt_number for policy automation installs
-	if currentInstall != nil && currentInstall.PolicyID != nil && currentInstall.SoftwareInstallerID != nil {
+	if currentInstall == nil || currentInstall.SoftwareInstallerID == nil {
+		return nil, nil
+	}
+
+	// Policy automation installs
+	if currentInstall.PolicyID != nil {
 		count, err := svc.ds.CountHostSoftwareInstallAttempts(ctx, host.ID, *currentInstall.SoftwareInstallerID, *currentInstall.PolicyID)
 		if err != nil {
-			return nil, ctxerr.Wrap(ctx, err, "count previous install attempts")
+			return nil, ctxerr.Wrap(ctx, err, "count previous policy install attempts")
 		}
 		return &count, nil
 	}
 
-	return nil, nil // nil for manual/self-service installs
+	// Non-policy installs (host details, self-service, setup experience):
+	// attempt_number is set at activation time for retry-eligible installs
+	// (those created with WithRetries=true). If nil, this install was not
+	// created with retry support.
+	return currentInstall.AttemptNumber, nil
 }
 
 /////////////////////////////////////////////////////////////////////////////////
