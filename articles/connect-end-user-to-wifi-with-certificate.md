@@ -199,7 +199,7 @@ The following steps show how to connect end users to Wi-Fi or VPN with [Smallste
 
 ### Step 1: Configure Smallstep with Fleet information
 
-We're currently working with Smallstep to develop a specific Smallstep-Fleet connector. In the meantime, Smallstep can be configured to work with Fleet by using the Smallstep-Jamf connector.
+Currently, using the Smallstep-Jamf connector is the best practice. Fleet is testing the new Smallstep-Fleet connector.
 
 1. In Smallstep, go to **Settings > Device Management**.
 
