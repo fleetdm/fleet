@@ -25251,40 +25251,71 @@ func (s *integrationEnterpriseTestSuite) TestFMAVersionRollback() {
 		return resp.SoftwareTitles[0]
 	}
 
+	// -------------------------------------------------------------------------
+	// Shared helpers used across sub-tests.
+	// -------------------------------------------------------------------------
+
+	// newTeam creates a new team with the given name and returns it.
+	newTeam := func(name string) fleet.Team {
+		var resp teamResponse
+		s.DoJSON("POST", "/api/latest/fleet/teams", &createTeamRequest{
+			TeamPayload: fleet.TeamPayload{Name: ptr.String(name)},
+		}, http.StatusOK, &resp)
+		return *resp.Team
+	}
+
+	// resetFMAState resets an fmaTestState to the given version and installer bytes.
+	resetFMAState := func(state *fmaTestState, version string, installerBytes []byte) {
+		state.version = version
+		state.installerBytes = installerBytes
+		state.sha256 = computeSHA(installerBytes)
+	}
+
+	// batchSet issues a batch-set request for the given team and software slice,
+	// waits for completion, and returns the resulting packages.
+	batchSet := func(team fleet.Team, software []*fleet.SoftwareInstallerPayload) []fleet.SoftwarePackageResponse {
+		var resp batchSetSoftwareInstallersResponse
+		s.DoJSON("POST", "/api/latest/fleet/software/batch",
+			batchSetSoftwareInstallersRequest{Software: software, TeamName: team.Name},
+			http.StatusAccepted, &resp,
+			"team_name", team.Name, "team_id", fmt.Sprint(team.ID),
+		)
+		return waitBatchSetSoftwareInstallersCompleted(t, &s.withServer, team.Name, resp.RequestUUID)
+	}
+
+	// newHostInTeam creates an orbit-enrolled host and assigns it to the given team.
+	newHostInTeam := func(platform, name string, team fleet.Team) *fleet.Host {
+		host := createOrbitEnrolledHost(t, platform, name, s.ds)
+		require.NoError(t, s.ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&team.ID, []uint{host.ID})))
+		return host
+	}
+
+	// fmaAppID returns the fleet_maintained_apps.id for the given slug.
+	fmaAppID := func(slug string) uint {
+		var id uint
+		mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+			return sqlx.GetContext(ctx, q, &id, "SELECT id FROM fleet_maintained_apps WHERE slug = ?", slug)
+		})
+		require.NotZero(t, id)
+		return id
+	}
+
 	// =========================================================================
 	// Section 1 (existing): Batch-set / GitOps flow for cloudflare-warp/windows
 	// =========================================================================
 
-	// Create a team
-	var newTeamResp teamResponse
-	s.DoJSON("POST", "/api/latest/fleet/teams", &createTeamRequest{TeamPayload: fleet.TeamPayload{Name: ptr.String("team_" + t.Name())}}, http.StatusOK, &newTeamResp)
-	team := newTeamResp.Team
+	team := newTeam("team_" + t.Name())
 
 	// Add an ingested app to the team
 	softwareToInstall := []*fleet.SoftwareInstallerPayload{
 		{Slug: ptr.String("cloudflare-warp/windows"), SelfService: true},
 	}
 
-	var batchResponse batchSetSoftwareInstallersResponse
-	s.DoJSON("POST", "/api/latest/fleet/software/batch", batchSetSoftwareInstallersRequest{Software: softwareToInstall, TeamName: team.Name}, http.StatusAccepted, &batchResponse, "team_name", team.Name, "team_id", fmt.Sprint(team.ID))
-	packages := waitBatchSetSoftwareInstallersCompleted(t, &s.withServer, team.Name, batchResponse.RequestUUID)
+	packages := batchSet(team, softwareToInstall)
 	require.Len(t, packages, 1)
 	require.NotNil(t, packages[0].TitleID)
 
-	var resp listSoftwareTitlesResponse
-	s.DoJSON(
-		"GET", "/api/latest/fleet/software/titles",
-		listSoftwareTitlesRequest{},
-		http.StatusOK, &resp,
-		"per_page", "1",
-		"order_key", "name",
-		"order_direction", "desc",
-		"available_for_install", "true",
-		"team_id", fmt.Sprintf("%d", team.ID),
-	)
-
-	require.Equal(t, 1, resp.Count)
-	title := resp.SoftwareTitles[0]
+	title := getActiveTitleForTeam(team.ID)
 	require.Equal(t, "1.0", title.SoftwarePackage.Version)
 	require.Equal(t, "cloudflare-warp.msi", title.SoftwarePackage.Name)
 
@@ -25293,28 +25324,12 @@ func (s *integrationEnterpriseTestSuite) TestFMAVersionRollback() {
 	require.Equal(t, "1.0", title.SoftwarePackage.FleetMaintainedVersions[0].Version)
 
 	// Now add a second version
-	warpState.version = "2.0"
-	warpState.installerBytes = []byte(`def`)
-	warpState.sha256 = computeSHA(warpState.installerBytes)
+	resetFMAState(warpState, "2.0", []byte("def"))
 
-	s.DoJSON("POST", "/api/latest/fleet/software/batch", batchSetSoftwareInstallersRequest{Software: softwareToInstall, TeamName: team.Name}, http.StatusAccepted, &batchResponse, "team_name", team.Name, "team_id", fmt.Sprint(team.ID))
-	packages = waitBatchSetSoftwareInstallersCompleted(t, &s.withServer, team.Name, batchResponse.RequestUUID)
+	packages = batchSet(team, softwareToInstall)
 	require.Len(t, packages, 2)
 
-	resp = listSoftwareTitlesResponse{}
-	s.DoJSON(
-		"GET", "/api/latest/fleet/software/titles",
-		listSoftwareTitlesRequest{},
-		http.StatusOK, &resp,
-		"per_page", "1",
-		"order_key", "name",
-		"order_direction", "desc",
-		"available_for_install", "true",
-		"team_id", fmt.Sprintf("%d", team.ID),
-	)
-
-	require.Equal(t, 1, resp.Count)
-	title = resp.SoftwareTitles[0]
+	title = getActiveTitleForTeam(team.ID)
 	require.Equal(t, "2.0", title.SoftwarePackage.Version)
 	require.Equal(t, "cloudflare-warp.msi", title.SoftwarePackage.Name)
 
@@ -25329,28 +25344,12 @@ func (s *integrationEnterpriseTestSuite) TestFMAVersionRollback() {
 	s.Assert().Len(installers, 2)
 
 	// Now add a third version — should evict v1.0, keeping only v3.0 and v2.0
-	warpState.version = "3.0"
-	warpState.installerBytes = []byte(`ghi`)
-	warpState.sha256 = computeSHA(warpState.installerBytes)
+	resetFMAState(warpState, "3.0", []byte("ghi"))
 
-	s.DoJSON("POST", "/api/latest/fleet/software/batch", batchSetSoftwareInstallersRequest{Software: softwareToInstall, TeamName: team.Name}, http.StatusAccepted, &batchResponse, "team_name", team.Name, "team_id", fmt.Sprint(team.ID))
-	packages = waitBatchSetSoftwareInstallersCompleted(t, &s.withServer, team.Name, batchResponse.RequestUUID)
+	packages = batchSet(team, softwareToInstall)
 	require.Len(t, packages, 2)
 
-	resp = listSoftwareTitlesResponse{}
-	s.DoJSON(
-		"GET", "/api/latest/fleet/software/titles",
-		listSoftwareTitlesRequest{},
-		http.StatusOK, &resp,
-		"per_page", "1",
-		"order_key", "name",
-		"order_direction", "desc",
-		"available_for_install", "true",
-		"team_id", fmt.Sprintf("%d", team.ID),
-	)
-
-	require.Equal(t, 1, resp.Count)
-	title = resp.SoftwareTitles[0]
+	title = getActiveTitleForTeam(team.ID)
 	require.Equal(t, "3.0", title.SoftwarePackage.Version)
 
 	// Only 2 versions should remain after eviction (max 2 cached)
@@ -25366,37 +25365,20 @@ func (s *integrationEnterpriseTestSuite) TestFMAVersionRollback() {
 	// ---- Test version rollback via fleet_maintained_app_version ----
 	// Pin to version "2.0" in the batch request (simulating GitOps yaml with version specified).
 	// The active installer should switch to the cached v2.0 installer.
-	softwareToInstallPinned := []*fleet.SoftwareInstallerPayload{
+	packages = batchSet(team, []*fleet.SoftwareInstallerPayload{
 		{Slug: ptr.String("cloudflare-warp/windows"), SelfService: true, RollbackVersion: "2.0"},
-	}
-
-	s.DoJSON("POST", "/api/latest/fleet/software/batch", batchSetSoftwareInstallersRequest{Software: softwareToInstallPinned, TeamName: team.Name}, http.StatusAccepted, &batchResponse, "team_name", team.Name, "team_id", fmt.Sprint(team.ID))
-	packages = waitBatchSetSoftwareInstallersCompleted(t, &s.withServer, team.Name, batchResponse.RequestUUID)
+	})
 	require.Len(t, packages, 2)
 
 	// The active version shown in the title should now be "2.0"
-	resp = listSoftwareTitlesResponse{}
-	s.DoJSON(
-		"GET", "/api/latest/fleet/software/titles",
-		listSoftwareTitlesRequest{},
-		http.StatusOK, &resp,
-		"per_page", "1",
-		"order_key", "name",
-		"order_direction", "desc",
-		"available_for_install", "true",
-		"team_id", fmt.Sprintf("%d", team.ID),
-	)
-
-	require.Equal(t, 1, resp.Count)
-	title = resp.SoftwareTitles[0]
+	title = getActiveTitleForTeam(team.ID)
 	require.Equal(t, "2.0", title.SoftwarePackage.Version)
 
 	// Both versions should still be listed
 	require.Len(t, title.SoftwarePackage.FleetMaintainedVersions, 2)
 
 	// Create a host in the team, trigger an install, and verify the downloaded bytes match v2.0
-	hostInTeam := createOrbitEnrolledHost(t, "windows", "orbit-host-rollback", s.ds)
-	require.NoError(t, s.ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&team.ID, []uint{hostInTeam.ID})))
+	hostInTeam := newHostInTeam("windows", "orbit-host-rollback", team)
 
 	s.Do("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/software/%d/install", hostInTeam.ID, title.ID), installSoftwareRequest{}, http.StatusAccepted)
 
@@ -25427,29 +25409,13 @@ func (s *integrationEnterpriseTestSuite) TestFMAVersionRollback() {
 
 	// ---- Test switching active version back to 3.0 ----
 	// Pin to version "3.0" — the active installer should switch to the cached v3.0 installer.
-	softwareToInstallV3 := []*fleet.SoftwareInstallerPayload{
+	packages = batchSet(team, []*fleet.SoftwareInstallerPayload{
 		{Slug: ptr.String("cloudflare-warp/windows"), SelfService: true, RollbackVersion: "3.0"},
-	}
-
-	s.DoJSON("POST", "/api/latest/fleet/software/batch", batchSetSoftwareInstallersRequest{Software: softwareToInstallV3, TeamName: team.Name}, http.StatusAccepted, &batchResponse, "team_name", team.Name, "team_id", fmt.Sprint(team.ID))
-	packages = waitBatchSetSoftwareInstallersCompleted(t, &s.withServer, team.Name, batchResponse.RequestUUID)
+	})
 	require.Len(t, packages, 2)
 
 	// The active version shown in the title should now be "3.0"
-	resp = listSoftwareTitlesResponse{}
-	s.DoJSON(
-		"GET", "/api/latest/fleet/software/titles",
-		listSoftwareTitlesRequest{},
-		http.StatusOK, &resp,
-		"per_page", "1",
-		"order_key", "name",
-		"order_direction", "desc",
-		"available_for_install", "true",
-		"team_id", fmt.Sprintf("%d", team.ID),
-	)
-
-	require.Equal(t, 1, resp.Count)
-	title = resp.SoftwareTitles[0]
+	title = getActiveTitleForTeam(team.ID)
 	require.Equal(t, "3.0", title.SoftwarePackage.Version)
 
 	// Both versions should still be listed
@@ -25493,11 +25459,14 @@ func (s *integrationEnterpriseTestSuite) TestFMAVersionRollback() {
 	delete(downloadedSlugs, "cloudflare-warp/windows")
 	downloadMu.Unlock()
 
-	softwareToInstallV1 := []*fleet.SoftwareInstallerPayload{
-		{Slug: ptr.String("cloudflare-warp/windows"), SelfService: true, RollbackVersion: "1.0"},
-	}
-
-	rawResp := s.Do("POST", "/api/latest/fleet/software/batch", batchSetSoftwareInstallersRequest{Software: softwareToInstallV1, TeamName: team.Name}, http.StatusBadRequest, "team_name", team.Name, "team_id", fmt.Sprint(team.ID))
+	rawResp := s.Do("POST", "/api/latest/fleet/software/batch",
+		batchSetSoftwareInstallersRequest{
+			Software: []*fleet.SoftwareInstallerPayload{
+				{Slug: ptr.String("cloudflare-warp/windows"), SelfService: true, RollbackVersion: "1.0"},
+			},
+			TeamName: team.Name,
+		},
+		http.StatusBadRequest, "team_name", team.Name, "team_id", fmt.Sprint(team.ID))
 	require.Contains(t, extractServerErrorText(rawResp.Body), "specified version is not available")
 
 	// Should NOT have hit the installer server — no re-download attempt
@@ -25507,20 +25476,7 @@ func (s *integrationEnterpriseTestSuite) TestFMAVersionRollback() {
 	require.False(t, warpDownloaded, "should not attempt to re-download an evicted version")
 
 	// The active version should still be "3.0" (unchanged)
-	resp = listSoftwareTitlesResponse{}
-	s.DoJSON(
-		"GET", "/api/latest/fleet/software/titles",
-		listSoftwareTitlesRequest{},
-		http.StatusOK, &resp,
-		"per_page", "1",
-		"order_key", "name",
-		"order_direction", "desc",
-		"available_for_install", "true",
-		"team_id", fmt.Sprintf("%d", team.ID),
-	)
-
-	require.Equal(t, 1, resp.Count)
-	title = resp.SoftwareTitles[0]
+	title = getActiveTitleForTeam(team.ID)
 	require.Equal(t, "3.0", title.SoftwarePackage.Version, "active version should remain 3.0 after failed rollback to evicted version")
 
 	// Attempt to add a custom package that will map to the same software title. Should fail
@@ -25569,24 +25525,13 @@ func (s *integrationEnterpriseTestSuite) TestFMAVersionRollback() {
 	// =========================================================================
 	t.Run("ui_single_add_flow", func(t *testing.T) {
 		// Reset warp state to v1.0 for this sub-test.
-		warpState.version = "1.0"
-		warpState.installerBytes = []byte("abc")
-		warpState.sha256 = computeSHA(warpState.installerBytes)
+		resetFMAState(warpState, "1.0", []byte("abc"))
 
 		// Create a fresh team so this sub-test is isolated from Section 1.
-		var uiTeamResp teamResponse
-		s.DoJSON("POST", "/api/latest/fleet/teams", &createTeamRequest{
-			TeamPayload: fleet.TeamPayload{Name: ptr.String("team_ui_" + t.Name())},
-		}, http.StatusOK, &uiTeamResp)
-		uiTeam := uiTeamResp.Team
+		uiTeam := newTeam("team_ui_" + t.Name())
 
 		// Look up the cloudflare-warp/windows FMA ID that was inserted by SyncApps.
-		var warpAppID uint
-		mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
-			return sqlx.GetContext(ctx, q, &warpAppID,
-				"SELECT id FROM fleet_maintained_apps WHERE slug = 'cloudflare-warp/windows'")
-		})
-		require.NotZero(t, warpAppID)
+		warpAppID := fmaAppID("cloudflare-warp/windows")
 
 		// Add the FMA via the single-add (UI) endpoint.
 		var addMAResp addFleetMaintainedAppResponse
@@ -25609,22 +25554,11 @@ func (s *integrationEnterpriseTestSuite) TestFMAVersionRollback() {
 
 		// Now bump to v2.0 via the batch-set (GitOps) flow — this is how an
 		// upgrade would arrive after the initial UI-add.
-		warpState.version = "2.0"
-		warpState.installerBytes = []byte("def")
-		warpState.sha256 = computeSHA(warpState.installerBytes)
+		resetFMAState(warpState, "2.0", []byte("def"))
 
-		var batchResp batchSetSoftwareInstallersResponse
-		s.DoJSON("POST", "/api/latest/fleet/software/batch",
-			batchSetSoftwareInstallersRequest{
-				Software: []*fleet.SoftwareInstallerPayload{
-					{Slug: ptr.String("cloudflare-warp/windows"), SelfService: true},
-				},
-				TeamName: uiTeam.Name,
-			},
-			http.StatusAccepted, &batchResp,
-			"team_name", uiTeam.Name, "team_id", fmt.Sprint(uiTeam.ID),
-		)
-		pkgs := waitBatchSetSoftwareInstallersCompleted(t, &s.withServer, uiTeam.Name, batchResp.RequestUUID)
+		pkgs := batchSet(uiTeam, []*fleet.SoftwareInstallerPayload{
+			{Slug: ptr.String("cloudflare-warp/windows"), SelfService: true},
+		})
 		require.Len(t, pkgs, 2, "both v1.0 (UI-added) and v2.0 should be cached")
 
 		uiTitle = getActiveTitleForTeam(uiTeam.ID)
@@ -25636,17 +25570,9 @@ func (s *integrationEnterpriseTestSuite) TestFMAVersionRollback() {
 		require.Len(t, uiInstallers, 2)
 
 		// Roll back to the original UI-added v1.0 via batch-set.
-		s.DoJSON("POST", "/api/latest/fleet/software/batch",
-			batchSetSoftwareInstallersRequest{
-				Software: []*fleet.SoftwareInstallerPayload{
-					{Slug: ptr.String("cloudflare-warp/windows"), SelfService: true, RollbackVersion: "1.0"},
-				},
-				TeamName: uiTeam.Name,
-			},
-			http.StatusAccepted, &batchResp,
-			"team_name", uiTeam.Name, "team_id", fmt.Sprint(uiTeam.ID),
-		)
-		pkgs = waitBatchSetSoftwareInstallersCompleted(t, &s.withServer, uiTeam.Name, batchResp.RequestUUID)
+		pkgs = batchSet(uiTeam, []*fleet.SoftwareInstallerPayload{
+			{Slug: ptr.String("cloudflare-warp/windows"), SelfService: true, RollbackVersion: "1.0"},
+		})
 		require.Len(t, pkgs, 2, "both versions should still be cached after rollback")
 
 		// Active version should now be v1.0 (the one originally added via the UI).
@@ -25663,15 +25589,9 @@ func (s *integrationEnterpriseTestSuite) TestFMAVersionRollback() {
 	// =========================================================================
 	t.Run("fma_conflicts_with_existing_custom_installer", func(t *testing.T) {
 		// Reset warp state back to v1.0.
-		warpState.version = "1.0"
-		warpState.installerBytes = []byte("abc")
-		warpState.sha256 = computeSHA(warpState.installerBytes)
+		resetFMAState(warpState, "1.0", []byte("abc"))
 
-		var conflictTeamResp teamResponse
-		s.DoJSON("POST", "/api/latest/fleet/teams", &createTeamRequest{
-			TeamPayload: fleet.TeamPayload{Name: ptr.String("team_conflict_" + t.Name())},
-		}, http.StatusOK, &conflictTeamResp)
-		conflictTeam := conflictTeamResp.Team
+		conflictTeam := newTeam("team_conflict_" + t.Name())
 
 		user, err := s.ds.UserByEmail(ctx, "admin1@example.com")
 		require.NoError(t, err)
@@ -25704,12 +25624,7 @@ func (s *integrationEnterpriseTestSuite) TestFMAVersionRollback() {
 		// Now try to add the zoom/windows FMA via the single-add (UI) endpoint.
 		// It should fail because a custom installer already occupies the same
 		// software title on this team.
-		var zoomAppID uint
-		mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
-			return sqlx.GetContext(ctx, q, &zoomAppID,
-				"SELECT id FROM fleet_maintained_apps WHERE slug = 'zoom/windows'")
-		})
-		require.NotZero(t, zoomAppID)
+		zoomAppID := fmaAppID("zoom/windows")
 
 		conflictResp := s.Do("POST", "/api/latest/fleet/software/fleet_maintained_apps",
 			&addFleetMaintainedAppRequest{
@@ -25738,19 +25653,10 @@ func (s *integrationEnterpriseTestSuite) TestFMAVersionRollback() {
 	// =========================================================================
 	t.Run("multiple_fmas_cached_versions", func(t *testing.T) {
 		// Reset both FMA states to v1.0.
-		warpState.version = "1.0"
-		warpState.installerBytes = []byte("warp-v1")
-		warpState.sha256 = computeSHA(warpState.installerBytes)
+		resetFMAState(warpState, "1.0", []byte("warp-v1"))
+		resetFMAState(zoomState, "1.0", []byte("zoom-v1"))
 
-		zoomState.version = "1.0"
-		zoomState.installerBytes = []byte("zoom-v1")
-		zoomState.sha256 = computeSHA(zoomState.installerBytes)
-
-		var multiTeamResp teamResponse
-		s.DoJSON("POST", "/api/latest/fleet/teams", &createTeamRequest{
-			TeamPayload: fleet.TeamPayload{Name: ptr.String("team_multi_" + t.Name())},
-		}, http.StatusOK, &multiTeamResp)
-		multiTeam := multiTeamResp.Team
+		multiTeam := newTeam("team_multi_" + t.Name())
 
 		bothFMAs := []*fleet.SoftwareInstallerPayload{
 			{Slug: ptr.String("cloudflare-warp/windows"), SelfService: true},
@@ -25758,13 +25664,7 @@ func (s *integrationEnterpriseTestSuite) TestFMAVersionRollback() {
 		}
 
 		// ---- v1.0 for both FMAs ----
-		var batchResp batchSetSoftwareInstallersResponse
-		s.DoJSON("POST", "/api/latest/fleet/software/batch",
-			batchSetSoftwareInstallersRequest{Software: bothFMAs, TeamName: multiTeam.Name},
-			http.StatusAccepted, &batchResp,
-			"team_name", multiTeam.Name, "team_id", fmt.Sprint(multiTeam.ID),
-		)
-		pkgs := waitBatchSetSoftwareInstallersCompleted(t, &s.withServer, multiTeam.Name, batchResp.RequestUUID)
+		pkgs := batchSet(multiTeam, bothFMAs)
 		require.Len(t, pkgs, 2, "both FMAs at v1.0")
 
 		multiInstallers, err := s.ds.GetSoftwareInstallers(ctx, multiTeam.ID)
@@ -25772,20 +25672,10 @@ func (s *integrationEnterpriseTestSuite) TestFMAVersionRollback() {
 		require.Len(t, multiInstallers, 2)
 
 		// ---- v2.0 for both FMAs ----
-		warpState.version = "2.0"
-		warpState.installerBytes = []byte("warp-v2")
-		warpState.sha256 = computeSHA(warpState.installerBytes)
+		resetFMAState(warpState, "2.0", []byte("warp-v2"))
+		resetFMAState(zoomState, "2.0", []byte("zoom-v2"))
 
-		zoomState.version = "2.0"
-		zoomState.installerBytes = []byte("zoom-v2")
-		zoomState.sha256 = computeSHA(zoomState.installerBytes)
-
-		s.DoJSON("POST", "/api/latest/fleet/software/batch",
-			batchSetSoftwareInstallersRequest{Software: bothFMAs, TeamName: multiTeam.Name},
-			http.StatusAccepted, &batchResp,
-			"team_name", multiTeam.Name, "team_id", fmt.Sprint(multiTeam.ID),
-		)
-		pkgs = waitBatchSetSoftwareInstallersCompleted(t, &s.withServer, multiTeam.Name, batchResp.RequestUUID)
+		pkgs = batchSet(multiTeam, bothFMAs)
 		require.Len(t, pkgs, 4, "two cached versions for each of the two FMAs")
 
 		multiInstallers, err = s.ds.GetSoftwareInstallers(ctx, multiTeam.ID)
@@ -25793,20 +25683,10 @@ func (s *integrationEnterpriseTestSuite) TestFMAVersionRollback() {
 		require.Len(t, multiInstallers, 4, "4 total installers: 2 per FMA")
 
 		// ---- v3.0 for both FMAs — should evict v1.0 for each ----
-		warpState.version = "3.0"
-		warpState.installerBytes = []byte("warp-v3")
-		warpState.sha256 = computeSHA(warpState.installerBytes)
+		resetFMAState(warpState, "3.0", []byte("warp-v3"))
+		resetFMAState(zoomState, "3.0", []byte("zoom-v3"))
 
-		zoomState.version = "3.0"
-		zoomState.installerBytes = []byte("zoom-v3")
-		zoomState.sha256 = computeSHA(zoomState.installerBytes)
-
-		s.DoJSON("POST", "/api/latest/fleet/software/batch",
-			batchSetSoftwareInstallersRequest{Software: bothFMAs, TeamName: multiTeam.Name},
-			http.StatusAccepted, &batchResp,
-			"team_name", multiTeam.Name, "team_id", fmt.Sprint(multiTeam.ID),
-		)
-		pkgs = waitBatchSetSoftwareInstallersCompleted(t, &s.withServer, multiTeam.Name, batchResp.RequestUUID)
+		pkgs = batchSet(multiTeam, bothFMAs)
 		// After eviction each FMA keeps 2 versions (v3.0 + v2.0), so 4 total.
 		require.Len(t, pkgs, 4, "after eviction: 2 cached versions per FMA")
 
@@ -25815,18 +25695,10 @@ func (s *integrationEnterpriseTestSuite) TestFMAVersionRollback() {
 		require.Len(t, multiInstallers, 4, "4 total installers after eviction of v1.0 for each FMA")
 
 		// ---- Roll back cloudflare-warp to v2.0, leave zoom at v3.0 ----
-		s.DoJSON("POST", "/api/latest/fleet/software/batch",
-			batchSetSoftwareInstallersRequest{
-				Software: []*fleet.SoftwareInstallerPayload{
-					{Slug: ptr.String("cloudflare-warp/windows"), SelfService: true, RollbackVersion: "2.0"},
-					{Slug: ptr.String("zoom/windows"), SelfService: true}, // no rollback — stays at latest
-				},
-				TeamName: multiTeam.Name,
-			},
-			http.StatusAccepted, &batchResp,
-			"team_name", multiTeam.Name, "team_id", fmt.Sprint(multiTeam.ID),
-		)
-		pkgs = waitBatchSetSoftwareInstallersCompleted(t, &s.withServer, multiTeam.Name, batchResp.RequestUUID)
+		pkgs = batchSet(multiTeam, []*fleet.SoftwareInstallerPayload{
+			{Slug: ptr.String("cloudflare-warp/windows"), SelfService: true, RollbackVersion: "2.0"},
+			{Slug: ptr.String("zoom/windows"), SelfService: true}, // no rollback — stays at latest
+		})
 		require.Len(t, pkgs, 4)
 
 		// Collect active versions by title name for easy assertion.
@@ -25850,18 +25722,10 @@ func (s *integrationEnterpriseTestSuite) TestFMAVersionRollback() {
 			"zoom should remain at v3.0 (not rolled back)")
 
 		// Zoom rollback to v2.0 should also succeed independently.
-		s.DoJSON("POST", "/api/latest/fleet/software/batch",
-			batchSetSoftwareInstallersRequest{
-				Software: []*fleet.SoftwareInstallerPayload{
-					{Slug: ptr.String("cloudflare-warp/windows"), SelfService: true, RollbackVersion: "2.0"},
-					{Slug: ptr.String("zoom/windows"), SelfService: true, RollbackVersion: "2.0"},
-				},
-				TeamName: multiTeam.Name,
-			},
-			http.StatusAccepted, &batchResp,
-			"team_name", multiTeam.Name, "team_id", fmt.Sprint(multiTeam.ID),
-		)
-		pkgs = waitBatchSetSoftwareInstallersCompleted(t, &s.withServer, multiTeam.Name, batchResp.RequestUUID)
+		pkgs = batchSet(multiTeam, []*fleet.SoftwareInstallerPayload{
+			{Slug: ptr.String("cloudflare-warp/windows"), SelfService: true, RollbackVersion: "2.0"},
+			{Slug: ptr.String("zoom/windows"), SelfService: true, RollbackVersion: "2.0"},
+		})
 		require.Len(t, pkgs, 4)
 
 		multiTitlesResp = listSoftwareTitlesResponse{}
@@ -25892,41 +25756,18 @@ func (s *integrationEnterpriseTestSuite) TestFMAVersionRollback() {
 	// =========================================================================
 	t.Run("team_isolation", func(t *testing.T) {
 		// Reset warp state to v1.0.
-		warpState.version = "1.0"
-		warpState.installerBytes = []byte("iso-warp-v1")
-		warpState.sha256 = computeSHA(warpState.installerBytes)
+		resetFMAState(warpState, "1.0", []byte("iso-warp-v1"))
 
-		var isoTeamAResp, isoTeamBResp teamResponse
-		s.DoJSON("POST", "/api/latest/fleet/teams", &createTeamRequest{
-			TeamPayload: fleet.TeamPayload{Name: ptr.String("team_iso_a_" + t.Name())},
-		}, http.StatusOK, &isoTeamAResp)
-		teamA := isoTeamAResp.Team
-
-		s.DoJSON("POST", "/api/latest/fleet/teams", &createTeamRequest{
-			TeamPayload: fleet.TeamPayload{Name: ptr.String("team_iso_b_" + t.Name())},
-		}, http.StatusOK, &isoTeamBResp)
-		teamB := isoTeamBResp.Team
+		teamA := newTeam("team_iso_a_" + t.Name())
+		teamB := newTeam("team_iso_b_" + t.Name())
 
 		warpPayload := []*fleet.SoftwareInstallerPayload{
 			{Slug: ptr.String("cloudflare-warp/windows"), SelfService: true},
 		}
 
 		// ---- Add v1.0 to both teams ----
-		var batchRespA, batchRespB batchSetSoftwareInstallersResponse
-
-		s.DoJSON("POST", "/api/latest/fleet/software/batch",
-			batchSetSoftwareInstallersRequest{Software: warpPayload, TeamName: teamA.Name},
-			http.StatusAccepted, &batchRespA,
-			"team_name", teamA.Name, "team_id", fmt.Sprint(teamA.ID),
-		)
-		waitBatchSetSoftwareInstallersCompleted(t, &s.withServer, teamA.Name, batchRespA.RequestUUID)
-
-		s.DoJSON("POST", "/api/latest/fleet/software/batch",
-			batchSetSoftwareInstallersRequest{Software: warpPayload, TeamName: teamB.Name},
-			http.StatusAccepted, &batchRespB,
-			"team_name", teamB.Name, "team_id", fmt.Sprint(teamB.ID),
-		)
-		waitBatchSetSoftwareInstallersCompleted(t, &s.withServer, teamB.Name, batchRespB.RequestUUID)
+		batchSet(teamA, warpPayload)
+		batchSet(teamB, warpPayload)
 
 		// Both teams should have exactly 1 installer (v1.0).
 		instA, err := s.ds.GetSoftwareInstallers(ctx, teamA.ID)
@@ -25938,23 +25779,10 @@ func (s *integrationEnterpriseTestSuite) TestFMAVersionRollback() {
 		require.Len(t, instB, 1)
 
 		// ---- Advance both teams to v2.0 ----
-		warpState.version = "2.0"
-		warpState.installerBytes = []byte("iso-warp-v2")
-		warpState.sha256 = computeSHA(warpState.installerBytes)
+		resetFMAState(warpState, "2.0", []byte("iso-warp-v2"))
 
-		s.DoJSON("POST", "/api/latest/fleet/software/batch",
-			batchSetSoftwareInstallersRequest{Software: warpPayload, TeamName: teamA.Name},
-			http.StatusAccepted, &batchRespA,
-			"team_name", teamA.Name, "team_id", fmt.Sprint(teamA.ID),
-		)
-		waitBatchSetSoftwareInstallersCompleted(t, &s.withServer, teamA.Name, batchRespA.RequestUUID)
-
-		s.DoJSON("POST", "/api/latest/fleet/software/batch",
-			batchSetSoftwareInstallersRequest{Software: warpPayload, TeamName: teamB.Name},
-			http.StatusAccepted, &batchRespB,
-			"team_name", teamB.Name, "team_id", fmt.Sprint(teamB.ID),
-		)
-		waitBatchSetSoftwareInstallersCompleted(t, &s.withServer, teamB.Name, batchRespB.RequestUUID)
+		batchSet(teamA, warpPayload)
+		batchSet(teamB, warpPayload)
 
 		// Both teams should have 2 cached installers (v1.0 + v2.0).
 		instA, err = s.ds.GetSoftwareInstallers(ctx, teamA.ID)
@@ -25966,16 +25794,9 @@ func (s *integrationEnterpriseTestSuite) TestFMAVersionRollback() {
 		require.Len(t, instB, 2)
 
 		// ---- Advance Team A to v3.0 (evicts v1.0 on Team A only) ----
-		warpState.version = "3.0"
-		warpState.installerBytes = []byte("iso-warp-v3")
-		warpState.sha256 = computeSHA(warpState.installerBytes)
+		resetFMAState(warpState, "3.0", []byte("iso-warp-v3"))
 
-		s.DoJSON("POST", "/api/latest/fleet/software/batch",
-			batchSetSoftwareInstallersRequest{Software: warpPayload, TeamName: teamA.Name},
-			http.StatusAccepted, &batchRespA,
-			"team_name", teamA.Name, "team_id", fmt.Sprint(teamA.ID),
-		)
-		waitBatchSetSoftwareInstallersCompleted(t, &s.withServer, teamA.Name, batchRespA.RequestUUID)
+		batchSet(teamA, warpPayload)
 
 		// Team A: v1.0 evicted → only v2.0 + v3.0 remain.
 		instA, err = s.ds.GetSoftwareInstallers(ctx, teamA.ID)
@@ -26001,17 +25822,9 @@ func (s *integrationEnterpriseTestSuite) TestFMAVersionRollback() {
 			"Team B should still have v1.0 cached even though Team A evicted it")
 
 		// ---- Roll back Team A to v2.0 — Team B must not be affected ----
-		s.DoJSON("POST", "/api/latest/fleet/software/batch",
-			batchSetSoftwareInstallersRequest{
-				Software: []*fleet.SoftwareInstallerPayload{
-					{Slug: ptr.String("cloudflare-warp/windows"), SelfService: true, RollbackVersion: "2.0"},
-				},
-				TeamName: teamA.Name,
-			},
-			http.StatusAccepted, &batchRespA,
-			"team_name", teamA.Name, "team_id", fmt.Sprint(teamA.ID),
-		)
-		waitBatchSetSoftwareInstallersCompleted(t, &s.withServer, teamA.Name, batchRespA.RequestUUID)
+		batchSet(teamA, []*fleet.SoftwareInstallerPayload{
+			{Slug: ptr.String("cloudflare-warp/windows"), SelfService: true, RollbackVersion: "2.0"},
+		})
 
 		titleA = getActiveTitleForTeam(teamA.ID)
 		require.Equal(t, "2.0", titleA.SoftwarePackage.Version, "Team A should be rolled back to v2.0")
@@ -26024,17 +25837,9 @@ func (s *integrationEnterpriseTestSuite) TestFMAVersionRollback() {
 			"Team B cached versions should be unchanged")
 
 		// Verify Team B can still roll back to v1.0 (its eviction pool is independent).
-		s.DoJSON("POST", "/api/latest/fleet/software/batch",
-			batchSetSoftwareInstallersRequest{
-				Software: []*fleet.SoftwareInstallerPayload{
-					{Slug: ptr.String("cloudflare-warp/windows"), SelfService: true, RollbackVersion: "1.0"},
-				},
-				TeamName: teamB.Name,
-			},
-			http.StatusAccepted, &batchRespB,
-			"team_name", teamB.Name, "team_id", fmt.Sprint(teamB.ID),
-		)
-		waitBatchSetSoftwareInstallersCompleted(t, &s.withServer, teamB.Name, batchRespB.RequestUUID)
+		batchSet(teamB, []*fleet.SoftwareInstallerPayload{
+			{Slug: ptr.String("cloudflare-warp/windows"), SelfService: true, RollbackVersion: "1.0"},
+		})
 
 		titleB = getActiveTitleForTeam(teamB.ID)
 		require.Equal(t, "1.0", titleB.SoftwarePackage.Version,
@@ -26051,41 +25856,20 @@ func (s *integrationEnterpriseTestSuite) TestFMAVersionRollback() {
 	// that title+team.
 	// =========================================================================
 	t.Run("delete_fma_cleans_all_cached_versions", func(t *testing.T) {
-		// Reset warp state to v1.0.
-		warpState.version = "1.0"
-		warpState.installerBytes = []byte("del-warp-v1")
-		warpState.sha256 = computeSHA(warpState.installerBytes)
+		resetFMAState(warpState, "1.0", []byte("del-warp-v1"))
 
-		var delTeamResp teamResponse
-		s.DoJSON("POST", "/api/latest/fleet/teams", &createTeamRequest{
-			TeamPayload: fleet.TeamPayload{Name: ptr.String("team_del_" + t.Name())},
-		}, http.StatusOK, &delTeamResp)
-		delTeam := delTeamResp.Team
+		delTeam := newTeam("team_del_" + t.Name())
 
 		warpPayload := []*fleet.SoftwareInstallerPayload{
 			{Slug: ptr.String("cloudflare-warp/windows"), SelfService: true},
 		}
 
-		// ---- v1.0 ----
-		var batchResp batchSetSoftwareInstallersResponse
-		s.DoJSON("POST", "/api/latest/fleet/software/batch",
-			batchSetSoftwareInstallersRequest{Software: warpPayload, TeamName: delTeam.Name},
-			http.StatusAccepted, &batchResp,
-			"team_name", delTeam.Name, "team_id", fmt.Sprint(delTeam.ID),
-		)
-		waitBatchSetSoftwareInstallersCompleted(t, &s.withServer, delTeam.Name, batchResp.RequestUUID)
+		batchSet(delTeam, warpPayload)
 
 		// ---- v2.0 ----
-		warpState.version = "2.0"
-		warpState.installerBytes = []byte("del-warp-v2")
-		warpState.sha256 = computeSHA(warpState.installerBytes)
+		resetFMAState(warpState, "2.0", []byte("del-warp-v2"))
 
-		s.DoJSON("POST", "/api/latest/fleet/software/batch",
-			batchSetSoftwareInstallersRequest{Software: warpPayload, TeamName: delTeam.Name},
-			http.StatusAccepted, &batchResp,
-			"team_name", delTeam.Name, "team_id", fmt.Sprint(delTeam.ID),
-		)
-		waitBatchSetSoftwareInstallersCompleted(t, &s.withServer, delTeam.Name, batchResp.RequestUUID)
+		batchSet(delTeam, warpPayload)
 
 		// Confirm we have exactly 2 cached installers (v1.0 + v2.0).
 		delInstallers, err := s.ds.GetSoftwareInstallers(ctx, delTeam.ID)
@@ -26137,48 +25921,28 @@ func (s *integrationEnterpriseTestSuite) TestFMAVersionRollback() {
 	// =========================================================================
 	t.Run("status_summary_resets_on_version_switch", func(t *testing.T) {
 		// Reset warp state to v1.0 for this sub-test.
-		warpState.version = "1.0"
-		warpState.installerBytes = []byte("status-warp-v1")
-		warpState.sha256 = computeSHA(warpState.installerBytes)
+		resetFMAState(warpState, "1.0", []byte("status-warp-v1"))
 
-		var statusTeamResp teamResponse
-		s.DoJSON("POST", "/api/latest/fleet/teams", &createTeamRequest{
-			TeamPayload: fleet.TeamPayload{Name: ptr.String("team_status_" + t.Name())},
-		}, http.StatusOK, &statusTeamResp)
-		statusTeam := statusTeamResp.Team
+		statusTeam := newTeam("team_status_" + t.Name())
 
 		warpPayload := []*fleet.SoftwareInstallerPayload{
 			{Slug: ptr.String("cloudflare-warp/windows"), SelfService: true},
 		}
 
 		// ---- Step 1a: Add v1.0 ----
-		var batchResp batchSetSoftwareInstallersResponse
-		s.DoJSON("POST", "/api/latest/fleet/software/batch",
-			batchSetSoftwareInstallersRequest{Software: warpPayload, TeamName: statusTeam.Name},
-			http.StatusAccepted, &batchResp,
-			"team_name", statusTeam.Name, "team_id", fmt.Sprint(statusTeam.ID),
-		)
-		waitBatchSetSoftwareInstallersCompleted(t, &s.withServer, statusTeam.Name, batchResp.RequestUUID)
+		batchSet(statusTeam, warpPayload)
 
 		// ---- Step 1b: Advance to v2.0 ----
-		warpState.version = "2.0"
-		warpState.installerBytes = []byte("status-warp-v2")
-		warpState.sha256 = computeSHA(warpState.installerBytes)
+		resetFMAState(warpState, "2.0", []byte("status-warp-v2"))
 
-		s.DoJSON("POST", "/api/latest/fleet/software/batch",
-			batchSetSoftwareInstallersRequest{Software: warpPayload, TeamName: statusTeam.Name},
-			http.StatusAccepted, &batchResp,
-			"team_name", statusTeam.Name, "team_id", fmt.Sprint(statusTeam.ID),
-		)
-		waitBatchSetSoftwareInstallersCompleted(t, &s.withServer, statusTeam.Name, batchResp.RequestUUID)
+		batchSet(statusTeam, warpPayload)
 
 		statusTitle := getActiveTitleForTeam(statusTeam.ID)
 		require.Equal(t, "2.0", statusTitle.SoftwarePackage.Version)
 		titleID := statusTitle.ID
 
 		// ---- Step 2: Install v2.0 on a host and record success ----
-		statusHost := createOrbitEnrolledHost(t, "windows", "orbit-host-status-"+t.Name(), s.ds)
-		require.NoError(t, s.ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&statusTeam.ID, []uint{statusHost.ID})))
+		statusHost := newHostInTeam("windows", "orbit-host-status-"+t.Name(), statusTeam)
 
 		s.Do("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/software/%d/install", statusHost.ID, titleID),
 			installSoftwareRequest{}, http.StatusAccepted)
@@ -26204,17 +25968,9 @@ func (s *integrationEnterpriseTestSuite) TestFMAVersionRollback() {
 			"v2.0 installer should show Installed: 1 after a successful install")
 
 		// ---- Step 3: Roll back to v1.0 ----
-		s.DoJSON("POST", "/api/latest/fleet/software/batch",
-			batchSetSoftwareInstallersRequest{
-				Software: []*fleet.SoftwareInstallerPayload{
-					{Slug: ptr.String("cloudflare-warp/windows"), SelfService: true, RollbackVersion: "1.0"},
-				},
-				TeamName: statusTeam.Name,
-			},
-			http.StatusAccepted, &batchResp,
-			"team_name", statusTeam.Name, "team_id", fmt.Sprint(statusTeam.ID),
-		)
-		waitBatchSetSoftwareInstallersCompleted(t, &s.withServer, statusTeam.Name, batchResp.RequestUUID)
+		batchSet(statusTeam, []*fleet.SoftwareInstallerPayload{
+			{Slug: ptr.String("cloudflare-warp/windows"), SelfService: true, RollbackVersion: "1.0"},
+		})
 
 		statusTitle = getActiveTitleForTeam(statusTeam.ID)
 		require.Equal(t, "1.0", statusTitle.SoftwarePackage.Version,
@@ -26248,41 +26004,21 @@ func (s *integrationEnterpriseTestSuite) TestFMAVersionRollback() {
 	// SoftwareTitleByID so the count stays at exactly 1.
 	// =========================================================================
 	t.Run("edit_fma_with_cached_versions", func(t *testing.T) {
-		// Reset warp state to v1.0 for this sub-test.
-		warpState.version = "1.0"
-		warpState.installerBytes = []byte("edit-warp-v1")
-		warpState.sha256 = computeSHA(warpState.installerBytes)
+		resetFMAState(warpState, "1.0", []byte("edit-warp-v1"))
 
-		var editTeamResp teamResponse
-		s.DoJSON("POST", "/api/latest/fleet/teams", &createTeamRequest{
-			TeamPayload: fleet.TeamPayload{Name: ptr.String("team_edit_" + t.Name())},
-		}, http.StatusOK, &editTeamResp)
-		editTeam := editTeamResp.Team
+		editTeam := newTeam("team_edit_" + t.Name())
 
 		warpPayload := []*fleet.SoftwareInstallerPayload{
 			{Slug: ptr.String("cloudflare-warp/windows"), SelfService: false},
 		}
 
 		// ---- Add v1.0 ----
-		var batchResp batchSetSoftwareInstallersResponse
-		s.DoJSON("POST", "/api/latest/fleet/software/batch",
-			batchSetSoftwareInstallersRequest{Software: warpPayload, TeamName: editTeam.Name},
-			http.StatusAccepted, &batchResp,
-			"team_name", editTeam.Name, "team_id", fmt.Sprint(editTeam.ID),
-		)
-		waitBatchSetSoftwareInstallersCompleted(t, &s.withServer, editTeam.Name, batchResp.RequestUUID)
+		batchSet(editTeam, warpPayload)
 
 		// ---- Advance to v2.0 so there are now 2 cached rows (v1.0 inactive, v2.0 active) ----
-		warpState.version = "2.0"
-		warpState.installerBytes = []byte("edit-warp-v2")
-		warpState.sha256 = computeSHA(warpState.installerBytes)
+		resetFMAState(warpState, "2.0", []byte("edit-warp-v2"))
 
-		s.DoJSON("POST", "/api/latest/fleet/software/batch",
-			batchSetSoftwareInstallersRequest{Software: warpPayload, TeamName: editTeam.Name},
-			http.StatusAccepted, &batchResp,
-			"team_name", editTeam.Name, "team_id", fmt.Sprint(editTeam.ID),
-		)
-		waitBatchSetSoftwareInstallersCompleted(t, &s.withServer, editTeam.Name, batchResp.RequestUUID)
+		batchSet(editTeam, warpPayload)
 
 		editTitle := getActiveTitleForTeam(editTeam.ID)
 		require.Equal(t, "2.0", editTitle.SoftwarePackage.Version)
