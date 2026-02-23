@@ -299,6 +299,9 @@ software:
     - slug: okta-verify/darwin # Okta Verify for macOS
       self_service: true
       setup_experience: true
+    - slug: okta-verify/windows # Okta Verify for Windows
+      self_service: true
+      setup_experience: true
     # Windows apps
     - slug: slack/windows # Slack for Windows
       self_service: true
