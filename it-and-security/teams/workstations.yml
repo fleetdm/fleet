@@ -300,6 +300,11 @@ software:
       self_service: true
       setup_experience: true
     # Windows apps
+    - slug: okta-verify/windows # Okta Verify for Windows
+      self_service: true
+      setup_experience: true
+      labels_include_any:
+        - "x86-based Windows hosts"
     - slug: slack/windows # Slack for Windows
       self_service: true
       setup_experience: true
@@ -319,6 +324,3 @@ software:
       self_service: true
     - slug: visual-studio-code/windows # Microsoft Visual Studio for Windows
       self_service: true
-    - slug: okta-verify/windows
-      self_service: true
-      install_during_setup_experience: true
