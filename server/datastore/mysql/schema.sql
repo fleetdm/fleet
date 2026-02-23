@@ -2631,7 +2631,7 @@ CREATE TABLE `software_host_counts` (
   PRIMARY KEY (`software_id`,`team_id`,`global_stats`),
   KEY `idx_software_host_counts_updated_at_software_id` (`updated_at`,`software_id`),
   KEY `idx_software_host_counts_team_global_hosts_desc` (`team_id`,`global_stats`,`hosts_count` DESC,`software_id`),
-  CONSTRAINT `ck_software_host_counts_positive` CHECK ((`hosts_count` > 0))
+  CONSTRAINT `software_host_counts_chk_1` CHECK ((`hosts_count` > 0))
 ) /*!50100 TABLESPACE `innodb_system` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
@@ -2790,7 +2790,7 @@ CREATE TABLE `software_titles_host_counts` (
   PRIMARY KEY (`software_title_id`,`team_id`,`global_stats`),
   KEY `idx_software_titles_host_counts_team_counts_title` (`team_id`,`hosts_count`,`software_title_id`),
   KEY `idx_software_titles_host_counts_updated_at_software_title_id` (`updated_at`,`software_title_id`),
-  CONSTRAINT `ck_software_titles_host_counts_positive` CHECK ((`hosts_count` > 0))
+  CONSTRAINT `software_titles_host_counts_chk_1` CHECK ((`hosts_count` > 0))
 ) /*!50100 TABLESPACE `innodb_system` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
