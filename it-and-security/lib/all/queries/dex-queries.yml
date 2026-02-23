@@ -1,4 +1,4 @@
-- name: DEX - Hardware Inventory - System Information
+- name: DEX - Hardware inventory - system information
   description: Comprehensive system hardware identification including model, serial, manufacturer, and form factor.
   query: |
     SELECT
@@ -20,9 +20,9 @@
   platform: darwin,linux,windows
   automations_enabled: true
   logging: snapshot
-  interval: 300
-- name: DEX - Application Experience - macOS Running Apps
-  description: Currently running macOS applications and their activity status. Joined with processes for resource details.
+  interval: 604800
+- name: DEX - Application experience - macOS running apps
+  description: Currently running macOS applications and their activity status.
   query: |
     SELECT
       ra.pid,
@@ -38,15 +38,11 @@
   automations_enabled: true
   logging: snapshot
   interval: 300
-- name: DEX - Network Experience - WiFi Signal Quality
-  description: WiFi connection signal strength and quality metrics. Poor WiFi directly impacts cloud application performance and user experience.
+- name: DEX - Network experience - Wi-Fi signal quality
+  description: Wi-Fi connection signal strength and quality metrics. Poor Wi-Fi directly impacts cloud application performance and user experience.
   query: |
     SELECT
         interface,
-        ssid,
-        bssid,
-        network_name,
-        country_code,
         rssi,
         noise,
         (rssi - noise) AS signal_to_noise_ratio,
@@ -66,4 +62,4 @@
   platform: darwin
   automations_enabled: true
   logging: snapshot
-  interval: 300
+  interval: 600
