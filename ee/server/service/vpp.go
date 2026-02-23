@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"image/png"
 	"io"
 	"maps"
 	"net/http"
@@ -1217,4 +1218,47 @@ func (svc *Service) DeleteVPPToken(ctx context.Context, tokenID uint) error {
 	}
 
 	return svc.ds.DeleteVPPToken(ctx, tokenID)
+}
+
+func (svc *Service) CreateAndroidWebApp(ctx context.Context, title, startURL string, icon io.Reader) (string, error) {
+	// Authorization for this endpoint is a bit different - basically we want the same
+	// write permissions as for App Store apps (fleet.VPPApp struct), but there is no
+	// team id available when this endpoint is called, so we allow any team user to
+	// call it as long as they have the acceptable role. To achieve this, we grab the
+	// first team id from the user's list of teams, if they have a non-global role.
+	var teamID *uint
+	if user := authz.UserFromContext(ctx); user != nil {
+		if len(user.Teams) > 0 {
+			teamID = &user.Teams[0].ID
+		}
+	}
+
+	if err := svc.authz.Authorize(ctx, &fleet.VPPApp{TeamID: teamID}, fleet.ActionWrite); err != nil {
+		return "", err
+	}
+
+	// title and startURL are required but are already validated during the DecodeRequest implementation.
+	// Icon, if provided, must be a .png file and must be square and at least 512x512 pixels.
+	if icon != nil {
+		const invalidIconErrMsg = `Couldn't create. The icon must be a PNG file and square, with dimensions of at least 512 x 512px.`
+
+		// decoding errors if it is not a valid png
+		cfg, err := png.DecodeConfig(icon)
+		if err != nil {
+			return "", &fleet.BadRequestError{Message: invalidIconErrMsg, InternalErr: err}
+		}
+
+		// check that it is square
+		if cfg.Width != cfg.Height {
+			return "", &fleet.BadRequestError{Message: invalidIconErrMsg}
+		}
+
+		// check minimal size requirement (only needs to test one, as at this point it is square)
+		if cfg.Width < 512 {
+			return "", &fleet.BadRequestError{Message: invalidIconErrMsg}
+		}
+	}
+
+	// TODO(mna): call the AMAPI endpoint
+	return "", nil
 }
