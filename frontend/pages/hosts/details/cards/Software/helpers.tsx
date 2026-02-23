@@ -7,6 +7,7 @@ import {
   IHostSoftware,
   IHostSoftwareUiStatus,
   IHostSoftwareWithUiStatus,
+  NO_VERSION_OR_HOST_DATA_SOURCES,
   SCRIPT_PACKAGE_SOURCES,
 } from "interfaces/software";
 import { IconNames } from "components/icons";
@@ -30,9 +31,23 @@ export const getHostSoftwareFilterFromQueryParams = (
 const PRE_RELEASE_ORDER = ["alpha", "beta", "rc", ""];
 
 /**
- * Removes build metadata from a version string (e.g., "1.0.0+build" -> "1.0.0").
+ * Removes build metadata and parenthesized build info from a version string.
+ * Examples:
+ *   "1.0.0+build.1"        -> "1.0.0"
+ *   "8.0 (build 6300)"     -> "8.0"
+ *   "8.1.2 (Build 6300)"   -> "8.1.2"
  */
-const stripBuildMetadata = (version: string): string => version.split("+")[0];
+const stripBuildMetadata = (version: string): string => {
+  if (typeof version !== "string") {
+    return "";
+  }
+
+  // First drop any parenthesized "build ..." suffix, e.g. "8.0 (build 6300)" -> "8.0"
+  const withoutParenBuild = version.replace(/\s*\(build\s+[^)]+\)\s*$/i, "");
+
+  // Then drop standard SemVer +build metadata, e.g. "1.0.0+build.1" -> "1.0.0"
+  return withoutParenBuild.split("+")[0];
+};
 
 /**
  * Splits a version string into an array of numeric and string segments.
@@ -180,6 +195,12 @@ export const getUiStatus = (
   const lastUninstallDate = getLastUninstall(software)?.uninstalled_at;
   const installerVersion = getInstallerVersion(software);
   const isScriptPackage = SCRIPT_PACKAGE_SOURCES.includes(source);
+  // Some sources (e.g. tarballs, scripts) do not map to software inventory, so we will always skip
+  // inventory-based checks (e.g. recently_installed/recently_uninstalled) for these software sources
+  // This guard allows the switch to 'installed' or 'uninstalled' immediately after a tarball action succeeds.
+  const isInventoryDetectableSource = !NO_VERSION_OR_HOST_DATA_SOURCES.includes(
+    source
+  );
   /** True if a recent user-initiated action (install/uninstall) was detected for this software */
   const recentUserActionDetected =
     recentlyUpdatedIds && recentlyUpdatedIds.has(software.id);
@@ -192,6 +213,9 @@ export const getUiStatus = (
     if (status === "pending_install") {
       return isHostOnline ? "running_script" : "pending_script";
     }
+    // We never show recently installed/updated or waiting for inventory for script packages
+    // Since version won't be retreived from inventory, we are not waiting on a refetch
+    // UI status immediately changes to "Ran" status after a successful install
     if (status === "installed") {
       return "ran_script";
     }
@@ -200,28 +224,34 @@ export const getUiStatus = (
 
   // 1. Failed install states
   if (status === "failed_install") {
-    if (
-      installerVersion &&
-      installed_versions &&
-      installed_versions.some(
-        (iv) => compareVersions(iv.version, installerVersion) === -1
-      )
-    ) {
-      return "failed_install_update_available";
+    if (installerVersion && installed_versions) {
+      if (
+        installed_versions.some(
+          (iv) => compareVersions(iv.version, installerVersion) === -1
+        )
+      ) {
+        return "failed_install_update_available";
+      }
+      // Treat failed install as installed if versions still present as of 4.82 #31663
+      // UI tooltip indicates failure info in host activity logs, but shows the "Installed" status along with the install details modal
+      return "failed_install_installed";
     }
     return "failed_install";
   }
 
   // 2. Failed uninstall states
   if (status === "failed_uninstall") {
-    if (
-      installerVersion &&
-      installed_versions &&
-      installed_versions.some(
-        (iv) => compareVersions(iv.version, installerVersion) === -1
-      )
-    ) {
-      return "failed_uninstall_update_available";
+    if (installerVersion && installed_versions) {
+      if (
+        installed_versions.some(
+          (iv) => compareVersions(iv.version, installerVersion) === -1
+        )
+      ) {
+        return "failed_uninstall_update_available";
+      }
+      // Treat failed uninstall as installed if versions still present as of 4.82 #31663
+      // UI tooltip indicates failure info in host activity logs, but shows the "Installed" status along with the install details modal
+      return "failed_uninstall_installed";
     }
     return "failed_uninstall";
   }
@@ -248,8 +278,13 @@ export const getUiStatus = (
     return isHostOnline ? "uninstalling" : "pending_uninstall";
   }
 
-  // **Recently_uninstalled check comes BEFORE update_available**
-  if (software.status === null && lastUninstallDate && hostSoftwareUpdatedAt) {
+  // Recently_uninstalled check comes BEFORE update_available
+  if (
+    status === null &&
+    lastUninstallDate &&
+    hostSoftwareUpdatedAt &&
+    isInventoryDetectableSource // Only wait for inventory updates for sources that appear in software inventory
+  ) {
     const newerDate = getNewerDate(hostSoftwareUpdatedAt, lastUninstallDate);
     if (newerDate === lastUninstallDate || recentUserActionDetected) {
       return "recently_uninstalled";
@@ -276,19 +311,22 @@ export const getUiStatus = (
   }
 
   // 6. Recently installed (not an update)
-  if (
-    software.status === "installed" &&
-    lastInstallDate &&
-    hostSoftwareUpdatedAt
-  ) {
-    const newerDate = getNewerDate(hostSoftwareUpdatedAt, lastInstallDate);
-    if (newerDate === lastInstallDate || recentUserActionDetected) {
-      return "recently_installed";
+  if (status === "installed") {
+    if (
+      lastInstallDate &&
+      hostSoftwareUpdatedAt &&
+      isInventoryDetectableSource // Only wait for inventory updates for sources that appear in software inventory
+    ) {
+      const newerDate = getNewerDate(hostSoftwareUpdatedAt, lastInstallDate);
+      if (newerDate === lastInstallDate || recentUserActionDetected) {
+        return "recently_installed";
+      }
     }
+    return "installed";
   }
 
   // 7. Tarballs edge case
-  if (software.source === "tgz_packages" && software.status === "installed") {
+  if (source === "tgz_packages" && status === "installed") {
     return "installed";
   }
 
@@ -336,12 +374,14 @@ export const getInstallerActionButtonConfig = (
         return { text: "Run", icon: "install" };
       // Normal install statuses
       case "failed_install":
+      case "failed_install_installed":
       case "failed_install_update_available":
         return { text: "Retry", icon: "refresh" };
       case "installed":
       case "pending_uninstall":
       case "uninstalling":
       case "failed_uninstall":
+      case "failed_uninstall_installed":
       case "recently_installed":
       case "recently_updated":
         return { text: "Reinstall", icon: "refresh" };
@@ -357,6 +397,7 @@ export const getInstallerActionButtonConfig = (
     // uninstall
     switch (status) {
       case "failed_uninstall":
+      case "failed_uninstall_installed":
       case "failed_uninstall_update_available":
         return { text: "Retry uninstall", icon: "refresh" };
       default:
@@ -369,11 +410,11 @@ export const getInstallerActionButtonConfig = (
 
 const INSTALL_STATUS_SORT_ORDER: IHostSoftwareUiStatus[] = [
   "failed_install", // Failed
-  "failed_install_update_available", // Failed install with update available
   "failed_script", // Failed to run (for script packages)
   "failed_uninstall", // Failed uninstall
-  "failed_uninstall_update_available", // Failed uninstall with update available
-  "update_available", // Update available
+  "failed_install_update_available", // (Shows "Update available") Failed install with update available
+  "failed_uninstall_update_available", // (Shows "Update available")  Failed uninstall with update available
+  "update_available", // // Update available
   "updating", // Updating...
   "pending_update", // Update (pending)
   "running_script", // Running... (for script packages)
@@ -384,6 +425,8 @@ const INSTALL_STATUS_SORT_ORDER: IHostSoftwareUiStatus[] = [
   "pending_uninstall", // Uninstall (pending)
   "ran_script", // Ran (for script packages)
   "installed", // Installed
+  "failed_install_installed", // (Shows "Installed") Installed with a recent failed install decected
+  "failed_uninstall_installed", // (Shows "Installed") Installed with a recent failed uninstall detected
   "uninstalled", // Empty (---)
   "never_ran_script", // Empty (---) for script packages
 ];
@@ -436,9 +479,7 @@ export const getSoftwareSubheader = ({
         : "Software installed on work profile (Managed Apple Account).";
     }
     if (hostMdmEnrollmentStatus === "On (manual)") {
-      return isMyDevicePage
-        ? "Software installed on your device. Built-in apps (e.g. Calculator) aren't included."
-        : "Software installed on this host. Built-in apps (e.g. Calculator) aren't included.";
+      return "Software installed by Fleet. Built-in apps (e.g. Calculator) and apps installed by the end user aren't included.";
     }
   }
   return isMyDevicePage

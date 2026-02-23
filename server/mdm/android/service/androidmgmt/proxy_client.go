@@ -8,13 +8,14 @@ import (
 	"log/slog"
 	"net/http"
 	"os"
+	"slices"
+	"strings"
 
 	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
+	"github.com/fleetdm/fleet/v4/server/dev_mode"
 	"github.com/fleetdm/fleet/v4/server/mdm/android"
 	"github.com/go-json-experiment/json"
-	kitlog "github.com/go-kit/log"
-	"github.com/go-kit/log/level"
 	"google.golang.org/api/androidmanagement/v1"
 	"google.golang.org/api/googleapi"
 	"google.golang.org/api/option"
@@ -24,7 +25,7 @@ const defaultProxyEndpoint = "https://fleetdm.com/api/android/"
 
 // ProxyClient connects to Google's Android Management API via a proxy, which is hosted at fleetdm.com by default.
 type ProxyClient struct {
-	logger            kitlog.Logger
+	logger            *slog.Logger
 	mgmt              *androidmanagement.Service
 	licenseKey        string
 	proxyEndpoint     string
@@ -34,14 +35,20 @@ type ProxyClient struct {
 // Compile-time check to ensure that ProxyClient implements Client.
 var _ Client = &ProxyClient{}
 
-func NewProxyClient(ctx context.Context, logger kitlog.Logger, licenseKey string, getenv func(string) string) Client {
+func NewProxyClient(ctx context.Context, logger *slog.Logger, licenseKey string, getenv dev_mode.GetEnv) Client {
 	proxyEndpoint := getenv("FLEET_DEV_ANDROID_PROXY_ENDPOINT")
 	if proxyEndpoint == "" {
 		proxyEndpoint = defaultProxyEndpoint
 	}
 
 	slogLogger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{
-		Level: slog.LevelDebug,
+		ReplaceAttr: func(groups []string, a slog.Attr) slog.Attr {
+			if slices.Contains(groups, "request") && slices.Contains(groups, "headers") && a.Key == "Authorization" {
+				// Redact request Authorization headers
+				a.Value = slog.StringValue("REDACTED")
+			}
+			return a
+		},
 	}))
 	// We use the same client that we use to directly connect to Google to minimize issues/maintenance.
 	// But we point it to our proxy endpoint instead of Google.
@@ -53,7 +60,7 @@ func NewProxyClient(ctx context.Context, logger kitlog.Logger, licenseKey string
 		option.WithHTTPClient(fleethttp.NewClient()),
 	)
 	if err != nil {
-		level.Error(logger).Log("msg", "creating android management service", "err", err)
+		logger.ErrorContext(ctx, "creating android management service", "err", err)
 		return nil
 	}
 	return &ProxyClient{
@@ -150,13 +157,28 @@ func (p *ProxyClient) EnterprisesCreate(ctx context.Context, req EnterprisesCrea
 	}, nil
 }
 
-func (p *ProxyClient) EnterprisesPoliciesPatch(ctx context.Context, policyName string, policy *androidmanagement.Policy) (*androidmanagement.Policy, error) {
-	call := p.mgmt.Enterprises.Policies.Patch(policyName, policy).Context(ctx).UpdateMask(policyFieldMask)
+type PoliciesPatchOpts struct {
+	// OnlyUpdateApps tells the client to only update the policy's application list.
+	OnlyUpdateApps bool
+	// ExcludeApps tells the client to not update the policy's application list.
+	ExcludeApps bool
+}
+
+func (p *ProxyClient) EnterprisesPoliciesPatch(ctx context.Context, policyName string, policy *androidmanagement.Policy, opts PoliciesPatchOpts) (*androidmanagement.Policy, error) {
+	call := p.mgmt.Enterprises.Policies.Patch(policyName, policy).Context(ctx)
+
+	switch {
+	case opts.ExcludeApps:
+		call = call.UpdateMask(policyFieldMask)
+	case opts.OnlyUpdateApps:
+		call = call.UpdateMask("applications")
+	}
+
 	call.Header().Set("Authorization", "Bearer "+p.fleetServerSecret)
 	ret, err := call.Do()
 	switch {
 	case googleapi.IsNotModified(err):
-		p.logger.Log("msg", "Android policy not modified", "policy_name", policyName)
+		p.logger.InfoContext(ctx, "Android policy not modified", "policy_name", policyName)
 		return nil, err
 	case err != nil:
 		return nil, fmt.Errorf("patching policy %s: %w", policyName, err)
@@ -170,7 +192,7 @@ func (p *ProxyClient) EnterprisesDevicesPatch(ctx context.Context, deviceName st
 	ret, err := call.Do()
 	switch {
 	case googleapi.IsNotModified(err):
-		p.logger.Log("msg", "Android device not modified", "device_name", deviceName)
+		p.logger.InfoContext(ctx, "Android device not modified", "device_name", deviceName)
 		return nil, err
 	case err != nil:
 		return nil, fmt.Errorf("patching device %s: %w", deviceName, err)
@@ -194,7 +216,7 @@ func (p *ProxyClient) EnterprisesDevicesDelete(ctx context.Context, deviceName s
 	_, err := call.Do()
 	switch {
 	case googleapi.IsNotModified(err) || isErrorCode(err, http.StatusNotFound):
-		p.logger.Log("msg", "Android device already deleted", "device_name", deviceName)
+		p.logger.InfoContext(ctx, "Android device already deleted", "device_name", deviceName)
 		return nil
 	case err != nil:
 		return fmt.Errorf("deleting device %s: %w", deviceName, err)
@@ -230,7 +252,7 @@ func (p *ProxyClient) EnterpriseDelete(ctx context.Context, enterpriseName strin
 	_, err := call.Do()
 	switch {
 	case googleapi.IsNotModified(err) || isErrorCode(err, http.StatusNotFound):
-		level.Info(p.logger).Log("msg", "enterprise was already deleted", "enterprise_name", enterpriseName)
+		p.logger.InfoContext(ctx, "enterprise was already deleted", "enterprise_name", enterpriseName)
 		return nil
 	case err != nil:
 		return fmt.Errorf("deleting enterprise %s: %w", enterpriseName, err)
@@ -243,6 +265,9 @@ func (p *ProxyClient) EnterprisesList(ctx context.Context, serverURL string) ([]
 	call := p.mgmt.Enterprises.List().Context(ctx)
 	call.Header().Set("Authorization", "Bearer "+p.fleetServerSecret)
 	call.Header().Set("Origin", serverURL)
+	// NOTE: we don't call .Pages(...) here because the Fleet proxy takes care of
+	// listing enterprises on all pages and filtering those that belong to this Fleet instance:
+	// https://github.com/fleetdm/fleet/blob/ac960d64fce49175b4f3ee396ed30c27824450ea/website/api/controllers/android-proxy/get-android-enterprises.js#L74-L91
 	resp, err := call.Do()
 	if err != nil {
 		// Convert proxy errors to proper googleapi.Error for service layer
@@ -280,12 +305,11 @@ func (p *ProxyClient) EnterprisesApplications(ctx context.Context, enterpriseNam
 
 	app, err := call.Do()
 	if err != nil {
-		var gapiErr *googleapi.Error
-		if errors.As(err, &gapiErr) {
-			if gapiErr.Code == http.StatusNotFound {
-				return nil, ctxerr.Wrap(ctx, appNotFoundError{})
-			}
+		if isErrorCode(err, http.StatusNotFound) || (isErrorCode(err, http.StatusInternalServerError) && strings.Contains(err.Error(), "Requested entity was not found")) {
+			// For some reason, the AMAPI can return a 500 when an app is not found.
+			return nil, ctxerr.Wrap(ctx, appNotFoundError{})
 		}
+
 		return nil, fmt.Errorf("getting application %s: %w", packageName, err)
 	}
 	return app, nil
@@ -308,10 +332,28 @@ func (p *ProxyClient) EnterprisesPoliciesModifyPolicyApplications(ctx context.Co
 	ret, err := call.Do()
 	switch {
 	case googleapi.IsNotModified(err):
-		p.logger.Log("msg", "Android application policy not modified", "policy_name", policyName)
+		p.logger.InfoContext(ctx, "Android application policy not modified", "policy_name", policyName)
 		return nil, err
 	case err != nil:
 		return nil, ctxerr.Wrapf(ctx, err, "modifying application policy %s", policyName)
+	}
+	return ret.Policy, nil
+}
+
+func (p *ProxyClient) EnterprisesPoliciesRemovePolicyApplications(ctx context.Context, policyName string, packageNames []string) (*androidmanagement.Policy, error) {
+	req := androidmanagement.RemovePolicyApplicationsRequest{
+		PackageNames: packageNames,
+	}
+
+	call := p.mgmt.Enterprises.Policies.RemovePolicyApplications(policyName, &req).Context(ctx)
+	call.Header().Set("Authorization", "Bearer "+p.fleetServerSecret)
+	ret, err := call.Do()
+	switch {
+	case googleapi.IsNotModified(err):
+		p.logger.InfoContext(ctx, "Android application policy not modified", "policy_name", policyName)
+		return nil, err
+	case err != nil:
+		return nil, ctxerr.Wrapf(ctx, err, "removing packages from application policy %s", policyName)
 	}
 	return ret.Policy, nil
 }

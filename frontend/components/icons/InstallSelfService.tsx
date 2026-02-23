@@ -1,6 +1,7 @@
 import React from "react";
-import { COLORS } from "styles/var/colors";
 
+import { uniqueId } from "lodash";
+import { COLORS } from "styles/var/colors";
 import { ICON_SIZES, IconSizes } from "styles/var/icon_sizes";
 
 interface IInstallSelfServiceProps {
@@ -12,6 +13,8 @@ const InstallSelfService = ({
   size = "medium",
   color = "ui-fleet-black-50",
 }: IInstallSelfServiceProps) => {
+  const clipPathId = uniqueId("clip-path-");
+
   return (
     <svg
       xmlns="http://www.w3.org/2000/svg"
@@ -20,7 +23,7 @@ const InstallSelfService = ({
       viewBox="0 0 16 16"
       fill="none"
     >
-      <g clipPath="url(#clip0_386_3648)">
+      <g clipPath={`url(#${clipPathId})`}>
         <path
           fillRule="evenodd"
           clipRule="evenodd"
@@ -29,7 +32,7 @@ const InstallSelfService = ({
         />
       </g>
       <defs>
-        <clipPath id="clip0_386_3648">
+        <clipPath id={clipPathId}>
           <rect width="16" height="16" fill="white" />
         </clipPath>
       </defs>

@@ -158,6 +158,29 @@ func getDeviceHostEndpoint(ctx context.Context, request interface{}, svc fleet.S
 		return getDeviceHostResponse{Err: err}, nil
 	}
 
+	// Scrub sensitive data from the host response for iOS and iPadOS devices
+	if authzCtx, ok := authz.FromContext(ctx); ok && authzCtx.AuthnMethod() == authz.AuthnDeviceURL {
+		if host.Platform == "ios" || host.Platform == "ipados" {
+			resp.HardwareSerial = ""
+			resp.UUID = ""
+			resp.PrimaryMac = ""
+			resp.TeamName = nil
+			resp.MDM.Profiles = nil
+			resp.Labels = nil
+			resp.Hostname = ""
+			resp.ComputerName = ""
+			resp.DisplayText = ""
+			resp.DisplayName = ""
+
+			// Scrub sensitive data from the license response
+			scrubbedLicense := *license
+			scrubbedLicense.Organization = ""
+			scrubbedLicense.DeviceCount = 0
+			scrubbedLicense.Expiration = time.Time{}
+			license = &scrubbedLicense
+		}
+	}
+
 	resp.DEPAssignedToFleet = ptr.Bool(false)
 	if ac.MDM.EnabledAndConfigured && license.IsPremium() {
 		hdep, err := svc.GetHostDEPAssignment(ctx, host)
@@ -169,6 +192,7 @@ func getDeviceHostEndpoint(ctx context.Context, request interface{}, svc fleet.S
 
 	softwareInventoryEnabled := ac.Features.EnableSoftwareInventory
 	requireAllSoftware := ac.MDM.MacOSSetup.RequireAllSoftware
+	var conditionalAccessEnabled bool
 	if resp.TeamID != nil {
 		// load the team to get the device's team's software inventory config.
 		tm, err := svc.GetTeam(ctx, *resp.TeamID)
@@ -178,6 +202,7 @@ func getDeviceHostEndpoint(ctx context.Context, request interface{}, svc fleet.S
 		if tm != nil {
 			softwareInventoryEnabled = tm.Config.Features.EnableSoftwareInventory // TODO: We should look for opportunities to fix the confusing name of the `global_config` object in the API response. Also, how can we better clarify/document the expected order of precedence for team and global feature flags?
 			requireAllSoftware = tm.Config.MDM.MacOSSetup.RequireAllSoftware
+			conditionalAccessEnabled = ac.ConditionalAccess.OktaConfigured() && tm.Config.Integrations.ConditionalAccessEnabled.Valid && tm.Config.Integrations.ConditionalAccessEnabled.Value
 		}
 	}
 
@@ -198,7 +223,9 @@ func getDeviceHostEndpoint(ctx context.Context, request interface{}, svc fleet.S
 			RequireAllSoftware:   requireAllSoftware,
 		},
 		Features: fleet.DeviceFeatures{
-			EnableSoftwareInventory: softwareInventoryEnabled,
+			EnableSoftwareInventory:       softwareInventoryEnabled,
+			EnableConditionalAccess:       conditionalAccessEnabled,
+			EnableConditionalAccessBypass: ac.ConditionalAccess != nil && ac.ConditionalAccess.BypassEnabled(),
 		},
 	}
 
@@ -214,7 +241,9 @@ func getDeviceHostEndpoint(ctx context.Context, request interface{}, svc fleet.S
 }
 
 func (svc *Service) GetHostDEPAssignment(ctx context.Context, host *fleet.Host) (*fleet.HostDEPAssignment, error) {
-	alreadyAuthd := svc.authz.IsAuthenticatedWith(ctx, authz.AuthnDeviceToken) || svc.authz.IsAuthenticatedWith(ctx, authz.AuthnDeviceCertificate)
+	alreadyAuthd := svc.authz.IsAuthenticatedWith(ctx, authz.AuthnDeviceToken) ||
+		svc.authz.IsAuthenticatedWith(ctx, authz.AuthnDeviceCertificate) ||
+		svc.authz.IsAuthenticatedWith(ctx, authz.AuthnDeviceURL)
 	if !alreadyAuthd {
 		if err := svc.authz.Authorize(ctx, host, fleet.ActionRead); err != nil {
 			return nil, err
@@ -299,6 +328,36 @@ func (svc *Service) AuthenticateDeviceByCertificate(ctx context.Context, certSer
 	// Verify host platform is iOS or iPadOS
 	if host.Platform != "ios" && host.Platform != "ipados" {
 		return nil, false, ctxerr.Wrap(ctx, fleet.NewAuthRequiredError("authentication error: certificate authentication only supported for iOS and iPadOS devices"))
+	}
+
+	return host, svc.debugEnabledForHost(ctx, host.ID), nil
+}
+
+// AuthenticateIDeviceByURL returns the host identified by the URL UUID.
+// This is used for iOS/iPadOS devices (iDevices) accessing endpoints via a unique URL parameter.
+// Returns an error if the UUID doesn't exist or if the host is not iOS/iPadOS.
+func (svc *Service) AuthenticateIDeviceByURL(ctx context.Context, urlUUID string) (*fleet.Host, bool, error) {
+	// skipauth: Authorization is currently for user endpoints only.
+	svc.authz.SkipAuthorization(ctx)
+
+	if urlUUID == "" {
+		return nil, false, ctxerr.Wrap(ctx, fleet.NewAuthRequiredError("authentication error: missing host UUID"))
+	}
+
+	// Look up the host by UUID
+	host, err := svc.ds.HostByIdentifier(ctx, urlUUID)
+	switch {
+	case err == nil:
+		// OK
+	case fleet.IsNotFound(err):
+		return nil, false, ctxerr.Wrap(ctx, fleet.NewAuthRequiredError("authentication error: host not found"))
+	default:
+		return nil, false, ctxerr.Wrap(ctx, err, "lookup host by UUID")
+	}
+
+	// Verify host platform is iOS or iPadOS
+	if host.Platform != "ios" && host.Platform != "ipados" {
+		return nil, false, ctxerr.Wrap(ctx, fleet.NewAuthRequiredError("authentication error: URL authentication only supported for iOS and iPadOS devices"))
 	}
 
 	return host, svc.debugEnabledForHost(ctx, host.ID), nil
@@ -425,6 +484,46 @@ func (svc *Service) ListDevicePolicies(ctx context.Context, host *fleet.Host) ([
 }
 
 ////////////////////////////////////////////////////////////////////////////////
+// Bypass conditional access
+////////////////////////////////////////////////////////////////////////////////
+
+type bypassConditionalAccessRequest struct {
+	Token string `url:"token"`
+}
+
+func (r *bypassConditionalAccessRequest) deviceAuthToken() string {
+	return r.Token
+}
+
+type bypassConditionalAccessResponse struct {
+	Err error `json:"error,omitempty"`
+}
+
+func (r bypassConditionalAccessResponse) Error() error { return r.Err }
+
+func bypassConditionalAccessEndpoint(ctx context.Context, request any, svc fleet.Service) (fleet.Errorer, error) {
+	host, ok := hostctx.FromContext(ctx)
+	if !ok {
+		err := ctxerr.Wrap(ctx, fleet.NewAuthRequiredError("internal error: missing host from request context"))
+		return bypassConditionalAccessResponse{Err: err}, nil
+	}
+
+	if err := svc.BypassConditionalAccess(ctx, host); err != nil {
+		return bypassConditionalAccessResponse{Err: err}, nil
+	}
+
+	return bypassConditionalAccessResponse{}, nil
+}
+
+func (svc *Service) BypassConditionalAccess(ctx context.Context, host *fleet.Host) error {
+	// skipauth: No authorization check needed due to implementation returning
+	// only license error.
+	svc.authz.SkipAuthorization(ctx)
+
+	return fleet.ErrMissingLicense
+}
+
+////////////////////////////////////////////////////////////////////////////////
 // Resend configuration profile
 ////////////////////////////////////////////////////////////////////////////////
 
@@ -484,7 +583,7 @@ func getDeviceMDMCommandResultsEndpoint(ctx context.Context, request interface{}
 	}
 
 	req := request.(*getDeviceMDMCommandResultsRequest)
-	results, err := svc.GetMDMCommandResults(ctx, req.CommandUUID)
+	results, err := svc.GetMDMCommandResults(ctx, req.CommandUUID, "")
 	if err != nil {
 		return getMDMCommandResultsResponse{
 			Err: err,
@@ -651,11 +750,9 @@ func (f *fleetdErrorRequest) deviceAuthToken() string {
 // Since we're directly storing what we get in Redis, limit the request size to
 // 5MB, this combined with the rate limit of this endpoint should be enough to
 // prevent a malicious actor.
-const maxFleetdErrorReportSize int64 = 5 * 1024 * 1024
-
+// body limiting is done at the handler level
 func (f *fleetdErrorRequest) DecodeBody(ctx context.Context, r io.Reader, u url.Values, c []*x509.Certificate) error {
-	limitedReader := io.LimitReader(r, maxFleetdErrorReportSize+1)
-	decoder := json.NewDecoder(limitedReader)
+	decoder := json.NewDecoder(r)
 
 	for {
 		if err := decoder.Decode(&f.FleetdError); err == io.EOF {
@@ -684,7 +781,9 @@ func fleetdError(ctx context.Context, request interface{}, svc fleet.Service) (f
 }
 
 func (svc *Service) LogFleetdError(ctx context.Context, fleetdError fleet.FleetdError) error {
-	if !svc.authz.IsAuthenticatedWith(ctx, authz.AuthnDeviceToken) && !svc.authz.IsAuthenticatedWith(ctx, authz.AuthnDeviceCertificate) {
+	// iOS/iPadOS devices don't have fleetd, so URL auth is not allowed here.
+	if !svc.authz.IsAuthenticatedWith(ctx, authz.AuthnDeviceToken) &&
+		!svc.authz.IsAuthenticatedWith(ctx, authz.AuthnDeviceCertificate) {
 		return ctxerr.Wrap(ctx, fleet.NewPermissionError("forbidden: only device-authenticated hosts can access this endpoint"))
 	}
 
@@ -739,7 +838,9 @@ func getDeviceMDMManualEnrollProfileEndpoint(ctx context.Context, request interf
 
 func (svc *Service) GetDeviceMDMAppleEnrollmentProfile(ctx context.Context) (*url.URL, error) {
 	// must be device-authenticated, no additional authorization is required
-	if !svc.authz.IsAuthenticatedWith(ctx, authz.AuthnDeviceToken) && !svc.authz.IsAuthenticatedWith(ctx, authz.AuthnDeviceCertificate) {
+	// iOS/iPadOS devices are enrolled via MDM profile or ABM, so URL auth is not allowed here.
+	if !svc.authz.IsAuthenticatedWith(ctx, authz.AuthnDeviceToken) &&
+		!svc.authz.IsAuthenticatedWith(ctx, authz.AuthnDeviceCertificate) {
 		return nil, ctxerr.Wrap(ctx, fleet.NewPermissionError("forbidden: only device-authenticated hosts can access this endpoint"))
 	}
 
@@ -970,13 +1071,22 @@ type getDeviceSetupExperienceStatusResponse struct {
 func (r getDeviceSetupExperienceStatusResponse) Error() error { return r.Err }
 
 func getDeviceSetupExperienceStatusEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
-	if _, ok := request.(*getDeviceSetupExperienceStatusRequest); !ok {
+	req, ok := request.(*getDeviceSetupExperienceStatusRequest)
+	if !ok {
 		return nil, fmt.Errorf("internal error: invalid request type: %T", request)
 	}
 	results, err := svc.GetDeviceSetupExperienceStatus(ctx)
 	if err != nil {
 		return &getDeviceSetupExperienceStatusResponse{Err: err}, nil
 	}
+
+	// only software can have custom icons, so no need to iterate over Scripts
+	for _, r := range results.Software {
+		// mutate SetupExperienceStatusResult records for my device page
+		// (same approach used for HostSoftwareWithInstaller)
+		r.ForMyDevicePage(req.Token)
+	}
+
 	return &getDeviceSetupExperienceStatusResponse{Results: results}, nil
 }
 

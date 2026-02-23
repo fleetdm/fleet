@@ -19,6 +19,27 @@ type GetDefaultFnParams = {
   teamConfig?: ITeamConfig;
 };
 
+const getDefaultUpdateNewHosts = ({
+  osType,
+  currentTeamId,
+  appConfig,
+  teamConfig,
+}: GetDefaultFnParams) => {
+  const mdmData =
+    currentTeamId === API_NO_TEAM_ID ? appConfig?.mdm : teamConfig?.mdm;
+
+  switch (osType) {
+    case "darwin":
+      return !!mdmData?.macos_updates.update_new_hosts;
+    case "ios":
+      return !!mdmData?.ios_updates.update_new_hosts;
+    case "ipados":
+      return !!mdmData?.ipados_updates.update_new_hosts;
+    default:
+      return false;
+  }
+};
+
 const getDefaultOSVersion = ({
   osType,
   currentTeamId,
@@ -149,6 +170,12 @@ const TargetSection = ({
     appConfig,
     teamConfig,
   });
+  const defaultMacOSUpdateNewHosts = getDefaultUpdateNewHosts({
+    osType: "darwin",
+    currentTeamId,
+    appConfig,
+    teamConfig,
+  });
 
   const defaultWindowsDeadlineDays = getDefaultWindowsDeadlineDays({
     currentTeamId,
@@ -184,6 +211,7 @@ const TargetSection = ({
         defaultIPadOSDeadline={defaultIPadOSDeadline}
         defaultWindowsDeadlineDays={defaultWindowsDeadlineDays}
         defaultWindowsGracePeriodDays={defaultWindowsGracePeriodDays}
+        defaultMacOSUpdateNewHosts={defaultMacOSUpdateNewHosts}
         selectedPlatform={selectedPlatform}
         onSelectPlatform={onSelectPlatform}
         refetchAppConfig={refetchAppConfig}

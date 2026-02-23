@@ -7,6 +7,7 @@ import (
 	"slices"
 
 	"github.com/fleetdm/fleet/v4/pkg/file"
+	"github.com/fleetdm/fleet/v4/server/contexts/ctxdb"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -126,7 +127,7 @@ func (svc *Service) UploadSoftwareTitleIcon(ctx context.Context, payload *fleet.
 	// if anything on the icon has changed, we need to generate a new activity
 	if icon == nil || icon.StorageID != softwareTitleIcon.StorageID || icon.Filename != softwareTitleIcon.Filename {
 		iconUrl := fmt.Sprintf("/api/latest/fleet/software/titles/%d/icon?team_id=%d", softwareTitleIcon.SoftwareTitleID, softwareTitleIcon.TeamID)
-		activityDetailsForSoftwareTitleIcon, err := svc.ds.ActivityDetailsForSoftwareTitleIcon(ctx, payload.TeamID, payload.TitleID)
+		activityDetailsForSoftwareTitleIcon, err := svc.ds.ActivityDetailsForSoftwareTitleIcon(ctxdb.RequirePrimary(ctx, true), payload.TeamID, payload.TitleID)
 		if err != nil {
 			return fleet.SoftwareTitleIcon{}, ctxerr.Wrap(ctx, err, "fetching software title icon activity details")
 		}
@@ -150,7 +151,7 @@ func (svc *Service) DeleteSoftwareTitleIcon(ctx context.Context, teamID uint, ti
 		return fleet.ErrNoContext
 	}
 	user := vc.User
-	activityDetailsForSoftwareTitleIcon, err := svc.ds.ActivityDetailsForSoftwareTitleIcon(ctx, teamID, titleID)
+	activityDetailsForSoftwareTitleIcon, err := svc.ds.ActivityDetailsForSoftwareTitleIcon(ctxdb.RequirePrimary(ctx, true), teamID, titleID)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "fetching software title icon activity details")
 	}

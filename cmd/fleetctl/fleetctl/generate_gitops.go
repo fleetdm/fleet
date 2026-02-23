@@ -2,6 +2,8 @@ package fleetctl
 
 import (
 	"bytes"
+	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"math"
@@ -17,6 +19,7 @@ import (
 
 	"github.com/fleetdm/fleet/v4/pkg/spec"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	maintained_apps "github.com/fleetdm/fleet/v4/server/mdm/maintainedapps"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/service"
 	"github.com/ghodss/yaml"
@@ -76,21 +79,30 @@ type generateGitopsClient interface {
 	GetSoftwareTitleIcon(titleID uint, teamID uint) ([]byte, error)
 	GetPolicies(teamID *uint) ([]*fleet.Policy, error)
 	GetQueries(teamID *uint, name *string) ([]fleet.Query, error)
-	GetLabels() ([]*fleet.LabelSpec, error)
+	GetLabels(teamID uint) ([]*fleet.LabelSpec, error)
 	Me() (*fleet.User, error)
 	GetSetupExperienceSoftware(platform string, teamID uint) ([]fleet.SoftwareTitleListResult, error)
 	GetBootstrapPackageMetadata(teamID uint, forUpdate bool) (*fleet.MDMAppleBootstrapPackage, error)
 	GetSetupExperienceScript(teamID uint) (*fleet.Script, error)
 	GetAppleMDMEnrollmentProfile(teamID uint) (*fleet.MDMAppleSetupAssistant, error)
 	GetCertificateAuthoritiesSpec(includeSecrets bool) (*fleet.GroupedCertificateAuthorities, error)
+	GetCertificateTemplates(teamID string) ([]*fleet.CertificateTemplateResponseSummary, error)
 }
 
 // Given a struct type and a field name, return the JSON field name.
+// If the field has a `renameto` tag, the renameto value (the new canonical name)
+// is returned instead of the json tag value (the old/deprecated name).
 func jsonFieldName(t reflect.Type, fieldName string) string {
 	field, ok := t.FieldByName(fieldName)
 	if !ok {
 		panic(fieldName + " not found in " + t.Name())
 	}
+
+	// Prefer the renameto tag (new canonical name) if it exists.
+	if renameTo := field.Tag.Get("renameto"); renameTo != "" {
+		return renameTo
+	}
+
 	tag := field.Tag.Get("json")
 	parts := strings.Split(tag, ",")
 	name := parts[0]
@@ -99,6 +111,88 @@ func jsonFieldName(t reflect.Type, fieldName string) string {
 		panic(field.Name + " has no json tag")
 	}
 	return name
+}
+
+// aliasRules maps deprecated JSON key names (from `json` struct tags) to their
+// new canonical names (from `renameto` struct tags). Used by replaceAliasKeys
+// and yamlMarshalRenamed to rename keys in serialized output.
+var aliasRules = map[string]string{
+	"available_teams":        "available_fleets",
+	"default_team":           "default_fleet",
+	"host_team_id":           "host_fleet_id",
+	"inherited_query_count":  "inherited_report_count",
+	"ios_team_id":            "ios_fleet_id",
+	"ios_team":               "ios_fleet",
+	"ipados_team_id":         "ipados_fleet_id",
+	"ipados_team":            "ipados_fleet",
+	"live_query_disabled":    "live_reporting_disabled",
+	"live_query_results":     "discard_reports_data",
+	"macos_team_id":          "macos_fleet_id",
+	"macos_team":             "macos_fleet",
+	"queries":                "reports",
+	"query_count":            "report_count",
+	"query_id":               "report_id",
+	"query_ids":              "report_ids",
+	"query_name":             "report_name",
+	"query_report_cap":       "report_cap",
+	"query_reports_disabled": "discard_reports_data",
+	"query_stats":            "report_stats",
+	// Deliberately not aliasing "query" as it is used exclusively to refer to SQL in GitOps.
+	// "query":                          "report",
+	"scheduled_query_id":   "scheduled_report_id",
+	"scheduled_query_name": "scheduled_report_name",
+	"team":                 "fleet",
+	"team_id":              "fleet_id",
+	"team_ids_by_name":     "fleet_ids_by_name",
+	"team_ids":             "fleet_ids",
+	"team_name":            "fleet_name",
+	"teams":                "fleets",
+}
+
+// Replace deprecated keys with their new canonical names.
+// If deleteOld is true, the old keys are removed; otherwise both old and new keys are present.
+func replaceAliasKeys(v any, rules map[string]string, deleteOld bool) {
+	switch val := v.(type) {
+	case map[string]any:
+		if val == nil {
+			return
+		}
+		type rename struct{ oldKey, newKey string }
+		var renames []rename
+		for k := range val {
+			if newKey, ok := rules[k]; ok {
+				renames = append(renames, rename{k, newKey})
+			}
+		}
+		for _, r := range renames {
+			val[r.newKey] = val[r.oldKey]
+			if deleteOld {
+				delete(val, r.oldKey)
+			}
+		}
+		for _, v := range val {
+			replaceAliasKeys(v, rules, deleteOld)
+		}
+	case []any:
+		for _, item := range val {
+			replaceAliasKeys(item, rules, deleteOld)
+		}
+	}
+}
+
+// yamlMarshalRenamed JSON-marshals v, applies renameto alias rules to the
+// resulting map/slice tree, then YAML-marshals the result.
+func yamlMarshalRenamed(v any) ([]byte, error) {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return nil, err
+	}
+	var raw any
+	if err := json.Unmarshal(b, &raw); err != nil {
+		return nil, err
+	}
+	replaceAliasKeys(raw, aliasRules, true)
+	return yaml.Marshal(raw)
 }
 
 // Given a dot-separated path, return the value at that key in a map.
@@ -325,7 +419,7 @@ func (cmd *GenerateGitopsCommand) Run() error {
 		// If it's a real team, start the filename with the team name.
 		if team != nil {
 			teamFileName = generateFilename(team.Name)
-			fileName = "teams/" + teamFileName + ".yml"
+			fileName = "fleets/" + teamFileName + ".yml"
 			cmd.FilesToWrite[fileName] = map[string]interface{}{
 				"name": team.Name,
 			}
@@ -358,15 +452,6 @@ func (cmd *GenerateGitopsCommand) Run() error {
 			}
 
 			cmd.FilesToWrite[fileName].(map[string]interface{})["agent_options"] = cmd.AppConfig.AgentOptions
-
-			// Generate labels.
-			labels, err := cmd.generateLabels()
-			if err != nil {
-				fmt.Fprintf(cmd.CLI.App.ErrWriter, "Error generating labels: %s\n", err)
-				return ErrGeneric
-			}
-			cmd.FilesToWrite[fileName].(map[string]interface{})["labels"] = labels
-
 		} else {
 			// Generate team settings and agent options for the team (including "No team" with ID 0).
 			teamSettings, err := cmd.generateTeamSettings(fileName, team)
@@ -375,13 +460,23 @@ func (cmd *GenerateGitopsCommand) Run() error {
 				return ErrGeneric
 			}
 
-			cmd.FilesToWrite[fileName].(map[string]interface{})["team_settings"] = teamSettings
+			cmd.FilesToWrite[fileName].(map[string]any)["settings"] = teamSettings
 
 			// Only add agent_options for regular teams (not "No Team")
 			if team.ID != 0 {
 				cmd.FilesToWrite[fileName].(map[string]interface{})["agent_options"] = team.Config.AgentOptions
 				mdmConfig = team.Config.MDM
 			}
+		}
+
+		// Generate labels.
+		if team == nil || team.ID != 0 {
+			labels, err := cmd.generateLabels(team)
+			if err != nil {
+				fmt.Fprintf(cmd.CLI.App.ErrWriter, "Error generating labels: %s\n", err)
+				return ErrGeneric
+			}
+			cmd.FilesToWrite[fileName].(map[string]any)["labels"] = labels
 		}
 
 		// Generate controls.
@@ -417,19 +512,28 @@ func (cmd *GenerateGitopsCommand) Run() error {
 		// Generate policies.
 		policies, err := cmd.generatePolicies(teamToProcess.ID, teamFileName)
 		if err != nil {
-			fmt.Fprintf(cmd.CLI.App.ErrWriter, "Error generating policies for team %s: %s\n", team.Name, err)
+			teamName := "global"
+			if team != nil {
+				teamName = team.Name
+			}
+			fmt.Fprintf(cmd.CLI.App.ErrWriter, "Error generating policies for fleet %s: %s\n", teamName, err)
 			return ErrGeneric
 		}
 		cmd.FilesToWrite[fileName].(map[string]interface{})["policies"] = policies
 
 		if team == nil || team.ID != 0 {
-			// Generate queries (except for on No Team).
-			queries, err := cmd.generateQueries(teamToProcess.ID)
+			// Generate reports (except for on No Team).
+			reports, err := cmd.generateQueries(teamToProcess.ID)
 			if err != nil {
-				fmt.Fprintf(cmd.CLI.App.ErrWriter, "Error generating queries for team %s: %s\n", team.Name, err)
+				teamName := "global"
+				if team != nil {
+					teamName = team.Name
+				}
+				fmt.Fprintf(cmd.CLI.App.ErrWriter, "Error generating reports for fleet %s: %s\n", teamName, err)
 				return ErrGeneric
 			}
-			cmd.FilesToWrite[fileName].(map[string]interface{})["queries"] = queries
+			// nolint:nilaway // we want to include "reports: null" in the output if there are no reports.
+			cmd.FilesToWrite[fileName].(map[string]any)["reports"] = reports
 		}
 	}
 
@@ -443,14 +547,14 @@ func (cmd *GenerateGitopsCommand) Run() error {
 		case "":
 			fileName = "default.yml"
 		case "no-team":
-			fileName = "teams/no-team.yml"
+			fileName = "fleets/no-team.yml"
 		default:
 			teamFileName := generateFilename(cmd.CLI.String("team"))
-			fileName = "teams/" + teamFileName + ".yml"
+			fileName = "fleets/" + teamFileName + ".yml"
 		}
 
-		// Marshal and ummarshal the data to standardize the keys.
-		b, err := yaml.Marshal(cmd.FilesToWrite[fileName])
+		// Apply renameto tags and marshal/unmarshal the data to standardize the keys.
+		b, err := yamlMarshalRenamed(cmd.FilesToWrite[fileName])
 		if err != nil {
 			fmt.Fprintf(cmd.CLI.App.ErrWriter, "Error marshaling settings: %s\n", err)
 			return ErrGeneric
@@ -482,7 +586,7 @@ func (cmd *GenerateGitopsCommand) Run() error {
 		var err error
 		// If the filename ends in .yml, marshal it to YAML.
 		if strings.HasSuffix(path, ".yml") {
-			b, err = yaml.Marshal(fileToWrite)
+			b, err = yamlMarshalRenamed(fileToWrite)
 			if err != nil {
 				fmt.Fprintf(cmd.CLI.App.ErrWriter, "Error marshaling file to write: %s\n", err)
 				return ErrGeneric
@@ -759,11 +863,12 @@ func (cmd *GenerateGitopsCommand) generateIntegrations(filePath string, integrat
 	if !cmd.CLI.Bool("insecure") {
 		if googleCalendar, ok := result["google_calendar"]; ok && googleCalendar != nil {
 			for _, intg := range googleCalendar.([]interface{}) {
-				if apiKeyJson, ok := intg.(map[string]interface{})["api_key_json"]; ok {
-					apiKeyJson.(map[string]interface{})["private_key"] = cmd.AddComment(filePath, "TODO: Add your Google Calendar API key JSON here")
+				intgMap := intg.(map[string]any)
+				if _, ok := intgMap["api_key_json"]; ok {
+					intgMap["api_key_json"] = cmd.AddComment(filePath, "TODO: Add your Google Calendar API key JSON here")
 					cmd.Messages.SecretWarnings = append(cmd.Messages.SecretWarnings, SecretWarning{
 						Filename: "default.yml",
-						Key:      "integrations.google_calendar.api_key_json.private_key",
+						Key:      "integrations.google_calendar.api_key_json",
 					})
 				}
 			}
@@ -1012,7 +1117,7 @@ func (cmd *GenerateGitopsCommand) generateTeamSettings(filePath string, team *fl
 		teamSettings["secrets"] = []map[string]string{{"secret": cmd.AddComment(filePath, "TODO: Add your enroll secrets here")}}
 		cmd.Messages.SecretWarnings = append(cmd.Messages.SecretWarnings, SecretWarning{
 			Filename: filePath,
-			Key:      "team_settings.secrets",
+			Key:      "settings.secrets",
 		})
 	}
 	return teamSettings, nil
@@ -1064,9 +1169,41 @@ func (cmd *GenerateGitopsCommand) generateControls(teamId *uint, teamName string
 		}
 	}
 
-	if cmd.AppConfig.License.IsPremium() {
-		mdmT := reflect.TypeOf(fleet.TeamMDM{})
+	// Get any Android certificate templates.
+	var certSummaries []*fleet.CertificateTemplateResponseSummary
+	var err error
+	if teamId == nil {
+		certSummaries, err = cmd.Client.GetCertificateTemplates("")
+	} else {
+		certSummaries, err = cmd.Client.GetCertificateTemplates(strconv.FormatUint(uint64(*teamId), 10))
+	}
+	if err != nil {
+		fmt.Fprintf(cmd.CLI.App.ErrWriter, "Error getting certificate templates: %s\n", err)
+		return nil, err
+	}
 
+	mdmT := reflect.TypeOf(fleet.TeamMDM{})
+
+	if len(certSummaries) > 0 {
+		androidSettingsType := reflect.TypeFor[fleet.AndroidSettings]()
+		certType := reflect.TypeFor[fleet.CertificateTemplateResponse]()
+		fullCerts := make([]map[string]any, 0, len(certSummaries))
+		for _, certSummary := range certSummaries {
+			fullCerts = append(fullCerts, map[string]interface{}{
+				jsonFieldName(certType, "Name"):                     certSummary.Name,
+				jsonFieldName(certType, "CertificateAuthorityName"): certSummary.CertificateAuthorityName,
+				jsonFieldName(certType, "SubjectName"):              certSummary.SubjectName,
+			})
+		}
+		androidSettings, ok := result[jsonFieldName(mdmT, "AndroidSettings")].(map[string]interface{})
+		if !ok {
+			androidSettings = map[string]interface{}{}
+		}
+		androidSettings[jsonFieldName(androidSettingsType, "Certificates")] = fullCerts
+		result[jsonFieldName(mdmT, "AndroidSettings")] = androidSettings
+	}
+
+	if cmd.AppConfig.License.IsPremium() {
 		if teamMdm != nil {
 			result[jsonFieldName(mdmT, "EnableDiskEncryption")] = teamMdm.EnableDiskEncryption
 			result[jsonFieldName(mdmT, "RequireBitLockerPIN")] = teamMdm.RequireBitLockerPIN
@@ -1081,10 +1218,14 @@ func (cmd *GenerateGitopsCommand) generateControls(teamId *uint, teamName string
 			result[jsonFieldName(mdmT, "WindowsMigrationEnabled")] = cmd.AppConfig.MDM.WindowsMigrationEnabled
 			result[jsonFieldName(mdmT, "MacOSMigration")] = cmd.AppConfig.MDM.MacOSMigration
 			result[jsonFieldName(mdmT, "EnableTurnOnWindowsMDMManually")] = cmd.AppConfig.MDM.EnableTurnOnWindowsMDMManually
+			if cmd.AppConfig.MDM.WindowsEnabledAndConfigured && len(cmd.AppConfig.MDM.WindowsEntraTenantIDs.Value) > 0 {
+				result[jsonFieldName(mdmT, "WindowsEntraTenantIDs")] = cmd.AppConfig.MDM.WindowsEntraTenantIDs.Value
+			}
 		}
 		if cmd.AppConfig.MDM.WindowsEnabledAndConfigured {
 			result["windows_enabled_and_configured"] = cmd.AppConfig.MDM.WindowsEnabledAndConfigured
 		}
+
 		if cmd.AppConfig.MDM.AndroidEnabledAndConfigured {
 			result["android_enabled_and_configured"] = cmd.AppConfig.MDM.AndroidEnabledAndConfigured
 		}
@@ -1272,14 +1413,15 @@ func (cmd *GenerateGitopsCommand) generatePolicies(teamId *uint, filePath string
 	result := make([]map[string]interface{}, len(policies))
 	for i, policy := range policies {
 		policySpec := map[string]interface{}{
-			jsonFieldName(t, "Name"):                     policy.Name,
-			jsonFieldName(t, "Description"):              policy.Description,
-			jsonFieldName(t, "Resolution"):               policy.Resolution,
-			jsonFieldName(t, "Query"):                    policy.Query,
-			jsonFieldName(t, "Platform"):                 policy.Platform,
-			jsonFieldName(t, "Critical"):                 policy.Critical,
-			jsonFieldName(t, "CalendarEventsEnabled"):    policy.CalendarEventsEnabled,
-			jsonFieldName(t, "ConditionalAccessEnabled"): policy.ConditionalAccessEnabled,
+			jsonFieldName(t, "Name"):                           policy.Name,
+			jsonFieldName(t, "Description"):                    policy.Description,
+			jsonFieldName(t, "Resolution"):                     policy.Resolution,
+			jsonFieldName(t, "Query"):                          policy.Query,
+			jsonFieldName(t, "Platform"):                       policy.Platform,
+			jsonFieldName(t, "Critical"):                       policy.Critical,
+			jsonFieldName(t, "CalendarEventsEnabled"):          policy.CalendarEventsEnabled,
+			jsonFieldName(t, "ConditionalAccessEnabled"):       policy.ConditionalAccessEnabled,
+			jsonFieldName(t, "ConditionalAccessBypassEnabled"): policy.ConditionalAccessBypassEnabled,
 		}
 		// Handle software automation.
 		if policy.InstallSoftware != nil {
@@ -1380,37 +1522,40 @@ func (cmd *GenerateGitopsCommand) generateSoftware(filePath string, teamID uint,
 	}
 
 	setupSoftwareBySoftwareTitle := make(map[uint]struct{})
-	setupSoftwareByVppApp := make(map[string]struct{})
+	setupSoftwareByPlatformAndAppID := make(map[string]struct{})
 
-	for _, platform := range []string{"macos", "windows", "linux"} {
-		// See if the team has setup software configured.
-		setupSoftware, err := cmd.Client.GetSetupExperienceSoftware(platform, teamID)
-		if err != nil {
-			fmt.Fprintf(cmd.CLI.App.ErrWriter, "Error getting setup software: %s\n", err)
-			return nil, err
+	// Fill in InstallDuringSetup for software, as that information is only available
+	// from the setup experience endpoint
+	platforms := "macos,windows,linux,ios,ipados,android"
+	setupSoftware, err := cmd.Client.GetSetupExperienceSoftware(platforms, teamID)
+	if err != nil {
+		fmt.Fprintf(cmd.CLI.App.ErrWriter, "Error getting setup software: %s\n", err)
+		return nil, err
+	}
+	for _, software := range setupSoftware {
+		pkg := software.SoftwarePackage
+		if pkg != nil && pkg.InstallDuringSetup != nil && *pkg.InstallDuringSetup {
+			setupSoftwareBySoftwareTitle[software.ID] = struct{}{}
 		}
-		for _, software := range setupSoftware {
-			pkg := software.SoftwarePackage
-			if pkg != nil && pkg.InstallDuringSetup != nil && *pkg.InstallDuringSetup {
-				setupSoftwareBySoftwareTitle[software.ID] = struct{}{}
-			}
-			if platform == "macos" {
-				appStoreApp := software.AppStoreApp
-				if appStoreApp != nil && appStoreApp.InstallDuringSetup != nil && *appStoreApp.InstallDuringSetup {
-					setupSoftwareByVppApp[appStoreApp.AppStoreID] = struct{}{}
-				}
+		if software.AppStoreApp != nil {
+			appStoreApp := software.AppStoreApp
+			if appStoreApp != nil && appStoreApp.InstallDuringSetup != nil && *appStoreApp.InstallDuringSetup {
+				setupSoftwareByPlatformAndAppID[appStoreApp.FullyQualifiedName()] = struct{}{}
 			}
 		}
 	}
 
-	result := make(map[string]interface{})
-	packages := make([]map[string]interface{}, 0)
-	appStoreApps := make([]map[string]interface{}, 0)
+	result := make(map[string]any)
+	packages := make([]map[string]any, 0)
+	appStoreApps := make([]map[string]any, 0)
+	fmas := make([]map[string]any, 0)
+	var appsList *maintained_apps.AppsList
 
 	// in-house apps generate two software titles for the same gitops entry: one
 	// for iOS and one for iPadOS. Use this set to deduplicate them (by filename,
 	// which is unique for a given team and platform).
 	dedupeInHouseAppsByFilename := make(map[string]struct{})
+	var byUniqueID map[string]string
 	for _, sw := range software {
 		softwareSpec := make(map[string]interface{})
 		switch {
@@ -1454,6 +1599,8 @@ func (cmd *GenerateGitopsCommand) generateSoftware(filePath string, teamID uint,
 			return nil, err
 		}
 
+		var slug string
+
 		if softwareTitle.SoftwarePackage != nil {
 			filenamePrefix := generateFilename(sw.Name) + "-" + sw.SoftwarePackage.Platform
 
@@ -1465,10 +1612,54 @@ func (cmd *GenerateGitopsCommand) generateSoftware(filePath string, teamID uint,
 				(strings.HasSuffix(strings.ToLower(sw.SoftwarePackage.Name), ".sh") ||
 					strings.HasSuffix(strings.ToLower(sw.SoftwarePackage.Name), ".ps1"))
 
+			var fmaInstallScriptModified, fmaUninstallScriptModified bool
+			if softwareTitle.SoftwarePackage.FleetMaintainedAppID != nil {
+				if byUniqueID == nil {
+					if appsList == nil {
+						var err error
+						appsList, err = maintained_apps.FetchAppsList(context.Background())
+						if err != nil {
+							return nil, err
+						}
+					}
+					byUniqueID = make(map[string]string, len(appsList.Apps))
+					for _, a := range appsList.Apps {
+						byUniqueID[a.UniqueIdentifier] = a.Slug
+					}
+				}
+
+				// Look up slug by bundle identifier (macOS) or software title name (Windows).
+				// Windows FMAs don't have a bundle identifier; their unique_identifier
+				// in the manifest is the program name (e.g., "1Password").
+				lookupKey := ptr.ValOrZero(softwareTitle.BundleIdentifier)
+				if lookupKey == "" {
+					lookupKey = softwareTitle.Name
+				}
+				slug = byUniqueID[lookupKey]
+				fma, err := maintained_apps.Hydrate(context.Background(), &fleet.MaintainedApp{
+					ID:   *softwareTitle.SoftwarePackage.FleetMaintainedAppID,
+					Slug: slug,
+				})
+				if err != nil {
+					return nil, err
+				}
+
+				fmaInstallScriptModified = fma.InstallScript != softwareTitle.SoftwarePackage.InstallScript
+				fmaUninstallScriptModified = fma.UninstallScript != softwareTitle.SoftwarePackage.UninstallScript
+			}
+
+			shouldWriteScript := func(fmaID *uint, scriptContents string, scriptModified bool) bool {
+				if fmaID != nil {
+					return scriptModified && scriptContents != ""
+				}
+
+				return scriptContents != ""
+			}
+
 			// Only output install_script, post_install_script, uninstall_script, and
 			// pre_install_query for non-script packages
 			if !isScriptPackage {
-				if softwareTitle.SoftwarePackage.InstallScript != "" {
+				if shouldWriteScript(softwareTitle.SoftwarePackage.FleetMaintainedAppID, softwareTitle.SoftwarePackage.InstallScript, fmaInstallScriptModified) {
 					script := softwareTitle.SoftwarePackage.InstallScript
 					fileName := fmt.Sprintf("lib/%s/scripts/%s", teamFilename, filenamePrefix+"-install")
 					path := fmt.Sprintf("../%s", fileName)
@@ -1488,7 +1679,7 @@ func (cmd *GenerateGitopsCommand) generateSoftware(filePath string, teamID uint,
 					cmd.FilesToWrite[fileName] = script
 				}
 
-				if softwareTitle.SoftwarePackage.UninstallScript != "" {
+				if shouldWriteScript(softwareTitle.SoftwarePackage.FleetMaintainedAppID, softwareTitle.SoftwarePackage.UninstallScript, fmaUninstallScriptModified) {
 					script := softwareTitle.SoftwarePackage.UninstallScript
 					fileName := fmt.Sprintf("lib/%s/scripts/%s", teamFilename, filenamePrefix+"-uninstall")
 					path := fmt.Sprintf("../%s", fileName)
@@ -1547,6 +1738,7 @@ func (cmd *GenerateGitopsCommand) generateSoftware(filePath string, teamID uint,
 
 		if softwareTitle.AppStoreApp != nil {
 			filenamePrefix := generateFilename(sw.Name) + "-" + sw.AppStoreApp.Platform
+			softwareSpec["platform"] = softwareTitle.AppStoreApp.Platform
 			if softwareTitle.AppStoreApp.SelfService {
 				softwareSpec["self_service"] = softwareTitle.AppStoreApp.SelfService
 			}
@@ -1562,7 +1754,7 @@ func (cmd *GenerateGitopsCommand) generateSoftware(filePath string, teamID uint,
 			if downloadIcons && softwareTitle.IconUrl != nil && strings.HasPrefix(*softwareTitle.IconUrl, "/api") {
 				fileName := fmt.Sprintf("lib/%s/icons/%s", teamFilename, filenamePrefix+"-icon.png")
 				path := fmt.Sprintf("../%s", fileName)
-				softwareSpec["icon"] = map[string]interface{}{
+				softwareSpec["icon"] = map[string]any{
 					"path": path,
 				}
 				icon, err := cmd.Client.GetSoftwareTitleIcon(softwareTitle.ID, teamID)
@@ -1573,6 +1765,44 @@ func (cmd *GenerateGitopsCommand) generateSoftware(filePath string, teamID uint,
 
 				// TODO write files immediately rather than queueing them up
 				cmd.FilesToWrite[fileName] = icon
+			}
+
+			config := softwareTitle.AppStoreApp.Configuration
+			if config != nil && !slices.Equal(config, json.RawMessage("{}")) {
+				// all per-team software-related artifacts are generated in lib/{team}/software
+				fileName := fmt.Sprintf("lib/%s/software/%s", teamFilename, filenamePrefix+"-config.json")
+				path := fmt.Sprintf("../%s", fileName)
+				softwareSpec["configuration"] = map[string]any{
+					"path": path,
+				}
+
+				// format config because it is received with incorrect indentation
+				var buf bytes.Buffer
+				err := json.Indent(&buf, softwareTitle.AppStoreApp.Configuration, "", "  ")
+				if err != nil {
+					fmt.Fprintf(cmd.CLI.App.ErrWriter, "Error formatting android app configuration %s: %s\n", sw.Name, err)
+					return nil, err
+				}
+
+				cmd.FilesToWrite[fileName] = buf.Bytes()
+			}
+
+			// export auto-update schedule settings for iOS/iPadOS VPP apps when present.
+			// only VPP apps (those with an AdamID) support auto-update schedules.
+			if softwareTitle.AutoUpdateEnabled != nil || softwareTitle.AutoUpdateStartTime != nil || softwareTitle.AutoUpdateEndTime != nil {
+				platform := softwareTitle.AppStoreApp.Platform
+				adamID := softwareTitle.AppStoreApp.VPPAppID.AdamID
+				if (platform == fleet.IOSPlatform || platform == fleet.IPadOSPlatform) && adamID != "" {
+					if softwareTitle.AutoUpdateEnabled != nil {
+						softwareSpec["auto_update_enabled"] = *softwareTitle.AutoUpdateEnabled
+					}
+					if softwareTitle.AutoUpdateStartTime != nil {
+						softwareSpec["auto_update_window_start"] = *softwareTitle.AutoUpdateStartTime
+					}
+					if softwareTitle.AutoUpdateEndTime != nil {
+						softwareSpec["auto_update_window_end"] = *softwareTitle.AutoUpdateEndTime
+					}
+				}
 			}
 		}
 
@@ -1591,6 +1821,8 @@ func (cmd *GenerateGitopsCommand) generateSoftware(filePath string, teamID uint,
 				softwareSpec["setup_experience"] = true
 			}
 		} else {
+			platformAndAppID := softwareTitle.AppStoreApp.VPPAppID.String()
+
 			if len(softwareTitle.AppStoreApp.LabelsIncludeAny) > 0 {
 				labels = softwareTitle.AppStoreApp.LabelsIncludeAny
 				labelKey = "labels_include_any"
@@ -1599,7 +1831,7 @@ func (cmd *GenerateGitopsCommand) generateSoftware(filePath string, teamID uint,
 				labels = softwareTitle.AppStoreApp.LabelsExcludeAny
 				labelKey = "labels_exclude_any"
 			}
-			if _, exists := setupSoftwareByVppApp[softwareTitle.AppStoreApp.AdamID]; exists {
+			if _, exists := setupSoftwareByPlatformAndAppID[platformAndAppID]; exists {
 				softwareSpec["setup_experience"] = true
 			}
 		}
@@ -1611,9 +1843,15 @@ func (cmd *GenerateGitopsCommand) generateSoftware(filePath string, teamID uint,
 			softwareSpec[labelKey] = labelsList
 		}
 
-		if sw.SoftwarePackage != nil {
+		switch {
+		case sw.SoftwarePackage != nil && sw.SoftwarePackage.FleetMaintainedAppID != nil:
+			fmas = append(fmas, softwareSpec)
+			delete(softwareSpec, "hash_sha256")
+			delete(softwareSpec, "url")
+			softwareSpec["slug"] = slug
+		case sw.SoftwarePackage != nil:
 			packages = append(packages, softwareSpec)
-		} else {
+		case sw.AppStoreApp != nil:
 			appStoreApps = append(appStoreApps, softwareSpec)
 		}
 	}
@@ -1623,12 +1861,20 @@ func (cmd *GenerateGitopsCommand) generateSoftware(filePath string, teamID uint,
 	if len(appStoreApps) > 0 {
 		result["app_store_apps"] = appStoreApps
 	}
-	// TODO -- add FMA apps to the result. Currently they will be output using hashes.
+	if len(fmas) > 0 {
+		result["fleet_maintained_apps"] = fmas
+	}
+
 	return result, nil
 }
 
-func (cmd *GenerateGitopsCommand) generateLabels() ([]map[string]interface{}, error) {
-	labels, err := cmd.Client.GetLabels()
+func (cmd *GenerateGitopsCommand) generateLabels(team *fleet.Team) ([]map[string]any, error) {
+	var tmID uint // default to 0 for pulling global-only labels
+	if team != nil {
+		tmID = team.ID
+	}
+
+	labels, err := cmd.Client.GetLabels(tmID)
 	if err != nil {
 		fmt.Fprintf(cmd.CLI.App.ErrWriter, "Error getting labels: %s\n", err)
 		return nil, err

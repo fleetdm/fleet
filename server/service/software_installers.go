@@ -13,14 +13,16 @@ import (
 	"net/url"
 	"strconv"
 
-	"github.com/docker/go-units"
 	authzctx "github.com/fleetdm/fleet/v4/server/contexts/authz"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	hostctx "github.com/fleetdm/fleet/v4/server/contexts/host"
+	"github.com/fleetdm/fleet/v4/server/contexts/installersize"
 	"github.com/fleetdm/fleet/v4/server/contexts/logging"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/platform/endpointer"
+	platform_http "github.com/fleetdm/fleet/v4/server/platform/http"
+
 	"github.com/fleetdm/fleet/v4/server/ptr"
-	"github.com/fleetdm/fleet/v4/server/service/middleware/endpoint_utils"
 )
 
 type uploadSoftwareInstallerRequest struct {
@@ -64,16 +66,17 @@ func (updateSoftwareInstallerRequest) DecodeRequest(ctx context.Context, r *http
 	// populate software title ID since we're overriding the decoder that would do it for us
 	titleID, err := uint32FromRequest(r, "id")
 	if err != nil {
-		return nil, endpoint_utils.BadRequestErr("IntFromRequest", err)
+		return nil, endpointer.BadRequestErr("IntFromRequest", err)
 	}
 	decoded.TitleID = uint(titleID)
 
-	err = r.ParseMultipartForm(512 * units.MiB)
+	maxInstallerSize := installersize.FromContext(ctx)
+	err = parseMultipartForm(ctx, r, platform_http.MaxMultipartFormSize)
 	if err != nil {
 		var mbe *http.MaxBytesError
 		if errors.As(err, &mbe) {
 			return nil, &fleet.BadRequestError{
-				Message:     "The maximum file size is 3 GB.",
+				Message:     fmt.Sprintf("The maximum file size is %s.", installersize.Human(maxInstallerSize)),
 				InternalErr: err,
 			}
 		}
@@ -93,22 +96,22 @@ func (updateSoftwareInstallerRequest) DecodeRequest(ctx context.Context, r *http
 	// unlike for uploadSoftwareInstallerRequest, every field is optional, including the file upload
 	if r.MultipartForm.File["software"] != nil || len(r.MultipartForm.File["software"]) > 0 {
 		decoded.File = r.MultipartForm.File["software"][0]
-		if decoded.File.Size > fleet.MaxSoftwareInstallerSize {
+		if decoded.File.Size > maxInstallerSize {
 			// Should never happen here since the request's body is limited to the maximum size.
 			return nil, &fleet.BadRequestError{
-				Message: "The maximum file size is 3 GB.",
+				Message: fmt.Sprintf("The maximum file size is %s.", installersize.Human(maxInstallerSize)),
 			}
 		}
 	}
 
 	// default is no team
-	val, ok := r.MultipartForm.Value["team_id"]
+	val, ok := r.MultipartForm.Value["fleet_id"]
 	if ok {
-		teamID, err := strconv.ParseUint(val[0], 10, 32)
+		fleetID, err := strconv.ParseUint(val[0], 10, 32)
 		if err != nil {
-			return nil, &fleet.BadRequestError{Message: fmt.Sprintf("Invalid team_id: %s", val[0])}
+			return nil, &fleet.BadRequestError{Message: fmt.Sprintf("Invalid fleet_id: %s", val[0])}
 		}
-		decoded.TeamID = ptr.Uint(uint(teamID))
+		decoded.TeamID = ptr.Uint(uint(fleetID))
 	}
 
 	installScriptMultipart, ok := r.MultipartForm.Value["install_script"]
@@ -184,6 +187,38 @@ func (updateSoftwareInstallerRequest) DecodeRequest(ctx context.Context, r *http
 		}
 	}
 
+	// Check if scripts are base64 encoded (to bypass WAF rules that block script patterns)
+	if isScriptsEncoded(r) {
+		if decoded.InstallScript != nil {
+			decodedScript, err := decodeBase64Script(*decoded.InstallScript)
+			if err != nil {
+				return nil, &fleet.BadRequestError{Message: "invalid base64 encoding for install_script"}
+			}
+			decoded.InstallScript = &decodedScript
+		}
+		if decoded.UninstallScript != nil {
+			decodedScript, err := decodeBase64Script(*decoded.UninstallScript)
+			if err != nil {
+				return nil, &fleet.BadRequestError{Message: "invalid base64 encoding for uninstall_script"}
+			}
+			decoded.UninstallScript = &decodedScript
+		}
+		if decoded.PreInstallQuery != nil {
+			decodedScript, err := decodeBase64Script(*decoded.PreInstallQuery)
+			if err != nil {
+				return nil, &fleet.BadRequestError{Message: "invalid base64 encoding for pre_install_query"}
+			}
+			decoded.PreInstallQuery = &decodedScript
+		}
+		if decoded.PostInstallScript != nil {
+			decodedScript, err := decodeBase64Script(*decoded.PostInstallScript)
+			if err != nil {
+				return nil, &fleet.BadRequestError{Message: "invalid base64 encoding for post_install_script"}
+			}
+			decoded.PostInstallScript = &decodedScript
+		}
+	}
+
 	return &decoded, nil
 }
 
@@ -241,12 +276,13 @@ func (svc *Service) UpdateSoftwareInstaller(ctx context.Context, payload *fleet.
 func (uploadSoftwareInstallerRequest) DecodeRequest(ctx context.Context, r *http.Request) (interface{}, error) {
 	decoded := uploadSoftwareInstallerRequest{}
 
-	err := r.ParseMultipartForm(512 * units.MiB)
+	maxInstallerSize := installersize.FromContext(ctx)
+	err := parseMultipartForm(ctx, r, platform_http.MaxMultipartFormSize)
 	if err != nil {
 		var mbe *http.MaxBytesError
 		if errors.As(err, &mbe) {
 			return nil, &fleet.BadRequestError{
-				Message:     "The maximum file size is 3 GB.",
+				Message:     fmt.Sprintf("The maximum file size is %s.", installersize.Human(maxInstallerSize)),
 				InternalErr: err,
 			}
 		}
@@ -271,22 +307,22 @@ func (uploadSoftwareInstallerRequest) DecodeRequest(ctx context.Context, r *http
 	}
 
 	decoded.File = r.MultipartForm.File["software"][0]
-	if decoded.File.Size > fleet.MaxSoftwareInstallerSize {
+	if decoded.File.Size > maxInstallerSize {
 		// Should never happen here since the request's body is limited to the
 		// maximum size.
 		return nil, &fleet.BadRequestError{
-			Message: "The maximum file size is 3 GB.",
+			Message: fmt.Sprintf("The maximum file size is %s.", installersize.Human(maxInstallerSize)),
 		}
 	}
 
 	// default is no team
-	val, ok := r.MultipartForm.Value["team_id"]
+	val, ok := r.MultipartForm.Value["fleet_id"]
 	if ok {
-		teamID, err := strconv.ParseUint(val[0], 10, 32)
+		fleetID, err := strconv.ParseUint(val[0], 10, 32)
 		if err != nil {
-			return nil, &fleet.BadRequestError{Message: fmt.Sprintf("Invalid team_id: %s", val[0])}
+			return nil, &fleet.BadRequestError{Message: fmt.Sprintf("Invalid fleet_id: %s", val[0])}
 		}
-		decoded.TeamID = ptr.Uint(uint(teamID))
+		decoded.TeamID = ptr.Uint(uint(fleetID))
 	}
 
 	val, ok = r.MultipartForm.Value["install_script"]
@@ -351,6 +387,23 @@ func (uploadSoftwareInstallerRequest) DecodeRequest(ctx context.Context, r *http
 		decoded.AutomaticInstall = parsed
 	}
 
+	// Check if scripts are base64 encoded (to bypass WAF rules that block script patterns)
+	if isScriptsEncoded(r) {
+		var err error
+		if decoded.InstallScript, err = decodeBase64Script(decoded.InstallScript); err != nil {
+			return nil, &fleet.BadRequestError{Message: "invalid base64 encoding for install_script"}
+		}
+		if decoded.UninstallScript, err = decodeBase64Script(decoded.UninstallScript); err != nil {
+			return nil, &fleet.BadRequestError{Message: "invalid base64 encoding for uninstall_script"}
+		}
+		if decoded.PreInstallQuery, err = decodeBase64Script(decoded.PreInstallQuery); err != nil {
+			return nil, &fleet.BadRequestError{Message: "invalid base64 encoding for pre_install_query"}
+		}
+		if decoded.PostInstallScript, err = decodeBase64Script(decoded.PostInstallScript); err != nil {
+			return nil, &fleet.BadRequestError{Message: "invalid base64 encoding for post_install_script"}
+		}
+	}
+
 	return &decoded, nil
 }
 
@@ -401,7 +454,7 @@ func (svc *Service) UploadSoftwareInstaller(ctx context.Context, payload *fleet.
 }
 
 type deleteSoftwareInstallerRequest struct {
-	TeamID  *uint `query:"team_id"`
+	TeamID  *uint `query:"team_id" renameto:"fleet_id"`
 	TitleID uint  `url:"title_id"`
 }
 
@@ -431,7 +484,7 @@ func (svc *Service) DeleteSoftwareInstaller(ctx context.Context, titleID uint, t
 
 type getSoftwareInstallerRequest struct {
 	Alt     string `query:"alt,optional"`
-	TeamID  *uint  `query:"team_id"`
+	TeamID  *uint  `query:"team_id" renameto:"fleet_id"`
 	TitleID uint   `url:"title_id"`
 }
 
@@ -722,7 +775,7 @@ func (svc *Service) GetSelfServiceUninstallScriptResult(ctx context.Context, hos
 ////////////////////////////////////////////////////////////////////////////////
 
 type batchSetSoftwareInstallersRequest struct {
-	TeamName string                            `json:"-" query:"team_name,optional"`
+	TeamName string                            `json:"-" query:"team_name,optional" renameto:"fleet_name"`
 	DryRun   bool                              `json:"-" query:"dry_run,optional"` // if true, apply validation but do not save changes
 	Software []*fleet.SoftwareInstallerPayload `json:"software"`
 }
@@ -754,7 +807,7 @@ func (svc *Service) BatchSetSoftwareInstallers(ctx context.Context, tmName strin
 
 type batchSetSoftwareInstallersResultRequest struct {
 	RequestUUID string `url:"request_uuid"`
-	TeamName    string `query:"team_name,optional"`
+	TeamName    string `query:"team_name,optional" renameto:"fleet_name"`
 	DryRun      bool   `query:"dry_run,optional"` // if true, apply validation but do not save changes
 }
 
@@ -864,7 +917,9 @@ func submitDeviceSoftwareUninstall(ctx context.Context, request interface{}, svc
 }
 
 func (svc *Service) HasSelfServiceSoftwareInstallers(ctx context.Context, host *fleet.Host) (bool, error) {
-	alreadyAuthenticated := svc.authz.IsAuthenticatedWith(ctx, authzctx.AuthnDeviceToken) || svc.authz.IsAuthenticatedWith(ctx, authzctx.AuthnDeviceCertificate)
+	alreadyAuthenticated := svc.authz.IsAuthenticatedWith(ctx, authzctx.AuthnDeviceToken) ||
+		svc.authz.IsAuthenticatedWith(ctx, authzctx.AuthnDeviceCertificate) ||
+		svc.authz.IsAuthenticatedWith(ctx, authzctx.AuthnDeviceURL)
 	if !alreadyAuthenticated {
 		if err := svc.authz.Authorize(ctx, host, fleet.ActionRead); err != nil {
 			return false, err
@@ -879,7 +934,7 @@ func (svc *Service) HasSelfServiceSoftwareInstallers(ctx context.Context, host *
 //////////////////////////////////////////////////////////////////////////////
 
 type batchAssociateAppStoreAppsRequest struct {
-	TeamName string                  `json:"-" query:"team_name,optional"`
+	TeamName string                  `json:"-" query:"team_name,optional" renameto:"fleet_name"`
 	DryRun   bool                    `json:"-" query:"dry_run,optional"`
 	Apps     []fleet.VPPBatchPayload `json:"app_store_apps"`
 }
@@ -921,7 +976,7 @@ func (svc *Service) BatchAssociateVPPApps(ctx context.Context, teamName string, 
 
 type getInHouseAppManifestRequest struct {
 	TitleID uint  `url:"title_id"`
-	TeamID  *uint `query:"team_id"`
+	TeamID  *uint `query:"team_id" renameto:"fleet_id"`
 }
 
 type getInHouseAppManifestResponse struct {
@@ -969,7 +1024,7 @@ func (svc *Service) GetInHouseAppManifest(ctx context.Context, titleID uint, tea
 
 type getInHouseAppPackageRequest struct {
 	TitleID uint  `url:"title_id"`
-	TeamID  *uint `query:"team_id"`
+	TeamID  *uint `query:"team_id" renameto:"fleet_id"`
 }
 
 type getInHouseAppPackageResponse struct {

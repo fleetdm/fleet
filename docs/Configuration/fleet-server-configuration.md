@@ -632,6 +632,18 @@ The TLS key to use when terminating TLS.
     key: /tmp/fleet.key
   ```
 
+### server_default_max_request_body_size
+
+The max request body size, in a human readable format (size + unit), for endpoints that don't implement a higher size. If an endpoint has a default limit of 3MB for instance, and this value is set to 5MB, that endpoint will have its maximum request size increased to 5MB as well. To see which endpoints have a higher size than the default, check out the [API reference docs](https://fleetdm.com/docs/rest-api/rest-api).
+
+- Default value: 1MiB
+- Environment variable: `FLEET_SERVER_DEFAULT_MAX_REQUEST_BODY_SIZE`
+- Config file format:
+  ```yaml
+  server:
+    default_max_request_body_size: 2MB
+  ```
+
 ### server_tls
 
 Whether or not the server should be served over TLS.
@@ -682,6 +694,44 @@ Turning off keepalives has helped reduce outstanding TCP connections in some dep
   ```yaml
   server:
     keepalive: true
+  ```
+
+### server_trusted_proxies (Fleet 4.80.1+)
+
+Sets the strategy that Fleet uses to determine the IP address of the client making a request. This address is used for rate-limiting purposes. Options are:
+
+- `none`: always take the IP from the remote address of the request
+- A comma-delimited set of IP addresses or ranges: parse the `x-forwarded-for` or `forwarded` header (if any) in the request and take the right-most IP _not_ in the list
+- A number: parse the `x-forwarded-for` or `forwarded` header (if any) and taken the Nth address from the right (`1` indicates the right-most address, `2` the second-to-right-most, etc.)
+- A string starting with `header:`: take the value of that header as the IP address
+- Empty: take the value of the IP from the `True-Client-IP` header, or else the `X-Real-IP` header, or else the left-most value of the `X-Forwarded-For` header. _This setting is deprecated: For Fleet servers directly facing the internet, `none` is recommended. Otherwise use a value compatible with your proxy setup._
+
+> If no value can be determined via the configured setting (for example, if a number is supplied but no `x-forwarded-for` or `forwarded` headers exist on the request) then the remote address of the request will be used.
+
+For example, if a request from remote address `5.5.5.5` has these headers:
+```
+X-Forwarded-For: 1.1.1.1, 2.2.2.2, 4.4.4.4, 192.168.0.120
+X-Real-IP: 2.2.2.2
+```
+
+Then depending on how `fleet_server_trusted_proxies` is set, Fleet would determine the following values for the client IP:
+
+| Trusted proxies setting | Client IP | Explanation |
+| --- | --- | --- |
+|`none` | `5.5.5.5` | The address Fleet received the request from |
+|`192.168.0.0/24, 4.4.4.4`| `2.2.2.2` | Using `X-Forwarded-For` and skipping the trusted addresses of `192.168.0.120` and `4.4.4.4` |
+|`1`| `192.168.0.120` | The first address from the right in `x-forwarded-for`
+|`2`| `4.4.4.4` | The second address from the right in `x-forwarded-for` |
+|`header:x-real-ip`| `2.2.2.2` | The value of the specified header|
+|`header:x-peekaboo`| `5.5.5.5` |  The address Fleet received the request from, since the specified header doesn't exist in the request |
+|empty| `2.2.2.2` | The value of the `x-real-ip` header
+
+- Default value: empty
+- Environment variable: `FLEET_SERVER_TRUSTED_PROXIES`
+- Config file format:
+  ```yaml
+  server:
+    trusted_proxies: none
   ```
 
 ### server_websockets_allow_unsafe_origin
@@ -778,6 +828,32 @@ Optionally, if you're using a third-party to manage AWS resources, this is the A
   ```yaml
   server:
     private_key_sts_external_id: your_unique_id
+  ```
+
+### server_max_installer_size
+
+Maximum size for software installer uploads. Accepts human-readable size values with suffixes like `K`, `M`, `G`, `T` (binary, e.g., `10GiB` = 10 * 1024³ bytes) or `KB`, `MB`, `GB`, `TB` (decimal, e.g., `10GB` = 10 * 1000³ bytes). Plain numbers are interpreted as bytes.
+
+- Default value: `10GiB`
+- Environment variable: `FLEET_SERVER_MAX_INSTALLER_SIZE`
+- Config file format:
+  ```yaml
+  server:
+    max_installer_size: 10GiB
+  ```
+  
+### server_gzip_responses
+
+If enabled, the server will return gzip-compressed responses for HTTP requests to clients that indicate support. Client support is determined by the presence of `gzip` in an `Accept-Encoding` request header.
+
+Enable this to significantly reduce the outbound bandwidth from the Fleet server at a small expense to CPU utilization on the server.
+
+- Default value: false
+- Environment variable: `FLEET_SERVER_GZIP_RESPONSES`
+- Config file format:
+  ```yaml
+  server:
+    gzip_responses: true
   ```
 
 ## Auth
@@ -1033,7 +1109,7 @@ Valid time units are `s`, `m`, `h`.
 This is the log output plugin that should be used for osquery status logs received from clients. Check out the [reference documentation for log destinations](https://fleetdm.com/docs/using-fleet/log-destinations).
 
 
-Options are `filesystem`, `firehose`, `kinesis`, `lambda`, `pubsub`, `kafkarest`, and `stdout`.
+Options are `filesystem`, `firehose`, `kinesis`, `lambda`, `pubsub`, `kafkarest`, `nats`, and `stdout`.
 
 - Default value: `filesystem`
 - Environment variable: `FLEET_OSQUERY_STATUS_LOG_PLUGIN`
@@ -1047,7 +1123,7 @@ Options are `filesystem`, `firehose`, `kinesis`, `lambda`, `pubsub`, `kafkarest`
 
 This is the log output plugin that should be used for osquery result logs received from clients. Check out the [reference documentation for log destinations](https://fleetdm.com/docs/using-fleet/log-destinations).
 
-Options are `filesystem`, `firehose`, `kinesis`, `lambda`, `pubsub`, `kafkarest`, and `stdout`.
+Options are `filesystem`, `firehose`, `kinesis`, `lambda`, `pubsub`, `kafkarest`, `nats`, and `stdout`.
 
 - Default value: `filesystem`
 - Environment variable: `FLEET_OSQUERY_RESULT_LOG_PLUGIN`
@@ -1247,7 +1323,7 @@ This flag only has effect if `activity_enable_audit_log` is set to `true`.
 
 Each plugin has additional configuration options. Please see the configuration section linked below for your logging plugin.
 
-Options are [`filesystem`](#filesystem), [`firehose`](#firehose), [`kinesis`](#kinesis), [`lambda`](#lambda), [`pubsub`](#pubsub), [`kafkarest`](#kafka-rest-proxy-logging), and `stdout` (no additional configuration needed).
+Options are [`filesystem`](#filesystem), [`firehose`](#firehose), [`kinesis`](#kinesis), [`lambda`](#lambda), [`pubsub`](#pubsub), [`kafkarest`](#kafka-rest-proxy-logging), [`nats`](#nats), and `stdout` (no additional configuration needed).
 
 - Default value: `filesystem`
 - Environment variable: `FLEET_ACTIVITY_AUDIT_LOG_PLUGIN`
@@ -2071,6 +2147,225 @@ The value of the Content-Type header to use in [Kafka REST Proxy API calls](http
     content_type_value: application/vnd.kafka.json.v2+json
   ```
 
+## NATS
+
+NATS subject configuration options (`nats_status_subject`, `nats_result_subject`,
+and `nats_audit_subject`) support dynamic subject generation using templates.
+Subjects can be constant strings, or templates containing expressions enclosed
+in curly braces (`{...}`).
+
+Template expressions are evaluated using [expr](https://expr-lang.org/) and have
+access to the log data via the `log` variable. Fields can be accessed using dot
+notation, such as `log.name` and `log.decorations.hostname`.
+
+#### Example log
+```json
+{
+  "action": "snapshot",
+  "decorations": {
+    "host_uuid": "85c1244f-9176-2445-8ceb-d6569dc1b417",
+    "hostname": "webserver"
+  },
+  "name": "pack/Global/process_events",
+  "snapshot": [
+    {"pid": "1234", "name": "nginx", "cmdline": "/usr/sbin/nginx"}
+  ]
+}
+```
+
+#### Example subject templates
+| Description         | Template                                          | Result                       |
+|---------------------|---------------------------------------------------|------------------------------|
+| Route by hostname   | `results.{log.decorations.hostname}`              | `results.webserver`          |
+| Extract query name  | `results.{log.name \| split("/") \| last()}`      | `results.process_events`     |
+| Action and hostname | `results.{log.action}.{log.decorations.hostname}` | `results.snapshot.webserver` |
+
+### nats_server
+
+This flag only has effect if one of the following is true:
+- `osquery_result_log_plugin` or `osquery_status_log_plugin` are set to `nats`.
+- `activity_audit_log_plugin` is set to `nats` and `activity_enable_audit_log` is set to `true`.
+
+The URL of the NATS server to connect to for publishing logs.
+
+- Default value: none
+- Environment variable: `FLEET_NATS_SERVER`
+- Config file format:
+  ```yaml
+  nats:
+    server: nats://localhost:4222
+  ```
+
+### nats_status_subject
+
+This flag only has effect if `osquery_status_log_plugin` is set to `nats`.
+
+The NATS subject that osquery status logs will be published to.
+
+- Default value: none
+- Environment variable: `FLEET_NATS_STATUS_SUBJECT`
+- Config file format:
+  ```yaml
+  nats:
+    status_subject: osquery_status
+  ```
+
+### nats_result_subject
+
+This flag only has effect if `osquery_result_log_plugin` is set to `nats`.
+
+The NATS subject that osquery result logs will be published to.
+
+- Default value: none
+- Environment variable: `FLEET_NATS_RESULT_SUBJECT`
+- Config file format:
+  ```yaml
+  nats:
+    result_subject: osquery_result
+  ```
+
+### nats_audit_subject
+
+This flag only has effect if `activity_audit_log_plugin` is set to `nats`.
+
+The NATS subject that audit logs will be published to.
+
+- Default value: none
+- Environment variable: `FLEET_NATS_AUDIT_SUBJECT`
+- Config file format:
+  ```yaml
+  nats:
+    audit_subject: fleet_audit
+  ```
+
+### nats_cred_file
+
+This flag only has effect if one of the following is true:
+- `osquery_result_log_plugin` or `osquery_status_log_plugin` are set to `nats`.
+- `activity_audit_log_plugin` is set to `nats` and `activity_enable_audit_log` is set to `true`.
+
+Path to the NATS [credentials file](https://docs.nats.io/using-nats/developer/connecting/creds) for authentication. Cannot be used together with `nats_nkey_file`.
+
+- Default value: none
+- Environment variable: `FLEET_NATS_CRED_FILE`
+- Config file format:
+  ```yaml
+  nats:
+    cred_file: /path/to/nats.creds
+  ```
+
+### nats_nkey_file
+
+This flag only has effect if one of the following is true:
+- `osquery_result_log_plugin` or `osquery_status_log_plugin` are set to `nats`.
+- `activity_audit_log_plugin` is set to `nats` and `activity_enable_audit_log` is set to `true`.
+
+Path to the NATS [NKey seed file](https://docs.nats.io/using-nats/developer/connecting/nkey) for authentication. Cannot be used together with `nats_cred_file`.
+
+- Default value: none
+- Environment variable: `FLEET_NATS_NKEY_FILE`
+- Config file format:
+  ```yaml
+  nats:
+    nkey_file: /path/to/nats.nk
+  ```
+
+### nats_tls_client_crt_file
+
+This flag only has effect if one of the following is true:
+- `osquery_result_log_plugin` or `osquery_status_log_plugin` are set to `nats`.
+- `activity_audit_log_plugin` is set to `nats` and `activity_enable_audit_log` is set to `true`.
+
+Path to the TLS client certificate file for NATS connection. Must be used together with `nats_tls_client_key_file`.
+
+- Default value: none
+- Environment variable: `FLEET_NATS_TLS_CLIENT_CRT_FILE`
+- Config file format:
+  ```yaml
+  nats:
+    tls_client_crt_file: /path/to/client.crt
+  ```
+
+### nats_tls_client_key_file
+
+This flag only has effect if one of the following is true:
+- `osquery_result_log_plugin` or `osquery_status_log_plugin` are set to `nats`.
+- `activity_audit_log_plugin` is set to `nats` and `activity_enable_audit_log` is set to `true`.
+
+Path to the TLS client key file for NATS connection. Must be used together with `nats_tls_client_crt_file`.
+
+- Default value: none
+- Environment variable: `FLEET_NATS_TLS_CLIENT_KEY_FILE`
+- Config file format:
+  ```yaml
+  nats:
+    tls_client_key_file: /path/to/client.key
+  ```
+
+### nats_ca_crt_file
+
+This flag only has effect if one of the following is true:
+- `osquery_result_log_plugin` or `osquery_status_log_plugin` are set to `nats`.
+- `activity_audit_log_plugin` is set to `nats` and `activity_enable_audit_log` is set to `true`.
+
+Path to the CA certificate file for verifying the NATS server certificate.
+
+- Default value: none
+- Environment variable: `FLEET_NATS_CA_CRT_FILE`
+- Config file format:
+  ```yaml
+  nats:
+    ca_crt_file: /path/to/ca.crt
+  ```
+
+### nats_compression
+
+This flag only has effect if one of the following is true:
+- `osquery_result_log_plugin` or `osquery_status_log_plugin` are set to `nats`.
+- `activity_audit_log_plugin` is set to `nats` and `activity_enable_audit_log` is set to `true`.
+
+Compression algorithm to use for log payloads before publishing to NATS. Supported values are `gzip`, `snappy`, and `zstd`. When not specified, logs are published uncompressed.
+
+- Default value: none (no compression)
+- Environment variable: `FLEET_NATS_COMPRESSION`
+- Config file format:
+  ```yaml
+  nats:
+    compression: gzip
+  ```
+
+### nats_jetstream
+
+This flag only has effect if one of the following is true:
+- `osquery_result_log_plugin` or `osquery_status_log_plugin` are set to `nats`.
+- `activity_audit_log_plugin` is set to `nats` and `activity_enable_audit_log` is set to `true`.
+
+Enable NATS JetStream for log publishing. When enabled, logs are published using JetStream instead of core NATS.
+
+- Default value: false
+- Environment variable: `FLEET_NATS_JETSTREAM`
+- Config file format:
+  ```yaml
+  nats:
+    jetstream: true
+  ```
+
+### nats_timeout
+
+This flag only has effect if one of the following is true:
+- `osquery_result_log_plugin` or `osquery_status_log_plugin` are set to `nats`.
+- `activity_audit_log_plugin` is set to `nats` and `activity_enable_audit_log` is set to `true`.
+
+Timeout for NATS publish operations. Valid time units are `s`, `m`, `h`.
+
+- Default value: 30s
+- Environment variable: `FLEET_NATS_TIMEOUT`
+- Config file format:
+  ```yaml
+  nats:
+    timeout: 1m
+  ```
+
 ## Email backend
 
 By default, the SMTP backend is enabled and no additional configuration is required on the server settings. You can configure
@@ -2288,7 +2583,7 @@ Optionally, if you're using a third-party to manage AWS resources, this is the A
 
 *Available in Fleet Premium.*
 
-AWS S3 Endpoint URL. Override when using a different S3 compatible object storage backend (such as Minio),
+AWS S3 Endpoint URL. Override when using a different S3 compatible object storage backend (such as RustFS),
 or running S3 locally with localstack. Leave this blank to use the default S3 service endpoint.
 
 - Default value: none
@@ -2322,7 +2617,7 @@ will use [virtual hosted bucket addressing](http://docs.aws.amazon.com/AmazonS3/
 
 AWS S3 Region. Leave blank to enable region discovery.
 
-Minio users must set this to any nonempty value (eg. `minio`), as Minio does not support region discovery.
+You'll likely need to set this if using a non-AWS S3-compatible object store.
 
 - Default value:
 - Environment variable: `FLEET_S3_SOFTWARE_INSTALLERS_REGION`
@@ -2862,7 +3157,7 @@ conjunction with an STS role ARN to ensure that only the intended AWS account ca
 
 ##### packaging_s3_endpoint_url
 
-This is the AWS S3 Endpoint URL. Override when using a different S3 compatible object storage backend (such as Minio)
+This is the AWS S3 Endpoint URL. Override when using a different S3 compatible object storage backend (such as RustFS)
 or running S3 locally with LocalStack. Leave this blank to use the default AWS S3 service endpoint.
 
 - Default value: ""
@@ -2909,7 +3204,7 @@ See the [Virtual hosting of buckets doc](http://docs.aws.amazon.com/AmazonS3/lat
 
 This is the AWS S3 Region. Leave it blank to enable region discovery.
 
-Minio users must set this to any non-empty value (e.g., `minio`), as Minio does not support region discovery.
+You'll likely need to set this if using a non-AWS S3-compatible object store.
 
 - Default value: ""
 - Environment variable: `FLEET_PACKAGING_S3_REGION`
@@ -2936,18 +3231,6 @@ The number of days the signed SCEP client certificates will be valid.
   ```yaml
   mdm:
     apple_scep_signer_validity_days: 100
-  ```
-
-### mdm.apple_scep_signer_allow_renewal_days
-
-The number of days allowed to renew SCEP certificates.
-
-- Default value: 14
-- Environment variable: `FLEET_MDM_APPLE_SCEP_SIGNER_ALLOW_RENEWAL_DAYS`
-- Config file format:
-  ```yaml
-  mdm:
-    apple_scep_signer_allow_renewal_days: 30
   ```
 
 ### mdm.apple_dep_sync_periodicity
@@ -3005,6 +3288,39 @@ The best practice is to set this to 3x the number of new employees (end users) t
   ```yaml
   mdm:
     sso_rate_limit_per_minute: 200
+  ```
+
+### mdm.apple_vpp_app_metadata_api_bearer_token
+
+By default, Fleet retrieves [Apple App Store (VPP) metadata](https://developer.apple.com/documentation/devicemanagement/get-your-apps-metadata) from Apple using an API token from Fleet's Apple Developer account. This API token is hosted on fleetdm.com.
+
+If you have an [Apple Developer account that is enabled as an MDM vendor](https://developer.apple.com/help/account/service-configurations/apps-and-books-for-organizations), you can optionally configure Fleet with your own API token. This way, Fleet can directly communicate with Apple.
+
+- Default value: none
+- Environment variable: `FLEET_MDM_APPLE_VPP_APP_METADATA_API_BEARER_TOKEN`
+- Config file format:
+  ```yaml
+  mdm:
+    apple_vpp_app_metadata_api_bearer_token: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ92eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6Ikp
+
+## Conditional access
+
+### conditional_access_cert_serial_format
+
+Specifies the format for parsing certificate serial numbers from the `X-Client-Cert-Serial` header during Okta conditional access authentication.
+
+Different load balancers/reverse proxies send certificate serial numbers in different formats:
+- AWS ALB sends serial numbers in **hexadecimal** format (e.g., `A` for serial 10)
+- Caddy sends serial numbers in **decimal** format (e.g., `10` for serial 10)
+
+This configuration allows Fleet to correctly parse the serial number regardless of the proxy being used.
+
+- Default value: `hex`
+- Environment variable: `FLEET_CONDITIONAL_ACCESS_CERT_SERIAL_FORMAT`
+- Config file format:
+  ```yaml
+  conditional_access:
+    cert_serial_format: decimal
   ```
 
 ## Partnerships

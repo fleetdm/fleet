@@ -1,6 +1,6 @@
 # Software architecture
 
-Fleet's software architecture is designed to manage software across the device fleet, including software inventory, vulnerability management, and software installation. This directory contains documentation about Fleet's software architecture.
+Fleet's software architecture is designed to manage software across the device fleet, including software inventory and software installation. This directory contains documentation about Fleet's software architecture.
 
 ## Contents
 
@@ -15,4 +15,3 @@ Fleet's software architecture is designed to manage software across the device f
 ## Related resources
 
 - [Software Product Group Documentation](../../product-groups/software/) - Documentation for the Software product group
-- [Software Development Guides](../../guides/software/) - Guides for Software development

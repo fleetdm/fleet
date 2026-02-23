@@ -31,8 +31,8 @@ describe("ensurePeriod", () => {
 
 describe("formatAlreadyAvailableInstallMessage", () => {
   it("returns a React fragment with the correct text and team when the string matches the regex", () => {
-    // Example input: "Couldn't add. MyApp already has a package or app available for install on the Marketing team."
-    const msg = `${ADD_SOFTWARE_ERROR_PREFIX} MyApp already has a package or app available for install on the Marketing team.`;
+    // Example input: "Couldn't add. MyApp already has an installer available for the Marketing team."
+    const msg = `${ADD_SOFTWARE_ERROR_PREFIX} MyApp already has an installer available for the Marketing team.`;
     const result = formatAlreadyAvailableInstallMessage(msg);
 
     // Render for querying text
@@ -43,6 +43,19 @@ describe("formatAlreadyAvailableInstallMessage", () => {
     expect(container.textContent).toContain("Marketing team");
   });
 
+  it("returns React with correct text and team when the string matches the package exists regex", () => {
+    const msg = `SoftwareInstaller "MyApp" already exists with team "Marketing".`;
+    const result = formatAlreadyAvailableInstallMessage(msg);
+
+    const { container } = render(<>{result}</>);
+    expect(container.textContent).toContain("Couldn't add.");
+    expect(container.textContent).toContain("MyApp");
+    expect(container.textContent).toContain(
+      "already has an installer available"
+    );
+    expect(container.textContent).toContain("Marketing");
+  });
+
   it("returns null if the string does not match the expected pattern", () => {
     const msg = "Random error message not matching pattern";
     const result = formatAlreadyAvailableInstallMessage(msg);
@@ -50,7 +63,7 @@ describe("formatAlreadyAvailableInstallMessage", () => {
   });
 
   it("works for different app names and team names", () => {
-    const msg = `${ADD_SOFTWARE_ERROR_PREFIX} Zoom already has a package or app available for install on the Engineering team.`;
+    const msg = `${ADD_SOFTWARE_ERROR_PREFIX} Zoom already has an installer available for the Engineering team.`;
     const result = formatAlreadyAvailableInstallMessage(msg);
 
     const { container } = render(<>{result}</>);

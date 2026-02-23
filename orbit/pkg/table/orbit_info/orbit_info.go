@@ -19,7 +19,7 @@ type Extension struct {
 	orbitChannel    string
 	osquerydChannel string
 	desktopChannel  string
-	dektopVersion   string
+	desktopVersion  string
 	trw             *token.ReadWriter
 	scriptsEnabled  func() bool
 	updateURL       string
@@ -38,7 +38,7 @@ func New(
 		orbitChannel:    orbitChannel,
 		osquerydChannel: osquerydChannel,
 		desktopChannel:  desktopChannel,
-		dektopVersion:   desktopVersion,
+		desktopVersion:  desktopVersion,
 		trw:             trw,
 		scriptsEnabled:  scriptsEnabled,
 		updateURL:       updateURL,
@@ -105,7 +105,7 @@ func (o Extension) GenerateFunc(_ context.Context, _ table.QueryContext) ([]map[
 		"orbit_channel":       o.orbitChannel,
 		"osqueryd_channel":    o.osquerydChannel,
 		"desktop_channel":     o.desktopChannel,
-		"desktop_version":     o.dektopVersion,
+		"desktop_version":     o.desktopVersion,
 		"uptime":              strconv.FormatInt(int64(time.Since(o.startTime).Seconds()), 10),
 		"scripts_enabled":     strconv.FormatInt(boolToInt(o.scriptsEnabled()), 10),
 		"update_url":          o.updateURL,

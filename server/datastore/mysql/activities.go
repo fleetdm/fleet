@@ -3,7 +3,6 @@ package mysql
 import (
 	"context"
 	"database/sql"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"slices"
@@ -13,13 +12,13 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/mdm"
+	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/go-kit/log/level"
 	"github.com/jmoiron/sqlx"
 )
 
 var (
-	automationActivityAuthor = "Fleet"
-	deleteIDsBatchSize       = 1000
+	deleteIDsBatchSize = 1000
 )
 
 // NewActivity stores an activity item that the user performed
@@ -50,7 +49,7 @@ func (ds *Datastore) NewActivity(
 		userEmail = &user.Email
 	}
 	if automatableActivity, ok := activity.(fleet.AutomatableActivity); ok && automatableActivity.WasFromAutomation() {
-		userName = &automationActivityAuthor
+		userName = ptr.String(fleet.ActivityAutomationAuthor)
 		fleetInitiated = true
 	}
 
@@ -128,154 +127,6 @@ func (ds *Datastore) NewActivity(
 		}
 		return nil
 	})
-}
-
-// ListActivities returns a slice of activities performed across the organization
-func (ds *Datastore) ListActivities(ctx context.Context, opt fleet.ListActivitiesOptions) ([]*fleet.Activity, *fleet.PaginationMetadata, error) {
-	// Fetch activities
-
-	activities := []*fleet.Activity{}
-	activitiesQ := `
-		SELECT
-			a.id,
-			a.user_id,
-			a.created_at,
-			a.activity_type,
-			a.user_name as name,
-			a.streamed,
-			a.user_email,
-			a.fleet_initiated
-		FROM activities a
-		WHERE a.host_only = false`
-
-	var args []interface{}
-	if opt.Streamed != nil {
-		activitiesQ += " AND a.streamed = ?"
-		args = append(args, *opt.Streamed)
-	}
-	opt.ListOptions.IncludeMetadata = !(opt.ListOptions.UsesCursorPagination())
-
-	activitiesQ, args = appendListOptionsWithCursorToSQL(activitiesQ, args, &opt.ListOptions)
-
-	err := sqlx.SelectContext(ctx, ds.reader(ctx), &activities, activitiesQ, args...)
-	if err != nil {
-		return nil, nil, ctxerr.Wrap(ctx, err, "select activities")
-	}
-
-	if len(activities) > 0 {
-		// Fetch details as a separate query due to sort buffer issue triggered by large JSON details entries. Issue last reproduced on MySQL 8.0.36
-		// https://stackoverflow.com/questions/29575835/error-1038-out-of-sort-memory-consider-increasing-sort-buffer-size/67266529
-		IDs := make([]uint, 0, len(activities))
-		for _, a := range activities {
-			IDs = append(IDs, a.ID)
-		}
-		detailsStmt, detailsArgs, err := sqlx.In("SELECT id, details FROM activities WHERE id IN (?)", IDs)
-		if err != nil {
-			return nil, nil, ctxerr.Wrap(ctx, err, "Error binding activity IDs")
-		}
-		type activityDetails struct {
-			ID      uint             `db:"id"`
-			Details *json.RawMessage `db:"details"`
-		}
-		var details []activityDetails
-		err = sqlx.SelectContext(ctx, ds.reader(ctx), &details, detailsStmt, detailsArgs...)
-		if err != nil {
-			return nil, nil, ctxerr.Wrap(ctx, err, "select activities details")
-		}
-		detailsLookup := make(map[uint]*json.RawMessage, len(details))
-		for _, d := range details {
-			detailsLookup[d.ID] = d.Details
-		}
-		for _, a := range activities {
-			det, ok := detailsLookup[a.ID]
-			if !ok {
-				level.Warn(ds.logger).Log("msg", "Activity details not found", "activity_id", a.ID)
-				continue
-			}
-			a.Details = det
-		}
-	}
-
-	// Fetch users as a stand-alone query (because of performance reasons)
-
-	lookup := make(map[uint][]int)
-	for idx, a := range activities {
-		if a.ActorID != nil {
-			lookup[*a.ActorID] = append(lookup[*a.ActorID], idx)
-		}
-	}
-
-	if len(lookup) != 0 {
-		usersQ := `
-			SELECT u.id, u.name, u.gravatar_url, u.email, u.api_only
-			FROM users u
-			WHERE id IN (?)
-		`
-		userIDs := make([]uint, 0, len(lookup))
-		for k := range lookup {
-			userIDs = append(userIDs, k)
-		}
-
-		usersQ, usersArgs, err := sqlx.In(usersQ, userIDs)
-		if err != nil {
-			return nil, nil, ctxerr.Wrap(ctx, err, "Error binding usersIDs")
-		}
-
-		var usersR []struct {
-			ID          uint   `db:"id"`
-			Name        string `db:"name"`
-			GravatarUrl string `db:"gravatar_url"`
-			Email       string `db:"email"`
-			APIOnly     bool   `db:"api_only"`
-		}
-
-		err = sqlx.SelectContext(ctx, ds.reader(ctx), &usersR, usersQ, usersArgs...)
-		if err != nil && err != sql.ErrNoRows {
-			return nil, nil, ctxerr.Wrap(ctx, err, "selecting users")
-		}
-
-		for _, r := range usersR {
-			entries, ok := lookup[r.ID]
-			if !ok {
-				continue
-			}
-
-			email := r.Email
-			gravatar := r.GravatarUrl
-			name := r.Name
-			apiOnly := r.APIOnly
-
-			for _, idx := range entries {
-				activities[idx].ActorEmail = &email
-				activities[idx].ActorGravatar = &gravatar
-				activities[idx].ActorFullName = &name
-				activities[idx].ActorAPIOnly = &apiOnly
-			}
-		}
-	}
-
-	var metaData *fleet.PaginationMetadata
-	if opt.ListOptions.IncludeMetadata {
-		metaData = &fleet.PaginationMetadata{HasPreviousResults: opt.Page > 0}
-		if len(activities) > int(opt.ListOptions.PerPage) { //nolint:gosec // dismiss G115
-			metaData.HasNextResults = true
-			activities = activities[:len(activities)-1]
-		}
-	}
-
-	return activities, metaData, nil
-}
-
-func (ds *Datastore) MarkActivitiesAsStreamed(ctx context.Context, activityIDs []uint) error {
-	stmt := `UPDATE activities SET streamed = true WHERE id IN (?);`
-	query, args, err := sqlx.In(stmt, activityIDs)
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "sqlx.In mark activities as streamed")
-	}
-	if _, err := ds.writer(ctx).ExecContext(ctx, query, args...); err != nil {
-		return ctxerr.Wrap(ctx, err, "exec mark activities as streamed")
-	}
-	return nil
 }
 
 // ListHostUpcomingActivities returns the list of activities pending execution
@@ -450,7 +301,8 @@ func (ds *Datastore) ListHostUpcomingActivities(ctx context.Context, hostID uint
 				'app_store_id', vaua.adam_id,
 				'command_uuid', ua.execution_id,
 				'self_service', ua.payload->'$.self_service' IS TRUE,
-				'status', 'pending_install'
+				'status', 'pending_install',
+				'host_platform', h.platform
 			) AS details,
 			IF(ua.activated_at IS NULL, 0, 1) as topmost,
 			ua.priority as priority,
@@ -461,6 +313,8 @@ func (ds *Datastore) ListHostUpcomingActivities(ctx context.Context, hostID uint
 			vpp_app_upcoming_activities vaua ON vaua.upcoming_activity_id = ua.id
 		LEFT OUTER JOIN
 			users u ON ua.user_id = u.id
+		LEFT OUTER JOIN
+			hosts h ON h.id = ua.host_id
 		LEFT OUTER JOIN
 			host_display_names hdn ON hdn.host_id = ua.host_id
 		LEFT OUTER JOIN
@@ -548,49 +402,6 @@ func (ds *Datastore) ListHostUpcomingActivities(ctx context.Context, hostID uint
 	if len(activities) > int(opt.PerPage) { //nolint:gosec // dismiss G115
 		metaData.HasNextResults = true
 		activities = activities[:len(activities)-1]
-	}
-
-	return activities, metaData, nil
-}
-
-func (ds *Datastore) ListHostPastActivities(ctx context.Context, hostID uint, opt fleet.ListOptions) ([]*fleet.Activity, *fleet.PaginationMetadata, error) {
-	const listStmt = `
-	SELECT
-		ha.activity_id as id,
-		a.user_email as user_email,
-		a.user_name as name,
-		a.activity_type as activity_type,
-		a.details as details,
-		u.gravatar_url as gravatar_url,
-		a.created_at as created_at,
-		u.id as user_id,
-		u.api_only as api_only,
-		a.fleet_initiated as fleet_initiated
-	FROM
-		host_activities ha
-		JOIN activities a
-			ON ha.activity_id = a.id
-		LEFT OUTER JOIN
-			users u ON u.id = a.user_id
-	WHERE
-		ha.host_id = ?
-	`
-
-	args := []any{hostID}
-	stmt, args := appendListOptionsWithCursorToSQL(listStmt, args, &opt)
-
-	var activities []*fleet.Activity
-	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &activities, stmt, args...); err != nil {
-		return nil, nil, ctxerr.Wrap(ctx, err, "select upcoming activities")
-	}
-
-	var metaData *fleet.PaginationMetadata
-	if opt.IncludeMetadata {
-		metaData = &fleet.PaginationMetadata{HasPreviousResults: opt.Page > 0}
-		if len(activities) > int(opt.PerPage) { //nolint:gosec // dismiss G115
-			metaData.HasNextResults = true
-			activities = activities[:len(activities)-1]
-		}
 	}
 
 	return activities, metaData, nil
@@ -1452,7 +1263,7 @@ func (ds *Datastore) activateNextSoftwareInstallActivity(ctx context.Context, tx
 	const insStmt = `
 INSERT INTO host_software_installs
 	(execution_id, host_id, software_installer_id, user_id, self_service,
-		policy_id, installer_filename, version, software_title_id, software_title_name)
+		policy_id, installer_filename, version, software_title_id, software_title_name, attempt_number)
 SELECT
 	ua.execution_id,
 	ua.host_id,
@@ -1463,7 +1274,24 @@ SELECT
 	COALESCE(si.filename, ua.payload->>'$.installer_filename', '[deleted installer]'),
 	COALESCE(si.version, ua.payload->>'$.version', 'unknown'),
 	COALESCE(si.title_id, siua.software_title_id),
-	COALESCE(st.name, ua.payload->>'$.software_title_name', '[deleted title]')
+	COALESCE(st.name, ua.payload->>'$.software_title_name', '[deleted title]'),
+	-- Compute the attempt number for this activation. Each retry creates a
+	-- new upcoming_activity (via InsertSoftwareInstallRequest), so when that
+	-- new activity activates, COUNT(*) of previous completed attempts gives
+	-- the number of prior tries. +1 makes this the next attempt in sequence:
+	-- first install = 1, first retry = 2, second retry = 3, etc.
+	CASE
+		WHEN siua.policy_id IS NULL AND COALESCE(ua.payload->'$.with_retries', 0) = 1 THEN (
+			SELECT COUNT(*) + 1
+			FROM host_software_installs hsi2
+			WHERE hsi2.host_id = ua.host_id
+			AND hsi2.software_installer_id = siua.software_installer_id
+			AND hsi2.policy_id IS NULL
+			AND hsi2.removed = 0 AND hsi2.canceled = 0 AND hsi2.host_deleted_at IS NULL
+			AND (hsi2.attempt_number > 0 OR hsi2.attempt_number IS NULL)
+		)
+		ELSE NULL
+	END
 FROM
 	upcoming_activities ua
 	INNER JOIN software_install_upcoming_activities siua
@@ -1572,6 +1400,10 @@ ORDER BY
 }
 
 func (ds *Datastore) activateNextVPPAppInstallActivity(ctx context.Context, tx sqlx.ExtContext, hostID uint, execIDs []string) error {
+	if len(execIDs) == 0 {
+		return nil
+	}
+
 	const insStmt = `
 INSERT INTO
 	host_vpp_software_installs
@@ -1597,94 +1429,6 @@ ORDER BY
 	ua.priority DESC, ua.created_at ASC
 `
 
-	const getHostUUIDStmt = `
-SELECT
-	uuid
-FROM
-	hosts
-WHERE
-	id = ?
-`
-
-	const insCmdStmt = `
-INSERT INTO
-	nano_commands
-(command_uuid, request_type, command, subtype)
-SELECT
-	ua.execution_id,
-	'InstallApplication',
-	CONCAT(:raw_cmd_part1, vaua.adam_id, :raw_cmd_part2, ua.execution_id, :raw_cmd_part3),
-	:subtype
-FROM
-	upcoming_activities ua
-	INNER JOIN vpp_app_upcoming_activities vaua
-		ON vaua.upcoming_activity_id = ua.id
-WHERE
-	ua.host_id = :host_id AND
-	ua.execution_id IN (:execution_ids)
-`
-
-	const rawCmdPart1 = `<?xml version="1.0" encoding="UTF-8"?>
-<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-<plist version="1.0">
-<dict>
-    <key>Command</key>
-    <dict>
-		<key>InstallAsManaged</key>
-		<true/>
-        <key>ManagementFlags</key>
-        <integer>0</integer>
-        <key>ChangeManagementState</key>
-        <string>Managed</string>
-        <key>InstallAsManaged</key>
-        <true />
-        <key>Options</key>
-        <dict>
-            <key>PurchaseMethod</key>
-            <integer>1</integer>
-        </dict>
-        <key>RequestType</key>
-        <string>InstallApplication</string>
-        <key>iTunesStoreID</key>
-        <integer>`
-
-	const rawCmdPart2 = `</integer>
-    </dict>
-    <key>CommandUUID</key>
-    <string>`
-
-	const rawCmdPart3 = `</string>
-</dict>
-</plist>`
-
-	const insNanoQueueStmt = `
-INSERT INTO
-	nano_enrollment_queue
-(id, command_uuid, created_at)
-SELECT
-	?,
-	execution_id,
-	created_at -- force same timestamp to keep ordering
-FROM
-	upcoming_activities
-WHERE
-	host_id = ? AND
-	execution_id IN (?)
-ORDER BY
-	priority DESC, created_at ASC
-`
-
-	// sanity-check that there's something to activate
-	if len(execIDs) == 0 {
-		return nil
-	}
-
-	// get the host uuid, requires for the nano tables
-	var hostUUID string
-	if err := sqlx.GetContext(ctx, tx, &hostUUID, getHostUUIDStmt, hostID); err != nil {
-		return ctxerr.Wrap(ctx, err, "get host uuid")
-	}
-
 	// insert the host vpp app row
 	stmt, args, err := sqlx.In(insStmt, hostID, execIDs)
 	if err != nil {
@@ -1694,44 +1438,7 @@ ORDER BY
 		return ctxerr.Wrap(ctx, err, "insert to activate vpp apps")
 	}
 
-	// insert the nano command
-	namedArgs := map[string]any{
-		"raw_cmd_part1": rawCmdPart1,
-		"raw_cmd_part2": rawCmdPart2,
-		"raw_cmd_part3": rawCmdPart3,
-		"subtype":       mdm.CommandSubtypeNone,
-		"host_id":       hostID,
-		"execution_ids": execIDs,
-	}
-	stmt, args, err = sqlx.Named(insCmdStmt, namedArgs)
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "prepare insert nano commands")
-	}
-	stmt, args, err = sqlx.In(stmt, args...)
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "expand IN arguments to insert nano commands")
-	}
-	if _, err := tx.ExecContext(ctx, stmt, args...); err != nil {
-		return ctxerr.Wrap(ctx, err, "insert nano commands")
-	}
-
-	// enqueue the nano command in the nano queue
-	stmt, args, err = sqlx.In(insNanoQueueStmt, hostUUID, hostID, execIDs)
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "prepare insert nano queue")
-	}
-	if _, err := tx.ExecContext(ctx, stmt, args...); err != nil {
-		return ctxerr.Wrap(ctx, err, "insert nano queue")
-	}
-
-	// best-effort APNs push notification to the host, not critical because we
-	// have a cron job that will retry for hosts with pending MDM commands.
-	if ds.pusher != nil {
-		if _, err := ds.pusher.Push(ctx, []string{hostUUID}); err != nil {
-			level.Error(ds.logger).Log("msg", "failed to send push notification", "err", err, "hostID", hostID, "hostUUID", hostUUID) //nolint:errcheck
-		}
-	}
-	return nil
+	return ds.nanoEnqueueVPPInstall(ctx, tx, hostID, execIDs)
 }
 
 func (ds *Datastore) activateNextInHouseAppInstallActivity(ctx context.Context, tx sqlx.ExtContext, hostID uint, execIDs []string) error {
@@ -1761,7 +1468,7 @@ ORDER BY
 
 	const getHostUUIDStmt = `
 SELECT
-	uuid, team_id
+	uuid, team_id, platform
 FROM
 	hosts
 WHERE
@@ -1786,7 +1493,7 @@ WHERE
 	ua.execution_id IN (:execution_ids)
 `
 
-	const rawCmdPart1 = `<?xml version="1.0" encoding="UTF-8"?>
+	rawCmdPart1 := `<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
@@ -1795,7 +1502,7 @@ WHERE
 		<key>InstallAsManaged</key>
 		<true/>
         <key>ManagementFlags</key>
-        <integer>0</integer>
+        <integer>%d</integer>
         <key>ChangeManagementState</key>
         <string>Managed</string>
         <key>InstallAsManaged</key>
@@ -1843,11 +1550,21 @@ ORDER BY
 
 	// get the host uuid, required for the nano tables
 	var hostData struct {
-		UUID   string `db:"uuid"`
-		TeamID *uint  `db:"team_id"`
+		UUID     string `db:"uuid"`
+		TeamID   *uint  `db:"team_id"`
+		Platform string `db:"platform"`
 	}
 	if err := sqlx.GetContext(ctx, tx, &hostData, getHostUUIDStmt, hostID); err != nil {
 		return ctxerr.Wrap(ctx, err, "get host uuid")
+	}
+
+	// Set management flags based on platform
+	if fleet.IsAppleMobilePlatform(hostData.Platform) {
+		// Remove app upon MDM removal
+		rawCmdPart1 = fmt.Sprintf(rawCmdPart1, 1) // Mobile devices use management flag 1
+	} else {
+		// Keep app upon MDM removal
+		rawCmdPart1 = fmt.Sprintf(rawCmdPart1, 0) // macOS devices use management flag 0
 	}
 
 	// insert the host in-house app row

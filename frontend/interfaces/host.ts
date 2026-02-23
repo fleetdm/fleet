@@ -97,11 +97,27 @@ export interface IMunkiData {
 
 export type MacDiskEncryptionActionRequired = "log_out" | "rotate_key";
 
+export type HostAndroidCertStatus =
+  | "verified"
+  | "failed"
+  //  all below display "pending" in UI
+  | "pending"
+  | "delivering"
+  | "delivered";
+
+export interface IHostAndroidCert {
+  name: string;
+  status: HostAndroidCertStatus;
+  operation_type: "install" | "remove";
+  detail: string;
+}
+
 export interface IOSSettings {
   disk_encryption: {
     status: DiskEncryptionStatus | null;
     detail: string;
   };
+  certificates: IHostAndroidCert[];
 }
 
 interface IMdmMacOsSettings {
@@ -116,7 +132,7 @@ interface IMdmMacOsSetup {
 }
 
 export type HostMdmDeviceStatus = "unlocked" | "locked" | "wiped";
-export type HostMdmPendingAction = "unlock" | "lock" | "wipe" | "";
+export type HostMdmPendingAction = "unlock" | "lock" | "wipe" | "location" | "";
 
 export interface IHostMdmData {
   encryption_key_available: boolean;
@@ -181,7 +197,7 @@ export interface IPolicyHostResponse {
   status?: string;
 }
 
-interface IGeoLocation {
+export interface IGeoLocation {
   country_iso: string;
   city_name: string;
   geometry?: {
@@ -199,7 +215,8 @@ export interface IHostResponse {
   host: IHost;
 }
 
-export interface IDeviceUserResponse {
+// Device User Page
+export interface IDUPDetails {
   host: IHostDevice;
   license: ILicense;
   org_logo_url: string;
@@ -310,6 +327,7 @@ export interface IHost {
   device_mapping: IDeviceUser[] | null;
   /** There will be at most 1 end user */
   end_users?: IHostEndUser[];
+  conditional_access_bypassed: boolean;
 }
 
 /*

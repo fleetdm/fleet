@@ -9,9 +9,9 @@ import (
 	"os"
 
 	"github.com/fleetdm/fleet/v4/server/config"
-	"github.com/fleetdm/fleet/v4/server/datastore/mysql/common_mysql"
-	kitlog "github.com/go-kit/log"
-	"github.com/go-kit/log/level"
+	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
+	"github.com/fleetdm/fleet/v4/server/platform/logging"
+	common_mysql "github.com/fleetdm/fleet/v4/server/platform/mysql"
 	"github.com/jmoiron/sqlx"
 )
 
@@ -35,7 +35,7 @@ func main() {
 		log.Fatal("Username is required (-user flag)")
 	}
 
-	logger := level.NewFilter(kitlog.NewLogfmtLogger(os.Stderr), level.AllowDebug())
+	logger := logging.NewLogfmtLogger(os.Stderr)
 
 	// Configure MySQL connection with IAM auth
 	mysqlConfig := &config.MysqlConfig{
@@ -62,7 +62,7 @@ func main() {
 	}
 
 	log.Println("📋 Testing connection with IAM token...")
-	db, err := common_mysql.NewDB(mysqlConfig, dbOpts, "")
+	db, err := mysql.NewDB(mysqlConfig, dbOpts)
 	if err != nil {
 		log.Printf("❌ Connection failed: %v", err)
 		os.Exit(1)

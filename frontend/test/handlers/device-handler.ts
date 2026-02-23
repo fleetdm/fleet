@@ -1,6 +1,6 @@
 import { http, HttpResponse } from "msw";
 
-import createMockDeviceUser, {
+import {
   createMockDeviceSoftwareResponse,
   createMockSetupSoftwareStatusesResponse,
 } from "__mocks__/deviceUserMock";
@@ -8,10 +8,10 @@ import createMockHost from "__mocks__/hostMock";
 import createMockLicense from "__mocks__/licenseMock";
 import createMockMacAdmins from "__mocks__/macAdminsMock";
 import { createMockHostCertificate } from "__mocks__/certificatesMock";
-import { createMockMdmCommandResult } from "__mocks__/mdmMock";
+import { createMockAppleMdmCommandResult } from "__mocks__/commandMock";
 
 import { baseUrl } from "test/test-utils";
-import { IDeviceUserResponse } from "interfaces/host";
+import { IDUPDetails } from "interfaces/host";
 import {
   IGetDeviceSoftwareResponse,
   IGetSetupExperienceStatusesResponse,
@@ -30,7 +30,7 @@ export const defaultDeviceHandler = http.get(baseUrl("/device/:token"), () => {
   });
 });
 
-export const customDeviceHandler = (overrides?: Partial<IDeviceUserResponse>) =>
+export const customDeviceHandler = (overrides?: Partial<IDUPDetails>) =>
   http.get(baseUrl("/device/:token"), () => {
     const response = Object.assign(
       {
@@ -93,7 +93,7 @@ export const emptySetupExperienceHandler = deviceSetupExperienceHandler({
 export const getDeviceVppCommandResultHandler = http.get(
   `/device/:token/software/commands/:uuid/results`,
   ({ params }) => {
-    const { token, uuid } = params;
+    const { uuid } = params;
 
     // Map UUIDs to status
     const statusMap = {
@@ -105,7 +105,7 @@ export const getDeviceVppCommandResultHandler = http.get(
       statusMap[uuid as "notnow-uuid" | "acknowledged-uuid" | "uuid-failed"] ||
       "Acknowledged";
 
-    const mdmCommand = createMockMdmCommandResult({
+    const mdmCommand = createMockAppleMdmCommandResult({
       command_uuid: uuid as string,
       status,
       payload: btoa(`payload for ${uuid}`),

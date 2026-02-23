@@ -13,12 +13,15 @@ export interface ICategoriesMenu {
   categories: ICategory[];
   queryParams: SelfServiceQueryParams;
   className?: string;
+  /** Used for reusing component on self-service preview */
+  readOnly?: boolean;
 }
 
 const CategoriesMenu = ({
   categories,
   queryParams,
   className,
+  readOnly = false,
 }: ICategoriesMenu) => {
   const wrapperClasses = classNames(baseClass, className);
 
@@ -47,6 +50,7 @@ const CategoriesMenu = ({
                 category_id: cat.id !== 0 ? cat.id : undefined,
               }}
               to={location.pathname}
+              disabled={readOnly}
             >
               <TooltipTruncatedText value={cat.label} tooltipPosition="right" />
             </LinkWithContext>

@@ -11,8 +11,11 @@
     "server_settings": {
       "server_url": "",
       "live_query_disabled": false,
+      "live_reporting_disabled": false,
       "query_report_cap": 0,
       "query_reports_disabled": false,
+      "report_cap": 0,
+      "discard_reports_data": false,
       "enable_analytics": false,
       "deferred_save_host": false,
       "scripts_disabled": false,
@@ -32,13 +35,15 @@
       "okta_idp_id": null,
       "okta_assertion_consumer_service_url": null,
       "okta_audience_uri": null,
-      "okta_certificate": null
+      "okta_certificate": null,
+      "bypass_disabled": null
     },
     "features": {
       "enable_host_users": true,
       "enable_software_inventory": false
     },
     "fleet_desktop": {
+      "alternative_browser_host": "",
       "transparency_url": "https://fleetdm.com/transparency"
     },
     "vulnerability_settings": {
@@ -87,15 +92,18 @@
       "windows_require_bitlocker_pin": null,
       "macos_updates": {
         "minimum_version": null,
-        "deadline": null
+        "deadline": null,
+        "update_new_hosts": null
       },
       "ios_updates": {
         "minimum_version": null,
-        "deadline": null
+        "deadline": null,
+        "update_new_hosts": null
       },
       "ipados_updates": {
         "minimum_version": null,
-        "deadline": null
+        "deadline": null,
+        "update_new_hosts": null
       },
       "windows_updates": {
         "deadline_days": 7,
@@ -103,6 +111,7 @@
       },
       "windows_migration_enabled": false,
       "enable_turn_on_windows_mdm_manually": false,
+      "windows_entra_tenant_ids": null,
       "macos_migration": {
         "enable": false,
         "mode": "",

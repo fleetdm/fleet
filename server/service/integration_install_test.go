@@ -12,14 +12,15 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
 	"github.com/fleetdm/fleet/v4/server/datastore/s3"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	software_mock "github.com/fleetdm/fleet/v4/server/mock/software"
-	"github.com/go-kit/log"
-	kitlog "github.com/go-kit/log"
+	"github.com/fleetdm/fleet/v4/server/platform/logging"
+	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/jmoiron/sqlx"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -52,13 +53,13 @@ func (s *integrationInstallTestSuite) SetupSuite() {
 		License: &fleet.LicenseInfo{
 			Tier: fleet.TierPremium,
 		},
-		Logger:               log.NewLogfmtLogger(os.Stdout),
+		Logger:               logging.NewLogfmtLogger(os.Stdout),
 		EnableCachedDS:       true,
 		SoftwareInstallStore: softwareInstallStore,
 		FleetConfig:          &fleetConfig,
 	}
 	if os.Getenv("FLEET_INTEGRATION_TESTS_DISABLE_LOG") != "" {
-		installConfig.Logger = kitlog.NewNopLogger()
+		installConfig.Logger = logging.NewNopLogger()
 	}
 	users, server := RunServerForTestsWithDS(s.T(), s.ds, &installConfig)
 	s.server = server
@@ -105,7 +106,7 @@ func (s *integrationInstallTestSuite) TestSoftwareInstallerSignedURL() {
 		myInstallerID = installerID
 		return nil
 	}
-	s.softwareInstallStore.SignFunc = func(ctx context.Context, fileID string) (string, error) {
+	s.softwareInstallStore.SignFunc = func(ctx context.Context, fileID string, expiresIn time.Duration) (string, error) {
 		return "https://example.com/signed", nil
 	}
 
@@ -166,7 +167,7 @@ func (s *integrationInstallTestSuite) TestSoftwareInstallerSignedURL() {
 	require.Equal(t, filename, orbitSoftwareResp.SoftwareInstallerURL.Filename)
 
 	// Error in signing -- we simply don't return the URL
-	s.softwareInstallStore.SignFunc = func(ctx context.Context, fileID string) (string, error) {
+	s.softwareInstallStore.SignFunc = func(ctx context.Context, fileID string, expiresIn time.Duration) (string, error) {
 		return "", errors.New("error signing")
 	}
 	orbitSoftwareResp = orbitGetSoftwareInstallResponse{}
@@ -187,8 +188,8 @@ func (s *integrationInstallTestSuite) TestSoftwareInstallerSignedURL() {
 	}
 	s3Store, err := s3.NewTestSoftwareInstallerStore(s3Config)
 	require.NoError(t, err)
-	s.softwareInstallStore.SignFunc = func(ctx context.Context, fileID string) (string, error) {
-		return s3Store.Sign(ctx, fileID)
+	s.softwareInstallStore.SignFunc = func(ctx context.Context, fileID string, expiresIn time.Duration) (string, error) {
+		return s3Store.Sign(ctx, fileID, fleet.SoftwareInstallerSignedURLExpiry)
 	}
 	s.DoJSON("POST", "/api/fleet/orbit/software_install/details", orbitGetSoftwareInstallRequest{
 		InstallUUID:  installUUID,
@@ -214,4 +215,124 @@ func getLatestSoftwareInstallExecID(t *testing.T, ds *mysql.Datastore, hostID ui
 			"SELECT execution_id FROM host_software_installs WHERE host_id = ? ORDER BY id desc", hostID)
 	})
 	return installUUID
+}
+
+// TestShScriptInstallOnDarwin tests that .sh script packages (stored as platform='linux')
+// can be installed on darwin (macOS) hosts through the full HTTP API flow.
+func (s *integrationInstallTestSuite) TestShScriptInstallOnDarwin() {
+	t := s.T()
+
+	filename := "test-script.sh"
+
+	// Create a .sh script file in-memory
+	tfr, err := fleet.NewTempFileReader(strings.NewReader("#!/bin/bash\necho 'hello world'\n"), t.TempDir)
+	require.NoError(t, err)
+	defer tfr.Close()
+
+	// Set up mocks
+	var myInstallerID string
+	s.softwareInstallStore.ExistsFunc = func(ctx context.Context, installerID string) (bool, error) {
+		return installerID == myInstallerID, nil
+	}
+	s.softwareInstallStore.PutFunc = func(ctx context.Context, installerID string, content io.ReadSeeker) error {
+		myInstallerID = installerID
+		return nil
+	}
+	s.softwareInstallStore.SignFunc = func(ctx context.Context, fileID string, expiresIn time.Duration) (string, error) {
+		return "https://example.com/signed-sh", nil
+	}
+
+	// Create a team
+	var createTeamResp teamResponse
+	s.DoJSON("POST", "/api/latest/fleet/teams", &fleet.Team{
+		Name: t.Name(),
+	}, http.StatusOK, &createTeamResp)
+	require.NotZero(t, createTeamResp.Team.ID)
+
+	// Upload .sh script package
+	s.uploadSoftwareInstaller(t, &fleet.UploadSoftwareInstallerPayload{
+		TeamID:        &createTeamResp.Team.ID,
+		Filename:      filename,
+		InstallerFile: tfr,
+	}, http.StatusOK, "")
+
+	// Get the title ID from the database
+	var id uint
+	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(context.Background(), q, &id,
+			`SELECT id FROM software_installers WHERE global_or_team_id = ? AND filename = ?`, createTeamResp.Team.ID, filename)
+	})
+	require.NotZero(t, id)
+
+	meta, err := s.ds.GetSoftwareInstallerMetadataByID(context.Background(), id)
+	require.NoError(t, err)
+	require.Equal(t, "linux", meta.Platform, ".sh file should be stored with platform=linux")
+	titleID := *meta.TitleID
+
+	// Create a darwin (macOS) orbit host and assign to team
+	darwinHost := createOrbitEnrolledHost(t, "darwin", "darwin-sh-host", s.ds)
+	require.NoError(t, s.ds.AddHostsToTeam(context.Background(), fleet.NewAddHostsToTeamParams(&createTeamResp.Team.ID, []uint{darwinHost.ID})))
+
+	// Install .sh on darwin should succeed
+	s.Do("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/software/%d/install", darwinHost.ID, titleID), installSoftwareRequest{},
+		http.StatusAccepted)
+
+	// Get the install UUID
+	installUUID := getLatestSoftwareInstallExecID(t, s.ds, darwinHost.ID)
+
+	// Fetch installer details via orbit endpoint
+	var orbitSoftwareResp orbitGetSoftwareInstallResponse
+	s.DoJSON("POST", "/api/fleet/orbit/software_install/details", orbitGetSoftwareInstallRequest{
+		InstallUUID:  installUUID,
+		OrbitNodeKey: *darwinHost.OrbitNodeKey,
+	}, http.StatusOK, &orbitSoftwareResp)
+	assert.Equal(t, meta.InstallerID, orbitSoftwareResp.InstallerID)
+	require.NotNil(t, orbitSoftwareResp.SoftwareInstallerURL)
+	assert.Equal(t, "https://example.com/signed-sh", orbitSoftwareResp.SoftwareInstallerURL.URL)
+	require.Equal(t, filename, orbitSoftwareResp.SoftwareInstallerURL.Filename)
+}
+
+func (s *integrationInstallTestSuite) TestGetInHouseAppManifestSignedURL() {
+	// Test that the signed URL is used if cloudfrontsigner is configured
+	t := s.T()
+	teamID := ptr.Uint(0)
+
+	signURL := `https://example.cloudfront.net/software-installers/storage_id?Expires=1766462733&Signature=some_signature&Key-Pair-Id=ABC123XYZ`
+
+	// Set up mocks
+	var myInstallerID string
+	s.softwareInstallStore.ExistsFunc = func(ctx context.Context, installerID string) (bool, error) {
+		return installerID == myInstallerID, nil
+	}
+	s.softwareInstallStore.PutFunc = func(ctx context.Context, installerID string, content io.ReadSeeker) error {
+		myInstallerID = installerID
+		return nil
+	}
+	s.softwareInstallStore.SignFunc = func(ctx context.Context, fileID string, expiresIn time.Duration) (string, error) {
+		return signURL, nil
+	}
+
+	s.uploadSoftwareInstaller(t, &fleet.UploadSoftwareInstallerPayload{Filename: "ipa_test.ipa"}, http.StatusOK, "")
+
+	var titleResp listSoftwareTitlesResponse
+	s.DoJSON("GET", "/api/latest/fleet/software/titles", listSoftwareTitlesRequest{
+		SoftwareTitleListOptions: fleet.SoftwareTitleListOptions{Platform: "ios"},
+	}, http.StatusOK, &titleResp, "team_id", "0")
+	require.Len(t, titleResp.SoftwareTitles, 1)
+	require.Equal(t, "ipa_test", titleResp.SoftwareTitles[0].Name)
+	titleID := titleResp.SoftwareTitles[0].ID
+
+	readManifest := func(res *http.Response) []byte {
+		buf, err := io.ReadAll(res.Body)
+		require.NoError(t, err)
+		res.Body.Close()
+		return buf
+	}
+	res := s.DoRawNoAuth("GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d/in_house_app/manifest?team_id=%d", titleID, *teamID),
+		jsonMustMarshal(t, getInHouseAppManifestRequest{TitleID: titleID, TeamID: teamID}), http.StatusOK)
+
+	manifest := readManifest(res)
+	require.NotNil(t, manifest)
+	escapedURL := `https://example.cloudfront.net/software-installers/storage_id?Expires=1766462733&amp;Signature=some_signature&amp;Key-Pair-Id=ABC123XYZ`
+	require.Contains(t, string(manifest), escapedURL)
 }

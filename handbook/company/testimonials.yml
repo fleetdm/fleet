@@ -21,9 +21,9 @@
   quote: Fleet aligns with the strategies that enabled me to help scale Uber’s global device deployments with a lean DevOps/systems engineering team.
   quoteAuthorName: Luis Madrigal
   quoteAuthorProfileImageFilename: testimonial-author-luis-madrigal-100x100@2x.png
-  quoteImageFilename: logo-mr-beast-130x73@2x.png
+  quoteImageFilename: social-proof-logo-uber-71x32@2x.png
   quoteLinkUrl: https://www.linkedin.com/in/luismadrigal/
-  quoteAuthorJobTitle: CIO @ MrBeast
+  quoteAuthorJobTitle: Former Engineering Leader, Uber
   productCategories: [Device management, Observability, Software management]
 -
   quote: Yes Sir. Great tools for the everyday open-source geeks 💯
@@ -61,7 +61,7 @@
   quoteLinkUrl: https://www.linkedin.com/in/danielgrzelak/
   quoteAuthorName: Dan Grzelak
   quoteAuthorProfileImageFilename: testimonial-author-daniel-grzelak-48x48@2x.png
-  quoteAuthorJobTitle: Security Chief of Staff
+  quoteAuthorJobTitle: Former Security Chief of Staff
   productCategories: [Observability, Software management, Device management]
 -
   quote: We can build it exactly the way we want it. Which is just not possible on other platforms.
@@ -77,7 +77,7 @@
   quoteLinkUrl: https://www.linkedin.com/in/eriknicolasgomez/
   quoteAuthorName: Erik Gomez
   quoteAuthorProfileImageFilename: testimonial-author-erik-gomez-48x48@2x.png
-  quoteAuthorJobTitle: Staff Client Platform Engineer
+  quoteAuthorJobTitle: Former Staff Client Platform Engineer
   productCategories: [Observability, Device management, Software management]
 -
   quote: Context is king for device data, and Fleet provides a way to surface that information to our other teams and partners.
@@ -93,15 +93,15 @@
   quoteLinkUrl: https://www.linkedin.com/in/nwaisman/
   quoteAuthorName: Nico Waisman
   quoteAuthorProfileImageFilename: testimonial-author-nico-waisman-48x48@2x.png
-  quoteAuthorJobTitle: CISO of Lyft
+  quoteAuthorJobTitle: Former CISO of Lyft
   productCategories: [Observability, Software management]
 -
   quote: Having the freedom to take full advantage of the product is one of the reasons why I always support open-source products with a commercially-backed company, like Fleet.
   quoteImageFilename: social-proof-logo-lyft-47x32@2x.png
   quoteLinkUrl: https://www.linkedin.com/posts/nwaisman_movingtofleet-activity-7156319785981509632-bk_W
-  quoteAuthorName: Nico Waisman
+  quoteAuthorName: nico waisman # Note: this name is lowercased here so we can display only one Nico Waisman quote on the testimonials page (which does not filter quotes by product category) (The name will be capitalized via CSS)  
   quoteAuthorProfileImageFilename: testimonial-author-nico-waisman-48x48@2x.png
-  quoteAuthorJobTitle: CISO of Lyft
+  quoteAuthorJobTitle: Former CISO of Lyft
   productCategories: [Device management] # « explanation: https://github.com/fleetdm/fleet/blob/f412b1f02fb6d6f36bdc0776252fff72fc0fc2ea/website/views/pages/device-management.ejs#L32
 -
   quote: I had to answer some really complex questions for a compliance audit, and I was able to do it in about 15 minutes by munging some data together via a few queries into a csv. It took me longer to remember how to use `xsv` than to actually put together the report. If you aren't using osquery in your environment, you should be.
@@ -182,7 +182,7 @@
   productCategories: [Observability]
 -
   quote: I don't want one bad actor to brick my fleet, I want them to make a pull request first. Thanks for making our lives easier. We got a pat on the back for making the migration so easy! 
-  quoteAuthorName: Matt Carr
+  quoteAuthorName: matt carr # Note: this name is lowercased here so we can display only one Matt Carr quote on the testimonials page (which does not filter quotes by product category) (The name will be capitalized via CSS)  
   quoteAuthorJobTitle: CPE manager
   quoteAuthorProfileImageFilename: testimonial-author-matt-carr-48x48@2x.png
   quoteLinkUrl: https://www.linkedin.com/in/mathewcarr/
@@ -296,4 +296,19 @@
   quoteAuthorName: Fiona Skelton
   quoteAuthorJobTitle: Senior Technology Specialist
   quoteAuthorProfileImageFilename: testimonial-author-fiona-skelton-100x100@2x.jpeg
+  productCategories: [Device management]
+-
+  quote: Fleet enabled us to consolidate our patchwork of endpoint tools with a single platform, eliminating complexity and cutting licensing costs. The shift to GitOps has modernized our operations giving us the agility and change control we needed giving leadership real-time confidence in device health and compliance. The result is a more efficient, secure environment where IT can move faster on strategic projects instead of firefighting or maintaining multiple legacy systems.
+  quoteAuthorName: Dan Jackson
+  quoteAuthorJobTitle: Sr Manager Systems Engineering
+  quoteAuthorProfileImageFilename: testimonial-author-dan-jackson-48x48.png
+  quoteLinkUrl: https://www.linkedin.com/in/mrdanieljackson/
+  quoteImageFilename: social-proof-logo-fastly-83x32@2x.png
+  productCategories: [Device management]
+-
+  quote: Fleet made the process of migrating fast, easy, and simple. We're excited to work with a team that's aligned with us on open source, and has fantastic technical support. Compared to Kandji, it's a night and day improvement.
+  quoteAuthorName: John O'Nolan
+  quoteAuthorJobTitle: Founder & CEO
+  quoteLinkUrl: https://www.linkedin.com/in/johnonolan/
+  quoteAuthorProfileImageFilename: testimonial-author-john-o'nolan-100x100@2x.png
   productCategories: [Device management]

@@ -2,10 +2,15 @@ package service
 
 import (
 	"context"
+	"crypto/x509"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
+	"log/slog"
 	"net/http"
+	"net/url"
+	"os"
 	"regexp"
 	"sort"
 	"strconv"
@@ -25,7 +30,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/pubsub"
 	"github.com/fleetdm/fleet/v4/server/service/conditional_access_microsoft_proxy"
 	"github.com/fleetdm/fleet/v4/server/service/contract"
-	"github.com/fleetdm/fleet/v4/server/service/middleware/endpoint_utils"
 	"github.com/fleetdm/fleet/v4/server/service/osquery_utils"
 	kithttp "github.com/go-kit/kit/transport/http"
 	"github.com/go-kit/log"
@@ -34,12 +38,12 @@ import (
 	"golang.org/x/exp/slices"
 )
 
-func newOsqueryErrorWithInvalidNode(msg string) *endpoint_utils.OsqueryError {
-	return endpoint_utils.NewOsqueryError(msg, true)
+func newOsqueryErrorWithInvalidNode(msg string) *OsqueryError {
+	return NewOsqueryError(msg, true)
 }
 
-func newOsqueryError(msg string) *endpoint_utils.OsqueryError {
-	return endpoint_utils.NewOsqueryError(msg, false)
+func newOsqueryError(msg string) *OsqueryError {
+	return NewOsqueryError(msg, false)
 }
 
 func (svc *Service) AuthenticateHost(ctx context.Context, nodeKey string) (*fleet.Host, bool, error) {
@@ -56,6 +60,9 @@ func (svc *Service) AuthenticateHost(ctx context.Context, nodeKey string) (*flee
 		// OK
 	case fleet.IsNotFound(err):
 		return nil, false, newOsqueryErrorWithInvalidNode("authentication error: invalid node key")
+	case errors.Is(err, context.Canceled):
+		// Most likely client disconnected, so we treat this as a client error.
+		return nil, false, err
 	default:
 		return nil, false, newOsqueryError("authentication error: " + err.Error())
 	}
@@ -100,7 +107,7 @@ func (svc *Service) EnrollOsquery(ctx context.Context, enrollSecret, hostIdentif
 	// skipauth: Authorization is currently for user endpoints only.
 	svc.authz.SkipAuthorization(ctx)
 
-	logging.WithExtras(ctx, "hostIdentifier", hostIdentifier)
+	logging.WithLevel(logging.WithExtras(ctx, "hostIdentifier", hostIdentifier), slog.LevelInfo)
 
 	secret, err := svc.ds.VerifyEnrollSecret(ctx, enrollSecret)
 	if err != nil {
@@ -138,7 +145,7 @@ func (svc *Service) EnrollOsquery(ctx context.Context, enrollSecret, hostIdentif
 	if !canEnroll {
 		deviceCount := "unknown"
 		if lic, _ := license.FromContext(ctx); lic != nil {
-			deviceCount = strconv.Itoa(lic.DeviceCount)
+			deviceCount = strconv.Itoa(lic.GetDeviceCount())
 		}
 		return "", newOsqueryErrorWithInvalidNode(fmt.Sprintf("enroll host failed: maximum number of hosts reached: %s", deviceCount))
 	}
@@ -201,21 +208,21 @@ func (svc *Service) EnrollOsquery(ctx context.Context, enrollSecret, hostIdentif
 	)
 	save := false
 	if r, ok := hostDetails["os_version"]; ok {
-		err := detailQueries["os_version"].IngestFunc(ctx, svc.logger, host, []map[string]string{r})
+		err := detailQueries["os_version"].IngestFunc(ctx, svc.logger.SlogLogger(), host, []map[string]string{r})
 		if err != nil {
 			return "", ctxerr.Wrap(ctx, err, "Ingesting os_version")
 		}
 		save = true
 	}
 	if r, ok := hostDetails["osquery_info"]; ok {
-		err := detailQueries["osquery_info"].IngestFunc(ctx, svc.logger, host, []map[string]string{r})
+		err := detailQueries["osquery_info"].IngestFunc(ctx, svc.logger.SlogLogger(), host, []map[string]string{r})
 		if err != nil {
 			return "", ctxerr.Wrap(ctx, err, "Ingesting osquery_info")
 		}
 		save = true
 	}
 	if r, ok := hostDetails["system_info"]; ok {
-		err := detailQueries["system_info"].IngestFunc(ctx, svc.logger, host, []map[string]string{r})
+		err := detailQueries["system_info"].IngestFunc(ctx, svc.logger.SlogLogger(), host, []map[string]string{r})
 		if err != nil {
 			return "", ctxerr.Wrap(ctx, err, "Ingesting system_info")
 		}
@@ -320,7 +327,7 @@ func getHostIdentifier(logger log.Logger, identifierOption, providedIdentifier s
 }
 
 func (svc *Service) debugEnabledForHost(ctx context.Context, id uint) bool {
-	hlogger := log.With(svc.logger, "host-id", id)
+	hlogger := svc.logger.With("host-id", id)
 	ac, err := svc.ds.AppConfig(ctx)
 	if err != nil {
 		level.Debug(hlogger).Log("err", ctxerr.Wrap(ctx, err, "getting app config for host debug"))
@@ -770,7 +777,7 @@ func (svc *Service) detailQueriesForHost(ctx context.Context, host *fleet.Host) 
 			queryName := hostDetailQueryPrefix + name
 
 			if query.QueryFunc != nil && query.Query == "" {
-				query, ok := query.QueryFunc(ctx, svc.logger, host, svc.ds)
+				query, ok := query.QueryFunc(ctx, svc.logger.SlogLogger(), host, svc.ds)
 				if !ok {
 					continue
 				}
@@ -948,6 +955,22 @@ func (shim *submitDistributedQueryResultsRequestShim) hostNodeKey() string {
 	return shim.NodeKey
 }
 
+// DecodeBody implements the bodyDecoder interface for custom request body
+// decoding. This endpoint receives large payloads (distributed query results),
+// making it susceptible to client read timeouts (poll.DeadlineExceededError).
+// By implementing DecodeBody, we can classify those network errors as client errors.
+func (shim *submitDistributedQueryResultsRequestShim) DecodeBody(_ context.Context, r io.Reader, _ url.Values, _ []*x509.Certificate) error {
+	if err := json.NewDecoder(r).Decode(shim); err != nil {
+		if errors.Is(err, os.ErrDeadlineExceeded) {
+			osqueryErr := NewOsqueryError("request body read error: "+err.Error(), false)
+			osqueryErr.StatusCode = http.StatusRequestTimeout
+			return osqueryErr
+		}
+		return err
+	}
+	return nil
+}
+
 func (shim *submitDistributedQueryResultsRequestShim) toRequest(ctx context.Context) (*SubmitDistributedQueryResultsRequest, error) {
 	results := fleet.OsqueryDistributedQueryResults{}
 	for query, raw := range shim.Results {
@@ -1072,7 +1095,7 @@ func (svc *Service) SubmitDistributedQueryResults(
 
 	svc.maybeDebugHost(ctx, host, results, statuses, messages, stats)
 
-	preProcessSoftwareResults(host, results, statuses, messages, osquery_utils.SoftwareOverrideQueries, svc.logger)
+	preProcessSoftwareResults(ctx, host, results, statuses, messages, osquery_utils.SoftwareOverrideQueries, svc.logger.SlogLogger())
 
 	var hostWithoutPolicies bool
 	for query, rows := range results {
@@ -1115,6 +1138,24 @@ func (svc *Service) SubmitDistributedQueryResults(
 	}
 
 	if len(labelResults) > 0 {
+		// Force clear results for labels that do not apply to the host anymore.
+		//
+		// There could be a timing bug where:
+		// 1. Host receives a "team label" query to run (distributed/read).
+		// 2. Host is transferred to another team (all its label/policy membership are cleared).
+		// 3. Fleet receives distributed/write corresponding to (1) which includes the result for
+		//    the label of the old team.
+		hostLabelQueries, err := svc.ds.LabelQueriesForHost(ctx, host)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "retrieve label queries")
+		}
+		for labelID := range labelResults {
+			if _, ok := hostLabelQueries[fmt.Sprint(labelID)]; !ok {
+				level.Debug(svc.logger).Log("msg", "clearing result for inapplicable label", "labelID", labelID, "hostID", host.ID)
+				labelResults[labelID] = ptr.Bool(false)
+			}
+		}
+
 		if err := svc.task.RecordLabelQueryExecutions(ctx, host, labelResults, svc.clock.Now(), ac.ServerSettings.DeferredSaveHost); err != nil {
 			logging.WithErr(ctx, err)
 		}
@@ -1383,30 +1424,31 @@ func getFailingCalendarPolicies(policyResults map[uint]*bool, calendarPolicies [
 // We do this to not grow the main software queries and to ingest
 // all software together (one direct ingest function for all software).
 func preProcessSoftwareResults(
+	ctx context.Context,
 	host *fleet.Host,
 	results fleet.OsqueryDistributedQueryResults,
 	statuses map[string]fleet.OsqueryStatus,
 	messages map[string]string,
 	overrides map[string]osquery_utils.DetailQuery,
-	logger log.Logger,
+	logger *slog.Logger,
 ) {
 	vsCodeExtensionsExtraQuery := hostDetailQueryPrefix + "software_vscode_extensions"
-	preProcessSoftwareExtraResults(vsCodeExtensionsExtraQuery, host.ID, results, statuses, messages, osquery_utils.DetailQuery{}, logger)
+	preProcessSoftwareExtraResults(ctx, vsCodeExtensionsExtraQuery, host.ID, results, statuses, messages, osquery_utils.DetailQuery{}, logger)
 
 	pythonPackagesExtraQuery := hostDetailQueryPrefix + "software_python_packages"
-	preProcessSoftwareExtraResults(pythonPackagesExtraQuery, host.ID, results, statuses, messages, osquery_utils.DetailQuery{}, logger)
+	preProcessSoftwareExtraResults(ctx, pythonPackagesExtraQuery, host.ID, results, statuses, messages, osquery_utils.DetailQuery{}, logger)
 	pythonPackagesWithUsersExtraQuery := hostDetailQueryPrefix + "software_python_packages_with_users_dir"
-	preProcessSoftwareExtraResults(pythonPackagesWithUsersExtraQuery, host.ID, results, statuses, messages, osquery_utils.DetailQuery{}, logger)
+	preProcessSoftwareExtraResults(ctx, pythonPackagesWithUsersExtraQuery, host.ID, results, statuses, messages, osquery_utils.DetailQuery{}, logger)
 
 	fleetdPacmanPackagesExtraQuery := hostDetailQueryPrefix + "software_linux_fleetd_pacman"
-	preProcessSoftwareExtraResults(fleetdPacmanPackagesExtraQuery, host.ID, results, statuses, messages, osquery_utils.DetailQuery{}, logger)
+	preProcessSoftwareExtraResults(ctx, fleetdPacmanPackagesExtraQuery, host.ID, results, statuses, messages, osquery_utils.DetailQuery{}, logger)
 
 	jetbrainsPluginsExtraQuery := hostDetailQueryPrefix + "software_jetbrains_plugins"
-	preProcessSoftwareExtraResults(jetbrainsPluginsExtraQuery, host.ID, results, statuses, messages, osquery_utils.DetailQuery{}, logger)
+	preProcessSoftwareExtraResults(ctx, jetbrainsPluginsExtraQuery, host.ID, results, statuses, messages, osquery_utils.DetailQuery{}, logger)
 
 	for name, query := range overrides {
 		fullQueryName := hostDetailQueryPrefix + "software_" + name
-		preProcessSoftwareExtraResults(fullQueryName, host.ID, results, statuses, messages, query, logger)
+		preProcessSoftwareExtraResults(ctx, fullQueryName, host.ID, results, statuses, messages, query, logger)
 	}
 
 	// Filter out python packages that are also deb packages on ubuntu/debian
@@ -1526,13 +1568,14 @@ func pythonPackageFilter(platform string, results fleet.OsqueryDistributedQueryR
 }
 
 func preProcessSoftwareExtraResults(
+	ctx context.Context,
 	softwareExtraQuery string,
 	hostID uint,
 	results fleet.OsqueryDistributedQueryResults,
 	statuses map[string]fleet.OsqueryStatus,
 	messages map[string]string,
 	override osquery_utils.DetailQuery,
-	logger log.Logger,
+	logger *slog.Logger,
 ) {
 	// We always remove the extra query and its results
 	// in case the main or extra software query failed to execute.
@@ -1545,7 +1588,7 @@ func preProcessSoftwareExtraResults(
 	failed := status != fleet.StatusOK
 	if failed {
 		// extra query executed but with errors, so we return without changing anything.
-		level.Error(logger).Log(
+		logger.ErrorContext(ctx, "extra query executed with errors",
 			"query", softwareExtraQuery,
 			"message", messages[softwareExtraQuery],
 			"hostID", hostID,
@@ -1721,13 +1764,13 @@ func (svc *Service) directIngestDetailQuery(ctx context.Context, host *fleet.Hos
 		return false, newOsqueryError("unknown detail query " + name)
 	}
 	if query.DirectIngestFunc != nil {
-		err = query.DirectIngestFunc(ctx, svc.logger, host, svc.ds, rows)
+		err = query.DirectIngestFunc(ctx, svc.logger.SlogLogger(), host, svc.ds, rows)
 		if err != nil {
 			return false, newOsqueryError(fmt.Sprintf("ingesting query %s: %s", name, err.Error()))
 		}
 		return true, nil
 	} else if query.DirectTaskIngestFunc != nil {
-		err = query.DirectTaskIngestFunc(ctx, svc.logger, host, svc.task, rows)
+		err = query.DirectTaskIngestFunc(ctx, svc.logger.SlogLogger(), host, svc.task, rows)
 		if err != nil {
 			return false, newOsqueryError(fmt.Sprintf("ingesting query %s: %s", name, err.Error()))
 		}
@@ -1882,7 +1925,7 @@ func (svc *Service) ingestDetailQuery(ctx context.Context, host *fleet.Host, nam
 	}
 
 	if query.IngestFunc != nil {
-		err = query.IngestFunc(ctx, svc.logger, host, rows)
+		err = query.IngestFunc(ctx, svc.logger.SlogLogger(), host, rows)
 		if err != nil {
 			return newOsqueryError(fmt.Sprintf("ingesting query %s: %s", name, err.Error()))
 		}
@@ -2014,7 +2057,7 @@ func (svc *Service) processSoftwareForNewlyFailingPolicies(
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "get software installer metadata by id")
 		}
-		logger := log.With(svc.logger,
+		logger := svc.logger.With(
 			"host_id", hostID,
 			"host_platform", hostPlatform,
 			"policy_id", failingPolicyWithInstaller.ID,
@@ -2173,7 +2216,7 @@ func (svc *Service) processVPPForNewlyFailingPolicies(
 
 	for _, failingPolicyWithVPP := range failingPoliciesWithVPP {
 		policyID := failingPolicyWithVPP.ID
-		logger := log.With(svc.logger,
+		logger := svc.logger.With(
 			"host_id", hostID,
 			"host_platform", hostPlatform,
 			"policy_id", policyID,
@@ -2332,7 +2375,7 @@ func (svc *Service) processScriptsForNewlyFailingPolicies(
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "get script metadata by id")
 		}
-		logger := log.With(svc.logger,
+		logger := svc.logger.With(
 			"host_id", hostID,
 			"host_platform", hostPlatform,
 			"policy_id", policyID,
@@ -2542,7 +2585,7 @@ func (svc *Service) setHostConditionalAccessAsync(
 	compliant bool,
 ) {
 	go func() {
-		logger := log.With(svc.logger,
+		logger := svc.logger.With(
 			"msg", "set host conditional access",
 			"host_id", hostID,
 			"managed", managed,
@@ -2572,7 +2615,7 @@ func (svc *Service) setHostConditionalAccess(
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "get integration")
 	}
-	logger := log.With(svc.logger,
+	logger := svc.logger.With(
 		"msg", "set compliance status",
 		"host_id", hostID,
 		"managed", managed,
@@ -2648,7 +2691,7 @@ func (svc *Service) maybeDebugHost(
 	stats map[string]*fleet.Stats,
 ) {
 	if svc.debugEnabledForHost(ctx, host.ID) {
-		hlogger := log.With(svc.logger, "host-id", host.ID)
+		hlogger := svc.logger.With("host-id", host.ID)
 
 		logJSON(hlogger, host, "host")
 		logJSON(hlogger, results, "results")
@@ -2928,6 +2971,24 @@ func (svc *Service) saveResultLogsToQueryReports(
 	// Filter results to only the most recent for each query.
 	unmarshaledResultsFiltered = getMostRecentResults(unmarshaledResultsFiltered)
 
+	// Batch fetch query result counts from Redis for all queries
+	var queryResultCounts map[uint]int
+	if svc.liveQueryStore != nil {
+		queryIDs := make([]uint, 0, len(queriesDBData))
+		for _, dbQuery := range queriesDBData {
+			queryIDs = append(queryIDs, dbQuery.ID)
+		}
+		var err error
+		queryResultCounts, err = svc.liveQueryStore.GetQueryResultsCounts(queryIDs)
+		if err != nil {
+			level.Error(svc.logger).Log("msg", "get result counts for queries", "err", err)
+			return
+		}
+	}
+
+	// Track rows added per query for batched Redis increment
+	rowsAddedByQuery := make(map[uint]int)
+
 	for _, result := range unmarshaledResultsFiltered {
 		dbQuery, ok := queriesDBData[result.QueryName]
 		if !ok {
@@ -2950,20 +3011,29 @@ func (svc *Service) saveResultLogsToQueryReports(
 			continue
 		}
 
-		// We first check the current query results count using the DB reader (also cached)
-		// to reduce the DB writer load of osquery/log requests when the host count is high.
-		count, err := svc.ds.ResultCountForQuery(ctx, dbQuery.ID)
-		if err != nil {
-			level.Error(svc.logger).Log("msg", "get result count for query", "err", err, "query_id", dbQuery.ID)
-			continue
+		// Check Redis counter for approximate count (fast, distributed check).
+		if queryResultCounts != nil {
+			if count := queryResultCounts[dbQuery.ID]; count > maxQueryReportRows {
+				continue
+			}
 		}
-		if count >= maxQueryReportRows {
+
+		var rowsAdded int
+		var err error
+		if rowsAdded, err = svc.overwriteResultRows(ctx, result, dbQuery.ID, host.ID, maxQueryReportRows); err != nil {
+			level.Error(svc.logger).Log("msg", "overwrite results", "err", err, "query_id", dbQuery.ID, "host_id", host.ID)
 			continue
 		}
 
-		if err := svc.overwriteResultRows(ctx, result, dbQuery.ID, host.ID, maxQueryReportRows); err != nil {
-			level.Error(svc.logger).Log("msg", "overwrite results", "err", err, "query_id", dbQuery.ID, "host_id", host.ID)
-			continue
+		// Track rows added for batched Redis increment
+		rowsAddedByQuery[dbQuery.ID] += rowsAdded
+	}
+
+	// Batch increment Redis counters after all successful inserts
+	if svc.liveQueryStore != nil && len(rowsAddedByQuery) > 0 {
+		if err := svc.liveQueryStore.IncrQueryResultsCounts(rowsAddedByQuery); err != nil {
+			// Log but don't fail - the inserts succeeded, counter is just a heuristic
+			level.Debug(svc.logger).Log("msg", "incr query results counts in redis", "err", err)
 		}
 	}
 }
@@ -3094,7 +3164,7 @@ func transformEventFormatToSnapshotFormat(results []*fleet.ScheduledQueryResult)
 // The "snapshot" array in a ScheduledQueryResult can contain multiple rows.
 // Each row is saved as a separate ScheduledQueryResultRow, i.e. a result could contain
 // many USB Devices or a result could contain all user accounts on a host.
-func (svc *Service) overwriteResultRows(ctx context.Context, result *fleet.ScheduledQueryResult, queryID, hostID uint, maxQueryReportRows int) error {
+func (svc *Service) overwriteResultRows(ctx context.Context, result *fleet.ScheduledQueryResult, queryID, hostID uint, maxQueryReportRows int) (int, error) {
 	fetchTime := time.Now()
 
 	rows := make([]*fleet.ScheduledQueryResultRow, 0, len(result.Snapshot))
@@ -3120,10 +3190,16 @@ func (svc *Service) overwriteResultRows(ctx context.Context, result *fleet.Sched
 		rows = append(rows, row)
 	}
 
-	if err := svc.ds.OverwriteQueryResultRows(ctx, rows, maxQueryReportRows); err != nil {
-		return ctxerr.Wrap(ctx, err, "overwriting query result rows")
+	var rowsAdded int
+	var err error
+	if rowsAdded, err = svc.ds.OverwriteQueryResultRows(ctx, rows, maxQueryReportRows); err != nil {
+		return rowsAdded, ctxerr.Wrap(ctx, err, "overwriting query result rows")
 	}
-	return nil
+	// If we only inserted an error row, don't count it against the limit.
+	if len(result.Snapshot) == 0 {
+		rowsAdded--
+	}
+	return rowsAdded, nil
 }
 
 // getMostRecentResults returns only the most recent result per query.

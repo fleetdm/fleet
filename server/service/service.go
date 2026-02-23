@@ -13,15 +13,16 @@ import (
 	"github.com/fleetdm/fleet/v4/server/authz"
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/mdm/android"
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
 	microsoft_mdm "github.com/fleetdm/fleet/v4/server/mdm/microsoft"
 	nanodep_storage "github.com/fleetdm/fleet/v4/server/mdm/nanodep/storage"
 	nanomdm_push "github.com/fleetdm/fleet/v4/server/mdm/nanomdm/push"
 	nanomdm_storage "github.com/fleetdm/fleet/v4/server/mdm/nanomdm/storage"
+	"github.com/fleetdm/fleet/v4/server/platform/logging"
 	"github.com/fleetdm/fleet/v4/server/service/async"
 	"github.com/fleetdm/fleet/v4/server/service/conditional_access_microsoft_proxy"
 	"github.com/fleetdm/fleet/v4/server/sso"
-	kitlog "github.com/go-kit/log"
 )
 
 var _ fleet.Service = (*Service)(nil)
@@ -33,7 +34,7 @@ type Service struct {
 	carveStore     fleet.CarveStore
 	resultStore    fleet.QueryResultStore
 	liveQueryStore fleet.LiveQueryStore
-	logger         kitlog.Logger
+	logger         *logging.Logger
 	config         config.FleetConfig
 	clock          clock.Clock
 
@@ -68,6 +69,8 @@ type Service struct {
 	conditionalAccessMicrosoftProxy ConditionalAccessMicrosoftProxy
 
 	keyValueStore fleet.KeyValueStore
+
+	androidSvc android.Service
 }
 
 // ConditionalAccessMicrosoftProxy is the interface of the Microsoft compliance proxy.
@@ -121,7 +124,7 @@ func NewService(
 	ds fleet.Datastore,
 	task *async.Task,
 	resultStore fleet.QueryResultStore,
-	logger kitlog.Logger,
+	logger *logging.Logger,
 	osqueryLogger *OsqueryLogger,
 	config config.FleetConfig,
 	mailService fleet.MailService,
@@ -141,6 +144,7 @@ func NewService(
 	digiCertService fleet.DigiCertService,
 	conditionalAccessProxy ConditionalAccessMicrosoftProxy,
 	keyValueStore fleet.KeyValueStore,
+	androidSvc android.Service,
 ) (fleet.Service, error) {
 	authorizer, err := authz.NewAuthorizer()
 	if err != nil {
@@ -179,6 +183,7 @@ func NewService(
 
 		conditionalAccessMicrosoftProxy: conditionalAccessProxy,
 		keyValueStore:                   keyValueStore,
+		androidSvc:                      androidSvc,
 	}
 	return validationMiddleware{svc, ds, sso}, nil
 }

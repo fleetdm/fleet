@@ -1,4 +1,5 @@
 import { IConfigServerSettings } from "./config";
+import { HostAndroidCertStatus } from "./host";
 
 export interface IMdmApple {
   common_name: string;
@@ -185,7 +186,11 @@ export interface IHostMdmProfile {
   name: string;
   operation_type: ProfileOperationType | null;
   platform: ProfilePlatform;
-  status: MdmProfileStatus | MdmDDMProfileStatus | LinuxDiskEncryptionStatus;
+  status:
+    | MdmProfileStatus
+    | MdmDDMProfileStatus
+    | LinuxDiskEncryptionStatus
+    | HostAndroidCertStatus;
   detail: string;
   scope: ProfileScope | null;
   managed_local_account: string | null;
@@ -200,7 +205,7 @@ export type DiskEncryptionStatus =
   | "failed"
   | "removing_enforcement";
 
-/** Currently windows disk enxryption status will only be one of these four
+/** Currently windows disk encryption status will only be one of these four
 values. In the future we may add more. */
 export type WindowsDiskEncryptionStatus = Extract<
   DiskEncryptionStatus,
@@ -233,6 +238,8 @@ export const isLinuxDiskEncryptionStatus = (
   ["verified", "failed", "action_required"].includes(status);
 
 export const FLEET_FILEVAULT_PROFILE_DISPLAY_NAME = "Disk encryption";
+export const FLEET_ANDROID_CERTIFICATE_TEMPLATE_PROFILE_ID =
+  "fleet-host-certificate-template";
 
 export interface IMdmSSOReponse {
   url: string;
@@ -256,25 +263,6 @@ export enum BootstrapPackageStatus {
   INSTALLED = "installed",
   PENDING = "pending",
   FAILED = "failed",
-}
-
-/**
- * IMdmCommandResult is the shape of an mdm command result object
- * returned by the Fleet API.
- */
-export interface IMdmCommandResult {
-  host_uuid: string;
-  command_uuid: string;
-  /** Status is the status of the command. It can be one of Acknowledged, Error, or NotNow for
-  // Apple, or 200, 400, etc for Windows.  */
-  status: string;
-  updated_at: string;
-  request_type: string;
-  hostname: string;
-  /** Payload is a base64-encoded string containing the MDM command request */
-  payload: string;
-  /** Result is a base64-enconded string containing the MDM command response */
-  result: string;
 }
 
 export const isEnrolledInMdm = (

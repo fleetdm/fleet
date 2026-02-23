@@ -195,6 +195,12 @@ func TestExpandEnv(t *testing.T) {
 			"$fleet_var_test", // Should not be replaced
 			nil,
 		},
+		{
+			map[string]string{"custom_secret": "test&123"},
+			"<Add>$custom_secret</Add>",
+			"<Add>test&amp;123</Add>",
+			nil,
+		},
 	} {
 		// save the current env before clearing it.
 		testutils.SaveEnv(t)
@@ -227,6 +233,7 @@ func TestLookupEnvSecrets(t *testing.T) {
 			map[string]string{},
 			checkMultiErrors(t, "environment variable \"FLEET_SECRET_foo\" not set"),
 		},
+		{map[string]string{"FLEET_SECRET_foo": "test&123"}, `<Add>$FLEET_SECRET_foo</Add>`, map[string]string{"FLEET_SECRET_foo": "test&amp;123"}, nil},
 	} {
 		// save the current env before clearing it.
 		testutils.SaveEnv(t)
@@ -250,6 +257,7 @@ func TestExpandEnvBytesIncludingSecrets(t *testing.T) {
 	t.Setenv("FLEET_SECRET_API_KEY", "secret123")
 	t.Setenv("NORMAL_VAR", "normalvalue")
 	t.Setenv("FLEET_VAR_HOST", "hostname")
+	t.Setenv("FLEET_SECRET_XML", "secret&123")
 
 	input := []byte(`API Key: $FLEET_SECRET_API_KEY
 Normal: $NORMAL_VAR  
@@ -273,6 +281,13 @@ Missing: $FLEET_SECRET_MISSING`
 	assert.NotContains(t, string(result), "$FLEET_SECRET_API_KEY")
 	// Verify that missing secrets are left as-is
 	assert.Contains(t, string(result), "$FLEET_SECRET_MISSING")
+
+	xmlInput := []byte(`<Add>$FLEET_SECRET_XML</Add>`)
+	xmlResult, err := ExpandEnvBytesIncludingSecrets(xmlInput)
+	require.NoError(t, err)
+
+	expectedXML := `<Add>secret&amp;123</Add>`
+	assert.Equal(t, expectedXML, string(xmlResult))
 }
 
 func TestGetExclusionZones(t *testing.T) {
@@ -292,17 +307,17 @@ func TestGetExclusionZones(t *testing.T) {
 		{
 			[]string{"testdata", "global_config_no_paths.yml"},
 			map[[2]int]string{
-				{911, 994}:   "    description: Collect osquery performance stats directly from osquery\n    query:", //
-				{1799, 1863}: "    description: This policy should always fail.\n    resolution:",                    //
-				{1848, 1914}: "    resolution: There is no resolution for this policy.\n    query:",                  //
-				{2031, 2095}: "    description: This policy should always pass.\n    resolution:",                    //
-				{2080, 2146}: "    resolution: There is no resolution for this policy.\n    query:",                  //
-				{2439, 2503}: "    description: This policy should always fail.\n    resolution:",                    //
-				{2488, 2554}: "    resolution: There is no resolution for this policy.\n    query:",                  //
-				{2658, 2722}: "    description: This policy should always fail.\n    resolution:",                    //
-				{2707, 3080}: "    resolution: |\n      Automated method:\n      Ask your system administrator to deploy the following script which will ensure proper Security Auditing Retention:\n      cp /etc/security/audit_control ./tmp.txt; origExpire=$(cat ./tmp.txt  | grep expire-after);  sed \"s/${origExpire}/expire-after:60d OR 5G/\" ./tmp.txt > /etc/security/audit_control; rm ./tmp.txt;\n    query:",
-				{6147, 6194}: "    description: A cool global label\n    query:", //
-				{6291, 6337}: "    description: A fly global label\n    hosts:",  //
+				{942, 1025}:  "    description: Collect osquery performance stats directly from osquery\n    query:", //
+				{1830, 1894}: "    description: This policy should always fail.\n    resolution:",                    //
+				{1879, 1945}: "    resolution: There is no resolution for this policy.\n    query:",                  //
+				{2062, 2126}: "    description: This policy should always pass.\n    resolution:",                    //
+				{2111, 2177}: "    resolution: There is no resolution for this policy.\n    query:",                  //
+				{2470, 2534}: "    description: This policy should always fail.\n    resolution:",                    //
+				{2519, 2585}: "    resolution: There is no resolution for this policy.\n    query:",                  //
+				{2689, 2753}: "    description: This policy should always fail.\n    resolution:",                    //
+				{2738, 3111}: "    resolution: |\n      Automated method:\n      Ask your system administrator to deploy the following script which will ensure proper Security Auditing Retention:\n      cp /etc/security/audit_control ./tmp.txt; origExpire=$(cat ./tmp.txt  | grep expire-after);  sed \"s/${origExpire}/expire-after:60d OR 5G/\" ./tmp.txt > /etc/security/audit_control; rm ./tmp.txt;\n    query:",
+				{6178, 6225}: "    description: A cool global label\n    query:", //
+				{6322, 6368}: "    description: A fly global label\n    hosts:",  //
 			},
 		},
 	}

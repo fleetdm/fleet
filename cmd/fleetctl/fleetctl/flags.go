@@ -1,12 +1,18 @@
 package fleetctl
 
-import "github.com/urfave/cli/v2"
+import (
+	"github.com/fleetdm/fleet/v4/pkg/str"
+	"github.com/fleetdm/fleet/v4/server/platform/logging"
+	"github.com/urfave/cli/v2"
+)
 
 const (
 	outfileFlagName          = "outfile"
 	debugFlagName            = "debug"
 	fleetCertificateFlagName = "fleet-certificate"
 	stdoutFlagName           = "stdout"
+	enableLogTopicsFlagName  = "enable-log-topics"
+	disableLogTopicsFlagName = "disable-log-topics"
 )
 
 func outfileFlag() cli.Flag {
@@ -58,6 +64,41 @@ func getStdout(c *cli.Context) bool {
 	return c.Bool(stdoutFlagName)
 }
 
+func enableLogTopicsFlag() cli.Flag {
+	return &cli.StringFlag{
+		Name:    enableLogTopicsFlagName,
+		EnvVars: []string{"FLEET_ENABLE_LOG_TOPICS"},
+		Usage:   "Comma-separated log topics to enable",
+	}
+}
+
+func getEnabledLogTopics(c *cli.Context) string {
+	return c.String(enableLogTopicsFlagName)
+}
+
+func disableLogTopicsFlag() cli.Flag {
+	return &cli.StringFlag{
+		Name:    disableLogTopicsFlagName,
+		EnvVars: []string{"FLEET_DISABLE_LOG_TOPICS"},
+		Usage:   "Comma-separated log topics to disable",
+	}
+}
+
+func getDisabledLogTopics(c *cli.Context) string {
+	return c.String(disableLogTopicsFlagName)
+}
+
+// applyLogTopicFlags parses the enable/disable log topic flags and applies them.
+// Enables run first, then disables, so disable wins on conflict.
+func applyLogTopicFlags(c *cli.Context) {
+	for _, topic := range str.SplitAndTrim(getEnabledLogTopics(c), ",", true) {
+		logging.EnableTopic(topic)
+	}
+	for _, topic := range str.SplitAndTrim(getDisabledLogTopics(c), ",", true) {
+		logging.DisableTopic(topic)
+	}
+}
+
 func byHostIdentifier() cli.Flag {
 	return &cli.StringFlag{
 		Name:  "host",
@@ -69,5 +110,12 @@ func byMDMCommandRequestType() cli.Flag {
 	return &cli.StringFlag{
 		Name:  "type",
 		Usage: "Filter MDM commands by type.",
+	}
+}
+
+func withMDMCommandStatusFilter() cli.Flag {
+	return &cli.StringFlag{
+		Name:  "command_status",
+		Usage: "Filter MDM commands by command status in a comma-separated list. Valid values are 'pending', 'ran', and 'failed'. ",
 	}
 }

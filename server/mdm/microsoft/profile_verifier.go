@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"hash/fnv"
 	"io"
+	"log/slog"
 	"maps"
 	"slices"
 	"strings"
@@ -18,8 +19,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mdm/microsoft/wlanxml"
 	"github.com/fleetdm/fleet/v4/server/mdm/profiles"
 	"github.com/fleetdm/fleet/v4/server/variables"
-	kitlog "github.com/go-kit/log"
-	"github.com/go-kit/log/level"
 )
 
 // LoopOverExpectedHostProfiles loops all the <LocURI> values on all the profiles for a
@@ -31,7 +30,7 @@ import (
 // - The data (if any) of the first <Item> element of the current LocURI
 func LoopOverExpectedHostProfiles(
 	ctx context.Context,
-	logger kitlog.Logger,
+	logger *slog.Logger,
 	ds fleet.Datastore,
 	host *fleet.Host,
 	fn func(profile *fleet.ExpectedMDMProfile, hash, locURI, data string),
@@ -62,24 +61,40 @@ func LoopOverExpectedHostProfiles(
 		}, expanded)
 		expectedProf.RawProfile = []byte(processedContent)
 
-		var prof fleet.SyncMLCmd
-		wrappedBytes := fmt.Sprintf("<Atomic>%s</Atomic>", expectedProf.RawProfile)
-		if err := xml.Unmarshal([]byte(wrappedBytes), &prof); err != nil {
+		// We can ignore wrapping the profile with <Atomic> for SCEP profiles here, as we later fully verify any SCEP profile by looking for a certain string
+		cmds, err := fleet.UnmarshallMultiTopLevelXMLProfile(expectedProf.RawProfile)
+		if err != nil {
 			return fmt.Errorf("unmarshalling profile %s: %w", expectedProf.Name, err)
 		}
-		for _, rc := range prof.ReplaceCommands {
-			locURI := rc.GetTargetURI()
-			data := rc.GetNormalizedTargetDataForVerification()
-			ref := HashLocURI(expectedProf.Name, locURI)
-			fn(expectedProf, ref, locURI, data)
+
+		if len(cmds) == 0 {
+			return fmt.Errorf("no commands found in profile %s", expectedProf.Name)
 		}
-		for _, ac := range prof.AddCommands {
-			locURI := ac.GetTargetURI()
-			data := ac.GetNormalizedTargetDataForVerification()
-			ref := HashLocURI(expectedProf.Name, locURI)
-			fn(expectedProf, ref, locURI, data)
+
+		if len(cmds) == 1 && cmds[0].XMLName.Local == fleet.CmdAtomic {
+			cmd := cmds[0]
+			for _, rc := range cmd.ReplaceCommands {
+				locURI := rc.GetTargetURI()
+				data := rc.GetNormalizedTargetDataForVerification()
+				ref := HashLocURI(expectedProf.Name, locURI)
+				fn(expectedProf, ref, locURI, data)
+			}
+			for _, ac := range cmd.AddCommands {
+				locURI := ac.GetTargetURI()
+				data := ac.GetNormalizedTargetDataForVerification()
+				ref := HashLocURI(expectedProf.Name, locURI)
+				fn(expectedProf, ref, locURI, data)
+			}
+		} else {
+			for _, cmd := range cmds {
+				locURI := cmd.GetTargetURI()
+				data := cmd.GetNormalizedTargetDataForVerification()
+				ref := HashLocURI(expectedProf.Name, locURI)
+				fn(expectedProf, ref, locURI, data)
+			}
 		}
-		// We don't do anything to ExecCommands here, as they are not getting verified as they can only exist in SCEP profiles.
+
+		// We don't do anything to ExecCommands, as they are not getting verified as they can only exist in SCEP profiles.
 	}
 
 	return nil
@@ -99,7 +114,7 @@ func HashLocURI(profileName, locURI string) string {
 // VerifyHostMDMProfiles performs the verification of the MDM profiles installed on a host and
 // updates the verification status in the datastore. It is intended to be called by Fleet osquery
 // service when the Fleet server ingests host details.
-func VerifyHostMDMProfiles(ctx context.Context, logger kitlog.Logger, ds fleet.Datastore, host *fleet.Host,
+func VerifyHostMDMProfiles(ctx context.Context, logger *slog.Logger, ds fleet.Datastore, host *fleet.Host,
 	rawProfileResultsSyncML []byte,
 ) error {
 	profileResults, err := transformProfileResults(rawProfileResultsSyncML)
@@ -164,7 +179,7 @@ func splitMissingProfilesIntoFailAndRetryBuckets(ctx context.Context, ds fleet.P
 	return toFail, toRetry, nil
 }
 
-func compareResultsToExpectedProfiles(ctx context.Context, logger kitlog.Logger, ds fleet.Datastore, host *fleet.Host,
+func compareResultsToExpectedProfiles(ctx context.Context, logger *slog.Logger, ds fleet.Datastore, host *fleet.Host,
 	profileResults profileResultsTransform, existingProfiles []fleet.HostMDMWindowsProfile,
 ) (verified map[string]struct{}, missing map[string]struct{}, err error) {
 	missing = map[string]struct{}{}
@@ -190,7 +205,7 @@ func compareResultsToExpectedProfiles(ctx context.Context, logger kitlog.Logger,
 			}{}
 		}
 
-		isSCEPLocURI := strings.Contains(strings.TrimSpace(locURI), "/Vendor/MSFT/ClientCertificateInstall/SCEP")
+		isSCEPLocURI := strings.Contains(strings.TrimSpace(locURI), fleet.WINDOWS_SCEP_LOC_URI_PART)
 		existingProfileStatus := windowsProfilesByID[profile.ProfileUUID].Status
 		if isSCEPLocURI &&
 			existingProfileStatus != nil && *existingProfileStatus != fleet.MDMDeliveryFailed { // Don't verify SCEP if it previously failed
@@ -242,7 +257,7 @@ func compareResultsToExpectedProfiles(ctx context.Context, logger kitlog.Logger,
 			if gotStatus == "404" && (IsADMXInstallConfigOperationCSP(locURI) || IsWin32OrDesktopBridgeADMXCSP(locURI)) {
 				if existingProfile, ok := windowsProfilesByID[profile.ProfileUUID]; ok && existingProfile.Status != nil &&
 					(*existingProfile.Status == fleet.MDMDeliveryVerified || *existingProfile.Status == fleet.MDMDeliveryVerifying) {
-					level.Debug(logger).Log("msg", "ADMX policy install operation or Win32/Desktop Bridge ADMX policy returned 404, marking as verified", "profile_uuid", profile.ProfileUUID, "host_id", host.ID, "locuri", locURI)
+					logger.DebugContext(ctx, "ADMX policy install operation or Win32/Desktop Bridge ADMX policy returned 404, marking as verified", "profile_uuid", profile.ProfileUUID, "host_id", host.ID, "locuri", locURI)
 					equal = true
 				}
 			}
@@ -262,7 +277,7 @@ func compareResultsToExpectedProfiles(ctx context.Context, logger kitlog.Logger,
 			}
 		}
 		if !equal {
-			level.Debug(logger).Log("msg", "Windows profile verification failed", "profile", profile.Name, "host_id", host.ID)
+			logger.DebugContext(ctx, "Windows profile verification failed", "profile", profile.Name, "host_id", host.ID)
 			withinGracePeriod := profile.IsWithinGracePeriod(host.DetailUpdatedAt)
 			if !withinGracePeriod {
 				missing[profile.Name] = struct{}{}
@@ -376,14 +391,14 @@ func (e *MicrosoftProfileProcessingError) Error() string {
 
 type ProfilePreprocessDependencies interface {
 	GetContext() context.Context
-	GetLogger() kitlog.Logger
+	GetLogger() *slog.Logger
 	GetDS() fleet.Datastore
 	GetHostIdForUUIDCache() map[string]uint
 }
 
 type ProfilePreprocessDependenciesForVerify struct {
 	Context            context.Context
-	Logger             kitlog.Logger
+	Logger             *slog.Logger
 	DataStore          fleet.Datastore
 	HostIDForUUIDCache map[string]uint
 }
@@ -392,7 +407,7 @@ func (p ProfilePreprocessDependenciesForVerify) GetContext() context.Context {
 	return p.Context
 }
 
-func (p ProfilePreprocessDependenciesForVerify) GetLogger() kitlog.Logger {
+func (p ProfilePreprocessDependenciesForVerify) GetLogger() *slog.Logger {
 	return p.Logger
 }
 
@@ -494,6 +509,8 @@ func preprocessWindowsProfileContents(deps ProfilePreprocessDependencies, params
 		switch {
 		case fleetVar == string(fleet.FleetVarSCEPWindowsCertificateID):
 			result = profiles.ReplaceFleetVariableInXML(fleet.FleetVarSCEPWindowsCertificateIDRegexp, result, params.ProfileUUID)
+		case fleetVar == string(fleet.FleetVarSCEPRenewalID):
+			result = profiles.ReplaceFleetVariableInXML(fleet.FleetVarSCEPRenewalIDRegexp, result, "fleet-"+params.ProfileUUID)
 		case strings.HasPrefix(fleetVar, string(fleet.FleetVarCustomSCEPChallengePrefix)):
 			caName := strings.TrimPrefix(fleetVar, string(fleet.FleetVarCustomSCEPChallengePrefix))
 			err := profiles.IsCustomSCEPConfigured(deps.Context, deps.CustomSCEPCAs, caName, fleetVar, func(errMsg string) error {

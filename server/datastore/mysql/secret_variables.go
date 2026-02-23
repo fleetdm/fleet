@@ -3,15 +3,26 @@ package mysql
 import (
 	"context"
 	"database/sql"
+	"encoding/xml"
 	"fmt"
 	"strings"
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	common_mysql "github.com/fleetdm/fleet/v4/server/platform/mysql"
 	"github.com/jmoiron/sqlx"
 	"golang.org/x/text/unicode/norm"
 )
+
+// secretVariableAllowedOrderKeys defines the allowed order keys for ListSecretVariables.
+// SECURITY: This prevents information disclosure via arbitrary column sorting.
+// Sensitive columns like 'value' are intentionally excluded.
+var secretVariableAllowedOrderKeys = common_mysql.OrderKeyAllowlist{
+	"name":       "name",
+	"id":         "id",
+	"updated_at": "updated_at",
+}
 
 func (ds *Datastore) UpsertSecretVariables(ctx context.Context, secretVariables []fleet.SecretVariable) error {
 	if len(secretVariables) == 0 {
@@ -150,7 +161,10 @@ func (ds *Datastore) ListSecretVariables(ctx context.Context, opt fleet.ListOpti
 	// build the count statement before adding pagination constraints
 	countStmt := fmt.Sprintf("SELECT COUNT(DISTINCT id) FROM (%s) AS s", stmt)
 
-	stmt, args = appendListOptionsWithCursorToSQL(stmt, args, &opt)
+	stmt, args, err = appendListOptionsWithCursorToSQLSecure(stmt, args, &opt, secretVariableAllowedOrderKeys)
+	if err != nil {
+		return nil, nil, 0, ctxerr.Wrap(ctx, err, "apply list options")
+	}
 
 	dbReader := ds.reader(ctx)
 	if err := sqlx.SelectContext(ctx, dbReader, &secretVariables, stmt, args...); err != nil {
@@ -339,11 +353,26 @@ func (ds *Datastore) expandEmbeddedSecrets(ctx context.Context, document string)
 		return "", nil, fleet.MissingSecretsError{MissingSecrets: missingSecrets}
 	}
 
+	// Check if document is XML
+	// We need to be more aggressive here, to also escape XML in Windows profiles which does not begin with <?xml
+	documentIsXML := strings.HasPrefix(strings.TrimSpace(document), "<")
+
 	expanded := fleet.MaybeExpand(document, func(s string, startPos, endPos int) (string, bool) {
 		if !strings.HasPrefix(s, fleet.ServerSecretPrefix) {
 			return "", false
 		}
 		val, ok := secretMap[strings.TrimPrefix(s, fleet.ServerSecretPrefix)]
+
+		if documentIsXML {
+			// Escape XML special characters
+			var b strings.Builder
+			err = xml.EscapeText(&b, []byte(val))
+			if err != nil {
+				return "", false
+			}
+			val = b.String()
+		}
+
 		return val, ok
 	})
 

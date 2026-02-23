@@ -12,6 +12,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/ptr"
+	"github.com/go-kit/log/level"
 )
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -23,7 +24,7 @@ type getQueryRequest struct {
 }
 
 type getQueryResponse struct {
-	Query *fleet.Query `json:"query,omitempty"`
+	Query *fleet.Query `json:"query,omitempty" renameto:"report"`
 	Err   error        `json:"error,omitempty"`
 }
 
@@ -58,17 +59,18 @@ func (svc *Service) GetQuery(ctx context.Context, id uint) (*fleet.Query, error)
 type listQueriesRequest struct {
 	ListOptions fleet.ListOptions `url:"list_options"`
 	// TeamID url argument set to 0 means global.
-	TeamID         uint `query:"team_id,optional"`
+	TeamID         uint `query:"team_id,optional" renameto:"fleet_id"`
 	MergeInherited bool `query:"merge_inherited,optional"`
 	// only return queries targeted to run on this platform
 	Platform string `query:"platform,optional"`
 }
 
 type listQueriesResponse struct {
-	Queries []fleet.Query             `json:"queries"`
-	Count   int                       `json:"count"`
-	Meta    *fleet.PaginationMetadata `json:"meta"`
-	Err     error                     `json:"error,omitempty"`
+	Queries             []fleet.Query             `json:"queries" renameto:"reports"`
+	Count               int                       `json:"count"`
+	InheritedQueryCount int                       `json:"inherited_query_count" renameto:"inherited_report_count"`
+	Meta                *fleet.PaginationMetadata `json:"meta"`
+	Err                 error                     `json:"error,omitempty"`
 }
 
 func (r listQueriesResponse) Error() error { return r.Err }
@@ -86,7 +88,7 @@ func listQueriesEndpoint(ctx context.Context, request interface{}, svc fleet.Ser
 		urlPlatform = &req.Platform
 	}
 
-	queries, count, meta, err := svc.ListQueries(ctx, req.ListOptions, teamID, nil, req.MergeInherited, urlPlatform)
+	queries, count, inheritedCount, meta, err := svc.ListQueries(ctx, req.ListOptions, teamID, nil, req.MergeInherited, urlPlatform)
 	if err != nil {
 		return listQueriesResponse{Err: err}, nil
 	}
@@ -97,18 +99,19 @@ func listQueriesEndpoint(ctx context.Context, request interface{}, svc fleet.Ser
 	}
 
 	return listQueriesResponse{
-		Queries: respQueries,
-		Count:   count,
-		Meta:    meta,
+		Queries:             respQueries,
+		Count:               count,
+		InheritedQueryCount: inheritedCount,
+		Meta:                meta,
 	}, nil
 }
 
-func (svc *Service) ListQueries(ctx context.Context, opt fleet.ListOptions, teamID *uint, scheduled *bool, mergeInherited bool, urlPlatform *string) ([]*fleet.Query, int, *fleet.PaginationMetadata, error) {
+func (svc *Service) ListQueries(ctx context.Context, opt fleet.ListOptions, teamID *uint, scheduled *bool, mergeInherited bool, urlPlatform *string) ([]*fleet.Query, int, int, *fleet.PaginationMetadata, error) {
 	// Check the user is allowed to list queries on the given team.
 	if err := svc.authz.Authorize(ctx, &fleet.Query{
 		TeamID: teamID,
 	}, fleet.ActionRead); err != nil {
-		return nil, 0, nil, err
+		return nil, 0, 0, nil, err
 	}
 
 	// always include metadata for queries
@@ -124,15 +127,15 @@ func (svc *Service) ListQueries(ctx context.Context, opt fleet.ListOptions, team
 			dbPlatform = urlPlatform
 		}
 		if strings.Contains(*urlPlatform, ",") {
-			return nil, 0, nil, &fleet.BadRequestError{Message: "queries can only be filtered by one platform at a time"}
+			return nil, 0, 0, nil, &fleet.BadRequestError{Message: "queries can only be filtered by one platform at a time"}
 		}
 		targetableDBPlatforms := []string{"darwin", "windows", "linux"}
 		if !slices.Contains(targetableDBPlatforms, *dbPlatform) {
-			return nil, 0, nil, &fleet.BadRequestError{Message: fmt.Sprintf("platform %q cannot be a scheduled query target, supported platforms are: %s", *dbPlatform, strings.Join(targetableDBPlatforms, ","))}
+			return nil, 0, 0, nil, &fleet.BadRequestError{Message: fmt.Sprintf("platform %q cannot be a scheduled query target, supported platforms are: %s", *dbPlatform, strings.Join(targetableDBPlatforms, ","))}
 		}
 	}
 
-	queries, count, meta, err := svc.ds.ListQueries(ctx, fleet.ListQueryOptions{
+	queries, count, inheritedCount, meta, err := svc.ds.ListQueries(ctx, fleet.ListQueryOptions{
 		ListOptions:    opt,
 		TeamID:         teamID,
 		IsScheduled:    scheduled,
@@ -140,10 +143,10 @@ func (svc *Service) ListQueries(ctx context.Context, opt fleet.ListOptions, team
 		Platform:       dbPlatform,
 	})
 	if err != nil {
-		return nil, 0, nil, err
+		return nil, 0, 0, nil, err
 	}
 
-	return queries, count, meta, nil
+	return queries, count, inheritedCount, meta, nil
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -152,11 +155,11 @@ func (svc *Service) ListQueries(ctx context.Context, opt fleet.ListOptions, team
 
 type getQueryReportRequest struct {
 	ID     uint  `url:"id"`
-	TeamID *uint `query:"team_id,optional"`
+	TeamID *uint `query:"team_id,optional" renameto:"fleet_id"`
 }
 
 type getQueryReportResponse struct {
-	QueryID       uint                       `json:"query_id"`
+	QueryID       uint                       `json:"query_id" renameto:"report_id"`
 	Results       []fleet.HostQueryResultRow `json:"results"`
 	ReportClipped bool                       `json:"report_clipped"`
 	Err           error                      `json:"error,omitempty"`
@@ -248,7 +251,7 @@ type createQueryRequest struct {
 }
 
 type createQueryResponse struct {
-	Query *fleet.Query `json:"query,omitempty"`
+	Query *fleet.Query `json:"query,omitempty" renameto:"report"`
 	Err   error        `json:"error,omitempty"`
 }
 
@@ -281,10 +284,17 @@ func (svc *Service) NewQuery(ctx context.Context, p fleet.QueryPayload) (*fleet.
 		})
 	}
 
-	query := &fleet.Query{
-		Saved: true,
+	query := &fleet.Query{Saved: true, TeamID: p.TeamID}
 
-		TeamID: p.TeamID,
+	vc, ok := viewer.FromContext(ctx)
+	if ok {
+		query.AuthorID = ptr.Uint(vc.UserID())
+		query.AuthorName = vc.FullName()
+		query.AuthorEmail = vc.Email()
+	}
+
+	if err := verifyLabelsToAssociate(ctx, svc.ds, p.TeamID, p.LabelsIncludeAny, vc.User); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "verify labels to associate")
 	}
 
 	if p.Name != nil {
@@ -326,13 +336,6 @@ func (svc *Service) NewQuery(ctx context.Context, p fleet.QueryPayload) (*fleet.
 	}
 
 	logging.WithExtras(ctx, "name", query.Name, "sql", query.Query)
-
-	vc, ok := viewer.FromContext(ctx)
-	if ok {
-		query.AuthorID = ptr.Uint(vc.UserID())
-		query.AuthorName = vc.FullName()
-		query.AuthorEmail = vc.Email()
-	}
 
 	query, err := svc.ds.NewQuery(ctx, query)
 	if err != nil {
@@ -381,7 +384,7 @@ type modifyQueryRequest struct {
 }
 
 type modifyQueryResponse struct {
-	Query *fleet.Query `json:"query,omitempty"`
+	Query *fleet.Query `json:"query,omitempty" renameto:"report"`
 	Err   error        `json:"error,omitempty"`
 }
 
@@ -415,6 +418,11 @@ func (svc *Service) ModifyQuery(ctx context.Context, id uint, p fleet.QueryPaylo
 		return nil, ctxerr.Wrap(ctx, &fleet.BadRequestError{
 			Message: fmt.Sprintf("query payload verification: %s", err),
 		})
+	}
+
+	// We use query.TeamID because we do not allow changing the team
+	if err := verifyLabelsToAssociate(ctx, svc.ds, query.TeamID, p.LabelsIncludeAny, authz.UserFromContext(ctx)); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "verify labels to associate")
 	}
 
 	shouldDiscardQueryResults, shouldDeleteStats := false, false
@@ -482,6 +490,17 @@ func (svc *Service) ModifyQuery(ctx context.Context, id uint, p fleet.QueryPaylo
 		return nil, err
 	}
 
+	// If the query was modified in a way that requires discarding results,
+	// reset the Redis count as well.
+	if shouldDiscardQueryResults && svc.liveQueryStore != nil {
+		err = svc.liveQueryStore.SetQueryResultsCount(query.ID, 0)
+		if err != nil {
+			// Log the error but don't fail the request; this will get cleaned up
+			// in the "query_results_cleanup" job.
+			level.Error(svc.logger).Log("msg", "failed to set query results count", "err", err, "query_id", query.ID)
+		}
+	}
+
 	var teamID int64
 	var teamName *string
 	if query.TeamID != nil {
@@ -532,7 +551,7 @@ func comparePlatforms(platform1, platform2 string) bool {
 type deleteQueryRequest struct {
 	Name string `url:"name"`
 	// TeamID if not set is assumed to be 0 (global).
-	TeamID uint `url:"team_id,optional"`
+	TeamID uint `url:"fleet_id,optional"`
 }
 
 type deleteQueryResponse struct {
@@ -567,6 +586,15 @@ func (svc *Service) DeleteQuery(ctx context.Context, teamID *uint, name string) 
 
 	if err := svc.ds.DeleteQuery(ctx, teamID, name); err != nil {
 		return err
+	}
+
+	// Delete the Redis counter for query results
+	if svc.liveQueryStore != nil {
+		if err = svc.liveQueryStore.DeleteQueryResultsCount(query.ID); err != nil {
+			// Log the error but don't fail the request; this will get cleaned up
+			// in the "query_results_cleanup" job.
+			level.Error(svc.logger).Log("msg", "failed to delete query results count", "err", err, "query_id", query.ID)
+		}
 	}
 
 	var logTeamID int64
@@ -636,6 +664,15 @@ func (svc *Service) DeleteQueryByID(ctx context.Context, id uint) error {
 
 	if err := svc.ds.DeleteQuery(ctx, query.TeamID, query.Name); err != nil {
 		return ctxerr.Wrap(ctx, err, "delete query")
+	}
+
+	// Delete the Redis counter for query results
+	if svc.liveQueryStore != nil {
+		if err = svc.liveQueryStore.DeleteQueryResultsCount(query.ID); err != nil {
+			// Log the error but don't fail the request; this will get cleaned up
+			// in the "query_results_cleanup" job.
+			level.Error(svc.logger).Log("msg", "failed to delete query results count", "err", err, "query_id", query.ID)
+		}
 	}
 
 	var logTeamID int64
@@ -722,6 +759,17 @@ func (svc *Service) DeleteQueries(ctx context.Context, ids []uint) (uint, error)
 	n, err := svc.ds.DeleteQueries(ctx, ids)
 	if err != nil {
 		return n, err
+	}
+
+	// Delete the Redis counters for query results
+	if svc.liveQueryStore != nil {
+		for _, id := range ids {
+			if err = svc.liveQueryStore.DeleteQueryResultsCount(id); err != nil {
+				// Log the error but don't fail the request; this will get cleaned up
+				// in the "query_results_cleanup" job.
+				level.Error(svc.logger).Log("msg", "failed to delete query results count", "err", err, "query_id", id)
+			}
+		}
 	}
 
 	if err := svc.NewActivity(
@@ -817,6 +865,17 @@ func (svc *Service) ApplyQuerySpecs(ctx context.Context, specs []*fleet.QuerySpe
 		return ctxerr.Wrap(ctx, err, "applying queries")
 	}
 
+	// Reset the Redis counters for queries whose results were discarded
+	if svc.liveQueryStore != nil {
+		for queryID := range queriesToDiscardResults {
+			if err = svc.liveQueryStore.SetQueryResultsCount(queryID, 0); err != nil {
+				// Log the error but don't fail the request; this will get cleaned up
+				// in the "query_results_cleanup" job.
+				level.Error(svc.logger).Log("msg", "failed to set query results count", "err", err, "query_id", queryID)
+			}
+		}
+	}
+
 	if err := svc.NewActivity(
 		ctx,
 		authz.UserFromContext(ctx),
@@ -845,7 +904,12 @@ func (svc *Service) queryFromSpec(ctx context.Context, spec *fleet.QuerySpec) (*
 	// Find labels by name
 	var queryLabels []fleet.LabelIdent
 	if len(spec.LabelsIncludeAny) > 0 {
-		labelsMap, err := svc.ds.LabelsByName(ctx, spec.LabelsIncludeAny)
+		vc, ok := viewer.FromContext(ctx)
+		if !ok {
+			return nil, fleet.ErrNoContext
+		}
+
+		labelsMap, err := svc.ds.LabelsByName(ctx, spec.LabelsIncludeAny, fleet.TeamFilter{User: vc.User, TeamID: teamID})
 		if err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "get labels by name")
 		}
@@ -886,7 +950,7 @@ type getQuerySpecsResponse struct {
 }
 
 type getQuerySpecsRequest struct {
-	TeamID uint `url:"team_id,optional"`
+	TeamID uint `url:"fleet_id,optional"`
 }
 
 func (r getQuerySpecsResponse) Error() error { return r.Err }
@@ -905,7 +969,7 @@ func getQuerySpecsEndpoint(ctx context.Context, request interface{}, svc fleet.S
 }
 
 func (svc *Service) GetQuerySpecs(ctx context.Context, teamID *uint) ([]*fleet.QuerySpec, error) {
-	queries, _, _, err := svc.ListQueries(ctx, fleet.ListOptions{}, teamID, nil, false, nil)
+	queries, _, _, _, err := svc.ListQueries(ctx, fleet.ListOptions{}, teamID, nil, false, nil)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "getting queries")
 	}
@@ -963,7 +1027,7 @@ type getQuerySpecResponse struct {
 
 type getQuerySpecRequest struct {
 	Name   string `url:"name"`
-	TeamID uint   `query:"team_id,optional"`
+	TeamID uint   `query:"team_id,optional" renameto:"fleet_id"`
 }
 
 func (r getQuerySpecResponse) Error() error { return r.Err }

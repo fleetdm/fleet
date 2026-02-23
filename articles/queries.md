@@ -87,6 +87,8 @@ The query may take several seconds to complete because Fleet has to wait for the
 
 Fleet allows you to schedule queries to run at a set interval. By default, queries that run on a schedule will only target platforms compatible with that query. This behavior can be overridden by setting the platforms in **Advanced options** when saving a query.
 
+To create a scheduled query, set the interval to a value other than "Never" when [creating a query](#create-a-query). If the query has already been created, select the query and then select **Edit query** to set the interval.
+
 Scheduled queries will send data to Fleet and/or your [log destination](https://fleetdm.com/docs/using-fleet/log-destinations) automatically. Query automations can be turned off in **Advanced options** or using the bulk query automations UI.
 
 How to configure query automations in bulk:

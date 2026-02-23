@@ -169,7 +169,7 @@ const PolicyResults = ({
     if (finishedWithNoResults) {
       return (
         <p className="no-results-message">
-          Your live query returned no results.
+          Your live report returned no results.
           <span>
             Expecting to see results? Check to see if the host
             {`${targetsTotalCount > 1 ? "s" : ""}`} you targeted reported
@@ -182,8 +182,8 @@ const PolicyResults = ({
     return (
       <div className={`${baseClass}__results-table-container`}>
         <InfoBanner>
-          Hosts that responded with results are marked <strong>Yes</strong>.
-          Hosts that responded with no results are marked <strong>No</strong>.
+          Hosts that responded with results are marked <strong>Pass</strong>.
+          Hosts that responded with no results are marked <strong>Fail</strong>.
         </InfoBanner>
         <div className={`${baseClass}__results-table-header`}>
           <span className={`${baseClass}__results-meta`}>

@@ -6,6 +6,8 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log/slog"
+	"os"
 	"strings"
 	"time"
 
@@ -16,8 +18,6 @@ import (
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/appmanifest"
 	"github.com/fleetdm/fleet/v4/server/ptr"
-	kitlog "github.com/go-kit/log"
-	"github.com/go-kit/log/level"
 	"github.com/google/uuid"
 )
 
@@ -42,7 +42,7 @@ const (
 // AppleMDM is the job processor for the apple_mdm job.
 type AppleMDM struct {
 	Datastore             fleet.Datastore
-	Log                   kitlog.Logger
+	Log                   *slog.Logger
 	Commander             *apple_mdm.MDMAppleCommander
 	BootstrapPackageStore fleet.MDMBootstrapPackageStore
 	VPPInstaller          fleet.AppleMDMVPPInstaller
@@ -69,6 +69,7 @@ type appleMDMArgs struct {
 	UseWorkerDeviceRelease bool       `json:"use_worker_device_release,omitempty"`
 	ReleaseDeviceAttempt   int        `json:"release_device_attempt,omitempty"`    // number of attempts to release the device
 	ReleaseDeviceStartedAt *time.Time `json:"release_device_started_at,omitempty"` // time when the release device task first started
+	FromMDMMigration       bool       `json:"from_mdm_migration,omitempty"`        // indicates if the task is part of an MDM migration
 }
 
 // Run executes the apple_mdm job.
@@ -159,15 +160,28 @@ func (a *AppleMDM) runPostDEPEnrollment(ctx context.Context, args appleMDMArgs) 
 			awaitCmdUUIDs = append(awaitCmdUUIDs, fleetdCmdUUID)
 		}
 
-		bootstrapCmdUUID, err := a.installBootstrapPackage(ctx, args.HostUUID, args.TeamID)
-		if err != nil {
-			return ctxerr.Wrap(ctx, err, "installing post-enrollment packages")
+		allowBootstrapDuringMigration := false
+		allowBootstrapDuringMigrationEV := os.Getenv("FLEET_ALLOW_BOOTSTRAP_PACKAGE_DURING_MIGRATION")
+		if allowBootstrapDuringMigrationEV == "1" || strings.EqualFold(allowBootstrapDuringMigrationEV, "true") {
+			allowBootstrapDuringMigration = true
 		}
-		if bootstrapCmdUUID != "" {
-			awaitCmdUUIDs = append(awaitCmdUUIDs, bootstrapCmdUUID)
+
+		if args.FromMDMMigration && !allowBootstrapDuringMigration {
+			a.Log.InfoContext(ctx, "skipping bootstrap package installation during MDM migration", "host_uuid", args.HostUUID)
+			err = a.Datastore.RecordSkippedHostBootstrapPackage(ctx, args.HostUUID)
+			if err != nil {
+				return ctxerr.Wrap(ctx, err, "recording skipped bootstrap package")
+			}
+		} else {
+			bootstrapCmdUUID, err := a.installBootstrapPackage(ctx, args.HostUUID, args.TeamID)
+			if err != nil {
+				return ctxerr.Wrap(ctx, err, "installing post-enrollment packages")
+			}
+			if bootstrapCmdUUID != "" {
+				awaitCmdUUIDs = append(awaitCmdUUIDs, bootstrapCmdUUID)
+			}
 		}
 	} else {
-		// TODO: We likely want to wait for the actual installs to complete not just the commands to be ack'd
 		commandUUIDs, err := a.installSetupExperienceVPPAppsOnIosIpadOS(ctx, args.HostUUID)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "installing setup experience VPP apps on iOS/iPadOS")
@@ -176,7 +190,7 @@ func (a *AppleMDM) runPostDEPEnrollment(ctx context.Context, args appleMDMArgs) 
 	}
 
 	if ref := args.EnrollReference; ref != "" {
-		a.Log.Log("info", "got an enroll_reference", "host_uuid", args.HostUUID, "ref", ref)
+		a.Log.InfoContext(ctx, "got an enroll_reference", "host_uuid", args.HostUUID, "ref", ref)
 		if appCfg, err = a.getAppConfig(ctx, appCfg); err != nil {
 			return err
 		}
@@ -199,7 +213,7 @@ func (a *AppleMDM) runPostDEPEnrollment(ctx context.Context, args appleMDMArgs) 
 			if err != nil {
 				return ctxerr.Wrap(ctx, err, "getting idp account display name")
 			}
-			a.Log.Log("info", "setting username and fullname", "host_uuid", args.HostUUID)
+			a.Log.InfoContext(ctx, "setting username and fullname", "host_uuid", args.HostUUID)
 			cmdUUID := uuid.New().String()
 			if err := a.Commander.AccountConfiguration(
 				ctx,
@@ -237,7 +251,7 @@ func (a *AppleMDM) runPostDEPEnrollment(ctx context.Context, args appleMDMArgs) 
 			// be final and same for MDM profiles of that host; it means the DEP
 			// enrollment process is done and the device can be released.
 			if err := QueueAppleMDMJob(ctx, a.Datastore, a.Log, AppleMDMPostDEPReleaseDeviceTask,
-				args.HostUUID, args.Platform, args.TeamID, args.EnrollReference, false, awaitCmdUUIDs...); err != nil {
+				args.HostUUID, args.Platform, args.TeamID, args.EnrollReference, false, args.FromMDMMigration, awaitCmdUUIDs...); err != nil {
 				return ctxerr.Wrap(ctx, err, "queue Apple Post-DEP release device job")
 			}
 		}
@@ -322,9 +336,9 @@ func (a *AppleMDM) runPostDEPReleaseDevice(ctx context.Context, args appleMDMArg
 		args.ReleaseDeviceStartedAt = &now
 	}
 
-	level.Debug(a.Log).Log(
+	a.Log.DebugContext(ctx,
+		fmt.Sprintf("awaiting commands %v and profiles to settle for host %s", args.EnrollmentCommands, args.HostUUID),
 		"task", "runPostDEPReleaseDevice",
-		"msg", fmt.Sprintf("awaiting commands %v and profiles to settle for host %s", args.EnrollmentCommands, args.HostUUID),
 		"attempt", args.ReleaseDeviceAttempt,
 		"started_at", args.ReleaseDeviceStartedAt.Format(time.RFC3339),
 	)
@@ -336,7 +350,7 @@ func (a *AppleMDM) runPostDEPReleaseDevice(ctx context.Context, args appleMDMArg
 	// not appear to be reached.
 	if (args.ReleaseDeviceAttempt >= minAttempts && time.Since(*args.ReleaseDeviceStartedAt) >= maxWaitTime) ||
 		(args.ReleaseDeviceAttempt >= maxAttempts) {
-		a.Log.Log("info", "releasing device after too many attempts or too long wait", "host_uuid", args.HostUUID, "attempts", args.ReleaseDeviceAttempt)
+		a.Log.InfoContext(ctx, "releasing device after too many attempts or too long wait", "host_uuid", args.HostUUID, "attempts", args.ReleaseDeviceAttempt)
 		if err := a.Commander.DeviceConfigured(ctx, args.HostUUID, uuid.NewString()); err != nil {
 			return ctxerr.Wrapf(ctx, err, "failed to enqueue DeviceConfigured command after %d attempts", args.ReleaseDeviceAttempt)
 		}
@@ -352,21 +366,29 @@ func (a *AppleMDM) runPostDEPReleaseDevice(ctx context.Context, args appleMDMArg
 		return err
 	}
 
+	// used to cross reference against the setup experience statuses below
+	notNowCmdUUIDs := make(map[string]any)
+
 	for _, cmdUUID := range args.EnrollmentCommands {
 		if cmdUUID == "" {
 			continue
 		}
 
-		res, err := a.Datastore.GetMDMAppleCommandResults(ctx, cmdUUID)
+		res, err := a.Datastore.GetMDMAppleCommandResults(ctx, cmdUUID, args.HostUUID)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "failed to get MDM command results")
 		}
 
 		var completed bool
 		for _, r := range res {
-			// succeeded or failed, it is done (final state)
-			if r.Status == fleet.MDMAppleStatusAcknowledged || r.Status == fleet.MDMAppleStatusError ||
-				r.Status == fleet.MDMAppleStatusCommandFormatError {
+			if r.Status == fleet.MDMAppleStatusNotNow {
+				notNowCmdUUIDs[cmdUUID] = ""
+			}
+
+			// succeeded or failed, it is done (final state). We also consider "NotNow"
+			// as completed, as it means the device is not going to process that command
+			// now, and we don't want to block the DEP device release because of that.
+			if r.Status == fleet.MDMAppleStatusAcknowledged || r.Status == fleet.MDMAppleStatusError || r.Status == fleet.MDMAppleStatusNotNow || r.Status == fleet.MDMAppleStatusCommandFormatError {
 				completed = true
 				break
 			}
@@ -380,9 +402,9 @@ func (a *AppleMDM) runPostDEPReleaseDevice(ctx context.Context, args appleMDMArg
 			}
 			return nil
 		}
-		level.Debug(a.Log).Log(
+		a.Log.DebugContext(ctx,
+			fmt.Sprintf("command %s has completed", cmdUUID),
 			"task", "runPostDEPReleaseDevice",
-			"msg", fmt.Sprintf("command %s has completed", cmdUUID),
 		)
 	}
 
@@ -415,9 +437,9 @@ func (a *AppleMDM) runPostDEPReleaseDevice(ctx context.Context, args appleMDMArg
 			}
 			return nil
 		}
-		level.Debug(a.Log).Log(
+		a.Log.DebugContext(ctx,
+			fmt.Sprintf("profile %s has been deployed", prof.Identifier),
 			"task", "runPostDEPReleaseDevice",
-			"msg", fmt.Sprintf("profile %s has been deployed", prof.Identifier),
 		)
 	}
 
@@ -431,7 +453,7 @@ func (a *AppleMDM) runPostDEPReleaseDevice(ctx context.Context, args appleMDMArg
 	}
 
 	if len(profilesMissingInstallation) > 0 {
-		level.Info(a.Log).Log("msg", "re-enqueuing due to profiles missing installation", "host_uuid", args.HostUUID)
+		a.Log.InfoContext(ctx, "re-enqueuing due to profiles missing installation", "host_uuid", args.HostUUID)
 		// requeue the task if some profiles are still missing.
 		if err := reenqueueTask(); err != nil {
 			return ctxerr.Wrap(ctx, err, "failed to re-enqueue task")
@@ -445,8 +467,16 @@ func (a *AppleMDM) runPostDEPReleaseDevice(ctx context.Context, args appleMDMArg
 			return ctxerr.Wrap(ctx, err, "retrieving setup experience status results for host pending DEP release")
 		}
 		for _, status := range setupExperienceStatuses {
+			// skip items that had the command response of "NotNow" as those setup exp statuses will be pending/running
+			// and we have decided to not block the device release for NotNow status so we dont want to reenqueue these.
+			if status.NanoCommandUUID != nil {
+				if _, ok := notNowCmdUUIDs[*status.NanoCommandUUID]; ok {
+					continue
+				}
+			}
+
 			if status.Status == fleet.SetupExperienceStatusPending || status.Status == fleet.SetupExperienceStatusRunning {
-				level.Info(a.Log).Log("msg", "re-enqueuing due to setup experience items still pending or running", "host_uuid", args.HostUUID, "status_id", status.ID)
+				a.Log.InfoContext(ctx, "re-enqueuing due to setup experience items still pending or running", "host_uuid", args.HostUUID, "status_id", status.ID)
 				if err := reenqueueTask(); err != nil {
 					return ctxerr.Wrap(ctx, err, "failed to re-enqueue task due to pending setup experience items")
 				}
@@ -456,7 +486,7 @@ func (a *AppleMDM) runPostDEPReleaseDevice(ctx context.Context, args appleMDMArg
 	}
 
 	// release the device
-	a.Log.Log("info", "releasing device, all DEP enrollment commands and profiles have completed", "host_uuid", args.HostUUID)
+	a.Log.InfoContext(ctx, "releasing device, all DEP enrollment commands and profiles have completed", "host_uuid", args.HostUUID)
 	if err := a.Commander.DeviceConfigured(ctx, args.HostUUID, uuid.NewString()); err != nil {
 		return ctxerr.Wrap(ctx, err, "failed to enqueue DeviceConfigured command")
 	}
@@ -469,7 +499,7 @@ func (a *AppleMDM) installFleetd(ctx context.Context, hostUUID string) (string, 
 	if err := a.Commander.InstallEnterpriseApplication(ctx, []string{hostUUID}, cmdUUID, manifestURL); err != nil {
 		return "", err
 	}
-	a.Log.Log("info", "sent command to install fleetd", "host_uuid", hostUUID)
+	a.Log.InfoContext(ctx, "sent command to install fleetd", "host_uuid", hostUUID)
 	return cmdUUID, nil
 }
 
@@ -498,7 +528,7 @@ func (a *AppleMDM) installSetupExperienceVPPAppsOnIosIpadOS(ctx context.Context,
 				return nil, ctxerr.Wrap(ctx, err, "updating setup experience status result to failure")
 			}
 			// If we enqueued a non-VPP item for an iOS/iPadOS device, it likely a code bug
-			level.Error(a.Log).Log("msg", "unexpected setup experience item for iOS/iPadOS device, only VPP apps are supported", "host_uuid", hostUUID, "status_id", status.ID)
+			a.Log.ErrorContext(ctx, "unexpected setup experience item for iOS/iPadOS device, only VPP apps are supported", "host_uuid", hostUUID, "status_id", status.ID)
 		}
 	}
 
@@ -540,7 +570,7 @@ func (a *AppleMDM) installSetupExperienceVPPAppsOnIosIpadOS(ctx context.Context,
 				// if we get an error (e.g. no available licenses) while attempting to enqueue the
 				// install, then we should immediately go to an error state so setup experience
 				// isn't blocked.
-				level.Error(a.Log).Log("msg", "got an error when attempting to enqueue VPP app install", "err", err, "adam_id", app.VPPAppAdamID)
+				a.Log.ErrorContext(ctx, "got an error when attempting to enqueue VPP app install", "err", err, "adam_id", app.VPPAppAdamID)
 				app.Status = fleet.SetupExperienceStatusFailure
 				app.Error = ptr.String(err.Error())
 			} else {
@@ -579,7 +609,7 @@ func (a *AppleMDM) installBootstrapPackage(ctx context.Context, hostUUID string,
 	if err != nil {
 		var nfe fleet.NotFoundError
 		if errors.As(err, &nfe) {
-			a.Log.Log("info", "unable to find a bootstrap package for DEP enrolled device, skipping installation", "host_uuid", hostUUID)
+			a.Log.InfoContext(ctx, "unable to find a bootstrap package for DEP enrolled device, skipping installation", "host_uuid", hostUUID)
 			return "", nil
 		}
 
@@ -611,7 +641,7 @@ func (a *AppleMDM) installBootstrapPackage(ctx context.Context, hostUUID string,
 	if err != nil {
 		return "", err
 	}
-	a.Log.Log("info", "sent command to install bootstrap package", "host_uuid", hostUUID)
+	a.Log.InfoContext(ctx, "sent command to install bootstrap package", "host_uuid", hostUUID)
 	return cmdUUID, nil
 }
 
@@ -619,22 +649,22 @@ func (a *AppleMDM) getSignedURL(ctx context.Context, meta *fleet.MDMAppleBootstr
 	var url string
 	if a.BootstrapPackageStore != nil {
 		pkgID := hex.EncodeToString(meta.Sha256)
-		signedURL, err := a.BootstrapPackageStore.Sign(ctx, pkgID)
+		signedURL, err := a.BootstrapPackageStore.Sign(ctx, pkgID, fleet.BootstrapPackageSignedURLExpiry)
 		switch {
 		case errors.Is(err, fleet.ErrNotConfigured):
 			// no CDN configured, fall back to the MDM URL
 		case err != nil:
 			// log the error but continue with the MDM URL
-			level.Error(a.Log).Log("msg", "failed to sign bootstrap package URL", "err", err)
+			a.Log.ErrorContext(ctx, "failed to sign bootstrap package URL", "err", err)
 		default:
 			exists, err := a.BootstrapPackageStore.Exists(ctx, pkgID)
 			switch {
 			case err != nil:
 				// log the error but continue with the MDM URL
-				level.Error(a.Log).Log("msg", "failed to check if bootstrap package exists", "err", err)
+				a.Log.ErrorContext(ctx, "failed to check if bootstrap package exists", "err", err)
 			case !exists:
 				// log the error but continue with the MDM URL
-				level.Error(a.Log).Log("msg", "bootstrap package does not exist in package store", "pkg_id", pkgID)
+				a.Log.ErrorContext(ctx, "bootstrap package does not exist in package store", "pkg_id", pkgID)
 			default:
 				url = signedURL
 			}
@@ -648,13 +678,14 @@ func (a *AppleMDM) getSignedURL(ctx context.Context, meta *fleet.MDMAppleBootstr
 func QueueAppleMDMJob(
 	ctx context.Context,
 	ds fleet.Datastore,
-	logger kitlog.Logger,
+	logger *slog.Logger,
 	task AppleMDMTask,
 	hostUUID string,
 	platform string,
 	teamID *uint,
 	enrollReference string,
 	useWorkerDeviceRelease bool,
+	fromMDMMigration bool,
 	enrollmentCommandUUIDs ...string,
 ) error {
 	attrs := []interface{}{
@@ -663,6 +694,7 @@ func QueueAppleMDMJob(
 		"host_uuid", hostUUID,
 		"platform", platform,
 		"with_enroll_reference", enrollReference != "",
+		"from_mdm_migration", fromMDMMigration,
 	}
 	if teamID != nil {
 		attrs = append(attrs, "team_id", *teamID)
@@ -670,7 +702,7 @@ func QueueAppleMDMJob(
 	if len(enrollmentCommandUUIDs) > 0 {
 		attrs = append(attrs, "enrollment_commands", fmt.Sprintf("%v", enrollmentCommandUUIDs))
 	}
-	level.Info(logger).Log(attrs...)
+	logger.InfoContext(ctx, "queuing Apple MDM job", attrs...)
 
 	args := &appleMDMArgs{
 		Task:                   task,
@@ -680,6 +712,7 @@ func QueueAppleMDMJob(
 		EnrollmentCommands:     enrollmentCommandUUIDs,
 		Platform:               platform,
 		UseWorkerDeviceRelease: useWorkerDeviceRelease,
+		FromMDMMigration:       fromMDMMigration,
 	}
 
 	// the release device task is always added with a delay
@@ -691,6 +724,6 @@ func QueueAppleMDMJob(
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "queueing job")
 	}
-	level.Debug(logger).Log("job_id", job.ID)
+	logger.DebugContext(ctx, "queued Apple MDM job", "job_id", job.ID)
 	return nil
 }

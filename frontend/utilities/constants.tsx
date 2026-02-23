@@ -10,6 +10,8 @@ import { IHost } from "interfaces/host";
 const { origin } = global.window.location;
 export const BASE_URL = `${origin}${URL_PREFIX}/api`;
 
+export const UNCHANGED_PASSWORD_API_RESPONSE = "********";
+
 export enum PolicyResponse {
   PASSING = "passing",
   FAILING = "failing",
@@ -69,6 +71,8 @@ export const SUPPORT_LINK = `${FLEET_WEBSITE_URL}/support`;
 export const CONTACT_FLEET_LINK = `${FLEET_WEBSITE_URL}/contact`;
 export const LEARN_MORE_ABOUT_BASE_LINK = `${FLEET_WEBSITE_URL}/learn-more-about`;
 export const FLEET_GUIDES_BASE_LINK = `${FLEET_WEBSITE_URL}/guides`;
+export const ANDROID_PLAY_STORE_URL =
+  "https://play.google.com/store/apps/details";
 
 /**  July 28, 2016 is the date of the initial commit to fleet/fleet. */
 export const INITIAL_FLEET_DATE = "2016-07-28T00:00:00Z";
@@ -86,6 +90,7 @@ export const MAX_OSQUERY_SCHEDULED_QUERY_INTERVAL = 604800;
 
 export const MIN_OSQUERY_VERSION_OPTIONS = [
   { label: "All", value: "" },
+  { label: "5.21.0 +", value: "5.21.0" },
   { label: "5.20.0 +", value: "5.20.0" },
   { label: "5.19.0 +", value: "5.19.0" },
   { label: "5.18.1 +", value: "5.18.1" },
@@ -391,7 +396,7 @@ export const BATTERY_TOOLTIP: Record<string, string | React.ReactNode> = {
   ),
 };
 
-export const PRIMO_TOOLTIP = "Teams are disabled while using Primo";
+export const PRIMO_TOOLTIP = "Fleets are disabled while using Primo";
 
 /** Must pass agent options config as empty object */
 export const EMPTY_AGENT_OPTIONS = {
@@ -406,25 +411,15 @@ export const HOST_SUMMARY_DATA: (keyof IHost)[] = [
   "id",
   "status",
   "issues",
-  "memory",
-  "cpu_type",
   "platform",
-  "os_version",
-  "osquery_version",
-  "orbit_version",
-  "fleet_desktop_version",
   "detail_updated_at",
-  "percent_disk_space_available",
-  "gigs_disk_space_available",
-  "gigs_total_disk_space",
-  "gigs_all_disk_space",
   "team_name",
-  "disk_encryption_enabled",
   "display_name", // Not rendered on my device page
   "maintenance_window", // Not rendered on my device page
+  "os_version",
 ];
 
-export const HOST_ABOUT_DATA = [
+export const HOST_VITALS_DATA = [
   "seen_time",
   "uptime",
   "last_enrolled_at",
@@ -438,6 +433,18 @@ export const HOST_ABOUT_DATA = [
   "last_restarted_at",
   "platform",
   "uuid",
+  "gigs_disk_space_available",
+  "percent_disk_space_available",
+  "gigs_total_disk_space",
+  "gigs_all_disk_space",
+  "disk_encryption_enabled",
+  "osquery_version",
+  "orbit_version",
+  "fleet_desktop_version",
+  "memory",
+  "cpu_type",
+  "os_version",
+  "timezone",
 ];
 
 export const HOST_OSQUERY_DATA = [
@@ -462,7 +469,7 @@ export const INVALID_PLATFORMS_REASON =
   "query payload verification: query's platform must be a comma-separated list of 'darwin', 'linux', 'windows', and/or 'chrome' in a single string";
 
 export const INVALID_PLATFORMS_FLASH_MESSAGE =
-  "Couldn't save query. Please update platforms and try again.";
+  "Couldn't save report. Please update platforms and try again.";
 
 export const DATE_FNS_FORMAT_STRINGS = {
   dateAtTime: "E, MMM d 'at' p",

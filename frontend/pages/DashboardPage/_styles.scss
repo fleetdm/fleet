@@ -96,4 +96,11 @@
     justify-content: center;
     align-items: center;
   }
+
+  // this is needed to make changes to the activity feed dropodown filters layout
+  // based on the activity feed card width
+  .activity-feed-card {
+    container-type: inline-size;
+    container-name: activity-feed-card;
+  }
 }

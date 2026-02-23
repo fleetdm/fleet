@@ -1,4 +1,4 @@
-import { capitalize, find, lowerCase, noop, trimEnd } from "lodash";
+import { capitalize, find, lowerCase, noop, trimEnd, upperFirst } from "lodash";
 import React from "react";
 
 import { ActivityType, IActivity } from "interfaces/activity";
@@ -68,10 +68,10 @@ const getProfileMessageSuffix = (
   if (isPremiumTier) {
     messageSuffix = teamName ? (
       <>
-        {platformDisplayName} hosts assigned to the <b>{teamName}</b> team
+        {platformDisplayName} hosts assigned to the <b>{teamName}</b> fleet
       </>
     ) : (
-      <>{platformDisplayName} hosts with no team</>
+      <>unassigned {platformDisplayName} hosts</>
     );
   }
   return messageSuffix;
@@ -81,10 +81,10 @@ const getDiskEncryptionMessageSuffix = (teamName?: string | null) => {
   return teamName ? (
     <>
       {" "}
-      assigned to the <b>{teamName}</b> team
+      assigned to the <b>{teamName}</b> fleet
     </>
   ) : (
-    <>with no team</>
+    <> that are unassigned</>
   );
 };
 
@@ -96,10 +96,10 @@ const getMacOSSetupAssistantMessage = (
   const suffix = teamName ? (
     <>
       {" "}
-      that automatically enroll to the <b>{teamName}</b> team
+      that automatically enroll to the <b>{teamName}</b> fleet
     </>
   ) : (
-    <>that automatically enroll to no team</>
+    <>that automatically enroll to unassigned</>
   );
 
   return (
@@ -122,10 +122,10 @@ const TAGGED_TEMPLATES = {
 
     const queryNameCopy = queryName ? (
       <>
-        the <b>{queryName}</b> query
+        the <b>{queryName}</b> report
       </>
     ) : (
-      <>a live query</>
+      <>a live report</>
     );
 
     const impactCopy =
@@ -156,8 +156,8 @@ const TAGGED_TEMPLATES = {
   editQueryCtlActivityTemplate: (activity: IActivity) => {
     const count = activity.details?.specs?.length;
     return typeof count === "undefined" || count === 1
-      ? "edited a query using fleetctl."
-      : "edited queries using fleetctl.";
+      ? "edited a report using fleetctl."
+      : "edited reports using fleetctl.";
   },
   editSoftwareCtlActivityTemplate: () => {
     return "edited software using fleetctl.";
@@ -166,10 +166,11 @@ const TAGGED_TEMPLATES = {
     const count = activity.details?.teams?.length;
     return count === 1 && activity.details?.teams ? (
       <>
-        edited the <b>{activity.details?.teams[0].name}</b> team using fleetctl.
+        edited the <b>{activity.details?.teams[0].name}</b> fleet using
+        fleetctl.
       </>
     ) : (
-      "edited multiple teams using fleetctl."
+      `edited multiple fleets using fleetctl.`
     );
   },
   editAgentOptions: (activity: IActivity) => {
@@ -177,7 +178,7 @@ const TAGGED_TEMPLATES = {
       "edited agent options."
     ) : (
       <>
-        edited agent options on <b>{activity.details?.team_name}</b> team.
+        edited agent options on <b>{activity.details?.team_name}</b> fleet.
       </>
     );
   },
@@ -265,15 +266,15 @@ const TAGGED_TEMPLATES = {
       // should only be possible for premium tier, but check anyway
       return (
         <>
-          was assigned the <b>{role}</b> role{isPremiumTier && " for all teams"}
-          .
+          was assigned the <b>{role}</b> role
+          {isPremiumTier && " for all fleets"}.
         </>
       );
     }
     return (
       <>
         changed <b>{user_email}</b> to <b>{activity.details?.role}</b>
-        {isPremiumTier && " for all teams"}.
+        {isPremiumTier && " for all fleets"}.
       </>
     );
   },
@@ -282,7 +283,7 @@ const TAGGED_TEMPLATES = {
       <>
         removed <b>{activity.details?.user_email}</b> as{" "}
         <b>{activity.details?.role}</b>
-        {isPremiumTier && " for all teams"}.
+        {isPremiumTier && " for all fleets"}.
       </>
     );
   },
@@ -302,7 +303,7 @@ const TAGGED_TEMPLATES = {
       );
     return (
       <>
-        {varText} for the <b>{team_name}</b> team.
+        {varText} for the <b>{team_name}</b> fleet.
       </>
     );
   },
@@ -310,7 +311,7 @@ const TAGGED_TEMPLATES = {
     return (
       <>
         removed <b>{activity.details?.user_email}</b> from the{" "}
-        <b>{activity.details?.team_name}</b> team.
+        <b>{activity.details?.team_name}</b> fleet.
       </>
     );
   },
@@ -421,16 +422,56 @@ const TAGGED_TEMPLATES = {
 
     const teamSection = activity.details?.team_id ? (
       <>
-        the <b>{activity.details.team_name}</b> team
+        the <b>{activity.details.team_name}</b> fleet
       </>
     ) : (
-      <>no team</>
+      <>unassigned</>
     );
 
     return (
       <>
         {editedActivity} the minimum {applePlatform} version {versionSection}{" "}
         {deadlineSection} on hosts assigned to {teamSection}.
+      </>
+    );
+  },
+
+  enabledAppleosUpdateNewHosts: (
+    applePlatform: AppleDisplayPlatform,
+    activity: IActivity
+  ) => {
+    const teamSection = activity.details?.team_id ? (
+      <>
+        the <b>{activity.details.team_name}</b> fleet
+      </>
+    ) : (
+      <>unassigned</>
+    );
+
+    return (
+      <>
+        enabled OS updates for all new {applePlatform} hosts on {teamSection}.{" "}
+        {applePlatform} hosts will upgrade to the latest version when they
+        enroll.
+      </>
+    );
+  },
+
+  disabledAppleosUpdateNewHosts: (
+    applePlatform: AppleDisplayPlatform,
+    activity: IActivity
+  ) => {
+    const teamSection = activity.details?.team_id ? (
+      <>
+        the <b>{activity.details.team_name}</b> fleet
+      </>
+    ) : (
+      <>unassigned</>
+    );
+
+    return (
+      <>
+        disabled updates for all new {applePlatform} hosts on {teamSection}.
       </>
     );
   },
@@ -564,6 +605,20 @@ const TAGGED_TEMPLATES = {
       </>
     );
   },
+  editedAndroidCertificate: (activity: IActivity, isPremiumTier: boolean) => {
+    return (
+      <>
+        {" "}
+        edited certificate templates for{" "}
+        {getProfileMessageSuffix(
+          isPremiumTier,
+          "android",
+          activity.details?.team_name
+        )}{" "}
+        via fleetctl.
+      </>
+    );
+  },
   addedCertificateAuthority: (name = "") => {
     return name ? (
       <>
@@ -681,7 +736,9 @@ const TAGGED_TEMPLATES = {
       key.includes("_name")
     );
 
-    const activityType = lowerCase(activity.type).replace(" saved", "");
+    const activityType = lowerCase(activity.type)
+      .replace(" saved", "")
+      .replace("team", "fleet");
 
     return !entityName || typeof entityName !== "string" ? (
       `${activityType}.`
@@ -707,10 +764,10 @@ const TAGGED_TEMPLATES = {
         for macOS hosts that automatically enroll to{" "}
         {activity.details?.team_name ? (
           <>
-            the <b>{activity.details.team_name}</b> team
+            the <b>{activity.details.team_name}</b> fleet
           </>
         ) : (
-          "no team"
+          `unassigned`
         )}
         .
       </>
@@ -732,10 +789,10 @@ const TAGGED_TEMPLATES = {
         for macOS hosts that automatically enroll to{" "}
         {activity.details?.team_name ? (
           <>
-            the <b>{activity.details.team_name}</b> team
+            the <b>{activity.details.team_name}</b> fleet
           </>
         ) : (
-          "no team"
+          `unassigned`
         )}
         .
       </>
@@ -745,14 +802,14 @@ const TAGGED_TEMPLATES = {
     return (
       <>
         {" "}
-        required end user authentication for macOS hosts that automatically
-        enroll to{" "}
+        required end user authentication for macOS, iOS, iPadOS, and Android
+        hosts that automatically enroll to{" "}
         {activity.details?.team_name ? (
           <>
-            the <b>{activity.details.team_name}</b> team
+            the <b>{activity.details.team_name}</b> fleet
           </>
         ) : (
-          "no team"
+          `unassigned`
         )}
         .
       </>
@@ -762,14 +819,14 @@ const TAGGED_TEMPLATES = {
     return (
       <>
         {" "}
-        removed end user authentication requirement for macOS hosts that
-        automatically enroll to{" "}
+        removed end user authentication requirement for macOS, iOS, iPadOS, and
+        Android hosts that automatically enroll to{" "}
         {activity.details?.team_name ? (
           <>
-            the <b>{activity.details.team_name}</b> team
+            the <b>{activity.details.team_name}</b> fleet
           </>
         ) : (
-          "no team"
+          `unassigned`
         )}
         .
       </>
@@ -782,16 +839,16 @@ const TAGGED_TEMPLATES = {
       return (
         <>
           {" "}
-          transferred host <b>{hostNames[0]}</b> to {teamName ? "team " : ""}
-          <b>{teamName || "no team"}</b>.
+          transferred host <b>{hostNames[0]}</b> to {teamName ? `fleet ` : ""}
+          <b>{teamName || `unassigned`}</b>.
         </>
       );
     }
     return (
       <>
         {" "}
-        transferred {hostNames.length} hosts to {teamName ? "team " : ""}
-        <b>{teamName || "no team"}</b>.
+        transferred {hostNames.length} hosts to {teamName ? `fleet ` : ""}
+        <b>{teamName || `unassigned`}</b>.
       </>
     );
   },
@@ -894,10 +951,10 @@ const TAGGED_TEMPLATES = {
         to{" "}
         {activity.details?.team_name ? (
           <>
-            the <b>{activity.details.team_name}</b> team
+            the <b>{activity.details.team_name}</b> fleet
           </>
         ) : (
-          "no team"
+          `unassigned`
         )}
         .
       </>
@@ -919,10 +976,10 @@ const TAGGED_TEMPLATES = {
         for{" "}
         {activity.details?.team_name ? (
           <>
-            the <b>{activity.details.team_name}</b> team
+            the <b>{activity.details.team_name}</b> fleet
           </>
         ) : (
-          "no team"
+          `unassigned`
         )}
         .
       </>
@@ -944,10 +1001,10 @@ const TAGGED_TEMPLATES = {
         from{" "}
         {activity.details?.team_name ? (
           <>
-            the <b>{activity.details.team_name}</b> team
+            the <b>{activity.details.team_name}</b> fleet
           </>
         ) : (
-          "no team"
+          `unassigned`
         )}
         .
       </>
@@ -960,10 +1017,10 @@ const TAGGED_TEMPLATES = {
         edited scripts for{" "}
         {activity.details?.team_name ? (
           <>
-            the <b>{activity.details.team_name}</b> team
+            the <b>{activity.details.team_name}</b> fleet
           </>
         ) : (
-          "no team"
+          `unassigned`
         )}{" "}
         via fleetctl.
       </>
@@ -981,10 +1038,10 @@ const TAGGED_TEMPLATES = {
         ) on hosts assigned to{" "}
         {activity.details?.team_name ? (
           <>
-            the <b>{activity.details.team_name}</b> team
+            the <b>{activity.details.team_name}</b> fleet
           </>
         ) : (
-          "no team"
+          `unassigned`
         )}
         .
       </>
@@ -998,7 +1055,7 @@ const TAGGED_TEMPLATES = {
       teamText = (
         <>
           {" "}
-          on the <b>{activity.details.team_name}</b> team
+          on the <b>{activity.details.team_name}</b> fleet
         </>
       );
     } else {
@@ -1007,7 +1064,7 @@ const TAGGED_TEMPLATES = {
     return (
       <>
         {" "}
-        deleted multiple queries
+        deleted multiple reports
         {teamText}.
       </>
     );
@@ -1121,10 +1178,10 @@ const TAGGED_TEMPLATES = {
         added <b>{activity.details?.software_package}</b> to{" "}
         {activity.details?.team_name ? (
           <>
-            the <b>{activity.details?.team_name}</b> team.
+            the <b>{activity.details?.team_name}</b> fleet.
           </>
         ) : (
-          "no team."
+          `unassigned.`
         )}
       </>
     );
@@ -1136,10 +1193,10 @@ const TAGGED_TEMPLATES = {
         edited <b>{activity.details?.software_package}</b> on{" "}
         {activity.details?.team_name ? (
           <>
-            the <b>{activity.details?.team_name}</b> team.
+            the <b>{activity.details?.team_name}</b> fleet.
           </>
         ) : (
-          "no team."
+          `unassigned.`
         )}
       </>
     );
@@ -1151,10 +1208,10 @@ const TAGGED_TEMPLATES = {
         deleted <b>{activity.details?.software_package}</b> from{" "}
         {activity.details?.team_name ? (
           <>
-            the <b>{activity.details?.team_name}</b> team.
+            the <b>{activity.details?.team_name}</b> fleet.
           </>
         ) : (
-          "no team."
+          `unassigned.`
         )}
       </>
     );
@@ -1254,10 +1311,10 @@ const TAGGED_TEMPLATES = {
         {activity.details?.team_name ? (
           <>
             {" "}
-            the <b>{activity.details?.team_name}</b> team.
+            the <b>{activity.details?.team_name}</b> fleet.
           </>
         ) : (
-          "no team."
+          `unassigned.`
         )}
       </>
     );
@@ -1273,10 +1330,10 @@ const TAGGED_TEMPLATES = {
         {activity.details?.team_name ? (
           <>
             {" "}
-            the <b>{activity.details?.team_name}</b> team.
+            the <b>{activity.details?.team_name}</b> fleet.
           </>
         ) : (
-          "no team."
+          `unassigned.`
         )}
       </>
     );
@@ -1292,10 +1349,10 @@ const TAGGED_TEMPLATES = {
         {activity.details?.team_name ? (
           <>
             {" "}
-            the <b>{activity.details?.team_name}</b> team.
+            the <b>{activity.details?.team_name}</b> fleet.
           </>
         ) : (
-          "no team."
+          `unassigned.`
         )}
       </>
     );
@@ -1325,6 +1382,19 @@ const TAGGED_TEMPLATES = {
   deletedConditionalAccessOkta: () => (
     <> deleted Okta conditional access configuration.</>
   ),
+  hostBypassedConditionalAccess: (activity: IActivity) => {
+    const idpFullName = activity.details?.idp_full_name;
+    const hostDisplayName = activity.details?.host_display_name;
+    return (
+      <>
+        <strong>{idpFullName}</strong> temporarily bypassed conditional access
+        for <strong>{hostDisplayName}</strong>.
+      </>
+    );
+  },
+  updatedConditionalAccessBypass: () => (
+    <> edited conditional access end user experience.</>
+  ),
   enabledConditionalAccessAutomations: (activity: IActivity) => {
     const teamName = activity.details?.team_name;
     return (
@@ -1334,10 +1404,10 @@ const TAGGED_TEMPLATES = {
         {teamName ? (
           <>
             {" "}
-            the <b>{teamName}</b> team
+            the <b>{teamName}</b> fleet
           </>
         ) : (
-          "no team"
+          `unassigned`
         )}
         .
       </>
@@ -1352,10 +1422,10 @@ const TAGGED_TEMPLATES = {
         {teamName ? (
           <>
             {" "}
-            the <b>{teamName}</b> team
+            the <b>{teamName}</b> fleet
           </>
         ) : (
-          "no team"
+          `unassigned`
         )}
         .
       </>
@@ -1400,7 +1470,7 @@ const TAGGED_TEMPLATES = {
       teamText = (
         <>
           {" "}
-          on the <b>{activity.details.team_name}</b> team
+          on the <b>{activity.details.team_name}</b> fleet
         </>
       );
     } else {
@@ -1422,7 +1492,7 @@ const TAGGED_TEMPLATES = {
       teamText = (
         <>
           {" "}
-          on the <b>{activity.details.team_name}</b> team
+          on the <b>{activity.details.team_name}</b> fleet
         </>
       );
     } else {
@@ -1444,7 +1514,7 @@ const TAGGED_TEMPLATES = {
       teamText = (
         <>
           {" "}
-          on the <b>{activity.details.team_name}</b> team
+          on the <b>{activity.details.team_name}</b> fleet
         </>
       );
     } else {
@@ -1466,14 +1536,14 @@ const TAGGED_TEMPLATES = {
       teamText = (
         <>
           {" "}
-          for <b>No Team</b>
+          for <b>Unassigned</b>
         </>
       );
     } else if (activity.details?.team_name) {
       teamText = (
         <>
           {" "}
-          on the <b>{activity.details.team_name}</b> team
+          on the <b>{activity.details.team_name}</b> fleet
         </>
       );
     } else {
@@ -1496,14 +1566,14 @@ const TAGGED_TEMPLATES = {
       teamText = (
         <>
           {" "}
-          for <b>No Team</b>
+          for <b>Unassigned</b>
         </>
       );
     } else if (activity.details?.team_name) {
       teamText = (
         <>
           {" "}
-          on the <b>{activity.details.team_name}</b> team
+          on the <b>{activity.details.team_name}</b> fleet
         </>
       );
     } else {
@@ -1526,14 +1596,14 @@ const TAGGED_TEMPLATES = {
       teamText = (
         <>
           {" "}
-          for <b>No Team</b>
+          for <b>Unassigned</b>
         </>
       );
     } else if (activity.details?.team_name) {
       teamText = (
         <>
           {" "}
-          on the <b>{activity.details.team_name}</b> team
+          on the <b>{activity.details.team_name}</b> fleet
         </>
       );
     } else {
@@ -1589,7 +1659,7 @@ const TAGGED_TEMPLATES = {
         platformText = "iPadOS";
         break;
       default:
-        platformText = capitalize(platform);
+        platformText = capitalize(platform); // e.g. Windows, Android
     }
 
     return (
@@ -1597,10 +1667,10 @@ const TAGGED_TEMPLATES = {
         {" "}
         edited setup experience software for {platformText} hosts that enroll to{" "}
         {team_id === API_NO_TEAM_ID ? (
-          "no team"
+          `unassigned`
         ) : (
           <>
-            the <b>{team_name}</b> team
+            the <b>{team_name}</b> fleet
           </>
         )}
         .
@@ -1616,6 +1686,63 @@ const TAGGED_TEMPLATES = {
         <b>{host_display_name}</b>
         {removed ? "" : <> to {host_idp_username}</>}.
       </>
+    );
+  },
+  createdCert: (activity: IActivity) => {
+    const { name, team_name } = activity.details || {};
+    const teamText = team_name ? (
+      <>
+        assigned to the <b>{team_name}</b>
+      </>
+    ) : (
+      <>with no</>
+    );
+
+    return (
+      <>
+        added certificate {name ? <b>{name} </b> : ""}to Android hosts{" "}
+        {teamText} fleet.
+      </>
+    );
+  },
+  deletedCert: (activity: IActivity) => {
+    const { name, team_name } = activity.details || {};
+    const teamText = team_name ? (
+      <>
+        assigned to the <b>{team_name}</b>
+      </>
+    ) : (
+      <>with no</>
+    );
+
+    return (
+      <>
+        deleted certificate {name ? <b>{name} </b> : ""}from Android hosts{" "}
+        {teamText} fleet.
+      </>
+    );
+  },
+  editedEnrollSecrets: (activity: IActivity, isPremiumTier: boolean) => {
+    let { team_name } = activity.details || {};
+    if (isPremiumTier && !team_name) {
+      team_name = "No Team";
+    }
+    const postFix = team_name ? (
+      <>
+        {" "}
+        for <b>{team_name}</b>
+      </>
+    ) : (
+      <></>
+    );
+    return <>edited enroll secret{postFix}.</>;
+  },
+  addedMicrosoftEntraTenant: (activity: IActivity) => {
+    return <> added Microsoft Entra tenant ({activity.details?.tenant_id}).</>;
+  },
+  deletedMicrosoftEntraTenant: (activity: IActivity) => {
+    return (
+      <> deleted Microsoft Entra tenant ({activity.details?.tenant_id}).</>
     );
   },
 };
@@ -1691,6 +1818,12 @@ const getDetail = (activity: IActivity, isPremiumTier: boolean) => {
     case ActivityType.EditedIpadosMinVersion: {
       return TAGGED_TEMPLATES.editedAppleosMinVersion("iPadOS", activity);
     }
+    case ActivityType.EnabledMacosUpdateNewHosts: {
+      return TAGGED_TEMPLATES.enabledAppleosUpdateNewHosts("macOS", activity);
+    }
+    case ActivityType.DisabledMacosUpdateNewHosts: {
+      return TAGGED_TEMPLATES.disabledAppleosUpdateNewHosts("macOS", activity);
+    }
     case ActivityType.ReadHostDiskEncryptionKey: {
       return TAGGED_TEMPLATES.readHostDiskEncryptionKey(activity);
     }
@@ -1711,6 +1844,9 @@ const getDetail = (activity: IActivity, isPremiumTier: boolean) => {
     }
     case ActivityType.EditedAndroidProfile: {
       return TAGGED_TEMPLATES.editedAndroidProfile(activity, isPremiumTier);
+    }
+    case ActivityType.EditedAndroidCertificate: {
+      return TAGGED_TEMPLATES.editedAndroidCertificate(activity, isPremiumTier);
     }
     case ActivityType.AddedNdesScepProxy: {
       return TAGGED_TEMPLATES.addedCertificateAuthority("NDES");
@@ -1926,8 +2062,14 @@ const getDetail = (activity: IActivity, isPremiumTier: boolean) => {
     case ActivityType.DeletedConditionalAccessOkta: {
       return TAGGED_TEMPLATES.deletedConditionalAccessOkta();
     }
+    case ActivityType.UpdatedConditionalAccessBypass: {
+      return TAGGED_TEMPLATES.updatedConditionalAccessBypass();
+    }
     case ActivityType.EnabledConditionalAccessAutomations: {
       return TAGGED_TEMPLATES.enabledConditionalAccessAutomations(activity);
+    }
+    case ActivityType.HostBypassedConditionalAccess: {
+      return TAGGED_TEMPLATES.hostBypassedConditionalAccess(activity);
     }
     case ActivityType.DisabledConditionalAccessAutomations: {
       return TAGGED_TEMPLATES.disabledConditionalAccessAutomations(activity);
@@ -1975,6 +2117,21 @@ const getDetail = (activity: IActivity, isPremiumTier: boolean) => {
     case ActivityType.EditedHostIdpData: {
       return TAGGED_TEMPLATES.editedHostIdpData(activity);
     }
+    case ActivityType.AddedCertificate: {
+      return TAGGED_TEMPLATES.createdCert(activity);
+    }
+    case ActivityType.DeletedCertificate: {
+      return TAGGED_TEMPLATES.deletedCert(activity);
+    }
+    case ActivityType.EditedEnrollSecrets: {
+      return TAGGED_TEMPLATES.editedEnrollSecrets(activity, isPremiumTier);
+    }
+    case ActivityType.AddedMicrosoftEntraTenant: {
+      return TAGGED_TEMPLATES.addedMicrosoftEntraTenant(activity);
+    }
+    case ActivityType.DeletedMicrosoftEntraTenant: {
+      return TAGGED_TEMPLATES.deletedMicrosoftEntraTenant(activity);
+    }
     default: {
       return TAGGED_TEMPLATES.defaultActivityTemplate(activity);
     }
@@ -1986,7 +2143,7 @@ interface IActivityItemProps {
   isPremiumTier: boolean;
 
   /** A handler for handling clicking on the details of an activity. Not all
-   * activites have more details so this is optional. An example of additonal
+   * activites have more details so this is optional. An example of additional
    * details is showing the query for a live query action.
    */
   onDetailsClick?: ShowActivityDetailsHandler;

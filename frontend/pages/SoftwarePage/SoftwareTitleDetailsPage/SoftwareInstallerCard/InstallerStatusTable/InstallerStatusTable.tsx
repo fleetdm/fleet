@@ -2,6 +2,7 @@ import React from "react";
 import classnames from "classnames";
 
 import TableContainer from "components/TableContainer";
+import TooltipWrapper from "components/TooltipWrapper";
 import {
   ISoftwarePackageStatus,
   ISoftwareAppStoreAppStatus,
@@ -17,6 +18,7 @@ interface IInstallerStatusTableProps {
   status: ISoftwarePackageStatus | ISoftwareAppStoreAppStatus;
   isLoading?: boolean;
   isScriptPackage?: boolean;
+  isAndroidPlayStoreApp?: boolean;
 }
 
 const InstallerStatusTable = ({
@@ -26,6 +28,7 @@ const InstallerStatusTable = ({
   status,
   isLoading = false,
   isScriptPackage = false,
+  isAndroidPlayStoreApp = false,
 }: IInstallerStatusTableProps) => {
   const classNames = classnames(baseClass, className);
 
@@ -34,7 +37,59 @@ const InstallerStatusTable = ({
     softwareId,
     teamId,
     isScriptPackage,
+    isAndroidPlayStoreApp,
   });
+
+  const renderTableHelpText = () => {
+    if (isScriptPackage) {
+      return null;
+    }
+    if (isAndroidPlayStoreApp) {
+      return (
+        <div>
+          Installs triggered by the{" "}
+          <TooltipWrapper
+            tipContent={
+              <>
+                Software selected on the{" "}
+                <b>Controls &gt; Setup experience &gt; Install software</b>.
+              </>
+            }
+          >
+            setup experience
+          </TooltipWrapper>{" "}
+          .
+        </div>
+      );
+    }
+    return (
+      <div>
+        Installs for the current version, triggered by policy automations,{" "}
+        <TooltipWrapper
+          tipContent={
+            <>
+              Software selected on the{" "}
+              <b>Controls &gt; Setup experience &gt; Install software</b>.
+            </>
+          }
+        >
+          setup experience
+        </TooltipWrapper>{" "}
+        or{" "}
+        <TooltipWrapper
+          tipContent={
+            <>
+              On the <b>Host details</b> or{" "}
+              <b>Fleet Desktop &gt; My device page.</b>
+            </>
+          }
+        >
+          manually
+        </TooltipWrapper>
+        .
+      </div>
+    );
+  };
 
   return (
     <TableContainer
@@ -48,8 +103,8 @@ const InstallerStatusTable = ({
       showMarkAllPages={false}
       isAllPagesSelected={false}
       disableHighlightOnHover
-      hideFooter
       disableTableHeader
+      renderTableHelpText={renderTableHelpText}
     />
   );
 };

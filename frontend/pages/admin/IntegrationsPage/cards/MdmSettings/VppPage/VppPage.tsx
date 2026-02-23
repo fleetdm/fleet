@@ -16,7 +16,7 @@ import Button from "components/buttons/Button";
 import DataError from "components/DataError";
 import Spinner from "components/Spinner";
 import PremiumFeatureMessage from "components/PremiumFeatureMessage";
-import TurnOnMdmMessage from "components/TurnOnMdmMessage";
+import GenericMsgWithNavButton from "components/GenericMsgWithNavButton";
 import PageDescription from "components/PageDescription";
 import EmptyTable from "components/EmptyTable";
 
@@ -139,9 +139,11 @@ const VppPage = ({ router }: IVppPageProps) => {
 
     if (!config?.mdm.enabled_and_configured) {
       return (
-        <TurnOnMdmMessage
+        <GenericMsgWithNavButton
+          path={PATHS.ADMIN_INTEGRATIONS_MDM}
           router={router}
           header="Turn on Apple MDM"
+          buttonText="Turn on"
           info=" To install Apple App Store apps purchased through Apple Business
         Manager, first turn on Apple MDM."
         />

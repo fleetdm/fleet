@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { Link } from "react-router";
+import { InjectedRouter, Link } from "react-router";
 import { isEmpty, noop, omit } from "lodash";
 
 import { IAutomationsConfig, IWebhookSettings } from "interfaces/config";
@@ -9,7 +9,6 @@ import {
   IZendeskJiraIntegrations,
   ITeamIntegrations,
 } from "interfaces/integration";
-import { IPolicy } from "interfaces/policy";
 import { ITeamAutomationsConfig } from "interfaces/team";
 import PATHS from "router/paths";
 
@@ -19,6 +18,7 @@ import Slider from "components/forms/fields/Slider";
 import Dropdown from "components/forms/fields/Dropdown";
 // @ts-ignore
 import InputField from "components/forms/fields/InputField";
+import Button from "components/buttons/Button";
 import Radio from "components/forms/fields/Radio";
 import validUrl from "components/forms/validators/valid_url";
 import RevealButton from "components/buttons/RevealButton";
@@ -31,9 +31,9 @@ import PoliciesPaginatedList, {
 } from "../PoliciesPaginatedList/PoliciesPaginatedList";
 
 interface IOtherWorkflowsModalProps {
+  router: InjectedRouter;
   automationsConfig: IAutomationsConfig | ITeamAutomationsConfig;
   availableIntegrations: IGlobalIntegrations | ITeamIntegrations;
-  availablePolicies: IPolicy[];
   isUpdating: boolean;
   onExit: () => void;
   onSubmit: (formData: {
@@ -65,9 +65,9 @@ const getIntegrationType = (integration?: IIntegration) => {
 const baseClass = "other-workflows-modal";
 
 const OtherWorkflowsModal = ({
+  router,
   automationsConfig,
   availableIntegrations,
-  availablePolicies,
   isUpdating,
   onExit,
   onSubmit,
@@ -84,6 +84,7 @@ const OtherWorkflowsModal = ({
   const allIntegrations: IIntegration[] = [];
   jira && allIntegrations.push(...jira);
   zendesk && allIntegrations.push(...zendesk);
+  const hasAvailableIntegrations = allIntegrations.length > 0;
 
   const dropdownOptions = allIntegrations.map(
     ({ group_id, project_key, url }) => ({
@@ -136,6 +137,10 @@ const OtherWorkflowsModal = ({
     }
   };
 
+  const onAddIntegration = () => {
+    router.push(PATHS.ADMIN_INTEGRATIONS);
+  };
+
   const onSelectIntegration = (selected: string | number) => {
     setSelectedIntegration(
       allIntegrations.find(
@@ -161,7 +166,7 @@ const OtherWorkflowsModal = ({
         if (!destinationUrl) {
           newErrors.url = "Please add a destination URL";
         } else if (!validUrl({ url: destinationUrl })) {
-          newErrors.url = `${destinationUrl} is not a valid URL`;
+          newErrors.url = "Destination URL is not a valid URL";
         } else {
           delete newErrors.url;
         }
@@ -257,7 +262,7 @@ const OtherWorkflowsModal = ({
   };
 
   const renderIntegrations = () => {
-    return jira?.length || zendesk?.length ? (
+    return hasAvailableIntegrations ? (
       <>
         <div className={`${baseClass}__integrations`}>
           <Dropdown
@@ -292,14 +297,30 @@ const OtherWorkflowsModal = ({
     ) : (
       <div className={`form-field ${baseClass}__no-integrations`}>
         <div className="form-field__label">You have no integrations.</div>
-        <Link
-          to={PATHS.ADMIN_INTEGRATIONS}
-          className={`${baseClass}__add-integration-link`}
-        >
-          Add integration
-        </Link>
+        <div>
+          <Button
+            onClick={onAddIntegration}
+            disabled={gitOpsModeEnabled || !isPolicyAutomationsEnabled} // Not keyboard accessible if modal is disabled
+          >
+            Add integration
+          </Button>
+        </div>
       </div>
     );
+  };
+
+  // Disable saving if ticket workflow is selected but no integration is chosen
+  const disableSave = (changedItems: IFormPolicy[]) => {
+    if (
+      isPolicyAutomationsEnabled &&
+      !isWebhookEnabled &&
+      !hasAvailableIntegrations
+    ) {
+      // Similar error message to no integration selected for vuln automations in ManageSoftwareAutomationModal
+      return "Add an integration to create tickets for policy automations.";
+    }
+
+    return false; // saving is allowed
   };
 
   return (
@@ -353,45 +374,39 @@ const OtherWorkflowsModal = ({
           {isWebhookEnabled ? renderWebhook() : renderIntegrations()}
         </div>
         <div className="form-field">
-          {availablePolicies?.length ? (
-            <PoliciesPaginatedList
-              isSelected={(item: IFormPolicy) => {
-                return newPolicyIds?.indexOf(item.id) > -1;
-              }}
-              onToggleItem={(item: IFormPolicy) => {
-                const updatedPolicyIds = newPolicyIds.slice();
-                const index = newPolicyIds?.indexOf(item.id);
-                if (index > -1) {
-                  updatedPolicyIds.splice(index, 1);
-                } else {
-                  updatedPolicyIds.push(item.id);
-                }
-                setNewPolicyIds(updatedPolicyIds);
-                return item;
-              }}
-              helpText={
-                <>
-                  The workflow will be triggered when hosts fail these policies.{" "}
-                  <CustomLink
-                    url="https://www.fleetdm.com/learn-more-about/policy-automations"
-                    text="Learn more"
-                    newTab
-                    disableKeyboardNavigation={!isPolicyAutomationsEnabled}
-                  />
-                </>
+          <PoliciesPaginatedList
+            isSelected={(item: IFormPolicy) => {
+              return newPolicyIds?.indexOf(item.id) > -1;
+            }}
+            onToggleItem={(item: IFormPolicy) => {
+              const updatedPolicyIds = newPolicyIds.slice();
+              const index = newPolicyIds?.indexOf(item.id);
+              if (index > -1) {
+                updatedPolicyIds.splice(index, 1);
+              } else {
+                updatedPolicyIds.push(item.id);
               }
-              isUpdating={isUpdating}
-              onSubmit={onUpdateOtherWorkflows}
-              onCancel={onExit}
-              teamId={teamId}
-              disableList={!isPolicyAutomationsEnabled}
-            />
-          ) : (
-            <>
-              <b>You have no policies.</b>
-              <p>Add a policy to turn on automations.</p>
-            </>
-          )}
+              setNewPolicyIds(updatedPolicyIds);
+              return item;
+            }}
+            helpText={
+              <>
+                The workflow will be triggered when hosts fail these policies.{" "}
+                <CustomLink
+                  url="https://www.fleetdm.com/learn-more-about/policy-automations"
+                  text="Learn more"
+                  newTab
+                  disableKeyboardNavigation={!isPolicyAutomationsEnabled}
+                />
+              </>
+            }
+            isUpdating={isUpdating}
+            onSubmit={onUpdateOtherWorkflows}
+            onCancel={onExit}
+            teamId={teamId}
+            disableList={!isPolicyAutomationsEnabled}
+            disableSave={disableSave}
+          />
         </div>
       </div>
     </Modal>

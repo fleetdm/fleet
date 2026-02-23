@@ -1,4 +1,15 @@
 .search-field {
+
+  // this selector is used to override the default styles of the tooltip component
+  // and ensure the search field takes up the full width of the space its given
+  &__tooltip-container.component__tooltip-wrapper {
+    display: block;
+  }
+
+  &__tooltip-text {
+    text-align: center;
+  }
+
   &__input-wrapper.form-field {
     margin-bottom: 0;
   }

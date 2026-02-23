@@ -150,7 +150,7 @@ func TestMDMAppleAuthorization(t *testing.T) {
 
 	ds.DeleteMDMConfigAssetsByNameFunc = func(ctx context.Context, assetNames []fleet.MDMAssetName) error { return nil }
 
-	ds.MarkAllPendingVPPAndInHouseInstallsAsFailedFunc = func(ctx context.Context, jobName string) error { return nil }
+	ds.MarkAllPendingAppleVPPAndInHouseInstallsAsFailedFunc = func(ctx context.Context, jobName string) error { return nil }
 
 	// use a custom implementation of checkAuthErr as the service call will fail
 	// with a not found error (given that MDM is not really configured) in case
@@ -675,9 +675,6 @@ func TestMDMCommonAuthorization(t *testing.T) {
 	}
 	ds.GetConfigEnableDiskEncryptionFunc = func(ctx context.Context, teamID *uint) (fleet.DiskEncryptionConfig, error) {
 		return fleet.DiskEncryptionConfig{}, nil
-	}
-	ds.GetMDMProfileSummaryFromHostCertificateTemplatesFunc = func(ctx context.Context, teamID *uint) (*fleet.MDMProfilesSummary, error) {
-		return &fleet.MDMProfilesSummary{}, nil
 	}
 
 	ds.AreHostsConnectedToFleetMDMFunc = func(ctx context.Context, hosts []*fleet.Host) (map[string]bool, error) {
@@ -1355,7 +1352,7 @@ func TestUploadWindowsMDMConfigProfileValidations(t *testing.T) {
 		{"mdm not enabled", 0, `<Replace></Replace>`, false, "Windows MDM isn't turned on."},
 		{"duplicate profile name", 0, `<Replace>duplicate</Replace>`, true, "configuration profile with this name already exists"},
 		{"multiple Replace", 0, `<Replace>a</Replace><Replace>b</Replace>`, true, ""},
-		{"Replace and non-Replace", 0, `<Replace>a</Replace><Get>b</Get>`, true, "Windows configuration profiles can only have <Replace>, <Add> or <Exec> top level elements."},
+		{"Replace and non-Replace", 0, `<Replace>a</Replace><Get>b</Get>`, true, "Windows configuration profiles can only have <Replace> or <Add> top level elements."},
 		{
 			"BitLocker profile", 0,
 			`<Replace><Item><Target><LocURI>./Device/Vendor/MSFT/BitLocker/AllowStandardUserEncryption</LocURI></Target></Item></Replace>`, true,
@@ -1371,14 +1368,13 @@ func TestUploadWindowsMDMConfigProfileValidations(t *testing.T) {
 		{"team mdm not enabled", 1, `<Replace></Replace>`, false, "Windows MDM isn't turned on."},
 		{"team duplicate profile name", 1, `<Replace>duplicate</Replace>`, true, "configuration profile with this name already exists"},
 		{"team multiple Replace", 1, `<Replace>a</Replace><Replace>b</Replace>`, true, ""},
-		{"team Replace and non-Replace", 1, `<Replace>a</Replace><Get>b</Get>`, true, "Windows configuration profiles can only have <Replace>, <Add> or <Exec> top level elements."},
+		{"team Replace and non-Replace", 1, `<Replace>a</Replace><Get>b</Get>`, true, "Windows configuration profiles can only have <Replace> or <Add> top level elements."},
 		{
 			"team BitLocker profile", 1,
 			`<Replace><Item><Target><LocURI>./Device/Vendor/MSFT/BitLocker/AllowStandardUserEncryption</LocURI></Target></Item></Replace>`, true,
 			syncml.DiskEncryptionProfileRestrictionErrMsg,
 		},
 		{"team Windows updates profile", 1, `<Replace><Item><Target><LocURI> ./Device/Vendor/MSFT/Policy/Config/Update/ConfigureDeadlineNoAutoRebootForFeatureUpdates </LocURI></Target></Item></Replace>`, true, "Custom configuration profiles can't include Windows updates settings."},
-
 		{"invalid team", 2, `<Replace></Replace>`, true, "not found"},
 	}
 
@@ -1627,7 +1623,7 @@ func TestMDMBatchSetProfiles(t *testing.T) {
 				{Name: "N1", Contents: mobileconfigForTest("N1", "I1")},
 				{Name: "N2", Contents: mobileconfigForTest("N1", "I2")},
 			},
-			`The name provided for the profile must match the profile PayloadDisplayName: "N1"`,
+			`More than one configuration profile have the same name (PayloadDisplayName): "N1"`,
 		},
 		{
 			"duplicate macOS profile identifier",
@@ -2025,16 +2021,20 @@ func TestMDMResendConfigProfileAuthz(t *testing.T) {
 	svc, ctx := newTestService(t, ds, nil, nil, &TestServerOpts{License: license, SkipCreateTestUsers: true})
 
 	testCases := []struct {
-		name                  string
-		user                  *fleet.User
-		shouldFailGlobalRead  bool
-		shouldFailTeamRead    bool
-		shouldFailGlobalWrite bool
-		shouldFailTeamWrite   bool
+		name                               string
+		user                               *fleet.User
+		shouldFailGlobalRead               bool
+		shouldFailTeamRead                 bool
+		shouldFailGlobalWrite              bool // this write action includes batch resend to multiple hosts
+		shouldFailTeamWrite                bool // this write action includes batch resend to multiple hosts
+		shouldFailGlobalResendToSingleHost bool
+		shouldFailTeamResendToSingleHost   bool
 	}{
 		{
 			"global admin",
 			&fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)},
+			false,
+			false,
 			false,
 			false,
 			false,
@@ -2047,10 +2047,14 @@ func TestMDMResendConfigProfileAuthz(t *testing.T) {
 			false,
 			false,
 			false,
+			false,
+			false,
 		},
 		{
 			"global observer",
 			&fleet.User{GlobalRole: ptr.String(fleet.RoleObserver)},
+			true,
+			true,
 			true,
 			true,
 			true,
@@ -2063,21 +2067,27 @@ func TestMDMResendConfigProfileAuthz(t *testing.T) {
 			true,
 			true,
 			true,
+			true,
+			true,
 		},
 		{
-			// this is authorized because gitops can access hosts by identifier (the
-			// first authorization check) and then gitops have write-access the
-			// profiles.
 			"global gitops",
 			&fleet.User{GlobalRole: ptr.String(fleet.RoleGitOps)},
 			false,
 			false,
 			false,
 			false,
+			// GitOps doesn't really need permissions to resend to specific hosts,
+			// but we will keep this as-is to not break any workflows that might be using a
+			// GitOps token to do a resend.
+			false,
+			false,
 		},
 		{
 			"team admin, belongs to team",
 			&fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 1}, Role: fleet.RoleAdmin}}},
+			true,
+			false,
 			true,
 			false,
 			true,
@@ -2090,10 +2100,14 @@ func TestMDMResendConfigProfileAuthz(t *testing.T) {
 			true,
 			true,
 			true,
+			true,
+			true,
 		},
 		{
 			"team maintainer, belongs to team",
 			&fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 1}, Role: fleet.RoleMaintainer}}},
+			true,
+			false,
 			true,
 			false,
 			true,
@@ -2106,10 +2120,14 @@ func TestMDMResendConfigProfileAuthz(t *testing.T) {
 			true,
 			true,
 			true,
+			true,
+			true,
 		},
 		{
 			"team observer, belongs to team",
 			&fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 1}, Role: fleet.RoleObserver}}},
+			true,
+			true,
 			true,
 			true,
 			true,
@@ -2122,10 +2140,14 @@ func TestMDMResendConfigProfileAuthz(t *testing.T) {
 			true,
 			true,
 			true,
+			true,
+			true,
 		},
 		{
 			"team observer+, belongs to team",
 			&fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 1}, Role: fleet.RoleObserverPlus}}},
+			true,
+			true,
 			true,
 			true,
 			true,
@@ -2138,16 +2160,20 @@ func TestMDMResendConfigProfileAuthz(t *testing.T) {
 			true,
 			true,
 			true,
+			true,
+			true,
 		},
 		{
-			// this is authorized because gitops can access hosts by identifier (the
-			// first authorization check) and then gitops have write-access the
-			// profiles.
 			"team gitops, belongs to team",
 			&fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 1}, Role: fleet.RoleGitOps}}},
 			true,
 			false,
 			true,
+			false,
+			true,
+			// GitOps doesn't really need permissions to resend to specific hosts,
+			// but we will keep this as-is to not break any workflows that might be using a
+			// GitOps token to do a resend.
 			false,
 		},
 		{
@@ -2157,10 +2183,14 @@ func TestMDMResendConfigProfileAuthz(t *testing.T) {
 			true,
 			true,
 			true,
+			true,
+			true,
 		},
 		{
 			"user no roles",
 			&fleet.User{ID: 1337},
+			true,
+			true,
 			true,
 			true,
 			true,
@@ -2224,13 +2254,13 @@ func TestMDMResendConfigProfileAuthz(t *testing.T) {
 
 			// test authz resend config profile (no team)
 			err := svc.ResendHostMDMProfile(ctx, 1337, "a-no-team-profile")
-			checkShouldFail(t, err, tt.shouldFailGlobalWrite)
+			checkShouldFail(t, err, tt.shouldFailGlobalResendToSingleHost)
 			err = svc.BatchResendMDMProfileToHosts(ctx, "a-no-team-profile", fleet.BatchResendMDMProfileFilters{ProfileStatus: fleet.MDMDeliveryFailed})
 			checkShouldFail(t, err, tt.shouldFailGlobalWrite)
 
 			// test authz resend config profile (team 1)
 			err = svc.ResendHostMDMProfile(ctx, 1, "a-team-1-profile")
-			checkShouldFail(t, err, tt.shouldFailTeamWrite)
+			checkShouldFail(t, err, tt.shouldFailTeamResendToSingleHost)
 			err = svc.BatchResendMDMProfileToHosts(ctx, "a-team-1-profile", fleet.BatchResendMDMProfileFilters{ProfileStatus: fleet.MDMDeliveryFailed})
 			checkShouldFail(t, err, tt.shouldFailTeamWrite)
 		})
@@ -2351,12 +2381,25 @@ func TestBatchSetMDMProfilesLabels(t *testing.T) {
 		return fleet.MDMProfilesUpdates{}, nil
 	}
 	var labelID uint
-	ds.LabelIDsByNameFunc = func(ctx context.Context, labels []string) (map[string]uint, error) {
+	ds.LabelIDsByNameFunc = func(ctx context.Context, names []string, filter fleet.TeamFilter) (map[string]uint, error) {
 		m := map[string]uint{}
-		for _, label := range labels {
+		for _, label := range names {
 			if label != "baddy" {
 				labelID++
 				m[label] = labelID
+			}
+		}
+		return m, nil
+	}
+	ds.LabelsByNameFunc = func(ctx context.Context, names []string, filter fleet.TeamFilter) (map[string]*fleet.Label, error) {
+		m := map[string]*fleet.Label{}
+		for _, name := range names {
+			if name != "baddy" {
+				labelID++
+				m[name] = &fleet.Label{
+					ID:   labelID,
+					Name: name,
+				}
 			}
 		}
 		return m, nil
@@ -2466,7 +2509,7 @@ func TestBatchSetMDMProfilesLabels(t *testing.T) {
 		LabelsExcludeAny: []string{"baddy"},
 	}}, false, false, ptr.Bool(true), false)
 	require.Error(t, err)
-	require.ErrorContains(t, err, "some or all the labels provided don't exist")
+	require.ErrorContains(t, err, `Label "baddy" doesn't exist. Please remove the label from the configuration profile.`)
 
 	// ...unless we're in dry run mode
 	err = svc.BatchSetMDMProfiles(authCtx, ptr.Uint(1), nil, []fleet.MDMProfileBatchPayload{{
@@ -2659,6 +2702,9 @@ func TestNewMDMProfilePremiumOnlyAndroid(t *testing.T) {
 	}
 	ds.NewMDMAndroidConfigProfileFunc = func(ctx context.Context, cp fleet.MDMAndroidConfigProfile) (*fleet.MDMAndroidConfigProfile, error) {
 		return &fleet.MDMAndroidConfigProfile{}, nil
+	}
+	ds.BulkSetPendingMDMHostProfilesFunc = func(ctx context.Context, hostIDs, teamIDs []uint, profileUUIDs, hostUUIDs []string) (updates fleet.MDMProfilesUpdates, err error) {
+		return fleet.MDMProfilesUpdates{}, nil
 	}
 
 	testCases := []struct {

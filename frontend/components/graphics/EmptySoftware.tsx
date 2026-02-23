@@ -1,9 +1,13 @@
 import React from "react";
 
+import { uniqueId } from "lodash";
+
 const EmptySoftware = () => {
+  const clipPathId = uniqueId("clip-path-");
+
   return (
     <svg xmlns="http://www.w3.org/2000/svg" width="100" height="56" fill="none">
-      <g clipPath="url(#emptysoftware_clippath)">
+      <g clipPath={`url(#${clipPathId})`}>
         <path
           fill="#E3E3FE"
           d="m15.438 46.738 26.923 8.726.111-31.327-8.9 9.518-18.134-5.666v18.749Z"
@@ -126,7 +130,7 @@ const EmptySoftware = () => {
         />
       </g>
       <defs>
-        <clipPath id="emptysoftware_clippath">
+        <clipPath id={clipPathId}>
           <path fill="#fff" d="M0 0h100v56H0z" />
         </clipPath>
       </defs>

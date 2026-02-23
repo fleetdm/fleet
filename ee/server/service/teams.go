@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"maps"
 	"net/http"
 	"net/url"
 	"strings"
@@ -30,6 +31,7 @@ func obfuscateSecrets(user *fleet.User, teams []*fleet.Team) error {
 	}
 
 	isGlobalObs := user.IsGlobalObserver()
+	isGlobalTechnician := user.GlobalRole != nil && *user.GlobalRole == fleet.RoleTechnician
 
 	teamMemberships := user.TeamMembership(func(t fleet.UserTeam) bool {
 		return true
@@ -37,13 +39,20 @@ func obfuscateSecrets(user *fleet.User, teams []*fleet.Team) error {
 	obsMembership := user.TeamMembership(func(t fleet.UserTeam) bool {
 		return t.Role == fleet.RoleObserver || t.Role == fleet.RoleObserverPlus
 	})
+	isTeamTechnician := user.TeamMembership(func(t fleet.UserTeam) bool {
+		return t.Role == fleet.RoleTechnician
+	})
 
 	for _, t := range teams {
 		if t == nil {
 			continue
 		}
-		// User does not belong to the team or is a global/team observer/observer+
-		if isGlobalObs || user.GlobalRole == nil && (!teamMemberships[t.ID] || obsMembership[t.ID]) {
+		// We mask the password for the following users:
+		// - User has no roles.
+		// - User is a global observer/observer+/technician.
+		// - User does not belong to the team or is a team observer/observer+/technician.
+		if isGlobalObs || isGlobalTechnician ||
+			user.GlobalRole == nil && (!teamMemberships[t.ID] || obsMembership[t.ID] || isTeamTechnician[t.ID]) {
 			for _, s := range t.Secrets {
 				s.Secret = fleet.MaskedPassword
 			}
@@ -170,6 +179,7 @@ func (svc *Service) ModifyTeam(ctx context.Context, teamID uint, payload fleet.T
 
 	var (
 		macOSMinVersionUpdated        bool
+		updateNewHostsChanged         bool
 		iOSMinVersionUpdated          bool
 		iPadOSMinVersionUpdated       bool
 		windowsUpdatesUpdated         bool
@@ -182,9 +192,10 @@ func (svc *Service) ModifyTeam(ctx context.Context, teamID uint, payload fleet.T
 			if err := payload.MDM.MacOSUpdates.Validate(); err != nil {
 				return nil, fleet.NewInvalidArgumentError("macos_updates", err.Error())
 			}
-			if payload.MDM.MacOSUpdates.MinimumVersion.Set || payload.MDM.MacOSUpdates.Deadline.Set {
+			if payload.MDM.MacOSUpdates.MinimumVersion.Set || payload.MDM.MacOSUpdates.Deadline.Set || payload.MDM.MacOSUpdates.UpdateNewHosts.Set {
 				macOSMinVersionUpdated = team.Config.MDM.MacOSUpdates.MinimumVersion.Value != payload.MDM.MacOSUpdates.MinimumVersion.Value ||
 					team.Config.MDM.MacOSUpdates.Deadline.Value != payload.MDM.MacOSUpdates.Deadline.Value
+				updateNewHostsChanged = team.Config.MDM.MacOSUpdates.UpdateNewHosts.Value != payload.MDM.MacOSUpdates.UpdateNewHosts.Value
 				team.Config.MDM.MacOSUpdates = *payload.MDM.MacOSUpdates
 			}
 		}
@@ -192,6 +203,7 @@ func (svc *Service) ModifyTeam(ctx context.Context, teamID uint, payload fleet.T
 			if err := payload.MDM.IOSUpdates.Validate(); err != nil {
 				return nil, fleet.NewInvalidArgumentError("ios_updates", err.Error())
 			}
+
 			if payload.MDM.IOSUpdates.MinimumVersion.Set || payload.MDM.IOSUpdates.Deadline.Set {
 				iOSMinVersionUpdated = team.Config.MDM.IOSUpdates.MinimumVersion.Value != payload.MDM.IOSUpdates.MinimumVersion.Value ||
 					team.Config.MDM.IOSUpdates.Deadline.Value != payload.MDM.IOSUpdates.Deadline.Value
@@ -376,6 +388,28 @@ func (svc *Service) ModifyTeam(ctx context.Context, teamID uint, payload fleet.T
 		}
 	}
 
+	if updateNewHostsChanged {
+		var activity fleet.ActivityDetails
+		activity = fleet.ActivityTypeEnabledMacosUpdateNewHosts{
+			TeamID:   &team.ID,
+			TeamName: &team.Name,
+		}
+		if payload.MDM != nil && payload.MDM.MacOSUpdates != nil && !payload.MDM.MacOSUpdates.UpdateNewHosts.Value {
+			activity = fleet.ActivityTypeDisabledMacosUpdateNewHosts{
+				TeamID:   &team.ID,
+				TeamName: &team.Name,
+			}
+		}
+
+		if err := svc.NewActivity(
+			ctx,
+			authz.UserFromContext(ctx),
+			activity,
+		); err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "create activity for team macOS update new hosts edited")
+		}
+	}
+
 	if windowsUpdatesUpdated {
 		var deadline, grace *int
 		if team.Config.MDM.WindowsUpdates.DeadlineDays.Valid {
@@ -468,7 +502,7 @@ func (svc *Service) ModifyTeamAgentOptions(ctx context.Context, teamID uint, tea
 	}
 
 	if teamOptions != nil {
-		if err := fleet.ValidateJSONAgentOptions(ctx, svc.ds, teamOptions, true); err != nil {
+		if err := fleet.ValidateJSONAgentOptions(ctx, svc.ds, teamOptions, true, teamID); err != nil {
 			err = fleet.SuggestAgentOptionsCorrection(err)
 			err = fleet.NewUserMessageError(err, http.StatusBadRequest)
 			if applyOptions.Force && !applyOptions.DryRun {
@@ -678,6 +712,17 @@ func (svc *Service) DeleteTeam(ctx context.Context, teamID uint) error {
 		}
 	}
 
+	// Handle certificate templates associated with the team
+	certTemplates, _, err := svc.ds.GetCertificateTemplatesByTeamID(ctx, teamID, fleet.ListOptions{})
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "get certificate templates for team")
+	}
+	for _, ct := range certTemplates {
+		if err := svc.ds.SetHostCertificateTemplatesToPendingRemove(ctx, ct.ID); err != nil {
+			return ctxerr.Wrapf(ctx, err, "set hosts to pending remove for certificate template %d", ct.ID)
+		}
+	}
+
 	if err := svc.ds.DeleteTeam(ctx, teamID); err != nil {
 		return err
 	}
@@ -695,7 +740,7 @@ func (svc *Service) DeleteTeam(ctx context.Context, teamID uint) error {
 			if _, err := worker.QueueMacosSetupAssistantJob(
 				ctx,
 				svc.ds,
-				svc.logger,
+				svc.logger.SlogLogger(),
 				worker.MacosSetupAssistantTeamDeleted,
 				nil,
 				mdmHostSerials...); err != nil {
@@ -743,7 +788,9 @@ func (svc *Service) GetTeam(ctx context.Context, teamID uint) (*fleet.Team, erro
 		return team, nil
 	}
 
-	alreadyAuthd := svc.authz.IsAuthenticatedWith(ctx, authz_ctx.AuthnDeviceToken) || svc.authz.IsAuthenticatedWith(ctx, authz_ctx.AuthnDeviceCertificate)
+	alreadyAuthd := svc.authz.IsAuthenticatedWith(ctx, authz_ctx.AuthnDeviceToken) ||
+		svc.authz.IsAuthenticatedWith(ctx, authz_ctx.AuthnDeviceCertificate) ||
+		svc.authz.IsAuthenticatedWith(ctx, authz_ctx.AuthnDeviceURL)
 	if alreadyAuthd {
 		// device-authenticated request can only get the device's team
 		host, ok := hostctx.FromContext(ctx)
@@ -803,18 +850,20 @@ func (svc *Service) TeamEnrollSecrets(ctx context.Context, teamID uint) ([]*flee
 	}
 
 	isGlobalObs := vc.User.IsGlobalObserver()
+	isGlobalTechnician := vc.User.GlobalRole != nil && *vc.User.GlobalRole == fleet.RoleTechnician
 	teamMemberships := vc.User.TeamMembership(func(t fleet.UserTeam) bool {
 		return true
 	})
-	obsMembership := vc.User.TeamMembership(func(t fleet.UserTeam) bool {
-		return t.Role == fleet.RoleObserver || t.Role == fleet.RoleObserverPlus
+	// These roles are not allowed to see enroll secrets.
+	notAllowedTeamMembership := vc.User.TeamMembership(func(t fleet.UserTeam) bool {
+		return t.Role == fleet.RoleObserver || t.Role == fleet.RoleObserverPlus || t.Role == fleet.RoleTechnician
 	})
 
 	for _, s := range secrets {
 		if s == nil {
 			continue
 		}
-		if isGlobalObs || vc.User.GlobalRole == nil && (!teamMemberships[*s.TeamID] || obsMembership[*s.TeamID]) {
+		if isGlobalObs || isGlobalTechnician || (vc.User.GlobalRole == nil && (!teamMemberships[*s.TeamID] || notAllowedTeamMembership[*s.TeamID])) {
 			s.Secret = fleet.MaskedPassword
 		}
 	}
@@ -833,14 +882,62 @@ func (svc *Service) ModifyTeamEnrollSecrets(ctx context.Context, teamID uint, se
 		return nil, fleet.NewInvalidArgumentError("secrets", "too many secrets")
 	}
 
+	oldSecrets, err := svc.ds.GetEnrollSecrets(ctx, ptr.Uint(teamID))
+	if err != nil {
+		return nil, err
+	}
+
+	newSecretsValues := make(map[string]struct{}, len(secrets))
+
 	var newSecrets []*fleet.EnrollSecret
 	for _, secret := range secrets {
+		newSecretsValues[secret.Secret] = struct{}{}
+
 		newSecrets = append(newSecrets, &fleet.EnrollSecret{
 			Secret: secret.Secret,
 		})
 	}
 	if err := svc.ds.ApplyEnrollSecrets(ctx, ptr.Uint(teamID), newSecrets); err != nil {
 		return nil, err
+	}
+
+	// Check whether there were any mutations around the provided secrets ... if true, then register
+	// an activity.
+	oldSecretValues := make(map[string]struct{}, len(oldSecrets))
+	for _, s := range oldSecrets {
+		oldSecretValues[s.Secret] = struct{}{}
+	}
+
+	if !maps.Equal(oldSecretValues, newSecretsValues) {
+		activity := fleet.ActivityTypeEditedEnrollSecrets{}
+		team, err := svc.ds.TeamLite(ctx, teamID)
+		if err != nil {
+			level.Error(svc.logger).Log(
+				"err", err,
+				"teamID", teamID,
+				"msg", "error while fetching team for edited enroll secret activity",
+			)
+		}
+		if team != nil {
+			activity = fleet.ActivityTypeEditedEnrollSecrets{
+				TeamID:   &team.ID,
+				TeamName: &team.Name,
+			}
+		} else {
+			level.Error(svc.logger).Log(
+				"teamID", teamID,
+				"msg", "team not found for edited enroll secret activity",
+			)
+		}
+
+		if err := svc.NewActivity(
+			ctx,
+			authz.UserFromContext(ctx),
+			activity,
+		); err != nil {
+			errMsg := fmt.Sprintf("creating edited enroll secret activity for team %d", teamID)
+			return nil, ctxerr.Wrap(ctx, err, errMsg)
+		}
 	}
 
 	return newSecrets, nil
@@ -1002,8 +1099,13 @@ func (svc *Service) ApplyTeamSpecs(ctx context.Context, specs []*fleet.TeamSpec,
 			}
 		}
 
+		var tmID uint
+		if team != nil {
+			tmID = team.ID
+		}
+
 		if len(spec.AgentOptions) > 0 && !bytes.Equal(spec.AgentOptions, jsonNull) {
-			if err := fleet.ValidateJSONAgentOptions(ctx, svc.ds, spec.AgentOptions, true); err != nil {
+			if err := fleet.ValidateJSONAgentOptions(ctx, svc.ds, spec.AgentOptions, true, tmID); err != nil {
 				err = fleet.SuggestAgentOptionsCorrection(err)
 				err = fleet.NewUserMessageError(err, http.StatusBadRequest)
 				if applyOpts.Force && !applyOpts.DryRun {
@@ -1223,6 +1325,12 @@ func (svc *Service) createTeamFromSpec(
 		return nil, err
 	}
 
+	if tm.Config.MDM.WindowsUpdates.DeadlineDays.Valid {
+		if err := svc.mdmWindowsEnableOSUpdates(ctx, &tm.ID, tm.Config.MDM.WindowsUpdates); err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "enable team windows OS updates")
+		}
+	}
+
 	if conditionalAccessEnabled.Set && conditionalAccessEnabled.Value {
 		if err := svc.NewActivity(
 			ctx,
@@ -1284,22 +1392,32 @@ func (svc *Service) editTeamFromSpec(
 		return err
 	}
 	team.Config.Features = features
-	var mdmMacOSUpdatesEdited bool
-	if spec.MDM.MacOSUpdates.Deadline.Set || spec.MDM.MacOSUpdates.MinimumVersion.Set {
+
+	// Check OS update settings.
+	var (
+		mdmMacOSUpdatesEdited   bool
+		mdmIOSUpdatesEdited     bool
+		mdmIPadOSUpdatesEdited  bool
+		mdmWindowsUpdatesEdited bool
+	)
+	if spec.MDM.MacOSUpdates.Deadline.Set || spec.MDM.MacOSUpdates.MinimumVersion.Set || spec.MDM.MacOSUpdates.UpdateNewHosts.Set {
+		mdmMacOSUpdatesEdited = team.Config.MDM.MacOSUpdates.MinimumVersion.Value != spec.MDM.MacOSUpdates.MinimumVersion.Value ||
+			team.Config.MDM.MacOSUpdates.Deadline.Value != spec.MDM.MacOSUpdates.Deadline.Value
 		team.Config.MDM.MacOSUpdates = spec.MDM.MacOSUpdates
-		mdmMacOSUpdatesEdited = true
 	}
-	var mdmIOSUpdatesEdited bool
 	if spec.MDM.IOSUpdates.Deadline.Set || spec.MDM.IOSUpdates.MinimumVersion.Set {
+		mdmIOSUpdatesEdited = team.Config.MDM.IOSUpdates.MinimumVersion.Value != spec.MDM.IOSUpdates.MinimumVersion.Value ||
+			team.Config.MDM.IOSUpdates.Deadline.Value != spec.MDM.IOSUpdates.Deadline.Value
 		team.Config.MDM.IOSUpdates = spec.MDM.IOSUpdates
-		mdmIOSUpdatesEdited = true
 	}
-	var mdmIPadOSUpdatesEdited bool
 	if spec.MDM.IPadOSUpdates.Deadline.Set || spec.MDM.IPadOSUpdates.MinimumVersion.Set {
+		mdmIPadOSUpdatesEdited = team.Config.MDM.IPadOSUpdates.MinimumVersion.Value != spec.MDM.IPadOSUpdates.MinimumVersion.Value ||
+			team.Config.MDM.IPadOSUpdates.Deadline.Value != spec.MDM.IPadOSUpdates.Deadline.Value
 		team.Config.MDM.IPadOSUpdates = spec.MDM.IPadOSUpdates
-		mdmIPadOSUpdatesEdited = true
 	}
 	if spec.MDM.WindowsUpdates.DeadlineDays.Set || spec.MDM.WindowsUpdates.GracePeriodDays.Set {
+		mdmWindowsUpdatesEdited = team.Config.MDM.WindowsUpdates.DeadlineDays.Value != spec.MDM.WindowsUpdates.DeadlineDays.Value ||
+			team.Config.MDM.WindowsUpdates.GracePeriodDays.Value != spec.MDM.WindowsUpdates.GracePeriodDays.Value
 		team.Config.MDM.WindowsUpdates = spec.MDM.WindowsUpdates
 	}
 
@@ -1518,6 +1636,7 @@ func (svc *Service) editTeamFromSpec(
 			return err
 		}
 	}
+
 	if appCfg.MDM.EnabledAndConfigured && didUpdateDiskEncryption {
 		// TODO: Are we missing an activity or anything else for BitLocker here?
 		var act fleet.ActivityDetails
@@ -1572,6 +1691,7 @@ func (svc *Service) editTeamFromSpec(
 		}
 	}
 
+	// Update OS update settings if they were updated.
 	if mdmMacOSUpdatesEdited {
 		if err := svc.mdmAppleEditedAppleOSUpdates(ctx, &team.ID, fleet.MacOS, team.Config.MDM.MacOSUpdates); err != nil {
 			return err
@@ -1585,6 +1705,17 @@ func (svc *Service) editTeamFromSpec(
 	if mdmIPadOSUpdatesEdited {
 		if err := svc.mdmAppleEditedAppleOSUpdates(ctx, &team.ID, fleet.IPadOS, team.Config.MDM.IPadOSUpdates); err != nil {
 			return err
+		}
+	}
+	if mdmWindowsUpdatesEdited {
+		if team.Config.MDM.WindowsUpdates.DeadlineDays.Valid {
+			if err := svc.mdmWindowsEnableOSUpdates(ctx, &team.ID, team.Config.MDM.WindowsUpdates); err != nil {
+				return ctxerr.Wrap(ctx, err, "enable team windows OS updates")
+			}
+		} else {
+			if err := svc.mdmWindowsDisableOSUpdates(ctx, &team.ID); err != nil {
+				return ctxerr.Wrap(ctx, err, "disable team windows OS updates")
+			}
 		}
 	}
 

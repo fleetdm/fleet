@@ -11,7 +11,7 @@ import (
 	"fmt"
 
 	"github.com/fleetdm/fleet/v4/ee/server/service/hostidentity/types"
-	"github.com/fleetdm/fleet/v4/server/datastore/mysql/common_mysql"
+	common_mysql "github.com/fleetdm/fleet/v4/server/platform/mysql"
 	"github.com/jmoiron/sqlx"
 )
 
@@ -37,7 +37,7 @@ func (ds *Datastore) GetHostIdentityCertBySerialNumber(ctx context.Context, seri
 func (ds *Datastore) UpdateHostIdentityCertHostIDBySerial(ctx context.Context, serialNumber uint64, hostID uint) error {
 	return common_mysql.WithRetryTxx(ctx, ds.writer(ctx), func(tx sqlx.ExtContext) error {
 		return updateHostIdentityCertHostIDBySerial(ctx, tx, hostID, serialNumber)
-	}, ds.logger)
+	}, ds.logger.SlogLogger())
 }
 
 func updateHostIdentityCertHostIDBySerial(ctx context.Context, tx sqlx.ExtContext, hostID uint, serialNumber uint64) error {

@@ -1,0 +1,10 @@
+{
+  "name": "Inkscape",
+  "slug": "inkscape/windows",
+  "package_identifier": "Inkscape.Inkscape",
+  "unique_identifier": "Inkscape",
+  "installer_arch": "x64",
+  "installer_type": "msi",
+  "installer_scope": "machine",
+  "default_categories": ["Productivity"]
+}

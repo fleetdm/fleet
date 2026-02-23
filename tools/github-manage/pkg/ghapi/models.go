@@ -85,6 +85,7 @@ type ProjectItem struct {
 	Milestone  *Milestone         `json:"milestone,omitempty"`
 	Sprint     *Sprint            `json:"sprint,omitempty"`
 	Status     string             `json:"status"`
+	Size       string             `json:"size"`
 }
 
 type ProjectItemsResponse struct {

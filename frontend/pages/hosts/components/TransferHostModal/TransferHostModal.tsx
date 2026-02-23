@@ -6,7 +6,7 @@ import Button from "components/buttons/Button";
 // ignore TS error for now until these are rewritten in ts.
 // @ts-ignore
 import Dropdown from "components/forms/fields/Dropdown";
-import { ITeam } from "interfaces/team";
+import { ITeam, ITeamSummary } from "interfaces/team";
 
 interface ITransferHostModal {
   isGlobalAdmin: boolean;
@@ -16,6 +16,8 @@ interface ITransferHostModal {
   isUpdating: boolean;
   /** Manage host page only */
   multipleHosts?: boolean;
+  /** Selected team's id on manage host page, or host detail's team id */
+  hostsTeamId?: number | null;
 }
 
 interface INoTeamOption {
@@ -26,7 +28,7 @@ const baseClass = "transfer-host-modal";
 
 const NO_TEAM_OPTION = {
   value: "no-team",
-  label: "No team",
+  label: "Unassigned",
 };
 
 const TransferHostModal = ({
@@ -36,6 +38,7 @@ const TransferHostModal = ({
   isGlobalAdmin,
   isUpdating,
   multipleHosts,
+  hostsTeamId,
 }: ITransferHostModal): JSX.Element => {
   const [selectedTeam, setSelectedTeam] = useState<ITeam | INoTeamOption>();
 
@@ -56,17 +59,23 @@ const TransferHostModal = ({
   }, [onSubmit, selectedTeam]);
 
   const createTeamDropdownOptions = () => {
-    const teamOptions = teams.map((team) => {
-      return {
-        value: team.id,
-        label: team.name,
-      };
-    });
-    return [NO_TEAM_OPTION, ...teamOptions];
+    const teamOptions = teams
+      .filter((team) => team.id !== hostsTeamId) // Remove current team from options
+      .map((team) => {
+        return {
+          value: team.id,
+          label: team.name,
+        };
+      });
+
+    // Hosts on no team cannot transfer to no team again
+    const canTransferToNoTeam = hostsTeamId !== 0 && hostsTeamId !== null;
+
+    return canTransferToNoTeam ? [NO_TEAM_OPTION, ...teamOptions] : teamOptions;
   };
 
   return (
-    <Modal onExit={onCancel} title="Transfer hosts" className={baseClass}>
+    <Modal onExit={onCancel} title="Transfer" className={baseClass}>
       <>
         <form className={`${baseClass}__form`}>
           <Dropdown
@@ -75,18 +84,18 @@ const TransferHostModal = ({
             value={selectedTeam && selectedTeam.id}
             options={createTeamDropdownOptions()}
             onChange={onChangeSelectTeam}
-            placeholder="Select a team"
-            searchable={false}
+            placeholder="Select a fleet"
+            searchable
             autoFocus
           />
           {isGlobalAdmin ? (
             <p>
-              Team not here?{" "}
+              Fleet not here?{" "}
               <Link
                 to={PATHS.ADMIN_TEAMS}
                 className={`${baseClass}__team-link`}
               >
-                Create a team
+                Create a fleet
               </Link>
             </p>
           ) : null}

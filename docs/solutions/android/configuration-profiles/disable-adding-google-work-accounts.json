@@ -1,0 +1,5 @@
+{
+  "accountTypesWithManagementDisabled": [
+    "com.google"
+  ]
+}

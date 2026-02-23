@@ -17,7 +17,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mdm/nanodep/godep"
 	"github.com/fleetdm/fleet/v4/server/mock"
 	nanodep_mock "github.com/fleetdm/fleet/v4/server/mock/nanodep"
-	"github.com/go-kit/log"
+	"github.com/fleetdm/fleet/v4/server/platform/logging"
 	"github.com/stretchr/testify/require"
 )
 
@@ -67,7 +67,7 @@ func TestDEPClient(t *testing.T) {
 	}))
 	defer srv.Close()
 
-	logger := log.NewNopLogger()
+	logger := logging.NewNopLogger()
 	ds := new(mock.Store)
 
 	appCfg := fleet.AppConfig{}
@@ -241,7 +241,7 @@ func TestDEPClient(t *testing.T) {
 			return &nanodep_client.Config{BaseURL: srv.URL}, nil
 		}
 
-		dep := apple_mdm.NewDEPClient(store, ds, logger)
+		dep := apple_mdm.NewDEPClient(store, ds, logger.SlogLogger())
 		orgName := c.orgName
 		if orgName == "" {
 			// simulate using a new token, not yet saved in the DB, so we pass the
@@ -716,69 +716,4 @@ func TestFilterOutUserScopedProfiles(t *testing.T) {
 	filteredProfiles := fleet.FilterOutUserScopedProfiles(profilesToFilter)
 
 	require.ElementsMatch(t, filteredProfiles, []*fleet.MDMAppleProfilePayload{&systemScopedProfile})
-}
-
-func TestMDMProfilesSummary(t *testing.T) {
-	t.Run("Add", func(t *testing.T) {
-		tests := []struct {
-			name     string
-			a        *fleet.MDMProfilesSummary
-			b        *fleet.MDMProfilesSummary
-			expected *fleet.MDMProfilesSummary
-		}{
-			{
-				name:     "Both nil",
-				a:        nil,
-				b:        nil,
-				expected: &fleet.MDMProfilesSummary{Verified: 0, Verifying: 0, Pending: 0, Failed: 0},
-			},
-			{
-				name:     "First nil",
-				a:        nil,
-				b:        &fleet.MDMProfilesSummary{Verified: 1, Verifying: 2, Pending: 3, Failed: 4},
-				expected: &fleet.MDMProfilesSummary{Verified: 1, Verifying: 2, Pending: 3, Failed: 4},
-			},
-			{
-				name:     "Second nil",
-				a:        &fleet.MDMProfilesSummary{Verified: 1, Verifying: 2, Pending: 3, Failed: 4},
-				b:        nil,
-				expected: &fleet.MDMProfilesSummary{Verified: 1, Verifying: 2, Pending: 3, Failed: 4},
-			},
-			{
-				name: "Combined values",
-				a:    &fleet.MDMProfilesSummary{Verified: 2, Verifying: 4, Pending: 6, Failed: 8},
-				b:    &fleet.MDMProfilesSummary{Verified: 1, Verifying: 3, Pending: 5, Failed: 7},
-				expected: &fleet.MDMProfilesSummary{
-					Verified:  3,
-					Verifying: 7,
-					Pending:   11,
-					Failed:    15,
-				},
-			},
-			{
-				name:     "All zero values",
-				a:        &fleet.MDMProfilesSummary{Verified: 0, Verifying: 0, Pending: 0, Failed: 0},
-				b:        &fleet.MDMProfilesSummary{Verified: 0, Verifying: 0, Pending: 0, Failed: 0},
-				expected: &fleet.MDMProfilesSummary{Verified: 0, Verifying: 0, Pending: 0, Failed: 0},
-			},
-			{
-				name: "Large values",
-				a:    &fleet.MDMProfilesSummary{Verified: 1_000_000, Verifying: 2_000_000, Pending: 3_000_000, Failed: 4_000_000},
-				b:    &fleet.MDMProfilesSummary{Verified: 5_000_000, Verifying: 6_000_000, Pending: 7_000_000, Failed: 8_000_000},
-				expected: &fleet.MDMProfilesSummary{
-					Verified:  6_000_000,
-					Verifying: 8_000_000,
-					Pending:   10_000_000,
-					Failed:    12_000_000,
-				},
-			},
-		}
-
-		for _, tt := range tests {
-			t.Run(tt.name, func(t *testing.T) {
-				result := tt.a.Add(tt.b)
-				require.Equal(t, tt.expected, result)
-			})
-		}
-	})
 }

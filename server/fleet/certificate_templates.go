@@ -2,16 +2,16 @@ package fleet
 
 type CertificateRequestSpec struct {
 	Name                   string `json:"name"`
-	Team                   string `json:"team"`
+	Team                   string `json:"team,omitempty" renameto:"fleet"`
 	CertificateAuthorityId uint   `json:"certificate_authority_id"`
 	SubjectName            string `json:"subject_name"`
 }
 
 type CertificateTemplate struct {
-	Name                   string
-	TeamID                 uint
-	CertificateAuthorityID uint
-	SubjectName            string
+	Name                   string `json:"name"`
+	TeamID                 uint   `json:"team_id" renameto:"fleet_id"`
+	CertificateAuthorityID uint   `json:"certificate_authority_id"`
+	SubjectName            string `json:"subject_name"`
 }
 
 func (c *CertificateTemplate) AuthzType() string {
@@ -21,34 +21,70 @@ func (c *CertificateTemplate) AuthzType() string {
 type CertificateTemplateResponseSummary struct {
 	ID                       uint   `json:"id" db:"id"`
 	Name                     string `json:"name" db:"name"`
+	SubjectName              string `json:"subject_name" db:"subject_name"`
 	CertificateAuthorityId   uint   `json:"certificate_authority_id" db:"certificate_authority_id"`
 	CertificateAuthorityName string `json:"certificate_authority_name" db:"certificate_authority_name"`
 	CreatedAt                string `json:"created_at" db:"created_at"`
 }
 
-type CertificateTemplateResponseFull struct {
+// CertificateTemplateResponse contains certificate template details without host-specific data.
+type CertificateTemplateResponse struct {
 	CertificateTemplateResponseSummary
-	SubjectName string `json:"subject_name" db:"subject_name"`
-	TeamID      uint   `json:"-" db:"team_id"`
+	CertificateAuthorityType string `json:"certificate_authority_type" db:"certificate_authority_type"`
+	TeamID                   uint   `json:"-" db:"team_id"`
 }
 
-// HostCertificateTemplate represents a certificate template associated with a particular host
-type HostCertificateTemplate struct {
-	HostUUID string            `db:"host_uuid" json:"-"`
-	Name     string            `db:"name" json:"-"`
-	Status   MDMDeliveryStatus `db:"status" json:"-"`
+// CertificateTemplateResponseForHost contains certificate template details with host-specific data.
+// Used when a host (Android agent) requests its certificate.
+type CertificateTemplateResponseForHost struct {
+	CertificateTemplateResponse
+	Status                 CertificateTemplateStatus `json:"status" db:"status"`
+	UUID                   string                    `json:"uuid" db:"uuid"`
+	SCEPChallenge          *string                   `json:"scep_challenge" db:"scep_challenge"`
+	FleetChallenge         *string                   `json:"fleet_challenge" db:"fleet_challenge"`
+	SCEPChallengeEncrypted []byte                    `json:"-" db:"scep_challenge_encrypted"`
 }
 
-// ToHostMDMProfile maps a HostCertificateTemplate to a HostMDMProfile, suitable for use in the MDM API
-func (p *HostCertificateTemplate) ToHostMDMProfile() HostMDMProfile {
-	if p == nil {
-		return HostMDMProfile{}
-	}
+type CertificateTemplateStatus string
 
-	return HostMDMProfile{
-		HostUUID: p.HostUUID,
-		Name:     p.Name,
-		Platform: "android",
-		Status:   &p.Status,
+var (
+	CertificateTemplatePending    CertificateTemplateStatus = "pending"
+	CertificateTemplateDelivering CertificateTemplateStatus = "delivering"
+	CertificateTemplateDelivered  CertificateTemplateStatus = "delivered"
+	CertificateTemplateFailed     CertificateTemplateStatus = "failed"
+	CertificateTemplateVerified   CertificateTemplateStatus = "verified"
+)
+
+// CertificateTemplateStatusToMDMDeliveryStatus converts a CertificateTemplateStatus to MDMDeliveryStatus.
+// This is used when converting HostCertificateTemplate to HostMDMProfile for the GetHost endpoint.
+func CertificateTemplateStatusToMDMDeliveryStatus(s CertificateTemplateStatus) MDMDeliveryStatus {
+	switch s {
+	case CertificateTemplateVerified:
+		return MDMDeliveryVerified
+	case CertificateTemplateFailed:
+		return MDMDeliveryFailed
+	default:
+		// All in-progress states (pending, delivering, delivered) map to MDMDeliveryPending
+		return MDMDeliveryPending
 	}
+}
+
+// HostCertificateTemplateForDelivery represents a certificate template being prepared
+// for delivery to a host, including its current status and operation type.
+type HostCertificateTemplateForDelivery struct {
+	CertificateTemplateID uint
+	Status                CertificateTemplateStatus
+	OperationType         MDMOperationType
+	UUID                  string
+}
+
+// HostCertificateTemplatesForDelivery contains the result of preparing certificate templates
+// for delivery to a host.
+type HostCertificateTemplatesForDelivery struct {
+	// DeliveringTemplateIDs are the certificate template IDs that were transitioned
+	// from pending to delivering status in this operation. Used for challenge generation.
+	DeliveringTemplateIDs []uint
+	// Templates contains all certificate templates with their current status and operation.
+	// Pending templates will show as delivering (their post-transition status).
+	Templates []HostCertificateTemplateForDelivery
 }

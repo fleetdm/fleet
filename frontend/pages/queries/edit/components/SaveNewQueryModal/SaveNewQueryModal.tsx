@@ -59,7 +59,7 @@ const validateQueryName = (name: string) => {
   const errors: { [key: string]: string } = {};
 
   if (!name) {
-    errors.name = "Query name must be present";
+    errors.name = "Report name must be present";
   }
 
   const valid = !size(errors);
@@ -77,7 +77,7 @@ const SaveNewQueryModal = ({
   queryReportsDisabled,
   platformSelector,
 }: ISaveNewQueryModalProps): JSX.Element => {
-  const { config, isPremiumTier } = useContext(AppContext);
+  const { config, isPremiumTier, currentTeam } = useContext(AppContext);
 
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
@@ -107,10 +107,15 @@ const SaveNewQueryModal = ({
     isFetching: isFetchingLabels,
   } = useQuery<ILabelsSummaryResponse, Error>(
     ["custom_labels"],
-    () => labelsAPI.summary(),
+    () => labelsAPI.summary(currentTeam?.id, true),
     {
       ...DEFAULT_USE_QUERY_OPTIONS,
-      enabled: isPremiumTier,
+      // Wait for the current team to load from context before pulling labels, otherwise on a page load
+      // directly on the page this gets called with currentTeam not set, then again
+      // with the correct team value. If we don't trigger on currentTeam changes we'll just start with a
+      // null team ID here and never populate with the correct team unless we navigate from another page
+      // where team context is already set prior to navigation.
+      enabled: isPremiumTier && !!currentTeam,
       staleTime: 10000,
       select: (res) => ({ labels: getCustomLabels(res.labels) }),
     }
@@ -194,7 +199,7 @@ const SaveNewQueryModal = ({
   };
 
   return (
-    <Modal title="Save query" onExit={toggleSaveNewQueryModal}>
+    <Modal title="Save report" onExit={toggleSaveNewQueryModal}>
       <form
         onSubmit={onClickSaveQuery}
         className={baseClass}
@@ -220,7 +225,7 @@ const SaveNewQueryModal = ({
           inputClassName={`${baseClass}__description`}
           label="Description"
           type="textarea"
-          helpText="What information does your query reveal? (optional)"
+          helpText="What information does your report reveal? (optional)"
         />
         <Dropdown
           searchable={false}
@@ -232,14 +237,14 @@ const SaveNewQueryModal = ({
           value={selectedFrequency}
           label="Interval"
           wrapperClassName={`${baseClass}__form-field form-field--frequency`}
-          helpText="This is how often your query collects data."
+          helpText="This is how often your report collects data."
         />
         <Checkbox
           name="observerCanRun"
           onChange={setObserverCanRun}
           value={observerCanRun}
           wrapperClassName="observer-can-run-wrapper"
-          helpText="Users with the Observer role will be able to run this query as a live query."
+          helpText="Users with the Observer role will be able to run this report as a live report."
         >
           Observers can run
         </Checkbox>
@@ -254,7 +259,7 @@ const SaveNewQueryModal = ({
                   tipContent={
                     <>
                       Automations and reporting will be paused <br />
-                      for this query until an interval is set.
+                      for this report until an interval is set.
                     </>
                   }
                   position="right"
@@ -297,7 +302,7 @@ const SaveNewQueryModal = ({
             labels={labels || []}
             customHelpText={
               <span className="form-field__help-text">
-                Query will target hosts that <b>have any</b> of these labels:
+                Report will target hosts that <b>have any</b> of these labels:
               </span>
             }
             suppressTitle

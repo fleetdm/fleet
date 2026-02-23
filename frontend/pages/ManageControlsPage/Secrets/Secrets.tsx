@@ -131,7 +131,7 @@ const Secrets = () => {
       />
       {canEdit && (
         <Button
-          variant="text-icon"
+          variant="icon"
           onClick={(e: React.MouseEvent<HTMLButtonElement>) => {
             e.stopPropagation();
             onClickDeleteSecret(secret);
@@ -200,7 +200,7 @@ const Secrets = () => {
                 renderChildren={(disableChildren) => (
                   <span>
                     <Button
-                      variant="text-icon"
+                      variant="inverse"
                       onClick={onClickAddSecret}
                       disabled={disableChildren}
                     >

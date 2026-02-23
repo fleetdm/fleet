@@ -1,0 +1,8 @@
+{
+  "name": "Lens",
+  "unique_identifier": "com.electron.kontena-lens",
+  "token": "lens",
+  "installer_format": "dmg",
+  "slug": "lens/darwin",
+  "default_categories": ["Developer tools"]
+}

@@ -80,6 +80,15 @@ chmod +x gm
 
 # View estimated tickets
 ./gm estimated mdm --limit 25
+
+# Pre-sprint report for one or more teams
+# Single team (alias or project id)
+./gm pre-sprint report mdm
+# Multiple teams (comma-separated)
+./gm pre-sprint report mdm,soft --limit 1000
+
+# CSV format for spreadsheet use (outputs values per team in provided order)
+./gm pre-sprint report mdm,soft --format csv
 ```
 
 ## 🎮 Interactive Controls

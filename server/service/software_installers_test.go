@@ -210,7 +210,7 @@ func TestValidateSoftwareLabels(t *testing.T) {
 
 	t.Run("validate no update", func(t *testing.T) {
 		t.Run("no auth context", func(t *testing.T) {
-			_, err := eeservice.ValidateSoftwareLabels(context.Background(), svc, nil, nil)
+			_, err := eeservice.ValidateSoftwareLabels(context.Background(), svc, nil, nil, nil)
 			require.ErrorContains(t, err, "Authentication required")
 		})
 
@@ -218,13 +218,14 @@ func TestValidateSoftwareLabels(t *testing.T) {
 		ctx = authz_ctx.NewContext(ctx, &authCtx)
 
 		t.Run("no auth checked", func(t *testing.T) {
-			_, err := eeservice.ValidateSoftwareLabels(ctx, svc, nil, nil)
+			_, err := eeservice.ValidateSoftwareLabels(ctx, svc, nil, nil, nil)
 			require.ErrorContains(t, err, "Authentication required")
 		})
 
 		// validator requires that an authz check has been performed upstream so we'll set it now for
 		// the rest of the tests
 		authCtx.SetChecked()
+		ctx = viewer.NewContext(ctx, viewer.Viewer{User: &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}})
 
 		mockLabels := map[string]uint{
 			"foo": 1,
@@ -232,7 +233,7 @@ func TestValidateSoftwareLabels(t *testing.T) {
 			"baz": 3,
 		}
 
-		ds.LabelIDsByNameFunc = func(ctx context.Context, names []string) (map[string]uint, error) {
+		ds.LabelIDsByNameFunc = func(ctx context.Context, names []string, filter fleet.TeamFilter) (map[string]uint, error) {
 			res := make(map[string]uint)
 			if names == nil {
 				return res, nil
@@ -240,6 +241,21 @@ func TestValidateSoftwareLabels(t *testing.T) {
 			for _, name := range names {
 				if id, ok := mockLabels[name]; ok {
 					res[name] = id
+				}
+			}
+			return res, nil
+		}
+		ds.LabelsByNameFunc = func(ctx context.Context, names []string, filter fleet.TeamFilter) (map[string]*fleet.Label, error) {
+			res := make(map[string]*fleet.Label)
+			if names == nil {
+				return res, nil
+			}
+			for _, name := range names {
+				if id, ok := mockLabels[name]; ok {
+					res[name] = &fleet.Label{
+						ID:   id,
+						Name: name,
+					}
 				}
 			}
 			return res, nil
@@ -297,7 +313,7 @@ func TestValidateSoftwareLabels(t *testing.T) {
 				nil,
 				nil,
 				"",
-				"some or all the labels provided don't exist",
+				`Couldn't update. Label "qux" doesn't exist. Please remove the label from the software`,
 			},
 			{
 				"duplicate label",
@@ -323,12 +339,12 @@ func TestValidateSoftwareLabels(t *testing.T) {
 				[]string{""},
 				nil,
 				"",
-				"some or all the labels provided don't exist",
+				`Couldn't update. Label "" doesn't exist. Please remove the label from the software`,
 			},
 		}
 		for _, tt := range testCases {
 			t.Run(tt.name, func(t *testing.T) {
-				got, err := eeservice.ValidateSoftwareLabels(ctx, svc, tt.payloadIncludeAny, tt.payloadExcludeAny)
+				got, err := eeservice.ValidateSoftwareLabels(ctx, svc, nil, tt.payloadIncludeAny, tt.payloadExcludeAny)
 				if tt.expectError != "" {
 					require.Error(t, err)
 					require.Contains(t, err.Error(), tt.expectError)
@@ -366,7 +382,7 @@ func TestValidateSoftwareLabels(t *testing.T) {
 			"baz": 3,
 		}
 
-		ds.LabelIDsByNameFunc = func(ctx context.Context, names []string) (map[string]uint, error) {
+		ds.LabelIDsByNameFunc = func(ctx context.Context, names []string, filter fleet.TeamFilter) (map[string]uint, error) {
 			res := make(map[string]uint)
 			if names == nil {
 				return res, nil

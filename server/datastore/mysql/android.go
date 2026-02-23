@@ -9,15 +9,16 @@ import (
 	"strings"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
-	"github.com/fleetdm/fleet/v4/server/datastore/mysql/common_mysql"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm/android"
+	common_mysql "github.com/fleetdm/fleet/v4/server/platform/mysql"
+	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/go-kit/log/level"
 	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
 )
 
-func (ds *Datastore) NewAndroidHost(ctx context.Context, host *fleet.AndroidHost) (*fleet.AndroidHost, error) {
+func (ds *Datastore) NewAndroidHost(ctx context.Context, host *fleet.AndroidHost, companyOwned bool) (*fleet.AndroidHost, error) {
 	if !host.IsValid() {
 		return nil, ctxerr.New(ctx, "valid Android host is required")
 	}
@@ -124,7 +125,7 @@ func (ds *Datastore) NewAndroidHost(ctx context.Context, host *fleet.AndroidHost
 
 		// create entry in host_mdm as enrolled (manually), because currently all
 		// android hosts are necessarily MDM-enrolled when created.
-		if err := upsertAndroidHostMDMInfoDB(ctx, tx, appCfg.ServerSettings.ServerURL, false, true, host.Host.ID); err != nil {
+		if err := upsertAndroidHostMDMInfoDB(ctx, tx, appCfg.ServerSettings.ServerURL, companyOwned, true, host.Host.ID); err != nil {
 			return ctxerr.Wrap(ctx, err, "new Android host MDM info")
 		}
 
@@ -164,7 +165,7 @@ func (ds *Datastore) setTimesToNonZero(host *fleet.AndroidHost) {
 	}
 }
 
-func (ds *Datastore) UpdateAndroidHost(ctx context.Context, host *fleet.AndroidHost, fromEnroll bool) error {
+func (ds *Datastore) UpdateAndroidHost(ctx context.Context, host *fleet.AndroidHost, fromEnroll, companyOwned bool) error {
 	if !host.IsValid() {
 		return ctxerr.New(ctx, "valid Android host is required")
 	}
@@ -217,8 +218,20 @@ func (ds *Datastore) UpdateAndroidHost(ctx context.Context, host *fleet.AndroidH
 
 		if fromEnroll {
 			// update host_mdm to set enrolled back to true
-			if err := upsertAndroidHostMDMInfoDB(ctx, tx, appCfg.ServerSettings.ServerURL, false, true, host.Host.ID); err != nil {
+			if err := upsertAndroidHostMDMInfoDB(ctx, tx, appCfg.ServerSettings.ServerURL, companyOwned, true, host.Host.ID); err != nil {
 				return ctxerr.Wrap(ctx, err, "update Android host MDM info")
+			}
+
+			// Create pending certificate template records for re-enrolling host.
+			// This ensures hosts that were unenrolled and re-enrolled get any certificate
+			// templates that were added while they were unenrolled.
+			// Uses ON DUPLICATE KEY UPDATE so it's safe to call even if records already exist.
+			teamID := uint(0)
+			if host.TeamID != nil {
+				teamID = *host.TeamID
+			}
+			if _, err := ds.CreatePendingCertificateTemplatesForNewHost(ctx, host.UUID, teamID); err != nil {
+				return ctxerr.Wrap(ctx, err, "create pending certificate templates for re-enrolling host")
 			}
 		}
 
@@ -417,11 +430,7 @@ UPDATE host_mdm
 	return rows > 0, nil
 }
 
-func upsertAndroidHostMDMInfoDB(ctx context.Context, tx sqlx.ExtContext, serverURL string, fromDEP, enrolled bool, hostIDs ...uint) error {
-	if len(hostIDs) == 0 {
-		return nil
-	}
-
+func upsertAndroidHostMDMInfoDB(ctx context.Context, tx sqlx.ExtContext, serverURL string, companyOwned, enrolled bool, hostID uint) error {
 	result, err := tx.ExecContext(ctx, `
 		INSERT INTO mobile_device_management_solutions (name, server_url) VALUES (?, ?)
 		ON DUPLICATE KEY UPDATE server_url = VALUES(server_url)`,
@@ -440,35 +449,10 @@ func upsertAndroidHostMDMInfoDB(ctx context.Context, tx sqlx.ExtContext, serverU
 		}
 	}
 
-	// Query host UUIDs to determine personal enrollment status
-	// For Android, a non-empty UUID (enterprise_specific_id) indicates a BYOD/personal device
-	type hostInfo struct {
-		ID   uint   `db:"id"`
-		UUID string `db:"uuid"`
-	}
-	var hosts []hostInfo
-	query, args, err := sqlx.In(`SELECT id, uuid FROM hosts WHERE id IN (?)`, hostIDs)
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "build host query")
-	}
-	if err := sqlx.SelectContext(ctx, tx, &hosts, query, args...); err != nil {
-		return ctxerr.Wrap(ctx, err, "query host UUIDs")
-	}
-
-	// Build map of host ID to personal enrollment status
-	hostPersonalEnrollment := make(map[uint]bool)
-	for _, h := range hosts {
-		// Android BYOD devices have a non-empty UUID (enterprise_specific_id)
-		hostPersonalEnrollment[h.ID] = h.UUID != ""
-	}
-
-	args = []interface{}{}
+	args := []any{}
 	parts := []string{}
-	for _, id := range hostIDs {
-		isPersonalEnrollment := hostPersonalEnrollment[id]
-		args = append(args, enrolled, serverURL, fromDEP, mdmID, false, isPersonalEnrollment, id)
-		parts = append(parts, "(?, ?, ?, ?, ?, ?, ?)")
-	}
+	args = append(args, enrolled, serverURL, companyOwned, mdmID, false, !companyOwned, hostID)
+	parts = append(parts, "(?, ?, ?, ?, ?, ?, ?)")
 
 	_, err = tx.ExecContext(ctx, fmt.Sprintf(`
 		INSERT INTO host_mdm (enrolled, server_url, installed_from_dep, mdm_id, is_server, is_personal_enrollment, host_id) VALUES %s
@@ -676,9 +660,9 @@ GROUP BY
 }
 
 // sqlJoinMDMAndroidProfilesStatus returns a SQL snippet that can be used to join a table derived from
-// host_mdm_android_profiles (grouped by host_uuid and status) and the hosts table. For each host_uuid,
-// it derives a boolean value for each status category. The value will be 1 if the host has any
-// profile in the given status category. The snippet assumes the hosts table to be aliased as 'h'.
+// host_mdm_android_profiles and host_certificate_templates (grouped by host_uuid and status) and the hosts table.
+// For each host_uuid, it derives a boolean value for each status category. The value will be 1 if the host has any
+// profile or certificate template in the given status category. The snippet assumes the hosts table to be aliased as 'h'.
 func sqlJoinMDMAndroidProfilesStatus() string {
 	// NOTE: To make this snippet reusable, we're not using sqlx.Named here because it would
 	// complicate usage in other queries (e.g., list hosts).
@@ -688,18 +672,45 @@ func sqlJoinMDMAndroidProfilesStatus() string {
 		verifying = fmt.Sprintf("'%s'", string(fleet.MDMDeliveryVerifying))
 		verified  = fmt.Sprintf("'%s'", string(fleet.MDMDeliveryVerified))
 		install   = fmt.Sprintf("'%s'", string(fleet.MDMOperationTypeInstall))
+
+		// Certificate template statuses
+		certPending    = fmt.Sprintf("'%s'", string(fleet.CertificateTemplatePending))
+		certDelivering = fmt.Sprintf("'%s'", string(fleet.CertificateTemplateDelivering))
+		certDelivered  = fmt.Sprintf("'%s'", string(fleet.CertificateTemplateDelivered))
+		certFailed     = fmt.Sprintf("'%s'", string(fleet.CertificateTemplateFailed))
+		certVerified   = fmt.Sprintf("'%s'", string(fleet.CertificateTemplateVerified))
 	)
 	return `
 	LEFT JOIN (
-		-- profile statuses grouped by host uuid, boolean value will be 1 if host has any profile with the given status
+		-- profile and certificate template statuses grouped by host uuid
+		-- boolean value will be 1 if host has any profile or certificate template with the given status
 		SELECT
 			host_uuid,
-			MAX( IF(status IS NULL OR status = ` + pending + `, 1, 0)) AS android_prof_pending,
-			MAX( IF(status = ` + failed + `, 1, 0)) AS android_prof_failed,
-			MAX( IF(status = ` + verifying + ` AND operation_type = ` + install + `, 1, 0)) AS android_prof_verifying,
-			MAX( IF(status = ` + verified + ` AND operation_type = ` + install + `, 1, 0)) AS android_prof_verified
-		FROM
-			host_mdm_android_profiles
+			MAX(prof_pending) AS android_prof_pending,
+			MAX(prof_failed) AS android_prof_failed,
+			MAX(prof_verifying) AS android_prof_verifying,
+			MAX(prof_verified) AS android_prof_verified
+		FROM (
+			-- Android profiles
+			SELECT
+				host_uuid,
+				IF(status IS NULL OR status = ` + pending + `, 1, 0) AS prof_pending,
+				IF(status = ` + failed + `, 1, 0) AS prof_failed,
+				IF(status = ` + verifying + ` AND operation_type = ` + install + `, 1, 0) AS prof_verifying,
+				IF(status = ` + verified + ` AND operation_type = ` + install + `, 1, 0) AS prof_verified
+			FROM
+				host_mdm_android_profiles
+			UNION ALL
+			-- Certificate templates (delivering and delivered count as pending)
+			SELECT
+				host_uuid,
+				IF(status IS NULL OR status IN (` + certPending + `, ` + certDelivering + `, ` + certDelivered + `), 1, 0) AS prof_pending,
+				IF(status = ` + certFailed + `, 1, 0) AS prof_failed,
+				0 AS prof_verifying,
+				IF(status = ` + certVerified + ` AND operation_type = ` + install + `, 1, 0) AS prof_verified
+			FROM
+				host_certificate_templates
+		) combined
 		GROUP BY
 			host_uuid) hmgp ON h.uuid = hmgp.host_uuid
 `
@@ -730,7 +741,7 @@ func sqlCaseMDMAndroidStatus() string {
 `
 }
 
-func (ds *Datastore) NewAndroidPolicyRequest(ctx context.Context, req *fleet.MDMAndroidPolicyRequest) error {
+func (ds *Datastore) NewAndroidPolicyRequest(ctx context.Context, req *android.MDMAndroidPolicyRequest) error {
 	const stmt = `
 	INSERT INTO android_policy_requests
 		(request_uuid, request_name, policy_id, payload, status_code, error_details, applied_policy_version, policy_version)
@@ -754,7 +765,7 @@ func (ds *Datastore) NewAndroidPolicyRequest(ctx context.Context, req *fleet.MDM
 	return ctxerr.Wrap(ctx, err, "inserting android policy request")
 }
 
-func (ds *Datastore) GetAndroidPolicyRequestByUUID(ctx context.Context, requestUUID string) (*fleet.MDMAndroidPolicyRequest, error) {
+func (ds *Datastore) GetAndroidPolicyRequestByUUID(ctx context.Context, requestUUID string) (*android.MDMAndroidPolicyRequest, error) {
 	const stmt = `
 		SELECT
 			request_uuid,
@@ -771,7 +782,7 @@ func (ds *Datastore) GetAndroidPolicyRequestByUUID(ctx context.Context, requestU
 			request_uuid = ?
 	`
 
-	req := fleet.MDMAndroidPolicyRequest{}
+	req := android.MDMAndroidPolicyRequest{}
 	err := sqlx.GetContext(ctx, ds.reader(ctx), &req, stmt, requestUUID)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
@@ -1022,10 +1033,13 @@ func (ds *Datastore) ListMDMAndroidProfilesToSend(ctx context.Context) ([]*fleet
 		ds.profile_uuid,
 		ds.name as profile_name,
 		ds.host_uuid,
-		COALESCE(hmap.request_fail_count, 0) as request_fail_count
+		COALESCE(hmap.request_fail_count, 0) as request_fail_count,
+		COALESCE(apr.error_details, '') as last_error_details
 	FROM ( %s ) ds
 		LEFT OUTER JOIN host_mdm_android_profiles hmap
 			ON hmap.host_uuid = ds.host_uuid AND hmap.profile_uuid = ds.profile_uuid
+		LEFT OUTER JOIN android_policy_requests apr
+			ON apr.request_uuid = hmap.policy_request_uuid
 `, fmt.Sprintf(androidApplicableProfilesQuery, "h.uuid IN (?)", "h.uuid IN (?)", "h.uuid IN (?)", "h.uuid IN (?)"))
 
 		query, args, err := sqlx.In(listToInstallProfilesStmt, hostUUIDs, hostUUIDs, hostUUIDs, hostUUIDs)
@@ -1041,10 +1055,13 @@ func (ds *Datastore) ListMDMAndroidProfilesToSend(ctx context.Context) ([]*fleet
 		hmap.profile_uuid,
 		hmap.profile_name,
 		hmap.host_uuid,
-		hmap.request_fail_count
+		hmap.request_fail_count,
+		COALESCE(apr.error_details, '') as last_error_details
 	FROM ( %s ) ds
 		RIGHT OUTER JOIN host_mdm_android_profiles hmap
 			ON hmap.host_uuid = ds.host_uuid AND hmap.profile_uuid = ds.profile_uuid
+		LEFT OUTER JOIN android_policy_requests apr
+			ON apr.request_uuid = hmap.policy_request_uuid
 	WHERE
 		hmap.host_uuid IN (?) AND
 		ds.host_uuid IS NULL
@@ -1119,7 +1136,8 @@ func (ds *Datastore) BulkUpsertMDMAndroidHostProfiles(ctx context.Context, paylo
 				policy_request_uuid,
 				device_request_uuid,
 				request_fail_count,
-				included_in_policy_version
+				included_in_policy_version,
+				can_reverify
 			)
 			VALUES %s
 			ON DUPLICATE KEY UPDATE
@@ -1130,7 +1148,8 @@ func (ds *Datastore) BulkUpsertMDMAndroidHostProfiles(ctx context.Context, paylo
 				policy_request_uuid = VALUES(policy_request_uuid),
 				device_request_uuid = VALUES(device_request_uuid),
 				request_fail_count = VALUES(request_fail_count),
-				included_in_policy_version = VALUES(included_in_policy_version)
+				included_in_policy_version = VALUES(included_in_policy_version),
+				can_reverify = VALUES(can_reverify)
 `, strings.TrimSuffix(valuePart, ","),
 		)
 
@@ -1149,12 +1168,12 @@ func (ds *Datastore) BulkUpsertMDMAndroidHostProfiles(ctx context.Context, paylo
 	}
 
 	generateValueArgs := func(p *fleet.MDMAndroidProfilePayload) (string, []any) {
-		valuePart := "(?, ?, ?, ?, ?, ?, ?, ?, ?, ?),"
+		valuePart := "(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?),"
 		args := []any{
 			p.HostUUID, p.Status, p.OperationType,
 			p.Detail, p.ProfileUUID, p.ProfileName,
 			p.PolicyRequestUUID, p.DeviceRequestUUID, p.RequestFailCount,
-			p.IncludedInPolicyVersion,
+			p.IncludedInPolicyVersion, p.CanReverify,
 		}
 		return valuePart, args
 	}
@@ -1205,17 +1224,18 @@ host_uuid = ? AND NOT (operation_type = '%s' AND COALESCE(status, '%s') IN('%s',
 	return profiles, nil
 }
 
-func (ds *Datastore) ListHostMDMAndroidProfilesPendingInstallWithVersion(ctx context.Context, hostUUID string, policyVersion int64) ([]*fleet.MDMAndroidProfilePayload, error) {
-	const stmt = `
+func (ds *Datastore) ListHostMDMAndroidProfilesPendingOrFailedInstallWithVersion(ctx context.Context, hostUUID string, policyVersion int64) ([]*fleet.MDMAndroidProfilePayload, error) {
+	stmt := `
 		SELECT profile_uuid, host_uuid, status, operation_type, detail, profile_name, policy_request_uuid, device_request_uuid, request_fail_count, included_in_policy_version
 		FROM host_mdm_android_profiles
-		WHERE host_uuid = ? AND included_in_policy_version <= ? AND status = ? AND operation_type = ?
+		WHERE host_uuid = ? AND included_in_policy_version <= ? AND operation_type = ? 
+		AND (status = 'pending' OR (status = 'failed' AND can_reverify = true))
 	`
 
 	var profiles []*fleet.MDMAndroidProfilePayload
-	err := sqlx.SelectContext(ctx, ds.reader(ctx), &profiles, stmt, hostUUID, policyVersion, fleet.MDMDeliveryPending, fleet.MDMOperationTypeInstall)
+	err := sqlx.SelectContext(ctx, ds.reader(ctx), &profiles, stmt, hostUUID, policyVersion, fleet.MDMOperationTypeInstall)
 	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "listing host MDM Android profiles pending install")
+		return nil, ctxerr.Wrap(ctx, err, "listing host MDM Android profiles pending or failed install")
 	}
 
 	return profiles, nil
@@ -1526,30 +1546,149 @@ func isAndroidHostConnectedToFleetMDM(ctx context.Context, q sqlx.QueryerContext
 			WHERE host_id = ? AND enrolled = 1
 	`, h.ID)
 	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return false, nil
+		}
 		return false, ctxerr.Wrap(ctx, err, "check android host mdm enrolled")
 	}
 
 	return isEnrolled, nil
 }
 
-// GetAndroidAppConfiguration retrieves the configuration for an Android app
-// identified by adam_id and global_or_team_id.
-func (ds *Datastore) GetAndroidAppConfiguration(ctx context.Context, adamID string, globalOrTeamID uint) (*fleet.AndroidAppConfiguration, error) {
-	stmt := `
-		SELECT
-			id,
-			application_id,
-			team_id,
-			global_or_team_id,
-			configuration,
-			created_at,
-			updated_at
-		FROM android_app_configurations
-		WHERE application_id = ? AND global_or_team_id = ?
-	`
+func (ds *Datastore) InsertAndroidSetupExperienceSoftwareInstall(ctx context.Context, payload *fleet.HostAndroidVPPSoftwareInstall) error {
+	const stmt = `
+		INSERT INTO
+			host_vpp_software_installs (
+				host_id,
+				adam_id,
+				command_uuid,
+				self_service,
+				associated_event_id,
+				platform
+			)
+		VALUES
+			(?, ?, ?, ?, ?, ?)`
 
-	var config fleet.AndroidAppConfiguration
-	err := sqlx.GetContext(ctx, ds.reader(ctx), &config, stmt, adamID, globalOrTeamID)
+	_, err := ds.writer(ctx).ExecContext(ctx, stmt,
+		payload.HostID,
+		payload.AdamID,
+		payload.CommandUUID,
+		false,
+		payload.AssociatedEventID,
+		fleet.AndroidPlatform,
+	)
+	return ctxerr.Wrap(ctx, err, "inserting android setup experience software install")
+}
+
+func (ds *Datastore) ListHostMDMAndroidVPPAppsPendingInstallWithVersion(ctx context.Context, hostUUID string, policyVersion int64) ([]*fleet.HostAndroidVPPSoftwareInstall, error) {
+	const stmt = `
+SELECT
+	hvsi.host_id,
+	hvsi.adam_id,
+	hvsi.command_uuid,
+	hvsi.associated_event_id
+FROM
+	host_vpp_software_installs hvsi
+	INNER JOIN hosts h ON hvsi.host_id = h.id
+WHERE
+	h.uuid = ? AND
+	h.platform = ? AND
+	CAST(hvsi.associated_event_id AS SIGNED INT) <= ? AND
+	hvsi.verification_at IS NULL AND
+	hvsi.verification_failed_at IS NULL
+`
+
+	var pendingInstalls []*fleet.HostAndroidVPPSoftwareInstall
+	err := sqlx.SelectContext(ctx, ds.reader(ctx), &pendingInstalls, stmt, hostUUID, fleet.AndroidPlatform, policyVersion)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "listing host mdm android vpp apps pending install")
+	}
+	return pendingInstalls, nil
+}
+
+func (ds *Datastore) BulkSetVPPInstallsAsVerified(ctx context.Context, hostID uint, commandUUIDs []string) error {
+	return ds.bulkSetVPPInstallsAsFinalState(ctx, hostID, commandUUIDs, "verification_at")
+}
+
+func (ds *Datastore) BulkSetVPPInstallsAsFailed(ctx context.Context, hostID uint, commandUUIDs []string) error {
+	return ds.bulkSetVPPInstallsAsFinalState(ctx, hostID, commandUUIDs, "verification_failed_at")
+}
+
+func (ds *Datastore) bulkSetVPPInstallsAsFinalState(ctx context.Context, hostID uint, commandUUIDs []string, column string) error {
+	if len(commandUUIDs) == 0 {
+		return nil
+	}
+
+	// For Android, we don't care about the verification command uuid (at least currently),
+	// we just set a random one.
+	stmt := fmt.Sprintf(`
+UPDATE
+	host_vpp_software_installs
+SET
+	%s = CURRENT_TIMESTAMP(6),
+	verification_command_uuid = ?
+WHERE
+	command_uuid IN (?)
+`, column)
+
+	return ds.withTx(ctx, func(tx sqlx.ExtContext) error {
+		verificationUUID := uuid.NewString()
+		stmt, args, err := sqlx.In(stmt, verificationUUID, commandUUIDs)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "build set vpp installs as final state query")
+		}
+		if _, err := tx.ExecContext(ctx, stmt, args...); err != nil {
+			return ctxerr.Wrap(ctx, err, "set vpp installs as final state")
+		}
+
+		// TODO(mna): for now we don't use the upcoming queue for Android app installs,
+		// but when we implement the standard Android app installs we probably will. Leaving
+		// this here as a reminder.
+		// if _, err := ds.activateNextUpcomingActivity(ctx, tx, hostID, ...); err != nil {
+		// 	return ctxerr.Wrap(ctx, err, "activate next activity from VPP app install verify")
+		// }
+
+		return nil
+	})
+}
+
+// HasAndroidAppConfigurationChanged checks if the new configuration for an Android app
+// identified by application_id and global_or_team_id is different from the existing one. This
+// is a datastore method so that we rely on mysql's canonicalisation of JSON for comparison.
+func (ds *Datastore) HasAndroidAppConfigurationChanged(ctx context.Context, applicationID string, teamID uint, newConfig json.RawMessage) (bool, error) {
+	const stmt = `
+SELECT
+	CAST(? AS JSON) != configuration AS has_changed
+FROM
+	android_app_configurations
+WHERE
+	application_id = ? AND
+	global_or_team_id = ?
+`
+
+	newConfigStr := string(newConfig)
+	if len(newConfigStr) == 0 {
+		newConfigStr = "{}" // consider an empty config as an empty JSON for comparison's sake
+	}
+
+	var hasChanged bool
+	err := sqlx.GetContext(ctx, ds.reader(ctx), &hasChanged, stmt, newConfigStr, applicationID, teamID)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			// old config does not exist, so old one is changed if not empty
+			return len(newConfig) > 0, nil
+		}
+		return false, ctxerr.Wrap(ctx, err, "compare android app configuration")
+	}
+	return hasChanged, nil
+}
+
+// GetAndroidAppConfiguration retrieves the configuration for an Android app by app ID and team
+func (ds *Datastore) GetAndroidAppConfiguration(ctx context.Context, applicationID string, teamID uint) (*json.RawMessage, error) {
+	stmt := `SELECT configuration FROM android_app_configurations WHERE application_id = ? AND global_or_team_id = ?`
+
+	var config json.RawMessage
+	err := sqlx.GetContext(ctx, ds.reader(ctx), &config, stmt, applicationID, teamID)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			return nil, ctxerr.Wrap(ctx, notFound("AndroidAppConfiguration"))
@@ -1560,55 +1699,96 @@ func (ds *Datastore) GetAndroidAppConfiguration(ctx context.Context, adamID stri
 	return &config, nil
 }
 
-// InsertAndroidAppConfiguration creates a new Android app configuration entry.
-func (ds *Datastore) InsertAndroidAppConfiguration(ctx context.Context, config *fleet.AndroidAppConfiguration) error {
+func (ds *Datastore) GetAndroidAppConfigurationByAppTeamID(ctx context.Context, vppAppTeamID uint) (*json.RawMessage, error) {
 	stmt := `
-		INSERT INTO android_app_configurations
-		(application_id, team_id, global_or_team_id, configuration)
-		VALUES (?, ?, ?, ?)
-	`
+	SELECT aac.configuration
+	FROM android_app_configurations aac
+	JOIN vpp_apps_teams vat
+		ON vat.adam_id = aac.application_id AND vat.global_or_team_id = aac.global_or_team_id
+	WHERE vat.id = ?
+`
 
-	_, err := ds.writer(ctx).ExecContext(ctx, stmt, config.ApplicationID, config.TeamID, config.GlobalOrTeamID, config.Configuration)
+	var config json.RawMessage
+	err := sqlx.GetContext(ctx, ds.reader(ctx), &config, stmt, vppAppTeamID)
 	if err != nil {
-		return ctxerr.Wrap(ctx, err, "insert android app configuration")
+		if err == sql.ErrNoRows {
+			return nil, ctxerr.Wrap(ctx, notFound("AndroidAppConfiguration"))
+		}
+		return nil, ctxerr.Wrap(ctx, err, "get android app configuration")
 	}
 
-	return nil
+	return &config, nil
 }
 
-// UpdateAndroidAppConfiguration updates an existing Android app configuration.
-func (ds *Datastore) UpdateAndroidAppConfiguration(ctx context.Context, config *fleet.AndroidAppConfiguration) error {
-	stmt := `
-		UPDATE android_app_configurations
-		SET configuration = ?, updated_at = CURRENT_TIMESTAMP(6)
-		WHERE application_id = ? AND global_or_team_id = ?
+func (ds *Datastore) BulkGetAndroidAppConfigurations(ctx context.Context, appIDs []string, teamID uint) (map[string]json.RawMessage, error) {
+	const bulkGetStmt = `
+	SELECT
+		application_id,
+		configuration
+	FROM android_app_configurations
+	WHERE application_id IN (?) AND global_or_team_id = ?
 	`
 
-	result, err := ds.writer(ctx).ExecContext(ctx, stmt, config.Configuration, config.ApplicationID, config.GlobalOrTeamID)
+	if len(appIDs) == 0 {
+		return nil, nil
+	}
+
+	stmt, args, err := sqlx.In(bulkGetStmt, appIDs, teamID)
 	if err != nil {
-		return ctxerr.Wrap(ctx, err, "update android app configuration")
+		return nil, ctxerr.Wrap(ctx, err, "building bulk get android app configurations query")
 	}
 
-	rows, err := result.RowsAffected()
+	var configs []*struct {
+		ApplicationID string          `db:"application_id"`
+		Configuration json.RawMessage `db:"configuration"`
+	}
+	err = sqlx.SelectContext(ctx, ds.reader(ctx), &configs, stmt, args...)
 	if err != nil {
-		return ctxerr.Wrap(ctx, err, "update android app configuration rows affected")
+		return nil, ctxerr.Wrap(ctx, err, "bulk get android app configurations")
 	}
 
-	if rows == 0 {
-		return ctxerr.Wrap(ctx, notFound("AndroidAppConfiguration"))
+	m := make(map[string]json.RawMessage, len(configs))
+	for _, c := range configs {
+		m[c.ApplicationID] = c.Configuration
 	}
+	return m, nil
+}
 
+func (ds *Datastore) SetAndroidAppInstallPendingApplyConfig(ctx context.Context, hostUUID, applicationID string, policyVersion int64) error {
+	const stmt = `
+UPDATE
+	host_vpp_software_installs
+	JOIN hosts h ON
+		h.id = host_vpp_software_installs.host_id
+SET
+	verification_at = NULL,
+	verification_command_uuid = NULL,
+	associated_event_id = ?
+WHERE
+	h.uuid = ? AND
+	host_vpp_software_installs.adam_id = ? AND
+	host_vpp_software_installs.platform = ? AND
+	-- not removed or canceled
+	host_vpp_software_installs.removed = 0 AND
+	host_vpp_software_installs.canceled = 0 AND
+	-- only if successfull or pending install
+	host_vpp_software_installs.verification_failed_at IS NULL
+`
+	_, err := ds.writer(ctx).ExecContext(ctx, stmt, fmt.Sprint(policyVersion), hostUUID, applicationID, fleet.AndroidPlatform)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "set android app install pending apply config")
+	}
 	return nil
 }
 
 // DeleteAndroidAppConfiguration removes an Android app configuration.
-func (ds *Datastore) DeleteAndroidAppConfiguration(ctx context.Context, appID string, globalOrTeamID uint) error {
+func (ds *Datastore) DeleteAndroidAppConfiguration(ctx context.Context, appID string, teamID uint) error {
 	stmt := `
 		DELETE FROM android_app_configurations
 		WHERE application_id = ? AND global_or_team_id = ?
 	`
 
-	result, err := ds.writer(ctx).ExecContext(ctx, stmt, appID, globalOrTeamID)
+	result, err := ds.writer(ctx).ExecContext(ctx, stmt, appID, teamID)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "delete android app configuration")
 	}
@@ -1626,33 +1806,60 @@ func (ds *Datastore) DeleteAndroidAppConfiguration(ctx context.Context, appID st
 }
 
 // updateAndroidAppConfigurationTx inserts or updates an app configuration using a transaction
-func (ds *Datastore) updateAndroidAppConfigurationTx(ctx context.Context, tx sqlx.ExtContext, teamID *uint, appID string, config json.RawMessage) error {
+func (ds *Datastore) updateAndroidAppConfigurationTx(ctx context.Context, tx sqlx.ExtContext, teamID uint, appID string, config json.RawMessage) error {
 	err := fleet.ValidateAndroidAppConfiguration(config)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "validating android app configuration")
 	}
 
-	var tid *uint
-	var globalOrTeamID uint
-	if teamID != nil {
-		globalOrTeamID = *teamID
-
-		if *teamID > 0 {
-			tid = teamID
-		}
-	}
-
 	stmt := `
-		INSERT INTO 
+		INSERT INTO
 			android_app_configurations (application_id, team_id, global_or_team_id, configuration)
-		VALUES (?, ?, ?, ?) 
-		ON DUPLICATE KEY UPDATE 
+		VALUES (?, ?, ?, ?)
+		ON DUPLICATE KEY UPDATE
 			configuration = VALUES(configuration)
 	`
 
-	_, err = tx.ExecContext(ctx, stmt, appID, tid, globalOrTeamID, config)
+	_, err = tx.ExecContext(ctx, stmt, appID, ptr.UintOrNilIfZero(teamID), teamID, config)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "updateAndroidAppConfiguration")
 	}
 	return nil
+}
+
+func (ds *Datastore) ListMDMAndroidUUIDsToHostIDs(ctx context.Context, hostIDs []uint) (map[string]uint, error) {
+	if len(hostIDs) == 0 {
+		return nil, nil
+	}
+
+	stmt := `
+SELECT
+	h.id AS id, h.uuid AS uuid
+FROM
+	hosts h
+	JOIN android_devices ad ON ad.host_id = h.id
+WHERE
+	h.id IN (?) AND
+	h.platform = 'android'
+`
+
+	stmt, args, err := sqlx.In(stmt, hostIDs)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "prepare statement arguments")
+	}
+
+	var rows []struct {
+		ID   uint   `db:"id"`
+		UUID string `db:"uuid"`
+	}
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &rows, stmt, args...); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "list mdm android uuids to host ids")
+	}
+
+	results := make(map[string]uint, len(rows))
+	for _, r := range rows {
+		results[r.UUID] = r.ID
+	}
+
+	return results, nil
 }

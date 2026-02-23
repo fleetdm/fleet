@@ -1,0 +1,8 @@
+{
+  "name": "Viscosity",
+  "unique_identifier": "com.viscosityvpn.Viscosity",
+  "token": "viscosity",
+  "installer_format": "dmg",
+  "slug": "viscosity/darwin",
+  "default_categories": ["Productivity"]
+}

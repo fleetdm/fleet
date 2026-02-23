@@ -14,8 +14,8 @@ import (
 
 	"github.com/fleetdm/fleet/v4/server"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
-	"github.com/fleetdm/fleet/v4/server/datastore/mysql/common_mysql"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	common_mysql "github.com/fleetdm/fleet/v4/server/platform/mysql"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/test"
 	"github.com/google/uuid"
@@ -77,9 +77,15 @@ func TestPolicies(t *testing.T) {
 		{"TestPoliciesBySoftwareTitleID", testPoliciesBySoftwareTitleID},
 		{"TestClearAutoInstallPolicyStatusForHost", testClearAutoInstallPolicyStatusForHost},
 		{"PolicyLabels", testPolicyLabels},
+		{"PolicyLabelMembershipCleanup", testPolicyLabelMembershipCleanup},
 		{"DeletePolicyWithSoftwareActivatesNextActivity", testDeletePolicyWithSoftwareActivatesNextActivity},
 		{"DeletePolicyWithScriptActivatesNextActivity", testDeletePolicyWithScriptActivatesNextActivity},
 		{"SimultaneousSavePolicy", testSimultaneousSavePolicy},
+		{"IsPolicyFailing", testIsPolicyFailing},
+		{"ResetAttemptsOnFailingToPassingSync", testResetAttemptsOnFailingToPassingSync},
+		{"ResetAttemptsOnFailingToPassingAsync", testResetAttemptsOnFailingToPassingAsync},
+		{"PolicyModificationResetsAttemptNumber", testPolicyModificationResetsAttemptNumber},
+		{"ConditionalAccessBypassEnabled", testPoliciesConditionalAccessBypassEnabled},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -1417,8 +1423,9 @@ func testPolicyQueriesForHost(t *testing.T, ds *Datastore) {
 	})
 	require.NoError(t, err)
 	tp, err := ds.NewTeamPolicy(context.Background(), team1.ID, &user1.ID, fleet.PolicyPayload{
-		QueryID:    &q2.ID,
-		Resolution: "some other gp resolution",
+		QueryID:                  &q2.ID,
+		Resolution:               "some other gp resolution",
+		ConditionalAccessEnabled: true,
 	})
 	require.NoError(t, err)
 
@@ -1450,6 +1457,7 @@ func testPolicyQueriesForHost(t *testing.T, ds *Datastore) {
 		assert.Equal(t, "alice@example.com", policy.AuthorEmail)
 		assert.NotNil(t, policy.Resolution)
 		assert.Equal(t, "some gp resolution", *policy.Resolution)
+		assert.False(t, policy.ConditionalAccessEnabled)
 	}
 
 	// Failing policy is listed first.
@@ -1463,6 +1471,7 @@ func testPolicyQueriesForHost(t *testing.T, ds *Datastore) {
 	assert.Equal(t, "alice@example.com", policies[0].AuthorEmail)
 	assert.NotNil(t, policies[0].Resolution)
 	assert.Equal(t, "some other gp resolution", *policies[0].Resolution)
+	assert.True(t, policies[0].ConditionalAccessEnabled)
 
 	checkGlobaPolicy(policies[1])
 	assert.Equal(t, "", policies[1].Response)
@@ -1731,14 +1740,15 @@ func testApplyPolicySpec(t *testing.T, ds *Datastore) {
 			LabelsIncludeAny: []string{fooLabel.Name},
 		},
 		{
-			Name:                  "query2",
-			Query:                 "select 2;",
-			Description:           "query2 desc",
-			Resolution:            "some other resolution",
-			Team:                  "team1",
-			Platform:              "darwin",
-			CalendarEventsEnabled: true,
-			LabelsExcludeAny:      []string{barLabel.Name},
+			Name:                           "query2",
+			Query:                          "select 2;",
+			Description:                    "query2 desc",
+			Resolution:                     "some other resolution",
+			Team:                           "team1",
+			Platform:                       "darwin",
+			CalendarEventsEnabled:          true,
+			LabelsExcludeAny:               []string{barLabel.Name},
+			ConditionalAccessBypassEnabled: ptr.Bool(false),
 		},
 		{
 			Name:        "query3",
@@ -1769,6 +1779,7 @@ func testApplyPolicySpec(t *testing.T, ds *Datastore) {
 	require.NotNil(t, policies[0].Resolution)
 	assert.Equal(t, "some resolution", *policies[0].Resolution)
 	assert.Equal(t, "", policies[0].Platform)
+	assert.True(t, *policies[0].ConditionalAccessBypassEnabled)
 	assert.Equal(t, []fleet.LabelIdent{{
 		LabelName: fooLabel.Name,
 		LabelID:   fooLabel.ID,
@@ -1786,6 +1797,7 @@ func testApplyPolicySpec(t *testing.T, ds *Datastore) {
 	assert.Equal(t, "some other resolution", *teamPolicies[0].Resolution)
 	assert.Equal(t, "darwin", teamPolicies[0].Platform)
 	assert.True(t, teamPolicies[0].CalendarEventsEnabled)
+	assert.False(t, *teamPolicies[0].ConditionalAccessBypassEnabled)
 	assert.Equal(t, []fleet.LabelIdent{{
 		LabelName: barLabel.Name,
 		LabelID:   barLabel.ID,
@@ -1800,6 +1812,7 @@ func testApplyPolicySpec(t *testing.T, ds *Datastore) {
 	assert.Equal(t, "some other good resolution", *teamPolicies[1].Resolution)
 	assert.Equal(t, "windows,linux", teamPolicies[1].Platform)
 	assert.False(t, teamPolicies[1].CalendarEventsEnabled)
+	assert.True(t, *teamPolicies[1].ConditionalAccessBypassEnabled)
 
 	noTeamPolicies, _, err := ds.ListTeamPolicies(ctx, fleet.PolicyNoTeamID, fleet.ListOptions{}, fleet.ListOptions{})
 	require.NoError(t, err)
@@ -1813,6 +1826,7 @@ func testApplyPolicySpec(t *testing.T, ds *Datastore) {
 	assert.Equal(t, "some other good resolution 2", *noTeamPolicies[0].Resolution)
 	assert.Equal(t, "", noTeamPolicies[0].Platform)
 	assert.False(t, noTeamPolicies[0].CalendarEventsEnabled)
+	assert.True(t, *noTeamPolicies[0].ConditionalAccessBypassEnabled)
 	assert.NotNil(t, noTeamPolicies[0].TeamID)
 	assert.Zero(t, *noTeamPolicies[0].TeamID)
 
@@ -1828,14 +1842,15 @@ func testApplyPolicySpec(t *testing.T, ds *Datastore) {
 			LabelsIncludeAny: []string{fooLabel.Name},
 		},
 		{
-			Name:                  "query2",
-			Query:                 "select 2;",
-			Description:           "query2 desc",
-			Resolution:            "some other resolution",
-			Team:                  "team1",
-			Platform:              "darwin",
-			CalendarEventsEnabled: true,
-			LabelsExcludeAny:      []string{barLabel.Name},
+			Name:                           "query2",
+			Query:                          "select 2;",
+			Description:                    "query2 desc",
+			Resolution:                     "some other resolution",
+			Team:                           "team1",
+			Platform:                       "darwin",
+			CalendarEventsEnabled:          true,
+			LabelsExcludeAny:               []string{barLabel.Name},
+			ConditionalAccessBypassEnabled: ptr.Bool(false),
 		},
 		{
 			Name:        "query3",
@@ -2328,6 +2343,7 @@ func testPoliciesSave(t *testing.T, ds *Datastore) {
 	require.Equal(t, gp.Description, payload.Description)
 	require.Equal(t, *gp.Resolution, payload.Resolution)
 	require.Equal(t, gp.Critical, payload.Critical)
+	assert.True(t, *gp.ConditionalAccessBypassEnabled)
 	requireLabels(t, []string{label1.Name, label2.Name}, gp.LabelsIncludeAny)
 
 	computeChecksum := func(policy fleet.Policy) string {
@@ -2365,6 +2381,7 @@ func testPoliciesSave(t *testing.T, ds *Datastore) {
 	require.Equal(t, *tp1.Resolution, payload.Resolution)
 	require.Equal(t, tp1.Critical, payload.Critical)
 	assert.Equal(t, tp1.CalendarEventsEnabled, payload.CalendarEventsEnabled)
+	assert.True(t, *tp1.ConditionalAccessBypassEnabled)
 	requireLabels(t, []string{label1.Name, label2.Name}, tp1.LabelsExcludeAny)
 	var teamChecksum []uint8
 	err = ds.writer(context.Background()).Get(&teamChecksum, `SELECT checksum FROM policies WHERE id = ?`, tp1.ID)
@@ -2406,6 +2423,7 @@ func testPoliciesSave(t *testing.T, ds *Datastore) {
 	tp2.Resolution = ptr.String("team1 query resolution updated")
 	tp2.Critical = false
 	tp2.CalendarEventsEnabled = false
+	tp2.ConditionalAccessBypassEnabled = ptr.Bool(false)
 	// Swap labels include and exclude
 	tp2.LabelsIncludeAny = tp2.LabelsExcludeAny
 	tp2.LabelsExcludeAny = nil
@@ -2414,6 +2432,7 @@ func testPoliciesSave(t *testing.T, ds *Datastore) {
 	tp1, err = ds.Policy(ctx, tp1.ID)
 	require.Empty(t, tp1.LabelsExcludeAny)
 	requireLabels(t, []string{label1.Name, label2.Name}, tp1.LabelsIncludeAny)
+	assert.False(t, *tp1.ConditionalAccessBypassEnabled)
 	tp2.UpdateCreateTimestamps = tp1.UpdateCreateTimestamps
 	require.NoError(t, err)
 	require.Equal(t, tp1, &tp2)
@@ -6157,6 +6176,135 @@ func testPolicyLabels(t *testing.T, ds *Datastore) {
 	}
 }
 
+func testPolicyLabelMembershipCleanup(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+	user1 := test.NewUser(t, ds, "Alice", "alice@example.com", true)
+
+	// Create labels
+	label1, err := ds.NewLabel(ctx, &fleet.Label{Name: "cleanup-label1"})
+	require.NoError(t, err)
+	label2, err := ds.NewLabel(ctx, &fleet.Label{Name: "cleanup-label2"})
+	require.NoError(t, err)
+
+	// Create hosts with different label combinations
+	hostNoLabels := test.NewHost(t, ds, "cleanup-host-no-labels", "10.0.0.1", "key1", "uuid1", time.Now())
+	hostLabel1 := test.NewHost(t, ds, "cleanup-host-label1", "10.0.0.2", "key2", "uuid2", time.Now())
+	hostLabel2 := test.NewHost(t, ds, "cleanup-host-label2", "10.0.0.3", "key3", "uuid3", time.Now())
+	hostLabelBoth := test.NewHost(t, ds, "cleanup-host-label-both", "10.0.0.4", "key4", "uuid4", time.Now())
+
+	// Apply labels to hosts
+	require.NoError(t, ds.AddLabelsToHost(ctx, hostLabel1.ID, []uint{label1.ID}))
+	require.NoError(t, ds.AddLabelsToHost(ctx, hostLabel2.ID, []uint{label2.ID}))
+	require.NoError(t, ds.AddLabelsToHost(ctx, hostLabelBoth.ID, []uint{label1.ID, label2.ID}))
+
+	// Create a policy with no label targets (applies to all hosts)
+	policy := newTestPolicy(t, ds, user1, "cleanup test policy", "", nil)
+
+	// Record policy results for all hosts
+	for _, h := range []*fleet.Host{hostNoLabels, hostLabel1, hostLabel2, hostLabelBoth} {
+		err = ds.RecordPolicyQueryExecutions(ctx, h, map[uint]*bool{policy.ID: ptr.Bool(true)}, time.Now(), false)
+		require.NoError(t, err)
+	}
+
+	// Verify all hosts have membership
+	polsByName := map[string]*fleet.Policy{policy.Name: policy}
+	wantHostsByPol := map[string][]uint{
+		policy.Name: {hostNoLabels.ID, hostLabel1.ID, hostLabel2.ID, hostLabelBoth.ID},
+	}
+	assertPolicyMembership(t, ds, polsByName, wantHostsByPol)
+
+	// Update policy to include only label1
+	policy.LabelsIncludeAny = []fleet.LabelIdent{{LabelName: label1.Name}}
+	require.NoError(t, ds.SavePolicy(ctx, policy, false, false))
+
+	// Verify only hosts with label1 still have membership
+	wantHostsByPol[policy.Name] = []uint{hostLabel1.ID, hostLabelBoth.ID}
+	assertPolicyMembership(t, ds, polsByName, wantHostsByPol)
+
+	// Update policy to include both labels (include any means host must have at least one)
+	policy.LabelsIncludeAny = []fleet.LabelIdent{{LabelName: label1.Name}, {LabelName: label2.Name}}
+	require.NoError(t, ds.SavePolicy(ctx, policy, false, false))
+
+	// Since no new memberships were added, only hosts that had membership AND match the criteria remain
+	// hostLabel2 was removed in the previous step, so it won't come back
+	wantHostsByPol[policy.Name] = []uint{hostLabel1.ID, hostLabelBoth.ID}
+	assertPolicyMembership(t, ds, polsByName, wantHostsByPol)
+
+	// Re-record membership for all hosts to test exclude labels
+	for _, h := range []*fleet.Host{hostNoLabels, hostLabel1, hostLabel2, hostLabelBoth} {
+		err = ds.RecordPolicyQueryExecutions(ctx, h, map[uint]*bool{policy.ID: ptr.Bool(true)}, time.Now(), false)
+		require.NoError(t, err)
+	}
+	wantHostsByPol[policy.Name] = []uint{hostNoLabels.ID, hostLabel1.ID, hostLabel2.ID, hostLabelBoth.ID}
+	assertPolicyMembership(t, ds, polsByName, wantHostsByPol)
+
+	// Update policy to exclude label2
+	policy.LabelsIncludeAny = nil
+	policy.LabelsExcludeAny = []fleet.LabelIdent{{LabelName: label2.Name}}
+	require.NoError(t, ds.SavePolicy(ctx, policy, false, false))
+
+	// Verify hosts with label2 are removed (hostLabel2 and hostLabelBoth)
+	wantHostsByPol[policy.Name] = []uint{hostNoLabels.ID, hostLabel1.ID}
+	assertPolicyMembership(t, ds, polsByName, wantHostsByPol)
+
+	// Test ApplyPolicySpecs with label changes
+	// First, re-record membership for all hosts
+	for _, h := range []*fleet.Host{hostNoLabels, hostLabel1, hostLabel2, hostLabelBoth} {
+		err = ds.RecordPolicyQueryExecutions(ctx, h, map[uint]*bool{policy.ID: ptr.Bool(true)}, time.Now(), false)
+		require.NoError(t, err)
+	}
+	wantHostsByPol[policy.Name] = []uint{hostNoLabels.ID, hostLabel1.ID, hostLabel2.ID, hostLabelBoth.ID}
+	assertPolicyMembership(t, ds, polsByName, wantHostsByPol)
+
+	// Apply spec with include label1 only
+	err = ds.ApplyPolicySpecs(ctx, user1.ID, []*fleet.PolicySpec{
+		{
+			Name:             policy.Name,
+			Query:            policy.Query,
+			LabelsIncludeAny: []string{label1.Name},
+		},
+	})
+	require.NoError(t, err)
+
+	// Verify only hosts with label1 remain
+	wantHostsByPol[policy.Name] = []uint{hostLabel1.ID, hostLabelBoth.ID}
+	assertPolicyMembership(t, ds, polsByName, wantHostsByPol)
+
+	// Test combined platform and label cleanup
+	// Create hosts with different platforms
+	hostWinLabel1 := test.NewHost(t, ds, "cleanup-host-win-label1", "10.0.0.5", "key5", "uuid5", time.Now())
+	hostWinLabel1.Platform = "windows"
+	require.NoError(t, ds.UpdateHost(ctx, hostWinLabel1))
+	require.NoError(t, ds.AddLabelsToHost(ctx, hostWinLabel1.ID, []uint{label1.ID}))
+
+	hostMacLabel1 := test.NewHost(t, ds, "cleanup-host-mac-label1", "10.0.0.6", "key6", "uuid6", time.Now())
+	hostMacLabel1.Platform = "darwin"
+	require.NoError(t, ds.UpdateHost(ctx, hostMacLabel1))
+	require.NoError(t, ds.AddLabelsToHost(ctx, hostMacLabel1.ID, []uint{label1.ID}))
+
+	// Create a new policy for platform + label test
+	policy2 := newTestPolicy(t, ds, user1, "cleanup test policy 2", "", nil)
+
+	// Record membership for all hosts with label1
+	for _, h := range []*fleet.Host{hostLabel1, hostLabelBoth, hostWinLabel1, hostMacLabel1} {
+		err = ds.RecordPolicyQueryExecutions(ctx, h, map[uint]*bool{policy2.ID: ptr.Bool(true)}, time.Now(), false)
+		require.NoError(t, err)
+	}
+
+	polsByName[policy2.Name] = policy2
+	wantHostsByPol[policy2.Name] = []uint{hostLabel1.ID, hostLabelBoth.ID, hostWinLabel1.ID, hostMacLabel1.ID}
+	assertPolicyMembership(t, ds, polsByName, wantHostsByPol)
+
+	// Update policy2 to windows platform AND include label1
+	policy2.Platform = "windows"
+	policy2.LabelsIncludeAny = []fleet.LabelIdent{{LabelName: label1.Name}}
+	require.NoError(t, ds.SavePolicy(ctx, policy2, false, false))
+
+	// Only windows hosts with label1 should remain
+	wantHostsByPol[policy2.Name] = []uint{hostWinLabel1.ID}
+	assertPolicyMembership(t, ds, polsByName, wantHostsByPol)
+}
+
 func testDeletePolicyWithSoftwareActivatesNextActivity(t *testing.T, ds *Datastore) {
 	ctx := t.Context()
 	u := test.NewUser(t, ds, "Alice", "alice@example.com", true)
@@ -6406,4 +6554,458 @@ func testSimultaneousSavePolicy(t *testing.T, ds *Datastore) {
 
 	err = g.Wait()
 	require.NoError(t, err)
+}
+
+func testIsPolicyFailing(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+
+	// Create test data
+	host := test.NewHost(t, ds, "host1", "10.0.0.1", "host1Key", "host1UUID", time.Now())
+	user := test.NewUser(t, ds, "User", "test@example.com", true)
+
+	policy, err := ds.NewGlobalPolicy(ctx, &user.ID, fleet.PolicyPayload{
+		Name:  "policy",
+		Query: "SELECT 1;",
+	})
+	require.NoError(t, err)
+
+	// No policy membership record exists
+	// Edge case, should consider it as failing
+	isFailing, err := ds.IsPolicyFailing(ctx, policy.ID, host.ID)
+	require.NoError(t, err)
+	require.True(t, isFailing, "policy with no membership record is considered failing")
+
+	// Exists with passes = NULL
+	// failing
+	err = ds.RecordPolicyQueryExecutions(ctx, host, map[uint]*bool{policy.ID: nil}, time.Now(), false)
+	require.NoError(t, err)
+
+	isFailing, err = ds.IsPolicyFailing(ctx, policy.ID, host.ID)
+	require.NoError(t, err)
+	require.True(t, isFailing, "policy with NULL passes should be considered still failing")
+
+	// exists with passes = false
+	// failing
+	err = ds.RecordPolicyQueryExecutions(ctx, host, map[uint]*bool{policy.ID: ptr.Bool(false)}, time.Now(), false)
+	require.NoError(t, err)
+
+	isFailing, err = ds.IsPolicyFailing(ctx, policy.ID, host.ID)
+	require.NoError(t, err)
+	require.True(t, isFailing, "policy with passes=false should be considered still failing")
+
+	// exists with passes = true
+	// Not failing
+	err = ds.RecordPolicyQueryExecutions(ctx, host, map[uint]*bool{policy.ID: ptr.Bool(true)}, time.Now(), false)
+	require.NoError(t, err)
+
+	isFailing, err = ds.IsPolicyFailing(ctx, policy.ID, host.ID)
+	require.NoError(t, err)
+	require.False(t, isFailing, "policy with passes=true should NOT be considered still failing")
+
+	// Different host
+	host2 := test.NewHost(t, ds, "host2", "10.0.0.2", "host2Key", "host2UUID", time.Now())
+	isFailing, err = ds.IsPolicyFailing(ctx, policy.ID, host2.ID)
+	require.NoError(t, err)
+	require.True(t, isFailing, "policy with no membership record for different host should be considered still failing")
+
+	// Different policy for the same host
+	policy2, err := ds.NewGlobalPolicy(ctx, &user.ID, fleet.PolicyPayload{
+		Name:  "policy 2",
+		Query: "SELECT 2;",
+	})
+	require.NoError(t, err)
+
+	isFailing, err = ds.IsPolicyFailing(ctx, policy2.ID, host.ID)
+	require.NoError(t, err)
+	require.True(t, isFailing, "different policy with no membership record should be considered still failing")
+}
+
+func testResetAttemptsOnFailingToPassingSync(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+	user := test.NewUser(t, ds, "Bob", "bob@example.com", true)
+
+	// Create policies
+	p1, err := ds.NewGlobalPolicy(ctx, &user.ID, fleet.PolicyPayload{
+		Name:  "policy-sync-1",
+		Query: "SELECT 1",
+	})
+	require.NoError(t, err)
+	p2, err := ds.NewGlobalPolicy(ctx, &user.ID, fleet.PolicyPayload{
+		Name:  "policy-sync-2",
+		Query: "SELECT 2",
+	})
+	require.NoError(t, err)
+
+	// Enroll a host
+	host, err := ds.EnrollOsquery(ctx,
+		fleet.WithEnrollOsqueryHostID("hsync1"),
+		fleet.WithEnrollOsqueryNodeKey("nsync1"),
+	)
+	require.NoError(t, err)
+
+	// p1 will be failing
+	require.NoError(t, ds.RecordPolicyQueryExecutions(ctx, host, map[uint]*bool{p1.ID: ptr.Bool(false)}, time.Now(), false))
+
+	// Create rows with attempt_number > 0 and attempt_number IS NULL (pending)
+	// p1 - completed attempt
+	execID1 := uuid.NewString()
+	_, err = ds.writer(ctx).Exec(`INSERT INTO host_script_results (host_id, execution_id, output, runtime, policy_id, attempt_number) VALUES (?, ?, '', 0, ?, 1)`, host.ID, execID1, p1.ID)
+	require.NoError(t, err)
+	execID2 := uuid.NewString()
+	_, err = ds.writer(ctx).Exec(`INSERT INTO host_software_installs (execution_id, host_id, policy_id, attempt_number, installer_filename, version) VALUES (?, ?, ?, 1, 'x', '1.0.0')`, execID2, host.ID, p1.ID)
+	require.NoError(t, err)
+	execID1Pending := uuid.NewString()
+	_, err = ds.writer(ctx).Exec(`INSERT INTO host_script_results (host_id, execution_id, output, runtime, policy_id, attempt_number) VALUES (?, ?, '', 0, ?, NULL)`, host.ID, execID1Pending, p1.ID)
+	require.NoError(t, err)
+	execID2Pending := uuid.NewString()
+	_, err = ds.writer(ctx).Exec(`INSERT INTO host_software_installs (execution_id, host_id, policy_id, attempt_number, installer_filename, version) VALUES (?, ?, ?, NULL, 'x-pending', '1.0.0')`, execID2Pending, host.ID, p1.ID)
+	require.NoError(t, err)
+	// p2 - completed attempt
+	execID3 := uuid.NewString()
+	_, err = ds.writer(ctx).Exec(`INSERT INTO host_script_results (host_id, execution_id, output, runtime, policy_id, attempt_number) VALUES (?, ?, '', 0, ?, 1)`, host.ID, execID3, p2.ID)
+	require.NoError(t, err)
+	execID4 := uuid.NewString()
+	_, err = ds.writer(ctx).Exec(`INSERT INTO host_software_installs (execution_id, host_id, policy_id, attempt_number, installer_filename, version) VALUES (?, ?, ?, 1, 'y', '2.0.0')`, execID4, host.ID, p2.ID)
+	require.NoError(t, err)
+	execID3Pending := uuid.NewString()
+	_, err = ds.writer(ctx).Exec(`INSERT INTO host_script_results (host_id, execution_id, output, runtime, policy_id, attempt_number) VALUES (?, ?, '', 0, ?, NULL)`, host.ID, execID3Pending, p2.ID)
+	require.NoError(t, err)
+	execID4Pending := uuid.NewString()
+	_, err = ds.writer(ctx).Exec(`INSERT INTO host_software_installs (execution_id, host_id, policy_id, attempt_number, installer_filename, version) VALUES (?, ?, ?, NULL, 'y-pending', '2.0.0')`, execID4Pending, host.ID, p2.ID)
+	require.NoError(t, err)
+
+	// p1 is now passing
+	err = ds.RecordPolicyQueryExecutions(ctx, host, map[uint]*bool{p1.ID: ptr.Bool(true), p2.ID: ptr.Bool(true)}, time.Now(), false)
+	require.NoError(t, err)
+
+	// p1 rows should be reset to 0 (both completed and pending)
+	var cnt int
+	err = sqlx.GetContext(ctx, ds.reader(ctx), &cnt, `SELECT COUNT(*) FROM host_script_results WHERE host_id = ? AND policy_id = ? AND attempt_number = 0`, host.ID, p1.ID)
+	require.NoError(t, err)
+	require.Equal(t, 2, cnt, "both completed and pending script attempts should be reset to 0")
+	err = sqlx.GetContext(ctx, ds.reader(ctx), &cnt, `SELECT COUNT(*) FROM host_software_installs WHERE host_id = ? AND policy_id = ? AND attempt_number = 0`, host.ID, p1.ID)
+	require.NoError(t, err)
+	require.Equal(t, 2, cnt, "both completed and pending install attempts should be reset to 0")
+
+	// p2 rows should remain unchanged (no transition, first execution was passing)
+	err = sqlx.GetContext(ctx, ds.reader(ctx), &cnt, `SELECT COUNT(*) FROM host_script_results WHERE host_id = ? AND policy_id = ? AND attempt_number = 1`, host.ID, p2.ID)
+	require.NoError(t, err)
+	require.Equal(t, 1, cnt)
+	err = sqlx.GetContext(ctx, ds.reader(ctx), &cnt, `SELECT COUNT(*) FROM host_software_installs WHERE host_id = ? AND policy_id = ? AND attempt_number = 1`, host.ID, p2.ID)
+	require.NoError(t, err)
+	require.Equal(t, 1, cnt)
+	err = sqlx.GetContext(ctx, ds.reader(ctx), &cnt, `SELECT COUNT(*) FROM host_script_results WHERE host_id = ? AND policy_id = ? AND attempt_number IS NULL`, host.ID, p2.ID)
+	require.NoError(t, err)
+	require.Equal(t, 1, cnt, "p2 pending script should remain NULL")
+	err = sqlx.GetContext(ctx, ds.reader(ctx), &cnt, `SELECT COUNT(*) FROM host_software_installs WHERE host_id = ? AND policy_id = ? AND attempt_number IS NULL`, host.ID, p2.ID)
+	require.NoError(t, err)
+	require.Equal(t, 1, cnt, "p2 pending install should remain NULL")
+}
+
+func testResetAttemptsOnFailingToPassingAsync(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+	user := test.NewUser(t, ds, "Carol", "carol@example.com", true)
+
+	// Create policies
+	p1, err := ds.NewGlobalPolicy(ctx, &user.ID, fleet.PolicyPayload{
+		Name:  "policy-async-1",
+		Query: "SELECT 1",
+	})
+	require.NoError(t, err)
+	p2, err := ds.NewGlobalPolicy(ctx, &user.ID, fleet.PolicyPayload{
+		Name:  "policy-async-2",
+		Query: "SELECT 2",
+	})
+	require.NoError(t, err)
+
+	// Enroll a host
+	host, err := ds.EnrollOsquery(ctx,
+		fleet.WithEnrollOsqueryHostID("hasync1"),
+		fleet.WithEnrollOsqueryNodeKey("nasync1"),
+	)
+	require.NoError(t, err)
+
+	// p1 is failing
+	require.NoError(t, ds.RecordPolicyQueryExecutions(ctx, host, map[uint]*bool{p1.ID: ptr.Bool(false)}, time.Now(), false))
+
+	// Create rows with attempt_number > 0 and attempt_number IS NULL (pending)
+	// p1 - completed attempt
+	execID1 := uuid.NewString()
+	_, err = ds.writer(ctx).Exec(`INSERT INTO host_script_results (host_id, execution_id, output, runtime, policy_id, attempt_number) VALUES (?, ?, '', 0, ?, 1)`, host.ID, execID1, p1.ID)
+	require.NoError(t, err)
+	execID2 := uuid.NewString()
+	_, err = ds.writer(ctx).Exec(`INSERT INTO host_software_installs (execution_id, host_id, policy_id, attempt_number, installer_filename, version) VALUES (?, ?, ?, 1, 'z', '3.0.0')`, execID2, host.ID, p1.ID)
+	require.NoError(t, err)
+	execID1Pending := uuid.NewString()
+	_, err = ds.writer(ctx).Exec(`INSERT INTO host_script_results (host_id, execution_id, output, runtime, policy_id, attempt_number) VALUES (?, ?, '', 0, ?, NULL)`, host.ID, execID1Pending, p1.ID)
+	require.NoError(t, err)
+	execID2Pending := uuid.NewString()
+	_, err = ds.writer(ctx).Exec(`INSERT INTO host_software_installs (execution_id, host_id, policy_id, attempt_number, installer_filename, version) VALUES (?, ?, ?, NULL, 'z-pending', '3.0.0')`, execID2Pending, host.ID, p1.ID)
+	require.NoError(t, err)
+	// p2 - completed attempt
+	execID3 := uuid.NewString()
+	_, err = ds.writer(ctx).Exec(`INSERT INTO host_script_results (host_id, execution_id, output, runtime, policy_id, attempt_number) VALUES (?, ?, '', 0, ?, 1)`, host.ID, execID3, p2.ID)
+	require.NoError(t, err)
+	execID4 := uuid.NewString()
+	_, err = ds.writer(ctx).Exec(`INSERT INTO host_software_installs (execution_id, host_id, policy_id, attempt_number, installer_filename, version) VALUES (?, ?, ?, 1, 'w', '4.0.0')`, execID4, host.ID, p2.ID)
+	require.NoError(t, err)
+	execID3Pending := uuid.NewString()
+	_, err = ds.writer(ctx).Exec(`INSERT INTO host_script_results (host_id, execution_id, output, runtime, policy_id, attempt_number) VALUES (?, ?, '', 0, ?, NULL)`, host.ID, execID3Pending, p2.ID)
+	require.NoError(t, err)
+	execID4Pending := uuid.NewString()
+	_, err = ds.writer(ctx).Exec(`INSERT INTO host_software_installs (execution_id, host_id, policy_id, attempt_number, installer_filename, version) VALUES (?, ?, ?, NULL, 'w-pending', '4.0.0')`, execID4Pending, host.ID, p2.ID)
+	require.NoError(t, err)
+
+	// flip p1 to passing
+	batch := []fleet.PolicyMembershipResult{
+		{HostID: host.ID, PolicyID: p1.ID, Passes: ptr.Bool(true)},
+		{HostID: host.ID, PolicyID: p2.ID, Passes: ptr.Bool(true)},
+	}
+	require.NoError(t, ds.AsyncBatchInsertPolicyMembership(ctx, batch))
+
+	// p1 rows should be reset to 0 (both completed and pending)
+	var cnt int
+	err = sqlx.GetContext(ctx, ds.reader(ctx), &cnt, `SELECT COUNT(*) FROM host_script_results WHERE host_id = ? AND policy_id = ? AND attempt_number = 0`, host.ID, p1.ID)
+	require.NoError(t, err)
+	require.Equal(t, 2, cnt, "both completed and pending script attempts should be reset to 0")
+	err = sqlx.GetContext(ctx, ds.reader(ctx), &cnt, `SELECT COUNT(*) FROM host_software_installs WHERE host_id = ? AND policy_id = ? AND attempt_number = 0`, host.ID, p1.ID)
+	require.NoError(t, err)
+	require.Equal(t, 2, cnt, "both completed and pending install attempts should be reset to 0")
+
+	// p2 rows should remain unchanged (no transition, first execution was passing)
+	err = sqlx.GetContext(ctx, ds.reader(ctx), &cnt, `SELECT COUNT(*) FROM host_script_results WHERE host_id = ? AND policy_id = ? AND attempt_number = 1`, host.ID, p2.ID)
+	require.NoError(t, err)
+	require.Equal(t, 1, cnt)
+	err = sqlx.GetContext(ctx, ds.reader(ctx), &cnt, `SELECT COUNT(*) FROM host_software_installs WHERE host_id = ? AND policy_id = ? AND attempt_number = 1`, host.ID, p2.ID)
+	require.NoError(t, err)
+	require.Equal(t, 1, cnt)
+	err = sqlx.GetContext(ctx, ds.reader(ctx), &cnt, `SELECT COUNT(*) FROM host_script_results WHERE host_id = ? AND policy_id = ? AND attempt_number IS NULL`, host.ID, p2.ID)
+	require.NoError(t, err)
+	require.Equal(t, 1, cnt, "p2 pending script should remain NULL")
+	err = sqlx.GetContext(ctx, ds.reader(ctx), &cnt, `SELECT COUNT(*) FROM host_software_installs WHERE host_id = ? AND policy_id = ? AND attempt_number IS NULL`, host.ID, p2.ID)
+	require.NoError(t, err)
+	require.Equal(t, 1, cnt, "p2 pending install should remain NULL")
+}
+
+func testPolicyModificationResetsAttemptNumber(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+
+	// Create a team
+	team, err := ds.NewTeam(ctx, &fleet.Team{Name: t.Name()})
+	require.NoError(t, err)
+
+	// Create script content
+	var scriptContentID int64
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		res, err := q.ExecContext(ctx, `INSERT INTO script_contents (md5_checksum, contents) VALUES (?, ?)`,
+			"md5hash", "echo 'test'")
+		if err != nil {
+			return err
+		}
+		scriptContentID, err = res.LastInsertId()
+		return err
+	})
+
+	// Create a script
+	script, err := ds.NewScript(ctx, &fleet.Script{
+		Name:            "test.sh",
+		TeamID:          &team.ID,
+		ScriptContentID: uint(scriptContentID),
+		ScriptContents:  "echo 'test'",
+	})
+	require.NoError(t, err)
+
+	// Create a software title and installer
+	titleID := int64(0)
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		res, err := q.ExecContext(ctx, `INSERT INTO software_titles (name, source) VALUES (?, ?)`, "Test App", "apps")
+		if err != nil {
+			return err
+		}
+		titleID, err = res.LastInsertId()
+		return err
+	})
+
+	installerID := int64(0)
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		res, err := q.ExecContext(ctx, `
+			INSERT INTO software_installers (team_id, global_or_team_id, title_id, storage_id, filename, extension, version, install_script_content_id, uninstall_script_content_id, platform, package_ids)
+			VALUES (?, ?, ?, 'storage', 'test.pkg', 'pkg', '1.0', ?, ?, 'darwin', '')
+		`, team.ID, team.ID, titleID, scriptContentID, scriptContentID)
+		if err != nil {
+			return err
+		}
+		installerID, err = res.LastInsertId()
+		return err
+	})
+
+	// Create a policy
+	policy, err := ds.NewTeamPolicy(ctx, team.ID, nil, fleet.PolicyPayload{
+		Name:     t.Name(),
+		Query:    "SELECT 1;",
+		Platform: "darwin",
+	})
+	require.NoError(t, err)
+
+	// Insert software install attempts for this policy
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, `
+			INSERT INTO host_software_installs (execution_id, host_id, software_installer_id, user_id, self_service, policy_id, install_script_exit_code, attempt_number)
+			VALUES ('install-1', 1, ?, NULL, 0, ?, 1, 1)
+		`, installerID, policy.ID)
+		return err
+	})
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, `
+			INSERT INTO host_software_installs (execution_id, host_id, software_installer_id, user_id, self_service, policy_id, install_script_exit_code, attempt_number)
+			VALUES ('install-2', 1, ?, NULL, 0, ?, NULL, 2)
+		`, installerID, policy.ID)
+		return err
+	})
+
+	// Insert script execution attempts for this policy
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, `
+			INSERT INTO host_script_results (host_id, execution_id, script_content_id, output, exit_code, script_id, policy_id, attempt_number)
+			VALUES (1, 'script-1', ?, 'output', 1, ?, ?, 1)
+		`, scriptContentID, script.ID, policy.ID)
+		return err
+	})
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, `
+			INSERT INTO host_script_results (host_id, execution_id, script_content_id, output, exit_code, script_id, policy_id, attempt_number)
+			VALUES (1, 'script-2', ?, '', NULL, ?, ?, 2)
+		`, scriptContentID, script.ID, policy.ID)
+		return err
+	})
+
+	// Modify the policy - this should reset attempt_number to 0 for all automations using this policy
+	err = ds.SavePolicy(ctx, policy, false, false)
+	require.NoError(t, err)
+
+	// Verify software install attempts were reset
+	type installResult struct {
+		ExecutionID   string `db:"execution_id"`
+		AttemptNumber *int64 `db:"attempt_number"`
+	}
+	var installResults []installResult
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		return sqlx.SelectContext(ctx, q, &installResults, `
+			SELECT execution_id, attempt_number
+			FROM host_software_installs
+			WHERE policy_id = ?
+			ORDER BY execution_id ASC
+		`, policy.ID)
+	})
+
+	require.Len(t, installResults, 2)
+	require.NotNil(t, installResults[0].AttemptNumber)
+	require.Equal(t, int64(0), *installResults[0].AttemptNumber)
+	require.NotNil(t, installResults[1].AttemptNumber)
+	require.Equal(t, int64(0), *installResults[1].AttemptNumber)
+
+	// Verify script execution attempts were also reset
+	type scriptResult struct {
+		ExecutionID   string `db:"execution_id"`
+		AttemptNumber *int64 `db:"attempt_number"`
+	}
+	var scriptResults []scriptResult
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		return sqlx.SelectContext(ctx, q, &scriptResults, `
+			SELECT execution_id, attempt_number
+			FROM host_script_results
+			WHERE script_id = ? AND policy_id = ?
+			ORDER BY execution_id ASC
+		`, script.ID, policy.ID)
+	})
+
+	require.Len(t, scriptResults, 2)
+	require.Equal(t, "script-1", scriptResults[0].ExecutionID)
+	require.NotNil(t, scriptResults[0].AttemptNumber)
+	require.Equal(t, int64(0), *scriptResults[0].AttemptNumber)
+	require.Equal(t, "script-2", scriptResults[1].ExecutionID)
+	require.NotNil(t, scriptResults[1].AttemptNumber)
+	require.Equal(t, int64(0), *scriptResults[1].AttemptNumber)
+}
+
+func testPoliciesConditionalAccessBypassEnabled(t *testing.T, ds *Datastore) {
+	user := test.NewUser(t, ds, "User1", "user1@example.com", true)
+	ctx := t.Context()
+	team, err := ds.NewTeam(ctx, &fleet.Team{Name: "team1"})
+	require.NoError(t, err)
+
+	cases := []struct {
+		name           string
+		global         bool
+		createBypass   *bool
+		expectedCreate bool
+		toggleTo       *bool
+	}{
+		{
+			name:           "team default nil",
+			createBypass:   nil,
+			expectedCreate: true,
+		},
+		{
+			name:           "team explicit false",
+			createBypass:   ptr.Bool(false),
+			expectedCreate: false,
+		},
+		{
+			name:           "team explicit true",
+			createBypass:   ptr.Bool(true),
+			expectedCreate: true,
+		},
+		{
+			name:           "toggle false to true",
+			createBypass:   ptr.Bool(false),
+			expectedCreate: false,
+			toggleTo:       ptr.Bool(true),
+		},
+		{
+			name:           "toggle true to false",
+			createBypass:   nil,
+			expectedCreate: true,
+			toggleTo:       ptr.Bool(false),
+		},
+		{
+			name:           "global default",
+			global:         true,
+			createBypass:   nil,
+			expectedCreate: true,
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			payload := fleet.PolicyPayload{
+				Name:                           tc.name,
+				Query:                          "select 1;",
+				ConditionalAccessBypassEnabled: tc.createBypass,
+			}
+
+			var policy *fleet.Policy
+			if tc.global {
+				policy, err = ds.NewGlobalPolicy(ctx, &user.ID, payload)
+			} else {
+				policy, err = ds.NewTeamPolicy(ctx, team.ID, &user.ID, payload)
+			}
+			require.NoError(t, err)
+			assert.Equal(t, tc.expectedCreate, *policy.ConditionalAccessBypassEnabled)
+
+			got, err := ds.Policy(ctx, policy.ID)
+			require.NoError(t, err)
+			assert.Equal(t, tc.expectedCreate, *got.ConditionalAccessBypassEnabled)
+
+			if tc.toggleTo != nil {
+				policy.ConditionalAccessBypassEnabled = tc.toggleTo
+				err = ds.SavePolicy(ctx, policy, false, false)
+				require.NoError(t, err)
+
+				got, err = ds.Policy(ctx, policy.ID)
+				require.NoError(t, err)
+				assert.Equal(t, *tc.toggleTo, *got.ConditionalAccessBypassEnabled)
+			}
+		})
+	}
 }

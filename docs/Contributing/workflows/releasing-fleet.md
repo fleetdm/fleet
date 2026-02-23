@@ -21,7 +21,7 @@ Note: Please prefix versions with `fleet-v` (e.g., `fleet-v4.0.0`) in git tags, 
 - [fleetctl package.json](https://github.com/fleetdm/fleet/blob/main/tools/fleetctl-npm/package.json) (do not yet `npm publish`)
 - [Helm chart.yaml](https://github.com/fleetdm/fleet/blob/main/charts/fleet/Chart.yaml) and [values file](https://github.com/fleetdm/fleet/blob/main/charts/fleet/values.yaml)
 - GCP Terraform [variables](https://github.com/fleetdm/fleet/blob/main/infrastructure/dogfood/terraform/gcp/variables.tf)
-- [Kubernetes `fleet-deployment.yml` file](https://github.com/fleetdm/fleet/blob/main/docs/Deploy/kubernetes/fleet-deployment.yml)
+- Kubernetes [Helm chart](https://github.com/fleetdm/fleet/blob/main/charts/fleet/Chart.yaml)
 - All Terraform (*.tf) files referencing the previous version of Fleet.
 - The full list can be found by using git grep:
     % git grep "4\.3\.0"
@@ -153,7 +153,7 @@ When the Actions Workflow has been completed, [publish the new version of Fleet]
 
 <COPY FROM CHANGELOG>
 
-> Fleet-maintained app updates and vulnerability fixes are applied, whether or not you upgrade.
+> Fleet-maintained app updates and vulnerability feed fixes are applied, whether or not you upgrade.
 
 ### Fleet's agent and fleetctl CLI
 

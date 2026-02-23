@@ -3442,7 +3442,7 @@ spec:
 apiVersion: v1
 kind: policy
 spec:
-  name: CIS -  Ensure Logging Is Enabled for Sudo (Fleetd Required)
+  name: CIS - Ensure Logging Is Enabled for Sudo (Fleetd Required)
   platforms: macOS
   platform: darwin
   description: |

@@ -63,29 +63,6 @@ const generateSCEPLearnMoreErrMsg = (errMsg: string, learnMoreUrl: string) => {
   );
 };
 
-const generateUserChannelLearnMoreErrMsg = (errMsg: string) => {
-  // The errors from the API for these errors contain couldn't add/couldn't edit
-  // depending on context so no need to include it here but we do want to remove
-  // the learn more link from the actual error since we will add a nicely formatted
-  // link to the error message.
-  if (errMsg.includes(" Learn more: https://")) {
-    errMsg = errMsg.substring(0, errMsg.indexOf(" Learn more: https://"));
-  }
-  return (
-    <>
-      {errMsg}{" "}
-      <CustomLink
-        url={
-          "https://fleetdm.com/learn-more-about/configuration-profiles-user-channel"
-        }
-        text="Learn more"
-        variant="flash-message-link"
-        newTab
-      />
-    </>
-  );
-};
-
 /**
  * Helper function to take whatever message is from the API and strip out the Learn More link and format it accordingly.
  */
@@ -253,12 +230,18 @@ export const getErrorMessage = (err: AxiosResponse<IApiError>) => {
   }
 
   if (apiReason.includes('"PayloadScope"')) {
-    return generateUserChannelLearnMoreErrMsg(apiReason);
+    return generateGenericLearnMoreErrMsg(apiReason);
   }
 
   if (apiReason.includes("Configuration profiles can't be signed")) {
     return generateGenericLearnMoreErrMsg(apiReason);
   }
+
+  // // FIXME: Should we include a default case to catch any other learn more links from the API?
+  // // Can we get rid of some/all of the specific cases above and just have this generic one?
+  // if (apiReason.includes(" Learn more: https://")) {
+  //   return generateGenericLearnMoreErrMsg(apiReason);
+  // }
 
   return `${apiReason}` || DEFAULT_ERROR_MESSAGE;
 };

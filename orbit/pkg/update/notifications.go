@@ -276,7 +276,7 @@ type runScriptsConfigReceiver struct {
 	// ScriptsExecutionEnabled indicates if this agent allows scripts execution.
 	// If it doesn't, scripts are not executed, but a response is returned to the
 	// Fleet server so it knows the agent processed the request. Note that this
-	// should be set to the value of the --scripts-enabled command-line flag. An
+	// should be set to the value of the --enable-scripts command-line flag. An
 	// additional, dynamic check is done automatically by the
 	// runScriptsConfigReceiver if this field is false to get the value from the
 	// MDM configuration profile.
@@ -404,7 +404,7 @@ func (h *runScriptsConfigReceiver) Run(cfg *fleet.OrbitConfig) error {
 
 func (h *runScriptsConfigReceiver) scriptsEnabled() bool {
 	// scripts are always enabled if the agent is started with the
-	// --scripts-enabled flag. If it is not started with this flag, then
+	// --enable-scripts flag. If it is not started with this flag, then
 	// scripts are enabled only if the mdm profile says so.
 	return h.ScriptsExecutionEnabled || h.dynamicScriptsEnabled.Load()
 }
@@ -446,26 +446,27 @@ type windowsMDMBitlockerConfigReceiver struct {
 	// ensures only one script execution runs at a time
 	mu sync.Mutex
 
-	// for tests, to be able to mock API commands. If nil, will use
-	// bitlocker.EncryptVolume
+	// execEncryptVolumeFn handles volume encryption. Set by the middleware from the COMWorker, or overridden in tests.
 	execEncryptVolumeFn execEncryptVolumeFunc
 
-	// for tests, to be able to mock API commands. If nil, will use
-	// bitlocker.GetEncryptionStatus
+	// execGetEncryptionStatusFn retrieves encryption status. Set by the middleware from the COMWorker, or overridden in tests.
 	execGetEncryptionStatusFn execGetEncryptionStatusFunc
 
-	// for tests, to be able to mock the decryption process. If nil, will use
-	// bitlocker.DecryptVolume
+	// execDecryptVolumeFn handles volume decryption. Set by the middleware from the COMWorker, or overridden in tests.
 	execDecryptVolumeFn execDecryptVolumeFunc
 }
 
 func ApplyWindowsMDMBitlockerFetcherMiddleware(
 	frequency time.Duration,
 	encryptionResult DiskEncryptionKeySetter,
+	comWorker *bitlocker.COMWorker,
 ) fleet.OrbitConfigReceiver {
 	return &windowsMDMBitlockerConfigReceiver{
-		Frequency:        frequency,
-		EncryptionResult: encryptionResult,
+		Frequency:                 frequency,
+		EncryptionResult:          encryptionResult,
+		execEncryptVolumeFn:       comWorker.EncryptVolume,
+		execGetEncryptionStatusFn: comWorker.GetEncryptionStatus,
+		execDecryptVolumeFn:       comWorker.DecryptVolume,
 	}
 }
 
@@ -559,11 +560,7 @@ func (w *windowsMDMBitlockerConfigReceiver) attemptBitlockerEncryption(notifs fl
 
 // getEncryptionStatusForVolume retrieves the encryption status for a specific volume.
 func (w *windowsMDMBitlockerConfigReceiver) getEncryptionStatusForVolume(volume string) (*bitlocker.EncryptionStatus, error) {
-	fn := w.execGetEncryptionStatusFn
-	if fn == nil {
-		fn = bitlocker.GetEncryptionStatus
-	}
-	status, err := fn()
+	status, err := w.execGetEncryptionStatusFn()
 	if err != nil {
 		return nil, err
 	}
@@ -593,12 +590,7 @@ func (w *windowsMDMBitlockerConfigReceiver) bitLockerActionInProgress(status *bi
 
 // performEncryption executes the encryption process.
 func (w *windowsMDMBitlockerConfigReceiver) performEncryption(volume string) (string, error) {
-	fn := w.execEncryptVolumeFn
-	if fn == nil {
-		fn = bitlocker.EncryptVolume
-	}
-
-	recoveryKey, err := fn(volume)
+	recoveryKey, err := w.execEncryptVolumeFn(volume)
 	if err != nil {
 		return "", err
 	}
@@ -607,12 +599,7 @@ func (w *windowsMDMBitlockerConfigReceiver) performEncryption(volume string) (st
 }
 
 func (w *windowsMDMBitlockerConfigReceiver) decryptVolume(targetVolume string) error {
-	fn := w.execDecryptVolumeFn
-	if fn == nil {
-		fn = bitlocker.DecryptVolume
-	}
-
-	return fn(targetVolume)
+	return w.execDecryptVolumeFn(targetVolume)
 }
 
 // isMisreportedDecryptionError checks whether the given error is a potentially

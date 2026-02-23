@@ -75,7 +75,7 @@ module.exports = {
           allIssuesWithBugLabel = allIssuesWithBugLabel.concat(issuesWithBugLabel);
           // If we received less results than we requested, we've reached the last page of the results.
           return issuesWithBugLabel.length !== NUMBER_OF_RESULTS_REQUESTED;
-        }, 10000);
+        }, 30000);
 
         // iterate through the allIssuesWithBugLabel array, adding the number
         for (let issue of allIssuesWithBugLabel) {
@@ -133,7 +133,7 @@ module.exports = {
           allIssuesWithBugLabel = allIssuesWithBugLabel.concat(issuesWithBugLabel);
           // Stop when we've received results from the third page.
           return pageNumberForPaginatedResults === 3;
-        }, 10000);
+        }, 30000);
 
         // iterate through the allIssuesWithBugLabel array, adding the number
         for (let issue of allIssuesWithBugLabel) {
@@ -240,7 +240,7 @@ module.exports = {
           allPublicOpenPrs = allPublicOpenPrs.concat(pullRequests);
           // If we received less results than we requested, we've reached the last page of the results.
           return pullRequests.length !== NUMBER_OF_RESULTS_REQUESTED;
-        }, 10000);
+        }, 30000);
 
         for (let pullRequest of allPublicOpenPrs) {
           // Create a date object from the PR's created_at timestamp.
@@ -334,9 +334,9 @@ module.exports = {
       averageDaysContributorPullRequestsAreOpenFor,
       averageNumberOfDaysBugsAreOpenFor,
       allBugs32DaysOrOlder.length,
-      allBugsClosedInPastWeek.length,
+      allBugsReportedByCustomersInPastWeek.length,
       allBugsCreatedInPastWeek.length,
-      allBugsReportedByCustomersInPastWeek.length,);
+      allBugsClosedInPastWeek.length);
 
     // Log the results
     sails.log(`
@@ -377,4 +377,5 @@ module.exports = {
   }
 
 };
+
 

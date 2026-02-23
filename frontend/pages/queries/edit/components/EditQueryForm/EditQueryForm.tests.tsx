@@ -176,13 +176,13 @@ describe("EditQueryForm - component", () => {
       />
     );
 
-    expect(screen.getByRole("button", { name: "Live query" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Live report" })).toBeDisabled();
 
-    await user.hover(screen.getByRole("button", { name: "Live query" }));
+    await user.hover(screen.getByRole("button", { name: "Live report" }));
 
     expect(
       await screen.findByText(
-        /live queries are disabled in organization settings/i
+        /live reports are disabled in organization settings/i
       )
     ).toBeInTheDocument();
   });

@@ -5,6 +5,7 @@ import (
 	"encoding/xml"
 	"fmt"
 	"io"
+	"log/slog"
 	"strings"
 	"testing"
 	"time"
@@ -15,8 +16,8 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mdm/microsoft/wlanxml"
 	"github.com/fleetdm/fleet/v4/server/mock"
 	"github.com/fleetdm/fleet/v4/server/ptr"
-	"github.com/go-kit/log"
 	"github.com/google/uuid"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
@@ -67,7 +68,7 @@ func TestLoopHostMDMLocURIs(t *testing.T) {
 		uniqueHash  string
 	}
 	got := []wantStruct{}
-	err := LoopOverExpectedHostProfiles(ctx, log.NewNopLogger(), ds, &fleet.Host{}, func(profile *fleet.ExpectedMDMProfile, hash, locURI, data string) {
+	err := LoopOverExpectedHostProfiles(ctx, slog.New(slog.DiscardHandler), ds, &fleet.Host{}, func(profile *fleet.ExpectedMDMProfile, hash, locURI, data string) {
 		got = append(got, wantStruct{
 			locURI:      locURI,
 			data:        data,
@@ -144,7 +145,7 @@ func TestVerifyHostMDMProfilesErrors(t *testing.T) {
 	ctx := context.Background()
 	host := &fleet.Host{}
 
-	err := VerifyHostMDMProfiles(ctx, log.NewNopLogger(), ds, host, []byte{})
+	err := VerifyHostMDMProfiles(ctx, slog.New(slog.DiscardHandler), ds, host, []byte{})
 	require.ErrorIs(t, err, io.EOF)
 }
 
@@ -736,6 +737,57 @@ func TestVerifyHostMDMProfilesHappyPaths(t *testing.T) {
 			toFail:   []string{},
 			toRetry:  []string{}, // It should not do anything on SCEP profiles.
 		},
+		{
+			name: "non atomic profile with multiple locURIs verifies only if all locURIs match",
+			hostProfiles: []hostProfile{
+				{"N1", syncml.ForTestWithDataNonAtomic([]syncml.TestCommand{
+					{Verb: "Replace", LocURI: "L1", Data: "D1"},
+					{Verb: "Replace", LocURI: "L1.1", Data: "D1.1"},
+				}), 3},
+			},
+			report: []osqueryReport{
+				{"N1", "200", "L1", "D1"},
+				{"N1", "200", "L1.1", "DifferentData"},
+			},
+			toVerify: []string{},
+			toFail:   []string{"N1"},
+			toRetry:  []string{},
+		},
+		{
+			name: "non atomic profile with multiple locURIs verifies if all locURIs match",
+			hostProfiles: []hostProfile{
+				{"N1", syncml.ForTestWithDataNonAtomic([]syncml.TestCommand{
+					{Verb: "Replace", LocURI: "L1", Data: "D1"},
+					{Verb: "Replace", LocURI: "L1.1", Data: "D1.1"},
+				}), 0},
+			},
+			report: []osqueryReport{
+				{"N1", "200", "L1", "D1"},
+				{"N1", "200", "L1.1", "D1.1"},
+			},
+			toVerify: []string{"N1"},
+			toFail:   []string{},
+			toRetry:  []string{},
+		},
+		{
+			name: "non atomic and atomic profiles does not interfere",
+			hostProfiles: []hostProfile{
+				{"N1", syncml.ForTestWithDataNonAtomic([]syncml.TestCommand{
+					{Verb: "Replace", LocURI: "L1", Data: "D1"},
+					{Verb: "Replace", LocURI: "L1.1", Data: "D1.1"},
+				}), 0},
+				{"N2", syncml.ForTestWithData([]syncml.TestCommand{
+					{Verb: "Replace", LocURI: "L2", Data: "D2"},
+				}), 3},
+			},
+			report: []osqueryReport{
+				{"N1", "200", "L1", "D1"},
+				{"N1", "200", "L1.1", "D1.1"},
+			},
+			toVerify: []string{"N1"},
+			toFail:   []string{"N2"},
+			toRetry:  []string{},
+		},
 	}
 
 	for _, tt := range cases {
@@ -794,9 +846,9 @@ func TestVerifyHostMDMProfilesHappyPaths(t *testing.T) {
 			}
 
 			ds.UpdateHostMDMProfilesVerificationFunc = func(ctx context.Context, host *fleet.Host, toVerify []string, toFail []string, toRetry []string) error {
-				require.ElementsMatch(t, tt.toVerify, toVerify, "profiles to verify don't match")
-				require.ElementsMatch(t, tt.toFail, toFail, "profiles to fail don't match")
-				require.ElementsMatch(t, tt.toRetry, toRetry, "profiles to retry don't match")
+				assert.ElementsMatch(t, tt.toVerify, toVerify, "profiles to verify don't match")
+				assert.ElementsMatch(t, tt.toFail, toFail, "profiles to fail don't match")
+				assert.ElementsMatch(t, tt.toRetry, toRetry, "profiles to retry don't match")
 				return nil
 			}
 
@@ -818,7 +870,7 @@ func TestVerifyHostMDMProfilesHappyPaths(t *testing.T) {
 			out, err := xml.Marshal(msg)
 			require.NoError(t, err)
 			require.NoError(t,
-				VerifyHostMDMProfiles(context.Background(), log.NewNopLogger(), ds, &fleet.Host{DetailUpdatedAt: time.Now()}, out))
+				VerifyHostMDMProfiles(context.Background(), slog.New(slog.DiscardHandler), ds, &fleet.Host{DetailUpdatedAt: time.Now()}, out))
 			require.True(t, ds.UpdateHostMDMProfilesVerificationFuncInvoked)
 			require.True(t, ds.GetHostMDMProfilesExpectedForVerificationFuncInvoked)
 			require.True(t, ds.GetHostMDMWindowsProfilesFuncInvoked)
@@ -1038,7 +1090,7 @@ func TestPreprocessWindowsProfileContentsForVerification(t *testing.T) {
 
 	deps := ProfilePreprocessDependenciesForVerify{
 		Context:            t.Context(),
-		Logger:             log.NewNopLogger(),
+		Logger:             slog.New(slog.DiscardHandler),
 		DataStore:          ds,
 		HostIDForUUIDCache: make(map[string]uint),
 	}
@@ -1362,7 +1414,7 @@ func TestPreprocessWindowsProfileContentsForDeployment(t *testing.T) {
 			deps := ProfilePreprocessDependenciesForDeploy{
 				ProfilePreprocessDependenciesForVerify: ProfilePreprocessDependenciesForVerify{
 					Context:            ctx,
-					Logger:             log.NewNopLogger(),
+					Logger:             slog.New(slog.DiscardHandler),
 					DataStore:          ds,
 					HostIDForUUIDCache: hostIDForUUIDCache,
 				},

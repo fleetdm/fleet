@@ -197,7 +197,7 @@ type MDMAppleConfigProfile struct {
 	ProfileID uint `db:"profile_id" json:"profile_id"`
 	// TeamID is the id of the team with which the configuration is associated. A nil team id
 	// represents a configuration profile that is not associated with any team.
-	TeamID *uint `db:"team_id" json:"team_id"`
+	TeamID *uint `db:"team_id" json:"team_id" renameto:"fleet_id"`
 	// Identifier corresponds to the payload identifier of the associated mobileconfig payload.
 	// Fleet requires that Identifier must be unique in combination with the Name and TeamID.
 	Identifier string `db:"identifier" json:"identifier"`
@@ -321,7 +321,7 @@ func (p HostMDMAppleProfile) ToHostMDMProfile(platform string) HostMDMProfile {
 		ProfileUUID:         p.ProfileUUID,
 		Name:                p.Name,
 		Identifier:          p.Identifier,
-		Status:              p.Status,
+		Status:              p.Status.StringPtr(),
 		OperationType:       p.OperationType,
 		Detail:              p.Detail,
 		Platform:            platform,
@@ -496,7 +496,7 @@ type MDMApplePreassignProfile struct {
 // MDMAppleSettingsPayload describes the payload accepted by the endpoint to
 // update specific MDM macos settings for a team (or no team).
 type MDMAppleSettingsPayload struct {
-	TeamID               *uint `json:"team_id"`
+	TeamID               *uint `json:"team_id" renameto:"fleet_id"`
 	EnableDiskEncryption *bool `json:"enable_disk_encryption"`
 }
 
@@ -508,7 +508,7 @@ func (p MDMAppleSettingsPayload) AuthzType() string {
 // MDMAppleSetupPayload describes the payload accepted by the endpoint to
 // update specific MDM macos setup values for a team (or no team).
 type MDMAppleSetupPayload struct {
-	TeamID                      *uint `json:"team_id"`
+	TeamID                      *uint `json:"team_id" renameto:"fleet_id"`
 	EnableEndUserAuthentication *bool `json:"enable_end_user_authentication"`
 	EnableReleaseDeviceManually *bool `json:"enable_release_device_manually"`
 	ManualAgentInstall          *bool `json:"manual_agent_install"`
@@ -554,6 +554,7 @@ const (
 	DEPAssignProfileResponseSuccess       DEPAssignProfileResponseStatus = "SUCCESS"
 	DEPAssignProfileResponseNotAccessible DEPAssignProfileResponseStatus = "NOT_ACCESSIBLE"
 	DEPAssignProfileResponseFailed        DEPAssignProfileResponseStatus = "FAILED"
+	DEPAssignProfileResponseThrottled     DEPAssignProfileResponseStatus = "THROTTLED"
 )
 
 // NanoEnrollment represents a row in the nano_enrollments table managed by
@@ -613,7 +614,7 @@ type MDMAppleCommand struct {
 // or no team.
 type MDMAppleSetupAssistant struct {
 	ID         uint            `json:"-" db:"id"`
-	TeamID     *uint           `json:"team_id" db:"team_id"`
+	TeamID     *uint           `json:"team_id" renameto:"fleet_id" db:"team_id"`
 	Name       string          `json:"name" db:"name"`
 	Profile    json.RawMessage `json:"enrollment_profile" db:"profile"`
 	UploadedAt time.Time       `json:"uploaded_at" db:"uploaded_at"`
@@ -665,7 +666,7 @@ type MDMAppleDeclaration struct {
 
 	// TeamID is the id of the team with which the declaration is associated. A nil team id
 	// represents a declaration that is not associated with any team.
-	TeamID *uint `db:"team_id" json:"team_id"`
+	TeamID *uint `db:"team_id" json:"team_id" renameto:"fleet_id"`
 
 	// Identifier corresponds to the "Identifier" key of the associated declaration.
 	// Fleet requires that Identifier must be unique in combination with the Name and TeamID.
@@ -987,6 +988,8 @@ type MDMAppleDDMActivation struct {
 	Type        string                       `json:"Type"` // "com.apple.activation.simple"
 }
 
+const BootstrapPackageSignedURLExpiry = 6 * time.Hour
+
 // MDMBootstrapPackageStore is the interface to store and retrieve bootstrap
 // package files. Fleet supports storing to the database and to an S3 bucket.
 type MDMBootstrapPackageStore interface {
@@ -994,7 +997,7 @@ type MDMBootstrapPackageStore interface {
 	Put(ctx context.Context, packageID string, content io.ReadSeeker) error
 	Exists(ctx context.Context, packageID string) (bool, error)
 	Cleanup(ctx context.Context, usedPackageIDs []string, removeCreatedBefore time.Time) (int, error)
-	Sign(ctx context.Context, fileID string) (string, error)
+	Sign(ctx context.Context, fileID string, expiresIn time.Duration) (string, error)
 }
 
 // MDMAppleMachineInfo is a [device's information][1] sent as part of an MDM enrollment profile request
@@ -1112,5 +1115,18 @@ type AppleMDMVPPInstaller interface {
 	GetVPPTokenIfCanInstallVPPApps(ctx context.Context, appleDevice bool, host *Host) (string, error)
 
 	// InstallVPPAppPostValidation installs a VPP app, assuming that GetVPPTokenIfCanInstallVPPApps has passed and provided a VPP token
+	// Returns the command UUID of the installation.
 	InstallVPPAppPostValidation(ctx context.Context, host *Host, vppApp *VPPApp, token string, opts HostSoftwareInstallOptions) (string, error)
+}
+
+const (
+	DeviceLocationCmdName  = "DeviceLocation"
+	EnableLostModeCmdName  = "EnableLostMode"
+	DisableLostModeCmdName = "DisableLostMode"
+)
+
+type HostLocationData struct {
+	HostID    uint    `db:"host_id"`
+	Latitude  float64 `db:"latitude"`
+	Longitude float64 `db:"longitude"`
 }

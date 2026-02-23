@@ -162,7 +162,7 @@ func TestExtractHostCertificateNameDetails(t *testing.T) {
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			actual, err := ExtractDetailsFromOsqueryDistinguishedName(tc.input)
+			actual, err := ExtractDetailsFromOsqueryDistinguishedName("darwin", tc.input)
 			if tc.err {
 				require.Error(t, err)
 			} else {
@@ -226,6 +226,72 @@ func TestExtractHostCertificateFromMDMAppleCertificateList(t *testing.T) {
 				assert.Equal(t, tc.expected.SubjectOrganization, parsed.SubjectOrganization)
 				assert.Equal(t, tc.expected.SubjectOrganizationalUnit, parsed.SubjectOrganizationalUnit)
 			}
+		})
+	}
+}
+
+func TestDecodeHexEscapes(t *testing.T) {
+	cases := []struct {
+		name     string
+		input    string
+		expected string
+	}{
+		{
+			name:     "plain ASCII unchanged",
+			input:    "hello world",
+			expected: "hello world",
+		},
+		{
+			name:     "empty string",
+			input:    "",
+			expected: "",
+		},
+		{
+			name:     "cyrillic hex escapes",
+			input:    `\xD0\x90\xD0\x91`,
+			expected: "АБ",
+		},
+		{
+			name:     "mixed ASCII and hex escapes",
+			input:    `abc\xD0\x90def`,
+			expected: "abcАdef",
+		},
+		{
+			name:     "full DN string with hex escapes",
+			input:    `/O=\xD0\x90\xD0\x91/CN=\xD0\x92\xD0\x93`,
+			expected: "/O=АБ/CN=ВГ",
+		},
+		{
+			name:     "incomplete escape at end of string",
+			input:    `hello\x`,
+			expected: `hello\x`,
+		},
+		{
+			name:     "incomplete escape with one hex char at end",
+			input:    `hello\xD`,
+			expected: `hello\xD`,
+		},
+		{
+			name:     "invalid hex after backslash-x",
+			input:    `hello\xZZworld`,
+			expected: `hello\xZZworld`,
+		},
+		{
+			name:     "no escape sequences present",
+			input:    `/C=US/O=Fleet Device Management Inc./CN=FleetDM`,
+			expected: `/C=US/O=Fleet Device Management Inc./CN=FleetDM`,
+		},
+		{
+			name:     "backslash not followed by x",
+			input:    `hello\nworld`,
+			expected: `hello\nworld`,
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			result := DecodeHexEscapes(tc.input)
+			assert.Equal(t, tc.expected, result)
 		})
 	}
 }

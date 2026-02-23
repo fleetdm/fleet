@@ -1,14 +1,15 @@
 package service
 
 import (
+	"github.com/docker/go-units"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm/android"
-	"github.com/fleetdm/fleet/v4/server/service/middleware/endpoint_utils"
+	eu "github.com/fleetdm/fleet/v4/server/platform/endpointer"
 	kithttp "github.com/go-kit/kit/transport/http"
 	"github.com/gorilla/mux"
 )
 
-func GetRoutes(fleetSvc fleet.Service, svc android.Service) endpoint_utils.HandlerRoutesFunc {
+func GetRoutes(fleetSvc fleet.Service, svc android.Service) eu.HandlerRoutesFunc {
 	return func(r *mux.Router, opts []kithttp.ServerOption) {
 		attachFleetAPIRoutes(r, fleetSvc, svc, opts)
 	}
@@ -25,7 +26,6 @@ func attachFleetAPIRoutes(r *mux.Router, fleetSvc fleet.Service, svc android.Ser
 	ue.GET("/api/_version_/fleet/android_enterprise", getEnterpriseEndpoint, nil)
 	ue.DELETE("/api/_version_/fleet/android_enterprise", deleteEnterpriseEndpoint, nil)
 	ue.GET("/api/_version_/fleet/android_enterprise/signup_sse", enterpriseSSE, nil)
-	ue.POST("/api/_version_/fleet/hosts/{id}/mdm/unenroll", unenrollAndroidHostEndpoint, androidHostUnenrollRequest{})
 
 	// //////////////////////////////////////////
 	// Unauthenticated endpoints
@@ -34,7 +34,7 @@ func attachFleetAPIRoutes(r *mux.Router, fleetSvc fleet.Service, svc android.Ser
 
 	ne.GET("/api/_version_/fleet/android_enterprise/connect/{token}", enterpriseSignupCallbackEndpoint, enterpriseSignupCallbackRequest{})
 	ne.GET("/api/_version_/fleet/android_enterprise/enrollment_token", enrollmentTokenEndpoint, enrollmentTokenRequest{})
-	ne.POST(pubSubPushPath, pubSubPushEndpoint, PubSubPushRequest{})
+	ne.WithRequestBodySizeLimit(10*units.MiB).POST(pubSubPushPath, pubSubPushEndpoint, PubSubPushRequest{})
 }
 
 func apiVersions() []string {

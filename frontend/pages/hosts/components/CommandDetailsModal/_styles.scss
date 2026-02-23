@@ -1,0 +1,18 @@
+.command-details-modal {
+  &__modal-content {
+    display: flex;
+    flex-direction: column;
+    gap: $pad-large;
+    padding-bottom: $pad-small;
+
+    .textarea-wrapper {
+      gap: $pad-small;
+    }
+  }
+
+  // shortening the hight of the textarea
+  // so the modal height stays within the viewport
+  .textarea--code {
+    max-height: 200px;
+  }
+}

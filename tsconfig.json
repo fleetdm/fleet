@@ -7,7 +7,10 @@
     "jsx": "react",
     "allowSyntheticDefaultImports": true,
     "resolveJsonModule": true,
-    "lib": ["ES2021.String", "ES2020.Promise"]
+    "lib": ["ES2021.String", "ES2020.Promise"],
+    "paths": {
+      "node-sql-parser": ["../node_modules/@sgress454/node-sql-parser"]
+    }
   },
   "include": ["./frontend/**/*"],
   "exclude": ["node_modules"],

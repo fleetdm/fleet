@@ -12,6 +12,7 @@ export default {
   CONTROLS_OS_UPDATES: `${URL_PREFIX}/controls/os-updates`,
   CONTROLS_OS_SETTINGS: `${URL_PREFIX}/controls/os-settings`,
   CONTROLS_CUSTOM_SETTINGS: `${URL_PREFIX}/controls/os-settings/custom-settings`,
+  CONTROLS_CERTIFICATES: `${URL_PREFIX}/controls/os-settings/certificates`,
   CONTROLS_DISK_ENCRYPTION: `${URL_PREFIX}/controls/os-settings/disk-encryption`,
   CONTROLS_SETUP_EXPERIENCE: `${URL_PREFIX}/controls/setup-experience`,
   CONTROLS_END_USER_AUTHENTICATION: `${URL_PREFIX}/controls/setup-experience/end-user-auth`,
@@ -58,7 +59,7 @@ export default {
   ADMIN_INTEGRATIONS_CALENDARS: `${INTEGRATIONS_PREFIX}/calendars`,
   ADMIN_INTEGRATIONS_CHANGE_MANAGEMENT: `${INTEGRATIONS_PREFIX}/change-management`,
   ADMIN_INTEGRATIONS_CONDITIONAL_ACCESS: `${INTEGRATIONS_PREFIX}/conditional-access`,
-  ADMIN_INTEGRATIONS_CERTIFICATE_AUTHORITIES: `${INTEGRATIONS_PREFIX}/certificates`,
+  ADMIN_INTEGRATIONS_CERTIFICATE_AUTHORITIES: `${INTEGRATIONS_PREFIX}/certificate-authorities`,
   ADMIN_INTEGRATIONS_IDENTITY_PROVIDER: `${INTEGRATIONS_PREFIX}/identity-provider`,
   ADMIN_INTEGRATIONS_VPP: `${INTEGRATIONS_PREFIX}/mdm/vpp`,
   ADMIN_INTEGRATIONS_VPP_SETUP: `${INTEGRATIONS_PREFIX}/vpp/setup`,
@@ -140,10 +141,10 @@ export default {
   MANAGE_HOSTS_LABEL: (labelId: number | string): string => {
     return `${URL_PREFIX}/hosts/manage/labels/${labelId}`;
   },
-  HOST_DETAILS_PAGE: (id: number): string => {
-    return `${URL_PREFIX}/hosts/${id}`;
-  },
-  HOST_DETAILS: (id: number): string => {
+  HOST_DETAILS: (id: number, teamId?: number): string => {
+    if (teamId) {
+      return `${URL_PREFIX}/hosts/${id}/details?fleet_id=${teamId}`;
+    }
     return `${URL_PREFIX}/hosts/${id}/details`;
   },
   HOST_SCRIPTS: (id: number): string => {
@@ -178,22 +179,25 @@ export default {
   DEVICE_USER_DETAILS_POLICIES: (deviceAuthToken: string): string => {
     return `${URL_PREFIX}/device/${deviceAuthToken}/policies`;
   },
+  DEVICE_TRANSPARENCY: (deviceAuthToken: string): string => {
+    return `${URL_PREFIX}/api/v1/fleet/device/${deviceAuthToken}/transparency`;
+  },
 
   TEAM_DETAILS_USERS: (teamId?: number): string => {
     if (teamId !== undefined && teamId > 0) {
-      return `${URL_PREFIX}/settings/teams/users?team_id=${teamId}`;
+      return `${URL_PREFIX}/settings/teams/users?fleet_id=${teamId}`;
     }
     return `${URL_PREFIX}/settings/teams`;
   },
   TEAM_DETAILS_OPTIONS: (teamId?: number): string => {
     if (teamId !== undefined && teamId > 0) {
-      return `${URL_PREFIX}/settings/teams/options?team_id=${teamId}`;
+      return `${URL_PREFIX}/settings/teams/options?fleet_id=${teamId}`;
     }
     return `${URL_PREFIX}/settings/teams`;
   },
   TEAM_DETAILS_SETTINGS: (teamId?: number) => {
     if (teamId !== undefined && teamId > 0) {
-      return `${URL_PREFIX}/settings/teams/settings?team_id=${teamId}`;
+      return `${URL_PREFIX}/settings/teams/settings?fleet_id=${teamId}`;
     }
     return `${URL_PREFIX}/settings/teams`;
   },

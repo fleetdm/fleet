@@ -101,8 +101,9 @@ interface ISoftwarePageProps {
     pathname: string;
     search: string;
     query: {
-      team_id?: string;
+      fleet_id?: string;
       available_for_install?: string;
+      self_service?: string;
       vulnerable?: string;
       exploit?: string;
       min_cvss_score?: string;
@@ -190,6 +191,13 @@ const SoftwarePage = ({ children, router, location }: ISoftwarePageProps) => {
     router,
     includeAllTeams: true,
     includeNoTeam: true,
+    // When switching to "All teams" context, remove any unsupported query params that might be set
+    overrideParamsOnTeamChange: {
+      available_for_install: (newTeamId: number | undefined) =>
+        newTeamId === APP_CONTEXT_ALL_TEAMS_ID,
+      self_service: (newTeamId: number | undefined) =>
+        newTeamId === APP_CONTEXT_ALL_TEAMS_ID,
+    },
   });
 
   // softwareConfig is either the global config or the team config of the
@@ -266,7 +274,7 @@ const SoftwarePage = ({ children, router, location }: ISoftwarePageProps) => {
     } else {
       router.push(
         getPathWithQueryParams(PATHS.SOFTWARE_ADD_FLEET_MAINTAINED, {
-          team_id: currentTeamId,
+          fleet_id: currentTeamId,
         })
       );
     }
@@ -304,7 +312,7 @@ const SoftwarePage = ({ children, router, location }: ISoftwarePageProps) => {
     (i: number): void => {
       // Only query param to persist between tabs is team id
       const teamIdParam = {
-        team_id: location?.query.team_id,
+        fleet_id: location?.query.fleet_id,
         page: 0, // Fixes flakey page reset in API call when switching between tabs
       };
 
@@ -319,7 +327,7 @@ const SoftwarePage = ({ children, router, location }: ISoftwarePageProps) => {
   );
 
   const renderPageActions = () => {
-    const canManageAutomations = isGlobalAdmin && isPremiumTier;
+    const canManageAutomations = isGlobalAdmin;
 
     const canAddSoftware =
       isGlobalAdmin || isGlobalMaintainer || isTeamAdmin || isTeamMaintainer;
@@ -333,7 +341,7 @@ const SoftwarePage = ({ children, router, location }: ISoftwarePageProps) => {
             underline={false}
             tipContent={
               <div className={`${baseClass}__header__tooltip`}>
-                Select &ldquo;All teams&rdquo; to manage automations.
+                Select &ldquo;All fleets&rdquo; to manage automations.
               </div>
             }
             disableTooltip={isAllTeamsSelected || isPrimoMode}
@@ -358,7 +366,7 @@ const SoftwarePage = ({ children, router, location }: ISoftwarePageProps) => {
             tipContent={
               <div className={`${baseClass}__header__tooltip`}>
                 {isPremiumTier
-                  ? "Select a team to add software."
+                  ? "Select a fleet to add software."
                   : "This feature is included in Fleet Premium."}
               </div>
             }
@@ -376,14 +384,10 @@ const SoftwarePage = ({ children, router, location }: ISoftwarePageProps) => {
   };
 
   const renderHeaderDescription = () => {
-    let suffix;
-    if (!isPrimoMode) {
-      suffix = isAllTeamsSelected ? " for all hosts" : " on this team";
-    }
     return (
       <>
         Manage software and search for installed software, OS, and
-        vulnerabilities{suffix}.
+        vulnerabilities.
       </>
     );
   };
@@ -458,6 +462,7 @@ const SoftwarePage = ({ children, router, location }: ISoftwarePageProps) => {
         {renderBody()}
         {showManageAutomationsModal && softwareConfig && (
           <ManageAutomationsModal
+            router={router}
             onCancel={toggleManageAutomationsModal}
             onCreateWebhookSubmit={onCreateWebhookSubmit}
             togglePreviewPayloadModal={togglePreviewPayloadModal}

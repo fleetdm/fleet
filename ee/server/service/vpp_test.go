@@ -23,6 +23,9 @@ func TestBatchAssociateVPPApps(t *testing.T) {
 		ds.GetVPPTokenByTeamIDFunc = func(ctx context.Context, teamID *uint) (*fleet.VPPTokenDB, error) {
 			return nil, sql.ErrNoRows
 		}
+		ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+			return &fleet.AppConfig{}, nil
+		}
 		t.Run("dry run", func(t *testing.T) {
 			_, err := svc.BatchAssociateVPPApps(ctx, "", []fleet.VPPBatchPayload{
 				{
@@ -30,6 +33,7 @@ func TestBatchAssociateVPPApps(t *testing.T) {
 					LabelsExcludeAny: []string{},
 					LabelsIncludeAny: []string{},
 					Categories:       []string{},
+					Platform:         fleet.MacOSPlatform,
 				},
 			}, true)
 			require.ErrorContains(t, err, "could not retrieve vpp token")
@@ -41,9 +45,49 @@ func TestBatchAssociateVPPApps(t *testing.T) {
 					LabelsExcludeAny: []string{},
 					LabelsIncludeAny: []string{},
 					Categories:       []string{},
+					Platform:         fleet.MacOSPlatform,
 				},
 			}, false)
 			require.ErrorContains(t, err, "could not retrieve vpp token")
 		})
+	})
+
+	t.Run("Fails for Fleet Agent Android apps via GitOps", func(t *testing.T) {
+		ds.GetSoftwareCategoryIDsFunc = func(ctx context.Context, names []string) ([]uint, error) {
+			return nil, nil
+		}
+
+		fleetAgentPackages := []string{
+			"com.fleetdm.agent",
+			"com.fleetdm.agent.pingali",
+			"com.fleetdm.agent.private.testuser",
+		}
+
+		for _, pkg := range fleetAgentPackages {
+			t.Run(pkg+" dry run", func(t *testing.T) {
+				_, err := svc.BatchAssociateVPPApps(ctx, "", []fleet.VPPBatchPayload{
+					{
+						AppStoreID:       pkg,
+						LabelsExcludeAny: []string{},
+						LabelsIncludeAny: []string{},
+						Categories:       []string{},
+						Platform:         fleet.AndroidPlatform,
+					},
+				}, true)
+				require.ErrorContains(t, err, "The Fleet agent cannot be added manually")
+			})
+			t.Run(pkg+" not dry run", func(t *testing.T) {
+				_, err := svc.BatchAssociateVPPApps(ctx, "", []fleet.VPPBatchPayload{
+					{
+						AppStoreID:       pkg,
+						LabelsExcludeAny: []string{},
+						LabelsIncludeAny: []string{},
+						Categories:       []string{},
+						Platform:         fleet.AndroidPlatform,
+					},
+				}, false)
+				require.ErrorContains(t, err, "The Fleet agent cannot be added manually")
+			})
+		}
 	})
 }

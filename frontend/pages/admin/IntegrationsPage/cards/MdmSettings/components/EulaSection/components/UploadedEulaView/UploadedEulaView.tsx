@@ -3,7 +3,7 @@ import React from "react";
 import { IEulaMetadataResponse } from "services/entities/mdm";
 
 import CustomLink from "components/CustomLink";
-import UploadList from "pages/ManageControlsPage/components/UploadList";
+import UploadList from "components/UploadList";
 import EulaListItem from "../EulaListItem/EulaListItem";
 
 const baseClass = "uploaded-eula-view";
@@ -23,7 +23,7 @@ const UploadedEulaView = ({
         Require end users to agree to a EULA when they first set up their new
         macOS hosts.{" "}
         <CustomLink
-          url="https://fleetdm.com/docs/using-fleet/mdm-macos-setup-experience#end-user-authentication-and-eula"
+          url="https://fleetdm.com/learn-more-about/setup-experience/end-user-authentication"
           text="Learn more"
           newTab
         />

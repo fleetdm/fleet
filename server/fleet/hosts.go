@@ -217,6 +217,9 @@ type HostListOptions struct {
 	// PopulateLabels adds the `Labels` array field to all host responses returned
 	PopulateLabels bool
 
+	// IncludeDeviceStatus adds the `MDM` field with the `device_status` & `pending_action` sub fields to all hosts returned
+	IncludeDeviceStatus bool
+
 	// VulnerabilityFilter filters the hosts by the presence of a vulnerability (CVE)
 	VulnerabilityFilter *string
 
@@ -314,6 +317,9 @@ type Host struct {
 	HardwareVersion  string `json:"hardware_version" db:"hardware_version" csv:"hardware_version"`
 	HardwareSerial   string `json:"hardware_serial" db:"hardware_serial" csv:"hardware_serial"`
 	ComputerName     string `json:"computer_name" db:"computer_name" csv:"computer_name"`
+	// TimeZone is the host's configured timezone. Currently only ingested for iOS/iPadOS hosts via MDM.
+	// CSV not exported to not break automations.
+	TimeZone *string `json:"timezone" db:"timezone" csv:"-"`
 	// PrimaryNetworkInterfaceID if present indicates to primary network for the host, the details of which
 	// can be found in the NetworkInterfaces element with the same ip_address.
 	PrimaryNetworkInterfaceID *uint               `json:"primary_ip_id,omitempty" db:"primary_ip_id" csv:"primary_ip_id"`
@@ -324,12 +330,12 @@ type Host struct {
 	DistributedInterval       uint                `json:"distributed_interval" db:"distributed_interval" csv:"distributed_interval"`
 	ConfigTLSRefresh          uint                `json:"config_tls_refresh" db:"config_tls_refresh" csv:"config_tls_refresh"`
 	LoggerTLSPeriod           uint                `json:"logger_tls_period" db:"logger_tls_period" csv:"logger_tls_period"`
-	TeamID                    *uint               `json:"team_id" db:"team_id" csv:"team_id"`
+	TeamID                    *uint               `json:"team_id" renameto:"fleet_id" db:"team_id" csv:"team_id"`
 
 	// Loaded via JOIN in DB
 	PackStats []PackStats `json:"pack_stats" csv:"-"`
 	// TeamName is the name of the team, loaded by JOIN to the teams table.
-	TeamName *string `json:"team_name" db:"team_name" csv:"team_name"`
+	TeamName *string `json:"team_name" renameto:"fleet_name" db:"team_name" csv:"team_name"`
 	// Additional is the additional information from the host
 	// additional_queries. This should be stored in a separate DB table.
 	Additional *json.RawMessage `json:"additional,omitempty" db:"additional" csv:"-"`
@@ -491,8 +497,8 @@ type HostHealth struct {
 	FailingCriticalPoliciesCount *int                           `json:"failing_critical_policies_count,omitempty"` // Fleet Premium Only
 	VulnerableSoftware           []HostHealthVulnerableSoftware `json:"vulnerable_software,omitempty"`
 	FailingPolicies              []*HostHealthFailingPolicy     `json:"failing_policies,omitempty"`
-	Platform                     string                         `json:"-" db:"platform"`                // Needed to fetch failing policies. Not returned in HTTP responses.
-	TeamID                       *uint                          `json:"team_id,omitempty" db:"team_id"` // Needed to verify that user can access this host's health data. Not returned in HTTP responses.
+	Platform                     string                         `json:"-" db:"platform"`                                    // Needed to fetch failing policies. Not returned in HTTP responses.
+	TeamID                       *uint                          `json:"team_id,omitempty" renameto:"fleet_id" db:"team_id"` // Needed to verify that user can access this host's health data. Not returned in HTTP responses.
 }
 
 type HostHealthVulnerableSoftware struct {
@@ -883,6 +889,8 @@ type HostDetail struct {
 
 	LastMDMEnrolledAt  *time.Time `json:"last_mdm_enrolled_at"`
 	LastMDMCheckedInAt *time.Time `json:"last_mdm_checked_in_at"`
+
+	ConditionalAccessBypassed bool `json:"conditional_access_bypassed"`
 }
 
 type HostEndUser struct {
@@ -911,7 +919,7 @@ const (
 // set of hosts in the database. This structure is returned by the HostService
 // method GetHostSummary
 type HostSummary struct {
-	TeamID             *uint                  `json:"team_id,omitempty" db:"-"`
+	TeamID             *uint                  `json:"team_id,omitempty" renameto:"fleet_id" db:"-"`
 	TotalsHostsCount   uint                   `json:"totals_hosts_count" db:"total"`
 	OnlineCount        uint                   `json:"online_count" db:"online"`
 	OfflineCount       uint                   `json:"offline_count" db:"offline"`
@@ -1057,6 +1065,19 @@ func IsApplePlatform(hostPlatform string) bool {
 	return hostPlatform == "darwin" || hostPlatform == "ios" || hostPlatform == "ipados"
 }
 
+func IsMacOSPlatform(hostPlatform string) bool {
+	return hostPlatform == "darwin"
+}
+
+// Return true if the platform is either iOS or iPadOS
+func IsAppleMobilePlatform(hostPlatform string) bool {
+	return hostPlatform == "ios" || hostPlatform == "ipados"
+}
+
+func IsAndroidPlatform(hostPlatform string) bool {
+	return hostPlatform == "android"
+}
+
 func IsUnixLike(hostPlatform string) bool {
 	unixLikeOSs := HostLinuxOSs
 	unixLikeOSs = append(unixLikeOSs, "darwin")
@@ -1168,7 +1189,7 @@ type HostMunkiIssue struct {
 // the mobile_device_management_solutions table.
 const (
 	UnknownMDMName        = ""
-	WellKnownMDMKandji    = "Kandji"
+	WellKnownMDMIru       = "Iru"
 	WellKnownMDMJamf      = "Jamf"
 	WellKnownMDMJumpCloud = "JumpCloud"
 	WellKnownMDMVMWare    = "VMware Workspace ONE"
@@ -1179,7 +1200,8 @@ const (
 )
 
 var mdmNameFromServerURLChecks = map[string]string{
-	"kandji":    WellKnownMDMKandji,
+	"kandji":    WellKnownMDMIru,
+	"iru.com":   WellKnownMDMIru, // inclue top-level domain to disabmiguate from other strings that may contain "iru"
 	"jamf":      WellKnownMDMJamf,
 	"jumpcloud": WellKnownMDMJumpCloud,
 	"airwatch":  WellKnownMDMVMWare,
@@ -1409,7 +1431,7 @@ type HostMDMCheckinInfo struct {
 	HardwareSerial     string `json:"hardware_serial" db:"hardware_serial"`
 	InstalledFromDEP   bool   `json:"installed_from_dep" db:"installed_from_dep"`
 	DisplayName        string `json:"display_name" db:"display_name"`
-	TeamID             uint   `json:"team_id" db:"team_id"`
+	TeamID             uint   `json:"team_id" renameto:"fleet_id" db:"team_id"`
 	DEPAssignedToFleet bool   `json:"dep_assigned_to_fleet" db:"dep_assigned_to_fleet"`
 	OsqueryEnrolled    bool   `json:"osquery_enrolled" db:"osquery_enrolled"`
 
@@ -1450,8 +1472,12 @@ type HostSoftwareInstalledPath struct {
 	// TeamIdentifier (not to be confused with Fleet's team IDs) is the Apple's "Team ID" (aka "Developer ID"
 	// or "Signing ID") of signed applications, see https://developer.apple.com/help/account/manage-your-team/locate-your-team-id.
 	TeamIdentifier string `db:"team_identifier"`
-	// A SHA256 hash of the executable file of the software.
+	// CDHashSHA256 is the SHA256 hash of the code directory of the software bundle as reported on macOS by `codesign --display --verbose=3`. See https://developer.apple.com/documentation/endpointsecurity/es_process_t/cdhash
+	CDHashSHA256 *string `db:"cdhash_sha256"`
+	// ExecutableSHA256 is the SHA256 hash of the executable located at ExecutablePath
 	ExecutableSHA256 *string `db:"executable_sha256"`
+	// ExecutablePath is the path to the executable of the software bundle
+	ExecutablePath *string `db:"executable_path"`
 }
 
 // HostMacOSProfile represents a macOS profile installed on a host as reported by the macos_profiles
@@ -1563,6 +1589,22 @@ func NewAddHostsToTeamParams(teamID *uint, hostIDs []uint) *AddHostsToTeamParams
 func (params *AddHostsToTeamParams) WithBatchSize(batchSize uint) *AddHostsToTeamParams {
 	params.BatchSize = batchSize
 	return params
+}
+
+func GetEndUserIdpFullName(ctx context.Context, ds Datastore, hostID uint) (string, error) {
+	endUsers, err := GetEndUsers(ctx, ds, hostID)
+	if err != nil {
+		return "", fmt.Errorf("getting host end user idp name: %w", err)
+	}
+
+	// There can be multiple end users, but should only be a single idp user
+	for _, eu := range endUsers {
+		if eu.IdpFullName != "" {
+			return eu.IdpFullName, nil
+		}
+	}
+
+	return "", nil
 }
 
 func GetEndUsers(ctx context.Context, ds Datastore, hostID uint) ([]HostEndUser, error) {

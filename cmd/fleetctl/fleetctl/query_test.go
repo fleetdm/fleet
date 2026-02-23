@@ -10,10 +10,9 @@ import (
 	"github.com/fleetdm/fleet/v4/cmd/fleetctl/fleetctl/testing_utils"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/live_query/live_query_mock"
+	"github.com/fleetdm/fleet/v4/server/platform/logging"
 	"github.com/fleetdm/fleet/v4/server/pubsub"
 	"github.com/fleetdm/fleet/v4/server/service"
-	kitlog "github.com/go-kit/log"
-	"github.com/go-kit/log/level"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -22,8 +21,7 @@ func TestSavedLiveQuery(t *testing.T) {
 	rs := pubsub.NewInmemQueryResults()
 	lq := live_query_mock.New(t)
 
-	logger := kitlog.NewJSONLogger(os.Stdout)
-	logger = level.NewFilter(logger, level.AllowDebug())
+	logger := logging.NewJSONLogger(os.Stdout)
 
 	_, ds := testing_utils.RunServerWithMockedDS(t, &service.TestServerOpts{
 		Rs:     rs,
@@ -55,17 +53,17 @@ func TestSavedLiveQuery(t *testing.T) {
 		}
 		return nil, nil
 	}
-	ds.LabelIDsByNameFunc = func(ctx context.Context, labels []string) (map[string]uint, error) {
+	ds.LabelIDsByNameFunc = func(ctx context.Context, names []string, filter fleet.TeamFilter) (map[string]uint, error) {
 		return nil, nil
 	}
 	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 		return &fleet.AppConfig{}, nil
 	}
-	ds.ListQueriesFunc = func(ctx context.Context, opt fleet.ListQueryOptions) ([]*fleet.Query, int, *fleet.PaginationMetadata, error) {
+	ds.ListQueriesFunc = func(ctx context.Context, opt fleet.ListQueryOptions) ([]*fleet.Query, int, int, *fleet.PaginationMetadata, error) {
 		if opt.MatchQuery == queryName {
-			return []*fleet.Query{&query}, 1, nil, nil
+			return []*fleet.Query{&query}, 1, 0, nil, nil
 		}
-		return []*fleet.Query{}, 0, nil, nil
+		return []*fleet.Query{}, 0, 0, nil, nil
 	}
 	ds.NewDistributedQueryCampaignFunc = func(ctx context.Context, camp *fleet.DistributedQueryCampaign) (*fleet.DistributedQueryCampaign, error) {
 		camp.ID = 321
@@ -196,8 +194,7 @@ func TestAdHocLiveQuery(t *testing.T) {
 	rs := pubsub.NewInmemQueryResults()
 	lq := live_query_mock.New(t)
 
-	logger := kitlog.NewJSONLogger(os.Stdout)
-	logger = level.NewFilter(logger, level.AllowDebug())
+	logger := logging.NewJSONLogger(os.Stdout)
 
 	_, ds := testing_utils.RunServerWithMockedDS(
 		t, &service.TestServerOpts{
@@ -219,7 +216,7 @@ func TestAdHocLiveQuery(t *testing.T) {
 	ds.HostIDsByIdentifierFunc = func(ctx context.Context, filter fleet.TeamFilter, hostIdentifiers []string) ([]uint, error) {
 		return []uint{1234}, nil
 	}
-	ds.LabelIDsByNameFunc = func(ctx context.Context, labels []string) (map[string]uint, error) {
+	ds.LabelIDsByNameFunc = func(ctx context.Context, names []string, filter fleet.TeamFilter) (map[string]uint, error) {
 		return map[string]uint{"label1": uint(1)}, nil
 	}
 

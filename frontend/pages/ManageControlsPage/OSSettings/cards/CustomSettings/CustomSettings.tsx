@@ -10,23 +10,24 @@ import { IMdmProfile } from "interfaces/mdm";
 
 import mdmAPI, { IMdmProfilesResponse } from "services/entities/mdm";
 
+import Card from "components/Card/Card";
 import CustomLink from "components/CustomLink";
 import SectionHeader from "components/SectionHeader";
 import PageDescription from "components/PageDescription";
 import Spinner from "components/Spinner";
 import DataError from "components/DataError";
-import TurnOnMdmMessage from "components/TurnOnMdmMessage";
+import GenericMsgWithNavButton from "components/GenericMsgWithNavButton";
 
 import Pagination from "components/Pagination";
 
-import UploadList from "../../../components/UploadList";
+import UploadList from "../../../../../components/UploadList";
 
 import AddProfileCard from "./components/ProfileUploader/components/AddProfileCard";
 import AddProfileModal from "./components/ProfileUploader/components/AddProfileModal";
 import DeleteProfileModal from "./components/DeleteProfileModal/DeleteProfileModal";
 import ProfileLabelsModal from "./components/ProfileLabelsModal/ProfileLabelsModal";
 import ProfileListItem from "./components/ProfileListItem";
-import ProfileListHeading from "./components/ProfileListHeading";
+import UploadListHeading from "../../../components/UploadListHeading";
 import ConfigProfileStatusModal from "./components/ConfigProfileStatusModal";
 import ResendConfigProfileModal from "./components/ResendConfigProfileModal";
 import { IOSSettingsCommonProps } from "../../OSSettingsNavItems";
@@ -46,7 +47,14 @@ const CustomSettings = ({
   onMutation,
 }: ICustomSettingsProps) => {
   const { renderFlash } = useContext(NotificationContext);
-  const { config, isPremiumTier } = useContext(AppContext);
+  const {
+    config,
+    isPremiumTier,
+    isGlobalTechnician,
+    isTeamTechnician,
+  } = useContext(AppContext);
+
+  const isTechnician = isGlobalTechnician || isTeamTechnician;
 
   const mdmEnabled =
     config?.mdm.enabled_and_configured ||
@@ -121,7 +129,7 @@ const CustomSettings = ({
       await mdmAPI.deleteProfile(profileId);
       refetchProfiles();
       onMutation();
-      renderFlash("success", "Successfully deleted!");
+      renderFlash("success", "Successfully deleted.");
     } catch (e) {
       renderFlash("error", "Couldn't delete. Please try again.");
     } finally {
@@ -133,7 +141,7 @@ const CustomSettings = ({
 
   // pagination controls
   const path = PATHS.CONTROLS_CUSTOM_SETTINGS;
-  const queryString = isPremiumTier ? `?team_id=${currentTeamId}&` : "?";
+  const queryString = isPremiumTier ? `?fleet_id=${currentTeamId}&` : "?";
 
   const onPrevPage = useCallback(() => {
     router.push(path.concat(`${queryString}page=${currentPage - 1}`));
@@ -163,6 +171,13 @@ const CustomSettings = ({
     }
 
     if (!profiles?.length) {
+      if (isTechnician) {
+        return (
+          <Card className="empty-profiles">
+            No configuration profiles have been added.
+          </Card>
+        );
+      }
       return <AddProfileCard setShowModal={setShowAddProfileModal} />;
     }
 
@@ -172,8 +187,12 @@ const CustomSettings = ({
           keyAttribute="profile_uuid"
           listItems={profiles}
           HeadingComponent={() => (
-            <ProfileListHeading
-              onClickAddProfile={() => setShowAddProfileModal(true)}
+            <UploadListHeading
+              onClickAdd={
+                isTechnician ? undefined : () => setShowAddProfileModal(true)
+              }
+              entityName="Configuration profile"
+              createEntityText="Add profile"
             />
           )}
           ListItemComponent={({ listItem }) => (
@@ -183,6 +202,7 @@ const CustomSettings = ({
               setProfileLabelsModalData={setProfileLabelsModalData}
               onClickInfo={onClickInfo}
               onClickDelete={onClickDelete}
+              isTechnician={isTechnician}
             />
           )}
         />
@@ -211,17 +231,22 @@ const CustomSettings = ({
         variant="right-panel"
         content={
           <>
-            Create and upload configuration profiles to apply custom settings.{" "}
+            {isTechnician
+              ? "View configuration profiles that apply custom settings."
+              : "Create and upload configuration profiles to apply custom settings."}{" "}
             <CustomLink
               newTab
-              text="Learn how"
-              url="https://fleetdm.com/learn-more-about/custom-os-settings"
+              text="Learn more"
+              url="https://fleetdm.com/guides/custom-os-settings"
             />
           </>
         }
       />
       {!mdmEnabled ? (
-        <TurnOnMdmMessage
+        <GenericMsgWithNavButton
+          header="Manage your hosts"
+          buttonText="Turn on"
+          path={PATHS.ADMIN_INTEGRATIONS_MDM}
           router={router}
           info="MDM must be turned on to apply custom settings."
         />

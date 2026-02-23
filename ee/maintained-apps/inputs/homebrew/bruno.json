@@ -1,0 +1,8 @@
+{
+  "name": "Bruno",
+  "unique_identifier": "com.usebruno.app",
+  "token": "bruno",
+  "installer_format": "dmg",
+  "slug": "bruno/darwin",
+  "default_categories": ["Developer tools"]
+}

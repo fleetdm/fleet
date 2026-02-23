@@ -51,7 +51,7 @@ interface RecordWithRenewDate {
 const GUARANTEED_PAST_DATE = "2000-01-01T01:00:00Z";
 
 // TODO: add tests for this function
-const getEarliestExpiry = (records: RecordWithRenewDate[]): string => {
+export const getEarliestExpiry = (records: RecordWithRenewDate[]): string => {
   const earliest = records.reduce((acc, record) => {
     const renewDate = new Date(record.renew_date);
     return isBefore(acc, renewDate) ? acc : renewDate;
@@ -227,7 +227,7 @@ const App = ({ children, location }: IAppProps): JSX.Element => {
     // Also applies title to subpaths such as settings/organization/webaddress
     // TODO - handle different kinds of paths from PATHS - string, function w/params
     const curTitle = page_titles.find((item) =>
-      location?.pathname.includes(item.path)
+      location?.pathname.startsWith(item.path)
     );
 
     if (curTitle && curTitle.title) {

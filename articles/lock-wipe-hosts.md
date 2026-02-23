@@ -18,12 +18,18 @@ Restricting wipe for iPhones and iPads to only company-owned iPhones and iPads i
 Currently, for Windows hosts that are [Microsoft Entra joined](https://learn.microsoft.com/en-us/entra/identity/devices/concept-directory-join), the best practice is to disable the end user's account in Entra and then lock the host in Fleet. This applies to all Windows hosts that [automatically enroll](https://fleetdm.com/guides/windows-mdm-setup#automatic-enrollment). These hosts are Entra joined.
 
 > **iOS and iPadOS**: Lock action is only available for company-owned ([supervised](https://support.apple.com/en-gb/guide/deployment/dep1d89f0bff/web)) hosts.
+As part of locking an iOS or iPadOS host, Fleet collects the device's location data. Fleet will not consider the device fully locked until the location data is collected.
 
 > **Linux hosts**: The system may automatically reboot after approximately 10 seconds to complete the lock process.
 
 ### Get location of locked iOS/iPadOS host
 
-To obtain the location of a locked iOS or iPadOS host, send the [`DeviceLocation`](https://developer.apple.com/documentation/devicemanagement/device-location-command) command using a [custom command](https://fleetdm.com/guides/mdm-commands). This command will only work if the device is locked and in [Lost Mode](https://support.apple.com/en-gb/guide/security/secc46f3562c/web#sec49d5c5c50).
+1. Navigate to the **Hosts** page by clicking the "Hosts" tab in the main navigation header. Find the locked device. You can search by name, hostname, UUID, serial number, or private IP address in the search box in the upper right corner.
+2. Click the host to open the **Host details** page
+3. Under **Vitals**, click **Show location**, then click **Open in Google Maps**. This will open a new tab with the device's location shown in Google Maps.
+4. While the device is locked, you can refetch device location data by clicking **Refetch**.
+
+You can also manually send the [`DeviceLocation`](https://developer.apple.com/documentation/devicemanagement/device-location-command) command using a [custom command](https://fleetdm.com/guides/mdm-commands). This command will only work if the device is locked and in [Lost Mode](https://support.apple.com/en-gb/guide/security/secc46f3562c/web#sec49d5c5c50).
 
 To view the location on Google Maps, use the latitude and longitude values from the command response in the following URL: `https://google.com/maps?q={latitude},{longitude}`
 
@@ -59,6 +65,10 @@ Example URL:
 4. When you click **Unlock**, Windows, Linux, iOS and iPadOS hosts will be marked with an "Unlock pending" badge. Once the host is unlocked and checks back in with Fleet, the "Unlock pending" badge will be removed. macOS hosts do not have an "Unlock pending" badge as they cannot be remotely unlocked (the PIN has to be typed into the device).
 
 > **Linux hosts**: The system will automatically reboot after approximately 10 seconds to complete the unlock process and ensure the user interface is properly restored. If the host loses connection to Fleet, the unlock process may run again, causing the host to reboot again.
+
+### How to unlock offline iOS and iPadOS hosts
+
+If an iPhone/iPad is turned off or restarted while locked, it will disconnect from Wi-Fi and can't be unlocked remotely. Connect your iPhone/iPad to your Mac with a USB and [share the network](https://support.apple.com/en-gb/guide/mac-help/mchlp1540/mac). After connecting your iPhone/iPad to the internet, in Fleet, head to the **Host details** page and select **Actions > Unlock**.
 
 ## Lock and wipe using `fleetctl`
 

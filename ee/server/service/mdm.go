@@ -11,8 +11,10 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log/slog"
 	"net/http"
 	"net/url"
+	"reflect"
 	"sort"
 	"strings"
 
@@ -30,7 +32,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mdm/nanodep/client"
 	"github.com/fleetdm/fleet/v4/server/sso"
 	"github.com/fleetdm/fleet/v4/server/worker"
-	"github.com/go-kit/log/level"
 	"github.com/google/uuid"
 )
 
@@ -264,7 +265,7 @@ func (svc *Service) updateAppConfigMDMAppleSetup(ctx context.Context, payload fl
 }
 
 func (svc *Service) updateMacOSSetupEnableEndUserAuth(ctx context.Context, enable bool, teamID *uint, teamName *string) error {
-	if _, err := worker.QueueMacosSetupAssistantJob(ctx, svc.ds, svc.logger, worker.MacosSetupAssistantUpdateProfile, teamID); err != nil {
+	if _, err := worker.QueueMacosSetupAssistantJob(ctx, svc.ds, svc.logger.SlogLogger(), worker.MacosSetupAssistantUpdateProfile, teamID); err != nil {
 		return ctxerr.Wrap(ctx, err, "queue macos setup assistant update profile job")
 	}
 
@@ -617,19 +618,35 @@ func (svc *Service) SetOrUpdateMDMAppleSetupAssistant(ctx context.Context, asst 
 		return nil, ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("profile", `Couldn't edit macos_setup_assistant. The profile can't include "await_device_configured" option.`))
 	}
 
-	// Validate the profile with Apple's API. Don't save the profile if it isn't valid.
-	err := svc.depService.ValidateSetupAssistant(ctx, tm, asst, "")
-	if err != nil {
-		return nil, fleet.NewInvalidArgumentError("profile", err.Error())
-	}
-
 	// must read the existing setup assistant first to detect if it did change
-	// (so that the changed activity is not created if the same assistant was
-	// uploaded).
+	// so that we can skip sending to Apple if it did not change and so that the
+	// changed activity is not created if the same assistant was uploaded).
 	prevAsst, err := svc.ds.GetMDMAppleSetupAssistant(ctx, asst.TeamID)
 	if err != nil && !fleet.IsNotFound(err) {
 		return nil, ctxerr.Wrap(ctx, err, "get previous setup assistant")
 	}
+
+	validateIncomingSetupAssistant := true
+	// If name and contents are the same, skip validation with Apple. Name is included to match
+	// the logic we use below for determining whether or not to post the activity
+	if prevAsst != nil && asst.Name == prevAsst.Name {
+		var m2 map[string]any
+		if err := json.Unmarshal(prevAsst.Profile, &m2); err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "json unmarshal previous setup assistant profile")
+		}
+		if reflect.DeepEqual(m, m2) {
+			validateIncomingSetupAssistant = false
+		}
+	}
+
+	if validateIncomingSetupAssistant {
+		// Validate the profile with Apple's API. Don't save the profile if it isn't valid.
+		err = svc.depService.ValidateSetupAssistant(ctx, tm, asst, "")
+		if err != nil {
+			return nil, fleet.NewInvalidArgumentError("profile", err.Error())
+		}
+	}
+
 	newAsst, err := svc.ds.SetOrUpdateMDMAppleSetupAssistant(ctx, asst)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "set or update setup assistant")
@@ -640,7 +657,7 @@ func (svc *Service) SetOrUpdateMDMAppleSetupAssistant(ctx context.Context, asst 
 		if _, err := worker.QueueMacosSetupAssistantJob(
 			ctx,
 			svc.ds,
-			svc.logger,
+			svc.logger.SlogLogger(),
 			worker.MacosSetupAssistantProfileChanged,
 			newAsst.TeamID); err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "enqueue macos setup assistant profile changed job")
@@ -685,7 +702,7 @@ func (svc *Service) DeleteMDMAppleSetupAssistant(ctx context.Context, teamID *ui
 		if _, err := worker.QueueMacosSetupAssistantJob(
 			ctx,
 			svc.ds,
-			svc.logger,
+			svc.logger.SlogLogger(),
 			worker.MacosSetupAssistantProfileDeleted,
 			teamID); err != nil {
 			return ctxerr.Wrap(ctx, err, "enqueue macos setup assistant profile deleted job")
@@ -719,7 +736,7 @@ func (svc *Service) InitiateMDMSSO(ctx context.Context, initiator, customOrigina
 	// initiate SSO.
 	svc.authz.SkipAuthorization(ctx)
 
-	logging.WithLevel(logging.WithNoUser(ctx), level.Info)
+	logging.WithLevel(logging.WithNoUser(ctx), slog.LevelInfo)
 
 	appConfig, err := svc.ds.AppConfig(ctx)
 	if err != nil {
@@ -790,7 +807,7 @@ func (svc *Service) MDMSSOCallback(ctx context.Context, sessionID string, samlRe
 	// hit the SSO callback.
 	svc.authz.SkipAuthorization(ctx)
 
-	logging.WithLevel(logging.WithNoUser(ctx), level.Info)
+	logging.WithLevel(logging.WithNoUser(ctx), slog.LevelInfo)
 
 	profileToken, enrollmentRef, eulaToken, originalURL, ssoRequestData, err := svc.mdmSSOHandleCallbackAuth(ctx, sessionID, samlResponse)
 	if err != nil {
@@ -971,7 +988,7 @@ func (svc *Service) mdmSSOHandleCallbackAuth(
 }
 
 func (svc *Service) mdmAppleSyncDEPProfiles(ctx context.Context) error {
-	if _, err := worker.QueueMacosSetupAssistantJob(ctx, svc.ds, svc.logger, worker.MacosSetupAssistantUpdateAllProfiles, nil); err != nil {
+	if _, err := worker.QueueMacosSetupAssistantJob(ctx, svc.ds, svc.logger.SlogLogger(), worker.MacosSetupAssistantUpdateAllProfiles, nil); err != nil {
 		return ctxerr.Wrap(ctx, err, "queue macos setup assistant update all profiles job")
 	}
 	return nil
@@ -1266,19 +1283,9 @@ func (svc *Service) mdmAppleEditedAppleOSUpdates(ctx context.Context, teamID *ui
 	}
 
 	if updates.MinimumVersion.Value == "" {
-		// OS updates disabled, remove the profile
+		// OS updates disabled, remove the declaration.
 		if err := svc.ds.DeleteMDMAppleDeclarationByName(ctx, teamID, osUpdatesProfileName); err != nil {
 			return err
-		}
-		var globalOrTeamID uint
-		if teamID != nil {
-			globalOrTeamID = *teamID
-		}
-		// This only sets profiles that haven't been queued by the cron to 'pending' (both removes and installs, which includes
-		// the OS updates we just deleted). It doesn't have a functional difference because if you don't call this function
-		// the cron will catch up, but it's important for the UX to mark them as pending immediately so it's reflected in the UI.
-		if _, err := svc.ds.BulkSetPendingMDMHostProfiles(ctx, nil, []uint{globalOrTeamID}, nil, nil); err != nil {
-			return ctxerr.Wrap(ctx, err, "bulk set pending host profiles")
 		}
 		return nil
 	}
@@ -1290,14 +1297,14 @@ func (svc *Service) mdmAppleEditedAppleOSUpdates(ctx context.Context, teamID *ui
 	"Type": %q,
 	"Payload": {
 		"TargetOSVersion": %q,
-		"TargetLocalDateTime": "%sT12:00:00"
+		"TargetLocalDateTime": "%sT19:00:00"
 	}
 }`, softwareUpdateIdentifier, softwareUpdateType, updates.MinimumVersion.Value, updates.Deadline.Value))
 
 	d := fleet.NewMDMAppleDeclaration(rawDecl, teamID, osUpdatesProfileName, softwareUpdateType, softwareUpdateIdentifier)
 
 	// Associate the profile with the built-in label to ensure that the profile is applied to the targeted devices.
-	lblIDs, err := svc.ds.LabelIDsByName(ctx, []string{labelName})
+	lblIDs, err := svc.ds.LabelIDsByName(ctx, []string{labelName}, fleet.TeamFilter{}) // built-in labels are global
 	if err != nil {
 		return err
 	}
@@ -1398,7 +1405,7 @@ func (svc *Service) UploadABMToken(ctx context.Context, token io.Reader) (*fleet
 		EncryptedToken: encryptedToken,
 	}
 
-	if err := apple_mdm.SetDecryptedABMTokenMetadata(ctx, tok, decryptedToken, svc.depStorage, svc.ds, svc.logger, false); err != nil {
+	if err := apple_mdm.SetDecryptedABMTokenMetadata(ctx, tok, decryptedToken, svc.depStorage, svc.ds, svc.logger.SlogLogger(), false); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "setting ABM token metadata")
 	}
 
@@ -1559,7 +1566,7 @@ func (svc *Service) RenewABMToken(ctx context.Context, token io.Reader, tokenID 
 		return nil, ctxerr.Wrap(ctx, err, "decrypting ABM token for renewal")
 	}
 
-	if err := apple_mdm.SetDecryptedABMTokenMetadata(ctx, oldTok, decryptedToken, svc.depStorage, svc.ds, svc.logger, true); err != nil {
+	if err := apple_mdm.SetDecryptedABMTokenMetadata(ctx, oldTok, decryptedToken, svc.depStorage, svc.ds, svc.logger.SlogLogger(), true); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "setting ABM token metadata")
 	}
 

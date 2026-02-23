@@ -1,0 +1,19 @@
+{
+    "text": "${{ env.JOB_STATUS }}\n${{ env.EVENT_URL }}",
+    "blocks": [
+        {
+            "type": "section",
+            "text": {
+                "type": "mrkdwn",
+                "text": "Android ${ANDROID_JOB_NAME}: ${{ env.JOB_STATUS }}\n${{ env.RUN_URL }}"
+            }
+        },
+        {
+            "type": "section",
+            "text": {
+                "type": "mrkdwn",
+                "text": "Summary:\n```${ANDROID_FAIL_SUMMARY}```"
+            }
+        }
+    ]
+}

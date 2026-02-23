@@ -16,7 +16,7 @@ import (
 // Script represents a saved script that can be executed on a host.
 type Script struct {
 	ID     uint   `json:"id" db:"id"`
-	TeamID *uint  `json:"team_id" db:"team_id"`
+	TeamID *uint  `json:"team_id" renameto:"fleet_id" db:"team_id"`
 	Name   string `json:"name" db:"name"`
 	// ScriptContents is not returned in payloads nor is it returned
 	// from reading from the database, it is only used as payload to
@@ -144,7 +144,7 @@ type HostScriptRequestPayload struct {
 	ScriptContents  string `json:"script_contents"`
 	ScriptContentID uint   `json:"-"`
 	ScriptName      string `json:"script_name"`
-	TeamID          uint   `json:"team_id,omitempty"`
+	TeamID          uint   `json:"team_id,omitempty" renameto:"fleet_id"`
 	// UserID is filled automatically from the context's user (the authenticated
 	// user that made the API request).
 	UserID *uint `json:"-"`
@@ -250,7 +250,7 @@ type HostScriptResult struct {
 
 	// TeamID is only used for authorization, it must be set to the team id of
 	// the host when checking authorization and is otherwise not set.
-	TeamID *uint `json:"team_id" db:"-"` // TODO: should we omit this from the json result?
+	TeamID *uint `json:"team_id" renameto:"fleet_id" db:"-"` // TODO: should we omit this from the json result?
 
 	// Message is the UserMessage associated with a response from an execution.
 	// It may be set by the endpoint and included in the resulting JSON but it is
@@ -276,6 +276,11 @@ type HostScriptResult struct {
 	// Canceled indicates if that script execution request was canceled by a
 	// user.
 	Canceled bool `json:"-" db:"canceled"`
+
+	// AttemptNumber tracks which retry attempt this is for policy automation executions.
+	// nil = not triggered by a policy failure
+	// 1,2,3 attempt, 3 being max retries
+	AttemptNumber *int `json:"attempt_number,omitempty" db:"attempt_number"`
 }
 
 func (hsr HostScriptResult) AuthzType() string {
@@ -473,13 +478,15 @@ type HostLockWipeStatus struct {
 
 	// Linux uses a script for Wipe
 	WipeScript *HostScriptResult
+
+	LocationPending bool
 }
 
 // ScriptResponse is the response type used when applying scripts by batch.
 type ScriptResponse struct {
 	// TeamID is the id of the team.
 	// A value of nil means it is scoped to hosts that are assigned to "No team".
-	TeamID *uint `json:"team_id" db:"team_id"`
+	TeamID *uint `json:"team_id" renameto:"fleet_id" db:"team_id"`
 	// ID is the id of the script
 	ID uint `json:"id" db:"id"`
 	// Name is the name of the script
@@ -508,14 +515,17 @@ func (s HostLockWipeStatus) DeviceStatus() DeviceStatus {
 type PendingDeviceAction string
 
 const (
-	PendingActionLock   PendingDeviceAction = "lock"
-	PendingActionUnlock PendingDeviceAction = "unlock"
-	PendingActionWipe   PendingDeviceAction = "wipe"
-	PendingActionNone   PendingDeviceAction = ""
+	PendingActionLock     PendingDeviceAction = "lock"
+	PendingActionUnlock   PendingDeviceAction = "unlock"
+	PendingActionWipe     PendingDeviceAction = "wipe"
+	PendingActionLocation PendingDeviceAction = "location"
+	PendingActionNone     PendingDeviceAction = ""
 )
 
 func (s HostLockWipeStatus) PendingAction() PendingDeviceAction {
 	switch {
+	case s.LocationPending:
+		return PendingActionLocation
 	case s.IsPendingLock():
 		return PendingActionLock
 	case s.IsPendingUnlock():
@@ -564,11 +574,17 @@ func (s HostLockWipeStatus) IsLocked() bool {
 	// this state is regardless of pending unlock/wipe (it reports whether the
 	// host is locked *now*).
 
-	if s.HostFleetPlatform == "darwin" || s.HostFleetPlatform == "ios" || s.HostFleetPlatform == "ipados" {
+	if s.HostFleetPlatform == "darwin" {
 		// locked if an MDM command was sent and succeeded
 		return s.LockMDMCommand != nil && s.LockMDMCommandResult != nil &&
 			s.LockMDMCommandResult.Status == MDMAppleStatusAcknowledged
 	}
+
+	if s.HostFleetPlatform == "ios" || s.HostFleetPlatform == "ipados" {
+		return s.LockMDMCommand != nil && s.LockMDMCommandResult != nil &&
+			s.LockMDMCommandResult.Status == MDMAppleStatusAcknowledged && !s.LocationPending
+	}
+
 	// locked if a script was sent and succeeded
 	return s.LockScript != nil && s.LockScript.ExitCode != nil &&
 		*s.LockScript.ExitCode == 0
@@ -607,8 +623,8 @@ var (
 
 type BatchExecutionStatusFilter struct {
 	ScriptID *uint   `json:"script_id,omitempty"`
-	TeamID   *uint   `json:"team_id,omitempty"` // if nil, it is scoped to hosts that are assigned to "No team"
-	Status   *string `json:"status,omitempty"`  // e.g. "pending", "ran", "errored", "canceled", "incompatible-platform", "incompatible-fleetd"
+	TeamID   *uint   `json:"team_id,omitempty" renameto:"fleet_id"` // if nil, it is scoped to hosts that are assigned to "No team"
+	Status   *string `json:"status,omitempty"`                      // e.g. "pending", "ran", "errored", "canceled", "incompatible-platform", "incompatible-fleetd"
 	// ExecutionID is the unique identifier for a single execution of the script.
 	ExecutionID *string `json:"execution_id,omitempty"`
 	// Limit is the maximum number of results to return.
@@ -634,7 +650,7 @@ type BatchActivity struct {
 	ActivityType     BatchExecutionActivityType    `json:"-" db:"activity_type"`
 	ScriptID         *uint                         `json:"script_id" db:"script_id"`
 	ScriptName       string                        `json:"script_name" db:"script_name"`
-	TeamID           *uint                         `json:"team_id" db:"team_id"`
+	TeamID           *uint                         `json:"team_id" renameto:"fleet_id" db:"team_id"`
 	CreatedAt        time.Time                     `json:"created_at" db:"created_at"`
 	UpdatedAt        time.Time                     `json:"updated_at" db:"updated_at"`
 	NotBefore        *time.Time                    `json:"not_before,omitempty" db:"not_before"`

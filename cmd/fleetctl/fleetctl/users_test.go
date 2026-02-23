@@ -30,6 +30,11 @@ func TestUserDelete(t *testing.T) {
 		}, nil
 	}
 
+	// Allow deletion by returning multiple admins exist
+	ds.CountGlobalAdminsFunc = func(ctx context.Context) (int, error) {
+		return 2, nil
+	}
+
 	deletedUser := uint(0)
 
 	ds.DeleteUserFunc = func(ctx context.Context, id uint) error {
@@ -179,7 +184,7 @@ func TestCreateBulkUsers(t *testing.T) {
 		user15,user15@example.com,false,false,,1:admin
 		user16,user16@example.com,false,false,,1:admin 2:maintainer`)
 
-	expectedText := `{"kind":"user_roles","apiVersion":"v1","spec":{"roles":{"admin1@example.com":{"global_role":"admin","teams":null},"user11@example.com":{"global_role":"maintainer","teams":null},"user12@example.com":{"global_role":"observer","teams":null},"user13@example.com":{"global_role":"admin","teams":null},"user14@example.com":{"global_role":null,"teams":[{"team":"","role":"maintainer"}]},"user15@example.com":{"global_role":null,"teams":[{"team":"","role":"admin"}]},"user16@example.com":{"global_role":null,"teams":[{"team":"","role":"admin"},{"team":"","role":"maintainer"}]},"user1@example.com":{"global_role":"maintainer","teams":null},"user2@example.com":{"global_role":"observer","teams":null}}}}
+	expectedText := `{"kind":"user_roles","apiVersion":"v1","spec":{"roles":{"admin1@example.com":{"fleets":null,"global_role":"admin","teams":null},"user11@example.com":{"fleets":null,"global_role":"maintainer","teams":null},"user12@example.com":{"fleets":null,"global_role":"observer","teams":null},"user13@example.com":{"fleets":null,"global_role":"admin","teams":null},"user14@example.com":{"fleets":[{"fleet":"","role":"maintainer","team":""}],"global_role":null,"teams":[{"fleet":"","role":"maintainer","team":""}]},"user15@example.com":{"fleets":[{"fleet":"","role":"admin","team":""}],"global_role":null,"teams":[{"fleet":"","role":"admin","team":""}]},"user16@example.com":{"fleets":[{"fleet":"","role":"admin","team":""},{"fleet":"","role":"maintainer","team":""}],"global_role":null,"teams":[{"fleet":"","role":"admin","team":""},{"fleet":"","role":"maintainer","team":""}]},"user1@example.com":{"fleets":null,"global_role":"maintainer","teams":null},"user2@example.com":{"fleets":null,"global_role":"observer","teams":null}}}}
 `
 
 	assert.Equal(t, "", RunAppForTest(t, []string{"user", "create-users", "--csv", csvFile}))
@@ -224,11 +229,24 @@ func TestDeleteBulkUsers(t *testing.T) {
 		deletedUserIds = append(deletedUserIds, id)
 	}
 
-	for _, user := range users {
-		ds.UserByEmailFunc = func(ctx context.Context, email string) (*fleet.User, error) {
-			return &user, nil
-		}
+	// Create a map for looking up users by email
+	usersByEmail := make(map[string]*fleet.User, len(users))
+	for i := range users {
+		usersByEmail[users[i].Email] = &users[i]
 	}
+
+	ds.UserByEmailFunc = func(ctx context.Context, email string) (*fleet.User, error) {
+		if u, ok := usersByEmail[email]; ok {
+			return u, nil
+		}
+		return nil, &notFoundError{}
+	}
+
+	// Allow deletion by returning multiple admins exist
+	ds.CountGlobalAdminsFunc = func(ctx context.Context) (int, error) {
+		return 2, nil
+	}
+
 	deletedUser := uint(0)
 
 	ds.DeleteUserFunc = func(ctx context.Context, id uint) error {

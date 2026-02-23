@@ -78,9 +78,9 @@ Fleet supports the following operating system versions on hosts.
 | macOS      | 14+ (Sonoma)                            |
 | iOS/iPadOS | 17+                                     |
 | Windows    | Pro and Enterprise 10+, Server 2012+    |
-| Linux      | CentOS 7.1+, Ubuntu 20.04+, Fedora 38+, Amazon Linux 2+, Debian 11+, Red Hat Enterprise Linux (RHEL) 7+, openSUSE 15.6+, Arch Linux, Omarchy |
+| Linux      | CentOS 7.1+, Ubuntu 20.04+, Fedora 38, 39, Amazon Linux 2+, Debian 11+, Red Hat Enterprise Linux (RHEL) 7, 8, 9, openSUSE 15.6+, Arch Linux, Omarchy |
 | ChromeOS   | 112.0.5615.134+                         |
-| Android    | 13+                                     |
+| Android    | 14+                                     |
 
 While Fleet may still function partially or fully with OS versions older than those above, Fleet does not actively test against unsupported versions and does not pursue bugs on them.
 
@@ -149,6 +149,10 @@ See the ["How to uninstall fleetd" guide](https://fleetdm.com/guides/how-to-unin
 - The product will be available for download without leaving an email address or logging in.
 
 - We will always allow you to benchmark the performance of Fleet. (Fleet also [load tests the platform before every release](https://fleetdm.com/handbook/engineering#rituals), with increasingly ambitious targets. The scale of real time reporting supported by Fleet has increased 5,000% since 2019. Today, Fleet deployments support 500,000 devices, and counting. The company is committed to driving this number to 1M+, and beyond.)
+
+### What MySQL versions are supported?
+
+Fleet is tested with MySQL 8.0.36, 8.4.7, and 9.5.0. Newer versions of MySQL 8 typically work well. AWS Aurora requires at least version 3.07.0. Please avoid using MariaDB or other MySQL variants that are not officially supported. Compatibility issues have been identified with MySQL variants, and these may not be addressed in future Fleet releases.
 
 <!--
 Mike T: In 2023 we made the decision to comment out the following questions because the FAQs had become a dumping ground for miscellaneous content that wasn't quite reference docs and wasn't quite committed learning docs (suitable for articles). We chose to hide the content rather than remove, or spend time trying to figure out better places in the docs, with the assumption that if it's important enough content, someone will circle back at some point to prioritize a better home.
@@ -224,7 +228,7 @@ For results to go to Fleet, the osquery `--logger_plugin` flag must be set to `t
 Folks typically use Fleet to ship logs to data lakes and SIEMs like Splunk, the ELK stack, and Graylog.
 
 Fleet supports multiple logging destinations for scheduled query results and status logs. The `--osquery_result_log_plugin` and `--osquery_status_log_plugin` can be set to:
-`filesystem`, `firehose`, `kinesis`, `lambda`, `pubsub`, `kafkarest`, and `stdout`.
+`filesystem`, `firehose`, `kinesis`, `lambda`, `pubsub`, `kafkarest`, `nats`, and `stdout`.
 See:
   - https://fleetdm.com/docs/deploying/configuration#osquery-result-log-plugin.
   - https://fleetdm.com/docs/deploying/configuration#osquery-status-log-plugin.
@@ -501,7 +505,6 @@ We've found this error when you try to build an MSI on Docker 4.17. The underlyi
 - [I upgraded my database, but Fleet is still running slowly. What could be going on?](#i-upgraded-my-database-but-fleet-is-still-running-slowly-what-could-be-going-on)
 - [Why am I receiving a database connection error when attempting to "prepare" the database?](#why-am-i-receiving-a-database-connection-error-when-attempting-to-prepare-the-database)
 - [Is Fleet available as a SaaS product?](#is-fleet-available-as-a-saas-product)
-- [What MySQL versions are supported?](#what-mysql-versions-are-supported)
 - [What are the MySQL user access requirements?](#what-are-the-mysql-user-requirements)
 - [Does Fleet support MySQL replication?](#does-fleet-support-mysql-replication)
 - [What is duplicate enrollment and how do I fix it?](#what-is-duplicate-enrollment-and-how-do-i-fix-it)
@@ -629,10 +632,6 @@ fleet prepare db \
 
 Yes! Please sign up for the [Fleet Cloud Beta](https://kqphpqst851.typeform.com/to/yoo5smT9).
 
-### What MySQL versions are supported?
-
-Fleet is tested with MySQL 8.0.36, 8.4.6, and 9.4.0. Newer versions of MySQL 8 typically work well. AWS Aurora requires at least version 3.07.0. Please avoid using MariaDB or other MySQL variants that are not officially supported. Compatibility issues have been identified with MySQL variants, and these may not be addressed in future Fleet releases.
-
 ### What are the MySQL user requirements?
 
 The user `fleet prepare db` (via environment variable `FLEET_MYSQL_USERNAME` or command line flag `--mysql_username=<username>`) uses to interact with the database needs to be able to create, alter, and drop tables as well as the ability to create temporary tables.
@@ -694,7 +693,7 @@ If you would like to use Fleet's MDM features, the following endpoints need to b
 
 ### What is the minimum version of MySQL required by Fleet?
 
-Fleet requires at least MySQL version 8.0.36, and is tested [with versions 8.0.36, 8.4.6, and 9.4.0](https://github.com/fleetdm/fleet/blob/main/.github/workflows/test-go.yaml#L51)
+Fleet requires at least MySQL version 8.0.36, and is tested [with versions 8.0.36, 8.4.7, and 9.5.0](https://github.com/fleetdm/fleet/blob/main/.github/workflows/test-go.yaml#L51)
 
 ### How do I migrate from Fleet Free to Fleet Premium?
 

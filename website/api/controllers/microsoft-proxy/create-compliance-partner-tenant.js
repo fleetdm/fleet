@@ -47,7 +47,9 @@ module.exports = {
       entraTenantId: entraTenantId,
       fleetInstanceUrl: this.req.get('origin'),
       setupCompleted: false,
-    }).fetch();
+    })
+    .fetch()
+    .intercept('E_UNIQUE', 'connectionAlreadyExists');
 
 
     return {

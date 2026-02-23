@@ -5,12 +5,9 @@
   var me;
   var isHomepage;
   var currentSection;
-  var showHeaderCTA;
   var hideHeaderLinks;// Hides the header navigation links.
   var hideFooterLinks;// Hides footer links, reduces the height of the footer to 60px;
   var showAdminLinks;// Shows links to admin pages to admin users.
-  var hideGetStartedButton;// Hides the 'Get started' button in the website's navigation header.
-  var hideStartCTA;
   var showConfigurationProfileLayout;
   // Applies personalization for who people come from ads, so that the website makes more sense for them:
   var primaryBuyingSituation;
@@ -34,6 +31,10 @@
     <meta property="og:image" content="<%= typeof pageImageForMeta !== 'undefined' ? 'https://fleetdm.com' + pageImageForMeta : 'https://fleetdm.com/images/fleet-cloud-city-1200x627@2x.png' %>" />
     <meta property="og:title" content="Fleet | <% if (typeof pageTitleForMeta !== 'undefined') { %><%= pageTitleForMeta %><% } else { %><%- partial('../partials/primary-tagline.partial.ejs') %><% } %>" />
     <meta property="og:description" content="<%= typeof pageDescriptionForMeta !== 'undefined' ? pageDescriptionForMeta : defaultMetaDescription %>" />
+    <% if (sails.config.environment === 'production') { %>
+    <% /* Cookie consent banner */ %>
+    <script id="cookieyes" type="text/javascript" src="https://cdn-cookieyes.com/client_data/71bcdd51b166ceeb18bd0d28/script.js"></script>
+    <% } %>
     <% /* Script tags should normally be included further down the page- but any
     scripts that load fonts (e.g. Fontawesome ≥v5) are special exceptions to the
     rule. (Include them up here along with any hard-coded «link» tags for Typekit,
@@ -57,13 +58,14 @@
     !function(r){var e={};function o(n){if(e[n])return e[n].exports;var t=e[n]={i:n,l:!1,exports:{}};return r[n].call(t.exports,t,t.exports,o),t.l=!0,t.exports}o.m=r,o.c=e,o.d=function(r,e,n){o.o(r,e)||Object.defineProperty(r,e,{enumerable:!0,get:n})},o.r=function(r){"undefined"!=typeof Symbol&&Symbol.toStringTag&&Object.defineProperty(r,Symbol.toStringTag,{value:"Module"}),Object.defineProperty(r,"__esModule",{value:!0})},o.t=function(r,e){if(1&e&&(r=o(r)),8&e)return r;if(4&e&&"object"==typeof r&&r&&r.__esModule)return r;var n=Object.create(null);if(o.r(n),Object.defineProperty(n,"default",{enumerable:!0,value:r}),2&e&&"string"!=typeof r)for(var t in r)o.d(n,t,function(e){return r[e]}.bind(null,t));return n},o.n=function(r){var e=r&&r.__esModule?function(){return r.default}:function(){return r};return o.d(e,"a",e),e},o.o=function(r,e){return Object.prototype.hasOwnProperty.call(r,e)},o.p="",o(o.s=0)}([function(r,e,o){"use strict";var n=o(1),t=o(5);_rollbarConfig=_rollbarConfig||{},_rollbarConfig.rollbarJsUrl=_rollbarConfig.rollbarJsUrl||"https://cdn.rollbar.com/rollbarjs/refs/tags/v2.22.0/rollbar.min.js",_rollbarConfig.async=void 0===_rollbarConfig.async||_rollbarConfig.async;var a=n.setupShim(window,_rollbarConfig),l=t(_rollbarConfig);window.rollbar=n.Rollbar,a.loadFull(window,document,!_rollbarConfig.async,_rollbarConfig,l)},function(r,e,o){"use strict";var n=o(2),t=o(3);function a(r){return function(){try{return r.apply(this,arguments)}catch(r){try{console.error("[Rollbar]: Internal error",r)}catch(r){}}}}var l=0;function i(r,e){this.options=r,this._rollbarOldOnError=null;var o=l++;this.shimId=function(){return o},"undefined"!=typeof window&&window._rollbarShims&&(window._rollbarShims[o]={handler:e,messages:[]})}var s=o(4),d=function(r,e){return new i(r,e)},c=function(r){return new s(d,r)};function u(r){return a((function(){var e=this,o=Array.prototype.slice.call(arguments,0),n={shim:e,method:r,args:o,ts:new Date};window._rollbarShims[this.shimId()].messages.push(n)}))}i.prototype.loadFull=function(r,e,o,n,t){var l=!1,i=e.createElement("script"),s=e.getElementsByTagName("script")[0],d=s.parentNode;i.crossOrigin="",i.src=n.rollbarJsUrl,o||(i.async=!0),i.onload=i.onreadystatechange=a((function(){if(!(l||this.readyState&&"loaded"!==this.readyState&&"complete"!==this.readyState)){i.onload=i.onreadystatechange=null;try{d.removeChild(i)}catch(r){}l=!0,function(){var e;if(void 0===r._rollbarDidLoad){e=new Error("rollbar.js did not load");for(var o,n,a,l,i=0;o=r._rollbarShims[i++];)for(o=o.messages||[];n=o.shift();)for(a=n.args||[],i=0;i<a.length;++i)if("function"==typeof(l=a[i])){l(e);break}}"function"==typeof t&&t(e)}()}})),d.insertBefore(i,s)},i.prototype.wrap=function(r,e,o){try{var n;if(n="function"==typeof e?e:function(){return e||{}},"function"!=typeof r)return r;if(r._isWrap)return r;if(!r._rollbar_wrapped&&(r._rollbar_wrapped=function(){o&&"function"==typeof o&&o.apply(this,arguments);try{return r.apply(this,arguments)}catch(o){var e=o;throw e&&("string"==typeof e&&(e=new String(e)),e._rollbarContext=n()||{},e._rollbarContext._wrappedSource=r.toString(),window._rollbarWrappedError=e),e}},r._rollbar_wrapped._isWrap=!0,r.hasOwnProperty))for(var t in r)r.hasOwnProperty(t)&&(r._rollbar_wrapped[t]=r[t]);return r._rollbar_wrapped}catch(e){return r}};for(var p="log,debug,info,warn,warning,error,critical,global,configure,handleUncaughtException,handleAnonymousErrors,handleUnhandledRejection,captureEvent,captureDomContentLoaded,captureLoad".split(","),f=0;f<p.length;++f)i.prototype[p[f]]=u(p[f]);r.exports={setupShim:function(r,e){if(r){var o=e.globalAlias||"Rollbar";if("object"==typeof r[o])return r[o];r._rollbarShims={},r._rollbarWrappedError=null;var l=new c(e);return a((function(){e.captureUncaught&&(l._rollbarOldOnError=r.onerror,n.captureUncaughtExceptions(r,l,!0),e.wrapGlobalEventHandlers&&t(r,l,!0)),e.captureUnhandledRejections&&n.captureUnhandledRejections(r,l,!0);var a=e.autoInstrument;return!1!==e.enabled&&(void 0===a||!0===a||"object"==typeof a&&a.network)&&r.addEventListener&&(r.addEventListener("load",l.captureLoad.bind(l)),r.addEventListener("DOMContentLoaded",l.captureDomContentLoaded.bind(l))),r[o]=l,l}))()}},Rollbar:c}},function(r,e,o){"use strict";function n(r,e,o,n){r._rollbarWrappedError&&(n[4]||(n[4]=r._rollbarWrappedError),n[5]||(n[5]=r._rollbarWrappedError._rollbarContext),r._rollbarWrappedError=null);var t=e.handleUncaughtException.apply(e,n);o&&o.apply(r,n),"anonymous"===t&&(e.anonymousErrorsPending+=1)}r.exports={captureUncaughtExceptions:function(r,e,o){if(r){var t;if("function"==typeof e._rollbarOldOnError)t=e._rollbarOldOnError;else if(r.onerror){for(t=r.onerror;t._rollbarOldOnError;)t=t._rollbarOldOnError;e._rollbarOldOnError=t}e.handleAnonymousErrors();var a=function(){var o=Array.prototype.slice.call(arguments,0);n(r,e,t,o)};o&&(a._rollbarOldOnError=t),r.onerror=a}},captureUnhandledRejections:function(r,e,o){if(r){"function"==typeof r._rollbarURH&&r._rollbarURH.belongsToShim&&r.removeEventListener("unhandledrejection",r._rollbarURH);var n=function(r){var o,n,t;try{o=r.reason}catch(r){o=void 0}try{n=r.promise}catch(r){n="[unhandledrejection] error getting `promise` from event"}try{t=r.detail,!o&&t&&(o=t.reason,n=t.promise)}catch(r){}o||(o="[unhandledrejection] error getting `reason` from event"),e&&e.handleUnhandledRejection&&e.handleUnhandledRejection(o,n)};n.belongsToShim=o,r._rollbarURH=n,r.addEventListener("unhandledrejection",n)}}}},function(r,e,o){"use strict";function n(r,e,o){if(e.hasOwnProperty&&e.hasOwnProperty("addEventListener")){for(var n=e.addEventListener;n._rollbarOldAdd&&n.belongsToShim;)n=n._rollbarOldAdd;var t=function(e,o,t){n.call(this,e,r.wrap(o),t)};t._rollbarOldAdd=n,t.belongsToShim=o,e.addEventListener=t;for(var a=e.removeEventListener;a._rollbarOldRemove&&a.belongsToShim;)a=a._rollbarOldRemove;var l=function(r,e,o){a.call(this,r,e&&e._rollbar_wrapped||e,o)};l._rollbarOldRemove=a,l.belongsToShim=o,e.removeEventListener=l}}r.exports=function(r,e,o){if(r){var t,a,l="EventTarget,Window,Node,ApplicationCache,AudioTrackList,ChannelMergerNode,CryptoOperation,EventSource,FileReader,HTMLUnknownElement,IDBDatabase,IDBRequest,IDBTransaction,KeyOperation,MediaController,MessagePort,ModalWindow,Notification,SVGElementInstance,Screen,TextTrack,TextTrackCue,TextTrackList,WebSocket,WebSocketWorker,Worker,XMLHttpRequest,XMLHttpRequestEventTarget,XMLHttpRequestUpload".split(",");for(t=0;t<l.length;++t)r[a=l[t]]&&r[a].prototype&&n(e,r[a].prototype,o)}}},function(r,e,o){"use strict";function n(r,e){this.impl=r(e,this),this.options=e,function(r){for(var e=function(r){return function(){var e=Array.prototype.slice.call(arguments,0);if(this.impl[r])return this.impl[r].apply(this.impl,e)}},o="log,debug,info,warn,warning,error,critical,global,configure,handleUncaughtException,handleAnonymousErrors,handleUnhandledRejection,_createItem,wrap,loadFull,shimId,captureEvent,captureDomContentLoaded,captureLoad".split(","),n=0;n<o.length;n++)r[o[n]]=e(o[n])}(n.prototype)}n.prototype._swapAndProcessMessages=function(r,e){var o,n,t;for(this.impl=r(this.options);o=e.shift();)n=o.method,t=o.args,this[n]&&"function"==typeof this[n]&&("captureDomContentLoaded"===n||"captureLoad"===n?this[n].apply(this,[t[0],o.ts]):this[n].apply(this,t));return this},r.exports=n},function(r,e,o){"use strict";r.exports=function(r){return function(e){if(!e&&!window._rollbarInitialized){for(var o,n,t=(r=r||{}).globalAlias||"Rollbar",a=window.rollbar,l=function(r){return new a(r)},i=0;o=window._rollbarShims[i++];)n||(n=o.handler),o.handler._swapAndProcessMessages(l,o.messages);window[t]=n,window._rollbarInitialized=!0}}}}]);
     // End Rollbar Snippet
     </script>
-    <% /* Cookie consent banner */ %>
-    <script id="cookieyes" type="text/javascript" src="https://cdn-cookieyes.com/client_data/71bcdd51b166ceeb18bd0d28/script.js"></script>
+   
     <% /* Google Analytics, Google Tag Manager, Snitcher etc. */ %>
     <% /* Global site tag (gtag.js) - Google Analytics */%>
     <script async src="https://www.googletagmanager.com/gtag/js?id=G-JC3DRNY1GV"></script>
     <script>
       window.dataLayer = window.dataLayer || []; function gtag(){dataLayer.push(arguments);} gtag('js', new Date()); gtag('config', 'G-JC3DRNY1GV');
+	// Google Ads configuration (including Enhanced Conversions) 
+	  gtag('config', 'AW-10788733823', {'allow_enhanced_conversions': true});
     </script>
     <%/* LinkedIn insight tag*/%>
     <script type="text/javascript">
@@ -84,7 +86,13 @@
       <img height="1" width="1" style="display:none;" alt="" src="https://px.ads.linkedin.com/collect/?pid=4365817&fmt=gif" />
     </noscript>
     <% /* Clay */ %>
-    <script src="https://static.claydar.com/init.v1.js?id=cwiBCPLMlD"></script>
+      <script src="https://static.claydar.com/init.v1.js?id=cwiBCPLMlD"></script>
+    <% /* Qualified */ %>
+    <script>
+      (function(w,q){w['QualifiedObject']=q;w[q]=w[q]||function(){
+      (w[q].q=w[q].q||[]).push(arguments)};})(window,'qualified')
+    </script>
+      <script async src="https://js.qualified.com/qualified.js?token=kdbyrPDkGjPxVmAd"></script>
     <% /* Snitcher */ %>
     <script>
         !function(s,n,i,t,c,h){s.SnitchObject=i;s[i]||(s[i]=function(){
@@ -207,6 +215,21 @@
                           </div>
                         </div>
                       </a>
+                      <a class="dropdown-item" purpose="dropdown-item" data-dropdown-option="Fleet GitOps" href="/fleet-gitops">
+                        <div purpose="dropdown-item-link">
+                          <div purpose="dropdown-item-icon">
+                            <img src="/images/nav-icon-gitops-40x40@2x.png" alt="GitOps">
+                          </div>
+                          <div purpose="dropdown-item-text">
+                            <p purpose="nav-item-heading">
+                              Infrastructure as code
+                            </p>
+                            <p purpose="nav-item-body">
+                              See every change, undo any error, repeat every success.
+                            </p>
+                          </div>
+                        </div>
+                      </a>
                       <a class="dropdown-item" purpose="dropdown-item" data-dropdown-option="integrations" href="/integrations">
                         <div purpose="dropdown-item-link">
                           <div purpose="dropdown-item-icon">
@@ -225,61 +248,7 @@
                     </div>
 
                     <hr>
-                    <div purpose="mobile-dropdown-toggle" class="d-flex flex-row justify-content-between align-items-center collapsed" data-toggle="collapse" data-target="#mobileNavbarToggleCustomers" aria-haspopup="true" aria-expanded="false">
-                      <div><p>Customers</p></div>
-                      <div>
-                        <img src="/images/icon-chevron-fleet-black-50-12x12@2x.png" alt="a small chevron">
-                      </div>
-                    </div>
-                    <div id="mobileNavbarToggleCustomers" purpose="mobile-dropdown" class="collapse align-items-start">
-                      <a purpose="dropdown-item" class="dropdown-item" data-dropdown-option="Stripe + Fleet" href="/announcements/consolidate-multiple-tools-with-fleet">
-                        <div purpose="dropdown-item-link">
-                          <div purpose="dropdown-item-icon">
-                            <img src="/images/nav-icon-stripe-40x40@2x.png" alt="Stripe + Fleet">
-                          </div>
-                          <div purpose="dropdown-item-text">
-                            <p purpose="nav-item-heading">
-                              Stripe + Fleet
-                            </p>
-                            <p purpose="nav-item-body">
-                              Stripe consolidates multiple tools with Fleet.
-                            </p>
-                          </div>
-                        </div>
-                      </a>
-                      <a purpose="dropdown-item" class="dropdown-item" data-dropdown-option="Foursquare + Fleet" href="/announcements/foursquare-quickly-migrates-to-fleet">
-                        <div purpose="dropdown-item-link">
-                          <div purpose="dropdown-item-icon">
-                            <img src="/images/nav-icon-foursquare-40x40@2x.png" alt="Foursquare + Fleet">
-                          </div>
-                          <div purpose="dropdown-item-text">
-                            <div purpose="dropdown-item-text">
-                              <p purpose="nav-item-heading">
-                                Foursquare + Fleet
-                              </p>
-                              <p purpose="nav-item-body">
-                                Foursquare quickly migrates to Fleet for device management.
-                              </p>
-                            </div>
-                          </div>
-                        </div>
-                      </a>
-                      <a purpose="dropdown-item" class="dropdown-item" data-dropdown-option="What people are saying" href="/testimonials">
-                        <div purpose="dropdown-item-link">
-                          <div purpose="dropdown-item-icon">
-                            <img src="/images/nav-icon-testimonials-40x40@2x.png" alt="What people are saying">
-                          </div>
-                          <div purpose="dropdown-item-text">
-                            <p purpose="nav-item-heading">
-                              What people are saying
-                            </p>
-                            <p purpose="nav-item-body">
-                              Stories from the Fleet community.
-                            </p>
-                          </div>
-                        </div>
-                      </a>
-                    </div>
+                    <a purpose="mobile-dropdown-toggle" href="/customers" class="d-flex align-items-center">Customers</a>
                     <hr>
                     <a purpose="mobile-dropdown-toggle" href="/pricing" class="d-flex align-items-center">Pricing</a>
                     <hr>
@@ -363,7 +332,7 @@
                           </div>
                         </div>
                       </a>
-                      <a purpose="dropdown-cta" data-dropdown-option="" href="https://www.eventbrite.com/o/fleet-63487049103" target="_blank" no-icon>
+                      <a purpose="dropdown-cta" data-dropdown-option="" href="/gitops-workshop" no-icon>
                         <div purpose="dropdown-cta-link">
                           <div purpose="dropdown-cta-image">
                           </div>
@@ -399,33 +368,20 @@
                         <a purpose="mobile-dropdown-link" href="/query-generator">Generate queries</a>
                         <a purpose="mobile-dropdown-link" href="/admin/generate-license">License generator</a>
                         <a purpose="mobile-dropdown-link" href="/admin/email-preview">HTML Email preview tool</a>
+                        <a purpose="mobile-dropdown-link" href="/admin/reset-trial">Reset local Fleet Premium trial</a>
                       </div>
                     <%}%>
                   </div>
-                  <%if(!hideGetStartedButton){%>
                   <div purpose="mobile-nav-cta" class="d-flex flex-row align-items-center">
-
                     <a purpose="glass-header-btn" class="align-items-center d-flex" href="/contact" no-underline>Get a demo</a>
-                    <%if(_.has(me, 'id')) {%>
-                      <a purpose="layout-animated-arrow-button" class="start-cta-continue-button" href="/try" no-underline>
+<!--                       <a purpose="layout-animated-arrow-button" class="start-cta-continue-button" href="/try" no-underline>
                         Try it yourself
                         <svg purpose="animated-arrow" xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 12 12">
                           <path purpose="arrow-line" d="M1 6H9" stroke-width="2" stroke-linecap="round"/>
                           <path purpose="chevron" d="M1.35712 1L5.64283 6L1.35712 11" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
                         </svg>
-                      </a>
-                    </div>
-                    <% } else {%>
-                      <a purpose="layout-animated-arrow-button" class="start-cta-continue-button" data-toggle="modal" data-target="#signupmodal" no-underline>
-                        Try it yourself
-                        <svg purpose="animated-arrow" xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 12 12">
-                          <path purpose="arrow-line" d="M1 6H9" stroke-width="2" stroke-linecap="round"/>
-                          <path purpose="chevron" d="M1.35712 1L5.64283 6L1.35712 11" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                        </svg>
-                      </a>
-                    </div>
-                    <% }%>
-                  <% }%>
+                      </a> -->
+                  </div>
                 </div>
               </div>
               <%/* Desktop Navigation bar */%>
@@ -481,6 +437,21 @@
                         </div>
                       </div>
                     </a>
+                    <a class="dropdown-item" purpose="dropdown-item" data-dropdown-option="Fleet GitOps" href="/fleet-gitops">
+                      <div purpose="dropdown-item-link">
+                        <div purpose="dropdown-item-icon">
+                          <img src="/images/nav-icon-gitops-40x40@2x.png" alt="GitOps">
+                        </div>
+                        <div purpose="dropdown-item-text">
+                          <p purpose="nav-item-heading">
+                            Infrastructure as code
+                          </p>
+                          <p purpose="nav-item-body">
+                            See every change, undo any error, repeat every success.
+                          </p>
+                        </div>
+                      </div>
+                    </a>
                     <a class="dropdown-item" purpose="dropdown-item" data-dropdown-option="integrations" href="/integrations">
                       <div purpose="dropdown-item-link">
                         <div purpose="dropdown-item-icon">
@@ -499,61 +470,7 @@
                   </div>
                 </div>
 
-                <div purpose="dropdown-button" class="btn-group">
-                  <a purpose="header-nav-btn" class="dropdown-toggle align-items-center <%= typeof currentSection !== 'undefined' && currentSection === 'customers' ? 'current-section' : '' %>">Customers <img purpose="chevron" src="/images/icon-chevron-fleet-black-50-12x12@2x.png" alt="A small chevron"></a>
-
-                  <div purpose="header-dropdown" class="dropdown-menu customers-dropdown">
-
-                    <a purpose="dropdown-item" class="dropdown-item" data-dropdown-option="Stripe + Fleet" href="/announcements/consolidate-multiple-tools-with-fleet">
-                      <div purpose="dropdown-item-link">
-                        <div purpose="dropdown-item-icon">
-                          <img src="/images/nav-icon-stripe-40x40@2x.png" alt="Stripe + Fleet">
-                        </div>
-                        <div purpose="dropdown-item-text">
-                          <p purpose="nav-item-heading">
-                            Stripe + Fleet
-                          </p>
-                          <p purpose="nav-item-body">
-                            Stripe consolidates multiple tools with Fleet.
-                          </p>
-                        </div>
-                      </div>
-                    </a>
-                    <a purpose="dropdown-item" class="dropdown-item" data-dropdown-option="Foursquare + Fleet" href="/announcements/foursquare-quickly-migrates-to-fleet">
-                      <div purpose="dropdown-item-link">
-                        <div purpose="dropdown-item-icon">
-                          <img src="/images/nav-icon-foursquare-40x40@2x.png" alt="Foursquare + Fleet">
-                        </div>
-                        <div purpose="dropdown-item-text">
-                          <div purpose="dropdown-item-text">
-                            <p purpose="nav-item-heading">
-                              Foursquare + Fleet
-                            </p>
-                            <p purpose="nav-item-body">
-                              Foursquare quickly migrates to Fleet for device management.
-                            </p>
-                          </div>
-                        </div>
-                      </div>
-                    </a>
-                    <a purpose="dropdown-item" class="dropdown-item" data-dropdown-option="What people are saying" href="/testimonials">
-                      <div purpose="dropdown-item-link">
-                        <div purpose="dropdown-item-icon">
-                          <img src="/images/nav-icon-testimonials-40x40@2x.png" alt="What people are saying">
-                        </div>
-                        <div purpose="dropdown-item-text">
-                          <p purpose="nav-item-heading">
-                            What people are saying
-                          </p>
-                          <p purpose="nav-item-body">
-                            Stories from the Fleet community.
-                          </p>
-                        </div>
-                      </div>
-                    </a>
-
-                  </div>
-                </div>
+                <a purpose="header-nav-btn" href="/customers" class="dropdown-toggle align-items-center <%= typeof currentSection !== 'undefined' && currentSection === 'customers' ? 'current-section' : '' %>">Customers</a>
 
                 <a purpose="header-nav-btn" button-text="Pricing" href="/pricing" class=" align-items-center <%= typeof currentSection !== 'undefined' && currentSection === 'pricing' ? 'current-section' : '' %>" style="width: 72px; text-decoration: none; line-height: 23px;">Pricing</a>
 
@@ -562,7 +479,7 @@
                   <span purpose="header-nav-btn" button-text="More" class="dropdown-toggle align-items-center <%= typeof currentSection !== 'undefined' && currentSection === 'more' ? 'current-section' : '' %>" >More <img purpose="chevron" src="/images/icon-chevron-fleet-black-50-12x12@2x.png" alt="A small chevron"></span>
                   <div purpose="header-dropdown" class="dropdown-menu more-dropdown flex-row">
                     <div purpose="dropdown-cta-column">
-                      <a purpose="dropdown-cta" data-dropdown-option="" href="https://www.eventbrite.com/o/fleet-63487049103" target="_blank" no-icon>
+                      <a purpose="dropdown-cta" data-dropdown-option="" href="/gitops-workshop" no-icon>
                         <div purpose="dropdown-cta-link">
                           <div purpose="dropdown-cta-image">
                           </div>
@@ -665,29 +582,17 @@
 
                   </div>
                 </div>
-
+                <!-- <a purpose="layout-animated-arrow-button" class="start-cta-continue-button" href="/try" no-underline>
+                  Try it yourself
+                  <svg purpose="animated-arrow" xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 12 12">
+                    <path purpose="arrow-line" d="M1 6H9" stroke-width="2" stroke-linecap="round"/>
+                    <path purpose="chevron" d="M1.35712 1L5.64283 6L1.35712 11" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                  </svg>
+                </a> -->
+                <a purpose="glass-header-btn" class="align-items-center d-flex" href="/contact" no-underline>Get a demo</a>
                 <% if(_.has(me, 'id')) {%>
-                  <%if(!hideGetStartedButton){%>
-                    <a purpose="layout-animated-arrow-button" class="start-cta-continue-button" href="/try" no-underline>
-                      Try it yourself
-                      <svg purpose="animated-arrow" xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 12 12">
-                        <path purpose="arrow-line" d="M1 6H9" stroke-width="2" stroke-linecap="round"/>
-                        <path purpose="chevron" d="M1.35712 1L5.64283 6L1.35712 11" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                      </svg>
-                    </a>
-                    <a purpose="glass-header-btn" class="align-items-center d-flex" href="/contact" no-underline>Get a demo</a>
-                  <% }%>
                   <a purpose="log-out-button" href="/logout" class="justify-content-end text-decoration-none">Log out</a>
-                <% } else if(!hideGetStartedButton) {%>
-                  <a purpose="layout-animated-arrow-button" class="start-cta-continue-button" data-toggle="modal" data-target="#signupmodal" no-underline>
-                    Try it yourself
-                    <svg purpose="animated-arrow" xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 12 12">
-                      <path purpose="arrow-line" d="M1 6H9" stroke-width="2" stroke-linecap="round"/>
-                      <path purpose="chevron" d="M1.35712 1L5.64283 6L1.35712 11" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                    </svg>
-                  </a>
-                  <a purpose="glass-header-btn" class="align-items-center d-flex" href="/contact" no-underline>Get a demo</a>
-                <% }%>
+                <% } %>
               </div>
             </div>
           <% } else {%>
@@ -711,6 +616,7 @@
                 <a purpose="admin-link" style="text-decoration: none; line-height: 23px;" href="/query-generator">Generate queries</a>
                 <a purpose="admin-link" style="text-decoration: none; line-height: 23px;" href="/admin/generate-license">License generator</a>
                 <a purpose="admin-link" style="text-decoration: none; line-height: 23px;" href="/admin/email-preview">HTML Email preview tool</a>
+                <a purpose="admin-link" style="text-decoration: none; line-height: 23px;" href="/admin/reset-trial">Reset Premium trial</a>
               </div>
             </div>
           <%} %>
@@ -731,7 +637,7 @@
               </a>
             </div>
             <div purpose="footer-nav-column" class="d-flex flex-column col-lg-3 col-md-4 col-sm-6 col-12">
-              <strong purpose="footer-nav-header">Multi platform</strong>
+              <strong purpose="footer-nav-header">Solutions</strong>
               <a href="/device-management">Device management</a>
               <a href="/orchestration">Orchestration</a>
               <a href="/software-management">Software management</a>
@@ -749,7 +655,7 @@
             <div purpose="footer-nav-column" class="d-flex flex-column col-lg-3 col-md-4 col-sm-6 col-12">
               <strong purpose="footer-nav-header">Company</strong>
               <a href="/handbook/company">About</a>
-              <a href="/announcements">News</a>
+              <a href="/trust">Trust</a>
               <a href="/apply">Jobs</a>
               <a href="/logos">Logos/artwork</a>
               <a href="/handbook/company/why-this-way#why-open-source">Why open source?</a>
@@ -837,6 +743,7 @@
           </div>
       <% } %>
       <% } %>
+    </div>
     <% /*
       Client-side JavaScript
       ========================
@@ -885,8 +792,6 @@
     <script src="/js/components/parallax-city.component.js"></script>
     <script src="/js/components/rituals.component.js"></script>
     <script src="/js/components/scrollable-tweets.component.js"></script>
-    <script src="/js/components/signup-button.component.js"></script>
-    <script src="/js/components/signup-modal.component.js"></script>
     <script src="/js/components/stripe-card-element.component.js"></script>
     <script src="/js/utilities/open-stripe-checkout.js"></script>
     <script src="/js/pages/account/account-overview.page.js"></script>
@@ -896,11 +801,13 @@
     <script src="/js/pages/admin/email-templates.page.js"></script>
     <script src="/js/pages/admin/generate-license.page.js"></script>
     <script src="/js/pages/admin/query-generator.page.js"></script>
+    <script src="/js/pages/admin/reset-trial.page.js"></script>
     <script src="/js/pages/admin/sandbox-waitlist.page.js"></script>
     <script src="/js/pages/app-details.page.js"></script>
     <script src="/js/pages/app-library.page.js"></script>
     <script src="/js/pages/articles/articles.page.js"></script>
     <script src="/js/pages/articles/basic-article.page.js"></script>
+    <script src="/js/pages/articles/case-study.page.js"></script>
     <script src="/js/pages/command-details.page.js"></script>
     <script src="/js/pages/configuration-builder.page.js"></script>
     <script src="/js/pages/connect-vanta.page.js"></script>
@@ -916,11 +823,15 @@
     <script src="/js/pages/entrance/new-password.page.js"></script>
     <script src="/js/pages/entrance/signup.page.js"></script>
     <script src="/js/pages/faq.page.js"></script>
+    <script src="/js/pages/fast-track.page.js"></script>
+    <script src="/js/pages/fleet-gitops.page.js"></script>
     <script src="/js/pages/fleet-premium-trial.page.js"></script>
     <script src="/js/pages/fleetctl-preview.page.js"></script>
     <script src="/js/pages/handbook/basic-handbook.page.js"></script>
     <script src="/js/pages/homepage.page.js"></script>
     <script src="/js/pages/integrations.page.js"></script>
+    <script src="/js/pages/landing-pages/basic-comparison.page.js"></script>
+    <script src="/js/pages/landing-pages/gitops-workshop.page.js"></script>
     <script src="/js/pages/legal/privacy.page.js"></script>
     <script src="/js/pages/legal/terms.page.js"></script>
     <script src="/js/pages/mdm-commands.page.js"></script>

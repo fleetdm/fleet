@@ -13,10 +13,7 @@ import { useQuery } from "react-query";
 import { size } from "lodash";
 import classnames from "classnames";
 import { useDebouncedCallback } from "use-debounce";
-import { IAceEditor } from "react-ace/lib/types";
-import ReactTooltip from "react-tooltip";
-
-import { COLORS } from "styles/var/colors";
+import { Ace } from "ace-builds";
 
 import PATHS from "router/paths";
 
@@ -28,6 +25,7 @@ import {
   getCustomDropdownOptions,
   secondsToDhms,
 } from "utilities/helpers";
+
 import {
   FREQUENCY_DROPDOWN_OPTIONS,
   MIN_OSQUERY_VERSION_OPTIONS,
@@ -53,8 +51,10 @@ import labelsAPI, {
 
 import Avatar from "components/Avatar";
 import SQLEditor from "components/SQLEditor";
-// @ts-ignore
-import validateQuery from "components/forms/validators/validate_query";
+import {
+  validateQuery,
+  EMPTY_QUERY_ERR,
+} from "components/forms/validators/validate_query";
 import Button from "components/buttons/Button";
 import RevealButton from "components/buttons/RevealButton";
 import Checkbox from "components/forms/fields/Checkbox";
@@ -84,6 +84,7 @@ interface IEditQueryFormProps {
   queryIdForEdit: number | null;
   apiTeamIdForQuery?: number;
   currentTeamId?: number;
+  currentTeamName?: string;
   showOpenSchemaActionText: boolean;
   storedQuery: ISchedulableQuery | undefined;
   isStoredQueryLoading: boolean;
@@ -106,7 +107,8 @@ const validateQuerySQL = (query: string) => {
   const { error: queryError, valid: queryValid } = validateQuery(query);
 
   if (!queryValid) {
-    errors.query = queryError;
+    // queryError should be truthy at this point
+    errors.query = queryError ?? "Invalid query";
   }
 
   const valid = !size(errors);
@@ -119,6 +121,7 @@ const EditQueryForm = ({
   queryIdForEdit,
   apiTeamIdForQuery,
   currentTeamId,
+  currentTeamName,
   showOpenSchemaActionText,
   storedQuery,
   isStoredQueryLoading,
@@ -172,6 +175,7 @@ const EditQueryForm = ({
     isAnyTeamObserverPlus,
     config,
     isPremiumTier,
+    isFreeTier,
   } = useContext(AppContext);
 
   const savedQueryMode = !!queryIdForEdit;
@@ -243,7 +247,8 @@ const EditQueryForm = ({
     isFetching: isFetchingLabels,
   } = useQuery<ILabelsSummaryResponse, Error>(
     ["custom_labels"],
-    () => labelsAPI.summary(),
+    // All-teams queries can only be assigned global labels
+    () => labelsAPI.summary(currentTeamId, true),
     {
       ...DEFAULT_USE_QUERY_OPTIONS,
       enabled: isPremiumTier,
@@ -284,9 +289,8 @@ const EditQueryForm = ({
     setShowSaveAsNewQueryModal(!showSaveAsNewQueryModal);
   };
 
-  const onLoad = (editor: IAceEditor) => {
+  const onLoad = (editor: Ace.Editor) => {
     editor.setOptions({
-      enableLinking: true,
       enableMultiselect: false, // Disables command + click creating multiple cursors
     });
 
@@ -373,16 +377,16 @@ const EditQueryForm = ({
     if (savedQueryMode && !lastEditedQueryName) {
       return setErrors({
         ...errors,
-        name: "Query name must be present",
+        name: "Report name must be present",
       });
     }
 
-    let valid = true;
-    const { valid: isValidated } = validateQuerySQL(lastEditedQueryBody);
+    const { valid, errors: newErrs } = validateQuerySQL(lastEditedQueryBody);
 
-    valid = isValidated;
+    // allow save when invalid sqlite syntax
+    const canSave = valid || (!valid && newErrs.query !== EMPTY_QUERY_ERR);
 
-    if (valid) {
+    if (canSave) {
       if (!savedQueryMode) {
         platformSelector.setSelectedPlatforms(
           platformCompatibility.getCompatiblePlatforms()
@@ -397,6 +401,7 @@ const EditQueryForm = ({
   const renderAuthor = (): JSX.Element | null => {
     return storedQuery ? (
       <DataSet
+        className={`${baseClass}__author`}
         title="Author"
         value={
           <>
@@ -506,7 +511,7 @@ const EditQueryForm = ({
       );
     }
 
-    return <h1 className={`${baseClass}__query-name no-hover`}>New query</h1>;
+    return <h1 className={`${baseClass}__query-name no-hover`}>New report</h1>;
   };
 
   const editDescription = () => {
@@ -560,6 +565,30 @@ const EditQueryForm = ({
     return null;
   };
 
+  const renderQueryTeam = (isEditing = false) => {
+    if (isFreeTier) return null;
+
+    if (currentTeamName) {
+      if (isEditing) {
+        return (
+          <p>
+            Editing report for <strong>{currentTeamName}</strong> fleet.
+          </p>
+        );
+      }
+      return (
+        <p>
+          Creating a new report for <strong>{currentTeamName}</strong> fleet.
+        </p>
+      );
+    }
+
+    if (isEditing) {
+      return <p>Editing global report.</p>;
+    }
+    return <p>Creating a new global report.</p>;
+  };
+
   // Observers and observer+ of existing query
   const renderNonEditableForm = (
     <form className={`${baseClass}`}>
@@ -569,6 +598,7 @@ const EditQueryForm = ({
         </h1>
         {renderAuthor()}
       </div>
+      {renderQueryTeam()}
       <PageDescription
         className={`${baseClass}__query-description no-hover`}
         content={lastEditedQueryDescription}
@@ -604,7 +634,7 @@ const EditQueryForm = ({
         <div className={`button-wrap ${baseClass}__button-wrap--new-query`}>
           <TooltipWrapper
             className="live-query-button-tooltip"
-            tipContent="Live queries are disabled in organization settings"
+            tipContent="Live reports are disabled in organization settings"
             disableTooltip={!disabledLiveQuery}
             position="top"
             showArrow
@@ -616,13 +646,13 @@ const EditQueryForm = ({
                 router.push(
                   getPathWithQueryParams(PATHS.LIVE_QUERY(queryIdForEdit), {
                     host_id: hostId,
-                    team_id: apiTeamIdForQuery,
+                    fleet_id: apiTeamIdForQuery,
                   })
                 );
               }}
               disabled={disabledLiveQuery}
             >
-              Live query <Icon name="run" />
+              Live report <Icon name="run" />
             </Button>
           </TooltipWrapper>
         </div>
@@ -680,7 +710,7 @@ const EditQueryForm = ({
     // Save and save as new disabled for query name blank on existing query or sql errors
     const disableSaveFormErrors =
       (lastEditedQueryName === "" && !!lastEditedQueryId) ||
-      !!size(errors) ||
+      (!!errors.query && errors.query === EMPTY_QUERY_ERR) ||
       (savedQueryMode && !platformSelector.isAnyPlatformSelected) ||
       (selectedTargetType === "Custom" &&
         !Object.entries(selectedLabels).some(([, value]) => {
@@ -692,9 +722,9 @@ const EditQueryForm = ({
         <form className={baseClass} autoComplete="off">
           <div className={`${baseClass}__title-bar`}>
             {renderName()}
-
             {savedQueryMode && renderAuthor()}
           </div>
+          {renderQueryTeam(true)}
           {renderDescription()}
           <SQLEditor
             value={lastEditedQueryBody}
@@ -729,7 +759,7 @@ const EditQueryForm = ({
                 value={lastEditedQueryFrequency}
                 label="Interval"
                 wrapperClassName={`${baseClass}__form-field form-field--frequency`}
-                helpText="This is how often your query collects data."
+                helpText="This is how often your report collects data."
               />
               <Slider
                 onChange={() =>
@@ -746,7 +776,7 @@ const EditQueryForm = ({
                         tipContent={
                           <>
                             Automations and reporting will be paused <br />
-                            for this query until an interval is set.
+                            for this report until an interval is set.
                           </>
                         }
                         position="right"
@@ -786,7 +816,7 @@ const EditQueryForm = ({
                 onChange={(value: boolean) =>
                   setLastEditedQueryObserverCanRun(value)
                 }
-                helpText="Users with the observer role will be able to run this query on hosts where they have access."
+                helpText="Users with the observer role will be able to run this report on hosts where they have access."
               >
                 Observers can run
               </Checkbox>
@@ -801,7 +831,7 @@ const EditQueryForm = ({
                   labels={labels || []}
                   customHelpText={
                     <span className="form-field__help-text">
-                      Query will target hosts that <b>have any</b> of these
+                      Report will target hosts that <b>have any</b> of these
                       labels:
                     </span>
                   }
@@ -886,7 +916,7 @@ const EditQueryForm = ({
             )}
             <TooltipWrapper
               className="live-query-button-tooltip"
-              tipContent="Live queries are disabled in organization settings"
+              tipContent="Live reports are disabled in organization settings"
               disableTooltip={!disabledLiveQuery}
               position="top"
               showArrow
@@ -911,13 +941,13 @@ const EditQueryForm = ({
                   router.push(
                     getPathWithQueryParams(PATHS.LIVE_QUERY(queryIdForEdit), {
                       host_id: hostId,
-                      team_id: currentTeamId,
+                      fleet_id: currentTeamId,
                     })
                   );
                 }}
                 disabled={disabledLiveQuery}
               >
-                Live query <Icon name="run" />
+                Live report <Icon name="run" />
               </Button>
             </TooltipWrapper>
           </div>
@@ -942,6 +972,7 @@ const EditQueryForm = ({
               ...updateQueryData,
               team_id: apiTeamIdForQuery,
             }}
+            hostId={hostId}
             onExit={toggleSaveAsNewQueryModal}
           />
         )}

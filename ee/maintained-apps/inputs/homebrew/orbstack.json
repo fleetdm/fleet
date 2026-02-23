@@ -1,0 +1,8 @@
+{
+  "name": "OrbStack",
+  "unique_identifier": "dev.kdrag0n.MacVirt",
+  "token": "orbstack",
+  "installer_format": "dmg",
+  "slug": "orbstack/darwin",
+  "default_categories": ["Developer tools"]
+}

@@ -153,19 +153,22 @@ services:
     environment:
       - SERVICES=firehose,kinesis,s3,iam,sts,secretsmanager
 
-  # s3 compatible object storage (file carving backend)
-  minio:
-    image: quay.io/minio/minio
-    command: server /data --console-address ":9001"
+  # s3 compatible object storage (file carving/software installers)
+  s3:
+    image: rustfs/rustfs:1.0.0-alpha.80
     ports:
       - "9000:9000"
       - "9001:9001"
     environment:
-      MINIO_ROOT_USER: minio
-      MINIO_ROOT_PASSWORD: minio123!
+      - RUSTFS_ADDRESS=0.0.0.0:9000
+      - RUSTFS_CONSOLE_ADDRESS=0.0.0.0:9001
+      - RUSTFS_CONSOLE_ENABLE=true
+      - RUSTFS_EXTERNAL_ADDRESS=:9000
+      - RUSTFS_ACCESS_KEY=locals3
+      - RUSTFS_SECRET_KEY=locals3
     volumes:
-      - data-minio:/data
+      - data-s3:/data:rw
 
 volumes:
   mysql-persistent-volume:
-  data-minio:
+  data-s3:

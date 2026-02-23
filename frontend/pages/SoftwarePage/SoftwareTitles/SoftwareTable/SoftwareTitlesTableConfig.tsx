@@ -47,7 +47,7 @@ const getSoftwareNameCellData = (
 ) => {
   const softwareTitleDetailsPath = getPathWithQueryParams(
     PATHS.SOFTWARE_TITLE_DETAILS(softwareTitle.id.toString()),
-    { team_id: teamId }
+    { fleet_id: teamId }
   );
 
   const { software_package, app_store_app } = softwareTitle;
@@ -129,6 +129,7 @@ const generateTableHeaders = (
             automaticInstallPoliciesCount={
               nameCellData.automaticInstallPoliciesCount
             }
+            isIosOrIpadosApp={isIpadOrIphoneSoftwareSource(nameCellData.source)}
             isAndroidPlayStoreApp={isAndroidPlayStoreApp}
           />
         );
@@ -205,7 +206,7 @@ const generateTableHeaders = (
           <ViewAllHostsLink
             queryParams={{
               software_title_id: cellProps.row.original.id,
-              team_id: teamId,
+              fleet_id: teamId,
             }}
             className="software-link"
             rowHover

@@ -7,9 +7,11 @@ import (
 	"fmt"
 	"slices"
 	"strings"
+	"time"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/go-kit/log/level"
 	"github.com/jmoiron/sqlx"
 )
 
@@ -22,6 +24,40 @@ func (ds *Datastore) ResetSetupExperienceItemsAfterFailure(ctx context.Context, 
 }
 
 func (ds *Datastore) enqueueSetupExperienceItems(ctx context.Context, hostPlatformLike string, hostUUID string, teamID uint, resetFailedSetupSteps bool) (bool, error) {
+	// Find the host with the given UUID and platform. If it's already been enrolled for > the cutoff,
+	// don't enqueue any items. This handles the edge case where an enrolled host upgrades from an
+	// Orbit version that didn't support setup experience to one that does.
+	// See https://github.com/fleetdm/fleet/issues/35717
+	stmtHost := `
+	SELECT
+		last_enrolled_at
+	FROM
+		hosts
+	WHERE uuid = ? AND platform = ?
+	`
+	var lastEnrolledAt sql.NullTime
+	if err := sqlx.GetContext(ctx, ds.reader(ctx), &lastEnrolledAt, stmtHost, hostUUID, hostPlatformLike); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			// This shouldn't happen but we don't check for it elsewhere,
+			// so we'll log a warning and continue.
+			level.Warn(ds.logger).Log("msg", "Host not found while enqueueing setup experience items", "host_uuid", hostUUID, "platform_like", hostPlatformLike)
+		} else {
+			return false, ctxerr.Wrap(ctx, err, "finding host for enqueueing setup experience items")
+		}
+	}
+	// If the host was enrolled more than 24 hours ago, don't enqueue any items.
+	// Note: if the last enroll date is our "zero date" (1/1/2000), treat it as if it's never enrolled.
+	if lastEnrolledAt.Valid && lastEnrolledAt.Time.Before(time.Now().Add(-24*time.Hour)) && lastEnrolledAt.Time.After(time.Date(2000, time.January, 1, 0, 0, 0, 0, time.UTC)) {
+		level.Debug(ds.logger).Log("msg", "Host enrolled more than 24 hours ago, skipping enqueueing setup experience items", "host_uuid", hostUUID, "platform_like", hostPlatformLike, "last_enrolled_at", lastEnrolledAt.Time)
+		return false, nil
+	}
+
+	// NOTE: currently, the Android platform does not use the "enqueue setup experience items" flow as it
+	// doesn't support any on-device UI (such as the screen showing setup progress) nor any
+	// ordering of installs - all software to install is provided as part of the Android policy
+	// when the host enrolls in Fleet.
+	// See https://github.com/fleetdm/fleet/issues/33761#issuecomment-3548996114
+
 	stmtClearSetupStatus := `
 DELETE FROM setup_experience_status_results
 WHERE host_uuid = ? AND %s`
@@ -197,8 +233,17 @@ WHERE global_or_team_id = ?`
 }
 
 func (ds *Datastore) SetSetupExperienceSoftwareTitles(ctx context.Context, platform string, teamID uint, titleIDs []uint) error {
-	if platform != string(fleet.MacOSPlatform) && platform != "windows" && platform != "linux" && platform != string(fleet.IOSPlatform) && platform != string(fleet.IPadOSPlatform) {
-		return ctxerr.Errorf(ctx, "platform %q is not supported, only %q, %q, %q, \"windows\", or \"linux\" platforms are supported", platform, fleet.MacOSPlatform, fleet.IOSPlatform, fleet.IPadOSPlatform)
+	switch platform {
+	case string(fleet.MacOSPlatform),
+		string(fleet.IOSPlatform),
+		string(fleet.IPadOSPlatform),
+		string(fleet.AndroidPlatform),
+		"windows",
+		"linux":
+		// ok, valid platform
+	default:
+		return ctxerr.Errorf(ctx, "platform %q is not supported, only %q, %q, %q, %q, \"windows\", or \"linux\" platforms are supported",
+			platform, fleet.MacOSPlatform, fleet.IOSPlatform, fleet.IPadOSPlatform, fleet.AndroidPlatform)
 	}
 
 	titleIDQuestionMarks := strings.Join(slices.Repeat([]string{"?"}, len(titleIDs)), ",")
@@ -238,7 +283,7 @@ WHERE
 	vat.global_or_team_id = ?
 AND
 	st.id IN (%s)
-AND va.platform IN ('darwin', 'ios', 'ipados')
+AND va.platform IN ('darwin', 'ios', 'ipados', 'android')
 `, titleIDQuestionMarks)
 
 	stmtUnsetInstallers := `
@@ -278,7 +323,7 @@ WHERE id IN (%s)`
 		}
 
 		// Select requested software installers
-		if platform != string(fleet.IOSPlatform) && platform != string(fleet.IPadOSPlatform) {
+		if platform != string(fleet.IOSPlatform) && platform != string(fleet.IPadOSPlatform) && platform != string(fleet.AndroidPlatform) {
 			if len(titleIDs) > 0 {
 				if err := sqlx.SelectContext(ctx, tx, &softwareIDPlatforms, stmtSelectInstallersIDs, titleIDAndTeam...); err != nil {
 					return ctxerr.Wrap(ctx, err, "selecting software IDs using title IDs")
@@ -298,7 +343,8 @@ WHERE id IN (%s)`
 		}
 
 		// Select requested VPP apps
-		if platform == string(fleet.MacOSPlatform) || platform == string(fleet.IOSPlatform) || platform == string(fleet.IPadOSPlatform) {
+		if platform == string(fleet.MacOSPlatform) || platform == string(fleet.IOSPlatform) || platform == string(fleet.IPadOSPlatform) ||
+			platform == string(fleet.AndroidPlatform) {
 			if len(titleIDs) > 0 {
 				if err := sqlx.SelectContext(ctx, tx, &vppIDPlatforms, stmtSelectVPPAppsTeamsID, titleIDAndTeam...); err != nil {
 					return ctxerr.Wrap(ctx, err, "selecting vpp app team IDs using title IDs")
@@ -335,7 +381,8 @@ WHERE id IN (%s)`
 		}
 
 		// Unset all vpp apps
-		if platform == string(fleet.MacOSPlatform) || platform == string(fleet.IOSPlatform) || platform == string(fleet.IPadOSPlatform) {
+		if platform == string(fleet.MacOSPlatform) || platform == string(fleet.IOSPlatform) ||
+			platform == string(fleet.IPadOSPlatform) || platform == string(fleet.AndroidPlatform) {
 			if _, err := tx.ExecContext(ctx, stmtUnsetVPPAppsTeams, platform, teamID); err != nil {
 				return ctxerr.Wrap(ctx, err, "unsetting vpp app teams")
 			}
@@ -348,7 +395,8 @@ WHERE id IN (%s)`
 			}
 		}
 
-		if (platform == string(fleet.MacOSPlatform) || platform == string(fleet.IOSPlatform) || platform == string(fleet.IPadOSPlatform)) && len(vppAppTeamIDs) > 0 {
+		if (platform == string(fleet.MacOSPlatform) || platform == string(fleet.IOSPlatform) ||
+			platform == string(fleet.IPadOSPlatform) || platform == string(fleet.AndroidPlatform)) && len(vppAppTeamIDs) > 0 {
 			stmtSetVPPAppsTeamsLoop := fmt.Sprintf(stmtSetVPPAppsTeams, questionMarks(len(vppAppTeamIDs)))
 			if _, err := tx.ExecContext(ctx, stmtSetVPPAppsTeamsLoop, vppAppTeamIDs...); err != nil {
 				return ctxerr.Wrap(ctx, err, "setting vpp app teams")
@@ -405,8 +453,20 @@ func (ds *Datastore) GetSetupExperienceCount(ctx context.Context, platform strin
 }
 
 func (ds *Datastore) ListSetupExperienceSoftwareTitles(ctx context.Context, platform string, teamID uint, opts fleet.ListOptions) ([]fleet.SoftwareTitleListResult, int, *fleet.PaginationMetadata, error) {
-	if platform != string(fleet.MacOSPlatform) && platform != "windows" && platform != "linux" && platform != string(fleet.IOSPlatform) && platform != string(fleet.IPadOSPlatform) {
-		return nil, 0, nil, ctxerr.Errorf(ctx, "platform %q is not supported, only %q, %q, %q, \"windows\", or \"linux\" platforms are supported", platform, fleet.MacOSPlatform, fleet.IOSPlatform, fleet.IPadOSPlatform)
+	// I believe this can be removed, as the platforms are validated before this function
+	for p := range strings.SplitSeq(strings.ReplaceAll(platform, "macos", "darwin"), ",") {
+		switch p {
+		case string(fleet.MacOSPlatform),
+			string(fleet.IOSPlatform),
+			string(fleet.IPadOSPlatform),
+			string(fleet.AndroidPlatform),
+			"windows",
+			"linux":
+			// ok, valid platform
+		default:
+			return nil, 0, nil, ctxerr.Errorf(ctx, "platform %q is not supported, only %q, %q, %q, %q, \"windows\", or \"linux\" platforms are supported",
+				p, fleet.MacOSPlatform, fleet.IOSPlatform, fleet.AndroidPlatform, fleet.IPadOSPlatform)
+		}
 	}
 
 	opts.IncludeMetadata = true
@@ -485,6 +545,57 @@ WHERE host_uuid = ?
 	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &results, stmt, hostUUID); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "select setup experience status results by host uuid")
 	}
+
+	titleIDs := make([]uint, 0, len(results))
+	byTitleID := make(map[uint]*fleet.SetupExperienceStatusResult, len(results))
+	for _, res := range results {
+		if res.SoftwareTitleID != nil {
+			titleIDs = append(titleIDs, *res.SoftwareTitleID)
+			byTitleID[*res.SoftwareTitleID] = res
+		}
+	}
+
+	// load custom display name and custom icon for the software installers, if any
+	if len(titleIDs) > 0 {
+		// NOTE: as documented in fleet.HostUUIDForSetupExperience, the setup experience "host_uuid"
+		// is NOT always the host.uuid (on Windows and Linux, specifically). So if the host's team is
+		// not found, we simply don't load the icons and display names, anyway we only need those
+		// on macOS currently as it's the only place where the setup experience UI is shown.
+
+		// we need the host's team to load the custom icons and display names
+		const hostTeam = `SELECT team_id FROM hosts WHERE uuid = ? LIMIT 1`
+		var hostTeamID sql.Null[uint]
+		if err := sqlx.GetContext(ctx, ds.reader(ctx), &hostTeamID, hostTeam, hostUUID); err != nil {
+			if errors.Is(err, sql.ErrNoRows) {
+				// host not found, skip loading icons and display names
+				return results, nil
+			}
+			return nil, ctxerr.Wrap(ctx, err, "get host team ID for setup experience results")
+		}
+
+		icons, err := ds.GetSoftwareIconsByTeamAndTitleIds(ctx, hostTeamID.V, titleIDs)
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "get software icons by team and title IDs")
+		}
+
+		displayNames, err := ds.getDisplayNamesByTeamAndTitleIds(ctx, hostTeamID.V, titleIDs)
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "get software display names by team and title IDs")
+		}
+
+		for titleID, icon := range icons {
+			if res := byTitleID[titleID]; res != nil {
+				res.IconURL = icon.IconUrl()
+			}
+		}
+
+		for titleID, name := range displayNames {
+			if res := byTitleID[titleID]; res != nil {
+				res.DisplayName = name
+			}
+		}
+	}
+
 	return results, nil
 }
 

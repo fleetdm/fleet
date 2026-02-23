@@ -1,0 +1,13 @@
+{
+  "name": "VLC media player",
+  "slug": "vlc/windows",
+  "package_identifier": "VideoLAN.VLC",
+  "unique_identifier": "VLC media player",
+  "installer_arch": "x64",
+  "installer_type": "msi",
+  "installer_scope": "machine",
+  "uninstall_script_path": "ee/maintained-apps/inputs/winget/scripts/vlc_uninstall.ps1",
+  "default_categories": [
+    "Productivity"
+  ]
+}

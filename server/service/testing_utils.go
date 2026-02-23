@@ -23,6 +23,9 @@ import (
 	"github.com/fleetdm/fleet/v4/ee/server/service/est"
 	"github.com/fleetdm/fleet/v4/ee/server/service/hostidentity"
 	"github.com/fleetdm/fleet/v4/ee/server/service/hostidentity/httpsig"
+	"github.com/fleetdm/fleet/v4/server/acl/activityacl"
+	activity_bootstrap "github.com/fleetdm/fleet/v4/server/activity/bootstrap"
+	"github.com/fleetdm/fleet/v4/server/authz"
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/contexts/license"
@@ -45,15 +48,18 @@ import (
 	nanomdm_push "github.com/fleetdm/fleet/v4/server/mdm/nanomdm/push"
 	scep_depot "github.com/fleetdm/fleet/v4/server/mdm/scep/depot"
 	nanodep_mock "github.com/fleetdm/fleet/v4/server/mock/nanodep"
+	"github.com/fleetdm/fleet/v4/server/platform/endpointer"
+	platformlogging "github.com/fleetdm/fleet/v4/server/platform/logging"
+	common_mysql "github.com/fleetdm/fleet/v4/server/platform/mysql"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/service/async"
-	"github.com/fleetdm/fleet/v4/server/service/middleware/endpoint_utils"
+	"github.com/fleetdm/fleet/v4/server/service/middleware/auth"
 	"github.com/fleetdm/fleet/v4/server/service/mock"
 	"github.com/fleetdm/fleet/v4/server/service/redis_key_value"
 	"github.com/fleetdm/fleet/v4/server/service/redis_lock"
 	"github.com/fleetdm/fleet/v4/server/sso"
 	"github.com/fleetdm/fleet/v4/server/test"
-	kitlog "github.com/go-kit/log"
+	"github.com/go-kit/kit/endpoint"
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -68,11 +74,12 @@ func newTestService(t *testing.T, ds fleet.Datastore, rs fleet.QueryResultStore,
 
 func newTestServiceWithConfig(t *testing.T, ds fleet.Datastore, fleetConfig config.FleetConfig, rs fleet.QueryResultStore, lq fleet.LiveQueryStore, opts ...*TestServerOpts) (fleet.Service, context.Context) {
 	lic := &fleet.LicenseInfo{Tier: fleet.TierFree}
-	writer, err := logging.NewFilesystemLogWriter(fleetConfig.Filesystem.StatusLogFile, kitlog.NewNopLogger(), fleetConfig.Filesystem.EnableLogRotation, fleetConfig.Filesystem.EnableLogCompression, 500, 28, 3)
+	logger := platformlogging.NewNopLogger()
+	writer, err := logging.NewFilesystemLogWriter(fleetConfig.Filesystem.StatusLogFile, logger, fleetConfig.Filesystem.EnableLogRotation,
+		fleetConfig.Filesystem.EnableLogCompression, 500, 28, 3)
 	require.NoError(t, err)
 
 	osqlogger := &OsqueryLogger{Status: writer, Result: writer}
-	logger := kitlog.NewNopLogger()
 
 	var (
 		failingPolicySet                fleet.FailingPolicySet        = NewMemFailingPolicySet()
@@ -94,6 +101,7 @@ func newTestServiceWithConfig(t *testing.T, ds fleet.Datastore, fleetConfig conf
 		softwareTitleIconStore fleet.SoftwareTitleIconStore
 		distributedLock        fleet.Lock
 		keyValueStore          fleet.KeyValueStore
+		androidService         android.Service
 	)
 	if len(opts) > 0 {
 		if opts[0].Clock != nil {
@@ -166,7 +174,7 @@ func newTestServiceWithConfig(t *testing.T, ds fleet.Datastore, fleetConfig conf
 	var eh *errorstore.Handler
 	if len(opts) > 0 {
 		if opts[0].Pool != nil {
-			eh = errorstore.NewHandler(ctx, opts[0].Pool, logger, time.Minute*10)
+			eh = errorstore.NewHandler(ctx, opts[0].Pool, logger.SlogLogger(), time.Minute*10)
 			ctx = ctxerr.NewContext(ctx, eh)
 		}
 		if opts[0].StartCronSchedules != nil {
@@ -185,6 +193,10 @@ func newTestServiceWithConfig(t *testing.T, ds fleet.Datastore, fleetConfig conf
 	if len(opts) > 0 && opts[0].ConditionalAccessMicrosoftProxy != nil {
 		conditionalAccessMicrosoftProxy = opts[0].ConditionalAccessMicrosoftProxy
 		fleetConfig.MicrosoftCompliancePartner.ProxyAPIKey = "insecure" // setting this so the feature is "enabled".
+	}
+
+	if len(opts) > 0 && opts[0].androidModule != nil {
+		androidService = opts[0].androidModule
 	}
 
 	var wstepManager microsoft_mdm.CertManager
@@ -223,6 +235,7 @@ func newTestServiceWithConfig(t *testing.T, ds fleet.Datastore, fleetConfig conf
 		digiCertService,
 		conditionalAccessMicrosoftProxy,
 		keyValueStore,
+		androidService,
 	)
 	if err != nil {
 		panic(err)
@@ -370,7 +383,7 @@ type ConditionalAccess struct {
 }
 
 type TestServerOpts struct {
-	Logger                          kitlog.Logger
+	Logger                          *platformlogging.Logger
 	License                         *fleet.LicenseInfo
 	SkipCreateTestUsers             bool
 	Rs                              fleet.QueryResultStore
@@ -399,7 +412,7 @@ type TestServerOpts struct {
 	KeyValueStore                   fleet.KeyValueStore
 	EnableSCEPProxy                 bool
 	WithDEPWebview                  bool
-	FeatureRoutes                   []endpoint_utils.HandlerRoutesFunc
+	FeatureRoutes                   []endpointer.HandlerRoutesFunc
 	SCEPConfigService               fleet.SCEPConfigService
 	DigiCertService                 fleet.DigiCertService
 	EnableSCIM                      bool
@@ -408,6 +421,7 @@ type TestServerOpts struct {
 	androidMockClient               *android_mock.Client
 	androidModule                   android.Service
 	ConditionalAccess               *ConditionalAccess
+	DBConns                         *common_mysql.DBConnections
 }
 
 func RunServerForTestsWithDS(t *testing.T, ds fleet.Datastore, opts ...*TestServerOpts) (map[string]fleet.User, *httptest.Server) {
@@ -435,13 +449,31 @@ func RunServerForTestsWithServiceWithDS(t *testing.T, ctx context.Context, ds fl
 	if len(opts) == 0 || (len(opts) > 0 && !opts[0].SkipCreateTestUsers) {
 		users = createTestUsers(t, ds)
 	}
-	logger := kitlog.NewLogfmtLogger(os.Stdout)
+	logger := platformlogging.NewLogfmtLogger(os.Stdout)
 	if len(opts) > 0 && opts[0].Logger != nil {
 		logger = opts[0].Logger
 	}
 
 	if len(opts) > 0 {
 		opts[0].FeatureRoutes = append(opts[0].FeatureRoutes, android_service.GetRoutes(svc, opts[0].androidModule))
+	}
+
+	// Add activity routes if DBConns is provided
+	if len(opts) > 0 && opts[0].DBConns != nil {
+		legacyAuthorizer, err := authz.NewAuthorizer()
+		require.NoError(t, err)
+		activityAuthorizer := authz.NewAuthorizerAdapter(legacyAuthorizer)
+		activityACLAdapter := activityacl.NewFleetServiceAdapter(svc)
+		_, activityRoutesFn := activity_bootstrap.New(
+			opts[0].DBConns,
+			activityAuthorizer,
+			activityACLAdapter,
+			logger.SlogLogger(),
+		)
+		activityAuthMiddleware := func(next endpoint.Endpoint) endpoint.Endpoint {
+			return auth.AuthenticatedUser(svc, next)
+		}
+		opts[0].FeatureRoutes = append(opts[0].FeatureRoutes, activityRoutesFn(activityAuthMiddleware))
 	}
 
 	var mdmPusher nanomdm_push.Pusher
@@ -468,8 +500,10 @@ func RunServerForTestsWithServiceWithDS(t *testing.T, ctx context.Context, ds fl
 		scepStorage := opts[0].SCEPStorage
 		commander := apple_mdm.NewMDMAppleCommander(mdmStorage, mdmPusher)
 		if mdmStorage != nil && scepStorage != nil {
-			checkInAndCommand := NewMDMAppleCheckinAndCommandService(ds, commander, logger, redis_key_value.New(redisPool))
+			vppInstaller := svc.(fleet.AppleMDMVPPInstaller)
+			checkInAndCommand := NewMDMAppleCheckinAndCommandService(ds, commander, vppInstaller, opts[0].License.IsPremium(), logger, redis_key_value.New(redisPool))
 			checkInAndCommand.RegisterResultsHandler("InstalledApplicationList", NewInstalledApplicationListResultsHandler(ds, commander, logger, cfg.Server.VPPVerifyTimeout, cfg.Server.VPPVerifyRequestDelay))
+			checkInAndCommand.RegisterResultsHandler(fleet.DeviceLocationCmdName, NewDeviceLocationResultsHandler(ds, commander, logger))
 			err := RegisterAppleMDMProtocolServices(
 				rootMux,
 				cfg.MDM,
@@ -515,7 +549,7 @@ func RunServerForTestsWithServiceWithDS(t *testing.T, ctx context.Context, ds fl
 		rootMux.Handle("/", frontendHandler)
 	}
 
-	var featureRoutes []endpoint_utils.HandlerRoutesFunc
+	var featureRoutes []endpointer.HandlerRoutesFunc
 	if len(opts) > 0 && len(opts[0].FeatureRoutes) > 0 {
 		featureRoutes = opts[0].FeatureRoutes
 	}
@@ -525,7 +559,8 @@ func RunServerForTestsWithServiceWithDS(t *testing.T, ctx context.Context, ds fl
 	if len(opts) > 0 && opts[0].HostIdentity != nil {
 		require.NoError(t, hostidentity.RegisterSCEP(rootMux, opts[0].HostIdentity.SCEPStorage, ds, logger, &cfg))
 		var httpSigVerifier func(http.Handler) http.Handler
-		httpSigVerifier, err := httpsig.Middleware(ds, opts[0].HostIdentity.RequireHTTPMessageSignature, kitlog.With(logger, "component", "http-sig-verifier"))
+		httpSigVerifier, err := httpsig.Middleware(ds, opts[0].HostIdentity.RequireHTTPMessageSignature,
+			logger.With("component", "http-sig-verifier"))
 		require.NoError(t, err)
 		extra = append(extra, WithHTTPSigVerifier(httpSigVerifier))
 	}
@@ -534,19 +569,20 @@ func RunServerForTestsWithServiceWithDS(t *testing.T, ctx context.Context, ds fl
 		require.NoError(t, condaccess.RegisterSCEP(ctx, rootMux, opts[0].ConditionalAccess.SCEPStorage, ds, logger, &cfg))
 		require.NoError(t, condaccess.RegisterIdP(rootMux, ds, logger, &cfg))
 	}
-	apiHandler := MakeHandler(svc, cfg, logger, limitStore, redisPool, featureRoutes, extra...)
+	var carveStore fleet.CarveStore = ds // In tests, we use MySQL as storage for carves.
+	apiHandler := MakeHandler(svc, cfg, logger, limitStore, redisPool, carveStore, featureRoutes, extra...)
 	rootMux.Handle("/api/", apiHandler)
 	var errHandler *errorstore.Handler
 	ctxErrHandler := ctxerr.FromContext(ctx)
 	if ctxErrHandler != nil {
 		errHandler = ctxErrHandler.(*errorstore.Handler)
 	}
-	debugHandler := MakeDebugHandler(svc, cfg, logger, errHandler, ds)
+	debugHandler := MakeDebugHandler(svc, cfg, logger.SlogLogger(), errHandler, ds)
 	rootMux.Handle("/debug/", debugHandler)
 	rootMux.Handle("/enroll", ServeEndUserEnrollOTA(svc, "", ds, logger))
 
 	if len(opts) > 0 && opts[0].EnableSCIM {
-		require.NoError(t, scim.RegisterSCIM(rootMux, ds, svc, logger, &cfg))
+		require.NoError(t, scim.RegisterSCIM(rootMux, ds, svc, logger.SlogLogger(), &cfg))
 		rootMux.Handle("/api/v1/fleet/scim/details", apiHandler)
 		rootMux.Handle("/api/latest/fleet/scim/details", apiHandler)
 	}
@@ -862,8 +898,6 @@ func mdmConfigurationRequiredEndpoints() []struct {
 		{"POST", "/api/fleet/orbit/disk_encryption_key", false, false},
 		{"GET", "/api/latest/fleet/mdm/profiles/1", false, false},
 		{"GET", "/api/latest/fleet/configuration_profiles/1", false, false},
-		{"DELETE", "/api/latest/fleet/mdm/profiles/1", false, false},
-		{"DELETE", "/api/latest/fleet/configuration_profiles/1", false, false},
 		// TODO: those endpoints accept multipart/form data that gets
 		// parsed before the MDM check, we need to refactor this
 		// function to return more information to the caller, or find a
@@ -1280,13 +1314,39 @@ func createAndroidDeviceID(name string) string {
 	return "enterprises/mock-enterprise-id/devices/" + name
 }
 
+func statusReportMessageWithEnterpriseSpecificID(t *testing.T, deviceInfo androidmanagement.Device, enterpriseSpecificID string) *android.PubSubMessage {
+	return messageWithAndroidIdentifiers(t, android.PubSubStatusReport, deviceInfo, enterpriseSpecificID, "")
+}
+
 func enrollmentMessageWithEnterpriseSpecificID(t *testing.T, deviceInfo androidmanagement.Device, enterpriseSpecificID string) *android.PubSubMessage {
+	return messageWithAndroidIdentifiers(t, android.PubSubEnrollment, deviceInfo, enterpriseSpecificID, "")
+}
+
+func statusReportMessageWithSerialNumber(t *testing.T, deviceInfo androidmanagement.Device, serialNumber string) *android.PubSubMessage {
+	return messageWithAndroidIdentifiers(t, android.PubSubStatusReport, deviceInfo, "", serialNumber)
+}
+
+func enrollmentMessageWithSerialNumber(t *testing.T, deviceInfo androidmanagement.Device, serialNumber string) *android.PubSubMessage {
+	return messageWithAndroidIdentifiers(t, android.PubSubEnrollment, deviceInfo, "", serialNumber)
+}
+
+func messageWithAndroidIdentifiers(t *testing.T, notificationType android.NotificationType, deviceInfo androidmanagement.Device, enterpriseSpecificID, serialNumber string) *android.PubSubMessage {
+	if serialNumber == "" && enterpriseSpecificID == "" || serialNumber != "" && enterpriseSpecificID != "" {
+		t.Fatalf("exactly one of serialNumber or enterpriseSpecificID must be provided")
+	}
 	deviceInfo.HardwareInfo = &androidmanagement.HardwareInfo{
-		EnterpriseSpecificId: enterpriseSpecificID,
-		Brand:                "TestBrand",
-		Model:                "TestModel",
-		SerialNumber:         "test-serial",
-		Hardware:             "test-hardware",
+		Brand:    "TestBrand",
+		Model:    "TestModel",
+		Hardware: "test-hardware",
+	}
+	if enterpriseSpecificID != "" {
+		deviceInfo.Ownership = android_service.DeviceOwnershipPersonallyOwned
+		deviceInfo.HardwareInfo.EnterpriseSpecificId = enterpriseSpecificID
+		deviceInfo.HardwareInfo.SerialNumber = enterpriseSpecificID
+	}
+	if serialNumber != "" {
+		deviceInfo.Ownership = android_service.DeviceOwnershipCompanyOwned
+		deviceInfo.HardwareInfo.SerialNumber = serialNumber
 	}
 	deviceInfo.SoftwareInfo = &androidmanagement.SoftwareInfo{
 		AndroidBuildNumber: "test-build",
@@ -1322,7 +1382,7 @@ func enrollmentMessageWithEnterpriseSpecificID(t *testing.T, deviceInfo androidm
 
 	return &android.PubSubMessage{
 		Attributes: map[string]string{
-			"notificationType": string(android.PubSubEnrollment),
+			"notificationType": string(notificationType),
 		},
 		Data: encodedData,
 	}

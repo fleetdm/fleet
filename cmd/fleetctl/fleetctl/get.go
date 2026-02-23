@@ -76,13 +76,11 @@ func jsonFlag() cli.Flag {
 	}
 }
 
-func printJSON(spec interface{}, writer io.Writer) error {
-	b, err := json.Marshal(spec)
-	if err != nil {
-		return err
+func removeDeprecatedKeysFlag() cli.Flag {
+	return &cli.BoolFlag{
+		Name:  "remove-deprecated-keys",
+		Usage: "Remove deprecated key names from YAML/JSON output, leaving only the new canonical names",
 	}
-	fmt.Fprintf(writer, "%s\n", b)
-	return nil
 }
 
 func printYaml(spec interface{}, writer io.Writer) error {
@@ -276,14 +274,29 @@ func printTeams(c *cli.Context, teams []fleet.Team) error {
 }
 
 func printSpec(c *cli.Context, spec specGeneric) error {
-	var err error
+	// Marshal the spec value to JSON, unmarshal to a raw tree, and apply
+	// alias key renames (e.g. "teams" → "fleets") so both JSON and YAML
+	// output use the new canonical names.
+	b, err := json.Marshal(spec.Spec)
+	if err != nil {
+		return err
+	}
+	var raw any
+	if err := json.Unmarshal(b, &raw); err != nil {
+		return err
+	}
+	replaceAliasKeys(raw, aliasRules, c.Bool("remove-deprecated-keys"))
+	spec.Spec = raw
 
 	if c.Bool(jsonFlagName) {
-		err = printJSON(spec, c.App.Writer)
-	} else {
-		err = printYaml(spec, c.App.Writer)
+		b, err := json.Marshal(spec)
+		if err != nil {
+			return err
+		}
+		fmt.Fprintf(c.App.Writer, "%s\n", b)
+		return nil
 	}
-	return err
+	return printYaml(spec, c.App.Writer)
 }
 
 func getCommand() *cli.Command {
@@ -389,6 +402,7 @@ func getQueriesCommand() *cli.Command {
 			},
 			jsonFlag(),
 			yamlFlag(),
+			removeDeprecatedKeysFlag(),
 			configFlag(),
 			contextFlag(),
 			debugFlag(),
@@ -547,6 +561,7 @@ func getPacksCommand() *cli.Command {
 			},
 			jsonFlag(),
 			yamlFlag(),
+			removeDeprecatedKeysFlag(),
 			configFlag(),
 			contextFlag(),
 			debugFlag(),
@@ -670,9 +685,15 @@ func getLabelsCommand() *cli.Command {
 		Flags: []cli.Flag{
 			jsonFlag(),
 			yamlFlag(),
+			removeDeprecatedKeysFlag(),
 			configFlag(),
 			contextFlag(),
 			debugFlag(),
+			&cli.UintFlag{
+				Name:  teamFlagName,
+				Usage: "Return labels specific to this team ID; default global labels only when viewing multiple labels",
+				Value: 0,
+			},
 		},
 		Action: func(c *cli.Context) error {
 			client, err := clientFromCLI(c)
@@ -682,9 +703,9 @@ func getLabelsCommand() *cli.Command {
 
 			name := c.Args().First()
 
-			// if name wasn't provided, list all labels
+			// if name wasn't provided, list all labels, either globally or on a team
 			if name == "" {
-				labels, err := client.GetLabels()
+				labels, err := client.GetLabels(c.Uint(teamFlagName))
 				if err != nil {
 					return fmt.Errorf("could not list labels: %w", err)
 				}
@@ -717,6 +738,8 @@ func getLabelsCommand() *cli.Command {
 				printTable(c, columns, data)
 
 				return nil
+			} else if c.Uint(teamFlagName) != 0 {
+				return errors.New("cannot provide both a team ID and a label name")
 			}
 
 			// Label name was specified
@@ -739,6 +762,7 @@ func getEnrollSecretCommand() *cli.Command {
 		Flags: []cli.Flag{
 			jsonFlag(),
 			yamlFlag(),
+			removeDeprecatedKeysFlag(),
 			configFlag(),
 			contextFlag(),
 			debugFlag(),
@@ -771,6 +795,7 @@ func getAppConfigCommand() *cli.Command {
 		Flags: []cli.Flag{
 			jsonFlag(),
 			yamlFlag(),
+			removeDeprecatedKeysFlag(),
 			configFlag(),
 			contextFlag(),
 			debugFlag(),
@@ -817,6 +842,7 @@ func getHostsCommand() *cli.Command {
 			},
 			jsonFlag(),
 			yamlFlag(),
+			removeDeprecatedKeysFlag(),
 			configFlag(),
 			contextFlag(),
 			debugFlag(),
@@ -1072,6 +1098,7 @@ func getUserRolesCommand() *cli.Command {
 		Flags: []cli.Flag{
 			jsonFlag(),
 			yamlFlag(),
+			removeDeprecatedKeysFlag(),
 			configFlag(),
 			contextFlag(),
 			debugFlag(),
@@ -1160,6 +1187,7 @@ func getTeamsCommand() *cli.Command {
 		Flags: []cli.Flag{
 			getTeamsJSONFlag(),
 			getTeamsYAMLFlag(),
+			removeDeprecatedKeysFlag(),
 			configFlag(),
 			contextFlag(),
 			debugFlag(),
@@ -1237,6 +1265,7 @@ func getSoftwareCommand() *cli.Command {
 			},
 			jsonFlag(),
 			yamlFlag(),
+			removeDeprecatedKeysFlag(),
 			configFlag(),
 			contextFlag(),
 			debugFlag(),
@@ -1473,6 +1502,7 @@ func getMDMCommandResultsCommand() *cli.Command {
 				Usage:    "Filter MDM commands by ID.",
 				Required: true,
 			},
+			byHostIdentifier(),
 		},
 		Action: func(c *cli.Context) error {
 			client, err := clientFromCLI(c)
@@ -1485,10 +1515,10 @@ func getMDMCommandResultsCommand() *cli.Command {
 				return err
 			}
 
-			res, err := client.MDMGetCommandResults(c.String("id"))
+			res, err := client.MDMGetCommandResults(c.String("id"), c.String("host"))
 			if err != nil {
 				var nfe service.NotFoundErr
-				if errors.As(err, &nfe) {
+				if errors.As(err, &nfe) && c.String("host") == "" {
 					return errors.New("The command doesn't exist. Please provide a valid command ID. To see a list of commands that were run, run `fleetctl get mdm-commands`.")
 				}
 
@@ -1569,6 +1599,7 @@ func getMDMCommandsCommand() *cli.Command {
 			debugFlag(),
 			byHostIdentifier(),
 			byMDMCommandRequestType(),
+			withMDMCommandStatusFilter(),
 		},
 		Action: func(c *cli.Context) error {
 			client, err := clientFromCLI(c)
@@ -1581,10 +1612,18 @@ func getMDMCommandsCommand() *cli.Command {
 				return err
 			}
 
+			commandStatuses := []fleet.MDMCommandStatusFilter{}
+			if c.IsSet("command_status") {
+				for val := range strings.SplitSeq(c.String("command_status"), ",") {
+					commandStatuses = append(commandStatuses, fleet.MDMCommandStatusFilter(val))
+				}
+			}
+
 			opts := fleet.MDMCommandListOptions{
 				Filters: fleet.MDMCommandFilters{
-					HostIdentifier: c.String("host"),
-					RequestType:    c.String("type"),
+					HostIdentifier:  c.String("host"),
+					RequestType:     c.String("type"),
+					CommandStatuses: commandStatuses,
 				},
 			}
 
@@ -1595,7 +1634,13 @@ func getMDMCommandsCommand() *cli.Command {
 				}
 				return err
 			}
-			if len(results) == 0 && opts.Filters.HostIdentifier == "" && opts.Filters.RequestType == "" {
+
+			if len(results) == 0 {
+				if opts.Filters.HostIdentifier != "" {
+					log(c, "No MDM commands have been run on this host.\n")
+					return nil
+				}
+
 				log(c, "You haven't run any MDM commands. Run MDM commands with the `fleetctl mdm run-command` command.\n")
 				return nil
 			}

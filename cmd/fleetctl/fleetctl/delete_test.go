@@ -14,9 +14,12 @@ func TestDeleteLabel(t *testing.T) {
 	_, ds := testing_utils.RunServerWithMockedDS(t)
 
 	var deletedLabel string
-	ds.DeleteLabelFunc = func(ctx context.Context, name string) error {
+	ds.DeleteLabelFunc = func(ctx context.Context, name string, filter fleet.TeamFilter) error {
 		deletedLabel = name
 		return nil
+	}
+	ds.LabelByNameFunc = func(ctx context.Context, name string, filter fleet.TeamFilter) (*fleet.Label, error) {
+		return &fleet.Label{Name: name}, nil
 	}
 
 	name := writeTmpYml(t, `---

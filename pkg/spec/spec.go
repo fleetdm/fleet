@@ -6,6 +6,7 @@ import (
 	"crypto/rand"
 	"encoding/hex"
 	"encoding/json"
+	"encoding/xml"
 	"errors"
 	"fmt"
 	"os"
@@ -13,6 +14,7 @@ import (
 	"strings"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/platform/endpointer"
 	"github.com/ghodss/yaml"
 	"github.com/hashicorp/go-multierror"
 )
@@ -43,6 +45,21 @@ type Metadata struct {
 	Spec    json.RawMessage `json:"spec"`
 }
 
+// rewriteNewToOldKeys uses RewriteDeprecatedKeys to rewrite new (renameto)
+// key names back to old (json tag) names so that structs can be unmarshaled
+// correctly when input uses the new key names.
+func rewriteNewToOldKeys(raw json.RawMessage, target any) json.RawMessage {
+	rules := endpointer.ExtractAliasRules(target)
+	if len(rules) == 0 {
+		return raw
+	}
+	result, err := endpointer.RewriteDeprecatedKeys(raw, rules)
+	if err != nil {
+		return raw // fall back to original on error
+	}
+	return result
+}
+
 // GroupFromBytes parses a Group from concatenated YAML specs.
 func GroupFromBytes(b []byte) (*Group, error) {
 	specs := &Group{}
@@ -63,6 +80,7 @@ func GroupFromBytes(b []byte) (*Group, error) {
 
 		switch kind {
 		case fleet.QueryKind:
+			s.Spec = rewriteNewToOldKeys(s.Spec, fleet.QuerySpec{})
 			var querySpec *fleet.QuerySpec
 			if err := yaml.Unmarshal(s.Spec, &querySpec); err != nil {
 				return nil, fmt.Errorf("unmarshaling %s spec: %w", kind, err)
@@ -70,6 +88,7 @@ func GroupFromBytes(b []byte) (*Group, error) {
 			specs.Queries = append(specs.Queries, querySpec)
 
 		case fleet.PackKind:
+			s.Spec = rewriteNewToOldKeys(s.Spec, fleet.PackSpec{})
 			var packSpec *fleet.PackSpec
 			if err := yaml.Unmarshal(s.Spec, &packSpec); err != nil {
 				return nil, fmt.Errorf("unmarshaling %s spec: %w", kind, err)
@@ -77,6 +96,7 @@ func GroupFromBytes(b []byte) (*Group, error) {
 			specs.Packs = append(specs.Packs, packSpec)
 
 		case fleet.LabelKind:
+			s.Spec = rewriteNewToOldKeys(s.Spec, fleet.LabelSpec{})
 			var labelSpec *fleet.LabelSpec
 			if err := yaml.Unmarshal(s.Spec, &labelSpec); err != nil {
 				return nil, fmt.Errorf("unmarshaling %s spec: %w", kind, err)
@@ -84,6 +104,7 @@ func GroupFromBytes(b []byte) (*Group, error) {
 			specs.Labels = append(specs.Labels, labelSpec)
 
 		case fleet.PolicyKind:
+			s.Spec = rewriteNewToOldKeys(s.Spec, fleet.PolicySpec{})
 			var policySpec *fleet.PolicySpec
 			if err := yaml.Unmarshal(s.Spec, &policySpec); err != nil {
 				return nil, fmt.Errorf("unmarshaling %s spec: %w", kind, err)
@@ -113,6 +134,7 @@ func GroupFromBytes(b []byte) (*Group, error) {
 			specs.EnrollSecret = enrollSecretSpec
 
 		case fleet.UserRolesKind:
+			s.Spec = rewriteNewToOldKeys(s.Spec, fleet.UsersRoleSpec{})
 			var userRoleSpec *fleet.UsersRoleSpec
 			if err := yaml.Unmarshal(s.Spec, &userRoleSpec); err != nil {
 				return nil, fmt.Errorf("unmarshaling %s spec: %w", kind, err)
@@ -191,6 +213,18 @@ func expandEnv(s string, secretMode secretHandling) (string, error) {
 
 	s = escapeString(s, preventEscapingPrefix)
 	exclusionZones := getExclusionZones(s)
+	documentIsXML := strings.HasPrefix(strings.TrimSpace(s), "<") // We need to be more aggressive here, to also escape XML in Windows profiles which does not begin with <?xml
+
+	escapeXMLValues := func(value string, env string) (string, error) {
+		// Escape XML special characters
+		var b strings.Builder
+		xmlErr := xml.EscapeText(&b, []byte(value))
+		if xmlErr != nil {
+			return "", fmt.Errorf("failed to XML escape fleet secret %s", env)
+		}
+		value = b.String()
+		return value, nil
+	}
 
 	var err *multierror.Error
 	s = fleet.MaybeExpand(s, func(env string, startPos, endPos int) (string, bool) {
@@ -206,6 +240,15 @@ func expandEnv(s string, secretMode secretHandling) (string, error) {
 				// Expand secrets for client-side validation
 				v, ok := os.LookupEnv(env)
 				if ok {
+					if !documentIsXML {
+						return v, true
+					}
+
+					v, xmlErr := escapeXMLValues(v, env)
+					if xmlErr != nil {
+						err = multierror.Append(err, xmlErr)
+						return "", false
+					}
 					return v, true
 				}
 				// If secret not found, leave as-is for server to handle
@@ -231,6 +274,15 @@ func expandEnv(s string, secretMode secretHandling) (string, error) {
 		v, ok := os.LookupEnv(env)
 		if !ok {
 			err = multierror.Append(err, fmt.Errorf("environment variable %q not set", env))
+			return "", false
+		}
+		if !documentIsXML {
+			return v, true
+		}
+
+		v, xmlErr := escapeXMLValues(v, env)
+		if xmlErr != nil {
+			err = multierror.Append(err, xmlErr)
 			return "", false
 		}
 		return v, true
@@ -269,13 +321,16 @@ func ExpandEnvBytesIncludingSecrets(b []byte) ([]byte, error) {
 	return []byte(s), nil
 }
 
-// LookupEnvSecrets only looks up FLEET_SECRET_XXX environment variables. Escaping is not supported.
+// LookupEnvSecrets only looks up FLEET_SECRET_XXX environment variables. Escaping is limited to XML files.
 // This is used for finding secrets in scripts only. The original string is not modified.
 // A map of secret names to values is updated.
 func LookupEnvSecrets(s string, secretsMap map[string]string) error {
 	if secretsMap == nil {
 		return errors.New("secretsMap cannot be nil")
 	}
+
+	documentIsXML := strings.HasPrefix(strings.TrimSpace(s), "<") // We need to be more aggressive here, to also escape XML in Windows profiles which does not begin with <?xml
+
 	var err *multierror.Error
 	_ = fleet.MaybeExpand(s, func(env string, startPos, endPos int) (string, bool) {
 		if strings.HasPrefix(env, fleet.ServerSecretPrefix) {
@@ -285,6 +340,18 @@ func LookupEnvSecrets(s string, secretsMap map[string]string) error {
 				err = multierror.Append(err, fmt.Errorf("environment variable %q not set", env))
 				return "", false
 			}
+
+			if documentIsXML {
+				// Escape XML special characters
+				var b strings.Builder
+				xmlErr := xml.EscapeText(&b, []byte(v))
+				if xmlErr != nil {
+					err = multierror.Append(xmlErr, fmt.Errorf("failed to XML escape fleet secret %s", env))
+					return "", false
+				}
+				v = b.String()
+			}
+
 			secretsMap[env] = v
 		}
 		return "", false

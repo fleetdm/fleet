@@ -48,6 +48,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log/slog"
 	"strconv"
 	"strings"
 	"sync"
@@ -56,17 +57,16 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/datastore/redis"
 	"github.com/fleetdm/fleet/v4/server/fleet"
-	kitlog "github.com/go-kit/log"
-	"github.com/go-kit/log/level"
 	redigo "github.com/gomodule/redigo/redis"
 )
 
 const (
-	bitsInByte       = 8
-	queryKeyPrefix   = "livequery:"
-	sqlKeyPrefix     = "sql:"
-	activeQueriesKey = "livequery:active"
-	queryExpiration  = 7 * 24 * time.Hour
+	bitsInByte              = 8
+	queryKeyPrefix          = "livequery:"
+	sqlKeyPrefix            = "sql:"
+	activeQueriesKey        = "livequery:active"
+	queryExpiration         = 7 * 24 * time.Hour
+	queryResultsCountPrefix = "query_results_count:"
 )
 
 type redisLiveQuery struct {
@@ -77,7 +77,7 @@ type redisLiveQuery struct {
 	// in memory cache expiration
 	cacheExpiration time.Duration
 
-	logger kitlog.Logger
+	logger *slog.Logger
 }
 
 // memCache is an in-memory cache for live queries. It stores the SQL of the
@@ -108,7 +108,7 @@ func (r *redisLiveQuery) getSQLByCampaignID(campaignID string) (string, bool) {
 
 // NewRedisQueryResults creates a new Redis implementation of the
 // QueryResultStore interface using the provided Redis connection pool.
-func NewRedisLiveQuery(pool fleet.RedisPool, logger kitlog.Logger, memCacheExp time.Duration) *redisLiveQuery {
+func NewRedisLiveQuery(pool fleet.RedisPool, logger *slog.Logger, memCacheExp time.Duration) *redisLiveQuery {
 	return &redisLiveQuery{
 		pool:            pool,
 		cache:           newMemCache(),
@@ -250,7 +250,7 @@ func (r *redisLiveQuery) collectBatchQueriesForHost(hostID uint, queryKeys []str
 			if sql, found := r.getSQLByCampaignID(name); found {
 				queriesByHost[name] = sql
 			} else {
-				level.Warn(r.logger).Log("msg", "live query not found in cache", "name", name)
+				r.logger.WarnContext(context.TODO(), "live query not found in cache", "name", name)
 			}
 		}
 	}
@@ -425,7 +425,7 @@ func (r *redisLiveQuery) loadCache() error {
 			go func() {
 				err = r.removeQueryNames(names...)
 				if err != nil {
-					level.Warn(r.logger).Log("msg", "removing expired live queries", "err", err)
+					r.logger.WarnContext(context.TODO(), "removing expired live queries", "err", err)
 				}
 			}()
 		}
@@ -536,4 +536,108 @@ func mapBitfield(hostIDs []uint) []byte {
 	}
 
 	return field
+}
+
+func queryResultsCountKey(queryID uint) string {
+	return fmt.Sprintf("%s%d", queryResultsCountPrefix, queryID)
+}
+
+// GetQueryResultsCounts returns the current count of query results for multiple queries.
+// Returns a map of query ID -> count. Missing keys are returned with a count of 0.
+func (r *redisLiveQuery) GetQueryResultsCounts(queryIDs []uint) (map[uint]int, error) {
+	if len(queryIDs) == 0 {
+		return make(map[uint]int), nil
+	}
+
+	conn := redis.ReadOnlyConn(r.pool, r.pool.Get())
+	defer conn.Close()
+
+	// Pipeline GET requests for all query IDs
+	for _, queryID := range queryIDs {
+		key := queryResultsCountKey(queryID)
+		if err := conn.Send("GET", key); err != nil {
+			return nil, fmt.Errorf("send get query results count: %w", err)
+		}
+	}
+
+	if err := conn.Flush(); err != nil {
+		return nil, fmt.Errorf("flush pipeline: %w", err)
+	}
+
+	// Receive results and build the map
+	results := make(map[uint]int, len(queryIDs))
+	for _, queryID := range queryIDs {
+		count, err := redigo.Int(conn.Receive())
+		if err != nil {
+			if err == redigo.ErrNil {
+				results[queryID] = 0
+				continue
+			}
+			return nil, fmt.Errorf("receive query results count: %w", err)
+		}
+		results[queryID] = count
+	}
+
+	return results, nil
+}
+
+// IncrQueryResultsCounts increments the query results counts by the given amounts.
+// Takes a map of query ID -> amount to increment.
+func (r *redisLiveQuery) IncrQueryResultsCounts(queryIDsToAmounts map[uint]int) error {
+	if len(queryIDsToAmounts) == 0 {
+		return nil
+	}
+
+	conn := redis.ConfigureDoer(r.pool, r.pool.Get())
+	defer conn.Close()
+
+	// Pipeline INCRBY requests for all query IDs
+	for queryID, amount := range queryIDsToAmounts {
+		key := queryResultsCountKey(queryID)
+		if err := conn.Send("INCRBY", key, amount); err != nil {
+			return fmt.Errorf("send incrby query results count: %w", err)
+		}
+	}
+
+	if err := conn.Flush(); err != nil {
+		return fmt.Errorf("flush pipeline: %w", err)
+	}
+
+	// Receive all results to complete the pipeline (we don't need the values)
+	for range queryIDsToAmounts {
+		if _, err := conn.Receive(); err != nil {
+			return fmt.Errorf("receive incrby result: %w", err)
+		}
+	}
+
+	return nil
+}
+
+// SetQueryResultsCount sets the query results count for a query to a specific value.
+// Used to reset counts to zero when a query is modified, or to adjust the count
+// in the cleanup cron job after deleting excess rows.
+func (r *redisLiveQuery) SetQueryResultsCount(queryID uint, count int) error {
+	conn := redis.ConfigureDoer(r.pool, r.pool.Get())
+	defer conn.Close()
+
+	key := queryResultsCountKey(queryID)
+	if _, err := conn.Do("SET", key, count); err != nil {
+		return fmt.Errorf("set query results count: %w", err)
+	}
+
+	return nil
+}
+
+// DeleteQueryResultsCount deletes the query results count for a query.
+// Used when deleting a query, to remove the Redis key.
+func (r *redisLiveQuery) DeleteQueryResultsCount(queryID uint) error {
+	conn := redis.ConfigureDoer(r.pool, r.pool.Get())
+	defer conn.Close()
+
+	key := queryResultsCountKey(queryID)
+	if _, err := conn.Do("DEL", key); err != nil {
+		return fmt.Errorf("delete query results count: %w", err)
+	}
+
+	return nil
 }

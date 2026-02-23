@@ -1,0 +1,8 @@
+{
+  "name": "OBS",
+  "unique_identifier": "com.obsproject.obs-studio",
+  "token": "obs",
+  "installer_format": "dmg",
+  "slug": "obs/darwin",
+  "default_categories": ["Productivity"]
+}

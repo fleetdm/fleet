@@ -17,6 +17,7 @@ const (
 	RoleObserver     = "observer"
 	RoleObserverPlus = "observer_plus"
 	RoleGitOps       = "gitops"
+	RoleTechnician   = "technician"
 	TeamNameNoTeam   = "No team"
 	TeamNameAllTeams = "All teams"
 )
@@ -266,11 +267,18 @@ type TeamSpecAppStoreApp struct {
 	// is not changed, for compatibility with the old fleetctl apply format
 	InstallDuringSetup optjson.Bool          `json:"setup_experience"`
 	Icon               TeamSpecSoftwareAsset `json:"icon"`
+	Platform           string                `json:"platform"`
 	DisplayName        string                `json:"display_name,omitempty"`
+	Configuration      TeamSpecSoftwareAsset `json:"configuration"`
+	// Auto-update fields for VPP apps
+	AutoUpdateEnabled   *bool   `json:"auto_update_enabled,omitempty"`
+	AutoUpdateStartTime *string `json:"auto_update_window_start,omitempty"`
+	AutoUpdateEndTime   *string `json:"auto_update_window_end,omitempty"`
 }
 
 func (spec TeamSpecAppStoreApp) ResolvePaths(baseDir string) TeamSpecAppStoreApp {
 	spec.Icon.Path = resolveApplyRelativePath(baseDir, spec.Icon.Path)
+	spec.Configuration.Path = resolveApplyRelativePath(baseDir, spec.Configuration.Path)
 
 	return spec
 }
@@ -468,11 +476,13 @@ var teamRoles = map[string]struct{}{
 	RoleAdmin:        {},
 	RoleObserver:     {},
 	RoleMaintainer:   {},
+	RoleTechnician:   {},
 	RoleObserverPlus: {},
 	RoleGitOps:       {},
 }
 
 var premiumTeamRoles = map[string]struct{}{
+	RoleTechnician:   {},
 	RoleObserverPlus: {},
 	RoleGitOps:       {},
 }
@@ -487,11 +497,13 @@ var globalRoles = map[string]struct{}{
 	RoleObserver:     {},
 	RoleMaintainer:   {},
 	RoleAdmin:        {},
+	RoleTechnician:   {},
 	RoleObserverPlus: {},
 	RoleGitOps:       {},
 }
 
 var premiumGlobalRoles = map[string]struct{}{
+	RoleTechnician:   {},
 	RoleObserverPlus: {},
 	RoleGitOps:       {},
 }
@@ -526,6 +538,22 @@ func ValidateRole(globalRole *string, teamUsers []UserTeam) error {
 	}
 
 	return nil
+}
+
+// PremiumRolesPresent returns true if the provided globalRole or any
+// role in teamRoles is a premium role.
+func PremiumRolesPresent(globalRole *string, teamRoles []UserTeam) bool {
+	if globalRole != nil {
+		if _, ok := premiumGlobalRoles[*globalRole]; ok {
+			return true
+		}
+	}
+	for _, teamRole := range teamRoles {
+		if _, ok := premiumTeamRoles[teamRole.Role]; ok {
+			return true
+		}
+	}
+	return false
 }
 
 // ValidateUserRoles verifies the roles to be applied to a new or existing user.
@@ -582,6 +610,14 @@ type TeamFilter struct {
 	// specified, they must met too (e.g. if a User is provided, that team ID
 	// must be part of their teams).
 	TeamID *uint
+}
+
+func (f TeamFilter) UserCanAccessSelectedTeam() bool {
+	if f.TeamID == nil { // this method doesn't make sense if there's no team ID specified
+		return false
+	}
+
+	return f.User.HasAnyGlobalRole() || f.User.HasAnyRoleInTeam(*f.TeamID)
 }
 
 const (

@@ -1,8 +1,11 @@
 package android
 
 import (
+	"database/sql"
 	"time"
 )
+
+const DefaultAndroidPolicyID = 1
 
 type SignupDetails struct {
 	Url  string
@@ -35,8 +38,9 @@ type EnterpriseDetails struct {
 }
 
 type EnrollmentToken struct {
-	EnrollmentToken string `json:"android_enrollment_token"`
-	EnrollmentURL   string `json:"android_enrollment_url"`
+	EnrollmentToken  string `json:"android_enrollment_token"`
+	EnrollmentURL    string `json:"android_enrollment_url"`
+	EnrollmentQRCode string `json:"android_enrollment_qr_code"`
 }
 
 type Device struct {
@@ -50,7 +54,31 @@ type Device struct {
 }
 
 type AgentManagedConfiguration struct {
-	ServerURL    string `json:"serverURL"`
-	HostUUID     string `json:"hostUUID"`
-	EnrollSecret string `json:"enrollSecret"`
+	ServerURL              string                     `json:"server_url"`
+	HostUUID               string                     `json:"host_uuid"`
+	EnrollSecret           string                     `json:"enroll_secret"`
+	CertificateTemplateIDs []AgentCertificateTemplate `json:"certificate_templates,omitempty"`
 }
+
+type AgentCertificateTemplate struct {
+	ID        uint   `json:"id"`
+	Status    string `json:"status"`
+	Operation string `json:"operation"`
+	UUID      string `json:"uuid"`
+}
+
+// MDMAndroidPolicyRequest represents a request made to the Android Management
+// API (AMAPI) to patch the policy or the device (as made by
+// androidsvc.ReconcileProfiles).
+type MDMAndroidPolicyRequest struct {
+	RequestUUID          string           `db:"request_uuid"`
+	RequestName          string           `db:"request_name"`
+	PolicyID             string           `db:"policy_id"`
+	Payload              []byte           `db:"payload"`
+	StatusCode           int              `db:"status_code"`
+	ErrorDetails         sql.Null[string] `db:"error_details"`
+	AppliedPolicyVersion sql.Null[int64]  `db:"applied_policy_version"`
+	PolicyVersion        sql.Null[int64]  `db:"policy_version"`
+}
+
+const AppStatusAvailable = "AVAILABLE"

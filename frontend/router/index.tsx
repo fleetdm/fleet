@@ -98,6 +98,7 @@ import UnauthenticatedRoutes from "./components/UnauthenticatedRoutes";
 import AuthGlobalAdminMaintainerRoutes from "./components/AuthGlobalAdminMaintainerRoutes";
 import AuthAnyMaintainerAnyAdminRoutes from "./components/AuthAnyMaintainerAnyAdminRoutes";
 import AuthAnyMaintainerAdminObserverPlusRoutes from "./components/AuthAnyMaintainerAdminObserverPlusRoutes";
+import AuthAnyMaintainerAdminTechnicianRoutes from "./components/AuthAnyMaintainerAdminTechnicianRoutes/AuthAnyMaintainerAdminTechnicianRoutes";
 import PremiumRoutes from "./components/PremiumRoutes";
 import ExcludeInSandboxRoutes from "./components/ExcludeInSandboxRoutes";
 
@@ -114,11 +115,12 @@ interface IAppWrapperProps {
   location?: any;
 }
 
+const queryClient = new QueryClient();
+
 // App.tsx needs the context for user and config. We also wrap the application
-// component in the required query client priovider for react-query. This
+// component in the required query client provider for react-query. This
 // will allow us to use react-query hooks in the application component.
 const AppWrapper = ({ children, location }: IAppWrapperProps) => {
-  const queryClient = new QueryClient();
   return (
     <AppProvider>
       <RoutingProvider>
@@ -277,9 +279,6 @@ const routes = (
                 <Route path="inventory" component={HostDetailsPage} />
                 <Route path="library" component={HostDetailsPage} />
               </Route>
-
-              <Route path="queries" component={HostDetailsPage} />
-              <Route path=":query_id" component={HostQueryReport} />
               <Route path="policies" component={HostDetailsPage} />
             </Route>
 
@@ -290,7 +289,10 @@ const routes = (
             />
           </Route>
           <Route component={ExcludeInSandboxRoutes}>
-            <Route path="controls" component={AuthAnyMaintainerAnyAdminRoutes}>
+            <Route
+              path="controls"
+              component={AuthAnyMaintainerAdminTechnicianRoutes}
+            >
               <IndexRedirect to="os-updates" />
               <Route component={ManageControlsPage}>
                 <Route path="os-updates" component={OSUpdates} />
@@ -323,19 +325,21 @@ const routes = (
             <IndexRedirect to="titles" />
             {/* we check the add route first otherwise a route like 'software/add' will be caught
              * by the 'software/:id' redirect and be redirected to 'software/versions/add  */}
-            <Route path="add" component={SoftwareAddPage}>
-              <IndexRedirect to="fleet-maintained" />
+            <Route component={AuthAnyMaintainerAnyAdminRoutes}>
+              <Route path="add" component={SoftwareAddPage}>
+                <IndexRedirect to="fleet-maintained" />
+                <Route
+                  path="fleet-maintained"
+                  component={SoftwareFleetMaintained}
+                />
+                <Route path="app-store" component={SoftwareAppStore} />
+                <Route path="package" component={SoftwareCustomPackage} />
+              </Route>
               <Route
-                path="fleet-maintained"
-                component={SoftwareFleetMaintained}
+                path="add/fleet-maintained/:id"
+                component={FleetMaintainedAppDetailsPage}
               />
-              <Route path="app-store" component={SoftwareAppStore} />
-              <Route path="package" component={SoftwareCustomPackage} />
             </Route>
-            <Route
-              path="add/fleet-maintained/:id"
-              component={FleetMaintainedAppDetailsPage}
-            />
             <Route component={SoftwarePage}>
               <Route path="titles" component={SoftwareTitles} />
               <Route path="versions" component={SoftwareTitles} />

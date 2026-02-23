@@ -3,8 +3,16 @@
 export GO111MODULE=on
 
 PATH := $(shell npm bin):$(PATH)
-VERSION = $(shell git describe --tags --always --dirty)
 BRANCH = $(shell git rev-parse --abbrev-ref HEAD)
+
+# If VERSION is not explicitly set, derive it from the branch name
+ifndef VERSION
+	VERSION := $(shell tools/version-from-branch.sh "$(BRANCH)" 2>/dev/null)
+	# Fall back to git describe when the branch name doesn't match any pattern
+	ifeq ($(VERSION),)
+		VERSION := $(shell git describe --tags --always --dirty)
+	endif
+endif
 REVISION = $(shell git rev-parse HEAD)
 REVSHORT = $(shell git rev-parse --short HEAD)
 USER = $(shell whoami)
@@ -211,6 +219,17 @@ lint-js:
 	@echo "Run the Go linters"
 lint-go:
 	golangci-lint run --timeout 15m
+ifndef SKIP_INCREMENTAL
+	$(MAKE) lint-go-incremental
+endif
+
+.help-short--lint-go-incremental:
+	@echo "Run the incremental Go linters"
+lint-go-incremental: custom-gcl
+	./custom-gcl run -c .golangci-incremental.yml --new-from-merge-base=origin/main --timeout 15m ./...
+
+custom-gcl:
+	golangci-lint custom
 
 .help-short--lint:
 	@echo "Run linters"
@@ -275,7 +294,7 @@ endif
 	@echo "GO_TEST_EXTRA_FLAGS=\"--flag1 --flag2...\""
 	@echo "Arguments to send to \"go test\"."
 run-go-tests:
-	@MYSQL_TEST=1 REDIS_TEST=1 MINIO_STORAGE_TEST=1 SAML_IDP_TEST=1 NETWORK_TEST=1 make .run-go-tests GO_TEST_MAKE_FLAGS="-v"
+	@MYSQL_TEST=1 REDIS_TEST=1 S3_STORAGE_TEST=1 SAML_IDP_TEST=1 NETWORK_TEST=1 make .run-go-tests GO_TEST_MAKE_FLAGS="-v"
 
 .help-short--debug-go-tests:
 	@echo "Debug Go tests in specific packages (with Delve)"
@@ -289,7 +308,7 @@ run-go-tests:
 	@echo "GO_TEST_EXTRA_FLAGS=\"--flag1 --flag2...\""
 	@echo "Arguments to send to \"go test\"."
 debug-go-tests:
-	@MYSQL_TEST=1 REDIS_TEST=1 MINIO_STORAGE_TEST=1 SAML_IDP_TEST=1 NETWORK_TEST=1 make .debug-go-tests
+	@MYSQL_TEST=1 REDIS_TEST=1 S3_STORAGE_TEST=1 SAML_IDP_TEST=1 NETWORK_TEST=1 make .debug-go-tests
 
 # Set up packages for CI testing.
 DEFAULT_PKGS_TO_TEST := ./cmd/... ./ee/... ./orbit/pkg/... ./orbit/cmd/orbit ./pkg/... ./server/... ./tools/...
@@ -760,7 +779,7 @@ desktop-linux:
 	docker build -f Dockerfile-desktop-linux -t desktop-linux-builder .
 	docker run --rm -v $(shell pwd):/output desktop-linux-builder /bin/bash -c "\
 		mkdir -p /output/fleet-desktop && \
-		go build -o /output/fleet-desktop/fleet-desktop -ldflags "-X=main.version=$(FLEET_DESKTOP_VERSION)" /usr/src/fleet/orbit/cmd/desktop && \
+		CGO_ENABLED=1 CC=musl-gcc go build -o /output/fleet-desktop/fleet-desktop -ldflags \"-linkmode external -extldflags \\\"-static\\\" -X=main.version=$(FLEET_DESKTOP_VERSION)\" /usr/src/fleet/orbit/cmd/desktop && \
 		cd /output && \
 		tar czf desktop.tar.gz fleet-desktop && \
 		rm -r fleet-desktop"
@@ -815,9 +834,9 @@ db-replica-setup:
 	$(eval MYSQL_REPLICATION_USER := replicator)
 	$(eval MYSQL_REPLICATION_PASSWORD := rotacilper)
 	MYSQL_PWD=toor mysql --host 127.0.0.1 --port 3309 -uroot -AN -e "stop slave; reset slave all;"
-	MYSQL_PWD=toor mysql --host 127.0.0.1 --port 3308 -uroot -AN -e "drop user if exists '$(MYSQL_REPLICATION_USER)'; create user '$(MYSQL_REPLICATION_USER)'@'%' identified by '$(MYSQL_REPLICATION_PASSWORD)'; grant replication slave on *.* to '$(MYSQL_REPLICATION_USER)'@'%'; flush privileges;"
-	$(eval MAIN_POSITION := $(shell MYSQL_PWD=toor mysql --host 127.0.0.1 --port 3308 -uroot -e 'show master status \G' | grep Position | grep -o '[0-9]*'))
-	$(eval MAIN_FILE := $(shell MYSQL_PWD=toor mysql --host 127.0.0.1 --port 3308 -uroot -e 'show master status \G' | grep File | sed -n -e 's/^.*: //p'))
+	MYSQL_PWD=toor mysql --host 127.0.0.1 --port 3308 -uroot -AN -e "drop user if exists '$(MYSQL_REPLICATION_USER)'; create user '$(MYSQL_REPLICATION_USER)'@'%' identified with mysql_native_password by '$(MYSQL_REPLICATION_PASSWORD)'; grant replication slave on *.* to '$(MYSQL_REPLICATION_USER)'@'%'; flush privileges;"
+	$(eval MAIN_POSITION := $(shell MYSQL_PWD=toor mysql --host 127.0.0.1 --port 3308 -uroot --vertical -e 'show master status' | grep Position | grep -o '[0-9]*'))
+	$(eval MAIN_FILE := $(shell MYSQL_PWD=toor mysql --host 127.0.0.1 --port 3308 -uroot --vertical -e 'show master status' | grep File | sed -n -e 's/^.*: //p'))
 	MYSQL_PWD=toor mysql --host 127.0.0.1 --port 3309 -uroot -AN -e "change master to master_port=3306,master_host='mysql_main',master_user='$(MYSQL_REPLICATION_USER)',master_password='$(MYSQL_REPLICATION_PASSWORD)',master_log_file='$(MAIN_FILE)',master_log_pos=$(MAIN_POSITION);"
 	if [ "${FLEET_MYSQL_IMAGE}" == "mysql:8.0" ]; then MYSQL_PWD=toor mysql --host 127.0.0.1 --port 3309 -uroot -AN -e "change master to get_master_public_key=1;"; fi
 	MYSQL_PWD=toor mysql --host 127.0.0.1 --port 3309 -uroot -AN -e "change master to master_delay=1;"

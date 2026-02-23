@@ -11,10 +11,24 @@ import (
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	common_mysql "github.com/fleetdm/fleet/v4/server/platform/mysql"
 	"github.com/jmoiron/sqlx"
 )
 
 var userSearchColumns = []string{"name", "email"}
+
+// userSelectColumns contains everything except `settings`. Since we only want to include
+// user settings on an opt-in basis from the API perspective (see `include_ui_settings`
+// query param on `GET` `/me` and `GET` `/users/:id`), excluding it here ensures it's only
+// included in API responses when explicitly coded to be, via calling the dedicated
+// UserSettings method. Otherwise, `settings` would be included in `user` objects in
+// various places, which we do not want.
+const userSelectColumns = `id, created_at, updated_at, password, salt, name, email,
+	admin_forced_password_reset, gravatar_url, position, sso_enabled, global_role,
+	api_only, mfa_enabled, invite_id`
+
+// userSummaryColumns are the columns selected for UserSummary.
+const userSummaryColumns = `id, name, email, gravatar_url, api_only`
 
 // NewUser creates a new user
 func (ds *Datastore) NewUser(ctx context.Context, user *fleet.User) (*fleet.User, error) {
@@ -79,13 +93,8 @@ func (ds *Datastore) NewUser(ctx context.Context, user *fleet.User) (*fleet.User
 
 func (ds *Datastore) findUser(ctx context.Context, searchCol string, searchVal interface{}) (*fleet.User, error) {
 	sqlStatement := fmt.Sprintf(
-		// everything except `settings`. Since we only want to include user settings on an opt-in basis
-		// from the API perspective (see `include_ui_settings` query param on `GET` `/me` and `GET` `/users/:id`), excluding it here ensures it's only included in API responses
-		// when explicitly coded to be, via calling the dedicated UserSettings method. Otherwise,
-		// `settings` would be included in `user` objects in various places, which we do not want.
-		"SELECT id, created_at, updated_at, password, salt, name, email, admin_forced_password_reset, gravatar_url, position, sso_enabled, global_role, api_only, mfa_enabled, invite_id FROM users "+
-			"WHERE %s = ? LIMIT 1",
-		searchCol,
+		"SELECT %s FROM users WHERE %s = ? LIMIT 1",
+		userSelectColumns, searchCol,
 	)
 
 	user := &fleet.User{}
@@ -125,6 +134,17 @@ func (ds *Datastore) HasUsers(ctx context.Context) (bool, error) {
 	return id > 0, nil
 }
 
+// userAllowedOrderKeys defines the allowed order keys for ListUsers.
+// SECURITY: This prevents information disclosure via arbitrary column sorting.
+// Sensitive columns like 'password' and 'salt' are intentionally excluded.
+var userAllowedOrderKeys = common_mysql.OrderKeyAllowlist{
+	"name":       "name",
+	"email":      "email",
+	"created_at": "created_at",
+	"updated_at": "updated_at",
+	"id":         "id",
+}
+
 // ListUsers lists all users with team ID, limit, sort and offset passed in with
 // UserListOptions.
 func (ds *Datastore) ListUsers(ctx context.Context, opt fleet.UserListOptions) ([]*fleet.User, error) {
@@ -139,7 +159,11 @@ func (ds *Datastore) ListUsers(ctx context.Context, opt fleet.UserListOptions) (
 	}
 
 	sqlStatement, params = searchLike(sqlStatement, params, opt.MatchQuery, userSearchColumns...)
-	sqlStatement, params = appendListOptionsWithCursorToSQL(sqlStatement, params, &opt.ListOptions)
+	var err error
+	sqlStatement, params, err = appendListOptionsWithCursorToSQLSecure(sqlStatement, params, &opt.ListOptions, userAllowedOrderKeys)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "apply list options")
+	}
 	users := []*fleet.User{}
 
 	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &users, sqlStatement, params...); err != nil {
@@ -148,6 +172,26 @@ func (ds *Datastore) ListUsers(ctx context.Context, opt fleet.UserListOptions) (
 
 	if err := ds.loadTeamsForUsers(ctx, users); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "load teams")
+	}
+
+	return users, nil
+}
+
+// UsersByIDs returns user summaries matching the provided IDs.
+func (ds *Datastore) UsersByIDs(ctx context.Context, ids []uint) ([]*fleet.UserSummary, error) {
+	if len(ids) == 0 {
+		return nil, nil
+	}
+
+	query, args, err := sqlx.In(
+		fmt.Sprintf("SELECT %s FROM users WHERE id IN (?)", userSummaryColumns), ids)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "build users by IDs query")
+	}
+
+	var users []*fleet.UserSummary
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &users, query, args...); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "select users by IDs")
 	}
 
 	return users, nil
@@ -350,6 +394,15 @@ func (ds *Datastore) DeleteUser(ctx context.Context, id uint) error {
 	}
 
 	return ds.deleteEntity(ctx, usersTable, id)
+}
+
+func (ds *Datastore) CountGlobalAdmins(ctx context.Context) (int, error) {
+	var count int
+	err := sqlx.GetContext(ctx, ds.writer(ctx), &count, `SELECT COUNT(*) FROM users WHERE global_role = 'admin'`)
+	if err != nil {
+		return 0, ctxerr.Wrap(ctx, err, "count global admins")
+	}
+	return count, nil
 }
 
 func tableRowsCount(ctx context.Context, db sqlx.QueryerContext, tableName string) (int, error) {

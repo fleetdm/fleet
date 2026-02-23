@@ -1,0 +1,10 @@
+{
+  "name": "GitHub Desktop",
+  "slug": "github-desktop/windows",
+  "package_identifier": "GitHub.GitHubDesktop",
+  "unique_identifier": "GitHub Desktop",
+  "installer_arch": "x64",
+  "installer_type": "msi",
+  "installer_scope": "machine",
+  "default_categories": ["Developer tools"]
+}

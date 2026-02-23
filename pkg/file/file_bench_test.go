@@ -16,7 +16,7 @@ import (
 
 // Results @b81f69d16220524866fc90e9260a0af0d2aeb94c before any change:
 //
-// $ GO_TEST_EXTRA_FLAGS="--timeout 20m" FLEET_INTEGRATION_TESTS_DISABLE_LOG=1 REDIS_TEST=1 MYSQL_TEST=1 MINIO_STORAGE_TEST=1 go test ./pkg/file -run zzz -bench . -benchmem | prettybench
+// $ GO_TEST_EXTRA_FLAGS="--timeout 20m" FLEET_INTEGRATION_TESTS_DISABLE_LOG=1 REDIS_TEST=1 MYSQL_TEST=1 S3_STORAGE_TEST=1 go test ./pkg/file -run zzz -bench . -benchmem | prettybench
 // goos: linux
 // goarch: amd64
 // pkg: github.com/fleetdm/fleet/v4/pkg/file
@@ -44,7 +44,7 @@ import (
 // ok  	github.com/fleetdm/fleet/v4/pkg/file	36.644s
 
 // Results @0c700ca40e5d3602b6206f12232c4c123b6c4ee9 with the use of TempFileReader but not change otherwise:
-// $ GO_TEST_EXTRA_FLAGS="--timeout 20m" FLEET_INTEGRATION_TESTS_DISABLE_LOG=1 REDIS_TEST=1 MYSQL_TEST=1 MINIO_STORAGE_TEST=1 go test ./pkg/file -run zzz -bench . -benchmem | prettybench
+// $ GO_TEST_EXTRA_FLAGS="--timeout 20m" FLEET_INTEGRATION_TESTS_DISABLE_LOG=1 REDIS_TEST=1 MYSQL_TEST=1 S3_STORAGE_TEST=1 go test ./pkg/file -run zzz -bench . -benchmem | prettybench
 // goos: linux
 // goarch: amd64
 // pkg: github.com/fleetdm/fleet/v4/pkg/file
@@ -74,7 +74,7 @@ import (
 // Results @64321f8d241bba9233a1de21845ac0c7a6f4dda6 with the .exe improvements (read from disk with mmap) - massively
 // better memory usage (only exe benchmarks show):
 //
-// $ GO_TEST_EXTRA_FLAGS="--timeout 20m" FLEET_INTEGRATION_TESTS_DISABLE_LOG=1 REDIS_TEST=1 MYSQL_TEST=1 MINIO_STORAGE_TEST=1 go test ./pkg/file -run zzz -bench . -benchmem | prettybench
+// $ GO_TEST_EXTRA_FLAGS="--timeout 20m" FLEET_INTEGRATION_TESTS_DISABLE_LOG=1 REDIS_TEST=1 MYSQL_TEST=1 S3_STORAGE_TEST=1 go test ./pkg/file -run zzz -bench . -benchmem | prettybench
 // goos: linux
 // goarch: amd64
 // pkg: github.com/fleetdm/fleet/v4/pkg/file
@@ -91,7 +91,7 @@ import (
 // Results @e5ad9300701f0aa1f7b40efffdb6944988038dc7 with the .pkg improvements
 // - massively better memory usage (only pkg benchmarks shown):
 //
-// $ GO_TEST_EXTRA_FLAGS="--timeout 20m" FLEET_INTEGRATION_TESTS_DISABLE_LOG=1 REDIS_TEST=1 MYSQL_TEST=1 MINIO_STORAGE_TEST=1 go test ./pkg/file -run zzz -bench . -benchmem | prettybench
+// $ GO_TEST_EXTRA_FLAGS="--timeout 20m" FLEET_INTEGRATION_TESTS_DISABLE_LOG=1 REDIS_TEST=1 MYSQL_TEST=1 S3_STORAGE_TEST=1 go test ./pkg/file -run zzz -bench . -benchmem | prettybench
 // goos: linux
 // goarch: amd64
 // pkg: github.com/fleetdm/fleet/v4/pkg/file
@@ -109,7 +109,7 @@ import (
 
 // Results @532daf10bebe7c432a2b5e6c3822639c5937dc29 with the .msi improvements
 // - massively better memory usage (only msi benchmarks shown):
-// $ GO_TEST_EXTRA_FLAGS="--timeout 20m" FLEET_INTEGRATION_TESTS_DISABLE_LOG=1 REDIS_TEST=1 MYSQL_TEST=1 MINIO_STORAGE_TEST=1 go test ./pkg/file -run zzz -bench . -benchmem | prettybench
+// $ GO_TEST_EXTRA_FLAGS="--timeout 20m" FLEET_INTEGRATION_TESTS_DISABLE_LOG=1 REDIS_TEST=1 MYSQL_TEST=1 S3_STORAGE_TEST=1 go test ./pkg/file -run zzz -bench . -benchmem | prettybench
 // goos: linux
 // goarch: amd64
 // pkg: github.com/fleetdm/fleet/v4/pkg/file

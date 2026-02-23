@@ -175,10 +175,12 @@ export const getSelfServiceTooltip = (
   isAndroidPlayStoreApp: boolean
 ) => {
   if (isAndroidPlayStoreApp) {
-    <>
-      End users can install from the <strong>Play Store</strong> <br />
-      in their work profile.
-    </>;
+    return (
+      <>
+        End users can install from the <strong>Play Store</strong> <br />
+        in their work profile.
+      </>
+    );
   }
   if (isIosOrIpadosApp)
     return (
@@ -204,6 +206,18 @@ export const getSelfServiceTooltip = (
         variant="tooltip-link"
         url={`${LEARN_MORE_ABOUT_BASE_LINK}/self-service-software`}
       />
+    </>
+  );
+};
+
+export const getAutoUpdatesTooltip = (startTime: string, endTime: string) => {
+  return (
+    <>
+      When a new version is available,
+      <br />
+      targeted hosts will begin updating between
+      <br />
+      {startTime} and {endTime} (host&rsquo;s local time).
     </>
   );
 };
@@ -243,4 +257,35 @@ export const isSafeImagePreviewUrl = (url?: string | null) => {
   } catch {
     return false;
   }
+};
+
+// TODO: When software directories are restructured, move this to /software/helpers.tsx
+// TODO: Naming conversion should be server-side in future iteration to be compatible with server-side sort
+/** Map of known awkward software titles to more human-readable names */
+const WELL_KNOWN_SOFTWARE_TITLES: Record<string, string> = {
+  "microsoft.companyportal": "Company Portal",
+};
+
+/** Prioritizes display_name over name and converts awkward software titles
+ * listed in WELL_KNOWN_SOFTWARE_TITLES to more human readable names */
+export const getDisplayedSoftwareName = (
+  name?: string | null,
+  display_name?: string | null
+): string => {
+  // 1. End-user custom name always wins.
+  if (display_name) {
+    return display_name;
+  }
+
+  if (name) {
+    // 2. Normalize known titles only from the raw name.
+    const key = name.toLowerCase();
+    if (WELL_KNOWN_SOFTWARE_TITLES[key]) {
+      return WELL_KNOWN_SOFTWARE_TITLES[key];
+    }
+    return name;
+  }
+
+  // This should not happen
+  return "Software";
 };

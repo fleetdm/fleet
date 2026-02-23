@@ -8,11 +8,12 @@ In Fleet, you can automatically and remotely install software on hosts. This gui
 
 Current supported software deployment formats:
 - macOS: .pkg, App Store (VPP) apps, and [Fleet-maintained apps](https://fleetdm.com/guides/fleet-maintained-apps)
-- Windows: .msi, .exe, and [Fleet-maintained apps](https://fleetdm.com/guides/fleet-maintained-apps)
-- Linux: .deb, .rpm
+- Windows: .msi, .exe, .ps1, and [Fleet-maintained apps](https://fleetdm.com/guides/fleet-maintained-apps)
+- Linux: .deb, .rpm, and .sh
 
 > If you check the "Automatic install" box when adding software, you do not have to create your own policy, so you can skip the remaining steps of this process.
 
+> Script packages (`.sh` and `.ps1` files) do not support automatic install.
 2. **Add a policy**: In Fleet, add a policy that failure to pass will trigger the required installation. Go the **Policies** tab, select a team, then press the **Add policy** button. Next, click **Create your own policy**, enter your policy SQL, click **Save**, fill in remaining details in the Save modal, then and click **Save** again.
 
 ```sql

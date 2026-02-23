@@ -57,6 +57,11 @@ type SetupExperienceStatusResult struct {
 	// (e.g., "sh_packages", "ps1_packages", "apps", etc.) and is used by the frontend
 	// to determine appropriate UI display (e.g., "Run" vs "Install" verbs).
 	Source *string `json:"source,omitempty" db:"source"`
+
+	// DisplayName and IconURL are populated by ListSetupExperienceResultsByHostUUID and
+	// are only used for display purposes in the UI.
+	DisplayName string `json:"display_name,omitempty" db:"-"`
+	IconURL     string `json:"icon_url,omitempty" db:"-"`
 }
 
 func (s *SetupExperienceStatusResult) IsValid() error {
@@ -114,6 +119,17 @@ func (s *SetupExperienceStatusResult) IsForSoftware() bool {
 // IsForSoftwarePackage indicates if this result is for a setup experience software installer step.
 func (s *SetupExperienceStatusResult) IsForSoftwarePackage() bool {
 	return s.SoftwareInstallerID != nil
+}
+
+func (s *SetupExperienceStatusResult) ForMyDevicePage(token string) {
+	// convert api style iconURL to device token URL
+	if s.IconURL != "" && s.SoftwareTitleID != nil {
+		if SoftwareTitleIconURLRegex.MatchString(s.IconURL) {
+			icon := SoftwareTitleIcon{SoftwareTitleID: *s.SoftwareTitleID}
+			deviceIconURL := icon.IconUrlWithDeviceToken(token)
+			s.IconURL = deviceIconURL
+		}
+	}
 }
 
 type SetupExperienceBootstrapPackageResult struct {
@@ -199,7 +215,8 @@ type SetupExperienceStatusPayload struct {
 // TODO: Setup Experience supports a wide range of platforms now but has a feature matrix where not all
 // platforms support all features. May be worth refactoring to check for supported features instead
 func IsSetupExperienceSupported(hostPlatform string) bool {
-	return hostPlatform == "darwin" || hostPlatform == "ios" || hostPlatform == "ipados" || hostPlatform == "windows" || IsLinux(hostPlatform)
+	return hostPlatform == "darwin" || hostPlatform == "ios" || hostPlatform == "ipados" ||
+		hostPlatform == "windows" || hostPlatform == "android" || IsLinux(hostPlatform)
 }
 
 // DeviceSetupExperienceStatusPayload holds the status of the "Setup experience" for a device.
@@ -220,7 +237,8 @@ type DeviceSetupExperienceStatusPayload struct {
 // use the host.OsqueryHostID as UUID. For Windows/Linux devices, the "Setup experience" will be triggered after orbit
 // and osquery enrollment, thus host.OsqueryHostID will always be set and unique.
 func HostUUIDForSetupExperience(host *Host) (string, error) {
-	if host.Platform == string(MacOSPlatform) || host.Platform == string(IOSPlatform) || host.Platform == string(IPadOSPlatform) {
+	if host.Platform == string(MacOSPlatform) || host.Platform == string(IOSPlatform) || host.Platform == string(IPadOSPlatform) ||
+		host.Platform == string(AndroidPlatform) {
 		return host.UUID, nil
 	}
 	// Currently it seems this field is always set when orbit or osquery enroll,
@@ -235,4 +253,13 @@ type SetupExperienceCount struct {
 	Installers uint `db:"installers"`
 	Scripts    uint `db:"scripts"`
 	VPP        uint `db:"vpp"`
+}
+
+var SetupExperienceSupportedPlatforms = []string{
+	"macos",
+	"ios",
+	"ipados",
+	"windows",
+	"linux",
+	"android",
 }

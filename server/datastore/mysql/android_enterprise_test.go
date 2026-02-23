@@ -3,9 +3,9 @@ package mysql
 import (
 	"testing"
 
-	"github.com/fleetdm/fleet/v4/server/datastore/mysql/common_mysql/testing_utils"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm/android"
+	"github.com/fleetdm/fleet/v4/server/platform/mysql/testing_utils"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -24,7 +24,7 @@ func TestAndroidEnterprises(t *testing.T) {
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
-			defer testing_utils.TruncateTables(t, ds.primary, ds.logger, nil)
+			defer testing_utils.TruncateTables(t, ds.primary, ds.logger.SlogLogger(), nil)
 
 			c.fn(t, ds)
 		})

@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState, useEffect } from "react";
 import {
   IDeviceSoftwareWithUiStatus,
   IHostSoftwareUiStatus,
@@ -68,12 +68,30 @@ const TileActionStatus = ({
   software,
   onActionClick,
 }: TileActionStatusProps) => {
+  // Local “clicked” state so the button disables immediately
+  const [disableAction, setDisableAction] = useState(false);
+
   const actionLabel = getTileActionLabel(software.ui_status);
   const isError = isSoftwareErrorStatus(software.ui_status);
+
+  useEffect(() => {
+    if (
+      !isSoftwareInProgressStatus(software.ui_status) &&
+      !isSoftwarePendingStatus(software.ui_status)
+    ) {
+      setDisableAction(false);
+    }
+  }, [software.ui_status]);
 
   const isActiveAction =
     isSoftwareInProgressStatus(software.ui_status) ||
     isSoftwarePendingStatus(software.ui_status);
+
+  // Wrap handler to disable action button immediately, important for slow connections/APIs
+  const handleClick = () => {
+    setDisableAction(true);
+    onActionClick(software);
+  };
 
   const renderActiveActionStatus = () => {
     return (
@@ -94,7 +112,11 @@ const TileActionStatus = ({
           </div>
         )}
         {actionLabel && (
-          <Button variant="inverse" onClick={() => onActionClick(software)}>
+          <Button
+            variant="inverse"
+            onClick={handleClick}
+            disabled={disableAction}
+          >
             {actionLabel}
           </Button>
         )}

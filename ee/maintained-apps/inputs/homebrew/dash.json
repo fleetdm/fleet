@@ -1,0 +1,8 @@
+{
+  "name": "Dash",
+  "unique_identifier": "com.kapeli.dashdoc",
+  "token": "dash",
+  "installer_format": "zip",
+  "slug": "dash/darwin",
+  "default_categories": ["Developer tools"]
+}

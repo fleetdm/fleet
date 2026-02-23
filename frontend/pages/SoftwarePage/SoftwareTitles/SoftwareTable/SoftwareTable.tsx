@@ -128,17 +128,20 @@ const SoftwareTable = ({
     (newTableQuery: ITableQueryData, changedParam: string) => {
       const newQueryParam: Record<string, string | number | undefined> = {
         query: newTableQuery.searchQuery,
-        team_id: teamId,
+        fleet_id: teamId,
         order_direction: newTableQuery.sortDirection,
         order_key: newTableQuery.sortHeader,
         page: changedParam === "pageIndex" ? newTableQuery.pageIndex : 0,
         ...buildSoftwareVulnFiltersQueryParams(vulnFilters),
       };
-      if (softwareFilter === "installableSoftware") {
-        newQueryParam.available_for_install = true.toString();
-      }
-      if (softwareFilter === "selfServiceSoftware") {
-        newQueryParam.self_service = true.toString();
+      // Only include these filters when not on “All teams”
+      if (teamId !== undefined) {
+        if (softwareFilter === "installableSoftware") {
+          newQueryParam.available_for_install = "true";
+        }
+        if (softwareFilter === "selfServiceSoftware") {
+          newQueryParam.self_service = "true";
+        }
       }
 
       return newQueryParam;
@@ -153,11 +156,8 @@ const SoftwareTable = ({
       // reset the page index to 0 if any other param has changed.
       const changedParam = determineQueryParamChange(newTableQuery);
 
-      // if nothing has changed, don't update the route. this can happen when
-      // this handler is called on the inital render. Can also happen when
-      // the filter dropdown is changed. That is handled on the onChange handler
-      // for the dropdown.
-      if (changedParam === "") return;
+      // Note: There may be no changedParam on initial render, but we still may need
+      // to strip unwanted params with generateNewQueryParams so do NOT early return
 
       const newRoute = getNextLocationPath({
         pathPrefix: currentPath,
@@ -203,7 +203,7 @@ const SoftwareTable = ({
   const handleShowVersionsToggle = () => {
     const queryParams: Record<string, string | number | boolean | undefined> = {
       query,
-      team_id: teamId,
+      fleet_id: teamId,
       order_direction: orderDirection,
       order_key: orderKey,
       page: 0, // resets page index
@@ -251,7 +251,7 @@ const SoftwareTable = ({
       ? PATHS.SOFTWARE_VERSION_DETAILS(row.original.id.toString())
       : PATHS.SOFTWARE_TITLE_DETAILS(row.original.id.toString());
 
-    router.push(getPathWithQueryParams(detailsPath, { team_id: teamId }));
+    router.push(getPathWithQueryParams(detailsPath, { fleet_id: teamId }));
   };
 
   const renderSoftwareCount = () => {
@@ -367,7 +367,8 @@ const SoftwareTable = ({
         // additionalQueries serves as a trigger for the useDeepEffect hook
         // to fire onQueryChange for events happening outside of
         // the TableContainer.
-        // additionalQueries={softwareFilter}
+        // This is necessary to remove unwanted query params from the URL
+        additionalQueries={softwareFilter}
         customControl={showFilterHeaders ? renderCustomControls : undefined}
         customFiltersButton={
           showFilterHeaders ? renderCustomFiltersButton : undefined

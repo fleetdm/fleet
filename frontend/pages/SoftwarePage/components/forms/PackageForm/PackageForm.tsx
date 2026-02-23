@@ -25,7 +25,6 @@ import {
   getTargetType,
 } from "pages/SoftwarePage/helpers";
 import TargetLabelSelector from "components/TargetLabelSelector";
-import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
 import Card from "components/Card";
 import SoftwareOptionsSelector from "pages/SoftwarePage/components/forms/SoftwareOptionsSelector";
 
@@ -57,15 +56,24 @@ export interface IPackageFormValidation {
   customTarget?: { isValid: boolean };
 }
 
+const getGraphicName = (ext: string) => {
+  if (ext === "sh") {
+    return "file-sh";
+  } else if (ext === "ps1") {
+    return "file-ps1";
+  }
+  return "file-pkg";
+};
+
 const renderFileTypeMessage = () => {
   return (
     <>
       macOS (.pkg), iOS/iPadOS (.ipa),
       <br />
       Windows (.msi, .exe.,{" "}
-      <TooltipWrapper tipContent="Payload-free package">.ps1</TooltipWrapper>),
+      <TooltipWrapper tipContent="Script-only package">.ps1</TooltipWrapper>),
       or Linux (.deb, .rpm,{" "}
-      <TooltipWrapper tipContent="Payload-free package">.sh</TooltipWrapper>)
+      <TooltipWrapper tipContent="Script-only package">.sh</TooltipWrapper>)
     </>
   );
 };
@@ -84,7 +92,7 @@ interface IPackageFormProps {
   defaultPostInstallScript?: string;
   defaultUninstallScript?: string;
   defaultSelfService?: boolean;
-  defaultCategories?: SoftwareCategory[];
+  defaultCategories?: SoftwareCategory[] | null;
   className?: string;
   /** Indicates that this PackageForm deals with an entity that can be managed by GitOps, and so should be disabled when gitops mode is enabled */
   gitopsCompatible?: boolean;
@@ -112,8 +120,8 @@ const PackageForm = ({
   gitopsCompatible = false,
 }: IPackageFormProps) => {
   const { renderFlash } = useContext(NotificationContext);
-  const gitOpsModeEnabled = useContext(AppContext).config?.gitops
-    .gitops_mode_enabled;
+  const { gitops_mode_enabled: gitOpsModeEnabled, repository_url: repoURL } =
+    useContext(AppContext).config?.gitops || {};
 
   const initialFormData: IPackageFormData = {
     software: defaultSoftware || null,
@@ -266,8 +274,13 @@ const PackageForm = ({
     setFormValidation(generateFormValidation(newData));
   };
 
-  const isSubmitDisabled = !formValidation.isValid;
-  const submitTooltipContent = createTooltipContent(formValidation);
+  const disableFieldsForGitOps = gitopsCompatible && gitOpsModeEnabled;
+  const isSubmitDisabled = !formValidation.isValid || disableFieldsForGitOps;
+  const submitTooltipContent = createTooltipContent(
+    formValidation,
+    repoURL,
+    disableFieldsForGitOps
+  );
 
   const classNames = classnames(baseClass, className);
 
@@ -310,7 +323,7 @@ const PackageForm = ({
       <form className={`${baseClass}__form`} onSubmit={onFormSubmit}>
         <FileUploader
           canEdit={canEditFile}
-          graphicName="file-pkg"
+          graphicName={getGraphicName(ext || "")}
           accept={ACCEPTED_EXTENSIONS}
           message={renderFileTypeMessage()}
           onFileUpload={onFileSelect}
@@ -318,11 +331,9 @@ const PackageForm = ({
           buttonType="brand-inverse-icon"
           className={`${baseClass}__file-uploader`}
           fileDetails={
-            formData.software
-              ? getFileDetails(formData.software, true)
-              : undefined
+            formData.software ? getFileDetails(formData.software) : undefined
           }
-          gitopsCompatible={false}
+          gitopsCompatible={gitopsCompatible}
           gitOpsModeEnabled={gitOpsModeEnabled}
         />
         <div
@@ -398,6 +409,8 @@ const PackageForm = ({
             onChangeInstallScript={onChangeInstallScript}
             onChangePostInstallScript={onChangePostInstallScript}
             onChangeUninstallScript={onChangeUninstallScript}
+            gitopsCompatible={gitopsCompatible}
+            gitOpsModeEnabled={gitOpsModeEnabled}
           />
         )}
         <div className={`${baseClass}__action-buttons`}>

@@ -248,8 +248,8 @@ func TestFleetctlUpgradePacks_EmptyPacks(t *testing.T) {
 		return fleet.TargetMetrics{}, nil
 	}
 
-	ds.ListQueriesFunc = func(ctx context.Context, opt fleet.ListQueryOptions) ([]*fleet.Query, int, *fleet.PaginationMetadata, error) {
-		return nil, 0, nil, nil
+	ds.ListQueriesFunc = func(ctx context.Context, opt fleet.ListQueryOptions) ([]*fleet.Query, int, int, *fleet.PaginationMetadata, error) {
+		return nil, 0, 0, nil, nil
 	}
 
 	tempDir := t.TempDir()
@@ -315,12 +315,12 @@ func TestFleetctlUpgradePacks_NonEmpty(t *testing.T) {
 		return fleet.TargetMetrics{}, nil
 	}
 
-	ds.ListQueriesFunc = func(ctx context.Context, opt fleet.ListQueryOptions) ([]*fleet.Query, int, *fleet.PaginationMetadata, error) {
+	ds.ListQueriesFunc = func(ctx context.Context, opt fleet.ListQueryOptions) ([]*fleet.Query, int, int, *fleet.PaginationMetadata, error) {
 		return []*fleet.Query{
 			{Name: "q1", Query: "select 1"},
 			{Name: "q2", Query: "select 2"},
 			{Name: "q3", Query: "select 3"},
-		}, 3, nil, nil
+		}, 3, 0, nil, nil
 	}
 
 	const expected = `
@@ -330,6 +330,7 @@ spec:
   automations_enabled: false
   description: (converted from pack "p1", query "q1")
   discard_data: false
+  fleet: ""
   interval: 0
   logging: snapshot
   min_osquery_version: ""
@@ -337,7 +338,6 @@ spec:
   observer_can_run: false
   platform: darwin
   query: select 1
-  team: ""
 ---
 apiVersion: v1
 kind: query
@@ -345,6 +345,7 @@ spec:
   automations_enabled: true
   description: (converted from pack "p2", query "q2")
   discard_data: false
+  fleet: t1
   interval: 90
   logging: differential
   min_osquery_version: ""
@@ -352,7 +353,6 @@ spec:
   observer_can_run: false
   platform: linux
   query: select 2
-  team: t1
 ---
 apiVersion: v1
 kind: query
@@ -360,6 +360,7 @@ spec:
   automations_enabled: true
   description: (converted from pack "p2", query "q2")
   discard_data: false
+  fleet: t2
   interval: 90
   logging: differential
   min_osquery_version: ""
@@ -367,7 +368,6 @@ spec:
   observer_can_run: false
   platform: linux
   query: select 2
-  team: t2
 ---
 `
 

@@ -41,7 +41,7 @@ const SoftwareAppStoreAndroid = ({
 
   const goBackToSoftwareTitles = (showAvailableForInstallOnly = false) => {
     const queryParams = {
-      team_id: currentTeamId,
+      fleet_id: currentTeamId,
       ...(showAvailableForInstallOnly && { available_for_install: true }),
     };
 
@@ -79,7 +79,7 @@ const SoftwareAppStoreAndroid = ({
       router.push(
         getPathWithQueryParams(
           PATHS.SOFTWARE_TITLE_DETAILS(softwareAppStoreTitleId.toString()),
-          { team_id: currentTeamId }
+          { fleet_id: currentTeamId }
         )
       );
     } catch (e) {
@@ -106,6 +106,7 @@ const SoftwareAppStoreAndroid = ({
         />
         {showPreviewEndUserExperience && (
           <CategoriesEndUserExperienceModal
+            source="android_apps"
             onCancel={onClickPreviewEndUserExperience}
           />
         )}

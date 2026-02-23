@@ -1,0 +1,10 @@
+{
+  "name": "Wireshark",
+  "slug": "wireshark/windows",
+  "package_identifier": "WiresharkFoundation.Wireshark",
+  "unique_identifier": "Wireshark",
+  "installer_arch": "x64",
+  "installer_type": "msi",
+  "installer_scope": "machine",
+  "default_categories": ["Developer tools"]
+}

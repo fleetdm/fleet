@@ -1,0 +1,10 @@
+{
+  "name": "PuTTY",
+  "slug": "putty/windows",
+  "package_identifier": "PuTTY.PuTTY",
+  "unique_identifier": "PuTTY release 0.83 (x64)",
+  "installer_arch": "x64",
+  "installer_type": "msi",
+  "installer_scope": "machine",
+  "default_categories": ["Productivity"]
+}

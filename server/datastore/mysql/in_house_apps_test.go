@@ -8,6 +8,7 @@ import (
 	"testing"
 	"time"
 
+	activity_api "github.com/fleetdm/fleet/v4/server/activity/api"
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/mdm"
@@ -33,6 +34,7 @@ func TestInHouseApps(t *testing.T) {
 		{"EditDeleteInHouseInstallersActivateNextActivity", testEditDeleteInHouseInstallersActivateNextActivity},
 		{"Categories", testInHouseAppsCategories},
 		{"SoftwareTitleDisplayName", testSoftwareTitleDisplayNameInHouse},
+		{"InHouseAppsCancelledOnUnenroll", testInHouseAppsCancelledOnUnenroll},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -212,16 +214,14 @@ func testInHouseAppsCrud(t *testing.T, ds *Datastore) {
 
 	// ipadOS installer should remain
 	var ipadID uint
-	err = sqlx.GetContext(ctx, ds.reader(ctx), &ipadID, `SELECT id FROM in_house_apps LIMIT 1`)
-	require.NoError(t, err)
+	require.NoError(t, sqlx.GetContext(ctx, ds.reader(ctx), &ipadID, `SELECT id FROM in_house_apps LIMIT 1`))
 
 	// Try to upload installer again, expect duplicate error
 	_, _, err = ds.MatchOrCreateSoftwareInstaller(ctx, &payload)
 	require.Error(t, err)
 
 	// Delete ipadOS installer
-	err = ds.DeleteInHouseApp(ctx, ipadID)
-	require.NoError(t, err)
+	require.NoError(t, ds.DeleteInHouseApp(ctx, ipadID))
 
 	var count int
 	err = sqlx.GetContext(ctx, ds.reader(ctx), &count, `SELECT COUNT(*) FROM in_house_apps`)
@@ -544,6 +544,7 @@ func testBatchSetInHouseInstallers(t *testing.T, ds *Datastore) {
 			got := titles[i]
 			require.Equal(t, want.Name, got.Name)
 			require.Equal(t, want.Source, got.Source)
+			require.Equal(t, want.DisplayName, got.DisplayName)
 			require.Equal(t, want.BundleIdentifier == nil, got.BundleIdentifier == nil)
 			if want.BundleIdentifier != nil {
 				require.Equal(t, *want.BundleIdentifier, *got.BundleIdentifier)
@@ -564,6 +565,7 @@ func testBatchSetInHouseInstallers(t *testing.T, ds *Datastore) {
 			require.Equal(t, want.Platform, got.Platform)
 			require.Equal(t, want.Version, got.Version)
 			require.Equal(t, want.StorageID, got.StorageID)
+			require.Equal(t, want.DisplayName, got.DisplayName)
 			require.Equal(t, want.SelfService, got.SelfService)
 			require.Equal(t, want.BundleIdentifier, got.BundleIdentifier)
 			require.ElementsMatch(t, want.Categories, got.Categories)
@@ -595,6 +597,7 @@ func testBatchSetInHouseInstallers(t *testing.T, ds *Datastore) {
 		Extension:        "ipa",
 		Version:          "1.0.0",
 		SelfService:      true,
+		DisplayName:      "Yeehaw 1",
 		ValidatedLabels:  &fleet.LabelIdentsWithScope{},
 	}
 	// the batch-upload handler would've generated both iOS and iPadOS entries
@@ -611,6 +614,7 @@ func testBatchSetInHouseInstallers(t *testing.T, ds *Datastore) {
 			ValidatedLabels:  &fleet.LabelIdentsWithScope{},
 			BundleIdentifier: ipa1.BundleIdentifier,
 			SelfService:      ipa1.SelfService,
+			DisplayName:      ipa1.DisplayName,
 		},
 		{
 			StorageID:        ipa1.StorageID,
@@ -624,6 +628,7 @@ func testBatchSetInHouseInstallers(t *testing.T, ds *Datastore) {
 			ValidatedLabels:  &fleet.LabelIdentsWithScope{},
 			BundleIdentifier: ipa1.BundleIdentifier,
 			SelfService:      ipa1.SelfService,
+			DisplayName:      ipa1.DisplayName,
 		},
 	})
 	require.NoError(t, err)
@@ -637,11 +642,11 @@ func testBatchSetInHouseInstallers(t *testing.T, ds *Datastore) {
 	require.Equal(t, "https://example.com/1", apps[0].URL)
 
 	assertTitlesAndApps([]fleet.SoftwareTitleListResult{
-		{Name: ipa1.Title, Source: "ios_apps", BundleIdentifier: ptr.String("com.ipa1")},
-		{Name: ipa1.Title, Source: "ipados_apps", BundleIdentifier: ptr.String("com.ipa1")},
+		{Name: ipa1.Title, Source: "ios_apps", BundleIdentifier: ptr.String("com.ipa1"), DisplayName: ipa1.DisplayName},
+		{Name: ipa1.Title, Source: "ipados_apps", BundleIdentifier: ptr.String("com.ipa1"), DisplayName: ipa1.DisplayName},
 	}, []fleet.SoftwareInstaller{
-		{Name: ipa1.Filename, Platform: "ios", Version: ipa1.Version, StorageID: ipa1.StorageID, SelfService: ipa1.SelfService, BundleIdentifier: ipa1.BundleIdentifier},
-		{Name: ipa1.Filename, Platform: "ipados", Version: ipa1.Version, StorageID: ipa1.StorageID, SelfService: ipa1.SelfService, BundleIdentifier: ipa1.BundleIdentifier},
+		{Name: ipa1.Filename, Platform: "ios", Version: ipa1.Version, StorageID: ipa1.StorageID, SelfService: ipa1.SelfService, BundleIdentifier: ipa1.BundleIdentifier, DisplayName: ipa1.DisplayName},
+		{Name: ipa1.Filename, Platform: "ipados", Version: ipa1.Version, StorageID: ipa1.StorageID, SelfService: ipa1.SelfService, BundleIdentifier: ipa1.BundleIdentifier, DisplayName: ipa1.DisplayName},
 	})
 
 	// add a new installer + ipa1 installer
@@ -655,6 +660,7 @@ func testBatchSetInHouseInstallers(t *testing.T, ds *Datastore) {
 		Extension:        "ipa",
 		Version:          "2.0.0",
 		SelfService:      false,
+		DisplayName:      "Yeehaw 2",
 		ValidatedLabels:  &fleet.LabelIdentsWithScope{},
 	}
 
@@ -672,6 +678,7 @@ func testBatchSetInHouseInstallers(t *testing.T, ds *Datastore) {
 			ValidatedLabels:  &fleet.LabelIdentsWithScope{},
 			BundleIdentifier: ipa1.BundleIdentifier,
 			SelfService:      ipa1.SelfService,
+			DisplayName:      ipa1.DisplayName,
 		},
 		{
 			StorageID:        ipa1.StorageID,
@@ -685,6 +692,7 @@ func testBatchSetInHouseInstallers(t *testing.T, ds *Datastore) {
 			ValidatedLabels:  &fleet.LabelIdentsWithScope{},
 			BundleIdentifier: ipa1.BundleIdentifier,
 			SelfService:      ipa1.SelfService,
+			DisplayName:      ipa1.DisplayName,
 		},
 		{
 			StorageID:        ipa2.StorageID,
@@ -698,6 +706,7 @@ func testBatchSetInHouseInstallers(t *testing.T, ds *Datastore) {
 			ValidatedLabels:  &fleet.LabelIdentsWithScope{},
 			BundleIdentifier: ipa2.BundleIdentifier,
 			SelfService:      ipa2.SelfService,
+			DisplayName:      ipa2.DisplayName,
 		},
 		{
 			StorageID:        ipa2.StorageID,
@@ -711,6 +720,7 @@ func testBatchSetInHouseInstallers(t *testing.T, ds *Datastore) {
 			ValidatedLabels:  &fleet.LabelIdentsWithScope{},
 			BundleIdentifier: ipa2.BundleIdentifier,
 			SelfService:      ipa2.SelfService,
+			DisplayName:      ipa2.DisplayName,
 		},
 	})
 	require.NoError(t, err)
@@ -728,15 +738,15 @@ func testBatchSetInHouseInstallers(t *testing.T, ds *Datastore) {
 	require.Equal(t, "https://example.com/1", apps[0].URL)
 
 	assertTitlesAndApps([]fleet.SoftwareTitleListResult{
-		{Name: ipa1.Title, Source: "ios_apps", BundleIdentifier: ptr.String("com.ipa1")},
-		{Name: ipa1.Title, Source: "ipados_apps", BundleIdentifier: ptr.String("com.ipa1")},
-		{Name: ipa2.Title, Source: "ios_apps", BundleIdentifier: ptr.String("com.ipa2")},
-		{Name: ipa2.Title, Source: "ipados_apps", BundleIdentifier: ptr.String("com.ipa2")},
+		{Name: ipa1.Title, Source: "ios_apps", BundleIdentifier: ptr.String("com.ipa1"), DisplayName: ipa1.DisplayName},
+		{Name: ipa1.Title, Source: "ipados_apps", BundleIdentifier: ptr.String("com.ipa1"), DisplayName: ipa1.DisplayName},
+		{Name: ipa2.Title, Source: "ios_apps", BundleIdentifier: ptr.String("com.ipa2"), DisplayName: ipa2.DisplayName},
+		{Name: ipa2.Title, Source: "ipados_apps", BundleIdentifier: ptr.String("com.ipa2"), DisplayName: ipa2.DisplayName},
 	}, []fleet.SoftwareInstaller{
-		{Name: ipa1.Filename, Platform: "ios", Version: ipa1.Version, StorageID: ipa1.StorageID, SelfService: ipa1.SelfService, BundleIdentifier: ipa1.BundleIdentifier},
-		{Name: ipa1.Filename, Platform: "ipados", Version: ipa1.Version, StorageID: ipa1.StorageID, SelfService: ipa1.SelfService, BundleIdentifier: ipa1.BundleIdentifier},
-		{Name: ipa2.Filename, Platform: "ios", Version: ipa2.Version, StorageID: ipa2.StorageID, SelfService: ipa2.SelfService, BundleIdentifier: ipa2.BundleIdentifier},
-		{Name: ipa2.Filename, Platform: "ipados", Version: ipa2.Version, StorageID: ipa2.StorageID, SelfService: ipa2.SelfService, BundleIdentifier: ipa2.BundleIdentifier},
+		{Name: ipa1.Filename, Platform: "ios", Version: ipa1.Version, StorageID: ipa1.StorageID, SelfService: ipa1.SelfService, BundleIdentifier: ipa1.BundleIdentifier, DisplayName: ipa1.DisplayName},
+		{Name: ipa1.Filename, Platform: "ipados", Version: ipa1.Version, StorageID: ipa1.StorageID, SelfService: ipa1.SelfService, BundleIdentifier: ipa1.BundleIdentifier, DisplayName: ipa1.DisplayName},
+		{Name: ipa2.Filename, Platform: "ios", Version: ipa2.Version, StorageID: ipa2.StorageID, SelfService: ipa2.SelfService, BundleIdentifier: ipa2.BundleIdentifier, DisplayName: ipa2.DisplayName},
+		{Name: ipa2.Filename, Platform: "ipados", Version: ipa2.Version, StorageID: ipa2.StorageID, SelfService: ipa2.SelfService, BundleIdentifier: ipa2.BundleIdentifier, DisplayName: ipa2.DisplayName},
 	})
 
 	// rerun with no change
@@ -753,6 +763,7 @@ func testBatchSetInHouseInstallers(t *testing.T, ds *Datastore) {
 			ValidatedLabels:  &fleet.LabelIdentsWithScope{},
 			BundleIdentifier: ipa1.BundleIdentifier,
 			SelfService:      ipa1.SelfService,
+			DisplayName:      ipa1.DisplayName,
 		},
 		{
 			StorageID:        ipa1.StorageID,
@@ -766,6 +777,7 @@ func testBatchSetInHouseInstallers(t *testing.T, ds *Datastore) {
 			ValidatedLabels:  &fleet.LabelIdentsWithScope{},
 			BundleIdentifier: ipa1.BundleIdentifier,
 			SelfService:      ipa1.SelfService,
+			DisplayName:      ipa1.DisplayName,
 		},
 		{
 			StorageID:        ipa2.StorageID,
@@ -779,6 +791,7 @@ func testBatchSetInHouseInstallers(t *testing.T, ds *Datastore) {
 			ValidatedLabels:  &fleet.LabelIdentsWithScope{},
 			BundleIdentifier: ipa2.BundleIdentifier,
 			SelfService:      ipa2.SelfService,
+			DisplayName:      ipa2.DisplayName,
 		},
 		{
 			StorageID:        ipa2.StorageID,
@@ -792,6 +805,7 @@ func testBatchSetInHouseInstallers(t *testing.T, ds *Datastore) {
 			ValidatedLabels:  &fleet.LabelIdentsWithScope{},
 			BundleIdentifier: ipa2.BundleIdentifier,
 			SelfService:      ipa2.SelfService,
+			DisplayName:      ipa2.DisplayName,
 		},
 	})
 	require.NoError(t, err)
@@ -801,15 +815,15 @@ func testBatchSetInHouseInstallers(t *testing.T, ds *Datastore) {
 	require.Len(t, apps, 4)
 
 	assertTitlesAndApps([]fleet.SoftwareTitleListResult{
-		{Name: ipa1.Title, Source: "ios_apps", BundleIdentifier: ptr.String("com.ipa1")},
-		{Name: ipa1.Title, Source: "ipados_apps", BundleIdentifier: ptr.String("com.ipa1")},
-		{Name: ipa2.Title, Source: "ios_apps", BundleIdentifier: ptr.String("com.ipa2")},
-		{Name: ipa2.Title, Source: "ipados_apps", BundleIdentifier: ptr.String("com.ipa2")},
+		{Name: ipa1.Title, Source: "ios_apps", BundleIdentifier: ptr.String("com.ipa1"), DisplayName: ipa1.DisplayName},
+		{Name: ipa1.Title, Source: "ipados_apps", BundleIdentifier: ptr.String("com.ipa1"), DisplayName: ipa1.DisplayName},
+		{Name: ipa2.Title, Source: "ios_apps", BundleIdentifier: ptr.String("com.ipa2"), DisplayName: ipa2.DisplayName},
+		{Name: ipa2.Title, Source: "ipados_apps", BundleIdentifier: ptr.String("com.ipa2"), DisplayName: ipa2.DisplayName},
 	}, []fleet.SoftwareInstaller{
-		{Name: ipa1.Filename, Platform: "ios", Version: ipa1.Version, StorageID: ipa1.StorageID, SelfService: ipa1.SelfService, BundleIdentifier: ipa1.BundleIdentifier},
-		{Name: ipa1.Filename, Platform: "ipados", Version: ipa1.Version, StorageID: ipa1.StorageID, SelfService: ipa1.SelfService, BundleIdentifier: ipa1.BundleIdentifier},
-		{Name: ipa2.Filename, Platform: "ios", Version: ipa2.Version, StorageID: ipa2.StorageID, SelfService: ipa2.SelfService, BundleIdentifier: ipa2.BundleIdentifier},
-		{Name: ipa2.Filename, Platform: "ipados", Version: ipa2.Version, StorageID: ipa2.StorageID, SelfService: ipa2.SelfService, BundleIdentifier: ipa2.BundleIdentifier},
+		{Name: ipa1.Filename, Platform: "ios", Version: ipa1.Version, StorageID: ipa1.StorageID, SelfService: ipa1.SelfService, BundleIdentifier: ipa1.BundleIdentifier, DisplayName: ipa1.DisplayName},
+		{Name: ipa1.Filename, Platform: "ipados", Version: ipa1.Version, StorageID: ipa1.StorageID, SelfService: ipa1.SelfService, BundleIdentifier: ipa1.BundleIdentifier, DisplayName: ipa1.DisplayName},
+		{Name: ipa2.Filename, Platform: "ios", Version: ipa2.Version, StorageID: ipa2.StorageID, SelfService: ipa2.SelfService, BundleIdentifier: ipa2.BundleIdentifier, DisplayName: ipa2.DisplayName},
+		{Name: ipa2.Filename, Platform: "ipados", Version: ipa2.Version, StorageID: ipa2.StorageID, SelfService: ipa2.SelfService, BundleIdentifier: ipa2.BundleIdentifier, DisplayName: ipa2.DisplayName},
 	})
 
 	// change ipa2 self-service and add categories
@@ -832,6 +846,7 @@ func testBatchSetInHouseInstallers(t *testing.T, ds *Datastore) {
 			ValidatedLabels:  &fleet.LabelIdentsWithScope{},
 			BundleIdentifier: ipa1.BundleIdentifier,
 			SelfService:      ipa1.SelfService,
+			DisplayName:      ipa1.DisplayName,
 		},
 		{
 			StorageID:        ipa1.StorageID,
@@ -845,6 +860,7 @@ func testBatchSetInHouseInstallers(t *testing.T, ds *Datastore) {
 			ValidatedLabels:  &fleet.LabelIdentsWithScope{},
 			BundleIdentifier: ipa1.BundleIdentifier,
 			SelfService:      ipa1.SelfService,
+			DisplayName:      ipa1.DisplayName,
 		},
 		{
 			StorageID:        ipa2.StorageID,
@@ -858,6 +874,7 @@ func testBatchSetInHouseInstallers(t *testing.T, ds *Datastore) {
 			ValidatedLabels:  &fleet.LabelIdentsWithScope{},
 			BundleIdentifier: ipa2.BundleIdentifier,
 			SelfService:      ipa2.SelfService,
+			DisplayName:      ipa2.DisplayName,
 			CategoryIDs:      ipa2.CategoryIDs,
 		},
 		{
@@ -872,6 +889,7 @@ func testBatchSetInHouseInstallers(t *testing.T, ds *Datastore) {
 			ValidatedLabels:  &fleet.LabelIdentsWithScope{},
 			BundleIdentifier: ipa2.BundleIdentifier,
 			SelfService:      ipa2.SelfService,
+			DisplayName:      ipa2.DisplayName,
 			CategoryIDs:      ipa2.CategoryIDs,
 		},
 	})
@@ -882,15 +900,15 @@ func testBatchSetInHouseInstallers(t *testing.T, ds *Datastore) {
 	require.Len(t, apps, 4)
 
 	assertTitlesAndApps([]fleet.SoftwareTitleListResult{
-		{Name: ipa1.Title, Source: "ios_apps", BundleIdentifier: ptr.String("com.ipa1")},
-		{Name: ipa1.Title, Source: "ipados_apps", BundleIdentifier: ptr.String("com.ipa1")},
-		{Name: ipa2.Title, Source: "ios_apps", BundleIdentifier: ptr.String("com.ipa2")},
-		{Name: ipa2.Title, Source: "ipados_apps", BundleIdentifier: ptr.String("com.ipa2")},
+		{Name: ipa1.Title, Source: "ios_apps", BundleIdentifier: ptr.String("com.ipa1"), DisplayName: ipa1.DisplayName},
+		{Name: ipa1.Title, Source: "ipados_apps", BundleIdentifier: ptr.String("com.ipa1"), DisplayName: ipa1.DisplayName},
+		{Name: ipa2.Title, Source: "ios_apps", BundleIdentifier: ptr.String("com.ipa2"), DisplayName: ipa2.DisplayName},
+		{Name: ipa2.Title, Source: "ipados_apps", BundleIdentifier: ptr.String("com.ipa2"), DisplayName: ipa2.DisplayName},
 	}, []fleet.SoftwareInstaller{
-		{Name: ipa1.Filename, Platform: "ios", Version: ipa1.Version, StorageID: ipa1.StorageID, SelfService: ipa1.SelfService, BundleIdentifier: ipa1.BundleIdentifier},
-		{Name: ipa1.Filename, Platform: "ipados", Version: ipa1.Version, StorageID: ipa1.StorageID, SelfService: ipa1.SelfService, BundleIdentifier: ipa1.BundleIdentifier},
-		{Name: ipa2.Filename, Platform: "ios", Version: ipa2.Version, StorageID: ipa2.StorageID, SelfService: ipa2.SelfService, BundleIdentifier: ipa2.BundleIdentifier, Categories: ipa2.Categories},
-		{Name: ipa2.Filename, Platform: "ipados", Version: ipa2.Version, StorageID: ipa2.StorageID, SelfService: ipa2.SelfService, BundleIdentifier: ipa2.BundleIdentifier, Categories: ipa2.Categories},
+		{Name: ipa1.Filename, Platform: "ios", Version: ipa1.Version, StorageID: ipa1.StorageID, SelfService: ipa1.SelfService, BundleIdentifier: ipa1.BundleIdentifier, DisplayName: ipa1.DisplayName},
+		{Name: ipa1.Filename, Platform: "ipados", Version: ipa1.Version, StorageID: ipa1.StorageID, SelfService: ipa1.SelfService, BundleIdentifier: ipa1.BundleIdentifier, DisplayName: ipa1.DisplayName},
+		{Name: ipa2.Filename, Platform: "ios", Version: ipa2.Version, StorageID: ipa2.StorageID, SelfService: ipa2.SelfService, BundleIdentifier: ipa2.BundleIdentifier, Categories: ipa2.Categories, DisplayName: ipa2.DisplayName},
+		{Name: ipa2.Filename, Platform: "ipados", Version: ipa2.Version, StorageID: ipa2.StorageID, SelfService: ipa2.SelfService, BundleIdentifier: ipa2.BundleIdentifier, Categories: ipa2.Categories, DisplayName: ipa2.DisplayName},
 	})
 
 	// remove ipa1
@@ -907,6 +925,7 @@ func testBatchSetInHouseInstallers(t *testing.T, ds *Datastore) {
 			ValidatedLabels:  &fleet.LabelIdentsWithScope{},
 			BundleIdentifier: ipa2.BundleIdentifier,
 			SelfService:      ipa2.SelfService,
+			DisplayName:      ipa2.DisplayName,
 			CategoryIDs:      ipa2.CategoryIDs,
 		},
 		{
@@ -921,6 +940,7 @@ func testBatchSetInHouseInstallers(t *testing.T, ds *Datastore) {
 			ValidatedLabels:  &fleet.LabelIdentsWithScope{},
 			BundleIdentifier: ipa2.BundleIdentifier,
 			SelfService:      ipa2.SelfService,
+			DisplayName:      ipa2.DisplayName,
 			CategoryIDs:      ipa2.CategoryIDs,
 		},
 	})
@@ -942,11 +962,11 @@ func testBatchSetInHouseInstallers(t *testing.T, ds *Datastore) {
 	}
 
 	assertTitlesAndApps([]fleet.SoftwareTitleListResult{
-		{Name: ipa2.Title, Source: "ios_apps", BundleIdentifier: ptr.String("com.ipa2")},
-		{Name: ipa2.Title, Source: "ipados_apps", BundleIdentifier: ptr.String("com.ipa2")},
+		{Name: ipa2.Title, Source: "ios_apps", BundleIdentifier: ptr.String("com.ipa2"), DisplayName: ipa2.DisplayName},
+		{Name: ipa2.Title, Source: "ipados_apps", BundleIdentifier: ptr.String("com.ipa2"), DisplayName: ipa2.DisplayName},
 	}, []fleet.SoftwareInstaller{
-		{Name: ipa2.Filename, Platform: "ios", Version: ipa2.Version, StorageID: ipa2.StorageID, SelfService: ipa2.SelfService, BundleIdentifier: ipa2.BundleIdentifier, Categories: ipa2.Categories},
-		{Name: ipa2.Filename, Platform: "ipados", Version: ipa2.Version, StorageID: ipa2.StorageID, SelfService: ipa2.SelfService, BundleIdentifier: ipa2.BundleIdentifier, Categories: ipa2.Categories},
+		{Name: ipa2.Filename, Platform: "ios", Version: ipa2.Version, StorageID: ipa2.StorageID, SelfService: ipa2.SelfService, BundleIdentifier: ipa2.BundleIdentifier, Categories: ipa2.Categories, DisplayName: ipa2.DisplayName},
+		{Name: ipa2.Filename, Platform: "ipados", Version: ipa2.Version, StorageID: ipa2.StorageID, SelfService: ipa2.SelfService, BundleIdentifier: ipa2.BundleIdentifier, Categories: ipa2.Categories, DisplayName: ipa2.DisplayName},
 	})
 
 	// add pending and completed installs for ipa2
@@ -972,6 +992,7 @@ func testBatchSetInHouseInstallers(t *testing.T, ds *Datastore) {
 			ValidatedLabels:  &fleet.LabelIdentsWithScope{},
 			BundleIdentifier: ipa2.BundleIdentifier,
 			SelfService:      ipa2.SelfService,
+			DisplayName:      ipa2.DisplayName,
 			CategoryIDs:      ipa2.CategoryIDs,
 		},
 		{
@@ -986,6 +1007,7 @@ func testBatchSetInHouseInstallers(t *testing.T, ds *Datastore) {
 			ValidatedLabels:  &fleet.LabelIdentsWithScope{},
 			BundleIdentifier: ipa2.BundleIdentifier,
 			SelfService:      ipa2.SelfService,
+			DisplayName:      ipa2.DisplayName,
 			CategoryIDs:      ipa2.CategoryIDs,
 		},
 	})
@@ -995,16 +1017,21 @@ func testBatchSetInHouseInstallers(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.Len(t, apps, 2)
 	assertTitlesAndApps([]fleet.SoftwareTitleListResult{
-		{Name: ipa2.Title, Source: "ios_apps", BundleIdentifier: ptr.String("com.ipa2")},
-		{Name: ipa2.Title, Source: "ipados_apps", BundleIdentifier: ptr.String("com.ipa2")},
+		{Name: ipa2.Title, Source: "ios_apps", BundleIdentifier: ptr.String("com.ipa2"), DisplayName: ipa2.DisplayName},
+		{Name: ipa2.Title, Source: "ipados_apps", BundleIdentifier: ptr.String("com.ipa2"), DisplayName: ipa2.DisplayName},
 	}, []fleet.SoftwareInstaller{
-		{Name: ipa2.Filename, Platform: "ios", Version: ipa2.Version, StorageID: ipa2.StorageID, SelfService: ipa2.SelfService, BundleIdentifier: ipa2.BundleIdentifier, Categories: ipa2.Categories},
-		{Name: ipa2.Filename, Platform: "ipados", Version: ipa2.Version, StorageID: ipa2.StorageID, SelfService: ipa2.SelfService, BundleIdentifier: ipa2.BundleIdentifier, Categories: ipa2.Categories},
+		{Name: ipa2.Filename, Platform: "ios", Version: ipa2.Version, StorageID: ipa2.StorageID, SelfService: ipa2.SelfService, BundleIdentifier: ipa2.BundleIdentifier, Categories: ipa2.Categories, DisplayName: ipa2.DisplayName},
+		{Name: ipa2.Filename, Platform: "ipados", Version: ipa2.Version, StorageID: ipa2.StorageID, SelfService: ipa2.SelfService, BundleIdentifier: ipa2.BundleIdentifier, Categories: ipa2.Categories, DisplayName: ipa2.DisplayName},
 	})
 
 	summary, err = ds.GetSummaryHostInHouseAppInstalls(ctx, &team.ID, iosInHouseID2)
 	require.NoError(t, err)
 	require.Equal(t, fleet.VPPAppStatusSummary{Installed: 1, Pending: 1}, *summary)
+
+	ipa2TitleID := apps[0].TitleID
+	name, err := ds.getSoftwareTitleDisplayName(ctx, team.ID, *ipa2TitleID)
+	require.NoError(t, err)
+	require.Equal(t, ipa2.DisplayName, name)
 
 	// remove ipa2 and add ipa1
 	err = ds.BatchSetInHouseAppsInstallers(ctx, &team.ID, []*fleet.UploadSoftwareInstallerPayload{
@@ -1020,6 +1047,7 @@ func testBatchSetInHouseInstallers(t *testing.T, ds *Datastore) {
 			ValidatedLabels:  &fleet.LabelIdentsWithScope{},
 			BundleIdentifier: ipa1.BundleIdentifier,
 			SelfService:      ipa1.SelfService,
+			DisplayName:      ipa1.DisplayName,
 		},
 		{
 			StorageID:        ipa1.StorageID,
@@ -1033,6 +1061,7 @@ func testBatchSetInHouseInstallers(t *testing.T, ds *Datastore) {
 			ValidatedLabels:  &fleet.LabelIdentsWithScope{},
 			BundleIdentifier: ipa1.BundleIdentifier,
 			SelfService:      ipa1.SelfService,
+			DisplayName:      ipa1.DisplayName,
 		},
 	})
 	require.NoError(t, err)
@@ -1053,11 +1082,11 @@ func testBatchSetInHouseInstallers(t *testing.T, ds *Datastore) {
 	}
 
 	assertTitlesAndApps([]fleet.SoftwareTitleListResult{
-		{Name: ipa1.Title, Source: "ios_apps", BundleIdentifier: ptr.String("com.ipa1")},
-		{Name: ipa1.Title, Source: "ipados_apps", BundleIdentifier: ptr.String("com.ipa1")},
+		{Name: ipa1.Title, Source: "ios_apps", BundleIdentifier: ptr.String("com.ipa1"), DisplayName: ipa1.DisplayName},
+		{Name: ipa1.Title, Source: "ipados_apps", BundleIdentifier: ptr.String("com.ipa1"), DisplayName: ipa1.DisplayName},
 	}, []fleet.SoftwareInstaller{
-		{Name: ipa1.Filename, Platform: "ios", Version: ipa1.Version, StorageID: ipa1.StorageID, SelfService: ipa1.SelfService, BundleIdentifier: ipa1.BundleIdentifier},
-		{Name: ipa1.Filename, Platform: "ipados", Version: ipa1.Version, StorageID: ipa1.StorageID, SelfService: ipa1.SelfService, BundleIdentifier: ipa1.BundleIdentifier},
+		{Name: ipa1.Filename, Platform: "ios", Version: ipa1.Version, StorageID: ipa1.StorageID, SelfService: ipa1.SelfService, BundleIdentifier: ipa1.BundleIdentifier, DisplayName: ipa1.DisplayName},
+		{Name: ipa1.Filename, Platform: "ipados", Version: ipa1.Version, StorageID: ipa1.StorageID, SelfService: ipa1.SelfService, BundleIdentifier: ipa1.BundleIdentifier, DisplayName: ipa1.DisplayName},
 	})
 
 	// stats don't report anything about ipa2 anymore
@@ -1071,6 +1100,10 @@ func testBatchSetInHouseInstallers(t *testing.T, ds *Datastore) {
 	pendingHost2, _, err := ds.ListHostUpcomingActivities(ctx, host2.ID, fleet.ListOptions{PerPage: 10})
 	require.NoError(t, err)
 	require.Empty(t, pendingHost2)
+
+	// display names for ipa2 are removed
+	_, err = ds.getSoftwareTitleDisplayName(ctx, team.ID, *ipa2TitleID)
+	require.ErrorContains(t, err, "not found")
 
 	// add pending and completed installs for ipa1
 	completedCmd = createInHouseAppInstallRequest(t, ds, host1.ID, iosInHouseID1, iosTitleID1, user1)
@@ -1569,6 +1602,7 @@ func testSoftwareTitleDisplayNameInHouse(t *testing.T, ds *Datastore) {
 		UserID:           user1.ID,
 		Title:            "foo",
 		BundleIdentifier: "com.foo",
+		Filename:         "foo.ipa",
 		StorageID:        "testingtesting123",
 		Platform:         "ios",
 		Extension:        "ipa",
@@ -1590,8 +1624,208 @@ func testSoftwareTitleDisplayNameInHouse(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 
 	// Delete in-house app, display name should be deleted
-	err = ds.DeleteInHouseApp(ctx, installerID)
-	require.NoError(t, err)
+	require.NoError(t, ds.DeleteInHouseApp(ctx, installerID))
 	_, err = ds.getSoftwareTitleDisplayName(ctx, 0, titleID)
 	require.ErrorContains(t, err, "not found")
+
+	// Delete ipadOS installer
+	var ipadID uint
+	require.NoError(t, sqlx.GetContext(ctx, ds.reader(ctx), &ipadID, `SELECT id FROM in_house_apps LIMIT 1`))
+	require.NoError(t, ds.DeleteInHouseApp(ctx, ipadID))
+
+	// Add ipa, regular installer, vpp with names
+	installerID, titleID, err = ds.MatchOrCreateSoftwareInstaller(ctx, &payload)
+	require.NoError(t, err)
+	err = ds.SaveInHouseAppUpdates(ctx, &fleet.UpdateSoftwareInstallerPayload{
+		TitleID:     titleID,
+		InstallerID: installerID,
+		Filename:    "foo.ipa",
+		Version:     "1.0.0",
+		DisplayName: ptr.String("super foo"),
+	})
+	require.NoError(t, err)
+
+	payloadPkg := fleet.UploadSoftwareInstallerPayload{
+		UserID:           user1.ID,
+		Title:            "bar",
+		Filename:         "bar.pkg",
+		InstallScript:    "echo install",
+		BundleIdentifier: "com.bar",
+		Version:          "1.2.3",
+		ValidatedLabels:  &fleet.LabelIdentsWithScope{},
+	}
+	_, pkgTitleID, err := ds.MatchOrCreateSoftwareInstaller(ctx, &payloadPkg)
+	require.NoError(t, err)
+
+	err = ds.SaveInstallerUpdates(ctx, &fleet.UpdateSoftwareInstallerPayload{
+		DisplayName:       ptr.String("update1"),
+		TitleID:           pkgTitleID,
+		InstallerFile:     &fleet.TempFileReader{},
+		InstallScript:     new(string),
+		PreInstallQuery:   new(string),
+		PostInstallScript: new(string),
+		SelfService:       ptr.Bool(false),
+		UninstallScript:   new(string),
+	})
+	require.NoError(t, err)
+
+	test.CreateInsertGlobalVPPToken(t, ds)
+	_, err = ds.InsertVPPAppWithTeam(ctx, &fleet.VPPApp{
+		VPPAppTeam:       fleet.VPPAppTeam{VPPAppID: fleet.VPPAppID{AdamID: "adam_vpp_1", Platform: "darwin"}, DisplayName: ptr.String("VPP 1")},
+		Name:             "vpp1",
+		BundleIdentifier: "com.app.vpp1",
+	}, nil)
+	require.NoError(t, err)
+
+	getAllDisplayNames := func() []string {
+		var names []string
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			err := sqlx.SelectContext(ctx, q, &names, `SELECT display_name FROM software_title_display_names`)
+			require.NoError(t, err)
+			return nil
+		})
+		return names
+	}
+
+	names := getAllDisplayNames()
+	require.Len(t, names, 3)
+
+	// Batch set in-house apps, previous names should be deleted
+	err = ds.BatchSetInHouseAppsInstallers(ctx, ptr.Uint(0), []*fleet.UploadSoftwareInstallerPayload{
+		{
+			StorageID:        "ipa1storageid",
+			Filename:         "ipa1.ipa",
+			Title:            "App Name",
+			Source:           "ios_apps",
+			Version:          "1.0.0",
+			UserID:           user1.ID,
+			Platform:         "ios",
+			URL:              "https://example.com/1",
+			ValidatedLabels:  &fleet.LabelIdentsWithScope{},
+			BundleIdentifier: "com.ipa1",
+			SelfService:      true,
+			DisplayName:      "Yeehaw",
+		},
+		{
+			StorageID:        "ipa1storageid",
+			Filename:         "ipa1.ipa",
+			Title:            "App Name",
+			Source:           "ipados_apps",
+			Version:          "1.0.0",
+			UserID:           user1.ID,
+			Platform:         "ipados",
+			URL:              "https://example.com/1",
+			ValidatedLabels:  &fleet.LabelIdentsWithScope{},
+			BundleIdentifier: "com.ipa1",
+			SelfService:      true,
+			DisplayName:      "Yeehaw",
+		},
+	})
+	require.NoError(t, err)
+
+	names = getAllDisplayNames()
+	require.Len(t, names, 4)                   // installer and vpp display names aren't deleted
+	require.NotContains(t, names, "super foo") // previous in-house display names are deleted
+
+	// Delete all in-house apps
+	err = ds.BatchSetInHouseAppsInstallers(ctx, ptr.Uint(0), []*fleet.UploadSoftwareInstallerPayload{})
+	require.NoError(t, err)
+	names = getAllDisplayNames()
+	require.Len(t, names, 2)
+}
+
+func testInHouseAppsCancelledOnUnenroll(t *testing.T, ds *Datastore) {
+	ctx := context.WithValue(context.Background(), fleet.ActivityWebhookContextKey, true)
+	test.CreateInsertGlobalVPPToken(t, ds)
+	user := test.NewUser(t, ds, "Alice", "alice@example.com", true)
+
+	// create an mdm enrolled host
+	iosHost, err := ds.NewHost(testCtx(), &fleet.Host{
+		Hostname:       "host1",
+		UUID:           "host1uuid",
+		HardwareSerial: "host1serial",
+		NodeKey:        ptr.String("host1key"),
+		Platform:       string(fleet.IOSPlatform),
+	})
+	require.NoError(t, err)
+	nanoEnroll(t, ds, iosHost, false)
+
+	hosts, err := ds.ListHosts(ctx, fleet.TeamFilter{User: test.UserAdmin}, fleet.HostListOptions{})
+	require.NoError(t, err)
+	require.Len(t, hosts, 1)
+
+	vppApp, err := ds.InsertVPPAppWithTeam(ctx, &fleet.VPPApp{
+		Name: "vpp1", BundleIdentifier: "com.app.vpp1",
+		VPPAppTeam: fleet.VPPAppTeam{VPPAppID: fleet.VPPAppID{AdamID: "adam_vpp_app_1", Platform: fleet.IOSPlatform}},
+	}, nil)
+	require.NoError(t, err)
+
+	payload := fleet.UploadSoftwareInstallerPayload{
+		UserID:           user.ID,
+		BundleIdentifier: "com.foo",
+		Filename:         "foo.ipa",
+		StorageID:        "id1234",
+		Extension:        "ipa",
+		SelfService:      false,
+		ValidatedLabels:  &fleet.LabelIdentsWithScope{},
+	}
+
+	payload2 := payload
+	payload2.BundleIdentifier = "com.bar"
+	payload2.Filename = "bar.ipa"
+	payload2.StorageID = "id5678"
+
+	inHouseAppID, titleID, err := ds.MatchOrCreateSoftwareInstaller(ctx, &payload)
+	require.NoError(t, err)
+	inHouseAppID2, titleID2, err := ds.MatchOrCreateSoftwareInstaller(ctx, &payload2)
+	require.NoError(t, err)
+
+	ipaCmd := createInHouseAppInstallRequest(t, ds, iosHost.ID, inHouseAppID, titleID, user)
+	ipaCmd2 := createInHouseAppInstallRequest(t, ds, iosHost.ID, inHouseAppID2, titleID2, user)
+	vppCmd := createVPPAppInstallRequest(t, ds, iosHost, vppApp.AdamID, user)
+
+	// there should be 3 upcoming activities and 1 pending install
+	checkUpcomingActivities(t, ds, iosHost, ipaCmd, ipaCmd2, vppCmd)
+	summary, err := ds.GetSummaryHostInHouseAppInstalls(ctx, ptr.Uint(0), inHouseAppID)
+	require.NoError(t, err)
+	require.Equal(t, fleet.VPPAppStatusSummary{Installed: 0, Pending: 1, Failed: 0}, *summary)
+
+	// Create activity service for checking past activities
+	activitySvc := NewTestActivityService(t, ds)
+
+	// no past activities yet
+	acts, _, err := activitySvc.ListHostPastActivities(ctx, iosHost.ID, activity_api.ListOptions{})
+	require.NoError(t, err)
+	require.Len(t, acts, 0)
+
+	// turn off MDM for the host
+	users, activitiesToCreate, err := ds.MDMTurnOff(ctx, iosHost.UUID)
+	require.NoError(t, err)
+	for i, act := range activitiesToCreate {
+		// caller's responsibility to create new activities
+		require.NoError(t, ds.NewActivity(ctx, users[i], act, nil, time.Now()))
+	}
+
+	// fleet needs to receive some command result at some
+	// point for it to show up in the install summary
+	createInHouseAppInstallResult(t, ds, iosHost, ipaCmd, "Acknowledged")
+
+	// past activity for the failed install (ordered by created_at DESC - newest first)
+	acts, _, err = activitySvc.ListHostPastActivities(ctx, iosHost.ID, activity_api.ListOptions{})
+	require.NoError(t, err)
+	require.Len(t, acts, 2)
+	// newest: created by createInHouseAppInstallResult with nil user
+	require.Nil(t, acts[0].ActorID)
+	require.Equal(t, acts[0].Type, fleet.ActivityInstalledAppStoreApp{}.ActivityName())
+	// older: created by MDMTurnOff with user
+	require.NotNil(t, acts[1].ActorID)
+	require.Equal(t, *acts[1].ActorID, user.ID)
+	require.Equal(t, acts[1].Type, fleet.ActivityTypeInstalledSoftware{}.ActivityName())
+
+	// there should be no upcoming activities and 1 failed install
+	checkUpcomingActivities(t, ds, iosHost)
+	summary, err = ds.GetSummaryHostInHouseAppInstalls(ctx, ptr.Uint(0), inHouseAppID)
+	require.NoError(t, err)
+	require.Equal(t, fleet.VPPAppStatusSummary{Installed: 0, Pending: 0, Failed: 1}, *summary)
+
 }

@@ -4,7 +4,11 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"io"
+	"os"
 	"strings"
+	"sync/atomic"
+	"time"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/goose"
@@ -14,14 +18,90 @@ import (
 
 var MigrationClient = goose.New("migration_status_tables", goose.MySqlDialect{})
 
+// can override in tests
+var outputTo io.Writer = os.Stderr
+var progressInterval = time.Second * 5
+
+type migrationStep func(tx *sql.Tx) error
+
+func basicMigrationStep(statement string, errorMessage string) migrationStep {
+	return func(tx *sql.Tx) error {
+		_, err := tx.Exec(statement)
+		return errors.Wrap(err, errorMessage)
+	}
+}
+
+type getTotalCountFn func(tx *sql.Tx) (uint64, error)
+type incrementCountFn func()
+type executeWithProgressFn func(tx *sql.Tx, increment incrementCountFn) error
+
+func incrementalMigrationStep(count getTotalCountFn, execute executeWithProgressFn) migrationStep {
+	return func(tx *sql.Tx) error {
+		total, err := count(tx)
+		if err != nil {
+			return err
+		}
+		if total == 0 { // skip no-ops to avoid divide by zero
+			return nil
+		}
+
+		atomicCurrent := atomic.Uint64{}
+
+		// Every five seconds, echo the % progress of the executor
+		// Since we output once the migration step is complete, we need an extra channel to indicate when both the step
+		// and the "step complete" output are com0plete
+		stepComplete := make(chan struct{})
+		outputComplete := make(chan struct{})
+		go func() {
+			ticker := time.NewTicker(progressInterval)
+			defer ticker.Stop()
+			defer close(outputComplete)
+			for {
+				select {
+				case <-stepComplete:
+					_, _ = fmt.Fprint(outputTo, "    100% complete\n")
+					return
+				case <-ticker.C:
+					current := atomicCurrent.Load()
+					if current == total {
+						_, _ = fmt.Fprint(outputTo, "    Almost done...\n")
+					} else {
+						_, _ = fmt.Fprintf(outputTo, "    %d%% complete\n", (100*current)/total)
+					}
+				}
+			}
+		}()
+
+		err = execute(tx, func() {
+			atomicCurrent.Add(1)
+		})
+		close(stepComplete)
+		<-outputComplete // Wait for the goroutine to complete
+		return err
+	}
+}
+
+func withSteps(steps []migrationStep, tx *sql.Tx) error {
+	stepCount := len(steps)
+	for i, step := range steps {
+		if stepCount > 1 {
+			_, _ = fmt.Fprintf(outputTo, "  Step %d of %d\n", i+1, stepCount)
+		}
+		if err := step(tx); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 func fkExists(tx *sql.Tx, table, name string) bool {
 	var count int
 	err := tx.QueryRow(`
 SELECT COUNT(1)
 FROM information_schema.REFERENTIAL_CONSTRAINTS
-WHERE CONSTRAINT_SCHEMA = DATABASE() 
+WHERE CONSTRAINT_SCHEMA = DATABASE()
 AND TABLE_NAME = ?
-AND CONSTRAINT_NAME = ? 
+AND CONSTRAINT_NAME = ?
 	`, table, name).Scan(&count)
 	if err != nil {
 		return false
@@ -35,9 +115,9 @@ func constraintExists(tx *sql.Tx, table, name string) bool {
 	err := tx.QueryRow(`
 SELECT COUNT(1)
 FROM information_schema.TABLE_CONSTRAINTS
-WHERE CONSTRAINT_SCHEMA = DATABASE() 
+WHERE CONSTRAINT_SCHEMA = DATABASE()
 AND TABLE_NAME = ?
-AND CONSTRAINT_NAME = ? 
+AND CONSTRAINT_NAME = ?
 	`, table, name).Scan(&count)
 	if err != nil {
 		return false

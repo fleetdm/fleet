@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"net/url"
 
+	"github.com/fleetdm/fleet/v4/pkg/optjson"
 	"golang.org/x/text/unicode/norm"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
@@ -24,7 +25,7 @@ type listTeamsRequest struct {
 }
 
 type listTeamsResponse struct {
-	Teams []fleet.Team `json:"teams"`
+	Teams []fleet.Team `json:"teams" renameto:"fleets"`
 	Err   error        `json:"error,omitempty"`
 }
 
@@ -61,14 +62,14 @@ type getTeamRequest struct {
 }
 
 type getTeamResponse struct {
-	Team *fleet.Team `json:"team"`
+	Team *fleet.Team `json:"team" renameto:"fleet"`
 	Err  error       `json:"error,omitempty"`
 }
 
 func (r getTeamResponse) Error() error { return r.Err }
 
 type defaultTeamResponse struct {
-	Team *fleet.DefaultTeam `json:"team"`
+	Team *fleet.DefaultTeam `json:"team" renameto:"fleet"`
 	Err  error              `json:"error,omitempty"`
 }
 
@@ -120,7 +121,7 @@ type createTeamRequest struct {
 }
 
 type teamResponse struct {
-	Team *fleet.Team `json:"team,omitempty"`
+	Team *fleet.Team `json:"team,omitempty" renameto:"fleet"`
 	Err  error       `json:"error,omitempty"`
 }
 
@@ -155,6 +156,17 @@ type modifyTeamRequest struct {
 
 func modifyTeamEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*modifyTeamRequest)
+
+	// AppleOSUpdateSettings.UpdateNewHosts is only used in macOS ... so ignore any values sent for iOS/iPadOS
+	if req.TeamPayload.MDM != nil {
+		if req.TeamPayload.MDM.IOSUpdates != nil {
+			req.TeamPayload.MDM.IOSUpdates.UpdateNewHosts = optjson.Bool{}
+		}
+		if req.TeamPayload.MDM.IPadOSUpdates != nil {
+			req.TeamPayload.MDM.IPadOSUpdates.UpdateNewHosts = optjson.Bool{}
+		}
+	}
+
 	team, err := svc.ModifyTeam(ctx, req.ID, req.TeamPayload)
 	if err != nil {
 		return teamResponse{Err: err}, nil
@@ -266,7 +278,7 @@ func (req *applyTeamSpecsRequest) DecodeBody(ctx context.Context, r io.Reader, u
 
 type applyTeamSpecsResponse struct {
 	Err           error           `json:"error,omitempty"`
-	TeamIDsByName map[string]uint `json:"team_ids_by_name,omitempty"`
+	TeamIDsByName map[string]uint `json:"team_ids_by_name,omitempty" renameto:"fleet_ids_by_name"`
 }
 
 func (r applyTeamSpecsResponse) Error() error { return r.Err }
@@ -456,7 +468,7 @@ func (svc *Service) TeamEnrollSecrets(ctx context.Context, teamID uint) ([]*flee
 ////////////////////////////////////////////////////////////////////////////////
 
 type modifyTeamEnrollSecretsRequest struct {
-	TeamID  uint                 `url:"team_id"`
+	TeamID  uint                 `url:"fleet_id"`
 	Secrets []fleet.EnrollSecret `json:"secrets"`
 }
 

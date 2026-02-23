@@ -1,1 +1,0 @@
-* Reduce Android API usage by listing devices instead of getting, and checking Android Enterprise disconnects hourly.

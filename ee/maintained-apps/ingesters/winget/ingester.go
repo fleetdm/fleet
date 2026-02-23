@@ -5,6 +5,7 @@ import (
 	_ "embed"
 	"encoding/json"
 	"fmt"
+	"log/slog"
 	"os"
 	"path"
 	"path/filepath"
@@ -17,14 +18,12 @@ import (
 	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	feednvd "github.com/fleetdm/fleet/v4/server/vulnerabilities/nvd/tools/cvefeed/nvd"
-	kitlog "github.com/go-kit/log"
-	"github.com/go-kit/log/level"
 	"github.com/google/go-github/v37/github"
 	"gopkg.in/yaml.v2"
 )
 
-func IngestApps(ctx context.Context, logger kitlog.Logger, inputsPath string, slugFilter string) ([]*maintained_apps.FMAManifestApp, error) {
-	level.Info(logger).Log("msg", "starting winget app data ingestion")
+func IngestApps(ctx context.Context, logger *slog.Logger, inputsPath string, slugFilter string) ([]*maintained_apps.FMAManifestApp, error) {
+	logger.InfoContext(ctx, "starting winget app data ingestion")
 	// Read from our list of apps we should be ingesting
 	files, err := os.ReadDir(inputsPath)
 	if err != nil {
@@ -47,6 +46,11 @@ func IngestApps(ctx context.Context, logger kitlog.Logger, inputsPath string, sl
 
 	for _, f := range files {
 		if f.IsDir() {
+			continue
+		}
+
+		// Skip non-JSON files (e.g., .DS_Store on macOS)
+		if !strings.HasSuffix(f.Name(), ".json") {
 			continue
 		}
 
@@ -80,7 +84,7 @@ func IngestApps(ctx context.Context, logger kitlog.Logger, inputsPath string, sl
 			continue
 		}
 
-		level.Info(logger).Log("msg", "ingesting winget app", "name", input.Name)
+		logger.InfoContext(ctx, "ingesting winget app", "name", input.Name)
 
 		outApp, err := i.ingestOne(ctx, input)
 		if err != nil {
@@ -96,7 +100,7 @@ func IngestApps(ctx context.Context, logger kitlog.Logger, inputsPath string, sl
 type wingetIngester struct {
 	githubClient *github.Client
 	ghClientOpts *github.RepositoryContentGetOptions
-	logger       kitlog.Logger
+	logger       *slog.Logger
 }
 
 func (i *wingetIngester) ingestOne(ctx context.Context, input inputApp) (*maintained_apps.FMAManifestApp, error) {
@@ -199,7 +203,7 @@ func (i *wingetIngester) ingestOne(ctx context.Context, input inputApp) (*mainta
 	}
 
 	for _, installer := range m.Installers {
-		level.Debug(i.logger).Log("msg", "checking installer", "arch", installer.Architecture, "type", installer.InstallerType, "locale", installer.InstallerLocale, "scope", installer.Scope)
+		i.logger.DebugContext(ctx, "checking installer", "arch", installer.Architecture, "type", installer.InstallerType, "locale", installer.InstallerLocale, "scope", installer.Scope)
 		installerType := m.InstallerType
 		if installerType == "" || isVendorType(installerType) {
 			installerType = installer.InstallerType
@@ -210,12 +214,26 @@ func (i *wingetIngester) ingestOne(ctx context.Context, input inputApp) (*mainta
 			installerType = strings.Trim(filepath.Ext(installer.InstallerURL), ".")
 		}
 
+		// Normalize wix (WiX Toolset) to msi since wix installers are MSI files
+		if installerType == installerTypeWix {
+			installerType = installerTypeMSI
+		}
+
+		// Normalize burn (WiX Burn bootstrapper) to exe since burn produces EXE bundles
+		if installerType == installerTypeBurn {
+			installerType = installerTypeExe
+		}
+
 		scope := m.Scope
 		if scope == "" {
 			scope = installer.Scope
 			if scope == "" {
-				if installerType == installerTypeMSI {
+				switch installerType {
+				case installerTypeMSI:
 					scope = machineScope
+				case installerTypeMSIX, "zip":
+					// AppX/MSIX packages and zip files containing AppX are typically user-scoped
+					scope = userScope
 				}
 			}
 		}
@@ -230,12 +248,25 @@ func (i *wingetIngester) ingestOne(ctx context.Context, input inputApp) (*mainta
 			installer.InstallerLocale = ""
 		}
 
-		if installer.Architecture == input.InstallerArch &&
+		// Check if this installer matches our criteria
+		matches := installer.Architecture == input.InstallerArch &&
 			scope == input.InstallerScope &&
 			installer.InstallerLocale == input.InstallerLocale &&
-			installerType == input.InstallerType {
-			selectedInstaller = &installer
-			break
+			installerType == input.InstallerType
+
+		if matches {
+			// Prefer installers where the URL extension matches the desired installer type
+			// This ensures we select the actual MSI installer over burn (EXE) installers
+			urlExt := strings.Trim(filepath.Ext(installer.InstallerURL), ".")
+			if urlExt == input.InstallerType {
+				// Perfect match - URL extension matches desired type
+				selectedInstaller = &installer
+				break
+			}
+			// Keep as fallback candidate if we haven't found a perfect match yet
+			if selectedInstaller == nil {
+				selectedInstaller = &installer
+			}
 		}
 
 	}
@@ -250,8 +281,8 @@ func (i *wingetIngester) ingestOne(ctx context.Context, input inputApp) (*mainta
 		}
 	}
 
+	var upgradeCode string
 	if (input.InstallerType == installerTypeMSI || input.UninstallType == installerTypeMSI) && input.InstallerScope == machineScope {
-		var upgradeCode string
 		for _, fe := range m.AppsAndFeaturesEntries {
 			if fe.UpgradeCode != "" {
 				upgradeCode = fe.UpgradeCode
@@ -288,6 +319,10 @@ func (i *wingetIngester) ingestOne(ctx context.Context, input inputApp) (*mainta
 	}
 	productCode = strings.Split(productCode, ".")[0]
 
+	if upgradeCode != "" {
+		out.UpgradeCode = upgradeCode
+	}
+
 	out.Name = input.Name
 	out.Slug = input.Slug
 	out.InstallerURL = selectedInstaller.InstallerURL
@@ -306,6 +341,8 @@ func (i *wingetIngester) ingestOne(ctx context.Context, input inputApp) (*mainta
 	if input.UniqueIdentifier != "" {
 		name = input.UniqueIdentifier
 	}
+
+	// TODO - consider UpgradeCode here?
 	existsTemplate := "SELECT 1 FROM programs WHERE name = '%s' AND publisher = '%s';"
 	if input.FuzzyMatchName {
 		existsTemplate = "SELECT 1 FROM programs WHERE name LIKE '%s %%' AND publisher = '%s';"
@@ -350,6 +387,7 @@ var fileTypes = map[string]struct{}{
 	installerTypeMSI:  {},
 	installerTypeMSIX: {},
 	installerTypeExe:  {},
+	"zip":             {},
 }
 
 func isFileType(installerType string) bool {
@@ -446,6 +484,7 @@ const (
 	installerTypeWix      = "wix"
 	installerTypeNullSoft = "nullsoft"
 	installerTypeInno     = "inno"
+	installerTypeBurn     = "burn"
 	arch64Bit             = "x64"
 	arch32Bit             = "x86"
 )

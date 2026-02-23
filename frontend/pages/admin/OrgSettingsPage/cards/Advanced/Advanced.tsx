@@ -55,19 +55,19 @@ const validateFormData = ({
   if (!ssoUserURL) {
     delete errors.ssoUserURL;
   } else if (!validUrl({ url: ssoUserURL })) {
-    errors.ssoUserURL = `${ssoUserURL} is not a valid URL`;
+    errors.ssoUserURL = "SSO user URL is not a valid URL";
   }
 
   if (!mdmAppleServerURL) {
     delete errors.mdmAppleServerURL;
   } else if (!validUrl({ url: mdmAppleServerURL })) {
-    errors.mdmAppleServerURL = `${mdmAppleServerURL} is not a valid URL`;
+    errors.mdmAppleServerURL = "Apple MDM server URL is not a valid URL";
   }
 
   if (!domain) {
     delete errors.domain;
   } else if (!validUrl({ url: domain })) {
-    errors.domain = `${domain} is not a valid URL`;
+    errors.domain = "Domain is not a valid URL";
   }
 
   if (
@@ -409,9 +409,9 @@ const Advanced = ({
                 labelTooltipContent={
                   !disableChildren && (
                     <>
-                      When enabled, disables the ability to run live queries{" "}
+                      When enabled, disables the ability to run live reports{" "}
                       <br />
-                      (ad hoc queries executed via the UI or fleetctl).{" "}
+                      (ad hoc reports executed via the UI or fleetctl).{" "}
                       <em>
                         (Default: <strong>Off</strong>)
                       </em>
@@ -419,7 +419,7 @@ const Advanced = ({
                   )
                 }
               >
-                Disable live queries
+                Disable live reports
               </Checkbox>
             )}
           />
@@ -446,7 +446,7 @@ const Advanced = ({
                     </>
                   )
                 }
-                helpText="Features that run scripts under-the-hood (e.g. software install, lock/wipe) will still be available."
+                helpText="Features that run scripts under-the-hood (e.g. software install, lock/wipe, script-only packages) will still be available."
               >
                 Disable script execution features
               </Checkbox>
@@ -495,13 +495,12 @@ const Advanced = ({
                   !disableChildren && (
                     <>
                       <>
-                        Disabling query reports will decrease database usage,{" "}
-                        <br />
-                        but will prevent you from accessing query results in
+                        Disabling reports will decrease database usage, <br />
+                        but will prevent you from accessing report results in
                         <br />
                         Fleet and will delete existing reports. This can also be{" "}
                         <br />
-                        disabled on a per-query basis by enabling &quot;Discard{" "}
+                        disabled on a per-report basis by enabling &quot;Discard{" "}
                         <br />
                         data&quot;.{" "}
                         <em>
@@ -511,9 +510,9 @@ const Advanced = ({
                     </>
                   )
                 }
-                helpText="Enabling this setting will delete all existing query reports in Fleet."
+                helpText="Enabling this setting will delete all existing reports in Fleet."
               >
-                Disable query reports
+                Disable reports
               </Checkbox>
             )}
           />

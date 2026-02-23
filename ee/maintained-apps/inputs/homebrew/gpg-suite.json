@@ -1,0 +1,9 @@
+{
+  "name": "GPG Suite",
+  "unique_identifier": "org.gpgtools.gpgkeychain",
+  "token": "gpg-suite",
+  "installer_format": "dmg",
+  "slug": "gpg-suite/darwin",
+  "default_categories": ["Productivity"],
+  "uninstall_script_path": "ee/maintained-apps/inputs/homebrew/scripts/gpg-suite-uninstall.sh"
+}

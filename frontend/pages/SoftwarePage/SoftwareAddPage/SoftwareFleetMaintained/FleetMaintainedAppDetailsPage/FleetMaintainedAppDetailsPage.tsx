@@ -107,7 +107,7 @@ const FleetAppSummary = ({
 };
 
 export interface IFleetMaintainedAppDetailsQueryParams {
-  team_id?: string;
+  fleet_id?: string;
 }
 
 interface IFleetMaintainedAppDetailsRouteParams {
@@ -131,7 +131,7 @@ const FleetMaintainedAppDetailsPage = ({
   router,
   routeParams,
 }: IFleetMaintainedAppDetailsPageProps) => {
-  const teamId = location.query.team_id;
+  const teamId = location.query.fleet_id;
   const appId = parseInt(routeParams.id, 10);
   if (isNaN(appId)) {
     router.push(PATHS.SOFTWARE_ADD_FLEET_MAINTAINED);
@@ -178,7 +178,10 @@ const FleetMaintainedAppDetailsPage = ({
     isError: isErrorLabels,
   } = useQuery<ILabelSummary[], Error>(
     ["custom_labels"],
-    () => labelsAPI.summary().then((res) => getCustomLabels(res.labels)),
+    () =>
+      labelsAPI
+        .summary(parseInt(teamId || "0", 10))
+        .then((res) => getCustomLabels(res.labels)),
 
     {
       ...DEFAULT_USE_QUERY_OPTIONS,
@@ -201,7 +204,7 @@ const FleetMaintainedAppDetailsPage = ({
 
   const backToAddSoftwareUrl = getPathWithQueryParams(
     PATHS.SOFTWARE_ADD_FLEET_MAINTAINED,
-    { team_id: teamId }
+    { fleet_id: teamId }
   );
 
   const onCancel = () => {
@@ -226,7 +229,7 @@ const FleetMaintainedAppDetailsPage = ({
         getPathWithQueryParams(
           PATHS.SOFTWARE_TITLE_DETAILS(softwareFmaTitleId.toString()),
           {
-            team_id: teamId,
+            fleet_id: teamId,
           }
         )
       );

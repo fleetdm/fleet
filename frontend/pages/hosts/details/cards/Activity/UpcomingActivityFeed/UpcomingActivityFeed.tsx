@@ -1,8 +1,9 @@
-import React from "react";
+import React, { useContext } from "react";
 
 import { IHostUpcomingActivity } from "interfaces/activity";
 import { IHostUpcomingActivitiesResponse } from "services/entities/activities";
 
+import { AppContext } from "context/app";
 import DataError from "components/DataError";
 import Pagination from "components/Pagination";
 import { ShowActivityDetailsHandler } from "components/ActivityItem/ActivityItem";
@@ -31,6 +32,8 @@ const UpcomingActivityFeed = ({
   onNextPage,
   onPreviousPage,
 }: IUpcomingActivityFeedProps) => {
+  const { isPremiumTier } = useContext(AppContext);
+
   if (isError) {
     return <DataError verticalPaddingSize="pad-large" />;
   }
@@ -45,7 +48,11 @@ const UpcomingActivityFeed = ({
     return (
       <EmptyFeed
         title="No pending activity "
-        message="Pending actions will appear here (scripts, software, lock, and wipe)."
+        message={
+          isPremiumTier
+            ? "Pending actions will appear here (scripts, software, lock, and wipe)."
+            : "Pending script runs will appear here."
+        }
         className={`${baseClass}__empty-feed`}
       />
     );

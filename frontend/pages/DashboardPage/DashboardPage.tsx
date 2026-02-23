@@ -91,7 +91,7 @@ interface IDashboardProps {
     search: string;
     hash?: string;
     query: {
-      team_id?: string;
+      fleet_id?: string;
     };
   };
 }
@@ -632,6 +632,7 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
         router={router}
       />
     ),
+    className: "activity-feed-card",
   });
 
   const SoftwareCard = useInfoCard({

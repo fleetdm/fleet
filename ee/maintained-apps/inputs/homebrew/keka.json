@@ -1,0 +1,8 @@
+{
+  "name": "Keka",
+  "unique_identifier": "com.aone.keka",
+  "token": "keka",
+  "installer_format": "dmg",
+  "slug": "keka/darwin",
+  "default_categories": ["Productivity"]
+}

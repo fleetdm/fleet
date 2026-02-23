@@ -1,0 +1,8 @@
+{
+  "name": "Stats",
+  "unique_identifier": "eu.exelban.Stats",
+  "token": "stats",
+  "installer_format": "dmg",
+  "slug": "stats/darwin",
+  "default_categories": ["Productivity"]
+}

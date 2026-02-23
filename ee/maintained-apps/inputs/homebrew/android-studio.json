@@ -1,0 +1,8 @@
+{
+  "name": "Android Studio",
+  "slug": "android-studio/darwin",
+  "unique_identifier": "com.google.android.studio",
+  "token": "android-studio",
+  "installer_format": "dmg",
+  "default_categories": ["Developer tools"]
+}

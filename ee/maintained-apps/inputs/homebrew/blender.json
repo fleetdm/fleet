@@ -1,0 +1,8 @@
+{
+  "name": "Blender",
+  "unique_identifier": "org.blenderfoundation.blender",
+  "token": "blender",
+  "installer_format": "dmg",
+  "slug": "blender/darwin",
+  "default_categories": ["Productivity"]
+}

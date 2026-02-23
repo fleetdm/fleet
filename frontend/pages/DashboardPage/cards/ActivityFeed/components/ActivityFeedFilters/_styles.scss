@@ -1,0 +1,45 @@
+.activity-feed-filters {
+  display: flex;
+  flex-direction: column;
+  gap: $pad-medium;
+
+  .form-field--dropdown {
+    flex: 1;
+    min-width: 0; // allows the dropdowns to shrink properly in flex container
+  }
+
+  &__dropdown-filters {
+    display: grid;
+    grid-template-areas: "type date sort";
+    grid-template-columns: 4fr 3fr 3fr;
+    gap: $pad-medium;
+  }
+
+  &__type-filter-dropdown {
+    grid-area: type;
+  }
+  &__date-filter-dropdown {
+    grid-area: date;
+  }
+  &__sort-created-at-dropdown {
+    grid-area: sort;
+  }
+}
+
+// we check the container of the whole activity card to adjust the filter layout.
+// this container is defined in the dashboard page .scss file
+@container activity-feed-card (width < 436px) {
+  .activity-feed-filters__dropdown-filters {
+    grid-template-columns: repeat(2, 1fr);
+    grid-template-areas:
+      "type type"
+      "date sort";
+
+    margin-bottom: $pad-large;
+  }
+
+  // this is needed to make the activity type dropdown full width in the 2-column layout
+  .activity-feed-filters__type-filter-dropdown .activity-type-select__menu {
+    width: 100%;
+  }
+}

@@ -1,0 +1,145 @@
+package com.fleetdm.agent.scep
+
+import com.fleetdm.agent.GetCertificateTemplateResponse
+import com.fleetdm.agent.IntegrationTest
+import com.fleetdm.agent.IntegrationTestRule
+import com.fleetdm.agent.testutil.TestCertificateTemplateFactory
+import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNotNull
+import org.junit.Assert.assertTrue
+import org.junit.Assert.fail
+import org.junit.Before
+import org.junit.Rule
+import org.junit.Test
+import kotlinx.coroutines.test.runTest
+
+/**
+ * Integration tests for ScepClientImpl with a real SCEP server.
+ *
+ * These tests only run when explicitly enabled:
+ * - Local: ./gradlew test -PrunIntegrationTests=true
+ * - CI: ./gradlew test -PrunIntegrationTests=true
+ *
+ * Requirements:
+ * 1. A test SCEP server is available
+ * 2. Test credentials are configured
+ * 3. Network connectivity is available
+ *
+ * Configure SCEP server:
+ * ./gradlew test -PrunIntegrationTests=true \
+ *   -Pscep.url=https://your-scep-server.com/scep \
+ *   -Pscep.challenge=your-challenge
+ */
+class ScepIntegrationTest {
+
+    @get:Rule
+    val integrationTestRule = IntegrationTestRule()
+
+    private lateinit var scepClient: ScepClientImpl
+    private lateinit var testTemplate: GetCertificateTemplateResponse
+    private lateinit var testScepUrl: String
+
+    @Before
+    fun setup() {
+        scepClient = ScepClientImpl()
+
+        // Use placeholder values for non-integration tests, real values provided by build config for integration tests
+        testScepUrl = System.getProperty("scep.url") ?: "https://scep.example.com/scep"
+        val challenge = System.getProperty("scep.challenge") ?: "test-challenge"
+
+        // Generate unique subject DN to avoid duplicates on SCEP server
+        val uniqueId = System.currentTimeMillis()
+        testTemplate = TestCertificateTemplateFactory.create(
+            scepChallenge = challenge,
+            name = "integration-test-cert-$uniqueId",
+            subjectName = "CN=IntegrationTestDevice-$uniqueId,O=FleetDM,C=US",
+        )
+    }
+
+    @IntegrationTest
+    @Test
+    fun `successful enrollment with real SCEP server`() = runTest {
+        // This test requires a real SCEP server with auto-approval
+        val result = scepClient.enroll(testTemplate, testScepUrl)
+
+        // Verify result structure
+        assertNotNull("Private key should not be null", result.privateKey)
+        assertTrue("Certificate chain should not be empty", result.certificateChain.isNotEmpty())
+
+        // Verify private key
+        assertEquals("Private key algorithm should be RSA", "RSA", result.privateKey.algorithm)
+        assertNotNull("Private key encoded form should not be null", result.privateKey.encoded)
+
+        // Verify certificate
+        val leafCert = result.certificateChain[0] as java.security.cert.X509Certificate
+        assertEquals("Certificate type should be X.509", "X.509", leafCert.type)
+        assertNotNull("Certificate subject should not be null", leafCert.subjectX500Principal)
+    }
+
+    @IntegrationTest
+    @Test
+    fun `enrollment with invalid challenge fails`() = runTest {
+        val invalidTemplate = testTemplate.copy(scepChallenge = "invalid-challenge-that-should-fail")
+
+        try {
+            scepClient.enroll(invalidTemplate, testScepUrl)
+            fail("Expected ScepEnrollmentException for invalid challenge")
+        } catch (e: ScepEnrollmentException) {
+            // Expected - enrollment should fail with invalid challenge
+            assertNotNull("Exception should have a message", e.message)
+        }
+    }
+
+    @IntegrationTest
+    @Test
+    fun `enrollment with different key sizes`() = runTest {
+        val keySizes = listOf(2048, 3072, 4096)
+
+        keySizes.forEach { keySize ->
+            val uniqueId = System.currentTimeMillis()
+            val template = TestCertificateTemplateFactory.create(
+                scepChallenge = testTemplate.scepChallenge ?: "test-challenge",
+                name = "test-cert-$keySize-$uniqueId",
+                subjectName = "CN=IntegrationTestDevice-$keySize-$uniqueId,O=FleetDM,C=US",
+                keyLength = keySize,
+            )
+
+            val result = scepClient.enroll(template, testScepUrl)
+
+            assertNotNull("Private key should not be null for key size $keySize", result.privateKey)
+        }
+    }
+
+    @IntegrationTest
+    @Test
+    fun `enrollment performance test`() = runTest {
+        val startTime = System.currentTimeMillis()
+
+        val result = scepClient.enroll(testTemplate, testScepUrl)
+
+        val duration = System.currentTimeMillis() - startTime
+
+        assertNotNull(result)
+
+        // Typical SCEP enrollment should complete within 30 seconds
+        assertTrue("Enrollment should complete within 30 seconds (took ${duration}ms)", duration < 30000)
+    }
+
+    @Test
+    fun `enrollment with unreachable server fails quickly`() = runTest {
+        val unreachableUrl = "https://unreachable-scep-server.invalid/scep"
+
+        val startTime = System.currentTimeMillis()
+
+        try {
+            scepClient.enroll(testTemplate, unreachableUrl)
+            fail("Expected ScepNetworkException")
+        } catch (e: ScepNetworkException) {
+            val duration = System.currentTimeMillis() - startTime
+
+            // Should fail within reasonable timeout
+            assertTrue("Should fail within 30 seconds (took ${duration}ms)", duration < 30000)
+            assertNotNull("Exception should have a message", e.message)
+        }
+    }
+}

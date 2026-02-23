@@ -1,0 +1,8 @@
+{
+  "name": "DB Browser for SQLite",
+  "unique_identifier": "com.sqlitebrowser.sqlitebrowser",
+  "token": "db-browser-for-sqlite",
+  "installer_format": "dmg",
+  "slug": "db-browser-for-sqlite/darwin",
+  "default_categories": ["Developer tools"]
+}

@@ -12,6 +12,8 @@ import (
 	"github.com/fleetdm/fleet/v4/server"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/platform/endpointer"
+	"github.com/fleetdm/fleet/v4/server/ptr"
 	kithttp "github.com/go-kit/kit/transport/http"
 	kitlog "github.com/go-kit/log"
 	"github.com/go-kit/log/level"
@@ -40,8 +42,6 @@ func NewActivityModule(repo ActivityStore, logger kitlog.Logger) ActivityModule 
 	}
 }
 
-var automationActivityAuthor = "Fleet"
-
 func (a *activityModule) NewActivity(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails) error {
 	appConfig, err := a.repo.AppConfig(ctx)
 	if err != nil {
@@ -51,6 +51,11 @@ func (a *activityModule) NewActivity(ctx context.Context, user *fleet.User, acti
 	detailsBytes, err := json.Marshal(activity)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "marshaling activity details")
+	}
+	// Duplicate JSON keys so that stored activity details include both the
+	// old and new field names (e.g. team_id and fleet_id).
+	if rules := endpointer.ExtractAliasRules(activity); len(rules) > 0 {
+		detailsBytes = endpointer.DuplicateJSONKeys(detailsBytes, rules, endpointer.DuplicateJSONKeysOpts{Compact: true})
 	}
 	timestamp := time.Now()
 
@@ -71,7 +76,7 @@ func (a *activityModule) NewActivity(ctx context.Context, user *fleet.User, acti
 			userName = &user.Name
 			userEmail = &user.Email
 		} else if automatableActivity, ok := activity.(fleet.AutomatableActivity); ok && automatableActivity.WasFromAutomation() {
-			userName = &automationActivityAuthor
+			userName = ptr.String(fleet.ActivityAutomationAuthor)
 		}
 
 		// TODO: webhook module? probably webhook job too tbh since this isn't very resilient

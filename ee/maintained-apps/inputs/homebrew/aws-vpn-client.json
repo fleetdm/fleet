@@ -1,0 +1,8 @@
+{
+  "name": "AWS Client VPN",
+  "unique_identifier": "com.amazonaws.acvc.osx",
+  "token": "aws-vpn-client",
+  "installer_format": "pkg",
+  "slug": "aws-vpn-client/darwin",
+  "default_categories": ["Productivity"]
+}

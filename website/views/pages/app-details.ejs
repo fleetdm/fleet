@@ -17,7 +17,7 @@
             <div class="d-flex flex-column">
               <h2 purpose="app-name"><%- thisApp.name %></h2>
               <div purpose="platform-and-version" class="d-flex flex-row">
-                  <p>macOS | <%- thisApp.version %></p>
+                  <p><%- thisApp.platform === 'darwin' ? 'macOS' : 'Windows' %> | <%- thisApp.version %></p>
               </div>
             </div>
           </div>
@@ -33,7 +33,11 @@
           </div>
           <div purpose="app-uninstall">
             <h3>Uninstall <%- thisApp.name %></h3>
-            <p>Run the following command in your terminal to uninstall <%- thisApp.name %>:</p>
+            <%if(thisApp.platform === 'darwin'){%>
+              <p>Run the following command in your terminal to uninstall <%- thisApp.name %>:</p>
+            <% } else if(thisApp.platform === 'windows'){%>
+              <p>Run the following script in Powershell to uninstall <%- thisApp.name %>:</p>
+            <% }%>
             <div purpose="codeblock">
               <div purpose="copy-button"></div>
               <pre><code class="hljs bash"><%= thisApp.uninstallScript %></code></pre>
@@ -44,7 +48,11 @@
             <p>Run this query in Fleet to find old versions of <%- thisApp.name %> across all your computers:</p>
             <div purpose="codeblock">
               <div purpose="copy-button"></div>
+              <% if(thisApp.platform === 'darwin'){%>
               <pre><code class="hljs sql">SELECT 1 FROM apps WHERE bundle_identifier = '<%= thisApp.bundleIdentifier %>' AND bundle_short_version <= '<%- thisApp.version %>';</code></pre>
+              <% } else {%>
+              <pre><code class="hljs sql">SELECT 1 FROM programs WHERE name = '<%= thisApp.bundleIdentifier %>' AND version <= '<%- thisApp.version %>';</code></pre>
+              <% }%>
             </div>
           </div>
         </div>
@@ -67,6 +75,5 @@
       </div>
     </div>
   </div>
-  <signup-modal></signup-modal>
 </div>
 <%- /* Expose server-rendered data as window.SAILS_LOCALS :: */ exposeLocalsToBrowser() %>

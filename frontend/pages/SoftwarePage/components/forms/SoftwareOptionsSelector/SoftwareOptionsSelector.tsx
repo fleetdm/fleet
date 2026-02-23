@@ -6,6 +6,7 @@ import InfoBanner from "components/InfoBanner";
 import CustomLink from "components/CustomLink";
 import { LEARN_MORE_ABOUT_BASE_LINK } from "utilities/constants";
 
+import paths from "router/paths";
 import { getSelfServiceTooltip } from "pages/SoftwarePage/helpers";
 import { ISoftwareVppFormData } from "pages/SoftwarePage/components/forms/SoftwareVppForm/SoftwareVppForm";
 import { IFleetMaintainedAppFormData } from "pages/SoftwarePage/SoftwareAddPage/SoftwareFleetMaintained/FleetMaintainedAppDetailsPage/FleetAppDetailsForm/FleetAppDetailsForm";
@@ -142,7 +143,7 @@ const SoftwareOptionsSelector = ({
       return (
         <>
           Fleet can&apos;t create a policy to detect existing installations of
-          payload-free packages. To automatically install these packages, add a
+          script-only packages. To automatically install these packages, add a
           custom policy and enable the install software automation on the{" "}
           <b>Policies</b> page.
         </>
@@ -158,9 +159,15 @@ const SoftwareOptionsSelector = ({
     if (isPlatformAndroid) {
       return (
         <p>
-          Currently, Android apps can only be added as self-service and end user
-          can install them from <strong>Play Store</strong> in their work
-          profile{" "}
+          Currently, Android apps can only be added as self-service and the end
+          user can install them from the <strong>Play Store</strong> in their
+          work profile. Additionally, you can install it when hosts enroll on
+          the{" "}
+          <CustomLink
+            url={paths.CONTROLS_INSTALL_SOFTWARE("android")}
+            text="Setup experience"
+          />{" "}
+          page.
         </p>
       );
     }
@@ -217,7 +224,7 @@ const SoftwareOptionsSelector = ({
         <InfoBanner color="yellow">
           Installing software over existing installations might cause issues.
           Fleet&apos;s policy may not detect these existing installations.
-          Please create a test team in Fleet to verify a smooth installation.{" "}
+          Please create a test fleet in Fleet to verify a smooth installation.{" "}
           <CustomLink
             url={`${LEARN_MORE_ABOUT_BASE_LINK}/query-templates-for-automatic-software-install`}
             text="Learn more"

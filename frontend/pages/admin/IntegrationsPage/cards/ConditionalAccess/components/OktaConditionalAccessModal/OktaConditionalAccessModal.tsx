@@ -7,7 +7,6 @@ import { AppContext } from "context/app";
 import configAPI from "services/entities/config";
 import conditionalAccessAPI from "services/entities/conditional_access";
 import { IConfig } from "interfaces/config";
-import endpoints from "utilities/endpoints";
 
 // @ts-ignore
 import InputField from "components/forms/fields/InputField";
@@ -40,10 +39,10 @@ interface IFormData {
 }
 
 interface IFormErrors {
-  [OKTA_IDP_ID]?: string | null;
-  [OKTA_ACS_URL]?: string | null;
-  [OKTA_AUDIENCE_URI]?: string | null;
-  [OKTA_CERTIFICATE]?: string | null;
+  [OKTA_IDP_ID]?: string;
+  [OKTA_ACS_URL]?: string;
+  [OKTA_AUDIENCE_URI]?: string;
+  [OKTA_CERTIFICATE]?: string;
 }
 
 const validate = (formData: IFormData) => {
@@ -60,18 +59,18 @@ const validate = (formData: IFormData) => {
     errs[OKTA_IDP_ID] = `IdP ID must be ${maxURLLength} characters or less`;
   }
 
-  // Assertion Consumer Service URL validation
+  // Assertion consumer service URL validation
   if (!formData[OKTA_ACS_URL] || !formData[OKTA_ACS_URL].trim()) {
-    errs[OKTA_ACS_URL] = "Assertion Consumer Service URL must be present";
+    errs[OKTA_ACS_URL] = "Assertion consumer service URL must be present";
   } else if (formData[OKTA_ACS_URL].length > maxURLLength) {
     errs[
       OKTA_ACS_URL
-    ] = `Assertion Consumer Service URL must be ${maxURLLength} characters or less`;
+    ] = `Assertion consumer service URL must be ${maxURLLength} characters or less`;
   } else if (
     !valid_url({ url: formData[OKTA_ACS_URL], protocols: ["http", "https"] })
   ) {
     errs[OKTA_ACS_URL] =
-      "Assertion Consumer Service URL must be a valid URL with http or https scheme and a host";
+      "Assertion consumer service URL must be a valid URL with http or https scheme and a host";
   }
 
   // Audience URI validation
@@ -145,6 +144,26 @@ const OktaConditionalAccessModal = ({
       },
     }
   );
+
+  const [isDownloadingCert, setIsDownloadingCert] = useState(false);
+
+  const onDownloadSigningCert = useCallback(async () => {
+    setIsDownloadingCert(true);
+    try {
+      const blob = await conditionalAccessAPI.getIdpSigningCert();
+      const url = URL.createObjectURL(blob);
+      const downloadLink = document.createElement("a");
+      downloadLink.href = url;
+      downloadLink.download = "fleet-idp-signing-cert.pem";
+      downloadLink.click();
+      downloadLink.remove();
+      URL.revokeObjectURL(url);
+    } catch (e: unknown) {
+      renderFlash("error", "Failed to download signing certificate.");
+    } finally {
+      setIsDownloadingCert(false);
+    }
+  }, [renderFlash]);
 
   const onSubmit = async (evt: React.FormEvent<HTMLFormElement>) => {
     evt.preventDefault();
@@ -288,15 +307,14 @@ const OktaConditionalAccessModal = ({
               Identity provider (IdP) signature certificate
             </TooltipWrapper>
             <br />
-            <a
-              href={endpoints.CONDITIONAL_ACCESS_IDP_SIGNING_CERT}
-              download="fleet-idp-signing-certificate.pem"
-              className="button button--inverse"
+            <Button
+              variant="inverse"
+              onClick={onDownloadSigningCert}
+              isLoading={isDownloadingCert}
+              disabled={isDownloadingCert}
             >
-              <div className="children-wrapper">
-                Download certificate <Icon name="download" />
-              </div>
-            </a>
+              Download certificate <Icon name="download" />
+            </Button>
           </div>
 
           {/* User Scope Profile */}
@@ -342,35 +360,23 @@ const OktaConditionalAccessModal = ({
             onBlur={onInputBlur}
             error={formErrors[OKTA_AUDIENCE_URI]}
           />
-
-          {/* Certificate file uploader with inline validation error display.
-              Note: This is a custom pattern - FileUploader doesn't have built-in error prop like InputField.
-              Other FileUploader usages in the codebase use flash notifications instead of inline errors,
-              but this form requires field-level validation consistency with the InputFields above. */}
-          <div className={`${baseClass}__file-uploader-wrapper`}>
-            {formErrors[OKTA_CERTIFICATE] && (
-              <span className={`${baseClass}__file-uploader-error`}>
-                {formErrors[OKTA_CERTIFICATE]}
-              </span>
-            )}
-            <FileUploader
-              graphicName="file-pem"
-              title="Okta certificate"
-              message={
-                <>
-                  Upload the certificate provided by Okta during the{" "}
-                  <strong>Set Up Authenticator</strong> workflow
-                </>
-              }
-              onFileUpload={onSelectFile}
-              buttonType="brand-inverse-icon"
-              buttonMessage="Upload"
-              accept=".pem,.crt,.cer,.cert"
-              fileDetails={certFile ? { name: certFile.name } : undefined}
-              onDeleteFile={onDeleteFile}
-            />
-          </div>
-
+          <FileUploader
+            graphicName="file-pem"
+            title="Okta certificate"
+            message={
+              <>
+                Upload the certificate provided by Okta during the{" "}
+                <strong>Set Up Authenticator</strong> workflow
+              </>
+            }
+            internalError={formErrors[OKTA_CERTIFICATE]}
+            onFileUpload={onSelectFile}
+            buttonType="brand-inverse-icon"
+            buttonMessage="Upload"
+            accept=".pem,.crt,.cer,.cert"
+            fileDetails={certFile ? { name: certFile.name } : undefined}
+            onDeleteFile={onDeleteFile}
+          />
           <div className="modal-cta-wrap">
             <Button
               type="submit"

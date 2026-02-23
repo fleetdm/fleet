@@ -9,12 +9,15 @@ import (
 
 	"github.com/briandowns/spinner"
 	"github.com/fleetdm/fleet/v4/server/config"
+	"github.com/fleetdm/fleet/v4/server/platform/logging"
 	"github.com/fleetdm/fleet/v4/server/shellquote"
-	kitlog "github.com/go-kit/log"
-	"github.com/go-kit/log/level"
 	_ "github.com/go-sql-driver/mysql"
 	"github.com/spf13/cobra"
+	"go.opentelemetry.io/otel"
+	otelsdklog "go.opentelemetry.io/otel/sdk/log"
 )
+
+var tracer = otel.Tracer("github.com/fleetdm/fleet/v4/cmd/fleet")
 
 func init() {
 	rand.Seed(time.Now().UnixNano())
@@ -93,57 +96,55 @@ wish to override the default value.
 }
 
 func applyDevFlags(cfg *config.FleetConfig) {
-	cfg.Mysql.Username = "fleet"
-	cfg.Mysql.Database = "fleet"
-	cfg.Mysql.Password = "insecure"
-
-	if cfg.Prometheus.BasicAuth.Username == "" {
-		cfg.Prometheus.BasicAuth.Username = "fleet"
-	}
-	if cfg.Prometheus.BasicAuth.Password == "" {
-		cfg.Prometheus.BasicAuth.Password = "insecure"
+	// set database and object storage configs to work with local docker-compose setup if a given value is missing
+	setIfEmpty := func(target *string, value string) {
+		if *target == "" {
+			*target = value
+		}
 	}
 
-	// Allow the carves bucket to be overridden in dev mode
-	if cfg.S3.CarvesBucket == "" {
-		cfg.S3.CarvesBucket = "carves-dev"
-		cfg.S3.CarvesRegion = "minio"
-		cfg.S3.CarvesPrefix = "dev-prefix"
-		cfg.S3.CarvesEndpointURL = "http://localhost:9000"
-		cfg.S3.CarvesAccessKeyID = "minio"
-		cfg.S3.CarvesSecretAccessKey = "minio123!"
+	// We don't set defaults for database and username here because there are already defaults in config.go
+	// that match our default dev setup.
+	setIfEmpty(&cfg.Mysql.Password, "insecure")
+
+	setIfEmpty(&cfg.Prometheus.BasicAuth.Username, "fleet")
+	setIfEmpty(&cfg.Prometheus.BasicAuth.Password, "insecure")
+
+	setIfEmpty(&cfg.S3.CarvesBucket, "carves-dev")
+	setIfEmpty(&cfg.S3.CarvesRegion, "localhost")
+	setIfEmpty(&cfg.S3.CarvesPrefix, "dev-prefix")
+	setIfEmpty(&cfg.S3.CarvesEndpointURL, "http://localhost:9000")
+	setIfEmpty(&cfg.S3.CarvesAccessKeyID, "locals3")
+	setIfEmpty(&cfg.S3.CarvesSecretAccessKey, "locals3")
+	if cfg.S3.CarvesAccessKeyID == "locals3" && cfg.S3.CarvesSecretAccessKey == "locals3" {
+		// can't rely on zero values
 		cfg.S3.CarvesDisableSSL = true
 		cfg.S3.CarvesForceS3PathStyle = true
 	}
 
-	// Allow the software installers bucket to be overridden in dev mode
-	if cfg.S3.SoftwareInstallersBucket == "" {
-		cfg.S3.SoftwareInstallersBucket = "software-installers-dev"
-		cfg.S3.SoftwareInstallersRegion = "minio"
-		cfg.S3.SoftwareInstallersPrefix = "dev-prefix"
-		cfg.S3.SoftwareInstallersEndpointURL = "http://localhost:9000"
-		cfg.S3.SoftwareInstallersAccessKeyID = "minio"
-		cfg.S3.SoftwareInstallersSecretAccessKey = "minio123!"
+	setIfEmpty(&cfg.S3.SoftwareInstallersBucket, "software-installers-dev")
+	setIfEmpty(&cfg.S3.SoftwareInstallersRegion, "localhost")
+	setIfEmpty(&cfg.S3.SoftwareInstallersPrefix, "dev-prefix")
+	setIfEmpty(&cfg.S3.SoftwareInstallersEndpointURL, "http://localhost:9000")
+	setIfEmpty(&cfg.S3.SoftwareInstallersAccessKeyID, "locals3")
+	setIfEmpty(&cfg.S3.SoftwareInstallersSecretAccessKey, "locals3")
+	if cfg.S3.SoftwareInstallersAccessKeyID == "locals3" && cfg.S3.SoftwareInstallersSecretAccessKey == "locals3" {
+		// can't rely on zero values
 		cfg.S3.SoftwareInstallersDisableSSL = true
 		cfg.S3.SoftwareInstallersForceS3PathStyle = true
 	}
 }
 
-func initLogger(cfg config.FleetConfig) kitlog.Logger {
-	var logger kitlog.Logger
-	{
-		output := os.Stderr
-		if cfg.Logging.JSON {
-			logger = kitlog.NewJSONLogger(output)
-		} else {
-			logger = kitlog.NewLogfmtLogger(output)
-		}
-		if cfg.Logging.Debug {
-			logger = level.NewFilter(logger, level.AllowDebug())
-		} else {
-			logger = level.NewFilter(logger, level.AllowInfo())
-		}
-		logger = kitlog.With(logger, "ts", kitlog.DefaultTimestampUTC)
-	}
-	return logger
+// initLogger creates a *Logger backed by slog.
+// Returning the concrete type allows callers to access the underlying
+// slog.Logger via SlogLogger() when needed for migrated packages.
+func initLogger(cfg config.FleetConfig, loggerProvider *otelsdklog.LoggerProvider) *logging.Logger {
+	slogLogger := logging.NewSlogLogger(logging.Options{
+		JSON:            cfg.Logging.JSON,
+		Debug:           cfg.Logging.Debug,
+		TracingEnabled:  cfg.Logging.TracingEnabled,
+		OtelLogsEnabled: cfg.Logging.OtelLogsEnabled,
+		LoggerProvider:  loggerProvider,
+	})
+	return logging.NewLogger(slogLogger)
 }

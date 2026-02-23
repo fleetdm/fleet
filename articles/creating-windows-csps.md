@@ -200,15 +200,15 @@ How to get the CSP from Intune and format it as a configuration profile for Flee
 
 2. Find the correct `<Data>` block, by logging into a Windows host enrolled to Intune, opening the Registry Editor, and heading to `HKLM:\SOFTWARE\Microsoft\Provisioning\NodeCache\CSP\Device\MS DM Server\Nodes`. Then, search for the `settingDefinitionId` (CSP) from your list in step 2:
  - The `NodeURI` of the Registry key will be the `LocURI` in the CSP XML
- - The `ExpectedValue` of the Registry key will be the `<Data>` block in the CSP XML[^1]
+ - The `ExpectedValue` of the Registry key will be the `<Data>` block in the CSP XML
+
+> If the `ExpectedValue` returns just an integer, then change the `<Data>` block just the integer (ex: `ExpectedValue = 1` then `<Data>1</Data>`) and change `<Format xmlns="syncml:metinf">chr</Format>` to `<Format xmlns="syncml:metinf">int</Format>`.
 
 Alternatively, you can use this PowerShell one-liner to get the CSPs from the Windows Registry, which you can script together to loop through every CSP:
 
   ```powershell
   $inputString = "disablefirstrunwizard"; Get-ChildItem -Path 'HKLM:\SOFTWARE\Microsoft\Provisioning\NodeCache\CSP\Device\MS DM Server\Nodes' -Recurse | Get-ItemProperty | Where-Object { $_.NodeUri -like "*$inputString*" } | Select-Object NodeUri, ExpectedValue | Format-List
   ```
-
-[^1]: If the `ExpectedValue` returns just an integer, then change the `<Data>` block just the integer (ex: `ExpectedValue = 1` then `<Data>1</Data>`) and change `<Format xmlns="syncml:metinf">chr</Format>` to `<Format xmlns="syncml:metinf">int</Format>`.
 
 ## Debugging
 
@@ -231,6 +231,8 @@ Get-WinEvent -FilterHashtable @{LogName='Microsoft-Windows-DeviceManagement-Ente
 ```
 
 [This](https://blog.mindcore.dk/2022/09/intune-error-codes-and-solutions/) blog post can also help you translate error codes that are present here.
+
+> If you encounter the error: "The MDM protocol returned a success but the result couldn’t be verified by osquery", and the profile includes `[!CDATA []]` sections, [escape the XML](https://www.freeformatter.com/xml-escape.html) instead of using CDATA. For example, `[!CDATA[<enabled/>]]>` should be changed to `&lt;enabled/&gt;`.
 
 
 ## Conclusion

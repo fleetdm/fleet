@@ -6,6 +6,7 @@ const DEFAULT_CONFIG_MDM_MOCK: IMdmConfig = {
   windows_require_bitlocker_pin: false,
   enable_turn_on_windows_mdm_manually: false,
   windows_enabled_and_configured: true,
+  windows_entra_tenant_ids: [],
   apple_bm_default_team: "Apples",
   apple_bm_enabled_and_configured: true,
   apple_bm_terms_expired: false,
@@ -206,8 +207,13 @@ const DEFAULT_CONFIG_MOCK: IConfig = {
   features: {
     enable_host_users: true,
     enable_software_inventory: true,
+    enable_conditional_access: true,
+    enable_conditional_access_bypass: true,
   },
-  fleet_desktop: { transparency_url: "https://fleetdm.com/transparency" },
+  fleet_desktop: {
+    transparency_url: "https://fleetdm.com/transparency",
+    alternative_browser_host: "",
+  },
   mdm: createMockMdmConfig(),
   gitops: {
     gitops_mode_enabled: false,

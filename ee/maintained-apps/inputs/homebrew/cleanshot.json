@@ -1,0 +1,8 @@
+{
+  "name": "CleanShot X",
+  "unique_identifier": "com.getcleanshot.app",
+  "token": "cleanshot",
+  "installer_format": "dmg",
+  "slug": "cleanshot/darwin",
+  "default_categories": ["Productivity"]
+}

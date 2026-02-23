@@ -31,14 +31,15 @@ func (svc *Service) CreateInitialUser(ctx context.Context, p fleet.UserPayload) 
 }
 
 func (svc *Service) NewUser(ctx context.Context, p fleet.UserPayload) (*fleet.User, error) {
-	license, _ := license.FromContext(ctx)
-	if license == nil {
+	licChecker, _ := license.FromContext(ctx)
+	lic, _ := licChecker.(*fleet.LicenseInfo)
+	if lic == nil {
 		return nil, ctxerr.New(ctx, "license not found")
 	}
-	if err := fleet.ValidateUserRoles(true, p, *license); err != nil {
+	if err := fleet.ValidateUserRoles(true, p, *lic); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "validate role")
 	}
-	if !license.IsPremium() {
+	if !lic.IsPremium() {
 		p.MFAEnabled = ptr.Bool(false)
 	}
 

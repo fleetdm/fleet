@@ -1,9 +1,10 @@
-import React, { useCallback, useState } from "react";
+import React, { useCallback } from "react";
 import { useQuery } from "react-query";
 import { AxiosError } from "axios";
 import { Tab, TabList, TabPanel, Tabs } from "react-tabs";
 
 import PATHS from "router/paths";
+import { getPathWithQueryParams } from "utilities/url";
 
 import mdmAPI, {
   IGetSetupExperienceSoftwareResponse,
@@ -23,15 +24,15 @@ import {
 } from "interfaces/platform";
 
 import SectionHeader from "components/SectionHeader";
+import PageDescription from "components/PageDescription";
 import DataError from "components/DataError";
 import Spinner from "components/Spinner";
 import TabNav from "components/TabNav";
 import TabText from "components/TabText";
-import TurnOnMdmMessage from "components/TurnOnMdmMessage";
+import GenericMsgWithNavButton from "components/GenericMsgWithNavButton";
 import CustomLink from "components/CustomLink";
 
-import AddInstallSoftware from "./components/AddInstallSoftware";
-import SelectSoftwareModal from "./components/SelectSoftwareModal";
+import InstallSoftwareForm from "./components/InstallSoftwareForm";
 import SetupExperienceContentContainer from "../../components/SetupExperienceContentContainer";
 import { ISetupExperienceCardProps } from "../../SetupExperienceNavItems";
 import getManualAgentInstallSetting from "../../helpers";
@@ -48,12 +49,12 @@ export const PLATFORM_BY_INDEX: SetupExperiencePlatform[] = [
   "linux",
   "ios",
   "ipados",
+  "android",
 ];
 export interface InstallSoftwareLocation {
-  search: string;
   pathname: string;
   query: {
-    team_id?: string;
+    fleet_id?: string;
   };
 }
 
@@ -66,8 +67,6 @@ const InstallSoftware = ({
 
   // all uses of selectedPlatform are gated by above boolean
   const selectedPlatform = urlPlatformParam as SetupExperiencePlatform;
-
-  const [showSelectSoftwareModal, setShowSelectSoftwareModal] = useState(false);
 
   const {
     data: softwareTitles,
@@ -115,9 +114,9 @@ const InstallSoftware = ({
     (index: number) => {
       const newPlatform = PLATFORM_BY_INDEX[index];
       router.push(
-        PATHS.CONTROLS_INSTALL_SOFTWARE(newPlatform).concat(
-          location?.search ?? ""
-        )
+        getPathWithQueryParams(PATHS.CONTROLS_INSTALL_SOFTWARE(newPlatform), {
+          fleet_id: currentTeamId,
+        })
       );
     },
     [router]
@@ -125,14 +124,11 @@ const InstallSoftware = ({
 
   if (!isValidPlatform) {
     router.replace(
-      PATHS.CONTROLS_INSTALL_SOFTWARE("macos").concat(location?.search ?? "")
+      getPathWithQueryParams(PATHS.CONTROLS_INSTALL_SOFTWARE("macos"), {
+        fleet_id: currentTeamId,
+      })
     );
   }
-
-  const onSave = async () => {
-    setShowSelectSoftwareModal(false);
-    refetchSoftwareTitles();
-  };
 
   const hasManualAgentInstall = getManualAgentInstallSetting(
     currentTeamId,
@@ -140,12 +136,12 @@ const InstallSoftware = ({
     teamConfig
   );
 
+  const isAndroidMdmEnabled = globalConfig?.mdm.android_enabled_and_configured;
+
+  const isLoadingConfig = isLoadingGlobalConfig || isLoadingTeamConfig;
+
   const renderTabContent = (platform: SetupExperiencePlatform) => {
-    if (
-      isLoadingSoftwareTitles ||
-      isLoadingGlobalConfig ||
-      isLoadingTeamConfig
-    ) {
+    if (isLoadingSoftwareTitles) {
       return <Spinner />;
     }
 
@@ -165,32 +161,42 @@ const InstallSoftware = ({
         platform === "windows" &&
         !globalConfig?.mdm.windows_enabled_and_configured;
 
-      const turnOnMdm = turnOnAppleMdm || turnOnWindowsMdm;
+      const turnOnAndroidMdm = platform === "android" && !isAndroidMdmEnabled;
 
-      if (turnOnMdm) {
-        return (
-          <TurnOnMdmMessage
-            header="Additional configuration required"
-            info="To customize, first turn on automatic enrollment."
-            buttonText="Turn on"
-            router={router}
-          />
-        );
-      }
+      const turnOnMdm = turnOnAppleMdm || turnOnWindowsMdm || turnOnAndroidMdm;
+
       return (
         <SetupExperienceContentContainer>
-          <AddInstallSoftware
-            currentTeamId={currentTeamId}
-            hasManualAgentInstall={hasManualAgentInstall}
-            softwareTitles={softwareTitles}
-            onAddSoftware={() => setShowSelectSoftwareModal(true)}
-            platform={platform}
-            savedRequireAllSoftwareMacOS={
-              currentTeamId
-                ? teamConfig?.mdm?.macos_setup?.require_all_software_macos
-                : globalConfig?.mdm?.macos_setup?.require_all_software_macos
-            }
-          />
+          <PageDescription content="Install software on hosts that automatically enroll to Fleet." />
+          {turnOnMdm ? (
+            <GenericMsgWithNavButton
+              header={`${
+                platform === "android"
+                  ? "Turn on Android MDM"
+                  : "Additional configuration required"
+              }`}
+              info={`To customize, first turn on ${
+                platform === "android" ? "Android MDM" : "automatic enrollment"
+              }.`}
+              buttonText="Turn on"
+              path={PATHS.ADMIN_INTEGRATIONS_MDM}
+              router={router}
+            />
+          ) : (
+            <InstallSoftwareForm
+              currentTeamId={currentTeamId}
+              hasManualAgentInstall={hasManualAgentInstall}
+              softwareTitles={softwareTitles}
+              platform={platform}
+              savedRequireAllSoftwareMacOS={
+                currentTeamId
+                  ? teamConfig?.mdm?.macos_setup?.require_all_software_macos
+                  : globalConfig?.mdm?.macos_setup?.require_all_software_macos
+              }
+              router={router}
+              refetchSoftwareTitles={refetchSoftwareTitles}
+            />
+          )}
         </SetupExperienceContentContainer>
       );
     }
@@ -210,43 +216,41 @@ const InstallSoftware = ({
           />
         }
       />
-      <TabNav secondary>
-        <Tabs
-          selectedIndex={PLATFORM_BY_INDEX.indexOf(selectedPlatform)}
-          onSelect={handleTabChange}
-        >
-          <TabList>
-            <Tab>
-              <TabText>macOS</TabText>
-            </Tab>
-            <Tab>
-              <TabText>Windows</TabText>
-            </Tab>
-            <Tab>
-              <TabText>Linux</TabText>
-            </Tab>
-            <Tab>
-              <TabText>iOS</TabText>
-            </Tab>
-            <Tab>
-              <TabText>iPadOS</TabText>
-            </Tab>
-          </TabList>
-          {PLATFORM_BY_INDEX.map((platform) => {
-            return (
-              <TabPanel key={platform}>{renderTabContent(platform)}</TabPanel>
-            );
-          })}
-        </Tabs>
-      </TabNav>
-      {showSelectSoftwareModal && softwareTitles && (
-        <SelectSoftwareModal
-          currentTeamId={currentTeamId}
-          softwareTitles={softwareTitles}
-          platform={selectedPlatform}
-          onSave={onSave}
-          onExit={() => setShowSelectSoftwareModal(false)}
-        />
+      {isLoadingConfig ? (
+        <Spinner />
+      ) : (
+        <TabNav secondary>
+          <Tabs
+            selectedIndex={PLATFORM_BY_INDEX.indexOf(selectedPlatform)}
+            onSelect={handleTabChange}
+          >
+            <TabList>
+              <Tab>
+                <TabText>macOS</TabText>
+              </Tab>
+              <Tab>
+                <TabText>Windows</TabText>
+              </Tab>
+              <Tab>
+                <TabText>Linux</TabText>
+              </Tab>
+              <Tab>
+                <TabText>iOS</TabText>
+              </Tab>
+              <Tab>
+                <TabText>iPadOS</TabText>
+              </Tab>
+              <Tab>
+                <TabText>Android</TabText>
+              </Tab>
+            </TabList>
+            {PLATFORM_BY_INDEX.map((platform) => {
+              return (
+                <TabPanel key={platform}>{renderTabContent(platform)}</TabPanel>
+              );
+            })}
+          </Tabs>
+        </TabNav>
       )}
     </section>
   );

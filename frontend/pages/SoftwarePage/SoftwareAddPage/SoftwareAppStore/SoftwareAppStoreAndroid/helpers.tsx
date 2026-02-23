@@ -12,6 +12,10 @@ import {
 export const getErrorMessage = (e: unknown): string | ReactElement => {
   const reason = getErrorReason(e);
 
+  if (reason.includes("find ID on the Play Store")) {
+    return reason;
+  }
+
   // software is already available for install
   if (reason.toLowerCase().includes("already")) {
     const alreadyAvailableMessage = formatAlreadyAvailableInstallMessage(
@@ -23,12 +27,7 @@ export const getErrorMessage = (e: unknown): string | ReactElement => {
 
     // TODO: What is the check for a Android app? assuming "VPPApp" check won't suffice
     if (reason.includes("VPPApp")) {
-      return `${ADD_SOFTWARE_ERROR_PREFIX} The software is already available to install on this team.`;
-    }
-
-    // TODO: Confirm with BE
-    if (reason.includes("find ID on the Play Store")) {
-      return `${ADD_SOFTWARE_ERROR_PREFIX} The application ID isn’t available in Play Store. Please find ID on the Play Store and try again.`;
+      return `${ADD_SOFTWARE_ERROR_PREFIX} The software is already available to install in this fleet.`;
     }
   }
 

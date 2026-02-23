@@ -2,6 +2,8 @@ package service
 
 import (
 	"context"
+	"crypto/rand"
+	"crypto/rsa"
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
@@ -14,7 +16,10 @@ import (
 
 	ma "github.com/fleetdm/fleet/v4/ee/maintained-apps"
 	"github.com/fleetdm/fleet/v4/server/authz"
+	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
+	"github.com/fleetdm/fleet/v4/server/datastore/s3"
+	"github.com/fleetdm/fleet/v4/server/dev_mode"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/mdm"
 	"github.com/fleetdm/fleet/v4/server/mock"
@@ -122,6 +127,9 @@ func TestInstallUninstallAuth(t *testing.T) {
 	}
 	ds.GetHostLastInstallDataFunc = func(ctx context.Context, hostID uint, installerID uint) (*fleet.HostLastInstallData, error) {
 		return nil, nil
+	}
+	ds.ResetNonPolicyInstallAttemptsFunc = func(ctx context.Context, hostID uint, softwareInstallerID uint) error {
+		return nil
 	}
 	ds.InsertSoftwareInstallRequestFunc = func(ctx context.Context, hostID uint, softwareInstallerID uint, opts fleet.HostSoftwareInstallOptions) (string,
 		error,
@@ -243,7 +251,6 @@ func TestInstallSoftwareTitle(t *testing.T) {
 }
 
 func TestSoftwareInstallerPayloadFromSlug(t *testing.T) {
-	t.Parallel()
 	ds := new(mock.Store)
 	svc := newTestService(t, ds)
 
@@ -292,8 +299,7 @@ func TestSoftwareInstallerPayloadFromSlug(t *testing.T) {
 		require.NoError(t, err)
 	}))
 	t.Cleanup(manifestServer.Close)
-	os.Setenv("FLEET_DEV_MAINTAINED_APPS_BASE_URL", manifestServer.URL)
-	defer os.Unsetenv("FLEET_DEV_MAINTAINED_APPS_BASE_URL")
+	dev_mode.SetOverride("FLEET_DEV_MAINTAINED_APPS_BASE_URL", manifestServer.URL, t)
 
 	ds.GetMaintainedAppBySlugFunc = func(ctx context.Context, slug string, teamID *uint) (*fleet.MaintainedApp, error) {
 		return &fleet.MaintainedApp{
@@ -357,6 +363,7 @@ func TestGetInHouseAppManifest(t *testing.T) {
 				BundleIdentifier: "com.foo.bar",
 				Version:          "1.2.3",
 				SoftwareTitle:    "test in-house app",
+				StorageID:        "123storageid",
 			}, nil
 		}
 
@@ -410,6 +417,24 @@ func TestGetInHouseAppManifest(t *testing.T) {
 	_, err = svc.GetInHouseAppManifest(ctx, 2, nil)
 	assert.Error(t, err)
 	assert.True(t, fleet.IsNotFound(err))
+
+	// Set up a new S3 store to test CloudFront signing
+	signer, _ := rsa.GenerateKey(rand.Reader, 2048)
+	svc.config.S3.SoftwareInstallersCloudFrontSigner = signer
+	signerURL := "https://example.cloudfront.net"
+
+	s3Config := config.S3Config{
+		SoftwareInstallersCloudFrontURL:                   signerURL,
+		SoftwareInstallersCloudFrontURLSigningPublicKeyID: "ABC123XYZ",
+		SoftwareInstallersCloudFrontSigner:                signer,
+	}
+	s3Store, err := s3.NewTestSoftwareInstallerStore(s3Config)
+	require.NoError(t, err)
+	svc.softwareInstallStore = s3Store
+
+	manifest, err = svc.GetInHouseAppManifest(ctx, 1, nil)
+	require.NoError(t, err)
+	require.Contains(t, string(manifest), signerURL)
 
 }
 
@@ -598,4 +623,129 @@ func TestAddScriptPackageMetadata(t *testing.T) {
 		require.NoError(t, err)
 		require.Equal(t, scriptContents, payload.InstallScript)
 	})
+}
+
+// TestInstallShScriptOnDarwin tests that .sh scripts (stored as platform='linux')
+// can be installed on darwin hosts.
+func TestInstallShScriptOnDarwin(t *testing.T) {
+	t.Parallel()
+	ds := new(mock.Store)
+	svc := newTestService(t, ds)
+
+	// Mock darwin host
+	ds.HostFunc = func(ctx context.Context, id uint) (*fleet.Host, error) {
+		return &fleet.Host{
+			ID:           1,
+			OrbitNodeKey: ptr.String("orbit_key"),
+			Platform:     "darwin",
+			TeamID:       ptr.Uint(1),
+		}, nil
+	}
+
+	// Not an in-house app
+	ds.GetInHouseAppMetadataByTeamAndTitleIDFunc = func(ctx context.Context, teamID *uint, titleID uint) (*fleet.SoftwareInstaller, error) {
+		return nil, nil
+	}
+
+	// Mock .sh installer metadata (platform='linux' as .sh files are stored)
+	ds.GetSoftwareInstallerMetadataByTeamAndTitleIDFunc = func(ctx context.Context, teamID *uint, titleID uint, withScriptContents bool) (*fleet.SoftwareInstaller, error) {
+		return &fleet.SoftwareInstaller{
+			InstallerID: 10,
+			Name:        "script.sh",
+			Extension:   "sh",
+			Platform:    "linux", // .sh stored as linux
+			TeamID:      ptr.Uint(1),
+			TitleID:     ptr.Uint(100),
+			SelfService: false,
+		}, nil
+	}
+
+	// Label scoping check passes
+	ds.IsSoftwareInstallerLabelScopedFunc = func(ctx context.Context, installerID, hostID uint) (bool, error) {
+		return true, nil
+	}
+
+	// No pending install
+	ds.GetHostLastInstallDataFunc = func(ctx context.Context, hostID, installerID uint) (*fleet.HostLastInstallData, error) {
+		return nil, nil
+	}
+
+	// Reset retry attempts (no-op for test)
+	ds.ResetNonPolicyInstallAttemptsFunc = func(ctx context.Context, hostID uint, softwareInstallerID uint) error {
+		return nil
+	}
+
+	// Capture that install request was inserted
+	ds.InsertSoftwareInstallRequestFunc = func(ctx context.Context, hostID uint, softwareInstallerID uint, opts fleet.HostSoftwareInstallOptions) (string, error) {
+		return "install-uuid", nil
+	}
+
+	// Create admin user context
+	ctx := viewer.NewContext(context.Background(), viewer.Viewer{
+		User: &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)},
+	})
+
+	// Install .sh on darwin should succeed (not return BadRequestError)
+	err := svc.InstallSoftwareTitle(ctx, 1, 100)
+	require.NoError(t, err, ".sh install on darwin should succeed")
+	require.True(t, ds.InsertSoftwareInstallRequestFuncInvoked, "install request should be created")
+}
+
+// TestInstallShScriptOnWindowsFails tests that .sh scripts can't be installed on Windows hosts.
+func TestInstallShScriptOnWindowsFails(t *testing.T) {
+	t.Parallel()
+	ds := new(mock.Store)
+	svc := newTestService(t, ds)
+
+	// Mock Windows host
+	ds.HostFunc = func(ctx context.Context, id uint) (*fleet.Host, error) {
+		return &fleet.Host{
+			ID:           1,
+			OrbitNodeKey: ptr.String("orbit_key"),
+			Platform:     "windows",
+			TeamID:       ptr.Uint(1),
+		}, nil
+	}
+
+	// Not an in-house app
+	ds.GetInHouseAppMetadataByTeamAndTitleIDFunc = func(ctx context.Context, teamID *uint, titleID uint) (*fleet.SoftwareInstaller, error) {
+		return nil, nil
+	}
+
+	// Mock .sh installer metadata
+	ds.GetSoftwareInstallerMetadataByTeamAndTitleIDFunc = func(ctx context.Context, teamID *uint, titleID uint, withScriptContents bool) (*fleet.SoftwareInstaller, error) {
+		return &fleet.SoftwareInstaller{
+			InstallerID: 10,
+			Name:        "script.sh",
+			Extension:   "sh",
+			Platform:    "linux",
+			TeamID:      ptr.Uint(1),
+			TitleID:     ptr.Uint(100),
+			SelfService: false,
+		}, nil
+	}
+
+	// Label scoping check passes
+	ds.IsSoftwareInstallerLabelScopedFunc = func(ctx context.Context, installerID, hostID uint) (bool, error) {
+		return true, nil
+	}
+
+	// No pending install
+	ds.GetHostLastInstallDataFunc = func(ctx context.Context, hostID, installerID uint) (*fleet.HostLastInstallData, error) {
+		return nil, nil
+	}
+
+	// Create admin user context
+	ctx := viewer.NewContext(context.Background(), viewer.Viewer{
+		User: &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)},
+	})
+
+	// Install .sh on windows should fail with BadRequestError
+	err := svc.InstallSoftwareTitle(ctx, 1, 100)
+	require.Error(t, err, ".sh install on windows should fail")
+
+	var bre *fleet.BadRequestError
+	require.ErrorAs(t, err, &bre, "error should be BadRequestError")
+	require.NotNil(t, bre)
+	require.Contains(t, bre.Message, "can be installed only on linux hosts")
 }

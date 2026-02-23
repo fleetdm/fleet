@@ -7,6 +7,8 @@ import (
 
 	"github.com/fleetdm/fleet/v4/orbit/pkg/dialog"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/execuser"
+	"github.com/fleetdm/fleet/v4/orbit/pkg/user"
+	"github.com/rs/zerolog/log"
 )
 
 const zenityProcessName = "zenity"
@@ -14,8 +16,6 @@ const zenityProcessName = "zenity"
 type Zenity struct {
 	// cmdWithOutput can be set in tests to mock execution of the dialog.
 	cmdWithOutput func(args ...string) ([]byte, int, error)
-	// cmdWithWait can be set in tests to mock execution of the dialog.
-	cmdWithCancel func(args ...string) (func() error, error)
 }
 
 // New creates a new Zenity dialog instance for zenity v4 on Linux.
@@ -23,7 +23,6 @@ type Zenity struct {
 func New() *Zenity {
 	return &Zenity{
 		cmdWithOutput: execCmdWithOutput,
-		cmdWithCancel: execCmdWithCancel,
 	}
 }
 
@@ -91,24 +90,22 @@ func execCmdWithOutput(args ...string) ([]byte, int, error) {
 		opts = append(opts, execuser.WithArg(arg, "")) // Using empty value for positional args
 	}
 
+	// Retrieve and set active GUI user.
+	loggedInUser, err := user.UserLoggedInViaGui()
+	if err != nil {
+		return nil, 0, fmt.Errorf("user logged in via GUI: %w", err)
+	}
+	if loggedInUser == nil || *loggedInUser == "" {
+		return nil, 0, errors.New("no GUI user found")
+	}
+	log.Debug().Msgf("found GUI user: %s, attempting zenity", *loggedInUser)
+	opts = append(opts, execuser.WithUser(*loggedInUser))
+
+	// Execute zenity.
 	output, exitCode, err := execuser.RunWithOutput(zenityProcessName, opts...)
 
 	// Trim the newline from zenity output
 	output = bytes.TrimSuffix(output, []byte("\n"))
 
 	return output, exitCode, err
-}
-
-func execCmdWithCancel(args ...string) (func() error, error) {
-	var opts []execuser.Option
-	for _, arg := range args {
-		opts = append(opts, execuser.WithArg(arg, "")) // Using empty value for positional args
-	}
-
-	stdin, err := execuser.RunWithStdin(zenityProcessName, opts...)
-	if err != nil {
-		return nil, err
-	}
-
-	return stdin.Close, err
 }

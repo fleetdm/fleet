@@ -2,25 +2,25 @@ package kdialog
 
 import (
 	"errors"
+	"fmt"
 	"strings"
 	"time"
 
 	"github.com/fleetdm/fleet/v4/orbit/pkg/dialog"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/execuser"
-	"github.com/fleetdm/fleet/v4/orbit/pkg/platform"
+	"github.com/fleetdm/fleet/v4/orbit/pkg/user"
+	"github.com/rs/zerolog/log"
 )
 
 const kdialogProcessName = "kdialog"
 
 type KDialog struct {
 	cmdWithOutput func(timeout time.Duration, args ...string) ([]byte, int, error)
-	cmdWithCancel func(args ...string) (cancelFunc func() error, err error)
 }
 
 func New() *KDialog {
 	return &KDialog{
 		cmdWithOutput: execCmdWithOutput,
-		cmdWithCancel: execCmdWithCancel,
 	}
 }
 
@@ -82,31 +82,21 @@ func execCmdWithOutput(timeout time.Duration, args ...string) ([]byte, int, erro
 		opts = append(opts, execuser.WithTimeout(timeout))
 	}
 
+	// Retrieve and set active GUI user.
+	loggedInUser, err := user.UserLoggedInViaGui()
+	if err != nil {
+		return nil, 0, fmt.Errorf("user logged in via GUI: %w", err)
+	}
+	if loggedInUser == nil || *loggedInUser == "" {
+		return nil, 0, errors.New("no GUI user found")
+	}
+	log.Debug().Msgf("found GUI user: %s, attempting kdialog", *loggedInUser)
+	opts = append(opts, execuser.WithUser(*loggedInUser))
+
 	output, exitCode, err := execuser.RunWithOutput(kdialogProcessName, opts...)
 	if err != nil {
 		return nil, exitCode, err
 	}
 
 	return output, exitCode, nil
-}
-
-func execCmdWithCancel(args ...string) (func() error, error) {
-	var opts []execuser.Option
-	for _, arg := range args {
-		opts = append(opts, execuser.WithArg(arg, "")) // using empty value for positional args
-	}
-
-	_, err := execuser.Run(kdialogProcessName, opts...)
-	if err != nil {
-		return nil, err
-	}
-
-	killFunc := func() error {
-		if _, err := platform.KillAllProcessByName(kdialogProcessName); err != nil {
-			return err
-		}
-		return nil
-	}
-
-	return killFunc, nil
 }

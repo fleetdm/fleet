@@ -110,12 +110,19 @@ export default {
 
     return sendRequest("DELETE", path);
   },
-  loadAll: async (includeHostCounts = false): Promise<ILabelsResponse> => {
+  loadAll: async (teamID: number | null = null): Promise<ILabelsResponse> => {
     const { LABELS } = endpoints;
 
     const queryStringParams = {
-      include_host_counts: includeHostCounts,
+      include_host_counts: false,
+      team_id: null as null | number | string,
     };
+    if (teamID === 0) {
+      queryStringParams.team_id = "global";
+    } else if (teamID !== null && teamID > 0) {
+      // filter out "all teams" -1
+      queryStringParams.team_id = teamID;
+    }
 
     const queryString = buildQueryStringFromParams(queryStringParams);
     const path = `${LABELS}?${queryString}`;
@@ -128,10 +135,27 @@ export default {
       return Promise.reject(error);
     }
   },
-  summary: (): Promise<ILabelsSummaryResponse> => {
+  summary: (
+    teamID: number | null = null,
+    treatAllTeamsAsGlobalOnly = false
+  ): Promise<ILabelsSummaryResponse> => {
     const { LABELS_SUMMARY } = endpoints;
 
-    return sendRequest("GET", LABELS_SUMMARY);
+    const queryStringParams = {
+      team_id: null as null | number | string,
+    };
+    if (teamID === 0 || (teamID === -1 && treatAllTeamsAsGlobalOnly)) {
+      queryStringParams.team_id = "global";
+    } else if (teamID !== null && teamID > 0) {
+      queryStringParams.team_id = teamID;
+    }
+
+    const queryString = buildQueryStringFromParams(queryStringParams);
+
+    return sendRequest(
+      "GET",
+      queryString ? `${LABELS_SUMMARY}?${queryString}` : LABELS_SUMMARY
+    );
   },
 
   update: async (
