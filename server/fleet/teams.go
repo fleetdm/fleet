@@ -19,21 +19,28 @@ const (
 	RoleObserverPlus = "observer_plus"
 	RoleGitOps       = "gitops"
 	RoleTechnician   = "technician"
-	TeamNameNoTeam   = "Unassigned"
-	TeamNameAllTeams = "All fleets"
+	TeamNameNoTeam   = "No team"
+	TeamNameAllTeams = "All teams"
 )
 
 const (
-	ReservedNameAllTeams = "All fleets"
-	ReservedNameNoTeam   = "Unassigned"
+	ReservedNameAllTeams = "All teams"
+	ReservedNameNoTeam   = "No team"
 )
 
-// IsReservedTeamName checks if the name provided is a reserved team name (case-insensitive).
-// It also reserves the old names ("No team", "All teams") for backward compatibility.
+// Display names used in user-facing error messages.
+const (
+	DisplayNameNoTeam   = "Unassigned"
+	DisplayNameAllTeams = "All fleets"
+)
+
+// IsReservedTeamName checks if the name provided is a reserved fleet name (case-insensitive).
+// Both old names ("No team", "All teams") and new display names ("Unassigned", "All fleets")
+// are reserved to prevent creating teams with any of these names.
 func IsReservedTeamName(name string) bool {
 	normalizedName := strings.ToLower(norm.NFC.String(name))
-	return normalizedName == strings.ToLower(ReservedNameAllTeams) || normalizedName == strings.ToLower(ReservedNameNoTeam) ||
-		normalizedName == "no team" || normalizedName == "all teams"
+	return normalizedName == "no team" || normalizedName == "all teams" ||
+		normalizedName == "unassigned" || normalizedName == "all fleets"
 }
 
 type TeamPayload struct {
