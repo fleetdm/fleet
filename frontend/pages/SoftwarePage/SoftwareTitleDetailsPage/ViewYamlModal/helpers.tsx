@@ -1,22 +1,6 @@
 import React, { MouseEvent } from "react";
 
-import Button from "components/buttons/Button";
 import { hyphenateString } from "utilities/strings/stringUtils";
-
-interface RenderYamlHelperText {
-  installScript?: string;
-  uninstallScript?: string;
-  preInstallQuery?: string;
-  postInstallScript?: string;
-  iconUrl?: string | null;
-  onClickPreInstallQuery?: (evt: MouseEvent) => void;
-  onClickInstallScript?: (evt: MouseEvent) => void;
-  onClickPostInstallScript?: (evt: MouseEvent) => void;
-  onClickUninstallScript?: (evt: MouseEvent) => void;
-  onClickIcon?: (evt: MouseEvent) => void;
-  hasAdvancedOptionsAvailable?: boolean;
-  isScriptPackage?: boolean;
-}
 
 // Helper to join items with commas and Oxford comma before "and"
 const joinWithCommasAnd = (
@@ -37,106 +21,6 @@ const joinWithCommasAnd = (
       </React.Fragment>
     );
   });
-};
-
-export const renderDownloadFilesText = ({
-  preInstallQuery,
-  installScript,
-  postInstallScript,
-  uninstallScript,
-  iconUrl,
-  onClickPreInstallQuery,
-  onClickInstallScript,
-  onClickPostInstallScript,
-  onClickUninstallScript,
-  onClickIcon,
-  hasAdvancedOptionsAvailable = true,
-  isScriptPackage = false,
-}: RenderYamlHelperText): JSX.Element => {
-  const items: { key: string; element: JSX.Element }[] = [];
-
-  // Script packages (.sh and .ps1) should not expose install_script,
-  // post_install_script, uninstall_script, or pre_install_query fields
-  if (!isScriptPackage && preInstallQuery) {
-    items.push({
-      key: "pre-install-query",
-      element: (
-        <Button key="pre" variant="text-link" onClick={onClickPreInstallQuery}>
-          pre-install query
-        </Button>
-      ),
-    });
-  }
-  if (!isScriptPackage && installScript) {
-    items.push({
-      key: "install-script",
-      element: (
-        <Button
-          key="install"
-          variant="text-link"
-          onClick={onClickInstallScript}
-        >
-          install script
-        </Button>
-      ),
-    });
-  }
-  if (!isScriptPackage && uninstallScript) {
-    items.push({
-      key: "uninstall-script",
-      element: (
-        <Button
-          key="uninstall"
-          variant="text-link"
-          onClick={onClickUninstallScript}
-        >
-          uninstall script
-        </Button>
-      ),
-    });
-  }
-  if (!isScriptPackage && postInstallScript) {
-    items.push({
-      key: "post-install-script",
-      element: (
-        <Button
-          key="post"
-          variant="text-link"
-          onClick={onClickPostInstallScript}
-        >
-          post-install script
-        </Button>
-      ),
-    });
-  }
-  if (iconUrl) {
-    items.push({
-      key: "icon-url",
-      element: (
-        <Button key="post" variant="text-link" onClick={onClickIcon}>
-          icon
-        </Button>
-      ),
-    });
-  }
-
-  if (items.length === 0) return <></>;
-
-  return (
-    <>
-      Next, download your {joinWithCommasAnd(items)} and add{" "}
-      {items.length === 1 ? "it" : "them"} to your repository using the{" "}
-      {items.length === 1 ? "path" : "paths"} above.
-      {hasAdvancedOptionsAvailable && (
-        <>
-          {" "}
-          If you edited <b>Advanced options</b>, download and replace the{" "}
-          {items.length === 1 ? "file" : "files"} in your repository with the
-          updated {items.length === 1 ? "one" : "ones"}.
-        </>
-      )}
-    </>
-  );
 };
 
 interface CreatePackageYamlParams {
