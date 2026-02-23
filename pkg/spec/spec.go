@@ -192,7 +192,7 @@ func GroupFromBytes(b []byte, options ...GroupFromBytesOpts) (*Group, error) {
 			return nil, fmt.Errorf("unknown kind %q", s.Kind)
 		}
 
-		if logFn != nil && len(deprecatedKeysMap) > 0 && logging.TopicEnabled("deprecated-field-names") {
+		if logFn != nil && len(deprecatedKeysMap) > 0 && logging.TopicEnabled(logging.DeprecatedFieldTopic) {
 			for oldKey, newKey := range deprecatedKeysMap {
 				logFn(fmt.Sprintf("[!] In %s: `%s` is deprecated, please use `%s` instead.\n", kind, oldKey, newKey))
 			}

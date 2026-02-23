@@ -124,7 +124,7 @@ func migrateLeafKey(data map[string]any, oldKey, newKey, fullOldPath, fullNewPat
 
 	// Log deprecation warning
 	if logFn != nil {
-		if logging.TopicEnabled("deprecated-field-names") {
+		if logging.TopicEnabled(logging.DeprecatedFieldTopic) {
 			logFn("[!] '%s' is deprecated; use '%s' instead\n", fullOldPath, fullNewPath)
 		}
 	}

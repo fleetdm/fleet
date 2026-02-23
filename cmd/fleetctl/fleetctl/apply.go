@@ -9,6 +9,7 @@ import (
 
 	"github.com/fleetdm/fleet/v4/pkg/spec"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/platform/logging"
 	"github.com/urfave/cli/v2"
 )
 
@@ -53,6 +54,13 @@ func applyCommand() *cli.Command {
 			disableLogTopicsFlag(),
 		},
 		Action: func(c *cli.Context) error {
+			// Disable field deprecation warnings for now.
+			// TODO - remove this in future release to unleash warnings.
+			logging.DisableTopic(logging.DeprecatedFieldTopic)
+
+			// Apply log topic overrides from flags/env vars.
+			applyLogTopicFlags(c)
+
 			if flFilename == "" {
 				return errors.New("-f must be specified")
 			}

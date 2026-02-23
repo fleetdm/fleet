@@ -28,6 +28,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/platform/endpointer"
+	"github.com/fleetdm/fleet/v4/server/platform/logging"
 	"github.com/fleetdm/fleet/v4/server/version"
 	"github.com/go-kit/log/level"
 	"golang.org/x/text/unicode/norm"
@@ -382,7 +383,7 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 		}
 		if len(deprecatedKeysMap) > 0 {
 			for oldKey, newKey := range deprecatedKeysMap {
-				svc.logger.WarnContext(ctx, fmt.Sprintf("App config: `%s` is deprecated, please use `%s` instead", oldKey, newKey), "log_topic", "deprecated-field-names")
+				svc.logger.WarnContext(ctx, fmt.Sprintf("App config: `%s` is deprecated, please use `%s` instead", oldKey, newKey), "log_topic", logging.DeprecatedFieldTopic)
 			}
 		}
 	}

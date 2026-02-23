@@ -83,7 +83,7 @@ func gitopsCommand() *cli.Command {
 		Action: func(c *cli.Context) error {
 			// Disable field deprecation warnings for now.
 			// TODO - remove this in future release to unleash warnings.
-			logging.DisableTopic("deprecated-field-names")
+			logging.DisableTopic(logging.DeprecatedFieldTopic)
 
 			logf := func(format string, a ...interface{}) {
 				_, _ = fmt.Fprintf(c.App.Writer, format, a...)

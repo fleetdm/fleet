@@ -30,6 +30,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mock"
 	mdmmock "github.com/fleetdm/fleet/v4/server/mock/mdm"
 	nanodep_mock "github.com/fleetdm/fleet/v4/server/mock/nanodep"
+	"github.com/fleetdm/fleet/v4/server/platform/logging"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/service"
 	"github.com/google/uuid"
@@ -122,6 +123,8 @@ spec:
 }
 
 func TestApplyUserRolesDeprecated(t *testing.T) {
+	os.Setenv("FLEET_ENABLE_LOG_TOPICS", logging.DeprecatedFieldTopic)
+	defer os.Unsetenv("FLEET_ENABLE_LOG_TOPICS")
 	_, ds := testing_utils.RunServerWithMockedDS(t)
 
 	ds.ListUsersFunc = func(ctx context.Context, opt fleet.UserListOptions) ([]*fleet.User, error) {
@@ -175,7 +178,7 @@ spec:
         team: team1
 `)
 	require.NoError(t, err)
-	expected := "[!] In user_roles: `teams` is deprecated, please use `fleets` instead.\n[!] In user_roles: `team` is deprecated, please use `fleet` instead.\n[+] applied user roles\n"
+	expected := "[!] In user_roles: `team` is deprecated, please use `fleet` instead.\n[!] In user_roles: `teams` is deprecated, please use `fleets` instead.\n[+] applied user roles\n"
 	assert.Equal(t, expected, RunAppForTest(t, []string{"apply", "-f", tmpFile.Name()}))
 	require.Len(t, userRoleSpecList[1].Teams, 1)
 	assert.Equal(t, fleet.RoleMaintainer, userRoleSpecList[1].Teams[0].Role)
@@ -194,10 +197,10 @@ spec:
       teams:
       - role: maintainer
         team: team1
-		fleet: team1
+        fleet: team1
 `)
 	require.NoError(t, err)
-	RunAppCheckErr(t, []string{"apply", "-f", tmpFile.Name()}, "in user_roles spec: Conflicting field names: cannot specify both `teams` (deprecated) and `fleets` in the same request")
+	RunAppCheckErr(t, []string{"apply", "-f", tmpFile.Name()}, "in user_roles spec: Conflicting field names: cannot specify both `team` (deprecated) and `fleet` in the same request")
 }
 
 func TestApplyTeamSpecs(t *testing.T) {
@@ -683,6 +686,9 @@ func writeTmpJSON(t *testing.T, v any) string {
 }
 
 func TestApplyAppConfig(t *testing.T) {
+	os.Setenv("FLEET_ENABLE_LOG_TOPICS", logging.DeprecatedFieldTopic)
+	defer os.Unsetenv("FLEET_ENABLE_LOG_TOPICS")
+
 	license := &fleet.LicenseInfo{Tier: fleet.TierPremium, Expiration: time.Now().Add(24 * time.Hour)}
 	_, ds := testing_utils.RunServerWithMockedDS(t, &service.TestServerOpts{License: license})
 
