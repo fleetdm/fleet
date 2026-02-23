@@ -22,7 +22,7 @@
 - ASAP: (mikermcneil) Update the fleet-gitops repo to match the new conventions
   - (but we can't actually merge this until the latest stable release of fleectl works with "fleets" and "reports".  My understanding is that we aren't able to officially release this for a while since QA is still ≈3 weeks behind)
   - this is a short-term change until we retire the repo once `fleetctl new` is shipped
-- TODO: (mikermcneil+harry) Update gitops workshop curriculum with changes that already exist (and set Harry up to further update it based on changes expected Mar 21)
+- TODO: (mikermcneil+harry) Update gitops workshop curriculum with changes that already exist (and set Harry up for Chicago: https://www.eventbrite.com/e/gitops-for-device-management-in-person-workshop-chicago-tickets-1982555533971?aff=oddtdtcreator)
   - (but this is blocked by the same things as merging the docs)
   - ASAP: Discuss accelerating this for the upcoming gitops workshop in March.
 - TODO: (sgress454) Exclude secrets by default from gitops.
