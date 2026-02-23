@@ -203,7 +203,7 @@ The following steps show how to connect end users to Wi-Fi or VPN with [Smallste
 
 2. Under **Available Providers**, find **Fleet** and click **Connect**.
 
-3. In the Smallstep form, enter your Fleet server URL and a [global Observer API token](https://fleetdm.com/guides/fleetctl#create-api-only-user), then click **Connect MDM**.
+3. In the Smallstep form, enter your Fleet server URL and a [global observer API token](https://fleetdm.com/guides/fleetctl#create-api-only-user), then click **Connect MDM**.
 
 4. After connecting, note the following details from Smallstep (these values are required in the next step):
   - **SCEP URL**
