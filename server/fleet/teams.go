@@ -18,19 +18,21 @@ const (
 	RoleObserverPlus = "observer_plus"
 	RoleGitOps       = "gitops"
 	RoleTechnician   = "technician"
-	TeamNameNoTeam   = "No team"
-	TeamNameAllTeams = "All teams"
+	TeamNameNoTeam   = "Unassigned"
+	TeamNameAllTeams = "All fleets"
 )
 
 const (
-	ReservedNameAllTeams = "All teams"
-	ReservedNameNoTeam   = "No team"
+	ReservedNameAllTeams = "All fleets"
+	ReservedNameNoTeam   = "Unassigned"
 )
 
-// IsReservedTeamName checks if the name provided is a reserved team name
+// IsReservedTeamName checks if the name provided is a reserved team name.
+// It also reserves the old names ("No team", "All teams") for backward compatibility.
 func IsReservedTeamName(name string) bool {
 	normalizedName := norm.NFC.String(name)
-	return normalizedName == ReservedNameAllTeams || normalizedName == ReservedNameNoTeam
+	return normalizedName == ReservedNameAllTeams || normalizedName == ReservedNameNoTeam ||
+		normalizedName == "No team" || normalizedName == "All teams"
 }
 
 type TeamPayload struct {

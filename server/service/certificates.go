@@ -394,8 +394,8 @@ func (svc *Service) resolveTeamNamesForSpecs(ctx context.Context, specs []*fleet
 			continue
 		}
 
-		// Handle empty string and "No team" as teamID = 0
-		if spec.Team == "" || spec.Team == "No team" {
+		// Handle empty string and "Unassigned" (or legacy "No team") as teamID = 0
+		if spec.Team == "" || spec.Team == fleet.TeamNameNoTeam || spec.Team == "No team" {
 			teamNameToID[spec.Team] = 0
 			continue
 		}

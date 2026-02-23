@@ -398,7 +398,7 @@ func (g *GitOps) IsNoTeam() bool {
 }
 
 func isNoTeam(teamName string) bool {
-	return strings.EqualFold(teamName, noTeam)
+	return strings.EqualFold(teamName, noTeam) || strings.EqualFold(teamName, "No team")
 }
 
 func (g *GitOps) CoercedTeamName() string {
@@ -408,7 +408,7 @@ func (g *GitOps) CoercedTeamName() string {
 	return *g.TeamName
 }
 
-const noTeam = "No team"
+const noTeam = "Unassigned"
 
 func parseOrgSettings(raw json.RawMessage, result *GitOps, baseDir string, filePath string, multiError *multierror.Error) *multierror.Error {
 	var orgSettingsTop BaseItem
