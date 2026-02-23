@@ -34,3 +34,4 @@ They chose Fleet for its deep integration with automated workflows and the abili
 <meta name="category" value="announcements">
 <meta name="publishedOn" value="2026-02-22">
 <meta name="description" value="As an IT-as-a-Service provider, managing over 8,000 laptops across 120 SME customers. They needed a centralized, multi-tenant solution that prioritized automation and GitOps workflows to make IT accessible to non-technical external clients.">
+<meta name="branch" value="deebradal">
