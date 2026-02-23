@@ -21,7 +21,7 @@ To set up Windows Autopilot for development, follow these steps:
 ## Adding your device to Autopilot
 To add your Windows device (VM's work as well) to Autopilot, you need to get some hardware information, like the serial and other attributes.
 
-Follow the steps [here](https://learn.microsoft.com/en-us/autopilot/add-devices#directly-upload-the-hardware-hash-to-an-mdm-service), to either get the information into a .csv or upload it directly.
+Follow the steps [in the autopilot add devices guide](https://learn.microsoft.com/en-us/autopilot/add-devices#directly-upload-the-hardware-hash-to-an-mdm-service), to either get the information into a .csv or upload it directly.
 
 
 #### If using a VM
