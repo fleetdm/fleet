@@ -26232,4 +26232,89 @@ func (s *integrationEnterpriseTestSuite) TestFMAVersionRollback() {
 			"v1.0 installer status summary must be all zeros after switching from v2.0 — "+
 				"install history from v2.0 must not carry over to the rolled-back version")
 	})
+
+	// =========================================================================
+	// Section 8: Editing an FMA that has multiple cached versions must succeed.
+	//
+	// Regression test for the bug where SoftwareTitleByID counted ALL
+	// software_installers rows for a title+team (active + inactive cached
+	// versions) instead of only the active one.  That made
+	// SoftwareInstallersCount > 1, which tripped the `!= 1` guard in
+	// UpdateSoftwareInstaller and returned a false "no installers defined"
+	// 400 error whenever an admin tried to edit an FMA that had any cached
+	// inactive version.
+	//
+	// The fix is `AND si.is_active = TRUE` in the LEFT JOIN inside
+	// SoftwareTitleByID so the count stays at exactly 1.
+	// =========================================================================
+	t.Run("edit_fma_with_cached_versions", func(t *testing.T) {
+		// Reset warp state to v1.0 for this sub-test.
+		warpState.version = "1.0"
+		warpState.installerBytes = []byte("edit-warp-v1")
+		warpState.sha256 = computeSHA(warpState.installerBytes)
+
+		var editTeamResp teamResponse
+		s.DoJSON("POST", "/api/latest/fleet/teams", &createTeamRequest{
+			TeamPayload: fleet.TeamPayload{Name: ptr.String("team_edit_" + t.Name())},
+		}, http.StatusOK, &editTeamResp)
+		editTeam := editTeamResp.Team
+
+		warpPayload := []*fleet.SoftwareInstallerPayload{
+			{Slug: ptr.String("cloudflare-warp/windows"), SelfService: false},
+		}
+
+		// ---- Add v1.0 ----
+		var batchResp batchSetSoftwareInstallersResponse
+		s.DoJSON("POST", "/api/latest/fleet/software/batch",
+			batchSetSoftwareInstallersRequest{Software: warpPayload, TeamName: editTeam.Name},
+			http.StatusAccepted, &batchResp,
+			"team_name", editTeam.Name, "team_id", fmt.Sprint(editTeam.ID),
+		)
+		waitBatchSetSoftwareInstallersCompleted(t, &s.withServer, editTeam.Name, batchResp.RequestUUID)
+
+		// ---- Advance to v2.0 so there are now 2 cached rows (v1.0 inactive, v2.0 active) ----
+		warpState.version = "2.0"
+		warpState.installerBytes = []byte("edit-warp-v2")
+		warpState.sha256 = computeSHA(warpState.installerBytes)
+
+		s.DoJSON("POST", "/api/latest/fleet/software/batch",
+			batchSetSoftwareInstallersRequest{Software: warpPayload, TeamName: editTeam.Name},
+			http.StatusAccepted, &batchResp,
+			"team_name", editTeam.Name, "team_id", fmt.Sprint(editTeam.ID),
+		)
+		waitBatchSetSoftwareInstallersCompleted(t, &s.withServer, editTeam.Name, batchResp.RequestUUID)
+
+		editTitle := getActiveTitleForTeam(editTeam.ID)
+		require.Equal(t, "2.0", editTitle.SoftwarePackage.Version)
+
+		// Confirm self_service starts as false before the edit.
+		var titleRespBefore getSoftwareTitleResponse
+		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d", editTitle.ID), nil,
+			http.StatusOK, &titleRespBefore, "team_id", fmt.Sprint(editTeam.ID))
+		require.False(t, titleRespBefore.SoftwareTitle.SoftwarePackage.SelfService,
+			"self_service should be false before the edit")
+
+		// Sanity-check: both cached versions are present in the DB.
+		editInstallers, err := s.ds.GetSoftwareInstallers(ctx, editTeam.ID)
+		require.NoError(t, err)
+		require.Len(t, editInstallers, 2, "should have 2 cached FMA versions before attempting edit")
+
+		// ---- Attempt a metadata-only edit (toggle self_service) ----
+		// Without the fix, SoftwareTitleByID counts both installer rows and returns
+		// SoftwareInstallersCount = 2, which makes UpdateSoftwareInstaller return a
+		// 400 "no installers defined" error.  With the fix the count is 1 and the
+		// edit succeeds.
+		s.updateSoftwareInstaller(t, &fleet.UpdateSoftwareInstallerPayload{
+			TitleID:     editTitle.ID,
+			TeamID:      &editTeam.ID,
+			SelfService: ptr.Bool(true),
+		}, http.StatusOK, "")
+
+		// Confirm the edit actually took effect.
+		var titleResp getSoftwareTitleResponse
+		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d", editTitle.ID), nil,
+			http.StatusOK, &titleResp, "team_id", fmt.Sprint(editTeam.ID))
+		require.True(t, titleResp.SoftwareTitle.SoftwarePackage.SelfService,
+			"self_service should be true after the edit")
+	})
 }
