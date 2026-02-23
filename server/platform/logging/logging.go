@@ -74,6 +74,10 @@ func NewSlogLogger(opts Options) *slog.Logger {
 		handler = NewMultiHandler(handler, otelHandler)
 	}
 
+	// Wrap with topic filter as outermost handler so topic-disabled
+	// messages are dropped before any other handler processes them.
+	handler = NewTopicFilterHandler(handler)
+
 	return slog.New(handler)
 }
 
