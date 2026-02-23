@@ -13,7 +13,6 @@ import getDefaultUninstallScript from "utilities/software_uninstall_scripts";
 import { ILabelSummary } from "interfaces/label";
 
 import { ISoftwareVersion, SoftwareCategory } from "interfaces/software";
-import { CustomOptionType } from "components/forms/fields/DropdownWrapper/DropdownWrapper";
 
 import Button from "components/buttons/Button";
 import TooltipWrapper from "components/TooltipWrapper";
@@ -79,31 +78,6 @@ const renderFileTypeMessage = () => {
       <TooltipWrapper tipContent="Script-only package">.sh</TooltipWrapper>)
     </>
   );
-};
-
-/** Returns the version value to use as the dropdown's default:
-/ 1) If a previously selected version is still present in the options, reuse it.
-/ 2) Otherwise, fall back to the first option, which is assumed to be the latest.
-/ 3) Safe fallback if no options exist which should never happen */
-const getDefaultVersion = (
-  versionOptions: CustomOptionType[],
-  selectedVersion?: string
-) => {
-  // This shouldn't happen
-  if (!versionOptions.length) {
-    return "";
-  }
-
-  // If we already have a selected version and it exists in options, keep it
-  if (selectedVersion) {
-    const match = versionOptions.find((opt) => opt.value === selectedVersion);
-    if (match) {
-      return match.value;
-    }
-  }
-
-  // Otherwise, default to the first option (which should be latest)
-  return versionOptions[0].value;
 };
 
 interface IPackageFormProps {
@@ -244,10 +218,11 @@ const PackageForm = ({
 
   const onToggleAutomaticInstall = useCallback(
     (value?: boolean) => {
-      const automaticInstall =
-        typeof value === "boolean" ? value : !formData.automaticInstall;
-
-      setFormData({ ...formData, automaticInstall });
+      const newData = {
+        ...formData,
+        automaticInstall: !formData.automaticInstall,
+      };
+      setFormData(newData);
     },
     [formData]
   );
@@ -404,8 +379,6 @@ const PackageForm = ({
     }
 
     const fmaVersions = defaultSoftware.fleet_maintained_versions || [];
-
-    // NOTE: Backend guarantees that the latest version always has id === 1
     const versionOptions = fmaVersions.map((v: ISoftwareVersion) => {
       return {
         label: `${v.version}${v.id === 1 ? " (latest)" : ""}`,
@@ -415,7 +388,7 @@ const PackageForm = ({
 
     return (
       <PackageVersionSelector
-        selectedVersion={getDefaultVersion(versionOptions, formData.version)}
+        selectedVersion={formData.version || versionOptions[1].value}
         versionOptions={versionOptions}
         onSelectVersion={onSelectVersion}
         className={`${baseClass}__version-selector`}
