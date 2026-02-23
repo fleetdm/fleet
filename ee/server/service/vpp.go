@@ -1259,6 +1259,11 @@ func (svc *Service) CreateAndroidWebApp(ctx context.Context, title, startURL str
 		}
 	}
 
+	enterprise, err := svc.ds.GetEnterprise(ctx)
+	if err != nil {
+		return "", ctxerr.Wrap(ctx, err, "get android enterprise")
+	}
 	// TODO(mna): call the AMAPI endpoint
+
 	return "", nil
 }

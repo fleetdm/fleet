@@ -63,9 +63,17 @@ type Client interface {
 
 	EnterprisesApplications(ctx context.Context, enterpriseName, packageName string) (*androidmanagement.Application, error)
 
+	// EnterprisesPoliciesModifyPolicyApplications adds or updates the given apps in the policy.
+	// See: https://developers.google.com/android/management/reference/rest/v1/enterprises.policies/modifyPolicyApplications
 	EnterprisesPoliciesModifyPolicyApplications(ctx context.Context, policyName string, appPolicies []*androidmanagement.ApplicationPolicy) (*androidmanagement.Policy, error)
 
+	// EnterprisesPoliciesRemovePolicyApplications removes the given apps from the policy.
+	// See: https://developers.google.com/android/management/reference/rest/v1/enterprises.policies/removePolicyApplications
 	EnterprisesPoliciesRemovePolicyApplications(ctx context.Context, policyName string, packageNames []string) (*androidmanagement.Policy, error)
+
+	// EnterprisesWebAppsCreate creates a web app in the enterprise.
+	// See: https://developers.google.com/android/management/reference/rest/v1/enterprises.webApps/create
+	EnterprisesWebAppsCreate(ctx context.Context, enterpriseName string, webApp *androidmanagement.WebApp) (*androidmanagement.WebApp, error)
 }
 
 type EnterprisesCreateRequest struct {
