@@ -36,7 +36,7 @@ class SelectTargetsInput extends Component {
   // disable the eslint rule because it's the best way we can
   // fix #4905 without rewriting code that will be replaced
   // by the newer SelectTargets component soon.
-   
+
   componentDidUpdate(prevProps) {
     const { targets, selectedTargets } = this.props;
 

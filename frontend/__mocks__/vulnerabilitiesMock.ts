@@ -140,7 +140,6 @@ export const createMockVulnerabilityResponse = (
   return { ...DEFAULT_VULNERABILITY_DETAILS, ...overrides };
 };
 
- 
 export const createMockVulnerabilitiesResponse = (
   overrides?: Partial<IVulnerabilitiesResponse>
 ): IVulnerabilitiesResponse => {

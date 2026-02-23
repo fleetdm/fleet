@@ -30,7 +30,6 @@ const DEFAULT_OS_VERSIONS_RESPONSE: IOSVersionsResponse = {
   },
 };
 
- 
 export const createMockOSVersionsResponse = (
   overrides?: Partial<IOSVersionsResponse>
 ): IOSVersionsResponse => {

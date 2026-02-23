@@ -3,7 +3,7 @@ import { useLayoutEffect, useState } from "react";
 /**
  * This hook checks if an element is truncated and returns a boolean value.
  */
- 
+
 export const useCheckTruncatedElement = <T extends HTMLElement>(
   ref: React.RefObject<T>
 ) => {

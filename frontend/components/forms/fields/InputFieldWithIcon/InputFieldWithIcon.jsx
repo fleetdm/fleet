@@ -26,7 +26,7 @@ class InputFieldWithIcon extends InputField {
     type: PropTypes.string,
     className: PropTypes.string,
     disabled: PropTypes.bool,
-    inputOptions: PropTypes.object,  
+    inputOptions: PropTypes.object,
     tooltip: PropTypes.string,
     ignore1Password: PropTypes.bool,
   };

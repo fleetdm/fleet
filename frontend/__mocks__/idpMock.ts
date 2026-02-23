@@ -8,7 +8,6 @@ const DEFAULT_GET_SCIM_DETAILS_MOCK: IGetSCIMDetailsResponse = {
   },
 };
 
- 
 export const createMockGetSCIMDetailsResponse = (
   overrides?: Partial<IGetSCIMDetailsResponse>
 ): IGetSCIMDetailsResponse => {
