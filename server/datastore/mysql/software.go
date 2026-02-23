@@ -1678,28 +1678,21 @@ func buildOptimizedListSoftwareSQL(opts fleet.SoftwareListOptions) (string, []in
 	// This allows MySQL to read from the index without accessing the table,
 	// which is critical for performance.
 	// IMPORTANT: Update this query if modifying idx_software_host_counts_team_global_hosts_desc index.
-	// PERFORMANCE ISSUE: The hosts_count > 0 filter causes ASC queries to read the entire index
-	// instead of stopping after LIMIT rows like DESC queries do. While both ASC and DESC
-	// use the index, DESC can stop early but ASC with a range condition must read all matching rows.
-	// RECOMMENDED SOLUTION: Eliminate zero-count rows from this table entirely.
-	// This would allow removing the hosts_count > 0 filter, making ASC queries as fast as DESC
-	// without requiring a second index. Related issue: https://github.com/fleetdm/fleet/issues/35805
 	innerSQL := `
 		SELECT
 			shc.software_id,
 			shc.hosts_count
 		FROM software_host_counts shc
-		WHERE shc.hosts_count > 0
 	`
 
 	// Apply team filtering with global_stats
 	switch {
 	case opts.TeamID == nil:
-		innerSQL += " AND shc.team_id = 0 AND shc.global_stats = 1"
+		innerSQL += " WHERE shc.team_id = 0 AND shc.global_stats = 1"
 	case *opts.TeamID == 0:
-		innerSQL += " AND shc.team_id = 0 AND shc.global_stats = 0"
+		innerSQL += " WHERE shc.team_id = 0 AND shc.global_stats = 0"
 	default:
-		innerSQL += " AND shc.team_id = ? AND shc.global_stats = 0"
+		innerSQL += " WHERE shc.team_id = ? AND shc.global_stats = 0"
 		args = append(args, *opts.TeamID)
 	}
 
@@ -2154,8 +2147,6 @@ func countSoftwareDB(
 		countSQL += ` INNER JOIN cve_meta c ON c.cve = scv.cve`
 	}
 
-	countSQL += ` WHERE shc.hosts_count > 0`
-
 	var args []interface{}
 	var whereClauses []string
 	// Apply team filtering with global_stats
@@ -2191,8 +2182,8 @@ func countSoftwareDB(
 	}
 
 	// Add all WHERE clauses
-	for _, clause := range whereClauses {
-		countSQL += " AND " + clause
+	if len(whereClauses) > 0 {
+		countSQL += " WHERE " + strings.Join(whereClauses, " AND ")
 	}
 
 	var count int
@@ -2545,7 +2536,7 @@ func (ds *Datastore) SoftwareByID(ctx context.Context, id uint, teamID *uint, in
 		// However, it is possible that the software was deleted from all hosts after the last host count update.
 		q = q.Where(
 			goqu.L(
-				"EXISTS (SELECT 1 FROM software_host_counts WHERE software_id = ? AND team_id = ? AND hosts_count > 0 AND global_stats = 0)", id, *teamID,
+				"EXISTS (SELECT 1 FROM software_host_counts WHERE software_id = ? AND team_id = ? AND global_stats = 0)", id, *teamID,
 			),
 		)
 	}

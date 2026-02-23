@@ -64,13 +64,13 @@ SELECT
 	vap.icon_url AS icon_url
 FROM software_titles st
 %s
-LEFT JOIN software_titles_host_counts sthc ON sthc.software_title_id = st.id AND sthc.hosts_count > 0 AND (%s)
+LEFT JOIN software_titles_host_counts sthc ON sthc.software_title_id = st.id AND (%s)
 LEFT JOIN software_installers si ON si.title_id = st.id AND %s
 LEFT JOIN vpp_apps vap ON vap.title_id = st.id
 LEFT JOIN vpp_apps_teams vat ON vat.adam_id = vap.adam_id AND vat.platform = vap.platform AND %s
 LEFT JOIN in_house_apps iha ON iha.title_id = st.id AND %s
 WHERE st.id = ? AND
-	(sthc.hosts_count > 0 OR vat.adam_id IS NOT NULL OR si.id IS NOT NULL OR iha.title_id IS NOT NULL)
+	(sthc.software_title_id IS NOT NULL OR vat.adam_id IS NOT NULL OR si.id IS NOT NULL OR iha.title_id IS NOT NULL)
 GROUP BY
 	st.id,
 	st.name,
@@ -561,7 +561,7 @@ WHERE
 	{{with $defFilter := yesNo (hasTeamID .) "(si.id IS NOT NULL OR vat.adam_id IS NOT NULL OR iha.id IS NOT NULL)" "FALSE"}}
 		-- add software installed for hosts if we're not filtering for "available for install" only
 		{{if not $.AvailableForInstall}}
-			{{$defFilter = $defFilter | printf " ( %s OR sthc.hosts_count > 0 ) "}}
+			{{$defFilter = $defFilter | printf " ( %s OR sthc.software_title_id IS NOT NULL ) "}}
 		{{ end }}
 		{{if and $.SelfServiceOnly (hasTeamID $)}}
 		   {{$defFilter = $defFilter | printf "%s AND ( si.self_service = 1 OR vat.self_service = 1 OR iha.self_service = 1 ) "}}
@@ -692,7 +692,6 @@ LEFT JOIN software_host_counts shc ON shc.software_id = s.id AND %s
 LEFT JOIN software_cve scve ON shc.software_id = scve.software_id
 WHERE s.title_id IN (?)
 AND %s
-AND shc.hosts_count > 0
 GROUP BY s.id`
 
 	extraSelect := ""
