@@ -1,5 +1,8 @@
 # Fleet 4.81.0 | Lower AWS costs, automatic IdP deprovisioning, and more...
 
+<div purpose="embedded-content">
+   <iframe src="https://www.youtube.com/embed/LAXHRKqxBAk?si=UBaH_TE9L5IEMAtq" title="0" allowfullscreen></iframe>
+</div>
 
 Fleet 4.81.0 is now available. See the complete [changelog](https://github.com/fleetdm/fleet/releases/tag/fleet-v4.81.0) or read on for highlights. For upgrade instructions, visit the [upgrade guide](https://fleetdm.com/docs/deploying/upgrading-fleet) in the Fleet docs.
 
