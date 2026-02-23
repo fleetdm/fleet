@@ -2066,18 +2066,3 @@ func createTestBuckets(config *configpkg.FleetConfig, logger log.Logger) {
 		)
 	}
 }
-
-// parseLogTopics splits a comma-separated string into trimmed, non-empty topic names.
-func parseLogTopics(s string) []string {
-	if s == "" {
-		return nil
-	}
-	var topics []string
-	for t := range strings.SplitSeq(s, ",") {
-		t = strings.TrimSpace(t)
-		if t != "" {
-			topics = append(topics, t)
-		}
-	}
-	return topics
-}
