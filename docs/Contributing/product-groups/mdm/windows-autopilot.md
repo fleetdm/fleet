@@ -3,6 +3,7 @@
 ## Reference links
 - [Windows MDM Setup](https://fleetdm.com/guides/windows-mdm-setup#windows-autopilot)
 - [Autopilot add devices](https://learn.microsoft.com/en-us/autopilot/add-devices)
+- [Serve locally built Fleetd during Autopilot](https://github.com/fleetdm/fleet/blob/docs-windows-autopilot-dev/docs/Contributing/getting-started/testing-and-local-development.md#building-and-serving-your-own-fleetd-basemsi-installer-for-windows)
 
 ## Configuring Windows Autopilot for development
 To set up Windows Autopilot for development, follow these steps:
