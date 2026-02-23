@@ -365,6 +365,7 @@ type S3Config struct {
 	CarvesStsExternalID    string `yaml:"carves_sts_external_id"`
 	CarvesDisableSSL       bool   `yaml:"carves_disable_ssl"`
 	CarvesForceS3PathStyle bool   `yaml:"carves_force_s3_path_style"`
+	CarvesGCSIAMAuth       bool   `yaml:"carves_gcs_iam_auth"`
 
 	SoftwareInstallersBucket                          string        `yaml:"software_installers_bucket"`
 	SoftwareInstallersPrefix                          string        `yaml:"software_installers_prefix"`
@@ -376,6 +377,7 @@ type S3Config struct {
 	SoftwareInstallersStsExternalID                   string        `yaml:"software_installers_sts_external_id"`
 	SoftwareInstallersDisableSSL                      bool          `yaml:"software_installers_disable_ssl"`
 	SoftwareInstallersForceS3PathStyle                bool          `yaml:"software_installers_force_s3_path_style"`
+	SoftwareInstallersGCSIAMAuth                      bool          `yaml:"software_installers_gcs_iam_auth"`
 	SoftwareInstallersCloudFrontURL                   string        `yaml:"software_installers_cloudfront_url"`
 	SoftwareInstallersCloudFrontURLSigningPublicKeyID string        `yaml:"software_installers_cloudfront_url_signing_public_key_id"`
 	SoftwareInstallersCloudFrontURLSigningPrivateKey  string        `yaml:"software_installers_cloudfront_url_signing_private_key"`
@@ -437,6 +439,7 @@ func (s S3Config) SoftwareInstallersToInternalCfg() S3ConfigInternal {
 		StsExternalID:    s.SoftwareInstallersStsExternalID,
 		DisableSSL:       s.SoftwareInstallersDisableSSL,
 		ForceS3PathStyle: s.SoftwareInstallersForceS3PathStyle,
+		GCSIAMAuth:       s.SoftwareInstallersGCSIAMAuth,
 	}
 	if s.SoftwareInstallersCloudFrontSigner != nil {
 		configInternal.CloudFrontConfig = &S3CloudFrontConfig{
@@ -493,6 +496,7 @@ func (s S3Config) CarvesToInternalCfg() S3ConfigInternal {
 	if !s.CarvesForceS3PathStyle {
 		internal.ForceS3PathStyle = s.ForceS3PathStyle
 	}
+	internal.GCSIAMAuth = s.CarvesGCSIAMAuth
 
 	return internal
 }
@@ -509,6 +513,7 @@ type S3ConfigInternal struct {
 	StsExternalID    string
 	DisableSSL       bool
 	ForceS3PathStyle bool
+	GCSIAMAuth       bool
 	CloudFrontConfig *S3CloudFrontConfig
 }
 
@@ -1429,6 +1434,7 @@ func (man Manager) addConfigs() {
 	man.addConfigString("s3.carves_sts_external_id", "", "Optional unique identifier that can be used by the principal assuming the role to assert its identity.")
 	man.addConfigBool("s3.carves_disable_ssl", false, "Disable SSL (typically for local testing)")
 	man.addConfigBool("s3.carves_force_s3_path_style", false, "Set this to true to force path-style addressing, i.e., `http://s3.amazonaws.com/BUCKET/KEY`")
+	man.addConfigBool("s3.carves_gcs_iam_auth", false, "Use Google ADC bearer tokens for GCS endpoint authentication instead of S3 HMAC keys")
 
 	// S3 for software installers
 	man.addConfigString("s3.software_installers_bucket", "", "Bucket where to store uploaded software installers")
@@ -1441,6 +1447,7 @@ func (man Manager) addConfigs() {
 	man.addConfigString("s3.software_installers_sts_external_id", "", "Optional unique identifier that can be used by the principal assuming the role to assert its identity.")
 	man.addConfigBool("s3.software_installers_disable_ssl", false, "Disable SSL (typically for local testing)")
 	man.addConfigBool("s3.software_installers_force_s3_path_style", false, "Set this to true to force path-style addressing, i.e., `http://s3.amazonaws.com/BUCKET/KEY`")
+	man.addConfigBool("s3.software_installers_gcs_iam_auth", false, "Use Google ADC bearer tokens for GCS endpoint authentication instead of S3 HMAC keys")
 	man.addConfigString("s3.software_installers_cloudfront_url", "", "CloudFront URL for software installers")
 	man.addConfigString("s3.software_installers_cloudfront_url_signing_public_key_id", "", "CloudFront public key ID for URL signing")
 	man.addConfigString("s3.software_installers_cloudfront_url_signing_private_key", "", "CloudFront private key for URL signing")
@@ -1951,6 +1958,7 @@ func (man Manager) loadS3Config() S3Config {
 		CarvesStsExternalID:    man.getConfigString("s3.carves_sts_external_id"),
 		CarvesDisableSSL:       man.getConfigBool("s3.carves_disable_ssl"),
 		CarvesForceS3PathStyle: man.getConfigBool("s3.carves_force_s3_path_style"),
+		CarvesGCSIAMAuth:       man.getConfigBool("s3.carves_gcs_iam_auth"),
 
 		Bucket:           man.getConfigString("s3.bucket"),
 		Prefix:           man.getConfigString("s3.prefix"),
@@ -1973,6 +1981,7 @@ func (man Manager) loadS3Config() S3Config {
 		SoftwareInstallersStsExternalID:                   man.getConfigString("s3.software_installers_sts_external_id"),
 		SoftwareInstallersDisableSSL:                      man.getConfigBool("s3.software_installers_disable_ssl"),
 		SoftwareInstallersForceS3PathStyle:                man.getConfigBool("s3.software_installers_force_s3_path_style"),
+		SoftwareInstallersGCSIAMAuth:                      man.getConfigBool("s3.software_installers_gcs_iam_auth"),
 		SoftwareInstallersCloudFrontURL:                   man.getConfigString("s3.software_installers_cloudfront_url"),
 		SoftwareInstallersCloudFrontURLSigningPublicKeyID: man.getConfigString("s3.software_installers_cloudfront_url_signing_public_key_id"),
 		SoftwareInstallersCloudFrontURLSigningPrivateKey:  man.getConfigString("s3.software_installers_cloudfront_url_signing_private_key"),

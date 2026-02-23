@@ -2594,6 +2594,27 @@ or running S3 locally with localstack. Leave this blank to use the default S3 se
     software_installers_endpoint_url: http://localhost:9000
   ```
 
+### s3_software_installers_gcs_iam_auth
+
+*Available in Fleet Premium.*
+
+When `true`, Fleet uses Google Application Default Credentials (ADC) bearer tokens for
+authentication against Google Cloud Storage's S3-compatible endpoint instead of S3 HMAC keys.
+
+Use this only with `s3_software_installers_endpoint_url` set to `https://storage.googleapis.com`.
+This mode is incompatible with `s3_software_installers_access_key_id`,
+`s3_software_installers_secret_access_key`, and `s3_software_installers_sts_assume_role_arn`.
+
+On GCE, GKE, or Cloud Run, ADC typically resolves to the runtime workload identity (metadata server).
+
+- Default value: false
+- Environment variable: `FLEET_S3_SOFTWARE_INSTALLERS_GCS_IAM_AUTH`
+- Config file format:
+  ```yaml
+  s3:
+    software_installers_gcs_iam_auth: true
+  ```
+
 ### s3_software_installers_force_s3_path_style
 
 *Available in Fleet Premium.*
@@ -2754,6 +2775,25 @@ All carve objects will also be prefixed by date and hour (UTC), making the resul
   ```yaml
   s3:
      carves_force_s3_path_style: false
+  ```
+
+### s3_carves_gcs_iam_auth
+
+When `true`, Fleet uses Google Application Default Credentials (ADC) bearer tokens for
+authentication against Google Cloud Storage's S3-compatible endpoint instead of S3 HMAC keys.
+
+Use this only with `s3_carves_endpoint_url` set to `https://storage.googleapis.com`.
+This mode is incompatible with `s3_carves_access_key_id`,
+`s3_carves_secret_access_key`, and `s3_carves_sts_assume_role_arn`.
+
+On GCE, GKE, or Cloud Run, ADC typically resolves to the runtime workload identity (metadata server).
+
+- Default value: false
+- Environment variable: `FLEET_S3_CARVES_GCS_IAM_AUTH`
+- Config file format:
+  ```yaml
+  s3:
+    carves_gcs_iam_auth: true
   ```
 
 ### s3_carves_region
