@@ -199,13 +199,11 @@ The following steps show how to connect end users to Wi-Fi or VPN with [Smallste
 
 ### Step 1: Configure Smallstep with Fleet information
 
-We're currently working with Smallstep to develop a specific Smallstep-Fleet connector. In the meantime, Smallstep can be configured to work with Fleet by using the Smallstep-Jamf connector.
-
 1. In Smallstep, go to **Settings > Device Management**.
 
-2. Under **Available Providers**, find **Jamf** and click **Connect**.
+2. Under **Available Providers**, find **Fleet** and click **Connect**.
 
-3. In the Smallstepform, enter your Fleet server URL (the API Client ID and API Client Secret fields are not required), then click **Connect MDM**.
+3. In the Smallstep form, enter your Fleet server URL (the API Client ID and API Client Secret fields are not required), then click **Connect MDM**.
 
 4. After connecting, note the following details from Smallstep (these values are required in the next step):
   - **SCEP URL**
