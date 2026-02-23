@@ -344,3 +344,4 @@
     detailed security posture report including exposed credentials, insecure
     permissions, and misconfigured bindings.
   platform: windows
+  
