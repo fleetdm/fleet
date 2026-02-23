@@ -88,15 +88,12 @@ If the host isn’t in ABM, users can still turn on MDM:
 Connect Fleet to VPP to deploy [Apple App Store apps](https://fleetdm.com/guides/install-app-store-apps) to your hosts:
 
 1. In Fleet, select your avatar on the far right of the main navigation menu, and then **Settings > Integrations > Mobile device management (MDM)**
-
 2. In the **Volume Purchasing Program (VPP)** section, select **Add VPP**, and then select **Add VPP** again on the following page. Follow the directions on the modal to get your VPP token from Apple Business Manager, and then select the **Upload** button at the bottom to upload it to Fleet.
-
 3. To assign the VPP token to a specific team, find the token in the table of VPP tokens. Select the **Actions** dropdown, and then select **Edit teams**. Use the picker to select which team(s) this VPP token should be assigned to.
 
 To renew a VPP token:
 
 1. Navigate to the **Settings > Integrations > Mobile device management (MDM)** page
-
 2. Under **Volume Purchasing Program (VPP)**, select **Edit** and then find the token that you want to renew. Token status is indicated in the **Renew date** column: tokens less than 30 days from expiring will have a yellow indicator, and expired tokens will have a red indicator. Select the **Actions** dropdown for the token and then select **Renew**. Follow the instructions in the modal to download a new token from Apple Business Manager and then upload the new token to Fleet.
 
 ## Best practice
@@ -141,9 +138,29 @@ The acquisitions's VPP token will be assigned to the above teams.
 Fleet uses SCEP certificates (1 year expiry) to authenticate the requests hosts make to Fleet. Fleet
 renews each host's SCEP certificates automatically every 180 days.
 
-## Troubleshooting failed enrollments
+## Troubleshooting
+
+### Failed enrollments
 
 If a host is turned off due to user action or a low battery during the Setup Assistant, it may fail to enroll. This can also happen if your Fleet instance is down for maintenance when a host tries to enroll automatically during the Setup Assistant. In these cases, hosts usually restart after the user attempts to get past the “Welcome to Mac" screen. The best practice in this situation is to wipe the host with Fleet if it has network connectivity or to [reinstall macOS from Recovery](https://support.apple.com/en-us/102655).
+
+### Apple Business Manager (ABM) issues
+
+Fleet surfaces Apple Business Manager (ABM) DEP profile assignment and push errors by monitoring profile statuses ('assigned', 'pushed') for each host. When ABM reports a failure during assignment or push, Fleet records the error type, timestamp, and affected host. IT admins can view error details, last event timestamps, and filter hosts with ABM integration issues for targeted troubleshooting.
+
+![Fleet_ABM-workflow-small](https://github.com/user-attachments/assets/b120f7c5-dd8c-4f4e-80ed-1e6cad99d516)
+
+>This feature focuses on error surfacing, displaying assignment/push failures and metadata, not the complete ABM lifecycle.
+
+To view an ABM issue:
+
+1. If there is an active issue a vital called **ABM issue** will be on the **Dashboard** page. This will take you to a filtered list of hosts with ABM issues.
+2. Select a host to view host details where you can review the MDM status. Clicking on the MDM status will display a modal with the following information:
+   - **MDM status**: the host’s current state in Fleet’s MDM lifecycle.
+   - **Profile assignment**: timestamp of the last successful profile assignment reported by Apple Business Manager for this host.
+   - **Profile push**: timestamp of the last successful retrieval of the assigned profile by the host. If the profile wasn’t pushed, the host cannot activate MDM.
+   - **Profile status**: the most recent status reported by Apple for this host.
+   - **Profile assignment error** (if active error): a failure during DEP profile assignment or push. Includes error details for troubleshooting.
 
 <meta name="category" value="guides">
 <meta name="authorGitHubUsername" value="zhumo">
