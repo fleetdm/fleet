@@ -1,4 +1,4 @@
-/* eslint-disable @typescript-eslint/explicit-module-boundary-types */
+ 
 import { IMdmAbmToken } from "interfaces/mdm";
 import sendRequest from "services";
 import endpoints from "utilities/endpoints";

@@ -14,7 +14,6 @@ import {
 
 import {
   HostPlatform,
-  isAndroid,
   PLATFORM_DISPLAY_NAMES,
   isVulnUnsupportedPlatform,
 } from "interfaces/platform";
@@ -30,9 +29,6 @@ import TableCount from "components/TableContainer/TableCount";
 import { VulnsNotSupported } from "pages/SoftwarePage/components/tables/SoftwareVulnerabilitiesTable/SoftwareVulnerabilitiesTable";
 import { Row } from "react-table";
 import { IHostSoftware } from "interfaces/software";
-import EmptyTable from "components/EmptyTable";
-import CustomLink from "components/CustomLink";
-import { SUPPORT_LINK } from "utilities/constants";
 
 const DEFAULT_PAGE_SIZE = 20;
 

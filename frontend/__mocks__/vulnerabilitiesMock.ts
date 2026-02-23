@@ -140,7 +140,7 @@ export const createMockVulnerabilityResponse = (
   return { ...DEFAULT_VULNERABILITY_DETAILS, ...overrides };
 };
 
-// eslint-disable-next-line import/prefer-default-export
+ 
 export const createMockVulnerabilitiesResponse = (
   overrides?: Partial<IVulnerabilitiesResponse>
 ): IVulnerabilitiesResponse => {

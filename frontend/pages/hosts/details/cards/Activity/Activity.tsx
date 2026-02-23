@@ -20,8 +20,6 @@ import { ShowActivityDetailsHandler } from "components/ActivityItem/ActivityItem
 import PastActivityFeed from "./PastActivityFeed";
 import UpcomingActivityFeed from "./UpcomingActivityFeed";
 import MDMCommandsToggle from "./MDMCommandsToggle";
-import PastCommandFeed from "./PastCommandFeed";
-import UpcomingCommandFeed from "./UpcomingCommandFeed";
 import CommandFeed from "./CommandFeed";
 import { ShowCommandDetailsHandler } from "./CommandItem/CommandItem";
 

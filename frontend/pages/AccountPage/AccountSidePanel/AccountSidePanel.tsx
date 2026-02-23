@@ -1,5 +1,4 @@
 import React, { useContext, useEffect, useState } from "react";
-import { upperFirst } from "lodash";
 
 import { IUser } from "interfaces/user";
 import { IVersionData } from "interfaces/version";

@@ -136,29 +136,23 @@ export const parseSqlTables = (
     }
   };
 
-  try {
-    const sqlTree = parser.astify(sqlString, { database: "sqlite" }) as unknown;
-    _visit(sqlTree as IAstNode, _callback);
+  const sqlTree = parser.astify(sqlString, { database: "sqlite" }) as unknown;
+  _visit(sqlTree as IAstNode, _callback);
 
-    // Remove virtual tables unless includeVirtualTables is true.
-    if (virtualTables.length && !includeVirtualTables) {
-      results = results.filter((r: string) => !virtualTables.includes(r));
-    }
-
-    // Always remove function tables.
-    if (functionTables.length) {
-      results = results.filter((r: string) => !functionTables.includes(r));
-    }
-
-    // Remove duplicates.
-    results = uniq(results);
-
-    return results;
-  } catch (err) {
-    // console.log(`sqlite-parser error: ${err}\n\n${sqlString}`);
-
-    throw err;
+  // Remove virtual tables unless includeVirtualTables is true.
+  if (virtualTables.length && !includeVirtualTables) {
+    results = results.filter((r: string) => !virtualTables.includes(r));
   }
+
+  // Always remove function tables.
+  if (functionTables.length) {
+    results = results.filter((r: string) => !functionTables.includes(r));
+  }
+
+  // Remove duplicates.
+  results = uniq(results);
+
+  return results;
 };
 
 export const checkTable = (

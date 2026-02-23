@@ -4,7 +4,7 @@ import ReactTooltip from "react-tooltip";
 import Icon from "components/Icon";
 import { COLORS } from "styles/var/colors";
 
-interface ILiveQueryIssueCellProps<T> {
+interface ILiveQueryIssueCellProps<_T> {
   displayName: string;
   distributedInterval: number;
   status: string;

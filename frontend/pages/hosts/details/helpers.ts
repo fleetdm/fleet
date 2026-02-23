@@ -51,7 +51,7 @@ export const generateWinDiskEncryptionSetting = (
  * this as we don't have a linux disk encryption setting in the `profiles`
  * attribute coming back from the GET /hosts/:id API response.
  */
-// eslint-disable-next-line import/prefer-default-export
+ 
 export const generateLinuxDiskEncryptionSetting = (
   diskEncryptionStatus: LinuxDiskEncryptionStatus,
   detail: string

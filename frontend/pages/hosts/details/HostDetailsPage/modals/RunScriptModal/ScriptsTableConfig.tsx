@@ -83,7 +83,7 @@ export const generateActionDropdownOptions = (
   return options;
 };
 
-// eslint-disable-next-line import/prefer-default-export
+ 
 export const generateTableColumnConfigs = (
   currentUser: IUser | null,
   hostTeamId: number | null,

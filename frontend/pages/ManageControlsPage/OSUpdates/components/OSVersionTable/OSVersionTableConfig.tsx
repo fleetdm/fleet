@@ -28,7 +28,7 @@ interface IHeaderProps {
   };
 }
 
-// eslint-disable-next-line import/prefer-default-export
+ 
 export const generateTableHeaders = (teamId: number) => {
   return [
     {

@@ -1,4 +1,4 @@
-/* eslint-disable react/prop-types */
+ 
 // disable this rule as it was throwing an error in Header and Cell component
 // definitions for the selection row for some reason when we dont really need it.
 import React from "react";

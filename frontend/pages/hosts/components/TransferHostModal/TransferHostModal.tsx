@@ -6,7 +6,7 @@ import Button from "components/buttons/Button";
 // ignore TS error for now until these are rewritten in ts.
 // @ts-ignore
 import Dropdown from "components/forms/fields/Dropdown";
-import { ITeam, ITeamSummary } from "interfaces/team";
+import { ITeam } from "interfaces/team";
 
 interface ITransferHostModal {
   isGlobalAdmin: boolean;

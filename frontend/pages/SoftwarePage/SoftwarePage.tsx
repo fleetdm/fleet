@@ -175,7 +175,7 @@ const SoftwarePage = ({ children, router, location }: ISoftwarePageProps) => {
   const [showSoftwareFiltersModal, setShowSoftwareFiltersModal] = useState(
     false
   );
-  const [addedSoftwareToken, setAddedSoftwareToken] = useState<string | null>(
+  const [addedSoftwareToken, _setAddedSoftwareToken] = useState<string | null>(
     null
   );
 

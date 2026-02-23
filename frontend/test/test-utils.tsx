@@ -31,7 +31,7 @@ type RenderOptionsWithProviderProps = RenderOptions & {
 /**
  * A custom render method that provides a configurable App context when testing components
  */
-// eslint-disable-next-line import/prefer-default-export
+ 
 export const renderWithAppContext = (
   component: React.ReactNode,
   { contextValue, ...renderOptions }: RenderOptionsWithProviderProps

@@ -60,7 +60,7 @@ const RenewCertModal = ({
   }, [certFile, renderFlash, onCancel, onRenew]);
 
   const onDownloadError = useCallback(
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+     
     (e: unknown) => {
       const msg = getErrorReason(e);
 

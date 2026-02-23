@@ -34,7 +34,7 @@ const ExampleWebhookUrlPayloadModal = ({
         <div className={`${baseClass}__webhook-preview`}>
           <pre
             // purposely ignore dangerouslySetInnerHTML for this example payload
-            // eslint-disable-next-line react/no-danger
+             
             dangerouslySetInnerHTML={{
               __html: syntaxHighlight(EXAMPLE_PAYLOAD),
             }}

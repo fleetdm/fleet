@@ -125,7 +125,7 @@ const OktaConditionalAccessModal = ({
       onError: (e: any) => {
         // When responseType is "text", error responses come back as JSON strings
         // that need to be parsed manually
-        let errorReason = "";
+        let errorReason;
         try {
           if (e.data && typeof e.data === "string") {
             const parsedError = JSON.parse(e.data);

@@ -23,7 +23,7 @@ import {
   newFormDataIdp,
 } from "../IdentityProviders/components/EndUserAuthSection/helpers";
 
-const baseClass = "app-config-form";
+const _baseClass = "app-config-form";
 
 interface ISsoFormData {
   idpName: string;
@@ -190,7 +190,7 @@ const Sso = ({
     (index: number) => {
       if (
         formDirty &&
-        // eslint-disable-next-line no-alert
+         
         !confirm("Switch tabs?\n\nChanges you made will not be saved.")
       ) {
         return;

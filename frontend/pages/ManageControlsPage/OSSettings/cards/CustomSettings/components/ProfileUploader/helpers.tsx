@@ -92,7 +92,7 @@ const generateGenericLearnMoreErrMsg = (errMsg: string) => {
  * we add them in this function. Otherwise, we'll just return the error message from the
  * API.
  */
-// eslint-disable-next-line import/prefer-default-export
+ 
 export const getErrorMessage = (err: AxiosResponse<IApiError>) => {
   const apiReason = err?.data?.errors?.[0]?.reason;
 

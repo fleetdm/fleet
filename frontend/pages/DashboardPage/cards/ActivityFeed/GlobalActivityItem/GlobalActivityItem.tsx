@@ -1,4 +1,4 @@
-import { capitalize, find, lowerCase, noop, trimEnd, upperFirst } from "lodash";
+import { capitalize, find, lowerCase, noop, trimEnd } from "lodash";
 import React from "react";
 
 import { ActivityType, IActivity } from "interfaces/activity";
@@ -347,7 +347,7 @@ const TAGGED_TEMPLATES = {
 
     // note: if mdm_platform is missing, we assume this is Apple MDM for backwards
     // compatibility
-    let enrollmentTypeText = "";
+    let enrollmentTypeText;
     if (activity.details?.installed_from_dep) {
       enrollmentTypeText = "automatic";
     } else {
@@ -1647,7 +1647,7 @@ const TAGGED_TEMPLATES = {
   editedSetupExperienceSoftware: (activity: IActivity) => {
     const { platform, team_name, team_id } = activity.details || {};
 
-    let platformText = "";
+    let platformText;
     switch (platform) {
       case "darwin":
         platformText = "macOS";

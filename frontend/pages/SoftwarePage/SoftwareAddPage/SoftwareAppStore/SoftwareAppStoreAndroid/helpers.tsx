@@ -8,7 +8,7 @@ import {
   formatAlreadyAvailableInstallMessage,
 } from "../../helpers";
 
-// eslint-disable-next-line import/prefer-default-export
+ 
 export const getErrorMessage = (e: unknown): string | ReactElement => {
   const reason = getErrorReason(e);
 

@@ -32,39 +32,37 @@ export default {
    * fetch here because the EventSource API does not support setting headers,
    * which we need to authenticate the request.
    */
-  startSSE: (abortSignal: AbortSignal): Promise<void> => {
-    return new Promise(async (resolve, reject) => {
-      try {
-        const response = await fetch(endpoints.MDM_ANDROID_SSE_URL, {
-          method: "GET",
-          headers: {
-            Authorization: `Bearer ${authToken()}`,
-          },
-          signal: abortSignal,
-        });
+  startSSE: async (abortSignal: AbortSignal): Promise<void> => {
+    try {
+      const response = await fetch(endpoints.MDM_ANDROID_SSE_URL, {
+        method: "GET",
+        headers: {
+          Authorization: `Bearer ${authToken()}`,
+        },
+        signal: abortSignal,
+      });
 
-        const reader = response?.body?.getReader();
-        const decoder = new TextDecoder();
+      const reader = response?.body?.getReader();
+      if (!reader) {
+        throw new Error("Failed to get response body reader");
+      }
+      const decoder = new TextDecoder();
 
-        while (true) {
-          // @ts-ignore
-          // eslint-disable-next-line no-await-in-loop
-          const { done, value } = await reader?.read();
-          if (done) break;
-          const text = decoder.decode(value);
-          if (text === "Android Enterprise successfully connected") {
-            resolve();
-            break;
-          }
-        }
-      } catch (error) {
-        if ((error as Error).name === "AbortError") {
-          // we want to ignore abort errors
-          console.error("SSE Fetch aborted");
-        } else {
-          reject(error);
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        const text = decoder.decode(value);
+        if (text === "Android Enterprise successfully connected") {
+          break;
         }
       }
-    });
+    } catch (error) {
+      if ((error as Error).name === "AbortError") {
+        // we want to ignore abort errors
+        console.error("SSE Fetch aborted");
+      } else {
+        throw error;
+      }
+    }
   },
 };

@@ -1,4 +1,4 @@
-/* eslint-disable  @typescript-eslint/explicit-module-boundary-types */
+ 
 import { snakeCase, reduce } from "lodash";
 
 import sendRequest from "services";

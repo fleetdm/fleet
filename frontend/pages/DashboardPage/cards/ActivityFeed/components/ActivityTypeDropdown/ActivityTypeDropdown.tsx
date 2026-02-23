@@ -28,11 +28,13 @@ import { FONT_SIZES } from "styles/var/fonts";
 import { COLORS } from "styles/var/colors";
 
 declare module "react-select-5/dist/declarations/src/Select" {
+  /* eslint-disable @typescript-eslint/no-unused-vars */
   export interface Props<
     Option,
     IsMulti extends boolean,
     Group extends GroupBase<Option>
   > {
+    /* eslint-enable @typescript-eslint/no-unused-vars */
     searchQuery?: string;
     onChangeSearchQuery?: (event: React.ChangeEvent<HTMLInputElement>) => void;
     onClickSearchInput?: React.MouseEventHandler<HTMLInputElement>;

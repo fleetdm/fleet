@@ -17,7 +17,6 @@ import {
   IHostSoftware,
   IDeviceSoftwareWithUiStatus,
   IVPPHostSoftware,
-  NO_VERSION_OR_HOST_DATA_SOURCES,
 } from "interfaces/software";
 
 import deviceApi, {

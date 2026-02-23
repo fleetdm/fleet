@@ -21,7 +21,6 @@ import {
 import Button from "components/buttons/Button";
 import Checkbox from "components/forms/fields/Checkbox";
 import { AppContext } from "context/app";
-import Spinner from "components/Spinner";
 import PremiumFeatureMessage from "components/PremiumFeatureMessage";
 import { useQuery } from "react-query";
 import DataError from "components/DataError";

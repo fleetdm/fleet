@@ -56,8 +56,7 @@ export interface IButtonProps {
   size?: "small" | "default";
 }
 
-// eslint-disable-next-line @typescript-eslint/no-empty-interface
-interface IButtonState {}
+type IButtonState = Record<string, never>;
 
 interface Inputs {
   button?: HTMLButtonElement;

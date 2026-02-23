@@ -13,8 +13,8 @@ export default PropTypes.shape({
   created_at: PropTypes.string,
   name: PropTypes.string.isRequired,
   description: PropTypes.string,
-  agent_options: PropTypes.object, // eslint-disable-line react/forbid-prop-types
-  role: PropTypes.any, // eslint-disable-line react/forbid-prop-types
+  agent_options: PropTypes.object,  
+  role: PropTypes.any,  
   // role value is included when the team is in the context of a user
   user_count: PropTypes.number,
   host_count: PropTypes.number,

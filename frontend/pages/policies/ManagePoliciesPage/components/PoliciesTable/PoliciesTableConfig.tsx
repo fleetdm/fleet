@@ -1,4 +1,3 @@
-/* eslint-disable react/prop-types */
 // disable this rule as it was throwing an error in Header and Cell component
 // definitions for the selection row for some reason when we dont really need it.
 import React from "react";
@@ -355,7 +354,7 @@ const generateDataSet = (
   // Each host asynchronously updates its own policy result every `osquery_policy` nanoseconds.
   // Then, the host count is updated by a cron job on the server every 1 hour (this is hardcoded on the server in `cron.go`).
   // So, we need to add `osquery_policy` to the time of the cron update.
-  let policiesLastRun: Date;
+  let _policiesLastRun: Date;
   let osqueryPolicyMs = 0;
   const policiesThatHaveRunHostCountUpdatedAt =
     // host counts of all policies that have run are updated at the same time, and are therefore
@@ -370,12 +369,12 @@ const generateDataSet = (
   if (osquery_policy) {
     // Convert from nanosecond to milliseconds
     osqueryPolicyMs = osquery_policy / 1000000;
-    policiesLastRun = new Date(
+    _policiesLastRun = new Date(
       hostCountUpdatedAtDate.getTime() - osqueryPolicyMs
     );
   } else {
     // temporarily unused - will restore use with upcoming DB update
-    policiesLastRun = hostCountUpdatedAtDate;
+    _policiesLastRun = hostCountUpdatedAtDate;
   }
   // Now we figure out when the next host count update will be.
   // The % (mod) is used below in case server was restarted and previously scheduled host count update was skipped.

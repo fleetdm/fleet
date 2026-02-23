@@ -126,7 +126,7 @@ const ScriptDetailsModal = ({
     ["scriptContent", scriptId],
     () =>
       scriptId
-        ? // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+        ?  
           scriptAPI.downloadScript(scriptId)
         : Promise.resolve(null),
     {

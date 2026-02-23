@@ -6,11 +6,6 @@ import {
 } from "interfaces/script";
 import sendRequest from "services";
 
-import {
-  createMockBatchScriptSummary,
-  createMockScriptBatchHostResults,
-} from "__mocks__/scriptMock";
-
 import endpoints from "utilities/endpoints";
 import { buildQueryStringFromParams } from "utilities/url";
 import {

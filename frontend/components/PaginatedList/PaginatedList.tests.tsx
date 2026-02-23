@@ -47,7 +47,7 @@ describe("PaginatedList", () => {
     },
   ];
 
-  const fetchTinyPage = (pageNumber: number) => {
+  const _fetchTinyPage = (pageNumber: number) => {
     if (pageNumber <= 2) {
       return [items[pageNumber]];
     }

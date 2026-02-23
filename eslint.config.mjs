@@ -34,6 +34,10 @@ export default tseslint.config(
       "frontend/test/**/*.{js,jsx,ts,tsx}",
     ],
     ...jestPlugin.configs["flat/recommended"],
+    rules: {
+      ...jestPlugin.configs["flat/recommended"].rules,
+      "jest/no-mocks-import": "off",
+    },
   },
 
   // Storybook recommended config for story files
@@ -120,6 +124,13 @@ export default tseslint.config(
         "error",
         {
           caseSensitive: false,
+          ignore: [
+            "^date-fns",
+            "^date-fns-tz",
+            "^use-debounce",
+            "^@storybook/",
+            "^@testing-library/jest-dom",
+          ],
         },
       ],
       "import/no-named-as-default": "off",
@@ -137,6 +148,17 @@ export default tseslint.config(
       "@typescript-eslint/explicit-module-boundary-types": "off",
       "@typescript-eslint/ban-ts-comment": "off",
       "@typescript-eslint/no-shadow": "error",
+      "@typescript-eslint/no-explicit-any": "warn",
+      "@typescript-eslint/no-unused-vars": [
+        "error",
+        {
+          argsIgnorePattern: "^_",
+          varsIgnorePattern: "^_",
+          caughtErrorsIgnorePattern: "^_",
+          caughtErrors: "none",
+          ignoreRestSiblings: true,
+        },
+      ],
       "@typescript-eslint/no-unused-expressions": "off",
       "@typescript-eslint/no-require-imports": "off",
     },

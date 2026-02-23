@@ -19,8 +19,8 @@ const generateCell = (
 
   const totalCount = vulnerabilitiesCount ?? vulnerabilities.length;
 
-  let text = "";
-  let italicize = true;
+  let text;
+  let italicize;
   if (totalCount === 1) {
     italicize = false;
     text =

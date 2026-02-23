@@ -13,7 +13,7 @@ const HeaderCell = ({
   isSortedDesc,
   disableSortBy,
 }: IHeaderCellProps): JSX.Element => {
-  let sortArrowClass = "";
+  let sortArrowClass;
   if (isSortedDesc === undefined) {
     sortArrowClass = "";
   } else if (isSortedDesc) {

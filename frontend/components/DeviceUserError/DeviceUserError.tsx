@@ -23,7 +23,7 @@ const DeviceUserError = ({
     [`${baseClass}__mobile-view`]: isMobileView,
   });
 
-  const isIOSIPadOS = platform === "ios" || platform === "ipados";
+  const _isIOSIPadOS = platform === "ios" || platform === "ipados";
 
   // Default: "Something went wrong"
   let headerContent: React.ReactNode = (

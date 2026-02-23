@@ -26,7 +26,7 @@ import CustomLink from "components/CustomLink";
  * helper function to generate error message for secret variables based
  * on the error reason.
  */
-// eslint-disable-next-line import/prefer-default-export
+ 
 export const generateSecretErrMsg = (err: unknown) => {
   const reason = getErrorReason(err);
 

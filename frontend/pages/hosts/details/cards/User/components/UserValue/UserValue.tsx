@@ -15,7 +15,7 @@ const UserValue = ({ values }: IUserValueProps) => {
   const displayNameRef = useRef<HTMLSpanElement>(null);
   const isTruncated = useCheckTruncatedElement(displayNameRef);
 
-  let content: React.ReactNode = null;
+  let content: React.ReactNode;
 
   if (values.length === 0) {
     // no values content

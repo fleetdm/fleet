@@ -16,7 +16,7 @@ import {
   formatAlreadyAvailableInstallMessage,
 } from "../helpers";
 
-// eslint-disable-next-line import/prefer-default-export
+ 
 export const getErrorMessage = (err: unknown) => {
   const isTimeout =
     isAxiosError(err) &&

@@ -62,7 +62,7 @@ describe("ConfigProfileStatusModal", () => {
     await screen.findByText("Verified");
 
     const failedRow = screen.getByText("Failed").closest("tr");
-    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+     
     user.hover(failedRow!);
 
     const resendButton = screen.getByRole("button", { name: "Resend" });

@@ -4,7 +4,7 @@ import { isEmpty } from "lodash";
 import { DEFAULT_EMPTY_CELL_VALUE } from "utilities/constants";
 import IssuesIndicator from "pages/hosts/components/IssuesIndicator";
 
-interface IIssueCellProps<T> {
+interface IIssueCellProps<_T> {
   issues: {
     total_issues_count: number;
     critical_vulnerabilities_count?: number;

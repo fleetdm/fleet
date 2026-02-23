@@ -32,7 +32,7 @@ const MdmSettingsSection = ({
   appleAPNSInfo,
 }: IMdmSectionProps) => {
   // TODO: feature flag check, remove when feature releases
-  const { config } = useContext(AppContext);
+  const { _config } = useContext(AppContext);
 
   const navigateToAppleMdm = () => {
     router.push(PATHS.ADMIN_INTEGRATIONS_MDM_APPLE);

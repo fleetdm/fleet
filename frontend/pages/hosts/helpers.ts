@@ -1,4 +1,4 @@
-// eslint-disable-next-line import/prefer-default-export
+ 
 const getHostStatusTooltipText = (status: string): string => {
   if (status === "online") {
     return "Online hosts will respond to a live report.";

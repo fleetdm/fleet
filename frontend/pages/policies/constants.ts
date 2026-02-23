@@ -23,7 +23,7 @@ export const DEFAULT_POLICY = {
 // We disable some linting and prettier for DEFAULT_POLICIES object because we
 // need to keep some backslash(\) characters in some of the query string values.
 
-/* eslint-disable no-useless-escape */
+ 
 // prettier-ignore
 export const DEFAULT_POLICIES: IPolicyNew[] = [
   {

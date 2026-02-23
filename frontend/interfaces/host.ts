@@ -62,7 +62,7 @@ export default PropTypes.shape({
     })
   ),
   team_name: PropTypes.string,
-  additional: PropTypes.object, // eslint-disable-line react/forbid-prop-types
+  additional: PropTypes.object,
   percent_disk_space_available: PropTypes.number,
   gigs_disk_space_available: PropTypes.number,
   // On Linux hosts, `gigs_total_disk_space` only includes disk space from the "/" partition
@@ -298,7 +298,7 @@ export interface IHost {
   team_id: number | null;
   pack_stats: IPackStats[] | null;
   team_name: string | null;
-  additional?: object; // eslint-disable-line @typescript-eslint/ban-types
+  additional?: object;
   percent_disk_space_available: number;
   gigs_disk_space_available: number;
   // On Linux hosts, `gigs_total_disk_space` only includes disk space from the "/" partition

@@ -7,7 +7,7 @@ import CustomLink from "components/CustomLink";
 
 const DEFAULT_ERROR_MESSAGE = "Unable to update Windows MDM. Please try again.";
 
-// eslint-disable-next-line import/prefer-default-export
+ 
 export const getErrorMessage = (err: unknown) => {
   let message = getErrorReason(err, {
     nameEquals: "mdm.windows_enabled_and_configured",

@@ -6,7 +6,7 @@ const LOCK_WIPE_ERR_MESSAGE =
 const ACTIVITY_ALREADY_HAPPENED_ERR_MESSAGE =
   "Couldn't cancel activity. Activity already happened.";
 
-// eslint-disable-next-line import/prefer-default-export
+ 
 export const getErrorMessage = (err: unknown) => {
   if (hasStatusKey(err)) {
     if (err.status === 404) return ACTIVITY_ALREADY_HAPPENED_ERR_MESSAGE;

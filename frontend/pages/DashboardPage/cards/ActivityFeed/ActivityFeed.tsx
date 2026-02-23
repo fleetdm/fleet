@@ -9,7 +9,6 @@ import activitiesAPI, {
   IActivitiesResponse,
 } from "services/entities/activities";
 
-import { isAndroid } from "interfaces/platform";
 import {
   resolveUninstallStatus,
   SoftwareInstallUninstallStatus,

@@ -2,7 +2,7 @@ import Button from "components/buttons/Button";
 import Modal from "components/Modal";
 import React from "react";
 
-const baseClass = "device-bypass-modal";
+const _baseClass = "device-bypass-modal";
 
 interface IBypassModal {
   onCancel: () => void;

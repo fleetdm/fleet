@@ -9,8 +9,8 @@ const defaultValidate = () => {
 export default (WrappedComponent, { fields, validate = defaultValidate }) => {
   class Form extends Component {
     static propTypes = {
-      serverErrors: PropTypes.object, // eslint-disable-line react/forbid-prop-types
-      formData: PropTypes.object, // eslint-disable-line react/forbid-prop-types
+      serverErrors: PropTypes.object,  
+      formData: PropTypes.object,  
       handleSubmit: PropTypes.func,
       onChangeFunc: PropTypes.func,
     };

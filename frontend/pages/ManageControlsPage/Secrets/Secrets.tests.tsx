@@ -1,5 +1,5 @@
 import React from "react";
-import { getByText, screen, waitFor } from "@testing-library/react";
+import { screen, waitFor } from "@testing-library/react";
 
 import { ISecret } from "interfaces/secrets";
 import { UserEvent } from "@testing-library/user-event";
@@ -147,7 +147,7 @@ describe("Custom variables", () => {
 
     describe("gitops mode", () => {
       it("renders the add button disabled in GitOps mode", async () => {
-        const { user } = renderInGOM(<Secrets />);
+        const { _user } = renderInGOM(<Secrets />);
 
         let addSecretButton;
         await waitFor(() => {

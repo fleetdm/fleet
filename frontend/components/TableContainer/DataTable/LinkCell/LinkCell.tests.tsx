@@ -8,7 +8,7 @@ import LinkCell from "./LinkCell";
 const VALUE = "40 hosts";
 describe("Link cell", () => {
   it("renders text", async () => {
-    const { user } = renderWithSetup(
+    const { _user } = renderWithSetup(
       <LinkCell value={VALUE} path={PATHS.MANAGE_HOSTS} />
     );
 

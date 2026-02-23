@@ -6,7 +6,7 @@ const UPLOAD_ERROR_MESSAGES = {
   },
 };
 
-// eslint-disable-next-line import/prefer-default-export
+ 
 export const getErrorMessage = (err: unknown) => {
   if (typeof err === "string") return err;
   return getErrorReason(err) || UPLOAD_ERROR_MESSAGES.default.message;

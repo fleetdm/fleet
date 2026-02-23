@@ -95,7 +95,7 @@ export default {
     params: IDeviceSoftwareQueryKey
   ): Promise<IGetDeviceSoftwareResponse> => {
     const { DEVICE_SOFTWARE } = endpoints;
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+     
     const { id, scope, ...rest } = params;
 
     const path = getPathWithQueryParams(DEVICE_SOFTWARE(id), rest);

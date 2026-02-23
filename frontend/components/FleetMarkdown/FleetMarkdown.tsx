@@ -50,7 +50,7 @@ const FleetMarkdown = ({ markdown, className, name }: IFleetMarkdownProps) => {
 
             // Extract the text content from the code element inside pre
             // children is typically <code>...</code>
-            let codeContent = "";
+            let codeContent;
             if (React.isValidElement(children)) {
               const codeChildren = children.props?.children;
               codeContent = String(codeChildren || "");

@@ -5,7 +5,7 @@ import {
   IFormValidation,
 } from "./SoftwareAndroidForm";
 
-interface IValidation {
+interface _IValidation {
   name: string;
   isValid: (formData: ISoftwareAndroidFormData) => boolean;
   message?: IValidationMessage;

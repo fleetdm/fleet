@@ -1,4 +1,4 @@
-/* eslint-disable @typescript-eslint/explicit-module-boundary-types */
+ 
 import specAPI from "services/entities/spec";
 import teamsAPI from "services/entities/teams";
 

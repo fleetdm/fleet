@@ -20,8 +20,8 @@ const generateCell = (teams: ITokenTeam[] | null) => {
     return <TextCell value="All fleets" />;
   }
 
-  let text = "";
-  let italicize = true;
+  let text;
+  let italicize;
   if (teams.length === 1) {
     italicize = false;
     text = teams[0].name;
@@ -76,7 +76,7 @@ interface ITeamsCellProps {
 
 const TeamsCell = ({ teams, className }: ITeamsCellProps) => {
   const tooltipId = uniqueId();
-  const classNames = classnames(baseClass, className);
+  const _classNames = classnames(baseClass, className);
 
   if (!teams) {
     return <TextCell value={teams} />;

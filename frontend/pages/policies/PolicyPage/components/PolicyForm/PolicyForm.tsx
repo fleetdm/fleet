@@ -1,5 +1,5 @@
-/* eslint-disable jsx-a11y/no-noninteractive-element-to-interactive-role */
-/* eslint-disable jsx-a11y/interactive-supports-focus */
+ 
+ 
 import React, { useState, useContext, useEffect, KeyboardEvent } from "react";
 import { useQuery } from "react-query";
 

@@ -1,10 +1,4 @@
-import React, {
-  FormEvent,
-  useState,
-  useEffect,
-  useContext,
-  useRef,
-} from "react";
+import React, { FormEvent, useState, useEffect, useContext } from "react";
 import { Link } from "react-router";
 import PATHS from "router/paths";
 

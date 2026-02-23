@@ -13,7 +13,7 @@ type IFleetMaintainedAppsTableConfig = Column<ICombinedFMA>;
 type ITableStringCellProps = IStringCellProps<ICombinedFMA>;
 type ITableHeaderProps = IHeaderProps<ICombinedFMA>;
 
-// eslint-disable-next-line import/prefer-default-export
+ 
 export const generateTableConfig = (
   router: InjectedRouter,
   teamId: number

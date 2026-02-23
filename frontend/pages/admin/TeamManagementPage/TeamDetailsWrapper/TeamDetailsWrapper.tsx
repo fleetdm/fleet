@@ -1,5 +1,4 @@
 import React, { useState, useCallback, useContext } from "react";
-import { upperFirst } from "lodash";
 import { useQuery } from "react-query";
 import { useErrorHandler } from "react-error-boundary";
 import { InjectedRouter } from "react-router";

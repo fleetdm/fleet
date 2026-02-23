@@ -14,7 +14,7 @@ const DEFAULT_SETUP_EXPIERENCE_SCRIPT: IGetSetupExperienceScriptResponse = {
   updated_at: "2021-01-01T00:00:00Z",
 };
 
-// eslint-disable-next-line import/prefer-default-export
+ 
 export const createMockSetupExperienceScriptResponse = (
   overrides?: Partial<IGetSetupExperienceScriptResponse>
 ): IGetSetupExperienceScriptResponse => {

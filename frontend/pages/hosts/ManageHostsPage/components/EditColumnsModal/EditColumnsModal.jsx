@@ -91,7 +91,7 @@ const EditColumnsModal = ({
 };
 
 EditColumnsModal.propTypes = {
-  columns: PropTypes.arrayOf(PropTypes.object), // eslint-disable-line react/forbid-prop-types
+  columns: PropTypes.arrayOf(PropTypes.object),  
   hiddenColumns: PropTypes.arrayOf(PropTypes.string),
   onSaveColumns: PropTypes.func,
   onCancelColumns: PropTypes.func,

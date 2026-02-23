@@ -10,7 +10,6 @@ import {
   trimEnd,
   union,
   uniqueId,
-  upperFirst,
 } from "lodash";
 import md5 from "js-md5";
 import {
@@ -951,7 +950,7 @@ export function getCustomDropdownOptions(
 }
 
 export const getGitOpsModeTipContent = (repoURL: string) => {
-  let url = "";
+  let url;
   try {
     url = new URL(repoURL).toString();
   } catch {

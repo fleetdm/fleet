@@ -4,7 +4,6 @@ import { ITeamFormData } from "services/entities/teams";
 
 import Modal from "components/Modal";
 import Button from "components/buttons/Button";
-import InfoBanner from "components/InfoBanner/InfoBanner";
 // @ts-ignore
 import InputField from "components/forms/fields/InputField";
 

@@ -22,7 +22,7 @@ const InstallerPoliciesTable = ({
   isLoading = false,
   policies,
 }: IInstallerPoliciesTable) => {
-  const classNames = classnames(baseClass, className);
+  const _classNames = classnames(baseClass, className);
 
   const softwareStatusHeaders = generateInstallerPoliciesTableConfig({
     teamId,

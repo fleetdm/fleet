@@ -6,7 +6,6 @@ import classnames from "classnames";
 
 import Card from "components/Card";
 import CardHeader from "components/CardHeader";
-import { LABEL_DISPLAY_MAP } from "utilities/constants";
 import TooltipTruncatedText from "components/TooltipTruncatedText";
 
 const baseClass = "host-labels-card";

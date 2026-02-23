@@ -46,7 +46,7 @@ const getAddSoftwareUrl = (
   platform: SetupExperiencePlatform,
   teamId: number
 ) => {
-  let path = "";
+  let path;
   switch (platform) {
     case "ios":
     case "ipados":

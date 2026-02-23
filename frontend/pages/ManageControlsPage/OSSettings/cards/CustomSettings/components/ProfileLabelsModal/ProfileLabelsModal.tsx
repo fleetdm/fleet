@@ -66,7 +66,7 @@ const ProfileLabelsModal = ({
   }
 
   const renderlabelDescription = () => {
-    let targetTypeText = <></>;
+    let targetTypeText;
     if (labels_include_all) {
       targetTypeText = <b>have all</b>;
     } else if (labels_include_any) {

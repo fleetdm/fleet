@@ -1,6 +1,5 @@
 import React, { useContext, useState } from "react";
 import { InjectedRouter } from "react-router";
-import axios from "axios";
 import PATHS from "router/paths";
 
 import { NotificationContext } from "context/notification";
@@ -14,12 +13,11 @@ import { ISoftwareAndroidFormData } from "pages/SoftwarePage/components/forms/So
 import { getPathWithQueryParams } from "utilities/url";
 import SoftwareAndroidForm from "pages/SoftwarePage/components/forms/SoftwareAndroidForm";
 import { getErrorMessage } from "./helpers";
-import { ADD_SOFTWARE_ERROR_PREFIX } from "../../helpers";
 
 const baseClass = "software-app-store-android";
 
-const AMAPI_BASE_URL = "https://androidmanagement.googleapis.com/v1/";
-const ENTERPRISE_ID = "<your_enterprise_id>"; // Set this appropriately
+const _AMAPI_BASE_URL = "https://androidmanagement.googleapis.com/v1/";
+const _ENTERPRISE_ID = "<your_enterprise_id>"; // Set this appropriately
 
 interface ISoftwareAppStoreProps {
   currentTeamId: number;

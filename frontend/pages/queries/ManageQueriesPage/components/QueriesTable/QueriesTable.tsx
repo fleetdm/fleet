@@ -1,4 +1,4 @@
-/* eslint-disable react/prop-types */
+ 
 import React, { useContext, useCallback, useMemo } from "react";
 import { InjectedRouter } from "react-router";
 import { Row } from "react-table";

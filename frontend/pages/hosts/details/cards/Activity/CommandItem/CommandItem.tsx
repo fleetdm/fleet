@@ -21,7 +21,7 @@ interface ICommandItemProps {
 const CommandItem = ({ command, onShowDetails }: ICommandItemProps) => {
   const { command_status, request_type, updated_at } = command;
 
-  let statusVerb = "";
+  let statusVerb;
   switch (command_status) {
     case "pending":
       statusVerb = "will run";

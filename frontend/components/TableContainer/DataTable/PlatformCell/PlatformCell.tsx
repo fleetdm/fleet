@@ -21,8 +21,7 @@ const DISPLAY_ORDER: ScheduledQueryablePlatform[] = [
 ];
 
 const PlatformCell = ({ platforms }: IPlatformCellProps): JSX.Element => {
-  let orderedList: ScheduledQueryablePlatform[] = [];
-  orderedList = platforms.length
+  const orderedList: ScheduledQueryablePlatform[] = platforms.length
     ? // if no platforms, interpret as targeting all schedule-targetable platforms
       DISPLAY_ORDER.filter((platform) => platforms.includes(platform))
     : DISPLAY_ORDER;

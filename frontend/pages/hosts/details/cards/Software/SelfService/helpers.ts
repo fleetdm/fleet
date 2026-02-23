@@ -1,5 +1,4 @@
 import {
-  IDeviceSoftware,
   IDeviceSoftwareWithUiStatus,
   SoftwareCategory,
 } from "interfaces/software";

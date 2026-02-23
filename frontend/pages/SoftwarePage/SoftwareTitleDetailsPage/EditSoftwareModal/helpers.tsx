@@ -11,7 +11,7 @@ import {
 
 const DEFAULT_ERROR_MESSAGE = "Couldn't edit software. Please try again.";
 
-// eslint-disable-next-line import/prefer-default-export
+ 
 export const getErrorMessage = (
   err: unknown,
   software: ISoftwarePackage | IAppStoreApp

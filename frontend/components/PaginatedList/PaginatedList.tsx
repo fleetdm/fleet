@@ -104,7 +104,7 @@ function PaginatedListInner<TItem extends Record<string, any>>(
   const [dirtyItems, setDirtyItems] = useState<Record<string | number, TItem>>(
     {}
   );
-  const [error, setError] = useState<Error | null>(null);
+  const [error, _setError] = useState<Error | null>(null);
   const idKey = _idKey ?? "id";
   const labelKey = _labelKey ?? "name";
   const pageSize = _pageSize ?? 20;
@@ -161,7 +161,7 @@ function PaginatedListInner<TItem extends Record<string, any>>(
             [`${baseClass}__row--disabled`]: itemDisabled,
           });
           return (
-            // eslint-disable-next-line jsx-a11y/no-noninteractive-element-interactions
+             
             <li
               className={rowClasses}
               key={item[idKey]}

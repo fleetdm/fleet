@@ -1,7 +1,6 @@
 import React, { useContext, useEffect, useState, useCallback } from "react";
 import { useQuery } from "react-query";
 import { Tab, Tabs, TabList, TabPanel } from "react-tabs";
-import { noop } from "lodash";
 
 import {
   IAppStoreApp,
@@ -394,7 +393,7 @@ const EditIconModal = ({
 
   const renderPreviewFleetCard = () => {
     const {
-      name,
+      name: _name,
       type,
       versions,
       source,

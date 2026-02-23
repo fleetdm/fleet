@@ -30,7 +30,7 @@ export interface InstallerCardInfo {
   autoUpdateEndTime?: string;
 }
 
-// eslint-disable-next-line import/prefer-default-export
+ 
 export const getInstallerCardInfo = (
   softwareTitle: ISoftwareTitleDetails
 ): InstallerCardInfo => {

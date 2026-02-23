@@ -69,7 +69,7 @@ export const generateDropdownOptions = (hasNDESCert: boolean) => {
  * This function constructs the request body based on the selected certificate authority type
  * and the provided form data.
  */
-// eslint-disable-next-line import/prefer-default-export
+
 export const generateAddCertAuthorityData = (
   certAuthorityType: ICertificateAuthorityType,
   formData: ICertFormData
@@ -220,7 +220,7 @@ const INVALID_CHALLENGE_URL_OR_CREDENTIALS_ERROR =
  * This is used in both add and edit certificate authority flows.
  */
 export const getDisplayErrMessage = (err: unknown): string | JSX.Element => {
-  let message: string | JSX.Element = DEFAULT_ERROR;
+  let message: string | JSX.Element;
   const reason = getErrorReason(err).toLowerCase();
 
   if (reason.includes("invalid api token")) {

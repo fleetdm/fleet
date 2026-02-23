@@ -259,7 +259,7 @@ describe("Policies table", () => {
 
     const policiesList = [...testInheritedPolicies, ...testTeamPolicies];
 
-    const { container, user } = render(
+    const { _container, user } = render(
       <PoliciesTable
         policiesList={policiesList}
         isLoading={false}

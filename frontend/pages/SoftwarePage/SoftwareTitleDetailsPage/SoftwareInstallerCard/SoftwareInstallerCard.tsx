@@ -1,7 +1,6 @@
 /** software/titles/:id > Second section */
 
 import React, { useCallback, useContext, useState } from "react";
-import { InjectedRouter } from "react-router";
 
 import { AppContext } from "context/app";
 import { NotificationContext } from "context/notification";
@@ -169,7 +168,7 @@ interface ISoftwareInstallerCardProps {
 const SoftwareInstallerCard = ({
   softwareId,
   teamId,
-  teamIdForApi,
+  teamIdForApi: _teamIdForApi,
   onDelete,
   isLoading,
   onToggleViewYaml,
@@ -189,7 +188,7 @@ const SoftwareInstallerCard = ({
 
   const {
     softwareTitleName,
-    softwareDisplayName,
+    softwareDisplayName: _softwareDisplayName,
     softwareInstaller,
     name,
     version,

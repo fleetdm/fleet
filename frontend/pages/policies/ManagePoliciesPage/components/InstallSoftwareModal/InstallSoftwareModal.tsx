@@ -61,8 +61,8 @@ interface IInstallSoftwareModal {
 
 const generateSoftwareOptionHelpText = (title: IEnhancedSoftwareTitle) => {
   const vppOption = title.source === "apps" && !!title.app_store_app;
-  let platformString = "";
-  let versionString = "";
+  let platformString;
+  let versionString;
 
   if (vppOption) {
     platformString = "macOS (App Store)";

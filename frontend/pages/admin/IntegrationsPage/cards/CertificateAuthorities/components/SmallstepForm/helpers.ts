@@ -134,7 +134,7 @@ const getErrorMessage = (
   return message(formData);
 };
 
-// eslint-disable-next-line import/prefer-default-export
+ 
 export const validateFormData = (
   formData: ISmallstepFormData,
   validationConfig: IFormValidations

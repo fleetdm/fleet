@@ -19,7 +19,7 @@ import DeleteCertificateAuthorityModal from "./components/DeleteCertificateAutho
 import AddCertAuthorityModal from "./components/AddCertAuthorityModal";
 import EditCertAuthorityModal from "./components/EditCertAuthorityModal";
 
-const baseClass = "certificate-authorities";
+const _baseClass = "certificate-authorities";
 
 const CertificateAuthorities = () => {
   const { isPremiumTier } = useContext(AppContext);

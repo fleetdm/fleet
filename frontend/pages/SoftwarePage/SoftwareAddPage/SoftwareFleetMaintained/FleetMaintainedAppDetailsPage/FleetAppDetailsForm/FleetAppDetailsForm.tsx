@@ -87,7 +87,7 @@ interface IFleetAppDetailsFormProps {
 const FleetAppDetailsForm = ({
   labels,
   categories,
-  name: appName,
+  name: _appName,
   defaultInstallScript,
   defaultPostInstallScript,
   defaultUninstallScript,

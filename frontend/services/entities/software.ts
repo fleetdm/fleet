@@ -410,11 +410,7 @@ export default {
     const queryString = buildQueryStringFromParams(snakeCaseParams);
     const path = `${SOFTWARE}?${queryString}`;
 
-    try {
-      return sendRequest("GET", path);
-    } catch (error) {
-      throw error;
-    }
+    return sendRequest("GET", path);
   },
 
   getCount: async ({

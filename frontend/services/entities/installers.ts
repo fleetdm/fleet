@@ -1,4 +1,4 @@
-/* eslint-disable @typescript-eslint/explicit-module-boundary-types */
+ 
 import { IInstallerType } from "interfaces/installer";
 import sendRequest from "services";
 import ENDPOINTS from "utilities/endpoints";

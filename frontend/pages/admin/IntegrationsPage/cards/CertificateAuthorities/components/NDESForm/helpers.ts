@@ -94,7 +94,7 @@ const getValifationErrorMessage = (
   return message(formData);
 };
 
-// eslint-disable-next-line import/prefer-default-export
+ 
 export const validateFormData = (formData: INDESFormData) => {
   const formValidation: INDESFormValidation = {
     isValid: true,

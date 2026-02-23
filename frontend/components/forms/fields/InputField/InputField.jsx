@@ -19,9 +19,9 @@ class InputField extends Component {
     /** disabled displays a greyed out non-editable field */
     disabled: PropTypes.bool,
     error: PropTypes.string,
-    inputClassName: PropTypes.string, // eslint-disable-line react/forbid-prop-types
+    inputClassName: PropTypes.string,
     inputWrapperClass: PropTypes.string,
-    inputOptions: PropTypes.object, // eslint-disable-line react/forbid-prop-types
+    inputOptions: PropTypes.object,
     name: PropTypes.string,
     onChange: PropTypes.func,
     onBlur: PropTypes.func,
@@ -185,7 +185,7 @@ class InputField extends Component {
       value,
       ignore1password,
       enableCopy,
-      enableShowSecret,
+      enableShowSecret: _enableShowSecret,
       step,
       min,
       max,

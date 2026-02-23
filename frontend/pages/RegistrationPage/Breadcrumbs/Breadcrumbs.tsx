@@ -1,4 +1,4 @@
-import React, { MouseEventHandler } from "react";
+import React from "react";
 import classnames from "classnames";
 
 import Button from "components/buttons/Button";

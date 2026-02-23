@@ -1,4 +1,4 @@
-/* eslint-disable  @typescript-eslint/explicit-module-boundary-types */
+ 
 import sendRequest from "services";
 import endpoints from "utilities/endpoints";
 import { IHost, HostStatus } from "interfaces/host";
@@ -634,7 +634,7 @@ export default {
     params: IHostSoftwareQueryKey
   ): Promise<IGetHostSoftwareResponse> => {
     const { HOST_SOFTWARE } = endpoints;
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+     
     const { id, scope, ...rest } = params;
     const queryString = buildQueryStringFromParams(rest);
 

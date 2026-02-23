@@ -97,7 +97,7 @@ const HostHeader = ({
     }
 
     const isOnline = summaryData.status === "online";
-    let isDisabled = false;
+    let isDisabled;
     let tooltip;
 
     // we don't have a concept of "online" for iPads and iPhones
@@ -120,7 +120,7 @@ const HostHeader = ({
     } else {
       // ios and ipad devices refresh buttons disable state is determined only by the
       // host mdm device status.
-      // eslint-disable-next-line
+
       if (
         hostMdmDeviceStatus === undefined ||
         hostMdmDeviceStatus === "unlocked" ||

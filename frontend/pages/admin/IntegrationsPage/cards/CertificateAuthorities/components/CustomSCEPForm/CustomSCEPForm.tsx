@@ -13,7 +13,7 @@ import {
   validateFormData,
 } from "./helpers";
 
-const baseClass = "ndes-form";
+const _baseClass = "ndes-form";
 
 export interface ICustomSCEPFormData {
   name: string;

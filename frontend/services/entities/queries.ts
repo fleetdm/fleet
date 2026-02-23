@@ -1,4 +1,3 @@
-/* eslint-disable  @typescript-eslint/explicit-module-boundary-types */
 import sendRequest from "services";
 import endpoints from "utilities/endpoints";
 import { getErrorReason } from "interfaces/errors";
@@ -127,7 +126,8 @@ export default {
       return campaign;
     } catch (e) {
       throw new Error(
-        getErrorReason(e) || `run query: parse server error ${e}`
+        getErrorReason(e) || `run query: parse server error ${e}`,
+        { cause: e }
       );
     }
   },

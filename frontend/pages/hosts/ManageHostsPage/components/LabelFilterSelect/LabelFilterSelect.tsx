@@ -25,11 +25,13 @@ import CustomDropdownIndicator from "../CustomDropdownIndicator";
 // group heading. More info here:
 // https://react-select.com/typescript#custom-select-props
 declare module "react-select-5/dist/declarations/src/Select" {
+  /* eslint-disable @typescript-eslint/no-unused-vars */
   export interface Props<
     Option,
     IsMulti extends boolean,
     Group extends GroupBase<Option>
   > {
+    /* eslint-enable @typescript-eslint/no-unused-vars */
     labelQuery?: string;
     canAddNewLabels?: boolean;
     onAddLabel?: () => void;

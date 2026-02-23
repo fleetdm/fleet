@@ -1,4 +1,4 @@
-/* eslint-disable  @typescript-eslint/explicit-module-boundary-types */
+ 
 import sendRequest from "services";
 import { IHost } from "interfaces/host";
 import { ISelectedTargetsForApi, ITargetsAPIResponse } from "interfaces/target";

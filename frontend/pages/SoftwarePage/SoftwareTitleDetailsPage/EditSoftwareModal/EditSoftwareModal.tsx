@@ -67,7 +67,7 @@ const EditSoftwareModal = ({
   onExit,
   refetchSoftwareTitle,
   installerType,
-  router,
+  router: _router,
   openViewYamlModal,
   isFleetMaintainedApp = false,
   isIosOrIpadosApp = false,

@@ -1,4 +1,4 @@
-/* eslint-disable react/prop-types */
+ 
 // disable this rule as it was throwing an error in Header and Cell component
 // definitions for the selection row for some reason when we dont really need it.
 import React, {
@@ -656,7 +656,7 @@ const DataTable = ({
                   // Can tab onto an entire row if a child element does not have the same onClick functionality as clicking the whole row
                   tabIndex={keyboardSelectableRows ? 0 : -1}
                 >
-                  {row.cells.map((cell: any, index: number) => {
+                  {row.cells.map((cell: any, _index: number) => {
                     // Only allow row click behavior on first cell
                     // if the first cell is not a checkbox
                     const cellProps = cell.getCellProps();
