@@ -220,6 +220,11 @@ func (i *wingetIngester) ingestOne(ctx context.Context, input inputApp) (*mainta
 			installerType = installerTypeMSI
 		}
 
+		// Normalize burn (WiX Burn bootstrapper) to exe since burn produces EXE bundles
+		if installerType == installerTypeBurn {
+			installerType = installerTypeExe
+		}
+
 		scope := m.Scope
 		if scope == "" {
 			scope = installer.Scope
@@ -480,6 +485,7 @@ const (
 	installerTypeWix      = "wix"
 	installerTypeNullSoft = "nullsoft"
 	installerTypeInno     = "inno"
+	installerTypeBurn     = "burn"
 	arch64Bit             = "x64"
 	arch32Bit             = "x86"
 )

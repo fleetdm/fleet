@@ -1143,6 +1143,13 @@
       "description": "Okta Verify is a multi-factor authentication app that provides secure identity verification and passwordless sign-in for users accessing Okta-protected applications."
     },
     {
+      "name": "Okta Verify",
+      "slug": "okta-verify/windows",
+      "platform": "windows",
+      "unique_identifier": "Okta Verify",
+      "description": "Okta Verify is a multi-factor authentication app that provides secure identity verification and passwordless sign-in for users accessing Okta-protected applications."
+    },
+    {
       "name": "OmniGraffle",
       "slug": "omnigraffle/darwin",
       "platform": "darwin",
