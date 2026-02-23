@@ -221,7 +221,7 @@ type SoftwarePackage struct {
 func (spec SoftwarePackage) HydrateToPackageLevel(packageLevel fleet.SoftwarePackageSpec) (fleet.SoftwarePackageSpec, error) {
 	if spec.Icon.Path != "" || spec.InstallScript.Path != "" || spec.UninstallScript.Path != "" ||
 		spec.PostInstallScript.Path != "" || spec.URL != "" || spec.SHA256 != "" || spec.PreInstallQuery.Path != "" {
-		return packageLevel, fmt.Errorf("the software package defined in %s must not have icons, scripts, queries, URL, or hash specified at the team level", *spec.Path)
+		return packageLevel, fmt.Errorf("the software package defined in %s must not have icons, scripts, queries, URL, or hash specified at the fleet level", *spec.Path)
 	}
 
 	packageLevel.Categories = spec.Categories
@@ -332,7 +332,7 @@ func GitOpsFromFile(filePath, baseDir string, appConfig *fleet.EnrichedAppConfig
 		multiError = parseName(teamRaw, result, filePath, multiError)
 		if result.IsNoTeam() {
 			if filepath.Base(filePath) != "no-team.yml" {
-				multiError = multierror.Append(multiError, fmt.Errorf("file %q for 'No team' must be named 'no-team.yml'", filePath))
+				multiError = multierror.Append(multiError, fmt.Errorf("file %q for 'Unassigned' must be named 'no-team.yml'", filePath))
 			}
 			// For No Team, we allow settings but only process webhook_settings from it
 			if settingsOk {
@@ -377,7 +377,7 @@ func parseName(raw json.RawMessage, result *GitOps, filePath string, multiError 
 		return multierror.Append(multiError, MaybeParseTypeError(filePath, []string{"name"}, err))
 	}
 	if result.TeamName == nil || *result.TeamName == "" {
-		return multierror.Append(multiError, errors.New("team 'name' is required"))
+		return multierror.Append(multiError, errors.New("fleet 'name' is required"))
 	}
 	// Normalize team name for full Unicode support, so that we can assume team names are unique going forward
 	normalized := norm.NFC.String(*result.TeamName)
@@ -570,7 +570,7 @@ func parseNoTeamSettings(raw json.RawMessage, result *GitOps, filePath string, m
 	for key := range teamSettingsMap {
 		if key != "webhook_settings" {
 			multiError = multierror.Append(multiError,
-				fmt.Errorf("unsupported settings option '%s' for 'No team' - only 'webhook_settings' is allowed", key))
+				fmt.Errorf("unsupported settings option '%s' for 'Unassigned' - only 'webhook_settings' is allowed", key))
 		}
 	}
 
@@ -593,7 +593,7 @@ func parseNoTeamSettings(raw json.RawMessage, result *GitOps, filePath string, m
 			for key := range webhookMap {
 				if key != "failing_policies_webhook" {
 					multiError = multierror.Append(multiError,
-						fmt.Errorf("unsupported webhook_settings option '%s' for 'No team'; only 'failing_policies_webhook' is allowed", key))
+						fmt.Errorf("unsupported webhook_settings option '%s' for 'Unassigned'; only 'failing_policies_webhook' is allowed", key))
 				}
 			}
 			// If present, ensure failing_policies_webhook is an object or null
@@ -670,7 +670,7 @@ func parseAgentOptions(top map[string]json.RawMessage, result *GitOps, baseDir s
 	agentOptionsRaw, ok := top["agent_options"]
 	if result.IsNoTeam() {
 		if ok {
-			logFn("[!] 'agent_options' is not supported for \"No team\". This key will be ignored.\n")
+			logFn("[!] 'agent_options' is not supported for \"Unassigned\". This key will be ignored.\n")
 		}
 		return multiError
 	} else if !ok {
@@ -1103,7 +1103,7 @@ func parsePolicies(top map[string]json.RawMessage, result *GitOps, baseDir strin
 			item.Team = ""
 		}
 		if item.CalendarEventsEnabled && result.IsNoTeam() {
-			multiError = multierror.Append(multiError, fmt.Errorf("calendar events are not supported on \"No team\" policies: %q", item.Name))
+			multiError = multierror.Append(multiError, fmt.Errorf("calendar events are not supported on \"Unassigned\" policies: %q", item.Name))
 		}
 	}
 	duplicates := getDuplicateNames(
@@ -1123,7 +1123,7 @@ func parsePolicyRunScript(baseDir string, teamName *string, policy *Policy, scri
 		return nil
 	}
 	if policy.RunScript != nil && policy.RunScript.Path != "" && teamName == nil {
-		return errors.New("run_script can only be set on team policies")
+		return errors.New("run_script can only be set on fleet policies")
 	}
 
 	if policy.RunScript.Path == "" {
@@ -1162,7 +1162,7 @@ func parsePolicyInstallSoftware(baseDir string, teamName *string, policy *Policy
 		return nil
 	}
 	if policy.InstallSoftware != nil && (policy.InstallSoftware.PackagePath != "" || policy.InstallSoftware.AppStoreID != "") && teamName == nil {
-		return errors.New("install_software can only be set on team policies")
+		return errors.New("install_software can only be set on fleet policies")
 	}
 	if policy.InstallSoftware.PackagePath == "" && policy.InstallSoftware.AppStoreID == "" && policy.InstallSoftware.HashSHA256 == "" {
 		return errors.New("install_software must include either a package_path, an app_store_id or a hash_sha256")
@@ -1199,9 +1199,9 @@ func parsePolicyInstallSoftware(baseDir string, teamName *string, policy *Policy
 		}
 		if !installerOnTeamFound {
 			if policyInstallSoftwareSpec.URL != "" {
-				return fmt.Errorf("install_software.package_path URL %s not found on team: %s", policyInstallSoftwareSpec.URL, policy.InstallSoftware.PackagePath)
+				return fmt.Errorf("install_software.package_path URL %s not found on fleet: %s", policyInstallSoftwareSpec.URL, policy.InstallSoftware.PackagePath)
 			}
-			return fmt.Errorf("install_software.package_path SHA256 %s not found on team: %s", policyInstallSoftwareSpec.SHA256, policy.InstallSoftware.PackagePath)
+			return fmt.Errorf("install_software.package_path SHA256 %s not found on fleet: %s", policyInstallSoftwareSpec.SHA256, policy.InstallSoftware.PackagePath)
 		}
 
 		policy.InstallSoftwareURL = policyInstallSoftwareSpec.URL
@@ -1217,7 +1217,7 @@ func parsePolicyInstallSoftware(baseDir string, teamName *string, policy *Policy
 			}
 		}
 		if !appOnTeamFound {
-			return fmt.Errorf("install_software.app_store_id %s not found on team %s", policy.InstallSoftware.AppStoreID, *teamName)
+			return fmt.Errorf("install_software.app_store_id %s not found on fleet %s", policy.InstallSoftware.AppStoreID, *teamName)
 		}
 	}
 
@@ -1228,7 +1228,7 @@ func parseQueries(top map[string]json.RawMessage, result *GitOps, baseDir string
 	reportsRaw, ok := top["reports"]
 	if result.IsNoTeam() {
 		if ok {
-			logFn("[!] 'reports' is not supported for \"No team\". This key will be ignored.\n")
+			logFn("[!] 'reports' is not supported for \"Unassigned\". This key will be ignored.\n")
 		}
 		return multiError
 	} else if !ok {
@@ -1277,14 +1277,14 @@ func parseQueries(top map[string]json.RawMessage, result *GitOps, baseDir string
 	// Make sure team name is correct and do additional validation
 	for _, q := range result.Queries {
 		if q.Name == "" {
-			multiError = multierror.Append(multiError, errors.New("query name is required for each query"))
+			multiError = multierror.Append(multiError, errors.New("report name is required for each report"))
 		}
 		if q.Query == "" {
-			multiError = multierror.Append(multiError, errors.New("query SQL query is required for each query"))
+			multiError = multierror.Append(multiError, errors.New("report SQL query is required for each report"))
 		}
 		// Don't use non-ASCII
 		if !isASCII(q.Name) {
-			multiError = multierror.Append(multiError, fmt.Errorf("query name must be in ASCII: %s", q.Name))
+			multiError = multierror.Append(multiError, fmt.Errorf("report name must be in ASCII: %s", q.Name))
 		}
 		if result.TeamName != nil {
 			q.TeamName = *result.TeamName
@@ -1298,7 +1298,7 @@ func parseQueries(top map[string]json.RawMessage, result *GitOps, baseDir string
 		},
 	)
 	if len(duplicates) > 0 {
-		multiError = multierror.Append(multiError, fmt.Errorf("duplicate query names: %v", duplicates))
+		multiError = multierror.Append(multiError, fmt.Errorf("duplicate report names: %v", duplicates))
 	}
 	return multiError
 }
@@ -1396,7 +1396,7 @@ func parseSoftware(top map[string]json.RawMessage, result *GitOps, baseDir strin
 			singlePackageSpec.ReferencedYamlPath = yamlPath
 			if err := YamlUnmarshal(fileBytes, &singlePackageSpec); err == nil {
 				if singlePackageSpec.IncludesFieldsDisallowedInPackageFile() {
-					multiError = multierror.Append(multiError, fmt.Errorf("labels, categories, setup_experience, and self_service values must be specified at the team level; package-level specified in %s", *teamLevelPackage.Path))
+					multiError = multierror.Append(multiError, fmt.Errorf("labels, categories, setup_experience, and self_service values must be specified at the fleet level; package-level specified in %s", *teamLevelPackage.Path))
 					continue
 				}
 				softwarePackageSpecs = append(softwarePackageSpecs, &singlePackageSpec.SoftwarePackageSpec)
@@ -1404,7 +1404,7 @@ func parseSoftware(top map[string]json.RawMessage, result *GitOps, baseDir strin
 				// Failing that, try to unmarshal as a list of SoftwarePackageSpecs
 				for i, spec := range softwarePackageSpecs {
 					if spec.IncludesFieldsDisallowedInPackageFile() {
-						multiError = multierror.Append(multiError, fmt.Errorf("labels, categories, setup_experience, and self_service values must be specified at the team level; package-level specified in %s", *teamLevelPackage.Path))
+						multiError = multierror.Append(multiError, fmt.Errorf("labels, categories, setup_experience, and self_service values must be specified at the fleet level; package-level specified in %s", *teamLevelPackage.Path))
 						continue
 					}
 

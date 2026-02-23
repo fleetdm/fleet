@@ -1061,7 +1061,7 @@ func newTeamPolicy(ctx context.Context, db sqlx.ExtContext, teamID uint, authorI
 			return nil, ctxerr.Wrap(ctx, err, "get team id")
 		}
 		if !ok {
-			return nil, ctxerr.Wrap(ctx, notFound("Team").WithID(teamID), "get team id")
+			return nil, ctxerr.Wrap(ctx, notFound("Fleet").WithID(teamID), "get team id")
 		}
 
 	}
@@ -1229,7 +1229,7 @@ func (ds *Datastore) ApplyPolicySpecs(ctx context.Context, authorID uint, specs 
 					err := sqlx.GetContext(ctx, queryerContext, &tmID, `SELECT id FROM teams WHERE name = ?`, spec.Team)
 					if err != nil {
 						if errors.Is(err, sql.ErrNoRows) {
-							return ctxerr.Wrap(ctx, notFound("Team").WithName(spec.Team), "get team id")
+							return ctxerr.Wrap(ctx, notFound("Fleet").WithName(spec.Team), "get team id")
 						}
 						return ctxerr.Wrap(ctx, err, "get team id")
 					}

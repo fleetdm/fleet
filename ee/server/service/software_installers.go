@@ -286,7 +286,7 @@ func (svc *Service) UpdateSoftwareInstaller(ctx context.Context, payload *fleet.
 	payload.UserID = vc.UserID()
 
 	if payload.TeamID == nil {
-		return nil, &fleet.BadRequestError{Message: "team_id is required; enter 0 for no team"}
+		return nil, &fleet.BadRequestError{Message: "team_id is required; enter 0 for unassigned"}
 	}
 
 	var teamName *string
@@ -763,7 +763,7 @@ func ValidateSoftwareLabelsForUpdate(ctx context.Context, svc fleet.Service, exi
 
 func (svc *Service) DeleteSoftwareInstaller(ctx context.Context, titleID uint, teamID *uint) error {
 	if teamID == nil {
-		return fleet.NewInvalidArgumentError("team_id", "is required")
+		return fleet.NewInvalidArgumentError("fleet_id", "is required")
 	}
 
 	// we authorize with SoftwareInstaller here, but it uses the same AuthzType
@@ -945,7 +945,7 @@ func (svc *Service) GenerateSoftwareInstallerToken(ctx context.Context, alt stri
 
 	if teamID == nil {
 		svc.authz.SkipAuthorization(ctx)
-		return "", fleet.NewInvalidArgumentError("team_id", "is required")
+		return "", fleet.NewInvalidArgumentError("fleet_id", "is required")
 	}
 
 	if err := svc.authz.Authorize(ctx, &fleet.SoftwareInstaller{TeamID: teamID}, fleet.ActionRead); err != nil {
@@ -1019,7 +1019,7 @@ func (svc *Service) DownloadSoftwareInstaller(ctx context.Context, skipAuthz boo
 
 	if teamID == nil {
 		svc.authz.SkipAuthorization(ctx)
-		return nil, fleet.NewInvalidArgumentError("team_id", "is required")
+		return nil, fleet.NewInvalidArgumentError("fleet_id", "is required")
 	}
 
 	meta, err := svc.GetSoftwareInstallerMetadata(ctx, skipAuthz, titleID, teamID)
