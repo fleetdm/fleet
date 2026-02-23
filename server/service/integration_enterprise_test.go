@@ -26124,4 +26124,112 @@ func (s *integrationEnterpriseTestSuite) TestFMAVersionRollback() {
 		require.Zero(t, titlesResp.Count,
 			"software title should no longer be available for install after deletion")
 	})
+
+	// =========================================================================
+	// Section 7: Status summary resets to all-zeros when the active version
+	// changes.
+	//
+	//   1. Add warp at v1.0, then advance to v2.0 (v2.0 active, v1.0 cached).
+	//   2. Install v2.0 on a host and record a success → summary shows Installed: 1.
+	//   3. Roll back to v1.0 via batch-set (v1.0 becomes the active installer).
+	//   4. Assert the active installer's (v1.0) status summary is all zeros —
+	//      the install history from v2.0 must not bleed over.
+	// =========================================================================
+	t.Run("status_summary_resets_on_version_switch", func(t *testing.T) {
+		// Reset warp state to v1.0 for this sub-test.
+		warpState.version = "1.0"
+		warpState.installerBytes = []byte("status-warp-v1")
+		warpState.sha256 = computeSHA(warpState.installerBytes)
+
+		var statusTeamResp teamResponse
+		s.DoJSON("POST", "/api/latest/fleet/teams", &createTeamRequest{
+			TeamPayload: fleet.TeamPayload{Name: ptr.String("team_status_" + t.Name())},
+		}, http.StatusOK, &statusTeamResp)
+		statusTeam := statusTeamResp.Team
+
+		warpPayload := []*fleet.SoftwareInstallerPayload{
+			{Slug: ptr.String("cloudflare-warp/windows"), SelfService: true},
+		}
+
+		// ---- Step 1a: Add v1.0 ----
+		var batchResp batchSetSoftwareInstallersResponse
+		s.DoJSON("POST", "/api/latest/fleet/software/batch",
+			batchSetSoftwareInstallersRequest{Software: warpPayload, TeamName: statusTeam.Name},
+			http.StatusAccepted, &batchResp,
+			"team_name", statusTeam.Name, "team_id", fmt.Sprint(statusTeam.ID),
+		)
+		waitBatchSetSoftwareInstallersCompleted(t, &s.withServer, statusTeam.Name, batchResp.RequestUUID)
+
+		// ---- Step 1b: Advance to v2.0 ----
+		warpState.version = "2.0"
+		warpState.installerBytes = []byte("status-warp-v2")
+		warpState.sha256 = computeSHA(warpState.installerBytes)
+
+		s.DoJSON("POST", "/api/latest/fleet/software/batch",
+			batchSetSoftwareInstallersRequest{Software: warpPayload, TeamName: statusTeam.Name},
+			http.StatusAccepted, &batchResp,
+			"team_name", statusTeam.Name, "team_id", fmt.Sprint(statusTeam.ID),
+		)
+		waitBatchSetSoftwareInstallersCompleted(t, &s.withServer, statusTeam.Name, batchResp.RequestUUID)
+
+		statusTitle := getActiveTitleForTeam(statusTeam.ID)
+		require.Equal(t, "2.0", statusTitle.SoftwarePackage.Version)
+		titleID := statusTitle.ID
+
+		// ---- Step 2: Install v2.0 on a host and record success ----
+		statusHost := createOrbitEnrolledHost(t, "windows", "orbit-host-status-"+t.Name(), s.ds)
+		require.NoError(t, s.ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&statusTeam.ID, []uint{statusHost.ID})))
+
+		s.Do("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/software/%d/install", statusHost.ID, titleID),
+			installSoftwareRequest{}, http.StatusAccepted)
+
+		// Retrieve the execution UUID for the pending install.
+		installUUID := getLatestSoftwareInstallExecID(t, s.ds, statusHost.ID)
+
+		// Report a successful install via orbit.
+		s.Do("POST", "/api/fleet/orbit/software_install/result", json.RawMessage(fmt.Sprintf(`{
+			"orbit_node_key": %q,
+			"install_uuid": %q,
+			"pre_install_condition_output": "1",
+			"install_script_exit_code": 0,
+			"install_script_output": "ok"
+		}`, *statusHost.OrbitNodeKey, installUUID)), http.StatusNoContent)
+
+		// Verify: v2.0 installer summary shows Installed: 1.
+		var titleRespV2 getSoftwareTitleResponse
+		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d", titleID), nil,
+			http.StatusOK, &titleRespV2, "team_id", fmt.Sprint(statusTeam.ID))
+		require.NotNil(t, titleRespV2.SoftwareTitle.SoftwarePackage.Status)
+		require.Equal(t, uint(1), titleRespV2.SoftwareTitle.SoftwarePackage.Status.Installed,
+			"v2.0 installer should show Installed: 1 after a successful install")
+
+		// ---- Step 3: Roll back to v1.0 ----
+		s.DoJSON("POST", "/api/latest/fleet/software/batch",
+			batchSetSoftwareInstallersRequest{
+				Software: []*fleet.SoftwareInstallerPayload{
+					{Slug: ptr.String("cloudflare-warp/windows"), SelfService: true, RollbackVersion: "1.0"},
+				},
+				TeamName: statusTeam.Name,
+			},
+			http.StatusAccepted, &batchResp,
+			"team_name", statusTeam.Name, "team_id", fmt.Sprint(statusTeam.ID),
+		)
+		waitBatchSetSoftwareInstallersCompleted(t, &s.withServer, statusTeam.Name, batchResp.RequestUUID)
+
+		statusTitle = getActiveTitleForTeam(statusTeam.ID)
+		require.Equal(t, "1.0", statusTitle.SoftwarePackage.Version,
+			"active version should be v1.0 after rollback")
+
+		// ---- Step 4: Assert the active (v1.0) installer summary is all zeros ----
+		// v1.0's software_installers row was never the target of any install
+		// request, so its summary must be completely empty. The title ID is
+		// stable across version switches, so we can query it directly.
+		var titleRespV1 getSoftwareTitleResponse
+		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d", titleID), nil,
+			http.StatusOK, &titleRespV1, "team_id", fmt.Sprint(statusTeam.ID))
+		require.NotNil(t, titleRespV1.SoftwareTitle.SoftwarePackage.Status)
+		require.Equal(t, fleet.SoftwareInstallerStatusSummary{}, *titleRespV1.SoftwareTitle.SoftwarePackage.Status,
+			"v1.0 installer status summary must be all zeros after switching from v2.0 — "+
+				"install history from v2.0 must not carry over to the rolled-back version")
+	})
 }
