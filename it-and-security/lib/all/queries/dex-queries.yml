@@ -37,7 +37,7 @@
   platform: darwin
   automations_enabled: true
   logging: snapshot
-  interval: 300
+  interval: 1800
 - name: DEX - Network experience - Wi-Fi signal quality
   description: Wi-Fi connection signal strength and quality metrics. Poor Wi-Fi directly impacts cloud application performance and user experience.
   query: |
