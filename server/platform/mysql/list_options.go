@@ -23,7 +23,24 @@ type InvalidOrderKeyError struct {
 }
 
 func (e InvalidOrderKeyError) Error() string {
-	return fmt.Sprintf("invalid order_key: %q; allowed values are: %v", e.Key, e.Allowed)
+	return fmt.Sprintf("invalid order_key: '%s'; allowed values are: %v", e.Key, e.Allowed)
+}
+
+// Invalid implements the validationErrorInterface so that this error
+// returns HTTP 422 Unprocessable Entity.
+func (e InvalidOrderKeyError) Invalid() []map[string]string {
+	return []map[string]string{
+		{
+			"name":   "order_key",
+			"reason": e.Error(),
+		},
+	}
+}
+
+// IsClientError implements ErrWithIsClientError so that this error
+// is logged at debug level instead of error level.
+func (e InvalidOrderKeyError) IsClientError() bool {
+	return true
 }
 
 // AllowedKeys returns the sorted list of allowed keys for error messages.
