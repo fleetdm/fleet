@@ -138,7 +138,7 @@ The Executive Assistant (EA) will use the following steps when a call is booked 
 ### Schedule analyst prep
 
 The Executive Assistant (EA) will use the following steps when a call is booked between the CEO and an analyst:
-1. The EA will schedule a 30-minute “analyst prep” call right before the analyst meeting, with the CEO as the only attendee.
+1. The EA will [program the CEO](https://fleetdm.com/handbook/ceo#program-the-ceo-to-do-something) a 30-minute “analyst prep” call right before the analyst meeting.
 2. The EA will prep the agenda with a link to the analysts LinkedIn and 3 topics on what the CEO will talk about.
 3. The CEO will review the agenda during the "analyst prep" time.
 
