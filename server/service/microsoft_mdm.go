@@ -1743,7 +1743,10 @@ func (svc *Service) processIncomingMDMCmds(ctx context.Context, deviceID string,
 
 	// Iterate over the operations and process them
 	for _, protoCMD := range reqMsg.GetOrderedCmds() {
-		if protoCMD.Cmd.Data != nil && *protoCMD.Cmd.Data == "418" {
+		if protoCMD.Cmd.Data != nil && *protoCMD.Cmd.Data == "418" && protoCMD.Cmd.CmdRef != nil {
+			if _, err := uuid.Parse(*protoCMD.Cmd.CmdRef); err != nil {
+				continue // if it's not a valid UUID, we skip it since it can't be a reference to a command_uuid in windows_mdm_commands
+			}
 			// 418 = Already exists, and indicate that an <Add> failed due to the item already existing on the device
 			// We need to re-issue a <Replace> command for this item
 			alreadyExistsCmdIDs = append(alreadyExistsCmdIDs, *protoCMD.Cmd.CmdRef)
@@ -1782,7 +1785,7 @@ func (svc *Service) processIncomingMDMCmds(ctx context.Context, deviceID string,
 }
 
 func handleResendingAlreadyExistsCommands(ctx context.Context, svc *Service, alreadyExistsCmdIDs []string, deviceID string) ([]string, error) {
-	commands, err := svc.ds.GetWindowsMDMCommandsForResending(ctx, alreadyExistsCmdIDs)
+	commands, err := svc.ds.GetWindowsMDMCommandsForResending(ctx, deviceID, alreadyExistsCmdIDs)
 	if err != nil {
 		return nil, fmt.Errorf("get commands for resending: %w", err)
 	}
