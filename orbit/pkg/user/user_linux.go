@@ -8,6 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"os/exec"
+	"os/user"
 	"strconv"
 	"strings"
 
@@ -61,16 +62,20 @@ func UserLoggedInViaGui() (*string, error) {
 	return nil, nil
 }
 
-func GetLoggedInUserDisplaySession() (*UserDisplaySession, error) {
-	users, err := getLoginUsers()
-	if err != nil {
-		return nil, fmt.Errorf("get login users: %w", err)
+// GetCurrentUserDisplaySession returns the Display session of the user associated with the current process
+func GetCurrentUserDisplaySession() (*UserDisplaySession, error) {
+	currentUser, err := user.Current()
+	if err != nil || currentUser == nil {
+		return nil, nil
 	}
 
-	for _, user := range users {
-		if session := getDisplaySessionFor(user); session != nil {
-			return session, nil
-		}
+	uid, err := strconv.ParseInt(currentUser.Uid, 10, 64)
+	if err != nil {
+		return nil, fmt.Errorf("parse uid: %w", err)
+	}
+
+	if session := getDisplaySessionFor(User{Name: currentUser.Username, ID: uid}); session != nil {
+		return session, nil
 	}
 
 	// No valid user found

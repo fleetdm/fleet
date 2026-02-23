@@ -28,7 +28,7 @@ func getIcon() []byte {
 }
 
 func isKDE() bool {
-	session, err := user.GetLoggedInUserDisplaySession()
+	session, err := user.GetCurrentUserDisplaySession()
 	if err != nil {
 		return false
 	}
