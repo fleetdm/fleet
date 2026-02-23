@@ -3570,7 +3570,7 @@ func testHostSoftwareInstalledPathsDelta(t *testing.T, ds *Datastore) {
 			ExecutablePath:   &ePath2,
 		})
 
-		toI, toD, err := hostSoftwareInstalledPathsDelta(t.Context(), host.ID, reported, stored, software, nil)
+		toI, toD, err := hostSoftwareInstalledPathsDelta(t.Context(), host.ID, reported, stored, software, slog.New(slog.DiscardHandler))
 		require.NoError(t, err)
 
 		require.Len(t, toD, 3)

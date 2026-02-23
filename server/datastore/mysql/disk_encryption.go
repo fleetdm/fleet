@@ -53,8 +53,7 @@ VALUES
 		var mysqlErr *mysql.MySQLError
 		switch {
 		case errors.As(err, &mysqlErr) && mysqlErr.Number == 1062:
-			ds.logger.ErrorContext(ctx, "Primary key already exists in host_disk_encryption_keys. Falling back to update", "host_id",
-				host)
+			ds.logger.ErrorContext(ctx, "Primary key already exists in host_disk_encryption_keys. Falling back to update", "host_id", host.ID)
 			// This should never happen unless there is a bug in the code or an infra issue (like huge replication lag).
 		default:
 			return false, ctxerr.Wrap(ctx, err, "inserting key")
