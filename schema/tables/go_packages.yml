@@ -3,7 +3,7 @@ platforms:
   - darwin
   - linux
   - windows
-description: Go binaries installed via `go install` in user home directories.
+description: Go binaries installed via `go install` in `$HOME/go/bin`.
 evented: false
 columns:
   - name: name
