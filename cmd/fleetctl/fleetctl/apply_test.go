@@ -839,18 +839,6 @@ spec:
 	require.NotNil(t, savedAppConfig)
 	assert.Equal(t, 200, savedAppConfig.ServerSettings.QueryReportCap)
 
-	// Test conflict error
-	name = writeTmpYml(t, `---
-apiVersion: v1
-kind: config
-spec:
-  server_settings:
-    query_report_cap: 200
-    report_cap: 200
-`)
-
-	RunAppCheckErr(t, []string{"apply", "-f", name}, "in config spec: Conflicting field names: cannot specify both `query_report_cap` (deprecated) and `report_cap` in the same request")
-
 	name = writeTmpYml(t, `---
 apiVersion: v1
 kind: config
@@ -901,6 +889,20 @@ spec:
 	assert.Equal(t, "[+] applied fleet config\n", RunAppForTest(t, []string{"apply", "-f", name}))
 	require.NotNil(t, savedAppConfig)
 	assert.Equal(t, newMDMSettings, savedAppConfig.MDM)
+}
+
+func TestApplyAppConfigAliasConfict(t *testing.T) {
+	// Test conflict error
+	name := writeTmpYml(t, `---
+apiVersion: v1
+kind: config
+spec:
+  server_settings:
+    query_report_cap: 200
+    report_cap: 200
+`)
+
+	RunAppCheckErr(t, []string{"apply", "-f", name}, "in config spec: Conflicting field names: cannot specify both `query_report_cap` (deprecated) and `report_cap` in the same request")
 }
 
 func TestApplyAppConfigDryRunIssue(t *testing.T) {
