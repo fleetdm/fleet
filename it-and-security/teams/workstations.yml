@@ -76,8 +76,6 @@ controls:
         labels_include_any:
           - "Department: Information Technology"
       - path: ../lib/macos/configuration-profiles/okta-verify-settings.mobileconfig
-        labels_include_any:
-          - "Department: Information Technology"
       - path: ../lib/macos/configuration-profiles/1password-managed-settings.mobileconfig
         labels_include_any:
           - "Macs with 1Password installed"
@@ -299,8 +297,7 @@ software:
       self_service: true
     - slug: okta-verify/darwin # Okta Verify for macOS
       self_service: true
-      labels_include_any:
-        - "Department: Information Technology"
+      setup_experience: true
     # Windows apps
     - slug: slack/windows # Slack for Windows
       self_service: true
