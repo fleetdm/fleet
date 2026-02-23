@@ -123,8 +123,7 @@ spec:
 }
 
 func TestApplyUserRolesDeprecated(t *testing.T) {
-	os.Setenv("FLEET_ENABLE_LOG_TOPICS", logging.DeprecatedFieldTopic)
-	defer os.Unsetenv("FLEET_ENABLE_LOG_TOPICS")
+	t.Setenv("FLEET_ENABLE_LOG_TOPICS", logging.DeprecatedFieldTopic)
 	_, ds := testing_utils.RunServerWithMockedDS(t)
 
 	ds.ListUsersFunc = func(ctx context.Context, opt fleet.UserListOptions) ([]*fleet.User, error) {
@@ -686,8 +685,7 @@ func writeTmpJSON(t *testing.T, v any) string {
 }
 
 func TestApplyAppConfig(t *testing.T) {
-	os.Setenv("FLEET_ENABLE_LOG_TOPICS", logging.DeprecatedFieldTopic)
-	defer os.Unsetenv("FLEET_ENABLE_LOG_TOPICS")
+	t.Setenv("FLEET_ENABLE_LOG_TOPICS", logging.DeprecatedFieldTopic)
 
 	license := &fleet.LicenseInfo{Tier: fleet.TierPremium, Expiration: time.Now().Add(24 * time.Hour)}
 	_, ds := testing_utils.RunServerWithMockedDS(t, &service.TestServerOpts{License: license})
