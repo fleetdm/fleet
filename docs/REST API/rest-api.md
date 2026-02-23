@@ -8,7 +8,7 @@
 - [Labels](#labels)
 - [OS Settings](#os-settings)
 - [Setup Experience](#setup-experience)
-- [Commands](#commnds)
+- [Commands](#commands)
 - [Integrations](#integrations-1)
 - [Policies](#policies)
 - [Queries](#queries)
