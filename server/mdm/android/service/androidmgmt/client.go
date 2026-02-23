@@ -2,6 +2,8 @@ package androidmgmt
 
 import (
 	"context"
+	"errors"
+	"net/http"
 
 	"github.com/fleetdm/fleet/v4/server/mdm/android"
 	"google.golang.org/api/androidmanagement/v1"
@@ -103,4 +105,14 @@ type EnterprisesCreateResponse struct {
 // resource has not been modified.
 func IsNotModifiedError(err error) bool {
 	return googleapi.IsNotModified(err)
+}
+
+// IsBadRequestError reports whether the AMAPI error indicates that the
+// request was invalid due to a client error.
+func IsBadRequestError(err error) bool {
+	var ae *googleapi.Error
+	if errors.As(err, &ae) {
+		return ae.Code == http.StatusBadRequest
+	}
+	return false
 }
