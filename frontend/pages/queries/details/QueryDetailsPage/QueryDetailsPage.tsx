@@ -289,7 +289,7 @@ const QueryDetailsPage = ({
                   onClick={onShowQueryModal}
                   variant="inverse"
                 >
-                  Show report
+                  Show query
                 </Button>
                 {canLiveQuery && (
                   <div

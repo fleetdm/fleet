@@ -29,7 +29,7 @@ const ShowQueryModal = ({
       <div className={baseClass}>
         <SQLEditor
           value={query}
-          name="Report"
+          name="Query"
           wrapperClassName={`${baseClass}__text-editor-wrapper`}
           wrapEnabled
           readOnly

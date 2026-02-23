@@ -118,7 +118,7 @@ const PolicyResults = ({
           variant="inverse"
         >
           <>
-            Show report <Icon name="eye" />
+            Show query <Icon name="eye" />
           </>
         </Button>
         <Button

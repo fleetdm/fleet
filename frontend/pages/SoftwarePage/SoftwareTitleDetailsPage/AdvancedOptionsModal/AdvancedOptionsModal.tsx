@@ -45,7 +45,7 @@ const AdvancedOptionsModal = ({
               <SQLEditor
                 readOnly
                 value={preInstallQuery}
-                label="Report"
+                label="Query"
                 name="preInstallQuery"
                 maxLines={10}
                 helpText={

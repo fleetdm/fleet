@@ -616,7 +616,7 @@ const EditQueryForm = ({
         <SQLEditor
           value={lastEditedQueryBody}
           name="query editor"
-          label="Report"
+          label="Query"
           wrapperClassName={`${baseClass}__text-editor-wrapper`}
           readOnly={
             (!isObserverPlus && !isAnyTeamObserverPlus) || savedQueryMode
@@ -729,7 +729,7 @@ const EditQueryForm = ({
           <SQLEditor
             value={lastEditedQueryBody}
             error={errors.query}
-            label="Report"
+            label="Query"
             labelActionComponent={renderLabelComponent()}
             name="query editor"
             onLoad={onLoad}

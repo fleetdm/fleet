@@ -738,7 +738,7 @@ const PolicyForm = ({
           <SQLEditor
             value={lastEditedQueryBody}
             error={errors.query}
-            label="Report"
+            label="Query"
             labelActionComponent={renderLabelComponent()}
             name="query editor"
             onLoad={onLoad}
