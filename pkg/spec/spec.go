@@ -49,16 +49,16 @@ type Metadata struct {
 // rewriteNewToOldKeys uses RewriteDeprecatedKeys to rewrite new (renameto)
 // key names back to old (json tag) names so that structs can be unmarshaled
 // correctly when input uses the new key names.
-func rewriteNewToOldKeys(raw json.RawMessage, target any) (json.RawMessage, map[string]string) {
+func rewriteNewToOldKeys(raw json.RawMessage, target any) (json.RawMessage, map[string]string, error) {
 	rules := endpointer.ExtractAliasRules(target)
 	if len(rules) == 0 {
-		return raw, nil
+		return raw, nil, nil
 	}
 	result, deprecatedKeysMap, err := endpointer.RewriteDeprecatedKeys(raw, rules)
 	if err != nil {
-		return raw, nil // fall back to original on error
+		return nil, nil, err // fall back to original on error
 	}
-	return result, deprecatedKeysMap
+	return result, deprecatedKeysMap, nil
 }
 
 type GroupFromBytesOpts struct {
@@ -92,7 +92,11 @@ func GroupFromBytes(b []byte, options ...GroupFromBytesOpts) (*Group, error) {
 		var deprecatedKeysMap map[string]string
 		switch kind {
 		case fleet.QueryKind:
-			s.Spec, deprecatedKeysMap = rewriteNewToOldKeys(s.Spec, fleet.QuerySpec{})
+			var err error
+			s.Spec, deprecatedKeysMap, err = rewriteNewToOldKeys(s.Spec, fleet.QuerySpec{})
+			if err != nil {
+				return nil, fmt.Errorf("in %s spec: %w", kind, err)
+			}
 			var querySpec *fleet.QuerySpec
 			if err := yaml.Unmarshal(s.Spec, &querySpec); err != nil {
 				return nil, fmt.Errorf("unmarshaling %s spec: %w", kind, err)
@@ -100,7 +104,11 @@ func GroupFromBytes(b []byte, options ...GroupFromBytesOpts) (*Group, error) {
 			specs.Queries = append(specs.Queries, querySpec)
 
 		case fleet.PackKind:
-			s.Spec, deprecatedKeysMap = rewriteNewToOldKeys(s.Spec, fleet.PackSpec{})
+			var err error
+			s.Spec, deprecatedKeysMap, err = rewriteNewToOldKeys(s.Spec, fleet.PackSpec{})
+			if err != nil {
+				return nil, fmt.Errorf("in %s spec: %w", kind, err)
+			}
 			var packSpec *fleet.PackSpec
 			if err := yaml.Unmarshal(s.Spec, &packSpec); err != nil {
 				return nil, fmt.Errorf("unmarshaling %s spec: %w", kind, err)
@@ -108,7 +116,11 @@ func GroupFromBytes(b []byte, options ...GroupFromBytesOpts) (*Group, error) {
 			specs.Packs = append(specs.Packs, packSpec)
 
 		case fleet.LabelKind:
-			s.Spec, deprecatedKeysMap = rewriteNewToOldKeys(s.Spec, fleet.LabelSpec{})
+			var err error
+			s.Spec, deprecatedKeysMap, err = rewriteNewToOldKeys(s.Spec, fleet.LabelSpec{})
+			if err != nil {
+				return nil, fmt.Errorf("in %s spec: %w", kind, err)
+			}
 			var labelSpec *fleet.LabelSpec
 			if err := yaml.Unmarshal(s.Spec, &labelSpec); err != nil {
 				return nil, fmt.Errorf("unmarshaling %s spec: %w", kind, err)
@@ -116,7 +128,11 @@ func GroupFromBytes(b []byte, options ...GroupFromBytesOpts) (*Group, error) {
 			specs.Labels = append(specs.Labels, labelSpec)
 
 		case fleet.PolicyKind:
-			s.Spec, deprecatedKeysMap = rewriteNewToOldKeys(s.Spec, fleet.PolicySpec{})
+			var err error
+			s.Spec, deprecatedKeysMap, err = rewriteNewToOldKeys(s.Spec, fleet.PolicySpec{})
+			if err != nil {
+				return nil, fmt.Errorf("in %s spec: %w", kind, err)
+			}
 			var policySpec *fleet.PolicySpec
 			if err := yaml.Unmarshal(s.Spec, &policySpec); err != nil {
 				return nil, fmt.Errorf("unmarshaling %s spec: %w", kind, err)
@@ -124,6 +140,11 @@ func GroupFromBytes(b []byte, options ...GroupFromBytesOpts) (*Group, error) {
 			specs.Policies = append(specs.Policies, policySpec)
 
 		case fleet.AppConfigKind:
+			var err error
+			s.Spec, deprecatedKeysMap, err = rewriteNewToOldKeys(s.Spec, fleet.AppConfig{})
+			if err != nil {
+				return nil, fmt.Errorf("in %s spec: %w", kind, err)
+			}
 			if specs.AppConfig != nil {
 				return nil, errors.New("config defined twice in the same file")
 			}
@@ -146,7 +167,11 @@ func GroupFromBytes(b []byte, options ...GroupFromBytesOpts) (*Group, error) {
 			specs.EnrollSecret = enrollSecretSpec
 
 		case fleet.UserRolesKind:
-			s.Spec, deprecatedKeysMap = rewriteNewToOldKeys(s.Spec, fleet.UsersRoleSpec{})
+			var err error
+			s.Spec, deprecatedKeysMap, err = rewriteNewToOldKeys(s.Spec, fleet.UsersRoleSpec{})
+			if err != nil {
+				return nil, fmt.Errorf("in %s spec: %w", kind, err)
+			}
 			var userRoleSpec *fleet.UsersRoleSpec
 			if err := yaml.Unmarshal(s.Spec, &userRoleSpec); err != nil {
 				return nil, fmt.Errorf("unmarshaling %s spec: %w", kind, err)
@@ -169,7 +194,7 @@ func GroupFromBytes(b []byte, options ...GroupFromBytesOpts) (*Group, error) {
 
 		if logFn != nil && len(deprecatedKeysMap) > 0 && logging.TopicEnabled("deprecated-field-names") {
 			for oldKey, newKey := range deprecatedKeysMap {
-				logFn(fmt.Sprintf("[!] In %q: %q is deprecated, please use %q instead.\n", kind, oldKey, newKey))
+				logFn(fmt.Sprintf("[!] In %s: `%s` is deprecated, please use `%s` instead.\n", kind, oldKey, newKey))
 			}
 		}
 	}

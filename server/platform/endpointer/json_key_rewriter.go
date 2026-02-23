@@ -17,7 +17,7 @@ type AliasConflictError struct {
 }
 
 func (e *AliasConflictError) Error() string {
-	return fmt.Sprintf("Conflicting field names: cannot specify both %q (deprecated) and %q in the same request", e.Old, e.New)
+	return fmt.Sprintf("Conflicting field names: cannot specify both `%s` (deprecated) and `%s` in the same request", e.Old, e.New)
 }
 
 // AliasRule defines a key-rename rule: the deprecated (old) key name and its

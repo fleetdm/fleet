@@ -175,9 +175,29 @@ spec:
         team: team1
 `)
 	require.NoError(t, err)
-	assert.Equal(t, "[+] applied user roles\n", RunAppForTest(t, []string{"apply", "-f", tmpFile.Name()}))
+	expected := "[!] In user_roles: `teams` is deprecated, please use `fleets` instead.\n[!] In user_roles: `team` is deprecated, please use `fleet` instead.\n[+] applied user roles\n"
+	assert.Equal(t, expected, RunAppForTest(t, []string{"apply", "-f", tmpFile.Name()}))
 	require.Len(t, userRoleSpecList[1].Teams, 1)
 	assert.Equal(t, fleet.RoleMaintainer, userRoleSpecList[1].Teams[0].Role)
+
+	_, err = tmpFile.WriteString(`
+---
+apiVersion: v1
+kind: user_roles
+spec:
+  roles:
+    admin1@example.com:
+      global_role: admin
+      teams: null
+    admin2@example.com:
+      global_role: null
+      teams:
+      - role: maintainer
+        team: team1
+		fleet: team1
+`)
+	require.NoError(t, err)
+	RunAppCheckErr(t, []string{"apply", "-f", tmpFile.Name()}, "in user_roles spec: Conflicting field names: cannot specify both `teams` (deprecated) and `fleets` in the same request")
 }
 
 func TestApplyTeamSpecs(t *testing.T) {
@@ -788,6 +808,45 @@ spec:
 	// agent options were not modified, since they were not provided
 	assert.Equal(t, string(defaultAgentOpts), string(*savedAppConfig.AgentOptions))
 
+	// Test key rewriting (deprecated -> new)
+	name = writeTmpYml(t, `---
+apiVersion: v1
+kind: config
+spec:
+  server_settings:
+    report_cap: 100
+`)
+
+	assert.Equal(t, "[+] applied fleet config\n", RunAppForTest(t, []string{"apply", "-f", name}))
+	require.NotNil(t, savedAppConfig)
+	assert.Equal(t, 100, savedAppConfig.ServerSettings.QueryReportCap)
+
+	// Test deprecation warnings
+	expected := "[!] In config: `query_report_cap` is deprecated, please use `report_cap` instead.\n[+] applied fleet config\n"
+	name = writeTmpYml(t, `---
+apiVersion: v1
+kind: config
+spec:
+  server_settings:
+    query_report_cap: 200
+`)
+
+	assert.Equal(t, expected, RunAppForTest(t, []string{"apply", "-f", name}))
+	require.NotNil(t, savedAppConfig)
+	assert.Equal(t, 200, savedAppConfig.ServerSettings.QueryReportCap)
+
+	// Test conflict error
+	name = writeTmpYml(t, `---
+apiVersion: v1
+kind: config
+spec:
+  server_settings:
+    query_report_cap: 200
+    report_cap: 200
+`)
+
+	RunAppCheckErr(t, []string{"apply", "-f", name}, "in config spec: Conflicting field names: cannot specify both `query_report_cap` (deprecated) and `report_cap` in the same request")
+
 	name = writeTmpYml(t, `---
 apiVersion: v1
 kind: config
@@ -1198,11 +1257,11 @@ kind: pack
 spec:
   name: osquery_monitoring
   reports:
-    - query: osquery_version
+    - report: osquery_version
       name: osquery_version_snapshot
       interval: 7200
       snapshot: true
-    - query: osquery_version
+    - report: osquery_version
       name: osquery_version_differential
       interval: 7200
 `

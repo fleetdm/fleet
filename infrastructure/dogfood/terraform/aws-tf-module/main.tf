@@ -68,6 +68,7 @@ locals {
     OTEL_EXPORTER_OTLP_ENDPOINT   = "https://otlp.signoz.dogfood.fleetdm.com"
     # FLEET_LOGGING_TRACING_ENABLED              = "true"
     # FLEET_LOGGING_TRACING_TYPE                 = "elasticapm"
+    FLEET_LOGGING_ENABLE_TOPICS = "deprecated-field-names"
     FLEET_MYSQL_MAX_OPEN_CONNS                 = "10"
     FLEET_MYSQL_READ_REPLICA_MAX_OPEN_CONNS    = "10"
     FLEET_VULNERABILITIES_DATABASES_PATH       = "/home/fleet"

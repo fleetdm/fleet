@@ -369,8 +369,14 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 		var err error
 		var deprecatedKeysMap map[string]string
 		if p, deprecatedKeysMap, err = endpointer.RewriteDeprecatedKeys(p, rules); err != nil {
+			msg := "failed to decode app config"
+			// If it's an alias conflict error, return a user-friendly message about deprecated fields.
+			var aliasConflictErr *endpointer.AliasConflictError
+			if errors.As(err, &aliasConflictErr) {
+				msg = err.Error()
+			}
 			return nil, ctxerr.Wrap(ctx, &fleet.BadRequestError{
-				Message:     "failed to decode app config",
+				Message:     msg,
 				InternalErr: err,
 			})
 		}
