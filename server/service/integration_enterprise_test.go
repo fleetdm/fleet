@@ -1671,11 +1671,11 @@ func (s *integrationEnterpriseTestSuite) TestTeamEndpoints() {
 	}
 
 	r := s.Do("POST", "/api/latest/fleet/teams", teamReserved, http.StatusUnprocessableEntity)
-	require.Contains(t, extractServerErrorText(r.Body), `"No team" is a reserved team name`)
+	require.Contains(t, extractServerErrorText(r.Body), `is a reserved fleet name`)
 
 	teamReserved.Name = "AlL TeaMS"
 	r = s.Do("POST", "/api/latest/fleet/teams", teamReserved, http.StatusUnprocessableEntity)
-	require.Contains(t, extractServerErrorText(r.Body), `"All teams" is a reserved team name`)
+	require.Contains(t, extractServerErrorText(r.Body), `is a reserved fleet name`)
 
 	// create a team with too many secrets
 	team3 := &fleet.Team{
@@ -1778,10 +1778,10 @@ func (s *integrationEnterpriseTestSuite) TestTeamEndpoints() {
 
 	// try to rename to reserved names
 	r = s.Do("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", tm1ID), fleet.TeamPayload{Name: ptr.String("no TEAM")}, http.StatusUnprocessableEntity)
-	require.Contains(t, extractServerErrorText(r.Body), `"No team" is a reserved team name`)
+	require.Contains(t, extractServerErrorText(r.Body), `is a reserved fleet name`)
 
 	r = s.Do("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", tm1ID), fleet.TeamPayload{Name: ptr.String("ALL teAMs")}, http.StatusUnprocessableEntity)
-	require.Contains(t, extractServerErrorText(r.Body), `"All teams" is a reserved team name`)
+	require.Contains(t, extractServerErrorText(r.Body), `is a reserved fleet name`)
 
 	// Modify team's calendar config
 	modifyCalendar := fleet.TeamPayload{

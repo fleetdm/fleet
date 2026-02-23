@@ -4,6 +4,7 @@ import (
 	"database/sql/driver"
 	"encoding/json"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/fleetdm/fleet/v4/pkg/optjson"
@@ -27,12 +28,12 @@ const (
 	ReservedNameNoTeam   = "Unassigned"
 )
 
-// IsReservedTeamName checks if the name provided is a reserved team name.
+// IsReservedTeamName checks if the name provided is a reserved team name (case-insensitive).
 // It also reserves the old names ("No team", "All teams") for backward compatibility.
 func IsReservedTeamName(name string) bool {
-	normalizedName := norm.NFC.String(name)
-	return normalizedName == ReservedNameAllTeams || normalizedName == ReservedNameNoTeam ||
-		normalizedName == "No team" || normalizedName == "All teams"
+	normalizedName := strings.ToLower(norm.NFC.String(name))
+	return normalizedName == strings.ToLower(ReservedNameAllTeams) || normalizedName == strings.ToLower(ReservedNameNoTeam) ||
+		normalizedName == "no team" || normalizedName == "all teams"
 }
 
 type TeamPayload struct {
