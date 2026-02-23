@@ -2668,6 +2668,7 @@ func (ds *Datastore) SyncHostsSoftware(ctx context.Context, updatedAt time.Time)
 	if _, err := w.ExecContext(ctx, "DROP TABLE IF EXISTS "+swapTable); err != nil {
 		return ctxerr.Wrap(ctx, err, "drop existing swap table")
 	}
+	// CREATE TABLE ... LIKE copies structure including CHECK constraints (with auto-generated names).
 	if _, err := w.ExecContext(ctx, swapTableCreate); err != nil {
 		return ctxerr.Wrap(ctx, err, "create swap table")
 	}

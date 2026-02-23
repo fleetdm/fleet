@@ -12,6 +12,8 @@ func Up_20260223000000(tx *sql.Tx) error {
 	// Delete any accumulated zero-count rows from software_host_counts and software_titles_host_counts.
 	// After this migration, the sync process uses an atomic swap table pattern that never produces zero-count rows.
 	// Add CHECK constraints to prevent zero-count rows from being inserted in the future.
+	// Constraints are unnamed because the sync process uses CREATE TABLE ... LIKE to create swap tables,
+	// which copies CHECK constraints with auto-generated names. Named constraints would drift after each swap.
 
 	return withSteps([]migrationStep{
 		basicMigrationStep(
@@ -19,7 +21,7 @@ func Up_20260223000000(tx *sql.Tx) error {
 			"deleting zero-count rows from software_host_counts",
 		),
 		basicMigrationStep(
-			`ALTER TABLE software_host_counts ADD CONSTRAINT ck_software_host_counts_positive CHECK (hosts_count > 0)`,
+			`ALTER TABLE software_host_counts ADD CHECK (hosts_count > 0)`,
 			"adding CHECK constraint to software_host_counts",
 		),
 		basicMigrationStep(
@@ -27,7 +29,7 @@ func Up_20260223000000(tx *sql.Tx) error {
 			"deleting zero-count rows from software_titles_host_counts",
 		),
 		basicMigrationStep(
-			`ALTER TABLE software_titles_host_counts ADD CONSTRAINT ck_software_titles_host_counts_positive CHECK (hosts_count > 0)`,
+			`ALTER TABLE software_titles_host_counts ADD CHECK (hosts_count > 0)`,
 			"adding CHECK constraint to software_titles_host_counts",
 		),
 	}, tx)
