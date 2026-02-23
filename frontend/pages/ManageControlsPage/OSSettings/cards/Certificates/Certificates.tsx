@@ -6,7 +6,7 @@ import { formatDistanceToNow } from "date-fns";
 import { AppContext } from "context/app";
 import PATHS from "router/paths";
 
-import UploadList from "components/UploadList";
+import UploadList from "pages/ManageControlsPage/components/UploadList";
 import UploadListHeading from "pages/ManageControlsPage/components/UploadListHeading";
 
 import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
@@ -94,7 +94,7 @@ const Certificates = ({
 
   // pagination controls
   const path = PATHS.CONTROLS_CERTIFICATES;
-  const queryString = isPremiumTier ? `?fleet_id=${currentTeamId}&` : "?";
+  const queryString = isPremiumTier ? `?team_id=${currentTeamId}&` : "?";
 
   const onPrevPage = useCallback(() => {
     router.push(path.concat(`${queryString}page=${currentPage - 1}`));

@@ -396,7 +396,7 @@ export const BATTERY_TOOLTIP: Record<string, string | React.ReactNode> = {
   ),
 };
 
-export const PRIMO_TOOLTIP = "Fleets are disabled while using Primo";
+export const PRIMO_TOOLTIP = "Teams are disabled while using Primo";
 
 /** Must pass agent options config as empty object */
 export const EMPTY_AGENT_OPTIONS = {
@@ -469,7 +469,7 @@ export const INVALID_PLATFORMS_REASON =
   "query payload verification: query's platform must be a comma-separated list of 'darwin', 'linux', 'windows', and/or 'chrome' in a single string";
 
 export const INVALID_PLATFORMS_FLASH_MESSAGE =
-  "Couldn't save report. Please update platforms and try again.";
+  "Couldn't save query. Please update platforms and try again.";
 
 export const DATE_FNS_FORMAT_STRINGS = {
   dateAtTime: "E, MMM d 'at' p",

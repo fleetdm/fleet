@@ -62,7 +62,7 @@ const generateTableConfig = (
 
         const softwareVulnerabilityDetailsPath = getPathWithQueryParams(
           paths.SOFTWARE_VULNERABILITY_DETAILS(cveName),
-          { fleet_id: teamId }
+          { team_id: teamId }
         );
 
         return (
@@ -218,7 +218,7 @@ const generateTableConfig = (
               <ViewAllHostsLink
                 queryParams={{
                   vulnerability: cellProps.row.original.cve,
-                  fleet_id: teamId,
+                  team_id: teamId,
                 }}
                 className="vulnerabilities-link"
                 rowHover

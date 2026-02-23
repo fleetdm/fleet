@@ -81,7 +81,7 @@ const SoftwareSummaryCard = ({
             versions={softwareTitle.versions?.length ?? 0}
             hostCount={softwareTitle.hosts_count}
             countsUpdatedAt={softwareTitle.counts_updated_at}
-            queryParams={{ software_title_id: softwareId, fleet_id: teamId }}
+            queryParams={{ software_title_id: softwareId, team_id: teamId }}
             name={softwareTitle.name}
             source={softwareTitle.source}
             iconUrl={softwareTitle.icon_url}
@@ -142,7 +142,7 @@ const SoftwareSummaryCard = ({
           countsUpdatedAt={softwareTitle.counts_updated_at}
           queryParams={{
             software_title_id: softwareId,
-            fleet_id: teamId,
+            team_id: teamId,
           }}
           name={softwareTitle.name}
           source={softwareTitle.source}

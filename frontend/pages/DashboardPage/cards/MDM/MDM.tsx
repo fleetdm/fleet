@@ -96,7 +96,7 @@ const Mdm = ({
   selectedPlatformLabelId,
   selectedTeamId,
   onClickMdmSolution,
-}: IMdmCardProps) => {
+}: IMdmCardProps): JSX.Element => {
   const [navTabIndex, setNavTabIndex] = useState(0);
 
   const onTabChange = (index: number) => {

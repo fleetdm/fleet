@@ -18,13 +18,13 @@ const DeleteQueryModal = ({
 }: IDeleteQueryModalProps): JSX.Element => {
   return (
     <Modal
-      title="Delete report"
+      title="Delete query"
       onExit={onCancel}
       onEnter={onSubmit}
       className={baseClass}
     >
       <div className={baseClass}>
-        Are you sure you want to delete the selected reports?
+        Are you sure you want to delete the selected queries?
         <div className="modal-cta-wrap">
           <Button
             type="button"

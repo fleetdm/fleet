@@ -57,7 +57,7 @@ prs() {
 
 	ensure_gh_auth
 
-	members="$(curl -s -u "${username}:${token}" https://api.github.com/orgs/fleetdm/members?per_page=100 | jq -r 'map(.login) + ["app/dependabot", "app/kiloconnect"]')"
+	members="$(curl -s -u "${username}:${token}" https://api.github.com/orgs/fleetdm/members?per_page=100 | jq -r 'map(.login) + ["app/dependabot"]')"
 
 	# defaults to listing open prs
 	gh pr list --limit 1000 --repo fleetdm/fleet --json id,title,author,url,createdAt,isDraft |

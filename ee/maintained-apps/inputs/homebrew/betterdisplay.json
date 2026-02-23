@@ -1,8 +1,0 @@
-{
-  "name": "BetterDisplay",
-  "unique_identifier": "pro.betterdisplay.BetterDisplay",
-  "token": "betterdisplay",
-  "installer_format": "dmg",
-  "slug": "betterdisplay/darwin",
-  "default_categories": ["Productivity"]
-}

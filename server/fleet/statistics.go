@@ -58,9 +58,7 @@ type StatisticsPayload struct {
 	// configuration has value set for integrations.google_calendar[0].api_key_json
 	MaintenanceWindowsConfigured bool `json:"maintenanceWindowsConfigured"`
 	// The number of hosts with Fleet desktop installed.
-	NumHostsFleetDesktopEnabled     int  `json:"numHostsFleetDesktopEnabled"`
-	OktaConditionalAccessConfigured bool `json:"oktaConditionalAccessConfigured"`
-	ConditionalAccessBypassDisabled bool `json:"conditionalAccessBypassDisabled"`
+	NumHostsFleetDesktopEnabled int `json:"numHostsFleetDesktopEnabled"`
 }
 
 type HostsCountByOrbitVersion struct {

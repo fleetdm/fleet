@@ -31,10 +31,7 @@ export const generateStatusTableHeaders = (
       !MDM_STATUS_TOOLTIP[status] ? (
         <TextCell value={status} />
       ) : (
-        <TooltipWrapper
-          className="status-cell"
-          tipContent={MDM_STATUS_TOOLTIP[status]}
-        >
+        <TooltipWrapper tipContent={MDM_STATUS_TOOLTIP[status]}>
           {MDM_ENROLLMENT_STATUS_UI_MAP[status].displayName}
         </TooltipWrapper>
       ),
@@ -60,7 +57,7 @@ export const generateStatusTableHeaders = (
             mdm_enrollment_status:
               MDM_ENROLLMENT_STATUS_UI_MAP[cellProps.row.original.status]
                 .filterValue,
-            fleet_id: teamId,
+            team_id: teamId,
           }}
           className="mdm-solution-link"
           platformLabelId={cellProps.row.original.selectedPlatformLabelId}

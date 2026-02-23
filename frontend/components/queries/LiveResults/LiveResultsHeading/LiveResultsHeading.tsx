@@ -153,7 +153,7 @@ const LiveResultsHeading = ({
               tipContent={
                 <>
                   The hosts&apos; distributed interval can <br />
-                  impact live report response times.
+                  impact live query response times.
                 </>
               }
             >

@@ -117,118 +117,74 @@ func DownloadCPEDBFromGithub(vulnPath string, cpeDBURL string) error {
 	return nil
 }
 
-type cpeSearchQuery struct {
-	stm  string
-	args []any
-}
+// cpeGeneralSearchQuery puts together several search statements to find the correct row in the CPE datastore.
+// Each statement has a custom weight column, where 1 is the highest priority (most likely to be correct).
+// The SQL statements are combined into a master statements with UNION.
+func cpeGeneralSearchQuery(software *fleet.Software) (string, []interface{}, error) {
+	dialect := goqu.Dialect("sqlite")
 
-const cpeSelectColumns = `SELECT c.rowid, c.product, c.vendor, c.deprecated FROM cpe_2 c`
-
-// cpeSearchQueries returns individual search queries in priority order for finding CPE matches.
-// Query 1 (vendor+product) and 2 (product-only) are cheap index lookups. Query 3 (full-text search)
-// is expensive. By running them sequentially and returning early on a match, the expensive full-text
-// search is skipped for most software.
-func cpeSearchQueries(software *fleet.Software) []cpeSearchQuery {
-	var queries []cpeSearchQuery
-
-	// 1 - Try to match product and vendor terms (or product-only if no vendor info available)
-	vendors := vendorVariations(software)
-	products := productVariations(software)
-	if len(products) > 0 {
-		var args []any
-		var stm string
-		productPlaceholders := strings.TrimSuffix(strings.Repeat("?,", len(products)), ",")
-		if len(vendors) > 0 {
-			vendorPlaceholders := strings.TrimSuffix(strings.Repeat("?,", len(vendors)), ",")
-			stm = cpeSelectColumns + " WHERE vendor IN (" + vendorPlaceholders + ") AND product IN (" + productPlaceholders + ")"
-			for _, v := range vendors {
-				args = append(args, v)
-			}
-		} else {
-			stm = cpeSelectColumns + " WHERE product IN (" + productPlaceholders + ")"
-		}
-		for _, p := range products {
-			args = append(args, p)
-		}
-		queries = append(queries, cpeSearchQuery{stm: stm, args: args})
+	// 1 - Try to match product and vendor terms
+	search1 := dialect.From(goqu.I("cpe_2").As("c")).
+		Select("c.rowid", "c.product", "c.vendor", "c.deprecated", goqu.L("1 as weight"))
+	var vexps []goqu.Expression
+	for _, v := range vendorVariations(software) {
+		vexps = append(vexps, goqu.I("c.vendor").Eq(v))
 	}
+	search1 = search1.Where(goqu.Or(vexps...))
+	var nexps []goqu.Expression
+	for _, v := range productVariations(software) {
+		nexps = append(nexps, goqu.I("c.product").Eq(v))
+	}
+	search1 = search1.Where(goqu.Or(nexps...))
 
-	// 2 - Try to match product by sanitized name
-	queries = append(queries, cpeSearchQuery{
-		stm:  cpeSelectColumns + " WHERE product = ?",
-		args: []any{sanitizeSoftwareName(software)},
-	})
+	// 2 - Try to match product only
+	search2 := dialect.From(goqu.I("cpe_2").As("c")).
+		Select("c.rowid", "c.product", "c.vendor", "c.deprecated", goqu.L("2 as weight")).
+		Where(goqu.L("c.product = ?", sanitizeSoftwareName(software)))
 
-	// 3 - Try full-text match (only if sanitized name has content)
+	datasets := []*goqu.SelectDataset{search1, search2}
+
+	// 3 - Try Full text match (only if sanitized name has content)
 	sanitizedName := sanitizeMatch(software.Name)
 	if strings.TrimSpace(sanitizedName) != "" {
-		queries = append(queries, cpeSearchQuery{
-			stm:  cpeSelectColumns + " JOIN cpe_search cs ON cs.rowid = c.rowid WHERE cs.title MATCH ?",
-			args: []any{sanitizedName},
-		})
+		search3 := dialect.From(goqu.I("cpe_2").As("c")).
+			Select("c.rowid", "c.product", "c.vendor", "c.deprecated", goqu.L("3 as weight")).
+			Join(
+				goqu.I("cpe_search").As("cs"),
+				goqu.On(goqu.I("cs.rowid").Eq(goqu.I("c.rowid"))),
+			).
+			Where(goqu.L("cs.title MATCH ?", sanitizedName))
+		datasets = append(datasets, search3)
 	}
 
 	// 4 - Try vendor/product from bundle identifier, like tld.vendor.product
 	bundleParts := strings.Split(software.BundleIdentifier, ".")
 	if len(bundleParts) == 3 {
-		queries = append(queries, cpeSearchQuery{
-			stm:  cpeSelectColumns + " WHERE vendor = ? AND product = ?",
-			args: []any{strings.ToLower(bundleParts[1]), strings.ToLower(bundleParts[2])},
-		})
-	}
-
-	return queries
-}
-
-// cpeItemMatchesSoftware checks whether a CPE result's vendor/product terms all appear in the
-// software's name, vendor, and bundle identifier.
-func cpeItemMatchesSoftware(item *IndexedCPEItem, software *fleet.Software) bool {
-	sName := strings.ToLower(software.Name)
-	for sN := range strings.SplitSeq(item.Product, "_") {
-		if !strings.Contains(sName, sN) {
-			return false
-		}
-	}
-
-	sVendor := strings.ToLower(software.Vendor)
-	sBundle := strings.ToLower(software.BundleIdentifier)
-	for sV := range strings.SplitSeq(item.Vendor, "_") {
-		if sVendor != "" && !strings.Contains(sVendor, sV) {
-			return false
-		}
-		if sBundle != "" && !strings.Contains(sBundle, sV) {
-			return false
-		}
-	}
-	return true
-}
-
-// resolveDeprecatedCPE follows the deprecation chain for the given CPE items to find a non-deprecated replacement.
-func resolveDeprecatedCPE(db *sqlx.DB, items []IndexedCPEItem, software *fleet.Software) (string, error) {
-	for _, item := range items {
-		deprecatedItem := item
-		for {
-			var deprecation IndexedCPEItem
-			err := db.Get(
-				&deprecation,
-				`SELECT rowid, product, vendor, deprecated FROM cpe_2
-				WHERE cpe23 IN (SELECT cpe23 FROM deprecated_by d WHERE d.cpe_id = ?)`,
-				deprecatedItem.ID,
+		search4 := dialect.From(goqu.I("cpe_2").As("c")).
+			Select("c.rowid", "c.product", "c.vendor", "c.deprecated", goqu.L("4 as weight")).
+			Where(
+				goqu.L("c.vendor = ?", strings.ToLower(bundleParts[1])), goqu.L("c.product = ?", strings.ToLower(bundleParts[2])),
 			)
-			if errors.Is(err, sql.ErrNoRows) {
-				break
-			}
-			if err != nil {
-				return "", fmt.Errorf("getting deprecation: %w", err)
-			}
-			if deprecation.Deprecated {
-				deprecatedItem = deprecation
-				continue
-			}
-			return deprecation.FmtStr(software), nil
-		}
+		datasets = append(datasets, search4)
 	}
-	return "", nil
+
+	var sqlParts []string
+	var args []interface{}
+	var stm string
+
+	for _, d := range datasets {
+		s, a, err := d.ToSQL()
+		if err != nil {
+			return "", nil, fmt.Errorf("sql: %w", err)
+		}
+		sqlParts = append(sqlParts, s)
+		args = append(args, a...)
+	}
+
+	stm = strings.Join(sqlParts, " UNION ")
+	stm += "ORDER BY weight ASC"
+
+	return stm, args, nil
 }
 
 // softwareTransformers provide logic for tweaking e.g. software versions to match what's in the NVD database. These
@@ -619,31 +575,90 @@ func CPEFromSoftware(logger log.Logger, db *sqlx.DB, software *fleet.Software, t
 			return result.FmtStr(software), nil
 		}
 	} else {
-		queries := cpeSearchQueries(software)
+		stm, args, err := cpeGeneralSearchQuery(software)
+		if err != nil {
+			return "", fmt.Errorf("getting cpes for: %s: %w", software.Name, err)
+		}
 
-		for _, q := range queries {
-			var results []IndexedCPEItem
-			err := db.Select(&results, q.stm, q.args...)
-			if err != nil && !errors.Is(err, sql.ErrNoRows) {
-				return "", fmt.Errorf("getting cpes for: %s: %w", software.Name, err)
+		var results []IndexedCPEItem
+		var match *IndexedCPEItem
+
+		err = db.Select(&results, stm, args...)
+		if err == sql.ErrNoRows {
+			return "", nil
+		}
+
+		if err != nil {
+			return "", fmt.Errorf("getting cpes for: %s: %w", software.Name, err)
+		}
+
+		for i, item := range results {
+			hasAllTerms := true
+
+			sName := strings.ToLower(software.Name)
+			for _, sN := range strings.Split(item.Product, "_") {
+				hasAllTerms = hasAllTerms && strings.Contains(sName, sN)
 			}
 
-			for i := range results {
-				if !cpeItemMatchesSoftware(&results[i], software) {
-					continue
+			sVendor := strings.ToLower(software.Vendor)
+			sBundle := strings.ToLower(software.BundleIdentifier)
+			for _, sV := range strings.Split(item.Vendor, "_") {
+				if sVendor != "" {
+					hasAllTerms = hasAllTerms && strings.Contains(sVendor, sV)
 				}
-				if !results[i].Deprecated {
-					return results[i].FmtStr(software), nil
+
+				if sBundle != "" {
+					hasAllTerms = hasAllTerms && strings.Contains(sBundle, sV)
 				}
-				// Match is deprecated; try to resolve via deprecation chain
-				cpe, err := resolveDeprecatedCPE(db, results, software)
-				if err != nil {
-					return "", err
+			}
+
+			if hasAllTerms {
+				match = &results[i]
+				break
+			}
+		}
+
+		if match != nil {
+			if !match.Deprecated {
+				return match.FmtStr(software), nil
+			}
+
+			// try to find a non-deprecated cpe by looking up deprecated_by
+			for _, item := range results {
+				deprecatedItem := item
+				for {
+					var deprecation IndexedCPEItem
+
+					err = db.Get(
+						&deprecation,
+						`
+						SELECT
+							rowid,
+							product,
+							vendor,
+							deprecated
+						FROM
+							cpe_2
+						WHERE
+							cpe23 IN (
+								SELECT cpe23 FROM deprecated_by d WHERE d.cpe_id = ?
+							)
+					`,
+						deprecatedItem.ID,
+					)
+					if err == sql.ErrNoRows {
+						break
+					}
+					if err != nil {
+						return "", fmt.Errorf("getting deprecation: %w", err)
+					}
+					if deprecation.Deprecated {
+						deprecatedItem = deprecation
+						continue
+					}
+
+					return deprecation.FmtStr(software), nil
 				}
-				if cpe != "" {
-					return cpe, nil
-				}
-				continue // deprecation unresolved for this result, try next result
 			}
 		}
 	}
@@ -808,7 +823,7 @@ func translateSoftwareToCPEWithIterator(
 ) error {
 	dbPath := filepath.Join(vulnPath, cpeDBFilename)
 
-	db, err := sqliteDBReadOnly(ctx, dbPath, logger)
+	db, err := sqliteDB(dbPath)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "opening the cpe db")
 	}

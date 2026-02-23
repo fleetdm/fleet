@@ -5,7 +5,6 @@ import (
 	"context"
 	"encoding/xml"
 	"fmt"
-	"log/slog"
 	"net/url"
 	"regexp"
 	"strings"
@@ -15,6 +14,8 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
 	"github.com/fleetdm/fleet/v4/server/ptr"
+	kitlog "github.com/go-kit/log"
+	"github.com/go-kit/log/level"
 )
 
 /*
@@ -30,12 +31,12 @@ Once more is needed it should be placed here, and the main replacement logic can
 under server/service folder. Inside the `preprocessProfileContents` under the `fleetVarLoop` loop.
 */
 
-func ReplaceCustomSCEPChallengeVariable(ctx context.Context, logger *slog.Logger, fleetVariable string, customSCEPCAs map[string]*fleet.CustomSCEPProxyCA, profileContents string) (contents string, replacedVariable bool, err error) {
+func ReplaceCustomSCEPChallengeVariable(ctx context.Context, logger kitlog.Logger, fleetVariable string, customSCEPCAs map[string]*fleet.CustomSCEPProxyCA, profileContents string) (contents string, replacedVariable bool, err error) {
 	caName := strings.TrimPrefix(fleetVariable, string(fleet.FleetVarCustomSCEPChallengePrefix))
 	ca, ok := customSCEPCAs[caName]
 	if !ok {
-		logger.ErrorContext(ctx, "Custom SCEP CA not found. This error should never happen since we validated/populated CAs earlier",
-			"ca_name", caName)
+		level.Error(logger).Log("msg", "Custom SCEP CA not found. "+
+			"This error should never happen since we validated/populated CAs earlier", "ca_name", caName)
 		return "", false, nil
 	}
 	contents, err = ReplaceExactFleetPrefixVariableInXML(string(fleet.FleetVarCustomSCEPChallengePrefix), ca.Name, profileContents, ca.Challenge)
@@ -45,15 +46,15 @@ func ReplaceCustomSCEPChallengeVariable(ctx context.Context, logger *slog.Logger
 	return contents, true, nil
 }
 
-func ReplaceCustomSCEPProxyURLVariable(ctx context.Context, logger *slog.Logger, ds fleet.Datastore, appConfig *fleet.AppConfig,
+func ReplaceCustomSCEPProxyURLVariable(ctx context.Context, logger kitlog.Logger, ds fleet.Datastore, appConfig *fleet.AppConfig,
 	fleetVar string, customSCEPCAs map[string]*fleet.CustomSCEPProxyCA, profileContents string,
 	hostUUID string, profUUID string,
 ) (contents string, managedCertificate *fleet.MDMManagedCertificate, replacedVariable bool, err error) {
 	caName := strings.TrimPrefix(fleetVar, string(fleet.FleetVarCustomSCEPProxyURLPrefix))
 	ca, ok := customSCEPCAs[caName]
 	if !ok {
-		logger.ErrorContext(ctx, "Custom SCEP CA not found. This error should never happen since we validated/populated CAs earlier",
-			"ca_name", caName)
+		level.Error(logger).Log("msg", "Custom SCEP CA not found. "+
+			"This error should never happen since we validated/populated CAs earlier", "ca_name", caName)
 		return "", nil, false, nil
 	}
 	// Generate a new SCEP challenge for the profile

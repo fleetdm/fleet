@@ -33,7 +33,6 @@ func NewSCEPCACertKey() (*x509.Certificate, *rsa.PrivateKey, error) {
 	caCert := NewCACert(
 		WithYears(10),
 		WithCommonName("Fleet"),
-		WithCountry("US"),
 	)
 	return NewCACertKey(caCert)
 }

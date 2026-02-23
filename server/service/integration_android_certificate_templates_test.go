@@ -14,6 +14,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm/android"
+	"github.com/fleetdm/fleet/v4/server/platform/logging"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/service/contract"
 	"github.com/fleetdm/fleet/v4/server/worker"
@@ -242,9 +243,7 @@ func (s *integrationMDMTestSuite) TestCertificateTemplateLifecycle() {
 	s.lastActivityOfTypeMatches(
 		fleet.ActivityTypeAddedCertificate{}.ActivityName(),
 		fmt.Sprintf(
-			`{"fleet_id": %d, "fleet_name": %q, "team_id": %d, "team_name": %q, "name": %q}`,
-			teamID,
-			teamName,
+			`{"team_id": %d, "team_name": %q, "name": %q}`,
 			teamID,
 			teamName,
 			certTemplateName,
@@ -311,9 +310,7 @@ func (s *integrationMDMTestSuite) TestCertificateTemplateLifecycle() {
 	s.lastActivityOfTypeMatches(
 		fleet.ActivityTypeDeletedCertificate{}.ActivityName(),
 		fmt.Sprintf(
-			`{"fleet_id": %d, "fleet_name": %q, "team_id": %d, "team_name": %q, "name": %q}`,
-			teamID,
-			teamName,
+			`{"team_id": %d, "team_name": %q, "name": %q}`,
 			teamID,
 			teamName,
 			certTemplateName,
@@ -435,7 +432,7 @@ func (s *integrationMDMTestSuite) TestCertificateTemplateSpecEndpointAndAMAPIFai
 	// Step: Queue and run the Android setup experience worker job
 	// Note: Pending certificate templates were created above (simulating pubsub). The worker will deliver them.
 	enterpriseName := "enterprises/" + enterpriseID
-	err = worker.QueueRunAndroidSetupExperience(ctx, s.ds, slog.New(slog.DiscardHandler), host.UUID, &teamID, enterpriseName)
+	err = worker.QueueRunAndroidSetupExperience(ctx, s.ds, slog.New(logging.DiscardHandler{}), host.UUID, &teamID, enterpriseName)
 	require.NoError(t, err)
 	s.runWorker()
 
@@ -537,7 +534,7 @@ func (s *integrationMDMTestSuite) TestCertificateTemplateNoTeamWithIDPVariable()
 	// Step: Queue and run the Android setup experience worker job
 	// Note: Pending certificate templates were created above (simulating pubsub). The worker will deliver them.
 	enterpriseName := "enterprises/" + enterpriseID
-	err = worker.QueueRunAndroidSetupExperience(ctx, s.ds, slog.New(slog.DiscardHandler), host.UUID, nil, enterpriseName)
+	err = worker.QueueRunAndroidSetupExperience(ctx, s.ds, slog.New(logging.DiscardHandler{}), host.UUID, nil, enterpriseName)
 	require.NoError(t, err)
 	s.runWorker()
 

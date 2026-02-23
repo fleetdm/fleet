@@ -142,7 +142,7 @@ const generateColumnConfigs = (
                   <br />
                   the same functions as an Observer, with the added
                   <br />
-                  ability to run any live report against all hosts.
+                  ability to run any live query against all hosts.
                 </>
               }
             >

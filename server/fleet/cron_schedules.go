@@ -1,7 +1,6 @@
 package fleet
 
 import (
-	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -53,7 +52,7 @@ const (
 
 type CronSchedulesService interface {
 	// TriggerCronSchedule attempts to trigger an ad-hoc run of the named cron schedule.
-	TriggerCronSchedule(ctx context.Context, name string) error
+	TriggerCronSchedule(name string) error
 }
 
 func NewCronSchedules() *CronSchedules {
@@ -61,7 +60,7 @@ func NewCronSchedules() *CronSchedules {
 }
 
 type CronSchedule interface {
-	Trigger(ctx context.Context) (*CronStats, bool, error)
+	Trigger() (*CronStats, bool, error)
 	Name() string
 	Start()
 }
@@ -89,12 +88,12 @@ func (cs *CronSchedules) StartCronSchedule(fn NewCronScheduleFunc) error {
 }
 
 // TriggerCronSchedule attempts to trigger an ad-hoc run of the named cron schedule.
-func (cs *CronSchedules) TriggerCronSchedule(ctx context.Context, name string) error {
+func (cs *CronSchedules) TriggerCronSchedule(name string) error {
 	sched, ok := cs.Schedules[name]
 	if !ok {
 		return triggerNotFoundError{name: name, msg: cs.formatSupportedTriggerNames()}
 	}
-	stats, _, err := sched.Trigger(ctx)
+	stats, _, err := sched.Trigger()
 	switch {
 	case err != nil:
 		return err
@@ -148,10 +147,6 @@ func (e triggerConflictError) IsConflict() bool {
 	return true
 }
 
-func (e triggerConflictError) IsClientError() bool {
-	return true
-}
-
 func (e triggerConflictError) StatusCode() int {
 	return http.StatusConflict
 }
@@ -166,10 +161,6 @@ func (e triggerNotFoundError) Error() string {
 }
 
 func (e triggerNotFoundError) IsNotFound() bool {
-	return true
-}
-
-func (e triggerNotFoundError) IsClientError() bool {
 	return true
 }
 
@@ -226,7 +217,7 @@ const (
 	CronStatsTypeTriggered CronStatsType = "triggered"
 )
 
-// CronStatsStatus is one of the recognized statuses of cron stats
+// CronStatsStatus is one of four recognized statuses of cron stats (i.e. "pending", "expired", "canceled", or "completed")
 type CronStatsStatus string
 
 // List of recognized cron stats statuses.
@@ -235,6 +226,4 @@ const (
 	CronStatsStatusExpired   CronStatsStatus = "expired"
 	CronStatsStatusCompleted CronStatsStatus = "completed"
 	CronStatsStatusCanceled  CronStatsStatus = "canceled"
-	// CronStatsStatusQueued indicates a trigger request waiting for a remote server to pick up.
-	CronStatsStatusQueued CronStatsStatus = "queued"
 )

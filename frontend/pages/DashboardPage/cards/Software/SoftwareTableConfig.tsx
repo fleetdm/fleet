@@ -74,7 +74,7 @@ const generateTableHeaders = (teamId?: number): IDataColumn[] => [
     Cell: (cellProps: ICellProps) => {
       return (
         <ViewAllHostsLink
-          queryParams={{ software_id: cellProps.cell.value, fleet_id: teamId }} // TODO: Should redirect with the current team id?
+          queryParams={{ software_id: cellProps.cell.value, team_id: teamId }} // TODO: Should redirect with the current team id?
           className="software-link"
           condensed
         />

@@ -2551,22 +2551,6 @@ func testGetOrGenerateSoftwareInstallerTitleID(t *testing.T, ds *Datastore) {
 				BundleIdentifier: "com.new.bundle",
 			},
 		},
-		{
-			name: "title that already exists with bundle identifier",
-			payload: &fleet.UploadSoftwareInstallerPayload{
-				Title:            "Existing Title",
-				Source:           "apps",
-				BundleIdentifier: "existing.title",
-			},
-		},
-		{
-			name: "title that already exists with bundle identifier, different source",
-			payload: &fleet.UploadSoftwareInstallerPayload{
-				Title:            "Existing Title",
-				Source:           "ios_apps",
-				BundleIdentifier: "existing.title",
-			},
-		},
 	}
 
 	for _, tt := range tests {
@@ -2574,15 +2558,6 @@ func testGetOrGenerateSoftwareInstallerTitleID(t *testing.T, ds *Datastore) {
 			id, err := ds.getOrGenerateSoftwareInstallerTitleID(ctx, tt.payload)
 			require.NoError(t, err)
 			require.NotEmpty(t, id)
-
-			var titleSource string
-			ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
-				err := sqlx.GetContext(ctx, q, &titleSource, `SELECT source FROM software_titles WHERE id = ?`, id)
-				require.NoError(t, err)
-				return nil
-			})
-			require.Equal(t, tt.payload.Source, titleSource)
-
 		})
 	}
 }

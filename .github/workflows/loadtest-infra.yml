@@ -18,7 +18,7 @@ on:
         default: "5"
         required: true
       fleet_task_memory:
-        description: "The amount of memory allocated in Megabytes for the ECS tasks"
+        description: "The amount of memoery allocated in Megabytes for the ECS tasks"
         type: string
         default: "4096"
         required: true

@@ -62,7 +62,7 @@ const LogDestinationIndicator = ({
       case "filesystem":
         return (
           <>
-            Each time a report runs, the data is sent to <br />
+            Each time a query runs, the data is sent to <br />
             {filesystemDestination} <br />
             on the server&apos;s filesystem.
           </>
@@ -70,54 +70,54 @@ const LogDestinationIndicator = ({
       case "firehose":
         return (
           <>
-            Each time a report runs, the data is sent to <br />
+            Each time a query runs, the data is sent to <br />
             Amazon Kinesis Data Firehose.
           </>
         );
       case "kinesis":
         return (
           <>
-            Each time a report runs, the data is sent to <br />
+            Each time a query runs, the data is sent to <br />
             Amazon Kinesis Data Streams.
           </>
         );
       case "lambda":
         return (
           <>
-            Each time a report runs, the data <br />
+            Each time a query runs, the data <br />
             is sent to AWS Lambda.
           </>
         );
       case "pubsub":
         return (
           <>
-            Each time a report runs, the data is <br /> sent to Google Cloud Pub
+            Each time a query runs, the data is <br /> sent to Google Cloud Pub
             / Sub.
           </>
         );
       case "kafka":
         return (
           <>
-            Each time a report runs, the data <br /> is sent to Apache Kafka.
+            Each time a query runs, the data <br /> is sent to Apache Kafka.
           </>
         );
       case "nats":
         return (
           <>
-            Each time a report runs, the data <br /> is sent to NATS.
+            Each time a query runs, the data <br /> is sent to NATS.
           </>
         );
       case "stdout":
         return (
           <>
-            Each time a report runs, the data is sent to <br />
+            Each time a query runs, the data is sent to <br />
             standard output(stdout) on the Fleet server.
           </>
         );
       case "webhook":
         return (
           <>
-            Each time a report runs, the data is sent via webhook to:{" "}
+            Each time a query runs, the data is sent via webhook to:{" "}
             {webhookDestination}.
           </>
         );

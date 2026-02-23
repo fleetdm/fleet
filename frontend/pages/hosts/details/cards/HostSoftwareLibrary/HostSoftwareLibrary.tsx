@@ -88,7 +88,7 @@ export const parseHostSoftwareLibraryQueryParams = (queryParams: {
   order_key?: string;
   order_direction?: "asc" | "desc";
   self_service?: string;
-  fleet_id?: string;
+  team_id?: string;
 }) => {
   const searchQuery = queryParams?.query ?? DEFAULT_SEARCH_QUERY;
   const sortHeader = queryParams?.order_key ?? DEFAULT_SORT_HEADER;
@@ -98,8 +98,8 @@ export const parseHostSoftwareLibraryQueryParams = (queryParams: {
     : DEFAULT_PAGE;
   const pageSize = DEFAULT_PAGE_SIZE;
   const selfService = queryParams?.self_service === "true";
-  const teamId = queryParams?.fleet_id
-    ? parseInt(queryParams.fleet_id, 10)
+  const teamId = queryParams?.team_id
+    ? parseInt(queryParams.team_id, 10)
     : undefined;
 
   return {
@@ -110,7 +110,7 @@ export const parseHostSoftwareLibraryQueryParams = (queryParams: {
     per_page: pageSize,
     available_for_install: true, // always true for host installers
     self_service: selfService,
-    fleet_id: teamId,
+    team_id: teamId,
   };
 };
 
@@ -383,7 +383,7 @@ const HostSoftwareLibrary = ({
 
     router.push(
       getPathWithQueryParams(addSoftwarePathForHostPlatform(), {
-        fleet_id: hostTeamId,
+        team_id: hostTeamId,
       })
     );
   }, [
@@ -610,7 +610,7 @@ const HostSoftwareLibrary = ({
         page={queryParams.page}
         pagePath={pathname}
         selfService={queryParams.self_service}
-        teamId={queryParams.fleet_id}
+        teamId={queryParams.team_id}
       />
     );
   };

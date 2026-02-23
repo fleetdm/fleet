@@ -86,12 +86,12 @@ const HostSummary = ({
 
   const renderHostTeam = () => (
     <DataSet
-      title="Fleet"
+      title="Team"
       value={
         summaryData.team_name !== "---" ? (
           `${summaryData.team_name}`
         ) : (
-          <span className="no-team">Unassigned</span>
+          <span className="no-team">No team</span>
         )
       }
     />

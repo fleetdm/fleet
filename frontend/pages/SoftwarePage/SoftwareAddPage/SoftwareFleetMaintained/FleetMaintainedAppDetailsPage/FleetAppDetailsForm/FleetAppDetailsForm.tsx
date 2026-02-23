@@ -33,7 +33,7 @@ export const softwareAlreadyAddedTipContent = (
     ? getPathWithQueryParams(
         paths.SOFTWARE_TITLE_DETAILS(softwareTitleId.toString()),
         {
-          fleet_id: teamId,
+          team_id: teamId,
         }
       )
     : "";

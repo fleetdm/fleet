@@ -17,7 +17,7 @@ const generateCell = (teams: ITokenTeam[] | null) => {
   }
 
   if (teams.length === 0) {
-    return <TextCell value="All fleets" />;
+    return <TextCell value="All teams" />;
   }
 
   let text = "";
@@ -26,7 +26,7 @@ const generateCell = (teams: ITokenTeam[] | null) => {
     italicize = false;
     text = teams[0].name;
   } else {
-    text = `${teams.length} fleets`;
+    text = `${teams.length} teams`;
   }
 
   return <TextCell value={text} italic={italicize} />;
@@ -83,7 +83,7 @@ const TeamsCell = ({ teams, className }: ITeamsCellProps) => {
   }
 
   if (teams.length === 0) {
-    return <TextCell value="All fleets" />;
+    return <TextCell value="All teams" />;
   }
 
   if (teams.length === 1) {

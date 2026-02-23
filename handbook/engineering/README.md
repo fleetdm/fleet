@@ -41,17 +41,9 @@ Engineering-initiated stories are types of user stories created by engineers to 
 
 It's important to frame engineering-initiated user stories the same way we frame all user stories. Stay focused on how this technical change will drive value for our users.
 
-Engineering-initiated stories are for work that no customer or stakeholder has directly asked for but that makes Fleet better. If any of the following apply, the issue should go through normal product prioritization instead of being labeled `~engineering-initiated`:
-
-- The work was motivated by a **customer report or request** (has a `customer-*` label).
-- The issue is a **bug or defect** (has a `~released bug` or `bug` label).
-- The issue is a **postmortem action item** (has a `~postmortem-action-item` label).
-
-These categories compete for priority in the normal product pipeline so that product and customer stakeholders have full visibility into the work being done on their behalf.
-
 1. Create a new engineering-initiated story using the [new story template](https://github.com/fleetdm/fleet/issues/new?assignees=lukeheath&labels=story,~engineering-initiated&projects=&template=story.md&title=). Make sure the `~engineering-initiated` label is added, the `:product` label is removed, and the engineering output and architecture DRI (@lukeheath) is assigned.
 
-2. Remove the "Product" section and checklist from the issue description.
+2. Remove the "Product" section and checklist from the issue description. 
 
 3. Create the issue. The new user story will be automatically placed in the "New Requests" column of the [engineering GitHub board](https://github.com/orgs/fleetdm/projects/73). If you feel the issue is urgent, tag your EM or the engineering output and architecture DRI (@lukeheath) in a comment.
 
@@ -60,7 +52,7 @@ These categories compete for priority in the normal product pipeline so that pro
 
 ### Draft an engineering-initiated story
 
-The engineering output and architecture DRI reviews and triages engineering-initiated stories weekly on the [Engineering board](https://github.com/orgs/fleetdm/projects/73) and selects stories to prioritize for drafting by adding the `:product` label, placing it in the "Ready" column, and assigning an engineer. 
+The engineering output and architecture DRI reviews and triages engineering-initiated stories weekly on the [Engineering board](https://github.com/orgs/fleetdm/projects/73) and selects stories to prioritize for drafting by adding the `:product` label, placing it in the "Ready" column, and assigning to the engineer listed as the product designer. 
 
 1. The assigned engineer is responsible for completing the user story drafting process by completing the specs and [defining done](https://fleetdm.com/handbook/company/product-groups#defining-done). Move the issue into "In progress" on the drafting board and populate all TODOs in the issue description, define implementation details, and draft the first version of the test plan.
 
@@ -159,7 +151,7 @@ Fleet responds to all P0 incidents by initiating our incident response process:
 
 1. Create a new [incident response issue](https://github.com/fleetdm/confidential/issues/new?template=incident-response.md) in our confidential repo. 
 2. Edit the issue template to reflect the details of the incident. 
-3. Assign to the current business hours or after hours on-call engineer (based on time of the incident) and the current infrastrucure on-call engineer. 
+3. Assign to the on-call engineer that received the incident for initial triage, as well as the current infrastrucure on-call engineer. 
 4. Complete the steps listed based on the type of incident.
 
 Mitigating the outage may require writing and merging code. The current infrastructure on-call engineer is first line for all reviews and QA required to deploy a hot-fix. If additional code review or engineering support is needed, the responding engineer should escalate to their manager.

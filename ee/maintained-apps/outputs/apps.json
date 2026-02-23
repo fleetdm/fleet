@@ -41,7 +41,7 @@
       "slug": "8x8-work/darwin",
       "platform": "darwin",
       "unique_identifier": "com.electron.8x8---virtual-office",
-      "description": "8x8 Work is a communications application with voice, video, chat, and web conferencing.<br/><br/>Note: After installation, the app may show an auto-update error on each login if file ownership is set to root; changing ownership of 8x8 Work.app to the logged-in user resolves this, or auto-updates can be disabled via the Profile Policies setting in the 8x8 Admin Console."
+      "description": "8x8 Work is a communications application with voice, video, chat, and web conferencing."
     },
     {
       "name": "8x8 Work",
@@ -231,13 +231,6 @@
       "platform": "darwin",
       "unique_identifier": "com.barebones.bbedit",
       "description": "BBEdit is a text, code, and markup editor."
-    },
-    {
-      "name": "BetterDisplay",
-      "slug": "betterdisplay/darwin",
-      "platform": "darwin",
-      "unique_identifier": "pro.betterdisplay.BetterDisplay",
-      "description": "BetterDisplay is a display management tool."
     },
     {
       "name": "Beyond Compare",
@@ -891,13 +884,6 @@
       "description": "Keka is a file archiver."
     },
     {
-      "name": "LastPass",
-      "slug": "lastpass/windows",
-      "platform": "windows",
-      "unique_identifier": "LastPass",
-      "description": "LastPass is a password manager."
-    },
-    {
       "name": "Lens",
       "slug": "lens/darwin",
       "platform": "darwin",
@@ -1260,13 +1246,6 @@
       "platform": "darwin",
       "unique_identifier": "com.initex.proxifier.v3.macos",
       "description": "Proxifier is an app that allows network applications that do not support working through proxy servers to operate through a SOCKS or HTTPS proxy and chains."
-    },
-    {
-      "name": "PuTTY",
-      "slug": "putty/windows",
-      "platform": "windows",
-      "unique_identifier": "PuTTY release 0.83 (x64)",
-      "description": "PuTTY is a free, open-source SSH and Telnet client for Windows."
     },
     {
       "name": "PyCharm Community Edition",

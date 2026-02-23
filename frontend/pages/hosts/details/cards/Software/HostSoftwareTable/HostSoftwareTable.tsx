@@ -126,7 +126,7 @@ const HostSoftwareTable = ({
         order_direction: newTableQuery.sortDirection,
         order_key: newTableQuery.sortHeader,
         page: changedParam === "pageIndex" ? newTableQuery.pageIndex : 0,
-        fleet_id: teamId,
+        team_id: teamId,
         ...buildSoftwareVulnFiltersQueryParams(vulnFilters),
       };
       return newQueryParam;

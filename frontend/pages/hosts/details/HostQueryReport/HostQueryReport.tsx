@@ -112,7 +112,7 @@ const HostQueryReport = ({
   const HQRHeader = useCallback(() => {
     const fullReportPath = getPathWithQueryParams(
       PATHS.QUERY_DETAILS(queryId),
-      { fleet_id: currentTeam?.id }
+      { team_id: currentTeam?.id }
     );
     return (
       <div className={`${baseClass}__header`}>

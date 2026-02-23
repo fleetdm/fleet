@@ -3,17 +3,22 @@
   display: flex;
   justify-content: center;
   width: 100%;
+  height: 125px;
 
   &__wrapper {
     display: flex;
     justify-content: center;
-    height: 54px;
-    padding-top: 48px;
+    height: 125px;
+    padding-top: $pad-medium;
+
+    @include breakpoint(tablet) {
+      height: 75px;
+    }
   }
 
   &__page {
     text-align: center;
-    min-width: 250px;
+    min-width: 156px;
     font-size: $small;
     font-weight: $regular;
     color: $ui-fleet-black-75;
@@ -28,17 +33,29 @@
     &::before {
       content: "";
       position: absolute;
-      width: 225px;
+      width: 84.5%;
       height: 2px;
       background-color: $ui-fleet-black-25;
-      top: 42px;
-      left: 137px;
+      bottom: 36%;
+      left: 90px;
+
+      // Firefox-specific
+      @-moz-document url-prefix() {
+        bottom: 38.2%;
+      }
+
+      @include breakpoint(tablet) {
+        bottom: 26.5%;
+        // Firefox-specific
+        @-moz-document url-prefix() {
+          bottom: 30%;
+        }
+      }
     }
 
     &::after {
       @extend %fleeticon;
       @include size(24px);
-      min-height: 24px;
       background-color: transparent;
       display: block;
       border-radius: 50%;
@@ -48,10 +65,14 @@
       position: relative;
       z-index: 1;
       cursor: pointer;
+
+      @include breakpoint(tablet) {
+        margin-top: $pad-xsmall;
+      }
     }
 
-    &:focus-visible {
-      outline: 1px solid $core-fleet-black;
+    &:focus {
+      outline: 1px dashed $ui-fleet-black-75;
       border-radius: $border-radius;
     }
 
@@ -61,7 +82,8 @@
 
     &--1 {
       &::after {
-        outline: 2px solid $ui-fleet-black-75;
+        border: 2px solid $ui-fleet-black-75;
+        margin-top: 11px;
       }
 
       &.registration-breadcrumbs__page--active {
@@ -75,7 +97,7 @@
 
         &::after {
           background-color: transparent;
-          outline: 2px solid $ui-fleet-black-75;
+          border: 2px solid $ui-fleet-black-75;
         }
       }
 
@@ -90,14 +112,15 @@
           @include size(28px);
           content: "\f035";
           color: $ui-fleet-black-75;
-          outline: 0;
+          border: 0;
         }
       }
     }
 
     &--2 {
       &::after {
-        outline: solid 1px $ui-fleet-black-25;
+        border: solid 1px $ui-fleet-black-25;
+        margin-top: 11px;
       }
 
       &.registration-breadcrumbs__page--active {
@@ -111,7 +134,7 @@
 
         &::after {
           background-color: transparent;
-          outline: 2px solid $ui-fleet-black-75;
+          border: 2px solid $ui-fleet-black-75;
         }
       }
 
@@ -125,7 +148,7 @@
           @include size(28px);
           content: "\f035";
           color: $ui-fleet-black-75;
-          outline: 0;
+          border: 0;
         }
       }
     }
@@ -136,7 +159,8 @@
       }
 
       &::after {
-        outline: solid 1px $ui-fleet-black-25;
+        border: solid 1px $ui-fleet-black-25;
+        margin-top: 11px;
       }
 
       &.registration-breadcrumbs__page--active {
@@ -150,7 +174,7 @@
 
         &::after {
           background-color: transparent;
-          outline: 2px solid $ui-fleet-black-75;
+          border: 2px solid $ui-fleet-black-75;
         }
       }
 
@@ -159,7 +183,7 @@
           @include size(28px);
           content: "\f035";
           color: $ui-fleet-black-75;
-          outline: 0;
+          border: 0;
         }
       }
     }

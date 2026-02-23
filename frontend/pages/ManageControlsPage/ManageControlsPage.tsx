@@ -55,7 +55,7 @@ interface IManageControlsPageProps {
     search: string;
     hash?: string;
     query: {
-      fleet_id?: string;
+      team_id?: string;
       page?: string;
       order_key?: string;
       order_direction?: "asc" | "desc";

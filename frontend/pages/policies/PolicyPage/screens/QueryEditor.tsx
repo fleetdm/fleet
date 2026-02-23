@@ -168,7 +168,7 @@ const QueryEditor = ({
       setIsUpdatingPolicy(false);
       router.push(
         getPathWithQueryParams(PATHS.EDIT_POLICY(policy.id), {
-          fleet_id: policy.team_id,
+          team_id: policy.team_id,
         })
       );
       renderFlash("success", "Policy created.");
@@ -243,7 +243,7 @@ const QueryEditor = ({
 
   // Function instead of constant eliminates race condition with filteredPoliciesPath
   const backToPoliciesPath = () => {
-    const queryParams = { fleet_id: teamIdForApi };
+    const queryParams = { team_id: teamIdForApi };
 
     return (
       filteredPoliciesPath ||

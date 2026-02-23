@@ -99,7 +99,7 @@ const SoftwareCustomPackage = ({
   const onCancel = () => {
     router.push(
       getPathWithQueryParams(PATHS.SOFTWARE_TITLES, {
-        fleet_id: currentTeamId,
+        team_id: currentTeamId,
       })
     );
   };
@@ -144,7 +144,7 @@ const SoftwareCustomPackage = ({
       }
 
       const newQueryParams: QueryParams = {
-        fleet_id: currentTeamId,
+        team_id: currentTeamId,
         gitops_yaml: gitOpsModeEnabled ? "true" : undefined,
       };
       router.push(

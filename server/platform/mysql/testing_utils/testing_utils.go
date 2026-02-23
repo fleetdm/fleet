@@ -3,7 +3,6 @@ package testing_utils
 import (
 	"context"
 	"fmt"
-	"log/slog"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -12,6 +11,7 @@ import (
 	"testing"
 
 	common_mysql "github.com/fleetdm/fleet/v4/server/platform/mysql"
+	"github.com/go-kit/log"
 	"github.com/jmoiron/sqlx"
 	"github.com/stretchr/testify/require"
 )
@@ -38,7 +38,7 @@ func getTestAddress() string {
 // Note that the order is typically not important because FK checks are
 // disabled while truncating. If no table is provided, all tables (except
 // those that are seeded by the SQL schema file) are truncated.
-func TruncateTables(t testing.TB, db *sqlx.DB, logger *slog.Logger, nonEmptyTables map[string]bool, tables ...string) {
+func TruncateTables(t testing.TB, db *sqlx.DB, logger log.Logger, nonEmptyTables map[string]bool, tables ...string) {
 	// By setting DISABLE_TRUNCATE_TABLES a developer can troubleshoot tests
 	// by inspecting mysql tables.
 	if os.Getenv("DISABLE_TRUNCATE_TABLES") != "" {

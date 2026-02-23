@@ -46,10 +46,6 @@ func (e *Forbidden) StatusCode() int {
 	return http.StatusForbidden
 }
 
-func (e *Forbidden) IsClientError() bool {
-	return true
-}
-
 // Forbidden implements platform_authz.Forbidden interface.
 func (e *Forbidden) Forbidden() {}
 

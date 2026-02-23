@@ -51,7 +51,7 @@ describe("Activity Feed", () => {
     const activity = createMockActivity({ type: ActivityType.LiveQuery });
     render(<GlobalActivityItem activity={activity} isPremiumTier />);
 
-    expect(screen.getByText("ran a live report .")).toBeInTheDocument();
+    expect(screen.getByText("ran a live query .")).toBeInTheDocument();
   });
 
   it("renders a live_query type activity with host count details", () => {
@@ -64,7 +64,7 @@ describe("Activity Feed", () => {
     render(<GlobalActivityItem activity={activity} isPremiumTier />);
 
     expect(
-      screen.getByText("ran a live report on 10 hosts.")
+      screen.getByText("ran a live query on 10 hosts.")
     ).toBeInTheDocument();
   });
 
@@ -156,7 +156,7 @@ describe("Activity Feed", () => {
     render(<GlobalActivityItem activity={activity} isPremiumTier />);
 
     expect(
-      screen.getByText("edited a report using fleetctl.")
+      screen.getByText("edited a query using fleetctl.")
     ).toBeInTheDocument();
   });
 
@@ -168,7 +168,7 @@ describe("Activity Feed", () => {
     render(<GlobalActivityItem activity={activity} isPremiumTier />);
 
     expect(
-      screen.getByText("edited reports using fleetctl.")
+      screen.getByText("edited queries using fleetctl.")
     ).toBeInTheDocument();
   });
 
@@ -191,7 +191,7 @@ describe("Activity Feed", () => {
     render(<GlobalActivityItem activity={activity} isPremiumTier />);
 
     expect(
-      screen.getByText("edited the fleet using fleetctl.")
+      screen.getByText("edited the team using fleetctl.")
     ).toBeInTheDocument();
     expect(screen.getByText("Team 1")).toBeInTheDocument();
   });
@@ -206,7 +206,7 @@ describe("Activity Feed", () => {
     render(<GlobalActivityItem activity={activity} isPremiumTier />);
 
     expect(
-      screen.getByText("edited multiple fleets using fleetctl.")
+      screen.getByText("edited multiple teams using fleetctl.")
     ).toBeInTheDocument();
   });
 
@@ -227,7 +227,7 @@ describe("Activity Feed", () => {
     render(<GlobalActivityItem activity={activity} isPremiumTier />);
 
     expect(
-      screen.getByText("edited agent options on fleet.")
+      screen.getByText("edited agent options on team.")
     ).toBeInTheDocument();
     expect(screen.getByText("Test Team 1")).toBeInTheDocument();
   });
@@ -357,7 +357,7 @@ describe("Activity Feed", () => {
     expect(screen.getByText("newuser@example.com")).toBeInTheDocument();
     expect(screen.getByText("maintainer")).toBeInTheDocument();
     expect(
-      screen.getByText("for all fleets.", { exact: false })
+      screen.getByText("for all teams.", { exact: false })
     ).toBeInTheDocument();
   });
 
@@ -371,7 +371,7 @@ describe("Activity Feed", () => {
     expect(screen.getByText("changed", { exact: false })).toBeInTheDocument();
     expect(screen.getByText("newuser@example.com")).toBeInTheDocument();
     expect(screen.getByText("maintainer")).toBeInTheDocument();
-    const forAllTeams = screen.queryByText("for all fleets.");
+    const forAllTeams = screen.queryByText("for all teams.");
     expect(forAllTeams).toBeNull();
   });
 
@@ -388,11 +388,11 @@ describe("Activity Feed", () => {
     render(<GlobalActivityItem activity={activity} isPremiumTier />);
 
     //  If actor_id is the same as user_id:
-    // "<user_email> was assigned the <role> for all fleets."
+    // "<user_email> was assigned the <role> for all teams."
     expect(screen.getByText("jit@sso.com")).toBeInTheDocument();
     expect(screen.getByText(/was assigned the/)).toBeInTheDocument();
     expect(screen.getByText("observer")).toBeInTheDocument();
-    expect(screen.getByText(/role for all fleets./)).toBeInTheDocument();
+    expect(screen.getByText(/role for all teams./)).toBeInTheDocument();
   });
 
   it("correctly renders a changed_user_global_role type activity when changing an existing user's global role, premium", () => {
@@ -409,13 +409,13 @@ describe("Activity Feed", () => {
     render(<GlobalActivityItem activity={activity} isPremiumTier />);
 
     //  If actor_id is different from user_id on premium:
-    // "<actor_full_name> changed <user_email> to <role> for all fleets."
+    // "<actor_full_name> changed <user_email> to <role> for all teams."
     expect(screen.getByText("Ally Admin")).toBeInTheDocument();
     expect(screen.getByText(/changed/)).toBeInTheDocument();
     expect(screen.getByText("user@example.com")).toBeInTheDocument();
     expect(screen.getByText(/to/)).toBeInTheDocument();
     expect(screen.getByText("maintainer")).toBeInTheDocument();
-    expect(screen.getByText(/for all fleets/)).toBeInTheDocument();
+    expect(screen.getByText(/for all teams/)).toBeInTheDocument();
   });
 
   it("correctly renders a changed_user_global_role type activity when changing an existing user's global role, free", () => {
@@ -438,7 +438,7 @@ describe("Activity Feed", () => {
     expect(screen.getByText("user@example.com")).toBeInTheDocument();
     expect(screen.getByText("to", { exact: false })).toBeInTheDocument();
     expect(screen.getByText("maintainer")).toBeInTheDocument();
-    const forAllTeams = screen.queryByText("for all fleets.");
+    const forAllTeams = screen.queryByText("for all teams.");
     expect(forAllTeams).toBeNull();
   });
 
@@ -478,16 +478,16 @@ describe("Activity Feed", () => {
     render(<GlobalActivityItem activity={activity} isPremiumTier />);
 
     // If actor_id is the same as user_id:
-    // "<user_email> was assigned the <role> role for the <team_name> fleet."
+    // "<user_email> was assigned the <role> role for the <team_name> team."
     expect(screen.getByText("jit@sso.com")).toBeInTheDocument();
     expect(screen.getByText(/was assigned the/)).toBeInTheDocument();
     expect(screen.getByText("maintainer")).toBeInTheDocument();
     expect(screen.getByText(/role for the/)).toBeInTheDocument();
     expect(screen.getByText(/Test Team/)).toBeInTheDocument();
-    expect(screen.getByText(/fleet\./)).toBeInTheDocument();
+    expect(screen.getByText(/team\./)).toBeInTheDocument();
 
     expect(screen.queryByText("Ally Admin")).toBeNull();
-    const forAllTeams = screen.queryByText("for all fleets.");
+    const forAllTeams = screen.queryByText("for all teams.");
     expect(forAllTeams).toBeNull();
   });
 
@@ -506,7 +506,7 @@ describe("Activity Feed", () => {
     render(<GlobalActivityItem activity={activity} isPremiumTier />);
 
     //  If actor_id is different from user_id:
-    // "<actor_full_name> changed <user_email> to <role> for the <team_name> fleet."
+    // "<actor_full_name> changed <user_email> to <role> for the <team_name> team."
     expect(screen.getByText("Ally Admin")).toBeInTheDocument();
     expect(screen.getByText(/changed/)).toBeInTheDocument();
     expect(screen.getByText("user@example.com")).toBeInTheDocument();
@@ -514,8 +514,8 @@ describe("Activity Feed", () => {
     expect(screen.getByText("maintainer")).toBeInTheDocument();
     expect(screen.getByText(/for the/)).toBeInTheDocument();
     expect(screen.getByText(/Test Team/)).toBeInTheDocument();
-    expect(screen.getByText(/fleet\./)).toBeInTheDocument();
-    expect(screen.queryByText("for all fleets.")).toBeNull();
+    expect(screen.getByText(/team\./)).toBeInTheDocument();
+    expect(screen.queryByText("for all teams.")).toBeNull();
   });
 
   // // // // // // // // // // // //
@@ -546,7 +546,7 @@ describe("Activity Feed", () => {
     expect(screen.getByText("newuser@example.com")).toBeInTheDocument();
     expect(screen.getByText("maintainer")).toBeInTheDocument();
     expect(
-      screen.getByText("for all fleets.", { exact: false })
+      screen.getByText("for all teams.", { exact: false })
     ).toBeInTheDocument();
   });
 
@@ -560,7 +560,7 @@ describe("Activity Feed", () => {
     expect(screen.getByText("removed", { exact: false })).toBeInTheDocument();
     expect(screen.getByText("newuser@example.com")).toBeInTheDocument();
     expect(screen.getByText("maintainer")).toBeInTheDocument();
-    const forAllTeams = screen.queryByText("for all fleets.");
+    const forAllTeams = screen.queryByText("for all teams.");
     expect(forAllTeams).toBeNull();
   });
 
@@ -577,7 +577,7 @@ describe("Activity Feed", () => {
       })
     ).toBeInTheDocument();
     expect(screen.getByText("Alphas")).toBeInTheDocument();
-    expect(screen.getByText(" fleet.", { exact: false })).toBeInTheDocument();
+    expect(screen.getByText(" team.", { exact: false })).toBeInTheDocument();
     const withNoTeams = screen.queryByText("with no team");
     expect(withNoTeams).toBeNull();
   });
@@ -596,7 +596,7 @@ describe("Activity Feed", () => {
       })
     ).toBeInTheDocument();
     expect(screen.getByText("Alphas")).toBeInTheDocument();
-    expect(screen.getByText(" fleet.", { exact: false })).toBeInTheDocument();
+    expect(screen.getByText(" team.", { exact: false })).toBeInTheDocument();
     const withNoTeams = screen.queryByText("with no team");
     expect(withNoTeams).toBeNull();
   });
@@ -617,7 +617,7 @@ describe("Activity Feed", () => {
       )
     ).toBeInTheDocument();
     expect(screen.getByText("Alphas")).toBeInTheDocument();
-    expect(screen.getByText(" fleet.", { exact: false })).toBeInTheDocument();
+    expect(screen.getByText(" team.", { exact: false })).toBeInTheDocument();
     const withNoTeams = screen.queryByText("with no team");
     expect(withNoTeams).toBeNull();
   });
@@ -639,12 +639,12 @@ describe("Activity Feed", () => {
       )
     ).toBeInTheDocument();
     expect(screen.getByText("Alphas")).toBeInTheDocument();
-    expect(screen.getByText(" fleet.", { exact: false })).toBeInTheDocument();
+    expect(screen.getByText(" team.", { exact: false })).toBeInTheDocument();
     const withNoTeams = screen.queryByText("with no team");
     expect(withNoTeams).toBeNull();
   });
 
-  it("renders an 'enabled_disk_encryption' type activity for hosts that are unassigned.", () => {
+  it("renders an 'enabled_disk_encryption' type activity for hosts with no team.", () => {
     const activity = createMockActivity({
       type: ActivityType.EnabledDiskEncryption,
       details: {},
@@ -652,14 +652,12 @@ describe("Activity Feed", () => {
     render(<GlobalActivityItem activity={activity} isPremiumTier />);
 
     expect(
-      screen.getByText(
-        "enforced disk encryption for hosts that are unassigned."
-      )
+      screen.getByText("enforced disk encryption for hosts with no team.")
     ).toBeInTheDocument();
     expect(screen.queryByText("assigned to the")).toBeNull();
   });
 
-  it("renders an 'enabled_macos_disk_encryption' type activity for hosts that are unassigned.", () => {
+  it("renders an 'enabled_macos_disk_encryption' type activity for hosts with no team.", () => {
     // Test deprecated activity type
     const activity = createMockActivity({
       type: ActivityType.EnabledMacDiskEncryption,
@@ -668,14 +666,12 @@ describe("Activity Feed", () => {
     render(<GlobalActivityItem activity={activity} isPremiumTier />);
 
     expect(
-      screen.getByText(
-        "enforced disk encryption for hosts that are unassigned."
-      )
+      screen.getByText("enforced disk encryption for hosts with no team.")
     ).toBeInTheDocument();
     expect(screen.queryByText("assigned to the")).toBeNull();
   });
 
-  it("renders a 'disabled_disk_encryption' type activity for hosts that are unassigned.", () => {
+  it("renders a 'disabled_disk_encryption' type activity for hosts with no team.", () => {
     const activity = createMockActivity({
       type: ActivityType.DisabledDiskEncryption,
       details: {},
@@ -684,7 +680,7 @@ describe("Activity Feed", () => {
 
     expect(
       screen.getByText(
-        "removed disk encryption enforcement for hosts that are unassigned.",
+        "removed disk encryption enforcement for hosts with no team.",
         {
           exact: false,
         }
@@ -693,7 +689,7 @@ describe("Activity Feed", () => {
     expect(screen.queryByText("assigned to the")).toBeNull();
   });
 
-  it("renders a 'disabled_macos_disk_encryption' type activity for hosts that are unassigned.", () => {
+  it("renders a 'disabled_macos_disk_encryption' type activity for hosts with no team.", () => {
     // Test deprecated activity type
     const activity = createMockActivity({
       type: ActivityType.DisabledMacDiskEncryption,
@@ -703,7 +699,7 @@ describe("Activity Feed", () => {
 
     expect(
       screen.getByText(
-        "removed disk encryption enforcement for hosts that are unassigned.",
+        "removed disk encryption enforcement for hosts with no team.",
         {
           exact: false,
         }
@@ -723,7 +719,7 @@ describe("Activity Feed", () => {
       screen.getByText((content, node) => {
         return (
           node?.innerHTML ===
-          "<b>Test User </b> changed the macOS Setup Assistant (added <b>dep-profile.json</b>) for hosts that automatically enroll to unassigned."
+          "<b>Test User </b> changed the macOS Setup Assistant (added <b>dep-profile.json</b>) for hosts that automatically enroll to no team."
         );
       })
     ).toBeInTheDocument();
@@ -740,7 +736,7 @@ describe("Activity Feed", () => {
       screen.getByText((content, node) => {
         return (
           node?.innerHTML ===
-          "<b>Test User </b> changed the macOS Setup Assistant (added <b>dep-profile.json</b>) for hosts  that automatically enroll to the <b>Workstations</b> fleet."
+          "<b>Test User </b> changed the macOS Setup Assistant (added <b>dep-profile.json</b>) for hosts  that automatically enroll to the <b>Workstations</b> team."
         );
       })
     ).toBeInTheDocument();
@@ -757,7 +753,7 @@ describe("Activity Feed", () => {
       screen.getByText((content, node) => {
         return (
           node?.innerHTML ===
-          "<b>Test User </b> changed the macOS Setup Assistant (deleted <b>dep-profile.json</b>) for hosts that automatically enroll to unassigned."
+          "<b>Test User </b> changed the macOS Setup Assistant (deleted <b>dep-profile.json</b>) for hosts that automatically enroll to no team."
         );
       })
     ).toBeInTheDocument();
@@ -774,7 +770,7 @@ describe("Activity Feed", () => {
       screen.getByText((content, node) => {
         return (
           node?.innerHTML ===
-          "<b>Test User </b> changed the macOS Setup Assistant (deleted <b>dep-profile.json</b>) for hosts  that automatically enroll to the <b>Workstations</b> fleet."
+          "<b>Test User </b> changed the macOS Setup Assistant (deleted <b>dep-profile.json</b>) for hosts  that automatically enroll to the <b>Workstations</b> team."
         );
       })
     ).toBeInTheDocument();
@@ -797,7 +793,7 @@ describe("Activity Feed", () => {
       })
     ).toBeInTheDocument();
     expect(screen.getByText("Alphas")).toBeInTheDocument();
-    expect(screen.getByText(" fleet.", { exact: false })).toBeInTheDocument();
+    expect(screen.getByText(" team.", { exact: false })).toBeInTheDocument();
     const withNoTeams = screen.queryByText("automatically enroll to no team");
     expect(withNoTeams).toBeNull();
   });
@@ -819,12 +815,12 @@ describe("Activity Feed", () => {
       })
     ).toBeInTheDocument();
     expect(screen.getByText("Alphas")).toBeInTheDocument();
-    expect(screen.getByText(" fleet.", { exact: false })).toBeInTheDocument();
+    expect(screen.getByText(" team.", { exact: false })).toBeInTheDocument();
     const withNoTeams = screen.queryByText("automatically enroll to no team");
     expect(withNoTeams).toBeNull();
   });
 
-  it("renders a 'added_bootstrap_package' type activity for hosts that are unassigned.", () => {
+  it("renders a 'added_bootstrap_package' type activity for hosts with no team.", () => {
     const activity = createMockActivity({
       type: ActivityType.AddedBootstrapPackage,
       details: { bootstrap_package_name: "foo.pkg" },
@@ -837,13 +833,13 @@ describe("Activity Feed", () => {
     expect(screen.getByText("foo.pkg", { exact: false })).toBeInTheDocument();
     expect(
       screen.getByText(
-        ") for macOS hosts that automatically enroll to unassigned.",
+        ") for macOS hosts that automatically enroll to no team.",
         { exact: false }
       )
     ).toBeInTheDocument();
   });
 
-  it("renders a 'deleted_bootstrap_package' type activity for hosts that are unassigned.", () => {
+  it("renders a 'deleted_bootstrap_package' type activity for hosts with no team.", () => {
     const activity = createMockActivity({
       type: ActivityType.DeletedBootstrapPackage,
       details: { bootstrap_package_name: "foo.pkg" },
@@ -856,7 +852,7 @@ describe("Activity Feed", () => {
     expect(screen.getByText("foo.pkg", { exact: false })).toBeInTheDocument();
     expect(
       screen.getByText(
-        ") for macOS hosts that automatically enroll to unassigned.",
+        ") for macOS hosts that automatically enroll to no team.",
         { exact: false }
       )
     ).toBeInTheDocument();
@@ -880,7 +876,7 @@ describe("Activity Feed", () => {
     expect(withNoTeams).toBeNull();
   });
 
-  it("renders a 'enabled_macos_setup_end_user_auth' type activity for hosts that are unassigned.", () => {
+  it("renders a 'enabled_macos_setup_end_user_auth' type activity for hosts with no team.", () => {
     const activity = createMockActivity({
       type: ActivityType.EnabledMacOSSetupEndUserAuth,
     });
@@ -888,7 +884,7 @@ describe("Activity Feed", () => {
 
     expect(
       screen.getByText(
-        "required end user authentication for macOS, iOS, iPadOS, and Android hosts that automatically enroll to unassigned.",
+        "required end user authentication for macOS, iOS, iPadOS, and Android hosts that automatically enroll to no team.",
         { exact: false }
       )
     ).toBeInTheDocument();
@@ -912,7 +908,7 @@ describe("Activity Feed", () => {
     expect(withNoTeams).toBeNull();
   });
 
-  it("renders a 'disabled_macos_setup_end_user_auth' type activity for hosts that are unassigned.", () => {
+  it("renders a 'disabled_macos_setup_end_user_auth' type activity for hosts with no team.", () => {
     const activity = createMockActivity({
       type: ActivityType.DisabledMacOSSetupEndUserAuth,
     });
@@ -920,13 +916,13 @@ describe("Activity Feed", () => {
 
     expect(
       screen.getByText(
-        "removed end user authentication requirement for macOS, iOS, iPadOS, and Android hosts that automatically enroll to unassigned.",
+        "removed end user authentication requirement for macOS, iOS, iPadOS, and Android hosts that automatically enroll to no team.",
         { exact: false }
       )
     ).toBeInTheDocument();
   });
 
-  it("renders a 'transferred_hosts' type activity for one host transferred to Unassigned.", () => {
+  it("renders a 'transferred_hosts' type activity for one host transferred to no team.", () => {
     const activity = createMockActivity({
       type: ActivityType.TransferredHosts,
       details: {
@@ -940,12 +936,10 @@ describe("Activity Feed", () => {
       screen.getByText("transferred host", { exact: false })
     ).toBeInTheDocument();
     expect(screen.getByText("foo", { exact: false })).toBeInTheDocument();
-    expect(
-      screen.getByText("unassigned", { exact: false })
-    ).toBeInTheDocument();
+    expect(screen.getByText("no team", { exact: false })).toBeInTheDocument();
   });
 
-  it("renders a 'transferred_hosts' type activity for one host transferred to a fleet.", () => {
+  it("renders a 'transferred_hosts' type activity for one host transferred to a team.", () => {
     const activity = createMockActivity({
       type: ActivityType.TransferredHosts,
       details: {
@@ -963,7 +957,7 @@ describe("Activity Feed", () => {
     expect(screen.getByText("Alphas", { exact: false })).toBeInTheDocument();
   });
 
-  it("renders a 'transferred_hosts' type activity for multiple hosts transferred to Unassigned.", () => {
+  it("renders a 'transferred_hosts' type activity for multiple hosts transferred to no team.", () => {
     const activity = createMockActivity({
       type: ActivityType.TransferredHosts,
       details: {
@@ -979,12 +973,10 @@ describe("Activity Feed", () => {
     expect(screen.queryByText("foo")).toBeNull();
     expect(screen.queryByText("bar")).toBeNull();
     expect(screen.queryByText("baz")).toBeNull();
-    expect(
-      screen.getByText("unassigned", { exact: false })
-    ).toBeInTheDocument();
+    expect(screen.getByText("no team", { exact: false })).toBeInTheDocument();
   });
 
-  it("renders a 'transferred_hosts' type activity for multiple hosts transferred to a fleet.", () => {
+  it("renders a 'transferred_hosts' type activity for multiple hosts transferred to a team.", () => {
     const activity = createMockActivity({
       type: ActivityType.TransferredHosts,
       details: {
@@ -1099,7 +1091,7 @@ describe("Activity Feed", () => {
       })
     ).toBeInTheDocument();
     expect(screen.getByText("Alphas")).toBeInTheDocument();
-    expect(screen.getByText(" fleet.", { exact: false })).toBeInTheDocument();
+    expect(screen.getByText(" team.", { exact: false })).toBeInTheDocument();
     const withNoTeams = screen.queryByText("no team");
     expect(withNoTeams).toBeNull();
   });
@@ -1121,7 +1113,7 @@ describe("Activity Feed", () => {
     ).toBeInTheDocument();
     expect(screen.getByText("Alphas")).toBeInTheDocument();
     expect(
-      screen.getByText(" fleet via fleetctl.", { exact: false })
+      screen.getByText(" team via fleetctl.", { exact: false })
     ).toBeInTheDocument();
     const withNoTeams = screen.queryByText("no team");
     expect(withNoTeams).toBeNull();
@@ -1144,12 +1136,12 @@ describe("Activity Feed", () => {
       })
     ).toBeInTheDocument();
     expect(screen.getByText("Alphas")).toBeInTheDocument();
-    expect(screen.getByText(" fleet.", { exact: false })).toBeInTheDocument();
+    expect(screen.getByText(" team.", { exact: false })).toBeInTheDocument();
     const withNoTeams = screen.queryByText("no team");
     expect(withNoTeams).toBeNull();
   });
 
-  it("renders an 'added_script' type activity for hosts that are unassigned.", () => {
+  it("renders an 'added_script' type activity for hosts with no team.", () => {
     const activity = createMockActivity({
       type: ActivityType.AddedScript,
       details: { script_name: "foo.sh" },
@@ -1161,11 +1153,11 @@ describe("Activity Feed", () => {
     ).toBeInTheDocument();
     expect(screen.getByText("foo.sh", { exact: false })).toBeInTheDocument();
     expect(
-      screen.getByText("to unassigned.", { exact: false })
+      screen.getByText("to no team.", { exact: false })
     ).toBeInTheDocument();
   });
 
-  it("renders an 'edited_script' type activity for hosts that are unassigned.", () => {
+  it("renders an 'edited_script' type activity for hosts with no team.", () => {
     const activity = createMockActivity({
       type: ActivityType.EditedScript,
       details: {},
@@ -1176,11 +1168,11 @@ describe("Activity Feed", () => {
       screen.getByText("edited scripts", { exact: false })
     ).toBeInTheDocument();
     expect(
-      screen.getByText("for unassigned via fleetctl.", { exact: false })
+      screen.getByText("for no team via fleetctl.", { exact: false })
     ).toBeInTheDocument();
   });
 
-  it("renders a 'deleted_script' type activity for hosts that are unassigned.", () => {
+  it("renders a 'deleted_script' type activity for hosts with no team.", () => {
     const activity = createMockActivity({
       type: ActivityType.DeletedScript,
       details: { script_name: "foo.sh" },
@@ -1192,7 +1184,7 @@ describe("Activity Feed", () => {
     ).toBeInTheDocument();
     expect(screen.getByText("foo.sh", { exact: false })).toBeInTheDocument();
     expect(
-      screen.getByText("from unassigned.", { exact: false })
+      screen.getByText("from no team.", { exact: false })
     ).toBeInTheDocument();
   });
 
@@ -1217,7 +1209,7 @@ describe("Activity Feed", () => {
       })
     ).toBeInTheDocument();
     expect(screen.getByText("Alphas")).toBeInTheDocument();
-    expect(screen.getByText(" fleet.", { exact: false })).toBeInTheDocument();
+    expect(screen.getByText(" team.", { exact: false })).toBeInTheDocument();
     const withNoTeams = screen.queryByText("no team");
     expect(withNoTeams).toBeNull();
   });
@@ -1240,7 +1232,7 @@ describe("Activity Feed", () => {
       })
     ).toBeInTheDocument();
     expect(screen.getByText("Alphas")).toBeInTheDocument();
-    expect(screen.getByText(" fleet.", { exact: false })).toBeInTheDocument();
+    expect(screen.getByText(" team.", { exact: false })).toBeInTheDocument();
     const withNoTeams = screen.queryByText("no team");
     expect(withNoTeams).toBeNull();
   });
@@ -1266,12 +1258,12 @@ describe("Activity Feed", () => {
       })
     ).toBeInTheDocument();
     expect(screen.getByText("Alphas")).toBeInTheDocument();
-    expect(screen.getByText(" fleet.", { exact: false })).toBeInTheDocument();
+    expect(screen.getByText(" team.", { exact: false })).toBeInTheDocument();
     const withNoTeams = screen.queryByText("no team");
     expect(withNoTeams).toBeNull();
   });
 
-  it("renders an 'added_software' type activity for hosts that are unassigned.", () => {
+  it("renders an 'added_software' type activity for hosts with no team.", () => {
     const activity = createMockActivity({
       type: ActivityType.AddedSoftware,
       details: { software_title: "Foo bar", software_package: "foobar.pkg" },
@@ -1283,11 +1275,11 @@ describe("Activity Feed", () => {
       screen.getByText("foobar.pkg", { exact: false })
     ).toBeInTheDocument();
     expect(
-      screen.getByText("to unassigned.", { exact: false })
+      screen.getByText("to no team.", { exact: false })
     ).toBeInTheDocument();
   });
 
-  it("renders an 'edited_software' type activity for hosts that are unassigned.", () => {
+  it("renders an 'edited_software' type activity for hosts with no team.", () => {
     const activity = createMockActivity({
       type: ActivityType.EditedSoftware,
       details: {
@@ -1299,11 +1291,11 @@ describe("Activity Feed", () => {
 
     expect(screen.getByText("edited", { exact: false })).toBeInTheDocument();
     expect(
-      screen.getByText("on unassigned", { exact: false })
+      screen.getByText("on no team", { exact: false })
     ).toBeInTheDocument();
   });
 
-  it("renders a 'deleted_software' type activity for hosts that are unassigned.", () => {
+  it("renders a 'deleted_software' type activity for hosts with no team.", () => {
     const activity = createMockActivity({
       type: ActivityType.DeletedSoftware,
       details: { software_title: "Foo bar", software_package: "foobar.pkg" },
@@ -1315,7 +1307,7 @@ describe("Activity Feed", () => {
       screen.getByText("foobar.pkg", { exact: false })
     ).toBeInTheDocument();
     expect(
-      screen.getByText("from unassigned.", { exact: false })
+      screen.getByText("from no team.", { exact: false })
     ).toBeInTheDocument();
   });
 
@@ -1329,7 +1321,7 @@ describe("Activity Feed", () => {
     render(<GlobalActivityItem activity={activity} isPremiumTier />);
 
     expect(
-      screen.getByText("deleted multiple reports", { exact: false })
+      screen.getByText("deleted multiple queries", { exact: false })
     ).toBeInTheDocument();
   });
   // test for wipe activity
@@ -1740,7 +1732,7 @@ describe("Activity Feed", () => {
       )
     ).toBeInTheDocument();
     expect(screen.getByText(/Bears/i)).toBeInTheDocument();
-    expect(screen.getByText(/fleet/i)).toBeInTheDocument();
+    expect(screen.getByText(/team/i)).toBeInTheDocument();
   });
   it("renders an enabledMacosUpdateNewHosts activity for a team", () => {
     const activity = createMockActivity({
@@ -1756,7 +1748,7 @@ describe("Activity Feed", () => {
     ).toBeInTheDocument();
     expect(screen.getByText(/macOS/i)).toBeInTheDocument();
     expect(screen.getByText(/Lions/i)).toBeInTheDocument();
-    expect(screen.getByText(/fleet/i)).toBeInTheDocument();
+    expect(screen.getByText(/team/i)).toBeInTheDocument();
   });
   it("renders a disabledMacosUpdateNewHosts activity for a team", () => {
     const activity = createMockActivity({
@@ -1772,6 +1764,6 @@ describe("Activity Feed", () => {
     ).toBeInTheDocument();
     expect(screen.getByText(/macOS/i)).toBeInTheDocument();
     expect(screen.getByText(/Lions/i)).toBeInTheDocument();
-    expect(screen.getByText(/fleet/i)).toBeInTheDocument();
+    expect(screen.getByText(/team/i)).toBeInTheDocument();
   });
 });

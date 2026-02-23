@@ -40,7 +40,7 @@ type User struct {
 	APIOnly    bool    `json:"api_only" db:"api_only"`
 
 	// Teams is the teams this user has roles in. For users with a global role, Teams is expected to be empty.
-	Teams []UserTeam `json:"teams" renameto:"fleets"`
+	Teams []UserTeam `json:"teams"`
 
 	// Only used to to prevent duplicate invite acceptance
 	InviteID *uint `json:"-" db:"invite_id"`
@@ -193,7 +193,7 @@ type UserPayload struct {
 	GlobalRole               *string       `json:"global_role,omitempty"`
 	AdminForcedPasswordReset *bool         `json:"admin_forced_password_reset,omitempty"`
 	APIOnly                  *bool         `json:"api_only,omitempty"`
-	Teams                    *[]UserTeam   `json:"teams,omitempty" renameto:"fleets"`
+	Teams                    *[]UserTeam   `json:"teams,omitempty"`
 	NewPassword              *string       `json:"new_password,omitempty"`
 	Settings                 *UserSettings `json:"settings,omitempty"`
 	InviteID                 *uint         `json:"-"`

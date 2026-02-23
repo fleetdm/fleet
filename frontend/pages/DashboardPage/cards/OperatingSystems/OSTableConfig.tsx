@@ -75,7 +75,7 @@ const generateDefaultTableHeaders = (
 
       const softwareOsDetailsPath = getPathWithQueryParams(
         PATHS.SOFTWARE_OS_DETAILS(os_version_id),
-        { fleet_id: teamId }
+        { team_id: teamId }
       );
 
       const onClickSoftware = (e: React.MouseEvent) => {
@@ -181,7 +181,7 @@ const generateDefaultTableHeaders = (
         <ViewAllHostsLink
           queryParams={{
             os_version_id,
-            fleet_id: teamId,
+            team_id: teamId,
           }}
           className="os-hosts-link"
           rowHover

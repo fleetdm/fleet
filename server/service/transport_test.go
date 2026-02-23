@@ -155,51 +155,6 @@ func TestHostListOptionsFromRequest(t *testing.T) {
 		},
 		"all params defined": {
 			url: "/foo?order_key=foo&order_direction=asc&page=10&per_page=1&device_mapping=T&additional_info_filters" +
-				"=filter1,filter2&status=new&fleet_id=2&policy_id=3&policy_response=passing&software_id=4&os_id=5" +
-				"&os_name=osName&os_version=osVersion&os_version_id=5&disable_failing_policies=0&disable_issues=1&macos_settings=verified" +
-				"&macos_settings_disk_encryption=enforcing&os_settings=pending&os_settings_disk_encryption=failed" +
-				"&bootstrap_package=installed&mdm_id=6&mdm_name=mdmName&mdm_enrollment_status=automatic" +
-				"&munki_issue_id=7&low_disk_space=99&vulnerability=CVE-2023-42887&populate_policies=true&profile_uuid=123-abc&profile_status=verified" +
-				"&script_batch_execution_id=some-cool-batch-script-execution-id&script_batch_execution_status=pending",
-			hostListOptions: fleet.HostListOptions{
-				ListOptions: fleet.ListOptions{
-					OrderKey:       "foo",
-					OrderDirection: fleet.OrderAscending,
-					Page:           10,
-					PerPage:        1,
-				},
-				DeviceMapping:                     true,
-				AdditionalFilters:                 []string{"filter1", "filter2"},
-				StatusFilter:                      fleet.StatusNew,
-				TeamFilter:                        ptr.Uint(2),
-				PolicyIDFilter:                    ptr.Uint(3),
-				PolicyResponseFilter:              ptr.Bool(true),
-				SoftwareIDFilter:                  ptr.Uint(4),
-				OSIDFilter:                        ptr.Uint(5),
-				OSVersionIDFilter:                 ptr.Uint(5),
-				OSNameFilter:                      ptr.String("osName"),
-				OSVersionFilter:                   ptr.String("osVersion"),
-				DisableIssues:                     true,
-				MacOSSettingsFilter:               fleet.OSSettingsVerified,
-				MacOSSettingsDiskEncryptionFilter: fleet.DiskEncryptionEnforcing,
-				OSSettingsFilter:                  fleet.OSSettingsPending,
-				OSSettingsDiskEncryptionFilter:    fleet.DiskEncryptionFailed,
-				MDMBootstrapPackageFilter:         (*fleet.MDMBootstrapPackageStatus)(ptr.String(string(fleet.MDMBootstrapPackageInstalled))),
-				MDMIDFilter:                       ptr.Uint(6),
-				MDMNameFilter:                     ptr.String("mdmName"),
-				MDMEnrollmentStatusFilter:         fleet.MDMEnrollStatusAutomatic,
-				MunkiIssueIDFilter:                ptr.Uint(7),
-				LowDiskSpaceFilter:                ptr.Int(99),
-				VulnerabilityFilter:               ptr.String("CVE-2023-42887"),
-				PopulatePolicies:                  true,
-				ProfileUUIDFilter:                 ptr.String("123-abc"),
-				ProfileStatusFilter:               &verified,
-				BatchScriptExecutionStatusFilter:  fleet.BatchScriptExecutionPending,
-				BatchScriptExecutionIDFilter:      ptr.String("some-cool-batch-script-execution-id"),
-			},
-		},
-		"all params defined (deprecated)": {
-			url: "/foo?order_key=foo&order_direction=asc&page=10&per_page=1&device_mapping=T&additional_info_filters" +
 				"=filter1,filter2&status=new&team_id=2&policy_id=3&policy_response=passing&software_id=4&os_id=5" +
 				"&os_name=osName&os_version=osVersion&os_version_id=5&disable_failing_policies=0&disable_issues=1&macos_settings=verified" +
 				"&macos_settings_disk_encryption=enforcing&os_settings=pending&os_settings_disk_encryption=failed" +

@@ -1,8 +1,9 @@
 .auth-form-wrapper {
   display: flex;
   flex-direction: column;
+  justify-content: center;
   flex-grow: 1;
-  padding: $pad-xxlarge 0;
+  padding: $pad-medium 0;
   gap: 2.5rem;
   align-items: center;
   @include gradient-background;

@@ -115,12 +115,11 @@ interface IAppWrapperProps {
   location?: any;
 }
 
-const queryClient = new QueryClient();
-
 // App.tsx needs the context for user and config. We also wrap the application
-// component in the required query client provider for react-query. This
+// component in the required query client priovider for react-query. This
 // will allow us to use react-query hooks in the application component.
 const AppWrapper = ({ children, location }: IAppWrapperProps) => {
+  const queryClient = new QueryClient();
   return (
     <AppProvider>
       <RoutingProvider>

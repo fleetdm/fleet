@@ -330,7 +330,6 @@ spec:
   automations_enabled: false
   description: (converted from pack "p1", query "q1")
   discard_data: false
-  fleet: ""
   interval: 0
   logging: snapshot
   min_osquery_version: ""
@@ -338,6 +337,7 @@ spec:
   observer_can_run: false
   platform: darwin
   query: select 1
+  team: ""
 ---
 apiVersion: v1
 kind: query
@@ -345,7 +345,6 @@ spec:
   automations_enabled: true
   description: (converted from pack "p2", query "q2")
   discard_data: false
-  fleet: t1
   interval: 90
   logging: differential
   min_osquery_version: ""
@@ -353,6 +352,7 @@ spec:
   observer_can_run: false
   platform: linux
   query: select 2
+  team: t1
 ---
 apiVersion: v1
 kind: query
@@ -360,7 +360,6 @@ spec:
   automations_enabled: true
   description: (converted from pack "p2", query "q2")
   discard_data: false
-  fleet: t2
   interval: 90
   logging: differential
   min_osquery_version: ""
@@ -368,6 +367,7 @@ spec:
   observer_can_run: false
   platform: linux
   query: select 2
+  team: t2
 ---
 `
 

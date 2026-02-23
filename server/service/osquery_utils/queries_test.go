@@ -416,7 +416,7 @@ func TestGetDetailQueries(t *testing.T) {
 	queriesWithUsersAndSoftware := GetDetailQueries(t.Context(), config.FleetConfig{App: config.AppConfig{EnableScheduledQueryStats: true}}, nil, &fleet.Features{EnableHostUsers: true, EnableSoftwareInventory: true}, Integrations{}, nil)
 	qs = baseQueries
 	qs = append(qs, "users", "users_chrome", "software_macos", "software_linux", "software_windows", "software_vscode_extensions", "software_jetbrains_plugins", "software_linux_fleetd_pacman",
-		"software_chrome", "software_python_packages", "software_python_packages_with_users_dir", "scheduled_query_stats", "software_macos_firefox", "software_macos_codesign", "software_macos_executable_sha256", "software_windows_last_opened_at", "software_deb_last_opened_at", "software_rpm_last_opened_at", "software_windows_acrobat_dc", "software_windows_jetbrains")
+		"software_chrome", "software_python_packages", "software_python_packages_with_users_dir", "scheduled_query_stats", "software_macos_firefox", "software_macos_codesign", "software_macos_executable_sha256", "software_windows_last_opened_at", "software_deb_last_opened_at", "software_rpm_last_opened_at", "software_windows_acrobat_dc")
 	require.Len(t, queriesWithUsersAndSoftware, len(qs))
 	sortedKeysCompare(t, queriesWithUsersAndSoftware, qs)
 
@@ -2482,52 +2482,6 @@ func TestDirectIngestHostCertificates(t *testing.T) {
 	}
 
 	err := directIngestHostCertificatesDarwin(ctx, logger, host, ds, []map[string]string{row1, row2})
-	require.NoError(t, err)
-	require.True(t, ds.UpdateHostCertificatesFuncInvoked)
-}
-
-func TestDirectIngestHostCertificatesDarwinHexEscapes(t *testing.T) {
-	ds := new(mock.Store)
-	ctx := t.Context()
-	logger := slog.New(slog.DiscardHandler)
-	host := &fleet.Host{ID: 1, UUID: "host-uuid", Platform: "darwin"}
-
-	// Simulate osquery outputting Cyrillic characters as literal \xHH escape
-	// sequences. "АБ" in UTF-8 is bytes D0 90 D0 91, which osquery returns as
-	// the 16-character ASCII string `\xD0\x90\xD0\x91`.
-	row := map[string]string{
-		"ca":                "0",
-		"common_name":       `\xD0\x90\xD0\x91`,
-		"subject":           `/C=US/O=\xD0\x90\xD0\x91/OU=\xD0\x92\xD0\x93/CN=\xD0\x94\xD0\x95`,
-		"issuer":            `/O=\xD0\x96\xD0\x97/CN=\xD0\x98\xD0\x9A`,
-		"key_algorithm":     "rsaEncryption",
-		"key_strength":      "2048",
-		"key_usage":         "Digital Signature",
-		"serial":            "abc123",
-		"signing_algorithm": "sha256WithRSAEncryption",
-		"not_valid_after":   "1822755797",
-		"not_valid_before":  "1770228826",
-		"sha1":              "aabbccdd00112233445566778899aabbccddeeff",
-		"source":            "system",
-		"path":              "/Library/Keychains/System.keychain",
-	}
-
-	ds.UpdateHostCertificatesFunc = func(ctx context.Context, hostID uint, hostUUID string, certs []*fleet.HostCertificateRecord) error {
-		require.Len(t, certs, 1)
-		cert := certs[0]
-
-		assert.Equal(t, "АБ", cert.CommonName)
-		assert.Equal(t, "ДЕ", cert.SubjectCommonName)
-		assert.Equal(t, "АБ", cert.SubjectOrganization)
-		assert.Equal(t, "ВГ", cert.SubjectOrganizationalUnit)
-		assert.Equal(t, "US", cert.SubjectCountry)
-		assert.Equal(t, "ИК", cert.IssuerCommonName)
-		assert.Equal(t, "ЖЗ", cert.IssuerOrganization)
-
-		return nil
-	}
-
-	err := directIngestHostCertificatesDarwin(ctx, logger, host, ds, []map[string]string{row})
 	require.NoError(t, err)
 	require.True(t, ds.UpdateHostCertificatesFuncInvoked)
 }

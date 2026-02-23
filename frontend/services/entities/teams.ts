@@ -115,7 +115,7 @@ export default {
       host_expiry_settings,
     }: Partial<IUpdateTeamFormData>,
     teamId?: number
-  ): Promise<ILoadTeamResponse> => {
+  ): Promise<ITeamConfig> => {
     if (typeof teamId === "undefined") {
       return Promise.reject("Invalid usage: missing team id");
     }
@@ -210,11 +210,9 @@ export default {
     return sendRequest("GET", path);
   },
   modifyEnrollSecrets: (teamId: number, secrets: IEnrollSecret[]) => {
-    // The API only expects an array of objects with a "secret" property.
-    const payload = secrets.map((s) => pick(s, "secret"));
     const { TEAMS_ENROLL_SECRETS } = endpoints;
     const path = TEAMS_ENROLL_SECRETS(teamId);
 
-    return sendRequest("PATCH", path, { secrets: payload });
+    return sendRequest("PATCH", path, { secrets });
   },
 };

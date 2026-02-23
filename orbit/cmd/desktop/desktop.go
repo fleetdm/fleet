@@ -172,15 +172,6 @@ func main() {
 
 		systray.SetTooltip("Fleet Desktop")
 
-		if runtime.GOOS == "linux" {
-			// Set a static title to ensure a consistent System Tray ID across
-			// process restarts. By default, fyne.io/systray generates a dynamic
-			// ID using the process PID if the title is not set, which prevents
-			// the OS from persisting user settings (like 'Always Hidden' or 'Pinned')
-			// between sessions on Debian.
-			systray.SetTitle("Fleet Desktop")
-		}
-
 		// Default to dark theme icon because this seems to be a better fit on Linux (Ubuntu at
 		// least). On macOS this is used as a template icon anyway.
 		systray.SetTemplateIcon(iconDark, iconDark)

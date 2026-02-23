@@ -57,7 +57,7 @@ func SetUpSuiteWithConfig(t *testing.T, uniqueTestName string, requireSignature 
 	}
 
 	logger := logging.NewLogfmtLogger(os.Stdout)
-	hostIdentitySCEPDepot, err := ds.NewHostIdentitySCEPDepot(logger.SlogLogger().With("component", "host-id-scep-depot"), &fleetCfg)
+	hostIdentitySCEPDepot, err := ds.NewHostIdentitySCEPDepot(logger.With("component", "host-id-scep-depot"), &fleetCfg)
 	require.NoError(t, err)
 	users, server := service.RunServerForTestsWithServiceWithDS(t, ctx, ds, fleetSvc, &service.TestServerOpts{
 		License:     license,

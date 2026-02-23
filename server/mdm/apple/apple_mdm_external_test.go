@@ -6,7 +6,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"log/slog"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -17,6 +16,7 @@ import (
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
 	nanodep_client "github.com/fleetdm/fleet/v4/server/mdm/nanodep/client"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanodep/godep"
+	"github.com/fleetdm/fleet/v4/server/platform/logging"
 	"github.com/fleetdm/fleet/v4/server/test"
 	"github.com/jmoiron/sqlx"
 	"github.com/stretchr/testify/require"
@@ -41,7 +41,7 @@ func TestDEPService_RunAssigner(t *testing.T) {
 
 		mysql.SetTestABMAssets(t, ds, abmTokenOrgName)
 
-		logger := slog.New(slog.DiscardHandler)
+		logger := logging.NewNopLogger()
 		return apple_mdm.NewDEPService(ds, depStorage, logger)
 	}
 

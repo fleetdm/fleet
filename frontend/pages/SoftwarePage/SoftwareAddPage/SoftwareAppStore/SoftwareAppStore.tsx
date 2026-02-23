@@ -17,7 +17,7 @@ interface ISoftwareAppStoreProps {
   location: {
     pathname: string;
     query: {
-      fleet_id?: string;
+      team_id?: string;
       platform?: string;
     };
     search?: string;
@@ -41,7 +41,7 @@ const SoftwareAppStore = ({
   ) => {
     router.push(
       getPathWithQueryParams(PATHS.SOFTWARE_ADD_APP_STORE, {
-        fleet_id: currentTeamId,
+        team_id: currentTeamId,
         platform: selectedPlatform?.value,
       })
     );

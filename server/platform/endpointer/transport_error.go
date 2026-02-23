@@ -159,17 +159,6 @@ func EncodeError(ctx context.Context, err error, w http.ResponseWriter, domainEn
 			return
 		}
 
-		// context.Canceled typically means the client disconnected before the server finished
-		// processing. Return 499 (Client Closed Request, nginx convention) so observability tools
-		// correctly classify it as a client error rather than a server error.
-		if errors.Is(origErr, context.Canceled) {
-			jsonErr.Message = "Client Closed Request"
-			jsonErr.Errors = baseError(origErr.Error())
-			w.WriteHeader(499)
-			enc.Encode(jsonErr) //nolint:errcheck
-			return
-		}
-
 		// Get specific status code if it is available from this error type,
 		// defaulting to HTTP 500
 		status := http.StatusInternalServerError

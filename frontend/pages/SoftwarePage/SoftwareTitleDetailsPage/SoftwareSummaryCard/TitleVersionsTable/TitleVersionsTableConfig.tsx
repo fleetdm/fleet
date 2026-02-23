@@ -44,7 +44,7 @@ const generateSoftwareTitleVersionsTableConfig = ({
         const { id } = cellProps.row.original;
         const softwareVersionDetailsPath = getPathWithQueryParams(
           PATHS.SOFTWARE_VERSION_DETAILS(id.toString()),
-          { fleet_id: teamId }
+          { team_id: teamId }
         );
 
         return (
@@ -96,7 +96,7 @@ const generateSoftwareTitleVersionsTableConfig = ({
               <ViewAllHostsLink
                 queryParams={{
                   software_version_id: cellProps.row.original.id,
-                  fleet_id: teamId,
+                  team_id: teamId,
                 }}
                 className="software-link"
                 rowHover

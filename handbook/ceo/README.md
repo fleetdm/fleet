@@ -170,15 +170,9 @@ Every two weeks, our CEO Mike has a meeting with Sid Sijbrandij. The CEO uses de
 3. In the ¶¶¶¶🦿🌪️CEO Roundup doc, update the URL in `Sam: FYI: Agenda from last time:` [LINK](link).
 
 
-### Prepare for the e-group meeting
+### Process and backup E-group agenda 
 
-Before each e-group meeting, the Executive Assistant will complete the following steps to ensure pipeline progress is front and center at the start of the meeting:
-1. Using the CEO's browser, open Salesforce and pull up the current pipeline creation actuals vs. goals report (showing the gap clearly).
-2. Take a screenshot of the report and add it as the first item in the e-group meeting agenda doc.
-
-### Process and backup E-group agenda
-
-Follow these steps to process and backup the E-group agenda:
+Follow these steps to process and backup the E-group agenda: 
 1. [Archive the E-group agenda](https://fleetdm.com/handbook/ceo#archive-a-document) after each meeting, moving it to the ["¶¶ E-group archive"](https://drive.google.com/drive/u/0/folders/1IsSGMgbt4pDcP8gSnLj8Z8NGY7_6UTt6) folder in Google Drive.
 2. **In the backup copy**, leave Google Doc comments assigning all TODOs to the correct DRI.  
 3. If the "All hands" meeting has happened today remove any spotlights covered in the current "All hands" presentation.

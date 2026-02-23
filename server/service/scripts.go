@@ -36,7 +36,7 @@ type runScriptRequest struct {
 	ScriptID       *uint  `json:"script_id"`
 	ScriptContents string `json:"script_contents"`
 	ScriptName     string `json:"script_name"`
-	TeamID         uint   `json:"team_id" renameto:"fleet_id"`
+	TeamID         uint   `json:"team_id"`
 }
 
 type runScriptResponse struct {
@@ -74,7 +74,7 @@ type runScriptSyncRequest struct {
 	ScriptID       *uint  `json:"script_id"`
 	ScriptContents string `json:"script_contents"`
 	ScriptName     string `json:"script_name"`
-	TeamID         uint   `json:"team_id" renameto:"fleet_id"`
+	TeamID         uint   `json:"team_id"`
 }
 
 type runScriptSyncResponse struct {
@@ -460,7 +460,7 @@ type createScriptRequest struct {
 func (createScriptRequest) DecodeRequest(ctx context.Context, r *http.Request) (interface{}, error) {
 	var decoded createScriptRequest
 
-	err := parseMultipartForm(ctx, r, platform_http.MaxMultipartFormSize)
+	err := r.ParseMultipartForm(platform_http.MaxMultipartFormSize)
 	if err != nil {
 		return nil, &fleet.BadRequestError{
 			Message:     "failed to parse multipart form",
@@ -468,13 +468,13 @@ func (createScriptRequest) DecodeRequest(ctx context.Context, r *http.Request) (
 		}
 	}
 
-	val := r.MultipartForm.Value["fleet_id"]
+	val := r.MultipartForm.Value["team_id"]
 	if len(val) > 0 {
-		fleetID, err := strconv.ParseUint(val[0], 10, 64)
+		teamID, err := strconv.ParseUint(val[0], 10, 64)
 		if err != nil {
-			return nil, &fleet.BadRequestError{Message: fmt.Sprintf("failed to decode fleet_id in multipart form: %s", err.Error())}
+			return nil, &fleet.BadRequestError{Message: fmt.Sprintf("failed to decode team_id in multipart form: %s", err.Error())}
 		}
-		decoded.TeamID = ptr.Uint(uint(fleetID)) // nolint:gosec // ignore G115
+		decoded.TeamID = ptr.Uint(uint(teamID))
 	}
 
 	fhs, ok := r.MultipartForm.File["script"]
@@ -634,7 +634,7 @@ func (svc *Service) DeleteScript(ctx context.Context, scriptID uint) error {
 ////////////////////////////////////////////////////////////////////////////////
 
 type listScriptsRequest struct {
-	TeamID      *uint             `query:"team_id,optional" renameto:"fleet_id"`
+	TeamID      *uint             `query:"team_id,optional"`
 	ListOptions fleet.ListOptions `url:"list_options"`
 }
 
@@ -941,8 +941,8 @@ func (svc *Service) GetHostScriptDetails(ctx context.Context, hostID uint, opt f
 ////////////////////////////////////////////////////////////////////////////////
 
 type batchSetScriptsRequest struct {
-	TeamID   *uint                 `json:"-" query:"team_id,optional" renameto:"fleet_id"`
-	TeamName *string               `json:"-" query:"team_name,optional" renameto:"fleet_name"`
+	TeamID   *uint                 `json:"-" query:"team_id,optional"`
+	TeamName *string               `json:"-" query:"team_name,optional"`
 	DryRun   bool                  `json:"-" query:"dry_run,optional"` // if true, apply validation but do not save changes
 	Scripts  []fleet.ScriptPayload `json:"scripts"`
 }
@@ -959,7 +959,7 @@ type batchScriptExecutionStatusRequest struct {
 }
 
 type batchScriptExecutionListRequest struct {
-	TeamID  uint    `query:"team_id,required" renameto:"fleet_id"`
+	TeamID  uint    `query:"team_id,required"`
 	Status  *string `query:"status,optional"`
 	Page    *uint   `query:"page,optional"`
 	PerPage *uint   `query:"per_page,optional"`
@@ -976,7 +976,7 @@ type (
 	batchScriptExecutionSummaryResponse struct {
 		ScriptID    uint      `json:"script_id" db:"script_id"`
 		ScriptName  string    `json:"script_name" db:"script_name"`
-		TeamID      *uint     `json:"team_id" db:"team_id" renameto:"fleet_id"`
+		TeamID      *uint     `json:"team_id" db:"team_id"`
 		CreatedAt   time.Time `json:"created_at" db:"created_at"`
 		NumTargeted *uint     `json:"targeted" db:"num_targeted"`
 		NumPending  *uint     `json:"pending" db:"num_pending"`

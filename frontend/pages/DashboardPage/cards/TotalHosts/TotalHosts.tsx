@@ -26,7 +26,7 @@ const TotalHosts = ({
     ? PATHS.MANAGE_HOSTS_LABEL(selectedPlatformLabelId)
     : PATHS.MANAGE_HOSTS;
   const path = getPathWithQueryParams(endpoint, {
-    fleet_id: currentTeamId,
+    team_id: currentTeamId,
   });
 
   return (

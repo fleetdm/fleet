@@ -388,18 +388,6 @@ func TestLogFields(t *testing.T) {
 	}
 }
 
-// mockClientError implements ErrWithIsClientError for testing.
-type mockClientError struct{ isClient bool }
-
-func (e *mockClientError) Error() string       { return "mock error" }
-func (e *mockClientError) IsClientError() bool { return e.isClient }
-
-// mockStatusCoder implements StatusCode() for testing.
-type mockStatusCoder struct{ code int }
-
-func (e *mockStatusCoder) Error() string   { return "status error" }
-func (e *mockStatusCoder) StatusCode() int { return e.code }
-
 func TestIsClientError(t *testing.T) {
 	tests := []struct {
 		name     string
@@ -435,26 +423,6 @@ func TestIsClientError(t *testing.T) {
 			name:     "InvalidArgumentError (implements IsClientError)",
 			err:      &fleet.InvalidArgumentError{},
 			expected: true,
-		},
-		{
-			name:     "IsClientError returns true",
-			err:      &mockClientError{isClient: true},
-			expected: true,
-		},
-		{
-			name:     "IsClientError returns false",
-			err:      &mockClientError{isClient: false},
-			expected: false,
-		},
-		{
-			name:     "status coder 4xx",
-			err:      &mockStatusCoder{code: 422},
-			expected: true,
-		},
-		{
-			name:     "status coder 5xx",
-			err:      &mockStatusCoder{code: 500},
-			expected: false,
 		},
 	}
 

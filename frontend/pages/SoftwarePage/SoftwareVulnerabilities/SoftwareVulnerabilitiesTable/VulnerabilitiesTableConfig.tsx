@@ -80,7 +80,7 @@ const generateTableHeaders = (
 
         const softwareVulnerabilitiesDetailsPath = getPathWithQueryParams(
           PATHS.SOFTWARE_VULNERABILITY_DETAILS(cve),
-          { fleet_id: teamId }
+          { team_id: teamId }
         );
 
         const onClickVulnerability = (e: React.MouseEvent) => {
@@ -263,7 +263,7 @@ const generateTableHeaders = (
               <ViewAllHostsLink
                 queryParams={{
                   vulnerability: cellProps.row.original.cve,
-                  fleet_id: teamId,
+                  team_id: teamId,
                 }}
                 className="vulnerabilities-link"
                 rowHover

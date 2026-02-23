@@ -22,9 +22,9 @@ import (
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxdb"
 	"github.com/fleetdm/fleet/v4/server/fleet"
-	"github.com/fleetdm/fleet/v4/server/platform/logging"
 	"github.com/fleetdm/fleet/v4/server/platform/mysql/testing_utils"
 	"github.com/fleetdm/fleet/v4/server/ptr"
+	"github.com/go-kit/log"
 	"github.com/go-sql-driver/mysql"
 	"github.com/jmoiron/sqlx"
 	"github.com/stretchr/testify/assert"
@@ -247,7 +247,7 @@ func mockDatastore(t *testing.T) (sqlmock.Sqlmock, *Datastore) {
 	ds := &Datastore{
 		primary: dbmock,
 		replica: dbmock,
-		logger:  logging.NewNopLogger(),
+		logger:  log.NewNopLogger(),
 	}
 
 	return mock, ds
@@ -596,7 +596,7 @@ func TestWhereFilterHostsByTeams(t *testing.T) {
 	for _, tt := range testCases {
 		tt := tt
 		t.Run("", func(t *testing.T) {
-			ds := &Datastore{logger: logging.NewNopLogger()}
+			ds := &Datastore{logger: log.NewNopLogger()}
 			sql := ds.whereFilterHostsByTeams(tt.filter, "hosts")
 			assert.Equal(t, tt.expected, sql)
 		})
@@ -631,7 +631,7 @@ func TestWhereOmitIDs(t *testing.T) {
 	for _, tt := range testCases {
 		tt := tt
 		t.Run("", func(t *testing.T) {
-			ds := &Datastore{logger: logging.NewNopLogger()}
+			ds := &Datastore{logger: log.NewNopLogger()}
 			sql := ds.whereOmitIDs("id", tt.omits)
 			assert.Equal(t, tt.expected, sql)
 		})
@@ -702,25 +702,6 @@ func TestWithTxWillRollbackWhenPanic(t *testing.T) {
 	require.NoError(t, mock.ExpectationsWereMet())
 }
 
-func TestHealthCheckDetectsReadOnly(t *testing.T) {
-	mock, ds := mockDatastore(t)
-	defer ds.Close()
-
-	// Healthy: primary is writable.
-	mock.ExpectQuery("SELECT @@read_only").
-		WillReturnRows(sqlmock.NewRows([]string{"@@read_only"}).AddRow(0))
-	require.NoError(t, ds.HealthCheck())
-
-	// Unhealthy: primary is read-only (failover scenario).
-	mock.ExpectQuery("SELECT @@read_only").
-		WillReturnRows(sqlmock.NewRows([]string{"@@read_only"}).AddRow(1))
-	err := ds.HealthCheck()
-	require.Error(t, err)
-	assert.Contains(t, err.Error(), "read-only")
-
-	require.NoError(t, mock.ExpectationsWereMet())
-}
-
 func TestNewReadsPasswordFromDisk(t *testing.T) {
 	passwordFile, err := os.CreateTemp(t.TempDir(), "*.passwordtest")
 	require.NoError(t, err)
@@ -755,7 +736,7 @@ func newDSWithConfig(t *testing.T, dbName string, config config.MysqlConfig) (*D
 	_, err = db.Exec(fmt.Sprintf("DROP DATABASE IF EXISTS %s; CREATE DATABASE %s;", dbName, dbName))
 	require.NoError(t, err)
 
-	ds, err := New(config, clock.NewMockClock(), Logger(logging.NewNopLogger()), LimitAttempts(1))
+	ds, err := New(config, clock.NewMockClock(), Logger(log.NewNopLogger()), LimitAttempts(1))
 	return ds, err
 }
 
@@ -875,7 +856,7 @@ func TestWhereFilterTeams(t *testing.T) {
 	for _, tt := range testCases {
 		tt := tt
 		t.Run("", func(t *testing.T) {
-			ds := &Datastore{logger: logging.NewNopLogger()}
+			ds := &Datastore{logger: log.NewNopLogger()}
 			sql := ds.whereFilterTeams(tt.filter, "t")
 			assert.Equal(t, tt.expected, sql)
 		})
@@ -1261,7 +1242,7 @@ func TestWhereFilterTeamWithGlobalStats(t *testing.T) {
 		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
-			ds := &Datastore{logger: logging.NewNopLogger()}
+			ds := &Datastore{logger: log.NewNopLogger()}
 			sql := ds.whereFilterTeamWithGlobalStats(tt.filter, "hosts")
 			assert.Equal(t, tt.expected, sql)
 		})
@@ -1462,7 +1443,7 @@ func TestReplicaPasswordReadFromDisk(t *testing.T) {
 		Database:     dbName,
 	}
 
-	conns, err := NewDBConnections(primaryConfig, Replica(&replicaConfig), LimitAttempts(1), Logger(logging.NewNopLogger()))
+	conns, err := NewDBConnections(primaryConfig, Replica(&replicaConfig), LimitAttempts(1), Logger(log.NewNopLogger()))
 	require.NoError(t, err, "replica connection should succeed when PasswordPath is used — "+
 		"if this fails with 'Access denied' the password read from disk was not preserved for the replica")
 	defer conns.Primary.Close()
@@ -1517,7 +1498,7 @@ func TestReplicaTLSConfigPreserved(t *testing.T) {
 	//
 	// Before the fix TLSConfig was empty for the replica's NewDB call, so the
 	// replica connected without TLS (no error) — meaning this assertion would fail.
-	_, err := NewDBConnections(primaryConfig, Replica(&replicaConfig), LimitAttempts(1), Logger(logging.NewNopLogger()))
+	_, err := NewDBConnections(primaryConfig, Replica(&replicaConfig), LimitAttempts(1), Logger(log.NewNopLogger()))
 	require.Error(t, err, "replica connection should fail with a TLS error when TLSCA is set — "+
 		"if this succeeds, TLS was silently not applied to the replica")
 	require.Regexp(t, "(x509|tls|EOF)", err.Error())

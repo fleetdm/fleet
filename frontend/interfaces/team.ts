@@ -130,14 +130,14 @@ export const API_ALL_TEAMS_ID = undefined;
 export const APP_CONTEXT_ALL_TEAMS_ID = -1;
 export const APP_CONTEXT_ALL_TEAMS_SUMMARY: ITeamSummary = {
   id: APP_CONTEXT_ALL_TEAMS_ID,
-  name: "All fleets",
+  name: "All teams",
 } as const;
 
 export const API_NO_TEAM_ID = 0;
 export const APP_CONTEXT_NO_TEAM_ID = 0;
 export const APP_CONTEXT_NO_TEAM_SUMMARY: ITeamSummary = {
   id: APP_CONTEXT_NO_TEAM_ID,
-  name: "Unassigned",
+  name: "No team",
 } as const;
 
 export const isAnyTeamSelected = (currentTeamId?: number) =>

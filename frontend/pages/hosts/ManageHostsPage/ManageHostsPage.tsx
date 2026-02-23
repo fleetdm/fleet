@@ -225,6 +225,9 @@ const ManageHostsPage = ({
     queryParams && queryParams.page ? parseInt(queryParams?.page, 10) : 0)();
 
   // ========= states
+  const [showNoEnrollSecretBanner, setShowNoEnrollSecretBanner] = useState(
+    true
+  );
   const [showDeleteSecretModal, setShowDeleteSecretModal] = useState(false);
   const [showSecretEditorModal, setShowSecretEditorModal] = useState(false);
   const [showEnrollSecretModal, setShowEnrollSecretModal] = useState(false);
@@ -711,6 +714,11 @@ const ManageHostsPage = ({
 
   // TODO: cleanup this effect
   useEffect(() => {
+    setShowNoEnrollSecretBanner(true);
+  }, [teamIdForApi]);
+
+  // TODO: cleanup this effect
+  useEffect(() => {
     const slugToFind =
       (selectedLabels.length > 0 &&
         selectedLabels.find((f) => f.includes(LABEL_SLUG_PREFIX))) ||
@@ -1036,7 +1044,7 @@ const ManageHostsPage = ({
       newQueryParams.order_direction =
         sort[0].direction || DEFAULT_SORT_DIRECTION;
 
-      newQueryParams.fleet_id = teamIdForApi;
+      newQueryParams.team_id = teamIdForApi;
 
       if (status) {
         newQueryParams.status = status;
@@ -1345,7 +1353,7 @@ const ManageHostsPage = ({
 
       const successMessage =
         teamId === null
-          ? `Hosts successfully removed from fleets.`
+          ? `Hosts successfully removed from teams.`
           : `Hosts successfully transferred to  ${transferTeam.name}.`;
 
       renderFlash("success", successMessage);
@@ -1607,10 +1615,10 @@ const ManageHostsPage = ({
     };
 
     if (
-      queryParams.fleet_id !== API_ALL_TEAMS_ID &&
-      queryParams.fleet_id !== ""
+      queryParams.team_id !== API_ALL_TEAMS_ID &&
+      queryParams.team_id !== ""
     ) {
-      options.teamId = queryParams.fleet_id;
+      options.teamId = queryParams.team_id;
     }
 
     try {
@@ -1687,7 +1695,7 @@ const ManageHostsPage = ({
 
   const includesFilterQueryParam = MANAGE_HOSTS_PAGE_FILTER_KEYS.some(
     (filter) =>
-      filter !== "fleet_id" &&
+      filter !== "team_id" &&
       typeof queryParams === "object" &&
       filter in queryParams // TODO: replace this with `Object.hasOwn(queryParams, filter)` when we upgrade to es2022
   );
@@ -1757,7 +1765,7 @@ const ManageHostsPage = ({
         </>
       );
     } else if (isAllTeamsSelected && isPremiumTier) {
-      disableRunScriptBatchTooltipContent = "Select a fleet to run a script";
+      disableRunScriptBatchTooltipContent = "Select a team to run a script";
     } else if (isAllMatchingHostsSelected) {
       if (runScriptBatchFilterNotSupported) {
         disableRunScriptBatchTooltipContent =
@@ -1904,10 +1912,13 @@ const ManageHostsPage = ({
 
     return (
       ((canEnrollHosts && noTeamEnrollSecrets) ||
-        (canEnrollGlobalHosts && noGlobalEnrollSecrets)) && (
+        (canEnrollGlobalHosts && noGlobalEnrollSecrets)) &&
+      showNoEnrollSecretBanner && (
         <InfoBanner
           className={`${baseClass}__no-enroll-secret-banner`}
-          color="yellow"
+          pageLevel
+          closable
+          color="grey"
         >
           <div>
             <span>

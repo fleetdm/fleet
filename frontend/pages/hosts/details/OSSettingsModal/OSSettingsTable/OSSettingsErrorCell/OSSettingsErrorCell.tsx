@@ -27,7 +27,7 @@ const RefetchButton = ({ isFetching, onClick }: IRefetchButtonProps) => {
 
   const buttonText = isFetching ? "Resending..." : "Resend";
 
-  // add additional props when we need to display a tooltip for the button
+  // add additonal props when we need to display a tooltip for the button
 
   return (
     <Button

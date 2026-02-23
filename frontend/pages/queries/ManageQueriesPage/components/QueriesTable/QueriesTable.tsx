@@ -41,7 +41,7 @@ export interface IQueriesTableProps {
     query?: string;
     order_key?: string;
     order_direction?: "asc" | "desc";
-    fleet_id?: string;
+    team_id?: string;
   };
   currentTeamId?: number;
   isPremiumTier?: boolean;
@@ -152,7 +152,7 @@ const QueriesTable = ({
       ) {
         newQueryParams.page = "0";
       }
-      newQueryParams.fleet_id = queryParams?.fleet_id;
+      newQueryParams.team_id = queryParams?.team_id;
 
       const locationPath = getNextLocationPath({
         pathPrefix: PATHS.MANAGE_QUERIES,
@@ -173,7 +173,7 @@ const QueriesTable = ({
 
   const emptyParams: IEmptyTableProps = {
     graphicName: "empty-queries",
-    header: "You don't have any reports",
+    header: "You don't have any queries",
   };
 
   if (isPremiumTier && !config?.partnerships?.enable_primo) {
@@ -182,20 +182,20 @@ const QueriesTable = ({
       currentTeamId === null ||
       currentTeamId === APP_CONTEXT_ALL_TEAMS_ID
     ) {
-      emptyParams.header += " that apply to all fleets";
+      emptyParams.header += " that apply to all teams";
     } else {
-      emptyParams.header += " that apply to this fleet";
+      emptyParams.header += " that apply to this team";
     }
   }
 
   if (searchQuery || curTargetedPlatformFilter !== "all") {
     delete emptyParams.graphicName;
-    emptyParams.header = "No matching reports";
-    emptyParams.info = "No reports match the current filters.";
+    emptyParams.header = "No matching queries";
+    emptyParams.info = "No queries match the current filters.";
   } else if (!isOnlyObserver || isObserverPlus || isAnyTeamObserverPlus) {
     emptyParams.additionalInfo = (
       <>
-        Create a new report, or{" "}
+        Create a new query, or{" "}
         <CustomLink
           url="https://fleetdm.com/docs/using-fleet/standard-query-library"
           text="import Fleet's standard query library"
@@ -230,7 +230,7 @@ const QueriesTable = ({
     if (row.original.id) {
       router?.push(
         getPathWithQueryParams(PATHS.QUERY_DETAILS(row.original.id), {
-          fleet_id: currentTeamId,
+          team_id: currentTeamId,
         })
       );
     }
@@ -269,7 +269,7 @@ const QueriesTable = ({
     columnConfigs && (
       <div className={`${baseClass}`}>
         <TableContainer
-          resultsTitle="reports"
+          resultsTitle="queries"
           columnConfigs={columnConfigs}
           data={queries}
           // won't ever actually be loading, see render condition above
@@ -282,7 +282,7 @@ const QueriesTable = ({
           showMarkAllPages={false}
           isAllPagesSelected={false}
           primarySelectAction={{
-            name: "delete report",
+            name: "delete query",
             buttonText: "Delete",
             iconSvg: "trash",
             variant: "inverse",
@@ -291,7 +291,7 @@ const QueriesTable = ({
           emptyComponent={() => EmptyTable(emptyParams)}
           renderCount={() =>
             ((totalQueriesCount || searchQuery) && (
-              <TableCount name="reports" count={totalQueriesCount} />
+              <TableCount name="queries" count={totalQueriesCount} />
             )) ||
             null
           }

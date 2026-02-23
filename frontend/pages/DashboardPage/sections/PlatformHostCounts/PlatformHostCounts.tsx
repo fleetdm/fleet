@@ -68,7 +68,7 @@ const PlatformHostCounts = ({
         count={macCount}
         title="macOS"
         path={getPathWithQueryParams(PATHS.MANAGE_HOSTS_LABEL(macLabelId), {
-          fleet_id: teamId,
+          team_id: teamId,
         })}
       />
     );
@@ -90,7 +90,7 @@ const PlatformHostCounts = ({
         count={windowsCount}
         title="Windows"
         path={getPathWithQueryParams(PATHS.MANAGE_HOSTS_LABEL(windowsLabelId), {
-          fleet_id: teamId,
+          team_id: teamId,
         })}
       />
     );
@@ -112,7 +112,7 @@ const PlatformHostCounts = ({
         count={linuxCount}
         title="Linux"
         path={getPathWithQueryParams(PATHS.MANAGE_HOSTS_LABEL(linuxLabelId), {
-          fleet_id: teamId,
+          team_id: teamId,
         })}
       />
     );
@@ -135,7 +135,7 @@ const PlatformHostCounts = ({
         count={chromeCount}
         title="ChromeOS"
         path={getPathWithQueryParams(PATHS.MANAGE_HOSTS_LABEL(chromeLabelId), {
-          fleet_id: teamId,
+          team_id: teamId,
         })}
       />
     );
@@ -158,7 +158,7 @@ const PlatformHostCounts = ({
         count={iosCount}
         title="iOS"
         path={getPathWithQueryParams(PATHS.MANAGE_HOSTS_LABEL(iosLabelId), {
-          fleet_id: teamId,
+          team_id: teamId,
         })}
       />
     );
@@ -181,7 +181,7 @@ const PlatformHostCounts = ({
         count={ipadosCount}
         title="iPadOS"
         path={getPathWithQueryParams(PATHS.MANAGE_HOSTS_LABEL(ipadosLabelId), {
-          fleet_id: teamId,
+          team_id: teamId,
         })}
       />
     );
@@ -204,7 +204,7 @@ const PlatformHostCounts = ({
         count={androidCount}
         title="Android"
         path={PATHS.MANAGE_HOSTS_LABEL(androidLabelId).concat(
-          teamId !== undefined ? `?fleet_id=${teamId}` : ""
+          teamId !== undefined ? `?team_id=${teamId}` : ""
         )}
       />
     );

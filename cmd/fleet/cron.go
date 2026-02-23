@@ -45,8 +45,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/webhooks"
 	"github.com/fleetdm/fleet/v4/server/worker"
 	"github.com/go-kit/log/level"
-	"go.opentelemetry.io/otel/attribute"
-	"go.opentelemetry.io/otel/trace"
 )
 
 func errHandler(ctx context.Context, logger *logging.Logger, msg string, err error) {
@@ -67,7 +65,7 @@ func newVulnerabilitiesSchedule(
 
 	var options []schedule.Option
 
-	options = append(options, schedule.WithLogger(vulnerabilitiesLogger), schedule.WithTriggerPollInterval(60*time.Second))
+	options = append(options, schedule.WithLogger(vulnerabilitiesLogger))
 
 	vulnFuncs := getVulnFuncs(ds, vulnerabilitiesLogger, config)
 	for _, fn := range vulnFuncs {
@@ -118,9 +116,6 @@ func cronVulnerabilities(
 }
 
 func updateVulnHostCounts(ctx context.Context, ds fleet.Datastore, logger *logging.Logger, maxConcurrency int) error {
-	ctx, span := tracer.Start(ctx, "vuln.update_host_counts")
-	defer span.End()
-
 	// Prevent invalid values for max concurrency
 	if maxConcurrency <= 0 {
 		level.Info(logger).Log("msg", "invalid maxConcurrency value provided, setting value to 1", "providedValue", maxConcurrency)
@@ -131,7 +126,6 @@ func updateVulnHostCounts(ctx context.Context, ds fleet.Datastore, logger *loggi
 	level.Info(logger).Log("msg", "updating vulnerability host counts")
 
 	if err := ds.UpdateVulnerabilityHostCounts(ctx, maxConcurrency); err != nil {
-		span.RecordError(err)
 		return fmt.Errorf("updating vulnerability host counts: %w", err)
 	}
 	level.Info(logger).Log("msg", "vulnerability host counts updated", "took", time.Since(start).Seconds())
@@ -205,10 +199,6 @@ func scanVulnerabilities(
 		return nil
 	}
 
-	automationCtx, automationSpan := tracer.Start(ctx, "vuln.trigger_automations",
-		trace.WithAttributes(attribute.String("automation_type", vulnAutomationEnabled)))
-	defer automationSpan.End()
-
 	vulns := make([]fleet.SoftwareVulnerability, 0, len(nvdVulns)+len(ovalVulns)+len(macOfficeVulns))
 	vulns = append(vulns, nvdVulns...)
 	vulns = append(vulns, ovalVulns...)
@@ -219,9 +209,9 @@ func scanVulnerabilities(
 	var recentV []fleet.SoftwareVulnerability
 	var matchingMeta map[string]fleet.CVEMeta
 	if license.IsPremium(ctx) {
-		meta, err := ds.ListCVEs(automationCtx, config.RecentVulnerabilityMaxAge)
+		meta, err := ds.ListCVEs(ctx, config.RecentVulnerabilityMaxAge)
 		if err != nil {
-			errHandler(automationCtx, logger, "could not fetch CVE meta", err)
+			errHandler(ctx, logger, "could not fetch CVE meta", err)
 			return nil
 		}
 		recentV, matchingMeta = utils.RecentVulns(vulns, meta)
@@ -229,8 +219,6 @@ func scanVulnerabilities(
 		recentV = vulns
 		matchingMeta = make(map[string]fleet.CVEMeta)
 	}
-
-	automationSpan.SetAttributes(attribute.Int("recent_vulns", len(recentV)))
 
 	if len(recentV) > 0 {
 		switch vulnAutomationEnabled {
@@ -242,47 +230,47 @@ func scanVulnerabilities(
 				Time:           time.Now(),
 			}
 			mapper := webhooks.NewMapper()
-			if license.IsPremium(automationCtx) {
+			if license.IsPremium(ctx) {
 				mapper = eewebhooks.NewMapper()
 			}
 			// send recent vulnerabilities via webhook
 			if err := webhooks.TriggerVulnerabilitiesWebhook(
-				automationCtx,
+				ctx,
 				ds,
 				logger.With("webhook", "vulnerabilities"),
 				args,
 				mapper,
 			); err != nil {
-				errHandler(automationCtx, logger, "triggering vulnerabilities webhook", err)
+				errHandler(ctx, logger, "triggering vulnerabilities webhook", err)
 			}
 
 		case "jira":
 			// queue job to create jira issues
 			if err := worker.QueueJiraVulnJobs(
-				automationCtx,
+				ctx,
 				ds,
 				logger.With("jira", "vulnerabilities"),
 				recentV,
 				matchingMeta,
 			); err != nil {
-				errHandler(automationCtx, logger, "queueing vulnerabilities to jira", err)
+				errHandler(ctx, logger, "queueing vulnerabilities to jira", err)
 			}
 
 		case "zendesk":
 			// queue job to create zendesk ticket
 			if err := worker.QueueZendeskVulnJobs(
-				automationCtx,
+				ctx,
 				ds,
 				logger.With("zendesk", "vulnerabilities"),
 				recentV,
 				matchingMeta,
 			); err != nil {
-				errHandler(automationCtx, logger, "queueing vulnerabilities to Zendesk", err)
+				errHandler(ctx, logger, "queueing vulnerabilities to Zendesk", err)
 			}
 
 		default:
-			err = ctxerr.New(automationCtx, "no vuln automations enabled")
-			errHandler(automationCtx, logger, "attempting to process vuln automations", err)
+			err = ctxerr.New(ctx, "no vuln automations enabled")
+			errHandler(ctx, logger, "attempting to process vuln automations", err)
 		}
 	}
 
@@ -296,9 +284,6 @@ func checkCustomVulnerabilities(
 	collectVulns bool,
 	startTime time.Time,
 ) []fleet.SoftwareVulnerability {
-	ctx, span := tracer.Start(ctx, "vuln.check_custom")
-	defer span.End()
-
 	vulns, err := customcve.CheckCustomVulnerabilities(ctx, ds, logger, startTime)
 	if err != nil {
 		errHandler(ctx, logger, "checking custom vulnerabilities", err)
@@ -321,9 +306,6 @@ func checkWinVulnerabilities(
 	config *config.VulnerabilitiesConfig,
 	collectVulns bool,
 ) []fleet.OSVulnerability {
-	ctx, span := tracer.Start(ctx, "vuln.check_windows")
-	defer span.End()
-
 	var results []fleet.OSVulnerability
 
 	// Get OS
@@ -335,24 +317,21 @@ func checkWinVulnerabilities(
 
 	if !config.DisableDataSync {
 		// Sync MSRC definitions
-		syncCtx, syncSpan := tracer.Start(ctx, "vuln.msrc.sync")
-		err = msrc.SyncFromGithub(syncCtx, vulnPath, os)
+		err = msrc.SyncFromGithub(ctx, vulnPath, os)
 		if err != nil {
-			errHandler(syncCtx, logger, "updating msrc definitions", err)
+			errHandler(ctx, logger, "updating msrc definitions", err)
 		}
-		syncSpan.End()
 	}
 
 	// Analyze all Win OS using the synched MSRC artifact.
 	if !config.DisableWinOSVulnerabilities {
-		analyzeCtx, analyzeSpan := tracer.Start(ctx, "vuln.msrc.analyze")
 		for _, o := range os {
 			if !o.IsWindows() {
 				continue
 			}
 
 			start := time.Now()
-			r, err := msrc.Analyze(analyzeCtx, ds, o, vulnPath, collectVulns, logger)
+			r, err := msrc.Analyze(ctx, ds, o, vulnPath, collectVulns, logger)
 			elapsed := time.Since(start)
 			level.Debug(logger).Log(
 				"msg", "msrc-analysis-done",
@@ -363,10 +342,9 @@ func checkWinVulnerabilities(
 				"found new", len(r))
 			results = append(results, r...)
 			if err != nil {
-				errHandler(analyzeCtx, logger.With("os name", o.Name, "display version", o.DisplayVersion), "analyzing hosts for Windows vulnerabilities", err)
+				errHandler(ctx, logger.With("os name", o.Name, "display version", o.DisplayVersion), "analyzing hosts for Windows vulnerabilities", err)
 			}
 		}
-		analyzeSpan.End()
 	}
 
 	return results
@@ -380,9 +358,6 @@ func checkOvalVulnerabilities(
 	config *config.VulnerabilitiesConfig,
 	collectVulns bool,
 ) []fleet.SoftwareVulnerability {
-	ctx, span := tracer.Start(ctx, "vuln.check_oval")
-	defer span.End()
-
 	var results []fleet.SoftwareVulnerability
 
 	// Get Platforms
@@ -394,23 +369,19 @@ func checkOvalVulnerabilities(
 
 	if !config.DisableDataSync {
 		// Sync on disk OVAL definitions with current OS Versions.
-		refreshCtx, refreshSpan := tracer.Start(ctx, "vuln.oval.refresh")
-		downloaded, err := oval.Refresh(refreshCtx, versions, vulnPath)
+		downloaded, err := oval.Refresh(ctx, versions, vulnPath)
 		if err != nil {
-			errHandler(refreshCtx, logger, "updating oval definitions", err)
+			errHandler(ctx, logger, "updating oval definitions", err)
 		}
 		for _, d := range downloaded {
 			level.Debug(logger).Log("oval-sync-downloaded", d)
 		}
-		refreshSpan.End()
 	}
 
 	// Analyze all supported os versions using the synched OVAL definitions.
-	analyzeCtx, analyzeSpan := tracer.Start(ctx, "vuln.oval.analyze",
-		trace.WithAttributes(attribute.Int("os_count", len(versions.OSVersions))))
 	for _, version := range versions.OSVersions {
 		start := time.Now()
-		r, err := oval.Analyze(analyzeCtx, ds, version, vulnPath, collectVulns)
+		r, err := oval.Analyze(ctx, ds, version, vulnPath, collectVulns)
 		if err != nil && errors.Is(err, oval.ErrUnsupportedPlatform) {
 			level.Debug(logger).Log("msg", "oval-analysis-unsupported", "platform", version.Name)
 			continue
@@ -424,10 +395,9 @@ func checkOvalVulnerabilities(
 			"found new", len(r))
 		results = append(results, r...)
 		if err != nil {
-			errHandler(analyzeCtx, logger, "analyzing oval definitions", err)
+			errHandler(ctx, logger, "analyzing oval definitions", err)
 		}
 	}
-	analyzeSpan.End()
 
 	return results
 }
@@ -440,9 +410,6 @@ func checkGovalDictionaryVulnerabilities(
 	config *config.VulnerabilitiesConfig,
 	collectVulns bool,
 ) []fleet.SoftwareVulnerability {
-	ctx, span := tracer.Start(ctx, "vuln.check_goval_dictionary")
-	defer span.End()
-
 	var results []fleet.SoftwareVulnerability
 
 	// Get Platforms
@@ -454,23 +421,19 @@ func checkGovalDictionaryVulnerabilities(
 
 	if !config.DisableDataSync {
 		// Sync on disk goval_dictionary sqlite with current OS Versions.
-		refreshCtx, refreshSpan := tracer.Start(ctx, "vuln.goval_dictionary.refresh")
 		downloaded, err := goval_dictionary.Refresh(versions, vulnPath, logger)
 		if err != nil {
-			errHandler(refreshCtx, logger, "updating goval_dictionary databases", err)
+			errHandler(ctx, logger, "updating goval_dictionary databases", err)
 		}
 		for _, d := range downloaded {
 			level.Debug(logger).Log("goval_dictionary-sync-downloaded", d)
 		}
-		refreshSpan.End()
 	}
 
 	// Analyze all supported os versions using the synced goval_dictionary definitions.
-	analyzeCtx, analyzeSpan := tracer.Start(ctx, "vuln.goval_dictionary.analyze",
-		trace.WithAttributes(attribute.Int("os_count", len(versions.OSVersions))))
 	for _, version := range versions.OSVersions {
 		start := time.Now()
-		r, err := goval_dictionary.Analyze(analyzeCtx, ds, version, vulnPath, collectVulns, logger)
+		r, err := goval_dictionary.Analyze(ctx, ds, version, vulnPath, collectVulns, logger)
 		if err != nil && errors.Is(err, goval_dictionary.ErrUnsupportedPlatform) {
 			level.Debug(logger).Log("msg", "goval_dictionary-analysis-unsupported", "platform", version.Name)
 			continue
@@ -483,10 +446,9 @@ func checkGovalDictionaryVulnerabilities(
 			"found new", len(r))
 		results = append(results, r...)
 		if err != nil {
-			errHandler(analyzeCtx, logger, "analyzing goval_dictionary definitions", err)
+			errHandler(ctx, logger, "analyzing goval_dictionary definitions", err)
 		}
 	}
-	analyzeSpan.End()
 
 	return results
 }
@@ -500,11 +462,7 @@ func checkNVDVulnerabilities(
 	collectVulns bool,
 	startTime time.Time,
 ) []fleet.SoftwareVulnerability {
-	ctx, span := tracer.Start(ctx, "vuln.check_nvd")
-	defer span.End()
-
 	if !config.DisableDataSync {
-		syncCtx, syncSpan := tracer.Start(ctx, "vuln.nvd.sync")
 		opts := nvd.SyncOptions{
 			VulnPath:             config.DatabasesPath,
 			CPEDBURL:             config.CPEDatabaseURL,
@@ -514,36 +472,27 @@ func checkNVDVulnerabilities(
 		}
 		err := nvd.Sync(opts, logger)
 		if err != nil {
-			errHandler(syncCtx, logger, "syncing vulnerability database", err)
+			errHandler(ctx, logger, "syncing vulnerability database", err)
 			// don't return, continue on ...
 		}
-		syncSpan.End()
 	}
 
-	loadCtx, loadSpan := tracer.Start(ctx, "vuln.nvd.load_cve_meta")
-	if err := nvd.LoadCVEMeta(loadCtx, logger, vulnPath, ds); err != nil {
-		errHandler(loadCtx, logger, "load cve meta", err)
+	if err := nvd.LoadCVEMeta(ctx, logger, vulnPath, ds); err != nil {
+		errHandler(ctx, logger, "load cve meta", err)
 		// don't return, continue on ...
 	}
-	loadSpan.End()
 
-	cpeCtx, cpeSpan := tracer.Start(ctx, "vuln.nvd.translate_software_to_cpe")
-	err := nvd.TranslateSoftwareToCPE(cpeCtx, ds, vulnPath, logger)
+	err := nvd.TranslateSoftwareToCPE(ctx, ds, vulnPath, logger)
 	if err != nil {
-		errHandler(cpeCtx, logger, "analyzing vulnerable software: Software->CPE", err)
-		cpeSpan.End()
+		errHandler(ctx, logger, "analyzing vulnerable software: Software->CPE", err)
 		return nil
 	}
-	cpeSpan.End()
 
-	cveCtx, cveSpan := tracer.Start(ctx, "vuln.nvd.translate_cpe_to_cve")
-	vulns, err := nvd.TranslateCPEToCVE(cveCtx, ds, vulnPath, logger, collectVulns, startTime)
+	vulns, err := nvd.TranslateCPEToCVE(ctx, ds, vulnPath, logger, collectVulns, startTime)
 	if err != nil {
-		errHandler(cveCtx, logger, "analyzing vulnerable software: CPE->CVE", err)
-		cveSpan.End()
+		errHandler(ctx, logger, "analyzing vulnerable software: CPE->CVE", err)
 		return nil
 	}
-	cveSpan.End()
 
 	return vulns
 }
@@ -556,23 +505,17 @@ func checkMacOfficeVulnerabilities(
 	config *config.VulnerabilitiesConfig,
 	collectVulns bool,
 ) []fleet.SoftwareVulnerability {
-	ctx, span := tracer.Start(ctx, "vuln.check_macoffice")
-	defer span.End()
-
 	if !config.DisableDataSync {
-		syncCtx, syncSpan := tracer.Start(ctx, "vuln.macoffice.sync")
-		err := macoffice.SyncFromGithub(syncCtx, vulnPath)
+		err := macoffice.SyncFromGithub(ctx, vulnPath)
 		if err != nil {
-			errHandler(syncCtx, logger, "updating mac office release notes", err)
+			errHandler(ctx, logger, "updating mac office release notes", err)
 		}
-		syncSpan.End()
 
 		level.Debug(logger).Log("msg", "finished sync mac office release notes")
 	}
 
-	analyzeCtx, analyzeSpan := tracer.Start(ctx, "vuln.macoffice.analyze")
 	start := time.Now()
-	r, err := macoffice.Analyze(analyzeCtx, ds, vulnPath, collectVulns)
+	r, err := macoffice.Analyze(ctx, ds, vulnPath, collectVulns)
 	elapsed := time.Since(start)
 
 	level.Debug(logger).Log(
@@ -581,9 +524,8 @@ func checkMacOfficeVulnerabilities(
 		"found new", len(r))
 
 	if err != nil {
-		errHandler(analyzeCtx, logger, "analyzing mac office products for vulnerabilities", err)
+		errHandler(ctx, logger, "analyzing mac office products for vulnerabilities", err)
 	}
-	analyzeSpan.End()
 
 	return r
 }
@@ -767,8 +709,8 @@ func newWorkerIntegrationsSchedule(
 	// we leave depSvc and deCli nil and macos setup assistants jobs will be
 	// no-ops.
 	if depStorage != nil {
-		depSvc = apple_mdm.NewDEPService(ds, depStorage, logger.SlogLogger())
-		depCli = apple_mdm.NewDEPClient(depStorage, ds, logger.SlogLogger())
+		depSvc = apple_mdm.NewDEPService(ds, depStorage, logger)
+		depCli = apple_mdm.NewDEPClient(depStorage, ds, logger)
 	}
 	macosSetupAsst := &worker.MacosSetupAssistant{
 		Datastore:  ds,
@@ -1385,7 +1327,7 @@ func appleMDMDEPSyncerJob(
 		}
 		if incompleteToken != nil {
 			logger.Log("msg", "migrated ABM token found, updating its metadata")
-			if err := apple_mdm.SetABMTokenMetadata(ctx, incompleteToken, depStorage, ds, logger.SlogLogger(), false); err != nil {
+			if err := apple_mdm.SetABMTokenMetadata(ctx, incompleteToken, depStorage, ds, logger, false); err != nil {
 				return ctxerr.Wrap(ctx, err, "updating migrated ABM token metadata")
 			}
 			if err := ds.SaveABMToken(ctx, incompleteToken); err != nil {
@@ -1395,7 +1337,7 @@ func appleMDMDEPSyncerJob(
 		}
 
 		if fleetSyncer == nil {
-			fleetSyncer = apple_mdm.NewDEPService(ds, depStorage, logger.SlogLogger())
+			fleetSyncer = apple_mdm.NewDEPService(ds, depStorage, logger)
 		}
 
 		return fleetSyncer.RunAssigner(ctx)
@@ -1451,7 +1393,7 @@ func newWindowsMDMProfileManagerSchedule(
 		ctx, name, instanceID, defaultInterval, ds, ds,
 		schedule.WithLogger(logger),
 		schedule.WithJob("manage_windows_profiles", func(ctx context.Context) error {
-			return service.ReconcileWindowsProfiles(ctx, ds, logger.SlogLogger())
+			return service.ReconcileWindowsProfiles(ctx, ds, logger)
 		}),
 	)
 
@@ -1699,7 +1641,7 @@ func newIPhoneIPadRefetcher(
 		ctx, name, instanceID, periodicity, ds, ds,
 		schedule.WithLogger(logger),
 		schedule.WithJob("cron_iphone_ipad_refetcher", func(ctx context.Context) error {
-			return apple_mdm.IOSiPadOSRefetch(ctx, ds, commander, logger.SlogLogger(), newActivityFn)
+			return apple_mdm.IOSiPadOSRefetch(ctx, ds, commander, logger, newActivityFn)
 		}),
 	)
 
@@ -1778,7 +1720,7 @@ func newMaintainedAppSchedule(
 		// ensures it runs a few seconds after Fleet is started
 		schedule.WithDefaultPrevRunCreatedAt(time.Now().Add(priorJobDiff)),
 		schedule.WithJob("refresh_maintained_apps", func(ctx context.Context) error {
-			return maintained_apps.Refresh(ctx, ds, logger.SlogLogger())
+			return maintained_apps.Refresh(ctx, ds, logger)
 		}),
 	)
 
@@ -1826,7 +1768,7 @@ func newIPhoneIPadReviver(
 		ctx, name, instanceID, 1*time.Hour, ds, ds,
 		schedule.WithLogger(logger),
 		schedule.WithJob("cron_iphone_ipad_reviver", func(ctx context.Context) error {
-			return apple_mdm.IOSiPadOSRevive(ctx, ds, commander, logger.SlogLogger())
+			return apple_mdm.IOSiPadOSRevive(ctx, ds, commander, logger)
 		}),
 	)
 

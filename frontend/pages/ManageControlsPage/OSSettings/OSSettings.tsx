@@ -82,7 +82,7 @@ const OSSettings = ({
   return (
     <div className={baseClass}>
       <p className={`${baseClass}__description`}>
-        Remotely enforce OS settings on hosts assigned to this fleet.
+        Remotely enforce OS settings on hosts assigned to this team.
       </p>
       <ProfileStatusAggregate
         isLoading={isLoadingAggregateProfileStatus}

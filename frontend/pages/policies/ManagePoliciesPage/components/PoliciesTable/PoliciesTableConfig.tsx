@@ -148,7 +148,7 @@ const generateTableHeaders = (
               </>
             }
             path={getPathWithQueryParams(PATHS.EDIT_POLICY(id), {
-              fleet_id: team_id,
+              team_id,
             })}
           />
         );
@@ -176,7 +176,7 @@ const generateTableHeaders = (
               path={getPathWithQueryParams(PATHS.MANAGE_HOSTS, {
                 policy_id: id,
                 policy_response: PolicyResponse.PASSING,
-                fleet_id: selectedTeamId,
+                team_id: selectedTeamId,
               })}
             />
           );
@@ -220,7 +220,7 @@ const generateTableHeaders = (
               path={getPathWithQueryParams(PATHS.MANAGE_HOSTS, {
                 policy_id: id,
                 policy_response: PolicyResponse.FAILING,
-                fleet_id: selectedTeamId,
+                team_id: selectedTeamId,
               })}
             />
           );

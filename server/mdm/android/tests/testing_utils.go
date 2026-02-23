@@ -220,7 +220,7 @@ func runServerForTests(t *testing.T, logger *logging.Logger, fleetSvc fleet.Serv
 			kithttp.PopulateRequestContext,
 			auth.SetRequestsContexts(fleetSvc),
 		),
-		kithttp.ServerErrorHandler(&endpointer.ErrorHandler{Logger: logger.SlogLogger()}),
+		kithttp.ServerErrorHandler(&endpointer.ErrorHandler{Logger: logger}),
 		kithttp.ServerErrorEncoder(androidErrorEncoder),
 		kithttp.ServerAfter(
 			kithttp.SetContentType("application/json; charset=utf-8"),

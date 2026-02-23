@@ -105,7 +105,7 @@ const SoftwareVulnerabilitiesTable = ({
   const generateNewQueryParams = useCallback(
     (newTableQuery: ITableQueryData, changedParam: string) => {
       return {
-        fleet_id: teamId,
+        team_id: teamId,
         exploit: showExploitedVulnerabilitiesOnly.toString(),
         query: newTableQuery.searchQuery,
         order_direction: newTableQuery.sortDirection,
@@ -172,7 +172,7 @@ const SoftwareVulnerabilitiesTable = ({
         routeTemplate: "",
         queryParams: {
           query,
-          fleet_id: teamId,
+          team_id: teamId,
           order_direction: orderDirection,
           order_key: orderKey,
           exploit: isFilterExploited,
@@ -189,7 +189,7 @@ const SoftwareVulnerabilitiesTable = ({
       const softwareVulnerabilityDetailsPath = getPathWithQueryParams(
         PATHS.SOFTWARE_VULNERABILITY_DETAILS(cveName),
         {
-          fleet_id: teamId,
+          team_id: teamId,
         }
       );
 

@@ -20,7 +20,7 @@ import Pagination from "components/Pagination";
 import SectionHeader from "components/SectionHeader";
 import Card from "components/Card";
 
-import UploadList from "../../../../../components/UploadList";
+import UploadList from "../../../components/UploadList";
 import DeleteScriptModal from "../../components/DeleteScriptModal";
 import EditScriptModal from "../../components/EditScriptModal";
 import ScriptUploadModal from "../../components/ScriptUploadModal";
@@ -82,7 +82,7 @@ const ScriptLibrary = ({ router, teamId, location }: IScriptLibraryProps) => {
 
   // pagination controls
   const path = PATHS.CONTROLS_SCRIPTS_LIBRARY;
-  const queryString = isPremiumTier ? `?fleet_id=${teamId}&` : "?";
+  const queryString = isPremiumTier ? `?team_id=${teamId}&` : "?";
   const onPrevPage = useCallback(() => {
     router.push(path.concat(`${queryString}page=${currentPage - 1}`));
   }, [router, path, currentPage, queryString]);

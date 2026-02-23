@@ -7,7 +7,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/fleetdm/fleet/v4/pkg/optjson"
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/contexts/license"
@@ -94,8 +93,6 @@ func testStatisticsShouldSend(t *testing.T, ds *Datastore) {
 	assert.Equal(t, false, stats.MaintenanceWindowsEnabled)
 	assert.Equal(t, false, stats.MaintenanceWindowsConfigured)
 	assert.Equal(t, 0, stats.NumHostsFleetDesktopEnabled)
-	assert.False(t, stats.OktaConditionalAccessConfigured)
-	assert.False(t, stats.ConditionalAccessBypassDisabled)
 
 	firstIdentifier := stats.AnonymousIdentifier
 
@@ -242,8 +239,6 @@ func testStatisticsShouldSend(t *testing.T, ds *Datastore) {
 	assert.Equal(t, false, stats.MaintenanceWindowsEnabled)
 	assert.Equal(t, false, stats.MaintenanceWindowsConfigured)
 	assert.Equal(t, 1, stats.NumHostsFleetDesktopEnabled)
-	assert.False(t, stats.OktaConditionalAccessConfigured)
-	assert.False(t, stats.ConditionalAccessBypassDisabled)
 
 	err = ds.RecordStatisticsSent(ctx)
 	require.NoError(t, err)
@@ -355,8 +350,6 @@ func testStatisticsShouldSend(t *testing.T, ds *Datastore) {
 	assert.Equal(t, false, stats.MaintenanceWindowsEnabled)
 	assert.Equal(t, false, stats.MaintenanceWindowsConfigured)
 	assert.Equal(t, 1, stats.NumHostsFleetDesktopEnabled)
-	assert.False(t, stats.OktaConditionalAccessConfigured)
-	assert.False(t, stats.ConditionalAccessBypassDisabled)
 
 	// Create multiple new sessions for a single user
 	_, err = ds.NewSession(ctx, u1.ID, 8)
@@ -397,8 +390,6 @@ func testStatisticsShouldSend(t *testing.T, ds *Datastore) {
 	assert.Equal(t, false, stats.MaintenanceWindowsEnabled)
 	assert.Equal(t, false, stats.MaintenanceWindowsConfigured)
 	assert.Equal(t, 1, stats.NumHostsFleetDesktopEnabled)
-	assert.False(t, stats.OktaConditionalAccessConfigured)
-	assert.False(t, stats.ConditionalAccessBypassDisabled)
 
 	// Add host to test hosts not responding stats
 	_, err = ds.NewHost(ctx, &fleet.Host{
@@ -438,36 +429,4 @@ func testStatisticsShouldSend(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	assert.True(t, shouldSend)
 	assert.True(t, stats.VulnDetectionEnabled)
-
-	// Test conditional access statistics
-	cfg.ConditionalAccess = &fleet.ConditionalAccessSettings{
-		OktaIDPID:                       optjson.SetString("test-idp-id"),
-		OktaAssertionConsumerServiceURL: optjson.SetString("https://example.okta.com/sso/saml"),
-		OktaAudienceURI:                 optjson.SetString("https://example.okta.com"),
-		OktaCertificate:                 optjson.SetString("test-certificate"),
-		BypassDisabled:                  optjson.SetBool(true),
-	}
-	err = ds.SaveAppConfig(ctx, cfg)
-	require.NoError(t, err)
-
-	time.Sleep(1100 * time.Millisecond)
-
-	stats, shouldSend, err = ds.ShouldSendStatistics(license.NewContext(ctx, premiumLicense), time.Millisecond, fleetConfig)
-	require.NoError(t, err)
-	assert.True(t, shouldSend)
-	assert.True(t, stats.OktaConditionalAccessConfigured)
-	assert.True(t, stats.ConditionalAccessBypassDisabled)
-
-	// Update config: bypass enabled (BypassDisabled=false), Okta still configured
-	cfg.ConditionalAccess.BypassDisabled = optjson.SetBool(false)
-	err = ds.SaveAppConfig(ctx, cfg)
-	require.NoError(t, err)
-
-	time.Sleep(1100 * time.Millisecond)
-
-	stats, shouldSend, err = ds.ShouldSendStatistics(license.NewContext(ctx, premiumLicense), time.Millisecond, fleetConfig)
-	require.NoError(t, err)
-	assert.True(t, shouldSend)
-	assert.True(t, stats.OktaConditionalAccessConfigured)
-	assert.False(t, stats.ConditionalAccessBypassDisabled)
 }

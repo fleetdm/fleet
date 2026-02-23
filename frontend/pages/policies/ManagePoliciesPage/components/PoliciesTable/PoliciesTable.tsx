@@ -70,9 +70,9 @@ const PoliciesTable = ({
       currentTeam?.id === null ||
       currentTeam?.id === APP_CONTEXT_ALL_TEAMS_ID
     ) {
-      emptyState.header += ` that apply to all fleets`;
+      emptyState.header += " that apply to all teams";
     } else {
-      emptyState.header += ` that apply to this fleet`;
+      emptyState.header += " that apply to this team";
     }
   }
 

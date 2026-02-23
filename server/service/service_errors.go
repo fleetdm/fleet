@@ -19,10 +19,6 @@ func (a *alreadyExistsError) IsExists() bool {
 	return true
 }
 
-func (a *alreadyExistsError) IsClientError() bool {
-	return true
-}
-
 func newAlreadyExistsError() *alreadyExistsError {
 	return &alreadyExistsError{}
 }
@@ -36,10 +32,6 @@ func (e *notFoundError) Error() string {
 }
 
 func (e *notFoundError) IsNotFound() bool {
-	return true
-}
-
-func (e *notFoundError) IsClientError() bool {
 	return true
 }
 

@@ -76,20 +76,10 @@ const rebuildQueryStringWithTeamId = (
     parts.splice(pageIndex, 1, "page=0");
   }
 
-  // Backward compat: rewrite legacy team_id= to fleet_id=
-  const legacyIndex = parts.findIndex((p) => p.startsWith("team_id="));
-  if (legacyIndex !== -1) {
-    parts.splice(
-      legacyIndex,
-      1,
-      parts[legacyIndex].replace("team_id=", "fleet_id=")
-    );
-  }
-
-  const teamIndex = parts.findIndex((p) => p.startsWith("fleet_id="));
-  // URLs for the app represent "All teams" by the absence of the fleet id param
+  const teamIndex = parts.findIndex((p) => p.startsWith("team_id="));
+  // URLs for the app represent "All teams" by the absence of the team id param
   const newTeamPart =
-    newTeamId > APP_CONTEXT_ALL_TEAMS_ID ? `fleet_id=${newTeamId}` : "";
+    newTeamId > APP_CONTEXT_ALL_TEAMS_ID ? `team_id=${newTeamId}` : "";
 
   if (teamIndex === -1) {
     // nothing to remove/replace so add the new part (if any) and rejoin
@@ -98,9 +88,9 @@ const rebuildQueryStringWithTeamId = (
     );
   }
 
-  if (teamIndex !== findLastIndex(parts, (p) => p.startsWith("fleet_id="))) {
+  if (teamIndex !== findLastIndex(parts, (p) => p.startsWith("team_id="))) {
     console.warn(
-      `URL contains more than one fleet_id parameter: ${queryString}`
+      `URL contains more than one team_id parameter: ${queryString}`
     );
   }
 
@@ -313,13 +303,13 @@ const shouldRedirectToDefaultTeam = ({
   userTeams: ITeamSummary[];
   includeAllTeams: boolean;
   includeNoTeam: boolean;
-  query: { fleet_id?: string };
+  query: { team_id?: string };
   isPrimoMode: boolean;
 }) => {
-  const teamIdString = query?.fleet_id || "";
+  const teamIdString = query?.team_id || "";
   const parsedTeamId = parseInt(teamIdString, 10);
 
-  // redirect non-numeric strings and negative numbers to default (e.g., `/hosts?fleet_id=-1` should
+  // redirect non-numeric strings and negative numbers to default (e.g., `/hosts?team_id=-1` should
   // be redirected to `/hosts`)
   if (teamIdString.length && (isNaN(parsedTeamId) || parsedTeamId < 0)) {
     return true;
@@ -349,7 +339,7 @@ export const useTeamIdParam = ({
   location?: {
     pathname: string;
     search: string;
-    query: { fleet_id?: string; team_id?: string };
+    query: { team_id?: string };
     hash?: string;
     [key: string]: any; // for other location properties that may be passed in
   };
@@ -361,9 +351,6 @@ export const useTeamIdParam = ({
   overrideParamsOnTeamChange?: IConfigOverrideParamsOnTeamChange;
 }) => {
   const { hash, pathname, query, search } = location;
-
-  const hasLegacyTeamIdParam = search.includes("team_id=");
-
   const {
     availableTeams,
     currentTeam: contextTeam,
@@ -397,11 +384,8 @@ export const useTeamIdParam = ({
 
   const currentTeam = useMemo(
     () =>
-      userTeams?.find(
-        (t) =>
-          t.id === coerceAllTeamsId(query?.fleet_id || query?.team_id || "")
-      ),
-    [query?.fleet_id, query?.team_id, userTeams]
+      userTeams?.find((t) => t.id === coerceAllTeamsId(query?.team_id || "")),
+    [query?.team_id, userTeams]
   );
 
   const handleTeamChange = useCallback(
@@ -442,17 +426,9 @@ export const useTeamIdParam = ({
 
   // reconcile router location and redirect to default team as applicable
   let isRouteOk = false;
-  if (hasLegacyTeamIdParam) {
-    // Backward compat: redirect legacy ?team_id= URLs to ?fleet_id=
-    // Skip other reconciliation to avoid a second redirect overwriting this one.
-    router.replace(
-      pathname
-        .concat(search.replace(/\bteam_id=/g, "fleet_id="))
-        .concat(hash || "")
-    );
-  } else if (isFreeTier) {
-    // free tier should never have fleet_id param, so change to "All teams"
-    if (query.fleet_id) {
+  if (isFreeTier) {
+    // free tier should never have team_id param, so change to "All teams"
+    if (query.team_id) {
       handleTeamChange(-1); // -1 because all pages on Free actually function as if on "All teams", even when not supported e.g. Controls
     } else {
       isRouteOk = true;
@@ -510,7 +486,7 @@ export const useTeamIdParam = ({
       !!currentTeam?.id &&
       !!currentUser &&
       permissions.isObserverPlus(currentUser, currentTeam.id),
-    teamIdForApi: getTeamIdForApi({ currentTeam, includeNoTeam }), // for everywhere except AppContext: fleet_id=0 for No team (same as currentTeamId), undefined for All teams
+    teamIdForApi: getTeamIdForApi({ currentTeam, includeNoTeam }), // for everywhere except AppContext: team_id=0 for No team (same as currentTeamId), undefined for All teams
     userTeams,
     handleTeamChange,
   };

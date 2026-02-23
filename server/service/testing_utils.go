@@ -174,7 +174,7 @@ func newTestServiceWithConfig(t *testing.T, ds fleet.Datastore, fleetConfig conf
 	var eh *errorstore.Handler
 	if len(opts) > 0 {
 		if opts[0].Pool != nil {
-			eh = errorstore.NewHandler(ctx, opts[0].Pool, logger.SlogLogger(), time.Minute*10)
+			eh = errorstore.NewHandler(ctx, opts[0].Pool, logger, time.Minute*10)
 			ctx = ctxerr.NewContext(ctx, eh)
 		}
 		if opts[0].StartCronSchedules != nil {
@@ -582,7 +582,7 @@ func RunServerForTestsWithServiceWithDS(t *testing.T, ctx context.Context, ds fl
 	rootMux.Handle("/enroll", ServeEndUserEnrollOTA(svc, "", ds, logger))
 
 	if len(opts) > 0 && opts[0].EnableSCIM {
-		require.NoError(t, scim.RegisterSCIM(rootMux, ds, svc, logger.SlogLogger(), &cfg))
+		require.NoError(t, scim.RegisterSCIM(rootMux, ds, svc, logger, &cfg))
 		rootMux.Handle("/api/v1/fleet/scim/details", apiHandler)
 		rootMux.Handle("/api/latest/fleet/scim/details", apiHandler)
 	}

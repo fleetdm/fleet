@@ -8,7 +8,6 @@ import (
 	"encoding/xml"
 	"errors"
 	"fmt"
-	"log/slog"
 	"strings"
 	"testing"
 	"time"
@@ -18,6 +17,7 @@ import (
 	microsoft_mdm "github.com/fleetdm/fleet/v4/server/mdm/microsoft"
 	"github.com/fleetdm/fleet/v4/server/mdm/microsoft/syncml"
 	"github.com/fleetdm/fleet/v4/server/mock"
+	"github.com/go-kit/log"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -711,7 +711,7 @@ func setupReconcilerTest(ds *mock.Store, hostToProfile map[string]*fleet.MDMWind
 func TestReconcileWindowsProfilesWithFleetVariableError(t *testing.T) {
 	ctx := context.Background()
 	ds := new(mock.Store)
-	logger := slog.New(slog.DiscardHandler)
+	logger := log.NewNopLogger()
 
 	// Setup test data with a profile containing Fleet variable
 	testHostUUID := "test-host-uuid"
@@ -771,7 +771,7 @@ func TestReconcileWindowsProfileWithCertificateFailureDoesNotAddManagedCertifica
 		Tier: fleet.TierPremium,
 	})
 	ds := new(mock.Store)
-	logger := slog.New(slog.DiscardHandler)
+	logger := log.NewNopLogger()
 
 	// Setup test data with a profile containing a certificate that will fail processing
 	testHostUUID := "test-host-uuid"
@@ -836,7 +836,7 @@ func TestReconcileWindowsProfilesWithOneHostFailingStillAddsManagedCertificate(t
 		Tier: fleet.TierPremium,
 	})
 	ds := new(mock.Store)
-	logger := slog.New(slog.DiscardHandler)
+	logger := log.NewNopLogger()
 
 	// Setup test data with a profile containing a certificate that will fail processing
 	testHostUUID := "test-host-uuid"

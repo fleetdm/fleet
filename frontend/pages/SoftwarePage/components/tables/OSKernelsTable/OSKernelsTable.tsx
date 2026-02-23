@@ -72,7 +72,7 @@ const OSKernelsTable = ({
       const softwareVulnerabilityDetailsPath = getPathWithQueryParams(
         PATHS.SOFTWARE_VULNERABILITY_DETAILS(cveName),
         {
-          fleet_id: teamIdForApi,
+          team_id: teamIdForApi,
         }
       );
 

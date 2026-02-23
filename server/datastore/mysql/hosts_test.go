@@ -8074,10 +8074,9 @@ func testHostsSetOrUpdateDeviceAuthToken(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.Equal(t, host2.ID, h.ID)
 
-	// previous token (token2) should still work after rotation
-	h, err = ds.LoadHostByDeviceAuthToken(context.Background(), token2, time.Hour)
-	require.NoError(t, err)
-	require.Equal(t, host2.ID, h.ID)
+	_, err = ds.LoadHostByDeviceAuthToken(context.Background(), token2, time.Hour)
+	require.Error(t, err)
+	assert.ErrorIs(t, err, sql.ErrNoRows)
 
 	time.Sleep(time.Second) // ensure the mysql timestamp is different
 
@@ -8086,51 +8085,6 @@ func testHostsSetOrUpdateDeviceAuthToken(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	h2T3 := loadUpdatedAt(host2.ID)
 	require.True(t, h2T2.Equal(h2T3))
-
-	time.Sleep(time.Second) // ensure the mysql timestamp is different
-
-	// double rotation: set a third token, previous (token2Updated) should work, but token2 should not
-	token2Third := "token2_third"
-	err = ds.SetOrUpdateDeviceAuthToken(t.Context(), host2.ID, token2Third)
-	require.NoError(t, err)
-
-	h, err = ds.LoadHostByDeviceAuthToken(t.Context(), token2Third, time.Hour)
-	require.NoError(t, err)
-	require.Equal(t, host2.ID, h.ID)
-
-	h, err = ds.LoadHostByDeviceAuthToken(t.Context(), token2Updated, time.Hour)
-	require.NoError(t, err)
-	require.Equal(t, host2.ID, h.ID)
-
-	_, err = ds.LoadHostByDeviceAuthToken(t.Context(), token2, time.Hour)
-	require.Error(t, err)
-	assert.ErrorIs(t, err, sql.ErrNoRows)
-
-	// expired token should not be preserved as previous_token on rotation
-	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
-		_, err := q.ExecContext(t.Context(), `UPDATE host_device_auth SET updated_at = DATE_SUB(NOW(), INTERVAL 2 HOUR) WHERE host_id = ?`, host.ID)
-		return err
-	})
-	tokenAfterExpiry := "token_after_expiry"
-	err = ds.SetOrUpdateDeviceAuthToken(t.Context(), host.ID, tokenAfterExpiry)
-	require.NoError(t, err)
-
-	// new token works
-	h, err = ds.LoadHostByDeviceAuthToken(t.Context(), tokenAfterExpiry, time.Hour)
-	require.NoError(t, err)
-	require.Equal(t, host.ID, h.ID)
-
-	// expired token1 should NOT have been saved as previous_token
-	_, err = ds.LoadHostByDeviceAuthToken(t.Context(), token1, time.Hour)
-	require.Error(t, err)
-	assert.ErrorIs(t, err, sql.ErrNoRows)
-
-	// verify previous_token is NULL in the database
-	var previousToken *string
-	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
-		return sqlx.GetContext(t.Context(), q, &previousToken, `SELECT previous_token FROM host_device_auth WHERE host_id = ?`, host.ID)
-	})
-	require.Nil(t, previousToken)
 }
 
 func testHostsGetDeviceAuthToken(t *testing.T, ds *Datastore) {
@@ -8191,7 +8145,6 @@ func testHostsGetDeviceAuthToken(t *testing.T, ds *Datastore) {
 
 	_, err = ds.GetDeviceAuthToken(context.Background(), 99)
 	require.Error(t, err)
-	assert.ErrorIs(t, err, sql.ErrNoRows)
 }
 
 func testOSVersions(t *testing.T, ds *Datastore) {

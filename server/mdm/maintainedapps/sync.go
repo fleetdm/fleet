@@ -6,7 +6,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"log/slog"
 	"net/http"
 	"time"
 
@@ -15,6 +14,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/dev_mode"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	kitlog "github.com/go-kit/log"
 )
 
 type appListing struct {
@@ -33,7 +33,7 @@ const fmaOutputsBase = "https://raw.githubusercontent.com/fleetdm/fleet/refs/hea
 
 // Refresh fetches the latest information about maintained apps from FMA's
 // apps list on GitHub and updates the Fleet database with the new information.
-func Refresh(ctx context.Context, ds fleet.Datastore, logger *slog.Logger) error {
+func Refresh(ctx context.Context, ds fleet.Datastore, logger kitlog.Logger) error {
 	appsList, err := FetchAppsList(ctx)
 	if err != nil {
 		return err

@@ -1,10 +1,9 @@
-import React, { useCallback } from "react";
+import React, { useCallback, useState } from "react";
 import { useQuery } from "react-query";
 import { AxiosError } from "axios";
 import { Tab, TabList, TabPanel, Tabs } from "react-tabs";
 
 import PATHS from "router/paths";
-import { getPathWithQueryParams } from "utilities/url";
 
 import mdmAPI, {
   IGetSetupExperienceSoftwareResponse,
@@ -24,7 +23,6 @@ import {
 } from "interfaces/platform";
 
 import SectionHeader from "components/SectionHeader";
-import PageDescription from "components/PageDescription";
 import DataError from "components/DataError";
 import Spinner from "components/Spinner";
 import TabNav from "components/TabNav";
@@ -32,7 +30,8 @@ import TabText from "components/TabText";
 import GenericMsgWithNavButton from "components/GenericMsgWithNavButton";
 import CustomLink from "components/CustomLink";
 
-import InstallSoftwareForm from "./components/InstallSoftwareForm";
+import AddInstallSoftware from "./components/AddInstallSoftware";
+import SelectSoftwareModal from "./components/SelectSoftwareModal";
 import SetupExperienceContentContainer from "../../components/SetupExperienceContentContainer";
 import { ISetupExperienceCardProps } from "../../SetupExperienceNavItems";
 import getManualAgentInstallSetting from "../../helpers";
@@ -52,9 +51,10 @@ export const PLATFORM_BY_INDEX: SetupExperiencePlatform[] = [
   "android",
 ];
 export interface InstallSoftwareLocation {
+  search: string;
   pathname: string;
   query: {
-    fleet_id?: string;
+    team_id?: string;
   };
 }
 
@@ -67,6 +67,8 @@ const InstallSoftware = ({
 
   // all uses of selectedPlatform are gated by above boolean
   const selectedPlatform = urlPlatformParam as SetupExperiencePlatform;
+
+  const [showSelectSoftwareModal, setShowSelectSoftwareModal] = useState(false);
 
   const {
     data: softwareTitles,
@@ -114,9 +116,9 @@ const InstallSoftware = ({
     (index: number) => {
       const newPlatform = PLATFORM_BY_INDEX[index];
       router.push(
-        getPathWithQueryParams(PATHS.CONTROLS_INSTALL_SOFTWARE(newPlatform), {
-          fleet_id: currentTeamId,
-        })
+        PATHS.CONTROLS_INSTALL_SOFTWARE(newPlatform).concat(
+          location?.search ?? ""
+        )
       );
     },
     [router]
@@ -124,11 +126,14 @@ const InstallSoftware = ({
 
   if (!isValidPlatform) {
     router.replace(
-      getPathWithQueryParams(PATHS.CONTROLS_INSTALL_SOFTWARE("macos"), {
-        fleet_id: currentTeamId,
-      })
+      PATHS.CONTROLS_INSTALL_SOFTWARE("macos").concat(location?.search ?? "")
     );
   }
+
+  const onSave = async () => {
+    setShowSelectSoftwareModal(false);
+    refetchSoftwareTitles();
+  };
 
   const hasManualAgentInstall = getManualAgentInstallSetting(
     currentTeamId,
@@ -165,38 +170,37 @@ const InstallSoftware = ({
 
       const turnOnMdm = turnOnAppleMdm || turnOnWindowsMdm || turnOnAndroidMdm;
 
+      if (turnOnMdm) {
+        return (
+          <GenericMsgWithNavButton
+            header={`${
+              platform === "android"
+                ? "Turn on Android MDM"
+                : "Additional configuration required"
+            }`}
+            info={`To customize, first turn on ${
+              platform === "android" ? "Android MDM" : "automatic enrollment"
+            }.`}
+            buttonText="Turn on"
+            path={PATHS.ADMIN_INTEGRATIONS_MDM}
+            router={router}
+          />
+        );
+      }
       return (
         <SetupExperienceContentContainer>
-          <PageDescription content="Install software on hosts that automatically enroll to Fleet." />
-          {turnOnMdm ? (
-            <GenericMsgWithNavButton
-              header={`${
-                platform === "android"
-                  ? "Turn on Android MDM"
-                  : "Additional configuration required"
-              }`}
-              info={`To customize, first turn on ${
-                platform === "android" ? "Android MDM" : "automatic enrollment"
-              }.`}
-              buttonText="Turn on"
-              path={PATHS.ADMIN_INTEGRATIONS_MDM}
-              router={router}
-            />
-          ) : (
-            <InstallSoftwareForm
-              currentTeamId={currentTeamId}
-              hasManualAgentInstall={hasManualAgentInstall}
-              softwareTitles={softwareTitles}
-              platform={platform}
-              savedRequireAllSoftwareMacOS={
-                currentTeamId
-                  ? teamConfig?.mdm?.macos_setup?.require_all_software_macos
-                  : globalConfig?.mdm?.macos_setup?.require_all_software_macos
-              }
-              router={router}
-              refetchSoftwareTitles={refetchSoftwareTitles}
-            />
-          )}
+          <AddInstallSoftware
+            currentTeamId={currentTeamId}
+            hasManualAgentInstall={hasManualAgentInstall}
+            softwareTitles={softwareTitles}
+            onAddSoftware={() => setShowSelectSoftwareModal(true)}
+            platform={platform}
+            savedRequireAllSoftwareMacOS={
+              currentTeamId
+                ? teamConfig?.mdm?.macos_setup?.require_all_software_macos
+                : globalConfig?.mdm?.macos_setup?.require_all_software_macos
+            }
+          />
         </SetupExperienceContentContainer>
       );
     }
@@ -251,6 +255,15 @@ const InstallSoftware = ({
             })}
           </Tabs>
         </TabNav>
+      )}
+      {showSelectSoftwareModal && softwareTitles && (
+        <SelectSoftwareModal
+          currentTeamId={currentTeamId}
+          softwareTitles={softwareTitles}
+          platform={selectedPlatform}
+          onSave={onSave}
+          onExit={() => setShowSelectSoftwareModal(false)}
+        />
       )}
     </section>
   );

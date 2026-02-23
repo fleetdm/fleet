@@ -14,7 +14,6 @@ import (
 	"strings"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
-	"github.com/fleetdm/fleet/v4/server/platform/endpointer"
 	"github.com/ghodss/yaml"
 	"github.com/hashicorp/go-multierror"
 )
@@ -45,21 +44,6 @@ type Metadata struct {
 	Spec    json.RawMessage `json:"spec"`
 }
 
-// rewriteNewToOldKeys uses RewriteDeprecatedKeys to rewrite new (renameto)
-// key names back to old (json tag) names so that structs can be unmarshaled
-// correctly when input uses the new key names.
-func rewriteNewToOldKeys(raw json.RawMessage, target any) json.RawMessage {
-	rules := endpointer.ExtractAliasRules(target)
-	if len(rules) == 0 {
-		return raw
-	}
-	result, err := endpointer.RewriteDeprecatedKeys(raw, rules)
-	if err != nil {
-		return raw // fall back to original on error
-	}
-	return result
-}
-
 // GroupFromBytes parses a Group from concatenated YAML specs.
 func GroupFromBytes(b []byte) (*Group, error) {
 	specs := &Group{}
@@ -80,7 +64,6 @@ func GroupFromBytes(b []byte) (*Group, error) {
 
 		switch kind {
 		case fleet.QueryKind:
-			s.Spec = rewriteNewToOldKeys(s.Spec, fleet.QuerySpec{})
 			var querySpec *fleet.QuerySpec
 			if err := yaml.Unmarshal(s.Spec, &querySpec); err != nil {
 				return nil, fmt.Errorf("unmarshaling %s spec: %w", kind, err)
@@ -88,7 +71,6 @@ func GroupFromBytes(b []byte) (*Group, error) {
 			specs.Queries = append(specs.Queries, querySpec)
 
 		case fleet.PackKind:
-			s.Spec = rewriteNewToOldKeys(s.Spec, fleet.PackSpec{})
 			var packSpec *fleet.PackSpec
 			if err := yaml.Unmarshal(s.Spec, &packSpec); err != nil {
 				return nil, fmt.Errorf("unmarshaling %s spec: %w", kind, err)
@@ -96,7 +78,6 @@ func GroupFromBytes(b []byte) (*Group, error) {
 			specs.Packs = append(specs.Packs, packSpec)
 
 		case fleet.LabelKind:
-			s.Spec = rewriteNewToOldKeys(s.Spec, fleet.LabelSpec{})
 			var labelSpec *fleet.LabelSpec
 			if err := yaml.Unmarshal(s.Spec, &labelSpec); err != nil {
 				return nil, fmt.Errorf("unmarshaling %s spec: %w", kind, err)
@@ -104,7 +85,6 @@ func GroupFromBytes(b []byte) (*Group, error) {
 			specs.Labels = append(specs.Labels, labelSpec)
 
 		case fleet.PolicyKind:
-			s.Spec = rewriteNewToOldKeys(s.Spec, fleet.PolicySpec{})
 			var policySpec *fleet.PolicySpec
 			if err := yaml.Unmarshal(s.Spec, &policySpec); err != nil {
 				return nil, fmt.Errorf("unmarshaling %s spec: %w", kind, err)
@@ -134,7 +114,6 @@ func GroupFromBytes(b []byte) (*Group, error) {
 			specs.EnrollSecret = enrollSecretSpec
 
 		case fleet.UserRolesKind:
-			s.Spec = rewriteNewToOldKeys(s.Spec, fleet.UsersRoleSpec{})
 			var userRoleSpec *fleet.UsersRoleSpec
 			if err := yaml.Unmarshal(s.Spec, &userRoleSpec); err != nil {
 				return nil, fmt.Errorf("unmarshaling %s spec: %w", kind, err)

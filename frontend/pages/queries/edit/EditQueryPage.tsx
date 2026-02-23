@@ -42,7 +42,7 @@ import EditQueryForm from "./components/EditQueryForm";
 interface IEditQueryPageProps {
   router: InjectedRouter;
   params: Params;
-  location: Location<{ host_id: string; fleet_id?: string }>;
+  location: Location<{ host_id: string; team_id?: string }>;
 }
 
 const baseClass = "edit-query-page";
@@ -171,11 +171,11 @@ const EditQueryPage = ({
     !isOnGlobalTeam &&
     !isStoredQueryLoading &&
     storedQuery?.team_id &&
-    !(storedQuery?.team_id?.toString() === location.query.fleet_id)
+    !(storedQuery?.team_id?.toString() === location.query.team_id)
   ) {
     router.push(
       getPathWithQueryParams(location.pathname, {
-        fleet_id: storedQuery?.team_id?.toString(),
+        team_id: storedQuery?.team_id?.toString(),
         host_id: hostId,
       })
     );
@@ -216,7 +216,7 @@ const EditQueryPage = ({
       router.push(
         getPathWithQueryParams(PATHS.QUERY_DETAILS(queryId), {
           host_id: location.query.host_id,
-          fleet_id: location.query.fleet_id,
+          team_id: location.query.team_id,
         })
       );
     }
@@ -251,7 +251,7 @@ const EditQueryPage = ({
     const storedQueryTitleCopy = storedQuery?.name
       ? `Editing ${storedQuery.name} | `
       : "";
-    document.title = `${storedQueryTitleCopy}Reports | ${DOCUMENT_TITLE_SUFFIX}`;
+    document.title = `${storedQueryTitleCopy}Queries | ${DOCUMENT_TITLE_SUFFIX}`;
     // }
   }, [location.pathname, storedQuery?.name]);
 
@@ -266,25 +266,25 @@ const EditQueryPage = ({
         const { query } = await queryAPI.create(formData);
         router.push(
           getPathWithQueryParams(PATHS.QUERY_DETAILS(query.id), {
-            fleet_id: query.team_id,
+            team_id: query.team_id,
             host_id: hostId,
           })
         );
-        renderFlash("success", "Report created!");
+        renderFlash("success", "Query created.");
         setBackendValidators({});
       } catch (createError: any) {
         if (getErrorReason(createError).includes("already exists")) {
           const teamErrorText =
             teamNameForQuery && apiTeamIdForQuery !== 0
-              ? `the ${teamNameForQuery} fleet`
-              : "all fleets";
+              ? `the ${teamNameForQuery} team`
+              : "all teams";
           setBackendValidators({
-            name: `A report with that name already exists for ${teamErrorText}.`,
+            name: `A query with that name already exists for ${teamErrorText}.`,
           });
         } else {
           renderFlash(
             "error",
-            "Something went wrong creating your report. Please try again."
+            "Something went wrong creating your query. Please try again."
           );
           setBackendValidators({});
         }
@@ -316,19 +316,19 @@ const EditQueryPage = ({
 
     try {
       await queryAPI.update(queryId, updatedQuery);
-      renderFlash("success", "Report updated!");
+      renderFlash("success", "Query updated.");
       refetchStoredQuery(); // Required to compare recently saved query to a subsequent save to the query
     } catch (updateError: any) {
       console.error(updateError);
       const reason = getErrorReason(updateError);
       if (reason.includes("Duplicate")) {
-        renderFlash("error", "A report with this name already exists.");
+        renderFlash("error", "A query with this name already exists.");
       } else if (reason.includes(INVALID_PLATFORMS_REASON)) {
         renderFlash("error", INVALID_PLATFORMS_FLASH_MESSAGE);
       } else {
         renderFlash(
           "error",
-          "Something went wrong updating your report. Please try again."
+          "Something went wrong updating your query. Please try again."
         );
       }
     }
@@ -358,7 +358,7 @@ const EditQueryPage = ({
 
     return (
       <InfoBanner color="yellow">
-        Fleet is unable to run a live report. Refresh the page or log in again.
+        Fleet is unable to run a live query. Refresh the page or log in again.
         If this keeps happening please{" "}
         <CustomLink
           url="https://github.com/fleetdm/fleet/issues/new/choose"
@@ -375,7 +375,7 @@ const EditQueryPage = ({
   const backPath = () => {
     if (queryId) {
       return getPathWithQueryParams(PATHS.QUERY_DETAILS(queryId), {
-        fleet_id: currentTeamId,
+        team_id: currentTeamId,
         host_id: hostId,
       });
     }
@@ -387,7 +387,7 @@ const EditQueryPage = ({
     if (filteredQueriesPath) return filteredQueriesPath;
 
     return getPathWithQueryParams(PATHS.MANAGE_QUERIES, {
-      fleet_id: currentTeamId,
+      team_id: currentTeamId,
     });
   };
 
@@ -400,7 +400,7 @@ const EditQueryPage = ({
       return "Back to host details";
     }
 
-    return "Back to reports";
+    return "Back to queries";
   };
 
   const showSidebar =

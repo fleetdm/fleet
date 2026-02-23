@@ -78,7 +78,7 @@ const generateColumnConfigs = (
           <TooltipWrapper
             tipContent={
               <>
-                Each report is updated based on an <br />
+                Each query is updated based on an <br />
                 individually set interval.
               </>
             }

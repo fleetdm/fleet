@@ -75,7 +75,7 @@ export const generateSolutionsTableHeaders = (
       <div className="host-count-cell">
         <TextCell value={cellProps.cell.value} className="" />
         <ViewAllHostsLink
-          queryParams={{ mdm_id: cellProps.row.original.id, fleet_id: teamId }}
+          queryParams={{ mdm_id: cellProps.row.original.id, team_id: teamId }}
           className="view-mdm-solution-link"
           platformLabelId={cellProps.row.original.selectedPlatformLabelId}
           rowHover

@@ -1,10 +1,11 @@
 import React, { ReactNode, useState } from "react";
 
+import validate_presence from "components/forms/validators/validate_presence";
+
 // @ts-ignore
 import InputField from "components/forms/fields/InputField";
 import Button from "components/buttons/Button";
 import TeamNameField from "../TeamNameField/TeamNameField";
-import { validateLabelFormData, ILabelFormValidation } from "./helpers";
 
 export interface ILabelFormData {
   name: string;
@@ -59,92 +60,43 @@ const LabelForm = ({
 }: ILabelFormProps) => {
   const [name, setName] = useState(defaultName);
   const [description, setDescription] = useState(defaultDescription);
-  // this holds only the errors we're currently showing
-  const [formValidation, setFormValidation] = useState<ILabelFormValidation>({
-    isValid: true,
-  });
+  const [nameError, setNameError] = useState<string | null>("");
 
-  const currentData = { name, description };
-
-  const onFormChange = (update: { name: string; value: string }) => {
-    const { name: fieldName, value } = update;
-
-    const nextData =
-      fieldName === "name"
-        ? { name: value, description }
-        : { name, description: value };
-
-    if (fieldName === "name") {
-      setName(value);
-    } else if (fieldName === "description") {
-      setDescription(value);
-    }
-
-    // full validation for new data
-    const fullValidation = validateLabelFormData(nextData);
-
-    setFormValidation((prev) => {
-      const next: ILabelFormValidation = { ...prev, isValid: true };
-
-      // start from previous errors
-      if (prev.name) next.name = prev.name;
-      if (prev.description) next.description = prev.description;
-
-      // ONLY CLEAR existing error on this field if it is now valid.
-      // Do NOT set a new error if there wasn't one before.
-      if (fieldName === "name") {
-        if (prev.name && fullValidation.name?.isValid) {
-          next.name = undefined; // clear existing name error
-        }
-      } else if (fieldName === "description") {
-        if (prev.description && fullValidation.description?.isValid) {
-          next.description = undefined; // clear existing description error
-        }
-      }
-
-      // recompute isValid from remaining errors
-      const fields = [next.name, next.description];
-      next.isValid = fields.every((f) => !f || f.isValid);
-
-      return next;
-    });
+  const onNameChange = (value: string) => {
+    setName(value);
+    setNameError(null);
   };
 
-  const onInputBlur = () => {
-    // on blur, show all current errors (set all)
-    const fullValidation = validateLabelFormData(currentData);
-    setFormValidation(fullValidation);
+  const onDescriptionChange = (value: string) => {
+    setDescription(value);
   };
 
   const onSubmitForm = (evt: React.FormEvent) => {
     evt.preventDefault();
 
-    // on submit, also show all errors
-    const fullValidation = validateLabelFormData(currentData);
-    setFormValidation(fullValidation);
+    let isFormValid = true;
+    if (!validate_presence(name)) {
+      setNameError("Label name must be present");
+      isFormValid = false;
+    }
 
-    onSave(currentData, fullValidation.isValid);
+    onSave({ name, description }, isFormValid);
   };
 
   return (
     <form className={`${baseClass}__wrapper`} onSubmit={onSubmitForm}>
       <InputField
-        error={formValidation.name?.message}
-        parseTarget
+        error={nameError}
         name="name"
-        onChange={onFormChange}
-        onBlur={onInputBlur}
+        onChange={onNameChange}
         value={name}
         inputClassName={`${baseClass}__label-title`}
         label="Name"
         placeholder="Label name"
       />
       <InputField
-        error={formValidation.description?.message}
-        parseTarget
         name="description"
-        onChange={onFormChange}
-        onBlur={onInputBlur}
+        onChange={onDescriptionChange}
         value={description}
         inputClassName={`${baseClass}__label-description`}
         label="Description"
@@ -162,11 +114,7 @@ const LabelForm = ({
         <Button onClick={onCancel} variant="inverse">
           Cancel
         </Button>
-        <Button
-          type="submit"
-          isLoading={isUpdatingLabel}
-          disabled={!formValidation.isValid}
-        >
+        <Button type="submit" isLoading={isUpdatingLabel}>
           Save
         </Button>
       </div>

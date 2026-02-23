@@ -4,8 +4,8 @@ import (
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server/config"
-	"github.com/fleetdm/fleet/v4/server/platform/logging"
 	common_mysql "github.com/fleetdm/fleet/v4/server/platform/mysql"
+	"github.com/go-kit/log"
 	"github.com/ngrok/sqlmw"
 )
 
@@ -18,7 +18,7 @@ const (
 type DBOption func(o *common_mysql.DBOptions) error
 
 // Logger adds a Logger to the datastore.
-func Logger(l *logging.Logger) DBOption {
+func Logger(l log.Logger) DBOption {
 	return func(o *common_mysql.DBOptions) error {
 		o.Logger = l
 		return nil

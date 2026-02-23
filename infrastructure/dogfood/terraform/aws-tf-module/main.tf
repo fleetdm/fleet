@@ -23,7 +23,7 @@ terraform {
     }
     docker = {
       source  = "kreuzwerker/docker"
-      version = "3.6.2"
+      version = "3.0.2"
     }
   }
 }
@@ -77,6 +77,9 @@ locals {
     # ELASTIC_APM_SERVICE_NAME                   = "dogfood"
     FLEET_CALENDAR_PERIODICITY = var.fleet_calendar_periodicity
     # Webhook Results & Status Logging Destination
+    FLEET_WEBHOOK_STATUS_URL        = var.webhook_url
+    FLEET_WEBHOOK_RESULT_URL        = var.webhook_url
+    FLEET_OSQUERY_RESULT_LOG_PLUGIN = var.webhook_url != "" ? "webhook" : ""
     FLEET_SERVER_VPP_VERIFY_TIMEOUT = "20m"
     FLEET_SERVER_GZIP_RESPONSES     = "true"
 
@@ -207,8 +210,7 @@ module "main" {
       module.ses.fleet_extra_environment_variables,
       local.extra_environment_variables,
       module.geolite2.extra_environment_variables,
-      module.vuln-processing.extra_environment_variables,
-      module.firehose-logging.fleet_extra_environment_variables
+      module.vuln-processing.extra_environment_variables
     )
     extra_execution_iam_policies = concat(
       module.mdm.extra_execution_iam_policies,
@@ -495,13 +497,14 @@ module "mdm" {
   abm_secret_name    = null
 }
 
+# can deprecate once we get webhooks rolling
 module "firehose-logging" {
   source                = "github.com/fleetdm/fleet-terraform//addons/byo-firehose-logging-destination/firehose?ref=tf-mod-addon-byo-firehose-logging-destination-firehose-v2.0.3"
   firehose_results_name = "osquery_results"
   firehose_status_name  = "osquery_status"
   firehose_audit_name   = "fleet_audit"
-  iam_role_arn          = "arn:aws:iam::273354660820:role/terraform-20260217045329203000000002"
-  region                = "us-east-1"
+  iam_role_arn          = "arn:aws:iam::273354660820:role/terraform-20250115232230102400000003"
+  region                = data.aws_region.current.region
 }
 
 module "osquery-carve" {
@@ -725,7 +728,7 @@ module "ses" {
 # }
 
 module "geolite2" {
-  source            = "github.com/fleetdm/fleet-terraform//addons/geolite2?ref=tf-mod-addon-geolite2-v1.0.1"
+  source            = "github.com/fleetdm/fleet-terraform//addons/geolite2?ref=tf-mod-addon-geolite2-v1.0.0"
   fleet_image       = var.fleet_image
   destination_image = local.geolite2_image
   license_key       = var.geolite2_license

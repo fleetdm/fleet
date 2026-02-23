@@ -133,11 +133,11 @@ const PolicyRunScriptModal = ({
             Go to{" "}
             <CustomLink
               url={getPathWithQueryParams(paths.CONTROLS_SCRIPTS, {
-                fleet_id: teamId,
+                team_id: teamId,
               })}
               text="Controls &gt; Scripts"
             />{" "}
-            to add scripts to this fleet.
+            to add scripts to this team.
           </div>
         </div>
       );

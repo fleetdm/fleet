@@ -43,7 +43,7 @@ If you're trying to troubleshoot macOS hosts, you can [run a script](https://git
 
 ## Checking MDM commands
 
-If you suspect something went wrong with an [MDM command](https://fleetdm.com/guides/mdm-commands#basic-article) for a device (such as locking, wiping, installing an app, etc.), you can use the UI or API to view the MDM command results.
+If you suspect something went wrong with an MDM command for a device (such as locking, wiping, installing an app, etc.), you can use the UI or API to view the MDM command results.
 
 For the UI, open the host details page and under **Activity** toggle the switch for **Show MDM commands**.
 
@@ -57,9 +57,6 @@ For the API, use the [List MDM commands](https://fleetdm.com/docs/rest-api/rest-
 pbpaste | base64 -d
 ```
 
-## MDM troubleshooting
-
-Fleet's MDM software engineering team has created a resource they use for MDM support escalations. The [MDM troubleshooting checklist](https://github.com/fleetdm/fleet/blob/8c8f1dac4857e73804c1dc720efdacc14d0d3d6c/docs/Contributing/product-groups/mdm/mdm-bug-checklist.md) lives as a plain-text document in the public Fleet GitHub repository so that anyone can keep it up-to-date as needed. 
 
 ## Server-side logs
 
@@ -68,6 +65,7 @@ Use [fleetctl](https://fleetdm.com/guides/fleetctl) to see server logs.
 ```bash
 fleetctl debug errors
 ```
+
 
 <meta name="category" value="guides">
 <meta name="authorFullName" value="Steven Palmesano">

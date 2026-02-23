@@ -1482,7 +1482,7 @@ module.exports = {
 
           // Add the uninstall script and the latest version to this app's configuration.
           // Note: we esacape the uninstall script to prevent issues when storing these values in the website's JSON configuration.
-          appInformation.uninstallScript = scriptToUninstallThisApp;
+          appInformation.uninstallScript = _.escape(scriptToUninstallThisApp);
           appInformation.version = latestVersionOfThisApp.version.split(',')[0];
           appLibrary.push(appInformation);
         });
@@ -1523,7 +1523,7 @@ module.exports = {
           }
 
           // Format the script so it be safely stored as a string in the website's JSON configuration.
-          script.script = script.script;
+          script.script = _.escape(script.script);
 
           // Create a url slug for this script
           script.slug = _.kebabCase(script.platform+' '+script.name);// ex: macos-collect-fleetd-logs
@@ -1584,9 +1584,8 @@ module.exports = {
           command.lineNumberInYaml = lineNumberForEdittingThisCommand; // Set the line number for edits.
 
 
-          // Note: The command descriptions are escaped because they include references to XML tags (e.g., <Data>) that can cause issues with Vue.
+          command.command = _.escape(command.command);
           command.description = _.escape(command.description);
-          command.command = command.command;
           // Create a url slug for this script
           command.slug = _.kebabCase(command.platform+' '+command.name);
 

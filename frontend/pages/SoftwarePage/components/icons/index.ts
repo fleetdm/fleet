@@ -4,15 +4,12 @@
 import { HOST_LINUX_PLATFORMS } from "interfaces/platform";
 import { ISoftware } from "interfaces/software";
 
-import BetterDisplay from "./BetterDisplay";
 import ConnectFonts from "./ConnectFonts";
 import CrashPlan from "./CrashPlan";
-import LastPass from "./LastPass";
 import Nextcloud from "./Nextcloud";
 import Notepad from "./Notepad++";
 import OktaVerify from "./OktaVerify";
 import Proxifier from "./Proxifier";
-import Putty from "./Putty";
 import SevenZip from "./7Zip";
 import Abstract from "./Abstract";
 import AcrobatReader from "./AcrobatReader";
@@ -269,7 +266,6 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   "aws client vpn": AwsVpnClient,
   balenaetcher: BalenaEtcher,
   bbedit: BBEdit,
-  betterdisplay: BetterDisplay,
   "beyond compare": BeyondCompare,
   bitwarden: Bitwarden,
   blender: Blender,
@@ -295,7 +291,6 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   "company portal": IntuneCompanyPortal,
   "connect fonts": ConnectFonts,
   crashplan: CrashPlan,
-  lastpass: LastPass,
   "microsoft.companyportal": IntuneCompanyPortal,
   coteditor: CotEditor,
   cursor: Cursor,
@@ -409,7 +404,6 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   "proton mail": ProtonMail,
   protonvpn: ProtonVpn,
   proxifier: Proxifier,
-  putty: Putty,
   "pycharm ce": PyCharmCe,
   pycharm: PyCharm,
   quip: Quip,

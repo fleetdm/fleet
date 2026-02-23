@@ -42,7 +42,7 @@ const generateInstallerPoliciesTableConfig = ({
           path={getPathWithQueryParams(
             PATHS.EDIT_POLICY(cellProps.row.original.id),
             {
-              fleet_id: teamId,
+              team_id: teamId,
             }
           )}
         />

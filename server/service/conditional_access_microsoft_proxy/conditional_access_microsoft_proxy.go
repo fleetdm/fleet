@@ -296,10 +296,6 @@ func (e *notFoundError) IsNotFound() bool {
 	return true
 }
 
-func (e *notFoundError) IsClientError() bool {
-	return true
-}
-
 func (p *Proxy) setHeaders(r *http.Request) error {
 	origin, err := p.originGetter()
 	if err != nil {

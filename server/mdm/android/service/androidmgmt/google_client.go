@@ -339,10 +339,6 @@ func (p appNotFoundError) IsNotFound() bool {
 	return true
 }
 
-func (p appNotFoundError) IsClientError() bool {
-	return true
-}
-
 func (g *GoogleClient) EnterprisesApplications(ctx context.Context, enterpriseName, packageName string) (*androidmanagement.Application, error) {
 	path := fmt.Sprintf("%s/applications/%s", enterpriseName, packageName)
 	app, err := g.mgmt.Enterprises.Applications.Get(path).Context(ctx).Do()

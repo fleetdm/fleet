@@ -21,7 +21,7 @@ const MissingHosts = ({
   // build the manage hosts URL filtered by missing and platform
   const queryParams = {
     status: "missing",
-    fleet_id: currentTeamId,
+    team_id: currentTeamId,
   };
 
   const endpoint = selectedPlatformLabelId

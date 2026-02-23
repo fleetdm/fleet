@@ -55,8 +55,8 @@ interface IAddTeamToVppMessage {
 
 const AddTeamToVppMessage = ({ onEditVpp }: IAddTeamToVppMessage) => (
   <EmptyTable
-    header="This fleet isn't added to Volume Purchasing Program (VPP)"
-    info="To add App Store apps, first add this fleet to VPP."
+    header="This team isn't added to Volume Purchasing Program (VPP)"
+    info="To add App Store apps, first add this team to VPP."
     primaryButton={<Button onClick={onEditVpp}> Edit VPP</Button>}
   />
 );
@@ -74,7 +74,7 @@ const NoVppAppsMessage = () => (
         newTab
       />
       .<br />
-      App Store apps that are already added to this fleet are not listed.
+      App Store apps that are already added to this team are not listed.
     </p>
   </div>
 );
@@ -150,7 +150,7 @@ const SoftwareAppStoreVpp = ({
 
   const goBackToSoftwareTitles = (showAvailableForInstallOnly = false) => {
     const queryParams = {
-      fleet_id: currentTeamId,
+      team_id: currentTeamId,
       ...(showAvailableForInstallOnly && { available_for_install: true }),
     };
 
@@ -185,7 +185,7 @@ const SoftwareAppStoreVpp = ({
       router.push(
         getPathWithQueryParams(
           PATHS.SOFTWARE_TITLE_DETAILS(softwareVppTitleId.toString()),
-          { fleet_id: currentTeamId }
+          { team_id: currentTeamId }
         )
       );
     } catch (e) {

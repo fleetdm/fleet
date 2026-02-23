@@ -3,13 +3,14 @@ package ratelimit
 import (
 	"context"
 	"fmt"
-	"log/slog"
 	"net/http"
 
 	authz_ctx "github.com/fleetdm/fleet/v4/server/contexts/authz"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/contexts/publicip"
 	"github.com/go-kit/kit/endpoint"
+	kitlog "github.com/go-kit/log"
+	"github.com/go-kit/log/level"
 	"github.com/throttled/throttled/v2"
 )
 
@@ -85,7 +86,7 @@ func NewErrorMiddleware(ipBanner IPBanner) *ErrorMiddleware {
 	return &ErrorMiddleware{ipBanner: ipBanner}
 }
 
-func (m *ErrorMiddleware) Limit(logger *slog.Logger) endpoint.Middleware {
+func (m *ErrorMiddleware) Limit(logger kitlog.Logger) endpoint.Middleware {
 	return func(next endpoint.Endpoint) endpoint.Endpoint {
 		return func(ctx context.Context, req interface{}) (response interface{}, err error) {
 			publicIP := publicip.FromContext(ctx)
@@ -110,14 +111,22 @@ func (m *ErrorMiddleware) Limit(logger *slog.Logger) endpoint.Middleware {
 				if az, ok := authz_ctx.FromContext(ctx); ok {
 					az.SetChecked()
 				}
-				logger.WarnContext(ctx, "limit exceeded", "ip", publicIP)
+				level.Warn(logger).Log(
+					"ip", publicIP,
+					"msg", "limit exceeded",
+				)
 				return nil, ctxerr.Wrap(ctx, &rateLimitError{})
+
 			}
 
 			resp, err := next(ctx, req)
 
 			if rateErr := m.ipBanner.RunRequest(publicIP, err == nil); rateErr != nil {
-				logger.WarnContext(ctx, "fail to run request on IP banner", "ip", publicIP, "err", rateErr)
+				level.Warn(logger).Log(
+					"ip", publicIP,
+					"msg", "fail to run request on IP banner",
+					"err", rateErr,
+				)
 			}
 
 			return resp, err
@@ -149,10 +158,6 @@ func (r rateLimitError) StatusCode() int {
 
 func (r rateLimitError) RetryAfter() int {
 	return int(r.result.RetryAfter.Seconds())
-}
-
-func (r rateLimitError) IsClientError() bool {
-	return true
 }
 
 func (r rateLimitError) Result() throttled.RateLimitResult {

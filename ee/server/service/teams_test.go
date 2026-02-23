@@ -134,12 +134,8 @@ func TestObfuscateSecrets(t *testing.T) {
 		}
 	})
 
-	t.Run("user is global observer/observer+/technician", func(t *testing.T) {
-		roles := []*string{
-			ptr.String(fleet.RoleObserver),
-			ptr.String(fleet.RoleObserverPlus),
-			ptr.String(fleet.RoleTechnician),
-		}
+	t.Run("user is global observer", func(t *testing.T) {
+		roles := []*string{ptr.String(fleet.RoleObserver), ptr.String(fleet.RoleObserverPlus)}
 		for _, r := range roles {
 			user := &fleet.User{GlobalRole: r}
 			teams := buildTeams(3)
@@ -155,8 +151,8 @@ func TestObfuscateSecrets(t *testing.T) {
 		}
 	})
 
-	t.Run("user is observer/technician in some teams", func(t *testing.T) {
-		teams := buildTeams(5)
+	t.Run("user is observer in some teams", func(t *testing.T) {
+		teams := buildTeams(4)
 
 		// Make user an observer in the 'even' teams
 		user := &fleet.User{Teams: []fleet.UserTeam{
@@ -172,10 +168,6 @@ func TestObfuscateSecrets(t *testing.T) {
 				Team: *teams[3],
 				Role: fleet.RoleObserverPlus,
 			},
-			{
-				Team: *teams[4],
-				Role: fleet.RoleTechnician,
-			},
 		}}
 
 		err := obfuscateSecrets(user, teams)
@@ -183,7 +175,7 @@ func TestObfuscateSecrets(t *testing.T) {
 
 		for i, team := range teams {
 			for _, s := range team.Secrets {
-				require.Equal(t, fleet.MaskedPassword == s.Secret, i == 0 || i == 1 || i == 3 || i == 4)
+				require.Equal(t, fleet.MaskedPassword == s.Secret, i == 0 || i == 1 || i == 3)
 			}
 		}
 	})

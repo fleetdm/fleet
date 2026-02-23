@@ -49,7 +49,7 @@ The goal of the MDM group is to increase and exceed [Fleet's product maturity go
 
 | Responsibility                    | Human(s)                  |
 |:----------------------------------|:--------------------------|
-| Product Designer                  | [Mel Pike](https://www.linkedin.com/in/melpike/) _([@melpike](https://github.com/melpike))_
+| Product Designer                  | [Marko Lisica](https://www.linkedin.com/in/markolisica/) _([@marko-lisica](https://github.com/marko-lisica))_
 | Engineering Manager               | [George Karr](https://www.linkedin.com/in/george-karr-4977b441/) _([@georgekarrv](https://github.com/georgekarrv))_
 | Tech Lead                         | [Jordan Montgomery](https://www.linkedin.com/in/jordan-montgomery-54553651/) _([@JordanMontgomery](https://github.com/JordanMontgomery))_
 | Quality Assurance                 | [Andrey Kizimenko](https://www.linkedin.com/in/andrey-kizimenko-988900214/) _([@AndreyKizimenko](https://github.com/AndreyKizimenko))_
@@ -1000,7 +1000,7 @@ Our scrum boards are exclusively composed of four types of scrum items:
 
 4. **Bugs**: Representing errors or flaws that result in incorrect or unexpected outcomes, bugs are marked with the `bug` label. Like user stories and sub-tasks, bugs are documented, prioritized, and addressed during a sprint.
 
-5. **Quick wins**: These are small copy or UX improvements that aren't quite bugs but they're so small that they're worthwhile. Once approved at design review, quick wins skip user story review and go straight to the current sprint. It's up to the individual who opened the pull request (PR) to make sure the quick win is moved to "Awaiting QA" when the PR is merged.
+5. **Quick wins**: These are small copy or UX improvements that aren't quite bugs but they're so small that they're worthwhile. Once approved at design review, quick wins skip user story review and go straight to the current sprint.
 
 > Our sprint boards do not accommodate any other type of ticket. By strictly adhering to these scrum items, we maintain an organized and focused workflow that consistently adds value for our users.
 

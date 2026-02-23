@@ -42,7 +42,7 @@ describe("SiteTopNav - component", () => {
     expect(screen.getByText(/hosts/i)).toBeInTheDocument();
     expect(screen.getByText(/controls/i)).toBeInTheDocument();
     expect(screen.getByText(/software/i)).toBeInTheDocument();
-    expect(screen.getByText(/reports/i)).toBeInTheDocument();
+    expect(screen.getByText(/queries/i)).toBeInTheDocument();
     expect(screen.getByText(/policies/i)).toBeInTheDocument();
     expect(
       screen.getByRole("menuitem", { name: /settings/i })
@@ -89,7 +89,7 @@ describe("SiteTopNav - component", () => {
     expect(screen.getByText(/hosts/i)).toBeInTheDocument();
     expect(screen.getByText(/controls/i)).toBeInTheDocument();
     expect(screen.getByText(/software/i)).toBeInTheDocument();
-    expect(screen.getByText(/reports/i)).toBeInTheDocument();
+    expect(screen.getByText(/queries/i)).toBeInTheDocument();
     expect(screen.getByText(/policies/i)).toBeInTheDocument();
     expect(
       screen.getByRole("menuitem", { name: /my account/i })
@@ -130,7 +130,7 @@ describe("SiteTopNav - component", () => {
 
     expect(screen.getByText(/hosts/i)).toBeInTheDocument();
     expect(screen.getByText(/software/i)).toBeInTheDocument();
-    expect(screen.getByText(/reports/i)).toBeInTheDocument();
+    expect(screen.getByText(/queries/i)).toBeInTheDocument();
     expect(screen.getByText(/policies/i)).toBeInTheDocument();
     expect(
       screen.getByRole("menuitem", { name: /my account/i })
@@ -171,7 +171,7 @@ describe("SiteTopNav - component", () => {
     expect(screen.getByText(/hosts/i)).toBeInTheDocument();
     expect(screen.getByText(/controls/i)).toBeInTheDocument();
     expect(screen.getByText(/software/i)).toBeInTheDocument();
-    expect(screen.getByText(/reports/i)).toBeInTheDocument();
+    expect(screen.getByText(/queries/i)).toBeInTheDocument();
     expect(screen.getByText(/policies/i)).toBeInTheDocument();
     expect(
       screen.getByRole("menuitem", { name: /settings/i })
@@ -217,7 +217,7 @@ describe("SiteTopNav - component", () => {
     expect(screen.getByText(/hosts/i)).toBeInTheDocument();
     expect(screen.getByText(/controls/i)).toBeInTheDocument();
     expect(screen.getByText(/software/i)).toBeInTheDocument();
-    expect(screen.getByText(/reports/i)).toBeInTheDocument();
+    expect(screen.getByText(/queries/i)).toBeInTheDocument();
     expect(screen.getByText(/policies/i)).toBeInTheDocument();
     expect(
       screen.getByRole("menuitem", { name: /my account/i })
@@ -258,7 +258,7 @@ describe("SiteTopNav - component", () => {
 
     expect(screen.getByText(/hosts/i)).toBeInTheDocument();
     expect(screen.getByText(/software/i)).toBeInTheDocument();
-    expect(screen.getByText(/reports/i)).toBeInTheDocument();
+    expect(screen.getByText(/queries/i)).toBeInTheDocument();
     expect(screen.getByText(/policies/i)).toBeInTheDocument();
     expect(
       screen.getByRole("menuitem", { name: /my account/i })
@@ -302,7 +302,7 @@ describe("SiteTopNav - component", () => {
     expect(screen.getByText(/hosts/i)).toBeInTheDocument();
     expect(screen.getByText(/controls/i)).toBeInTheDocument();
     expect(screen.getByText(/software/i)).toBeInTheDocument();
-    expect(screen.getByText(/reports/i)).toBeInTheDocument();
+    expect(screen.getByText(/queries/i)).toBeInTheDocument();
     expect(screen.getByText(/policies/i)).toBeInTheDocument();
     expect(
       screen.getByRole("menuitem", { name: /settings/i })
@@ -347,7 +347,7 @@ describe("SiteTopNav - component", () => {
     expect(screen.getByText(/hosts/i)).toBeInTheDocument();
     expect(screen.getByText(/controls/i)).toBeInTheDocument();
     expect(screen.getByText(/software/i)).toBeInTheDocument();
-    expect(screen.getByText(/reports/i)).toBeInTheDocument();
+    expect(screen.getByText(/queries/i)).toBeInTheDocument();
     expect(screen.getByText(/policies/i)).toBeInTheDocument();
     expect(
       screen.getByRole("menuitem", { name: /my account/i })
@@ -388,7 +388,7 @@ describe("SiteTopNav - component", () => {
 
     expect(screen.getByText(/hosts/i)).toBeInTheDocument();
     expect(screen.getByText(/software/i)).toBeInTheDocument();
-    expect(screen.getByText(/reports/i)).toBeInTheDocument();
+    expect(screen.getByText(/queries/i)).toBeInTheDocument();
     expect(screen.getByText(/policies/i)).toBeInTheDocument();
 
     expect(

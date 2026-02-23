@@ -1,3 +1,4 @@
+<!-- DO NOT EDIT. This document is automatically generated. -->
 # Audit logs
 
 Fleet logs activities.

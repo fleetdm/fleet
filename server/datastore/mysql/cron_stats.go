@@ -12,7 +12,7 @@ import (
 
 // GetLatestCronStats returns a slice of no more than two cron stats records, where index 0 (if
 // present) is the most recently created scheduled run, and index 1 (if present) represents a
-// triggered run that is currently pending/queued.
+// triggered run that is currently pending.
 func (ds *Datastore) GetLatestCronStats(ctx context.Context, name string) ([]fleet.CronStats, error) {
 	stmt := `
 (
@@ -36,7 +36,7 @@ UNION
 	WHERE
 		name = ?
 		AND stats_type = 'triggered'
-		AND (status = 'pending' OR status = 'completed' OR status = 'queued')
+		AND (status = 'pending' OR status = 'completed')
 	ORDER BY
 		created_at DESC
 	LIMIT 1)`
@@ -84,16 +84,6 @@ func (ds *Datastore) UpdateCronStats(ctx context.Context, id int, status fleet.C
 	return nil
 }
 
-func (ds *Datastore) ClaimCronStats(ctx context.Context, id int, instance string, status fleet.CronStatsStatus) error {
-	stmt := `UPDATE cron_stats SET status = ?, instance = ? WHERE id = ?`
-
-	if _, err := ds.writer(ctx).ExecContext(ctx, stmt, status, instance, id); err != nil {
-		return ctxerr.Wrap(ctx, err, "claim cron stats")
-	}
-
-	return nil
-}
-
 func (ds *Datastore) UpdateAllCronStatsForInstance(ctx context.Context, instance string, fromStatus fleet.CronStatsStatus, toStatus fleet.CronStatsStatus) error {
 	stmt := `UPDATE cron_stats SET status = ? WHERE instance = ? AND status = ?`
 
@@ -112,8 +102,8 @@ func (ds *Datastore) CleanupCronStats(ctx context.Context) error {
 			return ctxerr.Wrap(ctx, err, "deleting old cron stats")
 		}
 		// Mark cron_stats entries as expired if:
-		// 1. Pending or queued for >2 hours and no active lock (instance likely crashed), OR
-		// 2. Pending or queued for >12 hours regardless of lock state (hard cap for hung jobs).
+		// 1. Pending for >2 hours and no active lock (instance likely crashed), OR
+		// 2. Pending for >12 hours regardless of lock state (hard cap for hung jobs).
 		//
 		// NOTE: The lock check assumes locks.name matches cron_stats.name. Schedules using
 		// WithAltLockID (e.g., "leader", "worker") store locks under a different name, so
@@ -121,7 +111,7 @@ func (ds *Datastore) CleanupCronStats(ctx context.Context) error {
 		updateStmt := `
 			UPDATE cron_stats cs
 			SET cs.status = ?
-			WHERE cs.status IN (?, ?)
+			WHERE cs.status = ?
 			AND (
 				(cs.created_at < DATE_SUB(NOW(), INTERVAL 2 HOUR)
 				AND NOT EXISTS (
@@ -131,7 +121,7 @@ func (ds *Datastore) CleanupCronStats(ctx context.Context) error {
 				))
 				OR cs.created_at < DATE_SUB(NOW(), INTERVAL 12 HOUR)
 			)`
-		if _, err := tx.ExecContext(ctx, updateStmt, fleet.CronStatsStatusExpired, fleet.CronStatsStatusPending, fleet.CronStatsStatusQueued); err != nil {
+		if _, err := tx.ExecContext(ctx, updateStmt, fleet.CronStatsStatusExpired, fleet.CronStatsStatusPending); err != nil {
 			return ctxerr.Wrap(ctx, err, "updating expired cron stats")
 		}
 

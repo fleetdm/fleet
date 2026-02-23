@@ -1,2 +1,0 @@
-- Accept the previous device authentication token for up to one rotation cycle, so the My Device page URL remains valid after token refresh.
-- Generate a server-side device token in the Okta conditional access flow when none exists or the current token is expired.

@@ -30,7 +30,7 @@ const DEFAULT_OPTIONS = [
     premiumOnly: true,
   },
   {
-    label: "Live report",
+    label: "Query",
     value: "query",
     disabled: false,
   },
@@ -376,7 +376,7 @@ export const getDropdownOptionTooltipContent = (
     );
   }
   if (!isHostOnline && value === "query") {
-    return <>You can&apos;t run a live report on an offline host.</>;
+    return <>You can&apos;t query an offline host.</>;
   }
   return undefined;
 };

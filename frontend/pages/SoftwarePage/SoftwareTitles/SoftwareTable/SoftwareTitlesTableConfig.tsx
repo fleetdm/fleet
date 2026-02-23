@@ -47,7 +47,7 @@ const getSoftwareNameCellData = (
 ) => {
   const softwareTitleDetailsPath = getPathWithQueryParams(
     PATHS.SOFTWARE_TITLE_DETAILS(softwareTitle.id.toString()),
-    { fleet_id: teamId }
+    { team_id: teamId }
   );
 
   const { software_package, app_store_app } = softwareTitle;
@@ -206,7 +206,7 @@ const generateTableHeaders = (
           <ViewAllHostsLink
             queryParams={{
               software_title_id: cellProps.row.original.id,
-              fleet_id: teamId,
+              team_id: teamId,
             }}
             className="software-link"
             rowHover

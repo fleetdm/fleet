@@ -48,7 +48,7 @@ const generateTableHeaders = (
         const softwareVersionDetailsPath = getPathWithQueryParams(
           PATHS.SOFTWARE_VERSION_DETAILS(id.toString()),
           {
-            fleet_id: teamId,
+            team_id: teamId,
           }
         );
 
@@ -119,7 +119,7 @@ const generateTableHeaders = (
               <ViewAllHostsLink
                 queryParams={{
                   software_version_id: cellProps.row.original.id,
-                  fleet_id: teamId, // TODO: do we need fleet id here?
+                  team_id: teamId, // TODO: do we need team id here?
                 }}
                 className="software-link"
                 rowHover

@@ -312,7 +312,7 @@ type newMDMAppleConfigProfileResponse struct {
 func (newMDMAppleConfigProfileRequest) DecodeRequest(ctx context.Context, r *http.Request) (interface{}, error) {
 	decoded := newMDMAppleConfigProfileRequest{}
 
-	err := parseMultipartForm(ctx, r, platform_http.MaxMultipartFormSize)
+	err := r.ParseMultipartForm(platform_http.MaxMultipartFormSize)
 	if err != nil {
 		return nil, &fleet.BadRequestError{
 			Message:     "failed to parse multipart form",
@@ -320,16 +320,16 @@ func (newMDMAppleConfigProfileRequest) DecodeRequest(ctx context.Context, r *htt
 		}
 	}
 
-	val, ok := r.MultipartForm.Value["fleet_id"]
+	val, ok := r.MultipartForm.Value["team_id"]
 	if !ok || len(val) < 1 {
 		// default is no team
 		decoded.TeamID = 0
 	} else {
-		fleetID, err := strconv.Atoi(val[0])
+		teamID, err := strconv.Atoi(val[0])
 		if err != nil {
-			return nil, &fleet.BadRequestError{Message: fmt.Sprintf("failed to decode fleet_id in multipart form: %s", err.Error())}
+			return nil, &fleet.BadRequestError{Message: fmt.Sprintf("failed to decode team_id in multipart form: %s", err.Error())}
 		}
-		decoded.TeamID = uint(fleetID) //nolint:gosec // dismiss G115
+		decoded.TeamID = uint(teamID) //nolint:gosec // dismiss G115
 	}
 
 	fhs, ok := r.MultipartForm.File["profile"]
@@ -1007,7 +1007,7 @@ func (svc *Service) validateDeclarationLabels(ctx context.Context, labelNames []
 }
 
 type listMDMAppleConfigProfilesRequest struct {
-	TeamID uint `query:"team_id,optional" renameto:"fleet_id"`
+	TeamID uint `query:"team_id,optional"`
 }
 
 type listMDMAppleConfigProfilesResponse struct {
@@ -1328,7 +1328,7 @@ func (svc *Service) DeleteMDMAppleDeclaration(ctx context.Context, declUUID stri
 }
 
 type getMDMAppleFileVaultSummaryRequest struct {
-	TeamID *uint `query:"team_id,optional" renameto:"fleet_id"`
+	TeamID *uint `query:"team_id,optional"`
 }
 
 type getMDMAppleFileVaultSummaryResponse struct {
@@ -1365,7 +1365,7 @@ func (svc *Service) GetMDMAppleFileVaultSummary(ctx context.Context, teamID *uin
 }
 
 type getMDMAppleProfilesSummaryRequest struct {
-	TeamID *uint `query:"team_id,optional" renameto:"fleet_id"`
+	TeamID *uint `query:"team_id,optional"`
 }
 
 type getMDMAppleProfilesSummaryResponse struct {
@@ -2465,8 +2465,8 @@ func (svc *Service) MDMListHostConfigurationProfiles(ctx context.Context, hostID
 ////////////////////////////////////////////////////////////////////////////////
 
 type batchSetMDMAppleProfilesRequest struct {
-	TeamID   *uint    `json:"-" query:"team_id,optional" renameto:"fleet_id"`
-	TeamName *string  `json:"-" query:"team_name,optional" renameto:"fleet_name"`
+	TeamID   *uint    `json:"-" query:"team_id,optional"`
+	TeamName *string  `json:"-" query:"team_name,optional"`
 	DryRun   bool     `json:"-" query:"dry_run,optional"` // if true, apply validation but do not save changes
 	Profiles [][]byte `json:"profiles"`
 }
@@ -2788,7 +2788,7 @@ type uploadBootstrapPackageResponse struct {
 // An authenticated but unauthorized user could abuse this.
 func (uploadBootstrapPackageRequest) DecodeRequest(ctx context.Context, r *http.Request) (interface{}, error) {
 	decoded := uploadBootstrapPackageRequest{}
-	err := parseMultipartForm(ctx, r, platform_http.MaxMultipartFormSize)
+	err := r.ParseMultipartForm(platform_http.MaxMultipartFormSize)
 	if err != nil {
 		return nil, &fleet.BadRequestError{
 			Message:     "failed to parse multipart form",
@@ -2813,13 +2813,13 @@ func (uploadBootstrapPackageRequest) DecodeRequest(ctx context.Context, r *http.
 
 	// default is no team
 	decoded.TeamID = 0
-	val, ok := r.MultipartForm.Value["fleet_id"]
+	val, ok := r.MultipartForm.Value["team_id"]
 	if ok && len(val) > 0 {
-		fleetID, err := strconv.Atoi(val[0])
+		teamID, err := strconv.Atoi(val[0])
 		if err != nil {
-			return nil, &fleet.BadRequestError{Message: fmt.Sprintf("failed to decode fleet_id in multipart form: %s", err.Error())}
+			return nil, &fleet.BadRequestError{Message: fmt.Sprintf("failed to decode team_id in multipart form: %s", err.Error())}
 		}
-		decoded.TeamID = uint(fleetID) //nolint:gosec // dismiss G115
+		decoded.TeamID = uint(teamID) //nolint:gosec // dismiss G115
 	}
 
 	// Dry run
@@ -2905,7 +2905,7 @@ func (svc *Service) GetMDMAppleBootstrapPackageBytes(ctx context.Context, token 
 ////////////////////////////////////////////////////////////////////////////////
 
 type bootstrapPackageMetadataRequest struct {
-	TeamID uint `url:"fleet_id"`
+	TeamID uint `url:"team_id"`
 
 	// ForUpdate is used to indicate that the authorization should be for a
 	// "write" instead of a "read", this is needed specifically for the gitops
@@ -2951,7 +2951,7 @@ func (svc *Service) GetMDMAppleBootstrapPackageMetadata(ctx context.Context, tea
 ////////////////////////////////////////////////////////////////////////////////
 
 type deleteBootstrapPackageRequest struct {
-	TeamID uint `url:"fleet_id"`
+	TeamID uint `url:"team_id"`
 	DryRun bool `query:"dry_run,optional"` // if true, apply validation but do not delete
 }
 
@@ -2982,7 +2982,7 @@ func (svc *Service) DeleteMDMAppleBootstrapPackage(ctx context.Context, teamID *
 ////////////////////////////////////////////////////////////////////////////////
 
 type getMDMAppleBootstrapPackageSummaryRequest struct {
-	TeamID *uint `query:"team_id,optional" renameto:"fleet_id"`
+	TeamID *uint `query:"team_id,optional"`
 }
 
 type getMDMAppleBootstrapPackageSummaryResponse struct {
@@ -3014,7 +3014,7 @@ func (svc *Service) GetMDMAppleBootstrapPackageSummary(ctx context.Context, team
 ////////////////////////////////////////////////////////////////////////////////
 
 type createMDMAppleSetupAssistantRequest struct {
-	TeamID            *uint           `json:"team_id" renameto:"fleet_id"`
+	TeamID            *uint           `json:"team_id"`
 	Name              string          `json:"name"`
 	EnrollmentProfile json.RawMessage `json:"enrollment_profile"`
 }
@@ -3052,7 +3052,7 @@ func (svc *Service) SetOrUpdateMDMAppleSetupAssistant(ctx context.Context, asst 
 ////////////////////////////////////////////////////////////////////////////////
 
 type getMDMAppleSetupAssistantRequest struct {
-	TeamID *uint `query:"team_id,optional" renameto:"fleet_id"`
+	TeamID *uint `query:"team_id,optional"`
 }
 
 type getMDMAppleSetupAssistantResponse struct {
@@ -3084,7 +3084,7 @@ func (svc *Service) GetMDMAppleSetupAssistant(ctx context.Context, teamID *uint)
 ////////////////////////////////////////////////////////////////////////////////
 
 type deleteMDMAppleSetupAssistantRequest struct {
-	TeamID *uint `query:"team_id,optional" renameto:"fleet_id"`
+	TeamID *uint `query:"team_id,optional"`
 }
 
 type deleteMDMAppleSetupAssistantResponse struct {
@@ -5634,7 +5634,7 @@ func preprocessProfileContents(
 					hostContents = profiles.ReplaceFleetVariableInXML(fleetVarSCEPRenewalIDRegexp, hostContents, fleetRenewalID)
 
 				case strings.HasPrefix(fleetVar, string(fleet.FleetVarCustomSCEPChallengePrefix)):
-					replacedContents, replacedVariable, err := profiles.ReplaceCustomSCEPChallengeVariable(ctx, logger.SlogLogger(), fleetVar, customSCEPCAs, hostContents)
+					replacedContents, replacedVariable, err := profiles.ReplaceCustomSCEPChallengeVariable(ctx, logger, fleetVar, customSCEPCAs, hostContents)
 					if err != nil {
 						return ctxerr.Wrap(ctx, err, "replacing custom SCEP challenge variable")
 					}
@@ -5644,7 +5644,7 @@ func preprocessProfileContents(
 					hostContents = replacedContents
 
 				case strings.HasPrefix(fleetVar, string(fleet.FleetVarCustomSCEPProxyURLPrefix)):
-					replacedContents, managedCertificate, replacedVariable, err := profiles.ReplaceCustomSCEPProxyURLVariable(ctx, logger.SlogLogger(), ds, appConfig, fleetVar, customSCEPCAs, hostContents, hostUUID, profUUID)
+					replacedContents, managedCertificate, replacedVariable, err := profiles.ReplaceCustomSCEPProxyURLVariable(ctx, logger, ds, appConfig, fleetVar, customSCEPCAs, hostContents, hostUUID, profUUID)
 					if err != nil {
 						return ctxerr.Wrap(ctx, err, "replacing custom SCEP proxy URL variable")
 					}
@@ -6883,9 +6883,9 @@ func (svc *Service) CountABMTokens(ctx context.Context) (int, error) {
 
 type updateABMTokenTeamsRequest struct {
 	TokenID      uint  `url:"id"`
-	MacOSTeamID  *uint `json:"macos_team_id" renameto:"macos_fleet_id"`
-	IOSTeamID    *uint `json:"ios_team_id" renameto:"ios_fleet_id"`
-	IPadOSTeamID *uint `json:"ipados_team_id" renameto:"ipados_fleet_id"`
+	MacOSTeamID  *uint `json:"macos_team_id"`
+	IOSTeamID    *uint `json:"ios_team_id"`
+	IPadOSTeamID *uint `json:"ipados_team_id"`
 }
 
 type updateABMTokenTeamsResponse struct {
@@ -7270,9 +7270,8 @@ func (svc *Service) MDMAppleProcessOTAEnrollment(
 // EnsureMDMAppleServiceDiscovery checks if the service discovery URL is set up correctly with Apple
 // and assigns it if necessary.
 func EnsureMDMAppleServiceDiscovery(ctx context.Context, ds fleet.Datastore, depStorage storage.AllDEPStorage, logger *platformlogging.Logger,
-	urlPrefix string,
-) error {
-	depSvc := apple_mdm.NewDEPService(ds, depStorage, logger.SlogLogger())
+	urlPrefix string) error {
+	depSvc := apple_mdm.NewDEPService(ds, depStorage, logger)
 
 	ac, err := ds.AppConfig(ctx)
 	if err != nil {

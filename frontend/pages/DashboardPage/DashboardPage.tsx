@@ -91,7 +91,7 @@ interface IDashboardProps {
     search: string;
     hash?: string;
     query: {
-      fleet_id?: string;
+      team_id?: string;
     };
   };
 }

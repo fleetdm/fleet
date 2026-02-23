@@ -33,6 +33,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mdm/microsoft/syncml"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/variables"
+	kitlog "github.com/go-kit/log"
 	"github.com/go-kit/log/level"
 	mysql_driver "github.com/go-sql-driver/mysql"
 
@@ -2526,7 +2527,7 @@ func (svc *Service) GetMDMWindowsProfilesSummary(ctx context.Context, teamID *ui
 	return ps, nil
 }
 
-func ReconcileWindowsProfiles(ctx context.Context, ds fleet.Datastore, logger *slog.Logger) error {
+func ReconcileWindowsProfiles(ctx context.Context, ds fleet.Datastore, logger kitlog.Logger) error {
 	appConfig, err := ds.AppConfig(ctx)
 	if err != nil {
 		return fmt.Errorf("reading app config: %w", err)
@@ -2594,7 +2595,7 @@ func ReconcileWindowsProfiles(ctx context.Context, ds fleet.Datastore, logger *s
 		hostProfilesToUpdate = append(hostProfilesToUpdate, hp)
 		// Add to map for fast lookup
 		hostProfilesMap[p.HostUUID+"|"+p.ProfileUUID] = hp
-		logger.DebugContext(ctx, "installing profile", "profile_uuid", p.ProfileUUID, "host_id", p.HostUUID, "name", p.ProfileName)
+		level.Debug(logger).Log("msg", "installing profile", "profile_uuid", p.ProfileUUID, "host_id", p.HostUUID, "name", p.ProfileName)
 	}
 
 	// Grab the contents of all the profiles we need to install
@@ -2636,7 +2637,7 @@ func ReconcileWindowsProfiles(ctx context.Context, ds fleet.Datastore, logger *s
 			// No Fleet variables, send the same command to all hosts
 			command, err := buildCommandFromProfileBytes(p.SyncML, target.cmdUUID)
 			if err != nil {
-				logger.InfoContext(ctx, "error building command from profile", "err", err, "profile_uuid", profUUID)
+				level.Info(logger).Log("err", err, "profile_uuid", profUUID)
 				continue
 			}
 			if err := ds.MDMWindowsInsertCommandForHosts(ctx, target.hostUUIDs, command); err != nil {
@@ -2649,7 +2650,7 @@ func ReconcileWindowsProfiles(ctx context.Context, ds fleet.Datastore, logger *s
 				hp := hostProfilesMap[mapKey]
 				if hp == nil {
 					// This should never happen, but handle gracefully
-					logger.ErrorContext(ctx, "host profile not found in map", "profile_uuid", profUUID, "host_uuid", hostUUID)
+					level.Error(logger).Log("msg", "host profile not found in map", "profile_uuid", profUUID, "host_uuid", hostUUID)
 					continue
 				}
 
@@ -2674,7 +2675,7 @@ func ReconcileWindowsProfiles(ctx context.Context, ds fleet.Datastore, logger *s
 				// Build the command with the processed content
 				command, err := buildCommandFromProfileBytes([]byte(processedContent), hostCmdUUID)
 				if err != nil {
-					logger.InfoContext(ctx, "error building command from profile", "err", err, "profile_uuid", profUUID, "host_uuid", hostUUID)
+					level.Info(logger).Log("err", err, "profile_uuid", profUUID, "host_uuid", hostUUID)
 					// Mark this host's profile as failed
 					hp.Status = &fleet.MDMDeliveryFailed
 					hp.Detail = fmt.Sprintf("Failed to build command from profile: %s", err.Error())
@@ -2683,7 +2684,7 @@ func ReconcileWindowsProfiles(ctx context.Context, ds fleet.Datastore, logger *s
 
 				// Insert the command for this specific host
 				if err := ds.MDMWindowsInsertCommandForHosts(ctx, []string{hostUUID}, command); err != nil {
-					logger.ErrorContext(ctx, "inserting command for host", "err", err, "host_uuid", hostUUID)
+					level.Error(logger).Log("err", err, "msg", "inserting command for host", "host_uuid", hostUUID)
 					// Mark this host's profile as failed
 					hp.Status = &fleet.MDMDeliveryFailed
 					hp.Detail = fmt.Sprintf("Failed to insert command for host: %s", err.Error())

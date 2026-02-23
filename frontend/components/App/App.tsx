@@ -227,7 +227,7 @@ const App = ({ children, location }: IAppProps): JSX.Element => {
     // Also applies title to subpaths such as settings/organization/webaddress
     // TODO - handle different kinds of paths from PATHS - string, function w/params
     const curTitle = page_titles.find((item) =>
-      location?.pathname.startsWith(item.path)
+      location?.pathname.includes(item.path)
     );
 
     if (curTitle && curTitle.title) {

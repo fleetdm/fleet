@@ -48,7 +48,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"log/slog"
 	"strconv"
 	"strings"
 	"sync"
@@ -57,6 +56,8 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/datastore/redis"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	kitlog "github.com/go-kit/log"
+	"github.com/go-kit/log/level"
 	redigo "github.com/gomodule/redigo/redis"
 )
 
@@ -77,7 +78,7 @@ type redisLiveQuery struct {
 	// in memory cache expiration
 	cacheExpiration time.Duration
 
-	logger *slog.Logger
+	logger kitlog.Logger
 }
 
 // memCache is an in-memory cache for live queries. It stores the SQL of the
@@ -108,7 +109,7 @@ func (r *redisLiveQuery) getSQLByCampaignID(campaignID string) (string, bool) {
 
 // NewRedisQueryResults creates a new Redis implementation of the
 // QueryResultStore interface using the provided Redis connection pool.
-func NewRedisLiveQuery(pool fleet.RedisPool, logger *slog.Logger, memCacheExp time.Duration) *redisLiveQuery {
+func NewRedisLiveQuery(pool fleet.RedisPool, logger kitlog.Logger, memCacheExp time.Duration) *redisLiveQuery {
 	return &redisLiveQuery{
 		pool:            pool,
 		cache:           newMemCache(),
@@ -250,7 +251,7 @@ func (r *redisLiveQuery) collectBatchQueriesForHost(hostID uint, queryKeys []str
 			if sql, found := r.getSQLByCampaignID(name); found {
 				queriesByHost[name] = sql
 			} else {
-				r.logger.WarnContext(context.TODO(), "live query not found in cache", "name", name)
+				level.Warn(r.logger).Log("msg", "live query not found in cache", "name", name)
 			}
 		}
 	}
@@ -425,7 +426,7 @@ func (r *redisLiveQuery) loadCache() error {
 			go func() {
 				err = r.removeQueryNames(names...)
 				if err != nil {
-					r.logger.WarnContext(context.TODO(), "removing expired live queries", "err", err)
+					level.Warn(r.logger).Log("msg", "removing expired live queries", "err", err)
 				}
 			}()
 		}

@@ -60,7 +60,7 @@ interface IManageQueriesPageProps {
       query?: string;
       order_key?: string;
       order_direction?: "asc" | "desc";
-      fleet_id?: string;
+      team_id?: string;
     };
     search: string;
   };
@@ -194,7 +194,7 @@ const ManageQueriesPage = ({
   const onCreateQueryClick = useCallback(() => {
     setLastEditedQueryBody(DEFAULT_QUERY.query);
     router.push(
-      getPathWithQueryParams(PATHS.NEW_QUERY, { fleet_id: currentTeamId })
+      getPathWithQueryParams(PATHS.NEW_QUERY, { team_id: currentTeamId })
     );
   }, [currentTeamId, router, setLastEditedQueryBody]);
 
@@ -235,7 +235,7 @@ const ManageQueriesPage = ({
       }
       renderFlash(
         "success",
-        `Successfully deleted ${bulk ? "reports" : "report"}.`
+        `Successfully deleted ${bulk ? "queries" : "query"}.`
       );
       setResetSelectedRows(true);
       refetchQueries();
@@ -243,7 +243,7 @@ const ManageQueriesPage = ({
       renderFlash(
         "error",
         `There was an error deleting your ${
-          bulk ? "reports" : "report"
+          bulk ? "queries" : "query"
         }. Please try again later.`
       );
     } finally {
@@ -267,7 +267,7 @@ const ManageQueriesPage = ({
         return <h1>{userTeams[0].name}</h1>;
       }
     }
-    return <h1>Reports</h1>;
+    return <h1>Queries</h1>;
   };
 
   const renderQueriesTable = () => {
@@ -329,13 +329,13 @@ const ManageQueriesPage = ({
 
       try {
         await Promise.all(updateAutomatedQueries).then(() => {
-          renderFlash("success", `Successfully updated report automations.`);
+          renderFlash("success", `Successfully updated query automations.`);
           refetchQueries();
         });
       } catch (errorResponse) {
         renderFlash(
           "error",
-          `There was an error updating your report automations. Please try again later.`
+          `There was an error updating your query automations. Please try again later.`
         );
       } finally {
         toggleManageAutomationsModal();
@@ -385,6 +385,15 @@ const ManageQueriesPage = ({
     isTeamMaintainer ||
     isObserverPlus; // isObserverPlus checks global and selected team
 
+  let dropdownHelpText: string;
+  if (isAnyTeamSelected) {
+    dropdownHelpText = "Gather data about all hosts assigned to this team.";
+  } else if (config?.partnerships?.enable_primo) {
+    dropdownHelpText = "Gather data about your hosts.";
+  } else {
+    dropdownHelpText = "Gather data about all hosts.";
+  }
+
   const canManageAutomations = isGlobalAdmin || isTeamAdmin;
   const isManageAutomationsEnabled = isAnyTeamSelected
     ? (queriesResponse?.count ?? 0) >
@@ -414,8 +423,8 @@ const ManageQueriesPage = ({
                     <TooltipWrapper
                       tipContent={
                         isAnyTeamSelected && (queriesResponse?.count ?? 0) > 0
-                          ? 'To manage automations add a report to this fleet. For inherited reports select "All fleets".'
-                          : "To manage automations add a report."
+                          ? 'To manage automations add a query to this team. For inherited queries select "All teams".'
+                          : "To manage automations add a query."
                       }
                       underline={false}
                       position="top"
@@ -435,14 +444,14 @@ const ManageQueriesPage = ({
                     className={`${baseClass}__create-button`}
                     onClick={onCreateQueryClick}
                   >
-                    {isObserverPlus ? "Live report" : "Add report"}
+                    {isObserverPlus ? "Live query" : "Add query"}
                   </Button>
                 )}
               </div>
             )}
           </div>
 
-          <PageDescription content={"Gather data about your hosts."} />
+          <PageDescription content={dropdownHelpText} />
         </div>
         {renderQueriesTable()}
         {renderModals()}

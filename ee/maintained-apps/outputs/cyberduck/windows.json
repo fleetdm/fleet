@@ -1,14 +1,14 @@
 {
   "versions": [
     {
-      "version": "9.4.0.44341",
+      "version": "9.3.1.44136",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name = 'Cyberduck' AND publisher = 'iterate GmbH';"
       },
-      "installer_url": "https://update.cyberduck.io//Cyberduck-Installer-9.4.0.44341.msi",
+      "installer_url": "https://update.cyberduck.io//Cyberduck-Installer-9.3.1.44136.msi",
       "install_script_ref": "8959087b",
       "uninstall_script_ref": "5afbd60e",
-      "sha256": "899d551619d53fd28659886f1232082f70303fac25d068af2b43d007446abdef",
+      "sha256": "5d84b2c0fa8394a6667c49b1e781afc63d70a53b8f45e1c6e8a64e82f8259a86",
       "default_categories": [
         "Productivity"
       ],

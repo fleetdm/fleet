@@ -186,13 +186,13 @@ export const reconcileMutuallyInclusiveHostParams = ({
 
   if (macSettingsStatus) {
     // ensure macos_settings filter is always applied in
-    // conjunction with a team_id, 0 (no fleets) by default
+    // conjuction with a team_id, 0 (no teams) by default
     reconciled.macos_settings = macSettingsStatus;
     reconciled.team_id = teamId ?? 0;
   }
   if (osSettings) {
     // ensure os_settings filter is always applied in
-    // conjunction with a team_id, 0 (no fleets) by default
+    // conjuction with a team_id, 0 (no teams) by default
     reconciled[HOSTS_QUERY_PARAMS.OS_SETTINGS] = osSettings;
     reconciled.team_id = teamId ?? 0;
   }

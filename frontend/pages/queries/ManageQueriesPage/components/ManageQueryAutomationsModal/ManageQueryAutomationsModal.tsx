@@ -166,14 +166,14 @@ const ManageQueryAutomationsModal = ({
     >
       <div className={`${baseClass} form`}>
         <div className={`${baseClass}__heading`}>
-          Report automations let you send data gathered from macOS, Windows, and
+          Query automations let you send data gathered from macOS, Windows, and
           Linux hosts to a log destination. Data is sent according to a
-          report&apos;s interval.
+          query&apos;s interval.
         </div>
         {availableQueries.length ? (
           <div className={`${baseClass}__select form-field`}>
             <div className="form-field__label">
-              Choose which reports will send data:
+              Choose which queries will send data:
             </div>
             <div className={`${baseClass}__checkboxes`}>
               {queryItems &&
@@ -202,8 +202,8 @@ const ManageQueryAutomationsModal = ({
           </div>
         ) : (
           <div className={`${baseClass}__no-queries`}>
-            <b>You have no reports.</b>
-            <p>Add a report to turn on automations.</p>
+            <b>You have no queries.</b>
+            <p>Add a query to turn on automations.</p>
           </div>
         )}
         <div className={`${baseClass}__log-destination form-field`}>

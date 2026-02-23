@@ -118,12 +118,28 @@ func updateVulnsInDB(
 		return nil, err
 	}
 
-	allVulns := make([]fleet.SoftwareVulnerability, 0, len(toInsertSet))
-	for _, v := range toInsertSet {
-		allVulns = append(allVulns, v)
+	inserted := make([]fleet.SoftwareVulnerability, 0, len(toInsertSet))
+	err = utils.BatchProcess(toInsertSet, func(vulns []fleet.SoftwareVulnerability) error {
+		for _, v := range vulns {
+			ok, err := ds.InsertSoftwareVulnerability(ctx, v, fleet.MacOfficeReleaseNotesSource)
+			if err != nil {
+				return err
+			}
+
+			if ok {
+				inserted = append(inserted, v)
+			}
+		}
+
+		return nil
+		// Since we are only detecting Mac Office vulnerabilities 'toInsertSet' should be small, so
+		// inserting the whole batch in one go should be ok.
+	}, len(toInsertSet))
+	if err != nil {
+		return nil, err
 	}
 
-	return ds.InsertSoftwareVulnerabilities(ctx, allVulns, fleet.MacOfficeReleaseNotesSource)
+	return inserted, nil
 }
 
 // Analyze uses the most recent Mac Office release notes asset in 'vulnPath' for detecting

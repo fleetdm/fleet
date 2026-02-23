@@ -52,7 +52,7 @@ interface IQueryDetailsPageProps {
   location: {
     pathname: string;
     query: {
-      fleet_id?: string;
+      team_id?: string;
       order_key?: string;
       order_direction?: string;
       host_id?: string;
@@ -180,11 +180,11 @@ const QueryDetailsPage = ({
     !isOnGlobalTeam &&
     !isStoredQueryLoading &&
     storedQuery?.team_id &&
-    !(storedQuery?.team_id?.toString() === location.query.fleet_id)
+    !(storedQuery?.team_id?.toString() === location.query.team_id)
   ) {
     router.push(
       getPathWithQueryParams(location.pathname, {
-        fleet_id: storedQuery?.team_id?.toString(),
+        team_id: storedQuery?.team_id?.toString(),
       })
     );
   }
@@ -222,9 +222,9 @@ const QueryDetailsPage = ({
   useEffect(() => {
     // e.g., Discover TLS certificates | Queries | Fleet
     if (storedQuery?.name) {
-      document.title = `${storedQuery.name} | Reports | ${DOCUMENT_TITLE_SUFFIX}`;
+      document.title = `${storedQuery.name} | Queries | ${DOCUMENT_TITLE_SUFFIX}`;
     } else {
-      document.title = `Reports | ${DOCUMENT_TITLE_SUFFIX}`;
+      document.title = `Queries | ${DOCUMENT_TITLE_SUFFIX}`;
     }
   }, [location.pathname, storedQuery?.name]);
 
@@ -263,7 +263,7 @@ const QueryDetailsPage = ({
         );
 
       return getPathWithQueryParams(PATHS.MANAGE_QUERIES, {
-        fleet_id: currentTeamId,
+        team_id: currentTeamId,
       });
     };
 
@@ -271,7 +271,7 @@ const QueryDetailsPage = ({
       <>
         <div className={`${baseClass}__header-links`}>
           <BackButton
-            text={hostId ? "Back to host details" : "Back to reports"}
+            text={hostId ? "Back to host details" : "Back to queries"}
             path={backPath()}
           />
         </div>
@@ -311,14 +311,14 @@ const QueryDetailsPage = ({
                                 PATHS.LIVE_QUERY(queryId),
                                 {
                                   host_id: hostId,
-                                  fleet_id: currentTeamId,
+                                  team_id: currentTeamId,
                                 }
                               )
                             );
                         }}
                         disabled={isLiveQueryDisabled}
                       >
-                        Live report <Icon name="run" />
+                        Live query <Icon name="run" />
                       </Button>
                     </div>
                     <ReactTooltip
@@ -329,7 +329,7 @@ const QueryDetailsPage = ({
                       id="live-query-button"
                       data-html
                     >
-                      Live reports are disabled in organization settings
+                      Live queries are disabled in organization settings
                     </ReactTooltip>
                   </div>
                 )}
@@ -339,14 +339,14 @@ const QueryDetailsPage = ({
                       queryId &&
                         router.push(
                           getPathWithQueryParams(PATHS.EDIT_QUERY(queryId), {
-                            fleet_id: currentTeamId,
+                            team_id: currentTeamId,
                             host_id: hostId,
                           })
                         );
                     }}
                     className={`${baseClass}__manage-automations button`}
                   >
-                    Edit report
+                    Edit query
                   </Button>
                 )}
               </div>
@@ -360,11 +360,11 @@ const QueryDetailsPage = ({
                 <TooltipWrapper
                   tipContent={
                     <>
-                      Report automations let you send data to your log <br />
+                      Query automations let you send data to your log <br />
                       destination on a schedule. When automations are <b>
                         on
                       </b>, <br />
-                      data is sent according to a report&apos;s interval.
+                      data is sent according to a query&apos;s interval.
                     </>
                   }
                 >
@@ -398,8 +398,8 @@ const QueryDetailsPage = ({
       cta={<CustomLink url={SUPPORT_LINK} text="Get help" newTab />}
     >
       <div>
-        <b>Report clipped.</b> A sample of this report&apos;s results is
-        included below.
+        <b>Report clipped.</b> A sample of this query&apos;s results is included
+        below.
         {
           // Exclude below message for global and team observers/observer+s
           !(

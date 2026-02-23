@@ -122,7 +122,7 @@ describe("SaveNewQueryModal", () => {
 
     await user.click(screen.getByText("Save"));
 
-    expect(screen.getByText("Report name must be present")).toBeInTheDocument();
+    expect(screen.getByText("Query name must be present")).toBeInTheDocument();
   });
 
   it("should not show the target selector in the free tier", async () => {

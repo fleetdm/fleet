@@ -47,7 +47,7 @@ const LiveQueryIssueCell = ({
           {status === "offline" ? (
             <>
               Offline hosts will not <br />
-              respond to a live report.
+              respond to a live query.
             </>
           ) : (
             <>

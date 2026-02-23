@@ -88,7 +88,7 @@ describe("Host Actions Dropdown", () => {
 
       await user.click(screen.getByText("Actions"));
 
-      expect(screen.getByText("Live report")).toBeInTheDocument();
+      expect(screen.getByText("Query")).toBeInTheDocument();
     });
 
     it("renders the Query action as disabled with a tooltip when a host is offline", async () => {
@@ -115,17 +115,16 @@ describe("Host Actions Dropdown", () => {
       await user.click(screen.getByText("Actions"));
 
       expect(
-        screen.getByText("Live report").parentElement?.parentElement
-          ?.parentElement
+        screen.getByText("Query").parentElement?.parentElement?.parentElement
       ).toHaveClass("actions-dropdown-select__option--is-disabled");
 
       await waitFor(() => {
         waitFor(() => {
-          user.hover(screen.getByText("Live report"));
+          user.hover(screen.getByText("Query"));
         });
 
         expect(
-          screen.getByText(/You can't run a live report on an offline host./i)
+          screen.getByText(/You can't query an offline host./i)
         ).toBeInTheDocument();
       });
     });
@@ -153,8 +152,7 @@ describe("Host Actions Dropdown", () => {
 
       await user.click(screen.getByText("Actions"));
       expect(
-        screen.getByText("Live report").parentElement?.parentElement
-          ?.parentElement
+        screen.getByText("Query").parentElement?.parentElement?.parentElement
       ).toHaveClass("actions-dropdown-select__option--is-disabled");
     });
 
@@ -181,7 +179,7 @@ describe("Host Actions Dropdown", () => {
 
       await user.click(screen.getByText("Actions"));
 
-      expect(screen.getByText("Live report").parentElement).toHaveClass(
+      expect(screen.getByText("Query").parentElement).toHaveClass(
         "actions-dropdown-select__option--is-disabled"
       );
     });
@@ -1435,7 +1433,7 @@ describe("Host Actions Dropdown", () => {
       expect(screen.queryByText("Wipe")).toBeInTheDocument();
       expect(screen.queryByText("Delete")).toBeInTheDocument();
 
-      expect(screen.queryByText("Live report")).not.toBeInTheDocument();
+      expect(screen.queryByText("Query")).not.toBeInTheDocument();
       expect(screen.queryByText("Run script")).not.toBeInTheDocument();
       expect(
         screen.queryByText("Show disk encryption key")
@@ -1473,7 +1471,7 @@ describe("Host Actions Dropdown", () => {
       expect(screen.queryByText("Wipe")).toBeInTheDocument();
       expect(screen.queryByText("Delete")).toBeInTheDocument();
 
-      expect(screen.queryByText("Live report")).not.toBeInTheDocument();
+      expect(screen.queryByText("Query")).not.toBeInTheDocument();
       expect(screen.queryByText("Run script")).not.toBeInTheDocument();
       expect(
         screen.queryByText("Show disk encryption key")
@@ -1511,7 +1509,7 @@ describe("Host Actions Dropdown", () => {
 
       expect(screen.getByText("Transfer")).toBeInTheDocument();
       expect(screen.getByText("Delete")).toBeInTheDocument();
-      expect(screen.queryByText("Live report")).not.toBeInTheDocument();
+      expect(screen.queryByText("Query")).not.toBeInTheDocument();
       expect(screen.queryByText("Run script")).not.toBeInTheDocument();
       expect(screen.queryByText("Wipe")).not.toBeInTheDocument();
       expect(screen.queryByText("Lock")).not.toBeInTheDocument();
@@ -1550,7 +1548,7 @@ describe("Host Actions Dropdown", () => {
 
       expect(screen.getByText("Transfer")).toBeInTheDocument();
       expect(screen.getByText("Delete")).toBeInTheDocument();
-      expect(screen.queryByText("Live report")).not.toBeInTheDocument();
+      expect(screen.queryByText("Query")).not.toBeInTheDocument();
       expect(screen.queryByText("Run script")).not.toBeInTheDocument();
       expect(screen.queryByText("Wipe")).not.toBeInTheDocument();
       expect(screen.queryByText("Lock")).not.toBeInTheDocument();

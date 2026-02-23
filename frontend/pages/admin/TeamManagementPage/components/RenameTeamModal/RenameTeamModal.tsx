@@ -47,7 +47,7 @@ const RenameTeamModal = ({
   };
 
   return (
-    <Modal title="Rename fleet" onExit={onCancel} className={baseClass}>
+    <Modal title="Rename team" onExit={onCancel} className={baseClass}>
       <form
         className={`${baseClass}__form`}
         onSubmit={onFormSubmit}
@@ -60,8 +60,8 @@ const RenameTeamModal = ({
           onBlur={() => {
             setName(name.trim());
           }}
-          label="Fleet name"
-          placeholder="Fleet name"
+          label="Team name"
+          placeholder="Team name"
           value={name}
           error={errors.name}
           ignore1password

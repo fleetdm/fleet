@@ -2,7 +2,6 @@ package endpointer
 
 import (
 	"context"
-	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -98,16 +97,6 @@ func TestHandlesErrorsCode(t *testing.T) {
 			"status coder",
 			platform_http.NewAuthFailedError(""),
 			http.StatusUnauthorized,
-		},
-		{
-			"context canceled",
-			context.Canceled,
-			499,
-		},
-		{
-			"wrapped context canceled",
-			fmt.Errorf("db query: %w", context.Canceled),
-			499,
 		},
 		{
 			"default",

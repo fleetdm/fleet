@@ -121,18 +121,18 @@ const TeamManagementPage = (): JSX.Element => {
         .catch((createError: { data: IApiError }) => {
           if (createError.data.errors[0].reason.includes("Duplicate")) {
             setBackendValidators({
-              name: "A fleet with this name already exists",
+              name: "A team with this name already exists",
             });
           } else if (createError.data.errors[0].reason.includes("All teams")) {
             setBackendValidators({
-              name: `"All fleets" is a reserved fleet name. Please try another name.`,
+              name: `"All teams" is a reserved team name. Please try another name.`,
             });
           } else if (createError.data.errors[0].reason.includes("No team")) {
             setBackendValidators({
-              name: `"Unassigned" is a reserved fleet name. Please try another name.`,
+              name: `"No team" is a reserved team name. Please try another name.`,
             });
           } else {
-            renderFlash("error", "Could not create fleet. Please try again.");
+            renderFlash("error", "Could not create team. Please try again.");
             toggleCreateTeamModal();
           }
         })
@@ -188,7 +188,7 @@ const TeamManagementPage = (): JSX.Element => {
           .then(() => {
             renderFlash(
               "success",
-              `Successfully updated fleet name to ${formData.name}.`
+              `Successfully updated team name to ${formData.name}.`
             );
             setBackendValidators({});
             toggleRenameTeamModal();
@@ -198,17 +198,17 @@ const TeamManagementPage = (): JSX.Element => {
             console.error(updateError);
             if (updateError.data.errors[0].reason.includes("Duplicate")) {
               setBackendValidators({
-                name: "A fleet with this name already exists",
+                name: "A team with this name already exists",
               });
             } else if (
               updateError.data.errors[0].reason.includes("all teams")
             ) {
               setBackendValidators({
-                name: `"All fleets" is a reserved fleet name.`,
+                name: `"All teams" is a reserved team name.`,
               });
             } else if (updateError.data.errors[0].reason.includes("no team")) {
               setBackendValidators({
-                name: `"Unassigned" is a reserved fleet name. Please try another name.`,
+                name: `"No team" is a reserved team name. Please try another name.`,
               });
             } else {
               renderFlash(
@@ -252,7 +252,7 @@ const TeamManagementPage = (): JSX.Element => {
       return <></>;
     }
 
-    return <TableCount name="fleets" count={teams?.length} />;
+    return <TableCount name="teams" count={teams?.length} />;
   }, [teams]);
 
   const disabledPrimaryActionTooltip = (() => {
@@ -288,13 +288,13 @@ const TeamManagementPage = (): JSX.Element => {
             defaultSortDirection="asc"
             actionButton={{
               name: "create team",
-              buttonText: "Create fleet",
+              buttonText: "Create team",
               variant: "default",
               onClick: toggleCreateTeamModal,
               hideButton: teams && teams.length === 0,
               disabledTooltipContent: disabledPrimaryActionTooltip,
             }}
-            resultsTitle="fleets"
+            resultsTitle="teams"
             emptyComponent={() => (
               <EmptyTeamsTable
                 className={noTeamsClass}

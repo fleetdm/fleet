@@ -28,7 +28,7 @@ describe("Host Summary section", () => {
     });
   });
 
-  describe("Fleet data", () => {
+  describe("Team data", () => {
     it("renders the team name when present", () => {
       const render = createCustomRenderer({
         context: {
@@ -41,7 +41,7 @@ describe("Host Summary section", () => {
       });
       const summaryData = createMockHostSummary({ team_name: "Engineering" });
       render(<HostSummary summaryData={summaryData} isPremiumTier />);
-      expect(screen.getByText("Fleet").nextElementSibling).toHaveTextContent(
+      expect(screen.getByText("Team").nextElementSibling).toHaveTextContent(
         "Engineering"
       );
     });
@@ -52,12 +52,12 @@ describe("Host Summary section", () => {
       });
       const summaryData = createMockHostSummary({ team_name: "---" });
       render(<HostSummary summaryData={summaryData} isPremiumTier />);
-      expect(screen.getByText("Unassigned")).toBeInTheDocument();
+      expect(screen.getByText("No team")).toBeInTheDocument();
     });
   });
 
   describe("iOS and iPadOS data", () => {
-    it("for iOS, renders Fleet data only", async () => {
+    it("for iOS, renders Team data only", async () => {
       const render = createCustomRenderer({
         context: {
           app: {
@@ -79,11 +79,11 @@ describe("Host Summary section", () => {
 
       render(<HostSummary summaryData={summaryData} isPremiumTier />);
 
-      expect(screen.getByText("Fleet").nextElementSibling).toHaveTextContent(
+      expect(screen.getByText("Team").nextElementSibling).toHaveTextContent(
         teamName
       );
     });
-    it("for iPadOS, renders Fleet data only", async () => {
+    it("for iPadOS, renders Team data only", async () => {
       const render = createCustomRenderer({
         context: {
           app: {
@@ -105,7 +105,7 @@ describe("Host Summary section", () => {
 
       render(<HostSummary summaryData={summaryData} isPremiumTier />);
 
-      expect(screen.getByText("Fleet").nextElementSibling).toHaveTextContent(
+      expect(screen.getByText("Team").nextElementSibling).toHaveTextContent(
         teamName
       );
     });

@@ -25,7 +25,6 @@ module.exports = {
     unauthorized: { description: 'Invalid authentication token.', responseType: 'unauthorized'},
     notFound: { description: 'No Android enterprise found for this Fleet server.', responseType: 'notFound' },
     deviceNoLongerManaged: { description: 'The device is no longer managed by the Android enterprise.', responseType: 'notFound' },
-    invalidPolicyName: {description: 'The specified policy_name is invalid', responseType: 'badRequest' }
   },
 
 
@@ -92,10 +91,7 @@ module.exports = {
       if (errorString.includes('Device is no longer being managed')) {
         return {'deviceNoLongerManaged': 'The device is no longer managed by the Android enterprise.'};
       }
-      if(errorString.includes('policy_name is expected to start')) {
-        return {'invalidPolicyName': 'The request could not be completed because of an invalid policy name.'};
-      }
-      return new Error(`When attempting to update a device for an Android enterprise (${androidEnterpriseId}), an error occurred. Error: ${require('util').inspect(err)}`);
+      return new Error(`When attempting to update a device for an Android enterprise (${androidEnterpriseId}), an error occurred. Error: ${err}`);
     });
 
 

@@ -39,9 +39,9 @@ type Pack struct {
 	LabelIDs []uint   `json:"label_ids"`
 	Hosts    []Target `json:"hosts"`
 	HostIDs  []uint   `json:"host_ids"`
-	Teams    []Target `json:"teams" renameto:"fleets"`
+	Teams    []Target `json:"teams"`
 	// TeamIDs holds the ID of the teams this pack should target.
-	TeamIDs []uint `json:"team_ids" renameto:"fleet_ids"`
+	TeamIDs []uint `json:"team_ids"`
 
 	/////////////////////////////////////////////////////////////////
 	// WARNING: If you add to this struct make sure it's taken into
@@ -157,7 +157,7 @@ type PackPayload struct {
 	Disabled    *bool   `json:"disabled"`
 	HostIDs     *[]uint `json:"host_ids"`
 	LabelIDs    *[]uint `json:"label_ids"`
-	TeamIDs     *[]uint `json:"team_ids" renameto:"fleet_ids"`
+	TeamIDs     *[]uint `json:"team_ids"`
 }
 
 var (
@@ -182,7 +182,7 @@ type PackSpec struct {
 	Platform    string          `json:"platform,omitempty"`
 	Disabled    bool            `json:"disabled"`
 	Targets     PackSpecTargets `json:"targets,omitempty"`
-	Queries     []PackSpecQuery `json:"queries,omitempty" renameto:"reports"`
+	Queries     []PackSpecQuery `json:"queries,omitempty"`
 }
 
 // Verify verifies the pack's spec fields are valid.
@@ -200,11 +200,11 @@ func (p *PackSpec) Verify() error {
 
 type PackSpecTargets struct {
 	Labels []string `json:"labels"`
-	Teams  []string `json:"teams" renameto:"fleets"`
+	Teams  []string `json:"teams"`
 }
 
 type PackSpecQuery struct {
-	QueryName   string  `json:"query" renameto:"report" db:"query_name"`
+	QueryName   string  `json:"query" db:"query_name"`
 	Name        string  `json:"name"`
 	Description string  `json:"description"`
 	Interval    uint    `json:"interval"`
@@ -224,5 +224,5 @@ type PackStats struct {
 	//	- "team-$ID" is returned for team packs.
 	//	- "pack" means it is a user created pack.
 	Type       string                `json:"type"`
-	QueryStats []ScheduledQueryStats `json:"query_stats" renameto:"report_stats"`
+	QueryStats []ScheduledQueryStats `json:"query_stats"`
 }

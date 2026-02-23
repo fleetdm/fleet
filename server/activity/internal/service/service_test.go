@@ -12,6 +12,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/activity/api"
 	"github.com/fleetdm/fleet/v4/server/activity/internal/types"
 	platform_authz "github.com/fleetdm/fleet/v4/server/platform/authz"
+	platformlogging "github.com/fleetdm/fleet/v4/server/platform/logging"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -114,7 +115,7 @@ func setupTest(opts ...func(*testSetup)) *testSetup {
 	for _, opt := range opts {
 		opt(ts)
 	}
-	ts.svc = NewService(ts.authz, ts.ds, ts.providers, slog.New(slog.DiscardHandler))
+	ts.svc = NewService(ts.authz, ts.ds, ts.providers, slog.New(platformlogging.DiscardHandler{}))
 	return ts
 }
 
@@ -482,7 +483,7 @@ func TestStreamActivities(t *testing.T) {
 	t.Parallel()
 
 	newStreamingService := func(ds *mockStreamingDatastore) *Service {
-		return NewService(&mockAuthorizer{}, ds, &mockDataProviders{mockUserProvider: &mockUserProvider{}, mockHostProvider: &mockHostProvider{}}, slog.New(slog.DiscardHandler))
+		return NewService(&mockAuthorizer{}, ds, &mockDataProviders{mockUserProvider: &mockUserProvider{}, mockHostProvider: &mockHostProvider{}}, slog.New(platformlogging.DiscardHandler{}))
 	}
 
 	t.Run("basic streaming", func(t *testing.T) {

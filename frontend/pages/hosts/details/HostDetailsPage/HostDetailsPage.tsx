@@ -163,7 +163,7 @@ interface IHostDetailsProps {
       query?: string;
       order_key?: string;
       order_direction?: "asc" | "desc";
-      fleet_id?: string;
+      team_id?: string;
     };
     search?: string;
   };
@@ -669,7 +669,7 @@ const HostDetailsPage = ({
   useEffect(() => {
     setUsersState(() => {
       return (
-        host?.users?.filter((user) => {
+        host?.users.filter((user) => {
           return user.username
             .toLowerCase()
             .includes(usersSearchString.toLowerCase());
@@ -907,7 +907,7 @@ const HostDetailsPage = ({
 
       const successMessage =
         teamId === null
-          ? `Host successfully removed from fleets.`
+          ? `Host successfully removed from teams.`
           : `Host successfully transferred to  ${team.name}.`;
 
       renderFlash("success", successMessage);
@@ -974,7 +974,7 @@ const HostDetailsPage = ({
   const onClickAddQuery = () => {
     router.push(
       getPathWithQueryParams(PATHS.NEW_QUERY, {
-        fleet_id: currentTeam?.id || location.query.fleet_id,
+        team_id: currentTeam?.id || location.query.team_id,
         host_id: hostIdFromURL,
       })
     );
@@ -1100,7 +1100,7 @@ const HostDetailsPage = ({
     const navPath = hostDetailsSubNav[i].pathname;
     router.push(
       getPathWithQueryParams(navPath, {
-        fleet_id: currentTeam?.id || location.query.fleet_id,
+        team_id: currentTeam?.id || location.query.team_id,
       })
     );
   };
@@ -1109,7 +1109,7 @@ const HostDetailsPage = ({
     const navPath = hostSoftwareSubNav[i].pathname;
     router.push(
       getPathWithQueryParams(navPath, {
-        fleet_id: currentTeam?.id || location.query.fleet_id,
+        team_id: currentTeam?.id || location.query.team_id,
       })
     );
   };
@@ -1297,7 +1297,7 @@ const HostDetailsPage = ({
               path={
                 filteredHostsPath ||
                 getPathWithQueryParams(PATHS.MANAGE_HOSTS, {
-                  fleet_id: location.query.fleet_id,
+                  team_id: location.query.team_id,
                 })
               }
             />

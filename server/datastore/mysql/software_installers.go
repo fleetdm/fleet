@@ -522,9 +522,9 @@ func (ds *Datastore) getOrGenerateSoftwareInstallerTitleID(ctx context.Context, 
 	}
 
 	if payload.BundleIdentifier != "" {
-		// match by bundle identifier and source first, or standard matching if we don't have a bundle identifier match
-		selectStmt = `SELECT id FROM software_titles WHERE (bundle_identifier = ? AND source = ?) OR (name = ? AND source = ? AND extension_for = '') ORDER BY bundle_identifier = ? DESC LIMIT 1`
-		selectArgs = []any{payload.BundleIdentifier, payload.Source, payload.Title, payload.Source, payload.BundleIdentifier}
+		// match by bundle identifier first, or standard matching if we don't have a bundle identifier match
+		selectStmt = `SELECT id FROM software_titles WHERE bundle_identifier = ? OR (name = ? AND source = ? AND extension_for = '') ORDER BY bundle_identifier = ? DESC LIMIT 1`
+		selectArgs = []any{payload.BundleIdentifier, payload.Title, payload.Source, payload.BundleIdentifier}
 		// omit upgrade_code, since title.upgrade_code should be NULL for non-Windows software
 		insertStmt = `INSERT INTO software_titles (name, source, bundle_identifier, extension_for) VALUES (?, ?, ?, '')`
 		insertArgs = append(insertArgs, payload.BundleIdentifier)

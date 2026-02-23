@@ -102,7 +102,7 @@ export const COLUMN_CONFIGS: IColumnConfig[] = [
               className="view-hosts-link"
               queryParams={{
                 bootstrap_package: cellProps.row.original.status.value,
-                fleet_id: cellProps.row.original.teamId,
+                team_id: cellProps.row.original.teamId,
               }}
               rowHover
             />

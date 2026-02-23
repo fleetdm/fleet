@@ -15,7 +15,7 @@ describe("EditTeamsAbmModal", () => {
   describe("getOptions", () => {
     it("excludes all teams", () => {
       const expectedOptions = availableTeams.reduce((acc, t) => {
-        if (t.name !== "All fleets") {
+        if (t.name !== "All teams") {
           acc.push({ value: t.name, label: t.name });
         }
         return acc;
@@ -29,7 +29,7 @@ describe("EditTeamsAbmModal", () => {
       const selectedTeamNames = {
         ios_team: "Team 1",
         ipados_team: "Team 2",
-        macos_team: "Unassigned",
+        macos_team: "No team",
       };
       expect(getSelectedTeamIds(selectedTeamNames, availableTeams)).toEqual({
         ios_team_id: 1,

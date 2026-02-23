@@ -58,8 +58,6 @@ The market for device management solutions focused on macOS and Windows is enorm
 
 The market for enterprise Linux management tools has historically been small. This has meant a lack of options. Fleet is a modern, cross-platform device management solution based on open-source technology that provides full management coverage for Linux devices. In 2026, it’s time to get serious about managing Linux. [Fleet](https://fleetdm.com/) can help.
 
-The [next article](https://fleetdm.com/articles/automated-provisioning-for-linux-desktop-in-the-enterprise) in this series will cover the value proposition and importance of automating Linux endpoint provisioning. 
-
 <meta name="articleTitle" value="Why enterprise Linux is important in 2026">
 <meta name="authorFullName" value="Ashish Kuthiala">
 <meta name="authorGitHubUsername" value="akuthiala">

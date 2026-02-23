@@ -2,12 +2,10 @@ package scim
 
 import (
 	"bytes"
-	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
-	"log/slog"
 	"net/http"
 	"strings"
 
@@ -18,8 +16,11 @@ import (
 	"github.com/fleetdm/fleet/v4/server/authz"
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/platform/logging"
 	"github.com/fleetdm/fleet/v4/server/service/middleware/auth"
 	"github.com/fleetdm/fleet/v4/server/service/middleware/log"
+	kitlog "github.com/go-kit/log"
+	"github.com/go-kit/log/level"
 	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 )
 
@@ -31,7 +32,7 @@ func RegisterSCIM(
 	mux *http.ServeMux,
 	ds fleet.Datastore,
 	svc fleet.Service,
-	logger *slog.Logger,
+	logger *logging.Logger,
 	fleetConfig *config.FleetConfig,
 ) error {
 	if fleetConfig == nil {
@@ -200,7 +201,7 @@ func RegisterSCIM(
 	}
 
 	serverOpts := []scim.ServerOption{
-		scim.WithLogger(&scimErrorLogger{logger: scimLogger}),
+		scim.WithLogger(&scimErrorLogger{Logger: scimLogger}),
 	}
 
 	server, err := scim.NewServer(serverArgs, serverOpts...)
@@ -222,7 +223,7 @@ func RegisterSCIM(
 		handler = AuthorizationMiddleware(authorizer, scimLogger, handler)
 		handler = auth.AuthenticatedUserMiddleware(svc, scimErrorHandler, handler)
 		handler = LastRequestMiddleware(ds, scimLogger, handler)
-		handler = log.LogResponseEndMiddleware(scimLogger, handler)
+		handler = log.LogResponseEndMiddleware(scimLogger.SlogLogger(), handler)
 		handler = auth.SetRequestsContextMiddleware(svc, handler)
 		return handler
 	}
@@ -311,7 +312,7 @@ func scimOTELMiddleware(next http.Handler, prefix string, cfg config.FleetConfig
 
 // LastRequestMiddleware saves the details of the last request to SCIM endpoints in the datastore.
 // These details can be used as a debug tool by the Fleet admin to see if SCIM integration is working.
-func LastRequestMiddleware(ds fleet.Datastore, logger *slog.Logger, next http.Handler) http.Handler {
+func LastRequestMiddleware(ds fleet.Datastore, logger kitlog.Logger, next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		multi := newMultiResponseWriter(w)
 		next.ServeHTTP(multi, r)
@@ -322,7 +323,8 @@ func LastRequestMiddleware(ds fleet.Datastore, logger *slog.Logger, next http.Ha
 			status = "success"
 		case multi.statusCode == http.StatusUnauthorized:
 			// We do not save unauthenticated error details; we simply log them.
-			logger.InfoContext(r.Context(), "unauthenticated request",
+			level.Info(logger).Log(
+				"msg", "unauthenticated request",
 				"origin", r.Header.Get("Origin"),
 				"ip", r.RemoteAddr,
 				"method", r.Method,
@@ -348,7 +350,7 @@ func LastRequestMiddleware(ds fleet.Datastore, logger *slog.Logger, next http.Ha
 		default:
 			status = "error"
 			details = fmt.Sprintf("Unhandled status code: %d", multi.statusCode)
-			logger.ErrorContext(r.Context(), "unhandled status code", "status", multi.statusCode, "body", multi.body.String())
+			level.Error(logger).Log("msg", "unhandled status code", "status", multi.statusCode, "body", multi.body.String())
 		}
 		if len(details) > fleet.SCIMMaxFieldLength {
 			details = details[:fleet.SCIMMaxFieldLength]
@@ -358,12 +360,12 @@ func LastRequestMiddleware(ds fleet.Datastore, logger *slog.Logger, next http.Ha
 			Details: details,
 		})
 		if err != nil {
-			logger.ErrorContext(r.Context(), "failed to update last scim request", "err", err)
+			level.Error(logger).Log("msg", "failed to update last scim request", "err", err)
 		}
 	})
 }
 
-func AuthorizationMiddleware(authorizer *authz.Authorizer, logger *slog.Logger, next http.Handler) http.Handler {
+func AuthorizationMiddleware(authorizer *authz.Authorizer, logger kitlog.Logger, next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		err := authorizer.Authorize(r.Context(), &fleet.ScimUser{}, fleet.ActionWrite)
 		if err != nil {
@@ -374,14 +376,14 @@ func AuthorizationMiddleware(authorizer *authz.Authorizer, logger *slog.Logger, 
 	})
 }
 
-func errorHandler(w http.ResponseWriter, logger *slog.Logger, detail string, status int) {
+func errorHandler(w http.ResponseWriter, logger kitlog.Logger, detail string, status int) {
 	scimErr := scimerrors.ScimError{
 		Status: status,
 		Detail: detail,
 	}
 	raw, err := json.Marshal(scimErr)
 	if err != nil {
-		logger.ErrorContext(context.TODO(), "failed marshaling scim error", "scimError", scimErr, "err", err)
+		level.Error(logger).Log("msg", "failed marshaling scim error", "scimError", scimErr, "err", err)
 		return
 	}
 
@@ -389,18 +391,20 @@ func errorHandler(w http.ResponseWriter, logger *slog.Logger, detail string, sta
 	w.WriteHeader(scimErr.Status)
 	_, err = w.Write(raw)
 	if err != nil {
-		logger.ErrorContext(context.TODO(), "failed writing response", "err", err)
+		level.Error(logger).Log("msg", "failed writing response", "err", err)
 	}
 }
 
 type scimErrorLogger struct {
-	logger *slog.Logger
+	kitlog.Logger
 }
 
 var _ scim.Logger = &scimErrorLogger{}
 
 func (l *scimErrorLogger) Error(args ...interface{}) {
-	l.logger.ErrorContext(context.TODO(), fmt.Sprint(args...))
+	level.Error(l.Logger).Log(
+		"error", fmt.Sprint(args...),
+	)
 }
 
 type multiResponseWriter struct {

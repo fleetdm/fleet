@@ -4,8 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"maps"
-	"slices"
 	"testing"
 	"time"
 
@@ -23,99 +21,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
-
-func TestWhenCreatingNewLabelsPlatformIsValidated(t *testing.T) {
-	t.Parallel()
-
-	ds := new(mock.Store)
-	user := &fleet.User{
-		ID:         3,
-		Email:      "foo@bar.com",
-		GlobalRole: ptr.String(fleet.RoleAdmin),
-	}
-	svc, ctx := newTestService(t, ds, nil, nil)
-	ctx = viewer.NewContext(ctx, viewer.Viewer{User: user})
-
-	// Stubs
-	expectedNewLabel := fleet.Label{Name: "newly created label"}
-	ds.NewLabelFunc = func(ctx context.Context, lbl *fleet.Label, opts ...fleet.OptionalArg) (*fleet.Label, error) {
-		return &expectedNewLabel, nil
-	}
-	ds.HostIDsByIdentifierFunc = func(ctx context.Context, filter fleet.TeamFilter, hostnames []string) ([]uint, error) {
-		return nil, nil
-	}
-	ds.UpdateLabelMembershipByHostIDsFunc = func(ctx context.Context, label fleet.Label, hostIds []uint, teamFilter fleet.TeamFilter) (*fleet.Label, []uint, error) {
-		return nil, nil, nil
-	}
-	ds.LabelsByNameFunc = func(ctx context.Context, names []string, filter fleet.TeamFilter) (map[string]*fleet.Label, error) {
-		return map[string]*fleet.Label{}, nil
-	}
-	ds.SetAsideLabelsFunc = func(ctx context.Context, notOnTeamID *uint, names []string, user fleet.User) error {
-		return nil
-	}
-	ds.ApplyLabelSpecsWithAuthorFunc = func(ctx context.Context, specs []*fleet.LabelSpec, authorId *uint) error {
-		return nil
-	}
-
-	testCases := []struct {
-		Name       string
-		Platforms  []string
-		ShouldFail bool
-	}{
-		{
-			Name:      "valid platforms",
-			Platforms: slices.Collect(maps.Keys(fleet.ValidLabelPlatformVariants)),
-		},
-		{
-			Name:      "empty platforms",
-			Platforms: []string{""},
-		},
-		{
-			Name:       "invalid platforms",
-			Platforms:  []string{"biscuits_with_gravy"},
-			ShouldFail: true,
-		},
-	}
-
-	name := t.Name()
-	description := "bar"
-	query := "select * from foo;"
-	labelType := fleet.LabelTypeRegular
-	labelMembershipType := fleet.LabelMembershipTypeDynamic
-
-	for _, tc := range testCases {
-		t.Run(tc.Name, func(t *testing.T) {
-			for _, platform := range tc.Platforms {
-				actualNewLabel, _, err := svc.NewLabel(ctx, fleet.LabelPayload{
-					Name:        name,
-					Query:       query,
-					Description: description,
-					Platform:    platform,
-				})
-				if tc.ShouldFail {
-					require.Contains(t, err.Error(), fmt.Sprintf("invalid platform: %s", platform))
-				} else {
-					require.NoError(t, err)
-					require.NotNil(t, actualNewLabel)
-				}
-
-				err = svc.ApplyLabelSpecs(ctx, []*fleet.LabelSpec{{
-					Name:                name,
-					Description:         description,
-					Query:               query,
-					LabelType:           labelType,
-					LabelMembershipType: labelMembershipType,
-					Platform:            platform,
-				}}, nil, nil)
-				if tc.ShouldFail {
-					require.Contains(t, err.Error(), fmt.Sprintf("invalid platform: %s", platform))
-				} else {
-					require.NoError(t, err)
-				}
-			}
-		})
-	}
-}
 
 func TestLabelsAuth(t *testing.T) {
 	ds := new(mock.Store)

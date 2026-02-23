@@ -143,7 +143,7 @@ export default {
   },
   HOST_DETAILS: (id: number, teamId?: number): string => {
     if (teamId) {
-      return `${URL_PREFIX}/hosts/${id}/details?fleet_id=${teamId}`;
+      return `${URL_PREFIX}/hosts/${id}/details?team_id=${teamId}`;
     }
     return `${URL_PREFIX}/hosts/${id}/details`;
   },
@@ -179,25 +179,22 @@ export default {
   DEVICE_USER_DETAILS_POLICIES: (deviceAuthToken: string): string => {
     return `${URL_PREFIX}/device/${deviceAuthToken}/policies`;
   },
-  DEVICE_TRANSPARENCY: (deviceAuthToken: string): string => {
-    return `${URL_PREFIX}/api/v1/fleet/device/${deviceAuthToken}/transparency`;
-  },
 
   TEAM_DETAILS_USERS: (teamId?: number): string => {
     if (teamId !== undefined && teamId > 0) {
-      return `${URL_PREFIX}/settings/teams/users?fleet_id=${teamId}`;
+      return `${URL_PREFIX}/settings/teams/users?team_id=${teamId}`;
     }
     return `${URL_PREFIX}/settings/teams`;
   },
   TEAM_DETAILS_OPTIONS: (teamId?: number): string => {
     if (teamId !== undefined && teamId > 0) {
-      return `${URL_PREFIX}/settings/teams/options?fleet_id=${teamId}`;
+      return `${URL_PREFIX}/settings/teams/options?team_id=${teamId}`;
     }
     return `${URL_PREFIX}/settings/teams`;
   },
   TEAM_DETAILS_SETTINGS: (teamId?: number) => {
     if (teamId !== undefined && teamId > 0) {
-      return `${URL_PREFIX}/settings/teams/settings?fleet_id=${teamId}`;
+      return `${URL_PREFIX}/settings/teams/settings?team_id=${teamId}`;
     }
     return `${URL_PREFIX}/settings/teams`;
   },

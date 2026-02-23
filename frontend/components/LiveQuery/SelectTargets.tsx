@@ -361,11 +361,9 @@ const SelectTargets = ({
     entityType: string,
     entityList: ISelectLabel[] | ISelectTeam[]
   ): JSX.Element => {
-    const isTeamsSection = entityType === "teams";
-    const displayType = isTeamsSection ? "fleets" : entityType;
-    const isSearchEnabled = isTeamsSection || entityType === "labels";
+    const isSearchEnabled = entityType === "teams" || entityType === "labels";
     const searchTerm = (
-      (isTeamsSection ? searchTextTeams : searchTextLabels) || ""
+      (entityType === "teams" ? searchTextTeams : searchTextLabels) || ""
     ).toLowerCase();
     const arrFixed = entityList as Array<typeof entityList[number]>;
     const filteredEntities = isSearchEnabled
@@ -379,9 +377,8 @@ const SelectTargets = ({
         })
       : arrFixed;
 
-    const isListExpanded = isTeamsSection
-      ? isTeamListExpanded
-      : isLabelsListExpanded;
+    const isListExpanded =
+      entityType === "teams" ? isTeamListExpanded : isLabelsListExpanded;
     const truncatedEntities = filteredEntities.slice(
       0,
       getTruncatedEntityCount(filteredEntities, SECTION_CHARACTER_LIMIT)
@@ -390,7 +387,7 @@ const SelectTargets = ({
       filteredEntities.length - truncatedEntities.length;
 
     const toggleExpansion = () => {
-      isTeamsSection
+      entityType === "teams"
         ? setIsTeamListExpanded(!isTeamListExpanded)
         : setIsLabelsListExpanded(!isLabelsListExpanded);
     };
@@ -399,7 +396,7 @@ const SelectTargets = ({
       ? filteredEntities
       : truncatedEntities;
 
-    const emptySearchString = `No matching ${displayType}.`;
+    const emptySearchString = `No matching ${entityType}.`;
 
     const renderEmptySearchString = () => {
       if (entitiesToDisplay.length === 0 && searchTerm !== "") {
@@ -414,13 +411,13 @@ const SelectTargets = ({
 
     return (
       <>
-        {entityType && <h3>{capitalize(displayType)}</h3>}
+        {entityType && <h3>{capitalize(entityType)}</h3>}
         {isSearchEnabled && (
           <>
             <SearchField
-              placeholder={`Search ${displayType}`}
+              placeholder={`Search ${entityType}`}
               onChange={(searchString) => {
-                isTeamsSection
+                entityType === "teams"
                   ? setSearchTextTeams(searchString)
                   : setSearchTextLabels(searchString);
               }}
@@ -571,7 +568,7 @@ const SelectTargets = ({
         {!!teams?.length &&
           (isOnGlobalTeam
             ? renderTargetEntitySection("teams", [
-                { id: 0, name: "Unassigned" },
+                { id: 0, name: "No team" },
                 ...teams,
               ])
             : renderTargetEntitySection("teams", filterTeamObserverTeams()))}

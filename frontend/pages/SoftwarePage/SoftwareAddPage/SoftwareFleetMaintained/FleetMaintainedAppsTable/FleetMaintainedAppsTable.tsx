@@ -134,7 +134,7 @@ const FleetMaintainedAppsTable = ({
     ) => {
       const newQueryParam: Record<string, string | number | undefined> = {
         query: newTableQuery.searchQuery,
-        fleet_id: teamId,
+        team_id: teamId,
         order_direction: newTableQuery.sortDirection,
         order_key: newTableQuery.sortHeader,
         page: changedParam === "pageIndex" ? newTableQuery.pageIndex : 0,

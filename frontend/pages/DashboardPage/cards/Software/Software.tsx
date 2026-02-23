@@ -61,7 +61,7 @@ const Software = ({
   const handleRowSelect = (row: IRowProps) => {
     const path = getPathWithQueryParams(PATHS.MANAGE_HOSTS, {
       software_id: row.original.id,
-      fleet_id: teamId,
+      team_id: teamId,
     });
 
     router.push(path);

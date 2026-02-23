@@ -18,7 +18,7 @@ export interface ScriptsLocation {
   search: string;
   pathname: string;
   query: {
-    fleet_id?: string;
+    team_id?: string;
     status?: string;
     page?: string;
   };

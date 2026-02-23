@@ -16,7 +16,7 @@ type DistributedQueryCampaign struct {
 	UpdateCreateTimestamps
 	Metrics TargetMetrics
 	ID      uint                   `json:"id"`
-	QueryID uint                   `json:"query_id" renameto:"report_id" db:"query_id"`
+	QueryID uint                   `json:"query_id" db:"query_id"`
 	Status  DistributedQueryStatus `json:"status"`
 	UserID  uint                   `json:"user_id" db:"user_id"`
 }
@@ -67,7 +67,7 @@ type QueryResult struct {
 }
 
 type QueryCampaignResult struct {
-	QueryID uint          `json:"query_id" renameto:"report_id"`
+	QueryID uint          `json:"query_id"`
 	Error   *string       `json:"error,omitempty"`
 	Results []QueryResult `json:"results"`
 	Err     error         `json:"-"`

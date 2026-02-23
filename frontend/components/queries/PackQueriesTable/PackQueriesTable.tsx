@@ -112,7 +112,7 @@ const PackQueriesTable = ({
         />
       ) : (
         <div className={`${baseClass}__no-queries`}>
-          <p>Your pack has no reports.</p>
+          <p>Your pack has no queries.</p>
           <Button
             onClick={onAddPackQuery}
             variant="brand-inverse-icon"

@@ -2,10 +2,8 @@
 package cli
 
 import (
-	"context"
 	"errors"
 	"fmt"
-	"log/slog"
 	"strings"
 
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/storage"
@@ -103,11 +101,9 @@ func fileStorageConfig(dsn, options string) (*file.FileStorage, error) {
 
 func mysqlStorageConfig(dsn, options string, logger log.Logger) (*mysql.MySQLStorage, error) {
 	logger = logger.With("storage", "mysql")
-	// mysql.WithLogger requires *slog.Logger; bridge the nanolib logger
-	slogLogger := slog.New(&nanoLibSlogHandler{logger: logger})
 	opts := []mysql.Option{
 		mysql.WithDSN(dsn),
-		mysql.WithLogger(slogLogger),
+		mysql.WithLogger(logger),
 	}
 	if options != "" {
 		for k, v := range splitOptions(options) {
@@ -138,45 +134,4 @@ func splitOptions(s string) map[string]string {
 		out[optKAndV[0]] = optKAndV[1]
 	}
 	return out
-}
-
-// nanoLibSlogHandler adapts a nanolib/log.Logger to slog.Handler.
-// This bridge exists because the standalone nanomdm CLI tools still use
-// nanolib loggers, while the mysql storage backend now uses *slog.Logger.
-type nanoLibSlogHandler struct {
-	logger log.Logger
-	attrs  []slog.Attr
-}
-
-func (h *nanoLibSlogHandler) Enabled(_ context.Context, _ slog.Level) bool {
-	return true
-}
-
-func (h *nanoLibSlogHandler) Handle(_ context.Context, r slog.Record) error {
-	kvs := make([]any, 0, 2+2*len(h.attrs)+2*r.NumAttrs())
-	kvs = append(kvs, "msg", r.Message)
-	for _, a := range h.attrs {
-		kvs = append(kvs, a.Key, a.Value.Any())
-	}
-	r.Attrs(func(a slog.Attr) bool {
-		kvs = append(kvs, a.Key, a.Value.Any())
-		return true
-	})
-	if r.Level >= slog.LevelInfo {
-		h.logger.Info(kvs...)
-	} else {
-		h.logger.Debug(kvs...)
-	}
-	return nil
-}
-
-func (h *nanoLibSlogHandler) WithAttrs(attrs []slog.Attr) slog.Handler {
-	newAttrs := make([]slog.Attr, len(h.attrs), len(h.attrs)+len(attrs))
-	copy(newAttrs, h.attrs)
-	newAttrs = append(newAttrs, attrs...)
-	return &nanoLibSlogHandler{logger: h.logger, attrs: newAttrs}
-}
-
-func (h *nanoLibSlogHandler) WithGroup(_ string) slog.Handler {
-	return h
 }

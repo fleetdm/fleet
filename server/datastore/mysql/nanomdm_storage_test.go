@@ -3,7 +3,6 @@ package mysql
 import (
 	"context"
 	"fmt"
-	"log/slog"
 	"sync"
 	"testing"
 	"time"
@@ -12,6 +11,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/mdm"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/test"
+	"github.com/go-kit/log"
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/require"
 )
@@ -267,7 +267,7 @@ func testEnqueueDeviceLockCommandRaceCondition(t *testing.T, ds *Datastore) {
 	// Create NanoMDMStorage
 	storage := &NanoMDMStorage{
 		db:     ds.writer(ctx),
-		logger: slog.New(slog.DiscardHandler),
+		logger: log.NewNopLogger(),
 		ds:     ds,
 	}
 

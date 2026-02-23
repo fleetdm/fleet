@@ -53,7 +53,7 @@ func (svc *Service) GetGlobalScheduledQueries(ctx context.Context, opts fleet.Li
 ////////////////////////////////////////////////////////////////////////////////
 
 type globalScheduleQueryRequest struct {
-	QueryID  uint    `json:"query_id" renameto:"report_id"`
+	QueryID  uint    `json:"query_id"`
 	Interval uint    `json:"interval"`
 	Snapshot *bool   `json:"snapshot"`
 	Removed  *bool   `json:"removed"`

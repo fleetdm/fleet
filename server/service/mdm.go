@@ -1103,7 +1103,7 @@ func (svc *Service) ListMDMCommands(ctx context.Context, opts *fleet.MDMCommandL
 ////////////////////////////////////////////////////////////////////////////////
 
 type getMDMDiskEncryptionSummaryRequest struct {
-	TeamID *uint `query:"team_id,optional" renameto:"fleet_id"`
+	TeamID *uint `query:"team_id,optional"`
 }
 
 type getMDMDiskEncryptionSummaryResponse struct {
@@ -1140,7 +1140,7 @@ func (svc *Service) GetMDMDiskEncryptionSummary(ctx context.Context, teamID *uin
 ////////////////////////////////////////////////////////////////////////////////
 
 type getMDMProfilesSummaryRequest struct {
-	TeamID *uint `query:"team_id,optional" renameto:"fleet_id"`
+	TeamID *uint `query:"team_id,optional"`
 }
 
 type getMDMProfilesSummaryResponse struct {
@@ -1563,7 +1563,7 @@ type newMDMConfigProfileRequest struct {
 func (newMDMConfigProfileRequest) DecodeRequest(ctx context.Context, r *http.Request) (interface{}, error) {
 	decoded := newMDMConfigProfileRequest{}
 
-	err := parseMultipartForm(ctx, r, platform_http.MaxMultipartFormSize)
+	err := r.ParseMultipartForm(platform_http.MaxMultipartFormSize)
 	if err != nil {
 		return nil, &fleet.BadRequestError{
 			Message:     "failed to parse multipart form",
@@ -1571,17 +1571,17 @@ func (newMDMConfigProfileRequest) DecodeRequest(ctx context.Context, r *http.Req
 		}
 	}
 
-	// add fleet_id
-	val, ok := r.MultipartForm.Value["fleet_id"]
+	// add team_id
+	val, ok := r.MultipartForm.Value["team_id"]
 	if !ok || len(val) < 1 {
 		// default is no team
 		decoded.TeamID = 0
 	} else {
-		fleetID, err := strconv.Atoi(val[0])
+		teamID, err := strconv.Atoi(val[0])
 		if err != nil {
-			return nil, &fleet.BadRequestError{Message: fmt.Sprintf("failed to decode fleet_id in multipart form: %s", err.Error())}
+			return nil, &fleet.BadRequestError{Message: fmt.Sprintf("failed to decode team_id in multipart form: %s", err.Error())}
 		}
-		decoded.TeamID = uint(fleetID) //nolint:gosec // dismiss G115
+		decoded.TeamID = uint(teamID) //nolint:gosec // dismiss G115
 	}
 
 	// add profile
@@ -1884,8 +1884,8 @@ func (svc *Service) validateProfileLabels(ctx context.Context, teamID *uint, lab
 }
 
 type batchModifyMDMConfigProfilesRequest struct {
-	TeamID                *uint                                      `json:"-" query:"team_id,optional" renameto:"fleet_id"`
-	TeamName              *string                                    `json:"-" query:"team_name,optional" renameto:"fleet_name"`
+	TeamID                *uint                                      `json:"-" query:"team_id,optional"`
+	TeamName              *string                                    `json:"-" query:"team_name,optional"`
 	DryRun                bool                                       `json:"-" query:"dry_run,optional"` // if true, apply validation but do not save changes
 	ConfigurationProfiles []fleet.BatchModifyMDMConfigProfilePayload `json:"configuration_profiles"`
 }
@@ -1924,8 +1924,8 @@ func batchModifyMDMConfigProfilesEndpoint(ctx context.Context, request interface
 ////////////////////////////////////////////////////////////////////////////////
 
 type batchSetMDMProfilesRequest struct {
-	TeamID        *uint                        `json:"-" query:"team_id,optional" renameto:"fleet_id"`
-	TeamName      *string                      `json:"-" query:"team_name,optional" renameto:"fleet_name"`
+	TeamID        *uint                        `json:"-" query:"team_id,optional"`
+	TeamName      *string                      `json:"-" query:"team_name,optional"`
 	DryRun        bool                         `json:"-" query:"dry_run,optional"`        // if true, apply validation but do not save changes
 	AssumeEnabled *bool                        `json:"-" query:"assume_enabled,optional"` // if true, assume MDM is enabled
 	Profiles      backwardsCompatProfilesParam `json:"profiles"`
@@ -2703,7 +2703,7 @@ func validateProfiles(profiles map[int]fleet.MDMProfileBatchPayload) error {
 ////////////////////////////////////////////////////////////////////////////////
 
 type listMDMConfigProfilesRequest struct {
-	TeamID      *uint             `query:"team_id,optional" renameto:"fleet_id"`
+	TeamID      *uint             `query:"team_id,optional"`
 	ListOptions fleet.ListOptions `url:"list_options"`
 }
 
@@ -2761,7 +2761,7 @@ func (svc *Service) ListMDMConfigProfiles(ctx context.Context, teamID *uint, opt
 ////////////////////////////////////////////////////////////////////////////////
 
 type updateDiskEncryptionRequest struct {
-	TeamID               *uint `json:"team_id" renameto:"fleet_id"`
+	TeamID               *uint `json:"team_id"`
 	EnableDiskEncryption bool  `json:"enable_disk_encryption"`
 	RequireBitLockerPIN  bool  `json:"windows_require_bitlocker_pin"`
 }

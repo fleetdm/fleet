@@ -47,7 +47,7 @@ export const getErrorMessage = (e: unknown): string | ReactElement => {
     }
 
     if (reason.includes("VPPApp")) {
-      return `${ADD_SOFTWARE_ERROR_PREFIX} The software is already available to install in this fleet.`;
+      return `${ADD_SOFTWARE_ERROR_PREFIX} The software is already available to install on this team.`;
     }
   }
 

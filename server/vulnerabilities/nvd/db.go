@@ -1,17 +1,13 @@
 package nvd
 
 import (
-	"context"
 	"errors"
 	"fmt"
 	"os"
 	"strings"
 
-	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/vulnerabilities/nvd/tools/cpedict"
 	"github.com/fleetdm/fleet/v4/server/vulnerabilities/nvd/tools/wfn"
-	kitlog "github.com/go-kit/log"
-	"github.com/go-kit/log/level"
 	"github.com/jmoiron/sqlx"
 	_ "github.com/mattn/go-sqlite3"
 )
@@ -20,20 +16,6 @@ func sqliteDB(dbPath string) (*sqlx.DB, error) {
 	db, err := sqlx.Open("sqlite3", dbPath)
 	if err != nil {
 		return nil, err
-	}
-	return db, nil
-}
-
-func sqliteDBReadOnly(ctx context.Context, dbPath string, logger kitlog.Logger) (*sqlx.DB, error) {
-	db, err := sqlx.Open("sqlite3", dbPath+"?mode=ro")
-	if err != nil {
-		return nil, err
-	}
-	// Memory-map up to 1GB for faster reads via OS page cache.
-	// Best-effort: don't fail if the PRAGMA isn't supported on this platform.
-	if _, err := db.Exec("PRAGMA mmap_size = 1073741824"); err != nil {
-		level.Error(logger).Log("msg", "failed to set mmap_size pragma", "err", err)
-		ctxerr.Handle(ctx, err)
 	}
 	return db, nil
 }

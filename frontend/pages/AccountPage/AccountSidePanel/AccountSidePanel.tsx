@@ -1,5 +1,4 @@
 import React, { useContext, useEffect, useState } from "react";
-import { upperFirst } from "lodash";
 
 import { IUser } from "interfaces/user";
 import { IVersionData } from "interfaces/version";
@@ -78,7 +77,7 @@ const AccountSidePanel = ({
       </div>
       {isPremiumTier && (
         <DataSet
-          title="Fleets"
+          title="Teams"
           value={
             <span
               className={`${

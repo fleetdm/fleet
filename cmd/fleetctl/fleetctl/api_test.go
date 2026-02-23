@@ -42,8 +42,7 @@ func TestRunApiCommand(t *testing.T) {
       "team_id": null,
       "name": "get_my_device_page.sh",
       "created_at": "%s",
-      "updated_at": "%s",
-      "fleet_id": null
+      "updated_at": "%s"
     }
   ]
 }
@@ -78,8 +77,7 @@ func TestRunApiCommand(t *testing.T) {
     "updated_at": "0001-01-01T00:00:00Z",
     "passing_host_count": 0,
     "failing_host_count": 0,
-    "host_count_updated_at": null,
-    "fleet_id": null
+    "host_count_updated_at": null
   }
 }
 `
@@ -172,7 +170,7 @@ func TestRunApiCommand(t *testing.T) {
 			},
 			expectOutput: fmt.Sprintf(
 				expectedNewPolicy,
-				"<testdata/does-not-exist.sql"),
+				"\\u003ctestdata/does-not-exist.sql"),
 		},
 		{
 			name: "upload script",

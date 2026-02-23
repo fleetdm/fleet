@@ -409,9 +409,9 @@ const Advanced = ({
                 labelTooltipContent={
                   !disableChildren && (
                     <>
-                      When enabled, disables the ability to run live reports{" "}
+                      When enabled, disables the ability to run live queries{" "}
                       <br />
-                      (ad hoc reports executed via the UI or fleetctl).{" "}
+                      (ad hoc queries executed via the UI or fleetctl).{" "}
                       <em>
                         (Default: <strong>Off</strong>)
                       </em>
@@ -419,7 +419,7 @@ const Advanced = ({
                   )
                 }
               >
-                Disable live reports
+                Disable live queries
               </Checkbox>
             )}
           />
@@ -495,12 +495,13 @@ const Advanced = ({
                   !disableChildren && (
                     <>
                       <>
-                        Disabling reports will decrease database usage, <br />
-                        but will prevent you from accessing report results in
+                        Disabling query reports will decrease database usage,{" "}
+                        <br />
+                        but will prevent you from accessing query results in
                         <br />
                         Fleet and will delete existing reports. This can also be{" "}
                         <br />
-                        disabled on a per-report basis by enabling &quot;Discard{" "}
+                        disabled on a per-query basis by enabling &quot;Discard{" "}
                         <br />
                         data&quot;.{" "}
                         <em>
@@ -510,9 +511,9 @@ const Advanced = ({
                     </>
                   )
                 }
-                helpText="Enabling this setting will delete all existing reports in Fleet."
+                helpText="Enabling this setting will delete all existing query reports in Fleet."
               >
-                Disable reports
+                Disable query reports
               </Checkbox>
             )}
           />

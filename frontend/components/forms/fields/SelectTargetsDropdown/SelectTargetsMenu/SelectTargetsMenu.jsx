@@ -107,7 +107,7 @@ const SelectTargetsMenuWrapper = (
     const renderTargetGroups = (
       <>
         {renderTargets("all")}
-        {isPremiumTier && renderTargets("fleets")}
+        {isPremiumTier && renderTargets("teams")}
         {renderTargets("labels")}
         {renderTargets("hosts")}
       </>
@@ -122,7 +122,7 @@ const SelectTargetsMenuWrapper = (
             <>
               <div className={`${baseClass}__no-hosts`}>
                 <div className={`${baseClass}__no-hosts-heading`}>
-                  You have no hosts to run this report against.
+                  You have no hosts to run this query against.
                 </div>
                 Expecting to see hosts? Try again in a few seconds as the system
                 catches up.

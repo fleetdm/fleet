@@ -1,14 +1,14 @@
 {
   "versions": [
     {
-      "version": "3.5.5",
+      "version": "3.5.4",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.github.GitHubClient';"
       },
-      "installer_url": "https://desktop.githubusercontent.com/releases/3.5.5-95c667e3/GitHubDesktop-arm64.zip",
+      "installer_url": "https://desktop.githubusercontent.com/releases/3.5.4-9dfb8d8d/GitHubDesktop-arm64.zip",
       "install_script_ref": "6898fe3b",
       "uninstall_script_ref": "e8252f2a",
-      "sha256": "910e1709f6988b847a95725a391d99875245e826b4df790e21169e1d013d0ded",
+      "sha256": "34c76f8cbd58771ce7c9e4b7440708502cf9c6921fe099261ec08a413d72de8b",
       "default_categories": [
         "Developer tools"
       ]

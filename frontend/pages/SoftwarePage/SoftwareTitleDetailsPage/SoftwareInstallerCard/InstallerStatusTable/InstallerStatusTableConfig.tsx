@@ -167,7 +167,7 @@ const generateSoftwareTitleDetailsTableConfig = ({
             path={getPathWithQueryParams(PATHS.MANAGE_HOSTS, {
               software_title_id: softwareId,
               software_status: "installed",
-              fleet_id: teamId,
+              team_id: teamId,
             })}
           />
         );
@@ -203,7 +203,7 @@ const generateSoftwareTitleDetailsTableConfig = ({
             path={getPathWithQueryParams(PATHS.MANAGE_HOSTS, {
               software_title_id: softwareId,
               software_status: "pending",
-              fleet_id: teamId,
+              team_id: teamId,
             })}
           />
         );
@@ -239,7 +239,7 @@ const generateSoftwareTitleDetailsTableConfig = ({
             path={getPathWithQueryParams(PATHS.MANAGE_HOSTS, {
               software_title_id: softwareId,
               software_status: "failed",
-              fleet_id: teamId,
+              team_id: teamId,
             })}
           />
         );

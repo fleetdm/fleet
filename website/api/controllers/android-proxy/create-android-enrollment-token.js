@@ -80,7 +80,7 @@ module.exports = {
       sails.log.warn(`p1: Android management API rate limit exceeded!`);
       return new Error(`When attempting to create an enrollment token for an Android enterprise (${androidEnterpriseId}), an error occurred. Error: ${err}`);
     }).intercept((err)=>{
-      return new Error(`When attempting to create an enrollment token for an Android enterprise (${androidEnterpriseId}), an error occurred. Error: ${require('util').inspect(err)}`);
+      return new Error(`When attempting to create an enrollment token for an Android enterprise (${androidEnterpriseId}), an error occurred. Error: ${err}`);
     });
 
 

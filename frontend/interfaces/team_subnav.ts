@@ -5,7 +5,7 @@ export interface ITeamSubnavProps {
     pathname: string;
     search: string;
     hash?: string;
-    query: { fleet_id?: string };
+    query: { team_id?: string };
   };
   router: InjectedRouter;
 }

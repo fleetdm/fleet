@@ -170,7 +170,7 @@ func (s *integrationMDMTestSuite) createTeamDeviceForSetupExperienceWithProfileS
 	s.DoJSON("PUT", "/api/v1/fleet/setup_experience/software", putSetupExperienceSoftwareRequest{TeamID: tm.ID, TitleIDs: []uint{titleID}}, http.StatusOK, &swInstallResp)
 
 	s.lastActivityOfTypeMatches(fleet.ActivityEditedSetupExperienceSoftware{}.ActivityName(),
-		fmt.Sprintf(`{"platform": "darwin", "fleet_id": %d, "fleet_name": "%s", "team_id": %d, "team_name": "%s"}`, tm.ID, tm.Name, tm.ID, tm.Name), 0)
+		fmt.Sprintf(`{"platform": "darwin", "team_id": %d, "team_name": "%s"}`, tm.ID, tm.Name), 0)
 
 	// add a script to execute
 	body, headers := generateNewScriptMultipartRequest(t,

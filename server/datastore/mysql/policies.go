@@ -6,7 +6,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"log/slog"
 	"slices"
 	"sort"
 	"strings"
@@ -18,6 +17,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	common_mysql "github.com/fleetdm/fleet/v4/server/platform/mysql"
 	"github.com/fleetdm/fleet/v4/server/ptr"
+	kitlog "github.com/go-kit/log"
 	"github.com/go-kit/log/level"
 	"github.com/jmoiron/sqlx"
 )
@@ -313,7 +313,7 @@ func (ds *Datastore) PolicyLite(ctx context.Context, id uint) (*fleet.PolicyLite
 // Currently, SavePolicy does not allow updating the team of an existing policy.
 func (ds *Datastore) SavePolicy(ctx context.Context, p *fleet.Policy, shouldRemoveAllPolicyMemberships bool, removePolicyStats bool) error {
 	if err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
-		return savePolicy(ctx, tx, ds.logger.SlogLogger(), p, shouldRemoveAllPolicyMemberships, removePolicyStats)
+		return savePolicy(ctx, tx, ds.logger, p, shouldRemoveAllPolicyMemberships, removePolicyStats)
 	}); err != nil {
 		return ctxerr.Wrap(ctx, err, "updating policy")
 	}
@@ -321,7 +321,7 @@ func (ds *Datastore) SavePolicy(ctx context.Context, p *fleet.Policy, shouldRemo
 	return nil
 }
 
-func savePolicy(ctx context.Context, db sqlx.ExtContext, logger *slog.Logger, p *fleet.Policy, shouldRemoveAllPolicyMemberships bool, removePolicyStats bool) error {
+func savePolicy(ctx context.Context, db sqlx.ExtContext, logger kitlog.Logger, p *fleet.Policy, shouldRemoveAllPolicyMemberships bool, removePolicyStats bool) error {
 	if p.TeamID == nil && p.SoftwareInstallerID != nil {
 		return ctxerr.Wrap(ctx, errSoftwareTitleIDOnGlobalPolicy, "save policy")
 	}
@@ -474,7 +474,7 @@ func assertTeamMatches(ctx context.Context, db sqlx.QueryerContext, teamID uint,
 func cleanupPolicy(
 	ctx context.Context, queryerContext sqlx.QueryerContext, extContext sqlx.ExtContext, policyID uint, policyPlatform string,
 	shouldRemoveAllPolicyMemberships bool,
-	removePolicyStats bool, logger *slog.Logger,
+	removePolicyStats bool, logger kitlog.Logger,
 ) error {
 	var err error
 	if shouldRemoveAllPolicyMemberships {
@@ -1452,7 +1452,7 @@ func (ds *Datastore) ApplyPolicySpecs(ctx context.Context, authorID uint, specs 
 				// memberships that don't match current criteria).
 				if err = cleanupPolicy(
 					ctx, tx, tx, uint(lastID), spec.Platform, shouldRemoveAllPolicyMemberships, //nolint:gosec // dismiss G115
-					removePolicyStats, ds.logger.SlogLogger(),
+					removePolicyStats, ds.logger,
 				); err != nil {
 					return err
 				}

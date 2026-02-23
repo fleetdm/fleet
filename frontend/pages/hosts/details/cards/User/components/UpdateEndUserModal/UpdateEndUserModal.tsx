@@ -49,9 +49,8 @@ const UpdateEndUserModal = ({
             label="Username (IdP)"
             name="username_idp"
             value={idpUsername}
-            placeholder="user@example.com"
             onChange={(val: string) => setIdpUsername(val)}
-            helpText="This is often an email and is used to populate additional user data, e.g. full name and department."
+            helpText="This will be used to populate additional user data, e.g. full name and department."
             autofocus
           />
 

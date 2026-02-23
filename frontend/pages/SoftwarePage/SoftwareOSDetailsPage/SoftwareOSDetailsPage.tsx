@@ -61,7 +61,7 @@ export const SummaryCard = ({
       queryParams={{
         os_name: osVersion.name_only,
         os_version: osVersion.version,
-        fleet_id: teamIdForApi,
+        team_id: teamIdForApi,
       }}
       name={osVersion.platform}
       isOperatingSystem
@@ -139,7 +139,7 @@ export const KernelsCard = ({
 
 interface ISoftwareOSDetailsRouteParams {
   id: string;
-  fleet_id?: string;
+  team_id?: string;
 }
 
 type ISoftwareOSDetailsPageProps = RouteComponentProps<

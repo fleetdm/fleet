@@ -77,7 +77,7 @@ export const generateTableHeaders = (teamId: number) => {
                 queryParams={{
                   os_name: cellProps.row.original.name_only,
                   os_version: cellProps.row.original.version,
-                  fleet_id: teamId,
+                  team_id: teamId,
                 }}
                 className="os-hosts-link"
                 rowHover

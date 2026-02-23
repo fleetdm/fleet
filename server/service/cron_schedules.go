@@ -11,5 +11,5 @@ func (svc *Service) TriggerCronSchedule(ctx context.Context, name string) error 
 	if err := svc.authz.Authorize(ctx, &fleet.CronSchedules{}, fleet.ActionWrite); err != nil {
 		return err
 	}
-	return svc.cronSchedulesService.TriggerCronSchedule(ctx, name)
+	return svc.cronSchedulesService.TriggerCronSchedule(name)
 }

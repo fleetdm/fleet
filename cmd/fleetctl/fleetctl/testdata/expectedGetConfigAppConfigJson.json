@@ -11,11 +11,8 @@
     "server_settings": {
       "server_url": "",
       "live_query_disabled": false,
-      "live_reporting_disabled": false,
       "query_report_cap": 0,
       "query_reports_disabled": false,
-      "report_cap": 0,
-      "discard_reports_data": false,
       "enable_analytics": false,
       "deferred_save_host": false,
       "scripts_disabled": false,

@@ -79,8 +79,8 @@ func TestMacosSetupAssistant(t *testing.T) {
 	macosJob := &MacosSetupAssistant{
 		Datastore:  ds,
 		Log:        logger,
-		DEPService: apple_mdm.NewDEPService(ds, depStorage, logger.SlogLogger()),
-		DEPClient:  apple_mdm.NewDEPClient(depStorage, ds, logger.SlogLogger()),
+		DEPService: apple_mdm.NewDEPService(ds, depStorage, logger),
+		DEPClient:  apple_mdm.NewDEPClient(depStorage, ds, logger),
 	}
 
 	const defaultProfileName = "Fleet default enrollment profile"

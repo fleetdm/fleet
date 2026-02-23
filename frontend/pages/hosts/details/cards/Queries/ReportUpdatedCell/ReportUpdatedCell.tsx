@@ -57,7 +57,7 @@ const ReportUpdatedCell = ({
                   >
                     {
                       <>
-                        Results from this report are not reported in Fleet.
+                        Results from this query are not reported in Fleet.
                         <br />
                         Data is being sent to your log destination.
                       </>
@@ -88,7 +88,7 @@ const ReportUpdatedCell = ({
                   backgroundColor={COLORS["tooltip-bg"]}
                   place="top"
                 >
-                  Fleet is collecting report results.
+                  Fleet is collecting query results.
                   <br />
                   Check back later.
                 </ReactTooltip>

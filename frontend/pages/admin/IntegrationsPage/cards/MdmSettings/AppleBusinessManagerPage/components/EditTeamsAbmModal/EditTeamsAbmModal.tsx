@@ -26,7 +26,7 @@ interface IEditTeamsAbmModalProps {
  */
 export const getOptions = (availableTeams: ITeamSummary[] = []) => {
   return availableTeams
-    ?.filter((t) => t.name !== "All fleets")
+    ?.filter((t) => t.name !== "All teams")
     .map((t) => ({
       value: t.name,
       label: t.name,
@@ -90,7 +90,7 @@ const EditTeamsAbmModal = ({
 
   const options = useMemo(() => {
     return availableTeams
-      ?.filter((t) => t.name !== "All fleets")
+      ?.filter((t) => t.name !== "All teams")
       .map((t) => ({
         value: t.name,
         label: t.name,
@@ -127,14 +127,14 @@ const EditTeamsAbmModal = ({
   return (
     <Modal
       className={baseClass}
-      title="Edit fleets"
+      title="Edit teams"
       onExit={onCancel}
       width="large"
       isContentDisabled={isSaving}
     >
       <>
         <p>
-          Edit fleets for <b>{token.org_name}</b>.
+          Edit teams for <b>{token.org_name}</b>.
         </p>
         <form onSubmit={onSave} className={baseClass} autoComplete="off">
           <Dropdown
@@ -144,11 +144,11 @@ const EditTeamsAbmModal = ({
               setSelectedTeamNames((prev) => ({ ...prev, macos_team: value }));
             }}
             value={selectedTeamNames.macos_team}
-            label="macOS fleet"
+            label="macOS team"
             wrapperClassName={`${baseClass}__form-field form-field--macos`}
             tooltip={
               <>
-                macOS hosts are automatically added to this fleet in Fleet when
+                macOS hosts are automatically added to this team in Fleet when
                 they appear in Apple Business Manager.
               </>
             }
@@ -160,11 +160,11 @@ const EditTeamsAbmModal = ({
               setSelectedTeamNames((prev) => ({ ...prev, ios_team: value }));
             }}
             value={selectedTeamNames.ios_team}
-            label="iOS fleet"
+            label="iOS team"
             wrapperClassName={`${baseClass}__form-field form-field--ios`}
             tooltip={
               <>
-                iOS hosts are automatically added to this fleet in Fleet when
+                iOS hosts are automatically added to this team in Fleet when
                 they appear in Apple Business Manager.
               </>
             }
@@ -176,11 +176,11 @@ const EditTeamsAbmModal = ({
               setSelectedTeamNames((prev) => ({ ...prev, ipados_team: value }))
             }
             value={selectedTeamNames.ipados_team}
-            label="iPadOS fleet"
+            label="iPadOS team"
             wrapperClassName={`${baseClass}__form-field form-field--ipados`}
             tooltip={
               <>
-                iPadOS hosts are automatically added to this fleet in Fleet when
+                iPadOS hosts are automatically added to this team in Fleet when
                 they appear in Apple Business Manager.
               </>
             }

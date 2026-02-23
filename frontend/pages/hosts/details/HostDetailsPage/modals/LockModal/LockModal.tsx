@@ -1,8 +1,6 @@
 import React, { useContext } from "react";
 import { Link } from "react-router";
 
-import { LEARN_MORE_ABOUT_BASE_LINK } from "utilities/constants";
-
 import PATHS from "router/paths";
 import { NotificationContext } from "context/notification";
 import { getErrorReason } from "interfaces/errors";
@@ -93,16 +91,6 @@ const LockModal = ({
             .
           </p>
           <p> It can only be unlocked through Fleet.</p>
-          <p>
-            If the host is turned off or restarted while locked, it will
-            disconnect from Wi-Fi, and you won&apos;t be able to unlock it
-            remotely.{" "}
-            <CustomLink
-              newTab
-              text="Learn more"
-              url={`${LEARN_MORE_ABOUT_BASE_LINK}/unlock-ios-ipados`}
-            />
-          </p>
         </>
       );
     }
