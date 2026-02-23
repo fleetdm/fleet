@@ -63,6 +63,18 @@ func (m *Middleware) VerifyWindowsMDM() endpoint.Middleware {
 	}
 }
 
+func (m *Middleware) VerifyAndroidMDM() endpoint.Middleware {
+	return func(next endpoint.Endpoint) endpoint.Endpoint {
+		return func(ctx context.Context, req interface{}) (interface{}, error) {
+			if err := m.svc.VerifyMDMAndroidConfigured(ctx); err != nil {
+				return nil, err
+			}
+
+			return next(ctx, req)
+		}
+	}
+}
+
 func (m *Middleware) VerifyAnyMDM() endpoint.Middleware {
 	return func(next endpoint.Endpoint) endpoint.Endpoint {
 		return func(ctx context.Context, req interface{}) (interface{}, error) {
