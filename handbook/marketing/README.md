@@ -111,7 +111,7 @@ The Marketing department is directly responsible for achieving revenue pipelineÂ
 
 ### Press boilerplate text
 
-Fleet is the single endpoint management platform for macOS, iOS, Android, Windows, Linux, ChromeOS, and cloud infrastructure. Trusted by over 1,300 organizations,  Fleet empowers IT and Security teams to accelerate productivity, build verifiable trust, and optimize costs.
+Fleet is the single endpoint management platform for macOS, iOS, Android, Windows, Linux, ChromeOS, and cloud infrastructure. Trusted by over 1,300 organizations,  Fleet empowers IT and security teams to accelerate productivity, build verifiable trust, and optimize costs.
 
 By bringing infrastructure-as-code (IaC) practices to device management, Fleet ensures endpoints remain secure and operational, freeing engineering teams to focus on strategic initiatives.
 
