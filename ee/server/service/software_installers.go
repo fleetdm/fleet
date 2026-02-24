@@ -2218,13 +2218,26 @@ func (svc *Service) softwareBatchUpload(
 		return resp, tfr, nil
 	}
 
+	var manualAgentInstall bool
 	tmID := ptr.ValOrZero(teamID)
-	team, err := svc.ds.TeamLite(ctx, tmID)
-	if err != nil {
-		batchErr = fmt.Errorf("Couldn't get team for team ID %d: %w", tmID, err)
-		return
+	if tmID == 0 {
+		// use app config if team id null or 0
+		ac, err := svc.ds.AppConfig(ctx)
+		if err != nil {
+			batchErr = fmt.Errorf("Couldn't get app config: %w", err)
+			return
+		}
+		manualAgentInstall = ac.MDM.MacOSSetup.ManualAgentInstall.Value
+	} else {
+		team, err := svc.ds.TeamLite(ctx, tmID)
+		if err != nil {
+			batchErr = fmt.Errorf("Couldn't get team for team ID %d: %w", tmID, err)
+			return
+		}
+		manualAgentInstall = team.Config.MDM.MacOSSetup.ManualAgentInstall.Value
 	}
-	manualAgentInstall := team.Config.MDM.MacOSSetup.ManualAgentInstall.Value
+
+	// Current problem: TeamLite pulls the config from default_team_config_json, but app_config_json is the one that is set correctly
 
 	var g errgroup.Group
 	g.SetLimit(1) // TODO: consider whether we can increase this limit, see https://github.com/fleetdm/fleet/issues/22704#issuecomment-2397407837
