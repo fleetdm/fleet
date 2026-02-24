@@ -97,8 +97,8 @@ const SoftwareAndroidForm = ({
     setFormValidation(generateFormValidation(newFormData));
   };
 
-  const onToggleSelfServiceCheckbox = (value: boolean) => {
-    const newData = { ...formData, selfService: value };
+  const onToggleSelfService = () => {
+    const newData = { ...formData, selfService: !formData.selfService };
     setFormData(newData);
   };
 
@@ -130,8 +130,11 @@ const SoftwareAndroidForm = ({
     setFormValidation(generateFormValidation(newData));
   };
 
-  const onToggleAutomaticInstall = (value: boolean) => {
-    const newData = { ...formData, automaticInstall: value };
+  const onToggleAutomaticInstall = () => {
+    const newData = {
+      ...formData,
+      automaticInstall: !formData.automaticInstall,
+    };
     setFormData(newData);
   };
 
@@ -174,7 +177,7 @@ const SoftwareAndroidForm = ({
               platform="android"
               formData={formData}
               onToggleAutomaticInstall={onToggleAutomaticInstall}
-              onToggleSelfService={onToggleSelfServiceCheckbox}
+              onToggleSelfService={onToggleSelfService}
               onSelectCategory={onSelectCategory}
               onClickPreviewEndUserExperience={onClickPreviewEndUserExperience}
               disableOptions
