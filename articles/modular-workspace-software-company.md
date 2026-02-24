@@ -30,4 +30,4 @@ They chose Fleet for its ability to manage device configurations with the same v
 <meta name="authorGitHubUsername" value="irenareedy">
 <meta name="category" value="announcements">
 <meta name="publishedOn" value="2026-02-22">
-<meta name="description" value="As an "A modular, connected workspace provider manages a diverse fleet of over 1,400 active hosts. They sought to eliminate management complexity and establish a single point of truth.">
+<meta name="description" value="As an "A modular, connected workspace provider manages a diverse fleet of over 1,400 active hosts.">
