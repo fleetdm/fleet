@@ -68,10 +68,11 @@ const getGraphicName = (ext: string) => {
 const renderFileTypeMessage = () => {
   return (
     <>
-      macOS (.pkg, {" "}, iOS/iPadOS (.ipa),
+      macOS (.pkg,{" "}
       <TooltipWrapper tipContent="Script-only package">.sh</TooltipWrapper>),
+      iOS/iPadOS (.ipa),
       <br />
-      Windows (.msi, .exe.,{" "}
+      Windows (.msi, .exe,{" "}
       <TooltipWrapper tipContent="Script-only package">.ps1</TooltipWrapper>),
       or Linux (.deb, .rpm,{" "}
       <TooltipWrapper tipContent="Script-only package">.sh</TooltipWrapper>)
