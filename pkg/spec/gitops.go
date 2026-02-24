@@ -331,13 +331,14 @@ func GitOpsFromFile(filePath, baseDir string, appConfig *fleet.EnrichedAppConfig
 	case teamOk:
 		multiError = parseName(teamRaw, result, filePath, multiError)
 		// If the file is no-team.yml, the name must be "No team".
-		if filepath.Base(filePath) == "no-team.yml" && !result.IsNoTeam() {
+		switch {
+		case filepath.Base(filePath) == "no-team.yml" && !result.IsNoTeam():
 			multiError = multierror.Append(multiError, fmt.Errorf("file %q must have team name 'No Team'", filePath))
 			return result, multiError.ErrorOrNil()
-		} else if filepath.Base(filePath) == "unassigned.yml" && !result.IsUnassignedTeam() {
+		case filepath.Base(filePath) == "unassigned.yml" && !result.IsUnassignedTeam():
 			multiError = multierror.Append(multiError, fmt.Errorf("file %q must have team name 'Unassigned'", filePath))
 			return result, multiError.ErrorOrNil()
-		} else if result.IsNoTeam() || result.IsUnassignedTeam() {
+		case result.IsNoTeam() || result.IsUnassignedTeam():
 			if result.IsNoTeam() && filepath.Base(filePath) != "no-team.yml" {
 				multiError = multierror.Append(multiError, fmt.Errorf("file %q for No Team must be named 'no-team.yml'", filePath))
 				multiError = multierror.Append(multiError, errors.New("'No Team' is deprecated; consider renaming the file to 'unassigned.yml' and updating the team name to 'Unassigned' instead."))
@@ -352,7 +353,7 @@ func GitOpsFromFile(filePath, baseDir string, appConfig *fleet.EnrichedAppConfig
 			if settingsOk {
 				multiError = parseNoTeamSettings(settingsRaw, result, filePath, multiError)
 			}
-		} else {
+		default:
 			if !settingsOk {
 				multiError = multierror.Append(multiError, errors.New("'settings' is required when 'name' is provided"))
 			} else {
