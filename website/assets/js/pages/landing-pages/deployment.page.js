@@ -13,7 +13,9 @@ parasails.registerPage('deployment', {
     //…
   },
   mounted: async function() {
-    //…
+    $('#carousel').carousel({
+      interval: 30000
+    });
   },
 
   //  ╦╔╗╔╔╦╗╔═╗╦═╗╔═╗╔═╗╔╦╗╦╔═╗╔╗╔╔═╗

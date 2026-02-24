@@ -5,6 +5,7 @@
   p {
     margin-bottom: 0px;
   }
+
   [purpose='landing-page-container'] {
     padding-left: 64px;
     padding-right: 64px;
@@ -46,6 +47,7 @@
       font-weight: 400;
       line-height: 150%;
       text-transform: uppercase;
+      margin-bottom: 0px;
     }
     h1 {
       color: #192147;
@@ -117,6 +119,16 @@
       font-weight: 800;
       line-height: 120%;
       margin-bottom: 0px;
+    }
+    h4 {
+      color: #515774;
+      font-feature-settings: 'salt' on, 'ss01' on, 'ss02' on;
+      font-family: 'Roboto Mono';
+      font-size: 16px;
+      font-style: normal;
+      font-weight: 400;
+      line-height: 150%;
+      text-transform: uppercase;
     }
     p {
       color: #515774;
@@ -198,65 +210,24 @@
 
   // landing page specific styles
   [purpose='carousel'] {
-    [purpose='carousel-buttons'] {
-      position: unset;
-      padding-bottom: 64px;
-      margin-left: unset;
-      margin-right: unset;
-      h4 {
-        color: #515774;
-        font-feature-settings: 'salt' on, 'ss01' on, 'ss02' on;
-        font-family: 'Roboto Mono';
-        font-size: 12px;
-        font-style: normal;
-        font-weight: 400;
-        line-height: 150%;
-        text-transform: uppercase;
-        text-align: center;
-        white-space: nowrap;
-        padding: 0px 12px;
-      }
-      [purpose='fleet-managed-header'] {
-        justify-content: space-between;
-        width: 25%;
-        display: flex;
-        flex-direction: row;
-        margin-right: 24px;
-      }
-      [purpose='customer-managed-header'] {
-        justify-content: space-between;
-        width: 75%;
-        display: flex;
-        flex-direction: row;
-      }
-    }
-    [purpose='customer-managed-buttons'] {
-      position: unset;
-      width: 100%;
-      gap: 8px;
-      display: flex;
-      flex-direction: row;
-      margin: 0;
-      [purpose='slide-button']:not(first-of-type) {
-        width: 33%;
-      }
+    gap: 64px;
+  }
+  [purpose='carousel-tabs'] {
+    display: flex;
+    flex-direction: row;
+    flex-wrap: wrap;
+    position: relative;
+    margin-right: 0;
+    margin-left: 0;
+    [purpose='tab'] {
+      width: 25%;
 
-    }
-    [purpose='slide-button'] {
-      display: flex;
-      cursor: pointer;
-      width: 260px;
-      padding: var(--Space-space_200, 16px);
-      flex-direction: column;
-      justify-content: center;
-      align-items: center;
-      gap: var(--Space-space_100, 8px);
-      border-radius: 10.166px;
-      border: 1.271px solid var(--Fleet-Black-10, #E2E4EA);
-      background: var(--White, #FFF);
-      color: var(--Fleet-Black-100, #192147);
+      border-bottom: 1px solid @core-fleet-black-10;
       text-align: center;
-
+      color: var(--Fleet-Black-75, #515774);
+      text-align: center;
+      padding: 24px 16px;
+      cursor: pointer;
       /* Body/Emphasis/SM */
       font-family: Inter;
       font-size: 14px;
@@ -264,21 +235,15 @@
       font-weight: 700;
       line-height: 21px; /* 150% */
       &.active {
-        border: 1.271px solid var(--Fleet-Green, #009A7D);
-        background: var(--Fleet-Green, #009A7D);
-        color: #FFF;
+        color: @core-fleet-black;
+        border-bottom: 1px solid @core-fleet-black;
       }
     }
   }
-  [purpose='carousel-container'] {
-
-  }
   [purpose='carousel-body'] {
     display: flex;
-    min-height: 427px;// height of largest slide at 1200px
+    min-height: 507px;// height of largest slide at 1200px
     // align-items: stretch;
-
-    // padding: 48px 64px 96px 64px;
     justify-content: center;
     align-items: center;
     align-content: center;
@@ -287,6 +252,29 @@
     img {
       border-radius: 16px;
     }
+  }
+  [purpose='carousel-headings'] {
+    h4 {
+      color: #515774;
+      font-feature-settings: 'salt' on, 'ss01' on, 'ss02' on;
+      font-family: 'Roboto Mono';
+      font-size: 12px;
+      font-style: normal;
+      font-weight: 400;
+      line-height: 150%;
+      text-transform: uppercase;
+      margin-bottom: 10px;
+    }
+    h2 {
+      color: var(--Fleet-Black-100, #192147);
+      /* Heading/H3 */
+      font-family: Inter;
+      font-size: var(--Typography-Heading-H3-Size, 24px);
+      font-style: normal;
+      font-weight: 800;
+      line-height: var(--Typography-Heading-H3-Line-height, 28.8px); /* 120% */
+    }
+
   }
   [purpose='hero-slides'] {
     position: relative;
@@ -331,7 +319,7 @@
       border-radius: 8px;
       width: 100%;
       flex: 1 0 0;
-      aspect-ratio: 4 / 3;
+      aspect-ratio: 3 / 2;
     }
   }
 
@@ -460,6 +448,11 @@
   }
 
 
+  @media (max-width: 1200px) {
+    [purpose='carousel-body'] {
+      min-height: 516px;// height of largest slide at 320px
+    }
+  }
   @media (max-width: 991px) {
 
     [purpose='landing-page-container'] {
@@ -499,7 +492,19 @@
       width: 50%;
       height: unset;
     }
-
+    [purpose='carousel-image'] {
+      display: none;
+    }
+    [purpose='carousel'] {
+      gap: 48px;
+    }
+    [purpose='carousel-text'] {
+      display: flex;
+      flex-direction: column;
+      gap: 32px;
+      width: 100%;
+      max-width: unset;
+    }
   }
 
   @media (max-width: 768px) {
@@ -590,7 +595,8 @@
       align-items: center;
       gap: 64px;
       [purpose='column-list'] {
-        max-width: 100%;
+        width: 100%;
+        max-width: unset;
         display: flex;
         flex-direction: column;
         align-items: flex-start;
@@ -637,6 +643,33 @@
       }
     }
 
+    [purpose='carousel-tabs'] {
+      display: flex;
+      flex-direction: row;
+      flex-wrap: wrap;
+      position: relative;
+      margin-right: 0;
+      margin-left: 0;
+      [purpose='tab'] {
+        width: 50%;
+        &:nth-of-type(even) {
+          border-left: 1px solid @core-fleet-black-10;
+        }
+      }
+    }
+    [purpose='button-row'] {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 16px;
+      [purpose='cta-button'] {
+        width: 100%;
+      }
+    }
+    [purpose='carousel-body'] {
+      min-height: 540px;// height of largest slide at 576px
+    }
+
   }
 
   @media (max-width: 575px) {
@@ -649,6 +682,15 @@
       h1 {
         font-size: 32px;
       }
+    }
+    [purpose='carousel-body'] {
+      min-height: 738px;// height of largest slide at 376px
+    }
+
+  }
+  @media (max-width: 375px) {
+    [purpose='carousel-body'] {
+      min-height: 795px;// height of largest slide at 320px
     }
 
   }

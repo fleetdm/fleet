@@ -12,49 +12,31 @@
           </div>
         </div>
       </div><%/* landing-page-hero */%>
-      <div purpose="landing-page-section" class="d-none">
+      <div purpose="landing-page-section">
         <div id="carousel" purpose="carousel" class="carousel slide d-flex flex-column" data-ride="carousel">
-          <div purpose="carousel-buttons" class="d-flex flex-column order-md-1 order-3">
-            <div class="d-flex flex-row">
-              <div purpose="fleet-managed-header">
-                <svg purpose="header-start-line" xmlns="http://www.w3.org/2000/svg" width="39" height="15" viewBox="0 0 39 15" fill="none">
-                  <path d="M38.7745 7H0.5M0.5 0V14.5" stroke="#C5C7D1"/>
-                </svg>
-                <h4>Fleet-managed (SAAS)</h4>
-                <svg purpose="header-end-line" xmlns="http://www.w3.org/2000/svg" width="39" height="15" viewBox="0 0 39 15" fill="none">
-                  <path d="M-1.30534e-05 7H38.2745M38.2745 0V14.5" stroke="#C5C7D1"/>
-                </svg>
-              </div>
-              <div purpose="customer-managed-header">
-                <svg purpose="header-start-line" xmlns="http://www.w3.org/2000/svg" height="15" viewBox="0 0 259 15" fill="none">
-                  <path d="M258.889 7H0.5M0.5 0V14.5" stroke="#C5C7D1"/>
-                </svg>
-                <h4>Customer-managed (Self-hosted)</h4>
-                <svg purpose="header-end-line" xmlns="http://www.w3.org/2000/svg" height="15" viewBox="0 0 263 15" fill="none">
-                  <path d="M-8.28505e-06 7H261.889M261.889 0V14.5" stroke="#C5C7D1"/>
-                </svg>
-              </div>
+          <div purpose="carousel-tabs" class="carousel-indicators">
+            <div purpose="tab" data-target="#carousel" data-slide-to="0" class="active">
+              Managed cloud
             </div>
-            <div purpose="customer-managed-buttons" class="carousel-indicators">
-              <div purpose="slide-button" style="margin-right: 16px;" data-target="#carousel" data-slide-to="0" class="active">
-                Managed cloud
-              </div>
-              <div purpose="slide-button" data-target="#carousel" data-slide-to="1" >
-                On-premise
-              </div>
-              <div purpose="slide-button" data-target="#carousel" data-slide-to="2">
-                Cloud agnostic
-              </div>
-              <div purpose="slide-button" data-target="#carousel" data-slide-to="3">
-                Air-gapped or offline
-              </div>
+            <div purpose="tab" data-target="#carousel" data-slide-to="1" >
+              On-premise
+            </div>
+            <div purpose="tab" data-target="#carousel" data-slide-to="2">
+              Cloud agnostic
+            </div>
+            <div purpose="tab" data-target="#carousel" data-slide-to="3">
+              Air-gapped or offline
             </div>
           </div>
+
           <div purpose="carousel-container" class="carousel-inner order-1 order-md-2">
             <div class="carousel-item active">
               <div purpose="carousel-body">
                 <div purpose="carousel-text">
+                  <div purpose="carousel-headings">
+                  <h4>Fleet-managed (SAAS)</h4>
                   <h2>Let us host and operate your Fleet instance.</h2>
+                  </div>
                   <p>Get the full Fleet feature set, automatic updates, and a production-ready environment from day one, without managing infrastructure yourself.</p>
                   <div purpose="checklist">
                     <p>Avoid managing infrastructure</p>
@@ -62,18 +44,22 @@
                     <p>Offload operations to Fleet</p>
                   </div>
                   <div purpose="button-row">
-                    <a class="btn btn-primary" purpose="cta-button" href="/contact">Talk to us</a>
+                    <a class="btn btn-primary" purpose="cta-button" href="/pricing">Get started</a>
+                    <animated-arrow-button href="/contact">Talk to us</animated-arrow-button>
                   </div>
                 </div>
                 <div purpose="carousel-image">
-                  <img alt="TODO" src="https://my.feralgoblin.com/cass/512/341?text=TODO">
+                  <img alt="A placeholder image" src="/images/placeholder-image-483x322@2x.png">
                 </div>
               </div>
             </div>
             <div class="carousel-item">
               <div purpose="carousel-body">
                 <div purpose="carousel-text">
+                  <div purpose="carousel-headings">
+                  <h4>Customer-managed (Self-hosted)</h4>
                   <h2>Run Fleet on your own servers or virtual machines</h2>
+                  </div>
                   <p>Use your existing data center or private infrastructure. You control hardware, data storage, network boundaries, and upgrade cadence, with the same Fleet features.</p>
                   <div purpose="checklist">
                     <p>Keep data inside your physical environment</p>
@@ -86,14 +72,17 @@
                   </div>
                 </div>
                 <div purpose="carousel-image">
-                  <img alt="TODO" src="https://my.feralgoblin.com/cass/512/341?text=TODO">
+                  <img alt="A placeholder image" src="/images/placeholder-image-483x322@2x.png">
                 </div>
               </div>
             </div>
             <div class="carousel-item">
               <div purpose="carousel-body">
                 <div purpose="carousel-text">
+                  <div purpose="carousel-headings">
+                  <h4>Customer-managed (Self-hosted)</h4>
                   <h2>Deploy Fleet in your own cloud environment</h2>
+                  </div>
                   <p>Run Fleet in a cloud-agnostic environment, using virtual machines or container-native platforms. You control networking, data location, scaling, and upgrade timing.</p>
                   <div purpose="checklist">
                     <p>Control data location and network boundaries</p>
@@ -106,7 +95,7 @@
                   </div>
                 </div>
                 <div purpose="carousel-image">
-                  <img alt="TODO" src="https://my.feralgoblin.com/cass/512/341?text=TODO">
+                  <img alt="A placeholder image" src="/images/placeholder-image-483x322@2x.png">
                 </div>
               </div>
             </div>
@@ -114,7 +103,10 @@
             <div class="carousel-item">
               <div purpose="carousel-body">
                 <div purpose="carousel-text">
+                  <div purpose="carousel-headings">
+                  <h4>Customer-managed (Self-hosted)</h4>
                   <h2>Run Fleet in disconnected or restricted environments</h2>
+                  </div>
                   <p>Use local infrastructure with tightly controlled network egress. Distribute software updates, packages, and policies through approved internal channels, while Fleet provides the same core functionality as other deployment models.</p>
                   <div purpose="checklist">
                     <p>Operate without public internet connectivity</p>
@@ -127,7 +119,7 @@
                   </div>
                 </div>
                 <div purpose="carousel-image">
-                  <img alt="TODO" src="https://my.feralgoblin.com/cass/512/341?text=TODO">
+                  <img alt="A placeholder image" src="/images/placeholder-image-483x322@2x.png">
                 </div>
               </div>
             </div>
