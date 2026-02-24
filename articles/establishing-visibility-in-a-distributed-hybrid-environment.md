@@ -28,4 +28,4 @@ They chose Fleet to gain unified control over macOS, Windows, and Linux through 
 <meta name="authorGitHubUsername" value="irenareedy">
 <meta name="publishedOn" value="2025-10-07">
 <meta name="articleTitle" value="Establishing visibility in a distributed hybrid environment">
-<meta name="description" value="An AI-powered smart board and collaboration software company designed to foster hybrid teamwork for businesses and educators globally. As a high-growth tech company, they needed to move from a manual, unmanaged environment to a professional security posture without slowing down their developers.">
+<meta name="description" value="An AI-powered smart board and collaboration software company designed to foster hybrid teamwork for businesses and educators globally.">
