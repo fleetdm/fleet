@@ -310,7 +310,6 @@ const InstallSoftwareModal = ({
                   ...item,
                   installSoftwareEnabled: !!item.swIdToInstall,
                 };
-
                 return item.installSoftwareEnabled ? (
                   <span
                     onClick={(e) => {

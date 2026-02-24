@@ -6,6 +6,7 @@ import { omit } from "lodash";
 import paths from "router/paths";
 import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
 import { getPathWithQueryParams } from "utilities/url";
+
 import scriptsAPI, {
   IListScriptsQueryKey,
   IScriptsResponse,
@@ -16,7 +17,6 @@ import { IScript } from "interfaces/script";
 import DropdownWrapper, {
   CustomOptionType,
 } from "components/forms/fields/DropdownWrapper/DropdownWrapper";
-
 import DataError from "components/DataError";
 import Spinner from "components/Spinner";
 import CustomLink from "components/CustomLink";
@@ -191,7 +191,7 @@ const PolicyRunScriptModal = ({
                   onChange(
                     onSelectPolicyScript(item, {
                       name: formPolicy.name,
-                      value: numericId ?? 0, // keep your existing IScriptDropdownField contract
+                      value: numericId ?? 0,
                     })
                   );
                 };
@@ -211,9 +211,9 @@ const PolicyRunScriptModal = ({
                           : ""
                       }
                       onChange={handleScriptChange}
-                      name={formPolicy.name}
                       placeholder="Select script"
                       className={`${baseClass}__script-dropdown`}
+                      name={formPolicy.name}
                       isSearchable
                     />
                   </span>
