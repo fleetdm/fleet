@@ -62,7 +62,14 @@ The `osquery_schedule` table will list all scheduled queries and recent informat
 
 ## How do I turn on an evented table?
 
-To turn on osquery's eventing system, set the flag `--disable_events=false`. Eventing is disabled by default. 
+To turn on osquery's eventing system, in Fleet under **Settings > Organization settings > Agent options**, set `disable_events` to `false` under `command_line_flags`:
+
+```yaml
+config:
+  ...
+command_line_flags:
+  disable_events: false
+```
 
 Each evented table is turned on by its own flag. For most evented tables, when you turn them on in osquery, osquery will use the default configuration of the utility. The defaults are good enough for most situations.
 
