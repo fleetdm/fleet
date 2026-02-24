@@ -10,7 +10,6 @@ import (
 	"flag"
 	"fmt"
 	"io/ioutil"
-	stdlog "log"
 	"net/url"
 	"os"
 	"path/filepath"
@@ -18,9 +17,8 @@ import (
 	"time"
 
 	scepclient "github.com/fleetdm/fleet/v4/server/mdm/scep/client"
+	"github.com/fleetdm/fleet/v4/server/platform/logging"
 
-	"github.com/go-kit/log"
-	"github.com/go-kit/log/level"
 	"github.com/smallstep/scep"
 )
 
@@ -55,20 +53,15 @@ type runCfg struct {
 
 func run(cfg runCfg) error {
 	ctx := context.Background()
-	var logger log.Logger
+	var logger *logging.Logger
 	{
 		if strings.ToLower(cfg.logfmt) == "json" {
-			logger = log.NewJSONLogger(os.Stderr)
+			logger = logging.NewLogger(logging.NewSlogLogger(logging.Options{Output: os.Stderr, JSON: true, Debug: cfg.debug}))
 		} else {
-			logger = log.NewLogfmtLogger(os.Stderr)
-		}
-		stdlog.SetOutput(log.NewStdlibAdapter(logger))
-		logger = log.With(logger, "ts", log.DefaultTimestampUTC)
-		if !cfg.debug {
-			logger = level.NewFilter(logger, level.AllowInfo())
+			logger = logging.NewLogger(logging.NewSlogLogger(logging.Options{Output: os.Stderr, Debug: cfg.debug}))
 		}
 	}
-	lginfo := level.Info(logger)
+	lginfo := logger
 
 	client, err := scepclient.New(cfg.serverURL, logger)
 	if err != nil {
@@ -131,7 +124,7 @@ func run(cfg runCfg) error {
 	}
 
 	if cfg.debug {
-		logCerts(level.Debug(logger), caCerts)
+		logCerts(logger, caCerts)
 	}
 
 	var signerCert *x509.Certificate
@@ -219,7 +212,7 @@ func run(cfg runCfg) error {
 }
 
 // logCerts logs the count, number, RDN, and fingerprint of certs to logger
-func logCerts(logger log.Logger, certs []*x509.Certificate) {
+func logCerts(logger *logging.Logger, certs []*x509.Certificate) {
 	logger.Log("msg", "cacertlist", "count", len(certs))
 	for i, cert := range certs {
 		h := fingerprintHashType.New()

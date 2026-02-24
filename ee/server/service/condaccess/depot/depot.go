@@ -17,7 +17,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm/assets"
 	"github.com/fleetdm/fleet/v4/server/mdm/scep/depot"
-	"github.com/go-kit/log"
+	"github.com/fleetdm/fleet/v4/server/platform/logging"
 	"github.com/go-kit/log/level"
 	"github.com/jmoiron/sqlx"
 )
@@ -28,14 +28,14 @@ const maxCommonNameLength = 64
 type ConditionalAccessSCEPDepot struct {
 	db     *sqlx.DB
 	ds     fleet.Datastore
-	logger log.Logger
+	logger *logging.Logger
 	config *config.FleetConfig
 }
 
 var _ depot.Depot = (*ConditionalAccessSCEPDepot)(nil)
 
 // NewConditionalAccessSCEPDepot creates and returns a *ConditionalAccessSCEPDepot.
-func NewConditionalAccessSCEPDepot(db *sqlx.DB, ds fleet.Datastore, logger log.Logger, cfg *config.FleetConfig) (*ConditionalAccessSCEPDepot, error) {
+func NewConditionalAccessSCEPDepot(db *sqlx.DB, ds fleet.Datastore, logger *logging.Logger, cfg *config.FleetConfig) (*ConditionalAccessSCEPDepot, error) {
 	if err := db.Ping(); err != nil {
 		return nil, err
 	}

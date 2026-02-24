@@ -28,10 +28,10 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/vpp"
 	maintained_apps "github.com/fleetdm/fleet/v4/server/mdm/maintainedapps"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/mdm"
+	"github.com/fleetdm/fleet/v4/server/platform/logging"
 	common_mysql "github.com/fleetdm/fleet/v4/server/platform/mysql"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/worker"
-	kitlog "github.com/go-kit/log"
 	"github.com/go-kit/log/level"
 	"github.com/google/uuid"
 	"golang.org/x/sync/errgroup"
@@ -2824,7 +2824,7 @@ func UpgradeCodeMigration(
 	ctx context.Context,
 	ds fleet.Datastore,
 	softwareInstallStore fleet.SoftwareInstallerStore,
-	logger kitlog.Logger,
+	logger *logging.Logger,
 ) error {
 	// Find MSI installers without upgrade_code
 	idMap, err := ds.GetMSIInstallersWithoutUpgradeCode(ctx)
@@ -2896,7 +2896,7 @@ func UninstallSoftwareMigration(
 	ctx context.Context,
 	ds fleet.Datastore,
 	softwareInstallStore fleet.SoftwareInstallerStore,
-	logger kitlog.Logger,
+	logger *logging.Logger,
 ) error {
 	// Find software installers that should have their uninstall script populated
 	idMap, err := ds.GetSoftwareInstallersPendingUninstallScriptPopulation(ctx)

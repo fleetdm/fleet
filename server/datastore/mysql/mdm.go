@@ -13,7 +13,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mdm"
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/mobileconfig"
 	microsoft_mdm "github.com/fleetdm/fleet/v4/server/mdm/microsoft"
-	"github.com/go-kit/log"
+	"github.com/fleetdm/fleet/v4/server/platform/logging"
 	"github.com/go-kit/log/level"
 	"github.com/google/go-cmp/cmp"
 	"github.com/jmoiron/sqlx"
@@ -2563,7 +2563,7 @@ func (ds *Datastore) batchSetLabelAndVariableAssociations(ctx context.Context, t
 	return didUpdateLabels, nil
 }
 
-func reconcileHostEmailsFromMdmIdpAccountsDB(ctx context.Context, tx sqlx.ExtContext, logger log.Logger, hostID uint) (*fleet.MDMIdPAccount, error) {
+func reconcileHostEmailsFromMdmIdpAccountsDB(ctx context.Context, tx sqlx.ExtContext, logger *logging.Logger, hostID uint) (*fleet.MDMIdPAccount, error) {
 	idp, err := getMDMIdPAccountByHostID(ctx, tx, logger, hostID)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "get host mdm idp account email")
@@ -2667,7 +2667,7 @@ func reconcileHostEmailsFromMdmIdpAccountsDB(ctx context.Context, tx sqlx.ExtCon
 	return idp, nil
 }
 
-func getMDMIdPAccountByHostID(ctx context.Context, q sqlx.QueryerContext, logger log.Logger, hostID uint) (*fleet.MDMIdPAccount, error) {
+func getMDMIdPAccountByHostID(ctx context.Context, q sqlx.QueryerContext, logger *logging.Logger, hostID uint) (*fleet.MDMIdPAccount, error) {
 	stmt := `SELECT account_uuid FROM host_mdm_idp_accounts WHERE host_uuid = (SELECT uuid FROM hosts WHERE id = ?)`
 	var dest []string
 	if err := sqlx.SelectContext(ctx, q, &dest, stmt, hostID); err != nil {

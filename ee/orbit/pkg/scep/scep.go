@@ -10,9 +10,11 @@ import (
 	"crypto/x509/pkix"
 	"errors"
 	"fmt"
+	"log/slog"
 	"time"
 
 	scepclient "github.com/fleetdm/fleet/v4/server/mdm/scep/client"
+	"github.com/fleetdm/fleet/v4/server/platform/logging"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/rs/zerolog"
 	"github.com/smallstep/scep"
@@ -147,7 +149,7 @@ func NewClient(opts ...Option) (*Client, error) {
 func (c *Client) FetchCert(ctx context.Context) (*x509.Certificate, error) {
 	// We assume the required fields have already been validated by the NewClient factory.
 
-	kitLogger := &zerologAdapter{logger: c.logger}
+	scepLogger := logging.NewLogger(slog.New(&zerologSlogHandler{logger: c.logger}))
 	opts := []scepclient.Option{
 		scepclient.WithTimeout(c.timeout),
 		scepclient.WithRootCA(c.rootCA),
@@ -156,7 +158,7 @@ func (c *Client) FetchCert(ctx context.Context) (*x509.Certificate, error) {
 		opts = append(opts, scepclient.Insecure())
 	}
 
-	scepClient, err := scepclient.New(c.scepURL, kitLogger, opts...)
+	scepClient, err := scepclient.New(c.scepURL, scepLogger, opts...)
 	if err != nil {
 		return nil, fmt.Errorf("create SCEP client: %w", err)
 	}
@@ -251,7 +253,7 @@ func (c *Client) FetchCert(ctx context.Context) (*x509.Certificate, error) {
 		},
 	}
 
-	msg, err := scep.NewCSRRequest(csr, pkiMsgReq, scep.WithLogger(kitLogger))
+	msg, err := scep.NewCSRRequest(csr, pkiMsgReq, scep.WithLogger(scepLogger))
 	if err != nil {
 		return nil, fmt.Errorf("create CSR request: %w", err)
 	}
@@ -261,7 +263,7 @@ func (c *Client) FetchCert(ctx context.Context) (*x509.Certificate, error) {
 		return nil, fmt.Errorf("do CSR request: %w", err)
 	}
 
-	pkiMsgResp, err := scep.ParsePKIMessage(respBytes, scep.WithLogger(kitLogger), scep.WithCACerts(msg.Recipients))
+	pkiMsgResp, err := scep.ParsePKIMessage(respBytes, scep.WithLogger(scepLogger), scep.WithCACerts(msg.Recipients))
 	if err != nil {
 		return nil, fmt.Errorf("parse PKIMessage response: %w", err)
 	}
@@ -279,41 +281,35 @@ func (c *Client) FetchCert(ctx context.Context) (*x509.Certificate, error) {
 	return pkiMsgResp.CertRepMessage.Certificate, nil
 }
 
-// zerologAdapter adapts zerolog.Logger to kit/log.Logger
-type zerologAdapter struct {
+// zerologSlogHandler adapts zerolog.Logger to slog.Handler so it can be used with *logging.Logger.
+type zerologSlogHandler struct {
 	logger zerolog.Logger
+	attrs  []slog.Attr
 }
 
-// Log implements the kit/log.Logger interface
-func (a *zerologAdapter) Log(keyvals ...interface{}) error {
-	// Convert key-value pairs to a map
-	fields := make(map[string]interface{})
-	for i := 0; i < len(keyvals); i += 2 {
-		if i+1 < len(keyvals) {
-			key, ok := keyvals[i].(string)
-			if ok {
-				fields[key] = keyvals[i+1]
-			}
-		}
-	}
+func (h *zerologSlogHandler) Enabled(_ context.Context, _ slog.Level) bool {
+	return true
+}
 
-	// Extract message if present
-	msg := ""
-	if msgVal, ok := fields["msg"]; ok {
-		if msgStr, ok := msgVal.(string); ok {
-			msg = msgStr
-			delete(fields, "msg")
-		}
+func (h *zerologSlogHandler) Handle(_ context.Context, r slog.Record) error {
+	event := h.logger.Info()
+	for _, a := range h.attrs {
+		event = event.Interface(a.Key, a.Value.Any())
 	}
-
-	// Log with zerolog
-	event := a.logger.Info()
-	for k, v := range fields {
-		event = event.Interface(k, v)
-	}
-	event.Msg(msg)
-
+	r.Attrs(func(a slog.Attr) bool {
+		event = event.Interface(a.Key, a.Value.Any())
+		return true
+	})
+	event.Msg(r.Message)
 	return nil
+}
+
+func (h *zerologSlogHandler) WithAttrs(attrs []slog.Attr) slog.Handler {
+	return &zerologSlogHandler{logger: h.logger, attrs: append(h.attrs, attrs...)}
+}
+
+func (h *zerologSlogHandler) WithGroup(_ string) slog.Handler {
+	return h
 }
 
 func PublicKeysEqual(a, b crypto.PublicKey) (bool, error) {

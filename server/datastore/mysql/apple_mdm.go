@@ -27,9 +27,9 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/mobileconfig"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanodep/godep"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/mdm"
+	"github.com/fleetdm/fleet/v4/server/platform/logging"
 	common_mysql "github.com/fleetdm/fleet/v4/server/platform/mysql"
 	"github.com/fleetdm/fleet/v4/server/ptr"
-	"github.com/go-kit/log"
 	"github.com/go-kit/log/level"
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/uuid"
@@ -1281,7 +1281,7 @@ func ingestMDMAppleDeviceFromCheckinDB(
 	ctx context.Context,
 	tx sqlx.ExtContext,
 	mdmHost *fleet.Host,
-	logger log.Logger,
+	logger *logging.Logger,
 	appCfg *fleet.AppConfig,
 	fromPersonalEnrollment bool,
 ) error {
@@ -1388,7 +1388,7 @@ func insertMDMAppleHostDB(
 	ctx context.Context,
 	tx sqlx.ExtContext,
 	mdmHost *fleet.Host,
-	logger log.Logger,
+	logger *logging.Logger,
 	appCfg *fleet.AppConfig,
 	fromPersonalEnrollment bool,
 ) error {
@@ -1467,7 +1467,7 @@ type hostToCreateFromMDM struct {
 func createHostFromMDMDB(
 	ctx context.Context,
 	tx sqlx.ExtContext,
-	logger log.Logger,
+	logger *logging.Logger,
 	devices []hostToCreateFromMDM,
 	fromADE bool,
 	macOSTeam, iosTeam, ipadTeam *uint,
@@ -1838,7 +1838,7 @@ func upsertMDMAppleHostMDMInfoDB(ctx context.Context, tx sqlx.ExtContext, appCfg
 	return ctxerr.Wrap(ctx, err, "upsert host mdm info")
 }
 
-func upsertMDMAppleHostLabelMembershipDB(ctx context.Context, tx sqlx.ExtContext, logger log.Logger, hosts ...fleet.Host) error {
+func upsertMDMAppleHostLabelMembershipDB(ctx context.Context, tx sqlx.ExtContext, logger *logging.Logger, hosts ...fleet.Host) error {
 	// Builtin label memberships are usually inserted when the first distributed
 	// query results are received; however, we want to insert pending MDM hosts
 	// now because it may still be some time before osquery is running on these
@@ -4695,7 +4695,7 @@ func (ds *Datastore) updateHostDEPAssignProfileResponses(ctx context.Context, pa
 	})
 }
 
-func updateHostDEPAssignProfileResponses(ctx context.Context, tx sqlx.ExtContext, logger log.Logger, profileUUID string, serials []string,
+func updateHostDEPAssignProfileResponses(ctx context.Context, tx sqlx.ExtContext, logger *logging.Logger, profileUUID string, serials []string,
 	status string, abmTokenID *uint,
 ) error {
 	if len(serials) == 0 {
@@ -7108,7 +7108,7 @@ ON DUPLICATE KEY UPDATE
 	return nil
 }
 
-func getMDMAppleLegacyEnrollRefDB(ctx context.Context, tx sqlx.ExtContext, logger log.Logger, hostUUID string) (string, error) {
+func getMDMAppleLegacyEnrollRefDB(ctx context.Context, tx sqlx.ExtContext, logger *logging.Logger, hostUUID string) (string, error) {
 	const stmt = `SELECT enroll_ref FROM legacy_host_mdm_enroll_refs WHERE host_uuid = ?`
 
 	var enrollRefs []string

@@ -34,7 +34,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/platform/logging"
 	common_mysql "github.com/fleetdm/fleet/v4/server/platform/mysql"
 	"github.com/fleetdm/fleet/v4/server/service/modules/activities"
-	"github.com/go-kit/log"
 	"github.com/go-kit/log/level"
 	"github.com/go-sql-driver/mysql"
 	"github.com/hashicorp/go-multierror"
@@ -189,7 +188,7 @@ func (ds *Datastore) NewHostIdentitySCEPDepot(logger *slog.Logger, cfg *config.F
 
 // NewConditionalAccessSCEPDepot returns a new conditional access SCEP depot that uses the
 // underlying MySQL writer *sql.DB.
-func (ds *Datastore) NewConditionalAccessSCEPDepot(logger log.Logger, cfg *config.FleetConfig) (scep_depot.Depot, error) {
+func (ds *Datastore) NewConditionalAccessSCEPDepot(logger *logging.Logger, cfg *config.FleetConfig) (scep_depot.Depot, error) {
 	return condaccessdepot.NewConditionalAccessSCEPDepot(ds.primary, ds, logger, cfg)
 }
 

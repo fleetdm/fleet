@@ -20,9 +20,9 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/license"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	microsoft_mdm "github.com/fleetdm/fleet/v4/server/mdm/microsoft"
+	"github.com/fleetdm/fleet/v4/server/platform/logging"
 	common_mysql "github.com/fleetdm/fleet/v4/server/platform/mysql"
 	"github.com/fleetdm/fleet/v4/server/ptr"
-	"github.com/go-kit/log"
 	"github.com/go-kit/log/level"
 	"github.com/jmoiron/sqlx"
 )
@@ -4479,7 +4479,7 @@ func (ds *Datastore) UpdateMDMInstalledFromDEP(
 func maybeAssociateScimUserWithHostMDMIdP(
 	ctx context.Context,
 	tx sqlx.ExtContext,
-	logger log.Logger,
+	logger *logging.Logger,
 	user *fleet.ScimUser,
 ) error {
 	if user == nil {
@@ -4601,7 +4601,7 @@ WHERE
 }
 
 // Given a host and a known MDM IdP account, attempt to find an existing SCIM user to associate it with.
-func maybeAssociateHostMDMIdPWithScimUser(ctx context.Context, tx sqlx.ExtContext, logger log.Logger, hostID uint, idp *fleet.MDMIdPAccount) error {
+func maybeAssociateHostMDMIdPWithScimUser(ctx context.Context, tx sqlx.ExtContext, logger *logging.Logger, hostID uint, idp *fleet.MDMIdPAccount) error {
 	if idp == nil {
 		// TODO: confirm desired behavior here
 		level.Debug(logger).Log("msg", "maybeAssociateHostMDMIdPWithScimUser: MDM IdP account is nil, skipping association", "host_id", hostID)
@@ -5930,7 +5930,7 @@ func (ds *Datastore) ListUpcomingHostMaintenanceWindows(ctx context.Context, hid
 //   - host.DistributedInterval is usually 10s.
 //   - svc.config.Osquery.DetailUpdateInterval is usually 1h.
 //   - Count only includes hosts seen during the last 7 days.
-func countHostsNotRespondingDB(ctx context.Context, db sqlx.QueryerContext, logger log.Logger, config config.FleetConfig) (int, error,
+func countHostsNotRespondingDB(ctx context.Context, db sqlx.QueryerContext, logger *logging.Logger, config config.FleetConfig) (int, error,
 ) {
 	interval := config.Osquery.DetailUpdateInterval.Seconds()
 

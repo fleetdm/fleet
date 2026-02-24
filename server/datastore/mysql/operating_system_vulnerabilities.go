@@ -9,8 +9,8 @@ import (
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/platform/logging"
 	common_mysql "github.com/fleetdm/fleet/v4/server/platform/mysql"
-	"github.com/go-kit/log"
 	"github.com/go-kit/log/level"
 	"github.com/jmoiron/sqlx"
 )
@@ -607,7 +607,7 @@ func processLinuxVulnResults(
 	totalCountByOSVersionID map[uint]uint, // Output: tracks total counts per os_version_id
 	vulnsByKey map[string][]fleet.CVE, // Output: CVEs grouped by "name-version" key
 	cveSet map[string]struct{}, // Output: global set of all CVEs for CVSS fetching
-	logger log.Logger,
+	logger *logging.Logger,
 ) {
 	for _, r := range results {
 		key := osVersionIDToKeyMap[r.OSVersionID]
