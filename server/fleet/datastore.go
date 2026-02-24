@@ -2682,7 +2682,7 @@ type Datastore interface {
 	// and need to be resent based on their command IDs.
 	//
 	// Returns a slice of MDMWindowsCommand pointers containing the commands to be resent.
-	GetWindowsMDMCommandsForResending(ctx context.Context, failedCommandIds []string) ([]*MDMWindowsCommand, error)
+	GetWindowsMDMCommandsForResending(ctx context.Context, deviceID string, failedCommandIds []string) ([]*MDMWindowsCommand, error)
 
 	// ResendWindowsMDMCommand marks the specified Windows MDM command for resend
 	// by inserting a new command entry, command queue, but also updates the host profile reference.
