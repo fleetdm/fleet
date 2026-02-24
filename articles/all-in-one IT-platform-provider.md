@@ -30,4 +30,4 @@ They chose Fleet for its deep GitOps integration, allowing them to build their o
 <meta name="authorGitHubUsername" value="irenareedy">
 <meta name="category" value="announcements">
 <meta name="publishedOn" value="2026-02-22">
-<meta name="description" value="An all-in-one platform for identity, MDM, and procurement. They needed a programmable layer to serve as the "secret weapon" for their own automated services.">
+<meta name="description" value="An all-in-one platform for identity, MDM, and procurement.">
