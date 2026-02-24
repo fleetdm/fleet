@@ -30,4 +30,4 @@ The team chose Fleet to achieve centralized management and rapid policy enforcem
 <meta name="authorGitHubUsername" value="irenareedy">
 <meta name="category" value="announcements">
 <meta name="publishedOn" value="2026-02-22">
-<meta name="description" value="A healthcare technology organization operates in a highly regulated environment requiring SOC 2, HIPAA, and HITRUST compliance. They needed a centralized management solution for a globally distributed fleet that could enforce policies faster than the industry standard.">
+<meta name="description" value="A healthcare technology organization operates in a highly regulated environment requiring SOC 2, HIPAA, and HITRUST compliance.">
