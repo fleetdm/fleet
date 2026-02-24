@@ -1,6 +1,6 @@
 # Scaling agritech with "lake-to-plate" visibility
 
-The fastest-growing vertically integrated tilapia producer in sub-Saharan Africa. Operating a complex, carbon-negative supply chain across Kenya and Rwanda, they require a management stack that can bridge the gap between centralized corporate offices and remote, rural branches.
+The fastest-growing vertically integrated tilapia producer in sub-Saharan Africa operating a complex, carbon-negative supply chain across Kenya and Rwanda required a management stack to bridge the gap between centralized corporate offices and remote, rural branches.
 
 ## At a glance
 
