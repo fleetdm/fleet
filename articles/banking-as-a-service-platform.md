@@ -2,7 +2,7 @@
 
 ## Reliable automation for regulated financial services
 
-A banking-as-a-service platform facilitating digital transactions in emerging markets. They needed to move away from failed legacy tools to a platform with guaranteed script execution.
+A banking-as-a-service platform facilitating digital transactions in emerging markets needed to move away from failed legacy tools to a platform with guaranteed script execution.
 
 ## At a glance
 
