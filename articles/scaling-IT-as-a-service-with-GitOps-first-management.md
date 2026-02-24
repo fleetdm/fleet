@@ -6,27 +6,27 @@ As an "IT-as-a-Service" provider, managing over 8,000 laptops across 120 SME cus
 
 - **Endpoints:** 8,000+ laptops across 120 customers.
 
-- **Primary Requirement:** GitOps-first infrastructure and multi-tenancy.
+- **Primary requirement:** GitOps-first infrastructure and multi-tenancy.
 
-- **Key Integrations:** GitOps, Multi-MDM connections per customer.
+- **Key integrations:** GitOps, Multi-MDM connections per customer.
 
-- **Previous Solution:** ManageEngine.
+- **Previous solution:** ManageEngine.
 
-## The Challenge: Scaling manual processes
+## The challenge: scaling manual processes
 
 Before Fleet, they used ManageEngine but found that application management was not scaling to meet their needs. Managing Linux servers and remote laptops was significantly less effective, as they lacked the granular visibility and control necessary to manage these effectively across varied customer environments.
 
-## The Solution: Unified GitOps and transparency
+## The solution: unified GitOps and transparency
 
 They chose Fleet for its deep integration with automated workflows and the ability to support Mac, Windows, and Linux from a single interface. The open-source transparency allowed them to audit and adjust agent flows to ensure the stack met their specific security and operational standards.
 
-## The Results: Efficiency and cost avoidance
+## The results: efficiency and cost avoidance
 
-- **Cost Savings:** The migration allowed them to avoid the renewal of over 3,000 ManageEngine licenses, resulting in significant cost avoidance.
+- **Cost savings:** the migration allowed them to avoid the renewal of over 3,000 ManageEngine licenses, resulting in significant cost avoidance.
 
-- **Automated Deployments:** Using labels in GitOps, they automated the assignment of policies and scripts, enabling seamless software deployment across thousands of devices.
+- **Automated deployments:** using labels in GitOps, they automated the assignment of policies and scripts, enabling seamless software deployment across thousands of devices.
 
-- **Operational Clarity:** Exposing device information in an understandable way built better trust between the IT service team and
+- **Operational clarity:** exposing device information in an understandable way built better trust between the IT service team and improved troubleshooting speed.
 
 <meta name="articleTitle" value="Scaling IT-as-a-Service with GitOps-first management">
 <meta name="authorFullName" value="Irena Reedy">
