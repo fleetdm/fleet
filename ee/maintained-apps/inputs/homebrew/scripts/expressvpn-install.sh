@@ -62,22 +62,24 @@ fi
 
 quit_application 'com.expressvpn.ExpressVPN'
 
-# Use the vpn-installer.sh script for headless installation instead of the GUI binary
+# Remove quarantine attributes so Gatekeeper won't block binaries during install
+sudo xattr -r -d com.apple.quarantine "$INSTALLER_APP" 2>/dev/null || true
+
+# Run the bundled installer script which handles copying to /Applications,
+# setting permissions, creating groups, installing the LaunchDaemon, and
+# starting the daemon
 INSTALLER_SCRIPT="$INSTALLER_APP/Contents/Resources/vpn-installer.sh"
-if [ -f "$INSTALLER_SCRIPT" ]; then
-  chmod +x "$INSTALLER_SCRIPT"
-  sudo bash "$INSTALLER_SCRIPT" "$INSTALLER_APP"
-  EXIT_CODE=$?
-else
+if [ ! -f "$INSTALLER_SCRIPT" ]; then
   echo "Error: vpn-installer.sh not found in $INSTALLER_APP/Contents/Resources"
   exit 1
 fi
+
+chmod +x "$INSTALLER_SCRIPT"
+sudo bash "$INSTALLER_SCRIPT"
+EXIT_CODE=$?
 
 if [ $EXIT_CODE -ne 0 ]; then
   echo "Error: Installer exited with code $EXIT_CODE"
   exit $EXIT_CODE
 fi
-
-# cleanup: remove the installer app after successful installation
-rm -rf "$INSTALLER_APP"
 
