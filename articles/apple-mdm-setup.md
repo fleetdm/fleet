@@ -142,7 +142,7 @@ renews each host's SCEP certificates automatically every 180 days.
 
 ### Failed enrollments
 
-If a host is turned off due to user action or a low battery during the Setup Assistant, it may fail to enroll. This can also happen if your Fleet instance is down for maintenance when a host tries to enroll automatically during the Setup Assistant. In these cases, hosts usually restart after the user attempts to get past the “Welcome to Mac" screen. The best practice in this situation is to wipe the host with Fleet if it has network connectivity or to [reinstall macOS from Recovery](https://support.apple.com/en-us/102655).
+If a host is restarted/shut down during macOS Setup Assistant, it will fail to enroll to Fleet. Failed enrollments also happen if Fleet instance is down for an upgrade. When this happens, sometimes hosts automatically restart setup. If that doesn't happen, the best practice is to remotely [wipe the host](https://fleetdm.com/guides/lock-wipe-hosts#wipe-a-host) if the host is connected to Wi-Fi. If it's not, you'll need physical access to [reinstall macOS from Recovery](https://support.apple.com/en-us/102655).
 
 ### Apple Business Manager (ABM)
 
