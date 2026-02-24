@@ -30,4 +30,4 @@ Fleet met the requirement for a single point of truth across macOS, Windows, and
 <meta name="authorGitHubUsername" value="irenareedy">
 <meta name="category" value="announcements">
 <meta name="publishedOn" value="2026-02-22">
-<meta name="description" value="A robotics company operates in the robotics industry, managing specialized hardware like industrial-grade tablets in excavators alongside traditional developer desktops. They required a tool that could handle the complexity of Linux workstations and diverse hardware."> 
+<meta name="description" value="A robotics company operates in the robotics industry."> 
