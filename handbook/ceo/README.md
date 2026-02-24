@@ -128,20 +128,13 @@ Use the following steps to schedule an interview between a candidate and the CEO
 7. Create a reminder meeting on your calendar to join the second half of the final interview call with the CEO and candidate.
 
 
-### Schedule Journalist prep
-
-The Executive Assistant (EA) will use the following steps when a call is booked between the CEO and a journalist:
-1. The EA will schedule a 30-minute “📰 Journalist prep” call right before the journalist meeting, with the CEO as the only attendee. 
-2. Before the journalist call, The EA will meet with the Manager of Training and Enablement to build an agenda with 3 vertebrae listed and bring it to the Manager of Training and Enablement to collect the answers along with suggestions for the other two primary talking points.
-3. The CEO will review the agenda during the “📰 Journalist prep” time.
-
-### Schedule analyst breifing
+### Schedule analyst briefing
 
 The Executive Assistant (EA) will use the following steps to book an analyst briefing for the CEO:
 1. The EA will work with the marketing consultant to coordinate a time for when the CEO is available for an analyst briefing.
-2. The EA will [program the CEO](https://fleetdm.com/handbook/ceo#program-the-ceo-to-do-something) a 30-minute “analyst prep” call right before the analyst meeting.
-3. The EA will prep the agenda with a link to the analysts LinkedIn and 3 topics on what the CEO will talk about.
-4. The CEO will review the agenda during the "analyst prep" time.
+2. The EA will [program the CEO](https://fleetdm.com/handbook/ceo#program-the-ceo-to-do-something) to attend a 30-minute “analyst prep” call right before the analyst meeting. During the prep call, the EA will write down the 3 topics the CEO will bring to the analyst discussion. 
+3. The EA will prep the agenda with a link to the analyst's LinkedIn.
+
 
 ### Confirm CEO shadow dates
 
