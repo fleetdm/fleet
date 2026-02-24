@@ -9,7 +9,7 @@ describe("PackageVersionSelector component", () => {
   it("returns null when there are no version options", () => {
     const { container } = render(
       <PackageVersionSelector
-        selectedVersion="1.0.0"
+        selectedVersion="2.0.0"
         versionOptions={[]}
         onSelectVersion={noop}
       />
@@ -18,50 +18,135 @@ describe("PackageVersionSelector component", () => {
     expect(container.firstChild).toBeNull();
   });
 
+  it("renders a plain version label when there is only one option", () => {
+    render(
+      <PackageVersionSelector
+        selectedVersion="2.0.0"
+        versionOptions={[{ value: "2.0.0", label: "2.0.0" }]}
+        onSelectVersion={noop}
+      />
+    );
+
+    // Shows just the raw version
+    expect(screen.getByText("2.0.0")).toBeInTheDocument();
+
+    // Does not show the \"Latest (...)\" decoration when there is only one option
+    expect(
+      screen.queryByText("Latest (2.0.0)", { exact: false })
+    ).not.toBeInTheDocument();
+  });
+
   it("renders the package version dropdown when there are package versions to choose from", () => {
     render(
       <PackageVersionSelector
-        selectedVersion="1.0.0"
+        selectedVersion="2.0.0"
         versionOptions={[
+          { value: "2.0.0", label: "Latest (2.0.0)" },
           { value: "1.0.0", label: "1.0.0" },
-          { value: "2.0.0", label: "2.0.0" },
         ]}
         onSelectVersion={noop}
       />
     );
 
-    expect(screen.getByText("1.0.0")).toBeInTheDocument();
+    // Renders the label for the selected (latest) version
+    expect(screen.getByText("Latest (2.0.0)")).toBeInTheDocument();
   });
 
-  it("disables the dropdown when the selected version is the first option", () => {
-    render(
+  it("disables all non-selected options when the latest version is selected", async () => {
+    const { user } = renderWithSetup(
       <PackageVersionSelector
-        selectedVersion="1.0.0"
+        selectedVersion="2.0.0"
         versionOptions={[
+          { value: "2.0.0", label: "Latest (2.0.0)" }, // selected
           { value: "1.0.0", label: "1.0.0" },
-          { value: "2.0.0", label: "2.0.0" },
         ]}
         onSelectVersion={noop}
       />
     );
 
     const combobox = screen.getByRole("combobox");
-    expect(combobox).toBeDisabled();
+    await user.click(combobox);
+
+    const optionInnerDivs = screen.getAllByTestId("dropdown-option");
+
+    const latestInner = optionInnerDivs.find(
+      (el) => el.textContent === "Latest (2.0.0)"
+    );
+    const oldInner = optionInnerDivs.find((el) => el.textContent === "1.0.0");
+
+    expect(latestInner).toBeDefined();
+    expect(oldInner).toBeDefined();
+
+    const latestOptionWrapper = latestInner?.closest(
+      ".react-select__option"
+    ) as HTMLElement | null;
+    const oldOptionWrapper = oldInner?.closest(
+      ".react-select__option"
+    ) as HTMLElement | null;
+
+    expect(latestOptionWrapper).not.toBeNull();
+    expect(oldOptionWrapper).not.toBeNull();
+
+    // Selected option (Latest 2.0.0) is enabled
+    expect(latestOptionWrapper).toHaveAttribute("aria-disabled", "false");
+    // Non-selected option (1.0.0) is disabled
+    expect(oldOptionWrapper).toHaveAttribute("aria-disabled", "true");
   });
 
-  it("shows the GitOps rollback tooltip text when the selected version is the first option", async () => {
+  it("disables all non-selected options when a non-latest version is selected", async () => {
     const { user } = renderWithSetup(
       <PackageVersionSelector
         selectedVersion="1.0.0"
         versionOptions={[
-          { value: "1.0.0", label: "1.0.0" },
-          { value: "2.0.0", label: "2.0.0" },
+          { value: "2.0.0", label: "Latest (2.0.0)" },
+          { value: "1.0.0", label: "1.0.0" }, // selected
         ]}
         onSelectVersion={noop}
       />
     );
 
-    // TooltipWrapper is wrapping the select; it attaches tooltip to this element:
+    const combobox = screen.getByRole("combobox");
+    await user.click(combobox);
+
+    const optionInnerDivs = screen.getAllByTestId("dropdown-option");
+
+    const latestInner = optionInnerDivs.find(
+      (el) => el.textContent === "Latest (2.0.0)"
+    );
+    const oldInner = optionInnerDivs.find((el) => el.textContent === "1.0.0");
+
+    expect(latestInner).toBeDefined();
+    expect(oldInner).toBeDefined();
+
+    const latestOptionWrapper = latestInner?.closest(
+      ".react-select__option"
+    ) as HTMLElement | null;
+    const oldOptionWrapper = oldInner?.closest(
+      ".react-select__option"
+    ) as HTMLElement | null;
+
+    expect(latestOptionWrapper).not.toBeNull();
+    expect(oldOptionWrapper).not.toBeNull();
+
+    // Selected option (1.0.0) is enabled
+    expect(oldOptionWrapper).toHaveAttribute("aria-disabled", "false");
+    // Non-selected option (Latest 2.0.0) is disabled
+    expect(latestOptionWrapper).toHaveAttribute("aria-disabled", "true");
+  });
+
+  it("shows the GitOps rollback tooltip text when the selected version is the first (latest) option", async () => {
+    const { user } = renderWithSetup(
+      <PackageVersionSelector
+        selectedVersion="2.0.0"
+        versionOptions={[
+          { value: "2.0.0", label: "Latest (2.0.0)" }, // first / latest
+          { value: "1.0.0", label: "1.0.0" },
+        ]}
+        onSelectVersion={noop}
+      />
+    );
+
+    // TooltipWrapper attaches tooltip to this element:
     const tooltipAnchor = document.querySelector(
       ".component__tooltip-wrapper__element"
     ) as HTMLElement;
@@ -78,13 +163,13 @@ describe("PackageVersionSelector component", () => {
     });
   });
 
-  it("shows the update-to-latest tooltip text when the selected version is not the first option", async () => {
+  it("shows the update-to-latest tooltip text when the selected version is not the first (latest) option", async () => {
     const { user } = renderWithSetup(
       <PackageVersionSelector
-        selectedVersion="2.0.0"
+        selectedVersion="1.0.0"
         versionOptions={[
+          { value: "2.0.0", label: "Latest (2.0.0)" }, // first / latest
           { value: "1.0.0", label: "1.0.0" },
-          { value: "2.0.0", label: "2.0.0" },
         ]}
         onSelectVersion={noop}
       />

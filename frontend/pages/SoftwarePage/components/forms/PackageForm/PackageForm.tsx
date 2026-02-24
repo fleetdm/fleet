@@ -14,6 +14,8 @@ import { ILabelSummary } from "interfaces/label";
 
 import { ISoftwareVersion, SoftwareCategory } from "interfaces/software";
 
+import { CustomOptionType } from "components/forms/fields/DropdownWrapper/DropdownWrapper";
+
 import Button from "components/buttons/Button";
 import TooltipWrapper from "components/TooltipWrapper";
 import FileUploader from "components/FileUploader";
@@ -29,7 +31,11 @@ import Card from "components/Card";
 import SoftwareOptionsSelector from "pages/SoftwarePage/components/forms/SoftwareOptionsSelector";
 
 import PackageAdvancedOptions from "../PackageAdvancedOptions";
-import { createTooltipContent, generateFormValidation } from "./helpers";
+import {
+  createTooltipContent,
+  generateFormValidation,
+  sortByVersionLatestFirst,
+} from "./helpers";
 import PackageVersionSelector from "../PackageVersionSelector";
 
 export const baseClass = "package-form";
@@ -78,6 +84,31 @@ const renderFileTypeMessage = () => {
       <TooltipWrapper tipContent="Script-only package">.sh</TooltipWrapper>)
     </>
   );
+};
+
+/** Returns the version value to use as the dropdown's default:
+/ 1) If a previously selected version is still present in the options, reuse it.
+/ 2) Otherwise, fall back to the first option, which is assumed to be the latest.
+/ 3) Safe fallback if no options exist which should never happen */
+const getDefaultVersion = (
+  versionOptions: CustomOptionType[],
+  selectedVersion?: string
+) => {
+  // This shouldn't happen
+  if (!versionOptions.length) {
+    return "";
+  }
+
+  // If we already have a selected version and it exists in options, keep it
+  if (selectedVersion) {
+    const match = versionOptions.find((opt) => opt.value === selectedVersion);
+    if (match) {
+      return match.value;
+    }
+  }
+
+  // Otherwise, default to the first option (which should be latest)
+  return versionOptions[0].value;
 };
 
 interface IPackageFormProps {
@@ -218,11 +249,10 @@ const PackageForm = ({
 
   const onToggleAutomaticInstall = useCallback(
     (value?: boolean) => {
-      const newData = {
-        ...formData,
-        automaticInstall: !formData.automaticInstall,
-      };
-      setFormData(newData);
+      const automaticInstall =
+        typeof value === "boolean" ? value : !formData.automaticInstall;
+
+      setFormData({ ...formData, automaticInstall });
     },
     [formData]
   );
@@ -378,17 +408,26 @@ const PackageForm = ({
       return null;
     }
 
-    const fmaVersions = defaultSoftware.fleet_maintained_versions || [];
-    const versionOptions = fmaVersions.map((v: ISoftwareVersion) => {
-      return {
-        label: `${v.version}${v.id === 1 ? " (latest)" : ""}`,
-        value: v.version,
-      };
-    });
+    const fmaVersionsSortedByLatestFirst = sortByVersionLatestFirst<ISoftwareVersion>(
+      defaultSoftware.fleet_maintained_versions || []
+    );
+    const hasMultipleVersions = fmaVersionsSortedByLatestFirst.length > 1;
+
+    const versionOptions = fmaVersionsSortedByLatestFirst.map(
+      (v: ISoftwareVersion, index: number) => {
+        // If multiple versions, only adds "Latest" label to the first option
+        const labelLatestVersion = hasMultipleVersions && index === 0;
+
+        return {
+          label: labelLatestVersion ? `Latest (${v.version})` : `${v.version}`,
+          value: v.version,
+        };
+      }
+    );
 
     return (
       <PackageVersionSelector
-        selectedVersion={formData.version || versionOptions[1].value}
+        selectedVersion={getDefaultVersion(versionOptions, formData.version)}
         versionOptions={versionOptions}
         onSelectVersion={onSelectVersion}
         className={`${baseClass}__version-selector`}
