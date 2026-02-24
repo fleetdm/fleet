@@ -101,6 +101,7 @@ func TestAppleMDM(t *testing.T) {
 	// nopLog := logging.NewNopLogger()
 	// use this to debug/verify details of calls
 	nopLog := logging.NewJSONLogger(os.Stdout)
+	slogLog := nopLog.SlogLogger()
 
 	testOrgName := "fleet-test"
 
@@ -189,14 +190,14 @@ func TestAppleMDM(t *testing.T) {
 
 		mdmWorker := &AppleMDM{
 			Datastore: ds,
-			Log:       nopLog,
+			Log:       slogLog,
 		}
-		w := NewWorker(ds, nopLog)
+		w := NewWorker(ds, slogLog)
 		w.Register(mdmWorker)
 
 		// create a host and enqueue the job
 		h := createEnrolledHost(t, 1, nil, true, "darwin")
-		err := QueueAppleMDMJob(ctx, ds, nopLog, AppleMDMPostDEPEnrollmentTask, h.UUID, "darwin", nil, "", false, false)
+		err := QueueAppleMDMJob(ctx, ds, slogLog, AppleMDMPostDEPEnrollmentTask, h.UUID, "darwin", nil, "", false, false)
 		require.NoError(t, err)
 
 		// run the worker, should mark the job as done
@@ -218,15 +219,15 @@ func TestAppleMDM(t *testing.T) {
 
 		mdmWorker := &AppleMDM{
 			Datastore: ds,
-			Log:       nopLog,
+			Log:       slogLog,
 			Commander: apple_mdm.NewMDMAppleCommander(mdmStorage, mockPusher{}),
 		}
-		w := NewWorker(ds, nopLog)
+		w := NewWorker(ds, slogLog)
 		w.Register(mdmWorker)
 
 		// create a host and enqueue the job
 		h := createEnrolledHost(t, 1, nil, true, "darwin")
-		err := QueueAppleMDMJob(ctx, ds, nopLog, AppleMDMTask("no-such-task"), h.UUID, "darwin", nil, "", false, false)
+		err := QueueAppleMDMJob(ctx, ds, slogLog, AppleMDMTask("no-such-task"), h.UUID, "darwin", nil, "", false, false)
 		require.NoError(t, err)
 
 		// run the worker, should mark the job as failed
@@ -252,14 +253,14 @@ func TestAppleMDM(t *testing.T) {
 
 		mdmWorker := &AppleMDM{
 			Datastore: ds,
-			Log:       nopLog,
+			Log:       slogLog,
 			Commander: apple_mdm.NewMDMAppleCommander(mdmStorage, mockPusher{}),
 		}
-		w := NewWorker(ds, nopLog)
+		w := NewWorker(ds, slogLog)
 		w.Register(mdmWorker)
 
 		// use "" instead of "darwin" as platform to test a queued job after the upgrade to iOS/iPadOS support.
-		err := QueueAppleMDMJob(ctx, ds, nopLog, AppleMDMPostDEPEnrollmentTask, h.UUID, "", nil, "", false, false)
+		err := QueueAppleMDMJob(ctx, ds, slogLog, AppleMDMPostDEPEnrollmentTask, h.UUID, "", nil, "", false, false)
 		require.NoError(t, err)
 
 		// run the worker, should succeed
@@ -288,13 +289,13 @@ func TestAppleMDM(t *testing.T) {
 
 		mdmWorker := &AppleMDM{
 			Datastore: ds,
-			Log:       nopLog,
+			Log:       slogLog,
 			Commander: apple_mdm.NewMDMAppleCommander(mdmStorage, mockPusher{}),
 		}
-		w := NewWorker(ds, nopLog)
+		w := NewWorker(ds, slogLog)
 		w.Register(mdmWorker)
 
-		err = QueueAppleMDMJob(ctx, ds, nopLog, AppleMDMPostDEPEnrollmentTask, h.UUID, "darwin", nil, "", false, false)
+		err = QueueAppleMDMJob(ctx, ds, slogLog, AppleMDMPostDEPEnrollmentTask, h.UUID, "darwin", nil, "", false, false)
 		require.NoError(t, err)
 
 		// run the worker, should succeed
@@ -330,13 +331,13 @@ func TestAppleMDM(t *testing.T) {
 
 		mdmWorker := &AppleMDM{
 			Datastore: ds,
-			Log:       nopLog,
+			Log:       slogLog,
 			Commander: apple_mdm.NewMDMAppleCommander(mdmStorage, mockPusher{}),
 		}
-		w := NewWorker(ds, nopLog)
+		w := NewWorker(ds, slogLog)
 		w.Register(mdmWorker)
 
-		err = QueueAppleMDMJob(ctx, ds, nopLog, AppleMDMPostDEPEnrollmentTask, h.UUID, "darwin", nil, "", false, false)
+		err = QueueAppleMDMJob(ctx, ds, slogLog, AppleMDMPostDEPEnrollmentTask, h.UUID, "darwin", nil, "", false, false)
 		require.NoError(t, err)
 
 		// run the worker, should succeed
@@ -379,13 +380,13 @@ func TestAppleMDM(t *testing.T) {
 
 		mdmWorker := &AppleMDM{
 			Datastore: ds,
-			Log:       nopLog,
+			Log:       slogLog,
 			Commander: apple_mdm.NewMDMAppleCommander(mdmStorage, mockPusher{}),
 		}
-		w := NewWorker(ds, nopLog)
+		w := NewWorker(ds, slogLog)
 		w.Register(mdmWorker)
 
-		err = QueueAppleMDMJob(ctx, ds, nopLog, AppleMDMPostDEPEnrollmentTask, h.UUID, "darwin", &tm.ID, "", false, false)
+		err = QueueAppleMDMJob(ctx, ds, slogLog, AppleMDMPostDEPEnrollmentTask, h.UUID, "darwin", &tm.ID, "", false, false)
 		require.NoError(t, err)
 
 		// run the worker, should succeed
@@ -429,13 +430,13 @@ func TestAppleMDM(t *testing.T) {
 
 		mdmWorker := &AppleMDM{
 			Datastore: ds,
-			Log:       nopLog,
+			Log:       slogLog,
 			Commander: apple_mdm.NewMDMAppleCommander(mdmStorage, mockPusher{}),
 		}
-		w := NewWorker(ds, nopLog)
+		w := NewWorker(ds, slogLog)
 		w.Register(mdmWorker)
 
-		err = QueueAppleMDMJob(ctx, ds, nopLog, AppleMDMPostDEPEnrollmentTask, h.UUID, "darwin", &tm.ID, "", false, false)
+		err = QueueAppleMDMJob(ctx, ds, slogLog, AppleMDMPostDEPEnrollmentTask, h.UUID, "darwin", &tm.ID, "", false, false)
 		require.NoError(t, err)
 
 		// run the worker, should succeed
@@ -475,13 +476,13 @@ func TestAppleMDM(t *testing.T) {
 
 		mdmWorker := &AppleMDM{
 			Datastore: ds,
-			Log:       nopLog,
+			Log:       slogLog,
 			Commander: apple_mdm.NewMDMAppleCommander(mdmStorage, mockPusher{}),
 		}
-		w := NewWorker(ds, nopLog)
+		w := NewWorker(ds, slogLog)
 		w.Register(mdmWorker)
 
-		err = QueueAppleMDMJob(ctx, ds, nopLog, AppleMDMPostDEPEnrollmentTask, h.UUID, "darwin", nil, "", false, true)
+		err = QueueAppleMDMJob(ctx, ds, slogLog, AppleMDMPostDEPEnrollmentTask, h.UUID, "darwin", nil, "", false, true)
 		require.NoError(t, err)
 
 		// run the worker, should succeed
@@ -525,13 +526,13 @@ func TestAppleMDM(t *testing.T) {
 
 		mdmWorker := &AppleMDM{
 			Datastore: ds,
-			Log:       nopLog,
+			Log:       slogLog,
 			Commander: apple_mdm.NewMDMAppleCommander(mdmStorage, mockPusher{}),
 		}
-		w := NewWorker(ds, nopLog)
+		w := NewWorker(ds, slogLog)
 		w.Register(mdmWorker)
 
-		err = QueueAppleMDMJob(ctx, ds, nopLog, AppleMDMPostDEPEnrollmentTask, h.UUID, "darwin", &tm.ID, "", false, true)
+		err = QueueAppleMDMJob(ctx, ds, slogLog, AppleMDMPostDEPEnrollmentTask, h.UUID, "darwin", &tm.ID, "", false, true)
 		require.NoError(t, err)
 
 		// run the worker, should succeed
@@ -576,13 +577,13 @@ func TestAppleMDM(t *testing.T) {
 
 		mdmWorker := &AppleMDM{
 			Datastore: ds,
-			Log:       nopLog,
+			Log:       slogLog,
 			Commander: apple_mdm.NewMDMAppleCommander(mdmStorage, mockPusher{}),
 		}
-		w := NewWorker(ds, nopLog)
+		w := NewWorker(ds, slogLog)
 		w.Register(mdmWorker)
 
-		err = QueueAppleMDMJob(ctx, ds, nopLog, AppleMDMPostDEPEnrollmentTask, h.UUID, "darwin", nil, "", false, true)
+		err = QueueAppleMDMJob(ctx, ds, slogLog, AppleMDMPostDEPEnrollmentTask, h.UUID, "darwin", nil, "", false, true)
 		require.NoError(t, err)
 
 		// run the worker, should succeed
@@ -630,13 +631,13 @@ func TestAppleMDM(t *testing.T) {
 
 		mdmWorker := &AppleMDM{
 			Datastore: ds,
-			Log:       nopLog,
+			Log:       slogLog,
 			Commander: apple_mdm.NewMDMAppleCommander(mdmStorage, mockPusher{}),
 		}
-		w := NewWorker(ds, nopLog)
+		w := NewWorker(ds, slogLog)
 		w.Register(mdmWorker)
 
-		err = QueueAppleMDMJob(ctx, ds, nopLog, AppleMDMPostDEPEnrollmentTask, h.UUID, "darwin", &tm.ID, "", false, true)
+		err = QueueAppleMDMJob(ctx, ds, slogLog, AppleMDMPostDEPEnrollmentTask, h.UUID, "darwin", &tm.ID, "", false, true)
 		require.NoError(t, err)
 
 		// run the worker, should succeed
@@ -669,13 +670,13 @@ func TestAppleMDM(t *testing.T) {
 
 		mdmWorker := &AppleMDM{
 			Datastore: ds,
-			Log:       nopLog,
+			Log:       slogLog,
 			Commander: apple_mdm.NewMDMAppleCommander(mdmStorage, mockPusher{}),
 		}
-		w := NewWorker(ds, nopLog)
+		w := NewWorker(ds, slogLog)
 		w.Register(mdmWorker)
 
-		err := QueueAppleMDMJob(ctx, ds, nopLog, AppleMDMPostDEPEnrollmentTask, h.UUID, "darwin", nil, "abcd", false, false)
+		err := QueueAppleMDMJob(ctx, ds, slogLog, AppleMDMPostDEPEnrollmentTask, h.UUID, "darwin", nil, "abcd", false, false)
 		require.NoError(t, err)
 
 		// run the worker, should succeed
@@ -712,13 +713,13 @@ func TestAppleMDM(t *testing.T) {
 
 		mdmWorker := &AppleMDM{
 			Datastore: ds,
-			Log:       nopLog,
+			Log:       slogLog,
 			Commander: apple_mdm.NewMDMAppleCommander(mdmStorage, mockPusher{}),
 		}
-		w := NewWorker(ds, nopLog)
+		w := NewWorker(ds, slogLog)
 		w.Register(mdmWorker)
 
-		err = QueueAppleMDMJob(ctx, ds, nopLog, AppleMDMPostDEPEnrollmentTask, h.UUID, "darwin", nil, idpAcc.UUID, false, false)
+		err = QueueAppleMDMJob(ctx, ds, slogLog, AppleMDMPostDEPEnrollmentTask, h.UUID, "darwin", nil, idpAcc.UUID, false, false)
 		require.NoError(t, err)
 
 		// run the worker, should succeed
@@ -765,13 +766,13 @@ func TestAppleMDM(t *testing.T) {
 
 		mdmWorker := &AppleMDM{
 			Datastore: ds,
-			Log:       nopLog,
+			Log:       slogLog,
 			Commander: apple_mdm.NewMDMAppleCommander(mdmStorage, mockPusher{}),
 		}
-		w := NewWorker(ds, nopLog)
+		w := NewWorker(ds, slogLog)
 		w.Register(mdmWorker)
 
-		err = QueueAppleMDMJob(ctx, ds, nopLog, AppleMDMPostDEPEnrollmentTask, h.UUID, "darwin", &tm.ID, idpAcc.UUID, false, false)
+		err = QueueAppleMDMJob(ctx, ds, slogLog, AppleMDMPostDEPEnrollmentTask, h.UUID, "darwin", &tm.ID, idpAcc.UUID, false, false)
 		require.NoError(t, err)
 
 		// run the worker, should succeed
@@ -799,13 +800,13 @@ func TestAppleMDM(t *testing.T) {
 
 		mdmWorker := &AppleMDM{
 			Datastore: ds,
-			Log:       nopLog,
+			Log:       slogLog,
 			Commander: apple_mdm.NewMDMAppleCommander(mdmStorage, mockPusher{}),
 		}
-		w := NewWorker(ds, nopLog)
+		w := NewWorker(ds, slogLog)
 		w.Register(mdmWorker)
 
-		err := QueueAppleMDMJob(ctx, ds, nopLog, AppleMDMPostManualEnrollmentTask, h.UUID, "darwin", nil, "", false, false)
+		err := QueueAppleMDMJob(ctx, ds, slogLog, AppleMDMPostManualEnrollmentTask, h.UUID, "darwin", nil, "", false, false)
 		require.NoError(t, err)
 
 		// run the worker, should succeed
@@ -830,13 +831,13 @@ func TestAppleMDM(t *testing.T) {
 
 		mdmWorker := &AppleMDM{
 			Datastore: ds,
-			Log:       nopLog,
+			Log:       slogLog,
 			Commander: apple_mdm.NewMDMAppleCommander(mdmStorage, mockPusher{}),
 		}
-		w := NewWorker(ds, nopLog)
+		w := NewWorker(ds, slogLog)
 		w.Register(mdmWorker)
 
-		err := QueueAppleMDMJob(ctx, ds, nopLog, AppleMDMPostDEPEnrollmentTask, h.UUID, "darwin", nil, "", true, false)
+		err := QueueAppleMDMJob(ctx, ds, slogLog, AppleMDMPostDEPEnrollmentTask, h.UUID, "darwin", nil, "", true, false)
 		require.NoError(t, err)
 
 		// run the worker, should succeed
@@ -866,13 +867,13 @@ func TestAppleMDM(t *testing.T) {
 
 		mdmWorker := &AppleMDM{
 			Datastore: ds,
-			Log:       nopLog,
+			Log:       slogLog,
 			Commander: apple_mdm.NewMDMAppleCommander(mdmStorage, mockPusher{}),
 		}
-		w := NewWorker(ds, nopLog)
+		w := NewWorker(ds, slogLog)
 		w.Register(mdmWorker)
 
-		err := QueueAppleMDMJob(ctx, ds, nopLog, AppleMDMPostDEPEnrollmentTask, h.UUID, "darwin", nil, "", true, false)
+		err := QueueAppleMDMJob(ctx, ds, slogLog, AppleMDMPostDEPEnrollmentTask, h.UUID, "darwin", nil, "", true, false)
 		require.NoError(t, err)
 
 		// run the worker, should succeed
@@ -961,13 +962,13 @@ func TestAppleMDM(t *testing.T) {
 
 		mdmWorker := &AppleMDM{
 			Datastore: ds,
-			Log:       nopLog,
+			Log:       slogLog,
 			Commander: apple_mdm.NewMDMAppleCommander(mdmStorage, mockPusher{}),
 		}
-		w := NewWorker(ds, nopLog)
+		w := NewWorker(ds, slogLog)
 		w.Register(mdmWorker)
 
-		err := QueueAppleMDMJob(ctx, ds, nopLog, AppleMDMPostDEPEnrollmentTask, h.UUID, "darwin", nil, "", true, false)
+		err := QueueAppleMDMJob(ctx, ds, slogLog, AppleMDMPostDEPEnrollmentTask, h.UUID, "darwin", nil, "", true, false)
 		require.NoError(t, err)
 
 		// run the worker, should succeed
@@ -1064,13 +1065,13 @@ INSERT INTO setup_experience_status_results (
 		mdmWorker := &AppleMDM{
 			VPPInstaller: vppInstaller,
 			Datastore:    ds,
-			Log:          nopLog,
+			Log:          slogLog,
 			Commander:    apple_mdm.NewMDMAppleCommander(mdmStorage, mockPusher{}),
 		}
-		w := NewWorker(ds, nopLog)
+		w := NewWorker(ds, slogLog)
 		w.Register(mdmWorker)
 
-		err = QueueAppleMDMJob(ctx, ds, nopLog, AppleMDMPostDEPEnrollmentTask, h.UUID, h.Platform, nil, "", true, false)
+		err = QueueAppleMDMJob(ctx, ds, slogLog, AppleMDMPostDEPEnrollmentTask, h.UUID, h.Platform, nil, "", true, false)
 		require.NoError(t, err)
 
 		// run the worker, should succeed
@@ -1229,13 +1230,13 @@ INSERT INTO setup_experience_status_results (
 		mdmWorker := &AppleMDM{
 			VPPInstaller: vppInstaller,
 			Datastore:    ds,
-			Log:          nopLog,
+			Log:          slogLog,
 			Commander:    apple_mdm.NewMDMAppleCommander(mdmStorage, mockPusher{}),
 		}
-		w := NewWorker(ds, nopLog)
+		w := NewWorker(ds, slogLog)
 		w.Register(mdmWorker)
 
-		err = QueueAppleMDMJob(ctx, ds, nopLog, AppleMDMPostDEPEnrollmentTask, h.UUID, h.Platform, nil, "", true, false)
+		err = QueueAppleMDMJob(ctx, ds, slogLog, AppleMDMPostDEPEnrollmentTask, h.UUID, h.Platform, nil, "", true, false)
 		require.NoError(t, err)
 
 		// run the worker, should succeed
@@ -1359,13 +1360,13 @@ INSERT INTO setup_experience_status_results (
 
 		mdmWorker := &AppleMDM{
 			Datastore: ds,
-			Log:       nopLog,
+			Log:       slogLog,
 			Commander: apple_mdm.NewMDMAppleCommander(mdmStorage, mockPusher{}),
 		}
-		w := NewWorker(ds, nopLog)
+		w := NewWorker(ds, slogLog)
 		w.Register(mdmWorker)
 
-		err := QueueAppleMDMJob(ctx, ds, nopLog, AppleMDMPostDEPEnrollmentTask, h.UUID, "darwin", nil, "", true, false)
+		err := QueueAppleMDMJob(ctx, ds, slogLog, AppleMDMPostDEPEnrollmentTask, h.UUID, "darwin", nil, "", true, false)
 		require.NoError(t, err)
 
 		// run the worker, should succeed and enqueue the release job
@@ -1426,7 +1427,7 @@ func TestGetSignedURL(t *testing.T) {
 	var data []byte
 	buf := bytes.NewBuffer(data)
 	logger := logging.NewLogfmtLogger(buf)
-	a := &AppleMDM{Log: logger}
+	a := &AppleMDM{Log: logger.SlogLogger()}
 
 	// S3 not configured
 	assert.Empty(t, a.getSignedURL(ctx, meta))

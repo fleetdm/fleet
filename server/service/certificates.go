@@ -180,7 +180,7 @@ func (svc *Service) ListCertificateTemplates(ctx context.Context, teamID uint, o
 	opts.After = ""
 
 	// custom ordering is not supported, always by sort by id
-	opts.OrderKey = "certificate_templates.id"
+	opts.OrderKey = "id"
 	opts.OrderDirection = fleet.OrderAscending
 
 	// no matching query support

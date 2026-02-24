@@ -44,18 +44,53 @@ var (
 
 // TODO: should host search columns include display_name (requires join to host_display_names)?
 
-// Fixme: We should not make implementation details of the database schema part of the API.
-var defaultHostColumnTableAliases = map[string]string{
-	"created_at": "h.created_at",
-	"updated_at": "h.updated_at",
-	"issues":     "host_issues.total_issues_count",
+// hostAllowedOrderKeys defines the allowed order keys for host listing endpoints.
+// SECURITY: This prevents information disclosure via arbitrary column sorting.
+// Sensitive columns like 'node_key', 'orbit_node_key', and JOINed encryption keys
+// are intentionally excluded to prevent binary search extraction attacks.
+var hostAllowedOrderKeys = common_mysql.OrderKeyAllowlist{
+	"id":                    "h.id",
+	"hostname":              "h.hostname",
+	"uuid":                  "h.uuid",
+	"computer_name":         "h.computer_name",
+	"created_at":            "h.created_at",
+	"updated_at":            "h.updated_at",
+	"detail_updated_at":     "h.detail_updated_at",
+	"label_updated_at":      "h.label_updated_at",
+	"policy_updated_at":     "h.policy_updated_at",
+	"platform":              "h.platform",
+	"os_version":            "h.os_version",
+	"osquery_version":       "h.osquery_version",
+	"memory":                "h.memory",
+	"cpu_type":              "h.cpu_type",
+	"hardware_vendor":       "h.hardware_vendor",
+	"hardware_model":        "h.hardware_model",
+	"hardware_serial":       "h.hardware_serial",
+	"team_id":               "h.team_id",
+	"team_name":             "t.name",
+	"primary_ip":            "h.primary_ip",
+	"primary_mac":           "h.primary_mac",
+	"public_ip":             "h.public_ip",
+	"last_enrolled_at":      "h.last_enrolled_at",
+	"last_restarted_at":     "h.last_restarted_at",
+	"orbit_version":         "hoi.version",
+	"fleet_desktop_version": "hoi.desktop_version",
+	"issues":                "host_issues.total_issues_count",
+	"display_name":          "hdn.display_name",
+	// COALESCE required: must match SELECT clause so cursor pagination (WHERE) and ORDER BY are consistent
+	"seen_time":                    "COALESCE(hst.seen_time, h.created_at)",
+	"software_updated_at":          "COALESCE(hu.software_updated_at, h.created_at)",
+	"gigs_disk_space_available":    "COALESCE(hd.gigs_disk_space_available, 0)",
+	"percent_disk_space_available": "COALESCE(hd.percent_disk_space_available, 0)",
+	"gigs_total_disk_space":        "COALESCE(hd.gigs_total_disk_space, 0)",
+	// Note: 'h.node_key', 'h.orbit_node_key', 'hdek.base64_encrypted' intentionally EXCLUDED
 }
 
-func defaultHostColumnTableAlias(s string) string {
-	if newCol, ok := defaultHostColumnTableAliases[s]; ok {
-		return newCol
-	}
-	return s
+// batchScriptHostAllowedOrderKeys for ListBatchScriptHosts endpoint.
+var batchScriptHostAllowedOrderKeys = common_mysql.OrderKeyAllowlist{
+	"display_name": "hdn.display_name",
+	"hostname":     "h.hostname",
+	"updated_at":   "updated_at",
 }
 
 // NewHost creates a new host on the datastore.
@@ -1202,7 +1237,11 @@ WHERE
 	// Add in the params for the main query SELECT.
 	queryParams = append([]interface{}{batchScriptExecutionStatus, batchScriptExecutionStatus}, queryParams...) // make a copy so we don't modify the original slice
 	// Add in the paging params.
-	sqlStmt, queryParams = appendListOptionsWithCursorToSQL(sqlStmt, queryParams, &opt)
+	var listOptsErr error
+	sqlStmt, queryParams, listOptsErr = appendListOptionsWithCursorToSQLSecure(sqlStmt, queryParams, &opt, batchScriptHostAllowedOrderKeys)
+	if listOptsErr != nil {
+		return nil, nil, 0, ctxerr.Wrap(ctx, listOptsErr, "apply list options")
+	}
 
 	// Run the main query to get the list of hosts.
 	sqlStmt = fmt.Sprintf(sqlStmt, batchScriptExecutionJoin, batchScriptExecutionFilter)
@@ -1236,8 +1275,6 @@ func (ds *Datastore) applyHostFilters(
 ) (string, []interface{}, error) {
 	// prior to returning, params will be appended in the following order: selectParams, joinParams, whereParams
 	var whereParams, joinParams []interface{}
-
-	opt.OrderKey = defaultHostColumnTableAlias(opt.OrderKey)
 
 	deviceMappingJoin := fmt.Sprintf(`LEFT JOIN (
 		SELECT
@@ -1462,8 +1499,12 @@ func (ds *Datastore) applyHostFilters(
 	sqlStmt, whereParams = filterHostsByOS(sqlStmt, opt, whereParams)
 	sqlStmt, whereParams = filterHostsByVulnerability(sqlStmt, opt, whereParams)
 	sqlStmt, whereParams = filterHostsByProfileStatus(sqlStmt, opt, whereParams)
-	sqlStmt, whereParams, _ = hostSearchLike(sqlStmt, whereParams, opt.MatchQuery, append(hostSearchColumns, "display_name")...)
-	sqlStmt, whereParams = appendListOptionsWithCursorToSQL(sqlStmt, whereParams, &opt.ListOptions)
+	sqlStmt, whereParams = hostSearchLike(sqlStmt, whereParams, opt.MatchQuery, append(hostSearchColumns, "display_name")...)
+
+	sqlStmt, whereParams, err = appendListOptionsWithCursorToSQLSecure(sqlStmt, whereParams, &opt.ListOptions, hostAllowedOrderKeys)
+	if err != nil {
+		return "", nil, ctxerr.Wrap(ctx, err, "apply list options")
+	}
 
 	params := selectParams
 	params = append(params, joinParams...)
@@ -3115,9 +3156,8 @@ func (ds *Datastore) SearchHosts(ctx context.Context, filter fleet.TeamFilter, m
 		matchingHosts := "SELECT h.id FROM hosts h WHERE TRUE"
 		var args []interface{}
 		// TODO: should search columns include display_name (requires join to host_display_names)?
-		searchHostsQuery, args, matchesEmail := hostSearchLike(matchingHosts, args, matchQuery, hostSearchColumns...)
-		// if matchQuery is "email like" then don't bother with the additional wildcard searching
-		if !matchesEmail && len(matchQuery) > 2 && hasNonASCIIRegex(matchQuery) {
+		searchHostsQuery, args := hostSearchLike(matchingHosts, args, matchQuery, hostSearchColumns...)
+		if len(matchQuery) > 2 && hasNonASCIIRegex(matchQuery) {
 			union, wildCardArgs := hostSearchLikeAny(matchingHosts, args, matchQuery, wildCardableHostSearchColumns...)
 			searchHostsQuery += " UNION " + union
 			args = wildCardArgs

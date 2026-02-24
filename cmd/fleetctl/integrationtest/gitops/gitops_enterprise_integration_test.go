@@ -191,7 +191,8 @@ func (s *enterpriseIntegrationGitopsTestSuite) assertDryRunOutput(t *testing.T, 
 	s.assertDryRunOutputWithDeprecation(t, output, false)
 }
 
-func (s *enterpriseIntegrationGitopsTestSuite) assertDryRunOutputWithDeprecation(t *testing.T, output string, allowDeprecation bool) {
+func (s *enterpriseIntegrationGitopsTestSuite) assertDryRunOutputWithDeprecation(t *testing.T, output string, expectDeprecation bool) {
+	var sawDeprecation bool
 	allowedVerbs := []string{
 		"moved",
 		"deleted",
@@ -204,12 +205,16 @@ func (s *enterpriseIntegrationGitopsTestSuite) assertDryRunOutputWithDeprecation
 	pattern := fmt.Sprintf("\\[([+\\-!])] would've (%s)", strings.Join(allowedVerbs, "|"))
 	reg := regexp.MustCompile(pattern)
 	for line := range strings.SplitSeq(output, "\n") {
-		if allowDeprecation && line != "" && strings.Contains(line, "is deprecated") {
+		if expectDeprecation && line != "" && strings.Contains(line, "is deprecated") {
+			sawDeprecation = true
 			continue
 		}
 		if line != "" && !strings.Contains(line, "succeeded") {
 			assert.Regexp(t, reg, line, "on dry run")
 		}
+	}
+	if expectDeprecation {
+		assert.True(t, sawDeprecation, "expected to see deprecation warning in dry run output")
 	}
 }
 
@@ -244,6 +249,9 @@ func (s *enterpriseIntegrationGitopsTestSuite) assertRealRunOutputWithDeprecatio
 // TestFleetGitops runs `fleetctl gitops` command on configs in https://github.com/fleetdm/fleet-gitops repo.
 // Changes to that repo may cause this test to fail.
 func (s *enterpriseIntegrationGitopsTestSuite) TestFleetGitops() {
+	os.Setenv("FLEET_ENABLE_LOG_TOPICS", logging.DeprecatedFieldTopic)
+	defer os.Unsetenv("FLEET_ENABLE_LOG_TOPICS")
+
 	t := s.T()
 
 	user := s.createGitOpsUser(t)

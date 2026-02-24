@@ -23,6 +23,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxdb"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/platform/logging"
+	common_mysql "github.com/fleetdm/fleet/v4/server/platform/mysql"
 	"github.com/fleetdm/fleet/v4/server/platform/mysql/testing_utils"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/go-sql-driver/mysql"
@@ -207,33 +208,33 @@ func TestHostSearchLike(t *testing.T) {
 
 	testCases := []struct {
 		inSQL     string
-		inParams  []interface{}
+		inParams  []any
 		match     string
 		columns   []string
 		outSQL    string
-		outParams []interface{}
+		outParams []any
 	}{
 		{
 			inSQL:     "SELECT * FROM HOSTS h WHERE TRUE",
-			inParams:  []interface{}{},
+			inParams:  []any{},
 			match:     "foobar",
 			columns:   []string{"hostname"},
-			outSQL:    "SELECT * FROM HOSTS h WHERE TRUE AND (hostname LIKE ?)",
-			outParams: []interface{}{"%foobar%"},
+			outSQL:    "SELECT * FROM HOSTS h WHERE TRUE AND (hostname LIKE ? OR ( EXISTS (SELECT 1 FROM host_emails he WHERE he.host_id = h.id AND he.email LIKE ?)))",
+			outParams: []any{"%foobar%", "%foobar%"},
 		},
 		{
 			inSQL:     "SELECT * FROM HOSTS h WHERE 1=1",
-			inParams:  []interface{}{1},
+			inParams:  []any{1},
 			match:     "a@b.c",
 			columns:   []string{"ipv4"},
 			outSQL:    "SELECT * FROM HOSTS h WHERE 1=1 AND (ipv4 LIKE ? OR ( EXISTS (SELECT 1 FROM host_emails he WHERE he.host_id = h.id AND he.email LIKE ?)))",
-			outParams: []interface{}{1, "%a@b.c%", "%a@b.c%"},
+			outParams: []any{1, "%a@b.c%", "%a@b.c%"},
 		},
 	}
 
 	for _, tt := range testCases {
 		t.Run("", func(t *testing.T) {
-			sql, params, _ := hostSearchLike(tt.inSQL, tt.inParams, tt.match, tt.columns...)
+			sql, params := hostSearchLike(tt.inSQL, tt.inParams, tt.match, tt.columns...)
 			assert.Equal(t, tt.outSQL, sql)
 			assert.Equal(t, tt.outParams, params)
 		})
@@ -356,6 +357,63 @@ func TestWithRetryTxxCommitError(t *testing.T) {
 	}))
 
 	require.NoError(t, mock.ExpectationsWereMet())
+}
+
+func TestAppendListOptionsToSQLSecure(t *testing.T) {
+	// Test allowlist for mapping order keys to actual column names
+	testAllowlist := common_mysql.OrderKeyAllowlist{
+		"name": "name",
+	}
+
+	sql := "SELECT * FROM my_table"
+	opts := fleet.ListOptions{
+		OrderKey: "name",
+	}
+
+	actual, _, err := appendListOptionsToSQLSecure(sql, &opts, testAllowlist)
+	require.NoError(t, err)
+	expected := "SELECT * FROM my_table ORDER BY name ASC LIMIT 1000000"
+	assert.Equal(t, expected, actual)
+
+	sql = "SELECT * FROM my_table"
+	opts.OrderDirection = fleet.OrderDescending
+	actual, _, err = appendListOptionsToSQLSecure(sql, &opts, testAllowlist)
+	require.NoError(t, err)
+	expected = "SELECT * FROM my_table ORDER BY name DESC LIMIT 1000000"
+	assert.Equal(t, expected, actual)
+
+	opts = fleet.ListOptions{
+		PerPage: 10,
+	}
+
+	sql = "SELECT * FROM my_table"
+	actual, _, err = appendListOptionsToSQLSecure(sql, &opts, testAllowlist)
+	require.NoError(t, err)
+	expected = "SELECT * FROM my_table LIMIT 10"
+	assert.Equal(t, expected, actual)
+
+	sql = "SELECT * FROM my_table"
+	opts.Page = 2
+	actual, _, err = appendListOptionsToSQLSecure(sql, &opts, testAllowlist)
+	require.NoError(t, err)
+	expected = "SELECT * FROM my_table LIMIT 10 OFFSET 20"
+	assert.Equal(t, expected, actual)
+
+	opts = fleet.ListOptions{}
+	sql = "SELECT * FROM my_table"
+	actual, _, err = appendListOptionsToSQLSecure(sql, &opts, testAllowlist)
+	require.NoError(t, err)
+	expected = "SELECT * FROM my_table LIMIT 1000000"
+	assert.Equal(t, expected, actual)
+
+	// Test that invalid order key returns an error
+	opts = fleet.ListOptions{OrderKey: "invalid_column"}
+	sql = "SELECT * FROM my_table"
+	_, _, err = appendListOptionsToSQLSecure(sql, &opts, testAllowlist)
+	require.Error(t, err)
+	var invalidKeyErr common_mysql.InvalidOrderKeyError
+	require.ErrorAs(t, err, &invalidKeyErr)
+	require.Equal(t, "invalid_column", invalidKeyErr.Key)
 }
 
 func TestAppendListOptionsToSQL(t *testing.T) {
@@ -1399,7 +1457,6 @@ func TestGetContextTryStmt(t *testing.T) {
 		stmt = ds.loadOrPrepareStmt(ctx, query)
 		require.NotNil(t, stmt)
 	})
-
 }
 
 // createTestDatabase creates a temporary test database with the given name and

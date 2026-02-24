@@ -208,6 +208,7 @@ const SoftwareInstallerCard = ({
     installerType,
     isAndroidPlayStoreApp,
     isFleetMaintainedApp,
+    isLatestFmaVersion,
     isCustomPackage,
     isIosOrIpadosApp,
     sha256,
@@ -280,6 +281,7 @@ const SoftwareInstallerCard = ({
               addedTimestamp={addedTimestamp}
               sha256={sha256}
               isFma={isFleetMaintainedApp}
+              isLatestFmaVersion={isLatestFmaVersion}
               isScriptPackage={isScriptPackage}
               androidPlayStoreId={androidPlayStoreId}
             />
