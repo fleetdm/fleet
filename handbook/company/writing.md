@@ -175,7 +175,7 @@ Try to keep images in the docs at a minimum. Images can be a quick way to help u
 Images can be added to the docs using the Markdown image link format, e.g., `![Schedule Query Sidebar](https://raw.githubusercontent.com/fleetdm/fleet/main/docs/images/add-new-host-modal.png)`
 The images used in the docs live in `docs/images/`. Note that you must provide the URL of the image in the Fleet GitHub repo for it to display properly on both GitHub and the Fleet website.
 
-> Note that the instructions above also apply to adding images in the Fleet handbook.
+> Note that the instructions above also apply to adding images in the Fleet handbook and articles. For articles, put images in the `website/assets/images/articles/` folder.
 
 
 #### Export an image for fleetdm.com
