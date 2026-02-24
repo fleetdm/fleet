@@ -20980,7 +20980,7 @@ func (s *integrationEnterpriseTestSuite) TestBatchSoftwareUploadWithSHAs() {
 
 # Fleet extracts and saves package IDs.
 pkg_ids=(
-  "com.example.dummy"
+  'com.example.dummy'
 )
 
 # For each package id, get all .app folders associated with the package and remove them.
