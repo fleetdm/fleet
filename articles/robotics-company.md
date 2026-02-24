@@ -2,7 +2,7 @@
 
 ## Managing roboticist workstations from the excavator to the office
 
-A robotics company operates in the robotics industry, managing specialized hardware like industrial-grade tablets in excavators alongside traditional developer desktops. They required a tool that could handle the complexity of Linux workstations and diverse hardware.
+A robotics company managing specialized hardware like industrial-grade tablets in excavators alongside traditional developer desktops required a tool that could handle the complexity of Linux workstations and diverse hardware.
 
 ## At a glance
 
