@@ -651,6 +651,34 @@ func TestInvalidGitOpsYaml(t *testing.T) {
 					_, err = GitOpsFromFile(noTeamPath6, noTeamBasePath6, nil, nopLogf)
 					assert.ErrorContains(t, err, fmt.Sprintf("file %q for No Team must be named 'no-team.yml'", noTeamPath6))
 
+					// no-team.yml with a non-"No Team" name should fail.
+					config = getConfig([]string{"name", "settings"})
+					config += "name: SomeOtherTeam\nsettings:\n  secrets:\n"
+					noTeamPath7, noTeamBasePath7 := createNamedFileOnTempDir(t, "no-team.yml", config)
+					_, err = GitOpsFromFile(noTeamPath7, noTeamBasePath7, nil, nopLogf)
+					assert.ErrorContains(t, err, fmt.Sprintf("file %q must have team name 'No Team'", noTeamPath7))
+
+					// unassigned.yml with a non-"Unassigned" name should fail.
+					config = getConfig([]string{"name", "settings"})
+					config += "name: SomeOtherTeam\nsettings:\n  secrets:\n"
+					unassignedPathBadName, unassignedBasePathBadName := createNamedFileOnTempDir(t, "unassigned.yml", config)
+					_, err = GitOpsFromFile(unassignedPathBadName, unassignedBasePathBadName, nil, nopLogf)
+					assert.ErrorContains(t, err, fmt.Sprintf("file %q must have team name 'Unassigned'", unassignedPathBadName))
+
+					// no-team.yml with "Unassigned" name should fail (wrong name for this file).
+					config = getConfig([]string{"name", "settings"})
+					config += "name: Unassigned\n"
+					noTeamPath8, noTeamBasePath8 := createNamedFileOnTempDir(t, "no-team.yml", config)
+					_, err = GitOpsFromFile(noTeamPath8, noTeamBasePath8, nil, nopLogf)
+					assert.ErrorContains(t, err, fmt.Sprintf("file %q must have team name 'No Team'", noTeamPath8))
+
+					// unassigned.yml with "No team" name should fail (wrong name for this file).
+					config = getConfig([]string{"name", "settings"})
+					config += "name: No team\n"
+					unassignedPathNoTeam, unassignedBasePathNoTeam := createNamedFileOnTempDir(t, "unassigned.yml", config)
+					_, err = GitOpsFromFile(unassignedPathNoTeam, unassignedBasePathNoTeam, nil, nopLogf)
+					assert.ErrorContains(t, err, fmt.Sprintf("file %q must have team name 'Unassigned'", unassignedPathNoTeam))
+
 					// 'Unassigned' team in unassigned.yml should work and coerce to "No team" internally.
 					config = getConfig([]string{"name", "settings"})
 					config += "name: Unassigned\n"

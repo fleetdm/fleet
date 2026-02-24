@@ -135,6 +135,12 @@ func gitopsCommand() *cli.Command {
 			if err != nil {
 				return fmt.Errorf("extracting controls from %s: %w", noTeamFilename, err)
 			}
+			// Log a deprecation warning if the user is still using no-team.yml
+			if noTeamPresent && noTeamFilename == "no-team.yml" {
+				if logging.TopicEnabled(logging.DeprecatedFieldTopic) {
+					logf("[!] %s is deprecated; consider renaming the file to 'unassigned.yml' and updating the team name to 'Unassigned' instead.\n", noTeamFilename)
+				}
+			}
 
 			var originalABMConfig []any
 			var originalVPPConfig []any
