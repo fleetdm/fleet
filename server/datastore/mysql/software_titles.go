@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
 	"slices"
 	"strings"
@@ -65,7 +66,7 @@ SELECT
 FROM software_titles st
 %s
 LEFT JOIN software_titles_host_counts sthc ON sthc.software_title_id = st.id AND sthc.hosts_count > 0 AND (%s)
-LEFT JOIN software_installers si ON si.title_id = st.id AND %s
+LEFT JOIN software_installers si ON si.title_id = st.id AND si.is_active = TRUE AND %s
 LEFT JOIN vpp_apps vap ON vap.title_id = st.id
 LEFT JOIN vpp_apps_teams vat ON vat.adam_id = vap.adam_id AND vat.platform = vap.platform AND %s
 LEFT JOIN in_house_apps iha ON iha.title_id = st.id AND %s
@@ -117,6 +118,7 @@ GROUP BY
 	}
 
 	title.VersionsCount = uint(len(title.Versions))
+
 	return &title, nil
 }
 
@@ -422,6 +424,30 @@ func (ds *Datastore) ListSoftwareTitles(
 		}
 	}
 
+	// Populate FleetMaintainedVersions for titles that have a fleet-maintained app.
+	// This must happen before pagination trimming so titleIndex is still valid.
+	if opt.TeamID != nil {
+		var fmaTitleIDs []uint
+		for _, st := range softwareList {
+			if st.FleetMaintainedAppID != nil {
+				fmaTitleIDs = append(fmaTitleIDs, st.ID)
+			}
+		}
+		if len(fmaTitleIDs) > 0 {
+			fmaVersions, err := ds.getFleetMaintainedVersionsByTitleIDs(ctx, ds.reader(ctx), fmaTitleIDs, *opt.TeamID)
+			if err != nil {
+				return nil, 0, nil, ctxerr.Wrap(ctx, err, "get fleet maintained versions")
+			}
+			for titleID, versions := range fmaVersions {
+				if i, ok := titleIndex[titleID]; ok {
+					if softwareList[i].SoftwarePackage != nil {
+						softwareList[i].SoftwarePackage.FleetMaintainedVersions = versions
+					}
+				}
+			}
+		}
+	}
+
 	var metaData *fleet.PaginationMetadata
 	if opt.ListOptions.IncludeMetadata {
 		metaData = &fleet.PaginationMetadata{HasPreviousResults: opt.ListOptions.Page > 0}
@@ -506,7 +532,7 @@ SELECT
 	{{end}}
 FROM software_titles st
 	{{if hasTeamID .}}
-		LEFT JOIN software_installers si ON si.title_id = st.id AND si.global_or_team_id = {{teamID .}}
+		LEFT JOIN software_installers si ON si.title_id = st.id AND si.global_or_team_id = {{teamID .}} AND si.is_active = TRUE
 		LEFT JOIN in_house_apps iha ON iha.title_id = st.id AND iha.global_or_team_id = {{teamID .}}
 		LEFT JOIN vpp_apps vap ON vap.title_id = st.id AND {{yesNo .PackagesOnly "FALSE" "TRUE"}}
 		LEFT JOIN vpp_apps_teams vat ON vat.adam_id = vap.adam_id AND vat.platform = vap.platform AND
@@ -669,6 +695,110 @@ GROUP BY
 	}
 
 	return buff.String(), args, nil
+}
+
+// GetFleetMaintainedVersionsByTitleID returns all cached versions of a fleet-maintained app
+// for the given title and team.
+func (ds *Datastore) GetFleetMaintainedVersionsByTitleID(ctx context.Context, teamID *uint, titleID uint) ([]fleet.FleetMaintainedVersion, error) {
+	result, err := ds.getFleetMaintainedVersionsByTitleIDs(ctx, ds.reader(ctx), []uint{titleID}, ptr.ValOrZero(teamID))
+	if err != nil {
+		return nil, err
+	}
+	return result[titleID], nil
+}
+
+// getFleetMaintainedVersionsByTitleIDs returns all cached versions of fleet-maintained apps
+// for the given title IDs and team, keyed by title ID.
+func (ds *Datastore) getFleetMaintainedVersionsByTitleIDs(ctx context.Context, q sqlx.QueryerContext, titleIDs []uint, teamID uint) (map[uint][]fleet.FleetMaintainedVersion, error) {
+	if len(titleIDs) == 0 {
+		return nil, nil
+	}
+
+	query, args, err := sqlx.In(`
+		SELECT si.id, si.version, si.title_id
+			FROM software_installers si
+		WHERE si.title_id IN (?) AND si.global_or_team_id = ? AND si.fleet_maintained_app_id IS NOT NULL
+		ORDER BY si.title_id, si.uploaded_at DESC
+	`, titleIDs, teamID)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "build fleet maintained versions query")
+	}
+
+	type fmaVersionRow struct {
+		fleet.FleetMaintainedVersion
+		TitleID uint `db:"title_id"`
+	}
+
+	var rows []fmaVersionRow
+	if err := sqlx.SelectContext(ctx, q, &rows, query, args...); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "select fleet maintained versions")
+	}
+
+	result := make(map[uint][]fleet.FleetMaintainedVersion, len(titleIDs))
+	for _, row := range rows {
+		result[row.TitleID] = append(result[row.TitleID], row.FleetMaintainedVersion)
+	}
+
+	return result, nil
+}
+
+func (ds *Datastore) HasFMAInstallerVersion(ctx context.Context, teamID *uint, fmaID uint, version string) (bool, error) {
+	var exists bool
+	err := sqlx.GetContext(ctx, ds.reader(ctx), &exists, `
+		SELECT EXISTS(
+			SELECT 1 FROM software_installers
+				WHERE global_or_team_id = ? AND fleet_maintained_app_id = ? AND version = ?
+			LIMIT 1
+		)
+	`, ptr.ValOrZero(teamID), fmaID, version)
+	if err != nil {
+		return false, ctxerr.Wrap(ctx, err, "check FMA installer version exists")
+	}
+	return exists, nil
+}
+
+func (ds *Datastore) GetCachedFMAInstallerMetadata(ctx context.Context, teamID *uint, fmaID uint, version string) (*fleet.MaintainedApp, error) {
+	globalOrTeamID := ptr.ValOrZero(teamID)
+
+	var result fleet.MaintainedApp
+
+	err := sqlx.GetContext(ctx, ds.reader(ctx), &result, `
+		SELECT
+			si.version,
+			si.platform,
+			si.url,
+			si.storage_id,
+			COALESCE(isc.contents, '') AS install_script,
+			COALESCE(usc.contents, '') AS uninstall_script,
+			COALESCE(si.pre_install_query, '') AS pre_install_query,
+			si.upgrade_code
+		FROM software_installers si
+		LEFT JOIN script_contents isc ON isc.id = si.install_script_content_id
+		LEFT JOIN script_contents usc ON usc.id = si.uninstall_script_content_id
+		WHERE si.global_or_team_id = ? AND si.fleet_maintained_app_id = ? AND si.version = ?
+		LIMIT 1
+	`, globalOrTeamID, fmaID, version)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, notFound("CachedFMAInstaller")
+		}
+		return nil, ctxerr.Wrap(ctx, err, "get cached FMA installer metadata")
+	}
+
+	// Load categories
+	var categories []string
+	err = sqlx.SelectContext(ctx, ds.reader(ctx), &categories, `
+		SELECT sc.name FROM software_categories sc
+		JOIN software_installer_software_categories sisc ON sisc.software_category_id = sc.id
+		JOIN software_installers si ON si.id = sisc.software_installer_id
+		WHERE si.global_or_team_id = ? AND si.fleet_maintained_app_id = ? AND si.version = ?
+	`, globalOrTeamID, fmaID, version)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "get cached FMA installer categories")
+	}
+	result.Categories = categories
+
+	return &result, nil
 }
 
 func (ds *Datastore) selectSoftwareVersionsSQL(titleIDs []uint, teamID *uint, tmFilter fleet.TeamFilter, withCounts bool) (
