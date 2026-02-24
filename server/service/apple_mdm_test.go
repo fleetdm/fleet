@@ -6531,3 +6531,38 @@ func TestToValidSemVer(t *testing.T) {
 		}
 	}
 }
+
+// Verify that CommandAndReportResults does not crash on a non-VPP InstallApplication command result
+func TestMDMCommandAndReportResultsNonVPPInstallApplication(t *testing.T) {
+	ctx := context.Background()
+	hostUUID := "ABC-DEF-GHI"
+	commandUUID := "UUID-1234"
+
+	ds := new(mock.Store)
+	svc := MDMAppleCheckinAndCommandService{ds: ds, logger: kitlog.NewNopLogger()}
+
+	ds.GetHostVPPInstallByCommandUUIDFunc = func(ctx context.Context, commandUUID string) (*fleet.HostVPPSoftwareInstallLite, error) {
+		return nil, nil
+	}
+	ds.GetMDMAppleCommandRequestTypeFunc = func(ctx context.Context, targetCmd string) (string, error) {
+		require.Equal(t, commandUUID, targetCmd)
+		return "InstallApplication", nil
+	}
+	ds.MaybeUpdateSetupExperienceVPPStatusFunc = func(ctx context.Context, hostUUID string, commandUUID string, status fleet.SetupExperienceStatusResultStatus) (bool, error) {
+		return false, nil
+	}
+	ds.GetPastActivityDataForVPPAppInstallFunc = func(ctx context.Context, commandResults *mdm.CommandResults) (*fleet.User, *fleet.ActivityInstalledAppStoreApp, error) {
+		return nil, nil, newNotFoundError()
+	}
+	_, err := svc.CommandAndReportResults(&mdm.Request{Context: ctx},
+		&mdm.CommandResults{
+			Enrollment:  mdm.Enrollment{UDID: hostUUID},
+			CommandUUID: commandUUID,
+			Status:      fleet.MDMAppleStatusError,
+			ErrorChain: []mdm.ErrorChain{
+				{ErrorCode: apple_mdm.VPPLicenseNotFound, ErrorDomain: "testDomain", USEnglishDescription: "testMessage"},
+			},
+		},
+	)
+	require.NoError(t, err)
+}
