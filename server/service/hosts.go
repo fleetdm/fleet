@@ -1171,26 +1171,20 @@ func addHostsToTeamEndpoint(ctx context.Context, request interface{}, svc fleet.
 
 // authorizeHostSourceTeams checks that the caller has write access to the
 // source teams of the hosts being transferred.
-func (svc *Service) authorizeHostSourceTeams(ctx context.Context, dstTeamID *uint, hosts []*fleet.Host) error {
-	// Collect unique source team IDs, skipping teams that match the destination team ID.
-	seenTeamIDs := make(map[uint]bool)
-	var noTeam bool
+func (svc *Service) authorizeHostSourceTeams(ctx context.Context, hosts []*fleet.Host) error {
+	seenTeamIDs := make(map[uint]struct{})
+	var checkedNoTeam bool
 	for _, h := range hosts {
-		srcTeamID := h.TeamID
-		if srcTeamID == nil && dstTeamID == nil || (srcTeamID != nil && dstTeamID != nil && *srcTeamID == *dstTeamID) {
-			// noop: host is already in the destination team
-			continue
-		}
-		if srcTeamID == nil {
-			if !noTeam {
-				noTeam = true
+		if h.TeamID == nil { // "No Team" team / "Unassigned" fleet
+			if !checkedNoTeam {
+				checkedNoTeam = true
 				if err := svc.authz.Authorize(ctx, &fleet.Host{TeamID: nil}, fleet.ActionWrite); err != nil {
 					return err
 				}
 			}
-		} else if !seenTeamIDs[*srcTeamID] {
-			seenTeamIDs[*srcTeamID] = true
-			if err := svc.authz.Authorize(ctx, &fleet.Host{TeamID: srcTeamID}, fleet.ActionWrite); err != nil {
+		} else if _, ok := seenTeamIDs[*h.TeamID]; !ok {
+			seenTeamIDs[*h.TeamID] = struct{}{}
+			if err := svc.authz.Authorize(ctx, &fleet.Host{TeamID: h.TeamID}, fleet.ActionWrite); err != nil {
 				return err
 			}
 		}
@@ -1209,7 +1203,7 @@ func (svc *Service) AddHostsToTeam(ctx context.Context, teamID *uint, hostIDs []
 	if err != nil {
 		return ctxerr.Wrapf(ctx, err, "list hosts by IDs for source team authorization (team_id: %v, host_count: %d)", teamID, len(hostIDs))
 	}
-	if err := svc.authorizeHostSourceTeams(ctx, teamID, hosts); err != nil {
+	if err := svc.authorizeHostSourceTeams(ctx, hosts); err != nil {
 		return err
 	}
 
@@ -1364,7 +1358,7 @@ func (svc *Service) AddHostsToTeamByFilter(ctx context.Context, teamID *uint, fi
 	}
 
 	// Authorize write access to the source teams of the hosts being transferred.
-	if err := svc.authorizeHostSourceTeams(ctx, teamID, hosts); err != nil {
+	if err := svc.authorizeHostSourceTeams(ctx, hosts); err != nil {
 		return err
 	}
 

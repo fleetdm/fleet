@@ -1874,6 +1874,64 @@ func TestAddHostsToTeamSourceTeamAuth(t *testing.T) {
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "forbidden")
 	})
+
+	t.Run("multi-team admin+maintainer can transfer hosts between their teams", func(t *testing.T) {
+		multiTeamUser := &fleet.User{
+			ID: 99,
+			Teams: []fleet.UserTeam{
+				{Team: fleet.Team{ID: 1}, Role: fleet.RoleAdmin},
+				{Team: fleet.Team{ID: 2}, Role: fleet.RoleMaintainer},
+			},
+		}
+		// Transfer host from team 2 to team 1
+		ds.ListHostsLiteByIDsFunc = func(ctx context.Context, ids []uint) ([]*fleet.Host, error) {
+			return []*fleet.Host{
+				{ID: 10, TeamID: ptr.Uint(2)},
+			}, nil
+		}
+		userCtx := test.UserContext(ctx, multiTeamUser)
+		err := svc.AddHostsToTeam(userCtx, ptr.Uint(1), []uint{10}, false)
+		require.NoError(t, err)
+
+		// Transfer host from team 1 to team 2
+		ds.ListHostsLiteByIDsFunc = func(ctx context.Context, ids []uint) ([]*fleet.Host, error) {
+			return []*fleet.Host{
+				{ID: 10, TeamID: ptr.Uint(1)},
+			}, nil
+		}
+		err = svc.AddHostsToTeam(userCtx, ptr.Uint(2), []uint{10}, false)
+		require.NoError(t, err)
+	})
+
+	t.Run("multi-team admin+observer cannot transfer hosts to or from observed team", func(t *testing.T) {
+		multiTeamUser := &fleet.User{
+			ID: 100,
+			Teams: []fleet.UserTeam{
+				{Team: fleet.Team{ID: 1}, Role: fleet.RoleAdmin},
+				{Team: fleet.Team{ID: 2}, Role: fleet.RoleObserver},
+			},
+		}
+		// Transfer host from team 2 (observer) to team 1 (admin) — blocked on source
+		ds.ListHostsLiteByIDsFunc = func(ctx context.Context, ids []uint) ([]*fleet.Host, error) {
+			return []*fleet.Host{
+				{ID: 10, TeamID: ptr.Uint(2)},
+			}, nil
+		}
+		userCtx := test.UserContext(ctx, multiTeamUser)
+		err := svc.AddHostsToTeam(userCtx, ptr.Uint(1), []uint{10}, false)
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "forbidden")
+
+		// Transfer host from team 1 (admin) to team 2 (observer) — blocked on destination
+		ds.ListHostsLiteByIDsFunc = func(ctx context.Context, ids []uint) ([]*fleet.Host, error) {
+			return []*fleet.Host{
+				{ID: 10, TeamID: ptr.Uint(1)},
+			}, nil
+		}
+		err = svc.AddHostsToTeam(userCtx, ptr.Uint(2), []uint{10}, false)
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "forbidden")
+	})
 }
 
 func TestAddHostsToTeamByFilterSourceTeamAuth(t *testing.T) {
@@ -1928,6 +1986,76 @@ func TestAddHostsToTeamByFilterSourceTeamAuth(t *testing.T) {
 		err := svc.AddHostsToTeamByFilter(userCtx, ptr.Uint(1), emptyFilter)
 		require.NoError(t, err)
 		assert.True(t, ds.AddHostsToTeamFuncInvoked)
+	})
+
+	t.Run("multi-team admin+maintainer can transfer hosts between their teams via filter", func(t *testing.T) {
+		multiTeamUser := &fleet.User{
+			ID: 99,
+			Teams: []fleet.UserTeam{
+				{Team: fleet.Team{ID: 1}, Role: fleet.RoleAdmin},
+				{Team: fleet.Team{ID: 2}, Role: fleet.RoleMaintainer},
+			},
+		}
+		// Transfer host from team 2 to team 1
+		ds.AddHostsToTeamFuncInvoked = false
+		ds.ListHostsFunc = func(ctx context.Context, filter fleet.TeamFilter, opt fleet.HostListOptions) ([]*fleet.Host, error) {
+			return []*fleet.Host{
+				{ID: 10, TeamID: ptr.Uint(2)},
+			}, nil
+		}
+		userCtx := test.UserContext(ctx, multiTeamUser)
+		emptyFilter := &map[string]any{}
+		err := svc.AddHostsToTeamByFilter(userCtx, ptr.Uint(1), emptyFilter)
+		require.NoError(t, err)
+		assert.True(t, ds.AddHostsToTeamFuncInvoked)
+
+		// Transfer host from team 1 to team 2
+		ds.AddHostsToTeamFuncInvoked = false
+		ds.ListHostsFunc = func(ctx context.Context, filter fleet.TeamFilter, opt fleet.HostListOptions) ([]*fleet.Host, error) {
+			return []*fleet.Host{
+				{ID: 10, TeamID: ptr.Uint(1)},
+			}, nil
+		}
+		emptyFilter = &map[string]any{}
+		err = svc.AddHostsToTeamByFilter(userCtx, ptr.Uint(2), emptyFilter)
+		require.NoError(t, err)
+		assert.True(t, ds.AddHostsToTeamFuncInvoked)
+	})
+
+	t.Run("multi-team admin+observer cannot transfer hosts to or from observed team via filter", func(t *testing.T) {
+		multiTeamUser := &fleet.User{
+			ID: 100,
+			Teams: []fleet.UserTeam{
+				{Team: fleet.Team{ID: 1}, Role: fleet.RoleAdmin},
+				{Team: fleet.Team{ID: 2}, Role: fleet.RoleObserver},
+			},
+		}
+		// Transfer host from team 2 (observer) to team 1 (admin) — blocked on source
+		ds.AddHostsToTeamFuncInvoked = false
+		ds.ListHostsFunc = func(ctx context.Context, filter fleet.TeamFilter, opt fleet.HostListOptions) ([]*fleet.Host, error) {
+			return []*fleet.Host{
+				{ID: 10, TeamID: ptr.Uint(2)},
+			}, nil
+		}
+		userCtx := test.UserContext(ctx, multiTeamUser)
+		emptyFilter := &map[string]any{}
+		err := svc.AddHostsToTeamByFilter(userCtx, ptr.Uint(1), emptyFilter)
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "forbidden")
+		assert.False(t, ds.AddHostsToTeamFuncInvoked)
+
+		// Transfer host from team 1 (admin) to team 2 (observer) — blocked on destination
+		ds.AddHostsToTeamFuncInvoked = false
+		ds.ListHostsFunc = func(ctx context.Context, filter fleet.TeamFilter, opt fleet.HostListOptions) ([]*fleet.Host, error) {
+			return []*fleet.Host{
+				{ID: 10, TeamID: ptr.Uint(1)},
+			}, nil
+		}
+		emptyFilter = &map[string]any{}
+		err = svc.AddHostsToTeamByFilter(userCtx, ptr.Uint(2), emptyFilter)
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "forbidden")
+		assert.False(t, ds.AddHostsToTeamFuncInvoked)
 	})
 }
 
