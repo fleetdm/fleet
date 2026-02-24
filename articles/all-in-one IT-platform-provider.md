@@ -2,7 +2,7 @@
 
 ## AI-driven IT management powered by Fleet
 
-An all-in-one platform for identity, MDM, and procurement. They needed a programmable layer to serve as the "secret weapon" for their own automated services.
+An all-in-one platform for identity, MDM, and procurement needed a programmable layer to serve as the "secret weapon" for their own automated services.
 
 ## At a glance
 
