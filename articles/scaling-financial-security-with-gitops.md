@@ -28,4 +28,4 @@ They are unifying fragmented deployments into a single Fleet Cloud environment. 
 <meta name="authorGitHubUsername" value="irenareedy">
 <meta name="category" value="announcements">
 <meta name="publishedOn" value="2026-02-23">
-<meta name="description" value="A leading digital payments provider focused on making international money transfers faster and more transparent. Operating in the highly regulated financial services industry, they required a management solution that could match the rigor of their security and compliance standards.">
+<meta name="description" value="A leading digital payments provider focused on making international money transfers faster and more transparent.">
