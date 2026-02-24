@@ -52,9 +52,9 @@ func UserLoggedInViaGui() (*string, error) {
 		return nil, fmt.Errorf("get login users: %w", err)
 	}
 
-	for _, user := range users {
-		if session := getDisplaySessionFor(user); session != nil {
-			return &user.Name, nil
+	for _, u := range users {
+		if session := getDisplaySessionFor(u); session != nil {
+			return &u.Name, nil
 		}
 	}
 
@@ -65,7 +65,10 @@ func UserLoggedInViaGui() (*string, error) {
 // GetCurrentUserDisplaySession returns the Display session of the user associated with the current process
 func GetCurrentUserDisplaySession() (*UserDisplaySession, error) {
 	currentUser, err := user.Current()
-	if err != nil || currentUser == nil {
+	if err != nil {
+		return nil, fmt.Errorf("get current user: %w", err)
+	}
+	if currentUser == nil {
 		return nil, nil
 	}
 
@@ -174,17 +177,20 @@ func GetUserDisplaySessionType(uid string) (*UserDisplaySession, error) {
 	}
 	active := strings.TrimSpace(stdout.String()) == "yes"
 
-	// Get the "Environment" property of the session.
+	// Get the "Desktop" property of the session.
 	cmd = exec.Command("loginctl", "show-session", guiSessionID, "-p", "Desktop", "--value")
 	stdout.Reset()
 	cmd.Stdout = &stdout
+	desktop := ""
 	if err := cmd.Run(); err != nil {
-		return nil, fmt.Errorf("run 'loginctl' to get session environment: %w", err)
+		log.Debug().Err(err).Msgf("failed to get desktop session for user %s", uid)
+	} else {
+		desktop = strings.TrimSpace(stdout.String())
 	}
 	return &UserDisplaySession{
 		Type:    sessionType,
 		Active:  active,
-		Desktop: strings.TrimSpace(stdout.String()),
+		Desktop: desktop,
 	}, nil
 }
 
