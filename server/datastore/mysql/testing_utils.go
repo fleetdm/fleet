@@ -66,11 +66,11 @@ func connectMySQL(t testing.TB, testName string, opts *testing_utils.DatastoreTe
 	// TODO: for some reason we never log datastore messages when running integration tests, why?
 	//
 	// Changes below assume that we want to follows the same pattern as the rest of the codebase.
-	var dslogger *logging.Logger
+	var dslogger *slog.Logger
 	if os.Getenv("FLEET_INTEGRATION_TESTS_DISABLE_LOG") != "" {
-		dslogger = logging.NewNopLogger()
+		dslogger = slog.New(slog.DiscardHandler)
 	} else {
-		dslogger = logging.NewLogfmtLogger(os.Stdout)
+		dslogger = logging.NewSlogLogger(logging.Options{Output: os.Stdout, Debug: true})
 	}
 
 	// Use TestSQLMode which combines ANSI mode components with MySQL 8 strict modes
@@ -86,7 +86,7 @@ func connectMySQL(t testing.TB, testName string, opts *testing_utils.DatastoreTe
 		replicaOpts := &common_mysql.DBOptions{
 			MinLastOpenedAtDiff: defaultMinLastOpenedAtDiff,
 			MaxAttempts:         1,
-			Logger:              logging.NewNopLogger(),
+			Logger:              slog.New(slog.DiscardHandler),
 			SqlMode:             common_mysql.TestSQLMode,
 		}
 		setupRealReplica(t, testName, ds, replicaOpts)
@@ -469,7 +469,7 @@ func TruncateTables(t testing.TB, ds *Datastore, tables ...string) {
 		"osquery_options":                  true,
 		"software_categories":              true,
 	}
-	testing_utils.TruncateTables(t, ds.writer(context.Background()), ds.logger.SlogLogger(), nonEmptyTables, tables...)
+	testing_utils.TruncateTables(t, ds.writer(context.Background()), ds.logger, nonEmptyTables, tables...)
 }
 
 // this is meant to be used for debugging/testing that statement uses an efficient

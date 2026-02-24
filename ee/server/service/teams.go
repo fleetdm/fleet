@@ -22,7 +22,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/worker"
-	"github.com/go-kit/log/level"
 )
 
 func obfuscateSecrets(user *fleet.User, teams []*fleet.Team) error {
@@ -506,7 +505,7 @@ func (svc *Service) ModifyTeamAgentOptions(ctx context.Context, teamID uint, tea
 			err = fleet.SuggestAgentOptionsCorrection(err)
 			err = fleet.NewUserMessageError(err, http.StatusBadRequest)
 			if applyOptions.Force && !applyOptions.DryRun {
-				level.Info(svc.logger).Log("err", err, "msg", "force-apply team agent options with validation errors")
+				svc.logger.InfoContext(ctx, "force-apply team agent options with validation errors", "err", err)
 			}
 			if !applyOptions.Force {
 				return nil, ctxerr.Wrap(ctx, err, "validate agent options")
@@ -912,11 +911,7 @@ func (svc *Service) ModifyTeamEnrollSecrets(ctx context.Context, teamID uint, se
 		activity := fleet.ActivityTypeEditedEnrollSecrets{}
 		team, err := svc.ds.TeamLite(ctx, teamID)
 		if err != nil {
-			level.Error(svc.logger).Log(
-				"err", err,
-				"teamID", teamID,
-				"msg", "error while fetching team for edited enroll secret activity",
-			)
+			svc.logger.ErrorContext(ctx, "error while fetching team for edited enroll secret activity", "err", err, "teamID", teamID)
 		}
 		if team != nil {
 			activity = fleet.ActivityTypeEditedEnrollSecrets{
@@ -924,10 +919,7 @@ func (svc *Service) ModifyTeamEnrollSecrets(ctx context.Context, teamID uint, se
 				TeamName: &team.Name,
 			}
 		} else {
-			level.Error(svc.logger).Log(
-				"teamID", teamID,
-				"msg", "team not found for edited enroll secret activity",
-			)
+			svc.logger.ErrorContext(ctx, "team not found for edited enroll secret activity", "teamID", teamID)
 		}
 
 		if err := svc.NewActivity(
@@ -1109,7 +1101,7 @@ func (svc *Service) ApplyTeamSpecs(ctx context.Context, specs []*fleet.TeamSpec,
 				err = fleet.SuggestAgentOptionsCorrection(err)
 				err = fleet.NewUserMessageError(err, http.StatusBadRequest)
 				if applyOpts.Force && !applyOpts.DryRun {
-					level.Info(svc.logger).Log("err", err, "msg", "force-apply team agent options with validation errors")
+					svc.logger.InfoContext(ctx, "force-apply team agent options with validation errors", "err", err)
 				}
 				if !applyOpts.Force {
 					return nil, ctxerr.Wrap(ctx, err, "validate agent options")

@@ -18,7 +18,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	common_mysql "github.com/fleetdm/fleet/v4/server/platform/mysql"
 	"github.com/fleetdm/fleet/v4/server/ptr"
-	"github.com/go-kit/log/level"
 	"github.com/jmoiron/sqlx"
 )
 
@@ -325,7 +324,7 @@ func (ds *Datastore) PolicyLite(ctx context.Context, id uint) (*fleet.PolicyLite
 // Currently, SavePolicy does not allow updating the team of an existing policy.
 func (ds *Datastore) SavePolicy(ctx context.Context, p *fleet.Policy, shouldRemoveAllPolicyMemberships bool, removePolicyStats bool) error {
 	if err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
-		return savePolicy(ctx, tx, ds.logger.SlogLogger(), p, shouldRemoveAllPolicyMemberships, removePolicyStats)
+		return savePolicy(ctx, tx, ds.logger, p, shouldRemoveAllPolicyMemberships, removePolicyStats)
 	}); err != nil {
 		return ctxerr.Wrap(ctx, err, "updating policy")
 	}
@@ -976,7 +975,7 @@ func (ds *Datastore) PolicyQueriesForHost(ctx context.Context, host *fleet.Host)
 	if host.FleetPlatform() == "" {
 		// We log to help troubleshooting in case this happens, as the host
 		// won't be receiving any policies targeted for specific platforms.
-		level.Error(ds.logger).Log("err", "unrecognized platform", "hostID", host.ID, "platform", host.Platform) //nolint:errcheck
+		ds.logger.ErrorContext(ctx, "unrecognized platform", "hostID", host.ID, "platform", host.Platform)
 	}
 	const stmt = `
 		SELECT p.id, p.query
@@ -1473,7 +1472,7 @@ func (ds *Datastore) ApplyPolicySpecs(ctx context.Context, authorID uint, specs 
 				// memberships that don't match current criteria).
 				if err = cleanupPolicy(
 					ctx, tx, tx, uint(lastID), spec.Platform, shouldRemoveAllPolicyMemberships, //nolint:gosec // dismiss G115
-					removePolicyStats, ds.logger.SlogLogger(),
+					removePolicyStats, ds.logger,
 				); err != nil {
 					return err
 				}
@@ -2170,8 +2169,8 @@ func (ds *Datastore) UpdateHostPolicyCounts(ctx context.Context) error {
 			if err != nil {
 				if errors.Is(err, sql.ErrNoRows) {
 					// Policy or team was deleted by a parallel process. We proceed.
-					level.Error(ds.logger).Log(
-						"msg", "policy not found for inherited global policies. Was policy or team(s) deleted?", "policy_id", policy.ID,
+					ds.logger.ErrorContext(ctx,
+						"policy not found for inherited global policies. Was policy or team(s) deleted?", "policy_id", policy.ID,
 					)
 					continue
 				}
@@ -2200,8 +2199,8 @@ func (ds *Datastore) UpdateHostPolicyCounts(ctx context.Context) error {
 			if err != nil {
 				if errors.Is(err, sql.ErrNoRows) {
 					// Policy was deleted by a parallel process. We proceed.
-					level.Error(ds.logger).Log(
-						"msg", "'No team' policy not found for inherited global policies. Was policy deleted?", "policy_id", policy.ID,
+					ds.logger.ErrorContext(ctx,
+						"'No team' policy not found for inherited global policies. Was policy deleted?", "policy_id", policy.ID,
 					)
 					continue
 				}
@@ -2218,8 +2217,8 @@ func (ds *Datastore) UpdateHostPolicyCounts(ctx context.Context) error {
 			_, err = sqlx.NamedExecContext(ctx, db, insertStmt, policyStats)
 			if err != nil {
 				// INSERT may fail due to rare race conditions. We log and proceed.
-				level.Error(ds.logger).Log(
-					"msg", "insert policy stats for inherited global policies. Was policy deleted?", "policy_id", policy.ID, "err", err,
+				ds.logger.ErrorContext(ctx,
+					"insert policy stats for inherited global policies. Was policy deleted?", "policy_id", policy.ID, "err", err,
 				)
 			}
 		}

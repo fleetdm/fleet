@@ -10,7 +10,6 @@ import (
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
-	"github.com/fleetdm/fleet/v4/server/platform/logging"
 	"github.com/go-sql-driver/mysql"
 	"github.com/jmoiron/sqlx"
 	"github.com/ngrok/sqlmw"
@@ -31,7 +30,7 @@ const TestSQLMode = "'REAL_AS_FLOAT,PIPES_AS_CONCAT,ANSI_QUOTES,IGNORE_SPACE,ONL
 type DBOptions struct {
 	// MaxAttempts configures the number of retries to connect to the DB
 	MaxAttempts         int
-	Logger              *logging.Logger
+	Logger              *slog.Logger
 	ReplicaConfig       *MysqlConfig
 	Interceptor         sqlmw.Interceptor
 	TracingConfig       *LoggingConfig
@@ -83,7 +82,7 @@ func NewDB(conf *MysqlConfig, opts *DBOptions, otelDriverName string) (*sqlx.DB,
 
 	var db *sqlx.DB
 	if opts.ConnectorFactory != nil {
-		connector, err := opts.ConnectorFactory(dsn, opts.Logger.SlogLogger())
+		connector, err := opts.ConnectorFactory(dsn, opts.Logger)
 		if err != nil {
 			return nil, fmt.Errorf("failed to create connector: %w", err)
 		}
@@ -108,7 +107,7 @@ func NewDB(conf *MysqlConfig, opts *DBOptions, otelDriverName string) (*sqlx.DB,
 			break
 		}
 		interval := time.Duration(attempt) * time.Second
-		opts.Logger.SlogLogger().WarnContext(context.Background(), "could not connect to db", "err", dbError, "sleep_interval", interval)
+		opts.Logger.WarnContext(context.Background(), "could not connect to db", "err", dbError, "sleep_interval", interval)
 		time.Sleep(interval)
 	}
 

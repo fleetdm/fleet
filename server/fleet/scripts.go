@@ -441,8 +441,9 @@ type SoftwareInstallerPayload struct {
 	Categories      []string `json:"categories"`
 	DisplayName     string   `json:"display_name"`
 	// This is to support FMAs
-	Slug          *string        `json:"slug"`
-	MaintainedApp *MaintainedApp `json:"-"`
+	Slug            *string        `json:"slug"`
+	MaintainedApp   *MaintainedApp `json:"-"`
+	RollbackVersion string         `json:"fleet_maintained_app_version"`
 
 	IconPath string `json:"-"`
 	IconHash string `json:"-"`

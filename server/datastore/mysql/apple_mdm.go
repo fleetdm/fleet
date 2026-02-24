@@ -13,6 +13,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log/slog"
 	"math"
 	"os"
 	"slices"
@@ -27,10 +28,8 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/mobileconfig"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanodep/godep"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/mdm"
-	"github.com/fleetdm/fleet/v4/server/platform/logging"
 	common_mysql "github.com/fleetdm/fleet/v4/server/platform/mysql"
 	"github.com/fleetdm/fleet/v4/server/ptr"
-	"github.com/go-kit/log/level"
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
@@ -146,7 +145,7 @@ func (ds *Datastore) verifyAppleConfigProfileScopesDoNotConflict(ctx context.Con
 
 				parsedConflictingMobileConfig, err := existingProfile.Mobileconfig.ParseConfigProfile()
 				if err != nil {
-					level.Debug(ds.logger).Log("msg", "error parsing existing profile mobileconfig while checking for scope conflicts",
+					ds.logger.DebugContext(ctx, "error parsing existing profile mobileconfig while checking for scope conflicts",
 						"profile_uuid", existingProfile.ProfileUUID,
 						"err", err,
 					)
@@ -422,7 +421,7 @@ WHERE
 			switch {
 			case lbl.Exclude && lbl.RequireAll:
 				// this should never happen so log it for debugging
-				level.Debug(ds.logger).Log("msg", "unsupported profile label: cannot be both exclude and require all",
+				ds.logger.DebugContext(ctx, "unsupported profile label: cannot be both exclude and require all",
 					"profile_uuid", lbl.ProfileUUID,
 					"label_name", lbl.LabelName,
 				)
@@ -475,7 +474,7 @@ WHERE
 		switch {
 		case lbl.Exclude && lbl.RequireAll:
 			// this should never happen so log it for debugging
-			level.Debug(ds.logger).Log("msg", "unsupported profile label: cannot be both exclude and require all",
+			ds.logger.DebugContext(ctx, "unsupported profile label: cannot be both exclude and require all",
 				"profile_uuid", lbl.ProfileUUID,
 				"label_name", lbl.LabelName,
 			)
@@ -888,7 +887,7 @@ WHERE
 		}
 		if rows, _ := res.RowsAffected(); rows == 0 {
 			// this should never happen, log for debugging
-			level.Error(ds.logger).Log("msg", "resend custom scep profile: nano not deactivated", "host_uuid", hostUUID, "profile_uuid", profUUID)
+			ds.logger.ErrorContext(ctx, "resend custom scep profile: nano not deactivated", "host_uuid", hostUUID, "profile_uuid", profUUID)
 		}
 
 		res, err = tx.ExecContext(ctx, updateStmt, profUUID, hostUUID, fleet.MDMOperationTypeInstall)
@@ -897,7 +896,7 @@ WHERE
 		}
 		if rows, _ := res.RowsAffected(); rows == 0 {
 			// this should never happen, log for debugging
-			level.Error(ds.logger).Log("msg", "resend custom scep profile: host mdm apple profiles not updated", "host_uuid", hostUUID, "profile_uuid", profUUID)
+			ds.logger.ErrorContext(ctx, "resend custom scep profile: host mdm apple profiles not updated", "host_uuid", hostUUID, "profile_uuid", profUUID)
 		}
 
 		return nil
@@ -1281,7 +1280,7 @@ func ingestMDMAppleDeviceFromCheckinDB(
 	ctx context.Context,
 	tx sqlx.ExtContext,
 	mdmHost *fleet.Host,
-	logger *logging.Logger,
+	logger *slog.Logger,
 	appCfg *fleet.AppConfig,
 	fromPersonalEnrollment bool,
 ) error {
@@ -1388,7 +1387,7 @@ func insertMDMAppleHostDB(
 	ctx context.Context,
 	tx sqlx.ExtContext,
 	mdmHost *fleet.Host,
-	logger *logging.Logger,
+	logger *slog.Logger,
 	appCfg *fleet.AppConfig,
 	fromPersonalEnrollment bool,
 ) error {
@@ -1467,7 +1466,7 @@ type hostToCreateFromMDM struct {
 func createHostFromMDMDB(
 	ctx context.Context,
 	tx sqlx.ExtContext,
-	logger *logging.Logger,
+	logger *slog.Logger,
 	devices []hostToCreateFromMDM,
 	fromADE bool,
 	macOSTeam, iosTeam, ipadTeam *uint,
@@ -1634,7 +1633,7 @@ func (ds *Datastore) IngestMDMAppleDeviceFromOTAEnrollment(
 		_, hosts, err := createHostFromMDMDB(ctx, tx, ds.logger, toInsert, false, teamID, teamID, teamID)
 		if idpUUID != "" && len(hosts) > 0 {
 			host := hosts[0]
-			level.Info(ds.logger).Log("msg", fmt.Sprintf("associating host %s with idp account %s", host.UUID, idpUUID))
+			ds.logger.InfoContext(ctx, fmt.Sprintf("associating host %s with idp account %s", host.UUID, idpUUID))
 			err = associateHostMDMIdPAccountDB(ctx, tx, host.UUID, idpUUID)
 			if err != nil {
 				return ctxerr.Wrap(ctx, err, "associating host with idp account")
@@ -1652,7 +1651,7 @@ func (ds *Datastore) IngestMDMAppleDevicesFromDEPSync(
 	macOSTeam, iosTeam, ipadTeam *fleet.Team,
 ) (createdCount int64, err error) {
 	if len(devices) < 1 {
-		level.Debug(ds.logger).Log("msg", "ingesting devices from DEP received < 1 device, skipping", "len(devices)", len(devices))
+		ds.logger.DebugContext(ctx, "ingesting devices from DEP received < 1 device, skipping", "len(devices)", len(devices))
 		return 0, nil
 	}
 	migrationDeadlinesBySerial := make(map[string]time.Time, len(devices))
@@ -1681,12 +1680,7 @@ func (ds *Datastore) IngestMDMAppleDevicesFromDEPSync(
 
 		// If the team doesn't exist, we still ingest the device, but it won't
 		// belong to any team.
-		level.Debug(ds.logger).Log(
-			"msg",
-			"ingesting devices from ABM: unable to find default team assigned in config, the devices won't be assigned to a team",
-			"team_id",
-			team,
-		)
+		ds.logger.DebugContext(ctx, "ingesting devices from ABM: unable to find default team assigned in config, the devices won't be assigned to a team", "team_id", team)
 		teamIDs = append(teamIDs, nil)
 	}
 
@@ -1838,7 +1832,7 @@ func upsertMDMAppleHostMDMInfoDB(ctx context.Context, tx sqlx.ExtContext, appCfg
 	return ctxerr.Wrap(ctx, err, "upsert host mdm info")
 }
 
-func upsertMDMAppleHostLabelMembershipDB(ctx context.Context, tx sqlx.ExtContext, logger *logging.Logger, hosts ...fleet.Host) error {
+func upsertMDMAppleHostLabelMembershipDB(ctx context.Context, tx sqlx.ExtContext, logger *slog.Logger, hosts ...fleet.Host) error {
 	// Builtin label memberships are usually inserted when the first distributed
 	// query results are received; however, we want to insert pending MDM hosts
 	// now because it may still be some time before osquery is running on these
@@ -1855,7 +1849,7 @@ func upsertMDMAppleHostLabelMembershipDB(ctx context.Context, tx sqlx.ExtContext
 	case len(labels) != 4:
 		// Builtin labels can get deleted so it is important that we check that
 		// they still exist before we continue.
-		level.Error(logger).Log("err", fmt.Sprintf("expected 4 builtin labels but got %d", len(labels)))
+		logger.ErrorContext(ctx, fmt.Sprintf("expected 4 builtin labels but got %d", len(labels)))
 		return nil
 	default:
 		// continue
@@ -2132,13 +2126,13 @@ func (ds *Datastore) DeleteHostDEPAssignments(ctx context.Context, abmTokenID ui
 				}
 			}
 		}
-		logs := []any{"msg", "preparing to delete host DEP assignments: select hosts with enrollment status"}
+		var logs []any
 		for status, serials := range byStatus {
 			logs = append(logs, status, fmt.Sprintf("%+v", serials))
 		}
-		level.Info(ds.logger).Log(logs...)
+		ds.logger.InfoContext(ctx, "preparing to delete host DEP assignments: select hosts with enrollment status", logs...)
 
-		level.Info(ds.logger).Log("msg", "deleting host DEP assignments", "host_ids", fmt.Sprintf("%+v", hostIDs))
+		ds.logger.InfoContext(ctx, "deleting host DEP assignments", "host_ids", fmt.Sprintf("%+v", hostIDs))
 
 		stmt, args, err := sqlx.In(`
           UPDATE host_dep_assignments
@@ -2158,7 +2152,7 @@ func (ds *Datastore) DeleteHostDEPAssignments(ctx context.Context, abmTokenID ui
 		if len(byStatus["Pending"]) == 0 {
 			return nil
 		}
-		level.Info(ds.logger).Log("msg", "deleting pending hosts that are no longer in ABM", "host_ids", fmt.Sprintf("%+v", pendingHostIDs), "serials", fmt.Sprintf("%+v", byStatus["Pending"]))
+		ds.logger.InfoContext(ctx, "deleting pending hosts that are no longer in ABM", "host_ids", fmt.Sprintf("%+v", pendingHostIDs), "serials", fmt.Sprintf("%+v", byStatus["Pending"]))
 
 		return deleteHosts(ctx, tx, pendingHostIDs)
 	})
@@ -2305,7 +2299,7 @@ func (ds *Datastore) GetNanoMDMUserEnrollmentUsernameAndUUID(ctx context.Context
 		// If it does, we can extract the userID
 		userID = strings.TrimPrefix(nanoUser.ID, deviceID+":")
 	} else {
-		level.Debug(ds.logger).Log("userID from nano does not match expected deviceID prefixed format", "deviceID", deviceID, "userID", nanoUser.ID)
+		ds.logger.DebugContext(ctx, "userID from nano does not match expected deviceID prefixed format", "deviceID", deviceID, "userID", nanoUser.ID)
 	}
 	return username, userID, nil
 }
@@ -4645,7 +4639,7 @@ func (ds *Datastore) UpdateHostDEPAssignProfileResponsesSameABM(ctx context.Cont
 func (ds *Datastore) updateHostDEPAssignProfileResponses(ctx context.Context, payload *godep.ProfileResponse, abmTokenID *uint) error {
 	if payload == nil {
 		// caller should ensure this does not happen
-		level.Debug(ds.logger).Log("msg", "update host dep assign profiles responses received nil payload")
+		ds.logger.DebugContext(ctx, "update host dep assign profiles responses received nil payload")
 		return nil
 	}
 
@@ -4670,7 +4664,7 @@ func (ds *Datastore) updateHostDEPAssignProfileResponses(ctx context.Context, pa
 		default:
 			// this should never happen unless Apple changes the response format, so we log it for
 			// future debugging
-			level.Debug(ds.logger).Log("msg", "unrecognized assign profile response", "serial", serial, "status", status)
+			ds.logger.DebugContext(ctx, "unrecognized assign profile response", "serial", serial, "status", status)
 		}
 	}
 
@@ -4695,7 +4689,7 @@ func (ds *Datastore) updateHostDEPAssignProfileResponses(ctx context.Context, pa
 	})
 }
 
-func updateHostDEPAssignProfileResponses(ctx context.Context, tx sqlx.ExtContext, logger *logging.Logger, profileUUID string, serials []string,
+func updateHostDEPAssignProfileResponses(ctx context.Context, tx sqlx.ExtContext, logger *slog.Logger, profileUUID string, serials []string,
 	status string, abmTokenID *uint,
 ) error {
 	if len(serials) == 0 {
@@ -4736,7 +4730,7 @@ WHERE
 	}
 
 	n, _ := res.RowsAffected()
-	level.Info(logger).Log("msg", "update host dep assign profile responses", "profile_uuid", profileUUID, "status", status, "devices", n,
+	logger.InfoContext(ctx, "update host dep assign profile responses", "profile_uuid", profileUUID, "status", status, "devices", n,
 		"serials", fmt.Sprintf("%s", serials), "abm_token_id", abmTokenID)
 
 	return nil
@@ -4807,7 +4801,7 @@ WHERE
 		totalProcessed += len(serials)
 	}
 	if totalProcessed != len(serials) {
-		level.Error(ds.logger).Log("msg", fmt.Sprintf("screen dep serials: expected to process %d serials but processed %d", len(serials), totalProcessed))
+		ds.logger.ErrorContext(ctx, fmt.Sprintf("screen dep serials: expected to process %d serials but processed %d", len(serials), totalProcessed))
 	}
 
 	return skipSerialsByOrgName, serialsByOrgName, nil
@@ -4875,7 +4869,7 @@ WHERE
 	}
 
 	n, _ := res.RowsAffected()
-	level.Info(ds.logger).Log("msg", "update dep assign profile retry pending", "job_id", jobID, "devices", n, "serials", fmt.Sprintf("%s", serials))
+	ds.logger.InfoContext(ctx, "update dep assign profile retry pending", "job_id", jobID, "devices", n, "serials", fmt.Sprintf("%s", serials))
 
 	return nil
 }
@@ -4899,7 +4893,7 @@ func (ds *Datastore) MDMResetEnrollment(ctx context.Context, hostUUID string, sc
 			for _, host := range hosts {
 				ids = append(ids, host.ID)
 			}
-			level.Info(ds.logger).Log("msg", "multiple hosts found with the same uuid", "host_uuid", "host_ids", fmt.Sprintf("%v", ids))
+			ds.logger.InfoContext(ctx, "multiple hosts found with the same uuid", "host_ids", fmt.Sprintf("%v", ids))
 		}
 		host := hosts[0]
 
@@ -4931,7 +4925,7 @@ func (ds *Datastore) MDMResetEnrollment(ctx context.Context, hostUUID string, sc
 			// FIXME: We need to revisit this flow. Short-circuiting in random places means it is
 			// much more difficult to reason about the state of the host. We should try instead
 			// to centralize the flow control in the lifecycle methods.
-			level.Info(ds.logger).Log("host lifecycle action received for a SCEP renewal in process, skipping additional reset actions", "host_uuid", hostUUID)
+			ds.logger.InfoContext(ctx, "host lifecycle action received for a SCEP renewal in process, skipping additional reset actions", "host_uuid", hostUUID)
 			return nil
 		}
 
@@ -6965,11 +6959,11 @@ func (ds *Datastore) DeactivateMDMAppleHostSCEPRenewCommands(ctx context.Context
 			return ctxerr.Wrap(ctx, err, "get mdm apple host scep renew commands info")
 		}
 		if len(cmdUUIDs) == 0 {
-			level.Info(ds.logger).Log("msg", "no active scep renew commands to deactivate for host", "host_uuid", hostUUID)
+			ds.logger.InfoContext(ctx, "no active scep renew commands to deactivate for host", "host_uuid", hostUUID)
 			return nil
 		}
 
-		level.Info(ds.logger).Log("msg", "deactivating scep renew commands for host", "host_uuid", hostUUID, "command_uuids", fmt.Sprintf("%v", cmdUUIDs))
+		ds.logger.InfoContext(ctx, "deactivating scep renew commands for host", "host_uuid", hostUUID, "command_uuids", fmt.Sprintf("%v", cmdUUIDs))
 
 		clearStmt := `UPDATE nano_cert_auth_associations SET renew_command_uuid = NULL WHERE id = ?`
 		if _, err := tx.ExecContext(ctx, clearStmt, hostUUID); err != nil {
@@ -7055,7 +7049,7 @@ func (ds *Datastore) AssociateHostMDMIdPAccount(ctx context.Context, hostUUID, i
 			_, err = reconcileHostEmailsFromMdmIdpAccountsDB(ctx, tx, ds.logger, hostID)
 			if err != nil {
 				// log error but don't fail, matches Apple enrollment pattern
-				level.Error(ds.logger).Log("msg", "failed to reconcile IdP accounts after association",
+				ds.logger.ErrorContext(ctx, "failed to reconcile IdP accounts after association",
 					"err", err, "host_id", hostID, "host_uuid", hostUUID)
 			}
 		}
@@ -7067,7 +7061,7 @@ func (ds *Datastore) AssociateHostMDMIdPAccount(ctx context.Context, hostUUID, i
 
 func (ds *Datastore) ReconcileMDMAppleEnrollRef(ctx context.Context, enrollRef string, machineInfo *fleet.MDMAppleMachineInfo) (string, error) {
 	if machineInfo == nil {
-		level.Info(ds.logger).Log("msg", "reconcile mdm apple enroll ref: machine info is nil")
+		ds.logger.InfoContext(ctx, "reconcile mdm apple enroll ref: machine info is nil")
 		return "", ctxerr.New(ctx, "machine info is nil")
 	}
 
@@ -7108,7 +7102,7 @@ ON DUPLICATE KEY UPDATE
 	return nil
 }
 
-func getMDMAppleLegacyEnrollRefDB(ctx context.Context, tx sqlx.ExtContext, logger *logging.Logger, hostUUID string) (string, error) {
+func getMDMAppleLegacyEnrollRefDB(ctx context.Context, tx sqlx.ExtContext, logger *slog.Logger, hostUUID string) (string, error) {
 	const stmt = `SELECT enroll_ref FROM legacy_host_mdm_enroll_refs WHERE host_uuid = ?`
 
 	var enrollRefs []string
@@ -7123,7 +7117,7 @@ func getMDMAppleLegacyEnrollRefDB(ctx context.Context, tx sqlx.ExtContext, logge
 	}
 	if len(enrollRefs) > 1 {
 		// this should not happen, but if it does we want to know about it
-		level.Info(logger).Log("msg", "host uuid has multiple legacy enroll refs", "host_uuid", hostUUID, "enroll_refs", fmt.Sprintf("%+v", enrollRefs))
+		logger.InfoContext(ctx, "host uuid has multiple legacy enroll refs", "host_uuid", hostUUID, "enroll_refs", fmt.Sprintf("%+v", enrollRefs))
 	}
 
 	return result, nil
