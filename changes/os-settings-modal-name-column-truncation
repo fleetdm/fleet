@@ -1,0 +1,1 @@
+- Fixed truncation of the "Name" column in the OS settings modal (opened by clicking the MDM verification status on the host details page).
