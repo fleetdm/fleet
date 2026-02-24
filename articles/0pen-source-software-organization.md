@@ -2,7 +2,7 @@
 
 ## Aligning open-source values with cross-platform reliability
 
-A global open-source software organization manages a fleet of over 1,500 devices. They required a solution that respected privacy and offered equal depth for Mac, Windows, and Linux.
+A global open-source software organization managing a fleet of over 1,500 devices required a solution that respected privacy and offered equal depth for Mac, Windows, and Linux.
 
 ## At a glance
 
