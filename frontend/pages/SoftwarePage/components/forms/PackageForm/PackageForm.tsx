@@ -407,16 +407,19 @@ const PackageForm = ({
 
     const fmaVersions = defaultSoftware.fleet_maintained_versions || [];
 
-    /** Ensures latest version is first, compatible with sorting n versions */
+    /** Ensures latest version is first, compatible with sorting n-number of versions */
     fmaVersions.sort((a: ISoftwareVersion, b: ISoftwareVersion) => {
       const v1 = a.version ?? "";
       const v2 = b.version ?? "";
       return compareVersions(v2, v1);
     });
 
+    const hasMultipleVersions = fmaVersions.length > 1;
+
     const versionOptions = fmaVersions.map(
       (v: ISoftwareVersion, index: number) => {
-        const isLatest = index === 0;
+        // If multiple versions, only adds "Latest" label to the first option
+        const isLatest = hasMultipleVersions && index === 0;
 
         return {
           label: isLatest ? `Latest (${v.version})` : `${v.version}`,
