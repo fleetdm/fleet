@@ -171,7 +171,7 @@ parasails.registerPage('contact', {
           'send_to': 'AW-10788733823/RULOCNeYrPobEP-GvJgo',
           'value': 1.0,
           'currency': 'USD'
-       });
+        });
       }
       // Show the success message.
       this.cloudSuccess = true;
