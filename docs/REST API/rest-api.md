@@ -10615,7 +10615,7 @@ Add a package (.pkg, .msi, .exe, .deb, .rpm, .tar.gz, .ipa) to install on Apple 
 | labels_exclude_any | array | body | Target hosts that don't have any label, specified by label name, in the array. |
 | automatic_install | boolean | body | Specifies whether to create a policy that triggers a software install only on hosts missing the software. Not supported for iOS, iPadOS, Android, or for `.sh` and `.ps1`. |
 
-Only one of `labels_include_all`, `labels_include_any` or `labels_exclude_any` can be specified. If neither are specified, all hosts are targeted.
+Only one of `labels_include_all`, `labels_include_any` or `labels_exclude_any` can be specified. If none are specified, all hosts are targeted.
 
 Add the `X-Fleet-Scripts-Encoded: base64` header line to parse `install_script`, `uninstall_script`, `post_install_script`, and `pre_install_query` fields as bas64-encoded rather than as-is.
 
@@ -10703,7 +10703,7 @@ Update a package to install on macOS, Windows, Linux, iOS, or iPadOS hosts.
 | labels_include_any        | array     | body | Target hosts that have any label, specified by label name, in the array. Only one of either `labels_include_any` or `labels_exclude_any` can be specified. |
 | labels_exclude_any | array | body | Target hosts that don't have any label, specified by label name, in the array. |
 
-Only one of `labels_include_all`, `labels_include_any` or `labels_exclude_any` can be specified. If neither are specified, all hosts are targeted.
+Only one of `labels_include_all`, `labels_include_any` or `labels_exclude_any` can be specified. If none are specified, all hosts are targeted.
 
 > Changes to the installer package will reset installation counts. Changes to any field other than `self_service` will cancel pending installs for the old package.
 
@@ -10934,7 +10934,7 @@ Add Apple App Store or Google Play store app. Apple apps must be added in Apple 
 | labels_exclude_any | array | form | Target hosts that don't have any label, specified by label name, in the array. |
 | configuration | object | form | The Android Play Store app's managed configuration in JSON format. Currently only supported for Android. |
 
-Only one of `labels_include_all`, `labels_include_any` or `labels_exclude_any` can be specified. If neither are specified, all hosts are targeted.
+Only one of `labels_include_all`, `labels_include_any` or `labels_exclude_any` can be specified. If none are specified, all hosts are targeted.
 
 
 #### Example
@@ -11000,7 +11000,7 @@ Modify an Apple App Store (VPP) or a Google Play app's options.
 | labels_exclude_any | array | body | Target hosts that don't have any label, specified by label name, in the array. |
 | configuration | object | body | The Android Play Store app's managed configuration in JSON format. Currently only supported for Android. |
 
-Only one of `labels_include_all`, `labels_include_any` or `labels_exclude_any` can be specified. If neither are specified, all hosts are targeted.
+Only one of `labels_include_all`, `labels_include_any` or `labels_exclude_any` can be specified. If none are specified, all hosts are targeted.
 
 `configuration` only supports `managedConfiguration` and `workProfileWidgets` from [Android application policy](https://developers.google.com/android/management/reference/rest/v1/enterprises.policies#ApplicationPolicy). Configuration keys vary by app. Refer to the app vendor's documentation for available managed configuration options. For example, see [Zoom's Android managed configuration](https://support.zoom.com/hc/en/article?id=zm_kb&sysparm_article=KB0064790) or [GlobalProtect's Android configuration](https://docs.paloaltonetworks.com/globalprotect/10-1/globalprotect-admin/mobile-endpoint-management/manage-the-globalprotect-app-using-other-third-party-mdms/configure-the-globalprotect-app-for-android).
 
@@ -11188,7 +11188,7 @@ Add Fleet-maintained app so it's available for install.
 | labels_exclude_any | array | form | Target hosts that don't have any label, specified by label name, in the array. |
 | automatic_install | boolean | form | Create a policy that triggers a software install only on hosts missing the software. |
 
-Only one of `labels_include_all`, `labels_include_any` or `labels_exclude_any` can be specified. If neither are specified, all hosts are targeted.
+Only one of `labels_include_all`, `labels_include_any` or `labels_exclude_any` can be specified. If none are specified, all hosts are targeted.
 
 Add the `X-Fleet-Scripts-Encoded: base64` header line to parse `install_script`, `uninstall_script`, `post_install_script`, and `pre_install_query` fields as bas64-encoded rather than as-is.
 
