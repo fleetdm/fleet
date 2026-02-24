@@ -2,7 +2,7 @@
 
 ## Aligning MDM with DevOps practices at scale
 
-A financial technology company manages a massive environment of roughly 15,000 endpoints. They required a solution that could keep up with their product velocity and integrate seamlessly with their "configuration as code" philosophy.
+A financial technology company managing a massive environment of roughly 15,000 endpoints required a solution that could keep up with their product velocity and integrate seamlessly with their "configuration as code" philosophy.
 
 ## At a glance
 
