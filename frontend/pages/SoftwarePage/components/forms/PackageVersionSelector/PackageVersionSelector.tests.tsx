@@ -18,6 +18,24 @@ describe("PackageVersionSelector component", () => {
     expect(container.firstChild).toBeNull();
   });
 
+  it("renders a plain version label when there is only one option", () => {
+    render(
+      <PackageVersionSelector
+        selectedVersion="2.0.0"
+        versionOptions={[{ value: "2.0.0", label: "2.0.0" }]}
+        onSelectVersion={noop}
+      />
+    );
+
+    // Shows just the raw version
+    expect(screen.getByText("2.0.0")).toBeInTheDocument();
+
+    // Does not show the \"Latest (...)\" decoration when there is only one option
+    expect(
+      screen.queryByText("Latest (2.0.0)", { exact: false })
+    ).not.toBeInTheDocument();
+  });
+
   it("renders the package version dropdown when there are package versions to choose from", () => {
     render(
       <PackageVersionSelector
