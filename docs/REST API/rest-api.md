@@ -10930,7 +10930,7 @@ Add Apple App Store or Google Play store app. Apple apps must be added in Apple 
 | self_service | boolean | body | **Required if platform is Android**. Currently supported for macOS and Android apps. Specifies whether the app shows up in self-service and is available for install by the end user. For macOS shows up on **Fleet Desktop > My device** page, for Android in **Play Store** app in end user's work profile, and for iOS/iPadOS in [self-service web](https://fleetdm.com/learn-more-about/deploy-self-service-to-ios) app.  |
 | ensure | string | form | For macOS only, if set to "present" (currently the only valid value if set), create a policy that triggers a software install only on hosts missing the software. |
 | labels_include_all        | array     | body | Target hosts that have all labels, specified by label name, in the array. |
-| labels_include_any        | array     | form | Target hosts that have any label, specified by label name, in the array. |
+| labels_include_any        | array     | body | Target hosts that have any label, specified by label name, in the array. |
 | labels_exclude_any | array | form | Target hosts that don't have any label, specified by label name, in the array. |
 | configuration | object | form | The Android Play Store app's managed configuration in JSON format. Currently only supported for Android. |
 
