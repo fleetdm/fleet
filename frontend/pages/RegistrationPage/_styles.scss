@@ -22,8 +22,9 @@
     top: 180px;
   }
 
-  .button-wrap {
-    button {
+  form .button-wrap {
+    // Override button width of auto
+    .button:not(.button--icon):not(.button--icon__small) {
       width: 200px;
     }
   }

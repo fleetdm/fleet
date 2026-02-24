@@ -1,7 +1,12 @@
 .forgot-password-form {
   width: 100%;
 
-  &__submit-btn {
-    width: 160px;
+  .button-wrap {
+    justify-content: center;
+
+    // Override button width of auto
+    .button:not(.button--icon):not(.button--icon__small) {
+      width: 200px;
+    }
   }
 }
