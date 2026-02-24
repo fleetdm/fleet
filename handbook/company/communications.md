@@ -439,8 +439,8 @@ Populate the title, then create the issue to immediately initiate the incident n
 
 ```mermaid
 flowchart TD
-    A[Incident response issue created] --> B[Incident on-call]
-    B --> C[Infrastructure on-call]
+    A[Incident response issue created] --> B[Infrastructure on-call]
+    B --> C[Incident on-call]
     C --> D[Engineering Managers]
     D --> E[CTO]
 ```
