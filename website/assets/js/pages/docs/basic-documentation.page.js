@@ -200,7 +200,7 @@ parasails.registerPage('basic-documentation', {
     clickSwagRequestCTA: function () {
       if(window.gtag !== undefined){
         gtag('event','fleet_website__swag_request');
-       // Additional conversion tracking
+        // Additional conversion tracking
         gtag('event', 'conversion', {
           'send_to': 'AW-10788733823/GvP3CNqYrPobEP-GvJgo',
           'value': 1.0,
