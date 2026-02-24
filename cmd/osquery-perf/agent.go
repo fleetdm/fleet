@@ -1111,8 +1111,38 @@ func (a *agent) runMacosMDMLoop() {
 				}
 				log.Printf("got install application command for %d", appRequest.Command["iTunesStoreID"])
 
+				var incomingAdamID uint64
 				if adamID, ok := appRequest.Command["iTunesStoreID"].(uint64); ok {
 					a.installedAdamIDs = append(a.installedAdamIDs, int(adamID))
+					incomingAdamID = adamID
+				}
+
+				if incomingAdamID == 0 {
+					_, err = a.macMDMClient.Err(mdmCommandPayload.CommandUUID, []mdm.ErrorChain{
+						{
+							ErrorCode:            99999, // General bad error, means the extraction above was not OK
+							LocalizedDescription: "Failed to extract iTunesStoreID",
+						},
+					})
+					if err != nil {
+						log.Printf("MDM Err request failed: %s", err)
+						a.stats.IncrementMDMErrors()
+						break INNER_FOR_LOOP
+					}
+				} else if incomingAdamID == 9610 {
+					// 9610 is the AdamID we use for simulating a failed installation, so we return an error response to trigger that flow in the agent.
+					_, err = a.macMDMClient.Err(mdmCommandPayload.CommandUUID, []mdm.ErrorChain{
+						{
+							ErrorCode:            9610,
+							ErrorDomain:          "ErrorDomain",
+							LocalizedDescription: "Missing VPP license for this application",
+						},
+					})
+					if err != nil {
+						log.Printf("MDM Err request failed: %s", err)
+						a.stats.IncrementMDMErrors()
+						break INNER_FOR_LOOP
+					}
 				}
 
 				mdmCommandPayload, err = a.macMDMClient.Acknowledge(mdmCommandPayload.CommandUUID)
