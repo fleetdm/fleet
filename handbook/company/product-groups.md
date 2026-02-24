@@ -662,21 +662,21 @@ Bugs will be verified as fixed by QA when they are placed in the "Awaiting QA" c
 
 ## Engineering on-call
 
-Fleet maintains two engineering on-call rotations: one for business-hours escalation support, and one for after-hours response to critical production incidents.
+Fleet maintains two engineering on-call rotations: one for business-hours support escalations, and one for 24/7 incident response.
 
-### Business hours on-call engineer
+### On-call engineer
 
-Customer Success members are instructed to `@oncall` in `#help-engineering` to contact the on-call engineer for support escalations or product incidents occurring during business hours.
+Customer Success members are instructed to `@oncall` in `#help-engineering` to contact the on-call engineer for support escalations during business hours. The on-call engineer handles issues up to and including P1 priority.
 
 In some cases, the Customer Success team member will continue to communicate with the requestor. In others, the on-call engineer will communicate directly. Team members should use their judgment and discuss on a case-by-case basis how to best communicate with community members and customers.
 
-The current business-hours on-call rotation is reflected in the [📈 KPIs spreadsheet (confidential Google sheet)](https://docs.google.com/spreadsheets/d/1Hso0LxqwrRVINCyW_n436bNHmoqhoLhC8bcbvLPOs9A/edit?gid=1831267053#gid=1831267053).
+The current on-call rotation is reflected in the [📈 KPIs spreadsheet (confidential Google sheet)](https://docs.google.com/spreadsheets/d/1Hso0LxqwrRVINCyW_n436bNHmoqhoLhC8bcbvLPOs9A/edit?gid=1831267053#gid=1831267053).
 
 New engineers are added to the on-call rotation by their manager after they have completed onboarding and at least one full release cycle. We aim to alternate the rotation between product groups when possible.
 
 > The on-call rotation may be adjusted with approval from the EMs of any product groups affected. Any changes should be made before the start of the sprint so that capacity can be planned accordingly.
 
-#### Business hours on-call responsibilities
+#### On-call responsibilities
 
 **First-line response**
 - Community pull requests
@@ -710,7 +710,7 @@ The on-call engineer is asked to read, understand, test, correct, and improve at
 
 Our goal is to ensure accuracy and verify that deployment guides and tutorials are up to date, while improving readability and clarity — with empathy toward first-time users.
 
-See [Writing](https://fleetdm.com/handbook/company/communications#writing) for writing guidelines. For writing support, reach out to 🌐 [IT & Enablement](https://fleetdm.slack.com/archives/C01GQUZ91TN).  
+See [Writing](https://fleetdm.com/handbook/company/communications#writing) for writing guidelines. For writing support, reach out to 🌐 [IT & Enablement](https://fleetdm.slack.com/archives/C01GQUZ91TN).
 Outstanding documentation issues use the [`:improve documentation`](https://github.com/fleetdm/fleet/issues?q=is%3Aopen+is%3Aissue+label%3A%22%3Aimprove+documentation%22) label.
 
 **Engineering alerts**
@@ -730,44 +730,48 @@ To achieve quick first-response times, you are encouraged to say things like:
 
 How to escalate:
 
-1. Spend up to 10-15 minutes investigating the relevant code ([osquery](https://github.com/osquery/osquery), [Fleet](https://github.com/fleetdm/fleet)) and documentation ([osquery](https://osquery.readthedocs.io/en/latest/), [Fleet](https://fleetdm.com/docs)).  
+1. Spend up to 10-15 minutes investigating the relevant code ([osquery](https://github.com/osquery/osquery), [Fleet](https://github.com/fleetdm/fleet)) and documentation ([osquery](https://osquery.readthedocs.io/en/latest/), [Fleet](https://fleetdm.com/docs)).
 2. Create a new thread in `#help-engineering`, tagging the relevant product group and including any findings or links from your investigation.
 
 #### Changing of the guard
 
-The business-hours on-call engineer changes each week on Monday. A Slack reminder notifies the `@oncall` alias of the handoff. Please do the following:
+The on-call engineer changes each week on Monday. A Slack reminder notifies the `@oncall` alias of the handoff. Please do the following:
 
 1. The new on-call engineer should update the `@oncall` Slack user group to point to themselves.
-2. Hand off active conversations (Slack threads, issues, PRs, etc.).  
-   - Share relevant threads with the new on-call engineer  
-   - Subscribe them to notifications  
-   - Unsubscribe the former on-call engineer as appropriate  
+2. Hand off active conversations (Slack threads, issues, PRs, etc.).
+   - Share relevant threads with the new on-call engineer
+   - Subscribe them to notifications
+   - Unsubscribe the former on-call engineer as appropriate
 
 Anything not clearly handed off remains the responsibility of the former on-call engineer.
 
 In the Slack reminder thread, the outgoing on-call engineer should include a brief retrospective:
 
-1. Most common support requests that week  
-2. Documentation page reviewed and changes made  
-3. How the rest of the on-call time was spent  
+1. Most common support requests that week
+2. Documentation page reviewed and changes made
+3. How the rest of the on-call time was spent
 
-### After-hours incident on-call engineer
+### Incident on-call engineer
 
-Customer Success members are instructed to `@incident-oncall` in `#help-engineering` to report [P0 incidents](https://fleetdm.com/handbook/company/communications#high-priority-user-stories-and-bugs) occurring after business hours.
+The incident on-call engineer is responsible for responding to [P0 incidents](https://fleetdm.com/handbook/company/communications#high-priority-user-stories-and-bugs) 24/7 during their one-week shift. Incident on-call only responds to P0 issues that have an [incident response issue](https://github.com/fleetdm/confidential/issues/new?template=incident-response.md) filed. The incident on-call engineer is contacted via incident.io, which is triggered by creating an incident response issue.
 
-Incidents that occur during business hours should be handled by the business-hours on-call engineer and should not use `@incident-oncall`.
+The Customer Success team member who reports the incident will continue communicating with the impacted customer or customers and is responsible for maintaining open lines of communication during the incident. If needed, the incident on-call engineer may be asked to communicate directly with impacted customers to facilitate faster resolution. Team members should use their judgment and coordinate on a case-by-case basis.
 
-The Customer Success team member who reports the incident will continue communicating with the impacted customer or customers and is responsible for maintaining open lines of communication during the incident. If needed, the on-call engineer may be asked to communicate directly with impacted customers to facilitate faster resolution. Team members should use their judgment and coordinate on a case-by-case basis.
+Each product group maintains two engineers assigned to incident on-call. Engineers in this rotation should be comfortable leading mitigation efforts during a production incident.
 
-Each product group maintains two engineers assigned to after-hours incident on-call. Engineers in this rotation should be comfortable leading mitigation efforts during an after-hours production incident.
+> The incident on-call rotation and handoff are handled automatically by incident.io. The on-call rotation may be adjusted in incident.io with approval from the EMs of any product groups affected. Any changes should be made before the start of the sprint so that capacity can be planned accordingly.
 
-> The after-hours incident on-call rotation and handoff are handled automatically by incident.io. The on-call rotation may be adjusted in incident.io with approval from the EMs of any product groups affected. Any changes should be made before the start of the sprint so that capacity can be planned accordingly.
+#### Incident on-call responsibilities
 
-#### After-hours incident on-call responsibilities
+**Outside of business hours**
 
-The after-hours incident on-call engineer is responsible for responding within one hour to [P0 incidents](https://fleetdm.com/handbook/company/communications#high-priority-user-stories-and-bugs) occurring outside of business hours and triaging into our [incident response process](https://fleetdm.com/handbook/engineering#incident-response-process).
+The incident on-call engineer is responsible for stabilizing the issue well enough to pick it back up in the morning. They should file P1 issues for any immediate follow-up items that need to be addressed during the next business day.
 
-Any mentions that do not meet [P0 criteria](https://fleetdm.com/handbook/company/communications#high-priority-user-stories-and-bugs) or are during business hours should be acknowledged and redirected to business hours on-call.
+**During business hours**
+
+The incident on-call engineer is responsible for responding to and triaging incidents. Instead of trying to fix the issue themselves, they will typically reach out to the most relevant product group and ask who can jump in to take lead on the resolution.
+
+Any mentions that do not meet [P0 criteria](https://fleetdm.com/handbook/company/communications#high-priority-user-stories-and-bugs) should be acknowledged and redirected to the on-call engineer.
 
 
 ## Wireframes

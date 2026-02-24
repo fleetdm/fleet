@@ -431,7 +431,7 @@ Any fleetie can follow the process below to add a priority label to an issue.
 
 ## Incident response process
 
-All emergency issues designated `P0` require a new [incident response issue](https://github.com/fleetdm/confidential/issues/new?template=incident-response.md). As soon as the issue is created, it will initiate our on-call incident notification process.
+All emergency issues designated `P0` require a new [incident response issue](https://github.com/fleetdm/confidential/issues/new?template=incident-response.md). As soon as the issue is created, it will initiate our on-call incident notification process via incident.io.
 
 Populate the title, then create the issue to immediately initiate the incident notification process. Edit the issue to add any additional context while awaiting response.
 
@@ -439,15 +439,13 @@ Populate the title, then create the issue to immediately initiate the incident n
 
 ```mermaid
 flowchart TD
-    A[Infrastructure on-call] --> B{Business hours?}
-    B -- Yes --> C[Business hours on-call]
-    B -- No --> D[After-hours incident on-call]
-    C --> E[Engineering Managers]
-    D --> E
-    E --> F[CTO]
+    A[Incident response issue created] --> B[Incident on-call]
+    B --> C[Infrastructure on-call]
+    C --> D[Engineering Managers]
+    D --> E[CTO]
 ```
 
-Incident notifications are sent 24/7/365 via incident.io. If a notification is unacknowledged after five minutes, it will automatically escalate in the notification path. The process will repeat up to ten times until the incident is acknowledged.
+Incident notifications are sent 24/7/365 via incident.io, triggered by creating an incident response issue. If a notification is unacknowledged after five minutes, it will automatically escalate in the notification path. The process will repeat up to ten times until the incident is acknowledged.
 
 ## Contributing to the handbook and docs
 

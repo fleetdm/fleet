@@ -113,58 +113,58 @@ If a community member opens an issue that we can't reproduce leave a comment ask
 If a community PR hasn't had any updates or response from the author after one week, convert the PR to draft and add a comment tagging the author to let them know they are welcome to push any updates and convert it back to non-draft. After one year, our bot will auto-close it with a comment if it doesn't get updated.
 
 
-### Schedule business hours on-call engineer workload
+### Schedule on-call engineer workload
 
-Engineering Managers are asked to be aware of the [business hours on-call engineer rotations](https://fleetdm.com/handbook/company/product-groups#business-hours-on-call-engineer) and reduce estimated capacity for each sprint accordingly. While it varies week to week considerably, the on-call responsibilities can sometimes take up a substantial portion of the engineer's time.
+Engineering Managers are asked to be aware of the [on-call engineer rotations](https://fleetdm.com/handbook/company/product-groups#on-call-engineer) and reduce estimated capacity for each sprint accordingly. While it varies week to week considerably, the on-call responsibilities can sometimes take up a substantial portion of the engineer's time.
 
-On-call engineers are available during the business hours of 9am - 6pm Pacific. The [on-call support SLA](https://fleetdm.com/handbook/company/product-groups#business-hours-on-call-responsibilities) requires a 1-hour response time during business hours to any `@oncall` mention.
+On-call engineers are available during the business hours of 9am - 6pm Pacific. The [on-call support SLA](https://fleetdm.com/handbook/company/product-groups#on-call-responsibilities) requires a 1-hour response time during business hours to any `@oncall` mention.
 
 
-#### Assume business hours on-call engineer alias
+#### Assume on-call engineer alias
 
 The on-call engineer is responsible for:
 
-- Knowing [the on-call rotation](https://fleetdm.com/handbook/company/product-groups#business-hours-on-call).
-- Performing the [business hours on-call responsibilities](https://fleetdm.com/handbook/company/product-groups#business-hours-on-call-responsibilities).
+- Knowing [the on-call rotation](https://fleetdm.com/handbook/company/product-groups#on-call-engineer).
+- Performing the [on-call responsibilities](https://fleetdm.com/handbook/company/product-groups#on-call-responsibilities).
 - [Escalating community questions and issues](https://fleetdm.com/handbook/company/product-groups#escalations).
 - Successfully [transferring the on-call persona to the next engineer](https://fleetdm.com/handbook/company/product-groups#changing-of-the-guard).
 
-To provide full-time focus to the role, the business hours on-call engineer is not expected to work on sprint issues during their on-call assignment.
+To provide full-time focus to the role, the on-call engineer is not expected to work on sprint issues during their on-call assignment.
 
 
-### Schedule after-hours incident on-call engineer workload
+### Schedule incident on-call engineer workload
 
-Engineering Managers are asked to be aware of the [after-hours incident on-call engineer rotations](https://fleetdm.com/handbook/company/product-groups#after-hours-incident-on-call-engineer) and plan estimated capacity for each sprint accordingly. While there are no incidents most weeks, when they occur the after-hours incident on-call responsibilities can sometimes take up a substantial portion of the engineer's time. A full sprint's capacity should be planned for the engineer, but one week of capacity should be non-urgent issues that can be delayed to the next sprint if necessary.
+Engineering Managers are asked to be aware of the [incident on-call engineer rotations](https://fleetdm.com/handbook/company/product-groups#incident-on-call-engineer) and plan estimated capacity for each sprint accordingly. While there are no incidents most weeks, when they occur the incident on-call responsibilities can sometimes take up a substantial portion of the engineer's time. A full sprint's capacity should be planned for the engineer, but one week of capacity should be non-urgent issues that can be delayed to the next sprint if necessary.
 
-After-hours incident on-call engineers are available outside the business hours of 9am - 6pm Pacific. The [on-call support SLA](https://fleetdm.com/handbook/company/product-groups#business-hours-on-call-responsibilities) requires a 1-hour response time outside business hours to any `@incident-oncall` mention. To assist with this SLA, all mentions will be triaged as incidents in incident.io.
+Incident on-call engineers are available 24/7 during their one-week shift. They respond only to P0 issues that have an [incident response issue](https://github.com/fleetdm/confidential/issues/new?template=incident-response.md) filed. Notifications are sent via incident.io, triggered by creating an incident response issue.
 
-> If an after-hours incident occurs, the engineer's manager removes some or all of the week's planned capacity to provide time for incident response and recovery.
+> If an incident occurs, the engineer's manager removes some or all of the week's planned capacity to provide time for incident response and recovery.
 
 
-#### Assume after hours on-call engineer alias
+#### Assume incident on-call engineer alias
 
-After-hours incident on-call engineer rotation, alias assignment, and incident notification are managed through incident.io and reported in the #help-incidents channel. 
+Incident on-call engineer rotation, alias assignment, and incident notification are managed through incident.io and reported in the #help-incidents channel.
 
-The on-call engineer is responsible for: 
+The incident on-call engineer is responsible for:
 
-- Knowing [the after-hours incidenton-call rotation](https://fleetdm.com/handbook/company/product-groups#after-hours-incident-on-call).
+- Knowing [the incident on-call rotation](https://fleetdm.com/handbook/company/product-groups#incident-on-call-engineer).
 - Completing the [incident.io on-call engineer onboarding steps](https://help.incident.io/articles/3472064049-get-started-as-an-on-call-responder) sent via email when invited to incident.io.
 - Confirming the app is configured to push notifications through Do Not Disturb.
-- Performing the [after-hours incident on-call responsibilities](https://fleetdm.com/handbook/company/product-groups#after-hours-incident-on-call-responsibilities).
+- Performing the [incident on-call responsibilities](https://fleetdm.com/handbook/company/product-groups#incident-on-call-responsibilities).
 
 
 ### Incident response process
 
-Fleet responds to all P0 incidents by initiating our incident response process: 
+Fleet responds to all P0 incidents by initiating our incident response process:
 
-1. Create a new [incident response issue](https://github.com/fleetdm/confidential/issues/new?template=incident-response.md) in our confidential repo. 
-2. Edit the issue template to reflect the details of the incident. 
-3. Assign to the current business hours or after hours on-call engineer (based on time of the incident) and the current infrastrucure on-call engineer. 
+1. Create a new [incident response issue](https://github.com/fleetdm/confidential/issues/new?template=incident-response.md) in our confidential repo. Creating this issue triggers the incident notification process via incident.io.
+2. Edit the issue template to reflect the details of the incident.
+3. Assign to the current incident on-call engineer and the current infrastructure on-call engineer.
 4. Complete the steps listed based on the type of incident.
 
 Mitigating the outage may require writing and merging code. The current infrastructure on-call engineer is first line for all reviews and QA required to deploy a hot-fix. If additional code review or engineering support is needed, the responding engineer should escalate to their manager.
 
-> If outside of business hours, the responding engineer should notify their manager using incident.io to bypass Do Not Disturb mode.
+> If outside of business hours, the incident on-call engineer is responsible for stabilizing the issue well enough to pick it back up in the morning, and should file P1 issues for any immediate follow-up items. During business hours, the incident on-call engineer triages the incident and reaches out to the most relevant product group to find someone to take lead on the resolution.
 
 ### Participate in QA Day
 
