@@ -286,7 +286,7 @@ func (svc *Service) UpdateSoftwareInstaller(ctx context.Context, payload *fleet.
 	payload.UserID = vc.UserID()
 
 	if payload.TeamID == nil {
-		return nil, &fleet.BadRequestError{Message: "team_id is required; enter 0 for no team"}
+		return nil, &fleet.BadRequestError{Message: "fleet_id is required; enter 0 for unassigned"}
 	}
 
 	var teamName *string

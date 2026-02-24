@@ -247,7 +247,7 @@ func generateGitopsCommand() *cli.Command {
 			},
 			&cli.StringFlag{
 				Name:  "team",
-				Usage: "(Premium only) The team to output configuration for.  Omit to export all configuration.  Use 'global' to export global settings, or 'no-team' to export settings for No Team.",
+				Usage: "(Premium only) The team to output configuration for.  Omit to export all configuration.  Use 'global' to export global settings, or 'unassigned' to export settings for unassigned hosts.",
 			},
 			&cli.StringFlag{
 				Name:  "dir",
@@ -371,6 +371,9 @@ func (cmd *GenerateGitopsCommand) Run() error {
 	case cmd.CLI.String("team") == "global" || !cmd.AppConfig.License.IsPremium():
 		teamsToProcess = []teamToProcess{globalTeam}
 	case cmd.CLI.String("team") == "no-team":
+		fmt.Fprintf(cmd.CLI.App.ErrWriter, "[!] '--team no-team' is deprecated. Use '--team unassigned' instead.\n")
+		teamsToProcess = []teamToProcess{noTeam}
+	case cmd.CLI.String("team") == "unassigned":
 		teamsToProcess = []teamToProcess{noTeam}
 	default:
 		// Get the list of teams.
@@ -418,10 +421,15 @@ func (cmd *GenerateGitopsCommand) Run() error {
 		}
 		// If it's a real team, start the filename with the team name.
 		if team != nil {
-			teamFileName = generateFilename(team.Name)
+			displayName := team.Name
+			// For the no-team virtual team (ID 0), always output as "Unassigned".
+			if team.ID == 0 {
+				displayName = "Unassigned"
+			}
+			teamFileName = generateFilename(displayName)
 			fileName = "fleets/" + teamFileName + ".yml"
 			cmd.FilesToWrite[fileName] = map[string]interface{}{
-				"name": team.Name,
+				"name": displayName,
 			}
 		} else {
 			fileName = "default.yml"
@@ -546,8 +554,8 @@ func (cmd *GenerateGitopsCommand) Run() error {
 			fileName = "default.yml"
 		case "":
 			fileName = "default.yml"
-		case "no-team":
-			fileName = "fleets/no-team.yml"
+		case "no-team", "unassigned":
+			fileName = "fleets/unassigned.yml"
 		default:
 			teamFileName := generateFilename(cmd.CLI.String("team"))
 			fileName = "fleets/" + teamFileName + ".yml"
