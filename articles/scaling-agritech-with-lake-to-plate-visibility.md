@@ -23,7 +23,7 @@ They integrated Fleet as a cornerstone of their digital transformation. They req
 - **Operational Efficiency:** The transition achieved a 100% reduction in manual data entry for key asset management tasks, freeing IT staff to focus on high-impact innovations like drone logistics.  
 - **Automated Asset Tracking:** Using Fleet’s API, the team synced device data directly with warehouse inventory systems, ensuring that critical cold-chain hardware is always accounted for across 89 branches.  
 
-<meta name="articleTitle" value="Scaling agritech with "lake-to-plate" visibility">
+<meta name="articleTitle" value="Scaling agritech with lake-to-plate visibility">
 <meta name="authorFullName" value="Irena Reedy">
 <meta name="authorGitHubUsername" value="irenareedy">
 <meta name="category" value="announcements">
