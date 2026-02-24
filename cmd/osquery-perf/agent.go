@@ -3351,8 +3351,8 @@ func main() {
 		// This flag can be used to set the number of vulnerable software items reported by each host picked randomly from the
 		// list of vulnerable software.  Use -1 to load all vulnerable software.
 		vulnerableSoftwareCount     = flag.Int("vulnerable_software_count", 10, "Number of vulnerable installed applications reported to fleet.  Use -1 to load all vulnerable software.")
-		withLastOpenedSoftwareCount = flag.Int("with_last_opened_software_count", 10, "Number of applications that may report a last opened timestamp to fleet")
-		lastOpenedChangeProb        = flag.Float64("last_opened_change_prob", 0.1, "Probability of last opened timestamp to be reported as changed [0, 1]")
+		withLastOpenedSoftwareCount = flag.Int("with_last_opened_software_count", 50, "Number of applications that may report a last opened timestamp to fleet")
+		lastOpenedChangeProb        = flag.Float64("last_opened_change_prob", 0.5, "Probability of last opened timestamp to be reported as changed [0, 1]")
 		commonUserCount             = flag.Int("common_user_count", 10, "Number of common host users reported to fleet")
 		uniqueUserCount             = flag.Int("unique_user_count", 10, "Number of unique host users reported to fleet")
 		policyPassProb              = flag.Float64("policy_pass_prob", 1.0, "Probability of policies to pass [0, 1]")
