@@ -2,7 +2,7 @@
 
 ## Bringing "Management as Code" to Cannabis Technology
 
-A leading technology provider for the cannabis industry. With a fleet heavily weighted toward macOS, they sought a platform that offered deep integration and advanced Windows management.
+A leading technology provider for the cannabis industry with a fleet heavily weighted toward macOS sought a platform that offered deep integration and advanced Windows management.
 
 ## At a glance
 
