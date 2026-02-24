@@ -124,7 +124,7 @@ _Available in Fleet Premium_
 
 To trigger software install, when policy fails, specify one of:
   - `install_software.package_path` is the path to a custom package YAML. Only one package can be specified in the package YAML.
-  - `install_software.slug` is a [Fleet-maintained app slug](https://fleetdm.com/docs/configuration/yaml-files#fleet-maintained-apps).
+  - `install_software.fleet_maintained_app_slug` is a [Fleet-maintained app slug](https://fleetdm.com/docs/configuration/yaml-files#fleet-maintained-apps).
   - `install_software.hash_sha256` is [SHA256 hash](https://fleetdm.com/docs/configuration/yaml-files#hash) of a custom package.
 
 #### Run script
@@ -180,21 +180,27 @@ policies:
   calendar_events_enabled: false
   run_script:
     path: ./disable-guest-account.sh
-- name: Install Firefox on macOS
+- name: macOS - Firefox installed
   platform: darwin
   description: This policy checks that Firefox is installed.
   resolution: Install Firefox app if not installed.
-  query: "SELECT 1 FROM apps WHERE name = 'Firefox.app'"
+  query: "SELECT 1 FROM apps WHERE bundle_identifier = 'org.mozilla.firefox'"
   install_software:
     package_path: ./firefox.package.yml
-- name: [Install software] Logic Pro
+- name: macOS - Logic Pro installed
   platform: darwin
   description: This policy checks that Logic Pro is installed
   resolution: Install Logic Pro App Store app if not installed
-  query: "SELECT 1 FROM apps WHERE name = 'Logic Pro'"
+  query: "SELECT 1 FROM apps WHERE bundle_identifier = 'com.apple.logic10'"
   install_software:
-    package_path: ./linux-firefox.deb.package.yml
-    # app_store_id: "1487937127" (for App Store apps)
+    app_store_id: "1487937127" (for App Store apps)
+- name: macOS - Zoom installed
+  platform: darwin
+  description: This policy checks that Zoom is installed
+  resolution: Install Logic Pro App Store app if not installed
+  query: "SELECT 1 FROM apps WHERE bundle_identifier = 'us.zoom.xos'"
+  install_software:
+    fleet_maintained_app_slug: zoom/darwin
 ```
 
 `default.yml` (for policies that neither install software nor run scripts), `teams/team-name.yml`, or `teams/no-team.yml`
