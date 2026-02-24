@@ -3780,7 +3780,12 @@ func (svc *MDMAppleCheckinAndCommandService) CommandAndReportResults(r *mdm.Requ
 			if err != nil {
 				return nil, ctxerr.Wrap(r.Context, err, "fetching host vpp install by command uuid")
 			}
-			if vppInstall != nil && vppInstall.RetryCount < fleet.MaxSoftwareInstallAttempts {
+
+			if vppInstall.RetryCount > 0 {
+				svc.logger.InfoContext(r.Context, "VPP app installation failed, retrying if attempts remain")
+			}
+
+			/* if vppInstall != nil && vppInstall.RetryCount < fleet.MaxSoftwareInstallAttempts {
 				if err := svc.ds.RetryVPPInstall(r.Context, vppInstall); err != nil {
 					return nil, ctxerr.Wrap(r.Context, err, "retrying VPP install for host")
 				}
@@ -3788,7 +3793,7 @@ func (svc *MDMAppleCheckinAndCommandService) CommandAndReportResults(r *mdm.Requ
 					"host_id", vppInstall.HostID, "command_uuid", cmdResult.CommandUUID,
 					"retry_count", vppInstall.RetryCount+1, "error_status", cmdResult.Status)
 				return nil, nil
-			}
+			} */
 
 			// this might be a setup experience VPP install, so we'll try to update setup experience status
 			var fromSetupExperience bool
