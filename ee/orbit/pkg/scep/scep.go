@@ -11,6 +11,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"slices"
 	"time"
 
 	scepclient "github.com/fleetdm/fleet/v4/server/mdm/scep/client"
@@ -292,7 +293,17 @@ func (h *zerologSlogHandler) Enabled(_ context.Context, _ slog.Level) bool {
 }
 
 func (h *zerologSlogHandler) Handle(_ context.Context, r slog.Record) error {
-	event := h.logger.Info()
+	var event *zerolog.Event
+	switch r.Level {
+	case slog.LevelDebug:
+		event = h.logger.Debug()
+	case slog.LevelWarn:
+		event = h.logger.Warn()
+	case slog.LevelError:
+		event = h.logger.Error()
+	default:
+		event = h.logger.Info()
+	}
 	for _, a := range h.attrs {
 		event = event.Interface(a.Key, a.Value.Any())
 	}
@@ -305,7 +316,7 @@ func (h *zerologSlogHandler) Handle(_ context.Context, r slog.Record) error {
 }
 
 func (h *zerologSlogHandler) WithAttrs(attrs []slog.Attr) slog.Handler {
-	return &zerologSlogHandler{logger: h.logger, attrs: append(h.attrs, attrs...)}
+	return &zerologSlogHandler{logger: h.logger, attrs: slices.Concat(h.attrs, attrs)}
 }
 
 func (h *zerologSlogHandler) WithGroup(_ string) slog.Handler {

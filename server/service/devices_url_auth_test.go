@@ -20,7 +20,7 @@ func TestAuthenticatedDeviceFallbackAuth(t *testing.T) {
 		return &fleet.AppConfig{}, nil
 	}
 
-	middleware := authenticatedDevice(svc, logging.NewNopLogger(), func(ctx context.Context, request interface{}) (interface{}, error) {
+	middleware := authenticatedDevice(svc, logging.NewNopLogger(), func(ctx context.Context, request any) (any, error) {
 		return "success", nil
 	})
 

@@ -40,7 +40,7 @@ func extractCertSerialFromHeader(ctx context.Context, r *http.Request) context.C
 	return certserial.NewContext(ctx, serial)
 }
 
-func logJSON(logger *platformlogging.Logger, v interface{}, key string) {
+func logJSON(logger *platformlogging.Logger, v any, key string) {
 	jsonV, err := json.Marshal(v)
 	if err != nil {
 		level.Debug(logger).Log("err", fmt.Errorf("marshaling %s for debug: %w", key, err))
