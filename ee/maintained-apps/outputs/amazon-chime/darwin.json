@@ -1,14 +1,14 @@
 {
   "versions": [
     {
-      "version": "5.23.22475",
+      "version": "5.23.22488",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.amazon.Amazon-Chime';"
       },
-      "installer_url": "https://clients.chime.aws/mac-nme/AmazonChime-5.23.22475.dmg",
+      "installer_url": "https://clients.chime.aws/mac-nme/AmazonChime-5.23.22488.dmg",
       "install_script_ref": "25077cb7",
       "uninstall_script_ref": "8071c6a5",
-      "sha256": "f10e338a5f02df7f4c308a8c8aa3f7985977f5583659d391d3267a6cbeb7a6eb",
+      "sha256": "d314b4d75aaf5f50fe613977796bb1907f377f6c74154f2f119d57bcce3ca271",
       "default_categories": [
         "Communication"
       ]
