@@ -30,4 +30,4 @@ The ability to review source code and use open practices was described as the "c
 <meta name="authorGitHubUsername" value="irenareedy">
 <meta name="category" value="announcements">
 <meta name="publishedOn" value="2026-02-22">
-<meta name="description" value="As an "A financial services platform manages a complex environment of 2,000 to 6,000 hosts and hundreds of mobile devices. They required a platform that offered flexibility without proprietary limitations.">
+<meta name="description" value="As an "A financial services platform manages a complex environment of 2,000 to 6,000 hosts and hundreds of mobile devices.">
