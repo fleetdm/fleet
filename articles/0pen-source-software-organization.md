@@ -30,4 +30,4 @@ Fleet’s open-source nature aligned perfectly with their values, easing cultura
 <meta name="authorGitHubUsername" value="irenareedy">
 <meta name="category" value="announcements">
 <meta name="publishedOn" value="2026-02-22">
-<meta name="description" value="As an "The organization behind Firefox manages a global fleet of over 1,500 devices. They required a solution that respected privacy and offered equal depth for Mac, Windows, and Linux.">
+<meta name="description" value="As an "The organization behind Firefox manages a global fleet of over 1,500 devices.">
