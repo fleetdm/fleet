@@ -1,8 +1,9 @@
 import React from "react";
 import { noop } from "lodash";
 
-// @ts-ignore
-import Dropdown from "components/forms/fields/Dropdown";
+import DropdownWrapper, {
+  CustomOptionType,
+} from "components/forms/fields/DropdownWrapper/DropdownWrapper";
 import FormField from "components/forms/FormField";
 
 const PLATFORM_STRINGS: { [key: string]: string } = {
@@ -12,7 +13,7 @@ const PLATFORM_STRINGS: { [key: string]: string } = {
   centos: "CentOS Linux",
 };
 
-const platformOptions = [
+const platformOptions: CustomOptionType[] = [
   { label: "All platforms", value: "" },
   { label: "macOS", value: "darwin" },
   { label: "Windows", value: "windows" },
@@ -33,25 +34,31 @@ const PlatformField = ({
   isEditing = false,
   onChange = noop,
 }: IPlatformFieldProps) => {
+  const handleDropdownChange = (newValue: CustomOptionType | null) => {
+    // DropdownWrapper passes a SingleValue<CustomOptionType> | null
+    onChange(newValue?.value ?? "");
+  };
+
   return (
     <div className={baseClass}>
       {!isEditing ? (
         <div className="form-field form-field--dropdown">
-          <Dropdown
+          <DropdownWrapper
             label="Platform"
             name="platform"
-            onChange={onChange}
+            onChange={handleDropdownChange}
+            // DropdownWrapper accepts either option or string; uses string for simiplicity
             value={platform}
             options={platformOptions}
-            classname={`${baseClass}__platform-dropdown`}
-            wrapperClassName={`${baseClass}__form-field ${baseClass}__form-field--platform`}
+            className={`${baseClass}__platform-dropdown`}
+            wrapperClassname={`${baseClass}__form-field ${baseClass}__form-field--platform`}
+            isSearchable={false}
+            placeholder="All platforms"
           />
         </div>
       ) : (
         <FormField label="Platform" name="platform">
-          <>
-            <p>{platform ? PLATFORM_STRINGS[platform] : "All platforms"}</p>
-          </>
+          <p>{platform ? PLATFORM_STRINGS[platform] : "All platforms"}</p>
         </FormField>
       )}
     </div>

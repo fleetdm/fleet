@@ -103,7 +103,7 @@ type DropdownWrapperVariant = "table-filter" | "button";
 
 export interface IDropdownWrapper {
   options: CustomOptionType[];
-  value?: PropsValue<CustomOptionType> | string;
+  value?: PropsValue<CustomOptionType> | string; // Future: Handle number types, cascade of type checking will be needed
   onChange: (newValue: SingleValue<CustomOptionType>) => void;
   name: string;
   className?: string;
