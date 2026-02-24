@@ -163,6 +163,7 @@ software:
         - a
   fleet_maintained_apps:
     - slug: slack/darwin
+      version: "4.47.65"
       self_service: true
       categories:
         - Productivity
