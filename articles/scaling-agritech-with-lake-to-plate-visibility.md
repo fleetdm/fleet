@@ -28,4 +28,4 @@ They integrated Fleet as a cornerstone of their digital transformation. They req
 <meta name="authorGitHubUsername" value="irenareedy">
 <meta name="category" value="announcements">
 <meta name="publishedOn" value="2026-02-23">
-<meta name="description" value="The fastest-growing vertically integrated tilapia producer in sub-Saharan Africa. Operating a complex, carbon-negative supply chain across Kenya and Rwanda, they require a management stack that can bridge the gap between centralized corporate offices and remote, rural branches.">
+<meta name="description" value="The fastest-growing vertically integrated tilapia producer in sub-Saharan Africa.">
