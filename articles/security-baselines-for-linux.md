@@ -58,9 +58,9 @@ For many organizations, security standards are not optional. They are mandatory 
 
 The message is clear: if your enterprise leverages Linux workstations, they must be secured with the same rigor and established standards as your Macs and Windows devices. You do not need to re-invent security best practices. By adopting recognized security baselines ike the readily available guidance offered by CIS Benchmarks for Red Hat, Ubuntu, Debian, and others you can immediately elevate your security posture. Implementing this strategy is the critical next step in ensuring that your most powerful workstations serve as a secure, foundational element of employee productivity, not a looming threat to enterprise security.
 
-<meta name="articleTitle" value="Security baselines for Linux: closing the gap on exemptions"\>  
-<meta name="authorFullName" value="Ashish Kuthiala"\>  
-<meta name="authorGitHubUsername" value="akuthiala"\>  
-<meta name="category" value="articles"\>  
-<meta name="publishedOn" value="2026-02-23"\>  
-<meta name="description" value="Chapter 3 of Protecting Linux endpoints series"\>
+<meta name="articleTitle" value="Security baselines for Linux: closing the gap on exemptions">  
+<meta name="authorFullName" value="Ashish Kuthiala">  
+<meta name="authorGitHubUsername" value="akuthiala">  
+<meta name="category" value="articles">  
+<meta name="publishedOn" value="2026-02-23">  
+<meta name="description" value="Chapter 3 of Protecting Linux endpoints series">
