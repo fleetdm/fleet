@@ -57,4 +57,4 @@ Fleet’s open-source nature allows them to personally verify the security and l
 <meta name="authorGitHubUsername" value="irenareedy">
 <meta name="category" value="announcements">
 <meta name="publishedOn" value="2026-02-22">
-<meta name="description" value="A leading technology provider for the cannabis industry. With a fleet heavily weighted toward macOS, they sought a platform that offered deep integration and advanced Windows management.">
+<meta name="description" value="A leading technology provider for the cannabis industry.">
