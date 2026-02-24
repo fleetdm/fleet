@@ -1,0 +1,1 @@
+* Added a signed Windows MSI installer for `fleetctl` that is automatically built and attached to every Fleet release.
