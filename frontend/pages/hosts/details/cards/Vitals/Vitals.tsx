@@ -154,7 +154,15 @@ const Vitals = ({
         fleet_desktop_version,
       } = vitalsData;
 
-      if (orbit_version !== DEFAULT_EMPTY_CELL_VALUE) {
+      // chromeOS and vanilla osquery hosts
+      if (isChromeHost || orbit_version === DEFAULT_EMPTY_CELL_VALUE)
+        vitals.push({
+          sortKey: "Agent",
+          element: (
+            <DataSet key="agent" title="Agent" value={osquery_version} />
+          ),
+        });
+      else {
         vitals.push({
           sortKey: "Agent",
           element: (
@@ -181,14 +189,6 @@ const Vitals = ({
                 </TooltipWrapper>
               }
             />
-          ),
-        });
-      } else {
-        // chromeOS and vanilla osquery hosts
-        vitals.push({
-          sortKey: "Agent",
-          element: (
-            <DataSet key="agent" title="Agent" value={osquery_version} />
           ),
         });
       }
