@@ -3792,7 +3792,7 @@ func (svc *MDMAppleCheckinAndCommandService) CommandAndReportResults(r *mdm.Requ
 				if err != nil {
 					return nil, ctxerr.Wrap(r.Context, err, "fetching host vpp install by command uuid")
 				}
-				if vppInstall.RetryCount < 3 {
+				if vppInstall != nil && vppInstall.RetryCount < 3 {
 					// Requeue the app for installation
 					if err := svc.ds.RetryVPPInstall(r.Context, vppInstall); err != nil {
 						return nil, ctxerr.Wrap(r.Context, err, "retrying VPP install for host")
