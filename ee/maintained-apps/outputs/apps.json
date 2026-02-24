@@ -709,6 +709,13 @@
       "description": "GIMP is a free and open-source image editor."
     },
     {
+      "name": "GIMP",
+      "slug": "gimp/windows",
+      "platform": "windows",
+      "unique_identifier": "GIMP 3.0.8-2",
+      "description": "GIMP is a free and open-source image editor."
+    },
+    {
       "name": "GitHub Desktop",
       "slug": "github-desktop/windows",
       "platform": "windows",

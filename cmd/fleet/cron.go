@@ -261,7 +261,7 @@ func scanVulnerabilities(
 			if err := worker.QueueJiraVulnJobs(
 				automationCtx,
 				ds,
-				logger.With("jira", "vulnerabilities"),
+				logger.SlogLogger().With("jira", "vulnerabilities"),
 				recentV,
 				matchingMeta,
 			); err != nil {
@@ -273,7 +273,7 @@ func scanVulnerabilities(
 			if err := worker.QueueZendeskVulnJobs(
 				automationCtx,
 				ds,
-				logger.With("zendesk", "vulnerabilities"),
+				logger.SlogLogger().With("zendesk", "vulnerabilities"),
 				recentV,
 				matchingMeta,
 			); err != nil {
@@ -692,7 +692,7 @@ func triggerFailingPoliciesAutomation(
 			if err != nil {
 				return ctxerr.Wrapf(ctx, err, "listing hosts for failing policies set %d", policy.ID)
 			}
-			if err := worker.QueueJiraFailingPolicyJob(ctx, ds, logger, policy, hosts); err != nil {
+			if err := worker.QueueJiraFailingPolicyJob(ctx, ds, logger.SlogLogger(), policy, hosts); err != nil {
 				return err
 			}
 			if err := failingPoliciesSet.RemoveHosts(policy.ID, hosts); err != nil {
@@ -704,7 +704,7 @@ func triggerFailingPoliciesAutomation(
 			if err != nil {
 				return ctxerr.Wrapf(ctx, err, "listing hosts for failing policies set %d", policy.ID)
 			}
-			if err := worker.QueueZendeskFailingPolicyJob(ctx, ds, logger, policy, hosts); err != nil {
+			if err := worker.QueueZendeskFailingPolicyJob(ctx, ds, logger.SlogLogger(), policy, hosts); err != nil {
 				return err
 			}
 			if err := failingPoliciesSet.RemoveHosts(policy.ID, hosts); err != nil {
@@ -747,17 +747,17 @@ func newWorkerIntegrationsSchedule(
 	// create the worker and register the Jira and Zendesk jobs even if no
 	// integration is enabled, as that config can change live (and if it's not
 	// there won't be any records to process so it will mostly just sleep).
-	w := worker.NewWorker(ds, logger)
+	w := worker.NewWorker(ds, logger.SlogLogger())
 	// leave the url empty for now, will be filled when the lock is acquired with
 	// the up-to-date config.
 	jira := &worker.Jira{
 		Datastore:     ds,
-		Log:           logger,
+		Log:           logger.SlogLogger(),
 		NewClientFunc: newJiraClient,
 	}
 	zendesk := &worker.Zendesk{
 		Datastore:     ds,
-		Log:           logger,
+		Log:           logger.SlogLogger(),
 		NewClientFunc: newZendeskClient,
 	}
 	var (
@@ -773,29 +773,29 @@ func newWorkerIntegrationsSchedule(
 	}
 	macosSetupAsst := &worker.MacosSetupAssistant{
 		Datastore:  ds,
-		Log:        logger,
+		Log:        logger.SlogLogger(),
 		DEPService: depSvc,
 		DEPClient:  depCli,
 	}
 	appleMDM := &worker.AppleMDM{
 		Datastore:             ds,
-		Log:                   logger,
+		Log:                   logger.SlogLogger(),
 		Commander:             commander,
 		BootstrapPackageStore: bootstrapPackageStore,
 		VPPInstaller:          vppInstaller,
 	}
 	vppVerify := &worker.AppleSoftware{
 		Datastore: ds,
-		Log:       logger,
+		Log:       logger.SlogLogger(),
 		Commander: commander,
 	}
 	dbMigrate := &worker.DBMigration{
 		Datastore: ds,
-		Log:       logger,
+		Log:       logger.SlogLogger(),
 	}
 	softwareWorker := &worker.SoftwareWorker{
 		Datastore:     ds,
-		Log:           logger,
+		Log:           logger.SlogLogger(),
 		AndroidModule: androidModule,
 	}
 	w.Register(jira, zendesk, macosSetupAsst, appleMDM, dbMigrate, vppVerify, softwareWorker)
@@ -839,7 +839,7 @@ func newWorkerIntegrationsSchedule(
 			return nil
 		}),
 		schedule.WithJob("dep_cooldowns", func(ctx context.Context) error {
-			return worker.ProcessDEPCooldowns(ctx, ds, logger)
+			return worker.ProcessDEPCooldowns(ctx, ds, logger.SlogLogger())
 		}),
 	)
 
@@ -1870,11 +1870,11 @@ func newBatchActivitiesSchedule(
 
 	logger = logger.With("cron", name)
 
-	w := worker.NewWorker(ds, logger)
+	w := worker.NewWorker(ds, logger.SlogLogger())
 
 	scriptsJob := &worker.BatchScripts{
 		Datastore: ds,
-		Log:       logger,
+		Log:       logger.SlogLogger(),
 	}
 
 	w.Register(scriptsJob)

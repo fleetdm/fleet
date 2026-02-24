@@ -203,15 +203,15 @@ Currently, using the Smallstep-Jamf connector is the best practice. Fleet is tes
 
 1. In Smallstep, go to **Settings > Device Management**.
 
-2. Under **Available Providers**, find **Jamf** and click **Connect**.
+2. Under **Available Providers**, find **Fleet** and click **Connect**.
 
-3. In the Smallstepform, enter your Fleet server URL (the API Client ID and API Client Secret fields are not required), then click **Connect MDM**.
+3. In the Smallstep form, enter your Fleet server URL and a [global observer API token](https://fleetdm.com/guides/fleetctl#create-api-only-user), then click **Connect MDM**.
 
 4. After connecting, note the following details from Smallstep (these values are required in the next step):
   - **SCEP URL**
-  - **WebhookURL (SCEPChallenge)**
-  - **Challenge Basic Authentication Username**
-  - **Challenge Basic Authentication Password**
+  - **SCEP Challenge URL**
+  - **Challenge Username**
+  - **Challenge Password**
 
 ### Step 2: Configure Fleet with Smallstep information
 
@@ -713,6 +713,8 @@ You can deploy a user-scoped certificate on macOS and Windows hosts using a user
 1. Follow the instructions above to connect Fleet to your certificate authority (CA).
 2. Create a certificate [configuration profile](#example-configuration-profiles). For Windows, replace `./Device` with `./User` in all `<LocURI>` elements. For macOS, set `PayloadScope` to `User`.
 3. In Fleet, navigate to **Controls > OS settings > Custom settings** and upload the configuration profile you created.
+
+For macOS hosts, user-scoped certificates only work if the `login` keychain is unlocked. If it's locked, MDM commands to install the certificate configuration profile will always return `NotNow`. To check whether the `login` keychain is unlocked, open Keychain Access on the Mac. An unlocked icon should appear to the left of the `login` keychain under **Default keychains**. If it's locked, right-click on the `login` keychain to unlock it.
 
 ### Editing ceritificate configuration profiles on Apple (macOS, iOS, iPadOS) hosts
 

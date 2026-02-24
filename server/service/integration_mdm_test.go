@@ -238,26 +238,26 @@ func (s *integrationMDMTestSuite) SetupSuite() {
 
 	macosJob := &worker.MacosSetupAssistant{
 		Datastore:  s.ds,
-		Log:        wlog,
+		Log:        wlog.SlogLogger(),
 		DEPService: apple_mdm.NewDEPService(s.ds, depStorage, wlog.SlogLogger()),
 		DEPClient:  apple_mdm.NewDEPClient(depStorage, s.ds, wlog.SlogLogger()),
 	}
 	appleMDMJob := &worker.AppleMDM{
 		Datastore: s.ds,
-		Log:       wlog,
+		Log:       wlog.SlogLogger(),
 		Commander: mdmCommander,
 	}
 	vppVerifyJob := &worker.AppleSoftware{
 		Datastore: s.ds,
-		Log:       wlog,
+		Log:       wlog.SlogLogger(),
 		Commander: mdmCommander,
 	}
 	softwareWorker := &worker.SoftwareWorker{
 		Datastore:     s.ds,
-		Log:           wlog,
+		Log:           wlog.SlogLogger(),
 		AndroidModule: androidSvc,
 	}
-	workr := worker.NewWorker(s.ds, wlog)
+	workr := worker.NewWorker(s.ds, wlog.SlogLogger())
 	workr.TestIgnoreUnknownJobs = true
 	workr.Register(macosJob, appleMDMJob, vppVerifyJob, softwareWorker)
 
@@ -391,7 +391,7 @@ func (s *integrationMDMTestSuite) SetupSuite() {
 								defer s.onIntegrationsScheduleDone()
 							}
 
-							return worker.ProcessDEPCooldowns(ctx, ds, logger)
+							return worker.ProcessDEPCooldowns(ctx, ds, logger.SlogLogger())
 						}),
 					)
 					return integrationsSchedule, nil

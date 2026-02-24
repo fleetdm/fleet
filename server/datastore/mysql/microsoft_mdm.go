@@ -2472,21 +2472,30 @@ func (ds *Datastore) GetWindowsHostMDMCertificateProfile(ctx context.Context, ho
 	return &profile, nil
 }
 
-func (ds *Datastore) GetWindowsMDMCommandsForResending(ctx context.Context, failedCommandIds []string) ([]*fleet.MDMWindowsCommand, error) {
+func (ds *Datastore) GetWindowsMDMCommandsForResending(ctx context.Context, deviceID string, failedCommandIds []string) ([]*fleet.MDMWindowsCommand, error) {
 	if len(failedCommandIds) == 0 {
 		return []*fleet.MDMWindowsCommand{}, nil
 	}
 
-	stmt := `SELECT command_uuid, raw_command, target_loc_uri, created_at, updated_at
-		FROM windows_mdm_commands WHERE`
+	stmt := `SELECT wmc.command_uuid, wmc.raw_command, wmc.target_loc_uri, wmc.created_at, wmc.updated_at
+		FROM windows_mdm_commands wmc INNER JOIN windows_mdm_command_queue wmcq ON wmcq.enrollment_id = (SELECT id from mdm_windows_enrollments WHERE mdm_device_id = ?) AND wmcq.command_uuid = wmc.command_uuid WHERE`
 
-	args := []any{}
+	args := []any{deviceID}
 	for idx, commandId := range failedCommandIds {
-		stmt += " raw_command LIKE ? OR "
-		args = append(args, "%"+commandId+"%")
+		if commandId == "" {
+			continue
+		}
+
+		stmt += " wmc.raw_command LIKE ? OR "
+		args = append(args, "%<CmdID>"+commandId+"</CmdID>%")
 		if idx == len(failedCommandIds)-1 {
 			stmt = strings.TrimSuffix(stmt, " OR ")
 		}
+	}
+
+	if len(args) == 1 {
+		// No valid command IDs were provided, return empty result to avoid returning all commands for the device.
+		return []*fleet.MDMWindowsCommand{}, nil
 	}
 
 	stmt += fmt.Sprintf(" ORDER BY created_at DESC LIMIT %d", len(failedCommandIds))
