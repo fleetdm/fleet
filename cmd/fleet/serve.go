@@ -317,7 +317,7 @@ the way that the Fleet server works.
 			var ds fleet.Datastore
 			var carveStore fleet.CarveStore
 
-			opts := []mysql.DBOption{mysql.Logger(logger), mysql.WithFleetConfig(&config)}
+			opts := []mysql.DBOption{mysql.Logger(logger.SlogLogger()), mysql.WithFleetConfig(&config)}
 			if config.MysqlReadReplica.Address != "" {
 				opts = append(opts, mysql.Replica(&config.MysqlReadReplica))
 			}
@@ -1530,7 +1530,7 @@ the way that the Fleet server works.
 					}
 
 					// Conditional Access SCEP
-					condAccessSCEPDepot, err := mds.NewConditionalAccessSCEPDepot(logger.With("component", "conditional-access-scep-depot"), &config)
+					condAccessSCEPDepot, err := mds.NewConditionalAccessSCEPDepot(logger.SlogLogger().With("component", "conditional-access-scep-depot"), &config)
 					if err != nil {
 						initFatal(err, "setup conditional access SCEP depot")
 					}

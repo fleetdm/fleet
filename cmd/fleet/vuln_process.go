@@ -51,7 +51,7 @@ by an exit code of zero.`,
 				fleet.WriteExpiredLicenseBanner(os.Stderr)
 			}
 
-			ds, err := mysql.New(cfg.Mysql, clock.C, mysql.Logger(logger))
+			ds, err := mysql.New(cfg.Mysql, clock.C, mysql.Logger(logger.SlogLogger()))
 			if err != nil {
 				return err
 			}

@@ -12,7 +12,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/version"
-	"github.com/go-kit/log/level"
 	"github.com/jmoiron/sqlx"
 )
 
@@ -85,7 +84,7 @@ func (ds *Datastore) ShouldSendStatistics(ctx context.Context, frequency time.Du
 		}
 		amountPolicyViolationDaysActual, amountPolicyViolationDaysPossible, err := amountPolicyViolationDaysDB(ctx, ds.reader(ctx))
 		if err == sql.ErrNoRows {
-			level.Debug(ds.logger).Log("msg", "amount policy violation days", "err", err) //nolint:errcheck
+			ds.logger.DebugContext(ctx, "amount policy violation days", "err", err)
 		} else if err != nil {
 			return ctxerr.Wrap(ctx, err, "amount policy violation days")
 		}
