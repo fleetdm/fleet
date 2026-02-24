@@ -30,4 +30,4 @@ They switched to Fleet for its modern, API-driven workflows. The transparency of
 <meta name="authorGitHubUsername" value="irenareedy">
 <meta name="category" value="announcements">
 <meta name="publishedOn" value="2026-02-22">
-<meta name="description" value="As an "A banking-as-a-service platform facilitating digital transactions in emerging markets. They needed to move away from failed legacy tools to a platform with guaranteed script execution.">
+<meta name="description" value="As an "A banking-as-a-service platform facilitating digital transactions in emerging markets.">
