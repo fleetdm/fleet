@@ -1,6 +1,6 @@
 # Scaling financial security with GitOps and RBAC
 
-A leading digital payments provider focused on making international money transfers faster and more transparent. Operating in the highly regulated financial services industry, they required a management solution that could match the rigor of their security and compliance standards.
+A leading digital payments provider focused on making international money transfers faster and more transparent operating in the highly regulated financial services industry required a management solution that could match the rigor of their security and compliance standards.
 
 ## At a glance
 
