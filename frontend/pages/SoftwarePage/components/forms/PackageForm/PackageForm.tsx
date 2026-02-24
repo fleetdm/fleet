@@ -8,7 +8,6 @@ import {
   getExtensionFromFileName,
   getFileDetails,
 } from "utilities/file/fileUtils";
-import { compareVersions } from "utilities/helpers";
 import getDefaultInstallScript from "utilities/software_install_scripts";
 import getDefaultUninstallScript from "utilities/software_uninstall_scripts";
 import { ILabelSummary } from "interfaces/label";
@@ -32,7 +31,11 @@ import Card from "components/Card";
 import SoftwareOptionsSelector from "pages/SoftwarePage/components/forms/SoftwareOptionsSelector";
 
 import PackageAdvancedOptions from "../PackageAdvancedOptions";
-import { createTooltipContent, generateFormValidation } from "./helpers";
+import {
+  createTooltipContent,
+  generateFormValidation,
+  sortByVersionLatestFirst,
+} from "./helpers";
 import PackageVersionSelector from "../PackageVersionSelector";
 
 export const baseClass = "package-form";
@@ -405,24 +408,18 @@ const PackageForm = ({
       return null;
     }
 
-    const fmaVersions = defaultSoftware.fleet_maintained_versions || [];
+    const fmaVersionsSortedByLatestFirst = sortByVersionLatestFirst<ISoftwareVersion>(
+      defaultSoftware.fleet_maintained_versions || []
+    );
+    const hasMultipleVersions = fmaVersionsSortedByLatestFirst.length > 1;
 
-    /** Ensures latest version is first, compatible with sorting n-number of versions */
-    fmaVersions.sort((a: ISoftwareVersion, b: ISoftwareVersion) => {
-      const v1 = a.version ?? "";
-      const v2 = b.version ?? "";
-      return compareVersions(v2, v1);
-    });
-
-    const hasMultipleVersions = fmaVersions.length > 1;
-
-    const versionOptions = fmaVersions.map(
+    const versionOptions = fmaVersionsSortedByLatestFirst.map(
       (v: ISoftwareVersion, index: number) => {
         // If multiple versions, only adds "Latest" label to the first option
-        const isLatest = hasMultipleVersions && index === 0;
+        const labelLatestVersion = hasMultipleVersions && index === 0;
 
         return {
-          label: isLatest ? `Latest (${v.version})` : `${v.version}`,
+          label: labelLatestVersion ? `Latest (${v.version})` : `${v.version}`,
           value: v.version,
         };
       }
