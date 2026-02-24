@@ -30,4 +30,4 @@ Fleet’s use of osquery turned Linux workstations from a blind spot into a sour
 <meta name="authorGitHubUsername" value="irenareedy">
 <meta name="category" value="announcements">
 <meta name="publishedOn" value="2026-02-22">
-<meta name="description" value="An emerging leader in enterprise AI security. As a company of security scientists, they required deep, queryable visibility to match their Zero Trust philosophy.">
+<meta name="description" value="An emerging leader in enterprise AI security.">
