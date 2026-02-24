@@ -346,6 +346,10 @@ func (s *integrationTestSuite) TestQueryCreationLogsActivity() {
 	var createQueryResp createQueryResponse
 	s.DoJSON("POST", "/api/latest/fleet/queries", &params, http.StatusOK, &createQueryResp)
 	defer s.cleanupQuery(createQueryResp.Query.ID)
+	assert.False(t, createQueryResp.Query.CreatedAt.IsZero())
+	assert.WithinDuration(t, time.Now(), createQueryResp.Query.CreatedAt, time.Minute)
+	assert.False(t, createQueryResp.Query.UpdatedAt.IsZero())
+	assert.WithinDuration(t, time.Now(), createQueryResp.Query.UpdatedAt, time.Minute)
 
 	activities := listActivitiesResponse{}
 	s.DoJSON("GET", "/api/latest/fleet/activities", nil, http.StatusOK, &activities)
@@ -1148,6 +1152,9 @@ func (s *integrationTestSuite) TestGlobalPolicies() {
 	assert.Equal(t, qr.Query, policiesResponse.Policies[0].Query)
 	assert.Equal(t, qr.Description, policiesResponse.Policies[0].Description)
 
+	// invalid order_key returns 422
+	s.DoJSON("GET", "/api/latest/fleet/policies", nil, http.StatusUnprocessableEntity, &listGlobalPoliciesResponse{}, "order_key", "invalid")
+
 	// Get an unexistent policy
 	s.Do("GET", fmt.Sprintf("/api/latest/fleet/policies/%d", 9999), nil, http.StatusNotFound)
 
@@ -1659,8 +1666,12 @@ func (s *integrationTestSuite) TestListHosts() {
 	assert.Nil(t, resp.MunkiIssue)
 
 	resp = listHostsResponse{}
-	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &resp, "order_key", "h.id", "after", fmt.Sprint(hosts[1].ID))
+	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &resp, "order_key", "id", "after", fmt.Sprint(hosts[1].ID))
 	require.Len(t, resp.Hosts, len(hosts)-2)
+
+	// invalid order_key returns 422
+	resp = listHostsResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusUnprocessableEntity, &resp, "order_key", "invalid_column")
 
 	time.Sleep(1 * time.Second)
 
@@ -2369,6 +2380,10 @@ func (s *integrationTestSuite) TestInvites() {
 	s.DoJSON("GET", "/api/latest/fleet/invites", nil, http.StatusOK, &listResp)
 	require.Len(t, listResp.Invites, 1)
 	require.Equal(t, validInvite.ID, listResp.Invites[0].ID)
+
+	// invalid order_key returns 422
+	listResp = listInvitesResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/invites", nil, http.StatusUnprocessableEntity, &listResp, "order_key", "invalid")
 
 	// list invites filtered by search query with leading/trailing whitespace
 	// matches name
@@ -3948,6 +3963,10 @@ func (s *integrationTestSuite) TestQueriesPaginationAndPlatformFilter() {
 	require.True(t, listQryResp.Meta.HasPreviousResults)
 	require.False(t, listQryResp.Meta.HasNextResults)
 
+	// invalid order_key returns 422
+	listQryResp = listQueriesResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/queries", nil, http.StatusUnprocessableEntity, &listQryResp, "order_key", "invalid")
+
 	// test platform filtering
 
 	s.DoJSON("GET", "/api/latest/fleet/queries", nil, http.StatusOK, &listQryResp, "platform", "macos")
@@ -5512,6 +5531,10 @@ func (s *integrationTestSuite) TestUsers() {
 	var listResp listUsersResponse
 	s.DoJSON("GET", "/api/latest/fleet/users", nil, http.StatusOK, &listResp)
 	assert.Len(t, listResp.Users, len(s.users))
+
+	// invalid order_key returns 422
+	listResp = listUsersResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/users", nil, http.StatusUnprocessableEntity, &listResp, "order_key", "invalid")
 
 	// with non-matching query
 	s.DoJSON("GET", "/api/latest/fleet/users", nil, http.StatusOK, &listResp, "query", "noone")

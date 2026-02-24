@@ -906,6 +906,9 @@ type Datastore interface {
 	// CountHostSoftwareInstallAttempts counts how many install attempts exist for a specific
 	// host, software installer, and policy combination. Used to calculate attempt_number.
 	CountHostSoftwareInstallAttempts(ctx context.Context, hostID, softwareInstallerID, policyID uint) (int, error)
+	// ResetNonPolicyInstallAttempts resets the attempt_number for all non-policy install attempts
+	// for a given host and software installer so that a new install starts fresh.
+	ResetNonPolicyInstallAttempts(ctx context.Context, hostID, softwareInstallerID uint) error
 	// CountHostScriptAttempts counts how many script execution attempts exist for a specific
 	// host, script, and policy combination. Used to calculate attempt_number.
 	CountHostScriptAttempts(ctx context.Context, hostID, scriptID, policyID uint) (int, error)
