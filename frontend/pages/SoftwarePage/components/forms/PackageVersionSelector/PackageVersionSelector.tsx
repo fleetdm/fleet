@@ -47,7 +47,6 @@ const PackageVersionSelector = ({
       onChange={(version) => onSelectVersion(version?.value || "")}
       options={disableAllUIOptions(versionOptions, selectedVersion)} // Replace with "versions" when we want to enable selecting versions in the UI
       placeholder="Select a version"
-      isDisabled={selectedVersion === versionOptions[0].value}
     />
   );
 

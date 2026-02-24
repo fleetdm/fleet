@@ -13,6 +13,7 @@ import {
   getInstallerCardInfo,
   InstallerCardInfo,
 } from "pages/SoftwarePage/SoftwareTitleDetailsPage/helpers";
+import { compareVersions } from "utilities/helpers";
 
 export interface SoftwareInstallerMeta {
   installerType: InstallerType;
@@ -71,8 +72,14 @@ export const useSoftwareInstaller = (
       isFleetMaintainedApp &&
       "fleet_maintained_versions" in softwareInstaller &&
       !!softwareInstaller.fleet_maintained_versions &&
-      softwareInstaller.version ===
-        softwareInstaller.fleet_maintained_versions[0].version;
+      softwareInstaller.fleet_maintained_versions.every(
+        (fma) =>
+          // Verify that the installer version is not older than any known
+          // Fleet‑maintained version by requiring compareVersions to return
+          // 0 (equal) or 1 (greater) for every entry.
+          compareVersions(softwareInstaller.version ?? "", fma.version ?? "") >=
+          0
+      );
 
     const fmaVersions =
       isFleetMaintainedApp && "fleet_maintained_versions" in softwareInstaller

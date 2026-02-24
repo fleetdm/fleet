@@ -419,7 +419,7 @@ const PackageForm = ({
         const isLatest = index === 0;
 
         return {
-          label: `${v.version}${isLatest ? " (latest)" : ""}`,
+          label: isLatest ? `Latest (${v.version})` : `${v.version}`,
           value: v.version,
         };
       }
