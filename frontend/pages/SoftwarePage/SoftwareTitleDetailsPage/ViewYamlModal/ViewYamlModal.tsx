@@ -59,8 +59,7 @@ const ViewYamlModal = ({
       <>
         {repositoryUrl && (
           <p>
-            Manage in{" "}
-            <CustomLink url={repositoryUrl} text="YAML" newTab />.
+            Manage in{" "}<CustomLink url={repositoryUrl} text="YAML" newTab />.
           </p>
         )}
         <div className={`${baseClass}__form-fields`}>
