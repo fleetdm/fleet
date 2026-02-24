@@ -709,6 +709,13 @@
       "description": "GIMP is a free and open-source image editor."
     },
     {
+      "name": "GIMP",
+      "slug": "gimp/windows",
+      "platform": "windows",
+      "unique_identifier": "GIMP 3.0.8-2",
+      "description": "GIMP is a free and open-source image editor."
+    },
+    {
       "name": "GitHub Desktop",
       "slug": "github-desktop/windows",
       "platform": "windows",
@@ -1140,6 +1147,13 @@
       "slug": "okta-verify/darwin",
       "platform": "darwin",
       "unique_identifier": "com.okta.mobile",
+      "description": "Okta Verify is a multi-factor authentication app that provides secure identity verification and passwordless sign-in for users accessing Okta-protected applications."
+    },
+    {
+      "name": "Okta Verify",
+      "slug": "okta-verify/windows",
+      "platform": "windows",
+      "unique_identifier": "Okta Verify",
       "description": "Okta Verify is a multi-factor authentication app that provides secure identity verification and passwordless sign-in for users accessing Okta-protected applications."
     },
     {
