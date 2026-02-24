@@ -433,7 +433,7 @@ reports:
   logging: snapshot
 `
 	_, err := gitOpsFromString(t, config)
-	assert.ErrorContains(t, err, "duplicate report names")
+	assert.ErrorContains(t, err, "duplicate query names")
 }
 
 func TestUnicodeQueryNames(t *testing.T) {
@@ -451,7 +451,7 @@ reports:
   logging: snapshot
 `
 	_, err := gitOpsFromString(t, config)
-	assert.ErrorContains(t, err, "report name must be in ASCII")
+	assert.ErrorContains(t, err, "query name must be in ASCII")
 }
 
 func TestUnicodeTeamName(t *testing.T) {
@@ -621,35 +621,35 @@ func TestInvalidGitOpsYaml(t *testing.T) {
 					config += "name: No team\nsettings:\n  features:\n    enable_host_users: false\n"
 					noTeamPath3, noTeamBasePath3 := createNamedFileOnTempDir(t, "no-team.yml", config)
 					_, err = GitOpsFromFile(noTeamPath3, noTeamBasePath3, nil, nopLogf)
-					assert.ErrorContains(t, err, "unsupported settings option 'features' in no-team.yml - only 'webhook_settings' is allowed")
+					assert.ErrorContains(t, err, "unsupported settings option 'features' for 'No team' - only 'webhook_settings' is allowed")
 
 					// No team with multiple settings options (one valid, one invalid) should fail
 					config = getConfig([]string{"name", "settings"})
 					config += "name: No team\nsettings:\n  webhook_settings:\n    failing_policies_webhook:\n      enable_failing_policies_webhook: true\n  secrets:\n    - secret: test\n"
 					noTeamPath4, noTeamBasePath4 := createNamedFileOnTempDir(t, "no-team.yml", config)
 					_, err = GitOpsFromFile(noTeamPath4, noTeamBasePath4, nil, nopLogf)
-					assert.ErrorContains(t, err, "unsupported settings option 'secrets' in no-team.yml - only 'webhook_settings' is allowed")
+					assert.ErrorContains(t, err, "unsupported settings option 'secrets' for 'No team' - only 'webhook_settings' is allowed")
 
 					// No team with host_status_webhook in webhook_settings should fail
 					config = getConfig([]string{"name", "settings"})
 					config += "name: No team\nsettings:\n  webhook_settings:\n    host_status_webhook:\n      enable_host_status_webhook: true\n    failing_policies_webhook:\n      enable_failing_policies_webhook: true\n"
 					noTeamPath5a, noTeamBasePath5a := createNamedFileOnTempDir(t, "no-team.yml", config)
 					_, err = GitOpsFromFile(noTeamPath5a, noTeamBasePath5a, nil, nopLogf)
-					assert.ErrorContains(t, err, "unsupported webhook_settings option 'host_status_webhook' in no-team.yml - only 'failing_policies_webhook' is allowed")
+					assert.ErrorContains(t, err, "unsupported webhook_settings option 'host_status_webhook' for 'No team'; only 'failing_policies_webhook' is allowed")
 
 					// No team with vulnerabilities_webhook in webhook_settings should fail
 					config = getConfig([]string{"name", "settings"})
 					config += "name: No team\nsettings:\n  webhook_settings:\n    vulnerabilities_webhook:\n      enable_vulnerabilities_webhook: true\n"
 					noTeamPath5b, noTeamBasePath5b := createNamedFileOnTempDir(t, "no-team.yml", config)
 					_, err = GitOpsFromFile(noTeamPath5b, noTeamBasePath5b, nil, nopLogf)
-					assert.ErrorContains(t, err, "unsupported webhook_settings option 'vulnerabilities_webhook' in no-team.yml - only 'failing_policies_webhook' is allowed")
+					assert.ErrorContains(t, err, "unsupported webhook_settings option 'vulnerabilities_webhook' for 'No team'; only 'failing_policies_webhook' is allowed")
 
 					// 'No team' file with invalid name.
 					config = getConfig([]string{"name", "settings"})
 					config += "name: No team\n"
 					noTeamPath6, noTeamBasePath6 := createNamedFileOnTempDir(t, "foobar.yml", config)
 					_, err = GitOpsFromFile(noTeamPath6, noTeamBasePath6, nil, nopLogf)
-					assert.ErrorContains(t, err, fmt.Sprintf("file %q for unassigned hosts must be named 'no-team.yml'", noTeamPath6))
+					assert.ErrorContains(t, err, fmt.Sprintf("file %q for 'No team' must be named 'no-team.yml'", noTeamPath6))
 
 					// Missing secrets
 					config = getConfig([]string{"settings"})
@@ -1012,7 +1012,7 @@ policies:
     package_path: ./some_path.yml
 `
 	_, err := gitOpsFromString(t, config)
-	assert.ErrorContains(t, err, "install_software can only be set on fleet policies")
+	assert.ErrorContains(t, err, "install_software can only be set on team policies")
 }
 
 func TestGitOpsGlobalPolicyWithRunScript(t *testing.T) {
@@ -1026,7 +1026,7 @@ policies:
     path: ./some_path.sh
 `
 	_, err := gitOpsFromString(t, config)
-	assert.ErrorContains(t, err, "run_script can only be set on fleet policies")
+	assert.ErrorContains(t, err, "run_script can only be set on team policies")
 }
 
 func TestGitOpsTeamPolicyWithInvalidInstallSoftware(t *testing.T) {
@@ -1130,7 +1130,7 @@ policies:
     app_store_id: "123456"
 `
 	_, err = gitOpsFromString(t, config)
-	assert.ErrorContains(t, err, "not found on fleet")
+	assert.ErrorContains(t, err, "not found on team")
 
 	// Policy references a software installer not present in the team.
 	config = getTeamConfig([]string{"policies"})
@@ -1158,7 +1158,7 @@ software:
 	require.NoError(t, err)
 	_, err = GitOpsFromFile(path, basePath, &appConfig, nopLogf)
 	assert.ErrorContains(t, err,
-		"install_software.package_path URL https://statics.teams.cdn.office.net/production-osx/enterprise/webview2/lkg/MicrosoftTeams.pkg not found on fleet",
+		"install_software.package_path URL https://statics.teams.cdn.office.net/production-osx/enterprise/webview2/lkg/MicrosoftTeams.pkg not found on team",
 	)
 
 	// Policy references a software installer file that has an invalid yaml.
@@ -1363,7 +1363,7 @@ software:
 		Tier: fleet.TierPremium,
 	}
 	_, err = GitOpsFromFile(path, basePath, &appConfig, nopLogf)
-	assert.ErrorContains(t, err, "the software package defined in software/single-package.yml must not have icons, scripts, queries, URL, or hash specified at the fleet level")
+	assert.ErrorContains(t, err, "the software package defined in software/single-package.yml must not have icons, scripts, queries, URL, or hash specified at the team level")
 }
 
 func TestIllegalFleetSecret(t *testing.T) {
