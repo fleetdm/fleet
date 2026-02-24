@@ -740,7 +740,7 @@ func (svc *Service) DeleteTeam(ctx context.Context, teamID uint) error {
 			if _, err := worker.QueueMacosSetupAssistantJob(
 				ctx,
 				svc.ds,
-				svc.logger,
+				svc.logger.SlogLogger(),
 				worker.MacosSetupAssistantTeamDeleted,
 				nil,
 				mdmHostSerials...); err != nil {

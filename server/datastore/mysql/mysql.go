@@ -1187,19 +1187,17 @@ var (
 
 // hostSearchLike searches hosts based on the given columns plus searching in hosts_emails. Note:
 // the host from the `hosts` table must be aliased to `h` in `sql`.
-func hostSearchLike(sql string, params []interface{}, match string, columns ...string) (string, []interface{}, bool) {
-	var matchesEmail bool
+func hostSearchLike(sql string, params []any, match string, columns ...string) (string, []any) {
 	base, args := searchLike(sql, params, match, columns...)
 
-	// special-case for hosts: if match looks like an email address, add searching
-	// in host_emails table as an option, in addition to the provided columns.
-	if fleet.IsLooseEmail(match) {
-		matchesEmail = true
+	// Always search in host_emails table in addition to the provided columns,
+	// so that any search query can surface results from human-host mapping information.
+	if len(match) > 0 && len(columns) > 0 {
 		// remove the closing paren and add the email condition to the list
 		base = strings.TrimSuffix(base, ")") + " OR (" + ` EXISTS (SELECT 1 FROM host_emails he WHERE he.host_id = h.id AND he.email LIKE ?)))`
 		args = append(args, likePattern(match))
 	}
-	return base, args, matchesEmail
+	return base, args
 }
 
 func hostSearchLikeAny(sql string, params []interface{}, match string, columns ...string) (string, []interface{}) {
