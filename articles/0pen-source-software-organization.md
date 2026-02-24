@@ -2,7 +2,7 @@
 
 ## Aligning open-source values with cross-platform reliability
 
-The organization behind Firefox manages a global fleet of over 1,500 devices. They required a solution that respected privacy and offered equal depth for Mac, Windows, and Linux.
+A global open-source software organization manages a fleet of over 1,500 devices. They required a solution that respected privacy and offered equal depth for Mac, Windows, and Linux.
 
 ## At a glance
 
@@ -13,17 +13,17 @@ The organization behind Firefox manages a global fleet of over 1,500 devices. Th
 
 ## The Challenge: Management Silos
 
-They lacked a unified solution for remote wipe and deep logging across their diverse OS environment. Linux servers and BYOD units were major blind spots with limited compliance visibility.
+The team lacked a unified solution for remote wipe and deep logging across their diverse OS environment. Linux servers and BYOD units were major blind spots with limited compliance visibility.
 
 ## The Solution: Cultural Acceptance
 
-Fleet’s open-source nature aligned perfectly with their values, easing cultural acceptance and reducing pushback on MDM adoption. They utilized GitOps and osquery for real-time compliance checks as code.
+Fleet’s open-source nature aligned with their organizational values, easing cultural acceptance and reducing pushback on MDM adoption. They utilized GitOps and osquery for real-time compliance checks as code.
 
 ## The Results: Revolutionized Threat Monitoring
 
 - **Minutes vs. Days:** Response times to new vulnerabilities shifted from days to minutes through real-time visibility and targeted patching.  
 - **Automated Reporting:** The team uses the API to programmatically track fleet-maintained app versions and patch compliance.  
-- **Unified Ecosystem:** Streaming telemetry into Splunk and BigQuery allowed them to correlate endpoint events with broader infrastructure logs.  
+- **Unified Ecosystem:** Streaming telemetry into Splunk and BigQuery allowed them to correlate endpoint events with broader infrastructure logs.   
 
 <meta name="articleTitle" value="Open-source software organization">
 <meta name="authorFullName" value="Irena Reedy">
