@@ -78,6 +78,7 @@ software:
     - app_store_id: "490179405" # Okta Verify
       display_name: "Okta Verify"
       self_service: true
+      setup_experience: true
       platform: ios
       auto_update_enabled: true
       auto_update_window_start: "21:00"

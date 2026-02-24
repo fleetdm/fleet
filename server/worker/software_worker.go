@@ -10,8 +10,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm/android"
 	"github.com/fleetdm/fleet/v4/server/ptr"
-	kitlog "github.com/go-kit/log"
-	"github.com/go-kit/log/level"
 	"github.com/google/uuid"
 	"google.golang.org/api/androidmanagement/v1"
 	"google.golang.org/api/googleapi"
@@ -24,7 +22,7 @@ type SoftwareWorkerTask string
 type SoftwareWorker struct {
 	Datastore     fleet.Datastore
 	AndroidModule android.Service
-	Log           kitlog.Logger
+	Log           *slog.Logger
 }
 
 func (v *SoftwareWorker) Name() string {
@@ -387,7 +385,7 @@ func (v *SoftwareWorker) bulkMakeAndroidAppsAvailableForHost(ctx context.Context
 	// Include the Fleet Agent in the app list so it's not removed when we replace the apps.
 	fleetAgentPolicy, err := v.AndroidModule.BuildFleetAgentApplicationPolicy(ctx, hostUUID)
 	if err != nil {
-		level.Error(v.Log).Log("msg", "failed to build Fleet Agent policy, Fleet Agent may be removed", "host_uuid", hostUUID, "err", err)
+		v.Log.ErrorContext(ctx, "failed to build Fleet Agent policy, Fleet Agent may be removed", "host_uuid", hostUUID, "err", err)
 	} else if fleetAgentPolicy != nil {
 		appPolicies = append(appPolicies, fleetAgentPolicy)
 	}
@@ -454,7 +452,7 @@ func QueueRunAndroidSetupExperience(ctx context.Context, ds fleet.Datastore, log
 	return nil
 }
 
-func QueueMakeAndroidAppAvailableJob(ctx context.Context, ds fleet.Datastore, logger kitlog.Logger, applicationID string, appTeamID uint, enterpriseName string, appConfigChanged bool) error {
+func QueueMakeAndroidAppAvailableJob(ctx context.Context, ds fleet.Datastore, logger *slog.Logger, applicationID string, appTeamID uint, enterpriseName string, appConfigChanged bool) error {
 	args := &softwareWorkerArgs{
 		Task:             makeAndroidAppAvailableTask,
 		ApplicationID:    applicationID,
@@ -468,11 +466,11 @@ func QueueMakeAndroidAppAvailableJob(ctx context.Context, ds fleet.Datastore, lo
 		return ctxerr.Wrap(ctx, err, "queueing job")
 	}
 
-	level.Debug(logger).Log("job_id", job.ID, "job_name", softwareWorkerJobName, "task", args.Task)
+	logger.DebugContext(ctx, "queued software worker job", "job_id", job.ID, "job_name", softwareWorkerJobName, "task", args.Task)
 	return nil
 }
 
-func QueueMakeAndroidAppUnavailableJob(ctx context.Context, ds fleet.Datastore, logger kitlog.Logger, applicationID string, hostsUUIDToPolicyID map[string]string, enterpriseName string) error {
+func QueueMakeAndroidAppUnavailableJob(ctx context.Context, ds fleet.Datastore, logger *slog.Logger, applicationID string, hostsUUIDToPolicyID map[string]string, enterpriseName string) error {
 	args := &softwareWorkerArgs{
 		Task:               makeAndroidAppUnavailableTask,
 		ApplicationID:      applicationID,
@@ -485,14 +483,14 @@ func QueueMakeAndroidAppUnavailableJob(ctx context.Context, ds fleet.Datastore, 
 		return ctxerr.Wrap(ctx, err, "queueing job")
 	}
 
-	level.Debug(logger).Log("job_id", job.ID, "job_name", softwareWorkerJobName, "task", args.Task)
+	logger.DebugContext(ctx, "queued software worker job", "job_id", job.ID, "job_name", softwareWorkerJobName, "task", args.Task)
 	return nil
 }
 
 func QueueBulkSetAndroidAppsAvailableForHost(
 	ctx context.Context,
 	ds fleet.Datastore,
-	logger kitlog.Logger,
+	logger *slog.Logger,
 	hostUUID string,
 	policyID string,
 	applicationIDs []string,
@@ -512,7 +510,7 @@ func QueueBulkSetAndroidAppsAvailableForHost(
 		return ctxerr.Wrap(ctx, err, "queueing job")
 	}
 
-	level.Debug(logger).Log("job_id", job.ID, "job_name", softwareWorkerJobName, "task", args.Task)
+	logger.DebugContext(ctx, "queued software worker job", "job_id", job.ID, "job_name", softwareWorkerJobName, "task", args.Task)
 	return nil
 }
 
@@ -556,7 +554,7 @@ func (v *SoftwareWorker) bulkSetAndroidAppsAvailableForHosts(ctx context.Context
 		// Include the Fleet Agent in the app list so it's not removed when we replace the apps.
 		fleetAgentPolicy, err := v.AndroidModule.BuildFleetAgentApplicationPolicy(ctx, uuid)
 		if err != nil {
-			level.Error(v.Log).Log("msg", "failed to build Fleet Agent policy, Fleet Agent may be removed", "host_uuid", uuid, "err", err)
+			v.Log.ErrorContext(ctx, "failed to build Fleet Agent policy, Fleet Agent may be removed", "host_uuid", uuid, "err", err)
 		} else if fleetAgentPolicy != nil {
 			appPolicies = append(appPolicies, fleetAgentPolicy)
 		}
@@ -576,7 +574,7 @@ func (v *SoftwareWorker) bulkSetAndroidAppsAvailableForHosts(ctx context.Context
 func QueueBulkSetAndroidAppsAvailableForHosts(
 	ctx context.Context,
 	ds fleet.Datastore,
-	logger kitlog.Logger,
+	logger *slog.Logger,
 	uuidsToIDs map[string]uint,
 	enterpriseName string) error {
 
@@ -591,6 +589,6 @@ func QueueBulkSetAndroidAppsAvailableForHosts(
 		return ctxerr.Wrap(ctx, err, "queueing job")
 	}
 
-	level.Debug(logger).Log("job_id", job.ID, "job_name", softwareWorkerJobName, "task", args.Task)
+	logger.DebugContext(ctx, "queued software worker job", "job_id", job.ID, "job_name", softwareWorkerJobName, "task", args.Task)
 	return nil
 }

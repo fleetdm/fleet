@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"io"
+	"log/slog"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -14,7 +15,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mock"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/service/externalsvc"
-	kitlog "github.com/go-kit/log"
 	zendesk "github.com/nukosuke/go-zendesk/zendesk"
 	"github.com/stretchr/testify/require"
 )
@@ -182,7 +182,7 @@ func TestZendeskRun(t *testing.T) {
 			zendesk := &Zendesk{
 				FleetURL:  "https://fleetdm.com",
 				Datastore: ds,
-				Log:       kitlog.NewNopLogger(),
+				Log:       slog.New(slog.DiscardHandler),
 				NewClientFunc: func(opts *externalsvc.ZendeskOptions) (ZendeskClient, error) {
 					return client, nil
 				},
@@ -200,7 +200,7 @@ func TestZendeskRun(t *testing.T) {
 func TestZendeskQueueVulnJobs(t *testing.T) {
 	ds := new(mock.Store)
 	ctx := context.Background()
-	logger := kitlog.NewNopLogger()
+	logger := slog.New(slog.DiscardHandler)
 
 	t.Run("same vulnerability on multiple software only queue one job", func(t *testing.T) {
 		var count int
@@ -263,7 +263,7 @@ func TestZendeskQueueVulnJobs(t *testing.T) {
 func TestZendeskQueueFailingPolicyJob(t *testing.T) {
 	ds := new(mock.Store)
 	ctx := context.Background()
-	logger := kitlog.NewNopLogger()
+	logger := slog.New(slog.DiscardHandler)
 
 	t.Run("success global", func(t *testing.T) {
 		ds.NewJobFunc = func(ctx context.Context, job *fleet.Job) (*fleet.Job, error) {
@@ -386,7 +386,7 @@ func TestZendeskRunClientUpdate(t *testing.T) {
 	zendeskJob := &Zendesk{
 		FleetURL:  "http://example.com",
 		Datastore: ds,
-		Log:       kitlog.NewNopLogger(),
+		Log:       slog.New(slog.DiscardHandler),
 		NewClientFunc: func(opts *externalsvc.ZendeskOptions) (ZendeskClient, error) {
 			// keep track of group IDs received in calls to NewClientFunc
 			groupIDs = append(groupIDs, opts.GroupID)

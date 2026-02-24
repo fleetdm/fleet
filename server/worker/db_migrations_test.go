@@ -28,11 +28,12 @@ func TestDBMigrationsVPPToken(t *testing.T) {
 	// nopLog := logging.NewJSONLogger(os.Stdout)
 
 	// create and register the worker
+	slogLog := nopLog.SlogLogger()
 	processor := &DBMigration{
 		Datastore: ds,
-		Log:       nopLog,
+		Log:       slogLog,
 	}
-	w := NewWorker(ds, nopLog)
+	w := NewWorker(ds, slogLog)
 	w.Register(processor)
 
 	// create the migrated token and enqueue the job
