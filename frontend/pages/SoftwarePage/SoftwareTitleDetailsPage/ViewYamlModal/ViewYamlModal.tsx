@@ -13,7 +13,7 @@ import InputField from "components/forms/fields/InputField";
 import Editor from "components/Editor";
 
 import { hyphenateString } from "utilities/strings/stringUtils";
-import { createPackageYaml } from "./helpers";
+import createPackageYaml from "./helpers";
 
 const baseClass = "view-yaml-modal";
 

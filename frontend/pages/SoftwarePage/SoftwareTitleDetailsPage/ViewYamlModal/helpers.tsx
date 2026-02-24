@@ -38,7 +38,7 @@ interface CreatePackageYamlParams {
   isScriptPackage?: boolean;
 }
 
-export default createPackageYaml = ({
+const createPackageYaml = ({
   softwareTitle,
   packageName,
   version,
@@ -108,3 +108,5 @@ export default createPackageYaml = ({
 
   return yaml.trim();
 };
+
+export default createPackageYaml;

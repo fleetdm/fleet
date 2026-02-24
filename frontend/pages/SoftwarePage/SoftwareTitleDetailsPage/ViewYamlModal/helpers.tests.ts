@@ -1,6 +1,6 @@
 import { createMockSoftwarePackage } from "__mocks__/softwareMock";
 
-import { createPackageYaml } from "./helpers";
+import createPackageYaml from "./helpers";
 
 describe("createPackageYaml", () => {
   const {
