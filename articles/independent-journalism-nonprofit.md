@@ -30,4 +30,4 @@ They chose Fleet for its ability to treat Linux and macOS with equal visibility 
 <meta name="authorGitHubUsername" value="irenareedy">
 <meta name="category" value="announcements">
 <meta name="publishedOn" value="2026-02-22">
-<meta name="description" value="An independent journalism nonprofit builds infrastructure for independent journalism and manages a remote-first fleet of macOS and Linux devices. They required a developer-centric tool that aligned with their open-source values.">
+<meta name="description" value="An independent journalism nonprofit builds infrastructure for independent journalism and manages a remote-first fleet of macOS and Linux devices.">
