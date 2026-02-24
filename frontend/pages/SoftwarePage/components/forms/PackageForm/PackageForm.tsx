@@ -8,11 +8,13 @@ import {
   getExtensionFromFileName,
   getFileDetails,
 } from "utilities/file/fileUtils";
+import { compareVersions } from "utilities/helpers";
 import getDefaultInstallScript from "utilities/software_install_scripts";
 import getDefaultUninstallScript from "utilities/software_uninstall_scripts";
 import { ILabelSummary } from "interfaces/label";
 
 import { ISoftwareVersion, SoftwareCategory } from "interfaces/software";
+
 import { CustomOptionType } from "components/forms/fields/DropdownWrapper/DropdownWrapper";
 
 import Button from "components/buttons/Button";
@@ -405,13 +407,23 @@ const PackageForm = ({
 
     const fmaVersions = defaultSoftware.fleet_maintained_versions || [];
 
-    // NOTE: Backend guarantees that the latest version always has id === 1
-    const versionOptions = fmaVersions.map((v: ISoftwareVersion) => {
-      return {
-        label: `${v.version}${v.id === 1 ? " (latest)" : ""}`,
-        value: v.version,
-      };
+    /** Ensures latest version is first, compatible with sorting n versions */
+    fmaVersions.sort((a: ISoftwareVersion, b: ISoftwareVersion) => {
+      const v1 = a.version ?? "";
+      const v2 = b.version ?? "";
+      return compareVersions(v2, v1);
     });
+
+    const versionOptions = fmaVersions.map(
+      (v: ISoftwareVersion, index: number) => {
+        const isLatest = index === 0;
+
+        return {
+          label: `${v.version}${isLatest ? " (latest)" : ""}`,
+          value: v.version,
+        };
+      }
+    );
 
     return (
       <PackageVersionSelector
