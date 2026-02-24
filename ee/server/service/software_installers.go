@@ -826,7 +826,7 @@ func (svc *Service) deleteVPPApp(ctx context.Context, teamID *uint, meta *fleet.
 		if err != nil {
 			return &fleet.BadRequestError{Message: "Android MDM is not enabled", InternalErr: err}
 		}
-		err = worker.QueueMakeAndroidAppUnavailableJob(ctx, svc.ds, svc.logger, meta.VPPAppID.AdamID, androidHostsUUIDToPolicyID, enterprise.Name())
+		err = worker.QueueMakeAndroidAppUnavailableJob(ctx, svc.ds, svc.logger.SlogLogger(), meta.VPPAppID.AdamID, androidHostsUUIDToPolicyID, enterprise.Name())
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "enqueuing job to make android app unavailable")
 		}
@@ -1443,8 +1443,14 @@ func (svc *Service) installSoftwareTitleUsingInstaller(ctx context.Context, host
 		}
 	}
 
+	// Reset old attempts so the new install starts fresh at attempt 1.
+	if err := svc.ds.ResetNonPolicyInstallAttempts(ctx, host.ID, installer.InstallerID); err != nil {
+		return ctxerr.Wrap(ctx, err, "reset install attempts before new install")
+	}
+
 	_, err := svc.ds.InsertSoftwareInstallRequest(ctx, host.ID, installer.InstallerID, fleet.HostSoftwareInstallOptions{
 		SelfService: false,
+		WithRetries: true,
 	})
 	return ctxerr.Wrap(ctx, err, "inserting software install request")
 }
@@ -2702,8 +2708,13 @@ func (svc *Service) SelfServiceInstallSoftwareTitle(ctx context.Context, host *f
 			}
 		}
 
+		if err := svc.ds.ResetNonPolicyInstallAttempts(ctx, host.ID, installer.InstallerID); err != nil {
+			return ctxerr.Wrap(ctx, err, "reset install attempts before self-service install")
+		}
+
 		_, err = svc.ds.InsertSoftwareInstallRequest(ctx, host.ID, installer.InstallerID, fleet.HostSoftwareInstallOptions{
 			SelfService: true,
+			WithRetries: true,
 		})
 		return ctxerr.Wrap(ctx, err, "inserting self-service software install request")
 	}

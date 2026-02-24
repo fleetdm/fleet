@@ -238,26 +238,26 @@ func (s *integrationMDMTestSuite) SetupSuite() {
 
 	macosJob := &worker.MacosSetupAssistant{
 		Datastore:  s.ds,
-		Log:        wlog,
+		Log:        wlog.SlogLogger(),
 		DEPService: apple_mdm.NewDEPService(s.ds, depStorage, wlog.SlogLogger()),
 		DEPClient:  apple_mdm.NewDEPClient(depStorage, s.ds, wlog.SlogLogger()),
 	}
 	appleMDMJob := &worker.AppleMDM{
 		Datastore: s.ds,
-		Log:       wlog,
+		Log:       wlog.SlogLogger(),
 		Commander: mdmCommander,
 	}
 	vppVerifyJob := &worker.AppleSoftware{
 		Datastore: s.ds,
-		Log:       wlog,
+		Log:       wlog.SlogLogger(),
 		Commander: mdmCommander,
 	}
 	softwareWorker := &worker.SoftwareWorker{
 		Datastore:     s.ds,
-		Log:           wlog,
+		Log:           wlog.SlogLogger(),
 		AndroidModule: androidSvc,
 	}
-	workr := worker.NewWorker(s.ds, wlog)
+	workr := worker.NewWorker(s.ds, wlog.SlogLogger())
 	workr.TestIgnoreUnknownJobs = true
 	workr.Register(macosJob, appleMDMJob, vppVerifyJob, softwareWorker)
 
@@ -391,7 +391,7 @@ func (s *integrationMDMTestSuite) SetupSuite() {
 								defer s.onIntegrationsScheduleDone()
 							}
 
-							return worker.ProcessDEPCooldowns(ctx, ds, logger)
+							return worker.ProcessDEPCooldowns(ctx, ds, logger.SlogLogger())
 						}),
 					)
 					return integrationsSchedule, nil
@@ -13696,8 +13696,12 @@ func (s *integrationMDMTestSuite) TestVPPApps() {
 		fmt.Sprint(team.ID), "software_title_id", fmt.Sprint(errTitleID))
 	require.Equal(t, 1, countResp.Count)
 
-	// Simulate failed installation on the host
-	errorOnInstallApplicationCommand(1234)
+	// Simulate failed installation on the host, exhaust retries (MaxSoftwareInstallAttempts = 3)
+	// First error triggers retry 1, second triggers retry 2, third triggers retry 3,
+	// fourth exhausts retries and marks as failed.
+	for range fleet.MaxSoftwareInstallAttempts + 1 {
+		errorOnInstallApplicationCommand(1234)
+	}
 
 	listResp = listHostsResponse{}
 	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &listResp, "software_status", "failed", "team_id", fmt.Sprint(team.ID),
@@ -19054,6 +19058,17 @@ func (s *integrationMDMTestSuite) TestCancelUpcomingActivity() {
 	s.Do("POST", "/api/fleet/orbit/software_install/result", json.RawMessage(fmt.Sprintf(`{
 			"orbit_node_key": %q, "install_uuid": %q, "pre_install_condition_output": "ok", "install_script_exit_code": 1, "install_script_output": "fail"
 		}`, *mdmHost.OrbitNodeKey, hostActivitiesResp.Activities[1].UUID)), http.StatusNoContent)
+
+	// Exhaust automatic retries for the failed software install.
+	// Server-side retries queue up to MaxSoftwareInstallAttempts attempts.
+	for attempt := 2; attempt <= fleet.MaxSoftwareInstallAttempts; attempt++ {
+		hostActivitiesResp = listHostUpcomingActivitiesResponse{}
+		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/activities/upcoming", mdmHost.ID), nil, http.StatusOK, &hostActivitiesResp)
+		require.Len(t, hostActivitiesResp.Activities, 1, "should have pending retry (attempt %d)", attempt)
+		s.Do("POST", "/api/fleet/orbit/software_install/result", json.RawMessage(fmt.Sprintf(`{
+				"orbit_node_key": %q, "install_uuid": %q, "pre_install_condition_output": "ok", "install_script_exit_code": 1, "install_script_output": "fail"
+			}`, *mdmHost.OrbitNodeKey, hostActivitiesResp.Activities[0].UUID)), http.StatusNoContent)
+	}
 
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/activities/upcoming", mdmHost.ID), nil, http.StatusOK, &hostActivitiesResp)
 	require.Len(t, hostActivitiesResp.Activities, 0)
