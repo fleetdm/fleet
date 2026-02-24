@@ -398,7 +398,7 @@ func (g *GitOps) IsNoTeam() bool {
 }
 
 func isNoTeam(teamName string) bool {
-	return strings.EqualFold(teamName, noTeam) || strings.EqualFold(teamName, "Unassigned")
+	return strings.EqualFold(teamName, noTeam)
 }
 
 func (g *GitOps) CoercedTeamName() string {
