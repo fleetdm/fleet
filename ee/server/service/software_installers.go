@@ -244,6 +244,12 @@ func preProcessUninstallScript(payload *fleet.UploadSoftwareInstallerPayload) er
 		// do nothing, this could be a FMA which won't include the installer when editing the scripts
 		return nil
 	}
+
+	// Validate that package identifiers and upgrade codes don't contain shell metacharacters
+	if err := file.ValidatePackageIdentifiers(payload.PackageIDs, payload.UpgradeCode); err != nil {
+		return err
+	}
+
 	var packageID string
 	switch payload.Extension {
 	case "dmg", "zip":
@@ -252,12 +258,12 @@ func preProcessUninstallScript(payload *fleet.UploadSoftwareInstallerPayload) er
 		var sb strings.Builder
 		_, _ = sb.WriteString("(\n")
 		for _, pkgID := range payload.PackageIDs {
-			_, _ = sb.WriteString(fmt.Sprintf("  \"%s\"\n", pkgID))
+			_, _ = sb.WriteString(fmt.Sprintf("  '%s'\n", pkgID))
 		}
 		_, _ = sb.WriteString(")") // no ending newline
 		packageID = sb.String()
 	default:
-		packageID = fmt.Sprintf("\"%s\"", payload.PackageIDs[0])
+		packageID = fmt.Sprintf("'%s'", payload.PackageIDs[0])
 	}
 
 	payload.UninstallScript = file.PackageIDRegex.ReplaceAllString(payload.UninstallScript, fmt.Sprintf("%s${suffix}", packageID))
@@ -268,7 +274,7 @@ func preProcessUninstallScript(payload *fleet.UploadSoftwareInstallerPayload) er
 			return errors.New("blank upgrade code when required in script")
 		}
 
-		payload.UninstallScript = file.UpgradeCodeRegex.ReplaceAllString(payload.UninstallScript, fmt.Sprintf("\"%s\"${suffix}", payload.UpgradeCode))
+		payload.UninstallScript = file.UpgradeCodeRegex.ReplaceAllString(payload.UninstallScript, fmt.Sprintf("'%s'${suffix}", payload.UpgradeCode))
 	}
 
 	return nil

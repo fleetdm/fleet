@@ -12731,7 +12731,7 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareInstallerUploadDownloadAndD
 
 		// Check uninstall script
 		uninstallScript := file.GetUninstallScript("deb")
-		uninstallScript = strings.ReplaceAll(uninstallScript, "$PACKAGE_ID", "\"ruby\"")
+		uninstallScript = strings.ReplaceAll(uninstallScript, "$PACKAGE_ID", "'ruby'")
 		respTitle = getSoftwareTitleResponse{}
 		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d", titleID), nil, http.StatusOK, &respTitle, "team_id",
 			fmt.Sprintf("%d", createTeamResp.Team.ID))
@@ -14422,7 +14422,7 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareInstallerHostRequests() {
 		fmt.Sprintf("%d", *teamID))
 	require.NotNil(t, respTitle.SoftwareTitle.SoftwarePackage)
 	assert.Equal(t, "another install script", respTitle.SoftwareTitle.SoftwarePackage.InstallScript)
-	assert.Equal(t, `another uninstall script with "ruby"`, respTitle.SoftwareTitle.SoftwarePackage.UninstallScript)
+	assert.Equal(t, `another uninstall script with 'ruby'`, respTitle.SoftwareTitle.SoftwarePackage.UninstallScript)
 
 	// Upload another package for another platform
 	payloadDummy := &fleet.UploadSoftwareInstallerPayload{
@@ -20980,7 +20980,7 @@ func (s *integrationEnterpriseTestSuite) TestBatchSoftwareUploadWithSHAs() {
 
 # Fleet extracts and saves package IDs.
 pkg_ids=(
-  "com.example.dummy"
+  'com.example.dummy'
 )
 
 # For each package id, get all .app folders associated with the package and remove them.
