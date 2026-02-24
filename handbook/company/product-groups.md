@@ -753,7 +753,7 @@ In the Slack reminder thread, the outgoing on-call engineer should include a bri
 
 ### Incident on-call engineer
 
-The incident on-call engineer is responsible for responding to [P0 incidents](https://fleetdm.com/handbook/company/communications#high-priority-user-stories-and-bugs) 24/7 during their one-week shift. Incident on-call only responds to P0 issues that have an [incident response issue](https://github.com/fleetdm/confidential/issues/new?template=incident-response.md) filed. The incident on-call engineer is contacted via incident.io, which is triggered by creating an incident response issue.
+The incident on-call engineer is responsible for responding to [P0 incidents](https://fleetdm.com/handbook/company/communications#high-priority-user-stories-and-bugs) 24/7 during their one-week shift. Incident on-call only responds to P0 issues that have an [incident response issue](https://github.com/fleetdm/confidential/issues/new?template=incident-response.md) filed, which is the trigger to send incident notifications via incident.io.
 
 The Customer Success team member who reports the incident will continue communicating with the impacted customer or customers and is responsible for maintaining open lines of communication during the incident. If needed, the incident on-call engineer may be asked to communicate directly with impacted customers to facilitate faster resolution. Team members should use their judgment and coordinate on a case-by-case basis.
 
@@ -772,7 +772,6 @@ The incident on-call engineer is responsible for stabilizing the issue well enou
 The incident on-call engineer is responsible for responding to and triaging incidents. Instead of trying to fix the issue themselves, they will typically reach out to the most relevant product group and ask who can jump in to take lead on the resolution.
 
 Any mentions that do not meet [P0 criteria](https://fleetdm.com/handbook/company/communications#high-priority-user-stories-and-bugs) should be acknowledged and redirected to the on-call engineer.
-
 
 ## Wireframes
 
