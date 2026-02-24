@@ -30,4 +30,4 @@ The team prioritized GitOps workflows and API compatibility to align with their 
 <meta name="authorGitHubUsername" value="irenareedy">
 <meta name="category" value="announcements">
 <meta name="publishedOn" value="2026-02-22">
-<meta name="description" value="A financial technology company manages a massive environment of roughly 15,000 endpoints. They required a solution that could keep up with their product velocity and integrate seamlessly with their configuration as code philosophy."> 
+<meta name="description" value="A financial technology company manages a massive environment of roughly 15,000 endpoints."> 
