@@ -2,7 +2,7 @@
 
 ## Managing journalism infrastructure with modern DevOps
 
-An independent journalism nonprofit builds infrastructure for independent journalism and manages a remote-first fleet of macOS and Linux devices. They required a developer-centric tool that aligned with their open-source values.
+An independent journalism nonprofit that builds infrastructure for independent journalism and manages a remote-first fleet of macOS and Linux devices required a developer-centric tool that aligned with their open-source values.
 
 ## At a glance
 
