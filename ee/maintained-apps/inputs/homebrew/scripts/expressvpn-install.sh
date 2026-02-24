@@ -2,7 +2,7 @@
 
 # variables
 APPDIR="/Applications/"
-TMPDIR=$(dirname "$(realpath $INSTALLER_PATH)")
+TMPDIR=$(mktemp -d)
 
 # functions
 
