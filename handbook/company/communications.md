@@ -408,7 +408,7 @@ All issues are treated as standard priority by default. Some issues are assigned
 
 - Emergency: `P0`
   - Examples: Customer outage, inability to modify Fleet configuration, confirmed critical security vulnerability ([critical bug](https://fleetdm.com/handbook/company/product-groups#release-testing)), a new feature is needed to address an immediate Fleet emergency.
-  - Response: Immediately stop other work to swarm the issue. Work 24/7 in shifts until resolved.
+  - Response: Initiate [incident response process](https://fleetdm.com/handbook/company/communications#incident-response-process). Immediately stop other work to swarm the issue. Work 24/7 in shifts until resolved.
   - Impact: Significant impact. May void current sprint.
 
 - Critical: `P1`
@@ -428,6 +428,26 @@ Any fleetie can follow the process below to add a priority label to an issue.
 2. Add the `P0`, `P1`, or `P2` label based on the urgency of the issue. 
 3. Comment on the GitHub issue explaining why the issue is a priority, and assign the issue to the [Engineering Manager for the associated product group](https://fleetdm.com/handbook/company/product-groups#current-product-groups). For immediate action, follow up with the EM via Slack DM or by phone.
 4. The EM will review the issue to determine if it meets the criteria for the assigned priority label. If so, they will triage as needed based on priority level. If not, they will remove the priority label and add a comment on the issue explaining why.
+
+## Incident response process
+
+All emergency issues designated `P0` require a new [incident response issue](https://github.com/fleetdm/confidential/issues/new?template=incident-response.md). As soon as the issue is created, it will initiate our on-call incident notification process.
+
+Populate the title, then create the issue to immediately initiate the incident notification process. Edit the issue to add any additional context while awaiting response.
+
+### Incident notification path
+
+```mermaid
+flowchart TD
+    A[Infrastructure on-call] --> B{Business hours?}
+    B -- Yes --> C[Business hours on-call]
+    B -- No --> D[After-hours incident on-call]
+    C --> E[Engineering Managers]
+    D --> E
+    E --> F[CTO]
+```
+
+Incident notifications are sent 24/7/365 via incident.io. If a notification is unacknowledged after five minutes, it will automatically escalate in the notification path. The process will repeat up to ten times until the incident is acknowledged.
 
 ## Contributing to the handbook and docs
 

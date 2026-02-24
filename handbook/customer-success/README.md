@@ -211,6 +211,10 @@ During the window of time available to investigate an issue, use the resources a
 
 Note: For non-CSA engaged customer requests, CSE's are responsible for escalations to a CSA as needed. 
 
+### Report an incident
+
+Review the [high-priority user stories and bugs](https://fleetdm.com/handbook/company/communications#high-priority-user-stories-and-bugs) to determine the priority level of the incident. If it qualifies as a P0, follow the response instructions to initiate our incident response process. An on-call team member will be immediately notified of the issue 24/7/365.
+
 ### Contact the developer on-call
 
 The acting developer on-call rotation is reflected in the [📈KPIs spreadsheet (confidential Google sheet)](https://docs.google.com/spreadsheets/d/1Hso0LxqwrRVINCyW_n436bNHmoqhoLhC8bcbvLPOs9A/edit#gid=0&range=F2 ). The developer on-call is responsible for responses to technical Slack comments, Slack threads, and GitHub issues raised by customers and the community, which the CSE team cannot address.
