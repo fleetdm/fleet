@@ -164,14 +164,14 @@ parasails.registerPage('contact', {
       this.cloudSuccess = true;
     },
 
-    submittedWorkshopRequestForm: async function() {	
+    submittedWorkshopRequestForm: async function() {
       if(typeof gtag !== 'undefined'){
         // Additional conversion tracking
         gtag('event', 'conversion', {
           'send_to': 'AW-10788733823/RULOCNeYrPobEP-GvJgo',
           'value': 1.0,
           'currency': 'USD'
-         });
+       });
       }
       // Show the success message.
       this.cloudSuccess = true;
