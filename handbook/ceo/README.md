@@ -135,12 +135,13 @@ The Executive Assistant (EA) will use the following steps when a call is booked 
 2. Before the journalist call, The EA will meet with the Manager of Training and Enablement to build an agenda with 3 vertebrae listed and bring it to the Manager of Training and Enablement to collect the answers along with suggestions for the other two primary talking points.
 3. The CEO will review the agenda during the “📰 Journalist prep” time.
 
-### Schedule analyst prep
+### Schedule analyst breifing
 
-The Executive Assistant (EA) will use the following steps when a call is booked between the CEO and an analyst:
-1. The EA will [program the CEO](https://fleetdm.com/handbook/ceo#program-the-ceo-to-do-something) a 30-minute “analyst prep” call right before the analyst meeting.
-2. The EA will prep the agenda with a link to the analysts LinkedIn and 3 topics on what the CEO will talk about.
-3. The CEO will review the agenda during the "analyst prep" time.
+The Executive Assistant (EA) will use the following steps to book an analyst briefing for the CEO:
+1. The EA will work with the marketing consultant to coordinate a time for when the CEO is available for an analyst briefing.
+2. The EA will [program the CEO](https://fleetdm.com/handbook/ceo#program-the-ceo-to-do-something) a 30-minute “analyst prep” call right before the analyst meeting.
+3. The EA will prep the agenda with a link to the analysts LinkedIn and 3 topics on what the CEO will talk about.
+4. The CEO will review the agenda during the "analyst prep" time.
 
 ### Confirm CEO shadow dates
 
