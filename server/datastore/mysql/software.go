@@ -1678,28 +1678,21 @@ func buildOptimizedListSoftwareSQL(opts fleet.SoftwareListOptions) (string, []in
 	// This allows MySQL to read from the index without accessing the table,
 	// which is critical for performance.
 	// IMPORTANT: Update this query if modifying idx_software_host_counts_team_global_hosts_desc index.
-	// PERFORMANCE ISSUE: The hosts_count > 0 filter causes ASC queries to read the entire index
-	// instead of stopping after LIMIT rows like DESC queries do. While both ASC and DESC
-	// use the index, DESC can stop early but ASC with a range condition must read all matching rows.
-	// RECOMMENDED SOLUTION: Eliminate zero-count rows from this table entirely.
-	// This would allow removing the hosts_count > 0 filter, making ASC queries as fast as DESC
-	// without requiring a second index. Related issue: https://github.com/fleetdm/fleet/issues/35805
 	innerSQL := `
 		SELECT
 			shc.software_id,
 			shc.hosts_count
 		FROM software_host_counts shc
-		WHERE shc.hosts_count > 0
 	`
 
 	// Apply team filtering with global_stats
 	switch {
 	case opts.TeamID == nil:
-		innerSQL += " AND shc.team_id = 0 AND shc.global_stats = 1"
+		innerSQL += " WHERE shc.team_id = 0 AND shc.global_stats = 1"
 	case *opts.TeamID == 0:
-		innerSQL += " AND shc.team_id = 0 AND shc.global_stats = 0"
+		innerSQL += " WHERE shc.team_id = 0 AND shc.global_stats = 0"
 	default:
-		innerSQL += " AND shc.team_id = ? AND shc.global_stats = 0"
+		innerSQL += " WHERE shc.team_id = ? AND shc.global_stats = 0"
 		args = append(args, *opts.TeamID)
 	}
 
@@ -2154,8 +2147,6 @@ func countSoftwareDB(
 		countSQL += ` INNER JOIN cve_meta c ON c.cve = scv.cve`
 	}
 
-	countSQL += ` WHERE shc.hosts_count > 0`
-
 	var args []interface{}
 	var whereClauses []string
 	// Apply team filtering with global_stats
@@ -2191,8 +2182,8 @@ func countSoftwareDB(
 	}
 
 	// Add all WHERE clauses
-	for _, clause := range whereClauses {
-		countSQL += " AND " + clause
+	if len(whereClauses) > 0 {
+		countSQL += " WHERE " + strings.Join(whereClauses, " AND ")
 	}
 
 	var count int
@@ -2545,7 +2536,7 @@ func (ds *Datastore) SoftwareByID(ctx context.Context, id uint, teamID *uint, in
 		// However, it is possible that the software was deleted from all hosts after the last host count update.
 		q = q.Where(
 			goqu.L(
-				"EXISTS (SELECT 1 FROM software_host_counts WHERE software_id = ? AND team_id = ? AND hosts_count > 0 AND global_stats = 0)", id, *teamID,
+				"EXISTS (SELECT 1 FROM software_host_counts WHERE software_id = ? AND team_id = ? AND global_stats = 0)", id, *teamID,
 			),
 		)
 	}
@@ -2620,9 +2611,8 @@ func (ds *Datastore) SoftwareByID(ctx context.Context, id uint, teamID *uint, in
 // on removed hosts, software uninstalled on hosts, etc.)
 func (ds *Datastore) SyncHostsSoftware(ctx context.Context, updatedAt time.Time) error {
 	const (
-		resetStmt = `
-      UPDATE software_host_counts
-      SET hosts_count = 0, updated_at = ?`
+		swapTable       = "software_host_counts_swap"
+		swapTableCreate = "CREATE TABLE IF NOT EXISTS " + swapTable + " LIKE software_host_counts"
 
 		// team_id is added to the select list to have the same structure as
 		// the teamCountsStmt, making it easier to use a common implementation
@@ -2649,7 +2639,7 @@ func (ds *Datastore) SyncHostsSoftware(ctx context.Context, updatedAt time.Time)
       GROUP BY hs.software_id`
 
 		insertStmt = `
-      INSERT INTO software_host_counts
+      INSERT INTO ` + swapTable + `
         (software_id, hosts_count, team_id, global_stats, updated_at)
       VALUES
         %s
@@ -2668,33 +2658,19 @@ func (ds *Datastore) SyncHostsSoftware(ctx context.Context, updatedAt time.Time)
       LEFT JOIN software_host_counts shc
       ON s.id = shc.software_id
       WHERE
-        (shc.software_id IS NULL OR
-        (shc.team_id = 0 AND shc.hosts_count = 0)) AND
-		NOT EXISTS (SELECT 1 FROM host_software hsw WHERE hsw.software_id = s.id)
+        shc.software_id IS NULL AND
+        NOT EXISTS (SELECT 1 FROM host_software hsw WHERE hsw.software_id = s.id)
 	  `
-
-		cleanupOrphanedStmt = `
-		  DELETE shc
-		  FROM
-		    software_host_counts shc
-		    LEFT JOIN software s ON s.id = shc.software_id
-		  WHERE
-		    s.id IS NULL
-		`
-
-		cleanupTeamStmt = `
-      DELETE shc
-      FROM software_host_counts shc
-      LEFT JOIN teams t
-      ON t.id = shc.team_id
-      WHERE
-        shc.team_id > 0 AND
-        t.id IS NULL`
 	)
 
-	// first, reset all counts to 0
-	if _, err := ds.writer(ctx).ExecContext(ctx, resetStmt, updatedAt); err != nil {
-		return ctxerr.Wrap(ctx, err, "reset all software_host_counts to 0")
+	// Create a fresh swap table to populate with new counts. If a previous run left a partial swap table, drop it first.
+	w := ds.writer(ctx)
+	if _, err := w.ExecContext(ctx, "DROP TABLE IF EXISTS "+swapTable); err != nil {
+		return ctxerr.Wrap(ctx, err, "drop existing swap table")
+	}
+	// CREATE TABLE ... LIKE copies structure including CHECK constraints (with auto-generated names).
+	if _, err := w.ExecContext(ctx, swapTableCreate); err != nil {
+		return ctxerr.Wrap(ctx, err, "create swap table")
 	}
 
 	db := ds.reader(ctx)
@@ -2772,19 +2748,32 @@ func (ds *Datastore) SyncHostsSoftware(ctx context.Context, updatedAt time.Time)
 
 	}
 
-	// remove any unused software (global counts = 0)
+	// Atomic table swap: rename the swap table to the real table, drop the old one.
+	// Also drop any leftover old table from a previous failed swap.
+	if err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		_, err := tx.ExecContext(ctx, "DROP TABLE IF EXISTS software_host_counts_old")
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "drop leftover old table")
+		}
+		_, err = tx.ExecContext(ctx, `
+			RENAME TABLE
+				software_host_counts TO software_host_counts_old,
+				`+swapTable+` TO software_host_counts`)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "atomic table swap")
+		}
+		_, err = tx.ExecContext(ctx, "DROP TABLE IF EXISTS software_host_counts_old")
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "drop old table after swap")
+		}
+		return nil
+	}); err != nil {
+		return err
+	}
+
+	// Remove any unused software (those not in host_software).
 	if _, err := ds.writer(ctx).ExecContext(ctx, cleanupSoftwareStmt); err != nil {
 		return ctxerr.Wrap(ctx, err, "delete unused software")
-	}
-
-	// remove any software count row for software that don't exist anymore
-	if _, err := ds.writer(ctx).ExecContext(ctx, cleanupOrphanedStmt); err != nil {
-		return ctxerr.Wrap(ctx, err, "delete software_host_counts for non-existing software")
-	}
-
-	// remove any software count row for teams that don't exist anymore
-	if _, err := ds.writer(ctx).ExecContext(ctx, cleanupTeamStmt); err != nil {
-		return ctxerr.Wrap(ctx, err, "delete software_host_counts for non-existing teams")
 	}
 	return nil
 }
