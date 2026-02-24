@@ -199,4 +199,3 @@ describe("createPackageYaml", () => {
     path: ./icons/falcon-sensor-test-package-icon.png`);
   });
 });
-
