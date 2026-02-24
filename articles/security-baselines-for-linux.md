@@ -23,14 +23,14 @@ The time for treating Linux security as an afterthought is over. It must be inte
 
 The real challenge for security professionals is not *how* to execute a security policy (the scripting and configuration tools exist) but *what* settings to enforce. Modern workstations present a complex landscape of choices: disk encryption, biometric authentication policies, complex network configurations, and port governance. Without clear, validated guidance, IT administrators face a near-impossible task of developing, from scratch, adequate security profiles for every operating system in their fleet. This is where the power of **security baselines** becomes the indispensable foundation for your strategy.
 
-Security Baselines are a consensus-driven, recommended set of configurations applied uniformly across all your endpoints to ensure a consistent, hardened security posture. These baselines allow security teams to build on established, well-known best practices designed to protect against common and emerging threats.
+Security baselines are a consensus-driven, recommended set of configurations applied uniformly across all your endpoints to ensure a consistent, hardened security posture. These baselines allow security teams to build on established, well-known best practices designed to protect against common and emerging threats.
 
 Prominent examples of these baselines include:
 
 * [**Center for Internet Security (CIS) Benchmarks**](https://www.cisecurity.org/cis-benchmarks)**:** Developed through community consensus by cybersecurity experts globally, the CIS Benchmarks provide detailed, prescriptive guidance for securing various operating systems, including multiple Linux distributions (Red Hat, Ubuntu, Debian), as well as Macs and Windows.  
 * **Governmental Frameworks:** Agencies like USA’s [**NIST**](https://www.nist.gov/itl/nvd) (National Institute of Standards and Technology), the UK’s **[NCSC](https://www.ncsc.gov.uk/)** (National Cyber Security Centre), and others publish extensive recommendations for securing endpoints in line with government’s high-security standards.
 
-These baselines are not abstract theory. hey are practical, operational guidance that covers essential security settings such as access controls (password complexity, use of biometrics), system configuration (restricting access to sensitive binaries and configuration files), and network configuration (limiting inbound and outbound connections). By adopting them, enterprises gain an established, authoritative standard for security.
+These baselines are not abstract theory. They are practical, operational guidance covering essential security such like access controls (password complexity, use of biometrics), system configuration (restricting access to sensitive binaries and configuration files), and network configuration (limiting inbound and outbound connections). By adopting them, enterprises gain an established, authoritative standard.
 
 ## Keeping up standards  
 
