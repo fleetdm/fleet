@@ -30,4 +30,4 @@ The team chose Fleet for its GitOps-based automation, which enables level of rep
 <meta name="authorGitHubUsername" value="irenareedy">
 <meta name="category" value="announcements">
 <meta name="publishedOn" value="2026-02-22">
-<meta name="description" value="A technology powerhouse behind global brands like Stake.com and Kick.com. Managing over 1,600 endpoints, they required an automation-first solution to maintain their rapid growth.">
+<meta name="description" value="A technology powerhouse behind global brands like Stake.com and Kick.com.">
