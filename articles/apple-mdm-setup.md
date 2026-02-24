@@ -144,13 +144,11 @@ renews each host's SCEP certificates automatically every 180 days.
 
 If a host is turned off due to user action or a low battery during the Setup Assistant, it may fail to enroll. This can also happen if your Fleet instance is down for maintenance when a host tries to enroll automatically during the Setup Assistant. In these cases, hosts usually restart after the user attempts to get past the “Welcome to Mac" screen. The best practice in this situation is to wipe the host with Fleet if it has network connectivity or to [reinstall macOS from Recovery](https://support.apple.com/en-us/102655).
 
-### Apple Business Manager (ABM) issues
+### Apple Business Manager (ABM)
 
-Fleet surfaces Apple Business Manager (ABM) DEP profile assignment and push errors by monitoring profile statuses ('assigned', 'pushed') for each host. When ABM reports a failure during assignment or push, Fleet records the error type, timestamp, and affected host. IT admins can view error details, last event timestamps, and filter hosts with ABM integration issues for targeted troubleshooting.
+Fleet surfaces Apple Business Manager (ABM) automatic enrollment profile assignment by monitoring profile statuses ('assigned', 'pushed') for each host. When ABM reports a failure during assignment or push, Fleet records the error type, timestamp, and affected host. IT admins can view error details, last event timestamps, and filter hosts with ABM integration issues for targeted troubleshooting.
 
 ![Fleet_ABM-workflow-small](https://github.com/user-attachments/assets/b120f7c5-dd8c-4f4e-80ed-1e6cad99d516)
-
->This feature focuses on error surfacing, displaying assignment/push failures and metadata, not the complete ABM lifecycle.
 
 To view an ABM issue:
 
