@@ -2493,6 +2493,11 @@ func (ds *Datastore) GetWindowsMDMCommandsForResending(ctx context.Context, devi
 		}
 	}
 
+	if len(args) == 1 {
+		// No valid command IDs were provided, return empty result to avoid returning all commands for the device.
+		return []*fleet.MDMWindowsCommand{}, nil
+	}
+
 	stmt += fmt.Sprintf(" ORDER BY created_at DESC LIMIT %d", len(failedCommandIds))
 
 	var commands []*fleet.MDMWindowsCommand
