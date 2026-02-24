@@ -333,7 +333,7 @@ When a user requests that we delete all data we have stored about them, their da
 
 ### Create a task for a CSA
 
-If assistance is needed for research or solutioning by a CSA, create an issue using the [CSA task template](github.com/fleetdm/fleet/issues/new?template=csa-task.md) for tracking.
+If assistance is needed for research or solutioning by a CSA, create an issue using the [CSA task template](https://github.com/fleetdm/fleet/issues/new?template=csa-task.md) for tracking.
 
 **Ensure all private data is scrubbed and customer code names are used.**
 

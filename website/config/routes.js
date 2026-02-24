@@ -580,8 +580,8 @@ module.exports.routes = {
   'GET /fleet-gitops': {
     action: 'view-fleet-gitops',
     locals: {
-      pageTitleForMeta: 'Fleet GitOps',
-      pageDescriptionForMeta: 'See every change, undo any error, repeat every success. Fleet and GitOps work together to optimize your endpoint management strategy.',
+      pageTitleForMeta: 'Infrastructure as code',
+      pageDescriptionForMeta: 'See every change, undo any error, repeat every success. Fleet\'s infrastructure as code approach lets you manage every endpoint setting in version-controlled YAML.',
       currentSection: 'platform',
     }
   },

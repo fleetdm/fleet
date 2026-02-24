@@ -128,6 +128,9 @@ func TestInstallUninstallAuth(t *testing.T) {
 	ds.GetHostLastInstallDataFunc = func(ctx context.Context, hostID uint, installerID uint) (*fleet.HostLastInstallData, error) {
 		return nil, nil
 	}
+	ds.ResetNonPolicyInstallAttemptsFunc = func(ctx context.Context, hostID uint, softwareInstallerID uint) error {
+		return nil
+	}
 	ds.InsertSoftwareInstallRequestFunc = func(ctx context.Context, hostID uint, softwareInstallerID uint, opts fleet.HostSoftwareInstallOptions) (string,
 		error,
 	) {
@@ -665,6 +668,11 @@ func TestInstallShScriptOnDarwin(t *testing.T) {
 	// No pending install
 	ds.GetHostLastInstallDataFunc = func(ctx context.Context, hostID, installerID uint) (*fleet.HostLastInstallData, error) {
 		return nil, nil
+	}
+
+	// Reset retry attempts (no-op for test)
+	ds.ResetNonPolicyInstallAttemptsFunc = func(ctx context.Context, hostID uint, softwareInstallerID uint) error {
+		return nil
 	}
 
 	// Capture that install request was inserted
