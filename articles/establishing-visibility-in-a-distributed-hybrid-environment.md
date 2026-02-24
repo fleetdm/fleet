@@ -1,6 +1,6 @@
 # Establishing visibility in a distributed hybrid environment
 
-An AI-powered smart board and collaboration software company designed to foster hybrid teamwork for businesses and educators globally. As a high-growth tech company, they needed to move from a manual, unmanaged environment to a professional security posture without slowing down their developers.
+This global leader develops AI-powered smart boards and software designed to foster hybrid collaboration. As a high-growth tech company, they needed to move from a manual, unmanaged environment to a professional security posture—securing the distributed developer workstations and remote laptops used to build their collaboration suite—without slowing down their engineering teams.
 
 ## At a glance
 
