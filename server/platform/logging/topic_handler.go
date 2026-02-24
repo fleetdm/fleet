@@ -41,6 +41,7 @@ func (h *TopicFilterHandler) Handle(ctx context.Context, r slog.Record) error {
 	if topic != "" && !TopicEnabled(topic) {
 		return nil
 	}
+
 	return h.base.Handle(ctx, r)
 }
 
