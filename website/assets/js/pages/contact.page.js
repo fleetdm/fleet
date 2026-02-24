@@ -120,12 +120,12 @@ parasails.registerPage('contact', {
     submittedContactForm: async function() {
       if(typeof gtag !== 'undefined'){
         gtag('event','fleet_website__contact_forms');
-       // Additional conversion tracking
+        // Additional conversion tracking
         gtag('event', 'conversion', {
           'send_to': 'AW-10788733823/e9FrCNGYrPobEP-GvJgo',
           'value': 1.0,
           'currency': 'USD'
-        });		
+        });
       }
       if(typeof window.lintrk !== 'undefined') {
         window.lintrk('track', { conversion_id: 18587089 });// eslint-disable-line camelcase
@@ -148,7 +148,7 @@ parasails.registerPage('contact', {
         } else {
           gtag('event','fleet_website__contact_forms__demo__icp');
         }
-       // Additional conversion tracking
+        // Additional conversion tracking
         gtag('event', 'conversion', {
           'send_to': 'AW-10788733823/aNrhCNSYrPobEP-GvJgo',
           'value': 1.0,
@@ -164,15 +164,14 @@ parasails.registerPage('contact', {
       this.cloudSuccess = true;
     },
 
-    submittedWorkshopRequestForm: async function() {
-	
+    submittedWorkshopRequestForm: async function() {	
       if(typeof gtag !== 'undefined'){
-      	// Additional conversion tracking
+        // Additional conversion tracking
         gtag('event', 'conversion', {
-        	'send_to': 'AW-10788733823/RULOCNeYrPobEP-GvJgo',
-            'value': 1.0,
-            'currency': 'USD'
-         });		
+          'send_to': 'AW-10788733823/RULOCNeYrPobEP-GvJgo',
+          'value': 1.0,
+          'currency': 'USD'
+         });
       }
       // Show the success message.
       this.cloudSuccess = true;
