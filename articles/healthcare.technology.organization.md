@@ -2,7 +2,7 @@
 
 ## Rapid policy enforcement and end-user transparency
 
-A healthcare technology organization operates in a highly regulated environment requiring SOC 2, HIPAA, and HITRUST compliance. They needed a centralized management solution for a globally distributed fleet that could enforce policies faster than the industry standard.
+A healthcare technology organization operating in a highly regulated environment that requires SOC 2, HIPAA, and HITRUST compliance needed a centralized management solution for a globally distributed fleet that could enforce policies faster than the industry standard.
 
 ## At a glance
 
