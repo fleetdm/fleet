@@ -819,7 +819,8 @@ func RegisterDeprecatedPathAliases(r *mux.Router, versions []string, registry *H
 				ctx := context.WithValue(r.Context(), deprecatedPathInfoKey{}, info)
 				handler.ServeHTTP(w, r.WithContext(ctx))
 			})
-			r.Handle(pathForHandler, wrappedHandler).Methods(alias.Method)
+			nameAndVerb := getNameFromPathAndVerb(alias.Method, path, "")
+			r.Handle(pathForHandler, wrappedHandler).Name(nameAndVerb).Methods(alias.Method)
 		}
 	}
 }
