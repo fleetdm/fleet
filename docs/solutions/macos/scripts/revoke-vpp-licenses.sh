@@ -22,3 +22,4 @@ curl -X POST https://vpp.itunes.apple.com/mdm/v2/assets/disassociate \
         "A641592ZDB"
     ]
 }'
+
