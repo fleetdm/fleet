@@ -117,7 +117,7 @@ interface ITableContainerProps<T = any> {
   renderTableHelpText?: () => JSX.Element | null;
   setExportRows?: (rows: Row[]) => void;
   disableTableHeader?: boolean;
-  /** Set to true to persist the row selections across table data filters */
+  /** Set to true to persist the row selections across table data filters (e.g. clientside pagination) */
   persistSelectedRows?: boolean;
   /** Set to `true` to not display the footer section of the table */
   hideFooter?: boolean;

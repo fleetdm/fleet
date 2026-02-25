@@ -180,6 +180,9 @@ const DataTable = ({
     {
       columns,
       data,
+      // Use stable row IDs when available (`row.id`), otherwise fall back to the default index-based IDs provided by react-table
+      getRowId: (row: any, index: number) =>
+        row && row.id != null ? String(row.id) : String(index),
       initialState: {
         sortBy: initialSortBy,
         pageIndex: defaultPageIndex,
@@ -695,13 +698,13 @@ const DataTable = ({
               disablePrev={!canPreviousPage}
               disableNext={!canNextPage}
               onPrevPage={() => {
-                toggleAllRowsSelected(false); // Resets row selection on pagination (client-side)
+                !persistSelectedRows && toggleAllRowsSelected(false); // Resets row selection on pagination (client-side)
                 onClientSidePaginationChange
                   ? onClientSidePaginationChange(pageIndex - 1)
                   : previousPage();
               }}
               onNextPage={() => {
-                toggleAllRowsSelected(false); // Resets row selection on pagination (client-side)
+                !persistSelectedRows && toggleAllRowsSelected(false); // Resets row selection on pagination (client-side)
                 onClientSidePaginationChange
                   ? onClientSidePaginationChange(pageIndex + 1)
                   : nextPage();
