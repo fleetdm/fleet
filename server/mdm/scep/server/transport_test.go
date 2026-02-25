@@ -15,9 +15,8 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mdm/scep/depot"
 	filedepot "github.com/fleetdm/fleet/v4/server/mdm/scep/depot/file"
 	scepserver "github.com/fleetdm/fleet/v4/server/mdm/scep/server"
+	"github.com/fleetdm/fleet/v4/server/platform/logging"
 	"github.com/gorilla/mux"
-
-	kitlog "github.com/go-kit/log"
 )
 
 func TestCACaps(t *testing.T) {
@@ -240,7 +239,7 @@ func newServer(t *testing.T, opts ...scepserver.ServiceOption) (*httptest.Server
 			t.Fatal(err)
 		}
 	}
-	logger := kitlog.NewNopLogger()
+	logger := logging.NewNopLogger()
 	e := scepserver.MakeServerEndpoints(svc)
 	scepHandler := scepserver.MakeHTTPHandler(e, svc, logger)
 	r := mux.NewRouter()

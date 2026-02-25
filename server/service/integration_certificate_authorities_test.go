@@ -16,7 +16,6 @@ import (
 
 	eeservice "github.com/fleetdm/fleet/v4/ee/server/service"
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
-	"github.com/fleetdm/fleet/v4/server/dev_mode"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/mobileconfig"
@@ -34,9 +33,6 @@ import (
 
 func (s *integrationMDMTestSuite) TestBatchApplyCertificateAuthorities() {
 	t := s.T()
-
-	dev_mode.IsEnabled = true
-	t.Cleanup(func() { dev_mode.IsEnabled = false })
 
 	// TODO(hca): test each CA type activities once implemented
 
@@ -233,7 +229,7 @@ func (s *integrationMDMTestSuite) TestBatchApplyCertificateAuthorities() {
 		{
 			testName:   "non-http",
 			url:        "nonhttp://bad.com",
-			errMessage: "must be http or https",
+			errMessage: "URL scheme must be https or http",
 		},
 	}
 
@@ -265,7 +261,7 @@ func (s *integrationMDMTestSuite) TestBatchApplyCertificateAuthorities() {
 			res := s.Do("POST", "/api/v1/fleet/spec/certificate_authorities", req, http.StatusUnprocessableEntity)
 			errMsg := extractServerErrorText(res.Body)
 			require.Contains(t, errMsg, "certificate_authorities.ndes_scep_proxy")
-			require.Contains(t, errMsg, "NDES SCEP URL is invalid")
+			require.Contains(t, errMsg, "Invalid NDES SCEP URL")
 			checkNDESApplied(t, nil)
 		})
 
@@ -436,7 +432,7 @@ func (s *integrationMDMTestSuite) TestBatchApplyCertificateAuthorities() {
 					errMsg := extractServerErrorText(res.Body)
 					require.Contains(t, errMsg, "certificate_authorities.digicert")
 					if tc.errMessage == "Invalid URL" {
-						require.Contains(t, errMsg, "DigiCert URL is invalid")
+						require.Contains(t, errMsg, "Invalid DigiCert URL")
 					} else {
 						require.Contains(t, errMsg, tc.errMessage)
 					}
@@ -783,7 +779,7 @@ func (s *integrationMDMTestSuite) TestBatchApplyCertificateAuthorities() {
 				errMsg := extractServerErrorText(res.Body)
 				require.Contains(t, errMsg, "certificate_authorities.custom_scep_proxy")
 				if tc.errMessage == "Invalid URL" {
-					require.Contains(t, errMsg, "Custom SCEP Proxy URL is invalid")
+					require.Contains(t, errMsg, "Invalid SCEP URL")
 				} else {
 					require.Contains(t, errMsg, tc.errMessage)
 				}
@@ -1008,7 +1004,7 @@ func (s *integrationMDMTestSuite) TestBatchApplyCertificateAuthorities() {
 					errMsg := extractServerErrorText(res.Body)
 					require.Contains(t, errMsg, "certificate_authorities.smallstep")
 					if tc.errMessage == "Invalid URL" {
-						require.Contains(t, errMsg, "Smallstep SCEP URL is invalid")
+						require.Contains(t, errMsg, "Invalid Smallstep SCEP URL")
 					} else {
 						require.Contains(t, errMsg, tc.errMessage)
 					}
@@ -1111,7 +1107,7 @@ func (s *integrationMDMTestSuite) TestBatchApplyCertificateAuthorities() {
 			res := s.Do("POST", "/api/v1/fleet/spec/certificate_authorities", req, http.StatusUnprocessableEntity)
 			errMsg := extractServerErrorText(res.Body)
 			require.Contains(t, errMsg, "certificate_authorities.smallstep")
-			require.Contains(t, errMsg, "Smallstep SCEP URL is invalid")
+			require.Contains(t, errMsg, "Invalid Smallstep SCEP URL")
 		})
 
 		t.Run("smallstep challenge url not set", func(t *testing.T) {
@@ -1268,7 +1264,7 @@ func (s *integrationMDMTestSuite) TestBatchApplyCertificateAuthorities() {
 					errMsg := extractServerErrorText(res.Body)
 					require.Contains(t, errMsg, "certificate_authorities.hydrant")
 					if tc.errMessage == "Invalid URL" {
-						require.Contains(t, errMsg, "Hydrant URL is invalid")
+						require.Contains(t, errMsg, "Invalid Hydrant URL")
 					} else {
 						require.Contains(t, errMsg, tc.errMessage)
 					}
@@ -1394,7 +1390,7 @@ func (s *integrationMDMTestSuite) TestBatchApplyCertificateAuthorities() {
 					errMsg := extractServerErrorText(res.Body)
 					require.Contains(t, errMsg, "certificate_authorities.custom_est_proxy")
 					if tc.errMessage == "Invalid URL" {
-						require.Contains(t, errMsg, "EST URL is invalid")
+						require.Contains(t, errMsg, "Invalid EST URL")
 					} else {
 						require.Contains(t, errMsg, tc.errMessage)
 					}
