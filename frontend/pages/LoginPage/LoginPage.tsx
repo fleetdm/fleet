@@ -123,7 +123,6 @@ const LoginPage = ({ router, location }: ILoginPageProps) => {
         const { user, available_teams, token } = response;
 
         authToken.save(token);
-        local.setItem("auth_token", token);
 
         setCurrentUser(user);
         setAvailableTeams(user, available_teams);

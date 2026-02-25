@@ -37,7 +37,6 @@ const LoginPreviewPage = ({ router }: ILoginPreviewPageProps): JSX.Element => {
         formData
       );
       authToken.save(token);
-      local.setItem("auth_token", token);
 
       setCurrentUser(user);
       setAvailableTeams(user, available_teams);

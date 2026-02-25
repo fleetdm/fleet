@@ -63,7 +63,6 @@ const RegistrationPage = ({ router }: IRegistrationPageProps) => {
     try {
       const { token } = await usersAPI.setup(formData);
       authToken.save(token);
-      local.setItem("auth_token", token);
 
       const { user, available_teams, settings } = await usersAPI.me();
       setCurrentUser(user);

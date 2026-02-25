@@ -1,6 +1,6 @@
 import sendRequest from "services";
 import endpoints from "utilities/endpoints";
-import { authToken } from "utilities/local";
+import authToken from "utilities/auth_token";
 
 interface IGetAndroidSignupUrlResponse {
   android_enterprise_signup_url: string;
@@ -38,7 +38,7 @@ export default {
         const response = await fetch(endpoints.MDM_ANDROID_SSE_URL, {
           method: "GET",
           headers: {
-            Authorization: `Bearer ${authToken()}`,
+            Authorization: `Bearer ${authToken.get()}`,
           },
           signal: abortSignal,
         });
