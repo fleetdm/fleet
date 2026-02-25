@@ -219,6 +219,10 @@ func (svc *Service) BatchAssociateVPPApps(ctx context.Context, teamName string, 
 			}
 			switch payload.Platform {
 			case fleet.AndroidPlatform:
+				if strings.HasPrefix(payload.AppStoreID, fleet.AndroidWebAppPrefix) && payload.Configuration != nil {
+					return nil, fleet.NewInvalidArgumentError("configuration", "Couldn't edit. Android web apps don't support configurations.")
+				}
+
 				appStoreApp.SelfService = true
 				appStoreApp.Configuration = payload.Configuration
 				incomingAndroidApps = append(incomingAndroidApps, appStoreApp)
@@ -285,7 +289,7 @@ func (svc *Service) BatchAssociateVPPApps(ctx context.Context, teamName string, 
 
 	enterprise, err := svc.ds.GetEnterprise(ctx)
 	if err != nil && !fleet.IsNotFound(err) {
-		return nil, &fleet.BadRequestError{Message: "Android MDM is not enabled", InternalErr: err}
+		return nil, ctxerr.Wrap(ctx, err, "get android enterprise")
 	}
 
 	androidHostPoliciesToUpdate := map[string]string{}
@@ -612,6 +616,11 @@ func (svc *Service) AddAppStoreApp(ctx context.Context, teamID *uint, appID flee
 			return 0, fleet.NewInvalidArgumentError("app_store_id", "The Fleet agent cannot be added manually. "+
 				"It is automatically managed by Fleet when Android MDM is enabled.")
 		}
+
+		if strings.HasPrefix(appID.AdamID, fleet.AndroidWebAppPrefix) && appID.Configuration != nil {
+			return 0, fleet.NewInvalidArgumentError("configuration", "Couldn't add. Android web apps don't support configurations.")
+		}
+
 		appID.SelfService = true
 		appID.AddAutoInstallPolicy = false
 
@@ -1006,6 +1015,10 @@ func (svc *Service) UpdateAppStoreApp(ctx context.Context, titleID uint, teamID 
 	// note that if appID.Configuration is nil, InsertVPPAppWithTeam will ignore it (it will not
 	// update or remove it), so here we ignore it too if it is nil.
 	if payload.Configuration != nil && meta.Platform == fleet.AndroidPlatform {
+		if strings.HasPrefix(meta.AdamID, fleet.AndroidWebAppPrefix) {
+			return nil, nil, fleet.NewInvalidArgumentError("configuration", "Couldn't edit. Android web apps don't support configurations.")
+		}
+
 		// check if configuration has changed
 		androidConfigChanged, err = svc.ds.HasAndroidAppConfigurationChanged(ctx, meta.AdamID, ptr.ValOrZero(teamID), payload.Configuration)
 		if err != nil {
