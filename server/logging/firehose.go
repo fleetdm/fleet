@@ -15,7 +15,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/firehose/types"
 	"github.com/fleetdm/fleet/v4/server/aws_common"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
-	"github.com/go-kit/log"
+	platformlogging "github.com/fleetdm/fleet/v4/server/platform/logging"
 	"github.com/go-kit/log/level"
 )
 
@@ -38,10 +38,10 @@ type FirehoseAPI interface {
 type firehoseLogWriter struct {
 	client FirehoseAPI
 	stream string
-	logger log.Logger
+	logger *platformlogging.Logger
 }
 
-func NewFirehoseLogWriter(region, endpointURL, id, secret, stsAssumeRoleArn, stsExternalID, stream string, logger log.Logger) (*firehoseLogWriter, error) {
+func NewFirehoseLogWriter(region, endpointURL, id, secret, stsAssumeRoleArn, stsExternalID, stream string, logger *platformlogging.Logger) (*firehoseLogWriter, error) {
 	var opts []func(*aws_config.LoadOptions) error
 
 	// The service endpoint is deprecated, but we still set it

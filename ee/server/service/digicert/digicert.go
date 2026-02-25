@@ -20,7 +20,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/platform/logging"
 	"github.com/go-json-experiment/json"
-	"github.com/go-kit/log/level"
 	"software.sslmate.com/src/go-pkcs12"
 )
 
@@ -107,7 +106,7 @@ func (s *Service) VerifyProfileID(ctx context.Context, config fleet.DigiCertCA) 
 	if p.Status != "Active" {
 		return ctxerr.Errorf(ctx, "DigiCert profile status is not Active: %s", p.Status)
 	}
-	level.Debug(s.logger).Log("msg", "DigiCert profile verified", "id", p.ID, "name", p.Name, "status", p.Status)
+	s.logger.DebugContext(ctx, "DigiCert profile verified", "id", p.ID, "name", p.Name, "status", p.Status)
 	return nil
 }
 
@@ -254,7 +253,7 @@ func (s *Service) GetCertificate(ctx context.Context, config fleet.DigiCertCA) (
 	// Serial number is an up to 20-byte(40 char) hex string
 	_, err = hex.DecodeString(certResp.SerialNumber)
 	if err != nil || certResp.SerialNumber == "" || len(certResp.SerialNumber) > 40 {
-		level.Error(s.logger).Log("msg", "DigiCert certificate returned with invalid serial number", "serial_number", certResp.SerialNumber, "decode_err", err)
+		s.logger.ErrorContext(ctx, "DigiCert certificate returned with invalid serial number", "serial_number", certResp.SerialNumber, "decode_err", err)
 		return nil, ctxerr.Errorf(ctx, "invalid DigiCert serial number: %s", certResp.SerialNumber)
 	}
 
@@ -262,7 +261,7 @@ func (s *Service) GetCertificate(ctx context.Context, config fleet.DigiCertCA) (
 		return nil, ctxerr.Errorf(ctx, "did not receive DigiCert certificate")
 	}
 
-	level.Debug(s.logger).Log("msg", "DigiCert certificate created", "serial_number", certResp.SerialNumber)
+	s.logger.DebugContext(ctx, "DigiCert certificate created", "serial_number", certResp.SerialNumber)
 
 	// Decode the certificate from PEM format
 	certBlock, _ := pem.Decode([]byte(certResp.Certificate))

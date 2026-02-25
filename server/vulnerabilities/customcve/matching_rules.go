@@ -4,13 +4,12 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log/slog"
 	"strings"
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/vulnerabilities/nvd/tools/cvefeed/nvd"
-	"github.com/go-kit/log"
-	"github.com/go-kit/log/level"
 )
 
 var (
@@ -154,7 +153,7 @@ func (r CVEMatchingRules) ValidateAll() error {
 }
 
 // CheckCustomVulnerabilities matches software against custom rules and inserts vulnerabilities
-func CheckCustomVulnerabilities(ctx context.Context, ds fleet.Datastore, logger log.Logger, startTime time.Time) ([]fleet.SoftwareVulnerability, error) {
+func CheckCustomVulnerabilities(ctx context.Context, ds fleet.Datastore, logger *slog.Logger, startTime time.Time) ([]fleet.SoftwareVulnerability, error) {
 	rules := getCVEMatchingRules()
 	if err := rules.ValidateAll(); err != nil {
 		return nil, fmt.Errorf("invalid rules: %w", err)
@@ -164,26 +163,22 @@ func CheckCustomVulnerabilities(ctx context.Context, ds fleet.Datastore, logger 
 	for i, rule := range rules {
 		v, err := rule.match(ctx, ds)
 		if err != nil {
-			level.Error(logger).Log("msg", "Error matching rule", "ruleIndex", i, "err", err)
+			logger.ErrorContext(ctx, "Error matching rule", "ruleIndex", i, "err", err)
 			continue
 		}
 		vulns = append(vulns, v...)
 	}
 
-	var newVulns []fleet.SoftwareVulnerability
-	for _, v := range vulns {
-		ok, err := ds.InsertSoftwareVulnerability(ctx, v, fleet.CustomSource)
-		if err != nil {
-			level.Error(logger).Log("msg", "Error inserting software vulnerability", "err", err)
-			continue
-		}
-		if ok {
-			newVulns = append(newVulns, v)
-		}
+	newVulns, err := ds.InsertSoftwareVulnerabilities(ctx, vulns, fleet.CustomSource)
+	if err != nil {
+		// Return early so DeleteOutOfDateVulnerabilities doesn't run.
+		// Otherwise, without the insert refreshing updated_at, all existing vulns would look stale and be deleted.
+		logger.ErrorContext(ctx, "Error inserting software vulnerabilities", "err", err)
+		return nil, err
 	}
 
 	if err := ds.DeleteOutOfDateVulnerabilities(ctx, fleet.CustomSource, startTime); err != nil {
-		level.Error(logger).Log("msg", "Error deleting out of date vulnerabilities", "err", err)
+		logger.ErrorContext(ctx, "Error deleting out of date vulnerabilities", "err", err)
 	}
 
 	return newVulns, nil

@@ -4,10 +4,10 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"net/url"
 	"regexp"
 	"strings"
 
-	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
 	"github.com/fleetdm/fleet/v4/server/authz"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -208,8 +208,8 @@ func (svc *Service) validatePayload(p *fleet.CertificateAuthorityPayload, errPre
 }
 
 func (svc *Service) validateDigicert(ctx context.Context, digicertCA *fleet.DigiCertCA, errPrefix string) error {
-	if err := fleethttp.CheckURLForSSRF(ctx, digicertCA.URL, nil); err != nil {
-		return fleet.NewInvalidArgumentError("url", fmt.Sprintf("%sDigiCert URL is invalid: %v", errPrefix, err))
+	if err := validateURL(digicertCA.URL, "DigiCert", errPrefix); err != nil {
+		return err
 	}
 	if digicertCA.APIToken == "" || digicertCA.APIToken == fleet.MaskedPassword {
 		return fleet.NewInvalidArgumentError("api_token", fmt.Sprintf("%sInvalid API token. Please correct and try again.", errPrefix))
@@ -321,8 +321,8 @@ func (svc *Service) validateHydrant(ctx context.Context, hydrantCA *fleet.Hydran
 	if err := validateCAName(hydrantCA.Name, errPrefix); err != nil {
 		return err
 	}
-	if err := fleethttp.CheckURLForSSRF(ctx, hydrantCA.URL, nil); err != nil {
-		return fleet.NewInvalidArgumentError("url", fmt.Sprintf("%sHydrant URL is invalid: %v", errPrefix, err))
+	if err := validateURL(hydrantCA.URL, "Hydrant", errPrefix); err != nil {
+		return err
 	}
 	if hydrantCA.ClientID == "" {
 		return fleet.NewInvalidArgumentError("client_id", fmt.Sprintf("%sInvalid Hydrant Client ID. Please correct and try again.", errPrefix))
@@ -346,8 +346,8 @@ func (svc *Service) validateEST(ctx context.Context, estProxyCA *fleet.ESTProxyC
 	if err := validateCAName(estProxyCA.Name, errPrefix); err != nil {
 		return err
 	}
-	if err := fleethttp.CheckURLForSSRF(ctx, estProxyCA.URL, nil); err != nil {
-		return fleet.NewInvalidArgumentError("url", fmt.Sprintf("%sEST URL is invalid: %v", errPrefix, err))
+	if err := validateURL(estProxyCA.URL, "EST", errPrefix); err != nil {
+		return err
 	}
 	if estProxyCA.Username == "" {
 		return fleet.NewInvalidArgumentError("username", fmt.Sprintf("%sInvalid EST Username. Please correct and try again.", errPrefix))
@@ -361,12 +361,18 @@ func (svc *Service) validateEST(ctx context.Context, estProxyCA *fleet.ESTProxyC
 	return nil
 }
 
-func (svc *Service) validateNDESSCEPProxy(ctx context.Context, ndesSCEP *fleet.NDESSCEPProxyCA, errPrefix string) error {
-	if err := fleethttp.CheckURLForSSRF(ctx, ndesSCEP.URL, nil); err != nil {
-		return fleet.NewInvalidArgumentError("url", fmt.Sprintf("%sNDES SCEP URL is invalid: %v", errPrefix, err))
+func validateURL(caURL, displayType, errPrefix string) error {
+	if u, err := url.ParseRequestURI(caURL); err != nil {
+		return fleet.NewInvalidArgumentError("url", fmt.Sprintf("%sInvalid %s URL. Please correct and try again.", errPrefix, displayType))
+	} else if u.Scheme != "https" && u.Scheme != "http" {
+		return fleet.NewInvalidArgumentError("url", fmt.Sprintf("%s%s URL scheme must be https or http", errPrefix, displayType))
 	}
-	if err := fleethttp.CheckURLForSSRF(ctx, ndesSCEP.AdminURL, nil); err != nil {
-		return fleet.NewInvalidArgumentError("admin_url", fmt.Sprintf("%sNDES SCEP admin URL is invalid: %v", errPrefix, err))
+	return nil
+}
+
+func (svc *Service) validateNDESSCEPProxy(ctx context.Context, ndesSCEP *fleet.NDESSCEPProxyCA, errPrefix string) error {
+	if err := validateURL(ndesSCEP.URL, "NDES SCEP", errPrefix); err != nil {
+		return err
 	}
 	if err := svc.scepConfigService.ValidateSCEPURL(ctx, ndesSCEP.URL); err != nil {
 		level.Error(svc.logger).Log("msg", "Failed to validate NDES SCEP URL", "err", err)
@@ -390,8 +396,8 @@ func (svc *Service) validateCustomSCEPProxy(ctx context.Context, customSCEP *fle
 	if err := validateCAName(customSCEP.Name, errPrefix); err != nil {
 		return err
 	}
-	if err := fleethttp.CheckURLForSSRF(ctx, customSCEP.URL, nil); err != nil {
-		return fleet.NewInvalidArgumentError("url", fmt.Sprintf("%sCustom SCEP Proxy URL is invalid: %v", errPrefix, err))
+	if err := validateURL(customSCEP.URL, "SCEP", errPrefix); err != nil {
+		return err
 	}
 	if customSCEP.Challenge == "" || customSCEP.Challenge == fleet.MaskedPassword {
 		return fleet.NewInvalidArgumentError("challenge", fmt.Sprintf("%sCustom SCEP Proxy challenge cannot be empty", errPrefix))
@@ -407,8 +413,8 @@ func (svc *Service) validateSmallstepSCEPProxy(ctx context.Context, smallstepSCE
 	if err := validateCAName(smallstepSCEP.Name, errPrefix); err != nil {
 		return err
 	}
-	if err := fleethttp.CheckURLForSSRF(ctx, smallstepSCEP.URL, nil); err != nil {
-		return fleet.NewInvalidArgumentError("url", fmt.Sprintf("%sSmallstep SCEP URL is invalid: %v", errPrefix, err))
+	if err := validateURL(smallstepSCEP.URL, "Smallstep SCEP", errPrefix); err != nil {
+		return err
 	}
 	if smallstepSCEP.Username == "" {
 		return fleet.NewInvalidArgumentError("username", fmt.Sprintf("%sSmallstep username cannot be empty", errPrefix))
@@ -1251,9 +1257,10 @@ func (svc *Service) validateDigicertUpdate(ctx context.Context, digicert *fleet.
 		}
 	}
 	if digicert.URL != nil {
-		if err := fleethttp.CheckURLForSSRF(ctx, *digicert.URL, nil); err != nil {
-			return fleet.NewInvalidArgumentError("url", fmt.Sprintf("%sDigiCert URL is invalid: %v", errPrefix, err))
+		if err := validateURL(*digicert.URL, "DigiCert", errPrefix); err != nil {
+			return err
 		}
+
 		// We want to generate a DigiCertCA struct with all required fields to verify the new URL.
 		// If URL or APIToken are not being updated we use the existing values from oldCA
 		digicertCA := fleet.DigiCertCA{
@@ -1331,9 +1338,10 @@ func (svc *Service) validateHydrantUpdate(ctx context.Context, hydrant *fleet.Hy
 		}
 	}
 	if hydrant.URL != nil {
-		if err := fleethttp.CheckURLForSSRF(ctx, *hydrant.URL, nil); err != nil {
-			return fleet.NewInvalidArgumentError("url", fmt.Sprintf("%sHydrant URL is invalid: %v", errPrefix, err))
+		if err := validateURL(*hydrant.URL, "Hydrant", errPrefix); err != nil {
+			return err
 		}
+
 		hydrantCAToVerify := fleet.ESTProxyCA{ // The hydrant service for verification only requires the URL.
 			URL: *hydrant.URL,
 		}
@@ -1362,9 +1370,10 @@ func (svc *Service) validateCustomESTUpdate(ctx context.Context, estUpdate *flee
 		}
 	}
 	if estUpdate.URL != nil {
-		if err := fleethttp.CheckURLForSSRF(ctx, *estUpdate.URL, nil); err != nil {
-			return fleet.NewInvalidArgumentError("url", fmt.Sprintf("%sEST URL is invalid: %v", errPrefix, err))
+		if err := validateURL(*estUpdate.URL, "EST", errPrefix); err != nil {
+			return err
 		}
+
 		hydrantCAToVerify := fleet.ESTProxyCA{ // The EST service for verification only requires the URL.
 			URL: *estUpdate.URL,
 		}
@@ -1390,8 +1399,8 @@ func (svc *Service) validateNDESSCEPProxyUpdate(ctx context.Context, ndesSCEP *f
 	// some methods in this fuction require the NDESSCEPProxyCA type so we convert the ndes update payload here
 
 	if ndesSCEP.URL != nil {
-		if err := fleethttp.CheckURLForSSRF(ctx, *ndesSCEP.URL, nil); err != nil {
-			return fleet.NewInvalidArgumentError("url", fmt.Sprintf("%sNDES SCEP URL is invalid: %v", errPrefix, err))
+		if err := validateURL(*ndesSCEP.URL, "NDES SCEP", errPrefix); err != nil {
+			return err
 		}
 		if err := svc.scepConfigService.ValidateSCEPURL(ctx, *ndesSCEP.URL); err != nil {
 			level.Error(svc.logger).Log("msg", "Failed to validate NDES SCEP URL", "err", err)
@@ -1405,9 +1414,6 @@ func (svc *Service) validateNDESSCEPProxyUpdate(ctx context.Context, ndesSCEP *f
 			}
 		}
 
-		if err := fleethttp.CheckURLForSSRF(ctx, *ndesSCEP.AdminURL, nil); err != nil {
-			return fleet.NewInvalidArgumentError("admin_url", fmt.Sprintf("%sNDES SCEP admin URL is invalid: %v", errPrefix, err))
-		}
 		// We want to generate a NDESSCEPProxyCA struct with all required fields to verify the admin URL.
 		// If URL, Username or Password are not being updated we use the existing values from oldCA
 		NDESProxy := fleet.NDESSCEPProxyCA{
@@ -1451,8 +1457,8 @@ func (svc *Service) validateCustomSCEPProxyUpdate(ctx context.Context, customSCE
 		}
 	}
 	if customSCEP.URL != nil {
-		if err := fleethttp.CheckURLForSSRF(ctx, *customSCEP.URL, nil); err != nil {
-			return fleet.NewInvalidArgumentError("url", fmt.Sprintf("%sCustom SCEP Proxy URL is invalid: %v", errPrefix, err))
+		if err := validateURL(*customSCEP.URL, "SCEP", errPrefix); err != nil {
+			return err
 		}
 		if err := svc.scepConfigService.ValidateSCEPURL(ctx, *customSCEP.URL); err != nil {
 			level.Error(svc.logger).Log("msg", "Failed to validate custom SCEP URL", "err", err)
@@ -1475,8 +1481,8 @@ func (svc *Service) validateSmallstepSCEPProxyUpdate(ctx context.Context, smalls
 		}
 	}
 	if smallstep.URL != nil {
-		if err := fleethttp.CheckURLForSSRF(ctx, *smallstep.URL, nil); err != nil {
-			return fleet.NewInvalidArgumentError("url", fmt.Sprintf("%sSmallstep SCEP URL is invalid: %v", errPrefix, err))
+		if err := validateURL(*smallstep.URL, "SCEP", errPrefix); err != nil {
+			return err
 		}
 		if err := svc.scepConfigService.ValidateSCEPURL(ctx, *smallstep.URL); err != nil {
 			level.Error(svc.logger).Log("msg", "Failed to validate Smallstep SCEP URL", "err", err)
@@ -1500,8 +1506,8 @@ func (svc *Service) validateSmallstepSCEPProxyUpdate(ctx context.Context, smalls
 
 		// Additional validation if url was updated
 		if smallstep.ChallengeURL != nil {
-			if err := fleethttp.CheckURLForSSRF(ctx, *smallstep.ChallengeURL, nil); err != nil {
-				return fleet.NewInvalidArgumentError("challenge_url", fmt.Sprintf("%sChallenge URL is invalid: %v", errPrefix, err))
+			if err := validateURL(*smallstep.ChallengeURL, "Challenge", errPrefix); err != nil {
+				return err
 			}
 			smallstepSCEPProxy.ChallengeURL = *smallstep.ChallengeURL
 		}

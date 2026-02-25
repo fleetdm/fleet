@@ -11,7 +11,6 @@ import (
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
-	"github.com/go-kit/log/level"
 	"github.com/jmoiron/sqlx"
 )
 
@@ -40,7 +39,7 @@ func (ds *Datastore) enqueueSetupExperienceItems(ctx context.Context, hostPlatfo
 		if errors.Is(err, sql.ErrNoRows) {
 			// This shouldn't happen but we don't check for it elsewhere,
 			// so we'll log a warning and continue.
-			level.Warn(ds.logger).Log("msg", "Host not found while enqueueing setup experience items", "host_uuid", hostUUID, "platform_like", hostPlatformLike)
+			ds.logger.WarnContext(ctx, "Host not found while enqueueing setup experience items", "host_uuid", hostUUID, "platform_like", hostPlatformLike)
 		} else {
 			return false, ctxerr.Wrap(ctx, err, "finding host for enqueueing setup experience items")
 		}
@@ -48,7 +47,7 @@ func (ds *Datastore) enqueueSetupExperienceItems(ctx context.Context, hostPlatfo
 	// If the host was enrolled more than 24 hours ago, don't enqueue any items.
 	// Note: if the last enroll date is our "zero date" (1/1/2000), treat it as if it's never enrolled.
 	if lastEnrolledAt.Valid && lastEnrolledAt.Time.Before(time.Now().Add(-24*time.Hour)) && lastEnrolledAt.Time.After(time.Date(2000, time.January, 1, 0, 0, 0, 0, time.UTC)) {
-		level.Debug(ds.logger).Log("msg", "Host enrolled more than 24 hours ago, skipping enqueueing setup experience items", "host_uuid", hostUUID, "platform_like", hostPlatformLike, "last_enrolled_at", lastEnrolledAt.Time)
+		ds.logger.DebugContext(ctx, "Host enrolled more than 24 hours ago, skipping enqueueing setup experience items", "host_uuid", hostUUID, "platform_like", hostPlatformLike, "last_enrolled_at", lastEnrolledAt.Time)
 		return false, nil
 	}
 

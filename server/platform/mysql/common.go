@@ -5,12 +5,11 @@ import (
 	"database/sql"
 	"database/sql/driver"
 	"fmt"
+	"log/slog"
 	"net/url"
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
-	"github.com/fleetdm/fleet/v4/server/platform/logging"
-	"github.com/go-kit/log"
 	"github.com/go-sql-driver/mysql"
 	"github.com/jmoiron/sqlx"
 	"github.com/ngrok/sqlmw"
@@ -19,7 +18,7 @@ import (
 // ConnectorFactory creates a driver.Connector for custom database authentication.
 // This allows injecting authentication mechanisms (like AWS IAM) without adding
 // dependencies to this package.
-type ConnectorFactory func(dsn string, logger log.Logger) (driver.Connector, error)
+type ConnectorFactory func(dsn string, logger *slog.Logger) (driver.Connector, error)
 
 // TestSQLMode combines ANSI mode components with MySQL 8 default strict modes for testing
 // ANSI mode includes: REAL_AS_FLOAT, PIPES_AS_CONCAT, ANSI_QUOTES, IGNORE_SPACE, ONLY_FULL_GROUP_BY
@@ -31,7 +30,7 @@ const TestSQLMode = "'REAL_AS_FLOAT,PIPES_AS_CONCAT,ANSI_QUOTES,IGNORE_SPACE,ONL
 type DBOptions struct {
 	// MaxAttempts configures the number of retries to connect to the DB
 	MaxAttempts         int
-	Logger              *logging.Logger
+	Logger              *slog.Logger
 	ReplicaConfig       *MysqlConfig
 	Interceptor         sqlmw.Interceptor
 	TracingConfig       *LoggingConfig
@@ -108,8 +107,7 @@ func NewDB(conf *MysqlConfig, opts *DBOptions, otelDriverName string) (*sqlx.DB,
 			break
 		}
 		interval := time.Duration(attempt) * time.Second
-		opts.Logger.Log("mysql", fmt.Sprintf(
-			"could not connect to db: %v, sleeping %v", dbError, interval))
+		opts.Logger.WarnContext(context.Background(), "could not connect to db", "err", dbError, "sleep_interval", interval)
 		time.Sleep(interval)
 	}
 
@@ -164,7 +162,7 @@ func generateMysqlConnectionString(conf MysqlConfig) string {
 	return dsn
 }
 
-func WithTxx(ctx context.Context, db *sqlx.DB, fn TxFn, logger log.Logger) error {
+func WithTxx(ctx context.Context, db *sqlx.DB, fn TxFn, logger *slog.Logger) error {
 	tx, err := db.BeginTxx(ctx, nil)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "create transaction")
@@ -173,7 +171,7 @@ func WithTxx(ctx context.Context, db *sqlx.DB, fn TxFn, logger log.Logger) error
 	defer func() {
 		if p := recover(); p != nil {
 			if err := tx.Rollback(); err != nil {
-				logger.Log("err", err, "msg", "error encountered during transaction panic rollback")
+				logger.ErrorContext(ctx, "error encountered during transaction panic rollback", "err", err)
 			}
 			panic(p)
 		}
@@ -202,7 +200,7 @@ func WithTxx(ctx context.Context, db *sqlx.DB, fn TxFn, logger log.Logger) error
 }
 
 // WithReadOnlyTxx executes fn within an isolated, read-only transaction
-func WithReadOnlyTxx(ctx context.Context, reader *sqlx.DB, fn ReadTxFn, logger log.Logger) error {
+func WithReadOnlyTxx(ctx context.Context, reader *sqlx.DB, fn ReadTxFn, logger *slog.Logger) error {
 	tx, err := reader.BeginTxx(ctx, &sql.TxOptions{
 		ReadOnly:  true,
 		Isolation: sql.LevelRepeatableRead,
@@ -214,7 +212,7 @@ func WithReadOnlyTxx(ctx context.Context, reader *sqlx.DB, fn ReadTxFn, logger l
 	defer func() {
 		if p := recover(); p != nil {
 			if err := tx.Rollback(); err != nil {
-				logger.Log("err", err, "msg", "error encountered during read-only transaction panic rollback")
+				logger.ErrorContext(ctx, "error encountered during read-only transaction panic rollback", "err", err)
 			}
 			panic(p)
 		}
