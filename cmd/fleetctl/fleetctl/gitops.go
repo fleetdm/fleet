@@ -138,7 +138,7 @@ func gitopsCommand() *cli.Command {
 			// Log a deprecation warning if the user is still using no-team.yml
 			if noTeamPresent && noTeamFilename == "no-team.yml" {
 				if logging.TopicEnabled(logging.DeprecatedFieldTopic) {
-					logf("[!] %s is deprecated; consider renaming the file to 'unassigned.yml' and updating the team name to 'Unassigned' instead.\n", noTeamFilename)
+					logf("[!] no-team.yml is deprecated; please rename the file to 'unassigned.yml' and update the team name to 'Unassigned'.\n")
 				}
 			}
 

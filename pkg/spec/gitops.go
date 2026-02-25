@@ -341,7 +341,7 @@ func GitOpsFromFile(filePath, baseDir string, appConfig *fleet.EnrichedAppConfig
 		case result.IsNoTeam() || result.IsUnassignedTeam():
 			if result.IsNoTeam() && filepath.Base(filePath) != "no-team.yml" {
 				multiError = multierror.Append(multiError, fmt.Errorf("file %q for No Team must be named 'no-team.yml'", filePath))
-				multiError = multierror.Append(multiError, errors.New("'No Team' is deprecated; consider renaming the file to 'unassigned.yml' and updating the team name to 'Unassigned' instead."))
+				multiError = multierror.Append(multiError, errors.New("no-team.yml is deprecated; please rename the file to 'unassigned.yml' and update the team name to 'Unassigned'."))
 			}
 			if result.IsUnassignedTeam() && filepath.Base(filePath) != "unassigned.yml" {
 				multiError = multierror.Append(multiError, fmt.Errorf("file %q for unassigned hosts must be named 'unassigned.yml'", filePath))
