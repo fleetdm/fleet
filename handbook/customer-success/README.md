@@ -7,12 +7,14 @@ This handbook page details processes specific to working [with](#contact-us) and
 
 | Role                                  | Contributor(s)           |
 |:--------------------------------------|:------------------------------------------------------------------------------------------------------------------------|
+| Chief Customer Officer                   | [Alex Mitchell](https://www.linkedin.com/in/alexandercmitchell/) _([@alexmitchelliii](https://github.com/alexmitchelliii))_
 | SVP of Customer Success                | [Zay Hanlon](https://www.linkedin.com/in/zayhanlon/) _([@zayhanlon](https://github.com/zayhanlon))_
+| VP of Security Solutions              | [Dhruv Majumdar](https://www.linkedin.com/in/neondhruv/) _([@karmine05](https://github.com/karmine05))_
 | Infrastructure Engineer               | [Robert Fairburn](https://www.linkedin.com/in/robert-fairburn/) _([@rfairburn](https://github.com/rfairburn))_ <br> [Jorge Falcon](https://www.linkedin.com/in/falcon-jorge/) _([@BCTBB](https://github.com/bctbb))_
 | Technical Evangelist                  | [Zach Wasserman](https://www.linkedin.com/in/zacharywasserman/) _([@zwass](https://github.com/zwass))_
 | Manager of Customer Support and Solutions Architecture | [Dale Ribeiro](https://www.linkedin.com/in/daleribeiro/) _([@ddribeiro](https://github.com/ddribeiro))_
 | Customer Solutions Architect (CSA)    | [Jake Stenger](https://www.linkedin.com/in/jakestenger) _([@jakestenger](https://github.com/jakestenger))_ <br> [Adam Baali](https://uk.linkedin.com/in/adambaali) _([@AdamBaali](https://github.com/AdamBaali))_ <br> Steven Palmesano _([@spalmesano0](https://github.com/spalmesano0))_ <br> [Kitzy](https://linkedin.com/in/kitzy) _([@kitzy](https://github.com/kitzy))_ 
-| Customer Success Manager (CSM)        | <sup><sub> _See [🦄 Go-To-Market groups](https://fleetdm.com/handbook/company/go-to-market-groups#current-gtm-groups)
+| Customer Success Manager (CSM)        | [Josh Roskos](https://www.linkedin.com/in/jroskos/) <br> [Mike Pinto](https://www.linkedin.com/in/michael-pinto-a06b4515a/) <br> [Andreas Najjar](https://www.linkedin.com/in/andreasnajjar/)
 | Customer Support Engineer (CSE)       | [Kathy Satterlee](https://www.linkedin.com/in/ksatter/) _([@ksatter](https://github.com/ksatter))_ <br> [Mason Buettner](https://www.linkedin.com/in/mason-buettner-b72959175/) _([@mason-buettner](https://github.com/mason-buettner))_ <br> Ben Edwards _([@edwardsb](https://github.com/edwardsb))_ <br> [Gray Williams](https://linkedin.com/in/gwilliamsuk) _([@grayw](https://github.com/grayw))_
 
 ## Contact us
@@ -257,7 +259,19 @@ The acting infrastructure engineer on-call rotation is reflected in the [📈KPI
 2. Legacy method: [create an opportunity issue](https://github.com/fleetdm/confidential/issues/new/choose) for the customer and follow the instructions in the issue for generating a trial license key.
 
 
-### Respond to messages and alerts 
+### Reset a customer trial
+
+When a customer or prospect requests an extension beyond the standard 30-day trial period, CS is responsible for resetting their trial using the super admin page.
+
+1. Receive the trial reset request (typically via Slack from the customer or an internal team member).
+2. Navigate to the [super admin trial reset page](https://fleetdm.com/admin/reset-trial) (super admin access required).
+3. Enter the customer's information and reset their trial.
+4. Notify the customer or the requestor in Slack that the trial has been reset.
+
+> **Note:** The trial reset page at https://fleetdm.com/admin/reset-trial is only accessible to super admins.
+
+
+### Respond to messages and alerts
 
 Customer Support Engineers (CSEs) are responsible for the first response to Slack messages in the [#fleet channel](https://osquery.slack.com/archives/C01DXJL16D8) of osquery Slack, MacAdmins Slack and dedicated customer Slack channels. 
 - The 24/7 infrastructure on-call engineer is responsible for alarms related to fleetdm.com and Fleet Managed Cloud, as well as delivering 24/7 support for Fleet Premium customers when tagged in for assistance. Use [on-call runbooks](https://github.com/fleetdm/confidential/tree/main/infrastructure/runbooks#readme) to guide your response. Runbooks provide detailed, step-by-step instructions to quickly and effectively respond to and resolve most 24/7 on-call alerts.
@@ -279,7 +293,7 @@ All infrastructure alarms (fleetdm.com and Managed Cloud) will go to #help-p1. W
 
 When Fleet [prioritizes](https://fleetdm.com/handbook/company/product-groups#feature-fest) a new customer request, the Product Designer (PD) files a user story that's brought through [drafting](https://fleetdm.com/handbook/product-design#drafting).
 
-After the user story is released, the PD will ask the appropriate Customer Success Manager (CSM) to bring the released improvements to the customer for feedback. When this happens, PD assigns the CSM and adds the `#g-unicorns` label.
+After the user story is released, the PD will ask the appropriate Customer Success Manager (CSM) to bring the released improvements to the customer for feedback. When this happens, PD assigns the CSM and adds the `:help-customers` label.
 
 If the improvements meet the customer's needs, the request issue is closed with a comment that @ mentions the PD. If the improvements are missing something in order to meet the customer's needs, the CSM adds feedback as comment (Gong snippet, Slack thread, or meetings notes), @ mention the PD, and unsassign themselves from the request issue.
 
@@ -315,7 +329,17 @@ When a user requests that we delete all data we have stored about them, their da
         2. Search for the user's email address
         3. Select the user's Stripe customer record
         4. Click the "Actions" dropdown in the upper right corner of the customer profile page and select delete.
- 
+
+
+### Create a task for a CSA
+
+If assistance is needed for research or solutioning by a CSA, create an issue using the [CSA task template](https://github.com/fleetdm/fleet/issues/new?template=csa-task.md) for tracking.
+
+**Ensure all private data is scrubbed and customer code names are used.**
+
+This will automatically be added to the `:help-customers` project board, with the status of `New requests`. During the next standup meeting, the Manager of Customer Support and Solutions Architecture will triage the task.
+
+
 ## Rituals
 
 <rituals :rituals="rituals['handbook/customer-success/customer-success.rituals.yml']"></rituals>
@@ -324,7 +348,7 @@ When a user requests that we delete all data we have stored about them, their da
 The following stubs are included only to make links backward compatible.
 
 ##### Customer support service level agreements (SLAs)
-Please see 📖[handbook/company/go-to-market-groups#customer-support-service-level-objectives-slos](https://fleetdm.com/handbook/company/go-to-market-groups#customer-support-service-level-objectives-slos).
+Please see 📖[handbook/company/go-to-market-groups#customer-support-service-level-objectives-slos](https://fleetdm.com/handbook/company/go-to-market-operations#customer-support-service-level-objectives-slos).
 
 ##### Runbooks
 Please see [Handbook/customer-success#respond-to-messages-and-alerts](https://www.fleetdm.com/handbook/customer-success#respond-to-messages-and-alerts)

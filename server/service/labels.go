@@ -58,6 +58,10 @@ func (svc *Service) NewLabel(ctx context.Context, p fleet.LabelPayload) (*fleet.
 		return nil, nil, fleet.ErrNoContext
 	}
 
+	if _, ok := fleet.ValidLabelPlatformVariants[p.Platform]; !ok {
+		return nil, nil, fleet.NewInvalidArgumentError("platform", fmt.Sprintf("invalid platform: %s", p.Platform))
+	}
+
 	if len(p.Hosts) > 0 && len(p.HostIDs) > 0 {
 		return nil, nil, fleet.NewInvalidArgumentError("hosts", `Only one of either "hosts" or "host_ids" can be included in the request.`)
 	}
@@ -291,7 +295,7 @@ func (svc *Service) GetLabel(ctx context.Context, id uint) (*fleet.LabelWithTeam
 
 type listLabelsRequest struct {
 	ListOptions       fleet.ListOptions `url:"list_options"`
-	TeamID            *string           `query:"team_id,optional"` // string because it's an int or "global"
+	TeamID            *string           `query:"team_id,optional" renameto:"fleet_id"` // string because it's an int or "global"
 	IncludeHostCounts *bool             `query:"include_host_counts,optional"`
 }
 
@@ -388,7 +392,7 @@ func labelResponseForLabelWithTeamName(label *fleet.LabelWithTeamName, hostIDs [
 ////////////////////////////////////////////////////////////////////////////////
 
 type getLabelsSummaryRequest struct {
-	TeamID *string `query:"team_id,optional"` // string because it's an int or "global"
+	TeamID *string `query:"team_id,optional" renameto:"fleet_id"` // string because it's an int or "global"
 }
 
 type getLabelsSummaryResponse struct {
@@ -630,7 +634,7 @@ func (svc *Service) DeleteLabelByID(ctx context.Context, id uint) error {
 
 type applyLabelSpecsRequest struct {
 	Specs       []*fleet.LabelSpec `json:"specs"`
-	TeamID      *uint              `json:"-" query:"team_id,optional"`
+	TeamID      *uint              `json:"-" query:"team_id,optional" renameto:"fleet_id"`
 	NamesToMove []string           `json:"names_to_move,omitempty"`
 }
 
@@ -668,6 +672,12 @@ func (svc *Service) ApplyLabelSpecs(ctx context.Context, specs []*fleet.LabelSpe
 	var specLabelNamesNeedingMoving []string // should match namesToMove once specs have been checked
 
 	for _, spec := range specs {
+		if _, ok := fleet.ValidLabelPlatformVariants[spec.Platform]; !ok {
+			return fleet.NewUserMessageError(
+				ctxerr.Errorf(ctx, "invalid platform: %s", spec.Platform), http.StatusUnprocessableEntity,
+			)
+		}
+
 		if spec.LabelMembershipType == fleet.LabelMembershipTypeDynamic && len(spec.Hosts) > 0 {
 			return fleet.NewUserMessageError(
 				ctxerr.Errorf(ctx, "label %s is declared as dynamic but contains `hosts` key", spec.Name), http.StatusUnprocessableEntity,
@@ -772,7 +782,7 @@ type getLabelSpecsResponse struct {
 func (r getLabelSpecsResponse) Error() error { return r.Err }
 
 type getLabelSpecsRequest struct {
-	TeamID *uint `query:"team_id,optional"`
+	TeamID *uint `query:"team_id,optional" renameto:"fleet_id"`
 }
 
 func getLabelSpecsEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
@@ -853,10 +863,7 @@ func (svc *Service) BatchValidateLabels(ctx context.Context, teamID *uint, label
 	}
 
 	if len(labels) != len(uniqueNames) {
-		return nil, &fleet.BadRequestError{
-			Message:     "some or all the labels provided don't exist",
-			InternalErr: fmt.Errorf("names provided: %v", labelNames),
-		}
+		return nil, fleet.NewMissingLabelError(uniqueNames, labels)
 	}
 
 	if err := verifyLabelsToAssociate(ctx, svc.ds, teamID, labelNames, authz.UserFromContext(ctx)); err != nil {

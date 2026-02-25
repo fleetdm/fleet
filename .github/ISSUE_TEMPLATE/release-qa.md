@@ -3,7 +3,7 @@ name:  Release QA
 about: Checklist of required tests prior to release
 title: 'Release QA:'
 labels: '#g-mdm,#g-orchestration,#g-software,#g-security-compliance,:release'
-assignees: 'xpkoala,andreykizimenko'
+assignees: 'xpkoala,andreykizimenko,chrstphr84,Brajim20,Ravenstencil'
 
 ---
 
@@ -47,7 +47,8 @@ Smoke tests are limited to core functionality and serve as a pre-release final r
 2. run `fleetctl preview` with no tag for latest stable
 3. create a host/query to later confirm upgrade with
 4. STOP fleet-preview-server instances in containers/apps on Docker
-5. run `fleetctl preview` with appropriate testing tag </td><td>All previously created hosts/queries are verified to still exist</td><td>pass/fail</td></tr>
+5. run `fleetctl preview` with appropriate testing tag
+6. Navigate through all new UI flows and confirm dashboard, hosts, controls, queries, policies, and settings pages are working as expected. </td><td>All previously created hosts/queries are verified to still exist</td><td>pass/fail</td></tr>
 <tr><td>Login flow</td><td>
 
 1. navigate to the login page and attempt to login with both valid and invalid credentials to verify some combination of expected results.
@@ -409,6 +410,15 @@ After repointing a Fleet Desktop install at a server running Fleet Free:
 1. Clicking the Fleet desktop item, then "My device" successfully loads the my device page.<br>
 2. The "My device" page is populated correctly and as expected. <br>
 3. Styling and padding appears correct. 
+</td><td>pass/fail</td></tr>
+
+<tr><td>Auto-updates disabled</td><td>Verify 
+that fleetd works on when the installer package is built with `--disable-updates`.</td><td>
+
+1. Generate package with `fleetctl package [...] --updates-disabled`<br>
+2. Install packages on macOS, Windows, and Linux <br>
+3. Smoke test orbit and Fleet Desktop functionality, and osquery tables.
+
 </td><td>pass/fail</td></tr>
 
 </table>

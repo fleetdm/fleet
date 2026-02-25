@@ -99,7 +99,7 @@ const SoftwareCustomPackage = ({
   const onCancel = () => {
     router.push(
       getPathWithQueryParams(PATHS.SOFTWARE_TITLES, {
-        team_id: currentTeamId,
+        fleet_id: currentTeamId,
       })
     );
   };
@@ -113,7 +113,7 @@ const SoftwareCustomPackage = ({
       return;
     }
 
-    setUploadDetails(getFileDetails(formData.software, true));
+    setUploadDetails(getFileDetails(formData.software));
 
     // Note: This TODO is copied to onSaveSoftwareChanges in EditSoftwareModal
     // TODO: confirm we are deleting the second sentence (not modifying it) for non-self-service installers
@@ -144,7 +144,7 @@ const SoftwareCustomPackage = ({
       }
 
       const newQueryParams: QueryParams = {
-        team_id: currentTeamId,
+        fleet_id: currentTeamId,
         gitops_yaml: gitOpsModeEnabled ? "true" : undefined,
       };
       router.push(

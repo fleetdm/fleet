@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"log/slog"
 	"maps"
 	"net/http"
 	"slices"
@@ -15,17 +16,16 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm/android"
 	"github.com/fleetdm/fleet/v4/server/mdm/android/service/androidmgmt"
-	kitlog "github.com/go-kit/log"
 	"google.golang.org/api/androidmanagement/v1"
 )
 
-func ReconcileProfiles(ctx context.Context, ds fleet.Datastore, logger kitlog.Logger, licenseKey string, androidAgentConfig config.AndroidAgentConfig) error {
+func ReconcileProfiles(ctx context.Context, ds fleet.Datastore, logger *slog.Logger, licenseKey string, androidAgentConfig config.AndroidAgentConfig) error {
 	return ReconcileProfilesWithClient(ctx, ds, logger, licenseKey, nil, androidAgentConfig)
 }
 
 // ReconcileProfilesWithClient is like ReconcileProfiles but allows injecting a custom client for testing.
 // If client is nil, a new AMAPI client will be created.
-func ReconcileProfilesWithClient(ctx context.Context, ds fleet.Datastore, logger kitlog.Logger, licenseKey string, client androidmgmt.Client, androidAgentConfig config.AndroidAgentConfig) error {
+func ReconcileProfilesWithClient(ctx context.Context, ds fleet.Datastore, logger *slog.Logger, licenseKey string, client androidmgmt.Client, androidAgentConfig config.AndroidAgentConfig) error {
 	appConfig, err := ds.AppConfig(ctx)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "get app config")
@@ -71,7 +71,7 @@ type profileReconciler struct {
 	Enterprise         *android.Enterprise
 	Client             androidmgmt.Client
 	AndroidAgentConfig config.AndroidAgentConfig
-	Logger             kitlog.Logger
+	Logger             *slog.Logger
 }
 
 func getClientAuthenticationSecret(ctx context.Context, ds fleet.Datastore) (string, error) {
@@ -168,7 +168,29 @@ func (r *profileReconciler) sendHostProfiles(
 	// if every profile to install has > max failures, mark all as failed and done.
 	setFailCount := initRequestFailCountForSetOfProfiles(profilesToMerge, profilesToRemove)
 	if setFailCount >= maxRequestFailures {
-		detail := `Couldn't apply profile. Google returned error. Please re-add profile to try again.`
+		// try to get the Google error from the last failed request
+		var googleErr string
+		for _, prof := range profilesToMerge {
+			if prof.LastErrorDetails != "" {
+				googleErr = prof.LastErrorDetails
+				break
+			}
+		}
+		if googleErr == "" {
+			for _, prof := range profilesToRemove {
+				if prof.LastErrorDetails != "" {
+					googleErr = prof.LastErrorDetails
+					break
+				}
+			}
+		}
+
+		var detail string
+		if googleErr != "" {
+			detail = fmt.Sprintf("Couldn't apply profile. Google returned error: %s. Please re-add the profile and try again.", googleErr)
+		} else {
+			detail = "Couldn't apply profile. Google returned error. Please re-add the profile and try again."
+		}
 		for _, prof := range profilesToMerge {
 			bulkProfilesByUUID[prof.ProfileUUID] = &fleet.MDMAndroidProfilePayload{
 				HostUUID:      hostUUID,
@@ -383,9 +405,9 @@ func buildPolicyFieldsOverriddenErrorMessage(overriddenFields []string) string {
 	}
 	sb.WriteString("%q")
 	if len(overriddenFields) > 1 {
-		sb.WriteString(" aren't applied. They are overridden by other configuration profile.")
+		sb.WriteString(" aren't applied. They are overridden by other configuration profiles.")
 	} else {
-		sb.WriteString(" isn't applied. It's overridden by other configuration profile.")
+		sb.WriteString(" isn't applied. It's overridden by another configuration profile.")
 	}
 
 	args := make([]any, len(overriddenFields))

@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"log/slog"
 	"net/http"
 	"net/url"
 	"os"
@@ -32,7 +33,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/service/contract"
 	"github.com/fleetdm/fleet/v4/server/service/redis_key_value"
 	"github.com/fleetdm/fleet/v4/server/worker"
-	kitlog "github.com/go-kit/log"
 	redigo "github.com/gomodule/redigo/redis"
 	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
@@ -1014,6 +1014,7 @@ func (s *integrationMDMTestSuite) TestDEPProfileAssignment() {
 	}
 
 	expectAssignProfileResponseFailed := ""        // set to device serial when testing the failed profile assignment flow
+	expectAssignProfileResponseThrottled := ""     // set to device serial when testing the throttled profile assignment flow
 	expectAssignProfileResponseNotAccessible := "" // set to device serial when testing the not accessible profile assignment flow
 
 	s.enableABM(t.Name())
@@ -1052,6 +1053,8 @@ func (s *integrationMDMTestSuite) TestDEPProfileAssignment() {
 					resp.Devices[device] = string(fleet.DEPAssignProfileResponseNotAccessible)
 				case expectAssignProfileResponseFailed:
 					resp.Devices[device] = string(fleet.DEPAssignProfileResponseFailed)
+				case expectAssignProfileResponseThrottled:
+					resp.Devices[device] = string(fleet.DEPAssignProfileResponseThrottled)
 				default:
 					resp.Devices[device] = string(fleet.DEPAssignProfileResponseSuccess)
 				}
@@ -1483,7 +1486,7 @@ func (s *integrationMDMTestSuite) TestDEPProfileAssignment() {
 	checkNoJobsPending()
 
 	// cooldown hosts are screened from update profile jobs that would assign profiles
-	_, err = worker.QueueMacosSetupAssistantJob(ctx, s.ds, kitlog.NewNopLogger(), worker.MacosSetupAssistantUpdateProfile, &dummyTeam.ID, eHost.HardwareSerial)
+	_, err = worker.QueueMacosSetupAssistantJob(ctx, s.ds, slog.New(slog.DiscardHandler), worker.MacosSetupAssistantUpdateProfile, &dummyTeam.ID, eHost.HardwareSerial)
 	require.NoError(t, err)
 	checkPendingMacOSSetupAssistantJob("update_profile", &dummyTeam.ID, []string{eHost.HardwareSerial}, 0)
 	s.runIntegrationsSchedule()
@@ -1492,7 +1495,7 @@ func (s *integrationMDMTestSuite) TestDEPProfileAssignment() {
 	checkNoJobsPending()
 
 	// cooldown hosts are screened from delete profile jobs that would assign profiles
-	_, err = worker.QueueMacosSetupAssistantJob(ctx, s.ds, kitlog.NewNopLogger(), worker.MacosSetupAssistantProfileDeleted, &dummyTeam.ID, eHost.HardwareSerial)
+	_, err = worker.QueueMacosSetupAssistantJob(ctx, s.ds, slog.New(slog.DiscardHandler), worker.MacosSetupAssistantProfileDeleted, &dummyTeam.ID, eHost.HardwareSerial)
 	require.NoError(t, err)
 	checkPendingMacOSSetupAssistantJob("profile_deleted", &dummyTeam.ID, []string{eHost.HardwareSerial}, 0)
 	s.runIntegrationsSchedule()
@@ -1651,6 +1654,66 @@ func (s *integrationMDMTestSuite) TestDEPProfileAssignment() {
 	checkHostCooldown(serial, expectProfileUUID, fleet.DEPAssignProfileResponseNotAccessible, &failedAt, expectNoJobID) // no change
 	checkNoJobsPending()
 
+	expectAssignProfileResponseNotAccessible = ""
+
+	// ingest new device via DEP but the profile assignment fails
+	serial = uuid.NewString()
+	devices = []godep.Device{
+		{SerialNumber: serial, Model: "MacBook Pro", OS: "osx", OpType: "added"},
+	}
+	expectAssignProfileResponseThrottled = serial
+	profileAssignmentReqs = []profileAssignmentReq{}
+	s.runDEPSchedule()
+	checkAssignProfileRequests(serial, nil)
+	profUUID = profileAssignmentReqs[0].ProfileUUID
+	d = checkHostCooldown(serial, profUUID, fleet.DEPAssignProfileResponseThrottled, nil, expectNoJobID)
+	require.NotZero(t, d.ResponseUpdatedAt)
+	failedAt = d.ResponseUpdatedAt
+	checkNoJobsPending()
+	h = checkListHostDEPError(serial, "Pending", true) // list hosts shows device pending and dep profile error
+
+	// transfer to team, no profile assignment request is made during the cooldown period
+	profileAssignmentReqs = []profileAssignmentReq{}
+	s.Do("POST", "/api/v1/fleet/hosts/transfer",
+		addHostsToTeamRequest{TeamID: &team.ID, HostIDs: []uint{h.ID}}, http.StatusOK)
+	checkPendingMacOSSetupAssistantJob("hosts_transferred", &team.ID, []string{serial}, 0)
+	s.runIntegrationsSchedule()
+	require.Empty(t, profileAssignmentReqs)                                                                // screened by cooldown
+	checkHostCooldown(serial, profUUID, fleet.DEPAssignProfileResponseThrottled, &failedAt, expectNoJobID) // no change
+	checkNoJobsPending()
+
+	// run the integrations schedule and expect no changes
+	profileAssignmentReqs = []profileAssignmentReq{}
+	s.runIntegrationsSchedule()
+	require.Empty(t, profileAssignmentReqs)
+	checkHostCooldown(serial, profUUID, fleet.DEPAssignProfileResponseThrottled, &failedAt, expectNoJobID) // no change
+	checkNoJobsPending()
+
+	// simulate expired cooldown
+	failedAt = failedAt.Add(-25 * time.Hour)
+	setAssignProfileResponseUpdatedAt(serial, failedAt)
+	profileAssignmentReqs = []profileAssignmentReq{}
+	s.runIntegrationsSchedule()
+	require.Empty(t, profileAssignmentReqs) // assign profile request will be made when the retry job is processed on the next worker run
+	d = checkHostCooldown(serial, profUUID, fleet.DEPAssignProfileResponseThrottled, &failedAt, nil)
+	require.NotZero(t, d.RetryJobID) // retry job created
+	jobID = d.RetryJobID
+	checkPendingMacOSSetupAssistantJob("hosts_cooldown", &team.ID, []string{serial}, jobID)
+
+	// run the inregration schedule and expect success
+	expectAssignProfileResponseThrottled = ""
+	profileAssignmentReqs = []profileAssignmentReq{}
+	s.runIntegrationsSchedule()
+	checkAssignProfileRequests(serial, nil)
+	require.NotEqual(t, profUUID, profileAssignmentReqs[0].ProfileUUID) // retry job will use the current team profile instead
+	profUUID = profileAssignmentReqs[0].ProfileUUID
+	d = checkHostCooldown(serial, profUUID, fleet.DEPAssignProfileResponseSuccess, nil, expectNoJobID) // retry job cleared
+	require.True(t, d.ResponseUpdatedAt.After(failedAt))
+	checkNoJobsPending()
+	// list hosts shows pending (because MDM detail query hasn't been reported) but dep profile
+	// error has been cleared
+	checkListHostDEPError(serial, "Pending", false)
+
 	// run with devices that already have valid and invalid profiles
 	// assigned, we shouldn't re-assign the valid ones.
 	devices = []godep.Device{
@@ -1659,9 +1722,8 @@ func (s *integrationMDMTestSuite) TestDEPProfileAssignment() {
 		{SerialNumber: uuid.NewString(), Model: "MacBook Pro", OS: "osx", OpType: "added", ProfileUUID: "bar"},                  // doesn't match an existing profile
 		{SerialNumber: uuid.NewString(), Model: "MacBook Mini", OS: "osx", OpType: "modified", ProfileUUID: "foo"},              // doesn't match an existing profile
 		{SerialNumber: addedSerial, Model: "MacBook Pro", OS: "osx", OpType: "added", ProfileUUID: defaultProfileUUID},          // matches existing profile, but will be assigned since it is "added"
-		{SerialNumber: serial, Model: "MacBook Mini", OS: "osx", OpType: "modified", ProfileUUID: defaultProfileUUID},           // matches existing profile
+		{SerialNumber: serial, Model: "MacBook Mini", OS: "osx", OpType: "modified", ProfileUUID: profUUID},                     // matches existing profile
 	}
-	expectAssignProfileResponseNotAccessible = ""
 	profileAssignmentReqs = []profileAssignmentReq{}
 	s.runDEPSchedule()
 	require.NotEmpty(t, profileAssignmentReqs)
@@ -1680,6 +1742,19 @@ func (s *integrationMDMTestSuite) TestDEPProfileAssignment() {
 	profileAssignmentReqs = []profileAssignmentReq{}
 	s.runDEPSchedule()
 	require.Empty(t, profileAssignmentReqs)
+
+	// Last one with existing profile but profile has suddenly been removed, so will be assigned(see https://github.com/fleetdm/fleet/issues/39871)
+	devices = append(devices, devices[0])
+	// This will cause a base entry for the device then a modify entry where the profile gets removed which will trigger the update
+	devices[0].OpDate = time.Now().Add(-1 * time.Hour)
+	devices[1].OpDate = time.Now()
+	devices[1].ProfileStatus = "removed"
+	profileAssignmentReqs = []profileAssignmentReq{}
+	s.runDEPSchedule()
+	require.Len(t, profileAssignmentReqs, 1)
+	require.Len(t, profileAssignmentReqs[0].Devices, 1)
+	assert.ElementsMatch(t, []string{devices[0].SerialNumber}, profileAssignmentReqs[0].Devices)
+	checkHostDEPAssignProfileResponses(profileAssignmentReqs[0].Devices, profileAssignmentReqs[0].ProfileUUID, fleet.DEPAssignProfileResponseSuccess)
 }
 
 func (s *integrationMDMTestSuite) TestDEPProfileAssignmentWithMultipleABMs() {

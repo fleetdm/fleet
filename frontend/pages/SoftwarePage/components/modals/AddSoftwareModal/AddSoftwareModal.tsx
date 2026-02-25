@@ -14,7 +14,7 @@ const AllTeamsMessage = ({ onExit }: IAllTeamsMessageProps) => {
   return (
     <>
       <p>
-        Please select a team first. Software can&apos;t be added when{" "}
+        Please select a fleet first. Software can&apos;t be added when{" "}
         <b>All teams</b> is selected.
       </p>
       <div className="modal-cta-wrap">

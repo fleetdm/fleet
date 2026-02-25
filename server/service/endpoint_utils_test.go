@@ -4,6 +4,8 @@ import (
 	"bytes"
 	"context"
 	"io"
+	"log/slog"
+	"mime/multipart"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -11,15 +13,17 @@ import (
 	"testing"
 	"time"
 
+	"github.com/fleetdm/fleet/v4/server/contexts/installersize"
+	"github.com/fleetdm/fleet/v4/server/contexts/logging"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mock"
 	"github.com/fleetdm/fleet/v4/server/platform/endpointer"
+	platform_http "github.com/fleetdm/fleet/v4/server/platform/http"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/service/middleware/auth"
 	"github.com/fleetdm/fleet/v4/server/service/middleware/log"
 	"github.com/go-kit/kit/endpoint"
 	kithttp "github.com/go-kit/kit/transport/http"
-	kitlog "github.com/go-kit/log"
 	"github.com/gorilla/mux"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -30,7 +34,7 @@ func TestUniversalDecoderIDs(t *testing.T) {
 		ID1        uint `url:"some-id"`
 		OptionalID uint `url:"some-other-id,optional"`
 	}
-	decoder := makeDecoder(universalStruct{})
+	decoder := makeDecoder(universalStruct{}, installersize.MaxSoftwareInstallerSize)
 
 	req := httptest.NewRequest("POST", "/target", nil)
 	req = mux.SetURLVars(req, map[string]string{"some-id": "999"})
@@ -54,7 +58,7 @@ func TestUniversalDecoderIDsAndJSON(t *testing.T) {
 		ID1        uint   `url:"some-id"`
 		SomeString string `json:"some_string"`
 	}
-	decoder := makeDecoder(universalStruct{})
+	decoder := makeDecoder(universalStruct{}, installersize.MaxSoftwareInstallerSize)
 
 	body := `{"some_string": "hello"}`
 	req := httptest.NewRequest("POST", "/target", strings.NewReader(body))
@@ -77,7 +81,7 @@ func TestUniversalDecoderIDsAndJSONEmbedded(t *testing.T) {
 		ID1 uint `url:"some-id"`
 		EmbeddedJSON
 	}
-	decoder := makeDecoder(UniversalStruct{})
+	decoder := makeDecoder(UniversalStruct{}, installersize.MaxSoftwareInstallerSize)
 
 	body := `{"some_string": "hello"}`
 	req := httptest.NewRequest("POST", "/target", strings.NewReader(body))
@@ -98,7 +102,7 @@ func TestUniversalDecoderIDsAndListOptions(t *testing.T) {
 		Opts       fleet.ListOptions `url:"list_options"`
 		SomeString string            `json:"some_string"`
 	}
-	decoder := makeDecoder(universalStruct{})
+	decoder := makeDecoder(universalStruct{}, installersize.MaxSoftwareInstallerSize)
 
 	body := `{"some_string": "bye"}`
 	req := httptest.NewRequest("POST", "/target?per_page=77&page=4", strings.NewReader(body))
@@ -124,7 +128,7 @@ func TestUniversalDecoderHandlersEmbeddedAndNot(t *testing.T) {
 		Opts fleet.ListOptions `url:"list_options"`
 		EmbeddedJSON
 	}
-	decoder := makeDecoder(universalStruct{})
+	decoder := makeDecoder(universalStruct{}, installersize.MaxSoftwareInstallerSize)
 
 	body := `{"some_string": "o/"}`
 	req := httptest.NewRequest("POST", "/target?per_page=77&page=4", strings.NewReader(body))
@@ -146,7 +150,7 @@ func TestUniversalDecoderListOptions(t *testing.T) {
 		ID1  uint              `url:"some-id"`
 		Opts fleet.ListOptions `url:"list_options"`
 	}
-	decoder := makeDecoder(universalStruct{})
+	decoder := makeDecoder(universalStruct{}, installersize.MaxSoftwareInstallerSize)
 
 	req := httptest.NewRequest("POST", "/target", nil)
 	req = mux.SetURLVars(req, map[string]string{"some-id": "123"})
@@ -161,7 +165,7 @@ func TestUniversalDecoderOptionalQueryParams(t *testing.T) {
 	type universalStruct struct {
 		ID1 *uint `query:"some_id,optional"`
 	}
-	decoder := makeDecoder(universalStruct{})
+	decoder := makeDecoder(universalStruct{}, installersize.MaxSoftwareInstallerSize)
 
 	req := httptest.NewRequest("POST", "/target", nil)
 
@@ -187,7 +191,7 @@ func TestUniversalDecoderOptionalQueryParamString(t *testing.T) {
 	type universalStruct struct {
 		ID1 *string `query:"some_val,optional"`
 	}
-	decoder := makeDecoder(universalStruct{})
+	decoder := makeDecoder(universalStruct{}, installersize.MaxSoftwareInstallerSize)
 
 	req := httptest.NewRequest("POST", "/target", nil)
 
@@ -213,7 +217,7 @@ func TestUniversalDecoderOptionalQueryParamNotPtr(t *testing.T) {
 	type universalStruct struct {
 		ID1 string `query:"some_val,optional"`
 	}
-	decoder := makeDecoder(universalStruct{})
+	decoder := makeDecoder(universalStruct{}, installersize.MaxSoftwareInstallerSize)
 
 	req := httptest.NewRequest("POST", "/target", nil)
 
@@ -239,7 +243,7 @@ func TestUniversalDecoderQueryAndListPlayNice(t *testing.T) {
 		ID1  *uint             `query:"some_id"`
 		Opts fleet.ListOptions `url:"list_options"`
 	}
-	decoder := makeDecoder(universalStruct{})
+	decoder := makeDecoder(universalStruct{}, installersize.MaxSoftwareInstallerSize)
 
 	req := httptest.NewRequest("POST", "/target?per_page=77&page=4&some_id=444", nil)
 
@@ -252,6 +256,29 @@ func TestUniversalDecoderQueryAndListPlayNice(t *testing.T) {
 	assert.Equal(t, uint(4), casted.Opts.Page)
 	require.NotNil(t, casted.ID1)
 	assert.Equal(t, uint(444), *casted.ID1)
+}
+
+func TestUniversalDecoderSizeLimit(t *testing.T) {
+	type universalStruct struct {
+		ID1  uint              `url:"some-id"`
+		Opts fleet.ListOptions `url:"list_options"`
+	}
+	decoder := makeDecoder(universalStruct{}, platform_http.MaxRequestBodySize)
+
+	largeBody := `{"key": "` + strings.Repeat("A", int(platform_http.MaxRequestBodySize)+1) + `"}`
+	req := httptest.NewRequest("POST", "/target?per_page=77&page=4", strings.NewReader(largeBody))
+	req = mux.SetURLVars(req, map[string]string{"some-id": "123"})
+
+	_, err := decoder(context.Background(), req)
+	require.Error(t, err)
+	require.IsType(t, platform_http.PayloadTooLargeError{}, err)
+
+	largeBody = `{"key": "` + strings.Repeat("A", int(platform_http.MaxRequestBodySize)-11) + `"}` // -11 to account for the wrapping JSON
+	req = httptest.NewRequest("POST", "/target?per_page=77&page=4", strings.NewReader(largeBody))
+	req = mux.SetURLVars(req, map[string]string{"some-id": "123"})
+
+	_, err = decoder(context.Background(), req)
+	require.NoError(t, err)
 }
 
 type stringErrorer string
@@ -289,11 +316,11 @@ func TestEndpointer(t *testing.T) {
 			kithttp.PopulateRequestContext, // populate the request context with common fields
 			auth.SetRequestsContexts(svc),
 		),
-		kithttp.ServerErrorHandler(&endpointer.ErrorHandler{Logger: kitlog.NewNopLogger()}),
+		kithttp.ServerErrorHandler(&endpointer.ErrorHandler{Logger: slog.New(slog.DiscardHandler)}),
 		kithttp.ServerErrorEncoder(fleetErrorEncoder),
 		kithttp.ServerAfter(
 			kithttp.SetContentType("application/json; charset=utf-8"),
-			log.LogRequestEnd(kitlog.NewNopLogger()),
+			log.LogRequestEnd(slog.New(slog.DiscardHandler)),
 			checkLicenseExpiration(svc),
 		),
 	}
@@ -409,11 +436,11 @@ func TestEndpointerCustomMiddleware(t *testing.T) {
 			kithttp.PopulateRequestContext,
 			auth.SetRequestsContexts(svc),
 		),
-		kithttp.ServerErrorHandler(&endpointer.ErrorHandler{Logger: kitlog.NewNopLogger()}),
+		kithttp.ServerErrorHandler(&endpointer.ErrorHandler{Logger: slog.New(slog.DiscardHandler)}),
 		kithttp.ServerErrorEncoder(fleetErrorEncoder),
 		kithttp.ServerAfter(
 			kithttp.SetContentType("application/json; charset=utf-8"),
-			log.LogRequestEnd(kitlog.NewNopLogger()),
+			log.LogRequestEnd(slog.New(slog.DiscardHandler)),
 			checkLicenseExpiration(svc),
 		),
 	}
@@ -482,4 +509,81 @@ func TestWriteBrowserSecurityHeaders(t *testing.T) {
 		},
 		headers,
 	)
+}
+
+// newMultipartRequest creates an *http.Request with multipart/form-data body
+// containing the given field key/value pairs.
+func newMultipartRequest(t *testing.T, fields map[string]string) *http.Request {
+	t.Helper()
+	var buf bytes.Buffer
+	w := multipart.NewWriter(&buf)
+	for k, v := range fields {
+		require.NoError(t, w.WriteField(k, v))
+	}
+	require.NoError(t, w.Close())
+	req := httptest.NewRequest("POST", "/target", &buf)
+	req.Header.Set("Content-Type", w.FormDataContentType())
+	return req
+}
+
+func TestParseMultipartForm(t *testing.T) {
+	t.Run("passes through fleet_id unchanged", func(t *testing.T) {
+		req := newMultipartRequest(t, map[string]string{"fleet_id": "42"})
+		logCtx := &logging.LoggingContext{}
+		ctx := logging.NewContext(context.Background(), logCtx)
+
+		err := parseMultipartForm(ctx, req, platform_http.MaxMultipartFormSize)
+		require.NoError(t, err)
+
+		assert.Equal(t, []string{"42"}, req.MultipartForm.Value["fleet_id"])
+		assert.Empty(t, req.MultipartForm.Value["team_id"])
+		assert.Nil(t, logCtx.ForceLevel)
+		assert.Empty(t, logCtx.Extras)
+	})
+
+	t.Run("rewrites team_id to fleet_id and logs deprecation", func(t *testing.T) {
+		req := newMultipartRequest(t, map[string]string{"team_id": "7"})
+		logCtx := &logging.LoggingContext{}
+		ctx := logging.NewContext(context.Background(), logCtx)
+
+		err := parseMultipartForm(ctx, req, platform_http.MaxMultipartFormSize)
+		require.NoError(t, err)
+
+		// team_id should be removed, fleet_id should be set
+		assert.Equal(t, []string{"7"}, req.MultipartForm.Value["fleet_id"])
+		assert.Empty(t, req.MultipartForm.Value["team_id"])
+
+		// r.Form should also be updated
+		assert.Equal(t, "7", req.Form.Get("fleet_id"))
+		assert.Empty(t, req.Form.Get("team_id"))
+
+		// deprecation should be logged
+		require.NotNil(t, logCtx.ForceLevel)
+		assert.Equal(t, slog.LevelWarn, *logCtx.ForceLevel)
+		assert.Contains(t, logCtx.Extras, "deprecated_param")
+		assert.Contains(t, logCtx.Extras, "team_id")
+	})
+
+	t.Run("no team_id or fleet_id", func(t *testing.T) {
+		req := newMultipartRequest(t, map[string]string{"other_field": "hello"})
+		logCtx := &logging.LoggingContext{}
+		ctx := logging.NewContext(context.Background(), logCtx)
+
+		err := parseMultipartForm(ctx, req, platform_http.MaxMultipartFormSize)
+		require.NoError(t, err)
+
+		assert.Empty(t, req.MultipartForm.Value["fleet_id"])
+		assert.Empty(t, req.MultipartForm.Value["team_id"])
+		assert.Equal(t, []string{"hello"}, req.MultipartForm.Value["other_field"])
+		assert.Nil(t, logCtx.ForceLevel)
+		assert.Empty(t, logCtx.Extras)
+	})
+
+	t.Run("invalid body returns error", func(t *testing.T) {
+		req := httptest.NewRequest("POST", "/target", strings.NewReader("not multipart"))
+		req.Header.Set("Content-Type", "multipart/form-data; boundary=bogus")
+
+		err := parseMultipartForm(context.Background(), req, platform_http.MaxMultipartFormSize)
+		require.Error(t, err)
+	})
 }

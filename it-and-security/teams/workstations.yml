@@ -17,8 +17,9 @@ team_settings:
   secrets:
     - secret: $DOGFOOD_WORKSTATIONS_ENROLL_SECRET
   integrations:
+    conditional_access_enabled: true
     google_calendar:
-      enable_calendar_events: true
+      enable_calendar_events: false
       webhook_url: $DOGFOOD_CALENDAR_WEBHOOK_URL
 agent_options:
   config:
@@ -35,8 +36,6 @@ agent_options:
       logger_tls_period: 10
       pack_delimiter: /
   update_channels:
-    # We want to use these hosts to stick to stable releases
-    # to perform smoke tests after promoting edge to stable.
     osqueryd: stable
     orbit: stable
     desktop: stable
@@ -47,6 +46,9 @@ controls:
       - path: ../lib/macos/configuration-profiles/date-time.mobileconfig
       - path: ../lib/macos/configuration-profiles/automatic-app-store-updates.mobileconfig
       - path: ../lib/macos/configuration-profiles/chrome-enrollment.mobileconfig
+      - path: ../lib/macos/configuration-profiles/company-portal-sso-extension.mobileconfig
+        labels_include_any:
+          - "Conditional access test group"
       - path: ../lib/macos/configuration-profiles/disable-bluetooth-file-sharing.mobileconfig
       - path: ../lib/macos/configuration-profiles/disable-content-caching.mobileconfig
       - path: ../lib/macos/configuration-profiles/disable-guest-account.mobileconfig
@@ -67,11 +69,22 @@ controls:
       - path: ../lib/macos/configuration-profiles/misc.mobileconfig
       - path: ../lib/macos/configuration-profiles/prevent-autologon.mobileconfig
       - path: ../lib/macos/configuration-profiles/secure-terminal-keyboard.mobileconfig
+      - path: ../lib/macos/configuration-profiles/ensure-show-status-bar-is-enabled.mobileconfig
       - path: ../lib/macos/declaration-profiles/Passcode settings.json
       - path: ../lib/macos/declaration-profiles/Software Update settings.json
+      - path: ../lib/macos/configuration-profiles/fleet-okta-conditional-access.mobileconfig
+        labels_include_any:
+          - "Department: Information Technology"
+      - path: ../lib/macos/configuration-profiles/okta-verify-settings.mobileconfig
       - path: ../lib/macos/configuration-profiles/1password-managed-settings.mobileconfig
         labels_include_any:
           - "Macs with 1Password installed"
+      - path: ../lib/macos/configuration-profiles/santa-configuration.mobileconfig
+        labels_include_any:
+          - "Santa test devices"
+      - path: ../lib/macos/configuration-profiles/santa-rules.mobileconfig
+        labels_include_any:
+          - "Santa test devices"
       - path: ../lib/macos/configuration-profiles/nudge-configuration.mobileconfig
       - path: ../lib/macos/configuration-profiles/microsoft-autoupdate-settings.mobileconfig
         labels_include_any:
@@ -83,6 +96,7 @@ controls:
   macos_updates:
     deadline:
     minimum_version:
+    update_new_hosts: true
   windows_settings:
     custom_settings:
       - path: ../lib/windows/configuration-profiles/Enable firewall.xml
@@ -100,11 +114,15 @@ controls:
     - path: ../lib/macos/scripts/remove-old-nudge.sh
     - path: ../lib/macos/scripts/uninstall-fleetd-macos.sh
     - path: ../lib/macos/scripts/install-wine.sh
+    - path: ../lib/macos/scripts/create-conditional-access-allow-file.sh
     - path: ../lib/macos/scripts/set-lock-screen-message.sh
     - path: ../lib/windows/scripts/uninstall-fleetd-windows.ps1
     - path: ../lib/windows/scripts/turn-off-mdm.ps1
+    - path: ../lib/windows/scripts/install-bitdefender.ps1
+    - path: ../lib/windows/scripts/enable-ms-defender.ps1
     - path: ../lib/windows/scripts/create-admin-user.ps1
     - path: ../lib/linux/scripts/uninstall-fleetd-linux.sh
+    - path: ../lib/macos/scripts/uninstall-santa-extension.sh
     - path: ../lib/macos/scripts/install-macos-compatibility-extension.sh
     - path: ../lib/macos/scripts/install-nudge.sh
     - path: ../lib/linux/scripts/install-fleet-desktop-required-extension.sh
@@ -120,6 +138,8 @@ policies:
   - path: ../lib/macos/policies/disk-encryption-check.yml
   - path: ../lib/macos/policies/1password-installed.yml
   - path: ../lib/macos/policies/install-macos-compatibility-extension.yml
+  - path: ../lib/macos/policies/company-portal-installed.yml
+  - path: ../lib/macos/policies/entra-conditional-access-check.yml
   - path: ../lib/macos/policies/install-nudge.yml
   # Windows policies
   - path: ../lib/windows/policies/antivirus-signatures-up-to-date.yml
@@ -133,21 +153,27 @@ policies:
   - path: ../lib/linux/policies/check-fleet-desktop-extension-enabled.yml
 queries:
   - path: ../lib/macos/queries/detect-apple-intelligence.yml
+  - path: ../lib/macos/queries/collect-santa-denied-logs.yml
+  - path: ../lib/all/queries/dex-queries.yml
 software:
   packages:
-    - path: ../lib/macos/software/mozilla-firefox.yml # Mozilla Firefox for MacOS (universal)
+    # macOS apps
+    - path: ../lib/macos/software/mozilla-firefox.yml # Mozilla Firefox for macOS (universal)
       self_service: true
       categories:
         - Browsers
     - path: ../lib/macos/software/1password.yml # 1Password for macOS
       self_service: true
       setup_experience: true
+      categories:
+        - Security
     - path: ../lib/macos/software/santa.yml # Santa for macOS
       self_service: true
       labels_include_any:
         - Santa test devices
+      categories:
+        - Security
     - path: ../lib/macos/software/zoom.yml # Zoom for macOS
-      display_name: "Zoom"
       self_service: true
       setup_experience: true
       categories:
@@ -156,13 +182,43 @@ software:
     - path: ../lib/macos/software/fleet-keynote-theme.yml # Fleet Keynote theme for macOS
       self_service: true
       labels_include_any:
-        - "Keynote installed"
-    - path: ../lib/macos/software/nudge.yml # Nudge for macOS 
+        - "Keynote 14 installed"
+      categories:
+        - Productivity
+    - path: ../lib/macos/software/company-portal.yml # Company Portal for macOS
+      self_service: true
+      labels_include_any:
+        - "Conditional access test group"
+      categories:
+        - Security
+    - path: ../lib/macos/software/nudge.yml # Nudge for macOS
       self_service: false
+      categories:
+        - Utilities
     - path: ../lib/macos/software/nudge-assets.yml # Nudge assets for macOS
       self_service: false
+      categories:
+        - Utilities
+    - path: ../lib/macos/software/fleet-desktop.yml # Fleet Desktop for macOS
+      self_service: true
+      categories:
+        - Utilities
+    # Linux apps
+    - path: ../lib/linux/software/1password-deb.yml # 1Password for Ubuntu
+      self_service: true
+      setup_experience: true
+      categories:
+        - Security
+      labels_include_any:
+        - "Debian-based Linux hosts"
+    - path: ../lib/linux/software/1password-rpm.yml # 1Password for RedHat
+      self_service: true
+      setup_experience: true
+      categories:
+        - Security
+      labels_include_any:
+        - "RPM-based Linux hosts"
     - path: ../lib/linux/software/zoom-deb.yml # Zoom for Ubuntu
-      display_name: "Zoom"
       self_service: true
       setup_experience: true
       categories:
@@ -170,7 +226,6 @@ software:
       labels_include_any:
         - "Debian-based Linux hosts"
     - path: ../lib/linux/software/zoom-rpm.yml # Zoom for RedHat
-      display_name: "Zoom"
       self_service: true
       setup_experience: true
       categories:
@@ -178,7 +233,6 @@ software:
       labels_include_any:
         - "RPM-based Linux hosts"
     - path: ../lib/linux/software/slack-deb.yml # Slack for Ubuntu
-      display_name: "Slack"
       self_service: true
       setup_experience: true
       categories:
@@ -187,7 +241,6 @@ software:
       labels_include_any:
         - "Debian-based Linux hosts"
     - path: ../lib/linux/software/slack-rpm.yml # Slack for RedHat
-      display_name: "Slack"
       self_service: true
       setup_experience: true
       categories:
@@ -195,6 +248,7 @@ software:
         - Communication
       labels_include_any:
         - "RPM-based Linux hosts"
+    # Windows apps
     # Commenting out until #25407 is implemented
     # - path: ../lib/windows/software/zoom-arm.yml # Zoom for Windows (ARM)
     #  self_service: true
@@ -203,7 +257,6 @@ software:
     #  labels_include_any:
     #    - "ARM-based Windows hosts"
     - path: ../lib/windows/software/zoom.yml # Zoom for Windows (x86)
-      display_name: "Zoom"
       self_service: true
       setup_experience: true
       categories:
@@ -221,16 +274,20 @@ software:
     - path: ../lib/windows/software/1password.yml # 1Password for Windows
       self_service: true
       setup_experience: true
+      categories:
+        - Security
   app_store_apps:
-    - app_store_id: '409183694' # Keynote
+    - app_store_id: "361285480" # Keynote
+      display_name: "Keynote"
+      platform: darwin
       self_service: true
+      categories:
+        - Productivity
   fleet_maintained_apps:
     # macOS apps
     - slug: slack/darwin # Slack for macOS
       self_service: true
       setup_experience: true
-      post_install_script:
-        path: ../lib/macos/scripts/migrate-slack-preferences.sh
       categories:
         - Communication
         - Productivity
@@ -243,21 +300,42 @@ software:
       self_service: true
       labels_include_any:
         - Apple Silicon macOS hosts
+      categories:
+        - Browsers
     - slug: docker-desktop/darwin # Docker for macOS (ARM)
       self_service: true
       labels_include_any:
         - Apple Silicon macOS hosts
+      categories:
+        - Developer tools
     - slug: microsoft-edge/darwin # Microsoft Edge for macOS
       self_service: true
+      categories:
+        - Browsers
     - slug: visual-studio-code/darwin # Microsoft Visual Studio for macOS (ARM)
       self_service: true
       labels_include_any:
         - Apple Silicon macOS hosts
+      categories:
+        - Developer tools
     - slug: microsoft-teams/darwin # Microsoft Teams for macOS
       self_service: true
+      categories:
+        - Communication
+    - slug: okta-verify/darwin # Okta Verify for macOS
+      self_service: true
+      setup_experience: true
+      categories:
+        - Security
     # Windows apps
+    - slug: okta-verify/windows # Okta Verify for Windows
+      self_service: true
+      setup_experience: true
+      labels_include_any:
+        - "x86-based Windows hosts"
+      categories:
+        - Security
     - slug: slack/windows # Slack for Windows
-      display_name: "Slack"
       self_service: true
       setup_experience: true
       categories:
@@ -274,5 +352,9 @@ software:
         - "x86-based Windows hosts"
     - slug: brave-browser/windows # Brave for Windows
       self_service: true
+      categories:
+        - Browsers
     - slug: visual-studio-code/windows # Microsoft Visual Studio for Windows
       self_service: true
+      categories:
+        - Developer tools

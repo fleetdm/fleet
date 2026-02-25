@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"io"
+	"log/slog"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -15,7 +16,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mdm/nanodep/godep"
 	"github.com/fleetdm/fleet/v4/server/mock"
 	nanodep_mock "github.com/fleetdm/fleet/v4/server/mock/nanodep"
-	"github.com/go-kit/log"
 	"github.com/micromdm/plist"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -25,7 +25,7 @@ func TestDEPService(t *testing.T) {
 	t.Run("EnsureDefaultSetupAssistant", func(t *testing.T) {
 		ds := new(mock.Store)
 		ctx := context.Background()
-		logger := log.NewNopLogger()
+		logger := slog.New(slog.DiscardHandler)
 		depStorage := new(nanodep_mock.Storage)
 		depSvc := NewDEPService(ds, depStorage, logger)
 		defaultProfile := depSvc.getDefaultProfile()

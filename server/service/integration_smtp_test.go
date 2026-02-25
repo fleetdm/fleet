@@ -6,7 +6,7 @@ import (
 	"os"
 	"testing"
 
-	kitlog "github.com/go-kit/log"
+	"github.com/fleetdm/fleet/v4/server/platform/logging"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 )
@@ -23,7 +23,7 @@ func (s *integrationSMTPTestSuite) SetupSuite() {
 		UseMailService: true,
 	}
 	if os.Getenv("FLEET_INTEGRATION_TESTS_DISABLE_LOG") != "" {
-		opts.Logger = kitlog.NewNopLogger()
+		opts.Logger = logging.NewNopLogger()
 	}
 	users, server := RunServerForTestsWithDS(
 		s.T(),

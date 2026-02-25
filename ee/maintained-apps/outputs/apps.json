@@ -41,7 +41,7 @@
       "slug": "8x8-work/darwin",
       "platform": "darwin",
       "unique_identifier": "com.electron.8x8---virtual-office",
-      "description": "8x8 Work is a communications application with voice, video, chat, and web conferencing."
+      "description": "8x8 Work is a communications application with voice, video, chat, and web conferencing.<br/><br/>Note: After installation, the app may show an auto-update error on each login if file ownership is set to root; changing ownership of 8x8 Work.app to the logged-in user resolves this, or auto-updates can be disabled via the Profile Policies setting in the 8x8 Admin Console."
     },
     {
       "name": "8x8 Work",
@@ -233,6 +233,13 @@
       "description": "BBEdit is a text, code, and markup editor."
     },
     {
+      "name": "BetterDisplay",
+      "slug": "betterdisplay/darwin",
+      "platform": "darwin",
+      "unique_identifier": "pro.betterdisplay.BetterDisplay",
+      "description": "BetterDisplay is a display management tool."
+    },
+    {
       "name": "Beyond Compare",
       "slug": "beyond-compare/darwin",
       "platform": "darwin",
@@ -420,6 +427,13 @@
       "platform": "windows",
       "unique_identifier": "Cloudflare WARP",
       "description": "Cloudflare WARP enhances internet safety and performance by encrypting your data and optimizing connections for privacy."
+    },
+    {
+      "name": "Connect Fonts",
+      "slug": "connect-fonts/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.extensis.SuitcaseFusion",
+      "description": "Connect Fonts is an app that manages fonts and digital assets."
     },
     {
       "name": "CotEditor",
@@ -695,6 +709,13 @@
       "description": "GIMP is a free and open-source image editor."
     },
     {
+      "name": "GIMP",
+      "slug": "gimp/windows",
+      "platform": "windows",
+      "unique_identifier": "GIMP 3.0.8-2",
+      "description": "GIMP is a free and open-source image editor."
+    },
+    {
       "name": "GitHub Desktop",
       "slug": "github-desktop/windows",
       "platform": "windows",
@@ -875,6 +896,13 @@
       "platform": "darwin",
       "unique_identifier": "com.aone.keka",
       "description": "Keka is a file archiver."
+    },
+    {
+      "name": "LastPass",
+      "slug": "lastpass/windows",
+      "platform": "windows",
+      "unique_identifier": "LastPass",
+      "description": "LastPass is a password manager."
     },
     {
       "name": "Lens",
@@ -1122,6 +1150,13 @@
       "description": "Okta Verify is a multi-factor authentication app that provides secure identity verification and passwordless sign-in for users accessing Okta-protected applications."
     },
     {
+      "name": "Okta Verify",
+      "slug": "okta-verify/windows",
+      "platform": "windows",
+      "unique_identifier": "Okta Verify",
+      "description": "Okta Verify is a multi-factor authentication app that provides secure identity verification and passwordless sign-in for users accessing Okta-protected applications."
+    },
+    {
       "name": "OmniGraffle",
       "slug": "omnigraffle/darwin",
       "platform": "darwin",
@@ -1239,6 +1274,13 @@
       "platform": "darwin",
       "unique_identifier": "com.initex.proxifier.v3.macos",
       "description": "Proxifier is an app that allows network applications that do not support working through proxy servers to operate through a SOCKS or HTTPS proxy and chains."
+    },
+    {
+      "name": "PuTTY",
+      "slug": "putty/windows",
+      "platform": "windows",
+      "unique_identifier": "PuTTY release 0.83 (x64)",
+      "description": "PuTTY is a free, open-source SSH and Telnet client for Windows."
     },
     {
       "name": "PyCharm Community Edition",
@@ -1721,6 +1763,13 @@
       "slug": "yubico-authenticator/darwin",
       "platform": "darwin",
       "unique_identifier": "com.yubico.yubioath",
+      "description": "Yubico Authenticator is an application for generating TOTP and HOTP codes."
+    },
+    {
+      "name": "Yubico Authenticator",
+      "slug": "yubico-authenticator/windows",
+      "platform": "windows",
+      "unique_identifier": "Yubico Authenticator",
       "description": "Yubico Authenticator is an application for generating TOTP and HOTP codes."
     },
     {

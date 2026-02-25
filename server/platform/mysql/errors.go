@@ -2,9 +2,12 @@ package mysql
 
 import (
 	"database/sql"
+	"errors"
 	"fmt"
 
+	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	platform_http "github.com/fleetdm/fleet/v4/server/platform/http"
+	"github.com/go-sql-driver/mysql"
 )
 
 type NotFoundError struct {
@@ -55,9 +58,40 @@ func (e *NotFoundError) IsNotFound() bool {
 	return true
 }
 
+// IsClientError implements ErrWithIsClientError.
+func (e *NotFoundError) IsClientError() bool {
+	return true
+}
+
 // Is helps so that errors.Is(err, sql.ErrNoRows) returns true for an
 // error of type *NotFoundError, without having to wrap sql.ErrNoRows
 // explicitly.
 func (e *NotFoundError) Is(other error) bool {
 	return other == sql.ErrNoRows
+}
+
+// MySQL error numbers for read-only conditions. These are not included in the
+// VividCortex/mysqlerr package, so we define them here.
+const (
+	// erReadOnlyTransaction is MySQL error 1792: Cannot execute statement in a READ ONLY transaction.
+	erReadOnlyTransaction = 1792
+	// erOptionPreventsStatement is MySQL error 1290: The MySQL server is running with the --read-only option.
+	erOptionPreventsStatement = 1290
+	// erReadOnlyMode is MySQL error 1836: Running in read-only mode.
+	erReadOnlyMode = 1836
+)
+
+// IsReadOnlyError returns true if the error is a MySQL error indicating that
+// the server is in read-only mode. This typically happens after an Aurora
+// failover when the primary has been demoted to a reader.
+func IsReadOnlyError(err error) bool {
+	err = ctxerr.Cause(err)
+	var mySQLErr *mysql.MySQLError
+	if errors.As(err, &mySQLErr) {
+		switch mySQLErr.Number {
+		case erReadOnlyTransaction, erOptionPreventsStatement, erReadOnlyMode:
+			return true
+		}
+	}
+	return false
 }

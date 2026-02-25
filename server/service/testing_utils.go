@@ -49,6 +49,7 @@ import (
 	scep_depot "github.com/fleetdm/fleet/v4/server/mdm/scep/depot"
 	nanodep_mock "github.com/fleetdm/fleet/v4/server/mock/nanodep"
 	"github.com/fleetdm/fleet/v4/server/platform/endpointer"
+	platformlogging "github.com/fleetdm/fleet/v4/server/platform/logging"
 	common_mysql "github.com/fleetdm/fleet/v4/server/platform/mysql"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/service/async"
@@ -59,7 +60,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/sso"
 	"github.com/fleetdm/fleet/v4/server/test"
 	"github.com/go-kit/kit/endpoint"
-	kitlog "github.com/go-kit/log"
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -74,11 +74,12 @@ func newTestService(t *testing.T, ds fleet.Datastore, rs fleet.QueryResultStore,
 
 func newTestServiceWithConfig(t *testing.T, ds fleet.Datastore, fleetConfig config.FleetConfig, rs fleet.QueryResultStore, lq fleet.LiveQueryStore, opts ...*TestServerOpts) (fleet.Service, context.Context) {
 	lic := &fleet.LicenseInfo{Tier: fleet.TierFree}
-	writer, err := logging.NewFilesystemLogWriter(fleetConfig.Filesystem.StatusLogFile, kitlog.NewNopLogger(), fleetConfig.Filesystem.EnableLogRotation, fleetConfig.Filesystem.EnableLogCompression, 500, 28, 3)
+	logger := platformlogging.NewNopLogger()
+	writer, err := logging.NewFilesystemLogWriter(fleetConfig.Filesystem.StatusLogFile, logger, fleetConfig.Filesystem.EnableLogRotation,
+		fleetConfig.Filesystem.EnableLogCompression, 500, 28, 3)
 	require.NoError(t, err)
 
 	osqlogger := &OsqueryLogger{Status: writer, Result: writer}
-	logger := kitlog.NewNopLogger()
 
 	var (
 		failingPolicySet                fleet.FailingPolicySet        = NewMemFailingPolicySet()
@@ -173,7 +174,7 @@ func newTestServiceWithConfig(t *testing.T, ds fleet.Datastore, fleetConfig conf
 	var eh *errorstore.Handler
 	if len(opts) > 0 {
 		if opts[0].Pool != nil {
-			eh = errorstore.NewHandler(ctx, opts[0].Pool, logger, time.Minute*10)
+			eh = errorstore.NewHandler(ctx, opts[0].Pool, logger.SlogLogger(), time.Minute*10)
 			ctx = ctxerr.NewContext(ctx, eh)
 		}
 		if opts[0].StartCronSchedules != nil {
@@ -382,7 +383,7 @@ type ConditionalAccess struct {
 }
 
 type TestServerOpts struct {
-	Logger                          kitlog.Logger
+	Logger                          *platformlogging.Logger
 	License                         *fleet.LicenseInfo
 	SkipCreateTestUsers             bool
 	Rs                              fleet.QueryResultStore
@@ -448,7 +449,7 @@ func RunServerForTestsWithServiceWithDS(t *testing.T, ctx context.Context, ds fl
 	if len(opts) == 0 || (len(opts) > 0 && !opts[0].SkipCreateTestUsers) {
 		users = createTestUsers(t, ds)
 	}
-	logger := kitlog.NewLogfmtLogger(os.Stdout)
+	logger := platformlogging.NewLogfmtLogger(os.Stdout)
 	if len(opts) > 0 && opts[0].Logger != nil {
 		logger = opts[0].Logger
 	}
@@ -462,12 +463,12 @@ func RunServerForTestsWithServiceWithDS(t *testing.T, ctx context.Context, ds fl
 		legacyAuthorizer, err := authz.NewAuthorizer()
 		require.NoError(t, err)
 		activityAuthorizer := authz.NewAuthorizerAdapter(legacyAuthorizer)
-		activityUserProvider := activityacl.NewFleetServiceAdapter(svc)
+		activityACLAdapter := activityacl.NewFleetServiceAdapter(svc)
 		_, activityRoutesFn := activity_bootstrap.New(
 			opts[0].DBConns,
 			activityAuthorizer,
-			activityUserProvider,
-			logger,
+			activityACLAdapter,
+			logger.SlogLogger(),
 		)
 		activityAuthMiddleware := func(next endpoint.Endpoint) endpoint.Endpoint {
 			return auth.AuthenticatedUser(svc, next)
@@ -558,7 +559,8 @@ func RunServerForTestsWithServiceWithDS(t *testing.T, ctx context.Context, ds fl
 	if len(opts) > 0 && opts[0].HostIdentity != nil {
 		require.NoError(t, hostidentity.RegisterSCEP(rootMux, opts[0].HostIdentity.SCEPStorage, ds, logger, &cfg))
 		var httpSigVerifier func(http.Handler) http.Handler
-		httpSigVerifier, err := httpsig.Middleware(ds, opts[0].HostIdentity.RequireHTTPMessageSignature, kitlog.With(logger, "component", "http-sig-verifier"))
+		httpSigVerifier, err := httpsig.Middleware(ds, opts[0].HostIdentity.RequireHTTPMessageSignature,
+			logger.With("component", "http-sig-verifier"))
 		require.NoError(t, err)
 		extra = append(extra, WithHTTPSigVerifier(httpSigVerifier))
 	}
@@ -567,19 +569,20 @@ func RunServerForTestsWithServiceWithDS(t *testing.T, ctx context.Context, ds fl
 		require.NoError(t, condaccess.RegisterSCEP(ctx, rootMux, opts[0].ConditionalAccess.SCEPStorage, ds, logger, &cfg))
 		require.NoError(t, condaccess.RegisterIdP(rootMux, ds, logger, &cfg))
 	}
-	apiHandler := MakeHandler(svc, cfg, logger, limitStore, redisPool, featureRoutes, extra...)
+	var carveStore fleet.CarveStore = ds // In tests, we use MySQL as storage for carves.
+	apiHandler := MakeHandler(svc, cfg, logger, limitStore, redisPool, carveStore, featureRoutes, extra...)
 	rootMux.Handle("/api/", apiHandler)
 	var errHandler *errorstore.Handler
 	ctxErrHandler := ctxerr.FromContext(ctx)
 	if ctxErrHandler != nil {
 		errHandler = ctxErrHandler.(*errorstore.Handler)
 	}
-	debugHandler := MakeDebugHandler(svc, cfg, logger, errHandler, ds)
+	debugHandler := MakeDebugHandler(svc, cfg, logger.SlogLogger(), errHandler, ds)
 	rootMux.Handle("/debug/", debugHandler)
 	rootMux.Handle("/enroll", ServeEndUserEnrollOTA(svc, "", ds, logger))
 
 	if len(opts) > 0 && opts[0].EnableSCIM {
-		require.NoError(t, scim.RegisterSCIM(rootMux, ds, svc, logger, &cfg))
+		require.NoError(t, scim.RegisterSCIM(rootMux, ds, svc, logger.SlogLogger(), &cfg))
 		rootMux.Handle("/api/v1/fleet/scim/details", apiHandler)
 		rootMux.Handle("/api/latest/fleet/scim/details", apiHandler)
 	}
@@ -1312,20 +1315,38 @@ func createAndroidDeviceID(name string) string {
 }
 
 func statusReportMessageWithEnterpriseSpecificID(t *testing.T, deviceInfo androidmanagement.Device, enterpriseSpecificID string) *android.PubSubMessage {
-	return messageWithEnterpriseSpecificID(t, android.PubSubStatusReport, deviceInfo, enterpriseSpecificID)
+	return messageWithAndroidIdentifiers(t, android.PubSubStatusReport, deviceInfo, enterpriseSpecificID, "")
 }
 
 func enrollmentMessageWithEnterpriseSpecificID(t *testing.T, deviceInfo androidmanagement.Device, enterpriseSpecificID string) *android.PubSubMessage {
-	return messageWithEnterpriseSpecificID(t, android.PubSubEnrollment, deviceInfo, enterpriseSpecificID)
+	return messageWithAndroidIdentifiers(t, android.PubSubEnrollment, deviceInfo, enterpriseSpecificID, "")
 }
 
-func messageWithEnterpriseSpecificID(t *testing.T, notificationType android.NotificationType, deviceInfo androidmanagement.Device, enterpriseSpecificID string) *android.PubSubMessage {
+func statusReportMessageWithSerialNumber(t *testing.T, deviceInfo androidmanagement.Device, serialNumber string) *android.PubSubMessage {
+	return messageWithAndroidIdentifiers(t, android.PubSubStatusReport, deviceInfo, "", serialNumber)
+}
+
+func enrollmentMessageWithSerialNumber(t *testing.T, deviceInfo androidmanagement.Device, serialNumber string) *android.PubSubMessage {
+	return messageWithAndroidIdentifiers(t, android.PubSubEnrollment, deviceInfo, "", serialNumber)
+}
+
+func messageWithAndroidIdentifiers(t *testing.T, notificationType android.NotificationType, deviceInfo androidmanagement.Device, enterpriseSpecificID, serialNumber string) *android.PubSubMessage {
+	if serialNumber == "" && enterpriseSpecificID == "" || serialNumber != "" && enterpriseSpecificID != "" {
+		t.Fatalf("exactly one of serialNumber or enterpriseSpecificID must be provided")
+	}
 	deviceInfo.HardwareInfo = &androidmanagement.HardwareInfo{
-		EnterpriseSpecificId: enterpriseSpecificID,
-		Brand:                "TestBrand",
-		Model:                "TestModel",
-		SerialNumber:         "test-serial",
-		Hardware:             "test-hardware",
+		Brand:    "TestBrand",
+		Model:    "TestModel",
+		Hardware: "test-hardware",
+	}
+	if enterpriseSpecificID != "" {
+		deviceInfo.Ownership = android_service.DeviceOwnershipPersonallyOwned
+		deviceInfo.HardwareInfo.EnterpriseSpecificId = enterpriseSpecificID
+		deviceInfo.HardwareInfo.SerialNumber = enterpriseSpecificID
+	}
+	if serialNumber != "" {
+		deviceInfo.Ownership = android_service.DeviceOwnershipCompanyOwned
+		deviceInfo.HardwareInfo.SerialNumber = serialNumber
 	}
 	deviceInfo.SoftwareInfo = &androidmanagement.SoftwareInfo{
 		AndroidBuildNumber: "test-build",

@@ -6,11 +6,13 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"log/slog"
 	"regexp"
 	"sort"
 	"strconv"
 	"strings"
 	"time"
+	"unicode"
 
 	"github.com/doug-martin/goqu/v9"
 	_ "github.com/doug-martin/goqu/v9/dialect/mysql"
@@ -18,8 +20,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	common_mysql "github.com/fleetdm/fleet/v4/server/platform/mysql"
 	"github.com/fleetdm/fleet/v4/server/ptr"
-	"github.com/go-kit/log"
-	"github.com/go-kit/log/level"
 	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
 	"go.opentelemetry.io/otel"
@@ -97,7 +97,7 @@ func (ds *Datastore) UpdateHostSoftwareInstalledPaths(
 		return err
 	}
 
-	toI, toD, err := hostSoftwareInstalledPathsDelta(hostID, reported, hsip, currS, ds.logger)
+	toI, toD, err := hostSoftwareInstalledPathsDelta(ctx, hostID, reported, hsip, currS, ds.logger)
 	if err != nil {
 		return err
 	}
@@ -149,11 +149,12 @@ func (ds *Datastore) getHostSoftwareInstalledPaths(
 // 'stored' contains all 'host_software_installed_paths' rows for the given host.
 // 'hostSoftware' contains the current software installed on the host.
 func hostSoftwareInstalledPathsDelta(
+	ctx context.Context,
 	hostID uint,
 	reported map[string]struct{},
 	stored []fleet.HostSoftwareInstalledPath,
 	hostSoftware []fleet.Software,
-	logger log.Logger,
+	logger *slog.Logger,
 ) (
 	toInsert []fleet.HostSoftwareInstalledPath,
 	toDelete []uint,
@@ -213,7 +214,7 @@ func hostSoftwareInstalledPathsDelta(
 		// because this executes after 'ds.UpdateHostSoftware'
 		s, ok := sUnqStrLook[unqStr]
 		if !ok {
-			level.Debug(logger).Log("msg", "skipping installed path for software not found", "host_id", hostID, "unq_str", unqStr)
+			logger.DebugContext(ctx, "skipping installed path for software not found", "host_id", hostID, "unq_str", unqStr)
 			continue
 		}
 
@@ -490,7 +491,7 @@ func (ds *Datastore) applyChangesForNewSoftwareDB(
 		if common_mysql.RetryableError(err) {
 			// Log the retryable error and return the current state without changes.
 			// The transaction rolled back, so Deleted and Inserted will be empty.
-			level.Info(ds.logger).Log("msg", "retryable error during software update, will retry on next agent refresh", "err", err, "host_id", hostID)
+			ds.logger.InfoContext(ctx, "retryable error during software update, will retry on next agent refresh", "err", err, "host_id", hostID)
 			return r, nil
 		}
 		return nil, err
@@ -673,8 +674,7 @@ func (ds *Datastore) getIncomingSoftwareChecksumsToExistingTitles(
 			for i, cs := range existingChecksums {
 				existingChecksumsHex[i] = fmt.Sprintf("%x", cs)
 			}
-			level.Debug(ds.logger).Log(
-				"msg", "multiple checksums mapping to same title",
+			ds.logger.DebugContext(ctx, "multiple checksums mapping to same title",
 				"title_str", titleStr,
 				"new_checksum", fmt.Sprintf("%x", checksum),
 				"existing_checksums", fmt.Sprintf("%v", existingChecksumsHex),
@@ -722,10 +722,6 @@ func (ds *Datastore) getIncomingSoftwareChecksumsToExistingTitles(
 	// Get titles for software with bundle_identifier
 	existingBundleIDsToUpdate := make(map[string]fleet.Software)
 	if len(argsWithBundleIdentifier) > 0 {
-		// no-op code change
-		// TODO(jacob) - this var name is shadowing the one in the outer scope. Is this successfully
-		// adding titles-by-checksum for software with bundle ids?
-		incomingChecksumsToTitleSummaries = make(map[string]fleet.SoftwareTitleSummary, len(newSoftwareChecksums))
 		stmtBundleIdentifier := `SELECT id, name, source, extension_for, bundle_identifier FROM software_titles WHERE bundle_identifier IN (?)`
 		stmtBundleIdentifier, argsWithBundleIdentifier, err := sqlx.In(stmtBundleIdentifier, argsWithBundleIdentifier)
 		if err != nil {
@@ -760,15 +756,33 @@ func BundleIdentifierOrName(bundleIdentifier, name string) string {
 	return name
 }
 
-// UniqueSoftwareTitleStr creates a unique string representation of the software title.
-// Returns lowercase to ensure case-insensitive matching, since MySQL uses case-insensitive
-// collation (utf8mb4_unicode_ci) but Go map lookups are case-sensitive.
-func UniqueSoftwareTitleStr(values ...string) string {
-	lowered := make([]string, len(values))
-	for i, v := range values {
-		lowered[i] = strings.ToLower(v)
+// normalizeForCollation strips Unicode characters that MySQL's utf8mb4_unicode_ci collation
+// ignores during comparison. This includes format characters (category Cf) like RTL/LTR marks
+// and zero-width characters, as well as control characters (category Cc). This ensures that
+// Go's map lookups behave consistently with MySQL's collation-based matching.
+func normalizeForCollation(s string) string {
+	var result strings.Builder
+	result.Grow(len(s))
+	for _, r := range s {
+		// Skip format characters (Cf) and control characters (Cc)
+		// These have zero primary weight in Unicode collation and are ignored by MySQL
+		if !unicode.Is(unicode.Cf, r) && !unicode.Is(unicode.Cc, r) {
+			result.WriteRune(r)
+		}
 	}
-	return strings.Join(lowered, fleet.SoftwareFieldSeparator)
+	return result.String()
+}
+
+// UniqueSoftwareTitleStr creates a unique string representation of the software title.
+// Returns lowercase and normalized to ensure matching that is consistent with MySQL's
+// utf8mb4_unicode_ci collation, which is case-insensitive and ignores certain Unicode
+// control/format characters.
+func UniqueSoftwareTitleStr(values ...string) string {
+	normalized := make([]string, len(values))
+	for i, v := range values {
+		normalized[i] = strings.ToLower(normalizeForCollation(v))
+	}
+	return strings.Join(normalized, fleet.SoftwareFieldSeparator)
 }
 
 // delete host_software that is in current map, but not in incoming map.
@@ -963,7 +977,8 @@ func (ds *Datastore) preInsertSoftwareInventory(
 						bundleID = *title.BundleIdentifier
 					}
 					key := titleKey{
-						name:         strings.ToLower(title.Name), // lowercase for case-insensitive dedup matching MySQL collation
+						// adjust for matching MySQL collation
+						name:         strings.ToLower(normalizeForCollation(title.Name)),
 						source:       title.Source,
 						extensionFor: title.ExtensionFor,
 						bundleID:     bundleID,
@@ -991,9 +1006,9 @@ func (ds *Datastore) preInsertSoftwareInventory(
 
 				// Retrieve the IDs for the titles we just inserted (or that already existed)
 				var retrievedTitleSummaries []fleet.SoftwareTitleSummary
-				// TODO - include UpgradeCode in the below WHERE (these args) for additional specificity?
 				titlePlaceholders := strings.TrimSuffix(strings.Repeat("(?,?,?,?),", len(uniqueTitlesToInsert)), ",")
 				queryArgs := make([]interface{}, 0, len(uniqueTitlesToInsert)*4)
+				var upgradeCodes []string
 				for tk := range uniqueTitlesToInsert {
 					title := uniqueTitlesToInsert[tk]
 					bundleID := ""
@@ -1006,11 +1021,25 @@ func (ds *Datastore) preInsertSoftwareInventory(
 						firstArg = bundleID
 					}
 					queryArgs = append(queryArgs, firstArg, title.Source, title.ExtensionFor, bundleID)
+
+					// Collect non-empty upgrade_codes for Windows programs
+					if title.UpgradeCode != nil && *title.UpgradeCode != "" && title.Source == "programs" {
+						upgradeCodes = append(upgradeCodes, *title.UpgradeCode)
+					}
 				}
 
+				// Build query that matches by (name/bundle_identifier, source, extension_for) OR by upgrade_code.
 				stmt := fmt.Sprintf(`SELECT id, name, source, extension_for, bundle_identifier, upgrade_code, application_id
 					FROM software_titles
 					WHERE (COALESCE(bundle_identifier, name), source, extension_for, COALESCE(bundle_identifier, '')) IN (%s)`, titlePlaceholders)
+
+				if len(upgradeCodes) > 0 {
+					ucPlaceholders := strings.TrimSuffix(strings.Repeat("?,", len(upgradeCodes)), ",")
+					stmt += fmt.Sprintf(` OR (upgrade_code IN (%s) AND source = 'programs')`, ucPlaceholders)
+					for _, uc := range upgradeCodes {
+						queryArgs = append(queryArgs, uc)
+					}
+				}
 
 				if err := sqlx.SelectContext(ctx, tx, &retrievedTitleSummaries, stmt, queryArgs...); err != nil {
 					return ctxerr.Wrap(ctx, err, "select software titles")
@@ -1022,20 +1051,39 @@ func (ds *Datastore) preInsertSoftwareInventory(
 					if titleSummary.BundleIdentifier != nil {
 						bundleID = *titleSummary.BundleIdentifier
 					}
+					var titleSummaryUpgradeCode string
+					if titleSummary.UpgradeCode != nil {
+						titleSummaryUpgradeCode = *titleSummary.UpgradeCode
+					}
 					for checksum, title := range newTitlesNeeded {
 						var titleBundleID string
 						if title.BundleIdentifier != nil {
 							titleBundleID = *title.BundleIdentifier
 						}
+						var titleUpgradeCode string
+						if title.UpgradeCode != nil {
+							titleUpgradeCode = *title.UpgradeCode
+						}
 						// For apps with bundle_identifier, match by bundle_identifier (since we may have picked a different name)
+						// For Windows programs with upgrade_code, match by upgrade_code (names may differ between versions)
 						// For others, match by name (case-insensitive to match MySQL collation)
-						nameMatches := strings.EqualFold(titleSummary.Name, title.Name)
-						// TODO - similarly match if UpgradeCodes match?
+						// We normalize names by trimming whitespace and stripping Unicode format/control characters
+						// to match MySQL's utf8mb4_unicode_ci collation behavior.
+						nameMatches := strings.EqualFold(normalizeForCollation(strings.TrimSpace(titleSummary.Name)), normalizeForCollation(strings.TrimSpace(title.Name)))
 						if bundleID != "" && titleBundleID != "" {
 							// Both have bundle_identifier - match by bundle_identifier instead of name
 							nameMatches = true
 						}
-						if nameMatches && titleSummary.Source == title.Source && titleSummary.ExtensionFor == title.ExtensionFor && bundleID == titleBundleID {
+						if titleUpgradeCode != "" && titleSummaryUpgradeCode != "" && titleUpgradeCode == titleSummaryUpgradeCode {
+							// Both have non-empty upgrade_code and they match: consider it a match
+							// This handles the case where different versions of Windows software have
+							// different names (e.g., "7-Zip 24.08 (x64)" vs "7-Zip 24.09 (x64 edition)") but share the same upgrade_code
+							nameMatches = true
+						}
+						// Use case-insensitive comparison for bundle_identifier to match MySQL's collation and Apple's specification
+						// that bundle IDs are case-insensitive (https://developer.apple.com/help/glossary/bundle-id/)
+						if nameMatches && titleSummary.Source == title.Source && titleSummary.ExtensionFor == title.ExtensionFor && strings.EqualFold(bundleID,
+							titleBundleID) {
 							titleIDsByChecksum[checksum] = titleSummary.ID
 							// Don't break here - multiple checksums can map to the same title
 							// (e.g., when software has same truncated name but different versions (very rare))
@@ -1142,8 +1190,7 @@ func (ds *Datastore) preInsertSoftwareInventory(
 				if len(missingSoftwareTitles) < exampleCount {
 					exampleCount = len(missingSoftwareTitles)
 				}
-				level.Error(ds.logger).Log(
-					"msg", "inserting software without title_id",
+				ds.logger.ErrorContext(ctx, "inserting software without title_id",
 					"count", len(missingSoftwareTitles),
 					"examples", strings.Join(missingSoftwareTitles[:exampleCount], "; "),
 				)
@@ -1199,8 +1246,7 @@ func (ds *Datastore) linkSoftwareToHost(
 			insertedSoftware = append(insertedSoftware, sw)
 		} else {
 			// Log missing software but continue
-			level.Warn(ds.logger).Log(
-				"msg", "software not found after pre-insertion",
+			ds.logger.WarnContext(ctx, "software not found after pre-insertion",
 				"checksum", fmt.Sprintf("%x", checksum),
 				"name", sw.Name,
 				"version", sw.Version,
@@ -1292,8 +1338,7 @@ func (ds *Datastore) reconcileExistingTitleEmptyWindowsUpgradeCodes(
 			// Check for conflict: does another title already have this upgrade_code?
 			if conflictingTitle, hasConflict := titlesWithUpgradeCodes[*sw.UpgradeCode]; hasConflict && conflictingTitle.ID != existingTitleSummary.ID {
 				// Redirect mapping to the title that already has this upgrade_code
-				level.Info(ds.logger).Log(
-					"msg", "redirecting software to existing title with matching upgrade_code",
+				ds.logger.InfoContext(ctx, "redirecting software to existing title with matching upgrade_code",
 					"software_name", sw.Name,
 					"matched_title_id", existingTitleSummary.ID,
 					"matched_title_name", existingTitleSummary.Name,
@@ -1306,8 +1351,7 @@ func (ds *Datastore) reconcileExistingTitleEmptyWindowsUpgradeCodes(
 			}
 			// Log warning only for NULL upgrade_code case (shouldn't happen for programs source)
 			if existingTitleSummary.UpgradeCode == nil {
-				level.Warn(ds.logger).Log(
-					"msg", "Encountered Windows software title with a NULL upgrade_code, which shouldn't be possible. Writing the incoming non-empty upgrade code to the title.",
+				ds.logger.WarnContext(ctx, "Encountered Windows software title with a NULL upgrade_code, which shouldn't be possible. Writing the incoming non-empty upgrade code to the title.",
 					"title_id", existingTitleSummary.ID,
 					"title_name", existingTitleSummary.Name,
 					"source", existingTitleSummary.Source,
@@ -1317,8 +1361,7 @@ func (ds *Datastore) reconcileExistingTitleEmptyWindowsUpgradeCodes(
 			existingTitlesToUpgradeCodePtrsToWrite[existingTitleSummary.ID] = oldAndNewUpgradeCodePtrs{old: existingTitleSummary.UpgradeCode, new: sw.UpgradeCode}
 		case *sw.UpgradeCode != *existingTitleSummary.UpgradeCode:
 			// don't update this title
-			level.Warn(ds.logger).Log(
-				"msg", "Incoming software's upgrade code has changed from the existing title's. The developers of this software may have changed the upgrade code, and this may be worth investigating. Keeping the previous title's upgrade code. This will likely result is some inconsistencies, such as the title's upgrade_code possibly not being returned from the list host software endpoint.",
+			ds.logger.WarnContext(ctx, "Incoming software's upgrade code has changed from the existing title's. The developers of this software may have changed the upgrade code, and this may be worth investigating. Keeping the previous title's upgrade code. This will likely result is some inconsistencies, such as the title's upgrade_code possibly not being returned from the list host software endpoint.",
 				"existing_title_id", existingTitleSummary.ID,
 				"existing_title_name", existingTitleSummary.Name,
 				"existing_title_source", existingTitleSummary.Source,
@@ -1351,8 +1394,7 @@ func (ds *Datastore) reconcileExistingTitleEmptyWindowsUpgradeCodes(
 			}
 
 			if rowsAffected, _ := result.RowsAffected(); rowsAffected > 0 {
-				level.Info(ds.logger).Log(
-					"msg", "updated software title upgrade_code",
+				ds.logger.InfoContext(ctx, "updated software title upgrade_code",
 					"title_id", titleID,
 					"new_upgrade_code", newUcPtr,
 					"old_upgrade_code", oldUcPtr,
@@ -1395,7 +1437,7 @@ func updateModifiedHostSoftwareDB(
 	currentMap map[string]fleet.Software,
 	incomingMap map[string]fleet.Software,
 	minLastOpenedAtDiff time.Duration,
-	logger log.Logger,
+	logger *slog.Logger,
 ) error {
 	var keysToUpdate []string
 	for key, newSw := range incomingMap {
@@ -1408,8 +1450,7 @@ func updateModifiedHostSoftwareDB(
 		// (but only for non-apps sources, as apps sources are managed by osquery)
 		if newSw.LastOpenedAt == nil {
 			if curSw.LastOpenedAt != nil && newSw.Source != "apps" {
-				level.Info(logger).Log(
-					"msg", "software last_opened_at changed to nil",
+				logger.InfoContext(ctx, "software last_opened_at changed to nil",
 					"host_id", hostID,
 					"software_id", curSw.ID,
 					"software_name", newSw.Name,
@@ -1629,28 +1670,21 @@ func buildOptimizedListSoftwareSQL(opts fleet.SoftwareListOptions) (string, []in
 	// This allows MySQL to read from the index without accessing the table,
 	// which is critical for performance.
 	// IMPORTANT: Update this query if modifying idx_software_host_counts_team_global_hosts_desc index.
-	// PERFORMANCE ISSUE: The hosts_count > 0 filter causes ASC queries to read the entire index
-	// instead of stopping after LIMIT rows like DESC queries do. While both ASC and DESC
-	// use the index, DESC can stop early but ASC with a range condition must read all matching rows.
-	// RECOMMENDED SOLUTION: Eliminate zero-count rows from this table entirely.
-	// This would allow removing the hosts_count > 0 filter, making ASC queries as fast as DESC
-	// without requiring a second index. Related issue: https://github.com/fleetdm/fleet/issues/35805
 	innerSQL := `
 		SELECT
 			shc.software_id,
 			shc.hosts_count
 		FROM software_host_counts shc
-		WHERE shc.hosts_count > 0
 	`
 
 	// Apply team filtering with global_stats
 	switch {
 	case opts.TeamID == nil:
-		innerSQL += " AND shc.team_id = 0 AND shc.global_stats = 1"
+		innerSQL += " WHERE shc.team_id = 0 AND shc.global_stats = 1"
 	case *opts.TeamID == 0:
-		innerSQL += " AND shc.team_id = 0 AND shc.global_stats = 0"
+		innerSQL += " WHERE shc.team_id = 0 AND shc.global_stats = 0"
 	default:
-		innerSQL += " AND shc.team_id = ? AND shc.global_stats = 0"
+		innerSQL += " WHERE shc.team_id = ? AND shc.global_stats = 0"
 		args = append(args, *opts.TeamID)
 	}
 
@@ -2105,8 +2139,6 @@ func countSoftwareDB(
 		countSQL += ` INNER JOIN cve_meta c ON c.cve = scv.cve`
 	}
 
-	countSQL += ` WHERE shc.hosts_count > 0`
-
 	var args []interface{}
 	var whereClauses []string
 	// Apply team filtering with global_stats
@@ -2142,8 +2174,8 @@ func countSoftwareDB(
 	}
 
 	// Add all WHERE clauses
-	for _, clause := range whereClauses {
-		countSQL += " AND " + clause
+	if len(whereClauses) > 0 {
+		countSQL += " WHERE " + strings.Join(whereClauses, " AND ")
 	}
 
 	var count int
@@ -2496,7 +2528,7 @@ func (ds *Datastore) SoftwareByID(ctx context.Context, id uint, teamID *uint, in
 		// However, it is possible that the software was deleted from all hosts after the last host count update.
 		q = q.Where(
 			goqu.L(
-				"EXISTS (SELECT 1 FROM software_host_counts WHERE software_id = ? AND team_id = ? AND hosts_count > 0 AND global_stats = 0)", id, *teamID,
+				"EXISTS (SELECT 1 FROM software_host_counts WHERE software_id = ? AND team_id = ? AND global_stats = 0)", id, *teamID,
 			),
 		)
 	}
@@ -2571,9 +2603,8 @@ func (ds *Datastore) SoftwareByID(ctx context.Context, id uint, teamID *uint, in
 // on removed hosts, software uninstalled on hosts, etc.)
 func (ds *Datastore) SyncHostsSoftware(ctx context.Context, updatedAt time.Time) error {
 	const (
-		resetStmt = `
-      UPDATE software_host_counts
-      SET hosts_count = 0, updated_at = ?`
+		swapTable       = "software_host_counts_swap"
+		swapTableCreate = "CREATE TABLE IF NOT EXISTS " + swapTable + " LIKE software_host_counts"
 
 		// team_id is added to the select list to have the same structure as
 		// the teamCountsStmt, making it easier to use a common implementation
@@ -2600,7 +2631,7 @@ func (ds *Datastore) SyncHostsSoftware(ctx context.Context, updatedAt time.Time)
       GROUP BY hs.software_id`
 
 		insertStmt = `
-      INSERT INTO software_host_counts
+      INSERT INTO ` + swapTable + `
         (software_id, hosts_count, team_id, global_stats, updated_at)
       VALUES
         %s
@@ -2619,33 +2650,19 @@ func (ds *Datastore) SyncHostsSoftware(ctx context.Context, updatedAt time.Time)
       LEFT JOIN software_host_counts shc
       ON s.id = shc.software_id
       WHERE
-        (shc.software_id IS NULL OR
-        (shc.team_id = 0 AND shc.hosts_count = 0)) AND
-		NOT EXISTS (SELECT 1 FROM host_software hsw WHERE hsw.software_id = s.id)
+        shc.software_id IS NULL AND
+        NOT EXISTS (SELECT 1 FROM host_software hsw WHERE hsw.software_id = s.id)
 	  `
-
-		cleanupOrphanedStmt = `
-		  DELETE shc
-		  FROM
-		    software_host_counts shc
-		    LEFT JOIN software s ON s.id = shc.software_id
-		  WHERE
-		    s.id IS NULL
-		`
-
-		cleanupTeamStmt = `
-      DELETE shc
-      FROM software_host_counts shc
-      LEFT JOIN teams t
-      ON t.id = shc.team_id
-      WHERE
-        shc.team_id > 0 AND
-        t.id IS NULL`
 	)
 
-	// first, reset all counts to 0
-	if _, err := ds.writer(ctx).ExecContext(ctx, resetStmt, updatedAt); err != nil {
-		return ctxerr.Wrap(ctx, err, "reset all software_host_counts to 0")
+	// Create a fresh swap table to populate with new counts. If a previous run left a partial swap table, drop it first.
+	w := ds.writer(ctx)
+	if _, err := w.ExecContext(ctx, "DROP TABLE IF EXISTS "+swapTable); err != nil {
+		return ctxerr.Wrap(ctx, err, "drop existing swap table")
+	}
+	// CREATE TABLE ... LIKE copies structure including CHECK constraints (with auto-generated names).
+	if _, err := w.ExecContext(ctx, swapTableCreate); err != nil {
+		return ctxerr.Wrap(ctx, err, "create swap table")
 	}
 
 	db := ds.reader(ctx)
@@ -2664,7 +2681,7 @@ func (ds *Datastore) SyncHostsSoftware(ctx context.Context, updatedAt time.Time)
 	}
 	if minMax.Min == 0 {
 		minMax.Min = 1
-		level.Warn(ds.logger).Log("msg", "software_id 0 found in host_software table; performing counts without those entries")
+		ds.logger.WarnContext(ctx, "software_id 0 found in host_software table; performing counts without those entries")
 	}
 
 	for minSoftwareID, maxSoftwareID := minMax.Min-1, minMax.Min-1+countHostSoftwareBatchSize; minSoftwareID < minMax.Max; minSoftwareID, maxSoftwareID = maxSoftwareID, maxSoftwareID+countHostSoftwareBatchSize {
@@ -2723,19 +2740,32 @@ func (ds *Datastore) SyncHostsSoftware(ctx context.Context, updatedAt time.Time)
 
 	}
 
-	// remove any unused software (global counts = 0)
+	// Atomic table swap: rename the swap table to the real table, drop the old one.
+	// Also drop any leftover old table from a previous failed swap.
+	if err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		_, err := tx.ExecContext(ctx, "DROP TABLE IF EXISTS software_host_counts_old")
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "drop leftover old table")
+		}
+		_, err = tx.ExecContext(ctx, `
+			RENAME TABLE
+				software_host_counts TO software_host_counts_old,
+				`+swapTable+` TO software_host_counts`)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "atomic table swap")
+		}
+		_, err = tx.ExecContext(ctx, "DROP TABLE IF EXISTS software_host_counts_old")
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "drop old table after swap")
+		}
+		return nil
+	}); err != nil {
+		return err
+	}
+
+	// Remove any unused software (those not in host_software).
 	if _, err := ds.writer(ctx).ExecContext(ctx, cleanupSoftwareStmt); err != nil {
 		return ctxerr.Wrap(ctx, err, "delete unused software")
-	}
-
-	// remove any software count row for software that don't exist anymore
-	if _, err := ds.writer(ctx).ExecContext(ctx, cleanupOrphanedStmt); err != nil {
-		return ctxerr.Wrap(ctx, err, "delete software_host_counts for non-existing software")
-	}
-
-	// remove any software count row for teams that don't exist anymore
-	if _, err := ds.writer(ctx).ExecContext(ctx, cleanupTeamStmt); err != nil {
-		return ctxerr.Wrap(ctx, err, "delete software_host_counts for non-existing teams")
 	}
 	return nil
 }
@@ -2743,8 +2773,7 @@ func (ds *Datastore) SyncHostsSoftware(ctx context.Context, updatedAt time.Time)
 func (ds *Datastore) CleanupSoftwareTitles(ctx context.Context) error {
 	var n int64
 	defer func(start time.Time) {
-		level.Debug(ds.logger).Log(
-			"msg", "cleanup orphaned software titles",
+		ds.logger.DebugContext(ctx, "cleanup orphaned software titles",
 			"rows_affected", n,
 			"took", time.Since(start),
 		)
@@ -2937,6 +2966,91 @@ func (ds *Datastore) InsertSoftwareVulnerability(
 	return insertOnDuplicateDidInsertOrUpdate(res), nil
 }
 
+// vulnBatchSize is the batch size used for vulnerability insert and existence-check queries.
+const vulnBatchSize = 500
+
+func (ds *Datastore) InsertSoftwareVulnerabilities(
+	ctx context.Context,
+	vulns []fleet.SoftwareVulnerability,
+	source fleet.VulnerabilitySource,
+) ([]fleet.SoftwareVulnerability, error) {
+	// Filter out entries with empty CVEs.
+	filtered := make([]fleet.SoftwareVulnerability, 0, len(vulns))
+	for _, v := range vulns {
+		if v.CVE != "" {
+			filtered = append(filtered, v)
+		}
+	}
+	if len(filtered) == 0 {
+		return nil, nil
+	}
+
+	// Step 1: Batch-check which vulns already exist so we can identify truly new ones.
+	existing := make(map[string]struct{}, len(filtered))
+	if err := common_mysql.BatchProcessSimple(filtered, vulnBatchSize, func(batch []fleet.SoftwareVulnerability) error {
+		tuples := strings.TrimSuffix(strings.Repeat("(?,?),", len(batch)), ",")
+		query := fmt.Sprintf(
+			`SELECT software_id, cve FROM software_cve WHERE (software_id, cve) IN (%s)`,
+			tuples,
+		)
+		var args []any
+		for _, v := range batch {
+			args = append(args, v.SoftwareID, v.CVE)
+		}
+		var rows []struct {
+			SoftwareID uint   `db:"software_id"`
+			CVE        string `db:"cve"`
+		}
+		if err := sqlx.SelectContext(ctx, ds.reader(ctx), &rows, query, args...); err != nil {
+			return ctxerr.Wrap(ctx, err, "batch check existing software vulnerabilities")
+		}
+		for _, r := range rows {
+			existing[fmt.Sprintf("%d:%s", r.SoftwareID, r.CVE)] = struct{}{}
+		}
+		return nil
+	}); err != nil {
+		return nil, err
+	}
+
+	// Step 2: Identify new vulns (not already in the database).
+	var newVulns []fleet.SoftwareVulnerability
+	for _, v := range filtered {
+		if _, ok := existing[fmt.Sprintf("%d:%s", v.SoftwareID, v.CVE)]; !ok {
+			newVulns = append(newVulns, v)
+		}
+	}
+
+	// Step 3: Batch INSERT (ON DUPLICATE KEY UPDATE for concurrent-safe upsert).
+	// Use an explicit Go-side UTC timestamp to match the legacy InsertSoftwareVulnerability behavior.
+	now := time.Now().UTC()
+	if err := common_mysql.BatchProcessSimple(filtered, vulnBatchSize, func(batch []fleet.SoftwareVulnerability) error {
+		values := strings.TrimSuffix(strings.Repeat("(?,?,?,?),", len(batch)), ",")
+		stmt := fmt.Sprintf(`
+			INSERT INTO software_cve (cve, source, software_id, resolved_in_version)
+			VALUES %s
+			ON DUPLICATE KEY UPDATE
+				source = VALUES(source),
+				resolved_in_version = VALUES(resolved_in_version),
+				updated_at = ?
+		`, values)
+
+		var args []any
+		for _, v := range batch {
+			args = append(args, v.CVE, source, v.SoftwareID, v.ResolvedInVersion)
+		}
+		args = append(args, now)
+
+		if _, err := ds.writer(ctx).ExecContext(ctx, stmt, args...); err != nil {
+			return ctxerr.Wrap(ctx, err, "batch insert software vulnerabilities")
+		}
+		return nil
+	}); err != nil {
+		return nil, err
+	}
+
+	return newVulns, nil
+}
+
 func (ds *Datastore) ListSoftwareVulnerabilitiesByHostIDsSource(
 	ctx context.Context,
 	hostIDs []uint,
@@ -3011,6 +3125,10 @@ func (ds *Datastore) ListSoftwareForVulnDetection(
 		baseSQL += "JOIN host_software hs ON s.id = hs.software_id "
 	}
 
+	if filters.KernelsOnly {
+		baseSQL += "JOIN software_titles st ON s.title_id = st.id "
+	}
+
 	conditions := []string{}
 
 	if filters.HostID != nil {
@@ -3026,6 +3144,10 @@ func (ds *Datastore) ListSoftwareForVulnDetection(
 	if filters.Source != "" {
 		conditions = append(conditions, "s.source = ?")
 		args = append(args, filters.Source)
+	}
+
+	if filters.KernelsOnly {
+		conditions = append(conditions, "st.is_kernel = 1")
 	}
 
 	if len(conditions) > 0 {
@@ -4498,7 +4620,8 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 				software_titles st
 			LEFT OUTER JOIN
 				-- filter out software that is not available for install on the host's platform
-				software_installers si ON st.id = si.title_id AND si.platform = :host_compatible_platforms AND si.extension NOT IN (:incompatible_extensions) AND si.global_or_team_id = :global_or_team_id
+				-- .sh packages are available for both linux and darwin hosts
+				software_installers si ON st.id = si.title_id AND (si.platform = :host_compatible_platforms OR (si.extension = 'sh' AND si.platform = 'linux' AND :host_compatible_platforms = 'darwin')) AND si.extension NOT IN (:incompatible_extensions) AND si.global_or_team_id = :global_or_team_id
 			LEFT OUTER JOIN
 				-- include VPP apps only if the host is on a supported platform
 				vpp_apps vap ON st.id = vap.title_id AND :host_platform IN (:vpp_apps_platforms)
@@ -5910,11 +6033,10 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 				case softwareTitleRecord.SoftwarePackage != nil:
 					softwareTitleRecord.SoftwarePackage.AutomaticInstallPolicies = policies
 				default:
-					level.Warn(ds.logger).Log(
+					ds.logger.WarnContext(ctx, "software title record should have an associated VPP application or software package",
 						"team_id", teamID,
 						"host_id", host.ID,
 						"software_title_id", softwareTitleRecord.ID,
-						"msg", "software title record should have an associated VPP application or software package",
 					)
 				}
 			}

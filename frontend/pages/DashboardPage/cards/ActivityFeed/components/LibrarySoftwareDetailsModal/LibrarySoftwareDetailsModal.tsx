@@ -2,6 +2,7 @@ import React from "react";
 
 import { IActivityDetails } from "interfaces/activity";
 import { ILabelSoftwareTitle } from "interfaces/label";
+import { getDisplayedSoftwareName } from "pages/SoftwarePage/helpers";
 
 import Modal from "components/Modal";
 import Button from "components/buttons/Button";
@@ -90,7 +91,10 @@ const LibrarySoftwareDetailsModal = ({
         <div className={`${baseClass}__modal-content`}>
           <DataSet
             title="Name"
-            value={details.software_display_name || details.software_title}
+            value={getDisplayedSoftwareName(
+              details.software_title,
+              details.software_display_name
+            )}
           />
           <DataSet title="Package name" value={details.software_package} />
           <DataSet

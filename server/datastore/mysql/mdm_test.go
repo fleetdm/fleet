@@ -8083,7 +8083,7 @@ func testBulkSetPendingMDMHostProfilesExcludeAny(t *testing.T, ds *Datastore) {
 
 	i++
 	androidHostObj := createAndroidHost(fmt.Sprintf("android-host%d-name", i))
-	androidHostObj, err = ds.NewAndroidHost(ctx, androidHostObj)
+	androidHostObj, err = ds.NewAndroidHost(ctx, androidHostObj, false)
 	androidHost := androidHostObj.Host
 	require.NoError(t, err)
 
@@ -8350,7 +8350,7 @@ func testBulkSetPendingMDMHostProfilesExcludeAny(t *testing.T, ds *Datastore) {
 
 	i++
 	androidHostObj2 := createAndroidHost(fmt.Sprintf("android-host%d-name", i))
-	androidHostObj2, err = ds.NewAndroidHost(ctx, androidHostObj2)
+	androidHostObj2, err = ds.NewAndroidHost(ctx, androidHostObj2, false)
 	require.NoError(t, err)
 	androidHost2 := androidHostObj2.Host
 
@@ -8675,19 +8675,19 @@ func testGetMDMConfigProfileStatus(t *testing.T, ds *Datastore) {
 	windowsEnroll(t, ds, host8)
 
 	androidHost9 := createAndroidHost("enterprise-id-9")
-	newHost, err := ds.NewAndroidHost(context.Background(), androidHost9)
+	newHost, err := ds.NewAndroidHost(context.Background(), androidHost9, false)
 	require.NoError(t, err)
 	require.NotNil(t, newHost)
 	host9 := newHost.Host
 
 	androidHost10 := createAndroidHost("enterprise-id-10")
-	newHost, err = ds.NewAndroidHost(context.Background(), androidHost10)
+	newHost, err = ds.NewAndroidHost(context.Background(), androidHost10, false)
 	require.NoError(t, err)
 	require.NotNil(t, newHost)
 	host10 := newHost.Host
 
 	androidHost11 := createAndroidHost("enterprise-id-11")
-	newHost, err = ds.NewAndroidHost(context.Background(), androidHost11)
+	newHost, err = ds.NewAndroidHost(context.Background(), androidHost11, false)
 	require.NoError(t, err)
 	require.NotNil(t, newHost)
 	host11 := newHost.Host

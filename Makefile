@@ -3,8 +3,16 @@
 export GO111MODULE=on
 
 PATH := $(shell npm bin):$(PATH)
-VERSION = $(shell git describe --tags --always --dirty)
 BRANCH = $(shell git rev-parse --abbrev-ref HEAD)
+
+# If VERSION is not explicitly set, derive it from the branch name
+ifndef VERSION
+	VERSION := $(shell tools/version-from-branch.sh "$(BRANCH)" 2>/dev/null)
+	# Fall back to git describe when the branch name doesn't match any pattern
+	ifeq ($(VERSION),)
+		VERSION := $(shell git describe --tags --always --dirty)
+	endif
+endif
 REVISION = $(shell git rev-parse HEAD)
 REVSHORT = $(shell git rev-parse --short HEAD)
 USER = $(shell whoami)
@@ -212,8 +220,16 @@ lint-js:
 lint-go:
 	golangci-lint run --timeout 15m
 ifndef SKIP_INCREMENTAL
-	golangci-lint run -c .golangci-incremental.yml --new-from-merge-base=origin/main --timeout 15m ./...
+	$(MAKE) lint-go-incremental
 endif
+
+.help-short--lint-go-incremental:
+	@echo "Run the incremental Go linters"
+lint-go-incremental: custom-gcl
+	./custom-gcl run -c .golangci-incremental.yml --new-from-merge-base=origin/main --timeout 15m ./...
+
+custom-gcl:
+	golangci-lint custom
 
 .help-short--lint:
 	@echo "Run linters"

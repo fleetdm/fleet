@@ -12,7 +12,9 @@ import getDefaultInstallScript from "utilities/software_install_scripts";
 import getDefaultUninstallScript from "utilities/software_uninstall_scripts";
 import { ILabelSummary } from "interfaces/label";
 
-import { SoftwareCategory } from "interfaces/software";
+import { ISoftwareVersion, SoftwareCategory } from "interfaces/software";
+
+import { CustomOptionType } from "components/forms/fields/DropdownWrapper/DropdownWrapper";
 
 import Button from "components/buttons/Button";
 import TooltipWrapper from "components/TooltipWrapper";
@@ -25,17 +27,22 @@ import {
   getTargetType,
 } from "pages/SoftwarePage/helpers";
 import TargetLabelSelector from "components/TargetLabelSelector";
-import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
 import Card from "components/Card";
 import SoftwareOptionsSelector from "pages/SoftwarePage/components/forms/SoftwareOptionsSelector";
 
 import PackageAdvancedOptions from "../PackageAdvancedOptions";
-import { createTooltipContent, generateFormValidation } from "./helpers";
+import {
+  createTooltipContent,
+  generateFormValidation,
+  sortByVersionLatestFirst,
+} from "./helpers";
+import PackageVersionSelector from "../PackageVersionSelector";
 
 export const baseClass = "package-form";
 
 export interface IPackageFormData {
   software: File | null;
+  version?: string;
   preInstallQuery?: string;
   installScript: string;
   postInstallScript?: string;
@@ -57,17 +64,53 @@ export interface IPackageFormValidation {
   customTarget?: { isValid: boolean };
 }
 
+const getGraphicName = (ext: string) => {
+  if (ext === "sh") {
+    return "file-sh";
+  } else if (ext === "ps1") {
+    return "file-ps1";
+  }
+  return "file-pkg";
+};
+
 const renderFileTypeMessage = () => {
   return (
     <>
-      macOS (.pkg), iOS/iPadOS (.ipa),
+      macOS (.pkg,{" "}
+      <TooltipWrapper tipContent="Script-only package">.sh</TooltipWrapper>),
+      iOS/iPadOS (.ipa),
       <br />
-      Windows (.msi, .exe.,{" "}
-      <TooltipWrapper tipContent="Payload-free package">.ps1</TooltipWrapper>),
+      Windows (.msi, .exe,{" "}
+      <TooltipWrapper tipContent="Script-only package">.ps1</TooltipWrapper>),
       or Linux (.deb, .rpm,{" "}
-      <TooltipWrapper tipContent="Payload-free package">.sh</TooltipWrapper>)
+      <TooltipWrapper tipContent="Script-only package">.sh</TooltipWrapper>)
     </>
   );
+};
+
+/** Returns the version value to use as the dropdown's default:
+/ 1) If a previously selected version is still present in the options, reuse it.
+/ 2) Otherwise, fall back to the first option, which is assumed to be the latest.
+/ 3) Safe fallback if no options exist which should never happen */
+const getDefaultVersion = (
+  versionOptions: CustomOptionType[],
+  selectedVersion?: string
+) => {
+  // This shouldn't happen
+  if (!versionOptions.length) {
+    return "";
+  }
+
+  // If we already have a selected version and it exists in options, keep it
+  if (selectedVersion) {
+    const match = versionOptions.find((opt) => opt.value === selectedVersion);
+    if (match) {
+      return match.value;
+    }
+  }
+
+  // Otherwise, default to the first option (which should be latest)
+  return versionOptions[0].value;
 };
 
 interface IPackageFormProps {
@@ -78,6 +121,7 @@ interface IPackageFormProps {
   onClickShowSchema?: () => void;
   onClickPreviewEndUserExperience: (isIosOrIpadosApp: boolean) => void;
   isEditingSoftware?: boolean;
+  isFleetMaintainedApp?: boolean;
   defaultSoftware?: any; // TODO
   defaultInstallScript?: string;
   defaultPreInstallQuery?: string;
@@ -101,6 +145,7 @@ const PackageForm = ({
   onSubmit,
   onClickPreviewEndUserExperience,
   isEditingSoftware = false,
+  isFleetMaintainedApp = false,
   defaultSoftware,
   defaultInstallScript,
   defaultPreInstallQuery,
@@ -112,11 +157,12 @@ const PackageForm = ({
   gitopsCompatible = false,
 }: IPackageFormProps) => {
   const { renderFlash } = useContext(NotificationContext);
-  const gitOpsModeEnabled = useContext(AppContext).config?.gitops
-    .gitops_mode_enabled;
+  const { gitops_mode_enabled: gitOpsModeEnabled, repository_url: repoURL } =
+    useContext(AppContext).config?.gitops || {};
 
   const initialFormData: IPackageFormData = {
     software: defaultSoftware || null,
+    version: defaultSoftware?.version || "",
     installScript: defaultInstallScript || "",
     preInstallQuery: defaultPreInstallQuery || "",
     postInstallScript: defaultPostInstallScript || "",
@@ -203,16 +249,18 @@ const PackageForm = ({
     setFormValidation(generateFormValidation(newData));
   };
 
-  const onToggleAutomaticInstallCheckbox = useCallback(
-    (value: boolean) => {
-      const newData = { ...formData, automaticInstall: value };
-      setFormData(newData);
+  const onToggleAutomaticInstall = useCallback(
+    (value?: boolean) => {
+      const automaticInstall =
+        typeof value === "boolean" ? value : !formData.automaticInstall;
+
+      setFormData({ ...formData, automaticInstall });
     },
     [formData]
   );
 
-  const onToggleSelfServiceCheckbox = (value: boolean) => {
-    const newData = { ...formData, selfService: value };
+  const onToggleSelfService = () => {
+    const newData = { ...formData, selfService: !formData.selfService };
     setFormData(newData);
     setFormValidation(generateFormValidation(newData));
   };
@@ -266,8 +314,24 @@ const PackageForm = ({
     setFormValidation(generateFormValidation(newData));
   };
 
-  const isSubmitDisabled = !formValidation.isValid;
-  const submitTooltipContent = createTooltipContent(formValidation);
+  const onSelectVersion = (version: string) => {
+    // For now we can only update version in GitOps
+    // Selection is currently disabled in the UI
+    const newData = {
+      ...formData,
+      version,
+    };
+    setFormData(newData);
+    setFormValidation(generateFormValidation(newData));
+  };
+
+  const disableFieldsForGitOps = gitopsCompatible && gitOpsModeEnabled;
+  const isSubmitDisabled = !formValidation.isValid || disableFieldsForGitOps;
+  const submitTooltipContent = createTooltipContent(
+    formValidation,
+    repoURL,
+    disableFieldsForGitOps
+  );
 
   const classNames = classnames(baseClass, className);
 
@@ -287,7 +351,7 @@ const PackageForm = ({
       (isExePackage || isTarballPackage || isScriptPackage || isIpaPackage) &&
       formData.automaticInstall
     ) {
-      onToggleAutomaticInstallCheckbox(false);
+      onToggleAutomaticInstall(false);
     }
   }, [
     formData.automaticInstall,
@@ -295,7 +359,7 @@ const PackageForm = ({
     isTarballPackage,
     isScriptPackage,
     isIpaPackage,
-    onToggleAutomaticInstallCheckbox,
+    onToggleAutomaticInstall,
   ]);
 
   // Show advanced options when a package is selected that's not a script or ipa
@@ -305,12 +369,81 @@ const PackageForm = ({
   // GitOps mode hides SoftwareOptionsSelector and TargetLabelSelector
   const showOptionsTargetsSelectors = !gitOpsModeEnabled;
 
+  const renderSoftwareOptionsSelector = () => (
+    <SoftwareOptionsSelector
+      formData={formData}
+      onToggleAutomaticInstall={onToggleAutomaticInstall}
+      onToggleSelfService={onToggleSelfService}
+      onSelectCategory={onSelectCategory}
+      isCustomPackage
+      isEditingSoftware={isEditingSoftware}
+      isExePackage={isExePackage}
+      isTarballPackage={isTarballPackage}
+      isScriptPackage={isScriptPackage}
+      isIpaPackage={isIpaPackage}
+      onClickPreviewEndUserExperience={() =>
+        onClickPreviewEndUserExperience(isIpaPackage)
+      }
+    />
+  );
+
+  const renderTargetLabelSelector = () => (
+    <TargetLabelSelector
+      selectedTargetType={formData.targetType}
+      selectedCustomTarget={formData.customTarget}
+      selectedLabels={formData.labelTargets}
+      customTargetOptions={CUSTOM_TARGET_OPTIONS}
+      className={`${baseClass}__target`}
+      onSelectTargetType={onSelectTargetType}
+      onSelectCustomTarget={onSelectCustomTarget}
+      onSelectLabel={onSelectLabel}
+      labels={labels || []}
+      dropdownHelpText={
+        formData.targetType === "Custom" &&
+        generateHelpText(formData.automaticInstall, formData.customTarget)
+      }
+    />
+  );
+
+  const renderCustomEditor = () => {
+    if (isEditingSoftware && !isFleetMaintainedApp) {
+      return null;
+    }
+
+    const fmaVersionsSortedByLatestFirst = sortByVersionLatestFirst<ISoftwareVersion>(
+      defaultSoftware.fleet_maintained_versions || []
+    );
+    const hasMultipleVersions = fmaVersionsSortedByLatestFirst.length > 1;
+
+    const versionOptions = fmaVersionsSortedByLatestFirst.map(
+      (v: ISoftwareVersion, index: number) => {
+        // If multiple versions, only adds "Latest" label to the first option
+        const labelLatestVersion = hasMultipleVersions && index === 0;
+
+        return {
+          label: labelLatestVersion ? `Latest (${v.version})` : `${v.version}`,
+          value: v.version,
+        };
+      }
+    );
+
+    return (
+      <PackageVersionSelector
+        selectedVersion={getDefaultVersion(versionOptions, formData.version)}
+        versionOptions={versionOptions}
+        onSelectVersion={onSelectVersion}
+        className={`${baseClass}__version-selector`}
+      />
+    );
+  };
+
   return (
     <div className={classNames}>
       <form className={`${baseClass}__form`} onSubmit={onFormSubmit}>
         <FileUploader
           canEdit={canEditFile}
-          graphicName="file-pkg"
+          customEditor={renderCustomEditor}
+          graphicName={getGraphicName(ext || "")}
           accept={ACCEPTED_EXTENSIONS}
           message={renderFileTypeMessage()}
           onFileUpload={onFileSelect}
@@ -318,11 +451,9 @@ const PackageForm = ({
           buttonType="brand-inverse-icon"
           className={`${baseClass}__file-uploader`}
           fileDetails={
-            formData.software
-              ? getFileDetails(formData.software, true)
-              : undefined
+            formData.software ? getFileDetails(formData.software) : undefined
           }
-          gitopsCompatible={false}
+          gitopsCompatible={gitopsCompatible}
           gitOpsModeEnabled={gitOpsModeEnabled}
         />
         <div
@@ -336,49 +467,26 @@ const PackageForm = ({
         >
           {showOptionsTargetsSelectors && (
             <div className={`${baseClass}__form-frame`}>
-              <Card
-                paddingSize="medium"
-                borderRadiusSize={isEditingSoftware ? "medium" : "large"}
-              >
-                <SoftwareOptionsSelector
-                  formData={formData}
-                  onToggleAutomaticInstall={onToggleAutomaticInstallCheckbox}
-                  onToggleSelfService={onToggleSelfServiceCheckbox}
-                  onSelectCategory={onSelectCategory}
-                  isCustomPackage
-                  isEditingSoftware={isEditingSoftware}
-                  isExePackage={isExePackage}
-                  isTarballPackage={isTarballPackage}
-                  isScriptPackage={isScriptPackage}
-                  isIpaPackage={isIpaPackage}
-                  onClickPreviewEndUserExperience={() =>
-                    onClickPreviewEndUserExperience(isIpaPackage)
-                  }
-                />
-              </Card>
-              <Card
-                paddingSize="medium"
-                borderRadiusSize={isEditingSoftware ? "medium" : "large"}
-              >
-                <TargetLabelSelector
-                  selectedTargetType={formData.targetType}
-                  selectedCustomTarget={formData.customTarget}
-                  selectedLabels={formData.labelTargets}
-                  customTargetOptions={CUSTOM_TARGET_OPTIONS}
-                  className={`${baseClass}__target`}
-                  onSelectTargetType={onSelectTargetType}
-                  onSelectCustomTarget={onSelectCustomTarget}
-                  onSelectLabel={onSelectLabel}
-                  labels={labels || []}
-                  dropdownHelpText={
-                    formData.targetType === "Custom" &&
-                    generateHelpText(
-                      formData.automaticInstall,
-                      formData.customTarget
-                    )
-                  }
-                />
-              </Card>
+              {isEditingSoftware ? (
+                renderSoftwareOptionsSelector()
+              ) : (
+                <Card
+                  paddingSize="medium"
+                  borderRadiusSize={isEditingSoftware ? "medium" : "large"}
+                >
+                  {renderSoftwareOptionsSelector()}
+                </Card>
+              )}
+              {isEditingSoftware ? (
+                renderTargetLabelSelector()
+              ) : (
+                <Card
+                  paddingSize="medium"
+                  borderRadiusSize={isEditingSoftware ? "medium" : "large"}
+                >
+                  {renderTargetLabelSelector()}
+                </Card>
+              )}
             </div>
           )}
         </div>
@@ -398,6 +506,8 @@ const PackageForm = ({
             onChangeInstallScript={onChangeInstallScript}
             onChangePostInstallScript={onChangePostInstallScript}
             onChangeUninstallScript={onChangeUninstallScript}
+            gitopsCompatible={gitopsCompatible}
+            gitOpsModeEnabled={gitOpsModeEnabled}
           />
         )}
         <div className={`${baseClass}__action-buttons`}>

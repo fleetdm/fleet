@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"crypto/x509"
 	"encoding/json"
 	"encoding/xml"
 	"fmt"
@@ -12,6 +13,7 @@ import (
 	"github.com/fleetdm/fleet/v4/pkg/mdm/mdmtest"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanodep/godep"
+	mdmtesting "github.com/fleetdm/fleet/v4/server/mdm/testing_utils"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
@@ -196,6 +198,8 @@ func (s *integrationMDMTestSuite) TestLockUnlockWipeIOSIpadOS() {
 	}
 
 	s.enableABM(t.Name())
+	abmTok, err := s.ds.GetABMTokenByOrgName(t.Context(), t.Name())
+	require.NoError(t, err)
 	s.mockDEPResponse(t.Name(), http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
 		encoder := json.NewEncoder(w)
@@ -241,6 +245,7 @@ func (s *integrationMDMTestSuite) TestLockUnlockWipeIOSIpadOS() {
 	// We fake set installed_from_dep to emulate the devices was enrolled with DEP.
 	require.NoError(t, s.ds.SetOrUpdateMDMData(t.Context(), iosHost.ID, false, true, s.server.URL, true, t.Name(), "", false))
 	require.NoError(t, s.ds.SetOrUpdateMDMData(t.Context(), iPadOSHost.ID, false, true, s.server.URL, true, t.Name(), "", false))
+	s.Require().NoError(s.ds.UpsertMDMAppleHostDEPAssignments(t.Context(), []fleet.Host{*iosHost, *iPadOSHost}, abmTok.ID, nil))
 
 	for _, tc := range []struct {
 		name      string
@@ -292,8 +297,12 @@ func (s *integrationMDMTestSuite) TestLockUnlockWipeIOSIpadOS() {
 			require.NoError(t, err)
 			require.NotNil(t, cmd)
 			require.Equal(t, "DeviceLocation", cmd.Command.RequestType)
-			_, err = tc.mdmClient.AcknowledgeDeviceLocation(getHostResp.Host.UUID, cmd.CommandUUID)
+			expectedLat, expectedLong := 42.42, 26.26
+			_, err = tc.mdmClient.AcknowledgeDeviceLocation(getHostResp.Host.UUID, cmd.CommandUUID, expectedLat, expectedLong)
 			require.NoError(t, err)
+
+			// Run device location handler
+			s.runWorker()
 
 			// refresh the host's status, it is now locked
 			s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", tc.host.ID), nil, http.StatusOK, &getHostResp)
@@ -301,6 +310,9 @@ func (s *integrationMDMTestSuite) TestLockUnlockWipeIOSIpadOS() {
 			require.Equal(t, string(fleet.DeviceStatusLocked), *getHostResp.Host.MDM.DeviceStatus)
 			require.NotNil(t, getHostResp.Host.MDM.PendingAction)
 			require.Equal(t, "", *getHostResp.Host.MDM.PendingAction)
+			// Fleet should have the device's location data now
+			s.Assert().NotNil(getHostResp.Host.Geolocation)
+			s.Assert().Equal([]float64{expectedLat, expectedLong}, getHostResp.Host.Geolocation.Geometry.Coordinates)
 
 			// try to lock the host again
 			s.Do("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/lock", tc.host.ID), nil, http.StatusConflict)
@@ -308,6 +320,62 @@ func (s *integrationMDMTestSuite) TestLockUnlockWipeIOSIpadOS() {
 			res := s.Do("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/wipe", tc.host.ID), nil, http.StatusUnprocessableEntity)
 			errMsg := extractServerErrorText(res.Body)
 			require.Contains(t, errMsg, "Host cannot be wiped until it is unlocked.")
+
+			// Refetch the host, should update the location data
+			_ = s.Do("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/refetch", tc.host.ID), nil, http.StatusOK)
+
+			testCerts := []*x509.Certificate{mdmtesting.NewTestMDMAppleCertTemplate()}
+			var hostResp getHostResponse
+			s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", tc.host.ID), nil, http.StatusOK, &hostResp)
+			assert.Equal(t, tc.host.ID, hostResp.Host.ID)
+			assert.True(t, hostResp.Host.RefetchRequested)
+
+			// Check the MDM commands and send response
+			cmd, err = tc.mdmClient.Idle()
+			require.NoError(t, err)
+			require.NotNil(t, cmd)
+
+			expectedSoftware := []fleet.HostSoftwareEntry{
+				{
+					Software: fleet.Software{
+						BundleIdentifier: "com.evernote.iPhone.Evernote",
+						Name:             "Evernote",
+						Version:          "10.98.0",
+						Source:           "ios_apps",
+					},
+				},
+			}
+			require.Equal(t, "InstalledApplicationList", cmd.Command.RequestType)
+			cmd, err = tc.mdmClient.AcknowledgeInstalledApplicationList(tc.mdmClient.UUID, cmd.CommandUUID,
+				[]fleet.Software{expectedSoftware[0].Software})
+			require.NoError(t, err)
+			require.Equal(t, "CertificateList", cmd.Command.RequestType)
+			cmd, err = tc.mdmClient.AcknowledgeCertificateList(tc.mdmClient.UUID, cmd.CommandUUID, testCerts)
+			require.NoError(t, err)
+			require.Equal(t, "DeviceInformation", cmd.Command.RequestType)
+			_, err = tc.mdmClient.AcknowledgeDeviceInformation(tc.mdmClient.UUID, cmd.CommandUUID, tc.host.DisplayName(), "", "America/Los_Angeles")
+			require.NoError(t, err)
+
+			cmd, err = tc.mdmClient.Idle()
+			require.NoError(t, err)
+			require.NotNil(t, cmd)
+			require.Equal(t, "DeviceLocation", cmd.Command.RequestType)
+			expectedLat, expectedLong = 10.10, 45.45
+			_, err = tc.mdmClient.AcknowledgeDeviceLocation(getHostResp.Host.UUID, cmd.CommandUUID, expectedLat, expectedLong)
+			require.NoError(t, err)
+
+			// Run device location handler
+			s.runWorker()
+
+			// Get host data
+			s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", tc.host.ID), nil, http.StatusOK, &getHostResp)
+			require.NotNil(t, getHostResp.Host.MDM.DeviceStatus)
+			require.Equal(t, string(fleet.DeviceStatusLocked), *getHostResp.Host.MDM.DeviceStatus)
+			require.NotNil(t, getHostResp.Host.MDM.PendingAction)
+			require.Equal(t, "", *getHostResp.Host.MDM.PendingAction)
+			// Fleet should have the updated location data now
+			s.Assert().NotNil(getHostResp.Host.Geolocation)
+			s.Assert().Equal([]float64{expectedLat, expectedLong}, getHostResp.Host.Geolocation.Geometry.Coordinates)
 
 			// unlock the host
 			unlockResp = unlockHostResponse{}
@@ -340,11 +408,15 @@ func (s *integrationMDMTestSuite) TestLockUnlockWipeIOSIpadOS() {
 			require.NoError(t, err)
 
 			// refresh the host's status, it is now unlocked
+			getHostResp = getHostResponse{}
 			s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", tc.host.ID), nil, http.StatusOK, &getHostResp)
 			require.NotNil(t, getHostResp.Host.MDM.DeviceStatus)
 			require.Equal(t, string(fleet.DeviceStatusUnlocked), *getHostResp.Host.MDM.DeviceStatus)
 			require.NotNil(t, getHostResp.Host.MDM.PendingAction)
 			require.Equal(t, "", *getHostResp.Host.MDM.PendingAction)
+
+			// Host location data should have been deleted
+			s.Assert().Nil(getHostResp.Host.Geolocation)
 
 			// wipe the host
 			var wipeResp wipeHostResponse

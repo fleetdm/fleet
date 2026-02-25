@@ -22,7 +22,7 @@ These flaws are listed here publicly for two reasons. The first is so that peopl
   - I get grumpy when I am tired and I worry that I'll forget to follow up about things.  So I try to say them all.
   - I can talk too much.  On video calls, and especially during a screenshare session, I sometimes will keep talking longer than I otherwise would.  If you get lost, or overwhelmed, you can interrupt me or send a chat: "Hold up, I'm feeling out of phase from this conversation."
 
-> If you notice one of these flaws, and especially if you deliver feedback about it and don't feel heard, or you feel hurt, or you feel like I didn't "get it", please send me a link to this section of the handbook, or just interrupt me and give me [feedback in the moment](https://fleetdm.com/handbook/company/communications#performance-feedback).  I will be extremely grateful, and value your bravery in pursuit of what's in the best interest of the company.  (And if I don't, keep trying.  I'll come crawling back.  Promise.)
+> If you notice one of these flaws, and especially if you deliver feedback about it and don't feel heard, or you feel hurt, or you feel like I didn't "get it", please send me a link to this section of the handbook, or just interrupt me and give me [feedback in the moment](https://fleetdm.com/handbook/company/communications#feedback).  I will be extremely grateful, and value your bravery in pursuit of what's in the best interest of the company.  (And if I don't, keep trying.  I'll come crawling back.  Promise.)
 
 
 ## Contact the CEO

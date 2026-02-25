@@ -10,7 +10,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/go-kit/log"
+	platformlogging "github.com/fleetdm/fleet/v4/server/platform/logging"
 	"github.com/golang/snappy"
 	"github.com/klauspost/compress/zstd"
 	"github.com/nats-io/nats-server/v2/server"
@@ -81,6 +81,25 @@ func makeNatsLogs(t *testing.T) []json.RawMessage {
 	}
 
 	return logs
+}
+
+// natsWaitOrTimeout waits for the WaitGroup with a timeout to prevent
+// tests from hanging indefinitely if messages are lost.
+func natsWaitOrTimeout(t *testing.T, wg *sync.WaitGroup, timeout time.Duration) {
+	t.Helper()
+
+	done := make(chan struct{})
+
+	go func() {
+		wg.Wait()
+		close(done)
+	}()
+
+	select {
+	case <-done:
+	case <-time.After(timeout):
+		t.Fatal("timed out waiting for NATS messages")
+	}
 }
 
 func TestNatsLogRouter(t *testing.T) {
@@ -163,6 +182,10 @@ func TestNatsLogWriter(t *testing.T) {
 		// Ensure the subscription was created successfully.
 		require.NoError(t, err)
 
+		// Flush to ensure the subscription is registered on the server
+		// before the writer publishes on its own connection.
+		require.NoError(t, nc.Flush())
+
 		// Create the NATS log writer, specifying that the logs should be
 		// published directly to the NATS subject, without using JetStream.
 		writer, err := NewNatsLogWriter(
@@ -176,7 +199,7 @@ func TestNatsLogWriter(t *testing.T) {
 			"",
 			false,
 			natsTestTimeout,
-			log.NewNopLogger(),
+			platformlogging.NewNopLogger(),
 		)
 
 		require.NoError(t, err)
@@ -185,7 +208,7 @@ func TestNatsLogWriter(t *testing.T) {
 		require.NoError(t, writer.Write(t.Context(), expected))
 
 		// Wait for all logs to be received.
-		wg.Wait()
+		natsWaitOrTimeout(t, &wg, natsTestTimeout)
 
 		// Ensure the received logs are equal to the expected logs.
 		require.Equal(t, expected, received)
@@ -218,7 +241,7 @@ func TestNatsLogWriter(t *testing.T) {
 			"",
 			false,
 			natsTestTimeout,
-			log.NewNopLogger(),
+			platformlogging.NewNopLogger(),
 		)
 
 		require.NoError(t, err)
@@ -271,7 +294,7 @@ func TestNatsLogWriter(t *testing.T) {
 			"",
 			true,
 			natsTestTimeout,
-			log.NewNopLogger(),
+			platformlogging.NewNopLogger(),
 		)
 
 		require.NoError(t, err)
@@ -325,7 +348,7 @@ func TestNatsLogWriter(t *testing.T) {
 			"",
 			true,
 			natsTestTimeout,
-			log.NewNopLogger(),
+			platformlogging.NewNopLogger(),
 		)
 
 		require.NoError(t, err)
@@ -382,6 +405,10 @@ func TestNatsLogWriter(t *testing.T) {
 		// Ensure the subscription was created successfully.
 		require.NoError(t, err)
 
+		// Flush to ensure the subscription is registered on the server
+		// before the writer publishes on its own connection.
+		require.NoError(t, nc.Flush())
+
 		// Create the NATS log writer with gzip compression enabled.
 		writer, err := NewNatsLogWriter(
 			ns.ClientURL(),
@@ -394,7 +421,7 @@ func TestNatsLogWriter(t *testing.T) {
 			"gzip",
 			false,
 			natsTestTimeout,
-			log.NewNopLogger(),
+			platformlogging.NewNopLogger(),
 		)
 
 		require.NoError(t, err)
@@ -404,7 +431,7 @@ func TestNatsLogWriter(t *testing.T) {
 		require.NoError(t, writer.Write(t.Context(), exp))
 
 		// Wait for all logs to be received.
-		wg.Wait()
+		natsWaitOrTimeout(t, &wg, natsTestTimeout)
 
 		// Ensure the received logs are equal to the expected logs.
 		require.Equal(t, exp, act)
@@ -439,7 +466,7 @@ func TestNatsLogWriter(t *testing.T) {
 			"gzip",
 			true,
 			natsTestTimeout,
-			log.NewNopLogger(),
+			platformlogging.NewNopLogger(),
 		)
 
 		require.NoError(t, err)
@@ -505,6 +532,10 @@ func TestNatsLogWriter(t *testing.T) {
 		// Ensure the subscription was created successfully.
 		require.NoError(t, err)
 
+		// Flush to ensure the subscription is registered on the server
+		// before the writer publishes on its own connection.
+		require.NoError(t, nc.Flush())
+
 		// Create the NATS log writer with snappy compression enabled.
 		writer, err := NewNatsLogWriter(
 			ns.ClientURL(),
@@ -517,7 +548,7 @@ func TestNatsLogWriter(t *testing.T) {
 			"snappy",
 			false,
 			natsTestTimeout,
-			log.NewNopLogger(),
+			platformlogging.NewNopLogger(),
 		)
 
 		require.NoError(t, err)
@@ -527,7 +558,7 @@ func TestNatsLogWriter(t *testing.T) {
 		require.NoError(t, writer.Write(t.Context(), exp))
 
 		// Wait for all logs to be received.
-		wg.Wait()
+		natsWaitOrTimeout(t, &wg, natsTestTimeout)
 
 		// Ensure the received logs are equal to the expected logs.
 		require.Equal(t, exp, act)
@@ -567,6 +598,10 @@ func TestNatsLogWriter(t *testing.T) {
 		// Ensure the subscription was created successfully.
 		require.NoError(t, err)
 
+		// Flush to ensure the subscription is registered on the server
+		// before the writer publishes on its own connection.
+		require.NoError(t, nc.Flush())
+
 		// Create the NATS log writer with zstd compression enabled.
 		writer, err := NewNatsLogWriter(
 			ns.ClientURL(),
@@ -579,7 +614,7 @@ func TestNatsLogWriter(t *testing.T) {
 			"zstd",
 			false,
 			natsTestTimeout,
-			log.NewNopLogger(),
+			platformlogging.NewNopLogger(),
 		)
 
 		require.NoError(t, err)
@@ -589,7 +624,7 @@ func TestNatsLogWriter(t *testing.T) {
 		require.NoError(t, writer.Write(t.Context(), exp))
 
 		// Wait for all logs to be received.
-		wg.Wait()
+		natsWaitOrTimeout(t, &wg, natsTestTimeout)
 
 		// Ensure the received logs are equal to the expected logs.
 		require.Equal(t, exp, act)
@@ -624,7 +659,7 @@ func TestNatsLogWriter(t *testing.T) {
 			"snappy",
 			true,
 			natsTestTimeout,
-			log.NewNopLogger(),
+			platformlogging.NewNopLogger(),
 		)
 
 		require.NoError(t, err)
@@ -686,7 +721,7 @@ func TestNatsLogWriter(t *testing.T) {
 			"zstd",
 			true,
 			natsTestTimeout,
-			log.NewNopLogger(),
+			platformlogging.NewNopLogger(),
 		)
 
 		require.NoError(t, err)
@@ -739,7 +774,7 @@ func TestNatsLogWriter(t *testing.T) {
 			"invalid",
 			false,
 			natsTestTimeout,
-			log.NewNopLogger(),
+			platformlogging.NewNopLogger(),
 		)
 
 		// Ensure an error is returned.

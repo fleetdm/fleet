@@ -4,16 +4,16 @@ import (
 	"context"
 	"time"
 
-	"github.com/go-kit/log"
+	"github.com/fleetdm/fleet/v4/server/platform/logging"
 )
 
 type loggingService struct {
-	logger log.Logger
+	logger *logging.Logger
 	Service
 }
 
 // NewLoggingService creates adds logging to the SCEP service
-func NewLoggingService(logger log.Logger, s Service) Service {
+func NewLoggingService(logger *logging.Logger, s Service) Service {
 	return &loggingService{logger, s}
 }
 

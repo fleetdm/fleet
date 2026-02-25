@@ -20,7 +20,7 @@ The "[¶ 🗣 E-Group weekly [no shadows]](https://docs.google.com/document/d/13
 
 ### Strategy
 
-You can read background about how Fleet reached its positioning and product strategy in ["🎐 Why Fleet?" (private Google doc)](https://docs.google.com/document/d/1E0VU4AcB6UTVRd4JKD45Saxh9Gz-mkO3LnGSTBDLEZo/edit#). You can read about Fleet's Go-To-Market (GTM) strategy on our [Go-To-Market groups page](https://fleetdm.com/handbook/company/go-to-market-groups).
+You can read background about how Fleet reached its positioning and product strategy in ["🎐 Why Fleet?" (private Google doc)](https://docs.google.com/document/d/1E0VU4AcB6UTVRd4JKD45Saxh9Gz-mkO3LnGSTBDLEZo/edit#). You can read about Fleet's Go-To-Market (GTM) strategy on our [Go-To-Market ops page](https://fleetdm.com/handbook/company/go-to-market-operations).
 
 You can read the [Fleet ideal customer profile (ICP) and core personas doc (confidential)](https://docs.google.com/document/d/1ffsPCS6KGrHQFF7EgRLz1z2mOvtZwMSGyfDezOuOUwc/edit?tab=t.0#heading=h.xbsablobgthj) to understand how we identify our prospects.
 
@@ -43,35 +43,35 @@ Security policies are best when they're alive, in context of how an organization
 Fleet is successful because of our customers and community, and those relationships are built on [trust](https://fleetdm.com/trust).
 
 > **Compliance**
-> Community members can request compliance documentation (e.g. Fleet's SOC2 Type 2 report) at https://fleetdm.com/trust. In its current form, our SOC 2 report is intended to be shared only with parties who have signed a non-disclosure agreement (NDA) with Fleet. Internal stakeholders can [download approved documents](https://fleetdm.com/handbook/company/go-to-market-groups#fleets-vendor-collateral) from Google Drive.
+> Community members can request compliance documentation (e.g. Fleet's SOC2 Type 2 report) at https://fleetdm.com/trust. In its current form, our SOC 2 report is intended to be shared only with parties who have signed a non-disclosure agreement (NDA) with Fleet. Internal stakeholders can [download approved documents](https://fleetdm.com/handbook/company/go-to-market-operations#fleets-vendor-collateral) from Google Drive.
 
 
 ## Directly responsible individuals (DRIs)
 
 | Area of responsibility | [DRI](https://fleetdm.com/handbook/company/why-this-way#why-direct-responsibility) |
 | -------------- | --- |
-| Revenue                              | <sup><sub>_See [🐋 Chief Revenue Officer](https://fleetdm.com/handbook/sales#team)_</sup></sub>
+| Revenue                              | <sup><sub>_See [🐋 SVP of Global Sales](https://fleetdm.com/handbook/sales#team)_</sup></sub>
 | Pricing                              | <sup><sub>_See [🛠️ CEO responsibilities](https://fleetdm.com/handbook/company/leadership#ceo-responsibilities)_</sup></sub>
 | Brand design & illustrations         | <sup><sub>_See [🦢 Head of Design](https://fleetdm.com/handbook/product-design#team)_</sup></sub>
 | Website                              | <sup><sub>_See [🕸️ #g-website group](https://fleetdm.com/handbook/company/product-groups#website-group)_
 | Product marketing (PMM)              | <sup><sub>_See [🫧 Marketing team](https://fleetdm.com/handbook/marketing#team)_</sup></sub>
 | Brand strategy                       | <sup><sub>_See [🛠️ CEO responsibilities](https://fleetdm.com/handbook/company/leadership#ceo-responsibilities)_</sup></sub>
 | Public relations                     | <sup><sub>_See [🫧 Marketing team](https://fleetdm.com/handbook/marketing#team)_</sup></sub>
-| Revenue pipeline                     | <sup><sub>_See [🫧 Marketing team](https://fleetdm.com/handbook/marketing#team)_</sup></sub>
+| Revenue pipeline                     | <sup><sub>_See [🫧 Chief Marketing Officer](https://fleetdm.com/handbook/marketing#team)_</sup></sub>
 | Ads                                  | <sup><sub>_See [🫧 Marketing team](https://fleetdm.com/handbook/marketing#team)_</sup></sub>
 | Video                                | <sup><sub>_See [🫧 Marketing team](https://fleetdm.com/handbook/marketing#team)_</sup></sub>
 | Social media                         | <sup><sub>_See [🫧 Marketing team](https://fleetdm.com/handbook/marketing#team)_</sup></sub>
 | Events                               | <sup><sub>_See [🫧 Marketing team](https://fleetdm.com/handbook/marketing#team)_</sup></sub>
 | Swag                                 | <sup><sub>_See [🫧 Marketing team](https://fleetdm.com/handbook/marketing#team)_</sup></sub>
-| Guides                               | <sup><sub>_See [🌦️ Customer Success &amp; VP of Customer Success](https://fleetdm.com/handbook/customer-success#team)_</sup></sub>
+| Guides                               | <sup><sub>_See [🫧 Marketing team](https://fleetdm.com/handbook/marketing#team)_</sup></sub>
 | Release article                      | <sup><sub>_See [🦢 Head of Product Design](https://fleetdm.com/handbook/product-design#team)_</sup></sub>
 | Onboarding and training              | <sup><sub>_See [🧑‍🚀 Head of People](https://fleetdm.com/handbook/people#team)_</sup></sub>
 | Payroll and benefits                 | <sup><sub>_See [🧑‍🚀 Head of People](https://fleetdm.com/handbook/people#team)_</sup></sub>
-| Information technology (IT)          | <sup><sub>_See [🌐 IT & Enablement](https://fleetdm.com/handbook/it#team)_</sup></sub>
-| Internal tools & equipment           | <sup><sub>_See [🌐 IT & Enablement](https://fleetdm.com/handbook/it#team)_</sup></sub>
+| Information technology (IT)          | <sup><sub>_See [🌐 IT](https://fleetdm.com/handbook/it#team)_</sup></sub>
+| Internal tools & equipment           | <sup><sub>_See [🌐 IT](https://fleetdm.com/handbook/it#team)_</sup></sub>
 | Bookkeeping, AR/AP                   | <sup><sub>_See [💸 Finance](https://fleetdm.com/handbook/finance#team)_</sup></sub>
 | Legal contracts                      | <sup><sub>_See [💸 Finance](https://fleetdm.com/handbook/finance#team)_</sup></sub>
-| Customer renewals                    | <sup><sub>_See [🌦️ VP of Customer Success](https://fleetdm.com/handbook/customer-success#team)_</sup></sub>
+| Customer renewals                    | <sup><sub>_See [🌦️ SVP of Customer Success](https://fleetdm.com/handbook/customer-success#team)_</sup></sub>
 | Customer deployments                 | <sup><sub>_See [🌦️ Infrastructure Engineer](https://fleetdm.com/handbook/customer-success#team)_ </sup></sub>
 | Customer support                     | <sup><sub>_See [🌦️ Customer Success team](https://fleetdm.com/handbook/customer-success#team)_</sup></sub>
 | Quality assurance (QA)               | <sup><sub>_See [🚀 Engineering team](https://fleetdm.com/handbook/engineering#team)_ </sup></sub>
@@ -161,7 +161,7 @@ Videos are transcribed, and this makes it easier to find required redactions dur
 
 To schedule a meeting within Fleet:
 - To add a Zoom meeting to a calendar event, click the "Add video conferencing" dropdown and select "Zoom Meeting." Google Calendar will automatically add the Zoom meeting details and instructions to join the event.
-- Enter the `@fleetdm.com` emails for each participant into the "Add guests" box in Google Calendar, and the calendar availability for each participant will appear in your view.
+- Enter the `@fleetdm.com` emails for each participant into the "Add guests" box in Google Calendar, and the calendar availability for each participant will appear in your view. Do not use "Optional" for invitees.
 - Select a meeting time, the participants will automatically be invited and a video conference will be attached to the invite (this can save a lot of communication overhead when scheduling with multiple participants).
 
 **Internal meeting scheduling**: Fleet uses the Zoom add-on for Google Calendar to schedule meetings (exceptions are customers that are non-negotiably required to use a different tool) when we [create calendar events](https://support.google.com/calendar/answer/72143?hl=en&ref_topic=10510646&sjid=7187599067132459840-NA#zippy=%2Cclick-an-empty-time-in-your-calendar). 
@@ -206,7 +206,7 @@ All managers at Fleet have [1:1 meetings](https://handbook.gitlab.com/handbook/l
 
 ### Skip-level 1:1 meetings 
 
-Fleet uses skip-level 1:1 meetings as a recurring pulse check to encourage [valuable personal and departmental feedback](https://fleetdm.com/handbook/company/communications#performance-feedback) across the org. This helps the leadership at Fleet run an effective company with a great team, good alignment, and quick decisions. To schedule a skip-Level 1:1:
+Fleet uses skip-level 1:1 meetings as a recurring pulse check to encourage [valuable personal and departmental feedback](https://fleetdm.com/handbook/company/communications#feedback) across the org. This helps the leadership at Fleet run an effective company with a great team, good alignment, and quick decisions. To schedule a skip-Level 1:1:
 1. Create a copy of the ["Skip-level 1:1 agenda template"](https://docs.google.com/document/d/191wiy-_a9XBMndLlM97iOwUF6a-0PtkbboQ2FCUIy6w/copy) and rename the document "🧑‍🚀 YOUR_GITHUB_USER_NAME : SUPERVISOR_GITHUB_USER_NAME".
 2. [Schedule a meeting](https://fleetdm.com/handbook/company/communications#internal-meeting-scheduling) with your manager's supervisor and title the calendar event by copying your skip-level agenda title and appending "[no shadows]" to the end (this tells other team members that this is a private conversation).
 3. Link the skip-level agenda in the calendar event description before saving.
@@ -215,6 +215,11 @@ Fleet uses skip-level 1:1 meetings as a recurring pulse check to encourage [valu
 > **Are you scheduling time with the CEO?**
 >
 > Please do not add events to the CEO's calendar, *even if the CEO asks you to*. Instead, [get scheduling help from the Executive Assistant](https://fleetdm.com/handbook/company/leadership#schedule-time-with-the-ceo)).
+
+
+## Shadowing meetings
+
+Calendars at Fleet are public for all Fleeties, and anyone can join any meeting that doesn't say `[no shadows]`. The invitees for a recurring calendar event are those who are mandatory for the meeting. If you are interested in joining a call, add yourself to a particular instance of the meeting. Do not mark yourself as "Optional" in Google Calendar.
 
 
 ## Email relays
@@ -402,7 +407,7 @@ Estimation points represent the effort required to complete a task. After access
 All issues are treated as standard priority by default. Some issues are assigned a priority label to indicate the level of urgency.
 
 - Emergency: `P0`
-  - Examples: Customer outage, confirmed security vulnerability ([critical bug](https://fleetdm.com/handbook/company/product-groups#release-testing)), a new feature is needed to address an immediate Fleet emergency.
+  - Examples: Customer outage, inability to modify Fleet configuration, confirmed critical security vulnerability ([critical bug](https://fleetdm.com/handbook/company/product-groups#release-testing)), a new feature is needed to address an immediate Fleet emergency.
   - Response: Immediately stop other work to swarm the issue. Work 24/7 in shifts until resolved.
   - Impact: Significant impact. May void current sprint.
 
@@ -430,10 +435,13 @@ Any fleetie can follow the process below to add a priority label to an issue.
 
 Learn how to contribute to the handbook, documentation, and articles at Fleet on the ["Writing at Fleet" handbook page](https://fleetdm.com/handbook/company/writing).
 
+## Social media 
+When posting about a personal or philosophical topic that potential Fleet customers might read, consider adding a disclaimer that these are your views and don’t necessarily represent your company or peers.
+
 
 ## Feedback
 
-At Fleet, performance feedback is a continuous process. We give feedback (particularly negative) as soon as possible. Managers at Fleet will provide performance feedback [during scheduled 1:1 meetings](https://fleetdm.com/handbook/company/leadership#performance-feedback), if not sooner. When sharing feedback publicly, it's important to remember what feedback _is_: 
+At Fleet, performance feedback is a continuous process. We give feedback (particularly negative) as soon as possible. Managers at Fleet will provide performance feedback [during scheduled 1:1 meetings](https://fleetdm.com/handbook/company/leadership#delivering-performance-feedback), if not sooner. When sharing feedback publicly, it's important to remember what feedback _is_: 
 - Feedback is something to share with the DRI, who has the context and mission to hear your feedback and decide what to do.
 - Feedback is better shared in a way that doesn't ping the customer. Reading it doesn't help them. 
 - Feedback is ready to share. If it's just an opinion without a solution or an opinion about a customer's contribution without specifically saying why the contribution would make the product worse, it's not feedback that's ready to share.
@@ -783,7 +791,7 @@ The following stubs are included only to make links backward compatible.
 Please see 📖[handbook/company/communications#competition](https://fleetdm.com/handbook/company/communications#new-fleeties).
 
 ##### Customer support service level agreements (SLAs)
-Please see 📖[handbook/company/go-to-market-groups#customer-support-service-level-objectives-slos](https://fleetdm.com/handbook/company/go-to-market-groups#customer-support-service-level-objectives-slos).
+Please see 📖[handbook/company/go-to-market-operations#customer-support-service-level-objectives-slos](https://fleetdm.com/handbook/company/go-to-market-operations#customer-support-service-level-objectives-slos).
 
 For below, please see 📖[handbook/company/communications#scheduling-a-meeting](https://fleetdm.com/handbook/company/communications#scheduling-a-meeting).
 ##### Internal meetings

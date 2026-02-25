@@ -363,6 +363,11 @@ Avoid using too many unnecessary words or superlatives, so your writing is short
  There exists an exceptionally significant rationale that unequivocally warrants refraining from the utilization of an exceptionally vast multitude of gratuitous, superfluous, surplus verbiage, or excessive superlatives when one is tasked with the composition of official documentation that is destined for perusal and comprehension by our distinguished and highly regarded clientele. When the writer in question opts to employ an excessively copious quantity, or even a modicum of superfluous verbiage that, in truth, does not contribute substantively to the essence and signification of the text, it invariably leads to an undue lengthening of the document and an exponentially augmented level of complexity in terms of comprehensibility.
 </blockquote>
 
+## Why roles instead of fully custom RBAC for UI permissions?
+
+Fleet won’t offer fully custom, per-action role-based access control (RBAC) in the UI. Instead, we ship a small set of roles that match real job functions (IT Admin, Security Analyst, Help Desk, etc.). Most teams don’t want to design and maintain a permission matrix. They want clear responsibilities, fast onboarding, simpler audits, and fewer ways to misconfigure access. Opinionated roles keep the product easier to use, document, support, and evolve without breaking bespoke setups.
+
+For strict least-privilege needs, Fleet will provide granular API-only permissions (coming soon). This way, Security teams can issue tightly scoped API tokens for automation and integrations while the UI stays simple and human-friendly.
 
 ## Why does Fleet use "MDM on/off" instead of "MDM enrolled/unenrolled"?
 
@@ -388,7 +393,9 @@ By saying "configuration profile," Fleet has one, cross-platform name for a feat
 
 ## Why not mention the CEO in Slack threads?
 
-Everyone else who works at Fleet is expected to read (and reply or acknowledge with an emoji reaction) every time they're mentioned in Slack, even deep inside long threads.
+> UPDATE: Thanks to the addition of some recent executive hires, the CEO is currently able to keep up with threads again.
+
+<!-- Everyone else who works at Fleet is expected to read (and reply or acknowledge with an emoji reaction) every time they're mentioned in Slack, even deep inside long threads.
 
 Now that the company has grown, the CEO gets mentioned in threads [too often](https://docs.google.com/document/d/1vK-Dy2BVrw7doYUzabOPyCiN4RfolWFgOKMm23l91s0/edit) to keep up with thread replies, even for threads he participates in.
 
@@ -410,7 +417,14 @@ Keep in mind I am often in meetings all day, and may not be able to reply prompt
 When in doubt, you can look at my calendar and join whatever meeting I'm in.  If none of that works, and there is an emergency where you need my immediate attention, get help from Mike's [Executive Assistant](https://fleetdm.com/handbook/ceo#team).
 Thank you so much!" 🙇
 </blockquote> 
+-->
 
+## Why "multi-platform" instead of "cross-platform"?
+
+The device management industry has long suffered under the "cross platform" myth: that everything can be normalized and work exactly the same, whether you're running macOS, Windows, Linux, iOS, or Android.
+
+While Fleet aims to normalize across platforms where possible, there are inevitably times you need to go deeper.  In Fleet, rather than pretend that the world is truly "cross-platform", by using the phrase "multi-platform", we can communicate how Fleet supports the best in breed functionality for each platform, all the way down to the bare metal.
+  
 
 #### Stubs
 

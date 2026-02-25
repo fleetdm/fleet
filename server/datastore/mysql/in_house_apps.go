@@ -12,7 +12,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/mdm"
 	"github.com/fleetdm/fleet/v4/server/ptr"
-	"github.com/go-kit/log/level"
 	"github.com/jmoiron/sqlx"
 )
 
@@ -222,7 +221,7 @@ WHERE
 	}
 
 	if len(inclAny) > 0 && len(exclAny) > 0 {
-		level.Warn(ds.logger).Log("msg", "in house app has both include and exclude labels", "installer_id", dest.InstallerID, "include", fmt.Sprintf("%v", inclAny), "exclude", fmt.Sprintf("%v", exclAny))
+		ds.logger.WarnContext(ctx, "in house app has both include and exclude labels", "installer_id", dest.InstallerID, "include", fmt.Sprintf("%v", inclAny), "exclude", fmt.Sprintf("%v", exclAny))
 	}
 	dest.LabelsExcludeAny = exclAny
 	dest.LabelsIncludeAny = inclAny
@@ -631,6 +630,10 @@ AND hihsi.verification_failed_at IS NULL
 }
 
 func (ds *Datastore) GetPastActivityDataForInHouseAppInstall(ctx context.Context, commandResults *mdm.CommandResults) (*fleet.User, *fleet.ActivityTypeInstalledSoftware, error) {
+	return ds.getPastActivityDataForInHouseAppInstallDB(ctx, ds.reader(ctx), commandResults)
+}
+
+func (ds *Datastore) getPastActivityDataForInHouseAppInstallDB(ctx context.Context, q sqlx.QueryerContext, commandResults *mdm.CommandResults) (*fleet.User, *fleet.ActivityTypeInstalledSoftware, error) {
 	if commandResults == nil {
 		return nil, nil, nil
 	}
@@ -677,7 +680,7 @@ WHERE
 	}
 
 	var res result
-	if err := sqlx.GetContext(ctx, ds.reader(ctx), &res, listStmt, args...); err != nil {
+	if err := sqlx.GetContext(ctx, q, &res, listStmt, args...); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, nil, notFound("install_command")
 		}

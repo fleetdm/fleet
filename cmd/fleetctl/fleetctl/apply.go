@@ -9,6 +9,7 @@ import (
 
 	"github.com/fleetdm/fleet/v4/pkg/spec"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/platform/logging"
 	"github.com/urfave/cli/v2"
 )
 
@@ -20,7 +21,7 @@ func applyCommand() *cli.Command {
 	)
 	return &cli.Command{
 		Name:      "apply",
-		Usage:     "Apply files to declaratively manage osquery configurations",
+		Usage:     "Use for one-off imports and backwards compatibility GitOps",
 		UsageText: `fleetctl apply [options]`,
 		Flags: []cli.Flag{
 			&cli.StringFlag{
@@ -49,8 +50,17 @@ func applyCommand() *cli.Command {
 			configFlag(),
 			contextFlag(),
 			debugFlag(),
+			enableLogTopicsFlag(),
+			disableLogTopicsFlag(),
 		},
 		Action: func(c *cli.Context) error {
+			// Disable field deprecation warnings for now.
+			// TODO - remove this in future release to unleash warnings.
+			logging.DisableTopic(logging.DeprecatedFieldTopic)
+
+			// Apply log topic overrides from flags/env vars.
+			applyLogTopicFlags(c)
+
 			if flFilename == "" {
 				return errors.New("-f must be specified")
 			}
@@ -72,12 +82,15 @@ func applyCommand() *cli.Command {
 				return fmt.Errorf("Invalid file extension %s: only .yml or .yaml files can be applied", ext)
 			}
 
-			specs, err := spec.GroupFromBytes(b)
-			if err != nil {
-				return err
-			}
 			logf := func(format string, a ...interface{}) {
 				fmt.Fprintf(c.App.Writer, format, a...)
+			}
+
+			specs, err := spec.GroupFromBytes(b, spec.GroupFromBytesOpts{
+				LogFn: logf,
+			})
+			if err != nil {
+				return err
 			}
 
 			opts := fleet.ApplyClientSpecOptions{

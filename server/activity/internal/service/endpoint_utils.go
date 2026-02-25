@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"io"
 	"net/http"
 	"reflect"
@@ -21,9 +22,8 @@ const (
 	// defaultPerPage is used when per_page is not specified but page is specified.
 	defaultPerPage = 20
 
-	// unlimitedPerPage is used when neither page nor per_page is specified,
-	// effectively returning all results (legacy behavior for backwards compatibility).
-	unlimitedPerPage = 1000000
+	// maxPerPage is the maximum allowed value for per_page.
+	maxPerPage = 10000
 )
 
 // encodeResponse encodes the response as JSON.
@@ -39,10 +39,10 @@ func encodeResponse(ctx context.Context, w http.ResponseWriter, response any) er
 }
 
 // makeDecoder creates a decoder for the given request type.
-func makeDecoder(iface any) kithttp.DecodeRequestFunc {
+func makeDecoder(iface any, requestBodySizeLimit int64) kithttp.DecodeRequestFunc {
 	return eu.MakeDecoder(iface, func(body io.Reader, req any) error {
 		return json.NewDecoder(body).Decode(req)
-	}, parseCustomTags, nil, nil, nil)
+	}, parseCustomTags, nil, nil, nil, requestBodySizeLimit)
 }
 
 // parseCustomTags handles custom URL tag values for activity requests.
@@ -83,6 +83,11 @@ func listOptionsFromRequest(r *http.Request) (api.ListOptions, error) {
 		}
 		if perPage <= 0 {
 			return api.ListOptions{}, ctxerr.Wrap(r.Context(), &platform_http.BadRequestError{Message: "invalid per_page value"})
+		}
+		if perPage > maxPerPage {
+			return api.ListOptions{}, ctxerr.Wrap(r.Context(), &platform_http.BadRequestError{
+				Message: fmt.Sprintf("Request could not be processed. Please set a per_page limit of %d or less", maxPerPage),
+			})
 		}
 	}
 
@@ -125,8 +130,10 @@ type endpointer struct {
 	svc api.Service
 }
 
-func (e *endpointer) CallHandlerFunc(f handlerFunc, ctx context.Context, request any,
-	svc any) (platform_http.Errorer, error) {
+func (e *endpointer) CallHandlerFunc(f handlerFunc, ctx context.Context,
+	request any,
+	svc any,
+) (platform_http.Errorer, error) {
 	return f(ctx, request, svc.(api.Service)), nil
 }
 
@@ -135,7 +142,8 @@ func (e *endpointer) Service() any {
 }
 
 func newUserAuthenticatedEndpointer(svc api.Service, authMiddleware endpoint.Middleware, opts []kithttp.ServerOption, r *mux.Router,
-	versions ...string) *eu.CommonEndpointer[handlerFunc] {
+	versions ...string,
+) *eu.CommonEndpointer[handlerFunc] {
 	return &eu.CommonEndpointer[handlerFunc]{
 		EP: &endpointer{
 			svc: svc,

@@ -9,8 +9,8 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm/assets"
 	scepserver "github.com/fleetdm/fleet/v4/server/mdm/scep/server"
+	"github.com/fleetdm/fleet/v4/server/platform/logging"
 
-	"github.com/go-kit/log"
 	"github.com/smallstep/scep"
 )
 
@@ -23,7 +23,7 @@ type service struct {
 	signer scepserver.CSRSignerContext
 
 	/// info logging is implemented in the service middleware layer.
-	debugLogger log.Logger
+	debugLogger *logging.Logger
 
 	ds fleet.MDMAssetRetriever
 }
@@ -83,10 +83,10 @@ func (svc *service) GetNextCACert(ctx context.Context) ([]byte, error) {
 }
 
 // NewService creates a new scep service
-func NewSCEPService(ds fleet.MDMAssetRetriever, signer scepserver.CSRSignerContext, logger log.Logger) scepserver.Service {
+func NewSCEPService(ds fleet.MDMAssetRetriever, signer scepserver.CSRSignerContext, logger *logging.Logger) scepserver.Service {
 	return &service{
 		signer:      signer,
-		debugLogger: log.NewNopLogger(),
+		debugLogger: logging.NewNopLogger(),
 		ds:          ds,
 	}
 }

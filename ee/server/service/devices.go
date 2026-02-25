@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"errors"
 	"io"
+	"net/http"
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server"
@@ -91,6 +92,43 @@ func (svc *Service) TriggerMigrateMDMDevice(ctx context.Context, host *fleet.Hos
 	host.RefetchCriticalQueriesUntil = &refetchUntil
 	if err := svc.ds.UpdateHostRefetchCriticalQueriesUntil(ctx, host.ID, &refetchUntil); err != nil {
 		return ctxerr.Wrap(ctx, err, "save host with refetch critical queries timestamp")
+	}
+
+	return nil
+}
+
+func (svc *Service) BypassConditionalAccess(ctx context.Context, host *fleet.Host) error {
+	// this is not a user-authenticated endpoint
+	svc.authz.SkipAuthorization(ctx)
+
+	ac, err := svc.ds.AppConfig(ctx)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "getting device config")
+	}
+
+	if ac.ConditionalAccess != nil && !ac.ConditionalAccess.BypassEnabled() {
+		return fleet.NewUserMessageError(errors.New("conditional access bypass disabled"), http.StatusForbidden)
+	}
+
+	if err := svc.ds.ConditionalAccessBypassDevice(ctx, host.ID); err != nil {
+		return ctxerr.Wrap(ctx, err, "setting conditional access bypass")
+	}
+
+	idpFullName, err := fleet.GetEndUserIdpFullName(ctx, svc.ds, host.ID)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "getting end users for bypass activity")
+	}
+
+	if idpFullName == "" {
+		idpFullName = "An end user"
+	}
+
+	if err := svc.NewActivity(ctx, nil, fleet.ActivityTypeHostBypassedConditionalAccess{
+		HostID:          host.ID,
+		HostDisplayName: host.DisplayName(),
+		IdPFullName:     idpFullName,
+	}); err != nil {
+		return ctxerr.Wrap(ctx, err, "creating host bypass activity")
 	}
 
 	return nil

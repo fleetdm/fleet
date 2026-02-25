@@ -1,6 +1,7 @@
 package fleet
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -45,11 +46,14 @@ const (
 	// CronMigrateToPerHostPolicy moves all Android hosts that are on the default MDM policy to a dedicated
 	// policy per host. This job only runs once after upgrading to v4.77.0.
 	CronMigrateToPerHostPolicy CronScheduleName = "migrate_to_per_host_policy"
+	// CronQueryResultsCleanup deletes excess query result rows that exceed the maximum allowed per query.
+	// Runs every 1 minute.
+	CronQueryResultsCleanup CronScheduleName = "query_results_cleanup"
 )
 
 type CronSchedulesService interface {
 	// TriggerCronSchedule attempts to trigger an ad-hoc run of the named cron schedule.
-	TriggerCronSchedule(name string) error
+	TriggerCronSchedule(ctx context.Context, name string) error
 }
 
 func NewCronSchedules() *CronSchedules {
@@ -57,7 +61,7 @@ func NewCronSchedules() *CronSchedules {
 }
 
 type CronSchedule interface {
-	Trigger() (*CronStats, error)
+	Trigger(ctx context.Context) (*CronStats, bool, error)
 	Name() string
 	Start()
 }
@@ -85,12 +89,12 @@ func (cs *CronSchedules) StartCronSchedule(fn NewCronScheduleFunc) error {
 }
 
 // TriggerCronSchedule attempts to trigger an ad-hoc run of the named cron schedule.
-func (cs *CronSchedules) TriggerCronSchedule(name string) error {
+func (cs *CronSchedules) TriggerCronSchedule(ctx context.Context, name string) error {
 	sched, ok := cs.Schedules[name]
 	if !ok {
 		return triggerNotFoundError{name: name, msg: cs.formatSupportedTriggerNames()}
 	}
-	stats, err := sched.Trigger()
+	stats, _, err := sched.Trigger(ctx)
 	switch {
 	case err != nil:
 		return err
@@ -144,6 +148,10 @@ func (e triggerConflictError) IsConflict() bool {
 	return true
 }
 
+func (e triggerConflictError) IsClientError() bool {
+	return true
+}
+
 func (e triggerConflictError) StatusCode() int {
 	return http.StatusConflict
 }
@@ -158,6 +166,10 @@ func (e triggerNotFoundError) Error() string {
 }
 
 func (e triggerNotFoundError) IsNotFound() bool {
+	return true
+}
+
+func (e triggerNotFoundError) IsClientError() bool {
 	return true
 }
 
@@ -214,7 +226,7 @@ const (
 	CronStatsTypeTriggered CronStatsType = "triggered"
 )
 
-// CronStatsStatus is one of four recognized statuses of cron stats (i.e. "pending", "expired", "canceled", or "completed")
+// CronStatsStatus is one of the recognized statuses of cron stats
 type CronStatsStatus string
 
 // List of recognized cron stats statuses.
@@ -223,4 +235,6 @@ const (
 	CronStatsStatusExpired   CronStatsStatus = "expired"
 	CronStatsStatusCompleted CronStatsStatus = "completed"
 	CronStatsStatusCanceled  CronStatsStatus = "canceled"
+	// CronStatsStatusQueued indicates a trigger request waiting for a remote server to pick up.
+	CronStatsStatusQueued CronStatsStatus = "queued"
 )

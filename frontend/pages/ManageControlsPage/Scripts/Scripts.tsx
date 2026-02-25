@@ -18,7 +18,7 @@ export interface ScriptsLocation {
   search: string;
   pathname: string;
   query: {
-    team_id?: string;
+    fleet_id?: string;
     status?: string;
     page?: string;
   };
@@ -46,6 +46,16 @@ const Scripts = ({ router, location, params }: IScriptsProps) => {
   const currentFormSection =
     SCRIPTS_NAV_ITEMS.find((item) => item.urlSection === section) ??
     DEFAULT_SCRIPTS_SECTION;
+
+  // Redirect to the default section if the URL section is not in the filtered list
+  if (
+    section &&
+    currentFormSection === DEFAULT_SCRIPTS_SECTION &&
+    section !== DEFAULT_SCRIPTS_SECTION.urlSection
+  ) {
+    router.replace(DEFAULT_SCRIPTS_SECTION.path);
+    return null;
+  }
 
   const CurrentCard = currentFormSection.Card;
 

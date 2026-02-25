@@ -16,7 +16,7 @@ import (
 
 var topLevelOptions = map[string]string{
 	"controls":      "controls:",
-	"queries":       "queries:",
+	"reports":       "reports:",
 	"policies":      "policies:",
 	"agent_options": "agent_options:",
 	"org_settings": `
@@ -34,12 +34,12 @@ org_settings:
 
 var teamLevelOptions = map[string]string{
 	"controls":      "controls:",
-	"queries":       "queries:",
+	"reports":       "reports:",
 	"policies":      "policies:",
 	"agent_options": "agent_options:",
 	"name":          "name: TeamName",
-	"team_settings": `
-team_settings:
+	"settings": `
+settings:
   secrets:
 `,
 }
@@ -215,12 +215,14 @@ func TestValidGitOpsYaml(t *testing.T) {
 						switch fma.Slug {
 						case "slack/darwin":
 							require.ElementsMatch(t, fma.Categories, []string{"Productivity", "Communication"})
+							require.Equal(t, "4.47.65", fma.Version)
 							require.Empty(t, fma.PreInstallQuery)
 							require.Empty(t, fma.PostInstallScript)
 							require.Empty(t, fma.InstallScript)
 							require.Empty(t, fma.UninstallScript)
 						case "box-drive/windows":
 							require.ElementsMatch(t, fma.Categories, []string{"Productivity", "Developer tools"})
+							require.Empty(t, fma.Version)
 							require.NotEmpty(t, fma.PreInstallQuery)
 							require.NotEmpty(t, fma.PostInstallScript)
 							require.NotEmpty(t, fma.InstallScript)
@@ -298,6 +300,8 @@ func TestValidGitOpsYaml(t *testing.T) {
 				assert.True(t, ok, "windows_migration_enabled not found")
 				_, ok = gitops.Controls.EnableTurnOnWindowsMDMManually.(bool)
 				assert.True(t, ok, "enable_turn_on_windows_mdm_manually not found")
+				_, ok = gitops.Controls.WindowsEntraTenantIDs.([]any)
+				assert.True(t, ok, "windows_entra_tenant_ids not found")
 				_, ok = gitops.Controls.WindowsUpdates.(map[string]interface{})
 				assert.True(t, ok, "windows_updates not found")
 				assert.Equal(t, "fleet_secret", gitops.FleetSecrets["FLEET_SECRET_FLEET_SECRET_"])
@@ -309,7 +313,7 @@ func TestValidGitOpsYaml(t *testing.T) {
 				assert.NotNil(t, gitops.AgentOptions)
 				assert.Contains(t, string(*gitops.AgentOptions), "\"distributed_denylist_duration\":0")
 
-				// Check queries
+				// Check reports
 				require.Len(t, gitops.Queries, 3)
 				assert.Equal(t, "Scheduled query stats", gitops.Queries[0].Name)
 				assert.Equal(t, "orbit_info", gitops.Queries[1].Name)
@@ -410,9 +414,9 @@ labels:
 
 func TestDuplicateQueryNames(t *testing.T) {
 	t.Parallel()
-	config := getGlobalConfig([]string{"queries"})
+	config := getGlobalConfig([]string{"reports"})
 	config += `
-queries:
+reports:
 - name: orbit_info
   query: SELECT * from orbit_info;
   interval: 0
@@ -436,9 +440,9 @@ queries:
 
 func TestUnicodeQueryNames(t *testing.T) {
 	t.Parallel()
-	config := getGlobalConfig([]string{"queries"})
+	config := getGlobalConfig([]string{"reports"})
 	config += `
-queries:
+reports:
 - name: 😊 orbit_info
   query: SELECT * from orbit_info;
   interval: 0
@@ -469,9 +473,9 @@ func TestVarExpansion(t *testing.T) {
 		os.Unsetenv("LINUX_OS")
 		os.Unsetenv("EMPTY_VAR")
 	})
-	config := getGlobalConfig([]string{"queries"})
+	config := getGlobalConfig([]string{"reports"})
 	config += `
-queries:
+reports:
 - name: orbit_info \$NOT_EXPANDED \\\$ALSO_NOT_EXPANDED
   query: "SELECT * from orbit_info; -- double quotes are escaped by YAML after Fleet's escaping of backslashes \\\\\$NOT_EXPANDED"
   interval: 0
@@ -490,9 +494,9 @@ queries:
 	require.Equal(t, `single quotes are not escaped by YAML \$NOT_EXPANDED`, gitOps.Queries[0].Description)
 	require.Equal(t, `SELECT * from orbit_info; -- double quotes are escaped by YAML after Fleet's escaping of backslashes \$NOT_EXPANDED`, gitOps.Queries[0].Query)
 
-	config = getGlobalConfig([]string{"queries"})
+	config = getGlobalConfig([]string{"reports"})
 	config += `
-queries:
+reports:
 - name: orbit_info $NOT_DEFINED
   query: SELECT * from orbit_info;
   interval: 0
@@ -514,20 +518,20 @@ func TestMixingGlobalAndTeamConfig(t *testing.T) {
 	config := getGlobalConfig(nil)
 	config += "name: TeamName\n"
 	_, err := gitOpsFromString(t, config)
-	assert.ErrorContains(t, err, "'org_settings' cannot be used with 'name', 'team_settings'")
+	assert.ErrorContains(t, err, "'org_settings' cannot be used with 'name', 'settings'")
 
-	// Mixing org_settings and team_settings
+	// Mixing org_settings and settings (formerly settings)
 	config = getGlobalConfig(nil)
-	config += "team_settings:\n  secrets: []\n"
+	config += "settings:\n  secrets: []\n"
 	_, err = gitOpsFromString(t, config)
-	assert.ErrorContains(t, err, "'org_settings' cannot be used with 'name', 'team_settings'")
+	assert.ErrorContains(t, err, "'org_settings' cannot be used with 'name', 'settings'")
 
-	// Mixing org_settings and team name and team_settings
+	// Mixing org_settings and team name and settings
 	config = getGlobalConfig(nil)
 	config += "name: TeamName\n"
-	config += "team_settings:\n  secrets: []\n"
+	config += "settings:\n  secrets: []\n"
 	_, err = gitOpsFromString(t, config)
-	assert.ErrorContains(t, err, "'org_settings' cannot be used with 'name', 'team_settings'")
+	assert.ErrorContains(t, err, "'org_settings' cannot be used with 'name', 'settings'")
 }
 
 func TestInvalidGitOpsYaml(t *testing.T) {
@@ -565,41 +569,41 @@ func TestInvalidGitOpsYaml(t *testing.T) {
 					_, err = gitOpsFromString(t, config)
 					assert.ErrorContains(t, err, "'name' is required")
 
-					// Invalid team_settings
-					config = getConfig([]string{"team_settings"})
-					config += "team_settings:\n  path: [2]\n"
+					// Invalid settings
+					config = getConfig([]string{"settings"})
+					config += "settings:\n  path: [2]\n"
 					_, err = gitOpsFromString(t, config)
 					assert.ErrorContains(t, err, "expected type string but got array")
 
-					// Invalid team_settings in a separate file
-					tmpFile, err := os.CreateTemp(t.TempDir(), "*team_settings.yml")
+					// Invalid settings in a separate file
+					tmpFile, err := os.CreateTemp(t.TempDir(), "*settings.yml")
 					require.NoError(t, err)
 					_, err = tmpFile.WriteString("[2]")
 					require.NoError(t, err)
-					config = getConfig([]string{"team_settings"})
-					config += fmt.Sprintf("%s:\n  path: %s\n", "team_settings", tmpFile.Name())
+					config = getConfig([]string{"settings"})
+					config += fmt.Sprintf("%s:\n  path: %s\n", "settings", tmpFile.Name())
 					_, err = gitOpsFromString(t, config)
 					assert.ErrorContains(t, err, "expected type spec.BaseItem but got array")
 
 					// Invalid secrets 1
-					config = getConfig([]string{"team_settings"})
-					config += "team_settings:\n  secrets: bad\n"
+					config = getConfig([]string{"settings"})
+					config += "settings:\n  secrets: bad\n"
 					_, err = gitOpsFromString(t, config)
 					assert.ErrorContains(t, err, "must be a list of secret items")
 
 					// Invalid secrets 2
-					config = getConfig([]string{"team_settings"})
-					config += "team_settings:\n  secrets: [2]\n"
+					config = getConfig([]string{"settings"})
+					config += "settings:\n  secrets: [2]\n"
 					_, err = gitOpsFromString(t, config)
 					assert.ErrorContains(t, err, "must have a 'secret' key")
 
-					// Missing team_settings.
-					config = getConfig([]string{"team_settings"})
+					// Missing settings (formerly settings).
+					config = getConfig([]string{"settings"})
 					_, err = gitOpsFromString(t, config)
-					assert.ErrorContains(t, err, "'team_settings' is required when 'name' is provided")
+					assert.ErrorContains(t, err, "'settings' is required when 'name' is provided")
 
-					// team_settings is now allowed on "no-team.yml" for webhook settings
-					config = getConfig([]string{"name", "team_settings"}) // Exclude team_settings with secrets
+					// settings is now allowed on "no-team.yml" for webhook settings
+					config = getConfig([]string{"name", "settings"}) // Exclude settings with secrets
 					config += "name: No team\n"
 					noTeamPath1, noTeamBasePath1 := createNamedFileOnTempDir(t, "no-team.yml", config)
 					gitops, err := GitOpsFromFile(noTeamPath1, noTeamBasePath1, nil, nopLogf)
@@ -607,53 +611,53 @@ func TestInvalidGitOpsYaml(t *testing.T) {
 					assert.NotNil(t, gitops)
 
 					// No team with valid webhook_settings should work
-					config = getConfig([]string{"name", "team_settings"})
-					config += "name: No team\nteam_settings:\n  webhook_settings:\n    failing_policies_webhook:\n      enable_failing_policies_webhook: true\n"
+					config = getConfig([]string{"name", "settings"})
+					config += "name: No team\nsettings:\n  webhook_settings:\n    failing_policies_webhook:\n      enable_failing_policies_webhook: true\n"
 					noTeamPath2, noTeamBasePath2 := createNamedFileOnTempDir(t, "no-team.yml", config)
 					gitops, err = GitOpsFromFile(noTeamPath2, noTeamBasePath2, nil, nopLogf)
 					assert.NoError(t, err)
 					assert.NotNil(t, gitops)
 
-					// No team with invalid team_settings option should fail
-					config = getConfig([]string{"name", "team_settings"})
-					config += "name: No team\nteam_settings:\n  features:\n    enable_host_users: false\n"
+					// No team with invalid settings option should fail
+					config = getConfig([]string{"name", "settings"})
+					config += "name: No team\nsettings:\n  features:\n    enable_host_users: false\n"
 					noTeamPath3, noTeamBasePath3 := createNamedFileOnTempDir(t, "no-team.yml", config)
 					_, err = GitOpsFromFile(noTeamPath3, noTeamBasePath3, nil, nopLogf)
-					assert.ErrorContains(t, err, "unsupported team_settings option 'features' for 'No team' - only 'webhook_settings' is allowed")
+					assert.ErrorContains(t, err, "unsupported settings option 'features' for 'No team' - only 'webhook_settings' is allowed")
 
-					// No team with multiple team_settings options (one valid, one invalid) should fail
-					config = getConfig([]string{"name", "team_settings"})
-					config += "name: No team\nteam_settings:\n  webhook_settings:\n    failing_policies_webhook:\n      enable_failing_policies_webhook: true\n  secrets:\n    - secret: test\n"
+					// No team with multiple settings options (one valid, one invalid) should fail
+					config = getConfig([]string{"name", "settings"})
+					config += "name: No team\nsettings:\n  webhook_settings:\n    failing_policies_webhook:\n      enable_failing_policies_webhook: true\n  secrets:\n    - secret: test\n"
 					noTeamPath4, noTeamBasePath4 := createNamedFileOnTempDir(t, "no-team.yml", config)
 					_, err = GitOpsFromFile(noTeamPath4, noTeamBasePath4, nil, nopLogf)
-					assert.ErrorContains(t, err, "unsupported team_settings option 'secrets' for 'No team' - only 'webhook_settings' is allowed")
+					assert.ErrorContains(t, err, "unsupported settings option 'secrets' for 'No team' - only 'webhook_settings' is allowed")
 
 					// No team with host_status_webhook in webhook_settings should fail
-					config = getConfig([]string{"name", "team_settings"})
-					config += "name: No team\nteam_settings:\n  webhook_settings:\n    host_status_webhook:\n      enable_host_status_webhook: true\n    failing_policies_webhook:\n      enable_failing_policies_webhook: true\n"
+					config = getConfig([]string{"name", "settings"})
+					config += "name: No team\nsettings:\n  webhook_settings:\n    host_status_webhook:\n      enable_host_status_webhook: true\n    failing_policies_webhook:\n      enable_failing_policies_webhook: true\n"
 					noTeamPath5a, noTeamBasePath5a := createNamedFileOnTempDir(t, "no-team.yml", config)
 					_, err = GitOpsFromFile(noTeamPath5a, noTeamBasePath5a, nil, nopLogf)
 					assert.ErrorContains(t, err, "unsupported webhook_settings option 'host_status_webhook' for 'No team'; only 'failing_policies_webhook' is allowed")
 
 					// No team with vulnerabilities_webhook in webhook_settings should fail
-					config = getConfig([]string{"name", "team_settings"})
-					config += "name: No team\nteam_settings:\n  webhook_settings:\n    vulnerabilities_webhook:\n      enable_vulnerabilities_webhook: true\n"
+					config = getConfig([]string{"name", "settings"})
+					config += "name: No team\nsettings:\n  webhook_settings:\n    vulnerabilities_webhook:\n      enable_vulnerabilities_webhook: true\n"
 					noTeamPath5b, noTeamBasePath5b := createNamedFileOnTempDir(t, "no-team.yml", config)
 					_, err = GitOpsFromFile(noTeamPath5b, noTeamBasePath5b, nil, nopLogf)
 					assert.ErrorContains(t, err, "unsupported webhook_settings option 'vulnerabilities_webhook' for 'No team'; only 'failing_policies_webhook' is allowed")
 
 					// 'No team' file with invalid name.
-					config = getConfig([]string{"name", "team_settings"})
+					config = getConfig([]string{"name", "settings"})
 					config += "name: No team\n"
 					noTeamPath6, noTeamBasePath6 := createNamedFileOnTempDir(t, "foobar.yml", config)
 					_, err = GitOpsFromFile(noTeamPath6, noTeamBasePath6, nil, nopLogf)
 					assert.ErrorContains(t, err, fmt.Sprintf("file %q for 'No team' must be named 'no-team.yml'", noTeamPath6))
 
 					// Missing secrets
-					config = getConfig([]string{"team_settings"})
-					config += "team_settings:\n"
+					config = getConfig([]string{"settings"})
+					config += "settings:\n"
 					_, err = gitOpsFromString(t, config)
-					assert.ErrorContains(t, err, "'team_settings.secrets' is required")
+					assert.ErrorContains(t, err, "'settings.secrets' is required")
 				} else {
 					// 'software' is not allowed in global config
 					config := getConfig(nil)
@@ -767,31 +771,31 @@ func TestInvalidGitOpsYaml(t *testing.T) {
 				_, err = gitOpsFromString(t, config)
 				assert.ErrorContains(t, err, "query is required")
 
-				// Invalid queries
-				config = getConfig([]string{"queries"})
-				config += "queries:\n  path: [2]\n"
+				// Invalid reports
+				config = getConfig([]string{"reports"})
+				config += "reports:\n  path: [2]\n"
 				_, err = gitOpsFromString(t, config)
 				assert.ErrorContains(t, err, "expected type []spec.Query but got object")
 
-				// Invalid policies in a separate file
-				tmpFile, err = os.CreateTemp(t.TempDir(), "*queries.yml")
+				// Invalid reports in a separate file
+				tmpFile, err = os.CreateTemp(t.TempDir(), "*reports.yml")
 				require.NoError(t, err)
 				_, err = tmpFile.WriteString("[2]")
 				require.NoError(t, err)
-				config = getConfig([]string{"queries"})
-				config += fmt.Sprintf("%s:\n  - path: %s\n", "queries", tmpFile.Name())
+				config = getConfig([]string{"reports"})
+				config += fmt.Sprintf("%s:\n  - path: %s\n", "reports", tmpFile.Name())
 				_, err = gitOpsFromString(t, config)
 				assert.ErrorContains(t, err, "expected type spec.Query but got number")
 
 				// Query name missing
-				config = getConfig([]string{"queries"})
-				config += "queries:\n  - query: SELECT 1;\n"
+				config = getConfig([]string{"reports"})
+				config += "reports:\n  - query: SELECT 1;\n"
 				_, err = gitOpsFromString(t, config)
 				assert.ErrorContains(t, err, "name is required")
 
 				// Query SQL query missing
-				config = getConfig([]string{"queries"})
-				config += "queries:\n  - name: Test Query\n"
+				config = getConfig([]string{"reports"})
+				config += "reports:\n  - name: Test Query\n"
 				_, err = gitOpsFromString(t, config)
 				assert.ErrorContains(t, err, "query is required")
 			},
@@ -816,10 +820,10 @@ func TestTopLevelGitOpsValidation(t *testing.T) {
 			isTeam:        true,
 		},
 		"missing_all": {
-			optsToExclude: []string{"controls", "queries", "policies", "agent_options", "org_settings"},
+			optsToExclude: []string{"controls", "reports", "policies", "agent_options", "org_settings"},
 		},
-		"missing_queries": {
-			optsToExclude: []string{"queries"},
+		"missing_reports": {
+			optsToExclude: []string{"reports"},
 		},
 		"missing_policies": {
 			optsToExclude: []string{"policies"},
@@ -834,8 +838,8 @@ func TestTopLevelGitOpsValidation(t *testing.T) {
 			optsToExclude: []string{"name"},
 			isTeam:        true,
 		},
-		"missing_team_settings": {
-			optsToExclude: []string{"team_settings"},
+		"missing_settings": {
+			optsToExclude: []string{"settings"},
 			isTeam:        true,
 		},
 	}
@@ -862,8 +866,8 @@ func TestTopLevelGitOpsValidation(t *testing.T) {
 func TestGitOpsNullArrays(t *testing.T) {
 	t.Parallel()
 
-	config := getGlobalConfig([]string{"queries", "policies"})
-	config += "queries: null\npolicies: ~\n"
+	config := getGlobalConfig([]string{"reports", "policies"})
+	config += "reports: null\npolicies: ~\n"
 	gitops, err := gitOpsFromString(t, config)
 	assert.NoError(t, err)
 	assert.Nil(t, gitops.Queries)
@@ -881,7 +885,7 @@ func TestGitOpsPaths(t *testing.T) {
 			isArray:    false,
 			goodConfig: "secrets: []\n",
 		},
-		"team_settings": {
+		"settings": {
 			isArray:    false,
 			isTeam:     true,
 			goodConfig: "secrets: []\n",
@@ -890,7 +894,7 @@ func TestGitOpsPaths(t *testing.T) {
 			isArray:    false,
 			goodConfig: "windows_enabled_and_configured: true\n",
 		},
-		"queries": {
+		"reports": {
 			isArray:    true,
 			goodConfig: "[]",
 		},
@@ -1457,9 +1461,9 @@ func TestWebhookPolicyIDsValidation(t *testing.T) {
 	}
 
 	t.Run("no_team_invalid_policy_ids_as_number", func(t *testing.T) {
-		config := getTeamConfig([]string{"name", "team_settings"})
+		config := getTeamConfig([]string{"name", "settings"})
 		config += `name: No team
-team_settings:
+settings:
   webhook_settings:
     failing_policies_webhook:
       enable_failing_policies_webhook: true
@@ -1476,9 +1480,9 @@ policies: []
 	})
 
 	t.Run("no_team_invalid_policy_ids_as_string", func(t *testing.T) {
-		config := getTeamConfig([]string{"name", "team_settings"})
+		config := getTeamConfig([]string{"name", "settings"})
 		config += `name: No team
-team_settings:
+settings:
   webhook_settings:
     failing_policies_webhook:
       enable_failing_policies_webhook: true
@@ -1495,9 +1499,9 @@ policies: []
 	})
 
 	t.Run("no_team_valid_policy_ids_as_array", func(t *testing.T) {
-		config := getTeamConfig([]string{"name", "team_settings"})
+		config := getTeamConfig([]string{"name", "settings"})
 		config += `name: No team
-team_settings:
+settings:
   webhook_settings:
     failing_policies_webhook:
       enable_failing_policies_webhook: true
@@ -1516,9 +1520,9 @@ policies: []
 	})
 
 	t.Run("no_team_valid_policy_ids_as_empty_array", func(t *testing.T) {
-		config := getTeamConfig([]string{"name", "team_settings"})
+		config := getTeamConfig([]string{"name", "settings"})
 		config += `name: No team
-team_settings:
+settings:
   webhook_settings:
     failing_policies_webhook:
       enable_failing_policies_webhook: true
@@ -1536,9 +1540,9 @@ policies: []
 	})
 
 	t.Run("no_team_valid_policy_ids_as_yaml_list", func(t *testing.T) {
-		config := getTeamConfig([]string{"name", "team_settings"})
+		config := getTeamConfig([]string{"name", "settings"})
 		config += `name: No team
-team_settings:
+settings:
   webhook_settings:
     failing_policies_webhook:
       enable_failing_policies_webhook: true
@@ -1558,8 +1562,8 @@ policies: []
 	})
 
 	t.Run("regular_team_invalid_policy_ids_as_number", func(t *testing.T) {
-		config := getTeamConfig([]string{"team_settings"})
-		config += `team_settings:
+		config := getTeamConfig([]string{"settings"})
+		config += `settings:
   secrets:
     - secret: test123
   webhook_settings:
@@ -1574,8 +1578,8 @@ policies: []
 	})
 
 	t.Run("regular_team_valid_policy_ids_as_array", func(t *testing.T) {
-		config := getTeamConfig([]string{"team_settings"})
-		config += `team_settings:
+		config := getTeamConfig([]string{"settings"})
+		config += `settings:
   secrets:
     - secret: test123
   webhook_settings:

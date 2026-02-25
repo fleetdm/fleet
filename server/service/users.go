@@ -114,6 +114,17 @@ func (svc *Service) CreateUser(ctx context.Context, p fleet.UserPayload) (*fleet
 		}
 	}
 
+	// Do not allow creating a user with a Premium-only role on Fleet Free.
+	if !license.IsPremium(ctx) {
+		var teamRoles []fleet.UserTeam
+		if p.Teams != nil {
+			teamRoles = *p.Teams
+		}
+		if fleet.PremiumRolesPresent(p.GlobalRole, teamRoles) {
+			return nil, nil, fleet.ErrMissingLicense
+		}
+	}
+
 	user, err := svc.NewUser(ctx, p)
 	if err != nil {
 		return nil, nil, ctxerr.Wrap(ctx, err, "create user")
@@ -163,6 +174,14 @@ func (svc *Service) CreateUserFromInvite(ctx context.Context, p fleet.UserPayloa
 	invite, err := svc.VerifyInvite(ctx, *p.InviteToken)
 	if err != nil {
 		return nil, err
+	}
+
+	var payloadEmail string
+	if p.Email != nil {
+		payloadEmail = *p.Email
+	}
+	if invite.Email != payloadEmail {
+		return nil, fleet.NewInvalidArgumentError("invite_token", "Invite Token does not match Email Address.")
 	}
 
 	// set the payload role property based on an existing invite.
@@ -292,7 +311,7 @@ type getUserRequest struct {
 
 type getUserResponse struct {
 	User           *fleet.User          `json:"user,omitempty"`
-	AvailableTeams []*fleet.TeamSummary `json:"available_teams"`
+	AvailableTeams []*fleet.TeamSummary `json:"available_teams" renameto:"available_fleets"`
 	Settings       *fleet.UserSettings  `json:"settings,omitempty"`
 	Err            error                `json:"error,omitempty"`
 }
@@ -392,6 +411,17 @@ func (svc *Service) ModifyUser(ctx context.Context, userID uint, p fleet.UserPay
 
 	if err := svc.authz.Authorize(ctx, user, fleet.ActionWrite); err != nil {
 		return nil, err
+	}
+
+	// Do not allow setting a Premium-only role on Fleet Free.
+	if !license.IsPremium(ctx) {
+		var teamRoles []fleet.UserTeam
+		if p.Teams != nil {
+			teamRoles = *p.Teams
+		}
+		if fleet.PremiumRolesPresent(p.GlobalRole, teamRoles) {
+			return nil, fleet.ErrMissingLicense
+		}
 	}
 
 	vc, ok := viewer.FromContext(ctx)
@@ -555,7 +585,7 @@ func (svc *Service) ModifyUser(ctx context.Context, userID uint, p fleet.UserPay
 
 	if p.NewPassword != nil {
 		// setNewPassword takes care of calling saveUser
-		err = svc.setNewPassword(ctx, user, *p.NewPassword)
+		err = svc.setNewPassword(ctx, user, *p.NewPassword, true)
 	} else {
 		err = svc.saveUser(ctx, user)
 	}
@@ -690,6 +720,10 @@ func (svc *Service) RequirePasswordReset(ctx context.Context, uid uint, require 
 		if err := svc.DeleteSessionsForUser(ctx, user.ID); err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "deleting user sessions")
 		}
+		// Clear all password reset tokens for good measure.
+		if err := svc.ds.DeletePasswordResetRequestsForUser(ctx, user.ID); err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "deleting password reset requests after password change")
+		}
 	}
 
 	return user, nil
@@ -745,7 +779,7 @@ func (svc *Service) ChangePassword(ctx context.Context, oldPass, newPass string)
 		return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("old_password", "old password does not match"))
 	}
 
-	if err := svc.setNewPassword(ctx, vc.User, newPass); err != nil {
+	if err := svc.setNewPassword(ctx, vc.User, newPass, true); err != nil {
 		return ctxerr.Wrap(ctx, err, "setting new password")
 	}
 	return nil
@@ -1058,13 +1092,10 @@ func (svc *Service) PerformRequiredPasswordReset(ctx context.Context, password s
 	}
 
 	user.AdminForcedPasswordReset = false
-	err := svc.setNewPassword(ctx, user, password)
+	err := svc.setNewPassword(ctx, user, password, false)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "setting new password")
 	}
-
-	// Sessions should already have been cleared when the reset was
-	// required
 
 	return user, nil
 }
@@ -1072,7 +1103,7 @@ func (svc *Service) PerformRequiredPasswordReset(ctx context.Context, password s
 // setNewPassword is a helper for changing a user's password. It should be
 // called to set the new password after proper authorization has been
 // performed.
-func (svc *Service) setNewPassword(ctx context.Context, user *fleet.User, password string) error {
+func (svc *Service) setNewPassword(ctx context.Context, user *fleet.User, password string, clearSessions bool) error {
 	err := user.SetPassword(password, svc.config.Auth.SaltKeySize, svc.config.Auth.BcryptCost)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "setting new password")
@@ -1083,6 +1114,18 @@ func (svc *Service) setNewPassword(ctx context.Context, user *fleet.User, passwo
 	err = svc.saveUser(ctx, user)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "saving changed password")
+	}
+
+	// Ensure that any existing links for password resets will no longer work.
+	if err := svc.ds.DeletePasswordResetRequestsForUser(ctx, user.ID); err != nil {
+		return ctxerr.Wrap(ctx, err, "deleting password reset requests after password change")
+	}
+
+	// Force the user to log in again with new password unless explicitly told not to.
+	if clearSessions {
+		if err := svc.ds.DestroyAllSessionsForUser(ctx, user.ID); err != nil {
+			return ctxerr.Wrap(ctx, err, "deleting sessions after password change")
+		}
 	}
 
 	return nil
@@ -1144,20 +1187,9 @@ func (svc *Service) ResetPassword(ctx context.Context, token, password string) e
 	}
 
 	// password requirements are validated as part of `setNewPassword``
-	err = svc.setNewPassword(ctx, user, password)
+	err = svc.setNewPassword(ctx, user, password, true)
 	if err != nil {
 		return fleet.NewInvalidArgumentError("new_password", err.Error())
-	}
-
-	// delete password reset tokens for user
-	if err := svc.ds.DeletePasswordResetRequestsForUser(ctx, user.ID); err != nil {
-		return ctxerr.Wrap(ctx, err, "delete password reset requests")
-	}
-
-	// Clear sessions so that any other browsers will have to log in with
-	// the new password
-	if err := svc.ds.DestroyAllSessionsForUser(ctx, user.ID); err != nil {
-		return ctxerr.Wrap(ctx, err, "delete user sessions")
 	}
 
 	return nil

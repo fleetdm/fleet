@@ -12,7 +12,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/version"
-	"github.com/go-kit/log/level"
 	"github.com/jmoiron/sqlx"
 )
 
@@ -85,7 +84,7 @@ func (ds *Datastore) ShouldSendStatistics(ctx context.Context, frequency time.Du
 		}
 		amountPolicyViolationDaysActual, amountPolicyViolationDaysPossible, err := amountPolicyViolationDaysDB(ctx, ds.reader(ctx))
 		if err == sql.ErrNoRows {
-			level.Debug(ds.logger).Log("msg", "amount policy violation days", "err", err) //nolint:errcheck
+			ds.logger.DebugContext(ctx, "amount policy violation days", "err", err)
 		} else if err != nil {
 			return ctxerr.Wrap(ctx, err, "amount policy violation days")
 		}
@@ -151,7 +150,7 @@ func (ds *Datastore) ShouldSendStatistics(ctx context.Context, frequency time.Du
 			stats.Organization = lic.GetOrganization()
 		}
 		stats.AIFeaturesDisabled = appConfig.ServerSettings.AIFeaturesDisabled
-		stats.MaintenanceWindowsConfigured = len(appConfig.Integrations.GoogleCalendar) > 0 && appConfig.Integrations.GoogleCalendar[0].Domain != "" && len(appConfig.Integrations.GoogleCalendar[0].ApiKey) > 0
+		stats.MaintenanceWindowsConfigured = len(appConfig.Integrations.GoogleCalendar) > 0 && appConfig.Integrations.GoogleCalendar[0].Domain != "" && !appConfig.Integrations.GoogleCalendar[0].ApiKey.IsEmpty()
 
 		stats.MaintenanceWindowsEnabled = false
 		teams, err := ds.ListTeams(ctx, fleet.TeamFilter{User: &fleet.User{
@@ -170,6 +169,12 @@ func (ds *Datastore) ShouldSendStatistics(ctx context.Context, frequency time.Du
 		stats.NumQueries = numQueries
 		stats.FleetMaintainedAppsMacOS = fleetMaintainedAppsMacOS
 		stats.FleetMaintainedAppsWindows = fleetMaintainedAppsWindows
+
+		if appConfig.ConditionalAccess != nil {
+			stats.OktaConditionalAccessConfigured = appConfig.ConditionalAccess.OktaConfigured()
+			stats.ConditionalAccessBypassDisabled = !appConfig.ConditionalAccess.BypassEnabled()
+		}
+
 		return nil
 	}
 
@@ -238,6 +243,32 @@ func (ds *Datastore) CleanupStatistics(ctx context.Context) error {
 		return err
 	}
 	return nil
+}
+
+func (ds *Datastore) GetTableRowCounts(ctx context.Context) (map[string]uint, error) {
+	return ds.getTableRowCountsViaInformationSchema(ctx)
+}
+
+func (ds *Datastore) getTableRowCountsViaInformationSchema(ctx context.Context) (map[string]uint, error) {
+	var results []struct {
+		Table string `db:"TABLE_NAME"`
+		Rows  uint   `db:"table_rows"`
+	}
+
+	if err := sqlx.SelectContext(
+		ctx,
+		ds.reader(ctx),
+		&results,
+		"SELECT table_name, COALESCE(table_rows, 0) table_rows FROM information_schema.tables WHERE table_schema = (SELECT DATABASE())",
+	); err != nil {
+		return nil, err
+	}
+
+	var byName = make(map[string]uint)
+	for _, row := range results {
+		byName[row.Table] = row.Rows
+	}
+	return byName, nil
 }
 
 // fleetMaintainedAppsInUseDB returns arrays of Fleet-maintained app slugs grouped by platform (darwin for macOS, windows for Windows)

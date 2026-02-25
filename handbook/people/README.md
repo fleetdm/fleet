@@ -28,11 +28,11 @@ The People department is directly responsible for Fleet's culture, human resourc
 ### Approve a new position
 
 When review is requested on a proposal to open a new position, the Head of People will complete the following steps when reviewing the pull request:
-1. In “Fleeties,” confirm the new row has manager, job title, department, COGS/OPEX, and CAC-inclusion filled in, that there are no broken formulas or formatting, and the start date is the first Monday of next month.
+1. In “Fleeties,” confirm the new row has manager, job title, department, that there are no broken formulas or formatting, and the start date is the first Monday of next month.
 2. Confirm the job description consists only of changes to "Responsibilities" and "Experience," with an appropriate filename, and that the content looks accurate, is grammatically correct, and is otherwise ready to post in a public job description on fleetdm.com.
 3. Ballpark and document compensation research for the role based on location, level, and company stage. 
    - _Add screenshot:_ Scroll to the very bottom of ["¶¶ 💌 Compensation decisions (offer math)"](https://docs.google.com/document/d/1NQ-IjcOTbyFluCWqsFLMfP4SvnopoXDcX0civ-STS5c/edit#heading=h.slomq4whmyas) and add a new heading for the role, pattern-matching off of the names of other nearby role headings. Then create written documentation of your research for future reference.  The easiest way to do this is to take screenshots of the [relevant benchmarks in Pave](https://pave.com) and paste those screenshots under the new heading.
-4. Decide whether to approve this role or to consider it a different time.  If approving, then:
+4. Sync with the CEO to decide whether to approve this role or to consider it a different time.  If approving, then:
    - _Update financial model:_ Send the CFO a link to the position in ["¶¶ 💌 Compensation decisions (offer math)"](https://docs.google.com/document/d/1NQ-IjcOTbyFluCWqsFLMfP4SvnopoXDcX0civ-STS5c/edit#heading=h.slomq4whmyas) and request approval for the spend. Once approved, the CFO will add the new position to the financial model. 
    - _Update team database:_ Update the row in ["¶¶ 🥧 Equity plan"](https://docs.google.com/spreadsheets/d/1_GJlqnWWIQBiZFOoyl9YbTr72bg5qdSSp4O3kuKm1Jc/edit#gid=0) using the benchmarked compensation and share count.
      - _Salary:_ Enter the salary: If the role has variable compensation, use the role's OTE (on-target earning estimate) as the budgeted salary amount, and leave a note in the "Notes (¶¶)" cell clarifying the role's bonus or commission structure.
@@ -98,7 +98,8 @@ You can also grab a copy of the [original slides](https://fleetdm.com/handbook/c
 
 <img width="464" alt="image" src="https://github.com/Sampfluger88/fleet/assets/108141731/c2002cfa-a0f6-4349-bb06-71104f6cdce1">
 
-4. Schedule the Slack message to go out at 6pm CT (18:00).
+4. Convert the "All hands" Keynote file to a PDF and save in the [Drive](https://drive.google.com/drive/folders/1cw_lL3_Xu9ZOXKGPghh8F4tc0ND9kQeY). 
+5. Schedule the Slack message to go out at 6pm CT (18:00).
 
 
 ### Update personnel details
@@ -366,6 +367,12 @@ Once the decision has been made not to renew a tool or subscription on Fleet's b
 3. Remove references from integrated systems and references (i.e. unplug the tool from any other integrations)
 4. Remove any shared access from 1Password vaults.
 5. Update any reference to the tool or subscription and afterwards communicate the change (e.g. by linking to your merged PR in Slack).
+
+
+### Review and update company DRIs
+
+Every quarter during [OKR planning](https://fleetdm.com/handbook/company/leadership#board-meeting-and-okr-planning), the Head of People reviews the DRI tables on the [Communications page](https://fleetdm.com/handbook/company/communications#directly-responsible-individuals-dris) and the [Security page](https://fleetdm.com/handbook/it/security#security) to ensure they are current and accurate.
+
 
 
 ## Rituals

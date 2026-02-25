@@ -82,9 +82,24 @@ type UserLookupService interface {
 	UsersByIDs(ctx context.Context, ids []uint) ([]*UserSummary, error)
 }
 
+// HostLookupService provides methods for looking up hosts.
+// This interface is extracted for use by components that only need host lookup capabilities.
+type HostLookupService interface {
+	// GetHostLite returns basic host information not requiring table joins.
+	GetHostLite(ctx context.Context, id uint) (host *Host, err error)
+}
+
+// LookupService combines UserLookupService and HostLookupService for components
+// that need both user and host lookup capabilities.
+type LookupService interface {
+	UserLookupService
+	HostLookupService
+}
+
 type Service interface {
 	OsqueryService
 	UserLookupService
+	HostLookupService
 
 	// GetTransparencyURL gets the URL to redirect to when an end user clicks About Fleet
 	GetTransparencyURL(ctx context.Context) (string, error)
@@ -309,8 +324,8 @@ type Service interface {
 	// When is set to scheduled != nil, then only scheduled queries will be returned if `*scheduled == true`
 	// and only non-scheduled queries will be returned if `*scheduled == false`.
 	// If mergeInherited is true and a teamID is provided, then queries from the global team will be
-	// included in the results.
-	ListQueries(ctx context.Context, opt ListOptions, teamID *uint, scheduled *bool, mergeInherited bool, platform *string) ([]*Query, int, *PaginationMetadata, error)
+	// included in the results. The inherited count is only meaningful when mergeInherited is true.
+	ListQueries(ctx context.Context, opt ListOptions, teamID *uint, scheduled *bool, mergeInherited bool, platform *string) ([]*Query, int, int, *PaginationMetadata, error)
 	GetQuery(ctx context.Context, id uint) (*Query, error)
 	// GetQueryReportResults returns all the stored results of a query for hosts the requestor has access to.
 	// Returns a boolean indicating whether the report is clipped.
@@ -383,8 +398,6 @@ type Service interface {
 	// The return value can also include policy information and CVE scores based
 	// on the values provided to `opts`
 	GetHost(ctx context.Context, id uint, opts HostDetailOptions) (host *HostDetail, err error)
-	// GetHostLite returns basic host information not requiring table joins
-	GetHostLite(ctx context.Context, id uint) (host *Host, err error)
 	GetHostHealth(ctx context.Context, id uint) (hostHealth *HostHealth, err error)
 	GetHostSummary(ctx context.Context, teamID *uint, platform *string, lowDiskSpace *int) (summary *HostSummary, err error)
 	DeleteHost(ctx context.Context, id uint) (err error)
@@ -425,6 +438,9 @@ type Service interface {
 
 	// ListDevicePolicies lists all policies for the given host, including passing / failing summaries
 	ListDevicePolicies(ctx context.Context, host *Host) ([]*HostPolicy, error)
+
+	// BypassConditionalAccess lets a host skip conditional access checks for one check
+	BypassConditionalAccess(ctx context.Context, host *Host) error
 
 	GetDeviceSoftwareIconsTitleIcon(ctx context.Context, teamID uint, titleID uint) ([]byte, int64, string, error)
 
@@ -627,9 +643,6 @@ type Service interface {
 	// activities.
 	ListHostUpcomingActivities(ctx context.Context, hostID uint, opt ListOptions) ([]*UpcomingActivity, *PaginationMetadata, error)
 
-	// ListHostPastActivities lists the activities that have already happened for the specified host.
-	ListHostPastActivities(ctx context.Context, hostID uint, opt ListOptions) ([]*Activity, *PaginationMetadata, error)
-
 	// CancelHostUpcomingActivity cancels an upcoming activity for the specified
 	// host. If the activity does not exist in the queue of upcoming activities
 	// (e.g. it did complete), it returns a not found error.
@@ -704,6 +717,7 @@ type Service interface {
 
 	ListSoftwareTitles(ctx context.Context, opt SoftwareTitleListOptions) ([]SoftwareTitleListResult, int, *PaginationMetadata, error)
 	SoftwareTitleByID(ctx context.Context, id uint, teamID *uint) (*SoftwareTitle, error)
+	SoftwareTitleNameForHostFilter(ctx context.Context, id uint) (name, displayName string, err error)
 
 	// InstallSoftwareTitle installs a software title in the given host.
 	InstallSoftwareTitle(ctx context.Context, hostID uint, softwareTitleID uint) error
@@ -800,7 +814,7 @@ type Service interface {
 	DeleteTeamPolicies(ctx context.Context, teamID uint, ids []uint) ([]uint, error)
 	ModifyTeamPolicy(ctx context.Context, teamID uint, id uint, p ModifyPolicyPayload) (*Policy, error)
 	GetTeamPolicyByIDQueries(ctx context.Context, teamID uint, policyID uint) (*Policy, error)
-	CountTeamPolicies(ctx context.Context, teamID uint, matchQuery string, mergeInherited bool) (int, error)
+	CountTeamPolicies(ctx context.Context, teamID uint, matchQuery string, mergeInherited bool) (int, int, error)
 
 	// /////////////////////////////////////////////////////////////////////////////
 	// Geolocation

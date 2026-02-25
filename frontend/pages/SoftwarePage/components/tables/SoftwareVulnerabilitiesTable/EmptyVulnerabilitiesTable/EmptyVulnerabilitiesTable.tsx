@@ -92,7 +92,7 @@ const EmptyVulnerabilitiesTable: React.FC<IEmptyVulnerabilitiesTableProps> = ({
     : defaultEmptyState;
 
   if (emptyStateReason === "known-vuln" && teamId !== undefined) {
-    emptyState.header += " in this team";
+    emptyState.header += " in this fleet";
   }
 
   if (

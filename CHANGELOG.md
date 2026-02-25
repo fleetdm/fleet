@@ -1,3 +1,175 @@
+## Fleet 4.81.0 (Feb 20, 2026)
+
+### IT Admins
+- Added support for dynamic SCEP challenges for Okta certs.
+- Added a feature to allow IT admins to specify non-atomic Windows MDM profiles.
+- Added GitOps support to fleet yaml to apply display_name to software package.
+- Added enrollment support for iPod touch.
+- Added `hash_sha256` and `package_name` query parameters to the `GET /api/v1/fleet/software/titles` endpoint to allow checking if a custom software package already exists before uploading. Both parameters require `team_id` to be specified.
+- Added ability to set default URL for Fleet Desktop.
+- Added logic to skip setup experience for hosts that were enrolled > 1 day ago.
+- Updated maximum software installer size to be configurable and bumped the default from 3 GB to 10 GiB.
+- Added a check to fail any pending in-house app installs and cancel upcoming activities when unenrolling a host.
+- Added `gzip_responses` server configuration option that allows the server to gzip API responses when the client indicates support through the `Accept-Encoding: gzip` request header.
+- Allowed specifying an Apple Connect JWT for interacting directly with Apple APIs when retrieving VPP app metadata.
+- Added logic to .pkg metadata extraction to match the root bundle identifier.
+- Moved Windows automatic enrollment configuration instructions out of the UI and into the Windows MDM setup guide.
+
+### Security Engineers
+- Added `conditional_access.cert_serial_format` server option to allow specifying the Okta conditional access certificate serial format.
+- Improved authentication of `POST /api/v1/osquery/carve/block` requests by parsing and validating `session_id` and `request_id` before processing `data`.
+- Redirected users to device policy page when failing conditional access requirements.
+- Limited disk encryption key escrowing when global or team setting enabled.
+- Differentiated IMP and Integrative Modeling Platform (IMP) while running vulnerability scanning.
+- Fixed false negative for Adobe Reader DC CVE-2025-54257 & CVE-2025-54255.
+
+### Other improvements and bug fixes
+- Added an environment variable to allow reverting to the old behavior of installing the bootstrap package during macOS MDM migration.
+- Added `--with-table-sizes` option to `prepare` command to get approximate row counts of all database tables after a migration completes.
+- Updated Fleet UI so that if software is detected as installed on software library page, hide any Fleet install/uninstall failures from page. Admin can view these failures from host details > activities.
+- Updated Android certificate app to re-enroll if the host was deleted in Fleet.
+- Updated `fleetctl generate-gitops` to output Fleet-maintained apps in a dedicated `fleet_maintained_apps` section of the YAML files.
+- When a host is deleted, any associated VPP software installation records are also deleted.
+- Updated so that global observers and maintainers can now officially read user details, which were already visible to them via the activity feed.
+- Iru (Kandji's new name) added to the list of well-known MDM platforms.
+- Improved error message when viewing disk encryption key fails because MDM has been turned off and the decryption certificate is no longer valid.
+- Updated UI to show VPP version for adding software during setup.
+- Updated user sessions and password reset tokens to now be cleared whenever a user's password is changed.
+- Disallowed use of FLEET_DEV_* environment variables unless `--dev` is passed when serving Fleet.
+- Handled the NotNow status from the device during DEP setup experience so it does not delay the release of the device.
+- Allowed overriding individual configuration variables for MySQL and object storage when `--dev` is passed when serving Fleet.
+- Updated DEP syncing code to use server-protocol-version 9 and handle THROTTLED responses.
+- Updated UI styling to the Packs flow.
+- Surfaced Google error message for Android profile failures after max retries instead of a generic error.
+- Optimized recording of scheduled query results in the database.
+- Improved API error message when adding profiles or software with non-existent labels.
+- Ignored parenthesized build numbers in UI when comparing versions for update availability (e.g. 5.0 (build 3400)).
+- Improved DEP process cooldowns, by limiting how many we process in a single as per Apple's recommendations.
+- Improved OpenTelemetry tracing: added proper shutdown to flush pending spans, and added service name/version resource attributes for better trace identification.
+- Improved OpenTelemetry error handling: client errors (4xx) no longer set span status to Error or appear in the Exceptions tab, following OTEL semantic conventions. Added separate metrics for client vs server errors (`fleet.http.client_errors`, `fleet.http.server_errors`) with error type attribution. Client errors are also no longer sent to APM/Sentry.
+- Internal refactoring: introduced activity bounded context as part of modular monolith architecture. Moved /api/latest/fleet/activities endpoint to new server/activity/ packages.
+- Removed a debug-level warning asserting that macOS devices were unauthenticated when enrolling to Fleet.
+- Updated gitops related tests to validate that users can get/set the alternative browser hosts fleet desktop setting.
+- Updated to Go 1.25.7.
+- Fixed a bug with the `PATCH /software/titles/{id}/package` where the categories could not be updated by themselves, another field had to be updated for them to be modified.
+- Fixed an issue setting the bootstrap package on teams created by the puppet plugin.
+- Fixed an issue where enabling manual agent installation for macOS devices would incorrectly block the addition of setup experience software titles for all platforms.
+- Fixed Smallstep CA integration to send Authorization header with first request.
+- Fixed an issue where deleted Windows and Linux hosts could re-enroll without re-authenticating when End User Authentication was enabled.
+- Fixed a permission issue on software installer custom icons where a team maintainer could not view, edit or delete a custom icon.
+- Fixed bug where unfinished Entra Integration setup breaks the UI.
+- Fixed SCEP proxy so that it uses standard base64 encoding for PKIOperation GET requests, ensuring compatibility with standard SCEP servers.
+- Fixed an issue where queries with common table expressions (CTEs) were marked as having invalid syntax.
+- Fixed a bug where installing Xcode via VPP apps on macOS resulted in a failure due to not being able to verify the install.
+- Fixed a bug where non utf8 encodings caused an error in pkg metadata extraction.
+- Improved error message where there is issue getting the enrollment token during ota enrollment.
+- Fixed CVE false positive on ninxsoft/Mist.
+- Fixed an issue where `last_install` details were not returned in the Host Software API for failed software installs, preventing users from viewing failure information.
+- Fixed saving of policy automation in UI that triggers software installs and script runs.
+- Fixed a bug where changes to scripts were causing custom software display names to be deleted.
+- Fixed bug where custom icons were ignored for fleet maintained apps in GitOps files.
+- Fixed panic in gRPC launcher API handler.
+- Fixed a bug where installed software would not show up in the software inventory of an ADE-enrolled macOS host after a wipe and a re-enrollment.
+- Fixed issue where MySQL read replicas were not using TLS.
+- Fixed bug where `fleetctl gitops` was not sending software categories correctly in all cases.
+- Fixed an issue in `fleetctl gitops` that would reset VPP token team assignment when using "All teams".
+- Fixed bug in host activity card UI where activities related to MDM commands should be hidden when Apple MDM features are turned off in Fleet.
+- Fixed unnecessary error logging when no CPE match is found for software items like VSCode extensions and JetBrains plugins.
+- Fixed created_at and updated_at timestamps on API responses for Label and Team creation.
+- Fixed issues where different variations of the same software weren't linked to the same software title.
+
+## Fleet 4.80.1 (Feb 06, 2026)
+
+### Bug fixes
+
+- Optimizing certificate template batch delete auth
+- Updated refetch logic for iPhone and iPad to only fetch location data if the host is locked.
+- Fleet UI: Allow users to scroll through disabled yml fields
+- Fleet UI: Update icon buttons for consistency
+- Fleet UI: Fixed broken disk space sort header on hosts table
+- Fleet UI: Fixed hover color of links in error flash messages
+- Fleet UI: Clarify what happens to pending software installs when deleting VPP apps
+- fixed an issue where `fleetctl generate-gitops` would panic if the google calendar integration was enabled
+- Fixed false positive for CVE-2023-41036 for macvim
+- the google calendar intergration api key json is now obfuscated in GET requests 
+- Fixed a UI bug where the host list was being pushed down when viewing with a platform filter.
+- Fixed false negative CVE for 7-Zip installed with MSI installer.
+- fixed libtiff false positive vulnerability
+- Fixed CVE false positives for Microsoft 365 companion apps by targeting Microsoft 365 better
+- Fixed a bug where certain iOS/iPadOS devices (enrolled prior to Fleet v4.68.0) are unable renew their
+  enrollment profiles because of mismatched server URLs (specifically, this bug occurs if the URL in
+  the original enrollment profile contains an `enroll_reference` query parameter).
+- Added the FLEET_SERVER_TRUSTED_PROXIES configuration.
+Updated lock modal for iPad hosts to display iPad screenshot in the end user experience section
+Fixed false negative CVE for pgAdmin 4.
+- Fixed git & gitk cve attributions due to mismatch between homebrew packaging and nvd feed attribution
+- Fixed false positives for Safari CVE-2023-28205
+- Fixed styling issues with long script names.
+- Show error reason when trying to create or edit a label that conflicts with a built-in label name
+- Fixed bug where certificate template parameters where not serialized
+
+## Fleet 4.80.0 (Feb 2, 2026)
+
+### IT Admins
+- Added ability to automatically uninstall managed apps when iOS/iPadOS devices are unenrolled from MDM.
+- Added ability to schedule automated software updates for iOS/iPadOS VPP apps via the Fleet admin interface.
+- Added the ability to get and set auto-update schedule for VPP apps via the API.
+- Added scheduled updates functionality to iOS/iPadOS managed devices.
+- Added custom VPP apps to available VPP apps listing.
+- Added support for in-house apps to use Cloudfront signed URLs in manifest if Cloudfront is configured.
+
+### Security Engineers
+- Added NATS as a logging destination.
+- Updated NDES SCEP proxy to auto-detect response encoding, enabling compatibility with Okta CA and other UTF-8-based CAs.
+- Implemented ingesting, persisting, and serving the sha256 hash and path for the CFBundleExecutable binaries of .app bundles on macOS.
+
+### Other improvements and bug fixes
+- Added validation and harmonized the error message displayed when an installer (FMA, custom package, VPP app, in-house app) conflicts with another one on the same team targeting the same platform.
+- Randomized APNS query to ensure all pending Apple hosts gets a push notification.
+- Updated macOS bootstrap package to no longer install during MDM migration, only initial setup.
+- Updated script and software installer policy automations will retry up to three times if attempts to run them fail.
+- Improved host status tag styles on host details page.
+- Improved error message for user-scoped profiles on iOS/iPadOS hosts.
+- Surfaced Queries within the Details tab on the Host Details page.
+- Updated software ingestion of manually-enrolled (BYOD) iPhone/iPad devices to only ingest (and display in software inventory) Fleet-installed software.
+- Omitted software `last_opened_at` in API responses when the data source does not support it. Return an empty string when the source does have support but there is no value.
+- Updated UI for Controls > Setup experience > Install software > Android to fix inconsistent loading state.
+- Updated UI to show a generic error message when attempting to delete setup experience software.
+- Improved error message when trying to apply certificate authorities via gitops without the correct license.
+- Added space trimming of `displayVersion` when processing VPP apps (found in some production apps).
+- Updated software version search to now include results that match the software title name in addition to the version name.
+- Adjusted the read-only SQL editor to appear non-interactive.
+- Added information about auto-update configuration to the "edited_app_store_app" activity.
+- Refactored common endpoint_utils package to support bounded contexts inside Fleet codebase. Moved it to server/platform/endpointer.
+- Updated UI to inform admins of the need to accept terms and conditions for multiple Apple Business Manager accounts.
+- Removed Queries tab from Host Details page.
+- Revised software batch upload timeout to be 4 minutes, refreshed as every software package is downloaded from source or uploaded to object storage, from 24 hours, allowing for quicker detection of when a software batch fails due to the underlying server going offline.
+- Added a tooltip to an expired ABM token and also correctly removes the banner when an expired ABM token is deleted.
+- Updated error message to clarify that Fleet requires Apple (macOS, iOS, and iPadOS) configuration profiles have a unique identifier (PayloadIdentifier) and scope (PayloadScope) across teams.
+- Renamed "Disk space" to "Disk space available" in Host details > Vitals.
+- Truncated long strings (Operating system and Hardware model) in Host details > Vitals.
+- Rolled back the change to ingest legacy Entra "device ID" from the keychain (for silent migrations) because it's not supported by Entra.
+Refactored common_mysql package to support bounded contexts inside Fleet codebase. Moved it to server/platform/mysql.
+- Updated Go to 1.25.6.
+- Fixed an issue that allowed uploading invalid Android profiles.
+- Fixed spacing and alignment for author on edit query and edit policy pages.
+- Fixed an issue where VPP apps would fail with 9610 errors, by implementing a retry mechanism for VPP app installations.
+- Fixed VPP versions refresh to update the latest version for all platforms of an Adam ID.
+- Fixed a bug where failed software installs showed up in the host library page after transferring it to a team without that installer. 
+- Fixed `fleetctl` config get/set to show proper usage information when called without required arguments.
+- Fixed cases where Fleet would show the wrong current VPP app version when app versions varied by platform.
+- Fixed inconsistent styling for Controls > Setup experience > Bootstrap package.
+- Fixed the metadata of the "Windows App" macOS installer, as it was reported as "Microsoft AutoUpdate" instead of "Windows App".
+- Fixed an issue where newly-enrolled hosts would sometimes not be linked to SCIM user data.
+- Fixed FMA create form to allow input fields to work properly as only edit was working correctly.
+- Fixed Android certificate enrollment failures caused by SCEP challenge expiration when devices were offline.
+
+## Fleet 4.79.1 (Jan 19, 2026)
+
+### Bug fixes
+
+- Fixed bug in host activity card UI where activities related to MDM commands should be hidden when Apple MDM features are turned off in Fleet.
+
 ## Fleet 4.79.1 (Jan 19, 2026)
 
 ### Bug fixes
@@ -115,7 +287,7 @@
 - Added a new error UI for file uploaders, and applied it in the Okta Conditional Access modal.
 - Returned pre-install query output in Install Details modal.
 - Translated `idp` to `mdm_idp_accounts` on API responses. 
-- Updated `last_restarted_at` property for hosts to be more reliable.
+- Updated `last_restarted_at` property for hosts to be more reliable. 
 - Added Mosyle to the list of well-known MDM platforms.
 - Changed where `mdm_enrolled` activity is created so it occures after the inital Token Update command to allowa the webhook to fire after the host can recieve additonal commands from Fleet MDM.
 - Improved MDM command result endpoint response for pending Windows commands.

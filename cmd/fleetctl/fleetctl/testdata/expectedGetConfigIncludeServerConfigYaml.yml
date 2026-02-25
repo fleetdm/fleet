@@ -40,6 +40,7 @@ spec:
     windows_require_bitlocker_pin: null
     windows_migration_enabled: false
     enable_turn_on_windows_mdm_manually: false
+    windows_entra_tenant_ids: null
     macos_migration:
       enable: false
       mode: ""
@@ -131,8 +132,11 @@ spec:
     deferred_save_host: false
     enable_analytics: false
     live_query_disabled: false
+    live_reporting_disabled: false
     query_report_cap: 0
     query_reports_disabled: false
+    report_cap: 0
+    discard_reports_data: false
     server_url: ""
     scripts_disabled: false
     ai_features_disabled: false

@@ -13,7 +13,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm"
 	microsoft_mdm "github.com/fleetdm/fleet/v4/server/mdm/microsoft"
-	"github.com/go-kit/log/level"
 	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
 )
@@ -58,6 +57,8 @@ func (ds *Datastore) MDMWindowsGetEnrolledDeviceWithDeviceID(ctx context.Context
 		enroll_proto_version,
 		enroll_client_version,
 		not_in_oobe,
+		credentials_hash,
+		credentials_acknowledged,
 		created_at,
 		updated_at,
 		host_uuid
@@ -89,6 +90,8 @@ func (ds *Datastore) MDMWindowsGetEnrolledDeviceWithHostUUID(ctx context.Context
 		enroll_proto_version,
 		enroll_client_version,
 		not_in_oobe,
+		credentials_hash,
+		credentials_acknowledged,
 		created_at,
 		updated_at,
 		host_uuid
@@ -120,9 +123,11 @@ func (ds *Datastore) MDMWindowsInsertEnrolledDevice(ctx context.Context, device 
 			enroll_proto_version,
 			enroll_client_version,
 			not_in_oobe,
-			host_uuid)
+			host_uuid,
+			credentials_hash,
+			credentials_acknowledged)
 		VALUES
-			(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+			(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 		ON DUPLICATE KEY UPDATE
 			mdm_device_id         = VALUES(mdm_device_id),
 			device_state          = VALUES(device_state),
@@ -133,7 +138,9 @@ func (ds *Datastore) MDMWindowsInsertEnrolledDevice(ctx context.Context, device 
 			enroll_proto_version  = VALUES(enroll_proto_version),
 			enroll_client_version = VALUES(enroll_client_version),
 			not_in_oobe           = VALUES(not_in_oobe),
-			host_uuid             = VALUES(host_uuid)
+			host_uuid             = VALUES(host_uuid),
+			credentials_hash      = VALUES(credentials_hash),
+			credentials_acknowledged = VALUES(credentials_acknowledged)
 	`
 	_, err := ds.writer(ctx).ExecContext(
 		ctx,
@@ -148,7 +155,9 @@ func (ds *Datastore) MDMWindowsInsertEnrolledDevice(ctx context.Context, device 
 		device.MDMEnrollProtoVersion,
 		device.MDMEnrollClientVersion,
 		device.MDMNotInOOBE,
-		device.HostUUID)
+		device.HostUUID,
+		device.CredentialsHash,
+		device.CredentialsAcknowledged)
 	if err != nil {
 		if IsDuplicate(err) {
 			return ctxerr.Wrap(ctx, alreadyExists("MDMWindowsEnrolledDevice", device.MDMHardwareID))
@@ -262,7 +271,7 @@ VALUES ((SELECT id FROM mdm_windows_enrollments WHERE host_uuid = ? OR mdm_devic
 		if IsDuplicate(err) {
 			return ctxerr.Wrap(ctx, alreadyExists("MDMWindowsCommandQueue", commandUUID))
 		}
-		return ctxerr.Wrap(ctx, err, "inserting MDMWindowsCommandQueue")
+		return ctxerr.Wrap(ctx, err, "inserting MDMWindowsCommandQueue", "host_uuid_or_device_id", hostUUIDOrDeviceID, "command_uuid", commandUUID)
 	}
 
 	return nil
@@ -353,7 +362,7 @@ func (ds *Datastore) MDMWindowsSaveResponse(ctx context.Context, deviceID string
 		if len(matchingCmds) == 0 {
 			if len(commandIDsBeingResent) == 0 {
 				// Only log if not resending commands as we then can expect no matching commands
-				level.Warn(ds.logger).Log("msg", "unmatched Windows MDM commands", "uuids", strings.Join(enrichedSyncML.CmdRefUUIDs, ","), "mdm_device_id",
+				ds.logger.WarnContext(ctx, "unmatched Windows MDM commands", "uuids", strings.Join(enrichedSyncML.CmdRefUUIDs, ","), "mdm_device_id",
 					deviceID)
 			}
 			return nil
@@ -400,7 +409,7 @@ func (ds *Datastore) MDMWindowsSaveResponse(ctx context.Context, deviceID string
 				var err error
 				rawResult, err = xml.Marshal(result)
 				if err != nil {
-					ds.logger.Log("err", err, "marshaling command result", "cmd_uuid", cmd.CommandUUID)
+					ds.logger.ErrorContext(ctx, "marshaling command result", "err", err, "cmd_uuid", cmd.CommandUUID)
 				}
 			}
 			args = append(args, enrolledDevice.ID, cmd.CommandUUID, rawResult, responseID, statusCode)
@@ -615,7 +624,7 @@ func (ds *Datastore) UpdateMDMWindowsEnrollmentsHostUUID(ctx context.Context, ho
 // - host_disk_encryption_keys: hdek
 // - host_mdm: hmdm
 // - host_disks: hd
-func (ds *Datastore) whereBitLockerStatus(status fleet.DiskEncryptionStatus, bitLockerPINRequired bool) string {
+func (ds *Datastore) whereBitLockerStatus(ctx context.Context, status fleet.DiskEncryptionStatus, bitLockerPINRequired bool) string {
 	const (
 		whereNotServer        = `(hmdm.is_server IS NOT NULL AND hmdm.is_server = 0)`
 		whereKeyAvailable     = `(hdek.base64_encrypted IS NOT NULL AND hdek.base64_encrypted != '' AND hdek.decryptable IS NOT NULL AND hdek.decryptable = 1)`
@@ -688,7 +697,7 @@ AND (
 		return whereNotServer + ` AND ` + whereClientError
 
 	default:
-		level.Debug(ds.logger).Log("msg", "unknown bitlocker status", "status", status)
+		ds.logger.DebugContext(ctx, "unknown bitlocker status", "status", status)
 		return "FALSE"
 	}
 }
@@ -734,11 +743,11 @@ WHERE
 	var res fleet.MDMWindowsBitLockerSummary
 	stmt := fmt.Sprintf(
 		sqlFmt,
-		ds.whereBitLockerStatus(fleet.DiskEncryptionVerified, diskEncryptionConfig.BitLockerPINRequired),
-		ds.whereBitLockerStatus(fleet.DiskEncryptionVerifying, diskEncryptionConfig.BitLockerPINRequired),
-		ds.whereBitLockerStatus(fleet.DiskEncryptionActionRequired, diskEncryptionConfig.BitLockerPINRequired),
-		ds.whereBitLockerStatus(fleet.DiskEncryptionEnforcing, diskEncryptionConfig.BitLockerPINRequired),
-		ds.whereBitLockerStatus(fleet.DiskEncryptionFailed, diskEncryptionConfig.BitLockerPINRequired),
+		ds.whereBitLockerStatus(ctx, fleet.DiskEncryptionVerified, diskEncryptionConfig.BitLockerPINRequired),
+		ds.whereBitLockerStatus(ctx, fleet.DiskEncryptionVerifying, diskEncryptionConfig.BitLockerPINRequired),
+		ds.whereBitLockerStatus(ctx, fleet.DiskEncryptionActionRequired, diskEncryptionConfig.BitLockerPINRequired),
+		ds.whereBitLockerStatus(ctx, fleet.DiskEncryptionEnforcing, diskEncryptionConfig.BitLockerPINRequired),
+		ds.whereBitLockerStatus(ctx, fleet.DiskEncryptionFailed, diskEncryptionConfig.BitLockerPINRequired),
 		microsoft_mdm.MDMDeviceStateEnrolled,
 		teamFilter,
 	)
@@ -767,7 +776,7 @@ func (ds *Datastore) GetMDMWindowsBitLockerStatus(ctx context.Context, host *fle
 	if mdmInfo.IsServer {
 		// It is currently expected that server hosts do not have a bitlocker status so we can skip
 		// the query and return nil. We log for potential debugging in case this changes in the future.
-		level.Debug(ds.logger).Log("msg", "no bitlocker status for server host", "host_id", host.ID)
+		ds.logger.DebugContext(ctx, "no bitlocker status for server host", "host_id", host.ID)
 		return nil, nil
 	}
 
@@ -797,15 +806,15 @@ FROM
 	LEFT JOIN host_disks hd ON hmdm.host_id = hd.host_id
 WHERE
 	hmdm.host_id = ?`,
-		ds.whereBitLockerStatus(fleet.DiskEncryptionActionRequired, diskEncryptionConfig.BitLockerPINRequired),
+		ds.whereBitLockerStatus(ctx, fleet.DiskEncryptionActionRequired, diskEncryptionConfig.BitLockerPINRequired),
 		fleet.DiskEncryptionActionRequired,
-		ds.whereBitLockerStatus(fleet.DiskEncryptionVerified, diskEncryptionConfig.BitLockerPINRequired),
+		ds.whereBitLockerStatus(ctx, fleet.DiskEncryptionVerified, diskEncryptionConfig.BitLockerPINRequired),
 		fleet.DiskEncryptionVerified,
-		ds.whereBitLockerStatus(fleet.DiskEncryptionVerifying, diskEncryptionConfig.BitLockerPINRequired),
+		ds.whereBitLockerStatus(ctx, fleet.DiskEncryptionVerifying, diskEncryptionConfig.BitLockerPINRequired),
 		fleet.DiskEncryptionVerifying,
-		ds.whereBitLockerStatus(fleet.DiskEncryptionEnforcing, diskEncryptionConfig.BitLockerPINRequired),
+		ds.whereBitLockerStatus(ctx, fleet.DiskEncryptionEnforcing, diskEncryptionConfig.BitLockerPINRequired),
 		fleet.DiskEncryptionEnforcing,
-		ds.whereBitLockerStatus(fleet.DiskEncryptionFailed, diskEncryptionConfig.BitLockerPINRequired),
+		ds.whereBitLockerStatus(ctx, fleet.DiskEncryptionFailed, diskEncryptionConfig.BitLockerPINRequired),
 		fleet.DiskEncryptionFailed,
 	)
 
@@ -819,14 +828,14 @@ WHERE
 		}
 		// At this point we know disk encryption is enabled so if there are no rows for the
 		// host then we treat it as enforcing and log for potential debugging
-		level.Debug(ds.logger).Log("msg", "no bitlocker status found for host", "host_id", host.ID)
+		ds.logger.DebugContext(ctx, "no bitlocker status found for host", "host_id", host.ID)
 		dest.Status = fleet.DiskEncryptionEnforcing
 	}
 
 	if dest.Status == "" {
 		// This is unexpected. We know that disk encryption is enabled so we treat it failed to draw
 		// attention to the issue and log potential debugging
-		level.Debug(ds.logger).Log("msg", "no bitlocker status found for host", "host_id", host.ID, "mdm_info")
+		ds.logger.DebugContext(ctx, "no bitlocker status found for host", "host_id", host.ID)
 		dest.Status = fleet.DiskEncryptionFailed
 	}
 
@@ -867,7 +876,7 @@ WHERE
 		switch {
 		case lbl.Exclude && lbl.RequireAll:
 			// this should never happen so log it for debugging
-			level.Debug(ds.logger).Log("msg", "unsupported profile label: cannot be both exclude and require all",
+			ds.logger.DebugContext(ctx, "unsupported profile label: cannot be both exclude and require all",
 				"profile_uuid", lbl.ProfileUUID,
 				"label_name", lbl.LabelName,
 			)
@@ -1076,7 +1085,7 @@ func (ds *Datastore) GetMDMWindowsProfilesSummary(ctx context.Context, teamID *u
 		case "action_required":
 			res.Pending += c.Count
 		case "":
-			level.Debug(ds.logger).Log("msg", fmt.Sprintf("counted %d windows hosts on team %v with mdm turned on but no profiles or bitlocker status", c.Count, teamID))
+			ds.logger.DebugContext(ctx, fmt.Sprintf("counted %d windows hosts on team %v with mdm turned on but no profiles or bitlocker status", c.Count, teamID))
 		default:
 			return nil, ctxerr.New(ctx, fmt.Sprintf("unexpected mdm windows status count: status=%s, count=%d", c.Status, c.Count))
 		}
@@ -1226,11 +1235,11 @@ func getMDMWindowsStatusCountsProfilesAndBitLockerDB(ctx context.Context, ds *Da
             ELSE
                 ''
             END`,
-		ds.whereBitLockerStatus(fleet.DiskEncryptionVerified, bitLockerPINRequired),
-		ds.whereBitLockerStatus(fleet.DiskEncryptionVerifying, bitLockerPINRequired),
-		ds.whereBitLockerStatus(fleet.DiskEncryptionActionRequired, bitLockerPINRequired),
-		ds.whereBitLockerStatus(fleet.DiskEncryptionEnforcing, bitLockerPINRequired),
-		ds.whereBitLockerStatus(fleet.DiskEncryptionFailed, bitLockerPINRequired),
+		ds.whereBitLockerStatus(ctx, fleet.DiskEncryptionVerified, bitLockerPINRequired),
+		ds.whereBitLockerStatus(ctx, fleet.DiskEncryptionVerifying, bitLockerPINRequired),
+		ds.whereBitLockerStatus(ctx, fleet.DiskEncryptionActionRequired, bitLockerPINRequired),
+		ds.whereBitLockerStatus(ctx, fleet.DiskEncryptionEnforcing, bitLockerPINRequired),
+		ds.whereBitLockerStatus(ctx, fleet.DiskEncryptionFailed, bitLockerPINRequired),
 	)
 
 	stmt := fmt.Sprintf(`
@@ -2462,21 +2471,30 @@ func (ds *Datastore) GetWindowsHostMDMCertificateProfile(ctx context.Context, ho
 	return &profile, nil
 }
 
-func (ds *Datastore) GetWindowsMDMCommandsForResending(ctx context.Context, failedCommandIds []string) ([]*fleet.MDMWindowsCommand, error) {
+func (ds *Datastore) GetWindowsMDMCommandsForResending(ctx context.Context, deviceID string, failedCommandIds []string) ([]*fleet.MDMWindowsCommand, error) {
 	if len(failedCommandIds) == 0 {
 		return []*fleet.MDMWindowsCommand{}, nil
 	}
 
-	stmt := `SELECT command_uuid, raw_command, target_loc_uri, created_at, updated_at
-		FROM windows_mdm_commands WHERE`
+	stmt := `SELECT wmc.command_uuid, wmc.raw_command, wmc.target_loc_uri, wmc.created_at, wmc.updated_at
+		FROM windows_mdm_commands wmc INNER JOIN windows_mdm_command_queue wmcq ON wmcq.enrollment_id = (SELECT id from mdm_windows_enrollments WHERE mdm_device_id = ?) AND wmcq.command_uuid = wmc.command_uuid WHERE`
 
-	args := []any{}
+	args := []any{deviceID}
 	for idx, commandId := range failedCommandIds {
-		stmt += " raw_command LIKE ? OR "
-		args = append(args, "%"+commandId+"%")
+		if commandId == "" {
+			continue
+		}
+
+		stmt += " wmc.raw_command LIKE ? OR "
+		args = append(args, "%<CmdID>"+commandId+"</CmdID>%")
 		if idx == len(failedCommandIds)-1 {
 			stmt = strings.TrimSuffix(stmt, " OR ")
 		}
+	}
+
+	if len(args) == 1 {
+		// No valid command IDs were provided, return empty result to avoid returning all commands for the device.
+		return []*fleet.MDMWindowsCommand{}, nil
 	}
 
 	stmt += fmt.Sprintf(" ORDER BY created_at DESC LIMIT %d", len(failedCommandIds))
@@ -2520,4 +2538,32 @@ func (ds *Datastore) ResendWindowsMDMCommand(ctx context.Context, mdmDeviceId st
 
 		return nil
 	})
+}
+
+func (ds *Datastore) MDMWindowsUpdateEnrolledDeviceCredentials(ctx context.Context, deviceId string, credentialsHash []byte) error {
+	if deviceId == "" {
+		return nil
+	}
+
+	_, err := ds.writer(ctx).ExecContext(ctx, `
+		UPDATE mdm_windows_enrollments
+		SET credentials_hash = ?
+		WHERE mdm_device_id = ?`,
+		credentialsHash, deviceId,
+	)
+	return err
+}
+
+func (ds *Datastore) MDMWindowsAcknowledgeEnrolledDeviceCredentials(ctx context.Context, deviceId string) error {
+	if deviceId == "" {
+		return nil
+	}
+
+	_, err := ds.writer(ctx).ExecContext(ctx, `
+		UPDATE mdm_windows_enrollments
+		SET credentials_acknowledged = TRUE
+		WHERE mdm_device_id = ?`,
+		deviceId,
+	)
+	return err
 }

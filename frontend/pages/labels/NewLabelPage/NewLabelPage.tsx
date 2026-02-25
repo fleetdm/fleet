@@ -2,7 +2,7 @@ import React, { useContext, useEffect, useState } from "react";
 
 import { useQuery } from "react-query";
 import { useDebouncedCallback } from "use-debounce";
-import { IAceEditor } from "react-ace/lib/types";
+import { Ace } from "ace-builds";
 import { Row } from "react-table";
 
 import PATHS from "router/paths";
@@ -31,6 +31,7 @@ import {
 } from "interfaces/label";
 import { IHost } from "interfaces/host";
 import { IInputFieldParseTarget } from "interfaces/form_field";
+import { getErrorReason } from "interfaces/errors";
 
 import SidePanelPage from "components/SidePanelPage";
 import MainContent from "components/MainContent";
@@ -46,6 +47,7 @@ import Icon from "components/Icon";
 import TargetsInput from "components/TargetsInput";
 import Radio from "components/forms/fields/Radio";
 import PlatformField from "../components/PlatformField";
+import { validateNewLabelFormData, INewLabelFormValidation } from "./helpers";
 
 const availableCriteria: {
   label: string;
@@ -83,30 +85,6 @@ export interface INewLabelFormData {
   // manual
   targetedHosts: IHost[];
 }
-
-interface INewLabelFormErrors {
-  name?: string | null;
-  labelQuery?: string | null;
-  criteria?: string | null;
-}
-
-const validate = (newData: INewLabelFormData) => {
-  const errors: INewLabelFormErrors = {};
-  const { name, type, labelQuery, vitalValue } = newData;
-  if (!name) {
-    errors.name = "Label name must be present";
-  }
-  if (type === "dynamic") {
-    if (!labelQuery) {
-      errors.labelQuery = "Query text must be present";
-    }
-  } else if (type === "host_vitals") {
-    if (!vitalValue) {
-      errors.criteria = "Label criteria must be completed";
-    }
-  }
-  return errors;
-};
 
 const DEFAULT_DYNAMIC_QUERY = "SELECT 1 FROM os_version WHERE major >= 13;";
 
@@ -154,6 +132,10 @@ const NewLabelPage = ({
     // manual-specific
     targetedHosts: [],
   });
+  const [formErrors, setFormErrors] = useState<INewLabelFormValidation>({
+    isValid: true,
+  });
+
   const {
     name,
     description,
@@ -164,8 +146,6 @@ const NewLabelPage = ({
     vitalValue,
     targetedHosts,
   } = formData;
-
-  const [formErrors, setFormErrors] = useState<INewLabelFormErrors>({});
 
   const [targetsSearchQuery, setTargetsSearchQuery] = useState("");
   const [
@@ -271,63 +251,108 @@ const NewLabelPage = ({
   }: IInputFieldParseTarget) => {
     const newFormData = { ...formData, [fieldName]: value };
     setFormData(newFormData);
-    const newErrs = validate(newFormData);
-    // only set errors that are updates of existing errors
-    // new errors are only set onBlur or submit
-    const errsToSet: Record<string, string> = {};
-    Object.keys(formErrors).forEach((k) => {
-      // @ts-ignore
-      if (newErrs[k]) {
-        // @ts-ignore
-        errsToSet[k] = newErrs[k];
+
+    const fullValidation = validateNewLabelFormData(newFormData);
+
+    setFormErrors((prev) => {
+      const next: INewLabelFormValidation = { ...prev, isValid: true };
+
+      // start from previous errors
+      if (prev.name) next.name = prev.name;
+      if (prev.description) next.description = prev.description;
+      if (prev.labelQuery) next.labelQuery = prev.labelQuery;
+      if (prev.criteria) next.criteria = prev.criteria;
+
+      // ONLY CLEAR existing error on this field if it is now valid.
+      if (fieldName === "name") {
+        if (prev.name && fullValidation.name?.isValid) {
+          next.name = undefined;
+        }
+      } else if (fieldName === "description") {
+        if (prev.description && fullValidation.description?.isValid) {
+          next.description = undefined;
+        }
+      } else if (fieldName === "vitalValue") {
+        if (prev.criteria && fullValidation.criteria?.isValid) {
+          next.criteria = undefined;
+        }
       }
+
+      const fields = [
+        next.name,
+        next.description,
+        next.labelQuery,
+        next.criteria,
+      ];
+      next.isValid = fields.every((f) => !f || f.isValid);
+
+      return next;
     });
-    setFormErrors(errsToSet);
   };
 
   const onTypeChange = (value: string): void => {
     const newFormData = {
       ...formData,
-      type: value as LabelMembershipType, // reconcile type differences between form data and radio component handler
+      type: value as LabelMembershipType,
     };
     setFormData(newFormData);
 
-    const newErrs = validate(newFormData);
-    const errsToSet: Record<string, string> = {};
-    Object.keys(formErrors).forEach((k) => {
-      // @ts-ignore
-      if (newErrs[k]) {
-        // @ts-ignore
-        errsToSet[k] = newErrs[k];
-      }
+    const fullValidation = validateNewLabelFormData(newFormData);
+
+    setFormErrors((prev) => {
+      const next: INewLabelFormValidation = { ...prev, isValid: true };
+
+      if (prev.name) next.name = fullValidation.name ?? prev.name;
+      if (prev.description)
+        next.description = fullValidation.description ?? prev.description;
+      if (prev.labelQuery)
+        next.labelQuery = fullValidation.labelQuery ?? prev.labelQuery;
+      if (prev.criteria)
+        next.criteria = fullValidation.criteria ?? prev.criteria;
+
+      const fields = [
+        next.name,
+        next.description,
+        next.labelQuery,
+        next.criteria,
+      ];
+      next.isValid = fields.every((f) => !f || f.isValid);
+
+      return next;
     });
-    setFormErrors(errsToSet);
   };
 
   const onInputBlur = () => {
-    setFormErrors(validate(formData));
+    setFormErrors(validateNewLabelFormData(formData));
   };
 
   const onSubmit = async (evt: React.FormEvent<HTMLFormElement>) => {
     evt.preventDefault();
 
-    const errs = validate(formData);
-    if (Object.keys(errs).length > 0) {
-      setFormErrors(errs);
+    const fullValidation = validateNewLabelFormData(formData);
+    setFormErrors(fullValidation);
+    if (!fullValidation.isValid) {
       return;
     }
+
     setIsUpdating(true);
     try {
       await labelsAPI.create(formData);
       router.push(PATHS.MANAGE_LABELS);
       renderFlash("success", "Label added successfully.");
     } catch (error) {
-      renderFlash(
-        "error",
-        (error as { status: number }).status === 409
-          ? "A label with this name already exists."
-          : "Couldn't add label. Please try again."
-      );
+      const status = (error as { status: number }).status;
+      let errorMessage = "Couldn't add label. Please try again.";
+      if (status === 409) {
+        errorMessage =
+          "Couldn't add label: A label with this name already exists.";
+      } else if (status === 422) {
+        const reason = getErrorReason(error);
+        if (reason) {
+          errorMessage = `Couldn't add label: ${reason}. Please try again.`;
+        }
+      }
+      renderFlash("error", errorMessage);
     }
     setIsUpdating(false);
   };
@@ -338,17 +363,40 @@ const NewLabelPage = ({
   }, 500);
 
   const onQueryChange = (newQuery: string) => {
-    setFormData((prevData) => ({
-      ...prevData,
-      labelQuery: newQuery,
-    }));
+    const newFormData = { ...formData, labelQuery: newQuery };
+    setFormData(newFormData);
+
+    const fullValidation = validateNewLabelFormData(newFormData);
+
+    setFormErrors((prev) => {
+      const next: INewLabelFormValidation = { ...prev, isValid: true };
+
+      if (prev.name) next.name = prev.name;
+      if (prev.description) next.description = prev.description;
+      if (prev.labelQuery) next.labelQuery = prev.labelQuery;
+      if (prev.criteria) next.criteria = prev.criteria;
+
+      if (prev.labelQuery && fullValidation.labelQuery?.isValid) {
+        next.labelQuery = undefined;
+      }
+
+      const fields = [
+        next.name,
+        next.description,
+        next.labelQuery,
+        next.criteria,
+      ];
+      next.isValid = fields.every((f) => !f || f.isValid);
+
+      return next;
+    });
+
     debounceValidateSQL(newQuery);
   };
 
   // form rendering helpers
-  const onLoadSQLEditor = (editor: IAceEditor) => {
+  const onLoadSQLEditor = (editor: Ace.Editor) => {
     editor.setOptions({
-      enableLinking: true,
       enableMultiselect: false, // Disables command + click creating multiple cursors
     });
 
@@ -391,7 +439,7 @@ const NewLabelPage = ({
         return (
           <>
             <SQLEditor
-              error={formErrors.labelQuery}
+              error={formErrors.labelQuery?.message}
               name="query"
               onChange={onQueryChange}
               onBlur={onInputBlur}
@@ -439,14 +487,14 @@ const NewLabelPage = ({
                 onChange={onInputChange}
                 parseTarget
                 value={vital}
-                error={formErrors.criteria}
+                error={formErrors.criteria?.message}
                 options={availableCriteria}
                 classname={`${baseClass}__criteria-dropdown`}
                 wrapperClassName={`${baseClass}__form-field ${baseClass}__form-field--criteria`}
               />
               <p>is equal to</p>
               <InputField
-                error={formErrors.criteria}
+                error={formErrors.criteria?.message}
                 name="vitalValue"
                 onChange={onInputChange}
                 onBlur={onInputBlur}
@@ -490,7 +538,7 @@ const NewLabelPage = ({
   const renderLabelForm = () => (
     <form className={`${baseClass}__label-form`} onSubmit={onSubmit}>
       <InputField
-        error={formErrors.name}
+        error={formErrors.name?.message}
         name="name"
         onChange={onInputChange}
         onBlur={onInputBlur}
@@ -501,6 +549,7 @@ const NewLabelPage = ({
         parseTarget
       />
       <InputField
+        error={formErrors.description?.message}
         name="description"
         onChange={onInputChange}
         onBlur={onInputBlur}
@@ -557,7 +606,7 @@ const NewLabelPage = ({
         <Button
           type="submit"
           isLoading={isUpdating}
-          disabled={isUpdating || !!Object.entries(formErrors).length}
+          disabled={isUpdating || !formErrors.isValid}
         >
           Save
         </Button>

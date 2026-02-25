@@ -7,14 +7,25 @@ import (
 	"maps"
 	"slices"
 	"strings"
+	"time"
 
 	"golang.org/x/text/unicode/norm"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
-	"github.com/go-kit/log/level"
+	common_mysql "github.com/fleetdm/fleet/v4/server/platform/mysql"
 	"github.com/jmoiron/sqlx"
 )
+
+// queryAllowedOrderKeys defines the allowed order keys for ListQueries.
+// SECURITY: This prevents information disclosure via arbitrary column sorting.
+var queryAllowedOrderKeys = common_mysql.OrderKeyAllowlist{
+	"id":         "q.id",
+	"name":       "q.name",
+	"team_id":    "q.team_id",
+	"created_at": "q.created_at",
+	"updated_at": "q.updated_at",
+}
 
 const (
 	statsScheduledQueryType = iota
@@ -243,6 +254,10 @@ func (ds *Datastore) NewQuery(
 	if err := query.Verify(); err != nil {
 		return nil, ctxerr.Wrap(ctx, err)
 	}
+	now := time.Now().UTC().Truncate(time.Second)
+	query.CreatedAt = now
+	query.UpdatedAt = now
+
 	queryStatement := `
 		INSERT INTO queries (
 			name,
@@ -258,8 +273,10 @@ func (ds *Datastore) NewQuery(
 			schedule_interval,
 			automations_enabled,
 			logging_type,
-			discard_data
-		) VALUES ( ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ? )
+			discard_data,
+			created_at,
+			updated_at
+		) VALUES ( ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ? )
 	`
 
 	result, err := ds.writer(ctx).ExecContext(
@@ -279,6 +296,8 @@ func (ds *Datastore) NewQuery(
 		query.AutomationsEnabled,
 		query.Logging,
 		query.DiscardData,
+		query.CreatedAt,
+		query.UpdatedAt,
 	)
 
 	if err != nil && IsDuplicate(err) {
@@ -556,11 +575,11 @@ func (ds *Datastore) deleteQueryStats(ctx context.Context, queryIDs []uint) {
 	stmt := "DELETE FROM scheduled_query_stats WHERE scheduled_query_id IN (?)"
 	stmt, args, err := sqlx.In(stmt, queryIDs)
 	if err != nil {
-		level.Error(ds.logger).Log("msg", "error creating delete query stats statement", "err", err)
+		ds.logger.ErrorContext(ctx, "error creating delete query stats statement", "err", err)
 	} else {
 		_, err = ds.writer(ctx).ExecContext(ctx, stmt, args...)
 		if err != nil {
-			level.Error(ds.logger).Log("msg", "error deleting query stats", "err", err)
+			ds.logger.ErrorContext(ctx, "error deleting query stats", "err", err)
 		}
 	}
 
@@ -568,11 +587,11 @@ func (ds *Datastore) deleteQueryStats(ctx context.Context, queryIDs []uint) {
 	stmt = fmt.Sprintf("DELETE FROM aggregated_stats WHERE type = '%s' AND id IN (?)", fleet.AggregatedStatsTypeScheduledQuery)
 	stmt, args, err = sqlx.In(stmt, queryIDs)
 	if err != nil {
-		level.Error(ds.logger).Log("msg", "error creating delete aggregated stats statement", "err", err)
+		ds.logger.ErrorContext(ctx, "error creating delete aggregated stats statement", "err", err)
 	} else {
 		_, err = ds.writer(ctx).ExecContext(ctx, stmt, args...)
 		if err != nil {
-			level.Error(ds.logger).Log("msg", "error deleting aggregated stats", "err", err)
+			ds.logger.ErrorContext(ctx, "error deleting aggregated stats", "err", err)
 		}
 	}
 }
@@ -638,7 +657,7 @@ func query(ctx context.Context, db sqlx.QueryerContext, id uint) (*fleet.Query, 
 // ListQueries returns a list of queries with sort order and results limit
 // determined by passed in fleet.ListOptions, count of total queries returned without limits, and
 // pagination metadata
-func (ds *Datastore) ListQueries(ctx context.Context, opt fleet.ListQueryOptions) ([]*fleet.Query, int, *fleet.PaginationMetadata, error) {
+func (ds *Datastore) ListQueries(ctx context.Context, opt fleet.ListQueryOptions) (queries []*fleet.Query, total int, inherited int, metadata *fleet.PaginationMetadata, err error) {
 	getQueriesStmt := `
 		SELECT
 			q.id,
@@ -704,42 +723,55 @@ func (ds *Datastore) ListQueries(ctx context.Context, opt fleet.ListQueryOptions
 	getQueriesStmt += whereClauses
 
 	// build the count statement before adding pagination constraints
-	getQueriesCountStmt := fmt.Sprintf("SELECT COUNT(DISTINCT id) FROM (%s) AS s", getQueriesStmt)
+	var getQueriesCountStmt string
+	if opt.TeamID != nil && opt.MergeInherited {
+		getQueriesCountStmt = fmt.Sprintf(
+			`SELECT COUNT(DISTINCT id) AS total, COUNT(DISTINCT CASE WHEN team_id IS NULL THEN id END) AS inherited FROM (%s) AS s`,
+			getQueriesStmt,
+		)
+	} else {
+		getQueriesCountStmt = fmt.Sprintf("SELECT COUNT(DISTINCT id) AS total, 0 AS inherited FROM (%s) AS s", getQueriesStmt)
+	}
 
-	getQueriesStmt, args = appendListOptionsWithCursorToSQL(getQueriesStmt, args, &opt.ListOptions)
+	getQueriesStmt, args, err = appendListOptionsWithCursorToSQLSecure(getQueriesStmt, args, &opt.ListOptions, queryAllowedOrderKeys)
+	if err != nil {
+		return nil, 0, 0, nil, ctxerr.Wrap(ctx, err, "apply list options")
+	}
 
 	dbReader := ds.reader(ctx)
-	queries := []*fleet.Query{}
-	if err := sqlx.SelectContext(ctx, dbReader, &queries, getQueriesStmt, args...); err != nil {
-		return nil, 0, nil, ctxerr.Wrap(ctx, err, "listing queries")
+	queries = []*fleet.Query{}
+	if err = sqlx.SelectContext(ctx, dbReader, &queries, getQueriesStmt, args...); err != nil {
+		return nil, 0, 0, nil, ctxerr.Wrap(ctx, err, "listing queries")
 	}
 
 	// perform a second query to grab the count
-	var count int
-	if err := sqlx.GetContext(ctx, dbReader, &count, getQueriesCountStmt, args...); err != nil {
-		return nil, 0, nil, ctxerr.Wrap(ctx, err, "get queries count")
+	var counts struct {
+		Total     int `db:"total"`
+		Inherited int `db:"inherited"`
+	}
+	if err = sqlx.GetContext(ctx, dbReader, &counts, getQueriesCountStmt, args...); err != nil {
+		return nil, 0, 0, nil, ctxerr.Wrap(ctx, err, "get queries count")
 	}
 
-	if err := ds.loadPacksForQueries(ctx, queries); err != nil {
-		return nil, 0, nil, ctxerr.Wrap(ctx, err, "loading packs for queries")
+	if err = ds.loadPacksForQueries(ctx, queries); err != nil {
+		return nil, 0, 0, nil, ctxerr.Wrap(ctx, err, "loading packs for queries")
 	}
 
-	if err := ds.loadLabelsForQueries(ctx, queries); err != nil {
-		return nil, 0, nil, ctxerr.Wrap(ctx, err, "loading labels for queries")
+	if err = ds.loadLabelsForQueries(ctx, queries); err != nil {
+		return nil, 0, 0, nil, ctxerr.Wrap(ctx, err, "loading labels for queries")
 	}
 
-	var meta *fleet.PaginationMetadata
 	if opt.ListOptions.IncludeMetadata {
-		meta = &fleet.PaginationMetadata{HasPreviousResults: opt.ListOptions.Page > 0}
+		metadata = &fleet.PaginationMetadata{HasPreviousResults: opt.ListOptions.Page > 0}
 		// `appendListOptionsWithCursorToSQL` used above to build the query statement will cause this
 		// discrepancy
 		if len(queries) > int(opt.ListOptions.PerPage) { //nolint:gosec // dismiss G115
-			meta.HasNextResults = true
+			metadata.HasNextResults = true
 			queries = queries[:len(queries)-1]
 		}
 	}
 
-	return queries, count, meta, nil
+	return queries, counts.Total, counts.Inherited, metadata, nil
 }
 
 // loadPacksForQueries loads the user packs (aka 2017 packs) associated with the provided queries.

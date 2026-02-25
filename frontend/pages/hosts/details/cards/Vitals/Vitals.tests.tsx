@@ -9,18 +9,19 @@ import { DEFAULT_EMPTY_CELL_VALUE } from "utilities/constants";
 import Vitals from "./Vitals";
 
 describe("Vitals Card component", () => {
-  it("renders only the device Hardware model for Android hosts that were not enrolled in MDM personally", () => {
+  it("renders the device Hardware model and Serial number for Android hosts that were not enrolled in MDM personally", () => {
     const mockHost = createMockHost({
       platform: "android",
       hardware_model: "Pixel 6",
-      hardware_serial: "",
+      hardware_serial: "1234567890",
     });
 
     render(<Vitals vitalsData={mockHost} mdm={mockHost.mdm} />);
 
     expect(screen.getByText("Hardware model")).toBeInTheDocument();
     expect(screen.getByText("Pixel 6")).toBeInTheDocument();
-    expect(screen.queryByText("Serial number")).not.toBeInTheDocument();
+    expect(screen.getByText("Serial number")).toBeInTheDocument();
+    expect(screen.getByText("1234567890")).toBeInTheDocument();
     expect(screen.queryByText("Enrollment ID")).not.toBeInTheDocument();
     expect(screen.queryByText("Private IP address")).not.toBeInTheDocument();
     expect(screen.queryByText("Public IP address")).not.toBeInTheDocument();
@@ -346,6 +347,26 @@ describe("Agent data", () => {
     });
   });
 
+  it("for vanilla osquery hosts, renders Agent header with osquery_version and no tooltip", async () => {
+    const osqVersion = "5.21.0";
+    const customRender = createCustomRenderer({});
+    const mockHost = createMockHost({
+      platform: "darwin",
+      orbit_version: DEFAULT_EMPTY_CELL_VALUE,
+      osquery_version: osqVersion,
+      fleet_desktop_version: DEFAULT_EMPTY_CELL_VALUE,
+    });
+
+    const { user } = customRender(<Vitals vitalsData={mockHost} />);
+
+    expect(screen.getByText("Agent")).toBeInTheDocument();
+    expect(screen.getByText(osqVersion)).toBeInTheDocument();
+
+    await user.hover(screen.getByText(osqVersion));
+    expect(screen.queryByText(/Orbit/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Fleet Desktop/i)).not.toBeInTheDocument();
+  });
+
   it("for Chromebooks, render Agent header with osquery_version that is the fleetd chrome version and no tooltip", async () => {
     const customRender = createCustomRenderer({});
     const mockHost = createMockHost({
@@ -373,7 +394,7 @@ describe("Disk space field visibility", () => {
 
     render(<Vitals vitalsData={mockHost} />);
 
-    expect(screen.queryByText("Disk space")).not.toBeInTheDocument();
+    expect(screen.queryByText("Disk space available")).not.toBeInTheDocument();
   });
 
   it("shows disk space field for zero storage (disk full)", () => {
@@ -385,7 +406,7 @@ describe("Disk space field visibility", () => {
 
     render(<Vitals vitalsData={mockHost} />);
 
-    expect(screen.getByText("Disk space")).toBeInTheDocument();
+    expect(screen.getByText("Disk space available")).toBeInTheDocument();
   });
 
   it("renders disk space normally for positive values", () => {
@@ -397,7 +418,7 @@ describe("Disk space field visibility", () => {
 
     render(<Vitals vitalsData={mockHost} />);
 
-    expect(screen.getByText("Disk space")).toBeInTheDocument();
+    expect(screen.getByText("Disk space available")).toBeInTheDocument();
   });
 
   it("handles other negative values as not supported", () => {
@@ -409,6 +430,6 @@ describe("Disk space field visibility", () => {
 
     render(<Vitals vitalsData={mockHost} />);
 
-    expect(screen.queryByText("Disk space")).not.toBeInTheDocument();
+    expect(screen.queryByText("Disk space available")).not.toBeInTheDocument();
   });
 });

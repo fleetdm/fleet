@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"log/slog"
 	"strings"
 	"time"
 
@@ -13,8 +14,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mdm"
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/mobileconfig"
 	microsoft_mdm "github.com/fleetdm/fleet/v4/server/mdm/microsoft"
-	"github.com/go-kit/log"
-	"github.com/go-kit/log/level"
 	"github.com/google/go-cmp/cmp"
 	"github.com/jmoiron/sqlx"
 )
@@ -176,7 +175,7 @@ WHERE ` + whereTeam
 		return []*fleet.MDMCommand{}, nil, nil, nil
 	case len(dest) > 1:
 		// TODO: how should we handle this unexpected case?
-		level.Debug(ds.logger).Log("msg", "list mdm commands: multiple hosts found for identifier",
+		ds.logger.DebugContext(ctx, "list mdm commands: multiple hosts found for identifier",
 			"identifier", identifier, "count", len(dest),
 		)
 	}
@@ -198,7 +197,7 @@ WHERE ` + whereTeam
 	for _, h := range dest {
 		if prev, ok := byUUID[h.UUID]; ok {
 			// TODO: how should we handle this unexpected case?
-			level.Debug(ds.logger).Log("msg", "list mdm commands: multiple hosts found for identifier",
+			ds.logger.DebugContext(ctx, "list mdm commands: multiple hosts found for identifier",
 				"keeping", fmt.Sprintf("id: %d uuid: %s serial: %s hostname: %s platform: %s team: %+v", h.ID, h.UUID, h.HardwareSerial, h.Hostname, h.Platform, h.TeamID),
 				"skipping", fmt.Sprintf("id: %d uuid: %s serial: %s hostname: %s platform: %s team: %+v", prev.ID, prev.UUID, prev.HardwareSerial, prev.Hostname, prev.Platform, prev.TeamID),
 			)
@@ -613,7 +612,7 @@ FROM (
 			switch {
 			case label.Exclude && label.RequireAll:
 				// this should never happen so log it for debugging
-				level.Debug(ds.logger).Log("msg", "unsupported profile label: cannot be both exclude and require all",
+				ds.logger.DebugContext(ctx, "unsupported profile label: cannot be both exclude and require all",
 					"profile_uuid", label.ProfileUUID,
 					"label_name", label.LabelName,
 				)
@@ -879,8 +878,7 @@ OR
 		case "android":
 			androidHosts = append(androidHosts, h.UUID)
 		default:
-			level.Debug(ds.logger).Log(
-				"msg", "tried to set profile status for a host with unsupported platform",
+			ds.logger.DebugContext(ctx, "tried to set profile status for a host with unsupported platform",
 				"platform", h.Platform,
 				"host_uuid", h.UUID,
 			)
@@ -1862,7 +1860,7 @@ func (ds *Datastore) ResendHostMDMProfile(ctx context.Context, hostUUID string, 
 		}
 		if rows, _ := res.RowsAffected(); rows == 0 {
 			// this should never happen, log for debugging
-			level.Debug(ds.logger).Log("msg", "resend profile status not updated", "host_uuid", hostUUID, "profile_uuid", profUUID)
+			ds.logger.DebugContext(ctx, "resend profile status not updated", "host_uuid", hostUUID, "profile_uuid", profUUID)
 		}
 
 		return nil
@@ -2188,7 +2186,7 @@ GROUP BY
 		case string(fleet.MDMDeliveryVerified):
 			counts.Verified = row.Count
 		case "":
-			level.Debug(ds.logger).Log("msg", fmt.Sprintf("counted %d android hosts for profile %s with mdm turned on but no profiles", row.Count, profileUUID))
+			ds.logger.DebugContext(ctx, fmt.Sprintf("counted %d android hosts for profile %s with mdm turned on but no profiles", row.Count, profileUUID))
 		default:
 			return counts, ctxerr.New(ctx, fmt.Sprintf("unexpected mdm android status count: status=%s, count=%d", row.Status, row.Count))
 		}
@@ -2258,7 +2256,7 @@ GROUP BY
 		case "verified":
 			counts.Verified = row.Count
 		case "":
-			level.Debug(ds.logger).Log("msg", fmt.Sprintf("counted %d windows hosts for profile %s with mdm turned on but no profiles", row.Count, profileUUID))
+			ds.logger.DebugContext(ctx, fmt.Sprintf("counted %d windows hosts for profile %s with mdm turned on but no profiles", row.Count, profileUUID))
 		default:
 			return counts, ctxerr.New(ctx, fmt.Sprintf("unexpected mdm windows status count: status=%s, count=%d", row.Status, row.Count))
 		}
@@ -2563,7 +2561,7 @@ func (ds *Datastore) batchSetLabelAndVariableAssociations(ctx context.Context, t
 	return didUpdateLabels, nil
 }
 
-func reconcileHostEmailsFromMdmIdpAccountsDB(ctx context.Context, tx sqlx.ExtContext, logger log.Logger, hostID uint) (*fleet.MDMIdPAccount, error) {
+func reconcileHostEmailsFromMdmIdpAccountsDB(ctx context.Context, tx sqlx.ExtContext, logger *slog.Logger, hostID uint) (*fleet.MDMIdPAccount, error) {
 	idp, err := getMDMIdPAccountByHostID(ctx, tx, logger, hostID)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "get host mdm idp account email")
@@ -2586,7 +2584,7 @@ func reconcileHostEmailsFromMdmIdpAccountsDB(ctx context.Context, tx sqlx.ExtCon
 	if idpEmail == "" {
 		if len(hostEmails) == 0 {
 			// nothing to do
-			level.Info(logger).Log("msg", "reconcile host emails: no mdm idp account and no host emails", "host_id", hostID, "account_uuid", idpAccountUUID)
+			logger.InfoContext(ctx, "reconcile host emails: no mdm idp account and no host emails", "host_id", hostID, "account_uuid", idpAccountUUID)
 			return nil, nil
 		}
 		// delete any prior host mdm idp account emails
@@ -2620,7 +2618,7 @@ func reconcileHostEmailsFromMdmIdpAccountsDB(ctx context.Context, tx sqlx.ExtCon
 			idsToDelete = append(idsToDelete, m.ID)
 			msg += fmt.Sprintf(" %s", m.Email)
 		}
-		level.Info(logger).Log("msg", msg, "host_id", hostID)
+		logger.InfoContext(ctx, msg, "host_id", hostID)
 	}
 
 	var idToUpdate uint
@@ -2630,7 +2628,7 @@ func reconcileHostEmailsFromMdmIdpAccountsDB(ctx context.Context, tx sqlx.ExtCon
 	}
 	if len(hits) > 1 {
 		// this should not happen, but if it does we want to know about it
-		level.Info(logger).Log("msg", "reconcile host emails: found duplicate mdm idp account host email", "host_id", hostID, "email", idp.Email, "account_uuid", idp.UUID)
+		logger.InfoContext(ctx, "reconcile host emails: found duplicate mdm idp account host email", "host_id", hostID, "email", idp.Email, "account_uuid", idp.UUID)
 		for _, h := range hits[1:] {
 			idsToDelete = append(idsToDelete, h.ID) // we'll delete all but the first
 		}
@@ -2649,7 +2647,7 @@ func reconcileHostEmailsFromMdmIdpAccountsDB(ctx context.Context, tx sqlx.ExtCon
 
 	if idToUpdate != 0 {
 		// perform the update
-		level.Info(logger).Log("msg", "reconcile host emails: update host mdm idp account email", "host_id", hostID, "email", idpEmail)
+		logger.InfoContext(ctx, "reconcile host emails: update host mdm idp account email", "host_id", hostID, "email", idpEmail)
 		updateStmt := "UPDATE host_emails SET email = ? WHERE id = ?"
 		if _, err := tx.ExecContext(ctx, updateStmt, idpEmail, idToUpdate); err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "update host_emails")
@@ -2658,7 +2656,7 @@ func reconcileHostEmailsFromMdmIdpAccountsDB(ctx context.Context, tx sqlx.ExtCon
 	}
 
 	// insert new email
-	level.Info(logger).Log("msg", "reconcile host emails: insert host mdm idp account email", "host_id", hostID, "email", idpEmail, "account_uuid", idp.UUID)
+	logger.InfoContext(ctx, "reconcile host emails: insert host mdm idp account email", "host_id", hostID, "email", idpEmail, "account_uuid", idp.UUID)
 	insStmt := "INSERT INTO host_emails (email, host_id, source) VALUES (?, ?, ?)"
 	if _, err := tx.ExecContext(ctx, insStmt, idpEmail, hostID, fleet.DeviceMappingMDMIdpAccounts); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "insert host_emails")
@@ -2667,7 +2665,7 @@ func reconcileHostEmailsFromMdmIdpAccountsDB(ctx context.Context, tx sqlx.ExtCon
 	return idp, nil
 }
 
-func getMDMIdPAccountByHostID(ctx context.Context, q sqlx.QueryerContext, logger log.Logger, hostID uint) (*fleet.MDMIdPAccount, error) {
+func getMDMIdPAccountByHostID(ctx context.Context, q sqlx.QueryerContext, logger *slog.Logger, hostID uint) (*fleet.MDMIdPAccount, error) {
 	stmt := `SELECT account_uuid FROM host_mdm_idp_accounts WHERE host_uuid = (SELECT uuid FROM hosts WHERE id = ?)`
 	var dest []string
 	if err := sqlx.SelectContext(ctx, q, &dest, stmt, hostID); err != nil {
@@ -2678,11 +2676,11 @@ func getMDMIdPAccountByHostID(ctx context.Context, q sqlx.QueryerContext, logger
 	switch {
 	case len(dest) == 0:
 		// TODO: consider falling back to the legacy enroll ref
-		level.Info(logger).Log("msg", "get host mdm idp accounts: no account found", "host_id", hostID)
+		logger.InfoContext(ctx, "get host mdm idp accounts: no account found", "host_id", hostID)
 	default:
 		if len(dest) > 1 {
 			// this should not happen, but if it does we want to know about it
-			level.Info(logger).Log("msg", "get host mdm idp accounts: found multiple accounts", "host_id", hostID, "acct_uuids", fmt.Sprintf("%+v", dest))
+			logger.InfoContext(ctx, "get host mdm idp accounts: found multiple accounts", "host_id", hostID, "acct_uuids", fmt.Sprintf("%+v", dest))
 		}
 		acctUUID = dest[0]
 	}
@@ -2796,8 +2794,7 @@ func (ds *Datastore) RenewMDMManagedCertificates(ctx context.Context) error {
 		limit := 1000
 		for hostPlatform, table := range hostProfileTables {
 			if limit == 0 {
-				level.Debug(ds.logger).Log(
-					"msg", "skipping check of certificates hosts to renew, limit exceeded by prior platform",
+				ds.logger.DebugContext(ctx, "skipping check of certificates hosts to renew, limit exceeded by prior platform",
 					"host_cert_type", hostCertType,
 					"host_platform", hostPlatform,
 				)
@@ -2841,8 +2838,7 @@ func (ds *Datastore) RenewMDMManagedCertificates(ctx context.Context) error {
 				return ctxerr.Wrap(ctx, err, "retrieving mdm managed certificates to renew")
 			}
 			if len(hostCertsToRenew) == 0 {
-				level.Debug(ds.logger).Log(
-					"msg", "No certificates on hosts to renew",
+				ds.logger.DebugContext(ctx, "No certificates on hosts to renew",
 					"host_cert_type", hostCertType,
 					"host_platform", hostPlatform,
 				)
@@ -2851,13 +2847,17 @@ func (ds *Datastore) RenewMDMManagedCertificates(ctx context.Context) error {
 			limit -= len(hostCertsToRenew)
 			totalHostCertsToRenew += len(hostCertsToRenew)
 
+			allHostAndProfileIdsToRenew := make([]string, len(hostCertsToRenew))
 			for _, hostCertToRenew := range hostCertsToRenew {
 				hostProfileClause += `(host_uuid = ? AND profile_uuid = ?) OR `
 				values = append(values, hostCertToRenew.HostUUID, hostCertToRenew.ProfileUUID)
+
+				allHostAndProfileIdsToRenew = append(allHostAndProfileIdsToRenew, hostCertToRenew.HostUUID+":"+hostCertToRenew.ProfileUUID)
 			}
 			hostProfileClause = strings.TrimSuffix(hostProfileClause, " OR ")
 
-			level.Info(ds.logger).Log("msg", "Renewing MDM managed certificates", "len", len(hostCertsToRenew), "type", hostCertType, "platform", hostPlatform)
+			ds.logger.InfoContext(ctx, "Renewing MDM managed certificates", "len", len(hostCertsToRenew), "type", hostCertType, "platform", hostPlatform)
+			ds.logger.DebugContext(ctx, "Host and profile IDs for certificates to renew", "host_profile_ids", allHostAndProfileIdsToRenew)
 			err = ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
 				_, err := tx.ExecContext(ctx, updateQuery+hostProfileClause+")", values...)
 				if err != nil {

@@ -11,6 +11,8 @@ By default, Fleet server uses fleetdm.com proxy to access the Google Android Man
 
 You can also setup a local proxy or use the Google API directly.
 
+> Android MDM can't be turned on with localhost server URL (e.g. https://localhost:8412), so your server can receive `STATUS_REPORT` via PubSub notifications. Use ngrok or a similar solution to expose your local server to the public internet.
+
 ## Setup a Google project and service account
 
 Create a Google service account with the following Roles

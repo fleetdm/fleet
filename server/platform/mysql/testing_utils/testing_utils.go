@@ -3,14 +3,15 @@ package testing_utils
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"runtime"
 	"strings"
 	"testing"
 
 	common_mysql "github.com/fleetdm/fleet/v4/server/platform/mysql"
-	"github.com/go-kit/log"
 	"github.com/jmoiron/sqlx"
 	"github.com/stretchr/testify/require"
 )
@@ -37,7 +38,7 @@ func getTestAddress() string {
 // Note that the order is typically not important because FK checks are
 // disabled while truncating. If no table is provided, all tables (except
 // those that are seeded by the SQL schema file) are truncated.
-func TruncateTables(t testing.TB, db *sqlx.DB, logger log.Logger, nonEmptyTables map[string]bool, tables ...string) {
+func TruncateTables(t testing.TB, db *sqlx.DB, logger *slog.Logger, nonEmptyTables map[string]bool, tables ...string) {
 	// By setting DISABLE_TRUNCATE_TABLES a developer can troubleshoot tests
 	// by inspecting mysql tables.
 	if os.Getenv("DISABLE_TRUNCATE_TABLES") != "" {
@@ -107,6 +108,14 @@ type DatastoreTestOptions struct {
 	UniqueTestName string
 }
 
+// LoadDefaultSchema loads the default database schema for testing.
+func LoadDefaultSchema(t testing.TB, testName string, opts *DatastoreTestOptions) {
+	_, thisFile, _, _ := runtime.Caller(0)
+	schemaPath := filepath.Join(filepath.Dir(thisFile), "../../../datastore/mysql/schema.sql")
+	LoadSchema(t, testName, opts, schemaPath)
+}
+
+// LoadSchema loads a database schema from the specified path for testing.
 func LoadSchema(t testing.TB, testName string, opts *DatastoreTestOptions, schemaPath string) {
 	schema, err := os.ReadFile(schemaPath)
 	if err != nil {

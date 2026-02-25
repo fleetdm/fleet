@@ -3,7 +3,6 @@ package service
 import (
 	"context"
 	"fmt"
-	"os"
 	"path/filepath"
 	"strings"
 	"time"
@@ -14,6 +13,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/authz"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
+	"github.com/fleetdm/fleet/v4/server/dev_mode"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	maintained_apps "github.com/fleetdm/fleet/v4/server/mdm/maintainedapps"
 	"github.com/go-kit/kit/log/level"
@@ -64,14 +64,14 @@ func (svc *Service) AddFleetMaintainedApp(
 		return 0, ctxerr.Wrap(ctx, err, "getting maintained app by id")
 	}
 
-	app, err = maintained_apps.Hydrate(ctx, app)
+	app, err = maintained_apps.Hydrate(ctx, app, "", teamID, nil)
 	if err != nil {
 		return 0, ctxerr.Wrap(ctx, err, "hydrating app from manifest")
 	}
 
 	// Download installer from the URL
 	timeout := maintained_apps.InstallerTimeout
-	if v := os.Getenv("FLEET_DEV_MAINTAINED_APPS_INSTALLER_TIMEOUT"); v != "" {
+	if v := dev_mode.Env("FLEET_DEV_MAINTAINED_APPS_INSTALLER_TIMEOUT"); v != "" {
 		timeout, _ = time.ParseDuration(v)
 	}
 	client := fleethttp.NewClient(fleethttp.WithTimeout(timeout))
@@ -267,5 +267,5 @@ func (svc *Service) GetFleetMaintainedApp(ctx context.Context, appID uint, teamI
 		return nil, err
 	}
 
-	return maintained_apps.Hydrate(ctx, app)
+	return maintained_apps.Hydrate(ctx, app, "", teamID, nil)
 }

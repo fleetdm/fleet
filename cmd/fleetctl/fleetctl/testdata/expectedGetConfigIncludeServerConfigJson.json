@@ -11,8 +11,11 @@
     "server_settings": {
       "server_url": "",
       "live_query_disabled": false,
+      "live_reporting_disabled": false,
       "query_report_cap": 0,
       "query_reports_disabled": false,
+      "report_cap": 0,
+      "discard_reports_data": false,
       "enable_analytics": false,
       "deferred_save_host": false,
       "scripts_disabled": false,
@@ -65,6 +68,7 @@
       "windows_enabled_and_configured": false,
       "enable_disk_encryption": false,
       "windows_require_bitlocker_pin": null,
+      "windows_entra_tenant_ids": null,
       "macos_updates": {
         "minimum_version": null,
         "deadline": null,

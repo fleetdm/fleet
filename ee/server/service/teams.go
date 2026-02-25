@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"maps"
 	"net/http"
 	"net/url"
 	"strings"
@@ -21,7 +22,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/worker"
-	"github.com/go-kit/log/level"
 )
 
 func obfuscateSecrets(user *fleet.User, teams []*fleet.Team) error {
@@ -30,6 +30,7 @@ func obfuscateSecrets(user *fleet.User, teams []*fleet.Team) error {
 	}
 
 	isGlobalObs := user.IsGlobalObserver()
+	isGlobalTechnician := user.GlobalRole != nil && *user.GlobalRole == fleet.RoleTechnician
 
 	teamMemberships := user.TeamMembership(func(t fleet.UserTeam) bool {
 		return true
@@ -37,13 +38,20 @@ func obfuscateSecrets(user *fleet.User, teams []*fleet.Team) error {
 	obsMembership := user.TeamMembership(func(t fleet.UserTeam) bool {
 		return t.Role == fleet.RoleObserver || t.Role == fleet.RoleObserverPlus
 	})
+	isTeamTechnician := user.TeamMembership(func(t fleet.UserTeam) bool {
+		return t.Role == fleet.RoleTechnician
+	})
 
 	for _, t := range teams {
 		if t == nil {
 			continue
 		}
-		// User does not belong to the team or is a global/team observer/observer+
-		if isGlobalObs || user.GlobalRole == nil && (!teamMemberships[t.ID] || obsMembership[t.ID]) {
+		// We mask the password for the following users:
+		// - User has no roles.
+		// - User is a global observer/observer+/technician.
+		// - User does not belong to the team or is a team observer/observer+/technician.
+		if isGlobalObs || isGlobalTechnician ||
+			user.GlobalRole == nil && (!teamMemberships[t.ID] || obsMembership[t.ID] || isTeamTechnician[t.ID]) {
 			for _, s := range t.Secrets {
 				s.Secret = fleet.MaskedPassword
 			}
@@ -497,7 +505,7 @@ func (svc *Service) ModifyTeamAgentOptions(ctx context.Context, teamID uint, tea
 			err = fleet.SuggestAgentOptionsCorrection(err)
 			err = fleet.NewUserMessageError(err, http.StatusBadRequest)
 			if applyOptions.Force && !applyOptions.DryRun {
-				level.Info(svc.logger).Log("err", err, "msg", "force-apply team agent options with validation errors")
+				svc.logger.InfoContext(ctx, "force-apply team agent options with validation errors", "err", err)
 			}
 			if !applyOptions.Force {
 				return nil, ctxerr.Wrap(ctx, err, "validate agent options")
@@ -731,7 +739,7 @@ func (svc *Service) DeleteTeam(ctx context.Context, teamID uint) error {
 			if _, err := worker.QueueMacosSetupAssistantJob(
 				ctx,
 				svc.ds,
-				svc.logger,
+				svc.logger.SlogLogger(),
 				worker.MacosSetupAssistantTeamDeleted,
 				nil,
 				mdmHostSerials...); err != nil {
@@ -841,18 +849,20 @@ func (svc *Service) TeamEnrollSecrets(ctx context.Context, teamID uint) ([]*flee
 	}
 
 	isGlobalObs := vc.User.IsGlobalObserver()
+	isGlobalTechnician := vc.User.GlobalRole != nil && *vc.User.GlobalRole == fleet.RoleTechnician
 	teamMemberships := vc.User.TeamMembership(func(t fleet.UserTeam) bool {
 		return true
 	})
-	obsMembership := vc.User.TeamMembership(func(t fleet.UserTeam) bool {
-		return t.Role == fleet.RoleObserver || t.Role == fleet.RoleObserverPlus
+	// These roles are not allowed to see enroll secrets.
+	notAllowedTeamMembership := vc.User.TeamMembership(func(t fleet.UserTeam) bool {
+		return t.Role == fleet.RoleObserver || t.Role == fleet.RoleObserverPlus || t.Role == fleet.RoleTechnician
 	})
 
 	for _, s := range secrets {
 		if s == nil {
 			continue
 		}
-		if isGlobalObs || vc.User.GlobalRole == nil && (!teamMemberships[*s.TeamID] || obsMembership[*s.TeamID]) {
+		if isGlobalObs || isGlobalTechnician || (vc.User.GlobalRole == nil && (!teamMemberships[*s.TeamID] || notAllowedTeamMembership[*s.TeamID])) {
 			s.Secret = fleet.MaskedPassword
 		}
 	}
@@ -871,14 +881,55 @@ func (svc *Service) ModifyTeamEnrollSecrets(ctx context.Context, teamID uint, se
 		return nil, fleet.NewInvalidArgumentError("secrets", "too many secrets")
 	}
 
+	oldSecrets, err := svc.ds.GetEnrollSecrets(ctx, ptr.Uint(teamID))
+	if err != nil {
+		return nil, err
+	}
+
+	newSecretsValues := make(map[string]struct{}, len(secrets))
+
 	var newSecrets []*fleet.EnrollSecret
 	for _, secret := range secrets {
+		newSecretsValues[secret.Secret] = struct{}{}
+
 		newSecrets = append(newSecrets, &fleet.EnrollSecret{
 			Secret: secret.Secret,
 		})
 	}
 	if err := svc.ds.ApplyEnrollSecrets(ctx, ptr.Uint(teamID), newSecrets); err != nil {
 		return nil, err
+	}
+
+	// Check whether there were any mutations around the provided secrets ... if true, then register
+	// an activity.
+	oldSecretValues := make(map[string]struct{}, len(oldSecrets))
+	for _, s := range oldSecrets {
+		oldSecretValues[s.Secret] = struct{}{}
+	}
+
+	if !maps.Equal(oldSecretValues, newSecretsValues) {
+		activity := fleet.ActivityTypeEditedEnrollSecrets{}
+		team, err := svc.ds.TeamLite(ctx, teamID)
+		if err != nil {
+			svc.logger.ErrorContext(ctx, "error while fetching team for edited enroll secret activity", "err", err, "teamID", teamID)
+		}
+		if team != nil {
+			activity = fleet.ActivityTypeEditedEnrollSecrets{
+				TeamID:   &team.ID,
+				TeamName: &team.Name,
+			}
+		} else {
+			svc.logger.ErrorContext(ctx, "team not found for edited enroll secret activity", "teamID", teamID)
+		}
+
+		if err := svc.NewActivity(
+			ctx,
+			authz.UserFromContext(ctx),
+			activity,
+		); err != nil {
+			errMsg := fmt.Sprintf("creating edited enroll secret activity for team %d", teamID)
+			return nil, ctxerr.Wrap(ctx, err, errMsg)
+		}
 	}
 
 	return newSecrets, nil
@@ -1050,7 +1101,7 @@ func (svc *Service) ApplyTeamSpecs(ctx context.Context, specs []*fleet.TeamSpec,
 				err = fleet.SuggestAgentOptionsCorrection(err)
 				err = fleet.NewUserMessageError(err, http.StatusBadRequest)
 				if applyOpts.Force && !applyOpts.DryRun {
-					level.Info(svc.logger).Log("err", err, "msg", "force-apply team agent options with validation errors")
+					svc.logger.InfoContext(ctx, "force-apply team agent options with validation errors", "err", err)
 				}
 				if !applyOpts.Force {
 					return nil, ctxerr.Wrap(ctx, err, "validate agent options")
@@ -1333,25 +1384,33 @@ func (svc *Service) editTeamFromSpec(
 		return err
 	}
 	team.Config.Features = features
-	var mdmMacOSUpdatesEdited bool
-	if spec.MDM.MacOSUpdates.Deadline.Set || spec.MDM.MacOSUpdates.MinimumVersion.Set {
+
+	// Check OS update settings.
+	var (
+		mdmMacOSUpdatesEdited   bool
+		mdmIOSUpdatesEdited     bool
+		mdmIPadOSUpdatesEdited  bool
+		mdmWindowsUpdatesEdited bool
+	)
+	if spec.MDM.MacOSUpdates.Deadline.Set || spec.MDM.MacOSUpdates.MinimumVersion.Set || spec.MDM.MacOSUpdates.UpdateNewHosts.Set {
+		mdmMacOSUpdatesEdited = team.Config.MDM.MacOSUpdates.MinimumVersion.Value != spec.MDM.MacOSUpdates.MinimumVersion.Value ||
+			team.Config.MDM.MacOSUpdates.Deadline.Value != spec.MDM.MacOSUpdates.Deadline.Value
 		team.Config.MDM.MacOSUpdates = spec.MDM.MacOSUpdates
-		mdmMacOSUpdatesEdited = true
 	}
-	var mdmIOSUpdatesEdited bool
 	if spec.MDM.IOSUpdates.Deadline.Set || spec.MDM.IOSUpdates.MinimumVersion.Set {
+		mdmIOSUpdatesEdited = team.Config.MDM.IOSUpdates.MinimumVersion.Value != spec.MDM.IOSUpdates.MinimumVersion.Value ||
+			team.Config.MDM.IOSUpdates.Deadline.Value != spec.MDM.IOSUpdates.Deadline.Value
 		team.Config.MDM.IOSUpdates = spec.MDM.IOSUpdates
-		mdmIOSUpdatesEdited = true
 	}
-	var mdmIPadOSUpdatesEdited bool
 	if spec.MDM.IPadOSUpdates.Deadline.Set || spec.MDM.IPadOSUpdates.MinimumVersion.Set {
+		mdmIPadOSUpdatesEdited = team.Config.MDM.IPadOSUpdates.MinimumVersion.Value != spec.MDM.IPadOSUpdates.MinimumVersion.Value ||
+			team.Config.MDM.IPadOSUpdates.Deadline.Value != spec.MDM.IPadOSUpdates.Deadline.Value
 		team.Config.MDM.IPadOSUpdates = spec.MDM.IPadOSUpdates
-		mdmIPadOSUpdatesEdited = true
 	}
-	var mdmWindowsUpdatesEdited bool
 	if spec.MDM.WindowsUpdates.DeadlineDays.Set || spec.MDM.WindowsUpdates.GracePeriodDays.Set {
+		mdmWindowsUpdatesEdited = team.Config.MDM.WindowsUpdates.DeadlineDays.Value != spec.MDM.WindowsUpdates.DeadlineDays.Value ||
+			team.Config.MDM.WindowsUpdates.GracePeriodDays.Value != spec.MDM.WindowsUpdates.GracePeriodDays.Value
 		team.Config.MDM.WindowsUpdates = spec.MDM.WindowsUpdates
-		mdmWindowsUpdatesEdited = true
 	}
 
 	oldEnableDiskEncryption := team.Config.MDM.EnableDiskEncryption
@@ -1569,6 +1628,7 @@ func (svc *Service) editTeamFromSpec(
 			return err
 		}
 	}
+
 	if appCfg.MDM.EnabledAndConfigured && didUpdateDiskEncryption {
 		// TODO: Are we missing an activity or anything else for BitLocker here?
 		var act fleet.ActivityDetails
@@ -1623,6 +1683,7 @@ func (svc *Service) editTeamFromSpec(
 		}
 	}
 
+	// Update OS update settings if they were updated.
 	if mdmMacOSUpdatesEdited {
 		if err := svc.mdmAppleEditedAppleOSUpdates(ctx, &team.ID, fleet.MacOS, team.Config.MDM.MacOSUpdates); err != nil {
 			return err

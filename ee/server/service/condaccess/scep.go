@@ -15,9 +15,8 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mdm/assets"
 	scepdepot "github.com/fleetdm/fleet/v4/server/mdm/scep/depot"
 	scepserver "github.com/fleetdm/fleet/v4/server/mdm/scep/server"
+	"github.com/fleetdm/fleet/v4/server/platform/logging"
 	"github.com/fleetdm/fleet/v4/server/service/middleware/otel"
-	"github.com/go-kit/kit/log"
-	kitlog "github.com/go-kit/log"
 	"github.com/smallstep/scep"
 )
 
@@ -45,7 +44,7 @@ func RegisterSCEP(
 	mux *http.ServeMux,
 	scepStorage scepdepot.Depot,
 	ds fleet.Datastore,
-	logger kitlog.Logger,
+	logger *logging.Logger,
 	fleetConfig *config.FleetConfig,
 ) error {
 	if fleetConfig == nil {
@@ -68,10 +67,10 @@ func RegisterSCEP(
 	scepService := NewSCEPService(
 		ds,
 		signer,
-		kitlog.With(logger, "component", "conditional-access-scep"),
+		logger.With("component", "conditional-access-scep"),
 	)
 
-	scepLogger := kitlog.With(logger, "component", "http-conditional-access-scep")
+	scepLogger := logger.With("component", "http-conditional-access-scep")
 	e := scepserver.MakeServerEndpoints(scepService)
 	e.GetEndpoint = scepserver.EndpointLoggingMiddleware(scepLogger)(e.GetEndpoint)
 	e.PostEndpoint = scepserver.EndpointLoggingMiddleware(scepLogger)(e.PostEndpoint)
@@ -112,7 +111,7 @@ var _ scepserver.Service = (*service)(nil)
 type service struct {
 	// The (chainable) CSR signing function
 	signer scepserver.CSRSignerContext
-	logger log.Logger
+	logger *logging.Logger
 	ds     fleet.Datastore
 }
 
@@ -212,7 +211,7 @@ func (svc *service) GetNextCACert(_ context.Context) ([]byte, error) {
 }
 
 // NewSCEPService creates a new conditional access SCEP service.
-func NewSCEPService(ds fleet.Datastore, signer scepserver.CSRSignerContext, logger log.Logger) scepserver.Service {
+func NewSCEPService(ds fleet.Datastore, signer scepserver.CSRSignerContext, logger *logging.Logger) scepserver.Service {
 	return &service{
 		ds:     ds,
 		signer: signer,

@@ -63,6 +63,9 @@ type StatisticsPayload struct {
 	FleetMaintainedAppsMacOS []string `json:"fleetMaintainedAppsMacOS,omitempty"`
 	// FleetMaintainedAppsWindows is an array of Fleet-maintained app slugs being used on Windows
 	FleetMaintainedAppsWindows []string `json:"fleetMaintainedAppsWindows,omitempty"`
+
+	OktaConditionalAccessConfigured bool `json:"oktaConditionalAccessConfigured"`
+	ConditionalAccessBypassDisabled bool `json:"conditionalAccessBypassDisabled"`
 }
 
 type HostsCountByOrbitVersion struct {

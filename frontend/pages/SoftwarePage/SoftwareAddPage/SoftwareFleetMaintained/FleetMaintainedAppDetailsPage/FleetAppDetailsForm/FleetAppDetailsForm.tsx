@@ -33,7 +33,7 @@ export const softwareAlreadyAddedTipContent = (
     ? getPathWithQueryParams(
         paths.SOFTWARE_TITLE_DETAILS(softwareTitleId.toString()),
         {
-          team_id: teamId,
+          fleet_id: teamId,
         }
       )
     : "";
@@ -107,7 +107,7 @@ const FleetAppDetailsForm = ({
   const [formData, setFormData] = useState<IFleetMaintainedAppFormData>({
     selfService: false,
     automaticInstall: false,
-    preInstallQuery: undefined,
+    preInstallQuery: "",
     installScript: defaultInstallScript,
     postInstallScript: defaultPostInstallScript,
     uninstallScript: defaultUninstallScript,
@@ -145,14 +145,17 @@ const FleetAppDetailsForm = ({
     setFormValidation(generateFormValidation(newData));
   };
 
-  const onToggleSelfServiceCheckbox = (value: boolean) => {
-    const newData = { ...formData, selfService: value };
+  const onToggleSelfService = () => {
+    const newData = { ...formData, selfService: !formData.selfService };
     setFormData(newData);
     setFormValidation(generateFormValidation(newData));
   };
 
-  const onToggleAutomaticInstallCheckbox = (value: boolean) => {
-    const newData = { ...formData, automaticInstall: value };
+  const onToggleAutomaticInstall = () => {
+    const newData = {
+      ...formData,
+      automaticInstall: !formData.automaticInstall,
+    };
     setFormData(newData);
   };
 
@@ -213,7 +216,12 @@ const FleetAppDetailsForm = ({
     ? "form-fields--disabled"
     : "";
   const isSoftwareAlreadyAdded = !!softwareTitleId;
-  const isSubmitDisabled = !formValidation.isValid || isSoftwareAlreadyAdded;
+  const isSubmitDisabled = isSoftwareAlreadyAdded; // Allows saving invalid SQL
+
+  // Define errors separately so AdvancedOptionsFields can memoize effectively
+  const errors = {
+    preInstallQuery: formValidation.preInstallQuery?.message,
+  };
 
   return (
     <form className={`${baseClass}`} onSubmit={onSubmitForm}>
@@ -221,8 +229,8 @@ const FleetAppDetailsForm = ({
         <Card paddingSize="medium" borderRadiusSize="large">
           <SoftwareOptionsSelector
             formData={formData}
-            onToggleAutomaticInstall={onToggleAutomaticInstallCheckbox}
-            onToggleSelfService={onToggleSelfServiceCheckbox}
+            onToggleAutomaticInstall={onToggleAutomaticInstall}
+            onToggleSelfService={onToggleSelfService}
             onSelectCategory={onSelectCategory}
             disableOptions={isSoftwareAlreadyAdded}
             onClickPreviewEndUserExperience={onClickPreviewEndUserExperience}
@@ -266,9 +274,7 @@ const FleetAppDetailsForm = ({
             installScriptHelpText="Use the $INSTALLER_PATH variable to point to the installer. Currently, shell scripts are supported."
             postInstallScriptHelpText="Currently, shell scripts are supported."
             uninstallScriptHelpText="Currently, shell scripts are supported."
-            errors={{
-              preInstallQuery: formValidation.preInstallQuery?.message,
-            }}
+            errors={errors}
             preInstallQuery={formData.preInstallQuery}
             installScript={formData.installScript}
             postInstallScript={formData.postInstallScript}

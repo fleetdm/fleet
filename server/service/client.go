@@ -1276,6 +1276,7 @@ func buildSoftwarePackagesPayload(specs []fleet.SoftwarePackageSpec, installDuri
 
 		if si.Slug != nil {
 			softwarePayloads[i].Slug = si.Slug
+			softwarePayloads[i].RollbackVersion = si.Version
 		}
 	}
 
@@ -2030,6 +2031,10 @@ func (c *Client) DoGitOps(
 		if incoming.Controls.WindowsMigrationEnabled == nil {
 			mdmAppConfig["windows_migration_enabled"] = false
 		}
+		mdmAppConfig["windows_entra_tenant_ids"] = incoming.Controls.WindowsEntraTenantIDs
+		if incoming.Controls.WindowsEntraTenantIDs == nil {
+			mdmAppConfig["windows_entra_tenant_ids"] = []any{}
+		}
 		// Put in default values for enable_turn_on_windows_mdm_manually
 		mdmAppConfig["enable_turn_on_windows_mdm_manually"] = incoming.Controls.EnableTurnOnWindowsMDMManually
 		if incoming.Controls.EnableTurnOnWindowsMDMManually == nil {
@@ -2146,7 +2151,7 @@ func (c *Client) DoGitOps(
 		team["integrations"] = integrations
 		_, ok = integrations.(map[string]interface{})
 		if !ok {
-			return nil, errors.New("team_settings.integrations config is not a map")
+			return nil, errors.New("settings.integrations config is not a map")
 		}
 
 		if googleCal, ok := integrations.(map[string]interface{})["google_calendar"]; !ok || googleCal == nil {
@@ -2154,7 +2159,7 @@ func (c *Client) DoGitOps(
 		} else {
 			_, ok = googleCal.(map[string]interface{})
 			if !ok {
-				return nil, errors.New("team_settings.integrations.google_calendar config is not a map")
+				return nil, errors.New("settings.integrations.google_calendar config is not a map")
 			}
 		}
 
@@ -2163,7 +2168,7 @@ func (c *Client) DoGitOps(
 		} else {
 			_, ok = conditionalAccessEnabled.(bool)
 			if !ok {
-				return nil, errors.New("team_settings.integrations.conditional_access_enabled config is not a bool")
+				return nil, errors.New("settings.integrations.conditional_access_enabled config is not a bool")
 			}
 		}
 
@@ -2196,9 +2201,9 @@ func (c *Client) DoGitOps(
 			macOSUpdates["deadline"] = ""
 		}
 
-		// To keep things backward compatible, if a minimum_version and deadline are both set,
-		// then we also set update_new_hosts
-		if macOSUpdates["minimum_version"] != "" && macOSUpdates["deadline"] != "" {
+		// To keep things backward compatible, if a minimum_version and deadline are both set but the user hasn't set update_new_hosts,
+		// then we default update_new_hosts to true
+		if macOSUpdates["minimum_version"] != "" && macOSUpdates["deadline"] != "" && macOSUpdates["update_new_hosts"] == nil {
 			macOSUpdates["update_new_hosts"] = true
 		}
 
@@ -2686,6 +2691,9 @@ func (c *Client) doGitOpsLabels(
 	nToUpdate := len(config.LabelChangesSummary.LabelsToUpdate)
 
 	if dryRun {
+		if len(toDelete) > 0 {
+			logFn("[-] would've deleted %s (This includes renames, since labels are identified by name in YAML.)\n", numberWithPluralization(len(toDelete), "label", "labels"))
+		}
 		for _, labelToDelete := range toDelete {
 			logFn("[-] would've deleted label '%s'\n", labelToDelete)
 		}
@@ -2701,6 +2709,9 @@ func (c *Client) doGitOpsLabels(
 		return nil
 	}
 
+	if len(toDelete) > 0 {
+		logFn("[-] deleting %s (This includes renames, since labels are identified by name in YAML.)\n", numberWithPluralization(len(toDelete), "label", "labels"))
+	}
 	for _, l := range toDelete {
 		logFn("[-] deleting label '%s'\n", l)
 	}

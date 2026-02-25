@@ -1,5 +1,7 @@
 package ghapi
 
+import "strings"
+
 type Author struct {
 	Login string `json:"login"`
 	IsBot bool   `json:"is_bot"`
@@ -36,6 +38,16 @@ type Issue struct {
 	Milestone *Milestone `json:"milestone,omitempty"`
 	Estimate  int        `json:"estimate,omitempty"` // Custom field for estimate
 	Status    string     `json:"status,omitempty"`   // Custom field for status
+}
+
+// HasLabel checks if an issue currently has the specified label (case-insensitive)
+func (issue Issue) HasLabel(labelName string) bool {
+	for _, label := range issue.Labels {
+		if strings.EqualFold(label.Name, labelName) {
+			return true
+		}
+	}
+	return false
 }
 
 type Sprint struct {
@@ -85,6 +97,7 @@ type ProjectItem struct {
 	Milestone  *Milestone         `json:"milestone,omitempty"`
 	Sprint     *Sprint            `json:"sprint,omitempty"`
 	Status     string             `json:"status"`
+	Size       string             `json:"size"`
 }
 
 type ProjectItemsResponse struct {

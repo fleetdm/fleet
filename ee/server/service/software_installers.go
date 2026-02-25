@@ -28,10 +28,10 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/vpp"
 	maintained_apps "github.com/fleetdm/fleet/v4/server/mdm/maintainedapps"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/mdm"
+	"github.com/fleetdm/fleet/v4/server/platform/logging"
 	common_mysql "github.com/fleetdm/fleet/v4/server/platform/mysql"
 	"github.com/fleetdm/fleet/v4/server/ptr"
-	"github.com/go-kit/log"
-	kitlog "github.com/go-kit/log"
+	"github.com/fleetdm/fleet/v4/server/worker"
 	"github.com/go-kit/log/level"
 	"github.com/google/uuid"
 	"golang.org/x/sync/errgroup"
@@ -221,6 +221,13 @@ func ValidateSoftwareLabels(ctx context.Context, svc fleet.Service, teamID *uint
 
 	byName, err := svc.BatchValidateLabels(ctx, teamID, names)
 	if err != nil {
+		var missingLabelErr *fleet.MissingLabelError
+		if errors.As(err, &missingLabelErr) {
+			return nil, &fleet.BadRequestError{
+				InternalErr: missingLabelErr,
+				Message:     fmt.Sprintf("Couldn't update. Label %q doesn't exist. Please remove the label from the software.", missingLabelErr.MissingLabelName),
+			}
+		}
 		return nil, err
 	}
 
@@ -796,8 +803,33 @@ func (svc *Service) deleteVPPApp(ctx context.Context, teamID *uint, meta *fleet.
 		return fleet.ErrNoContext
 	}
 
+	var androidHostsUUIDToPolicyID map[string]string
+	if meta.Platform == fleet.AndroidPlatform {
+		// if this is an Android app we're deleting, collect the host uuids that should have it removed
+		// (as we uninstall Android apps on delete). We can't do this in the worker as it will be too late,
+		// the vpp_apps_teams entry will have been deleted.
+		hosts, err := svc.ds.GetIncludedHostUUIDMapForAppStoreApp(ctx, meta.VPPAppsTeamsID)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "delete app store app: getting android hosts in scope")
+		}
+		androidHostsUUIDToPolicyID = hosts
+	}
+
 	if err := svc.ds.DeleteVPPAppFromTeam(ctx, teamID, meta.VPPAppID); err != nil {
 		return ctxerr.Wrap(ctx, err, "deleting VPP app")
+	}
+
+	// if this is an android app, remove the self-service app from the managed Google Play store
+	// and uninstall it from the hosts.
+	if meta.Platform == fleet.AndroidPlatform && len(androidHostsUUIDToPolicyID) > 0 {
+		enterprise, err := svc.ds.GetEnterprise(ctx)
+		if err != nil {
+			return &fleet.BadRequestError{Message: "Android MDM is not enabled", InternalErr: err}
+		}
+		err = worker.QueueMakeAndroidAppUnavailableJob(ctx, svc.ds, svc.logger.SlogLogger(), meta.VPPAppID.AdamID, androidHostsUUIDToPolicyID, enterprise.Name())
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "enqueuing job to make android app unavailable")
+		}
 	}
 
 	var teamName *string
@@ -840,11 +872,34 @@ func (svc *Service) deleteSoftwareInstaller(ctx context.Context, meta *fleet.Sof
 		return fleet.ErrNoContext
 	}
 
-	if meta.Extension == "ipa" {
+	switch {
+	case meta.Extension == "ipa":
 		if err := svc.ds.DeleteInHouseApp(ctx, meta.InstallerID); err != nil {
 			return ctxerr.Wrap(ctx, err, "deleting in house app")
 		}
-	} else {
+	case meta.FleetMaintainedAppID != nil:
+		// For FMA installers there may be multiple cached versions (active + up to
+		// N-1 inactive ones). Delete the active version first so that the
+		// policy-automation and setup-experience guard-rails are enforced, then
+		// sweep up any remaining inactive cached versions.
+		if err := svc.ds.DeleteSoftwareInstaller(ctx, meta.InstallerID); err != nil {
+			return ctxerr.Wrap(ctx, err, "deleting active FMA installer version")
+		}
+		// After the active row is gone, fetch whatever cached versions remain and
+		// delete them.  GetFleetMaintainedVersionsByTitleID queries the live DB, so
+		// it will not return the row we just deleted.
+		if meta.TitleID != nil {
+			cachedVersions, err := svc.ds.GetFleetMaintainedVersionsByTitleID(ctx, meta.TeamID, *meta.TitleID)
+			if err != nil {
+				return ctxerr.Wrap(ctx, err, "getting cached FMA versions for cleanup")
+			}
+			for _, v := range cachedVersions {
+				if err := svc.ds.DeleteSoftwareInstaller(ctx, v.ID); err != nil && !fleet.IsNotFound(err) {
+					return ctxerr.Wrap(ctx, err, "deleting cached FMA version")
+				}
+			}
+		}
+	default:
 		if err := svc.ds.DeleteSoftwareInstaller(ctx, meta.InstallerID); err != nil {
 			return ctxerr.Wrap(ctx, err, "deleting software installer")
 		}
@@ -1193,7 +1248,7 @@ func (svc *Service) InstallSoftwareTitle(ctx context.Context, hostID uint, softw
 			if lastInstallRequest != nil && lastInstallRequest.Status != nil &&
 				(*lastInstallRequest.Status == fleet.SoftwareInstallPending || *lastInstallRequest.Status == fleet.SoftwareUninstallPending) {
 				return &fleet.BadRequestError{
-					Message: "Couldn't install. This host isn't a member of the labels defined for this software title.",
+					Message: "Couldn't install. Host already has a pending install/uninstall for this installer.",
 					InternalErr: ctxerr.WrapWithData(
 						ctx, err, "host already has a pending install/uninstall for this installer",
 						map[string]any{
@@ -1399,17 +1454,26 @@ func (svc *Service) installSoftwareTitleUsingInstaller(ctx context.Context, host
 	}
 
 	if host.FleetPlatform() != requiredPlatform {
-		return &fleet.BadRequestError{
-			Message: fmt.Sprintf("Package (%s) can be installed only on %s hosts.", ext, requiredPlatform),
-			InternalErr: ctxerr.NewWithData(
-				ctx, "invalid host platform for requested installer",
-				map[string]any{"host_id": host.ID, "team_id": host.TeamID, "title_id": installer.TitleID},
-			),
+		// Allow .sh scripts for any unix-like platform (linux and darwin)
+		if !(ext == ".sh" && fleet.IsUnixLike(host.Platform)) {
+			return &fleet.BadRequestError{
+				Message: fmt.Sprintf("Package (%s) can be installed only on %s hosts.", ext, requiredPlatform),
+				InternalErr: ctxerr.NewWithData(
+					ctx, "invalid host platform for requested installer",
+					map[string]any{"host_id": host.ID, "team_id": host.TeamID, "title_id": installer.TitleID},
+				),
+			}
 		}
+	}
+
+	// Reset old attempts so the new install starts fresh at attempt 1.
+	if err := svc.ds.ResetNonPolicyInstallAttempts(ctx, host.ID, installer.InstallerID); err != nil {
+		return ctxerr.Wrap(ctx, err, "reset install attempts before new install")
 	}
 
 	_, err := svc.ds.InsertSoftwareInstallRequest(ctx, host.ID, installer.InstallerID, fleet.HostSoftwareInstallOptions{
 		SelfService: false,
+		WithRetries: true,
 	})
 	return ctxerr.Wrap(ctx, err, "inserting software install request")
 }
@@ -2012,7 +2076,7 @@ func (svc *Service) softwareInstallerPayloadFromSlug(ctx context.Context, payloa
 		}
 		return err
 	}
-	_, err = maintained_apps.Hydrate(ctx, app)
+	_, err = maintained_apps.Hydrate(ctx, app, payload.RollbackVersion, teamID, svc.ds)
 	if err != nil {
 		return err
 	}
@@ -2064,7 +2128,7 @@ func (svc *Service) softwareBatchUpload(
 		if batchErr != nil {
 			status = fmt.Sprintf("%s%s", batchSetFailedPrefix, batchErr)
 		}
-		logger := log.With(svc.logger,
+		logger := svc.logger.With(
 			"request_uuid", requestUUID,
 			"team_id", teamID,
 			"payloads", len(payloads),
@@ -2154,6 +2218,14 @@ func (svc *Service) softwareBatchUpload(
 		return resp, tfr, nil
 	}
 
+	tmID := ptr.ValOrZero(teamID)
+	team, err := svc.ds.TeamLite(ctx, tmID)
+	if err != nil {
+		batchErr = fmt.Errorf("Couldn't get team for team ID %d: %w", tmID, err)
+		return
+	}
+	manualAgentInstall := team.Config.MDM.MacOSSetup.ManualAgentInstall.Value
+
 	var g errgroup.Group
 	g.SetLimit(1) // TODO: consider whether we can increase this limit, see https://github.com/fleetdm/fleet/issues/22704#issuecomment-2397407837
 
@@ -2197,6 +2269,7 @@ func (svc *Service) softwareBatchUpload(
 				ValidatedLabels:    p.ValidatedLabels,
 				Categories:         p.Categories,
 				DisplayName:        p.DisplayName,
+				RollbackVersion:    p.RollbackVersion,
 			}
 
 			var extraInstallers []*fleet.UploadSoftwareInstallerPayload
@@ -2220,11 +2293,6 @@ func (svc *Service) softwareBatchUpload(
 			teamIDs, err := svc.ds.GetTeamsWithInstallerByHash(ctx, p.SHA256, p.URL)
 			if err != nil {
 				return err
-			}
-
-			var tmID uint
-			if teamID != nil {
-				tmID = *teamID
 			}
 
 			foundInstallers, ok := teamIDs[tmID]
@@ -2301,16 +2369,27 @@ func (svc *Service) softwareBatchUpload(
 				}
 			}
 
+			// For FMA installers, check if this version is already cached for this team.
+			var fmaVersionCached bool
+			if p.Slug != nil && *p.Slug != "" && p.MaintainedApp != nil && p.MaintainedApp.Version != "" {
+				cached, err := svc.ds.HasFMAInstallerVersion(ctx, teamID, p.MaintainedApp.ID, p.MaintainedApp.Version)
+				if err != nil {
+					return ctxerr.Wrap(ctx, err, "check cached FMA version")
+				}
+				fmaVersionCached = cached
+				installer.FMAVersionCached = cached
+			}
+
 			var installerBytesExist bool
-			if p.SHA256 != "" {
+			if !fmaVersionCached && p.SHA256 != "" {
 				installerBytesExist, err = svc.softwareInstallStore.Exists(ctx, installer.StorageID)
 				if err != nil {
-					return err
+					return ctxerr.Wrap(ctx, err, "check if installer exists in store")
 				}
 			}
 
 			// no accessible matching installer was found, so attempt to download it from URL.
-			if installer.StorageID == "" || !installerBytesExist {
+			if !fmaVersionCached && (installer.StorageID == "" || !installerBytesExist) {
 				if p.SHA256 != "" && p.URL == "" {
 					return fmt.Errorf("package not found with hash %s", p.SHA256)
 				}
@@ -2361,8 +2440,9 @@ func (svc *Service) softwareBatchUpload(
 				}
 				// noCheckHash is used by homebrew to signal that a hash shouldn't be checked
 				// This comes from the manifest and is a special case for maintained apps
-				// we need to generate the SHA256 from the installer file
-				if p.MaintainedApp.SHA256 == noCheckHash {
+				// we need to generate the SHA256 from the installer file.
+				// Skip when version is cached — the existing row already has the computed hash.
+				if !fmaVersionCached && p.MaintainedApp.SHA256 == noCheckHash {
 					// generate the SHA256 from the installer file
 					if installer.InstallerFile == nil {
 						return fmt.Errorf("maintained app %s requires hash to be generated but no installer file found", p.MaintainedApp.UniqueIdentifier)
@@ -2378,7 +2458,8 @@ func (svc *Service) softwareBatchUpload(
 
 				// Some FMAs (e.g. Chrome for macOS) aren't version-pinned by URL, so we have to extract the
 				// version from the package once we download it.
-				if installer.Version == "latest" && installer.InstallerFile != nil {
+				// Skip when version is cached — the existing row already has the correct version.
+				if !fmaVersionCached && installer.Version == "latest" && installer.InstallerFile != nil {
 					meta, err := file.ExtractInstallerMetadata(installer.InstallerFile)
 					if err != nil {
 						return ctxerr.Wrap(ctx, err, "extracting installer metadata")
@@ -2442,6 +2523,10 @@ func (svc *Service) softwareBatchUpload(
 				installer.UninstallScript = ""
 				installer.PreInstallQuery = ""
 				installer.InstallScript = ""
+			}
+
+			if fleet.IsMacOSPlatform(installer.Platform) && ptr.ValOrZero(installer.InstallDuringSetup) && manualAgentInstall {
+				return errors.New(`Couldn't edit software. "setup_experience" cannot be used for macOS software if "manual_agent_install" is enabled.`)
 			}
 
 			// Update $PACKAGE_ID/$UPGRADE_CODE in uninstall script
@@ -2510,9 +2595,11 @@ func (svc *Service) softwareBatchUpload(
 	var inHouseInstallers, softwareInstallers []*fleet.UploadSoftwareInstallerPayload
 	for _, payloadWithExtras := range installers {
 		payload := payloadWithExtras.UploadSoftwareInstallerPayload
-		if err := svc.storeSoftware(ctx, payload); err != nil {
-			batchErr = fmt.Errorf("storing software installer %q: %w", payload.Filename, err)
-			return
+		if !payload.FMAVersionCached {
+			if err := svc.storeSoftware(ctx, payload); err != nil {
+				batchErr = fmt.Errorf("storing software installer %q: %w", payload.Filename, err)
+				return
+			}
 		}
 		if payload.Extension == "ipa" {
 			inHouseInstallers = append(inHouseInstallers, payload)
@@ -2648,17 +2735,25 @@ func (svc *Service) SelfServiceInstallSoftwareTitle(ctx context.Context, host *f
 		}
 
 		if host.FleetPlatform() != requiredPlatform {
-			return &fleet.BadRequestError{
-				Message: fmt.Sprintf("Package (%s) can be installed only on %s hosts.", ext, requiredPlatform),
-				InternalErr: ctxerr.WrapWithData(
-					ctx, err, "invalid host platform for requested installer",
-					map[string]any{"host_id": host.ID, "team_id": host.TeamID, "title_id": softwareTitleID},
-				),
+			// Allow .sh scripts for any unix-like platform (linux and darwin)
+			if !(ext == ".sh" && fleet.IsUnixLike(host.Platform)) {
+				return &fleet.BadRequestError{
+					Message: fmt.Sprintf("Package (%s) can be installed only on %s hosts.", ext, requiredPlatform),
+					InternalErr: ctxerr.WrapWithData(
+						ctx, err, "invalid host platform for requested installer",
+						map[string]any{"host_id": host.ID, "team_id": host.TeamID, "title_id": softwareTitleID},
+					),
+				}
 			}
+		}
+
+		if err := svc.ds.ResetNonPolicyInstallAttempts(ctx, host.ID, installer.InstallerID); err != nil {
+			return ctxerr.Wrap(ctx, err, "reset install attempts before self-service install")
 		}
 
 		_, err = svc.ds.InsertSoftwareInstallRequest(ctx, host.ID, installer.InstallerID, fleet.HostSoftwareInstallOptions{
 			SelfService: true,
+			WithRetries: true,
 		})
 		return ctxerr.Wrap(ctx, err, "inserting self-service software install request")
 	}
@@ -2768,7 +2863,7 @@ func UpgradeCodeMigration(
 	ctx context.Context,
 	ds fleet.Datastore,
 	softwareInstallStore fleet.SoftwareInstallerStore,
-	logger kitlog.Logger,
+	logger *logging.Logger,
 ) error {
 	// Find MSI installers without upgrade_code
 	idMap, err := ds.GetMSIInstallersWithoutUpgradeCode(ctx)
@@ -2840,7 +2935,7 @@ func UninstallSoftwareMigration(
 	ctx context.Context,
 	ds fleet.Datastore,
 	softwareInstallStore fleet.SoftwareInstallerStore,
-	logger kitlog.Logger,
+	logger *logging.Logger,
 ) error {
 	// Find software installers that should have their uninstall script populated
 	idMap, err := ds.GetSoftwareInstallersPendingUninstallScriptPopulation(ctx)

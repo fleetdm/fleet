@@ -17,14 +17,19 @@ This handbook page details processes specific to working [with](#contact-us) and
   - Please **use issue comments and GitHub mentions** to communicate follow-ups or answer questions related to your request.
   - Any Fleet team member can [view the kanban board](https://github.com/orgs/fleetdm/projects/80) for this department, including pending tasks and the status of new requests.
 
-> To **make a request** of the GTM Ops team, [create an issue](https://github.com/fleetdm/confidential/issues/new?assignees=&labels=%3Agtm-ops&projects=&template=1-custom-request.md&title=) and a team member will get back to you within one business day (If urgent, mention [Sam Pfluger](https://fleetdm.slack.com/team/U05CS07KASK) in the [#g-unicorns](https://fleetdm.slack.com/archives/C08BTMFTUCR) Slack channel).
+> To **make a request** of the GTM Ops team, [create an issue](https://github.com/fleetdm/confidential/issues/new?assignees=&labels=%3Ahelp-gtm-ops&projects=&template=1-custom-request.md&title=) and a team member will get back to you within one business day (If urgent, mention [Sam Pfluger](https://fleetdm.slack.com/team/U05CS07KASK) in the [:help-gtm-ops](https://fleetdm.slack.com/archives/C08BTMFTUCR) Slack channel).
 >  - Any Fleet team member can [view the kanban board](https://github.com/orgs/fleetdm/projects/100/views/1) for this department, including pending tasks and the status of new requests.
 >  - Please **use issue comments and GitHub mentions** to communicate follow-ups or answer questions related to your request. 
 
 
+## Trademarks
+
+The Finance department maintains the documentation of [Fleet's existing trademarks and trademark applications](https://docs.google.com/spreadsheets/d/1HfEwf0FtkvaKsGzebJsHQie8c646KsGz/edit?usp=sharing&ouid=113668214024041155485&rtpof=true&sd=true). 
+
+
 ## Responsibilities
 
-The Finance department is directly responsible for accounts receivable including invoicing, accounts payable including commision calculations, compliance, expense reporting including Brex memos and maintaining accurate spend projections in "🧮The numbers", sales taxes, payroll taxes, corporate income/franchise taxes, financial operations including bank accounts and cash flow management, Zapier flows, as well the internal tooling, automation, and technology behind Fleet's Go-To-Market (GTM) systems. 
+The Finance department is directly responsible for accounts receivable including invoicing, accounts payable including commission calculations, compliance, expense reporting including Brex memos and maintaining accurate spend projections in "🧮The numbers", sales taxes, payroll taxes, corporate income/franchise taxes, financial operations including bank accounts and cash flow management, Zapier flows, as well the internal tooling, automation, and technology behind Fleet's Go-To-Market (GTM) systems. 
 
 
 ### Prepare for OCV meeting
@@ -270,7 +275,7 @@ Thanks,
 
 19. Click next to proceed to Step 3: Add buyers.
 
-20. Enter the customer's AWS account ID and click next to proceed to Step 4: Configurel egal terms and offer documents.
+20. Enter the customer's AWS account ID and click next to proceed to Step 4: Configure legal terms and offer documents.
 
 21. Select "custom legal terms" and upload the applicable terms. Note this could be two documents: an order form, and master subscription terms if separate from the order form.
 
@@ -324,7 +329,7 @@ A recent signed copy of Fleet's W-9 form can be found in [this confidential PDF 
 
 ### Process monthly accounting
 
-Create a [new montly accounting issue](https://github.com/fleetdm/confidential/issues/new/choose) for the current month and year named "Closing out YYYY-MM" in GitHub and complete all of the tasks in the issue. (This uses the [monthly accounting issue template](https://github.com/fleetdm/confidential/blob/main/.github/ISSUE_TEMPLATE/5-monthly-accounting.md).
+Create a [new monthly accounting issue](https://github.com/fleetdm/confidential/issues/new/choose) for the current month and year named "Closing out YYYY-MM" in GitHub and complete all of the tasks in the issue. (This uses the [monthly accounting issue template](https://github.com/fleetdm/confidential/blob/main/.github/ISSUE_TEMPLATE/5-monthly-accounting.md).
 
 - **SLA:** The monthly accounting issue should be completed and closed before the 21st of the month.
 - The close date is tracked each month in [KPIs](https://docs.google.com/spreadsheets/d/1Hso0LxqwrRVINCyW_n436bNHmoqhoLhC8bcbvLPOs9A/edit).
@@ -447,7 +452,7 @@ When reviewing contracts from a vendor, Fleet is concerned about the following:
 
 Within 1 business day, at a minimum, [Deal Desk](https://fleetdm.com/handbook/finance#team) will review order forms to be sent. 
 
-Using the this [order form review](https://fleetdm.zoom.us/clips/share/M79m0GZUS_GmF1R7go5T7A) and the [TEMPLATE - Subscription order form (confidential document)](https://docs.google.com/document/d/1X4fh2LsuFtAVyQDnU1ZGBggqg-Ec00vYHACyckEooqA/edit?tab=t.0) as an examples, check the document for correct format, pricing info, terms, "Fast-track deployment services" info, or any other missing details. 
+Using this [order form review](https://fleetdm.zoom.us/clips/share/M79m0GZUS_GmF1R7go5T7A) and the [TEMPLATE - Subscription order form (confidential document)](https://docs.google.com/document/d/1X4fh2LsuFtAVyQDnU1ZGBggqg-Ec00vYHACyckEooqA/edit?tab=t.0) as an examples, check the document for correct format, pricing info, terms, "Fast-track deployment services" info, or any other missing details. 
 1. Navigate to the [#help-order-forms Slack channel](https://fleetdm.slack.com/archives/C09G32R99M2) to review any order forms pending approval.
 2. Be sure the order form includes a quality logo that matches the customer company and is correctly sized.
 3. Navigate to the future customer's opportunity in Salesforce and verify the contact information + billing address and information so that Fleet knows how and who to invoice for payment.
@@ -513,7 +518,7 @@ Daily, follow the steps in the [🦄⚡️🌐 Go-To-Market strategy doc (confid
 
 ### Grant role-specific license to a team member
 
-Certain new team members, especially in go-to-market (GTM) roles, will need paid access to paid tools like Salesforce and LinkedIn Sales Navigator immediately on their first day with the company. Gong licenses that other departments need may [request them from the Heap of People](https://fleetdm.com/handbook/people#contact-us) who will make sure there is no license redundancy in that department.
+Certain new team members, especially in go-to-market (GTM) roles, will need paid access to paid tools like Salesforce and LinkedIn Sales Navigator immediately on their first day with the company. Gong licenses that other departments need may [request them from the Head of People](https://fleetdm.com/handbook/people#contact-us) who will make sure there is no license redundancy in that department.
 
 
 ### Add a seat to Salesforce
@@ -530,8 +535,6 @@ Here are the steps we take to grant appropriate Salesforce licenses to a new hir
     - Add the “Inbox with Einstein Activity Capture” permission set and save.
     - Navigate to the ["Einstein Activity Capture Settings"](https://fleetdm.lightning.force.com/lightning/setup/ActivitySyncEngineSettingsMain/home) and click the "Configurations" tab.
     - Select "Edit", under "User and Profile Assignments" move the new user's name from "Available" to "Selected", scroll all the way down and click save.
-
-
 
 
 ## Rituals

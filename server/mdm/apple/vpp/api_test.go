@@ -6,18 +6,18 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
-	"os"
 	"sync/atomic"
 	"testing"
 	"time"
 
 	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
+	"github.com/fleetdm/fleet/v4/server/dev_mode"
 	"github.com/stretchr/testify/require"
 )
 
 func setupFakeServer(t *testing.T, handler http.HandlerFunc) {
 	server := httptest.NewServer(handler)
-	os.Setenv("FLEET_DEV_VPP_URL", server.URL)
+	dev_mode.SetOverride("FLEET_DEV_VPP_URL", server.URL, t)
 	t.Cleanup(server.Close)
 }
 
@@ -356,7 +356,7 @@ func TestDoRetryAfter(t *testing.T) {
 			})
 
 			start := time.Now()
-			req, err := http.NewRequest(http.MethodGet, os.Getenv("FLEET_DEV_VPP_URL"), nil)
+			req, err := http.NewRequest(http.MethodGet, dev_mode.Env("FLEET_DEV_VPP_URL"), nil)
 			require.NoError(t, err)
 			err = do[any](req, "test-token", nil)
 			require.NoError(t, err)
@@ -368,13 +368,12 @@ func TestDoRetryAfter(t *testing.T) {
 
 func TestGetBaseURL(t *testing.T) {
 	t.Run("Default URL", func(t *testing.T) {
-		os.Setenv("FLEET_DEV_VPP_URL", "")
 		require.Equal(t, "https://vpp.itunes.apple.com/mdm/v2", getBaseURL())
 	})
 
 	t.Run("Custom URL", func(t *testing.T) {
 		customURL := "http://localhost:8000"
-		os.Setenv("FLEET_DEV_VPP_URL", customURL)
+		dev_mode.SetOverride("FLEET_DEV_VPP_URL", customURL, t)
 		require.Equal(t, customURL, getBaseURL())
 	})
 }

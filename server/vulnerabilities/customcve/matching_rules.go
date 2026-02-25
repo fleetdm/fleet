@@ -4,12 +4,12 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log/slog"
+	"strings"
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/vulnerabilities/nvd/tools/cvefeed/nvd"
-	"github.com/go-kit/log"
-	"github.com/go-kit/log/level"
 )
 
 var (
@@ -22,10 +22,11 @@ var (
 // with a list of CVEs.  These rules address false negatives in the NVD data.
 // Add an interface if you want to add more rule types.
 type CVEMatchingRule struct {
-	NameLikeMatch     string   // Name of software to match (like match)
-	SourceMatch       string   // Source of software to match (exact match)
-	CVEs              []string // List of CVEs to assign to software
-	ResolvedInVersion string   // Version of software that resolves the CVEs
+	NameLikeMatch         string   // Name of software to match (like match)
+	ExcludeIfNameContains string   // Exclude software if name contains this pattern (case-insensitive, in-memory filter)
+	SourceMatch           string   // Source of software to match (exact match)
+	CVEs                  []string // List of CVEs to assign to software
+	ResolvedInVersion     string   // Version of software that resolves the CVEs
 }
 
 type CVEMatchingRules []CVEMatchingRule
@@ -38,24 +39,27 @@ func getCVEMatchingRules() CVEMatchingRules {
 		// June 11 2024 Office 365 Vulnerabilities
 		// https://learn.microsoft.com/en-us/officeupdates/microsoft365-apps-security-updates
 		{
-			NameLikeMatch:     "Microsoft 365",
-			SourceMatch:       "programs",
-			CVEs:              []string{"CVE-2024-30101", "CVE-2024-30102", "CVE-2024-30103", "CVE-2024-30104"},
-			ResolvedInVersion: "16.0.17628.20144",
+			NameLikeMatch:         "Microsoft 365",
+			ExcludeIfNameContains: "companion",
+			SourceMatch:           "programs",
+			CVEs:                  []string{"CVE-2024-30101", "CVE-2024-30102", "CVE-2024-30103", "CVE-2024-30104"},
+			ResolvedInVersion:     "16.0.17628.20144",
 		},
 		// July 9 2024 Office 365 Vulnerabilities
 		// https://learn.microsoft.com/en-us/officeupdates/microsoft365-apps-security-updates
 		{
-			NameLikeMatch:     "Microsoft 365",
-			SourceMatch:       "programs",
-			CVEs:              []string{"CVE-2023-38545", "CVE-2024-38020", "CVE-2024-38021"},
-			ResolvedInVersion: "16.0.17726.20160",
+			NameLikeMatch:         "Microsoft 365",
+			ExcludeIfNameContains: "companion",
+			SourceMatch:           "programs",
+			CVEs:                  []string{"CVE-2023-38545", "CVE-2024-38020", "CVE-2024-38021"},
+			ResolvedInVersion:     "16.0.17726.20160",
 		},
 		// August 13 2024 Office 365 Vulnerabilities
 		// https://learn.microsoft.com/en-us/officeupdates/microsoft365-apps-security-updates
 		{
-			NameLikeMatch: "Microsoft 365",
-			SourceMatch:   "programs",
+			NameLikeMatch:         "Microsoft 365",
+			ExcludeIfNameContains: "companion",
+			SourceMatch:           "programs",
 			CVEs: []string{
 				"CVE-2024-38172",
 				"CVE-2024-38170",
@@ -66,6 +70,22 @@ func getCVEMatchingRules() CVEMatchingRules {
 				"CVE-2024-38200",
 			},
 			ResolvedInVersion: "16.0.17830.20166",
+		},
+		// Gitk and Git GUI CVEs for Homebrew git-gui package
+		// These CVEs affect gitk/git-gui which is git-gui on Homebrew not git
+		{
+			NameLikeMatch:     "git-gui",
+			SourceMatch:       "homebrew_packages",
+			CVEs:              []string{"CVE-2025-27613", "CVE-2025-27614", "CVE-2025-46835"},
+			ResolvedInVersion: "2.50.1",
+		},
+		// Windows Notepad command injection vulnerability
+		// https://cveawg.mitre.org/api/cve/CVE-2026-20841
+		{
+			NameLikeMatch:     "Microsoft.WindowsNotepad",
+			SourceMatch:       "programs",
+			CVEs:              []string{"CVE-2026-20841"},
+			ResolvedInVersion: "11.2510",
 		},
 	}
 }
@@ -81,7 +101,17 @@ func (r CVEMatchingRule) match(ctx context.Context, ds fleet.Datastore) ([]fleet
 		return nil, err
 	}
 
+	var excludePattern string
+	if r.ExcludeIfNameContains != "" {
+		excludePattern = strings.ToLower(r.ExcludeIfNameContains)
+	}
+
 	for _, s := range software {
+		// Skip software that matches the exclusion pattern
+		if excludePattern != "" && strings.Contains(strings.ToLower(s.Name), excludePattern) {
+			continue
+		}
+
 		if nvd.SmartVerCmp(s.Version, r.ResolvedInVersion) < 0 {
 			for _, cve := range r.CVEs {
 				vulns = append(vulns, fleet.SoftwareVulnerability{
@@ -123,7 +153,7 @@ func (r CVEMatchingRules) ValidateAll() error {
 }
 
 // CheckCustomVulnerabilities matches software against custom rules and inserts vulnerabilities
-func CheckCustomVulnerabilities(ctx context.Context, ds fleet.Datastore, logger log.Logger, startTime time.Time) ([]fleet.SoftwareVulnerability, error) {
+func CheckCustomVulnerabilities(ctx context.Context, ds fleet.Datastore, logger *slog.Logger, startTime time.Time) ([]fleet.SoftwareVulnerability, error) {
 	rules := getCVEMatchingRules()
 	if err := rules.ValidateAll(); err != nil {
 		return nil, fmt.Errorf("invalid rules: %w", err)
@@ -133,26 +163,22 @@ func CheckCustomVulnerabilities(ctx context.Context, ds fleet.Datastore, logger 
 	for i, rule := range rules {
 		v, err := rule.match(ctx, ds)
 		if err != nil {
-			level.Error(logger).Log("msg", "Error matching rule", "ruleIndex", i, "err", err)
+			logger.ErrorContext(ctx, "Error matching rule", "ruleIndex", i, "err", err)
 			continue
 		}
 		vulns = append(vulns, v...)
 	}
 
-	var newVulns []fleet.SoftwareVulnerability
-	for _, v := range vulns {
-		ok, err := ds.InsertSoftwareVulnerability(ctx, v, fleet.CustomSource)
-		if err != nil {
-			level.Error(logger).Log("msg", "Error inserting software vulnerability", "err", err)
-			continue
-		}
-		if ok {
-			newVulns = append(newVulns, v)
-		}
+	newVulns, err := ds.InsertSoftwareVulnerabilities(ctx, vulns, fleet.CustomSource)
+	if err != nil {
+		// Return early so DeleteOutOfDateVulnerabilities doesn't run.
+		// Otherwise, without the insert refreshing updated_at, all existing vulns would look stale and be deleted.
+		logger.ErrorContext(ctx, "Error inserting software vulnerabilities", "err", err)
+		return nil, err
 	}
 
 	if err := ds.DeleteOutOfDateVulnerabilities(ctx, fleet.CustomSource, startTime); err != nil {
-		level.Error(logger).Log("msg", "Error deleting out of date vulnerabilities", "err", err)
+		logger.ErrorContext(ctx, "Error deleting out of date vulnerabilities", "err", err)
 	}
 
 	return newVulns, nil

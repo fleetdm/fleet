@@ -14,9 +14,9 @@
       }
       @font-face {
         font-family: "Inter";
-        font-weight: 700;
-        src: url("../assets/fonts/inter/Inter-Bold.woff2") format("woff2"),
-          url("../assets/fonts/inter/Inter-Bold.woff") format("woff");
+        font-weight: 600;
+        src: url("../assets/fonts/inter/Inter-Semibold.woff2") format("woff2"),
+          url("../assets/fonts/inter/Inter-Semibold.woff") format("woff");
       }
 
       html {
@@ -47,7 +47,7 @@
         padding: 8px 16px;
         border-radius: 4px;
         text-decoration: none;
-        font-weight: 700;
+        font-weight: 600;
         font-size: 14px;
         line-height: 21px;
         text-align: center;
@@ -58,20 +58,24 @@
         border-bottom: 1px solid #e2e4ea;
       }
 
-      h1 {
-        margin-bottom: 8px;
-      }
-
       p {
         font-size: 14px;
       }
-
+    
+      a {
+        color: #515774;
+        text-decoration: none;
+        font-weight: 600;
+        border-bottom: 1px solid #e2e4ea;
+      }
+      
       ol {
         display: flex;
         flex-direction: column;
         gap: 48px;
         list-style: none;
         padding: 0;
+        margin: 0;
       }
 
       li {
@@ -117,7 +121,41 @@
       #main-content {
         margin: 0 auto;
         padding: 48px 24px;
-        max-width: 800px;
+        max-width: 1000px;
+      }
+
+      .device-instructions-content {
+        display: flex;
+        flex-direction: column;
+        gap: 48px;
+      }
+
+      .content-with-sidebar {
+        display: flex;
+        justify-content: space-between;
+        gap: 64px;
+      }
+
+      .mobile-enroll-sidebar p {
+        max-width: 208px;
+        font-weight: bold;
+      }
+
+      .qr-container {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 24px;
+        background-color: #f9fafc;
+        padding: 24px;
+        border: 1px solid #e2e4ea;
+        border-radius: 8px;
+      }
+
+      .fully-managed-instructions .qr-container {
+        padding: 8px;
+        border-radius: 4px;
+        background-color: #fff;
       }
 
       .device-enroll-message {
@@ -140,6 +178,10 @@
       }
 
       @media screen and (max-width: 430px) {
+        .device-instructions-content {
+          gap: 24px;
+        }
+
         .enroll-link {
           width: 100%;
         }
@@ -147,123 +189,206 @@
     </style>
   </head>
   <body>
-    <!-- unsupported platform content -->
+    <!-- unsupported platform content, not macos, ios, ipados, or android -->
     <template id="unsupported-template">
-      <h1>How to enroll your device to Fleet</h1>
-      <p class="page-description">
-        To enroll your Mac, iPhone, iPad, or Android device, please open this
-        page on your device.
-      </p>
+      <div class="content-with-sidebar">
+        <section class="device-instructions-content">
+          <h1>How to enroll your device to Fleet</h1>
+          <p class="page-description">
+            To enroll your Mac, please open this page on your device.
+          </p>
+        </section>
+        <section class="mobile-enroll-sidebar">
+          <div class="qr-container">
+            <p>Trying to enroll your corporate mobile device?</p>
+            <canvas class="qr-code"></canvas>
+          </div>
+        </section>
+      </div>
     </template>
 
-    <!-- android content -->
+    <!-- android content when not fully managed-->
     <template id="android-template">
-      <h1>How to enroll your Android device to Fleet</h1>
-      <div class="android-content">
-        <p>Select <b>Enroll</b> and follow the steps.</p>
-        <a class="enroll-link" href="" target="_blank">Enroll</a>
-        <p>Already finished? You can close this tab.</p>
-      </div>
+      <section class="device-instructions-content">
+        <h1>How to enroll your Android device to Fleet</h1>
+        <div class="android-content">
+          <p>Select <b>Enroll</b> and follow the steps.</p>
+          <a class="enroll-link" href="" target="_blank">Enroll</a>
+          <p>Already finished? You can close this tab.</p>
+        </div>
+      </section>
+    </template>
+
+    <!-- content when full managed is enabled. This will show for any platform, despite the copy referencing Android -->
+    <template id="fully-managed-template">
+      <section class="device-instructions-content">
+        <h1>How to enroll your Android device to Fleet</h1>
+        <ol class="fully-managed-instructions">
+          <li>
+            <p>
+              <span>1.</span>
+              <span>
+                Turn on your new device or
+                <a
+                  target="_blank"
+                  href="https://support.google.com/android/answer/6088915?hl=en"
+                >
+                  factory reset it
+                  <svg width="9" height="9" viewBox="0 0 9 9" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <rect x="0.5" y="0.5" width="8" height="8" rx="2" stroke="#515774"/>
+                    <path d="M3.49992 2.83325H6.16659M6.16659 2.83325V5.49992M6.16659 2.83325L2.83325 6.16659" stroke="#515774" stroke-linecap="round" stroke-linejoin="round"/>
+                  </svg>
+                </a>
+              </span>
+            </p>
+          </li>
+          <li>
+            <p>
+              <span>2.</span>
+              <span>
+                On the very first screen, tap the screen six times in a blank
+                area.
+              </span>
+            </p>
+          </li>
+          <li>
+            <p>
+              <span>3.</span>
+              <span>Scan QR code below with the QR reader that shows up.</span>
+            </p>
+            <div class="qr-container">
+              <canvas class="qr-code"></canvas>
+            </div>
+          </li>
+          <li>
+            <p>
+              <span>4.</span>
+              <span>
+                Connect to Wi-Fi and follow the instructions on the screen.
+              </span>
+            </p>
+          </li>
+        </ol>
+        <p>Already finished? Refresh the page to enroll another device.</p>
+      </section>
     </template>
 
     <!-- ios, ipados content -->
     <template id="ios-ipad-template">
-      <h1>
-        How to enroll your
-        <span data-attribute="dynamic-device-type">iPhone or iPad</span> to
-        Fleet
-      </h1>
-      <ol>
-        <li>
-          <p>
-            <span>1.</span>
-            <span>
-              Tap the button below to download the Fleet profile. When prompted, tap <b>Allow</b>.
-            </span>
-          </p>
-          <a class="download-link" href="{{.EnrollURL}}">Download</a>
-        </li>
-        <li>
-          <p>
-            <span>2.</span>
-            <span>
-              Go to <b>Settings > Profile Downloaded</b>.
-            </span>
-          </p>
-          <div class="profile-downloaded-container">
-            <img
-              class="profile-downloaded-img"
-              src=""
-              alt="select profile downloaded in settings"
-            />
-          </div>
-        </li>
-        <li>
-          <p>
-            <span>3.</span>
-            <span>Tap <b>Install</b>. You'll see a few warnings, which is expected.
-            Tap <b>Install</b> again when prompted.</span>
-          </p>
-          <div class="install-profile-container">
-            <img class="install-profile-img" src="" alt="select install" />
-          </div>
-        </li>
-        <li>
-          <p>
-            When you see the <b>Remote Management</b> screen, tap
-            <b>Trust</b> to finish.
-          </p>
-        </li>
-      </ol>
+      <section class="device-instructions-content">
+        <h1>
+          How to enroll your
+          <span data-attribute="dynamic-device-type">iPhone or iPad</span> to
+          Fleet
+        </h1>
+        <ol>
+          <li>
+            <p>
+              <span>1.</span>
+              <span>
+                Tap the button below to download the Fleet profile. When
+                prompted, tap <b>Allow</b>.
+              </span>
+            </p>
+            <a class="download-link" href="{{.EnrollURL}}">Download</a>
+          </li>
+          <li>
+            <p>
+              <span>2.</span>
+              <span>Go to <b>Settings > Profile Downloaded</b>.</span>
+            </p>
+            <div class="profile-downloaded-container">
+              <img
+                class="profile-downloaded-img"
+                src=""
+                alt="select profile downloaded in settings"
+              />
+            </div>
+          </li>
+          <li>
+            <p>
+              <span>3.</span>
+              <span>
+                Tap <b>Install</b>. You'll see a few warnings, which is
+                expected. jk Tap <b>Install</b> again when prompted.
+              </span>
+            </p>
+            <div class="install-profile-container">
+              <img class="install-profile-img" src="" alt="select install" />
+            </div>
+          </li>
+          <li>
+            <p>
+              <span>4.</span>
+              <span>
+                When you see the <b>Remote Management</b> screen, tap
+                <b>Trust</b> to finish.
+              </span>
+            </p>
+          </li>
+        </ol>
+      </section>
     </template>
 
-    <!-- ios, ipados content -->
+    <!-- macos content -->
     <template id="macos-template">
-      <h1>Turn on MDM</h1>
-      <ol>
-        <li>
-          <p>
-            <span>1.</span>
-            <span> 
-              Tap the button below to download the Fleet profile. Double click on it.
-              You'll see a warning, which is expected.
-            </span>
-          </p>
-          <a class="download-link" href="{{.EnrollURL}}">Download</a>
-        </li>
-        <li>
-          <p>
-            <span>2.</span>
-            <span>
-              Go to the Apple menu in the top left corner of your screen. Select
-              <b>System Settings</b>.
-            </span>
-          </p>
-        </li>
-        <li>
-          <p>
-            <span>3.</span>
-            <span>
-              Go to <b>Profile Downloaded</b>. Double-click the
-              <b>[Organization name] enrollment</b> profile.
-            </span>
-          </p>
-        </li>
-        <li>
-          <p>
-            <span>4.</span>
-            <span>Select <b>Install</b>. Enter your password.</span>
-          </p>
-        </li>
-        <li>
-          <p>
-            <span>5.</span>
-            <span>Go back to your <b>My device</b> page. Select
-              <b>Refetch</b> to tell your organization that MDM is on.
-            </span>
-          </p>
-        </li>
-      </ol>
+      <div class="content-with-sidebar">
+        <section class="device-instructions-content">
+          <h1>How to turn on MDM on your Mac</h1>
+          <ol>
+            <li>
+              <p>
+                <span>1.</span>
+                <span>
+                  Tap the button below to download the Fleet profile. Double
+                  click on it. You'll see a warning, which is expected.
+                </span>
+              </p>
+              <a class="download-link" href="{{.EnrollURL}}">Download</a>
+            </li>
+            <li>
+              <p>
+                <span>2.</span>
+                <span>
+                  Go to the Apple menu in the top left corner of your screen.
+                  Select
+                  <b>System Settings</b>.
+                </span>
+              </p>
+            </li>
+            <li>
+              <p>
+                <span>3.</span>
+                <span>
+                  Go to <b>Profile Downloaded</b>. Double-click the
+                  <b>[Organization name] enrollment</b> profile.
+                </span>
+              </p>
+            </li>
+            <li>
+              <p>
+                <span>4.</span>
+                <span>Select <b>Install</b>. Enter your password.</span>
+              </p>
+            </li>
+            <li>
+              <p>
+                <span>5.</span>
+                <span>
+                  Go back to your <b>My device</b> page. Select
+                  <b>Refetch</b> to tell your organization that MDM is on.
+                </span>
+              </p>
+            </li>
+          </ol>
+        </section>
+        <section class="mobile-enroll-sidebar">
+          <div class="qr-container">
+            <p>Trying to enroll your corporate mobile device?</p>
+            <canvas class="qr-code"></canvas>
+          </div>
+        </section>
+      </div>
     </template>
 
     <!-- Error content -->
@@ -295,6 +420,15 @@
     <!-- container for the dynamic content -->
     <section id="main-content"></section>
 
+    <!-- using qrcode library to generate QR codes -->
+    <script
+      src="https://cdnjs.cloudflare.com/ajax/libs/qrcode/1.5.1/qrcode.min.js"
+      integrity="sha512-PEhlWBZBrQL7flpJPY8lXx8tIN7HWX912GzGhFTDqA3iWFrakVH3lVHomCoU9BhfKzgxfEk6EG2C3xej+9srOQ=="
+      crossorigin="anonymous"
+      referrerpolicy="no-referrer"
+      defer
+    ></script>
+
     <script>
       const ANDROID_GET_TOKEN_URL =
         "{{.URLPrefix}}/api/v1/fleet/android_enterprise/enrollment_token";
@@ -302,6 +436,10 @@
       const ANDROID_MDM_ENABLED = "{{.AndroidMDMEnabled}}" === "true";
       const MAC_MDM_ENABLED = "{{.MacMDMEnabled}}" == "true";
       const ERROR_MESSAGE = "{{.ErrorMessage}}";
+      const isFullyManaged = new URLSearchParams(window.location.search).has(
+        "fully_managed",
+        true
+      );
 
       const getPlatform = () => {
         const userAgent = navigator.userAgent;
@@ -328,6 +466,29 @@
           default:
             return "unsupported";
         }
+      };
+
+      /**
+       * Renders a QR code for the given text into the specified element.
+       * @param {string} text - The text to encode in the QR code.
+       * @param {HTMLElement} element - The HTML element where the QR code will be rendered.
+       * @param {Object} [options] - Optional configuration for the QR code (e.g., width, margin,
+       * color). valid options can be found here:
+       * https://github.com/soldair/node-qrcode?tab=readme-ov-file#options-9
+       */
+      const renderQRCode = (text, element, options) => {
+        let QROptions = {
+          width: 208,
+          margin: 0,
+          color: { dark: "#515774", light: "#F9FAFC" },
+        };
+
+        if (options) {
+          QROptions = { ...QROptions, ...options };
+        }
+        QRCode.toCanvas(element, text, QROptions, function (error) {
+          if (error) console.error("problem with rendering QR code", error);
+        });
       };
 
       const getTemplateIdFromPlatform = (platform) => {
@@ -396,20 +557,23 @@
         return urlParams.get("enroll_secret");
       };
 
-      const getEnrollmentToken = async () => {
+      const getEnrollmentToken = async (fullyManaged) => {
         const enrollSecret = getEnrollmentSecret();
 
-        const response = await fetch(
-          `${ANDROID_GET_TOKEN_URL}?enroll_secret=${encodeURIComponent(
-            enrollSecret
-          )}`,
-          {
-            method: "GET",
-            headers: {
-              "Content-Type": "application/json",
-            },
-          }
-        );
+        let url = `${ANDROID_GET_TOKEN_URL}?enroll_secret=${encodeURIComponent(
+          enrollSecret
+        )}`;
+
+        if (fullyManaged) {
+          url = url.concat("&fully_managed=true");
+        }
+
+        const response = await fetch(url, {
+          method: "GET",
+          headers: {
+            "Content-Type": "application/json",
+          },
+        });
         if (!response.ok) {
           throw new Error("Failed to get enrollment token");
         }
@@ -418,14 +582,6 @@
 
       // here we render the page content
       document.addEventListener("DOMContentLoaded", async function () {
-        const platform = getPlatform();
-
-        // quick exit if platform is unsupported
-        if (platform === "unsupported") {
-          renderContent("unsupported-template");
-          return;
-        }
-
         // if there is an error message, render it
         if (ERROR_MESSAGE) {
           // format of error message is expected to use colon as separator character, e.g., "An error occurred. : Failed to parse original URL."
@@ -434,11 +590,53 @@
           return;
         }
 
-        // check if the enroll secret is valid.
+        // check if there is an enrollment secret
         if (!getEnrollmentSecret()) {
           renderError(
             "This URL is invalid.",
-            "Enroll secret is invalid. Please contact your IT admin."
+            "Enroll secret is missing. Please contact your IT admin."
+          );
+          return;
+        }
+
+        const platform = getPlatform();
+
+        if (isFullyManaged) {
+          if (platform === "android" && !ANDROID_MDM_ENABLED) {
+            renderError(
+              "Android MDM is turned off.",
+              "To enroll your Android device please contact your IT admin."
+            );
+            return;
+          }
+
+          try {
+            const data = await getEnrollmentToken(true);
+            if (!data.android_enrollment_qr_code) {
+              throw new Error("Failed to get QR code");
+            }
+            renderContent("fully-managed-template");
+            renderQRCode(
+              data.android_enrollment_qr_code,
+              document.querySelector(".qr-code"),
+              { width: 245, color: { dark: "#515774", light: "#fff" } }
+            );
+          } catch (error) {
+            renderError(
+              "Couldn't get Android enrollment token.",
+              "Please refresh the page. If the issue continues, contact your IT admin."
+            );
+            return;
+          }
+          return;
+        }
+
+        // render unsupported platform content. Unsupported means not macos, ios, ipad, or android
+        if (platform === "unsupported") {
+          renderContent("unsupported-template");
+          renderQRCode(
+            window.location.href,
+            document.querySelector(".qr-code")
           );
           return;
         }
@@ -482,6 +680,10 @@
             return;
           }
           renderContent(templateId);
+          renderQRCode(
+            window.location.href,
+            document.querySelector(".qr-code")
+          );
         }
 
         // handle rendering for ios and ipad

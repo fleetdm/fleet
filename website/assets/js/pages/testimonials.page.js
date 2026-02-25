@@ -3,7 +3,6 @@ parasails.registerPage('testimonials', {
   //  ║║║║║ ║ ║╠═╣║    ╚═╗ ║ ╠═╣ ║ ║╣
   //  ╩╝╚╝╩ ╩ ╩╩ ╩╩═╝  ╚═╝ ╩ ╩ ╩ ╩ ╚═╝
   data: {
-    selectedContent: 'mdm',
     modal: '',
     quotesWithVideoLinks: [],
   },
@@ -12,6 +11,7 @@ parasails.registerPage('testimonials', {
   //  ║  ║╠╣ ║╣ ║  ╚╦╝║  ║  ║╣
   //  ╩═╝╩╚  ╚═╝╚═╝ ╩ ╚═╝╩═╝╚═╝
   beforeMount: function() {
+
     for(let quote of this.testimonialsWithVideoLinks) {
       if(quote.youtubeVideoUrl){
         this.quotesWithVideoLinks.push({
@@ -22,16 +22,15 @@ parasails.registerPage('testimonials', {
     }
   },
   mounted: async function() {
-    //…
+    $('#heroCarousel').carousel({
+      interval: 15000
+    });
   },
 
   //  ╦╔╗╔╔╦╗╔═╗╦═╗╔═╗╔═╗╔╦╗╦╔═╗╔╗╔╔═╗
   //  ║║║║ ║ ║╣ ╠╦╝╠═╣║   ║ ║║ ║║║║╚═╗
   //  ╩╝╚╝ ╩ ╚═╝╩╚═╩ ╩╚═╝ ╩ ╩╚═╝╝╚╝╚═╝
   methods: {
-    clickChangePageContent: function(option) {
-      this.selectedContent = option;
-    },
     clickOpenVideoModal: function(modalName) {
       console.log(modalName);
       this.modal = _.kebabCase(modalName);

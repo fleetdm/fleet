@@ -53,6 +53,7 @@
 
   &__textarea {
     min-height: 100px;
+    min-width: 100%;
     max-width: 100%;
     display: block;
   }
@@ -98,6 +99,10 @@
     right: 0;
     margin: 1px 4px;
     background-color: $core-fleet-white;
+
+    &__text-area {
+      top: -30px;
+    }
   }
 
   &__input-container.copy-enabled {

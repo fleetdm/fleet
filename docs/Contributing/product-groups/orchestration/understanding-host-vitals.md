@@ -805,7 +805,9 @@ WITH cached_users AS (WITH cached_groups AS (select * from groups)
  FROM users LEFT JOIN cached_groups USING (gid)
  WHERE type <> 'special' AND shell NOT LIKE '%/false' AND shell NOT LIKE '%/nologin' AND shell NOT LIKE '%/shutdown' AND shell NOT LIKE '%/halt' AND username NOT LIKE '%$' AND username NOT LIKE '\_%' ESCAPE '\' AND NOT (username = 'sync' AND shell ='/bin/sync' AND directory <> ''))
 SELECT
-  COALESCE(NULLIF(display_name, ''), NULLIF(bundle_name, ''), NULLIF(NULLIF(bundle_executable, ''), 'run.sh'), TRIM(name, '.app') ) AS name,
+  COALESCE(NULLIF(display_name, ''), NULLIF(bundle_name, ''), NULLIF(NULLIF(bundle_executable, ''), 'run.sh'),
+    CASE WHEN name IS NOT NULL AND lower(name) LIKE '%.app' THEN substr(name, 1, length(name) - 4) ELSE name END
+  ) AS name,
   COALESCE(NULLIF(bundle_short_version, ''), bundle_version) AS version,
   bundle_identifier AS bundle_identifier,
   '' AS extension_id,
@@ -1142,6 +1144,57 @@ SELECT
   path AS installed_path,
   '' as upgrade_code
 FROM chocolatey_packages
+```
+
+## software_windows_acrobat_dc
+
+- Description: Software override query used to determine whether the Adobe Acrobat Reader program name needs to include the DC postfix
+
+- Platforms: windows
+
+- Query:
+```sql
+SELECT 1 FROM registry WHERE key = 'HKEY_LOCAL_MACHINE\SOFTWARE\Adobe\Adobe Acrobat\DC'
+```
+
+## software_windows_jetbrains
+
+- Description: A software override query to use the version from the product-info.json file for JetBrains programs on Windows.
+
+- Platforms: windows
+
+- Discovery query:
+```sql
+SELECT 1 FROM osquery_registry WHERE active = true AND registry = 'table' AND name = 'file_contents'
+```
+
+- Query:
+```sql
+SELECT
+		p.name AS name,
+
+		COALESCE(
+			trim(json_extract(fc.contents, '$.version'), '"'),
+			p.version
+		) AS version,
+
+		'' AS extension_id,
+		'' AS extension_for,
+		'programs' AS source,
+		p.publisher AS vendor,
+		p.install_location AS installed_path,
+		p.upgrade_code AS upgrade_code
+
+		FROM programs p
+		LEFT JOIN file_contents fc
+		ON fc.path = CASE
+			WHEN p.install_location IS NULL OR p.install_location = ''
+			THEN NULL
+			ELSE rtrim(p.install_location, '\') || '\product-info.json'
+		END
+
+		WHERE p.publisher LIKE '%JetBrains%'
+		AND p.name NOT LIKE '%Toolbox%'
 ```
 
 ## software_windows_last_opened_at

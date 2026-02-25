@@ -13,7 +13,6 @@ import (
 	"fmt"
 	"math/big"
 	"net/http"
-	"os"
 	"strconv"
 	"strings"
 
@@ -21,13 +20,13 @@ import (
 	"github.com/fleetdm/fleet/v4/ee/server/service/hostidentity/types"
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
+	"github.com/fleetdm/fleet/v4/server/dev_mode"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm/assets"
 	scepdepot "github.com/fleetdm/fleet/v4/server/mdm/scep/depot"
 	scepserver "github.com/fleetdm/fleet/v4/server/mdm/scep/server"
+	"github.com/fleetdm/fleet/v4/server/platform/logging"
 	"github.com/fleetdm/fleet/v4/server/service/middleware/otel"
-	"github.com/go-kit/kit/log"
-	kitlog "github.com/go-kit/log"
 	"github.com/go-kit/log/level"
 	"github.com/smallstep/scep"
 )
@@ -54,7 +53,7 @@ func (e *RateLimitError) StatusCode() int { return http.StatusTooManyRequests }
 // It checks for FLEET_DEV_HOST_IDENTITY_CERT_VALIDITY_DAYS environment variable
 // and falls back to scepValidityDays if not set or invalid.
 func getCertValidityDays() int {
-	if envValue := os.Getenv("FLEET_DEV_HOST_IDENTITY_CERT_VALIDITY_DAYS"); envValue != "" {
+	if envValue := dev_mode.Env("FLEET_DEV_HOST_IDENTITY_CERT_VALIDITY_DAYS"); envValue != "" {
 		if days, err := strconv.Atoi(envValue); err == nil && days > 0 {
 			return days
 		}
@@ -67,7 +66,7 @@ func RegisterSCEP(
 	mux *http.ServeMux,
 	scepStorage scepdepot.Depot,
 	ds fleet.Datastore,
-	logger kitlog.Logger,
+	logger *logging.Logger,
 	fleetConfig *config.FleetConfig,
 ) error {
 	if fleetConfig == nil {
@@ -87,10 +86,10 @@ func RegisterSCEP(
 	scepService := NewSCEPService(
 		ds,
 		signer,
-		kitlog.With(logger, "component", "host-id-scep"),
+		logger.With("component", "host-id-scep"),
 	)
 
-	scepLogger := kitlog.With(logger, "component", "http-host-id-scep")
+	scepLogger := logger.With("component", "http-host-id-scep")
 	e := scepserver.MakeServerEndpoints(scepService)
 	e.GetEndpoint = scepserver.EndpointLoggingMiddleware(scepLogger)(e.GetEndpoint)
 	e.PostEndpoint = scepserver.EndpointLoggingMiddleware(scepLogger)(e.PostEndpoint)
@@ -140,7 +139,7 @@ func hasRenewalExtension(csr *x509.CertificateRequest) bool {
 }
 
 // renewalMiddleware handles certificate renewal with proof-of-possession
-func renewalMiddleware(ds fleet.Datastore, logger kitlog.Logger, next scepserver.CSRSignerContext) scepserver.CSRSignerContextFunc {
+func renewalMiddleware(ds fleet.Datastore, logger *logging.Logger, next scepserver.CSRSignerContext) scepserver.CSRSignerContextFunc {
 	return func(ctx context.Context, m *scep.CSRReqMessage) (*x509.Certificate, error) {
 		// Check if this is a renewal request
 		var renewalData types.RenewalData
@@ -224,7 +223,7 @@ type service struct {
 	// issuance, RA proxying, etc.
 	signer scepserver.CSRSignerContext
 
-	logger log.Logger
+	logger *logging.Logger
 
 	ds fleet.Datastore
 }
@@ -322,7 +321,7 @@ func (svc *service) GetNextCACert(_ context.Context) ([]byte, error) {
 }
 
 // NewSCEPService creates a new scep service
-func NewSCEPService(ds fleet.Datastore, signer scepserver.CSRSignerContext, logger log.Logger) scepserver.Service {
+func NewSCEPService(ds fleet.Datastore, signer scepserver.CSRSignerContext, logger *logging.Logger) scepserver.Service {
 	return &service{
 		ds:     ds,
 		signer: signer,

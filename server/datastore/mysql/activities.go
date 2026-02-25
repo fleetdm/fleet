@@ -13,7 +13,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/mdm"
 	"github.com/fleetdm/fleet/v4/server/ptr"
-	"github.com/go-kit/log/level"
 	"github.com/jmoiron/sqlx"
 )
 
@@ -127,18 +126,6 @@ func (ds *Datastore) NewActivity(
 		}
 		return nil
 	})
-}
-
-func (ds *Datastore) MarkActivitiesAsStreamed(ctx context.Context, activityIDs []uint) error {
-	stmt := `UPDATE activities SET streamed = true WHERE id IN (?);`
-	query, args, err := sqlx.In(stmt, activityIDs)
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "sqlx.In mark activities as streamed")
-	}
-	if _, err := ds.writer(ctx).ExecContext(ctx, query, args...); err != nil {
-		return ctxerr.Wrap(ctx, err, "exec mark activities as streamed")
-	}
-	return nil
 }
 
 // ListHostUpcomingActivities returns the list of activities pending execution
@@ -414,49 +401,6 @@ func (ds *Datastore) ListHostUpcomingActivities(ctx context.Context, hostID uint
 	if len(activities) > int(opt.PerPage) { //nolint:gosec // dismiss G115
 		metaData.HasNextResults = true
 		activities = activities[:len(activities)-1]
-	}
-
-	return activities, metaData, nil
-}
-
-func (ds *Datastore) ListHostPastActivities(ctx context.Context, hostID uint, opt fleet.ListOptions) ([]*fleet.Activity, *fleet.PaginationMetadata, error) {
-	const listStmt = `
-	SELECT
-		ha.activity_id as id,
-		a.user_email as user_email,
-		a.user_name as name,
-		a.activity_type as activity_type,
-		a.details as details,
-		u.gravatar_url as gravatar_url,
-		a.created_at as created_at,
-		u.id as user_id,
-		u.api_only as api_only,
-		a.fleet_initiated as fleet_initiated
-	FROM
-		host_activities ha
-		JOIN activities a
-			ON ha.activity_id = a.id
-		LEFT OUTER JOIN
-			users u ON u.id = a.user_id
-	WHERE
-		ha.host_id = ?
-	`
-
-	args := []any{hostID}
-	stmt, args := appendListOptionsWithCursorToSQL(listStmt, args, &opt)
-
-	var activities []*fleet.Activity
-	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &activities, stmt, args...); err != nil {
-		return nil, nil, ctxerr.Wrap(ctx, err, "select upcoming activities")
-	}
-
-	var metaData *fleet.PaginationMetadata
-	if opt.IncludeMetadata {
-		metaData = &fleet.PaginationMetadata{HasPreviousResults: opt.Page > 0}
-		if len(activities) > int(opt.PerPage) { //nolint:gosec // dismiss G115
-			metaData.HasNextResults = true
-			activities = activities[:len(activities)-1]
-		}
 	}
 
 	return activities, metaData, nil
@@ -1318,7 +1262,7 @@ func (ds *Datastore) activateNextSoftwareInstallActivity(ctx context.Context, tx
 	const insStmt = `
 INSERT INTO host_software_installs
 	(execution_id, host_id, software_installer_id, user_id, self_service,
-		policy_id, installer_filename, version, software_title_id, software_title_name)
+		policy_id, installer_filename, version, software_title_id, software_title_name, attempt_number)
 SELECT
 	ua.execution_id,
 	ua.host_id,
@@ -1329,7 +1273,24 @@ SELECT
 	COALESCE(si.filename, ua.payload->>'$.installer_filename', '[deleted installer]'),
 	COALESCE(si.version, ua.payload->>'$.version', 'unknown'),
 	COALESCE(si.title_id, siua.software_title_id),
-	COALESCE(st.name, ua.payload->>'$.software_title_name', '[deleted title]')
+	COALESCE(st.name, ua.payload->>'$.software_title_name', '[deleted title]'),
+	-- Compute the attempt number for this activation. Each retry creates a
+	-- new upcoming_activity (via InsertSoftwareInstallRequest), so when that
+	-- new activity activates, COUNT(*) of previous completed attempts gives
+	-- the number of prior tries. +1 makes this the next attempt in sequence:
+	-- first install = 1, first retry = 2, second retry = 3, etc.
+	CASE
+		WHEN siua.policy_id IS NULL AND COALESCE(ua.payload->'$.with_retries', 0) = 1 THEN (
+			SELECT COUNT(*) + 1
+			FROM host_software_installs hsi2
+			WHERE hsi2.host_id = ua.host_id
+			AND hsi2.software_installer_id = siua.software_installer_id
+			AND hsi2.policy_id IS NULL
+			AND hsi2.removed = 0 AND hsi2.canceled = 0 AND hsi2.host_deleted_at IS NULL
+			AND (hsi2.attempt_number > 0 OR hsi2.attempt_number IS NULL)
+		)
+		ELSE NULL
+	END
 FROM
 	upcoming_activities ua
 	INNER JOIN software_install_upcoming_activities siua
@@ -1684,7 +1645,7 @@ WHERE
 	// have a cron job that will retry for hosts with pending MDM commands.
 	if ds.pusher != nil {
 		if _, err := ds.pusher.Push(ctx, []string{hostData.UUID}); err != nil {
-			level.Error(ds.logger).Log("msg", "failed to send push notification", "err", err, "hostID", hostID, "hostUUID", hostData.UUID) //nolint:errcheck
+			ds.logger.ErrorContext(ctx, "failed to send push notification", "err", err, "hostID", hostID, "hostUUID", hostData.UUID)
 		}
 	}
 	return nil
