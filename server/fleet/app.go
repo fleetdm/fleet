@@ -248,6 +248,8 @@ type MDM struct {
 
 	EnableDiskEncryption optjson.Bool `json:"enable_disk_encryption"`
 
+	EnableRecoveryLockPassword optjson.Bool `json:"enable_recovery_lock_password"`
+
 	RequireBitLockerPIN optjson.Bool `json:"windows_require_bitlocker_pin"`
 
 	WindowsSettings WindowsSettings `json:"windows_settings"`
@@ -1098,6 +1100,9 @@ func (c AppConfig) MarshalJSON() ([]byte, error) {
 	// it's not valid.
 	if !c.MDM.EnableDiskEncryption.Valid {
 		c.MDM.EnableDiskEncryption = optjson.SetBool(false)
+	}
+	if !c.MDM.EnableRecoveryLockPassword.Valid {
+		c.MDM.EnableRecoveryLockPassword = optjson.SetBool(false)
 	}
 	if !c.MDM.MacOSSetup.EnableReleaseDeviceManually.Valid {
 		c.MDM.MacOSSetup.EnableReleaseDeviceManually = optjson.SetBool(false)

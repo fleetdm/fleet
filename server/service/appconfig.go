@@ -1073,6 +1073,21 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 		}
 	}
 
+	if appConfig.MDM.EnableRecoveryLockPassword.Valid &&
+		oldAppConfig.MDM.EnableRecoveryLockPassword.Value != appConfig.MDM.EnableRecoveryLockPassword.Value {
+		if oldAppConfig.MDM.EnabledAndConfigured {
+			var act fleet.ActivityDetails
+			if appConfig.MDM.EnableRecoveryLockPassword.Value {
+				act = fleet.ActivityTypeEnabledRecoveryLockPassword{}
+			} else {
+				act = fleet.ActivityTypeDisabledRecoveryLockPassword{}
+			}
+			if err := svc.NewActivity(ctx, authz.UserFromContext(ctx), act); err != nil {
+				return nil, ctxerr.Wrap(ctx, err, "create activity for app config recovery lock password")
+			}
+		}
+	}
+
 	mdmEnableEndUserAuthChanged := oldAppConfig.MDM.MacOSSetup.EnableEndUserAuthentication != appConfig.MDM.MacOSSetup.EnableEndUserAuthentication
 	if mdmEnableEndUserAuthChanged {
 		var act fleet.ActivityDetails
