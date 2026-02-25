@@ -693,6 +693,7 @@ module.exports = {
                   }
                 }
                 if(embeddedMetadata.category === 'case study') {
+                  // If a case study article does not have a `useBasicArticleTemplate` meta tag, check to see if has the meta tags required to use the case study speciifc template page.
                   if(typeof embeddedMetadata.useBasicArticleTemplate === 'undefined') {
                     // Note: Case study articles use a page template that requires additional meta tags.
                     if(!embeddedMetadata.summaryChallenge){
