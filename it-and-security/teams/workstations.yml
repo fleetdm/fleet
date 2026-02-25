@@ -46,9 +46,6 @@ controls:
       - path: ../lib/macos/configuration-profiles/date-time.mobileconfig
       - path: ../lib/macos/configuration-profiles/automatic-app-store-updates.mobileconfig
       - path: ../lib/macos/configuration-profiles/chrome-enrollment.mobileconfig
-      - path: ../lib/macos/configuration-profiles/company-portal-sso-extension.mobileconfig
-        labels_include_any:
-          - "Conditional access test group"
       - path: ../lib/macos/configuration-profiles/disable-bluetooth-file-sharing.mobileconfig
       - path: ../lib/macos/configuration-profiles/disable-content-caching.mobileconfig
       - path: ../lib/macos/configuration-profiles/disable-guest-account.mobileconfig
@@ -139,7 +136,6 @@ policies:
   - path: ../lib/macos/policies/1password-installed.yml
   - path: ../lib/macos/policies/install-macos-compatibility-extension.yml
   - path: ../lib/macos/policies/company-portal-installed.yml
-  - path: ../lib/macos/policies/entra-conditional-access-check.yml
   - path: ../lib/macos/policies/install-nudge.yml
   # Windows policies
   - path: ../lib/windows/policies/antivirus-signatures-up-to-date.yml
@@ -185,12 +181,6 @@ software:
         - "Keynote 14 installed"
       categories:
         - Productivity
-    - path: ../lib/macos/software/company-portal.yml # Company Portal for macOS
-      self_service: true
-      labels_include_any:
-        - "Conditional access test group"
-      categories:
-        - Security
     - path: ../lib/macos/software/nudge.yml # Nudge for macOS
       self_service: false
       categories:
