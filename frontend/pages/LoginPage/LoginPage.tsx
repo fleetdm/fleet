@@ -10,6 +10,7 @@ import { RoutingContext } from "context/routing";
 import { ISSOSettings } from "interfaces/ssoSettings";
 import { ILoginUserData } from "interfaces/user";
 import local from "utilities/local";
+import authToken from "utilities/auth_token";
 import configAPI from "services/entities/config";
 import sessionsAPI, { ISSOSettingsResponse } from "services/entities/sessions";
 import formatErrorResponse from "utilities/format_error_response";
@@ -121,6 +122,7 @@ const LoginPage = ({ router, location }: ILoginPageProps) => {
         const response = await sessionsAPI.login(formData);
         const { user, available_teams, token } = response;
 
+        authToken.save(token);
         local.setItem("auth_token", token);
 
         setCurrentUser(user);

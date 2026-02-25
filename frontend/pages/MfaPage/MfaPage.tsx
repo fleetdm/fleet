@@ -6,6 +6,7 @@ import { AppContext } from "context/app";
 import { RoutingContext } from "context/routing";
 import paths from "router/paths";
 import local from "utilities/local";
+import authToken from "utilities/auth_token";
 import configAPI from "services/entities/config";
 import sessionsAPI from "services/entities/sessions";
 
@@ -44,6 +45,7 @@ const MfaPage = ({ router, params }: IMfaPage) => {
       const response = await sessionsAPI.finishMFA({ token: mfaToken });
       const { user, available_teams, token } = response;
 
+      authToken.save(token);
       local.setItem("auth_token", token);
 
       setCurrentUser(user);
