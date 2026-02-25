@@ -51,7 +51,7 @@ func PostJSONWithTimeout(ctx context.Context, url string, v any, logger *slog.Lo
 	defer resp.Body.Close()
 
 	if resp.StatusCode < 200 || resp.StatusCode > 299 {
-		body, _ := io.ReadAll(resp.Body)
+		body, _ := io.ReadAll(io.LimitReader(resp.Body, 513))
 		bodyStr := string(body)
 		if len(bodyStr) > 512 {
 			bodyStr = bodyStr[:512]

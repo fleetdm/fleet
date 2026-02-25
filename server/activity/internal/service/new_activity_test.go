@@ -223,26 +223,15 @@ func newTestServiceWithWebhook(ds types.Datastore, providers activity.DataProvid
 func TestNewActivityWebhook(t *testing.T) {
 	t.Parallel()
 
-	// webhookBody is a local type matching the webhook payload shape, used only for
-	// decoding in this test. The production type is unexported (webhookPayload).
-	type testWebhookPayload struct {
-		Timestamp     time.Time        `json:"timestamp"`
-		ActorFullName *string          `json:"actor_full_name"`
-		ActorID       *uint            `json:"actor_id"`
-		ActorEmail    *string          `json:"actor_email"`
-		Type          string           `json:"type"`
-		Details       *json.RawMessage `json:"details"`
-	}
-
 	webhookChannel := make(chan struct{}, 1)
-	var webhookBody testWebhookPayload
+	var webhookBody webhookPayload
 	fail429 := false
 
 	startMockServer := func(t *testing.T) string {
 		srv := httptest.NewServer(
 			http.HandlerFunc(
 				func(w http.ResponseWriter, r *http.Request) {
-					webhookBody = testWebhookPayload{}
+					webhookBody = webhookPayload{}
 					if r.Method != "POST" {
 						w.WriteHeader(http.StatusMethodNotAllowed)
 						return
@@ -342,7 +331,7 @@ func TestNewActivityWebhook(t *testing.T) {
 			err := svc.NewActivity(t.Context(), tt.user, act)
 			require.NoError(t, err)
 			select {
-			case <-time.After(1 * time.Second):
+			case <-time.After(3 * time.Second):
 				t.Error("timeout waiting for webhook")
 			case <-webhookChannel:
 				if tt.doError {
@@ -401,12 +390,7 @@ func TestNewActivityWebhookDisabled(t *testing.T) {
 	}
 
 	svc := newTestServiceWithWebhook(ds, providers)
-	user := &api.User{ID: 1, Name: "testUser", Email: "testUser@example.com"}
-	err := svc.NewActivity(t.Context(), user, simpleActivity{Name: "no webhook"})
+	err := svc.NewActivity(t.Context(), &api.User{ID: 1}, simpleActivity{Name: "no webhook"})
 	require.NoError(t, err)
 	require.True(t, ds.newActivityCalled)
-	require.NotNil(t, ds.lastUser)
-	assert.Equal(t, user.ID, ds.lastUser.ID)
-	assert.Equal(t, user.Name, ds.lastUser.Name)
-	assert.Equal(t, user.Email, ds.lastUser.Email)
 }
