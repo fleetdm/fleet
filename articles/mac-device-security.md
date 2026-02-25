@@ -126,5 +126,5 @@ Yes. MDM tools that manage multiple operating systems, like Fleet, provide unifi
 <meta name="authorGitHubUsername" value="nonpunctual">
 <meta name="category" value="articles">
 <meta name="publishedOn" value="2026-02-25">
-<meta name="description" value="Learn how Mac endpoint security works, from Apple's native protections (SIP, XProtect, TCC) to third-party EDR tools for enterprise visibility and compliance.">
+<meta name="description" value="Learn how Mac endpoint security works, from Apple's protections (SIP, XProtect, TCC) to third-party tools for enterprise visibility and compliance.">
 
