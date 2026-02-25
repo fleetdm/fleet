@@ -530,7 +530,7 @@ func ValidateRole(globalRole *string, teamUsers []UserTeam) error {
 	}
 
 	if len(teamUsers) > 0 {
-		return NewError(ErrNoRoleNeeded, "Cannot specify both Global Role and Fleet Roles")
+		return NewError(ErrNoRoleNeeded, "Cannot specify both global and fleet-scoped roles")
 	}
 
 	if !ValidGlobalRole(*globalRole) {

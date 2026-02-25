@@ -261,7 +261,7 @@ func testUserGlobalRole(t *testing.T, ds fleet.Datastore, users []*fleet.User) {
 	})
 	var ferr *fleet.Error
 	require.True(t, errors.As(err, &ferr))
-	assert.Equal(t, "Cannot specify both Global Role and Fleet Roles", ferr.Message)
+	assert.Equal(t, "Cannot specify both global and fleet-scoped roles", ferr.Message)
 }
 
 func testUsersHas(t *testing.T, ds *Datastore) {
