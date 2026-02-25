@@ -15,19 +15,69 @@ Either method allows the Santa app to be installed on a test device group throug
 
 **Step 2: Deploy the Santa configuration**
 
-Santa Configuration Profile: https://github.com/fleetdm/fleet/blob/main/it-and-security/lib/macos/configuration-profiles/santa-configuration.mobileconfig
-
-Santa rules Configuration Profile: https://github.com/fleetdm/fleet/blob/main/it-and-security/lib/macos/configuration-profiles/santa-rules.mobileconfig
-
 Our suggested best practice is to deploy two Configuration Profiles: one for managing the Santa app configuration and the other for managing Santa rules. Keeping the two configurations modular and separate minimizes the risk of Santa rules changes from interfering with the app config.
 
-![santa-configuration](../website/assets/images/articles/santa-configuration-630x395@2x.png)
+Here's a snippet from our [Santa configuration profile](https://github.com/fleetdm/fleet/blob/main/it-and-security/lib/macos/configuration-profiles/santa-configuration.mobileconfig):
 
-_Santa configuration_
+```xml
+<dict>
+    <key>BannedBlockMessage</key>
+    <string>This application has been blocked by a security policy.</string>
+    <key>ClientMode</key>
+    <integer>1</integer>
+    <key>FileChangesRegex</key>
+    <string>^/(?!(?:private/tmp|Library/(?:Caches|Managed Installs/Logs|(?:Managed )?Preferences))/)</string>
+    <key>MachineIDKey</key>
+    <string>MachineUUID</string>
+    <key>MachineIDPlist</key>
+    <string>/Library/Preferences/com.company.machine-mapping.plist</string>
+    <key>MachineOwnerKey</key>
+    <string>Owner</string>
+    <key>MachineOwnerPlist</key>
+    <string>/Library/Preferences/com.company.machine-mapping.plist</string>
+    <key>ModeNotificationLockdown</key>
+    <string>Entering Lockdown mode</string>
+    <key>ModeNotificationMonitor</key>
+    <string>Entering Monitor mode&lt;br/&gt;Please be careful!</string>
+    <key>SyncBaseURL</key>
+    <string></string>
+</dict>
+```
 
-![santa-rules](../website/assets/images/articles/santa-rules-650x495@2x.png)
+Here's a snippet from our [Santa rules configuration profile](https://github.com/fleetdm/fleet/blob/main/it-and-security/lib/macos/configuration-profiles/santa-rules.mobileconfig):
 
-_Santa rules_
+```xml
+<key>StaticRules</key>
+<array>
+    <dict>
+        <!-- Always allow files signed by North Pole Security Inc -->
+        <key>identifier</key>
+        <string>ZMCG7MLDV9</string>
+        <key>policy</key>
+        <string>ALLOWLIST</string>
+        <key>rule_type</key>
+        <string>TEAMID</string>
+    </dict>
+    <dict>
+        <!-- Always BLOCK the BundleExample.app binary in Santa's testdata files, for testing -->
+        <key>identifier</key>
+        <string>b7c1e3fd640c5f211c89b02c2c6122f78ce322aa5c56eb0bb54bc422a8f8b670</string>
+        <key>policy</key>
+        <string>BLOCKLIST</string>
+        <key>rule_type</key>
+        <string>BINARY</string>
+    </dict>
+    <dict>
+        <!-- Block WhatsApp.app -->
+        <key>identifier</key>
+        <string>54a8ec11bcea48a276b1fdce556a29108ba77de4</string>
+        <key>policy</key>
+        <string>BLOCKLIST</string>
+        <key>rule_type</key>
+        <string>CDHASH</string>
+    </dict>
+</array>
+```
 
 **Step 3. Deploy Santa Extensions**
 

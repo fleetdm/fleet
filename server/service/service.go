@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/WatchBeam/clock"
+	activity_api "github.com/fleetdm/fleet/v4/server/activity/api"
 	"github.com/fleetdm/fleet/v4/server/authz"
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -71,6 +72,10 @@ type Service struct {
 	keyValueStore fleet.KeyValueStore
 
 	androidSvc android.Service
+
+	// activitySvc is the activity bounded context service for creating activities.
+	// When set, NewActivity delegates to this service instead of the legacy implementation.
+	activitySvc activity_api.NewActivityService
 }
 
 // ConditionalAccessMicrosoftProxy is the interface of the Microsoft compliance proxy.
@@ -190,6 +195,12 @@ func NewService(
 
 func (svc *Service) SendEmail(ctx context.Context, mail fleet.Email) error {
 	return svc.mailService.SendEmail(ctx, mail)
+}
+
+// SetActivityService sets the activity bounded context service for creating activities.
+// This should be called after NewService to inject the activity service dependency.
+func (svc *Service) SetActivityService(activitySvc activity_api.NewActivityService) {
+	svc.activitySvc = activitySvc
 }
 
 type validationMiddleware struct {

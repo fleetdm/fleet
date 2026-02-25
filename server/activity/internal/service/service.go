@@ -16,7 +16,10 @@ import (
 	platform_authz "github.com/fleetdm/fleet/v4/server/platform/authz"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/hashicorp/go-multierror"
+	"go.opentelemetry.io/otel"
 )
+
+var tracer = otel.Tracer("github.com/fleetdm/fleet/v4/server/activity/internal/service")
 
 // streamBatchSize is the number of activities to fetch per batch when streaming.
 const streamBatchSize uint = 500
@@ -43,19 +46,27 @@ func applyListOptionsDefaults(opt *api.ListOptions, defaultOrderKey string) {
 
 // Service is the activity bounded context service implementation.
 type Service struct {
-	authz     platform_authz.Authorizer
-	store     types.Datastore
-	providers activity.DataProviders
-	logger    *slog.Logger
+	authz         platform_authz.Authorizer
+	store         types.Datastore
+	providers     activity.DataProviders
+	webhookSendFn activity.WebhookSendFunc
+	logger        *slog.Logger
 }
 
 // NewService creates a new activity service.
-func NewService(authz platform_authz.Authorizer, store types.Datastore, providers activity.DataProviders, logger *slog.Logger) *Service {
+func NewService(
+	authz platform_authz.Authorizer,
+	store types.Datastore,
+	providers activity.DataProviders,
+	webhookSendFn activity.WebhookSendFunc,
+	logger *slog.Logger,
+) *Service {
 	return &Service{
-		authz:     authz,
-		store:     store,
-		providers: providers,
-		logger:    logger,
+		authz:         authz,
+		store:         store,
+		providers:     providers,
+		webhookSendFn: webhookSendFn,
+		logger:        logger,
 	}
 }
 
