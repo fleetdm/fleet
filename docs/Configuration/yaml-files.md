@@ -128,12 +128,21 @@ This type of policy automatically updates a query to check if the host runs the 
 
 #### Automations
 
+##### Install software
+
 _Available in Fleet Premium_
 
-You can trigger software installs or script runs when policy fails:
+To trigger software install, when policy fails, specify one of:
+  - `install_software.package_path` is the path to a custom package YAML. Only one package can be specified in the package YAML.
+  - `install_software.hash_sha256` is [SHA256 hash](https://fleetdm.com/docs/configuration/yaml-files#hash) of a custom package.
 
-- For software install, specify either `install_software.package_path` or `install_software.hash_sha256` in your YAML. If `install_software.package_path` only one package can be specified in the package YAML.
-- For script runs, specify `run_script.path`.
+#### Run script
+
+_Available in Fleet Premium_
+
+To trigger script run, when policy fails, specify:
+
+- `run_script.path` is a path to a script YAML.
 
 > Specifying one package without a list is deprecated as of Fleet 4.73. It is maintained for backwards compatibility. Please use a list instead even if you're only specifying one package.
 
