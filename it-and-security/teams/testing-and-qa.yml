@@ -43,6 +43,7 @@ controls:
   scripts:
     # macOS scripts
     - path: ../lib/macos/scripts/uninstall-fleetd-macos.sh
+    - path: ../lib/macos/scripts/create-conditional-access-allow-file.sh
     # Windows scripts
     - path: ../lib/windows/scripts/uninstall-fleetd-windows.ps1
     # Linux scripts
