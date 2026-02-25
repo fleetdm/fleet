@@ -713,7 +713,7 @@ If an end user is on vacation (offline for more than 30 days), their certificate
 
 Fleet automatically retries each failed macOS, iOS, iPadOS, Windows, and Android certificate once per host, checking every 30 seconds for certificates to resend. Learn more in the [4.38.0 release article](https://fleetdm.com/releases/fleet-4-38-0#failed-profile-redelivery).
 
-> Currently, for NDES, Smallstep, and custom SCEP CAs, Fleet requires that the ⁠`$FLEET_VAR_SCEP_RENEWAL_ID` variable is in the certificate's OU (Organizational Unit) for automatic renewal to work. For some CAs, including [NDES](https://learn.microsoft.com/en-us/windows-server/identity/ad-ds/plan/active-directory-domain-services-maximum-limits?utm_source=chatgpt.com#:~:text=OU%20names%20can%20only%20be%2064%20characters%20long.), the OU has a maximum length of 64 characters so any characters beyond this limit get truncated, causing the renewal to fail.
+> Currently, for NDES, Smallstep, and custom SCEP CAs, Fleet requires that the ⁠`$FLEET_VAR_SCEP_RENEWAL_ID` variable is in the certificate's OU (Organizational Unit) for automatic renewal to work for Apple and Windows hosts. For some CAs, including [NDES](https://learn.microsoft.com/en-us/windows-server/identity/ad-ds/plan/active-directory-domain-services-maximum-limits?utm_source=chatgpt.com#:~:text=OU%20names%20can%20only%20be%2064%20characters%20long.), the OU has a maximum length of 64 characters so any characters beyond this limit get truncated, causing the renewal to fail.
 >
 > The ⁠`$FLEET_VAR_SCEP_RENEWAL_ID` is a 36 character UUID. Please make sure that any additional variables or content combined with it do not exceed the remaining 28 characters.
 >
