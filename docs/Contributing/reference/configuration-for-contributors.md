@@ -251,10 +251,7 @@ Apple declarations (DDM profiles). This allows deploying any
 [declaration](https://developer.apple.com/documentation/devicemanagement/devicemanagement-declarations)
 type without restriction.
 
-**Note:** Most declarations are not usable natively with Fleet as they may require additional components, for
-instance, any declaration that requires any additional
-[assets](https://developer.apple.com/documentation/devicemanagement/assetdata) like a
-[ServiceConfigurationFiles](https://developer.apple.com/documentation/devicemanagement/servicesconfigurationfiles) declaration.
+**Note: **[Asset](https://developer.apple.com/documentation/devicemanagement/devicemanagement-declarations#Assets) declarations require additional infrastructure. You need to self-host the asset and include the URL in the [declaration](https://developer.apple.com/documentation/devicemanagement/assetdata#Asset-example).
 
 **Warning:** Enabling this option bypasses all safety checks for declarations, including checks for
 forbidden declaration types, reserved identifiers, and required prefixes. Use only when you need to
