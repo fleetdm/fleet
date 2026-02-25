@@ -6,6 +6,7 @@ import (
 	"os"
 	"testing"
 
+	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/platform/logging"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
@@ -43,7 +44,7 @@ func TestIntegrationsSMTP(t *testing.T) {
 func (s *integrationSMTPTestSuite) TestSMTPValidation() {
 	t := s.T()
 
-	acResp := appConfigResponse{}
+	acResp := fleet.AppConfigResponse{}
 	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
 		"smtp_settings": {
 			"enable_smtp": true,

@@ -977,19 +977,19 @@ func TestWipeHostRequestDecodeBody(t *testing.T) {
 		name          string
 		body          io.Reader
 		expectedError string
-		expectation   func(t *testing.T, req *wipeHostRequest)
+		expectation   func(t *testing.T, req *fleet.WipeHostRequest)
 	}{
 		{
 			name: "empty body",
 			body: strings.NewReader(""),
-			expectation: func(t *testing.T, req *wipeHostRequest) {
+			expectation: func(t *testing.T, req *fleet.WipeHostRequest) {
 				require.Nil(t, req.Metadata)
 			},
 		},
 		{
 			name: "doWipe",
 			body: strings.NewReader(`{"windows": {"wipe_type": "doWipe"}}`),
-			expectation: func(t *testing.T, req *wipeHostRequest) {
+			expectation: func(t *testing.T, req *fleet.WipeHostRequest) {
 				require.NotNil(t, req.Metadata)
 				require.NotNil(t, req.Metadata.Windows)
 				require.Equal(t, fleet.MDMWindowsWipeTypeDoWipe, req.Metadata.Windows.WipeType)
@@ -998,7 +998,7 @@ func TestWipeHostRequestDecodeBody(t *testing.T) {
 		{
 			name: "doWipeProtected",
 			body: strings.NewReader(`{"windows": {"wipe_type": "doWipeProtected"}}`),
-			expectation: func(t *testing.T, req *wipeHostRequest) {
+			expectation: func(t *testing.T, req *fleet.WipeHostRequest) {
 				require.NotNil(t, req.Metadata)
 				require.NotNil(t, req.Metadata.Windows)
 				require.Equal(t, fleet.MDMWindowsWipeTypeDoWipeProtected, req.Metadata.Windows.WipeType)
@@ -1012,7 +1012,7 @@ func TestWipeHostRequestDecodeBody(t *testing.T) {
 		{
 			name: "empty payload",
 			body: strings.NewReader(`{}`),
-			expectation: func(t *testing.T, req *wipeHostRequest) {
+			expectation: func(t *testing.T, req *fleet.WipeHostRequest) {
 				require.NotNil(t, req.Metadata)
 				require.Nil(t, req.Metadata.Windows)
 			},
@@ -1020,7 +1020,7 @@ func TestWipeHostRequestDecodeBody(t *testing.T) {
 		{
 			name: "windows field is null",
 			body: strings.NewReader(`{"windows": null}`),
-			expectation: func(t *testing.T, req *wipeHostRequest) {
+			expectation: func(t *testing.T, req *fleet.WipeHostRequest) {
 				require.NotNil(t, req.Metadata)
 				require.Nil(t, req.Metadata.Windows)
 			},
@@ -1034,7 +1034,7 @@ func TestWipeHostRequestDecodeBody(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			sut := wipeHostRequest{}
+			sut := fleet.WipeHostRequest{}
 			err := sut.DecodeBody(ctx, tc.body, nil, nil)
 
 			if tc.expectedError != "" {

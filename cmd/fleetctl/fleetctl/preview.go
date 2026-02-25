@@ -19,6 +19,7 @@ import (
 
 	"github.com/briandowns/spinner"
 	"github.com/cenkalti/backoff/v4"
+	fleetclient "github.com/fleetdm/fleet/v4/client"
 	"github.com/fleetdm/fleet/v4/ee/server/licensing"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/constant"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/packaging"
@@ -312,7 +313,7 @@ Use the stop and reset subcommands to manage the server and dependencies once st
 				password = "preview1337#"
 			)
 
-			fleetClient, err := service.NewClient(address, true, "", "")
+			fleetClient, err := fleetclient.NewClient(address, true, "", "")
 			if err != nil {
 				return fmt.Errorf("Error creating Fleet API client handler: %w", err)
 			}
@@ -320,7 +321,7 @@ Use the stop and reset subcommands to manage the server and dependencies once st
 			token, err := fleetClient.Setup(email, "Admin", password, "Fleet for osquery")
 			if err != nil {
 				switch ctxerr.Cause(err).(type) {
-				case service.SetupAlreadyErr:
+				case fleetclient.SetupAlreadyErr:
 					// Ignore this error
 				default:
 					return fmt.Errorf("Error setting up Fleet: %w", err)
@@ -384,7 +385,7 @@ Use the stop and reset subcommands to manage the server and dependencies once st
 				token,
 				logger,
 				fleethttp.NewClient,
-				service.NewClient,
+				fleetclient.NewClient,
 				nil, // No mock ApplyGroup for production code
 			); err != nil {
 				return fmt.Errorf("failed to apply starter library: %w", err)
@@ -592,7 +593,7 @@ func waitStartup() error {
 	return nil
 }
 
-func waitFirstHost(client *service.Client) error {
+func waitFirstHost(client *fleetclient.Client) error {
 	retryStrategy := backoff.NewExponentialBackOff()
 	retryStrategy.MaxInterval = 1 * time.Second
 

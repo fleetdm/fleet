@@ -2,142 +2,23 @@ package service
 
 import (
 	"context"
-	"encoding/json"
-	"time"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 )
 
-////////////////////////////////////////////////////////////////////////////////
-// Search Targets
-////////////////////////////////////////////////////////////////////////////////
-
-type searchTargetsRequest struct {
-	// MatchQuery is the query SQL
-	MatchQuery string `json:"query"`
-	// QueryID is the ID of a saved query to run (used to determine if this is a
-	// query that observers can run).
-	QueryID *uint `json:"query_id" renameto:"report_id"`
-	// Selected is the list of IDs that are already selected on the caller side
-	// (e.g. the UI), so those are IDs that will be omitted from the returned
-	// payload.
-	Selected fleet.HostTargets `json:"selected"`
-}
-
-type labelSearchResult struct {
-	*fleet.Label
-	DisplayText string `json:"display_text"`
-	Count       int    `json:"count"`
-}
-
-type teamSearchResult struct {
-	*fleet.Team
-	DisplayText string `json:"display_text"`
-	Count       int    `json:"count"`
-}
-
-func (t teamSearchResult) MarshalJSON() ([]byte, error) {
-	x := struct {
-		ID          uint      `json:"id"`
-		CreatedAt   time.Time `json:"created_at"`
-		Name        string    `json:"name"`
-		Description string    `json:"description"`
-		fleet.TeamConfig
-		UserCount   int                   `json:"user_count"`
-		Users       []fleet.TeamUser      `json:"users,omitempty"`
-		HostCount   int                   `json:"host_count"`
-		Hosts       []fleet.HostResponse  `json:"hosts,omitempty"`
-		Secrets     []*fleet.EnrollSecret `json:"secrets,omitempty"`
-		DisplayText string                `json:"display_text"`
-		Count       int                   `json:"count"`
-	}{
-		ID:          t.ID,
-		CreatedAt:   t.CreatedAt,
-		Name:        t.Name,
-		Description: t.Description,
-		TeamConfig:  t.Config,
-		UserCount:   t.UserCount,
-		Users:       t.Users,
-		HostCount:   t.HostCount,
-		Hosts:       fleet.HostResponsesForHostsCheap(t.Hosts),
-		Secrets:     t.Secrets,
-		DisplayText: t.DisplayText,
-		Count:       t.Count,
-	}
-
-	return json.Marshal(x)
-}
-
-func (t *teamSearchResult) UnmarshalJSON(b []byte) error {
-	var x struct {
-		ID          uint      `json:"id"`
-		CreatedAt   time.Time `json:"created_at"`
-		Name        string    `json:"name"`
-		Description string    `json:"description"`
-		fleet.TeamConfig
-		UserCount   int                   `json:"user_count"`
-		Users       []fleet.TeamUser      `json:"users,omitempty"`
-		HostCount   int                   `json:"host_count"`
-		Hosts       []fleet.Host          `json:"hosts,omitempty"`
-		Secrets     []*fleet.EnrollSecret `json:"secrets,omitempty"`
-		DisplayText string                `json:"display_text"`
-		Count       int                   `json:"count"`
-	}
-
-	if err := json.Unmarshal(b, &x); err != nil {
-		return err
-	}
-
-	*t = teamSearchResult{
-		Team: &fleet.Team{
-			ID:          x.ID,
-			CreatedAt:   x.CreatedAt,
-			Name:        x.Name,
-			Description: x.Description,
-			Config:      x.TeamConfig,
-			UserCount:   x.UserCount,
-			Users:       x.Users,
-			HostCount:   x.HostCount,
-			Hosts:       x.Hosts,
-			Secrets:     x.Secrets,
-		},
-		DisplayText: x.DisplayText,
-		Count:       x.Count,
-	}
-
-	return nil
-}
-
-type targetsData struct {
-	Hosts  []*fleet.HostResponse `json:"hosts"`
-	Labels []labelSearchResult   `json:"labels"`
-	Teams  []teamSearchResult    `json:"teams" renameto:"fleets"`
-}
-
-type searchTargetsResponse struct {
-	Targets                *targetsData `json:"targets,omitempty"`
-	TargetsCount           uint         `json:"targets_count"`
-	TargetsOnline          uint         `json:"targets_online"`
-	TargetsOffline         uint         `json:"targets_offline"`
-	TargetsMissingInAction uint         `json:"targets_missing_in_action"`
-	Err                    error        `json:"error,omitempty"`
-}
-
-func (r searchTargetsResponse) Error() error { return r.Err }
-
 func searchTargetsEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
-	req := request.(*searchTargetsRequest)
+	req := request.(*fleet.SearchTargetsRequest)
 
 	results, err := svc.SearchTargets(ctx, req.MatchQuery, req.QueryID, req.Selected)
 	if err != nil {
-		return searchTargetsResponse{Err: err}, nil
+		return fleet.SearchTargetsResponse{Err: err}, nil
 	}
 
-	targets := &targetsData{
+	targets := &fleet.TargetsData{
 		Hosts:  []*fleet.HostResponse{},
-		Labels: []labelSearchResult{},
-		Teams:  []teamSearchResult{},
+		Labels: []fleet.LabelSearchResult{},
+		Teams:  []fleet.TeamSearchResult{},
 	}
 
 	for _, host := range results.Hosts {
@@ -146,7 +27,7 @@ func searchTargetsEndpoint(ctx context.Context, request interface{}, svc fleet.S
 
 	for _, label := range results.Labels {
 		targets.Labels = append(targets.Labels,
-			labelSearchResult{
+			fleet.LabelSearchResult{
 				Label:       label,
 				DisplayText: label.Name,
 				Count:       label.HostCount,
@@ -156,7 +37,7 @@ func searchTargetsEndpoint(ctx context.Context, request interface{}, svc fleet.S
 
 	for _, team := range results.Teams {
 		targets.Teams = append(targets.Teams,
-			teamSearchResult{
+			fleet.TeamSearchResult{
 				Team:        team,
 				DisplayText: team.Name,
 				Count:       team.HostCount,
@@ -166,10 +47,10 @@ func searchTargetsEndpoint(ctx context.Context, request interface{}, svc fleet.S
 
 	metrics, err := svc.CountHostsInTargets(ctx, req.QueryID, req.Selected)
 	if err != nil {
-		return searchTargetsResponse{Err: err}, nil
+		return fleet.SearchTargetsResponse{Err: err}, nil
 	}
 
-	return searchTargetsResponse{
+	return fleet.SearchTargetsResponse{
 		Targets:                targets,
 		TargetsCount:           metrics.TotalHosts,
 		TargetsOnline:          metrics.OnlineHosts,
@@ -252,29 +133,15 @@ func (svc *Service) CountHostsInTargets(ctx context.Context, queryID *uint, targ
 	return &metrics, nil
 }
 
-type countTargetsRequest struct {
-	Selected fleet.HostTargets `json:"selected"`
-	QueryID  *uint             `json:"query_id" renameto:"report_id"`
-}
-
-type countTargetsResponse struct {
-	TargetsCount   uint  `json:"targets_count"`
-	TargetsOnline  uint  `json:"targets_online"`
-	TargetsOffline uint  `json:"targets_offline"`
-	Err            error `json:"error,omitempty"`
-}
-
-func (r countTargetsResponse) Error() error { return r.Err }
-
 func countTargetsEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
-	req := request.(*countTargetsRequest)
+	req := request.(*fleet.CountTargetsRequest)
 
 	counts, err := svc.CountHostsInTargets(ctx, req.QueryID, req.Selected)
 	if err != nil {
-		return searchTargetsResponse{Err: err}, nil
+		return fleet.SearchTargetsResponse{Err: err}, nil
 	}
 
-	return countTargetsResponse{
+	return fleet.CountTargetsResponse{
 		TargetsCount:   counts.TotalHosts,
 		TargetsOnline:  counts.OnlineHosts,
 		TargetsOffline: counts.OfflineHosts,

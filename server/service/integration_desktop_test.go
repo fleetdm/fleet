@@ -74,7 +74,7 @@ func (s *integrationTestSuite) TestDeviceAuthenticatedEndpoints() {
 	})
 
 	// get host with valid token
-	var getHostResp getDeviceHostResponse
+	var getHostResp fleet.GetDeviceHostResponse
 	res = s.DoRawNoAuth("GET", "/api/latest/fleet/device/"+token, nil, http.StatusOK)
 	require.NoError(t, json.NewDecoder(res.Body).Decode(&getHostResp))
 	require.NoError(t, res.Body.Close())
@@ -91,7 +91,7 @@ func (s *integrationTestSuite) TestDeviceAuthenticatedEndpoints() {
 
 	// make request for same host on the host details API endpoint,
 	// responses should match, except for policies and DEP assignment
-	getHostResp = getDeviceHostResponse{}
+	getHostResp = fleet.GetDeviceHostResponse{}
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", hosts[0].ID), nil, http.StatusOK, &getHostResp)
 	getHostResp.Host.Policies = nil
 	getHostResp.Host.DEPAssignedToFleet = ptr.Bool(false)
@@ -102,7 +102,7 @@ func (s *integrationTestSuite) TestDeviceAuthenticatedEndpoints() {
 	res.Body.Close()
 
 	// host should have that flag turned to true
-	getHostResp = getDeviceHostResponse{}
+	getHostResp = fleet.GetDeviceHostResponse{}
 	res = s.DoRawNoAuth("GET", "/api/latest/fleet/device/"+token, nil, http.StatusOK)
 	require.NoError(t, json.NewDecoder(res.Body).Decode(&getHostResp))
 	require.NoError(t, res.Body.Close())
@@ -113,7 +113,7 @@ func (s *integrationTestSuite) TestDeviceAuthenticatedEndpoints() {
 	require.NoError(t, res.Body.Close())
 
 	// list device mappings for valid token
-	var listDMResp listHostDeviceMappingResponse
+	var listDMResp fleet.ListHostDeviceMappingResponse
 	res = s.DoRawNoAuth("GET", "/api/latest/fleet/device/"+token+"/device_mapping", nil, http.StatusOK)
 	require.NoError(t, json.NewDecoder(res.Body).Decode(&listDMResp))
 	require.NoError(t, res.Body.Close())
@@ -127,7 +127,7 @@ func (s *integrationTestSuite) TestDeviceAuthenticatedEndpoints() {
 	devDMs := listDMResp.DeviceMapping
 
 	// compare response with standard list device mapping API for that same host
-	listDMResp = listHostDeviceMappingResponse{}
+	listDMResp = fleet.ListHostDeviceMappingResponse{}
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/device_mapping", hosts[0].ID), nil, http.StatusOK, &listDMResp)
 	require.Equal(t, hosts[0].ID, listDMResp.HostID)
 	require.Equal(t, devDMs, listDMResp.DeviceMapping)
@@ -154,7 +154,7 @@ func (s *integrationTestSuite) TestDeviceAuthenticatedEndpoints() {
 	require.NoError(t, res.Body.Close())
 
 	// response includes license info
-	getHostResp = getDeviceHostResponse{}
+	getHostResp = fleet.GetDeviceHostResponse{}
 	res = s.DoRawNoAuth("GET", "/api/latest/fleet/device/"+token, nil, http.StatusOK)
 	require.NoError(t, json.NewDecoder(res.Body).Decode(&getHostResp))
 	require.NoError(t, res.Body.Close())
@@ -162,14 +162,14 @@ func (s *integrationTestSuite) TestDeviceAuthenticatedEndpoints() {
 	require.Equal(t, getHostResp.License.Tier, "free")
 
 	// device policies are not accessible for free endpoints
-	listPoliciesResp := listDevicePoliciesResponse{}
+	listPoliciesResp := fleet.ListDevicePoliciesResponse{}
 	res = s.DoRawNoAuth("GET", "/api/latest/fleet/device/"+token+"/policies", nil, http.StatusPaymentRequired)
 	require.NoError(t, json.NewDecoder(res.Body).Decode(&getHostResp))
 	require.NoError(t, res.Body.Close())
 	require.Nil(t, listPoliciesResp.Policies)
 
 	// /device/desktop is not accessible for free endpoints
-	getDesktopResp := fleetDesktopResponse{}
+	getDesktopResp := fleet.FleetDesktopResponse{}
 	res = s.DoRawNoAuth("GET", "/api/latest/fleet/device/"+token+"/desktop", nil, http.StatusPaymentRequired)
 	require.NoError(t, json.NewDecoder(res.Body).Decode(&getDesktopResp))
 	require.NoError(t, res.Body.Close())
@@ -201,13 +201,13 @@ func (s *integrationTestSuite) TestDefaultTransparencyURL() {
 	})
 
 	// confirm initial default url
-	acResp := appConfigResponse{}
+	acResp := fleet.AppConfigResponse{}
 	s.DoJSON("GET", "/api/latest/fleet/config", nil, http.StatusOK, &acResp)
 	require.NotNil(t, acResp)
 	require.Equal(t, fleet.DefaultTransparencyURL, acResp.FleetDesktop.TransparencyURL)
 
 	// confirm device endpoint returns initial default url
-	deviceResp := &transparencyURLResponse{}
+	deviceResp := &fleet.TransparencyURLResponse{}
 	rawResp := s.DoRawNoAuth("GET", "/api/latest/fleet/device/"+token+"/transparency", nil, http.StatusTemporaryRedirect)
 	json.NewDecoder(rawResp.Body).Decode(deviceResp) //nolint:errcheck
 	rawResp.Body.Close()                             //nolint:errcheck
@@ -215,13 +215,13 @@ func (s *integrationTestSuite) TestDefaultTransparencyURL() {
 	require.Equal(t, fleet.DefaultTransparencyURL, rawResp.Header.Get("Location"))
 
 	// empty string applies default url
-	acResp = appConfigResponse{}
+	acResp = fleet.AppConfigResponse{}
 	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{"fleet_desktop": {"transparency_url":""}}`), http.StatusOK, &acResp)
 	require.NotNil(t, acResp)
 	require.Equal(t, fleet.DefaultTransparencyURL, acResp.FleetDesktop.TransparencyURL)
 
 	// device endpoint returns default url
-	deviceResp = &transparencyURLResponse{}
+	deviceResp = &fleet.TransparencyURLResponse{}
 	rawResp = s.DoRawNoAuth("GET", "/api/latest/fleet/device/"+token+"/transparency", nil, http.StatusTemporaryRedirect)
 	json.NewDecoder(rawResp.Body).Decode(deviceResp) //nolint:errcheck
 	rawResp.Body.Close()                             //nolint:errcheck
@@ -229,11 +229,11 @@ func (s *integrationTestSuite) TestDefaultTransparencyURL() {
 	require.Equal(t, fleet.DefaultTransparencyURL, rawResp.Header.Get("Location"))
 
 	// modify transparency url with custom url fails
-	acResp = appConfigResponse{}
+	acResp = fleet.AppConfigResponse{}
 	s.DoJSON("PATCH", "/api/latest/fleet/config", fleet.AppConfig{FleetDesktop: fleet.FleetDesktopSettings{TransparencyURL: "customURL"}}, http.StatusUnprocessableEntity, &acResp)
 
 	// device endpoint still returns default url
-	deviceResp = &transparencyURLResponse{}
+	deviceResp = &fleet.TransparencyURLResponse{}
 	rawResp = s.DoRawNoAuth("GET", "/api/latest/fleet/device/"+token+"/transparency", nil, http.StatusTemporaryRedirect)
 	json.NewDecoder(rawResp.Body).Decode(deviceResp) //nolint:errcheck
 	rawResp.Body.Close()                             //nolint:errcheck
@@ -271,7 +271,7 @@ func (s *integrationTestSuite) TestRateLimitOfEndpoints() {
 		{
 			endpoint: "/api/latest/fleet/forgot_password",
 			verb:     "POST",
-			payload:  forgotPasswordRequest{Email: "some@one.com"},
+			payload:  fleet.ForgotPasswordRequest{Email: "some@one.com"},
 			burst:    forgotPasswordRateLimitMaxBurst + 1,
 			status:   http.StatusAccepted,
 		},
@@ -530,21 +530,21 @@ func (s *integrationEnterpriseTestSuite) TestAlternativeBrowserHostSetting() {
 	token := "valid_token"
 	createHostAndDeviceToken(s.T(), s.ds, token)
 
-	acResp := appConfigResponse{}
+	acResp := fleet.AppConfigResponse{}
 	s.DoJSON("GET", "/api/latest/fleet/config", nil, http.StatusOK, &acResp)
 	require.NotNil(t, acResp)
 
-	getDesktopResp := fleetDesktopResponse{}
+	getDesktopResp := fleet.FleetDesktopResponse{}
 	res := s.DoRawNoAuth("GET", "/api/latest/fleet/device/"+token+"/desktop", nil, http.StatusOK)
 	require.NoError(t, json.NewDecoder(res.Body).Decode(&getDesktopResp))
 	require.NoError(t, res.Body.Close())
 	require.Equal(t, acResp.FleetDesktop.AlternativeBrowserHost, getDesktopResp.AlternativeBrowserHost)
 
-	acResp = appConfigResponse{}
+	acResp = fleet.AppConfigResponse{}
 	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{"fleet_desktop": {"alternative_browser_host":"althost"}}`), http.StatusOK, &acResp)
 	require.NotNil(t, acResp)
 
-	getDesktopResp = fleetDesktopResponse{}
+	getDesktopResp = fleet.FleetDesktopResponse{}
 	res = s.DoRawNoAuth("GET", "/api/latest/fleet/device/"+token+"/desktop", nil, http.StatusOK)
 	require.NoError(t, json.NewDecoder(res.Body).Decode(&getDesktopResp))
 	require.NoError(t, res.Body.Close())

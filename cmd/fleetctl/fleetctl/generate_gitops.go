@@ -17,11 +17,11 @@ import (
 	"strings"
 	"unicode"
 
+	fleetclient "github.com/fleetdm/fleet/v4/client"
 	"github.com/fleetdm/fleet/v4/pkg/spec"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	maintained_apps "github.com/fleetdm/fleet/v4/server/mdm/maintainedapps"
 	"github.com/fleetdm/fleet/v4/server/ptr"
-	"github.com/fleetdm/fleet/v4/server/service"
 	"github.com/ghodss/yaml"
 	"github.com/urfave/cli/v2"
 )
@@ -1923,4 +1923,4 @@ func unescapeUnicodeU8(b []byte) []byte {
 	})
 }
 
-var _ generateGitopsClient = (*service.Client)(nil)
+var _ generateGitopsClient = (*fleetclient.Client)(nil)

@@ -24,8 +24,8 @@ func (s *integrationMDMTestSuite) TestSoftwareTitleDisplayNames() {
 	ctx := context.Background()
 
 	// Create a team
-	var newTeamResp teamResponse
-	s.DoJSON("POST", "/api/latest/fleet/teams", &createTeamRequest{TeamPayload: fleet.TeamPayload{Name: ptr.String("team_" + t.Name())}}, http.StatusOK, &newTeamResp)
+	var newTeamResp fleet.TeamResponse
+	s.DoJSON("POST", "/api/latest/fleet/teams", &fleet.CreateTeamRequest{TeamPayload: fleet.TeamPayload{Name: ptr.String("team_" + t.Name())}}, http.StatusOK, &newTeamResp)
 	team := newTeamResp.Team
 
 	// Enroll a host
@@ -33,8 +33,8 @@ func (s *integrationMDMTestSuite) TestSoftwareTitleDisplayNames() {
 	host := createOrbitEnrolledHost(t, "ubuntu", "host1", s.ds)
 	createDeviceTokenForHost(t, s.ds, host.ID, token)
 
-	var addResp addHostsToTeamResponse
-	s.DoJSON("POST", "/api/latest/fleet/hosts/transfer", addHostsToTeamRequest{
+	var addResp fleet.AddHostsToTeamResponse
+	s.DoJSON("POST", "/api/latest/fleet/hosts/transfer", fleet.AddHostsToTeamRequest{
 		TeamID:  &team.ID,
 		HostIDs: []uint{host.ID},
 	}, http.StatusOK, &addResp)
@@ -111,20 +111,20 @@ func (s *integrationMDMTestSuite) TestSoftwareTitleDisplayNames() {
 	s.lastActivityMatches(fleet.ActivityTypeEditedSoftware{}.ActivityName(), activityData, 0)
 
 	// Entity has display name
-	stResp := getSoftwareTitleResponse{}
-	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d", titleID), getSoftwareTitleRequest{}, http.StatusOK, &stResp, "team_id", fmt.Sprint(team.ID))
+	stResp := fleet.GetSoftwareTitleResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d", titleID), fleet.GetSoftwareTitleRequest{}, http.StatusOK, &stResp, "team_id", fmt.Sprint(team.ID))
 	s.Assert().Equal("RubyUpdate1", stResp.SoftwareTitle.DisplayName)
 	s.Assert().Len(stResp.SoftwareTitle.SoftwarePackage.AutomaticInstallPolicies, 1)
 
 	// Auto install policy should have the display name
-	var getPolicyResp getPolicyByIDResponse
-	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/policies/%d", stResp.SoftwareTitle.SoftwarePackage.AutomaticInstallPolicies[0].ID), getPolicyByIDRequest{}, http.StatusOK, &getPolicyResp)
+	var getPolicyResp fleet.GetPolicyByIDResponse
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/policies/%d", stResp.SoftwareTitle.SoftwarePackage.AutomaticInstallPolicies[0].ID), fleet.GetPolicyByIDRequest{}, http.StatusOK, &getPolicyResp)
 	s.Assert().NotNil(getPolicyResp.Policy)
 	s.Assert().Equal("RubyUpdate1", getPolicyResp.Policy.InstallSoftware.DisplayName)
 
 	// List software titles has display name
-	var resp listSoftwareTitlesResponse
-	s.DoJSON("GET", "/api/latest/fleet/software/titles", listSoftwareTitlesRequest{}, http.StatusOK, &resp, "team_id", fmt.Sprint(team.ID))
+	var resp fleet.ListSoftwareTitlesResponse
+	s.DoJSON("GET", "/api/latest/fleet/software/titles", fleet.ListSoftwareTitlesRequest{}, http.StatusOK, &resp, "team_id", fmt.Sprint(team.ID))
 
 	s.Assert().Len(resp.SoftwareTitles, 1)
 	s.Assert().Equal("RubyUpdate1", resp.SoftwareTitles[0].DisplayName)
@@ -136,8 +136,8 @@ func (s *integrationMDMTestSuite) TestSoftwareTitleDisplayNames() {
 	}, http.StatusOK, "")
 
 	// Entity has display name
-	stResp = getSoftwareTitleResponse{}
-	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d", titleID), getSoftwareTitleRequest{}, http.StatusOK, &stResp, "team_id", fmt.Sprint(team.ID))
+	stResp = fleet.GetSoftwareTitleResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d", titleID), fleet.GetSoftwareTitleRequest{}, http.StatusOK, &stResp, "team_id", fmt.Sprint(team.ID))
 	s.Assert().Equal("RubyUpdate1", stResp.SoftwareTitle.DisplayName)
 	s.Assert().Len(stResp.SoftwareTitle.SoftwarePackage.AutomaticInstallPolicies, 1)
 
@@ -168,7 +168,7 @@ func (s *integrationMDMTestSuite) TestSoftwareTitleDisplayNames() {
 
 	// My device self service has display name
 	res := s.DoRawNoAuth("GET", "/api/latest/fleet/device/"+token+"/software?self_service=1", nil, http.StatusOK)
-	getDeviceSw := getDeviceSoftwareResponse{}
+	getDeviceSw := fleet.GetDeviceSoftwareResponse{}
 	err := json.NewDecoder(res.Body).Decode(&getDeviceSw)
 	require.NoError(t, err)
 	require.Len(t, getDeviceSw.Software, 1)
@@ -176,7 +176,7 @@ func (s *integrationMDMTestSuite) TestSoftwareTitleDisplayNames() {
 	s.Assert().Equal("RubyUpdate1", getDeviceSw.Software[0].DisplayName)
 
 	// Display name shows up in host software library
-	getHostSw := getHostSoftwareResponse{}
+	getHostSw := fleet.GetHostSoftwareResponse{}
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/software", host.ID), nil, http.StatusOK, &getHostSw, "available_for_install", "true")
 	s.Assert().Len(getHostSw.Software, 1)
 	s.Assert().Equal("RubyUpdate1", getHostSw.Software[0].DisplayName)
@@ -193,20 +193,20 @@ func (s *integrationMDMTestSuite) TestSoftwareTitleDisplayNames() {
 	}, http.StatusOK, "")
 
 	// Entity display name is empty
-	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d", titleID), getSoftwareTitleRequest{}, http.StatusOK, &stResp, "team_id", fmt.Sprint(team.ID))
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d", titleID), fleet.GetSoftwareTitleRequest{}, http.StatusOK, &stResp, "team_id", fmt.Sprint(team.ID))
 	s.Assert().Empty(stResp.SoftwareTitle.DisplayName)
 	// PATCH semantics, so we shouldn't overwrite self service
 	s.Assert().True(stResp.SoftwareTitle.SoftwarePackage.SelfService)
 	s.Assert().ElementsMatch([]string{"Developer tools", "Browsers"}, stResp.SoftwareTitle.SoftwarePackage.Categories)
 
 	// List software titles display name is empty
-	s.DoJSON("GET", "/api/latest/fleet/software/titles", listSoftwareTitlesRequest{}, http.StatusOK, &resp, "team_id", fmt.Sprint(team.ID))
+	s.DoJSON("GET", "/api/latest/fleet/software/titles", fleet.ListSoftwareTitlesRequest{}, http.StatusOK, &resp, "team_id", fmt.Sprint(team.ID))
 	s.Assert().Len(resp.SoftwareTitles, 1)
 	s.Assert().Empty(resp.SoftwareTitles[0].DisplayName)
 
 	// My device self service has display name
 	res = s.DoRawNoAuth("GET", "/api/latest/fleet/device/"+token+"/software?self_service=1", nil, http.StatusOK)
-	getDeviceSw = getDeviceSoftwareResponse{}
+	getDeviceSw = fleet.GetDeviceSoftwareResponse{}
 	err = json.NewDecoder(res.Body).Decode(&getDeviceSw)
 	require.NoError(t, err)
 	require.Len(t, getDeviceSw.Software, 1)
@@ -222,7 +222,7 @@ func (s *integrationMDMTestSuite) TestSoftwareTitleDisplayNames() {
 	setOrbitEnrollment(t, mdmHost, s.ds)
 	s.runWorker()
 
-	s.DoJSON("POST", "/api/latest/fleet/hosts/transfer", addHostsToTeamRequest{
+	s.DoJSON("POST", "/api/latest/fleet/hosts/transfer", fleet.AddHostsToTeamRequest{
 		TeamID:  &team.ID,
 		HostIDs: []uint{mdmHost.ID},
 	}, http.StatusOK, &addResp)
@@ -241,8 +241,8 @@ func (s *integrationMDMTestSuite) TestSoftwareTitleDisplayNames() {
 	}
 
 	// Create a label
-	clr := createLabelResponse{}
-	s.DoJSON("POST", "/api/latest/fleet/labels", createLabelRequest{
+	clr := fleet.CreateLabelResponse{}
+	s.DoJSON("POST", "/api/latest/fleet/labels", fleet.CreateLabelRequest{
 		LabelPayload: fleet.LabelPayload{
 			Name:    "foo",
 			HostIDs: []uint{mdmHost.ID},
@@ -251,8 +251,8 @@ func (s *integrationMDMTestSuite) TestSoftwareTitleDisplayNames() {
 
 	lbl1Name := clr.Label.Name
 
-	clr = createLabelResponse{}
-	s.DoJSON("POST", "/api/latest/fleet/labels", createLabelRequest{
+	clr = fleet.CreateLabelResponse{}
+	s.DoJSON("POST", "/api/latest/fleet/labels", fleet.CreateLabelRequest{
 		LabelPayload: fleet.LabelPayload{
 			Name: "bar",
 		},
@@ -260,8 +260,8 @@ func (s *integrationMDMTestSuite) TestSoftwareTitleDisplayNames() {
 
 	lbl2Name := clr.Label.Name
 
-	var addAppResp addAppStoreAppResponse
-	addAppReq := &addAppStoreAppRequest{
+	var addAppResp fleet.AddAppStoreAppResponse
+	addAppReq := &fleet.AddAppStoreAppRequest{
 		TeamID:           &team.ID,
 		AppStoreID:       macOSApp.AdamID,
 		SelfService:      true,
@@ -275,28 +275,28 @@ func (s *integrationMDMTestSuite) TestSoftwareTitleDisplayNames() {
 	macOSTitleID := addAppResp.TitleID
 
 	// Attempt to set name to be all whitespace, should fail
-	updateAppReq := &updateAppStoreAppRequest{TeamID: &team.ID, SelfService: ptr.Bool(false), DisplayName: ptr.String(strings.Repeat(" ", 5))}
+	updateAppReq := &fleet.UpdateAppStoreAppRequest{TeamID: &team.ID, SelfService: ptr.Bool(false), DisplayName: ptr.String(strings.Repeat(" ", 5))}
 	res = s.Do("PATCH", fmt.Sprintf("/api/latest/fleet/software/titles/%d/app_store_app", macOSTitleID), updateAppReq, http.StatusUnprocessableEntity)
 	s.Assert().Contains(extractServerErrorText(res.Body), "Cannot have a display name that is all whitespace.")
 
 	// This display name edit should succeed
-	updateAppReq = &updateAppStoreAppRequest{TeamID: &team.ID, SelfService: ptr.Bool(false), DisplayName: ptr.String("MacOSAppStoreAppUpdated1")}
-	var updateAppResp updateAppStoreAppResponse
+	updateAppReq = &fleet.UpdateAppStoreAppRequest{TeamID: &team.ID, SelfService: ptr.Bool(false), DisplayName: ptr.String("MacOSAppStoreAppUpdated1")}
+	var updateAppResp fleet.UpdateAppStoreAppResponse
 	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/software/titles/%d/app_store_app", macOSTitleID), updateAppReq, http.StatusOK, &updateAppResp)
 	s.Assert().Equal(*updateAppReq.DisplayName, updateAppResp.AppStoreApp.DisplayName)
 
 	// Entity has display name
-	stResp = getSoftwareTitleResponse{}
-	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d", macOSTitleID), getSoftwareTitleRequest{}, http.StatusOK, &stResp, "team_id", fmt.Sprint(team.ID))
+	stResp = fleet.GetSoftwareTitleResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d", macOSTitleID), fleet.GetSoftwareTitleRequest{}, http.StatusOK, &stResp, "team_id", fmt.Sprint(team.ID))
 	s.Assert().Equal(*updateAppReq.DisplayName, stResp.SoftwareTitle.DisplayName)
 
 	// Auto install policy has display name
-	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/policies/%d", stResp.SoftwareTitle.AppStoreApp.AutomaticInstallPolicies[0].ID), getPolicyByIDRequest{}, http.StatusOK, &getPolicyResp)
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/policies/%d", stResp.SoftwareTitle.AppStoreApp.AutomaticInstallPolicies[0].ID), fleet.GetPolicyByIDRequest{}, http.StatusOK, &getPolicyResp)
 	s.Assert().NotNil(getPolicyResp.Policy)
 	s.Assert().Equal(*updateAppReq.DisplayName, getPolicyResp.Policy.InstallSoftware.DisplayName)
 
 	// List software titles has display name
-	s.DoJSON("GET", "/api/latest/fleet/software/titles", listSoftwareTitlesRequest{}, http.StatusOK, &resp, "team_id", fmt.Sprint(team.ID), "query", macOSApp.Name)
+	s.DoJSON("GET", "/api/latest/fleet/software/titles", fleet.ListSoftwareTitlesRequest{}, http.StatusOK, &resp, "team_id", fmt.Sprint(team.ID), "query", macOSApp.Name)
 	for _, a := range resp.SoftwareTitles {
 		if a.ID == macOSTitleID {
 			s.Assert().Equal(*updateAppReq.DisplayName, a.DisplayName)
@@ -325,17 +325,17 @@ func (s *integrationMDMTestSuite) TestSoftwareTitleDisplayNames() {
 		macOSApp.AdamID, stResp.SoftwareTitle.Name, macOSApp.IconURL, string(macOSApp.Platform), team.Name, team.Name, team.ID, team.ID, stResp.SoftwareTitle.ID, *updateAppReq.DisplayName)
 	s.lastActivityMatches(fleet.ActivityEditedAppStoreApp{}.ActivityName(), activityData, 0)
 
-	updateAppReq = &updateAppStoreAppRequest{TeamID: &team.ID, SelfService: ptr.Bool(false), DisplayName: ptr.String("MacOSAppStoreAppUpdated2")}
+	updateAppReq = &fleet.UpdateAppStoreAppRequest{TeamID: &team.ID, SelfService: ptr.Bool(false), DisplayName: ptr.String("MacOSAppStoreAppUpdated2")}
 	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/software/titles/%d/app_store_app", macOSTitleID), updateAppReq, http.StatusOK, &updateAppResp)
 
 	s.Assert().Equal(*updateAppReq.DisplayName, updateAppResp.AppStoreApp.DisplayName)
 
-	stResp = getSoftwareTitleResponse{}
-	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d", macOSTitleID), getSoftwareTitleRequest{}, http.StatusOK, &stResp, "team_id", fmt.Sprint(team.ID))
+	stResp = fleet.GetSoftwareTitleResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d", macOSTitleID), fleet.GetSoftwareTitleRequest{}, http.StatusOK, &stResp, "team_id", fmt.Sprint(team.ID))
 	s.Assert().Equal(*updateAppReq.DisplayName, stResp.SoftwareTitle.DisplayName)
 
 	// List software titles has display name
-	s.DoJSON("GET", "/api/latest/fleet/software/titles", listSoftwareTitlesRequest{}, http.StatusOK, &resp, "team_id", fmt.Sprint(team.ID), "query", macOSApp.Name)
+	s.DoJSON("GET", "/api/latest/fleet/software/titles", fleet.ListSoftwareTitlesRequest{}, http.StatusOK, &resp, "team_id", fmt.Sprint(team.ID), "query", macOSApp.Name)
 	for _, a := range resp.SoftwareTitles {
 		if a.ID == macOSTitleID {
 			s.Assert().Equal(*updateAppReq.DisplayName, a.DisplayName)
@@ -345,7 +345,7 @@ func (s *integrationMDMTestSuite) TestSoftwareTitleDisplayNames() {
 	existingDisplayName := *updateAppReq.DisplayName
 
 	// Omitting the field is a no-op
-	updateAppReq = &updateAppStoreAppRequest{
+	updateAppReq = &fleet.UpdateAppStoreAppRequest{
 		TeamID:      &team.ID,
 		SelfService: ptr.Bool(true),
 		Categories:  []string{"Developer tools", "Browsers"},
@@ -354,19 +354,19 @@ func (s *integrationMDMTestSuite) TestSoftwareTitleDisplayNames() {
 
 	s.Assert().Equal(existingDisplayName, updateAppResp.AppStoreApp.DisplayName)
 
-	stResp = getSoftwareTitleResponse{}
-	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d", macOSTitleID), getSoftwareTitleRequest{}, http.StatusOK, &stResp, "team_id", fmt.Sprint(team.ID))
+	stResp = fleet.GetSoftwareTitleResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d", macOSTitleID), fleet.GetSoftwareTitleRequest{}, http.StatusOK, &stResp, "team_id", fmt.Sprint(team.ID))
 	s.Assert().Equal(existingDisplayName, stResp.SoftwareTitle.DisplayName)
 
 	// List software titles has display name
-	s.DoJSON("GET", "/api/latest/fleet/software/titles", listSoftwareTitlesRequest{}, http.StatusOK, &resp, "team_id", fmt.Sprint(team.ID), "query", macOSApp.Name)
+	s.DoJSON("GET", "/api/latest/fleet/software/titles", fleet.ListSoftwareTitlesRequest{}, http.StatusOK, &resp, "team_id", fmt.Sprint(team.ID), "query", macOSApp.Name)
 	for _, a := range resp.SoftwareTitles {
 		if a.ID == macOSTitleID {
 			s.Assert().Equal(existingDisplayName, a.DisplayName)
 		}
 	}
 
-	updateAppReq = &updateAppStoreAppRequest{
+	updateAppReq = &fleet.UpdateAppStoreAppRequest{
 		TeamID:      &team.ID,
 		DisplayName: ptr.String(""),
 	}
@@ -374,8 +374,8 @@ func (s *integrationMDMTestSuite) TestSoftwareTitleDisplayNames() {
 
 	s.Assert().Equal(*updateAppReq.DisplayName, updateAppResp.AppStoreApp.DisplayName)
 
-	stResp = getSoftwareTitleResponse{}
-	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d", macOSTitleID), getSoftwareTitleRequest{}, http.StatusOK, &stResp, "team_id", fmt.Sprint(team.ID))
+	stResp = fleet.GetSoftwareTitleResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d", macOSTitleID), fleet.GetSoftwareTitleRequest{}, http.StatusOK, &stResp, "team_id", fmt.Sprint(team.ID))
 	s.Assert().Empty(stResp.SoftwareTitle.DisplayName)
 	// PATCH semantics, so we shouldn't overwrite self service or categories or labels
 	s.Assert().True(stResp.SoftwareTitle.AppStoreApp.SelfService)
@@ -389,7 +389,7 @@ func (s *integrationMDMTestSuite) TestSoftwareTitleDisplayNames() {
 	}())
 
 	// List software titles has display name
-	s.DoJSON("GET", "/api/latest/fleet/software/titles", listSoftwareTitlesRequest{}, http.StatusOK, &resp, "team_id", fmt.Sprint(team.ID), "query", macOSApp.Name)
+	s.DoJSON("GET", "/api/latest/fleet/software/titles", fleet.ListSoftwareTitlesRequest{}, http.StatusOK, &resp, "team_id", fmt.Sprint(team.ID), "query", macOSApp.Name)
 	for _, a := range resp.SoftwareTitles {
 		if a.ID == macOSTitleID {
 			s.Assert().Empty(a.DisplayName)
@@ -423,11 +423,11 @@ func (s *integrationMDMTestSuite) TestSoftwareTitleDisplayNames() {
 	}, http.StatusOK, "")
 
 	// Entity has display name
-	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d", titleID), getSoftwareTitleRequest{}, http.StatusOK, &stResp, "team_id", fmt.Sprint(team.ID))
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d", titleID), fleet.GetSoftwareTitleRequest{}, http.StatusOK, &stResp, "team_id", fmt.Sprint(team.ID))
 	s.Assert().Equal("InHouseAppUpdate", stResp.SoftwareTitle.DisplayName)
 
 	// List software titles has display name
-	s.DoJSON("GET", "/api/latest/fleet/software/titles", listSoftwareTitlesRequest{}, http.StatusOK, &resp, "team_id", fmt.Sprint(team.ID))
+	s.DoJSON("GET", "/api/latest/fleet/software/titles", fleet.ListSoftwareTitlesRequest{}, http.StatusOK, &resp, "team_id", fmt.Sprint(team.ID))
 
 	for _, t := range resp.SoftwareTitles {
 		if t.ID == titleID {
@@ -444,11 +444,11 @@ func (s *integrationMDMTestSuite) TestSoftwareTitleDisplayNames() {
 	}, http.StatusOK, "")
 
 	// Entity has display name
-	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d", titleID), getSoftwareTitleRequest{}, http.StatusOK, &stResp, "team_id", fmt.Sprint(team.ID))
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d", titleID), fleet.GetSoftwareTitleRequest{}, http.StatusOK, &stResp, "team_id", fmt.Sprint(team.ID))
 	s.Assert().Equal("InHouseAppUpdate2", stResp.SoftwareTitle.DisplayName)
 
 	// List software titles has display name
-	s.DoJSON("GET", "/api/latest/fleet/software/titles", listSoftwareTitlesRequest{}, http.StatusOK, &resp, "team_id", fmt.Sprint(team.ID))
+	s.DoJSON("GET", "/api/latest/fleet/software/titles", fleet.ListSoftwareTitlesRequest{}, http.StatusOK, &resp, "team_id", fmt.Sprint(team.ID))
 
 	for _, t := range resp.SoftwareTitles {
 		if t.ID == titleID {
@@ -479,14 +479,14 @@ func (s *integrationMDMTestSuite) TestSoftwareTitleDisplayNames() {
 	}, http.StatusOK, "")
 
 	// Entity has display name
-	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d", titleID), getSoftwareTitleRequest{}, http.StatusOK, &stResp, "team_id", fmt.Sprint(team.ID))
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d", titleID), fleet.GetSoftwareTitleRequest{}, http.StatusOK, &stResp, "team_id", fmt.Sprint(team.ID))
 	s.Assert().Equal("InHouseAppUpdate2", stResp.SoftwareTitle.DisplayName)
 	// PATCH semantics, so we shouldn't overwrite self service or categories
 	s.Assert().True(stResp.SoftwareTitle.SoftwarePackage.SelfService)
 	s.Assert().ElementsMatch([]string{"Developer tools", "Browsers"}, stResp.SoftwareTitle.SoftwarePackage.Categories)
 
 	// List software titles has display name
-	s.DoJSON("GET", "/api/latest/fleet/software/titles", listSoftwareTitlesRequest{}, http.StatusOK, &resp, "team_id", fmt.Sprint(team.ID))
+	s.DoJSON("GET", "/api/latest/fleet/software/titles", fleet.ListSoftwareTitlesRequest{}, http.StatusOK, &resp, "team_id", fmt.Sprint(team.ID))
 
 	for _, t := range resp.SoftwareTitles {
 		if t.ID == titleID {
@@ -503,11 +503,11 @@ func (s *integrationMDMTestSuite) TestSoftwareTitleDisplayNames() {
 	}, http.StatusOK, "")
 
 	// Entity has display name
-	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d", titleID), getSoftwareTitleRequest{}, http.StatusOK, &stResp, "team_id", fmt.Sprint(team.ID))
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d", titleID), fleet.GetSoftwareTitleRequest{}, http.StatusOK, &stResp, "team_id", fmt.Sprint(team.ID))
 	s.Assert().Empty(stResp.SoftwareTitle.DisplayName)
 
 	// List software titles has display name
-	s.DoJSON("GET", "/api/latest/fleet/software/titles", listSoftwareTitlesRequest{}, http.StatusOK, &resp, "team_id", fmt.Sprint(team.ID))
+	s.DoJSON("GET", "/api/latest/fleet/software/titles", fleet.ListSoftwareTitlesRequest{}, http.StatusOK, &resp, "team_id", fmt.Sprint(team.ID))
 
 	for _, t := range resp.SoftwareTitles {
 		if t.ID == titleID {
@@ -576,8 +576,8 @@ func (s *integrationMDMTestSuite) TestSoftwareTitleCustomIconsPermissions() {
 	s.setTokenForTest(t, teamMaintainerUser.Email, test.GoodPassword)
 
 	// list software titles on "No team" to confirm we're the team maintainer (doesn't have access)
-	var listTitlesResp listSoftwareTitlesResponse
-	s.DoJSON("GET", "/api/latest/fleet/software/titles?team_id=", listSoftwareTitlesRequest{}, http.StatusForbidden, &listTitlesResp)
+	var listTitlesResp fleet.ListSoftwareTitlesResponse
+	s.DoJSON("GET", "/api/latest/fleet/software/titles?team_id=", fleet.ListSoftwareTitlesRequest{}, http.StatusForbidden, &listTitlesResp)
 
 	// get the custom icon
 	res := s.DoRaw("GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d/icon?team_id=%d", titleID, tm.ID),
@@ -595,7 +595,7 @@ func (s *integrationMDMTestSuite) TestSoftwareTitleCustomIconsPermissions() {
 		body.Bytes(), http.StatusOK, headers)
 
 	// delete the custom icon as team maintainer
-	var delIconResp deleteSoftwareTitleIconResponse
+	var delIconResp fleet.DeleteSoftwareTitleIconResponse
 	s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/software/titles/%d/icon?team_id=%d", titleID, tm.ID),
 		nil, http.StatusOK, &delIconResp)
 
@@ -608,10 +608,10 @@ func (s *integrationMDMTestSuite) TestListSoftwareTitlesByHashAndName() {
 	t := s.T()
 
 	// Create two teams
-	var team1Resp, team2Resp teamResponse
-	s.DoJSON("POST", "/api/latest/fleet/teams", &createTeamRequest{TeamPayload: fleet.TeamPayload{Name: ptr.String("team1_" + t.Name())}}, http.StatusOK, &team1Resp)
+	var team1Resp, team2Resp fleet.TeamResponse
+	s.DoJSON("POST", "/api/latest/fleet/teams", &fleet.CreateTeamRequest{TeamPayload: fleet.TeamPayload{Name: ptr.String("team1_" + t.Name())}}, http.StatusOK, &team1Resp)
 	team1 := team1Resp.Team
-	s.DoJSON("POST", "/api/latest/fleet/teams", &createTeamRequest{TeamPayload: fleet.TeamPayload{Name: ptr.String("team2_" + t.Name())}}, http.StatusOK, &team2Resp)
+	s.DoJSON("POST", "/api/latest/fleet/teams", &fleet.CreateTeamRequest{TeamPayload: fleet.TeamPayload{Name: ptr.String("team2_" + t.Name())}}, http.StatusOK, &team2Resp)
 	team2 := team2Resp.Team
 
 	// Upload a software installer to team1
@@ -682,8 +682,8 @@ func (s *integrationMDMTestSuite) TestListSoftwareTitlesByHashAndName() {
 	s.uploadSoftwareInstaller(t, payload3, http.StatusOK, "")
 
 	// Test 1: Filter by hash_sha256 on team1 - should find Firefox
-	var resp1 listSoftwareTitlesResponse
-	s.DoJSON("GET", "/api/latest/fleet/software/titles", listSoftwareTitlesRequest{}, http.StatusOK, &resp1,
+	var resp1 fleet.ListSoftwareTitlesResponse
+	s.DoJSON("GET", "/api/latest/fleet/software/titles", fleet.ListSoftwareTitlesRequest{}, http.StatusOK, &resp1,
 		"team_id", fmt.Sprint(team1.ID),
 		"hash_sha256", hash1)
 	require.Len(t, resp1.SoftwareTitles, 1)
@@ -692,23 +692,23 @@ func (s *integrationMDMTestSuite) TestListSoftwareTitlesByHashAndName() {
 	require.Equal(t, "dummy_installer.pkg", resp1.SoftwareTitles[0].SoftwarePackage.Name)
 
 	// Test 2: Filter by hash_sha256 on team2 - should find Firefox
-	var resp2 listSoftwareTitlesResponse
-	s.DoJSON("GET", "/api/latest/fleet/software/titles", listSoftwareTitlesRequest{}, http.StatusOK, &resp2,
+	var resp2 fleet.ListSoftwareTitlesResponse
+	s.DoJSON("GET", "/api/latest/fleet/software/titles", fleet.ListSoftwareTitlesRequest{}, http.StatusOK, &resp2,
 		"team_id", fmt.Sprint(team2.ID),
 		"hash_sha256", hash1)
 	require.Len(t, resp2.SoftwareTitles, 1)
 	require.Equal(t, titleName, resp2.SoftwareTitles[0].Name)
 
 	// Test 3: Filter by hash_sha256 that doesn't exist - should return empty list
-	var resp3 listSoftwareTitlesResponse
-	s.DoJSON("GET", "/api/latest/fleet/software/titles", listSoftwareTitlesRequest{}, http.StatusOK, &resp3,
+	var resp3 fleet.ListSoftwareTitlesResponse
+	s.DoJSON("GET", "/api/latest/fleet/software/titles", fleet.ListSoftwareTitlesRequest{}, http.StatusOK, &resp3,
 		"team_id", fmt.Sprint(team1.ID),
 		"hash_sha256", "nonexistent1234567890abcdef1234567890abcdef1234567890abcdef12345678")
 	require.Len(t, resp3.SoftwareTitles, 0)
 
 	// Test 4: Filter by package_name on team1 - should find Firefox
-	var resp4 listSoftwareTitlesResponse
-	s.DoJSON("GET", "/api/latest/fleet/software/titles", listSoftwareTitlesRequest{}, http.StatusOK, &resp4,
+	var resp4 fleet.ListSoftwareTitlesResponse
+	s.DoJSON("GET", "/api/latest/fleet/software/titles", fleet.ListSoftwareTitlesRequest{}, http.StatusOK, &resp4,
 		"team_id", fmt.Sprint(team1.ID),
 		"package_name", "dummy_installer.pkg")
 	require.Len(t, resp4.SoftwareTitles, 1)
@@ -717,33 +717,33 @@ func (s *integrationMDMTestSuite) TestListSoftwareTitlesByHashAndName() {
 	require.Equal(t, "dummy_installer.pkg", resp4.SoftwareTitles[0].SoftwarePackage.Name)
 
 	// Test 5: Filter by package_name on team1 - should find Chrome
-	var resp5 listSoftwareTitlesResponse
-	s.DoJSON("GET", "/api/latest/fleet/software/titles", listSoftwareTitlesRequest{}, http.StatusOK, &resp5,
+	var resp5 fleet.ListSoftwareTitlesResponse
+	s.DoJSON("GET", "/api/latest/fleet/software/titles", fleet.ListSoftwareTitlesRequest{}, http.StatusOK, &resp5,
 		"team_id", fmt.Sprint(team1.ID),
 		"package_name", "EchoApp.pkg")
 	require.Len(t, resp5.SoftwareTitles, 1)
 	require.Equal(t, title2Name, resp5.SoftwareTitles[0].Name)
 
 	// Test 6: Filter by package_name that doesn't exist - should return empty list
-	var resp6 listSoftwareTitlesResponse
-	s.DoJSON("GET", "/api/latest/fleet/software/titles", listSoftwareTitlesRequest{}, http.StatusOK, &resp6,
+	var resp6 fleet.ListSoftwareTitlesResponse
+	s.DoJSON("GET", "/api/latest/fleet/software/titles", fleet.ListSoftwareTitlesRequest{}, http.StatusOK, &resp6,
 		"team_id", fmt.Sprint(team1.ID),
 		"package_name", "nonexistent.pkg")
 	require.Len(t, resp6.SoftwareTitles, 0)
 
 	// Test 7: Filter by hash_sha256 without team_id - should return error
-	var resp7 listSoftwareTitlesResponse
-	s.DoJSON("GET", "/api/latest/fleet/software/titles", listSoftwareTitlesRequest{}, http.StatusUnprocessableEntity, &resp7,
+	var resp7 fleet.ListSoftwareTitlesResponse
+	s.DoJSON("GET", "/api/latest/fleet/software/titles", fleet.ListSoftwareTitlesRequest{}, http.StatusUnprocessableEntity, &resp7,
 		"hash_sha256", hash1)
 
 	// Test 8: Filter by package_name without team_id - should return error
-	var resp8 listSoftwareTitlesResponse
-	s.DoJSON("GET", "/api/latest/fleet/software/titles", listSoftwareTitlesRequest{}, http.StatusUnprocessableEntity, &resp8,
+	var resp8 fleet.ListSoftwareTitlesResponse
+	s.DoJSON("GET", "/api/latest/fleet/software/titles", fleet.ListSoftwareTitlesRequest{}, http.StatusUnprocessableEntity, &resp8,
 		"package_name", "dummy_installer.pkg")
 
 	// Test 9: Filter by hash_sha256 with available_for_install=true
-	var resp9 listSoftwareTitlesResponse
-	s.DoJSON("GET", "/api/latest/fleet/software/titles", listSoftwareTitlesRequest{}, http.StatusOK, &resp9,
+	var resp9 fleet.ListSoftwareTitlesResponse
+	s.DoJSON("GET", "/api/latest/fleet/software/titles", fleet.ListSoftwareTitlesRequest{}, http.StatusOK, &resp9,
 		"team_id", fmt.Sprint(team1.ID),
 		"hash_sha256", hash1,
 		"available_for_install", "true")
@@ -751,8 +751,8 @@ func (s *integrationMDMTestSuite) TestListSoftwareTitlesByHashAndName() {
 	require.Equal(t, titleName, resp9.SoftwareTitles[0].Name)
 
 	// Test 10: Filter by package_name with available_for_install=true
-	var resp10 listSoftwareTitlesResponse
-	s.DoJSON("GET", "/api/latest/fleet/software/titles", listSoftwareTitlesRequest{}, http.StatusOK, &resp10,
+	var resp10 fleet.ListSoftwareTitlesResponse
+	s.DoJSON("GET", "/api/latest/fleet/software/titles", fleet.ListSoftwareTitlesRequest{}, http.StatusOK, &resp10,
 		"team_id", fmt.Sprint(team1.ID),
 		"package_name", "EchoApp.pkg",
 		"available_for_install", "true")
@@ -760,8 +760,8 @@ func (s *integrationMDMTestSuite) TestListSoftwareTitlesByHashAndName() {
 	require.Equal(t, title2Name, resp10.SoftwareTitles[0].Name)
 
 	// Test 11: Combine both filters (hash and name for same package) - should work
-	var resp11 listSoftwareTitlesResponse
-	s.DoJSON("GET", "/api/latest/fleet/software/titles", listSoftwareTitlesRequest{}, http.StatusOK, &resp11,
+	var resp11 fleet.ListSoftwareTitlesResponse
+	s.DoJSON("GET", "/api/latest/fleet/software/titles", fleet.ListSoftwareTitlesRequest{}, http.StatusOK, &resp11,
 		"team_id", fmt.Sprint(team1.ID),
 		"hash_sha256", hash1,
 		"package_name", "dummy_installer.pkg")
@@ -769,16 +769,16 @@ func (s *integrationMDMTestSuite) TestListSoftwareTitlesByHashAndName() {
 	require.Equal(t, titleName, resp11.SoftwareTitles[0].Name)
 
 	// Test 12: Combine both filters with mismatched hash and name - should return empty list
-	var resp12 listSoftwareTitlesResponse
-	s.DoJSON("GET", "/api/latest/fleet/software/titles", listSoftwareTitlesRequest{}, http.StatusOK, &resp12,
+	var resp12 fleet.ListSoftwareTitlesResponse
+	s.DoJSON("GET", "/api/latest/fleet/software/titles", fleet.ListSoftwareTitlesRequest{}, http.StatusOK, &resp12,
 		"team_id", fmt.Sprint(team1.ID),
 		"hash_sha256", hash1,
 		"package_name", "EchoApp.pkg")
 	require.Len(t, resp12.SoftwareTitles, 0)
 
 	// Test 13: Verify that filtering by hash doesn't return VPP or in-house apps
-	var respAll listSoftwareTitlesResponse
-	s.DoJSON("GET", "/api/latest/fleet/software/titles", listSoftwareTitlesRequest{}, http.StatusOK, &respAll,
+	var respAll fleet.ListSoftwareTitlesResponse
+	s.DoJSON("GET", "/api/latest/fleet/software/titles", fleet.ListSoftwareTitlesRequest{}, http.StatusOK, &respAll,
 		"team_id", fmt.Sprint(team1.ID),
 		"available_for_install", "true")
 	require.GreaterOrEqual(t, len(respAll.SoftwareTitles), 2) // At least the two packages we uploaded
@@ -789,11 +789,11 @@ func (s *integrationMDMTestSuite) TestListHostsSoftwareTitleIDFilter() {
 	ctx := context.Background()
 
 	// Create a team
-	var newTeamResp teamResponse
-	s.DoJSON("POST", "/api/latest/fleet/teams", &createTeamRequest{TeamPayload: fleet.TeamPayload{Name: ptr.String("team_" + t.Name())}}, http.StatusOK, &newTeamResp)
+	var newTeamResp fleet.TeamResponse
+	s.DoJSON("POST", "/api/latest/fleet/teams", &fleet.CreateTeamRequest{TeamPayload: fleet.TeamPayload{Name: ptr.String("team_" + t.Name())}}, http.StatusOK, &newTeamResp)
 	team := newTeamResp.Team
 
-	s.DoJSON("POST", "/api/latest/fleet/teams", &createTeamRequest{TeamPayload: fleet.TeamPayload{Name: ptr.String("team_2_" + t.Name())}}, http.StatusOK, &newTeamResp)
+	s.DoJSON("POST", "/api/latest/fleet/teams", &fleet.CreateTeamRequest{TeamPayload: fleet.TeamPayload{Name: ptr.String("team_2_" + t.Name())}}, http.StatusOK, &newTeamResp)
 	team2 := newTeamResp.Team
 
 	// Enroll a host
@@ -801,8 +801,8 @@ func (s *integrationMDMTestSuite) TestListHostsSoftwareTitleIDFilter() {
 	host := createOrbitEnrolledHost(t, "ubuntu", "host1", s.ds)
 	createDeviceTokenForHost(t, s.ds, host.ID, token)
 
-	var addResp addHostsToTeamResponse
-	s.DoJSON("POST", "/api/latest/fleet/hosts/transfer", addHostsToTeamRequest{
+	var addResp fleet.AddHostsToTeamResponse
+	s.DoJSON("POST", "/api/latest/fleet/hosts/transfer", fleet.AddHostsToTeamRequest{
 		TeamID:  &team.ID,
 		HostIDs: []uint{host.ID},
 	}, http.StatusOK, &addResp)
@@ -830,7 +830,7 @@ func (s *integrationMDMTestSuite) TestListHostsSoftwareTitleIDFilter() {
 
 	s.Require().NotZero(titleID)
 
-	var listResp listHostsResponse
+	var listResp fleet.ListHostsResponse
 	s.DoJSON(
 		"GET",
 		"/api/latest/fleet/hosts",
@@ -899,7 +899,7 @@ func (s *integrationMDMTestSuite) TestListHostsSoftwareTitleIDFilter() {
 		return id
 	}
 
-	resp := installSoftwareResponse{}
+	resp := fleet.InstallSoftwareResponse{}
 	s.DoJSON("POST", fmt.Sprintf("/api/v1/fleet/hosts/%d/software/%d/install", host.ID, titleID), nil, http.StatusAccepted, &resp)
 	installUUID := latestInstallUUID()
 
@@ -931,7 +931,7 @@ func (s *integrationMDMTestSuite) TestListHostsSoftwareTitleIDFilter() {
 	})
 
 	// create a new user
-	var createResp createUserResponse
+	var createResp fleet.CreateUserResponse
 	userRawPwd := test.GoodPassword
 	params := fleet.UserPayload{
 		Name:                     ptr.String("Observer 1"),

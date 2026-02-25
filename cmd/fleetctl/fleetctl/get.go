@@ -15,10 +15,10 @@ import (
 
 	"github.com/beevik/etree"
 	"github.com/fatih/color"
+	fleetclient "github.com/fleetdm/fleet/v4/client"
 	"github.com/fleetdm/fleet/v4/pkg/rawjson"
 	"github.com/fleetdm/fleet/v4/pkg/secure"
 	"github.com/fleetdm/fleet/v4/server/fleet"
-	"github.com/fleetdm/fleet/v4/server/service"
 	"github.com/ghodss/yaml"
 	kithttp "github.com/go-kit/kit/transport/http"
 	"github.com/olekukonko/tablewriter"
@@ -142,7 +142,7 @@ func printHost(c *cli.Context, host *fleet.HostResponse) error {
 	return printSpec(c, spec)
 }
 
-func printHostDetail(c *cli.Context, host *service.HostDetailResponse) error {
+func printHostDetail(c *cli.Context, host *fleet.HostDetailResponse) error {
 	spec := specGeneric{
 		Kind:    fleet.HostKind,
 		Version: fleet.ApiVersion,
@@ -365,7 +365,7 @@ func queryToTableRow(query fleet.Query, teamName string) []string {
 	}
 }
 
-func printInheritedQueriesMsg(client *service.Client, teamID *uint) error {
+func printInheritedQueriesMsg(client *fleetclient.Client, teamID *uint) error {
 	if teamID != nil {
 		globalQueries, err := client.GetQueries(nil, nil)
 		if err != nil {
@@ -422,7 +422,7 @@ func getQueriesCommand() *cli.Command {
 				teamID = &tid
 				team, err := client.GetTeam(*teamID)
 				if err != nil {
-					var notFoundErr service.NotFoundErr
+					var notFoundErr fleetclient.NotFoundErr
 					if errors.As(err, &notFoundErr) {
 						// Do not error out, just inform the user and 'gracefully' exit.
 						fmt.Println("Team not found.")
@@ -1295,7 +1295,7 @@ func getSoftwareCommand() *cli.Command {
 	}
 }
 
-func printSoftwareVersions(c *cli.Context, client *service.Client, query url.Values) error {
+func printSoftwareVersions(c *cli.Context, client *fleetclient.Client, query url.Values) error {
 	software, err := client.ListSoftwareVersions(query.Encode())
 	if err != nil {
 		return fmt.Errorf("could not list software versions: %w", err)
@@ -1336,7 +1336,7 @@ func printSoftwareVersions(c *cli.Context, client *service.Client, query url.Val
 	return nil
 }
 
-func printSoftwareTitles(c *cli.Context, client *service.Client, query url.Values) error {
+func printSoftwareTitles(c *cli.Context, client *fleetclient.Client, query url.Values) error {
 	software, err := client.ListSoftwareTitles(query.Encode())
 	if err != nil {
 		return fmt.Errorf("could not list software titles: %w", err)
@@ -1405,7 +1405,7 @@ func getMDMAppleCommand() *cli.Command {
 
 			mdm, err := client.GetAppleMDM()
 			if err != nil {
-				var nfe service.NotFoundErr
+				var nfe fleetclient.NotFoundErr
 				if errors.As(err, &nfe) {
 					log(c, "Error: No Apple Push Notification service (APNs) certificate found. Use `fleetctl generate mdm-apple` and then `fleet serve` with `mdm` configuration to turn on MDM features.\n")
 					return nil
@@ -1454,7 +1454,7 @@ func getMDMAppleBMCommand() *cli.Command {
 
 			bm, err := client.GetAppleBM()
 			if err != nil {
-				var nfe service.NotFoundErr
+				var nfe fleetclient.NotFoundErr
 				if errors.As(err, &nfe) {
 					log(c, "Error: No Apple Business Manager server token found. Use `fleetctl generate mdm-apple-bm` and then `fleet serve` with `mdm` configuration to automatically enroll macOS hosts to Fleet.\n")
 					return nil
@@ -1517,7 +1517,7 @@ func getMDMCommandResultsCommand() *cli.Command {
 
 			res, err := client.MDMGetCommandResults(c.String("id"), c.String("host"))
 			if err != nil {
-				var nfe service.NotFoundErr
+				var nfe fleetclient.NotFoundErr
 				if errors.As(err, &nfe) && c.String("host") == "" {
 					return errors.New("The command doesn't exist. Please provide a valid command ID. To see a list of commands that were run, run `fleetctl get mdm-commands`.")
 				}

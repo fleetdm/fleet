@@ -132,7 +132,7 @@ func (s *integrationMDMTestSuite) TestTurnOnLifecycleEventsApple() {
 		{
 			"host is deleted then turns on MDM",
 			func(t *testing.T, host *fleet.Host, device *mdmtest.TestAppleMDMClient) {
-				var delResp deleteHostResponse
+				var delResp fleet.DeleteHostResponse
 				s.DoJSON(
 					"DELETE",
 					fmt.Sprintf("/api/latest/fleet/hosts/%d", host.ID),
@@ -158,10 +158,10 @@ func (s *integrationMDMTestSuite) TestTurnOnLifecycleEventsApple() {
 		{
 			"host is deleted in bulk then turns on MDM",
 			func(t *testing.T, host *fleet.Host, device *mdmtest.TestAppleMDMClient) {
-				req := deleteHostsRequest{
+				req := fleet.DeleteHostsRequest{
 					IDs: []uint{host.ID},
 				}
-				resp := deleteHostsResponse{}
+				resp := fleet.DeleteHostsResponse{}
 				s.DoJSON("POST", "/api/latest/fleet/hosts/delete", req, http.StatusOK, &resp)
 
 				dupeClient := mdmtest.NewTestMDMClientAppleDirect(
@@ -181,7 +181,7 @@ func (s *integrationMDMTestSuite) TestTurnOnLifecycleEventsApple() {
 		{
 			"host is deleted then osquery enrolls then turns on MDM",
 			func(t *testing.T, host *fleet.Host, device *mdmtest.TestAppleMDMClient) {
-				var delResp deleteHostResponse
+				var delResp fleet.DeleteHostResponse
 				s.DoJSON(
 					"DELETE",
 					fmt.Sprintf("/api/latest/fleet/hosts/%d", host.ID),
@@ -355,7 +355,7 @@ func (s *integrationMDMTestSuite) TestTurnOnLifecycleEventsWindows() {
 				status, err := s.ds.GetHostLockWipeStatus(context.Background(), host)
 				require.NoError(t, err)
 
-				var orbitScriptResp orbitPostScriptResultResponse
+				var orbitScriptResp fleet.OrbitPostScriptResultResponse
 				s.DoJSON(
 					"POST",
 					"/api/fleet/orbit/scripts/result",
@@ -397,7 +397,7 @@ func (s *integrationMDMTestSuite) TestTurnOnLifecycleEventsWindows() {
 		{
 			"host is deleted then osquery enrolls then turns on MDM",
 			func(t *testing.T, host *fleet.Host, device *mdmtest.TestWindowsMDMClient) {
-				var delResp deleteHostResponse
+				var delResp fleet.DeleteHostResponse
 				s.DoJSON(
 					"DELETE",
 					fmt.Sprintf("/api/latest/fleet/hosts/%d", host.ID),
@@ -460,7 +460,7 @@ func (s *integrationMDMTestSuite) TestTurnOnLifecycleEventsWindows() {
 
 				tenantID := uuid.New().String()
 
-				acResp := appConfigResponse{}
+				acResp := fleet.AppConfigResponse{}
 				s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{ "mdm": { "windows_entra_tenant_ids": ["`+tenantID+`"] } }`), http.StatusOK, &acResp)
 
 				err := s.ds.ApplyEnrollSecrets(context.Background(), nil, []*fleet.EnrollSecret{{Secret: t.Name()}})
@@ -484,7 +484,7 @@ func (s *integrationMDMTestSuite) TestTurnOnLifecycleEventsWindows() {
 }
 
 // Hardcode response type because we are using a custom json marshaling so
-// using getHostMDMResponse fails with "JSON unmarshaling is not supported for HostMDM".
+// using fleet.GetHostMDMResponse fails with "JSON unmarshaling is not supported for HostMDM".
 type jsonMDM struct {
 	EnrollmentStatus string `json:"enrollment_status"`
 	ServerURL        string `json:"server_url"`
@@ -499,7 +499,7 @@ type getHostMDMResponseTest struct {
 func (s *integrationMDMTestSuite) recordWindowsHostStatus(
 	host *fleet.Host,
 	device *mdmtest.TestWindowsMDMClient,
-) ([]fleet.ProtoCmdOperation, getHostMDMSummaryResponse, getHostMDMResponseTest) {
+) ([]fleet.ProtoCmdOperation, fleet.GetHostMDMSummaryResponse, getHostMDMResponseTest) {
 	t := s.T()
 
 	var recordedCmds []fleet.ProtoCmdOperation
@@ -528,7 +528,7 @@ func (s *integrationMDMTestSuite) recordWindowsHostStatus(
 	_, err = device.SendResponse()
 	require.NoError(t, err)
 
-	mdmAgg := getHostMDMSummaryResponse{}
+	mdmAgg := fleet.GetHostMDMSummaryResponse{}
 	s.DoJSON("GET", "/api/latest/fleet/hosts/summary/mdm", nil, http.StatusOK, &mdmAgg)
 
 	ghr := getHostMDMResponseTest{}
@@ -546,7 +546,7 @@ func (s *integrationMDMTestSuite) recordWindowsHostStatus(
 func (s *integrationMDMTestSuite) recordAppleHostStatus(
 	host *fleet.Host,
 	device *mdmtest.TestAppleMDMClient,
-) ([]*micromdm.CommandPayload, getHostMDMSummaryResponse, getHostMDMResponseTest) {
+) ([]*micromdm.CommandPayload, fleet.GetHostMDMSummaryResponse, getHostMDMResponseTest) {
 	t := s.T()
 
 	s.runWorkerUntilDone()
@@ -576,7 +576,7 @@ func (s *integrationMDMTestSuite) recordAppleHostStatus(
 		require.NoError(t, err)
 	}
 
-	mdmAgg := getHostMDMSummaryResponse{}
+	mdmAgg := fleet.GetHostMDMSummaryResponse{}
 	s.DoJSON("GET", "/api/latest/fleet/hosts/summary/mdm", nil, http.StatusOK, &mdmAgg)
 
 	ghr := getHostMDMResponseTest{}
@@ -606,7 +606,7 @@ func (s *integrationMDMTestSuite) setupLifecycleSettings() {
 	)
 
 	// enable disk encryption
-	acResp := appConfigResponse{}
+	acResp := fleet.AppConfigResponse{}
 	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
 	  "mdm": { "macos_settings": {"enable_disk_encryption": true} }
   }`), http.StatusOK, &acResp)
@@ -616,7 +616,7 @@ func (s *integrationMDMTestSuite) setupLifecycleSettings() {
 	s.Do(
 		"POST",
 		"/api/v1/fleet/mdm/profiles/batch",
-		batchSetMDMProfilesRequest{Profiles: []fleet.MDMProfileBatchPayload{
+		fleet.BatchSetMDMProfilesRequest{Profiles: []fleet.MDMProfileBatchPayload{
 			{Name: "N1", Contents: mobileconfigForTest("N1", "I1")},
 			{Name: "N2", Contents: syncMLForTest("./Foo/Bar")},
 			{Name: "N3", Contents: declarationForTest("D1")},
@@ -852,7 +852,7 @@ func (s *integrationMDMTestSuite) TestLifecycleSCEPCertExpiration() {
 	s.Do(
 		"POST",
 		"/api/v1/fleet/mdm/apple/profiles/batch",
-		batchSetMDMAppleProfilesRequest{Profiles: globalProfiles},
+		fleet.BatchSetMDMAppleProfilesRequest{Profiles: globalProfiles},
 		http.StatusNoContent,
 	)
 	expectedProfiles := 4 // Fleetd configuration, Fleet root cert, N1, N2
@@ -1080,10 +1080,10 @@ func (s *integrationMDMTestSuite) TestLifecycleSCEPCertExpiration() {
 
 	// handle the case of a host being deleted, see https://github.com/fleetdm/fleet/issues/19149
 	expireCerts()
-	req := deleteHostsRequest{
+	req := fleet.DeleteHostsRequest{
 		IDs: []uint{manualHost.ID},
 	}
-	resp := deleteHostsResponse{}
+	resp := fleet.DeleteHostsResponse{}
 	s.DoJSON("POST", "/api/latest/fleet/hosts/delete", req, http.StatusOK, &resp)
 	err = RenewSCEPCertificates(ctx, logger, s.ds, &fleetCfg, s.mdmCommander)
 	require.NoError(t, err)
@@ -1267,7 +1267,7 @@ func (s *integrationMDMTestSuite) TestRefetchAfterReenrollIOSNoDelete() {
 			_, err := q.ExecContext(context.Background(), `UPDATE hosts SET detail_updated_at = DATE_SUB(NOW(), INTERVAL 2 HOUR) WHERE id = ?`, hostID)
 			return err
 		})
-		trigger := triggerRequest{
+		trigger := fleet.TriggerRequest{
 			Name: string(fleet.CronAppleMDMIPhoneIPadRefetcher),
 		}
 		s.Do("POST", "/api/latest/fleet/trigger", trigger, http.StatusOK)
@@ -1332,8 +1332,8 @@ func (s *integrationMDMTestSuite) TestRefetchAfterReenrollIOSNoDelete() {
 
 	// create a global enroll secret
 	globalSecret := "global_secret"
-	var applyResp applyEnrollSecretSpecResponse
-	s.DoJSON("POST", "/api/latest/fleet/spec/enroll_secret", applyEnrollSecretSpecRequest{
+	var applyResp fleet.ApplyEnrollSecretSpecResponse
+	s.DoJSON("POST", "/api/latest/fleet/spec/enroll_secret", fleet.ApplyEnrollSecretSpecRequest{
 		Spec: &fleet.EnrollSecretSpec{
 			Secrets: []*fleet.EnrollSecret{{Secret: globalSecret}},
 		},
@@ -1353,7 +1353,7 @@ func (s *integrationMDMTestSuite) TestRefetchAfterReenrollIOSNoDelete() {
 	// require.Len(t, recordedPushes, 1)
 	// mu.Unlock()
 
-	hostByIdentifierResp := getHostResponse{}
+	hostByIdentifierResp := fleet.GetHostResponse{}
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/identifier/%s", mdmDevice.UUID), nil, http.StatusOK, &hostByIdentifierResp)
 	require.Equal(t, hwModel, hostByIdentifierResp.Host.HardwareModel)
 	require.Equal(t, "ipados", hostByIdentifierResp.Host.Platform)
@@ -1363,7 +1363,7 @@ func (s *integrationMDMTestSuite) TestRefetchAfterReenrollIOSNoDelete() {
 	triggerRefetchCron(hostID)
 	awaitRefetchCommands(hostID, 3) // expect three commands: refetch UUID, apps, certs
 
-	hostByIdentifierResp = getHostResponse{}
+	hostByIdentifierResp = fleet.GetHostResponse{}
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/identifier/%s", mdmDevice.UUID), nil, http.StatusOK, &hostByIdentifierResp)
 	require.False(t, hostByIdentifierResp.Host.RefetchRequested) // refetch cron doesn't set the refetch_requested flag
 
@@ -1394,7 +1394,7 @@ func (s *integrationMDMTestSuite) TestRefetchAfterReenrollIOSNoDelete() {
 	require.Len(t, commands, 0) // re-enrollment clears existing commands
 
 	s.Do("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/refetch", hostID), nil, http.StatusOK)
-	hostByIdentifierResp = getHostResponse{}
+	hostByIdentifierResp = fleet.GetHostResponse{}
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/identifier/%s", mdmDevice.UUID), nil, http.StatusOK, &hostByIdentifierResp)
 	require.True(t, hostByIdentifierResp.Host.RefetchRequested)
 
@@ -1409,7 +1409,7 @@ func (s *integrationMDMTestSuite) TestRefetchAfterReenrollIOSNoDelete() {
 	require.NoError(t, err)
 	require.Len(t, commands, 0)
 
-	hostByIdentifierResp = getHostResponse{}
+	hostByIdentifierResp = fleet.GetHostResponse{}
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/identifier/%s", mdmDevice.UUID), nil, http.StatusOK, &hostByIdentifierResp)
 	require.False(t, hostByIdentifierResp.Host.RefetchRequested) // re-enrollment also clears the refetch_requested flag
 }
@@ -1421,8 +1421,8 @@ func (s *integrationMDMTestSuite) TestMDMLockHostUnenrolled() {
 
 	// create a global enroll secret
 	globalSecret := "global_secret"
-	var applyResp applyEnrollSecretSpecResponse
-	s.DoJSON("POST", "/api/latest/fleet/spec/enroll_secret", applyEnrollSecretSpecRequest{
+	var applyResp fleet.ApplyEnrollSecretSpecResponse
+	s.DoJSON("POST", "/api/latest/fleet/spec/enroll_secret", fleet.ApplyEnrollSecretSpecRequest{
 		Spec: &fleet.EnrollSecretSpec{
 			Secrets: []*fleet.EnrollSecret{{Secret: globalSecret}},
 		},
@@ -1436,7 +1436,7 @@ func (s *integrationMDMTestSuite) TestMDMLockHostUnenrolled() {
 	)
 	require.NoError(t, mdmDevice.Enroll())
 
-	hostByIdentifierResp := getHostResponse{}
+	hostByIdentifierResp := fleet.GetHostResponse{}
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/identifier/%s", mdmDevice.UUID), nil, http.StatusOK, &hostByIdentifierResp)
 	require.Equal(t, hwModel, hostByIdentifierResp.Host.HardwareModel)
 	hostID := hostByIdentifierResp.Host.ID

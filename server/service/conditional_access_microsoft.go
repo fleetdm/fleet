@@ -10,27 +10,13 @@ import (
 	"github.com/go-kit/log/level"
 )
 
-type conditionalAccessMicrosoftCreateRequest struct {
-	// MicrosoftTenantID holds the Entra tenant ID.
-	MicrosoftTenantID string `json:"microsoft_tenant_id"`
-}
-
-type conditionalAccessMicrosoftCreateResponse struct {
-	// MicrosoftAuthenticationURL holds the URL to redirect the admin to consent access
-	// to the tenant to Fleet's multi-tenant application.
-	MicrosoftAuthenticationURL string `json:"microsoft_authentication_url"`
-	Err                        error  `json:"error,omitempty"`
-}
-
-func (r conditionalAccessMicrosoftCreateResponse) Error() error { return r.Err }
-
 func conditionalAccessMicrosoftCreateEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
-	req := request.(*conditionalAccessMicrosoftCreateRequest)
+	req := request.(*fleet.ConditionalAccessMicrosoftCreateRequest)
 	adminConsentURL, err := svc.ConditionalAccessMicrosoftCreateIntegration(ctx, req.MicrosoftTenantID)
 	if err != nil {
-		return conditionalAccessMicrosoftCreateResponse{Err: err}, nil
+		return fleet.ConditionalAccessMicrosoftCreateResponse{Err: err}, nil
 	}
-	return conditionalAccessMicrosoftCreateResponse{
+	return fleet.ConditionalAccessMicrosoftCreateResponse{
 		MicrosoftAuthenticationURL: adminConsentURL,
 	}, nil
 }
@@ -89,23 +75,13 @@ func (svc *Service) ConditionalAccessMicrosoftCreateIntegration(ctx context.Cont
 	return getResponse.AdminConsentURL, nil
 }
 
-type conditionalAccessMicrosoftConfirmRequest struct{}
-
-type conditionalAccessMicrosoftConfirmResponse struct {
-	ConfigurationCompleted bool   `json:"configuration_completed"`
-	SetupError             string `json:"setup_error"`
-	Err                    error  `json:"error,omitempty"`
-}
-
-func (r conditionalAccessMicrosoftConfirmResponse) Error() error { return r.Err }
-
 func conditionalAccessMicrosoftConfirmEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
-	_ = request.(*conditionalAccessMicrosoftConfirmRequest)
+	_ = request.(*fleet.ConditionalAccessMicrosoftConfirmRequest)
 	configurationCompleted, setupError, err := svc.ConditionalAccessMicrosoftConfirm(ctx)
 	if err != nil {
-		return conditionalAccessMicrosoftConfirmResponse{Err: err}, nil
+		return fleet.ConditionalAccessMicrosoftConfirmResponse{Err: err}, nil
 	}
-	return conditionalAccessMicrosoftConfirmResponse{
+	return fleet.ConditionalAccessMicrosoftConfirmResponse{
 		ConfigurationCompleted: configurationCompleted,
 		SetupError:             setupError,
 	}, nil
@@ -161,20 +137,12 @@ func (svc *Service) ConditionalAccessMicrosoftConfirm(ctx context.Context) (conf
 	return true, "", nil
 }
 
-type conditionalAccessMicrosoftDeleteRequest struct{}
-
-type conditionalAccessMicrosoftDeleteResponse struct {
-	Err error `json:"error,omitempty"`
-}
-
-func (r conditionalAccessMicrosoftDeleteResponse) Error() error { return r.Err }
-
 func conditionalAccessMicrosoftDeleteEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
-	_ = request.(*conditionalAccessMicrosoftDeleteRequest)
+	_ = request.(*fleet.ConditionalAccessMicrosoftDeleteRequest)
 	if err := svc.ConditionalAccessMicrosoftDelete(ctx); err != nil {
-		return conditionalAccessMicrosoftDeleteResponse{Err: err}, nil
+		return fleet.ConditionalAccessMicrosoftDeleteResponse{Err: err}, nil
 	}
-	return conditionalAccessMicrosoftDeleteResponse{}, nil
+	return fleet.ConditionalAccessMicrosoftDeleteResponse{}, nil
 }
 
 func (svc *Service) ConditionalAccessMicrosoftDelete(ctx context.Context) error {

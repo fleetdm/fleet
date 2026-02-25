@@ -7,18 +7,9 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 )
 
-////////////////////////////////////////////////////////////////////////////////
 // Status Result Store
-////////////////////////////////////////////////////////////////////////////////
-
-type statusResponse struct {
-	Err error `json:"error,omitempty"`
-}
-
-func (m statusResponse) Error() error { return m.Err }
-
 func statusResultStoreEndpoint(ctx context.Context, req interface{}, svc fleet.Service) (fleet.Errorer, error) {
-	var resp statusResponse
+	var resp fleet.StatusResponse
 	if err := svc.StatusResultStore(ctx); err != nil {
 		resp.Err = err
 	}
@@ -33,12 +24,9 @@ func (svc *Service) StatusResultStore(ctx context.Context) error {
 	return svc.resultStore.HealthCheck()
 }
 
-////////////////////////////////////////////////////////////////////////////////
 // Status Live Query
-////////////////////////////////////////////////////////////////////////////////
-
 func statusLiveQueryEndpoint(ctx context.Context, req interface{}, svc fleet.Service) (fleet.Errorer, error) {
-	var resp statusResponse
+	var resp fleet.StatusResponse
 	if err := svc.StatusLiveQuery(ctx); err != nil {
 		resp.Err = err
 	}

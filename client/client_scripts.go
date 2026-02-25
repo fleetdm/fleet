@@ -1,0 +1,264 @@
+package client
+
+import (
+	"bytes"
+	"context"
+	"encoding/json"
+	"errors"
+	"fmt"
+	"io"
+	"mime/multipart"
+	"net/http"
+	"os"
+	"strings"
+	"time"
+
+	"github.com/fleetdm/fleet/v4/server/fleet"
+)
+
+const pollWaitTime = 5 * time.Second
+
+func (c *Client) RunHostScriptSync(hostID uint, scriptContents []byte, scriptName string, teamID uint) (*fleet.HostScriptResult, error) {
+	verb, path := "POST", "/api/latest/fleet/scripts/run"
+	res, err := c.runHostScript(verb, path, hostID, scriptContents, scriptName, teamID, http.StatusAccepted)
+	if err != nil {
+		return nil, err
+	}
+
+	if res.ExecutionID == "" {
+		return nil, errors.New("missing execution id in response")
+	}
+
+	return c.pollForResult(res.ExecutionID)
+}
+
+func (c *Client) RunHostScriptAsync(hostID uint, scriptContents []byte, scriptName string, teamID uint) (*fleet.HostScriptResult, error) {
+	verb, path := "POST", "/api/latest/fleet/scripts/run"
+	return c.runHostScript(verb, path, hostID, scriptContents, scriptName, teamID, http.StatusAccepted)
+}
+
+func (c *Client) runHostScript(verb, path string, hostID uint, scriptContents []byte, scriptName string, teamID uint, successStatusCode int) (*fleet.HostScriptResult, error) {
+	req := fleet.HostScriptRequestPayload{
+		HostID:     hostID,
+		ScriptName: scriptName,
+		TeamID:     teamID,
+	}
+	if len(scriptContents) > 0 {
+		req.ScriptContents = string(scriptContents)
+	}
+
+	var result fleet.HostScriptResult
+
+	res, err := c.AuthenticatedDo(verb, path, "", &req)
+	if err != nil {
+		return nil, err
+	}
+	defer res.Body.Close()
+
+	switch res.StatusCode {
+	case successStatusCode:
+		b, err := io.ReadAll(res.Body)
+		if err != nil {
+			return nil, fmt.Errorf("reading %s %s response: %w", verb, path, err)
+		}
+		if err := json.Unmarshal(b, &result); err != nil {
+			return nil, fmt.Errorf("decoding %s %s response: %w, body: %s", verb, path, err, b)
+		}
+	case http.StatusForbidden:
+		errMsg, err := extractServerErrMsg(verb, path, res)
+		if err != nil {
+			return nil, err
+		}
+		if strings.Contains(errMsg, fleet.RunScriptScriptsDisabledGloballyErrMsg) {
+			return nil, errors.New(fleet.RunScriptScriptsDisabledGloballyErrMsg)
+		}
+		return nil, errors.New(fleet.RunScriptForbiddenErrMsg)
+	// It's possible we get a GatewayTimeout error message from nginx or another
+	// proxy server, so we want to return a more helpful error message in that
+	// case.
+	case http.StatusGatewayTimeout:
+		return nil, errors.New(fleet.RunScriptGatewayTimeoutErrMsg)
+	case http.StatusPaymentRequired:
+		if teamID > 0 {
+			return nil, errors.New("Team id parameter requires Fleet Premium license.")
+		}
+		fallthrough // if no team id, fall through to default error message
+	default:
+		msg, err := extractServerErrMsg(verb, path, res)
+		if err != nil {
+			return nil, err
+		}
+		if msg == "" {
+			msg = fmt.Sprintf("decoding %d response is missing expected message.", res.StatusCode)
+		}
+		return nil, errors.New(msg)
+	}
+
+	return &result, nil
+}
+
+func (c *Client) pollForResult(id string) (*fleet.HostScriptResult, error) {
+	verb, path := "GET", fmt.Sprintf("/api/latest/fleet/scripts/results/%s", id)
+	var result *fleet.HostScriptResult
+	for {
+		res, err := c.AuthenticatedDo(verb, path, "", nil)
+		if err != nil {
+			return nil, fmt.Errorf("polling for result: %w", err)
+		}
+		defer res.Body.Close()
+
+		if res.StatusCode != http.StatusOK && res.StatusCode != http.StatusNotFound {
+
+			msg, err := extractServerErrMsg(verb, path, res)
+			if err != nil {
+				return nil, fmt.Errorf("extracting error message: %w", err)
+			}
+			if msg == "" {
+				msg = fmt.Sprintf("decoding %d response is missing expected message.", res.StatusCode)
+			}
+			return nil, errors.New(msg)
+		}
+
+		if err := json.NewDecoder(res.Body).Decode(&result); err != nil {
+			return nil, fmt.Errorf("decoding response: %w", err)
+		}
+
+		if result.ExitCode != nil {
+			break
+		}
+
+		time.Sleep(pollWaitTime)
+
+	}
+
+	return result, nil
+}
+
+// ApplyNoTeamScripts sends the list of scripts to be applied for the hosts in
+// no team.
+func (c *Client) ApplyNoTeamScripts(scripts []fleet.ScriptPayload, opts fleet.ApplySpecOptions) ([]fleet.ScriptResponse, error) {
+	verb, path := "POST", "/api/latest/fleet/scripts/batch"
+	var resp fleet.BatchSetScriptsResponse
+	err := c.authenticatedRequestWithQuery(map[string]interface{}{"scripts": scripts}, verb, path, &resp, opts.RawQuery())
+
+	return resp.Scripts, err
+}
+
+func (c *Client) validateMacOSSetupScript(fileName string) ([]byte, error) {
+	if err := c.CheckAppleMDMEnabled(); err != nil {
+		return nil, err
+	}
+
+	b, err := os.ReadFile(fileName)
+	if err != nil {
+		return nil, err
+	}
+	return b, nil
+}
+
+func (c *Client) deleteMacOSSetupScript(teamID *uint) error {
+	var query string
+	if teamID != nil {
+		query = fmt.Sprintf("team_id=%d", *teamID)
+	}
+
+	verb, path := "DELETE", "/api/latest/fleet/setup_experience/script"
+	var delResp fleet.DeleteSetupExperienceScriptResponse
+	return c.authenticatedRequestWithQuery(nil, verb, path, &delResp, query)
+}
+
+func (c *Client) uploadMacOSSetupScript(filename string, data []byte, teamID *uint) error {
+	verb, path := "POST", "/api/latest/fleet/setup_experience/script"
+
+	var b bytes.Buffer
+	w := multipart.NewWriter(&b)
+
+	fw, err := w.CreateFormFile("script", filename)
+	if err != nil {
+		return err
+	}
+	if _, err := io.Copy(fw, bytes.NewBuffer(data)); err != nil {
+		return err
+	}
+
+	// add the team_id field
+	if teamID != nil {
+		if err := w.WriteField("team_id", fmt.Sprint(*teamID)); err != nil {
+			return err
+		}
+	}
+	w.Close()
+
+	response, err := c.doContextWithBodyAndHeaders(context.Background(), verb, path, "",
+		b.Bytes(),
+		map[string]string{
+			"Content-Type":  w.FormDataContentType(),
+			"Accept":        "application/json",
+			"Authorization": fmt.Sprintf("Bearer %s", c.token),
+		},
+	)
+	if err != nil {
+		return fmt.Errorf("do multipart request: %w", err)
+	}
+	defer response.Body.Close()
+
+	var resp fleet.SetSetupExperienceScriptResponse
+	if err := c.parseResponse(verb, path, response, &resp); err != nil {
+		return fmt.Errorf("parse response: %w", err)
+	}
+
+	return nil
+}
+
+// ListScripts retrieves the saved scripts.
+func (c *Client) ListScripts(query string) ([]*fleet.Script, error) {
+	verb, path := "GET", "/api/latest/fleet/scripts"
+	var responseBody fleet.ListScriptsResponse
+	err := c.authenticatedRequestWithQuery(nil, verb, path, &responseBody, query)
+	if err != nil {
+		return nil, err
+	}
+	return responseBody.Scripts, nil
+}
+
+// Get the contents of a saved script.
+func (c *Client) GetScriptContents(scriptID uint) ([]byte, error) {
+	verb, path := "GET", "/api/latest/fleet/scripts/"+fmt.Sprint(scriptID)
+	response, err := c.AuthenticatedDo(verb, path, "alt=media", nil)
+	if err != nil {
+		return nil, fmt.Errorf("%s %s: %w", verb, path, err)
+	}
+	defer response.Body.Close()
+	err = c.parseResponse(verb, path, response, nil)
+	if err != nil {
+		return nil, fmt.Errorf("parsing script response: %w", err)
+	}
+	if response.StatusCode != http.StatusNoContent {
+		b, err := io.ReadAll(response.Body)
+		if err != nil {
+			return nil, fmt.Errorf("reading response body: %w", err)
+		}
+		return b, nil
+	}
+	return nil, nil
+}
+
+// GetSetupExperienceScript retrieves the setup script for the given team, if any.
+func (c *Client) GetSetupExperienceScript(teamID uint) (*fleet.Script, error) {
+	verb, path := "GET", "/api/latest/fleet/setup_experience/script"
+	var query string
+	if teamID != 0 {
+		query = fmt.Sprintf("team_id=%d", teamID)
+	}
+	var responseBody fleet.GetSetupExperienceScriptResponse
+	err := c.authenticatedRequestWithQuery(nil, verb, path, &responseBody, query)
+	if err != nil {
+		var notFoundErr notFoundErr
+		if errors.As(err, &notFoundErr) {
+			// If the script is not found, we return nil instead of an error.
+			return nil, nil
+		}
+		return nil, err
+	}
+	return responseBody.Script, nil
+}

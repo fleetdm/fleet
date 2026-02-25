@@ -7,23 +7,13 @@ import (
 	"gopkg.in/guregu/null.v3"
 )
 
-type applyUserRoleSpecsRequest struct {
-	Spec *fleet.UsersRoleSpec `json:"spec"`
-}
-
-type applyUserRoleSpecsResponse struct {
-	Err error `json:"error,omitempty"`
-}
-
-func (r applyUserRoleSpecsResponse) Error() error { return r.Err }
-
 func applyUserRoleSpecsEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
-	req := request.(*applyUserRoleSpecsRequest)
+	req := request.(*fleet.ApplyUserRoleSpecsRequest)
 	err := svc.ApplyUserRolesSpecs(ctx, *req.Spec)
 	if err != nil {
-		return applyUserRoleSpecsResponse{Err: err}, nil
+		return fleet.ApplyUserRoleSpecsResponse{Err: err}, nil
 	}
-	return applyUserRoleSpecsResponse{}, nil
+	return fleet.ApplyUserRoleSpecsResponse{}, nil
 }
 
 func (svc *Service) ApplyUserRolesSpecs(ctx context.Context, specs fleet.UsersRoleSpec) error {

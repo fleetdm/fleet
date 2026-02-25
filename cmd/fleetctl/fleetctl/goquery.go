@@ -9,8 +9,8 @@ import (
 	gqconfig "github.com/AbGuthrie/goquery/v2/config"
 	gqhosts "github.com/AbGuthrie/goquery/v2/hosts"
 	gqmodels "github.com/AbGuthrie/goquery/v2/models"
+	fleetclient "github.com/fleetdm/fleet/v4/client"
 	"github.com/fleetdm/fleet/v4/server/fleet"
-	"github.com/fleetdm/fleet/v4/server/service"
 	"github.com/urfave/cli/v2"
 )
 
@@ -20,7 +20,7 @@ type activeQuery struct {
 }
 
 type goqueryClient struct {
-	client       *service.Client
+	client       *fleetclient.Client
 	queryCounter int
 	queries      map[string]activeQuery
 	// goquery passes the UUID, while we need the hostname (or ID) to
@@ -29,7 +29,7 @@ type goqueryClient struct {
 	hostnameByUUID map[string]string
 }
 
-func newGoqueryClient(fleetClient *service.Client) *goqueryClient {
+func newGoqueryClient(fleetClient *fleetclient.Client) *goqueryClient {
 	return &goqueryClient{
 		client:         fleetClient,
 		queryCounter:   0,

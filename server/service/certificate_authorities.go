@@ -2,26 +2,16 @@ package service
 
 import (
 	"context"
-	"net/http"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
 )
 
-type listCertificateAuthoritiesRequest struct{}
-
-type listCertificateAuthoritiesResponse struct {
-	CertificateAuthorities []*fleet.CertificateAuthoritySummary `json:"certificate_authorities"`
-	Err                    error                                `json:"error,omitempty"`
-}
-
-func (r listCertificateAuthoritiesResponse) Error() error { return r.Err }
-
 func listCertificateAuthoritiesEndpoint(ctx context.Context, req any, svc fleet.Service) (fleet.Errorer, error) {
 	certAuths, err := svc.ListCertificateAuthorities(ctx)
 	if err != nil {
-		return listCertificateAuthoritiesResponse{Err: err}, nil
+		return fleet.ListCertificateAuthoritiesResponse{Err: err}, nil
 	}
-	return listCertificateAuthoritiesResponse{
+	return fleet.ListCertificateAuthoritiesResponse{
 		CertificateAuthorities: certAuths,
 	}, nil
 }
@@ -32,24 +22,13 @@ func (svc *Service) ListCertificateAuthorities(ctx context.Context) ([]*fleet.Ce
 	return nil, fleet.ErrMissingLicense
 }
 
-type getCertificateAuthorityRequest struct {
-	ID uint `url:"id"`
-}
-
-type getCertificateAuthorityResponse struct {
-	*fleet.CertificateAuthority
-	Err error `json:"error,omitempty"`
-}
-
-func (r getCertificateAuthorityResponse) Error() error { return r.Err }
-
 func getCertificateAuthorityEndpoint(ctx context.Context, request any, svc fleet.Service) (fleet.Errorer, error) {
-	req := request.(*getCertificateAuthorityRequest)
+	req := request.(*fleet.GetCertificateAuthorityRequest)
 	certAuth, err := svc.GetCertificateAuthority(ctx, req.ID)
 	if err != nil {
-		return getCertificateAuthorityResponse{Err: err}, nil
+		return fleet.GetCertificateAuthorityResponse{Err: err}, nil
 	}
-	return getCertificateAuthorityResponse{
+	return fleet.GetCertificateAuthorityResponse{
 		CertificateAuthority: certAuth,
 	}, nil
 }
@@ -60,28 +39,15 @@ func (svc *Service) GetCertificateAuthority(ctx context.Context, id uint) (*flee
 	return nil, fleet.ErrMissingLicense
 }
 
-type createCertificateAuthorityRequest struct {
-	fleet.CertificateAuthorityPayload
-}
-
-type createCertificateAuthorityResponse struct {
-	ID   uint         `json:"id,omitempty"`
-	Name string       `json:"name,omitempty"`
-	Type fleet.CAType `json:"type,omitempty"`
-	Err  error        `json:"error,omitempty"`
-}
-
-func (r createCertificateAuthorityResponse) Error() error { return r.Err }
-
 func createCertificateAuthorityEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
-	req := request.(*createCertificateAuthorityRequest)
+	req := request.(*fleet.CreateCertificateAuthorityRequest)
 
 	ca, err := svc.NewCertificateAuthority(ctx, req.CertificateAuthorityPayload)
 	if err != nil {
-		return createCertificateAuthorityResponse{Err: err}, nil
+		return fleet.CreateCertificateAuthorityResponse{Err: err}, nil
 	}
 
-	return createCertificateAuthorityResponse{ID: ca.ID, Name: *ca.Name, Type: fleet.CAType(ca.Type)}, nil
+	return fleet.CreateCertificateAuthorityResponse{ID: ca.ID, Name: *ca.Name, Type: fleet.CAType(ca.Type)}, nil
 }
 
 func (svc *Service) NewCertificateAuthority(ctx context.Context, p fleet.CertificateAuthorityPayload) (*fleet.CertificateAuthority, error) {
@@ -90,26 +56,15 @@ func (svc *Service) NewCertificateAuthority(ctx context.Context, p fleet.Certifi
 	return nil, fleet.ErrMissingLicense
 }
 
-type deleteCertificateAuthorityRequest struct {
-	ID uint `url:"id"`
-}
-
-type deleteCertificateAuthorityResponse struct {
-	Err error `json:"error,omitempty"`
-}
-
-func (r deleteCertificateAuthorityResponse) Error() error { return r.Err }
-func (r deleteCertificateAuthorityResponse) Status() int  { return http.StatusNoContent }
-
 func deleteCertificateAuthorityEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
-	req := request.(*deleteCertificateAuthorityRequest)
+	req := request.(*fleet.DeleteCertificateAuthorityRequest)
 
 	err := svc.DeleteCertificateAuthority(ctx, req.ID)
 	if err != nil {
-		return &deleteCertificateAuthorityResponse{Err: err}, nil
+		return &fleet.DeleteCertificateAuthorityResponse{Err: err}, nil
 	}
 
-	return &deleteCertificateAuthorityResponse{}, nil
+	return &fleet.DeleteCertificateAuthorityResponse{}, nil
 }
 
 func (svc *Service) DeleteCertificateAuthority(ctx context.Context, certificateAuthorityID uint) error {
@@ -118,26 +73,15 @@ func (svc *Service) DeleteCertificateAuthority(ctx context.Context, certificateA
 	return fleet.ErrMissingLicense
 }
 
-type updateCertificateAuthorityRequest struct {
-	ID uint `url:"id"`
-	fleet.CertificateAuthorityUpdatePayload
-}
-
-type updateCertificateAuthorityResponse struct {
-	Err error `json:"error,omitempty"`
-}
-
-func (r updateCertificateAuthorityResponse) Error() error { return r.Err }
-
 func updateCertificateAuthorityEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
-	req := request.(*updateCertificateAuthorityRequest)
+	req := request.(*fleet.UpdateCertificateAuthorityRequest)
 
 	err := svc.UpdateCertificateAuthority(ctx, req.ID, req.CertificateAuthorityUpdatePayload)
 	if err != nil {
-		return &updateCertificateAuthorityResponse{Err: err}, nil
+		return &fleet.UpdateCertificateAuthorityResponse{Err: err}, nil
 	}
 
-	return &updateCertificateAuthorityResponse{}, nil
+	return &fleet.UpdateCertificateAuthorityResponse{}, nil
 }
 
 func (svc *Service) UpdateCertificateAuthority(ctx context.Context, id uint, payload fleet.CertificateAuthorityUpdatePayload) error {
@@ -146,26 +90,15 @@ func (svc *Service) UpdateCertificateAuthority(ctx context.Context, id uint, pay
 	return fleet.ErrMissingLicense
 }
 
-type requestCertificateRequest struct {
-	fleet.RequestCertificatePayload
-}
-
-type requestCertificateResponse struct {
-	Certificate string `json:"certificate"`
-	Err         error  `json:"error,omitempty"`
-}
-
-func (r requestCertificateResponse) Error() error { return r.Err }
-
 func requestCertificateEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
-	req := request.(*requestCertificateRequest)
+	req := request.(*fleet.RequestCertificateRequest)
 
 	certificate, err := svc.RequestCertificate(ctx, req.RequestCertificatePayload)
 	if err != nil {
-		return requestCertificateResponse{Err: err}, nil
+		return fleet.RequestCertificateResponse{Err: err}, nil
 	}
 
-	return requestCertificateResponse{Certificate: *certificate}, nil
+	return fleet.RequestCertificateResponse{Certificate: *certificate}, nil
 }
 
 func (svc *Service) RequestCertificate(ctx context.Context, p fleet.RequestCertificatePayload) (*string, error) {
@@ -174,28 +107,18 @@ func (svc *Service) RequestCertificate(ctx context.Context, p fleet.RequestCerti
 	return nil, fleet.ErrMissingLicense
 }
 
-type batchApplyCertificateAuthoritiesRequest struct {
-	CertificateAuthorities fleet.GroupedCertificateAuthorities `json:"certificate_authorities"`
-	DryRun                 bool                                `json:"dry_run"`
-}
-
 // TODO(hca): do we need to return anything to facilitate logging by the gitops client?
-type batchApplyCertificateAuthoritiesResponse struct {
-	Err error `json:"error,omitempty"`
-}
-
-func (r batchApplyCertificateAuthoritiesResponse) Error() error { return r.Err }
 
 func batchApplyCertificateAuthoritiesEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
-	req := request.(*batchApplyCertificateAuthoritiesRequest)
+	req := request.(*fleet.BatchApplyCertificateAuthoritiesRequest)
 
 	// Call the service method to apply the certificate authorities spec
 	err := svc.BatchApplyCertificateAuthorities(ctx, req.CertificateAuthorities, req.DryRun, true)
 	if err != nil {
-		return &batchApplyCertificateAuthoritiesResponse{Err: err}, nil
+		return &fleet.BatchApplyCertificateAuthoritiesResponse{Err: err}, nil
 	}
 
-	return &batchApplyCertificateAuthoritiesResponse{}, nil
+	return &fleet.BatchApplyCertificateAuthoritiesResponse{}, nil
 }
 
 func (svc *Service) BatchApplyCertificateAuthorities(ctx context.Context, incoming fleet.GroupedCertificateAuthorities, dryRun bool, viaGitOps bool) error {
@@ -210,26 +133,15 @@ func (svc *Service) BatchApplyCertificateAuthorities(ctx context.Context, incomi
 	return fleet.ErrMissingLicense
 }
 
-type getCertificateAuthoritiesSpecRequest struct {
-	IncludeSecrets bool `query:"include_secrets,optional"`
-}
-
-type getCertificateAuthoritiesSpecResponse struct {
-	CertificateAuthorities *fleet.GroupedCertificateAuthorities `json:"certificate_authorities"`
-	Err                    error                                `json:"error,omitempty"`
-}
-
-func (r getCertificateAuthoritiesSpecResponse) Error() error { return r.Err }
-
 func getCertificateAuthoritiesSpecEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
-	req := request.(*getCertificateAuthoritiesSpecRequest)
+	req := request.(*fleet.GetCertificateAuthoritiesSpecRequest)
 
 	certificateAuthorities, err := svc.GetGroupedCertificateAuthorities(ctx, req.IncludeSecrets)
 	if err != nil {
-		return &getCertificateAuthoritiesSpecResponse{Err: err}, nil
+		return &fleet.GetCertificateAuthoritiesSpecResponse{Err: err}, nil
 	}
 
-	return &getCertificateAuthoritiesSpecResponse{CertificateAuthorities: certificateAuthorities}, nil
+	return &fleet.GetCertificateAuthoritiesSpecResponse{CertificateAuthorities: certificateAuthorities}, nil
 }
 
 func (svc *Service) GetGroupedCertificateAuthorities(ctx context.Context, includeSecrets bool) (*fleet.GroupedCertificateAuthorities, error) {

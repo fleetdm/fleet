@@ -11,9 +11,9 @@ import (
 	"strings"
 	"time"
 
+	fleetclient "github.com/fleetdm/fleet/v4/client"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mock"
-	"github.com/fleetdm/fleet/v4/server/service"
 	"github.com/fleetdm/fleet/v4/server/vulnerabilities/nvd"
 	"github.com/google/go-cmp/cmp"
 	"github.com/shirou/gopsutil/v3/process"
@@ -306,11 +306,11 @@ func vulnDBSync(ctx context.Context, vulnDBDir string, debug bool, logger *slog.
 }
 
 func getSoftwareFromURL(url, apiToken string, debug bool) []fleet.Software {
-	var clientOpts []service.ClientOption
+	var clientOpts []fleetclient.ClientOption
 	if debug {
-		clientOpts = append(clientOpts, service.EnableClientDebug())
+		clientOpts = append(clientOpts, fleetclient.EnableClientDebug())
 	}
-	apiClient, err := service.NewClient(url, true, "", "", clientOpts...)
+	apiClient, err := fleetclient.NewClient(url, true, "", "", clientOpts...)
 	if err != nil {
 		panic(err)
 	}

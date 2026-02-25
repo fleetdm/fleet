@@ -10,8 +10,8 @@ import (
 	"strings"
 	"time"
 
+	fleetclient "github.com/fleetdm/fleet/v4/client"
 	"github.com/fleetdm/fleet/v4/server/fleet"
-	"github.com/fleetdm/fleet/v4/server/service"
 )
 
 func printf(format string, a ...any) {
@@ -31,11 +31,11 @@ func main() {
 	if *apiToken == "" {
 		log.Fatal("missing api_token argument")
 	}
-	var clientOpts []service.ClientOption
+	var clientOpts []fleetclient.ClientOption
 	if *debug {
-		clientOpts = append(clientOpts, service.EnableClientDebug())
+		clientOpts = append(clientOpts, fleetclient.EnableClientDebug())
 	}
-	apiClient, err := service.NewClient(*fleetURL, true, "", "", clientOpts...)
+	apiClient, err := fleetclient.NewClient(*fleetURL, true, "", "", clientOpts...)
 	if err != nil {
 		log.Fatal(err)
 	}

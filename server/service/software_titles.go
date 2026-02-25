@@ -12,29 +12,12 @@ import (
 	"github.com/fleetdm/fleet/v4/server/ptr"
 )
 
-/////////////////////////////////////////////////////////////////////////////////
 // List Software Titles
-/////////////////////////////////////////////////////////////////////////////////
-
-type listSoftwareTitlesRequest struct {
-	fleet.SoftwareTitleListOptions
-}
-
-type listSoftwareTitlesResponse struct {
-	Meta            *fleet.PaginationMetadata       `json:"meta"`
-	Count           int                             `json:"count"`
-	CountsUpdatedAt *time.Time                      `json:"counts_updated_at"`
-	SoftwareTitles  []fleet.SoftwareTitleListResult `json:"software_titles"`
-	Err             error                           `json:"error,omitempty"`
-}
-
-func (r listSoftwareTitlesResponse) Error() error { return r.Err }
-
 func listSoftwareTitlesEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
-	req := request.(*listSoftwareTitlesRequest)
+	req := request.(*fleet.ListSoftwareTitlesRequest)
 	titles, count, meta, err := svc.ListSoftwareTitles(ctx, req.SoftwareTitleListOptions)
 	if err != nil {
-		return listSoftwareTitlesResponse{Err: err}, nil
+		return fleet.ListSoftwareTitlesResponse{Err: err}, nil
 	}
 
 	var latest time.Time
@@ -53,7 +36,7 @@ func listSoftwareTitlesEndpoint(ctx context.Context, request interface{}, svc fl
 	if len(titles) == 0 {
 		titles = []fleet.SoftwareTitleListResult{}
 	}
-	listResp := listSoftwareTitlesResponse{
+	listResp := fleet.ListSoftwareTitlesResponse{
 		SoftwareTitles: titles,
 		Count:          count,
 		Meta:           meta,
@@ -110,31 +93,16 @@ func (svc *Service) ListSoftwareTitles(
 	return titles, count, meta, nil
 }
 
-/////////////////////////////////////////////////////////////////////////////////
 // Get a Software Title
-/////////////////////////////////////////////////////////////////////////////////
-
-type getSoftwareTitleRequest struct {
-	ID     uint  `url:"id"`
-	TeamID *uint `query:"team_id,optional" renameto:"fleet_id"`
-}
-
-type getSoftwareTitleResponse struct {
-	SoftwareTitle *fleet.SoftwareTitle `json:"software_title,omitempty"`
-	Err           error                `json:"error,omitempty"`
-}
-
-func (r getSoftwareTitleResponse) Error() error { return r.Err }
-
 func getSoftwareTitleEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
-	req := request.(*getSoftwareTitleRequest)
+	req := request.(*fleet.GetSoftwareTitleRequest)
 
 	software, err := svc.SoftwareTitleByID(ctx, req.ID, req.TeamID)
 	if err != nil {
-		return getSoftwareTitleResponse{Err: err}, nil
+		return fleet.GetSoftwareTitleResponse{Err: err}, nil
 	}
 
-	return getSoftwareTitleResponse{SoftwareTitle: software}, nil
+	return fleet.GetSoftwareTitleResponse{SoftwareTitle: software}, nil
 }
 
 func (svc *Service) SoftwareTitleByID(ctx context.Context, id uint, teamID *uint) (*fleet.SoftwareTitle, error) {
@@ -259,25 +227,10 @@ func (svc *Service) SoftwareTitleNameForHostFilter(
 	return name, displayName, nil
 }
 
-/////////////////////////////////////////////////////////////////////////////////
 // Update a software title's name
-/////////////////////////////////////////////////////////////////////////////////
-
-type updateSoftwareNameRequest struct {
-	ID   uint   `url:"id"`
-	Name string `json:"name"`
-}
-
-type updateSoftwareNameResponse struct {
-	Err error `json:"error,omitempty"`
-}
-
-func (r updateSoftwareNameResponse) Error() error { return r.Err }
-func (r updateSoftwareNameResponse) Status() int  { return http.StatusResetContent }
-
 func updateSoftwareNameEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
-	req := request.(*updateSoftwareNameRequest)
-	return updateSoftwareNameResponse{Err: svc.UpdateSoftwareName(ctx, req.ID, req.Name)}, nil
+	req := request.(*fleet.UpdateSoftwareNameRequest)
+	return fleet.UpdateSoftwareNameResponse{Err: svc.UpdateSoftwareName(ctx, req.ID, req.Name)}, nil
 }
 
 func (svc *Service) UpdateSoftwareName(ctx context.Context, titleID uint, name string) error {

@@ -50,7 +50,7 @@ func (s *integrationMDMTestSuite) TestAppleDDMBatchUpload() {
 	}
 
 	// Non-configuration type should fail
-	res := s.Do("POST", "/api/latest/fleet/mdm/profiles/batch", batchSetMDMProfilesRequest{Profiles: []fleet.MDMProfileBatchPayload{
+	res := s.Do("POST", "/api/latest/fleet/mdm/profiles/batch", fleet.BatchSetMDMProfilesRequest{Profiles: []fleet.MDMProfileBatchPayload{
 		{Name: "bad", Contents: []byte(`{"Type": "com.apple.activation", "Payload": "test"}`)},
 	}}, http.StatusUnprocessableEntity)
 
@@ -58,7 +58,7 @@ func (s *integrationMDMTestSuite) TestAppleDDMBatchUpload() {
 	require.Contains(t, errMsg, "Only configuration declarations (com.apple.configuration.) are supported")
 
 	// "com.apple.configuration.softwareupdate.enforcement.specific" type should fail
-	res = s.Do("POST", "/api/latest/fleet/mdm/profiles/batch", batchSetMDMProfilesRequest{Profiles: []fleet.MDMProfileBatchPayload{
+	res = s.Do("POST", "/api/latest/fleet/mdm/profiles/batch", fleet.BatchSetMDMProfilesRequest{Profiles: []fleet.MDMProfileBatchPayload{
 		{Name: "bad2", Contents: []byte(`{"Type": "com.apple.configuration.softwareupdate.enforcement.specific", "Payload": "test"}`)},
 	}}, http.StatusUnprocessableEntity)
 
@@ -67,7 +67,7 @@ func (s *integrationMDMTestSuite) TestAppleDDMBatchUpload() {
 
 	// Types from our list of forbidden types should fail
 	for ft := range fleet.ForbiddenDeclTypes {
-		res = s.Do("POST", "/api/latest/fleet/mdm/profiles/batch", batchSetMDMProfilesRequest{Profiles: []fleet.MDMProfileBatchPayload{
+		res = s.Do("POST", "/api/latest/fleet/mdm/profiles/batch", fleet.BatchSetMDMProfilesRequest{Profiles: []fleet.MDMProfileBatchPayload{
 			{Name: "bad2", Contents: []byte(fmt.Sprintf(`{"Type": "%s", "Payload": "test"}`, ft))},
 		}}, http.StatusUnprocessableEntity)
 
@@ -76,7 +76,7 @@ func (s *integrationMDMTestSuite) TestAppleDDMBatchUpload() {
 	}
 
 	// "com.apple.configuration.management.status-subscriptions" type should fail
-	res = s.Do("POST", "/api/latest/fleet/mdm/profiles/batch", batchSetMDMProfilesRequest{Profiles: []fleet.MDMProfileBatchPayload{
+	res = s.Do("POST", "/api/latest/fleet/mdm/profiles/batch", fleet.BatchSetMDMProfilesRequest{Profiles: []fleet.MDMProfileBatchPayload{
 		{Name: "bad2", Contents: []byte(`{"Type": "com.apple.configuration.management.status-subscriptions", "Payload": "test"}`)},
 	}}, http.StatusUnprocessableEntity)
 
@@ -84,7 +84,7 @@ func (s *integrationMDMTestSuite) TestAppleDDMBatchUpload() {
 	require.Contains(t, errMsg, "Declaration profile can’t include status subscription type. To get host’s vitals, please use queries and policies.")
 
 	// Two different payloads with the same name should fail
-	res = s.Do("POST", "/api/latest/fleet/mdm/profiles/batch", batchSetMDMProfilesRequest{Profiles: []fleet.MDMProfileBatchPayload{
+	res = s.Do("POST", "/api/latest/fleet/mdm/profiles/batch", fleet.BatchSetMDMProfilesRequest{Profiles: []fleet.MDMProfileBatchPayload{
 		{Name: "bad2", Contents: newDeclBytes(1, `"foo": "bar"`)},
 		{Name: "bad2", Contents: newDeclBytes(2, `"baz": "bing"`)},
 	}}, http.StatusUnprocessableEntity)
@@ -92,7 +92,7 @@ func (s *integrationMDMTestSuite) TestAppleDDMBatchUpload() {
 	require.Contains(t, errMsg, "More than one configuration profile have the same name")
 
 	// Same identifier should fail
-	res = s.Do("POST", "/api/latest/fleet/mdm/profiles/batch", batchSetMDMProfilesRequest{Profiles: []fleet.MDMProfileBatchPayload{
+	res = s.Do("POST", "/api/latest/fleet/mdm/profiles/batch", fleet.BatchSetMDMProfilesRequest{Profiles: []fleet.MDMProfileBatchPayload{
 		{Name: "N1", Contents: decls[0]},
 		{Name: "N2", Contents: decls[0]},
 	}}, http.StatusUnprocessableEntity)
@@ -100,13 +100,13 @@ func (s *integrationMDMTestSuite) TestAppleDDMBatchUpload() {
 	require.Contains(t, errMsg, "A declaration profile with this identifier already exists.")
 
 	// Create 2 declarations
-	s.Do("POST", "/api/latest/fleet/mdm/profiles/batch", batchSetMDMProfilesRequest{Profiles: []fleet.MDMProfileBatchPayload{
+	s.Do("POST", "/api/latest/fleet/mdm/profiles/batch", fleet.BatchSetMDMProfilesRequest{Profiles: []fleet.MDMProfileBatchPayload{
 		{Name: "N1", Contents: decls[0]},
 		{Name: "N2", Contents: decls[1]},
 	}}, http.StatusNoContent)
 
-	var resp listMDMConfigProfilesResponse
-	s.DoJSON("GET", "/api/latest/fleet/mdm/profiles", &listMDMConfigProfilesRequest{}, http.StatusOK, &resp)
+	var resp fleet.ListMDMConfigProfilesResponse
+	s.DoJSON("GET", "/api/latest/fleet/mdm/profiles", &fleet.ListMDMConfigProfilesRequest{}, http.StatusOK, &resp)
 
 	require.Len(t, resp.Profiles, 2)
 	require.Equal(t, "N1", resp.Profiles[0].Name)
@@ -115,12 +115,12 @@ func (s *integrationMDMTestSuite) TestAppleDDMBatchUpload() {
 	require.Equal(t, "darwin", resp.Profiles[1].Platform)
 
 	// Create 2 new declarations. These should take the place of the first two.
-	s.Do("POST", "/api/latest/fleet/mdm/profiles/batch", batchSetMDMProfilesRequest{Profiles: []fleet.MDMProfileBatchPayload{
+	s.Do("POST", "/api/latest/fleet/mdm/profiles/batch", fleet.BatchSetMDMProfilesRequest{Profiles: []fleet.MDMProfileBatchPayload{
 		{Name: "N3", Contents: decls[2]},
 		{Name: "N4", Contents: decls[3]},
 	}}, http.StatusNoContent)
 
-	s.DoJSON("GET", "/api/latest/fleet/mdm/profiles", &listMDMConfigProfilesRequest{}, http.StatusOK, &resp)
+	s.DoJSON("GET", "/api/latest/fleet/mdm/profiles", &fleet.ListMDMConfigProfilesRequest{}, http.StatusOK, &resp)
 
 	require.Len(t, resp.Profiles, 2)
 	require.Equal(t, "N3", resp.Profiles[0].Name)
@@ -130,12 +130,12 @@ func (s *integrationMDMTestSuite) TestAppleDDMBatchUpload() {
 
 	// replace only 1 declaration, the other one should be the same
 
-	s.Do("POST", "/api/latest/fleet/mdm/profiles/batch", batchSetMDMProfilesRequest{Profiles: []fleet.MDMProfileBatchPayload{
+	s.Do("POST", "/api/latest/fleet/mdm/profiles/batch", fleet.BatchSetMDMProfilesRequest{Profiles: []fleet.MDMProfileBatchPayload{
 		{Name: "N3", Contents: decls[2]},
 		{Name: "N5", Contents: decls[4]},
 	}}, http.StatusNoContent)
 
-	s.DoJSON("GET", "/api/latest/fleet/mdm/profiles", &listMDMConfigProfilesRequest{}, http.StatusOK, &resp)
+	s.DoJSON("GET", "/api/latest/fleet/mdm/profiles", &fleet.ListMDMConfigProfilesRequest{}, http.StatusOK, &resp)
 
 	require.Len(t, resp.Profiles, 2)
 	require.Equal(t, "N3", resp.Profiles[0].Name)
@@ -145,12 +145,12 @@ func (s *integrationMDMTestSuite) TestAppleDDMBatchUpload() {
 
 	// update the declarations
 
-	s.Do("POST", "/api/latest/fleet/mdm/profiles/batch", batchSetMDMProfilesRequest{Profiles: []fleet.MDMProfileBatchPayload{
+	s.Do("POST", "/api/latest/fleet/mdm/profiles/batch", fleet.BatchSetMDMProfilesRequest{Profiles: []fleet.MDMProfileBatchPayload{
 		{Name: "N3", Contents: newDeclBytes(2, `"foo": "bar"`)},
 		{Name: "N5", Contents: newDeclBytes(4, `"bing": "baz"`)},
 	}}, http.StatusNoContent)
 
-	s.DoJSON("GET", "/api/latest/fleet/mdm/profiles", &listMDMConfigProfilesRequest{}, http.StatusOK, &resp)
+	s.DoJSON("GET", "/api/latest/fleet/mdm/profiles", &fleet.ListMDMConfigProfilesRequest{}, http.StatusOK, &resp)
 
 	require.Len(t, resp.Profiles, 2)
 	require.Equal(t, "N3", resp.Profiles[0].Name)
@@ -158,7 +158,7 @@ func (s *integrationMDMTestSuite) TestAppleDDMBatchUpload() {
 	require.Equal(t, "N5", resp.Profiles[1].Name)
 	require.Equal(t, "darwin", resp.Profiles[1].Platform)
 
-	var createResp createLabelResponse
+	var createResp fleet.CreateLabelResponse
 	s.DoJSON("POST", "/api/latest/fleet/labels", &fleet.LabelPayload{Name: "label_1", Query: "select 1"}, http.StatusOK, &createResp)
 	require.NotZero(t, createResp.Label.ID)
 	require.Equal(t, "label_1", createResp.Label.Name)
@@ -170,12 +170,12 @@ func (s *integrationMDMTestSuite) TestAppleDDMBatchUpload() {
 	lbl2 := createResp.Label.Label
 
 	// Add with the deprecated "labels" and the new LabelsIncludeAll field
-	s.Do("POST", "/api/latest/fleet/mdm/profiles/batch", batchSetMDMProfilesRequest{Profiles: []fleet.MDMProfileBatchPayload{
+	s.Do("POST", "/api/latest/fleet/mdm/profiles/batch", fleet.BatchSetMDMProfilesRequest{Profiles: []fleet.MDMProfileBatchPayload{
 		{Name: "N5", Contents: decls[5], Labels: []string{lbl1.Name, lbl2.Name}},
 		{Name: "N6", Contents: decls[6], LabelsIncludeAll: []string{lbl1.Name}},
 	}}, http.StatusNoContent)
 
-	s.DoJSON("GET", "/api/latest/fleet/mdm/profiles", &listMDMConfigProfilesRequest{}, http.StatusOK, &resp)
+	s.DoJSON("GET", "/api/latest/fleet/mdm/profiles", &fleet.ListMDMConfigProfilesRequest{}, http.StatusOK, &resp)
 
 	require.Len(t, resp.Profiles, 2)
 	require.Equal(t, "N5", resp.Profiles[0].Name)
@@ -520,7 +520,7 @@ func (s *integrationMDMTestSuite) TestAppleDDMSecretVariables() {
 	decls[2] = []byte("${" + fleet.ServerSecretPrefix + "PROFILE}")
 
 	// Create declarations
-	profilesReq := batchSetMDMProfilesRequest{Profiles: []fleet.MDMProfileBatchPayload{
+	profilesReq := fleet.BatchSetMDMProfilesRequest{Profiles: []fleet.MDMProfileBatchPayload{
 		{Name: "N0", Contents: decls[0]},
 		{Name: "N1", Contents: decls[1]},
 		{Name: "N2", Contents: decls[2]},
@@ -528,12 +528,12 @@ func (s *integrationMDMTestSuite) TestAppleDDMSecretVariables() {
 	// First dry run
 	s.Do("POST", "/api/latest/fleet/mdm/profiles/batch", profilesReq, http.StatusNoContent, "dry_run", "true")
 
-	var resp listMDMConfigProfilesResponse
-	s.DoJSON("GET", "/api/latest/fleet/mdm/profiles", &listMDMConfigProfilesRequest{}, http.StatusOK, &resp)
+	var resp fleet.ListMDMConfigProfilesResponse
+	s.DoJSON("GET", "/api/latest/fleet/mdm/profiles", &fleet.ListMDMConfigProfilesRequest{}, http.StatusOK, &resp)
 	require.Empty(t, resp.Profiles)
 
 	// Add secrets to server
-	req := createSecretVariablesRequest{
+	req := fleet.CreateSecretVariablesRequest{
 		SecretVariables: []fleet.SecretVariable{
 			{
 				Name:  "FLEET_SECRET_BASH",
@@ -545,12 +545,12 @@ func (s *integrationMDMTestSuite) TestAppleDDMSecretVariables() {
 			},
 		},
 	}
-	secretResp := createSecretVariablesResponse{}
+	secretResp := fleet.CreateSecretVariablesResponse{}
 	s.DoJSON("PUT", "/api/latest/fleet/spec/secret_variables", req, http.StatusOK, &secretResp)
 
 	// Now real run
 	s.Do("POST", "/api/latest/fleet/mdm/profiles/batch", profilesReq, http.StatusNoContent)
-	s.DoJSON("GET", "/api/latest/fleet/mdm/profiles", &listMDMConfigProfilesRequest{}, http.StatusOK, &resp)
+	s.DoJSON("GET", "/api/latest/fleet/mdm/profiles", &fleet.ListMDMConfigProfilesRequest{}, http.StatusOK, &resp)
 
 	require.Len(t, resp.Profiles, len(decls))
 	checkedProfiles := 0
@@ -662,7 +662,7 @@ WHERE name = ?`
 
 	// Change the secrets.
 	myBash = "my.new.bash"
-	req = createSecretVariablesRequest{
+	req = fleet.CreateSecretVariablesRequest{
 		SecretVariables: []fleet.SecretVariable{
 			{
 				Name:  "FLEET_SECRET_BASH",
@@ -732,7 +732,7 @@ WHERE name = ?`
 	require.NoError(t, s.ds.SaveAppConfig(t.Context(), appCfg))
 	s.Do("DELETE", "/api/latest/fleet/configuration_profiles/"+nameToUUID["N2"], nil, http.StatusOK)
 
-	s.DoJSON("GET", "/api/latest/fleet/mdm/profiles", &listMDMConfigProfilesRequest{}, http.StatusOK, &resp)
+	s.DoJSON("GET", "/api/latest/fleet/mdm/profiles", &fleet.ListMDMConfigProfilesRequest{}, http.StatusOK, &resp)
 	require.Empty(t, resp.Profiles)
 }
 
@@ -751,7 +751,7 @@ func (s *integrationMDMTestSuite) TestAppleDDMReconciliation() {
 			t, identifier+".json", declarationForTest(identifier), s.token, fields,
 		)
 		res := s.DoRawWithHeaders("POST", "/api/latest/fleet/configuration_profiles", body.Bytes(), http.StatusOK, headers)
-		var resp newMDMConfigProfileResponse
+		var resp fleet.NewMDMConfigProfileResponse
 		err := json.NewDecoder(res.Body).Decode(&resp)
 		require.NoError(t, err)
 		require.NotEmpty(t, resp.ProfileUUID)
@@ -760,7 +760,7 @@ func (s *integrationMDMTestSuite) TestAppleDDMReconciliation() {
 	}
 
 	deleteDeclaration := func(declUUID string) {
-		var deleteResp deleteMDMConfigProfileResponse
+		var deleteResp fleet.DeleteMDMConfigProfileResponse
 		s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/configuration_profiles/%s", declUUID), nil, http.StatusOK, &deleteResp)
 	}
 
@@ -769,7 +769,7 @@ func (s *integrationMDMTestSuite) TestAppleDDMReconciliation() {
 	team := &fleet.Team{
 		Name: teamName,
 	}
-	var createTeamResp teamResponse
+	var createTeamResp fleet.TeamResponse
 	s.DoJSON("POST", "/api/latest/fleet/teams", team, http.StatusOK, &createTeamResp)
 	require.NotZero(t, createTeamResp.Team.ID)
 	team = createTeamResp.Team
@@ -833,14 +833,14 @@ func (s *integrationMDMTestSuite) TestAppleDDMReconciliation() {
 
 	// Create and then immediately delete a declaration
 	delUUID := addDeclaration("TestImmediateDelete", 0, nil)
-	var hostResp getHostResponse
+	var hostResp fleet.GetHostResponse
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", mdmHost.ID), nil, http.StatusOK, &hostResp)
 	require.NotNil(t, hostResp.Host.MDM.Profiles)
 	require.Len(t, *hostResp.Host.MDM.Profiles, 1)
 	require.Equal(t, (*hostResp.Host.MDM.Profiles)[0].Name, "TestImmediateDelete")
 
 	deleteDeclaration(delUUID)
-	hostResp = getHostResponse{}
+	hostResp = fleet.GetHostResponse{}
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", mdmHost.ID), nil, http.StatusOK, &hostResp)
 	require.Nil(t, hostResp.Host.MDM.Profiles)
 
@@ -889,7 +889,7 @@ func (s *integrationMDMTestSuite) TestAppleDDMReconciliation() {
 
 	// add device to the team
 	s.Do("POST", "/api/v1/fleet/hosts/transfer",
-		addHostsToTeamRequest{TeamID: &team.ID, HostIDs: []uint{mdmHost.ID}}, http.StatusOK)
+		fleet.AddHostsToTeamRequest{TeamID: &team.ID, HostIDs: []uint{mdmHost.ID}}, http.StatusOK)
 
 	// reconcile
 	err = ReconcileAppleDeclarations(ctx, s.ds, s.mdmCommander, s.logger)
@@ -921,7 +921,7 @@ func (s *integrationMDMTestSuite) TestAppleDDMReconciliation() {
 	// add a new host, this one belongs to the team
 	mdmHostThree, deviceThree := createHostThenEnrollMDM(s.ds, s.server.URL, t)
 	s.Do("POST", "/api/v1/fleet/hosts/transfer",
-		addHostsToTeamRequest{TeamID: &team.ID, HostIDs: []uint{mdmHostThree.ID}}, http.StatusOK)
+		fleet.AddHostsToTeamRequest{TeamID: &team.ID, HostIDs: []uint{mdmHostThree.ID}}, http.StatusOK)
 
 	// reconcile
 	err = ReconcileAppleDeclarations(ctx, s.ds, s.mdmCommander, s.logger)
@@ -986,7 +986,7 @@ func (s *integrationMDMTestSuite) TestAppleDDMStatusReport() {
 		{Name: "Unknown.json", Contents: declarationForTestWithType("I3", "com.apple.configuration.")},
 	}
 	// add global declarations
-	s.Do("POST", "/api/v1/fleet/mdm/profiles/batch", batchSetMDMProfilesRequest{Profiles: declarations}, http.StatusNoContent)
+	s.Do("POST", "/api/v1/fleet/mdm/profiles/batch", fleet.BatchSetMDMProfilesRequest{Profiles: declarations}, http.StatusNoContent)
 
 	// reconcile profiles
 	err := ReconcileAppleDeclarations(ctx, s.ds, s.mdmCommander, s.logger)
@@ -1081,7 +1081,7 @@ func (s *integrationMDMTestSuite) TestAppleDDMStatusReport() {
 	declarations = []fleet.MDMProfileBatchPayload{
 		{Name: "N1.json", Contents: declarationForTest("I1")},
 	}
-	s.Do("POST", "/api/v1/fleet/mdm/profiles/batch", batchSetMDMProfilesRequest{Profiles: declarations}, http.StatusNoContent)
+	s.Do("POST", "/api/v1/fleet/mdm/profiles/batch", fleet.BatchSetMDMProfilesRequest{Profiles: declarations}, http.StatusNoContent)
 
 	// reconcile profiles
 	err = ReconcileAppleDeclarations(ctx, s.ds, s.mdmCommander, s.logger)
@@ -1136,7 +1136,7 @@ func (s *integrationMDMTestSuite) TestDDMUnsupportedDevice() {
 		{Name: "N2.json", Contents: declarationForTest("I2")},
 	}
 	// add global declarations
-	s.Do("POST", "/api/v1/fleet/mdm/profiles/batch", batchSetMDMProfilesRequest{Profiles: declarations}, http.StatusNoContent)
+	s.Do("POST", "/api/v1/fleet/mdm/profiles/batch", fleet.BatchSetMDMProfilesRequest{Profiles: declarations}, http.StatusNoContent)
 
 	// reconcile declarations
 	err := ReconcileAppleDeclarations(ctx, s.ds, s.mdmCommander, s.logger)
@@ -1229,7 +1229,7 @@ func (s *integrationMDMTestSuite) TestDDMTransactionRecording() {
 		{Name: "N2.json", Contents: declarationForTest("I2")},
 	}
 	// add global declarations
-	s.Do("POST", "/api/v1/fleet/mdm/profiles/batch", batchSetMDMProfilesRequest{Profiles: declarations}, http.StatusNoContent)
+	s.Do("POST", "/api/v1/fleet/mdm/profiles/batch", fleet.BatchSetMDMProfilesRequest{Profiles: declarations}, http.StatusNoContent)
 
 	// reconcile declarations
 	err := ReconcileAppleDeclarations(ctx, s.ds, s.mdmCommander, s.logger)

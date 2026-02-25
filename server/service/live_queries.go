@@ -18,62 +18,10 @@ import (
 	"github.com/go-kit/log/level"
 )
 
-type runLiveQueryRequest struct {
-	QueryIDs []uint `json:"query_ids" renameto:"report_ids"`
-	HostIDs  []uint `json:"host_ids"`
-}
-
-type runOneLiveQueryRequest struct {
-	QueryID uint   `url:"id"`
-	HostIDs []uint `json:"host_ids"`
-}
-
-type runLiveQueryOnHostRequest struct {
-	Identifier string `url:"identifier"`
-	Query      string `json:"query"`
-}
-
-type runLiveQueryOnHostByIDRequest struct {
-	HostID uint   `url:"id"`
-	Query  string `json:"query"`
-}
-
-type summaryPayload struct {
-	TargetedHostCount  int `json:"targeted_host_count"`
-	RespondedHostCount int `json:"responded_host_count"`
-}
-
-type runLiveQueryResponse struct {
-	Summary summaryPayload `json:"summary"`
-	Err     error          `json:"error,omitempty"`
-
-	Results []fleet.QueryCampaignResult `json:"live_query_results" renameto:"live_report_results"`
-}
-
-func (r runLiveQueryResponse) Error() error { return r.Err }
-
-type runOneLiveQueryResponse struct {
-	QueryID            uint                `json:"query_id" renameto:"report_id"`
-	TargetedHostCount  int                 `json:"targeted_host_count"`
-	RespondedHostCount int                 `json:"responded_host_count"`
-	Results            []fleet.QueryResult `json:"results"`
-	Err                error               `json:"error,omitempty"`
-}
-
-func (r runOneLiveQueryResponse) Error() error { return r.Err }
-
-type runLiveQueryOnHostResponse struct {
-	HostID uint                `json:"host_id"`
-	Rows   []map[string]string `json:"rows"`
-	Query  string              `json:"query"`
-	Status fleet.HostStatus    `json:"status"`
-	Err    string              `json:"error,omitempty"`
-}
-
-func (r runLiveQueryOnHostResponse) Error() error { return nil }
+type summaryPayload = fleet.SummaryPayload
 
 func runOneLiveQueryEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
-	req := request.(*runOneLiveQueryRequest)
+	req := request.(*fleet.RunOneLiveQueryRequest)
 
 	// Only allow a host to be specified once in HostIDs
 	hostIDs := server.RemoveDuplicatesFromSlice(req.HostIDs)
@@ -93,7 +41,7 @@ func runOneLiveQueryEndpoint(ctx context.Context, request interface{}, svc fleet
 		}
 	}
 
-	res := runOneLiveQueryResponse{
+	res := fleet.RunOneLiveQueryResponse{
 		QueryID:            req.QueryID,
 		TargetedHostCount:  len(hostIDs),
 		RespondedHostCount: respondedHostCount,
@@ -103,7 +51,7 @@ func runOneLiveQueryEndpoint(ctx context.Context, request interface{}, svc fleet
 }
 
 func runLiveQueryEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
-	req := request.(*runLiveQueryRequest)
+	req := request.(*fleet.RunLiveQueryRequest)
 
 	// Only allow a query to be specified once
 	queryIDs := server.RemoveDuplicatesFromSlice(req.QueryIDs)
@@ -115,7 +63,7 @@ func runLiveQueryEndpoint(ctx context.Context, request interface{}, svc fleet.Se
 		return nil, err
 	}
 
-	res := runLiveQueryResponse{
+	res := fleet.RunLiveQueryResponse{
 		Summary: summaryPayload{
 			TargetedHostCount:  len(hostIDs),
 			RespondedHostCount: respondedHostCount,
@@ -126,7 +74,7 @@ func runLiveQueryEndpoint(ctx context.Context, request interface{}, svc fleet.Se
 }
 
 func runLiveQueryOnHostEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
-	req := request.(*runLiveQueryOnHostRequest)
+	req := request.(*fleet.RunLiveQueryOnHostRequest)
 
 	host, err := svc.HostLiteByIdentifier(ctx, req.Identifier)
 	if err != nil {
@@ -137,7 +85,7 @@ func runLiveQueryOnHostEndpoint(ctx context.Context, request interface{}, svc fl
 }
 
 func runLiveQueryOnHostByIDEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
-	req := request.(*runLiveQueryOnHostByIDRequest)
+	req := request.(*fleet.RunLiveQueryOnHostByIDRequest)
 
 	host, err := svc.HostLiteByID(ctx, req.HostID)
 	if err != nil {
@@ -153,7 +101,7 @@ func runLiveQueryOnHost(svc fleet.Service, ctx context.Context, host *fleet.Host
 		return nil, ctxerr.Wrap(ctx, badRequest("query is required"))
 	}
 
-	res := runLiveQueryOnHostResponse{
+	res := fleet.RunLiveQueryOnHostResponse{
 		HostID: host.ID,
 		Query:  query,
 	}

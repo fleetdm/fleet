@@ -11,20 +11,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 )
 
-type packResponse struct {
-	fleet.Pack
-	QueryCount uint `json:"query_count" renameto:"report_count"`
-
-	// All current hosts in the pack. Hosts which are selected explicty and
-	// hosts which are part of a label.
-	TotalHostsCount uint `json:"total_hosts_count"`
-
-	// IDs of hosts which were explicitly selected.
-	HostIDs  []uint `json:"host_ids"`
-	LabelIDs []uint `json:"label_ids"`
-	TeamIDs  []uint `json:"team_ids" renameto:"fleet_ids"`
-}
-
 func userIsGitOpsOnly(ctx context.Context) (bool, error) {
 	vc, ok := viewer.FromContext(ctx)
 	if !ok {
@@ -47,7 +33,7 @@ func userIsGitOpsOnly(ctx context.Context) (bool, error) {
 	return true, nil
 }
 
-func packResponseForPack(ctx context.Context, svc fleet.Service, pack fleet.Pack) (*packResponse, error) {
+func packResponseForPack(ctx context.Context, svc fleet.Service, pack fleet.Pack) (*fleet.PackResponse, error) {
 	opts := fleet.ListOptions{}
 	queries, err := svc.GetScheduledQueriesInPack(ctx, pack.ID, opts)
 	if err != nil {
@@ -86,7 +72,7 @@ func packResponseForPack(ctx context.Context, svc fleet.Service, pack fleet.Pack
 		totalHostsCount = hostMetrics.TotalHosts
 	}
 
-	return &packResponse{
+	return &fleet.PackResponse{
 		Pack:            pack,
 		QueryCount:      uint(len(queries)),
 		TotalHostsCount: totalHostsCount,
@@ -96,34 +82,20 @@ func packResponseForPack(ctx context.Context, svc fleet.Service, pack fleet.Pack
 	}, nil
 }
 
-////////////////////////////////////////////////////////////////////////////////
 // Get Pack
-////////////////////////////////////////////////////////////////////////////////
-
-type getPackRequest struct {
-	ID uint `url:"id"`
-}
-
-type getPackResponse struct {
-	Pack packResponse `json:"pack,omitempty"`
-	Err  error        `json:"error,omitempty"`
-}
-
-func (r getPackResponse) Error() error { return r.Err }
-
 func getPackEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
-	req := request.(*getPackRequest)
+	req := request.(*fleet.GetPackRequest)
 	pack, err := svc.GetPack(ctx, req.ID)
 	if err != nil {
-		return getPackResponse{Err: err}, nil
+		return fleet.GetPackResponse{Err: err}, nil
 	}
 
 	resp, err := packResponseForPack(ctx, svc, *pack)
 	if err != nil {
-		return getPackResponse{Err: err}, nil
+		return fleet.GetPackResponse{Err: err}, nil
 	}
 
-	return getPackResponse{
+	return fleet.GetPackResponse{
 		Pack: *resp,
 	}, nil
 }
@@ -136,34 +108,20 @@ func (svc *Service) GetPack(ctx context.Context, id uint) (*fleet.Pack, error) {
 	return svc.ds.Pack(ctx, id)
 }
 
-////////////////////////////////////////////////////////////////////////////////
 // Create Pack
-////////////////////////////////////////////////////////////////////////////////
-
-type createPackRequest struct {
-	fleet.PackPayload
-}
-
-type createPackResponse struct {
-	Pack packResponse `json:"pack,omitempty"`
-	Err  error        `json:"error,omitempty"`
-}
-
-func (r createPackResponse) Error() error { return r.Err }
-
 func createPackEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
-	req := request.(*createPackRequest)
+	req := request.(*fleet.CreatePackRequest)
 	pack, err := svc.NewPack(ctx, req.PackPayload)
 	if err != nil {
-		return createPackResponse{Err: err}, nil
+		return fleet.CreatePackResponse{Err: err}, nil
 	}
 
 	resp, err := packResponseForPack(ctx, svc, *pack)
 	if err != nil {
-		return createPackResponse{Err: err}, nil
+		return fleet.CreatePackResponse{Err: err}, nil
 	}
 
-	return createPackResponse{
+	return fleet.CreatePackResponse{
 		Pack: *resp,
 	}, nil
 }
@@ -228,35 +186,20 @@ func (svc *Service) NewPack(ctx context.Context, p fleet.PackPayload) (*fleet.Pa
 	return &pack, nil
 }
 
-////////////////////////////////////////////////////////////////////////////////
 // Modify Pack
-////////////////////////////////////////////////////////////////////////////////
-
-type modifyPackRequest struct {
-	ID uint `json:"-" url:"id"`
-	fleet.PackPayload
-}
-
-type modifyPackResponse struct {
-	Pack packResponse `json:"pack,omitempty"`
-	Err  error        `json:"error,omitempty"`
-}
-
-func (r modifyPackResponse) Error() error { return r.Err }
-
 func modifyPackEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
-	req := request.(*modifyPackRequest)
+	req := request.(*fleet.ModifyPackRequest)
 	pack, err := svc.ModifyPack(ctx, req.ID, req.PackPayload)
 	if err != nil {
-		return modifyPackResponse{Err: err}, nil
+		return fleet.ModifyPackResponse{Err: err}, nil
 	}
 
 	resp, err := packResponseForPack(ctx, svc, *pack)
 	if err != nil {
-		return modifyPackResponse{Err: err}, nil
+		return fleet.ModifyPackResponse{Err: err}, nil
 	}
 
-	return modifyPackResponse{
+	return fleet.ModifyPackResponse{
 		Pack: *resp,
 	}, nil
 }
@@ -324,33 +267,19 @@ func (svc *Service) ModifyPack(ctx context.Context, id uint, p fleet.PackPayload
 	return pack, err
 }
 
-////////////////////////////////////////////////////////////////////////////////
 // List Packs
-////////////////////////////////////////////////////////////////////////////////
-
-type listPacksRequest struct {
-	ListOptions fleet.ListOptions `url:"list_options"`
-}
-
-type listPacksResponse struct {
-	Packs []packResponse `json:"packs"`
-	Err   error          `json:"error,omitempty"`
-}
-
-func (r listPacksResponse) Error() error { return r.Err }
-
 func listPacksEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
-	req := request.(*listPacksRequest)
+	req := request.(*fleet.ListPacksRequest)
 	packs, err := svc.ListPacks(ctx, fleet.PackListOptions{ListOptions: req.ListOptions, IncludeSystemPacks: false})
 	if err != nil {
-		return getPackResponse{Err: err}, nil
+		return fleet.GetPackResponse{Err: err}, nil
 	}
 
-	resp := listPacksResponse{Packs: make([]packResponse, len(packs))}
+	resp := fleet.ListPacksResponse{Packs: make([]fleet.PackResponse, len(packs))}
 	for i, pack := range packs {
 		packResp, err := packResponseForPack(ctx, svc, *pack)
 		if err != nil {
-			return getPackResponse{Err: err}, nil
+			return fleet.GetPackResponse{Err: err}, nil
 		}
 		resp.Packs[i] = *packResp
 	}
@@ -365,27 +294,14 @@ func (svc *Service) ListPacks(ctx context.Context, opt fleet.PackListOptions) ([
 	return svc.ds.ListPacks(ctx, opt)
 }
 
-////////////////////////////////////////////////////////////////////////////////
 // Delete Pack
-////////////////////////////////////////////////////////////////////////////////
-
-type deletePackRequest struct {
-	Name string `url:"name"`
-}
-
-type deletePackResponse struct {
-	Err error `json:"error,omitempty"`
-}
-
-func (r deletePackResponse) Error() error { return r.Err }
-
 func deletePackEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
-	req := request.(*deletePackRequest)
+	req := request.(*fleet.DeletePackRequest)
 	err := svc.DeletePack(ctx, req.Name)
 	if err != nil {
-		return deletePackResponse{Err: err}, nil
+		return fleet.DeletePackResponse{Err: err}, nil
 	}
-	return deletePackResponse{}, nil
+	return fleet.DeletePackResponse{}, nil
 }
 
 func (svc *Service) DeletePack(ctx context.Context, name string) error {
@@ -418,27 +334,14 @@ func (svc *Service) DeletePack(ctx context.Context, name string) error {
 	return nil
 }
 
-////////////////////////////////////////////////////////////////////////////////
 // Delete Pack By ID
-////////////////////////////////////////////////////////////////////////////////
-
-type deletePackByIDRequest struct {
-	ID uint `url:"id"`
-}
-
-type deletePackByIDResponse struct {
-	Err error `json:"error,omitempty"`
-}
-
-func (r deletePackByIDResponse) Error() error { return r.Err }
-
 func deletePackByIDEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
-	req := request.(*deletePackByIDRequest)
+	req := request.(*fleet.DeletePackByIDRequest)
 	err := svc.DeletePackByID(ctx, req.ID)
 	if err != nil {
-		return deletePackByIDResponse{Err: err}, nil
+		return fleet.DeletePackByIDResponse{Err: err}, nil
 	}
-	return deletePackByIDResponse{}, nil
+	return fleet.DeletePackByIDResponse{}, nil
 }
 
 func (svc *Service) DeletePackByID(ctx context.Context, id uint) error {
@@ -469,27 +372,14 @@ func (svc *Service) DeletePackByID(ctx context.Context, id uint) error {
 	return nil
 }
 
-////////////////////////////////////////////////////////////////////////////////
 // Apply Pack Spec
-////////////////////////////////////////////////////////////////////////////////
-
-type applyPackSpecsRequest struct {
-	Specs []*fleet.PackSpec `json:"specs"`
-}
-
-type applyPackSpecsResponse struct {
-	Err error `json:"error,omitempty"`
-}
-
-func (r applyPackSpecsResponse) Error() error { return r.Err }
-
 func applyPackSpecsEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
-	req := request.(*applyPackSpecsRequest)
+	req := request.(*fleet.ApplyPackSpecsRequest)
 	_, err := svc.ApplyPackSpecs(ctx, req.Specs)
 	if err != nil {
-		return applyPackSpecsResponse{Err: err}, nil
+		return fleet.ApplyPackSpecsResponse{Err: err}, nil
 	}
-	return applyPackSpecsResponse{}, nil
+	return fleet.ApplyPackSpecsResponse{}, nil
 }
 
 func (svc *Service) ApplyPackSpecs(ctx context.Context, specs []*fleet.PackSpec) ([]*fleet.PackSpec, error) {
@@ -546,23 +436,13 @@ func (svc *Service) ApplyPackSpecs(ctx context.Context, specs []*fleet.PackSpec)
 	return result, nil
 }
 
-////////////////////////////////////////////////////////////////////////////////
 // Get Pack Specs
-////////////////////////////////////////////////////////////////////////////////
-
-type getPackSpecsResponse struct {
-	Specs []*fleet.PackSpec `json:"specs"`
-	Err   error             `json:"error,omitempty"`
-}
-
-func (r getPackSpecsResponse) Error() error { return r.Err }
-
 func getPackSpecsEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	specs, err := svc.GetPackSpecs(ctx)
 	if err != nil {
-		return getPackSpecsResponse{Err: err}, nil
+		return fleet.GetPackSpecsResponse{Err: err}, nil
 	}
-	return getPackSpecsResponse{Specs: specs}, nil
+	return fleet.GetPackSpecsResponse{Specs: specs}, nil
 }
 
 func (svc *Service) GetPackSpecs(ctx context.Context) ([]*fleet.PackSpec, error) {
@@ -573,24 +453,14 @@ func (svc *Service) GetPackSpecs(ctx context.Context) ([]*fleet.PackSpec, error)
 	return svc.ds.GetPackSpecs(ctx)
 }
 
-////////////////////////////////////////////////////////////////////////////////
 // Get Pack Spec
-////////////////////////////////////////////////////////////////////////////////
-
-type getPackSpecResponse struct {
-	Spec *fleet.PackSpec `json:"specs,omitempty"`
-	Err  error           `json:"error,omitempty"`
-}
-
-func (r getPackSpecResponse) Error() error { return r.Err }
-
 func getPackSpecEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
-	req := request.(*getGenericSpecRequest)
+	req := request.(*fleet.GetGenericSpecRequest)
 	spec, err := svc.GetPackSpec(ctx, req.Name)
 	if err != nil {
-		return getPackSpecResponse{Err: err}, nil
+		return fleet.GetPackSpecResponse{Err: err}, nil
 	}
-	return getPackSpecResponse{Spec: spec}, nil
+	return fleet.GetPackSpecResponse{Spec: spec}, nil
 }
 
 func (svc *Service) GetPackSpec(ctx context.Context, name string) (*fleet.PackSpec, error) {
@@ -601,10 +471,7 @@ func (svc *Service) GetPackSpec(ctx context.Context, name string) (*fleet.PackSp
 	return svc.ds.GetPackSpec(ctx, name)
 }
 
-////////////////////////////////////////////////////////////////////////////////
 // List Packs For Host, not exposed via an endpoint
-////////////////////////////////////////////////////////////////////////////////
-
 func (svc *Service) ListPacksForHost(ctx context.Context, hid uint) ([]*fleet.Pack, error) {
 	if err := svc.authz.Authorize(ctx, &fleet.Pack{}, fleet.ActionRead); err != nil {
 		return nil, err

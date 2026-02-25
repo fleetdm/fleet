@@ -11,15 +11,11 @@ import (
 	"github.com/gorilla/mux"
 )
 
-type calendarWebhookRequest struct {
-	eventUUID           string
-	googleChannelID     string
-	googleResourceState string
-}
-
 // DecodeRequest implement requestDecoder interface to take full control of decoding the request
-func (calendarWebhookRequest) DecodeRequest(_ context.Context, r *http.Request) (interface{}, error) {
-	var req calendarWebhookRequest
+type decodeCalendarWebhookRequest struct{}
+
+func (decodeCalendarWebhookRequest) DecodeRequest(_ context.Context, r *http.Request) (interface{}, error) {
+	var req fleet.CalendarWebhookRequest
 	eventUUID, ok := mux.Vars(r)["event_uuid"]
 	if !ok {
 		return nil, endpointer.ErrBadRoute
@@ -28,28 +24,22 @@ func (calendarWebhookRequest) DecodeRequest(_ context.Context, r *http.Request) 
 	if err != nil {
 		return "", ctxerr.Wrap(r.Context(), err, "unescape value in path")
 	}
-	req.eventUUID = unescaped
+	req.EventUUID = unescaped
 
-	req.googleChannelID = r.Header.Get("X-Goog-Channel-Id")
-	req.googleResourceState = r.Header.Get("X-Goog-Resource-State")
+	req.GoogleChannelID = r.Header.Get("X-Goog-Channel-Id")
+	req.GoogleResourceState = r.Header.Get("X-Goog-Resource-State")
 
 	return &req, nil
 }
 
-type calendarWebhookResponse struct {
-	Err error `json:"error,omitempty"`
-}
-
-func (r calendarWebhookResponse) Error() error { return r.Err }
-
 func calendarWebhookEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
-	req := request.(*calendarWebhookRequest)
-	err := svc.CalendarWebhook(ctx, req.eventUUID, req.googleChannelID, req.googleResourceState)
+	req := request.(*fleet.CalendarWebhookRequest)
+	err := svc.CalendarWebhook(ctx, req.EventUUID, req.GoogleChannelID, req.GoogleResourceState)
 	if err != nil {
-		return calendarWebhookResponse{Err: err}, err
+		return fleet.CalendarWebhookResponse{Err: err}, err
 	}
 
-	resp := calendarWebhookResponse{}
+	resp := fleet.CalendarWebhookResponse{}
 	return resp, nil
 }
 

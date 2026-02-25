@@ -120,7 +120,7 @@ func (s *integrationMDMTestSuite) TestReleaseWorker() {
 	}))
 
 	// query all hosts
-	listHostsRes := listHostsResponse{}
+	listHostsRes := fleet.ListHostsResponse{}
 	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &listHostsRes)
 	require.Empty(t, listHostsRes.Hosts) // no hosts yet
 
@@ -128,7 +128,7 @@ func (s *integrationMDMTestSuite) TestReleaseWorker() {
 	s.runDEPSchedule()
 
 	// all devices should be returned from the hosts endpoint
-	listHostsRes = listHostsResponse{}
+	listHostsRes = fleet.ListHostsResponse{}
 	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &listHostsRes)
 	require.Len(t, listHostsRes.Hosts, 1)
 
@@ -137,7 +137,7 @@ func (s *integrationMDMTestSuite) TestReleaseWorker() {
 			// Clean up
 			mysql.TruncateTables(t, s.ds, "mdm_apple_configuration_profiles", "host_mdm_apple_profiles", "nano_commands") // Clean tables after use
 			config := mobileconfigForTest("N1", "I1")
-			s.Do("POST", "/api/v1/fleet/mdm/apple/profiles/batch", batchSetMDMAppleProfilesRequest{Profiles: [][]byte{config}}, http.StatusNoContent)
+			s.Do("POST", "/api/v1/fleet/mdm/apple/profiles/batch", fleet.BatchSetMDMAppleProfilesRequest{Profiles: [][]byte{config}}, http.StatusNoContent)
 
 			// enroll the host
 			mdmDevice := enrollAppleDevice(t, device)
@@ -173,7 +173,7 @@ func (s *integrationMDMTestSuite) TestReleaseWorker() {
 			systemScopedConfig := mobileconfigForTest("N1", "I1")
 			userScope := fleet.PayloadScopeUser
 			userScopedConfig := scopedMobileconfigForTest("N-USER-SCOPED", "I-USER-SCOPED", &userScope)
-			s.Do("POST", "/api/v1/fleet/mdm/apple/profiles/batch", batchSetMDMAppleProfilesRequest{Profiles: [][]byte{systemScopedConfig, userScopedConfig}}, http.StatusNoContent)
+			s.Do("POST", "/api/v1/fleet/mdm/apple/profiles/batch", fleet.BatchSetMDMAppleProfilesRequest{Profiles: [][]byte{systemScopedConfig, userScopedConfig}}, http.StatusNoContent)
 
 			// enroll the host
 			mdmDevice := enrollAppleDevice(t, device)

@@ -51,7 +51,7 @@ func (s *integrationMDMTestSuite) verifyCertificateStatusWithSubject(
 	expectedSubjectName string,
 ) {
 	// Verify via host API
-	var getHostResp getHostResponse
+	var getHostResp fleet.GetHostResponse
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", host.ID), nil, http.StatusOK, &getHostResp)
 	require.NotNil(t, getHostResp.Host.MDM.Profiles)
 	require.NotEmpty(t, *getHostResp.Host.MDM.Profiles)
@@ -74,7 +74,7 @@ func (s *integrationMDMTestSuite) verifyCertificateStatusWithSubject(
 	resp := s.DoRawWithHeaders("GET", fmt.Sprintf("/api/fleetd/certificates/%d", certificateTemplateID), nil, http.StatusOK, map[string]string{
 		"Authorization": fmt.Sprintf("Node key %s", orbitNodeKey),
 	})
-	var getCertResp getDeviceCertificateTemplateResponse
+	var getCertResp fleet.GetDeviceCertificateTemplateResponse
 	err := json.NewDecoder(resp.Body).Decode(&getCertResp)
 	require.NoError(t, err)
 	_ = resp.Body.Close()
@@ -168,8 +168,8 @@ func (s *integrationMDMTestSuite) TestCertificateTemplateLifecycle() {
 
 	// Create a test team
 	teamName := t.Name() + "-team"
-	var createTeamResp teamResponse
-	s.DoJSON("POST", "/api/latest/fleet/teams", createTeamRequest{
+	var createTeamResp fleet.TeamResponse
+	s.DoJSON("POST", "/api/latest/fleet/teams", fleet.CreateTeamRequest{
 		TeamPayload: fleet.TeamPayload{
 			Name: ptr.String(teamName),
 		},
@@ -229,8 +229,8 @@ func (s *integrationMDMTestSuite) TestCertificateTemplateLifecycle() {
 
 	// Step: Create a certificate template
 	certTemplateName := strings.ReplaceAll(t.Name(), "/", "-") + "-CertTemplate"
-	var createResp createCertificateTemplateResponse
-	s.DoJSON("POST", "/api/latest/fleet/certificates", createCertificateTemplateRequest{
+	var createResp fleet.CreateCertificateTemplateResponse
+	s.DoJSON("POST", "/api/latest/fleet/certificates", fleet.CreateCertificateTemplateRequest{
 		Name:                   certTemplateName,
 		TeamID:                 teamID,
 		CertificateAuthorityId: caID,
@@ -274,7 +274,7 @@ func (s *integrationMDMTestSuite) TestCertificateTemplateLifecycle() {
 
 	// Step: Host updates the certificate status to 'verified' via fleetd API
 	successDetail := "Certificate installed successfully"
-	updateReq, err := json.Marshal(updateCertificateStatusRequest{
+	updateReq, err := json.Marshal(fleet.UpdateCertificateStatusRequest{
 		Status: string(fleet.CertificateTemplateVerified),
 		Detail: ptr.String(successDetail),
 	})
@@ -291,7 +291,7 @@ func (s *integrationMDMTestSuite) TestCertificateTemplateLifecycle() {
 	// Step: Host attempts to update the certificate status to 'failed' via fleetd API
 	// This should be ignored since the current status is not 'delivered'
 	failedDetail := "Certificate installation failed: invalid challenge"
-	updateReq, err = json.Marshal(updateCertificateStatusRequest{
+	updateReq, err = json.Marshal(fleet.UpdateCertificateStatusRequest{
 		Status: string(fleet.CertificateTemplateFailed),
 		Detail: ptr.String(failedDetail),
 	})
@@ -332,8 +332,8 @@ func (s *integrationMDMTestSuite) TestCertificateTemplateSpecEndpointAndAMAPIFai
 
 	// Step: Create a test team
 	teamName := t.Name() + "-team"
-	var createTeamResp teamResponse
-	s.DoJSON("POST", "/api/latest/fleet/teams", createTeamRequest{
+	var createTeamResp fleet.TeamResponse
+	s.DoJSON("POST", "/api/latest/fleet/teams", fleet.CreateTeamRequest{
 		TeamPayload: fleet.TeamPayload{
 			Name: ptr.String(teamName),
 		},
@@ -352,8 +352,8 @@ func (s *integrationMDMTestSuite) TestCertificateTemplateSpecEndpointAndAMAPIFai
 
 	// Step: Create certificate template via spec/certificates endpoint with $FLEET_VAR_HOST_UUID
 	certTemplateName := strings.ReplaceAll(t.Name(), "/", "-") + "-CertTemplate"
-	var applyResp applyCertificateTemplateSpecsResponse
-	s.DoJSON("POST", "/api/latest/fleet/spec/certificates", applyCertificateTemplateSpecsRequest{
+	var applyResp fleet.ApplyCertificateTemplateSpecsResponse
+	s.DoJSON("POST", "/api/latest/fleet/spec/certificates", fleet.ApplyCertificateTemplateSpecsRequest{
 		Specs: []*fleet.CertificateRequestSpec{
 			{
 				Name:                   certTemplateName,
@@ -365,7 +365,7 @@ func (s *integrationMDMTestSuite) TestCertificateTemplateSpecEndpointAndAMAPIFai
 	}, http.StatusOK, &applyResp)
 
 	// Step: Get the certificate template ID
-	var listResp listCertificateTemplatesResponse
+	var listResp fleet.ListCertificateTemplatesResponse
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/certificates?team_id=%d", teamID), nil, http.StatusOK, &listResp)
 	require.Len(t, listResp.Certificates, 1)
 	certificateTemplateID := listResp.Certificates[0].ID
@@ -472,9 +472,9 @@ func (s *integrationMDMTestSuite) TestCertificateTemplateNoTeamWithIDPVariable()
 
 	// Step: Create certificate template for "no team" (team_id = 0) with IDP_USERNAME variable
 	certTemplateName := strings.ReplaceAll(t.Name(), "/", "-") + "-CertTemplate"
-	var createResp createCertificateTemplateResponse
+	var createResp fleet.CreateCertificateTemplateResponse
 	subjectName := "CN=$FLEET_VAR_HOST_END_USER_IDP_USERNAME"
-	s.DoJSON("POST", "/api/latest/fleet/certificates", createCertificateTemplateRequest{
+	s.DoJSON("POST", "/api/latest/fleet/certificates", fleet.CreateCertificateTemplateRequest{
 		Name:                   certTemplateName,
 		TeamID:                 0, // No team
 		CertificateAuthorityId: caID,
@@ -542,7 +542,7 @@ func (s *integrationMDMTestSuite) TestCertificateTemplateNoTeamWithIDPVariable()
 	s.runWorker()
 
 	// Step: Verify status is 'delivered' via host API (after worker runs)
-	var getHostResp getHostResponse
+	var getHostResp fleet.GetHostResponse
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", host.ID), nil, http.StatusOK, &getHostResp)
 	require.NotNil(t, getHostResp.Host.MDM.Profiles)
 	require.Len(t, *getHostResp.Host.MDM.Profiles, 1)
@@ -553,7 +553,7 @@ func (s *integrationMDMTestSuite) TestCertificateTemplateNoTeamWithIDPVariable()
 	resp := s.DoRawWithHeaders("GET", fmt.Sprintf("/api/fleetd/certificates/%d", certificateTemplateID), nil, http.StatusOK, map[string]string{
 		"Authorization": fmt.Sprintf("Node key %s", orbitNodeKey),
 	})
-	var getCertResp getDeviceCertificateTemplateResponse
+	var getCertResp fleet.GetDeviceCertificateTemplateResponse
 	err = json.NewDecoder(resp.Body).Decode(&getCertResp)
 	require.NoError(t, err)
 	_ = resp.Body.Close()
@@ -576,8 +576,8 @@ func (s *integrationMDMTestSuite) TestCertificateTemplateUnenrollReenroll() {
 
 	// Step: Create a test team
 	teamName := t.Name() + "-team"
-	var createTeamResp teamResponse
-	s.DoJSON("POST", "/api/latest/fleet/teams", createTeamRequest{
+	var createTeamResp fleet.TeamResponse
+	s.DoJSON("POST", "/api/latest/fleet/teams", fleet.CreateTeamRequest{
 		TeamPayload: fleet.TeamPayload{
 			Name: ptr.String(teamName),
 		},
@@ -627,8 +627,8 @@ func (s *integrationMDMTestSuite) TestCertificateTemplateUnenrollReenroll() {
 
 	// Step: Create the first certificate template (while host is enrolled)
 	certTemplateName := strings.ReplaceAll(t.Name(), "/", "-") + "-CertTemplate1"
-	var createResp createCertificateTemplateResponse
-	s.DoJSON("POST", "/api/latest/fleet/certificates", createCertificateTemplateRequest{
+	var createResp fleet.CreateCertificateTemplateResponse
+	s.DoJSON("POST", "/api/latest/fleet/certificates", fleet.CreateCertificateTemplateRequest{
 		Name:                   certTemplateName,
 		TeamID:                 teamID,
 		CertificateAuthorityId: caID,
@@ -655,7 +655,7 @@ func (s *integrationMDMTestSuite) TestCertificateTemplateUnenrollReenroll() {
 
 	// Step: Create a second certificate template while host is unenrolled
 	certTemplateName2 := strings.ReplaceAll(t.Name(), "/", "-") + "-CertTemplate2"
-	s.DoJSON("POST", "/api/latest/fleet/certificates", createCertificateTemplateRequest{
+	s.DoJSON("POST", "/api/latest/fleet/certificates", fleet.CreateCertificateTemplateRequest{
 		Name:                   certTemplateName2,
 		TeamID:                 teamID,
 		CertificateAuthorityId: caID,
@@ -667,7 +667,7 @@ func (s *integrationMDMTestSuite) TestCertificateTemplateUnenrollReenroll() {
 	// Step: Verify that the unenrolled host did NOT get a host_certificate_templates record for the second template.
 	// The host API only returns profiles that have host_certificate_templates records, so the second
 	// template should not appear in the profiles list.
-	var getHostResp getHostResponse
+	var getHostResp fleet.GetHostResponse
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", host.ID), nil, http.StatusOK, &getHostResp)
 	require.NotNil(t, getHostResp.Host.MDM.Profiles)
 	require.Len(t, *getHostResp.Host.MDM.Profiles, 1, "Only first template should appear (second was created while host was unenrolled)")
@@ -705,8 +705,8 @@ func (s *integrationMDMTestSuite) TestCertificateTemplateTeamTransfer() {
 
 	// Create two teams with different certificate templates
 	teamAName := t.Name() + "-teamA"
-	var createTeamResp teamResponse
-	s.DoJSON("POST", "/api/latest/fleet/teams", createTeamRequest{
+	var createTeamResp fleet.TeamResponse
+	s.DoJSON("POST", "/api/latest/fleet/teams", fleet.CreateTeamRequest{
 		TeamPayload: fleet.TeamPayload{
 			Name: ptr.String(teamAName),
 		},
@@ -714,7 +714,7 @@ func (s *integrationMDMTestSuite) TestCertificateTemplateTeamTransfer() {
 	teamAID := createTeamResp.Team.ID
 
 	teamBName := t.Name() + "-teamB"
-	s.DoJSON("POST", "/api/latest/fleet/teams", createTeamRequest{
+	s.DoJSON("POST", "/api/latest/fleet/teams", fleet.CreateTeamRequest{
 		TeamPayload: fleet.TeamPayload{
 			Name: ptr.String(teamBName),
 		},
@@ -722,20 +722,20 @@ func (s *integrationMDMTestSuite) TestCertificateTemplateTeamTransfer() {
 	teamBID := createTeamResp.Team.ID
 
 	// Create enroll secrets for both teams
-	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d/secrets", teamAID), modifyTeamEnrollSecretsRequest{
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d/secrets", teamAID), fleet.ModifyTeamEnrollSecretsRequest{
 		Secrets: []fleet.EnrollSecret{{Secret: "teamA-secret"}},
-	}, http.StatusOK, &teamEnrollSecretsResponse{})
-	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d/secrets", teamBID), modifyTeamEnrollSecretsRequest{
+	}, http.StatusOK, &fleet.TeamEnrollSecretsResponse{})
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d/secrets", teamBID), fleet.ModifyTeamEnrollSecretsRequest{
 		Secrets: []fleet.EnrollSecret{{Secret: "teamB-secret"}},
-	}, http.StatusOK, &teamEnrollSecretsResponse{})
+	}, http.StatusOK, &fleet.TeamEnrollSecretsResponse{})
 
 	// Create a test certificate authority
 	caID, _ := s.createTestCertificateAuthority(t, ctx)
 
 	// Create certificate templates for Team A
 	certTemplateA1Name := strings.ReplaceAll(t.Name(), "/", "-") + "-TeamA-Cert1"
-	var createCertResp createCertificateTemplateResponse
-	s.DoJSON("POST", "/api/latest/fleet/certificates", createCertificateTemplateRequest{
+	var createCertResp fleet.CreateCertificateTemplateResponse
+	s.DoJSON("POST", "/api/latest/fleet/certificates", fleet.CreateCertificateTemplateRequest{
 		Name:                   certTemplateA1Name,
 		TeamID:                 teamAID,
 		CertificateAuthorityId: caID,
@@ -744,7 +744,7 @@ func (s *integrationMDMTestSuite) TestCertificateTemplateTeamTransfer() {
 	certTemplateA1ID := createCertResp.ID
 
 	certTemplateA2Name := strings.ReplaceAll(t.Name(), "/", "-") + "-TeamA-Cert2"
-	s.DoJSON("POST", "/api/latest/fleet/certificates", createCertificateTemplateRequest{
+	s.DoJSON("POST", "/api/latest/fleet/certificates", fleet.CreateCertificateTemplateRequest{
 		Name:                   certTemplateA2Name,
 		TeamID:                 teamAID,
 		CertificateAuthorityId: caID,
@@ -754,7 +754,7 @@ func (s *integrationMDMTestSuite) TestCertificateTemplateTeamTransfer() {
 
 	// Create certificate templates for Team B
 	certTemplateB1Name := strings.ReplaceAll(t.Name(), "/", "-") + "-TeamB-Cert1"
-	s.DoJSON("POST", "/api/latest/fleet/certificates", createCertificateTemplateRequest{
+	s.DoJSON("POST", "/api/latest/fleet/certificates", fleet.CreateCertificateTemplateRequest{
 		Name:                   certTemplateB1Name,
 		TeamID:                 teamBID,
 		CertificateAuthorityId: caID,
@@ -800,7 +800,7 @@ func (s *integrationMDMTestSuite) TestCertificateTemplateTeamTransfer() {
 	t.Run("host with certs in all status/operation combinations transfers to team without certs", func(t *testing.T) {
 		// Create a team with 9 certificate templates to test all status/operation combinations
 		teamEName := t.Name() + "-teamE"
-		s.DoJSON("POST", "/api/latest/fleet/teams", createTeamRequest{
+		s.DoJSON("POST", "/api/latest/fleet/teams", fleet.CreateTeamRequest{
 			TeamPayload: fleet.TeamPayload{
 				Name: ptr.String(teamEName),
 			},
@@ -808,13 +808,13 @@ func (s *integrationMDMTestSuite) TestCertificateTemplateTeamTransfer() {
 		teamEID := createTeamResp.Team.ID
 
 		// Create enroll secret for team E
-		s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d/secrets", teamEID), modifyTeamEnrollSecretsRequest{
+		s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d/secrets", teamEID), fleet.ModifyTeamEnrollSecretsRequest{
 			Secrets: []fleet.EnrollSecret{{Secret: "teamE-secret"}},
-		}, http.StatusOK, &teamEnrollSecretsResponse{})
+		}, http.StatusOK, &fleet.TeamEnrollSecretsResponse{})
 
 		// Create a team without certificate templates for transfer target
 		teamFName := t.Name() + "-teamF"
-		s.DoJSON("POST", "/api/latest/fleet/teams", createTeamRequest{
+		s.DoJSON("POST", "/api/latest/fleet/teams", fleet.CreateTeamRequest{
 			TeamPayload: fleet.TeamPayload{
 				Name: ptr.String(teamFName),
 			},
@@ -822,9 +822,9 @@ func (s *integrationMDMTestSuite) TestCertificateTemplateTeamTransfer() {
 		teamFID := createTeamResp.Team.ID
 
 		// Create enroll secret for team F
-		s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d/secrets", teamFID), modifyTeamEnrollSecretsRequest{
+		s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d/secrets", teamFID), fleet.ModifyTeamEnrollSecretsRequest{
 			Secrets: []fleet.EnrollSecret{{Secret: "teamF-secret"}},
-		}, http.StatusOK, &teamEnrollSecretsResponse{})
+		}, http.StatusOK, &fleet.TeamEnrollSecretsResponse{})
 
 		// Define all status/operation combinations to test
 		type certTestCase struct {
@@ -854,7 +854,7 @@ func (s *integrationMDMTestSuite) TestCertificateTemplateTeamTransfer() {
 		// Create certificate templates for team E
 		for i := range testCases {
 			name := fmt.Sprintf("%s-Cert-%s-%s", strings.ReplaceAll(t.Name(), "/", "-"), testCases[i].status, testCases[i].operation)
-			s.DoJSON("POST", "/api/latest/fleet/certificates", createCertificateTemplateRequest{
+			s.DoJSON("POST", "/api/latest/fleet/certificates", fleet.CreateCertificateTemplateRequest{
 				Name:                   name,
 				TeamID:                 teamEID,
 				CertificateAuthorityId: caID,
@@ -890,10 +890,10 @@ func (s *integrationMDMTestSuite) TestCertificateTemplateTeamTransfer() {
 		require.Len(t, statuses, 9, "Should have 9 certificate template records")
 
 		// Transfer host to Team F (no certs)
-		s.DoJSON("POST", "/api/latest/fleet/hosts/transfer", addHostsToTeamRequest{
+		s.DoJSON("POST", "/api/latest/fleet/hosts/transfer", fleet.AddHostsToTeamRequest{
 			TeamID:  &teamFID,
 			HostIDs: []uint{host.ID},
-		}, http.StatusOK, &addHostsToTeamResponse{})
+		}, http.StatusOK, &fleet.AddHostsToTeamResponse{})
 
 		// Run the worker to process the transfer
 		s.runWorker()
@@ -928,7 +928,7 @@ func (s *integrationMDMTestSuite) TestCertificateTemplateTeamTransfer() {
 	t.Run("host without certs transfers to team with certs", func(t *testing.T) {
 		// Create a team without certificate templates
 		teamDName := t.Name() + "-teamD"
-		s.DoJSON("POST", "/api/latest/fleet/teams", createTeamRequest{
+		s.DoJSON("POST", "/api/latest/fleet/teams", fleet.CreateTeamRequest{
 			TeamPayload: fleet.TeamPayload{
 				Name: ptr.String(teamDName),
 			},
@@ -936,9 +936,9 @@ func (s *integrationMDMTestSuite) TestCertificateTemplateTeamTransfer() {
 		teamDID := createTeamResp.Team.ID
 
 		// Create enroll secret for team D
-		s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d/secrets", teamDID), modifyTeamEnrollSecretsRequest{
+		s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d/secrets", teamDID), fleet.ModifyTeamEnrollSecretsRequest{
 			Secrets: []fleet.EnrollSecret{{Secret: "teamD-secret"}},
-		}, http.StatusOK, &teamEnrollSecretsResponse{})
+		}, http.StatusOK, &fleet.TeamEnrollSecretsResponse{})
 
 		// Create host in Team D (no certs)
 		host, _ := s.createEnrolledAndroidHost(t, ctx, enterpriseID, &teamDID, "no-certs")
@@ -948,10 +948,10 @@ func (s *integrationMDMTestSuite) TestCertificateTemplateTeamTransfer() {
 		require.Empty(t, statuses, "Host should have no certificate templates initially")
 
 		// Transfer host to Team B (has certs)
-		s.DoJSON("POST", "/api/latest/fleet/hosts/transfer", addHostsToTeamRequest{
+		s.DoJSON("POST", "/api/latest/fleet/hosts/transfer", fleet.AddHostsToTeamRequest{
 			TeamID:  &teamBID,
 			HostIDs: []uint{host.ID},
-		}, http.StatusOK, &addHostsToTeamResponse{})
+		}, http.StatusOK, &fleet.AddHostsToTeamResponse{})
 
 		// Run the worker to process the transfer
 		s.runWorker()
@@ -990,10 +990,10 @@ func (s *integrationMDMTestSuite) TestCertificateTemplateTeamTransfer() {
 		require.Equal(t, fleet.CertificateTemplateVerified, statuses[certTemplateA2ID].Status)
 
 		// Transfer host to Team B
-		s.DoJSON("POST", "/api/latest/fleet/hosts/transfer", addHostsToTeamRequest{
+		s.DoJSON("POST", "/api/latest/fleet/hosts/transfer", fleet.AddHostsToTeamRequest{
 			TeamID:  &teamBID,
 			HostIDs: []uint{host.ID},
-		}, http.StatusOK, &addHostsToTeamResponse{})
+		}, http.StatusOK, &fleet.AddHostsToTeamResponse{})
 
 		// Run the worker to process the transfer
 		s.runWorker()
@@ -1017,7 +1017,7 @@ func (s *integrationMDMTestSuite) TestCertificateTemplateTeamTransfer() {
 		// Test that device can report "verified" for a pending removal and the record gets deleted.
 		// This handles race conditions where the device processes the removal before the server
 		// transitions the status through the full state machine.
-		updateReq, err := json.Marshal(updateCertificateStatusRequest{
+		updateReq, err := json.Marshal(fleet.UpdateCertificateStatusRequest{
 			Status:        string(fleet.CertificateTemplateVerified),
 			OperationType: ptr.String(string(fleet.MDMOperationTypeRemove)),
 		})
@@ -1048,8 +1048,8 @@ func (s *integrationMDMTestSuite) TestCertificateTemplateRenewal() {
 
 	// Create a test team
 	teamName := t.Name() + "-team"
-	var createTeamResp teamResponse
-	s.DoJSON("POST", "/api/latest/fleet/teams", createTeamRequest{
+	var createTeamResp fleet.TeamResponse
+	s.DoJSON("POST", "/api/latest/fleet/teams", fleet.CreateTeamRequest{
 		TeamPayload: fleet.TeamPayload{
 			Name: ptr.String(teamName),
 		},
@@ -1145,8 +1145,8 @@ func (s *integrationMDMTestSuite) TestCertificateTemplateRenewal() {
 
 			// Create a certificate template
 			certTemplateName := strings.ReplaceAll(t.Name(), "/", "_") + "_CertTemplate"
-			var createResp createCertificateTemplateResponse
-			s.DoJSON("POST", "/api/latest/fleet/certificates", createCertificateTemplateRequest{
+			var createResp fleet.CreateCertificateTemplateResponse
+			s.DoJSON("POST", "/api/latest/fleet/certificates", fleet.CreateCertificateTemplateRequest{
 				Name:                   certTemplateName,
 				TeamID:                 teamID,
 				CertificateAuthorityId: caID,
@@ -1176,7 +1176,7 @@ func (s *integrationMDMTestSuite) TestCertificateTemplateRenewal() {
 			notValidAfter := now.Add(time.Duration(tc.expiresInDays) * 24 * time.Hour)
 			serial := fmt.Sprintf("SERIAL-%s", tc.name)
 
-			updateReq, err := json.Marshal(updateCertificateStatusRequest{
+			updateReq, err := json.Marshal(fleet.UpdateCertificateStatusRequest{
 				Status:         string(fleet.CertificateTemplateVerified),
 				Detail:         ptr.String("Certificate installed successfully"),
 				NotValidBefore: &notValidBefore,
@@ -1252,8 +1252,8 @@ func (s *integrationMDMTestSuite) TestCertificateTemplateAuthorizationForTeamUse
 
 	// Create a team
 	teamName := t.Name() + "-team"
-	var createTeamResp teamResponse
-	s.DoJSON("POST", "/api/latest/fleet/teams", createTeamRequest{
+	var createTeamResp fleet.TeamResponse
+	s.DoJSON("POST", "/api/latest/fleet/teams", fleet.CreateTeamRequest{
 		TeamPayload: fleet.TeamPayload{
 			Name: ptr.String(teamName),
 		},
@@ -1263,8 +1263,8 @@ func (s *integrationMDMTestSuite) TestCertificateTemplateAuthorizationForTeamUse
 	// Create a team admin user
 	teamAdminEmail := "team-admin@example.com"
 	teamAdminPassword := "password123#"
-	var createUserResp createUserResponse
-	s.DoJSON("POST", "/api/latest/fleet/users/admin", createUserRequest{
+	var createUserResp fleet.CreateUserResponse
+	s.DoJSON("POST", "/api/latest/fleet/users/admin", fleet.CreateUserRequest{
 		UserPayload: fleet.UserPayload{
 			Name:                     ptr.String("Team Admin"),
 			Email:                    &teamAdminEmail,
@@ -1292,7 +1292,7 @@ func (s *integrationMDMTestSuite) TestCertificateTemplateAuthorizationForTeamUse
 	caID := ca.ID
 
 	// Login as team admin
-	var loginResp loginResponse
+	var loginResp fleet.LoginResponse
 	s.DoJSON("POST", "/api/latest/fleet/login", contract.LoginRequest{
 		Email:    teamAdminEmail,
 		Password: teamAdminPassword,
@@ -1311,8 +1311,8 @@ func (s *integrationMDMTestSuite) TestCertificateTemplateAuthorizationForTeamUse
 		// Create a certificate template for the team using global admin
 		s.token = originalToken
 		certTemplateTeamName := strings.ReplaceAll(t.Name(), "/", "-") + "-Team-Cert"
-		var createResp createCertificateTemplateResponse
-		s.DoJSON("POST", "/api/latest/fleet/certificates", createCertificateTemplateRequest{
+		var createResp fleet.CreateCertificateTemplateResponse
+		s.DoJSON("POST", "/api/latest/fleet/certificates", fleet.CreateCertificateTemplateRequest{
 			Name:                   certTemplateTeamName,
 			TeamID:                 teamID,
 			CertificateAuthorityId: caID,
@@ -1324,7 +1324,7 @@ func (s *integrationMDMTestSuite) TestCertificateTemplateAuthorizationForTeamUse
 		// Switch back to team admin
 		s.token = teamAdminToken
 
-		var listResp listCertificateTemplatesResponse
+		var listResp fleet.ListCertificateTemplatesResponse
 		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/certificates?team_id=%d", teamID), nil, http.StatusOK, &listResp)
 		require.Len(t, listResp.Certificates, 1)
 		require.Equal(t, teamCertID, listResp.Certificates[0].ID)
@@ -1336,8 +1336,8 @@ func (s *integrationMDMTestSuite) TestCertificateTemplateAuthorizationForTeamUse
 		// Create another team
 		s.token = originalToken
 		otherTeamName := t.Name() + "-other-team"
-		var createTeamResp teamResponse
-		s.DoJSON("POST", "/api/latest/fleet/teams", createTeamRequest{
+		var createTeamResp fleet.TeamResponse
+		s.DoJSON("POST", "/api/latest/fleet/teams", fleet.CreateTeamRequest{
 			TeamPayload: fleet.TeamPayload{
 				Name: ptr.String(otherTeamName),
 			},
@@ -1346,8 +1346,8 @@ func (s *integrationMDMTestSuite) TestCertificateTemplateAuthorizationForTeamUse
 
 		// Create a certificate template for the other team
 		certTemplateOtherTeamName := strings.ReplaceAll(t.Name(), "/", "-") + "-OtherTeam-Cert"
-		var createResp createCertificateTemplateResponse
-		s.DoJSON("POST", "/api/latest/fleet/certificates", createCertificateTemplateRequest{
+		var createResp fleet.CreateCertificateTemplateResponse
+		s.DoJSON("POST", "/api/latest/fleet/certificates", fleet.CreateCertificateTemplateRequest{
 			Name:                   certTemplateOtherTeamName,
 			TeamID:                 otherTeamID,
 			CertificateAuthorityId: caID,
@@ -1359,6 +1359,6 @@ func (s *integrationMDMTestSuite) TestCertificateTemplateAuthorizationForTeamUse
 		s.token = teamAdminToken
 
 		// Team admin should get 403 forbidden when trying to list other team's certificates
-		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/certificates?team_id=%d", otherTeamID), nil, http.StatusForbidden, &listCertificateTemplatesResponse{})
+		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/certificates?team_id=%d", otherTeamID), nil, http.StatusForbidden, &fleet.ListCertificateTemplatesResponse{})
 	})
 }

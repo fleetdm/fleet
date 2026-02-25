@@ -1,24 +1,19 @@
 package service
 
 import (
-	"bytes"
 	"context"
 	"database/sql"
-	"encoding/csv"
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io"
 	"iter"
 	"net/http"
-	"reflect"
 	"sort"
 	"strings"
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server"
 	"github.com/fleetdm/fleet/v4/server/authz"
-	"github.com/fleetdm/fleet/v4/server/platform/endpointer"
 	platform_http "github.com/fleetdm/fleet/v4/server/platform/http"
 
 	authzctx "github.com/fleetdm/fleet/v4/server/contexts/authz"
@@ -35,19 +30,12 @@ import (
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/worker"
 	"github.com/go-kit/log/level"
-	"github.com/gocarina/gocsv"
 	"github.com/google/uuid"
 )
 
-// HostDetailResponse is the response struct that contains the full host information
-// with the HostDetail details.
-type HostDetailResponse struct {
-	fleet.HostDetail
-	Status      fleet.HostStatus   `json:"status"`
-	DisplayText string             `json:"display_text"`
-	DisplayName string             `json:"display_name"`
-	Geolocation *fleet.GeoLocation `json:"geolocation,omitempty"`
-}
+// HostDetailResponse is now defined in fleet.HostDetailResponse.
+// This alias ensures backward compatibility within the service package.
+type HostDetailResponse = fleet.HostDetailResponse
 
 func hostDetailResponseForHost(ctx context.Context, svc fleet.Service, host *fleet.HostDetail) (*HostDetailResponse, error) {
 	var isADEEnrolledIDevice bool
@@ -105,171 +93,10 @@ func (svc *Service) GetHostLocationData(ctx context.Context, hostID uint) (*flee
 	return &ret, nil
 }
 
-////////////////////////////////////////////////////////////////////////////////
 // List Hosts
-////////////////////////////////////////////////////////////////////////////////
-
-type listHostsRequest struct {
-	Opts fleet.HostListOptions `url:"host_options"`
-}
-
-type listHostsResponse struct {
-	Hosts []fleet.HostResponse `json:"hosts"`
-	// Software is populated with the software version corresponding to the
-	// software_version_id (or software_id) filter if one is provided with the
-	// request (and it exists in the database). It is nil otherwise and absent of
-	// the JSON response payload.
-	Software *fleet.Software `json:"software,omitempty"`
-	// SoftwareTitle is populated with the title corresponding to the
-	// software_title_id filter if one is provided with the request (and it
-	// exists in the database). It is nil otherwise and absent of the JSON
-	// response payload.
-	SoftwareTitle *fleet.SoftwareTitle `json:"software_title,omitempty"`
-	// MDMSolution is populated with the MDM solution corresponding to the mdm_id
-	// filter if one is provided with the request (and it exists in the
-	// database). It is nil otherwise and absent of the JSON response payload.
-	MDMSolution *fleet.MDMSolution `json:"mobile_device_management_solution,omitempty"`
-	// MunkiIssue is populated with the munki issue corresponding to the
-	// munki_issue_id filter if one is provided with the request (and it exists
-	// in the database). It is nil otherwise and absent of the JSON response
-	// payload.
-	MunkiIssue *fleet.MunkiIssue `json:"munki_issue,omitempty"`
-
-	Err error `json:"error,omitempty"`
-}
-
-func (r listHostsResponse) Error() error { return r.Err }
-
-type streamHostsResponse struct {
-	listHostsResponse
-	// HostResponseIterator is an iterator to stream hosts one by one.
-	HostResponseIterator iter.Seq2[*fleet.HostResponse, error] `json:"-"`
-	// MarshalJSON is an optional custom JSON marshaller for the response,
-	// used for testing purposes only.
-	MarshalJSON func(v any) ([]byte, error) `json:"-"`
-}
-
-func (r streamHostsResponse) Error() error { return r.Err }
-
-func (r streamHostsResponse) HijackRender(_ context.Context, w http.ResponseWriter) {
-	aliasRules := endpointer.ExtractAliasRules(listHostsResponse{})
-	w.Header().Set("Content-Type", "application/json")
-	// If no iterator is provided, return a 500.
-	if r.HostResponseIterator == nil {
-		w.WriteHeader(http.StatusInternalServerError)
-		fmt.Fprint(w, `{"error": "no host iterator provided"}`)
-		return
-	}
-
-	// From here on we're committing to a "successful" response,
-	// where the client will have to look for an `error` key
-	// in the JSON to determine actual status.
-	w.WriteHeader(http.StatusOK)
-
-	// Create a no-op flush function in case the ResponseWriter doesn't implement http.Flusher.
-	flush := func() {}
-	if f, ok := w.(http.Flusher); ok {
-		flush = f.Flush
-	}
-
-	// Use the default json marshaller unless a custom one is provided (for testing).
-	marshalJson := json.Marshal
-	if r.MarshalJSON != nil {
-		marshalJson = r.MarshalJSON
-	}
-
-	// Create function for returning errors in the JSON response.
-	marshalError := func(errString string) string {
-		errData, err := json.Marshal(map[string]string{"error": errString})
-		if err != nil {
-			return `{"error": "unknown error"}`
-		}
-		return string(errData[1 : len(errData)-1])
-	}
-
-	// Start the JSON object.
-	fmt.Fprint(w, `{`)
-	firstKey := true
-
-	t := reflect.TypeFor[listHostsResponse]()
-	v := reflect.ValueOf(r.listHostsResponse)
-
-	// The set of properties of listHostsResponse to consider for output.
-	fieldNames := []string{"Software", "SoftwareTitle", "MDMSolution", "MunkiIssue"}
-
-	// Iterate over the non-host keys in the response and write them if they are non-nil.
-	for i, fieldName := range fieldNames {
-		// Get the JSON tag name for the field.
-		fieldDef, _ := t.FieldByName(fieldName)
-		tag := fieldDef.Tag.Get("json")
-		parts := strings.Split(tag, ",")
-		name := parts[0]
-
-		// Get the actual value for the field.
-		fieldValue := v.FieldByName(fieldName)
-		if !fieldValue.IsValid() {
-			// Panic if the field is not found.
-			// This indicates a programming error (we put something bad in the keys list).
-			panic(fmt.Sprintf("field %s not found in listHostsResponse", fieldName))
-		}
-		if !fieldValue.IsNil() {
-			if i > 0 && !firstKey {
-				fmt.Fprint(w, `,`)
-			}
-			data, err := marshalJson(fieldValue.Interface())
-			if err != nil {
-				// On error, write the error key and return.
-				// Marshal the error as a JSON object without the surrounding braces,
-				// in case the error string itself contains characters that would break
-				// the JSON response.
-				fmt.Fprint(w, marshalError(fmt.Sprintf("marshaling %s: %s", name, err.Error())))
-				fmt.Fprint(w, `}`)
-				return
-			}
-			// Output the key and value.
-			fmt.Fprintf(w, `"%s":`, name)
-			fmt.Fprint(w, string(data))
-			flush()
-			firstKey = false
-		}
-	}
-
-	if !firstKey {
-		fmt.Fprint(w, `,`)
-	}
-
-	// Start the hosts array.
-	fmt.Fprint(w, `"hosts": [`)
-	firstHost := true
-	// Get hosts one at a time from the iterator and write them out.
-	for hostResp, err := range r.HostResponseIterator {
-		if err != nil {
-			fmt.Fprint(w, `],`)
-			fmt.Fprint(w, marshalError(fmt.Sprintf("getting host %s: ", err.Error())))
-			fmt.Fprint(w, `}`)
-			return
-		}
-		data, err := marshalJson(hostResp)
-		if err != nil {
-			fmt.Fprint(w, `],`)
-			fmt.Fprint(w, marshalError(fmt.Sprintf("marshaling host response: %s", err.Error())))
-			fmt.Fprint(w, `}`)
-			return
-		}
-		data = endpointer.DuplicateJSONKeys(data, aliasRules, endpointer.DuplicateJSONKeysOpts{Compact: true})
-		if !firstHost {
-			fmt.Fprint(w, `,`)
-		}
-		fmt.Fprint(w, string(data))
-		flush()
-		firstHost = false
-	}
-	// Close the hosts array and the JSON object.
-	fmt.Fprint(w, `]}`)
-}
 
 func listHostsEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
-	req := request.(*listHostsRequest)
+	req := request.(*fleet.ListHostsRequest)
 
 	var software *fleet.Software
 	if req.Opts.SoftwareVersionIDFilter != nil || req.Opts.SoftwareIDFilter != nil {
@@ -281,7 +108,7 @@ func listHostsEndpoint(ctx context.Context, request interface{}, svc fleet.Servi
 		}
 		software, err = svc.SoftwareByID(ctx, *id, req.Opts.TeamFilter, false)
 		if err != nil && !fleet.IsNotFound(err) { // ignore not found, just return nil for the software in that case
-			return listHostsResponse{Err: err}, nil
+			return fleet.ListHostsResponse{Err: err}, nil
 		}
 	}
 
@@ -301,7 +128,7 @@ func listHostsEndpoint(ctx context.Context, request interface{}, svc fleet.Servi
 			// Not found: only ID + Name as string from helper.
 			name, displayName, errName := svc.SoftwareTitleNameForHostFilter(ctx, titleID)
 			if errName != nil && !fleet.IsNotFound(errName) {
-				return listHostsResponse{Err: errName}, nil
+				return fleet.ListHostsResponse{Err: errName}, nil
 			}
 			if errName == nil {
 				fmt.Println("here")
@@ -315,7 +142,7 @@ func listHostsEndpoint(ctx context.Context, request interface{}, svc fleet.Servi
 				}
 			}
 		default:
-			return listHostsResponse{Err: err}, nil
+			return fleet.ListHostsResponse{Err: err}, nil
 		}
 	}
 
@@ -324,7 +151,7 @@ func listHostsEndpoint(ctx context.Context, request interface{}, svc fleet.Servi
 		var err error
 		mdmSolution, err = svc.GetMDMSolution(ctx, *req.Opts.MDMIDFilter)
 		if err != nil && !fleet.IsNotFound(err) { // ignore not found, just return nil for the MDM solution in that case
-			return listHostsResponse{Err: err}, nil
+			return fleet.ListHostsResponse{Err: err}, nil
 		}
 	}
 
@@ -333,14 +160,14 @@ func listHostsEndpoint(ctx context.Context, request interface{}, svc fleet.Servi
 		var err error
 		munkiIssue, err = svc.GetMunkiIssue(ctx, *req.Opts.MunkiIssueIDFilter)
 		if err != nil && !fleet.IsNotFound(err) { // ignore not found, just return nil for the munki issue in that case
-			return listHostsResponse{Err: err}, nil
+			return fleet.ListHostsResponse{Err: err}, nil
 		}
 	}
 
 	// Get an iterator to stream hosts one by one.
 	hostIterator, err := svc.StreamHosts(ctx, req.Opts)
 	if err != nil {
-		return listHostsResponse{Err: err}, nil
+		return fleet.ListHostsResponse{Err: err}, nil
 	}
 
 	// The `hostIterator` only yields `fleet.Host` instances, which doesn't include
@@ -369,8 +196,8 @@ func listHostsEndpoint(ctx context.Context, request interface{}, svc fleet.Servi
 		}
 	}
 
-	return streamHostsResponse{
-		listHostsResponse: listHostsResponse{
+	return fleet.StreamHostsResponse{
+		ListHostsResponse: fleet.ListHostsResponse{
 			Software:      software,
 			SoftwareTitle: softwareTitle,
 			MDMSolution:   mdmSolution,
@@ -505,34 +332,17 @@ func (svc *Service) StreamHosts(ctx context.Context, opt fleet.HostListOptions) 
 	return hostIterator(), nil
 }
 
-/////////////////////////////////////////////////////////////////////////////////
 // Delete Hosts
-/////////////////////////////////////////////////////////////////////////////////
-
 // These values are modified during testing.
 var (
 	deleteHostsTimeout           = 30 * time.Second
 	deleteHostsSkipAuthorization = false
 )
 
-type deleteHostsRequest struct {
-	IDs []uint `json:"ids"`
-	// Using a pointer to help determine whether an empty filter was passed, like: "filters":{}
-	Filters *map[string]interface{} `json:"filters"`
-}
-
-type deleteHostsResponse struct {
-	Err        error `json:"error,omitempty"`
-	StatusCode int   `json:"-"`
-}
-
-func (r deleteHostsResponse) Error() error { return r.Err }
-
 // Status implements statuser interface to send out custom HTTP success codes.
-func (r deleteHostsResponse) Status() int { return r.StatusCode }
 
 func deleteHostsEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
-	req := request.(*deleteHostsRequest)
+	req := request.(*fleet.DeleteHostsRequest)
 
 	// Since bulk deletes can take a long time, after DeleteHostsTimeout, we will return a 202 (Accepted) status code
 	// and allow the delete operation to proceed.
@@ -550,15 +360,15 @@ func deleteHostsEndpoint(ctx context.Context, request interface{}, svc fleet.Ser
 	select {
 	case <-deleteDone:
 		if err != nil {
-			return deleteHostsResponse{Err: err}, nil
+			return fleet.DeleteHostsResponse{Err: err}, nil
 		}
-		return deleteHostsResponse{StatusCode: http.StatusOK}, nil
+		return fleet.DeleteHostsResponse{StatusCode: http.StatusOK}, nil
 	case <-time.After(deleteHostsTimeout):
 		if deleteHostsSkipAuthorization {
 			// Only called during testing.
 			svc.(validationMiddleware).Service.(*Service).authz.SkipAuthorization(ctx)
 		}
-		return deleteHostsResponse{StatusCode: http.StatusAccepted}, nil
+		return fleet.DeleteHostsResponse{StatusCode: http.StatusAccepted}, nil
 	}
 }
 
@@ -659,29 +469,14 @@ func (svc *Service) DeleteHosts(ctx context.Context, ids []uint, filter *map[str
 	return doDelete(hostIDs, hosts)
 }
 
-/////////////////////////////////////////////////////////////////////////////////
 // Count
-/////////////////////////////////////////////////////////////////////////////////
-
-type countHostsRequest struct {
-	Opts    fleet.HostListOptions `url:"host_options"`
-	LabelID *uint                 `query:"label_id,optional"`
-}
-
-type countHostsResponse struct {
-	Count int   `json:"count"`
-	Err   error `json:"error,omitempty"`
-}
-
-func (r countHostsResponse) Error() error { return r.Err }
-
 func countHostsEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
-	req := request.(*countHostsRequest)
+	req := request.(*fleet.CountHostsRequest)
 	count, err := svc.CountHosts(ctx, req.LabelID, req.Opts)
 	if err != nil {
-		return countHostsResponse{Err: err}, nil
+		return fleet.CountHostsResponse{Err: err}, nil
 	}
-	return countHostsResponse{Count: count}, nil
+	return fleet.CountHostsResponse{Count: count}, nil
 }
 
 func (svc *Service) CountHosts(ctx context.Context, labelID *uint, opts fleet.HostListOptions) (int, error) {
@@ -718,34 +513,13 @@ func (svc *Service) countHostFromFilters(ctx context.Context, labelID *uint, opt
 	return count, nil
 }
 
-/////////////////////////////////////////////////////////////////////////////////
 // Search
-/////////////////////////////////////////////////////////////////////////////////
-
-type searchHostsRequest struct {
-	// MatchQuery is the query SQL
-	MatchQuery string `json:"query"`
-	// QueryID is the ID of a saved query to run (used to determine if this is a
-	// query that observers can run).
-	QueryID *uint `json:"query_id" renameto:"report_id"`
-	// ExcludedHostIDs is the list of IDs selected on the caller side
-	// (e.g. the UI) that will be excluded from the returned payload.
-	ExcludedHostIDs []uint `json:"excluded_host_ids"`
-}
-
-type searchHostsResponse struct {
-	Hosts []*fleet.HostResponse `json:"hosts"`
-	Err   error                 `json:"error,omitempty"`
-}
-
-func (r searchHostsResponse) Error() error { return r.Err }
-
 func searchHostsEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
-	req := request.(*searchHostsRequest)
+	req := request.(*fleet.SearchHostsRequest)
 
 	hosts, err := svc.SearchHosts(ctx, req.MatchQuery, req.QueryID, req.ExcludedHostIDs)
 	if err != nil {
-		return searchHostsResponse{Err: err}, nil
+		return fleet.SearchHostsResponse{Err: err}, nil
 	}
 
 	results := []*fleet.HostResponse{}
@@ -754,7 +528,7 @@ func searchHostsEndpoint(ctx context.Context, request interface{}, svc fleet.Ser
 		results = append(results, fleet.HostResponseForHostCheap(h))
 	}
 
-	return searchHostsResponse{
+	return fleet.SearchHostsResponse{
 		Hosts: results,
 	}, nil
 }
@@ -792,24 +566,9 @@ func (svc *Service) SearchHosts(ctx context.Context, matchQuery string, queryID 
 	return results, nil
 }
 
-/////////////////////////////////////////////////////////////////////////////////
 // Get host
-/////////////////////////////////////////////////////////////////////////////////
-
-type getHostRequest struct {
-	ID              uint `url:"id"`
-	ExcludeSoftware bool `query:"exclude_software,optional"`
-}
-
-type getHostResponse struct {
-	Host *HostDetailResponse `json:"host"`
-	Err  error               `json:"error,omitempty"`
-}
-
-func (r getHostResponse) Error() error { return r.Err }
-
 func getHostEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
-	req := request.(*getHostRequest)
+	req := request.(*fleet.GetHostRequest)
 	opts := fleet.HostDetailOptions{
 		IncludeCVEScores: false,
 		IncludePolicies:  true, // intentionally true to preserve existing behavior,
@@ -817,15 +576,15 @@ func getHostEndpoint(ctx context.Context, request interface{}, svc fleet.Service
 	}
 	host, err := svc.GetHost(ctx, req.ID, opts)
 	if err != nil {
-		return getHostResponse{Err: err}, nil
+		return fleet.GetHostResponse{Err: err}, nil
 	}
 
 	resp, err := hostDetailResponseForHost(ctx, svc, host)
 	if err != nil {
-		return getHostResponse{Err: err}, nil
+		return fleet.GetHostResponse{Err: err}, nil
 	}
 
-	return getHostResponse{Host: resp}, nil
+	return fleet.GetHostResponse{Host: resp}, nil
 }
 
 func (svc *Service) GetHost(ctx context.Context, id uint, opts fleet.HostDetailOptions) (*fleet.HostDetail, error) {
@@ -909,31 +668,15 @@ func (svc *Service) GetHostLite(ctx context.Context, id uint) (*fleet.Host, erro
 	return host, nil
 }
 
-////////////////////////////////////////////////////////////////////////////////
 // Get Host Summary
-////////////////////////////////////////////////////////////////////////////////
-
-type getHostSummaryRequest struct {
-	TeamID       *uint   `query:"team_id,optional" renameto:"fleet_id"`
-	Platform     *string `query:"platform,optional"`
-	LowDiskSpace *int    `query:"low_disk_space,optional"`
-}
-
-type getHostSummaryResponse struct {
-	fleet.HostSummary
-	Err error `json:"error,omitempty"`
-}
-
-func (r getHostSummaryResponse) Error() error { return r.Err }
-
 func getHostSummaryEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
-	req := request.(*getHostSummaryRequest)
+	req := request.(*fleet.GetHostSummaryRequest)
 	summary, err := svc.GetHostSummary(ctx, req.TeamID, req.Platform, req.LowDiskSpace)
 	if err != nil {
-		return getHostSummaryResponse{Err: err}, nil
+		return fleet.GetHostSummaryResponse{Err: err}, nil
 	}
 
-	resp := getHostSummaryResponse{
+	resp := fleet.GetHostSummaryResponse{
 		HostSummary: *summary,
 	}
 	return resp, nil
@@ -992,17 +735,9 @@ func (svc *Service) GetHostSummary(ctx context.Context, teamID *uint, platform *
 	return hostSummary, nil
 }
 
-////////////////////////////////////////////////////////////////////////////////
 // Get Host By Identifier
-////////////////////////////////////////////////////////////////////////////////
-
-type hostByIdentifierRequest struct {
-	Identifier      string `url:"identifier"`
-	ExcludeSoftware bool   `query:"exclude_software,optional"`
-}
-
 func hostByIdentifierEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
-	req := request.(*hostByIdentifierRequest)
+	req := request.(*fleet.HostByIdentifierRequest)
 	opts := fleet.HostDetailOptions{
 		IncludeCVEScores: false,
 		IncludePolicies:  true, // intentionally true to preserve existing behavior
@@ -1010,15 +745,15 @@ func hostByIdentifierEndpoint(ctx context.Context, request interface{}, svc flee
 	}
 	host, err := svc.HostByIdentifier(ctx, req.Identifier, opts)
 	if err != nil {
-		return getHostResponse{Err: err}, nil
+		return fleet.GetHostResponse{Err: err}, nil
 	}
 
 	resp, err := hostDetailResponseForHost(ctx, svc, host)
 	if err != nil {
-		return getHostResponse{Err: err}, nil
+		return fleet.GetHostResponse{Err: err}, nil
 	}
 
-	return getHostResponse{
+	return fleet.GetHostResponse{
 		Host: resp,
 	}, nil
 }
@@ -1046,27 +781,14 @@ func (svc *Service) HostByIdentifier(ctx context.Context, identifier string, opt
 	return hostDetails, nil
 }
 
-////////////////////////////////////////////////////////////////////////////////
 // Delete Host
-////////////////////////////////////////////////////////////////////////////////
-
-type deleteHostRequest struct {
-	ID uint `url:"id"`
-}
-
-type deleteHostResponse struct {
-	Err error `json:"error,omitempty"`
-}
-
-func (r deleteHostResponse) Error() error { return r.Err }
-
 func deleteHostEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
-	req := request.(*deleteHostRequest)
+	req := request.(*fleet.DeleteHostRequest)
 	err := svc.DeleteHost(ctx, req.ID)
 	if err != nil {
-		return deleteHostResponse{Err: err}, nil
+		return fleet.DeleteHostResponse{Err: err}, nil
 	}
-	return deleteHostResponse{}, nil
+	return fleet.DeleteHostResponse{}, nil
 }
 
 func (svc *Service) DeleteHost(ctx context.Context, id uint) error {
@@ -1144,29 +866,15 @@ func (svc *Service) CleanupExpiredHosts(ctx context.Context) ([]fleet.DeletedHos
 	return hostDetails, nil
 }
 
-////////////////////////////////////////////////////////////////////////////////
 // Add Hosts to Team
-////////////////////////////////////////////////////////////////////////////////
-
-type addHostsToTeamRequest struct {
-	TeamID  *uint  `json:"team_id" renameto:"fleet_id"`
-	HostIDs []uint `json:"hosts"`
-}
-
-type addHostsToTeamResponse struct {
-	Err error `json:"error,omitempty"`
-}
-
-func (r addHostsToTeamResponse) Error() error { return r.Err }
-
 func addHostsToTeamEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
-	req := request.(*addHostsToTeamRequest)
+	req := request.(*fleet.AddHostsToTeamRequest)
 	err := svc.AddHostsToTeam(ctx, req.TeamID, req.HostIDs, false)
 	if err != nil {
-		return addHostsToTeamResponse{Err: err}, nil
+		return fleet.AddHostsToTeamResponse{Err: err}, nil
 	}
 
-	return addHostsToTeamResponse{}, err
+	return fleet.AddHostsToTeamResponse{}, err
 }
 
 func (svc *Service) AddHostsToTeam(ctx context.Context, teamID *uint, hostIDs []uint, skipBulkPending bool) error {
@@ -1280,29 +988,15 @@ func (svc *Service) createTransferredHostsActivity(ctx context.Context, teamID *
 	return nil
 }
 
-////////////////////////////////////////////////////////////////////////////////
 // Add Hosts to Team by Filter
-////////////////////////////////////////////////////////////////////////////////
-
-type addHostsToTeamByFilterRequest struct {
-	TeamID  *uint                   `json:"team_id" renameto:"fleet_id"`
-	Filters *map[string]interface{} `json:"filters"`
-}
-
-type addHostsToTeamByFilterResponse struct {
-	Err error `json:"error,omitempty"`
-}
-
-func (r addHostsToTeamByFilterResponse) Error() error { return r.Err }
-
 func addHostsToTeamByFilterEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
-	req := request.(*addHostsToTeamByFilterRequest)
+	req := request.(*fleet.AddHostsToTeamByFilterRequest)
 	err := svc.AddHostsToTeamByFilter(ctx, req.TeamID, req.Filters)
 	if err != nil {
-		return addHostsToTeamByFilterResponse{Err: err}, nil
+		return fleet.AddHostsToTeamByFilterResponse{Err: err}, nil
 	}
 
-	return addHostsToTeamByFilterResponse{}, err
+	return fleet.AddHostsToTeamByFilterResponse{}, err
 }
 
 func (svc *Service) AddHostsToTeamByFilter(ctx context.Context, teamID *uint, filters *map[string]interface{}) error {
@@ -1357,29 +1051,14 @@ func (svc *Service) AddHostsToTeamByFilter(ctx context.Context, teamID *uint, fi
 	return svc.createTransferredHostsActivity(ctx, teamID, hostIDs, hostNames)
 }
 
-////////////////////////////////////////////////////////////////////////////////
 // Refetch Host
-////////////////////////////////////////////////////////////////////////////////
-
-type refetchHostRequest struct {
-	ID uint `url:"id"`
-}
-
-type refetchHostResponse struct {
-	Err error `json:"error,omitempty"`
-}
-
-func (r refetchHostResponse) Error() error {
-	return r.Err
-}
-
 func refetchHostEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
-	req := request.(*refetchHostRequest)
+	req := request.(*fleet.RefetchHostRequest)
 	err := svc.RefetchHost(ctx, req.ID)
 	if err != nil {
-		return refetchHostResponse{Err: err}, nil
+		return fleet.RefetchHostResponse{Err: err}, nil
 	}
-	return refetchHostResponse{}, nil
+	return fleet.RefetchHostResponse{}, nil
 }
 
 func (svc *Service) RefetchHost(ctx context.Context, id uint) error {
@@ -1779,52 +1458,32 @@ func (svc *Service) getHostDetails(ctx context.Context, host *fleet.Host, opts f
 	}, nil
 }
 
-////////////////////////////////////////////////////////////////////////////////
 // Get Host Query Report
-////////////////////////////////////////////////////////////////////////////////
-
-type getHostQueryReportRequest struct {
-	ID      uint `url:"id"`
-	QueryID uint `url:"report_id"`
-}
-
-type getHostQueryReportResponse struct {
-	QueryID       uint                          `json:"query_id" renameto:"report_id"`
-	HostID        uint                          `json:"host_id"`
-	HostName      string                        `json:"host_name"`
-	LastFetched   *time.Time                    `json:"last_fetched"`
-	ReportClipped bool                          `json:"report_clipped"`
-	Results       []fleet.HostQueryReportResult `json:"results"`
-	Err           error                         `json:"error,omitempty"`
-}
-
-func (r getHostQueryReportResponse) Error() error { return r.Err }
-
 func getHostQueryReportEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
-	req := request.(*getHostQueryReportRequest)
+	req := request.(*fleet.GetHostQueryReportRequest)
 
 	// Need to return hostname in response even if there are no report results
 	host, err := svc.GetHostLite(ctx, req.ID)
 	if err != nil {
-		return getHostQueryReportResponse{Err: err}, nil
+		return fleet.GetHostQueryReportResponse{Err: err}, nil
 	}
 
 	reportResults, lastFetched, err := svc.GetHostQueryReportResults(ctx, req.ID, req.QueryID)
 	if err != nil {
-		return getHostQueryReportResponse{Err: err}, nil
+		return fleet.GetHostQueryReportResponse{Err: err}, nil
 	}
 
 	appConfig, err := svc.AppConfigObfuscated(ctx)
 	if err != nil {
-		return getHostQueryReportResponse{Err: err}, nil
+		return fleet.GetHostQueryReportResponse{Err: err}, nil
 	}
 
 	isClipped, err := svc.QueryReportIsClipped(ctx, req.QueryID, appConfig.ServerSettings.GetQueryReportCap())
 	if err != nil {
-		return getHostQueryReportResponse{Err: err}, nil
+		return fleet.GetHostQueryReportResponse{Err: err}, nil
 	}
 
-	return getHostQueryReportResponse{
+	return fleet.GetHostQueryReportResponse{
 		QueryID:       req.QueryID,
 		HostID:        host.ID,
 		HostName:      host.DisplayName(),
@@ -1904,32 +1563,16 @@ func (svc *Service) hostIDsAndNamesFromFilters(ctx context.Context, opt fleet.Ho
 	return hostIDs, hostNames, hosts, nil
 }
 
-////////////////////////////////////////////////////////////////////////////////
 // List Host Device Mappings
-////////////////////////////////////////////////////////////////////////////////
-
-type listHostDeviceMappingRequest struct {
-	ID uint `url:"id"`
-}
-
-type listHostDeviceMappingResponse struct {
-	HostID        uint                       `json:"host_id"`
-	DeviceMapping []*fleet.HostDeviceMapping `json:"device_mapping"`
-	Err           error                      `json:"error,omitempty"`
-}
-
-func (r listHostDeviceMappingResponse) Error() error { return r.Err }
-
 // listHostDeviceMappingEndpoint returns the device mappings for a host.
-//
 // Deprecated: Emails are now included in host details endpoint /api/_version_/fleet/hosts/{id}
 func listHostDeviceMappingEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
-	req := request.(*listHostDeviceMappingRequest)
+	req := request.(*fleet.ListHostDeviceMappingRequest)
 	dms, err := svc.ListHostDeviceMapping(ctx, req.ID)
 	if err != nil {
-		return listHostDeviceMappingResponse{Err: err}, nil
+		return fleet.ListHostDeviceMappingResponse{Err: err}, nil
 	}
-	return listHostDeviceMappingResponse{HostID: req.ID, DeviceMapping: dms}, nil
+	return fleet.ListHostDeviceMappingResponse{HostID: req.ID, DeviceMapping: dms}, nil
 }
 
 func (svc *Service) ListHostDeviceMapping(ctx context.Context, id uint) ([]*fleet.HostDeviceMapping, error) {
@@ -1954,36 +1597,19 @@ func (svc *Service) ListHostDeviceMapping(ctx context.Context, id uint) ([]*flee
 	return svc.ds.ListHostDeviceMapping(ctx, id)
 }
 
-////////////////////////////////////////////////////////////////////////////////
 // Put Custom Host Device Mapping
-////////////////////////////////////////////////////////////////////////////////
-
-type putHostDeviceMappingRequest struct {
-	ID     uint   `url:"id"`
-	Email  string `json:"email"`
-	Source string `json:"source,omitempty"`
-}
-
-type putHostDeviceMappingResponse struct {
-	HostID        uint                       `json:"host_id"`
-	DeviceMapping []*fleet.HostDeviceMapping `json:"device_mapping"`
-	Err           error                      `json:"error,omitempty"`
-}
-
-func (r putHostDeviceMappingResponse) Error() error { return r.Err }
-
 // putHostDeviceMappingEndpoint
 func putHostDeviceMappingEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
-	req := request.(*putHostDeviceMappingRequest)
+	req := request.(*fleet.PutHostDeviceMappingRequest)
 
 	var dms []*fleet.HostDeviceMapping
 	var err error
 
 	dms, err = svc.SetHostDeviceMapping(ctx, req.ID, req.Email, req.Source)
 	if err != nil {
-		return putHostDeviceMappingResponse{Err: err}, nil
+		return fleet.PutHostDeviceMappingResponse{Err: err}, nil
 	}
-	return putHostDeviceMappingResponse{HostID: req.ID, DeviceMapping: dms}, nil
+	return fleet.PutHostDeviceMappingResponse{HostID: req.ID, DeviceMapping: dms}, nil
 }
 
 func (svc *Service) SetHostDeviceMapping(ctx context.Context, hostID uint, email string, source string) ([]*fleet.HostDeviceMapping, error) {
@@ -2079,27 +1705,13 @@ func (svc *Service) SetHostDeviceMapping(ctx context.Context, hostID uint, email
 	}
 }
 
-////////////////////////////////////////////////////////////////////////////////
 // Delete Host IdP
-////////////////////////////////////////////////////////////////////////////////
-
-type deleteHostIDPRequest struct {
-	HostID uint `url:"id"`
-}
-
-type deleteHostIDPResponse struct {
-	Err error `json:"error,omitempty"`
-}
-
-func (r deleteHostIDPResponse) Error() error { return r.Err }
-func (r deleteHostIDPResponse) Status() int  { return http.StatusNoContent }
-
 func deleteHostIDPEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
-	req := request.(*deleteHostIDPRequest)
+	req := request.(*fleet.DeleteHostIDPRequest)
 	if err := svc.DeleteHostIDP(ctx, req.HostID); err != nil {
-		return deleteHostIDPResponse{Err: err}, nil
+		return fleet.DeleteHostIDPResponse{Err: err}, nil
 	}
-	return deleteHostIDPResponse{}, nil
+	return fleet.DeleteHostIDPResponse{}, nil
 }
 
 func (svc *Service) DeleteHostIDP(ctx context.Context, id uint) error {
@@ -2145,76 +1757,36 @@ func (svc *Service) DeleteHostIDP(ctx context.Context, id uint) error {
 	return nil
 }
 
-////////////////////////////////////////////////////////////////////////////////
 // MDM
-////////////////////////////////////////////////////////////////////////////////
-
-type getHostMDMRequest struct {
-	ID uint `url:"id"`
-}
-
-type getHostMDMResponse struct {
-	*fleet.HostMDM
-	Err error `json:"error,omitempty"`
-}
-
-func (r getHostMDMResponse) Error() error { return r.Err }
-
 func getHostMDM(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
-	req := request.(*getHostMDMRequest)
+	req := request.(*fleet.GetHostMDMRequest)
 	mdm, err := svc.MDMData(ctx, req.ID)
 	if err != nil {
-		return getHostMDMResponse{Err: err}, nil
+		return fleet.GetHostMDMResponse{Err: err}, nil
 	}
-	return getHostMDMResponse{HostMDM: mdm}, nil
+	return fleet.GetHostMDMResponse{HostMDM: mdm}, nil
 }
-
-type getHostMDMSummaryResponse struct {
-	fleet.AggregatedMDMData
-	Err error `json:"error,omitempty"`
-}
-
-type getHostMDMSummaryRequest struct {
-	TeamID   *uint  `query:"team_id,optional" renameto:"fleet_id"`
-	Platform string `query:"platform,optional"`
-}
-
-func (r getHostMDMSummaryResponse) Error() error { return r.Err }
 
 func getHostMDMSummary(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
-	req := request.(*getHostMDMSummaryRequest)
-	resp := getHostMDMSummaryResponse{}
+	req := request.(*fleet.GetHostMDMSummaryRequest)
+	resp := fleet.GetHostMDMSummaryResponse{}
 	var err error
 
 	resp.AggregatedMDMData, err = svc.AggregatedMDMData(ctx, req.TeamID, req.Platform)
 	if err != nil {
-		return getHostMDMSummaryResponse{Err: err}, nil
+		return fleet.GetHostMDMSummaryResponse{Err: err}, nil
 	}
 	return resp, nil
 }
 
-////////////////////////////////////////////////////////////////////////////////
 // Macadmins
-////////////////////////////////////////////////////////////////////////////////
-
-type getMacadminsDataRequest struct {
-	ID uint `url:"id"`
-}
-
-type getMacadminsDataResponse struct {
-	Err       error                `json:"error,omitempty"`
-	Macadmins *fleet.MacadminsData `json:"macadmins"`
-}
-
-func (r getMacadminsDataResponse) Error() error { return r.Err }
-
 func getMacadminsDataEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
-	req := request.(*getMacadminsDataRequest)
+	req := request.(*fleet.GetMacadminsDataRequest)
 	data, err := svc.MacadminsData(ctx, req.ID)
 	if err != nil {
-		return getMacadminsDataResponse{Err: err}, nil
+		return fleet.GetMacadminsDataResponse{Err: err}, nil
 	}
-	return getMacadminsDataResponse{Macadmins: data}, nil
+	return fleet.GetMacadminsDataResponse{Macadmins: data}, nil
 }
 
 func (svc *Service) MacadminsData(ctx context.Context, id uint) (*fleet.MacadminsData, error) {
@@ -2275,28 +1847,14 @@ func (svc *Service) MacadminsData(ctx context.Context, id uint) (*fleet.Macadmin
 	return data, nil
 }
 
-////////////////////////////////////////////////////////////////////////////////
 // Aggregated Macadmins
-////////////////////////////////////////////////////////////////////////////////
-
-type getAggregatedMacadminsDataRequest struct {
-	TeamID *uint `query:"team_id,optional" renameto:"fleet_id"`
-}
-
-type getAggregatedMacadminsDataResponse struct {
-	Err       error                          `json:"error,omitempty"`
-	Macadmins *fleet.AggregatedMacadminsData `json:"macadmins"`
-}
-
-func (r getAggregatedMacadminsDataResponse) Error() error { return r.Err }
-
 func getAggregatedMacadminsDataEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
-	req := request.(*getAggregatedMacadminsDataRequest)
+	req := request.(*fleet.GetAggregatedMacadminsDataRequest)
 	data, err := svc.AggregatedMacadminsData(ctx, req.TeamID)
 	if err != nil {
-		return getAggregatedMacadminsDataResponse{Err: err}, nil
+		return fleet.GetAggregatedMacadminsDataResponse{Err: err}, nil
 	}
-	return getAggregatedMacadminsDataResponse{Macadmins: data}, nil
+	return fleet.GetAggregatedMacadminsDataResponse{Macadmins: data}, nil
 }
 
 func (svc *Service) AggregatedMacadminsData(ctx context.Context, teamID *uint) (*fleet.AggregatedMacadminsData, error) {
@@ -2399,113 +1957,9 @@ func (svc *Service) AggregatedMDMData(ctx context.Context, teamID *uint, platfor
 	}, nil
 }
 
-////////////////////////////////////////////////////////////////////////////////
 // Hosts Report in CSV downloadable file
-////////////////////////////////////////////////////////////////////////////////
-
-type hostsReportRequest struct {
-	Opts    fleet.HostListOptions `url:"host_options"`
-	LabelID *uint                 `query:"label_id,optional"`
-	Format  string                `query:"format"`
-	Columns string                `query:"columns,optional"`
-}
-
-type hostsReportResponse struct {
-	Columns []string              `json:"-"` // used to control the generated csv, see the HijackRender method
-	Hosts   []*fleet.HostResponse `json:"-"` // they get rendered explicitly, in csv
-	Err     error                 `json:"error,omitempty"`
-}
-
-func (r hostsReportResponse) Error() error { return r.Err }
-
-func (r hostsReportResponse) HijackRender(ctx context.Context, w http.ResponseWriter) {
-	// post-process the Device Mappings for CSV rendering
-	for _, h := range r.Hosts {
-		if h.DeviceMapping != nil {
-			// return the list of emails, comma-separated, as part of that single CSV field
-			var dms []struct {
-				Email string `json:"email"`
-			}
-			if err := json.Unmarshal(*h.DeviceMapping, &dms); err != nil {
-				// log the error but keep going
-				logging.WithErr(ctx, err)
-				continue
-			}
-
-			var sb strings.Builder
-			for i, dm := range dms {
-				if i > 0 {
-					sb.WriteString(",")
-				}
-				sb.WriteString(dm.Email)
-			}
-			h.CSVDeviceMapping = sb.String()
-		}
-	}
-
-	var buf bytes.Buffer
-	if err := gocsv.Marshal(r.Hosts, &buf); err != nil {
-		logging.WithErr(ctx, err)
-		encodeError(ctx, ctxerr.New(ctx, "failed to generate CSV file"), w)
-		return
-	}
-
-	returnAll := len(r.Columns) == 0
-
-	var outRows [][]string
-	if !returnAll {
-		// read back the CSV to filter out any unwanted columns
-		recs, err := csv.NewReader(&buf).ReadAll()
-		if err != nil {
-			logging.WithErr(ctx, err)
-			encodeError(ctx, ctxerr.New(ctx, "failed to generate CSV file"), w)
-			return
-		}
-
-		if len(recs) > 0 {
-			// map the header names to their field index
-			hdrs := make(map[string]int, len(recs))
-			for i, hdr := range recs[0] {
-				hdrs[hdr] = i
-			}
-
-			outRows = make([][]string, len(recs))
-			for i, rec := range recs {
-				for _, col := range r.Columns {
-					colIx, ok := hdrs[col]
-					if !ok {
-						// invalid column name - it would be nice to catch this in the
-						// endpoint before processing the results, but it would require
-						// duplicating the list of columns from the Host's struct tags to a
-						// map and keep this in sync, for what is essentially a programmer
-						// mistake that should be caught and corrected early.
-						encodeError(ctx, &fleet.BadRequestError{Message: fmt.Sprintf("invalid column name: %q", col)}, w)
-						return
-					}
-					outRows[i] = append(outRows[i], rec[colIx])
-				}
-			}
-		}
-	}
-
-	w.Header().Add("Content-Disposition", fmt.Sprintf(`attachment; filename="Hosts %s.csv"`, time.Now().Format("2006-01-02")))
-	w.Header().Set("Content-Type", "text/csv")
-	w.Header().Set("X-Content-Type-Options", "nosniff")
-	w.WriteHeader(http.StatusOK)
-
-	var err error
-	if returnAll {
-		_, err = io.Copy(w, &buf)
-	} else {
-		err = csv.NewWriter(w).WriteAll(outRows)
-	}
-	if err != nil {
-		logging.WithErr(ctx, err)
-	}
-}
-
 func hostsReportEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
-	req := request.(*hostsReportRequest)
+	req := request.(*fleet.HostsReportRequest)
 
 	// for now, only csv format is allowed
 	if req.Format != "csv" {
@@ -2515,7 +1969,7 @@ func hostsReportEndpoint(ctx context.Context, request interface{}, svc fleet.Ser
 		}
 		err := ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("format", "unsupported or unspecified report format").
 			WithStatus(http.StatusUnsupportedMediaType))
-		return hostsReportResponse{Err: err}, nil
+		return fleet.HostsReportResponse{Err: err}, nil
 	}
 
 	req.Opts.AdditionalFilters = nil
@@ -2550,7 +2004,7 @@ func hostsReportEndpoint(ctx context.Context, request interface{}, svc fleet.Ser
 		hosts, err = svc.ListHostsInLabel(ctx, *req.LabelID, req.Opts)
 	}
 	if err != nil {
-		return hostsReportResponse{Err: err}, nil
+		return fleet.HostsReportResponse{Err: err}, nil
 	}
 
 	hostResps := make([]*fleet.HostResponse, len(hosts))
@@ -2558,7 +2012,7 @@ func hostsReportEndpoint(ctx context.Context, request interface{}, svc fleet.Ser
 		hr := fleet.HostResponseForHost(ctx, svc, h)
 		hostResps[i] = hr
 	}
-	return hostsReportResponse{Columns: cols, Hosts: hostResps}, nil
+	return fleet.HostsReportResponse{Columns: cols, Hosts: hostResps}, nil
 }
 
 func (svc *Service) ListLabelsForHost(ctx context.Context, hostID uint) ([]*fleet.Label, error) {
@@ -2569,34 +2023,15 @@ func (svc *Service) ListLabelsForHost(ctx context.Context, hostID uint) ([]*flee
 	return svc.ds.ListLabelsForHost(ctx, hostID)
 }
 
-type osVersionsRequest struct {
-	fleet.ListOptions
-	TeamID             *uint   `query:"team_id,optional" renameto:"fleet_id"`
-	Platform           *string `query:"platform,optional"`
-	Name               *string `query:"os_name,optional"`
-	Version            *string `query:"os_version,optional"`
-	MaxVulnerabilities *int    `query:"max_vulnerabilities,optional"`
-}
-
-type osVersionsResponse struct {
-	Meta            *fleet.PaginationMetadata `json:"meta,omitempty"`
-	Count           int                       `json:"count"`
-	CountsUpdatedAt *time.Time                `json:"counts_updated_at"`
-	OSVersions      []fleet.OSVersion         `json:"os_versions"`
-	Err             error                     `json:"error,omitempty"`
-}
-
-func (r osVersionsResponse) Error() error { return r.Err }
-
 func osVersionsEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
-	req := request.(*osVersionsRequest)
+	req := request.(*fleet.OsVersionsRequest)
 
 	osVersions, count, metadata, err := svc.OSVersions(ctx, req.TeamID, req.Platform, req.Name, req.Version, req.ListOptions, false, req.MaxVulnerabilities)
 	if err != nil {
-		return &osVersionsResponse{Err: err}, nil
+		return &fleet.OsVersionsResponse{Err: err}, nil
 	}
 
-	return &osVersionsResponse{
+	return &fleet.OsVersionsResponse{
 		CountsUpdatedAt: &osVersions.CountsUpdatedAt,
 		OSVersions:      osVersions.OSVersions,
 		Meta:            metadata,
@@ -2762,32 +2197,18 @@ func paginateOSVersions(slice []fleet.OSVersion, opts fleet.ListOptions) ([]flee
 	return slice[start:end], metaData
 }
 
-type getOSVersionRequest struct {
-	ID                 uint  `url:"id"`
-	TeamID             *uint `query:"team_id,optional" renameto:"fleet_id"`
-	MaxVulnerabilities *int  `query:"max_vulnerabilities,optional"`
-}
-
-type getOSVersionResponse struct {
-	CountsUpdatedAt *time.Time       `json:"counts_updated_at"`
-	OSVersion       *fleet.OSVersion `json:"os_version"`
-	Err             error            `json:"error,omitempty"`
-}
-
-func (r getOSVersionResponse) Error() error { return r.Err }
-
 func getOSVersionEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
-	req := request.(*getOSVersionRequest)
+	req := request.(*fleet.GetOSVersionRequest)
 
 	osVersion, updateTime, err := svc.OSVersion(ctx, req.ID, req.TeamID, false, req.MaxVulnerabilities)
 	if err != nil {
-		return getOSVersionResponse{Err: err}, nil
+		return fleet.GetOSVersionResponse{Err: err}, nil
 	}
 	if osVersion == nil {
 		osVersion = &fleet.OSVersion{}
 	}
 
-	return getOSVersionResponse{CountsUpdatedAt: updateTime, OSVersion: osVersion}, nil
+	return fleet.GetOSVersionResponse{CountsUpdatedAt: updateTime, OSVersion: osVersion}, nil
 }
 
 func (svc *Service) OSVersion(ctx context.Context, osID uint, teamID *uint, includeCVSS bool, maxVulnerabilities *int) (*fleet.OSVersion, *time.Time, error) {
@@ -2883,29 +2304,14 @@ func (svc *Service) populateOSVersionDetails(ctx context.Context, osVersion *fle
 	return nil
 }
 
-////////////////////////////////////////////////////////////////////////////////
 // Encryption Key
-////////////////////////////////////////////////////////////////////////////////
-
-type getHostEncryptionKeyRequest struct {
-	ID uint `url:"id"`
-}
-
-type getHostEncryptionKeyResponse struct {
-	Err           error                        `json:"error,omitempty"`
-	EncryptionKey *fleet.HostDiskEncryptionKey `json:"encryption_key,omitempty"`
-	HostID        uint                         `json:"host_id,omitempty"`
-}
-
-func (r getHostEncryptionKeyResponse) Error() error { return r.Err }
-
 func getHostEncryptionKey(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
-	req := request.(*getHostEncryptionKeyRequest)
+	req := request.(*fleet.GetHostEncryptionKeyRequest)
 	key, err := svc.HostEncryptionKey(ctx, req.ID)
 	if err != nil {
-		return getHostEncryptionKeyResponse{Err: err}, nil
+		return fleet.GetHostEncryptionKeyResponse{Err: err}, nil
 	}
-	return getHostEncryptionKeyResponse{EncryptionKey: key, HostID: req.ID}, nil
+	return fleet.GetHostEncryptionKeyResponse{EncryptionKey: key, HostID: req.ID}, nil
 }
 
 func (svc *Service) HostEncryptionKey(ctx context.Context, id uint) (*fleet.HostDiskEncryptionKey, error) {
@@ -3063,33 +2469,18 @@ func (svc *Service) getHostDiskEncryptionKey(ctx context.Context, host *fleet.Ho
 	return key, nil
 }
 
-////////////////////////////////////////////////////////////////////////////////
 // Host Health
-////////////////////////////////////////////////////////////////////////////////
-
-type getHostHealthRequest struct {
-	ID uint `url:"id"`
-}
-
-type getHostHealthResponse struct {
-	Err        error             `json:"error,omitempty"`
-	HostID     uint              `json:"host_id,omitempty"`
-	HostHealth *fleet.HostHealth `json:"health,omitempty"`
-}
-
-func (r getHostHealthResponse) Error() error { return r.Err }
-
 func getHostHealthEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
-	req := request.(*getHostHealthRequest)
+	req := request.(*fleet.GetHostHealthRequest)
 	hh, err := svc.GetHostHealth(ctx, req.ID)
 	if err != nil {
-		return getHostHealthResponse{Err: err}, nil
+		return fleet.GetHostHealthResponse{Err: err}, nil
 	}
 
 	// remove TeamID as it's needed for authorization internally but is not part of the external API
 	hh.TeamID = nil
 
-	return getHostHealthResponse{HostID: req.ID, HostHealth: hh}, nil
+	return fleet.GetHostHealthResponse{HostID: req.ID, HostHealth: hh}, nil
 }
 
 func (svc *Service) GetHostHealth(ctx context.Context, id uint) (*fleet.HostHealth, error) {
@@ -3196,27 +2587,13 @@ func hostListOptionsFromFilters(filter *map[string]interface{}) (*fleet.HostList
 	return &opt, labelID, nil
 }
 
-////////////////////////////////////////////////////////////////////////////////
 // Host Labels
-////////////////////////////////////////////////////////////////////////////////
-
-type addLabelsToHostRequest struct {
-	ID     uint     `url:"id"`
-	Labels []string `json:"labels"`
-}
-
-type addLabelsToHostResponse struct {
-	Err error `json:"error,omitempty"`
-}
-
-func (r addLabelsToHostResponse) Error() error { return r.Err }
-
 func addLabelsToHostEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
-	req := request.(*addLabelsToHostRequest)
+	req := request.(*fleet.AddLabelsToHostRequest)
 	if err := svc.AddLabelsToHost(ctx, req.ID, req.Labels); err != nil {
-		return addLabelsToHostResponse{Err: err}, nil
+		return fleet.AddLabelsToHostResponse{Err: err}, nil
 	}
-	return addLabelsToHostResponse{}, nil
+	return fleet.AddLabelsToHostResponse{}, nil
 }
 
 func (svc *Service) AddLabelsToHost(ctx context.Context, id uint, labelNames []string) error {
@@ -3250,23 +2627,12 @@ func (svc *Service) AddLabelsToHost(ctx context.Context, id uint, labelNames []s
 	return nil
 }
 
-type removeLabelsFromHostRequest struct {
-	ID     uint     `url:"id"`
-	Labels []string `json:"labels"`
-}
-
-type removeLabelsFromHostResponse struct {
-	Err error `json:"error,omitempty"`
-}
-
-func (r removeLabelsFromHostResponse) Error() error { return r.Err }
-
 func removeLabelsFromHostEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
-	req := request.(*removeLabelsFromHostRequest)
+	req := request.(*fleet.RemoveLabelsFromHostRequest)
 	if err := svc.RemoveLabelsFromHost(ctx, req.ID, req.Labels); err != nil {
-		return removeLabelsFromHostResponse{Err: err}, nil
+		return fleet.RemoveLabelsFromHostResponse{Err: err}, nil
 	}
-	return removeLabelsFromHostResponse{}, nil
+	return fleet.RemoveLabelsFromHostResponse{}, nil
 }
 
 func (svc *Service) RemoveLabelsFromHost(ctx context.Context, id uint, labelNames []string) error {
@@ -3381,25 +2747,10 @@ func (svc *Service) validateLabelNames(ctx context.Context, action string, label
 	return labelIDs, nil
 }
 
-////////////////////////////////////////////////////////////////////////////////
 // Host Software
-////////////////////////////////////////////////////////////////////////////////
+type getHostSoftwareDecoder struct{}
 
-type getHostSoftwareRequest struct {
-	ID uint `url:"id"`
-	fleet.HostSoftwareTitleListOptions
-}
-
-type getHostSoftwareResponse struct {
-	Software []*fleet.HostSoftwareWithInstaller `json:"software"`
-	Count    int                                `json:"count"`
-	Meta     *fleet.PaginationMetadata          `json:"meta,omitempty"`
-	Err      error                              `json:"error,omitempty"`
-}
-
-func (r getHostSoftwareResponse) Error() error { return r.Err }
-
-func (r getHostSoftwareRequest) DecodeRequest(ctx context.Context, req *http.Request) (interface{}, error) {
+func (getHostSoftwareDecoder) DecodeRequest(ctx context.Context, req *http.Request) (interface{}, error) {
 	type defaultDecodeRequest struct {
 		ID uint `url:"id"`
 		fleet.HostSoftwareTitleListOptions
@@ -3416,7 +2767,7 @@ func (r getHostSoftwareRequest) DecodeRequest(ctx context.Context, req *http.Req
 	_, wasIncludeAvailableForInstallSet := queryParams["include_available_for_install"]
 	result.HostSoftwareTitleListOptions.IncludeAvailableForInstallExplicitlySet = wasIncludeAvailableForInstallSet
 
-	finalResult := getHostSoftwareRequest{
+	finalResult := fleet.GetHostSoftwareRequest{
 		ID:                           result.ID,
 		HostSoftwareTitleListOptions: result.HostSoftwareTitleListOptions,
 	}
@@ -3425,15 +2776,15 @@ func (r getHostSoftwareRequest) DecodeRequest(ctx context.Context, req *http.Req
 }
 
 func getHostSoftwareEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
-	req := request.(*getHostSoftwareRequest)
+	req := request.(*fleet.GetHostSoftwareRequest)
 	res, meta, err := svc.ListHostSoftware(ctx, req.ID, req.HostSoftwareTitleListOptions)
 	if err != nil {
-		return getHostSoftwareResponse{Err: err}, nil
+		return fleet.GetHostSoftwareResponse{Err: err}, nil
 	}
 	if res == nil {
 		res = []*fleet.HostSoftwareWithInstaller{}
 	}
-	return getHostSoftwareResponse{Software: res, Meta: meta, Count: int(meta.TotalResults)}, nil //nolint:gosec // dismiss G115
+	return fleet.GetHostSoftwareResponse{Software: res, Meta: meta, Count: int(meta.TotalResults)}, nil //nolint:gosec // dismiss G115
 }
 
 func (svc *Service) ListHostSoftware(ctx context.Context, hostID uint, opts fleet.HostSoftwareTitleListOptions) ([]*fleet.HostSoftwareWithInstaller, *fleet.PaginationMetadata, error) {
@@ -3522,46 +2873,22 @@ func (svc *Service) ListHostSoftware(ctx context.Context, hostID uint, opts flee
 	return software, meta, nil
 }
 
-////////////////////////////////////////////////////////////////////////////////
 // Host Certificates
-////////////////////////////////////////////////////////////////////////////////
-
-type listHostCertificatesRequest struct {
-	ID uint `url:"id"`
-	fleet.ListOptions
-}
-
 var listHostCertificatesSortCols = map[string]bool{
 	"common_name":     true,
 	"not_valid_after": true,
 }
 
-func (r *listHostCertificatesRequest) ValidateRequest() error {
-	if r.ListOptions.OrderKey != "" && !listHostCertificatesSortCols[r.ListOptions.OrderKey] {
-		return badRequest("invalid order key")
-	}
-	return nil
-}
-
-type listHostCertificatesResponse struct {
-	Certificates []*fleet.HostCertificatePayload `json:"certificates"`
-	Meta         *fleet.PaginationMetadata       `json:"meta,omitempty"`
-	Count        uint                            `json:"count"`
-	Err          error                           `json:"error,omitempty"`
-}
-
-func (r listHostCertificatesResponse) Error() error { return r.Err }
-
 func listHostCertificatesEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
-	req := request.(*listHostCertificatesRequest)
+	req := request.(*fleet.ListHostCertificatesRequest)
 	res, meta, err := svc.ListHostCertificates(ctx, req.ID, req.ListOptions)
 	if err != nil {
-		return listHostCertificatesResponse{Err: err}, nil
+		return fleet.ListHostCertificatesResponse{Err: err}, nil
 	}
 	if res == nil {
 		res = []*fleet.HostCertificatePayload{}
 	}
-	return listHostCertificatesResponse{Certificates: res, Meta: meta, Count: meta.TotalResults}, nil
+	return fleet.ListHostCertificatesResponse{Certificates: res, Meta: meta, Count: meta.TotalResults}, nil
 }
 
 func (svc *Service) ListHostCertificates(ctx context.Context, hostID uint, opts fleet.ListOptions) ([]*fleet.HostCertificatePayload, *fleet.PaginationMetadata, error) {

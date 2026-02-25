@@ -2,16 +2,13 @@ package service
 
 import (
 	"context"
-	"crypto/x509"
 	"database/sql"
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io"
 	"log/slog"
 	"net/http"
 	"net/url"
-	"os"
 
 	"github.com/fleetdm/fleet/v4/ee/server/service/hostidentity/httpsig"
 	"github.com/fleetdm/fleet/v4/server"
@@ -39,40 +36,9 @@ type EnrollOrbitResponse struct {
 	Err          error  `json:"error,omitempty"`
 }
 
-type orbitGetConfigRequest struct {
-	OrbitNodeKey string `json:"orbit_node_key"`
-}
-
-func (r *orbitGetConfigRequest) setOrbitNodeKey(nodeKey string) {
-	r.OrbitNodeKey = nodeKey
-}
-
-func (r *orbitGetConfigRequest) orbitHostNodeKey() string {
-	return r.OrbitNodeKey
-}
-
 // DecodeBody implements the bodyDecoder interface for custom request body decoding.
 // This endpoint is susceptible to client read timeouts (poll.DeadlineExceededError).
 // By implementing DecodeBody, we classify those network errors as client errors.
-func (r *orbitGetConfigRequest) DecodeBody(_ context.Context, reader io.Reader, _ url.Values, _ []*x509.Certificate) error {
-	if err := json.NewDecoder(reader).Decode(r); err != nil {
-		if errors.Is(err, os.ErrDeadlineExceeded) {
-			return &fleet.BadRequestError{
-				Message:     "request body read timeout",
-				InternalErr: err,
-			}
-		}
-		return err
-	}
-	return nil
-}
-
-type orbitGetConfigResponse struct {
-	fleet.OrbitConfig
-	Err error `json:"error,omitempty"`
-}
-
-func (r orbitGetConfigResponse) Error() error { return r.Err }
 
 func (r EnrollOrbitResponse) Error() error { return r.Err }
 
@@ -295,9 +261,9 @@ func (svc *Service) EnrollOrbit(ctx context.Context, hostInfo fleet.OrbitHostInf
 func getOrbitConfigEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	cfg, err := svc.GetOrbitConfig(ctx)
 	if err != nil {
-		return orbitGetConfigResponse{Err: err}, nil
+		return fleet.OrbitGetConfigResponse{Err: err}, nil
 	}
-	return orbitGetConfigResponse{OrbitConfig: cfg}, nil
+	return fleet.OrbitGetConfigResponse{OrbitConfig: cfg}, nil
 }
 
 func (svc *Service) GetOrbitConfig(ctx context.Context) (fleet.OrbitConfig, error) {
@@ -710,7 +676,6 @@ func (svc *Service) setDiskEncryptionNotifications(
 }
 
 // filterExtensionsForHost filters a extensions configuration depending on the host platform and label membership.
-//
 // If all extensions are filtered, then it returns (nil, nil) (Orbit expects empty extensions if there
 // are no extensions for the host.)
 func (svc *Service) filterExtensionsForHost(ctx context.Context, extensions json.RawMessage, host *fleet.Host) (json.RawMessage, error) {
@@ -752,57 +717,22 @@ func (svc *Service) filterExtensionsForHost(ctx context.Context, extensions json
 	return extensionsFiltered, nil
 }
 
-/////////////////////////////////////////////////////////////////////////////////
 // Ping orbit endpoint
-/////////////////////////////////////////////////////////////////////////////////
-
-type orbitPingRequest struct{}
-
-type orbitPingResponse struct{}
-
-func (r orbitPingResponse) HijackRender(ctx context.Context, w http.ResponseWriter) {
-	writeCapabilitiesHeader(w, fleet.GetServerOrbitCapabilities())
-}
-
-func (r orbitPingResponse) Error() error { return nil }
-
 // NOTE: we're intentionally not reading the capabilities header in this
 // endpoint as is unauthenticated and we don't want to trust whatever comes in
 // there.
 func orbitPingEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	svc.DisableAuthForPing(ctx)
-	return orbitPingResponse{}, nil
+	return fleet.OrbitPingResponse{}, nil
 }
 
-/////////////////////////////////////////////////////////////////////////////////
 // SetOrUpdateDeviceToken endpoint
-/////////////////////////////////////////////////////////////////////////////////
-
-type setOrUpdateDeviceTokenRequest struct {
-	OrbitNodeKey    string `json:"orbit_node_key"`
-	DeviceAuthToken string `json:"device_auth_token"`
-}
-
-func (r *setOrUpdateDeviceTokenRequest) setOrbitNodeKey(nodeKey string) {
-	r.OrbitNodeKey = nodeKey
-}
-
-func (r *setOrUpdateDeviceTokenRequest) orbitHostNodeKey() string {
-	return r.OrbitNodeKey
-}
-
-type setOrUpdateDeviceTokenResponse struct {
-	Err error `json:"error,omitempty"`
-}
-
-func (r setOrUpdateDeviceTokenResponse) Error() error { return r.Err }
-
 func setOrUpdateDeviceTokenEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
-	req := request.(*setOrUpdateDeviceTokenRequest)
+	req := request.(*fleet.SetOrUpdateDeviceTokenRequest)
 	if err := svc.SetOrUpdateDeviceAuthToken(ctx, req.DeviceAuthToken); err != nil {
-		return setOrUpdateDeviceTokenResponse{Err: err}, nil
+		return fleet.SetOrUpdateDeviceTokenResponse{Err: err}, nil
 	}
-	return setOrUpdateDeviceTokenResponse{}, nil
+	return fleet.SetOrUpdateDeviceTokenResponse{}, nil
 }
 
 func (svc *Service) SetOrUpdateDeviceAuthToken(ctx context.Context, deviceAuthToken string) error {
@@ -832,39 +762,17 @@ func (svc *Service) SetOrUpdateDeviceAuthToken(ctx context.Context, deviceAuthTo
 	return nil
 }
 
-/////////////////////////////////////////////////////////////////////////////////
 // Get Orbit pending script execution request
-/////////////////////////////////////////////////////////////////////////////////
-
-type orbitGetScriptRequest struct {
-	OrbitNodeKey string `json:"orbit_node_key"`
-	ExecutionID  string `json:"execution_id"`
-}
-
 // interface implementation required by the OrbitClient
-func (r *orbitGetScriptRequest) setOrbitNodeKey(nodeKey string) {
-	r.OrbitNodeKey = nodeKey
-}
-
 // interface implementation required by orbit authentication
-func (r *orbitGetScriptRequest) orbitHostNodeKey() string {
-	return r.OrbitNodeKey
-}
-
-type orbitGetScriptResponse struct {
-	Err error `json:"error,omitempty"`
-	*fleet.HostScriptResult
-}
-
-func (r orbitGetScriptResponse) Error() error { return r.Err }
 
 func getOrbitScriptEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
-	req := request.(*orbitGetScriptRequest)
+	req := request.(*fleet.OrbitGetScriptRequest)
 	script, err := svc.GetHostScript(ctx, req.ExecutionID)
 	if err != nil {
-		return orbitGetScriptResponse{Err: err}, nil
+		return fleet.OrbitGetScriptResponse{Err: err}, nil
 	}
-	return orbitGetScriptResponse{HostScriptResult: script}, nil
+	return fleet.OrbitGetScriptResponse{HostScriptResult: script}, nil
 }
 
 func (svc *Service) GetHostScript(ctx context.Context, execID string) (*fleet.HostScriptResult, error) {
@@ -896,37 +804,16 @@ func (svc *Service) GetHostScript(ctx context.Context, execID string) (*fleet.Ho
 	return script, nil
 }
 
-/////////////////////////////////////////////////////////////////////////////////
 // Post Orbit script execution result
-/////////////////////////////////////////////////////////////////////////////////
-
-type orbitPostScriptResultRequest struct {
-	OrbitNodeKey string `json:"orbit_node_key"`
-	*fleet.HostScriptResultPayload
-}
-
 // interface implementation required by the OrbitClient
-func (r *orbitPostScriptResultRequest) setOrbitNodeKey(nodeKey string) {
-	r.OrbitNodeKey = nodeKey
-}
-
 // interface implementation required by orbit authentication
-func (r *orbitPostScriptResultRequest) orbitHostNodeKey() string {
-	return r.OrbitNodeKey
-}
-
-type orbitPostScriptResultResponse struct {
-	Err error `json:"error,omitempty"`
-}
-
-func (r orbitPostScriptResultResponse) Error() error { return r.Err }
 
 func postOrbitScriptResultEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
-	req := request.(*orbitPostScriptResultRequest)
+	req := request.(*fleet.OrbitPostScriptResultRequest)
 	if err := svc.SaveHostScriptResult(ctx, req.HostScriptResultPayload); err != nil {
-		return orbitPostScriptResultResponse{Err: err}, nil
+		return fleet.OrbitPostScriptResultResponse{Err: err}, nil
 	}
-	return orbitPostScriptResultResponse{}, nil
+	return fleet.OrbitPostScriptResultResponse{}, nil
 }
 
 func (svc *Service) SaveHostScriptResult(ctx context.Context, result *fleet.HostScriptResultPayload) error {
@@ -1101,77 +988,33 @@ func (svc *Service) SaveHostScriptResult(ctx context.Context, result *fleet.Host
 	return nil
 }
 
-/////////////////////////////////////////////////////////////////////////////////
 // Post Orbit device mapping (custom email)
-/////////////////////////////////////////////////////////////////////////////////
-
-type orbitPutDeviceMappingRequest struct {
-	OrbitNodeKey string `json:"orbit_node_key"`
-	Email        string `json:"email"`
-}
-
 // interface implementation required by the OrbitClient
-func (r *orbitPutDeviceMappingRequest) setOrbitNodeKey(nodeKey string) {
-	r.OrbitNodeKey = nodeKey
-}
-
 // interface implementation required by orbit authentication
-func (r *orbitPutDeviceMappingRequest) orbitHostNodeKey() string {
-	return r.OrbitNodeKey
-}
-
-type orbitPutDeviceMappingResponse struct {
-	Err error `json:"error,omitempty"`
-}
-
-func (r orbitPutDeviceMappingResponse) Error() error { return r.Err }
 
 func putOrbitDeviceMappingEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
-	req := request.(*orbitPutDeviceMappingRequest)
+	req := request.(*fleet.OrbitPutDeviceMappingRequest)
 
 	host, ok := hostctx.FromContext(ctx)
 	if !ok {
 		err := newOsqueryError("internal error: missing host from request context")
-		return orbitPutDeviceMappingResponse{Err: err}, nil
+		return fleet.OrbitPutDeviceMappingResponse{Err: err}, nil
 	}
 
 	_, err := svc.SetHostDeviceMapping(ctx, host.ID, req.Email, fleet.DeviceMappingCustomReplacement)
-	return orbitPutDeviceMappingResponse{Err: err}, nil
+	return fleet.OrbitPutDeviceMappingResponse{Err: err}, nil
 }
 
-/////////////////////////////////////////////////////////////////////////////////
 // Post Orbit disk encryption key
-/////////////////////////////////////////////////////////////////////////////////
-
-type orbitPostDiskEncryptionKeyRequest struct {
-	OrbitNodeKey  string `json:"orbit_node_key"`
-	EncryptionKey []byte `json:"encryption_key"`
-	ClientError   string `json:"client_error"`
-}
-
 // interface implementation required by the OrbitClient
-func (r *orbitPostDiskEncryptionKeyRequest) setOrbitNodeKey(nodeKey string) {
-	r.OrbitNodeKey = nodeKey
-}
-
 // interface implementation required by orbit authentication
-func (r *orbitPostDiskEncryptionKeyRequest) orbitHostNodeKey() string {
-	return r.OrbitNodeKey
-}
-
-type orbitPostDiskEncryptionKeyResponse struct {
-	Err error `json:"error,omitempty"`
-}
-
-func (r orbitPostDiskEncryptionKeyResponse) Error() error { return r.Err }
-func (r orbitPostDiskEncryptionKeyResponse) Status() int  { return http.StatusNoContent }
 
 func postOrbitDiskEncryptionKeyEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
-	req := request.(*orbitPostDiskEncryptionKeyRequest)
+	req := request.(*fleet.OrbitPostDiskEncryptionKeyRequest)
 	if err := svc.SetOrUpdateDiskEncryptionKey(ctx, string(req.EncryptionKey), req.ClientError); err != nil {
-		return orbitPostDiskEncryptionKeyResponse{Err: err}, nil
+		return fleet.OrbitPostDiskEncryptionKeyResponse{Err: err}, nil
 	}
-	return orbitPostDiskEncryptionKeyResponse{}, nil
+	return fleet.OrbitPostDiskEncryptionKeyResponse{}, nil
 }
 
 func (svc *Service) SetOrUpdateDiskEncryptionKey(ctx context.Context, encryptionKey, clientError string) error {
@@ -1250,41 +1093,16 @@ func (svc *Service) SetOrUpdateDiskEncryptionKey(ctx context.Context, encryption
 	return nil
 }
 
-/////////////////////////////////////////////////////////////////////////////////
 // Post Orbit LUKS (Linux disk encryption) data
-/////////////////////////////////////////////////////////////////////////////////
-
-type orbitPostLUKSRequest struct {
-	OrbitNodeKey string `json:"orbit_node_key"`
-	Passphrase   string `json:"passphrase"`
-	Salt         string `json:"salt"`
-	KeySlot      *uint  `json:"key_slot"`
-	ClientError  string `json:"client_error"`
-}
-
 // interface implementation required by the OrbitClient
-func (r *orbitPostLUKSRequest) setOrbitNodeKey(nodeKey string) {
-	r.OrbitNodeKey = nodeKey
-}
-
 // interface implementation required by orbit authentication
-func (r *orbitPostLUKSRequest) orbitHostNodeKey() string {
-	return r.OrbitNodeKey
-}
-
-type orbitPostLUKSResponse struct {
-	Err error `json:"error,omitempty"`
-}
-
-func (r orbitPostLUKSResponse) Error() error { return r.Err }
-func (r orbitPostLUKSResponse) Status() int  { return http.StatusNoContent }
 
 func postOrbitLUKSEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
-	req := request.(*orbitPostLUKSRequest)
+	req := request.(*fleet.OrbitPostLUKSRequest)
 	if err := svc.EscrowLUKSData(ctx, req.Passphrase, req.Salt, req.KeySlot, req.ClientError); err != nil {
-		return orbitPostLUKSResponse{Err: err}, nil
+		return fleet.OrbitPostLUKSResponse{Err: err}, nil
 	}
-	return orbitPostLUKSResponse{}, nil
+	return fleet.OrbitPostLUKSResponse{}, nil
 }
 
 func (svc *Service) EscrowLUKSData(ctx context.Context, passphrase string, salt string, keySlot *uint, clientError string) error {
@@ -1363,45 +1181,18 @@ func (svc *Service) validateAndEncrypt(ctx context.Context, passphrase string, s
 	return encryptedPassphrase, encryptedSalt, *keySlot, nil
 }
 
-/////////////////////////////////////////////////////////////////////////////////
 // Get Orbit pending software installations
-/////////////////////////////////////////////////////////////////////////////////
-
-type orbitGetSoftwareInstallRequest struct {
-	OrbitNodeKey string `json:"orbit_node_key"`
-	OrbotNodeKey string `json:"orbot_node_key"` // legacy typo -- keep for backwards compatibility with orbit <= 1.38.0
-	InstallUUID  string `json:"install_uuid"`
-}
-
 // interface implementation required by the OrbitClient
-func (r *orbitGetSoftwareInstallRequest) setOrbitNodeKey(nodeKey string) {
-	r.OrbitNodeKey = nodeKey
-	r.OrbotNodeKey = nodeKey // legacy typo -- keep for backwards compatability with fleet server < 4.63.0
-}
-
 // interface implementation required by the OrbitClient
-func (r *orbitGetSoftwareInstallRequest) orbitHostNodeKey() string {
-	if r.OrbitNodeKey != "" {
-		return r.OrbitNodeKey
-	}
-	return r.OrbotNodeKey
-}
-
-type orbitGetSoftwareInstallResponse struct {
-	Err error `json:"error,omitempty"`
-	*fleet.SoftwareInstallDetails
-}
-
-func (r orbitGetSoftwareInstallResponse) Error() error { return r.Err }
 
 func getOrbitSoftwareInstallDetails(ctx context.Context, request any, svc fleet.Service) (fleet.Errorer, error) {
-	req := request.(*orbitGetSoftwareInstallRequest)
+	req := request.(*fleet.OrbitGetSoftwareInstallRequest)
 	details, err := svc.GetSoftwareInstallDetails(ctx, req.InstallUUID)
 	if err != nil {
-		return orbitGetSoftwareInstallResponse{Err: err}, nil
+		return fleet.OrbitGetSoftwareInstallResponse{Err: err}, nil
 	}
 
-	return orbitGetSoftwareInstallResponse{SoftwareInstallDetails: details}, nil
+	return fleet.OrbitGetSoftwareInstallResponse{SoftwareInstallDetails: details}, nil
 }
 
 func (svc *Service) GetSoftwareInstallDetails(ctx context.Context, installUUID string) (*fleet.SoftwareInstallDetails, error) {
@@ -1426,38 +1217,22 @@ func (svc *Service) GetSoftwareInstallDetails(ctx context.Context, installUUID s
 }
 
 // Download Orbit software installer request
-/////////////////////////////////////////////////////////////////////////////////
-
-type orbitDownloadSoftwareInstallerRequest struct {
-	Alt          string `query:"alt"`
-	OrbitNodeKey string `json:"orbit_node_key"`
-	InstallerID  uint   `json:"installer_id"`
-}
-
 // interface implementation required by the OrbitClient
-func (r *orbitDownloadSoftwareInstallerRequest) setOrbitNodeKey(nodeKey string) {
-	r.OrbitNodeKey = nodeKey
-}
-
 // interface implementation required by orbit authentication
-func (r *orbitDownloadSoftwareInstallerRequest) orbitHostNodeKey() string {
-	return r.OrbitNodeKey
-}
-
 func orbitDownloadSoftwareInstallerEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
-	req := request.(*orbitDownloadSoftwareInstallerRequest)
+	req := request.(*fleet.OrbitDownloadSoftwareInstallerRequest)
 
 	downloadRequested := req.Alt == "media"
 	if !downloadRequested {
 		// TODO: confirm error handling
-		return orbitDownloadSoftwareInstallerResponse{Err: &fleet.BadRequestError{Message: "only alt=media is supported"}}, nil
+		return fleet.OrbitDownloadSoftwareInstallerResponse{Err: &fleet.BadRequestError{Message: "only alt=media is supported"}}, nil
 	}
 
 	p, err := svc.OrbitDownloadSoftwareInstaller(ctx, req.InstallerID)
 	if err != nil {
-		return orbitDownloadSoftwareInstallerResponse{Err: err}, nil
+		return fleet.OrbitDownloadSoftwareInstallerResponse{Err: err}, nil
 	}
-	return orbitDownloadSoftwareInstallerResponse{payload: p}, nil
+	return fleet.OrbitDownloadSoftwareInstallerResponse{Payload: p}, nil
 }
 
 func (svc *Service) OrbitDownloadSoftwareInstaller(ctx context.Context, installerID uint) (*fleet.DownloadSoftwareInstallerPayload, error) {
@@ -1468,37 +1243,15 @@ func (svc *Service) OrbitDownloadSoftwareInstaller(ctx context.Context, installe
 	return nil, fleet.ErrMissingLicense
 }
 
-/////////////////////////////////////////////////////////////////////////////////
 // Post Orbit software install result
-/////////////////////////////////////////////////////////////////////////////////
-
-type orbitPostSoftwareInstallResultRequest struct {
-	OrbitNodeKey string `json:"orbit_node_key"`
-	*fleet.HostSoftwareInstallResultPayload
-}
-
 // interface implementation required by the OrbitClient
-func (r *orbitPostSoftwareInstallResultRequest) setOrbitNodeKey(nodeKey string) {
-	r.OrbitNodeKey = nodeKey
-}
-
-func (r *orbitPostSoftwareInstallResultRequest) orbitHostNodeKey() string {
-	return r.OrbitNodeKey
-}
-
-type orbitPostSoftwareInstallResultResponse struct {
-	Err error `json:"error,omitempty"`
-}
-
-func (r orbitPostSoftwareInstallResultResponse) Error() error { return r.Err }
-func (r orbitPostSoftwareInstallResultResponse) Status() int  { return http.StatusNoContent }
 
 func postOrbitSoftwareInstallResultEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
-	req := request.(*orbitPostSoftwareInstallResultRequest)
+	req := request.(*fleet.OrbitPostSoftwareInstallResultRequest)
 	if err := svc.SaveHostSoftwareInstallResult(ctx, req.HostSoftwareInstallResultPayload); err != nil {
-		return orbitPostSoftwareInstallResultResponse{Err: err}, nil
+		return fleet.OrbitPostSoftwareInstallResultResponse{Err: err}, nil
 	}
-	return orbitPostSoftwareInstallResultResponse{}, nil
+	return fleet.OrbitPostSoftwareInstallResultResponse{}, nil
 }
 
 func (svc *Service) SaveHostSoftwareInstallResult(ctx context.Context, result *fleet.HostSoftwareInstallResultPayload) error {
@@ -1848,40 +1601,14 @@ func (svc *Service) getSoftwareInstallerAttemptNumber(ctx context.Context, host 
 	return currentInstall.AttemptNumber, nil
 }
 
-/////////////////////////////////////////////////////////////////////////////////
 // Get Orbit setup experience status
-/////////////////////////////////////////////////////////////////////////////////
-
-type getOrbitSetupExperienceStatusRequest struct {
-	OrbitNodeKey string `json:"orbit_node_key"`
-	ForceRelease bool   `json:"force_release"`
-	// Whether to re-enqueue canceled setup experience steps after a previous
-	// software install failure on MacOS.
-	ResetFailedSetupSteps bool `json:"reset_failed_setup_steps"`
-}
-
-func (r *getOrbitSetupExperienceStatusRequest) setOrbitNodeKey(nodeKey string) {
-	r.OrbitNodeKey = nodeKey
-}
-
-func (r *getOrbitSetupExperienceStatusRequest) orbitHostNodeKey() string {
-	return r.OrbitNodeKey
-}
-
-type getOrbitSetupExperienceStatusResponse struct {
-	Results *fleet.SetupExperienceStatusPayload `json:"setup_experience_results,omitempty"`
-	Err     error                               `json:"error,omitempty"`
-}
-
-func (r getOrbitSetupExperienceStatusResponse) Error() error { return r.Err }
-
 func getOrbitSetupExperienceStatusEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
-	req := request.(*getOrbitSetupExperienceStatusRequest)
+	req := request.(*fleet.GetOrbitSetupExperienceStatusRequest)
 	results, err := svc.GetOrbitSetupExperienceStatus(ctx, req.OrbitNodeKey, req.ForceRelease, req.ResetFailedSetupSteps)
 	if err != nil {
-		return &getOrbitSetupExperienceStatusResponse{Err: err}, nil
+		return &fleet.GetOrbitSetupExperienceStatusResponse{Err: err}, nil
 	}
-	return &getOrbitSetupExperienceStatusResponse{Results: results}, nil
+	return &fleet.GetOrbitSetupExperienceStatusResponse{Results: results}, nil
 }
 
 func (svc *Service) GetOrbitSetupExperienceStatus(ctx context.Context, orbitNodeKey string, forceRelease bool, resetFailedSetupSteps bool) (*fleet.SetupExperienceStatusPayload, error) {
@@ -1892,41 +1619,17 @@ func (svc *Service) GetOrbitSetupExperienceStatus(ctx context.Context, orbitNode
 	return nil, fleet.ErrMissingLicense
 }
 
-/////////////////////////////////////////////////////////////////////////////////
 // Setup experience init
-/////////////////////////////////////////////////////////////////////////////////
-
-type orbitSetupExperienceInitRequest struct {
-	OrbitNodeKey string `json:"orbit_node_key"`
-}
-
-func (r *orbitSetupExperienceInitRequest) setOrbitNodeKey(nodeKey string) {
-	r.OrbitNodeKey = nodeKey
-}
-
-func (r *orbitSetupExperienceInitRequest) orbitHostNodeKey() string {
-	return r.OrbitNodeKey
-}
-
-type orbitSetupExperienceInitResponse struct {
-	Result fleet.SetupExperienceInitResult `json:"result"`
-	Err    error                           `json:"error,omitempty"`
-}
-
-func (r orbitSetupExperienceInitResponse) Error() error {
-	return r.Err
-}
-
 func orbitSetupExperienceInitEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
-	_, ok := request.(*orbitSetupExperienceInitRequest)
+	_, ok := request.(*fleet.OrbitSetupExperienceInitRequest)
 	if !ok {
 		return nil, fmt.Errorf("internal error: invalid request type: %T", request)
 	}
 	result, err := svc.SetupExperienceInit(ctx)
 	if err != nil {
-		return orbitSetupExperienceInitResponse{Err: err}, nil
+		return fleet.OrbitSetupExperienceInitResponse{Err: err}, nil
 	}
-	return orbitSetupExperienceInitResponse{
+	return fleet.OrbitSetupExperienceInitResponse{
 		Result: *result,
 	}, nil
 }

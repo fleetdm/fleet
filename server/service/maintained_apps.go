@@ -10,26 +10,14 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mdm/maintainedapps"
 )
 
-type addFleetMaintainedAppRequest struct {
-	TeamID            *uint    `json:"team_id" renameto:"fleet_id"`
-	AppID             uint     `json:"fleet_maintained_app_id"`
-	InstallScript     string   `json:"install_script"`
-	PreInstallQuery   string   `json:"pre_install_query"`
-	PostInstallScript string   `json:"post_install_script"`
-	SelfService       bool     `json:"self_service"`
-	UninstallScript   string   `json:"uninstall_script"`
-	LabelsIncludeAny  []string `json:"labels_include_any"`
-	LabelsExcludeAny  []string `json:"labels_exclude_any"`
-	AutomaticInstall  bool     `json:"automatic_install"`
-	Categories        []string `json:"categories"`
-}
-
 // DecodeRequest implements the RequestDecoder interface to support base64-encoded
 // script fields. This allows bypassing WAF rules that may block requests containing
 // shell/PowerShell script patterns. When the X-Fleet-Scripts-Encoded header is set
 // to "base64", the script fields are decoded from base64.
-func (addFleetMaintainedAppRequest) DecodeRequest(ctx context.Context, r *http.Request) (any, error) {
-	var req addFleetMaintainedAppRequest
+type decodeAddFleetMaintainedAppRequest struct{}
+
+func (decodeAddFleetMaintainedAppRequest) DecodeRequest(ctx context.Context, r *http.Request) (any, error) {
+	var req fleet.AddFleetMaintainedAppRequest
 
 	// Decode JSON body
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -59,15 +47,8 @@ func (addFleetMaintainedAppRequest) DecodeRequest(ctx context.Context, r *http.R
 	return &req, nil
 }
 
-type addFleetMaintainedAppResponse struct {
-	SoftwareTitleID uint  `json:"software_title_id,omitempty"`
-	Err             error `json:"error,omitempty"`
-}
-
-func (r addFleetMaintainedAppResponse) Error() error { return r.Err }
-
 func addFleetMaintainedAppEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
-	req := request.(*addFleetMaintainedAppRequest)
+	req := request.(*fleet.AddFleetMaintainedAppRequest)
 	ctx, cancel := context.WithTimeout(ctx, maintained_apps.InstallerTimeout)
 	defer cancel()
 	titleId, err := svc.AddFleetMaintainedApp(
@@ -88,9 +69,9 @@ func addFleetMaintainedAppEndpoint(ctx context.Context, request interface{}, svc
 			err = fleet.NewGatewayTimeoutError("Couldn't add. Request timeout. Please make sure your server and load balancer timeout is long enough.", err)
 		}
 
-		return &addFleetMaintainedAppResponse{Err: err}, nil
+		return &fleet.AddFleetMaintainedAppResponse{Err: err}, nil
 	}
-	return &addFleetMaintainedAppResponse{SoftwareTitleID: titleId}, nil
+	return &fleet.AddFleetMaintainedAppResponse{SoftwareTitleID: titleId}, nil
 }
 
 func (svc *Service) AddFleetMaintainedApp(ctx context.Context, _ *uint, _ uint, _, _, _, _ string, _ bool, _ bool, _, _ []string) (uint, error) {
@@ -101,28 +82,15 @@ func (svc *Service) AddFleetMaintainedApp(ctx context.Context, _ *uint, _ uint, 
 	return 0, fleet.ErrMissingLicense
 }
 
-type listFleetMaintainedAppsRequest struct {
-	fleet.ListOptions
-	TeamID *uint `query:"team_id,optional" renameto:"fleet_id"`
-}
-
-type listFleetMaintainedAppsResponse struct {
-	FleetMaintainedApps []fleet.MaintainedApp     `json:"fleet_maintained_apps"`
-	Meta                *fleet.PaginationMetadata `json:"meta"`
-	Err                 error                     `json:"error,omitempty"`
-}
-
-func (r listFleetMaintainedAppsResponse) Error() error { return r.Err }
-
 func listFleetMaintainedAppsEndpoint(ctx context.Context, request any, svc fleet.Service) (fleet.Errorer, error) {
-	req := request.(*listFleetMaintainedAppsRequest)
+	req := request.(*fleet.ListFleetMaintainedAppsRequest)
 
 	apps, meta, err := svc.ListFleetMaintainedApps(ctx, req.TeamID, req.ListOptions)
 	if err != nil {
-		return listFleetMaintainedAppsResponse{Err: err}, nil
+		return fleet.ListFleetMaintainedAppsResponse{Err: err}, nil
 	}
 
-	listResp := listFleetMaintainedAppsResponse{
+	listResp := fleet.ListFleetMaintainedAppsResponse{
 		FleetMaintainedApps: apps,
 		Meta:                meta,
 	}
@@ -138,27 +106,15 @@ func (svc *Service) ListFleetMaintainedApps(ctx context.Context, teamID *uint, o
 	return nil, nil, fleet.ErrMissingLicense
 }
 
-type getFleetMaintainedAppRequest struct {
-	AppID  uint  `url:"app_id"`
-	TeamID *uint `query:"team_id,optional" renameto:"fleet_id"`
-}
-
-type getFleetMaintainedAppResponse struct {
-	FleetMaintainedApp *fleet.MaintainedApp `json:"fleet_maintained_app"`
-	Err                error                `json:"error,omitempty"`
-}
-
-func (r getFleetMaintainedAppResponse) Error() error { return r.Err }
-
 func getFleetMaintainedApp(ctx context.Context, request any, svc fleet.Service) (fleet.Errorer, error) {
-	req := request.(*getFleetMaintainedAppRequest)
+	req := request.(*fleet.GetFleetMaintainedAppRequest)
 
 	app, err := svc.GetFleetMaintainedApp(ctx, req.AppID, req.TeamID)
 	if err != nil {
-		return getFleetMaintainedAppResponse{Err: err}, nil
+		return fleet.GetFleetMaintainedAppResponse{Err: err}, nil
 	}
 
-	return getFleetMaintainedAppResponse{FleetMaintainedApp: app}, nil
+	return fleet.GetFleetMaintainedAppResponse{FleetMaintainedApp: app}, nil
 }
 
 func (svc *Service) GetFleetMaintainedApp(ctx context.Context, appID uint, teamID *uint) (*fleet.MaintainedApp, error) {

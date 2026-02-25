@@ -5,9 +5,9 @@ import (
 	"fmt"
 	"os"
 
+	fleetclient "github.com/fleetdm/fleet/v4/client"
 	"github.com/fleetdm/fleet/v4/pkg/spec"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
-	"github.com/fleetdm/fleet/v4/server/service"
 	"github.com/urfave/cli/v2"
 )
 
@@ -54,7 +54,7 @@ func deleteCommand() *cli.Command {
 				if err := fleet.DeleteQuery(query.Name); err != nil {
 					root := ctxerr.Cause(err)
 					switch root.(type) { //nolint:gocritic // ignore singleCaseSwitch
-					case service.NotFoundErr:
+					case fleetclient.NotFoundErr:
 						fmt.Printf("[!] query %q doesn't exist\n", query.Name)
 						continue
 					}
@@ -67,7 +67,7 @@ func deleteCommand() *cli.Command {
 				if err := fleet.DeletePack(pack.Name); err != nil {
 					root := ctxerr.Cause(err)
 					switch root.(type) { //nolint:gocritic // ignore singleCaseSwitch
-					case service.NotFoundErr:
+					case fleetclient.NotFoundErr:
 						fmt.Printf("[!] pack %q doesn't exist\n", pack.Name)
 						continue
 					}
@@ -80,7 +80,7 @@ func deleteCommand() *cli.Command {
 				if err := fleet.DeleteLabel(label.Name); err != nil {
 					root := ctxerr.Cause(err)
 					switch root.(type) { //nolint:gocritic // ignore singleCaseSwitch
-					case service.NotFoundErr:
+					case fleetclient.NotFoundErr:
 						fmt.Printf("[!] label %q doesn't exist\n", label.Name)
 						continue
 					}

@@ -5,17 +5,17 @@ import (
 	"strconv"
 	"time"
 
+	fleetclient "github.com/fleetdm/fleet/v4/client"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/build"
 	orbit_table "github.com/fleetdm/fleet/v4/orbit/pkg/table"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/token"
-	"github.com/fleetdm/fleet/v4/server/service"
 	"github.com/osquery/osquery-go/plugin/table"
 )
 
 // Extension implements an extension table that provides info about Orbit.
 type Extension struct {
 	startTime       time.Time
-	orbitClient     *service.OrbitClient
+	orbitClient     *fleetclient.OrbitClient
 	orbitChannel    string
 	osquerydChannel string
 	desktopChannel  string
@@ -28,7 +28,7 @@ type Extension struct {
 var _ orbit_table.Extension = (*Extension)(nil)
 
 func New(
-	orbitClient *service.OrbitClient, orbitChannel, osquerydChannel, desktopChannel string, desktopVersion string, trw *token.ReadWriter,
+	orbitClient *fleetclient.OrbitClient, orbitChannel, osquerydChannel, desktopChannel string, desktopVersion string, trw *token.ReadWriter,
 	startTime time.Time, scriptsEnabled func() bool,
 	updateURL string,
 ) *Extension {

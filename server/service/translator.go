@@ -9,24 +9,13 @@ import (
 	"github.com/fleetdm/fleet/v4/server/platform/endpointer"
 )
 
-type translatorRequest struct {
-	List []fleet.TranslatePayload `json:"list"`
-}
-
-type translatorResponse struct {
-	List []fleet.TranslatePayload `json:"list"`
-	Err  error                    `json:"error,omitempty"`
-}
-
-func (r translatorResponse) Error() error { return r.Err }
-
 func translatorEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
-	req := request.(*translatorRequest)
+	req := request.(*fleet.TranslatorRequest)
 	resp, err := svc.Translate(ctx, req.List)
 	if err != nil {
-		return translatorResponse{Err: err}, nil
+		return fleet.TranslatorResponse{Err: err}, nil
 	}
-	return translatorResponse{List: resp}, nil
+	return fleet.TranslatorResponse{List: resp}, nil
 }
 
 type translateFunc func(ctx context.Context, ds fleet.Datastore, identifier string) (uint, error)

@@ -29,6 +29,8 @@ import (
 	common_mysql "github.com/fleetdm/fleet/v4/server/platform/mysql"
 	"github.com/fleetdm/fleet/v4/server/pubsub"
 	"github.com/fleetdm/fleet/v4/server/service/contract"
+
+	fleetclient "github.com/fleetdm/fleet/v4/client"
 	"github.com/fleetdm/fleet/v4/server/test"
 	fleet_httptest "github.com/fleetdm/fleet/v4/server/test/httptest"
 	"github.com/ghodss/yaml"
@@ -406,8 +408,8 @@ func (ts *withServer) applyConfig(spec []byte) {
 	ts.Do("PATCH", "/api/latest/fleet/config", appConfigSpec, http.StatusOK)
 }
 
-func (ts *withServer) getConfig() *appConfigResponse {
-	var responseBody *appConfigResponse
+func (ts *withServer) getConfig() *fleet.AppConfigResponse {
+	var responseBody *fleet.AppConfigResponse
 	ts.DoJSON("GET", "/api/latest/fleet/config", nil, http.StatusOK, &responseBody)
 	return responseBody
 }
@@ -438,7 +440,7 @@ func (ts *withServer) LoginMDMSSOUser(username, password string) *http.Response 
 }
 
 func (ts *withServer) LoginAccountDrivenEnrollUser(username, password string) *http.Response {
-	requestParams := initiateMDMSSORequest{
+	requestParams := fleet.InitiateMDMSSORequest{
 		Initiator:      "account_driven_enroll",
 		UserIdentifier: username + "@example.com",
 	}
@@ -501,7 +503,7 @@ func (ts *withServer) loginSSOUserWithBody(username, password string, basePath s
 		fleethttp.WithCookieJar(jar),
 	)
 
-	var resIni initiateSSOResponse
+	var resIni fleet.InitiateSSOResponse
 	httpResponse := ts.doWithClient(client, "POST", basePath, requestBody, http.StatusOK, nil)
 	err = json.NewDecoder(httpResponse.Body).Decode(&resIni)
 	require.NoError(ts.s.T(), err)
@@ -599,7 +601,7 @@ func (ts *withServer) lastActivityMatches(name, details string, id uint) uint {
 // latest activity.
 func (ts *withServer) lastActivityMatchesExtended(name, details string, id uint, fleetInitiated *bool) uint {
 	t := ts.s.T()
-	var listActivities listActivitiesResponse
+	var listActivities fleet.ListActivitiesResponse
 	ts.DoJSON("GET", "/api/latest/fleet/activities", nil, http.StatusOK, &listActivities, "order_key", "a.id", "order_direction", "desc", "per_page", "1")
 	require.True(t, len(listActivities.Activities) > 0)
 
@@ -631,7 +633,7 @@ func (ts *withServer) lastActivityMatchesExtended(name, details string, id uint,
 func (ts *withServer) lastActivityOfTypeMatches(name, details string, id uint) uint {
 	t := ts.s.T()
 
-	var listActivities listActivitiesResponse
+	var listActivities fleet.ListActivitiesResponse
 	ts.DoJSON("GET", "/api/latest/fleet/activities", nil, http.StatusOK,
 		&listActivities, "order_key", "a.id", "order_direction", "desc", "per_page", "10")
 	require.True(t, len(listActivities.Activities) > 0)
@@ -656,7 +658,7 @@ func (ts *withServer) lastActivityOfTypeMatches(name, details string, id uint) u
 func (ts *withServer) lastActivityOfTypeDoesNotMatch(name, details string, id uint) {
 	t := ts.s.T()
 
-	var listActivities listActivitiesResponse
+	var listActivities fleet.ListActivitiesResponse
 	ts.DoJSON("GET", "/api/latest/fleet/activities", nil, http.StatusOK,
 		&listActivities, "order_key", "a.id", "order_direction", "desc", "per_page", "10")
 	require.True(t, len(listActivities.Activities) > 0)
@@ -677,7 +679,7 @@ func (ts *withServer) lastActivityOfTypeDoesNotMatch(name, details string, id ui
 // listActivities retrieves all activities via the HTTP API endpoint.
 func (ts *withServer) listActivities() []*fleet.Activity {
 	t := ts.s.T()
-	var resp listActivitiesResponse
+	var resp fleet.ListActivitiesResponse
 	ts.DoJSON("GET", "/api/latest/fleet/activities", nil, http.StatusOK, &resp,
 		"order_key", "a.id", "order_direction", "asc", "per_page", "10000")
 	require.NotNil(t, resp.Activities)
@@ -771,7 +773,7 @@ func (ts *withServer) uploadSoftwareInstallerWithErrorNameReason(
 	defer r.Body.Close()
 
 	if expectedErrorReason != "" || expectedErrorName != "" {
-		errName, errReason := extractServerErrorNameReason(r.Body)
+		errName, errReason := fleetclient.ExtractServerErrorNameReason(r.Body)
 		if expectedErrorName != "" {
 			require.Equal(t, expectedErrorName, errName)
 		}
@@ -858,7 +860,7 @@ func (ts *withServer) updateSoftwareInstaller(
 	defer r.Body.Close()
 
 	if expectedError != "" {
-		errMsg := extractServerErrorText(r.Body)
+		errMsg := fleetclient.ExtractServerErrorText(r.Body)
 		require.Contains(t, errMsg, expectedError)
 		return
 	}
@@ -866,7 +868,7 @@ func (ts *withServer) updateSoftwareInstaller(
 	bodyBytes, err := io.ReadAll(r.Body)
 	require.NoError(t, err)
 
-	var resp getSoftwareInstallerResponse
+	var resp fleet.GetSoftwareInstallerResponse
 	require.NoError(t, json.Unmarshal(bodyBytes, &resp))
 
 	if payload.DisplayName != nil {

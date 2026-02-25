@@ -7,10 +7,10 @@ import (
 	"strings"
 	"sync"
 
+	fleetclient "github.com/fleetdm/fleet/v4/client"
 	"github.com/fleetdm/fleet/v4/cmd/osquery-perf/osquery_perf"
 	"github.com/fleetdm/fleet/v4/pkg/file"
 	"github.com/fleetdm/fleet/v4/server/fleet"
-	"github.com/fleetdm/fleet/v4/server/service"
 )
 
 // Metadata holds the metadata for software installers.
@@ -22,7 +22,7 @@ type Metadata struct {
 	Stats *osquery_perf.Stats
 }
 
-func (c *Metadata) Get(installer *fleet.SoftwareInstallDetails, orbitClient *service.OrbitClient) (meta *file.InstallerMetadata,
+func (c *Metadata) Get(installer *fleet.SoftwareInstallDetails, orbitClient *fleetclient.OrbitClient) (meta *file.InstallerMetadata,
 	cacheMiss bool, err error,
 ) {
 	c.mu.Lock()
@@ -44,7 +44,7 @@ func (c *Metadata) Get(installer *fleet.SoftwareInstallDetails, orbitClient *ser
 	return meta, cacheMiss, nil
 }
 
-func (c *Metadata) populateMetadata(installer *fleet.SoftwareInstallDetails, orbitClient *service.OrbitClient) (*file.InstallerMetadata,
+func (c *Metadata) populateMetadata(installer *fleet.SoftwareInstallDetails, orbitClient *fleetclient.OrbitClient) (*file.InstallerMetadata,
 	error,
 ) {
 	tmpDir, err := os.MkdirTemp("", "")

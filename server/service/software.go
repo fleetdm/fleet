@@ -13,31 +13,17 @@ import (
 	"github.com/fleetdm/fleet/v4/server/ptr"
 )
 
-/////////////////////////////////////////////////////////////////////////////////
 // List
-/////////////////////////////////////////////////////////////////////////////////
-
-type listSoftwareRequest struct {
-	fleet.SoftwareListOptions
-}
-
-// Deprecated: listSoftwareResponse is the response struct for the deprecated
-// listSoftwareEndpoint. It differs from listSoftwareVersionsResponse in that
+// Deprecated: fleet.ListSoftwareResponse is the response struct for the deprecated
+// listSoftwareEndpoint. It differs from fleet.ListSoftwareVersionsResponse in that
 // the latter includes a count of the total number of software items.
-type listSoftwareResponse struct {
-	CountsUpdatedAt *time.Time       `json:"counts_updated_at"`
-	Software        []fleet.Software `json:"software,omitempty"`
-	Err             error            `json:"error,omitempty"`
-}
-
-func (r listSoftwareResponse) Error() error { return r.Err }
 
 // Deprecated: use listSoftwareVersionsEndpoint instead
 func listSoftwareEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
-	req := request.(*listSoftwareRequest)
+	req := request.(*fleet.ListSoftwareRequest)
 	resp, _, err := svc.ListSoftware(ctx, req.SoftwareListOptions)
 	if err != nil {
-		return listSoftwareResponse{Err: err}, nil
+		return fleet.ListSoftwareResponse{Err: err}, nil
 	}
 
 	// calculate the latest counts_updated_at
@@ -47,7 +33,7 @@ func listSoftwareEndpoint(ctx context.Context, request interface{}, svc fleet.Se
 			latest = sw.CountsUpdatedAt
 		}
 	}
-	listResp := listSoftwareResponse{Software: resp}
+	listResp := fleet.ListSoftwareResponse{Software: resp}
 	if !latest.IsZero() {
 		listResp.CountsUpdatedAt = &latest
 	}
@@ -55,18 +41,8 @@ func listSoftwareEndpoint(ctx context.Context, request interface{}, svc fleet.Se
 	return listResp, nil
 }
 
-type listSoftwareVersionsResponse struct {
-	Count           int                       `json:"count"`
-	CountsUpdatedAt *time.Time                `json:"counts_updated_at"`
-	Software        []fleet.Software          `json:"software,omitempty"`
-	Meta            *fleet.PaginationMetadata `json:"meta"`
-	Err             error                     `json:"error,omitempty"`
-}
-
-func (r listSoftwareVersionsResponse) Error() error { return r.Err }
-
 func listSoftwareVersionsEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
-	req := request.(*listSoftwareRequest)
+	req := request.(*fleet.ListSoftwareRequest)
 
 	// always include pagination for new software versions endpoint (not included by default in
 	// legacy endpoint for backwards compatibility)
@@ -74,7 +50,7 @@ func listSoftwareVersionsEndpoint(ctx context.Context, request interface{}, svc 
 
 	resp, meta, err := svc.ListSoftware(ctx, req.SoftwareListOptions)
 	if err != nil {
-		return listSoftwareVersionsResponse{Err: err}, nil
+		return fleet.ListSoftwareVersionsResponse{Err: err}, nil
 	}
 
 	// calculate the latest counts_updated_at
@@ -84,14 +60,14 @@ func listSoftwareVersionsEndpoint(ctx context.Context, request interface{}, svc 
 			latest = sw.CountsUpdatedAt
 		}
 	}
-	listResp := listSoftwareVersionsResponse{Software: resp, Meta: meta}
+	listResp := fleet.ListSoftwareVersionsResponse{Software: resp, Meta: meta}
 	if !latest.IsZero() {
 		listResp.CountsUpdatedAt = &latest
 	}
 
 	c, err := svc.CountSoftware(ctx, req.SoftwareListOptions)
 	if err != nil {
-		return listSoftwareVersionsResponse{Err: err}, nil
+		return fleet.ListSoftwareVersionsResponse{Err: err}, nil
 	}
 	listResp.Count = c
 
@@ -129,31 +105,16 @@ func (svc *Service) ListSoftware(ctx context.Context, opt fleet.SoftwareListOpti
 	return softwares, meta, nil
 }
 
-/////////////////////////////////////////////////////////////////////////////////
 // Get Software
-/////////////////////////////////////////////////////////////////////////////////
-
-type getSoftwareRequest struct {
-	ID     uint  `url:"id"`
-	TeamID *uint `query:"team_id,optional" renameto:"fleet_id"`
-}
-
-type getSoftwareResponse struct {
-	Software *fleet.Software `json:"software,omitempty"`
-	Err      error           `json:"error,omitempty"`
-}
-
-func (r getSoftwareResponse) Error() error { return r.Err }
-
 func getSoftwareEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
-	req := request.(*getSoftwareRequest)
+	req := request.(*fleet.GetSoftwareRequest)
 
 	software, err := svc.SoftwareByID(ctx, req.ID, req.TeamID, false)
 	if err != nil {
-		return getSoftwareResponse{Err: err}, nil
+		return fleet.GetSoftwareResponse{Err: err}, nil
 	}
 
-	return getSoftwareResponse{Software: software}, nil
+	return fleet.GetSoftwareResponse{Software: software}, nil
 }
 
 func (svc *Service) SoftwareByID(ctx context.Context, id uint, teamID *uint, includeCVEScores bool) (*fleet.Software, error) {
@@ -212,30 +173,16 @@ func (svc *Service) SoftwareByID(ctx context.Context, id uint, teamID *uint, inc
 	return software, nil
 }
 
-/////////////////////////////////////////////////////////////////////////////////
 // Count
-/////////////////////////////////////////////////////////////////////////////////
-
-type countSoftwareRequest struct {
-	fleet.SoftwareListOptions
-}
-
-type countSoftwareResponse struct {
-	Count int   `json:"count"`
-	Err   error `json:"error,omitempty"`
-}
-
-func (r countSoftwareResponse) Error() error { return r.Err }
-
-// Deprecated: counts are now included directly in the listSoftwareVersionsResponse. This
+// Deprecated: counts are now included directly in the fleet.ListSoftwareVersionsResponse. This
 // endpoint is retained for backwards compatibility.
 func countSoftwareEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
-	req := request.(*countSoftwareRequest)
+	req := request.(*fleet.CountSoftwareRequest)
 	count, err := svc.CountSoftware(ctx, req.SoftwareListOptions)
 	if err != nil {
-		return countSoftwareResponse{Err: err}, nil
+		return fleet.CountSoftwareResponse{Err: err}, nil
 	}
-	return countSoftwareResponse{Count: count}, nil
+	return fleet.CountSoftwareResponse{Count: count}, nil
 }
 
 func (svc Service) CountSoftware(ctx context.Context, opt fleet.SoftwareListOptions) (int, error) {

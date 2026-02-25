@@ -37,19 +37,19 @@ func (s *integrationMDMTestSuite) setVPPTokenForTeam(teamID uint) {
 	expDate := expTime.Format(fleet.VPPTimeFormat)
 	tokenJSON := fmt.Sprintf(`{"expDate":"%s","token":"%s","orgName":"%s"}`, expDate, token, orgName)
 	dev_mode.SetOverride("FLEET_DEV_VPP_URL", s.appleVPPConfigSrv.URL, t)
-	var validToken uploadVPPTokenResponse
+	var validToken fleet.UploadVPPTokenResponse
 	s.uploadDataViaForm("/api/latest/fleet/vpp_tokens", "token", "token.vpptoken", []byte(base64.StdEncoding.EncodeToString([]byte(tokenJSON))), http.StatusAccepted, "", &validToken)
 
 	s.lastActivityMatches(fleet.ActivityEnabledVPP{}.ActivityName(), "", 0)
 
 	// Get the token
-	var resp getVPPTokensResponse
-	s.DoJSON("GET", "/api/latest/fleet/vpp_tokens", &getVPPTokensRequest{}, http.StatusOK, &resp)
+	var resp fleet.GetVPPTokensResponse
+	s.DoJSON("GET", "/api/latest/fleet/vpp_tokens", &fleet.GetVPPTokensRequest{}, http.StatusOK, &resp)
 	require.NoError(t, resp.Err)
 
 	// Associate team to the VPP token.
-	var resPatchVPP patchVPPTokensTeamsResponse
-	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/vpp_tokens/%d/teams", resp.Tokens[0].ID), patchVPPTokensTeamsRequest{TeamIDs: []uint{teamID}}, http.StatusOK, &resPatchVPP)
+	var resPatchVPP fleet.PatchVPPTokensTeamsResponse
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/vpp_tokens/%d/teams", resp.Tokens[0].ID), fleet.PatchVPPTokensTeamsRequest{TeamIDs: []uint{teamID}}, http.StatusOK, &resPatchVPP)
 }
 
 func (s *integrationMDMTestSuite) TestVPPAppInstallVerification() {
@@ -61,8 +61,8 @@ func (s *integrationMDMTestSuite) TestVPPAppInstallVerification() {
 	s.setSkipWorkerJobs(t)
 
 	// Create a team
-	var newTeamResp teamResponse
-	s.DoJSON("POST", "/api/latest/fleet/teams", &createTeamRequest{TeamPayload: fleet.TeamPayload{Name: ptr.String("Team 1")}}, http.StatusOK, &newTeamResp)
+	var newTeamResp fleet.TeamResponse
+	s.DoJSON("POST", "/api/latest/fleet/teams", &fleet.CreateTeamRequest{TeamPayload: fleet.TeamPayload{Name: ptr.String("Team 1")}}, http.StatusOK, &newTeamResp)
 	team := newTeamResp.Team
 
 	s.setVPPTokenForTeam(team.ID)
@@ -116,24 +116,24 @@ func (s *integrationMDMTestSuite) TestVPPAppInstallVerification() {
 		IconURL:          "https://example.com/images/3/512x512.png",
 		LatestVersion:    "3.0.0",
 	}
-	var addAppResp addAppStoreAppResponse
-	s.DoJSON("POST", "/api/latest/fleet/software/app_store_apps", &addAppStoreAppRequest{TeamID: &team.ID, AppStoreID: macOSApp.AdamID, SelfService: true}, http.StatusOK, &addAppResp)
+	var addAppResp fleet.AddAppStoreAppResponse
+	s.DoJSON("POST", "/api/latest/fleet/software/app_store_apps", &fleet.AddAppStoreAppRequest{TeamID: &team.ID, AppStoreID: macOSApp.AdamID, SelfService: true}, http.StatusOK, &addAppResp)
 
 	s.lastActivityMatches(fleet.ActivityAddedAppStoreApp{}.ActivityName(),
 		fmt.Sprintf(`{"fleet_name": "%s", "team_name": "%s", "software_title": "%s", "software_title_id": %d, "app_store_id": "%s", "fleet_id": %d, "team_id": %d, "platform": "%s", "self_service": true}`, team.Name, team.Name,
 			macOSApp.Name, getSoftwareTitleIDFromApp(macOSApp), macOSApp.AdamID, team.ID, team.ID, macOSApp.Platform), 0)
 
 	// Add iOS app to team
-	addAppResp = addAppStoreAppResponse{}
-	s.DoJSON("POST", "/api/latest/fleet/software/app_store_apps", &addAppStoreAppRequest{TeamID: &team.ID, AppStoreID: iOSApp.AdamID, Platform: iOSApp.Platform}, http.StatusOK, &addAppResp)
+	addAppResp = fleet.AddAppStoreAppResponse{}
+	s.DoJSON("POST", "/api/latest/fleet/software/app_store_apps", &fleet.AddAppStoreAppRequest{TeamID: &team.ID, AppStoreID: iOSApp.AdamID, Platform: iOSApp.Platform}, http.StatusOK, &addAppResp)
 
 	s.lastActivityMatches(fleet.ActivityAddedAppStoreApp{}.ActivityName(),
 		fmt.Sprintf(`{"fleet_name": "%s", "team_name": "%s", "software_title": "%s", "software_title_id": %d, "app_store_id": "%s", "fleet_id": %d, "team_id": %d, "platform": "%s", "self_service": false}`, team.Name, team.Name,
 			iOSApp.Name, getSoftwareTitleIDFromApp(iOSApp), iOSApp.AdamID, team.ID, team.ID, iOSApp.Platform), 0)
 
 	// Add iPadOS app to team
-	addAppResp = addAppStoreAppResponse{}
-	s.DoJSON("POST", "/api/latest/fleet/software/app_store_apps", &addAppStoreAppRequest{TeamID: &team.ID, AppStoreID: iPadOSApp.AdamID, SelfService: false, Platform: iPadOSApp.Platform}, http.StatusOK, &addAppResp)
+	addAppResp = fleet.AddAppStoreAppResponse{}
+	s.DoJSON("POST", "/api/latest/fleet/software/app_store_apps", &fleet.AddAppStoreAppRequest{TeamID: &team.ID, AppStoreID: iPadOSApp.AdamID, SelfService: false, Platform: iPadOSApp.Platform}, http.StatusOK, &addAppResp)
 
 	s.lastActivityMatches(fleet.ActivityAddedAppStoreApp{}.ActivityName(),
 		fmt.Sprintf(`{"fleet_name": "%s", "team_name": "%s", "software_title": "%s", "software_title_id": %d, "app_store_id": "%s", "fleet_id": %d, "team_id": %d, "platform": "%s", "self_service": false}`, team.Name, team.Name,
@@ -160,7 +160,7 @@ func (s *integrationMDMTestSuite) TestVPPAppInstallVerification() {
 	// Add serial number to our fake Apple server
 	s.appleVPPConfigSrvConfig.SerialNumbers = append(s.appleVPPConfigSrvConfig.SerialNumbers, mdmHost.HardwareSerial)
 	s.Do("POST", "/api/latest/fleet/hosts/transfer",
-		&addHostsToTeamRequest{HostIDs: []uint{mdmHost.ID, orbitHost.ID, selfServiceHost.ID}, TeamID: &team.ID}, http.StatusOK)
+		&fleet.AddHostsToTeamRequest{HostIDs: []uint{mdmHost.ID, orbitHost.ID, selfServiceHost.ID}, TeamID: &team.ID}, http.StatusOK)
 
 	// Add all apps to the team
 	errApp := &fleet.VPPApp{
@@ -184,14 +184,14 @@ func (s *integrationMDMTestSuite) TestVPPAppInstallVerification() {
 	}
 	addedApp := expectedApps[0]
 
-	var listSw listSoftwareTitlesResponse
+	var listSw fleet.ListSoftwareTitlesResponse
 	s.DoJSON("GET", "/api/latest/fleet/software/titles", nil, http.StatusOK, &listSw, "team_id", fmt.Sprint(team.ID),
 		"available_for_install", "true")
 	// Add remaining as non-self-service
 	for _, app := range expectedApps {
-		addAppResp = addAppStoreAppResponse{}
+		addAppResp = fleet.AddAppStoreAppResponse{}
 		s.DoJSON("POST", "/api/latest/fleet/software/app_store_apps",
-			&addAppStoreAppRequest{TeamID: &team.ID, AppStoreID: app.AdamID, Platform: app.Platform},
+			&fleet.AddAppStoreAppRequest{TeamID: &team.ID, AppStoreID: app.AdamID, Platform: app.Platform},
 			http.StatusOK, &addAppResp)
 		s.lastActivityMatches(
 			fleet.ActivityAddedAppStoreApp{}.ActivityName(),
@@ -201,7 +201,7 @@ func (s *integrationMDMTestSuite) TestVPPAppInstallVerification() {
 		)
 	}
 
-	listSw = listSoftwareTitlesResponse{}
+	listSw = fleet.ListSoftwareTitlesResponse{}
 	s.DoJSON("GET", "/api/latest/fleet/software/titles", nil, http.StatusOK, &listSw, "team_id", fmt.Sprint(team.ID), "available_for_install", "true")
 	require.Len(t, listSw.SoftwareTitles, len(expectedApps))
 	var errTitleID, macOSTitleID uint
@@ -383,17 +383,17 @@ func (s *integrationMDMTestSuite) TestVPPAppInstallVerification() {
 	require.NoError(t, s.ds.UpdateHostRefetchRequested(context.Background(), mdmHost.ID, false))
 
 	// Trigger install to the host
-	installResp := installSoftwareResponse{}
-	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/software/%d/install", mdmHost.ID, errTitleID), &installSoftwareRequest{},
+	installResp := fleet.InstallSoftwareResponse{}
+	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/software/%d/install", mdmHost.ID, errTitleID), &fleet.InstallSoftwareRequest{},
 		http.StatusAccepted, &installResp)
 
 	// Check if the host is listed as pending
-	var listResp listHostsResponse
+	var listResp fleet.ListHostsResponse
 	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &listResp, "software_status", "pending", "team_id", fmt.Sprint(team.ID),
 		"software_title_id", fmt.Sprint(errTitleID))
 	require.Len(t, listResp.Hosts, 1)
 	require.Equal(t, listResp.Hosts[0].ID, mdmHost.ID)
-	var countResp countHostsResponse
+	var countResp fleet.CountHostsResponse
 	s.DoJSON("GET", "/api/latest/fleet/hosts/count", nil, http.StatusOK, &countResp, "software_status", "pending", "team_id",
 		fmt.Sprint(team.ID), "software_title_id", fmt.Sprint(errTitleID))
 	require.Equal(t, 1, countResp.Count)
@@ -419,12 +419,12 @@ func (s *integrationMDMTestSuite) TestVPPAppInstallVerification() {
 		return nil
 	})
 
-	listResp = listHostsResponse{}
+	listResp = fleet.ListHostsResponse{}
 	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &listResp, "software_status", "failed", "team_id", fmt.Sprint(team.ID),
 		"software_title_id", fmt.Sprint(errTitleID))
 	require.Len(t, listResp.Hosts, 1)
 	require.Equal(t, listResp.Hosts[0].ID, mdmHost.ID)
-	countResp = countHostsResponse{}
+	countResp = fleet.CountHostsResponse{}
 	s.DoJSON("GET", "/api/latest/fleet/hosts/count", nil, http.StatusOK, &countResp, "software_status", "failed", "team_id",
 		fmt.Sprint(team.ID), "software_title_id", fmt.Sprint(errTitleID))
 	require.Equal(t, 1, countResp.Count)
@@ -445,7 +445,7 @@ func (s *integrationMDMTestSuite) TestVPPAppInstallVerification() {
 	)
 
 	// No refetch requested since the install failed
-	var hostResp getHostResponse
+	var hostResp fleet.GetHostResponse
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", mdmHost.ID), nil, http.StatusOK, &hostResp)
 	require.False(t, hostResp.Host.RefetchRequested, "RefetchRequested should be false after failed software install")
 
@@ -454,10 +454,10 @@ func (s *integrationMDMTestSuite) TestVPPAppInstallVerification() {
 	// ================================================
 
 	// Trigger install to the host
-	installResp = installSoftwareResponse{}
-	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/software/%d/install", mdmHost.ID, macOSTitleID), &installSoftwareRequest{},
+	installResp = fleet.InstallSoftwareResponse{}
+	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/software/%d/install", mdmHost.ID, macOSTitleID), &fleet.InstallSoftwareRequest{},
 		http.StatusAccepted, &installResp)
-	countResp = countHostsResponse{}
+	countResp = fleet.CountHostsResponse{}
 	s.DoJSON("GET", "/api/latest/fleet/hosts/count", nil, http.StatusOK, &countResp, "software_status", "pending", "team_id",
 		fmt.Sprint(team.ID), "software_title_id", fmt.Sprint(macOSTitleID))
 	require.Equal(t, 1, countResp.Count)
@@ -468,11 +468,11 @@ func (s *integrationMDMTestSuite) TestVPPAppInstallVerification() {
 	opts.appInstallVerified = true
 	installCmdUUID := processVPPInstallOnClient(mdmDevice, opts)
 
-	listResp = listHostsResponse{}
+	listResp = fleet.ListHostsResponse{}
 	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &listResp, "software_status", "installed", "team_id",
 		fmt.Sprint(team.ID), "software_title_id", fmt.Sprint(macOSTitleID))
 	require.Len(t, listResp.Hosts, 1)
-	countResp = countHostsResponse{}
+	countResp = fleet.CountHostsResponse{}
 	s.DoJSON("GET", "/api/latest/fleet/hosts/count", nil, http.StatusOK, &countResp, "software_status", "installed", "team_id",
 		fmt.Sprint(team.ID), "software_title_id", fmt.Sprint(macOSTitleID))
 	require.Equal(t, 1, countResp.Count)
@@ -497,14 +497,14 @@ func (s *integrationMDMTestSuite) TestVPPAppInstallVerification() {
 
 	s.lq.On("QueriesForHost", mdmHost.ID).Return(map[string]string{fmt.Sprintf("%d", mdmHost.ID): "select 1 from osquery;"}, nil)
 
-	req := getDistributedQueriesRequest{NodeKey: *mdmHost.NodeKey}
-	var dqResp getDistributedQueriesResponse
+	req := fleet.GetDistributedQueriesRequest{NodeKey: *mdmHost.NodeKey}
+	var dqResp fleet.GetDistributedQueriesResponse
 	s.DoJSON("POST", "/api/osquery/distributed/read", req, http.StatusOK, &dqResp)
 	require.Contains(t, dqResp.Queries, "fleet_detail_query_software_macos")
 	require.NoError(t, s.ds.UpdateHostRefetchRequested(context.Background(), mdmHost.ID, false))
 
 	// Check list host software
-	getHostSw := getHostSoftwareResponse{}
+	getHostSw := fleet.GetHostSoftwareResponse{}
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/software", mdmHost.ID), nil, http.StatusOK, &getHostSw)
 	gotSW := getHostSw.Software
 	require.Len(t, gotSW, 2) // App 1 and App 2
@@ -518,10 +518,10 @@ func (s *integrationMDMTestSuite) TestVPPAppInstallVerification() {
 	// ================================================
 
 	// Trigger install to the host
-	installResp = installSoftwareResponse{}
-	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/software/%d/install", mdmHost.ID, macOSTitleID), &installSoftwareRequest{},
+	installResp = fleet.InstallSoftwareResponse{}
+	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/software/%d/install", mdmHost.ID, macOSTitleID), &fleet.InstallSoftwareRequest{},
 		http.StatusAccepted, &installResp)
-	countResp = countHostsResponse{}
+	countResp = fleet.CountHostsResponse{}
 	s.DoJSON("GET", "/api/latest/fleet/hosts/count", nil, http.StatusOK, &countResp, "software_status", "pending", "team_id",
 		fmt.Sprint(team.ID), "software_title_id", fmt.Sprint(macOSTitleID))
 	require.Equal(t, 1, countResp.Count)
@@ -533,11 +533,11 @@ func (s *integrationMDMTestSuite) TestVPPAppInstallVerification() {
 	installCmdUUID = processVPPInstallOnClient(mdmDevice, opts)
 
 	// We should have 0 installed, because the verification is not done yet
-	listResp = listHostsResponse{}
+	listResp = fleet.ListHostsResponse{}
 	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &listResp, "software_status", "installed", "team_id",
 		fmt.Sprint(team.ID), "software_title_id", fmt.Sprint(macOSTitleID))
 	require.Len(t, listResp.Hosts, 0)
-	countResp = countHostsResponse{}
+	countResp = fleet.CountHostsResponse{}
 	s.DoJSON("GET", "/api/latest/fleet/hosts/count", nil, http.StatusOK, &countResp, "software_status", "installed", "team_id",
 		fmt.Sprint(team.ID), "software_title_id", fmt.Sprint(macOSTitleID))
 	require.Equal(t, 0, countResp.Count)
@@ -560,11 +560,11 @@ func (s *integrationMDMTestSuite) TestVPPAppInstallVerification() {
 	processVPPInstallOnClient(mdmDevice, opts)
 
 	// We should have 0 installed, because the verification is not done yet
-	listResp = listHostsResponse{}
+	listResp = fleet.ListHostsResponse{}
 	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &listResp, "software_status", "installed", "team_id",
 		fmt.Sprint(team.ID), "software_title_id", fmt.Sprint(macOSTitleID))
 	require.Len(t, listResp.Hosts, 0)
-	countResp = countHostsResponse{}
+	countResp = fleet.CountHostsResponse{}
 	s.DoJSON("GET", "/api/latest/fleet/hosts/count", nil, http.StatusOK, &countResp, "software_status", "installed", "team_id",
 		fmt.Sprint(team.ID), "software_title_id", fmt.Sprint(macOSTitleID))
 	require.Equal(t, 0, countResp.Count)
@@ -621,10 +621,10 @@ func (s *integrationMDMTestSuite) TestVPPAppInstallVerification() {
 	// ========================================================
 
 	// Trigger install to the host
-	installResp = installSoftwareResponse{}
-	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/software/%d/install", mdmHost.ID, macOSTitleID), &installSoftwareRequest{},
+	installResp = fleet.InstallSoftwareResponse{}
+	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/software/%d/install", mdmHost.ID, macOSTitleID), &fleet.InstallSoftwareRequest{},
 		http.StatusAccepted, &installResp)
-	countResp = countHostsResponse{}
+	countResp = fleet.CountHostsResponse{}
 	s.DoJSON("GET", "/api/latest/fleet/hosts/count", nil, http.StatusOK, &countResp, "software_status", "pending", "team_id",
 		fmt.Sprint(team.ID), "software_title_id", fmt.Sprint(macOSTitleID))
 	require.Equal(t, 1, countResp.Count)
@@ -634,12 +634,12 @@ func (s *integrationMDMTestSuite) TestVPPAppInstallVerification() {
 	opts.appInstallTimeout = true
 	installCmdUUID = processVPPInstallOnClient(mdmDevice, opts)
 
-	listResp = listHostsResponse{}
+	listResp = fleet.ListHostsResponse{}
 	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &listResp, "software_status", "installed", "team_id",
 		fmt.Sprint(team.ID), "software_title_id", fmt.Sprint(macOSTitleID))
 	require.Empty(t, listResp.Hosts)
 
-	countResp = countHostsResponse{}
+	countResp = fleet.CountHostsResponse{}
 	s.DoJSON("GET", "/api/latest/fleet/hosts/count", nil, http.StatusOK, &countResp, "software_status", "failed", "team_id",
 		fmt.Sprint(team.ID), "software_title_id", fmt.Sprint(macOSTitleID))
 	require.Equal(t, 1, countResp.Count)
@@ -664,7 +664,7 @@ func (s *integrationMDMTestSuite) TestVPPAppInstallVerification() {
 	require.False(t, hostResp.Host.RefetchRequested, "RefetchRequested should be false after failed software install")
 
 	// Check list host software
-	getHostSw = getHostSoftwareResponse{}
+	getHostSw = fleet.GetHostSoftwareResponse{}
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/software", mdmHost.ID), nil, http.StatusOK, &getHostSw)
 	gotSW = getHostSw.Software
 	require.Len(t, gotSW, 2) // App 1 and App 2
@@ -677,19 +677,19 @@ func (s *integrationMDMTestSuite) TestVPPAppInstallVerification() {
 	// ========================================================
 
 	// Trigger install to the host
-	installResp = installSoftwareResponse{}
-	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/software/%d/install", mdmHost.ID, macOSTitleID), &installSoftwareRequest{},
+	installResp = fleet.InstallSoftwareResponse{}
+	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/software/%d/install", mdmHost.ID, macOSTitleID), &fleet.InstallSoftwareRequest{},
 		http.StatusAccepted, &installResp)
-	countResp = countHostsResponse{}
+	countResp = fleet.CountHostsResponse{}
 	s.DoJSON("GET", "/api/latest/fleet/hosts/count", nil, http.StatusOK, &countResp, "software_status", "pending", "team_id",
 		fmt.Sprint(team.ID), "software_title_id", fmt.Sprint(macOSTitleID))
 	require.Equal(t, 1, countResp.Count)
 
 	// Trigger install to the self-service device (its data shouldn't be changed)
-	installResp = installSoftwareResponse{}
-	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/software/%d/install", selfServiceHost.ID, macOSTitleID), &installSoftwareRequest{},
+	installResp = fleet.InstallSoftwareResponse{}
+	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/software/%d/install", selfServiceHost.ID, macOSTitleID), &fleet.InstallSoftwareRequest{},
 		http.StatusAccepted, &installResp)
-	countResp = countHostsResponse{}
+	countResp = fleet.CountHostsResponse{}
 	s.DoJSON("GET", "/api/latest/fleet/hosts/count", nil, http.StatusOK, &countResp, "software_status", "pending", "team_id",
 		fmt.Sprint(team.ID), "software_title_id", fmt.Sprint(macOSTitleID))
 	require.Equal(t, 2, countResp.Count)
@@ -740,13 +740,13 @@ func (s *integrationMDMTestSuite) TestVPPAppInstallVerification() {
 	})
 
 	// Cancel the install for the other host, we don't need it anymore
-	var listUpcomingAct listHostUpcomingActivitiesResponse
+	var listUpcomingAct fleet.ListHostUpcomingActivitiesResponse
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/activities/upcoming", selfServiceHost.ID), nil, http.StatusOK, &listUpcomingAct)
 	require.Len(t, listUpcomingAct.Activities, 1)
 
 	s.Do("DELETE", fmt.Sprintf("/api/latest/fleet/hosts/%d/activities/upcoming/%s", selfServiceHost.ID, listUpcomingAct.Activities[0].UUID), nil, http.StatusNoContent)
 
-	getHostSw = getHostSoftwareResponse{}
+	getHostSw = fleet.GetHostSoftwareResponse{}
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/software", mdmHost.ID), nil, http.StatusOK, &getHostSw)
 	gotSW = getHostSw.Software
 	require.Len(t, gotSW, 2) // App 1 and App 2
@@ -768,10 +768,10 @@ func (s *integrationMDMTestSuite) TestVPPAppInstallVerification() {
 	checkInstallFleetdCommandSent(t, mdmDevice, true)
 
 	// Trigger install to the host
-	installResp = installSoftwareResponse{}
-	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/software/%d/install", mdmHost.ID, macOSTitleID), &installSoftwareRequest{},
+	installResp = fleet.InstallSoftwareResponse{}
+	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/software/%d/install", mdmHost.ID, macOSTitleID), &fleet.InstallSoftwareRequest{},
 		http.StatusAccepted, &installResp)
-	countResp = countHostsResponse{}
+	countResp = fleet.CountHostsResponse{}
 	s.DoJSON("GET", "/api/latest/fleet/hosts/count", nil, http.StatusOK, &countResp, "software_status", "pending", "team_id",
 		fmt.Sprint(team.ID), "software_title_id", fmt.Sprint(macOSTitleID))
 	require.Equal(t, 1, countResp.Count)
@@ -803,7 +803,7 @@ func (s *integrationMDMTestSuite) TestVPPAppInstallVerification() {
 		return nil
 	})
 
-	getHostSw = getHostSoftwareResponse{}
+	getHostSw = fleet.GetHostSoftwareResponse{}
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/software", mdmHost.ID), nil, http.StatusOK, &getHostSw)
 	gotSW = getHostSw.Software
 	require.Len(t, gotSW, 2) // App 1 and App 2
@@ -827,7 +827,7 @@ func (s *integrationMDMTestSuite) TestVPPAppInstallVerification() {
 	ipodHost, ipodDevice := s.createIpodHostThenEnrollMDM()
 	s.appleVPPConfigSrvConfig.SerialNumbers = append(s.appleVPPConfigSrvConfig.SerialNumbers, iosDevice.SerialNumber, ipodDevice.SerialNumber)
 	s.Do("POST", "/api/latest/fleet/hosts/transfer",
-		&addHostsToTeamRequest{HostIDs: []uint{iosHost.ID, ipodHost.ID}, TeamID: &team.ID}, http.StatusOK)
+		&fleet.AddHostsToTeamRequest{HostIDs: []uint{iosHost.ID, ipodHost.ID}, TeamID: &team.ID}, http.StatusOK)
 
 	var iosTitleID uint
 	for _, sw := range listSw.SoftwareTitles {
@@ -848,12 +848,12 @@ func (s *integrationMDMTestSuite) TestVPPAppInstallVerification() {
 	require.NotZero(t, ipadosTitleID)
 
 	// Trigger install to the iOS device
-	installResp = installSoftwareResponse{}
-	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/software/%d/install", iosHost.ID, iosTitleID), &installSoftwareRequest{},
+	installResp = fleet.InstallSoftwareResponse{}
+	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/software/%d/install", iosHost.ID, iosTitleID), &fleet.InstallSoftwareRequest{},
 		http.StatusAccepted, &installResp)
 
 	// Verify pending status
-	countResp = countHostsResponse{}
+	countResp = fleet.CountHostsResponse{}
 	s.DoJSON("GET", "/api/latest/fleet/hosts/count", nil, http.StatusOK, &countResp, "software_status", "pending", "team_id",
 		fmt.Sprint(team.ID), "software_title_id", fmt.Sprint(iosTitleID))
 	require.Equal(t, 1, countResp.Count)
@@ -875,7 +875,7 @@ func (s *integrationMDMTestSuite) TestVPPAppInstallVerification() {
 	installCmdUUID = processVPPInstallOnClient(iosDevice, opts)
 
 	// Verify successful installation
-	listResp = listHostsResponse{}
+	listResp = fleet.ListHostsResponse{}
 	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &listResp, "software_status", "installed", "team_id",
 		fmt.Sprint(team.ID), "software_title_id", fmt.Sprint(iosTitleID))
 	assert.Len(t, listResp.Hosts, 1)
@@ -943,7 +943,7 @@ func (s *integrationMDMTestSuite) TestVPPAppInstallVerification() {
 	}
 
 	// we should also have the installed version, because we update host software inventory on verification
-	getHostSw = getHostSoftwareResponse{}
+	getHostSw = fleet.GetHostSoftwareResponse{}
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/software", iosHost.ID), nil, http.StatusOK, &getHostSw, "available_for_install", "true")
 	assert.Len(t, getHostSw.Software, 1)
 	assert.Equal(t, iosTitleID, getHostSw.Software[0].ID)
@@ -956,12 +956,12 @@ func (s *integrationMDMTestSuite) TestVPPAppInstallVerification() {
 	// ========================================================
 
 	// Trigger install to the iOS device
-	installResp = installSoftwareResponse{}
-	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/software/%d/install", ipodHost.ID, iosTitleID), &installSoftwareRequest{},
+	installResp = fleet.InstallSoftwareResponse{}
+	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/software/%d/install", ipodHost.ID, iosTitleID), &fleet.InstallSoftwareRequest{},
 		http.StatusAccepted, &installResp)
 
 	// Verify pending status
-	countResp = countHostsResponse{}
+	countResp = fleet.CountHostsResponse{}
 	s.DoJSON("GET", "/api/latest/fleet/hosts/count", nil, http.StatusOK, &countResp, "software_status", "pending", "team_id",
 		fmt.Sprint(team.ID), "software_title_id", fmt.Sprint(iosTitleID))
 	require.Equal(t, 1, countResp.Count)
@@ -983,7 +983,7 @@ func (s *integrationMDMTestSuite) TestVPPAppInstallVerification() {
 	installCmdUUID = processVPPInstallOnClient(ipodDevice, opts)
 
 	// Verify successful installation
-	listResp = listHostsResponse{}
+	listResp = fleet.ListHostsResponse{}
 	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &listResp, "software_status", "installed", "team_id",
 		fmt.Sprint(team.ID), "software_title_id", fmt.Sprint(iosTitleID))
 	assert.Len(t, listResp.Hosts, 2) // iosHost and ipodHost
@@ -1051,7 +1051,7 @@ func (s *integrationMDMTestSuite) TestVPPAppInstallVerification() {
 	}
 
 	// we should also have the installed version, because we update host software inventory on verification
-	getHostSw = getHostSoftwareResponse{}
+	getHostSw = fleet.GetHostSoftwareResponse{}
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/software", ipodHost.ID), nil, http.StatusOK, &getHostSw, "available_for_install", "true")
 	assert.Len(t, getHostSw.Software, 1)
 	assert.Equal(t, iosTitleID, getHostSw.Software[0].ID)
@@ -1086,7 +1086,7 @@ func (s *integrationMDMTestSuite) TestVPPAppInstallVerification() {
 		data.host, data.device = s.createAppleMobileHostThenEnrollMDM(data.platform)
 		s.appleVPPConfigSrvConfig.SerialNumbers = append(s.appleVPPConfigSrvConfig.SerialNumbers, data.device.SerialNumber)
 		s.Do("POST", "/api/latest/fleet/hosts/transfer",
-			&addHostsToTeamRequest{HostIDs: []uint{data.host.ID}, TeamID: &team.ID}, http.StatusOK)
+			&fleet.AddHostsToTeamRequest{HostIDs: []uint{data.host.ID}, TeamID: &team.ID}, http.StatusOK)
 
 		// Refresh host to get UUID
 		data.host, err = s.ds.Host(context.Background(), data.host.ID)
@@ -1115,15 +1115,15 @@ func (s *integrationMDMTestSuite) TestVPPAppInstallVerification() {
 		require.Contains(t, errMsg, "Software title is not available through self-service")
 
 		// Enable self-service for vpp app
-		updateAppResp := updateAppStoreAppResponse{}
+		updateAppResp := fleet.UpdateAppStoreAppResponse{}
 		s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/software/titles/%d/app_store_app", data.titleID),
-			&updateAppStoreAppRequest{TitleID: data.titleID, TeamID: &team.ID, SelfService: ptr.Bool(true)}, http.StatusOK, &updateAppResp)
+			&fleet.UpdateAppStoreAppRequest{TitleID: data.titleID, TeamID: &team.ID, SelfService: ptr.Bool(true)}, http.StatusOK, &updateAppResp)
 
 		// Install self-service app correctly
 		s.DoRawWithHeaders("POST", fmt.Sprintf("/api/latest/fleet/device/%s/software/install/%d", data.host.UUID, data.titleID), nil, http.StatusAccepted, headers)
 
 		// Verify pending status
-		countResp = countHostsResponse{}
+		countResp = fleet.CountHostsResponse{}
 		s.DoJSON("GET", "/api/latest/fleet/hosts/count", nil, http.StatusOK, &countResp, "software_status", "pending", "team_id",
 			fmt.Sprint(team.ID), "software_title_id", fmt.Sprint(data.titleID))
 		require.Equal(t, 1, countResp.Count)
@@ -1138,7 +1138,7 @@ func (s *integrationMDMTestSuite) TestVPPAppInstallVerification() {
 		installCmdUUID = processVPPInstallOnClient(data.device, opts)
 
 		// Verify successful installation
-		listResp = listHostsResponse{}
+		listResp = fleet.ListHostsResponse{}
 		s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &listResp, "software_status", "installed", "team_id",
 			fmt.Sprint(team.ID), "software_title_id", fmt.Sprint(data.titleID))
 		assert.Len(t, listResp.Hosts, data.expectedHostCount)
@@ -1167,8 +1167,8 @@ func (s *integrationMDMTestSuite) TestVPPAppActivitiesOnCancelInstall() {
 	t := s.T()
 	s.setSkipWorkerJobs(t)
 
-	var newTeamResp teamResponse
-	s.DoJSON("POST", "/api/latest/fleet/teams", &createTeamRequest{TeamPayload: fleet.TeamPayload{Name: ptr.String("Team 1")}}, http.StatusOK, &newTeamResp)
+	var newTeamResp fleet.TeamResponse
+	s.DoJSON("POST", "/api/latest/fleet/teams", &fleet.CreateTeamRequest{TeamPayload: fleet.TeamPayload{Name: ptr.String("Team 1")}}, http.StatusOK, &newTeamResp)
 	team := newTeamResp.Team
 
 	s.setVPPTokenForTeam(team.ID)
@@ -1200,12 +1200,12 @@ func (s *integrationMDMTestSuite) TestVPPAppActivitiesOnCancelInstall() {
 		LatestVersion:    "2.0.0",
 	}
 
-	var addAppResp addAppStoreAppResponse
-	s.DoJSON("POST", "/api/latest/fleet/software/app_store_apps", &addAppStoreAppRequest{TeamID: &team.ID, AppStoreID: app1.AdamID, SelfService: true}, http.StatusOK, &addAppResp)
-	s.DoJSON("POST", "/api/latest/fleet/software/app_store_apps", &addAppStoreAppRequest{TeamID: &team.ID, AppStoreID: app2.AdamID, SelfService: false}, http.StatusOK, &addAppResp)
+	var addAppResp fleet.AddAppStoreAppResponse
+	s.DoJSON("POST", "/api/latest/fleet/software/app_store_apps", &fleet.AddAppStoreAppRequest{TeamID: &team.ID, AppStoreID: app1.AdamID, SelfService: true}, http.StatusOK, &addAppResp)
+	s.DoJSON("POST", "/api/latest/fleet/software/app_store_apps", &fleet.AddAppStoreAppRequest{TeamID: &team.ID, AppStoreID: app2.AdamID, SelfService: false}, http.StatusOK, &addAppResp)
 
 	// list the software titles to get the title IDs
-	var listSw listSoftwareTitlesResponse
+	var listSw fleet.ListSoftwareTitlesResponse
 	s.DoJSON("GET", "/api/latest/fleet/software/titles", nil, http.StatusOK, &listSw, "team_id", fmt.Sprint(team.ID), "available_for_install", "true")
 	var app1TitleID, app2TitleID uint
 	for _, sw := range listSw.SoftwareTitles {
@@ -1226,11 +1226,11 @@ func (s *integrationMDMTestSuite) TestVPPAppActivitiesOnCancelInstall() {
 	// Add serial number to our fake Apple server
 	s.appleVPPConfigSrvConfig.SerialNumbers = append(s.appleVPPConfigSrvConfig.SerialNumbers, controlHost.HardwareSerial)
 	s.Do("POST", "/api/latest/fleet/hosts/transfer",
-		&addHostsToTeamRequest{HostIDs: []uint{controlHost.ID}, TeamID: &team.ID}, http.StatusOK)
+		&fleet.AddHostsToTeamRequest{HostIDs: []uint{controlHost.ID}, TeamID: &team.ID}, http.StatusOK)
 
 	// trigger a VPP app install on the control host, will stay there until the end
-	var installResp installSoftwareResponse
-	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/software/%d/install", controlHost.ID, app1TitleID), &installSoftwareRequest{},
+	var installResp fleet.InstallSoftwareResponse
+	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/software/%d/install", controlHost.ID, app1TitleID), &fleet.InstallSoftwareRequest{},
 		http.StatusAccepted, &installResp)
 
 	// create a host that will receive the VPP install commands AFTER a script execution request
@@ -1242,21 +1242,21 @@ func (s *integrationMDMTestSuite) TestVPPAppActivitiesOnCancelInstall() {
 	// Add serial number to our fake Apple server
 	s.appleVPPConfigSrvConfig.SerialNumbers = append(s.appleVPPConfigSrvConfig.SerialNumbers, mdmHost.HardwareSerial)
 	s.Do("POST", "/api/latest/fleet/hosts/transfer",
-		&addHostsToTeamRequest{HostIDs: []uint{mdmHost.ID}, TeamID: &team.ID}, http.StatusOK)
+		&fleet.AddHostsToTeamRequest{HostIDs: []uint{mdmHost.ID}, TeamID: &team.ID}, http.StatusOK)
 
 	// enqueue a script run, so the VPP app installs are pending in the unified
 	// queue
-	var runResp runScriptResponse
+	var runResp fleet.RunScriptResponse
 	s.DoJSON("POST", "/api/latest/fleet/scripts/run", fleet.HostScriptRequestPayload{HostID: mdmHost.ID, ScriptContents: "echo"}, http.StatusAccepted, &runResp)
 
 	// trigger install of both apps on the host
-	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/software/%d/install", mdmHost.ID, app1TitleID), &installSoftwareRequest{},
+	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/software/%d/install", mdmHost.ID, app1TitleID), &fleet.InstallSoftwareRequest{},
 		http.StatusAccepted, &installResp)
-	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/software/%d/install", mdmHost.ID, app2TitleID), &installSoftwareRequest{},
+	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/software/%d/install", mdmHost.ID, app2TitleID), &fleet.InstallSoftwareRequest{},
 		http.StatusAccepted, &installResp)
 
 	// confirm the state of this host's upcoming activities
-	var listResp listHostUpcomingActivitiesResponse
+	var listResp fleet.ListHostUpcomingActivitiesResponse
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/activities/upcoming", mdmHost.ID), nil, http.StatusOK, &listResp)
 	require.Len(t, listResp.Activities, 3)
 	require.Equal(t, fleet.ActivityTypeRanScript{}.ActivityName(), listResp.Activities[0].Type)
@@ -1266,7 +1266,7 @@ func (s *integrationMDMTestSuite) TestVPPAppActivitiesOnCancelInstall() {
 	require.Contains(t, string(*listResp.Activities[2].Details), fmt.Sprintf(`"app_store_id": %q`, app2.AdamID))
 
 	// listing the host's software shows them as pending install
-	var getHostSw getHostSoftwareResponse
+	var getHostSw fleet.GetHostSoftwareResponse
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/software", mdmHost.ID), nil, http.StatusOK, &getHostSw, "available_for_install", "true")
 	require.Len(t, getHostSw.Software, 2)
 	require.NotNil(t, getHostSw.Software[0].Status)
@@ -1283,20 +1283,20 @@ func (s *integrationMDMTestSuite) TestVPPAppActivitiesOnCancelInstall() {
 	s.lastActivityOfTypeMatches(fleet.ActivityTypeMDMUnenrolled{}.ActivityName(), fmt.Sprintf(`{"enrollment_id": null, "host_display_name":%q, "host_serial":%q, "installed_from_dep":false, "platform": "darwin"}`, mdmHost.DisplayName(), mdmHost.HardwareSerial), 0)
 
 	// upcoming activities now have only the script
-	listResp = listHostUpcomingActivitiesResponse{}
+	listResp = fleet.ListHostUpcomingActivitiesResponse{}
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/activities/upcoming", mdmHost.ID), nil, http.StatusOK, &listResp)
 	require.Len(t, listResp.Activities, 1)
 	require.Equal(t, fleet.ActivityTypeRanScript{}.ActivityName(), listResp.Activities[0].Type)
 
 	// host's past activities do not have the VPP apps cancellation because those app installs
 	// were not activated
-	var listPastResp listActivitiesResponse
+	var listPastResp fleet.ListActivitiesResponse
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/activities", mdmHost.ID), nil, http.StatusOK, &listPastResp)
 	require.GreaterOrEqual(t, len(listPastResp.Activities), 0)
 
 	// listing the host's software available for install shows none as MDM is now disabled
 	// and no failure was recorded for the attempts (because the apps were not activated)
-	getHostSw = getHostSoftwareResponse{}
+	getHostSw = fleet.GetHostSoftwareResponse{}
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/software", mdmHost.ID), nil, http.StatusOK, &getHostSw, "available_for_install", "true")
 	require.Len(t, getHostSw.Software, 0)
 
@@ -1310,16 +1310,16 @@ func (s *integrationMDMTestSuite) TestVPPAppActivitiesOnCancelInstall() {
 	// Add serial number to our fake Apple server
 	s.appleVPPConfigSrvConfig.SerialNumbers = append(s.appleVPPConfigSrvConfig.SerialNumbers, mdmHost2.HardwareSerial)
 	s.Do("POST", "/api/latest/fleet/hosts/transfer",
-		&addHostsToTeamRequest{HostIDs: []uint{mdmHost2.ID}, TeamID: &team.ID}, http.StatusOK)
+		&fleet.AddHostsToTeamRequest{HostIDs: []uint{mdmHost2.ID}, TeamID: &team.ID}, http.StatusOK)
 
 	// trigger install of both apps on the host
-	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/software/%d/install", mdmHost2.ID, app1TitleID), &installSoftwareRequest{},
+	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/software/%d/install", mdmHost2.ID, app1TitleID), &fleet.InstallSoftwareRequest{},
 		http.StatusAccepted, &installResp)
-	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/software/%d/install", mdmHost2.ID, app2TitleID), &installSoftwareRequest{},
+	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/software/%d/install", mdmHost2.ID, app2TitleID), &fleet.InstallSoftwareRequest{},
 		http.StatusAccepted, &installResp)
 
 	// confirm the state of this host's upcoming activities
-	listResp = listHostUpcomingActivitiesResponse{}
+	listResp = fleet.ListHostUpcomingActivitiesResponse{}
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/activities/upcoming", mdmHost2.ID), nil, http.StatusOK, &listResp)
 	require.Len(t, listResp.Activities, 2)
 	require.Equal(t, fleet.ActivityInstalledAppStoreApp{}.ActivityName(), listResp.Activities[0].Type)
@@ -1328,7 +1328,7 @@ func (s *integrationMDMTestSuite) TestVPPAppActivitiesOnCancelInstall() {
 	require.Contains(t, string(*listResp.Activities[1].Details), fmt.Sprintf(`"app_store_id": %q`, app2.AdamID))
 
 	// listing the host's software shows them as pending install
-	getHostSw = getHostSoftwareResponse{}
+	getHostSw = fleet.GetHostSoftwareResponse{}
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/software", mdmHost2.ID), nil, http.StatusOK, &getHostSw, "available_for_install", "true")
 	require.Len(t, getHostSw.Software, 2)
 	require.NotNil(t, getHostSw.Software[0].Status)
@@ -1345,12 +1345,12 @@ func (s *integrationMDMTestSuite) TestVPPAppActivitiesOnCancelInstall() {
 	s.lastActivityOfTypeMatches(fleet.ActivityTypeMDMUnenrolled{}.ActivityName(), fmt.Sprintf(`{"enrollment_id": null, "host_display_name":%q, "host_serial":%q, "installed_from_dep":false, "platform": "darwin"}`, mdmHost2.DisplayName(), mdmHost2.HardwareSerial), 0)
 
 	// upcoming activities are now empty
-	listResp = listHostUpcomingActivitiesResponse{}
+	listResp = fleet.ListHostUpcomingActivitiesResponse{}
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/activities/upcoming", mdmHost2.ID), nil, http.StatusOK, &listResp)
 	require.Len(t, listResp.Activities, 0)
 
 	// host's past activities should have the first VPP app cancellation because it was activated
-	listPastResp = listActivitiesResponse{}
+	listPastResp = fleet.ListActivitiesResponse{}
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/activities", mdmHost2.ID), nil, http.StatusOK, &listPastResp)
 	require.GreaterOrEqual(t, len(listPastResp.Activities), 1)
 	require.Equal(t, fleet.ActivityInstalledAppStoreApp{}.ActivityName(), listPastResp.Activities[0].Type)
@@ -1362,7 +1362,7 @@ func (s *integrationMDMTestSuite) TestVPPAppActivitiesOnCancelInstall() {
 	}
 
 	// listing the host's software available for install shows the cancelled app as failed
-	getHostSw = getHostSoftwareResponse{}
+	getHostSw = fleet.GetHostSoftwareResponse{}
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/software", mdmHost2.ID), nil, http.StatusOK, &getHostSw, "available_for_install", "true")
 	require.Len(t, getHostSw.Software, 1)
 	require.NotNil(t, getHostSw.Software[0].Status)
@@ -1371,7 +1371,7 @@ func (s *integrationMDMTestSuite) TestVPPAppActivitiesOnCancelInstall() {
 	require.Equal(t, app1.AdamID, getHostSw.Software[0].AppStoreApp.AppStoreID)
 
 	// upcoming activities on the control host are unaffected
-	listResp = listHostUpcomingActivitiesResponse{}
+	listResp = fleet.ListHostUpcomingActivitiesResponse{}
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/activities/upcoming", controlHost.ID), nil, http.StatusOK, &listResp)
 	require.Len(t, listResp.Activities, 1)
 	require.Equal(t, fleet.ActivityInstalledAppStoreApp{}.ActivityName(), listResp.Activities[0].Type)
@@ -1390,8 +1390,8 @@ func (s *integrationMDMTestSuite) TestSoftwareTitleVPPAppSoftwarePackageConflict
 		"2": `{"id": "2", "attributes": {"name": "NoVersion", "platformAttributes": {"osx": {"bundleId": "com.example.noversion", "artwork": {"url": "https://example.com/images/2/{w}x{h}.{f}"}, "latestVersionInfo": {"versionDisplay": "2.0.0"}}}, "deviceFamilies": ["mac"]}}`,
 	}
 
-	var newTeamResp teamResponse
-	s.DoJSON("POST", "/api/latest/fleet/teams", &createTeamRequest{TeamPayload: fleet.TeamPayload{Name: ptr.String("Team 1")}}, http.StatusOK, &newTeamResp)
+	var newTeamResp fleet.TeamResponse
+	s.DoJSON("POST", "/api/latest/fleet/teams", &fleet.CreateTeamRequest{TeamPayload: fleet.TeamPayload{Name: ptr.String("Team 1")}}, http.StatusOK, &newTeamResp)
 	team := newTeamResp.Team
 
 	s.setVPPTokenForTeam(team.ID)
@@ -1406,8 +1406,8 @@ func (s *integrationMDMTestSuite) TestSoftwareTitleVPPAppSoftwarePackageConflict
 		},
 	}
 
-	var addAppResp addAppStoreAppResponse
-	s.DoJSON("POST", "/api/latest/fleet/software/app_store_apps", &addAppStoreAppRequest{TeamID: &team.ID, AppStoreID: vppApp1.AdamID, SelfService: true}, http.StatusOK, &addAppResp)
+	var addAppResp fleet.AddAppStoreAppResponse
+	s.DoJSON("POST", "/api/latest/fleet/software/app_store_apps", &fleet.AddAppStoreAppRequest{TeamID: &team.ID, AppStoreID: vppApp1.AdamID, SelfService: true}, http.StatusOK, &addAppResp)
 
 	// add the NoVersion installer with bundle id com.example.noversion (conflicts with VPP app 2 below)
 	pkgNoVersion := &fleet.UploadSoftwareInstallerPayload{
@@ -1436,7 +1436,7 @@ func (s *integrationMDMTestSuite) TestSoftwareTitleVPPAppSoftwarePackageConflict
 		},
 	}
 
-	res := s.Do("POST", "/api/latest/fleet/software/app_store_apps", &addAppStoreAppRequest{TeamID: &team.ID, AppStoreID: vppApp2.AdamID, SelfService: true}, http.StatusConflict)
+	res := s.Do("POST", "/api/latest/fleet/software/app_store_apps", &fleet.AddAppStoreAppRequest{TeamID: &team.ID, AppStoreID: vppApp2.AdamID, SelfService: true}, http.StatusConflict)
 	txt := extractServerErrorText(res.Body)
 	require.Contains(t, txt, "NoVersion already has an installer available for the Team 1 team.")
 
@@ -1457,8 +1457,8 @@ func (s *integrationMDMTestSuite) TestSoftwareTitleVPPAppSoftwarePackageConflict
 	t.Cleanup(srv.Close)
 
 	// try to set DummyApp and NoVersion installers, but DummyApp conflicts with VPP app 1
-	var batchResponse batchSetSoftwareInstallersResponse
-	s.DoJSON("POST", "/api/latest/fleet/software/batch", batchSetSoftwareInstallersRequest{
+	var batchResponse fleet.BatchSetSoftwareInstallersResponse
+	s.DoJSON("POST", "/api/latest/fleet/software/batch", fleet.BatchSetSoftwareInstallersRequest{
 		Software: []*fleet.SoftwareInstallerPayload{
 			{URL: srv.URL + "/no_version.pkg", SHA256: "4ba383be20c1020e416958ab10e3b472a4d5532a8cd94ed720d495a9c81958fe"},
 			{URL: srv.URL + "/dummy_installer.pkg", SHA256: "7f679541ccfdb56094ca76117fd7cf75071c9d8f43bfd2a6c0871077734ca7c8"},
@@ -1469,7 +1469,7 @@ func (s *integrationMDMTestSuite) TestSoftwareTitleVPPAppSoftwarePackageConflict
 	require.Contains(t, batchResp.Message, "DummyApp already has an installer available for the Team 1 team.")
 
 	// batch-set the VPP apps, including one in conflict
-	res = s.Do("POST", "/api/latest/fleet/software/app_store_apps/batch", batchAssociateAppStoreAppsRequest{Apps: []fleet.VPPBatchPayload{
+	res = s.Do("POST", "/api/latest/fleet/software/app_store_apps/batch", fleet.BatchAssociateAppStoreAppsRequest{Apps: []fleet.VPPBatchPayload{
 		{AppStoreID: "1"},
 		{AppStoreID: "2"},
 	}}, http.StatusConflict, "team_name", team.Name)
@@ -1477,7 +1477,7 @@ func (s *integrationMDMTestSuite) TestSoftwareTitleVPPAppSoftwarePackageConflict
 	require.Contains(t, txt, "NoVersion already has an installer available for the Team 1 team.")
 
 	// listing software available to install only lists the dummy app and noversion installer
-	var listSw listSoftwareTitlesResponse
+	var listSw fleet.ListSoftwareTitlesResponse
 	s.DoJSON("GET", "/api/latest/fleet/software/titles", nil, http.StatusOK, &listSw, "team_id", fmt.Sprint(team.ID), "available_for_install", "true")
 	require.Len(t, listSw.SoftwareTitles, 2)
 	require.Equal(t, "DummyApp", listSw.SoftwareTitles[0].Name)
@@ -1488,12 +1488,12 @@ func (s *integrationMDMTestSuite) TestSoftwareTitleVPPAppSoftwarePackageConflict
 	require.Equal(t, "no_version.pkg", listSw.SoftwareTitles[1].SoftwarePackage.Name)
 
 	// a different team can batch-add the two installers without conflict
-	newTeamResp = teamResponse{}
-	s.DoJSON("POST", "/api/latest/fleet/teams", &createTeamRequest{TeamPayload: fleet.TeamPayload{Name: ptr.String("Team 2")}}, http.StatusOK, &newTeamResp)
+	newTeamResp = fleet.TeamResponse{}
+	s.DoJSON("POST", "/api/latest/fleet/teams", &fleet.CreateTeamRequest{TeamPayload: fleet.TeamPayload{Name: ptr.String("Team 2")}}, http.StatusOK, &newTeamResp)
 	team2 := newTeamResp.Team
 
-	batchResponse = batchSetSoftwareInstallersResponse{}
-	s.DoJSON("POST", "/api/latest/fleet/software/batch", batchSetSoftwareInstallersRequest{
+	batchResponse = fleet.BatchSetSoftwareInstallersResponse{}
+	s.DoJSON("POST", "/api/latest/fleet/software/batch", fleet.BatchSetSoftwareInstallersRequest{
 		Software: []*fleet.SoftwareInstallerPayload{
 			{URL: srv.URL + "/no_version.pkg", SHA256: "4ba383be20c1020e416958ab10e3b472a4d5532a8cd94ed720d495a9c81958fe"},
 			{URL: srv.URL + "/dummy_installer.pkg", SHA256: "7f679541ccfdb56094ca76117fd7cf75071c9d8f43bfd2a6c0871077734ca7c8"},
@@ -1504,7 +1504,7 @@ func (s *integrationMDMTestSuite) TestSoftwareTitleVPPAppSoftwarePackageConflict
 	require.Empty(t, batchResp.Message)
 	require.Len(t, batchResp.Packages, 2)
 
-	listSw = listSoftwareTitlesResponse{}
+	listSw = fleet.ListSoftwareTitlesResponse{}
 	s.DoJSON("GET", "/api/latest/fleet/software/titles", nil, http.StatusOK, &listSw, "team_id", fmt.Sprint(team2.ID), "available_for_install", "true")
 	require.Len(t, listSw.SoftwareTitles, 2)
 	// both are software packages
@@ -1516,23 +1516,23 @@ func (s *integrationMDMTestSuite) TestSoftwareTitleVPPAppSoftwarePackageConflict
 	require.Equal(t, "no_version.pkg", listSw.SoftwareTitles[1].SoftwarePackage.Name)
 
 	// a different team can batch-add the two VPP apps without conflict
-	newTeamResp = teamResponse{}
-	s.DoJSON("POST", "/api/latest/fleet/teams", &createTeamRequest{TeamPayload: fleet.TeamPayload{Name: ptr.String("Team 3")}}, http.StatusOK, &newTeamResp)
+	newTeamResp = fleet.TeamResponse{}
+	s.DoJSON("POST", "/api/latest/fleet/teams", &fleet.CreateTeamRequest{TeamPayload: fleet.TeamPayload{Name: ptr.String("Team 3")}}, http.StatusOK, &newTeamResp)
 	team3 := newTeamResp.Team
 
-	var tokenResp getVPPTokensResponse
-	s.DoJSON("GET", "/api/latest/fleet/vpp_tokens", &getVPPTokensRequest{}, http.StatusOK, &tokenResp)
-	var resPatchVPP patchVPPTokensTeamsResponse
-	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/vpp_tokens/%d/teams", tokenResp.Tokens[0].ID), patchVPPTokensTeamsRequest{TeamIDs: []uint{team.ID, team3.ID}}, http.StatusOK, &resPatchVPP)
+	var tokenResp fleet.GetVPPTokensResponse
+	s.DoJSON("GET", "/api/latest/fleet/vpp_tokens", &fleet.GetVPPTokensRequest{}, http.StatusOK, &tokenResp)
+	var resPatchVPP fleet.PatchVPPTokensTeamsResponse
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/vpp_tokens/%d/teams", tokenResp.Tokens[0].ID), fleet.PatchVPPTokensTeamsRequest{TeamIDs: []uint{team.ID, team3.ID}}, http.StatusOK, &resPatchVPP)
 
-	var batchAppResp batchAssociateAppStoreAppsResponse
-	s.DoJSON("POST", "/api/latest/fleet/software/app_store_apps/batch", batchAssociateAppStoreAppsRequest{Apps: []fleet.VPPBatchPayload{
+	var batchAppResp fleet.BatchAssociateAppStoreAppsResponse
+	s.DoJSON("POST", "/api/latest/fleet/software/app_store_apps/batch", fleet.BatchAssociateAppStoreAppsRequest{Apps: []fleet.VPPBatchPayload{
 		{AppStoreID: "1"},
 		{AppStoreID: "2"},
 	}}, http.StatusOK, &batchAppResp, "team_name", team3.Name)
 	require.Len(t, batchAppResp.Apps, 2)
 
-	listSw = listSoftwareTitlesResponse{}
+	listSw = fleet.ListSoftwareTitlesResponse{}
 	s.DoJSON("GET", "/api/latest/fleet/software/titles", nil, http.StatusOK, &listSw, "team_id", fmt.Sprint(team3.ID), "available_for_install", "true")
 	require.Len(t, listSw.SoftwareTitles, 2)
 	// both are VPP apps
@@ -1554,8 +1554,8 @@ func (s *integrationMDMTestSuite) TestInHouseAppInstall() {
 	s.appleVPPConfigSrvConfig.SerialNumbers = append(s.appleVPPConfigSrvConfig.SerialNumbers, iosDevice.SerialNumber)
 
 	// Create a label
-	clr := createLabelResponse{}
-	s.DoJSON("POST", "/api/latest/fleet/labels", createLabelRequest{
+	clr := fleet.CreateLabelResponse{}
+	s.DoJSON("POST", "/api/latest/fleet/labels", fleet.CreateLabelRequest{
 		LabelPayload: fleet.LabelPayload{
 			Name:    "foo",
 			HostIDs: []uint{iosHost.ID},
@@ -1571,15 +1571,15 @@ func (s *integrationMDMTestSuite) TestInHouseAppInstall() {
 		return sqlx.GetContext(ctx, q, &titleID, "SELECT title_id FROM in_house_apps WHERE filename = 'ipa_test.ipa'")
 	})
 
-	var resp listSoftwareTitlesResponse
-	s.DoJSON("GET", "/api/latest/fleet/software/titles", listSoftwareTitlesRequest{}, http.StatusOK, &resp, "team_id", "0")
+	var resp fleet.ListSoftwareTitlesResponse
+	s.DoJSON("GET", "/api/latest/fleet/software/titles", fleet.ListSoftwareTitlesRequest{}, http.StatusOK, &resp, "team_id", "0")
 
 	assert.Len(t, resp.SoftwareTitles, 2)
 	assert.Equal(t, "ipa_test", resp.SoftwareTitles[0].Name)
 	titleID = resp.SoftwareTitles[0].ID
 
 	// Attempt installation on non-scoped app, should fail
-	var installResp installSoftwareResponse
+	var installResp fleet.InstallSoftwareResponse
 	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/software/%d/install",
 		iosHost.ID, titleID), nil, http.StatusBadRequest, &installResp)
 
@@ -1595,7 +1595,7 @@ func (s *integrationMDMTestSuite) TestInHouseAppInstall() {
 	})
 	require.NotEmpty(t, installCmdUUID)
 
-	var listResp listHostUpcomingActivitiesResponse
+	var listResp fleet.ListHostUpcomingActivitiesResponse
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/activities/upcoming", iosHost.ID), nil, http.StatusOK, &listResp)
 	require.Len(t, listResp.Activities, 1)
 	require.Equal(t, fleet.ActivityTypeInstalledSoftware{}.ActivityName(), listResp.Activities[0].Type)
@@ -1700,7 +1700,7 @@ func (s *integrationMDMTestSuite) TestInHouseAppInstall() {
 	})
 
 	// Get title and software package details
-	var st getSoftwareTitleResponse
+	var st fleet.GetSoftwareTitleResponse
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d", titleID),
 		nil, http.StatusOK, &st)
 
@@ -1723,8 +1723,8 @@ func (s *integrationMDMTestSuite) TestInHouseAppSelfInstall() {
 	s.uploadSoftwareInstaller(t, &fleet.UploadSoftwareInstallerPayload{Filename: "ipa_test.ipa"}, http.StatusOK, "")
 
 	// get its title ID
-	var resp listSoftwareTitlesResponse
-	s.DoJSON("GET", "/api/latest/fleet/software/titles", listSoftwareTitlesRequest{
+	var resp fleet.ListSoftwareTitlesResponse
+	s.DoJSON("GET", "/api/latest/fleet/software/titles", fleet.ListSoftwareTitlesRequest{
 		SoftwareTitleListOptions: fleet.SoftwareTitleListOptions{Platform: "ios"},
 	}, http.StatusOK, &resp, "team_id", "0")
 	require.Len(t, resp.SoftwareTitles, 1)
@@ -1830,18 +1830,18 @@ func (s *integrationMDMTestSuite) TestInHouseAppSelfInstall() {
 	s.lastActivityMatches(fleet.ActivityTypeInstalledSoftware{}.ActivityName(), activityData, 0)
 
 	// host has no more upcoming activities
-	var listUpcomingAct listHostUpcomingActivitiesResponse
+	var listUpcomingAct fleet.ListHostUpcomingActivitiesResponse
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/activities/upcoming", iosHost.ID), nil, http.StatusOK, &listUpcomingAct)
 	require.Len(t, listUpcomingAct.Activities, 0)
 
 	// host has the past activity for the installed app
-	var listPastResp listActivitiesResponse
+	var listPastResp fleet.ListActivitiesResponse
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/activities", iosHost.ID), nil, http.StatusOK, &listPastResp)
 	require.Len(t, listPastResp.Activities, 1)
 
 	// update the app to have a label condition
-	clr := createLabelResponse{}
-	s.DoJSON("POST", "/api/latest/fleet/labels", createLabelRequest{
+	clr := fleet.CreateLabelResponse{}
+	s.DoJSON("POST", "/api/latest/fleet/labels", fleet.CreateLabelRequest{
 		LabelPayload: fleet.LabelPayload{Name: "L1", HostIDs: []uint{}},
 	}, http.StatusOK, &clr)
 
@@ -1855,8 +1855,8 @@ func (s *integrationMDMTestSuite) TestInHouseAppSelfInstall() {
 	require.Contains(t, errMsg, "This software is not available for this host.")
 
 	// add the label to the host, so it can be installed
-	var addLabelsToHostResp addLabelsToHostResponse
-	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/labels", iosHost.ID), addLabelsToHostRequest{
+	var addLabelsToHostResp fleet.AddLabelsToHostResponse
+	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/labels", iosHost.ID), fleet.AddLabelsToHostRequest{
 		Labels: []string{"L1"},
 	}, http.StatusOK, &addLabelsToHostResp)
 
@@ -1872,8 +1872,8 @@ func (s *integrationMDMTestSuite) TestGetInHouseAppManifestUnsignedURL() {
 
 	s.uploadSoftwareInstaller(t, &fleet.UploadSoftwareInstallerPayload{Filename: "ipa_test.ipa"}, http.StatusOK, "")
 
-	var titleResp listSoftwareTitlesResponse
-	s.DoJSON("GET", "/api/latest/fleet/software/titles", listSoftwareTitlesRequest{
+	var titleResp fleet.ListSoftwareTitlesResponse
+	s.DoJSON("GET", "/api/latest/fleet/software/titles", fleet.ListSoftwareTitlesRequest{
 		SoftwareTitleListOptions: fleet.SoftwareTitleListOptions{Platform: "ios"},
 	}, http.StatusOK, &titleResp, "team_id", "0")
 	require.Len(t, titleResp.SoftwareTitles, 1)
@@ -1887,7 +1887,7 @@ func (s *integrationMDMTestSuite) TestGetInHouseAppManifestUnsignedURL() {
 		return buf
 	}
 	res := s.DoRawNoAuth("GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d/in_house_app/manifest?team_id=%d", titleID, *teamID),
-		jsonMustMarshal(t, getInHouseAppManifestRequest{TitleID: titleID, TeamID: teamID}), http.StatusOK)
+		jsonMustMarshal(t, fleet.GetInHouseAppManifestRequest{TitleID: titleID, TeamID: teamID}), http.StatusOK)
 
 	manifest := readManifest(res)
 	require.NotNil(t, manifest)
@@ -1967,8 +1967,8 @@ func (s *integrationMDMTestSuite) TestInHouseAppVPPConflict() {
 		AvailableCount: 10,
 	})
 
-	var newTeamResp teamResponse
-	s.DoJSON("POST", "/api/latest/fleet/teams", &createTeamRequest{TeamPayload: fleet.TeamPayload{Name: ptr.String("IPA Conflict Team")}}, http.StatusOK, &newTeamResp)
+	var newTeamResp fleet.TeamResponse
+	s.DoJSON("POST", "/api/latest/fleet/teams", &fleet.CreateTeamRequest{TeamPayload: fleet.TeamPayload{Name: ptr.String("IPA Conflict Team")}}, http.StatusOK, &newTeamResp)
 	team := newTeamResp.Team
 
 	s.setVPPTokenForTeam(team.ID)
@@ -1979,7 +1979,7 @@ func (s *integrationMDMTestSuite) TestInHouseAppVPPConflict() {
 		TeamID:   &team.ID,
 	}, http.StatusOK, "")
 
-	res := s.Do("POST", "/api/latest/fleet/software/app_store_apps", &addAppStoreAppRequest{
+	res := s.Do("POST", "/api/latest/fleet/software/app_store_apps", &fleet.AddAppStoreAppRequest{
 		TeamID:     &team.ID,
 		AppStoreID: "100",
 		Platform:   "ios",
@@ -1987,7 +1987,7 @@ func (s *integrationMDMTestSuite) TestInHouseAppVPPConflict() {
 	txt := extractServerErrorText(res.Body)
 	require.Contains(t, txt, "already has an installer available for the IPA Conflict Team team.")
 
-	res = s.Do("POST", "/api/latest/fleet/software/app_store_apps", &addAppStoreAppRequest{
+	res = s.Do("POST", "/api/latest/fleet/software/app_store_apps", &fleet.AddAppStoreAppRequest{
 		TeamID:     &team.ID,
 		AppStoreID: "101",
 		Platform:   "ipados",
@@ -1995,24 +1995,24 @@ func (s *integrationMDMTestSuite) TestInHouseAppVPPConflict() {
 	txt = extractServerErrorText(res.Body)
 	require.Contains(t, txt, "already has an installer available for the IPA Conflict Team team.")
 
-	var addAppResp addAppStoreAppResponse
-	s.DoJSON("POST", "/api/latest/fleet/software/app_store_apps", &addAppStoreAppRequest{
+	var addAppResp fleet.AddAppStoreAppResponse
+	s.DoJSON("POST", "/api/latest/fleet/software/app_store_apps", &fleet.AddAppStoreAppRequest{
 		TeamID:     &team.ID,
 		AppStoreID: "102",
 		Platform:   "ios",
 	}, http.StatusOK, &addAppResp)
 
 	// Test Case 2: Add VPP iOS app first, then try to upload IPA with same bundle ID
-	var newTeamResp2 teamResponse
-	s.DoJSON("POST", "/api/latest/fleet/teams", &createTeamRequest{TeamPayload: fleet.TeamPayload{Name: ptr.String("IPA Conflict Team 2")}}, http.StatusOK, &newTeamResp2)
+	var newTeamResp2 fleet.TeamResponse
+	s.DoJSON("POST", "/api/latest/fleet/teams", &fleet.CreateTeamRequest{TeamPayload: fleet.TeamPayload{Name: ptr.String("IPA Conflict Team 2")}}, http.StatusOK, &newTeamResp2)
 	team2 := newTeamResp2.Team
 
-	var tokenResp getVPPTokensResponse
-	s.DoJSON("GET", "/api/latest/fleet/vpp_tokens", &getVPPTokensRequest{}, http.StatusOK, &tokenResp)
-	var resPatchVPP patchVPPTokensTeamsResponse
-	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/vpp_tokens/%d/teams", tokenResp.Tokens[0].ID), patchVPPTokensTeamsRequest{TeamIDs: []uint{team.ID, team2.ID}}, http.StatusOK, &resPatchVPP)
+	var tokenResp fleet.GetVPPTokensResponse
+	s.DoJSON("GET", "/api/latest/fleet/vpp_tokens", &fleet.GetVPPTokensRequest{}, http.StatusOK, &tokenResp)
+	var resPatchVPP fleet.PatchVPPTokensTeamsResponse
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/vpp_tokens/%d/teams", tokenResp.Tokens[0].ID), fleet.PatchVPPTokensTeamsRequest{TeamIDs: []uint{team.ID, team2.ID}}, http.StatusOK, &resPatchVPP)
 
-	s.DoJSON("POST", "/api/latest/fleet/software/app_store_apps", &addAppStoreAppRequest{
+	s.DoJSON("POST", "/api/latest/fleet/software/app_store_apps", &fleet.AddAppStoreAppRequest{
 		TeamID:     &team2.ID,
 		AppStoreID: "100",
 		Platform:   "ios",
@@ -2029,14 +2029,14 @@ func (s *integrationMDMTestSuite) TestInHouseAppVPPConflict() {
 		TeamID:   nil,
 	}, http.StatusOK, "")
 
-	var newTeamResp3 teamResponse
-	s.DoJSON("POST", "/api/latest/fleet/teams", &createTeamRequest{TeamPayload: fleet.TeamPayload{Name: ptr.String("IPA Conflict Team 3")}}, http.StatusOK, &newTeamResp3)
+	var newTeamResp3 fleet.TeamResponse
+	s.DoJSON("POST", "/api/latest/fleet/teams", &fleet.CreateTeamRequest{TeamPayload: fleet.TeamPayload{Name: ptr.String("IPA Conflict Team 3")}}, http.StatusOK, &newTeamResp3)
 	team3 := newTeamResp3.Team
 
-	s.DoJSON("GET", "/api/latest/fleet/vpp_tokens", &getVPPTokensRequest{}, http.StatusOK, &tokenResp)
-	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/vpp_tokens/%d/teams", tokenResp.Tokens[0].ID), patchVPPTokensTeamsRequest{TeamIDs: []uint{team.ID, team2.ID, team3.ID, 0}}, http.StatusOK, &resPatchVPP)
+	s.DoJSON("GET", "/api/latest/fleet/vpp_tokens", &fleet.GetVPPTokensRequest{}, http.StatusOK, &tokenResp)
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/vpp_tokens/%d/teams", tokenResp.Tokens[0].ID), fleet.PatchVPPTokensTeamsRequest{TeamIDs: []uint{team.ID, team2.ID, team3.ID, 0}}, http.StatusOK, &resPatchVPP)
 
-	res = s.Do("POST", "/api/latest/fleet/software/app_store_apps", &addAppStoreAppRequest{
+	res = s.Do("POST", "/api/latest/fleet/software/app_store_apps", &fleet.AddAppStoreAppRequest{
 		TeamID:     nil,
 		AppStoreID: "100",
 		Platform:   "ios",
@@ -2062,7 +2062,7 @@ func (s *integrationMDMTestSuite) TestVPPAppScheduledUpdates() {
 		if team.ID != 0 {
 			// Transfer host to team.
 			s.Do("POST", "/api/latest/fleet/hosts/transfer",
-				&addHostsToTeamRequest{HostIDs: []uint{host.ID}, TeamID: &team.ID}, http.StatusOK)
+				&fleet.AddHostsToTeamRequest{HostIDs: []uint{host.ID}, TeamID: &team.ID}, http.StatusOK)
 		}
 
 		// Add iOS VPP application.
@@ -2076,8 +2076,8 @@ func (s *integrationMDMTestSuite) TestVPPAppScheduledUpdates() {
 		}
 
 		// Add iOS app to the team.
-		addAppResp := addAppStoreAppResponse{}
-		s.DoJSON("POST", "/api/latest/fleet/software/app_store_apps", &addAppStoreAppRequest{
+		addAppResp := fleet.AddAppStoreAppResponse{}
+		s.DoJSON("POST", "/api/latest/fleet/software/app_store_apps", &fleet.AddAppStoreAppRequest{
 			TeamID:     &team.ID,
 			AppStoreID: iOSVPPApp.AdamID,
 			Platform:   iOSVPPApp.Platform,
@@ -2094,8 +2094,8 @@ func (s *integrationMDMTestSuite) TestVPPAppScheduledUpdates() {
 		}
 
 		// Add iPadOS app to the team.
-		addAppResp = addAppStoreAppResponse{}
-		s.DoJSON("POST", "/api/latest/fleet/software/app_store_apps", &addAppStoreAppRequest{
+		addAppResp = fleet.AddAppStoreAppResponse{}
+		s.DoJSON("POST", "/api/latest/fleet/software/app_store_apps", &fleet.AddAppStoreAppRequest{
 			TeamID:     &team.ID,
 			AppStoreID: iPadOSVPPApp.AdamID,
 			Platform:   iPadOSVPPApp.Platform,
@@ -2109,8 +2109,8 @@ func (s *integrationMDMTestSuite) TestVPPAppScheduledUpdates() {
 		require.NotZero(t, appTitleID)
 
 		// Trigger install to the host
-		installResp := installSoftwareResponse{}
-		s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/software/%d/install", host.ID, appTitleID), &installSoftwareRequest{},
+		installResp := fleet.InstallSoftwareResponse{}
+		s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/software/%d/install", host.ID, appTitleID), &fleet.InstallSoftwareRequest{},
 			http.StatusAccepted, &installResp)
 
 		// iOS device acknowledges the InstallApplication command.
@@ -2264,9 +2264,9 @@ func (s *integrationMDMTestSuite) TestVPPAppScheduledUpdates() {
 		startTime := endTime.Add(-1 * time.Hour)
 		startTimeHHMM := startTime.Format("15:04")
 		endTimeHHMM := endTime.Format("15:04")
-		var updateAppStoreAppResponsePayload updateAppStoreAppResponse
+		var updateAppStoreAppResponsePayload fleet.UpdateAppStoreAppResponse
 		t.Logf("Time in America/Los_Angeles: %s, window = [%s, %s]", nowInLosAngeles, startTimeHHMM, endTimeHHMM)
-		s.DoJSON("PATCH", fmt.Sprintf("/api/v1/fleet/software/titles/%d/app_store_app", appTitleID), updateAppStoreAppRequest{
+		s.DoJSON("PATCH", fmt.Sprintf("/api/v1/fleet/software/titles/%d/app_store_app", appTitleID), fleet.UpdateAppStoreAppRequest{
 			TeamID:              &team.ID,
 			AutoUpdateEnabled:   ptr.Bool(true),
 			AutoUpdateStartTime: ptr.String(startTimeHHMM),
@@ -2296,9 +2296,9 @@ func (s *integrationMDMTestSuite) TestVPPAppScheduledUpdates() {
 		endTime = endTime.Add(1 * time.Hour)
 		startTimeHHMM = startTime.Format("15:04")
 		endTimeHHMM = endTime.Format("15:04")
-		updateAppStoreAppResponsePayload = updateAppStoreAppResponse{}
+		updateAppStoreAppResponsePayload = fleet.UpdateAppStoreAppResponse{}
 		t.Logf("Time in America/Los_Angeles: %s, window = [%s, %s]", nowInLosAngeles, startTimeHHMM, endTimeHHMM)
-		s.DoJSON("PATCH", fmt.Sprintf("/api/v1/fleet/software/titles/%d/app_store_app", appTitleID), updateAppStoreAppRequest{
+		s.DoJSON("PATCH", fmt.Sprintf("/api/v1/fleet/software/titles/%d/app_store_app", appTitleID), fleet.UpdateAppStoreAppRequest{
 			TeamID:              &team.ID,
 			AutoUpdateEnabled:   ptr.Bool(true),
 			AutoUpdateStartTime: ptr.String(startTimeHHMM),
@@ -2489,8 +2489,8 @@ func (s *integrationMDMTestSuite) TestVPPAppScheduledUpdates() {
 	}
 
 	// Create a team and a VPP token on it.
-	var newTeamResp teamResponse
-	s.DoJSON("POST", "/api/latest/fleet/teams", &createTeamRequest{TeamPayload: fleet.TeamPayload{Name: ptr.String("Team 1")}}, http.StatusOK, &newTeamResp)
+	var newTeamResp fleet.TeamResponse
+	s.DoJSON("POST", "/api/latest/fleet/teams", &fleet.CreateTeamRequest{TeamPayload: fleet.TeamPayload{Name: ptr.String("Team 1")}}, http.StatusOK, &newTeamResp)
 	team := newTeamResp.Team
 	s.setVPPTokenForTeam(team.ID)
 
@@ -2552,8 +2552,8 @@ func (s *integrationMDMTestSuite) TestVPPAppInstallVerificationXcodeSpecialCase(
 	t := s.T()
 	s.setSkipWorkerJobs(t)
 
-	var newTeamResp teamResponse
-	s.DoJSON("POST", "/api/latest/fleet/teams", &createTeamRequest{TeamPayload: fleet.TeamPayload{Name: ptr.String("Team 1")}}, http.StatusOK, &newTeamResp)
+	var newTeamResp fleet.TeamResponse
+	s.DoJSON("POST", "/api/latest/fleet/teams", &fleet.CreateTeamRequest{TeamPayload: fleet.TeamPayload{Name: ptr.String("Team 1")}}, http.StatusOK, &newTeamResp)
 	team := newTeamResp.Team
 
 	s.setVPPTokenForTeam(team.ID)
@@ -2593,12 +2593,12 @@ func (s *integrationMDMTestSuite) TestVPPAppInstallVerificationXcodeSpecialCase(
 		LatestVersion:    "2.0.0",
 	}
 
-	var addAppResp addAppStoreAppResponse
-	s.DoJSON("POST", "/api/latest/fleet/software/app_store_apps", &addAppStoreAppRequest{TeamID: &team.ID, AppStoreID: appXcode.AdamID, SelfService: true}, http.StatusOK, &addAppResp)
-	s.DoJSON("POST", "/api/latest/fleet/software/app_store_apps", &addAppStoreAppRequest{TeamID: &team.ID, AppStoreID: app2.AdamID, SelfService: false}, http.StatusOK, &addAppResp)
+	var addAppResp fleet.AddAppStoreAppResponse
+	s.DoJSON("POST", "/api/latest/fleet/software/app_store_apps", &fleet.AddAppStoreAppRequest{TeamID: &team.ID, AppStoreID: appXcode.AdamID, SelfService: true}, http.StatusOK, &addAppResp)
+	s.DoJSON("POST", "/api/latest/fleet/software/app_store_apps", &fleet.AddAppStoreAppRequest{TeamID: &team.ID, AppStoreID: app2.AdamID, SelfService: false}, http.StatusOK, &addAppResp)
 
 	// list the software titles to get the title IDs
-	var listSw listSoftwareTitlesResponse
+	var listSw fleet.ListSoftwareTitlesResponse
 	s.DoJSON("GET", "/api/latest/fleet/software/titles", nil, http.StatusOK, &listSw, "team_id", fmt.Sprint(team.ID), "available_for_install", "true")
 	var appXcodeTitleID, app2TitleID uint
 	for _, sw := range listSw.SoftwareTitles {
@@ -2620,11 +2620,11 @@ func (s *integrationMDMTestSuite) TestVPPAppInstallVerificationXcodeSpecialCase(
 	// Add serial number to our fake Apple server
 	s.appleVPPConfigSrvConfig.SerialNumbers = append(s.appleVPPConfigSrvConfig.SerialNumbers, mdmHost.HardwareSerial)
 	s.Do("POST", "/api/latest/fleet/hosts/transfer",
-		&addHostsToTeamRequest{HostIDs: []uint{mdmHost.ID}, TeamID: &team.ID}, http.StatusOK)
+		&fleet.AddHostsToTeamRequest{HostIDs: []uint{mdmHost.ID}, TeamID: &team.ID}, http.StatusOK)
 
 	// trigger install of Xcode
-	installResp := installSoftwareResponse{}
-	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/software/%d/install", mdmHost.ID, appXcodeTitleID), &installSoftwareRequest{},
+	installResp := fleet.InstallSoftwareResponse{}
+	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/software/%d/install", mdmHost.ID, appXcodeTitleID), &fleet.InstallSoftwareRequest{},
 		http.StatusAccepted, &installResp)
 
 	// check that it starts polling with ManagedOnly=true, and switches to ManagedOnly=false once it stops reporting it as Installing
@@ -2712,20 +2712,20 @@ func (s *integrationMDMTestSuite) TestVPPAppInstallVerificationXcodeSpecialCase(
 		}, false, "InstalledApplicationList")
 
 	// check that it is properly verified as installed
-	var listResp listHostsResponse
+	var listResp fleet.ListHostsResponse
 	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &listResp, "software_status", "installed", "team_id", fmt.Sprint(team.ID),
 		"software_title_id", fmt.Sprint(appXcodeTitleID))
 	require.Len(t, listResp.Hosts, 1)
 	require.Equal(t, listResp.Hosts[0].ID, mdmHost.ID)
 
-	var countResp countHostsResponse
+	var countResp fleet.CountHostsResponse
 	s.DoJSON("GET", "/api/latest/fleet/hosts/count", nil, http.StatusOK, &countResp, "software_status", "installed", "team_id",
 		fmt.Sprint(team.ID), "software_title_id", fmt.Sprint(appXcodeTitleID))
 	require.Equal(t, 1, countResp.Count)
 
 	// trigger install of app2
-	installResp = installSoftwareResponse{}
-	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/software/%d/install", mdmHost.ID, app2TitleID), &installSoftwareRequest{},
+	installResp = fleet.InstallSoftwareResponse{}
+	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/software/%d/install", mdmHost.ID, app2TitleID), &fleet.InstallSoftwareRequest{},
 		http.StatusAccepted, &installResp)
 
 	// first iteration, install app2
@@ -2757,7 +2757,7 @@ func (s *integrationMDMTestSuite) TestVPPAppInstallVerificationXcodeSpecialCase(
 		}, true, "InstalledApplicationList")
 
 	// check that it is properly verified as installed
-	listResp = listHostsResponse{}
+	listResp = fleet.ListHostsResponse{}
 	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &listResp, "software_status", "installed", "team_id", fmt.Sprint(team.ID),
 		"software_title_id", fmt.Sprint(app2TitleID))
 	require.Len(t, listResp.Hosts, 1)
@@ -2771,21 +2771,21 @@ func (s *integrationMDMTestSuite) TestVPPAppInstallVerificationXcodeSpecialCase(
 
 	s.appleVPPConfigSrvConfig.SerialNumbers = append(s.appleVPPConfigSrvConfig.SerialNumbers, mdmHost2.HardwareSerial)
 	s.Do("POST", "/api/latest/fleet/hosts/transfer",
-		&addHostsToTeamRequest{HostIDs: []uint{mdmHost2.ID}, TeamID: &team.ID}, http.StatusOK)
+		&fleet.AddHostsToTeamRequest{HostIDs: []uint{mdmHost2.ID}, TeamID: &team.ID}, http.StatusOK)
 
 	// enqueue a script execution first, so that when it's marked as executed, both
 	// vpp app installs activate at the same time (VPP app installs get batch-activated
 	// when they are consecutive in the upcoming queue)
-	var runResp runScriptResponse
+	var runResp fleet.RunScriptResponse
 	s.DoJSON("POST", "/api/latest/fleet/scripts/run", fleet.HostScriptRequestPayload{HostID: mdmHost2.ID, ScriptContents: "echo"}, http.StatusAccepted, &runResp)
 
-	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/software/%d/install", mdmHost2.ID, appXcodeTitleID), &installSoftwareRequest{},
+	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/software/%d/install", mdmHost2.ID, appXcodeTitleID), &fleet.InstallSoftwareRequest{},
 		http.StatusAccepted, &installResp)
-	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/software/%d/install", mdmHost2.ID, app2TitleID), &installSoftwareRequest{},
+	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/software/%d/install", mdmHost2.ID, app2TitleID), &fleet.InstallSoftwareRequest{},
 		http.StatusAccepted, &installResp)
 
 	// check the host's upcoming activities, should be the script and 2 VPP app installs
-	var hostActivitiesResp listHostUpcomingActivitiesResponse
+	var hostActivitiesResp fleet.ListHostUpcomingActivitiesResponse
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/activities/upcoming", mdmHost2.ID),
 		nil, http.StatusOK, &hostActivitiesResp)
 	require.Len(t, hostActivitiesResp.Activities, 3)
@@ -2795,7 +2795,7 @@ func (s *integrationMDMTestSuite) TestVPPAppInstallVerificationXcodeSpecialCase(
 	scriptExecID := hostActivitiesResp.Activities[0].UUID
 
 	// set a result for the script, activating the 2 VPP installs next
-	var orbitPostScriptResp orbitPostScriptResultResponse
+	var orbitPostScriptResp fleet.OrbitPostScriptResultResponse
 	s.DoJSON("POST", "/api/fleet/orbit/scripts/result",
 		json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q, "execution_id": %q, "exit_code": 0, "output": "ok"}`, *mdmHost2.OrbitNodeKey, scriptExecID)),
 		http.StatusOK, &orbitPostScriptResp)
@@ -2863,14 +2863,14 @@ func (s *integrationMDMTestSuite) TestVPPAppInstallVerificationXcodeSpecialCase(
 		}, false, "InstalledApplicationList")
 
 	// check that both are properly verified as installed
-	listResp = listHostsResponse{}
+	listResp = fleet.ListHostsResponse{}
 	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &listResp, "software_status", "installed", "team_id", fmt.Sprint(team.ID),
 		"software_title_id", fmt.Sprint(app2TitleID), "order_key", "id")
 	require.Len(t, listResp.Hosts, 2)
 	require.Equal(t, listResp.Hosts[0].ID, mdmHost.ID)
 	require.Equal(t, listResp.Hosts[1].ID, mdmHost2.ID)
 
-	listResp = listHostsResponse{}
+	listResp = fleet.ListHostsResponse{}
 	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &listResp, "software_status", "installed", "team_id", fmt.Sprint(team.ID),
 		"software_title_id", fmt.Sprint(appXcodeTitleID), "order_key", "id")
 	require.Len(t, listResp.Hosts, 2)

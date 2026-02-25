@@ -90,10 +90,7 @@ func (svc *Service) AuthenticateHost(ctx context.Context, nodeKey string) (*flee
 	return host, svc.debugEnabledForHost(ctx, host.ID), nil
 }
 
-////////////////////////////////////////////////////////////////////////////////
 // Enroll Agent
-////////////////////////////////////////////////////////////////////////////////
-
 func enrollAgentEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*contract.EnrollOsqueryAgentRequest)
 	nodeKey, err := svc.EnrollOsquery(ctx, req.EnrollSecret, req.HostIdentifier, req.HostDetails)
@@ -342,48 +339,20 @@ func (svc *Service) debugEnabledForHost(ctx context.Context, id uint) bool {
 	return false
 }
 
-////////////////////////////////////////////////////////////////////////////////
 // Get Client Config
-////////////////////////////////////////////////////////////////////////////////
-
-type getClientConfigRequest struct {
-	NodeKey string `json:"node_key"`
-}
-
-func (r *getClientConfigRequest) hostNodeKey() string {
-	return r.NodeKey
-}
-
-type getClientConfigResponse struct {
-	Config map[string]interface{}
-	Err    error `json:"error,omitempty"`
-}
-
-func (r getClientConfigResponse) Error() error { return r.Err }
-
 // MarshalJSON implements json.Marshaler.
-//
 // Osquery expects the response for configs to be at the
 // top-level of the JSON response.
-func (r getClientConfigResponse) MarshalJSON() ([]byte, error) {
-	return json.Marshal(r.Config)
-}
-
 // UnmarshalJSON implements json.Unmarshaler.
-//
 // Osquery expects the response for configs to be at the
 // top-level of the JSON response.
-func (r *getClientConfigResponse) UnmarshalJSON(data []byte) error {
-	return json.Unmarshal(data, &r.Config)
-}
-
 func getClientConfigEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	config, err := svc.GetClientConfig(ctx)
 	if err != nil {
-		return getClientConfigResponse{Err: err}, nil
+		return fleet.GetClientConfigResponse{Err: err}, nil
 	}
 
-	return getClientConfigResponse{
+	return fleet.GetClientConfigResponse{
 		Config: config,
 	}, nil
 }
@@ -591,33 +560,13 @@ func (svc *Service) AgentOptionsForHost(ctx context.Context, hostTeamID *uint, h
 	return options.ForPlatform(hostPlatform), nil
 }
 
-////////////////////////////////////////////////////////////////////////////////
 // Get Distributed Queries
-////////////////////////////////////////////////////////////////////////////////
-
-type getDistributedQueriesRequest struct {
-	NodeKey string `json:"node_key"`
-}
-
-func (r *getDistributedQueriesRequest) hostNodeKey() string {
-	return r.NodeKey
-}
-
-type getDistributedQueriesResponse struct {
-	Queries    map[string]string `json:"queries"`
-	Discovery  map[string]string `json:"discovery"`
-	Accelerate uint              `json:"accelerate,omitempty"`
-	Err        error             `json:"error,omitempty"`
-}
-
-func (r getDistributedQueriesResponse) Error() error { return r.Err }
-
 func getDistributedQueriesEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	queries, discovery, accelerate, err := svc.GetDistributedQueries(ctx)
 	if err != nil {
-		return getDistributedQueriesResponse{Err: err}, nil
+		return fleet.GetDistributedQueriesResponse{Err: err}, nil
 	}
-	return getDistributedQueriesResponse{
+	return fleet.GetDistributedQueriesResponse{
 		Queries:    queries,
 		Discovery:  discovery,
 		Accelerate: accelerate,
@@ -927,20 +876,15 @@ func (svc *Service) policyQueriesForHost(ctx context.Context, host *fleet.Host) 
 	return policyQueries, false, nil
 }
 
-////////////////////////////////////////////////////////////////////////////////
 // Write Distributed Query Results
-////////////////////////////////////////////////////////////////////////////////
-
 // When a distributed query has no results, the JSON schema is
 // inconsistent, so we use this shim and massage into a consistent
 // schema. For example (simplified from actual osqueryd 1.8.2 output):
 // {
-//
 //	"queries": {
 //	  "query_with_no_results": "", // <- Note string instead of array
 //	  "query_with_results": [{"foo":"bar","baz":"bang"}]
 //	 },
-//
 // "node_key":"IGXCXknWQ1baTa8TZ6rF3kAPZ4\/aTsui"
 // }
 type submitDistributedQueryResultsRequestShim struct {
@@ -1018,24 +962,18 @@ type SubmitDistributedQueryResultsRequest struct {
 	Stats    map[string]*fleet.Stats              `json:"stats"`
 }
 
-type submitDistributedQueryResultsResponse struct {
-	Err error `json:"error,omitempty"`
-}
-
-func (r submitDistributedQueryResultsResponse) Error() error { return r.Err }
-
 func submitDistributedQueryResultsEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	shim := request.(*submitDistributedQueryResultsRequestShim)
 	req, err := shim.toRequest(ctx)
 	if err != nil {
-		return submitDistributedQueryResultsResponse{Err: err}, nil
+		return fleet.SubmitDistributedQueryResultsResponse{Err: err}, nil
 	}
 
 	err = svc.SubmitDistributedQueryResults(ctx, req.Results, req.Statuses, req.Messages, req.Stats)
 	if err != nil {
-		return submitDistributedQueryResultsResponse{Err: err}, nil
+		return fleet.SubmitDistributedQueryResultsResponse{Err: err}, nil
 	}
-	return submitDistributedQueryResultsResponse{}, nil
+	return fleet.SubmitDistributedQueryResultsResponse{}, nil
 }
 
 const (
@@ -2701,28 +2639,9 @@ func (svc *Service) maybeDebugHost(
 	}
 }
 
-////////////////////////////////////////////////////////////////////////////////
 // Submit Logs
-////////////////////////////////////////////////////////////////////////////////
-
-type submitLogsRequest struct {
-	NodeKey string            `json:"node_key"`
-	LogType string            `json:"log_type"`
-	Data    []json.RawMessage `json:"data"`
-}
-
-func (r *submitLogsRequest) hostNodeKey() string {
-	return r.NodeKey
-}
-
-type submitLogsResponse struct {
-	Err error `json:"error,omitempty"`
-}
-
-func (r submitLogsResponse) Error() error { return r.Err }
-
 func submitLogsEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
-	req := request.(*submitLogsRequest)
+	req := request.(*fleet.SubmitLogsRequest)
 
 	var err error
 	switch req.LogType {
@@ -2745,14 +2664,13 @@ func submitLogsEndpoint(ctx context.Context, request interface{}, svc fleet.Serv
 		err = newOsqueryError("unknown log type: " + req.LogType)
 	}
 
-	return submitLogsResponse{Err: err}, nil
+	return fleet.SubmitLogsResponse{Err: err}, nil
 }
 
 // preProcessOsqueryResults will attempt to unmarshal `osqueryResults` and will return:
 //   - `unmarshaledResults` with each result unmarshaled to `fleet.ScheduledQueryResult`s, where if an item is `nil` it means the corresponding
 //     `osqueryResults` item could not be unmarshaled.
 //   - queriesDBData has the corresponding DB query to each unmarshalled result in `osqueryResults`.
-//
 // If queryReportsDisabled is true then it returns only t he `unmarshaledResults` without querying the DB.
 func (svc *Service) preProcessOsqueryResults(
 	ctx context.Context,
@@ -2944,10 +2862,7 @@ func (svc *Service) SubmitResultLogs(ctx context.Context, logs []json.RawMessage
 	return nil
 }
 
-////////////////////////////////////////////////////////////////////////////////
 // Query Reports
-////////////////////////////////////////////////////////////////////////////////
-
 func (svc *Service) saveResultLogsToQueryReports(
 	ctx context.Context,
 	unmarshaledResults []*fleet.ScheduledQueryResult,
@@ -3041,9 +2956,7 @@ func (svc *Service) saveResultLogsToQueryReports(
 // transformEventFormatToSnapshotFormat transforms results that are in "event format" to "snapshot format".
 // This is needed to support query reports for hosts that are configured with `--logger_snapshot_event_type=true`
 // in their agent options.
-//
 // "Snapshot format" contains all of the result rows of the same query on one entry with the "snapshot" field, example:
-//
 //	[
 //		{
 //			"snapshot":[
@@ -3061,9 +2974,7 @@ func (svc *Service) saveResultLogsToQueryReports(
 //			"decorations":{"host_uuid":"F5B29579-E946-46A2-BB0F-7A8D1E304940","hostname":"foobar.local"}
 //		}
 //	]
-//
 // "Event format" will split result rows of the same query into two separate entries each with its own "columns" field, example with same data as above:
-//
 //	[
 //		{
 //			"name":"pack/Global/All USB devices",
@@ -3160,7 +3071,6 @@ func transformEventFormatToSnapshotFormat(results []*fleet.ScheduledQueryResult)
 }
 
 // overwriteResultRows deletes existing and inserts the new results for a query and host.
-//
 // The "snapshot" array in a ScheduledQueryResult can contain multiple rows.
 // Each row is saved as a separate ScheduledQueryResultRow, i.e. a result could contain
 // many USB Devices or a result could contain all user accounts on a host.
@@ -3236,9 +3146,7 @@ func getMostRecentResults(results []*fleet.ScheduledQueryResult) []*fleet.Schedu
 
 // findPackDelimiterString attempts to find the `pack_delimiter` string in the scheduled
 // query name reported by osquery (note that `pack_delimiter` can contain multiple characters).
-//
 // The expected format for s is "pack<pack_delimiter>{Global|team-<team_id>}<pack_delimiter><query_name>"
-//
 // Returns "" if it failed to parse the pack_delimiter.
 
 var (
@@ -3283,7 +3191,6 @@ func findPackDelimiterString(scheduledQueryName string) string {
 }
 
 // getQueryNameAndTeamIDFromResult attempts to parse the scheduled query name reported by osquery.
-//
 // The expected format of query names managed by Fleet is:
 // "pack<pack_delimiter>{Global|team-<team_id>}<pack_delimiter><query_name>"
 func getQueryNameAndTeamIDFromResult(path string) (*uint, string, error) {
@@ -3347,32 +3254,11 @@ func (svc *Service) YaraRuleByName(ctx context.Context, name string) (*fleet.Yar
 	return svc.ds.YaraRuleByName(ctx, name)
 }
 
-type getYaraRequest struct {
-	NodeKey string `json:"node_key"`
-	Name    string `url:"name"`
-}
-
-func (r *getYaraRequest) hostNodeKey() string {
-	return r.NodeKey
-}
-
-type getYaraResponse struct {
-	Err     error `json:"error,omitempty"`
-	Content string
-}
-
-func (r getYaraResponse) Error() error { return r.Err }
-
-func (r getYaraResponse) HijackRender(ctx context.Context, w http.ResponseWriter) {
-	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
-	_, _ = w.Write([]byte(r.Content))
-}
-
 func getYaraEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
-	r := request.(*getYaraRequest)
+	r := request.(*fleet.GetYaraRequest)
 	rule, err := svc.YaraRuleByName(ctx, r.Name)
 	if err != nil {
-		return getYaraResponse{Err: err}, nil
+		return fleet.GetYaraResponse{Err: err}, nil
 	}
-	return getYaraResponse{Content: rule.Contents}, nil
+	return fleet.GetYaraResponse{Content: rule.Contents}, nil
 }

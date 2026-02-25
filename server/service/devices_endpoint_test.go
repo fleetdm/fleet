@@ -104,14 +104,14 @@ func TestGetDeviceHostEndpointScrubbing(t *testing.T) {
 	authzCtx.SetAuthnMethod(authz.AuthnDeviceURL)
 	ctx = authz.NewContext(ctx, authzCtx)
 
-	req := &getDeviceHostRequest{
+	req := &fleet.GetDeviceHostRequest{
 		Token: "test-token",
 	}
 
 	resp, err := getDeviceHostEndpoint(ctx, req, svc)
 	require.NoError(t, err)
 
-	deviceResp, ok := resp.(getDeviceHostResponse)
+	deviceResp, ok := resp.(fleet.GetDeviceHostResponse)
 	require.True(t, ok)
 	require.NoError(t, deviceResp.Err)
 	require.NotNil(t, deviceResp.Host)
@@ -235,14 +235,14 @@ func TestGetDeviceHostEndpointNoScrubbingForMacOS(t *testing.T) {
 	authzCtx.SetAuthnMethod(authz.AuthnDeviceToken)
 	ctx = authz.NewContext(ctx, authzCtx)
 
-	req := &getDeviceHostRequest{
+	req := &fleet.GetDeviceHostRequest{
 		Token: "test-token",
 	}
 
 	resp, err := getDeviceHostEndpoint(ctx, req, svc)
 	require.NoError(t, err)
 
-	deviceResp, ok := resp.(getDeviceHostResponse)
+	deviceResp, ok := resp.(fleet.GetDeviceHostResponse)
 	require.True(t, ok)
 	require.NoError(t, deviceResp.Err)
 	require.NotNil(t, deviceResp.Host)
@@ -384,14 +384,14 @@ func TestGetDeviceHostEndpointConditionalAccessBypass(t *testing.T) {
 			authzCtx.SetAuthnMethod(authz.AuthnDeviceToken)
 			ctx = authz.NewContext(ctx, authzCtx)
 
-			req := &getDeviceHostRequest{
+			req := &fleet.GetDeviceHostRequest{
 				Token: "test-token",
 			}
 
 			resp, err := getDeviceHostEndpoint(ctx, req, svc)
 			require.NoError(t, err)
 
-			deviceResp, ok := resp.(getDeviceHostResponse)
+			deviceResp, ok := resp.(fleet.GetDeviceHostResponse)
 			require.True(t, ok)
 			require.NoError(t, deviceResp.Err)
 

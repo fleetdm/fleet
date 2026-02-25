@@ -1593,7 +1593,7 @@ func TestMDMBatchSetProfiles(t *testing.T) {
 			ptr.Uint(1),
 			nil,
 			nil,
-			ErrMissingLicense.Error(),
+			fleet.ErrMissingLicense.Error(),
 		},
 		{
 			"team name with free license",
@@ -1602,7 +1602,7 @@ func TestMDMBatchSetProfiles(t *testing.T) {
 			nil,
 			ptr.String("team"),
 			nil,
-			ErrMissingLicense.Error(),
+			fleet.ErrMissingLicense.Error(),
 		},
 		{
 			"team id and name specified",

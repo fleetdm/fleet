@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"os"
 
+	fleetclient "github.com/fleetdm/fleet/v4/client"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
-	"github.com/fleetdm/fleet/v4/server/service"
 	"github.com/urfave/cli/v2"
 	"golang.org/x/crypto/ssh/terminal"
 )
@@ -89,7 +89,7 @@ func setupCommand() *cli.Command {
 			if err != nil {
 				root := ctxerr.Cause(err)
 				switch root.(type) { //nolint:gocritic // ignore singleCaseSwitch
-				case service.SetupAlreadyErr:
+				case fleetclient.SetupAlreadyErr:
 					return err
 				}
 				return fmt.Errorf("error setting up Fleet: %w", err)

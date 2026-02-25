@@ -15,25 +15,10 @@ const (
 	SecretVariablePrefix = "FLEET_SECRET_"
 )
 
-//////////////////////////////////////////////////////////////////////////////////
-// Create secret variables (spec)
-//////////////////////////////////////////////////////////////////////////////////
-
-type createSecretVariablesRequest struct {
-	DryRun          bool                   `json:"dry_run"`
-	SecretVariables []fleet.SecretVariable `json:"secrets"`
-}
-
-type createSecretVariablesResponse struct {
-	Err error `json:"error,omitempty"`
-}
-
-func (r createSecretVariablesResponse) Error() error { return r.Err }
-
 func createSecretVariablesEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
-	req := request.(*createSecretVariablesRequest)
+	req := request.(*fleet.CreateSecretVariablesRequest)
 	err := svc.CreateSecretVariables(ctx, req.SecretVariables, req.DryRun)
-	return createSecretVariablesResponse{Err: err}, nil
+	return fleet.CreateSecretVariablesResponse{Err: err}, nil
 }
 
 func (svc *Service) CreateSecretVariables(ctx context.Context, secretVariables []fleet.SecretVariable, dryRun bool) error {
@@ -73,31 +58,13 @@ func (svc *Service) CreateSecretVariables(ctx context.Context, secretVariables [
 	return nil
 }
 
-//////////////////////////////////////////////////////////////////////////////////
-// Create secret variable
-//////////////////////////////////////////////////////////////////////////////////
-
-type createSecretVariableRequest struct {
-	Name  string `json:"name"`
-	Value string `json:"value"`
-}
-
-type createSecretVariableResponse struct {
-	ID   uint   `json:"id"`
-	Name string `json:"name"`
-
-	Err error `json:"error,omitempty"`
-}
-
-func (r createSecretVariableResponse) Error() error { return r.Err }
-
 func createSecretVariableEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
-	req := request.(*createSecretVariableRequest)
+	req := request.(*fleet.CreateSecretVariableRequest)
 	id, err := svc.CreateSecretVariable(ctx, req.Name, req.Value)
 	if err != nil {
-		return createSecretVariableResponse{Err: err}, nil
+		return fleet.CreateSecretVariableResponse{Err: err}, nil
 	}
-	return createSecretVariableResponse{
+	return fleet.CreateSecretVariableResponse{
 		ID:   id,
 		Name: req.Name,
 	}, nil
@@ -146,28 +113,10 @@ func (svc *Service) CreateSecretVariable(ctx context.Context, name string, value
 	return id, nil
 }
 
-//////////////////////////////////////////////////////////////////////////////////
-// List secret variables
-//////////////////////////////////////////////////////////////////////////////////
-
-type listSecretVariablesRequest struct {
-	ListOptions fleet.ListOptions `url:"list_options"`
-}
-
-type listSecretVariablesResponse struct {
-	CustomVariables []fleet.SecretVariableIdentifier `json:"custom_variables"`
-	Meta            *fleet.PaginationMetadata        `json:"meta"`
-	Count           int                              `json:"count"`
-
-	Err error `json:"error,omitempty"`
-}
-
-func (r listSecretVariablesResponse) Error() error { return r.Err }
-
 func listSecretVariablesEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
-	req := request.(*listSecretVariablesRequest)
+	req := request.(*fleet.ListSecretVariablesRequest)
 	secretVariables, meta, count, err := svc.ListSecretVariables(ctx, req.ListOptions)
-	return listSecretVariablesResponse{
+	return fleet.ListSecretVariablesResponse{
 		CustomVariables: secretVariables,
 		Meta:            meta,
 		Count:           count,
@@ -206,24 +155,10 @@ func (svc *Service) ListSecretVariables(
 	return secretVariables, meta, count, nil
 }
 
-//////////////////////////////////////////////////////////////////////////////////
-// Delete secret variable
-//////////////////////////////////////////////////////////////////////////////////
-
-type deleteSecretVariableRequest struct {
-	ID uint `url:"id"`
-}
-
-type deleteSecretVariableResponse struct {
-	Err error `json:"error,omitempty"`
-}
-
-func (r deleteSecretVariableResponse) Error() error { return r.Err }
-
 func deleteSecretVariableEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
-	req := request.(*deleteSecretVariableRequest)
+	req := request.(*fleet.DeleteSecretVariableRequest)
 	err := svc.DeleteSecretVariable(ctx, req.ID)
-	return deleteSecretVariableResponse{
+	return fleet.DeleteSecretVariableResponse{
 		Err: err,
 	}, nil
 }

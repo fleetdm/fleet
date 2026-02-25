@@ -17,9 +17,9 @@ import (
 	"runtime"
 	"strings"
 
+	fleetclient "github.com/fleetdm/fleet/v4/client"
 	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
 	"github.com/fleetdm/fleet/v4/server/fleet"
-	"github.com/fleetdm/fleet/v4/server/service"
 	"github.com/fleetdm/fleet/v4/server/version"
 	kithttp "github.com/go-kit/kit/transport/http"
 	"github.com/urfave/cli/v2"
@@ -28,7 +28,7 @@ import (
 var ErrGeneric = errors.New(`Something's gone wrong. Please try again. If this keeps happening please file an issue:
 https://github.com/fleetdm/fleet/issues/new/choose`)
 
-func unauthenticatedClientFromCLI(c *cli.Context) (*service.Client, error) {
+func unauthenticatedClientFromCLI(c *cli.Context) (*fleetclient.Client, error) {
 	cc, err := clientConfigFromCLI(c)
 	if err != nil {
 		return nil, err
@@ -37,7 +37,7 @@ func unauthenticatedClientFromCLI(c *cli.Context) (*service.Client, error) {
 	return unauthenticatedClientFromConfig(cc, getDebug(c), c.App.Writer, c.App.ErrWriter)
 }
 
-func clientFromCLI(c *cli.Context) (*service.Client, error) {
+func clientFromCLI(c *cli.Context) (*fleetclient.Client, error) {
 	fleetClient, err := unauthenticatedClientFromCLI(c)
 	if err != nil {
 		return nil, err
@@ -73,7 +73,7 @@ func clientFromCLI(c *cli.Context) (*service.Client, error) {
 
 	serverInfo, err := fleetClient.Version()
 	if err != nil {
-		if errors.Is(err, service.ErrUnauthenticated) {
+		if errors.Is(err, fleetclient.ErrUnauthenticated) {
 			fmt.Fprintln(os.Stderr, "Token invalid or session expired. Please log in with: fleetctl login")
 		}
 		return nil, err
@@ -105,18 +105,18 @@ func clientFromCLI(c *cli.Context) (*service.Client, error) {
 	return fleetClient, nil
 }
 
-func unauthenticatedClientFromConfig(cc Context, debug bool, outputWriter io.Writer, errWriter io.Writer) (*service.Client, error) {
-	options := []service.ClientOption{
-		service.SetClientOutputWriter(outputWriter),
-		service.SetClientErrorWriter(errWriter),
+func unauthenticatedClientFromConfig(cc Context, debug bool, outputWriter io.Writer, errWriter io.Writer) (*fleetclient.Client, error) {
+	options := []fleetclient.ClientOption{
+		fleetclient.SetClientOutputWriter(outputWriter),
+		fleetclient.SetClientErrorWriter(errWriter),
 	}
 
 	if len(cc.CustomHeaders) > 0 {
-		options = append(options, service.WithCustomHeaders(cc.CustomHeaders))
+		options = append(options, fleetclient.WithCustomHeaders(cc.CustomHeaders))
 	}
 
 	if flag.Lookup("test.v") != nil {
-		return service.NewClient(
+		return fleetclient.NewClient(
 			os.Getenv("FLEET_SERVER_ADDRESS"), true, "", "", options...)
 	}
 
@@ -129,10 +129,10 @@ func unauthenticatedClientFromConfig(cc Context, debug bool, outputWriter io.Wri
 	}
 
 	if debug {
-		options = append(options, service.EnableClientDebug())
+		options = append(options, fleetclient.EnableClientDebug())
 	}
 
-	fleet, err := service.NewClient(
+	fleet, err := fleetclient.NewClient(
 		cc.Address,
 		cc.TLSSkipVerify,
 		cc.RootCA,

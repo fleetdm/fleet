@@ -7,14 +7,11 @@ import (
 	"encoding/base64"
 	"encoding/pem"
 	"fmt"
-	"net/http"
 	"net/url"
-	"strconv"
 	"strings"
 	"text/template"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
-	"github.com/fleetdm/fleet/v4/server/contexts/logging"
 	"github.com/fleetdm/fleet/v4/server/dev_mode"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/google/uuid"
@@ -208,35 +205,12 @@ type appleProfileTemplateData struct {
 	RootPayloadUUID  string
 }
 
-type conditionalAccessGetIdPSigningCertRequest struct{}
-
-type conditionalAccessGetIdPSigningCertResponse struct {
-	CertPEM []byte
-	Err     error `json:"error,omitempty"`
-}
-
-func (r conditionalAccessGetIdPSigningCertResponse) Error() error { return r.Err }
-
-func (r conditionalAccessGetIdPSigningCertResponse) HijackRender(ctx context.Context, w http.ResponseWriter) {
-	w.Header().Set("Content-Length", strconv.FormatInt(int64(len(r.CertPEM)), 10))
-	w.Header().Set("Content-Type", "application/x-pem-file")
-	w.Header().Set("X-Content-Type-Options", "nosniff")
-	w.Header().Set("Content-Disposition", "attachment; filename=\"fleet-idp-signing-cert.pem\"")
-
-	// OK to just log the error here as writing anything on `http.ResponseWriter` sets the status code to 200 (and it can't be
-	// changed.) Clients should rely on matching content-length with the header provided
-	n, err := w.Write(r.CertPEM)
-	if err != nil {
-		logging.WithExtras(ctx, "err", err, "bytes_written", n)
-	}
-}
-
 func conditionalAccessGetIdPSigningCertEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	certPEM, err := svc.ConditionalAccessGetIdPSigningCert(ctx)
 	if err != nil {
-		return conditionalAccessGetIdPSigningCertResponse{Err: err}, nil
+		return fleet.ConditionalAccessGetIdPSigningCertResponse{Err: err}, nil
 	}
-	return conditionalAccessGetIdPSigningCertResponse{
+	return fleet.ConditionalAccessGetIdPSigningCertResponse{
 		CertPEM: certPEM,
 	}, nil
 }
@@ -268,33 +242,12 @@ func (svc *Service) ConditionalAccessGetIdPSigningCert(ctx context.Context) (cer
 	return certAsset.Value, nil
 }
 
-type conditionalAccessGetIdPAppleProfileResponse struct {
-	ProfileData []byte
-	Err         error `json:"error,omitempty"`
-}
-
-func (r conditionalAccessGetIdPAppleProfileResponse) Error() error { return r.Err }
-
-func (r conditionalAccessGetIdPAppleProfileResponse) HijackRender(ctx context.Context, w http.ResponseWriter) {
-	w.Header().Set("Content-Length", strconv.FormatInt(int64(len(r.ProfileData)), 10))
-	w.Header().Set("Content-Type", "application/x-apple-aspen-config")
-	w.Header().Set("X-Content-Type-Options", "nosniff")
-	w.Header().Set("Content-Disposition", "attachment; filename=\"fleet-conditional-access.mobileconfig\"")
-
-	// OK to just log the error here as writing anything on `http.ResponseWriter` sets the status code to 200 (and it can't be
-	// changed.) Clients should rely on matching content-length with the header provided
-	n, err := w.Write(r.ProfileData)
-	if err != nil {
-		logging.WithExtras(ctx, "err", err, "bytes_written", n)
-	}
-}
-
 func conditionalAccessGetIdPAppleProfileEndpoint(ctx context.Context, _ interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	profileData, err := svc.ConditionalAccessGetIdPAppleProfile(ctx)
 	if err != nil {
-		return conditionalAccessGetIdPAppleProfileResponse{Err: err}, nil
+		return fleet.ConditionalAccessGetIdPAppleProfileResponse{Err: err}, nil
 	}
-	return conditionalAccessGetIdPAppleProfileResponse{
+	return fleet.ConditionalAccessGetIdPAppleProfileResponse{
 		ProfileData: profileData,
 	}, nil
 }

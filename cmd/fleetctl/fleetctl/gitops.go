@@ -7,10 +7,10 @@ import (
 	"slices"
 	"strings"
 
+	fleetclient "github.com/fleetdm/fleet/v4/client"
 	"github.com/fleetdm/fleet/v4/pkg/spec"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/ptr"
-	"github.com/fleetdm/fleet/v4/server/service"
 	"github.com/urfave/cli/v2"
 	"golang.org/x/text/unicode/norm"
 )
@@ -821,7 +821,7 @@ func extractControlsForNoTeam(flFilenames cli.StringSlice, appConfig *fleet.Enri
 // 2. All teams assigned to ABM tokens already exist.
 // 3. Performs validations according to the spec for both the new and the
 // deprecated key used for this setting.
-func checkABMTeamAssignments(config *spec.GitOps, fleetClient *service.Client) (
+func checkABMTeamAssignments(config *spec.GitOps, fleetClient *fleetclient.Client) (
 	abmTeams []string, missingTeam bool, usesLegacyConfig bool, err error,
 ) {
 	if mdm, ok := config.OrgSettings["mdm"]; ok {
@@ -898,7 +898,7 @@ func applyABMTokenAssignmentIfNeeded(
 	originalMDMConfig []any,
 	usesLegacyConfig bool,
 	flDryRun bool,
-	fleetClient *service.Client,
+	fleetClient *fleetclient.Client,
 ) error {
 	if usesLegacyConfig && len(abmTeamNames) > 1 {
 		return errors.New(fleet.AppleABMDefaultTeamDeprecatedMessage)
@@ -944,7 +944,7 @@ func applyABMTokenAssignmentIfNeeded(
 	return nil
 }
 
-func checkVPPTeamAssignments(config *spec.GitOps, fleetClient *service.Client) (
+func checkVPPTeamAssignments(config *spec.GitOps, fleetClient *fleetclient.Client) (
 	vppTeams []string, missingTeams []string, err error,
 ) {
 	if mdm, ok := config.OrgSettings["mdm"]; ok {
@@ -991,7 +991,7 @@ func applyVPPTokenAssignmentIfNeeded(
 	vppTeamNames []string,
 	originalVPPConfig []any,
 	flDryRun bool,
-	fleetClient *service.Client,
+	fleetClient *fleetclient.Client,
 ) error {
 	var appConfigUpdate map[string]map[string]any
 	for _, vppTeam := range vppTeamNames {

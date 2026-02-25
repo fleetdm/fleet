@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"os"
 
+	fleetclient "github.com/fleetdm/fleet/v4/client"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
-	"github.com/fleetdm/fleet/v4/server/service"
 	"github.com/urfave/cli/v2"
 	"golang.org/x/crypto/ssh/terminal"
 )
@@ -88,7 +88,7 @@ Trying to login with SSO or MFA? First, login to the Fleet UI and retrieve your 
 			if err != nil {
 				root := ctxerr.Cause(err)
 				switch root.(type) { //nolint:gocritic // ignore singleCaseSwitch
-				case service.NotSetupErr:
+				case fleetclient.NotSetupErr:
 					return err
 				}
 				return fmt.Errorf("Login failed: %w", err)

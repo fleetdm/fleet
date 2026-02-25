@@ -12,8 +12,8 @@ import (
 	"unicode/utf8"
 
 	"github.com/briandowns/spinner"
+	fleetclient "github.com/fleetdm/fleet/v4/client"
 	"github.com/fleetdm/fleet/v4/server/fleet"
-	"github.com/fleetdm/fleet/v4/server/service"
 	"github.com/urfave/cli/v2"
 )
 
@@ -108,7 +108,7 @@ func runScriptCommand() *cli.Command {
 			ident := c.String("host")
 			h, err := client.HostByIdentifier(ident)
 			if err != nil {
-				var nfe service.NotFoundErr
+				var nfe fleetclient.NotFoundErr
 				if errors.As(err, &nfe) {
 					return errors.New(fleet.HostNotFoundErrMsg)
 				}

@@ -1094,9 +1094,9 @@ func TestStreamHosts(t *testing.T) {
 				}
 			}
 		}
-		resp := streamHostsResponse{
+		resp := fleet.StreamHostsResponse{
 			HostResponseIterator: hostIterator(),
-			listHostsResponse: listHostsResponse{
+			ListHostsResponse: fleet.ListHostsResponse{
 				Software: &fleet.Software{
 					ID: uint(1),
 				},
@@ -1148,9 +1148,9 @@ func TestStreamHosts(t *testing.T) {
 				// Yield no hosts.
 			}
 		}
-		resp := streamHostsResponse{
+		resp := fleet.StreamHostsResponse{
 			HostResponseIterator: hostIterator(),
-			listHostsResponse:    listHostsResponse{},
+			ListHostsResponse:    fleet.ListHostsResponse{},
 		}
 		rr := httptest.NewRecorder()
 		resp.HijackRender(context.Background(), rr)
@@ -1227,9 +1227,9 @@ func TestStreamHosts(t *testing.T) {
 					}
 				}
 			}
-			resp := streamHostsResponse{
+			resp := fleet.StreamHostsResponse{
 				HostResponseIterator: hostIterator(),
-				listHostsResponse: listHostsResponse{
+				ListHostsResponse: fleet.ListHostsResponse{
 					Software: &fleet.Software{
 						ID: uint(1),
 					},

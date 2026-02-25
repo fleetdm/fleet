@@ -35,33 +35,19 @@ func (p cveNotFoundError) IsClientError() bool {
 	return true
 }
 
-type listVulnerabilitiesRequest struct {
-	fleet.VulnListOptions
-}
-
-type listVulnerabilitiesResponse struct {
-	Vulnerabilities []fleet.VulnerabilityWithMetadata `json:"vulnerabilities"`
-	Count           uint                              `json:"count"`
-	CountsUpdatedAt time.Time                         `json:"counts_updated_at"`
-	Meta            *fleet.PaginationMetadata         `json:"meta,omitempty"`
-	Err             error                             `json:"error,omitempty"`
-}
-
 // Allow formats like: CVE-2017-12345, cve-2017-12345
 var cveRegex = regexp.MustCompile(`(?i)^CVE-\d{4}-\d{4}\d*$`)
 
-func (r listVulnerabilitiesResponse) Error() error { return r.Err }
-
 func listVulnerabilitiesEndpoint(ctx context.Context, req interface{}, svc fleet.Service) (fleet.Errorer, error) {
-	request := req.(*listVulnerabilitiesRequest)
+	request := req.(*fleet.ListVulnerabilitiesRequest)
 	vulns, meta, err := svc.ListVulnerabilities(ctx, request.VulnListOptions)
 	if err != nil {
-		return listVulnerabilitiesResponse{Err: err}, nil
+		return fleet.ListVulnerabilitiesResponse{Err: err}, nil
 	}
 
 	count, err := svc.CountVulnerabilities(ctx, request.VulnListOptions)
 	if err != nil {
-		return listVulnerabilitiesResponse{Err: err}, nil
+		return fleet.ListVulnerabilitiesResponse{Err: err}, nil
 	}
 
 	updatedAt := time.Now()
@@ -71,7 +57,7 @@ func listVulnerabilitiesEndpoint(ctx context.Context, req interface{}, svc fleet
 		}
 	}
 
-	return listVulnerabilitiesResponse{
+	return fleet.ListVulnerabilitiesResponse{
 		Vulnerabilities: vulns,
 		Meta:            meta,
 		Count:           count,
@@ -124,53 +110,31 @@ func (svc *Service) IsCVEKnownToFleet(ctx context.Context, cve string) (bool, er
 	return svc.ds.IsCVEKnownToFleet(ctx, cve)
 }
 
-type getVulnerabilityRequest struct {
-	CVE    string `url:"cve"`
-	TeamID *uint  `query:"team_id,optional" renameto:"fleet_id"`
-}
-
-type getVulnerabilityResponse struct {
-	Vulnerability *fleet.VulnerabilityWithMetadata `json:"vulnerability"`
-	OSVersions    []*fleet.VulnerableOS            `json:"os_versions"`
-	Software      []*fleet.VulnerableSoftware      `json:"software"`
-	Err           error                            `json:"error,omitempty"`
-	statusCode    int
-}
-
-func (r getVulnerabilityResponse) Error() error { return r.Err }
-
-func (r getVulnerabilityResponse) Status() int {
-	if r.statusCode == 0 {
-		return http.StatusOK
-	}
-	return r.statusCode
-}
-
 func getVulnerabilityEndpoint(ctx context.Context, req interface{}, svc fleet.Service) (fleet.Errorer, error) {
-	request := req.(*getVulnerabilityRequest)
+	request := req.(*fleet.GetVulnerabilityRequest)
 
 	vuln, known, err := svc.Vulnerability(ctx, request.CVE, request.TeamID, false)
 	if err != nil {
-		return getVulnerabilityResponse{Err: err}, nil
+		return fleet.GetVulnerabilityResponse{Err: err}, nil
 	}
 	if vuln == nil && known {
 		// Return 204 status code if the vulnerability is known to Fleet but does not match any host software/OS
-		return getVulnerabilityResponse{statusCode: http.StatusNoContent}, nil
+		return fleet.GetVulnerabilityResponse{StatusCode: http.StatusNoContent}, nil
 	}
 
 	vuln.DetailsLink = fmt.Sprintf("https://nvd.nist.gov/vuln/detail/%s", vuln.CVE.CVE)
 
 	osVersions, _, err := svc.ListOSVersionsByCVE(ctx, vuln.CVE.CVE, request.TeamID)
 	if err != nil {
-		return getVulnerabilityResponse{Err: err}, nil
+		return fleet.GetVulnerabilityResponse{Err: err}, nil
 	}
 
 	software, _, err := svc.ListSoftwareByCVE(ctx, vuln.CVE.CVE, request.TeamID)
 	if err != nil {
-		return getVulnerabilityResponse{Err: err}, nil
+		return fleet.GetVulnerabilityResponse{Err: err}, nil
 	}
 
-	return getVulnerabilityResponse{
+	return fleet.GetVulnerabilityResponse{
 		Vulnerability: vuln,
 		OSVersions:    osVersions,
 		Software:      software,

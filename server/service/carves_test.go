@@ -657,7 +657,7 @@ func TestCarveBlockDecodeRequest(t *testing.T) {
 		wantErr        bool
 		wantErrType    string // e.g., "AuthFailedError", "ctxerr", ""
 		wantErrMessage string
-		wantResult     *carveBlockRequest
+		wantResult     *fleet.CarveBlockRequest
 	}{
 		{
 			name: "valid request MySQL session IDs",
@@ -671,7 +671,7 @@ func TestCarveBlockDecodeRequest(t *testing.T) {
 				return carvestorectx.NewContext(ctx, store)
 			},
 			wantErr: false,
-			wantResult: &carveBlockRequest{
+			wantResult: &fleet.CarveBlockRequest{
 				BlockId:   123,
 				SessionId: "23bbbcf6-6b8a-4f3a-9924-bdd084f31097",
 				RequestId: "req123",
@@ -690,7 +690,7 @@ func TestCarveBlockDecodeRequest(t *testing.T) {
 				return carvestorectx.NewContext(ctx, store)
 			},
 			wantErr: false,
-			wantResult: &carveBlockRequest{
+			wantResult: &fleet.CarveBlockRequest{
 				BlockId:   123,
 				SessionId: "JUMHLnWZ.A7y5ns2jUODzG8eTr5m9lvFKDD3nBN.hJ8mwr2szW0iUSNrusaE41__.wrtsNokzejFLQyNJTTqY_QN1grwAT0yXGi8A77Kf9ZJlvSiWggmncDAhVev4QXxx2PyN_GtTRPC71WGKPN2YxBFfWBjZlCZBXmPCtc4zrQ",
 				RequestId: "req123",
@@ -709,7 +709,7 @@ func TestCarveBlockDecodeRequest(t *testing.T) {
 				return carvestorectx.NewContext(ctx, store)
 			},
 			wantErr: false,
-			wantResult: &carveBlockRequest{
+			wantResult: &fleet.CarveBlockRequest{
 				BlockId:   123,
 				SessionId: "ZGVhZDYwYTctZTVlOC00MzE1LWFhOWMtZDIzMzc5MTI4NGUyLjUzM2MxZjhhLTFiODktNDQ1YS04NTE0LTBjMWE0NDVlNjkwMXgxNzcwMTQ1Njc5NDgyNDg3NzE3",
 				RequestId: "req123",
@@ -728,7 +728,7 @@ func TestCarveBlockDecodeRequest(t *testing.T) {
 				return carvestorectx.NewContext(ctx, store)
 			},
 			wantErr: false,
-			wantResult: &carveBlockRequest{
+			wantResult: &fleet.CarveBlockRequest{
 				BlockId:   123,
 				SessionId: strings.Repeat("F", 255),
 				RequestId: "req123",
@@ -934,7 +934,7 @@ func TestCarveBlockDecodeRequest(t *testing.T) {
 				return carvestorectx.NewContext(ctx, store)
 			},
 			wantErr: false,
-			wantResult: &carveBlockRequest{
+			wantResult: &fleet.CarveBlockRequest{
 				BlockId:   123,
 				SessionId: "sess123",
 				RequestId: strings.Repeat("F", 64),
@@ -1159,7 +1159,7 @@ func TestCarveBlockDecodeRequest(t *testing.T) {
 				return carvestorectx.NewContext(ctx, store)
 			},
 			wantErr: false,
-			wantResult: &carveBlockRequest{
+			wantResult: &fleet.CarveBlockRequest{
 				BlockId:   1<<63 - 1,
 				SessionId: "sess123",
 				RequestId: "req123",
@@ -1188,7 +1188,7 @@ func TestCarveBlockDecodeRequest(t *testing.T) {
 			req := &http.Request{
 				Body: io.NopCloser(bytes.NewReader([]byte(tt.body))),
 			}
-			var r carveBlockRequest
+			var r decodeCarveBlockRequest
 			result, err := r.DecodeRequest(ctx, req)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("DecodeRequest() error = %v, wantErr %v", err, tt.wantErr)
@@ -1204,9 +1204,9 @@ func TestCarveBlockDecodeRequest(t *testing.T) {
 				}
 				return
 			}
-			got, ok := result.(*carveBlockRequest)
+			got, ok := result.(*fleet.CarveBlockRequest)
 			if !ok {
-				t.Errorf("result not *carveBlockRequest")
+				t.Errorf("result not *fleet.CarveBlockRequest")
 				return
 			}
 			if tt.wantResult != nil {

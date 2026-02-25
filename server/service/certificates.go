@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"regexp"
 	"strings"
-	"time"
 
 	"github.com/fleetdm/fleet/v4/server/authz"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
@@ -48,29 +47,13 @@ func validateCertificateTemplateName(name string) error {
 	return nil
 }
 
-type createCertificateTemplateRequest struct {
-	Name                   string `json:"name"`
-	TeamID                 uint   `json:"team_id" renameto:"fleet_id"` // If not provided, intentionally defaults to 0 aka "No team"
-	CertificateAuthorityId uint   `json:"certificate_authority_id"`
-	SubjectName            string `json:"subject_name"`
-}
-type createCertificateTemplateResponse struct {
-	ID                     uint   `json:"id"`
-	Name                   string `json:"name"`
-	CertificateAuthorityId uint   `json:"certificate_authority_id"`
-	SubjectName            string `json:"subject_name"`
-	Err                    error  `json:"error,omitempty"`
-}
-
-func (r createCertificateTemplateResponse) Error() error { return r.Err }
-
 func createCertificateTemplateEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
-	req := request.(*createCertificateTemplateRequest)
+	req := request.(*fleet.CreateCertificateTemplateRequest)
 	certificate, err := svc.CreateCertificateTemplate(ctx, req.Name, req.TeamID, req.CertificateAuthorityId, req.SubjectName)
 	if err != nil {
-		return createCertificateTemplateResponse{Err: err}, nil
+		return fleet.CreateCertificateTemplateResponse{Err: err}, nil
 	}
-	return createCertificateTemplateResponse{
+	return fleet.CreateCertificateTemplateResponse{
 		ID:                     certificate.ID,
 		Name:                   certificate.Name,
 		CertificateAuthorityId: certificate.CertificateAuthorityId,
@@ -147,28 +130,13 @@ func (svc *Service) CreateCertificateTemplate(ctx context.Context, name string, 
 	return savedTemplate, nil
 }
 
-type listCertificateTemplatesRequest struct {
-	fleet.ListOptions
-
-	// If not provided, intentionally defaults to 0 aka "No team"
-	TeamID uint `query:"team_id,optional" renameto:"fleet_id"`
-}
-
-type listCertificateTemplatesResponse struct {
-	Certificates []*fleet.CertificateTemplateResponseSummary `json:"certificates"`
-	Err          error                                       `json:"error,omitempty"`
-	Meta         *fleet.PaginationMetadata                   `json:"meta"`
-}
-
-func (r listCertificateTemplatesResponse) Error() error { return r.Err }
-
 func listCertificateTemplatesEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
-	req := request.(*listCertificateTemplatesRequest)
+	req := request.(*fleet.ListCertificateTemplatesRequest)
 	certificates, paginationMetaData, err := svc.ListCertificateTemplates(ctx, req.TeamID, req.ListOptions)
 	if err != nil {
-		return listCertificateTemplatesResponse{Err: err}, nil
+		return fleet.ListCertificateTemplatesResponse{Err: err}, nil
 	}
-	return listCertificateTemplatesResponse{Certificates: certificates, Meta: paginationMetaData}, nil
+	return fleet.ListCertificateTemplatesResponse{Certificates: certificates, Meta: paginationMetaData}, nil
 }
 
 func (svc *Service) ListCertificateTemplates(ctx context.Context, teamID uint, opts fleet.ListOptions) ([]*fleet.CertificateTemplateResponseSummary, *fleet.PaginationMetadata, error) {
@@ -197,24 +165,13 @@ func (svc *Service) ListCertificateTemplates(ctx context.Context, teamID uint, o
 	return certificates, metaData, nil
 }
 
-type getDeviceCertificateTemplateRequest struct {
-	ID uint `url:"id"`
-}
-
-type getDeviceCertificateTemplateResponse struct {
-	Certificate *fleet.CertificateTemplateResponseForHost `json:"certificate"`
-	Err         error                                     `json:"error,omitempty"`
-}
-
-func (r getDeviceCertificateTemplateResponse) Error() error { return r.Err }
-
 func getDeviceCertificateTemplateEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
-	req := request.(*getDeviceCertificateTemplateRequest)
+	req := request.(*fleet.GetDeviceCertificateTemplateRequest)
 	certificate, err := svc.GetDeviceCertificateTemplate(ctx, req.ID)
 	if err != nil {
-		return getDeviceCertificateTemplateResponse{Err: err}, nil
+		return fleet.GetDeviceCertificateTemplateResponse{Err: err}, nil
 	}
-	return getDeviceCertificateTemplateResponse{Certificate: certificate}, nil
+	return fleet.GetDeviceCertificateTemplateResponse{Certificate: certificate}, nil
 }
 
 func (svc *Service) GetDeviceCertificateTemplate(ctx context.Context, id uint) (*fleet.CertificateTemplateResponseForHost, error) {
@@ -273,24 +230,13 @@ func (svc *Service) GetDeviceCertificateTemplate(ctx context.Context, id uint) (
 	return certificate, nil
 }
 
-type getCertificateTemplateRequest struct {
-	ID uint `url:"id"`
-}
-
-type getCertificateTemplateResponse struct {
-	Certificate *fleet.CertificateTemplateResponse `json:"certificate"`
-	Err         error                              `json:"error,omitempty"`
-}
-
-func (r getCertificateTemplateResponse) Error() error { return r.Err }
-
 func getCertificateTemplateEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
-	req := request.(*getCertificateTemplateRequest)
+	req := request.(*fleet.GetCertificateTemplateRequest)
 	certificate, err := svc.GetCertificateTemplate(ctx, req.ID)
 	if err != nil {
-		return getCertificateTemplateResponse{Err: err}, nil
+		return fleet.GetCertificateTemplateResponse{Err: err}, nil
 	}
-	return getCertificateTemplateResponse{Certificate: certificate}, nil
+	return fleet.GetCertificateTemplateResponse{Certificate: certificate}, nil
 }
 
 func (svc *Service) GetCertificateTemplate(ctx context.Context, id uint) (*fleet.CertificateTemplateResponse, error) {
@@ -307,22 +253,13 @@ func (svc *Service) GetCertificateTemplate(ctx context.Context, id uint) (*fleet
 	return certificate, nil
 }
 
-type deleteCertificateTemplateRequest struct {
-	ID uint `url:"id"`
-}
-type deleteCertificateTemplateResponse struct {
-	Err error `json:"error,omitempty"`
-}
-
-func (r deleteCertificateTemplateResponse) Error() error { return r.Err }
-
 func deleteCertificateTemplateEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
-	req := request.(*deleteCertificateTemplateRequest)
+	req := request.(*fleet.DeleteCertificateTemplateRequest)
 	err := svc.DeleteCertificateTemplate(ctx, req.ID)
 	if err != nil {
-		return deleteCertificateTemplateResponse{Err: err}, nil
+		return fleet.DeleteCertificateTemplateResponse{Err: err}, nil
 	}
-	return deleteCertificateTemplateResponse{}, nil
+	return fleet.DeleteCertificateTemplateResponse{}, nil
 }
 
 func (svc *Service) DeleteCertificateTemplate(ctx context.Context, certificateTemplateID uint) error {
@@ -367,23 +304,13 @@ func (svc *Service) DeleteCertificateTemplate(ctx context.Context, certificateTe
 	return nil
 }
 
-type applyCertificateTemplateSpecsRequest struct {
-	Specs []*fleet.CertificateRequestSpec `json:"specs"`
-}
-
-type applyCertificateTemplateSpecsResponse struct {
-	Err error `json:"error,omitempty"`
-}
-
-func (r applyCertificateTemplateSpecsResponse) Error() error { return r.Err }
-
 func applyCertificateTemplateSpecsEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
-	req := request.(*applyCertificateTemplateSpecsRequest)
+	req := request.(*fleet.ApplyCertificateTemplateSpecsRequest)
 	err := svc.ApplyCertificateTemplateSpecs(ctx, req.Specs)
 	if err != nil {
-		return applyCertificateTemplateSpecsResponse{Err: err}, nil
+		return fleet.ApplyCertificateTemplateSpecsResponse{Err: err}, nil
 	}
-	return applyCertificateTemplateSpecsResponse{}, nil
+	return fleet.ApplyCertificateTemplateSpecsResponse{}, nil
 }
 
 func (svc *Service) resolveTeamNamesForSpecs(ctx context.Context, specs []*fleet.CertificateRequestSpec) (map[string]uint, error) {
@@ -522,24 +449,13 @@ func (svc *Service) ApplyCertificateTemplateSpecs(ctx context.Context, specs []*
 	return nil
 }
 
-type deleteCertificateTemplateSpecsRequest struct {
-	IDs    []uint `json:"ids"`
-	TeamID uint   `json:"team_id" renameto:"fleet_id"` // If not provided, intentionally defaults to 0 aka "No team"
-}
-
-type deleteCertificateTemplateSpecsResponse struct {
-	Err error `json:"error,omitempty"`
-}
-
-func (r deleteCertificateTemplateSpecsResponse) Error() error { return r.Err }
-
 func deleteCertificateTemplateSpecsEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
-	req := request.(*deleteCertificateTemplateSpecsRequest)
+	req := request.(*fleet.DeleteCertificateTemplateSpecsRequest)
 	err := svc.DeleteCertificateTemplateSpecs(ctx, req.IDs, req.TeamID)
 	if err != nil {
-		return deleteCertificateTemplateSpecsResponse{Err: err}, nil
+		return fleet.DeleteCertificateTemplateSpecsResponse{Err: err}, nil
 	}
-	return deleteCertificateTemplateSpecsResponse{}, nil
+	return fleet.DeleteCertificateTemplateSpecsResponse{}, nil
 }
 
 func (svc *Service) DeleteCertificateTemplateSpecs(ctx context.Context, certificateTemplateIDs []uint, teamID uint) error {
@@ -604,28 +520,8 @@ func (svc *Service) DeleteCertificateTemplateSpecs(ctx context.Context, certific
 	return nil
 }
 
-type updateCertificateStatusRequest struct {
-	CertificateTemplateID uint   `url:"id"`
-	Status                string `json:"status"`
-	// OperationType is optional and defaults to "install" if not provided.
-	OperationType *string `json:"operation_type,omitempty"`
-	// Detail provides additional information about the status change.
-	// For example, it can be used to provide a reason for a failed status change.
-	Detail *string `json:"detail,omitempty"`
-	// Certificate validity fields - reported by device after successful enrollment
-	NotValidBefore *time.Time `json:"not_valid_before,omitempty"`
-	NotValidAfter  *time.Time `json:"not_valid_after,omitempty"`
-	Serial         *string    `json:"serial,omitempty"`
-}
-
-type updateCertificateStatusResponse struct {
-	Err error `json:"error,omitempty"`
-}
-
-func (r updateCertificateStatusResponse) Error() error { return r.Err }
-
 func updateCertificateStatusEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
-	req, ok := request.(*updateCertificateStatusRequest)
+	req, ok := request.(*fleet.UpdateCertificateStatusRequest)
 	if !ok {
 		return nil, errors.New("invalid request")
 	}
@@ -646,10 +542,10 @@ func updateCertificateStatusEndpoint(ctx context.Context, request interface{}, s
 		Serial:                req.Serial,
 	})
 	if err != nil {
-		return updateCertificateStatusResponse{Err: err}, nil
+		return fleet.UpdateCertificateStatusResponse{Err: err}, nil
 	}
 
-	return updateCertificateStatusResponse{}, nil
+	return fleet.UpdateCertificateStatusResponse{}, nil
 }
 
 func (svc *Service) UpdateCertificateStatus(ctx context.Context, update *fleet.CertificateStatusUpdate) error {

@@ -8,8 +8,8 @@ import (
 	"slices"
 	"strings"
 
+	fleetclient "github.com/fleetdm/fleet/v4/client"
 	"github.com/fleetdm/fleet/v4/server/fleet"
-	"github.com/fleetdm/fleet/v4/server/service"
 	kithttp "github.com/go-kit/kit/transport/http"
 	"github.com/urfave/cli/v2"
 )
@@ -95,7 +95,7 @@ func mdmRunCommand() *cli.Command {
 			for _, ident := range hostIdents {
 				host, err := client.HostByIdentifier(ident)
 				if err != nil {
-					var nfe service.NotFoundErr
+					var nfe fleetclient.NotFoundErr
 					if errors.As(err, &nfe) {
 						notFoundCount++
 						continue
@@ -130,7 +130,7 @@ func mdmRunCommand() *cli.Command {
 
 			result, err := client.RunMDMCommand(hostUUIDs, payload, mdmPlatform)
 			if err != nil {
-				if errors.Is(err, service.ErrMissingLicense) && mdmPlatform == "windows" {
+				if errors.Is(err, fleetclient.ErrMissingLicense) && mdmPlatform == "windows" {
 					return errors.New(fleet.WindowsMDMRequiresPremiumCmdMessage)
 				}
 
@@ -285,7 +285,7 @@ fleetctl get host %s`, hostIdent)
 // Does some common setup for the host mdm actions such as validating the host,
 // creating the client, getting the desired host, checking permissions, and
 // ensuring MDM is turned on for the host.
-func hostMdmActionSetup(c *cli.Context, hostIdent string, actionType string) (client *service.Client, host *service.HostDetailResponse, err error) {
+func hostMdmActionSetup(c *cli.Context, hostIdent string, actionType string) (client *fleetclient.Client, host *fleet.HostDetailResponse, err error) {
 	if len(hostIdent) == 0 {
 		return nil, nil, errors.New("No host targeted. Please provide --host.")
 	}
@@ -297,7 +297,7 @@ func hostMdmActionSetup(c *cli.Context, hostIdent string, actionType string) (cl
 
 	host, err = client.HostByIdentifier(hostIdent)
 	if err != nil {
-		var nfe service.NotFoundErr
+		var nfe fleetclient.NotFoundErr
 		if errors.As(err, &nfe) {
 			return nil, nil, errors.New(fleet.HostNotFoundErrMsg)
 		}

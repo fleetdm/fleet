@@ -74,7 +74,7 @@ func (s *integrationLoggerTestSuite) TestLogger() {
 		"query":       "select 1 from osquery;",
 		"fleet_id":    nil,
 	}
-	var createResp createQueryResponse
+	var createResp fleet.CreateQueryResponse
 	s.DoJSON("POST", "/api/latest/fleet/queries", params, http.StatusOK, &createResp)
 
 	records := s.handler.Records()
@@ -146,7 +146,7 @@ func (s *integrationLoggerTestSuite) TestLoggerLogin() {
 			},
 		},
 	}
-	var resp loginResponse
+	var resp fleet.LoginResponse
 	for _, tt := range testCases {
 		s.DoJSON("POST", "/api/latest/fleet/login", tt.loginRequest, tt.expectedStatus, &resp)
 
@@ -250,31 +250,31 @@ func (s *integrationLoggerTestSuite) TestSubmitLog() {
 	}
 
 	// submit status logs
-	req := submitLogsRequest{
+	req := fleet.SubmitLogsRequest{
 		NodeKey: *h.NodeKey,
 		LogType: "status",
 		Data:    nil,
 	}
-	res := submitLogsResponse{}
+	res := fleet.SubmitLogsResponse{}
 	s.DoJSON("POST", "/api/osquery/log", req, http.StatusOK, &res)
 
 	assertIPAddrLogged(s.handler.Records())
 	s.handler.Clear()
 
 	// submit results logs
-	req = submitLogsRequest{
+	req = fleet.SubmitLogsRequest{
 		NodeKey: *h.NodeKey,
 		LogType: "result",
 		Data:    nil,
 	}
-	res = submitLogsResponse{}
+	res = fleet.SubmitLogsResponse{}
 	s.DoJSON("POST", "/api/osquery/log", req, http.StatusOK, &res)
 
 	assertIPAddrLogged(s.handler.Records())
 	s.handler.Clear()
 
 	// submit invalid type logs
-	req = submitLogsRequest{
+	req = fleet.SubmitLogsRequest{
 		NodeKey: *h.NodeKey,
 		LogType: "unknown",
 		Data:    nil,

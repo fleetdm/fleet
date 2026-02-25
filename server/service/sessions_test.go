@@ -194,7 +194,7 @@ func TestMFA(t *testing.T) {
 		}
 		return nil, nil, notFoundErr{}
 	}
-	resp, err := sessionCreateEndpoint(ctx, &sessionCreateRequest{Token: "foo"}, svc)
+	resp, err := sessionCreateEndpoint(ctx, &fleet.SessionCreateRequest{Token: "foo"}, svc)
 	require.NoError(t, err)
 	require.NotNil(t, resp.Error())
 
@@ -205,7 +205,7 @@ func TestMFA(t *testing.T) {
 		require.Equal(t, fleet.ActivityTypeUserLoggedIn{}.ActivityName(), activity.ActivityName())
 		return nil
 	}
-	resp, err = sessionCreateEndpoint(ctx, &sessionCreateRequest{Token: mfaToken}, svc)
+	resp, err = sessionCreateEndpoint(ctx, &fleet.SessionCreateRequest{Token: mfaToken}, svc)
 	require.NoError(t, err)
 	require.Nil(t, resp.Error())
 	require.True(t, ds.NewActivityFuncInvoked)

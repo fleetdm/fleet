@@ -45,7 +45,7 @@ func (s *integrationMDMTestSuite) TestSetupExperienceScript() {
 	require.NoError(t, err)
 
 	// create new team script
-	var newScriptResp setSetupExperienceScriptResponse
+	var newScriptResp fleet.SetSetupExperienceScriptResponse
 	body, headers := generateNewScriptMultipartRequest(t,
 		"script42.sh", []byte(`echo "hello"`), s.token, map[string][]string{"team_id": {fmt.Sprintf("%d", tm.ID)}})
 	res := s.DoRawWithHeaders("POST", "/api/latest/fleet/setup_experience/script", body.Bytes(), http.StatusOK, headers)
@@ -58,7 +58,7 @@ func (s *integrationMDMTestSuite) TestSetupExperienceScript() {
 	s.DoRawWithHeaders("POST", "/api/latest/fleet/setup_experience/script", body.Bytes(), http.StatusUnprocessableEntity, headers)
 
 	// get team script metadata
-	var getScriptResp getSetupExperienceScriptResponse
+	var getScriptResp fleet.GetSetupExperienceScriptResponse
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/setup_experience/script?team_id=%d", tm.ID), nil, http.StatusOK, &getScriptResp)
 	require.Equal(t, "script42.sh", getScriptResp.Name)
 	require.NotNil(t, getScriptResp.TeamID)
@@ -155,7 +155,7 @@ func (s *integrationMDMTestSuite) createTeamDeviceForSetupExperienceWithProfileS
 
 	// add a team profile
 	teamProfile := mobileconfigForTest("N1", "I1")
-	s.Do("POST", "/api/v1/fleet/mdm/apple/profiles/batch", batchSetMDMAppleProfilesRequest{Profiles: [][]byte{teamProfile}}, http.StatusNoContent, "team_id", fmt.Sprint(tm.ID))
+	s.Do("POST", "/api/v1/fleet/mdm/apple/profiles/batch", fleet.BatchSetMDMAppleProfilesRequest{Profiles: [][]byte{teamProfile}}, http.StatusNoContent, "team_id", fmt.Sprint(tm.ID))
 
 	// add a macOS software to install
 	payloadDummy := &fleet.UploadSoftwareInstallerPayload{
@@ -166,8 +166,8 @@ func (s *integrationMDMTestSuite) createTeamDeviceForSetupExperienceWithProfileS
 	}
 	s.uploadSoftwareInstaller(t, payloadDummy, http.StatusOK, "")
 	titleID := getSoftwareTitleID(t, s.ds, payloadDummy.Title, "apps")
-	var swInstallResp putSetupExperienceSoftwareResponse
-	s.DoJSON("PUT", "/api/v1/fleet/setup_experience/software", putSetupExperienceSoftwareRequest{TeamID: tm.ID, TitleIDs: []uint{titleID}}, http.StatusOK, &swInstallResp)
+	var swInstallResp fleet.PutSetupExperienceSoftwareResponse
+	s.DoJSON("PUT", "/api/v1/fleet/setup_experience/software", fleet.PutSetupExperienceSoftwareRequest{TeamID: tm.ID, TitleIDs: []uint{titleID}}, http.StatusOK, &swInstallResp)
 
 	s.lastActivityOfTypeMatches(fleet.ActivityEditedSetupExperienceSoftware{}.ActivityName(),
 		fmt.Sprintf(`{"platform": "darwin", "fleet_id": %d, "fleet_name": "%s", "team_id": %d, "team_name": "%s"}`, tm.ID, tm.Name, tm.ID, tm.Name), 0)
@@ -225,7 +225,7 @@ func (s *integrationMDMTestSuite) createTeamDeviceForSetupExperienceWithProfileS
 	s.runDEPSchedule()
 
 	// the (ghost) host now exists
-	listHostsRes := listHostsResponse{}
+	listHostsRes := fleet.ListHostsResponse{}
 	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &listHostsRes)
 	require.Len(t, listHostsRes.Hosts, 1)
 	require.Equal(t, listHostsRes.Hosts[0].HardwareSerial, teamDevice.SerialNumber)
@@ -234,7 +234,7 @@ func (s *integrationMDMTestSuite) createTeamDeviceForSetupExperienceWithProfileS
 
 	// transfer it to the team
 	s.Do("POST", "/api/v1/fleet/hosts/transfer",
-		addHostsToTeamRequest{TeamID: &tm.ID, HostIDs: []uint{enrolledHost.ID}}, http.StatusOK)
+		fleet.AddHostsToTeamRequest{TeamID: &tm.ID, HostIDs: []uint{enrolledHost.ID}}, http.StatusOK)
 
 	return teamDevice, enrolledHost, tm
 }
@@ -332,7 +332,7 @@ func (s *integrationMDMTestSuite) TestSetupExperienceFlowWithSoftwareAndScriptAu
 	require.Len(t, pending, 0)
 
 	// call the /status endpoint, the software and script should be pending
-	var statusResp getOrbitSetupExperienceStatusResponse
+	var statusResp fleet.GetOrbitSetupExperienceStatusResponse
 	s.DoJSON("POST", "/api/fleet/orbit/setup_experience/status", json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q}`, *enrolledHost.OrbitNodeKey)), http.StatusOK, &statusResp)
 	require.Nil(t, statusResp.Results.BootstrapPackage)         // no bootstrap package involved
 	require.Nil(t, statusResp.Results.AccountConfiguration)     // no SSO involved
@@ -371,7 +371,7 @@ func (s *integrationMDMTestSuite) TestSetupExperienceFlowWithSoftwareAndScriptAu
 	require.NotEmpty(t, installUUID)
 
 	// Need to get the software title to get the package name
-	var getSoftwareTitleResp getSoftwareTitleResponse
+	var getSoftwareTitleResp fleet.GetSoftwareTitleResponse
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d", *statusResp.Results.Software[0].SoftwareTitleID), nil, http.StatusOK, &getSoftwareTitleResp, "team_id", fmt.Sprintf("%d", *enrolledHost.TeamID))
 	require.NotNil(t, getSoftwareTitleResp.SoftwareTitle)
 	require.NotNil(t, getSoftwareTitleResp.SoftwareTitle.SoftwarePackage)
@@ -386,7 +386,7 @@ func (s *integrationMDMTestSuite) TestSetupExperienceFlowWithSoftwareAndScriptAu
 
 	// Check upcoming activities: we should only have the software upcoming because we don't run the
 	// script until after the software is done
-	var hostActivitiesResp listHostUpcomingActivitiesResponse
+	var hostActivitiesResp fleet.ListHostUpcomingActivitiesResponse
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/activities/upcoming", enrolledHost.ID),
 		nil, http.StatusOK, &hostActivitiesResp)
 
@@ -413,7 +413,7 @@ func (s *integrationMDMTestSuite) TestSetupExperienceFlowWithSoftwareAndScriptAu
 	require.NoError(t, err)
 	require.Nil(t, cmd)
 
-	statusResp = getOrbitSetupExperienceStatusResponse{}
+	statusResp = fleet.GetOrbitSetupExperienceStatusResponse{}
 	s.DoJSON("POST", "/api/fleet/orbit/setup_experience/status", json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q}`, *enrolledHost.OrbitNodeKey)), http.StatusOK, &statusResp)
 	// Software is now running, script is still pending
 	require.Equal(t, "DummyApp", statusResp.Results.Software[0].Name)
@@ -435,7 +435,7 @@ func (s *integrationMDMTestSuite) TestSetupExperienceFlowWithSoftwareAndScriptAu
 				}`, *enrolledHost.OrbitNodeKey, installUUID)), http.StatusNoContent)
 
 	// status still shows script as pending
-	statusResp = getOrbitSetupExperienceStatusResponse{}
+	statusResp = fleet.GetOrbitSetupExperienceStatusResponse{}
 	s.DoJSON("POST", "/api/fleet/orbit/setup_experience/status", json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q}`, *enrolledHost.OrbitNodeKey)), http.StatusOK, &statusResp)
 	require.Nil(t, statusResp.Results.BootstrapPackage)         // no bootstrap package involved
 	require.Nil(t, statusResp.Results.AccountConfiguration)     // no SSO involved
@@ -453,7 +453,7 @@ func (s *integrationMDMTestSuite) TestSetupExperienceFlowWithSoftwareAndScriptAu
 	require.Nil(t, cmd)
 
 	// Software is installed, now we should run the script
-	statusResp = getOrbitSetupExperienceStatusResponse{}
+	statusResp = fleet.GetOrbitSetupExperienceStatusResponse{}
 	s.DoJSON("POST", "/api/fleet/orbit/setup_experience/status", json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q}`, *enrolledHost.OrbitNodeKey)), http.StatusOK, &statusResp)
 	require.Equal(t, "DummyApp", statusResp.Results.Software[0].Name)
 	require.Equal(t, fleet.SetupExperienceStatusSuccess, statusResp.Results.Software[0].Status)
@@ -478,7 +478,7 @@ func (s *integrationMDMTestSuite) TestSetupExperienceFlowWithSoftwareAndScriptAu
 	// For some reason the display name that's included in the `enrolledHost` is _slightly_
 	// different than the expected value in the activities. Pulling the host directly gets the
 	// correct display name.
-	var getHostResp getHostResponse
+	var getHostResp fleet.GetHostResponse
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", enrolledHost.ID), nil, http.StatusOK, &getHostResp)
 
 	expectedActivityDetail = fmt.Sprintf(`
@@ -519,14 +519,14 @@ func (s *integrationMDMTestSuite) TestSetupExperienceFlowWithSoftwareAndScriptAu
 	require.JSONEq(t, expectedActivityDetail, string(*hostActivitiesResp.Activities[0].Details))
 
 	// record a result for script execution
-	var scriptResp orbitPostScriptResultResponse
+	var scriptResp fleet.OrbitPostScriptResultResponse
 	s.DoJSON("POST", "/api/fleet/orbit/scripts/result",
 		json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q, "execution_id": %q, "exit_code": 0, "output": "ok"}`, *enrolledHost.OrbitNodeKey, execID)),
 		http.StatusOK, &scriptResp)
 
 	// Get status again, now the script should be complete. This should also trigger the automatic
 	// release of the device, as all setup experience steps are now complete.
-	statusResp = getOrbitSetupExperienceStatusResponse{}
+	statusResp = fleet.GetOrbitSetupExperienceStatusResponse{}
 	s.DoJSON("POST", "/api/fleet/orbit/setup_experience/status", json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q}`, *enrolledHost.OrbitNodeKey)), http.StatusOK, &statusResp)
 	require.Equal(t, "DummyApp", statusResp.Results.Software[0].Name)
 	require.Equal(t, fleet.SetupExperienceStatusSuccess, statusResp.Results.Software[0].Status)
@@ -670,7 +670,7 @@ func (s *integrationMDMTestSuite) TestSetupExperienceFlowWithSoftwareAndScriptFo
 	require.Len(t, pending, 0)
 
 	// call the /status endpoint, the software and script should be pending
-	var statusResp getOrbitSetupExperienceStatusResponse
+	var statusResp fleet.GetOrbitSetupExperienceStatusResponse
 	s.DoJSON("POST", "/api/fleet/orbit/setup_experience/status", json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q}`, *enrolledHost.OrbitNodeKey)), http.StatusOK, &statusResp)
 	require.Nil(t, statusResp.Results.BootstrapPackage)         // no bootstrap package involved
 	require.Nil(t, statusResp.Results.AccountConfiguration)     // no SSO involved
@@ -747,11 +747,11 @@ func (s *integrationMDMTestSuite) TestSetupExperienceVPPInstallError() {
 	expDate := expTime.Format(fleet.VPPTimeFormat)
 	tokenJSON := fmt.Sprintf(`{"expDate":"%s","token":"%s","orgName":"%s"}`, expDate, token, orgName)
 	dev_mode.SetOverride("FLEET_DEV_VPP_URL", s.appleVPPConfigSrv.URL, t)
-	var validToken uploadVPPTokenResponse
+	var validToken fleet.UploadVPPTokenResponse
 	s.uploadDataViaForm("/api/latest/fleet/vpp_tokens", "token", "token.vpptoken", []byte(base64.StdEncoding.EncodeToString([]byte(tokenJSON))), http.StatusAccepted, "", &validToken)
 
-	var getVPPTokenResp getVPPTokensResponse
-	s.DoJSON("GET", "/api/latest/fleet/vpp_tokens", &getVPPTokensRequest{}, http.StatusOK, &getVPPTokenResp)
+	var getVPPTokenResp fleet.GetVPPTokensResponse
+	s.DoJSON("GET", "/api/latest/fleet/vpp_tokens", &fleet.GetVPPTokensRequest{}, http.StatusOK, &getVPPTokenResp)
 
 	// Add an app with 0 licenses available
 	s.appleVPPConfigSrvConfig.Assets = append(s.appleVPPConfigSrvConfig.Assets, vpp.Asset{
@@ -765,17 +765,17 @@ func (s *integrationMDMTestSuite) TestSetupExperienceVPPInstallError() {
 	})
 
 	// Associate team to the VPP token.
-	var resPatchVPP patchVPPTokensTeamsResponse
-	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/vpp_tokens/%d/teams", getVPPTokenResp.Tokens[0].ID), patchVPPTokensTeamsRequest{TeamIDs: []uint{team.ID}}, http.StatusOK, &resPatchVPP)
+	var resPatchVPP fleet.PatchVPPTokensTeamsResponse
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/vpp_tokens/%d/teams", getVPPTokenResp.Tokens[0].ID), fleet.PatchVPPTokensTeamsRequest{TeamIDs: []uint{team.ID}}, http.StatusOK, &resPatchVPP)
 
 	// Add the app with 0 licenses available
-	s.Do("POST", "/api/latest/fleet/software/app_store_apps", &addAppStoreAppRequest{TeamID: &team.ID, AppStoreID: "5", SelfService: true}, http.StatusOK)
+	s.Do("POST", "/api/latest/fleet/software/app_store_apps", &fleet.AddAppStoreAppRequest{TeamID: &team.ID, AppStoreID: "5", SelfService: true}, http.StatusOK)
 
 	// Add the VPP app to setup experience
 	vppTitleID := getSoftwareTitleID(t, s.ds, "App 5", "apps")
 	installerTitleID := getSoftwareTitleID(t, s.ds, "DummyApp", "apps")
-	var swInstallResp putSetupExperienceSoftwareResponse
-	s.DoJSON("PUT", "/api/v1/fleet/setup_experience/software", putSetupExperienceSoftwareRequest{TeamID: team.ID, TitleIDs: []uint{vppTitleID, installerTitleID}}, http.StatusOK, &swInstallResp)
+	var swInstallResp fleet.PutSetupExperienceSoftwareResponse
+	s.DoJSON("PUT", "/api/v1/fleet/setup_experience/software", fleet.PutSetupExperienceSoftwareRequest{TeamID: team.ID, TitleIDs: []uint{vppTitleID, installerTitleID}}, http.StatusOK, &swInstallResp)
 
 	// enroll the host
 	depURLToken := loadEnrollmentProfileDEPToken(t, s.ds)
@@ -849,7 +849,7 @@ func (s *integrationMDMTestSuite) TestSetupExperienceVPPInstallError() {
 	require.Len(t, pending, 0)
 
 	// call the /status endpoint, the software and script should be pending
-	var statusResp getOrbitSetupExperienceStatusResponse
+	var statusResp fleet.GetOrbitSetupExperienceStatusResponse
 	s.DoJSON("POST", "/api/fleet/orbit/setup_experience/status", json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q}`, *enrolledHost.OrbitNodeKey)), http.StatusOK, &statusResp)
 	require.Nil(t, statusResp.Results.BootstrapPackage)         // no bootstrap package involved
 	require.Nil(t, statusResp.Results.AccountConfiguration)     // no SSO involved
@@ -893,7 +893,7 @@ func (s *integrationMDMTestSuite) TestSetupExperienceVPPInstallError() {
 	require.NotEmpty(t, installUUID)
 
 	// Need to get the software title to get the package name
-	var getSoftwareTitleResp getSoftwareTitleResponse
+	var getSoftwareTitleResp fleet.GetSoftwareTitleResponse
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d", *statusResp.Results.Software[0].SoftwareTitleID), nil, http.StatusOK, &getSoftwareTitleResp, "team_id", fmt.Sprintf("%d", *enrolledHost.TeamID))
 	require.NotNil(t, getSoftwareTitleResp.SoftwareTitle)
 	require.NotNil(t, getSoftwareTitleResp.SoftwareTitle.SoftwarePackage)
@@ -907,7 +907,7 @@ func (s *integrationMDMTestSuite) TestSetupExperienceVPPInstallError() {
 					"install_script_output": "ok"
 				}`, *enrolledHost.OrbitNodeKey, installUUID)), http.StatusNoContent)
 
-	statusResp = getOrbitSetupExperienceStatusResponse{}
+	statusResp = fleet.GetOrbitSetupExperienceStatusResponse{}
 	s.DoJSON("POST", "/api/fleet/orbit/setup_experience/status", json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q}`, *enrolledHost.OrbitNodeKey)), http.StatusOK, &statusResp)
 	require.Nil(t, statusResp.Results.BootstrapPackage)         // no bootstrap package involved
 	require.Nil(t, statusResp.Results.AccountConfiguration)     // no SSO involved
@@ -924,7 +924,7 @@ func (s *integrationMDMTestSuite) TestSetupExperienceVPPInstallError() {
 	require.Equal(t, fleet.SetupExperienceStatusFailure, statusResp.Results.Software[1].Status)
 
 	// Software installations are done, now we should run the script
-	statusResp = getOrbitSetupExperienceStatusResponse{}
+	statusResp = fleet.GetOrbitSetupExperienceStatusResponse{}
 	s.DoJSON("POST", "/api/fleet/orbit/setup_experience/status", json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q}`, *enrolledHost.OrbitNodeKey)), http.StatusOK, &statusResp)
 	require.Equal(t, "DummyApp", statusResp.Results.Software[0].Name)
 	require.Equal(t, fleet.SetupExperienceStatusSuccess, statusResp.Results.Software[0].Status)
@@ -948,14 +948,14 @@ func (s *integrationMDMTestSuite) TestSetupExperienceVPPInstallError() {
 	}
 
 	// record a result for script execution
-	var scriptResp orbitPostScriptResultResponse
+	var scriptResp fleet.OrbitPostScriptResultResponse
 	s.DoJSON("POST", "/api/fleet/orbit/scripts/result",
 		json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q, "execution_id": %q, "exit_code": 0, "output": "ok"}`, *enrolledHost.OrbitNodeKey, execID)),
 		http.StatusOK, &scriptResp)
 
 	// Get status again, now the script should be complete. This should also trigger the automatic
 	// release of the device, as all setup experience steps are now complete.
-	statusResp = getOrbitSetupExperienceStatusResponse{}
+	statusResp = fleet.GetOrbitSetupExperienceStatusResponse{}
 	s.DoJSON("POST", "/api/fleet/orbit/setup_experience/status", json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q}`, *enrolledHost.OrbitNodeKey)), http.StatusOK, &statusResp)
 	require.Equal(t, "DummyApp", statusResp.Results.Software[0].Name)
 	require.Equal(t, fleet.SetupExperienceStatusSuccess, statusResp.Results.Software[0].Status)
@@ -1037,7 +1037,7 @@ func (s *integrationMDMTestSuite) TestSetupExperienceFlowUpdateScript() {
 	host.OrbitNodeKey = &orbitKey
 
 	// call the /status endpoint, the software and script should be pending
-	var statusResp getOrbitSetupExperienceStatusResponse
+	var statusResp fleet.GetOrbitSetupExperienceStatusResponse
 	s.DoJSON("POST", "/api/fleet/orbit/setup_experience/status", json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q}`, *host.OrbitNodeKey)), http.StatusOK, &statusResp)
 	require.Nil(t, statusResp.Results.BootstrapPackage)         // no bootstrap package involved
 	require.Nil(t, statusResp.Results.AccountConfiguration)     // no SSO involved
@@ -1069,7 +1069,7 @@ func (s *integrationMDMTestSuite) TestSetupExperienceFlowUpdateScript() {
 
 	// Check upcoming activities: we should only have the software upcoming because we don't run the
 	// script until after the software is done
-	var hostActivitiesResp listHostUpcomingActivitiesResponse
+	var hostActivitiesResp fleet.ListHostUpcomingActivitiesResponse
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/activities/upcoming", host.ID),
 		nil, http.StatusOK, &hostActivitiesResp)
 	require.Len(t, hostActivitiesResp.Activities, 1)
@@ -1081,7 +1081,7 @@ func (s *integrationMDMTestSuite) TestSetupExperienceFlowUpdateScript() {
 	require.Nil(t, cmd)
 
 	// call the /status endpoint, the software is now running and script should be pending
-	statusResp = getOrbitSetupExperienceStatusResponse{}
+	statusResp = fleet.GetOrbitSetupExperienceStatusResponse{}
 	s.DoJSON("POST", "/api/fleet/orbit/setup_experience/status", json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q}`, *host.OrbitNodeKey)), http.StatusOK, &statusResp)
 	require.Nil(t, statusResp.Results.BootstrapPackage)         // no bootstrap package involved
 	require.Nil(t, statusResp.Results.AccountConfiguration)     // no SSO involved
@@ -1108,7 +1108,7 @@ func (s *integrationMDMTestSuite) TestSetupExperienceFlowUpdateScript() {
 	s.DoRawWithHeaders("POST", "/api/latest/fleet/setup_experience/script", body.Bytes(), http.StatusOK, headers)
 
 	// call the /status endpoint, the software is still running and script should still be pending
-	statusResp = getOrbitSetupExperienceStatusResponse{}
+	statusResp = fleet.GetOrbitSetupExperienceStatusResponse{}
 	s.DoJSON("POST", "/api/fleet/orbit/setup_experience/status", json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q}`, *host.OrbitNodeKey)), http.StatusOK, &statusResp)
 	require.Nil(t, statusResp.Results.BootstrapPackage)         // no bootstrap package involved
 	require.Nil(t, statusResp.Results.AccountConfiguration)     // no SSO involved
@@ -1130,7 +1130,7 @@ func (s *integrationMDMTestSuite) TestSetupExperienceFlowUpdateScript() {
 	s.DoRawWithHeaders("POST", "/api/latest/fleet/setup_experience/script", body.Bytes(), http.StatusOK, headers)
 
 	// call the /status endpoint, software is running, script is removed as it got cancelled by the update
-	statusResp = getOrbitSetupExperienceStatusResponse{}
+	statusResp = fleet.GetOrbitSetupExperienceStatusResponse{}
 	s.DoJSON("POST", "/api/fleet/orbit/setup_experience/status", json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q}`, *host.OrbitNodeKey)), http.StatusOK, &statusResp)
 	require.Nil(t, statusResp.Results.BootstrapPackage)         // no bootstrap package involved
 	require.Nil(t, statusResp.Results.AccountConfiguration)     // no SSO involved
@@ -1167,7 +1167,7 @@ func (s *integrationMDMTestSuite) TestSetupExperienceFlowUpdateScript() {
 				}`, *host.OrbitNodeKey, installUUIDs[0])), http.StatusNoContent)
 
 	// Check the setup experience status endpoint to advance the status
-	statusResp = getOrbitSetupExperienceStatusResponse{}
+	statusResp = fleet.GetOrbitSetupExperienceStatusResponse{}
 	s.DoJSON("POST", "/api/fleet/orbit/setup_experience/status", json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q}`, *host.OrbitNodeKey)), http.StatusOK, &statusResp)
 
 	// check that the host received the device configured command automatically
@@ -1227,7 +1227,7 @@ func (s *integrationMDMTestSuite) TestSetupExperienceFlowCancelScript() {
 	host.OrbitNodeKey = &orbitKey
 
 	// call the /status endpoint, the software and script should be pending
-	var statusResp getOrbitSetupExperienceStatusResponse
+	var statusResp fleet.GetOrbitSetupExperienceStatusResponse
 	s.DoJSON("POST", "/api/fleet/orbit/setup_experience/status", json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q}`, *host.OrbitNodeKey)), http.StatusOK, &statusResp)
 	require.Nil(t, statusResp.Results.BootstrapPackage)         // no bootstrap package involved
 	require.Nil(t, statusResp.Results.AccountConfiguration)     // no SSO involved
@@ -1259,7 +1259,7 @@ func (s *integrationMDMTestSuite) TestSetupExperienceFlowCancelScript() {
 
 	// Check upcoming activities: we should only have the software upcoming because we don't run the
 	// script until after the software is done
-	var hostActivitiesResp listHostUpcomingActivitiesResponse
+	var hostActivitiesResp fleet.ListHostUpcomingActivitiesResponse
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/activities/upcoming", host.ID),
 		nil, http.StatusOK, &hostActivitiesResp)
 	require.Len(t, hostActivitiesResp.Activities, 1)
@@ -1498,20 +1498,20 @@ func (s *integrationMDMTestSuite) TestSetupExperienceWithLotsOfVPPApps() {
 		macOSApp6.Name: macOSApp6,
 	}
 
-	var addAppResp addAppStoreAppResponse
+	var addAppResp fleet.AddAppStoreAppResponse
 	// Add remaining as non-self-service
 	var titleIDs []uint
 	for _, app := range expectedApps {
-		addAppResp = addAppStoreAppResponse{}
+		addAppResp = fleet.AddAppStoreAppResponse{}
 		s.DoJSON("POST", "/api/latest/fleet/software/app_store_apps",
-			&addAppStoreAppRequest{TeamID: enrolledHost.TeamID, AppStoreID: app.AdamID, Platform: app.Platform},
+			&fleet.AddAppStoreAppRequest{TeamID: enrolledHost.TeamID, AppStoreID: app.AdamID, Platform: app.Platform},
 			http.StatusOK, &addAppResp)
 		titleIDs = append(titleIDs, getSoftwareTitleIDFromApp(app))
 	}
 
 	// Add VPP apps to setup experience
-	var swInstallResp putSetupExperienceSoftwareResponse
-	s.DoJSON("PUT", "/api/v1/fleet/setup_experience/software", putSetupExperienceSoftwareRequest{TeamID: *enrolledHost.TeamID, TitleIDs: titleIDs}, http.StatusOK, &swInstallResp)
+	var swInstallResp fleet.PutSetupExperienceSoftwareResponse
+	s.DoJSON("PUT", "/api/v1/fleet/setup_experience/software", fleet.PutSetupExperienceSoftwareRequest{TeamID: *enrolledHost.TeamID, TitleIDs: titleIDs}, http.StatusOK, &swInstallResp)
 
 	// enroll the host
 	depURLToken := loadEnrollmentProfileDEPToken(t, s.ds)
@@ -1599,7 +1599,7 @@ func (s *integrationMDMTestSuite) TestSetupExperienceWithLotsOfVPPApps() {
 	require.Len(t, pending, 0)
 
 	// call the /status endpoint, the software and script should be pending
-	var statusResp getOrbitSetupExperienceStatusResponse
+	var statusResp fleet.GetOrbitSetupExperienceStatusResponse
 	s.DoJSON("POST", "/api/fleet/orbit/setup_experience/status", json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q}`, *enrolledHost.OrbitNodeKey)), http.StatusOK, &statusResp)
 	require.Nil(t, statusResp.Results.BootstrapPackage)         // no bootstrap package involved
 	require.Nil(t, statusResp.Results.AccountConfiguration)     // no SSO involved
@@ -1818,20 +1818,20 @@ func (s *integrationMDMTestSuite) TestSetupExperienceEndpointsWithPlatform() {
 	}
 	s.uploadSoftwareInstaller(t, payloadDummy, http.StatusOK, "")
 	titleID := getSoftwareTitleID(t, s.ds, payloadDummy.Title, "apps")
-	var swInstallResp putSetupExperienceSoftwareResponse
-	s.DoJSON("PUT", "/api/v1/fleet/setup_experience/software", putSetupExperienceSoftwareRequest{
+	var swInstallResp fleet.PutSetupExperienceSoftwareResponse
+	s.DoJSON("PUT", "/api/v1/fleet/setup_experience/software", fleet.PutSetupExperienceSoftwareRequest{
 		Platform: "macos",
 		TeamID:   team1.ID,
 		TitleIDs: []uint{titleID},
 	}, http.StatusOK, &swInstallResp)
 
 	// Get "Setup experience" items using platform and the endpoint without platform that we cannot remove (for backwards compatibility).
-	var respGetSetupExperience getSetupExperienceSoftwareResponse
-	s.DoJSON("GET", "/api/latest/fleet/setup_experience/software", getSetupExperienceSoftwareRequest{}, http.StatusOK, &respGetSetupExperience, "team_id", fmt.Sprint(team1.ID))
+	var respGetSetupExperience fleet.GetSetupExperienceSoftwareResponse
+	s.DoJSON("GET", "/api/latest/fleet/setup_experience/software", fleet.GetSetupExperienceSoftwareRequest{}, http.StatusOK, &respGetSetupExperience, "team_id", fmt.Sprint(team1.ID))
 	noPlatformTitles := respGetSetupExperience.SoftwareTitles
 	require.Len(t, noPlatformTitles, 1)
-	respGetSetupExperience = getSetupExperienceSoftwareResponse{}
-	s.DoJSON("GET", "/api/latest/fleet/setup_experience/software", getSetupExperienceSoftwareRequest{},
+	respGetSetupExperience = fleet.GetSetupExperienceSoftwareResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/setup_experience/software", fleet.GetSetupExperienceSoftwareRequest{},
 		http.StatusOK,
 		&respGetSetupExperience,
 		"platform", "macos",
@@ -1868,15 +1868,15 @@ func (s *integrationMDMTestSuite) TestSetupExperienceVPPCRUD() {
 	expDate := expTime.Format(fleet.VPPTimeFormat)
 	tokenJSON := fmt.Sprintf(`{"expDate":"%s","token":"%s","orgName":"%s"}`, expDate, token, orgName)
 	dev_mode.SetOverride("FLEET_DEV_VPP_URL", s.appleVPPConfigSrv.URL, t)
-	var validToken uploadVPPTokenResponse
+	var validToken fleet.UploadVPPTokenResponse
 	s.uploadDataViaForm("/api/latest/fleet/vpp_tokens", "token", "token.vpptoken", []byte(base64.StdEncoding.EncodeToString([]byte(tokenJSON))), http.StatusAccepted, "", &validToken)
 
-	var getVPPTokenResp getVPPTokensResponse
-	s.DoJSON("GET", "/api/latest/fleet/vpp_tokens", &getVPPTokensRequest{}, http.StatusOK, &getVPPTokenResp)
+	var getVPPTokenResp fleet.GetVPPTokensResponse
+	s.DoJSON("GET", "/api/latest/fleet/vpp_tokens", &fleet.GetVPPTokensRequest{}, http.StatusOK, &getVPPTokenResp)
 
 	// Associate team to the VPP token.
-	var resPatchVPP patchVPPTokensTeamsResponse
-	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/vpp_tokens/%d/teams", getVPPTokenResp.Tokens[0].ID), patchVPPTokensTeamsRequest{TeamIDs: []uint{team.ID, otherTeam.ID}}, http.StatusOK, &resPatchVPP)
+	var resPatchVPP fleet.PatchVPPTokensTeamsResponse
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/vpp_tokens/%d/teams", getVPPTokenResp.Tokens[0].ID), fleet.PatchVPPTokensTeamsRequest{TeamIDs: []uint{team.ID, otherTeam.ID}}, http.StatusOK, &resPatchVPP)
 
 	// app 1 macOS only
 	macOSApp1 := &fleet.VPPApp{
@@ -1945,7 +1945,7 @@ func (s *integrationMDMTestSuite) TestSetupExperienceVPPCRUD() {
 
 	expectedApps := []*fleet.VPPApp{macOSApp1, macOSApp2, iOSApp2, iPadOSApp2, iPadOSApp3}
 
-	var addAppResp addAppStoreAppResponse
+	var addAppResp fleet.AddAppStoreAppResponse
 	// Add apps
 	getSoftwareTitleIDFromApp := func(app *fleet.VPPApp) uint {
 		var titleID uint
@@ -1960,15 +1960,15 @@ func (s *integrationMDMTestSuite) TestSetupExperienceVPPCRUD() {
 
 	titleIDsByApp := make(map[*fleet.VPPApp]uint)
 	for _, app := range expectedApps {
-		addAppResp = addAppStoreAppResponse{}
+		addAppResp = fleet.AddAppStoreAppResponse{}
 		s.DoJSON("POST", "/api/latest/fleet/software/app_store_apps",
-			&addAppStoreAppRequest{TeamID: &team.ID, AppStoreID: app.AdamID, Platform: app.Platform},
+			&fleet.AddAppStoreAppRequest{TeamID: &team.ID, AppStoreID: app.AdamID, Platform: app.Platform},
 			http.StatusOK, &addAppResp)
 		titleIDsByApp[app] = getSoftwareTitleIDFromApp(app)
 
 		// Add apps to the other team as well so that they are available but should not show up in setup experience
 		s.DoJSON("POST", "/api/latest/fleet/software/app_store_apps",
-			&addAppStoreAppRequest{TeamID: &otherTeam.ID, AppStoreID: app.AdamID, Platform: app.Platform},
+			&fleet.AddAppStoreAppRequest{TeamID: &otherTeam.ID, AppStoreID: app.AdamID, Platform: app.Platform},
 			http.StatusOK, &addAppResp)
 	}
 
@@ -1985,8 +1985,8 @@ func (s *integrationMDMTestSuite) TestSetupExperienceVPPCRUD() {
 	}
 
 	checkSetupExperienceSoftware := func(t *testing.T, platform string, teamID uint, expectedTitleIDs []uint) {
-		var respGetSetupExperience getSetupExperienceSoftwareResponse
-		s.DoJSON("GET", "/api/latest/fleet/setup_experience/software", getSetupExperienceSoftwareRequest{},
+		var respGetSetupExperience fleet.GetSetupExperienceSoftwareResponse
+		s.DoJSON("GET", "/api/latest/fleet/setup_experience/software", fleet.GetSetupExperienceSoftwareRequest{},
 			http.StatusOK,
 			&respGetSetupExperience,
 			"platform", platform,
@@ -1996,8 +1996,8 @@ func (s *integrationMDMTestSuite) TestSetupExperienceVPPCRUD() {
 	}
 
 	putSetupExperienceSoftwareForPlatform := func(t *testing.T, platform string, teamID uint, titleIDs []uint) {
-		var swInstallResp putSetupExperienceSoftwareResponse
-		s.DoJSON("PUT", "/api/v1/fleet/setup_experience/software", putSetupExperienceSoftwareRequest{
+		var swInstallResp fleet.PutSetupExperienceSoftwareResponse
+		s.DoJSON("PUT", "/api/v1/fleet/setup_experience/software", fleet.PutSetupExperienceSoftwareRequest{
 			Platform: platform,
 			TeamID:   teamID,
 			TitleIDs: titleIDs,
@@ -2077,7 +2077,7 @@ func (s *integrationMDMTestSuite) TestSetupExperienceIOSAndIPadOS() {
 	team, err := s.ds.NewTeam(ctx, &fleet.Team{Name: "team 1"})
 	require.NoError(t, err)
 
-	var acResp appConfigResponse
+	var acResp fleet.AppConfigResponse
 	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(fmt.Sprintf(`{
 			"mdm": {
 			       "apple_business_manager": [{
@@ -2095,15 +2095,15 @@ func (s *integrationMDMTestSuite) TestSetupExperienceIOSAndIPadOS() {
 	expDate := expTime.Format(fleet.VPPTimeFormat)
 	tokenJSON := fmt.Sprintf(`{"expDate":"%s","token":"%s","orgName":"%s"}`, expDate, token, orgName)
 	dev_mode.SetOverride("FLEET_DEV_VPP_URL", s.appleVPPConfigSrv.URL, t)
-	var validToken uploadVPPTokenResponse
+	var validToken fleet.UploadVPPTokenResponse
 	s.uploadDataViaForm("/api/latest/fleet/vpp_tokens", "token", "token.vpptoken", []byte(base64.StdEncoding.EncodeToString([]byte(tokenJSON))), http.StatusAccepted, "", &validToken)
 
-	var getVPPTokenResp getVPPTokensResponse
-	s.DoJSON("GET", "/api/latest/fleet/vpp_tokens", &getVPPTokensRequest{}, http.StatusOK, &getVPPTokenResp)
+	var getVPPTokenResp fleet.GetVPPTokensResponse
+	s.DoJSON("GET", "/api/latest/fleet/vpp_tokens", &fleet.GetVPPTokensRequest{}, http.StatusOK, &getVPPTokenResp)
 
 	// Associate team to the VPP token.
-	var resPatchVPP patchVPPTokensTeamsResponse
-	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/vpp_tokens/%d/teams", getVPPTokenResp.Tokens[0].ID), patchVPPTokensTeamsRequest{TeamIDs: []uint{team.ID}}, http.StatusOK, &resPatchVPP)
+	var resPatchVPP fleet.PatchVPPTokensTeamsResponse
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/vpp_tokens/%d/teams", getVPPTokenResp.Tokens[0].ID), fleet.PatchVPPTokensTeamsRequest{TeamIDs: []uint{team.ID}}, http.StatusOK, &resPatchVPP)
 
 	// app 1 macOS only
 	macOSApp1 := &fleet.VPPApp{
@@ -2172,7 +2172,7 @@ func (s *integrationMDMTestSuite) TestSetupExperienceIOSAndIPadOS() {
 
 	expectedApps := []*fleet.VPPApp{macOSApp1, macOSApp2, iOSApp2, iPadOSApp2, iPadOSApp3}
 
-	var addAppResp addAppStoreAppResponse
+	var addAppResp fleet.AddAppStoreAppResponse
 	// Add apps
 	getSoftwareTitleIDFromApp := func(app *fleet.VPPApp) uint {
 		var titleID uint
@@ -2187,16 +2187,16 @@ func (s *integrationMDMTestSuite) TestSetupExperienceIOSAndIPadOS() {
 
 	titleIDsByApp := make(map[*fleet.VPPApp]uint)
 	for _, app := range expectedApps {
-		addAppResp = addAppStoreAppResponse{}
+		addAppResp = fleet.AddAppStoreAppResponse{}
 		s.DoJSON("POST", "/api/latest/fleet/software/app_store_apps",
-			&addAppStoreAppRequest{TeamID: &team.ID, AppStoreID: app.AdamID, Platform: app.Platform},
+			&fleet.AddAppStoreAppRequest{TeamID: &team.ID, AppStoreID: app.AdamID, Platform: app.Platform},
 			http.StatusOK, &addAppResp)
 		titleIDsByApp[app] = getSoftwareTitleIDFromApp(app)
 	}
 
 	putSetupExperienceSoftwareForPlatform := func(t *testing.T, platform string, teamID uint, titleIDs []uint) {
-		var swInstallResp putSetupExperienceSoftwareResponse
-		s.DoJSON("PUT", "/api/v1/fleet/setup_experience/software", putSetupExperienceSoftwareRequest{
+		var swInstallResp fleet.PutSetupExperienceSoftwareResponse
+		s.DoJSON("PUT", "/api/v1/fleet/setup_experience/software", fleet.PutSetupExperienceSoftwareRequest{
 			Platform: platform,
 			TeamID:   teamID,
 			TitleIDs: titleIDs,
@@ -2214,7 +2214,7 @@ func (s *integrationMDMTestSuite) TestSetupExperienceIOSAndIPadOS() {
 
 	// Add a profile
 	teamProfile := mobileconfigForTest("N1", "I1")
-	s.Do("POST", "/api/v1/fleet/mdm/apple/profiles/batch", batchSetMDMAppleProfilesRequest{Profiles: [][]byte{teamProfile}}, http.StatusNoContent, "team_id", fmt.Sprint(team.ID))
+	s.Do("POST", "/api/v1/fleet/mdm/apple/profiles/batch", fleet.BatchSetMDMAppleProfilesRequest{Profiles: [][]byte{teamProfile}}, http.StatusNoContent, "team_id", fmt.Sprint(team.ID))
 
 	devices := []godep.Device{
 		{
@@ -2295,7 +2295,7 @@ func (s *integrationMDMTestSuite) runDEPEnrollReleaseMobileDeviceWithVPPTest(t *
 	})
 
 	// query all hosts - none yet
-	listHostsRes := listHostsResponse{}
+	listHostsRes := fleet.ListHostsResponse{}
 	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &listHostsRes)
 	require.Empty(t, listHostsRes.Hosts)
 
@@ -2343,7 +2343,7 @@ func (s *integrationMDMTestSuite) runDEPEnrollReleaseMobileDeviceWithVPPTest(t *
 	// trigger a profile sync
 	s.runDEPSchedule()
 
-	listHostsRes = listHostsResponse{}
+	listHostsRes = fleet.ListHostsResponse{}
 	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &listHostsRes)
 	require.Len(t, listHostsRes.Hosts, 1)
 	require.Equal(t, listHostsRes.Hosts[0].HardwareSerial, device.SerialNumber)
@@ -2682,24 +2682,24 @@ func (s *integrationMDMTestSuite) TestSetupExperienceEndpointsPlatformIsolation(
 	}
 	s.uploadSoftwareInstaller(t, payloadDummy, http.StatusOK, "")
 	titleID := getSoftwareTitleID(t, s.ds, payloadDummy.Title, "apps")
-	var swInstallResp putSetupExperienceSoftwareResponse
-	s.DoJSON("PUT", "/api/v1/fleet/setup_experience/software", putSetupExperienceSoftwareRequest{
+	var swInstallResp fleet.PutSetupExperienceSoftwareResponse
+	s.DoJSON("PUT", "/api/v1/fleet/setup_experience/software", fleet.PutSetupExperienceSoftwareRequest{
 		Platform: "macos",
 		TeamID:   team1.ID,
 		TitleIDs: []uint{titleID},
 	}, http.StatusOK, &swInstallResp)
 
 	// Clear all Linux software on the setup experience.
-	swInstallResp = putSetupExperienceSoftwareResponse{}
-	s.DoJSON("PUT", "/api/v1/fleet/setup_experience/software", putSetupExperienceSoftwareRequest{
+	swInstallResp = fleet.PutSetupExperienceSoftwareResponse{}
+	s.DoJSON("PUT", "/api/v1/fleet/setup_experience/software", fleet.PutSetupExperienceSoftwareRequest{
 		Platform: "macos",
 		TeamID:   team1.ID,
 		TitleIDs: []uint{},
 	}, http.StatusOK, &swInstallResp)
 
 	// Get setup experience items for macOS should return the one item.
-	var respGetSetupExperience getSetupExperienceSoftwareResponse
-	s.DoJSON("GET", "/api/latest/fleet/setup_experience/software", getSetupExperienceSoftwareRequest{},
+	var respGetSetupExperience fleet.GetSetupExperienceSoftwareResponse
+	s.DoJSON("GET", "/api/latest/fleet/setup_experience/software", fleet.GetSetupExperienceSoftwareRequest{},
 		http.StatusOK,
 		&respGetSetupExperience,
 		"platform", "macos",
@@ -2742,8 +2742,8 @@ func (s *integrationMDMTestSuite) TestSetupExperienceFlowWithRequireSoftware() {
 	s.uploadSoftwareInstaller(t, pk3, http.StatusOK, "")
 	pk3Title := getSoftwareTitleID(t, s.ds, "EchoApp", "apps")
 
-	var swInstallResp putSetupExperienceSoftwareResponse
-	s.DoJSON("PUT", "/api/v1/fleet/setup_experience/software", putSetupExperienceSoftwareRequest{TeamID: *enrolledHost.TeamID, TitleIDs: []uint{pk1Title, pk2Title, pk3Title}}, http.StatusOK, &swInstallResp)
+	var swInstallResp fleet.PutSetupExperienceSoftwareResponse
+	s.DoJSON("PUT", "/api/v1/fleet/setup_experience/software", fleet.PutSetupExperienceSoftwareRequest{TeamID: *enrolledHost.TeamID, TitleIDs: []uint{pk1Title, pk2Title, pk3Title}}, http.StatusOK, &swInstallResp)
 
 	// enroll the host
 	depURLToken := loadEnrollmentProfileDEPToken(t, s.ds)
@@ -2834,7 +2834,7 @@ func (s *integrationMDMTestSuite) TestSetupExperienceFlowWithRequireSoftware() {
 	// Note that this kicks off the next step of the setup experience, so while
 	// the API response will show the software as "pending", they will now be
 	// set as "running" in the database.
-	var statusResp getOrbitSetupExperienceStatusResponse
+	var statusResp fleet.GetOrbitSetupExperienceStatusResponse
 	s.DoJSON("POST", "/api/fleet/orbit/setup_experience/status", json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q, "reset_failed_setup_steps": true}`, *enrolledHost.OrbitNodeKey)), http.StatusOK, &statusResp)
 	require.Nil(t, statusResp.Results.BootstrapPackage)         // no bootstrap package involved
 	require.Nil(t, statusResp.Results.AccountConfiguration)     // no SSO involved
@@ -2881,7 +2881,7 @@ func (s *integrationMDMTestSuite) TestSetupExperienceFlowWithRequireSoftware() {
 
 	// Check upcoming activities: we should only have the software upcoming because we don't run the
 	// script until after the software is done
-	var hostActivitiesResp listHostUpcomingActivitiesResponse
+	var hostActivitiesResp fleet.ListHostUpcomingActivitiesResponse
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/activities/upcoming", enrolledHost.ID),
 		nil, http.StatusOK, &hostActivitiesResp)
 
@@ -2909,7 +2909,7 @@ func (s *integrationMDMTestSuite) TestSetupExperienceFlowWithRequireSoftware() {
 
 	// Check status again. Software should all be listed as "running" now.
 	// Since no results have been recorded, this shouldn't change any database state.
-	statusResp = getOrbitSetupExperienceStatusResponse{}
+	statusResp = fleet.GetOrbitSetupExperienceStatusResponse{}
 	s.DoJSON("POST", "/api/fleet/orbit/setup_experience/status", json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q}`, *enrolledHost.OrbitNodeKey)), http.StatusOK, &statusResp)
 	// Software is now running, script is still pending
 	require.Equal(t, len(statusResp.Results.Software), 3)
@@ -2930,7 +2930,7 @@ func (s *integrationMDMTestSuite) TestSetupExperienceFlowWithRequireSoftware() {
 				}`, *enrolledHost.OrbitNodeKey, installUUIDs[0])), http.StatusNoContent)
 
 	// status still shows script as pending
-	statusResp = getOrbitSetupExperienceStatusResponse{}
+	statusResp = fleet.GetOrbitSetupExperienceStatusResponse{}
 	s.DoJSON("POST", "/api/fleet/orbit/setup_experience/status", json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q}`, *enrolledHost.OrbitNodeKey)), http.StatusOK, &statusResp)
 	require.Nil(t, statusResp.Results.BootstrapPackage)         // no bootstrap package involved
 	require.Nil(t, statusResp.Results.AccountConfiguration)     // no SSO involved
@@ -2960,7 +2960,7 @@ func (s *integrationMDMTestSuite) TestSetupExperienceFlowWithRequireSoftware() {
 	require.Nil(t, cmd)
 
 	// Get the setup experience status again.
-	statusResp = getOrbitSetupExperienceStatusResponse{}
+	statusResp = fleet.GetOrbitSetupExperienceStatusResponse{}
 	s.DoJSON("POST", "/api/fleet/orbit/setup_experience/status", json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q}`, *enrolledHost.OrbitNodeKey)), http.StatusOK, &statusResp)
 	// Script should be marked as failed since required software install failed.
 	require.NotNil(t, statusResp.Results.Script)
@@ -2981,7 +2981,7 @@ func (s *integrationMDMTestSuite) TestSetupExperienceFlowWithRequireSoftware() {
 	require.Equal(t, len(hostActivitiesResp.Activities), 0)
 
 	// Reset the setup experience items.
-	statusResp = getOrbitSetupExperienceStatusResponse{}
+	statusResp = fleet.GetOrbitSetupExperienceStatusResponse{}
 	s.DoJSON("POST", "/api/fleet/orbit/setup_experience/status", json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q, "reset_failed_setup_steps": true}`, *enrolledHost.OrbitNodeKey)), http.StatusOK, &statusResp)
 	// The script should be back to "pending"
 	require.NotNil(t, statusResp.Results.Script)
@@ -3014,11 +3014,11 @@ func (s *integrationMDMTestSuite) TestSetupExperienceFlowWithRequiredSoftwareVPP
 	expDate := expTime.Format(fleet.VPPTimeFormat)
 	tokenJSON := fmt.Sprintf(`{"expDate":"%s","token":"%s","orgName":"%s"}`, expDate, token, orgName)
 	dev_mode.SetOverride("FLEET_DEV_VPP_URL", s.appleVPPConfigSrv.URL, t)
-	var validToken uploadVPPTokenResponse
+	var validToken fleet.UploadVPPTokenResponse
 	s.uploadDataViaForm("/api/latest/fleet/vpp_tokens", "token", "token.vpptoken", []byte(base64.StdEncoding.EncodeToString([]byte(tokenJSON))), http.StatusAccepted, "", &validToken)
 
-	var getVPPTokenResp getVPPTokensResponse
-	s.DoJSON("GET", "/api/latest/fleet/vpp_tokens", &getVPPTokensRequest{}, http.StatusOK, &getVPPTokenResp)
+	var getVPPTokenResp fleet.GetVPPTokensResponse
+	s.DoJSON("GET", "/api/latest/fleet/vpp_tokens", &fleet.GetVPPTokensRequest{}, http.StatusOK, &getVPPTokenResp)
 
 	// Add an app with 1 license available
 	s.appleVPPConfigSrvConfig.Assets = append(s.appleVPPConfigSrvConfig.Assets, vpp.Asset{
@@ -3039,20 +3039,20 @@ func (s *integrationMDMTestSuite) TestSetupExperienceFlowWithRequiredSoftwareVPP
 	})
 
 	// Associate team to the VPP token.
-	var resPatchVPP patchVPPTokensTeamsResponse
-	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/vpp_tokens/%d/teams", getVPPTokenResp.Tokens[0].ID), patchVPPTokensTeamsRequest{TeamIDs: []uint{team.ID}}, http.StatusOK, &resPatchVPP)
+	var resPatchVPP fleet.PatchVPPTokensTeamsResponse
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/vpp_tokens/%d/teams", getVPPTokenResp.Tokens[0].ID), fleet.PatchVPPTokensTeamsRequest{TeamIDs: []uint{team.ID}}, http.StatusOK, &resPatchVPP)
 
 	// Add the app with 0 licenses available
-	s.Do("POST", "/api/latest/fleet/software/app_store_apps", &addAppStoreAppRequest{TeamID: &team.ID, AppStoreID: "5", SelfService: true}, http.StatusOK)
+	s.Do("POST", "/api/latest/fleet/software/app_store_apps", &fleet.AddAppStoreAppRequest{TeamID: &team.ID, AppStoreID: "5", SelfService: true}, http.StatusOK)
 	// Add the app with 1 licenses available
-	s.Do("POST", "/api/latest/fleet/software/app_store_apps", &addAppStoreAppRequest{TeamID: &team.ID, AppStoreID: "4", SelfService: true}, http.StatusOK)
+	s.Do("POST", "/api/latest/fleet/software/app_store_apps", &fleet.AddAppStoreAppRequest{TeamID: &team.ID, AppStoreID: "4", SelfService: true}, http.StatusOK)
 
 	// Add the VPP app to setup experience
 	vppTitleID := getSoftwareTitleID(t, s.ds, "App 5", "apps")
 	vppTitleID2 := getSoftwareTitleID(t, s.ds, "App 4", "apps")
 	installerTitleID := getSoftwareTitleID(t, s.ds, "DummyApp", "apps")
-	var swInstallResp putSetupExperienceSoftwareResponse
-	s.DoJSON("PUT", "/api/v1/fleet/setup_experience/software", putSetupExperienceSoftwareRequest{TeamID: team.ID, TitleIDs: []uint{vppTitleID, vppTitleID2, installerTitleID}}, http.StatusOK, &swInstallResp)
+	var swInstallResp fleet.PutSetupExperienceSoftwareResponse
+	s.DoJSON("PUT", "/api/v1/fleet/setup_experience/software", fleet.PutSetupExperienceSoftwareRequest{TeamID: team.ID, TitleIDs: []uint{vppTitleID, vppTitleID2, installerTitleID}}, http.StatusOK, &swInstallResp)
 
 	// enroll the host
 	depURLToken := loadEnrollmentProfileDEPToken(t, s.ds)
@@ -3126,7 +3126,7 @@ func (s *integrationMDMTestSuite) TestSetupExperienceFlowWithRequiredSoftwareVPP
 	require.Len(t, pending, 0)
 
 	// call the /status endpoint, the software and script should be pending
-	var statusResp getOrbitSetupExperienceStatusResponse
+	var statusResp fleet.GetOrbitSetupExperienceStatusResponse
 	s.DoJSON("POST", "/api/fleet/orbit/setup_experience/status", json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q, "reset_failed_setup_steps": true}`, *enrolledHost.OrbitNodeKey)), http.StatusOK, &statusResp)
 	require.Nil(t, statusResp.Results.BootstrapPackage)         // no bootstrap package involved
 	require.Nil(t, statusResp.Results.AccountConfiguration)     // no SSO involved
@@ -3172,7 +3172,7 @@ func (s *integrationMDMTestSuite) TestSetupExperienceFlowWithRequiredSoftwareVPP
 	require.NotEmpty(t, installUUID)
 
 	// Need to get the software title to get the package name
-	var getSoftwareTitleResp getSoftwareTitleResponse
+	var getSoftwareTitleResp fleet.GetSoftwareTitleResponse
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d", *statusResp.Results.Software[0].SoftwareTitleID), nil, http.StatusOK, &getSoftwareTitleResp, "team_id", fmt.Sprintf("%d", *enrolledHost.TeamID))
 	require.NotNil(t, getSoftwareTitleResp.SoftwareTitle)
 	require.NotNil(t, getSoftwareTitleResp.SoftwareTitle.SoftwarePackage)
@@ -3186,7 +3186,7 @@ func (s *integrationMDMTestSuite) TestSetupExperienceFlowWithRequiredSoftwareVPP
 					"install_script_output": "ok"
 				}`, *enrolledHost.OrbitNodeKey, installUUID)), http.StatusNoContent)
 
-	statusResp = getOrbitSetupExperienceStatusResponse{}
+	statusResp = fleet.GetOrbitSetupExperienceStatusResponse{}
 	s.DoJSON("POST", "/api/fleet/orbit/setup_experience/status", json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q}`, *enrolledHost.OrbitNodeKey)), http.StatusOK, &statusResp)
 	require.Nil(t, statusResp.Results.BootstrapPackage)         // no bootstrap package involved
 	require.Nil(t, statusResp.Results.AccountConfiguration)     // no SSO involved
@@ -3205,7 +3205,7 @@ func (s *integrationMDMTestSuite) TestSetupExperienceFlowWithRequiredSoftwareVPP
 	require.Equal(t, fleet.SetupExperienceStatusFailure, statusResp.Results.Software[2].Status)
 
 	// Reset the setup experience items.
-	statusResp = getOrbitSetupExperienceStatusResponse{}
+	statusResp = fleet.GetOrbitSetupExperienceStatusResponse{}
 	s.DoJSON("POST", "/api/fleet/orbit/setup_experience/status", json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q, "reset_failed_setup_steps": true}`, *enrolledHost.OrbitNodeKey)), http.StatusOK, &statusResp)
 	// the software and script are still pending
 	require.NotNil(t, statusResp.Results.Script)
@@ -3238,32 +3238,32 @@ func (s *integrationMDMTestSuite) TestSetupExperienceGetPutSoftware() {
 	s.uploadSoftwareInstaller(t, payloadDummy, http.StatusOK, "")
 
 	// add a VPP app only available on macos
-	s.Do("POST", "/api/latest/fleet/software/app_store_apps", &addAppStoreAppRequest{TeamID: nil, Platform: "darwin", AppStoreID: "1", SelfService: true}, http.StatusOK)
+	s.Do("POST", "/api/latest/fleet/software/app_store_apps", &fleet.AddAppStoreAppRequest{TeamID: nil, Platform: "darwin", AppStoreID: "1", SelfService: true}, http.StatusOK)
 	// add a VPP app available on all macos and ios
-	s.Do("POST", "/api/latest/fleet/software/app_store_apps", &addAppStoreAppRequest{TeamID: nil, Platform: "darwin", AppStoreID: "2", SelfService: false}, http.StatusOK)
-	s.Do("POST", "/api/latest/fleet/software/app_store_apps", &addAppStoreAppRequest{TeamID: nil, Platform: "ios", AppStoreID: "2", SelfService: false}, http.StatusOK)
+	s.Do("POST", "/api/latest/fleet/software/app_store_apps", &fleet.AddAppStoreAppRequest{TeamID: nil, Platform: "darwin", AppStoreID: "2", SelfService: false}, http.StatusOK)
+	s.Do("POST", "/api/latest/fleet/software/app_store_apps", &fleet.AddAppStoreAppRequest{TeamID: nil, Platform: "ios", AppStoreID: "2", SelfService: false}, http.StatusOK)
 
 	// add an iDevice ipa installer
 	s.uploadSoftwareInstaller(t, &fleet.UploadSoftwareInstallerPayload{Filename: "ipa_test.ipa"}, http.StatusOK, "")
 
 	// get the macos title IDs
-	var listSoftware listSoftwareTitlesResponse
-	s.DoJSON("GET", "/api/latest/fleet/software/titles", listSoftwareTitlesRequest{}, http.StatusOK, &listSoftware, "team_id", "0", "platform", "darwin", "order_key", "name")
+	var listSoftware fleet.ListSoftwareTitlesResponse
+	s.DoJSON("GET", "/api/latest/fleet/software/titles", fleet.ListSoftwareTitlesRequest{}, http.StatusOK, &listSoftware, "team_id", "0", "platform", "darwin", "order_key", "name")
 	require.Len(t, listSoftware.SoftwareTitles, 3)
 	app1MacTitleID := listSoftware.SoftwareTitles[0].ID
 	app2MacTitleID := listSoftware.SoftwareTitles[1].ID
 	pkgTitleID := listSoftware.SoftwareTitles[2].ID
 
 	// get the ios title IDs
-	listSoftware = listSoftwareTitlesResponse{}
-	s.DoJSON("GET", "/api/latest/fleet/software/titles", listSoftwareTitlesRequest{}, http.StatusOK, &listSoftware, "team_id", "0", "platform", "ios", "order_key", "name")
+	listSoftware = fleet.ListSoftwareTitlesResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/software/titles", fleet.ListSoftwareTitlesRequest{}, http.StatusOK, &listSoftware, "team_id", "0", "platform", "ios", "order_key", "name")
 	require.Len(t, listSoftware.SoftwareTitles, 2)
 	app2IOSTitleID := listSoftware.SoftwareTitles[0].ID
 	ipaTitleID := listSoftware.SoftwareTitles[1].ID
 
 	// list software for setup experience macos
-	var listSetupSoftware getSetupExperienceSoftwareResponse
-	s.DoJSON("GET", "/api/latest/fleet/setup_experience/software", getSetupExperienceSoftwareRequest{},
+	var listSetupSoftware fleet.GetSetupExperienceSoftwareResponse
+	s.DoJSON("GET", "/api/latest/fleet/setup_experience/software", fleet.GetSetupExperienceSoftwareRequest{},
 		http.StatusOK, &listSetupSoftware, "platform", "macos", "team_id", "0", "order_key", "name")
 
 	require.Len(t, listSetupSoftware.SoftwareTitles, 3)
@@ -3278,8 +3278,8 @@ func (s *integrationMDMTestSuite) TestSetupExperienceGetPutSoftware() {
 	require.Equal(t, "dummy_installer.pkg", listSetupSoftware.SoftwareTitles[2].SoftwarePackage.Name)
 
 	// list software for setup experience ios
-	listSetupSoftware = getSetupExperienceSoftwareResponse{}
-	s.DoJSON("GET", "/api/latest/fleet/setup_experience/software", getSetupExperienceSoftwareRequest{},
+	listSetupSoftware = fleet.GetSetupExperienceSoftwareResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/setup_experience/software", fleet.GetSetupExperienceSoftwareRequest{},
 		http.StatusOK, &listSetupSoftware, "platform", "ios", "team_id", "0", "order_key", "name")
 
 	// only 1 installer, the VPP app, the ipa is filtered out because unsupported
@@ -3287,7 +3287,7 @@ func (s *integrationMDMTestSuite) TestSetupExperienceGetPutSoftware() {
 	require.Equal(t, "App 2", listSetupSoftware.SoftwareTitles[0].Name)
 
 	// put software for setup experience macos with an unknown one
-	res := s.Do("PUT", "/api/latest/fleet/setup_experience/software", putSetupExperienceSoftwareRequest{
+	res := s.Do("PUT", "/api/latest/fleet/setup_experience/software", fleet.PutSetupExperienceSoftwareRequest{
 		Platform: "macos",
 		TeamID:   0,
 		TitleIDs: []uint{pkgTitleID, 9999},
@@ -3296,7 +3296,7 @@ func (s *integrationMDMTestSuite) TestSetupExperienceGetPutSoftware() {
 	require.Contains(t, errMsg, "at least one selected software title does not exist or is not available for setup experience")
 
 	// put software for setup experience macos with an invalid one (the ipa)
-	res = s.Do("PUT", "/api/latest/fleet/setup_experience/software", putSetupExperienceSoftwareRequest{
+	res = s.Do("PUT", "/api/latest/fleet/setup_experience/software", fleet.PutSetupExperienceSoftwareRequest{
 		Platform: "macos",
 		TeamID:   0,
 		TitleIDs: []uint{app1MacTitleID, ipaTitleID},
@@ -3305,15 +3305,15 @@ func (s *integrationMDMTestSuite) TestSetupExperienceGetPutSoftware() {
 	require.Contains(t, errMsg, "at least one selected software title does not exist or is not available for setup experience")
 
 	// put software for setup experience macos with valid ones
-	var putSetupSoftware putSetupExperienceSoftwareResponse
-	s.DoJSON("PUT", "/api/latest/fleet/setup_experience/software", putSetupExperienceSoftwareRequest{
+	var putSetupSoftware fleet.PutSetupExperienceSoftwareResponse
+	s.DoJSON("PUT", "/api/latest/fleet/setup_experience/software", fleet.PutSetupExperienceSoftwareRequest{
 		Platform: "macos",
 		TeamID:   0,
 		TitleIDs: []uint{app1MacTitleID, app2MacTitleID},
 	}, http.StatusOK, &putSetupSoftware)
 
 	// put software for setup experience ios with an unknown one
-	res = s.Do("PUT", "/api/latest/fleet/setup_experience/software", putSetupExperienceSoftwareRequest{
+	res = s.Do("PUT", "/api/latest/fleet/setup_experience/software", fleet.PutSetupExperienceSoftwareRequest{
 		Platform: "ios",
 		TeamID:   0,
 		TitleIDs: []uint{app2IOSTitleID, 9999},
@@ -3322,7 +3322,7 @@ func (s *integrationMDMTestSuite) TestSetupExperienceGetPutSoftware() {
 	require.Contains(t, errMsg, "at least one selected software title does not exist or is not available for setup experience")
 
 	// put software for setup experience ios with an invalid one (ipa)
-	res = s.Do("PUT", "/api/latest/fleet/setup_experience/software", putSetupExperienceSoftwareRequest{
+	res = s.Do("PUT", "/api/latest/fleet/setup_experience/software", fleet.PutSetupExperienceSoftwareRequest{
 		Platform: "ios",
 		TeamID:   0,
 		TitleIDs: []uint{ipaTitleID},
@@ -3331,7 +3331,7 @@ func (s *integrationMDMTestSuite) TestSetupExperienceGetPutSoftware() {
 	require.Contains(t, errMsg, "at least one selected software title does not exist or is not available for setup experience")
 
 	// put software for setup experience ios with valid ones
-	s.DoJSON("PUT", "/api/latest/fleet/setup_experience/software", putSetupExperienceSoftwareRequest{
+	s.DoJSON("PUT", "/api/latest/fleet/setup_experience/software", fleet.PutSetupExperienceSoftwareRequest{
 		Platform: "ios",
 		TeamID:   0,
 		TitleIDs: []uint{app2IOSTitleID},
@@ -3347,8 +3347,8 @@ func (s *integrationMDMTestSuite) TestSetupExperienceMacOSCustomDisplayNameIcon(
 	createDeviceTokenForHost(t, s.ds, host.ID, token)
 
 	// get the created setup experience software title id
-	var setupExpSw getSetupExperienceSoftwareResponse
-	s.DoJSON("GET", "/api/v1/fleet/setup_experience/software", getSetupExperienceSoftwareRequest{Platforms: "macos"}, http.StatusOK, &setupExpSw, "team_id", fmt.Sprint(tm.ID))
+	var setupExpSw fleet.GetSetupExperienceSoftwareResponse
+	s.DoJSON("GET", "/api/v1/fleet/setup_experience/software", fleet.GetSetupExperienceSoftwareRequest{Platforms: "macos"}, http.StatusOK, &setupExpSw, "team_id", fmt.Sprint(tm.ID))
 	require.Len(t, setupExpSw.SoftwareTitles, 1)
 	dummyTitleID := setupExpSw.SoftwareTitles[0].ID
 
@@ -3361,8 +3361,8 @@ func (s *integrationMDMTestSuite) TestSetupExperienceMacOSCustomDisplayNameIcon(
 	}
 	s.uploadSoftwareInstaller(t, installer, http.StatusOK, "")
 	echoTitleID := getSoftwareTitleID(t, s.ds, installer.Title, "apps")
-	var swInstallResp putSetupExperienceSoftwareResponse
-	s.DoJSON("PUT", "/api/v1/fleet/setup_experience/software", putSetupExperienceSoftwareRequest{TeamID: tm.ID, TitleIDs: []uint{echoTitleID, dummyTitleID}}, http.StatusOK, &swInstallResp)
+	var swInstallResp fleet.PutSetupExperienceSoftwareResponse
+	s.DoJSON("PUT", "/api/v1/fleet/setup_experience/software", fleet.PutSetupExperienceSoftwareRequest{TeamID: tm.ID, TitleIDs: []uint{echoTitleID, dummyTitleID}}, http.StatusOK, &swInstallResp)
 
 	// set a custom icon and custom display name for that app
 	s.updateSoftwareInstaller(t, &fleet.UpdateSoftwareInstallerPayload{
@@ -3412,7 +3412,7 @@ func (s *integrationMDMTestSuite) TestSetupExperienceMacOSCustomDisplayNameIcon(
 	host.OrbitNodeKey = &orbitKey
 
 	// call the /status endpoint, the 2 software and script should be pending
-	var statusResp getOrbitSetupExperienceStatusResponse
+	var statusResp fleet.GetOrbitSetupExperienceStatusResponse
 	s.DoJSON("POST", "/api/fleet/orbit/setup_experience/status", json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q}`, *host.OrbitNodeKey)), http.StatusOK, &statusResp)
 	require.Nil(t, statusResp.Results.BootstrapPackage)         // no bootstrap package involved
 	require.Nil(t, statusResp.Results.AccountConfiguration)     // no SSO involved
@@ -3442,7 +3442,7 @@ func (s *integrationMDMTestSuite) TestSetupExperienceMacOSCustomDisplayNameIcon(
 
 	// requesting the setup experience status via the device-authenticated endpoint
 	// returns the custom icon URL ready to be called via device-auth.
-	var deviceResp getDeviceSetupExperienceStatusResponse
+	var deviceResp fleet.GetDeviceSetupExperienceStatusResponse
 	res := s.DoRawNoAuth("POST", "/api/latest/fleet/device/"+token+"/setup_experience/status", json.RawMessage{}, http.StatusOK)
 	require.NoError(t, json.NewDecoder(res.Body).Decode(&deviceResp))
 	require.NoError(t, res.Body.Close())
@@ -3487,8 +3487,8 @@ func (s *integrationMDMTestSuite) TestSetupExperienceAndroid() {
 	s.uploadSoftwareInstaller(t, payloadDummy, http.StatusOK, "")
 
 	// add a VPP app available on macos and ios
-	s.Do("POST", "/api/latest/fleet/software/app_store_apps", &addAppStoreAppRequest{TeamID: nil, Platform: "darwin", AppStoreID: "2", SelfService: false}, http.StatusOK)
-	s.Do("POST", "/api/latest/fleet/software/app_store_apps", &addAppStoreAppRequest{TeamID: nil, Platform: "ios", AppStoreID: "2", SelfService: false}, http.StatusOK)
+	s.Do("POST", "/api/latest/fleet/software/app_store_apps", &fleet.AddAppStoreAppRequest{TeamID: nil, Platform: "darwin", AppStoreID: "2", SelfService: false}, http.StatusOK)
+	s.Do("POST", "/api/latest/fleet/software/app_store_apps", &fleet.AddAppStoreAppRequest{TeamID: nil, Platform: "ios", AppStoreID: "2", SelfService: false}, http.StatusOK)
 
 	// add 2 android apps
 	app1 := &fleet.VPPApp{
@@ -3557,16 +3557,16 @@ func (s *integrationMDMTestSuite) TestSetupExperienceAndroid() {
 	}
 
 	// add Android app 1
-	var addAppResp addAppStoreAppResponse
-	s.DoJSON("POST", "/api/latest/fleet/software/app_store_apps", &addAppStoreAppRequest{
+	var addAppResp fleet.AddAppStoreAppResponse
+	s.DoJSON("POST", "/api/latest/fleet/software/app_store_apps", &fleet.AddAppStoreAppRequest{
 		AppStoreID: app1.AdamID,
 		Platform:   fleet.AndroidPlatform,
 	}, http.StatusOK, &addAppResp)
 	app1TitleID := addAppResp.TitleID
 
 	// add Android app 2
-	addAppResp = addAppStoreAppResponse{}
-	s.DoJSON("POST", "/api/latest/fleet/software/app_store_apps", &addAppStoreAppRequest{
+	addAppResp = fleet.AddAppStoreAppResponse{}
+	s.DoJSON("POST", "/api/latest/fleet/software/app_store_apps", &fleet.AddAppStoreAppRequest{
 		AppStoreID: app2.AdamID,
 		Platform:   fleet.AndroidPlatform,
 	}, http.StatusOK, &addAppResp)
@@ -3575,8 +3575,8 @@ func (s *integrationMDMTestSuite) TestSetupExperienceAndroid() {
 	require.NotEqual(t, app1TitleID, app2TitleID)
 
 	// add app 1 to Android setup experience
-	var putResp putSetupExperienceSoftwareResponse
-	s.DoJSON("PUT", "/api/latest/fleet/setup_experience/software", &putSetupExperienceSoftwareRequest{
+	var putResp fleet.PutSetupExperienceSoftwareResponse
+	s.DoJSON("PUT", "/api/latest/fleet/setup_experience/software", &fleet.PutSetupExperienceSoftwareRequest{
 		Platform: string(fleet.AndroidPlatform),
 		TeamID:   0,
 		TitleIDs: []uint{app1TitleID},
@@ -3586,7 +3586,7 @@ func (s *integrationMDMTestSuite) TestSetupExperienceAndroid() {
 	s.runWorkerUntilDoneWithChecks(true)
 
 	// list the available setup experience software and verify that only app 1 is installed at setup
-	var getResp getSetupExperienceSoftwareResponse
+	var getResp fleet.GetSetupExperienceSoftwareResponse
 	s.DoJSON("GET", "/api/latest/fleet/setup_experience/software", nil, http.StatusOK, &getResp,
 		"team_id", "0", "platform", string(fleet.AndroidPlatform), "order_key", "name")
 	require.Len(t, getResp.SoftwareTitles, 2)
@@ -3624,7 +3624,7 @@ func (s *integrationMDMTestSuite) TestSetupExperienceAndroid() {
 	require.Equal(t, 4, count)
 
 	// the pending install should show up in the host software
-	getHostSw := getHostSoftwareResponse{}
+	getHostSw := fleet.GetHostSoftwareResponse{}
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/software", host.ID), nil, http.StatusOK, &getHostSw, "available_for_install", "true",
 		"order_key", "name")
 	require.Len(t, getHostSw.Software, 2)
@@ -3660,7 +3660,7 @@ func (s *integrationMDMTestSuite) TestSetupExperienceAndroid() {
 		"status":%q}`, app1.AdamID, app1CmdUUID, host.DisplayName(), host.ID, host.Platform, app1.Name, fleet.SoftwareInstalled), 0)
 
 	// the pending install should now be verified
-	getHostSw = getHostSoftwareResponse{}
+	getHostSw = fleet.GetHostSoftwareResponse{}
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/software", host.ID), nil, http.StatusOK, &getHostSw, "available_for_install", "true",
 		"order_key", "name")
 	require.Len(t, getHostSw.Software, 2)
@@ -3673,7 +3673,7 @@ func (s *integrationMDMTestSuite) TestSetupExperienceAndroid() {
 	require.Nil(t, getHostSw.Software[1].Status)
 
 	// the software now shows up in the host inventory
-	getHostSw = getHostSoftwareResponse{}
+	getHostSw = fleet.GetHostSoftwareResponse{}
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/software", host.ID), nil, http.StatusOK, &getHostSw, "order_key", "name")
 	require.Len(t, getHostSw.Software, 2)
 	require.NotNil(t, getHostSw.Software[0].AppStoreApp)
@@ -3685,8 +3685,8 @@ func (s *integrationMDMTestSuite) TestSetupExperienceAndroid() {
 	require.Nil(t, getHostSw.Software[1].Status)
 
 	// add app 2 to Android setup experience
-	putResp = putSetupExperienceSoftwareResponse{}
-	s.DoJSON("PUT", "/api/latest/fleet/setup_experience/software", &putSetupExperienceSoftwareRequest{
+	putResp = fleet.PutSetupExperienceSoftwareResponse{}
+	s.DoJSON("PUT", "/api/latest/fleet/setup_experience/software", &fleet.PutSetupExperienceSoftwareRequest{
 		Platform: string(fleet.AndroidPlatform),
 		TeamID:   0,
 		TitleIDs: []uint{app1TitleID, app2TitleID},
@@ -3727,7 +3727,7 @@ func (s *integrationMDMTestSuite) TestSetupExperienceAndroid() {
 	s.runWorkerUntilDoneWithChecks(true)
 
 	// the pending installs should show up in the host software
-	getHostSw = getHostSoftwareResponse{}
+	getHostSw = fleet.GetHostSoftwareResponse{}
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/software", host2.ID), nil, http.StatusOK, &getHostSw, "available_for_install", "true",
 		"order_key", "name")
 	require.Len(t, getHostSw.Software, 2)
@@ -3791,16 +3791,16 @@ func (s *integrationMDMTestSuite) TestSetupExperienceAndroidCancelOnUnenroll() {
 	}
 
 	// add Android app 1
-	var addAppResp addAppStoreAppResponse
-	s.DoJSON("POST", "/api/latest/fleet/software/app_store_apps", &addAppStoreAppRequest{
+	var addAppResp fleet.AddAppStoreAppResponse
+	s.DoJSON("POST", "/api/latest/fleet/software/app_store_apps", &fleet.AddAppStoreAppRequest{
 		AppStoreID: app1.AdamID,
 		Platform:   fleet.AndroidPlatform,
 	}, http.StatusOK, &addAppResp)
 	app1TitleID := addAppResp.TitleID
 
 	// add Android app 2
-	addAppResp = addAppStoreAppResponse{}
-	s.DoJSON("POST", "/api/latest/fleet/software/app_store_apps", &addAppStoreAppRequest{
+	addAppResp = fleet.AddAppStoreAppResponse{}
+	s.DoJSON("POST", "/api/latest/fleet/software/app_store_apps", &fleet.AddAppStoreAppRequest{
 		AppStoreID: app2.AdamID,
 		Platform:   fleet.AndroidPlatform,
 	}, http.StatusOK, &addAppResp)
@@ -3809,8 +3809,8 @@ func (s *integrationMDMTestSuite) TestSetupExperienceAndroidCancelOnUnenroll() {
 	require.NotEqual(t, app1TitleID, app2TitleID)
 
 	// add app 1 to Android setup experience
-	var putResp putSetupExperienceSoftwareResponse
-	s.DoJSON("PUT", "/api/latest/fleet/setup_experience/software", &putSetupExperienceSoftwareRequest{
+	var putResp fleet.PutSetupExperienceSoftwareResponse
+	s.DoJSON("PUT", "/api/latest/fleet/setup_experience/software", &fleet.PutSetupExperienceSoftwareRequest{
 		Platform: string(fleet.AndroidPlatform),
 		TeamID:   0,
 		TitleIDs: []uint{app1TitleID},
@@ -3826,7 +3826,7 @@ func (s *integrationMDMTestSuite) TestSetupExperienceAndroidCancelOnUnenroll() {
 	require.True(t, s.androidAPIClient.EnterprisesPoliciesModifyPolicyApplicationsFuncInvoked)
 
 	// app install is pending
-	getHostSw := getHostSoftwareResponse{}
+	getHostSw := fleet.GetHostSoftwareResponse{}
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/software", host1.ID), nil, http.StatusOK, &getHostSw, "available_for_install", "true",
 		"query", app1.Name, "order_key", "name")
 	require.Len(t, getHostSw.Software, 1)
@@ -3837,7 +3837,7 @@ func (s *integrationMDMTestSuite) TestSetupExperienceAndroidCancelOnUnenroll() {
 	s.Do("DELETE", fmt.Sprintf("/api/latest/fleet/hosts/%d/mdm", host1.ID), nil, http.StatusNoContent)
 
 	// app install is still pending as the device hasn't reported back its unenrollment yet
-	getHostSw = getHostSoftwareResponse{}
+	getHostSw = fleet.GetHostSoftwareResponse{}
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/software", host1.ID), nil, http.StatusOK, &getHostSw, "available_for_install", "true",
 		"query", app1.Name, "order_key", "name")
 	require.Len(t, getHostSw.Software, 1)
@@ -3862,7 +3862,7 @@ func (s *integrationMDMTestSuite) TestSetupExperienceAndroidCancelOnUnenroll() {
 	s.Do("POST", "/api/v1/fleet/android_enterprise/pubsub", &req, http.StatusOK, "token", string(pubSubToken.Value))
 
 	// app install is now failed
-	getHostSw = getHostSoftwareResponse{}
+	getHostSw = fleet.GetHostSoftwareResponse{}
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/software", host1.ID), nil, http.StatusOK, &getHostSw, "available_for_install", "true",
 		"query", app1.Name, "order_key", "name")
 	require.Len(t, getHostSw.Software, 1)
@@ -3879,14 +3879,14 @@ func (s *integrationMDMTestSuite) TestSetupExperienceAndroidCancelOnUnenroll() {
 		"status":%q}`, app1.AdamID, app1CmdUUID, host1.DisplayName(), host1.ID, host1.Platform, app1.Name, fleet.SoftwareInstallFailed), 0)
 
 	// host2 and host3 haven't been unenrolled, app install is still pending
-	getHostSw = getHostSoftwareResponse{}
+	getHostSw = fleet.GetHostSoftwareResponse{}
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/software", host2.ID), nil, http.StatusOK, &getHostSw, "available_for_install", "true",
 		"query", app1.Name, "order_key", "name")
 	require.Len(t, getHostSw.Software, 1)
 	require.NotNil(t, getHostSw.Software[0].Status)
 	require.EqualValues(t, fleet.SoftwareInstallPending, *getHostSw.Software[0].Status)
 
-	getHostSw = getHostSoftwareResponse{}
+	getHostSw = fleet.GetHostSoftwareResponse{}
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/software", host3.ID), nil, http.StatusOK, &getHostSw, "available_for_install", "true",
 		"query", app1.Name, "order_key", "name")
 	require.Len(t, getHostSw.Software, 1)
@@ -3899,7 +3899,7 @@ func (s *integrationMDMTestSuite) TestSetupExperienceAndroidCancelOnUnenroll() {
 
 	// host2 and host3 app install is now failed, but because Android MDM is now off globally,
 	// we can't list software available for install anymore, we have to use adhoc sql to confirm.
-	getHostSw = getHostSoftwareResponse{}
+	getHostSw = fleet.GetHostSoftwareResponse{}
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/software", host2.ID), nil, http.StatusOK, &getHostSw, "available_for_install", "true")
 	require.Len(t, getHostSw.Software, 0)
 
@@ -3983,16 +3983,16 @@ func (s *integrationMDMTestSuite) TestAndroidAppConfiguration() {
 	}
 
 	// add Android app 1
-	var addAppResp addAppStoreAppResponse
-	s.DoJSON("POST", "/api/latest/fleet/software/app_store_apps", &addAppStoreAppRequest{
+	var addAppResp fleet.AddAppStoreAppResponse
+	s.DoJSON("POST", "/api/latest/fleet/software/app_store_apps", &fleet.AddAppStoreAppRequest{
 		AppStoreID: app1.AdamID,
 		Platform:   fleet.AndroidPlatform,
 	}, http.StatusOK, &addAppResp)
 	app1TitleID := addAppResp.TitleID
 
 	// add Android app 2
-	addAppResp = addAppStoreAppResponse{}
-	s.DoJSON("POST", "/api/latest/fleet/software/app_store_apps", &addAppStoreAppRequest{
+	addAppResp = fleet.AddAppStoreAppResponse{}
+	s.DoJSON("POST", "/api/latest/fleet/software/app_store_apps", &fleet.AddAppStoreAppRequest{
 		AppStoreID: app2.AdamID,
 		Platform:   fleet.AndroidPlatform,
 	}, http.StatusOK, &addAppResp)
@@ -4006,20 +4006,20 @@ func (s *integrationMDMTestSuite) TestAndroidAppConfiguration() {
 	require.Len(t, patchAppsPolicies, 0)
 	patchAppsPolicies = nil
 
-	var patchAppResp updateAppStoreAppResponse
-	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/software/titles/%d/app_store_app", app1TitleID), &updateAppStoreAppRequest{
+	var patchAppResp fleet.UpdateAppStoreAppResponse
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/software/titles/%d/app_store_app", app1TitleID), &fleet.UpdateAppStoreAppRequest{
 		TeamID:        nil,
 		Configuration: json.RawMessage(`{"managedConfiguration": 1}`),
 	}, http.StatusOK, &patchAppResp)
 
-	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/software/titles/%d/app_store_app", app2TitleID), &updateAppStoreAppRequest{
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/software/titles/%d/app_store_app", app2TitleID), &fleet.UpdateAppStoreAppRequest{
 		TeamID:        nil,
 		Configuration: json.RawMessage(`{"managedConfiguration": 2}`),
 	}, http.StatusOK, &patchAppResp)
 
 	// add app 1 and 2 to Android setup experience
-	var putResp putSetupExperienceSoftwareResponse
-	s.DoJSON("PUT", "/api/latest/fleet/setup_experience/software", &putSetupExperienceSoftwareRequest{
+	var putResp fleet.PutSetupExperienceSoftwareResponse
+	s.DoJSON("PUT", "/api/latest/fleet/setup_experience/software", &fleet.PutSetupExperienceSoftwareRequest{
 		Platform: string(fleet.AndroidPlatform),
 		TeamID:   0,
 		TitleIDs: []uint{app1TitleID, app2TitleID},
@@ -4058,8 +4058,8 @@ func (s *integrationMDMTestSuite) TestAndroidAppConfiguration() {
 	patchAppsPolicies = nil
 
 	// add app3 to Fleet
-	addAppResp = addAppStoreAppResponse{}
-	s.DoJSON("POST", "/api/latest/fleet/software/app_store_apps", &addAppStoreAppRequest{
+	addAppResp = fleet.AddAppStoreAppResponse{}
+	s.DoJSON("POST", "/api/latest/fleet/software/app_store_apps", &fleet.AddAppStoreAppRequest{
 		AppStoreID: app3.AdamID,
 		Platform:   fleet.AndroidPlatform,
 	}, http.StatusOK, &addAppResp)
@@ -4077,7 +4077,7 @@ func (s *integrationMDMTestSuite) TestAndroidAppConfiguration() {
 	patchAppsPolicies = nil
 
 	// set a configuration for the app3
-	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/software/titles/%d/app_store_app", app3TitleID), &updateAppStoreAppRequest{
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/software/titles/%d/app_store_app", app3TitleID), &fleet.UpdateAppStoreAppRequest{
 		TeamID:        nil,
 		Configuration: json.RawMessage(`{"managedConfiguration": 3}`),
 	}, http.StatusOK, &patchAppResp)
@@ -4094,7 +4094,7 @@ func (s *integrationMDMTestSuite) TestAndroidAppConfiguration() {
 	patchAppsPolicies = nil
 
 	// patch but no change to the configuration for the app3
-	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/software/titles/%d/app_store_app", app3TitleID), &updateAppStoreAppRequest{
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/software/titles/%d/app_store_app", app3TitleID), &fleet.UpdateAppStoreAppRequest{
 		TeamID:        nil,
 		Configuration: json.RawMessage(`{"managedConfiguration": 3}`),
 	}, http.StatusOK, &patchAppResp)
@@ -4104,7 +4104,7 @@ func (s *integrationMDMTestSuite) TestAndroidAppConfiguration() {
 	require.Len(t, patchAppsPolicies, 0)
 
 	// patch with a different config just to trigger the worker
-	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/software/titles/%d/app_store_app", app3TitleID), &updateAppStoreAppRequest{
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/software/titles/%d/app_store_app", app3TitleID), &fleet.UpdateAppStoreAppRequest{
 		TeamID:        nil,
 		Configuration: json.RawMessage(`{}`),
 	}, http.StatusOK, &patchAppResp)
@@ -4182,16 +4182,16 @@ func (s *integrationMDMTestSuite) TestSetupExperienceAndroidWithConfiguration() 
 	}
 
 	// add Android app 1
-	var addAppResp addAppStoreAppResponse
-	s.DoJSON("POST", "/api/latest/fleet/software/app_store_apps", &addAppStoreAppRequest{
+	var addAppResp fleet.AddAppStoreAppResponse
+	s.DoJSON("POST", "/api/latest/fleet/software/app_store_apps", &fleet.AddAppStoreAppRequest{
 		AppStoreID: app1.AdamID,
 		Platform:   fleet.AndroidPlatform,
 	}, http.StatusOK, &addAppResp)
 	app1TitleID := addAppResp.TitleID
 
 	// add Android app 2
-	addAppResp = addAppStoreAppResponse{}
-	s.DoJSON("POST", "/api/latest/fleet/software/app_store_apps", &addAppStoreAppRequest{
+	addAppResp = fleet.AddAppStoreAppResponse{}
+	s.DoJSON("POST", "/api/latest/fleet/software/app_store_apps", &fleet.AddAppStoreAppRequest{
 		AppStoreID: app2.AdamID,
 		Platform:   fleet.AndroidPlatform,
 	}, http.StatusOK, &addAppResp)
@@ -4200,8 +4200,8 @@ func (s *integrationMDMTestSuite) TestSetupExperienceAndroidWithConfiguration() 
 	require.NotEqual(t, app1TitleID, app2TitleID)
 
 	// add app 1 to Android setup experience
-	var putResp putSetupExperienceSoftwareResponse
-	s.DoJSON("PUT", "/api/latest/fleet/setup_experience/software", &putSetupExperienceSoftwareRequest{
+	var putResp fleet.PutSetupExperienceSoftwareResponse
+	s.DoJSON("PUT", "/api/latest/fleet/setup_experience/software", &fleet.PutSetupExperienceSoftwareRequest{
 		Platform: string(fleet.AndroidPlatform),
 		TeamID:   0,
 		TitleIDs: []uint{app1TitleID},
@@ -4220,7 +4220,7 @@ func (s *integrationMDMTestSuite) TestSetupExperienceAndroidWithConfiguration() 
 	s.runWorkerUntilDoneWithChecks(true)
 
 	// hosts 1 and 2 have app1 pending install
-	getHostSw := getHostSoftwareResponse{}
+	getHostSw := fleet.GetHostSoftwareResponse{}
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/software", host1.ID), nil, http.StatusOK, &getHostSw, "available_for_install", "true",
 		"order_key", "name")
 	require.Len(t, getHostSw.Software, 2)
@@ -4234,7 +4234,7 @@ func (s *integrationMDMTestSuite) TestSetupExperienceAndroidWithConfiguration() 
 	require.Nil(t, getHostSw.Software[1].Status)
 	require.NotEmpty(t, app1Host1CmdUUID)
 
-	getHostSw = getHostSoftwareResponse{}
+	getHostSw = fleet.GetHostSoftwareResponse{}
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/software", host2.ID), nil, http.StatusOK, &getHostSw, "available_for_install", "true",
 		"order_key", "name")
 	require.Len(t, getHostSw.Software, 2)
@@ -4249,7 +4249,7 @@ func (s *integrationMDMTestSuite) TestSetupExperienceAndroidWithConfiguration() 
 	require.NotEmpty(t, app1Host2CmdUUID)
 
 	// host 3 has no apps available to install
-	getHostSw = getHostSoftwareResponse{}
+	getHostSw = fleet.GetHostSoftwareResponse{}
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/software", host3.ID), nil, http.StatusOK, &getHostSw, "available_for_install", "true",
 		"order_key", "name")
 	require.Len(t, getHostSw.Software, 0)
@@ -4292,7 +4292,7 @@ func (s *integrationMDMTestSuite) TestSetupExperienceAndroidWithConfiguration() 
 	s.Do("POST", "/api/v1/fleet/android_enterprise/pubsub", &req, http.StatusOK, "token", string(pubSubToken.Value))
 
 	// the pending install should now be verified for host1
-	getHostSw = getHostSoftwareResponse{}
+	getHostSw = fleet.GetHostSoftwareResponse{}
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/software", host1.ID), nil, http.StatusOK, &getHostSw, "available_for_install", "true",
 		"order_key", "name")
 	require.Len(t, getHostSw.Software, 2)
@@ -4305,7 +4305,7 @@ func (s *integrationMDMTestSuite) TestSetupExperienceAndroidWithConfiguration() 
 	require.Nil(t, getHostSw.Software[1].Status)
 
 	// the pending install should now be failed for host2
-	getHostSw = getHostSoftwareResponse{}
+	getHostSw = fleet.GetHostSoftwareResponse{}
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/software", host2.ID), nil, http.StatusOK, &getHostSw, "available_for_install", "true",
 		"order_key", "name")
 	require.Len(t, getHostSw.Software, 2)
@@ -4318,8 +4318,8 @@ func (s *integrationMDMTestSuite) TestSetupExperienceAndroidWithConfiguration() 
 	require.Nil(t, getHostSw.Software[1].Status)
 
 	// set a configuration for app1
-	var patchAppResp updateAppStoreAppResponse
-	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/software/titles/%d/app_store_app", app1TitleID), &updateAppStoreAppRequest{
+	var patchAppResp fleet.UpdateAppStoreAppResponse
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/software/titles/%d/app_store_app", app1TitleID), &fleet.UpdateAppStoreAppRequest{
 		TeamID:        nil,
 		Configuration: json.RawMessage(`{"managedConfiguration": 1}`),
 	}, http.StatusOK, &patchAppResp)
@@ -4327,7 +4327,7 @@ func (s *integrationMDMTestSuite) TestSetupExperienceAndroidWithConfiguration() 
 	s.runWorkerUntilDoneWithChecks(true)
 
 	// the verified install should now be back to pending for host1
-	getHostSw = getHostSoftwareResponse{}
+	getHostSw = fleet.GetHostSoftwareResponse{}
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/software", host1.ID), nil, http.StatusOK, &getHostSw, "available_for_install", "true",
 		"order_key", "name")
 	require.Len(t, getHostSw.Software, 2)
@@ -4340,7 +4340,7 @@ func (s *integrationMDMTestSuite) TestSetupExperienceAndroidWithConfiguration() 
 	require.Nil(t, getHostSw.Software[1].Status)
 
 	// the failed install is still failed for host2
-	getHostSw = getHostSoftwareResponse{}
+	getHostSw = fleet.GetHostSoftwareResponse{}
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/software", host2.ID), nil, http.StatusOK, &getHostSw, "available_for_install", "true",
 		"order_key", "name")
 	require.Len(t, getHostSw.Software, 2)
@@ -4353,7 +4353,7 @@ func (s *integrationMDMTestSuite) TestSetupExperienceAndroidWithConfiguration() 
 	require.Nil(t, getHostSw.Software[1].Status)
 
 	// and still no apps for host3
-	getHostSw = getHostSoftwareResponse{}
+	getHostSw = fleet.GetHostSoftwareResponse{}
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/software", host3.ID), nil, http.StatusOK, &getHostSw, "available_for_install", "true",
 		"order_key", "name")
 	require.Len(t, getHostSw.Software, 0)
@@ -4370,8 +4370,8 @@ func (s *integrationMDMTestSuite) TestSetupExperienceAndroidWithConfiguration() 
 	versionBefore := getPolicyVersion(host1.ID, app1.AdamID)
 
 	// update the configuration for app1
-	patchAppResp = updateAppStoreAppResponse{}
-	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/software/titles/%d/app_store_app", app1TitleID), &updateAppStoreAppRequest{
+	patchAppResp = fleet.UpdateAppStoreAppResponse{}
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/software/titles/%d/app_store_app", app1TitleID), &fleet.UpdateAppStoreAppRequest{
 		TeamID:        nil,
 		Configuration: json.RawMessage(`{"managedConfiguration": 2}`),
 	}, http.StatusOK, &patchAppResp)
@@ -4384,7 +4384,7 @@ func (s *integrationMDMTestSuite) TestSetupExperienceAndroidWithConfiguration() 
 	require.Greater(t, versionAfter, versionBefore)
 
 	// the pending install is still pending for host1
-	getHostSw = getHostSoftwareResponse{}
+	getHostSw = fleet.GetHostSoftwareResponse{}
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/software", host1.ID), nil, http.StatusOK, &getHostSw, "available_for_install", "true",
 		"order_key", "name")
 	require.Len(t, getHostSw.Software, 2)
@@ -4416,7 +4416,7 @@ func (s *integrationMDMTestSuite) TestSetupExperienceAndroidWithConfiguration() 
 	s.Do("POST", "/api/v1/fleet/android_enterprise/pubsub", &req, http.StatusOK, "token", string(pubSubToken.Value))
 
 	// still pending
-	getHostSw = getHostSoftwareResponse{}
+	getHostSw = fleet.GetHostSoftwareResponse{}
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/software", host1.ID), nil, http.StatusOK, &getHostSw, "available_for_install", "true",
 		"order_key", "name")
 	require.Len(t, getHostSw.Software, 2)
@@ -4447,7 +4447,7 @@ func (s *integrationMDMTestSuite) TestSetupExperienceAndroidWithConfiguration() 
 	req = android_service.PubSubPushRequest{PubSubMessage: *reportMsg}
 	s.Do("POST", "/api/v1/fleet/android_enterprise/pubsub", &req, http.StatusOK, "token", string(pubSubToken.Value))
 
-	getHostSw = getHostSoftwareResponse{}
+	getHostSw = fleet.GetHostSoftwareResponse{}
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/software", host1.ID), nil, http.StatusOK, &getHostSw, "available_for_install", "true",
 		"order_key", "name")
 	require.Len(t, getHostSw.Software, 2)
@@ -4460,8 +4460,8 @@ func (s *integrationMDMTestSuite) TestSetupExperienceAndroidWithConfiguration() 
 	require.Nil(t, getHostSw.Software[1].Status)
 
 	// update app1 again, but configuration stays the same
-	patchAppResp = updateAppStoreAppResponse{}
-	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/software/titles/%d/app_store_app", app1TitleID), &updateAppStoreAppRequest{
+	patchAppResp = fleet.UpdateAppStoreAppResponse{}
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/software/titles/%d/app_store_app", app1TitleID), &fleet.UpdateAppStoreAppRequest{
 		TeamID:        nil,
 		Configuration: json.RawMessage(`{"managedConfiguration": 2}`),
 	}, http.StatusOK, &patchAppResp)
@@ -4469,7 +4469,7 @@ func (s *integrationMDMTestSuite) TestSetupExperienceAndroidWithConfiguration() 
 	s.runWorkerUntilDoneWithChecks(true)
 
 	// status stays installed
-	getHostSw = getHostSoftwareResponse{}
+	getHostSw = fleet.GetHostSoftwareResponse{}
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/software", host1.ID), nil, http.StatusOK, &getHostSw, "available_for_install", "true",
 		"order_key", "name")
 	require.Len(t, getHostSw.Software, 2)
@@ -4512,7 +4512,7 @@ func (s *integrationMDMTestSuite) createAndEnrollAndroidDevice(t *testing.T, nam
 	req := android_service.PubSubPushRequest{PubSubMessage: *enrollmentMessage}
 	s.Do("POST", "/api/v1/fleet/android_enterprise/pubsub", &req, http.StatusOK, "token", string(pubsubToken.Value))
 
-	var hosts listHostsResponse
+	var hosts fleet.ListHostsResponse
 	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &hosts, "query", identifier)
 	require.Len(t, hosts.Hosts, 1)
 	hostResp := hosts.Hosts[0]

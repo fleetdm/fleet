@@ -15,37 +15,9 @@ import (
 	"github.com/fleetdm/fleet/v4/server/ptr"
 )
 
-/////////////////////////////////////////////////////////////////////////////////
 // Add
-/////////////////////////////////////////////////////////////////////////////////
-
-type teamPolicyRequest struct {
-	TeamID                         uint     `url:"fleet_id"`
-	QueryID                        *uint    `json:"query_id" renameto:"report_id"`
-	Query                          string   `json:"query"`
-	Name                           string   `json:"name"`
-	Description                    string   `json:"description"`
-	Resolution                     string   `json:"resolution"`
-	Platform                       string   `json:"platform"`
-	Critical                       bool     `json:"critical" premium:"true"`
-	CalendarEventsEnabled          bool     `json:"calendar_events_enabled"`
-	SoftwareTitleID                *uint    `json:"software_title_id"`
-	ScriptID                       *uint    `json:"script_id"`
-	LabelsIncludeAny               []string `json:"labels_include_any"`
-	LabelsExcludeAny               []string `json:"labels_exclude_any"`
-	ConditionalAccessEnabled       bool     `json:"conditional_access_enabled"`
-	ConditionalAccessBypassEnabled *bool    `json:"conditional_access_bypass_enabled"`
-}
-
-type teamPolicyResponse struct {
-	Policy *fleet.Policy `json:"policy,omitempty"`
-	Err    error         `json:"error,omitempty"`
-}
-
-func (r teamPolicyResponse) Error() error { return r.Err }
-
 func teamPolicyEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
-	req := request.(*teamPolicyRequest)
+	req := request.(*fleet.TeamPolicyRequest)
 	resp, err := svc.NewTeamPolicy(ctx, req.TeamID, fleet.NewTeamPolicyPayload{
 		QueryID:                        req.QueryID,
 		Name:                           req.Name,
@@ -63,9 +35,9 @@ func teamPolicyEndpoint(ctx context.Context, request interface{}, svc fleet.Serv
 		ConditionalAccessBypassEnabled: req.ConditionalAccessBypassEnabled,
 	})
 	if err != nil {
-		return teamPolicyResponse{Err: err}, nil
+		return fleet.TeamPolicyResponse{Err: err}, nil
 	}
-	return teamPolicyResponse{Policy: resp}, nil
+	return fleet.TeamPolicyResponse{Policy: resp}, nil
 }
 
 func (svc Service) NewTeamPolicy(ctx context.Context, teamID uint, tp fleet.NewTeamPolicyPayload) (*fleet.Policy, error) {
@@ -216,30 +188,9 @@ func (svc *Service) newTeamPolicyPayloadToPolicyPayload(ctx context.Context, tea
 	}, nil
 }
 
-/////////////////////////////////////////////////////////////////////////////////
 // List
-/////////////////////////////////////////////////////////////////////////////////
-
-type listTeamPoliciesRequest struct {
-	TeamID                  uint                 `url:"fleet_id"`
-	Opts                    fleet.ListOptions    `url:"list_options"`
-	InheritedPage           uint                 `query:"inherited_page,optional"`
-	InheritedPerPage        uint                 `query:"inherited_per_page,optional"`
-	InheritedOrderDirection fleet.OrderDirection `query:"inherited_order_direction,optional"`
-	InheritedOrderKey       string               `query:"inherited_order_key,optional"`
-	MergeInherited          bool                 `query:"merge_inherited,optional"`
-}
-
-type listTeamPoliciesResponse struct {
-	Policies          []*fleet.Policy `json:"policies,omitempty"`
-	InheritedPolicies []*fleet.Policy `json:"inherited_policies,omitempty"`
-	Err               error           `json:"error,omitempty"`
-}
-
-func (r listTeamPoliciesResponse) Error() error { return r.Err }
-
 func listTeamPoliciesEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
-	req := request.(*listTeamPoliciesRequest)
+	req := request.(*fleet.ListTeamPoliciesRequest)
 
 	inheritedListOptions := fleet.ListOptions{
 		Page:           req.InheritedPage,
@@ -250,9 +201,9 @@ func listTeamPoliciesEndpoint(ctx context.Context, request interface{}, svc flee
 
 	tmPols, inheritedPols, err := svc.ListTeamPolicies(ctx, req.TeamID, req.Opts, inheritedListOptions, req.MergeInherited)
 	if err != nil {
-		return listTeamPoliciesResponse{Err: err}, nil
+		return fleet.ListTeamPoliciesResponse{Err: err}, nil
 	}
-	return listTeamPoliciesResponse{Policies: tmPols, InheritedPolicies: inheritedPols}, nil
+	return fleet.ListTeamPoliciesResponse{Policies: tmPols, InheritedPolicies: inheritedPols}, nil
 }
 
 func (svc *Service) ListTeamPolicies(ctx context.Context, teamID uint, opts fleet.ListOptions, iopts fleet.ListOptions, mergeInherited bool) (teamPolicies, inheritedPolicies []*fleet.Policy, err error) {
@@ -300,31 +251,14 @@ func (svc *Service) ListTeamPolicies(ctx context.Context, teamID uint, opts flee
 	return teamPolicies, inheritedPolicies, nil
 }
 
-/////////////////////////////////////////////////////////////////////////////////
 // Count
-/////////////////////////////////////////////////////////////////////////////////
-
-type countTeamPoliciesRequest struct {
-	ListOptions    fleet.ListOptions `url:"list_options"`
-	TeamID         uint              `url:"fleet_id"`
-	MergeInherited bool              `query:"merge_inherited,optional"`
-}
-
-type countTeamPoliciesResponse struct {
-	Count                int   `json:"count"`
-	InheritedPolicyCount int   `json:"inherited_policy_count"`
-	Err                  error `json:"error,omitempty"`
-}
-
-func (r countTeamPoliciesResponse) Error() error { return r.Err }
-
 func countTeamPoliciesEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
-	req := request.(*countTeamPoliciesRequest)
+	req := request.(*fleet.CountTeamPoliciesRequest)
 	count, inheritedCount, err := svc.CountTeamPolicies(ctx, req.TeamID, req.ListOptions.MatchQuery, req.MergeInherited)
 	if err != nil {
-		return countTeamPoliciesResponse{Err: err}, nil
+		return fleet.CountTeamPoliciesResponse{Err: err}, nil
 	}
-	return countTeamPoliciesResponse{Count: count, InheritedPolicyCount: inheritedCount}, nil
+	return fleet.CountTeamPoliciesResponse{Count: count, InheritedPolicyCount: inheritedCount}, nil
 }
 
 func (svc *Service) CountTeamPolicies(ctx context.Context, teamID uint, matchQuery string, mergeInherited bool) (int, int, error) {
@@ -361,29 +295,14 @@ func (svc *Service) CountTeamPolicies(ctx context.Context, teamID uint, matchQue
 	return count, 0, nil
 }
 
-/////////////////////////////////////////////////////////////////////////////////
 // Get by id
-/////////////////////////////////////////////////////////////////////////////////
-
-type getTeamPolicyByIDRequest struct {
-	TeamID   uint `url:"fleet_id"`
-	PolicyID uint `url:"policy_id"`
-}
-
-type getTeamPolicyByIDResponse struct {
-	Policy *fleet.Policy `json:"policy"`
-	Err    error         `json:"error,omitempty"`
-}
-
-func (r getTeamPolicyByIDResponse) Error() error { return r.Err }
-
 func getTeamPolicyByIDEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
-	req := request.(*getTeamPolicyByIDRequest)
+	req := request.(*fleet.GetTeamPolicyByIDRequest)
 	teamPolicy, err := svc.GetTeamPolicyByIDQueries(ctx, req.TeamID, req.PolicyID)
 	if err != nil {
-		return getTeamPolicyByIDResponse{Err: err}, nil
+		return fleet.GetTeamPolicyByIDResponse{Err: err}, nil
 	}
-	return getTeamPolicyByIDResponse{Policy: teamPolicy}, nil
+	return fleet.GetTeamPolicyByIDResponse{Policy: teamPolicy}, nil
 }
 
 func (svc Service) GetTeamPolicyByIDQueries(ctx context.Context, teamID uint, policyID uint) (*fleet.Policy, error) {
@@ -410,29 +329,14 @@ func (svc Service) GetTeamPolicyByIDQueries(ctx context.Context, teamID uint, po
 	return teamPolicy, nil
 }
 
-/////////////////////////////////////////////////////////////////////////////////
 // Delete
-/////////////////////////////////////////////////////////////////////////////////
-
-type deleteTeamPoliciesRequest struct {
-	TeamID uint   `url:"fleet_id"`
-	IDs    []uint `json:"ids"`
-}
-
-type deleteTeamPoliciesResponse struct {
-	Deleted []uint `json:"deleted,omitempty"`
-	Err     error  `json:"error,omitempty"`
-}
-
-func (r deleteTeamPoliciesResponse) Error() error { return r.Err }
-
 func deleteTeamPoliciesEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
-	req := request.(*deleteTeamPoliciesRequest)
+	req := request.(*fleet.DeleteTeamPoliciesRequest)
 	resp, err := svc.DeleteTeamPolicies(ctx, req.TeamID, req.IDs)
 	if err != nil {
-		return deleteTeamPoliciesResponse{Err: err}, nil
+		return fleet.DeleteTeamPoliciesResponse{Err: err}, nil
 	}
-	return deleteTeamPoliciesResponse{Deleted: resp}, nil
+	return fleet.DeleteTeamPoliciesResponse{Deleted: resp}, nil
 }
 
 func (svc Service) DeleteTeamPolicies(ctx context.Context, teamID uint, ids []uint) ([]uint, error) {
@@ -526,30 +430,14 @@ func (svc Service) DeleteTeamPolicies(ctx context.Context, teamID uint, ids []ui
 	return ids, nil
 }
 
-/////////////////////////////////////////////////////////////////////////////////
 // Modify
-/////////////////////////////////////////////////////////////////////////////////
-
-type modifyTeamPolicyRequest struct {
-	TeamID   uint `url:"fleet_id"`
-	PolicyID uint `url:"policy_id"`
-	fleet.ModifyPolicyPayload
-}
-
-type modifyTeamPolicyResponse struct {
-	Policy *fleet.Policy `json:"policy,omitempty"`
-	Err    error         `json:"error,omitempty"`
-}
-
-func (r modifyTeamPolicyResponse) Error() error { return r.Err }
-
 func modifyTeamPolicyEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
-	req := request.(*modifyTeamPolicyRequest)
+	req := request.(*fleet.ModifyTeamPolicyRequest)
 	resp, err := svc.ModifyTeamPolicy(ctx, req.TeamID, req.PolicyID, req.ModifyPolicyPayload)
 	if err != nil {
-		return modifyTeamPolicyResponse{Err: err}, nil
+		return fleet.ModifyTeamPolicyResponse{Err: err}, nil
 	}
-	return modifyTeamPolicyResponse{Policy: resp}, nil
+	return fleet.ModifyTeamPolicyResponse{Policy: resp}, nil
 }
 
 func (svc *Service) ModifyTeamPolicy(ctx context.Context, teamID uint, id uint, p fleet.ModifyPolicyPayload) (*fleet.Policy, error) {

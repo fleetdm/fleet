@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
+	fleetclient "github.com/fleetdm/fleet/v4/client"
 	"github.com/fleetdm/fleet/v4/pkg/spec"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -26,29 +27,11 @@ const (
 	scriptsBaseURL    = "https://raw.githubusercontent.com/fleetdm/fleet/main/"
 )
 
-type setupRequest struct {
-	Admin        *fleet.UserPayload `json:"admin"`
-	OrgInfo      *fleet.OrgInfo     `json:"org_info"`
-	ServerURL    *string            `json:"server_url,omitempty"`
-	EnrollSecret *string            `json:"osquery_enroll_secret,omitempty"`
-}
-
-type setupResponse struct {
-	Admin        *fleet.User    `json:"admin,omitempty"`
-	OrgInfo      *fleet.OrgInfo `json:"org_info,omitempty"`
-	ServerURL    *string        `json:"server_url"`
-	EnrollSecret *string        `json:"osquery_enroll_secret"`
-	Token        *string        `json:"token,omitempty"`
-	Err          error          `json:"error,omitempty"`
-}
-
 type applyGroupFunc func(context.Context, *spec.Group) error
-
-func (r setupResponse) Error() error { return r.Err }
 
 func makeSetupEndpoint(svc fleet.Service, logger kitlog.Logger) endpoint.Endpoint {
 	return func(ctx context.Context, request interface{}) (interface{}, error) {
-		req := request.(setupRequest)
+		req := request.(fleet.SetupRequest)
 		config := &fleet.AppConfig{}
 		if req.OrgInfo != nil {
 			config.OrgInfo = *req.OrgInfo
@@ -58,11 +41,11 @@ func makeSetupEndpoint(svc fleet.Service, logger kitlog.Logger) endpoint.Endpoin
 		}
 		config, err := svc.NewAppConfig(ctx, *config)
 		if err != nil {
-			return setupResponse{Err: err}, nil
+			return fleet.SetupResponse{Err: err}, nil
 		}
 
 		if req.Admin == nil {
-			return setupResponse{Err: ctxerr.New(ctx, "setup request must provide admin")}, nil
+			return fleet.SetupResponse{Err: ctxerr.New(ctx, "setup request must provide admin")}, nil
 		}
 
 		// creating the user should be the last action. If there's a user
@@ -70,17 +53,17 @@ func makeSetupEndpoint(svc fleet.Service, logger kitlog.Logger) endpoint.Endpoin
 		adminPayload := *req.Admin
 		if adminPayload.Email == nil || *adminPayload.Email == "" {
 			err := ctxerr.New(ctx, "admin email cannot be empty")
-			return setupResponse{Err: err}, nil
+			return fleet.SetupResponse{Err: err}, nil
 		}
 		if adminPayload.Password == nil || *adminPayload.Password == "" {
 			err := ctxerr.New(ctx, "admin password cannot be empty")
-			return setupResponse{Err: err}, nil
+			return fleet.SetupResponse{Err: err}, nil
 		}
 		// Make the user an admin
 		adminPayload.GlobalRole = ptr.String(fleet.RoleAdmin)
 		admin, err := svc.CreateInitialUser(ctx, adminPayload)
 		if err != nil {
-			return setupResponse{Err: err}, nil
+			return fleet.SetupResponse{Err: err}, nil
 		}
 
 		// If everything works to this point, log the user in and return token.
@@ -101,7 +84,7 @@ func makeSetupEndpoint(svc fleet.Service, logger kitlog.Logger) endpoint.Endpoin
 					session.Key,
 					logger,
 					fleethttp.NewClient,
-					NewClient,
+					fleetclient.NewClient,
 					nil, // No mock ApplyGroup for production code
 				); err != nil {
 					level.Debug(logger).Log("endpoint", "setup", "op", "applyStarterLibrary", "err", err)
@@ -112,7 +95,7 @@ func makeSetupEndpoint(svc fleet.Service, logger kitlog.Logger) endpoint.Endpoin
 			}
 		}
 
-		return setupResponse{
+		return fleet.SetupResponse{
 			Admin:     admin,
 			OrgInfo:   &config.OrgInfo,
 			ServerURL: req.ServerURL,
@@ -131,7 +114,7 @@ func ApplyStarterLibrary(
 	token string,
 	logger kitlog.Logger,
 	httpClientFactory func(opts ...fleethttp.ClientOpt) *http.Client,
-	clientFactory func(serverURL string, insecureSkipVerify bool, rootCA, urlPrefix string, options ...ClientOption) (*Client, error),
+	clientFactory func(serverURL string, insecureSkipVerify bool, rootCA, urlPrefix string, options ...fleetclient.ClientOption) (*fleetclient.Client, error),
 	// For testing only - if provided, this function will be used instead of client.ApplyGroup
 	mockApplyGroup func(ctx context.Context, specs *spec.Group) error,
 ) error {
@@ -362,7 +345,7 @@ func DownloadAndUpdateScripts(ctx context.Context, specs *spec.Group, scriptName
 	}
 
 	// Extract scripts from AppConfig if present
-	appConfigScripts := extractAppCfgScripts(specs.AppConfig)
+	appConfigScripts := fleetclient.ExtractAppCfgScripts(specs.AppConfig)
 	if appConfigScripts != nil {
 		// Replace script paths with actual script contents
 		appScripts := make([]string, 0, len(appConfigScripts))

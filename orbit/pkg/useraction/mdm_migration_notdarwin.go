@@ -6,15 +6,15 @@ import (
 	"context"
 	"time"
 
+	fleetclient "github.com/fleetdm/fleet/v4/client"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/migration"
-	"github.com/fleetdm/fleet/v4/server/service"
 )
 
 func NewMDMMigrator(path string, frequency time.Duration, handler MDMMigratorHandler, mrw *migration.ReadWriter, fleetURL string, showCh chan struct{}) MDMMigrator {
 	return &NoopMDMMigrator{}
 }
 
-func StartMDMMigrationOfflineWatcher(ctx context.Context, client *service.DeviceClient, swiftDialogPath string, swiftDialogCh chan struct{}, fileWatcher migration.FileWatcher) MDMOfflineWatcher {
+func StartMDMMigrationOfflineWatcher(ctx context.Context, client *fleetclient.DeviceClient, swiftDialogPath string, swiftDialogCh chan struct{}, fileWatcher migration.FileWatcher) MDMOfflineWatcher {
 	return &NoopOfflineWatcher{}
 }
 

@@ -60,7 +60,7 @@ func TestIntegrationsSSO(t *testing.T) {
 func (s *integrationSSOTestSuite) TestGetSSOSettings() {
 	t := s.T()
 
-	acResp := appConfigResponse{}
+	acResp := fleet.AppConfigResponse{}
 	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
 		"sso_settings": {
 			"enable_sso": true,
@@ -73,16 +73,16 @@ func (s *integrationSSOTestSuite) TestGetSSOSettings() {
 	require.NotNil(t, acResp)
 
 	// double-check the settings
-	var resGet ssoSettingsResponse
+	var resGet fleet.SsoSettingsResponse
 	s.DoJSON("GET", "/api/v1/fleet/sso", nil, http.StatusOK, &resGet)
 	require.True(t, resGet.Settings.SSOEnabled)
 
 	// Javascript redirect URLs are forbidden
-	var resIni initiateSSOResponse
+	var resIni fleet.InitiateSSOResponse
 	s.DoJSON("POST", "/api/v1/fleet/sso", map[string]string{"relay_url": "javascript:alert(1)"}, http.StatusBadRequest, &resIni)
 
 	// initiate an SSO auth
-	resIni = initiateSSOResponse{}
+	resIni = fleet.InitiateSSOResponse{}
 	s.DoJSON("POST", "/api/v1/fleet/sso", map[string]string{}, http.StatusOK, &resIni)
 	require.NotEmpty(t, resIni.URL)
 
@@ -101,7 +101,7 @@ func (s *integrationSSOTestSuite) TestSSOInvalidMetadataURL() {
 	t := s.T()
 
 	badMetadataUrl := "https://www.fleetdm.com"
-	acResp := appConfigResponse{}
+	acResp := fleet.AppConfigResponse{}
 	s.DoJSON(
 		"PATCH", "/api/latest/fleet/config", json.RawMessage(
 			`{
@@ -117,7 +117,7 @@ func (s *integrationSSOTestSuite) TestSSOInvalidMetadataURL() {
 	)
 	require.NotNil(t, acResp)
 
-	var resIni initiateSSOResponse
+	var resIni fleet.InitiateSSOResponse
 	expectedStatus := http.StatusBadRequest
 	t.Logf("Expecting 400 %v status when bad SSO metadata_url is set: %v", expectedStatus, badMetadataUrl)
 	s.DoJSON("POST", "/api/v1/fleet/sso", map[string]string{}, expectedStatus, &resIni)
@@ -127,7 +127,7 @@ func (s *integrationSSOTestSuite) TestSSOInvalidMetadata() {
 	t := s.T()
 
 	badMetadata := "<EntityDescriptor>foo</EntityDescriptor>"
-	acResp := appConfigResponse{}
+	acResp := fleet.AppConfigResponse{}
 	s.DoJSON(
 		"PATCH", "/api/latest/fleet/config", json.RawMessage(
 			`{
@@ -144,14 +144,14 @@ func (s *integrationSSOTestSuite) TestSSOInvalidMetadata() {
 	)
 	require.NotNil(t, acResp)
 
-	var resIni initiateSSOResponse
+	var resIni fleet.InitiateSSOResponse
 	expectedStatus := http.StatusBadRequest
 	t.Logf("Expecting %v status when bad SSO metadata is provided: %v", expectedStatus, badMetadata)
 	s.DoJSON("POST", "/api/v1/fleet/sso", map[string]string{}, expectedStatus, &resIni)
 }
 
 func (s *integrationSSOTestSuite) TestSSOValidation() {
-	acResp := appConfigResponse{}
+	acResp := fleet.AppConfigResponse{}
 	// Test we are validating metadata_url
 	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
 		"sso_settings": {
@@ -166,7 +166,7 @@ func (s *integrationSSOTestSuite) TestSSOValidation() {
 func (s *integrationSSOTestSuite) TestSSOLogin() {
 	t := s.T()
 
-	acResp := appConfigResponse{}
+	acResp := fleet.AppConfigResponse{}
 	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
         "server_settings": {
           "server_url": "https://localhost:8080"
@@ -181,7 +181,7 @@ func (s *integrationSSOTestSuite) TestSSOLogin() {
 	require.NotNil(t, acResp)
 
 	// Register current number of activities.
-	activitiesResp := listActivitiesResponse{}
+	activitiesResp := fleet.ListActivitiesResponse{}
 	s.DoJSON("GET", "/api/latest/fleet/activities", nil, http.StatusOK, &activitiesResp)
 	require.NoError(t, activitiesResp.Err)
 	oldActivitiesCount := len(activitiesResp.Activities)
@@ -192,7 +192,7 @@ func (s *integrationSSOTestSuite) TestSSOLogin() {
 
 	newActivitiesCount := 1
 	checkNewFailedLoginActivity := func() {
-		activitiesResp = listActivitiesResponse{}
+		activitiesResp = fleet.ListActivitiesResponse{}
 		s.DoJSON("GET", "/api/latest/fleet/activities", nil, http.StatusOK, &activitiesResp)
 		require.NoError(t, activitiesResp.Err)
 		require.Len(t, activitiesResp.Activities, oldActivitiesCount+newActivitiesCount)
@@ -252,7 +252,7 @@ func (s *integrationSSOTestSuite) TestSSOLogin() {
 	require.Contains(t, body, "Redirecting to Fleet at  ...")
 
 	// a new activity item is created
-	activitiesResp = listActivitiesResponse{}
+	activitiesResp = fleet.ListActivitiesResponse{}
 	s.DoJSON("GET", "/api/latest/fleet/activities", nil, http.StatusOK, &activitiesResp)
 	require.NoError(t, activitiesResp.Err)
 	require.NotEmpty(t, activitiesResp.Activities)
@@ -269,7 +269,7 @@ func (s *integrationSSOTestSuite) TestSSOLogin() {
 func (s *integrationSSOTestSuite) TestSSOLoginDisallowedWithPremiumRoles() {
 	t := s.T()
 
-	acResp := appConfigResponse{}
+	acResp := fleet.AppConfigResponse{}
 	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
         "server_settings": {
           "server_url": "https://localhost:8080"
@@ -329,7 +329,7 @@ func (s *integrationSSOTestSuite) TestPerformRequiredPasswordResetWithSSO() {
 	t := s.T()
 
 	// create a non-SSO user
-	var createResp createUserResponse
+	var createResp fleet.CreateUserResponse
 	userRawPwd := test.GoodPassword
 	params := fleet.UserPayload{
 		Name:       ptr.String("extra"),
@@ -343,7 +343,7 @@ func (s *integrationSSOTestSuite) TestPerformRequiredPasswordResetWithSSO() {
 	nonSSOUser := *createResp.User
 
 	// enable SSO
-	acResp := appConfigResponse{}
+	acResp := fleet.AppConfigResponse{}
 	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
 		"sso_settings": {
 			"enable_sso": true,
@@ -356,9 +356,9 @@ func (s *integrationSSOTestSuite) TestPerformRequiredPasswordResetWithSSO() {
 
 	// perform a required password change using the non-SSO user, works
 	s.token = s.getTestToken(nonSSOUser.Email, userRawPwd)
-	perfPwdResetResp := performRequiredPasswordResetResponse{}
+	perfPwdResetResp := fleet.PerformRequiredPasswordResetResponse{}
 	newRawPwd := "new_password2!"
-	s.DoJSON("POST", "/api/latest/fleet/perform_required_password_reset", performRequiredPasswordResetRequest{
+	s.DoJSON("POST", "/api/latest/fleet/perform_required_password_reset", fleet.PerformRequiredPasswordResetRequest{
 		Password: newRawPwd,
 		ID:       nonSSOUser.ID,
 	}, http.StatusOK, &perfPwdResetResp)
@@ -377,9 +377,9 @@ func (s *integrationSSOTestSuite) TestPerformRequiredPasswordResetWithSSO() {
 	})
 
 	// perform a required password change using the mocked SSO user, disallowed
-	perfPwdResetResp = performRequiredPasswordResetResponse{}
+	perfPwdResetResp = fleet.PerformRequiredPasswordResetResponse{}
 	newRawPwd = "new_password2!"
-	s.DoJSON("POST", "/api/latest/fleet/perform_required_password_reset", performRequiredPasswordResetRequest{
+	s.DoJSON("POST", "/api/latest/fleet/perform_required_password_reset", fleet.PerformRequiredPasswordResetRequest{
 		Password: newRawPwd,
 		ID:       nonSSOUser.ID,
 	}, http.StatusForbidden, &perfPwdResetResp)
@@ -402,7 +402,7 @@ func inflate(t *testing.T, s string) *saml.AuthnRequest {
 func (s *integrationSSOTestSuite) TestSSOLoginWithMetadata() {
 	t := s.T()
 
-	acResp := appConfigResponse{}
+	acResp := fleet.AppConfigResponse{}
 	metadata, err := json.Marshal([]byte(`<?xml version="1.0"?>
 <md:EntityDescriptor xmlns:md="urn:oasis:names:tc:SAML:2.0:metadata" xmlns:ds="http://www.w3.org/2000/09/xmldsig#" entityID="http://localhost:9080/simplesaml/saml2/idp/metadata.php">
   <md:IDPSSODescriptor protocolSupportEnumeration="urn:oasis:names:tc:SAML:2.0:protocol">
@@ -460,7 +460,7 @@ func (s *integrationSSOTestSuite) TestSSOLoginWithMetadata() {
 func (s *integrationSSOTestSuite) TestSSOLoginNoEntityID() {
 	t := s.T()
 
-	acResp := appConfigResponse{}
+	acResp := fleet.AppConfigResponse{}
 	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
         "server_settings": {
           "server_url": "https://localhost:8080"
@@ -505,7 +505,7 @@ func (s *integrationSSOTestSuite) TestSSOLoginSAMLResponseTampered() {
 		t.Skip("SSO tests are disabled")
 	}
 
-	acResp := appConfigResponse{}
+	acResp := fleet.AppConfigResponse{}
 	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
         "server_settings": {
           "server_url": "https://localhost:8080"
@@ -535,7 +535,7 @@ func (s *integrationSSOTestSuite) TestSSOLoginSAMLResponseTampered() {
 		idpUsername = "sso_user2"
 		idpPassword = "user123#"
 	)
-	var resIni initiateSSOResponse
+	var resIni fleet.InitiateSSOResponse
 	s.DoJSON("POST", "/api/v1/fleet/sso", map[string]string{}, http.StatusOK, &resIni)
 	jar, err := cookiejar.New(nil)
 	require.NoError(t, err)
@@ -606,7 +606,7 @@ func (s *integrationSSOTestSuite) TestSSOServerURL() {
 </md:EntityDescriptor>`
 
 	// Configure SSO with a specific SSO server URL and inline metadata
-	acResp := appConfigResponse{}
+	acResp := fleet.AppConfigResponse{}
 	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(fmt.Sprintf(`{
 		"sso_settings": {
 			"enable_sso": true,
@@ -624,7 +624,7 @@ func (s *integrationSSOTestSuite) TestSSOServerURL() {
 	require.Equal(t, "https://admin.localhost:8080", acResp.SSOSettings.SSOServerURL)
 
 	// Initiate SSO
-	var resIni initiateSSOResponse
+	var resIni fleet.InitiateSSOResponse
 	s.DoJSON("POST", "/api/v1/fleet/sso", map[string]string{}, http.StatusOK, &resIni)
 	require.NotEmpty(t, resIni.URL)
 

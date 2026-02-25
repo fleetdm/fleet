@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"io"
-	"mime/multipart"
 	"net/http"
 	"path/filepath"
 	"slices"
@@ -18,30 +17,14 @@ import (
 	"github.com/fleetdm/fleet/v4/server/ptr"
 )
 
-type putSetupExperienceSoftwareRequest struct {
-	Platform string `json:"platform"`
-	TeamID   uint   `json:"team_id" renameto:"fleet_id"`
-	TitleIDs []uint `json:"software_title_ids"`
-}
-
-func (r *putSetupExperienceSoftwareRequest) ValidateRequest() error {
-	return validateSetupExperiencePlatform(r.Platform)
-}
-
-type putSetupExperienceSoftwareResponse struct {
-	Err error `json:"error,omitempty"`
-}
-
-func (r putSetupExperienceSoftwareResponse) Error() error { return r.Err }
-
 func putSetupExperienceSoftware(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
-	req := request.(*putSetupExperienceSoftwareRequest)
+	req := request.(*fleet.PutSetupExperienceSoftwareRequest)
 	platform := transformPlatformForSetupExperience(req.Platform)
 	err := svc.SetSetupExperienceSoftware(ctx, platform, req.TeamID, req.TitleIDs)
 	if err != nil {
-		return &putSetupExperienceSoftwareResponse{Err: err}, nil
+		return &fleet.PutSetupExperienceSoftwareResponse{Err: err}, nil
 	}
-	return &putSetupExperienceSoftwareResponse{}, nil
+	return &fleet.PutSetupExperienceSoftwareResponse{}, nil
 }
 
 func (svc *Service) SetSetupExperienceSoftware(ctx context.Context, platform string, teamID uint, titleIDs []uint) error {
@@ -52,34 +35,14 @@ func (svc *Service) SetSetupExperienceSoftware(ctx context.Context, platform str
 	return fleet.ErrMissingLicense
 }
 
-type getSetupExperienceSoftwareRequest struct {
-	// Platforms can be a comma separated list
-	Platforms string `query:"platform,optional"`
-	fleet.ListOptions
-	TeamID uint `query:"team_id" renameto:"fleet_id"`
-}
-
-func (r *getSetupExperienceSoftwareRequest) ValidateRequest() error {
-	return validateSetupExperiencePlatform(r.Platforms)
-}
-
-type getSetupExperienceSoftwareResponse struct {
-	SoftwareTitles []fleet.SoftwareTitleListResult `json:"software_titles"`
-	Count          int                             `json:"count"`
-	Meta           *fleet.PaginationMetadata       `json:"meta"`
-	Err            error                           `json:"error,omitempty"`
-}
-
-func (r getSetupExperienceSoftwareResponse) Error() error { return r.Err }
-
 func getSetupExperienceSoftware(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
-	req := request.(*getSetupExperienceSoftwareRequest)
+	req := request.(*fleet.GetSetupExperienceSoftwareRequest)
 	platform := transformPlatformListForSetupExperience(req.Platforms)
 	titles, count, meta, err := svc.ListSetupExperienceSoftware(ctx, platform, req.TeamID, req.ListOptions)
 	if err != nil {
-		return &getSetupExperienceSoftwareResponse{Err: err}, nil
+		return &fleet.GetSetupExperienceSoftwareResponse{Err: err}, nil
 	}
-	return &getSetupExperienceSoftwareResponse{SoftwareTitles: titles, Count: count, Meta: meta}, nil
+	return &fleet.GetSetupExperienceSoftwareResponse{SoftwareTitles: titles, Count: count, Meta: meta}, nil
 }
 
 func (svc *Service) ListSetupExperienceSoftware(ctx context.Context, platform string, teamID uint, opts fleet.ListOptions) ([]fleet.SoftwareTitleListResult, int, *fleet.PaginationMetadata, error) {
@@ -90,36 +53,24 @@ func (svc *Service) ListSetupExperienceSoftware(ctx context.Context, platform st
 	return nil, 0, nil, fleet.ErrMissingLicense
 }
 
-type getSetupExperienceScriptRequest struct {
-	TeamID *uint  `query:"team_id,optional" renameto:"fleet_id"`
-	Alt    string `query:"alt,optional"`
-}
-
-type getSetupExperienceScriptResponse struct {
-	*fleet.Script
-	Err error `json:"error,omitempty"`
-}
-
-func (r getSetupExperienceScriptResponse) Error() error { return r.Err }
-
 func getSetupExperienceScriptEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
-	req := request.(*getSetupExperienceScriptRequest)
+	req := request.(*fleet.GetSetupExperienceScriptRequest)
 	downloadRequested := req.Alt == "media"
 	// // TODO: do we want to allow end users to specify team_id=0? if so, we'll need convert it to nil here so that we can
 	// // use it in the auth layer where team_id=0 is not allowed?
 	script, content, err := svc.GetSetupExperienceScript(ctx, req.TeamID, downloadRequested)
 	if err != nil {
-		return getSetupExperienceScriptResponse{Err: err}, nil
+		return fleet.GetSetupExperienceScriptResponse{Err: err}, nil
 	}
 
 	if downloadRequested {
-		return downloadFileResponse{
-			content:  content,
-			filename: fmt.Sprintf("%s %s", time.Now().Format(time.DateOnly), script.Name),
+		return fleet.DownloadFileResponse{
+			Content:  content,
+			Filename: fmt.Sprintf("%s %s", time.Now().Format(time.DateOnly), script.Name),
 		}, nil
 	}
 
-	return getSetupExperienceScriptResponse{Script: script}, nil
+	return fleet.GetSetupExperienceScriptResponse{Script: script}, nil
 }
 
 func (svc *Service) GetSetupExperienceScript(ctx context.Context, teamID *uint, withContent bool) (*fleet.Script, []byte, error) {
@@ -130,13 +81,10 @@ func (svc *Service) GetSetupExperienceScript(ctx context.Context, teamID *uint, 
 	return nil, nil, fleet.ErrMissingLicense
 }
 
-type setSetupExperienceScriptRequest struct {
-	TeamID *uint
-	Script *multipart.FileHeader
-}
+type decodeSetSetupExperienceScriptRequest struct{}
 
-func (setSetupExperienceScriptRequest) DecodeRequest(ctx context.Context, r *http.Request) (interface{}, error) {
-	var decoded setSetupExperienceScriptRequest
+func (decodeSetSetupExperienceScriptRequest) DecodeRequest(ctx context.Context, r *http.Request) (interface{}, error) {
+	var decoded fleet.SetSetupExperienceScriptRequest
 
 	err := parseMultipartForm(ctx, r, platform_http.MaxMultipartFormSize)
 	if err != nil {
@@ -166,26 +114,20 @@ func (setSetupExperienceScriptRequest) DecodeRequest(ctx context.Context, r *htt
 	return &decoded, nil
 }
 
-type setSetupExperienceScriptResponse struct {
-	Err error `json:"error,omitempty"`
-}
-
-func (r setSetupExperienceScriptResponse) Error() error { return r.Err }
-
 func setSetupExperienceScriptEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
-	req := request.(*setSetupExperienceScriptRequest)
+	req := request.(*fleet.SetSetupExperienceScriptRequest)
 
 	scriptFile, err := req.Script.Open()
 	if err != nil {
-		return setSetupExperienceScriptResponse{Err: err}, nil
+		return fleet.SetSetupExperienceScriptResponse{Err: err}, nil
 	}
 	defer scriptFile.Close()
 
 	if err := svc.SetSetupExperienceScript(ctx, req.TeamID, filepath.Base(req.Script.Filename), scriptFile); err != nil {
-		return setSetupExperienceScriptResponse{Err: err}, nil
+		return fleet.SetSetupExperienceScriptResponse{Err: err}, nil
 	}
 
-	return setSetupExperienceScriptResponse{}, nil
+	return fleet.SetSetupExperienceScriptResponse{}, nil
 }
 
 func (svc *Service) SetSetupExperienceScript(ctx context.Context, teamID *uint, name string, r io.Reader) error {
@@ -196,25 +138,15 @@ func (svc *Service) SetSetupExperienceScript(ctx context.Context, teamID *uint, 
 	return fleet.ErrMissingLicense
 }
 
-type deleteSetupExperienceScriptRequest struct {
-	TeamID *uint `query:"team_id,optional" renameto:"fleet_id"`
-}
-
-type deleteSetupExperienceScriptResponse struct {
-	Err error `json:"error,omitempty"`
-}
-
-func (r deleteSetupExperienceScriptResponse) Error() error { return r.Err }
-
 func deleteSetupExperienceScriptEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
-	req := request.(*deleteSetupExperienceScriptRequest)
+	req := request.(*fleet.DeleteSetupExperienceScriptRequest)
 	// // TODO: do we want to allow end users to specify team_id=0? if so, we'll need convert it to nil here so that we can
 	// // use it in the auth layer where team_id=0 is not allowed?
 	if err := svc.DeleteSetupExperienceScript(ctx, req.TeamID); err != nil {
-		return deleteSetupExperienceScriptResponse{Err: err}, nil
+		return fleet.DeleteSetupExperienceScriptResponse{Err: err}, nil
 	}
 
-	return deleteSetupExperienceScriptResponse{}, nil
+	return fleet.DeleteSetupExperienceScriptResponse{}, nil
 }
 
 func (svc *Service) DeleteSetupExperienceScript(ctx context.Context, teamID *uint) error {

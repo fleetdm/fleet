@@ -8,7 +8,6 @@ import (
 	_ "image/png"
 	"io"
 	"math"
-	"mime/multipart"
 	"net/http"
 	"strconv"
 
@@ -18,56 +17,14 @@ import (
 	"github.com/gorilla/mux"
 )
 
-type getSoftwareTitleIconsRequest struct {
-	TitleID uint  `url:"title_id"`
-	TeamID  *uint `query:"team_id" renameto:"fleet_id"`
-}
-type getSoftwareTitleIconsResponse struct {
-	Err         error  `json:"error,omitempty"`
-	ImageData   []byte `json:"-"`
-	ContentType string `json:"-"`
-	Filename    string `json:"-"`
-	Size        int64  `json:"-"`
-}
-
-func (r getSoftwareTitleIconsResponse) Error() error { return r.Err }
-
-type getSoftwareTitleIconsRedirectResponse struct {
-	Err         error  `json:"error,omitempty"`
-	RedirectURL string `json:"-"`
-}
-
-func (r getSoftwareTitleIconsRedirectResponse) Error() error { return r.Err }
-
-func (r getSoftwareTitleIconsRedirectResponse) HijackRender(ctx context.Context, w http.ResponseWriter) {
-	if r.Err != nil {
-		return
-	}
-
-	w.Header().Set("Location", r.RedirectURL)
-	w.WriteHeader(http.StatusFound)
-}
-
-func (r getSoftwareTitleIconsResponse) HijackRender(ctx context.Context, w http.ResponseWriter) {
-	if r.Err != nil {
-		return
-	}
-
-	w.Header().Set("Content-Type", r.ContentType)
-	w.Header().Set("Content-Disposition", fmt.Sprintf(`inline; filename="%s"`, r.Filename))
-	w.Header().Set("Content-Length", fmt.Sprintf("%d", r.Size))
-
-	_, _ = w.Write(r.ImageData)
-}
-
 func getSoftwareTitleIconsEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
-	req := request.(*getSoftwareTitleIconsRequest)
+	req := request.(*fleet.GetSoftwareTitleIconsRequest)
 
 	if req.TeamID == nil {
-		return getSoftwareTitleIconsResponse{Err: &fleet.BadRequestError{Message: "team_id is required"}}, nil
+		return fleet.GetSoftwareTitleIconsResponse{Err: &fleet.BadRequestError{Message: "team_id is required"}}, nil
 	}
 	if req.TitleID == 0 {
-		return getSoftwareTitleIconsResponse{Err: &fleet.BadRequestError{Message: "invalid title_id"}}, nil
+		return fleet.GetSoftwareTitleIconsResponse{Err: &fleet.BadRequestError{Message: "invalid title_id"}}, nil
 	}
 
 	iconData, size, filename, err := svc.GetSoftwareTitleIcon(ctx, *req.TeamID, req.TitleID)
@@ -75,12 +32,12 @@ func getSoftwareTitleIconsEndpoint(ctx context.Context, request interface{}, svc
 		var vppErr *fleet.VPPIconAvailable
 		if errors.As(err, &vppErr) {
 			// 302 redirect to vpp app IconURL
-			return getSoftwareTitleIconsRedirectResponse{RedirectURL: vppErr.IconURL}, nil
+			return fleet.GetSoftwareTitleIconsRedirectResponse{RedirectURL: vppErr.IconURL}, nil
 		}
-		return getSoftwareTitleIconsResponse{Err: err}, nil
+		return fleet.GetSoftwareTitleIconsResponse{Err: err}, nil
 	}
 
-	return getSoftwareTitleIconsResponse{
+	return fleet.GetSoftwareTitleIconsResponse{
 		ImageData:   iconData,
 		ContentType: "image/png", // only type of icon we currently allow
 		Filename:    filename,
@@ -96,24 +53,9 @@ func (svc *Service) GetSoftwareTitleIcon(ctx context.Context, teamID uint, title
 	return nil, 0, "", fleet.ErrMissingLicense
 }
 
-type putSoftwareTitleIconRequest struct {
-	TitleID    uint  `url:"title_id"`
-	TeamID     *uint `query:"team_id" renameto:"fleet_id"`
-	File       *multipart.FileHeader
-	HashSHA256 *string
-	Filename   *string
-}
+type decodePutSoftwareTitleIconRequest struct{}
 
-type putSoftwareTitleIconResponse struct {
-	Err     error  `json:"error,omitempty"`
-	IconUrl string `json:"icon_url,omitempty"`
-}
-
-func (r putSoftwareTitleIconResponse) Error() error {
-	return r.Err
-}
-
-func (putSoftwareTitleIconRequest) DecodeRequest(ctx context.Context, r *http.Request) (interface{}, error) {
+func (decodePutSoftwareTitleIconRequest) DecodeRequest(ctx context.Context, r *http.Request) (interface{}, error) {
 	urlVars := mux.Vars(r)
 	titleID, ok := urlVars["title_id"]
 	if !ok {
@@ -139,7 +81,7 @@ func (putSoftwareTitleIconRequest) DecodeRequest(ctx context.Context, r *http.Re
 	}
 	teamIDUint := uint(teamIDUint64)
 
-	decoded := putSoftwareTitleIconRequest{
+	decoded := fleet.PutSoftwareTitleIconRequest{
 		TitleID: uint(titleIDUint64),
 		TeamID:  &teamIDUint,
 	}
@@ -190,7 +132,7 @@ func (putSoftwareTitleIconRequest) DecodeRequest(ctx context.Context, r *http.Re
 }
 
 func putSoftwareTitleIconEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
-	req := request.(*putSoftwareTitleIconRequest)
+	req := request.(*fleet.PutSoftwareTitleIconRequest)
 
 	payload := &fleet.UploadSoftwareTitleIconPayload{
 		TitleID: req.TitleID,
@@ -200,13 +142,13 @@ func putSoftwareTitleIconEndpoint(ctx context.Context, request interface{}, svc 
 	if req.File != nil {
 		file, err := req.File.Open()
 		if err != nil {
-			return putSoftwareTitleIconResponse{Err: err}, nil
+			return fleet.PutSoftwareTitleIconResponse{Err: err}, nil
 		}
 		defer file.Close()
 
 		tfr, err := fleet.NewTempFileReader(file, nil)
 		if err != nil {
-			return putSoftwareTitleIconResponse{Err: err}, nil
+			return fleet.PutSoftwareTitleIconResponse{Err: err}, nil
 		}
 		defer tfr.Close()
 		payload.IconFile = tfr
@@ -220,10 +162,10 @@ func putSoftwareTitleIconEndpoint(ctx context.Context, request interface{}, svc 
 
 	softwareTitleIcon, err := svc.UploadSoftwareTitleIcon(ctx, payload)
 	if err != nil {
-		return putSoftwareTitleIconResponse{Err: err}, nil
+		return fleet.PutSoftwareTitleIconResponse{Err: err}, nil
 	}
 
-	return putSoftwareTitleIconResponse{
+	return fleet.PutSoftwareTitleIconResponse{
 		IconUrl: softwareTitleIcon.IconUrl(),
 	}, nil
 }
@@ -276,35 +218,22 @@ func ValidateIcon(file io.ReadSeeker) error {
 	return nil
 }
 
-type deleteSoftwareTitleIconRequest struct {
-	TitleID uint  `url:"title_id"`
-	TeamID  *uint `query:"team_id" renameto:"fleet_id"`
-}
-
-type deleteSoftwareTitleIconResponse struct {
-	Err error `json:"error,omitempty"`
-}
-
-func (r deleteSoftwareTitleIconResponse) Error() error {
-	return r.Err
-}
-
 func deleteSoftwareTitleIconEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
-	req := request.(*deleteSoftwareTitleIconRequest)
+	req := request.(*fleet.DeleteSoftwareTitleIconRequest)
 
 	if req.TeamID == nil {
-		return getSoftwareTitleIconsResponse{Err: &fleet.BadRequestError{Message: "team_id is required"}}, nil
+		return fleet.GetSoftwareTitleIconsResponse{Err: &fleet.BadRequestError{Message: "team_id is required"}}, nil
 	}
 	if req.TitleID == 0 {
-		return getSoftwareTitleIconsResponse{Err: &fleet.BadRequestError{Message: "invalid title_id"}}, nil
+		return fleet.GetSoftwareTitleIconsResponse{Err: &fleet.BadRequestError{Message: "invalid title_id"}}, nil
 	}
 
 	err := svc.DeleteSoftwareTitleIcon(ctx, *req.TeamID, req.TitleID)
 	if err != nil {
-		return deleteSoftwareTitleIconResponse{Err: err}, nil
+		return fleet.DeleteSoftwareTitleIconResponse{Err: err}, nil
 	}
 
-	return deleteSoftwareTitleIconResponse{}, nil
+	return fleet.DeleteSoftwareTitleIconResponse{}, nil
 }
 
 func (svc *Service) DeleteSoftwareTitleIcon(ctx context.Context, teamID uint, titleID uint) error {

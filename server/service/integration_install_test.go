@@ -110,7 +110,7 @@ func (s *integrationInstallTestSuite) TestSoftwareInstallerSignedURL() {
 		return "https://example.com/signed", nil
 	}
 
-	var createTeamResp teamResponse
+	var createTeamResp fleet.TeamResponse
 	s.DoJSON("POST", "/api/latest/fleet/teams", &fleet.Team{
 		Name: t.Name(),
 	}, http.StatusOK, &createTeamResp)
@@ -149,15 +149,15 @@ func (s *integrationInstallTestSuite) TestSoftwareInstallerSignedURL() {
 	require.NoError(t, s.ds.AddHostsToTeam(context.Background(), fleet.NewAddHostsToTeamParams(&createTeamResp.Team.ID, []uint{hostInTeam.ID})))
 
 	// Create a software installation request
-	s.Do("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/software/%d/install", hostInTeam.ID, titleID), installSoftwareRequest{},
+	s.Do("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/software/%d/install", hostInTeam.ID, titleID), fleet.InstallSoftwareRequest{},
 		http.StatusAccepted)
 
 	// Get the InstallerUUID
 	installUUID := getLatestSoftwareInstallExecID(t, s.ds, hostInTeam.ID)
 
 	// Fetch installer details
-	var orbitSoftwareResp orbitGetSoftwareInstallResponse
-	s.DoJSON("POST", "/api/fleet/orbit/software_install/details", orbitGetSoftwareInstallRequest{
+	var orbitSoftwareResp fleet.OrbitGetSoftwareInstallResponse
+	s.DoJSON("POST", "/api/fleet/orbit/software_install/details", fleet.OrbitGetSoftwareInstallRequest{
 		InstallUUID:  installUUID,
 		OrbitNodeKey: *hostInTeam.OrbitNodeKey,
 	}, http.StatusOK, &orbitSoftwareResp)
@@ -170,8 +170,8 @@ func (s *integrationInstallTestSuite) TestSoftwareInstallerSignedURL() {
 	s.softwareInstallStore.SignFunc = func(ctx context.Context, fileID string, expiresIn time.Duration) (string, error) {
 		return "", errors.New("error signing")
 	}
-	orbitSoftwareResp = orbitGetSoftwareInstallResponse{}
-	s.DoJSON("POST", "/api/fleet/orbit/software_install/details", orbitGetSoftwareInstallRequest{
+	orbitSoftwareResp = fleet.OrbitGetSoftwareInstallResponse{}
+	s.DoJSON("POST", "/api/fleet/orbit/software_install/details", fleet.OrbitGetSoftwareInstallRequest{
 		InstallUUID:  installUUID,
 		OrbitNodeKey: *hostInTeam.OrbitNodeKey,
 	}, http.StatusOK, &orbitSoftwareResp)
@@ -191,7 +191,7 @@ func (s *integrationInstallTestSuite) TestSoftwareInstallerSignedURL() {
 	s.softwareInstallStore.SignFunc = func(ctx context.Context, fileID string, expiresIn time.Duration) (string, error) {
 		return s3Store.Sign(ctx, fileID, fleet.SoftwareInstallerSignedURLExpiry)
 	}
-	s.DoJSON("POST", "/api/fleet/orbit/software_install/details", orbitGetSoftwareInstallRequest{
+	s.DoJSON("POST", "/api/fleet/orbit/software_install/details", fleet.OrbitGetSoftwareInstallRequest{
 		InstallUUID:  installUUID,
 		OrbitNodeKey: *hostInTeam.OrbitNodeKey,
 	}, http.StatusOK, &orbitSoftwareResp)
@@ -243,7 +243,7 @@ func (s *integrationInstallTestSuite) TestShScriptInstallOnDarwin() {
 	}
 
 	// Create a team
-	var createTeamResp teamResponse
+	var createTeamResp fleet.TeamResponse
 	s.DoJSON("POST", "/api/latest/fleet/teams", &fleet.Team{
 		Name: t.Name(),
 	}, http.StatusOK, &createTeamResp)
@@ -274,15 +274,15 @@ func (s *integrationInstallTestSuite) TestShScriptInstallOnDarwin() {
 	require.NoError(t, s.ds.AddHostsToTeam(context.Background(), fleet.NewAddHostsToTeamParams(&createTeamResp.Team.ID, []uint{darwinHost.ID})))
 
 	// Install .sh on darwin should succeed
-	s.Do("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/software/%d/install", darwinHost.ID, titleID), installSoftwareRequest{},
+	s.Do("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/software/%d/install", darwinHost.ID, titleID), fleet.InstallSoftwareRequest{},
 		http.StatusAccepted)
 
 	// Get the install UUID
 	installUUID := getLatestSoftwareInstallExecID(t, s.ds, darwinHost.ID)
 
 	// Fetch installer details via orbit endpoint
-	var orbitSoftwareResp orbitGetSoftwareInstallResponse
-	s.DoJSON("POST", "/api/fleet/orbit/software_install/details", orbitGetSoftwareInstallRequest{
+	var orbitSoftwareResp fleet.OrbitGetSoftwareInstallResponse
+	s.DoJSON("POST", "/api/fleet/orbit/software_install/details", fleet.OrbitGetSoftwareInstallRequest{
 		InstallUUID:  installUUID,
 		OrbitNodeKey: *darwinHost.OrbitNodeKey,
 	}, http.StatusOK, &orbitSoftwareResp)
@@ -314,8 +314,8 @@ func (s *integrationInstallTestSuite) TestGetInHouseAppManifestSignedURL() {
 
 	s.uploadSoftwareInstaller(t, &fleet.UploadSoftwareInstallerPayload{Filename: "ipa_test.ipa"}, http.StatusOK, "")
 
-	var titleResp listSoftwareTitlesResponse
-	s.DoJSON("GET", "/api/latest/fleet/software/titles", listSoftwareTitlesRequest{
+	var titleResp fleet.ListSoftwareTitlesResponse
+	s.DoJSON("GET", "/api/latest/fleet/software/titles", fleet.ListSoftwareTitlesRequest{
 		SoftwareTitleListOptions: fleet.SoftwareTitleListOptions{Platform: "ios"},
 	}, http.StatusOK, &titleResp, "team_id", "0")
 	require.Len(t, titleResp.SoftwareTitles, 1)
@@ -329,7 +329,7 @@ func (s *integrationInstallTestSuite) TestGetInHouseAppManifestSignedURL() {
 		return buf
 	}
 	res := s.DoRawNoAuth("GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d/in_house_app/manifest?team_id=%d", titleID, *teamID),
-		jsonMustMarshal(t, getInHouseAppManifestRequest{TitleID: titleID, TeamID: teamID}), http.StatusOK)
+		jsonMustMarshal(t, fleet.GetInHouseAppManifestRequest{TitleID: titleID, TeamID: teamID}), http.StatusOK)
 
 	manifest := readManifest(res)
 	require.NotNil(t, manifest)

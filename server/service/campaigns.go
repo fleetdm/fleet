@@ -13,30 +13,14 @@ import (
 	"github.com/fleetdm/fleet/v4/server/ptr"
 )
 
-////////////////////////////////////////////////////////////////////////////////
 // Create Distributed Query Campaign
-////////////////////////////////////////////////////////////////////////////////
-
-type createDistributedQueryCampaignRequest struct {
-	QuerySQL string            `json:"query"`
-	QueryID  *uint             `json:"query_id" renameto:"report_id"`
-	Selected fleet.HostTargets `json:"selected"`
-}
-
-type createDistributedQueryCampaignResponse struct {
-	Campaign *fleet.DistributedQueryCampaign `json:"campaign,omitempty"`
-	Err      error                           `json:"error,omitempty"`
-}
-
-func (r createDistributedQueryCampaignResponse) Error() error { return r.Err }
-
 func createDistributedQueryCampaignEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
-	req := request.(*createDistributedQueryCampaignRequest)
+	req := request.(*fleet.CreateDistributedQueryCampaignRequest)
 	campaign, err := svc.NewDistributedQueryCampaign(ctx, req.QuerySQL, req.QueryID, req.Selected)
 	if err != nil {
-		return createDistributedQueryCampaignResponse{Err: err}, nil
+		return fleet.CreateDistributedQueryCampaignResponse{Err: err}, nil
 	}
-	return createDistributedQueryCampaignResponse{Campaign: campaign}, nil
+	return fleet.CreateDistributedQueryCampaignResponse{Campaign: campaign}, nil
 }
 
 func (svc *Service) NewDistributedQueryCampaign(ctx context.Context, queryString string, queryID *uint, targets fleet.HostTargets) (*fleet.DistributedQueryCampaign, error) {
@@ -169,31 +153,19 @@ func (svc *Service) NewDistributedQueryCampaign(ctx context.Context, queryString
 	return campaign, nil
 }
 
-////////////////////////////////////////////////////////////////////////////////
 // Create Distributed Query Campaign By Names
-////////////////////////////////////////////////////////////////////////////////
-
-type createDistributedQueryCampaignByIdentifierRequest struct {
-	QuerySQL string                                       `json:"query"`
-	QueryID  *uint                                        `json:"query_id" renameto:"report_id"`
-	Selected distributedQueryCampaignTargetsByIdentifiers `json:"selected"`
-}
-
-type distributedQueryCampaignTargetsByIdentifiers struct {
-	Labels []string `json:"labels"`
-	// list of hostnames, UUIDs, and/or hardware serials
-	Hosts []string `json:"hosts"`
-}
+// distributedQueryCampaignTargetsByIdentifiers is an alias for fleet.DistributedQueryCampaignTargetsByIdentifiers.
+type distributedQueryCampaignTargetsByIdentifiers = fleet.DistributedQueryCampaignTargetsByIdentifiers
 
 func createDistributedQueryCampaignByIdentifierEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer,
 	error,
 ) {
-	req := request.(*createDistributedQueryCampaignByIdentifierRequest)
+	req := request.(*fleet.CreateDistributedQueryCampaignByIdentifierRequest)
 	campaign, err := svc.NewDistributedQueryCampaignByIdentifiers(ctx, req.QuerySQL, req.QueryID, req.Selected.Hosts, req.Selected.Labels)
 	if err != nil {
-		return createDistributedQueryCampaignResponse{Err: err}, nil
+		return fleet.CreateDistributedQueryCampaignResponse{Err: err}, nil
 	}
-	return createDistributedQueryCampaignResponse{Campaign: campaign}, nil
+	return fleet.CreateDistributedQueryCampaignResponse{Campaign: campaign}, nil
 }
 
 func (svc *Service) NewDistributedQueryCampaignByIdentifiers(ctx context.Context, queryString string, queryID *uint, hostIdentifiers []string, labels []string) (*fleet.DistributedQueryCampaign, error) {

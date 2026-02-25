@@ -2,9 +2,7 @@ package service
 
 import (
 	"context"
-	"encoding/json"
 	"io"
-	"mime/multipart"
 	"net/http"
 
 	"github.com/fleetdm/fleet/v4/server/authz"
@@ -14,29 +12,15 @@ import (
 	platform_http "github.com/fleetdm/fleet/v4/server/platform/http"
 )
 
-//////////////////////////////////////////////////////////////////////////////
 // Get App Store apps
-//////////////////////////////////////////////////////////////////////////////
-
-type getAppStoreAppsRequest struct {
-	TeamID uint `query:"team_id" renameto:"fleet_id"`
-}
-
-type getAppStoreAppsResponse struct {
-	AppStoreApps []*fleet.VPPApp `json:"app_store_apps"`
-	Err          error           `json:"error,omitempty"`
-}
-
-func (r getAppStoreAppsResponse) Error() error { return r.Err }
-
 func getAppStoreAppsEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
-	req := request.(*getAppStoreAppsRequest)
+	req := request.(*fleet.GetAppStoreAppsRequest)
 	apps, err := svc.GetAppStoreApps(ctx, &req.TeamID)
 	if err != nil {
-		return &getAppStoreAppsResponse{Err: err}, nil
+		return &fleet.GetAppStoreAppsResponse{Err: err}, nil
 	}
 
-	return &getAppStoreAppsResponse{AppStoreApps: apps}, nil
+	return &fleet.GetAppStoreAppsResponse{AppStoreApps: apps}, nil
 }
 
 func (svc *Service) GetAppStoreApps(ctx context.Context, teamID *uint) ([]*fleet.VPPApp, error) {
@@ -47,31 +31,9 @@ func (svc *Service) GetAppStoreApps(ctx context.Context, teamID *uint) ([]*fleet
 	return nil, fleet.ErrMissingLicense
 }
 
-//////////////////////////////////////////////////////////////////////////////
 // Add App Store apps
-//////////////////////////////////////////////////////////////////////////////
-
-type addAppStoreAppRequest struct {
-	TeamID           *uint                           `json:"team_id" renameto:"fleet_id"`
-	AppStoreID       string                          `json:"app_store_id"`
-	Platform         fleet.InstallableDevicePlatform `json:"platform"`
-	SelfService      bool                            `json:"self_service"`
-	AutomaticInstall bool                            `json:"automatic_install"`
-	LabelsIncludeAny []string                        `json:"labels_include_any"`
-	LabelsExcludeAny []string                        `json:"labels_exclude_any"`
-	Categories       []string                        `json:"categories"`
-	Configuration    json.RawMessage                 `json:"configuration,omitempty"`
-}
-
-type addAppStoreAppResponse struct {
-	TitleID uint  `json:"software_title_id,omitempty"`
-	Err     error `json:"error,omitempty"`
-}
-
-func (r addAppStoreAppResponse) Error() error { return r.Err }
-
 func addAppStoreAppEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
-	req := request.(*addAppStoreAppRequest)
+	req := request.(*fleet.AddAppStoreAppRequest)
 	titleID, err := svc.AddAppStoreApp(ctx, req.TeamID, fleet.VPPAppTeam{
 		VPPAppID:             fleet.VPPAppID{AdamID: req.AppStoreID, Platform: req.Platform},
 		SelfService:          req.SelfService,
@@ -82,10 +44,10 @@ func addAppStoreAppEndpoint(ctx context.Context, request interface{}, svc fleet.
 		Configuration:        req.Configuration,
 	})
 	if err != nil {
-		return &addAppStoreAppResponse{Err: err}, nil
+		return &fleet.AddAppStoreAppResponse{Err: err}, nil
 	}
 
-	return &addAppStoreAppResponse{TitleID: titleID}, nil
+	return &fleet.AddAppStoreAppResponse{TitleID: titleID}, nil
 }
 
 func (svc *Service) AddAppStoreApp(ctx context.Context, _ *uint, _ fleet.VPPAppTeam) (uint, error) {
@@ -96,38 +58,9 @@ func (svc *Service) AddAppStoreApp(ctx context.Context, _ *uint, _ fleet.VPPAppT
 	return 0, fleet.ErrMissingLicense
 }
 
-//////////////////////////////////////////////////////////////////////////////
 // Update App Store apps
-//////////////////////////////////////////////////////////////////////////////
-
-type updateAppStoreAppRequest struct {
-	TitleID           uint            `url:"title_id"`
-	TeamID            *uint           `json:"team_id" renameto:"fleet_id"`
-	SelfService       *bool           `json:"self_service"`
-	LabelsIncludeAny  []string        `json:"labels_include_any"`
-	LabelsExcludeAny  []string        `json:"labels_exclude_any"`
-	Categories        []string        `json:"categories"`
-	Configuration     json.RawMessage `json:"configuration,omitempty"`
-	DisplayName       *string         `json:"display_name"`
-	AutoUpdateEnabled *bool           `json:"auto_update_enabled,omitempty"`
-	// AutoUpdateStartTime is the beginning of the maintenance window for the software title.
-	// This is only applicable when viewing a title in the context of a team.
-	AutoUpdateStartTime *string `json:"auto_update_window_start,omitempty"`
-	// AutoUpdateStartTime is the end of the maintenance window for the software title.
-	// If the end time is less than the start time, the window wraps to the next day.
-	// This is only applicable when viewing a title in the context of a team.
-	AutoUpdateEndTime *string `json:"auto_update_window_end,omitempty"`
-}
-
-type updateAppStoreAppResponse struct {
-	AppStoreApp *fleet.VPPAppStoreApp `json:"app_store_app,omitempty"`
-	Err         error                 `json:"error,omitempty"`
-}
-
-func (r updateAppStoreAppResponse) Error() error { return r.Err }
-
 func updateAppStoreAppEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
-	req := request.(*updateAppStoreAppRequest)
+	req := request.(*fleet.UpdateAppStoreAppRequest)
 
 	updatedApp, activity, err := svc.UpdateAppStoreApp(ctx, req.TitleID, req.TeamID, fleet.AppStoreAppUpdatePayload{
 		SelfService:      req.SelfService,
@@ -143,7 +76,7 @@ func updateAppStoreAppEndpoint(ctx context.Context, request interface{}, svc fle
 		},
 	})
 	if err != nil {
-		return updateAppStoreAppResponse{Err: err}, nil
+		return fleet.UpdateAppStoreAppResponse{Err: err}, nil
 	}
 
 	if req.AutoUpdateEnabled != nil {
@@ -154,14 +87,14 @@ func updateAppStoreAppEndpoint(ctx context.Context, request interface{}, svc fle
 			AutoUpdateEndTime:   req.AutoUpdateEndTime,
 		})
 		if err != nil {
-			return updateAppStoreAppResponse{Err: err}, nil
+			return fleet.UpdateAppStoreAppResponse{Err: err}, nil
 		}
 	}
 
 	// Re-fetch the software title to get the updated auto-update config.
 	updatedTitle, err := svc.SoftwareTitleByID(ctx, req.TitleID, req.TeamID)
 	if err != nil {
-		return updateAppStoreAppResponse{Err: err}, nil
+		return fleet.UpdateAppStoreAppResponse{Err: err}, nil
 	}
 	if updatedTitle.AutoUpdateEnabled != nil {
 		activity.AutoUpdateEnabled = updatedTitle.AutoUpdateEnabled
@@ -172,10 +105,10 @@ func updateAppStoreAppEndpoint(ctx context.Context, request interface{}, svc fle
 	}
 
 	if err := svc.NewActivity(ctx, authz.UserFromContext(ctx), activity); err != nil {
-		return updateAppStoreAppResponse{Err: err}, nil
+		return fleet.UpdateAppStoreAppResponse{Err: err}, nil
 	}
 
-	return updateAppStoreAppResponse{AppStoreApp: updatedApp}, nil
+	return fleet.UpdateAppStoreAppResponse{AppStoreApp: updatedApp}, nil
 }
 
 func (svc *Service) UpdateAppStoreApp(ctx context.Context, titleID uint, teamID *uint, payload fleet.AppStoreAppUpdatePayload) (*fleet.VPPAppStoreApp, *fleet.ActivityEditedAppStoreApp, error) {
@@ -186,16 +119,11 @@ func (svc *Service) UpdateAppStoreApp(ctx context.Context, titleID uint, teamID 
 	return nil, nil, fleet.ErrMissingLicense
 }
 
-////////////////////////////////////////////////////////////////////////////////
 // POST /api/_version_/vpp_tokens
-////////////////////////////////////////////////////////////////////////////////
+type decodeUploadVPPTokenRequest struct{}
 
-type uploadVPPTokenRequest struct {
-	File *multipart.FileHeader
-}
-
-func (uploadVPPTokenRequest) DecodeRequest(ctx context.Context, r *http.Request) (interface{}, error) {
-	decoded := uploadVPPTokenRequest{}
+func (decodeUploadVPPTokenRequest) DecodeRequest(ctx context.Context, r *http.Request) (interface{}, error) {
+	decoded := fleet.UploadVPPTokenRequest{}
 
 	err := r.ParseMultipartForm(platform_http.MaxMultipartFormSize)
 	if err != nil {
@@ -217,31 +145,20 @@ func (uploadVPPTokenRequest) DecodeRequest(ctx context.Context, r *http.Request)
 	return &decoded, nil
 }
 
-type uploadVPPTokenResponse struct {
-	Err   error             `json:"error,omitempty"`
-	Token *fleet.VPPTokenDB `json:"token,omitempty"`
-}
-
-func (r uploadVPPTokenResponse) Status() int { return http.StatusAccepted }
-
-func (r uploadVPPTokenResponse) Error() error {
-	return r.Err
-}
-
 func uploadVPPTokenEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
-	req := request.(*uploadVPPTokenRequest)
+	req := request.(*fleet.UploadVPPTokenRequest)
 	file, err := req.File.Open()
 	if err != nil {
-		return uploadVPPTokenResponse{Err: err}, nil
+		return fleet.UploadVPPTokenResponse{Err: err}, nil
 	}
 	defer file.Close()
 
 	tok, err := svc.UploadVPPToken(ctx, file)
 	if err != nil {
-		return uploadVPPTokenResponse{Err: err}, nil
+		return fleet.UploadVPPTokenResponse{Err: err}, nil
 	}
 
-	return uploadVPPTokenResponse{Token: tok}, nil
+	return fleet.UploadVPPTokenResponse{Token: tok}, nil
 }
 
 func (svc *Service) UploadVPPToken(ctx context.Context, file io.ReadSeeker) (*fleet.VPPTokenDB, error) {
@@ -252,17 +169,11 @@ func (svc *Service) UploadVPPToken(ctx context.Context, file io.ReadSeeker) (*fl
 	return nil, fleet.ErrMissingLicense
 }
 
-////////////////////////////////////////////////////
 // PATCH /api/_version_/fleet/vpp_tokens/%d/renew //
-////////////////////////////////////////////////////
+type decodePatchVPPTokenRenewRequest struct{}
 
-type patchVPPTokenRenewRequest struct {
-	ID   uint `url:"id"`
-	File *multipart.FileHeader
-}
-
-func (patchVPPTokenRenewRequest) DecodeRequest(ctx context.Context, r *http.Request) (interface{}, error) {
-	decoded := patchVPPTokenRenewRequest{}
+func (decodePatchVPPTokenRenewRequest) DecodeRequest(ctx context.Context, r *http.Request) (interface{}, error) {
+	decoded := fleet.PatchVPPTokenRenewRequest{}
 
 	err := r.ParseMultipartForm(platform_http.MaxMultipartFormSize)
 	if err != nil {
@@ -291,31 +202,20 @@ func (patchVPPTokenRenewRequest) DecodeRequest(ctx context.Context, r *http.Requ
 	return &decoded, nil
 }
 
-type patchVPPTokenRenewResponse struct {
-	Err   error             `json:"error,omitempty"`
-	Token *fleet.VPPTokenDB `json:"token,omitempty"`
-}
-
-func (r patchVPPTokenRenewResponse) Status() int { return http.StatusAccepted }
-
-func (r patchVPPTokenRenewResponse) Error() error {
-	return r.Err
-}
-
 func patchVPPTokenRenewEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
-	req := request.(*patchVPPTokenRenewRequest)
+	req := request.(*fleet.PatchVPPTokenRenewRequest)
 	file, err := req.File.Open()
 	if err != nil {
-		return patchVPPTokenRenewResponse{Err: err}, nil
+		return fleet.PatchVPPTokenRenewResponse{Err: err}, nil
 	}
 	defer file.Close()
 
 	tok, err := svc.UpdateVPPToken(ctx, req.ID, file)
 	if err != nil {
-		return patchVPPTokenRenewResponse{Err: err}, nil
+		return fleet.PatchVPPTokenRenewResponse{Err: err}, nil
 	}
 
-	return patchVPPTokenRenewResponse{Token: tok}, nil
+	return fleet.PatchVPPTokenRenewResponse{Token: tok}, nil
 }
 
 func (svc *Service) UpdateVPPToken(ctx context.Context, tokenID uint, token io.ReadSeeker) (*fleet.VPPTokenDB, error) {
@@ -326,30 +226,15 @@ func (svc *Service) UpdateVPPToken(ctx context.Context, tokenID uint, token io.R
 	return nil, fleet.ErrMissingLicense
 }
 
-////////////////////////////////////////////////////
 // PATCH /api/_version_/fleet/vpp_tokens/%d/teams //
-////////////////////////////////////////////////////
-
-type patchVPPTokensTeamsRequest struct {
-	ID      uint   `url:"id"`
-	TeamIDs []uint `json:"teams" renameto:"fleets"`
-}
-
-type patchVPPTokensTeamsResponse struct {
-	Token *fleet.VPPTokenDB `json:"token,omitempty"`
-	Err   error             `json:"error,omitempty"`
-}
-
-func (r patchVPPTokensTeamsResponse) Error() error { return r.Err }
-
 func patchVPPTokensTeams(ctx context.Context, request any, svc fleet.Service) (fleet.Errorer, error) {
-	req := request.(*patchVPPTokensTeamsRequest)
+	req := request.(*fleet.PatchVPPTokensTeamsRequest)
 
 	tok, err := svc.UpdateVPPTokenTeams(ctx, req.ID, req.TeamIDs)
 	if err != nil {
-		return patchVPPTokensTeamsResponse{Err: err}, nil
+		return fleet.PatchVPPTokensTeamsResponse{Err: err}, nil
 	}
-	return patchVPPTokensTeamsResponse{Token: tok}, nil
+	return fleet.PatchVPPTokensTeamsResponse{Token: tok}, nil
 }
 
 func (svc *Service) UpdateVPPTokenTeams(ctx context.Context, tokenID uint, teamIDs []uint) (*fleet.VPPTokenDB, error) {
@@ -360,30 +245,18 @@ func (svc *Service) UpdateVPPTokenTeams(ctx context.Context, tokenID uint, teamI
 	return nil, fleet.ErrMissingLicense
 }
 
-/////////////////////////////////////////
 // GET /api/_version_/fleet/vpp_tokens //
-/////////////////////////////////////////
-
-type getVPPTokensRequest struct{}
-
-type getVPPTokensResponse struct {
-	Tokens []*fleet.VPPTokenDB `json:"vpp_tokens"`
-	Err    error               `json:"error,omitempty"`
-}
-
-func (r getVPPTokensResponse) Error() error { return r.Err }
-
 func getVPPTokens(ctx context.Context, request any, svc fleet.Service) (fleet.Errorer, error) {
 	tokens, err := svc.GetVPPTokens(ctx)
 	if err != nil {
-		return getVPPTokensResponse{Err: err}, nil
+		return fleet.GetVPPTokensResponse{Err: err}, nil
 	}
 
 	if tokens == nil {
 		tokens = []*fleet.VPPTokenDB{}
 	}
 
-	return getVPPTokensResponse{Tokens: tokens}, nil
+	return fleet.GetVPPTokensResponse{Tokens: tokens}, nil
 }
 
 func (svc *Service) GetVPPTokens(ctx context.Context) ([]*fleet.VPPTokenDB, error) {
@@ -394,31 +267,16 @@ func (svc *Service) GetVPPTokens(ctx context.Context) ([]*fleet.VPPTokenDB, erro
 	return nil, fleet.ErrMissingLicense
 }
 
-///////////////////////////////////////////////
 // DELETE /api/_version_/fleet/vpp_tokens/%d //
-///////////////////////////////////////////////
-
-type deleteVPPTokenRequest struct {
-	ID uint `url:"id"`
-}
-
-type deleteVPPTokenResponse struct {
-	Err error `json:"error,omitempty"`
-}
-
-func (r deleteVPPTokenResponse) Error() error { return r.Err }
-
-func (r deleteVPPTokenResponse) Status() int { return http.StatusNoContent }
-
 func deleteVPPToken(ctx context.Context, request any, svc fleet.Service) (fleet.Errorer, error) {
-	req := request.(*deleteVPPTokenRequest)
+	req := request.(*fleet.DeleteVPPTokenRequest)
 
 	err := svc.DeleteVPPToken(ctx, req.ID)
 	if err != nil {
-		return deleteVPPTokenResponse{Err: err}, nil
+		return fleet.DeleteVPPTokenResponse{Err: err}, nil
 	}
 
-	return deleteVPPTokenResponse{}, nil
+	return fleet.DeleteVPPTokenResponse{}, nil
 }
 
 func (svc *Service) DeleteVPPToken(ctx context.Context, tokenID uint) error {

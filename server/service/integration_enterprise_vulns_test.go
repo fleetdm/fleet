@@ -133,7 +133,7 @@ func (s *integrationEnterpriseTestSuite) TestLinuxOSVulns() {
 			require.NoError(t, s.ds.SyncHostsSoftwareTitles(ctx, time.Now()))
 			require.NoError(t, s.ds.InsertKernelSoftwareMapping(ctx))
 
-			var osVersionsResp osVersionsResponse
+			var osVersionsResp fleet.OsVersionsResponse
 			s.DoJSON("GET", "/api/latest/fleet/os_versions", nil, http.StatusOK, &osVersionsResp)
 			var osVersion *fleet.OSVersion
 			for _, os := range osVersionsResp.OSVersions {
@@ -151,7 +151,7 @@ func (s *integrationEnterpriseTestSuite) TestLinuxOSVulns() {
 			assert.Len(t, osVersion.Vulnerabilities, len(tt.vulns))
 
 			// Test entity endpoint
-			var osVersionResp getOSVersionResponse
+			var osVersionResp fleet.GetOSVersionResponse
 			s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/os_versions/%d", osVersion.OSVersionID), nil, http.StatusOK, &osVersionResp, "team_id", fmt.Sprintf("%d", 0))
 			require.NotNil(t, osVersionResp.OSVersion.Kernels)
 			kernels := *osVersionResp.OSVersion.Kernels
@@ -241,7 +241,7 @@ func (s *integrationEnterpriseTestSuite) TestOSVersionsMaxVulnerabilities() {
 	require.NoError(t, s.ds.InsertKernelSoftwareMapping(ctx))
 
 	// Get the OS version ID for entity endpoint tests
-	var osVersionsResp osVersionsResponse
+	var osVersionsResp fleet.OsVersionsResponse
 	s.DoJSON("GET", "/api/latest/fleet/os_versions", nil, http.StatusOK, &osVersionsResp)
 	var osVersionID uint
 	for _, os := range osVersionsResp.OSVersions {
@@ -254,7 +254,7 @@ func (s *integrationEnterpriseTestSuite) TestOSVersionsMaxVulnerabilities() {
 
 	t.Run("aggregate endpoint", func(t *testing.T) {
 		// Test 1: Request without max_vulnerabilities should return all vulnerabilities
-		var resp osVersionsResponse
+		var resp fleet.OsVersionsResponse
 		s.DoJSON("GET", "/api/latest/fleet/os_versions", nil, http.StatusOK, &resp)
 		var osVersion *fleet.OSVersion
 		for _, os := range resp.OSVersions {
@@ -301,7 +301,7 @@ func (s *integrationEnterpriseTestSuite) TestOSVersionsMaxVulnerabilities() {
 
 	t.Run("entity endpoint", func(t *testing.T) {
 		// Test 1: Request without max_vulnerabilities should return all vulnerabilities
-		var resp getOSVersionResponse
+		var resp fleet.GetOSVersionResponse
 		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/os_versions/%d", osVersionID), nil, http.StatusOK, &resp)
 		require.NotNil(t, resp.OSVersion)
 		assert.Equal(t, len(vulns), len(resp.OSVersion.Vulnerabilities), "Should return all vulnerabilities when max_vulnerabilities is not specified")
@@ -420,7 +420,7 @@ func (s *integrationEnterpriseTestSuite) TestOSVersionsMaxVulnerabilitiesMultipl
 
 	// Test 1: Request with max_vulnerabilities=3
 	// Should enforce limit per name-version key, not per OSID
-	var resp osVersionsResponse
+	var resp fleet.OsVersionsResponse
 	s.DoJSON("GET", "/api/latest/fleet/os_versions?max_vulnerabilities=3", nil, http.StatusOK, &resp)
 
 	var osVersion *fleet.OSVersion

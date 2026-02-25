@@ -21,18 +21,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/platform/endpointer"
 )
 
-////////////////////////////////////////////////////////////////////////////////
 // Activities response (used by host past activities endpoint)
-////////////////////////////////////////////////////////////////////////////////
-
-type listActivitiesResponse struct {
-	Meta       *fleet.PaginationMetadata `json:"meta"`
-	Activities []*fleet.Activity         `json:"activities"`
-	Err        error                     `json:"error,omitempty"`
-}
-
-func (r listActivitiesResponse) Error() error { return r.Err }
-
 func (svc *Service) NewActivity(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails) error {
 	return newActivity(ctx, user, activity, svc.ds, svc.logger)
 }
@@ -112,32 +101,15 @@ func newActivity(ctx context.Context, user *fleet.User, activity fleet.ActivityD
 	return ds.NewActivity(ctx, user, activity, detailsBytes, timestamp)
 }
 
-////////////////////////////////////////////////////////////////////////////////
 // List host upcoming activities
-////////////////////////////////////////////////////////////////////////////////
-
-type listHostUpcomingActivitiesRequest struct {
-	HostID      uint              `url:"id"`
-	ListOptions fleet.ListOptions `url:"list_options"`
-}
-
-type listHostUpcomingActivitiesResponse struct {
-	Meta       *fleet.PaginationMetadata `json:"meta"`
-	Activities []*fleet.UpcomingActivity `json:"activities"`
-	Count      uint                      `json:"count"`
-	Err        error                     `json:"error,omitempty"`
-}
-
-func (r listHostUpcomingActivitiesResponse) Error() error { return r.Err }
-
 func listHostUpcomingActivitiesEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
-	req := request.(*listHostUpcomingActivitiesRequest)
+	req := request.(*fleet.ListHostUpcomingActivitiesRequest)
 	acts, meta, err := svc.ListHostUpcomingActivities(ctx, req.HostID, req.ListOptions)
 	if err != nil {
-		return listHostUpcomingActivitiesResponse{Err: err}, nil
+		return fleet.ListHostUpcomingActivitiesResponse{Err: err}, nil
 	}
 
-	return listHostUpcomingActivitiesResponse{Meta: meta, Activities: acts, Count: meta.TotalResults}, nil
+	return fleet.ListHostUpcomingActivitiesResponse{Meta: meta, Activities: acts, Count: meta.TotalResults}, nil
 }
 
 // ListHostUpcomingActivities returns a slice of upcoming activities for the
@@ -171,31 +143,15 @@ func (svc *Service) ListHostUpcomingActivities(ctx context.Context, hostID uint,
 	return svc.ds.ListHostUpcomingActivities(ctx, hostID, opt)
 }
 
-////////////////////////////////////////////////////////////////////////////////
 // List host past activities
-////////////////////////////////////////////////////////////////////////////////
 // Cancel host upcoming activity
-////////////////////////////////////////////////////////////////////////////////
-
-type cancelHostUpcomingActivityRequest struct {
-	HostID     uint   `url:"id"`
-	ActivityID string `url:"activity_id"`
-}
-
-type cancelHostUpcomingActivityResponse struct {
-	Err error `json:"error,omitempty"`
-}
-
-func (r cancelHostUpcomingActivityResponse) Error() error { return r.Err }
-func (r cancelHostUpcomingActivityResponse) Status() int  { return http.StatusNoContent }
-
 func cancelHostUpcomingActivityEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
-	req := request.(*cancelHostUpcomingActivityRequest)
+	req := request.(*fleet.CancelHostUpcomingActivityRequest)
 	err := svc.CancelHostUpcomingActivity(ctx, req.HostID, req.ActivityID)
 	if err != nil {
-		return cancelHostUpcomingActivityResponse{Err: err}, nil
+		return fleet.CancelHostUpcomingActivityResponse{Err: err}, nil
 	}
-	return cancelHostUpcomingActivityResponse{}, nil
+	return fleet.CancelHostUpcomingActivityResponse{}, nil
 }
 
 func (svc *Service) CancelHostUpcomingActivity(ctx context.Context, hostID uint, executionID string) error {

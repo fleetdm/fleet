@@ -18,35 +18,21 @@ import (
 	"github.com/fleetdm/fleet/v4/server/ptr"
 )
 
-////////////////////////////////////////////////////////////////////////////////
 // Create Label
-////////////////////////////////////////////////////////////////////////////////
-
-type createLabelRequest struct {
-	fleet.LabelPayload
-}
-
-type createLabelResponse struct {
-	Label labelResponse `json:"label"`
-	Err   error         `json:"error,omitempty"`
-}
-
-func (r createLabelResponse) Error() error { return r.Err }
-
 func createLabelEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
-	req := request.(*createLabelRequest)
+	req := request.(*fleet.CreateLabelRequest)
 
 	label, hostIDs, err := svc.NewLabel(ctx, req.LabelPayload)
 	if err != nil {
-		return createLabelResponse{Err: err}, nil
+		return fleet.CreateLabelResponse{Err: err}, nil
 	}
 
 	labelResp, err := labelResponseForLabel(label, hostIDs)
 	if err != nil {
-		return createLabelResponse{Err: err}, nil
+		return fleet.CreateLabelResponse{Err: err}, nil
 	}
 
-	return createLabelResponse{Label: *labelResp}, nil
+	return fleet.CreateLabelResponse{Label: *labelResp}, nil
 }
 
 func (svc *Service) NewLabel(ctx context.Context, p fleet.LabelPayload) (*fleet.Label, []uint, error) {
@@ -133,35 +119,20 @@ func (svc *Service) NewLabel(ctx context.Context, p fleet.LabelPayload) (*fleet.
 	return label, nil, nil
 }
 
-////////////////////////////////////////////////////////////////////////////////
 // Modify Label
-////////////////////////////////////////////////////////////////////////////////
-
-type modifyLabelRequest struct {
-	ID uint `json:"-" url:"id"`
-	fleet.ModifyLabelPayload
-}
-
-type modifyLabelResponse struct {
-	Label labelWithTeamNameResponse `json:"label"`
-	Err   error                     `json:"error,omitempty"`
-}
-
-func (r modifyLabelResponse) Error() error { return r.Err }
-
 func modifyLabelEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
-	req := request.(*modifyLabelRequest)
+	req := request.(*fleet.ModifyLabelRequest)
 	label, hostIDs, err := svc.ModifyLabel(ctx, req.ID, req.ModifyLabelPayload)
 	if err != nil {
-		return modifyLabelResponse{Err: err}, nil
+		return fleet.ModifyLabelResponse{Err: err}, nil
 	}
 
 	labelResp, err := labelResponseForLabelWithTeamName(label, hostIDs)
 	if err != nil {
-		return modifyLabelResponse{Err: err}, nil
+		return fleet.ModifyLabelResponse{Err: err}, nil
 	}
 
-	return modifyLabelResponse{Label: *labelResp}, err
+	return fleet.ModifyLabelResponse{Label: *labelResp}, err
 }
 
 func (svc *Service) ModifyLabel(ctx context.Context, id uint, payload fleet.ModifyLabelPayload) (*fleet.LabelWithTeamName, []uint, error) {
@@ -233,46 +204,18 @@ func (svc *Service) ModifyLabel(ctx context.Context, id uint, payload fleet.Modi
 	return svc.ds.SaveLabel(ctx, &label.Label, filter)
 }
 
-////////////////////////////////////////////////////////////////////////////////
 // Get Label
-////////////////////////////////////////////////////////////////////////////////
-
-type getLabelRequest struct {
-	ID uint `url:"id"`
-}
-
-type labelWithTeamNameResponse struct {
-	fleet.LabelWithTeamName
-	DisplayText string `json:"display_text"`
-	Count       int    `json:"count"`
-	HostIDs     []uint `json:"host_ids,omitempty"`
-}
-
-type labelResponse struct {
-	fleet.Label
-	DisplayText string `json:"display_text"`
-	Count       int    `json:"count"`
-	HostIDs     []uint `json:"host_ids,omitempty"`
-}
-
-type getLabelResponse struct {
-	Label labelWithTeamNameResponse `json:"label"`
-	Err   error                     `json:"error,omitempty"`
-}
-
-func (r getLabelResponse) Error() error { return r.Err }
-
 func getLabelEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
-	req := request.(*getLabelRequest)
+	req := request.(*fleet.GetLabelRequest)
 	label, hostIDs, err := svc.GetLabel(ctx, req.ID)
 	if err != nil {
-		return getLabelResponse{Err: err}, nil
+		return fleet.GetLabelResponse{Err: err}, nil
 	}
 	resp, err := labelResponseForLabelWithTeamName(label, hostIDs)
 	if err != nil {
-		return getLabelResponse{Err: err}, nil
+		return fleet.GetLabelResponse{Err: err}, nil
 	}
-	return getLabelResponse{Label: *resp}, nil
+	return fleet.GetLabelResponse{Label: *resp}, nil
 }
 
 func (svc *Service) GetLabel(ctx context.Context, id uint) (*fleet.LabelWithTeamName, []uint, error) {
@@ -289,25 +232,9 @@ func (svc *Service) GetLabel(ctx context.Context, id uint) (*fleet.LabelWithTeam
 	return svc.ds.Label(ctx, id, filter)
 }
 
-////////////////////////////////////////////////////////////////////////////////
 // List Labels
-////////////////////////////////////////////////////////////////////////////////
-
-type listLabelsRequest struct {
-	ListOptions       fleet.ListOptions `url:"list_options"`
-	TeamID            *string           `query:"team_id,optional" renameto:"fleet_id"` // string because it's an int or "global"
-	IncludeHostCounts *bool             `query:"include_host_counts,optional"`
-}
-
-type listLabelsResponse struct {
-	Labels []labelResponse `json:"labels"`
-	Err    error           `json:"error,omitempty"`
-}
-
-func (r listLabelsResponse) Error() error { return r.Err }
-
 func listLabelsEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
-	req := request.(*listLabelsRequest)
+	req := request.(*fleet.ListLabelsRequest)
 
 	includeHostCounts := true
 	if req.IncludeHostCounts != nil {
@@ -316,14 +243,14 @@ func listLabelsEndpoint(ctx context.Context, request interface{}, svc fleet.Serv
 
 	labels, err := svc.ListLabels(ctx, req.ListOptions, getTeamIDOrZeroForGlobal(req.TeamID), includeHostCounts)
 	if err != nil {
-		return listLabelsResponse{Err: err}, nil
+		return fleet.ListLabelsResponse{Err: err}, nil
 	}
 
-	resp := listLabelsResponse{}
+	resp := fleet.ListLabelsResponse{}
 	for _, label := range labels {
 		labelResp, err := labelResponseForLabel(label, nil)
 		if err != nil {
-			return listLabelsResponse{Err: err}, nil
+			return fleet.ListLabelsResponse{Err: err}, nil
 		}
 		resp.Labels = append(resp.Labels, *labelResp)
 	}
@@ -369,8 +296,8 @@ func (svc *Service) ListLabels(ctx context.Context, opt fleet.ListOptions, teamI
 	return svc.ds.ListLabels(ctx, fleet.TeamFilter{User: vc.User, IncludeObserver: true, TeamID: teamID}, opt, includeHostCounts)
 }
 
-func labelResponseForLabel(label *fleet.Label, hostIDs []uint) (*labelResponse, error) {
-	return &labelResponse{
+func labelResponseForLabel(label *fleet.Label, hostIDs []uint) (*fleet.LabelResponse, error) {
+	return &fleet.LabelResponse{
 		Label:       *label,
 		DisplayText: label.Name,
 		Count:       label.HostCount,
@@ -378,8 +305,8 @@ func labelResponseForLabel(label *fleet.Label, hostIDs []uint) (*labelResponse, 
 	}, nil
 }
 
-func labelResponseForLabelWithTeamName(label *fleet.LabelWithTeamName, hostIDs []uint) (*labelWithTeamNameResponse, error) {
-	return &labelWithTeamNameResponse{
+func labelResponseForLabelWithTeamName(label *fleet.LabelWithTeamName, hostIDs []uint) (*fleet.LabelWithTeamNameResponse, error) {
+	return &fleet.LabelWithTeamNameResponse{
 		LabelWithTeamName: *label,
 		DisplayText:       label.Name,
 		Count:             label.HostCount,
@@ -387,29 +314,15 @@ func labelResponseForLabelWithTeamName(label *fleet.LabelWithTeamName, hostIDs [
 	}, nil
 }
 
-////////////////////////////////////////////////////////////////////////////////
 // Labels Summary
-////////////////////////////////////////////////////////////////////////////////
-
-type getLabelsSummaryRequest struct {
-	TeamID *string `query:"team_id,optional" renameto:"fleet_id"` // string because it's an int or "global"
-}
-
-type getLabelsSummaryResponse struct {
-	Labels []*fleet.LabelSummary `json:"labels"`
-	Err    error                 `json:"error,omitempty"`
-}
-
-func (r getLabelsSummaryResponse) Error() error { return r.Err }
-
 func getLabelsSummaryEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
-	req := request.(*getLabelsSummaryRequest)
+	req := request.(*fleet.GetLabelsSummaryRequest)
 
 	labels, err := svc.LabelsSummary(ctx, getTeamIDOrZeroForGlobal(req.TeamID))
 	if err != nil {
-		return getLabelsSummaryResponse{Err: err}, nil
+		return fleet.GetLabelsSummaryResponse{Err: err}, nil
 	}
-	return getLabelsSummaryResponse{Labels: labels}, nil
+	return fleet.GetLabelsSummaryResponse{Labels: labels}, nil
 }
 
 func (svc *Service) LabelsSummary(ctx context.Context, teamID *uint) ([]*fleet.LabelSummary, error) {
@@ -429,20 +342,12 @@ func (svc *Service) LabelsSummary(ctx context.Context, teamID *uint) ([]*fleet.L
 	return svc.ds.LabelsSummary(ctx, fleet.TeamFilter{User: vc.User, IncludeObserver: true, TeamID: teamID})
 }
 
-////////////////////////////////////////////////////////////////////////////////
 // List Hosts in Label
-////////////////////////////////////////////////////////////////////////////////
-
-type listHostsInLabelRequest struct {
-	ID          uint                  `url:"id"`
-	ListOptions fleet.HostListOptions `url:"host_options"`
-}
-
 func listHostsInLabelEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
-	req := request.(*listHostsInLabelRequest)
+	req := request.(*fleet.ListHostsInLabelRequest)
 	hosts, err := svc.ListHostsInLabel(ctx, req.ID, req.ListOptions)
 	if err != nil {
-		return listLabelsResponse{Err: err}, nil
+		return fleet.ListLabelsResponse{Err: err}, nil
 	}
 
 	var mdmSolution *fleet.MDMSolution
@@ -450,7 +355,7 @@ func listHostsInLabelEndpoint(ctx context.Context, request interface{}, svc flee
 		var err error
 		mdmSolution, err = svc.GetMDMSolution(ctx, *req.ListOptions.MDMIDFilter)
 		if err != nil && !fleet.IsNotFound(err) { // ignore not found, just return nil for the MDM solution in that case
-			return listHostsResponse{Err: err}, nil
+			return fleet.ListHostsResponse{Err: err}, nil
 		}
 	}
 
@@ -459,7 +364,7 @@ func listHostsInLabelEndpoint(ctx context.Context, request interface{}, svc flee
 		h := fleet.HostResponseForHost(ctx, svc, host)
 		hostResponses[i] = *h
 	}
-	return listHostsResponse{Hosts: hostResponses, MDMSolution: mdmSolution}, nil
+	return fleet.ListHostsResponse{Hosts: hostResponses, MDMSolution: mdmSolution}, nil
 }
 
 func (svc *Service) ListHostsInLabel(ctx context.Context, lid uint, opt fleet.HostListOptions) ([]*fleet.Host, error) {
@@ -515,27 +420,14 @@ func (svc *Service) ListHostsInLabel(ctx context.Context, lid uint, opt fleet.Ho
 	return hosts, nil
 }
 
-////////////////////////////////////////////////////////////////////////////////
 // Delete Label
-////////////////////////////////////////////////////////////////////////////////
-
-type deleteLabelRequest struct {
-	Name string `url:"name"`
-}
-
-type deleteLabelResponse struct {
-	Err error `json:"error,omitempty"`
-}
-
-func (r deleteLabelResponse) Error() error { return r.Err }
-
 func deleteLabelEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
-	req := request.(*deleteLabelRequest)
+	req := request.(*fleet.DeleteLabelRequest)
 	err := svc.DeleteLabel(ctx, req.Name)
 	if err != nil {
-		return deleteLabelResponse{Err: err}, nil
+		return fleet.DeleteLabelResponse{Err: err}, nil
 	}
-	return deleteLabelResponse{}, nil
+	return fleet.DeleteLabelResponse{}, nil
 }
 
 func (svc *Service) DeleteLabel(ctx context.Context, name string) error {
@@ -571,27 +463,14 @@ func (svc *Service) DeleteLabel(ctx context.Context, name string) error {
 	return svc.ds.DeleteLabel(ctx, name, filter)
 }
 
-////////////////////////////////////////////////////////////////////////////////
 // Delete Label By ID
-////////////////////////////////////////////////////////////////////////////////
-
-type deleteLabelByIDRequest struct {
-	ID uint `url:"id"`
-}
-
-type deleteLabelByIDResponse struct {
-	Err error `json:"error,omitempty"`
-}
-
-func (r deleteLabelByIDResponse) Error() error { return r.Err }
-
 func deleteLabelByIDEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
-	req := request.(*deleteLabelByIDRequest)
+	req := request.(*fleet.DeleteLabelByIDRequest)
 	err := svc.DeleteLabelByID(ctx, req.ID)
 	if err != nil {
-		return deleteLabelByIDResponse{Err: err}, nil
+		return fleet.DeleteLabelByIDResponse{Err: err}, nil
 	}
-	return deleteLabelByIDResponse{}, nil
+	return fleet.DeleteLabelByIDResponse{}, nil
 }
 
 func (svc *Service) DeleteLabelByID(ctx context.Context, id uint) error {
@@ -628,29 +507,14 @@ func (svc *Service) DeleteLabelByID(ctx context.Context, id uint) error {
 	return svc.ds.DeleteLabel(ctx, label.Name, filter)
 }
 
-////////////////////////////////////////////////////////////////////////////////
 // Apply Label Specs
-////////////////////////////////////////////////////////////////////////////////
-
-type applyLabelSpecsRequest struct {
-	Specs       []*fleet.LabelSpec `json:"specs"`
-	TeamID      *uint              `json:"-" query:"team_id,optional" renameto:"fleet_id"`
-	NamesToMove []string           `json:"names_to_move,omitempty"`
-}
-
-type applyLabelSpecsResponse struct {
-	Err error `json:"error,omitempty"`
-}
-
-func (r applyLabelSpecsResponse) Error() error { return r.Err }
-
 func applyLabelSpecsEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
-	req := request.(*applyLabelSpecsRequest)
+	req := request.(*fleet.ApplyLabelSpecsRequest)
 	err := svc.ApplyLabelSpecs(ctx, req.Specs, req.TeamID, req.NamesToMove)
 	if err != nil {
-		return applyLabelSpecsResponse{Err: err}, nil
+		return fleet.ApplyLabelSpecsResponse{Err: err}, nil
 	}
-	return applyLabelSpecsResponse{}, nil
+	return fleet.ApplyLabelSpecsResponse{}, nil
 }
 
 func (svc *Service) ApplyLabelSpecs(ctx context.Context, specs []*fleet.LabelSpec, teamID *uint, namesToMove []string) error {
@@ -770,28 +634,14 @@ func (svc *Service) ApplyLabelSpecs(ctx context.Context, specs []*fleet.LabelSpe
 	return svc.ds.ApplyLabelSpecsWithAuthor(ctx, regularSpecs, ptr.Uint(user.UserID()))
 }
 
-////////////////////////////////////////////////////////////////////////////////
 // Get Label Specs
-////////////////////////////////////////////////////////////////////////////////
-
-type getLabelSpecsResponse struct {
-	Specs []*fleet.LabelSpec `json:"specs"`
-	Err   error              `json:"error,omitempty"`
-}
-
-func (r getLabelSpecsResponse) Error() error { return r.Err }
-
-type getLabelSpecsRequest struct {
-	TeamID *uint `query:"team_id,optional" renameto:"fleet_id"`
-}
-
 func getLabelSpecsEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
-	req := request.(*getLabelSpecsRequest)
+	req := request.(*fleet.GetLabelSpecsRequest)
 	specs, err := svc.GetLabelSpecs(ctx, req.TeamID)
 	if err != nil {
-		return getLabelSpecsResponse{Err: err}, nil
+		return fleet.GetLabelSpecsResponse{Err: err}, nil
 	}
-	return getLabelSpecsResponse{Specs: specs}, nil
+	return fleet.GetLabelSpecsResponse{Specs: specs}, nil
 }
 
 func (svc *Service) GetLabelSpecs(ctx context.Context, teamID *uint) ([]*fleet.LabelSpec, error) {
@@ -811,24 +661,14 @@ func (svc *Service) GetLabelSpecs(ctx context.Context, teamID *uint) ([]*fleet.L
 	return svc.ds.GetLabelSpecs(ctx, fleet.TeamFilter{User: vc.User, IncludeObserver: true, TeamID: teamID})
 }
 
-////////////////////////////////////////////////////////////////////////////////
 // Get Label Spec
-////////////////////////////////////////////////////////////////////////////////
-
-type getLabelSpecResponse struct {
-	Spec *fleet.LabelSpec `json:"specs,omitempty"`
-	Err  error            `json:"error,omitempty"`
-}
-
-func (r getLabelSpecResponse) Error() error { return r.Err }
-
 func getLabelSpecEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
-	req := request.(*getGenericSpecRequest)
+	req := request.(*fleet.GetGenericSpecRequest)
 	spec, err := svc.GetLabelSpec(ctx, req.Name)
 	if err != nil {
-		return getLabelSpecResponse{Err: err}, nil
+		return fleet.GetLabelSpecResponse{Err: err}, nil
 	}
-	return getLabelSpecResponse{Spec: spec}, nil
+	return fleet.GetLabelSpecResponse{Spec: spec}, nil
 }
 
 func (svc *Service) GetLabelSpec(ctx context.Context, name string) (*fleet.LabelSpec, error) {

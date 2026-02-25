@@ -15,28 +15,14 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mail"
 )
 
-////////////////////////////////////////////////////////////////////////////////
 // Create invite
-////////////////////////////////////////////////////////////////////////////////
-
-type createInviteRequest struct {
-	fleet.InvitePayload
-}
-
-type createInviteResponse struct {
-	Invite *fleet.Invite `json:"invite,omitempty"`
-	Err    error         `json:"error,omitempty"`
-}
-
-func (r createInviteResponse) Error() error { return r.Err }
-
 func createInviteEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
-	req := request.(*createInviteRequest)
+	req := request.(*fleet.CreateInviteRequest)
 	invite, err := svc.InviteNewUser(ctx, req.InvitePayload)
 	if err != nil {
-		return createInviteResponse{Err: err}, nil
+		return fleet.CreateInviteResponse{Err: err}, nil
 	}
-	return createInviteResponse{invite, nil}, nil
+	return fleet.CreateInviteResponse{Invite: invite}, nil
 }
 
 var SSOMFAConflict = &fleet.ConflictError{Message: "Fleet MFA is is not applicable to SSO users"}
@@ -155,29 +141,15 @@ func (svc *Service) ValidateInvite(ctx context.Context, invite fleet.Invite) err
 	return nil
 }
 
-////////////////////////////////////////////////////////////////////////////////
 // List invites
-////////////////////////////////////////////////////////////////////////////////
-
-type listInvitesRequest struct {
-	ListOptions fleet.ListOptions `url:"list_options"`
-}
-
-type listInvitesResponse struct {
-	Invites []fleet.Invite `json:"invites"`
-	Err     error          `json:"error,omitempty"`
-}
-
-func (r listInvitesResponse) Error() error { return r.Err }
-
 func listInvitesEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
-	req := request.(*listInvitesRequest)
+	req := request.(*fleet.ListInvitesRequest)
 	invites, err := svc.ListInvites(ctx, req.ListOptions)
 	if err != nil {
-		return listInvitesResponse{Err: err}, nil
+		return fleet.ListInvitesResponse{Err: err}, nil
 	}
 
-	resp := listInvitesResponse{Invites: []fleet.Invite{}}
+	resp := fleet.ListInvitesResponse{Invites: []fleet.Invite{}}
 	for _, invite := range invites {
 		resp.Invites = append(resp.Invites, *invite)
 	}
@@ -191,30 +163,15 @@ func (svc *Service) ListInvites(ctx context.Context, opt fleet.ListOptions) ([]*
 	return svc.ds.ListInvites(ctx, opt)
 }
 
-////////////////////////////////////////////////////////////////////////////////
 // Update invite
-////////////////////////////////////////////////////////////////////////////////
-
-type updateInviteRequest struct {
-	ID uint `url:"id"`
-	fleet.InvitePayload
-}
-
-type updateInviteResponse struct {
-	Invite *fleet.Invite `json:"invite"`
-	Err    error         `json:"error,omitempty"`
-}
-
-func (r updateInviteResponse) Error() error { return r.Err }
-
 func updateInviteEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
-	req := request.(*updateInviteRequest)
+	req := request.(*fleet.UpdateInviteRequest)
 	invite, err := svc.UpdateInvite(ctx, req.ID, req.InvitePayload)
 	if err != nil {
-		return updateInviteResponse{Err: err}, nil
+		return fleet.UpdateInviteResponse{Err: err}, nil
 	}
 
-	return updateInviteResponse{Invite: invite}, nil
+	return fleet.UpdateInviteResponse{Invite: invite}, nil
 }
 
 func (svc *Service) UpdateInvite(ctx context.Context, id uint, payload fleet.InvitePayload) (*fleet.Invite, error) {
@@ -276,27 +233,14 @@ func (svc *Service) UpdateInvite(ctx context.Context, id uint, payload fleet.Inv
 	return svc.ds.UpdateInvite(ctx, id, invite)
 }
 
-////////////////////////////////////////////////////////////////////////////////
 // Delete invite
-////////////////////////////////////////////////////////////////////////////////
-
-type deleteInviteRequest struct {
-	ID uint `url:"id"`
-}
-
-type deleteInviteResponse struct {
-	Err error `json:"error,omitempty"`
-}
-
-func (r deleteInviteResponse) Error() error { return r.Err }
-
 func deleteInviteEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
-	req := request.(*deleteInviteRequest)
+	req := request.(*fleet.DeleteInviteRequest)
 	err := svc.DeleteInvite(ctx, req.ID)
 	if err != nil {
-		return deleteInviteResponse{Err: err}, nil
+		return fleet.DeleteInviteResponse{Err: err}, nil
 	}
-	return deleteInviteResponse{}, nil
+	return fleet.DeleteInviteResponse{}, nil
 }
 
 func (svc *Service) DeleteInvite(ctx context.Context, id uint) error {
@@ -306,28 +250,14 @@ func (svc *Service) DeleteInvite(ctx context.Context, id uint) error {
 	return svc.ds.DeleteInvite(ctx, id)
 }
 
-////////////////////////////////////////////////////////////////////////////////
 // Verify invite
-////////////////////////////////////////////////////////////////////////////////
-
-type verifyInviteRequest struct {
-	Token string `url:"token"`
-}
-
-type verifyInviteResponse struct {
-	Invite *fleet.Invite `json:"invite"`
-	Err    error         `json:"error,omitempty"`
-}
-
-func (r verifyInviteResponse) Error() error { return r.Err }
-
 func verifyInviteEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
-	req := request.(*verifyInviteRequest)
+	req := request.(*fleet.VerifyInviteRequest)
 	invite, err := svc.VerifyInvite(ctx, req.Token)
 	if err != nil {
-		return verifyInviteResponse{Err: err}, nil
+		return fleet.VerifyInviteResponse{Err: err}, nil
 	}
-	return verifyInviteResponse{Invite: invite}, nil
+	return fleet.VerifyInviteResponse{Invite: invite}, nil
 }
 
 func (svc *Service) VerifyInvite(ctx context.Context, token string) (*fleet.Invite, error) {

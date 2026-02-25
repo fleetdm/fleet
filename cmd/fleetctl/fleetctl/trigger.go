@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"strings"
 
+	fleetclient "github.com/fleetdm/fleet/v4/client"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
-	"github.com/fleetdm/fleet/v4/server/service"
 	"github.com/urfave/cli/v2"
 )
 
@@ -36,7 +36,7 @@ func triggerCommand() *cli.Command {
 			if err := client.TriggerCronSchedule(name); err != nil {
 				root := ctxerr.Cause(err)
 				switch root.(type) {
-				case service.NotFoundErr, service.ConflictErr:
+				case fleetclient.NotFoundErr, fleetclient.ConflictErr:
 					fmt.Printf("[!] %s\n", formatTriggerErrMsg(name, root.Error()))
 					return nil
 				default:

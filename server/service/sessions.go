@@ -25,31 +25,15 @@ import (
 	"github.com/fleetdm/fleet/v4/server/sso"
 )
 
-////////////////////////////////////////////////////////////////////////////////
 // Get Info About Session
-////////////////////////////////////////////////////////////////////////////////
-
-type getInfoAboutSessionRequest struct {
-	ID uint `url:"id"`
-}
-
-type getInfoAboutSessionResponse struct {
-	SessionID uint      `json:"session_id"`
-	UserID    uint      `json:"user_id"`
-	CreatedAt time.Time `json:"created_at"`
-	Err       error     `json:"error,omitempty"`
-}
-
-func (r getInfoAboutSessionResponse) Error() error { return r.Err }
-
 func getInfoAboutSessionEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
-	req := request.(*getInfoAboutSessionRequest)
+	req := request.(*fleet.GetInfoAboutSessionRequest)
 	session, err := svc.GetInfoAboutSession(ctx, req.ID)
 	if err != nil {
-		return getInfoAboutSessionResponse{Err: err}, nil
+		return fleet.GetInfoAboutSessionResponse{Err: err}, nil
 	}
 
-	return getInfoAboutSessionResponse{
+	return fleet.GetInfoAboutSessionResponse{
 		SessionID: session.ID,
 		UserID:    session.UserID,
 		CreatedAt: session.CreatedAt,
@@ -75,27 +59,14 @@ func (svc *Service) GetInfoAboutSession(ctx context.Context, id uint) (*fleet.Se
 	return session, nil
 }
 
-////////////////////////////////////////////////////////////////////////////////
 // Delete Session
-////////////////////////////////////////////////////////////////////////////////
-
-type deleteSessionRequest struct {
-	ID uint `url:"id"`
-}
-
-type deleteSessionResponse struct {
-	Err error `json:"error,omitempty"`
-}
-
-func (r deleteSessionResponse) Error() error { return r.Err }
-
 func deleteSessionEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
-	req := request.(*deleteSessionRequest)
+	req := request.(*fleet.DeleteSessionRequest)
 	err := svc.DeleteSession(ctx, req.ID)
 	if err != nil {
-		return deleteSessionResponse{Err: err}, nil
+		return fleet.DeleteSessionResponse{Err: err}, nil
 	}
-	return deleteSessionResponse{}, nil
+	return fleet.DeleteSessionResponse{}, nil
 }
 
 func (svc *Service) DeleteSession(ctx context.Context, id uint) error {
@@ -112,28 +83,7 @@ func (svc *Service) DeleteSession(ctx context.Context, id uint) error {
 	return svc.ds.DestroySession(ctx, session)
 }
 
-////////////////////////////////////////////////////////////////////////////////
 // Login
-////////////////////////////////////////////////////////////////////////////////
-
-type loginResponse struct {
-	User           *fleet.User          `json:"user,omitempty"`
-	AvailableTeams []*fleet.TeamSummary `json:"available_teams" renameto:"available_fleets"`
-	Token          string               `json:"token,omitempty"`
-	Err            error                `json:"error,omitempty"`
-}
-
-func (r loginResponse) Error() error { return r.Err }
-
-type loginMfaResponse struct {
-	Message string `json:"message"`
-	Err     error  `json:"error,omitempty"`
-}
-
-func (r loginMfaResponse) Status() int { return http.StatusAccepted }
-
-func (r loginMfaResponse) Error() error { return r.Err }
-
 func loginEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*contract.LoginRequest)
 	req.Email = strings.ToLower(req.Email)
@@ -141,10 +91,10 @@ func loginEndpoint(ctx context.Context, request interface{}, svc fleet.Service) 
 	user, session, err := svc.Login(ctx, req.Email, req.Password, req.SupportsEmailVerification)
 	if err != nil {
 		if errors.Is(err, sendingMFAEmail) {
-			return loginMfaResponse{Message: "We sent an email to you. Please click the magic link in the email to sign in."}, nil
+			return fleet.LoginMfaResponse{Message: "We sent an email to you. Please click the magic link in the email to sign in."}, nil
 		}
 
-		return loginResponse{Err: err}, nil
+		return fleet.LoginResponse{Err: err}, nil
 	}
 	// Add viewer to context to allow access to service teams for list of available teams.
 	ctx = viewer.NewContext(ctx, viewer.Viewer{
@@ -156,10 +106,10 @@ func loginEndpoint(ctx context.Context, request interface{}, svc fleet.Service) 
 		if errors.Is(err, fleet.ErrMissingLicense) {
 			availableTeams = []*fleet.TeamSummary{}
 		} else {
-			return loginResponse{Err: err}, nil
+			return fleet.LoginResponse{Err: err}, nil
 		}
 	}
-	return loginResponse{user, availableTeams, session.Key, nil}, nil
+	return fleet.LoginResponse{User: user, AvailableTeams: availableTeams, Token: session.Key}, nil
 }
 
 var (
@@ -254,19 +204,12 @@ func (svc *Service) makeSession(ctx context.Context, userID uint) (*fleet.Sessio
 	return svc.ds.NewSession(ctx, userID, svc.config.Session.KeySize)
 }
 
-////////////////////////////////////////////////////////////////////////////////
 // Session create (second step of MFA)
-////////////////////////////////////////////////////////////////////////////////
-
-type sessionCreateRequest struct {
-	Token string `json:"token,omitempty"`
-}
-
 func sessionCreateEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
-	req := request.(*sessionCreateRequest)
+	req := request.(*fleet.SessionCreateRequest)
 	session, user, err := svc.CompleteMFA(ctx, req.Token)
 	if err != nil {
-		return loginResponse{Err: err}, nil
+		return fleet.LoginResponse{Err: err}, nil
 	}
 	// Add viewer to context to allow access to service teams for list of available teams.
 	ctx = viewer.NewContext(ctx, viewer.Viewer{
@@ -278,10 +221,10 @@ func sessionCreateEndpoint(ctx context.Context, request interface{}, svc fleet.S
 		if errors.Is(err, fleet.ErrMissingLicense) {
 			availableTeams = []*fleet.TeamSummary{}
 		} else {
-			return loginResponse{Err: err}, nil
+			return fleet.LoginResponse{Err: err}, nil
 		}
 	}
-	return loginResponse{user, availableTeams, session.Key, nil}, nil
+	return fleet.LoginResponse{User: user, AvailableTeams: availableTeams, Token: session.Key}, nil
 }
 
 func (svc *Service) CompleteMFA(ctx context.Context, token string) (*fleet.Session, *fleet.User, error) {
@@ -309,22 +252,13 @@ func (svc *Service) CompleteMFA(ctx context.Context, token string) (*fleet.Sessi
 	return session, user, nil
 }
 
-////////////////////////////////////////////////////////////////////////////////
 // Logout
-////////////////////////////////////////////////////////////////////////////////
-
-type logoutResponse struct {
-	Err error `json:"error,omitempty"`
-}
-
-func (r logoutResponse) Error() error { return r.Err }
-
 func logoutEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	err := svc.Logout(ctx)
 	if err != nil {
-		return logoutResponse{Err: err}, nil
+		return fleet.LogoutResponse{Err: err}, nil
 	}
-	return logoutResponse{}, nil
+	return fleet.LogoutResponse{}, nil
 }
 
 func (svc *Service) Logout(ctx context.Context) error {
@@ -354,27 +288,8 @@ func (svc *Service) DestroySession(ctx context.Context) error {
 	return svc.ds.DestroySession(ctx, session)
 }
 
-////////////////////////////////////////////////////////////////////////////////
 // Initiate SSO
-////////////////////////////////////////////////////////////////////////////////
-
-type initiateSSORequest struct {
-	// RelayURL is the URL path that the IdP will redirect to once authenticated
-	// (e.g. "/dashboard").
-	RelayURL string `json:"relay_url"`
-}
-
-type initiateSSOResponse struct {
-	URL string `json:"url,omitempty"`
-	Err error  `json:"error,omitempty"`
-
-	sessionID              string
-	sessionDurationSeconds int
-}
-
 const cookieNameSSOSession = "__Host-FLEETSSOSESSIONID"
-
-func (r initiateSSOResponse) Error() error { return r.Err }
 
 // cookieSecure is defined as a variable for testing purposes.
 var cookieSecure = true
@@ -414,20 +329,18 @@ func setBYODCookie(w http.ResponseWriter, value string, cookieDurationSeconds in
 	})
 }
 
-func (r initiateSSOResponse) SetCookies(_ context.Context, w http.ResponseWriter) {
-	setSSOCookie(w, r.sessionID, r.sessionDurationSeconds)
-}
-
 func initiateSSOEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
-	req := request.(*initiateSSORequest)
+	req := request.(*fleet.InitiateSSORequest)
 	sessionID, sessionDurationSeconds, idProviderURL, err := svc.InitiateSSO(ctx, req.RelayURL)
 	if err != nil {
-		return initiateSSOResponse{Err: err}, nil
+		return fleet.InitiateSSOResponse{Err: err}, nil
 	}
-	return initiateSSOResponse{
-		URL:                    idProviderURL,
-		sessionID:              sessionID,
-		sessionDurationSeconds: sessionDurationSeconds,
+	sid, sdur := sessionID, sessionDurationSeconds
+	return fleet.InitiateSSOResponse{
+		URL: idProviderURL,
+		SetCookiesFn: func(_ context.Context, w http.ResponseWriter) {
+			setSSOCookie(w, sid, sdur)
+		},
 	}, nil
 }
 
@@ -510,23 +423,17 @@ func (svc *Service) InitiateSSO(ctx context.Context, redirectURL string) (sessio
 	return sessionID, sessionDurationSeconds, idpURL, nil
 }
 
-////////////////////////////////////////////////////////////////////////////////
 // Callback SSO
-////////////////////////////////////////////////////////////////////////////////
+type callbackSSODecoder struct{}
 
-type callbackSSORequest struct {
-	sessionID    string
-	samlResponse []byte
-}
-
-func (c callbackSSORequest) DecodeRequest(ctx context.Context, r *http.Request) (interface{}, error) {
+func (callbackSSODecoder) DecodeRequest(ctx context.Context, r *http.Request) (interface{}, error) {
 	sessionID, samlResponse, err := decodeCallbackRequest(ctx, r)
 	if err != nil {
 		return nil, err
 	}
-	return &callbackSSORequest{
-		sessionID:    sessionID,
-		samlResponse: samlResponse,
+	return &fleet.CallbackSSORequest{
+		SessionID:    sessionID,
+		SAMLResponse: samlResponse,
 	}, nil
 }
 
@@ -570,25 +477,13 @@ func decodeCallbackRequest(ctx context.Context, r *http.Request) (
 	return sessionID, decodedSAMLResponseValue, nil
 }
 
-type callbackSSOResponse struct {
-	content string
-	Err     error `json:"error,omitempty"`
-}
-
-func (r callbackSSOResponse) Error() error { return r.Err }
-
 // If html is present we return a web page
-func (r callbackSSOResponse) Html() string { return r.content }
-
-func (r callbackSSOResponse) SetCookies(_ context.Context, w http.ResponseWriter) {
-	deleteSSOCookie(w)
-}
 
 func makeCallbackSSOEndpoint(urlPrefix string) handlerFunc {
 	return func(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
-		callbackRequest := request.(*callbackSSORequest)
+		callbackRequest := request.(*fleet.CallbackSSORequest)
 		session, userID, err := getSSOSession(ctx, svc, callbackRequest)
-		var resp callbackSSOResponse
+		var resp fleet.CallbackSSOResponse
 		if err != nil {
 			if err := svc.NewActivity(ctx, nil, fleet.ActivityTypeUserFailedLogin{
 				Email:    userID,
@@ -633,7 +528,10 @@ func makeCallbackSSOEndpoint(urlPrefix string) handlerFunc {
 		if err != nil {
 			return nil, err
 		}
-		resp.content = writer.String()
+		resp.Content = writer.String()
+		resp.SetCookiesFn = func(_ context.Context, w http.ResponseWriter) {
+			deleteSSOCookie(w)
+		}
 		return resp, nil
 	}
 }
@@ -641,9 +539,9 @@ func makeCallbackSSOEndpoint(urlPrefix string) handlerFunc {
 func getSSOSession(
 	ctx context.Context,
 	svc fleet.Service,
-	callbackRequest *callbackSSORequest,
+	callbackRequest *fleet.CallbackSSORequest,
 ) (session *fleet.SSOSession, userID string, err error) {
-	auth, redirectURL, err := svc.InitSSOCallback(ctx, callbackRequest.sessionID, callbackRequest.samlResponse)
+	auth, redirectURL, err := svc.InitSSOCallback(ctx, callbackRequest.SessionID, callbackRequest.SAMLResponse)
 	if err != nil {
 		return nil, "", err
 	}
@@ -770,23 +668,13 @@ func (svc *Service) LoginSSOUser(ctx context.Context, user *fleet.User, redirect
 	return result, nil
 }
 
-////////////////////////////////////////////////////////////////////////////////
 // SSO Settings
-////////////////////////////////////////////////////////////////////////////////
-
-type ssoSettingsResponse struct {
-	Settings *fleet.SessionSSOSettings `json:"settings,omitempty"`
-	Err      error                     `json:"error,omitempty"`
-}
-
-func (r ssoSettingsResponse) Error() error { return r.Err }
-
 func settingsSSOEndpoint(ctx context.Context, _ interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	settings, err := svc.SSOSettings(ctx)
 	if err != nil {
-		return ssoSettingsResponse{Err: err}, nil
+		return fleet.SsoSettingsResponse{Err: err}, nil
 	}
-	return ssoSettingsResponse{Settings: settings}, nil
+	return fleet.SsoSettingsResponse{Settings: settings}, nil
 }
 
 // SSOSettings returns a subset of the Single Sign-On settings as configured in

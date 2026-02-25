@@ -8,7 +8,6 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
-	"net/url"
 	"os"
 	"path/filepath"
 	"strings"
@@ -18,6 +17,8 @@ import (
 	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
 	"github.com/fleetdm/fleet/v4/pkg/spec"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+
+	fleetclient "github.com/fleetdm/fleet/v4/client"
 	kitlog "github.com/go-kit/log"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -461,7 +462,7 @@ func TestApplyStarterLibraryWithMockClient(t *testing.T) {
 
 	// Create a client factory that returns a real client
 	// We're not testing the token setting functionality
-	clientFactory := NewClient
+	clientFactory := fleetclient.NewClient
 
 	// Track if ApplyGroup was called and capture the specs
 	applyGroupCalled := false
@@ -537,7 +538,7 @@ func TestApplyStarterLibraryWithMalformedYAML(t *testing.T) {
 	}
 
 	// Create a client factory that returns a real client
-	clientFactory := NewClient
+	clientFactory := fleetclient.NewClient
 
 	// Create a mock ApplyGroup function that should not be called
 	mockApplyGroup := func(ctx context.Context, specs *spec.Group) error {
@@ -617,10 +618,7 @@ func TestApplyStarterLibraryWithFreeLicense(t *testing.T) {
 	}
 
 	// Create a mock client factory
-	clientFactory := func(serverURL string, insecureSkipVerify bool, rootCA, urlPrefix string, options ...ClientOption) (*Client, error) {
-		mockClient := &Client{}
-
-		// Override the baseClient with a mock implementation
+	clientFactory := func(serverURL string, insecureSkipVerify bool, rootCA, urlPrefix string, options ...fleetclient.ClientOption) (*fleetclient.Client, error) {
 		// Create a mock HTTP client
 		mockHTTPClient := &mockHTTPClient{
 			DoFunc: func(req *http.Request) (*http.Response, error) {
@@ -641,14 +639,8 @@ func TestApplyStarterLibraryWithFreeLicense(t *testing.T) {
 			},
 		}
 
-		// Set up the baseClient with the mock HTTP client and a valid baseURL
-		baseURL, _ := url.Parse(serverURL)
-		mockClient.baseClient = &baseClient{
-			http:    mockHTTPClient,
-			baseURL: baseURL,
-		}
-
-		return mockClient, nil
+		// Use NewClientForTest to set up the client with the mock HTTP client
+		return fleetclient.NewClientForTest(serverURL, mockHTTPClient)
 	}
 
 	// Track if ApplyGroup was called and capture the specs
