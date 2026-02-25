@@ -46,7 +46,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/platform/endpointer"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/worker"
-	"github.com/go-kit/log/level"
 	"github.com/go-sql-driver/mysql"
 )
 
@@ -726,7 +725,7 @@ func (svc *Service) GetMDMCommandResults(ctx context.Context, commandUUID string
 		return svc.getDeviceSoftwareMDMCommandResults(ctx, commandUUID)
 	}
 
-	level.Debug(svc.logger).Log("msg", "GetMDMCommandResults called with user authentication", "command_uuid", commandUUID, "host_identifier", hostIdentifier)
+	svc.logger.DebugContext(ctx, "GetMDMCommandResults called with user authentication", "command_uuid", commandUUID, "host_identifier", hostIdentifier)
 
 	// first, authorize that the user has the right to list hosts
 	if err := svc.authz.Authorize(ctx, &fleet.Host{}, fleet.ActionList); err != nil {
@@ -811,7 +810,7 @@ func (svc *Service) GetMDMCommandResults(ctx context.Context, commandUUID string
 		// Get install status for the VPP app
 		installed, err := svc.ds.GetVPPAppInstallStatusByCommandUUID(ctx, commandUUID)
 		if err != nil {
-			level.Debug(svc.logger).Log("msg", "failed to check if VPP app is installed", "err", err, "command_uuid", commandUUID)
+			svc.logger.DebugContext(ctx, "failed to check if VPP app is installed", "err", err, "command_uuid", commandUUID)
 		} else {
 			for _, res := range results {
 				if res.RequestType == "InstallApplication" {
@@ -847,7 +846,7 @@ func (svc *Service) getMDMCommandResults(ctx context.Context, commandUUID string
 		results = []*fleet.MDMCommandResult{}
 	default:
 		// this should never happen, but just in case
-		level.Debug(svc.logger).Log("msg", "unknown MDM command platform", "platform", p)
+		svc.logger.DebugContext(ctx, "unknown MDM command platform", "platform", p)
 	}
 
 	if err != nil {
@@ -905,7 +904,8 @@ func (svc *Service) getHostIdentifierMDMCommandResults(ctx context.Context, comm
 		return nil, ctxerr.Errorf(ctx, "getHostIdentifierMDMCommandResults: unexpected result for host identifier %s", hostIdentifier)
 	case len(hi) > 1:
 		// FIXME: determine what to do in this unexpected case; for now just log it and use the first one.
-		level.Debug(svc.logger).Log("msg", "getHostIdentifierMDMCommandResults: multiple hosts found for host identifier", "host_identifier", hostIdentifier, "count", len(hi))
+		svc.logger.DebugContext(ctx, "getHostIdentifierMDMCommandResults: multiple hosts found for host identifier",
+			"host_identifier", hostIdentifier, "count", len(hi))
 	}
 
 	// authorize that the user can read commands for the host's team
@@ -1072,7 +1072,7 @@ func (svc *Service) ListMDMCommands(ctx context.Context, opts *fleet.MDMCommandL
 	}
 
 	if authzErr != nil {
-		level.Error(svc.logger).Log("err", "unauthorized to view some team commands", "details", authzErr)
+		svc.logger.ErrorContext(ctx, "unauthorized to view some team commands", "details", authzErr)
 
 		// filter-out the teams that the user is not allowed to view
 		allowedResults := make([]*fleet.MDMCommand, 0, len(results))
@@ -3632,7 +3632,7 @@ func (svc *Service) UnenrollMDM(ctx context.Context, hostID uint) error {
 			return ctxerr.Wrap(ctx, err, "unenrolling android host")
 		}
 	default:
-		level.Debug(svc.logger).Log("msg", "MDM unenrollment requested for host with unknown platform", "host_id", host.ID, "platform", host.Platform)
+		svc.logger.DebugContext(ctx, "MDM unenrollment requested for host with unknown platform", "host_id", host.ID, "platform", host.Platform)
 		return &fleet.BadRequestError{
 			Message: "MDM unenrollment is not supported for this host platform",
 		}

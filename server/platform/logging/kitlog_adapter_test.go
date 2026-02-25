@@ -5,28 +5,19 @@ import (
 	"log/slog"
 	"testing"
 
-	kitlog "github.com/go-kit/log"
-	"github.com/go-kit/log/level"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
 	"github.com/fleetdm/fleet/v4/server/platform/logging/testutils"
 )
 
-// newTestAdapter creates a kitlog adapter with a TestHandler for capturing records.
-func newTestAdapter(t *testing.T) (*testutils.TestHandler, kitlog.Logger) {
-	t.Helper()
-	handler := testutils.NewTestHandler()
-	slogLogger := slog.New(handler)
-	return handler, NewLogger(slogLogger)
-}
-
 func TestKitlogAdapter(t *testing.T) {
 	t.Parallel()
+	handler := testutils.NewTestHandler()
+	adapter := NewLogger(slog.New(handler))
 
-	t.Run("basic logging", func(t *testing.T) {
+	t.Run("basic logging via Log method", func(t *testing.T) {
 		t.Parallel()
-		handler, adapter := newTestAdapter(t)
 
 		err := adapter.Log("msg", "hello world", "key", "value")
 		require.NoError(t, err)
@@ -41,12 +32,8 @@ func TestKitlogAdapter(t *testing.T) {
 
 	t.Run("with context via With", func(t *testing.T) {
 		t.Parallel()
-		handler, adapter := newTestAdapter(t)
 
-		kitlogAdapter, ok := adapter.(*Logger)
-		require.True(t, ok, "adapter should be *Logger")
-
-		contextLogger := kitlogAdapter.With("component", "test-component")
+		contextLogger := adapter.With("component", "test-component")
 		err := contextLogger.Log("msg", "message with context")
 		require.NoError(t, err)
 
@@ -59,54 +46,8 @@ func TestKitlogAdapter(t *testing.T) {
 	})
 }
 
-func TestKitlogAdapterLevels(t *testing.T) {
-	t.Parallel()
-
-	tests := []struct {
-		name          string
-		levelFunc     func(kitlog.Logger) kitlog.Logger
-		expectedLevel slog.Level
-	}{
-		{
-			name:          "info",
-			levelFunc:     level.Info,
-			expectedLevel: slog.LevelInfo,
-		},
-		{
-			name:          "debug",
-			levelFunc:     level.Debug,
-			expectedLevel: slog.LevelDebug,
-		},
-		{
-			name:          "warn",
-			levelFunc:     level.Warn,
-			expectedLevel: slog.LevelWarn,
-		},
-		{
-			name:          "error",
-			levelFunc:     level.Error,
-			expectedLevel: slog.LevelError,
-		},
-	}
-
-	for _, tc := range tests {
-		t.Run(tc.name, func(t *testing.T) {
-			t.Parallel()
-			handler, adapter := newTestAdapter(t)
-
-			leveledLogger := tc.levelFunc(adapter)
-			err := leveledLogger.Log("msg", tc.name+" message")
-			require.NoError(t, err)
-
-			record := handler.LastRecord()
-			require.NotNil(t, record)
-			assert.Equal(t, tc.name+" message", record.Message)
-			assert.Equal(t, tc.expectedLevel, record.Level)
-		})
-	}
-}
-
 func TestKitlogSlogWrappers(t *testing.T) {
+	t.Parallel()
 	handler := testutils.NewTestHandler()
 	adapter := NewLogger(slog.New(handler))
 
@@ -139,9 +80,7 @@ func TestKitlogSlogWrappers(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			t.Parallel()
-
-			tc.logFunc(context.Background(), tc.name+" message", "key", "value")
+			tc.logFunc(t.Context(), tc.name+" message", "key", "value")
 
 			record := handler.LastRecord()
 			require.NotNil(t, record)

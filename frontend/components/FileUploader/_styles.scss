@@ -7,7 +7,15 @@
   border: 1px solid $ui-fleet-black-10;
   padding: $pad-xlarge $pad-large;
   font-size: $x-small;
-  text-align: center;
+
+  &:not(.file-uploader__file-preview) {
+    text-align: center;
+
+    // Preview may include dropdown input that needs to be shown
+    input {
+      display: none;
+    }
+  }
 
   .content-wrapper {
     @include content-wrapper();
@@ -40,10 +48,6 @@
   &__additional-info {
     margin: 0;
     color: $ui-fleet-black-50;
-  }
-
-  input {
-    display: none;
   }
 
   &__upload-button {

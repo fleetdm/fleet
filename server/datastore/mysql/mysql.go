@@ -31,10 +31,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mdm/android"
 	nano_push "github.com/fleetdm/fleet/v4/server/mdm/nanomdm/push"
 	scep_depot "github.com/fleetdm/fleet/v4/server/mdm/scep/depot"
-	"github.com/fleetdm/fleet/v4/server/platform/logging"
 	common_mysql "github.com/fleetdm/fleet/v4/server/platform/mysql"
-	"github.com/go-kit/log"
-	"github.com/go-kit/log/level"
 	"github.com/go-sql-driver/mysql"
 	"github.com/hashicorp/go-multierror"
 	"github.com/jmoiron/sqlx"
@@ -61,7 +58,7 @@ type Datastore struct {
 	replica fleet.DBReader // so it cannot be used to perform writes
 	primary *sqlx.DB
 
-	logger *logging.Logger
+	logger *slog.Logger
 	clock  clock.Clock
 	config config.MysqlConfig
 	pusher nano_push.Pusher
@@ -143,8 +140,7 @@ func (ds *Datastore) loadOrPrepareStmt(ctx context.Context, query string) *sqlx.
 		var err error
 		stmt, err = sqlx.PreparexContext(ctx, ds.replica, query)
 		if err != nil {
-			level.Error(ds.logger).Log(
-				"msg", "failed to prepare statement",
+			ds.logger.ErrorContext(ctx, "failed to prepare statement",
 				"query", query,
 				"err", err,
 			)
@@ -155,14 +151,13 @@ func (ds *Datastore) loadOrPrepareStmt(ctx context.Context, query string) *sqlx.
 	return stmt
 }
 
-func (ds *Datastore) deleteCachedStmt(query string) {
+func (ds *Datastore) deleteCachedStmt(ctx context.Context, query string) {
 	ds.stmtCacheMu.Lock()
 	defer ds.stmtCacheMu.Unlock()
 	stmt, ok := ds.stmtCache[query]
 	if ok {
 		if err := stmt.Close(); err != nil {
-			level.Error(ds.logger).Log(
-				"msg", "failed to close prepared statement before deleting it",
+			ds.logger.ErrorContext(ctx, "failed to close prepared statement before deleting it",
 				"query", query,
 				"err", err,
 			)
@@ -185,7 +180,7 @@ func (ds *Datastore) NewHostIdentitySCEPDepot(logger *slog.Logger, cfg *config.F
 
 // NewConditionalAccessSCEPDepot returns a new conditional access SCEP depot that uses the
 // underlying MySQL writer *sql.DB.
-func (ds *Datastore) NewConditionalAccessSCEPDepot(logger log.Logger, cfg *config.FleetConfig) (scep_depot.Depot, error) {
+func (ds *Datastore) NewConditionalAccessSCEPDepot(logger *slog.Logger, cfg *config.FleetConfig) (scep_depot.Depot, error) {
 	return condaccessdepot.NewConditionalAccessSCEPDepot(ds.primary, ds, logger, cfg)
 }
 
@@ -203,12 +198,12 @@ var (
 )
 
 func (ds *Datastore) withRetryTxx(ctx context.Context, fn common_mysql.TxFn) (err error) {
-	return common_mysql.WithRetryTxx(ctx, ds.writer(ctx), fn, ds.logger.SlogLogger())
+	return common_mysql.WithRetryTxx(ctx, ds.writer(ctx), fn, ds.logger)
 }
 
 // withTx provides a common way to commit/rollback a txFn
 func (ds *Datastore) withTx(ctx context.Context, fn common_mysql.TxFn) (err error) {
-	return common_mysql.WithTxx(ctx, ds.writer(ctx), fn, ds.logger.SlogLogger())
+	return common_mysql.WithTxx(ctx, ds.writer(ctx), fn, ds.logger)
 }
 
 // withReadTx runs fn in a read-only transaction with a consistent snapshot of the DB
@@ -221,7 +216,7 @@ func (ds *Datastore) withReadTx(ctx context.Context, fn common_mysql.ReadTxFn) (
 	if !ok {
 		return ctxerr.New(ctx, "failed to cast reader to *sqlx.DB")
 	}
-	return common_mysql.WithReadOnlyTxx(ctx, readerDB, fn, ds.logger.SlogLogger())
+	return common_mysql.WithReadOnlyTxx(ctx, readerDB, fn, ds.logger)
 }
 
 // NewDBConnections creates database connections from config.
@@ -231,7 +226,7 @@ func NewDBConnections(cfg config.MysqlConfig, opts ...DBOption) (*common_mysql.D
 	options := &common_mysql.DBOptions{
 		MinLastOpenedAtDiff: defaultMinLastOpenedAtDiff,
 		MaxAttempts:         defaultMaxAttempts,
-		Logger:              logging.NewNopLogger(),
+		Logger:              slog.New(slog.DiscardHandler),
 	}
 
 	for _, setOpt := range opts {
@@ -845,17 +840,42 @@ func sanitizeColumn(col string) string {
 }
 
 // appendListOptionsToSQL is a facade that calls common_mysql.AppendListOptions.
+//
+// Deprecated: this method will be removed in favor of appendListOptionsWithCursorToSQL
 func appendListOptionsToSQL(sql string, opts *fleet.ListOptions) (string, []any) {
 	return appendListOptionsWithCursorToSQL(sql, nil, opts)
 }
 
+// appendListOptionsToSQLSecure is a facade that calls common_mysql.AppendListOptionsWithParamsSecure.
+// The allowlist parameter maps user-facing order key names to actual SQL column expressions.
+// This prevents SQL injection and information disclosure via arbitrary column sorting.
+// See common_mysql.OrderKeyAllowlist for details.
+func appendListOptionsToSQLSecure(sql string, opts *fleet.ListOptions, allowlist common_mysql.OrderKeyAllowlist) (string, []any, error) {
+	return appendListOptionsWithCursorToSQLSecure(sql, nil, opts, allowlist)
+}
+
 // appendListOptionsWithCursorToSQL is a facade that calls common_mysql.AppendListOptionsWithParams.
 // NOTE: this method will mutate opts.PerPage if it is 0, setting it to the default value.
+//
+// Deprecated: this method will be removed in favor of appendListOptionsWithCursorToSQLSecure
 func appendListOptionsWithCursorToSQL(sql string, params []any, opts *fleet.ListOptions) (string, []any) {
 	if opts.PerPage == 0 {
 		opts.PerPage = fleet.DefaultPerPage
 	}
 	return common_mysql.AppendListOptionsWithParams(sql, params, opts)
+}
+
+// appendListOptionsWithCursorToSQLSecure is a facade that calls common_mysql.AppendListOptionsWithParamsSecure.
+// NOTE: this method will mutate opts.PerPage if it is 0, setting it to the default value.
+//
+// The allowlist parameter maps user-facing order key names to actual SQL column expressions.
+// This prevents SQL injection and information disclosure via arbitrary column sorting.
+// See common_mysql.OrderKeyAllowlist for details.
+func appendListOptionsWithCursorToSQLSecure(sql string, params []any, opts *fleet.ListOptions, allowlist common_mysql.OrderKeyAllowlist) (string, []any, error) {
+	if opts.PerPage == 0 {
+		opts.PerPage = fleet.DefaultPerPage
+	}
+	return common_mysql.AppendListOptionsWithParamsSecure(sql, params, opts, allowlist)
 }
 
 // whereFilterHostsByTeams returns the appropriate condition to use in the WHERE
@@ -868,7 +888,7 @@ func (ds *Datastore) whereFilterHostsByTeams(filter fleet.TeamFilter, hostKey st
 		// This is likely unintentional, however we would like to return no
 		// results rather than panicking or returning some other error. At least
 		// log.
-		level.Info(ds.logger).Log("err", "team filter missing user")
+		ds.logger.InfoContext(context.TODO(), "team filter missing user")
 		return "FALSE"
 	}
 
@@ -945,7 +965,7 @@ func (ds *Datastore) whereFilterGlobalOrTeamIDByTeamsWithSqlFilter(
 		// This is likely unintentional, however we would like to return no
 		// results rather than panicking or returning some other error. At least
 		// log.
-		level.Info(ds.logger).Log("err", "team filter missing user")
+		ds.logger.InfoContext(context.TODO(), "team filter missing user")
 		return "FALSE"
 	}
 
@@ -1010,7 +1030,7 @@ func (ds *Datastore) whereFilterTeams(filter fleet.TeamFilter, teamKey string) s
 		// This is likely unintentional, however we would like to return no
 		// results rather than panicking or returning some other error. At least
 		// log.
-		level.Info(ds.logger).Log("err", "team filter missing user")
+		ds.logger.InfoContext(context.TODO(), "team filter missing user")
 		return "FALSE"
 	}
 
@@ -1158,19 +1178,17 @@ var (
 
 // hostSearchLike searches hosts based on the given columns plus searching in hosts_emails. Note:
 // the host from the `hosts` table must be aliased to `h` in `sql`.
-func hostSearchLike(sql string, params []interface{}, match string, columns ...string) (string, []interface{}, bool) {
-	var matchesEmail bool
+func hostSearchLike(sql string, params []any, match string, columns ...string) (string, []any) {
 	base, args := searchLike(sql, params, match, columns...)
 
-	// special-case for hosts: if match looks like an email address, add searching
-	// in host_emails table as an option, in addition to the provided columns.
-	if fleet.IsLooseEmail(match) {
-		matchesEmail = true
+	// Always search in host_emails table in addition to the provided columns,
+	// so that any search query can surface results from human-host mapping information.
+	if len(match) > 0 && len(columns) > 0 {
 		// remove the closing paren and add the email condition to the list
 		base = strings.TrimSuffix(base, ")") + " OR (" + ` EXISTS (SELECT 1 FROM host_emails he WHERE he.host_id = h.id AND he.email LIKE ?)))`
 		args = append(args, likePattern(match))
 	}
-	return base, args, matchesEmail
+	return base, args
 }
 
 func hostSearchLikeAny(sql string, params []interface{}, match string, columns ...string) (string, []interface{}) {

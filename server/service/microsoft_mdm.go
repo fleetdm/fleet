@@ -33,7 +33,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mdm/microsoft/syncml"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/variables"
-	"github.com/go-kit/log/level"
 	mysql_driver "github.com/go-sql-driver/mysql"
 
 	mdm_types "github.com/fleetdm/fleet/v4/server/fleet"
@@ -1054,16 +1053,14 @@ func (svc *Service) authBinarySecurityToken(ctx context.Context, authToken *flee
 		}
 		if !hasExpectedAudience {
 			// Log bad audiences here for debugging
-			level.Error(svc.logger).Log(
-				"msg", "unexpected token audience in AzureAD Binary Security Token",
+			svc.logger.ErrorContext(ctx, "unexpected token audience in AzureAD Binary Security Token",
 				"expected_host", expectedURLParsed.Host,
 				"token_audiences", strings.Join(tokenData.Audience, ","),
 			)
 			return "", "", ctxerr.Errorf(ctx, "token audience is not authorized")
 		}
 		if !slices.Contains(entraTenantIDs, tokenData.TenantID) {
-			level.Error(svc.logger).Log(
-				"msg", "unexpected token tenant in AzureAD Binary Security Token",
+			svc.logger.ErrorContext(ctx, "unexpected token tenant in AzureAD Binary Security Token",
 				"token_tenant", tokenData.TenantID,
 			)
 			return "", "", ctxerr.New(ctx, "token tenant is not authorized")
@@ -1081,8 +1078,7 @@ func (svc *Service) ProcessMDMMicrosoftDiscovery(ctx context.Context, req *fleet
 	// Checking first if Discovery message is valid and returning error if this is not the case
 	if err := req.IsValidDiscoveryMsg(); err != nil {
 		// Log the raw XML request for debugging invalid messages
-		level.Debug(svc.logger).Log(
-			"msg", "invalid discover message",
+		svc.logger.DebugContext(ctx, "invalid discover message",
 			"err", err.Error(),
 			"request_xml", string(req.Raw),
 		)
@@ -1508,7 +1504,7 @@ func (svc *Service) enqueueInstallFleetdCommand(ctx context.Context, deviceID st
 	}
 
 	if len(secrets) == 0 {
-		level.Warn(svc.logger).Log("msg", "unable to find a global enroll secret to install fleetd")
+		svc.logger.WarnContext(ctx, "unable to find a global enroll secret to install fleetd")
 		return nil
 	}
 
@@ -1517,7 +1513,7 @@ func (svc *Service) enqueueInstallFleetdCommand(ctx context.Context, deviceID st
 	// and we'll try again the next time the host checks in
 	fleetdMetadata, err := fleetdbase.GetMetadata()
 	if err != nil {
-		level.Warn(svc.logger).Log("msg", "unable to get fleetd-base metadata")
+		svc.logger.WarnContext(ctx, "unable to get fleetd-base metadata")
 		return nil
 	}
 
@@ -1747,7 +1743,7 @@ func (svc *Service) processIncomingMDMCmds(ctx context.Context, deviceID string,
 
 	// Iterate over the operations and process them
 	for _, protoCMD := range reqMsg.GetOrderedCmds() {
-		if protoCMD.Cmd.Data != nil && *protoCMD.Cmd.Data == "418" {
+		if protoCMD.Cmd.Data != nil && *protoCMD.Cmd.Data == "418" && protoCMD.Cmd.CmdRef != nil {
 			// 418 = Already exists, and indicate that an <Add> failed due to the item already existing on the device
 			// We need to re-issue a <Replace> command for this item
 			alreadyExistsCmdIDs = append(alreadyExistsCmdIDs, *protoCMD.Cmd.CmdRef)
@@ -1786,7 +1782,7 @@ func (svc *Service) processIncomingMDMCmds(ctx context.Context, deviceID string,
 }
 
 func handleResendingAlreadyExistsCommands(ctx context.Context, svc *Service, alreadyExistsCmdIDs []string, deviceID string) ([]string, error) {
-	commands, err := svc.ds.GetWindowsMDMCommandsForResending(ctx, alreadyExistsCmdIDs)
+	commands, err := svc.ds.GetWindowsMDMCommandsForResending(ctx, deviceID, alreadyExistsCmdIDs)
 	if err != nil {
 		return nil, fmt.Errorf("get commands for resending: %w", err)
 	}

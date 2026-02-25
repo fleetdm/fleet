@@ -1264,7 +1264,7 @@ func testHostsListStatus(t *testing.T, ds *Datastore) {
 	hosts = listHostsCheckCount(t, ds, filter, fleet.HostListOptions{StatusFilter: "new"}, 10)
 	assert.Equal(t, 10, len(hosts))
 
-	hosts = listHostsCheckCount(t, ds, filter, fleet.HostListOptions{StatusFilter: "new", ListOptions: fleet.ListOptions{OrderKey: "h.id", After: fmt.Sprint(hosts[2].ID)}}, 7)
+	hosts = listHostsCheckCount(t, ds, filter, fleet.HostListOptions{StatusFilter: "new", ListOptions: fleet.ListOptions{OrderKey: "id", After: fmt.Sprint(hosts[2].ID)}}, 7)
 	assert.Equal(t, 7, len(hosts))
 }
 
@@ -1424,6 +1424,15 @@ func testHostsListQuery(t *testing.T, ds *Datastore) {
 	err = json.Unmarshal(*gotHosts[2].DeviceMapping, &dm)
 	require.NoError(t, err)
 	require.Nil(t, dm)
+
+	// non-email queries should also match against host_emails
+	gotHosts = listHostsCheckCount(t, ds, filter, fleet.HostListOptions{ListOptions: fleet.ListOptions{MatchQuery: "dbca"}}, 1)
+	require.Equal(t, 1, len(gotHosts))
+	assert.Equal(t, hosts[2].ID, gotHosts[0].ID) // matches email dbca@b.cba
+
+	gotHosts = listHostsCheckCount(t, ds, filter, fleet.HostListOptions{ListOptions: fleet.ListOptions{MatchQuery: "b.cb"}}, 1)
+	require.Equal(t, 1, len(gotHosts))
+	assert.Equal(t, hosts[2].ID, gotHosts[0].ID) // matches email dbca@b.cba
 }
 
 func testHostsUnenrollFromMDM(t *testing.T, ds *Datastore) {

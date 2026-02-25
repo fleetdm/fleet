@@ -6,12 +6,11 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"log/slog"
 	"net/url"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
-	kitlog "github.com/go-kit/log"
-	"github.com/go-kit/log/level"
 )
 
 // FailingPolicyAutomationType is the type of automations supported for
@@ -41,7 +40,7 @@ type FailingPolicyAutomationConfig struct {
 func TriggerFailingPoliciesAutomation(
 	ctx context.Context,
 	ds fleet.Datastore,
-	logger kitlog.Logger,
+	logger *slog.Logger,
 	failingPoliciesSet fleet.FailingPolicySet,
 	sendFunc func(*fleet.Policy, FailingPolicyAutomationConfig) error,
 ) error {
@@ -57,9 +56,9 @@ func TriggerFailingPoliciesAutomation(
 	}
 
 	if globalAutomationCfg.AutomationType != "" {
-		level.Debug(logger).Log("global_failing_policy", "enabled", "automation", globalAutomationCfg.AutomationType)
+		logger.DebugContext(ctx, "global failing policy enabled", "automation", string(globalAutomationCfg.AutomationType))
 	} else {
-		level.Debug(logger).Log("global_failing_policy", "disabled")
+		logger.DebugContext(ctx, "global failing policy disabled")
 	}
 
 	// prepare the per-team configuration caches
@@ -75,9 +74,9 @@ func TriggerFailingPoliciesAutomation(
 		policy, err := ds.Policy(ctx, policyID)
 		switch {
 		case errors.Is(err, sql.ErrNoRows):
-			level.Debug(logger).Log("msg", "skipping failing policy, deleted", "policyID", policyID)
+			logger.DebugContext(ctx, "skipping failing policy, deleted", "policyID", policyID)
 			if err := failingPoliciesSet.RemoveSet(policyID); err != nil {
-				level.Error(logger).Log("msg", "failed to remove policy from set", "policyID", policyID, "err", err)
+				logger.ErrorContext(ctx, "failed to remove policy from set", "policyID", policyID, "err", err)
 			}
 			continue
 		case err != nil:
@@ -89,15 +88,15 @@ func TriggerFailingPoliciesAutomation(
 		case policy.TeamID == nil:
 			// Global policy - use global config
 			if !globalAutomationCfg.PolicyIDs[policy.ID] {
-				level.Debug(logger).Log("msg", "skipping failing policy, not found in global policy IDs", "policyID", policyID)
+				logger.DebugContext(ctx, "skipping failing policy, not found in global policy IDs", "policyID", policyID)
 				if err := failingPoliciesSet.RemoveSet(policy.ID); err != nil {
-					level.Error(logger).Log("msg", "failed to remove policy from set", "policyID", policyID, "err", err)
+					logger.ErrorContext(ctx, "failed to remove policy from set", "policyID", policyID, "err", err)
 				}
 				continue
 			}
 
 			if err := sendFunc(policy, globalAutomationCfg); err != nil {
-				level.Error(logger).Log("msg", "failed to send failing policies", "policyID", policy.ID, "err", err)
+				logger.ErrorContext(ctx, "failed to send failing policies", "policyID", policy.ID, "err", err)
 			}
 		case *policy.TeamID == 0:
 			// "No Team" policy - use default team config
@@ -108,23 +107,23 @@ func TriggerFailingPoliciesAutomation(
 			}
 
 			if cfg.AutomationType == "" {
-				level.Debug(logger).Log("msg", "default team automation disabled", "policyID", policyID)
+				logger.DebugContext(ctx, "default team automation disabled", "policyID", policyID)
 				if err := failingPoliciesSet.RemoveSet(policy.ID); err != nil {
-					level.Error(logger).Log("msg", "failed to remove policy from set", "policyID", policyID, "err", err)
+					logger.ErrorContext(ctx, "failed to remove policy from set", "policyID", policyID, "err", err)
 				}
 				continue
 			}
 
 			if !cfg.PolicyIDs[policy.ID] {
-				level.Debug(logger).Log("msg", "skipping failing policy, not found in default team policy IDs", "policyID", policyID)
+				logger.DebugContext(ctx, "skipping failing policy, not found in default team policy IDs", "policyID", policyID)
 				if err := failingPoliciesSet.RemoveSet(policy.ID); err != nil {
-					level.Error(logger).Log("msg", "failed to remove policy from set", "policyID", policyID, "err", err)
+					logger.ErrorContext(ctx, "failed to remove policy from set", "policyID", policyID, "err", err)
 				}
 				continue
 			}
 
 			if err := sendFunc(policy, cfg); err != nil {
-				level.Error(logger).Log("msg", "failed to send failing policies", "policyID", policy.ID, "err", err)
+				logger.ErrorContext(ctx, "failed to send failing policies", "policyID", policy.ID, "err", err)
 			}
 
 		default:
@@ -133,34 +132,34 @@ func TriggerFailingPoliciesAutomation(
 			switch {
 			case errors.Is(err, sql.ErrNoRows):
 				// shouldn't happen, unless the team was deleted after the policy was retrieved above
-				level.Debug(logger).Log("msg", "team does not exist", "teamID", *policy.TeamID)
+				logger.DebugContext(ctx, "team does not exist", "teamID", *policy.TeamID)
 				if err := failingPoliciesSet.RemoveSet(policy.ID); err != nil {
-					level.Error(logger).Log("msg", "failed to remove policy from set", "policyID", policy.ID, "err", err)
+					logger.ErrorContext(ctx, "failed to remove policy from set", "policyID", policy.ID, "err", err)
 				}
 				continue
 			case err != nil:
-				level.Error(logger).Log("msg", "failed to get team", "teamID", *policy.TeamID, "err", err)
+				logger.ErrorContext(ctx, "failed to get team", "teamID", *policy.TeamID, "err", err)
 				continue
 			}
 
 			if teamCfg.AutomationType == "" {
-				level.Debug(logger).Log("msg", "team automation disabled", "teamID", *policy.TeamID, "policyID", policyID)
+				logger.DebugContext(ctx, "team automation disabled", "teamID", *policy.TeamID, "policyID", policyID)
 				if err := failingPoliciesSet.RemoveSet(policy.ID); err != nil {
-					level.Error(logger).Log("msg", "failed to remove policy from set", "policyID", policyID, "err", err)
+					logger.ErrorContext(ctx, "failed to remove policy from set", "policyID", policyID, "err", err)
 				}
 				continue
 			}
 
 			if !teamCfg.PolicyIDs[policy.ID] {
-				level.Debug(logger).Log("msg", "skipping failing policy, not found in team policy IDs", "policyID", policyID)
+				logger.DebugContext(ctx, "skipping failing policy, not found in team policy IDs", "policyID", policyID)
 				if err := failingPoliciesSet.RemoveSet(policy.ID); err != nil {
-					level.Error(logger).Log("msg", "failed to remove policy from set", "policyID", policyID, "err", err)
+					logger.ErrorContext(ctx, "failed to remove policy from set", "policyID", policyID, "err", err)
 				}
 				continue
 			}
 
 			if err := sendFunc(policy, teamCfg); err != nil {
-				level.Error(logger).Log("msg", "failed to send failing policies", "policyID", policy.ID, "err", err)
+				logger.ErrorContext(ctx, "failed to send failing policies", "policyID", policy.ID, "err", err)
 			}
 		}
 	}
@@ -227,7 +226,7 @@ func makeTeamConfigCache(ds fleet.Datastore, globalIntgs fleet.Integrations) fun
 	}
 }
 
-func makeDefaultTeamConfigCache(ds fleet.Datastore, globalIntgs fleet.Integrations, logger kitlog.Logger) func(ctx context.Context) (FailingPolicyAutomationConfig, error) {
+func makeDefaultTeamConfigCache(ds fleet.Datastore, globalIntgs fleet.Integrations, logger *slog.Logger) func(ctx context.Context) (FailingPolicyAutomationConfig, error) {
 	var cached *FailingPolicyAutomationConfig
 	var cachedErr error
 
@@ -245,21 +244,21 @@ func makeDefaultTeamConfigCache(ds fleet.Datastore, globalIntgs fleet.Integratio
 		defaultTeamConfig, err := ds.DefaultTeamConfig(ctx)
 		if err != nil {
 			cachedErr = err
-			level.Error(logger).Log("msg", "failed to get default team config", "err", err)
+			logger.ErrorContext(ctx, "failed to get default team config", "err", err)
 			return cfg, err
 		}
 
 		intgs, err := defaultTeamConfig.Integrations.MatchWithIntegrations(globalIntgs)
 		if err != nil {
 			cachedErr = err
-			level.Error(logger).Log("msg", "failed to match default team integrations", "err", err)
+			logger.ErrorContext(ctx, "failed to match default team integrations", "err", err)
 			return cfg, err
 		}
 
 		cfg, err = buildFailingPolicyAutomationConfig(defaultTeamConfig.WebhookSettings.FailingPoliciesWebhook, intgs)
 		if err != nil {
 			// Log error but don't fail - just disable automation
-			level.Error(logger).Log("msg", "failed to build default team automation config", "err", err)
+			logger.ErrorContext(ctx, "failed to build default team automation config", "err", err)
 			cfg = FailingPolicyAutomationConfig{} // Return empty config
 		}
 

@@ -7,9 +7,9 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/license"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/mdm"
+	"github.com/fleetdm/fleet/v4/server/platform/logging"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/worker"
-	kitlog "github.com/go-kit/log"
 	"github.com/go-kit/log/level"
 )
 
@@ -52,7 +52,7 @@ type HostOptions struct {
 // HostLifecycle manages MDM host lifecycle actions
 type HostLifecycle struct {
 	ds              fleet.Datastore
-	logger          kitlog.Logger
+	logger          *logging.Logger
 	newActivityFunc NewActivityFunc
 }
 
@@ -62,7 +62,7 @@ type HostLifecycle struct {
 type NewActivityFunc func(ctx context.Context, user *fleet.User, details fleet.ActivityDetails) error
 
 // New creates a new HostLifecycle struct
-func New(ds fleet.Datastore, logger kitlog.Logger, newActivityFn NewActivityFunc) *HostLifecycle {
+func New(ds fleet.Datastore, logger *logging.Logger, newActivityFn NewActivityFunc) *HostLifecycle {
 	return &HostLifecycle{
 		ds:              ds,
 		logger:          logger,
@@ -245,7 +245,7 @@ func (t *HostLifecycle) turnOnApple(ctx context.Context, opts HostOptions) error
 		err := worker.QueueAppleMDMJob(
 			ctx,
 			t.ds,
-			t.logger,
+			t.logger.SlogLogger(),
 			worker.AppleMDMPostDEPEnrollmentTask,
 			opts.UUID,
 			opts.Platform,
@@ -263,7 +263,7 @@ func (t *HostLifecycle) turnOnApple(ctx context.Context, opts HostOptions) error
 		if err := worker.QueueAppleMDMJob(
 			ctx,
 			t.ds,
-			t.logger,
+			t.logger.SlogLogger(),
 			worker.AppleMDMPostManualEnrollmentTask,
 			opts.UUID,
 			opts.Platform,
@@ -329,7 +329,7 @@ func (t *HostLifecycle) restorePendingDEPHost(ctx context.Context, host *fleet.H
 		return ctxerr.Wrap(ctx, err, "restore pending dep host")
 	}
 
-	if _, err := worker.QueueMacosSetupAssistantJob(ctx, t.ds, t.logger,
+	if _, err := worker.QueueMacosSetupAssistantJob(ctx, t.ds, t.logger.SlogLogger(),
 		worker.MacosSetupAssistantHostsTransferred, tmID, host.HardwareSerial); err != nil {
 		return ctxerr.Wrap(ctx, err, "queue macos setup assistant update profile job")
 	}

@@ -60,6 +60,8 @@ interface IFileUploaderProps {
   onFileUpload: (files: FileList | null) => void;
   /** renders the current file with the edit pencil button */
   canEdit?: boolean;
+  /** renders a custom editor for the current file replacing the edit pencil button */
+  customEditor?: () => React.ReactNode;
   /** renders the current file with the delete trash button */
   onDeleteFile?: () => void;
   /** if provided, will be called when the button is clicked
@@ -98,6 +100,7 @@ export const FileUploader = ({
   onButtonClick,
   onFileUpload,
   canEdit = false,
+  customEditor,
   onDeleteFile,
   fileDetails,
   gitopsCompatible = false,
@@ -278,6 +281,7 @@ export const FileUploader = ({
             graphicNames={graphicNames}
             fileDetails={fileDetails}
             canEdit={canEdit}
+            customEditor={customEditor}
             onDeleteFile={onDeleteFile}
             onFileSelect={onFileSelect}
             accept={accept}

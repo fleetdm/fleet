@@ -30,6 +30,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mock"
 	mdmmock "github.com/fleetdm/fleet/v4/server/mock/mdm"
 	nanodep_mock "github.com/fleetdm/fleet/v4/server/mock/nanodep"
+	"github.com/fleetdm/fleet/v4/server/platform/logging"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/service"
 	"github.com/google/uuid"
@@ -122,6 +123,7 @@ spec:
 }
 
 func TestApplyUserRolesDeprecated(t *testing.T) {
+	t.Setenv("FLEET_ENABLE_LOG_TOPICS", logging.DeprecatedFieldTopic)
 	_, ds := testing_utils.RunServerWithMockedDS(t)
 
 	ds.ListUsersFunc = func(ctx context.Context, opt fleet.UserListOptions) ([]*fleet.User, error) {
@@ -175,9 +177,29 @@ spec:
         team: team1
 `)
 	require.NoError(t, err)
-	assert.Equal(t, "[+] applied user roles\n", RunAppForTest(t, []string{"apply", "-f", tmpFile.Name()}))
+	expected := "[!] In user_roles: `team` is deprecated, please use `fleet` instead.\n[!] In user_roles: `teams` is deprecated, please use `fleets` instead.\n[+] applied user roles\n"
+	assert.Equal(t, expected, RunAppForTest(t, []string{"apply", "-f", tmpFile.Name()}))
 	require.Len(t, userRoleSpecList[1].Teams, 1)
 	assert.Equal(t, fleet.RoleMaintainer, userRoleSpecList[1].Teams[0].Role)
+
+	_, err = tmpFile.WriteString(`
+---
+apiVersion: v1
+kind: user_roles
+spec:
+  roles:
+    admin1@example.com:
+      global_role: admin
+      teams: null
+    admin2@example.com:
+      global_role: null
+      teams:
+      - role: maintainer
+        team: team1
+        fleet: team1
+`)
+	require.NoError(t, err)
+	RunAppCheckErr(t, []string{"apply", "-f", tmpFile.Name()}, "in user_roles spec: Conflicting field names: cannot specify both `team` (deprecated) and `fleet` in the same request")
 }
 
 func TestApplyTeamSpecs(t *testing.T) {
@@ -657,6 +679,8 @@ func writeTmpJSON(t *testing.T, v any) string {
 }
 
 func TestApplyAppConfig(t *testing.T) {
+	t.Setenv("FLEET_ENABLE_LOG_TOPICS", logging.DeprecatedFieldTopic)
+
 	license := &fleet.LicenseInfo{Tier: fleet.TierPremium, Expiration: time.Now().Add(24 * time.Hour)}
 	_, ds := testing_utils.RunServerWithMockedDS(t, &service.TestServerOpts{License: license})
 
@@ -776,6 +800,33 @@ spec:
 	// agent options were not modified, since they were not provided
 	assert.Equal(t, string(defaultAgentOpts), string(*savedAppConfig.AgentOptions))
 
+	// Test key rewriting (deprecated -> new)
+	name = writeTmpYml(t, `---
+apiVersion: v1
+kind: config
+spec:
+  server_settings:
+    report_cap: 100
+`)
+
+	assert.Equal(t, "[+] applied fleet config\n", RunAppForTest(t, []string{"apply", "-f", name}))
+	require.NotNil(t, savedAppConfig)
+	assert.Equal(t, 100, savedAppConfig.ServerSettings.QueryReportCap)
+
+	// Test deprecation warnings
+	expected := "[!] In config: `query_report_cap` is deprecated, please use `report_cap` instead.\n[+] applied fleet config\n"
+	name = writeTmpYml(t, `---
+apiVersion: v1
+kind: config
+spec:
+  server_settings:
+    query_report_cap: 200
+`)
+
+	assert.Equal(t, expected, RunAppForTest(t, []string{"apply", "-f", name}))
+	require.NotNil(t, savedAppConfig)
+	assert.Equal(t, 200, savedAppConfig.ServerSettings.QueryReportCap)
+
 	name = writeTmpYml(t, `---
 apiVersion: v1
 kind: config
@@ -826,6 +877,20 @@ spec:
 	assert.Equal(t, "[+] applied fleet config\n", RunAppForTest(t, []string{"apply", "-f", name}))
 	require.NotNil(t, savedAppConfig)
 	assert.Equal(t, newMDMSettings, savedAppConfig.MDM)
+}
+
+func TestApplyAppConfigAliasConfict(t *testing.T) {
+	// Test conflict error
+	name := writeTmpYml(t, `---
+apiVersion: v1
+kind: config
+spec:
+  server_settings:
+    query_report_cap: 200
+    report_cap: 200
+`)
+
+	RunAppCheckErr(t, []string{"apply", "-f", name}, "in config spec: Conflicting field names: cannot specify both `query_report_cap` (deprecated) and `report_cap` in the same request")
 }
 
 func TestApplyAppConfigDryRunIssue(t *testing.T) {
@@ -1180,11 +1245,11 @@ kind: pack
 spec:
   name: osquery_monitoring
   reports:
-    - query: osquery_version
+    - report: osquery_version
       name: osquery_version_snapshot
       interval: 7200
       snapshot: true
-    - query: osquery_version
+    - report: osquery_version
       name: osquery_version_differential
       interval: 7200
 `

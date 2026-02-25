@@ -12,9 +12,9 @@ import (
 	"github.com/fleetdm/fleet/v4/server/datastore/filesystem"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mock"
+	"github.com/fleetdm/fleet/v4/server/platform/logging"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/test"
-	kitlog "github.com/go-kit/log"
 	"github.com/jmoiron/sqlx"
 	"github.com/stretchr/testify/require"
 )
@@ -188,7 +188,7 @@ func TestUpgradeCodeMigration(t *testing.T) {
 		return nil
 	}
 
-	require.NoError(t, eeservice.UpgradeCodeMigration(ctx, ds, softwareInstallStore, kitlog.NewNopLogger()))
+	require.NoError(t, eeservice.UpgradeCodeMigration(ctx, ds, softwareInstallStore, logging.NewNopLogger()))
 	require.True(t, ds.UpdateInstallerUpgradeCodeFuncInvoked)
 	require.Len(t, updatedInstallerIDs, 2)
 }

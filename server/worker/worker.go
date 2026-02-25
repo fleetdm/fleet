@@ -4,12 +4,11 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"log/slog"
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
-	"github.com/fleetdm/fleet/v4/server/platform/logging"
-	"github.com/go-kit/log/level"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/trace"
@@ -62,7 +61,7 @@ type vulnArgs struct {
 // Worker runs jobs. NOT SAFE FOR CONCURRENT USE.
 type Worker struct {
 	ds  fleet.Datastore
-	log *logging.Logger
+	log *slog.Logger
 
 	// For tests only, allows ignoring unknown jobs instead of failing them.
 	TestIgnoreUnknownJobs bool
@@ -74,7 +73,7 @@ type Worker struct {
 	registry map[string]Job
 }
 
-func NewWorker(ds fleet.Datastore, log *logging.Logger) *Worker {
+func NewWorker(ds fleet.Datastore, log *slog.Logger) *Worker {
 	return &Worker{
 		ds:       ds,
 		log:      log,
@@ -149,7 +148,7 @@ func (w *Worker) ProcessJobs(ctx context.Context) error {
 
 	jobNames := w.jobNames()
 	if len(jobNames) == 0 {
-		level.Info(w.log).Log("msg", "no jobs registered, nothing to process")
+		w.log.InfoContext(ctx, "no jobs registered, nothing to process")
 		return nil
 	}
 
@@ -175,18 +174,18 @@ func (w *Worker) ProcessJobs(ctx context.Context) error {
 			log := w.log.With("job_id", job.ID)
 
 			if _, ok := seen[job.ID]; ok {
-				level.Debug(log).Log("msg", "some jobs failed, retrying on next cron execution")
+				log.DebugContext(ctx, "some jobs failed, retrying on next cron execution")
 				return nil
 			}
 			seen[job.ID] = struct{}{}
 
-			level.Debug(log).Log("msg", "processing job")
+			log.DebugContext(ctx, "processing job")
 
 			if err := w.processJob(ctx, job); err != nil {
-				level.Error(log).Log("msg", "process job", "err", err)
+				log.ErrorContext(ctx, "process job", "err", err)
 				job.Error = err.Error()
 				if job.Retries < maxRetries {
-					level.Debug(log).Log("msg", "will retry job")
+					log.DebugContext(ctx, "will retry job")
 					job.Retries += 1
 					delays := w.delayPerRetry
 					if delays == nil {
@@ -207,7 +206,7 @@ func (w *Worker) ProcessJobs(ctx context.Context) error {
 			// of queue. GetQueuedJobs fetches jobs by updated_at, so it will not return the same job until the queue
 			// has been processed once.
 			if _, err := w.ds.UpdateJob(ctx, job.ID, job); err != nil {
-				level.Error(log).Log("update job", "err", err)
+				log.ErrorContext(ctx, "update job", "err", err)
 			}
 		}
 	}

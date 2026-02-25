@@ -2,21 +2,20 @@ package webhooks
 
 import (
 	"context"
+	"log/slog"
 	"net/url"
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
-	kitlog "github.com/go-kit/log"
-	"github.com/go-kit/log/level"
 )
 
 // TriggerVulnerabilitiesWebhook performs the webhook requests for vulnerabilities.
 func TriggerVulnerabilitiesWebhook(
 	ctx context.Context,
 	ds fleet.Datastore,
-	logger kitlog.Logger,
+	logger *slog.Logger,
 	args VulnArgs,
 	mapper VulnMapper,
 ) error {
@@ -26,7 +25,7 @@ func TriggerVulnerabilitiesWebhook(
 		return nil
 	}
 
-	level.Debug(logger).Log("enabled", "true", "recentVulns", len(args.Vulnerablities))
+	logger.DebugContext(ctx, "vulnerability webhook triggered", "recent_vulns", len(args.Vulnerablities))
 
 	serverURL, err := url.Parse(args.AppConfig.ServerSettings.ServerURL)
 	if err != nil {
