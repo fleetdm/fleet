@@ -92,7 +92,7 @@ func GroupFromBytes(b []byte, options ...GroupFromBytesOpts) (*Group, error) {
 
 		var deprecatedKeysMap map[string]string
 		switch kind {
-		case fleet.QueryKind:
+		case fleet.QueryKind, fleet.ReportKind:
 			var err error
 			s.Spec, deprecatedKeysMap, err = rewriteNewToOldKeys(s.Spec, fleet.QuerySpec{})
 			if err != nil {
@@ -179,7 +179,7 @@ func GroupFromBytes(b []byte, options ...GroupFromBytesOpts) (*Group, error) {
 			}
 			specs.UsersRoles = userRoleSpec
 
-		case fleet.TeamKind:
+		case fleet.TeamKind, fleet.FleetKind:
 			// unmarshal to a raw map as we don't want to strip away unknown/invalid
 			// fields at this point - that validation is done in the apply spec/teams
 			// endpoint so that it is enforced for both the API and the CLI.
