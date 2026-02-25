@@ -19,7 +19,7 @@ const generateSelectedRows = (softwareTitles: ISoftwareTitle[]) => {
       software.app_store_app?.install_during_setup
     ) {
       if (software.id != null) {
-        acc[String(software.id)] = true; // matches getRowId fallback
+        acc[String(software.id)] = true; // key must match DataTable getRowId(row) for selection to persist
       }
     }
     return acc;

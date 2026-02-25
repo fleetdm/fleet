@@ -67,7 +67,7 @@ interface IDataTableProps {
   searchQuery?: string;
   searchQueryColumn?: string;
   selectedDropdownFilter?: string;
-  /** Set to true to persist the row selections across table data filters */
+  /** Set to true to persist row selection across client-side filters and pagination */
   persistSelectedRows?: boolean;
   /** Set to `true` to not display the footer section of the table */
   hideFooter?: boolean;
@@ -180,7 +180,7 @@ const DataTable = ({
     {
       columns,
       data,
-      // Use stable row IDs when available (`row.id`), otherwise fall back to the default index-based IDs provided by react-table
+      // Use a stable row ID when available (row.id), otherwise fall back to the index-based ID (default of react-table)
       getRowId: (row: any, index: number) =>
         row && row.id != null ? String(row.id) : String(index),
       initialState: {
