@@ -4,7 +4,7 @@ _Available in Fleet Premium_
 
 Fleet can help your end users connect to Wi-Fi or VPN by deploying certificates from your certificate authority (CA). Fleet currently supports [DigiCert](#digicert), [Microsoft NDES](#microsoft-ndes),[Smallstep](#smallstep), [Hydrant](#hydrant), and a custom [SCEP](#custom-scep-simple-certificate-enrollment-protocol) or [EST](#custom-est-enrollment-over-secure-transport) server.
 
-Fleet will automatically renew certificates on Apple (macOS, iOS, iPadOS) hosts before expiration. Learn more in the [Renewal section](#renewal).
+Fleet will automatically renew certificates on Apple (macOS, iOS, iPadOS), Windows, and Android hosts before expiration. Learn more in the [Renewal section](#renewal).
 
 ## DigiCert
 
