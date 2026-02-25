@@ -76,7 +76,7 @@
 <hr/>
 <br/><br/>
 
-- FUTURE: "Enroll secret" is not actually a secret; more of a public key. Rename "enroll secret" in the UI, API, docs, and in gitops.
+- FUTURE: "Enroll secret" is not actually a secret; more of a public key. Rename "enroll secret" in the UI, API, docs, and in gitops to "Enrollment token"
 - FUTURE: Ship equivalent of https://sailsjs.com/documentation/anatomy linking to it from code comments - https://fleetdm.slack.com/archives/C0ACJ8L1FD0/p1770812933638829
 - FUTURE: move MDM migration tool settings down to the team level
   - FUTURE: Interactive prompt in `fleetctl new` to ask whether folks want to use an empty project, baselines for soc2, full cis benchmarks, or to export content from an existing Fleet instance
