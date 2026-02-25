@@ -40,7 +40,7 @@ Successfully implementing zero-touch deployment depends on having the right infr
 
 ### Required infrastructure
 
-You need an Apple Business Manager account with organizational verification. Your organization must complete Apple's verification process before devices can enroll through ADE. This process requires a valid D-U-N-S number and verification of organizational details by Apple representatives. Verification is separate from ABM account creation and typically takes 24-48 hours to complete. Missing this step is a common cause of ADE enrollment failures, as devices won't appear in your ABM account until verification is approved.
+You need an Apple Business Manager account with organizational verification. Your organization must complete Apple's verification process before devices can enroll through ADE. This process requires a valid D-U-N-S number (an organization's business tax identification) and verification of organizational details by Apple representatives. Verification is separate from ABM account creation and typically takes 24-48 hours to complete. Missing this step is a common cause of ADE enrollment failures, as devices won't appear in your ABM account until verification is approved.
 
 Your MDM server must be added to Apple Business Manager as a virtual MDM server, establishing the trust relationship for device assignments. Your MDM tool must support Automated Device Enrollment with mandatory, non-removable enrollment profiles and the Auto Advance key for Setup Assistant customization.
 
@@ -98,11 +98,11 @@ With single-platform device management solutions, IT teams must architect separa
 
 ## GitOps-based Mac fleet management
 
-Infrastructure-as-code patterns are being adopted for device management. Some enterprises have implemented GitOps workflows in production environments, treating device configuration as declarative code stored in version control systems.
+Infrastructure-as-code patterns are being adopted for device management. Using GitOps workflows in production environments means storing device configuration as declarative code in a version-controlled repository management solution like GitHub or GitLab.
 
 This approach provides several advantages for IT teams. Configuration changes go through code review before deployment, creating an audit trail of who changed what and why. Teams can stage test configuration updates before applying them to production fleets and easily roll back undesirable changes. If your infrastructure team is already familiar with GitOps patterns for server and application management, they can apply the same methodologies to device management.
 
-With Fleet, organizations define configuration through YAML files that specify bootstrap packages, Setup Assistant customization, end user authentication, and security policies. These configuration files live in GitHub repositories alongside other infrastructure code, receiving the same review and deployment workflows as other infrastructure components.
+With Fleet GitOps, organizations define configuration through YAML files that specify bootstrap packages, Setup Assistant customization, end user authentication, and security policies, software, configuration profiles an scripts. These files live in GitHub repositories alongside other infrastructure code, receiving the same review and deployment workflows as your other infrastructure.
 
 ## Open-source Mac fleet management
 
