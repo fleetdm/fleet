@@ -118,7 +118,9 @@ Policies can be specified inline in your `default.yml`, `teams/team-name.yml`, o
 
 For possible options, see the parameters for the [Add policy API endpoint](https://fleetdm.com/docs/rest-api/rest-api#add-policy)
 
-#### Software install
+#### Automations
+
+##### Install software
 
 _Available in Fleet Premium_
 
