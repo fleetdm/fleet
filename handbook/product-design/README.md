@@ -177,7 +177,7 @@ If the candidate passes all of these steps then continue with [hiring a new team
 
 The Head of Product Design (HPD) Product Designers (PD), and the Manager of Customer Support and Solutions Architecture review the checkboxes in user stories we shipped but haven't closed. Are they done? If not notify relevant contributor to help get them done. If they're done, PD closes the story and notifies the requester in the original request with context on whether they think the request is fulfilled or still has some work left (more user stories to be drafted and shipped). [Up the requester](https://fleetdm.com/handbook/customer-success#communicate-feedback-on-prioritized-customer-requests) to close the original request and/or leave feedback.
 
-If the original request is a customer request, it's up to the Manager of Customer Support and Solutions Architecture to decide if the request is fulfilled. If it is, we assign the relevant Customer Success Manager (CSM) and the `:help-customers` label to add the customer request to the [🌦️ :help-customers board](https://github.com/orgs/fleetdm/projects/79).
+If the original request is a customer request, it's up to the relevant Customer Solutions Architect (CSA) to decide if the request is fulfilled or assign  If it is, we assign the relevant Customer Success Manager (CSM) and the `:help-customers` label to add the customer request to the [🌦️ :help-customers board](https://github.com/orgs/fleetdm/projects/79).
 
 ### Notify stakeholders when a user story is pushed to the next sprint
 
