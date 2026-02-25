@@ -998,7 +998,7 @@ func (s *integrationMDMTestSuite) TestWindowsProfileRetries() {
 			return nil
 		})
 
-		for i := 0; i < retriesBeforeFailure; i++ {
+		for i := range retriesBeforeFailure {
 			s.awaitTriggerProfileSchedule(t)
 
 			cmds, err := mdmDevice.StartManagementSession()
@@ -1066,7 +1066,7 @@ func (s *integrationMDMTestSuite) TestWindowsProfileRetries() {
 			expectedProfileStatuses["N1"] = fleet.MDMDeliveryPending
 			expectedProfileStatuses["N2"] = fleet.MDMDeliveryVerified
 			checkProfilesStatus(t)
-			expectedRetryCounts["N1"] = 1
+			expectedRetryCounts["N1"] = uint(i + 1)
 			checkRetryCounts(t)
 		}
 
@@ -1120,7 +1120,7 @@ func (s *integrationMDMTestSuite) TestWindowsProfileRetries() {
 		expectedProfileStatuses["N1"] = fleet.MDMDeliveryFailed
 		expectedProfileStatuses["N2"] = fleet.MDMDeliveryVerified
 		checkProfilesStatus(t)
-		expectedRetryCounts["N1"] = 1
+		expectedRetryCounts["N1"] = servermdm.MaxProfileRetries
 		checkRetryCounts(t)
 	})
 }
