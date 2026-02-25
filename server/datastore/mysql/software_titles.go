@@ -305,6 +305,11 @@ func (ds *Datastore) listSoftwareTitlesOptimized(
 	opt fleet.SoftwareTitleListOptions,
 	tmFilter fleet.TeamFilter,
 ) ([]fleet.SoftwareTitleListResult, int, *fleet.PaginationMetadata, error) {
+	// Normalize PerPage the same way appendListOptionsWithCursorToSQL does for the fallback path.
+	if opt.ListOptions.PerPage == 0 {
+		opt.ListOptions.PerPage = fleet.DefaultPerPage
+	}
+
 	dbReader := ds.reader(ctx)
 
 	listSQL := buildOptimizedListSoftwareTitlesSQL(opt)
