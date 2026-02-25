@@ -262,7 +262,7 @@ deploy declarations that Fleet would otherwise block.
 - Config file format:
   ```yaml
   mdm:
-    skip_declaration_validation: true
+    allow_all_declarations: true
   ```
 
 ### FLEET_ENABLE_POST_CLIENT_DEBUG_ERRORS
