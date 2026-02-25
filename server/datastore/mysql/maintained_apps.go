@@ -69,7 +69,8 @@ const teamFMATitlesJoin = `
 				OR (
 					team_titles.platform = fma.platform 
 					AND fma.platform = 'windows' 
-					AND team_titles.name LIKE CONCAT(fma.name, '%')
+					-- Box Drive is the only FMA at the point of writing this where unique_identifier is shorter than name
+					AND team_titles.name LIKE CONCAT(LEAST(fma.name, fma.unique_identifier), '%')
 				)
 `
 
