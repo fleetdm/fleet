@@ -13,6 +13,7 @@ import (
 	"fmt"
 	"html/template"
 	"io"
+	"log/slog"
 	"net/http"
 	"strings"
 	"time"
@@ -64,7 +65,7 @@ func (e *errWithStatus) StatusCode() int {
 	return e.statusCode
 }
 
-func PostJSONWithTimeout(ctx context.Context, url string, v interface{}) error {
+func PostJSONWithTimeout(ctx context.Context, url string, v any, logger *slog.Logger) error {
 	jsonBytes, err := json.Marshal(v)
 	if err != nil {
 		return err
@@ -86,7 +87,16 @@ func PostJSONWithTimeout(ctx context.Context, url string, v interface{}) error {
 
 	if !httpSuccessStatus(resp.StatusCode) {
 		body, _ := io.ReadAll(resp.Body)
-		return &errWithStatus{err: fmt.Sprintf("error posting to %s: %d. %s", MaskSecretURLParams(url), resp.StatusCode, string(body)), statusCode: resp.StatusCode}
+		bodyStr := string(body)
+		if len(bodyStr) > 512 {
+			bodyStr = bodyStr[:512]
+		}
+		logger.DebugContext(ctx, "non-success response from POST",
+			"url", MaskSecretURLParams(url),
+			"status_code", resp.StatusCode,
+			"body", bodyStr,
+		)
+		return &errWithStatus{err: fmt.Sprintf("error posting to %s", MaskSecretURLParams(url)), statusCode: resp.StatusCode}
 	}
 
 	return nil
