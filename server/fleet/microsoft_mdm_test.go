@@ -137,7 +137,7 @@ func TestBuildMDMWindowsProfilePayloadFromMDMResponse(t *testing.T) {
 			hostUUID: "host-uuid",
 			expectedPayload: &MDMWindowsProfilePayload{
 				HostUUID:    "host-uuid",
-				Status:      &MDMDeliveryVerifying,
+				Status:      &MDMDeliveryVerified,
 				Detail:      "",
 				CommandUUID: "foo",
 			},
@@ -237,7 +237,7 @@ func TestBuildMDMWindowsProfilePayloadFromMDMResponse(t *testing.T) {
 			hostUUID: "host-uuid",
 			expectedPayload: &MDMWindowsProfilePayload{
 				HostUUID:    "host-uuid",
-				Status:      &MDMDeliveryVerifying,
+				Status:      &MDMDeliveryVerified,
 				Detail:      "",
 				CommandUUID: "foo",
 			},
