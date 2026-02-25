@@ -51,13 +51,6 @@ func fetchItems(
 		log.Fatalf("items query failed: %v", err)
 	}
 
-	if len(q.Node.ProjectV2.Items.Nodes) == limit {
-		log.Printf(
-			"NOTE: scanned %d items (limit reached, no pagination by design). Increase -limit if needed.",
-			limit,
-		)
-	}
-
 	return q.Node.ProjectV2.Items.Nodes
 }
 

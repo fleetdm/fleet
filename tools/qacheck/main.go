@@ -14,6 +14,15 @@ import (
 	"golang.org/x/oauth2"
 )
 
+const (
+	phaseQAGate = iota
+	phaseDrafting
+	phaseMilestones
+	phaseTimestamp
+	phaseReport
+	phaseBrowser
+)
+
 func main() {
 	org := flag.String("org", "fleetdm", "GitHub org")
 	limit := flag.Int("limit", 100, "Max project items to scan (no pagination; expected usage is small)")
@@ -53,20 +62,67 @@ func main() {
 	ctx := context.Background()
 	src := oauth2.StaticTokenSource(&oauth2.Token{AccessToken: token})
 	client := githubv4.NewClient(oauth2.NewClient(ctx, src))
+	tracker := newPhaseTracker([]string{
+		"QA checklist gate scan",
+		"Drafting estimation gate scan",
+		"Missing milestone audit",
+		"Updates timestamp expiry check",
+		"Rendering report deck",
+		"Opening browser bridge",
+	})
 
 	projectNums = uniqueInts(projectNums)
 
+	tracker.phaseStart(phaseQAGate)
+	start := time.Now()
 	staleAfter := time.Duration(*staleDays) * 24 * time.Hour
 	awaitingByProject, staleByProject := runAwaitingQACheck(ctx, client, *org, *limit, projectNums, staleAfter)
-	printStaleAwaitingSummary(staleByProject, *staleDays)
+	tracker.phaseDone(phaseQAGate,
+		phaseSummaryKV(
+			fmt.Sprintf("awaiting violations=%d", countAwaitingViolations(awaitingByProject)),
+			fmt.Sprintf("stale=%d", countStaleViolations(staleByProject)),
+			shortDuration(time.Since(start)),
+		),
+	)
+
+	tracker.phaseStart(phaseDrafting)
+	start = time.Now()
 	badDrafting := runDraftingCheck(ctx, client, *org, *limit)
 	byStatus := groupViolationsByStatus(badDrafting)
-	printDraftingSummary(byStatus, len(badDrafting))
-	missingMilestones := runMissingMilestoneChecks(ctx, client, *org, projectNums, *limit, token)
-	printMissingMilestoneSummary(missingMilestones)
-	timestampCheck := checkUpdatesTimestamp(ctx, time.Now().UTC())
-	printTimestampCheckSummary(timestampCheck)
+	tracker.phaseDone(phaseDrafting, phaseSummaryKV(
+		fmt.Sprintf("drafting violations=%d", len(badDrafting)),
+		shortDuration(time.Since(start)),
+	))
 
+	tracker.phaseStart(phaseMilestones)
+	start = time.Now()
+	missingMilestones := runMissingMilestoneChecks(ctx, client, *org, projectNums, *limit, token)
+	tracker.phaseDone(phaseMilestones, phaseSummaryKV(
+		fmt.Sprintf("missing milestones=%d", len(missingMilestones)),
+		shortDuration(time.Since(start)),
+	))
+
+	tracker.phaseStart(phaseTimestamp)
+	start = time.Now()
+	timestampCheck := checkUpdatesTimestamp(ctx, time.Now().UTC())
+	if timestampCheck.Error != "" {
+		tracker.phaseWarn(phaseTimestamp, phaseSummaryKV("timestamp check unavailable", timestampCheck.Error, shortDuration(time.Since(start))))
+	} else if !timestampCheck.OK {
+		daysLeft := int(timestampCheck.DurationLeft.Hours() / 24)
+		tracker.phaseFail(phaseTimestamp, phaseSummaryKV(
+			fmt.Sprintf("expires in %d days (min %d)", daysLeft, timestampCheck.MinDays),
+			shortDuration(time.Since(start)),
+		))
+	} else {
+		daysLeft := int(timestampCheck.DurationLeft.Hours() / 24)
+		tracker.phaseDone(phaseTimestamp, phaseSummaryKV(
+			fmt.Sprintf("expires in %d days", daysLeft),
+			shortDuration(time.Since(start)),
+		))
+	}
+
+	tracker.phaseStart(phaseReport)
+	start = time.Now()
 	reportPath, err := writeHTMLReport(
 		buildHTMLReportData(
 			*org,
@@ -84,18 +140,20 @@ func main() {
 		log.Printf("could not write HTML report: %v", err)
 		return
 	}
+	tracker.phaseDone(phaseReport, phaseSummaryKV("report generated", shortDuration(time.Since(start))))
 
-	reportURL := fileURLFromPath(reportPath)
-	fmt.Printf("📄 HTML report: %s\n", reportPath)
-	fmt.Printf("🔗 Open report: %s\n", reportURL)
-	fmt.Printf("%s\n", reportURL)
-	fmt.Printf("🔗 \x1b]8;;%s\x1b\\Click here to open the report\x1b]8;;\x1b\\\n", reportURL)
+	tracker.phaseStart(phaseBrowser)
+	tracker.waitingForBrowser(reportPath)
 	if *openReport {
 		if err := openInBrowser(reportPath); err != nil {
 			log.Printf("could not auto-open report: %v", err)
-			fmt.Printf("Run this manually: open %q\n", reportPath)
+			tracker.phaseWarn(phaseBrowser, "browser auto-open failed")
+			return
 		}
+		tracker.phaseDone(phaseBrowser, "browser open signal sent")
+		return
 	}
+	tracker.phaseWarn(phaseBrowser, "auto-open disabled (-open-report=false)")
 }
 
 func runAwaitingQACheck(
@@ -134,16 +192,6 @@ func runAwaitingQACheck(
 		}
 		awaitingByProject[projectNum] = badAwaitingQA
 		staleByProject[projectNum] = staleAwaiting
-
-		fmt.Printf(
-			"\nFound %d items in project %d (%q) with UNCHECKED test-plan confirmation:\n\n",
-			len(badAwaitingQA),
-			projectNum,
-			awaitingQAColumn,
-		)
-		for _, it := range badAwaitingQA {
-			fmt.Printf("❌ #%d – %s\n   %s\n\n", getNumber(it), getTitle(it), getURL(it))
-		}
 	}
 	return awaitingByProject, staleByProject
 }

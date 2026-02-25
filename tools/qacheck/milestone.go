@@ -74,7 +74,7 @@ func parseRepoFromIssueURL(issueURL string) (string, string) {
 	if len(parts) < 4 {
 		return "", ""
 	}
-	if parts[2] != "issues" {
+	if parts[2] != "issues" && parts[2] != "pull" {
 		return "", ""
 	}
 	return parts[0], parts[1]

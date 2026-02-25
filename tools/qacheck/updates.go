@@ -18,7 +18,9 @@ type TimestampCheckResult struct {
 }
 
 type timestampJSON struct {
-	Expires string `json:"expires"`
+	Signed struct {
+		Expires string `json:"expires"`
+	} `json:"signed"`
 }
 
 func checkUpdatesTimestamp(ctx context.Context, now time.Time) TimestampCheckResult {
@@ -51,9 +53,9 @@ func checkUpdatesTimestamp(ctx context.Context, now time.Time) TimestampCheckRes
 		return result
 	}
 
-	expiresAt, err := time.Parse(time.RFC3339, payload.Expires)
+	expiresAt, err := time.Parse(time.RFC3339, payload.Signed.Expires)
 	if err != nil {
-		result.Error = fmt.Sprintf("parse expires value %q: %v", payload.Expires, err)
+		result.Error = fmt.Sprintf("parse expires value %q: %v", payload.Signed.Expires, err)
 		return result
 	}
 

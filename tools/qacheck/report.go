@@ -16,6 +16,7 @@ import (
 
 type ReportItem struct {
 	Number    int
+	Repo      string
 	Title     string
 	URL       string
 	Unchecked []string
@@ -99,8 +100,10 @@ func buildHTMLReportData(
 	for _, p := range projectNums {
 		items := make([]ReportItem, 0, len(awaitingByProject[p]))
 		for _, it := range awaitingByProject[p] {
+			owner, repo := parseRepoFromIssueURL(getURL(it))
 			items = append(items, ReportItem{
 				Number:    getNumber(it),
+				Repo:      owner + "/" + repo,
 				Title:     getTitle(it),
 				URL:       getURL(it),
 				Unchecked: []string{checkText},
@@ -138,8 +141,10 @@ func buildHTMLReportData(
 		}
 		items := make([]ReportItem, 0, len(violations))
 		for _, v := range violations {
+			owner, repo := parseRepoFromIssueURL(getURL(v.Item))
 			items = append(items, ReportItem{
 				Number:    getNumber(v.Item),
+				Repo:      owner + "/" + repo,
 				Title:     getTitle(v.Item),
 				URL:       getURL(v.Item),
 				Unchecked: v.Unchecked,
@@ -391,6 +396,14 @@ var htmlReportTemplate = `<!doctype html>
     .item a:hover { text-decoration: underline; }
     ul { margin: 8px 0 0 20px; }
     li { margin: 5px 0; }
+    .checklist-row {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 8px;
+      margin: 6px 0;
+    }
+    .checklist-text { flex: 1 1 320px; }
     .actions {
       margin-top: 10px;
       display: flex;
@@ -487,7 +500,6 @@ var htmlReportTemplate = `<!doctype html>
           <p class="empty">🟢 No project data found.</p>
         {{end}}
       </section>
-
       <section id="tab-stale" class="panel" role="tabpanel">
         <h2>⏳ Awaiting QA stale watchdog</h2>
         <p class="subtle">Items in <strong>` + awaitingQAColumn + `</strong> with no updates for at least {{.StaleThreshold}} days.</p>
@@ -585,9 +597,17 @@ var htmlReportTemplate = `<!doctype html>
                     <div><strong>#{{.Number}} - {{.Title}}</strong></div>
                     <div><a href="{{.URL}}" target="_blank" rel="noopener noreferrer">{{.URL}}</a></div>
                     {{if .Unchecked}}
-                      <ul>
-                        {{range .Unchecked}}<li>[ ] {{.}}</li>{{end}}
-                      </ul>
+                      {{$item := .}}
+                      <div>
+                        {{range .Unchecked}}
+                          <div class="checklist-row">
+                            <span class="checklist-text">• [ ] {{.}}</span>
+                            {{if and $.GitHubToken $item.Repo}}
+                              <button class="fix-btn apply-drafting-check-btn" data-repo="{{$item.Repo}}" data-issue="{{$item.Number}}" data-check="{{.}}">Check on GitHub</button>
+                            {{end}}
+                          </div>
+                        {{end}}
+                      </div>
                     {{end}}
                   </article>
                 {{end}}
@@ -696,6 +716,117 @@ var htmlReportTemplate = `<!doctype html>
             setTimeout(() => { btn.textContent = prev; }, 1200);
           } catch (err) {
             window.alert('Could not apply milestone. ' + err);
+            btn.textContent = prev;
+          } finally {
+            btn.disabled = false;
+          }
+        });
+      });
+
+      function escapeRegExp(value) {
+        return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      }
+
+      function replaceUncheckedChecklistLine(body, checkText) {
+        const text = (checkText || '').trim();
+        if (!text) return { updated: false, body };
+
+        const escaped = escapeRegExp(text);
+        const checkedPatterns = [
+          new RegExp('(^|\\n)\\s*[-*]\\s*\\[x\\]\\s*' + escaped + '(?=\\n|$)', 'im'),
+          new RegExp('(^|\\n)\\s*\\[x\\]\\s*' + escaped + '(?=\\n|$)', 'im'),
+        ];
+        if (checkedPatterns.some((p) => p.test(body))) {
+          return { updated: false, body, alreadyChecked: true };
+        }
+
+        const uncheckedPatterns = [
+          {
+            pattern: new RegExp('(^|\\n)\\s*-\\s*\\[ \\]\\s*' + escaped + '(?=\\n|$)', 'im'),
+            replacement: '$1- [x] ' + text,
+          },
+          {
+            pattern: new RegExp('(^|\\n)\\s*\\*\\s*\\[ \\]\\s*' + escaped + '(?=\\n|$)', 'im'),
+            replacement: '$1* [x] ' + text,
+          },
+          {
+            pattern: new RegExp('(^|\\n)\\s*\\[ \\]\\s*' + escaped + '(?=\\n|$)', 'im'),
+            replacement: '$1[x] ' + text,
+          },
+        ];
+
+        for (const entry of uncheckedPatterns) {
+          if (entry.pattern.test(body)) {
+            return { updated: true, body: body.replace(entry.pattern, entry.replacement) };
+          }
+        }
+
+        return { updated: false, body };
+      }
+
+      const applyDraftingCheckButtons = document.querySelectorAll('.apply-drafting-check-btn');
+      applyDraftingCheckButtons.forEach((btn) => {
+        btn.addEventListener('click', async () => {
+          const token = document.body.dataset.ghToken || '';
+          if (!token) {
+            window.alert('Missing GitHub token in report data. Re-run qacheck with GITHUB_TOKEN set.');
+            return;
+          }
+
+          const repo = btn.dataset.repo || '';
+          const issue = btn.dataset.issue || '';
+          const checkText = btn.dataset.check || '';
+          if (!repo || !issue || !checkText) return;
+
+          const endpoint = 'https://api.github.com/repos/' + repo + '/issues/' + issue;
+          const prev = btn.textContent;
+          btn.textContent = 'Checking...';
+          btn.disabled = true;
+          try {
+            const getRes = await fetch(endpoint, {
+              method: 'GET',
+              headers: {
+                'Accept': 'application/vnd.github+json',
+                'Authorization': 'Bearer ' + token,
+              },
+            });
+            if (!getRes.ok) {
+              const body = await getRes.text();
+              throw new Error('GitHub API error ' + getRes.status + ': ' + body);
+            }
+
+            const issueData = await getRes.json();
+            const currentBody = issueData.body || '';
+            const result = replaceUncheckedChecklistLine(currentBody, checkText);
+            if (!result.updated) {
+              btn.textContent = result.alreadyChecked ? 'Already checked' : 'Not found';
+              setTimeout(() => { btn.textContent = prev; }, 1400);
+              return;
+            }
+
+            const patchRes = await fetch(endpoint, {
+              method: 'PATCH',
+              headers: {
+                'Accept': 'application/vnd.github+json',
+                'Content-Type': 'application/json',
+                'Authorization': 'Bearer ' + token,
+              },
+              body: JSON.stringify({ body: result.body }),
+            });
+            if (!patchRes.ok) {
+              const body = await patchRes.text();
+              throw new Error('GitHub API error ' + patchRes.status + ': ' + body);
+            }
+
+            btn.textContent = 'Checked';
+            const row = btn.closest('.checklist-row');
+            const textEl = row && row.querySelector('.checklist-text');
+            if (textEl) {
+              textEl.textContent = '• [x] ' + checkText;
+            }
+            setTimeout(() => { btn.textContent = prev; }, 1200);
+          } catch (err) {
+            window.alert('Could not apply checklist update. ' + err);
             btn.textContent = prev;
           } finally {
             btn.disabled = false;
