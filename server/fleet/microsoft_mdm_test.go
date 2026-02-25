@@ -298,7 +298,7 @@ func TestWindowsResponseToDeliveryStatus(t *testing.T) {
 		{
 			name:     "response starts with 2",
 			resp:     "202",
-			expected: MDMDeliveryVerifying,
+			expected: MDMDeliveryVerified,
 		},
 		{
 			name:     "bad requests",
