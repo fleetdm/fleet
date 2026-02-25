@@ -73,9 +73,9 @@ There is a catch: moving to code-based management requires new skills. How do yo
 
 In part 3 of this series, we will explore how emerging AI coding assistants and event-driven automation bridge that gap, making this powerful stack accessible to teams of any size.
 
-\<meta name="articleTitle" value="Rethinking endpoint management: Fleet, osquery and Infrastructure as Code"\>  
-\<meta name="authorFullName" value="Ashish Kuthiala, CMO, Fleet Device Management"\>  
-\<meta name="authorGitHubUsername" value="akuthiala"\>  
-\<meta name="category" value="articles"\>  
-\<meta name="publishedOn" value="2026-02-26"\>  
-\<meta name="description" value="Part 2 of 3 \- Article series on modernizing device management."\>
+<meta name="articleTitle" value="Rethinking endpoint management: Fleet, osquery and Infrastructure as Code">  
+<meta name="authorFullName" value="Ashish Kuthiala, CMO, Fleet Device Management">  
+<meta name="authorGitHubUsername" value="akuthiala">  
+<meta name="category" value="articles">  
+<meta name="publishedOn" value="2026-02-26">  
+<meta name="description" value="Part 2 of 3 \- Article series on modernizing device management.">
