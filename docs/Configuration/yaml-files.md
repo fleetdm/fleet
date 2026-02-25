@@ -116,12 +116,34 @@ Policies can be specified inline in your `default.yml`, `teams/team-name.yml`, o
 
 ### Options
 
-For possible options, see the parameters for the [Add policy API endpoint](https://fleetdm.com/docs/rest-api/rest-api#add-policy)
+For available options, see the parameters for the [Add policy](https://fleetdm.com/docs/rest-api/rest-api#create-policy) and [Add team policy](https://fleetdm.com/docs/rest-api/rest-api#create-team-policy) API endpoints.
 
-In Fleet Premium you can trigger software installs or script runs on policy failure:
+#### Patch policy
 
-- For software installs, specify either `install_software.package_path` or `install_software.hash_sha256` in your YAML. If `install_software.package_path` only one package can be specified in the package YAML.
-- For script runs, specify `run_script.path`.
+_Available in Fleet Premium_
+
+You can create a patch policy by setting `type` to `patch` and specifying `fleet_maintained_app_slug`.
+
+Query automatically updates. Hosts will fail this policy if they’re not running the latest version found in [the app's metadata](https://github.com/fleetdm/fleet/tree/main/ee/maintained-apps/outputs). If `version` is set for `fleet_maintained_apps`, that version is included in the query.
+
+To automatically install the app when this policy fails, you can add automation by setting `install_software` to `true`.
+#### Automations
+
+##### Install software
+
+_Available in Fleet Premium_
+
+To trigger software install, when policy fails, specify one of:
+  - `install_software.package_path` is the path to a custom package YAML. Only one package can be specified in the package YAML.
+  - `install_software.hash_sha256` is [SHA256 hash](https://fleetdm.com/docs/configuration/yaml-files#hash) of a custom package.
+
+#### Run script
+
+_Available in Fleet Premium_
+
+To trigger script run, when policy fails, specify:
+
+- `run_script.path` is a path to a script YAML.
 
 > Specifying one package without a list is deprecated as of Fleet 4.73. It is maintained for backwards compatibility. Please use a list instead even if you're only specifying one package.
 
@@ -191,7 +213,7 @@ policies:
   install_software: true
 ```
 
-`default.yml` (for policies that neither install software nor run scripts), `teams/team-name.yml`, or `teams/no-team.yml`
+`default.yml`, `teams/team-name.yml`, or `teams/no-team.yml`
 
 ```yaml
 policies:
