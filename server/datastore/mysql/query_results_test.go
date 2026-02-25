@@ -31,6 +31,7 @@ func TestQueryResults(t *testing.T) {
 		{"QueryResultRowsFilter", testQueryResultRowsTeamFilter},
 		{"CleanupQueryResultRows", testCleanupQueryResultRows},
 		{"CleanupExcessQueryResultRows", testCleanupExcessQueryResultRows},
+		{"CleanupExcessQueryResultRowsManyQueries", testCleanupExcessQueryResultRowsManyQueries},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -766,4 +767,52 @@ func testCleanupExcessQueryResultRows(t *testing.T, ds *Datastore) {
 		assert.Equal(t, 22, result)
 		return nil
 	})
+}
+
+// testCleanupExcessQueryResultRowsManyQueries verifies that CleanupExcessQueryResultRows
+// works when there are more queries than MySQL's prepared statement placeholder limit (65,535).
+func testCleanupExcessQueryResultRowsManyQueries(t *testing.T, ds *Datastore) {
+	const numQueries = 70000
+
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(t.Context(),
+			`INSERT INTO users (name, email, password, salt) VALUES ('test', 'bulk@test.com', 'x', 'x')`)
+		if err != nil {
+			return err
+		}
+
+		_, err = q.ExecContext(t.Context(), `
+			INSERT INTO queries (name, description, query, author_id, logging_type, discard_data, saved)
+			SELECT
+				CONCAT('bulk_query_', seq),
+				'',
+				'SELECT 1',
+				(SELECT id FROM users LIMIT 1),
+				'snapshot',
+				false,
+				1
+			FROM (
+				SELECT a.N + b.N*10 + c.N*100 + d.N*1000 + e.N*10000 as seq
+				FROM
+					(SELECT 0 AS N UNION SELECT 1 UNION SELECT 2 UNION SELECT 3 UNION SELECT 4 UNION SELECT 5 UNION SELECT 6 UNION SELECT 7 UNION SELECT 8 UNION SELECT 9) a,
+					(SELECT 0 AS N UNION SELECT 1 UNION SELECT 2 UNION SELECT 3 UNION SELECT 4 UNION SELECT 5 UNION SELECT 6 UNION SELECT 7 UNION SELECT 8 UNION SELECT 9) b,
+					(SELECT 0 AS N UNION SELECT 1 UNION SELECT 2 UNION SELECT 3 UNION SELECT 4 UNION SELECT 5 UNION SELECT 6 UNION SELECT 7 UNION SELECT 8 UNION SELECT 9) c,
+					(SELECT 0 AS N UNION SELECT 1 UNION SELECT 2 UNION SELECT 3 UNION SELECT 4 UNION SELECT 5 UNION SELECT 6 UNION SELECT 7 UNION SELECT 8 UNION SELECT 9) d,
+					(SELECT 0 AS N UNION SELECT 1 UNION SELECT 2 UNION SELECT 3 UNION SELECT 4 UNION SELECT 5 UNION SELECT 6 UNION SELECT 7 UNION SELECT 8 UNION SELECT 9) e
+			) numbers
+			WHERE seq < ?
+		`, numQueries)
+		return err
+	})
+
+	var count int
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(t.Context(), q, &count,
+			`SELECT COUNT(*) FROM queries WHERE discard_data = false AND logging_type = 'snapshot'`)
+	})
+	require.Equal(t, numQueries, count)
+
+	queryCounts, err := ds.CleanupExcessQueryResultRows(t.Context(), fleet.DefaultMaxQueryReportRows)
+	require.NoError(t, err)
+	require.Len(t, queryCounts, numQueries)
 }
