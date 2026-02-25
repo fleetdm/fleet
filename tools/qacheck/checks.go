@@ -2,6 +2,7 @@ package main
 
 import (
 	"strings"
+	"time"
 	"unicode"
 	"unicode/utf8"
 )
@@ -125,4 +126,11 @@ func uniqueInts(nums []int) []int {
 		out = append(out, n)
 	}
 	return out
+}
+
+func isStaleAwaitingQA(it Item, now time.Time, staleAfter time.Duration) bool {
+	if it.UpdatedAt.IsZero() {
+		return false
+	}
+	return now.Sub(it.UpdatedAt.Time.UTC()) >= staleAfter
 }

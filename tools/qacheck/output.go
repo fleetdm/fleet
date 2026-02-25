@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"sort"
 	"strings"
 )
 
@@ -38,5 +39,40 @@ func printDraftingStatusSection(status string, items []DraftingCheckViolation) {
 			fmt.Printf("   - [ ] %s\n", line)
 		}
 		fmt.Println()
+	}
+}
+
+func printStaleAwaitingSummary(staleByProject map[int][]StaleAwaitingViolation, staleDays int) {
+	total := 0
+	for _, items := range staleByProject {
+		total += len(items)
+	}
+
+	fmt.Printf("\n⏳ Awaiting QA stale watchdog (threshold: %d days)\n", staleDays)
+	fmt.Printf("Found %d stale items in %q.\n\n", total, awaitingQAColumn)
+
+	projects := make([]int, 0, len(staleByProject))
+	for projectNum := range staleByProject {
+		projects = append(projects, projectNum)
+	}
+	sort.Ints(projects)
+
+	for _, projectNum := range projects {
+		items := staleByProject[projectNum]
+		if len(items) == 0 {
+			continue
+		}
+		fmt.Printf("🗂️ Project %d has %d stale Awaiting QA items:\n\n", projectNum, len(items))
+		for _, v := range items {
+			it := v.Item
+			fmt.Printf(
+				"⌛ #%d – %s\n   %s\n   Last updated: %s (%d days ago)\n\n",
+				getNumber(it),
+				getTitle(it),
+				getURL(it),
+				v.LastUpdated.Format("2006-01-02"),
+				v.StaleDays,
+			)
+		}
 	}
 }

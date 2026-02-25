@@ -1,9 +1,15 @@
 package main
 
-import "github.com/shurcooL/githubv4"
+import (
+	"time"
+
+	"github.com/shurcooL/githubv4"
+)
 
 type Item struct {
 	ID githubv4.ID
+	// UpdatedAt is the Project item timestamp (used for stale Awaiting QA detection).
+	UpdatedAt githubv4.DateTime
 
 	Content struct {
 		Issue struct {
@@ -34,4 +40,11 @@ type DraftingCheckViolation struct {
 	Item      Item
 	Unchecked []string
 	Status    string
+}
+
+type StaleAwaitingViolation struct {
+	Item        Item
+	StaleDays   int
+	LastUpdated time.Time
+	ProjectNum  int
 }

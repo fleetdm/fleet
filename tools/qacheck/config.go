@@ -16,6 +16,8 @@ const (
 
 	reportDirName  = "qacheck-report"
 	reportFileName = "index.html"
+
+	defaultStaleDays = 21
 )
 
 var draftingChecklistIgnorePrefixes = []string{

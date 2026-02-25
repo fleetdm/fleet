@@ -26,6 +26,19 @@ type AwaitingProjectReport struct {
 	Items      []ReportItem
 }
 
+type StaleAwaitingProjectReport struct {
+	ProjectNum int
+	Items      []StaleAwaitingReportItem
+}
+
+type StaleAwaitingReportItem struct {
+	Number      int
+	Title       string
+	URL         string
+	LastUpdated string
+	StaleDays   int
+}
+
 type DraftingStatusReport struct {
 	Status string
 	Emoji  string
@@ -37,8 +50,11 @@ type HTMLReportData struct {
 	GeneratedAt      string
 	Org              string
 	AwaitingSections []AwaitingProjectReport
+	StaleSections    []StaleAwaitingProjectReport
+	StaleThreshold   int
 	DraftingSections []DraftingStatusReport
 	TotalAwaiting    int
+	TotalStale       int
 	TotalDrafting    int
 }
 
@@ -46,10 +62,14 @@ func buildHTMLReportData(
 	org string,
 	projectNums []int,
 	awaitingByProject map[int][]Item,
+	staleByProject map[int][]StaleAwaitingViolation,
+	staleDays int,
 	byStatus map[string][]DraftingCheckViolation,
 ) HTMLReportData {
 	sections := make([]AwaitingProjectReport, 0, len(projectNums))
 	totalAwaiting := 0
+	staleSections := make([]StaleAwaitingProjectReport, 0, len(projectNums))
+	totalStale := 0
 	for _, p := range projectNums {
 		items := make([]ReportItem, 0, len(awaitingByProject[p]))
 		for _, it := range awaitingByProject[p] {
@@ -64,6 +84,22 @@ func buildHTMLReportData(
 		sections = append(sections, AwaitingProjectReport{
 			ProjectNum: p,
 			Items:      items,
+		})
+
+		staleItems := make([]StaleAwaitingReportItem, 0, len(staleByProject[p]))
+		for _, v := range staleByProject[p] {
+			staleItems = append(staleItems, StaleAwaitingReportItem{
+				Number:      getNumber(v.Item),
+				Title:       getTitle(v.Item),
+				URL:         getURL(v.Item),
+				LastUpdated: v.LastUpdated.Format("2006-01-02"),
+				StaleDays:   v.StaleDays,
+			})
+		}
+		totalStale += len(staleItems)
+		staleSections = append(staleSections, StaleAwaitingProjectReport{
+			ProjectNum: p,
+			Items:      staleItems,
 		})
 	}
 
@@ -127,8 +163,11 @@ func buildHTMLReportData(
 		GeneratedAt:      time.Now().Format(time.RFC1123),
 		Org:              org,
 		AwaitingSections: sections,
+		StaleSections:    staleSections,
+		StaleThreshold:   staleDays,
 		DraftingSections: drafting,
 		TotalAwaiting:    totalAwaiting,
+		TotalStale:       totalStale,
 		TotalDrafting:    totalDrafting,
 	}
 }
@@ -288,6 +327,7 @@ var htmlReportTemplate = `<!doctype html>
       <p class="meta">Org: {{.Org}} | Generated: {{.GeneratedAt}}</p>
       <div class="counts">
         <span class="pill">Awaiting QA violations: {{.TotalAwaiting}}</span>
+        <span class="pill">Stale Awaiting QA items: {{.TotalStale}}</span>
         <span class="pill">Drafting checklist violations: {{.TotalDrafting}}</span>
       </div>
     </section>
@@ -313,6 +353,34 @@ var htmlReportTemplate = `<!doctype html>
               {{end}}
             {{else}}
               <p class="empty">No violations in this project.</p>
+            {{end}}
+          </div>
+        {{end}}
+      {{else}}
+        <p class="empty">No project data found.</p>
+      {{end}}
+    </section>
+
+    <section class="section">
+      <h2>⏳ Awaiting QA stale watchdog</h2>
+      <p class="subtle">Items in <strong>` + awaitingQAColumn + `</strong> with no updates for at least {{.StaleThreshold}} days.</p>
+      {{if .StaleSections}}
+        {{range .StaleSections}}
+          <div class="project">
+            <h3>Project {{.ProjectNum}}</h3>
+            {{if .Items}}
+              {{range .Items}}
+                <article class="item">
+                  <div><strong>#{{.Number}} - {{.Title}}</strong></div>
+                  <div><a href="{{.URL}}" target="_blank" rel="noopener noreferrer">{{.URL}}</a></div>
+                  <ul>
+                    <li>Last updated: {{.LastUpdated}}</li>
+                    <li>Age: {{.StaleDays}} days</li>
+                  </ul>
+                </article>
+              {{end}}
+            {{else}}
+              <p class="empty">No stale items in this project.</p>
             {{end}}
           </div>
         {{end}}

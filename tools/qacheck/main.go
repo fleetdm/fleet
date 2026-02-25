@@ -8,6 +8,7 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/shurcooL/githubv4"
 	"golang.org/x/oauth2"
@@ -16,6 +17,7 @@ import (
 func main() {
 	org := flag.String("org", "fleetdm", "GitHub org")
 	limit := flag.Int("limit", 100, "Max project items to scan (no pagination; expected usage is small)")
+	staleDays := flag.Int("stale-days", defaultStaleDays, "Flag Awaiting QA items unchanged for this many days")
 	openReport := flag.Bool("open-report", true, "Open HTML report in browser when finished")
 	var projectNums intListFlag
 	flag.Var(&projectNums, "project", "Project number(s)")
@@ -25,13 +27,22 @@ func main() {
 	for _, arg := range flag.Args() {
 		n, err := strconv.Atoi(arg)
 		if err != nil {
-			log.Fatalf("unexpected argument %q: only project numbers are allowed after -p", arg)
+			fmt.Fprintf(os.Stderr, "unexpected argument %q: only project numbers are allowed after -p\n\n", arg)
+			flag.Usage()
+			os.Exit(2)
 		}
 		projectNums = append(projectNums, n)
 	}
 
 	if len(projectNums) == 0 {
-		log.Fatal("at least one project is required")
+		fmt.Fprintln(os.Stderr, "at least one project is required\n")
+		flag.Usage()
+		os.Exit(2)
+	}
+	if *staleDays < 1 {
+		fmt.Fprintln(os.Stderr, "-stale-days must be >= 1\n")
+		flag.Usage()
+		os.Exit(2)
 	}
 
 	token := os.Getenv("GITHUB_TOKEN")
@@ -45,12 +56,16 @@ func main() {
 
 	projectNums = uniqueInts(projectNums)
 
-	awaitingByProject := runAwaitingQACheck(ctx, client, *org, *limit, projectNums)
+	staleAfter := time.Duration(*staleDays) * 24 * time.Hour
+	awaitingByProject, staleByProject := runAwaitingQACheck(ctx, client, *org, *limit, projectNums, staleAfter)
+	printStaleAwaitingSummary(staleByProject, *staleDays)
 	badDrafting := runDraftingCheck(ctx, client, *org, *limit)
 	byStatus := groupViolationsByStatus(badDrafting)
 	printDraftingSummary(byStatus, len(badDrafting))
 
-	reportPath, err := writeHTMLReport(buildHTMLReportData(*org, projectNums, awaitingByProject, byStatus))
+	reportPath, err := writeHTMLReport(
+		buildHTMLReportData(*org, projectNums, awaitingByProject, staleByProject, *staleDays, byStatus),
+	)
 	if err != nil {
 		log.Printf("could not write HTML report: %v", err)
 		return
@@ -75,13 +90,17 @@ func runAwaitingQACheck(
 	org string,
 	limit int,
 	projectNums []int,
-) map[int][]Item {
+	staleAfter time.Duration,
+) (map[int][]Item, map[int][]StaleAwaitingViolation) {
 	awaitingByProject := make(map[int][]Item)
+	staleByProject := make(map[int][]StaleAwaitingViolation)
+	now := time.Now().UTC()
 	for _, projectNum := range projectNums {
 		projectID := fetchProjectID(ctx, client, org, projectNum)
 		items := fetchItems(ctx, client, projectID, limit)
 
 		var badAwaitingQA []Item
+		var staleAwaiting []StaleAwaitingViolation
 		for _, it := range items {
 			if !inAwaitingQA(it) {
 				continue
@@ -89,8 +108,18 @@ func runAwaitingQACheck(
 			if hasUncheckedChecklistLine(getBody(it), checkText) {
 				badAwaitingQA = append(badAwaitingQA, it)
 			}
+			if isStaleAwaitingQA(it, now, staleAfter) {
+				lastUpdated := it.UpdatedAt.Time.UTC()
+				staleAwaiting = append(staleAwaiting, StaleAwaitingViolation{
+					Item:        it,
+					StaleDays:   int(now.Sub(lastUpdated).Hours() / 24),
+					LastUpdated: lastUpdated,
+					ProjectNum:  projectNum,
+				})
+			}
 		}
 		awaitingByProject[projectNum] = badAwaitingQA
+		staleByProject[projectNum] = staleAwaiting
 
 		fmt.Printf(
 			"\nFound %d items in project %d (%q) with UNCHECKED test-plan confirmation:\n\n",
@@ -102,7 +131,7 @@ func runAwaitingQACheck(
 			fmt.Printf("❌ #%d – %s\n   %s\n\n", getNumber(it), getTitle(it), getURL(it))
 		}
 	}
-	return awaitingByProject
+	return awaitingByProject, staleByProject
 }
 
 func runDraftingCheck(
