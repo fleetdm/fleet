@@ -57,6 +57,10 @@ type HTMLReportData struct {
 	TotalStale       int
 	TotalDrafting    int
 	TimestampCheck   TimestampCheckResult
+	AwaitingClean    bool
+	StaleClean       bool
+	DraftingClean    bool
+	TimestampClean   bool
 }
 
 func buildHTMLReportData(
@@ -172,6 +176,10 @@ func buildHTMLReportData(
 		TotalStale:       totalStale,
 		TotalDrafting:    totalDrafting,
 		TimestampCheck:   timestampCheck,
+		AwaitingClean:    totalAwaiting == 0,
+		StaleClean:       totalStale == 0,
+		DraftingClean:    totalDrafting == 0,
+		TimestampClean:   timestampCheck.Error == "" && timestampCheck.OK,
 	}
 }
 
@@ -251,10 +259,12 @@ var htmlReportTemplate = `<!doctype html>
       --card: #ffffff;
       --text: #0f172a;
       --muted: #475569;
-      --ok: #dbeafe;
-      --warn: #fee2e2;
       --line: #cbd5e1;
       --link: #1d4ed8;
+      --tab-bg: #f8fafc;
+      --tab-active: #e2e8f0;
+      --ok: #16a34a;
+      --bad: #dc2626;
     }
     * { box-sizing: border-box; }
     body {
@@ -265,33 +275,61 @@ var htmlReportTemplate = `<!doctype html>
       color: var(--text);
     }
     .wrap { max-width: 1000px; margin: 0 auto; }
-    .header, .section {
+    .header, .panel {
       background: var(--card);
       border: 1px solid var(--line);
       border-radius: 16px;
       padding: 20px;
       box-shadow: 0 8px 24px rgba(15, 23, 42, 0.04);
     }
-    .section { margin-top: 16px; }
     h1 { margin: 0; font-size: 28px; }
     h2 { margin: 0 0 10px; font-size: 20px; }
     h3 { margin: 0 0 6px; font-size: 17px; }
     .meta { margin-top: 8px; color: var(--muted); font-size: 14px; }
-    .counts {
-      margin-top: 14px;
-      display: flex;
-      flex-wrap: wrap;
-      gap: 10px;
-    }
+    .counts { margin-top: 14px; display: flex; flex-wrap: wrap; gap: 10px; }
     .pill {
-      font-size: 14px;
-      border: 1px solid var(--line);
-      border-radius: 999px;
-      padding: 6px 10px;
-      background: #f8fafc;
+      font-size: 14px; border: 1px solid var(--line); border-radius: 999px;
+      padding: 6px 10px; background: #f8fafc;
     }
+    .tabs {
+      margin-top: 16px;
+      display: flex;
+      flex-wrap: nowrap;
+      gap: 8px;
+      overflow-x: auto;
+      padding-bottom: 4px;
+    }
+    .tab-btn {
+      flex: 0 0 auto;
+      text-align: left;
+      border: 1px solid var(--line);
+      background: var(--tab-bg);
+      border-radius: 10px;
+      padding: 10px 12px;
+      cursor: pointer;
+      font-size: 14px;
+      color: var(--text);
+    }
+    .tab-btn.active { background: var(--tab-active); }
+    .status-dot {
+      display: inline-block;
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      margin-right: 8px;
+      vertical-align: middle;
+      background: var(--bad);
+      box-shadow: 0 0 0 2px rgba(220, 38, 38, 0.15);
+    }
+    .status-dot.ok {
+      background: var(--ok);
+      box-shadow: 0 0 0 2px rgba(22, 163, 74, 0.15);
+    }
+    .panel-wrap { margin-top: 12px; }
+    .panel { display: none; }
+    .panel.active { display: block; }
     .subtle { color: var(--muted); margin: 0 0 12px; font-size: 14px; }
-    .project {
+    .project, .status {
       margin-top: 12px;
       border: 1px solid var(--line);
       border-radius: 12px;
@@ -299,7 +337,7 @@ var htmlReportTemplate = `<!doctype html>
       background: #f8fafc;
     }
     .item {
-      border-left: 4px solid var(--warn);
+      border-left: 4px solid #fecaca;
       background: #fff;
       border-radius: 8px;
       margin: 10px 0 0;
@@ -309,18 +347,7 @@ var htmlReportTemplate = `<!doctype html>
     .item a:hover { text-decoration: underline; }
     ul { margin: 8px 0 0 20px; }
     li { margin: 5px 0; }
-    .status {
-      margin-top: 14px;
-      border: 1px solid var(--line);
-      border-radius: 12px;
-      padding: 12px;
-      background: #f8fafc;
-    }
-    .empty {
-      margin: 0;
-      color: var(--muted);
-      font-style: italic;
-    }
+    .empty { margin: 0; color: var(--muted); font-style: italic; }
   </style>
 </head>
 <body>
@@ -335,119 +362,153 @@ var htmlReportTemplate = `<!doctype html>
       </div>
     </section>
 
-    <section class="section">
-      <h2>✅ Awaiting QA gate</h2>
-      <p class="subtle">Items in <strong>` + awaitingQAColumn + `</strong> where engineer test-plan confirmation is unchecked.</p>
-      {{if .AwaitingSections}}
-        {{range .AwaitingSections}}
-          <div class="project">
-            <h3>Project {{.ProjectNum}}</h3>
-            {{if .Items}}
-              {{range .Items}}
-                <article class="item">
-                  <div><strong>#{{.Number}} - {{.Title}}</strong></div>
-                  <div><a href="{{.URL}}" target="_blank" rel="noopener noreferrer">{{.URL}}</a></div>
-                  {{if .Unchecked}}
+    <div class="tabs" role="tablist">
+      <button class="tab-btn active" data-tab="awaiting" role="tab">
+        <span class="status-dot {{if .AwaitingClean}}ok{{end}}"></span>✔ Awaiting QA
+      </button>
+      <button class="tab-btn" data-tab="stale" role="tab">
+        <span class="status-dot {{if .StaleClean}}ok{{end}}"></span>⏳ Awaiting QA stale watchdog
+      </button>
+      <button class="tab-btn" data-tab="timestamp" role="tab">
+        <span class="status-dot {{if .TimestampClean}}ok{{end}}"></span>🕒 Updates timestamp expiry
+      </button>
+      <button class="tab-btn" data-tab="drafting" role="tab">
+        <span class="status-dot {{if .DraftingClean}}ok{{end}}"></span>🧭 Drafting estimation gate
+      </button>
+    </div>
+
+    <div class="panel-wrap">
+      <section id="tab-awaiting" class="panel active" role="tabpanel">
+        <h2>✅ Awaiting QA gate</h2>
+        <p class="subtle">Items in <strong>` + awaitingQAColumn + `</strong> where engineer test-plan confirmation is unchecked.</p>
+        {{if .AwaitingSections}}
+          {{range .AwaitingSections}}
+            <div class="project">
+              <h3>Project {{.ProjectNum}}</h3>
+              {{if .Items}}
+                {{range .Items}}
+                  <article class="item">
+                    <div><strong>#{{.Number}} - {{.Title}}</strong></div>
+                    <div><a href="{{.URL}}" target="_blank" rel="noopener noreferrer">{{.URL}}</a></div>
+                    {{if .Unchecked}}
+                      <ul>
+                        {{range .Unchecked}}<li>[ ] {{.}}</li>{{end}}
+                      </ul>
+                    {{end}}
+                  </article>
+                {{end}}
+              {{else}}
+                <p class="empty">🟢 No violations in this project.</p>
+              {{end}}
+            </div>
+          {{end}}
+        {{else}}
+          <p class="empty">🟢 No project data found.</p>
+        {{end}}
+      </section>
+
+      <section id="tab-stale" class="panel" role="tabpanel">
+        <h2>⏳ Awaiting QA stale watchdog</h2>
+        <p class="subtle">Items in <strong>` + awaitingQAColumn + `</strong> with no updates for at least {{.StaleThreshold}} days.</p>
+        {{if .StaleSections}}
+          {{range .StaleSections}}
+            <div class="project">
+              <h3>Project {{.ProjectNum}}</h3>
+              {{if .Items}}
+                {{range .Items}}
+                  <article class="item">
+                    <div><strong>#{{.Number}} - {{.Title}}</strong></div>
+                    <div><a href="{{.URL}}" target="_blank" rel="noopener noreferrer">{{.URL}}</a></div>
                     <ul>
-                      {{range .Unchecked}}<li>[ ] {{.}}</li>{{end}}
+                      <li>Last updated: {{.LastUpdated}}</li>
+                      <li>Age: {{.StaleDays}} days</li>
                     </ul>
-                  {{end}}
-                </article>
+                  </article>
+                {{end}}
+              {{else}}
+                <p class="empty">🟢 No stale items in this project.</p>
               {{end}}
-            {{else}}
-              <p class="empty">No violations in this project.</p>
-            {{end}}
-          </div>
+            </div>
+          {{end}}
+        {{else}}
+          <p class="empty">🟢 No project data found.</p>
         {{end}}
-      {{else}}
-        <p class="empty">No project data found.</p>
-      {{end}}
-    </section>
+      </section>
 
-    <section class="section">
-      <h2>⏳ Awaiting QA stale watchdog</h2>
-      <p class="subtle">Items in <strong>` + awaitingQAColumn + `</strong> with no updates for at least {{.StaleThreshold}} days.</p>
-      {{if .StaleSections}}
-        {{range .StaleSections}}
+      <section id="tab-timestamp" class="panel" role="tabpanel">
+        <h2>🕒 Updates timestamp.json expiry</h2>
+        <p class="subtle">Checks that <a href="{{.TimestampCheck.URL}}" target="_blank" rel="noopener noreferrer">{{.TimestampCheck.URL}}</a> expires at least {{.TimestampCheck.MinDays}} days from now.</p>
+        {{if .TimestampCheck.Error}}
+          <p class="empty">🔴 Could not validate timestamp expiry: {{.TimestampCheck.Error}}</p>
+        {{else if .TimestampCheck.OK}}
           <div class="project">
-            <h3>Project {{.ProjectNum}}</h3>
-            {{if .Items}}
-              {{range .Items}}
-                <article class="item">
-                  <div><strong>#{{.Number}} - {{.Title}}</strong></div>
-                  <div><a href="{{.URL}}" target="_blank" rel="noopener noreferrer">{{.URL}}</a></div>
-                  <ul>
-                    <li>Last updated: {{.LastUpdated}}</li>
-                    <li>Age: {{.StaleDays}} days</li>
-                  </ul>
-                </article>
-              {{end}}
-            {{else}}
-              <p class="empty">No stale items in this project.</p>
-            {{end}}
+            <p><strong>🟢 OK</strong></p>
+            <ul>
+              <li>Expires: {{.TimestampCheck.ExpiresAt.Format "2006-01-02T15:04:05Z07:00"}}</li>
+              <li>Hours remaining: {{printf "%.1f" .TimestampCheck.DurationLeft.Hours}}</li>
+              <li>Minimum required days: {{.TimestampCheck.MinDays}}</li>
+            </ul>
+          </div>
+        {{else}}
+          <div class="project">
+            <p><strong>🔴 Failing threshold</strong></p>
+            <ul>
+              <li>Expires: {{.TimestampCheck.ExpiresAt.Format "2006-01-02T15:04:05Z07:00"}}</li>
+              <li>Hours remaining: {{printf "%.1f" .TimestampCheck.DurationLeft.Hours}}</li>
+              <li>Minimum required days: {{.TimestampCheck.MinDays}}</li>
+            </ul>
           </div>
         {{end}}
-      {{else}}
-        <p class="empty">No project data found.</p>
-      {{end}}
-    </section>
+      </section>
 
-    <section class="section">
-      <h2>🕒 Updates timestamp.json expiry</h2>
-      <p class="subtle">Checks that <a href="{{.TimestampCheck.URL}}" target="_blank" rel="noopener noreferrer">{{.TimestampCheck.URL}}</a> expires at least {{.TimestampCheck.MinDays}} days from now.</p>
-      {{if .TimestampCheck.Error}}
-        <p class="empty">Could not validate timestamp expiry: {{.TimestampCheck.Error}}</p>
-      {{else if .TimestampCheck.OK}}
-        <div class="project">
-          <p><strong>✅ OK</strong></p>
-          <ul>
-            <li>Expires: {{.TimestampCheck.ExpiresAt.Format "2006-01-02T15:04:05Z07:00"}}</li>
-            <li>Hours remaining: {{printf "%.1f" .TimestampCheck.DurationLeft.Hours}}</li>
-            <li>Minimum required days: {{.TimestampCheck.MinDays}}</li>
-          </ul>
-        </div>
-      {{else}}
-        <div class="project">
-          <p><strong>❌ Failing threshold</strong></p>
-          <ul>
-            <li>Expires: {{.TimestampCheck.ExpiresAt.Format "2006-01-02T15:04:05Z07:00"}}</li>
-            <li>Hours remaining: {{printf "%.1f" .TimestampCheck.DurationLeft.Hours}}</li>
-            <li>Minimum required days: {{.TimestampCheck.MinDays}}</li>
-          </ul>
-        </div>
-      {{end}}
-    </section>
-
-    <section class="section">
-      <h2>🧭 Drafting estimation gate (project ` + fmt.Sprintf("%d", draftingProjectNum) + `)</h2>
-      <p class="subtle">Items in estimation statuses with unchecked checklist items.</p>
-      {{if .DraftingSections}}
-        {{range .DraftingSections}}
-          <div class="status">
-            <h3>{{.Emoji}} {{.Status}}</h3>
-            <p class="subtle">{{.Intro}}</p>
-            {{if .Items}}
-              {{range .Items}}
-                <article class="item">
-                  <div><strong>#{{.Number}} - {{.Title}}</strong></div>
-                  <div><a href="{{.URL}}" target="_blank" rel="noopener noreferrer">{{.URL}}</a></div>
-                  {{if .Unchecked}}
-                    <ul>
-                      {{range .Unchecked}}<li>[ ] {{.}}</li>{{end}}
-                    </ul>
-                  {{end}}
-                </article>
+      <section id="tab-drafting" class="panel" role="tabpanel">
+        <h2>🧭 Drafting estimation gate (project ` + fmt.Sprintf("%d", draftingProjectNum) + `)</h2>
+        <p class="subtle">Items in estimation statuses with unchecked checklist items.</p>
+        {{if .DraftingSections}}
+          {{range .DraftingSections}}
+            <div class="status">
+              <h3>{{.Emoji}} {{.Status}}</h3>
+              <p class="subtle">{{.Intro}}</p>
+              {{if .Items}}
+                {{range .Items}}
+                  <article class="item">
+                    <div><strong>#{{.Number}} - {{.Title}}</strong></div>
+                    <div><a href="{{.URL}}" target="_blank" rel="noopener noreferrer">{{.URL}}</a></div>
+                    {{if .Unchecked}}
+                      <ul>
+                        {{range .Unchecked}}<li>[ ] {{.}}</li>{{end}}
+                      </ul>
+                    {{end}}
+                  </article>
+                {{end}}
+              {{else}}
+                <p class="empty">🟢 No violations in this status.</p>
               {{end}}
-            {{else}}
-              <p class="empty">No violations in this status.</p>
-            {{end}}
-          </div>
+            </div>
+          {{end}}
+        {{else}}
+          <p class="empty">🟢 No drafting violations.</p>
         {{end}}
-      {{else}}
-        <p class="empty">No drafting violations.</p>
-      {{end}}
-    </section>
+      </section>
+    </div>
   </div>
+  <script>
+    (function () {
+      const buttons = document.querySelectorAll('.tab-btn');
+      const panels = document.querySelectorAll('.panel');
+      function activate(tabName) {
+        buttons.forEach((btn) => {
+          btn.classList.toggle('active', btn.dataset.tab === tabName);
+        });
+        panels.forEach((panel) => {
+          panel.classList.toggle('active', panel.id === 'tab-' + tabName);
+        });
+      }
+      buttons.forEach((btn) => {
+        btn.addEventListener('click', () => activate(btn.dataset.tab));
+      });
+    })();
+  </script>
 </body>
 </html>
 `
