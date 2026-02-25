@@ -100,7 +100,7 @@ func cronVulnerabilities(
 		return nil
 	}
 
-	vulnPath := configureVulnPath(*config, appConfig, logger)
+	vulnPath := configureVulnPath(ctx, *config, appConfig, logger)
 	if vulnPath != "" {
 		logger.InfoContext(ctx, "scanning vulnerabilities")
 		if err := scanVulnerabilities(ctx, ds, logger, config, appConfig, vulnPath); err != nil {

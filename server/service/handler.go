@@ -39,7 +39,6 @@ import (
 	"github.com/docker/go-units"
 	"github.com/fleetdm/fleet/v4/server/platform/logging"
 	kithttp "github.com/go-kit/kit/transport/http"
-	"github.com/go-kit/log/level"
 	"github.com/gorilla/mux"
 	"github.com/klauspost/compress/gzhttp"
 	nanomdm_log "github.com/micromdm/nanolib/log"
@@ -1306,11 +1305,11 @@ func NewNanoMDMLogger(logger *logging.Logger) *NanoMDMLogger {
 }
 
 func (l *NanoMDMLogger) Info(keyvals ...interface{}) {
-	level.Info(l.logger).Log(keyvals...)
+	l.logger.InfoContext(context.TODO(), "", keyvals...)
 }
 
 func (l *NanoMDMLogger) Debug(keyvals ...interface{}) {
-	level.Debug(l.logger).Log(keyvals...)
+	l.logger.DebugContext(context.TODO(), "", keyvals...)
 }
 
 func (l *NanoMDMLogger) With(keyvals ...interface{}) nanomdm_log.Logger {
@@ -1352,7 +1351,7 @@ func registerMDM(
 	var mdmHandler http.Handler = httpmdm.CheckinAndCommandHandler(mdmService, mdmLogger.With("handler", "checkin-command"))
 	verifyDisable, exists := os.LookupEnv("FLEET_MDM_APPLE_SCEP_VERIFY_DISABLE")
 	if exists && (strings.EqualFold(verifyDisable, "true") || verifyDisable == "1") {
-		level.Info(logger).Log("msg",
+		logger.InfoContext(context.TODO(),
 			"disabling verification of macOS SCEP certificates as FLEET_MDM_APPLE_SCEP_VERIFY_DISABLE is set to true")
 	} else {
 		mdmHandler = httpmdm.CertVerifyMiddleware(mdmHandler, certVerifier, mdmLogger.With("handler", "cert-verify"))
@@ -1377,7 +1376,7 @@ func WithMDMEnrollmentMiddleware(svc fleet.Service, logger *logging.Logger, next
 			parsed, err := apple_mdm.ParseDeviceinfo(di, false) // FIXME: use verify=true when we have better parsing for various Apple certs (https://github.com/fleetdm/fleet/issues/20879)
 			if err != nil {
 				// just log the error and continue to next
-				level.Error(logger).Log("msg", "parsing x-apple-aspen-deviceinfo", "err", err)
+				logger.ErrorContext(r.Context(), "parsing x-apple-aspen-deviceinfo", "err", err)
 				next.ServeHTTP(w, r)
 				return
 			}
@@ -1388,7 +1387,7 @@ func WithMDMEnrollmentMiddleware(svc fleet.Service, logger *logging.Logger, next
 			sur, err := svc.CheckMDMAppleEnrollmentWithMinimumOSVersion(r.Context(), parsed)
 			if err != nil {
 				// just log the error and continue to next
-				level.Error(logger).Log("msg", "checking minimum os version for mdm", "err", err)
+				logger.ErrorContext(r.Context(), "checking minimum os version for mdm", "err", err)
 				next.ServeHTTP(w, r)
 				return
 			}
@@ -1397,7 +1396,7 @@ func WithMDMEnrollmentMiddleware(svc fleet.Service, logger *logging.Logger, next
 				w.Header().Set("Content-Type", "application/json")
 				w.WriteHeader(http.StatusForbidden)
 				if err := json.NewEncoder(w).Encode(sur); err != nil {
-					level.Error(logger).Log("msg", "failed to encode software update required", "err", err)
+					logger.ErrorContext(r.Context(), "failed to encode software update required", "err", err)
 					http.Redirect(w, r, r.URL.String()+"?error=true", http.StatusSeeOther)
 				}
 				return
@@ -1420,16 +1419,16 @@ func WithMDMEnrollmentMiddleware(svc fleet.Service, logger *logging.Logger, next
 				newURL := *r.URL
 				q.Set("deviceinfo", di)
 				newURL.RawQuery = q.Encode()
-				level.Info(logger).Log("msg", "handling mdm sso: redirect with deviceinfo", "host_uuid", parsed.UDID, "serial", parsed.Serial)
+				logger.InfoContext(r.Context(), "handling mdm sso: redirect with deviceinfo", "host_uuid", parsed.UDID, "serial", parsed.Serial)
 				http.Redirect(w, r, newURL.String(), http.StatusTemporaryRedirect)
 				return
 			}
 			if len(v) > 0 && v[0] != di {
 				// something is wrong, the device info in the query params does not match
 				// the one in the header, so we just log the error and continue to next
-				level.Error(logger).Log("msg", "device info in query params does not match header", "header", di, "query", v[0])
+				logger.ErrorContext(r.Context(), "device info in query params does not match header", "header", di, "query", v[0])
 			}
-			level.Info(logger).Log("msg", "handling mdm sso: proceed to next", "host_uuid", parsed.UDID, "serial", parsed.Serial)
+			logger.InfoContext(r.Context(), "handling mdm sso: proceed to next", "host_uuid", parsed.UDID, "serial", parsed.Serial)
 		}
 
 		next.ServeHTTP(w, r)
