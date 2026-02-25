@@ -27,11 +27,11 @@ These capabilities work together through Apple's ecosystem rather than tradition
 
 Enterprise Mac management operates through several interconnected technical components that work together to provide control across your global device fleet.
 
-### Apple Business Manager foundation
+### Apple Business Manager
 
-Apple Business Manager serves as the device registry for automated enrollment and app distribution in enterprise deployments. When you purchase Mac devices through Apple or authorized resellers who participate in the Device Enrollment Program, device serial numbers automatically register to your organizational Apple Business Manager account.
+Apple Business Manager (ABM) serves as the device registry to prove institutional ownership for automated enrollment and app distribution in enterprise deployments. When you purchase Mac devices through Apple or authorized resellers who participate in the Device Enrollment Program, device serial numbers automatically register to your organizational Apple Business Manager account.
 
-Within Apple Business Manager, you assign devices to specific MDM servers. This assignment tells Apple's activation servers which MDM server should manage each device. The system supports multiple tokens for organizations with different business units or for managed service providers supporting multiple clients. 
+You assign devices in Apple Business Manager to specific MDM servers. This assignment tells Apple's activation servers which MDM server should manage each device. The system supports multiple tokens for organizations with different business units or for managed service providers supporting multiple clients. 
 
 The practical usability of multiple tokens depends on your device management solution. Some solutions support multiple tokens but with interface limitations. Verify your device management solution vendor's multi-token capabilities before planning segmentation around multiple tokens.
 
@@ -47,7 +47,7 @@ Your security policies remain enforced even if a user attempts to wipe and reins
 
 ### Configuration management and profiles
 
-Configuration profiles function as the primary mechanism for applying settings to Mac fleets. These XML-formatted documents define configurations like Wi-Fi network credentials, VPN configurations, email account settings, security restrictions, and application settings. MDM solutions deploy configuration profiles to enrolled devices through Apple's MDM protocol. Configuration profiles can be signed to verify data integrity and protect against tampering. 
+Configuration profiles are the primary mechanism for applying settings to Mac fleets. These XML-formatted plist files define settings like Wi-Fi network credentials, VPN configurations, email account settings, security restrictions, and application settings. MDM solutions deploy configuration profiles to enrolled devices through Apple's MDM protocol. Configuration profiles can be signed to verify data integrity and protect against tampering. 
 
 While unsigned profiles are technically deployable, Apple recommends signing for production MDM deployments to ensure profile authenticity and security. Profiles apply automatically during enrollment, helping devices meet your security requirements before users access corporate resources. 
 
@@ -69,7 +69,7 @@ Beyond the foundational Apple technologies, several operational components work 
 
 ### Zero-touch deployment workflows
 
-Zero-touch deployment represents the complete process from device order to productive user without IT physically touching equipment. The workflow starts when you purchase devices through Apple Business Manager from participating suppliers, who automatically register serial numbers to your organization. You assign devices to users, and when users power on the device for the first time, it contacts Apple's activation servers and automatically downloads the enrollment profile, establishing supervised mode wirelessly.
+Zero-touch deployment represents the complete process from device purchase to productive end user without IT physically touching equipment. The workflow starts when you purchase devices through Apple Business Manager from participating suppliers, who automatically register serial numbers to your organization. You assign devices to users, and when users power on the device for the first time, it contacts Apple's activation servers and automatically downloads the enrollment profile, establishing supervised mode wirelessly.
 
 Enrollment can trigger app installation, scripts, and configurations that install during Setup Assistant, before the user sees the desktop. Users receive fully configured devices ready for work without IT intervention. This capability matters when you're deploying devices at scale to employees in regions without local IT support.
 
@@ -139,11 +139,11 @@ Apple Business Manager is Apple's portal for automatically assigning devices to 
 
 ### How many Macs can one admin realistically manage?
 
-With proper automation including zero-touch deployment, configuration-as-code, and self-service portals, organizations can achieve significantly higher administrative ratios than manual processes. The difference comes down to architecture: automated workflows scale linearly while manual processes create administrative bottlenecks.
+With proper automation including zero-touch deployment, configuration-as-code, and self-service portals, organizations can achieve significantly higher administrative ratios than manual processes. The difference comes down to architecture: automated workflows scale linearly while manual processes create administrative bottlenecks. Some [Fleet](https://fleetdm.com/) customers manage 100's of 1000's of devices. 
 
 ### What's the best way to manage Macs across multiple countries?
 
-Start with a global security baseline implementing NIST 800-53 or CIS benchmarks, then layer regional configurations for country-specific compliance needs. Deploy content caching infrastructure at locations with high device concentrations to typically reduce bandwidth consumption. Declarative Device Management lets devices apply updates asynchronously while maintaining compliance verification through osquery integration.
+Start with a global security baseline implementing NIST 800-53 or CIS benchmarks, then layer regional configurations for country-specific compliance needs. Deploy content caching infrastructure at locations with high device concentrations to typically reduce bandwidth consumption.
 
 ### What security controls are required for global Mac fleets?
 
