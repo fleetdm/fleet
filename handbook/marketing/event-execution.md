@@ -13,7 +13,7 @@ All child tasks in GitHub (e.g., draft and finalize talk title/abstract, design 
 
 ## **GitHub labels**
 
-We use GitHub labels to organize the difference between overall event issues and detailed execution tasks, allowing us to filter and track between overview issues only, and specific events only.  The color coding will help us to visually tell the difference between events.  Note the specific event labels have 6 possible colors defined. These should get re-used, as events are completed
+We use GitHub labels to organize the difference between overall event issues and detailed execution tasks, allowing us to filter and track between overview issues only, and specific events only.  The color coding will help us to visually tell the difference between events.  Note the specific event labels have 6 possible colors defined. These should get re-used, as events are completed.
 
 | Label | Color | Hex Code | Definition (When to use it) |
 | :---- | :---- | :---- | :---- |
