@@ -3499,15 +3499,7 @@ team_settings:
 			testing_utils.StartAndServeVPPServer(t)
 
 			// Don't attempt dry runs because they would not actually create the team, so the config would not be found
-
 			_, err = fleetctl.RunAppNoChecks([]string{"gitops", "--config", fleetctlConfig.Name(), "-f", globalFile.Name(), "-f", teamFileName})
-
-			mysql.ExecAdhocSQL(t, s.DS, func(q sqlx.ExtContext) error {
-				mysql.DumpTable(t, q, "app_config_json")
-				mysql.DumpTable(t, q, "default_team_config_json")
-				mysql.DumpTable(t, q, "teams")
-				return nil
-			})
 
 			if tc.errContains != nil {
 				require.ErrorContains(t, err, *tc.errContains)
