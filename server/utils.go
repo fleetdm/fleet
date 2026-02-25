@@ -86,7 +86,7 @@ func PostJSONWithTimeout(ctx context.Context, url string, v any, logger *slog.Lo
 	defer resp.Body.Close()
 
 	if !httpSuccessStatus(resp.StatusCode) {
-		body, _ := io.ReadAll(resp.Body)
+		body, _ := io.ReadAll(io.LimitReader(resp.Body, 512))
 		logger.DebugContext(ctx, "non-success response from POST",
 			"url", MaskSecretURLParams(url),
 			"status_code", resp.StatusCode,
