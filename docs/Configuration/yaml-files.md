@@ -141,7 +141,6 @@ policies:
     critical: false
     calendar_events_enabled: false
     conditional_access_enabled: true
-    conditional_access_bypass_enabled: true
     labels_include_any:
       - Engineering
       - Customer Support
