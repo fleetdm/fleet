@@ -164,7 +164,9 @@ Fleet responds to all P0 incidents by initiating our incident response process:
 
 Mitigating the outage may require writing and merging code. The current infrastructure on-call engineer is first line for all reviews and QA required to deploy a hot-fix. If additional code review or engineering support is needed, the responding engineer should escalate to their manager.
 
-> If outside of business hours, the incident on-call engineer is responsible for stabilizing the issue well enough to pick it back up in the morning, and should file P1 issues for any immediate follow-up items. During business hours, the incident on-call engineer triages the incident and reaches out to the most relevant product group to find someone to take lead on the resolution.
+> If outside of business hours, the incident on-call engineer is responsible for stabilizing the issue well enough to pick it back up in the morning, and should file P1 issues for any immediate follow-up items. 
+
+> During business hours, the incident on-call engineer triages the incident and coordinates a response across engineering, QA, CS, and infrastructure until the incident has been resolved. Coordination duties will likely preclude making a code fix; when in doubt, delegate the fix and run interference for the folks working on that fix.
 
 ### Participate in QA Day
 
