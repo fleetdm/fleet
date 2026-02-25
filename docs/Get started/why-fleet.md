@@ -31,10 +31,8 @@ This way, users and teams share the same understanding of how devices are monito
 
 ## Ready to get started?
 
-Deploying Fleet is easy. 
+Deploying Fleet is easy. [Install it](https://fleetdm.com/docs/deploy/deploy-fleet) on a server, or [we can host it](https://fleetdm.com/register) for you. Enroll your devices, and you're set.
 
 Fleet offers total deployment flexibility: on-premises, air-gapped, container-native (Docker and Kubernetes), or cloud-agnostic (AWS, Azure, GCP, DigitalOcean). Organizations can also choose fully managed SaaS via Fleet Cloud, ensuring complete control over data residency and legal jurisdiction.
-
-[Install it](https://fleetdm.com/docs/deploy/deploy-fleet) on a server, or [we can host it](https://fleetdm.com/register) for you. Enroll your devices, and you're set.
 
 <meta name="pageOrderInSection" value="100">
