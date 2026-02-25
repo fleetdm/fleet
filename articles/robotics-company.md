@@ -33,3 +33,4 @@ Fleet is the open-source endpoint management platform that gives you total contr
 <meta name="category" value="case study">
 <meta name="publishedOn" value="2026-02-22">
 <meta name="description" value="A robotics company unified Mac, Windows, Linux, and Android with Fleet, enabling GitOps, proactive security, and real-time device control."> 
+<meta name="useBasicArticleTemplate" value="true">

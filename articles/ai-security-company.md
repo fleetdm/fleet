@@ -33,4 +33,5 @@ Fleet is the open-source endpoint management platform that gives you total contr
 <meta name="category" value="case study">
 <meta name="publishedOn" value="2026-02-22">
 <meta name="description" value="An AI security company replaced legacy MDMs with Fleet for Linux visibility, security as code, and instant CVE response.">
+<meta name="useBasicArticleTemplate" value="true">
 

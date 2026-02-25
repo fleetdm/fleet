@@ -33,3 +33,4 @@ Fleet is the open-source endpoint management platform that gives you total contr
 <meta name="category" value="case study">
 <meta name="publishedOn" value="2026-02-22">
 <meta name="description" value="Financial services platform manages 6,000+ hosts with cross-platform support, continuous auditing, and open, flexible device management.">
+<meta name="useBasicArticleTemplate" value="true">

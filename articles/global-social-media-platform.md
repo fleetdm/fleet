@@ -78,4 +78,5 @@ Transitioning to Fleet provided the platform with a strategic solution that addr
 <meta name="articleTitle" value="Global social media platform migrates to Fleet">
 <meta name="description" value="Global social media platform migrates to Fleet">
 <meta name="showOnTestimonialsPageWithEmoji" value="🥀">
+<meta name="useBasicArticleTemplate" value="true">
 

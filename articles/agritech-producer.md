@@ -33,3 +33,4 @@ Fleet is the open-source endpoint management platform that gives you total contr
 <meta name="category" value="case study">
 <meta name="publishedOn" value="2026-02-23">
 <meta name="description" value="An African agritech producer unified its devices with Fleet, eliminating manual tracking and securing cold-chain logistics.">
+<meta name="useBasicArticleTemplate" value="true">

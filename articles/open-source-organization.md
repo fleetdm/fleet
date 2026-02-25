@@ -33,3 +33,4 @@ Fleet is the open-source endpoint management platform that gives you total contr
 <meta name="category" value="case study">
 <meta name="publishedOn" value="2026-02-22">
 <meta name="description" value="Open-source org manages 1,556 devices with equal Mac, Windows, and Linux support, real-time compliance, and unified threat visibility.">
+<meta name="useBasicArticleTemplate" value="true">

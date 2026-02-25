@@ -35,3 +35,4 @@ Fleet is the open-source endpoint management platform that gives you total contr
 <meta name="category" value="case study">
 <meta name="publishedOn" value="2026-02-20">
 <meta name="description" value="Communications platform unifies 3,000 devices with real-time visibility, GitOps automation, and transparent cross-platform management.">
+<meta name="useBasicArticleTemplate" value="true">

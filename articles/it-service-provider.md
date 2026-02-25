@@ -39,3 +39,4 @@ Fleet is the open-source endpoint management platform that gives you total contr
 <meta name="publishedOn" value="2026-02-22">
 <meta name="description" value="As an IT-as-a-Service provider, managing over 8,000 laptops across 120 SME customers.">
 <meta name="branch" value="deebradal">
+<meta name="useBasicArticleTemplate" value="true">
