@@ -338,14 +338,14 @@ func GitOpsFromFile(filePath, baseDir string, appConfig *fleet.EnrichedAppConfig
 		case filepath.Base(filePath) == "unassigned.yml" && !result.IsUnassignedTeam():
 			multiError = multierror.Append(multiError, fmt.Errorf("file %q must have team name 'Unassigned'", filePath))
 			return result, multiError.ErrorOrNil()
+		case result.IsNoTeam() && filepath.Base(filePath) != "no-team.yml":
+			multiError = multierror.Append(multiError, fmt.Errorf("file `%s` for No Team must be named `no-team.yml`", filePath))
+			multiError = multierror.Append(multiError, errors.New("no-team.yml is deprecated; please rename the file to 'unassigned.yml' and update the team name to 'Unassigned'."))
+			return result, multiError.ErrorOrNil()
+		case result.IsUnassignedTeam() && filepath.Base(filePath) != "unassigned.yml":
+			multiError = multierror.Append(multiError, fmt.Errorf("file `%s` for unassigned hosts must be named `unassigned.yml`", filePath))
+			return result, multiError.ErrorOrNil()
 		case result.IsNoTeam() || result.IsUnassignedTeam():
-			if result.IsNoTeam() && filepath.Base(filePath) != "no-team.yml" {
-				multiError = multierror.Append(multiError, fmt.Errorf("file %q for No Team must be named 'no-team.yml'", filePath))
-				multiError = multierror.Append(multiError, errors.New("no-team.yml is deprecated; please rename the file to 'unassigned.yml' and update the team name to 'Unassigned'."))
-			}
-			if result.IsUnassignedTeam() && filepath.Base(filePath) != "unassigned.yml" {
-				multiError = multierror.Append(multiError, fmt.Errorf("file %q for unassigned hosts must be named 'unassigned.yml'", filePath))
-			}
 			// Coerce to "No Team" for easier processing.
 			// TODO - Remove No Team in Fleet 5
 			result.TeamName = ptr.String(noTeam)
@@ -409,19 +409,11 @@ func (g *GitOps) IsGlobal() bool {
 }
 
 func (g *GitOps) IsNoTeam() bool {
-	return g.TeamName != nil && isNoTeam(*g.TeamName)
-}
-
-func isNoTeam(teamName string) bool {
-	return strings.EqualFold(teamName, noTeam)
-}
-
-func isUnassignedTeam(teamName string) bool {
-	return strings.EqualFold(teamName, unassignedTeamName)
+	return g.TeamName != nil && strings.EqualFold(*g.TeamName, noTeam)
 }
 
 func (g *GitOps) IsUnassignedTeam() bool {
-	return g.TeamName != nil && isUnassignedTeam(*g.TeamName)
+	return g.TeamName != nil && strings.EqualFold(*g.TeamName, unassignedTeamName)
 }
 
 func (g *GitOps) CoercedTeamName() string {

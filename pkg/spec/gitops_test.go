@@ -649,7 +649,7 @@ func TestInvalidGitOpsYaml(t *testing.T) {
 					config += "name: No team\n"
 					noTeamPath6, noTeamBasePath6 := createNamedFileOnTempDir(t, "foobar.yml", config)
 					_, err = GitOpsFromFile(noTeamPath6, noTeamBasePath6, nil, nopLogf)
-					assert.ErrorContains(t, err, fmt.Sprintf("file %q for No Team must be named 'no-team.yml'", noTeamPath6))
+					assert.ErrorContains(t, err, fmt.Sprintf("file `%s` for No Team must be named `no-team.yml`", noTeamPath6))
 
 					// no-team.yml with a non-"No Team" name should fail.
 					config = getConfig([]string{"name", "settings"})
@@ -694,7 +694,7 @@ func TestInvalidGitOpsYaml(t *testing.T) {
 					config += "name: Unassigned\n"
 					unassignedPath2, unassignedBasePath2 := createNamedFileOnTempDir(t, "foobar.yml", config)
 					_, err = GitOpsFromFile(unassignedPath2, unassignedBasePath2, nil, nopLogf)
-					assert.ErrorContains(t, err, fmt.Sprintf("file %q for unassigned hosts must be named 'unassigned.yml'", unassignedPath2))
+					assert.ErrorContains(t, err, fmt.Sprintf("file `%s` for unassigned hosts must be named `unassigned.yml`", unassignedPath2))
 
 					// 'Unassigned' (case-insensitive) in unassigned.yml should work.
 					config = getConfig([]string{"name", "settings"})
