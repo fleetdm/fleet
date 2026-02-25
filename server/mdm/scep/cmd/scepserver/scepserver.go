@@ -21,8 +21,7 @@ import (
 	scepserver "github.com/fleetdm/fleet/v4/server/mdm/scep/server"
 	"github.com/gorilla/mux"
 
-	"github.com/go-kit/log"
-	"github.com/go-kit/log/level"
+	"github.com/fleetdm/fleet/v4/server/platform/logging"
 )
 
 // version info
@@ -85,21 +84,15 @@ func main() {
 		httpAddr = ":" + *flPort
 	}
 
-	var logger log.Logger
+	var logger *logging.Logger
 	{
-
 		if *flLogJSON {
-			logger = log.NewJSONLogger(os.Stderr)
+			logger = logging.NewLogger(logging.NewSlogLogger(logging.Options{Output: os.Stderr, JSON: true, Debug: *flDebug, AddSource: true}))
 		} else {
-			logger = log.NewLogfmtLogger(os.Stderr)
+			logger = logging.NewLogger(logging.NewSlogLogger(logging.Options{Output: os.Stderr, Debug: *flDebug, AddSource: true}))
 		}
-		if !*flDebug {
-			logger = level.NewFilter(logger, level.AllowInfo())
-		}
-		logger = log.With(logger, "ts", log.DefaultTimestampUTC)
-		logger = log.With(logger, "caller", log.DefaultCaller)
 	}
-	lginfo := level.Info(logger)
+	lginfo := logger
 
 	var err error
 	var depot scepdepot.Depot // cert storage
@@ -161,7 +154,7 @@ func main() {
 			lginfo.Log("err", err)
 			os.Exit(1)
 		}
-		svc = scepserver.NewLoggingService(log.With(lginfo, "component", "scep_service"), svc)
+		svc = scepserver.NewLoggingService(lginfo.With("component", "scep_service"), svc)
 	}
 
 	var h http.Handler // http handler
@@ -169,7 +162,7 @@ func main() {
 		e := scepserver.MakeServerEndpoints(svc)
 		e.GetEndpoint = scepserver.EndpointLoggingMiddleware(lginfo)(e.GetEndpoint)
 		e.PostEndpoint = scepserver.EndpointLoggingMiddleware(lginfo)(e.PostEndpoint)
-		scepHandler := scepserver.MakeHTTPHandler(e, svc, log.With(lginfo, "component", "http"))
+		scepHandler := scepserver.MakeHTTPHandler(e, svc, lginfo.With("component", "http"))
 		r := mux.NewRouter()
 		r.Handle("/scep", scepHandler)
 		h = r

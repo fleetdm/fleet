@@ -76,8 +76,6 @@ controls:
         labels_include_any:
           - "Department: Information Technology"
       - path: ../lib/macos/configuration-profiles/okta-verify-settings.mobileconfig
-        labels_include_any:
-          - "Department: Information Technology"
       - path: ../lib/macos/configuration-profiles/1password-managed-settings.mobileconfig
         labels_include_any:
           - "Macs with 1Password installed"
@@ -98,6 +96,7 @@ controls:
   macos_updates:
     deadline:
     minimum_version:
+    update_new_hosts: true
   windows_settings:
     custom_settings:
       - path: ../lib/windows/configuration-profiles/Enable firewall.xml
@@ -155,6 +154,7 @@ policies:
 queries:
   - path: ../lib/macos/queries/detect-apple-intelligence.yml
   - path: ../lib/macos/queries/collect-santa-denied-logs.yml
+  - path: ../lib/all/queries/dex-queries.yml
 software:
   packages:
     # macOS apps
@@ -165,10 +165,14 @@ software:
     - path: ../lib/macos/software/1password.yml # 1Password for macOS
       self_service: true
       setup_experience: true
+      categories:
+        - Security
     - path: ../lib/macos/software/santa.yml # Santa for macOS
       self_service: true
       labels_include_any:
         - Santa test devices
+      categories:
+        - Security
     - path: ../lib/macos/software/zoom.yml # Zoom for macOS
       self_service: true
       setup_experience: true
@@ -179,14 +183,22 @@ software:
       self_service: true
       labels_include_any:
         - "Keynote 14 installed"
+      categories:
+        - Productivity
     - path: ../lib/macos/software/company-portal.yml # Company Portal for macOS
       self_service: true
       labels_include_any:
         - "Conditional access test group"
+      categories:
+        - Security
     - path: ../lib/macos/software/nudge.yml # Nudge for macOS
       self_service: false
+      categories:
+        - Utilities
     - path: ../lib/macos/software/nudge-assets.yml # Nudge assets for macOS
       self_service: false
+      categories:
+        - Utilities
     - path: ../lib/macos/software/fleet-desktop.yml # Fleet Desktop for macOS
       self_service: true
       categories:
@@ -262,17 +274,20 @@ software:
     - path: ../lib/windows/software/1password.yml # 1Password for Windows
       self_service: true
       setup_experience: true
+      categories:
+        - Security
   app_store_apps:
     - app_store_id: "361285480" # Keynote
       display_name: "Keynote"
+      platform: darwin
       self_service: true
+      categories:
+        - Productivity
   fleet_maintained_apps:
     # macOS apps
     - slug: slack/darwin # Slack for macOS
       self_service: true
       setup_experience: true
-    # post_install_script:
-    #  path: ../lib/macos/scripts/migrate-slack-preferences.sh
       categories:
         - Communication
         - Productivity
@@ -285,23 +300,41 @@ software:
       self_service: true
       labels_include_any:
         - Apple Silicon macOS hosts
+      categories:
+        - Browsers
     - slug: docker-desktop/darwin # Docker for macOS (ARM)
       self_service: true
       labels_include_any:
         - Apple Silicon macOS hosts
+      categories:
+        - Developer tools
     - slug: microsoft-edge/darwin # Microsoft Edge for macOS
       self_service: true
+      categories:
+        - Browsers
     - slug: visual-studio-code/darwin # Microsoft Visual Studio for macOS (ARM)
       self_service: true
       labels_include_any:
         - Apple Silicon macOS hosts
+      categories:
+        - Developer tools
     - slug: microsoft-teams/darwin # Microsoft Teams for macOS
       self_service: true
+      categories:
+        - Communication
     - slug: okta-verify/darwin # Okta Verify for macOS
       self_service: true
-      labels_include_any:
-        - "Department: Information Technology"
+      setup_experience: true
+      categories:
+        - Security
     # Windows apps
+    - slug: okta-verify/windows # Okta Verify for Windows
+      self_service: true
+      setup_experience: true
+      labels_include_any:
+        - "x86-based Windows hosts"
+      categories:
+        - Security
     - slug: slack/windows # Slack for Windows
       self_service: true
       setup_experience: true
@@ -319,5 +352,9 @@ software:
         - "x86-based Windows hosts"
     - slug: brave-browser/windows # Brave for Windows
       self_service: true
+      categories:
+        - Browsers
     - slug: visual-studio-code/windows # Microsoft Visual Studio for Windows
       self_service: true
+      categories:
+        - Developer tools

@@ -408,7 +408,7 @@ module.exports = {
       })// If Salesforce returns a duplicates_detected error message, use the first duplicate record returned in the error.
       .tolerate({errorCode: 'DUPLICATES_DETECTED'}, (err)=>{
         // Get the first matched duplicate record returned in the error returned by Salesforce.
-        let firstContactRecordMatchedByDuplicateRule = _.get(err, 'duplicateResult.matchResults[0].matchRecords[0].record.Id');
+        let firstContactRecordMatchedByDuplicateRule = _.get(err.data, 'duplicateResult.matchResults[0].matchRecords[0].record.Id');
         if(firstContactRecordMatchedByDuplicateRule) {
           duplicateContactWasFound = true;
           return {id: firstContactRecordMatchedByDuplicateRule};

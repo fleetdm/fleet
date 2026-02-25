@@ -115,7 +115,7 @@ const DiskEncryption = ({
       );
       renderFlash(
         "success",
-        "Successfully updated disk encryption enforcement!"
+        "Successfully updated disk encryption enforcement."
       );
       onMutation();
       setShowAggregate(diskEncryptionEnabled);
@@ -129,9 +129,14 @@ const DiskEncryption = ({
         renderFlash(
           "error",
           <>
-            Could&apos;t enable disk encryption. Missing required private key.
-            Learn how to configure the private key here:{" "}
-            <a href={link}>{link}</a>
+            Couldn&apos;t enable disk encryption. Please configure a private
+            key.{" "}
+            <CustomLink
+              url={link}
+              text="Learn how"
+              newTab
+              variant="flash-message-link"
+            />
           </>
         );
       } else {
@@ -220,18 +225,20 @@ const DiskEncryption = ({
             onChange={onToggleDiskEncryption}
             value={diskEncryptionEnabled}
             className={`${baseClass}__checkbox`}
+            helpText={
+              <>
+                If turned on, hosts&apos; disk encryption keys will be stored in
+                Fleet.{" "}
+                <CustomLink
+                  text="Learn more"
+                  url={`${LEARN_MORE_ABOUT_BASE_LINK}/mdm-disk-encryption`}
+                  newTab
+                />
+              </>
+            }
           >
             Turn on disk encryption
           </Checkbox>
-          <p>
-            If turned on, hosts&apos; disk encryption keys will be stored in
-            Fleet.{" "}
-            <CustomLink
-              text="Learn more"
-              url={`${LEARN_MORE_ABOUT_BASE_LINK}/mdm-disk-encryption`}
-              newTab
-            />
-          </p>
           <RevealButton
             className={`${baseClass}__accordion-title`}
             isShowing={showAdvancedOptions}

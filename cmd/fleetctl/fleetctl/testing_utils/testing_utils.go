@@ -16,6 +16,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/aws/smithy-go/ptr"
 	"github.com/docker/go-units"
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/datastore/cached_mysql"
@@ -80,13 +81,14 @@ func RunServerWithMockedDS(t *testing.T, opts ...*service.TestServerOpts) (*http
 	ds.NewGlobalPolicyFunc = func(ctx context.Context, authorID *uint, args fleet.PolicyPayload) (*fleet.Policy, error) {
 		return &fleet.Policy{
 			PolicyData: fleet.PolicyData{
-				Name:        args.Name,
-				Query:       args.Query,
-				Critical:    args.Critical,
-				Platform:    args.Platform,
-				Description: args.Description,
-				Resolution:  &args.Resolution,
-				AuthorID:    authorID,
+				Name:                           args.Name,
+				Query:                          args.Query,
+				Critical:                       args.Critical,
+				Platform:                       args.Platform,
+				Description:                    args.Description,
+				Resolution:                     &args.Resolution,
+				AuthorID:                       authorID,
+				ConditionalAccessBypassEnabled: ptr.Bool(true),
 			},
 		}, nil
 	}
@@ -407,6 +409,9 @@ func SetupFullGitOpsPremiumServer(t *testing.T) (*mock.Store, **fleet.AppConfig,
 		return nil, &notFoundError{}
 	}
 	ds.TeamLiteFunc = func(ctx context.Context, tid uint) (*fleet.TeamLite, error) {
+		if tid == 0 {
+			return &fleet.TeamLite{}, nil
+		}
 		for _, tm := range savedTeams {
 			if (*tm).ID == tid {
 				teamToCopy := *tm

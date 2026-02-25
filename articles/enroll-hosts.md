@@ -153,24 +153,8 @@ In the Google Admin console:
 
 ## Debugging
 
-If you're running into issues when enrolling hosts, the best practice is to look for errors in the fleetd logs. Fleetd will send stdout/stderr logs to the following directories:
+If you're running into issues when enrolling hosts, the best practice is to look for errors in the fleetd logs. See our [troubleshooting guide](https://fleetdm.com/guides/fleet-troubleshooting-for-it-admins) for more info.
 
-  - macOS: `/private/var/log/orbit/orbit.std{out|err}.log`.
-  - Windows: `C:\Windows\system32\config\systemprofile\AppData\Local\FleetDM\Orbit\Logs\orbit-osquery.log` (the log file is rotated).
-  - Linux: Orbit and osqueryd stdout/stderr output is sent to syslog (`/var/log/syslog` on Debian systems, `/var/log/messages` on CentOS, and `journalctl -u orbit` on Fedora).
-
-If the `logger_path` agent configuration is set to `filesystem`, fleetd will send osquery's "result" and "status" logs to the following directories:
-  - Windows: `C:\Program Files\Orbit\osquery_log`
-  - macOS: `/opt/orbit/osquery_log`
-  - Linux: `/opt/orbit/osquery_log`
-
-The Fleet Desktop log files can be found in the following directories depending on the platform:
-
-  - Linux: `$XDG_STATE_HOME/Fleet or $HOME/.local/state/Fleet`
-  - macOS: `$HOME/Library/Logs/Fleet`
-  - Windows: `%LocalAppData%/Fleet`
-
-The log file name is `fleet-desktop.log`.
 
 ## Advanced
 
@@ -193,9 +177,9 @@ The log file name is `fleet-desktop.log`.
 
 Fleet supports the [latest version of osquery](https://github.com/osquery/osquery/tags). 
 
-### Best practice for dual-boot workstations
+### Best practice for dual-boot workstations or VMs with duplicate hardware identifiers
 
-When end users want to have a dual-boot environment (e.g. Windows and Linux on one computer), the best practice is to install fleetd, that uses `--host-identifier=instance`, on both operating systems. This enrolls two hosts, one per operating system, in Fleet.
+When end users want to have a dual-boot environment (e.g. Windows and Linux on one computer) or have VMs that share hardware identifiers (UUIDs), the best practice is to install fleetd, that uses `--host-identifier=instance`, on both operating systems. This enrolls two hosts, one per operating system, in Fleet.
 
 ### fleetd components
 
@@ -333,8 +317,15 @@ The client certificates can also be pushed to existing installations by placing 
   - `C:\Program Files\Orbit\update_client.crt`
   - `C:\Program Files\Orbit\update_client.key`
 
-If using Fleet Desktop, you may need to specify an alternative host for the "My device" URL (in the Fleet tray icon).
-Such alternative host should not require client certificates on the TLS connection.
+#### Alternative browser host
+
+If using Fleet Desktop, you may want to specify an alternative host for Fleet Desktop traffic (such as the "My device" URL in the Fleet tray icon). This is useful when you want to ensure that Fleet Desktop traffic goes through a custom proxy for an extra layer of security.
+
+**Note**: This "alternative host" should not require client certificates on the TLS connection.
+
+There are two ways to do this:
+
+1. Via the `--fleet-desktop-alternative-browser-host` flag when generating fleetd:
 ```sh
 fleetctl package
   [...]
@@ -342,7 +333,16 @@ fleetctl package
   --fleet-desktop-alternative-browser-host=fleet-desktop.example.com \
   [...]
 ```
-If this setting is not used, you will need to configure client TLS certificates on devices' browsers.
+
+2. Via GitOps or the UI: You can configure the alternative host in the UI by navigating to **Settings > Organization settings > Fleet Desktop**, or via GitOps by adding the following to your `default.yml`:
+```yaml
+...
+fleet_desktop:
+  alternative_browser_host: fleet-desktop.example.com
+...
+```
+
+If the setting is specified via both the flag and UI/GitOps, the value in the UI/GitOps will take precedence. If this setting is not used, you will need to configure client TLS certificates on devices' browsers.
 
 #### fleetd Chrome browser extension
 

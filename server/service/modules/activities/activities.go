@@ -12,15 +12,16 @@ import (
 	"github.com/fleetdm/fleet/v4/server"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/platform/endpointer"
+	"github.com/fleetdm/fleet/v4/server/platform/logging"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	kithttp "github.com/go-kit/kit/transport/http"
-	kitlog "github.com/go-kit/log"
 	"github.com/go-kit/log/level"
 )
 
 type activityModule struct {
 	repo   ActivityStore
-	logger kitlog.Logger
+	logger *logging.Logger
 }
 
 type ActivityModule interface {
@@ -34,7 +35,7 @@ type ActivityStore interface {
 	NewActivity(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails, details []byte, createdAt time.Time) error
 }
 
-func NewActivityModule(repo ActivityStore, logger kitlog.Logger) ActivityModule {
+func NewActivityModule(repo ActivityStore, logger *logging.Logger) ActivityModule {
 	return &activityModule{
 		repo:   repo,
 		logger: logger,
@@ -50,6 +51,11 @@ func (a *activityModule) NewActivity(ctx context.Context, user *fleet.User, acti
 	detailsBytes, err := json.Marshal(activity)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "marshaling activity details")
+	}
+	// Duplicate JSON keys so that stored activity details include both the
+	// old and new field names (e.g. team_id and fleet_id).
+	if rules := endpointer.ExtractAliasRules(activity); len(rules) > 0 {
+		detailsBytes = endpointer.DuplicateJSONKeys(detailsBytes, rules, endpointer.DuplicateJSONKeysOpts{Compact: true})
 	}
 	timestamp := time.Now()
 

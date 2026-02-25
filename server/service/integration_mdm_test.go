@@ -18,6 +18,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log/slog"
 	"math/big"
 	"mime/multipart"
 	"net/http"
@@ -225,7 +226,7 @@ func (s *integrationMDMTestSuite) SetupSuite() {
 	androidMockClient.SetAuthenticationSecretFunc = func(secret string) error {
 		return nil
 	}
-	androidSvc, err := android_service.NewServiceWithClient(wlog, s.ds, androidMockClient, "test-private-key", s.ds, activityModule, config.AndroidAgentConfig{
+	androidSvc, err := android_service.NewServiceWithClient(wlog.SlogLogger(), s.ds, androidMockClient, "test-private-key", s.ds, activityModule, config.AndroidAgentConfig{
 		Package:       "com.fleetdm.agent",
 		SigningSHA256: "abc123def456",
 	})
@@ -237,26 +238,26 @@ func (s *integrationMDMTestSuite) SetupSuite() {
 
 	macosJob := &worker.MacosSetupAssistant{
 		Datastore:  s.ds,
-		Log:        wlog,
-		DEPService: apple_mdm.NewDEPService(s.ds, depStorage, wlog),
-		DEPClient:  apple_mdm.NewDEPClient(depStorage, s.ds, wlog),
+		Log:        wlog.SlogLogger(),
+		DEPService: apple_mdm.NewDEPService(s.ds, depStorage, wlog.SlogLogger()),
+		DEPClient:  apple_mdm.NewDEPClient(depStorage, s.ds, wlog.SlogLogger()),
 	}
 	appleMDMJob := &worker.AppleMDM{
 		Datastore: s.ds,
-		Log:       wlog,
+		Log:       wlog.SlogLogger(),
 		Commander: mdmCommander,
 	}
 	vppVerifyJob := &worker.AppleSoftware{
 		Datastore: s.ds,
-		Log:       wlog,
+		Log:       wlog.SlogLogger(),
 		Commander: mdmCommander,
 	}
 	softwareWorker := &worker.SoftwareWorker{
 		Datastore:     s.ds,
-		Log:           wlog,
+		Log:           wlog.SlogLogger(),
 		AndroidModule: androidSvc,
 	}
-	workr := worker.NewWorker(s.ds, wlog)
+	workr := worker.NewWorker(s.ds, wlog.SlogLogger())
 	workr.TestIgnoreUnknownJobs = true
 	workr.Register(macosJob, appleMDMJob, vppVerifyJob, softwareWorker)
 
@@ -361,7 +362,7 @@ func (s *integrationMDMTestSuite) SetupSuite() {
 									s.onProfileJobDone()
 								}()
 							}
-							err := ReconcileWindowsProfiles(ctx, ds, logger)
+							err := ReconcileWindowsProfiles(ctx, ds, logger.SlogLogger())
 							require.NoError(s.T(), err)
 							return err
 						}),
@@ -390,7 +391,7 @@ func (s *integrationMDMTestSuite) SetupSuite() {
 								defer s.onIntegrationsScheduleDone()
 							}
 
-							return worker.ProcessDEPCooldowns(ctx, ds, logger)
+							return worker.ProcessDEPCooldowns(ctx, ds, logger.SlogLogger())
 						}),
 					)
 					return integrationsSchedule, nil
@@ -410,7 +411,7 @@ func (s *integrationMDMTestSuite) SetupSuite() {
 							if s.onCleanupScheduleDone != nil {
 								defer s.onCleanupScheduleDone()
 							}
-							return android_service.RenewCertificateTemplates(ctx, ds, logger)
+							return android_service.RenewCertificateTemplates(ctx, ds, logger.SlogLogger())
 						}),
 					)
 					return cleanupsSchedule, nil
@@ -432,7 +433,7 @@ func (s *integrationMDMTestSuite) SetupSuite() {
 									s.onAndroidProfileJobDone()
 								}()
 							}
-							err := android_service.ReconcileProfilesWithClient(ctx, ds, logger, "", androidMockClient, config.AndroidAgentConfig{
+							err := android_service.ReconcileProfilesWithClient(ctx, ds, logger.SlogLogger(), "", androidMockClient, config.AndroidAgentConfig{
 								Package:       "com.fleetdm.agent",
 								SigningSHA256: "abc123def456",
 							})
@@ -451,7 +452,7 @@ func (s *integrationMDMTestSuite) SetupSuite() {
 						ctx, name, s.T().Name(), 1*time.Hour, ds, ds,
 						schedule.WithLogger(logger),
 						schedule.WithJob("cron_iphone_ipad_refetcher", func(ctx context.Context) error {
-							return apple_mdm.IOSiPadOSRefetch(ctx, ds, mdmCommander, logger, func(ctx context.Context, user *fleet.User, act fleet.ActivityDetails) error {
+							return apple_mdm.IOSiPadOSRefetch(ctx, ds, mdmCommander, logger.SlogLogger(), func(ctx context.Context, user *fleet.User, act fleet.ActivityDetails) error {
 								return newActivity(ctx, user, act, ds, logger)
 							})
 						}),
@@ -934,7 +935,7 @@ func (s *integrationMDMTestSuite) mockDEPResponse(orgName string, handler http.H
 	t := s.T()
 	srv := httptest.NewServer(handler)
 	err := s.depStorage.StoreConfig(context.Background(), orgName, &nanodep_client.Config{BaseURL: srv.URL})
-	depSvc := apple_mdm.NewDEPService(s.ds, s.depStorage, s.logger)
+	depSvc := apple_mdm.NewDEPService(s.ds, s.depStorage, s.logger.SlogLogger())
 	require.NoError(t, depSvc.CreateDefaultAutomaticProfile(context.Background()))
 	require.NoError(t, err)
 	t.Cleanup(func() {
@@ -957,7 +958,7 @@ func (s *integrationMDMTestSuite) awaitTriggerProfileSchedule(t *testing.T) {
 		err        error
 	)
 	for range 10 {
-		_, didTrigger, err = s.profileSchedule.Trigger()
+		_, didTrigger, err = s.profileSchedule.Trigger(t.Context())
 		require.NoError(t, err)
 		if didTrigger {
 			break
@@ -994,7 +995,7 @@ func (s *integrationMDMTestSuite) awaitTriggerAndroidProfileSchedule(t *testing.
 		err        error
 	)
 	for range 10 {
-		_, didTrigger, err = s.androidProfileSchedule.Trigger()
+		_, didTrigger, err = s.androidProfileSchedule.Trigger(t.Context())
 		require.NoError(t, err)
 		if didTrigger {
 			break
@@ -1316,7 +1317,7 @@ func (s *integrationMDMTestSuite) TestABMExpiredToken() {
 	require.False(t, config.MDM.AppleBMTermsExpired)
 
 	ctx := context.Background()
-	fleetSyncer := apple_mdm.NewDEPService(s.ds, s.depStorage, s.logger)
+	fleetSyncer := apple_mdm.NewDEPService(s.ds, s.depStorage, s.logger.SlogLogger())
 
 	// not signed error flips the AppleBMTermsExpired flag
 	returnType = "not_signed"
@@ -1610,23 +1611,23 @@ func enrollWindowsHostInMDMViaOrbit(t *testing.T, host *fleet.Host, ds fleet.Dat
 }
 
 // Simulates a host being orbit enrolled first then an MDM enrollment coming via the settings app
-func (s *integrationMDMTestSuite) createWindowsHostThenEnrollMDMViaSettingsApp(fleetServerURL, email string) (*fleet.Host, *mdmtest.TestWindowsMDMClient) {
+func (s *integrationMDMTestSuite) createWindowsHostThenEnrollMDMViaSettingsApp(fleetServerURL, email, tenantID string) (*fleet.Host, *mdmtest.TestWindowsMDMClient) {
 	host := createOrbitEnrolledHost(s.T(), "windows", uuid.NewString(), s.ds)
-	mdmDevice := s.enrollWindowsMDMViaSettingsApp(fleetServerURL, email)
+	mdmDevice := s.enrollWindowsMDMViaSettingsApp(fleetServerURL, email, tenantID)
 	return host, mdmDevice
 }
 
 // Note that this method only creates the MDM Enrollment but it will still need to be linked to the host record either
 // via DS methods or by simualting a refetch.
-func (s *integrationMDMTestSuite) enrollWindowsMDMViaSettingsApp(fleetServerURL, email string) *mdmtest.TestWindowsMDMClient {
-	mdmDevice := mdmtest.NewTestMDMClientWindowsAutomatic(fleetServerURL, email, mdmtest.TestWindowsMDMClientNotInOOBE(), mdmtest.TestWindowsMDMClientWithSigningKey(s.jwtSigningKey, defaultFakeJWTKeyID))
+func (s *integrationMDMTestSuite) enrollWindowsMDMViaSettingsApp(fleetServerURL, email, tenantID string) *mdmtest.TestWindowsMDMClient {
+	mdmDevice := mdmtest.NewTestMDMClientWindowsAutomatic(fleetServerURL, email, mdmtest.TestWindowsMDMClientNotInOOBE(), mdmtest.TestWindowsMDMClientWithSigningKeyAndTenantID(s.jwtSigningKey, defaultFakeJWTKeyID, tenantID))
 	err := mdmDevice.Enroll()
 	require.NoError(s.T(), err)
 	return mdmDevice
 }
 
-func (s *integrationMDMTestSuite) enrollWindowsHostInMDMViaAutopilot(fleetServerURL, email string) *mdmtest.TestWindowsMDMClient {
-	mdmDevice := mdmtest.NewTestMDMClientWindowsAutomatic(fleetServerURL, email, mdmtest.TestWindowsMDMClientWithSigningKey(s.jwtSigningKey, defaultFakeJWTKeyID))
+func (s *integrationMDMTestSuite) enrollWindowsHostInMDMViaAutopilot(fleetServerURL, email, tenantID string) *mdmtest.TestWindowsMDMClient {
+	mdmDevice := mdmtest.NewTestMDMClientWindowsAutomatic(fleetServerURL, email, mdmtest.TestWindowsMDMClientWithSigningKeyAndTenantID(s.jwtSigningKey, defaultFakeJWTKeyID, tenantID))
 	err := mdmDevice.Enroll()
 	require.NoError(s.T(), err)
 	return mdmDevice
@@ -2838,7 +2839,7 @@ func (s *integrationMDMTestSuite) TestAppConfigMDMAppleDiskEncryption() {
   }`), http.StatusOK, &acResp)
 	assert.True(t, acResp.MDM.EnableDiskEncryption.Value)
 	enabledDiskActID := s.lastActivityMatches(fleet.ActivityTypeEnabledMacosDiskEncryption{}.ActivityName(),
-		`{"team_id": null, "team_name": null}`, 0)
+		`{"team_id": null, "team_name": null, "fleet_id": null, "fleet_name": null}`, 0)
 
 	// will have generated the macos config profile
 	s.assertConfigProfilesByIdentifier(nil, mobileconfig.FleetFileVaultPayloadIdentifier, true)
@@ -2877,7 +2878,7 @@ func (s *integrationMDMTestSuite) TestAppConfigMDMAppleDiskEncryption() {
 	assert.False(t, acResp.MDM.EnableDiskEncryption.Value)
 	assert.Equal(t, []fleet.MDMProfileSpec{{Path: "b"}}, acResp.MDM.MacOSSettings.CustomSettings)
 	s.lastActivityMatches(fleet.ActivityTypeDisabledMacosDiskEncryption{}.ActivityName(),
-		`{"team_id": null, "team_name": null}`, 0)
+		`{"team_id": null, "team_name": null, "fleet_id": null, "fleet_name": null}`, 0)
 
 	// will have deleted the macos config profile
 	s.assertConfigProfilesByIdentifier(nil, mobileconfig.FleetFileVaultPayloadIdentifier, false)
@@ -2886,7 +2887,7 @@ func (s *integrationMDMTestSuite) TestAppConfigMDMAppleDiskEncryption() {
 	s.Do("POST", "/api/latest/fleet/disk_encryption",
 		updateDiskEncryptionRequest{EnableDiskEncryption: true}, http.StatusNoContent)
 	enabledDiskActID = s.lastActivityMatches(fleet.ActivityTypeEnabledMacosDiskEncryption{}.ActivityName(),
-		`{"team_id": null, "team_name": null}`, 0)
+		`{"team_id": null, "team_name": null, "fleet_id": null, "fleet_name": null}`, 0)
 
 	// will have created the macos config profile
 	s.assertConfigProfilesByIdentifier(nil, mobileconfig.FleetFileVaultPayloadIdentifier, true)
@@ -3118,7 +3119,7 @@ func (s *integrationMDMTestSuite) TestTeamsMDMAppleDiskEncryption() {
 	}}}
 	s.Do("POST", "/api/latest/fleet/spec/teams", teamSpecs, http.StatusOK)
 	lastDiskActID := s.lastActivityOfTypeMatches(fleet.ActivityTypeEnabledMacosDiskEncryption{}.ActivityName(),
-		fmt.Sprintf(`{"team_id": %d, "team_name": %q}`, team.ID, teamName), 0)
+		fmt.Sprintf(`{"team_id": %d, "team_name": %q, "fleet_id": %d, "fleet_name": %q}`, team.ID, teamName, team.ID, teamName), 0)
 
 	// macos config profile created
 	s.assertConfigProfilesByIdentifier(ptr.Uint(team.ID), mobileconfig.FleetFileVaultPayloadIdentifier, true)
@@ -3192,7 +3193,7 @@ func (s *integrationMDMTestSuite) TestTeamsMDMAppleDiskEncryption() {
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), nil, http.StatusOK, &teamResp)
 	require.False(t, teamResp.Team.Config.MDM.EnableDiskEncryption)
 	s.lastActivityOfTypeMatches(fleet.ActivityTypeDisabledMacosDiskEncryption{}.ActivityName(),
-		fmt.Sprintf(`{"team_id": %d, "team_name": %q}`, team.ID, teamName), 0)
+		fmt.Sprintf(`{"team_id": %d, "team_name": %q, "fleet_id": %d, "fleet_name": %q}`, team.ID, teamName, team.ID, teamName), 0)
 
 	// macos config profile deleted
 	s.assertConfigProfilesByIdentifier(ptr.Uint(team.ID), mobileconfig.FleetFileVaultPayloadIdentifier, false)
@@ -3206,7 +3207,7 @@ func (s *integrationMDMTestSuite) TestTeamsMDMAppleDiskEncryption() {
 	}, http.StatusOK, &modResp)
 	require.True(t, modResp.Team.Config.MDM.EnableDiskEncryption)
 	s.lastActivityOfTypeMatches(fleet.ActivityTypeEnabledMacosDiskEncryption{}.ActivityName(),
-		fmt.Sprintf(`{"team_id": %d, "team_name": %q}`, team.ID, teamName), 0)
+		fmt.Sprintf(`{"team_id": %d, "team_name": %q, "fleet_id": %d, "fleet_name": %q}`, team.ID, teamName, team.ID, teamName), 0)
 
 	// macos config profile created
 	s.assertConfigProfilesByIdentifier(ptr.Uint(team.ID), mobileconfig.FleetFileVaultPayloadIdentifier, true)
@@ -3222,7 +3223,7 @@ func (s *integrationMDMTestSuite) TestTeamsMDMAppleDiskEncryption() {
 	require.False(t, modResp.Team.Config.MDM.EnableDiskEncryption)
 	require.Equal(t, "foobar", modResp.Team.Description)
 	s.lastActivityOfTypeMatches(fleet.ActivityTypeDisabledMacosDiskEncryption{}.ActivityName(),
-		fmt.Sprintf(`{"team_id": %d, "team_name": %q}`, team.ID, teamName), 0)
+		fmt.Sprintf(`{"team_id": %d, "team_name": %q, "fleet_id": %d, "fleet_name": %q}`, team.ID, teamName, team.ID, teamName), 0)
 
 	// macos config profile deleted
 	s.assertConfigProfilesByIdentifier(ptr.Uint(team.ID), mobileconfig.FleetFileVaultPayloadIdentifier, false)
@@ -3231,7 +3232,7 @@ func (s *integrationMDMTestSuite) TestTeamsMDMAppleDiskEncryption() {
 	s.Do("POST", "/api/latest/fleet/disk_encryption",
 		updateDiskEncryptionRequest{TeamID: ptr.Uint(team.ID), EnableDiskEncryption: true}, http.StatusNoContent)
 	lastDiskActID = s.lastActivityOfTypeMatches(fleet.ActivityTypeEnabledMacosDiskEncryption{}.ActivityName(),
-		fmt.Sprintf(`{"team_id": %d, "team_name": %q}`, team.ID, teamName), 0)
+		fmt.Sprintf(`{"team_id": %d, "team_name": %q, "fleet_id": %d, "fleet_name": %q}`, team.ID, teamName, team.ID, teamName), 0)
 
 	// macos config profile created
 	s.assertConfigProfilesByIdentifier(ptr.Uint(team.ID), mobileconfig.FleetFileVaultPayloadIdentifier, true)
@@ -3927,7 +3928,7 @@ func (s *integrationMDMTestSuite) TestBootstrapPackage() {
 	// check the activity log
 	s.lastActivityMatches(
 		fleet.ActivityTypeAddedBootstrapPackage{}.ActivityName(),
-		`{"bootstrap_package_name": "pkg.pkg", "team_id": null, "team_name": null}`,
+		`{"bootstrap_package_name": "pkg.pkg", "team_id": null, "team_name": null, "fleet_id": null, "fleet_name": null}`,
 		0,
 	)
 
@@ -3956,7 +3957,7 @@ func (s *integrationMDMTestSuite) TestBootstrapPackage() {
 	// check the activity log
 	s.lastActivityMatches(
 		fleet.ActivityTypeDeletedBootstrapPackage{}.ActivityName(),
-		`{"bootstrap_package_name": "pkg.pkg", "team_id": null, "team_name": null}`,
+		`{"bootstrap_package_name": "pkg.pkg", "team_id": null, "team_name": null, "fleet_id": null, "fleet_name": null}`,
 		0,
 	)
 
@@ -4913,7 +4914,7 @@ func (s *integrationMDMTestSuite) TestMDMMacOSSetup() {
 			s.DoJSON("GET", "/api/latest/fleet/config", nil, http.StatusOK, &acResp)
 			require.True(t, acResp.MDM.MacOSSetup.EnableEndUserAuthentication)
 			lastActivityID := s.lastActivityOfTypeMatches(fleet.ActivityTypeEnabledMacosSetupEndUserAuth{}.ActivityName(),
-				`{"team_id": null, "team_name": null}`, 0)
+				`{"team_id": null, "team_name": null, "fleet_id": null, "fleet_name": null}`, 0)
 
 			s.Do("PATCH", "/api/latest/fleet/setup_experience",
 				fleet.MDMAppleSetupPayload{TeamID: ptr.Uint(0), EnableEndUserAuthentication: ptr.Bool(true)}, http.StatusNoContent)
@@ -4929,12 +4930,12 @@ func (s *integrationMDMTestSuite) TestMDMMacOSSetup() {
 			s.DoJSON("GET", "/api/latest/fleet/config", nil, http.StatusOK, &acResp)
 			require.False(t, acResp.MDM.MacOSSetup.EnableEndUserAuthentication)
 			require.Greater(t, s.lastActivityOfTypeMatches(fleet.ActivityTypeDisabledMacosSetupEndUserAuth{}.ActivityName(),
-				`{"team_id": null, "team_name": null}`, 0), lastActivityID)
+				`{"team_id": null, "team_name": null, "fleet_id": null, "fleet_name": null}`, 0), lastActivityID)
 		})
 
 		t.Run("TestTeam", func(t *testing.T) {
 			tmConfigPath := fmt.Sprintf("/api/latest/fleet/teams/%d", tm.ID)
-			expectedActivityDetail := fmt.Sprintf(`{"team_id": %d, "team_name": %q}`, tm.ID, tm.Name)
+			expectedActivityDetail := fmt.Sprintf(`{"team_id": %d, "team_name": %q, "fleet_id": %d, "fleet_name": %q}`, tm.ID, tm.Name, tm.ID, tm.Name)
 			var tmResp teamResponse
 			s.Do("PATCH", "/api/latest/fleet/setup_experience",
 				fleet.MDMAppleSetupPayload{TeamID: &tm.ID, EnableEndUserAuthentication: ptr.Bool(true)}, http.StatusNoContent)
@@ -5210,7 +5211,7 @@ func (s *integrationMDMTestSuite) TestMacosSetupAssistant() {
 	require.Equal(t, "no-team", noTeamAsst.Name)
 	require.JSONEq(t, noTeamProf, string(noTeamAsst.Profile))
 	s.lastActivityMatches(fleet.ActivityTypeChangedMacosSetupAssistant{}.ActivityName(),
-		`{"name": "no-team", "team_id": null, "team_name": null}`, 0)
+		`{"name": "no-team", "team_id": null, "team_name": null, "fleet_id": null, "fleet_name": null}`, 0)
 
 	// create a team and a setup assistant for that team
 	tm, err := s.ds.NewTeam(ctx, &fleet.Team{
@@ -5231,7 +5232,7 @@ func (s *integrationMDMTestSuite) TestMacosSetupAssistant() {
 	require.Equal(t, "team1", tmAsst.Name)
 	require.JSONEq(t, tmProf, string(tmAsst.Profile))
 	s.lastActivityMatches(fleet.ActivityTypeChangedMacosSetupAssistant{}.ActivityName(),
-		fmt.Sprintf(`{"name": "team1", "team_id": %d, "team_name": %q}`, tm.ID, tm.Name), 0)
+		fmt.Sprintf(`{"name": "team1", "team_id": %d, "team_name": %q, "fleet_id": %d, "fleet_name": %q}`, tm.ID, tm.Name, tm.ID, tm.Name), 0)
 
 	// update no-team
 	noTeamProf = fmt.Sprintf(defaultProf, "no-team2")
@@ -5241,7 +5242,7 @@ func (s *integrationMDMTestSuite) TestMacosSetupAssistant() {
 		EnrollmentProfile: json.RawMessage(noTeamProf),
 	}, http.StatusOK, &createResp)
 	s.lastActivityMatches(fleet.ActivityTypeChangedMacosSetupAssistant{}.ActivityName(),
-		`{"name": "no-team2", "team_id": null, "team_name": null}`, 0)
+		`{"name": "no-team2", "team_id": null, "team_name": null, "fleet_id": null, "fleet_name": null}`, 0)
 
 	// update team
 	tmProf = fmt.Sprintf(defaultProf, "team2")
@@ -5251,7 +5252,7 @@ func (s *integrationMDMTestSuite) TestMacosSetupAssistant() {
 		EnrollmentProfile: json.RawMessage(tmProf),
 	}, http.StatusOK, &createResp)
 	lastChangedActID := s.lastActivityMatches(fleet.ActivityTypeChangedMacosSetupAssistant{}.ActivityName(),
-		fmt.Sprintf(`{"name": "team2", "team_id": %d, "team_name": %q}`, tm.ID, tm.Name), 0)
+		fmt.Sprintf(`{"name": "team2", "team_id": %d, "team_name": %q, "fleet_id": %d, "fleet_name": %q}`, tm.ID, tm.Name, tm.ID, tm.Name), 0)
 
 	// sleep a second so the uploaded-at timestamp would change if there were
 	// changes, then update again no team/team but without any change, doesn't
@@ -5267,7 +5268,7 @@ func (s *integrationMDMTestSuite) TestMacosSetupAssistant() {
 	}, http.StatusOK, &createResp)
 	// the last activity is that of the team (i.e. no new activity was created for no-team)
 	s.lastActivityMatches(fleet.ActivityTypeChangedMacosSetupAssistant{}.ActivityName(),
-		fmt.Sprintf(`{"name": "team2", "team_id": %d, "team_name": %q}`, tm.ID, tm.Name), lastChangedActID)
+		fmt.Sprintf(`{"name": "team2", "team_id": %d, "team_name": %q, "fleet_id": %d, "fleet_name": %q}`, tm.ID, tm.Name, tm.ID, tm.Name), lastChangedActID)
 	// No new requests to DEP were made since nothing changed
 	require.Equal(t, priorProfileCalls, profileCalls)
 
@@ -5278,7 +5279,7 @@ func (s *integrationMDMTestSuite) TestMacosSetupAssistant() {
 		EnrollmentProfile: json.RawMessage(tmProf),
 	}, http.StatusOK, &createResp)
 	s.lastActivityMatches(fleet.ActivityTypeChangedMacosSetupAssistant{}.ActivityName(),
-		fmt.Sprintf(`{"name": "team2", "team_id": %d, "team_name": %q}`, tm.ID, tm.Name), lastChangedActID)
+		fmt.Sprintf(`{"name": "team2", "team_id": %d, "team_name": %q, "fleet_id": %d, "fleet_name": %q}`, tm.ID, tm.Name, tm.ID, tm.Name), lastChangedActID)
 	// No new requests to DEP were made since nothing changed
 	require.Equal(t, priorProfileCalls, profileCalls)
 
@@ -5291,7 +5292,7 @@ func (s *integrationMDMTestSuite) TestMacosSetupAssistant() {
 		EnrollmentProfile: json.RawMessage(tmProf),
 	}, http.StatusOK, &createResp)
 	latestChangedActID := s.lastActivityMatches(fleet.ActivityTypeChangedMacosSetupAssistant{}.ActivityName(),
-		fmt.Sprintf(`{"name": "team2", "team_id": %d, "team_name": %q}`, tm.ID, tm.Name), 0)
+		fmt.Sprintf(`{"name": "team2", "team_id": %d, "team_name": %q, "fleet_id": %d, "fleet_name": %q}`, tm.ID, tm.Name, tm.ID, tm.Name), 0)
 	require.Greater(t, latestChangedActID, lastChangedActID)
 	// Should revalidate with Apple now since there was a change
 	require.Greater(t, profileCalls, priorProfileCalls)
@@ -5321,7 +5322,7 @@ func (s *integrationMDMTestSuite) TestMacosSetupAssistant() {
 	errMsg := extractServerErrorText(res.Body)
 	require.Contains(t, errMsg, `The automatic enrollment profile can't include url.`)
 	s.lastActivityMatches(fleet.ActivityTypeChangedMacosSetupAssistant{}.ActivityName(),
-		fmt.Sprintf(`{"name": "team2", "team_id": %d, "team_name": %q}`, tm.ID, tm.Name), latestChangedActID)
+		fmt.Sprintf(`{"name": "team2", "team_id": %d, "team_name": %q, "fleet_id": %d, "fleet_name": %q}`, tm.ID, tm.Name, tm.ID, tm.Name), latestChangedActID)
 
 	// try to set a non-object json value
 	tmProf = `true`
@@ -5333,12 +5334,12 @@ func (s *integrationMDMTestSuite) TestMacosSetupAssistant() {
 	errMsg = extractServerErrorText(res.Body)
 	require.Contains(t, errMsg, `cannot unmarshal bool into Go value of type map[string]interface`)
 	s.lastActivityMatches(fleet.ActivityTypeChangedMacosSetupAssistant{}.ActivityName(),
-		fmt.Sprintf(`{"name": "team2", "team_id": %d, "team_name": %q}`, tm.ID, tm.Name), latestChangedActID)
+		fmt.Sprintf(`{"name": "team2", "team_id": %d, "team_name": %q, "fleet_id": %d, "fleet_name": %q}`, tm.ID, tm.Name, tm.ID, tm.Name), latestChangedActID)
 
 	// delete the no-team setup assistant
 	s.Do("DELETE", "/api/latest/fleet/enrollment_profiles/automatic", nil, http.StatusNoContent)
 	latestChangedActID = s.lastActivityMatches(fleet.ActivityTypeDeletedMacosSetupAssistant{}.ActivityName(),
-		`{"name": "no-team2", "team_id": null, "team_name": null}`, 0)
+		`{"name": "no-team2", "team_id": null, "team_name": null, "fleet_id": null, "fleet_name": null}`, 0)
 
 	// get for no team returns 404
 	s.DoJSON("GET", "/api/latest/fleet/enrollment_profiles/automatic", nil, http.StatusNotFound, &getResp)
@@ -5354,7 +5355,7 @@ func (s *integrationMDMTestSuite) TestMacosSetupAssistant() {
 	// (a deleted team activity would exist if that was done via the API and not
 	// directly with the datastore)
 	s.lastActivityMatches(fleet.ActivityTypeDeletedMacosSetupAssistant{}.ActivityName(),
-		`{"name": "no-team2", "team_id": null, "team_name": null}`, latestChangedActID)
+		`{"name": "no-team2", "team_id": null, "team_name": null, "fleet_id": null, "fleet_name": null}`, latestChangedActID)
 
 	// create another team and a setup assistant for that team
 	tm2, err := s.ds.NewTeam(ctx, &fleet.Team{
@@ -5369,12 +5370,12 @@ func (s *integrationMDMTestSuite) TestMacosSetupAssistant() {
 		EnrollmentProfile: json.RawMessage(tm2Prof),
 	}, http.StatusOK, &createResp)
 	s.lastActivityMatches(fleet.ActivityTypeChangedMacosSetupAssistant{}.ActivityName(),
-		fmt.Sprintf(`{"name": "teamB", "team_id": %d, "team_name": %q}`, tm2.ID, tm2.Name), 0)
+		fmt.Sprintf(`{"name": "teamB", "team_id": %d, "team_name": %q, "fleet_id": %d, "fleet_name": %q}`, tm2.ID, tm2.Name, tm2.ID, tm2.Name), 0)
 
 	// delete that team's setup assistant
 	s.Do("DELETE", "/api/latest/fleet/enrollment_profiles/automatic", nil, http.StatusNoContent, "team_id", fmt.Sprint(tm2.ID))
 	s.lastActivityMatches(fleet.ActivityTypeDeletedMacosSetupAssistant{}.ActivityName(),
-		fmt.Sprintf(`{"name": "teamB", "team_id": %d, "team_name": %q}`, tm2.ID, tm2.Name), 0)
+		fmt.Sprintf(`{"name": "teamB", "team_id": %d, "team_name": %q, "fleet_id": %d, "fleet_name": %q}`, tm2.ID, tm2.Name, tm2.ID, tm2.Name), 0)
 
 	// Try with a team that has no relevant ABM tokens
 	teamNoABM, err := s.ds.NewTeam(ctx, &fleet.Team{
@@ -6144,7 +6145,7 @@ func (s *integrationMDMTestSuite) TestSSO() {
 	}
 	err = detailQueries["mdm"].DirectIngestFunc(
 		context.Background(),
-		logging.NewNopLogger(),
+		slog.New(slog.DiscardHandler),
 		&fleet.Host{ID: hostResp.Host.ID},
 		s.ds,
 		rows,
@@ -6175,7 +6176,7 @@ func (s *integrationMDMTestSuite) TestSSO() {
 	}
 	err = detailQueries["google_chrome_profiles"].DirectIngestFunc(
 		context.Background(),
-		logging.NewNopLogger(),
+		slog.New(slog.DiscardHandler),
 		&fleet.Host{ID: hostResp.Host.ID},
 		s.ds,
 		rows,
@@ -6241,7 +6242,7 @@ func (s *integrationMDMTestSuite) TestSSO() {
 	// reporting google chrome profiles only clears chrome profiles from device mapping
 	err = detailQueries["google_chrome_profiles"].DirectIngestFunc(
 		context.Background(),
-		logging.NewNopLogger(),
+		slog.New(slog.DiscardHandler),
 		&fleet.Host{ID: hostResp.Host.ID},
 		s.ds,
 		[]map[string]string{},
@@ -6488,7 +6489,7 @@ func (s *integrationMDMTestSuite) TestSSOWithSCIM() {
 	}
 	err = detailQueries["mdm"].DirectIngestFunc(
 		context.Background(),
-		logging.NewNopLogger(),
+		slog.New(slog.DiscardHandler),
 		&fleet.Host{ID: hostResp.Host.ID},
 		s.ds,
 		rows,
@@ -6509,7 +6510,7 @@ func (s *integrationMDMTestSuite) TestSSOWithSCIM() {
 	}
 	err = detailQueries["google_chrome_profiles"].DirectIngestFunc(
 		context.Background(),
-		logging.NewNopLogger(),
+		slog.New(slog.DiscardHandler),
 		&fleet.Host{ID: hostResp.Host.ID},
 		s.ds,
 		rows,
@@ -7473,6 +7474,38 @@ func (s *integrationMDMTestSuite) TestAppConfigWindowsMDM() {
 		}
 	}
 
+	// Set an Entra tenant ID
+	acResp = appConfigResponse{}
+	// Should fail with invalid value
+	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
+		"mdm": { "windows_entra_tenant_ids": ["tenant-id-1234"] }
+  }`), http.StatusUnprocessableEntity, &acResp)
+
+	// Should pass and create activity with valid value
+	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
+		"mdm": { "windows_entra_tenant_ids": ["1a86b496-e2a4-43ef-ba00-20004e29b13b"] }
+  }`), http.StatusOK, &acResp)
+	s.lastActivityMatches(fleet.ActivityTypeAddedMicrosoftEntraTenant{}.ActivityName(), `{"tenant_id": "1a86b496-e2a4-43ef-ba00-20004e29b13b"}`, 0)
+
+	// Should pass and create activity with multiple valid values
+	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
+		"mdm": { "windows_entra_tenant_ids": ["1a86b496-e2a4-43ef-ba00-20004e29b13b", "6dca58c4-c817-4730-831b-f3348931df05"] }
+  }`), http.StatusOK, &acResp)
+	s.lastActivityMatches(fleet.ActivityTypeAddedMicrosoftEntraTenant{}.ActivityName(), `{"tenant_id": "6dca58c4-c817-4730-831b-f3348931df05"}`, 0)
+
+	// Should fail and not create a new activity with multiple valid values and one new invalid one
+	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
+		"mdm": { "windows_entra_tenant_ids": ["1a86b496-e2a4-43ef-ba00-20004e29b13b", "6dca58c4-c817-4730-831b-f3348931df05", "fleetie-was-here"] }
+  }`), http.StatusUnprocessableEntity, &acResp)
+	// Same activity as before
+	s.lastActivityMatches(fleet.ActivityTypeAddedMicrosoftEntraTenant{}.ActivityName(), `{"tenant_id": "6dca58c4-c817-4730-831b-f3348931df05"}`, 0)
+
+	// Should pass and create a deleted activity with less valid values than before
+	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
+		"mdm": { "windows_entra_tenant_ids": ["6dca58c4-c817-4730-831b-f3348931df05"] }
+  }`), http.StatusOK, &acResp)
+	s.lastActivityMatches(fleet.ActivityTypeDeletedMicrosoftEntraTenant{}.ActivityName(), `{"tenant_id": "1a86b496-e2a4-43ef-ba00-20004e29b13b"}`, 0)
+
 	// enable Windows MDM manual enrollment
 	acResp = appConfigResponse{}
 	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
@@ -7912,13 +7945,20 @@ func (s *integrationMDMTestSuite) TestValidGetPoliciesRequestWithDeviceToken() {
 func (s *integrationMDMTestSuite) TestValidGetPoliciesRequestWithAzureToken() {
 	t := s.T()
 
+	tenantID := uuid.New().String()
+
+	acResp := appConfigResponse{}
+	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{ "mdm": { "windows_entra_tenant_ids": ["`+tenantID+`"] } }`), http.StatusOK, &acResp)
+
 	// Preparing the GetPolicies Request message with Azure JWT token
 	// Preparing the SecurityToken Request message with Azure JWT token
 	claims := &jwt.MapClaims{
 		"upn":         "fleetie@example.com",
-		"tid":         "tenant_id",
+		"tid":         tenantID,
+		"iss":         "https://sts.windows.net/" + tenantID + "/",
 		"unique_name": "foo_bar",
 		"scp":         "mdm_delegation",
+		"aud":         s.server.URL + microsoft_mdm.MDE2PolicyPath,
 	}
 
 	token := jwt.NewWithClaims(jwt.SigningMethodRS256, claims)
@@ -8088,12 +8128,19 @@ func (s *integrationMDMTestSuite) TestValidRequestSecurityTokenRequestWithDevice
 func (s *integrationMDMTestSuite) TestValidRequestSecurityTokenRequestWithAzureToken() {
 	t := s.T()
 
+	tenantID := uuid.New().String()
+
+	acResp := appConfigResponse{}
+	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{ "mdm": { "windows_entra_tenant_ids": ["`+tenantID+`"] } }`), http.StatusOK, &acResp)
+
 	// Preparing the SecurityToken Request message with Azure JWT token
 	claims := &jwt.MapClaims{
 		"upn":         "fleetie@example.com",
-		"tid":         "tenant_id",
+		"tid":         tenantID,
+		"iss":         "https://sts.windows.net/" + tenantID + "/",
 		"unique_name": "foo_bar",
 		"scp":         "mdm_delegation",
+		"aud":         s.server.URL,
 	}
 
 	token := jwt.NewWithClaims(jwt.SigningMethodRS256, claims)
@@ -8670,8 +8717,12 @@ func (s *integrationMDMTestSuite) TestWindowsAutomaticEnrollmentCommands() {
 	err := s.ds.ApplyEnrollSecrets(ctx, nil, []*fleet.EnrollSecret{{Secret: t.Name()}})
 	require.NoError(t, err)
 
+	tenantID := uuid.New().String()
+	acResp := appConfigResponse{}
+	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{ "mdm": { "windows_entra_tenant_ids": ["`+tenantID+`"] } }`), http.StatusOK, &acResp)
+
 	azureMail := "foo.bar.baz@example.com"
-	d := mdmtest.NewTestMDMClientWindowsAutomatic(s.server.URL, azureMail, mdmtest.TestWindowsMDMClientWithSigningKey(s.jwtSigningKey, defaultFakeJWTKeyID))
+	d := mdmtest.NewTestMDMClientWindowsAutomatic(s.server.URL, azureMail, mdmtest.TestWindowsMDMClientWithSigningKeyAndTenantID(s.jwtSigningKey, defaultFakeJWTKeyID, tenantID))
 	require.NoError(t, d.Enroll())
 
 	checkinAndAck := func(expectFleetdCmds bool) {
@@ -8774,20 +8825,49 @@ func (s *integrationMDMTestSuite) TestWindowsAzureInitiatedBadKeys() {
 	_, badKey, err := apple_mdm.NewSCEPCACertKey()
 	require.NoError(t, err)
 
+	tenantID := uuid.New().String()
+	acResp := appConfigResponse{}
+	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{ "mdm": { "windows_entra_tenant_ids": ["`+tenantID+`"] } }`), http.StatusOK, &acResp)
+
 	autopilotUserMail := "swan@example.com"
 
 	// Bad key
-	mdmDevice := mdmtest.NewTestMDMClientWindowsAutomatic(s.server.URL, autopilotUserMail, mdmtest.TestWindowsMDMClientWithSigningKey(badKey, defaultFakeJWTKeyID))
+	mdmDevice := mdmtest.NewTestMDMClientWindowsAutomatic(s.server.URL, autopilotUserMail, mdmtest.TestWindowsMDMClientWithSigningKeyAndTenantID(badKey, defaultFakeJWTKeyID, tenantID))
 	err = mdmDevice.Enroll()
 	require.Error(s.T(), err)
 
 	// Good key but wrong ID
-	mdmDevice = mdmtest.NewTestMDMClientWindowsAutomatic(s.server.URL, autopilotUserMail, mdmtest.TestWindowsMDMClientWithSigningKey(s.jwtSigningKey, "bad-key-id"))
+	mdmDevice = mdmtest.NewTestMDMClientWindowsAutomatic(s.server.URL, autopilotUserMail, mdmtest.TestWindowsMDMClientWithSigningKeyAndTenantID(s.jwtSigningKey, "bad-key-id", tenantID))
 	err = mdmDevice.Enroll()
 	require.Error(s.T(), err)
 
 	// Happy path to ensure the setup is correct
-	mdmDevice = mdmtest.NewTestMDMClientWindowsAutomatic(s.server.URL, autopilotUserMail, mdmtest.TestWindowsMDMClientWithSigningKey(s.jwtSigningKey, defaultFakeJWTKeyID))
+	mdmDevice = mdmtest.NewTestMDMClientWindowsAutomatic(s.server.URL, autopilotUserMail, mdmtest.TestWindowsMDMClientWithSigningKeyAndTenantID(s.jwtSigningKey, defaultFakeJWTKeyID, tenantID))
+	err = mdmDevice.Enroll()
+	require.NoError(s.T(), err)
+}
+
+func (s *integrationMDMTestSuite) TestWindowsAzureInitiatedTenantIDs() {
+	t := s.T()
+	ctx := context.Background()
+
+	// define a global enroll secret
+	err := s.ds.ApplyEnrollSecrets(ctx, nil, []*fleet.EnrollSecret{{Secret: t.Name()}})
+	require.NoError(t, err)
+
+	tenantID := uuid.New().String()
+	acResp := appConfigResponse{}
+	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{ "mdm": { "windows_entra_tenant_ids": ["`+tenantID+`"] } }`), http.StatusOK, &acResp)
+
+	autopilotUserMail := "swan@example.com"
+
+	// Bad entra tenant ID
+	mdmDevice := mdmtest.NewTestMDMClientWindowsAutomatic(s.server.URL, autopilotUserMail, mdmtest.TestWindowsMDMClientWithSigningKeyAndTenantID(s.jwtSigningKey, defaultFakeJWTKeyID, uuid.New().String()))
+	err = mdmDevice.Enroll()
+	require.Error(s.T(), err)
+
+	// Happy path to ensure the setup is correct
+	mdmDevice = mdmtest.NewTestMDMClientWindowsAutomatic(s.server.URL, autopilotUserMail, mdmtest.TestWindowsMDMClientWithSigningKeyAndTenantID(s.jwtSigningKey, defaultFakeJWTKeyID, tenantID))
 	err = mdmDevice.Enroll()
 	require.NoError(s.T(), err)
 }
@@ -8800,6 +8880,10 @@ func (s *integrationMDMTestSuite) TestWindowsAzureInitiatedEnrollmentAndMapping(
 	err := s.ds.ApplyEnrollSecrets(ctx, nil, []*fleet.EnrollSecret{{Secret: t.Name()}})
 	require.NoError(t, err)
 
+	tenantID := uuid.New().String()
+	acResp := appConfigResponse{}
+	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{ "mdm": { "windows_entra_tenant_ids": ["`+tenantID+`"] } }`), http.StatusOK, &acResp)
+
 	team, err := s.ds.NewTeam(context.Background(), &fleet.Team{
 		Name:        "team1_" + t.Name(),
 		Description: "desc team1_" + t.Name(),
@@ -8808,11 +8892,11 @@ func (s *integrationMDMTestSuite) TestWindowsAzureInitiatedEnrollmentAndMapping(
 
 	// Enroll another host to ensure the wires don't get crossed somehow
 	autopilotUserMail := "swan@example.com"
-	autopilotDevice := s.enrollWindowsHostInMDMViaAutopilot(s.server.URL, autopilotUserMail)
+	autopilotDevice := s.enrollWindowsHostInMDMViaAutopilot(s.server.URL, autopilotUserMail, tenantID)
 	require.NoError(t, autopilotDevice.Enroll())
 
 	settingsAppUserMail := "fleetie@example.com"
-	settingsAppHost, settingsAppDevice := s.createWindowsHostThenEnrollMDMViaSettingsApp(s.server.URL, settingsAppUserMail)
+	settingsAppHost, settingsAppDevice := s.createWindowsHostThenEnrollMDMViaSettingsApp(s.server.URL, settingsAppUserMail, tenantID)
 	require.NoError(t, settingsAppDevice.Enroll())
 
 	// Transfer the host to the team. Ensure it doesn't wind up in "No team" at the end
@@ -10255,7 +10339,7 @@ func (s *integrationMDMTestSuite) runWorkerUntilDoneWithChecks(failIfFailedJobs 
 
 func (s *integrationMDMTestSuite) runDEPSchedule() {
 	ctx := context.Background()
-	fleetSyncer := apple_mdm.NewDEPService(s.ds, s.depStorage, s.logger)
+	fleetSyncer := apple_mdm.NewDEPService(s.ds, s.depStorage, s.logger.SlogLogger())
 	err := fleetSyncer.RunAssigner(ctx)
 	require.NoError(s.T(), err)
 }
@@ -10272,7 +10356,7 @@ func (s *integrationMDMTestSuite) runIntegrationsSchedule() {
 		err        error
 	)
 	for range 10 {
-		_, didTrigger, err = s.integrationsSchedule.Trigger()
+		_, didTrigger, err = s.integrationsSchedule.Trigger(s.T().Context())
 		require.NoError(s.T(), err)
 		if didTrigger {
 			break
@@ -10294,7 +10378,7 @@ func (s *integrationMDMTestSuite) awaitRunCleanupSchedule() {
 		err        error
 	)
 	for range 10 {
-		_, didTrigger, err = s.cleanupsSchedule.Trigger()
+		_, didTrigger, err = s.cleanupsSchedule.Trigger(s.T().Context())
 		require.NoError(s.T(), err)
 		if didTrigger {
 			break
@@ -11341,7 +11425,7 @@ func (s *integrationMDMTestSuite) enableABM(orgName string) *fleet.ABMToken {
 			_, _ = w.Write([]byte(`{}`))
 		}
 	}))
-	depClient := apple_mdm.NewDEPClient(s.depStorage, s.ds, s.logger)
+	depClient := apple_mdm.NewDEPClient(s.depStorage, s.ds, s.logger.SlogLogger())
 	_, err = depClient.AccountDetail(ctx, orgName)
 	require.NoError(t, err)
 	return tok
@@ -12939,10 +13023,10 @@ func (s *integrationMDMTestSuite) TestVPPApps() {
 		s.DoJSON("POST", "/api/latest/fleet/software/app_store_apps", addAppReq, http.StatusOK, &addAppResp)
 		titleID := getSoftwareTitleIDFromApp(&includeAnyApp)
 		require.Equal(t, titleID, addAppResp.TitleID, "addAppResp should contain the correct software title ID")
-		activityData := `{"team_name": "%s", "software_title": "%s", "software_title_id": %d, "app_store_id": "%s", "team_id": %d, "platform": "%s", "self_service": true, "labels_include_any": [{"id": %d, "name": %q}]}`
+		activityData := `{"team_name": "%s", "fleet_name": "%s", "software_title": "%s", "software_title_id": %d, "app_store_id": "%s", "team_id": %d, "fleet_id": %d, "platform": "%s", "self_service": true, "labels_include_any": [{"id": %d, "name": %q}]}`
 		s.lastActivityMatches(fleet.ActivityAddedAppStoreApp{}.ActivityName(),
-			fmt.Sprintf(activityData, team.Name,
-				includeAnyApp.Name, titleID, includeAnyApp.AdamID, team.ID, includeAnyApp.Platform, l1.ID, l1.Name), 0)
+			fmt.Sprintf(activityData, team.Name, team.Name,
+				includeAnyApp.Name, titleID, includeAnyApp.AdamID, team.ID, team.ID, includeAnyApp.Platform, l1.ID, l1.Name), 0)
 
 		var getSWTitle getSoftwareTitleResponse
 		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d", titleID), nil, http.StatusOK, &getSWTitle, "team_id", fmt.Sprint(team.ID))
@@ -12973,10 +13057,10 @@ func (s *integrationMDMTestSuite) TestVPPApps() {
 		}
 		s.DoJSON("POST", "/api/latest/fleet/software/app_store_apps", addAppReq, http.StatusOK, &addAppResp)
 		titleID = getSoftwareTitleIDFromApp(&excludeAnyApp)
-		activityData = `{"team_name": "%s", "software_title": "%s", "software_title_id": %d, "app_store_id": "%s", "team_id": %d, "platform": "%s", "self_service": true, "labels_exclude_any": [{"id": %d, "name": %q}]}`
+		activityData = `{"team_name": "%s", "fleet_name": "%s", "software_title": "%s", "software_title_id": %d, "app_store_id": "%s", "team_id": %d, "fleet_id": %d, "platform": "%s", "self_service": true, "labels_exclude_any": [{"id": %d, "name": %q}]}`
 		s.lastActivityMatches(fleet.ActivityAddedAppStoreApp{}.ActivityName(),
-			fmt.Sprintf(activityData, team.Name,
-				excludeAnyApp.Name, titleID, excludeAnyApp.AdamID, team.ID, excludeAnyApp.Platform, l2.ID, l2.Name), 0)
+			fmt.Sprintf(activityData, team.Name, team.Name,
+				excludeAnyApp.Name, titleID, excludeAnyApp.AdamID, team.ID, team.ID, excludeAnyApp.Platform, l2.ID, l2.Name), 0)
 
 		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d", titleID), nil, http.StatusOK, &getSWTitle, "team_id", fmt.Sprint(team.ID))
 		require.NotNil(t, getSWTitle.SoftwareTitle.AppStoreApp)
@@ -13038,10 +13122,10 @@ func (s *integrationMDMTestSuite) TestVPPApps() {
 		require.False(t, updateAppResp.AppStoreApp.SelfService)
 		require.Equal(t, fleet.MacOSPlatform, updateAppResp.AppStoreApp.Platform)
 
-		activityData = `{"team_name": "%s", "software_title": "%s", "app_store_id": "%s", "software_icon_url": "https://example.com/images/2/512x512.png", "team_id": %d, "software_title_id": %d, "platform": "%s", "self_service": false, "labels_include_any": [{"id": %d, "name": %q}], "software_display_name": ""}`
+		activityData = `{"team_name": "%s", "fleet_name": "%s", "software_title": "%s", "app_store_id": "%s", "software_icon_url": "https://example.com/images/2/512x512.png", "team_id": %d, "fleet_id": %d, "software_title_id": %d, "platform": "%s", "self_service": false, "labels_include_any": [{"id": %d, "name": %q}], "software_display_name": ""}`
 		s.lastActivityMatches(fleet.ActivityEditedAppStoreApp{}.ActivityName(),
-			fmt.Sprintf(activityData, team.Name,
-				excludeAnyApp.Name, excludeAnyApp.AdamID, team.ID, titleID, excludeAnyApp.Platform, l2.ID, l2.Name), 0)
+			fmt.Sprintf(activityData, team.Name, team.Name,
+				excludeAnyApp.Name, excludeAnyApp.AdamID, team.ID, team.ID, titleID, excludeAnyApp.Platform, l2.ID, l2.Name), 0)
 
 		// double check that our updates worked
 		getSWTitle = getSoftwareTitleResponse{}
@@ -13069,10 +13153,10 @@ func (s *integrationMDMTestSuite) TestVPPApps() {
 
 		// delete the VPP app
 		s.Do("DELETE", fmt.Sprintf("/api/latest/fleet/software/titles/%d/available_for_install", titleID), nil, http.StatusNoContent, "team_id", fmt.Sprintf("%d", team.ID))
-		activityData = `{"team_name": "%s", "software_title": "%s", "app_store_id": "%s", "software_icon_url": "https://example.com/images/2/512x512.png", "team_id": %d, "platform": "%s", "labels_include_any": [{"id": %d, "name": %q}]}`
+		activityData = `{"team_name": "%s", "fleet_name": "%s", "software_title": "%s", "app_store_id": "%s", "software_icon_url": "https://example.com/images/2/512x512.png", "team_id": %d, "fleet_id": %d, "platform": "%s", "labels_include_any": [{"id": %d, "name": %q}]}`
 		s.lastActivityMatches(fleet.ActivityDeletedAppStoreApp{}.ActivityName(),
-			fmt.Sprintf(activityData, team.Name,
-				excludeAnyApp.Name, excludeAnyApp.AdamID, team.ID, excludeAnyApp.Platform, l2.ID, l2.Name), 0)
+			fmt.Sprintf(activityData, team.Name, team.Name,
+				excludeAnyApp.Name, excludeAnyApp.AdamID, team.ID, team.ID, excludeAnyApp.Platform, l2.ID, l2.Name), 0)
 
 		// iOS and iPadOS
 
@@ -13328,8 +13412,8 @@ func (s *integrationMDMTestSuite) TestVPPApps() {
 	s.DoJSON("POST", "/api/latest/fleet/software/app_store_apps", &addAppStoreAppRequest{TeamID: &team.ID, AppStoreID: addedApp.AdamID, SelfService: true, AutomaticInstall: true}, http.StatusOK, &addAppResp)
 
 	s.lastActivityOfTypeMatches(fleet.ActivityAddedAppStoreApp{}.ActivityName(),
-		fmt.Sprintf(`{"team_name": "%s", "software_title": "%s", "software_title_id": %d, "app_store_id": "%s", "team_id": %d, "platform": "%s", "self_service": true}`, team.Name,
-			addedApp.Name, getSoftwareTitleIDFromApp(addedApp), addedApp.AdamID, team.ID, addedApp.Platform), 0)
+		fmt.Sprintf(`{"team_name": "%s", "fleet_name": "%s", "software_title": "%s", "software_title_id": %d, "app_store_id": "%s", "team_id": %d, "fleet_id": %d, "platform": "%s", "self_service": true}`, team.Name, team.Name,
+			addedApp.Name, getSoftwareTitleIDFromApp(addedApp), addedApp.AdamID, team.ID, team.ID, addedApp.Platform), 0)
 
 	// Now we should be filtering out the app we added to team 1
 	appResp = getAppStoreAppsResponse{}
@@ -13367,8 +13451,8 @@ func (s *integrationMDMTestSuite) TestVPPApps() {
 	s.Do("DELETE", fmt.Sprintf("/api/latest/fleet/software/titles/%d/available_for_install", macOSTitleID), nil, http.StatusNoContent,
 		"team_id", fmt.Sprint(team.ID))
 	s.lastActivityMatches(fleet.ActivityDeletedAppStoreApp{}.ActivityName(),
-		fmt.Sprintf(`{"team_name": "%s", "software_title": "%s", "app_store_id": "%s", "software_icon_url": "https://example.com/images/1/512x512.png", "team_id": %d, "platform": "%s"}`, team.Name,
-			addedApp.Name, addedApp.AdamID, team.ID, addedApp.Platform), 0)
+		fmt.Sprintf(`{"team_name": "%s", "fleet_name": "%s", "software_title": "%s", "app_store_id": "%s", "software_icon_url": "https://example.com/images/1/512x512.png", "team_id": %d, "fleet_id": %d, "platform": "%s"}`, team.Name, team.Name,
+			addedApp.Name, addedApp.AdamID, team.ID, team.ID, addedApp.Platform), 0)
 
 	// deleting it again fails, not found
 	s.Do("DELETE", fmt.Sprintf("/api/latest/fleet/software/titles/%d/available_for_install", macOSTitleID), nil, http.StatusNotFound,
@@ -13395,8 +13479,8 @@ func (s *integrationMDMTestSuite) TestVPPApps() {
 		&addAppStoreAppRequest{TeamID: &team.ID, AppStoreID: addedApp.AdamID, Platform: addedApp.Platform},
 		http.StatusOK, &addAppResp)
 	s.lastActivityMatches(fleet.ActivityAddedAppStoreApp{}.ActivityName(),
-		fmt.Sprintf(`{"team_name": "%s", "software_title": "%s", "software_title_id": %d, "app_store_id": "%s", "team_id": %d, "platform": "%s", "self_service": false}`, team.Name,
-			addedApp.Name, getSoftwareTitleIDFromApp(addedApp), addedApp.AdamID, team.ID, addedApp.Platform), 0)
+		fmt.Sprintf(`{"team_name": "%s", "fleet_name": "%s", "software_title": "%s", "software_title_id": %d, "app_store_id": "%s", "team_id": %d, "fleet_id": %d, "platform": "%s", "self_service": false}`, team.Name, team.Name,
+			addedApp.Name, getSoftwareTitleIDFromApp(addedApp), addedApp.AdamID, team.ID, team.ID, addedApp.Platform), 0)
 
 	// Now we should be filtering out the app we added to team 1
 	appResp = getAppStoreAppsResponse{}
@@ -13432,8 +13516,8 @@ func (s *integrationMDMTestSuite) TestVPPApps() {
 		"team_id",
 		fmt.Sprint(team.ID))
 	s.lastActivityMatches(fleet.ActivityDeletedAppStoreApp{}.ActivityName(),
-		fmt.Sprintf(`{"team_name": "%s", "software_title": "%s", "app_store_id": "%s", "software_icon_url": "/api/latest/fleet/software/titles/%d/icon?team_id=%d", "team_id": %d, "platform": "%s"}`, team.Name,
-			addedApp.Name, addedApp.AdamID, macOSTitleID, team.ID, team.ID, addedApp.Platform), 0)
+		fmt.Sprintf(`{"team_name": "%s", "fleet_name": "%s", "software_title": "%s", "app_store_id": "%s", "software_icon_url": "/api/latest/fleet/software/titles/%d/icon?team_id=%d", "team_id": %d, "fleet_id": %d, "platform": "%s"}`, team.Name, team.Name,
+			addedApp.Name, addedApp.AdamID, macOSTitleID, team.ID, team.ID, team.ID, addedApp.Platform), 0)
 
 	var count int
 	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
@@ -13489,8 +13573,8 @@ func (s *integrationMDMTestSuite) TestVPPApps() {
 		http.StatusOK, &addAppResp)
 	s.lastActivityMatches(
 		fleet.ActivityAddedAppStoreApp{}.ActivityName(),
-		fmt.Sprintf(`{"team_name": "%s", "software_title": "%s", "software_title_id": %d, "app_store_id": "%s", "team_id": %d, "platform": "%s", "self_service": true}`, team.Name,
-			appSelfService.Name, getSoftwareTitleIDFromApp(appSelfService), appSelfService.AdamID, team.ID, appSelfService.Platform),
+		fmt.Sprintf(`{"team_name": "%s", "fleet_name": "%s", "software_title": "%s", "software_title_id": %d, "app_store_id": "%s", "team_id": %d, "fleet_id": %d, "platform": "%s", "self_service": true}`, team.Name, team.Name,
+			appSelfService.Name, getSoftwareTitleIDFromApp(appSelfService), appSelfService.AdamID, team.ID, team.ID, appSelfService.Platform),
 		0,
 	)
 	listSw = listSoftwareTitlesResponse{}
@@ -13504,8 +13588,8 @@ func (s *integrationMDMTestSuite) TestVPPApps() {
 			http.StatusOK, &addAppResp)
 		s.lastActivityMatches(
 			fleet.ActivityAddedAppStoreApp{}.ActivityName(),
-			fmt.Sprintf(`{"team_name": "%s", "software_title": "%s", "software_title_id": %d, "app_store_id": "%s", "team_id": %d, "platform": "%s", "self_service": false}`, team.Name,
-				app.Name, getSoftwareTitleIDFromApp(app), app.AdamID, team.ID, app.Platform),
+			fmt.Sprintf(`{"team_name": "%s", "fleet_name": "%s", "software_title": "%s", "software_title_id": %d, "app_store_id": "%s", "team_id": %d, "fleet_id": %d, "platform": "%s", "self_service": false}`, team.Name, team.Name,
+				app.Name, getSoftwareTitleIDFromApp(app), app.AdamID, team.ID, team.ID, app.Platform),
 			0,
 		)
 		listSw = listSoftwareTitlesResponse{}
@@ -13612,8 +13696,12 @@ func (s *integrationMDMTestSuite) TestVPPApps() {
 		fmt.Sprint(team.ID), "software_title_id", fmt.Sprint(errTitleID))
 	require.Equal(t, 1, countResp.Count)
 
-	// Simulate failed installation on the host
-	errorOnInstallApplicationCommand(1234)
+	// Simulate failed installation on the host, exhaust retries (MaxSoftwareInstallAttempts = 3)
+	// First error triggers retry 1, second triggers retry 2, third triggers retry 3,
+	// fourth exhausts retries and marks as failed.
+	for range fleet.MaxSoftwareInstallAttempts + 1 {
+		errorOnInstallApplicationCommand(1234)
+	}
 
 	listResp = listHostsResponse{}
 	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &listResp, "software_status", "failed", "team_id", fmt.Sprint(team.ID),
@@ -14170,8 +14258,8 @@ func (s *integrationMDMTestSuite) TestNoTeamVPPAppIcons() {
 		"team_id",
 		fmt.Sprint(fleet.PolicyNoTeamID))
 	s.lastActivityMatches(fleet.ActivityDeletedAppStoreApp{}.ActivityName(),
-		fmt.Sprintf(`{"team_name": null, "software_title": "%s", "app_store_id": "%s", "software_icon_url": "/api/latest/fleet/software/titles/%d/icon?team_id=%d", "team_id": %d, "platform": "%s"}`,
-			addedApp.Name, addedApp.AdamID, macOSTitleID, fleet.PolicyNoTeamID, fleet.PolicyNoTeamID, addedApp.Platform), 0)
+		fmt.Sprintf(`{"team_name": null, "fleet_name": null, "software_title": "%s", "app_store_id": "%s", "software_icon_url": "/api/latest/fleet/software/titles/%d/icon?team_id=%d", "team_id": %d, "fleet_id": %d, "platform": "%s"}`,
+			addedApp.Name, addedApp.AdamID, macOSTitleID, fleet.PolicyNoTeamID, fleet.PolicyNoTeamID, fleet.PolicyNoTeamID, addedApp.Platform), 0)
 
 	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 		return sqlx.GetContext(context.Background(), q, &count, `SELECT COUNT(1) FROM software_title_icons WHERE team_id = ? and software_title_id = ?`, fleet.PolicyNoTeamID, macOSTitleID)
@@ -14369,8 +14457,8 @@ func (s *integrationMDMTestSuite) TestVPPAppPolicyAutomation() {
 			http.StatusOK, &addedMacOSApp)
 		s.lastActivityMatches(
 			fleet.ActivityAddedAppStoreApp{}.ActivityName(),
-			fmt.Sprintf(`{"team_name": "%s", "software_title": "%s", "software_title_id": %d, "app_store_id": "%s", "team_id": %d, "platform": "%s", "self_service": false}`, team.Name,
-				app.Name, getSoftwareTitleIDFromApp(app), app.AdamID, team.ID, app.Platform),
+			fmt.Sprintf(`{"team_name": "%s", "fleet_name": "%s", "software_title": "%s", "software_title_id": %d, "app_store_id": "%s", "team_id": %d, "fleet_id": %d, "platform": "%s", "self_service": false}`, team.Name, team.Name,
+				app.Name, getSoftwareTitleIDFromApp(app), app.AdamID, team.ID, team.ID, app.Platform),
 			0,
 		)
 		listSw = listSoftwareTitlesResponse{}
@@ -17570,7 +17658,7 @@ func (s *integrationMDMTestSuite) TestSetupExperience() {
 	require.Nil(t, respPutSetupExperience.Error())
 
 	s.lastActivityOfTypeMatches(fleet.ActivityEditedSetupExperienceSoftware{}.ActivityName(),
-		fmt.Sprintf(`{"platform": "darwin", "team_id": %d, "team_name": "%s"}`, team1.ID, team1.Name), 0)
+		fmt.Sprintf(`{"platform": "darwin", "team_id": %d, "team_name": "%s", "fleet_id": %d, "fleet_name": "%s"}`, team1.ID, team1.Name, team1.ID, team1.Name), 0)
 
 	respPutSetupExperience = putSetupExperienceSoftwareResponse{}
 	s.DoJSON("PUT", "/api/latest/fleet/setup_experience/software", putSetupExperienceSoftwareRequest{
@@ -17581,7 +17669,7 @@ func (s *integrationMDMTestSuite) TestSetupExperience() {
 	require.Nil(t, respPutSetupExperience.Error())
 
 	s.lastActivityOfTypeMatches(fleet.ActivityEditedSetupExperienceSoftware{}.ActivityName(),
-		fmt.Sprintf(`{"platform": "darwin", "team_id": %d, "team_name": "%s"}`, team1.ID, team1.Name), 0)
+		fmt.Sprintf(`{"platform": "darwin", "team_id": %d, "team_name": "%s", "fleet_id": %d, "fleet_name": "%s"}`, team1.ID, team1.Name, team1.ID, team1.Name), 0)
 
 	s.DoJSON("GET", "/api/latest/fleet/setup_experience/software", getSetupExperienceSoftwareRequest{}, http.StatusOK, &respGetSetupExperience, "team_id", fmt.Sprint(team1.ID))
 	require.Len(t, respGetSetupExperience.SoftwareTitles, 2)
@@ -18682,7 +18770,7 @@ func (s *integrationMDMTestSuite) TestRecreateDeletedIPhoneBYOD() {
 		pushMutex.Unlock()
 		return mockSuccessfulPush(ctx, pushes)
 	}
-	err := apple_mdm.IOSiPadOSRevive(context.Background(), s.ds, s.mdmCommander, s.logger)
+	err := apple_mdm.IOSiPadOSRevive(context.Background(), s.ds, s.mdmCommander, s.logger.SlogLogger())
 	require.NoError(t, err)
 	pushMutex.Lock()
 	require.Len(t, recordedPushes, 1)
@@ -18970,6 +19058,17 @@ func (s *integrationMDMTestSuite) TestCancelUpcomingActivity() {
 	s.Do("POST", "/api/fleet/orbit/software_install/result", json.RawMessage(fmt.Sprintf(`{
 			"orbit_node_key": %q, "install_uuid": %q, "pre_install_condition_output": "ok", "install_script_exit_code": 1, "install_script_output": "fail"
 		}`, *mdmHost.OrbitNodeKey, hostActivitiesResp.Activities[1].UUID)), http.StatusNoContent)
+
+	// Exhaust automatic retries for the failed software install.
+	// Server-side retries queue up to MaxSoftwareInstallAttempts attempts.
+	for attempt := 2; attempt <= fleet.MaxSoftwareInstallAttempts; attempt++ {
+		hostActivitiesResp = listHostUpcomingActivitiesResponse{}
+		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/activities/upcoming", mdmHost.ID), nil, http.StatusOK, &hostActivitiesResp)
+		require.Len(t, hostActivitiesResp.Activities, 1, "should have pending retry (attempt %d)", attempt)
+		s.Do("POST", "/api/fleet/orbit/software_install/result", json.RawMessage(fmt.Sprintf(`{
+				"orbit_node_key": %q, "install_uuid": %q, "pre_install_condition_output": "ok", "install_script_exit_code": 1, "install_script_output": "fail"
+			}`, *mdmHost.OrbitNodeKey, hostActivitiesResp.Activities[0].UUID)), http.StatusNoContent)
+	}
 
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/activities/upcoming", mdmHost.ID), nil, http.StatusOK, &hostActivitiesResp)
 	require.Len(t, hostActivitiesResp.Activities, 0)
@@ -19645,7 +19744,7 @@ func (s *integrationMDMTestSuite) TestIOSiPadOSRefetch() {
 		return nil, errors.New("unknown device")
 	}
 
-	err = apple_mdm.IOSiPadOSRefetch(ctx, s.ds, s.mdmCommander, s.logger, func(ctx context.Context, user *fleet.User, act fleet.ActivityDetails) error {
+	err = apple_mdm.IOSiPadOSRefetch(ctx, s.ds, s.mdmCommander, s.logger.SlogLogger(), func(ctx context.Context, user *fleet.User, act fleet.ActivityDetails) error {
 		return newActivity(ctx, user, act, s.ds, s.logger)
 	})
 	require.NoError(s.T(), err) // Verify it not longer throws an error
@@ -20661,7 +20760,7 @@ func (s *integrationMDMTestSuite) TestInstalledApplicationListCommandForBYODiDev
 	checkExpectedCommands(mdmClientDEP, false, 1)
 
 	// run the cron-based refetch, will not do anything as the devices were just refetched
-	err = apple_mdm.IOSiPadOSRefetch(ctx, s.ds, s.mdmCommander, s.logger, func(ctx context.Context, user *fleet.User, act fleet.ActivityDetails) error {
+	err = apple_mdm.IOSiPadOSRefetch(ctx, s.ds, s.mdmCommander, s.logger.SlogLogger(), func(ctx context.Context, user *fleet.User, act fleet.ActivityDetails) error {
 		return newActivity(ctx, user, act, s.ds, s.logger)
 	})
 	require.NoError(t, err)
@@ -20676,7 +20775,7 @@ func (s *integrationMDMTestSuite) TestInstalledApplicationListCommandForBYODiDev
 	require.NoError(t, s.ds.UpdateHost(ctx, hostDEP))
 
 	// run the cron-based refetch again, will enqueue the commands with the correct managed only flag
-	err = apple_mdm.IOSiPadOSRefetch(ctx, s.ds, s.mdmCommander, s.logger, func(ctx context.Context, user *fleet.User, act fleet.ActivityDetails) error {
+	err = apple_mdm.IOSiPadOSRefetch(ctx, s.ds, s.mdmCommander, s.logger.SlogLogger(), func(ctx context.Context, user *fleet.User, act fleet.ActivityDetails) error {
 		return newActivity(ctx, user, act, s.ds, s.logger)
 	})
 	require.NoError(t, err)
@@ -20776,10 +20875,20 @@ func (s *integrationMDMTestSuite) TestTechnicianPermissions() {
 	require.NoError(t, err)
 	t2, err := s.ds.NewTeam(ctx, &fleet.Team{
 		Name: "Bar",
+		Secrets: []*fleet.EnrollSecret{
+			{
+				Secret: "super secret 2",
+			},
+		},
 	})
 	require.NoError(t, err)
 	t3, err := s.ds.NewTeam(ctx, &fleet.Team{
 		Name: "Zoo",
+		Secrets: []*fleet.EnrollSecret{
+			{
+				Secret: "super secret 3",
+			},
+		},
 	})
 	require.NoError(t, err)
 	team1Host, err := s.ds.NewHost(ctx, &fleet.Host{
@@ -20999,6 +21108,48 @@ func (s *integrationMDMTestSuite) TestTechnicianPermissions() {
 	})
 	require.NoError(t, err)
 
+	// Set SMTP, agent options, and SSO settings, and check they are not available for Technicians.
+	acSetup := appConfigResponse{}
+	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
+		"smtp_settings": {
+			"enable_smtp": true,
+			"sender_address": "test@example.com",
+			"server": "localhost",
+			"port": 1025,
+			"authentication_type": "authtype_username_password",
+			"user_name": "smtpuser",
+			"password": "smtpsecretpassword"
+		},
+		"sso_settings": {
+			"enable_sso": true,
+			"entity_id": "https://localhost:8080",
+			"idp_name": "SimpleSAML",
+			"metadata_url": "http://localhost:9080/simplesaml/saml2/idp/metadata.php",
+			"enable_jit_provisioning": false
+		},
+		"agent_options": {
+			"config": {
+				"options": {
+					"pack_delimiter": "/",
+					"logger_tls_period": 10,
+					"distributed_plugin": "tls",
+					"disable_distributed": false,
+					"logger_tls_endpoint": "/api/osquery/log",
+					"distributed_interval": 10,
+					"distributed_tls_max_attempts": 3
+				}
+			}
+		}
+	}`), http.StatusOK, &acSetup)
+	t.Cleanup(func() {
+		acSetup := appConfigResponse{}
+		s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
+			"smtp_settings": {},
+			"sso_settings": {},
+			"agent_options": {}
+		}`), http.StatusOK, &acSetup)
+	})
+
 	//
 	// Start running permission tests with user global-technician@example.com.
 	//
@@ -21066,8 +21217,12 @@ func (s *integrationMDMTestSuite) TestTechnicianPermissions() {
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/software/%d", lsr.Software[0].ID), getSoftwareRequest{}, http.StatusOK, &getSoftwareResponse{})
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/software/versions/%d", lsr.Software[0].ID), getSoftwareRequest{}, http.StatusOK, &getSoftwareResponse{})
 
-	// Attempt to read app config, should pass.
-	s.DoJSON("GET", "/api/latest/fleet/config", nil, http.StatusOK, &appConfigResponse{})
+	// Attempt to read app config, only global admins get SMTP settings.
+	var globalTechConfigResp appConfigResponse
+	s.DoJSON("GET", "/api/latest/fleet/config", nil, http.StatusOK, &globalTechConfigResp)
+	require.Nil(t, globalTechConfigResp.SMTPSettings)
+	require.Nil(t, globalTechConfigResp.SSOSettings)
+	require.Nil(t, globalTechConfigResp.AgentOptions)
 
 	// Attempt to write app config, should fail.
 	acr := appConfigResponse{}
@@ -21296,8 +21451,20 @@ func (s *integrationMDMTestSuite) TestTechnicianPermissions() {
 		}
 	}`), http.StatusForbidden, &teamResponse{})
 
-	// Attempt to view a team, should allow.
-	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/teams/%d", t1.ID), getTeamRequest{}, http.StatusOK, &teamResponse{})
+	// Attempt to view a team, should allow, but enroll secrets should be masked.
+	var teamRes teamResponse
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/teams/%d", t1.ID), getTeamRequest{}, http.StatusOK, &teamRes)
+	require.Len(t, teamRes.Team.Secrets, 1)
+	require.Equal(t, fleet.MaskedPassword, teamRes.Team.Secrets[0].Secret)
+
+	// Attempt to list teams, should allow, but all enroll secrets should be masked.
+	var ltr listTeamsResponse
+	s.DoJSON("GET", "/api/latest/fleet/teams", listTeamsRequest{}, http.StatusOK, &ltr)
+	require.Len(t, ltr.Teams, 3)
+	for _, team := range ltr.Teams {
+		require.Len(t, team.Secrets, 1)
+		require.Equal(t, fleet.MaskedPassword, team.Secrets[0].Secret)
+	}
 
 	// Attempt to delete a team, should fail.
 	dtr := deleteTeamResponse{}
@@ -21439,6 +21606,13 @@ func (s *integrationMDMTestSuite) TestTechnicianPermissions() {
 	//
 
 	s.setTokenForTest(t, "t1-t3-technician@example.com", test.GoodPassword)
+
+	// Attempt to read app config, should pass and secrets should be obfuscated.
+	var teamTechConfigResp appConfigResponse
+	s.DoJSON("GET", "/api/latest/fleet/config", nil, http.StatusOK, &teamTechConfigResp)
+	require.Nil(t, teamTechConfigResp.SMTPSettings)
+	require.Nil(t, teamTechConfigResp.SSOSettings)
+	require.Nil(t, teamTechConfigResp.AgentOptions)
 
 	// Attempt to create queries in global domain, should allow.
 	tcqr := createQueryResponse{}
@@ -21592,6 +21766,21 @@ func (s *integrationMDMTestSuite) TestTechnicianPermissions() {
 	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/teams/%d/policies/delete", t1.ID), deleteTeamPoliciesRequest{
 		IDs: []uint{t1p.ID},
 	}, http.StatusForbidden, &deleteTeamPoliciesResponse{})
+
+	// Attempt to view own team, should allow, but enroll secrets should be masked.
+	teamRes = teamResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/teams/%d", t1.ID), getTeamRequest{}, http.StatusOK, &teamRes)
+	require.Len(t, teamRes.Team.Secrets, 1)
+	require.Equal(t, fleet.MaskedPassword, teamRes.Team.Secrets[0].Secret)
+
+	// Attempt to list teams, should allow, but all enroll secrets should be masked.
+	ltr = listTeamsResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/teams", listTeamsRequest{}, http.StatusOK, &ltr)
+	require.Len(t, ltr.Teams, 2)
+	for _, team := range ltr.Teams {
+		require.Len(t, team.Secrets, 1)
+		require.Equal(t, fleet.MaskedPassword, team.Secrets[0].Secret)
+	}
 
 	// Attempt to edit own team, should fail.
 	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", t1.ID), modifyTeamRequest{

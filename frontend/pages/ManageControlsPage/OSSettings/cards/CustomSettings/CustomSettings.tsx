@@ -20,7 +20,7 @@ import GenericMsgWithNavButton from "components/GenericMsgWithNavButton";
 
 import Pagination from "components/Pagination";
 
-import UploadList from "../../../components/UploadList";
+import UploadList from "../../../../../components/UploadList";
 
 import AddProfileCard from "./components/ProfileUploader/components/AddProfileCard";
 import AddProfileModal from "./components/ProfileUploader/components/AddProfileModal";
@@ -129,7 +129,7 @@ const CustomSettings = ({
       await mdmAPI.deleteProfile(profileId);
       refetchProfiles();
       onMutation();
-      renderFlash("success", "Successfully deleted!");
+      renderFlash("success", "Successfully deleted.");
     } catch (e) {
       renderFlash("error", "Couldn't delete. Please try again.");
     } finally {
@@ -141,7 +141,7 @@ const CustomSettings = ({
 
   // pagination controls
   const path = PATHS.CONTROLS_CUSTOM_SETTINGS;
-  const queryString = isPremiumTier ? `?team_id=${currentTeamId}&` : "?";
+  const queryString = isPremiumTier ? `?fleet_id=${currentTeamId}&` : "?";
 
   const onPrevPage = useCallback(() => {
     router.push(path.concat(`${queryString}page=${currentPage - 1}`));

@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log/slog"
 	"slices"
 	"sort"
 	"strings"
@@ -17,16 +18,26 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	common_mysql "github.com/fleetdm/fleet/v4/server/platform/mysql"
 	"github.com/fleetdm/fleet/v4/server/ptr"
-	kitlog "github.com/go-kit/log"
-	"github.com/go-kit/log/level"
 	"github.com/jmoiron/sqlx"
 )
+
+// policyAllowedOrderKeys defines the allowed order keys for ListTeamPolicies.
+// SECURITY: This prevents information disclosure via arbitrary column sorting.
+var policyAllowedOrderKeys = common_mysql.OrderKeyAllowlist{
+	"id":                 "p.id",
+	"name":               "p.name",
+	"team_id":            "p.team_id",
+	"created_at":         "p.created_at",
+	"updated_at":         "p.updated_at",
+	"failing_host_count": "COALESCE(ps.failing_host_count, 0)",
+	"passing_host_count": "COALESCE(ps.passing_host_count, 0)",
+}
 
 const policyCols = `
 	p.id, p.team_id, p.resolution, p.name, p.query, p.description,
 	p.author_id, p.platforms, p.created_at, p.updated_at, p.critical,
 	p.calendar_events_enabled, p.software_installer_id, p.script_id,
-	p.vpp_apps_teams_id, p.conditional_access_enabled
+	p.vpp_apps_teams_id, p.conditional_access_enabled, p.conditional_access_bypass_enabled
 `
 
 const (
@@ -321,7 +332,7 @@ func (ds *Datastore) SavePolicy(ctx context.Context, p *fleet.Policy, shouldRemo
 	return nil
 }
 
-func savePolicy(ctx context.Context, db sqlx.ExtContext, logger kitlog.Logger, p *fleet.Policy, shouldRemoveAllPolicyMemberships bool, removePolicyStats bool) error {
+func savePolicy(ctx context.Context, db sqlx.ExtContext, logger *slog.Logger, p *fleet.Policy, shouldRemoveAllPolicyMemberships bool, removePolicyStats bool) error {
 	if p.TeamID == nil && p.SoftwareInstallerID != nil {
 		return ctxerr.Wrap(ctx, errSoftwareTitleIDOnGlobalPolicy, "save policy")
 	}
@@ -335,6 +346,11 @@ func savePolicy(ctx context.Context, db sqlx.ExtContext, logger kitlog.Logger, p
 		}
 	}
 
+	// Defaults to true if not present
+	if p.ConditionalAccessBypassEnabled == nil {
+		p.ConditionalAccessBypassEnabled = ptr.Bool(true)
+	}
+
 	// We must normalize the name for full Unicode support (Unicode equivalence).
 	p.Name = norm.NFC.String(p.Name)
 	updateStmt := `
@@ -342,11 +358,16 @@ func savePolicy(ctx context.Context, db sqlx.ExtContext, logger kitlog.Logger, p
 			SET name = ?, query = ?, description = ?, resolution = ?,
 			platforms = ?, critical = ?, calendar_events_enabled = ?,
 			software_installer_id = ?, script_id = ?, vpp_apps_teams_id = ?,
-			conditional_access_enabled = ?, checksum = ` + policiesChecksumComputedColumn() + `
-			WHERE id = ?
+			conditional_access_enabled = ?, conditional_access_bypass_enabled = ?,
+			checksum = ` + policiesChecksumComputedColumn() + `
+		WHERE id = ?
 	`
 	result, err := db.ExecContext(
-		ctx, updateStmt, p.Name, p.Query, p.Description, p.Resolution, p.Platform, p.Critical, p.CalendarEventsEnabled, p.SoftwareInstallerID, p.ScriptID, p.VPPAppsTeamsID, p.ConditionalAccessEnabled, p.ID,
+		ctx, updateStmt, p.Name, p.Query, p.Description, p.Resolution,
+		p.Platform, p.Critical, p.CalendarEventsEnabled,
+		p.SoftwareInstallerID, p.ScriptID, p.VPPAppsTeamsID,
+		p.ConditionalAccessEnabled, p.ConditionalAccessBypassEnabled,
+		p.ID,
 	)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "updating policy")
@@ -464,7 +485,7 @@ func assertTeamMatches(ctx context.Context, db sqlx.QueryerContext, teamID uint,
 func cleanupPolicy(
 	ctx context.Context, queryerContext sqlx.QueryerContext, extContext sqlx.ExtContext, policyID uint, policyPlatform string,
 	shouldRemoveAllPolicyMemberships bool,
-	removePolicyStats bool, logger kitlog.Logger,
+	removePolicyStats bool, logger *slog.Logger,
 ) error {
 	var err error
 	if shouldRemoveAllPolicyMemberships {
@@ -768,10 +789,13 @@ func listPoliciesDB(ctx context.Context, q sqlx.QueryerContext, teamID *uint, op
 	// We must normalize the name for full Unicode support (Unicode equivalence).
 	match := norm.NFC.String(opts.MatchQuery)
 	query, args = searchLike(query, args, match, policySearchColumns...)
-	query, args = appendListOptionsWithCursorToSQL(query, args, &opts)
+	query, args, err := appendListOptionsWithCursorToSQLSecure(query, args, &opts, policyAllowedOrderKeys)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "apply list options")
+	}
 
 	var policies []*fleet.Policy
-	err := sqlx.SelectContext(ctx, q, &policies, query, args...)
+	err = sqlx.SelectContext(ctx, q, &policies, query, args...)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "listing policies")
 	}
@@ -807,10 +831,13 @@ func getInheritedPoliciesForTeam(ctx context.Context, q sqlx.QueryerContext, tea
 	// We must normalize the name for full Unicode support (Unicode equivalence).
 	match := norm.NFC.String(opts.MatchQuery)
 	query, args = searchLike(query, args, match, policySearchColumns...)
-	query, _ = appendListOptionsToSQL(query, &opts)
+	query, _, err := appendListOptionsToSQLSecure(query, &opts, policyAllowedOrderKeys)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "apply list options")
+	}
 
 	var policies []*fleet.Policy
-	err := sqlx.SelectContext(ctx, q, &policies, query, args...)
+	err = sqlx.SelectContext(ctx, q, &policies, query, args...)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "listing inherited policies")
 	}
@@ -948,7 +975,7 @@ func (ds *Datastore) PolicyQueriesForHost(ctx context.Context, host *fleet.Host)
 	if host.FleetPlatform() == "" {
 		// We log to help troubleshooting in case this happens, as the host
 		// won't be receiving any policies targeted for specific platforms.
-		level.Error(ds.logger).Log("err", "unrecognized platform", "hostID", host.ID, "platform", host.Platform) //nolint:errcheck
+		ds.logger.ErrorContext(ctx, "unrecognized platform", "hostID", host.ID, "platform", host.Platform)
 	}
 	const stmt = `
 		SELECT p.id, p.query
@@ -1044,17 +1071,22 @@ func newTeamPolicy(ctx context.Context, db sqlx.ExtContext, teamID uint, authorI
 		return nil, ctxerr.Wrap(ctx, err, "create team policy")
 	}
 
+	if args.ConditionalAccessBypassEnabled == nil {
+		args.ConditionalAccessBypassEnabled = ptr.Bool(true)
+	}
+
 	res, err := db.ExecContext(ctx,
 		fmt.Sprintf(
 			`INSERT INTO policies (
 				name, query, description, team_id, resolution, author_id,
 				platforms, critical, calendar_events_enabled, software_installer_id,
-				script_id, vpp_apps_teams_id, conditional_access_enabled, checksum
-			) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, %s)`,
+				script_id, vpp_apps_teams_id, conditional_access_enabled, conditional_access_bypass_enabled, checksum
+			) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, %s)`,
 			policiesChecksumComputedColumn(),
 		),
 		nameUnicode, args.Query, args.Description, teamID, args.Resolution, authorID, args.Platform, args.Critical,
-		args.CalendarEventsEnabled, args.SoftwareInstallerID, args.ScriptID, args.VPPAppsTeamsID, args.ConditionalAccessEnabled,
+		args.CalendarEventsEnabled, args.SoftwareInstallerID, args.ScriptID, args.VPPAppsTeamsID,
+		args.ConditionalAccessEnabled, args.ConditionalAccessBypassEnabled,
 	)
 	switch {
 	case err == nil:
@@ -1128,10 +1160,13 @@ func (ds *Datastore) ListMergedTeamPolicies(ctx context.Context, teamID uint, op
 	// We must normalize the name for full Unicode support (Unicode equivalence).
 	match := norm.NFC.String(opts.MatchQuery)
 	query, args = searchLike(query, args, match, policySearchColumns...)
-	query, _ = appendListOptionsToSQL(query, &opts)
+	query, _, err := appendListOptionsToSQLSecure(query, &opts, policyAllowedOrderKeys)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "apply list options")
+	}
 
 	var policies []*fleet.Policy
-	err := sqlx.SelectContext(ctx, ds.reader(ctx), &policies, query, args...)
+	err = sqlx.SelectContext(ctx, ds.reader(ctx), &policies, query, args...)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "listing merged team policies")
 	}
@@ -1302,8 +1337,9 @@ func (ds *Datastore) ApplyPolicySpecs(ctx context.Context, authorID uint, specs 
 		    vpp_apps_teams_id,
 		    script_id,
 			conditional_access_enabled,
+			conditional_access_bypass_enabled,
 			checksum
-		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, %s)
+		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, %s)
 		ON DUPLICATE KEY UPDATE
 			query = VALUES(query),
 			description = VALUES(description),
@@ -1315,7 +1351,8 @@ func (ds *Datastore) ApplyPolicySpecs(ctx context.Context, authorID uint, specs 
 			software_installer_id = VALUES(software_installer_id),
 			vpp_apps_teams_id = VALUES(vpp_apps_teams_id),
 			script_id = VALUES(script_id),
-			conditional_access_enabled = VALUES(conditional_access_enabled)
+			conditional_access_enabled = VALUES(conditional_access_enabled),
+			conditional_access_bypass_enabled = VALUES(conditional_access_bypass_enabled)
 		`, policiesChecksumComputedColumn(),
 		)
 		for teamID, teamPolicySpecs := range teamIDToPolicies {
@@ -1335,11 +1372,16 @@ func (ds *Datastore) ApplyPolicySpecs(ctx context.Context, authorID uint, specs 
 					scriptID = nil
 				}
 
+				if spec.ConditionalAccessBypassEnabled == nil {
+					spec.ConditionalAccessBypassEnabled = ptr.Bool(true)
+				}
+
 				res, err := tx.ExecContext(
 					ctx,
 					query,
 					spec.Name, spec.Query, spec.Description, authorID, spec.Resolution, teamID, spec.Platform, spec.Critical,
 					spec.CalendarEventsEnabled, softwareInstallerID, vppAppsTeamsID, scriptID, spec.ConditionalAccessEnabled,
+					spec.ConditionalAccessBypassEnabled,
 				)
 				if err != nil {
 					return ctxerr.Wrap(ctx, err, "exec ApplyPolicySpecs insert")
@@ -2127,8 +2169,8 @@ func (ds *Datastore) UpdateHostPolicyCounts(ctx context.Context) error {
 			if err != nil {
 				if errors.Is(err, sql.ErrNoRows) {
 					// Policy or team was deleted by a parallel process. We proceed.
-					level.Error(ds.logger).Log(
-						"msg", "policy not found for inherited global policies. Was policy or team(s) deleted?", "policy_id", policy.ID,
+					ds.logger.ErrorContext(ctx,
+						"policy not found for inherited global policies. Was policy or team(s) deleted?", "policy_id", policy.ID,
 					)
 					continue
 				}
@@ -2157,8 +2199,8 @@ func (ds *Datastore) UpdateHostPolicyCounts(ctx context.Context) error {
 			if err != nil {
 				if errors.Is(err, sql.ErrNoRows) {
 					// Policy was deleted by a parallel process. We proceed.
-					level.Error(ds.logger).Log(
-						"msg", "'No team' policy not found for inherited global policies. Was policy deleted?", "policy_id", policy.ID,
+					ds.logger.ErrorContext(ctx,
+						"'No team' policy not found for inherited global policies. Was policy deleted?", "policy_id", policy.ID,
 					)
 					continue
 				}
@@ -2175,8 +2217,8 @@ func (ds *Datastore) UpdateHostPolicyCounts(ctx context.Context) error {
 			_, err = sqlx.NamedExecContext(ctx, db, insertStmt, policyStats)
 			if err != nil {
 				// INSERT may fail due to rare race conditions. We log and proceed.
-				level.Error(ds.logger).Log(
-					"msg", "insert policy stats for inherited global policies. Was policy deleted?", "policy_id", policy.ID, "err", err,
+				ds.logger.ErrorContext(ctx,
+					"insert policy stats for inherited global policies. Was policy deleted?", "policy_id", policy.ID, "err", err,
 				)
 			}
 		}

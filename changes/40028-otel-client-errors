@@ -1,0 +1,1 @@
+- Fixed client-side errors being incorrectly reported as server errors in OTEL telemetry.

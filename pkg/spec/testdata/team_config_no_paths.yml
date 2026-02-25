@@ -63,6 +63,7 @@ controls:
   windows_enabled_and_configured: true
   windows_migration_enabled: false
   enable_turn_on_windows_mdm_manually: false
+  windows_entra_tenant_ids: []
 labels:
   - name: a
     description: A cool global label
@@ -162,6 +163,7 @@ software:
         - a
   fleet_maintained_apps:
     - slug: slack/darwin
+      version: "4.47.65"
       self_service: true
       categories:
         - Productivity

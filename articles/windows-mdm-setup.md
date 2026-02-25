@@ -39,7 +39,7 @@ Restart the Fleet server.
 
 2. Next to **Turn on Windows MDM** select **Turn on** to navigate to the **Manage Windows MDM** page.
 
-3. Select **Turn on**.
+3. Toggle Windows MDM on. The best practice is to leave the end user experience set to **Automatic**. If you want end users to have to take action to turn MDM on, choose **Manual**.
 
 ## Manual enrollment
 
@@ -67,11 +67,13 @@ These issues are caused by residual enrollment data, registry conflicts, or thir
 
 ## Automatic enrollment
 
-> Available in Fleet Premium
+_Available in Fleet Premium_
 
 To automatically enroll Windows workstations when they’re first unboxed and set up by your end users, we will connect Fleet to Microsoft Entra ID.
 
-Connecting Fleet to Entra also enables end users to manually turn on MDM via the [Settings > Access work or school workflow](https://support.microsoft.com/en-us/account-billing/join-your-work-device-to-your-work-or-school-network-ef4d6adb-5095-4e51-829e-5457430f3973#:~:text=If%20you%27ve%20had%20your%20device%20for%20a%20while%20and%20it%27s%20already%20been%20set%20up%2C%20you%20can%20follow%20these%20steps%20to%20join%20your%20device%20to%20the%20network.). Fleet will collect the email and store it as the IdP [username](https://fleetdm.com/guides/foreign-vitals-map-idp-users-to-hosts). If a different email is used during the [setup experience](https://fleetdm.com/guides/setup-experience#end-user-authentication), it won't override the one used in **Settings > Access work or school**.
+Connecting Fleet to Entra also enables end users to manually turn on MDM via the [Settings > Access work or school workflow](https://support.microsoft.com/en-us/account-billing/join-your-work-device-to-your-work-or-school-network-ef4d6adb-5095-4e51-829e-5457430f3973#:~:text=If%20you%27ve%20had%20your%20device%20for%20a%20while%20and%20it%27s%20already%20been%20set%20up%2C%20you%20can%20follow%20these%20steps%20to%20join%20your%20device%20to%20the%20network.). Fleet will collect the email and store it as the IdP [username](https://fleetdm.com/guides/foreign-vitals-map-idp-users-to-hosts). If a different email is used during the [setup experience](https://fleetdm.com/guides/setup-experience#end-user-authentication), it won't override the one used in **Settings > Access work or school**. 
+
+During enrollment, end users are prompted to set up Windows Hello and add a PIN. To see the end user experience, watch [this video](https://www.youtube.com/watch?v=vJ9ciRLfVY8).
 
 After you connect Fleet to Entra, you can customize the Windows setup experience with [Windows Autopilot](https://learn.microsoft.com/en-us/autopilot/windows-autopilot).
 
@@ -219,7 +221,7 @@ You can [track migration progress in Fleet](https://fleetdm.com/guides/mdm-migra
 
 ## Turn off Windows MDM
 
-1. Turn off MDM for each host, by running [this script](https://github.com/fleetdm/fleet/blob/main/it-and-security/lib/windows/scripts/turn-off-mdm.ps1) on all your Windows hosts.
+1. Turn off MDM for each host, by running [this script](https://github.com/fleetdm/fleet/blob/main/it-and-security/lib/windows/scripts/turn-off-mdm.ps1) from Fleet on all your Windows hosts.
 2. Head to **Settings > Integrations > MDM**.
 3. In the **Mobile device management (MDM)** section, select **Edit** next to "Windows MDM turned on."
 4. Switch **Windows MDM on** to **Windows MDM off** and select **Save**.

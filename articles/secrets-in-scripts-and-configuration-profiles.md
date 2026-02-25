@@ -24,31 +24,29 @@ Variables are global, meaning they can be used in scripts and profiles across al
 
 ### GitOps
 
-1. You must add the variable to your [GitHub](https://docs.github.com/en/actions/how-tos/write-workflows/choose-what-workflows-do/use-secrets#creating-secrets-for-a-repository) or [GitLab](https://docs.gitlab.com/ci/variables/#define-a-cicd-variable-in-the-ui) repository's secrets to use them in GitOps.
+1. Add the variable to your [GitHub](https://docs.github.com/en/actions/how-tos/write-workflows/choose-what-workflows-do/use-secrets#creating-secrets-for-a-repository) or [GitLab](https://docs.gitlab.com/ci/variables/#define-a-cicd-variable-in-the-ui) repository's secrets to use the variable in GitOps.
 
-2. For the GitHub GitOps flow, they must also be added to the `env` section of your workflow file, as shown below:
+2. Define the variable in the `env` section of in your `workflows.yml` file, as shown below:
 
 ```yaml
     env:
-      ###  Variables used by the gitops workflow ###
+      ###  Variables used by the GitOps workflow ###
       FLEET_URL: ${{ secrets.FLEET_URL }}
       FLEET_API_TOKEN: ${{ secrets.FLEET_API_TOKEN }}
-      FLEET_WORKSTATIONS_ENROLL_SECRET: ${{ secrets.FLEET_WORKSTATIONS_ENROLL_SECRET }}
-      FLEET_WORKSTATIONS_CANARY_ENROLL_SECRET: ${{ secrets.FLEET_WORKSTATIONS_CANARY_ENROLL_SECRET }}
-      ### Secrets uploaded to Fleet for use in profiles and scripts ###
-      FLEET_SECRET_CERT_PASSWORD: ${{ secrets.FLEET_SECRET_CERT_PASSWORD }}
-      FLEET_SECRET_CERT_BASE64: ${{ secrets.FLEET_SECRET_CERT_BASE64 }}
+      WORKSTATIONS_ENROLL_SECRET: ${{ secrets.WORKSTATIONS_ENROLL_SECRET }}
 ```
 
-When GitOps syncs the configuration, it looks for variables in scripts and profiles, extracts the variable's values from the environment, and uploads them to Fleet.
+### Scripts and configuration profiles
 
-On subsequent GitOps syncs, if a variable is used by an updated configuration profile, the profile will be resent to the host device(s).
+During a GitOps run, Fleet scans scripts and profiles for variables, pulls their values from GitHub or GitLab, and uploads them to Fleet.
+
+Profiles with variables aren’t validated during a GitOps dry run because the variables may be missing or incorrect in Fleet. This means they’re more likely to fail during a real run. Best practice: test the script or profile by adding it to Fleet via the UI first.
+
+Some variables trigger a profile resend when their value changes. See which variables support this in the [YAML reference docs](https://fleetdm.com/docs/configuration/yaml-files#variables).
+
+If a variable is a secret (for example, an API token), prefix it with FLEET_SECRET_. This masks the value when viewed or downloaded from the Fleet UI or API. If a secret’s value changes, the profile is resent to hosts.
 
 Variables aren't removed on GitOps runs. To remove a variable, delete it on the `Controls` > `Variables` page.
-
-> Profiles with variables are not entirely validated during a GitOps dry run because the required variables may not exist or may be incorrect in the database. As a result, these profiles have a higher chance of failing during a non-dry run. Test them by uploading to a small team first.
-
-## Using the secret on a configuration profile
 
 Here's an example profile with `$FLEET_SECRET_CERT_PASSWORD` and `$FLEET_SECRET_CERT_BASE64` variables:
 ```xml
@@ -90,8 +88,7 @@ Here's an example profile with `$FLEET_SECRET_CERT_PASSWORD` and `$FLEET_SECRET_
 </plist>
 ```
 
-> In XML, certain characters (`&`, `<`, `>`, `"`, `'`) must be escaped because they have special meanings in the markup language. Fleet variables will be automatically escaped when used in a `.mobileconfig` configuration profile. For example, `&` will become `&amp;`.
-
+> Fleet variables are automatically escaped in Apple (`.mobileconfig`) and Windows (`.xml`) configuration profiles. For example, `&` will become `&amp;`. Special characters outside of Fleet variables must be manually escaped because they have special meanings in XML.
 
 ## Known limitations and issues
 

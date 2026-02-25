@@ -10,9 +10,8 @@ import (
 
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
+	"github.com/fleetdm/fleet/v4/server/platform/logging"
 	common_mysql "github.com/fleetdm/fleet/v4/server/platform/mysql"
-	kitlog "github.com/go-kit/log"
-	"github.com/go-kit/log/level"
 	"github.com/jmoiron/sqlx"
 )
 
@@ -36,7 +35,7 @@ func main() {
 		log.Fatal("Username is required (-user flag)")
 	}
 
-	logger := level.NewFilter(kitlog.NewLogfmtLogger(os.Stderr), level.AllowDebug())
+	logger := logging.NewSlogLogger(logging.Options{Output: os.Stderr})
 
 	// Configure MySQL connection with IAM auth
 	mysqlConfig := &config.MysqlConfig{

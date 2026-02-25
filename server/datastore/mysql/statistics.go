@@ -12,7 +12,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/version"
-	"github.com/go-kit/log/level"
 	"github.com/jmoiron/sqlx"
 )
 
@@ -85,7 +84,7 @@ func (ds *Datastore) ShouldSendStatistics(ctx context.Context, frequency time.Du
 		}
 		amountPolicyViolationDaysActual, amountPolicyViolationDaysPossible, err := amountPolicyViolationDaysDB(ctx, ds.reader(ctx))
 		if err == sql.ErrNoRows {
-			level.Debug(ds.logger).Log("msg", "amount policy violation days", "err", err) //nolint:errcheck
+			ds.logger.DebugContext(ctx, "amount policy violation days", "err", err)
 		} else if err != nil {
 			return ctxerr.Wrap(ctx, err, "amount policy violation days")
 		}
@@ -112,6 +111,10 @@ func (ds *Datastore) ShouldSendStatistics(ctx context.Context, frequency time.Du
 		numQueries, err := numSavedQueriesDB(ctx, ds.reader(ctx))
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "number of saved queries in DB")
+		}
+		fleetMaintainedAppsMacOS, fleetMaintainedAppsWindows, err := fleetMaintainedAppsInUseDB(ctx, ds.reader(ctx))
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "fleet maintained apps")
 		}
 
 		stats.NumHostsEnrolled = amountEnrolledHosts
@@ -164,6 +167,14 @@ func (ds *Datastore) ShouldSendStatistics(ctx context.Context, frequency time.Du
 		}
 		stats.NumHostsFleetDesktopEnabled = numHostsFleetDesktopEnabled
 		stats.NumQueries = numQueries
+		stats.FleetMaintainedAppsMacOS = fleetMaintainedAppsMacOS
+		stats.FleetMaintainedAppsWindows = fleetMaintainedAppsWindows
+
+		if appConfig.ConditionalAccess != nil {
+			stats.OktaConditionalAccessConfigured = appConfig.ConditionalAccess.OktaConfigured()
+			stats.ConditionalAccessBypassDisabled = !appConfig.ConditionalAccess.BypassEnabled()
+		}
+
 		return nil
 	}
 
@@ -258,4 +269,39 @@ func (ds *Datastore) getTableRowCountsViaInformationSchema(ctx context.Context) 
 		byName[row.Table] = row.Rows
 	}
 	return byName, nil
+}
+
+// fleetMaintainedAppsInUseDB returns arrays of Fleet-maintained app slugs grouped by platform (darwin for macOS, windows for Windows)
+func fleetMaintainedAppsInUseDB(ctx context.Context, db sqlx.QueryerContext) (macOSApps []string, windowsApps []string, err error) {
+	const query = `
+		SELECT DISTINCT fma.slug, fma.platform
+		FROM software_installers si
+		INNER JOIN fleet_maintained_apps fma ON si.fleet_maintained_app_id = fma.id
+		WHERE si.fleet_maintained_app_id IS NOT NULL AND fma.platform IN ('darwin', 'windows')
+		ORDER BY fma.platform, fma.slug
+	`
+
+	type appResult struct {
+		Slug     string `db:"slug"`
+		Platform string `db:"platform"`
+	}
+
+	var results []appResult
+	if err := sqlx.SelectContext(ctx, db, &results, query); err != nil {
+		return nil, nil, ctxerr.Wrap(ctx, err, "selecting fleet maintained apps in use")
+	}
+
+	// Initialize as empty slices (not nil) so they serialize as [] instead of null
+	macOSApps = make([]string, 0)
+	windowsApps = make([]string, 0)
+
+	for _, app := range results {
+		if app.Platform == "darwin" {
+			macOSApps = append(macOSApps, app.Slug)
+		} else if app.Platform == "windows" {
+			windowsApps = append(windowsApps, app.Slug)
+		}
+	}
+
+	return macOSApps, windowsApps, nil
 }

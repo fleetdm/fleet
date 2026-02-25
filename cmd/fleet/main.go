@@ -13,8 +13,11 @@ import (
 	"github.com/fleetdm/fleet/v4/server/shellquote"
 	_ "github.com/go-sql-driver/mysql"
 	"github.com/spf13/cobra"
+	"go.opentelemetry.io/otel"
 	otelsdklog "go.opentelemetry.io/otel/sdk/log"
 )
+
+var tracer = otel.Tracer("github.com/fleetdm/fleet/v4/cmd/fleet")
 
 func init() {
 	rand.Seed(time.Now().UnixNano())
@@ -100,8 +103,8 @@ func applyDevFlags(cfg *config.FleetConfig) {
 		}
 	}
 
-	setIfEmpty(&cfg.Mysql.Username, "fleet")
-	setIfEmpty(&cfg.Mysql.Database, "fleet")
+	// We don't set defaults for database and username here because there are already defaults in config.go
+	// that match our default dev setup.
 	setIfEmpty(&cfg.Mysql.Password, "insecure")
 
 	setIfEmpty(&cfg.Prometheus.BasicAuth.Username, "fleet")
