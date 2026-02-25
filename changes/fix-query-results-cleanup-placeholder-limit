@@ -1,0 +1,1 @@
+* Fixed query results cleanup cron failing with "too many placeholders" error when there are a large number of queries.
