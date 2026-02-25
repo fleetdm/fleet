@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
+	"os"
+	"path/filepath"
 	"slices"
 	"strings"
 	"testing"
@@ -1093,4 +1095,128 @@ func (s *integrationMDMTestSuite) TestAndroidAppsUninstallOnDelete() {
 	require.Len(t, getHostSw.Software, 1)
 	require.NotNil(t, getHostSw.Software[0].AppStoreApp)
 	require.Equal(t, androidApps[4].AdamID, getHostSw.Software[0].AppStoreApp.AppStoreID)
+}
+
+func (s *integrationMDMTestSuite) TestAndroidWebApps() {
+	ctx := context.Background()
+	t := s.T()
+
+	s.setSkipWorkerJobs(t)
+	appConf, err := s.ds.AppConfig(ctx)
+	require.NoError(t, err)
+	appConf.MDM.AndroidEnabledAndConfigured = false
+	err = s.ds.SaveAppConfig(ctx, appConf)
+	require.NoError(t, err)
+
+	// attempt to create a webapp before android MDM is enabled
+	body, headers := generateMultipartRequest(t, "", "", nil, s.token, map[string][]string{
+		"title": {"Web App"},
+		"url":   {"https://example.com"},
+	})
+	res := s.DoRawWithHeaders("POST", "/api/latest/fleet/software/web_apps", body.Bytes(), http.StatusBadRequest, headers)
+	require.Contains(t, extractServerErrorText(res.Body), "Android MDM isn't turned on.")
+
+	enterpriseID := s.enableAndroidMDM(t)
+
+	s.androidAPIClient.EnterprisesWebAppsCreateFunc = func(ctx context.Context, enterpriseName string, app *androidmanagement.WebApp) (*androidmanagement.WebApp, error) {
+		id := uuid.NewString()
+		return &androidmanagement.WebApp{Name: fmt.Sprintf("enterprises/%s/webApps/%s", enterpriseID, id)}, nil
+	}
+
+	cases := []struct {
+		desc     string
+		title    string
+		url      string
+		iconFile string // filename in testdata/icons/
+
+		wantStatus int
+		wantErrMsg string
+	}{
+		{
+			desc:       "missing title",
+			title:      "",
+			url:        "http://example.com",
+			wantStatus: http.StatusBadRequest,
+			wantErrMsg: "title multipart field is required",
+		},
+		{
+			desc:       "missing url",
+			title:      "WebApp",
+			url:        "",
+			wantStatus: http.StatusBadRequest,
+			wantErrMsg: "url multipart field is required",
+		},
+		{
+			desc:       "invalid url",
+			title:      "WebApp",
+			url:        "non-absolute-url",
+			wantStatus: http.StatusBadRequest,
+			wantErrMsg: "The start URL must be a valid absolute URL.",
+		},
+		{
+			desc:       "valid without icon",
+			title:      "WebApp",
+			url:        "http://example.com",
+			wantStatus: http.StatusOK,
+			wantErrMsg: "",
+		},
+		{
+			desc:       "invalid icon not a png",
+			title:      "WebApp",
+			url:        "http://example.com",
+			iconFile:   "not-a-png.txt",
+			wantStatus: http.StatusBadRequest,
+			wantErrMsg: "The icon must be a PNG file and square, with dimensions of at least 512 x 512px.",
+		},
+		{
+			desc:       "invalid icon not square",
+			title:      "WebApp",
+			url:        "http://example.com",
+			iconFile:   "non-square.png",
+			wantStatus: http.StatusBadRequest,
+			wantErrMsg: "The icon must be a PNG file and square, with dimensions of at least 512 x 512px.",
+		},
+		{
+			desc:       "invalid icon too small",
+			title:      "WebApp",
+			url:        "http://example.com",
+			iconFile:   "200px-square.png",
+			wantStatus: http.StatusBadRequest,
+			wantErrMsg: "The icon must be a PNG file and square, with dimensions of at least 512 x 512px.",
+		},
+		{
+			desc:       "valid with icon",
+			title:      "WebApp",
+			url:        "http://example.com",
+			iconFile:   "512px-square.png",
+			wantStatus: http.StatusOK,
+			wantErrMsg: "",
+		},
+	}
+	for _, c := range cases {
+		t.Run(c.desc, func(t *testing.T) {
+			var filename string
+			var iconData []byte
+			if c.iconFile != "" {
+				filename = c.iconFile
+				b, err := os.ReadFile(filepath.Join("testdata", "icons", c.iconFile))
+				require.NoError(t, err)
+				iconData = b
+			}
+
+			body, headers := generateMultipartRequest(t, "icon", filename, iconData, s.token, map[string][]string{
+				"title": {c.title},
+				"url":   {c.url},
+			})
+			res := s.DoRawWithHeaders("POST", "/api/latest/fleet/software/web_apps", body.Bytes(), c.wantStatus, headers)
+			if c.wantErrMsg != "" {
+				require.Contains(t, extractServerErrorText(res.Body), c.wantErrMsg)
+			} else {
+				var resp createAndroidWebAppResponse
+				err := json.NewDecoder(res.Body).Decode(&resp)
+				require.NoError(t, err)
+				require.NotEmpty(t, resp.AppStoreID)
+			}
+		})
+	}
 }
