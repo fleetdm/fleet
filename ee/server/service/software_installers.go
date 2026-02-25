@@ -16,6 +16,7 @@ import (
 
 	"github.com/fleetdm/fleet/v4/pkg/file"
 	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
+	"github.com/fleetdm/fleet/v4/pkg/retry"
 	"github.com/fleetdm/fleet/v4/server"
 	"github.com/fleetdm/fleet/v4/server/authz"
 	authz_ctx "github.com/fleetdm/fleet/v4/server/contexts/authz"
@@ -2395,7 +2396,17 @@ func (svc *Service) softwareBatchUpload(
 				}
 
 				var filename string
-				resp, tfr, err := downloadURLFn(ctx, p.URL)
+				var tfr *fleet.TempFileReader
+				var resp *http.Response
+				err = retry.Do(func() error {
+					var retryErr error
+					resp, tfr, retryErr = downloadURLFn(ctx, p.URL)
+					if retryErr != nil {
+						return retryErr
+					}
+
+					return nil
+				}, retry.WithMaxAttempts(3), retry.WithInterval(2*time.Second))
 				if err != nil {
 					return err
 				}
