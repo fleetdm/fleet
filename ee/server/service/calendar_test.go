@@ -331,7 +331,7 @@ func TestCalendarWebhookErrorCases(t *testing.T) {
 					}, nil
 				}
 			},
-			expectedError: "calendar event test-uuid-9 has no team ID",
+			expectedError: "calendar event test-uuid-9 has no fleet ID",
 		},
 		{
 			name:          "database error when getting event details",
