@@ -46,7 +46,7 @@ Legacy MDM vendors usually specialize in one ecosystem. This forces IT leaders t
 
 **How Fleet Solves It:** Fleet provides a single, unified control plane for macOS, Windows, Linux, iOS, Android, and ChromeOS. IT teams enroll devices into Fleet to gain visibility and manage configurations in one place, drastically reducing overhead and tool sprawl.
 
-**From the field:** Foursquare’s small IT team was overwhelmed by maintaining multiple tools for their 200+ Macs and Windows devices.
+**From the field:** The small IT team at [Foursquare](https://foursquare.com/) was overwhelmed by maintaining multiple tools for their 200+ Macs and Windows devices.
 
 >"As a small team, [we] were running two separate MDM platforms... The overhead of maintaining both systems was overwhelming and added unnecessary complexity. By switching to Fleet, Foursquare cut endpoint maintenance effort by 50% and achieved 114% ROI by removing duplicate tools." **- [Fleet @ Foursquare case study](https://fleetdm.com/case-study/foursquare)**
 
