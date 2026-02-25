@@ -11061,7 +11061,7 @@ func (s *integrationTestSuite) TestMDMNotConfiguredEndpoints() {
 		}
 
 		// build the body of the request
-		var params interface{}
+		var params any
 		var multipartBody *bytes.Buffer
 		var headers map[string]string
 		switch {

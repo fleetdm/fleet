@@ -439,7 +439,7 @@ type createAndroidWebAppRequest struct {
 	Icon  *multipart.FileHeader
 }
 
-func (createAndroidWebAppRequest) DecodeRequest(ctx context.Context, r *http.Request) (interface{}, error) {
+func (createAndroidWebAppRequest) DecodeRequest(ctx context.Context, r *http.Request) (any, error) {
 	decoded := createAndroidWebAppRequest{}
 
 	err := r.ParseMultipartForm(platform_http.MaxMultipartFormSize)
