@@ -174,8 +174,8 @@ const SoftwareCustomPackage = ({
         {gitOpsModeEnabled && (
           <InfoBanner color="yellow" borderRadius="xlarge">
             Add custom packages in GitOps mode so Fleet can host your software.
-            After adding, copy its SHA-256 hash into your YAML so the next GitOps workflow
-            doesn't delete it.
+            After adding, copy its SHA-256 hash into your YAML so the next
+            GitOps workflow doesn&apos;t delete it.
           </InfoBanner>
         )}
         <PackageForm
