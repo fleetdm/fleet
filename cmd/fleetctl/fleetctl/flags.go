@@ -103,6 +103,31 @@ func applyLogTopicFlags(c *cli.Context) {
 	}
 }
 
+// rawArgs returns the original command-line arguments (excluding the program
+// name) from the App metadata. This is set by main and test helpers via
+// StashRawArgs so that deprecation checks work correctly in both real
+// invocations and tests (where os.Args points at the test binary).
+func rawArgs(c *cli.Context) []string {
+	if md := c.App.Metadata; md != nil {
+		if args, ok := md["rawArgs"].([]string); ok {
+			return args
+		}
+	}
+	return os.Args[1:]
+}
+
+// StashRawArgs saves the raw invocation arguments (excluding the program name)
+// into app.Metadata so that deprecation helpers can inspect the original
+// command line. Call this before app.Run.
+func StashRawArgs(app *cli.App, args []string) {
+	if app.Metadata == nil {
+		app.Metadata = map[string]interface{}{}
+	}
+	if len(args) > 1 {
+		app.Metadata["rawArgs"] = args[1:]
+	}
+}
+
 // logDeprecatedCommandName checks if a deprecated command name was used in the
 // invocation and prints a warning to stderr. Flag arguments (starting with "-")
 // are skipped so that command names appearing after flags are still detected.
@@ -110,7 +135,7 @@ func logDeprecatedCommandName(c *cli.Context, deprecatedNames []string, newName 
 	if !logging.TopicEnabled(logging.DeprecatedFieldTopic) {
 		return
 	}
-	for _, arg := range os.Args[1:] {
+	for _, arg := range rawArgs(c) {
 		if strings.HasPrefix(arg, "-") {
 			continue
 		}
@@ -124,15 +149,17 @@ func logDeprecatedCommandName(c *cli.Context, deprecatedNames []string, newName 
 }
 
 // logDeprecatedFlagName checks if a deprecated flag name was used in the
-// invocation and prints a warning to stderr. It matches both "--name" and
-// "--name=value" forms.
+// invocation and prints a warning to stderr. It matches "--name",
+// "-name", "--name=value", and "-name=value" forms.
 func logDeprecatedFlagName(c *cli.Context, deprecatedName, newName string) {
 	if !logging.TopicEnabled(logging.DeprecatedFieldTopic) {
 		return
 	}
-	prefix := "--" + deprecatedName
-	for _, arg := range os.Args[1:] {
-		if arg == prefix || strings.HasPrefix(arg, prefix+"=") {
+	doubleDash := "--" + deprecatedName
+	singleDash := "-" + deprecatedName
+	for _, arg := range rawArgs(c) {
+		if arg == doubleDash || strings.HasPrefix(arg, doubleDash+"=") ||
+			arg == singleDash || strings.HasPrefix(arg, singleDash+"=") {
 			fmt.Fprintf(c.App.ErrWriter, "[!] '--%s' is deprecated; use '--%s' instead\n", deprecatedName, newName)
 			return
 		}
