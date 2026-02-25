@@ -3499,8 +3499,14 @@ func (ds *Datastore) checkSoftwareConflictsByIdentifier(ctx context.Context, pay
 				return alreadyExists("in-house app", payload.Title)
 			}
 		}
-	default:
-		// we would need to use source to check for installer conflicts
+	case payload.Platform == "windows":
+		exists, err := ds.checkInstallerOrInHouseAppExists(ctx, ds.reader(ctx), payload.TeamID, payload.Title, payload.Platform, softwareTypeInstaller)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "check if installer exists for title identifier")
+		}
+		if exists {
+			return alreadyExists("installer", payload.Title)
+		}
 	}
 
 	return nil
