@@ -4,10 +4,7 @@ This guide will walk you through the process of inviting BYOD (Bring Your Own De
 
 By enrolling BYOD iPhones and iPads in Fleet, IT admins can manage software installations, enforce settings, and ensure devices comply with company policies. By adding BYOD devices, you can monitor, enforce settings, and manage security on BYOD iPhones and iPads in real-time, providing enhanced control without compromising user autonomy. This helps secure access to organizational resources while maintaining control over device configurations.
 
-## Prerequisites
-
-* Fleet [v4.57.0](https://github.com/fleetdm/fleet/releases/tag/fleet-v4.57.0).
-* [MDM enabled and configured](https://fleetdm.com/guides/macos-mdm-setup)
+Fleet only collects software inventory for apps installed through Fleet. Built-in apps (e.g. Calculator) and apps installed by the end user aren't included.
 
 ## Enrolling BYOD iPad/iOS devices in Fleet
 

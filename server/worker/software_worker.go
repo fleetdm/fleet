@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"log/slog"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -430,7 +431,7 @@ func buildApplicationPolicyWithConfig(ctx context.Context, appIDs []string,
 	return appPolicies, nil
 }
 
-func QueueRunAndroidSetupExperience(ctx context.Context, ds fleet.Datastore, logger kitlog.Logger,
+func QueueRunAndroidSetupExperience(ctx context.Context, ds fleet.Datastore, logger *slog.Logger,
 	hostUUID string, hostEnrollTeamID *uint, enterpriseName string) error {
 
 	var enrollTeamID uint
@@ -449,7 +450,7 @@ func QueueRunAndroidSetupExperience(ctx context.Context, ds fleet.Datastore, log
 		return ctxerr.Wrap(ctx, err, "queueing job")
 	}
 
-	level.Debug(logger).Log("job_id", job.ID, "job_name", softwareWorkerJobName, "task", args.Task)
+	logger.DebugContext(ctx, "queued android setup experience job", "job_id", job.ID, "job_name", softwareWorkerJobName, "task", args.Task)
 	return nil
 }
 

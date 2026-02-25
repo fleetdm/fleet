@@ -14,6 +14,7 @@ import (
 	"html"
 	"html/template"
 	"io"
+	"log/slog"
 	"net"
 	"net/http"
 	"net/url"
@@ -1007,7 +1008,6 @@ func (svc *Service) authBinarySecurityToken(ctx context.Context, authToken *flee
 
 		// Validating the Binary Security Token Type used on Automatic Enrollments (returned by STS Auth Endpoint)
 		if binSecToken.Type == mdm_types.WindowsMDMAutomaticEnrollmentType {
-
 			upnToken, err := svc.wstepCertManager.GetSTSAuthTokenUPNClaim(binSecToken.Payload.AuthToken)
 			if err != nil {
 				return "", "", ctxerr.Wrap(ctx, err, "issue retrieving UPN from Auth token")
@@ -1020,6 +1020,20 @@ func (svc *Service) authBinarySecurityToken(ctx context.Context, authToken *flee
 
 	// Validating the Binary Security Token Type used on Automatic Enrollments
 	if authToken.IsAzureJWTToken() {
+		appConfig, err := svc.ds.AppConfig(ctx)
+		if err != nil {
+			return "", "", ctxerr.Wrap(ctx, err, "retrieving app config for auth token validation")
+		}
+
+		entraTenantIDs := appConfig.MDM.WindowsEntraTenantIDs.Value
+		if len(entraTenantIDs) == 0 {
+			return "", "", ctxerr.New(ctx, "no entra tenant IDs configured for automatic enrollment")
+		}
+		expectedURL := appConfig.ServerSettings.ServerURL
+		expectedURLParsed, err := url.Parse(expectedURL)
+		if err != nil {
+			return "", "", ctxerr.Wrap(ctx, err, "parsing server URL for auth token validation")
+		}
 
 		// Validate the JWT Auth token by retreving its claims
 		tokenData, err := microsoft_mdm.GetAzureAuthTokenClaims(ctx, authToken.Content)
@@ -1027,11 +1041,40 @@ func (svc *Service) authBinarySecurityToken(ctx context.Context, authToken *flee
 			return "", "", fmt.Errorf("binary security token claim failed: %v", err)
 		}
 
+		hasExpectedAudience := false
+		for _, aud := range tokenData.Audience {
+			audURL, err := url.Parse(aud)
+			// The Audience may have multiple values and not everything in the aud will be a URL and that's OK
+			if err != nil {
+				continue
+			}
+			if audURL.Host == expectedURLParsed.Host {
+				hasExpectedAudience = true
+				break
+			}
+		}
+		if !hasExpectedAudience {
+			// Log bad audiences here for debugging
+			level.Error(svc.logger).Log(
+				"msg", "unexpected token audience in AzureAD Binary Security Token",
+				"expected_host", expectedURLParsed.Host,
+				"token_audiences", strings.Join(tokenData.Audience, ","),
+			)
+			return "", "", ctxerr.Errorf(ctx, "token audience is not authorized")
+		}
+		if !slices.Contains(entraTenantIDs, tokenData.TenantID) {
+			level.Error(svc.logger).Log(
+				"msg", "unexpected token tenant in AzureAD Binary Security Token",
+				"token_tenant", tokenData.TenantID,
+			)
+			return "", "", ctxerr.New(ctx, "token tenant is not authorized")
+		}
+
 		// No errors, token is authorized
 		return tokenData.UPN, "", nil
 	}
 
-	return "", "", errors.New("token is not authorized")
+	return "", "", ctxerr.New(ctx, "token is not authorized")
 }
 
 // ProcessMDMMicrosoftDiscovery handles the Discovery message validation and response
@@ -2160,7 +2203,7 @@ func (svc *Service) GetAuthorizedSoapFault(ctx context.Context, eType string, or
 	if errors.As(errorMsg, &ne) || errors.As(errorMsg, &me) {
 		logging.WithErr(ctx, ctxerr.Wrap(ctx, errorMsg, "soap fault"))
 	} else {
-		logging.WithLevel(ctx, level.Info)
+		logging.WithLevel(ctx, slog.LevelInfo)
 		logging.WithExtras(ctx, "soap_fault", errorMsg.Error())
 	}
 	soapFault := NewSoapFault(eType, origMsg, errorMsg)

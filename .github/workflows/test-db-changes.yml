@@ -93,7 +93,7 @@ jobs:
       run: |
         make test-schema
         if [[ $(git diff-files --patch server/datastore/mysql/schema.sql) ]]; then
-          echo "❌ fail: uncommited changes in schema.sql"
+          echo "❌ fail: uncommitted changes in schema.sql"
           echo "please run 'make test-schema' and commit the changes"
           exit 1
         fi

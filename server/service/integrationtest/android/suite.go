@@ -28,7 +28,7 @@ func SetUpSuite(t *testing.T, uniqueTestName string) *Suite {
 	proxy.InitCommonMocks()
 	activityModule := activities.NewActivityModule(ds, logger)
 	androidSvc, err := android_service.NewServiceWithClient(
-		logger,
+		logger.SlogLogger(),
 		ds,
 		&proxy,
 		"test-private-key",

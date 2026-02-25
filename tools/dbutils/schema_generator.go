@@ -12,7 +12,7 @@ import (
 	"github.com/WatchBeam/clock"
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
-	"github.com/go-kit/log"
+	"github.com/fleetdm/fleet/v4/server/platform/logging"
 )
 
 const (
@@ -62,7 +62,7 @@ func main() {
 		Address:  testAddress,
 		Database: "schemadb",
 	}
-	ds, err := mysql.New(config, clock.NewMockClock(), mysql.Logger(log.NewNopLogger()), mysql.LimitAttempts(1))
+	ds, err := mysql.New(config, clock.NewMockClock(), mysql.Logger(logging.NewNopLogger()), mysql.LimitAttempts(1))
 	panicif(err)
 	defer ds.Close()
 	panicif(ds.MigrateTables(context.Background()))

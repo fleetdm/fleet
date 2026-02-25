@@ -81,6 +81,8 @@ module.exports = {
         name: `enterprises/${androidEnterpriseId}/applications/${applicationId}`,
       });
       return getApplicationsResult.data;
+    }).intercept({status: 404}, () => {
+      return {'notFound': 'App not found.'};
     }).intercept((err) => {
       let errorString = err.toString();
       if (errorString.includes('Device is no longer being managed')) {
