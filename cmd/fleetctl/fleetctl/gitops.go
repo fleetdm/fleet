@@ -90,6 +90,7 @@ func gitopsCommand() *cli.Command {
 			applyLogTopicFlags(c)
 
 			logDeprecatedFlagName(c, "delete-other-teams", "delete-other-fleets")
+			logDeprecatedEnvVar(c, "DELETE_OTHER_TEAMS", "DELETE_OTHER_FLEETS")
 
 			logf := func(format string, a ...interface{}) {
 				_, _ = fmt.Fprintf(c.App.Writer, format, a...)

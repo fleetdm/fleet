@@ -166,6 +166,17 @@ func logDeprecatedFlagName(c *cli.Context, deprecatedName, newName string) {
 	}
 }
 
+// logDeprecatedEnvVar checks if a deprecated environment variable is set and
+// prints a warning to stderr suggesting the new name.
+func logDeprecatedEnvVar(c *cli.Context, deprecatedEnv, newEnv string) {
+	if !logging.TopicEnabled(logging.DeprecatedFieldTopic) {
+		return
+	}
+	if _, ok := os.LookupEnv(deprecatedEnv); ok {
+		fmt.Fprintf(c.App.ErrWriter, "[!] '%s' is deprecated; use '%s' instead\n", deprecatedEnv, newEnv)
+	}
+}
+
 func byHostIdentifier() cli.Flag {
 	return &cli.StringFlag{
 		Name:  "host",

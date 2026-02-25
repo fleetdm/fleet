@@ -31,6 +31,7 @@ func queryCommand() *cli.Command {
 			applyLogTopicFlags(c)
 			logDeprecatedCommandName(c, []string{"query"}, "report")
 			logDeprecatedFlagName(c, "query-name", "report-name")
+			logDeprecatedEnvVar(c, "QUERYNAME", "REPORT_NAME")
 			return nil
 		},
 		Description: `Runs the specified query as a live query on the specified targets.
@@ -76,7 +77,7 @@ be run on the union of the hosts and hosts with matching labels.
 			&cli.StringFlag{
 				Name:        "report-name",
 				Aliases:     []string{"query-name"},
-				EnvVars:     []string{"QUERYNAME"},
+				EnvVars:     []string{"REPORT_NAME", "QUERYNAME"},
 				Value:       "",
 				Destination: &flQueryName,
 				Usage:       "Name of saved report to run",
