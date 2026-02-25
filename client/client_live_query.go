@@ -85,7 +85,10 @@ func (c *Client) LiveQueryWithContext(
 	dialer := &websocket.Dialer{
 		Proxy:            http.ProxyFromEnvironment,
 		HandshakeTimeout: 45 * time.Second,
-		TLSClientConfig:  &tls.Config{InsecureSkipVerify: c.insecureSkipVerify},
+		TLSClientConfig: &tls.Config{
+			// Ignoring "G402: TLS InsecureSkipVerify set true", needed for development/testing.
+			InsecureSkipVerify: c.insecureSkipVerify, //nolint:gosec
+		},
 	}
 
 	wssURL := *c.baseURL

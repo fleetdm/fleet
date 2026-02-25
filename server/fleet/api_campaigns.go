@@ -21,7 +21,7 @@ type DistributedQueryCampaignTargetsByIdentifiers struct {
 }
 
 type CreateDistributedQueryCampaignByIdentifierRequest struct {
-	QuerySQL string                                           `json:"query"`
-	QueryID  *uint                                            `json:"query_id" renameto:"report_id"`
+	QuerySQL string                                       `json:"query"`
+	QueryID  *uint                                        `json:"query_id" renameto:"report_id"`
 	Selected DistributedQueryCampaignTargetsByIdentifiers `json:"selected"`
 }

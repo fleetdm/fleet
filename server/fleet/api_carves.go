@@ -1,7 +1,5 @@
 package fleet
 
-import ()
-
 type ListCarvesRequest struct {
 	ListOptions CarveListOptions `url:"carve_options"`
 }
@@ -45,7 +43,7 @@ type CarveBeginRequest struct {
 	RequestId  string `json:"request_id"`
 }
 
-func (r *CarveBeginRequest) hostNodeKey() string {
+func (r *CarveBeginRequest) HostNodeKey() string {
 	return r.NodeKey
 }
 

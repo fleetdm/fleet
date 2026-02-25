@@ -106,7 +106,7 @@ type mockDeviceAuthRequest struct {
 	Token string
 }
 
-func (m mockDeviceAuthRequest) deviceAuthToken() string {
+func (m mockDeviceAuthRequest) DeviceAuthToken() string {
 	return m.Token
 }
 

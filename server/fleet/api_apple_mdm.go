@@ -532,8 +532,8 @@ type InitiateMDMSSORequest struct {
 }
 
 type InitiateMDMSSOResponse struct {
-	URL          string `json:"url,omitempty"`
-	Err          error  `json:"error,omitempty"`
+	URL          string                                     `json:"url,omitempty"`
+	Err          error                                      `json:"error,omitempty"`
 	SetCookiesFn func(context.Context, http.ResponseWriter) `json:"-"`
 }
 

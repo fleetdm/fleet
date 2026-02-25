@@ -30,7 +30,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/pubsub"
 	"github.com/fleetdm/fleet/v4/server/service/conditional_access_microsoft_proxy"
-	"github.com/fleetdm/fleet/v4/server/service/contract"
 	"github.com/fleetdm/fleet/v4/server/service/osquery_utils"
 	kithttp "github.com/go-kit/kit/transport/http"
 	"github.com/go-kit/log/level"
@@ -92,12 +91,12 @@ func (svc *Service) AuthenticateHost(ctx context.Context, nodeKey string) (*flee
 
 // Enroll Agent
 func enrollAgentEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
-	req := request.(*contract.EnrollOsqueryAgentRequest)
+	req := request.(*fleet.EnrollOsqueryAgentRequest)
 	nodeKey, err := svc.EnrollOsquery(ctx, req.EnrollSecret, req.HostIdentifier, req.HostDetails)
 	if err != nil {
-		return contract.EnrollOsqueryAgentResponse{Err: err}, nil
+		return fleet.EnrollOsqueryAgentResponse{Err: err}, nil
 	}
-	return contract.EnrollOsqueryAgentResponse{NodeKey: nodeKey}, nil
+	return fleet.EnrollOsqueryAgentResponse{NodeKey: nodeKey}, nil
 }
 
 func (svc *Service) EnrollOsquery(ctx context.Context, enrollSecret, hostIdentifier string, hostDetails map[string](map[string]string)) (string, error) {
@@ -880,11 +879,13 @@ func (svc *Service) policyQueriesForHost(ctx context.Context, host *fleet.Host) 
 // When a distributed query has no results, the JSON schema is
 // inconsistent, so we use this shim and massage into a consistent
 // schema. For example (simplified from actual osqueryd 1.8.2 output):
-// {
-//	"queries": {
-//	  "query_with_no_results": "", // <- Note string instead of array
-//	  "query_with_results": [{"foo":"bar","baz":"bang"}]
-//	 },
+//
+//	{
+//		"queries": {
+//		  "query_with_no_results": "", // <- Note string instead of array
+//		  "query_with_results": [{"foo":"bar","baz":"bang"}]
+//		 },
+//
 // "node_key":"IGXCXknWQ1baTa8TZ6rF3kAPZ4\/aTsui"
 // }
 type submitDistributedQueryResultsRequestShim struct {
@@ -895,7 +896,7 @@ type submitDistributedQueryResultsRequestShim struct {
 	Stats    map[string]*fleet.Stats    `json:"stats"`
 }
 
-func (shim *submitDistributedQueryResultsRequestShim) hostNodeKey() string {
+func (shim *submitDistributedQueryResultsRequestShim) HostNodeKey() string {
 	return shim.NodeKey
 }
 
@@ -2671,6 +2672,7 @@ func submitLogsEndpoint(ctx context.Context, request interface{}, svc fleet.Serv
 //   - `unmarshaledResults` with each result unmarshaled to `fleet.ScheduledQueryResult`s, where if an item is `nil` it means the corresponding
 //     `osqueryResults` item could not be unmarshaled.
 //   - queriesDBData has the corresponding DB query to each unmarshalled result in `osqueryResults`.
+//
 // If queryReportsDisabled is true then it returns only t he `unmarshaledResults` without querying the DB.
 func (svc *Service) preProcessOsqueryResults(
 	ctx context.Context,
@@ -2957,6 +2959,7 @@ func (svc *Service) saveResultLogsToQueryReports(
 // This is needed to support query reports for hosts that are configured with `--logger_snapshot_event_type=true`
 // in their agent options.
 // "Snapshot format" contains all of the result rows of the same query on one entry with the "snapshot" field, example:
+//
 //	[
 //		{
 //			"snapshot":[
@@ -2974,7 +2977,9 @@ func (svc *Service) saveResultLogsToQueryReports(
 //			"decorations":{"host_uuid":"F5B29579-E946-46A2-BB0F-7A8D1E304940","hostname":"foobar.local"}
 //		}
 //	]
+//
 // "Event format" will split result rows of the same query into two separate entries each with its own "columns" field, example with same data as above:
+//
 //	[
 //		{
 //			"name":"pack/Global/All USB devices",

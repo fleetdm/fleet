@@ -35,10 +35,10 @@ var (
 
 // ClientOption function aliases
 var (
-	EnableClientDebug    = fleetclient.EnableClientDebug
-	WithCustomHeaders    = fleetclient.WithCustomHeaders
+	EnableClientDebug     = fleetclient.EnableClientDebug
+	WithCustomHeaders     = fleetclient.WithCustomHeaders
 	SetClientOutputWriter = fleetclient.SetClientOutputWriter
-	SetClientErrorWriter = fleetclient.SetClientErrorWriter
+	SetClientErrorWriter  = fleetclient.SetClientErrorWriter
 )
 
 // Additional exported interfaces and types

@@ -8,11 +8,6 @@ type targetTotals struct {
 	MissingInAction uint `json:"missing_in_action"`
 }
 
-const (
-	campaignStatusPending  = "pending"
-	campaignStatusFinished = "finished"
-)
-
 // campaignStatus holds the current status of a live query campaign.
 type campaignStatus struct {
 	ExpectedResults           uint   `json:"expected_results"`

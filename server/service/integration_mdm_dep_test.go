@@ -30,7 +30,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/mdm"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/push"
 	"github.com/fleetdm/fleet/v4/server/ptr"
-	"github.com/fleetdm/fleet/v4/server/service/contract"
 	"github.com/fleetdm/fleet/v4/server/service/redis_key_value"
 	"github.com/fleetdm/fleet/v4/server/worker"
 	redigo "github.com/gomodule/redigo/redis"
@@ -2219,12 +2218,12 @@ func (s *integrationMDMTestSuite) TestReenrollingADEDeviceAfterRemovingItFromABM
 	}, http.StatusOK, &applyResp)
 
 	// simulate a matching host enrolling via osquery
-	j, err := json.Marshal(&contract.EnrollOsqueryAgentRequest{
+	j, err := json.Marshal(&fleet.EnrollOsqueryAgentRequest{
 		EnrollSecret:   t.Name(),
 		HostIdentifier: mdmDevice.UUID,
 	})
 	require.NoError(t, err)
-	var enrollResp contract.EnrollOsqueryAgentResponse
+	var enrollResp fleet.EnrollOsqueryAgentResponse
 	hres := s.DoRawNoAuth("POST", "/api/osquery/enroll", j, http.StatusOK)
 	defer hres.Body.Close()
 	require.NoError(t, json.NewDecoder(hres.Body).Decode(&enrollResp))
@@ -2908,7 +2907,7 @@ func (s *integrationMDMTestSuite) TestStickyMDMTeamEnrollment() {
 			name:      "Orbit Enrollment",
 			enrollURL: "/api/fleet/orbit/enroll",
 			enrollRequest: func(host *fleet.Host, mdmDevice *mdmtest.TestAppleMDMClient) any {
-				return contract.EnrollOrbitRequest{
+				return fleet.EnrollOrbitRequest{
 					EnrollSecret:   teamEnrollSecret,
 					HardwareUUID:   host.UUID,
 					HardwareSerial: mdmDevice.SerialNumber,
@@ -2923,7 +2922,7 @@ func (s *integrationMDMTestSuite) TestStickyMDMTeamEnrollment() {
 			name:      "Osquery Enrollment",
 			enrollURL: "/api/osquery/enroll",
 			enrollRequest: func(host *fleet.Host, mdmDevice *mdmtest.TestAppleMDMClient) any {
-				return contract.EnrollOsqueryAgentRequest{
+				return fleet.EnrollOsqueryAgentRequest{
 					EnrollSecret:   teamEnrollSecret,
 					HostIdentifier: host.UUID,
 					HostDetails: map[string]map[string]string{
@@ -3059,13 +3058,13 @@ func (s *integrationMDMTestSuite) TestSoftwareInventoryForADEMacOSAfterWipeAndRe
 		}, http.StatusOK, &applyResp)
 
 		// simulate a matching host enrolling via osquery
-		j, err := json.Marshal(&contract.EnrollOsqueryAgentRequest{
+		j, err := json.Marshal(&fleet.EnrollOsqueryAgentRequest{
 			EnrollSecret:   t.Name(),
 			HostIdentifier: mdmDevice.UUID,
 		})
 		require.NoError(t, err)
 
-		var enrollResp contract.EnrollOsqueryAgentResponse
+		var enrollResp fleet.EnrollOsqueryAgentResponse
 		hres := s.DoRawNoAuth("POST", "/api/osquery/enroll", j, http.StatusOK)
 		require.NoError(t, json.NewDecoder(hres.Body).Decode(&enrollResp))
 		require.NotEmpty(t, enrollResp.NodeKey)

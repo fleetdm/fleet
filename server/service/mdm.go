@@ -27,8 +27,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/license"
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/fleet"
-	platform_http "github.com/fleetdm/fleet/v4/server/platform/http"
-
 	"github.com/fleetdm/fleet/v4/server/mdm"
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/mobileconfig"
@@ -38,6 +36,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mdm/microsoft/syncml"
 	nanomdm "github.com/fleetdm/fleet/v4/server/mdm/nanomdm/mdm"
 	"github.com/fleetdm/fleet/v4/server/platform/endpointer"
+	platform_http "github.com/fleetdm/fleet/v4/server/platform/http"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/worker"
 	"github.com/go-sql-driver/mysql"
@@ -201,7 +200,7 @@ func (svc *Service) VerifyMDMAppleConfigured(ctx context.Context) error {
 // POST /mdm/setup/eula
 type decodeCreateMDMEULARequest struct{}
 
-func (decodeCreateMDMEULARequest) DecodeRequest(ctx context.Context, r *http.Request) (interface{}, error) {
+func (decodeCreateMDMEULARequest) DecodeRequest(ctx context.Context, r *http.Request) (any, error) {
 	err := r.ParseMultipartForm(platform_http.MaxMultipartFormSize)
 	if err != nil {
 		return nil, &fleet.BadRequestError{
@@ -1298,7 +1297,7 @@ func isAndroidProfileUUID(profileUUID string) bool {
 // POST /mdm/profiles (Create Apple or Windows MDM Config Profile)
 type decodeNewMDMConfigProfileRequest struct{}
 
-func (decodeNewMDMConfigProfileRequest) DecodeRequest(ctx context.Context, r *http.Request) (interface{}, error) {
+func (decodeNewMDMConfigProfileRequest) DecodeRequest(ctx context.Context, r *http.Request) (any, error) {
 	decoded := fleet.NewMDMConfigProfileRequest{}
 
 	err := parseMultipartForm(ctx, r, platform_http.MaxMultipartFormSize)
@@ -2707,7 +2706,7 @@ func (svc *Service) GetMDMAppleCSR(ctx context.Context) ([]byte, error) {
 // POST /mdm/apple/apns_certificate
 type decodeUploadMDMAppleAPNSCertRequest struct{}
 
-func (decodeUploadMDMAppleAPNSCertRequest) DecodeRequest(ctx context.Context, r *http.Request) (interface{}, error) {
+func (decodeUploadMDMAppleAPNSCertRequest) DecodeRequest(ctx context.Context, r *http.Request) (any, error) {
 	decoded := fleet.UploadMDMAppleAPNSCertRequest{}
 	err := r.ParseMultipartForm(platform_http.MaxMultipartFormSize)
 	if err != nil {

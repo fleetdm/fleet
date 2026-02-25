@@ -14,7 +14,7 @@ import (
 // DecodeRequest implement requestDecoder interface to take full control of decoding the request
 type decodeCalendarWebhookRequest struct{}
 
-func (decodeCalendarWebhookRequest) DecodeRequest(_ context.Context, r *http.Request) (interface{}, error) {
+func (decodeCalendarWebhookRequest) DecodeRequest(_ context.Context, r *http.Request) (any, error) {
 	var req fleet.CalendarWebhookRequest
 	eventUUID, ok := mux.Vars(r)["event_uuid"]
 	if !ok {

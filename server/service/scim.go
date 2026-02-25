@@ -4,15 +4,14 @@ import (
 	"context"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
-	"github.com/fleetdm/fleet/v4/server/service/contract"
 )
 
 func getScimDetailsEndpoint(ctx context.Context, _ interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	details, err := svc.ScimDetails(ctx)
 	if err != nil {
-		return contract.ScimDetailsResponse{Err: err}, nil
+		return fleet.ScimDetailsResponse{Err: err}, nil
 	}
-	return contract.ScimDetailsResponse{
+	return fleet.ScimDetailsResponse{
 		ScimDetails: details,
 	}, nil
 }

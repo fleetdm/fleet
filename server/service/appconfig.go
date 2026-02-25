@@ -33,10 +33,6 @@ import (
 	"golang.org/x/text/unicode/norm"
 )
 
-// Get AppConfig
-// appConfigResponseFields is an alias for fleet.AppConfigResponseFields.
-type appConfigResponseFields = fleet.AppConfigResponseFields
-
 // UnmarshalJSON implements the json.Unmarshaler interface to make sure we serialize
 // both AppConfig and AppConfigResponseFields properly:
 // - If this function is not defined, AppConfig.UnmarshalJSON gets promoted and

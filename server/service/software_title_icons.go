@@ -55,7 +55,7 @@ func (svc *Service) GetSoftwareTitleIcon(ctx context.Context, teamID uint, title
 
 type decodePutSoftwareTitleIconRequest struct{}
 
-func (decodePutSoftwareTitleIconRequest) DecodeRequest(ctx context.Context, r *http.Request) (interface{}, error) {
+func (decodePutSoftwareTitleIconRequest) DecodeRequest(ctx context.Context, r *http.Request) (any, error) {
 	urlVars := mux.Vars(r)
 	titleID, ok := urlVars["title_id"]
 	if !ok {

@@ -9,8 +9,8 @@ import (
 	"github.com/elimity-com/scim/errors"
 	"github.com/fleetdm/fleet/v4/server/authz"
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
+	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/service"
-	"github.com/fleetdm/fleet/v4/server/service/contract"
 	"github.com/fleetdm/fleet/v4/server/test"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -61,11 +61,11 @@ func testAuth(t *testing.T, s *Suite) {
 	s.DoJSON(t, "GET", scimPath("/Schemas"), nil, http.StatusUnauthorized, &resp)
 	assert.Contains(t, resp["detail"], "Authentication")
 	assert.EqualValues(t, resp["schemas"], []interface{}{"urn:ietf:params:scim:api:messages:2.0:Error"})
-	scimDetails := contract.ScimDetailsResponse{}
+	scimDetails := fleet.ScimDetailsResponse{}
 	s.DoJSON(t, "GET", scimPath("/details"), nil, http.StatusUnauthorized, &scimDetails)
 	// Make sure unauthenticated response wasn't saved as the last SCIM request
 	s.Token = s.GetTestToken(t, service.TestMaintainerUserEmail, test.GoodPassword)
-	scimDetails = contract.ScimDetailsResponse{}
+	scimDetails = fleet.ScimDetailsResponse{}
 	s.DoJSON(t, "GET", scimPath("/details"), nil, http.StatusOK, &scimDetails)
 	assert.Nil(t, scimDetails.LastRequest, "last_request should NOT be present for unauthenticated requests")
 
@@ -78,7 +78,7 @@ func testAuth(t *testing.T, s *Suite) {
 	s.DoJSON(t, "GET", scimPath("/details"), nil, http.StatusForbidden, &scimDetails)
 	// Make sure unauthorized response WAS saved as the last SCIM request
 	s.Token = s.GetTestToken(t, service.TestMaintainerUserEmail, test.GoodPassword)
-	scimDetails = contract.ScimDetailsResponse{}
+	scimDetails = fleet.ScimDetailsResponse{}
 	s.DoJSON(t, "GET", scimPath("/details"), nil, http.StatusOK, &scimDetails)
 	require.NotNil(t, scimDetails.LastRequest)
 	assert.Equal(t, "error", scimDetails.LastRequest.Status)
@@ -94,7 +94,7 @@ func testAuth(t *testing.T, s *Suite) {
 
 func testBaseEndpoints(t *testing.T, s *Suite) {
 	// Make sure SCIM details.last_request DOES NOT exist
-	scimDetails := contract.ScimDetailsResponse{}
+	scimDetails := fleet.ScimDetailsResponse{}
 	s.DoJSON(t, "GET", scimPath("/details"), nil, http.StatusOK, &scimDetails)
 	assert.Nil(t, scimDetails.LastRequest)
 
@@ -103,7 +103,7 @@ func testBaseEndpoints(t *testing.T, s *Suite) {
 		s.DoJSON(t, "GET", scimPath("/Schemas"), nil, http.StatusOK, &schemasResp)
 
 		// Verify last request was recorded
-		scimDetails := contract.ScimDetailsResponse{}
+		scimDetails := fleet.ScimDetailsResponse{}
 		s.DoJSON(t, "GET", scimPath("/details"), nil, http.StatusOK, &scimDetails)
 		require.NotNil(t, scimDetails.LastRequest)
 		assert.Equal(t, "success", scimDetails.LastRequest.Status)
@@ -235,7 +235,7 @@ func testUsersBasicCRUD(t *testing.T, s *Suite) {
 	assert.Contains(t, errResp["detail"], "Resource 99999 not found")
 	assert.EqualValues(t, errResp["schemas"], []interface{}{"urn:ietf:params:scim:api:messages:2.0:Error"})
 	// Make sure the error is reflected in the last request
-	scimDetails := contract.ScimDetailsResponse{}
+	scimDetails := fleet.ScimDetailsResponse{}
 	s.DoJSON(t, "GET", scimPath("/details"), nil, http.StatusOK, &scimDetails)
 	require.NotNil(t, scimDetails.LastRequest)
 	assert.Equal(t, "error", scimDetails.LastRequest.Status)

@@ -17,12 +17,6 @@ func extractServerErrorText(body io.Reader) string {
 	return fleetclient.ExtractServerErrorText(body)
 }
 
-// extractServerErrorNameReason extracts the error name and reason from an HTTP response body.
-// This delegates to the client package implementation.
-func extractServerErrorNameReason(body io.Reader) (string, string) {
-	return fleetclient.ExtractServerErrorNameReason(body)
-}
-
 // extractServerErrorNameReasons extracts all error names and reasons from an HTTP response body.
 // This delegates to the client package implementation.
 func extractServerErrorNameReasons(body io.Reader) ([]string, []string) {

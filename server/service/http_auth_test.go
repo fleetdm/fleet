@@ -18,7 +18,6 @@ import (
 	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mock"
-	"github.com/fleetdm/fleet/v4/server/service/contract"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -56,7 +55,7 @@ func TestLogin(t *testing.T) {
 		// test sessions
 		testUser := users[tt.email]
 
-		params := contract.LoginRequest{
+		params := fleet.LoginRequest{
 			Email:    tt.email,
 			Password: tt.password,
 		}
@@ -197,7 +196,7 @@ func getTestAdminToken(t *testing.T, server *httptest.Server) string {
 func getTestUserToken(t *testing.T, server *httptest.Server, testUserId string) string {
 	testUser := testUsers[testUserId]
 
-	params := contract.LoginRequest{
+	params := fleet.LoginRequest{
 		Email:    testUser.Email,
 		Password: testUser.PlaintextPassword,
 	}

@@ -7,18 +7,17 @@ import (
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
-
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 )
 
-// List
+// listSoftwareEndpoint is a deprecated endpoint for listing software.
+// Use listSoftwareVersionsEndpoint instead.
+//
 // Deprecated: fleet.ListSoftwareResponse is the response struct for the deprecated
 // listSoftwareEndpoint. It differs from fleet.ListSoftwareVersionsResponse in that
 // the latter includes a count of the total number of software items.
-
-// Deprecated: use listSoftwareVersionsEndpoint instead
 func listSoftwareEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*fleet.ListSoftwareRequest)
 	resp, _, err := svc.ListSoftware(ctx, req.SoftwareListOptions)
@@ -173,7 +172,8 @@ func (svc *Service) SoftwareByID(ctx context.Context, id uint, teamID *uint, inc
 	return software, nil
 }
 
-// Count
+// countSoftwareEndpoint is a deprecated endpoint to return counts for software.
+//
 // Deprecated: counts are now included directly in the fleet.ListSoftwareVersionsResponse. This
 // endpoint is retained for backwards compatibility.
 func countSoftwareEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {

@@ -131,7 +131,7 @@ type testNodeKeyRequest struct {
 	NodeKey string
 }
 
-func (r *testNodeKeyRequest) hostNodeKey() string { return r.NodeKey }
+func (r *testNodeKeyRequest) HostNodeKey() string { return r.NodeKey }
 
 func TestAuthenticatedHost(t *testing.T) {
 	ds := new(mock.Store)

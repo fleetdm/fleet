@@ -1289,7 +1289,7 @@ func getIconHashIfValid(path string) (string, error) {
 	}
 
 	// TODO cache hash for a given path so we don't have to duplicate reads for multiple references to the same icon
-	iconReader, err := os.OpenFile(path, os.O_RDONLY, 0o0755)
+	iconReader, err := os.OpenFile(path, os.O_RDONLY, 0o0755) // nolint:gosec // G302
 	if err != nil {
 		return "", fmt.Errorf("reading icon file: %w", err)
 	}
@@ -2435,7 +2435,7 @@ func (c *Client) doGitOpsIcons(iconUpdates fleet.IconChanges, concurrentUploads 
 
 	for _, toUpload := range iconUpdates.IconsToUpload {
 		uploads.Go(func() error {
-			iconReader, err := os.OpenFile(toUpload.Path, os.O_RDONLY, 0o0755)
+			iconReader, err := os.OpenFile(toUpload.Path, os.O_RDONLY, 0o0755) // nolint:gosec // G302
 			if err != nil {
 				return fmt.Errorf("failed to read software icon for upload %s: %w", toUpload.Path, err)
 			}
@@ -3181,6 +3181,6 @@ func (c *Client) GetGitOpsSecrets(
 
 // ExtractAppCfgScripts is the exported version of extractAppCfgScripts,
 // for use by packages outside the client package.
-func ExtractAppCfgScripts(appCfg interface{}) []string {
+func ExtractAppCfgScripts(appCfg any) []string {
 	return extractAppCfgScripts(appCfg)
 }

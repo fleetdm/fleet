@@ -21,7 +21,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mail"
 	"github.com/fleetdm/fleet/v4/server/platform/endpointer"
-	"github.com/fleetdm/fleet/v4/server/service/contract"
 	"github.com/fleetdm/fleet/v4/server/sso"
 )
 
@@ -85,7 +84,7 @@ func (svc *Service) DeleteSession(ctx context.Context, id uint) error {
 
 // Login
 func loginEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
-	req := request.(*contract.LoginRequest)
+	req := request.(*fleet.LoginRequest)
 	req.Email = strings.ToLower(req.Email)
 
 	user, session, err := svc.Login(ctx, req.Email, req.Password, req.SupportsEmailVerification)
@@ -426,7 +425,7 @@ func (svc *Service) InitiateSSO(ctx context.Context, redirectURL string) (sessio
 // Callback SSO
 type callbackSSODecoder struct{}
 
-func (callbackSSODecoder) DecodeRequest(ctx context.Context, r *http.Request) (interface{}, error) {
+func (callbackSSODecoder) DecodeRequest(ctx context.Context, r *http.Request) (any, error) {
 	sessionID, samlResponse, err := decodeCallbackRequest(ctx, r)
 	if err != nil {
 		return nil, err

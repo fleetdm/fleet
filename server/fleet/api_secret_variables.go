@@ -5,7 +5,7 @@ package fleet
 //////////////////////////////////////////////////////////////////////////////////
 
 type CreateSecretVariablesRequest struct {
-	DryRun          bool                   `json:"dry_run"`
+	DryRun          bool             `json:"dry_run"`
 	SecretVariables []SecretVariable `json:"secrets"`
 }
 
@@ -44,7 +44,7 @@ type ListSecretVariablesRequest struct {
 type ListSecretVariablesResponse struct {
 	CustomVariables []SecretVariableIdentifier `json:"custom_variables"`
 	Meta            *PaginationMetadata        `json:"meta"`
-	Count           int                              `json:"count"`
+	Count           int                        `json:"count"`
 
 	Err error `json:"error,omitempty"`
 }
@@ -64,4 +64,3 @@ type DeleteSecretVariableResponse struct {
 }
 
 func (r DeleteSecretVariableResponse) Error() error { return r.Err }
-

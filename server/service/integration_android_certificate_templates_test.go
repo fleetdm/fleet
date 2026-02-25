@@ -15,7 +15,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm/android"
 	"github.com/fleetdm/fleet/v4/server/ptr"
-	"github.com/fleetdm/fleet/v4/server/service/contract"
 	"github.com/fleetdm/fleet/v4/server/worker"
 	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
@@ -1293,7 +1292,7 @@ func (s *integrationMDMTestSuite) TestCertificateTemplateAuthorizationForTeamUse
 
 	// Login as team admin
 	var loginResp fleet.LoginResponse
-	s.DoJSON("POST", "/api/latest/fleet/login", contract.LoginRequest{
+	s.DoJSON("POST", "/api/latest/fleet/login", fleet.LoginRequest{
 		Email:    teamAdminEmail,
 		Password: teamAdminPassword,
 	}, http.StatusOK, &loginResp)

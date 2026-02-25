@@ -1596,6 +1596,7 @@ func (svc *Service) hostIDsAndNamesFromFilters(ctx context.Context, opt fleet.Ho
 
 // List Host Device Mappings
 // listHostDeviceMappingEndpoint returns the device mappings for a host.
+//
 // Deprecated: Emails are now included in host details endpoint /api/_version_/fleet/hosts/{id}
 func listHostDeviceMappingEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*fleet.ListHostDeviceMappingRequest)
@@ -2781,7 +2782,7 @@ func (svc *Service) validateLabelNames(ctx context.Context, action string, label
 // Host Software
 type getHostSoftwareDecoder struct{}
 
-func (getHostSoftwareDecoder) DecodeRequest(ctx context.Context, req *http.Request) (interface{}, error) {
+func (getHostSoftwareDecoder) DecodeRequest(ctx context.Context, req *http.Request) (any, error) {
 	type defaultDecodeRequest struct {
 		ID uint `url:"id"`
 		fleet.HostSoftwareTitleListOptions
@@ -2902,12 +2903,6 @@ func (svc *Service) ListHostSoftware(ctx context.Context, hostID uint, opts flee
 	}
 
 	return software, meta, nil
-}
-
-// Host Certificates
-var listHostCertificatesSortCols = map[string]bool{
-	"common_name":     true,
-	"not_valid_after": true,
 }
 
 func listHostCertificatesEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {

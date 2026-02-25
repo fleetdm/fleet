@@ -19,8 +19,8 @@ type AppConfigResponseFields struct {
 	// Email is returned when the email backend is something other than SMTP, for example SES
 	Email *EmailConfig `json:"email,omitempty"`
 	// SandboxEnabled is true if fleet serve was ran with server.sandbox_enabled=true
-	SandboxEnabled bool         `json:"sandbox_enabled,omitempty"`
-	Err            error        `json:"error,omitempty"`
+	SandboxEnabled bool          `json:"sandbox_enabled,omitempty"`
+	Err            error         `json:"error,omitempty"`
 	Partnerships   *Partnerships `json:"partnerships,omitempty"`
 }
 

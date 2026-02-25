@@ -17,7 +17,7 @@ func mobileconfigForTest(name, identifier string, vars ...string) []byte {
 		varsStr.WriteString(fmt.Sprintf("<key>Var %d</key><string>$%s</string>", i, v))
 	}
 
-	return []byte(fmt.Sprintf(`<?xml version="1.0" encoding="UTF-8"?>
+	return fmt.Appendf([]byte(`<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
@@ -36,12 +36,12 @@ func mobileconfigForTest(name, identifier string, vars ...string) []byte {
 	%s
 </dict>
 </plist>
-`, name, identifier, uuid.New().String(), varsStr.String()))
+`), name, identifier, uuid.New().String(), varsStr.String())
 }
 
 // syncMLForTest generates a minimal SyncML XML snippet for use in tests.
 func syncMLForTest(locURI string) []byte {
-	return []byte(fmt.Sprintf(`
+	return fmt.Appendf([]byte(`
 <Add>
   <Item>
     <Target>
@@ -55,5 +55,5 @@ func syncMLForTest(locURI string) []byte {
       <LocURI>%s</LocURI>
     </Target>
   </Item>
-</Replace>`, locURI, locURI))
+</Replace>`), locURI, locURI)
 }

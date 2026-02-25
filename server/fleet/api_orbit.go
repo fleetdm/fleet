@@ -15,11 +15,11 @@ type OrbitGetConfigRequest struct {
 	OrbitNodeKey string `json:"orbit_node_key"`
 }
 
-func (r *OrbitGetConfigRequest) setOrbitNodeKey(nodeKey string) {
+func (r *OrbitGetConfigRequest) SetOrbitNodeKey(nodeKey string) {
 	r.OrbitNodeKey = nodeKey
 }
 
-func (r *OrbitGetConfigRequest) orbitHostNodeKey() string {
+func (r *OrbitGetConfigRequest) OrbitHostNodeKey() string {
 	return r.OrbitNodeKey
 }
 
@@ -58,11 +58,11 @@ type SetOrUpdateDeviceTokenRequest struct {
 	DeviceAuthToken string `json:"device_auth_token"`
 }
 
-func (r *SetOrUpdateDeviceTokenRequest) setOrbitNodeKey(nodeKey string) {
+func (r *SetOrUpdateDeviceTokenRequest) SetOrbitNodeKey(nodeKey string) {
 	r.OrbitNodeKey = nodeKey
 }
 
-func (r *SetOrUpdateDeviceTokenRequest) orbitHostNodeKey() string {
+func (r *SetOrUpdateDeviceTokenRequest) OrbitHostNodeKey() string {
 	return r.OrbitNodeKey
 }
 
@@ -77,11 +77,11 @@ type OrbitGetScriptRequest struct {
 	ExecutionID  string `json:"execution_id"`
 }
 
-func (r *OrbitGetScriptRequest) setOrbitNodeKey(nodeKey string) {
+func (r *OrbitGetScriptRequest) SetOrbitNodeKey(nodeKey string) {
 	r.OrbitNodeKey = nodeKey
 }
 
-func (r *OrbitGetScriptRequest) orbitHostNodeKey() string {
+func (r *OrbitGetScriptRequest) OrbitHostNodeKey() string {
 	return r.OrbitNodeKey
 }
 
@@ -97,11 +97,11 @@ type OrbitPostScriptResultRequest struct {
 	*HostScriptResultPayload
 }
 
-func (r *OrbitPostScriptResultRequest) setOrbitNodeKey(nodeKey string) {
+func (r *OrbitPostScriptResultRequest) SetOrbitNodeKey(nodeKey string) {
 	r.OrbitNodeKey = nodeKey
 }
 
-func (r *OrbitPostScriptResultRequest) orbitHostNodeKey() string {
+func (r *OrbitPostScriptResultRequest) OrbitHostNodeKey() string {
 	return r.OrbitNodeKey
 }
 
@@ -116,11 +116,11 @@ type OrbitPutDeviceMappingRequest struct {
 	Email        string `json:"email"`
 }
 
-func (r *OrbitPutDeviceMappingRequest) setOrbitNodeKey(nodeKey string) {
+func (r *OrbitPutDeviceMappingRequest) SetOrbitNodeKey(nodeKey string) {
 	r.OrbitNodeKey = nodeKey
 }
 
-func (r *OrbitPutDeviceMappingRequest) orbitHostNodeKey() string {
+func (r *OrbitPutDeviceMappingRequest) OrbitHostNodeKey() string {
 	return r.OrbitNodeKey
 }
 
@@ -136,11 +136,11 @@ type OrbitPostDiskEncryptionKeyRequest struct {
 	ClientError   string `json:"client_error"`
 }
 
-func (r *OrbitPostDiskEncryptionKeyRequest) setOrbitNodeKey(nodeKey string) {
+func (r *OrbitPostDiskEncryptionKeyRequest) SetOrbitNodeKey(nodeKey string) {
 	r.OrbitNodeKey = nodeKey
 }
 
-func (r *OrbitPostDiskEncryptionKeyRequest) orbitHostNodeKey() string {
+func (r *OrbitPostDiskEncryptionKeyRequest) OrbitHostNodeKey() string {
 	return r.OrbitNodeKey
 }
 
@@ -160,11 +160,11 @@ type OrbitPostLUKSRequest struct {
 	ClientError  string `json:"client_error"`
 }
 
-func (r *OrbitPostLUKSRequest) setOrbitNodeKey(nodeKey string) {
+func (r *OrbitPostLUKSRequest) SetOrbitNodeKey(nodeKey string) {
 	r.OrbitNodeKey = nodeKey
 }
 
-func (r *OrbitPostLUKSRequest) orbitHostNodeKey() string {
+func (r *OrbitPostLUKSRequest) OrbitHostNodeKey() string {
 	return r.OrbitNodeKey
 }
 
@@ -182,12 +182,12 @@ type OrbitGetSoftwareInstallRequest struct {
 	InstallUUID  string `json:"install_uuid"`
 }
 
-func (r *OrbitGetSoftwareInstallRequest) setOrbitNodeKey(nodeKey string) {
+func (r *OrbitGetSoftwareInstallRequest) SetOrbitNodeKey(nodeKey string) {
 	r.OrbitNodeKey = nodeKey
 	r.OrbotNodeKey = nodeKey // legacy typo -- keep for backwards compatability with fleet server < 4.63.0
 }
 
-func (r *OrbitGetSoftwareInstallRequest) orbitHostNodeKey() string {
+func (r *OrbitGetSoftwareInstallRequest) OrbitHostNodeKey() string {
 	if r.OrbitNodeKey != "" {
 		return r.OrbitNodeKey
 	}
@@ -207,11 +207,11 @@ type OrbitDownloadSoftwareInstallerRequest struct {
 	InstallerID  uint   `json:"installer_id"`
 }
 
-func (r *OrbitDownloadSoftwareInstallerRequest) setOrbitNodeKey(nodeKey string) {
+func (r *OrbitDownloadSoftwareInstallerRequest) SetOrbitNodeKey(nodeKey string) {
 	r.OrbitNodeKey = nodeKey
 }
 
-func (r *OrbitDownloadSoftwareInstallerRequest) orbitHostNodeKey() string {
+func (r *OrbitDownloadSoftwareInstallerRequest) OrbitHostNodeKey() string {
 	return r.OrbitNodeKey
 }
 
@@ -220,11 +220,11 @@ type OrbitPostSoftwareInstallResultRequest struct {
 	*HostSoftwareInstallResultPayload
 }
 
-func (r *OrbitPostSoftwareInstallResultRequest) setOrbitNodeKey(nodeKey string) {
+func (r *OrbitPostSoftwareInstallResultRequest) SetOrbitNodeKey(nodeKey string) {
 	r.OrbitNodeKey = nodeKey
 }
 
-func (r *OrbitPostSoftwareInstallResultRequest) orbitHostNodeKey() string {
+func (r *OrbitPostSoftwareInstallResultRequest) OrbitHostNodeKey() string {
 	return r.OrbitNodeKey
 }
 
@@ -244,11 +244,11 @@ type GetOrbitSetupExperienceStatusRequest struct {
 	ResetFailedSetupSteps bool `json:"reset_failed_setup_steps"`
 }
 
-func (r *GetOrbitSetupExperienceStatusRequest) setOrbitNodeKey(nodeKey string) {
+func (r *GetOrbitSetupExperienceStatusRequest) SetOrbitNodeKey(nodeKey string) {
 	r.OrbitNodeKey = nodeKey
 }
 
-func (r *GetOrbitSetupExperienceStatusRequest) orbitHostNodeKey() string {
+func (r *GetOrbitSetupExperienceStatusRequest) OrbitHostNodeKey() string {
 	return r.OrbitNodeKey
 }
 
@@ -263,11 +263,11 @@ type OrbitSetupExperienceInitRequest struct {
 	OrbitNodeKey string `json:"orbit_node_key"`
 }
 
-func (r *OrbitSetupExperienceInitRequest) setOrbitNodeKey(nodeKey string) {
+func (r *OrbitSetupExperienceInitRequest) SetOrbitNodeKey(nodeKey string) {
 	r.OrbitNodeKey = nodeKey
 }
 
-func (r *OrbitSetupExperienceInitRequest) orbitHostNodeKey() string {
+func (r *OrbitSetupExperienceInitRequest) OrbitHostNodeKey() string {
 	return r.OrbitNodeKey
 }
 

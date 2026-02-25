@@ -10,9 +10,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/fleetdm/fleet/v4/server/contexts/host"
-	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
-	"github.com/fleetdm/fleet/v4/server/fleet"
 	pkgerrors "github.com/pkg/errors" //nolint:depguard
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -318,14 +315,65 @@ func TestHandle(t *testing.T) {
 	})
 }
 
+type mockHostAttributeProvider struct {
+	platform       string
+	osqueryVersion string
+	hostname       string
+	id             uint
+}
+
+// GetDiagnosticContext implements ctxerr.ErrorContextProvider
+func (m *mockHostAttributeProvider) GetDiagnosticContext() map[string]any {
+	return map[string]any{
+		"host": map[string]any{
+			"platform":        m.platform,
+			"osquery_version": m.osqueryVersion,
+		},
+	}
+}
+
+// GetTelemetryContext implements ctxerr.ErrorContextProvider
+func (m *mockHostAttributeProvider) GetTelemetryContext() map[string]any {
+	return map[string]any{
+		"host.hostname": m.hostname,
+		"host.id":       m.id,
+	}
+}
+
+type mockViewerAttributeProvider struct {
+	isLoggedIn bool
+	ssoEnabled bool
+	userID     uint
+	email      string
+}
+
+// GetDiagnosticContext implements ctxerr.ErrorContextProvider
+func (v *mockViewerAttributeProvider) GetDiagnosticContext() map[string]any {
+	return map[string]any{
+		"viewer": map[string]any{
+			"is_logged_in": v.isLoggedIn,
+			"sso_enabled":  v.ssoEnabled,
+		},
+	}
+}
+
+// GetTelemetryContext implements ctxerr.ErrorContextProvider
+func (v *mockViewerAttributeProvider) GetTelemetryContext() map[string]any {
+	return map[string]any{
+		"user.id":    v.userID,
+		"user.email": v.email,
+	}
+}
+
 func TestAdditionalMetadata(t *testing.T) {
 	t.Run("saves additional data about the host if present", func(t *testing.T) {
 		ctx, cleanup := setup()
 		defer cleanup()
-		h := &fleet.Host{Platform: "test_platform", OsqueryVersion: "5.0"}
-		hctx := host.NewContext(ctx, h)
-		// Register the host as an error context provider
-		hctx = AddErrorContextProvider(hctx, &host.HostAttributeProvider{Host: h})
+
+		hctx := AddErrorContextProvider(ctx, &mockHostAttributeProvider{
+			platform:       "test_platform",
+			osqueryVersion: "5.0",
+		})
 		err := New(hctx, "with host context").(*FleetError)
 
 		require.JSONEq(t, string(err.data), `{"host":{"osquery_version":"5.0","platform":"test_platform"},"timestamp":"1969-06-19T21:44:05Z"}`)
@@ -334,10 +382,11 @@ func TestAdditionalMetadata(t *testing.T) {
 	t.Run("saves additional data about the viewer if present", func(t *testing.T) {
 		ctx, cleanup := setup()
 		defer cleanup()
-		v := viewer.Viewer{Session: &fleet.Session{ID: 1}, User: &fleet.User{SSOEnabled: true}}
-		vctx := viewer.NewContext(ctx, v)
 		// Register the viewer as an error context provider
-		vctx = AddErrorContextProvider(vctx, &v)
+		vctx := AddErrorContextProvider(ctx, &mockViewerAttributeProvider{
+			isLoggedIn: true,
+			ssoEnabled: true,
+		})
 		err := New(vctx, "with host context").(*FleetError)
 
 		require.JSONEq(t, string(err.data), `{"viewer":{"is_logged_in":true,"sso_enabled":true},"timestamp":"1969-06-19T21:44:05Z"}`)
@@ -430,11 +479,6 @@ func TestIsClientError(t *testing.T) {
 			name:     "context.DeadlineExceeded - not a client error (could be DB/upstream timeout)",
 			err:      context.DeadlineExceeded,
 			expected: false,
-		},
-		{
-			name:     "InvalidArgumentError (implements IsClientError)",
-			err:      &fleet.InvalidArgumentError{},
-			expected: true,
 		},
 		{
 			name:     "IsClientError returns true",

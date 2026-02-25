@@ -19,7 +19,7 @@ type GetPackRequest struct {
 }
 
 type GetPackResponse struct {
-	Pack PackResponse `json:"pack,omitempty"`
+	Pack PackResponse `json:"pack"`
 	Err  error        `json:"error,omitempty"`
 }
 
@@ -30,7 +30,7 @@ type CreatePackRequest struct {
 }
 
 type CreatePackResponse struct {
-	Pack PackResponse `json:"pack,omitempty"`
+	Pack PackResponse `json:"pack"`
 	Err  error        `json:"error,omitempty"`
 }
 
@@ -42,7 +42,7 @@ type ModifyPackRequest struct {
 }
 
 type ModifyPackResponse struct {
-	Pack PackResponse `json:"pack,omitempty"`
+	Pack PackResponse `json:"pack"`
 	Err  error        `json:"error,omitempty"`
 }
 

@@ -180,7 +180,7 @@ func (r StreamHostsResponse) HijackRender(_ context.Context, w http.ResponseWrit
 type DeleteHostsRequest struct {
 	IDs []uint `json:"ids"`
 	// Using a pointer to help determine whether an empty filter was passed, like: "filters":{}
-	Filters *map[string]interface{} `json:"filters"`
+	Filters *map[string]any `json:"filters"`
 }
 
 type DeleteHostsResponse struct {
@@ -194,7 +194,7 @@ func (r DeleteHostsResponse) Status() int { return r.StatusCode }
 
 type CountHostsRequest struct {
 	Opts    HostListOptions `url:"host_options"`
-	LabelID *uint                 `query:"label_id,optional"`
+	LabelID *uint           `query:"label_id,optional"`
 }
 
 type CountHostsResponse struct {
@@ -217,7 +217,7 @@ type SearchHostsRequest struct {
 
 type SearchHostsResponse struct {
 	Hosts []*HostResponse `json:"hosts"`
-	Err   error                 `json:"error,omitempty"`
+	Err   error           `json:"error,omitempty"`
 }
 
 func (r SearchHostsResponse) Error() error { return r.Err }
@@ -284,8 +284,8 @@ type AddHostsToTeamResponse struct {
 func (r AddHostsToTeamResponse) Error() error { return r.Err }
 
 type AddHostsToTeamByFilterRequest struct {
-	TeamID  *uint                   `json:"team_id" renameto:"fleet_id"`
-	Filters *map[string]interface{} `json:"filters"`
+	TeamID  *uint           `json:"team_id" renameto:"fleet_id"`
+	Filters *map[string]any `json:"filters"`
 }
 
 type AddHostsToTeamByFilterResponse struct {
@@ -312,13 +312,13 @@ type GetHostQueryReportRequest struct {
 }
 
 type GetHostQueryReportResponse struct {
-	QueryID       uint                          `json:"query_id" renameto:"report_id"`
-	HostID        uint                          `json:"host_id"`
-	HostName      string                        `json:"host_name"`
-	LastFetched   *time.Time                    `json:"last_fetched"`
-	ReportClipped bool                          `json:"report_clipped"`
+	QueryID       uint                    `json:"query_id" renameto:"report_id"`
+	HostID        uint                    `json:"host_id"`
+	HostName      string                  `json:"host_name"`
+	LastFetched   *time.Time              `json:"last_fetched"`
+	ReportClipped bool                    `json:"report_clipped"`
 	Results       []HostQueryReportResult `json:"results"`
-	Err           error                         `json:"error,omitempty"`
+	Err           error                   `json:"error,omitempty"`
 }
 
 func (r GetHostQueryReportResponse) Error() error { return r.Err }
@@ -328,9 +328,9 @@ type ListHostDeviceMappingRequest struct {
 }
 
 type ListHostDeviceMappingResponse struct {
-	HostID        uint                       `json:"host_id"`
+	HostID        uint                 `json:"host_id"`
 	DeviceMapping []*HostDeviceMapping `json:"device_mapping"`
-	Err           error                      `json:"error,omitempty"`
+	Err           error                `json:"error,omitempty"`
 }
 
 func (r ListHostDeviceMappingResponse) Error() error { return r.Err }
@@ -342,9 +342,9 @@ type PutHostDeviceMappingRequest struct {
 }
 
 type PutHostDeviceMappingResponse struct {
-	HostID        uint                       `json:"host_id"`
+	HostID        uint                 `json:"host_id"`
 	DeviceMapping []*HostDeviceMapping `json:"device_mapping"`
-	Err           error                      `json:"error,omitempty"`
+	Err           error                `json:"error,omitempty"`
 }
 
 func (r PutHostDeviceMappingResponse) Error() error { return r.Err }
@@ -359,7 +359,7 @@ type DeleteHostIDPResponse struct {
 
 func (r DeleteHostIDPResponse) Error() error { return r.Err }
 
-func (r DeleteHostIDPResponse) Status() int  { return http.StatusNoContent }
+func (r DeleteHostIDPResponse) Status() int { return http.StatusNoContent }
 
 type GetHostMDMRequest struct {
 	ID uint `url:"id"`
@@ -389,7 +389,7 @@ type GetMacadminsDataRequest struct {
 }
 
 type GetMacadminsDataResponse struct {
-	Err       error                `json:"error,omitempty"`
+	Err       error          `json:"error,omitempty"`
 	Macadmins *MacadminsData `json:"macadmins"`
 }
 
@@ -400,7 +400,7 @@ type GetAggregatedMacadminsDataRequest struct {
 }
 
 type GetAggregatedMacadminsDataResponse struct {
-	Err       error                          `json:"error,omitempty"`
+	Err       error                    `json:"error,omitempty"`
 	Macadmins *AggregatedMacadminsData `json:"macadmins"`
 }
 
@@ -408,15 +408,15 @@ func (r GetAggregatedMacadminsDataResponse) Error() error { return r.Err }
 
 type HostsReportRequest struct {
 	Opts    HostListOptions `url:"host_options"`
-	LabelID *uint                 `query:"label_id,optional"`
-	Format  string                `query:"format"`
-	Columns string                `query:"columns,optional"`
+	LabelID *uint           `query:"label_id,optional"`
+	Format  string          `query:"format"`
+	Columns string          `query:"columns,optional"`
 }
 
 type HostsReportResponse struct {
-	Columns []string              `json:"-"` // used to control the generated csv, see the HijackRender method
+	Columns []string        `json:"-"` // used to control the generated csv, see the HijackRender method
 	Hosts   []*HostResponse `json:"-"` // they get rendered explicitly, in csv
-	Err     error                 `json:"error,omitempty"`
+	Err     error           `json:"error,omitempty"`
 }
 
 func (r HostsReportResponse) Error() error { return r.Err }
@@ -524,10 +524,10 @@ type OsVersionsRequest struct {
 
 type OsVersionsResponse struct {
 	Meta            *PaginationMetadata `json:"meta,omitempty"`
-	Count           int                       `json:"count"`
-	CountsUpdatedAt *time.Time                `json:"counts_updated_at"`
+	Count           int                 `json:"count"`
+	CountsUpdatedAt *time.Time          `json:"counts_updated_at"`
 	OSVersions      []OSVersion         `json:"os_versions"`
-	Err             error                     `json:"error,omitempty"`
+	Err             error               `json:"error,omitempty"`
 }
 
 func (r OsVersionsResponse) Error() error { return r.Err }
@@ -539,9 +539,9 @@ type GetOSVersionRequest struct {
 }
 
 type GetOSVersionResponse struct {
-	CountsUpdatedAt *time.Time       `json:"counts_updated_at"`
+	CountsUpdatedAt *time.Time `json:"counts_updated_at"`
 	OSVersion       *OSVersion `json:"os_version"`
-	Err             error            `json:"error,omitempty"`
+	Err             error      `json:"error,omitempty"`
 }
 
 func (r GetOSVersionResponse) Error() error { return r.Err }
@@ -551,9 +551,9 @@ type GetHostEncryptionKeyRequest struct {
 }
 
 type GetHostEncryptionKeyResponse struct {
-	Err           error                        `json:"error,omitempty"`
+	Err           error                  `json:"error,omitempty"`
 	EncryptionKey *HostDiskEncryptionKey `json:"encryption_key,omitempty"`
-	HostID        uint                         `json:"host_id,omitempty"`
+	HostID        uint                   `json:"host_id,omitempty"`
 }
 
 func (r GetHostEncryptionKeyResponse) Error() error { return r.Err }
@@ -563,8 +563,8 @@ type GetHostHealthRequest struct {
 }
 
 type GetHostHealthResponse struct {
-	Err        error             `json:"error,omitempty"`
-	HostID     uint              `json:"host_id,omitempty"`
+	Err        error       `json:"error,omitempty"`
+	HostID     uint        `json:"host_id,omitempty"`
 	HostHealth *HostHealth `json:"health,omitempty"`
 }
 
@@ -599,9 +599,9 @@ type GetHostSoftwareRequest struct {
 
 type GetHostSoftwareResponse struct {
 	Software []*HostSoftwareWithInstaller `json:"software"`
-	Count    int                                `json:"count"`
+	Count    int                          `json:"count"`
 	Meta     *PaginationMetadata          `json:"meta,omitempty"`
-	Err      error                              `json:"error,omitempty"`
+	Err      error                        `json:"error,omitempty"`
 }
 
 func (r GetHostSoftwareResponse) Error() error { return r.Err }
@@ -626,9 +626,8 @@ func (r *ListHostCertificatesRequest) ValidateRequest() error {
 type ListHostCertificatesResponse struct {
 	Certificates []*HostCertificatePayload `json:"certificates"`
 	Meta         *PaginationMetadata       `json:"meta,omitempty"`
-	Count        uint                            `json:"count"`
-	Err          error                           `json:"error,omitempty"`
+	Count        uint                      `json:"count"`
+	Err          error                     `json:"error,omitempty"`
 }
 
 func (r ListHostCertificatesResponse) Error() error { return r.Err }
-

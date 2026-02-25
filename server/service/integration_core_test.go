@@ -35,7 +35,6 @@ import (
 	logtestutils "github.com/fleetdm/fleet/v4/server/platform/logging/testutils"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/service/async"
-	"github.com/fleetdm/fleet/v4/server/service/contract"
 	"github.com/fleetdm/fleet/v4/server/service/osquery_utils"
 	"github.com/fleetdm/fleet/v4/server/test"
 	"github.com/ghodss/yaml"
@@ -476,7 +475,7 @@ func (s *integrationTestSuite) TestPremiumOnlyRoles() {
 				require.NoError(t, err)
 
 				var loginResp fleet.LoginResponse
-				s.DoJSON("POST", "/api/latest/fleet/login", contract.LoginRequest{
+				s.DoJSON("POST", "/api/latest/fleet/login", fleet.LoginRequest{
 					Email:    fmt.Sprintf("%s@example.com", role),
 					Password: test.GoodPassword,
 				}, http.StatusPaymentRequired, &loginResp)
@@ -5676,7 +5675,7 @@ func (s *integrationTestSuite) TestUsers() {
 	s.DoJSONWithoutAuth("POST", "/api/latest/fleet/login", params, http.StatusBadRequest, &loginResp)
 	// MFA supported; send email
 	s.DoJSONWithoutAuth("POST", "/api/latest/fleet/login",
-		contract.LoginRequest{Email: "extra@asd.com", Password: userRawPwd, SupportsEmailVerification: true}, http.StatusAccepted, &loginResp)
+		fleet.LoginRequest{Email: "extra@asd.com", Password: userRawPwd, SupportsEmailVerification: true}, http.StatusAccepted, &loginResp)
 	var mfaToken string
 	mysql.ExecAdhocSQL(t, s.ds, func(tx sqlx.ExtContext) error {
 		return sqlx.GetContext(context.Background(), tx, &mfaToken, `SELECT token FROM verification_tokens WHERE user_id = ? LIMIT 1`, createResp.User.ID)
@@ -5688,7 +5687,7 @@ func (s *integrationTestSuite) TestUsers() {
 
 	// send another email, which we'll expire the token for
 	s.DoJSONWithoutAuth("POST", "/api/latest/fleet/login",
-		contract.LoginRequest{Email: "extra@asd.com", Password: userRawPwd, SupportsEmailVerification: true}, http.StatusAccepted, &loginResp)
+		fleet.LoginRequest{Email: "extra@asd.com", Password: userRawPwd, SupportsEmailVerification: true}, http.StatusAccepted, &loginResp)
 	mysql.ExecAdhocSQL(t, s.ds, func(db sqlx.ExtContext) error {
 		_, err := db.ExecContext(
 			context.Background(),
@@ -5815,7 +5814,7 @@ func (s *integrationTestSuite) TestUsers() {
 
 	// login as that user to verify that the new password is active (userRawPwd was updated to the new pwd)
 	loginResp = fleet.LoginResponse{}
-	s.DoJSON("POST", "/api/latest/fleet/login", contract.LoginRequest{Email: u.Email, Password: userRawPwd}, http.StatusOK, &loginResp)
+	s.DoJSON("POST", "/api/latest/fleet/login", fleet.LoginRequest{Email: u.Email, Password: userRawPwd}, http.StatusOK, &loginResp)
 	require.Equal(t, loginResp.User.ID, u.ID)
 
 	// logout for that user
@@ -5830,7 +5829,7 @@ func (s *integrationTestSuite) TestUsers() {
 
 	// login as that user with previous pwd fails
 	loginResp = fleet.LoginResponse{}
-	s.DoJSON("POST", "/api/latest/fleet/login", contract.LoginRequest{Email: u.Email, Password: oldUserRawPwd}, http.StatusUnauthorized, &loginResp)
+	s.DoJSON("POST", "/api/latest/fleet/login", fleet.LoginRequest{Email: u.Email, Password: oldUserRawPwd}, http.StatusUnauthorized, &loginResp)
 
 	// require a password reset
 	var reqResetResp fleet.RequirePasswordResetResponse
@@ -9212,7 +9211,7 @@ func (s *integrationTestSuite) TestEnrollOsquery() {
 	}, http.StatusOK, &applyResp)
 
 	// invalid enroll secret fails
-	j, err := json.Marshal(&contract.EnrollOsqueryAgentRequest{
+	j, err := json.Marshal(&fleet.EnrollOsqueryAgentRequest{
 		EnrollSecret:   "nosuchsecret",
 		HostIdentifier: "abcd",
 	})
@@ -9220,13 +9219,13 @@ func (s *integrationTestSuite) TestEnrollOsquery() {
 	s.DoRawNoAuth("POST", "/api/osquery/enroll", j, http.StatusUnauthorized)
 
 	// valid enroll secret succeeds
-	j, err = json.Marshal(&contract.EnrollOsqueryAgentRequest{
+	j, err = json.Marshal(&fleet.EnrollOsqueryAgentRequest{
 		EnrollSecret:   t.Name(),
 		HostIdentifier: t.Name(),
 	})
 	require.NoError(t, err)
 
-	var resp contract.EnrollOsqueryAgentResponse
+	var resp fleet.EnrollOsqueryAgentResponse
 	hres := s.DoRawNoAuth("POST", "/api/osquery/enroll", j, http.StatusOK)
 	defer hres.Body.Close()
 	require.NoError(t, json.NewDecoder(hres.Body).Decode(&resp))
@@ -9261,7 +9260,7 @@ func (s *integrationTestSuite) TestReenrollHostCleansPolicies() {
 	require.Len(t, *getHostResp.Host.Policies, 1)
 
 	// re-enroll the host, but using a different platform
-	j, err := json.Marshal(&contract.EnrollOsqueryAgentRequest{
+	j, err := json.Marshal(&fleet.EnrollOsqueryAgentRequest{
 		EnrollSecret:   t.Name(),
 		HostIdentifier: *host.OsqueryHostID,
 		HostDetails:    map[string](map[string]string){"os_version": map[string]string{"platform": "windows"}},
@@ -9277,7 +9276,7 @@ func (s *integrationTestSuite) TestReenrollHostCleansPolicies() {
 		)
 		return err
 	})
-	var resp contract.EnrollOsqueryAgentResponse
+	var resp fleet.EnrollOsqueryAgentResponse
 	hres := s.DoRawNoAuth("POST", "/api/osquery/enroll", j, http.StatusOK)
 	defer hres.Body.Close()
 	require.NoError(t, json.NewDecoder(hres.Body).Decode(&resp))
@@ -9528,7 +9527,7 @@ func (s *integrationTestSuite) TestLogLoginAttempts() {
 
 	// Login with invalid passwordm, should fail.
 	res := s.DoRawNoAuth("POST", "/api/latest/fleet/login",
-		jsonMustMarshal(t, contract.LoginRequest{Email: u.Email, Password: test.GoodPassword2}),
+		jsonMustMarshal(t, fleet.LoginRequest{Email: u.Email, Password: test.GoodPassword2}),
 		http.StatusUnauthorized,
 	)
 	res.Body.Close()
@@ -9551,7 +9550,7 @@ func (s *integrationTestSuite) TestLogLoginAttempts() {
 
 	// login with good password, should succeed
 	res = s.DoRawNoAuth("POST", "/api/latest/fleet/login",
-		jsonMustMarshal(t, contract.LoginRequest{
+		jsonMustMarshal(t, fleet.LoginRequest{
 			Email:    u.Email,
 			Password: test.GoodPassword,
 		}), http.StatusOK,
@@ -9717,12 +9716,12 @@ func (s *integrationTestSuite) TestPasswordReset() {
 	res.Body.Close()
 
 	// login with the old password, should not succeed
-	res = s.DoRawNoAuth("POST", "/api/latest/fleet/login", jsonMustMarshal(t, contract.LoginRequest{Email: u.Email, Password: userRawPwd}),
+	res = s.DoRawNoAuth("POST", "/api/latest/fleet/login", jsonMustMarshal(t, fleet.LoginRequest{Email: u.Email, Password: userRawPwd}),
 		http.StatusUnauthorized)
 	res.Body.Close()
 
 	// login with the new password, should succeed
-	res = s.DoRawNoAuth("POST", "/api/latest/fleet/login", jsonMustMarshal(t, contract.LoginRequest{Email: u.Email, Password: userNewPwd}),
+	res = s.DoRawNoAuth("POST", "/api/latest/fleet/login", jsonMustMarshal(t, fleet.LoginRequest{Email: u.Email, Password: userNewPwd}),
 		http.StatusOK)
 	res.Body.Close()
 }
@@ -9822,7 +9821,7 @@ func (s *integrationTestSuite) TestModifyUser() {
 
 	// login as the user, with the last password successfully set (to confirm it is the current one)
 	var loginResp fleet.LoginResponse
-	resp := s.DoRawNoAuth("POST", "/api/latest/fleet/login", jsonMustMarshal(t, contract.LoginRequest{
+	resp := s.DoRawNoAuth("POST", "/api/latest/fleet/login", jsonMustMarshal(t, fleet.LoginRequest{
 		Email:    u.Email, // all email changes made are still pending, never confirmed
 		Password: newRawPwd,
 	}), http.StatusOK)
@@ -11163,7 +11162,7 @@ func (s *integrationTestSuite) TestTryingToEnrollWithTheWrongSecret() {
 	require.NoError(t, err)
 
 	var resp endpointer.JsonError
-	s.DoJSON("POST", "/api/fleet/orbit/enroll", contract.EnrollOrbitRequest{
+	s.DoJSON("POST", "/api/fleet/orbit/enroll", fleet.EnrollOrbitRequest{
 		EnrollSecret:   uuid.New().String(),
 		HardwareUUID:   h.UUID,
 		HardwareSerial: h.HardwareSerial,
@@ -11202,7 +11201,7 @@ func (s *integrationTestSuite) TestEnrollOrbitExistingHostNoSerialMatch() {
 	// the provided uuid).
 	var resp EnrollOrbitResponse
 	hostUUID := uuid.New().String()
-	s.DoJSON("POST", "/api/fleet/orbit/enroll", contract.EnrollOrbitRequest{
+	s.DoJSON("POST", "/api/fleet/orbit/enroll", fleet.EnrollOrbitRequest{
 		EnrollSecret:   secret,
 		HardwareUUID:   hostUUID, // will not match any existing host
 		HardwareSerial: h.HardwareSerial,
@@ -11215,7 +11214,7 @@ func (s *integrationTestSuite) TestEnrollOrbitExistingHostNoSerialMatch() {
 	require.NotEqual(t, h.ID, orbitHost.ID)
 
 	// enroll the host from osquery, it should match the Orbit-enrolled host
-	var osqueryResp contract.EnrollOsqueryAgentResponse
+	var osqueryResp fleet.EnrollOsqueryAgentResponse
 
 	// NOTE(mna): using an osquery_host_id that is NOT the host's UUID would not work,
 	// because we haven't enabled lookup by UUID due to not having an index and possible
@@ -11226,7 +11225,7 @@ func (s *integrationTestSuite) TestEnrollOrbitExistingHostNoSerialMatch() {
 
 	osqueryID := hostUUID
 
-	s.DoJSON("POST", "/api/osquery/enroll", contract.EnrollOsqueryAgentRequest{
+	s.DoJSON("POST", "/api/osquery/enroll", fleet.EnrollOsqueryAgentRequest{
 		EnrollSecret:   secret,
 		HostIdentifier: osqueryID,
 		HostDetails: map[string]map[string]string{

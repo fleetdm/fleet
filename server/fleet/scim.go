@@ -1,6 +1,8 @@
 package fleet
 
-import "time"
+import (
+	"time"
+)
 
 // SCIMMaxFieldLength is the default maximum length for SCIM fields
 const SCIMMaxFieldLength = 255
@@ -117,4 +119,13 @@ type ScimLastRequest struct {
 
 type ScimDetails struct {
 	LastRequest *ScimLastRequest `json:"last_request"`
+}
+
+type ScimDetailsResponse struct {
+	ScimDetails
+	Err error `json:"-"`
+}
+
+func (r ScimDetailsResponse) Error() error {
+	return r.Err
 }

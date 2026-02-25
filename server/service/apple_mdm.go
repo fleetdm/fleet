@@ -276,7 +276,7 @@ func (svc *Service) ListMDMAppleCommands(ctx context.Context, opts *fleet.MDMCom
 // An authenticated but unauthorized user could abuse this.
 type decodeNewMDMAppleConfigProfileRequest struct{}
 
-func (decodeNewMDMAppleConfigProfileRequest) DecodeRequest(ctx context.Context, r *http.Request) (interface{}, error) {
+func (decodeNewMDMAppleConfigProfileRequest) DecodeRequest(ctx context.Context, r *http.Request) (any, error) {
 	decoded := fleet.NewMDMAppleConfigProfileRequest{}
 
 	err := parseMultipartForm(ctx, r, platform_http.MaxMultipartFormSize)
@@ -1301,7 +1301,7 @@ func (svc *Service) GetMDMAppleProfilesSummary(ctx context.Context, teamID *uint
 
 type decodeUploadAppleInstallerRequest struct{}
 
-func (decodeUploadAppleInstallerRequest) DecodeRequest(ctx context.Context, r *http.Request) (interface{}, error) {
+func (decodeUploadAppleInstallerRequest) DecodeRequest(ctx context.Context, r *http.Request) (any, error) {
 	err := r.ParseMultipartForm(platform_http.MaxMultipartFormSize)
 	if err != nil {
 		return nil, &fleet.BadRequestError{
@@ -1523,7 +1523,7 @@ func (svc *Service) EnqueueMDMAppleCommand(
 
 type decodeMdmAppleEnrollRequest struct{}
 
-func (decodeMdmAppleEnrollRequest) DecodeRequest(ctx context.Context, r *http.Request) (interface{}, error) {
+func (decodeMdmAppleEnrollRequest) DecodeRequest(ctx context.Context, r *http.Request) (any, error) {
 	decoded := fleet.MdmAppleEnrollRequest{}
 
 	tok := r.URL.Query().Get("token")
@@ -1654,7 +1654,7 @@ func mdmAppleAccountEnrollEndpoint(ctx context.Context, request interface{}, svc
 
 type decodeMdmAppleAccountEnrollRequest struct{}
 
-func (decodeMdmAppleAccountEnrollRequest) DecodeRequest(ctx context.Context, r *http.Request) (interface{}, error) {
+func (decodeMdmAppleAccountEnrollRequest) DecodeRequest(ctx context.Context, r *http.Request) (any, error) {
 	decoded := fleet.MdmAppleAccountEnrollRequest{}
 
 	rawData, err := io.ReadAll(r.Body)
@@ -2375,7 +2375,7 @@ func (svc *Service) updateAppConfigMDMDiskEncryption(ctx context.Context, enable
 // An authenticated but unauthorized user could abuse this.
 type decodeUploadBootstrapPackageRequest struct{}
 
-func (decodeUploadBootstrapPackageRequest) DecodeRequest(ctx context.Context, r *http.Request) (interface{}, error) {
+func (decodeUploadBootstrapPackageRequest) DecodeRequest(ctx context.Context, r *http.Request) (any, error) {
 	decoded := fleet.UploadBootstrapPackageRequest{}
 	err := parseMultipartForm(ctx, r, platform_http.MaxMultipartFormSize)
 	if err != nil {
@@ -2623,7 +2623,7 @@ func (svc *Service) InitiateMDMSSO(ctx context.Context, initiator, customOrigina
 // affect many users.
 type callbackMDMSSODecoder struct{}
 
-func (callbackMDMSSODecoder) DecodeRequest(ctx context.Context, r *http.Request) (interface{}, error) {
+func (callbackMDMSSODecoder) DecodeRequest(ctx context.Context, r *http.Request) (any, error) {
 	sessionID, samlResponse, err := decodeCallbackRequest(ctx, r)
 	if err != nil {
 		return nil, err
@@ -6039,7 +6039,7 @@ func (svc *Service) GenerateABMKeyPair(ctx context.Context) (*fleet.MDMAppleDEPK
 // Upload ABM token endpoint
 type decodeUploadABMTokenRequest struct{}
 
-func (decodeUploadABMTokenRequest) DecodeRequest(ctx context.Context, r *http.Request) (interface{}, error) {
+func (decodeUploadABMTokenRequest) DecodeRequest(ctx context.Context, r *http.Request) (any, error) {
 	err := r.ParseMultipartForm(platform_http.MaxMultipartFormSize)
 	if err != nil {
 		return nil, &fleet.BadRequestError{
@@ -6169,7 +6169,7 @@ func (svc *Service) UpdateABMTokenTeams(ctx context.Context, tokenID uint, macOS
 // Renew ABM token endpoint
 type decodeRenewABMTokenRequest struct{}
 
-func (decodeRenewABMTokenRequest) DecodeRequest(ctx context.Context, r *http.Request) (interface{}, error) {
+func (decodeRenewABMTokenRequest) DecodeRequest(ctx context.Context, r *http.Request) (any, error) {
 	err := r.ParseMultipartForm(platform_http.MaxMultipartFormSize)
 	if err != nil {
 		return nil, &fleet.BadRequestError{
@@ -6224,7 +6224,7 @@ func (svc *Service) RenewABMToken(ctx context.Context, token io.Reader, tokenID 
 // GET /enrollment_profiles/ota
 type decodeGetOTAProfileRequest struct{}
 
-func (decodeGetOTAProfileRequest) DecodeRequest(ctx context.Context, r *http.Request) (interface{}, error) {
+func (decodeGetOTAProfileRequest) DecodeRequest(ctx context.Context, r *http.Request) (any, error) {
 	enrollSecret := r.URL.Query().Get("enroll_secret")
 	if enrollSecret == "" {
 		return nil, &fleet.BadRequestError{
@@ -6296,7 +6296,7 @@ func (svc *Service) GetOTAProfile(ctx context.Context, enrollSecret, idpUUID str
 // POST /ota_enrollment?enroll_secret=xyz
 type decodeMdmAppleOTARequest struct{}
 
-func (decodeMdmAppleOTARequest) DecodeRequest(ctx context.Context, r *http.Request) (interface{}, error) {
+func (decodeMdmAppleOTARequest) DecodeRequest(ctx context.Context, r *http.Request) (any, error) {
 	enrollSecret := r.URL.Query().Get("enroll_secret")
 	if enrollSecret == "" {
 		return nil, &fleet.OTAForbiddenError{

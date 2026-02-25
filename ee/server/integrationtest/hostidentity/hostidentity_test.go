@@ -38,7 +38,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	scepclient "github.com/fleetdm/fleet/v4/server/mdm/scep/client"
 	"github.com/fleetdm/fleet/v4/server/mdm/scep/x509util"
-	"github.com/fleetdm/fleet/v4/server/service/contract"
 	"github.com/google/go-tpm/tpm2/transport/simulator"
 	"github.com/remitly-oss/httpsig-go"
 	"github.com/rs/zerolog"
@@ -241,7 +240,7 @@ func createHTTPSigner(t *testing.T, eccPrivateKey *ecdsa.PrivateKey, cert *x509.
 func testOrbitEnrollment(t *testing.T, s *Suite, cert *x509.Certificate, eccPrivateKey *ecdsa.PrivateKey) string {
 	ctx := t.Context()
 	// Test orbit enrollment with the certificate
-	enrollRequest := contract.EnrollOrbitRequest{
+	enrollRequest := fleet.EnrollOrbitRequest{
 		EnrollSecret:      testEnrollmentSecret,
 		HardwareUUID:      "test-uuid-" + cert.Subject.CommonName,
 		HardwareSerial:    "test-serial-" + cert.Subject.CommonName,
@@ -399,7 +398,7 @@ func testOrbitEnrollment(t *testing.T, s *Suite, cert *x509.Certificate, eccPriv
 
 func testOsqueryEnrollment(t *testing.T, s *Suite, cert *x509.Certificate, eccPrivateKey *ecdsa.PrivateKey) string {
 	// Test osquery enrollment with the certificate
-	enrollRequest := contract.EnrollOsqueryAgentRequest{
+	enrollRequest := fleet.EnrollOsqueryAgentRequest{
 		EnrollSecret:   testEnrollmentSecret,
 		HostIdentifier: cert.Subject.CommonName,
 		HostDetails: map[string]map[string]string{
@@ -410,7 +409,7 @@ func testOsqueryEnrollment(t *testing.T, s *Suite, cert *x509.Certificate, eccPr
 	}
 
 	// This request is sent without an HTTP signature, so it should fail.
-	var enrollResp contract.EnrollOsqueryAgentResponse
+	var enrollResp fleet.EnrollOsqueryAgentResponse
 	s.DoJSON(t, "POST", "/api/v1/osquery/enroll", enrollRequest, http.StatusUnauthorized, &enrollResp)
 
 	// Now send the same request with HTTP message signature
@@ -438,7 +437,7 @@ func testOsqueryEnrollment(t *testing.T, s *Suite, cert *x509.Certificate, eccPr
 	require.Equal(t, http.StatusOK, httpResp.StatusCode, "Osquery enrollment with HTTP signature should succeed")
 
 	// Parse the response
-	enrollResp = contract.EnrollOsqueryAgentResponse{}
+	enrollResp = fleet.EnrollOsqueryAgentResponse{}
 	err = json.NewDecoder(httpResp.Body).Decode(&enrollResp)
 	require.NoError(t, err)
 	require.NotEmpty(t, enrollResp.NodeKey, "Should receive node key")
@@ -797,7 +796,7 @@ func testDeleteHostAndReenroll(t *testing.T, s *Suite, cert *x509.Certificate, e
 	s.Do(t, "DELETE", fmt.Sprintf("/api/latest/fleet/hosts/%d", hostToDelete.ID), nil, http.StatusOK)
 
 	// Try to enroll the same host with the same certificate - this should fail
-	enrollRequest := contract.EnrollOrbitRequest{
+	enrollRequest := fleet.EnrollOrbitRequest{
 		EnrollSecret:      testEnrollmentSecret,
 		HardwareUUID:      "test-uuid-" + cert.Subject.CommonName,
 		HardwareSerial:    "test-serial-" + cert.Subject.CommonName,
@@ -837,7 +836,7 @@ func testDeleteHostAndReenrollOsquery(t *testing.T, s *Suite, cert *x509.Certifi
 	s.Do(t, "DELETE", fmt.Sprintf("/api/latest/fleet/hosts/%d", hostToDelete.ID), nil, http.StatusOK)
 
 	// Try to enroll the same host with the same certificate - this should fail
-	enrollRequest := contract.EnrollOsqueryAgentRequest{
+	enrollRequest := fleet.EnrollOsqueryAgentRequest{
 		EnrollSecret:   testEnrollmentSecret,
 		HostIdentifier: cert.Subject.CommonName,
 		HostDetails: map[string]map[string]string{
@@ -1054,7 +1053,7 @@ func testWrongCertAuthentication(t *testing.T, s *Suite) {
 	)
 	require.NoError(t, err)
 
-	enrollRequest := contract.EnrollOrbitRequest{
+	enrollRequest := fleet.EnrollOrbitRequest{
 		EnrollSecret:      testEnrollmentSecret,
 		HardwareUUID:      "test-uuid-" + certHost1.Subject.CommonName,
 		HardwareSerial:    "test-serial-" + certHost1.Subject.CommonName,
@@ -1166,7 +1165,7 @@ func testWrongCertAuthentication(t *testing.T, s *Suite) {
 	})
 
 	// Successfully enroll host2 with correct certificate
-	enrollRequest2 := contract.EnrollOrbitRequest{
+	enrollRequest2 := fleet.EnrollOrbitRequest{
 		EnrollSecret:      testEnrollmentSecret,
 		HardwareUUID:      "test-uuid-" + certHost2.Subject.CommonName,
 		HardwareSerial:    "test-serial-" + certHost2.Subject.CommonName,
@@ -1252,7 +1251,7 @@ func testWrongCertAuthentication(t *testing.T, s *Suite) {
 
 	// Test enrollment failures after host is enrolled - use different host identifiers to avoid re-enrollment
 	t.Run("enroll new host with host1 cert should fail after enrollment", func(t *testing.T) {
-		newHostEnrollRequest := contract.EnrollOrbitRequest{
+		newHostEnrollRequest := fleet.EnrollOrbitRequest{
 			EnrollSecret:      testEnrollmentSecret,
 			HardwareUUID:      "test-uuid-new-host-wrong-cert",
 			HardwareSerial:    "test-serial-new-host-wrong-cert",
@@ -1354,7 +1353,7 @@ func testRealSecureHWAndSCEP(t *testing.T, s *Suite) {
 	assert.True(t, eccPubKey.Equal(certPubKey), "Certificate public key should match TPM key")
 
 	// Test enrollment with HTTP signature using TPM key
-	enrollRequest := contract.EnrollOrbitRequest{
+	enrollRequest := fleet.EnrollOrbitRequest{
 		EnrollSecret:      testEnrollmentSecret,
 		HardwareUUID:      "test-uuid-" + commonName,
 		HardwareSerial:    "test-serial-" + commonName,

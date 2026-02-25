@@ -23,7 +23,7 @@ import (
 // An authenticated but unauthorized user could abuse this.
 type decodeUpdateSoftwareInstallerRequest struct{}
 
-func (decodeUpdateSoftwareInstallerRequest) DecodeRequest(ctx context.Context, r *http.Request) (interface{}, error) {
+func (decodeUpdateSoftwareInstallerRequest) DecodeRequest(ctx context.Context, r *http.Request) (any, error) {
 	decoded := fleet.UpdateSoftwareInstallerRequest{}
 
 	// populate software title ID since we're overriding the decoder that would do it for us
@@ -238,7 +238,7 @@ func (svc *Service) UpdateSoftwareInstaller(ctx context.Context, payload *fleet.
 // An authenticated but unauthorized user could abuse this.
 type decodeUploadSoftwareInstallerRequest struct{}
 
-func (decodeUploadSoftwareInstallerRequest) DecodeRequest(ctx context.Context, r *http.Request) (interface{}, error) {
+func (decodeUploadSoftwareInstallerRequest) DecodeRequest(ctx context.Context, r *http.Request) (any, error) {
 	decoded := fleet.UploadSoftwareInstallerRequest{}
 
 	maxInstallerSize := installersize.FromContext(ctx)

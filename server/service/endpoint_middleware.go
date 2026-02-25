@@ -128,10 +128,10 @@ func authenticatedDevice(svc fleet.Service, logger *platformlogging.Logger, next
 }
 
 func getDeviceAuthToken(r interface{}) (string, error) {
-	if dat, ok := r.(interface{ deviceAuthToken() string }); ok {
-		return dat.deviceAuthToken(), nil
+	if dat, ok := r.(fleet.DeviceAuthTokener); ok {
+		return dat.DeviceAuthToken(), nil
 	}
-	return "", fleet.NewAuthRequiredError("request type does not implement deviceAuthToken method. This is likely a Fleet programmer error.")
+	return "", fleet.NewAuthRequiredError("request type does not implement DeviceAuthToken method. This is likely a Fleet programmer error.")
 }
 
 // authenticatedHost wraps an endpoint, checks the validity of the node_key
@@ -225,8 +225,8 @@ func authenticatedOrbitHost(
 }
 
 func getOrbitNodeKey(ctx context.Context, r interface{}) (string, error) {
-	if onk, ok := r.(interface{ orbitHostNodeKey() string }); ok {
-		return onk.orbitHostNodeKey(), nil
+	if onk, ok := r.(fleet.OrbitHostNodeKeyer); ok {
+		return onk.OrbitHostNodeKey(), nil
 	}
 	return "", errors.New("error getting orbit node key")
 }
@@ -241,8 +241,8 @@ func authHeaderValue(prefix string) func(ctx context.Context, r interface{}) (st
 }
 
 func getNodeKey(r interface{}) (string, error) {
-	if hnk, ok := r.(interface{ hostNodeKey() string }); ok {
-		return hnk.hostNodeKey(), nil
+	if hnk, ok := r.(interface{ HostNodeKey() string }); ok {
+		return hnk.HostNodeKey(), nil
 	}
-	return "", newOsqueryError("request type does not implement hostNodeKey method. This is likely a Fleet programmer error.")
+	return "", newOsqueryError("request type does not implement HostNodeKey method. This is likely a Fleet programmer error.")
 }

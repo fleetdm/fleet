@@ -122,7 +122,7 @@ func (svc *Service) UpdateAppStoreApp(ctx context.Context, titleID uint, teamID 
 // POST /api/_version_/vpp_tokens
 type decodeUploadVPPTokenRequest struct{}
 
-func (decodeUploadVPPTokenRequest) DecodeRequest(ctx context.Context, r *http.Request) (interface{}, error) {
+func (decodeUploadVPPTokenRequest) DecodeRequest(ctx context.Context, r *http.Request) (any, error) {
 	decoded := fleet.UploadVPPTokenRequest{}
 
 	err := r.ParseMultipartForm(platform_http.MaxMultipartFormSize)
@@ -172,7 +172,7 @@ func (svc *Service) UploadVPPToken(ctx context.Context, file io.ReadSeeker) (*fl
 // PATCH /api/_version_/fleet/vpp_tokens/%d/renew //
 type decodePatchVPPTokenRenewRequest struct{}
 
-func (decodePatchVPPTokenRenewRequest) DecodeRequest(ctx context.Context, r *http.Request) (interface{}, error) {
+func (decodePatchVPPTokenRenewRequest) DecodeRequest(ctx context.Context, r *http.Request) (any, error) {
 	decoded := fleet.PatchVPPTokenRenewRequest{}
 
 	err := r.ParseMultipartForm(platform_http.MaxMultipartFormSize)

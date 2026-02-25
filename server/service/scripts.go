@@ -376,7 +376,7 @@ func (svc *Service) GetScriptResult(ctx context.Context, execID string) (*fleet.
 // Create a (saved) script (via a multipart file upload)
 type decodeCreateScriptRequest struct{}
 
-func (decodeCreateScriptRequest) DecodeRequest(ctx context.Context, r *http.Request) (interface{}, error) {
+func (decodeCreateScriptRequest) DecodeRequest(ctx context.Context, r *http.Request) (any, error) {
 	var decoded fleet.CreateScriptRequest
 
 	err := parseMultipartForm(ctx, r, platform_http.MaxMultipartFormSize)
@@ -596,7 +596,7 @@ func (svc *Service) GetScript(ctx context.Context, scriptID uint, withContent bo
 // Update Script Contents
 type decodeUpdateScriptRequest struct{}
 
-func (decodeUpdateScriptRequest) DecodeRequest(ctx context.Context, r *http.Request) (interface{}, error) {
+func (decodeUpdateScriptRequest) DecodeRequest(ctx context.Context, r *http.Request) (any, error) {
 	var decoded fleet.UpdateScriptRequest
 
 	err := r.ParseMultipartForm(platform_http.MaxMultipartFormSize)

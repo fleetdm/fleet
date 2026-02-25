@@ -139,7 +139,7 @@ type GetDeviceSoftwareInstallResultsRequest struct {
 	InstallUUID string `url:"install_uuid"`
 }
 
-func (r *GetDeviceSoftwareInstallResultsRequest) deviceAuthToken() string {
+func (r *GetDeviceSoftwareInstallResultsRequest) DeviceAuthToken() string {
 	return r.Token
 }
 
@@ -155,7 +155,7 @@ type GetDeviceSoftwareUninstallResultsRequest struct {
 	ExecutionID string `url:"execution_id"`
 }
 
-func (r *GetDeviceSoftwareUninstallResultsRequest) deviceAuthToken() string {
+func (r *GetDeviceSoftwareUninstallResultsRequest) DeviceAuthToken() string {
 	return r.Token
 }
 
@@ -195,7 +195,7 @@ type FleetSelfServiceSoftwareInstallRequest struct {
 	SoftwareTitleID uint   `url:"software_title_id"`
 }
 
-func (r *FleetSelfServiceSoftwareInstallRequest) deviceAuthToken() string {
+func (r *FleetSelfServiceSoftwareInstallRequest) DeviceAuthToken() string {
 	return r.Token
 }
 
@@ -212,7 +212,7 @@ type FleetDeviceSoftwareUninstallRequest struct {
 	SoftwareTitleID uint   `url:"software_title_id"`
 }
 
-func (r *FleetDeviceSoftwareUninstallRequest) deviceAuthToken() string {
+func (r *FleetDeviceSoftwareUninstallRequest) DeviceAuthToken() string {
 	return r.Token
 }
 

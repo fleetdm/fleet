@@ -10,6 +10,11 @@ import (
 	"net/url"
 )
 
+// DeviceAuthTokener is implemented by requests that are authenticated by device URL tokens.
+type DeviceAuthTokener interface {
+	DeviceAuthToken() string
+}
+
 // writeCapabilitiesHeader writes the capabilities header to the response writer.
 func writeCapabilitiesHeader(w http.ResponseWriter, capabilities CapabilityMap) {
 	if len(capabilities) == 0 {
@@ -24,7 +29,7 @@ type DeviceAuthPingRequest struct {
 	Token string `url:"token"`
 }
 
-func (r *DeviceAuthPingRequest) deviceAuthToken() string {
+func (r *DeviceAuthPingRequest) DeviceAuthToken() string {
 	return r.Token
 }
 
@@ -47,7 +52,7 @@ type GetFleetDesktopRequest struct {
 	Token string `url:"token"`
 }
 
-func (r *GetFleetDesktopRequest) deviceAuthToken() string {
+func (r *GetFleetDesktopRequest) DeviceAuthToken() string {
 	return r.Token
 }
 
@@ -56,7 +61,7 @@ type GetDeviceHostRequest struct {
 	ExcludeSoftware bool   `query:"exclude_software,optional"`
 }
 
-func (r *GetDeviceHostRequest) deviceAuthToken() string {
+func (r *GetDeviceHostRequest) DeviceAuthToken() string {
 	return r.Token
 }
 
@@ -77,7 +82,7 @@ type RefetchDeviceHostRequest struct {
 	Token string `url:"token"`
 }
 
-func (r *RefetchDeviceHostRequest) deviceAuthToken() string {
+func (r *RefetchDeviceHostRequest) DeviceAuthToken() string {
 	return r.Token
 }
 
@@ -85,7 +90,7 @@ type ListDeviceHostDeviceMappingRequest struct {
 	Token string `url:"token"`
 }
 
-func (r *ListDeviceHostDeviceMappingRequest) deviceAuthToken() string {
+func (r *ListDeviceHostDeviceMappingRequest) DeviceAuthToken() string {
 	return r.Token
 }
 
@@ -93,7 +98,7 @@ type GetDeviceMacadminsDataRequest struct {
 	Token string `url:"token"`
 }
 
-func (r *GetDeviceMacadminsDataRequest) deviceAuthToken() string {
+func (r *GetDeviceMacadminsDataRequest) DeviceAuthToken() string {
 	return r.Token
 }
 
@@ -101,7 +106,7 @@ type ListDevicePoliciesRequest struct {
 	Token string `url:"token"`
 }
 
-func (r *ListDevicePoliciesRequest) deviceAuthToken() string {
+func (r *ListDevicePoliciesRequest) DeviceAuthToken() string {
 	return r.Token
 }
 
@@ -116,7 +121,7 @@ type BypassConditionalAccessRequest struct {
 	Token string `url:"token"`
 }
 
-func (r *BypassConditionalAccessRequest) deviceAuthToken() string {
+func (r *BypassConditionalAccessRequest) DeviceAuthToken() string {
 	return r.Token
 }
 
@@ -131,7 +136,7 @@ type ResendDeviceConfigurationProfileRequest struct {
 	ProfileUUID string `url:"profile_uuid"`
 }
 
-func (r *ResendDeviceConfigurationProfileRequest) deviceAuthToken() string {
+func (r *ResendDeviceConfigurationProfileRequest) DeviceAuthToken() string {
 	return r.Token
 }
 
@@ -148,7 +153,7 @@ type GetDeviceMDMCommandResultsRequest struct {
 	CommandUUID string `url:"command_uuid"`
 }
 
-func (r *GetDeviceMDMCommandResultsRequest) deviceAuthToken() string {
+func (r *GetDeviceMDMCommandResultsRequest) DeviceAuthToken() string {
 	return r.Token
 }
 
@@ -156,7 +161,7 @@ type TransparencyURLRequest struct {
 	Token string `url:"token"`
 }
 
-func (r *TransparencyURLRequest) deviceAuthToken() string {
+func (r *TransparencyURLRequest) DeviceAuthToken() string {
 	return r.Token
 }
 
@@ -177,7 +182,7 @@ type GetDeviceSoftwareIconRequest struct {
 	SoftwareTitleID uint   `url:"software_title_id"`
 }
 
-func (r *GetDeviceSoftwareIconRequest) deviceAuthToken() string {
+func (r *GetDeviceSoftwareIconRequest) DeviceAuthToken() string {
 	return r.Token
 }
 
@@ -220,7 +225,7 @@ type FleetdErrorRequest struct {
 	FleetdError
 }
 
-func (f *FleetdErrorRequest) deviceAuthToken() string {
+func (f *FleetdErrorRequest) DeviceAuthToken() string {
 	return f.Token
 }
 
@@ -248,7 +253,7 @@ type GetDeviceMDMManualEnrollProfileRequest struct {
 	Token string `url:"token"`
 }
 
-func (r *GetDeviceMDMManualEnrollProfileRequest) deviceAuthToken() string {
+func (r *GetDeviceMDMManualEnrollProfileRequest) DeviceAuthToken() string {
 	return r.Token
 }
 
@@ -265,7 +270,7 @@ type DeviceMigrateMDMRequest struct {
 	Token string `url:"token"`
 }
 
-func (r *DeviceMigrateMDMRequest) deviceAuthToken() string {
+func (r *DeviceMigrateMDMRequest) DeviceAuthToken() string {
 	return r.Token
 }
 
@@ -281,7 +286,7 @@ type TriggerLinuxDiskEncryptionEscrowRequest struct {
 	Token string `url:"token"`
 }
 
-func (r *TriggerLinuxDiskEncryptionEscrowRequest) deviceAuthToken() string {
+func (r *TriggerLinuxDiskEncryptionEscrowRequest) DeviceAuthToken() string {
 	return r.Token
 }
 
@@ -298,7 +303,7 @@ type GetDeviceSoftwareRequest struct {
 	HostSoftwareTitleListOptions
 }
 
-func (r *GetDeviceSoftwareRequest) deviceAuthToken() string {
+func (r *GetDeviceSoftwareRequest) DeviceAuthToken() string {
 	return r.Token
 }
 
@@ -323,7 +328,7 @@ func (r *ListDeviceCertificatesRequest) ValidateRequest() error {
 	return nil
 }
 
-func (r *ListDeviceCertificatesRequest) deviceAuthToken() string {
+func (r *ListDeviceCertificatesRequest) DeviceAuthToken() string {
 	return r.Token
 }
 
@@ -340,7 +345,7 @@ type GetDeviceSetupExperienceStatusRequest struct {
 	Token string `url:"token"`
 }
 
-func (r *GetDeviceSetupExperienceStatusRequest) deviceAuthToken() string {
+func (r *GetDeviceSetupExperienceStatusRequest) DeviceAuthToken() string {
 	return r.Token
 }
 

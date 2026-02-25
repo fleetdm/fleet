@@ -5,9 +5,6 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/fleetdm/fleet/v4/server/contexts/host"
-	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
-	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"go.opentelemetry.io/otel/sdk/trace"
@@ -25,14 +22,11 @@ func TestHandleSendsContextToOTEL(t *testing.T) {
 		{
 			name: "with user context",
 			setupContext: func(ctx context.Context) context.Context {
-				testUser := &fleet.User{
-					ID:    123,
-					Email: "test@example.com",
-				}
-				v := viewer.Viewer{User: testUser}
-				ctx = viewer.NewContext(ctx, v)
 				// Register the viewer as an error context provider
-				ctx = AddErrorContextProvider(ctx, &v)
+				ctx = AddErrorContextProvider(ctx, &mockViewerAttributeProvider{
+					userID: 123,
+					email:  "test@example.com",
+				})
 				return ctx
 			},
 			errorMessage: "test error with user context",
@@ -43,13 +37,11 @@ func TestHandleSendsContextToOTEL(t *testing.T) {
 		{
 			name: "with host context",
 			setupContext: func(ctx context.Context) context.Context {
-				testHost := &fleet.Host{
-					ID:       456,
-					Hostname: "test-host.example.com",
-				}
-				ctx = host.NewContext(ctx, testHost)
 				// Register the host as an error context provider
-				ctx = AddErrorContextProvider(ctx, &host.HostAttributeProvider{Host: testHost})
+				ctx = AddErrorContextProvider(ctx, &mockHostAttributeProvider{
+					id:       456,
+					hostname: "test-host.example.com",
+				})
 				return ctx
 			},
 			errorMessage: "test error with host context",

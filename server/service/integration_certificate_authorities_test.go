@@ -138,7 +138,7 @@ func (s *integrationMDMTestSuite) TestBatchApplyCertificateAuthorities() {
 
 	// newApplyRequest creates a new applyCertificateAuthoritiesSpecRequest. The given payload
 	// should be one of fleet.DigiCertCA, fleet.CustomSCEPProxyCA, fleet.HydrantCA, or fleet.NDESSCEPProxyCA.
-	newApplyRequest := func(p interface{}, dryRun bool) (fleet.BatchApplyCertificateAuthoritiesRequest, error) {
+	newApplyRequest := func(p any, dryRun bool) (fleet.BatchApplyCertificateAuthoritiesRequest, error) {
 		switch v := p.(type) {
 		case fleet.CustomSCEPProxyCA:
 			return fleet.BatchApplyCertificateAuthoritiesRequest{

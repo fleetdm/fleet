@@ -38,13 +38,13 @@ func (t TeamSearchResult) MarshalJSON() ([]byte, error) {
 		Name        string    `json:"name"`
 		Description string    `json:"description"`
 		TeamConfig
-		UserCount   int            `json:"user_count"`
-		Users       []TeamUser     `json:"users,omitempty"`
-		HostCount   int            `json:"host_count"`
-		Hosts       []HostResponse `json:"hosts,omitempty"`
+		UserCount   int             `json:"user_count"`
+		Users       []TeamUser      `json:"users,omitempty"`
+		HostCount   int             `json:"host_count"`
+		Hosts       []HostResponse  `json:"hosts,omitempty"`
 		Secrets     []*EnrollSecret `json:"secrets,omitempty"`
-		DisplayText string         `json:"display_text"`
-		Count       int            `json:"count"`
+		DisplayText string          `json:"display_text"`
+		Count       int             `json:"count"`
 	}{
 		ID:          t.ID,
 		CreatedAt:   t.CreatedAt,
@@ -70,13 +70,13 @@ func (t *TeamSearchResult) UnmarshalJSON(b []byte) error {
 		Name        string    `json:"name"`
 		Description string    `json:"description"`
 		TeamConfig
-		UserCount   int            `json:"user_count"`
-		Users       []TeamUser     `json:"users,omitempty"`
-		HostCount   int            `json:"host_count"`
-		Hosts       []Host         `json:"hosts,omitempty"`
+		UserCount   int             `json:"user_count"`
+		Users       []TeamUser      `json:"users,omitempty"`
+		HostCount   int             `json:"host_count"`
+		Hosts       []Host          `json:"hosts,omitempty"`
 		Secrets     []*EnrollSecret `json:"secrets,omitempty"`
-		DisplayText string         `json:"display_text"`
-		Count       int            `json:"count"`
+		DisplayText string          `json:"display_text"`
+		Count       int             `json:"count"`
 	}
 
 	if err := json.Unmarshal(b, &x); err != nil {
@@ -105,7 +105,7 @@ func (t *TeamSearchResult) UnmarshalJSON(b []byte) error {
 
 // TargetsData holds the search results for hosts, labels, and teams.
 type TargetsData struct {
-	Hosts  []*HostResponse    `json:"hosts"`
+	Hosts  []*HostResponse     `json:"hosts"`
 	Labels []LabelSearchResult `json:"labels"`
 	Teams  []TeamSearchResult  `json:"teams" renameto:"fleets"`
 }

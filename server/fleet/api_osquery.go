@@ -10,12 +10,12 @@ type GetClientConfigRequest struct {
 	NodeKey string `json:"node_key"`
 }
 
-func (r *GetClientConfigRequest) hostNodeKey() string {
+func (r *GetClientConfigRequest) HostNodeKey() string {
 	return r.NodeKey
 }
 
 type GetClientConfigResponse struct {
-	Config map[string]interface{}
+	Config map[string]any
 	Err    error `json:"error,omitempty"`
 }
 
@@ -33,7 +33,7 @@ type GetDistributedQueriesRequest struct {
 	NodeKey string `json:"node_key"`
 }
 
-func (r *GetDistributedQueriesRequest) hostNodeKey() string {
+func (r *GetDistributedQueriesRequest) HostNodeKey() string {
 	return r.NodeKey
 }
 
@@ -58,7 +58,7 @@ type SubmitLogsRequest struct {
 	Data    []json.RawMessage `json:"data"`
 }
 
-func (r *SubmitLogsRequest) hostNodeKey() string {
+func (r *SubmitLogsRequest) HostNodeKey() string {
 	return r.NodeKey
 }
 
@@ -73,7 +73,7 @@ type GetYaraRequest struct {
 	Name    string `url:"name"`
 }
 
-func (r *GetYaraRequest) hostNodeKey() string {
+func (r *GetYaraRequest) HostNodeKey() string {
 	return r.NodeKey
 }
 

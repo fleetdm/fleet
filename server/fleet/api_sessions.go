@@ -32,8 +32,8 @@ func (r DeleteSessionResponse) Error() error { return r.Err }
 type LoginResponse struct {
 	User           *User          `json:"user,omitempty"`
 	AvailableTeams []*TeamSummary `json:"available_teams" renameto:"available_fleets"`
-	Token          string               `json:"token,omitempty"`
-	Err            error                `json:"error,omitempty"`
+	Token          string         `json:"token,omitempty"`
+	Err            error          `json:"error,omitempty"`
 }
 
 func (r LoginResponse) Error() error { return r.Err }
@@ -64,8 +64,8 @@ type InitiateSSORequest struct {
 }
 
 type InitiateSSOResponse struct {
-	URL          string `json:"url,omitempty"`
-	Err          error  `json:"error,omitempty"`
+	URL          string                                     `json:"url,omitempty"`
+	Err          error                                      `json:"error,omitempty"`
 	SetCookiesFn func(context.Context, http.ResponseWriter) `json:"-"`
 }
 
@@ -83,8 +83,8 @@ type CallbackSSORequest struct {
 }
 
 type CallbackSSOResponse struct {
-	Content      string `json:"-"`
-	Err          error  `json:"error,omitempty"`
+	Content      string                                     `json:"-"`
+	Err          error                                      `json:"error,omitempty"`
 	SetCookiesFn func(context.Context, http.ResponseWriter) `json:"-"`
 }
 
@@ -100,7 +100,7 @@ func (r CallbackSSOResponse) SetCookies(ctx context.Context, w http.ResponseWrit
 
 type SsoSettingsResponse struct {
 	Settings *SessionSSOSettings `json:"settings,omitempty"`
-	Err      error                     `json:"error,omitempty"`
+	Err      error               `json:"error,omitempty"`
 }
 
 func (r SsoSettingsResponse) Error() error { return r.Err }

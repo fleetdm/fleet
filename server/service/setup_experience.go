@@ -6,7 +6,6 @@ import (
 	"io"
 	"net/http"
 	"path/filepath"
-	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -83,7 +82,7 @@ func (svc *Service) GetSetupExperienceScript(ctx context.Context, teamID *uint, 
 
 type decodeSetSetupExperienceScriptRequest struct{}
 
-func (decodeSetSetupExperienceScriptRequest) DecodeRequest(ctx context.Context, r *http.Request) (interface{}, error) {
+func (decodeSetSetupExperienceScriptRequest) DecodeRequest(ctx context.Context, r *http.Request) (any, error) {
 	var decoded fleet.SetSetupExperienceScriptRequest
 
 	err := parseMultipartForm(ctx, r, platform_http.MaxMultipartFormSize)
@@ -306,17 +305,6 @@ func maybeUpdateSetupExperienceStatus(ctx context.Context, ds fleet.Datastore, r
 		}
 	}
 	return updated, err
-}
-
-func validateSetupExperiencePlatform(platforms string) error {
-	for platform := range strings.SplitSeq(platforms, ",") {
-		if platform != "" && !slices.Contains(fleet.SetupExperienceSupportedPlatforms, platform) {
-			quotedPlatforms := strings.Join(fleet.SetupExperienceSupportedPlatforms, "\", \"")
-			quotedPlatforms = fmt.Sprintf("\"%s\"", quotedPlatforms)
-			return badRequestf("platform %q unsupported, platform must be one of %s", platform, quotedPlatforms)
-		}
-	}
-	return nil
 }
 
 func transformPlatformForSetupExperience(platform string) string {

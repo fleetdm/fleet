@@ -20,7 +20,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/platform/logging"
 	"github.com/fleetdm/fleet/v4/server/platform/logging/testutils"
 	"github.com/fleetdm/fleet/v4/server/ptr"
-	"github.com/fleetdm/fleet/v4/server/service/contract"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
@@ -116,19 +115,19 @@ func (s *integrationLoggerTestSuite) TestLoggerLogin() {
 	}
 
 	testCases := []struct {
-		loginRequest   contract.LoginRequest
+		loginRequest   fleet.LoginRequest
 		expectedStatus int
 		expectedLevel  slog.Level
 		expectedAttrs  []expectedAttr
 	}{
 		{
-			loginRequest:   contract.LoginRequest{Email: testUsers["admin1"].Email, Password: testUsers["admin1"].PlaintextPassword},
+			loginRequest:   fleet.LoginRequest{Email: testUsers["admin1"].Email, Password: testUsers["admin1"].PlaintextPassword},
 			expectedStatus: http.StatusOK,
 			expectedLevel:  slog.LevelInfo,
 			expectedAttrs:  []expectedAttr{{"email", testUsers["admin1"].Email}},
 		},
 		{
-			loginRequest:   contract.LoginRequest{Email: testUsers["admin1"].Email, Password: "n074v411dp455w02d"},
+			loginRequest:   fleet.LoginRequest{Email: testUsers["admin1"].Email, Password: "n074v411dp455w02d"},
 			expectedStatus: http.StatusUnauthorized,
 			expectedLevel:  slog.LevelInfo,
 			expectedAttrs: []expectedAttr{
@@ -137,7 +136,7 @@ func (s *integrationLoggerTestSuite) TestLoggerLogin() {
 			},
 		},
 		{
-			loginRequest:   contract.LoginRequest{Email: "h4x0r@3x4mp13.c0m", Password: "n074v411dp455w02d"},
+			loginRequest:   fleet.LoginRequest{Email: "h4x0r@3x4mp13.c0m", Password: "n074v411dp455w02d"},
 			expectedStatus: http.StatusUnauthorized,
 			expectedLevel:  slog.LevelInfo,
 			expectedAttrs: []expectedAttr{
@@ -317,7 +316,7 @@ func (s *integrationLoggerTestSuite) TestEnrollOsqueryLogsErrors() {
 	})
 	require.NoError(t, err)
 
-	j, err := json.Marshal(&contract.EnrollOsqueryAgentRequest{
+	j, err := json.Marshal(&fleet.EnrollOsqueryAgentRequest{
 		EnrollSecret:   "1234",
 		HostIdentifier: "4321",
 		HostDetails:    nil,

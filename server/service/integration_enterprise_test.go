@@ -25501,7 +25501,7 @@ func (s *integrationEnterpriseTestSuite) TestFMAVersionRollback() {
 	defer installerServer.Close()
 
 	// Non-existent maintained app
-	s.Do("POST", "/api/latest/fleet/software/fleet_maintained_apps", &addFleetMaintainedAppRequest{AppID: 1}, http.StatusNotFound)
+	s.Do("POST", "/api/latest/fleet/software/fleet_maintained_apps", &fleet.AddFleetMaintainedAppRequest{AppID: 1}, http.StatusNotFound)
 
 	// Insert the list of maintained apps
 	maintained_apps.SyncApps(t, s.ds)
@@ -25547,10 +25547,10 @@ func (s *integrationEnterpriseTestSuite) TestFMAVersionRollback() {
 	// Sub-test helper: fetch the active software title for a team by FMA name.
 	// -------------------------------------------------------------------------
 	getActiveTitleForTeam := func(teamID uint) fleet.SoftwareTitleListResult {
-		var resp listSoftwareTitlesResponse
+		var resp fleet.ListSoftwareTitlesResponse
 		s.DoJSON(
 			"GET", "/api/latest/fleet/software/titles",
-			listSoftwareTitlesRequest{},
+			fleet.ListSoftwareTitlesRequest{},
 			http.StatusOK, &resp,
 			"per_page", "1",
 			"order_key", "name",
@@ -25568,8 +25568,8 @@ func (s *integrationEnterpriseTestSuite) TestFMAVersionRollback() {
 
 	// newTeam creates a new team with the given name and returns it.
 	newTeam := func(name string) fleet.Team {
-		var resp teamResponse
-		s.DoJSON("POST", "/api/latest/fleet/teams", &createTeamRequest{
+		var resp fleet.TeamResponse
+		s.DoJSON("POST", "/api/latest/fleet/teams", &fleet.CreateTeamRequest{
 			TeamPayload: fleet.TeamPayload{Name: ptr.String(name)},
 		}, http.StatusOK, &resp)
 		return *resp.Team
@@ -25585,9 +25585,9 @@ func (s *integrationEnterpriseTestSuite) TestFMAVersionRollback() {
 	// batchSet issues a batch-set request for the given team and software slice,
 	// waits for completion, and returns the resulting packages.
 	batchSet := func(team fleet.Team, software []*fleet.SoftwareInstallerPayload) []fleet.SoftwarePackageResponse {
-		var resp batchSetSoftwareInstallersResponse
+		var resp fleet.BatchSetSoftwareInstallersResponse
 		s.DoJSON("POST", "/api/latest/fleet/software/batch",
-			batchSetSoftwareInstallersRequest{Software: software, TeamName: team.Name},
+			fleet.BatchSetSoftwareInstallersRequest{Software: software, TeamName: team.Name},
 			http.StatusAccepted, &resp,
 			"team_name", team.Name, "team_id", fmt.Sprint(team.ID),
 		)
@@ -25691,7 +25691,7 @@ func (s *integrationEnterpriseTestSuite) TestFMAVersionRollback() {
 	// Create a host in the team, trigger an install, and verify the downloaded bytes match v2.0
 	hostInTeam := newHostInTeam("windows", "orbit-host-rollback", team)
 
-	s.Do("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/software/%d/install", hostInTeam.ID, title.ID), installSoftwareRequest{}, http.StatusAccepted)
+	s.Do("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/software/%d/install", hostInTeam.ID, title.ID), fleet.InstallSoftwareRequest{}, http.StatusAccepted)
 
 	// Get the queued installer ID from the pending install record
 	var installerID uint
@@ -25704,7 +25704,7 @@ func (s *integrationEnterpriseTestSuite) TestFMAVersionRollback() {
 	})
 
 	// Download the installer via orbit — should get the v2.0 bytes ("def")
-	r := s.Do("POST", "/api/fleet/orbit/software_install/package?alt=media", orbitDownloadSoftwareInstallerRequest{
+	r := s.Do("POST", "/api/fleet/orbit/software_install/package?alt=media", fleet.OrbitDownloadSoftwareInstallerRequest{
 		InstallerID:  installerID,
 		OrbitNodeKey: *hostInTeam.OrbitNodeKey,
 	}, http.StatusOK)
@@ -25733,7 +25733,7 @@ func (s *integrationEnterpriseTestSuite) TestFMAVersionRollback() {
 	require.Len(t, title.SoftwarePackage.FleetMaintainedVersions, 2)
 
 	// Trigger an install and verify the downloaded bytes match v3.0
-	s.Do("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/software/%d/install", hostInTeam.ID, title.ID), installSoftwareRequest{}, http.StatusAccepted)
+	s.Do("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/software/%d/install", hostInTeam.ID, title.ID), fleet.InstallSoftwareRequest{}, http.StatusAccepted)
 
 	// Get the queued installer ID from the pending install record
 	var installerIDv3 uint
@@ -25746,7 +25746,7 @@ func (s *integrationEnterpriseTestSuite) TestFMAVersionRollback() {
 	})
 
 	// Download the installer via orbit — should get the v3.0 bytes ("ghi")
-	r = s.Do("POST", "/api/fleet/orbit/software_install/package?alt=media", orbitDownloadSoftwareInstallerRequest{
+	r = s.Do("POST", "/api/fleet/orbit/software_install/package?alt=media", fleet.OrbitDownloadSoftwareInstallerRequest{
 		InstallerID:  installerIDv3,
 		OrbitNodeKey: *hostInTeam.OrbitNodeKey,
 	}, http.StatusOK)
@@ -25771,7 +25771,7 @@ func (s *integrationEnterpriseTestSuite) TestFMAVersionRollback() {
 	downloadMu.Unlock()
 
 	rawResp := s.Do("POST", "/api/latest/fleet/software/batch",
-		batchSetSoftwareInstallersRequest{
+		fleet.BatchSetSoftwareInstallersRequest{
 			Software: []*fleet.SoftwareInstallerPayload{
 				{Slug: ptr.String("cloudflare-warp/windows"), SelfService: true, RollbackVersion: "1.0"},
 			},
@@ -25845,8 +25845,8 @@ func (s *integrationEnterpriseTestSuite) TestFMAVersionRollback() {
 		warpAppID := fmaAppID("cloudflare-warp/windows")
 
 		// Add the FMA via the single-add (UI) endpoint.
-		var addMAResp addFleetMaintainedAppResponse
-		s.DoJSON("POST", "/api/latest/fleet/software/fleet_maintained_apps", &addFleetMaintainedAppRequest{
+		var addMAResp fleet.AddFleetMaintainedAppResponse
+		s.DoJSON("POST", "/api/latest/fleet/software/fleet_maintained_apps", &fleet.AddFleetMaintainedAppRequest{
 			AppID:       warpAppID,
 			TeamID:      &uiTeam.ID,
 			SelfService: true,
@@ -25938,7 +25938,7 @@ func (s *integrationEnterpriseTestSuite) TestFMAVersionRollback() {
 		zoomAppID := fmaAppID("zoom/windows")
 
 		conflictResp := s.Do("POST", "/api/latest/fleet/software/fleet_maintained_apps",
-			&addFleetMaintainedAppRequest{
+			&fleet.AddFleetMaintainedAppRequest{
 				AppID:  zoomAppID,
 				TeamID: &conflictTeam.ID,
 			},
@@ -26013,10 +26013,10 @@ func (s *integrationEnterpriseTestSuite) TestFMAVersionRollback() {
 		require.Len(t, pkgs, 4)
 
 		// Collect active versions by title name for easy assertion.
-		var multiTitlesResp listSoftwareTitlesResponse
+		var multiTitlesResp fleet.ListSoftwareTitlesResponse
 		s.DoJSON(
 			"GET", "/api/latest/fleet/software/titles",
-			listSoftwareTitlesRequest{},
+			fleet.ListSoftwareTitlesRequest{},
 			http.StatusOK, &multiTitlesResp,
 			"available_for_install", "true",
 			"team_id", fmt.Sprintf("%d", multiTeam.ID),
@@ -26039,10 +26039,10 @@ func (s *integrationEnterpriseTestSuite) TestFMAVersionRollback() {
 		})
 		require.Len(t, pkgs, 4)
 
-		multiTitlesResp = listSoftwareTitlesResponse{}
+		multiTitlesResp = fleet.ListSoftwareTitlesResponse{}
 		s.DoJSON(
 			"GET", "/api/latest/fleet/software/titles",
-			listSoftwareTitlesRequest{},
+			fleet.ListSoftwareTitlesRequest{},
 			http.StatusOK, &multiTitlesResp,
 			"available_for_install", "true",
 			"team_id", fmt.Sprintf("%d", multiTeam.ID),
@@ -26208,10 +26208,10 @@ func (s *integrationEnterpriseTestSuite) TestFMAVersionRollback() {
 
 		// The software title should no longer appear in the available-for-install
 		// list for the team.
-		var titlesResp listSoftwareTitlesResponse
+		var titlesResp fleet.ListSoftwareTitlesResponse
 		s.DoJSON(
 			"GET", "/api/latest/fleet/software/titles",
-			listSoftwareTitlesRequest{},
+			fleet.ListSoftwareTitlesRequest{},
 			http.StatusOK, &titlesResp,
 			"available_for_install", "true",
 			"team_id", fmt.Sprintf("%d", delTeam.ID),
@@ -26256,7 +26256,7 @@ func (s *integrationEnterpriseTestSuite) TestFMAVersionRollback() {
 		statusHost := newHostInTeam("windows", "orbit-host-status-"+t.Name(), statusTeam)
 
 		s.Do("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/software/%d/install", statusHost.ID, titleID),
-			installSoftwareRequest{}, http.StatusAccepted)
+			fleet.InstallSoftwareRequest{}, http.StatusAccepted)
 
 		// Retrieve the execution UUID for the pending install.
 		installUUID := getLatestSoftwareInstallExecID(t, s.ds, statusHost.ID)
@@ -26271,7 +26271,7 @@ func (s *integrationEnterpriseTestSuite) TestFMAVersionRollback() {
 		}`, *statusHost.OrbitNodeKey, installUUID)), http.StatusNoContent)
 
 		// Verify: v2.0 installer summary shows Installed: 1.
-		var titleRespV2 getSoftwareTitleResponse
+		var titleRespV2 fleet.GetSoftwareTitleResponse
 		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d", titleID), nil,
 			http.StatusOK, &titleRespV2, "team_id", fmt.Sprint(statusTeam.ID))
 		require.NotNil(t, titleRespV2.SoftwareTitle.SoftwarePackage.Status)
@@ -26291,7 +26291,7 @@ func (s *integrationEnterpriseTestSuite) TestFMAVersionRollback() {
 		// v1.0's software_installers row was never the target of any install
 		// request, so its summary must be completely empty. The title ID is
 		// stable across version switches, so we can query it directly.
-		var titleRespV1 getSoftwareTitleResponse
+		var titleRespV1 fleet.GetSoftwareTitleResponse
 		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d", titleID), nil,
 			http.StatusOK, &titleRespV1, "team_id", fmt.Sprint(statusTeam.ID))
 		require.NotNil(t, titleRespV1.SoftwareTitle.SoftwarePackage.Status)
@@ -26335,7 +26335,7 @@ func (s *integrationEnterpriseTestSuite) TestFMAVersionRollback() {
 		require.Equal(t, "2.0", editTitle.SoftwarePackage.Version)
 
 		// Confirm self_service starts as false before the edit.
-		var titleRespBefore getSoftwareTitleResponse
+		var titleRespBefore fleet.GetSoftwareTitleResponse
 		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d", editTitle.ID), nil,
 			http.StatusOK, &titleRespBefore, "team_id", fmt.Sprint(editTeam.ID))
 		require.False(t, titleRespBefore.SoftwareTitle.SoftwarePackage.SelfService,
@@ -26358,7 +26358,7 @@ func (s *integrationEnterpriseTestSuite) TestFMAVersionRollback() {
 		}, http.StatusOK, "")
 
 		// Confirm the edit actually took effect.
-		var titleResp getSoftwareTitleResponse
+		var titleResp fleet.GetSoftwareTitleResponse
 		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d", editTitle.ID), nil,
 			http.StatusOK, &titleResp, "team_id", fmt.Sprint(editTeam.ID))
 		require.True(t, titleResp.SoftwareTitle.SoftwarePackage.SelfService,

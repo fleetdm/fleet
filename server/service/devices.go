@@ -658,7 +658,15 @@ func getDeviceSoftwareEndpoint(ctx context.Context, request interface{}, svc fle
 	if res == nil {
 		res = []*fleet.HostSoftwareWithInstaller{}
 	}
-	return fleet.GetDeviceSoftwareResponse{Software: res, Meta: meta, Count: int(meta.TotalResults)}, nil //nolint:gosec // dismiss G115
+	var totalResults int
+	if meta != nil {
+		totalResults = int(meta.TotalResults) //nolint:gosec // dismiss G115
+	}
+	return fleet.GetDeviceSoftwareResponse{
+		Software: res,
+		Meta:     meta,
+		Count:    totalResults,
+	}, nil
 }
 
 // List Current Device's Certificates
