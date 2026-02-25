@@ -1765,9 +1765,6 @@ func TestAddHostsToTeamSourceTeamAuth(t *testing.T) {
 	ds.ListMDMAppleDEPSerialsInHostIDsFunc = func(ctx context.Context, hids []uint) ([]string, error) {
 		return nil, nil
 	}
-	ds.NewActivityFunc = func(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails, details []byte, createdAt time.Time) error {
-		return nil
-	}
 	ds.TeamLiteFunc = func(ctx context.Context, id uint) (*fleet.TeamLite, error) {
 		return &fleet.TeamLite{ID: id}, nil
 	}
@@ -1937,9 +1934,6 @@ func TestAddHostsToTeamByFilterSourceTeamAuth(t *testing.T) {
 	}
 	ds.ListMDMAppleDEPSerialsInHostIDsFunc = func(ctx context.Context, hids []uint) ([]string, error) {
 		return nil, nil
-	}
-	ds.NewActivityFunc = func(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails, details []byte, createdAt time.Time) error {
-		return nil
 	}
 	ds.TeamLiteFunc = func(ctx context.Context, id uint) (*fleet.TeamLite, error) {
 		return &fleet.TeamLite{ID: id}, nil
