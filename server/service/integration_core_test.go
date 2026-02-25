@@ -26,6 +26,7 @@ import (
 	"github.com/WatchBeam/clock"
 	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
 	"github.com/fleetdm/fleet/v4/server"
+	activity_api "github.com/fleetdm/fleet/v4/server/activity/api"
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -3376,15 +3377,15 @@ func (s *integrationTestSuite) TestListActivities() {
 
 	prevActivities := s.listActivities()
 
-	timestamp := time.Now()
-	ctx = context.WithValue(ctx, fleet.ActivityWebhookContextKey, true)
-	err := s.ds.NewActivity(ctx, &u, fleet.ActivityTypeAppliedSpecPack{}, nil, timestamp)
+	activitySvc := mysql.NewTestActivityService(t, s.ds)
+	apiUser := &activity_api.User{ID: u.ID, Name: u.Name, Email: u.Email}
+	err := activitySvc.NewActivity(ctx, apiUser, fleet.ActivityTypeAppliedSpecPack{})
 	require.NoError(t, err)
 
-	err = s.ds.NewActivity(ctx, &u, fleet.ActivityTypeDeletedPack{}, nil, timestamp)
+	err = activitySvc.NewActivity(ctx, apiUser, fleet.ActivityTypeDeletedPack{})
 	require.NoError(t, err)
 
-	err = s.ds.NewActivity(ctx, &u, fleet.ActivityTypeEditedPack{}, nil, timestamp)
+	err = activitySvc.NewActivity(ctx, apiUser, fleet.ActivityTypeEditedPack{})
 	require.NoError(t, err)
 
 	lenPage := len(prevActivities) + 2

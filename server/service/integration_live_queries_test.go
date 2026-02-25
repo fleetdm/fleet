@@ -59,7 +59,7 @@ func (s *liveQueriesTestSuite) SetupSuite() {
 	lq := live_query_mock.New(s.T())
 	s.lq = lq
 
-	opts := &TestServerOpts{Lq: lq, Rs: rs}
+	opts := &TestServerOpts{Lq: lq, Rs: rs, DBConns: s.dbConns}
 	if os.Getenv("FLEET_INTEGRATION_TESTS_DISABLE_LOG") != "" {
 		opts.Logger = logging.NewNopLogger()
 	}
