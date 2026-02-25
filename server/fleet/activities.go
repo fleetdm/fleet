@@ -8,6 +8,9 @@ import (
 
 type ContextKey string
 
+// NewActivityFunc is the function signature for creating a new activity.
+type NewActivityFunc func(ctx context.Context, user *User, activity ActivityDetails) error
+
 type ActivityWebhookPayload struct {
 	Timestamp     time.Time        `json:"timestamp"`
 	ActorFullName *string          `json:"actor_full_name"`
@@ -19,11 +22,6 @@ type ActivityWebhookPayload struct {
 
 // ActivityWebhookContextKey is the context key to indicate that the activity webhook has been processed before saving the activity.
 const ActivityWebhookContextKey = ContextKey("ActivityWebhook")
-
-// ActivityAutomationAuthor is the name used for the actor when an activity
-// is performed by Fleet automation (cron jobs, system operations, etc.)
-// rather than by a human user.
-const ActivityAutomationAuthor = "Fleet"
 
 type Activity struct {
 	CreateTimestamp

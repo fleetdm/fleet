@@ -10,7 +10,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func nopNewActivity(ctx context.Context, user *fleet.User, details fleet.ActivityDetails, ds fleet.Datastore, logger *logging.Logger) error {
+func nopNewActivity(ctx context.Context, user *fleet.User, details fleet.ActivityDetails) error {
 	return nil
 }
 

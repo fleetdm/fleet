@@ -81,7 +81,7 @@ func (svc *Service) TriggerMigrateMDMDevice(ctx context.Context, host *fleet.Hos
 	p.Host.UUID = host.UUID
 	p.Host.HardwareSerial = host.HardwareSerial
 
-	if err := server.PostJSONWithTimeout(ctx, ac.MDM.MacOSMigration.WebhookURL, p); err != nil {
+	if err := server.PostJSONWithTimeout(ctx, ac.MDM.MacOSMigration.WebhookURL, p, svc.logger.SlogLogger()); err != nil {
 		return ctxerr.Wrap(ctx, err, "posting macOS migration webhook")
 	}
 
@@ -235,7 +235,7 @@ func (svc *Service) validateReadyForLinuxEscrow(ctx context.Context, host *fleet
 
 	if host.TeamID == nil {
 		if !ac.MDM.EnableDiskEncryption.Value {
-			return &fleet.BadRequestError{Message: "Disk encryption is not enabled for hosts not assigned to a team."}
+			return &fleet.BadRequestError{Message: "Disk encryption is not enabled for hosts not assigned to a fleet."}
 		}
 	} else {
 		tc, err := svc.ds.TeamMDMConfig(ctx, *host.TeamID)
@@ -243,7 +243,7 @@ func (svc *Service) validateReadyForLinuxEscrow(ctx context.Context, host *fleet
 			return err
 		}
 		if !tc.EnableDiskEncryption {
-			return &fleet.BadRequestError{Message: "Disk encryption is not enabled for this host's team."}
+			return &fleet.BadRequestError{Message: "Disk encryption is not enabled for this host's fleet."}
 		}
 	}
 
