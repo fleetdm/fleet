@@ -106,5 +106,25 @@ func (a *Logger) SlogLogger() *slog.Logger {
 	return a.logger
 }
 
+// Wrap slog's ErrorContext method.
+func (a *Logger) ErrorContext(ctx context.Context, msg string, keyvals ...any) {
+	a.logger.ErrorContext(ctx, msg, keyvals...)
+}
+
+// Wrap slog's WarnContext method.
+func (a *Logger) WarnContext(ctx context.Context, msg string, keyvals ...any) {
+	a.logger.WarnContext(ctx, msg, keyvals...)
+}
+
+// Wrap slog's InfoContext method.
+func (a *Logger) InfoContext(ctx context.Context, msg string, keyvals ...any) {
+	a.logger.InfoContext(ctx, msg, keyvals...)
+}
+
+// Wrap slog's DebugContext method.
+func (a *Logger) DebugContext(ctx context.Context, msg string, keyvals ...any) {
+	a.logger.DebugContext(ctx, msg, keyvals...)
+}
+
 // Ensure Logger implements kitlog.Logger at compile time.
 var _ kitlog.Logger = (*Logger)(nil)

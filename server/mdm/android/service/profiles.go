@@ -405,9 +405,9 @@ func buildPolicyFieldsOverriddenErrorMessage(overriddenFields []string) string {
 	}
 	sb.WriteString("%q")
 	if len(overriddenFields) > 1 {
-		sb.WriteString(" aren't applied. They are overridden by other configuration profile.")
+		sb.WriteString(" aren't applied. They are overridden by other configuration profiles.")
 	} else {
-		sb.WriteString(" isn't applied. It's overridden by other configuration profile.")
+		sb.WriteString(" isn't applied. It's overridden by another configuration profile.")
 	}
 
 	args := make([]any, len(overriddenFields))

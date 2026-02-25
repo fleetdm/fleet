@@ -1,3 +1,7 @@
+## Orbit 1.52.1 (Feb 20, 2026)
+
+* Fixed panic in `orbit` when auto-updates are disabled.
+
 ## Orbit 1.52.0 (Feb 16, 2026)
 
 * Updated `macadmins/osquery-extensions` to v1.3.2.

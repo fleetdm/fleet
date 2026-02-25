@@ -5,13 +5,12 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"log/slog"
 	"strings"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	common_mysql "github.com/fleetdm/fleet/v4/server/platform/mysql"
-	"github.com/go-kit/log"
-	"github.com/go-kit/log/level"
 	"github.com/google/go-cmp/cmp"
 	"github.com/jmoiron/sqlx"
 )
@@ -147,7 +146,7 @@ func (ds *Datastore) ScimUserByUserNameOrEmail(ctx context.Context, userName str
 	return scimUserByUserNameOrEmail(ctx, ds.reader(ctx), ds.logger, userName, email)
 }
 
-func scimUserByUserNameOrEmail(ctx context.Context, q sqlx.QueryerContext, logger log.Logger, userName string, email string) (*fleet.ScimUser, error) {
+func scimUserByUserNameOrEmail(ctx context.Context, q sqlx.QueryerContext, logger *slog.Logger, userName string, email string) (*fleet.ScimUser, error) {
 	// First, try to find the user by userName
 	if userName != "" {
 		user, err := scimUserByUserName(ctx, q, userName)
@@ -192,7 +191,7 @@ func scimUserByUserNameOrEmail(ctx context.Context, q sqlx.QueryerContext, logge
 
 	// If multiple users found, log a message and return nil
 	if len(users) > 1 {
-		level.Error(logger).Log("msg", "Multiple SCIM users found with the same email", "email", email)
+		logger.ErrorContext(ctx, "Multiple SCIM users found with the same email", "email", email)
 		return nil, nil
 	}
 

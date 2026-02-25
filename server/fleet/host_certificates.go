@@ -3,6 +3,7 @@ package fleet
 import (
 	"crypto/sha1" // nolint:gosec // used for compatibility with existing osquery certificates table schema
 	"crypto/x509"
+	"encoding/hex"
 	"fmt"
 	"strings"
 	"time"
@@ -300,6 +301,33 @@ func parseWindowsDN(dn string) (*HostCertificateNameDetails, error) {
 		Organization:       "",
 		OrganizationalUnit: "",
 	}, nil
+}
+
+// DecodeHexEscapes replaces literal \xHH escape sequences with the actual byte values.
+// For example, the string `\xD0\x90` (8 ASCII characters) becomes the 2-byte UTF-8 sequence for the Cyrillic letter "А".
+// Returns the original string unchanged if no escape sequences are found.
+// Incomplete or invalid sequences (e.g. `\xZZ`, `\x` at end of string) are left as-is.
+func DecodeHexEscapes(s string) string {
+	if !strings.Contains(s, `\x`) {
+		return s
+	}
+
+	var buf strings.Builder
+	buf.Grow(len(s))
+	i := 0
+	for i < len(s) {
+		if i+3 < len(s) && s[i] == '\\' && s[i+1] == 'x' {
+			b, err := hex.DecodeString(s[i+2 : i+4])
+			if err == nil {
+				buf.Write(b)
+				i += 4
+				continue
+			}
+		}
+		buf.WriteByte(s[i])
+		i++
+	}
+	return buf.String()
 }
 
 func firstOrEmpty(s []string) string {

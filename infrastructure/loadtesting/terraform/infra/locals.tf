@@ -42,8 +42,10 @@ locals {
       FLEET_OSQUERY_ASYNC_HOST_REDIS_SCAN_KEYS_COUNT = "10000"
       FLEET_REDIS_MAX_OPEN_CONNS                     = "500"
       FLEET_REDIS_MAX_IDLE_CONNS                     = "500"
+      FLEET_AUTH_SSO_SESSION_VALIDITY_PERIOD         = "15m"
+      FLEET_MDM_SSO_RATE_LIMIT_PER_MINUTE            = "500"
       FLEET_SERVER_GZIP_RESPONSES                    = "true"
-
+      
 
       # Load TLS Certificate for RDS Authentication
       FLEET_MYSQL_TLS_CA              = local.cert_path

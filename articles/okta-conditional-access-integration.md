@@ -58,6 +58,8 @@ okta.fleet.example.com {
 }
 ```
 
+> **Important:** Caddy sends the certificate serial number in decimal format, while AWS ALB sends it in hexadecimal format. When using Caddy, you must configure Fleet to parse the serial number in decimal format by setting [`conditional_access.cert_serial_format`](https://fleetdm.com/docs/configuration/fleet-server-configuration#conditional-access) to `decimal`.
+
 Replace:
 - `okta.fleet.example.com` with your mTLS subdomain
 - `/etc/caddy/fleet-scep-ca.crt` with the path to your SCEP CA certificate
@@ -66,18 +68,17 @@ Replace:
 
 ## Instructions
 
-### Step 1: Deploy user scope profile
+### Step 1: Download IdP signature certificate from Fleet
+
+1. In Fleet, go to **Settings** > **Integrations** > **Conditional access** > **Okta** and click **Connect**.
+2. In the modal, go to **Identity provider (IdP) signature certificate**. Click **Download certificate**.
+
+### Step 2: Deploy user scope profile
 
 1. In Fleet, go to **Settings** > **Integrations** > **Conditional access** > **Okta** and click **Connect**.
 2. In the modal, find the read-only **User scope profile**.
 3. Copy the profile to a new `.mobileconfig` file and save.
 4. Follow the instructions in the [Custom OS settings](https://fleetdm.com/guides/custom-os-settings) guide to deploy the profile to the hosts where you want conditional access to apply.
-
-### Step 2: Download IdP signature certificate from Fleet
-
-1. In Fleet, go to **Settings** > **Integrations** > **Conditional access** > **Okta** and click **Connect**.
-2. In the modal, go to **Identity provider (IdP) signature certificate**. Click **Download certificate**.
-3. Rename certificate extention from `.cer` to `.crt` if needed.
 
 ### Step 3: Create IdP in Okta
 
@@ -92,7 +93,6 @@ Replace:
    - **Destination**: `https://okta.fleet.example.com/api/fleet/conditional_access/idp/sso` (note the `okta.` prefix)
 7. For **IdP Signature Certificate**, upload the IdP signature certificate downloaded from Fleet.
 8. Click **Finish**.
-9. Back in **Security** > **Identity Providers**, select **Actions** for the Fleet identity provider and choose **Download certificate**.
 
 ### Step 4: Configure Okta settings in Fleet
 
@@ -102,7 +102,8 @@ Once you've created the identity provider in Okta, click on the Fleet identity p
 2. Copy the **IdP ID** from Okta to the **IdP ID** field.
 3. Copy the **Assertion Consumer Service URL** from Okta to the **Assertion consumer service URL** field.
 4. Copy the **Audience URI** from Okta to the **Audience URI** field.
-5. For **Okta certificate**, upload the certificate downloaded from Okta in Step 3.
+5. In the Okta Admin Console, go to **Security** > **Identity Providers**, select **Actions** for the Fleet identity provider and choose **Download certificate**.
+6. In Fleet, for **Okta certificate**, upload the certificate downloaded from Okta.
 
 ### Step 5: Add Fleet IdP authenticator in Okta
 
@@ -159,7 +160,6 @@ This feature is enabled by default, but can be disabled by checking the **Disabl
 By default, all conditional access policies allow bypassing. You can control which policies allow bypass individually in **Manage automations** > **Conditional access**. Each policy with conditional access enabled has an additional checkbox to allow or disallow bypass.
 
 If a host is failing multiple conditional access policies, the bypass option is only available if **every** failing policy allows bypass. If any one of the failing policies does not allow bypass, the end user will not see the option to bypass and must resolve the issue to regain access.
-
 
 <meta name="articleTitle" value="Conditional access: Okta">
 <meta name="authorFullName" value="Rachael Shaw">

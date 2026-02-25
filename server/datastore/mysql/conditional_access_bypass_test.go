@@ -7,6 +7,8 @@ import (
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/ptr"
+	"github.com/fleetdm/fleet/v4/server/test"
+	"github.com/jmoiron/sqlx"
 	"github.com/stretchr/testify/require"
 )
 
@@ -18,6 +20,7 @@ func TestConditionalAccessBypass(t *testing.T) {
 		fn   func(t *testing.T, ds *Datastore)
 	}{
 		{"ConditionalAccessBypassDevice", testConditionalAccessBypassDevice},
+		{"ConditionalAccessBypassDeviceWithBlockingPolicy", testConditionalAccessBypassDeviceWithBlockingPolicy},
 		{"ConditionalAccessConsumeBypass", testConditionalAccessConsumeBypass},
 		{"ConditionalAccessClearBypasses", testConditionalAccessClearBypasses},
 		{"ConditionalAccessBypassDeletedWithHost", testConditionalAccessBypassDeletedWithHost},
@@ -267,4 +270,52 @@ func testConditionalAccessBypassedAt(t *testing.T, ds *Datastore) {
 	bypassedAtOther, err := ds.ConditionalAccessBypassedAt(ctx, hostWithoutBypass.ID)
 	require.NoError(t, err)
 	require.Nil(t, bypassedAtOther)
+}
+
+func testConditionalAccessBypassDeviceWithBlockingPolicy(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+
+	user := test.NewUser(t, ds, "Alice", "alice@example.com", true)
+
+	host, err := ds.NewHost(ctx, &fleet.Host{
+		DetailUpdatedAt: time.Now(),
+		LabelUpdatedAt:  time.Now(),
+		PolicyUpdatedAt: time.Now(),
+		SeenTime:        time.Now(),
+		NodeKey:         ptr.String("blocking-policy-host"),
+		UUID:            "blocking-policy-uuid",
+		Hostname:        "blocking.local",
+		PrimaryIP:       "192.168.1.10",
+		PrimaryMac:      "30-65-EC-6F-C4-70",
+	})
+	require.NoError(t, err)
+
+	// Create a global policy with conditional_access_bypass_enabled defaulting to 1 (bypassable)
+	policy, err := ds.NewGlobalPolicy(ctx, &user.ID, fleet.PolicyPayload{
+		Name:  "non-bypassable-policy",
+		Query: "select 1;",
+	})
+	require.NoError(t, err)
+
+	// Set conditional_access_bypass_enabled = 0 to make it non-bypassable
+	ExecAdhocSQL(t, ds, func(db sqlx.ExtContext) error {
+		_, err := db.ExecContext(ctx, `UPDATE policies SET conditional_access_bypass_enabled = 0 WHERE id = ?`, policy.ID)
+		return err
+	})
+
+	// Record a failing result for this policy on the host
+	err = ds.RecordPolicyQueryExecutions(ctx, host, map[uint]*bool{policy.ID: ptr.Bool(false)}, time.Now(), false)
+	require.NoError(t, err)
+
+	// Bypass should fail because the host has a failing non-bypassable policy
+	err = ds.ConditionalAccessBypassDevice(ctx, host.ID)
+	require.Error(t, err)
+	var badReqErr *fleet.BadRequestError
+	require.ErrorAs(t, err, &badReqErr)
+
+	// Verify no host_conditional_access row was created
+	var count int
+	innerErr := ds.writer(ctx).GetContext(ctx, &count, "SELECT COUNT(*) FROM host_conditional_access WHERE host_id = ?", host.ID)
+	require.NoError(t, innerErr)
+	require.Equal(t, 0, count)
 }
