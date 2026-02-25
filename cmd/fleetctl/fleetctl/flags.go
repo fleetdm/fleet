@@ -121,7 +121,7 @@ func rawArgs(c *cli.Context) []string {
 // command line. Call this before app.Run.
 func StashRawArgs(app *cli.App, args []string) {
 	if app.Metadata == nil {
-		app.Metadata = map[string]interface{}{}
+		app.Metadata = map[string]any{}
 	}
 	if len(args) > 1 {
 		app.Metadata["rawArgs"] = args[1:]
