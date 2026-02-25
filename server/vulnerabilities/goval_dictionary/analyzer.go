@@ -5,11 +5,11 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"log/slog"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/vulnerabilities/oval"
 	"github.com/fleetdm/fleet/v4/server/vulnerabilities/utils"
-	kitlog "github.com/go-kit/log"
 )
 
 const (
@@ -28,7 +28,7 @@ func Analyze(
 	ver fleet.OSVersion,
 	vulnPath string,
 	collectVulns bool,
-	logger kitlog.Logger,
+	logger *slog.Logger,
 ) ([]fleet.SoftwareVulnerability, error) {
 	platform := oval.NewPlatform(ver.Platform, ver.Name)
 	source := fleet.GovalDictionarySource
@@ -74,7 +74,7 @@ func Analyze(
 				return nil, err
 			}
 
-			vulnerabilities := db.Eval(software, logger)
+			vulnerabilities := db.Eval(ctx, software, logger)
 			foundInBatch[hostID] = vulnerabilities
 		}
 

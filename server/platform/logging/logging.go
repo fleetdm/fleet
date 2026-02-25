@@ -25,6 +25,8 @@ type Options struct {
 	// TracingEnabled enables OpenTelemetry trace correlation.
 	// When enabled, trace_id and span_id are automatically injected into logs.
 	TracingEnabled bool
+	// AddSource adds source file and line number to log entries.
+	AddSource bool
 	// OtelLogsEnabled enables exporting logs to an OpenTelemetry collector.
 	// When enabled, logs are sent to both the primary handler (stderr) and OTEL.
 	OtelLogsEnabled bool
@@ -52,6 +54,7 @@ func NewSlogLogger(opts Options) *slog.Logger {
 	}
 
 	handlerOpts := &slog.HandlerOptions{
+		AddSource:   opts.AddSource,
 		Level:       level,
 		ReplaceAttr: replaceAttr,
 	}
@@ -73,6 +76,10 @@ func NewSlogLogger(opts Options) *slog.Logger {
 		otelHandler := otelslog.NewHandler("fleet", otelslog.WithLoggerProvider(opts.LoggerProvider))
 		handler = NewMultiHandler(handler, otelHandler)
 	}
+
+	// Wrap with topic filter as outermost handler so topic-disabled
+	// messages are dropped before any other handler processes them.
+	handler = NewTopicFilterHandler(handler)
 
 	return slog.New(handler)
 }

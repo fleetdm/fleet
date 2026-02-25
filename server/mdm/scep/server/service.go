@@ -6,7 +6,7 @@ import (
 	"crypto/x509"
 	"errors"
 
-	"github.com/go-kit/kit/log"
+	"github.com/fleetdm/fleet/v4/server/platform/logging"
 	"github.com/smallstep/scep"
 )
 
@@ -88,7 +88,7 @@ type service struct {
 	signer CSRSignerContext
 
 	/// info logging is implemented in the service middleware layer.
-	debugLogger log.Logger
+	debugLogger *logging.Logger
 }
 
 const DefaultCACaps = "Renewal\nSHA-1\nSHA-256\nAES\nDES3\nSCEPStandard\nPOSTPKIOperation"
@@ -146,7 +146,7 @@ type ServiceOption func(*service) error
 
 // WithLogger configures a logger for the SCEP Service.
 // By default, a no-op logger is used.
-func WithLogger(logger log.Logger) ServiceOption {
+func WithLogger(logger *logging.Logger) ServiceOption {
 	return func(s *service) error {
 		s.debugLogger = logger
 		return nil
@@ -167,7 +167,7 @@ func NewService(crt *x509.Certificate, key *rsa.PrivateKey, signer CSRSignerCont
 		crt:         crt,
 		key:         key,
 		signer:      signer,
-		debugLogger: log.NewNopLogger(),
+		debugLogger: logging.NewNopLogger(),
 	}
 	for _, opt := range opts {
 		if err := opt(s); err != nil {
