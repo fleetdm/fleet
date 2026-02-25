@@ -18,6 +18,9 @@ const (
 	reportFileName = "index.html"
 
 	defaultStaleDays = 21
+
+	updatesTimestampURL = "https://updates.fleetdm.com/timestamp.json"
+	minTimestampDays    = 5
 )
 
 var draftingChecklistIgnorePrefixes = []string{

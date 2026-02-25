@@ -62,9 +62,19 @@ func main() {
 	badDrafting := runDraftingCheck(ctx, client, *org, *limit)
 	byStatus := groupViolationsByStatus(badDrafting)
 	printDraftingSummary(byStatus, len(badDrafting))
+	timestampCheck := checkUpdatesTimestamp(ctx, time.Now().UTC())
+	printTimestampCheckSummary(timestampCheck)
 
 	reportPath, err := writeHTMLReport(
-		buildHTMLReportData(*org, projectNums, awaitingByProject, staleByProject, *staleDays, byStatus),
+		buildHTMLReportData(
+			*org,
+			projectNums,
+			awaitingByProject,
+			staleByProject,
+			*staleDays,
+			byStatus,
+			timestampCheck,
+		),
 	)
 	if err != nil {
 		log.Printf("could not write HTML report: %v", err)

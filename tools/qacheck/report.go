@@ -56,6 +56,7 @@ type HTMLReportData struct {
 	TotalAwaiting    int
 	TotalStale       int
 	TotalDrafting    int
+	TimestampCheck   TimestampCheckResult
 }
 
 func buildHTMLReportData(
@@ -65,6 +66,7 @@ func buildHTMLReportData(
 	staleByProject map[int][]StaleAwaitingViolation,
 	staleDays int,
 	byStatus map[string][]DraftingCheckViolation,
+	timestampCheck TimestampCheckResult,
 ) HTMLReportData {
 	sections := make([]AwaitingProjectReport, 0, len(projectNums))
 	totalAwaiting := 0
@@ -169,6 +171,7 @@ func buildHTMLReportData(
 		TotalAwaiting:    totalAwaiting,
 		TotalStale:       totalStale,
 		TotalDrafting:    totalDrafting,
+		TimestampCheck:   timestampCheck,
 	}
 }
 
@@ -386,6 +389,32 @@ var htmlReportTemplate = `<!doctype html>
         {{end}}
       {{else}}
         <p class="empty">No project data found.</p>
+      {{end}}
+    </section>
+
+    <section class="section">
+      <h2>🕒 Updates timestamp.json expiry</h2>
+      <p class="subtle">Checks that <a href="{{.TimestampCheck.URL}}" target="_blank" rel="noopener noreferrer">{{.TimestampCheck.URL}}</a> expires at least {{.TimestampCheck.MinDays}} days from now.</p>
+      {{if .TimestampCheck.Error}}
+        <p class="empty">Could not validate timestamp expiry: {{.TimestampCheck.Error}}</p>
+      {{else if .TimestampCheck.OK}}
+        <div class="project">
+          <p><strong>✅ OK</strong></p>
+          <ul>
+            <li>Expires: {{.TimestampCheck.ExpiresAt.Format "2006-01-02T15:04:05Z07:00"}}</li>
+            <li>Hours remaining: {{printf "%.1f" .TimestampCheck.DurationLeft.Hours}}</li>
+            <li>Minimum required days: {{.TimestampCheck.MinDays}}</li>
+          </ul>
+        </div>
+      {{else}}
+        <div class="project">
+          <p><strong>❌ Failing threshold</strong></p>
+          <ul>
+            <li>Expires: {{.TimestampCheck.ExpiresAt.Format "2006-01-02T15:04:05Z07:00"}}</li>
+            <li>Hours remaining: {{printf "%.1f" .TimestampCheck.DurationLeft.Hours}}</li>
+            <li>Minimum required days: {{.TimestampCheck.MinDays}}</li>
+          </ul>
+        </div>
       {{end}}
     </section>
 

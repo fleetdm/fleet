@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"sort"
 	"strings"
+	"time"
 )
 
 func groupViolationsByStatus(items []DraftingCheckViolation) map[string][]DraftingCheckViolation {
@@ -75,4 +76,31 @@ func printStaleAwaitingSummary(staleByProject map[int][]StaleAwaitingViolation, 
 			)
 		}
 	}
+}
+
+func printTimestampCheckSummary(result TimestampCheckResult) {
+	fmt.Printf("\n🕒 Updates timestamp check (%s)\n", result.URL)
+	if result.Error != "" {
+		fmt.Printf("⚠️ Could not validate timestamp expiry: %s\n\n", result.Error)
+		return
+	}
+
+	daysLeft := int(result.DurationLeft.Hours() / 24)
+	expires := result.ExpiresAt.Format(time.RFC3339)
+	if result.OK {
+		fmt.Printf(
+			"✅ expires at %s (%d days left, minimum %d days)\n\n",
+			expires,
+			daysLeft,
+			result.MinDays,
+		)
+		return
+	}
+
+	fmt.Printf(
+		"❌ expires at %s (%d days left, minimum %d days)\n\n",
+		expires,
+		daysLeft,
+		result.MinDays,
+	)
 }
