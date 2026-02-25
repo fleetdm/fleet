@@ -133,7 +133,7 @@ func TestRegisterDeprecatedPathAliases(t *testing.T) {
 	versions := []string{"v1", "2022-04"}
 
 	authMiddleware := func(next endpoint.Endpoint) endpoint.Endpoint {
-		return func(ctx context.Context, req interface{}) (interface{}, error) {
+		return func(ctx context.Context, req any) (any, error) {
 			if authctx, ok := authz_ctx.FromContext(ctx); ok {
 				authctx.SetChecked()
 			}
