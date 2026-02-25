@@ -10,7 +10,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/mobileconfig"
-	"github.com/go-kit/log/level"
 	"github.com/go-sql-driver/mysql"
 	"github.com/jmoiron/sqlx"
 )
@@ -54,8 +53,7 @@ VALUES
 		var mysqlErr *mysql.MySQLError
 		switch {
 		case errors.As(err, &mysqlErr) && mysqlErr.Number == 1062:
-			level.Error(ds.logger).Log("msg", "Primary key already exists in host_disk_encryption_keys. Falling back to update", "host_id",
-				host)
+			ds.logger.ErrorContext(ctx, "Primary key already exists in host_disk_encryption_keys. Falling back to update", "host_id", host.ID)
 			// This should never happen unless there is a bug in the code or an infra issue (like huge replication lag).
 		default:
 			return false, ctxerr.Wrap(ctx, err, "inserting key")
@@ -168,7 +166,7 @@ VALUES
 		var mysqlErr *mysql.MySQLError
 		switch {
 		case errors.As(err, &mysqlErr) && mysqlErr.Number == 1062:
-			level.Error(ds.logger).Log("msg", "Primary key already exists in LUKS host_disk_encryption_keys. Falling back to update",
+			ds.logger.ErrorContext(ctx, "Primary key already exists in LUKS host_disk_encryption_keys. Falling back to update",
 				"host_id",
 				host)
 			// This should never happen unless there is a bug in the code or an infra issue (like huge replication lag).
@@ -321,7 +319,7 @@ LIMIT 1`
 	err := sqlx.GetContext(ctx, ds.reader(ctx), &key, fmt.Sprintf(sqlFmt, `WHERE host_id = ?`), host.ID)
 	if err == sql.ErrNoRows && host.HardwareSerial != "" {
 		// If we didn't find a key by host ID, try to find it by hardware serial.
-		level.Debug(ds.logger).Log("msg", "get archived disk encryption key by host serial", "serial", host.HardwareSerial, "host_id", host.ID)
+		ds.logger.DebugContext(ctx, "get archived disk encryption key by host serial", "serial", host.HardwareSerial, "host_id", host.ID)
 		err = sqlx.GetContext(ctx, ds.reader(ctx), &key, fmt.Sprintf(sqlFmt, `WHERE hardware_serial = ?`), host.HardwareSerial)
 	}
 

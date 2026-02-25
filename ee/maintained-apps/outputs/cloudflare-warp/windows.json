@@ -1,14 +1,14 @@
 {
   "versions": [
     {
-      "version": "25.10.186.0",
+      "version": "26.1.150.0",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name = 'Cloudflare WARP' AND publisher = 'Cloudflare, Inc.';"
       },
-      "installer_url": "https://downloads.cloudflareclient.com/v1/download/windows/version/2025.10.186.0",
+      "installer_url": "https://downloads.cloudflareclient.com/v1/download/windows/version/2026.1.150.0",
       "install_script_ref": "8959087b",
       "uninstall_script_ref": "54f8d943",
-      "sha256": "599c7e3f79b4098928624da513b0594e76d4417f273bbdbae9b44f0d00624a45",
+      "sha256": "d15378c2bfc6afa768d631b410407e3fc2b0f2ee3f0e84e252c74fd3600524cc",
       "default_categories": [
         "Productivity"
       ],

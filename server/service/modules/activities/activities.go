@@ -13,15 +13,15 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/platform/endpointer"
+	"github.com/fleetdm/fleet/v4/server/platform/logging"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	kithttp "github.com/go-kit/kit/transport/http"
-	kitlog "github.com/go-kit/log"
 	"github.com/go-kit/log/level"
 )
 
 type activityModule struct {
 	repo   ActivityStore
-	logger kitlog.Logger
+	logger *logging.Logger
 }
 
 type ActivityModule interface {
@@ -35,7 +35,7 @@ type ActivityStore interface {
 	NewActivity(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails, details []byte, createdAt time.Time) error
 }
 
-func NewActivityModule(repo ActivityStore, logger kitlog.Logger) ActivityModule {
+func NewActivityModule(repo ActivityStore, logger *logging.Logger) ActivityModule {
 	return &activityModule{
 		repo:   repo,
 		logger: logger,
