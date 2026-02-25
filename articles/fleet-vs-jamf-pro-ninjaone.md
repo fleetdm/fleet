@@ -1,8 +1,8 @@
 ---
-title: "Fleet vs. Jamf Pro and NinjaOne: Choose the Right MDM"
-slug: "/fleet-vs-jamf-pro-ninjaone"
-meta_title: "Fleet vs. Jamf Pro and NinjaOne: Choose the Right MDM"
-meta_description: "Compare Fleet, Jamf Pro, and NinjaOne across deployment, cross-platform support, GitOps workflows, and pricing to find the right MDM for your organization."
+title: Fleet vs. Jamf Pro and NinjaOne: Choose the Right MDM
+slug: /fleet-vs-jamf-pro-ninjaone
+meta_title: Fleet vs. Jamf Pro and NinjaOne: Choose the Right MDM
+meta_description: Compare Fleet, Jamf Pro, and NinjaOne across deployment, cross-platform support, GitOps workflows, and pricing to find the right MDM for your organization.
 ---
 
 # Fleet vs. Jamf Pro and NinjaOne: How do they compare?
