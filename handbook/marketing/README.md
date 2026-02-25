@@ -111,7 +111,7 @@ The Marketing department is directly responsible for achieving revenue pipeline�
 
 ### Press boilerplate text
 
-Fleet is the single endpoint management platform for macOS, iOS, Android, Windows, Linux, ChromeOS, and cloud infrastructure. Trusted by over 1,300 organizations,  Fleet empowers IT and Security teams to accelerate productivity, build verifiable trust, and optimize costs.
+Fleet is the single endpoint management platform for macOS, iOS, Android, Windows, Linux, ChromeOS, and cloud infrastructure. Trusted by over 1,300 organizations,  Fleet empowers IT and security teams to accelerate productivity, build verifiable trust, and optimize costs.
 
 By bringing infrastructure-as-code (IaC) practices to device management, Fleet ensures endpoints remain secure and operational, freeing engineering teams to focus on strategic initiatives.
 
@@ -120,18 +120,20 @@ Fleet offers total deployment flexibility: on-premises, air-gapped, container-na
 
 ### Organize work in GitHub issues with marketing labels
 
-In the Marketing department, we're using the following issue labels to organize our work into different categories/buckets.
+In the Marketing department, we're using the following issue labels to organize our work into different categories/buckets. 
 
-| Label | Definition (When to use it) |
-| :---- | :---- |
-| **:mktg-campaign** | For tasks related to a specific, multi-touch marketing initiative (e.g., a product launch, awareness campaign, Q4 demand-gen). |
-| **:mktg-content** | For creating or updating any marketing asset: blog posts, case studies, website copy, videos, white papers, etc. |
-| **:mktg-event** | For tasks related to any event, virtual or in-person (e.g., webinars, conference logistics, booth design, talk submissions). |
-| **:mktg-social** | For tasks related to managing organic social media channels or creating social posts. |
-| **:mktg-ops** | For internal "infrastructure" work: tooling (e.g., "Fix email automation"), analytics, reporting, list management, and process improvements. |
-| **:mktg-ar** | For tasks related to analyst relations - briefing, responding to reports, inquiries, etc. |
-| **:mktg-pr** | All tasks/effort related to public relations, press releases, earned media, interviews, responding to reporters, etc. |
-| **:mktg-enablement** | All work associated with designing, developing, delivering enablement content for sales, partners, etc. |
+| Label | Color | Hex Code | Definition (When to use it) |
+| :---- | :---- | :---- | :---- |
+| **:mktg-campaign** | Purple | \#6B4FBB | For tasks related to a specific, multi-touch marketing initiative (e.g., a product launch, awareness campaign, Q4 demand-gen). |
+| **:mktg-content** | Blue | \#0052CC | For creating or updating any marketing asset: blog posts, case studies, website copy, videos, white papers, etc. |
+| **:mktg-social** | Pink | \#E11D48 | For tasks related to managing organic social media channels or creating social posts. |
+| **:mktg-ops** | Green | \#10B981 | For internal "infrastructure" work: tooling (e.g., "Fix email automation"), analytics, reporting, list management, and process improvements. |
+| **:mktg-ar** | Teal | \#0F766E | For tasks related to analyst relations \- briefing, responding to reports, inquiries, etc. |
+| **:mktg-pr** | Gray | \#6B7280 | All tasks/effort related to public relations, press releases, earned media, interviews, responding to reporters, etc. |
+| **:mktg-enablement** | Gold | \#D97706 | All work associated with designing, developing, and delivering enablement content for sales, partners, etc. |
+| **:mktg-event** | Orange | \#F97316 | For tasks related to any event, virtual or in-person (e.g., webinars, conference logistics, booth design, talk submissions). |
+
+Note: for event execution, addtional labels are used to manage the process and track specific events.
 
 
 ### Prepare "Let's get you set up!" meeting notes
@@ -208,7 +210,7 @@ Fleet's [Head of DemandGen](https://fleetdm.com/handbook/marketing#team) serves 
 
 Once events have been settled for a particular time frame, i.e, decided in a previous event strategy session, Fleet does not make changes except in extreme circumstances.
 
-1. Add all upcoming proposed in issues using the template (Prepare event: EVENT_NAME - CITY - YYYY-MM-DD). Approval is tracked and recorded in the ["🫧 Proposed events (not yet settled)" tab](https://docs.google.com/spreadsheets/d/1YQXAX2Q_WnGkAwMYjMbQpV3nbCj7gOBbv7Y0u4twxzQ/edit?gid=1411322737#gid=1411322737) of the 🎪 Events spreadsheet (confidential doc). 
+1. Add all upcoming proposed in issues using the template (Propose an event: EVENT_NAME - CITY - YYYY-MM-DD). Approval is tracked and recorded in the ["🫧 Proposed events (not yet settled)" tab](https://docs.google.com/spreadsheets/d/1YQXAX2Q_WnGkAwMYjMbQpV3nbCj7gOBbv7Y0u4twxzQ/edit?gid=1411322737#gid=1411322737) of the 🎪 Events spreadsheet (confidential doc). 
 2. Proposed events will include the following information:
   - Event Priority (Scale 1 - 10) where 1 is a top priority
   - Event Name
@@ -221,7 +223,7 @@ Once events have been settled for a particular time frame, i.e, decided in a pre
   - Who from Fleet will attend?
   - Which talk proposal will Fleet submit?
   - Estimated budget, including sponsorship or airfare, and lodging for attendees.
-2. Set up and attend a 30m meeting with the CMO, Head of Demand Generation, Head of GTM Architecture, and Manager of Training and Enablement.
+2. Set up and attend a 30m meeting with the CMO, Head of Demand Generation, or Manager of Training and Enablement.
   - First, during this meeting, Marketing will decide which field/sales events and GitOps workshops Fleet will execute in the **following sprint**.
   - Next, Marketing will decide which conferences in the **following quarter** the company will invest time or money into. 
 3. After the meeting, the Content Specialist will communicate the settled events by
@@ -236,7 +238,7 @@ Here are the [upcoming settled events](https://docs.google.com/spreadsheets/d/1Y
 4. Close all proposed event issues that weren't able to be prioritized with a comment explaining why.
 
 #### Phase 2 Manage and and execute approved events
-**Objective** To efficiently plan, organize,track and complete the tasks in order to excecute an event. This covers everything from once an event is approved to when the event is finished.  From detail planning to promotion, staff assignments to logistics, events can be complicated projects that need focused attention.
+**Objective** To efficiently plan, organize,track and complete the tasks in order to execute an event. This covers everything from once an event is approved to when the event is finished.  From detail planning to promotion, staff assignments to logistics, events can be complicated projects that need focused attention.
 
 Event execution needs to plan and track the detail decisions supporting:
 
