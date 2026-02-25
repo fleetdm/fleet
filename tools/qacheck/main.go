@@ -44,12 +44,12 @@ func main() {
 	}
 
 	if len(projectNums) == 0 {
-		fmt.Fprintln(os.Stderr, "at least one project is required\n")
+		fmt.Fprintln(os.Stderr, "at least one project is required")
 		flag.Usage()
 		os.Exit(2)
 	}
 	if *staleDays < 1 {
-		fmt.Fprintln(os.Stderr, "-stale-days must be >= 1\n")
+		fmt.Fprintln(os.Stderr, "-stale-days must be >= 1")
 		flag.Usage()
 		os.Exit(2)
 	}
