@@ -1220,3 +1220,101 @@ func (s *integrationMDMTestSuite) TestAndroidWebApps() {
 		})
 	}
 }
+
+func (s *integrationMDMTestSuite) TestAndroidWebAppsCannotSetConfiguration() {
+	ctx := context.Background()
+	t := s.T()
+
+	s.setSkipWorkerJobs(t)
+	appConf, err := s.ds.AppConfig(ctx)
+	require.NoError(t, err)
+	appConf.MDM.AndroidEnabledAndConfigured = false
+	err = s.ds.SaveAppConfig(ctx, appConf)
+	require.NoError(t, err)
+
+	enterpriseID := s.enableAndroidMDM(t)
+	var count int
+	s.androidAPIClient.EnterprisesWebAppsCreateFunc = func(ctx context.Context, enterpriseName string, app *androidmanagement.WebApp) (*androidmanagement.WebApp, error) {
+		count++
+		id := "abc" + fmt.Sprint(count)
+		return &androidmanagement.WebApp{Name: fmt.Sprintf("enterprises/%s/webApps/com.google.enterprise.webapp.%s", enterpriseID, id)}, nil
+	}
+	s.androidAPIClient.EnterprisesApplicationsFunc = func(ctx context.Context, enterpriseName string, packageName string) (*androidmanagement.Application, error) {
+		ix := strings.LastIndex(packageName, ".") // title is the final segment
+		return &androidmanagement.Application{IconUrl: "https://example.com/1.jpg", Title: packageName[ix+1:]}, nil
+	}
+
+	// create a webapp
+	body, headers := generateMultipartRequest(t, "", "", nil, s.token, map[string][]string{
+		"title": {"Web App"},
+		"url":   {"https://example.com"},
+	})
+	var resp createAndroidWebAppResponse
+	res := s.DoRawWithHeaders("POST", "/api/latest/fleet/software/web_apps", body.Bytes(), http.StatusOK, headers)
+	err = json.NewDecoder(res.Body).Decode(&resp)
+	require.NoError(t, err)
+	webAppID := resp.AppStoreID
+
+	// add it to Fleet with configuration, will fail
+	res = s.Do("POST", "/api/latest/fleet/software/app_store_apps", &addAppStoreAppRequest{
+		AppStoreID: webAppID, Platform: fleet.AndroidPlatform, Configuration: json.RawMessage(`{"key":"value"}`),
+	}, http.StatusUnprocessableEntity)
+	require.Contains(t, extractServerErrorText(res.Body), "Android web apps don't support configurations.")
+
+	// add it without configuration, will work
+	var addResp addAppStoreAppResponse
+	s.DoJSON("POST", "/api/latest/fleet/software/app_store_apps", &addAppStoreAppRequest{
+		AppStoreID: webAppID, Platform: fleet.AndroidPlatform,
+	}, http.StatusOK, &addResp)
+	webAppTitleID := addResp.TitleID
+
+	// update it with configuration, will fail
+	res = s.Do("PATCH", fmt.Sprintf("/api/latest/fleet/software/titles/%d/app_store_app", webAppTitleID),
+		&updateAppStoreAppRequest{Configuration: json.RawMessage(`{"key":"value"}`)},
+		http.StatusUnprocessableEntity)
+	require.Contains(t, extractServerErrorText(res.Body), "Android web apps don't support configurations.")
+
+	// update it without configuration, will work
+	var updateResp updateAppStoreAppResponse
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/software/titles/%d/app_store_app", webAppTitleID),
+		&updateAppStoreAppRequest{DisplayName: ptr.String("MyWebApp")},
+		http.StatusOK, &updateResp)
+	require.Equal(t, webAppID, updateResp.AppStoreApp.AdamID)
+	require.Equal(t, "MyWebApp", updateResp.AppStoreApp.DisplayName)
+	require.Equal(t, "abc1", updateResp.AppStoreApp.Name)
+	require.True(t, updateResp.AppStoreApp.SelfService)
+	require.Nil(t, updateResp.AppStoreApp.Configuration)
+
+	// batch-set with configuration, will fail
+	res = s.Do("POST", "/api/latest/fleet/software/app_store_apps/batch",
+		batchAssociateAppStoreAppsRequest{
+			DryRun: false,
+			Apps: []fleet.VPPBatchPayload{
+				{AppStoreID: webAppID, SelfService: true, Platform: fleet.AndroidPlatform, Configuration: json.RawMessage(`{"key":"value"}`)},
+			},
+		}, http.StatusUnprocessableEntity)
+	require.Contains(t, extractServerErrorText(res.Body), "Android web apps don't support configurations.")
+
+	// batch-set with multiple Android apps, with configuration on the webApp, will fail
+	res = s.Do("POST", "/api/latest/fleet/software/app_store_apps/batch",
+		batchAssociateAppStoreAppsRequest{
+			DryRun: false,
+			Apps: []fleet.VPPBatchPayload{
+				{AppStoreID: webAppID, SelfService: true, Platform: fleet.AndroidPlatform, Configuration: json.RawMessage(`{"key":"value"}`)},
+				{AppStoreID: "com.google.chrome", SelfService: true, Platform: fleet.AndroidPlatform},
+			},
+		}, http.StatusUnprocessableEntity)
+	require.Contains(t, extractServerErrorText(res.Body), "Android web apps don't support configurations.")
+
+	// batch-set without configuration, will work
+	var batchResp batchAssociateAppStoreAppsResponse
+	s.DoJSON("POST", "/api/latest/fleet/software/app_store_apps/batch",
+		batchAssociateAppStoreAppsRequest{
+			DryRun: false,
+			Apps: []fleet.VPPBatchPayload{
+				{AppStoreID: webAppID, SelfService: true, Platform: fleet.AndroidPlatform},
+				{AppStoreID: "com.google.chrome", SelfService: true, Platform: fleet.AndroidPlatform},
+			},
+		}, http.StatusOK, &batchResp)
+	require.Len(t, batchResp.Apps, 2)
+}
