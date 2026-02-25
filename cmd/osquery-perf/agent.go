@@ -1112,8 +1112,36 @@ func (a *agent) runMacosMDMLoop() {
 				}
 				log.Printf("got install application command for %d", appRequest.Command["iTunesStoreID"])
 
+				// The lowest valid iTunesStoreID we accept, anything below this will fail the MDM protocl with the same error code.
+				const failureThreshold = 100_000
+
+				var installedAdamID uint64
 				if adamID, ok := appRequest.Command["iTunesStoreID"].(uint64); ok {
-					a.installedAdamIDs = append(a.installedAdamIDs, int(adamID))
+					if adamID >= failureThreshold {
+						a.installedAdamIDs = append(a.installedAdamIDs, int(adamID))
+					}
+					installedAdamID = adamID
+				}
+
+				if installedAdamID == 0 {
+					log.Printf("InstallApplication command missing iTunesStoreID or it was not a uint64")
+					a.stats.IncrementMDMErrors()
+					break INNER_FOR_LOOP
+				} else if installedAdamID < failureThreshold {
+					// Fail with the specific requested ID to simulate specific VPP app install error codes.
+					log.Printf("failing install application with error code %d", installedAdamID)
+					_, err = a.macMDMClient.Err(mdmCommandPayload.CommandUUID, []mdm.ErrorChain{
+						{
+							ErrorCode:            int(installedAdamID),
+							LocalizedDescription: "Failed to install VPP application (osquery-perf custom failure)",
+						},
+					})
+					if err != nil {
+						log.Printf("MDM Error request failed: %s", err)
+						a.stats.IncrementMDMErrors()
+						break INNER_FOR_LOOP
+					}
+					continue INNER_FOR_LOOP
 				}
 
 				mdmCommandPayload, err = a.macMDMClient.Acknowledge(mdmCommandPayload.CommandUUID)

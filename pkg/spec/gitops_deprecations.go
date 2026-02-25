@@ -3,6 +3,8 @@ package spec
 import (
 	"fmt"
 	"strings"
+
+	"github.com/fleetdm/fleet/v4/server/platform/logging"
 )
 
 // DeprecatedKeyMapping defines a mapping from an old YAML key path to a new one.
@@ -122,7 +124,9 @@ func migrateLeafKey(data map[string]any, oldKey, newKey, fullOldPath, fullNewPat
 
 	// Log deprecation warning
 	if logFn != nil {
-		logFn("[!] '%s' is deprecated; use '%s' instead\n", fullOldPath, fullNewPath)
+		if logging.TopicEnabled(logging.DeprecatedFieldTopic) {
+			logFn("[!] '%s' is deprecated; use '%s' instead\n", fullOldPath, fullNewPath)
+		}
 	}
 
 	// Copy value to new key and remove old key

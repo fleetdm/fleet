@@ -877,12 +877,41 @@ func addHostsToTeamEndpoint(ctx context.Context, request interface{}, svc fleet.
 	return fleet.AddHostsToTeamResponse{}, err
 }
 
+// authorizeHostSourceTeams checks that the caller has write access to the
+// source teams of the hosts being transferred.
+func (svc *Service) authorizeHostSourceTeams(ctx context.Context, hosts []*fleet.Host) error {
+	seenTeamIDs := make(map[uint]struct{})
+	var checkedNoTeam bool
+	for _, h := range hosts {
+		if h.TeamID == nil { // "No Team" team / "Unassigned" fleet
+			if !checkedNoTeam {
+				checkedNoTeam = true
+				if err := svc.authz.Authorize(ctx, &fleet.Host{TeamID: nil}, fleet.ActionWrite); err != nil {
+					return err
+				}
+			}
+		} else if _, ok := seenTeamIDs[*h.TeamID]; !ok {
+			seenTeamIDs[*h.TeamID] = struct{}{}
+			if err := svc.authz.Authorize(ctx, &fleet.Host{TeamID: h.TeamID}, fleet.ActionWrite); err != nil {
+				return err
+			}
+		}
+	}
+	return nil
+}
+
 func (svc *Service) AddHostsToTeam(ctx context.Context, teamID *uint, hostIDs []uint, skipBulkPending bool) error {
-	// This is currently treated as a "team write". If we ever give users
-	// besides global admins permissions to modify team hosts, we will need to
-	// check that the user has permissions for both the source and destination
-	// teams.
+	// Authorize write access to the destination team.
 	if err := svc.authz.Authorize(ctx, &fleet.Host{TeamID: teamID}, fleet.ActionWrite); err != nil {
+		return err
+	}
+
+	// Authorize write access to the source teams of the hosts being transferred.
+	hosts, err := svc.ds.ListHostsLiteByIDs(ctx, hostIDs)
+	if err != nil {
+		return ctxerr.Wrapf(ctx, err, "list hosts by IDs for source team authorization (team_id: %v, host_count: %d)", teamID, len(hostIDs))
+	}
+	if err := svc.authorizeHostSourceTeams(ctx, hosts); err != nil {
 		return err
 	}
 
@@ -902,7 +931,7 @@ func (svc *Service) AddHostsToTeam(ctx context.Context, teamID *uint, hostIDs []
 		if _, err := worker.QueueMacosSetupAssistantJob(
 			ctx,
 			svc.ds,
-			svc.logger,
+			svc.logger.SlogLogger(),
 			worker.MacosSetupAssistantHostsTransferred,
 			teamID,
 			serials...); err != nil {
@@ -922,7 +951,7 @@ func (svc *Service) AddHostsToTeam(ctx context.Context, teamID *uint, hostIDs []
 			return ctxerr.Wrap(ctx, err, "get android enterprise")
 		}
 
-		if err := worker.QueueBulkSetAndroidAppsAvailableForHosts(ctx, svc.ds, svc.logger, androidUUIDs, enterprise.Name()); err != nil {
+		if err := worker.QueueBulkSetAndroidAppsAvailableForHosts(ctx, svc.ds, svc.logger.SlogLogger(), androidUUIDs, enterprise.Name()); err != nil {
 			return ctxerr.Wrap(ctx, err, "queue bulk set available android apps for hosts job")
 		}
 	}
@@ -1000,10 +1029,7 @@ func addHostsToTeamByFilterEndpoint(ctx context.Context, request interface{}, sv
 }
 
 func (svc *Service) AddHostsToTeamByFilter(ctx context.Context, teamID *uint, filters *map[string]interface{}) error {
-	// This is currently treated as a "team write". If we ever give users
-	// besides global admins permissions to modify team hosts, we will need to
-	// check that the user has permissions for both the source and destination
-	// teams.
+	// Authorize write access to the destination team.
 	if err := svc.authz.Authorize(ctx, &fleet.Host{TeamID: teamID}, fleet.ActionWrite); err != nil {
 		return err
 	}
@@ -1017,12 +1043,17 @@ func (svc *Service) AddHostsToTeamByFilter(ctx context.Context, teamID *uint, fi
 		return &fleet.BadRequestError{Message: "filters must be specified"}
 	}
 
-	hostIDs, hostNames, _, err := svc.hostIDsAndNamesFromFilters(ctx, *opt, lid)
+	hostIDs, hostNames, hosts, err := svc.hostIDsAndNamesFromFilters(ctx, *opt, lid)
 	if err != nil {
 		return err
 	}
 	if len(hostIDs) == 0 {
 		return nil
+	}
+
+	// Authorize write access to the source teams of the hosts being transferred.
+	if err := svc.authorizeHostSourceTeams(ctx, hosts); err != nil {
+		return err
 	}
 
 	// Apply the team to the selected hosts.
@@ -1040,7 +1071,7 @@ func (svc *Service) AddHostsToTeamByFilter(ctx context.Context, teamID *uint, fi
 		if _, err := worker.QueueMacosSetupAssistantJob(
 			ctx,
 			svc.ds,
-			svc.logger,
+			svc.logger.SlogLogger(),
 			worker.MacosSetupAssistantHostsTransferred,
 			teamID,
 			serials...); err != nil {

@@ -181,6 +181,9 @@ func main() {
 	ds.InsertSoftwareVulnerabilityFunc = func(ctx context.Context, vuln fleet.SoftwareVulnerability, source fleet.VulnerabilitySource) (bool, error) {
 		return true, nil
 	}
+	ds.InsertSoftwareVulnerabilitiesFunc = func(ctx context.Context, vulns []fleet.SoftwareVulnerability, source fleet.VulnerabilitySource) ([]fleet.SoftwareVulnerability, error) {
+		return vulns, nil
+	}
 	ds.DeleteOutOfDateVulnerabilitiesFunc = func(ctx context.Context, source fleet.VulnerabilitySource, olderThan time.Time) error {
 		return nil
 	}
@@ -191,6 +194,9 @@ func main() {
 
 	ds.DeleteOutOfDateOSVulnerabilitiesFunc = func(ctx context.Context, source fleet.VulnerabilitySource, olderThan time.Time) error {
 		return nil
+	}
+	ds.InsertOSVulnerabilitiesFunc = func(ctx context.Context, vulnerabilities []fleet.OSVulnerability, source fleet.VulnerabilitySource) (int64, error) {
+		return 0, nil
 	}
 
 	printf("Translating software to CPE...\n")

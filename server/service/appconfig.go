@@ -27,6 +27,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/platform/endpointer"
+	"github.com/fleetdm/fleet/v4/server/platform/logging"
 	"github.com/fleetdm/fleet/v4/server/version"
 	"github.com/go-kit/log/level"
 	"golang.org/x/text/unicode/norm"
@@ -306,11 +307,23 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 	// json.RawMessage and wasn't processed by the request decoder's rewriter.
 	if rules := endpointer.ExtractAliasRules(fleet.AppConfig{}); len(rules) > 0 {
 		var err error
-		if p, err = endpointer.RewriteDeprecatedKeys(p, rules); err != nil {
+		var deprecatedKeysMap map[string]string
+		if p, deprecatedKeysMap, err = endpointer.RewriteDeprecatedKeys(p, rules); err != nil {
+			msg := "failed to decode app config"
+			// If it's an alias conflict error, return a user-friendly message about deprecated fields.
+			var aliasConflictErr *endpointer.AliasConflictError
+			if errors.As(err, &aliasConflictErr) {
+				msg = err.Error()
+			}
 			return nil, ctxerr.Wrap(ctx, &fleet.BadRequestError{
-				Message:     "failed to decode app config",
+				Message:     msg,
 				InternalErr: err,
 			})
+		}
+		if len(deprecatedKeysMap) > 0 {
+			for oldKey, newKey := range deprecatedKeysMap {
+				svc.logger.WarnContext(ctx, fmt.Sprintf("App config: `%s` is deprecated, please use `%s` instead", oldKey, newKey), "log_topic", logging.DeprecatedFieldTopic)
+			}
 		}
 	}
 

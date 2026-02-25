@@ -12,13 +12,13 @@ import (
 	"github.com/fleetdm/fleet/v4/server"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	kithttp "github.com/go-kit/kit/transport/http"
-	kitlog "github.com/go-kit/log"
 	"github.com/go-kit/log/level"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/platform/endpointer"
+	"github.com/fleetdm/fleet/v4/server/platform/logging"
 )
 
 // Activities response (used by host past activities endpoint)
@@ -26,7 +26,7 @@ func (svc *Service) NewActivity(ctx context.Context, user *fleet.User, activity 
 	return newActivity(ctx, user, activity, svc.ds, svc.logger)
 }
 
-func newActivity(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails, ds fleet.Datastore, logger kitlog.Logger) error {
+func newActivity(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails, ds fleet.Datastore, logger *logging.Logger) error {
 	appConfig, err := ds.AppConfig(ctx)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "get app config")

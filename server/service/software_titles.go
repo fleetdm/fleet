@@ -168,6 +168,15 @@ func (svc *Service) SoftwareTitleByID(ctx context.Context, id uint, teamID *uint
 				meta.Status = summary
 			}
 			software.SoftwarePackage = meta
+
+			// Populate FleetMaintainedVersions if this is an FMA
+			if meta != nil && meta.FleetMaintainedAppID != nil {
+				fmaVersions, err := svc.ds.GetFleetMaintainedVersionsByTitleID(ctx, teamID, id)
+				if err != nil {
+					return nil, ctxerr.Wrap(ctx, err, "get fleet maintained versions")
+				}
+				meta.FleetMaintainedVersions = fmaVersions
+			}
 		}
 
 		// add VPP app data if needed

@@ -1639,7 +1639,7 @@ func (cmd *GenerateGitopsCommand) generateSoftware(filePath string, teamID uint,
 				fma, err := maintained_apps.Hydrate(context.Background(), &fleet.MaintainedApp{
 					ID:   *softwareTitle.SoftwarePackage.FleetMaintainedAppID,
 					Slug: slug,
-				})
+				}, "", nil, nil)
 				if err != nil {
 					return nil, err
 				}

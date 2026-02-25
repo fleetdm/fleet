@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log/slog"
 	"sort"
 	"sync"
 	"text/template"
@@ -16,8 +17,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/license"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/service/externalsvc"
-	kitlog "github.com/go-kit/log"
-	"github.com/go-kit/log/level"
 )
 
 // jiraName is the name of the job as registered in the worker.
@@ -122,7 +121,7 @@ type JiraClient interface {
 type Jira struct {
 	FleetURL      string
 	Datastore     fleet.Datastore
-	Log           kitlog.Logger
+	Log           *slog.Logger
 	NewClientFunc func(*externalsvc.JiraOptions) (JiraClient, error)
 
 	// mu protects concurrent access to clientsCache, so that the job processor
@@ -300,8 +299,7 @@ func (j *Jira) runVuln(ctx context.Context, cli JiraClient, args jiraArgs) error
 	if err != nil {
 		return err
 	}
-	level.Debug(j.Log).Log(
-		"msg", "created jira issue for cve",
+	j.Log.DebugContext(ctx, "created jira issue for cve",
 		"cve", vargs.CVE,
 		"issue_id", createdIssue.ID,
 		"issue_key", createdIssue.Key,
@@ -317,8 +315,7 @@ func (j *Jira) runFailingPolicy(ctx context.Context, cli JiraClient, args jiraAr
 		return err
 	}
 
-	attrs := []interface{}{
-		"msg", "created jira issue for failing policy",
+	attrs := []any{
 		"policy_id", args.FailingPolicy.PolicyID,
 		"policy_name", args.FailingPolicy.PolicyName,
 		"issue_id", createdIssue.ID,
@@ -327,11 +324,11 @@ func (j *Jira) runFailingPolicy(ctx context.Context, cli JiraClient, args jiraAr
 	if args.FailingPolicy.TeamID != nil {
 		attrs = append(attrs, "team_id", *args.FailingPolicy.TeamID)
 	}
-	level.Debug(j.Log).Log(attrs...)
+	j.Log.DebugContext(ctx, "created jira issue for failing policy", attrs...)
 	return nil
 }
 
-func (j *Jira) createTemplatedIssue(ctx context.Context, cli JiraClient, summaryTpl, descTpl *template.Template, args interface{}) (*jira.Issue, error) {
+func (j *Jira) createTemplatedIssue(ctx context.Context, cli JiraClient, summaryTpl, descTpl *template.Template, args any) (*jira.Issue, error) {
 	var buf bytes.Buffer
 	if err := summaryTpl.Execute(&buf, args); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "execute summary template")
@@ -366,11 +363,11 @@ func (j *Jira) createTemplatedIssue(ctx context.Context, cli JiraClient, summary
 func QueueJiraVulnJobs(
 	ctx context.Context,
 	ds fleet.Datastore,
-	logger kitlog.Logger,
+	logger *slog.Logger,
 	recentVulns []fleet.SoftwareVulnerability,
 	cveMeta map[string]fleet.CVEMeta,
 ) error {
-	level.Info(logger).Log("enabled", "true", "recentVulns", len(recentVulns))
+	logger.InfoContext(ctx, "jira integration enabled", "recent_vulns", len(recentVulns))
 
 	// for troubleshooting, log in debug level the CVEs that we will process
 	// (cannot be done in the loop below as we want to add the debug log
@@ -380,7 +377,7 @@ func QueueJiraVulnJobs(
 		cves = append(cves, vuln.GetCVE())
 	}
 	sort.Strings(cves)
-	level.Debug(logger).Log("recent_cves", fmt.Sprintf("%v", cves))
+	logger.DebugContext(ctx, "recent CVEs to process", "recent_cves", fmt.Sprintf("%v", cves))
 
 	cveGrouped := make(map[string][]uint)
 	for _, v := range recentVulns {
@@ -399,18 +396,17 @@ func QueueJiraVulnJobs(
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "queueing job")
 		}
-		level.Debug(logger).Log("job_id", job.ID)
+		logger.DebugContext(ctx, "queued jira vuln job", "job_id", job.ID)
 	}
 	return nil
 }
 
 // QueueJiraFailingPolicyJob queues a Jira job for a failing policy to process
 // asynchronously via the worker.
-func QueueJiraFailingPolicyJob(ctx context.Context, ds fleet.Datastore, logger kitlog.Logger,
+func QueueJiraFailingPolicyJob(ctx context.Context, ds fleet.Datastore, logger *slog.Logger,
 	policy *fleet.Policy, hosts []fleet.PolicySetHost,
 ) error {
-	attrs := []interface{}{
-		"enabled", "true",
+	attrs := []any{
 		"failing_policy", policy.ID,
 		"hosts_count", len(hosts),
 	}
@@ -418,12 +414,11 @@ func QueueJiraFailingPolicyJob(ctx context.Context, ds fleet.Datastore, logger k
 		attrs = append(attrs, "team_id", *policy.TeamID)
 	}
 	if len(hosts) == 0 {
-		attrs = append(attrs, "msg", "skipping, no host")
-		level.Debug(logger).Log(attrs...)
+		logger.DebugContext(ctx, "skipping, no host", attrs...)
 		return nil
 	}
 
-	level.Info(logger).Log(attrs...)
+	logger.InfoContext(ctx, "queueing Jira failing policy job", attrs...)
 
 	args := &failingPolicyArgs{
 		PolicyID:       policy.ID,
@@ -436,6 +431,6 @@ func QueueJiraFailingPolicyJob(ctx context.Context, ds fleet.Datastore, logger k
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "queueing job")
 	}
-	level.Debug(logger).Log("job_id", job.ID)
+	logger.DebugContext(ctx, "queued jira failing policy job", "job_id", job.ID)
 	return nil
 }

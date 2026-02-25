@@ -20,6 +20,8 @@ interface IFileDetailsProps {
     | IFileDetailsSupportedGraphicNames[];
   fileDetails: IFileDetails;
   canEdit: boolean;
+  /** If present, will default to a custom editor section instead of edit icon */
+  customEditor?: () => React.ReactNode;
   /** If present, will show a trash icon */
   onDeleteFile?: () => void;
   onFileSelect?: (e: React.ChangeEvent<HTMLInputElement>) => void;
@@ -36,6 +38,7 @@ const FileDetails = ({
   graphicNames,
   fileDetails,
   canEdit,
+  customEditor,
   onDeleteFile,
   onFileSelect,
   accept,
@@ -56,6 +59,18 @@ const FileDetails = ({
   });
 
   const renderEditButton = (disabled?: boolean) => {
+    if (customEditor) {
+      return (
+        <div
+          onClick={(e) => {
+            e.stopPropagation();
+          }}
+        >
+          {customEditor()}
+        </div>
+      );
+    }
+
     return (
       <div className={`${baseClass}__edit`}>
         <Button

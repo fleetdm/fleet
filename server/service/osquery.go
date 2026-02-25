@@ -26,13 +26,13 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/license"
 	"github.com/fleetdm/fleet/v4/server/contexts/logging"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	platformlogging "github.com/fleetdm/fleet/v4/server/platform/logging"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/pubsub"
 	"github.com/fleetdm/fleet/v4/server/service/conditional_access_microsoft_proxy"
 	"github.com/fleetdm/fleet/v4/server/service/contract"
 	"github.com/fleetdm/fleet/v4/server/service/osquery_utils"
 	kithttp "github.com/go-kit/kit/transport/http"
-	"github.com/go-kit/log"
 	"github.com/go-kit/log/level"
 	"github.com/spf13/cast"
 	"golang.org/x/exp/slices"
@@ -256,7 +256,7 @@ func (svc *Service) serialUpdateHost(host *fleet.Host) {
 	}
 }
 
-func getHostIdentifier(logger log.Logger, identifierOption, providedIdentifier string, details map[string](map[string]string)) string {
+func getHostIdentifier(logger *platformlogging.Logger, identifierOption, providedIdentifier string, details map[string](map[string]string)) string {
 	switch identifierOption {
 	case "provided":
 		// Use the host identifier already provided in the request.
@@ -1241,7 +1241,7 @@ func processCalendarPolicies(
 	appConfig *fleet.AppConfig,
 	host *fleet.Host,
 	policyResults map[uint]*bool,
-	logger log.Logger,
+	logger *platformlogging.Logger,
 ) error {
 	if len(appConfig.Integrations.GoogleCalendar) == 0 || host.TeamID == nil {
 		return nil
