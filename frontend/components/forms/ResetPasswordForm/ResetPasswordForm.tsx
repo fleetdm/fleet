@@ -118,11 +118,7 @@ const ResetPasswordForm = ({
         type="password"
       />
       <div className="button-wrap--center">
-        <Button
-          type="submit"
-          onClick={onFormSubmit}
-          className={`${baseClass}__btn`}
-        >
+        <Button type="submit" onClick={onFormSubmit} size="wide">
           Reset password
         </Button>
       </div>
