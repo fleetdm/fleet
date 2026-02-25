@@ -693,47 +693,49 @@ module.exports = {
                   }
                 }
                 if(embeddedMetadata.category === 'case study') {
-                  // Note: Case study articles use a page template that requires additional meta tags.
-                  if(!embeddedMetadata.summaryChallenge){
-                    throw new Error(`Failed compiling markdown content: A case study article is missing a "summaryChallenge" meta tag at ${path.join(topLvlRepoPath, pageSourcePath)}. To resolve, add a summaryChallenge meta tag and try running this script again.`);
-                  }
-
-                  if(!embeddedMetadata.summarySolution){
-                    throw new Error(`Failed compiling markdown content: A case study article is missing a "summarySolution" meta tag at ${path.join(topLvlRepoPath, pageSourcePath)}. To resolve, add a summarySolution meta tag and try running this script again.`);
-                  }
-
-                  if(!embeddedMetadata.summaryKeyResults){
-                    throw new Error(`Failed compiling markdown content: A case study article is missing a "summaryKeyResults" meta tag at ${path.join(topLvlRepoPath, pageSourcePath)}. To resolve, add a summaryKeyResults meta tag and try running this script again.`);
-                  } else if(embeddedMetadata.summaryKeyResults.split(';').length === 1) {
-                    // Make sure that summaryKeyResults meta tag values are semicolon-separated lists.
-                    throw new Error(`Failed compiling markdown content: A case study article has an invalid "summaryKeyResults" meta tag value at ${path.join(topLvlRepoPath, pageSourcePath)}. To resolve, change the summaryKeyResults meta tag value to be a list of results separated by semi-colons (e.g., "Cut endpoint maintenance effort by 50%; Reduced licensing costs by 21%;") and try running this script again.`);
-                  }
-
-                  // If a companyLogoFilename meta tag is provided, make sure the image exists in the website/assets/images folder.
-                  if(embeddedMetadata.companyLogoFilename) {
-                    let companyLogoImageExists = await sails.helpers.fs.exists(path.join(topLvlRepoPath, 'website/assets/images/'+embeddedMetadata.companyLogoFilename));
-                    if(!companyLogoImageExists){
-                      throw new Error(`Failed compiling markdown content: A case study article (${path.join(topLvlRepoPath, pageSourcePath)}) has a "companyLogoFilename" meta tag value that references an image that is not in the website/assets/images folder (${path.join(topLvlRepoPath, 'website/assets/images/'+embeddedMetadata.companyLogoFilename)}). Was it moved?`);
-                    }
-                  }
-
-                  if(embeddedMetadata.quoteContent) {
-                    // If a quoteContent meta tag is provided, make sure that the article has quoteAuthorName, quoteAuthorJobTitle, and quoteAuthorImageFilename meta tags.
-                    if(!embeddedMetadata.quoteAuthorName) {
-                      throw new Error(`Failed compiling markdown content: A case study article is missing a "quoteAuthorName" meta tag at ${path.join(topLvlRepoPath, pageSourcePath)}. To resolve, add a quoteAuthorName meta tag and try running this script again.`);
+                  if(typeof embeddedMetadata.useBasicArticleTemplate === 'undefined') {
+                    // Note: Case study articles use a page template that requires additional meta tags.
+                    if(!embeddedMetadata.summaryChallenge){
+                      throw new Error(`Failed compiling markdown content: A case study article is missing a "summaryChallenge" meta tag at ${path.join(topLvlRepoPath, pageSourcePath)}. To resolve, add a summaryChallenge meta tag and try running this script again. Note: you can add a "useBasicArticleTemplate" meta tag (e.g., <meta name="useBasicArticleTemplate" value="true"> to remove this requirement and display this article using the standard article template.`);
                     }
 
-                    if(!embeddedMetadata.quoteAuthorJobTitle) {
-                      throw new Error(`Failed compiling markdown content: A case study article is missing a "quoteAuthorJobTitle" meta tag at ${path.join(topLvlRepoPath, pageSourcePath)}. To resolve, add a quoteAuthorJobTitle meta tag and try running this script again.`);
+                    if(!embeddedMetadata.summarySolution){
+                      throw new Error(`Failed compiling markdown content: A case study article is missing a "summarySolution" meta tag at ${path.join(topLvlRepoPath, pageSourcePath)}. To resolve, add a summarySolution meta tag and try running this script again. Note: you can add a "useBasicArticleTemplate" meta tag (e.g., <meta name="useBasicArticleTemplate" value="true"> to remove this requirement and display this article using the standard article template.`);
                     }
 
-                    if(!embeddedMetadata.quoteAuthorImageFilename) {
-                      throw new Error(`Failed compiling markdown content: A case study article is missing a "quoteAuthorImageFilename" meta tag at ${path.join(topLvlRepoPath, pageSourcePath)}. To resolve, add a quoteAuthorImageFilename meta tag and try running this script again.`);
-                    } else {
-                      // If a quoteAuthorImageFilename meta tag is provided, make sure the file exists.
-                      let quoteAuthorImageExists = await sails.helpers.fs.exists(path.join(topLvlRepoPath, 'website/assets/images/'+embeddedMetadata.quoteAuthorImageFilename));
-                      if(!quoteAuthorImageExists){
-                        throw new Error(`Failed compiling markdown content: A case study article (${path.join(topLvlRepoPath, pageSourcePath)}) has a "quoteAuthorImageFilename" meta tag value that references an image that is not in the website/assets/images folder (${path.join(topLvlRepoPath, 'website/assets/images/'+embeddedMetadata.quoteAuthorImageFilename)}). Was it moved?`);
+                    if(!embeddedMetadata.summaryKeyResults){
+                      throw new Error(`Failed compiling markdown content: A case study article is missing a "summaryKeyResults" meta tag at ${path.join(topLvlRepoPath, pageSourcePath)}. To resolve, add a summaryKeyResults meta tag and try running this script again. Note: you can add a "useBasicArticleTemplate" meta tag (e.g., <meta name="useBasicArticleTemplate" value="true"> to remove this requirement and display this article using the standard article template.`);
+                    } else if(embeddedMetadata.summaryKeyResults.split(';').length === 1) {
+                      // Make sure that summaryKeyResults meta tag values are semicolon-separated lists.
+                      throw new Error(`Failed compiling markdown content: A case study article has an invalid "summaryKeyResults" meta tag value at ${path.join(topLvlRepoPath, pageSourcePath)}. To resolve, change the summaryKeyResults meta tag value to be a list of results separated by semi-colons (e.g., "Cut endpoint maintenance effort by 50%; Reduced licensing costs by 21%;") and try running this script again. Note: you can add a "useBasicArticleTemplate" meta tag (e.g., <meta name="useBasicArticleTemplate" value="true"> to remove this requirement and display this article using the standard article template.`);
+                    }
+
+                    // If a companyLogoFilename meta tag is provided, make sure the image exists in the website/assets/images folder.
+                    if(embeddedMetadata.companyLogoFilename) {
+                      let companyLogoImageExists = await sails.helpers.fs.exists(path.join(topLvlRepoPath, 'website/assets/images/'+embeddedMetadata.companyLogoFilename));
+                      if(!companyLogoImageExists){
+                        throw new Error(`Failed compiling markdown content: A case study article (${path.join(topLvlRepoPath, pageSourcePath)}) has a "companyLogoFilename" meta tag value that references an image that is not in the website/assets/images folder (${path.join(topLvlRepoPath, 'website/assets/images/'+embeddedMetadata.companyLogoFilename)}). Was it moved?`);
+                      }
+                    }
+
+                    if(embeddedMetadata.quoteContent) {
+                      // If a quoteContent meta tag is provided, make sure that the article has quoteAuthorName, quoteAuthorJobTitle, and quoteAuthorImageFilename meta tags.
+                      if(!embeddedMetadata.quoteAuthorName) {
+                        throw new Error(`Failed compiling markdown content: A case study article is missing a "quoteAuthorName" meta tag at ${path.join(topLvlRepoPath, pageSourcePath)}. To resolve, add a quoteAuthorName meta tag and try running this script again. Note: you can add a "useBasicArticleTemplate" meta tag (e.g., <meta name="useBasicArticleTemplate" value="true"> to remove this requirement and display this article using the standard article template.`);
+                      }
+
+                      if(!embeddedMetadata.quoteAuthorJobTitle) {
+                        throw new Error(`Failed compiling markdown content: A case study article is missing a "quoteAuthorJobTitle" meta tag at ${path.join(topLvlRepoPath, pageSourcePath)}. To resolve, add a quoteAuthorJobTitle meta tag and try running this script again. Note: you can add a "useBasicArticleTemplate" meta tag (e.g., <meta name="useBasicArticleTemplate" value="true"> to remove this requirement and display this article using the standard article template.`);
+                      }
+
+                      if(!embeddedMetadata.quoteAuthorImageFilename) {
+                        throw new Error(`Failed compiling markdown content: A case study article is missing a "quoteAuthorImageFilename" meta tag at ${path.join(topLvlRepoPath, pageSourcePath)}. To resolve, add a quoteAuthorImageFilename meta tag and try running this script again. Note: you can add a "useBasicArticleTemplate" meta tag (e.g., <meta name="useBasicArticleTemplate" value="true"> to remove this requirement and display this article using the standard article template.`);
+                      } else {
+                        // If a quoteAuthorImageFilename meta tag is provided, make sure the file exists.
+                        let quoteAuthorImageExists = await sails.helpers.fs.exists(path.join(topLvlRepoPath, 'website/assets/images/'+embeddedMetadata.quoteAuthorImageFilename));
+                        if(!quoteAuthorImageExists){
+                          throw new Error(`Failed compiling markdown content: A case study article (${path.join(topLvlRepoPath, pageSourcePath)}) has a "quoteAuthorImageFilename" meta tag value that references an image that is not in the website/assets/images folder (${path.join(topLvlRepoPath, 'website/assets/images/'+embeddedMetadata.quoteAuthorImageFilename)}). Was it moved?`);
+                        }
                       }
                     }
                   }
