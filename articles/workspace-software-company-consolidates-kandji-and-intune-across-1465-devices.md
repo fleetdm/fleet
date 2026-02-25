@@ -1,4 +1,4 @@
-# Modular workspace software company
+# Workspace software company consolidates Kandji and Intune across 1,465 devices
 
 ## Strengthening security posture with configuration-as-code
 
@@ -23,11 +23,15 @@ They chose Fleet for its ability to manage device configurations with the same v
 
 - **Automated naming:** using GitOps-integrated API calls, they automated software deployment, policy enforcement, and device naming.  
 - **Eliminating sprawl:** consolidating multiple vendors into Fleet reduced overlapping licensing fees.  
-- **Real-time detection:** the team can immediately detect failed policies or missing updates, strengthening their auditing capabilities.  
+- **Real-time detection:** the team can immediately detect failed policies or missing updates, strengthening their auditing capabilities.
 
-<meta name="articleTitle" value="Modular workspace software company">
+## About Fleet
+
+Fleet is the open-source endpoint management platform that gives you total control, unlike the proprietary 'black boxes' of legacy vendors. Our open device management provides full visibility into our code and roadmap, plus a true choice of deployment—on-prem or cloud—with 100% feature parity. Our API-first approach empowers technical teams to automate with GitOps, scale confidently, and get the real-time data needed to secure their entire macOS, iOS, Windows, and Linux fleets.  
+
+<meta name="articleTitle" value="Workspace software company consolidates Kandji and Intune across 1,465 devices">
 <meta name="authorFullName" value="Irena Reedy">
 <meta name="authorGitHubUsername" value="irenareedy">
-<meta name="category" value="announcements">
+<meta name="category" value="case study">
 <meta name="publishedOn" value="2026-02-22">
 <meta name="description" value="A workspace software company unified 1,400+ devices with Fleet, replacing Kandji and Intune and adopting GitOps for proactive auditing.">
