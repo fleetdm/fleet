@@ -1,4 +1,13 @@
 {
+  "env": {
+    "MYSQL_TEST": "1",
+    "REDIS_TEST": "1"
+  },
+  "permissions": {
+    "allow": [
+      "Read(~/.fleet/**)"
+    ]
+  },
   "hooks": {
     "PostToolUse": [
       {
