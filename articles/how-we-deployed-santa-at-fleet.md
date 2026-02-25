@@ -51,7 +51,7 @@ _SIEM dashboard_
 
 _Slack message_
 
-## The GitOps Advantage
+## The GitOps advantage
 
 By leveraging GitOps principles through Fleet, Santa management becomes:
 
