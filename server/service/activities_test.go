@@ -213,7 +213,10 @@ func TestActivityWebhooks(t *testing.T) {
 			}, nil
 		},
 	}
-	realActivitySvc := activity_bootstrap.NewForUnitTests(providers, fleetserver.PostJSONWithTimeout, slog.New(slog.DiscardHandler))
+	discardLogger := slog.New(slog.DiscardHandler)
+	realActivitySvc := activity_bootstrap.NewForUnitTests(providers, func(ctx context.Context, url string, payload any) error {
+		return fleetserver.PostJSONWithTimeout(ctx, url, payload, discardLogger)
+	}, discardLogger)
 	opts.ActivityMock.Delegate = realActivitySvc
 
 	var activityUser *activity_api.User

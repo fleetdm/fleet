@@ -486,12 +486,15 @@ func RunServerForTestsWithServiceWithDS(t *testing.T, ctx context.Context, ds fl
 		require.NoError(t, err)
 		activityAuthorizer := authz.NewAuthorizerAdapter(legacyAuthorizer)
 		activityACLAdapter := activityacl.NewFleetServiceAdapter(svc)
+		slogLogger := logger.SlogLogger()
 		activitySvc, activityRoutesFn := activity_bootstrap.New(
 			opts[0].DBConns,
 			activityAuthorizer,
 			activityACLAdapter,
-			server.PostJSONWithTimeout,
-			logger.SlogLogger(),
+			func(ctx context.Context, url string, payload any) error {
+				return server.PostJSONWithTimeout(ctx, url, payload, slogLogger)
+			},
+			slogLogger,
 		)
 		svc.SetActivityService(activitySvc)
 		if opts[0].ActivityModule != nil {
