@@ -88,6 +88,7 @@ func newActivity(ctx context.Context, user *fleet.User, activity fleet.ActivityD
 							Type:          activityType,
 							Details:       (*json.RawMessage)(&detailsBytes),
 						},
+						logger.SlogLogger(),
 					); err != nil {
 						var statusCoder kithttp.StatusCoder
 						if errors.As(err, &statusCoder) && statusCoder.StatusCode() == http.StatusTooManyRequests {

@@ -52,7 +52,7 @@ func TriggerVulnerabilitiesWebhook(
 				limit = batchSize
 			}
 			payload := mapper.GetPayload(serverURL, hosts[:limit], cve, args.Meta[cve])
-			if err := sendVulnerabilityHostBatch(ctx, targetURL, payload, args.Time); err != nil {
+			if err := sendVulnerabilityHostBatch(ctx, targetURL, payload, args.Time, logger); err != nil {
 				return ctxerr.Wrap(ctx, err, "send vulnerability host batch")
 			}
 			hosts = hosts[limit:]
@@ -62,13 +62,13 @@ func TriggerVulnerabilitiesWebhook(
 	return nil
 }
 
-func sendVulnerabilityHostBatch(ctx context.Context, targetURL string, vuln WebhookPayload, now time.Time) error {
+func sendVulnerabilityHostBatch(ctx context.Context, targetURL string, vuln WebhookPayload, now time.Time, logger *slog.Logger) error {
 	payload := map[string]interface{}{
 		"timestamp":     now,
 		"vulnerability": vuln,
 	}
 
-	if err := server.PostJSONWithTimeout(ctx, targetURL, &payload); err != nil {
+	if err := server.PostJSONWithTimeout(ctx, targetURL, &payload, logger); err != nil {
 		return ctxerr.Wrapf(ctx, err, "posting to %s", targetURL)
 	}
 	return nil

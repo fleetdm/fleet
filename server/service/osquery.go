@@ -1373,6 +1373,7 @@ func processCalendarPolicies(
 				if err := fleet.FireCalendarWebhook(
 					team.Config.Integrations.GoogleCalendar.WebhookURL,
 					host.ID, host.HardwareSerial, host.DisplayName(), failingCalendarPolicies, "",
+					logger.SlogLogger(),
 				); err != nil {
 					var statusCoder kithttp.StatusCoder
 					if errors.As(err, &statusCoder) && statusCoder.StatusCode() == http.StatusTooManyRequests {

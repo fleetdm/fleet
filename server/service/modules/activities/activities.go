@@ -94,6 +94,7 @@ func (a *activityModule) NewActivity(ctx context.Context, user *fleet.User, acti
 							Type:          activityType,
 							Details:       (*json.RawMessage)(&detailsBytes),
 						},
+						a.logger.SlogLogger(),
 					); err != nil {
 						var statusCoder kithttp.StatusCoder
 						if errors.As(err, &statusCoder) && statusCoder.StatusCode() == http.StatusTooManyRequests {
