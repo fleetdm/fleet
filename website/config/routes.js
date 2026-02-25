@@ -1065,7 +1065,7 @@ module.exports.routes = {
   'GET /learn-more-about/chromeos-updates': 'https://support.google.com/chrome/a/answer/6220366',
   'GET /learn-more-about/just-in-time-provisioning': '/docs/deploy/single-sign-on-sso#just-in-time-jit-user-provisioning',
   'GET /learn-more-about/os-updates': '/docs/using-fleet/mdm-os-updates',
-  'GET /sign-in-to/microsoft-automatic-enrollment-tool': 'https://portal.azure.com',
+  'GET /sign-in-to/microsoft-automatic-enrollment-tool': 'https://entra.microsoft.com',
   'GET /learn-more-about/custom-os-settings': '/docs/using-fleet/mdm-custom-os-settings',
   'GET /learn-more-about/ndes': 'https://learn.microsoft.com/en-us/windows-server/identity/ad-cs/network-device-enrollment-service-overview', // TODO: Confirm URL
   'GET /learn-more-about/setup-ndes': '/guides/ndes-scep-proxy',
