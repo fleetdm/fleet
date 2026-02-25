@@ -112,7 +112,7 @@ In your Intune settings, select **Devices**, and under **Device onbarding**, ope
 1. [Sign in to Microsoft Entra](https://fleetdm.com/sign-in-to/microsoft-automatic-enrollment-tool).
 2. On the home page, find and copy **Tenant ID**.
 3. In Fleet, navigate to **Settings** > **Integrations** > **MDM**. Under **Windows Enrollment** select **Connect**.
-4. Under **Entra tenants**, select **Add**, paste tenant ID, and select **Add**. 
+4. Under **Entra tenants**, select **Add**, paste tenant ID, and select **Add**.  If you don't add Entra Tenant ID, end users will see "Device management could not be enabled" error, and won't be able to enroll their host.
 5. Head to Entra, and on the top of the page, search "Domain names" and select **Domain names**. Select **+ Add custom domain**, type your Fleet URL (e.g. fleet.acme.com), and select **Add domain**.
 6. Use the information presented in Azure AD to create a new TXT/MX record with your domain registrar, then select **Verify**. If you're a managed-cloud customer, please reach out to Fleet to create a TXT/MX record for you.
 7. At the top of the page, search for "Mobility" and select **Mobility (MDM and WIP)**.
