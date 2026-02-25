@@ -3388,7 +3388,7 @@ controls:
 queries:
 `
 
-	testAll := `
+	testVPP := `
 controls:
   macos_setup:
     manual_agent_install: true
@@ -3412,7 +3412,7 @@ team_settings:
 `
 
 	//nolint:gosec // test code
-	testPackagesFail := `
+	testPackages := `
 controls:
   macos_setup:
     manual_agent_install: true
@@ -3441,7 +3441,7 @@ team_settings:
 			testName:     "All VPP with setup experience",
 			VPPTeam:      "All teams",
 			teamName:     teamName,
-			teamTemplate: testAll,
+			teamTemplate: testVPP,
 			teamSettings: `secrets: [{"secret":"enroll_secret"}]`,
 			errContains:  ptr.String("Couldn't edit software."),
 		},
@@ -3449,15 +3449,22 @@ team_settings:
 			testName:     "Packages fail",
 			VPPTeam:      "All teams",
 			teamName:     teamName,
-			teamTemplate: testPackagesFail,
+			teamTemplate: testPackages,
 			teamSettings: `secrets: [{"secret":"enroll_secret"}]`,
 			errContains:  ptr.String("Couldn't edit software."),
 		},
 		{
-			testName:     "No team",
+			testName:     "No team VPP",
 			VPPTeam:      "No team",
 			teamName:     "No team",
-			teamTemplate: testAll,
+			teamTemplate: testVPP,
+			errContains:  ptr.String("Couldn't edit software."),
+		},
+		{
+			testName:     "No team Installers",
+			VPPTeam:      "No team",
+			teamName:     "No team",
+			teamTemplate: testPackages,
 			errContains:  ptr.String("Couldn't edit software."),
 		},
 		// left out more possible combinations of setup experience being set for different platforms
@@ -3492,7 +3499,6 @@ team_settings:
 			testing_utils.StartAndServeVPPServer(t)
 
 			// Don't attempt dry runs because they would not actually create the team, so the config would not be found
-
 			_, err = fleetctl.RunAppNoChecks([]string{"gitops", "--config", fleetctlConfig.Name(), "-f", globalFile.Name(), "-f", teamFileName})
 
 			if tc.errContains != nil {
