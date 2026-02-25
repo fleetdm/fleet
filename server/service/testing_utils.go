@@ -23,7 +23,6 @@ import (
 	"github.com/fleetdm/fleet/v4/ee/server/service/est"
 	"github.com/fleetdm/fleet/v4/ee/server/service/hostidentity"
 	"github.com/fleetdm/fleet/v4/ee/server/service/hostidentity/httpsig"
-	"github.com/fleetdm/fleet/v4/server"
 	"github.com/fleetdm/fleet/v4/server/acl/activityacl"
 	activity_api "github.com/fleetdm/fleet/v4/server/activity/api"
 	activity_bootstrap "github.com/fleetdm/fleet/v4/server/activity/bootstrap"
@@ -491,9 +490,6 @@ func RunServerForTestsWithServiceWithDS(t *testing.T, ctx context.Context, ds fl
 			opts[0].DBConns,
 			activityAuthorizer,
 			activityACLAdapter,
-			func(ctx context.Context, url string, payload any) error {
-				return server.PostJSONWithTimeout(ctx, url, payload, slogLogger)
-			},
 			slogLogger,
 		)
 		svc.SetActivityService(activitySvc)
