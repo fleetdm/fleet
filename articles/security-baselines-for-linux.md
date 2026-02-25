@@ -4,7 +4,7 @@ In the modern enterprise, Linux is no longer confined to the server room. It is 
 
 The investment in Mobile Device Management (MDM) solutions for Mac and Windows is a given, a foundational layer of corporate security. So why is the security posture of Linux often relegated to a secondary, "special case" status?
 
-The fundamental challenge is a mismatch between the platform's nature and the enterprise organization’s need for control. Linux distributions, built on a philosophy of power and flexibility, are designed for the "power user” - this is precisely what makes Linux the right OS for them. These capabilities (deep OS customization, native development tooling, and root-level access) left unchecked create a security vacuum. While a base installation offers ease of use and stability, it is inherently inadequate for meeting stringent enterprise security requirements.
+The fundamental challenge is a mismatch between the platform's nature and the enterprise organization’s need for control. Linux distributions, built on a philosophy of power and flexibility, are designed for the "power user” - precisely what makes Linux the right OS for them. These capabilities (deep OS customization, native development tooling, and root-level access) left unchecked create a security vacuum. While a base installation offers ease of use and stability, it is inherently inadequate for meeting stringent enterprise security requirements.
 
 For years, security teams have managed to successfully "lock down" Mac and Windows.
 
@@ -28,7 +28,7 @@ Security baselines are a consensus-driven, recommended set of configurations app
 Prominent examples of these baselines include:
 
 * [**Center for Internet Security (CIS) Benchmarks**](https://www.cisecurity.org/cis-benchmarks)**:** Developed through community consensus by cybersecurity experts globally, the CIS Benchmarks provide detailed, prescriptive guidance for securing various operating systems, including multiple Linux distributions (Red Hat, Ubuntu, Debian), as well as Macs and Windows.  
-* **Governmental Frameworks:** Agencies like USA’s [**NIST**](https://www.nist.gov/itl/nvd) (National Institute of Standards and Technology), the UK’s **[NCSC](https://www.ncsc.gov.uk/)** (National Cyber Security Centre), and others publish extensive recommendations for securing endpoints in line with government’s high-security standards.
+* **Governmental Frameworks:** Agencies like the USA’s [**NIST**](https://www.nist.gov/itl/nvd) (National Institute of Standards and Technology) have already published [Linux security frameworks](https://github.com/usnistgov/linux_security). The UK’s **[NCSC](https://www.ncsc.gov.uk/)** (National Cyber Security Centre) along with other organizations and standards bodies publish extensive recommendations for securing endpoints in line with government’s high-security standards.
 
 These baselines are not abstract theory. They are practical, operational guidance covering essential security such like access controls (password complexity, use of biometrics), system configuration (restricting access to sensitive binaries and configuration files), and network configuration (limiting inbound and outbound connections). By adopting them, enterprises gain an established, authoritative standard.
 
@@ -40,7 +40,7 @@ The adoption of a security baseline is not merely a box-ticking exercise. It is 
 
 Security professionals are acutely aware that a single, poorly protected endpoint can be the vector for an entire network compromise. Baselines provide the necessary yardstick to measure the overall health and security hygiene of your entire fleet. The ability to audit **ALL** workstations (Mac, Windows, and Linux) against a consistent set of metrics establishes a clear objective standard. Even when baselines are customized to meet specific corporate needs (which is common and encouraged) deployment, remediation and auditing all are simplified by starting with a standard framework. It is fundamentally easier to track and measure deviations from a well-defined set of requirements than it is to build those requirements from the ground up.
 
-### The fight against Configuration Drift
+### The fight against configuration drift
 
 One of the most insidious threats to security is **configuration drift**. In Linux, the majority of controls are *imperative*. When an administrator issues a command like:
 
@@ -58,9 +58,9 @@ For many organizations, security standards are not optional. They are mandatory 
 
 The message is clear: if your enterprise leverages Linux workstations, they must be secured with the same rigor and established standards as your Macs and Windows devices. You do not need to re-invent security best practices. By adopting recognized security baselines ike the readily available guidance offered by CIS Benchmarks for Red Hat, Ubuntu, Debian, and others you can immediately elevate your security posture. Implementing this strategy is the critical next step in ensuring that your most powerful workstations serve as a secure, foundational element of employee productivity, not a looming threat to enterprise security.
 
-<meta name="articleTitle" value="Security baselines for Linux: closing the gap on exemptions"\>  
-<meta name="authorFullName" value="Ashish Kuthiala"\>  
-<meta name="authorGitHubUsername" value="akuthiala"\>  
-<meta name="category" value="articles"\>  
-<meta name="publishedOn" value="2026-02-23"\>  
-<meta name="description" value="Chapter 3 of Protecting Linux endpoints series"\>
+<meta name="articleTitle" value="Security baselines for Linux: closing the gap on exemptions">  
+<meta name="authorFullName" value="Ashish Kuthiala">  
+<meta name="authorGitHubUsername" value="akuthiala">  
+<meta name="category" value="articles">  
+<meta name="publishedOn" value="2026-02-23">  
+<meta name="description" value="Chapter 3 of Protecting Linux endpoints series">

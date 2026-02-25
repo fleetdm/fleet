@@ -20,7 +20,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/service/middleware/auth"
 	"github.com/go-kit/kit/endpoint"
 	kithttp "github.com/go-kit/kit/transport/http"
-	"github.com/go-kit/log"
 	"github.com/gorilla/mux"
 )
 
@@ -201,7 +200,7 @@ func badRequestf(format string, a ...any) error {
 	}
 }
 
-func newDeviceAuthenticatedEndpointer(svc fleet.Service, logger log.Logger, opts []kithttp.ServerOption, r *mux.Router,
+func newDeviceAuthenticatedEndpointer(svc fleet.Service, logger *platform_logging.Logger, opts []kithttp.ServerOption, r *mux.Router,
 	versions ...string,
 ) *eu.CommonEndpointer[handlerFunc] {
 	// Extract certificate serial from X-Client-Cert-Serial header for certificate-based auth
@@ -226,7 +225,7 @@ func newDeviceAuthenticatedEndpointer(svc fleet.Service, logger log.Logger, opts
 	}
 }
 
-func newHostAuthenticatedEndpointer(svc fleet.Service, logger log.Logger, opts []kithttp.ServerOption, r *mux.Router,
+func newHostAuthenticatedEndpointer(svc fleet.Service, logger *platform_logging.Logger, opts []kithttp.ServerOption, r *mux.Router,
 	versions ...string,
 ) *eu.CommonEndpointer[handlerFunc] {
 	return &eu.CommonEndpointer[handlerFunc]{
@@ -246,7 +245,7 @@ func newHostAuthenticatedEndpointer(svc fleet.Service, logger log.Logger, opts [
 
 func androidAuthenticatedEndpointer(
 	svc fleet.Service,
-	logger log.Logger,
+	logger *platform_logging.Logger,
 	opts []kithttp.ServerOption,
 	r *mux.Router,
 	versions ...string,
@@ -271,7 +270,7 @@ func androidAuthenticatedEndpointer(
 	}
 }
 
-func newOrbitAuthenticatedEndpointer(svc fleet.Service, logger log.Logger, opts []kithttp.ServerOption, r *mux.Router,
+func newOrbitAuthenticatedEndpointer(svc fleet.Service, logger *platform_logging.Logger, opts []kithttp.ServerOption, r *mux.Router,
 	versions ...string,
 ) *eu.CommonEndpointer[handlerFunc] {
 	// Inject the fleet.Capabilities header to the response for Orbit hosts

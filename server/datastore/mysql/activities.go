@@ -13,7 +13,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/mdm"
 	"github.com/fleetdm/fleet/v4/server/ptr"
-	"github.com/go-kit/log/level"
 	"github.com/jmoiron/sqlx"
 )
 
@@ -1646,7 +1645,7 @@ WHERE
 	// have a cron job that will retry for hosts with pending MDM commands.
 	if ds.pusher != nil {
 		if _, err := ds.pusher.Push(ctx, []string{hostData.UUID}); err != nil {
-			level.Error(ds.logger).Log("msg", "failed to send push notification", "err", err, "hostID", hostID, "hostUUID", hostData.UUID) //nolint:errcheck
+			ds.logger.ErrorContext(ctx, "failed to send push notification", "err", err, "hostID", hostID, "hostUUID", hostData.UUID)
 		}
 	}
 	return nil

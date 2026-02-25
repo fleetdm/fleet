@@ -16,11 +16,15 @@ Fleet 4.81.0 is now available. See the complete [changelog](https://github.com/f
 
 ### Lower AWS costs
 
-Fleet now supports [gzip compression](https://developer.mozilla.org/en-US/docs/Glossary/gzip_compression) on agent API responses, reducing outbound bandwidth from your Fleet server. For Fleet users who self-host, that means lower AWS costs with no workflow changes. Currently, gzip compression is currently off by default but will soon default to on. Learn how to [turn on compression](https://fleetdm.com/docs/configuration/fleet-server-configuration#server-gzip-responses).
+Fleet now supports [gzip compression](https://developer.mozilla.org/en-US/docs/Glossary/gzip_compression) on agent API responses, reducing outbound bandwidth from your Fleet server. For Fleet users who self-host, that means lower AWS costs with no workflow changes. Currently, gzip compression is currently off by default but will soon default to on. Learn how to [turn on compression](https://fleetdm.com/docs/configuration/fleet-server-configuration#server-gzip-responses). 
+
+GitHub issue: [#37944](https://github.com/fleetdm/fleet/issues/37944)
 
 ### Automatic IdP deprovisioning
 
 When a user is removed from your identitify provider (IdP), like Okta, they’re now automatically removed from Fleet by default. No configuration changes needed. Security Engineers no longer need to worry about dangling admin accounts. IT Admins get cleaner offboarding and fewer manual access reviews.
+
+GitHub issue: [#36785](https://github.com/fleetdm/fleet/issues/36785)
 
 ### Okta as a certificate authority (CA) with a dynamic challenge
 
@@ -28,13 +32,19 @@ Fleet now supports dynamic challenges when deploying certificates for Okta Verif
 
 To configure Okta as a CA, in Fleet, head to **Settings > Integrations > Certificate authorities**, select **Add CA**, and choose **Okta CA or Microsoft Device Enrollment service (NDES)**. Okta uses NDES under the hood. If you're using static challenges with Okta's CA, choose **Custom Simple Certificate Enrollment Protocol (SCEP)** instead.
 
+GitHub issue: [#34521](https://github.com/fleetdm/fleet/issues/34521)
+
 ### Proxy-ready Fleet Desktop configuration
 
 For users that self-host Fleet, you can now configure an [alternative URL](https://fleetdm.com/guides/enroll-hosts#alternative-browser-host) for Fleet Desktop. IT Admins can route traffic through a custom proxy for added control.
 
+GitHub issue: [#33762](https://github.com/fleetdm/fleet/issues/33762)
+
 ### Windows profiles behave like macOS
 
 Just like macOS, Windows [configuration profiles](leetdm.com/guides/custom-os-settings) now apply payloads individually. If one payload fails, the rest still succeed, bringing consistency across platforms. IT Admins get faster enforcement of critical controls without waiting on edge-case fixes.
+
+GitHub issue: [#31922](https://github.com/fleetdm/fleet/issues/31922)
 
 ## Changes
 
