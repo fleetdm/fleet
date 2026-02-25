@@ -78,4 +78,4 @@ In part 3 of this series, we will explore how emerging AI coding assistants and 
 <meta name="authorGitHubUsername" value="akuthiala">  
 <meta name="category" value="articles">  
 <meta name="publishedOn" value="2026-02-26">  
-<meta name="description" value="Part 2 of 3 \- Article series on modernizing device management.">
+<meta name="description" value="Part 2 of 3 - Article series on modernizing device management.">
