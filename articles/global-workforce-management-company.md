@@ -59,7 +59,7 @@ By switching to Fleet, this global workforce management company gained a powerfu
 
 <call-to-action></call-to-action>
 
-<meta name="category" value="announcements">
+<meta name="category" value="case study">
 <meta name="authorGitHubUsername" value="harrisonravazzolo">
 <meta name="authorFullName" value="Harrison Ravazzolo">
 <meta name="publishedOn" value="2024-12-17">
