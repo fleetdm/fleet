@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"strconv"
 	"strings"
 	"unicode"
 	"unicode/utf8"
@@ -52,14 +53,52 @@ type Item struct {
 	} `graphql:"fieldValues(first: 20)"`
 }
 
+type intListFlag []int
+
+func (f *intListFlag) String() string {
+	if f == nil || len(*f) == 0 {
+		return ""
+	}
+	out := make([]string, 0, len(*f))
+	for _, n := range *f {
+		out = append(out, strconv.Itoa(n))
+	}
+	return strings.Join(out, ",")
+}
+
+func (f *intListFlag) Set(value string) error {
+	for _, part := range strings.Split(value, ",") {
+		part = strings.TrimSpace(part)
+		if part == "" {
+			continue
+		}
+		n, err := strconv.Atoi(part)
+		if err != nil {
+			return fmt.Errorf("invalid project number %q", part)
+		}
+		*f = append(*f, n)
+	}
+	return nil
+}
+
 func main() {
-	org := flag.String("org", "", "GitHub org")
-	projectNum := flag.Int("project", 0, "Project number")
+	org := flag.String("org", "fleetdm", "GitHub org")
 	limit := flag.Int("limit", 100, "Max project items to scan (no pagination; expected usage is small)")
+	var projectNums intListFlag
+	flag.Var(&projectNums, "project", "Project number(s)")
+	flag.Var(&projectNums, "p", "Project number(s) shorthand")
 	flag.Parse()
 
-	if *org == "" || *projectNum == 0 {
-		log.Fatal("org and project are required")
+	for _, arg := range flag.Args() {
+		n, err := strconv.Atoi(arg)
+		if err != nil {
+			log.Fatalf("unexpected argument %q: only project numbers are allowed after -p", arg)
+		}
+		projectNums = append(projectNums, n)
+	}
+
+	if len(projectNums) == 0 {
+		log.Fatal("at least one project is required")
 	}
 
 	token := os.Getenv("GITHUB_TOKEN")
@@ -72,22 +111,29 @@ func main() {
 	client := githubv4.NewClient(oauth2.NewClient(ctx, src))
 
 	// Check 1: items in ✔️Awaiting QA with the engineer test-plan confirmation line still unchecked.
-	projectID := fetchProjectID(ctx, client, *org, *projectNum)
-	items := fetchItems(ctx, client, projectID, *limit)
+	for _, projectNum := range uniqueInts(projectNums) {
+		projectID := fetchProjectID(ctx, client, *org, projectNum)
+		items := fetchItems(ctx, client, projectID, *limit)
 
-	var badAwaitingQA []Item
-	for _, it := range items {
-		if !inAwaitingQA(it) {
-			continue
+		var badAwaitingQA []Item
+		for _, it := range items {
+			if !inAwaitingQA(it) {
+				continue
+			}
+			if hasUncheckedChecklistLine(getBody(it), checkText) {
+				badAwaitingQA = append(badAwaitingQA, it)
+			}
 		}
-		if hasUncheckedChecklistLine(getBody(it), checkText) {
-			badAwaitingQA = append(badAwaitingQA, it)
-		}
-	}
 
-	fmt.Printf("\nFound %d items in %q with UNCHECKED test-plan confirmation:\n\n", len(badAwaitingQA), awaitingQAColumn)
-	for _, it := range badAwaitingQA {
-		fmt.Printf("❌ #%d – %s\n   %s\n\n", getNumber(it), getTitle(it), getURL(it))
+		fmt.Printf(
+			"\nFound %d items in project %d (%q) with UNCHECKED test-plan confirmation:\n\n",
+			len(badAwaitingQA),
+			projectNum,
+			awaitingQAColumn,
+		)
+		for _, it := range badAwaitingQA {
+			fmt.Printf("❌ #%d – %s\n   %s\n\n", getNumber(it), getTitle(it), getURL(it))
+		}
 	}
 
 	// Check 2: drafting board (project 67) items in Ready to estimate / Estimated with "Test plan is finalized" unchecked.
@@ -258,4 +304,17 @@ func getURL(it Item) string {
 		return it.Content.Issue.URL.String()
 	}
 	return it.Content.PullRequest.URL.String()
+}
+
+func uniqueInts(nums []int) []int {
+	seen := make(map[int]bool, len(nums))
+	out := make([]int, 0, len(nums))
+	for _, n := range nums {
+		if seen[n] {
+			continue
+		}
+		seen[n] = true
+		out = append(out, n)
+	}
+	return out
 }
