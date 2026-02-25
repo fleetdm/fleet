@@ -35,6 +35,11 @@ controls:
     deadline:
     minimum_version:
   enable_disk_encryption: true
+  macos_settings:
+    custom_settings:
+      - path: ../lib/macos/configuration-profiles/company-portal-sso-extension.mobileconfig
+        labels_include_any:
+          - "Conditional access test group"
   scripts:
     # macOS scripts
     - path: ../lib/macos/scripts/uninstall-fleetd-macos.sh
@@ -46,11 +51,19 @@ controls:
 policies:
   # macOS policies
   - path: ../lib/macos/policies/enrollment-profile-up-to-date.yml
+  - path: ../lib/macos/policies/entra-conditional-access-check.yml
   # Linux policies
   - path: ../lib/linux/policies/check-fleet-desktop-extension-enabled.yml
 queries:
 software:
   packages:
+    # macOS apps
+    - path: ../lib/macos/software/company-portal.yml # Company Portal for macOS
+      self_service: true
+      labels_include_any:
+        - "Conditional access test group"
+      categories:
+        - Security
     # Linux apps
   fleet_maintained_apps:
     # macOS apps
