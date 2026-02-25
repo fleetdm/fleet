@@ -213,7 +213,11 @@ Note: For non-CSA engaged customer requests, CSE's are responsible for escalatio
 
 ### Report an incident
 
-Review the [high-priority user stories and bugs](https://fleetdm.com/handbook/company/communications#high-priority-user-stories-and-bugs) to determine the priority level of the incident. If it qualifies as a P0, follow the response instructions to initiate our incident response process by creating an [incident response issue](https://github.com/fleetdm/confidential/issues/new?template=incident-response.md). Creating the issue triggers incident.io to notify the incident on-call engineer 24/7/365. For P1 and lower issues, contact the on-call engineer via `@oncall` in `#help-engineering` during business hours.
+Review the [criteria](https://fleetdm.com/handbook/company/communications#high-priority-user-stories-and-bugs) to determine the priority level of the issue.
+
+If it qualifies as a P0, follow the response instructions to initiate our incident response process by creating an [incident response issue](https://github.com/fleetdm/confidential/issues/new?template=incident-response.md). Creating the issue triggers incident.io to notify the incident on-call engineer 24/7/365.
+
+For P1 and lower issues, contact the on-call engineer via `@oncall` in `#help-engineering`. Responses to on-call will be addressed during business hours.
 
 ### Contact the developer on-call
 
