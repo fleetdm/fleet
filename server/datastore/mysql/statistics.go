@@ -277,7 +277,7 @@ func fleetMaintainedAppsInUseDB(ctx context.Context, db sqlx.QueryerContext) (ma
 		SELECT DISTINCT fma.slug, fma.platform
 		FROM software_installers si
 		INNER JOIN fleet_maintained_apps fma ON si.fleet_maintained_app_id = fma.id
-		WHERE si.fleet_maintained_app_id IS NOT NULL
+		WHERE si.fleet_maintained_app_id IS NOT NULL AND fma.platform IN ('darwin', 'windows')
 		ORDER BY fma.platform, fma.slug
 	`
 
