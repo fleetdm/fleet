@@ -64,7 +64,7 @@ By leveraging GitOps principles through Fleet, Santa management becomes:
 
 _Pull Request adding an additional rule_
 
-## The Bottom Line
+## The bottom line
 
 Fleet believes in reducing complexity. Fleet's GitOps-native approach provides all the functionality of a custom Santa sync server while adding enterprise device management, operational simplicity, and modern change management capabilities while eliminating infrastructure maintenance. It's a more scalable and secure approach to binary authorization that aligns with modern infrastructure practices.
 
