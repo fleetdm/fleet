@@ -159,7 +159,7 @@ Fleet responds to all P0 incidents by initiating our incident response process:
 
 1. Create a new [incident response issue](https://github.com/fleetdm/confidential/issues/new?template=incident-response.md) in our confidential repo. Creating this issue triggers the incident notification process via incident.io.
 2. Edit the issue template to reflect the details of the incident.
-3. Assign to the current incident on-call engineer and the current infrastructure on-call engineer.
+3. The incident lead self-assigns the incident.io incident upon acknowledgement. If remediation requires infrastructure changes the lead will be @infrastructure-oncall. If remediation requires code changes, the lead will be @incident-oncall.
 4. Complete the steps listed based on the type of incident.
 
 Mitigating the outage may require writing and merging code. The current infrastructure on-call engineer is first line for all reviews and QA required to deploy a hot-fix. If additional code review or engineering support is needed, the responding engineer should escalate to their manager.
