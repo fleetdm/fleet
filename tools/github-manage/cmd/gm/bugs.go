@@ -56,7 +56,7 @@ website/scripts/get-bug-and-pr-report.js script, used by the bug open time KPI.
 Usage:
   gm bugs average-open-days
   gm bugs average-open-days --verbose
-  gm bugs average-open-days --without-milestone 4.80.2 --without-milestone 4.81.0
+  gm bugs average-open-days --without-milestone 4.80.1 --without-milestone 4.81.0
   gm bugs average-open-days --format json`,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		verbose, _ := cmd.Flags().GetBool("verbose")
