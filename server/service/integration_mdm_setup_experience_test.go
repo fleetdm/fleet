@@ -583,6 +583,8 @@ func (s *integrationMDMTestSuite) TestSetupExperienceFlowWithSoftwareAndScriptFo
 	t := s.T()
 	ctx := context.Background()
 
+	s.setSkipWorkerJobs(t)
+
 	teamDevice, enrolledHost, _ := s.createTeamDeviceForSetupExperienceWithProfileSoftwareAndScript()
 
 	// enroll the host
@@ -738,6 +740,8 @@ func (s *integrationMDMTestSuite) TestSetupExperienceFlowWithSoftwareAndScriptFo
 func (s *integrationMDMTestSuite) TestSetupExperienceVPPInstallError() {
 	t := s.T()
 	ctx := context.Background()
+
+	s.setSkipWorkerJobs(t)
 
 	teamDevice, enrolledHost, team := s.createTeamDeviceForSetupExperienceWithProfileSoftwareAndScript()
 
@@ -1189,6 +1193,8 @@ func (s *integrationMDMTestSuite) TestSetupExperienceFlowUpdateScript() {
 func (s *integrationMDMTestSuite) TestSetupExperienceFlowCancelScript() {
 	t := s.T()
 	ctx := context.Background()
+
+	s.setSkipWorkerJobs(t)
 
 	device, host, _ := s.createTeamDeviceForSetupExperienceWithProfileSoftwareAndScript()
 
@@ -2999,6 +3005,8 @@ func (s *integrationMDMTestSuite) TestSetupExperienceFlowWithRequireSoftware() {
 func (s *integrationMDMTestSuite) TestSetupExperienceFlowWithRequiredSoftwareVPP() {
 	t := s.T()
 	ctx := context.Background()
+
+	s.setSkipWorkerJobs(t)
 
 	teamDevice, enrolledHost, team := s.createTeamDeviceForSetupExperienceWithProfileSoftwareAndScript()
 

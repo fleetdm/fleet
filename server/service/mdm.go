@@ -3617,7 +3617,7 @@ func (svc *Service) UnenrollMDM(ctx context.Context, hostID uint) error {
 		}
 		installedFromDEP = info.InstalledFromDEP
 
-		mdmLifecycle := mdmlifecycle.New(svc.ds, svc.logger, newActivity)
+		mdmLifecycle := mdmlifecycle.New(svc.ds, svc.logger, svc.NewActivity)
 		err = mdmLifecycle.Do(ctx, mdmlifecycle.HostOptions{
 			Action:   mdmlifecycle.HostActionTurnOff,
 			Platform: host.Platform,

@@ -751,9 +751,6 @@ func TestHostAuth(t *testing.T) {
 	ds.DeleteHostFunc = func(ctx context.Context, hid uint) error {
 		return nil
 	}
-	ds.NewActivityFunc = func(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails, details []byte, createdAt time.Time) error {
-		return nil
-	}
 	ds.HostLiteFunc = func(ctx context.Context, id uint) (*fleet.Host, error) {
 		if id == 1 {
 			return teamHost, nil
@@ -819,9 +816,6 @@ func TestHostAuth(t *testing.T) {
 	}
 	ds.TeamLiteFunc = func(ctx context.Context, id uint) (*fleet.TeamLite, error) {
 		return &fleet.TeamLite{ID: id}, nil
-	}
-	ds.NewActivityFunc = func(ctx context.Context, u *fleet.User, a fleet.ActivityDetails, details []byte, createdAt time.Time) error {
-		return nil
 	}
 	ds.ListHostsLiteByIDsFunc = func(ctx context.Context, ids []uint) ([]*fleet.Host, error) {
 		return nil, nil
@@ -1371,6 +1365,7 @@ func TestDeleteHostCreatesActivity(t *testing.T) {
 	activitySvc := mysql.NewTestActivityService(t, ds)
 
 	svc, ctx := newTestService(t, ds, nil, nil)
+	svc.SetActivityService(activitySvc)
 
 	// Create a user for the deletion
 	user := &fleet.User{
@@ -1426,6 +1421,7 @@ func TestDeleteHostsCreatesActivities(t *testing.T) {
 	activitySvc := mysql.NewTestActivityService(t, ds)
 
 	svc, ctx := newTestService(t, ds, nil, nil)
+	svc.SetActivityService(activitySvc)
 
 	// Create a user for the deletion
 	user := &fleet.User{
@@ -1494,6 +1490,7 @@ func TestCleanupExpiredHostsActivities(t *testing.T) {
 	activitySvc := mysql.NewTestActivityService(t, ds)
 
 	svc, ctx := newTestService(t, ds, nil, nil)
+	svc.SetActivityService(activitySvc)
 
 	// Set global host expiry
 	const globalExpiryWindow = 10
@@ -1680,11 +1677,6 @@ func TestAddHostsToTeamByFilter(t *testing.T) {
 	ds.ListMDMAppleDEPSerialsInHostIDsFunc = func(ctx context.Context, hids []uint) ([]string, error) {
 		return nil, nil
 	}
-	ds.NewActivityFunc = func(
-		ctx context.Context, user *fleet.User, activity fleet.ActivityDetails, details []byte, createdAt time.Time,
-	) error {
-		return nil
-	}
 
 	emptyRequest := &map[string]interface{}{}
 
@@ -1725,11 +1717,6 @@ func TestAddHostsToTeamByFilterLabel(t *testing.T) {
 	}
 	ds.TeamLiteFunc = func(ctx context.Context, id uint) (*fleet.TeamLite, error) {
 		return &fleet.TeamLite{ID: id}, nil
-	}
-	ds.NewActivityFunc = func(
-		ctx context.Context, user *fleet.User, activity fleet.ActivityDetails, details []byte, createdAt time.Time,
-	) error {
-		return nil
 	}
 
 	filter := &map[string]interface{}{"label_id": expectedLabel}
@@ -1777,9 +1764,6 @@ func TestAddHostsToTeamSourceTeamAuth(t *testing.T) {
 	}
 	ds.ListMDMAppleDEPSerialsInHostIDsFunc = func(ctx context.Context, hids []uint) ([]string, error) {
 		return nil, nil
-	}
-	ds.NewActivityFunc = func(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails, details []byte, createdAt time.Time) error {
-		return nil
 	}
 	ds.TeamLiteFunc = func(ctx context.Context, id uint) (*fleet.TeamLite, error) {
 		return &fleet.TeamLite{ID: id}, nil
@@ -1950,9 +1934,6 @@ func TestAddHostsToTeamByFilterSourceTeamAuth(t *testing.T) {
 	}
 	ds.ListMDMAppleDEPSerialsInHostIDsFunc = func(ctx context.Context, hids []uint) ([]string, error) {
 		return nil, nil
-	}
-	ds.NewActivityFunc = func(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails, details []byte, createdAt time.Time) error {
-		return nil
 	}
 	ds.TeamLiteFunc = func(ctx context.Context, id uint) (*fleet.TeamLite, error) {
 		return &fleet.TeamLite{ID: id}, nil
@@ -2384,7 +2365,8 @@ func TestHostEncryptionKey(t *testing.T) {
 			ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 				return &fleet.AppConfig{MDM: fleet.MDM{EnabledAndConfigured: true}}, nil
 			}
-			svc, ctx := newTestServiceWithConfig(t, ds, fleetCfg, nil, nil)
+			opts := &TestServerOpts{}
+			svc, ctx := newTestServiceWithConfig(t, ds, fleetCfg, nil, nil, opts)
 
 			ds.HostLiteFunc = func(ctx context.Context, id uint) (*fleet.Host, error) {
 				require.Equal(t, tt.host.ID, id)
@@ -2401,9 +2383,7 @@ func TestHostEncryptionKey(t *testing.T) {
 				return &fleet.HostArchivedDiskEncryptionKey{}, nil
 			}
 
-			ds.NewActivityFunc = func(
-				ctx context.Context, user *fleet.User, activity fleet.ActivityDetails, details []byte, createdAt time.Time,
-			) error {
+			opts.ActivityMock.NewActivityFunc = func(_ context.Context, _ *activity_api.User, activity activity_api.ActivityDetails) error {
 				act := activity.(fleet.ActivityTypeReadHostDiskEncryptionKey)
 				require.Equal(t, tt.host.ID, act.HostID)
 				require.Equal(t, []uint{tt.host.ID}, act.HostIDs())
@@ -2448,7 +2428,8 @@ func TestHostEncryptionKey(t *testing.T) {
 		ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 			return &fleet.AppConfig{MDM: fleet.MDM{EnabledAndConfigured: true}}, nil
 		}
-		svc, ctx := newTestServiceWithConfig(t, ds, fleetCfg, nil, nil)
+		opts := &TestServerOpts{}
+		svc, ctx := newTestServiceWithConfig(t, ds, fleetCfg, nil, nil, opts)
 		ctx = test.UserContext(ctx, test.UserAdmin)
 
 		hostErr := errors.New("host error")
@@ -2485,9 +2466,7 @@ func TestHostEncryptionKey(t *testing.T) {
 			return &fleet.HostDiskEncryptionKey{Base64Encrypted: "key"}, nil
 		}
 
-		ds.NewActivityFunc = func(
-			ctx context.Context, user *fleet.User, activity fleet.ActivityDetails, details []byte, createdAt time.Time,
-		) error {
+		opts.ActivityMock.NewActivityFunc = func(_ context.Context, _ *activity_api.User, _ activity_api.ActivityDetails) error {
 			return errors.New("activity error")
 		}
 
@@ -2531,11 +2510,6 @@ func TestHostEncryptionKey(t *testing.T) {
 				ds.GetHostArchivedDiskEncryptionKeyFunc = func(ctx context.Context, host *fleet.Host) (*fleet.HostArchivedDiskEncryptionKey, error) {
 					return &fleet.HostArchivedDiskEncryptionKey{}, nil
 				}
-				ds.NewActivityFunc = func(
-					ctx context.Context, user *fleet.User, activity fleet.ActivityDetails, details []byte, createdAt time.Time,
-				) error {
-					return nil
-				}
 				ds.GetAllMDMConfigAssetsByNameFunc = func(ctx context.Context, assetNames []fleet.MDMAssetName,
 					_ sqlx.QueryerContext,
 				) (map[fleet.MDMAssetName]fleet.MDMConfigAsset, error) {
@@ -2575,11 +2549,6 @@ func TestHostEncryptionKey(t *testing.T) {
 		}
 		ds.GetHostArchivedDiskEncryptionKeyFunc = func(ctx context.Context, host *fleet.Host) (*fleet.HostArchivedDiskEncryptionKey, error) {
 			return &fleet.HostArchivedDiskEncryptionKey{}, nil
-		}
-		ds.NewActivityFunc = func(
-			ctx context.Context, user *fleet.User, activity fleet.ActivityDetails, details []byte, createdAt time.Time,
-		) error {
-			return nil
 		}
 		ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) { // needed for new activity
 			return &fleet.AppConfig{}, nil
@@ -3056,11 +3025,6 @@ func TestLockUnlockWipeHostAuth(t *testing.T) {
 	}
 	ds.GetHostMDMFunc = func(ctx context.Context, hostID uint) (*fleet.HostMDM, error) {
 		return &fleet.HostMDM{Enrolled: true, Name: fleet.WellKnownMDMFleet}, nil
-	}
-	ds.NewActivityFunc = func(
-		ctx context.Context, user *fleet.User, activity fleet.ActivityDetails, details []byte, createdAt time.Time,
-	) error {
-		return nil
 	}
 	ds.UnlockHostManuallyFunc = func(ctx context.Context, hostID uint, platform string, ts time.Time) error {
 		return nil
@@ -3751,9 +3715,6 @@ func TestSetHostDeviceMapping(t *testing.T) {
 		ds.ListHostDeviceMappingFunc = func(ctx context.Context, hostID uint) ([]*fleet.HostDeviceMapping, error) {
 			return []*fleet.HostDeviceMapping{{HostID: hostID, Email: "user@example.com", Source: fleet.DeviceMappingMDMIdpAccounts}}, nil
 		}
-		ds.NewActivityFunc = func(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails, details []byte, createdAt time.Time) error {
-			return nil
-		}
 		ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 			return &fleet.AppConfig{}, nil
 		}
@@ -3788,9 +3749,6 @@ func TestSetHostDeviceMapping(t *testing.T) {
 		}
 		ds.ListHostDeviceMappingFunc = func(ctx context.Context, hostID uint) ([]*fleet.HostDeviceMapping, error) {
 			return []*fleet.HostDeviceMapping{{HostID: hostID, Email: "any@username.com", Source: fleet.DeviceMappingMDMIdpAccounts}}, nil
-		}
-		ds.NewActivityFunc = func(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails, details []byte, createdAt time.Time) error {
-			return nil
 		}
 		ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 			return &fleet.AppConfig{}, nil
@@ -3901,7 +3859,8 @@ func TestSetHostDeviceMapping(t *testing.T) {
 func TestDeleteHostDeviceIDPMapping(t *testing.T) {
 	t.Run("success by admin on premium", func(t *testing.T) {
 		ds := new(mock.Store)
-		svc, ctx := newTestService(t, ds, nil, nil, &TestServerOpts{License: &fleet.LicenseInfo{Tier: fleet.TierPremium}})
+		opts := &TestServerOpts{License: &fleet.LicenseInfo{Tier: fleet.TierPremium}}
+		svc, ctx := newTestService(t, ds, nil, nil, opts)
 
 		ds.HostLiteFunc = func(ctx context.Context, id uint) (*fleet.Host, error) {
 			return &fleet.Host{ID: 1}, nil
@@ -3911,20 +3870,18 @@ func TestDeleteHostDeviceIDPMapping(t *testing.T) {
 		}
 		ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 			return &fleet.AppConfig{}, nil
-		}
-		ds.NewActivityFunc = func(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails, details []byte, createdAt time.Time) error {
-			return nil
 		}
 
 		userCtx := test.UserContext(ctx, test.UserAdmin)
 		err := svc.DeleteHostIDP(userCtx, 1)
 		require.True(t, ds.DeleteHostIDPFuncInvoked)
-		require.True(t, ds.NewActivityFuncInvoked)
+		require.True(t, opts.ActivityMock.NewActivityFuncInvoked)
 		require.NoError(t, err)
 	})
 	t.Run("failure by admin on free", func(t *testing.T) {
 		ds := new(mock.Store)
-		svc, ctx := newTestService(t, ds, nil, nil, &TestServerOpts{License: &fleet.LicenseInfo{Tier: fleet.TierFree}})
+		opts := &TestServerOpts{License: &fleet.LicenseInfo{Tier: fleet.TierFree}}
+		svc, ctx := newTestService(t, ds, nil, nil, opts)
 
 		ds.HostLiteFunc = func(ctx context.Context, id uint) (*fleet.Host, error) {
 			return &fleet.Host{ID: 1}, nil
@@ -3934,9 +3891,6 @@ func TestDeleteHostDeviceIDPMapping(t *testing.T) {
 		}
 		ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 			return &fleet.AppConfig{}, nil
-		}
-		ds.NewActivityFunc = func(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails, details []byte, createdAt time.Time) error {
-			return nil
 		}
 
 		userCtx := test.UserContext(ctx, test.UserAdmin)
@@ -3945,7 +3899,7 @@ func TestDeleteHostDeviceIDPMapping(t *testing.T) {
 		assert.Equal(t, fleet.ErrMissingLicense, err)
 
 		require.False(t, ds.DeleteHostIDPFuncInvoked)
-		require.False(t, ds.NewActivityFuncInvoked)
+		require.False(t, opts.ActivityMock.NewActivityFuncInvoked)
 	})
 
 	t.Run("authorization tests", func(t *testing.T) {
@@ -3953,16 +3907,14 @@ func TestDeleteHostDeviceIDPMapping(t *testing.T) {
 		globalHost := &fleet.Host{ID: 2}
 
 		ds := new(mock.Store)
-		svc, ctx := newTestService(t, ds, nil, nil, &TestServerOpts{License: &fleet.LicenseInfo{Tier: fleet.TierPremium}})
+		opts := &TestServerOpts{License: &fleet.LicenseInfo{Tier: fleet.TierPremium}}
+		svc, ctx := newTestService(t, ds, nil, nil, opts)
 
 		ds.DeleteHostIDPFunc = func(ctx context.Context, id uint) error {
 			return nil
 		}
 		ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 			return &fleet.AppConfig{}, nil
-		}
-		ds.NewActivityFunc = func(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails, details []byte, createdAt time.Time) error {
-			return nil
 		}
 
 		testCases := []struct {
@@ -4124,7 +4076,7 @@ func TestDeleteHostDeviceIDPMapping(t *testing.T) {
 		for _, tc := range testCases {
 			// reset ds mock flags
 			ds.DeleteHostIDPFuncInvoked = false
-			ds.NewActivityFuncInvoked = false
+			opts.ActivityMock.NewActivityFuncInvoked = false
 
 			// redefine this datastore mock for each test case since its return value is specific per case
 			ds.HostLiteFunc = func(ctx context.Context, id uint) (*fleet.Host, error) {
@@ -4143,11 +4095,11 @@ func TestDeleteHostDeviceIDPMapping(t *testing.T) {
 					require.Error(t, err)
 					require.Contains(t, err.Error(), authz.ForbiddenErrorMessage)
 					require.False(t, ds.DeleteHostIDPFuncInvoked)
-					require.False(t, ds.NewActivityFuncInvoked)
+					require.False(t, opts.ActivityMock.NewActivityFuncInvoked)
 				} else {
 					require.NoError(t, err)
 					require.True(t, ds.DeleteHostIDPFuncInvoked)
-					require.True(t, ds.NewActivityFuncInvoked)
+					require.True(t, opts.ActivityMock.NewActivityFuncInvoked)
 				}
 			})
 		}
