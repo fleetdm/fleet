@@ -156,12 +156,14 @@ func (ds *Datastore) CleanupExcessQueryResultRows(ctx context.Context, maxQueryR
 		batchSize = opts[0].BatchSize
 	}
 
-	// Get all distinct query_ids that have results and are scheduled queries with discard_data = false
+	// Get all saved query IDs that could have query results to clean up.
+	// Only saved queries (scheduled reports) store rows in query_results;
+	// live queries do not, so there's nothing to clean up for them.
 	var queryIDs []uint
 	selectStmt := `
 		SELECT id
 		FROM queries
-		WHERE discard_data = false AND logging_type = 'snapshot'
+		WHERE saved = 1 AND discard_data = false AND logging_type = 'snapshot'
 	`
 	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &queryIDs, selectStmt); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "selecting query IDs for cleanup")

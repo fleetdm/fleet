@@ -1,1 +1,1 @@
-* Fixed query results cleanup cron failing with "too many placeholders" error when there are a large number of queries.
+* Fixed query results cleanup cron failing with "too many placeholders" error by filtering to only saved queries and batching the SQL IN clause.
