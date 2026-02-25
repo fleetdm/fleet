@@ -65,7 +65,7 @@ const teamFMATitlesJoin = `
 				WHERE si.id IS NOT NULL OR vat.id IS NOT NULL
 			) team_titles 
 				ON team_titles.unique_identifier = fma.unique_identifier
-				-- pattern match fma name to title name, since upgrade_code is not surfaced in fma table
+				-- pattern match fma name to a similar title name, since upgrade_code is not surfaced in fma table
 				OR (
 					team_titles.platform = fma.platform 
 					AND fma.platform = 'windows' 
