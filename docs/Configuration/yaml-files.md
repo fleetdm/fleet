@@ -124,7 +124,7 @@ _Available in Fleet Premium_
 
 You can create a patch policy by setting `type` to `patch` and specifying `fleet_maintained_app_slug`.
 
-This type of policy automatically updates a query to check if the host runs the latest Fleet-maintained app version. Fleet automatically downloads the latest version found in [the app's metadata on GitHub](https://github.com/fleetdm/fleet/tree/main/ee/maintained-apps/outputs). If `version` is specified for Fleet-maintained app, then the specified version will be included in the query.
+Query automatically updates. Hosts will fail this policy if they’re not running the latest version found in [the app's metadata](https://github.com/fleetdm/fleet/tree/main/ee/maintained-apps/outputs). If `version` is set for `fleet_maintained_apps`, that version is included in the query.
 
 #### Automations
 
