@@ -238,7 +238,7 @@ Here are the [upcoming settled events](https://docs.google.com/spreadsheets/d/1Y
 4. Close all proposed event issues that weren't able to be prioritized with a comment explaining why.
 
 #### Phase 2 Manage and and execute approved events
-**Objective** To efficiently plan, organize,track and complete the tasks in order to excecute an event. This covers everything from once an event is approved to when the event is finished.  From detail planning to promotion, staff assignments to logistics, events can be complicated projects that need focused attention.
+**Objective** To efficiently plan, organize,track and complete the tasks in order to execute an event. This covers everything from once an event is approved to when the event is finished.  From detail planning to promotion, staff assignments to logistics, events can be complicated projects that need focused attention.
 
 Event execution needs to plan and track the detail decisions supporting:
 
