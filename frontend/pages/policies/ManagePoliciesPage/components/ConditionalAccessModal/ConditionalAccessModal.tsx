@@ -112,11 +112,11 @@ const ConditionalAccessModal = ({
             });
           }}
         >
-          <TooltipWrapper tipContent={
-
+          <TooltipWrapper
+            tipContent={
               <>
-                Allows end users to bypass conditional access for a single login if they are unable to resolve the failing policy.
-                
+                Allows end users to bypass conditional access for a single login
+                if they are unable to resolve the failing policy.
                 <br />
                 <br />
                 <em>
@@ -126,8 +126,8 @@ const ConditionalAccessModal = ({
                   critical.
                 </em>
               </>
-            }>
-            
+            }
+          >
             End users can bypass
           </TooltipWrapper>
         </Checkbox>
