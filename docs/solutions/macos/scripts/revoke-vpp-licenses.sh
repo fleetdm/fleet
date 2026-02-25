@@ -7,6 +7,8 @@
 #   a. It can be retrieved from the app URL (e.g. 1487937127 from https://apps.apple.com/ba/app/craft-write-docs-ai-editing/id1487937127)
 # 3. Add the serial numbers of the devices from which you want to revoke licenses to the `serialNumbers` array in the curl command below.
 # Note: When a license is revoked, it takes some time for that to be reflected in Apple Business Manager.
+#
+# Script can be used to revoke VPP licenses from all Apple hosts (macOS, iOS, iPadOS).
 
 curl -X POST https://vpp.itunes.apple.com/mdm/v2/assets/disassociate \
 -H "Authorization: Bearer {vpp_token}" \
@@ -22,4 +24,3 @@ curl -X POST https://vpp.itunes.apple.com/mdm/v2/assets/disassociate \
         "A641592ZDB"
     ]
 }'
-
