@@ -319,6 +319,7 @@ const EXTENSION_FOR_TYPE_CONVERSION = {
   brave: "Brave",
   edge: "Edge",
   edge_beta: "Edge Beta",
+  firefox: "Firefox",
 
   // vscode versions
   vscode: "VSCode",
