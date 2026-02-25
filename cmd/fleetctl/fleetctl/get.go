@@ -30,7 +30,7 @@ import (
 const (
 	yamlFlagName                = "yaml"
 	jsonFlagName                = "json"
-	withQueriesFlagName         = "with-queries"
+	withQueriesFlagName         = "with-reports"
 	expiredFlagName             = "expired"
 	includeServerConfigFlagName = "include-server-config"
 )
@@ -571,8 +571,9 @@ func getPacksCommand() *cli.Command {
 		Usage:   `Retrieve 2017 "Packs" data for migration into modern osquery packs`,
 		Flags: []cli.Flag{
 			&cli.BoolFlag{
-				Name:  withQueriesFlagName,
-				Usage: "Output queries included in pack(s) too, when used alongside --yaml or --json",
+				Name:    withQueriesFlagName,
+				Aliases: []string{"with-queries"},
+				Usage:   "Output reports included in pack(s) too, when used alongside --yaml or --json",
 			},
 			jsonFlag(),
 			yamlFlag(),
@@ -582,6 +583,8 @@ func getPacksCommand() *cli.Command {
 			debugFlag(),
 		},
 		Action: func(c *cli.Context) error {
+			logDeprecatedFlagName(c, "with-queries", withQueriesFlagName)
+
 			client, err := clientFromCLI(c)
 			if err != nil {
 				return err
