@@ -2,12 +2,12 @@
 package logging
 
 import (
+	"context"
 	"fmt"
+	"log/slog"
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
-	platformlogging "github.com/fleetdm/fleet/v4/server/platform/logging"
-	"github.com/go-kit/log/level"
 )
 
 type FilesystemConfig struct {
@@ -101,14 +101,11 @@ type Config struct {
 	Nats       NatsConfig
 }
 
-func NewJSONLogger(name string, config Config, logger *platformlogging.Logger) (fleet.JSONLogger, error) {
+func NewJSONLogger(ctx context.Context, name string, config Config, logger *slog.Logger) (fleet.JSONLogger, error) {
 	switch config.Plugin {
 	case "":
 		// Allow "" to mean filesystem for backwards compatibility
-		level.Info(logger).Log(
-			"msg",
-			fmt.Sprintf("plugin for %s not explicitly specified. Assuming 'filesystem'", name),
-		)
+		logger.InfoContext(ctx, fmt.Sprintf("plugin for %s not explicitly specified. Assuming 'filesystem'", name))
 		fallthrough
 	case "filesystem":
 		writer, err := NewFilesystemLogWriter(
@@ -176,6 +173,7 @@ func NewJSONLogger(name string, config Config, logger *platformlogging.Logger) (
 		return fleet.JSONLogger(writer), nil
 	case "pubsub":
 		writer, err := NewPubSubLogWriter(
+			ctx,
 			config.PubSub.Project,
 			config.PubSub.Topic,
 			config.PubSub.AddAttributes,
@@ -204,6 +202,7 @@ func NewJSONLogger(name string, config Config, logger *platformlogging.Logger) (
 		return fleet.JSONLogger(writer), nil
 	case "nats":
 		writer, err := NewNatsLogWriter(
+			ctx,
 			config.Nats.Server,
 			config.Nats.Subject,
 			config.Nats.CredFile,
