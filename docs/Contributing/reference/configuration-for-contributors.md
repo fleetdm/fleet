@@ -261,7 +261,7 @@ forbidden declaration types, reserved identifiers, and required prefixes. Use on
 deploy declarations that Fleet would otherwise block.
 
 - Default value: `false`
-- Environment variable: `FLEET_MDM_SKIP_DECLARATION_VALIDATION`
+- Environment variable: `FLEET_MDM_ALLOW_ALL_DECLARATIONS`
 - Config file format:
   ```yaml
   mdm:
