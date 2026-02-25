@@ -7,6 +7,8 @@ import (
 	"log"
 	"os"
 	"strings"
+	"unicode"
+	"unicode/utf8"
 
 	"github.com/shurcooL/githubv4"
 	"golang.org/x/oauth2"
@@ -15,6 +17,11 @@ import (
 const (
 	awaitingQAColumn = "✔️Awaiting QA"
 	checkText        = "Engineer: Added comment to user story confirming successful completion of test plan."
+
+	// Drafting board (Project 67) check:
+	draftingProjectNum   = 67
+	draftingStatusNeedle = "Ready to estimate,Estimated"
+	testPlanFinalized    = "Test plan is finalized"
 )
 
 type Item struct {
@@ -64,33 +71,43 @@ func main() {
 	src := oauth2.StaticTokenSource(&oauth2.Token{AccessToken: token})
 	client := githubv4.NewClient(oauth2.NewClient(ctx, src))
 
+	// Check 1: items in ✔️Awaiting QA with the engineer test-plan confirmation line still unchecked.
 	projectID := fetchProjectID(ctx, client, *org, *projectNum)
 	items := fetchItems(ctx, client, projectID, *limit)
 
-	var bad []Item
-
+	var badAwaitingQA []Item
 	for _, it := range items {
 		if !inAwaitingQA(it) {
 			continue
 		}
-		if hasUncheckedTestPlanLine(getBody(it)) {
-			bad = append(bad, it)
+		if hasUncheckedChecklistLine(getBody(it), checkText) {
+			badAwaitingQA = append(badAwaitingQA, it)
 		}
 	}
 
-	fmt.Printf(
-		"\nFound %d items in %q with UNCHECKED test-plan confirmation:\n\n",
-		len(bad),
-		awaitingQAColumn,
-	)
+	fmt.Printf("\nFound %d items in %q with UNCHECKED test-plan confirmation:\n\n", len(badAwaitingQA), awaitingQAColumn)
+	for _, it := range badAwaitingQA {
+		fmt.Printf("❌ #%d – %s\n   %s\n\n", getNumber(it), getTitle(it), getURL(it))
+	}
 
-	for _, it := range bad {
-		fmt.Printf(
-			"❌ #%d – %s\n   %s\n\n",
-			getNumber(it),
-			getTitle(it),
-			getURL(it),
-		)
+	// Check 2: drafting board (project 67) items in Ready to estimate / Estimated with "Test plan is finalized" unchecked.
+	draftingProjectID := fetchProjectID(ctx, client, *org, draftingProjectNum)
+	draftingItems := fetchItems(ctx, client, draftingProjectID, *limit)
+
+	needles := strings.Split(draftingStatusNeedle, ",")
+	var badDrafting []Item
+	for _, it := range draftingItems {
+		if !inAnyStatus(it, needles) {
+			continue
+		}
+		if hasUncheckedChecklistLine(getBody(it), testPlanFinalized) {
+			badDrafting = append(badDrafting, it)
+		}
+	}
+
+	fmt.Printf("\nFound %d items in Drafting (project %d) in Ready to estimate / Estimated with UNCHECKED %q:\n\n", len(badDrafting), draftingProjectNum, testPlanFinalized)
+	for _, it := range badDrafting {
+		fmt.Printf("❌ #%d – %s\n   %s\n\n", getNumber(it), getTitle(it), getURL(it))
 	}
 }
 
@@ -157,21 +174,53 @@ func inAwaitingQA(it Item) bool {
 	return false
 }
 
+func inAnyStatus(it Item, needles []string) bool {
+	for _, v := range it.FieldValues.Nodes {
+		name := normalizeStatusName(string(v.SingleSelectValue.Name))
+		for _, n := range needles {
+			needle := strings.ToLower(strings.TrimSpace(n))
+			if needle == "" {
+				continue
+			}
+			if strings.Contains(name, needle) {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+// Remove leading emojis/symbols so we can match status names even if the project uses icons.
+func normalizeStatusName(s string) string {
+	s = strings.TrimSpace(s)
+	for len(s) > 0 {
+		r, size := utf8.DecodeRuneInString(s)
+		if r == utf8.RuneError && size == 1 {
+			break
+		}
+		if unicode.IsLetter(r) || unicode.IsNumber(r) {
+			break
+		}
+		s = strings.TrimSpace(s[size:])
+	}
+	return strings.ToLower(s)
+}
+
 // Only flag if the unchecked checklist line exists.
 // Ignore if missing or checked.
-func hasUncheckedTestPlanLine(body string) bool {
-	if body == "" {
+func hasUncheckedChecklistLine(body string, text string) bool {
+	if body == "" || text == "" {
 		return false
 	}
 
-	unchecked1 := "- [ ] " + checkText
-	unchecked2 := "[ ] " + checkText
+	unchecked1 := "- [ ] " + text
+	unchecked2 := "[ ] " + text
 
 	checked := []string{
-		"- [x] " + checkText,
-		"- [X] " + checkText,
-		"[x] " + checkText,
-		"[X] " + checkText,
+		"- [x] " + text,
+		"- [X] " + text,
+		"[x] " + text,
+		"[X] " + text,
 	}
 
 	for _, c := range checked {
