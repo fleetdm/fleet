@@ -37,6 +37,7 @@ spec:
     enabled_and_configured: true
     windows_enabled_and_configured: false
     enable_disk_encryption: false
+    enable_recovery_lock_password: false
     windows_require_bitlocker_pin: null
     windows_migration_enabled: false
     enable_turn_on_windows_mdm_manually: false

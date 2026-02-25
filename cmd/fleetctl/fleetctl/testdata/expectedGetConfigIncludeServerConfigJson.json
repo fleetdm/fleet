@@ -67,6 +67,7 @@
       "enabled_and_configured": false,
       "windows_enabled_and_configured": false,
       "enable_disk_encryption": false,
+      "enable_recovery_lock_password": false,
       "windows_require_bitlocker_pin": null,
       "windows_entra_tenant_ids": null,
       "macos_updates": {
