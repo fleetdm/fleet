@@ -234,7 +234,7 @@ func (ds *Datastore) QueryByName(
 	err := sqlx.GetContext(ctx, ds.reader(ctx), &query, stmt, args...)
 	if err != nil {
 		if err == sql.ErrNoRows {
-			return nil, ctxerr.Wrap(ctx, notFound("Query").WithName(name))
+			return nil, ctxerr.Wrap(ctx, notFound("Report").WithName(name))
 		}
 		return nil, ctxerr.Wrap(ctx, err, "selecting query by name")
 	}
@@ -462,7 +462,7 @@ func (ds *Datastore) SaveQuery(ctx context.Context, q *fleet.Query, shouldDiscar
 		return ctxerr.Wrap(ctx, err, "rows affected updating query")
 	}
 	if rows == 0 {
-		return ctxerr.Wrap(ctx, notFound("Query").WithID(q.ID))
+		return ctxerr.Wrap(ctx, notFound("Report").WithID(q.ID))
 	}
 
 	if shouldDeleteStats {
@@ -630,7 +630,7 @@ func query(ctx context.Context, db sqlx.QueryerContext, id uint) (*fleet.Query, 
 	query := &fleet.Query{}
 	if err := sqlx.GetContext(ctx, db, query, sqlQuery, false, fleet.AggregatedStatsTypeScheduledQuery, id); err != nil {
 		if err == sql.ErrNoRows {
-			return nil, ctxerr.Wrap(ctx, notFound("Query").WithID(id))
+			return nil, ctxerr.Wrap(ctx, notFound("Report").WithID(id))
 		}
 		return nil, ctxerr.Wrap(ctx, err, "selecting query")
 	}
