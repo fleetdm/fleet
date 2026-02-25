@@ -17,6 +17,7 @@ import FileProgressModal from "components/FileProgressModal";
 import PremiumFeatureMessage from "components/PremiumFeatureMessage";
 import Spinner from "components/Spinner";
 import DataError from "components/DataError";
+import InfoBanner from "components/InfoBanner";
 import CategoriesEndUserExperienceModal from "pages/SoftwarePage/components/modals/CategoriesEndUserExperienceModal";
 
 import PackageForm from "pages/SoftwarePage/components/forms/PackageForm";
@@ -170,6 +171,13 @@ const SoftwareCustomPackage = ({
 
     return (
       <>
+        {gitOpsModeEnabled && (
+          <InfoBanner color="yellow" borderRadius="xlarge">
+            Add custom packages in GitOps mode so Fleet can host your software.
+            After adding, copy its SHA-256 hash into your YAML so the next GitOps workflow
+            doesn't delete it.
+          </InfoBanner>
+        )}
         <PackageForm
           labels={labels || []}
           showSchemaButton={!isSidePanelOpen}
