@@ -721,15 +721,15 @@ module.exports = {
                     if(embeddedMetadata.quoteContent) {
                       // If a quoteContent meta tag is provided, make sure that the article has quoteAuthorName, quoteAuthorJobTitle, and quoteAuthorImageFilename meta tags.
                       if(!embeddedMetadata.quoteAuthorName) {
-                        throw new Error(`Failed compiling markdown content: A case study article is missing a "quoteAuthorName" meta tag at ${path.join(topLvlRepoPath, pageSourcePath)}. To resolve, add a quoteAuthorName meta tag and try running this script again. Note: you can add a "useBasicArticleTemplate" meta tag (e.g., <meta name="useBasicArticleTemplate" value="true"> to remove this requirement and display this article using the standard article template.`);
+                        throw new Error(`Failed compiling markdown content: A case study article is missing a "quoteAuthorName" meta tag at ${path.join(topLvlRepoPath, pageSourcePath)}. To resolve, add a quoteAuthorName meta tag and try running this script again.`);
                       }
 
                       if(!embeddedMetadata.quoteAuthorJobTitle) {
-                        throw new Error(`Failed compiling markdown content: A case study article is missing a "quoteAuthorJobTitle" meta tag at ${path.join(topLvlRepoPath, pageSourcePath)}. To resolve, add a quoteAuthorJobTitle meta tag and try running this script again. Note: you can add a "useBasicArticleTemplate" meta tag (e.g., <meta name="useBasicArticleTemplate" value="true"> to remove this requirement and display this article using the standard article template.`);
+                        throw new Error(`Failed compiling markdown content: A case study article is missing a "quoteAuthorJobTitle" meta tag at ${path.join(topLvlRepoPath, pageSourcePath)}. To resolve, add a quoteAuthorJobTitle meta tag and try running this script again.`);
                       }
 
                       if(!embeddedMetadata.quoteAuthorImageFilename) {
-                        throw new Error(`Failed compiling markdown content: A case study article is missing a "quoteAuthorImageFilename" meta tag at ${path.join(topLvlRepoPath, pageSourcePath)}. To resolve, add a quoteAuthorImageFilename meta tag and try running this script again. Note: you can add a "useBasicArticleTemplate" meta tag (e.g., <meta name="useBasicArticleTemplate" value="true"> to remove this requirement and display this article using the standard article template.`);
+                        throw new Error(`Failed compiling markdown content: A case study article is missing a "quoteAuthorImageFilename" meta tag at ${path.join(topLvlRepoPath, pageSourcePath)}. To resolve, add a quoteAuthorImageFilename meta tag and try running this script again.`);
                       } else {
                         // If a quoteAuthorImageFilename meta tag is provided, make sure the file exists.
                         let quoteAuthorImageExists = await sails.helpers.fs.exists(path.join(topLvlRepoPath, 'website/assets/images/'+embeddedMetadata.quoteAuthorImageFilename));
