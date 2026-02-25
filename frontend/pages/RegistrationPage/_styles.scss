@@ -21,11 +21,4 @@
   &__flash-message {
     top: 180px;
   }
-
-  form .button-wrap {
-    // Override button width of auto
-    .button:not(.button--icon):not(.button--icon__small) {
-      width: 200px;
-    }
-  }
 }
