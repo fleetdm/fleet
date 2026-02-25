@@ -588,7 +588,7 @@ func testListAvailableAppsWindows(t *testing.T, ds *Datastore) {
 	require.Equal(t, expectedApps, apps)
 
 	// upload an installer that will create a title with a similar name, but with
-	// an upgrade_code so that unique_identifier doesn't match
+	// an upgrade code so that unique identifier doesn't match
 	_, titleID, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
 		Title:                "Maintained1 (MSI)",
 		UpgradeCode:          "{UPGRADE-CODE}",
