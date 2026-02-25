@@ -554,6 +554,9 @@ func (mos *MacOSSetup) SetDefaultsIfNeeded() {
 	if !mos.EnableReleaseDeviceManually.Valid {
 		mos.EnableReleaseDeviceManually = optjson.SetBool(false)
 	}
+	if !mos.LockEndUserInfo.Valid {
+		mos.LockEndUserInfo = optjson.SetBool(false)
+	}
 	if !mos.Script.Valid {
 		mos.Script = optjson.SetString("")
 	}
