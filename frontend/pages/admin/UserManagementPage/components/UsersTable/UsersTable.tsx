@@ -538,10 +538,10 @@ const UsersTable = ({ router }: IUsersTableProps): JSX.Element => {
   const tableData = useMemo(
     () =>
       !loadingTableData &&
-        !tableDataError &&
-        users &&
-        invites &&
-        currentUser?.id
+      !tableDataError &&
+      users &&
+      invites &&
+      currentUser?.id
         ? combineDataSets(users, invites, currentUser.id)
         : [],
     [loadingTableData, tableDataError, users, invites, currentUser?.id]
