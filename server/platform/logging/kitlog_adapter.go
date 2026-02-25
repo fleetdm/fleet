@@ -3,8 +3,6 @@ package logging
 import (
 	"context"
 	"log/slog"
-
-	kitlog "github.com/go-kit/log"
 )
 
 // Logger wraps a slog.Logger to implement the kitlog.Logger interface.
@@ -125,6 +123,3 @@ func (a *Logger) InfoContext(ctx context.Context, msg string, keyvals ...any) {
 func (a *Logger) DebugContext(ctx context.Context, msg string, keyvals ...any) {
 	a.logger.DebugContext(ctx, msg, keyvals...)
 }
-
-// Ensure Logger implements kitlog.Logger at compile time.
-var _ kitlog.Logger = (*Logger)(nil)

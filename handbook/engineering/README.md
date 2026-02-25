@@ -239,7 +239,13 @@ Our goal is to keep these dependencies up-to-date with each release of Fleet. If
 
 If an announcement is found for either data source that may impact data feed availability, notify the current [on-call engineer](https://fleetdm.com/handbook/engineering#business-hours-oncall-engineer). Notify them that it is their responsibility to investigate and file a bug or take further action as necessary. 
 
-5. [Fleetd](https://fleetdm.com/docs/get-started/anatomy#fleetd) components
+5. Vulnerability OS coverage
+- Check whether any new major operating system versions have been released since the last check.
+- **Windows**: Verify that new Windows Server and Windows desktop versions are included in the [MSRC product mapping](https://github.com/fleetdm/fleet/blob/main/server/vulnerabilities/msrc/parsed/product.go).
+
+If a new OS version is missing, [file a bug](https://github.com/fleetdm/fleet/issues/new?assignees=&labels=bug%2C%3Areproduce&projects=&template=bug-report.md&title=).
+
+6. [Fleetd](https://fleetdm.com/docs/get-started/anatomy#fleetd) components
 - Check for code changes to [Orbit](https://github.com/fleetdm/fleet/blob/main/orbit/) or [Desktop](https://github.com/fleetdm/fleet/tree/main/orbit/cmd/desktop) since the last `orbit-*` tag was published.
 - Check for code changes to the [fleetd-chrome extension](https://github.com/fleetdm/fleet/tree/main/ee/fleetd-chrome) since the last `fleetd-chrome-*` tag was published.
 

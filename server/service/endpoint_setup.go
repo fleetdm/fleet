@@ -15,9 +15,9 @@ import (
 	"github.com/fleetdm/fleet/v4/pkg/spec"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/platform/logging"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/go-kit/kit/endpoint"
-	kitlog "github.com/go-kit/log"
 	"github.com/go-kit/log/level"
 )
 
@@ -46,7 +46,7 @@ type applyGroupFunc func(context.Context, *spec.Group) error
 
 func (r setupResponse) Error() error { return r.Err }
 
-func makeSetupEndpoint(svc fleet.Service, logger kitlog.Logger) endpoint.Endpoint {
+func makeSetupEndpoint(svc fleet.Service, logger *logging.Logger) endpoint.Endpoint {
 	return func(ctx context.Context, request interface{}) (interface{}, error) {
 		req := request.(setupRequest)
 		config := &fleet.AppConfig{}
@@ -129,7 +129,7 @@ func ApplyStarterLibrary(
 	ctx context.Context,
 	serverURL string,
 	token string,
-	logger kitlog.Logger,
+	logger *logging.Logger,
 	httpClientFactory func(opts ...fleethttp.ClientOpt) *http.Client,
 	clientFactory func(serverURL string, insecureSkipVerify bool, rootCA, urlPrefix string, options ...ClientOption) (*Client, error),
 	// For testing only - if provided, this function will be used instead of client.ApplyGroup
@@ -292,7 +292,7 @@ func ExtractScriptNames(specs *spec.Group) []string {
 }
 
 // DownloadAndUpdateScripts downloads scripts from URLs and updates the specs to reference local files
-func DownloadAndUpdateScripts(ctx context.Context, specs *spec.Group, scriptNames []string, tempDir string, logger kitlog.Logger) error {
+func DownloadAndUpdateScripts(ctx context.Context, specs *spec.Group, scriptNames []string, tempDir string, logger *logging.Logger) error {
 	// Create a single HTTP client to be reused for all requests
 	httpClient := fleethttp.NewClient(fleethttp.WithTimeout(5 * time.Second))
 

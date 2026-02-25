@@ -37,7 +37,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/service/integrationtest/scep_server"
 	"github.com/fleetdm/fleet/v4/server/test"
 	"github.com/go-git/go-git/v5"
-	kitlog "github.com/go-kit/log"
 	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
 	"github.com/stretchr/testify/assert"
@@ -111,7 +110,7 @@ func (s *enterpriseIntegrationGitopsTestSuite) SetupSuite() {
 		SCEPStorage:            scepStorage,
 		Pool:                   redisPool,
 		APNSTopic:              "com.apple.mgmt.External.10ac3ce5-4668-4e58-b69a-b2b5ce667589",
-		SCEPConfigService:      eeservice.NewSCEPConfigService(kitlog.NewLogfmtLogger(os.Stdout), nil),
+		SCEPConfigService:      eeservice.NewSCEPConfigService(logging.NewLogfmtLogger(os.Stdout), nil),
 		DigiCertService:        digicert.NewService(),
 		SoftwareTitleIconStore: softwareTitleIconStore,
 	}
@@ -191,7 +190,8 @@ func (s *enterpriseIntegrationGitopsTestSuite) assertDryRunOutput(t *testing.T, 
 	s.assertDryRunOutputWithDeprecation(t, output, false)
 }
 
-func (s *enterpriseIntegrationGitopsTestSuite) assertDryRunOutputWithDeprecation(t *testing.T, output string, allowDeprecation bool) {
+func (s *enterpriseIntegrationGitopsTestSuite) assertDryRunOutputWithDeprecation(t *testing.T, output string, expectDeprecation bool) {
+	var sawDeprecation bool
 	allowedVerbs := []string{
 		"moved",
 		"deleted",
@@ -204,12 +204,16 @@ func (s *enterpriseIntegrationGitopsTestSuite) assertDryRunOutputWithDeprecation
 	pattern := fmt.Sprintf("\\[([+\\-!])] would've (%s)", strings.Join(allowedVerbs, "|"))
 	reg := regexp.MustCompile(pattern)
 	for line := range strings.SplitSeq(output, "\n") {
-		if allowDeprecation && line != "" && strings.Contains(line, "is deprecated") {
+		if expectDeprecation && line != "" && strings.Contains(line, "is deprecated") {
+			sawDeprecation = true
 			continue
 		}
 		if line != "" && !strings.Contains(line, "succeeded") {
 			assert.Regexp(t, reg, line, "on dry run")
 		}
+	}
+	if expectDeprecation {
+		assert.True(t, sawDeprecation, "expected to see deprecation warning in dry run output")
 	}
 }
 
@@ -244,6 +248,9 @@ func (s *enterpriseIntegrationGitopsTestSuite) assertRealRunOutputWithDeprecatio
 // TestFleetGitops runs `fleetctl gitops` command on configs in https://github.com/fleetdm/fleet-gitops repo.
 // Changes to that repo may cause this test to fail.
 func (s *enterpriseIntegrationGitopsTestSuite) TestFleetGitops() {
+	os.Setenv("FLEET_ENABLE_LOG_TOPICS", logging.DeprecatedFieldTopic)
+	defer os.Unsetenv("FLEET_ENABLE_LOG_TOPICS")
+
 	t := s.T()
 
 	user := s.createGitOpsUser(t)
@@ -514,10 +521,6 @@ settings:
 // At the same time, GitOps uploads Apple profiles that use the newly configured CAs.
 func (s *enterpriseIntegrationGitopsTestSuite) TestCAIntegrations() {
 	t := s.T()
-
-	dev_mode.IsEnabled = true
-	t.Cleanup(func() { dev_mode.IsEnabled = false })
-
 	user := s.createGitOpsUser(t)
 	fleetctlConfig := s.createFleetctlConfig(t, user)
 
@@ -3497,6 +3500,7 @@ team_settings:
 			} else {
 				require.NoError(t, err)
 			}
+
 		})
 	}
 }

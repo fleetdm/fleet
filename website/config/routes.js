@@ -580,9 +580,17 @@ module.exports.routes = {
   'GET /fleet-gitops': {
     action: 'view-fleet-gitops',
     locals: {
-      pageTitleForMeta: 'Fleet GitOps',
-      pageDescriptionForMeta: 'See every change, undo any error, repeat every success. Fleet and GitOps work together to optimize your endpoint management strategy.',
+      pageTitleForMeta: 'Infrastructure as code',
+      pageDescriptionForMeta: 'See every change, undo any error, repeat every success. Fleet\'s infrastructure as code approach lets you manage every endpoint setting in version-controlled YAML.',
       currentSection: 'platform',
+    }
+  },
+
+  'GET /deployment': {
+    action: 'landing-pages/view-deployment',
+    locals: {
+      pageTitleForMeta: 'Deploy Fleet anywhere',
+      pageDescriptionForMeta: ' Run Fleet on-premise, in your private cloud (AWS, Azure, GCP), or air-gapped environments. Or let us handle it with Fleet Cloud. The only MDM with zero infrastructure lock-in.',
     }
   },
 
