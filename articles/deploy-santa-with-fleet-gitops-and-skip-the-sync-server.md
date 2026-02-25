@@ -53,6 +53,16 @@ Here is how the Fleet + GitOps + Santa workflow operates in practice:
 4. **Real-time Monitoring:** osquery tables provide visibility into Santa events
 5. **Incident Response:** Fleet's queries and policies trigger automated workflows for investigation or remediation
 
+## The bottom line
+
+Fleet believes in reducing complexity. Fleet's GitOps-native approach provides the functionality of a custom Santa sync server while adding enterprise device management, operational simplicity, and modern change management capabilities while eliminating infrastructure maintenance. It's a more scalable and secure approach to binary authorization that aligns with modern infrastructure practices.
+
+Ready to modernize your Santa deployment? Fleet's open-source platform makes it easier than ever. 
+
+Stay tuned into the progress and discussion on a native Santa + Fleet integration currently in design by viewing this [Fleet feature request on GitHub](https://github.com/fleetdm/fleet/issues/24910)
+
+[Fleet](https://fleetdm.com/device-management) is an open-source device management platform that provides GitOps-native configuration management, comprehensive device visibility, and enterprise-grade security for organizations managing thousands of endpoints.
+
 The [next article](https://fleetdm.com/guides/how-we-deployed-santa-at-fleet) in this series is a step-by-step guide showing how we implemented this deployment model for Santa internally at Fleet.
 
 <meta name="articleTitle" value="Deploy Santa with Fleet GitOps and skip the sync server">

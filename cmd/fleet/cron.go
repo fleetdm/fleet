@@ -1896,6 +1896,7 @@ func newAndroidMDMDeviceReconcilerSchedule(
 	ds fleet.Datastore,
 	logger *logging.Logger,
 	licenseKey string,
+	newActivityFn fleet.NewActivityFunc,
 ) (*schedule.Schedule, error) {
 	const (
 		name            = string(fleet.CronMDMAndroidDeviceReconciler)
@@ -1907,7 +1908,7 @@ func newAndroidMDMDeviceReconcilerSchedule(
 		ctx, name, instanceID, defaultInterval, ds, ds,
 		schedule.WithLogger(logger),
 		schedule.WithJob("reconcile_android_devices", func(ctx context.Context) error {
-			return android_svc.ReconcileAndroidDevices(ctx, ds, logger.SlogLogger(), licenseKey)
+			return android_svc.ReconcileAndroidDevices(ctx, ds, logger.SlogLogger(), licenseKey, newActivityFn)
 		}),
 	)
 
