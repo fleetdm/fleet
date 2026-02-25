@@ -46,21 +46,39 @@ type DraftingStatusReport struct {
 	Items  []ReportItem
 }
 
+type MissingMilestoneReportItem struct {
+	ProjectNum  int
+	Number      int
+	Title       string
+	URL         string
+	Repo        string
+	Suggestions []MilestoneSuggestion
+}
+
+type MilestoneSuggestion struct {
+	Number int
+	Title  string
+}
+
 type HTMLReportData struct {
 	GeneratedAt      string
 	Org              string
+	GitHubToken      string
 	AwaitingSections []AwaitingProjectReport
 	StaleSections    []StaleAwaitingProjectReport
 	StaleThreshold   int
 	DraftingSections []DraftingStatusReport
+	MissingMilestone []MissingMilestoneReportItem
 	TotalAwaiting    int
 	TotalStale       int
 	TotalDrafting    int
+	TotalNoMilestone int
 	TimestampCheck   TimestampCheckResult
 	AwaitingClean    bool
 	StaleClean       bool
 	DraftingClean    bool
 	TimestampClean   bool
+	MilestoneClean   bool
 }
 
 func buildHTMLReportData(
@@ -70,7 +88,9 @@ func buildHTMLReportData(
 	staleByProject map[int][]StaleAwaitingViolation,
 	staleDays int,
 	byStatus map[string][]DraftingCheckViolation,
+	missingMilestones []MissingMilestoneIssue,
 	timestampCheck TimestampCheckResult,
+	githubToken string,
 ) HTMLReportData {
 	sections := make([]AwaitingProjectReport, 0, len(projectNums))
 	totalAwaiting := 0
@@ -165,21 +185,45 @@ func buildHTMLReportData(
 		)
 	}
 
+	noMilestone := make([]MissingMilestoneReportItem, 0, len(missingMilestones))
+	for _, v := range missingMilestones {
+		repo := v.RepoOwner + "/" + v.RepoName
+		suggestions := make([]MilestoneSuggestion, 0, len(v.SuggestedMilestones))
+		for _, m := range v.SuggestedMilestones {
+			suggestions = append(suggestions, MilestoneSuggestion{
+				Number: m.Number,
+				Title:  m.Title,
+			})
+		}
+		noMilestone = append(noMilestone, MissingMilestoneReportItem{
+			ProjectNum:  v.ProjectNum,
+			Number:      getNumber(v.Item),
+			Title:       getTitle(v.Item),
+			URL:         getURL(v.Item),
+			Repo:        repo,
+			Suggestions: suggestions,
+		})
+	}
+
 	return HTMLReportData{
 		GeneratedAt:      time.Now().Format(time.RFC1123),
 		Org:              org,
+		GitHubToken:      githubToken,
 		AwaitingSections: sections,
 		StaleSections:    staleSections,
 		StaleThreshold:   staleDays,
 		DraftingSections: drafting,
+		MissingMilestone: noMilestone,
 		TotalAwaiting:    totalAwaiting,
 		TotalStale:       totalStale,
 		TotalDrafting:    totalDrafting,
+		TotalNoMilestone: len(noMilestone),
 		TimestampCheck:   timestampCheck,
 		AwaitingClean:    totalAwaiting == 0,
 		StaleClean:       totalStale == 0,
 		DraftingClean:    totalDrafting == 0,
 		TimestampClean:   timestampCheck.Error == "" && timestampCheck.OK,
+		MilestoneClean:   len(noMilestone) == 0,
 	}
 }
 
@@ -347,10 +391,43 @@ var htmlReportTemplate = `<!doctype html>
     .item a:hover { text-decoration: underline; }
     ul { margin: 8px 0 0 20px; }
     li { margin: 5px 0; }
+    .actions {
+      margin-top: 10px;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+    .fix-btn {
+      border: 1px solid var(--line);
+      background: #fff;
+      border-radius: 8px;
+      padding: 6px 10px;
+      font-size: 13px;
+      color: var(--text);
+      cursor: pointer;
+    }
+    .fix-btn:hover {
+      background: #f1f5f9;
+    }
+    .fix-btn.link {
+      text-decoration: none;
+      display: inline-block;
+    }
+    .copied-note {
+      margin-left: 6px;
+      font-size: 12px;
+      color: var(--muted);
+    }
+    .milestone-search {
+      min-width: 240px;
+    }
+    .milestone-select {
+      min-width: 260px;
+    }
     .empty { margin: 0; color: var(--muted); font-style: italic; }
   </style>
 </head>
-<body>
+<body data-gh-token="{{.GitHubToken}}">
   <div class="wrap">
     <section class="header">
       <h1>🧪 qacheck report</h1>
@@ -358,6 +435,7 @@ var htmlReportTemplate = `<!doctype html>
       <div class="counts">
         <span class="pill">Awaiting QA violations: {{.TotalAwaiting}}</span>
         <span class="pill">Stale Awaiting QA items: {{.TotalStale}}</span>
+        <span class="pill">Missing milestones (selected projects): {{.TotalNoMilestone}}</span>
         <span class="pill">Drafting checklist violations: {{.TotalDrafting}}</span>
       </div>
     </section>
@@ -371,6 +449,9 @@ var htmlReportTemplate = `<!doctype html>
       </button>
       <button class="tab-btn" data-tab="timestamp" role="tab">
         <span class="status-dot {{if .TimestampClean}}ok{{end}}"></span>🕒 Updates timestamp expiry
+      </button>
+      <button class="tab-btn" data-tab="milestone" role="tab">
+        <span class="status-dot {{if .MilestoneClean}}ok{{end}}"></span>🎯 Missing milestones
       </button>
       <button class="tab-btn" data-tab="drafting" role="tab">
         <span class="status-dot {{if .DraftingClean}}ok{{end}}"></span>🧭 Drafting estimation gate
@@ -461,6 +542,35 @@ var htmlReportTemplate = `<!doctype html>
         {{end}}
       </section>
 
+      <section id="tab-milestone" class="panel" role="tabpanel">
+        <h2>🎯 Missing milestones (selected projects)</h2>
+        <p class="subtle">Issues in selected projects without a milestone. Type to filter milestones, choose one, then apply directly.</p>
+        {{if .MissingMilestone}}
+          {{range .MissingMilestone}}
+            <div class="project">
+              <h3>Project {{.ProjectNum}} · #{{.Number}} - {{.Title}}</h3>
+              <div><a href="{{.URL}}" target="_blank" rel="noopener noreferrer">{{.URL}}</a></div>
+              <p class="subtle">Repository: <strong>{{.Repo}}</strong></p>
+              <div class="actions">
+                {{if .Suggestions}}
+                  <input class="fix-btn milestone-search" type="text" placeholder="Search milestone...">
+                  <select class="fix-btn milestone-select" data-issue="{{.Number}}" data-repo="{{.Repo}}">
+                    {{range .Suggestions}}
+                      <option value="{{.Title}}" data-number="{{.Number}}">{{.Title}}</option>
+                    {{end}}
+                  </select>
+                  <button class="fix-btn apply-milestone-btn">Apply milestone</button>
+                {{else}}
+                  <span class="copied-note">No milestone suggestions found for this repo.</span>
+                {{end}}
+              </div>
+            </div>
+          {{end}}
+        {{else}}
+          <p class="empty">🟢 No missing milestones found.</p>
+        {{end}}
+      </section>
+
       <section id="tab-drafting" class="panel" role="tabpanel">
         <h2>🧭 Drafting estimation gate (project ` + fmt.Sprintf("%d", draftingProjectNum) + `)</h2>
         <p class="subtle">Items in estimation statuses with unchecked checklist items.</p>
@@ -507,6 +617,93 @@ var htmlReportTemplate = `<!doctype html>
       buttons.forEach((btn) => {
         btn.addEventListener('click', () => activate(btn.dataset.tab));
       });
+
+      function installMilestoneFiltering() {
+        const actionBlocks = document.querySelectorAll('.actions');
+        actionBlocks.forEach((actions) => {
+          const searchInput = actions.querySelector('.milestone-search');
+          const select = actions.querySelector('.milestone-select');
+          if (!searchInput || !select) return;
+
+          const allOptions = Array.from(select.options).map((opt) => ({
+            title: opt.value,
+            number: opt.dataset.number || '',
+          }));
+
+          function renderFiltered(term) {
+            const q = term.trim().toLowerCase();
+            const filtered = allOptions.filter((o) => o.title.toLowerCase().includes(q));
+            select.innerHTML = '';
+            if (filtered.length === 0) {
+              const none = document.createElement('option');
+              none.textContent = 'No matching milestones';
+              none.value = '';
+              none.dataset.number = '';
+              select.appendChild(none);
+              return;
+            }
+            filtered.forEach((o) => {
+              const opt = document.createElement('option');
+              opt.value = o.title;
+              opt.textContent = o.title;
+              opt.dataset.number = o.number;
+              select.appendChild(opt);
+            });
+          }
+
+          searchInput.addEventListener('input', () => renderFiltered(searchInput.value));
+        });
+      }
+
+      const applyButtons = document.querySelectorAll('.apply-milestone-btn');
+      applyButtons.forEach((btn) => {
+        btn.addEventListener('click', async () => {
+          const actions = btn.closest('.actions');
+          const select = actions && actions.querySelector('.milestone-select');
+          if (!select) return;
+          const issue = select.dataset.issue || '';
+          const repo = select.dataset.repo || '';
+          const milestoneTitle = select.value || '';
+          const milestoneNumber = parseInt((select.selectedOptions[0] && select.selectedOptions[0].dataset.number) || '', 10);
+          if (!issue || !repo || !milestoneTitle || Number.isNaN(milestoneNumber)) return;
+
+          const token = document.body.dataset.ghToken || '';
+          if (!token) {
+            window.alert('Missing GitHub token in report data. Re-run qacheck with GITHUB_TOKEN set.');
+            return;
+          }
+
+          const endpoint = 'https://api.github.com/repos/' + repo + '/issues/' + issue;
+          const payload = { milestone: milestoneNumber };
+          const prev = btn.textContent;
+          btn.textContent = 'Applying...';
+          btn.disabled = true;
+          try {
+            const res = await fetch(endpoint, {
+              method: 'PATCH',
+              headers: {
+                'Accept': 'application/vnd.github+json',
+                'Content-Type': 'application/json',
+                'Authorization': 'Bearer ' + token,
+              },
+              body: JSON.stringify(payload),
+            });
+            if (!res.ok) {
+              const body = await res.text();
+              throw new Error('GitHub API error ' + res.status + ': ' + body);
+            }
+            btn.textContent = 'Applied';
+            setTimeout(() => { btn.textContent = prev; }, 1200);
+          } catch (err) {
+            window.alert('Could not apply milestone. ' + err);
+            btn.textContent = prev;
+          } finally {
+            btn.disabled = false;
+          }
+        });
+      });
+
+      installMilestoneFiltering();
     })();
   </script>
 </body>

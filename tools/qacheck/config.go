@@ -13,9 +13,8 @@ const (
 	// Drafting board (Project 67) check:
 	draftingProjectNum   = 67
 	draftingStatusNeedle = "Ready to estimate,Estimated"
-
-	reportDirName  = "qacheck-report"
-	reportFileName = "index.html"
+	reportDirName        = "qacheck-report"
+	reportFileName       = "index.html"
 
 	defaultStaleDays = 21
 

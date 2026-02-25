@@ -16,6 +16,16 @@ func inAwaitingQA(it Item) bool {
 	return false
 }
 
+func inDoneColumn(it Item) bool {
+	for _, v := range it.FieldValues.Nodes {
+		name := normalizeStatusName(string(v.SingleSelectValue.Name))
+		if name == "done" {
+			return true
+		}
+	}
+	return false
+}
+
 func matchedStatus(it Item, needles []string) (string, bool) {
 	for _, v := range it.FieldValues.Nodes {
 		rawName := strings.TrimSpace(string(v.SingleSelectValue.Name))

@@ -104,3 +104,36 @@ func printTimestampCheckSummary(result TimestampCheckResult) {
 		result.MinDays,
 	)
 }
+
+func printMissingMilestoneSummary(items []MissingMilestoneIssue) {
+	byProject := make(map[int][]MissingMilestoneIssue)
+	for _, it := range items {
+		byProject[it.ProjectNum] = append(byProject[it.ProjectNum], it)
+	}
+
+	fmt.Printf("\n🎯 Missing milestone audit (selected projects)\n")
+	fmt.Printf("Found %d issue(s) without a milestone.\n\n", len(items))
+
+	projects := make([]int, 0, len(byProject))
+	for p := range byProject {
+		projects = append(projects, p)
+	}
+	sort.Ints(projects)
+
+	for _, projectNum := range projects {
+		fmt.Printf("🗂️ Project %d:\n\n", projectNum)
+		for _, v := range byProject[projectNum] {
+			it := v.Item
+			fmt.Printf("❗ #%d – %s\n   %s\n", getNumber(it), getTitle(it), getURL(it))
+			if len(v.SuggestedMilestones) == 0 {
+				fmt.Printf("   Suggested milestones: (none found)\n\n")
+				continue
+			}
+			fmt.Printf("   Suggested milestones:\n")
+			for _, m := range v.SuggestedMilestones {
+				fmt.Printf("   - %s\n", m.Title)
+			}
+			fmt.Println()
+		}
+	}
+}

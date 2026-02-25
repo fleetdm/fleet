@@ -13,10 +13,13 @@ type Item struct {
 
 	Content struct {
 		Issue struct {
-			Number githubv4.Int
-			Title  githubv4.String
-			Body   githubv4.String
-			URL    githubv4.URI
+			Number    githubv4.Int
+			Title     githubv4.String
+			Body      githubv4.String
+			URL       githubv4.URI
+			Milestone struct {
+				Title githubv4.String
+			} `graphql:"milestone"`
 		} `graphql:"... on Issue"`
 
 		PullRequest struct {
@@ -47,4 +50,17 @@ type StaleAwaitingViolation struct {
 	StaleDays   int
 	LastUpdated time.Time
 	ProjectNum  int
+}
+
+type MissingMilestoneIssue struct {
+	Item                Item
+	ProjectNum          int
+	RepoOwner           string
+	RepoName            string
+	SuggestedMilestones []MilestoneOption
+}
+
+type MilestoneOption struct {
+	Number int
+	Title  string
 }

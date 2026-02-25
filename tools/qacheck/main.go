@@ -62,6 +62,8 @@ func main() {
 	badDrafting := runDraftingCheck(ctx, client, *org, *limit)
 	byStatus := groupViolationsByStatus(badDrafting)
 	printDraftingSummary(byStatus, len(badDrafting))
+	missingMilestones := runMissingMilestoneChecks(ctx, client, *org, projectNums, *limit, token)
+	printMissingMilestoneSummary(missingMilestones)
 	timestampCheck := checkUpdatesTimestamp(ctx, time.Now().UTC())
 	printTimestampCheckSummary(timestampCheck)
 
@@ -73,7 +75,9 @@ func main() {
 			staleByProject,
 			*staleDays,
 			byStatus,
+			missingMilestones,
 			timestampCheck,
+			token,
 		),
 	)
 	if err != nil {
