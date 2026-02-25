@@ -769,7 +769,7 @@ The incident on-call engineer is responsible for stabilizing the issue well enou
 
 **During business hours**
 
-The incident on-call engineer is responsible for responding to and triaging incidents. Instead of trying to fix the issue themselves, they will typically reach out to the most relevant product group and ask who can jump in to take lead on the resolution.
+The incident on-call engineer is responsible for responding to, triaging, and leading incident response. During business hours, the most expedient resolution may be to request assistance from the most relevant product group while the incident on-call engineer handles coordination and communication.
 
 Any mentions that do not meet [P0 criteria](https://fleetdm.com/handbook/company/communications#high-priority-user-stories-and-bugs) should be acknowledged and redirected to the on-call engineer.
 
