@@ -1299,5 +1299,10 @@ func (svc *Service) CreateAndroidWebApp(ctx context.Context, title, startURL str
 	}
 
 	packageName := strings.TrimPrefix(createdApp.Name, fmt.Sprintf("%s/webApps/", enterprise.Name()))
+	if packageName == createdApp.Name || !strings.HasPrefix(packageName, fleet.AndroidWebAppPrefix) {
+		// logging this as an error, because the frontend uses the package name to hide some actions
+		// not available to WebApps, we must know if somehow android changes how those get named.
+		level.Error(svc.logger).Log("msg", "created Android webApp does not have expected package name format", "package_name", createdApp.Name)
+	}
 	return packageName, nil
 }

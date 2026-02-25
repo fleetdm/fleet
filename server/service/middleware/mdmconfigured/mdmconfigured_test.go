@@ -130,7 +130,7 @@ func TestAndroidMDMConfigured(t *testing.T) {
 	mw := NewMDMConfigMiddleware(&svc)
 
 	nextCalled := false
-	next := func(ctx context.Context, req interface{}) (interface{}, error) {
+	next := func(ctx context.Context, req any) (any, error) {
 		nextCalled = true
 		return struct{}{}, nil
 	}
@@ -147,7 +147,7 @@ func TestAndroidMDMNotConfigured(t *testing.T) {
 	mw := NewMDMConfigMiddleware(&svc)
 
 	nextCalled := false
-	next := func(ctx context.Context, req interface{}) (interface{}, error) {
+	next := func(ctx context.Context, req any) (any, error) {
 		nextCalled = true
 		return struct{}{}, nil
 	}
