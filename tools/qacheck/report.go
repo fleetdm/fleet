@@ -64,7 +64,8 @@ type MilestoneSuggestion struct {
 type HTMLReportData struct {
 	GeneratedAt      string
 	Org              string
-	GitHubToken      string
+	BridgeBaseURL    string
+	BridgeSession    string
 	AwaitingSections []AwaitingProjectReport
 	StaleSections    []StaleAwaitingProjectReport
 	StaleThreshold   int
@@ -91,7 +92,8 @@ func buildHTMLReportData(
 	byStatus map[string][]DraftingCheckViolation,
 	missingMilestones []MissingMilestoneIssue,
 	timestampCheck TimestampCheckResult,
-	githubToken string,
+	bridgeBaseURL string,
+	bridgeSession string,
 ) HTMLReportData {
 	sections := make([]AwaitingProjectReport, 0, len(projectNums))
 	totalAwaiting := 0
@@ -213,7 +215,8 @@ func buildHTMLReportData(
 	return HTMLReportData{
 		GeneratedAt:      time.Now().Format(time.RFC1123),
 		Org:              org,
-		GitHubToken:      githubToken,
+		BridgeBaseURL:    bridgeBaseURL,
+		BridgeSession:    bridgeSession,
 		AwaitingSections: sections,
 		StaleSections:    staleSections,
 		StaleThreshold:   staleDays,
@@ -440,7 +443,7 @@ var htmlReportTemplate = `<!doctype html>
     .empty { margin: 0; color: var(--muted); font-style: italic; }
   </style>
 </head>
-<body data-gh-token="{{.GitHubToken}}">
+<body data-bridge-url="{{.BridgeBaseURL}}" data-bridge-session="{{.BridgeSession}}">
   <div class="wrap">
     <section class="header">
       <h1>🧪 qacheck report</h1>
@@ -602,7 +605,7 @@ var htmlReportTemplate = `<!doctype html>
                         {{range .Unchecked}}
                           <div class="checklist-row">
                             <span class="checklist-text">• [ ] {{.}}</span>
-                            {{if and $.GitHubToken $item.Repo}}
+                            {{if and $.BridgeBaseURL $.BridgeSession $item.Repo}}
                               <button class="fix-btn apply-drafting-check-btn" data-repo="{{$item.Repo}}" data-issue="{{$item.Number}}" data-check="{{.}}">Check on GitHub</button>
                             {{end}}
                           </div>
@@ -687,30 +690,30 @@ var htmlReportTemplate = `<!doctype html>
           const milestoneNumber = parseInt((select.selectedOptions[0] && select.selectedOptions[0].dataset.number) || '', 10);
           if (!issue || !repo || !milestoneTitle || Number.isNaN(milestoneNumber)) return;
 
-          const token = document.body.dataset.ghToken || '';
-          if (!token) {
-            window.alert('Missing GitHub token in report data. Re-run qacheck with GITHUB_TOKEN set.');
+          const bridgeURL = document.body.dataset.bridgeUrl || '';
+          const bridgeSession = document.body.dataset.bridgeSession || '';
+          if (!bridgeURL || !bridgeSession) {
+            window.alert('Bridge unavailable. Re-run qacheck and keep terminal open.');
             return;
           }
 
-          const endpoint = 'https://api.github.com/repos/' + repo + '/issues/' + issue;
-          const payload = { milestone: milestoneNumber };
+          const endpoint = bridgeURL + '/api/apply-milestone';
+          const payload = { repo: repo, issue: issue, milestone_number: milestoneNumber };
           const prev = btn.textContent;
           btn.textContent = 'Applying...';
           btn.disabled = true;
           try {
             const res = await fetch(endpoint, {
-              method: 'PATCH',
+              method: 'POST',
               headers: {
-                'Accept': 'application/vnd.github+json',
                 'Content-Type': 'application/json',
-                'Authorization': 'Bearer ' + token,
+                'X-QACheck-Session': bridgeSession,
               },
               body: JSON.stringify(payload),
             });
             if (!res.ok) {
               const body = await res.text();
-              throw new Error('GitHub API error ' + res.status + ': ' + body);
+              throw new Error('Bridge error ' + res.status + ': ' + body);
             }
             btn.textContent = 'Applied';
             setTimeout(() => { btn.textContent = prev; }, 1200);
@@ -723,53 +726,13 @@ var htmlReportTemplate = `<!doctype html>
         });
       });
 
-      function escapeRegExp(value) {
-        return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-      }
-
-      function replaceUncheckedChecklistLine(body, checkText) {
-        const text = (checkText || '').trim();
-        if (!text) return { updated: false, body };
-
-        const escaped = escapeRegExp(text);
-        const checkedPatterns = [
-          new RegExp('(^|\\n)\\s*[-*]\\s*\\[x\\]\\s*' + escaped + '(?=\\n|$)', 'im'),
-          new RegExp('(^|\\n)\\s*\\[x\\]\\s*' + escaped + '(?=\\n|$)', 'im'),
-        ];
-        if (checkedPatterns.some((p) => p.test(body))) {
-          return { updated: false, body, alreadyChecked: true };
-        }
-
-        const uncheckedPatterns = [
-          {
-            pattern: new RegExp('(^|\\n)\\s*-\\s*\\[ \\]\\s*' + escaped + '(?=\\n|$)', 'im'),
-            replacement: '$1- [x] ' + text,
-          },
-          {
-            pattern: new RegExp('(^|\\n)\\s*\\*\\s*\\[ \\]\\s*' + escaped + '(?=\\n|$)', 'im'),
-            replacement: '$1* [x] ' + text,
-          },
-          {
-            pattern: new RegExp('(^|\\n)\\s*\\[ \\]\\s*' + escaped + '(?=\\n|$)', 'im'),
-            replacement: '$1[x] ' + text,
-          },
-        ];
-
-        for (const entry of uncheckedPatterns) {
-          if (entry.pattern.test(body)) {
-            return { updated: true, body: body.replace(entry.pattern, entry.replacement) };
-          }
-        }
-
-        return { updated: false, body };
-      }
-
       const applyDraftingCheckButtons = document.querySelectorAll('.apply-drafting-check-btn');
       applyDraftingCheckButtons.forEach((btn) => {
         btn.addEventListener('click', async () => {
-          const token = document.body.dataset.ghToken || '';
-          if (!token) {
-            window.alert('Missing GitHub token in report data. Re-run qacheck with GITHUB_TOKEN set.');
+          const bridgeURL = document.body.dataset.bridgeUrl || '';
+          const bridgeSession = document.body.dataset.bridgeSession || '';
+          if (!bridgeURL || !bridgeSession) {
+            window.alert('Bridge unavailable. Re-run qacheck and keep terminal open.');
             return;
           }
 
@@ -778,44 +741,28 @@ var htmlReportTemplate = `<!doctype html>
           const checkText = btn.dataset.check || '';
           if (!repo || !issue || !checkText) return;
 
-          const endpoint = 'https://api.github.com/repos/' + repo + '/issues/' + issue;
+          const endpoint = bridgeURL + '/api/apply-checklist';
           const prev = btn.textContent;
           btn.textContent = 'Checking...';
           btn.disabled = true;
           try {
-            const getRes = await fetch(endpoint, {
-              method: 'GET',
+            const res = await fetch(endpoint, {
+              method: 'POST',
               headers: {
-                'Accept': 'application/vnd.github+json',
-                'Authorization': 'Bearer ' + token,
+                'Content-Type': 'application/json',
+                'X-QACheck-Session': bridgeSession,
               },
+              body: JSON.stringify({ repo: repo, issue: issue, check_text: checkText }),
             });
-            if (!getRes.ok) {
-              const body = await getRes.text();
-              throw new Error('GitHub API error ' + getRes.status + ': ' + body);
+            if (!res.ok) {
+              const body = await res.text();
+              throw new Error('Bridge error ' + res.status + ': ' + body);
             }
-
-            const issueData = await getRes.json();
-            const currentBody = issueData.body || '';
-            const result = replaceUncheckedChecklistLine(currentBody, checkText);
-            if (!result.updated) {
-              btn.textContent = result.alreadyChecked ? 'Already checked' : 'Not found';
+            const payload = await res.json();
+            if (!payload.updated) {
+              btn.textContent = payload.already_checked ? 'Already checked' : 'Not found';
               setTimeout(() => { btn.textContent = prev; }, 1400);
               return;
-            }
-
-            const patchRes = await fetch(endpoint, {
-              method: 'PATCH',
-              headers: {
-                'Accept': 'application/vnd.github+json',
-                'Content-Type': 'application/json',
-                'Authorization': 'Bearer ' + token,
-              },
-              body: JSON.stringify({ body: result.body }),
-            });
-            if (!patchRes.ok) {
-              const body = await patchRes.text();
-              throw new Error('GitHub API error ' + patchRes.status + ': ' + body);
             }
 
             btn.textContent = 'Checked';

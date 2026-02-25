@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"os/signal"
 	"strconv"
 	"strings"
 	"time"
@@ -27,6 +28,7 @@ func main() {
 	org := flag.String("org", "fleetdm", "GitHub org")
 	limit := flag.Int("limit", 100, "Max project items to scan (no pagination; expected usage is small)")
 	staleDays := flag.Int("stale-days", defaultStaleDays, "Flag Awaiting QA items unchanged for this many days")
+	bridgeIdleMinutes := flag.Int("bridge-idle-minutes", defaultBridgeIdleMinutes, "Minutes to keep UI bridge alive without activity")
 	openReport := flag.Bool("open-report", true, "Open HTML report in browser when finished")
 	var projectNums intListFlag
 	flag.Var(&projectNums, "project", "Project number(s)")
@@ -50,6 +52,11 @@ func main() {
 	}
 	if *staleDays < 1 {
 		fmt.Fprintln(os.Stderr, "-stale-days must be >= 1")
+		flag.Usage()
+		os.Exit(2)
+	}
+	if *bridgeIdleMinutes < 1 {
+		fmt.Fprintln(os.Stderr, "-bridge-idle-minutes must be >= 1")
 		flag.Usage()
 		os.Exit(2)
 	}
@@ -123,6 +130,15 @@ func main() {
 
 	tracker.phaseStart(phaseReport)
 	start = time.Now()
+	bridge, err := startUIBridge(token, time.Duration(*bridgeIdleMinutes)*time.Minute, tracker.bridgeSignal)
+	if err != nil {
+		log.Printf("could not start UI bridge: %v", err)
+	}
+	bridgeBaseURL, bridgeSession := "", ""
+	if bridge != nil {
+		bridgeBaseURL = bridge.baseURL
+		bridgeSession = bridge.session
+	}
 	reportPath, err := writeHTMLReport(
 		buildHTMLReportData(
 			*org,
@@ -133,7 +149,8 @@ func main() {
 			byStatus,
 			missingMilestones,
 			timestampCheck,
-			token,
+			bridgeBaseURL,
+			bridgeSession,
 		),
 	)
 	if err != nil {
@@ -151,9 +168,19 @@ func main() {
 			return
 		}
 		tracker.phaseDone(phaseBrowser, "browser open signal sent")
+	} else {
+		tracker.phaseWarn(phaseBrowser, "auto-open disabled (-open-report=false)")
+	}
+
+	if bridge == nil {
 		return
 	}
-	tracker.phaseWarn(phaseBrowser, "auto-open disabled (-open-report=false)")
+
+	sigCtx, stopSignals := signal.NotifyContext(context.Background(), os.Interrupt)
+	defer stopSignals()
+	tracker.bridgeListening(bridge.baseURL, time.Duration(*bridgeIdleMinutes)*time.Minute)
+	reason := bridge.waitUntilDone(sigCtx)
+	tracker.bridgeStopped(reason)
 }
 
 func runAwaitingQACheck(

@@ -16,7 +16,8 @@ const (
 	reportDirName        = "qacheck-report"
 	reportFileName       = "index.html"
 
-	defaultStaleDays = 21
+	defaultStaleDays         = 21
+	defaultBridgeIdleMinutes = 15
 
 	updatesTimestampURL = "https://updates.fleetdm.com/timestamp.json"
 	minTimestampDays    = 5

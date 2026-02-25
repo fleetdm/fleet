@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"strings"
+	"sync"
 	"time"
 )
 
@@ -34,6 +35,7 @@ type phaseEntry struct {
 }
 
 type phaseTracker struct {
+	mu         sync.Mutex
 	phases     []phaseEntry
 	globalRow  int
 	phaseRow   int
@@ -120,24 +122,32 @@ func (p *phaseTracker) redrawFooter() {
 }
 
 func (p *phaseTracker) phaseStart(i int) {
+	p.mu.Lock()
+	defer p.mu.Unlock()
 	p.phases[i].status = phaseRunning
 	p.phases[i].summary = ""
 	p.redrawPhase(i)
 }
 
 func (p *phaseTracker) phaseDone(i int, summary string) {
+	p.mu.Lock()
+	defer p.mu.Unlock()
 	p.phases[i].status = phaseDone
 	p.phases[i].summary = summary
 	p.redrawPhase(i)
 }
 
 func (p *phaseTracker) phaseWarn(i int, summary string) {
+	p.mu.Lock()
+	defer p.mu.Unlock()
 	p.phases[i].status = phaseWarn
 	p.phases[i].summary = summary
 	p.redrawPhase(i)
 }
 
 func (p *phaseTracker) phaseFail(i int, summary string) {
+	p.mu.Lock()
+	defer p.mu.Unlock()
 	p.phases[i].status = phaseFail
 	p.phases[i].summary = summary
 	p.redrawPhase(i)
@@ -145,6 +155,8 @@ func (p *phaseTracker) phaseFail(i int, summary string) {
 
 func (p *phaseTracker) waitingForBrowser(reportPath string) {
 	_ = reportPath
+	p.mu.Lock()
+	defer p.mu.Unlock()
 	p.statusText = fmt.Sprintf("%s🛰️  Waiting for report bridge...%s",
 		clrCyan,
 		clrReset,
@@ -154,6 +166,31 @@ func (p *phaseTracker) waitingForBrowser(reportPath string) {
 
 func (p *phaseTracker) showReportLink(reportURL string) {
 	_ = reportURL
+}
+
+func (p *phaseTracker) bridgeListening(baseURL string, idleTimeout time.Duration) {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	p.statusText = fmt.Sprintf(
+		"%s🛸 UI uplink listening on %s%s%s | idle timeout %s%s%s | Press Ctrl+C to close",
+		clrCyan, clrBlue, baseURL, clrReset, clrYellow, idleTimeout.Round(time.Minute).String(), clrReset,
+	)
+	p.redrawFooter()
+}
+
+func (p *phaseTracker) bridgeSignal(msg string) {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	p.statusText = fmt.Sprintf("%s%s%s", clrCyan, msg, clrReset)
+	p.redrawFooter()
+}
+
+func (p *phaseTracker) bridgeStopped(reason string) {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	p.statusText = fmt.Sprintf("%s🧯 UI uplink offline: %s%s", clrDim, reason, clrReset)
+	p.redrawFooter()
+	fmt.Println()
 }
 
 func (p *phaseTracker) phaseVisual(status phaseStatus) (icon, color, bar string) {

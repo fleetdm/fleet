@@ -100,4 +100,3 @@ func TestTitleCaseWords(t *testing.T) {
 		})
 	}
 }
-
