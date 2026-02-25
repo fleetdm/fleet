@@ -799,26 +799,27 @@ func LogDeprecatedPathAlias(ctx context.Context, _ *http.Request) context.Contex
 }
 
 // RegisterDeprecatedPathAliases registers deprecated URL path aliases that point
-// to the same handler as the canonical path. It looks up the handler in the
-// registry and registers the deprecated paths on the router. Each deprecated
-// path is wrapped so that requests to it emit a deprecation warning in the
-// request log.
+// to the same handler as the canonical path, and wraps them in a handler that
+// can log deprecation warnings.
 func RegisterDeprecatedPathAliases(r *mux.Router, versions []string, registry *HandlerRegistry, aliases []DeprecatedPathAlias) {
 	allVersions := append(append([]string{}, versions...), "latest")
 	versionRegex := strings.Join(allVersions, "|")
-	for _, a := range aliases {
-		handler := registry.handlers[handlerKey{a.Method, a.PrimaryPath}]
+	for _, alias := range aliases {
+		handler := registry.handlers[handlerKey{alias.Method, alias.PrimaryPath}]
 		if handler == nil {
-			panic(fmt.Sprintf("deprecated alias: no handler registered for %s %s", a.Method, a.PrimaryPath))
+			panic(fmt.Sprintf("deprecated alias: no handler registered for %s %s", alias.Method, alias.PrimaryPath))
 		}
-		for _, dp := range a.DeprecatedPaths {
-			vp := strings.Replace(dp, "/_version_/", fmt.Sprintf("/{fleetversion:(?:%s)}/", versionRegex), 1)
-			info := deprecatedPathInfo{deprecatedPath: dp, primaryPath: a.PrimaryPath}
+		for _, path := range alias.DeprecatedPaths {
+			// Replace the version placeholder in the deprecated path with a regex that matches all versions,
+			// so that the same handler can be used for all versions of the deprecated path.
+			pathForHandler := strings.Replace(path, "/_version_/", fmt.Sprintf("/{fleetversion:(?:%s)}/", versionRegex), 1)
+			info := deprecatedPathInfo{deprecatedPath: path, primaryPath: alias.PrimaryPath}
+			// Wrap the handler to inject deprecation info into the context for logging.
 			wrappedHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 				ctx := context.WithValue(r.Context(), deprecatedPathInfoKey{}, info)
 				handler.ServeHTTP(w, r.WithContext(ctx))
 			})
-			r.Handle(vp, wrappedHandler).Methods(a.Method)
+			r.Handle(pathForHandler, wrappedHandler).Methods(alias.Method)
 		}
 	}
 }
