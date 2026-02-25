@@ -86,8 +86,6 @@ import (
 	"github.com/getsentry/sentry-go"
 	"github.com/go-kit/kit/endpoint"
 	kitprometheus "github.com/go-kit/kit/metrics/prometheus"
-	"github.com/go-kit/log"
-	kitlog "github.com/go-kit/log"
 	"github.com/go-kit/log/level"
 	"github.com/google/uuid"
 	grpc_recovery "github.com/grpc-ecosystem/go-grpc-middleware/v2/interceptors/recovery"
@@ -317,7 +315,7 @@ the way that the Fleet server works.
 			var ds fleet.Datastore
 			var carveStore fleet.CarveStore
 
-			opts := []mysql.DBOption{mysql.Logger(logger), mysql.WithFleetConfig(&config)}
+			opts := []mysql.DBOption{mysql.Logger(logger.SlogLogger()), mysql.WithFleetConfig(&config)}
 			if config.MysqlReadReplica.Address != "" {
 				opts = append(opts, mysql.Replica(&config.MysqlReadReplica))
 			}
@@ -1530,7 +1528,7 @@ the way that the Fleet server works.
 					}
 
 					// Conditional Access SCEP
-					condAccessSCEPDepot, err := mds.NewConditionalAccessSCEPDepot(logger.With("component", "conditional-access-scep-depot"), &config)
+					condAccessSCEPDepot, err := mds.NewConditionalAccessSCEPDepot(logger.SlogLogger().With("component", "conditional-access-scep-depot"), &config)
 					if err != nil {
 						initFatal(err, "setup conditional access SCEP depot")
 					}
@@ -1960,7 +1958,7 @@ func getTLSConfig(profile string) *tls.Config {
 type devSQLInterceptor struct {
 	sqlmw.NullInterceptor
 
-	logger kitlog.Logger
+	logger *platform_logging.Logger
 }
 
 func (in *devSQLInterceptor) ConnQueryContext(ctx context.Context, conn driver.QueryerContext, query string, args []driver.NamedValue) (driver.Rows, error) {
@@ -2040,7 +2038,7 @@ func (n nopPusher) Push(context.Context, []string) (map[string]*push.Response, e
 	return nil, nil
 }
 
-func createTestBuckets(config *configpkg.FleetConfig, logger log.Logger) {
+func createTestBuckets(config *configpkg.FleetConfig, logger *platform_logging.Logger) {
 	softwareInstallerStore, err := s3.NewSoftwareInstallerStore(config.S3)
 	if err != nil {
 		initFatal(err, "initializing S3 software installer store")

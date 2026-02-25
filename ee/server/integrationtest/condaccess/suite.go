@@ -37,7 +37,7 @@ func SetUpSuiteWithConfig(t *testing.T, uniqueTestName string, configModifier fu
 	}
 
 	logger := logging.NewLogfmtLogger(os.Stdout)
-	condAccessSCEPDepot, err := ds.NewConditionalAccessSCEPDepot(logger.With("component", "conditional-access-scep-depot"), &fleetCfg)
+	condAccessSCEPDepot, err := ds.NewConditionalAccessSCEPDepot(logger.SlogLogger().With("component", "conditional-access-scep-depot"), &fleetCfg)
 	require.NoError(t, err)
 
 	users, server := service.RunServerForTestsWithServiceWithDS(t, ctx, ds, fleetSvc, &service.TestServerOpts{
