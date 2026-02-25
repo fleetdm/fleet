@@ -18,6 +18,7 @@ module.exports = {
 
   exits: {
     success: { viewTemplatePath: 'pages/articles/case-study' },
+    useBasicArticleTemplate: { viewTemplatePath: 'pages/articles/basic-article' },
     badConfig: { responseType: 'badConfig' },
     notFound: { responseType: 'notFound' },
     redirect: { responseType: 'redirect' },
@@ -54,7 +55,20 @@ module.exports = {
     // Set the currentSection variable for the website header to "customers"
     let currentSection = 'customers';
 
-
+    // If this case study has a useBasicArticleTemplate meta tag, well return a `useBasicArticleTemplate response to display this article with the basic-article template.
+    if(thisPage.meta.useBasicArticleTemplate) {
+      throw {'useBasicArticleTemplate': {
+        path: require('path'),
+        thisPage: thisPage,
+        markdownPages: sails.config.builtStaticContent.markdownPages,
+        compiledPagePartialsAppPath: sails.config.builtStaticContent.compiledPagePartialsAppPath,
+        pageTitleForMeta,
+        pageDescriptionForMeta,
+        currentSection,
+        articleCategorySlug: 'customers',
+        categoryFriendlyName: 'Case studies',
+      }};
+    }
     // Respond with view.
     return {
       path: require('path'),
