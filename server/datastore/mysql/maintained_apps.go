@@ -47,7 +47,7 @@ ON DUPLICATE KEY UPDATE
 const teamFMATitlesJoin = `
 			team_titles.id software_title_id FROM fleet_maintained_apps fma
 			LEFT JOIN (
-				SELECT DISTINCT st.id, st.unique_identifier
+				SELECT DISTINCT st.id, st.unique_identifier, st.name, si.platform
 				FROM software_titles st
 				LEFT JOIN
 					software_installers si
@@ -63,7 +63,15 @@ const teamFMATitlesJoin = `
 					AND vat.platform = va.platform
 					AND vat.global_or_team_id = ?
 				WHERE si.id IS NOT NULL OR vat.id IS NOT NULL
-			) team_titles ON team_titles.unique_identifier = fma.unique_identifier`
+			) team_titles 
+				ON team_titles.unique_identifier = fma.unique_identifier
+				-- pattern match fma name to title name, since upgrade_code is not surfaced in fma table
+				OR (
+					team_titles.platform = fma.platform 
+					AND fma.platform = 'windows' 
+					AND team_titles.name LIKE CONCAT(fma.name, '%')
+				)
+`
 
 func (ds *Datastore) GetMaintainedAppByID(ctx context.Context, appID uint, teamID *uint) (*fleet.MaintainedApp, error) {
 	stmt := `SELECT fma.id, fma.name, fma.platform, fma.unique_identifier, fma.slug, `
