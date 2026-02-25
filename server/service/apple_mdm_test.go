@@ -47,6 +47,7 @@ import (
 	nanomdm_pushsvc "github.com/fleetdm/fleet/v4/server/mdm/nanomdm/push/service"
 	"github.com/fleetdm/fleet/v4/server/mock"
 	mdmmock "github.com/fleetdm/fleet/v4/server/mock/mdm"
+	digicert_mock "github.com/fleetdm/fleet/v4/server/mock/digicert"
 	nanodep_mock "github.com/fleetdm/fleet/v4/server/mock/nanodep"
 	scep_mock "github.com/fleetdm/fleet/v4/server/mock/scep"
 	"github.com/fleetdm/fleet/v4/server/platform/logging"
@@ -3895,6 +3896,140 @@ func TestPreprocessProfileContents(t *testing.T) {
 		}
 		assert.Contains(t, []string{email, "no variables"}, string(profileContents[profUUID]))
 	}
+}
+
+// TestPreprocessProfileContentsDigiCertUPNMultiHost is a regression test for
+// https://github.com/fleetdm/fleet/issues/39324. When the same DigiCert CA is
+// used for multiple hosts in a single batch, the CertificateUserPrincipalNames
+// slice was shared via a shallow copy. In-place variable substitution for Host 1
+// corrupted the cached CA entry, so Host 2 and later hosts received Host 1's
+// substituted UPN instead of their own.
+func TestPreprocessProfileContentsDigiCertUPNMultiHost(t *testing.T) {
+	ctx := context.Background()
+	ctx = license.NewContext(ctx, &fleet.LicenseInfo{Tier: fleet.TierPremium})
+	logger := logging.NewNopLogger()
+	appCfg := &fleet.AppConfig{}
+	appCfg.ServerSettings.ServerURL = "https://test.example.com"
+	appCfg.MDM.EnabledAndConfigured = true
+	ds := new(mock.Store)
+
+	svc := eeservice.NewSCEPConfigService(logger, nil)
+
+	const caName = "myCA"
+	const host1UUID = "host-uuid-1"
+	const host2UUID = "host-uuid-2"
+	const host1Serial = "SERIAL-AAA"
+	const host2Serial = "SERIAL-BBB"
+	const cmdUUID = "cmd-uuid-1"
+
+	// Track which UPNs were sent to GetCertificate per host.
+	upnByHostUUID := make(map[string]string)
+
+	mockDigiCert := &digicert_mock.Service{}
+	mockDigiCert.GetCertificateFunc = func(ctx context.Context, config fleet.DigiCertCA) (*fleet.DigiCertCertificate, error) {
+		// The UPN in config should have been substituted with each host's own
+		// hardware serial. Record it so we can assert correctness later.
+		require.Len(t, config.CertificateUserPrincipalNames, 1)
+		upn := config.CertificateUserPrincipalNames[0]
+		// Determine which host this call is for by checking which serial is in the UPN.
+		switch {
+		case strings.Contains(upn, host1Serial):
+			upnByHostUUID[host1UUID] = upn
+		case strings.Contains(upn, host2Serial):
+			upnByHostUUID[host2UUID] = upn
+		default:
+			t.Errorf("GetCertificate called with unexpected UPN %q", upn)
+		}
+		now := time.Now()
+		return &fleet.DigiCertCertificate{
+			PfxData:        []byte("fake-pfx"),
+			Password:       "fake-password",
+			NotValidBefore: now,
+			NotValidAfter:  now.Add(365 * 24 * time.Hour),
+			SerialNumber:   upn, // reuse upn as serial for easy tracing
+		}, nil
+	}
+
+	// Both hosts share the same profile UUID but are separate enrollment IDs.
+	targets := map[string]*cmdTarget{
+		"p1": {
+			cmdUUID:       cmdUUID,
+			profIdent:     "com.apple.security.pkcs12",
+			enrollmentIDs: []string{host1UUID, host2UUID},
+		},
+	}
+
+	pending := fleet.MDMDeliveryPending
+	hostProfilesToInstallMap := map[hostProfileUUID]*fleet.MDMAppleBulkUpsertHostProfilePayload{
+		{HostUUID: host1UUID, ProfileUUID: "p1"}: {
+			ProfileUUID:       "p1",
+			ProfileIdentifier: "com.apple.security.pkcs12",
+			HostUUID:          host1UUID,
+			OperationType:     fleet.MDMOperationTypeInstall,
+			Status:            &pending,
+			CommandUUID:       cmdUUID,
+			Scope:             fleet.PayloadScopeSystem,
+		},
+		{HostUUID: host2UUID, ProfileUUID: "p1"}: {
+			ProfileUUID:       "p1",
+			ProfileIdentifier: "com.apple.security.pkcs12",
+			HostUUID:          host2UUID,
+			OperationType:     fleet.MDMOperationTypeInstall,
+			Status:            &pending,
+			CommandUUID:       cmdUUID,
+			Scope:             fleet.PayloadScopeSystem,
+		},
+	}
+
+	// Profile contains both DigiCert fleet variables.
+	profileContents := map[string]mobileconfig.Mobileconfig{
+		"p1": []byte("$FLEET_VAR_" + string(fleet.FleetVarDigiCertPasswordPrefix) + caName + " $FLEET_VAR_" + string(fleet.FleetVarDigiCertDataPrefix) + caName),
+	}
+
+	// DigiCert CA whose UPN contains the hardware serial variable.
+	groupedCAs := &fleet.GroupedCertificateAuthorities{
+		DigiCert: []fleet.DigiCertCA{
+			{
+				Name:                          caName,
+				URL:                           "https://digicert.example.com",
+				APIToken:                      "api_token",
+				ProfileID:                     "profile_id",
+				CertificateCommonName:         "common_name",
+				CertificateUserPrincipalNames: []string{"$FLEET_VAR_" + string(fleet.FleetVarHostHardwareSerial) + "@example.com"},
+				CertificateSeatID:             "seat_id",
+			},
+		},
+	}
+
+	// Mock datastore: return each host's own hardware serial when queried.
+	ds.ListHostsLiteByUUIDsFunc = func(ctx context.Context, _ fleet.TeamFilter, uuids []string) ([]*fleet.Host, error) {
+		var hosts []*fleet.Host
+		for _, uuid := range uuids {
+			switch uuid {
+			case host1UUID:
+				hosts = append(hosts, &fleet.Host{ID: 1, UUID: host1UUID, HardwareSerial: host1Serial, Platform: "darwin"})
+			case host2UUID:
+				hosts = append(hosts, &fleet.Host{ID: 2, UUID: host2UUID, HardwareSerial: host2Serial, Platform: "darwin"})
+			}
+		}
+		return hosts, nil
+	}
+	ds.BulkUpsertMDMAppleHostProfilesFunc = func(ctx context.Context, payload []*fleet.MDMAppleBulkUpsertHostProfilePayload) error {
+		return nil
+	}
+	ds.BulkUpsertMDMManagedCertificatesFunc = func(ctx context.Context, payload []*fleet.MDMManagedCertificate) error {
+		return nil
+	}
+
+	err := preprocessProfileContents(ctx, appCfg, ds, svc, mockDigiCert, logger, targets, profileContents, hostProfilesToInstallMap, make(map[string]string), groupedCAs)
+	require.NoError(t, err)
+
+	// Both hosts must have received GetCertificate calls with their own serial.
+	require.True(t, mockDigiCert.GetCertificateFuncInvoked, "GetCertificate was never called")
+	require.Contains(t, upnByHostUUID, host1UUID, "GetCertificate was not called for host 1")
+	require.Contains(t, upnByHostUUID, host2UUID, "GetCertificate was not called for host 2")
+	assert.Equal(t, host1Serial+"@example.com", upnByHostUUID[host1UUID], "host 1 UPN should contain its own serial")
+	assert.Equal(t, host2Serial+"@example.com", upnByHostUUID[host2UUID], "host 2 UPN should contain its own serial")
 }
 
 func TestAppleMDMFileVaultEscrowFunctions(t *testing.T) {
