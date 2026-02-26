@@ -954,12 +954,19 @@ func mdmConfigurationRequiredEndpoints() []struct {
 		{"PATCH", "/api/latest/fleet/mdm/apple/setup", false, true},
 		{"PATCH", "/api/latest/fleet/setup_experience", false, true},
 		{"POST", "/api/fleet/orbit/setup_experience/status", false, true},
+		{"POST", "/api/latest/fleet/software/web_apps", false, true},
 	}
 }
 
 func windowsMDMConfigurationRequiredEndpoints() []string {
 	return []string{
 		"/api/fleet/orbit/disk_encryption_key",
+	}
+}
+
+func androidMDMConfigurationRequiredEndpoints() []string {
+	return []string{
+		"/api/latest/fleet/software/web_apps",
 	}
 }
 

@@ -5675,28 +5675,47 @@ func (s *integrationEnterpriseTestSuite) TestMDMNotConfiguredEndpoints() {
 	h.OrbitNodeKey = &orbitKey
 
 	windowsOnly := windowsMDMConfigurationRequiredEndpoints()
+	androidOnly := androidMDMConfigurationRequiredEndpoints()
 
 	for _, route := range mdmConfigurationRequiredEndpoints() {
 		var expectedErr fleet.ErrWithStatusCode = fleet.ErrMDMNotConfigured
 		path := route.path
 		if slices.Contains(windowsOnly, path) {
 			expectedErr = fleet.ErrWindowsMDMNotConfigured
+		} else if slices.Contains(androidOnly, path) {
+			expectedErr = fleet.ErrAndroidMDMNotConfigured
 		}
 		if route.deviceAuthenticated {
 			path = fmt.Sprintf(path, tkn)
 		}
 
+		// build the body of the request
 		var params any
-		if route.method == "POST" && route.path == "/api/fleet/orbit/setup_experience/status" {
+		var multipartBody *bytes.Buffer
+		var headers map[string]string
+		switch {
+		case route.method == "POST" && route.path == "/api/fleet/orbit/setup_experience/status":
 			params = getOrbitSetupExperienceStatusRequest{
 				OrbitNodeKey: *h.OrbitNodeKey,
 			}
-		}
-		// These routes don't require MDM if you're only changing end-user auth, so we'll set something else to check.
-		if route.method == "PATCH" && (route.path == "/api/latest/fleet/setup_experience" || route.path == "/api/latest/fleet/mdm/apple/setup") {
+
+		case route.method == "POST" && route.path == "/api/latest/fleet/software/web_apps":
+			multipartBody, headers = generateMultipartRequest(t, "", "", nil, s.token, map[string][]string{
+				"title": {"Test App"},
+				"url":   {"https://example.com"},
+			})
+
+		case route.method == "PATCH" && (route.path == "/api/latest/fleet/setup_experience" || route.path == "/api/latest/fleet/mdm/apple/setup"):
+			// These routes don't require MDM if you're only changing end-user auth, so we'll set something else to check.
 			params = fleet.MDMAppleSetupPayload{EnableReleaseDeviceManually: ptr.Bool(true)}
 		}
-		res := s.Do(route.method, path, params, expectedErr.StatusCode())
+
+		var res *http.Response
+		if multipartBody != nil {
+			res = s.DoRawWithHeaders(route.method, path, multipartBody.Bytes(), expectedErr.StatusCode(), headers)
+		} else {
+			res = s.Do(route.method, path, params, expectedErr.StatusCode())
+		}
 		errMsg := extractServerErrorText(res.Body)
 		assert.Contains(t, errMsg, expectedErr.Error(), fmt.Sprintf("%s %s", route.method, path))
 	}

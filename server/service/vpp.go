@@ -428,3 +428,78 @@ func (svc *Service) DeleteVPPToken(ctx context.Context, tokenID uint) error {
 
 	return fleet.ErrMissingLicense
 }
+
+////////////////////////////////////////////////////////////////////////////////
+// POST /api/_version_/software/web_apps
+////////////////////////////////////////////////////////////////////////////////
+
+type createAndroidWebAppRequest struct {
+	Title string
+	URL   string
+	Icon  *multipart.FileHeader
+}
+
+func (createAndroidWebAppRequest) DecodeRequest(ctx context.Context, r *http.Request) (any, error) {
+	decoded := createAndroidWebAppRequest{}
+
+	err := r.ParseMultipartForm(platform_http.MaxMultipartFormSize)
+	if err != nil {
+		return nil, &fleet.BadRequestError{
+			Message:     "failed to parse multipart form",
+			InternalErr: err,
+		}
+	}
+
+	title := r.FormValue("title")
+	if title == "" {
+		return nil, &fleet.BadRequestError{Message: "title multipart field is required"}
+	}
+	decoded.Title = title
+
+	url := r.FormValue("url")
+	if url == "" {
+		return nil, &fleet.BadRequestError{Message: "url multipart field is required"}
+	}
+	decoded.URL = url
+
+	if len(r.MultipartForm.File["icon"]) > 0 {
+		decoded.Icon = r.MultipartForm.File["icon"][0]
+	}
+
+	return &decoded, nil
+}
+
+type createAndroidWebAppResponse struct {
+	AppStoreID string `json:"app_store_id"`
+	Err        error  `json:"error,omitempty"`
+}
+
+func (r createAndroidWebAppResponse) Error() error { return r.Err }
+
+func createAndroidWebAppEndpoint(ctx context.Context, request any, svc fleet.Service) (fleet.Errorer, error) {
+	req := request.(*createAndroidWebAppRequest)
+
+	var iconReader io.Reader
+	if req.Icon != nil {
+		f, err := req.Icon.Open()
+		if err != nil {
+			return createAndroidWebAppResponse{Err: err}, nil
+		}
+		defer f.Close()
+		iconReader = f
+	}
+
+	appID, err := svc.CreateAndroidWebApp(ctx, req.Title, req.URL, iconReader)
+	if err != nil {
+		return createAndroidWebAppResponse{Err: err}, nil
+	}
+	return createAndroidWebAppResponse{AppStoreID: appID}, nil
+}
+
+func (svc *Service) CreateAndroidWebApp(ctx context.Context, title, startURL string, icon io.Reader) (string, error) {
+	// skipauth: No authorization check needed due to implementation returning
+	// only license error.
+	svc.authz.SkipAuthorization(ctx)
+
+	return "", fleet.ErrMissingLicense
+}

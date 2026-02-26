@@ -1,13 +1,17 @@
 package service
 
 import (
+	"bytes"
 	"context"
 	"database/sql"
+	"encoding/base64"
 	"errors"
 	"fmt"
+	"image/png"
 	"io"
 	"maps"
 	"net/http"
+	"net/url"
 	"regexp"
 	"slices"
 	"sort"
@@ -18,11 +22,13 @@ import (
 	"github.com/fleetdm/fleet/v4/server/authz"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/mdm/android/service/androidmgmt"
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/apple_apps"
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/vpp"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/worker"
 	"github.com/go-kit/log/level"
+	"google.golang.org/api/androidmanagement/v1"
 )
 
 // Used for overriding the env var value in testing
@@ -213,6 +219,10 @@ func (svc *Service) BatchAssociateVPPApps(ctx context.Context, teamName string, 
 			}
 			switch payload.Platform {
 			case fleet.AndroidPlatform:
+				if strings.HasPrefix(payload.AppStoreID, fleet.AndroidWebAppPrefix) && payload.Configuration != nil {
+					return nil, fleet.NewInvalidArgumentError("configuration", "Couldn't edit. Android web apps don't support configurations.")
+				}
+
 				appStoreApp.SelfService = true
 				appStoreApp.Configuration = payload.Configuration
 				incomingAndroidApps = append(incomingAndroidApps, appStoreApp)
@@ -279,7 +289,7 @@ func (svc *Service) BatchAssociateVPPApps(ctx context.Context, teamName string, 
 
 	enterprise, err := svc.ds.GetEnterprise(ctx)
 	if err != nil && !fleet.IsNotFound(err) {
-		return nil, &fleet.BadRequestError{Message: "Android MDM is not enabled", InternalErr: err}
+		return nil, ctxerr.Wrap(ctx, err, "get android enterprise")
 	}
 
 	androidHostPoliciesToUpdate := map[string]string{}
@@ -606,6 +616,11 @@ func (svc *Service) AddAppStoreApp(ctx context.Context, teamID *uint, appID flee
 			return 0, fleet.NewInvalidArgumentError("app_store_id", "The Fleet agent cannot be added manually. "+
 				"It is automatically managed by Fleet when Android MDM is enabled.")
 		}
+
+		if strings.HasPrefix(appID.AdamID, fleet.AndroidWebAppPrefix) && appID.Configuration != nil {
+			return 0, fleet.NewInvalidArgumentError("configuration", "Couldn't add. Android web apps don't support configurations.")
+		}
+
 		appID.SelfService = true
 		appID.AddAutoInstallPolicy = false
 
@@ -1000,6 +1015,10 @@ func (svc *Service) UpdateAppStoreApp(ctx context.Context, titleID uint, teamID 
 	// note that if appID.Configuration is nil, InsertVPPAppWithTeam will ignore it (it will not
 	// update or remove it), so here we ignore it too if it is nil.
 	if payload.Configuration != nil && meta.Platform == fleet.AndroidPlatform {
+		if strings.HasPrefix(meta.AdamID, fleet.AndroidWebAppPrefix) {
+			return nil, nil, fleet.NewInvalidArgumentError("configuration", "Couldn't edit. Android web apps don't support configurations.")
+		}
+
 		// check if configuration has changed
 		androidConfigChanged, err = svc.ds.HasAndroidAppConfigurationChanged(ctx, meta.AdamID, ptr.ValOrZero(teamID), payload.Configuration)
 		if err != nil {
@@ -1217,4 +1236,86 @@ func (svc *Service) DeleteVPPToken(ctx context.Context, tokenID uint) error {
 	}
 
 	return svc.ds.DeleteVPPToken(ctx, tokenID)
+}
+
+func (svc *Service) CreateAndroidWebApp(ctx context.Context, title, startURL string, icon io.Reader) (string, error) {
+	// Authorization for this endpoint is a bit different - basically we want the same
+	// write permissions as for App Store apps (fleet.VPPApp struct), but there is no
+	// team id available when this endpoint is called, so we allow any team user to
+	// call it as long as they have the acceptable role. To achieve this, we grab the
+	// first team id from the user's list of teams, if they have a non-global role.
+	var teamID *uint
+	if user := authz.UserFromContext(ctx); user != nil {
+		if len(user.Teams) > 0 {
+			teamID = &user.Teams[0].ID
+		}
+	}
+
+	if err := svc.authz.Authorize(ctx, &fleet.VPPApp{TeamID: teamID}, fleet.ActionWrite); err != nil {
+		return "", err
+	}
+
+	// title and startURL are required but are already validated during the DecodeRequest implementation.
+	if parsedURL, err := url.Parse(startURL); err != nil || !parsedURL.IsAbs() {
+		return "", &fleet.BadRequestError{Message: "Couldn't create. The start URL must be a valid absolute URL.", InternalErr: err}
+	}
+
+	// icon, if provided, must be a .png file and must be square and at least 512x512 pixels.
+	var iconData []byte
+	if icon != nil {
+		const invalidIconErrMsg = `Couldn't create. The icon must be a PNG file and square, with dimensions of at least 512 x 512px.`
+
+		b, err := io.ReadAll(icon)
+		if err != nil {
+			return "", &fleet.BadRequestError{Message: invalidIconErrMsg, InternalErr: err}
+		}
+		iconData = b
+
+		// decoding errors if it is not a valid png
+		cfg, err := png.DecodeConfig(bytes.NewReader(iconData))
+		if err != nil {
+			return "", &fleet.BadRequestError{Message: invalidIconErrMsg, InternalErr: err}
+		}
+
+		// check that it is square
+		if cfg.Width != cfg.Height {
+			return "", &fleet.BadRequestError{Message: invalidIconErrMsg}
+		}
+
+		// check minimal size requirement (only needs to test one, as at this point it is square)
+		if cfg.Width < 512 {
+			return "", &fleet.BadRequestError{Message: invalidIconErrMsg}
+		}
+	}
+
+	enterprise, err := svc.ds.GetEnterprise(ctx)
+	if err != nil {
+		return "", ctxerr.Wrap(ctx, err, "get android enterprise")
+	}
+
+	webApp := &androidmanagement.WebApp{
+		DisplayMode: "STANDALONE", // always standalone for now per spec
+		Title:       title,
+		StartUrl:    startURL,
+	}
+	if len(iconData) > 0 {
+		// must be the "actual bytes of the image in a base64url encoded string"
+		b64Icon := base64.URLEncoding.EncodeToString(iconData)
+		webApp.Icons = append(webApp.Icons, &androidmanagement.WebAppIcon{ImageData: b64Icon})
+	}
+	createdApp, err := svc.androidModule.CreateAndroidWebApp(ctx, enterprise.Name(), webApp)
+	if err != nil {
+		if androidmgmt.IsBadRequestError(err) {
+			return "", &fleet.BadRequestError{Message: "Couldn't create. Please check the provided data and try again.", InternalErr: err}
+		}
+		return "", ctxerr.Wrap(ctx, err, "creating android web app")
+	}
+
+	packageName := strings.TrimPrefix(createdApp.Name, fmt.Sprintf("%s/webApps/", enterprise.Name()))
+	if packageName == createdApp.Name || !strings.HasPrefix(packageName, fleet.AndroidWebAppPrefix) {
+		// logging this as an error, because the frontend uses the package name to hide some actions
+		// not available to WebApps, we must know if somehow android changes how those get named.
+		level.Error(svc.logger).Log("msg", "created Android webApp does not have expected package name format", "package_name", createdApp.Name)
+	}
+	return packageName, nil
 }
