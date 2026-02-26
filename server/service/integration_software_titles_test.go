@@ -1039,9 +1039,7 @@ func (s *integrationMDMTestSuite) TestGitopsInstallableSoftwareRetries() {
 			downloadedSlugs["cloudflare-warp/windows"] = true
 			_, _ = w.Write(warpState.installerBytes)
 		case "/zoom.msi":
-			fmt.Println("zoom installer")
 			if shouldError {
-				fmt.Printf("shouldError: %v\n", shouldError)
 				w.WriteHeader(http.StatusInternalServerError)
 				return
 			}

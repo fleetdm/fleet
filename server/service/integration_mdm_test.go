@@ -141,6 +141,7 @@ type integrationMDMTestSuite struct {
 	androidSvc                android.Service
 	proxyCallbackURL          string
 	jwtSigningKey             *rsa.PrivateKey
+	softwareInstallerStore    fleet.SoftwareInstallerStore
 }
 
 // appleVPPConfigSrvConf is used to configure the mock server that mocks Apple's VPP endpoints.
@@ -292,6 +293,7 @@ func (s *integrationMDMTestSuite) SetupSuite() {
 		softwareInstallerStore = s3.SetupTestSoftwareInstallerStore(s.T(), "integration-tests", "")
 		bootstrapPackageStore = s3.SetupTestBootstrapPackageStore(s.T(), "integration-tests", "")
 	}
+	s.softwareInstallerStore = softwareInstallerStore
 	scepTimeout := ptr.Duration(10 * time.Second)
 	s.scepConfig = eeservice.NewSCEPConfigService(serverLogger, scepTimeout).(*eeservice.SCEPConfigService)
 
@@ -314,7 +316,7 @@ func (s *integrationMDMTestSuite) SetupSuite() {
 		Pool:                   s.redisPool,
 		Rs:                     pubsub.NewInmemQueryResults(),
 		Lq:                     s.lq,
-		SoftwareInstallStore:   softwareInstallerStore,
+		SoftwareInstallStore:   s.softwareInstallerStore,
 		SoftwareTitleIconStore: softwareTitleIconStore,
 		BootstrapPackageStore:  bootstrapPackageStore,
 		androidMockClient:      androidMockClient,

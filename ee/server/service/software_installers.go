@@ -2607,10 +2607,13 @@ func (svc *Service) softwareBatchUpload(
 	for _, payloadWithExtras := range installers {
 		payload := payloadWithExtras.UploadSoftwareInstallerPayload
 		if !payload.FMAVersionCached {
-			if err := svc.storeSoftware(ctx, payload); err != nil {
-				batchErr = fmt.Errorf("storing software installer %q: %w", payload.Filename, err)
-				return
-			}
+			batchErr = retry.Do(func() error {
+				if retryErr := svc.storeSoftware(ctx, payload); retryErr != nil {
+					return fmt.Errorf("storing software installer %q: %w", payload.Filename, retryErr)
+				}
+
+				return nil
+			}, retry.WithMaxAttempts(3), retry.WithInterval(2*time.Second))
 		}
 		if payload.Extension == "ipa" {
 			inHouseInstallers = append(inHouseInstallers, payload)

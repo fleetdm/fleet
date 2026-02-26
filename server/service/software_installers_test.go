@@ -2,12 +2,19 @@ package service
 
 import (
 	"context"
+	"fmt"
+	"io"
+	"net/http"
+	"net/http/httptest"
 	"path/filepath"
+	"runtime"
+	"sync/atomic"
 	"testing"
 	"time"
 
 	eeservice "github.com/fleetdm/fleet/v4/ee/server/service"
 	authz_ctx "github.com/fleetdm/fleet/v4/server/contexts/authz"
+	"github.com/fleetdm/fleet/v4/server/contexts/license"
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/datastore/filesystem"
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -505,4 +512,147 @@ func TestValidateSoftwareLabels(t *testing.T) {
 			})
 		}
 	})
+}
+
+func getPathRelative(relativePath string) string {
+	_, currentFile, _, ok := runtime.Caller(0)
+	if !ok {
+		panic("failed to get runtime caller info")
+	}
+	sourceDir := filepath.Dir(currentFile)
+	return filepath.Join(sourceDir, relativePath)
+}
+
+type mockInstallerStore struct {
+	putCount atomic.Int32
+	onPut    func()
+}
+
+func (m *mockInstallerStore) Get(ctx context.Context, iconID string) (io.ReadCloser, int64, error) {
+	return nil, 0, fmt.Errorf("mock installer store get")
+}
+
+func (m *mockInstallerStore) Put(ctx context.Context, iconID string, content io.ReadSeeker) error {
+	m.putCount.Add(1)
+	if m.putCount.Load() == 3 {
+		m.onPut()
+	}
+
+	return fmt.Errorf("mock store put")
+}
+
+func (m *mockInstallerStore) Exists(ctx context.Context, iconID string) (bool, error) {
+	return false, nil
+}
+
+func (m *mockInstallerStore) Cleanup(ctx context.Context, usedIconIDs []string, removeCreatedBefore time.Time) (int, error) {
+	return 0, nil
+}
+
+func (m *mockInstallerStore) Sign(_ context.Context, _ string, _ time.Duration) (string, error) {
+	return "", fmt.Errorf("mock store sign")
+}
+
+func TestSoftwareInstallerUploadRetries(t *testing.T) {
+	ds := new(mock.Store)
+	lic := &fleet.LicenseInfo{Tier: fleet.TierPremium, Expiration: time.Now().Add(24 * time.Hour)}
+	ctx := license.NewContext(context.Background(), lic)
+
+	kvStore := &mock.KVStore{}
+	kvStore.SetFunc = func(ctx context.Context, key string, value string, expireTime time.Duration) error {
+		return nil
+	}
+	status := fleet.BatchSetSoftwareInstallersStatusProcessing
+	kvStore.GetFunc = func(ctx context.Context, key string) (*string, error) {
+		return ptr.String(status), nil
+	}
+
+	installerStore := new(mockInstallerStore)
+	installerStore.onPut = func() {
+		status = fleet.BatchSetSoftwareInstallersStatusFailed + ":"
+	}
+
+	svc, ctx := newTestService(t, ds, nil, nil, &TestServerOpts{License: lic, SoftwareInstallStore: installerStore, KeyValueStore: kvStore})
+
+	authCtx := authz_ctx.AuthorizationContext{}
+	ctx = authz_ctx.NewContext(context.Background(), &authCtx)
+	ctx = viewer.NewContext(ctx, viewer.Viewer{User: test.UserAdmin})
+
+	actx, _ := authz_ctx.FromContext(ctx)
+	actx.SetChecked()
+
+	ds.TeamByNameFunc = func(ctx context.Context, name string) (*fleet.Team, error) {
+		return &fleet.Team{ID: 1, Name: "foo"}, nil
+	}
+
+	ds.ValidateEmbeddedSecretsFunc = func(ctx context.Context, documents []string) error {
+		return nil
+	}
+
+	ds.TeamLiteFunc = func(ctx context.Context, tid uint) (*fleet.TeamLite, error) {
+		return &fleet.TeamLite{ID: 1, Name: "foo"}, nil
+	}
+
+	ds.BatchSetSoftwareInstallersFunc = func(ctx context.Context, tmID *uint, installers []*fleet.UploadSoftwareInstallerPayload) error {
+		return nil
+	}
+
+	ds.BatchSetInHouseAppsInstallersFunc = func(ctx context.Context, tmID *uint, installers []*fleet.UploadSoftwareInstallerPayload) error {
+		return nil
+	}
+
+	ds.GetSoftwareCategoryIDsFunc = func(ctx context.Context, names []string) ([]uint, error) {
+		return []uint{}, nil
+	}
+
+	ds.GetTeamsWithInstallerByHashFunc = func(ctx context.Context, sha256 string, url string) (map[uint][]*fleet.ExistingSoftwareInstaller, error) {
+		return map[uint][]*fleet.ExistingSoftwareInstaller{}, nil
+	}
+
+	ds.GetSoftwareInstallersFunc = func(ctx context.Context, tmID uint) ([]fleet.SoftwarePackageResponse, error) {
+		return []fleet.SoftwarePackageResponse{}, nil
+	}
+
+	baseDir := getPathRelative("./testdata/software-installers/")
+
+	// start the web server that will serve the installer
+	srv := httptest.NewServer(
+		http.HandlerFunc(
+			func(w http.ResponseWriter, r *http.Request) {
+				http.ServeFile(w, r, filepath.Join(baseDir, filepath.Base(r.URL.Path)))
+
+			},
+		),
+	)
+	t.Cleanup(srv.Close)
+
+	_, err := svc.BatchSetSoftwareInstallers(ctx, "foo", []*fleet.SoftwareInstallerPayload{{
+		URL:             srv.URL + "/dummy_installer.pkg",
+		InstallScript:   "install",
+		UninstallScript: "uninstall",
+		SelfService:     false,
+		FleetMaintained: false,
+		Filename:        "foo",
+		ValidatedLabels: &fleet.LabelIdentsWithScope{},
+		Categories:      []string{},
+		DisplayName:     "foo",
+	}}, false)
+	require.NoError(t, err)
+
+	timeout := time.After(1 * time.Minute)
+	for {
+		status, _, packages, err := svc.GetBatchSetSoftwareInstallersResult(ctx, "foo", "requestuuid", false)
+		require.NoError(t, err)
+		if status == fleet.BatchSetSoftwareInstallersStatusFailed {
+			require.Empty(t, packages)
+			break
+		}
+		select {
+		case <-timeout:
+			t.Fatalf("get batch set software installers result timeout")
+		case <-time.After(500 * time.Millisecond):
+			// OK, continue
+		}
+	}
+
 }
