@@ -7,12 +7,13 @@
 
   h3 {
     margin: 0;
+    margin-bottom: $pad-small;
     font-size: $small;
   }
 
   &__section {
     display: flex;
-    gap: $pad-small;
+    gap: $pad-xsmall;
     flex-direction: column;
     padding-top: $gap-modal-component;
     border-top: 1px solid $ui-fleet-black-10;
@@ -20,6 +21,10 @@
     &:first-child {
       padding-top: 0;
       border-top: none;
+    }
+
+    dl {
+      gap: $pad-small;
     }
   }
 }
