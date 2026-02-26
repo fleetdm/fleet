@@ -393,8 +393,7 @@ func (ds *Datastore) processSoftwareTitleResults(
 				Platform:    platform,
 				SelfService: title.InHouseAppSelfService,
 			}
-			// This is set directly for software packages via db tag, but for in-house
-			// apps we need to set it here.
+			// This is set directly for software packages via db tag, but for in-house apps we need to set it here.
 			title.HashSHA256 = title.InHouseAppStorageID
 		}
 
@@ -473,8 +472,7 @@ func (ds *Datastore) processSoftwareTitleResults(
 		}
 	}
 
-	// Fetch matching versions separately because MySQL 5.7 doesn't support aggregating
-	// nested arrays (like JSON_ARRAYAGG).
+	// Fetch matching versions separately to avoid aggregating nested arrays in the main query.
 	batchSize := 32000
 	var versions []fleet.SoftwareVersion
 	err := common_mysql.BatchProcessSimple(titleIDs, batchSize, func(titleIDsToProcess []uint) error {
@@ -783,9 +781,6 @@ GROUP BY
 // software_titles_host_counts to filter by team, then joins software_titles for the correct
 // secondary sort (name, source, extension_for), and paginates. Phase 2 (outer query)
 // enriches only the ~20 paginated IDs with installer/VPP/in-house details.
-//
-// This eliminates the 4 expensive LEFT JOINs and 20-column GROUP BY from the scan phase,
-// which is what makes the original query take 10+ seconds at scale.
 func buildOptimizedListSoftwareTitlesSQL(opts fleet.SoftwareTitleListOptions) string {
 	hasTeamID := opts.TeamID != nil
 	teamID := uint(0)
@@ -818,13 +813,15 @@ func buildOptimizedListSoftwareTitlesSQL(opts fleet.SoftwareTitleListOptions) st
 	var innerSQL string
 	if !hasTeamID {
 		// All teams: only titles with host counts, no installer-only titles.
+		// Sprintf is safe here: all values are server-controlled (direction is a hardcoded ASC/DESC keyword,
+		// perPage and offset are derived from validated pagination options).
 		innerSQL = fmt.Sprintf(`
 			SELECT sthc.software_title_id, sthc.hosts_count
 			FROM software_titles_host_counts sthc
 			INNER JOIN software_titles st ON st.id = sthc.software_title_id
 			WHERE sthc.team_id = 0 AND sthc.global_stats = 1
-			ORDER BY sthc.hosts_count %[1]s, st.name ASC, st.source ASC, st.extension_for ASC
-			LIMIT %[2]d`, direction, perPage)
+			ORDER BY sthc.hosts_count %s, st.name ASC, st.source ASC, st.extension_for ASC
+			LIMIT %d`, direction, perPage)
 		if offset > 0 {
 			innerSQL += fmt.Sprintf(` OFFSET %d`, offset)
 		}
@@ -832,6 +829,8 @@ func buildOptimizedListSoftwareTitlesSQL(opts fleet.SoftwareTitleListOptions) st
 		// Specific team: titles with host counts UNION installer-only titles.
 		// The UNION gathers all candidate IDs, then we join software_titles
 		// for the name-based secondary sort and paginate.
+		// Sprintf is safe here: all values are server-controlled (teamID is a validated uint, direction is a
+		// hardcoded ASC/DESC keyword, perPage and offset are derived from validated pagination options).
 		innerSQL = fmt.Sprintf(`
 			SELECT combined.software_title_id, combined.hosts_count
 			FROM (
