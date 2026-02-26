@@ -335,6 +335,7 @@ spec:
 		},
 		MacOSSetup: fleet.MacOSSetup{
 			EnableReleaseDeviceManually: optjson.SetBool(false),
+			LockEndUserInfo:             optjson.SetBool(false),
 		},
 	}
 	require.Equal(t, "[+] applied 2 teams\n", RunAppForTest(t, []string{"apply", "-f", filename}))
@@ -376,6 +377,7 @@ spec:
 		},
 		MacOSSetup: fleet.MacOSSetup{
 			EnableReleaseDeviceManually: optjson.SetBool(false),
+			LockEndUserInfo:             optjson.SetBool(false),
 		},
 	}
 	assert.Equal(t, newMDMSettings, teamsByName["team1"].Config.MDM)
@@ -408,6 +410,7 @@ spec:
 		},
 		MacOSSetup: fleet.MacOSSetup{
 			EnableReleaseDeviceManually: optjson.SetBool(false),
+			LockEndUserInfo:             optjson.SetBool(false),
 		},
 	}
 
@@ -466,6 +469,7 @@ spec:
 		},
 		MacOSSetup: fleet.MacOSSetup{
 			EnableReleaseDeviceManually: optjson.SetBool(false),
+			LockEndUserInfo:             optjson.SetBool(false),
 		},
 	}
 	newAgentOpts = json.RawMessage(`{"config":{"views":{"foo":"qux"}}}`)
@@ -556,6 +560,7 @@ spec:
 		},
 		MacOSSetup: fleet.MacOSSetup{
 			EnableReleaseDeviceManually: optjson.SetBool(false),
+			LockEndUserInfo:             optjson.SetBool(false),
 		},
 	}
 

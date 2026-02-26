@@ -1192,12 +1192,18 @@ func (svc *Service) createTeamFromSpec(
 	if !macOSSetup.EnableReleaseDeviceManually.Valid {
 		macOSSetup.EnableReleaseDeviceManually = optjson.SetBool(false)
 	}
+
 	if macOSSetup.MacOSSetupAssistant.Value != "" || macOSSetup.BootstrapPackage.Value != "" ||
 		macOSSetup.EnableReleaseDeviceManually.Value || macOSSetup.ManualAgentInstall.Value {
 		if !appCfg.MDM.EnabledAndConfigured {
 			return nil, ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("macos_setup",
 				`Couldn't update macos_setup because MDM features aren't turned on in Fleet. Use fleetctl generate mdm-apple and then fleet serve with mdm configuration to turn on MDM features.`))
 		}
+	}
+
+	if macOSSetup.LockEndUserInfo.Value && !macOSSetup.EnableEndUserAuthentication {
+		// TODO EJM error message
+		return nil, ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("macos_setup.lock_end_user_info", "Locking end user info requires enabling end user authentication"))
 	}
 
 	enableDiskEncryption := spec.MDM.EnableDiskEncryption.Value
@@ -1426,6 +1432,10 @@ func (svc *Service) editTeamFromSpec(
 	if !team.Config.MDM.MacOSSetup.EnableReleaseDeviceManually.Valid {
 		team.Config.MDM.MacOSSetup.EnableReleaseDeviceManually = optjson.SetBool(false)
 	}
+	if !team.Config.MDM.MacOSSetup.LockEndUserInfo.Valid {
+		team.Config.MDM.MacOSSetup.LockEndUserInfo = optjson.SetBool(false)
+	}
+
 	oldMacOSSetup := team.Config.MDM.MacOSSetup
 	var didUpdateSetupAssistant, didUpdateBootstrapPackage, didUpdateEnableReleaseManually, didUpdateManualAgentInstall bool
 	if spec.MDM.MacOSSetup.MacOSSetupAssistant.Set {

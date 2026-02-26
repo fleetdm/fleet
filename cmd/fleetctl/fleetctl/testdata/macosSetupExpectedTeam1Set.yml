@@ -24,6 +24,7 @@ spec:
       macos_setup:
         bootstrap_package: %s
         enable_end_user_authentication: false
+        lock_end_user_info: false
         macos_setup_assistant: %s
         manual_agent_install: null
         require_all_software_macos: false
@@ -74,6 +75,7 @@ spec:
       macos_setup:
         bootstrap_package: %s
         enable_end_user_authentication: false
+        lock_end_user_info: false
         macos_setup_assistant: %s
         manual_agent_install: null
         require_all_software_macos: false

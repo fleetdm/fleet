@@ -1498,6 +1498,11 @@ func (svc *Service) validateMDM(
 		}
 	}
 
+	if mdm.MacOSSetup.LockEndUserInfo.Value && !mdm.MacOSSetup.EnableEndUserAuthentication {
+		invalid.Append("macos_setup.lock_end_user_info",
+			`Couldn't enable macos_setup.lock_end_user_info because macos_setup.enable_end_user_authentication is not enabled.`)
+	}
+
 	if mdm.MacOSSetup.EnableEndUserAuthentication != oldMdm.MacOSSetup.EnableEndUserAuthentication {
 		hasCustomConfigurationWebURL, err := svc.HasCustomSetupAssistantConfigurationWebURL(ctx, nil)
 		if err != nil {

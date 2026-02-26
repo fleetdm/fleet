@@ -1106,6 +1106,9 @@ func (c AppConfig) MarshalJSON() ([]byte, error) {
 	if !c.MDM.MacOSSetup.EnableReleaseDeviceManually.Valid {
 		c.MDM.MacOSSetup.EnableReleaseDeviceManually = optjson.SetBool(false)
 	}
+	if !c.MDM.MacOSSetup.LockEndUserInfo.Valid {
+		c.MDM.MacOSSetup.LockEndUserInfo = optjson.SetBool(false)
+	}
 	type aliasConfig AppConfig
 	aa := aliasConfig(c)
 	return json.Marshal(aa)
