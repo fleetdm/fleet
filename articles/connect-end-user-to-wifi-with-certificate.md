@@ -425,7 +425,7 @@ Fleet automatically installs Android agent app on every host. It retrieves SCEP 
 1. In Fleet, head to **Controls > OS settings > Certificates** and select **Add certificate**.
 2. In **Name**, enter a name for the certificate (e.g., "wifi-certificate"). This name is used as the certificate alias to reference in configuration profiles (e.g. [WiFi configuration](https://developers.google.com/android/management/configure-networks#eap_authentication)).
 3. In **Certificate authority**, select the custom SCEP CA you created in step 1.
-4. In **Subject name**, enter the certificate's subject name (SN). Separate subject fields by a "/". You can use [Fleet's host variables](https://fleetdm.com/docs/configuration/yaml-files#variables) to make the certificate unique to each host. For example: `/CN=$FLEET_VAR_HOST_END_USER_IDP_USERNAME/OU=$FLEET_VAR_HOST_UUID/ST=$FLEET_VAR_HOST_HARDWARE_SERIAL`.
+4. In **Subject name**, enter the certificate's subject name (SN). Separate subject fields by a ",". You can use [Fleet's host variables](https://fleetdm.com/docs/configuration/yaml-files#variables) to make the certificate unique to each host. For example: `CN=$FLEET_VAR_HOST_END_USER_IDP_USERNAME, OU=$FLEET_VAR_HOST_UUID, ST=$FLEET_VAR_HOST_HARDWARE_SERIAL`.
 5. Select **Save**. Fleet will deploy the certificate to your Android hosts.
 
 If something goes wrong, errors will appear on each host's **Host details > OS settings**.
