@@ -418,7 +418,7 @@ When the profile is delivered to your hosts, Fleet will replace the variables. I
 
 On Android, certificates are deployed differently from Apple and Windows. Instead of a configuration profile, Fleet uses a certificates templates.
 
-Fleet automatically installs Android agent app on every host. It retreives SCEP certificate from the custome SCEP CA and installs the certificate into the Android keystore.
+Fleet automatically installs Android agent app on every host. It retrieves SCEP certificate from the custom SCEP CA and installs the certificate into the Android keystore.
 
 #### Using Fleet UI
 
