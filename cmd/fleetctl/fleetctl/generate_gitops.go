@@ -359,7 +359,7 @@ func (cmd *GenerateGitopsCommand) Run() error {
 	if cmd.AppConfig.License.IsPremium() {
 		noTeamData, err := cmd.Client.GetTeam(0)
 		if err != nil {
-			_, _ = fmt.Fprintf(cmd.CLI.App.ErrWriter, "Error getting 'No team': %s\n", err)
+			_, _ = fmt.Fprintf(cmd.CLI.App.ErrWriter, "Error getting 'Unassigned': %s\n", err)
 			return ErrGeneric
 		}
 		noTeam = teamToProcess{
@@ -372,7 +372,7 @@ func (cmd *GenerateGitopsCommand) Run() error {
 	case cmd.CLI.String(fleetFlagName) == "global" || !cmd.AppConfig.License.IsPremium():
 		teamsToProcess = []teamToProcess{globalTeam}
 	case cmd.CLI.String("team") == "no-team":
-		fmt.Fprintf(cmd.CLI.App.ErrWriter, "[!] '--team no-team' is deprecated. Use '--team unassigned' instead.\n")
+		fmt.Fprintf(cmd.CLI.App.ErrWriter, "[!] '--team no-team' is deprecated. Use '--fleet unassigned' instead.\n")
 		teamsToProcess = []teamToProcess{noTeam}
 	case cmd.CLI.String("team") == "unassigned":
 		teamsToProcess = []teamToProcess{noTeam}
@@ -658,7 +658,7 @@ func (cmd *GenerateGitopsCommand) Run() error {
 
 	if cmd.CLI.String(fleetFlagName) != "global" {
 		cmd.Messages.Notes = append(cmd.Messages.Notes, Note{
-			Note: "Warning: Software categories are not supported by this tool yet. If you have added any categories to software items, add them to the appropriate team .yml file.",
+			Note: "Warning: Software categories are not supported by this tool yet. If you have added any categories to software items, add them to the appropriate fleet .yml file.",
 		})
 	}
 
@@ -1242,7 +1242,7 @@ func (cmd *GenerateGitopsCommand) generateControls(teamId *uint, teamName string
 		if teamId != nil && cmd.AppConfig.MDM.EnabledAndConfigured {
 			// See if the team has macOS bootstrap package configured.
 			bootstrapPackage, err := cmd.Client.GetBootstrapPackageMetadata(*teamId, false)
-			if err != nil && !strings.Contains(err.Error(), "bootstrap package for this team does not exist") {
+			if err != nil && !strings.Contains(err.Error(), "bootstrap package for this fleet does not exist") {
 				fmt.Fprintf(cmd.CLI.App.ErrWriter, "Error getting bootstrap package metadata: %s\n", err)
 				return nil, err
 			}
