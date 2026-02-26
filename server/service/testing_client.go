@@ -165,6 +165,15 @@ func (ts *withServer) commonTearDownTest(t *testing.T) {
 		return nil
 	})
 
+	// Remove query_labels rows before deleting labels to avoid FK constraint
+	// violations (query_labels.label_id is ON DELETE RESTRICT). Queries are
+	// deleted later in this teardown, so their label associations must be
+	// cleared first. Policy labels are already gone via DELETE FROM policies above.
+	mysql.ExecAdhocSQL(t, ts.ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, `DELETE FROM query_labels`)
+		return err
+	})
+
 	lbls, err := ts.ds.ListLabels(ctx, filter, fleet.ListOptions{}, false)
 	require.NoError(t, err)
 	for _, lbl := range lbls {
