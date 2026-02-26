@@ -200,8 +200,8 @@ const DataTable = ({
       disableSortRemove: true,
       manualSortBy,
       autoResetPage,
-      // Resets row selection on (server-side) pagination
-      autoResetSelectedRows: true,
+      // Resets row selection on pagination
+      autoResetSelectedRows: !persistSelectedRows,
       // Expands the enumerated `filterTypes` for react-table
       // (see https://github.com/TanStack/react-table/blob/alpha/packages/react-table/src/filterTypes.ts)
       // with custom `filterTypes` defined for this `useTable` instance
