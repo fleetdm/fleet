@@ -6445,6 +6445,7 @@ func (s *integrationMDMTestSuite) TestSSOWithSCIM() {
 	var fullAccCmd *micromdm.CommandPayload
 	require.NoError(t, plist.Unmarshal(accCmd.Raw, &fullAccCmd))
 	// We setup the test with Lock End User Account info disabled, so this should be false
+	require.NotNil(t, fullAccCmd)
 	require.NotNil(t, fullAccCmd.Command)
 	require.NotNil(t, fullAccCmd.Command.AccountConfiguration)
 	assert.False(t, fullAccCmd.Command.AccountConfiguration.LockPrimaryAccountInfo)
