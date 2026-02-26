@@ -2298,7 +2298,7 @@ ON DUPLICATE KEY UPDATE
 UPDATE
 	software_installers
 SET
-	install_during_setup = ?,
+	install_during_setup = COALESCE(?, install_during_setup),
 	self_service = ?,
 	install_script_content_id = ?,
 	uninstall_script_content_id = ?,
