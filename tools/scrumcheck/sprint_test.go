@@ -5,6 +5,7 @@ import (
 	"time"
 )
 
+// TestPickCurrentIteration provides scrumcheck behavior for this unit.
 func TestPickCurrentIteration(t *testing.T) {
 	t.Parallel()
 
@@ -51,6 +52,7 @@ func TestPickCurrentIteration(t *testing.T) {
 	})
 }
 
+// TestPickCurrentIterationNoValid provides scrumcheck behavior for this unit.
 func TestPickCurrentIterationNoValid(t *testing.T) {
 	t.Parallel()
 	_, ok := pickCurrentIteration(time.Now().UTC(), []projectIteration{
@@ -62,6 +64,7 @@ func TestPickCurrentIterationNoValid(t *testing.T) {
 	}
 }
 
+// TestSprintColumnGrouping provides scrumcheck behavior for this unit.
 func TestSprintColumnGrouping(t *testing.T) {
 	t.Parallel()
 

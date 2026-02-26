@@ -9,6 +9,7 @@ import (
 	"github.com/shurcooL/githubv4"
 )
 
+// fetchProjectID provides scrumcheck behavior for this unit.
 func fetchProjectID(ctx context.Context, client *githubv4.Client, org string, num int) githubv4.ID {
 	var q struct {
 		Organization struct {
@@ -29,6 +30,7 @@ func fetchProjectID(ctx context.Context, client *githubv4.Client, org string, nu
 	return q.Organization.ProjectV2.ID
 }
 
+// fetchItems provides scrumcheck behavior for this unit.
 func fetchItems(
 	ctx context.Context,
 	client *githubv4.Client,
@@ -56,6 +58,7 @@ func fetchItems(
 	return q.Node.ProjectV2.Items.Nodes
 }
 
+// mustGithubInt provides scrumcheck behavior for this unit.
 func mustGithubInt(v int) githubv4.Int {
 	if v < math.MinInt32 || v > math.MaxInt32 {
 		log.Fatalf("integer %d out of range for githubv4.Int", v)
@@ -63,6 +66,7 @@ func mustGithubInt(v int) githubv4.Int {
 	return githubv4.Int(v)
 }
 
+// toGithubInt provides scrumcheck behavior for this unit.
 func toGithubInt(v int) (githubv4.Int, error) {
 	if v < math.MinInt32 || v > math.MaxInt32 {
 		return 0, fmt.Errorf("integer %d out of range for githubv4.Int", v)
@@ -70,6 +74,7 @@ func toGithubInt(v int) (githubv4.Int, error) {
 	return githubv4.Int(v), nil
 }
 
+// fetchAllItems provides scrumcheck behavior for this unit.
 func fetchAllItems(
 	ctx context.Context,
 	client *githubv4.Client,
@@ -111,6 +116,7 @@ func fetchAllItems(
 	return out
 }
 
+// getBody provides scrumcheck behavior for this unit.
 func getBody(it Item) string {
 	if it.Content.Issue.Number != 0 {
 		return string(it.Content.Issue.Body)
@@ -118,6 +124,7 @@ func getBody(it Item) string {
 	return string(it.Content.PullRequest.Body)
 }
 
+// getTitle provides scrumcheck behavior for this unit.
 func getTitle(it Item) string {
 	if it.Content.Issue.Number != 0 {
 		return string(it.Content.Issue.Title)
@@ -125,6 +132,7 @@ func getTitle(it Item) string {
 	return string(it.Content.PullRequest.Title)
 }
 
+// getNumber provides scrumcheck behavior for this unit.
 func getNumber(it Item) int {
 	if it.Content.Issue.Number != 0 {
 		return int(it.Content.Issue.Number)
@@ -132,6 +140,7 @@ func getNumber(it Item) int {
 	return int(it.Content.PullRequest.Number)
 }
 
+// getURL provides scrumcheck behavior for this unit.
 func getURL(it Item) string {
 	if it.Content.Issue.Number != 0 {
 		return it.Content.Issue.URL.String()

@@ -7,6 +7,7 @@ import (
 	"testing"
 )
 
+// TestWriteHTMLReport provides scrumcheck behavior for this unit.
 func TestWriteHTMLReport(t *testing.T) {
 	t.Parallel()
 
@@ -39,6 +40,7 @@ func TestWriteHTMLReport(t *testing.T) {
 	}
 }
 
+// TestUIBridgeReportPathAndURL provides scrumcheck behavior for this unit.
 func TestUIBridgeReportPathAndURL(t *testing.T) {
 	t.Parallel()
 

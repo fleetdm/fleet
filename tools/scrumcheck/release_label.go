@@ -14,6 +14,7 @@ const (
 	unreleasedBugLabel = "unreleased bug"
 )
 
+// runReleaseLabelChecks provides scrumcheck behavior for this unit.
 func runReleaseLabelChecks(
 	ctx context.Context,
 	client *githubv4.Client,
@@ -66,6 +67,7 @@ func runReleaseLabelChecks(
 	return out
 }
 
+// issueLabels provides scrumcheck behavior for this unit.
 func issueLabels(it Item) []string {
 	out := make([]string, 0, len(it.Content.Issue.Labels.Nodes))
 	seen := make(map[string]bool)
@@ -87,6 +89,7 @@ func issueLabels(it Item) []string {
 	return out
 }
 
+// labelsContain provides scrumcheck behavior for this unit.
 func labelsContain(labels []string, wanted string) bool {
 	wantedNorm := normalizeLabelName(wanted)
 	for _, l := range labels {

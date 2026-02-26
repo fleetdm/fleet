@@ -8,6 +8,7 @@ import (
 	"github.com/shurcooL/githubv4"
 )
 
+// TestIssueAssigneesAndContainsLogin provides scrumcheck behavior for this unit.
 func TestIssueAssigneesAndContainsLogin(t *testing.T) {
 	t.Parallel()
 
@@ -30,6 +31,7 @@ func TestIssueAssigneesAndContainsLogin(t *testing.T) {
 	}
 }
 
+// TestItemStatusAndFileURLFromPath provides scrumcheck behavior for this unit.
 func TestItemStatusAndFileURLFromPath(t *testing.T) {
 	t.Parallel()
 
@@ -43,6 +45,7 @@ func TestItemStatusAndFileURLFromPath(t *testing.T) {
 	}
 }
 
+// TestGetHelpersForIssueAndPR provides scrumcheck behavior for this unit.
 func TestGetHelpersForIssueAndPR(t *testing.T) {
 	t.Parallel()
 

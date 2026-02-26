@@ -60,6 +60,7 @@ type uiBridge struct {
 	refreshAllState      func(context.Context) (HTMLReportData, bridgePolicy, error)
 }
 
+// startUIBridge provides scrumcheck behavior for this unit.
 func startUIBridge(token string, idleTimeout time.Duration, onEvent func(string), policy bridgePolicy) (*uiBridge, error) {
 	if strings.TrimSpace(token) == "" {
 		return nil, errors.New("missing token")
@@ -130,80 +131,94 @@ func startUIBridge(token string, idleTimeout time.Duration, onEvent func(string)
 	return b, nil
 }
 
+// setReportPath provides scrumcheck behavior for this unit.
 func (b *uiBridge) setReportPath(path string) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
 	b.reportPath = path
 }
 
+// reportURL provides scrumcheck behavior for this unit.
 func (b *uiBridge) reportURL() string {
 	return b.baseURL + "/report"
 }
 
+// sessionToken provides scrumcheck behavior for this unit.
 func (b *uiBridge) sessionToken() string {
 	return b.session
 }
 
+// setTimestampCheckResult provides scrumcheck behavior for this unit.
 func (b *uiBridge) setTimestampCheckResult(result TimestampCheckResult) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
 	b.timestampCheck = result
 }
 
+// setUnassignedUnreleasedResults provides scrumcheck behavior for this unit.
 func (b *uiBridge) setUnassignedUnreleasedResults(results []UnassignedUnreleasedProjectReport) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
 	b.unreleasedBugs = results
 }
 
+// setReleaseStoryTODOResults provides scrumcheck behavior for this unit.
 func (b *uiBridge) setReleaseStoryTODOResults(results []ReleaseStoryTODOProjectReport) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
 	b.releaseStoryTODO = results
 }
 
+// setMissingSprintResults provides scrumcheck behavior for this unit.
 func (b *uiBridge) setMissingSprintResults(results []MissingSprintProjectReport) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
 	b.missingSprint = results
 }
 
+// setReportData provides scrumcheck behavior for this unit.
 func (b *uiBridge) setReportData(data HTMLReportData) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
 	b.reportData = data
 }
 
+// setTimestampRefresher provides scrumcheck behavior for this unit.
 func (b *uiBridge) setTimestampRefresher(fn func(context.Context) (TimestampCheckResult, error)) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
 	b.refreshTimestamp = fn
 }
 
+// setUnreleasedRefresher provides scrumcheck behavior for this unit.
 func (b *uiBridge) setUnreleasedRefresher(fn func(context.Context) ([]UnassignedUnreleasedProjectReport, error)) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
 	b.refreshUnreleased = fn
 }
 
+// setReleaseStoryTODORefresher provides scrumcheck behavior for this unit.
 func (b *uiBridge) setReleaseStoryTODORefresher(fn func(context.Context) ([]ReleaseStoryTODOProjectReport, error)) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
 	b.refreshReleaseTODO = fn
 }
 
+// setMissingSprintRefresher provides scrumcheck behavior for this unit.
 func (b *uiBridge) setMissingSprintRefresher(fn func(context.Context) ([]MissingSprintProjectReport, map[string]sprintApplyTarget, error)) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
 	b.refreshMissingSprint = fn
 }
 
+// setRefreshAllState provides scrumcheck behavior for this unit.
 func (b *uiBridge) setRefreshAllState(fn func(context.Context) (HTMLReportData, bridgePolicy, error)) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
 	b.refreshAllState = fn
 }
 
+// refreshAllIfRequested provides scrumcheck behavior for this unit.
 func (b *uiBridge) refreshAllIfRequested(ctx context.Context, refresh bool) error {
 	if !refresh {
 		return nil
@@ -240,6 +255,7 @@ func (b *uiBridge) refreshAllIfRequested(ctx context.Context, refresh bool) erro
 	return nil
 }
 
+// stop provides scrumcheck behavior for this unit.
 func (b *uiBridge) stop(reason string) error {
 	b.mu.Lock()
 	if b.reason != "bridge closed" {
@@ -259,6 +275,7 @@ func (b *uiBridge) stop(reason string) error {
 	return err
 }
 
+// waitUntilDone provides scrumcheck behavior for this unit.
 func (b *uiBridge) waitUntilDone(ctx context.Context) string {
 	select {
 	case <-ctx.Done():
@@ -272,6 +289,7 @@ func (b *uiBridge) waitUntilDone(ctx context.Context) string {
 	return b.reason
 }
 
+// closeDone provides scrumcheck behavior for this unit.
 func (b *uiBridge) closeDone() {
 	select {
 	case <-b.done:
@@ -280,6 +298,7 @@ func (b *uiBridge) closeDone() {
 	}
 }
 
+// touch provides scrumcheck behavior for this unit.
 func (b *uiBridge) touch() {
 	b.mu.Lock()
 	defer b.mu.Unlock()
@@ -288,16 +307,19 @@ func (b *uiBridge) touch() {
 	}
 }
 
+// signal provides scrumcheck behavior for this unit.
 func (b *uiBridge) signal(msg string) {
 	if b.onEvent != nil {
 		b.onEvent(msg)
 	}
 }
 
+// handleHealth provides scrumcheck behavior for this unit.
 func (b *uiBridge) handleHealth(w http.ResponseWriter, _ *http.Request) {
 	writeJSON(w, http.StatusOK, map[string]any{"ok": true})
 }
 
+// handleReport provides scrumcheck behavior for this unit.
 func (b *uiBridge) handleReport(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
 		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
@@ -315,6 +337,7 @@ func (b *uiBridge) handleReport(w http.ResponseWriter, r *http.Request) {
 	http.ServeFile(w, r, reportPath)
 }
 
+// handleTimestampCheck provides scrumcheck behavior for this unit.
 func (b *uiBridge) handleTimestampCheck(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
 		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
@@ -346,6 +369,7 @@ func (b *uiBridge) handleTimestampCheck(w http.ResponseWriter, r *http.Request) 
 	})
 }
 
+// handleUnassignedUnreleasedCheck provides scrumcheck behavior for this unit.
 func (b *uiBridge) handleUnassignedUnreleasedCheck(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
 		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
@@ -372,6 +396,7 @@ func (b *uiBridge) handleUnassignedUnreleasedCheck(w http.ResponseWriter, r *htt
 	})
 }
 
+// handleReleaseStoryTODOCheck provides scrumcheck behavior for this unit.
 func (b *uiBridge) handleReleaseStoryTODOCheck(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
 		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
@@ -398,6 +423,7 @@ func (b *uiBridge) handleReleaseStoryTODOCheck(w http.ResponseWriter, r *http.Re
 	})
 }
 
+// handleMissingSprintCheck provides scrumcheck behavior for this unit.
 func (b *uiBridge) handleMissingSprintCheck(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
 		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
@@ -424,6 +450,7 @@ func (b *uiBridge) handleMissingSprintCheck(w http.ResponseWriter, r *http.Reque
 	})
 }
 
+// handleStateCheck provides scrumcheck behavior for this unit.
 func (b *uiBridge) handleStateCheck(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
 		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
@@ -449,6 +476,7 @@ func (b *uiBridge) handleStateCheck(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+// handleApplyMilestone provides scrumcheck behavior for this unit.
 func (b *uiBridge) handleApplyMilestone(w http.ResponseWriter, r *http.Request) {
 	if !b.prepareRequest(w, r) {
 		return
@@ -496,6 +524,7 @@ func (b *uiBridge) handleApplyMilestone(w http.ResponseWriter, r *http.Request) 
 	writeJSON(w, http.StatusOK, map[string]any{"ok": true})
 }
 
+// handleApplyChecklist provides scrumcheck behavior for this unit.
 func (b *uiBridge) handleApplyChecklist(w http.ResponseWriter, r *http.Request) {
 	if !b.prepareRequest(w, r) {
 		return
@@ -564,6 +593,7 @@ func (b *uiBridge) handleApplyChecklist(w http.ResponseWriter, r *http.Request) 
 	})
 }
 
+// handleClose provides scrumcheck behavior for this unit.
 func (b *uiBridge) handleClose(w http.ResponseWriter, r *http.Request) {
 	if !b.prepareRequest(w, r) {
 		return
@@ -584,6 +614,7 @@ func (b *uiBridge) handleClose(w http.ResponseWriter, r *http.Request) {
 	}()
 }
 
+// handleApplySprint provides scrumcheck behavior for this unit.
 func (b *uiBridge) handleApplySprint(w http.ResponseWriter, r *http.Request) {
 	if !b.prepareRequest(w, r) {
 		return
@@ -626,6 +657,7 @@ func (b *uiBridge) handleApplySprint(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, map[string]any{"ok": true})
 }
 
+// handleAddAssignee provides scrumcheck behavior for this unit.
 func (b *uiBridge) handleAddAssignee(w http.ResponseWriter, r *http.Request) {
 	if !b.prepareRequest(w, r) {
 		return
@@ -675,6 +707,7 @@ func (b *uiBridge) handleAddAssignee(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, map[string]any{"ok": true})
 }
 
+// handleApplyReleaseLabel provides scrumcheck behavior for this unit.
 func (b *uiBridge) handleApplyReleaseLabel(w http.ResponseWriter, r *http.Request) {
 	if !b.prepareRequest(w, r) {
 		return
@@ -736,6 +769,7 @@ func (b *uiBridge) handleApplyReleaseLabel(w http.ResponseWriter, r *http.Reques
 	writeJSON(w, http.StatusOK, map[string]any{"ok": true})
 }
 
+// callerAddr provides scrumcheck behavior for this unit.
 func callerAddr(r *http.Request) string {
 	hostPort := strings.TrimSpace(r.RemoteAddr)
 	if hostPort == "" {
@@ -755,6 +789,7 @@ func callerAddr(r *http.Request) string {
 	return hostPort + " (non-loopback)"
 }
 
+// prepareRequest provides scrumcheck behavior for this unit.
 func (b *uiBridge) prepareRequest(w http.ResponseWriter, r *http.Request) bool {
 	origin := strings.TrimSpace(r.Header.Get("Origin"))
 	if origin != "" && origin != b.origin {
@@ -784,6 +819,7 @@ func (b *uiBridge) prepareRequest(w http.ResponseWriter, r *http.Request) bool {
 	return true
 }
 
+// githubJSON provides scrumcheck behavior for this unit.
 func (b *uiBridge) githubJSON(ctx context.Context, method, endpoint string, reqBody any, out any) error {
 	var body io.Reader
 	if reqBody != nil {
@@ -822,12 +858,14 @@ func (b *uiBridge) githubJSON(ctx context.Context, method, endpoint string, reqB
 	return nil
 }
 
+// writeJSON provides scrumcheck behavior for this unit.
 func writeJSON(w http.ResponseWriter, status int, v any) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(status)
 	_ = json.NewEncoder(w).Encode(v)
 }
 
+// randomHex provides scrumcheck behavior for this unit.
 func randomHex(bytesLen int) (string, error) {
 	b := make([]byte, bytesLen)
 	if _, err := rand.Read(b); err != nil {
@@ -836,14 +874,17 @@ func randomHex(bytesLen int) (string, error) {
 	return hex.EncodeToString(b), nil
 }
 
+// isValidRepoSlug provides scrumcheck behavior for this unit.
 func isValidRepoSlug(value string) bool {
 	return repoSlugPattern.MatchString(strings.TrimSpace(value))
 }
 
+// issueKey provides scrumcheck behavior for this unit.
 func issueKey(repo string, issue int) string {
 	return strings.ToLower(strings.TrimSpace(repo)) + "#" + strconv.Itoa(issue)
 }
 
+// isAllowedMilestone provides scrumcheck behavior for this unit.
 func (b *uiBridge) isAllowedMilestone(repo string, issue int, milestone int) bool {
 	key := issueKey(repo, issue)
 	choices, ok := b.allowMilestones[key]
@@ -853,6 +894,7 @@ func (b *uiBridge) isAllowedMilestone(repo string, issue int, milestone int) boo
 	return choices[milestone]
 }
 
+// isAllowedChecklist provides scrumcheck behavior for this unit.
 func (b *uiBridge) isAllowedChecklist(repo string, issue int, checklistText string) bool {
 	key := issueKey(repo, issue)
 	choices, ok := b.allowChecklist[key]
@@ -862,6 +904,7 @@ func (b *uiBridge) isAllowedChecklist(repo string, issue int, checklistText stri
 	return choices[strings.TrimSpace(checklistText)]
 }
 
+// isAllowedAssignee provides scrumcheck behavior for this unit.
 func (b *uiBridge) isAllowedAssignee(repo string, issue int, assignee string) bool {
 	key := issueKey(repo, issue)
 	choices, ok := b.allowAssignees[key]
@@ -871,11 +914,13 @@ func (b *uiBridge) isAllowedAssignee(repo string, issue int, assignee string) bo
 	return choices[strings.ToLower(strings.TrimSpace(assignee))]
 }
 
+// allowedReleaseForIssue provides scrumcheck behavior for this unit.
 func (b *uiBridge) allowedReleaseForIssue(repo string, issue int) (releaseLabelTarget, bool) {
 	target, ok := b.allowRelease[issueKey(repo, issue)]
 	return target, ok
 }
 
+// signalBridgeOp provides scrumcheck behavior for this unit.
 func (b *uiBridge) signalBridgeOp(caller, op, stage, status, repo string, issue int, elapsed string) {
 	if elapsed == "" {
 		elapsed = "-"
@@ -893,11 +938,13 @@ func (b *uiBridge) signalBridgeOp(caller, op, stage, status, repo string, issue 
 	))
 }
 
+// allowedSprintForItem provides scrumcheck behavior for this unit.
 func (b *uiBridge) allowedSprintForItem(itemID string) (sprintApplyTarget, bool) {
 	target, ok := b.allowSprints[strings.TrimSpace(itemID)]
 	return target, ok
 }
 
+// replaceUncheckedChecklistLine provides scrumcheck behavior for this unit.
 func replaceUncheckedChecklistLine(body string, checkText string) (string, bool, bool) {
 	text := strings.TrimSpace(checkText)
 	if text == "" {

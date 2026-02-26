@@ -2,6 +2,7 @@ package main
 
 import "testing"
 
+// TestReplaceUncheckedChecklistLine provides scrumcheck behavior for this unit.
 func TestReplaceUncheckedChecklistLine(t *testing.T) {
 	t.Parallel()
 
@@ -41,6 +42,7 @@ func TestReplaceUncheckedChecklistLine(t *testing.T) {
 	})
 }
 
+// TestIsValidRepoSlug provides scrumcheck behavior for this unit.
 func TestIsValidRepoSlug(t *testing.T) {
 	t.Parallel()
 

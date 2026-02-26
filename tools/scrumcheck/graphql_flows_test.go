@@ -16,8 +16,10 @@ import (
 
 type roundTripFunc func(*http.Request) (*http.Response, error)
 
+// RoundTrip provides scrumcheck behavior for this unit.
 func (f roundTripFunc) RoundTrip(r *http.Request) (*http.Response, error) { return f(r) }
 
+// newGraphQLStubClient provides scrumcheck behavior for this unit.
 func newGraphQLStubClient(t *testing.T) *githubv4.Client {
 	t.Helper()
 	hc := &http.Client{
@@ -64,6 +66,7 @@ func newGraphQLStubClient(t *testing.T) *githubv4.Client {
 	return githubv4.NewClient(hc)
 }
 
+// graphNodesForProjectID provides scrumcheck behavior for this unit.
 func graphNodesForProjectID(id string) []map[string]any {
 	switch id {
 	case "P67":
@@ -84,6 +87,7 @@ func graphNodesForProjectID(id string) []map[string]any {
 	}
 }
 
+// issueNode provides scrumcheck behavior for this unit.
 func issueNode(number int, title, u, status, body string, labels []string, updated time.Time, assignees []string) map[string]any {
 	labelNodes := make([]map[string]any, 0, len(labels))
 	for _, l := range labels {
@@ -119,6 +123,7 @@ func issueNode(number int, title, u, status, body string, labels []string, updat
 	}
 }
 
+// TestGraphQLFlowHelpersAndChecks provides scrumcheck behavior for this unit.
 func TestGraphQLFlowHelpersAndChecks(t *testing.T) {
 	t.Parallel()
 

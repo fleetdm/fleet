@@ -7,6 +7,7 @@ import (
 	"time"
 )
 
+// groupViolationsByStatus provides scrumcheck behavior for this unit.
 func groupViolationsByStatus(items []DraftingCheckViolation) map[string][]DraftingCheckViolation {
 	out := make(map[string][]DraftingCheckViolation)
 	for _, item := range items {
@@ -16,6 +17,7 @@ func groupViolationsByStatus(items []DraftingCheckViolation) map[string][]Drafti
 	return out
 }
 
+// printDraftingStatusSection provides scrumcheck behavior for this unit.
 func printDraftingStatusSection(status string, items []DraftingCheckViolation) {
 	if len(items) == 0 {
 		return
@@ -43,6 +45,7 @@ func printDraftingStatusSection(status string, items []DraftingCheckViolation) {
 	}
 }
 
+// printStaleAwaitingSummary provides scrumcheck behavior for this unit.
 func printStaleAwaitingSummary(staleByProject map[int][]StaleAwaitingViolation, staleDays int) {
 	total := 0
 	for _, items := range staleByProject {
@@ -78,6 +81,7 @@ func printStaleAwaitingSummary(staleByProject map[int][]StaleAwaitingViolation, 
 	}
 }
 
+// printTimestampCheckSummary provides scrumcheck behavior for this unit.
 func printTimestampCheckSummary(result TimestampCheckResult) {
 	fmt.Printf("\n🕒 Updates timestamp check (%s)\n", result.URL)
 	if result.Error != "" {
@@ -105,6 +109,7 @@ func printTimestampCheckSummary(result TimestampCheckResult) {
 	)
 }
 
+// printMissingMilestoneSummary provides scrumcheck behavior for this unit.
 func printMissingMilestoneSummary(items []MissingMilestoneIssue) {
 	byProject := make(map[int][]MissingMilestoneIssue)
 	for _, it := range items {

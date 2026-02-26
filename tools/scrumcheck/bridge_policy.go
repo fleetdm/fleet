@@ -24,6 +24,7 @@ type releaseLabelTarget struct {
 	NeedsReleaseAdd     bool
 }
 
+// buildBridgePolicy provides scrumcheck behavior for this unit.
 func buildBridgePolicy(
 	drafting []DraftingCheckViolation,
 	missing []MissingMilestoneIssue,

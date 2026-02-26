@@ -222,6 +222,7 @@ type HTMLReportData struct {
 	UnassignedUnreleasedClean bool
 }
 
+// buildHTMLReportData provides scrumcheck behavior for this unit.
 func buildHTMLReportData(
 	org string,
 	projectNums []int,
@@ -726,6 +727,7 @@ func buildHTMLReportData(
 	}
 }
 
+// itemStatus provides scrumcheck behavior for this unit.
 func itemStatus(it Item) string {
 	for _, v := range it.FieldValues.Nodes {
 		fieldName := strings.TrimSpace(strings.ToLower(string(v.SingleSelectValue.Field.Common.Name)))
@@ -740,6 +742,7 @@ func itemStatus(it Item) string {
 	return ""
 }
 
+// previewBodyLines provides scrumcheck behavior for this unit.
 func previewBodyLines(body string, maxLines int) []string {
 	if maxLines <= 0 {
 		return nil
@@ -759,6 +762,7 @@ func previewBodyLines(body string, maxLines int) []string {
 	return out
 }
 
+// writeHTMLReport provides scrumcheck behavior for this unit.
 func writeHTMLReport(data HTMLReportData) (string, error) {
 	if err := os.RemoveAll(reportDirName); err != nil {
 		return "", fmt.Errorf("remove old report directory: %w", err)
@@ -789,6 +793,7 @@ func writeHTMLReport(data HTMLReportData) (string, error) {
 	return absPath, nil
 }
 
+// fileURLFromPath provides scrumcheck behavior for this unit.
 func fileURLFromPath(path string) string {
 	u := url.URL{
 		Scheme: "file",
@@ -797,6 +802,7 @@ func fileURLFromPath(path string) string {
 	return u.String()
 }
 
+// openInBrowser provides scrumcheck behavior for this unit.
 func openInBrowser(path string) error {
 	switch runtime.GOOS {
 	case "darwin":
@@ -810,6 +816,7 @@ func openInBrowser(path string) error {
 	}
 }
 
+// titleCaseWords provides scrumcheck behavior for this unit.
 func titleCaseWords(s string) string {
 	parts := strings.Fields(strings.ToLower(strings.TrimSpace(s)))
 	for i, p := range parts {
@@ -1858,6 +1865,9 @@ var htmlReportTemplate = `<!doctype html>
         setTabClean('release', total === 0);
       }
 
+      // Render the generic-query check panel.
+      // Each configured query expansion is shown in declaration order with:
+      // title, expanded query text, and matched tickets.
       function renderGenericQueriesFromState(state) {
         const root = document.getElementById('generic-queries-content');
         if (!root) return;
@@ -1885,6 +1895,7 @@ var htmlReportTemplate = `<!doctype html>
         setTabClean('generic-queries', total === 0);
       }
 
+      // Fetch bridge-backed state and re-render all dynamic panels in one pass.
       async function fetchStateAndRender(forceRefresh) {
         const bridgeURL = document.body.dataset.bridgeUrl || window.location.origin || '';
         if (!bridgeURL || !bridgeSession) {

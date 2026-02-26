@@ -6,6 +6,7 @@ import (
 	"github.com/shurcooL/githubv4"
 )
 
+// TestLabelsContain provides scrumcheck behavior for this unit.
 func TestLabelsContain(t *testing.T) {
 	t.Parallel()
 
@@ -18,6 +19,7 @@ func TestLabelsContain(t *testing.T) {
 	}
 }
 
+// TestIssueLabels provides scrumcheck behavior for this unit.
 func TestIssueLabels(t *testing.T) {
 	t.Parallel()
 

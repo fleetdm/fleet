@@ -8,6 +8,7 @@ import (
 	"github.com/shurcooL/githubv4"
 )
 
+// TestBuildHTMLReportDataIncludesAllSelectedProjects provides scrumcheck behavior for this unit.
 func TestBuildHTMLReportDataIncludesAllSelectedProjects(t *testing.T) {
 	t.Parallel()
 
@@ -130,6 +131,7 @@ func TestBuildHTMLReportDataIncludesAllSelectedProjects(t *testing.T) {
 	}
 }
 
+// TestBuildHTMLReportDataAssignedToMeIsSeparateAndFails provides scrumcheck behavior for this unit.
 func TestBuildHTMLReportDataAssignedToMeIsSeparateAndFails(t *testing.T) {
 	t.Parallel()
 
@@ -192,6 +194,7 @@ func TestBuildHTMLReportDataAssignedToMeIsSeparateAndFails(t *testing.T) {
 	}
 }
 
+// TestBuildHTMLReportDataMissingSprintExcludesReadyForRelease provides scrumcheck behavior for this unit.
 func TestBuildHTMLReportDataMissingSprintExcludesReadyForRelease(t *testing.T) {
 	t.Parallel()
 
@@ -240,6 +243,7 @@ func TestBuildHTMLReportDataMissingSprintExcludesReadyForRelease(t *testing.T) {
 	}
 }
 
+// testIssueWithStatus provides scrumcheck behavior for this unit.
 func testIssueWithStatus(number int, title, rawURL, status string) Item {
 	var it Item
 	u, _ := url.Parse(rawURL)

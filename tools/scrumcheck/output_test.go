@@ -12,6 +12,7 @@ import (
 	"github.com/shurcooL/githubv4"
 )
 
+// captureStdout provides scrumcheck behavior for this unit.
 func captureStdout(t *testing.T, fn func()) string {
 	t.Helper()
 	old := os.Stdout
@@ -30,6 +31,7 @@ func captureStdout(t *testing.T, fn func()) string {
 	return b.String()
 }
 
+// TestOutputHelpers provides scrumcheck behavior for this unit.
 func TestOutputHelpers(t *testing.T) {
 	t.Parallel()
 
@@ -84,6 +86,7 @@ func TestOutputHelpers(t *testing.T) {
 	}
 }
 
+// TestGetBodyIssuePath provides scrumcheck behavior for this unit.
 func TestGetBodyIssuePath(t *testing.T) {
 	t.Parallel()
 

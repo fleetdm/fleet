@@ -24,6 +24,7 @@ type timestampJSON struct {
 	} `json:"signed"`
 }
 
+// checkUpdatesTimestamp provides scrumcheck behavior for this unit.
 func checkUpdatesTimestamp(ctx context.Context, now time.Time) TimestampCheckResult {
 	result := TimestampCheckResult{
 		URL:     updatesTimestampURL,

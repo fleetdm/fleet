@@ -18,6 +18,7 @@ type userLoginResponse struct {
 
 var searchAssignedIssuesByProject = fetchAssignedIssuesByProject
 
+// runMissingAssigneeChecks provides scrumcheck behavior for this unit.
 func runMissingAssigneeChecks(
 	ctx context.Context,
 	client *githubv4.Client,
@@ -135,6 +136,7 @@ func runMissingAssigneeChecks(
 	return out
 }
 
+// fetchAssignedIssuesByProject provides scrumcheck behavior for this unit.
 func fetchAssignedIssuesByProject(ctx context.Context, token, org string, projectNum int) []searchIssueItem {
 	query := fmt.Sprintf(`is:issue is:open project:%s/%d assignee:@me -status:"Done" repo:%s/fleet`, org, projectNum, org)
 	endpoint := fmt.Sprintf("https://api.github.com/search/issues?q=%s&per_page=100", urlQueryEscape(query))
@@ -145,6 +147,7 @@ func fetchAssignedIssuesByProject(ctx context.Context, token, org string, projec
 	return body.Items
 }
 
+// fetchViewerLogin provides scrumcheck behavior for this unit.
 func fetchViewerLogin(ctx context.Context, token string) string {
 	endpoint := "https://api.github.com/user"
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, endpoint, nil)
@@ -171,6 +174,7 @@ func fetchViewerLogin(ctx context.Context, token string) string {
 	return strings.TrimSpace(body.Login)
 }
 
+// fetchRepoAssignees provides scrumcheck behavior for this unit.
 func fetchRepoAssignees(ctx context.Context, token, owner, repo string) []AssigneeOption {
 	endpoint := fmt.Sprintf(
 		"https://api.github.com/repos/%s/%s/assignees?per_page=100",
@@ -220,6 +224,7 @@ func fetchRepoAssignees(ctx context.Context, token, owner, repo string) []Assign
 	return out
 }
 
+// issueAssignees provides scrumcheck behavior for this unit.
 func issueAssignees(it Item) []string {
 	out := make([]string, 0, len(it.Content.Issue.Assignees.Nodes))
 	seen := make(map[string]bool)
@@ -241,6 +246,7 @@ func issueAssignees(it Item) []string {
 	return out
 }
 
+// containsLogin provides scrumcheck behavior for this unit.
 func containsLogin(logins []string, wantedLower string) bool {
 	for _, l := range logins {
 		if strings.EqualFold(strings.TrimSpace(l), wantedLower) {

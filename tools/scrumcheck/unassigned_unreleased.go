@@ -36,6 +36,7 @@ type searchIssueItem struct {
 
 var searchUnreleasedIssuesByGroup = fetchUnreleasedIssuesByGroup
 
+// runUnassignedUnreleasedBugChecks provides scrumcheck behavior for this unit.
 func runUnassignedUnreleasedBugChecks(
 	ctx context.Context,
 	client *githubv4.Client,
@@ -131,6 +132,7 @@ func runUnassignedUnreleasedBugChecks(
 	return out
 }
 
+// issueMatchingGroups provides scrumcheck behavior for this unit.
 func issueMatchingGroups(labels []string, groupLabels []string) []string {
 	if len(labels) == 0 || len(groupLabels) == 0 {
 		return nil
@@ -152,6 +154,7 @@ func issueMatchingGroups(labels []string, groupLabels []string) []string {
 	return out
 }
 
+// fetchUnreleasedIssuesByGroup provides scrumcheck behavior for this unit.
 func fetchUnreleasedIssuesByGroup(ctx context.Context, token, org, groupLabel string) []struct {
 	Number        int    `json:"number"`
 	Title         string `json:"title"`
@@ -215,6 +218,7 @@ func fetchUnreleasedIssuesByGroup(ctx context.Context, token, org, groupLabel st
 	return out
 }
 
+// executeIssueSearchRequest provides scrumcheck behavior for this unit.
 func executeIssueSearchRequest(ctx context.Context, endpoint, token string) (searchIssueResponse, bool) {
 	respBody, ok := executeIssueSearchRequestOnce(ctx, endpoint, token)
 	if ok {
@@ -227,6 +231,7 @@ func executeIssueSearchRequest(ctx context.Context, endpoint, token string) (sea
 	return executeIssueSearchRequestOnce(ctx, endpoint, "")
 }
 
+// executeIssueSearchRequestOnce provides scrumcheck behavior for this unit.
 func executeIssueSearchRequestOnce(ctx context.Context, endpoint, token string) (searchIssueResponse, bool) {
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, endpoint, nil)
 	if err != nil {
@@ -255,6 +260,7 @@ func executeIssueSearchRequestOnce(ctx context.Context, endpoint, token string) 
 	return decoded, true
 }
 
+// parseRepoFromRepositoryAPIURL provides scrumcheck behavior for this unit.
 func parseRepoFromRepositoryAPIURL(repositoryURL string) (string, string) {
 	parts := strings.Split(strings.TrimSpace(repositoryURL), "/")
 	if len(parts) < 2 {
@@ -263,12 +269,15 @@ func parseRepoFromRepositoryAPIURL(repositoryURL string) (string, string) {
 	return parts[len(parts)-2], parts[len(parts)-1]
 }
 
+// parseIssueURL provides scrumcheck behavior for this unit.
 func parseIssueURL(raw string) (*url.URL, error) {
 	return url.Parse(raw)
 }
 
+// urlQueryEscape provides scrumcheck behavior for this unit.
 func urlQueryEscape(s string) string { return url.QueryEscape(s) }
 
+// hasLabel provides scrumcheck behavior for this unit.
 func hasLabel(labels []string, wanted string) bool {
 	for _, label := range labels {
 		if normalizeLabelName(label) == normalizeLabelName(wanted) {
@@ -278,6 +287,7 @@ func hasLabel(labels []string, wanted string) bool {
 	return false
 }
 
+// containsNormalized provides scrumcheck behavior for this unit.
 func containsNormalized(values []string, wanted string) bool {
 	w := normalizeLabelName(wanted)
 	for _, v := range values {

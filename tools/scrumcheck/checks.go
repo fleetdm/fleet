@@ -7,6 +7,7 @@ import (
 	"unicode/utf8"
 )
 
+// inAwaitingQA provides scrumcheck behavior for this unit.
 func inAwaitingQA(it Item) bool {
 	for _, v := range it.FieldValues.Nodes {
 		if string(v.SingleSelectValue.Name) == awaitingQAColumn {
@@ -16,6 +17,7 @@ func inAwaitingQA(it Item) bool {
 	return false
 }
 
+// inDoneColumn provides scrumcheck behavior for this unit.
 func inDoneColumn(it Item) bool {
 	for _, v := range it.FieldValues.Nodes {
 		name := normalizeStatusName(string(v.SingleSelectValue.Name))
@@ -26,6 +28,7 @@ func inDoneColumn(it Item) bool {
 	return false
 }
 
+// matchedStatus provides scrumcheck behavior for this unit.
 func matchedStatus(it Item, needles []string) (string, bool) {
 	for _, v := range it.FieldValues.Nodes {
 		rawName := strings.TrimSpace(string(v.SingleSelectValue.Name))
@@ -44,6 +47,7 @@ func matchedStatus(it Item, needles []string) (string, bool) {
 }
 
 // Remove leading emojis/symbols so we can match status names even if the project uses icons.
+// normalizeStatusName provides scrumcheck behavior for this unit.
 func normalizeStatusName(s string) string {
 	s = strings.TrimSpace(s)
 	for len(s) > 0 {
@@ -61,6 +65,7 @@ func normalizeStatusName(s string) string {
 
 // Only flag if the unchecked checklist line exists.
 // Ignore if missing or checked.
+// hasUncheckedChecklistLine provides scrumcheck behavior for this unit.
 func hasUncheckedChecklistLine(body string, text string) bool {
 	if body == "" || text == "" {
 		return false
@@ -85,6 +90,7 @@ func hasUncheckedChecklistLine(body string, text string) bool {
 	return strings.Contains(body, unchecked1) || strings.Contains(body, unchecked2)
 }
 
+// uncheckedChecklistItems provides scrumcheck behavior for this unit.
 func uncheckedChecklistItems(body string) []string {
 	if body == "" {
 		return nil
@@ -115,6 +121,7 @@ func uncheckedChecklistItems(body string) []string {
 	return out
 }
 
+// shouldIgnoreDraftingChecklistItem provides scrumcheck behavior for this unit.
 func shouldIgnoreDraftingChecklistItem(text string) bool {
 	lower := strings.ToLower(strings.TrimSpace(text))
 	for _, prefix := range draftingChecklistIgnorePrefixes {
@@ -125,6 +132,7 @@ func shouldIgnoreDraftingChecklistItem(text string) bool {
 	return false
 }
 
+// uniqueInts provides scrumcheck behavior for this unit.
 func uniqueInts(nums []int) []int {
 	seen := make(map[int]bool, len(nums))
 	out := make([]int, 0, len(nums))
@@ -138,6 +146,7 @@ func uniqueInts(nums []int) []int {
 	return out
 }
 
+// normalizeLabelName provides scrumcheck behavior for this unit.
 func normalizeLabelName(s string) string {
 	s = strings.TrimSpace(s)
 	s = strings.TrimPrefix(s, "#")
@@ -145,6 +154,7 @@ func normalizeLabelName(s string) string {
 	return strings.ToLower(strings.TrimSpace(s))
 }
 
+// compileLabelFilter provides scrumcheck behavior for this unit.
 func compileLabelFilter(labels []string) map[string]struct{} {
 	if len(labels) == 0 {
 		return nil
@@ -163,6 +173,7 @@ func compileLabelFilter(labels []string) map[string]struct{} {
 	return out
 }
 
+// orderedGroupLabels provides scrumcheck behavior for this unit.
 func orderedGroupLabels(labels []string) []string {
 	if len(labels) == 0 {
 		return nil
@@ -186,6 +197,7 @@ func orderedGroupLabels(labels []string) []string {
 	return out
 }
 
+// matchesLabelFilter provides scrumcheck behavior for this unit.
 func matchesLabelFilter(it Item, filter map[string]struct{}) bool {
 	if len(filter) == 0 {
 		return true
@@ -205,6 +217,7 @@ func matchesLabelFilter(it Item, filter map[string]struct{}) bool {
 	return false
 }
 
+// isStaleAwaitingQA provides scrumcheck behavior for this unit.
 func isStaleAwaitingQA(it Item, now time.Time, staleAfter time.Duration) bool {
 	if it.UpdatedAt.IsZero() {
 		return false

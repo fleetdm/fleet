@@ -8,6 +8,7 @@ import (
 	"github.com/shurcooL/githubv4"
 )
 
+// TestHasUncheckedChecklistLine provides scrumcheck behavior for this unit.
 func TestHasUncheckedChecklistLine(t *testing.T) {
 	t.Parallel()
 
@@ -57,6 +58,7 @@ func TestHasUncheckedChecklistLine(t *testing.T) {
 	}
 }
 
+// TestUncheckedChecklistItems provides scrumcheck behavior for this unit.
 func TestUncheckedChecklistItems(t *testing.T) {
 	t.Parallel()
 
@@ -81,6 +83,7 @@ func TestUncheckedChecklistItems(t *testing.T) {
 	}
 }
 
+// TestNormalizeStatusName provides scrumcheck behavior for this unit.
 func TestNormalizeStatusName(t *testing.T) {
 	t.Parallel()
 
@@ -118,6 +121,7 @@ func TestNormalizeStatusName(t *testing.T) {
 	}
 }
 
+// TestUniqueInts provides scrumcheck behavior for this unit.
 func TestUniqueInts(t *testing.T) {
 	t.Parallel()
 
@@ -129,6 +133,7 @@ func TestUniqueInts(t *testing.T) {
 	}
 }
 
+// TestAwaitingAndDoneAndMatchedStatusAndStale provides scrumcheck behavior for this unit.
 func TestAwaitingAndDoneAndMatchedStatusAndStale(t *testing.T) {
 	t.Parallel()
 
@@ -157,6 +162,7 @@ func TestAwaitingAndDoneAndMatchedStatusAndStale(t *testing.T) {
 	}
 }
 
+// TestCompileAndMatchLabelFilter provides scrumcheck behavior for this unit.
 func TestCompileAndMatchLabelFilter(t *testing.T) {
 	t.Parallel()
 

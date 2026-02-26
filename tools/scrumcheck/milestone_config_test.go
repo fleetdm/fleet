@@ -5,6 +5,7 @@ import (
 	"testing"
 )
 
+// TestParseRepoFromIssueURL provides scrumcheck behavior for this unit.
 func TestParseRepoFromIssueURL(t *testing.T) {
 	t.Parallel()
 
@@ -52,6 +53,7 @@ func TestParseRepoFromIssueURL(t *testing.T) {
 	}
 }
 
+// TestIntListFlagSet provides scrumcheck behavior for this unit.
 func TestIntListFlagSet(t *testing.T) {
 	t.Parallel()
 
@@ -69,6 +71,7 @@ func TestIntListFlagSet(t *testing.T) {
 	}
 }
 
+// TestIntListFlagSetInvalid provides scrumcheck behavior for this unit.
 func TestIntListFlagSetInvalid(t *testing.T) {
 	t.Parallel()
 
@@ -78,6 +81,7 @@ func TestIntListFlagSetInvalid(t *testing.T) {
 	}
 }
 
+// TestTitleCaseWords provides scrumcheck behavior for this unit.
 func TestTitleCaseWords(t *testing.T) {
 	t.Parallel()
 

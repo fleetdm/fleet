@@ -8,6 +8,7 @@ import (
 	"time"
 )
 
+// TestStartUIBridgeBindsToLoopback provides scrumcheck behavior for this unit.
 func TestStartUIBridgeBindsToLoopback(t *testing.T) {
 	t.Parallel()
 
@@ -25,6 +26,7 @@ func TestStartUIBridgeBindsToLoopback(t *testing.T) {
 	}
 }
 
+// TestPrepareRequestRejectsForeignOrigin provides scrumcheck behavior for this unit.
 func TestPrepareRequestRejectsForeignOrigin(t *testing.T) {
 	t.Parallel()
 
@@ -47,6 +49,7 @@ func TestPrepareRequestRejectsForeignOrigin(t *testing.T) {
 	}
 }
 
+// TestPrepareRequestRejectsForeignReferer provides scrumcheck behavior for this unit.
 func TestPrepareRequestRejectsForeignReferer(t *testing.T) {
 	t.Parallel()
 
@@ -70,6 +73,7 @@ func TestPrepareRequestRejectsForeignReferer(t *testing.T) {
 	}
 }
 
+// TestPrepareRequestRejectsMissingSessionHeader provides scrumcheck behavior for this unit.
 func TestPrepareRequestRejectsMissingSessionHeader(t *testing.T) {
 	t.Parallel()
 
@@ -92,6 +96,7 @@ func TestPrepareRequestRejectsMissingSessionHeader(t *testing.T) {
 	}
 }
 
+// TestPrepareRequestAcceptsValidLocalRequest provides scrumcheck behavior for this unit.
 func TestPrepareRequestAcceptsValidLocalRequest(t *testing.T) {
 	t.Parallel()
 

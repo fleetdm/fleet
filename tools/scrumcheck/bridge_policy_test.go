@@ -7,6 +7,7 @@ import (
 	"github.com/shurcooL/githubv4"
 )
 
+// TestBuildBridgePolicy provides scrumcheck behavior for this unit.
 func TestBuildBridgePolicy(t *testing.T) {
 	t.Parallel()
 
@@ -84,6 +85,7 @@ func TestBuildBridgePolicy(t *testing.T) {
 	}
 }
 
+// TestBridgeAllowlistChecks provides scrumcheck behavior for this unit.
 func TestBridgeAllowlistChecks(t *testing.T) {
 	t.Parallel()
 
@@ -137,6 +139,7 @@ func TestBridgeAllowlistChecks(t *testing.T) {
 	}
 }
 
+// testIssueItem provides scrumcheck behavior for this unit.
 func testIssueItem(num int, issueURL string) Item {
 	var it Item
 	it.Content.Issue.Number = githubv4.Int(num)

@@ -5,6 +5,7 @@ import (
 	"time"
 )
 
+// TestPhaseTrackerStateTransitions provides scrumcheck behavior for this unit.
 func TestPhaseTrackerStateTransitions(t *testing.T) {
 	t.Parallel()
 
@@ -58,6 +59,7 @@ func TestPhaseTrackerStateTransitions(t *testing.T) {
 	p.bridgeStopped("done")
 }
 
+// TestSmallProgressHelpers provides scrumcheck behavior for this unit.
 func TestSmallProgressHelpers(t *testing.T) {
 	t.Parallel()
 
@@ -85,6 +87,7 @@ func TestSmallProgressHelpers(t *testing.T) {
 	}
 }
 
+// TestNewPhaseTrackerSmoke provides scrumcheck behavior for this unit.
 func TestNewPhaseTrackerSmoke(t *testing.T) {
 	p := newPhaseTracker([]string{"phase-a"})
 	if p == nil {
