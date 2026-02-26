@@ -4313,6 +4313,7 @@ func testFleetMaintainedAppInstallerUpdates(t *testing.T, ds *Datastore) {
 
 	tmFilter := fleet.TeamFilter{User: test.UserAdmin}
 	titles, _, _, err := ds.ListSoftwareTitles(ctx, fleet.SoftwareTitleListOptions{TeamID: ptr.Uint(0), Platform: "darwin", AvailableForInstall: true}, tmFilter)
+	require.NoError(t, err)
 	require.Len(t, titles, 1)
 	require.False(t, *titles[0].SoftwarePackage.InstallDuringSetup)
 	require.False(t, *titles[0].SoftwarePackage.SelfService)
@@ -4353,6 +4354,7 @@ func testFleetMaintainedAppInstallerUpdates(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 
 	titles, _, _, err = ds.ListSoftwareTitles(ctx, fleet.SoftwareTitleListOptions{TeamID: ptr.Uint(0), Platform: "darwin", AvailableForInstall: true}, tmFilter)
+	require.NoError(t, err)
 	require.Len(t, titles, 1)
 	require.True(t, *titles[0].SoftwarePackage.InstallDuringSetup)
 	require.True(t, *titles[0].SoftwarePackage.SelfService)
