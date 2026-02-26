@@ -2517,7 +2517,7 @@ func (ds *Datastore) BatchExecuteScript(ctx context.Context, userID *uint, scrip
 		}
 
 		if !teamIDEq(host.TeamID, script.TeamID) {
-			return "", ctxerr.Errorf(ctx, "all hosts must be on the same team as the script")
+			return "", ctxerr.Errorf(ctx, "all hosts must be on the same fleet as the script")
 		}
 	}
 
