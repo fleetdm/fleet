@@ -17,6 +17,7 @@ import (
 
 const (
 	phaseReleaseStoryTODO = iota
+	phaseGenericQueries
 	phaseMissingSprint
 	phaseMissingMilestones
 	phaseReleaseLabel
@@ -84,6 +85,7 @@ func main() {
 	client := githubv4.NewClient(oauth2.NewClient(ctx, src))
 	tracker := newPhaseTracker([]string{
 		"Release stories with TODO",
+		"Generic queries scan",
 		"Missing sprint check",
 		"Missing milestones check",
 		"Release label guard",
@@ -107,6 +109,17 @@ func main() {
 	releaseStoryTODO := runReleaseStoryTODOChecks(ctx, client, *org, projectNums, *limit, token, labelFilter)
 	tracker.phaseDone(phaseReleaseStoryTODO, phaseSummaryKV(
 		fmt.Sprintf("issues=%d", len(releaseStoryTODO)),
+		shortDuration(time.Since(start)),
+	))
+
+	tracker.phaseStart(phaseGenericQueries)
+	start = time.Now()
+	// Generic query checks are token-authenticated GitHub issue searches with
+	// placeholder expansion (<<group>> / <<project>>) and independent reporting.
+	genericQueries := runGenericQueryChecks(ctx, token, projectNums, groupLabels)
+	tracker.phaseDone(phaseGenericQueries, phaseSummaryKV(
+		fmt.Sprintf("queries=%d", len(genericQueries)),
+		fmt.Sprintf("issues=%d", countGenericQueryIssues(genericQueries)),
 		shortDuration(time.Since(start)),
 	))
 
@@ -227,6 +240,7 @@ func main() {
 		missingAssignees,
 		releaseLabelIssues,
 		releaseStoryTODO,
+		genericQueries,
 		unassignedUnreleasedBugs,
 		groupLabels,
 		timestampCheck,
@@ -260,6 +274,7 @@ func main() {
 				missingAssignees,
 				releaseLabelIssues,
 				releaseStoryTODO,
+				genericQueries,
 				fresh,
 				groupLabels,
 				timestampCheck,
@@ -284,6 +299,7 @@ func main() {
 				missingAssignees,
 				releaseLabelIssues,
 				fresh,
+				genericQueries,
 				unassignedUnreleasedBugs,
 				groupLabels,
 				timestampCheck,
@@ -308,6 +324,7 @@ func main() {
 				missingAssignees,
 				releaseLabelIssues,
 				releaseStoryTODO,
+				genericQueries,
 				unassignedUnreleasedBugs,
 				groupLabels,
 				timestampCheck,
@@ -339,6 +356,7 @@ func main() {
 			refMissingAssignees := runMissingAssigneeChecks(refreshCtx, client, *org, projectNums, *limit, token)
 			refReleaseIssues := runReleaseLabelChecks(refreshCtx, client, *org, projectNums, *limit)
 			refReleaseTODO := runReleaseStoryTODOChecks(refreshCtx, client, *org, projectNums, *limit, token, labelFilter)
+			refGenericQueries := runGenericQueryChecks(refreshCtx, token, projectNums, groupLabels)
 			refUnreleased := runUnassignedUnreleasedBugChecks(refreshCtx, client, *org, projectNums, *limit, token, labelFilter, groupLabels)
 			refTimestamp := checkUpdatesTimestamp(refreshCtx, time.Now().UTC())
 
@@ -354,6 +372,7 @@ func main() {
 				refMissingAssignees,
 				refReleaseIssues,
 				refReleaseTODO,
+				refGenericQueries,
 				refUnreleased,
 				groupLabels,
 				refTimestamp,

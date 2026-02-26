@@ -156,6 +156,22 @@ type ReleaseStoryTODOProjectReport struct {
 	Columns    []MissingMilestoneGroupReport
 }
 
+type GenericQueryReportItem struct {
+	Number    int
+	Title     string
+	URL       string
+	Repo      string
+	Status    string
+	Assignees []string
+	Labels    []string
+}
+
+type GenericQueryReport struct {
+	Title string
+	Query string
+	Items []GenericQueryReportItem
+}
+
 type MilestoneSuggestion struct {
 	Number int
 	Title  string
@@ -177,6 +193,7 @@ type HTMLReportData struct {
 	AssignedToMe              []MissingAssigneeProjectReport
 	ReleaseLabel              []ReleaseLabelProjectReport
 	ReleaseStoryTODO          []ReleaseStoryTODOProjectReport
+	GenericQueries            []GenericQueryReport
 	UnassignedUnreleased      []UnassignedUnreleasedProjectReport
 	TotalAwaiting             int
 	TotalStale                int
@@ -187,6 +204,7 @@ type HTMLReportData struct {
 	TotalAssignedToMe         int
 	TotalRelease              int
 	TotalReleaseStoryTODO     int
+	TotalGenericQueries       int
 	TotalUnassignedUnreleased int
 	TotalTrackedUnreleased    int
 	TimestampCheck            TimestampCheckResult
@@ -200,6 +218,7 @@ type HTMLReportData struct {
 	AssignedToMeClean         bool
 	ReleaseClean              bool
 	ReleaseStoryTODOClean     bool
+	GenericQueriesClean       bool
 	UnassignedUnreleasedClean bool
 }
 
@@ -215,6 +234,7 @@ func buildHTMLReportData(
 	missingAssignees []MissingAssigneeIssue,
 	releaseIssues []ReleaseLabelIssue,
 	releaseStoryTODO []ReleaseStoryTODOIssue,
+	genericQueries []GenericQueryResult,
 	unassignedUnreleased []UnassignedUnreleasedBugIssue,
 	groupLabels []string,
 	timestampCheck TimestampCheckResult,
@@ -571,6 +591,29 @@ func buildHTMLReportData(
 		})
 	}
 
+	genericQueryReports := make([]GenericQueryReport, 0, len(genericQueries))
+	totalGenericQueries := 0
+	for _, query := range genericQueries {
+		items := make([]GenericQueryReportItem, 0, len(query.Items))
+		for _, item := range query.Items {
+			items = append(items, GenericQueryReportItem{
+				Number:    item.Number,
+				Title:     item.Title,
+				URL:       item.URL,
+				Repo:      item.RepoOwner + "/" + item.RepoName,
+				Status:    item.Status,
+				Assignees: append([]string(nil), item.CurrentAssignees...),
+				Labels:    append([]string(nil), item.CurrentLabels...),
+			})
+		}
+		totalGenericQueries += len(items)
+		genericQueryReports = append(genericQueryReports, GenericQueryReport{
+			Title: query.Title,
+			Query: query.Query,
+			Items: items,
+		})
+	}
+
 	groupedUnassignedByLabel := make(map[string]map[string]UnassignedUnreleasedStatusReport)
 	for _, label := range groupLabels {
 		groupedUnassignedByLabel[label] = make(map[string]UnassignedUnreleasedStatusReport)
@@ -653,6 +696,7 @@ func buildHTMLReportData(
 		AssignedToMe:              assignedToMeProjects,
 		ReleaseLabel:              releaseProjects,
 		ReleaseStoryTODO:          releaseStoryTODOProjects,
+		GenericQueries:            genericQueryReports,
 		UnassignedUnreleased:      unassignedProjects,
 		TotalAwaiting:             totalAwaiting,
 		TotalStale:                totalStale,
@@ -663,6 +707,7 @@ func buildHTMLReportData(
 		TotalAssignedToMe:         totalAssignedToMe,
 		TotalRelease:              totalRelease,
 		TotalReleaseStoryTODO:     totalReleaseStoryTODO,
+		TotalGenericQueries:       totalGenericQueries,
 		TotalUnassignedUnreleased: totalUnassignedUnreleased,
 		TotalTrackedUnreleased:    totalTrackedUnreleased,
 		TimestampCheck:            timestampCheck,
@@ -676,6 +721,7 @@ func buildHTMLReportData(
 		AssignedToMeClean:         totalAssignedToMe == 0,
 		ReleaseClean:              totalRelease == 0,
 		ReleaseStoryTODOClean:     totalReleaseStoryTODO == 0,
+		GenericQueriesClean:       totalGenericQueries == 0,
 		UnassignedUnreleasedClean: totalUnassignedUnreleased == 0,
 	}
 }
@@ -1066,6 +1112,9 @@ var htmlReportTemplate = `<!doctype html>
         <button class="menu-btn active" data-tab="release-story-todo" role="tab">
           <span class="status-dot {{if .ReleaseStoryTODOClean}}ok{{end}}"></span>📝 Release stories TODO
         </button>
+        <button class="menu-btn" data-tab="generic-queries" role="tab">
+          <span class="status-dot {{if .GenericQueriesClean}}ok{{end}}"></span>🔎 Generic queries
+        </button>
         <button class="menu-btn" data-tab="sprint" role="tab">
           <span class="status-dot {{if .SprintClean}}ok{{end}}"></span>🗓️ Missing sprint
         </button>
@@ -1107,6 +1156,17 @@ var htmlReportTemplate = `<!doctype html>
         <p class="subtle">Stories with <code>:release</code> label that still contain <code>TODO</code> text in the body.</p>
         <div id="release-story-todo-content">
           <p class="empty">🛰️ Loading release stories TODO from bridge…</p>
+        </div>
+      </section>
+
+      <section id="tab-generic-queries" class="panel" role="tabpanel">
+        <div class="column-head">
+          <h2>🔎 Generic queries</h2>
+          <button class="fix-btn refresh-check-btn" data-refresh-check="generic-queries">Refresh</button>
+        </div>
+        <p class="subtle">Runs configured issue queries in order. Placeholders: <code>&lt;&lt;group&gt;&gt;</code> and <code>&lt;&lt;project&gt;&gt;</code>.</p>
+        <div id="generic-queries-content">
+          <p class="empty">🛰️ Loading generic query results from bridge…</p>
         </div>
       </section>
 
@@ -1617,6 +1677,7 @@ var htmlReportTemplate = `<!doctype html>
         if (!root || !state) return;
         root.innerHTML = '' +
           '<span class="pill">Release stories with TODO (selected projects): ' + escHTML(state.TotalReleaseStoryTODO) + '</span>' +
+          '<span class="pill">Generic query issues: ' + escHTML(state.TotalGenericQueries) + '</span>' +
           '<span class="pill">Awaiting QA violations: ' + escHTML(state.TotalAwaiting) + '</span>' +
           '<span class="pill">Stale Awaiting QA items: ' + escHTML(state.TotalStale) + '</span>' +
           '<span class="pill">Missing milestones (selected projects): ' + escHTML(state.TotalNoMilestone) + '</span>' +
@@ -1797,6 +1858,33 @@ var htmlReportTemplate = `<!doctype html>
         setTabClean('release', total === 0);
       }
 
+      function renderGenericQueriesFromState(state) {
+        const root = document.getElementById('generic-queries-content');
+        if (!root) return;
+        const queries = Array.isArray(state.GenericQueries) ? state.GenericQueries : [];
+        if (queries.length === 0) {
+          root.innerHTML = '<p class="empty">🟢 No generic queries configured.</p>';
+          setTabClean('generic-queries', true);
+          return;
+        }
+        let total = 0;
+        root.innerHTML = queries.map((query) => {
+          const items = Array.isArray(query.Items) ? query.Items : [];
+          total += items.length;
+          const itemsHTML = items.length === 0
+            ? '<p class="empty">🟢 No issues found for this query.</p>'
+            : items.map((it) => (
+              '<article class="item">' +
+                '<div><strong>#' + escHTML(it.Number) + ' - ' + escHTML(it.Title) + '</strong></div>' +
+                '<div><a href="' + escHTML(it.URL) + '" target="_blank" rel="noopener noreferrer">' + escHTML(it.URL) + '</a></div>' +
+                '<ul><li>Status: ' + escHTML(it.Status || '(unset)') + '</li><li>Repository: ' + escHTML(it.Repo || '(unknown)') + '</li><li>Assignees: ' + escHTML(listOrEmpty(it.Assignees, '(none)')) + '</li><li>Labels: ' + escHTML(listOrEmpty(it.Labels, '(none)')) + '</li></ul>' +
+              '</article>'
+            )).join('');
+          return '<div class="project"><h3>' + escHTML(query.Title || '(untitled query)') + '</h3><p class="subtle"><strong>Query:</strong> <code>' + escHTML(query.Query || '') + '</code></p>' + itemsHTML + '</div>';
+        }).join('');
+        setTabClean('generic-queries', total === 0);
+      }
+
       async function fetchStateAndRender(forceRefresh) {
         const bridgeURL = document.body.dataset.bridgeUrl || window.location.origin || '';
         if (!bridgeURL || !bridgeSession) {
@@ -1821,6 +1909,7 @@ var htmlReportTemplate = `<!doctype html>
         renderAssigneeSection('missing-assignee-content', 'missing-assignee', state.MissingAssignee, false);
         renderAssigneeSection('assigned-to-me-content', 'assigned-to-me', state.AssignedToMe, true);
         renderReleaseFromState(state);
+        renderGenericQueriesFromState(state);
         await refreshReleaseStoryTODOPanel(false);
         await refreshMissingSprintPanel(false);
         await refreshTimestampPanel(false);

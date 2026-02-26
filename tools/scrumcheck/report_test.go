@@ -75,6 +75,7 @@ func TestBuildHTMLReportDataIncludesAllSelectedProjects(t *testing.T) {
 			CurrentLabels: []string{":product"},
 		}},
 		nil,
+		nil,
 		[]UnassignedUnreleasedBugIssue{{
 			Item:          inReviewItem,
 			ProjectNum:    71,
@@ -155,6 +156,7 @@ func TestBuildHTMLReportDataAssignedToMeIsSeparateAndFails(t *testing.T) {
 		nil,
 		nil,
 		nil,
+		nil,
 		[]string{"g-orchestration"},
 		TimestampCheckResult{},
 		false,
@@ -210,6 +212,7 @@ func TestBuildHTMLReportDataMissingSprintExcludesReadyForRelease(t *testing.T) {
 			Status:        "✅ Ready for release",
 			CurrentSprint: "",
 		}},
+		nil,
 		nil,
 		nil,
 		nil,

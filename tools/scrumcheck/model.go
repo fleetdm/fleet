@@ -136,3 +136,23 @@ type ReleaseStoryTODOIssue struct {
 	CurrentLabels []string
 	BodyPreview   []string
 }
+
+type GenericQueryIssue struct {
+	Number           int
+	Title            string
+	URL              string
+	RepoOwner        string
+	RepoName         string
+	Status           string
+	CurrentLabels    []string
+	CurrentAssignees []string
+}
+
+// GenericQueryResult represents one concrete query execution and its tickets.
+// One configured query template can produce multiple GenericQueryResult entries
+// after <<group>> / <<project>> expansion.
+type GenericQueryResult struct {
+	Title string
+	Query string
+	Items []GenericQueryIssue
+}
