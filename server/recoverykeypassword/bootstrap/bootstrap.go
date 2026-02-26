@@ -4,9 +4,9 @@ package bootstrap
 import (
 	"log/slog"
 
+	platform_mysql "github.com/fleetdm/fleet/v4/server/platform/mysql"
 	"github.com/fleetdm/fleet/v4/server/recoverykeypassword"
 	"github.com/fleetdm/fleet/v4/server/recoverykeypassword/internal/mysql"
-	platform_mysql "github.com/fleetdm/fleet/v4/server/platform/mysql"
 )
 
 // New creates a new recovery key password datastore.
