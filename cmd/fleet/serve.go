@@ -511,7 +511,7 @@ the way that the Fleet server works.
 			loggingConfig.KafkaREST.Topic = config.KafkaREST.StatusTopic
 			loggingConfig.Nats.Subject = config.Nats.StatusSubject
 
-			osquerydStatusLogger, err := logging.NewJSONLogger("status", loggingConfig, logger)
+			osquerydStatusLogger, err := logging.NewJSONLogger(cmd.Context(), "status", loggingConfig, logger.SlogLogger())
 			if err != nil {
 				initFatal(err, "initializing osqueryd status logging")
 			}
@@ -528,7 +528,7 @@ the way that the Fleet server works.
 			loggingConfig.KafkaREST.Topic = config.KafkaREST.ResultTopic
 			loggingConfig.Nats.Subject = config.Nats.ResultSubject
 
-			osquerydResultLogger, err := logging.NewJSONLogger("result", loggingConfig, logger)
+			osquerydResultLogger, err := logging.NewJSONLogger(cmd.Context(), "result", loggingConfig, logger.SlogLogger())
 			if err != nil {
 				initFatal(err, "initializing osqueryd result logging")
 			}
@@ -546,7 +546,7 @@ the way that the Fleet server works.
 				loggingConfig.KafkaREST.Topic = config.KafkaREST.AuditTopic
 				loggingConfig.Nats.Subject = config.Nats.AuditSubject
 
-				auditLogger, err = logging.NewJSONLogger("audit", loggingConfig, logger)
+				auditLogger, err = logging.NewJSONLogger(cmd.Context(), "audit", loggingConfig, logger.SlogLogger())
 				if err != nil {
 					initFatal(err, "initializing audit logging")
 				}

@@ -245,7 +245,7 @@ func processCalendarFailingHosts(
 					}
 				}
 
-				userCalendar := calendar.CreateUserCalendarFromConfig(ctx, calendarConfig, logger)
+				userCalendar := calendar.CreateUserCalendarFromConfig(ctx, calendarConfig, logger.SlogLogger())
 				if err := userCalendar.Configure(host.Email); err != nil {
 					logger.ErrorContext(ctx, "configure user calendar", "err", err)
 					continue // continue with next host
@@ -392,7 +392,7 @@ func processFailingHostExistingCalendarEvent(
 	var newETag string
 	var genBodyFn fleet.CalendarGenBodyFn = func(conflict bool) (string, bool, error) {
 		var body string
-		body, generatedTag = calendar.GenerateCalendarEventBody(ctx, ds, orgName, host, policyIDtoPolicy, conflict, logger)
+		body, generatedTag = calendar.GenerateCalendarEventBody(ctx, ds, orgName, host, policyIDtoPolicy, conflict, logger.SlogLogger())
 		return body, true, nil
 	}
 
@@ -610,7 +610,7 @@ func attemptCreatingEventOnUserCalendar(
 		calendarEvent, err := userCalendar.CreateEvent(
 			preferredDate, func(conflict bool) (string, bool, error) {
 				var body string
-				body, generatedTag = calendar.GenerateCalendarEventBody(ctx, ds, orgName, host, policyIDtoPolicy, conflict, logger)
+				body, generatedTag = calendar.GenerateCalendarEventBody(ctx, ds, orgName, host, policyIDtoPolicy, conflict, logger.SlogLogger())
 				return body, true, nil
 			}, fleet.CalendarCreateEventOpts{},
 		)
@@ -704,7 +704,7 @@ func removeCalendarEventsFromPassingHosts(
 					logger.ErrorContext(ctx, "get calendar event from DB", "err", err)
 					continue
 				}
-				userCalendar := calendar.CreateUserCalendarFromConfig(ctx, calendarConfig, logger)
+				userCalendar := calendar.CreateUserCalendarFromConfig(ctx, calendarConfig, logger.SlogLogger())
 				if err := deleteCalendarEvent(ctx, ds, userCalendar, calendarEvent); err != nil {
 					logger.ErrorContext(ctx, "delete user calendar event", "err", err)
 					continue
@@ -774,7 +774,7 @@ func cronCalendarEventsCleanup(ctx context.Context, ds fleet.Datastore, logger *
 			GoogleCalendarIntegration: *appConfig.Integrations.GoogleCalendar[0],
 			ServerURL:                 appConfig.ServerSettings.ServerURL,
 		}
-		userCalendar = calendar.CreateUserCalendarFromConfig(ctx, calConfig, logger)
+		userCalendar = calendar.CreateUserCalendarFromConfig(ctx, calConfig, logger.SlogLogger())
 	}
 
 	// If global setting is disabled, we remove all calendar events from the DB
@@ -850,7 +850,7 @@ func deleteCalendarEventsInParallel(
 				for calEvent := range calendarEventCh {
 					var userCalendar fleet.UserCalendar
 					if calendarConfig != nil {
-						userCalendar = calendar.CreateUserCalendarFromConfig(ctx, calendarConfig, logger)
+						userCalendar = calendar.CreateUserCalendarFromConfig(ctx, calendarConfig, logger.SlogLogger())
 					}
 					if err := deleteCalendarEvent(ctx, ds, userCalendar, calEvent); err != nil {
 						logger.ErrorContext(ctx, "delete user calendar event", "err", err)
